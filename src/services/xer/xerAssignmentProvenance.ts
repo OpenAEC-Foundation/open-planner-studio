@@ -1,5 +1,5 @@
 /**
- * Parservrije TASKRSRC-provenanceregels die de X6-producent en X9-archiefvalidator delen.
+ * Parservrije TASKRSRC-provenanceregels die de assignmentproducent en de bronarchiefvalidator delen.
  * De volgorde is gedrag: resource vóór role vóór task, exact zoals P6-assignments worden gelezen.
  */
 

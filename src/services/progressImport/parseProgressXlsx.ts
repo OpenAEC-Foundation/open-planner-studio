@@ -1,4 +1,4 @@
-// Issue #27 etappe 3 (T8, A9): DE ENIGE module van de voortgangsimport die van XLSX weet — precies
+// DE ENIGE module van de voortgangsimport die van XLSX weet — precies
 // zoals `parseProgressCsv.ts` de enige is die van CSV weet. `sheetValues.ts`/`matchRows.ts`/
 // `buildPlan.ts` blijven bestandsformaat-agnostisch tegen het `ProgressSheet`-contract; deze lezer
 // levert exact hetzelfde returntype en raakt hen niet aan. Komt er ook maar één woord over ZIP, XML
@@ -11,17 +11,17 @@
 //  - **Datumcellen worden ISO.** Een `numFmt`-datum draagt in het bestand een SERIEEL GETAL; dat
 //    wordt hier `YYYY-MM-DD` (met het `date1904`-stelsel van de werkmap). Daardoor geeft
 //    `detectDateOrder` `noAmbiguity` terug en verschijnt de dag/maand-vraag bij een `.xlsx` nooit —
-//    exact de belofte uit A9. Een serieel getal dat in het 1900-stelsel niet eenduidig leesbaar is
+//    exact wat de `.xlsx`-route belooft. Een serieel getal dat in het 1900-stelsel niet eenduidig leesbaar is
 //    (< 61, de schrikkelbug) wordt NIET geraden: de rauwe tekst gaat door en de rij wordt zichtbaar
 //    onleesbaar.
 //  - **Percentage-opgemaakte cellen worden omgerekend.** Excel bewaart 45 % als `0.45` met een
-//    percentage-`numFmt`; de kolom is bij ons altijd een percentage (E6/A5.6), dus zonder deze
+//    percentage-`numFmt`; de kolom is bij ons altijd een percentage, dus zonder deze
 //    omrekening zou "45 %" als 0,45 % binnenkomen.
 //  - Dezelfde `boundedCell`/`hasControlChar`-begrenzing en dezelfde bestandsbrede weigeringen.
 //
 // `rowNumber` is hier LETTERLIJK het Excel-rijnummer (1-gebaseerd, kopregel inbegrepen) — het komt
 // uit het `r`-attribuut en niet uit een teller, want het is de sleutel van de handmatige
-// koppelingen (A11).
+// koppelingen.
 
 import {
   readXlsxSheet,
@@ -48,7 +48,7 @@ function fileIssueFor(issue: XlsxReadIssue): ProgressFileIssue {
     case 'encrypted': return 'encrypted';
     // `notAZip`/`noSheet`/`malformed` zijn voor de gebruiker één en hetzelfde: dit bestand is geen
     // leesbaar voortgangsblad. Alleen `encrypted` verdient een eigen woord, want daar kán hij iets
-    // aan doen (K8: geen nutteloze melding op een bestand dat gewoon een wachtwoord heeft).
+    // aan doen.
     default: return 'unreadable';
   }
 }
@@ -63,7 +63,7 @@ function cellText(cell: XlsxCell | undefined, epoch1904: boolean): string | unde
     if (cell.isDate === true) {
       const iso = serialToIso(cell.num, epoch1904);
       // Onleesbaar serieel getal ⇒ de rauwe tekst door, zodat de rij zichtbaar onleesbaar wordt.
-      // Hier wordt NOOIT een datum geraden (hardening-checklist).
+      // Hier wordt NOOIT een datum geraden.
       return iso ?? cell.text;
     }
     if (cell.isPercent === true) {
@@ -94,7 +94,7 @@ export async function parseProgressXlsx(
   bytes: Uint8Array,
   limits: ProgressImportLimits = PROGRESS_IMPORT_LIMITS,
 ): Promise<ProgressSheet> {
-  // Grens vóór allocatie (hardening-checklist).
+  // Grens vóór allocatie.
   if (bytes.byteLength > limits.maxBytes) return refuseSheet('tooLarge');
 
   let sheet;

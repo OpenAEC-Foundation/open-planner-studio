@@ -32,31 +32,16 @@ import {
   milestoneKindAt, promoteHourCalendars, registerCalendarBands,
 } from '@/services/subdayIo';
 
-// T4 (MSPDI-uitzonderingssemantiek, spiegel van T3) — hergebruikt T3's `buildContributions`
-// (record-opbouw MET budget-klem TIJDENS de opbouw, niet pas erna) en `resolveContributions`
-// (precedentie-/invariant-motor) rechtstreeks i.p.v. een tweede expansie te bouwen (plan-§T4).
-// `RECURRENCE_TYPES`/`RELATIVE_MAP` zijn LETTERLIJK dezelfde codetabellen als MSPDI's eigen
-// `<Type>`-element gebruikt (geverifieerd tegen `org.mpxj.mspdi.MSPDIReader`'s eigen
-// `RECURRENCE_TYPES`/`RELATIVE_MAP` — byte-voor-byte identiek aan de MPP-tabellen).
+// MSPDI-uitzonderingssemantiek gebruikt dezelfde `buildContributions` (record-opbouw MET budgetklem
+// TIJDENS de opbouw) en `resolveContributions` (precedentie-/invariantmotor) als de MPP-kant; deze
+// module bouwt alleen haar eigen `RawException[]` uit `<Exception>`-elementen. Materialiseer niet
+// eerst zelf: dat omzeilt het budget (445 KB XML kostte zo 5 s/478 MB). `RECURRENCE_TYPES`/
+// `RELATIVE_MAP` zijn letterlijk dezelfde codetabellen als MSPDI's `<Type>` (MPXJ's `MSPDIReader`
+// gebruikt identieke tabellen).
 //
-// SPEC-REVIEW-FIX (blokkerend, op 3dd6c3ba): de eerste versie bouwde zijn EIGEN
-// `buildMspdiContributions`-functie die elk record EERST volledig materialiseerde (via
-// `expandRecurrence`) en het `HolidayBudget` pas in `resolveContributions` toepaste — een DoS
-// (reviewer-repro: 445 KB XML → 5192 ms/478 MB, waar het MPP-pad met identieke records 262 ms/26 MB
-// doet). `buildContributions` (hieronder geïmporteerd i.p.v. gekopieerd) klemt WEL tijdens de
-// opbouw: een lokale `remaining`-aftelling (gestart bij `budget.remaining`) begrenst de TOTALE
-// hoeveelheid gematerialiseerde `ownDates` over ALLE records samen, ongeacht hoeveel records het
-// bestand claimt — zie die functie se eigen toelichting (MIDDEN-1-fix) in `calendarRecurrence.ts`.
-// Deze module bouwt daarom nu alleen nog zijn EIGEN `RawException[]` (uit `<Exception>`-elementen)
-// en geeft die rechtstreeks aan `buildContributions`/`resolveContributions` door — geen eigen
-// contributie-opbouw meer, dus geen tweede plek waar deze klem kan wegdriften.
-//
-// T3-CHUNK-GRENS-FIX (coördinatiepunt): dit importeert bewust rechtstreeks uit de FORMAAT-NEUTRALE
-// bladmodule `@/services/calendarRecurrence` — NIET uit de MPP-kalendermodule (die her-exporteert
-// dezelfde namen alleen nog backward-compatible voor bestaande callers, zie de toelichting daar). Een
-// statische import uit de MPP-lezermodule zou de hele MPP-parser (CFB + fieldmaps) de main-chunk in
-// trekken (zie `tests/planning/check-mpp-chunk-boundary.ts`, T11) — dat was precies deze module se
-// eerdere fout, hier gecorrigeerd.
+// Importeer rechtstreeks uit de formaat-neutrale bladmodule `@/services/calendarRecurrence`, NIET
+// uit de MPP-kalendermodule: dat zou de hele MPP-parser de main-chunk in trekken
+// (`tests/planning/check-mpp-chunk-boundary.ts`).
 import {
   buildContributions, resolveContributions, newHolidayBudget, RECURRENCE_TYPES, RELATIVE_MAP,
   MAX_CALENDAR_EXCEPTIONS,
@@ -131,42 +116,28 @@ function explicitOpsMilestoneKind(te: Element, enabled: boolean): MilestoneKind 
 /**
  * Alleen een door OPS zelf gedefinieerde marker is een expliciete taakeenheid. DurationFormat is in
  * MSPDI een presentatieformaat en mag een bestaand uurproject dus niet stil herinterpreteren. Een
- * vreemd of legacy bestand zonder marker volgt exact de pre-T1-regel: uurkalender => minutenbron.
+ * vreemd of legacy bestand zonder marker volgt de regel: uurkalender ⇒ minutenbron.
  */
 function taskDurationUnit(te: Element, hourCalendar: boolean, opsMarkerFieldId: string | null): 'days' | 'hours' {
   return explicitOpsDurationUnit(te, opsMarkerFieldId) ?? (hourCalendar ? 'hours' : 'days');
 }
 
-/** SPEC-REVIEW-FIX (blokkerend, op 3dd6c3ba) — bovengrens op het aantal `<Calendar>`-elementen dat
- *  de resource-kalenderlus in `readMSPDI` materialiseert. Vóór deze klem was de lus ONBEGRENSD: elke
- *  bibliotheek-kalender krijgt via `applyCalendarBody` zijn EIGEN `WorkCalendar`-object (workDays,
- *  bandstructuren, en sinds T4 evt. `holidays`/`workingExceptions`) — een geprepareerd, tekstueel
- *  (dus GOEDKOOP op te blazen, in tegenstelling tot MPP se binaire encoding) XML-bestand met N
- *  `<Calendar>`-elementen zou N volledige kalenderobjecten alloceren, ongeacht hoe klein elk element
- *  zelf is. Dit is dezelfde bugklasse als `mppCalendars.ts`'s `MAX_CALENDARS` (T6-kwaliteitsreview
- *  C1): het PER-KALENDER `MAX_CALENDAR_EXCEPTIONS`/gedeelde `HolidayBudget` begrenst alleen de
- *  UITZONDERINGS-materialisatie per kalender, niet het AANTAL kalender-OBJECTEN zelf.
- *
- *  Gemeten corpuswaarde: de drie `.mpp.xml`-ground-truths dragen 9, 11 en 13 `<Calendar>`-elementen
- *  (dezelfde bronprojecten als `mppCalendars.ts`'s eigen "hoogstens 13 kalenders per bestand"-
- *  meting — MPP en MSPDI zijn hier letterlijk dezelfde onderliggende MS-Project-data, alleen anders
- *  geserialiseerd). 1024 (dezelfde bovengrens als `MAX_CALENDARS` in `mppCalendars.ts`, bewust
- *  gelijkgehouden i.p.v. een eigen, afwijkend getal te verzinnen voor identieke brondata) is ruim
- *  boven elk realistisch project, maar begrenst een geprepareerd bestand hard: de lus stopt zodra
- *  `resourceCalendars.length` deze klem raakt, de rest van (mogelijk zeer veel) resterende
- *  `<Calendar>`-elementen wordt dan simpelweg niet meer bekeken. Ergste geval zonder klem: een
- *  100.001-`<Calendar>`-XML (elk element kan minimaal zijn — alleen `<UID>`/`<Name>`, enkele
- *  tientallen bytes) laat deze module 100.001 volledige `WorkCalendar`-objecten alloceren, die
- *  daarna via `ImportResult.resourceCalendars` in de app-state/undo-snapshots/IFC-saves belanden. */
+/** Bovengrens op het aantal `<Calendar>`-elementen dat de resourcekalenderlus materialiseert. Een
+ *  tekstueel (goedkoop op te blazen) XML-bestand met N minimale `<Calendar>`-elementen zou anders N
+ *  volledige `WorkCalendar`-objecten alloceren, die via `ImportResult.resourceCalendars` in de
+ *  app-state, undo-snapshots en IFC-saves belanden. Dezelfde bugklasse en dezelfde grens als
+ *  `MAX_CALENDARS` in `mppCalendars.ts`; `MAX_CALENDAR_EXCEPTIONS`/het gedeelde `HolidayBudget`
+ *  begrenzen alleen de uitzonderingen, niet het aantal kalenders. Het corpus heeft 9–13 kalenders per
+ *  bestand. */
 const MAX_MSPDI_CALENDARS = 1_024;
 
-// De rauwe-banden-registry (voorheen een lokale WeakMap) en `synth*BandsFromScalar` wonen nu gedeeld
-// in subdayIo (F5-c/d/e). WORKCONTOUR_TO_CURVE (spiegel van mspdiWriter's CURVE_TO_WORKCONTOUR, §8.3)
-// komt uit de writer — daar programmatisch afgeleid, dus reader en writer kunnen niet divergeren.
+// De rauwe-bandenregistry en `synth*BandsFromScalar` staan in subdayIo. WORKCONTOUR_TO_CURVE (spiegel
+// van mspdiWriter's CURVE_TO_WORKCONTOUR) komt uit de writer, waar hij programmatisch is afgeleid,
+// dus reader en writer kunnen niet divergeren.
 
-// Dunne lokale wrappers rond de gedeelde XML-primitieven (F5-b). MSPDI leest DESCENDANT-tags
-// (`getElementsByTagName`), waar P6 juist alleen directe kinderen leest — die scope-keuze blijft
-// hiermee per formaat bewaard terwijl de parse-fallback-conventie gedeeld is.
+// Dunne lokale wrappers rond de gedeelde XML-primitieven. MSPDI leest DESCENDANT-tags
+// (`getElementsByTagName`), waar P6 alleen directe kinderen leest — die scope-keuze blijft per
+// formaat bewaard terwijl de parse-fallback-conventie gedeeld is.
 function getElementText(parent: Element, tagName: string): string {
   return descendantText(parent, tagName);
 }
@@ -179,7 +150,7 @@ function getElementFloat(parent: Element, tagName: string, fallback = 0): number
   return toFloat(getElementText(parent, tagName), fallback);
 }
 
-/** MS Project-datum in DAG-modus (`2026-03-09T08:00:00` → `2026-03-09`); gedeeld met P6 (F5-a). */
+/** MS Project-datum in DAG-modus (`2026-03-09T08:00:00` → `2026-03-09`); gedeeld met P6. */
 function parseMSPDate(s: string): string {
   return isoDatePrefixOrToday(s);
 }
@@ -194,9 +165,9 @@ function mspDurationMinutes(s: string): number | null {
 }
 
 /**
- * Duur in DAGEN (dag-modus). Fase 2.8b (§7.3): de hardcoded `/8` is vervangen door `hoursPerDay`
- * (latente bug bij niet-8u-kalenders), en de uren komen uit `mspDurationMinutes`. `PnD` blijft
- * elapsed-dagen. In uur-modus gebruikt de reader `mspDurationMinutes` rechtstreeks (geen afronding).
+ * Duur in DAGEN (dag-modus): de uren uit `mspDurationMinutes` gedeeld door `hoursPerDay` (geen vaste
+ * `/8`). `PnD` blijft elapsed-dagen. In uur-modus gebruikt de reader `mspDurationMinutes`
+ * rechtstreeks (geen afronding).
  */
 function parseMSPDuration(s: string, hoursPerDay: number): number {
   if (!s) return 0;
@@ -224,18 +195,17 @@ function readOpsCustomTaskType(task: Element): { id: string; name?: string } | u
 
 const SEQUENCE_TYPE_BY_MSP_CODE: Partial<Record<number, SequenceType>> = invertRecord(MSP_LINK_TYPE_CODE);
 
-/** Geëxporteerd (fase 3.8 e1, T7) zodat `mppReader.ts`'s TBkndCons-relatielezer exact dezelfde
- *  code-tabel gebruikt i.p.v. een eigen kopie — MPXJ's `RelationType.getInstance` (ConstraintFactory
- *  .java) gebruikt letterlijk dezelfde 0=FF/1=FS/2=SF/3=SS-codering met dezelfde FS-terugval voor
- *  een onbekende/buiten-bereik-waarde, dus hergebruik i.p.v. spiegelen is hier de correcte poort. */
+/** Geëxporteerd zodat `mppReader.ts`'s TBkndCons-relatielezer dezelfde codetabel gebruikt: MPXJ's
+ *  `RelationType.getInstance` (ConstraintFactory.java) gebruikt dezelfde 0=FF/1=FS/2=SF/3=SS-codering
+ *  met dezelfde FS-terugval voor een onbekende waarde. */
 export function mspTypeToSequenceType(type: number): SequenceType {
   return SEQUENCE_TYPE_BY_MSP_CODE[type] ?? 'FINISH_START';
 }
 
 /**
- * Fase 2.9 (§6) — MSPDI `ConstraintType`-code → OPS-constraint (spiegel van `mspConstraintCode`).
- * 2/3 (Must Start/Finish On) zijn HARD ⇒ `MSO`/`MFO` mét `hard:true` (daar klopt de semantiek); 4-7
- * zijn de soft SNET/SNLT/FNET/FNLT; 0 (ASAP, default) en onbekend ⇒ `undefined` (geen constraint).
+ * MSPDI `ConstraintType`-code → OPS-constraint (spiegel van `mspConstraintCode`). 2/3 (Must
+ * Start/Finish On) zijn HARD ⇒ `MSO`/`MFO` mét `hard:true`; 4-7 zijn de soft SNET/SNLT/FNET/FNLT;
+ * 0 (ASAP, default) en onbekend ⇒ `undefined` (geen constraint).
  */
 export function mspCodeToConstraint(code: number): { type: ConstraintType; hard?: boolean } | undefined {
   switch (code) {
@@ -267,22 +237,20 @@ export function readMSPDI(content: string): ImportResult {
   const project = parseProject(root);
   const projectStartRaw = getElementText(root, 'StartDate');
   const missingDates = emptyMissingScheduleDates();
-  // T4: één gedeeld `HolidayBudget` over ALLE kalenders in dit document (projectkalender + elke
-  // resourcekalender) — zie `applyCalendarBody`'s toelichting (spiegelt mppCalendars.ts's C1-
-  // discipline, `MAX_TOTAL_HOLIDAY_SLOTS`).
+  // Eén gedeeld `HolidayBudget` over ALLE kalenders in dit document (projectkalender + elke
+  // resourcekalender) — zie `applyCalendarBody`.
   const holidayBudget = newHolidayBudget();
   const calendar = parseCalendar(root, holidayBudget);
   const hoursPerDay = calendar.hoursPerDay;
 
-  // Resource-kalenders (fase 2.5, §8.2): elk <Calendar>-element in <Calendars> behalve UID 1
-  // (de projectkalender, altijd als eerste geschreven/gelezen — zelfde aanname als parseCalendar).
+  // Resourcekalenders: elk <Calendar>-element in <Calendars> behalve UID 1 (de projectkalender,
+  // altijd als eerste geschreven/gelezen — zelfde aanname als parseCalendar).
   const calendarsRoot = root.getElementsByTagName('Calendars')[0];
   const calUidToId = new Map<number, string>();
   const resourceCalendars: WorkCalendar[] = [];
   if (calendarsRoot) {
     const calElements = calendarsRoot.getElementsByTagName('Calendar');
-    // MAX_MSPDI_CALENDARS: zie de constante se meetcommentaar hierboven — begrenst het AANTAL
-    // gematerialiseerde resource-kalenderOBJECTEN, niet alleen hun uitzonderingsinhoud.
+    // MAX_MSPDI_CALENDARS begrenst het AANTAL gematerialiseerde kalenderobjecten.
     for (let i = 0; i < calElements.length && resourceCalendars.length < MAX_MSPDI_CALENDARS; i++) {
       const calEl = calElements[i];
       if (calEl.parentElement !== calendarsRoot) continue;
@@ -291,9 +259,8 @@ export function readMSPDI(content: string): ImportResult {
       const cal = createDefaultCalendar();
       cal.id = generateId('rescal');
       cal.name = getElementText(calEl, 'Name') || cal.name;
-      // §8.3: werkweek/uren/feestdagen ook voor bibliotheek-kalenders teruglezen (voorheen alleen
-      // naam/id — dezelfde beperking die de projectkalender vóór 2.8a had). MSPDI kent geen
-      // regelset-herkomst (verliesmatrix §8.4) — generation blijft altijd undefined.
+      // Werkweek/uren/feestdagen ook voor bibliotheekkalenders teruglezen. MSPDI kent geen
+      // regelset-herkomst — generation blijft altijd undefined.
       applyCalendarBody(calEl, cal, holidayBudget);
       delete cal.generation;
       calUidToId.set(uid, cal.id);
@@ -301,7 +268,7 @@ export function readMSPDI(content: string): ImportResult {
     }
   }
 
-  // Resources (fase 2.5, §8.2)
+  // Resources
   const resourcesRoot = root.getElementsByTagName('Resources')[0];
   const resources: Resource[] = [];
   const resUidToId = new Map<number, string>();
@@ -323,7 +290,7 @@ export function readMSPDI(content: string): ImportResult {
       const standardRate = getElementText(resEl, 'StandardRate');
 
       // MSP maakt geen onderscheid tussen LABOR/EQUIPMENT/CREW/SUBCONTRACTOR (Type=1 =
-      // "Work") — zonder verdere hint komt dat terug als LABOR (geaccepteerd verlies, §8.4).
+      // "Work") — zonder verdere hint komt dat terug als LABOR (geaccepteerd verlies).
       const resource: Resource = {
         id,
         name,
@@ -347,16 +314,16 @@ export function readMSPDI(content: string): ImportResult {
   const customTaskTypes = new Map<string, CustomTaskType>();
   const uidToId = new Map<number, string>();
   const uidToWbs = new Map<number, string>();
-  // Issue #159: `<OutlineLevel>` per taak, parallel aan `tasks` (undefined = element ontbreekt).
+  // `<OutlineLevel>` per taak, parallel aan `tasks` (undefined = element ontbreekt).
   const outlineLevels: (number | undefined)[] = [];
-  // Taaktypes-etappe: effectieve uren/dag per taak, voor de werkafleiding bij de toewijzingen.
+  // Effectieve uren/dag per taak, voor de werkafleiding bij de toewijzingen.
   const effHpdByTaskId = new Map<string, number>();
   const pendingLinks: { successorId: string; predUid: number; type: number; lag: number; lagFormat: number }[] = [];
-  // Baseline 0 (fase 2.6, §9.1): per taak de gesnapshotte Start/Finish/Duration.
+  // Baseline 0: per taak de gesnapshotte Start/Finish/Duration.
   const baselineEntries: BaselineTask[] = [];
 
-  // Fase 2.8b (§7.3): uur-modus-beslissing per kalender (discriminator a/b/c) vóór het bouwen van de
-  // taken. `effCalIdOfUid` geeft per taak de effectieve kalender-id (CalendarUID 1/ontbrekend =
+  // Uur-modus-beslissing per kalender (discriminator a/b/c) vóór het bouwen van de taken.
+  // `effCalIdOfUid` geeft per taak de effectieve kalender-id (CalendarUID 1/ontbrekend =
   // projectkalender). `taskHourById` voedt de lag-eenheid-keuze verderop.
   const calById = new Map<string, WorkCalendar>([calendar, ...resourceCalendars].map(c => [c.id, c]));
   const effCalIdOfUid = (calUid: number): string => (calUid > 1 && calUidToId.get(calUid)) || calendar.id;
@@ -376,7 +343,7 @@ export function readMSPDI(content: string): ImportResult {
     if (durSignal || dateSignal) cSignalCalIds.add(calId);
   }
   // MSPDI valt terug op de scalar-synth zodra de geregistreerde canonical geen werkdag draagt
-  // (preferCanonicalWhenEmpty = false) — zie de F5-noot bij `promoteHourCalendar`.
+  // (preferCanonicalWhenEmpty = false) — zie `promoteHourCalendar`.
   const hourModeCalIds = promoteHourCalendars(calById, id => cSignalCalIds.has(id), false);
 
   for (let i = 0; i < taskElements.length; i++) {
@@ -397,24 +364,24 @@ export function readMSPDI(content: string): ImportResult {
     const name = getElementText(te, 'Name') || 'Task';
     const wbs = getElementText(te, 'WBS') || `${uid}`;
     uidToWbs.set(uid, wbs);
-    // Taak-kalender (fase 2.8a, §8.3): effectieve <CalendarUID> → task.calendarId. UID 1 (of
-    // ontbrekend, legacy-bestanden) = projectkalender ⇒ undefined (bestaande conventie).
+    // Taakkalender: effectieve <CalendarUID> → task.calendarId. UID 1 (of ontbrekend) =
+    // projectkalender ⇒ undefined.
     const taskCalUid = getElementInt(te, 'CalendarUID', 1);
     const taskCalendarId = taskCalUid > 1 ? calUidToId.get(taskCalUid) : undefined;
-    // Fase 2.8b (§7.3): uur- vs dag-modus voor deze taak.
+    // Uur- vs dag-modus voor deze taak.
     const effCalId = effCalIdOfUid(taskCalUid);
     const isHour = hourModeCalIds.has(effCalId);
     const effHpd = calById.get(effCalId)?.hoursPerDay ?? hoursPerDay;
     effHpdByTaskId.set(id, effHpd);
-    // Taaktypes-etappe (spec §4.2/§4.4): MSP's <Type> (0/1/2 = Fixed Units/Duration/Work) en
-    // <EffortDriven> — dezelfde bewaarvelden als de .mpp-lezer; de werkregel volgt eruit via
-    // `deriveImportedWorkRules`. Ontbrekend/ongeldig ⇒ geen veld (byte-identiek).
+    // MSP's <Type> (0/1/2 = Fixed Units/Duration/Work) en <EffortDriven> — dezelfde bewaarvelden als
+    // de .mpp-lezer; de werkregel volgt eruit via `deriveImportedWorkRules`. Ontbrekend/ongeldig ⇒
+    // geen veld.
     const mspTaskType = mspTaskTypeFromCode(getElementInt(te, 'Type', -1));
     const effortDrivenRaw = getElementText(te, 'EffortDriven').trim().toLowerCase();
     const effortDriven = mspTaskType !== undefined && (effortDrivenRaw === '1' || effortDrivenRaw === 'true');
 
     const durationStr = getElementText(te, 'Duration');
-    // Duur: uur ⇒ minuten (bron van waarheid, geen afronding, §7.3); dag ⇒ het bestaande dag-pad.
+    // Duur: uur ⇒ minuten (bron van waarheid, geen afronding); dag ⇒ het dag-pad.
     const durationUnit = taskDurationUnit(te, isHour, durationUnitMarkerFieldId);
     const durationMinutes = durationUnit === 'hours' ? (mspDurationMinutes(durationStr) ?? 0) : undefined;
     const duration = durationUnit === 'hours'
@@ -428,11 +395,10 @@ export function readMSPDI(content: string): ImportResult {
     if (!startRaw) missingDates.start.add(id);
     if (!finishRaw) missingDates.finish.add(id);
 
-    // "Datums zoals opgeslagen" voor MSPDI (eigenaarsbesluit 2026-09-09): MS Project's EIGEN
-    // rekenuitvoer — `EarlyStart`/`EarlyFinish` (terugval `Start`/`Finish`), `LateStart`/
-    // `LateFinish`, `TotalSlack`/`FreeSlack` (tienden van een minuut) en `Critical` (0/1) — als
-    // apart kanaal (`ImportResult.recordedTimes`), nooit solverinvoer; `task.time` hieronder blijft
-    // byte-identiek. Ontbrekende assen ontbreken.
+    // "Datums zoals opgeslagen" voor MSPDI: MS Project's EIGEN rekenuitvoer — `EarlyStart`/
+    // `EarlyFinish` (terugval `Start`/`Finish`), `LateStart`/`LateFinish`, `TotalSlack`/`FreeSlack`
+    // (tienden van een minuut) en `Critical` (0/1) — als apart kanaal (`ImportResult.recordedTimes`),
+    // nooit solverinvoer. Ontbrekende assen ontbreken.
     {
       const recordedDate = (raw: string): string | undefined =>
         raw ? importDateTime(raw, isHour) : undefined;
@@ -456,27 +422,17 @@ export function readMSPDI(content: string): ImportResult {
       if (recorded) recordedTimes[id] = recorded;
     }
     const isMilestone = getElementInt(te, 'Milestone') === 1;
-    // T4 (§9/O6-vervolg) — MSPDI-spiegel van mppReader.ts's T11-afleiding (`fb385191` + de
-    // her-reviewfix `c0c2cd27`, niet geëxporteerd daar, dus hier lokaal herhaald in
-    // `milestoneKindAt`, zie die functie se docblock voor de exacte-middernacht-nuance):
-    // een UUR-modus-mijlpaal krijgt `milestoneKind` wanneer het opgeslagen anker (finish, of start als
-    // finish ontbreekt, exact op een bandgrens van de EFFECTIEVE (gepromoveerde) kalender ligt.
-    // `finish`/`start` zijn al de juiste, per-taakmodus geparste waarden (isHour ⇒
-    // `parseMSPInstant`-string, minuutprecisie) — hergebruikt i.p.v. een tweede DOM-lookup, zodat dit
-    // nooit een ANDER Finish-element kan raken dan waar `time.scheduleFinish` al op gebaseerd is.
+    // Een UUR-modus-mijlpaal krijgt `milestoneKind` wanneer het opgeslagen anker (finish, of start als
+    // finish ontbreekt) exact op een bandgrens van de EFFECTIEVE (gepromoveerde) kalender ligt
+    // (`milestoneKindAt`, spiegel van de .mpp-lezer). `finish`/`start` zijn al de per-taakmodus
+    // geparste waarden, zodat dit nooit een ander Finish-element raakt dan `time.scheduleFinish`.
     //
-    // H2 (Opus-review T15-iteratie-2): de eerdere formulering hier ("bij een echte mijlpaal, duur 0,
-    // zijn beide gelijk") ging er stilzwijgend van uit dat `isMilestone` ALTIJD duur 0 impliceert —
-    // exact de aanname die T15's mijlpaal-met-duur-bevinding weerlegde (`isMilestone=true` mét een
-    // reële duur is MSP-legitiem, zie `CPMSolver.isZeroDurationMilestone`'s toelichting). Spiegelt nu
-    // de `mppReader.ts`-guard (`raw.durationRaw === 0`): `durationMinutes` is hier al de kant-en-klare
-    // uur-modus-duur (regel ~360, `0` bij een echte mijlpaal) — zónder de `=== 0`-guard zou een taak
-    // met `Milestone=1` én een reële duur alsnog een `milestoneKind` krijgen die haar opvolger via
-    // `snapSuccessorEarlyStart` (CPMSolver.ts) verkeerd zou landen, exact de mppReader-bug vóór T15.
+    // `isMilestone` impliceert GEEN duur 0: `Milestone=1` mét een reële duur is MSP-legitiem (zie
+    // `CPMSolver.isZeroDurationMilestone`). Zonder de `durationMinutes === 0`-guard zou zo'n taak een
+    // `milestoneKind` krijgen die haar opvolger via `snapSuccessorEarlyStart` verkeerd laat landen.
     //
-    // Een door OPS geschreven bestand draagt de soort expliciet (`OPS_MilestoneKind`, import/export-
-    // audit 2026-09, bevinding 7) — die marker wint, ook in dagmodus en ook als hij "AUTO" zegt. Zonder
-    // marker (MS Project zelf, of een oudere OPS-export) blijft de afleiding hieronder ongewijzigd.
+    // Een door OPS geschreven bestand draagt de soort expliciet (`OPS_MilestoneKind`) — die marker
+    // wint, ook in dagmodus en ook als hij "AUTO" zegt. Zonder marker geldt de afleiding hieronder.
     const effCalForMilestone = calById.get(effCalId);
     const opsMilestoneKind = isMilestone ? explicitOpsMilestoneKind(te, opsMilestoneKindMarkerEnabled) : undefined;
     const milestoneKind = opsMilestoneKind !== undefined
@@ -492,18 +448,18 @@ export function readMSPDI(content: string): ImportResult {
       customTaskTypes.set(customTaskType.id, { id: customTaskType.id, name: customTaskType.name });
     }
 
-    // Actuals (fase 2.6, §9.1) — leeg ⇒ undefined (invarianten volgen bij normalizeImportedProgress).
+    // Actuals — leeg ⇒ undefined (invarianten volgen bij normalizeImportedProgress).
     const actualStartRaw = getElementText(te, 'ActualStart');
     const actualFinishRaw = getElementText(te, 'ActualFinish');
     const remainingRaw = getElementText(te, 'RemainingDuration');
     const actualStart = actualStartRaw ? importDateTime(actualStartRaw, isHour) : undefined;
     const actualFinish = actualFinishRaw ? importDateTime(actualFinishRaw, isHour) : undefined;
-    // RemainingDuration: uur ⇒ minuten; dag ⇒ het bestaande dag-pad.
+    // RemainingDuration: uur ⇒ minuten; dag ⇒ het dag-pad.
     const remainingMinutes = durationUnit === 'hours' && remainingRaw ? (mspDurationMinutes(remainingRaw) ?? undefined) : undefined;
     const remainingTime = durationUnit === 'days' && remainingRaw ? parseMSPDuration(remainingRaw, effHpd) : undefined;
 
-    // Datum-constraint (fase 2.9, §6): ConstraintType/ConstraintDate. 0/ontbrekend ⇒ geen constraint
-    // (default-inert). MSPDI kent geen secundaire constraint. Datum: uur ⇒ echte tijd, dag ⇒ strip.
+    // Datumconstraint: ConstraintType/ConstraintDate. 0/ontbrekend ⇒ geen constraint. MSPDI kent geen
+    // secundaire constraint. Datum: uur ⇒ echte tijd, dag ⇒ strip.
     const parseCstrDate = (raw: string): string => importDateTime(raw, isHour);
     let constraint: TaskConstraint | undefined;
     const cTypeRaw = getElementText(te, 'ConstraintType');
@@ -518,7 +474,7 @@ export function readMSPDI(content: string): ImportResult {
         };
       }
     }
-    // Zachte deadline (fase 2.9, §6): native <Deadline> → task.deadline.
+    // Zachte deadline: native <Deadline> → task.deadline.
     const deadlineRaw = getElementText(te, 'Deadline');
     const deadline = deadlineRaw ? parseCstrDate(deadlineRaw) : undefined;
 
@@ -532,8 +488,8 @@ export function readMSPDI(content: string): ImportResult {
         taskId: id,
         start: parseMSPDate(getElementText(bEl, 'Start')),
         finish: parseMSPDate(getElementText(bEl, 'Finish')),
-        // Critreview #159: dezelfde taakkalender-hpd als de taakduur hierboven (`effHpd`), anders leest
-        // een 24/7-taak haar eigen baseline als 2,33 dagen terug.
+        // Dezelfde taakkalender-hpd als de taakduur (`effHpd`), anders leest een 24/7-taak haar eigen
+        // baseline als 2,33 dagen terug.
         duration: parseMSPDuration(getElementText(bEl, 'Duration'), effHpd),
         isMilestone,
       });
@@ -606,20 +562,19 @@ export function readMSPDI(content: string): ImportResult {
     }
   }
 
-  // Parent-child-hiërarchie (issue #159): `<OutlineLevel>` + documentvolgorde, met de gepunte WBS als
+  // Parent-child-hiërarchie: `<OutlineLevel>` + documentvolgorde, met de gepunte WBS als
   // scheidsrechter én terugval — de beslisregel staat bij `rebuildImportedHierarchy` (gedeeld met CSV).
   rebuildImportedHierarchy(tasks, outlineLevels);
 
   // Resolve sequences. LagFormat (subset van MSPDI DurationFormat): 19/20 = (elapsed) procent
   // met LinkLag in tienden van een procent; 4/6/8/10/12 = elapsed duren (24/7); rest = werktijd
-  // in tienden van minuten (bestaand pad).
+  // in tienden van minuten.
   //
   // Elapsed MINUTEN/UREN (4 = "emin", 6 = "ehr") zijn een uur-lag: minuut-exact `lagMinutes` +
-  // ELAPSEDTIME, ongeacht de modus van de opvolger (import/export-audit 2026-09, bevinding 4 — de
-  // elapsed-dag-afronding maakte van "12 ehr" 24 uur en van "8 ehr" 0). In een dagproject rekent de
-  // CPM zo'n lag zelf af op hele kalenderdagen (`resolveEffectiveLagDays`, factor 24), dus de
-  // dagplanning is gelijk aan de oude afronding hier; de waarde zelf (en een terugexport) blijft
-  // exact. Elapsed dagen/weken/maanden (8/10/12) blijven hele elapsed dagen, zoals voorheen.
+  // ELAPSEDTIME, ongeacht de modus van de opvolger (dag-afronding zou van "12 ehr" 24 uur en van
+  // "8 ehr" 0 maken). In een dagproject rondt de CPM zo'n lag zelf af op hele kalenderdagen
+  // (`resolveEffectiveLagDays`, factor 24); de waarde zelf (en een terugexport) blijft exact.
+  // Elapsed dagen/weken/maanden (8/10/12) blijven hele elapsed dagen.
   const ELAPSED_DURATION_FORMATS = new Set([4, 6, 8, 10, 12]);
   const ELAPSED_SUBDAY_FORMATS = new Set([4, 6]);
   const sequences: Sequence[] = [];
@@ -644,8 +599,7 @@ export function readMSPDI(content: string): ImportResult {
       seq.lagDays = Math.round(link.lag / 10 / 60 / 24);
       seq.lagUnit = 'ELAPSEDTIME';
     } else if (taskHourById.get(link.successorId)) {
-      // Fase 2.8b (§7.3): uur-opvolger ⇒ lag minuut-precies (tienden-van-minuten ÷ 10, geen
-      // dag-afronding). LinkLag is al in tienden van minuten.
+      // Uur-opvolger ⇒ lag minuut-precies (tienden van minuten ÷ 10, geen dag-afronding).
       seq.lagMinutes = Math.round(link.lag / 10);
     } else {
       seq.lagDays = tenthsOfMinutesToDays(link.lag, hoursPerDay);
@@ -653,12 +607,12 @@ export function readMSPDI(content: string): ImportResult {
     sequences.push(seq);
   }
 
-  // Assignments (fase 2.5, §8.2)
+  // Assignments
   const assignmentsRoot = root.getElementsByTagName('Assignments')[0];
   const assignments: ResourceAssignment[] = [];
-  // Contour-engine (2026-09): taak-lookup + kalender-engine per taakkalender voor de as-vertaling
-  // van `<TimephasedData>` (zie `contourIo.ts`). Kalenders zijn hierboven al gepromoveerd naar
-  // uur-modus waar de discriminator dat besliste, dus `calendarForEngine` levert de juiste modus.
+  // Taak-lookup + kalender-engine per taakkalender voor de as-vertaling van `<TimephasedData>`
+  // (zie `contourIo.ts`). Kalenders zijn hierboven al gepromoveerd, dus `calendarForEngine` levert
+  // de juiste modus.
   const taskById = new Map(tasks.map(t => [t.id, t] as const));
   const engineCache = new Map<string, CalendarEngine>();
   const engineForTask = (task: Task): CalendarEngine => {
@@ -688,8 +642,8 @@ export function readMSPDI(content: string): ImportResult {
       const contour = getElementInt(asgnEl, 'WorkContour', 0);
       const curve = WORKCONTOUR_TO_CURVE[contour];
       const unitsPerDay = Number.isFinite(units) && unitsText ? units : 1;
-      // Taaktypes-etappe (spec §4.3, geval c): <Work>/<ActualWork>/<RemainingWork> in minuten,
-      // alleen bewaard wanneer ze iets zeggen dat `duur × inzet` niet al zegt (`importedWorkFields`).
+      // <Work>/<ActualWork>/<RemainingWork> in minuten, alleen bewaard wanneer ze iets zeggen dat
+      // `duur × inzet` niet al zegt (`importedWorkFields`).
       const workTask = taskById.get(taskId);
       const derivedWork = workTask ? taskWorkMinutes(workTask.time, effHpdByTaskId.get(taskId) ?? hoursPerDay) * unitsPerDay : 0;
       const workFields = importedWorkFields({
@@ -707,11 +661,10 @@ export function readMSPDI(content: string): ImportResult {
         ...workFields,
       });
 
-      // Contour-engine (2026-09): native `<TimephasedData>` (Type 1 = resterend, 2 = verricht werk;
-      // MPXJ `MSPDIReader.readTimephasedWork`) → contourperiodes op de taak-as van déze taak,
-      // gekoppeld aan de toewijzing via `resourceId`. Vlakke data (één item, of alleen nul-werk)
-      // levert géén contour op — een contour die niets toevoegt aan `Units × duur` is ruis.
-      // `WorkContour === 8` (Contoured) is het MSP-signaal, maar de data zelf is leidend.
+      // Native `<TimephasedData>` (Type 1 = resterend, 2 = verricht werk; MPXJ
+      // `MSPDIReader.readTimephasedWork`) → contourperiodes op de taak-as van déze taak, gekoppeld aan
+      // de toewijzing via `resourceId`. Vlakke data (één item, of alleen nul-werk) levert géén contour
+      // op. `WorkContour === 8` (Contoured) is het MSP-signaal, maar de data zelf is leidend.
       const task = taskById.get(taskId);
       if (task) {
         const items: AbsoluteWorkItem[] = [];
@@ -742,12 +695,12 @@ export function readMSPDI(content: string): ImportResult {
       }
     }
   }
-  // Contour-engine: contouren én de daaruit afgeleide werkonderbrekingen op de taken zetten —
-  // dezelfde afleiding als de .mpp-lezer (MSPDI kent geen andere split-bron).
+  // Contouren én de daaruit afgeleide werkonderbrekingen op de taken zetten — dezelfde afleiding als
+  // de .mpp-lezer (MSPDI kent geen andere split-bron).
   attachContours(taskById, contoursByTaskId);
   reconstructResourceIds(tasks, assignments);
 
-  // Baseline 0 → één actieve OPS-baseline "Baseline (MSPDI)" (fase 2.6, §9.1).
+  // Baseline 0 → één actieve OPS-baseline "Baseline (MSPDI)".
   const baselines: Baseline[] = [];
   let activeBaselineId: string | null = null;
   if (baselineEntries.length > 0) {
@@ -770,9 +723,9 @@ export function readMSPDI(content: string): ImportResult {
   project.startDate = resolveMissingScheduleDates(tasks, missingDates, projectStartRaw ? project.startDate : '',
     (task) => resolveCalendar(task.calendarId, resourceCalendars, calendar));
 
-  // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6).
+  // Voortgang-invarianten op de rauw ingelezen actuals.
   normalizeImportedProgress(tasks, project.statusDate);
-  deriveImportedWorkRules(tasks); // taaktypes-etappe: werkregel uit <Type>/<EffortDriven>
+  deriveImportedWorkRules(tasks); // werkregel uit <Type>/<EffortDriven>
 
   return {
     project,
@@ -785,9 +738,9 @@ export function readMSPDI(content: string): ImportResult {
     customTaskTypes: [...customTaskTypes.values()],
     baselines,
     activeBaselineId,
-    // Rekenprofielen (spec v3.1 §6): MSPDI opent in deze etappe als OPS (C10 wacht op een besluit).
+    // Rekenprofielen: MSPDI opent als OPS.
     suggestedProfileId: 'ops',
-    // Critreview PR #167, bevinding 6: alleen bladtaken — zie `leafRecordedTimes`.
+    // Alleen bladtaken — zie `leafRecordedTimes`.
     ...(() => {
       const leafTimes = leafRecordedTimes(tasks, recordedTimes);
       return Object.keys(leafTimes).length > 0 ? { recordedTimes: leafTimes, recordedTimesOrigin: 'mspdi' as const } : {};
@@ -811,13 +764,13 @@ function parseProject(root: Element): Project {
     author: getElementText(root, 'Author'),
     company: getElementText(root, 'Company'),
   };
-  // Statusdatum (fase 2.6, §9.1) → project.statusDate. Alleen wanneer aanwezig; de tijd blijft
-  // (uur-modus), het dag-anker betekent "geen tijd" — gedeeld met P6 (`statusDateFromXml`).
+  // Statusdatum → project.statusDate. Alleen wanneer aanwezig; de tijd blijft (uur-modus), het
+  // dag-anker betekent "geen tijd" — gedeeld met P6 (`statusDateFromXml`).
   const statusDateRaw = getElementText(root, 'StatusDate');
   if (statusDateRaw) project.statusDate = statusDateFromXml(statusDateRaw);
-  // Scheduling-options (fase 2.9, §6): CriticalSlackLimit → criticalDefinition.threshold (dagen,
-  // mode 'totalFloat'). Alleen wanneer het element aanwezig is (spiegel van de writer). threshold 0
-  // is de default (tf≤0) en dus inert. De overige opties zitten niet in MSPDI (alleen via IFC).
+  // CriticalSlackLimit → criticalDefinition.threshold (dagen, mode 'totalFloat'). Alleen wanneer het
+  // element aanwezig is (spiegel van de writer). threshold 0 is de default (tf≤0) en dus inert. De
+  // overige opties zitten niet in MSPDI (alleen via IFC).
   const cslRaw = getElementText(root, 'CriticalSlackLimit');
   if (cslRaw) {
     const csl = parseInt(cslRaw, 10);
@@ -894,19 +847,12 @@ function readMspdiRecurringData(exc: Element, fromDate: Date, toDate: Date | nul
  *  `MAX_CALENDAR_EXCEPTIONS` (gedeeld met de MPP-kant via `@/services/calendarRecurrence`). Spiegelt
  *  MSPDIReader.readException's guard: een record zonder BEIDE FromDate/ToDate wordt overgeslagen
  *  ("Vico Schedule Planner"-leeg-record-guard); een record met een fromDate maar zonder toDate is
- *  alleen bruikbaar als het een RECURRENTE (occurrences-begrensde) uitzondering is — een niet-
- *  recurrent bereik heeft een expliciet einde nodig (spiegelt `RawException`'s eigen "niet-recurrent
- *  zonder toDate wordt overgeslagen"-conventie in `calendarRecurrence.ts`).
+ *  alleen bruikbaar als het een RECURRENTE (occurrences-begrensde) uitzondering is.
  *
- *  Retourneert `RawException[]` — de FORMAAT-NEUTRALE ruwe-recordvorm uit `calendarRecurrence.ts`
- *  zelf (spec-review-fix op 3dd6c3ba, zie de importtoelichting bovenaan dit bestand): dit bestand
- *  vult uitsluitend die vorm uit `<Exception>`-elementen en geeft het resultaat rechtstreeks aan
- *  `buildContributions` door, i.p.v. een eigen tussenvorm + een eigen contributie-opbouw te
- *  onderhouden. `periodCount` spiegelt hier MPP se `periodCount>0`-signaal (het GETAL zelf is
- *  betekenisloos — de banden zelf dragen de echte data — alleen "> 0" telt als DayWorking-vlag):
- *  `Math.max(bands.length, 1)` bij een werkende uitzondering (zodat ook een werkende uitzondering
- *  ZONDER expliciete `<WorkingTimes>` — de banden-optioneel-fallback-keten in `types/calendar.ts`'s
- *  `WorkingException` — als werkend blijft signaleren), anders `0`. */
+ *  Retourneert de formaat-neutrale `RawException[]` voor `buildContributions`. `periodCount` spiegelt
+ *  MPP's `periodCount>0`-signaal (alleen "> 0" telt): `Math.max(bands.length, 1)` bij een werkende
+ *  uitzondering, zodat ook een werkende uitzondering ZONDER `<WorkingTimes>` als werkend blijft
+ *  signaleren (zie de fallbackketen van `WorkingException` in `types/calendar.ts`), anders `0`. */
 function readRawMspdiExceptions(calEl: Element): RawException[] {
   const exceptionsRoot = calEl.getElementsByTagName('Exceptions')[0];
   if (!exceptionsRoot) return [];
@@ -957,24 +903,18 @@ function readRawMspdiExceptions(calEl: Element): RawException[] {
 /**
  * Werkdagen/uren/feestdagen uit een `<Calendar>`-element in `calendar` toepassen (spiegel van
  * `writeCalendarBlock`) — gedeeld tussen de projectkalender (`parseCalendar`) en elke
- * bibliotheek-kalender (fase 2.8a, §8.3: voorheen kregen resource-kalenders alleen naam/id, nooit
- * hun eigen werkweek/uren/feestdagen terug — dezelfde beperkte lezing als de projectkalender vóór
- * 2.8a). Golden rule: ontbrekende WeekDay/WorkingTime/Exception-elementen laten de
+ * bibliotheekkalender. Golden rule: ontbrekende WeekDay/WorkingTime/Exception-elementen laten de
  * `createDefaultCalendar()`-defaults ongemoeid.
  *
- * `budget` (T4) — één gedeeld `HolidayBudget` over ALLE kalenders in één `readMSPDI`-aanroep (zie de
- * aanroepplekken in `parseCalendar`/`readMSPDI`) — spiegelt mppCalendars.ts's C1-discipline
- * (`MAX_TOTAL_HOLIDAY_SLOTS`): zonder gedeeld budget zou N kalenders × M uitzonderingen elk apart
- * binnen `MAX_CALENDAR_EXCEPTIONS` kunnen blijven maar SAMEN alsnog een onbegrensde totale
- * dag-voor-dag-materialisatie kunnen forceren (dezelfde klasse bug die T6-kwaliteitsreview C1 voor
- * MPP al vond — hier voorkomen vóórdat hij ooit bestond, niet achteraf gefixt).
+ * `budget` is één gedeeld `HolidayBudget` over ALLE kalenders in één `readMSPDI`-aanroep (zoals
+ * `MAX_TOTAL_HOLIDAY_SLOTS` in mppCalendars.ts): anders kunnen N kalenders elk binnen
+ * `MAX_CALENDAR_EXCEPTIONS` blijven maar samen een onbegrensde materialisatie forceren.
  */
 function applyCalendarBody(calEl: Element, calendar: WorkCalendar, budget: HolidayBudget): void {
   // Parse work days from WeekDay elements
   const weekDays = calEl.getElementsByTagName('WeekDay');
   const workDays: number[] = [];
-  // Fase 2.8b (§7.3): ALLE <WorkingTime>-banden per weekdag lezen (nu las de reader alleen het eerste
-  // blok als scalar) → rauwe banden voor de uur-modus-beslissing.
+  // ALLE <WorkingTime>-banden per weekdag lezen → rauwe banden voor de uur-modus-beslissing.
   const rawByWeekday: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>> = {};
 
   for (let i = 0; i < weekDays.length; i++) {
@@ -1004,7 +944,7 @@ function applyCalendarBody(calEl: Element, calendar: WorkCalendar, budget: Holid
     calendar.workDays = workDays.sort((a, b) => a - b);
   }
 
-  // Parse working times for start/end hours (scalar, bestaand dag-pad)
+  // Parse working times for start/end hours (scalar dag-pad)
   const workingTimes = calEl.getElementsByTagName('WorkingTime');
   if (workingTimes.length > 0) {
     const fromTime = getElementText(workingTimes[0], 'FromTime');
@@ -1016,7 +956,7 @@ function applyCalendarBody(calEl: Element, calendar: WorkCalendar, budget: Holid
     if (toTime) {
       const h = parseInt(toTime.split(':')[0]);
       // `00:00:00` als eindtijd is middernacht ná de start (MS Project's eigen "24 Hours"-kalender en
-      // onze writer sinds critreview #159 schrijven dat zo) ⇒ 24, niet 0.
+      // onze writer schrijven dat zo) ⇒ 24, niet 0.
       if (!isNaN(h)) calendar.workEndHour = h <= calendar.workStartHour ? h + 24 : h;
     }
     calendar.hoursPerDay = calendar.workEndHour - calendar.workStartHour;
@@ -1026,21 +966,17 @@ function applyCalendarBody(calEl: Element, calendar: WorkCalendar, budget: Holid
   const { bands, deviates } = canonicalizeBands(rawByWeekday);
   registerCalendarBands(calendar, { canonical: bands, deviates });
 
-  // T4: uitzonderingen (holidays + werkende uitzonderingen + recurrente expansie) — hergebruikt T3's
-  // `buildContributions` (budget-geklemde opbouw) + `resolveContributions` (precedentie-/invariant-
-  // resolutie) rechtstreeks, zie de importtoelichting bovenaan dit bestand. Golden rule ONGEWIJZIGD:
-  // 0 `<Exception>`-elementen in het bestand ⇒ `createDefaultCalendar()`'s NL-feestdagen-default
-  // blijft ongemoeid — de override-beslissing hangt daarom af van `rawExceptions.length` (zag het
-  // bestand ÉCHTE uitzonderingsdata), niet van de RESOLVED output-lengte (die kan 0 zijn terwijl het
-  // bestand wél degelijk data droeg, bv. een kalender met uitsluitend werkende uitzonderingen en 0
-  // feestdagen).
+  // Uitzonderingen (holidays + werkende uitzonderingen + recurrente expansie) via
+  // `buildContributions` + `resolveContributions`. Golden rule: 0 `<Exception>`-elementen ⇒
+  // `createDefaultCalendar()`'s NL-feestdagen-default blijft ongemoeid. De beslissing hangt daarom
+  // af van `rawExceptions.length` (zag het bestand echte uitzonderingsdata), niet van de resolved
+  // lengte (die kan 0 zijn bij een kalender met uitsluitend werkende uitzonderingen).
   const rawExceptions = readRawMspdiExceptions(calEl);
   if (rawExceptions.length > 0) {
     const contributions = buildContributions(rawExceptions, budget);
     const { holidays, workingExceptions } = resolveContributions(contributions, budget);
     calendar.holidays = holidays;
-    // Spiegelt mppCalendars.ts: `workingExceptions` blijft AFWEZIG (niet `[]`) wanneer leeg — byte-
-    // identiek gedrag met vóór deze taak voor elke kalender zonder werkende uitzonderingen.
+    // `workingExceptions` blijft AFWEZIG (niet `[]`) wanneer leeg, zoals in mppCalendars.ts.
     if (workingExceptions.length > 0) calendar.workingExceptions = workingExceptions;
     else delete calendar.workingExceptions;
   }
@@ -1054,14 +990,14 @@ function parseCalendar(root: Element, budget: HolidayBudget): WorkCalendar {
   const calName = getElementText(cal, 'Name') || 'Imported Calendar';
   const calendar = createDefaultCalendar();
   calendar.name = calName;
-  // MSPDI kent geen regelset-herkomst (verliesmatrix §8.4) — createDefaultCalendar() zet 'm altijd
-  // (nieuwe projecten zijn per definitie gegenereerd); een uit MSPDI gelezen kalender is dat niet.
+  // MSPDI kent geen regelset-herkomst — createDefaultCalendar() zet 'm altijd (nieuwe projecten zijn
+  // per definitie gegenereerd); een uit MSPDI gelezen kalender is dat niet.
   delete calendar.generation;
 
   applyCalendarBody(cal, calendar, budget);
 
   // Parse minutes per day from project level — authoritatief, overschrijft de
-  // WorkingTime-afgeleide waarde uit applyCalendarBody (bestaand gedrag).
+  // WorkingTime-afgeleide waarde uit applyCalendarBody.
   const minutesPerDay = getElementInt(root, 'MinutesPerDay');
   if (minutesPerDay > 0) {
     calendar.hoursPerDay = minutesPerDay / 60;

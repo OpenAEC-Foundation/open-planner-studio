@@ -7,44 +7,37 @@
  * Laagste laag boven de CFB-container (`cfb.ts`): de generieke MPP-blokformaten
  * (FixedMeta/FixedData/VarMeta/Var2Data) plus de MPPUtility-equivalente byte-lezers
  * (datums/duraties/unicode-strings/GUID's). Kent geen taak/resource/kalender-semantiek —
- * dat is T5–T7 (`fieldMap14.ts`, `mppReader.ts`, `mppCalendars.ts`).
+ * dat zit in `fieldMap14.ts`, `mppReader.ts`, `mppCalendars.ts` en `mppEntities.ts`.
  *
  * Poort-bronnen (allemaal in org.mpxj.mpp, behalve genoemd): FixedMeta.java, FixedData.java,
  * AbstractVarMeta.java + VarMeta12.java, Var2Data.java, MPPUtility.java en
- * org.mpxj.common.ByteArrayHelper (getShort/getInt — MPPUtility zelf heeft die niet, maar
- * leunt er intern op; hier ondergebracht in deze module omdat er geen aparte "common"-laag
- * bestaat voor dit project).
+ * org.mpxj.common.ByteArrayHelper (getShort/getInt — hier ondergebracht omdat er geen aparte
+ * "common"-laag is).
  *
- * Alleen geport wat T5–T7 daadwerkelijk aanroepen (geverifieerd tegen MPP14Reader.java,
- * ConstraintFactory.java en AbstractCalendarFactory.java — zie de constructor-varianten
- * hieronder, elk met een verwijzing naar de aanroepplek die 'm nodig heeft) — geen
- * speculatieve extra's.
+ * Alleen geport wat de lezers daadwerkelijk aanroepen (MPP14Reader.java, ConstraintFactory.java,
+ * AbstractCalendarFactory.java) — geen speculatieve extra's.
  */
 
 import { MS_PER_DAY } from '@/utils/dateUtils';
 
 // ── Laagste-niveau byte-lezers (ByteArrayHelper-equivalent; LE) ─────────────────────────────
 //
-// C2-achtige discipline (net als cfb.ts): elke read is vooraf grensgecontroleerd en gooit een
-// duidelijke `MPP:`-fout i.p.v. een rauwe DataView-RangeError te laten ontsnappen. In de
-// MPXJ-bron zelf bewaken de AANROEPERS dit (bv. Var2Data's `value.length >= 4`-checks vóór een
-// `getInt`-aanroep) — hier zit de garantie bewust ook op het laagste niveau zelf, zodat een
-// vergeten aanroeper-check nooit een onleesbare crash oplevert.
+// Elke read is vooraf grensgecontroleerd en gooit een duidelijke `MPP:`-fout i.p.v. een rauwe
+// DataView-RangeError. In MPXJ bewaken de AANROEPERS dit; hier zit de garantie ook op het laagste
+// niveau, zodat een vergeten aanroeper-check nooit een onleesbare crash oplevert.
 
 /** Foutboodschap met optionele context (`ctx` — meestal het label van de aanroepende klasse,
- *  bv. "FixedMeta[TBkndTask/FixedMeta]") — zelfde diagnoseerbaarheids-discipline als cfb.ts'
- *  `fmtErr`. `ctx` is puur cosmetisch (wélke laag/stream het was), nooit onderdeel van de
- *  bounds-logica zelf. */
+ *  bv. "FixedMeta[TBkndTask/FixedMeta]"). `ctx` is puur diagnostisch, nooit onderdeel van de
+ *  bounds-logica. */
 function boundsError(kind: string, offset: number, length: number, dataLen: number, ctx?: string): Error {
   const bits = [`MPP: ${kind} buiten grenzen (offset=${offset}, lengte=${length}, bufferlengte=${dataLen})`];
   if (ctx) bits.push(`[${ctx}]`);
   return new Error(bits.join(' '));
 }
 
-/** LE unsigned 16-bit (ByteArrayHelper.getShort — ondanks de Java-naam "short" is dit altijd
+/** LE unsigned 16-bit (ByteArrayHelper.getShort — ondanks de Java-naam "short" altijd
  *  niet-negatief: de twee bytes worden zonder sign-extend geOR't). Handmatige shift-lezing i.p.v.
- *  een `DataView`-allocatie per aanroep (M5-hardening, kwaliteitsreview: gemeten ~40× sneller op
- *  de hot path van FixedData/VarMeta12-parsing, die per record meerdere reads doet). */
+ *  een `DataView`-allocatie per aanroep: ~40× sneller op de hot path van FixedData/VarMeta12. */
 export function getShort(data: Uint8Array, offset: number, ctx?: string): number {
   if (offset < 0 || offset + 2 > data.length) {
     throw boundsError('getShort', offset, 2, data.length, ctx);
@@ -52,9 +45,8 @@ export function getShort(data: Uint8Array, offset: number, ctx?: string): number
   return data[offset] | (data[offset + 1] << 8);
 }
 
-/** LE signed 32-bit (ByteArrayHelper.getInt). Zelfde M5-hardening als `getShort` hierboven — de
- *  `<< 24` op de hoogste byte zet automatisch bit 31, dus dit blijft byte-voor-byte identiek aan
- *  `DataView.getInt32(offset, true)`. */
+/** LE signed 32-bit (ByteArrayHelper.getInt). Zelfde shift-lezing als `getShort` — de `<< 24` op de
+ *  hoogste byte zet bit 31, dus identiek aan `DataView.getInt32(offset, true)`. */
 export function getInt(data: Uint8Array, offset: number, ctx?: string): number {
   if (offset < 0 || offset + 4 > data.length) {
     throw boundsError('getInt', offset, 4, data.length, ctx);
@@ -79,9 +71,7 @@ const BLOCK_MAGIC = 0xfadfadba | 0;
 const FIXED_META_HEADER_SIZE = 16;
 
 export class FixedMeta {
-  /** Headerwaarde, GEKLEMD op `adjustedItemCount` (T5-restpunt a: hernoemd van `rawItemCount` —
-   *  de naam suggereerde ten onrechte een ongeclampte/onbetrouwbare waarde, terwijl 'm sinds I1
-   *  hieronder al bij constructie geklemd wordt; zie `getItemCount()`'s docblok). */
+  /** Headerwaarde, GEKLEMD op `adjustedItemCount` (zie `getItemCount()`). */
   private readonly clampedItemCount: number;
   private readonly items: ReadonlyArray<Uint8Array | null>;
 
@@ -106,13 +96,9 @@ export class FixedMeta {
       throw new Error(`MPP: FixedMeta[${label}] ongeldig magic-getal (0x${(magic >>> 0).toString(16)})`);
     }
     const adjustedItemCount = Math.max(0, Math.floor((bytes.length - FIXED_META_HEADER_SIZE) / itemSize));
-    // I1 (kwaliteitsreview): de RUWE headerwaarde wordt NIET ongeclampt blootgesteld via
-    // `getItemCount()` — MPXJ's eigen `ConstraintFactory` gebruikt 'm als lus-bovengrens, en een
-    // geprepareerd bestand kan hier tot 0x7FFFFFFF claimen (gemeten: ~3s lege lus op zo'n
-    // aanroepplek). Geklemd op `adjustedItemCount` (het werkelijke, blokgrootte-afgeleide
-    // maximum): op elk geldig bestand is de rauwe en geklemde waarde identiek, dus geen
-    // gedragsverschil daar — alleen een hostile/corrupt bestand ziet een kleinere `getItemCount()`
-    // i.p.v. een trage/hostile lus bij de aanroeper.
+    // De RUWE headerwaarde niet ongeclampt blootstellen: MPXJ's `ConstraintFactory` gebruikt hem als
+    // lusbovengrens, en een geprepareerd bestand kan tot 0x7FFFFFFF claimen. Geklemd op
+    // `adjustedItemCount`; op een geldig bestand zijn beide gelijk.
     const clampedItemCount = Math.max(0, Math.min(getInt(bytes, 8, `FixedMeta[${label}]`), adjustedItemCount));
     const items: (Uint8Array | null)[] = new Array(adjustedItemCount);
     let pos = FIXED_META_HEADER_SIZE;
@@ -167,13 +153,10 @@ export class FixedMeta {
     return FixedMeta.withItemSize(bytes, chosen, label);
   }
 
-  /** Headerwaarde, GEKLEMD op `getAdjustedItemCount()` (I1, kwaliteitsreview — zie de toelichting
-   *  bij `withItemSize` hierboven) — MPXJ gebruikt de ONgeclampte variant soms als lus-bovengrens
-   *  (bv. `ConstraintFactory` over TBkndCons); hier is dat bewust NIET 1-op-1 nagebouwd, want een
-   *  ongeclampte waarde zou een geprepareerd bestand een hostile lus-budget kunnen geven. Op elk
-   *  geldig bestand is de geklemde waarde identiek aan de rauwe headerwaarde, dus geen
-   *  gedragsverschil daar. `getByteArrayValue` blijft sowieso veilig `null` teruggeven voor een
-   *  index buiten `getAdjustedItemCount()`, ongeacht wat deze methode teruggeeft. */
+  /** Headerwaarde, GEKLEMD op `getAdjustedItemCount()`. MPXJ gebruikt de ongeclampte variant soms
+   *  als lusbovengrens (bv. `ConstraintFactory` over TBkndCons); hier bewust niet, want dat zou een
+   *  geprepareerd bestand een vijandig lusbudget geven. Op een geldig bestand is de waarde gelijk aan
+   *  de rauwe headerwaarde. */
   getItemCount(): number {
     return this.clampedItemCount;
   }
@@ -206,12 +189,9 @@ export class FixedMeta {
 
 export class FixedData {
   private readonly items: ReadonlyArray<Uint8Array | null>;
-  /** I2 (kwaliteitsreview): `getIndexFromOffset` was een O(n) `Array#indexOf`-scan; TBkndCons se
-   *  relatie-opbouw (T7) roept 'm potentieel per relatie aan, dus O(n²) op grote projecten. Eén
-   *  keer opgebouwd in de constructor i.p.v. per lookup gescand. Bewaart `Array#indexOf`-
-   *  semantiek exact: bij een herhaald offset wint de EERSTE index (`set` alleen als de sleutel
-   *  nog niet bestaat) — inclusief offset 0 voor slots die geen item kregen (`offsets[i]` blijft
-   *  daar op zijn default 0 staan, precies zoals Java's `m_offset`-array). */
+  /** Offset → index, één keer opgebouwd i.p.v. een O(n)-`indexOf` per lookup (relatie-opbouw zou
+   *  anders O(n²) zijn). Bewaart `Array#indexOf`-semantiek: bij een herhaald offset wint de EERSTE
+   *  index — inclusief offset 0 voor slots zonder item (zoals Java's `m_offset`-array). */
   private readonly indexByOffset: Map<number, number>;
 
   private constructor(items: ReadonlyArray<Uint8Array | null>, offsets: ReadonlyArray<number>) {
@@ -317,8 +297,8 @@ export class FixedData {
     return this.items[index];
   }
 
-  /** -1 als het offset niet voorkomt — spiegelt Java's `getIndexFromOffset` (zie `indexByOffset`
-   *  hierboven voor de O(1)-hardening). */
+  /** -1 als het offset niet voorkomt — spiegelt Java's `getIndexFromOffset` (O(1) via
+   *  `indexByOffset`). */
   getIndexFromOffset(offset: number): number {
     return this.indexByOffset.get(offset) ?? -1;
   }
@@ -329,10 +309,8 @@ export class FixedData {
 // MPP14 gebruikt uitsluitend VarMeta12 (MPP14Reader.java r. 991 e.v.) — VarMeta9/VarMeta8 zijn
 // niet geport (buiten scope: MPP8/9/12 worden al bij `assertReadable` geweigerd).
 //
-// In tegenstelling tot Var2Data (zie hieronder) is VarMeta altijd aanwezig in de drie
-// corpusbestanden (T3-bevinding, bewaakt in `check-mpp-import.ts`) — vandaar dat deze
-// constructor GEEN `null`-invoer accepteert en hard faalt bij een ontbrekende stream, in
-// tegenstelling tot Var2Data's bewust vergevingsgezinde omgang met een afwezige stream.
+// VarMeta is in de corpusbestanden altijd aanwezig (bewaakt in `check-mpp-import.ts`), dus deze
+// constructor accepteert GEEN `null` en faalt hard bij een ontbrekende stream — anders dan Var2Data.
 
 const VAR_META_HEADER_SIZE = 24; // magic(4) + onbekend(4) + itemCount(4) + onbekend(4)*2 + dataSize(4)
 const VAR_META_ENTRY_SIZE = 12; // uniqueID(4) + offset(4) + type(2) + onbekend(2)
@@ -360,17 +338,10 @@ export class VarMeta12 {
     if (magic !== 0 && magic !== BLOCK_MAGIC) {
       throw new Error(`MPP: VarMeta[${label}] ongeldig magic-getal (0x${(magic >>> 0).toString(16)})`);
     }
-    // C1 (kwaliteitsreview, kritiek): de RUWE headerwaarde werd voorheen ONGECLAMPT gebruikt om
-    // `offsets` te pre-sizen (`new Array(itemCount)`) — een geprepareerd bestand kan hier tot
-    // 0x7FFFFFFF claimen (OOM-crash, in de browser niet catchbaar) of een negatief getal (rauwe
-    // RangeError bij de allocatie). Geklemd op `maxEntries`, het werkelijk-mogelijke aantal
-    // entries dat in het resterende blok past. Dit is een BEWUSTE afwijking van VarMeta12.java
-    // (die `m_itemCount` ongeclampt blootstelt via `getItemCount()`, en het bijbehorende
-    // `int[m_itemCount]` zonder clamp alloceert): op elk geldig bestand is de geklemde waarde
-    // identiek aan de rauwe (de "nul-staart bij een afgekapt blok"-spiegeling die híér ooit
-    // stond is voor onze enige consument — Var2Data's `getOffsets()`-iteratie — sowieso
-    // onobserveerbaar, dus geen gedragsverschil op geldige data); alleen een hostile/corrupt
-    // bestand ziet een kleinere `getItemCount()` i.p.v. een crash.
+    // De RUWE headerwaarde niet ongeclampt gebruiken om `offsets` te dimensioneren: een geprepareerd
+    // bestand kan tot 0x7FFFFFFF claimen (OOM, in de browser niet te vangen) of een negatief getal.
+    // Geklemd op `maxEntries`, wat werkelijk in het blok past. Bewuste afwijking van VarMeta12.java;
+    // op een geldig bestand zijn beide gelijk.
     const maxEntries = Math.floor((bytes.length - VAR_META_HEADER_SIZE) / VAR_META_ENTRY_SIZE);
     this.itemCount = Math.max(0, Math.min(getInt(bytes, 8, ctx), maxEntries));
     this.dataSize = getInt(bytes, 20, ctx);
@@ -422,9 +393,9 @@ export class VarMeta12 {
     return byType ? new Set(byType.keys()) : new Set();
   }
 
-  /** Numeriek-gesorteerde unique-ID's — spiegelt de TreeMap-itteratievolgorde van
-   *  `getUniqueIdentifierArray()`/`getUniqueIdentifierSet()`; T5 (createTaskMap-equivalent) en
-   *  T7 (resources) leunen op precies deze volgorde. */
+  /** Numeriek-gesorteerde unique-ID's — spiegelt de TreeMap-iteratievolgorde van
+   *  `getUniqueIdentifierArray()`/`getUniqueIdentifierSet()`; de taak- en resourcelezers leunen op
+   *  precies deze volgorde. */
   getUniqueIdentifierArray(): number[] {
     return Array.from(this.table.keys()).sort((a, b) => a - b);
   }
@@ -442,10 +413,9 @@ export class VarMeta12 {
 // `entry.size` bytes garandeert), dus willekeurige toegang via `bytes.subarray(offset, …)`
 // vervangt die dans functioneel identiek — zelfde resultaat, zonder de stream-boekhouding.
 //
-// Context (T3/T4-les, bevestigd op het corpus): een backend-storage kan legitiem ZONDER
-// Var2Data-stream zitten (het 215-takenbestand uit `check-mpp-fidelity.ts`'s corpuspins mist 'm
-// voor TBkndCons, hash-only §8) — vandaar `bytes: Uint8Array | null` hier, in tegenstelling tot
-// VarMeta12 hierboven. Afwezig ⇒ lege variabele-veldenset, nooit een harde eis.
+// Een backend-storage kan legitiem ZONDER Var2Data-stream zitten (in het corpus mist het
+// 215-takenbestand hem voor TBkndCons) — vandaar `bytes: Uint8Array | null`, anders dan VarMeta12.
+// Afwezig ⇒ lege variabele-veldenset.
 
 export class Var2Data {
   private readonly meta: VarMeta12;
@@ -478,9 +448,8 @@ export class Var2Data {
     return this.getByteArrayByOffset(this.meta.getOffset(uniqueId, type));
   }
 
-  /** `maxLength` (I1, T5-kwaliteitsreview) — begrenst zowel het resultaat als het scan-werk in
-   *  `getUnicodeString` hierboven; zie die toelichting voor waarom dat kritiek is bij een gedeelde
-   *  var-data-offset. `ctx` is puur diagnostisch. */
+  /** `maxLength` begrenst zowel het resultaat als het scanwerk in `getUnicodeString` (kritiek bij een
+   *  gedeelde var-data-offset). `ctx` is puur diagnostisch. */
   getUnicodeString(uniqueId: number, type: number, maxLength?: number, ctx?: string): string | null {
     const data = this.getByteArray(uniqueId, type);
     return data ? getUnicodeString(data, 0, maxLength, ctx) : null;
@@ -514,18 +483,13 @@ export class Var2Data {
  *  vermijden. */
 const MPP_EPOCH_UTC_MS = Date.UTC(1983, 11, 31);
 
-/** LE 64-bit float (MPPUtility.getDouble — `Double.longBitsToDouble`, NaN → 0). T7: nodig voor
- *  `DataType.UNITS`-velden (resource MAX_UNITS, assignment ASSIGNMENT_UNITS — FieldMap.java's
- *  `UNITS`/`CURRENCY`/`RATE`/`WORK`-categorie leest 8 bytes, zie fieldMap14.ts se moduleheader).
- *  Geen hot-path-primitief zoals `getShort`/`getInt` (hoogstens één aanroep per resource/assignment-
- *  record, niet per FixedData-/VarMeta-byte-scan), dus een `DataView`-allocatie per aanroep is hier
- *  geen probleem — anders dan bij die twee (zie hun M5-hardening-toelichting).
+/** LE 64-bit float (MPPUtility.getDouble — `Double.longBitsToDouble`). Voor `DataType.UNITS`-velden
+ *  (resource MAX_UNITS, assignment ASSIGNMENT_UNITS — FieldMap.java's `UNITS`/`CURRENCY`/`RATE`/
+ *  `WORK`-categorie leest 8 bytes). Geen hot path, dus een `DataView` per aanroep is prima.
  *
- *  T7-kwaliteitsreview (I2, BLOKKEREND): `Number.isNaN` alleen ving een geprepareerd/corrupt
- *  ±Infinity-bitpatroon niet — dat lekte door naar `maxUnits`/`unitsPerDay` (`Infinity`), en
- *  vandaar naar `ifcWriter` (`IFCREAL(Infinity)`, corrupte STEP bij opslaan/auto-save). Bewust
- *  RUIMER dan MPXJ's eigen NaN-only-guard, en spiegelt mspdiReader se `Number.isFinite(units) ?
- *  units : 1`-terugval (spiegelplicht) — vandaar `isFinite` i.p.v. alleen `isNaN`. */
+ *  Niet-eindig (NaN én ±Infinity) ⇒ 0: ruimer dan MPXJ's NaN-only-guard, want `Infinity` zou via
+ *  `maxUnits`/`unitsPerDay` als `IFCREAL(Infinity)` corrupte STEP opleveren; spiegelt mspdiReader's
+ *  `Number.isFinite(units) ? units : 1`. */
 export function getDouble(data: Uint8Array, offset: number, ctx?: string): number {
   if (offset < 0 || offset + 8 > data.length) {
     throw boundsError('getDouble', offset, 8, data.length, ctx);
@@ -536,8 +500,7 @@ export function getDouble(data: Uint8Array, offset: number, ctx?: string): numbe
 }
 
 /** Datum (geen tijd) — dagen sinds het MPP-epoch. 65535 = "N/A" ⇒ `null` (MPPUtility.getDate).
- *  `ctx` (T5-kwaliteitsreview) — label voor `getShort`'s grenscontrolefout, spiegelt het patroon
- *  dat `getShort`/`getInt` al kenden; puur diagnostisch, geen gedragswijziging. */
+ *  `ctx` is puur diagnostisch. */
 export function getDate(data: Uint8Array, offset: number, ctx?: string): Date | null {
   const days = getShort(data, offset, ctx);
   if (days === 65535) return null;
@@ -565,30 +528,18 @@ export function getTimestamp(data: Uint8Array, offset: number, ctx?: string): Da
   return result;
 }
 
-/** C2 (kwaliteitsreview, kritiek): `String.fromCharCode(...codeUnits)` spreidt de HELE array als
- *  losse argumenten — V8 begint daar rond de ~125k-argumentengrens over te klagen (lager in
- *  Safari/JSC), en een groot notitie-/tekstveld is geen randgeval hier. Bouwt de string daarom in
- *  brokken van `CHUNK` code-units op, elk apart via de spread-operator (`...slice(...)` — die kent
- *  dezelfde argumentenlimiet, dus CHUNK blijft ruim daaronder; T5-restpunt e, kwaliteitsreview:
- *  deze docregel noemde eerder `apply`, terwijl de code hieronder al spread gebruikte) en
- *  concateneert de brokken. */
+/** `String.fromCharCode(...codeUnits)` op de hele array loopt tegen de argumentengrens van de engine
+ *  aan (V8 rond ~125k, lager in JSC), en een groot tekstveld is hier geen randgeval. De string wordt
+ *  daarom in brokken van `CHUNK` code-units opgebouwd. */
 const UNICODE_STRING_CHUNK = 8192;
 
 /** UTF-16LE, null-terminated (of tot einde array). `maxLength` (bytes) knipt net als
- *  MPPUtility's overload met dat derde argument. Handmatig gedecodeerd (geen `TextDecoder`-
- *  afhankelijkheid) — spiegelt de Java-bron 1:1 en blijft zo consistent met de eigen-parser-
- *  traditie van dit project.
+ *  MPPUtility's overload met dat derde argument. Handmatig gedecodeerd (geen `TextDecoder`) —
+ *  spiegelt de Java-bron 1:1.
  *
- *  I1 (T5-kwaliteitsreview, kritiek): `maxLength` begrensde eerder alleen het EINDRESULTAAT — de
- *  null-terminator-scan hierboven liep zelf nog over `data.length` heen, dus bij een groot
- *  gedeeld var-data-blok (meerdere unique-ID's die naar dezelfde offset wijzen — legitiem, zie
- *  Var2Data's moduleheader) kostte ELKE aanroep nog steeds O(werkelijke stringlengte) — bij N
- *  taken die naar dezelfde offset wijzen dus O(N × S) i.p.v. het beoogde O(N × maxLength).
- *  Gemeten (kwaliteitsreview): 1.000 aanroepen op een gedeelde 500 KB-string ≈ 3,0 s vóór deze
- *  fix. Nu is `scanLimit` zelf al door `maxLength` begrensd, dus de scan-lus kan nooit verder dan
- *  `maxLength` bytes voorbij `offset` — de kostenbovengrens is nu O(maxLength) per aanroep,
- *  ongeacht hoe groot de onderliggende buffer daadwerkelijk is. `ctx` is puur diagnostisch (de
- *  enige foutmelding hier is de nieuwe, hieronder toegelichte negatieve-offset-guard). */
+ *  `maxLength` begrenst ook de null-terminator-SCAN, niet alleen het resultaat: bij een groot gedeeld
+ *  var-data-blok (meerdere unique-ID's op dezelfde offset) kost elke aanroep zo O(maxLength) i.p.v.
+ *  O(werkelijke stringlengte) — 1.000 aanroepen op een gedeelde 500 KB-string kostten anders ≈ 3 s. */
 export function getUnicodeString(data: Uint8Array, offset: number, maxLength?: number, ctx?: string): string {
   // Een negatieve offset is nooit legitiem (elke aanroeper berekent 'm uit een niet-negatieve
   // Var2Data-offset) — dit is dus een programmeerfout, geen normale "geen data"-situatie, vandaar
@@ -677,9 +628,8 @@ export function getDurationTimeUnits(type: number, projectDefaultDurationUnits?:
 
 /** Poort van MPPUtility.getDuration(double, TimeUnit) — zet een ruwe waarde in TIENDEN VAN EEN
  *  MINUUT (zoals MPP durations/lag intern bewaart) om naar een numerieke duur in de opgegeven
- *  eenheid. Bewust GEEN hoursPerDay/daysPerWeek-correctie hier (dat is `getAdjustedDuration` in
- *  de Java-bron) — dat blijft T7's taak, net als `parseMSPDuration`'s `hoursPerDay`-parameter in
- *  mspdiReader dat al doet voor MSPDI. */
+ *  eenheid. Bewust GEEN hoursPerDay/daysPerWeek-correctie (dat is `getAdjustedDuration` in de
+ *  Java-bron); die hoort bij de aanroeper, net als `parseMSPDuration`'s `hoursPerDay` in mspdiReader. */
 export function getDuration(value: number, unit: MppTimeUnit): number {
   switch (unit) {
     case 'minutes':

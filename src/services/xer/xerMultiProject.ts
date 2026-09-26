@@ -20,7 +20,7 @@ export type { XerBaselineFallbackReason, XerDocumentExternalLink } from '@/servi
 
 export interface XerMultiProjectImport extends MultiDocumentImport {
   documents: XerMultiProjectDocument[];
-  /** Alle niet-lege, door de productreader gemapte taakprojecten, óók projecten die X-O2 alleen
+  /** Alle niet-lege, door de productreader gemapte taakprojecten, óók projecten die alleen
    *  als baseline materialiseert en daarom niet als document openen. Dit is echte solverinvoer,
    *  geen P6-uitvoer/orakelprojectie; productfidelity kan zo iedere taakdragende bron exact één
    *  keer oplossen zonder de gebruikerszichtbare documentselectie te veranderen. */
@@ -237,7 +237,7 @@ function collectExternalLinks(documents: readonly XerMultiProjectDocument[]): Xe
   return links;
 }
 
-/** Bouw de documentselectie uit X2's tabellen en X4a's geïnjecteerde per-projectmapping. */
+/** Bouw de documentselectie uit de tabellen en de geïnjecteerde per-projectmapping. */
 export function assembleXerMultiProjectImport(
   tables: XerTables,
   mapProject: XerProjectMapper,
@@ -325,7 +325,7 @@ export function assembleXerMultiProjectImport(
   // `externalLinks` alleen op de meervoudige wrapper bewaren is onvoldoende: zodra fileSlice de
   // resultaten over documenten verdeelt verdwijnt die wrapper. Hang daarom aan ieder betrokken
   // document een eigen kopie. Dit veld zit via `xerImportMetadata` in DOCUMENT_FIELDS en overleeft
-  // documentwissel/undo/recovery-input. X9 blijft verantwoordelijk voor de IFC-serialisatie ervan.
+  // documentwissel/undo/recovery-input.
   for (const document of documents) {
     document.result.xer.externalLinks = externalLinks
       .filter(link => link.predecessor.projectId === document.projectId

@@ -1,9 +1,9 @@
 /**
- * Minimale ZIP-**lezer** (stored + deflate), gelift uit `src/extensions/extensionService.ts`
- * (issue #27, etappe 3, X2). Puur: geen store, geen React, geen `@tauri-apps/*`, geen
- * module-level muteerbare state. `extensionService` is sindsdien gewoon een afnemer.
+ * Minimale ZIP-**lezer** (stored + deflate), gedeeld door de extensie-installatie
+ * (`src/extensions/extensionService.ts`) en de `.xlsx`-lezer. Puur: geen store, geen React, geen
+ * `@tauri-apps/*`, geen module-level muteerbare state.
  *
- * Drie dingen zijn hier bewust anders dan in de extensieversie:
+ * Drie bewuste keuzes:
  *   1. de limieten zijn **injecteerbaar** (`ZipReadLimits`) in plaats van module-locale constanten;
  *   2. het uitpakbudget wordt **tijdens** het inflaten per chunk afgerekend, niet erna — een
  *      nacontrole is geen limiet (zie `inflateRawBounded`);
@@ -35,8 +35,8 @@ export class ZipValidationError extends Error {
  * exact dezelfde fout nóg een keer produceren, met een misleidende `console.warn` ertussen.
  *
  * Waarom een EIGEN fout: zonder deze guard wordt een gedeflate blad in een omgeving zonder
- * `DecompressionStream` als "geen ZIP" gemeld. Dat is precies de nutteloze melding uit K8 — het
- * bestand mankeert niets, de omgeving kan het alleen niet uitpakken.
+ * `DecompressionStream` als "geen ZIP" gemeld — een nutteloze melding: het bestand mankeert niets,
+ * de omgeving kan het alleen niet uitpakken.
  */
 export class ZipCompressionUnsupportedError extends ZipValidationError {
   constructor() {
@@ -243,10 +243,9 @@ function addZipPayloadSize(current: number, size: number, name: string, limits: 
  * ZIP vaak één wikkelmap draagt (`mijn-extensie/manifest.json`). Een afnemer die met `select` een
  * SUBSET opvraagt bedoelt daar iets heel anders mee: hij vraagt om exact díe padnamen. Zou er dan
  * ook gestript worden, dan krijgt hij ze onder een andere naam terug — en bij een selectie van één
- * part is "iedere entry deelt dezelfde topmap" per definitie waar. Precies dat brak de tweede pass
- * van de `.xlsx`-lezer: die vraagt `xl/worksheets/sheet1.xml` op en kreeg `worksheets/sheet1.xml`
- * terug, waarna elk echt voortgangsblad als `noSheet` werd geweigerd (gevonden bij de T14-integratie
- * van issue #27; de twee banen waren los groen).
+ * part is "iedere entry deelt dezelfde topmap" per definitie waar. De tweede pass van de
+ * `.xlsx`-lezer vraagt bijvoorbeeld `xl/worksheets/sheet1.xml` op en zou dan
+ * `worksheets/sheet1.xml` terugkrijgen, waarna elk echt voortgangsblad als `noSheet` geweigerd wordt.
  *
  * De naamveiligheids- en dubbelnaamcontroles gelden onverkort in beide gevallen.
  */

@@ -14,7 +14,7 @@ import { buildRecordedTime, type RecordedTime } from '@/engine/scheduler/recorde
 
 interface ParsedRow {
   wbs: string;
-  /** Issue #159: 'Outline Level'-kolom (1 = hoofdniveau); undefined als de kolom ontbreekt. */
+  /** 'Outline Level'-kolom (1 = hoofdniveau); undefined als de kolom ontbreekt. */
   outlineLevel?: number;
   name: string;
   duration: number;
@@ -84,7 +84,7 @@ function parseTaskType(s: string): TaskType {
   return TASK_TYPES.includes(upper as TaskType) ? (upper as TaskType) : 'CONSTRUCTION';
 }
 
-/** CSV-datum: ISO of `DD-MM-YYYY`/`DD/MM/YYYY`; gedeeld met de import-datumhelper (F5-a). */
+/** CSV-datum: ISO of `DD-MM-YYYY`/`DD/MM/YYYY`; gedeeld met de import-datumhelper. */
 function parseDate(s: string): string {
   return csvDateOrToday(s);
 }
@@ -94,13 +94,12 @@ type ParsedLag = Pick<Sequence, 'lagDays' | 'lagUnit' | 'lagPercent' | 'lagMinut
 // Pattern: WBS_CODE + TYPE + optional LAG (MS Project-notatie)
 // e.g. "1.1FS+2d" (werkdagen), "1.3SS-1d", "1.2FF+3ed" (kalenderdagen/elapsed), "1.7FS+2u" (werkuren),
 //      "1.8FS+3eu" (elapsed uren), "1.5SS+50%" (procent van voorgangerduur), "1.6FS-25e%", "1.4"
-// Critreview #159: de code is VRIJE TEKST (`T107`, `A-01` uit een IFC-/P6-import), niet `[\d.]+` —
-// lazy `.+?` laat het type-achtervoegsel en de lag het einde bepalen. De lag is de korte notatie van
-// de app (`formatLagShort` schrijft hem, `parseLagInput` leest hem): de eenheden komen uit
-// `LAG_UNIT_SUFFIXES`, zodat CSV nooit een eigen, smallere lag-notatie heeft (audit import/export,
-// bevinding 4 — uur-lags verdwenen stil). Het teken is hier verplicht (anders is "1.12" niet van
-// "1.1" + lag 2 te onderscheiden) en de decimaal is een punt: de komma scheidt in deze kolom de
-// voorgangers.
+// De code is VRIJE TEKST (`T107`, `A-01` uit een IFC-/P6-import), niet `[\d.]+` — lazy `.+?` laat
+// het type-achtervoegsel en de lag het einde bepalen. De lag is de korte notatie van de app
+// (`formatLagShort` schrijft hem, `parseLagInput` leest hem): de eenheden komen uit
+// `LAG_UNIT_SUFFIXES`, zodat CSV nooit een eigen, smallere lag-notatie heeft. Het teken is hier
+// verplicht (anders is "1.12" niet van "1.1" + lag 2 te onderscheiden) en de decimaal is een punt: de
+// komma scheidt in deze kolom de voorgangers.
 const PREDECESSOR_TOKEN = new RegExp(
   `^(.+?)\\s*(FS|FF|SS|SF)?\\s*([+-]\\d+(?:\\.\\d+)?(?:${LAG_UNIT_SUFFIXES})?)?$`, 'i',
 );
@@ -138,7 +137,7 @@ function parsePredecessorString(predStr: string): { wbs: string; type: SequenceT
 
 /**
  * Het getal vooraan een CSV-cel — zoals `parseFloat` ("5 days" ⇒ 5, "2.5" ⇒ 2.5), maar met een
- * DECIMALE KOMMA waar die eenduidig is (review audit import/export: "2,5" werd stil 2, "33,4" stil 33).
+ * DECIMALE KOMMA waar die eenduidig is ("2,5" mag niet stil 2 worden, "33,4" niet stil 33).
  * - Scheidingsteken ";": een komma in een cel is het decimaalteken. ";" als lijstscheider is precies
  *   wat spreadsheets met een komma-decimale landinstelling (nl/de/fr) schrijven, en hun
  *   duizendtalscheider is "." of een spatie — nooit ",".
@@ -147,7 +146,7 @@ function parsePredecessorString(predStr: string): { wbs: string; type: SequenceT
  *   als decimaal te lezen, maar "1,250" (1–3 cijfers zonder voorloopnul, komma, precies 3 cijfers) is
  *   net zo goed Engelse duizendtalnotatie (1250). Dat scheelt een factor 1000, dus niet gokken: NaN —
  *   de aanroeper valt terug op zijn gewone "onleesbaar"-pad en meldt de cel.
- * Meer groepen ("1,250,000", "1.250,5") vallen buiten de kommaregel en houden het oude
+ * Meer groepen ("1,250,000", "1.250,5") vallen buiten de kommaregel en houden het
  * `parseFloat`-gedrag, net als elke cel zonder komma (onze eigen export schrijft een decimale punt).
  */
 function readCsvNumber(raw: string, delimiter: string): number {
@@ -161,13 +160,12 @@ function readCsvNumber(raw: string, delimiter: string): number {
  * Completion-cel → fractie 0..1, of `undefined` als de cel niet leesbaar is (de aanroeper meldt hem
  * en neemt 0 = "geen voortgang", de golden rule van `normalizeImportedProgress`).
  *
- * Audit import/export, bevinding 5: een %-markering — in de KOP ("Completion (%)", "% complete") of
- * in de CEL zelf ("33%") — betekent altijd procent, met exact dezelfde parser als "Voortgang
- * importeren" (`parseSheetPercent`): "1" is 1 %, "0,5" is 0,5 %, "150" is buiten bereik. Zo leest
- * Openen onze eigen export (hele procenten) en een teruggestuurd voortgangsblad precies zoals de
- * voortgangsimport dat doet; voorheen werd "1" via de fractie-heuristiek hieronder stil 100 %.
- * Alleen een kop ZONDER % ("Completion", "Percent", "Voltooiing") draagt geen eenheid; daar blijft
- * de oude heuristiek "≤ 1 is een fractie, > 1 is procent" staan voor derde tools die 0..1 schrijven.
+ * Een %-markering — in de KOP ("Completion (%)", "% complete") of in de CEL zelf ("33%") — betekent
+ * altijd procent, met exact dezelfde parser als "Voortgang importeren" (`parseSheetPercent`): "1" is
+ * 1 %, "0,5" is 0,5 %, "150" is buiten bereik. Zo leest Openen onze eigen export (hele procenten) en
+ * een teruggestuurd voortgangsblad precies zoals de voortgangsimport. Alleen een kop ZONDER %
+ * ("Completion", "Percent", "Voltooiing") draagt geen eenheid; daar geldt de heuristiek "≤ 1 is een
+ * fractie, > 1 is procent" voor derde tools die 0..1 schrijven.
  */
 function parseCompletionCell(raw: string, headerIsPercent: boolean, delimiter: string): number | undefined {
   if (!raw.trim()) return 0;
@@ -250,11 +248,11 @@ export function readCSV(content: string): ImportResult {
       completion = 0;
     }
 
-    // Actuals (fase 2.6, §9.3) — leeg ⇒ undefined (invarianten via normalizeImportedProgress).
+    // Actuals — leeg ⇒ undefined (invarianten via normalizeImportedProgress).
     const actualStartRaw = get('actualStart').trim();
     const actualFinishRaw = get('actualFinish').trim();
 
-    // "Datums zoals opgeslagen" voor CSV (eigenaarsbesluit 2026-09-09, "vergelijk wat er is"):
+    // "Datums zoals opgeslagen" voor CSV ("vergelijk wat er is"):
     // alleen kolommen die het bestand ÉCHT heeft en die voor deze rij gevuld zijn tellen als
     // vastlegging — een ontbrekende kolom is "niet vastgelegd", nooit de `vandaag`-/`0`-terugval
     // die `task.time` hieronder wél krijgt. Late datums kent een CSV niet.
@@ -277,8 +275,8 @@ export function readCSV(content: string): ImportResult {
       wbs: get('wbs'),
       ...(outlineLevelRaw ? { outlineLevel: parseInt(outlineLevelRaw, 10) } : {}),
       name: get('name', 'Task'),
-      // `|| 5` maakte van duur 0 (een mijlpaal) stil 5 dagen (critreview #159): alleen een ONLEESBARE
-      // waarde valt terug op de default. Een fractionele dag blijft bewust fractioneel (niet afronden).
+      // Duur 0 is een mijlpaal, geen reden voor de default: alleen een ONLEESBARE waarde valt terug
+      // op de default. Een fractionele dag blijft bewust fractioneel (niet afronden).
       duration: numberOr(get('duration', '5'), 5),
       start: parseDate(get('start')),
       finish: parseDate(get('finish')),
@@ -365,8 +363,7 @@ export function readCSV(content: string): ImportResult {
       status: 'NOT_STARTED', // afgeleid door normalizeImportedProgress uit completion/actuals
       isMilestone: row.duration === 0,
       // De gedeelde default (500, zoals addTask en de IFC-/MSPDI-/P6-/MPP-lezers) — CSV draagt geen
-      // prioriteit. De oude 0 ("laagste, levelt als eerste weg") was een overblijfsel van vóór
-      // fase 2.5 (audit import/export, bevinding 9).
+      // prioriteit.
       priority: DEFAULT_PRIORITY,
       parentId: null,
       childIds: [],
@@ -398,19 +395,19 @@ export function readCSV(content: string): ImportResult {
   const calendar = createDefaultCalendar();
   const projectStart = resolveMissingScheduleDates(tasks, missing, '', () => calendar);
 
-  // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6). CSV kent geen statusdatum.
+  // Voortgang-invarianten op de rauw ingelezen actuals. CSV kent geen statusdatum.
   normalizeImportedProgress(tasks, undefined);
 
-  // Parent-child-hiërarchie (issue #159): 'Outline Level'-kolom + rijvolgorde, met de gepunte WBS als
+  // Parent-child-hiërarchie: 'Outline Level'-kolom + rijvolgorde, met de gepunte WBS als
   // scheidsrechter én terugval — beslisregel bij `rebuildImportedHierarchy` (gedeeld met MSPDI).
   rebuildImportedHierarchy(tasks, rows.map(r => r.outlineLevel));
-  // Critreview #159: een taak mét kinderen is nooit een mijlpaal — de duur-0-gok hierboven kende de
+  // Een taak mét kinderen is nooit een mijlpaal — de duur-0-gok hierboven kende de
   // boom nog niet (spiegel van de writer-guard in `mspdiWriter.ts`).
   for (const task of tasks) if (task.childIds.length > 0) task.isMilestone = false;
 
   // Parse predecessors into sequences. `tasks[i]` ↔ `rows[i]` is per constructie 1-op-1 (één push
   // per rij hierboven), dus op index — niet `rows.find` op WBS-code, die bij dubbele of lege codes
-  // stil de verkeerde rij pakte (critreview #159).
+  // stil de verkeerde rij pakt.
   const sequences: Sequence[] = [];
   let unresolvedPredecessors = 0;
   let ambiguousPredecessors = 0;
@@ -432,7 +429,7 @@ export function readCSV(content: string): ImportResult {
           type: pred.type,
           lagDays: pred.lag.lagDays,
         };
-        // Alleen gezette velden (byte-stabiel met de oude lezer voor dag-/procent-lags).
+        // Alleen gezette velden.
         if (pred.lag.lagUnit) seq.lagUnit = pred.lag.lagUnit;
         if (pred.lag.lagPercent !== undefined) seq.lagPercent = pred.lag.lagPercent;
         if (pred.lag.lagMinutes !== undefined) seq.lagMinutes = pred.lag.lagMinutes;
@@ -473,7 +470,7 @@ export function readCSV(content: string): ImportResult {
     resources: [],
     assignments: [],
     customTaskTypes: [...customById.values()],
-    // Rekenprofielen (spec v3.1 §6): CSV ⇒ OPS (defaultOptionsFor('ops') is leeg).
+    // Rekenprofielen: CSV ⇒ OPS (defaultOptionsFor('ops') is leeg).
     suggestedProfileId: 'ops',
     ...(Object.keys(recordedTimes).length > 0 ? { recordedTimes, recordedTimesOrigin: 'csv' as const } : {}),
   };

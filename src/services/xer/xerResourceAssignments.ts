@@ -220,10 +220,9 @@ export function readXerResourceAssignments(
     const curve = curveSourceId ? curveById.get(curveSourceId) : undefined;
     if (curveSourceId && !curve) issues.push({ code: 'XER_ASSIGNMENT_CURVE_MISSING', table: 'TASKRSRC', line: row.line, sourceId, fallback: 'UNIFORM' });
     const { curve: opsCurve, curveValues } = curveOf(curve);
-    // Taaktypes-etappe (spec §4.3/§4.4, afspraak met de XER-etappe): target_qty / act_reg_qty +
-    // act_ot_qty / remain_qty (uren) worden eersteklasvelden — alleen wanneer ze afwijken van
-    // `activiteitsduur × target_qty_per_hr` (`importedWorkFields`); materiaal blijft buiten de
-    // driehoek. De rauwe rijen blijven daarnaast in het bronarchief.
+    // target_qty / act_reg_qty + act_ot_qty / remain_qty (uren) worden eersteklasvelden — alleen
+    // wanneer ze afwijken van `activiteitsduur × target_qty_per_hr` (`importedWorkFields`); materiaal
+    // blijft buiten de driehoek. De rauwe rijen blijven daarnaast in het bronarchief.
     const taskWork = context.taskWorkMinutes?.get(taskSourceId);
     const workFields = resource.type !== 'MATERIAL' && taskWork !== undefined
       ? importedWorkFields({
