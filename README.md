@@ -26,7 +26,7 @@ Open-source bouwplanningapplicatie voor de bouwsector. Native IFC-bestandsformaa
 - **Rapportage** — live afdrukvoorbeeld in de ribbon met instelbare opties
 - **Context menu** — rechtermuisknop voor snelle acties op taken
 - **Bouwsector-specifiek** — feestdagen, bouwvak, inspectiemomenten, fasering
-- **4D BIM-ready** — koppeling planning aan IFC-gebouwmodel
+- **Basis voor 4D BIM** — IFC 4.3 als native formaat; koppeling van taken aan bouwelementen uit een IFC-gebouwmodel staat op de roadmap
 
 ![Rapport Tab](screenshot-rapport.png)
 
@@ -76,7 +76,7 @@ src/
 public/docs/         # In-app handleiding: 38 artikelen in nl+en, de meeste ook in 12 andere talen (voedt ook de wiki)
 examples/            # Voorbeeldplanningen in IFC
 tests/               # planning · library · mcp · dev-server · browser
-src-tauri/           # De Rust-schil (dun: precies één native command)
+src-tauri/           # De Rust-schil (dun: precies drie native commands)
 ```
 
 Deze boom is bewust grofmazig — een uitgeschreven versie loopt binnen een maand

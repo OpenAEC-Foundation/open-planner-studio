@@ -114,10 +114,12 @@ De huidige contractversie leest je uit met `require('open-planner-studio').apiVe
 
 Historie van de contractversie: `1.1.0` — read-only XER-bronroute (`data.getImportSource*`); `1.2.0` —
 rekenprofiel (#169, `ExtProject.schedulingProfile`) + `getImportSourceIssue()` (#109). Beide
-toevoegingen vallen onder dezelfde minor `1.2`.
+toevoegingen vallen onder dezelfde minor `1.2`. `1.3.0` — taaktypes (#170): `ExtTask.workRule`,
+`ExtProject.defaultWorkRule` en de drie optionele werkvelden op de toewijzing
+(`plannedWorkMinutes`/`actualWorkMinutes`/`remainingWorkMinutes`).
 
 > **Migratie (audit P16):**
-> - De permissie `commands` is verwijderd — die had nooit een API-oppervlak. Manifesten die haar (of een andere onbekende waarde) noemen, blijven werken: onbekende permissies worden bij het activeren stil weggefilterd met een waarschuwing in de debug-terminal.
+> - De permissie `commands` is verwijderd — die had nooit een API-oppervlak. Een nieuwe installatie met een manifest dat haar (of een andere onbekende waarde) noemt, wordt geweigerd. Alleen al opgeslagen legacy-installaties blijven werken: daar worden onbekende permissies weggefilterd met een waarschuwing.
 > - `backstage` is nu de permissie voor `api.importers.*`. Bestaande importer-extensies die haar niet declareren blijven werken (warn-modus); **declareer `backstage` in nieuwe extensies met een importer** — in een toekomstige versie wordt dit hard.
 
 ## Validatie, identiteit en quarantaine
@@ -304,7 +306,7 @@ module.exports = {
 
 `data.getProject()` levert sinds contractversie `1.2.0` het veld `schedulingProfile`: het rekenprofiel
 van het project (`id`, `baseId` ∈ `p6`/`msproject`/`ops`, `name` — leeg bij een ingebouwd profiel —
-en `conventions`, de opgeloste conventies — sinds X12 brok 2 achttien). Het veld is **alleen-lezen**: de app neemt het
+en `conventions`, de opgeloste conventies — sinds X12 brok 2 zevenentwintig). Het veld is **alleen-lezen**: de app neemt het
 nooit over uit wat een extensie teruggeeft. Een importer-resultaat van een extensie opent daarom altijd
 als OPS; het profiel kiest de gebruiker in Bestand → Projectinfo.
 

@@ -8,7 +8,7 @@ assignees: ''
 
 *Feel free to answer in your own language if that's easier — Dutch is very welcome too.*
 
-Tip: the feedback button in the app (bottom right) automatically fills in the
+Tip: the feedback button in the app (top left, in the title bar) automatically fills in the
 version, operating system and language, and lets you attach an annotated
 screenshot.
 

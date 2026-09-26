@@ -33,7 +33,7 @@ volledige functiedekkingsmatrix (zie `scripts/verify-examples.ts`, de suite-bred
 
 | Bestand | Project | Taken | Demonstreert |
 |---------|---------|-------|--------------|
-| `showcase-verbouwing-eengezinswoning.ifc` | Verbouwing & Aanbouw Eengezinswoning (KLEIN) | 20 | Instapniveau: WBS-fasering, FS-keten met één SS-overlap (wanden/dak) en één FF-koppeling (schilderwerk vlak na tegelwerk), SNET-vergunningconstraint, start-/verplichte-oplevermijlpaal, comfortabele deadline (géén conflict), één baseline. Bewust geen resources/activity codes. |
+| `showcase-verbouwing-eengezinswoning.ifc` | Verbouwing & Aanbouw Eengezinswoning (KLEIN) | 20 | Instapniveau: WBS-fasering, FS-keten met één SS-overlap (wanden/dak) en één FF-koppeling (schilderwerk vlak na tegelwerk), SNET-vergunningconstraint, start-/verplichte-oplevermijlpaal, comfortabele deadline (géén conflict), één baseline. Bewust geen activity codes; wel een minimale set van zes resources (namen uit de demo-resourcebibliotheek, alleen UNIFORM-curves, geen eigen overallocatie) voor het bezettingsoverzicht over projecten. |
 | `showcase-rijwoningen-de-akkers.ifc` | Nieuwbouw 6 Rijwoningen De Akkers (MIDDEL) | 83 | Gedeelde fundering met vorstverlet (`extraHolidays`); doorschuivende metselploeg (CREW+LABOR) per woning; installateurs op een 4-daagse resource-kalender; afbouw met curve-variatie (UNIFORM/FRONT_LOADED/BACK_LOADED) en zichtbare overallocatie op stukadoors/schilders; per-woning verplichte opleverinspecties + een bewust te krappe contractdeadline (negatieve float); activity codes Woning×Discipline; aantekeningen (open + afgevinkt); voortgang + statusdatum halverwege; baseline vóór start. |
 | `showcase-appartementencomplex.ifc` | Nieuwbouw Appartementencomplex De Vaart (GROOT) | 249 | Appartementencomplex met 3 parallelle torens A/B/C — hard-pin MSO op de vergunde wegafzetting, uren-planning (uur-kalender) voor kelder-vlechtwerk/stort, torenkraan (EQUIPMENT) met capaciteitsstap + zichtbare (met nivellering oplosbare) overallocatie op alle ruwbouw-/afbouwploegen, een hammock "Ruwbouw toren A (LOE)", twee getide kritieke ketens (torens A+B) + een near-critical toren C (floatPaths), secundaire constraint op de liftlevering, alle 6 toewijzingscurves in de afbouw, START_FINISH-relatie in fase 7, een externe koppeling naar het NIET-PUBLIC bronbestand `showcase-groot-terrein-onderaannemer.ifc` (bewust `sourceMissing`, niet in de PUBLIC-set), en een rebaseline (Contract → meerwerk op torens A+B → Herbaseline, `activeBaselineId`=Contract). |
 
@@ -49,8 +49,9 @@ Twintig kortere planningen over uiteenlopende sectoren (woningbouw, utiliteit, i
 renovatie, industrie). Ze tonen **échte fase-overlap** — SS/FF-relaties, leads en %-lags
 op de fasegrenzen — zodat een realistisch kritiek pad **mét float** ontstaat (55–86 % van de
 taken kritiek, niet bijna alles). Infra-/waterprojecten draaien op een 6-daagse kalender.
-Deze voorbeelden bevatten taken, relaties, mijlpalen en een kalender, maar **geen resources**
-(daarvoor zijn de showcases hierboven).
+Deze voorbeelden bevatten taken, relaties, mijlpalen en een kalender; acht ervan (01, 03, 05, 08,
+10, 12, 15 en 20) hebben daarnaast resources met toewijzingen. Voor de geavanceerde resourcefuncties
+zijn er de showcases hierboven.
 
 | Bestand | Project | Taken* |
 |---------|---------|--------|
