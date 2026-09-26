@@ -4,7 +4,7 @@
 
 ## Açma
 
-**Görünüm** → **Görüntüleme** şerit grubu → **Filtre…**. Bir filtre etkinken düğme vurgulanmış kalır. **Esc**, kapatma çarpısı veya pencerenin dışına bir tıklama, uygulamadan kapatır.
+Filtre, düzen penceresinde ayarlanır: **Görünüm** → **Layout** şerit grubu → **Yeni düzen**, **Filtre**'yi işaretleyin ve kuralları altında oluşturun. **Kaydet** bundan bir düzen düğmesi yapar, **Kaydetmeden uygula** filtreyi yalnızca şimdilik ekrana getirir. Aşağıda anlatılan ayrı Filtre penceresi klasik görünüm düğmelerine aittir: **Görünüm** → **Görüntüleme** şerit grubu → **Filtre…**; yalnızca bu düğmeleri **Ayarlar** → **Gelişmiş** → **Eski özellikler** üzerinden açarsanız görünür. Kuralların kendisi iki yerde de aynı çalışır. Bir filtre etkinken düğme vurgulanmış kalır. Henüz kayıtlı filtreniz yoksa düğme Filtre penceresini doğrudan açar. Aksi hâlde oku kayıtlı filtrelerinizi de açar; birini seçmek onu hemen uygular, **Temizle** ise etkin filtreyi kapatır. **Esc**, kapatma çarpısı veya pencerenin dışına bir tıklama, uygulamadan kapatır.
 
 ## Gruplar: hepsi veya herhangi biri
 

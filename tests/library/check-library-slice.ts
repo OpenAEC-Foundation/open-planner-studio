@@ -3,14 +3,17 @@
 // stil terug (geen IndexedDB/Tauri) — we asserten alleen de in-memory state. Exitcode = poort.
 import { createAppStore, useAppStore } from '@/state/appStore';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import { writeIFC } from '@/services/ifc/ifcWriter';
+import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { normalizeLoadedLibrary, persistLibrary } from '@/state/slices/librarySlice';
-import { computeCalendarHash, computeResourceHash, isResourceFieldLocked } from '@/services/library/libraryOps';
+import { computeCalendarHash, computeResourceHash, diffCalendarVsPool, isResourceFieldLocked } from '@/services/library/libraryOps';
 import { PoolImportDialog } from '@/components/dialogs/PoolImportDialog';
 import { DEFAULT_COMPANY_ID, createDefaultLibrary } from '@/types/library';
 import { DEMO_COMPANY_ID } from '@/services/library/demoLibrary';
 import { createSnapshot } from '@/state/snapshot';
 import { capturePayload, hydratePayload } from '@/state/documentContract';
 import { materializeLibraryBoundary } from '@/state/documentActivation';
+import { readIFC } from '@/services/ifc/ifcReader';
 
 let checks = 0; let fails = 0;
 function assert(cond: boolean, msg: string): void {
@@ -771,7 +774,7 @@ function commitOpenBoundaryForTest(): { refreshed: number; deviated: number; rem
   // de sterkste assert die haalbaar is zonder taken/toewijzingen op te tuigen in dit library-blok.
   useAppStore.setState((st) => {
     const doc = st.documents.find(d => d.id === firstDoc);
-    if (doc?.payload) doc.payload.resourceLoadResult = { load: {}, capacity: { __stale__: {} }, overallocatedDays: {}, overallocatedReasons: {} };
+    if (doc?.payload) doc.payload.resourceLoadResult = { load: {}, capacity: { __stale__: {} }, overallocatedDays: {}, overallocatedReasons: {}, hours: {} };
   });
   useAppStore.getState().switchDocument(firstDoc);
   const activeLoad = useAppStore.getState().resourceLoadResult;
@@ -1461,6 +1464,37 @@ function commitOpenBoundaryForTest(): { refreshed: number; deviated: number; rem
   assert(useAppStore.getState().ui.libraryRefreshNotice === null, 'closeDocument() laatste-sluit-naar-leeg-tak reset libraryRefreshNotice');
 }
 
+// --- Bibliotheek hernoemen werkt de naam in gekoppelde open documenten bij (audit resources-kalenders
+// R10). `project.companyName` is een gedenormaliseerde kopie die alleen naar de IFC-pset gaat;
+// `bindProjectToCompany` en `removeCompany` hielden hem al bij, `renameCompany` niet — een opgeslagen
+// IFC droeg dan de oude bibliotheeknaam. Eigen store: actief, slapend én een niet-gekoppeld document.
+{
+  const store = createAppStore();
+  const S = () => store.getState();
+  const cid = S().addCompany('Bouwbedrijf Oud');
+  const other = S().addCompany('Ander Bedrijf');
+  S().bindProjectToCompany(cid);
+  S().addTask({ name: 'x' });
+  const docA = S().activeDocumentId;
+  S().newDocument();
+  S().bindProjectToCompany(other);
+  const docOther = S().activeDocumentId;
+  S().newDocument();
+  S().bindProjectToCompany(cid);
+  const docB = S().activeDocumentId;
+  S().switchDocument(docA); // A actief; B (zelfde bibliotheek) en "ander" slapen.
+  const dirtyBefore = S().isDirty;
+  const undoBefore = S().historyEvents.length;
+
+  S().renameCompany(cid, 'Bouwbedrijf Nieuw');
+  const after = S();
+  assert(after.project.companyName === 'Bouwbedrijf Nieuw', 'R10: renameCompany werkt companyName van het actieve gekoppelde document bij');
+  assert(after.documents.find(d => d.id === docB)?.payload?.project.companyName === 'Bouwbedrijf Nieuw', 'R10: …en van een slapend gekoppeld document');
+  assert(after.documents.find(d => d.id === docOther)?.payload?.project.companyName === 'Ander Bedrijf', 'R10: een document van een andere bibliotheek blijft ongemoeid');
+  assert(/'CompanyName',\$,IFCTEXT\('Bouwbedrijf Nieuw'\)/.test(writeIFC(buildWriteIFCInput(after))), 'R10: opslaan schrijft de nieuwe bibliotheeknaam in de IFC');
+  assert(after.isDirty === dirtyBefore && after.historyEvents.length === undoBefore, 'R10: zoals removeCompany: geen undo-stap en geen isDirty');
+}
+
 // --- Bedrijf verwijderen ontkoppelt gekoppelde open documenten (spec §5) ---
 {
   const s = useAppStore.getState();
@@ -2076,6 +2110,32 @@ function commitOpenBoundaryForTest(): { refreshed: number; deviated: number; rem
   assert(boundary.signals.refreshed === 1 && boundary.workRuleSettle?.changed === 1, `H6: de grens ververst de achterlopende kalender en meldt 1 aangepaste taak (kreeg ${JSON.stringify(boundary.signals)})`);
   assert(boundary.payload.tasks.find(t => t.id === tB)!.time.scheduleDuration === 6, 'H6: de grens settelt de taak op de payload (6 d)');
   assert(g().tasks.find(t => t.id === tB)!.time.scheduleDuration === 4, 'H6: de grens raakt de store niet aan (pure materialisatie)');
+}
+
+// --- Kalender met LEGE omschrijving: na opslaan + openen nog steeds leeg en "in sync" ---------------
+// Bijvondst: de writer schrijft een lege omschrijving als STEP-null `$` (`ifcStr('')`), en de reader
+// viel dan terug op de standaardtekst van `createDefaultCalendar()` ("Standaard bouwkalender: …",
+// afhankelijk van de lokale Bouwmodus-instelling). Een bibliotheekkopie met lege omschrijving stond
+// na heropenen daardoor onterecht op "wijkt af". Project-, taak- en resource-omschrijving lezen `$`
+// al als '' — de kalender nu ook.
+{
+  const iso = createAppStore();
+  const S = () => iso.getState();
+  S().setProject({ startDate: '2026-06-01' });
+  const cid = S().addCompany('Leeg BV');
+  const poolCalId = S().addPoolCalendar(cid, { name: 'Bouw', description: '', workDays: [1, 2, 3, 4, 5], workStartHour: 7, workEndHour: 16, hoursPerDay: 8, holidays: [] })!;
+  S().bindProjectToCompany(cid);
+  const calId = S().addLibraryCalendarToProject(cid, poolCalId).calendarId!;
+  S().setCalendar({ ...S().calendar, description: '' });
+  assert(S().onOpenStatusForCalendar(calId) === 'in-sync', 'lege kalenderomschrijving: voorwaarde — kopie is in sync vóór opslaan');
+  const parsed = readIFC(writeIFC(buildWriteIFCInput(S())));
+  assert(parsed.calendar.description === '', `lege omschrijving projectkalender blijft leeg na round-trip, kreeg ${JSON.stringify(parsed.calendar.description)}`);
+  S().newDocument();
+  S().applyLoadedProject(parsed, { filePath: 'leeg.ifc', linkedOpen: true });
+  const copy = S().calendars.find(c => c.libraryOrigin?.libraryItemId === poolCalId);
+  assert(copy?.description === '', `lege omschrijving bibliotheekkopie blijft leeg na heropenen, kreeg ${JSON.stringify(copy?.description)}`);
+  assert(!!copy && S().onOpenStatusForCalendar(copy.id) === 'in-sync', `bibliotheekkopie met lege omschrijving is na heropenen in sync, kreeg ${copy ? S().onOpenStatusForCalendar(copy.id) : 'geen kopie'}`);
+  assert(!!copy && diffCalendarVsPool(copy, S().pools[cid]).status === 'up-to-date', 'bibliotheekkopie met lege omschrijving: diff up-to-date na heropenen');
 }
 
 console.log(`library-slice: ${checks - fails}/${checks} groen`);

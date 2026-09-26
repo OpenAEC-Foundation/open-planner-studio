@@ -114,7 +114,9 @@ export function calendarScalarBreakIssue(
 }
 
 /** Netto uren die het expliciete pauzepatroon oplevert; `undefined` betekent ongeldig/legacy. */
-export function simpleBreakNetHours(calendar: WorkCalendar): number | undefined {
+export function simpleBreakNetHours(
+  calendar: Pick<WorkCalendar, 'workStartHour' | 'workEndHour' | 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'>,
+): number | undefined {
   if (calendar.simpleBreakStartMinute === undefined && calendar.simpleBreakDurationMinutes === undefined) {
     return undefined;
   }
@@ -124,6 +126,43 @@ export function simpleBreakNetHours(calendar: WorkCalendar): number | undefined 
     return undefined;
   }
   return (end - start - (calendar.simpleBreakDurationMinutes ?? 0)) / 60;
+}
+
+type ScalarCalendar = Pick<WorkCalendar,
+  'workStartHour' | 'workEndHour' | 'hoursPerDay' | 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'>;
+
+/** De impliciete pauze van een legacy-scalarkalender (zonder pauzevelden): klokspanne min netto uren,
+ *  in minuten, nooit negatief. 07:00–16:00 / 8 u ⇒ 60. */
+export function legacySimpleBreakDurationMinutes(calendar: Pick<WorkCalendar, 'workStartHour' | 'workEndHour' | 'hoursPerDay'>): number {
+  return Math.max(0, Math.round((calendar.workEndHour - calendar.workStartHour - calendar.hoursPerDay) * 60));
+}
+
+/**
+ * De afleiding bij het wijzigen van werkdag (Begin/Einde) of pauze op een scalaire kalender — één
+ * definitie voor de kalenderdialoog (`CalendarForm`) en MCP `planner_update_calendar`:
+ *  1. een legacy-kalender (zonder expliciete pauzeduur) wordt eerst expliciet: zijn impliciete pauze
+ *     (begin 12:00, duur = klokspanne − netto uren) komt in de patch, zodat een oud handmatig
+ *     `hoursPerDay` geen verborgen tweede bron blijft;
+ *  2. daarna volgen de netto uren (`hoursPerDay`) uit werkdag en pauze (`simpleBreakNetHours`). Is dat
+ *     patroon ongeldig, dan blijft `hoursPerDay` buiten de patch — de aanroeper valideert en weigert
+ *     (`calendarScalarBreakIssue`).
+ * Raakt `patch` geen van de vier velden, dan is het resultaat `patch` zelf.
+ */
+export function simpleBreakPatch(calendar: ScalarCalendar, patch: Partial<WorkCalendar>): Partial<WorkCalendar> {
+  const changesScalarTime = patch.workStartHour !== undefined
+    || patch.workEndHour !== undefined
+    || patch.simpleBreakStartMinute !== undefined
+    || patch.simpleBreakDurationMinutes !== undefined;
+  if (!changesScalarTime) return patch;
+  const materializedLegacyDuration = calendar.simpleBreakDurationMinutes === undefined
+    ? {
+        simpleBreakStartMinute: calendar.simpleBreakStartMinute ?? NOON,
+        simpleBreakDurationMinutes: legacySimpleBreakDurationMinutes(calendar),
+      }
+    : {};
+  const next = { ...calendar, ...materializedLegacyDuration, ...patch };
+  const netHours = simpleBreakNetHours(next);
+  return { ...materializedLegacyDuration, ...patch, ...(netHours !== undefined ? { hoursPerDay: netHours } : {}) };
 }
 
 function hasAnyBands(bands: WorkTimeBands): boolean {

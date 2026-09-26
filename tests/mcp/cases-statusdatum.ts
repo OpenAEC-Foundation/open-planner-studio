@@ -123,6 +123,39 @@ test('beschrijvingen: update_project én get_project_info benoemen de data-date-
   assert(/DATA DATE/.test(gi), 'get_project_info noemt de data-date niet');
 });
 
+// De datumcontrole van update_project liet alles door dat met JJJJ-MM-DD begon (ook een tijd of een
+// willekeurige staart), terwijl de melding alleen JJJJ-MM-DD noemde. Nu zegt de melding precies wat
+// de controle accepteert: statusDate is een datum of (uurplanning) een datum-tijd tot op de minuut,
+// startDate/endDate zijn datums — en de datum moet bestaan.
+async function callErr(name: string, args: unknown): Promise<string> {
+  const res = (await def(name).handler(args, makeCtx())) as McpToolResult;
+  assert(!res.ok, `tool ${name} had moeten weigeren: ${JSON.stringify(args)}`);
+  return res.ok ? '' : res.error;
+}
+
+test('update_project: statusDate met tijd (uurplanning) wordt geaccepteerd en zo opgeslagen', async () => {
+  planningZonderVoortgang();
+  await callOk('planner_update_project', { statusDate: '2026-08-17T10:00' });
+  assertEq(S().project.statusDate, '2026-08-17T10:00', 'de statusdatum met tijd staat in het project');
+});
+
+test('update_project: de datummelding noemt precies wat de controle accepteert', async () => {
+  planningZonderVoortgang();
+  for (const statusDate of ['2026-08-17xyz', '2026-08-17T10:00:00', '2026-02-31', '17-08-2026']) {
+    const err = await callErr('planner_update_project', { statusDate });
+    assert(/JJJJ-MM-DD\b/.test(err) && /JJJJ-MM-DDTHH:mm/.test(err),
+      `statusDate ${statusDate}: melding noemt niet beide vormen: ${err}`);
+  }
+  assertEq(S().project.statusDate, undefined, 'geen enkele geweigerde statusdatum is opgeslagen');
+  for (const [key, value] of [['startDate', '2026-08-17T10:00'], ['startDate', '2026-02-31'], ['endDate', '2026-08-17 extra']]) {
+    const err = await callErr('planner_update_project', { [key]: value });
+    assert(/JJJJ-MM-DD/.test(err), `${key} ${value}: melding noemt de vorm niet: ${err}`);
+  }
+  assertEq(S().project.startDate, '2026-07-27', 'de geweigerde startdatum is niet opgeslagen');
+  const sd = (def('planner_update_project').inputSchema as any).properties.statusDate.description as string;
+  assert(/JJJJ-MM-DDTHH:mm/.test(sd), `het statusDate-schemaveld noemt de datum-tijdvorm niet: ${sd}`);
+});
+
 // =================================================================================================
 // Bevinding 2 — voltooid werk waarvan de actualFinish in onwerkbare tijd valt
 // =================================================================================================

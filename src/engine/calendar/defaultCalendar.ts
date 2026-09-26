@@ -34,3 +34,25 @@ export function createDefaultCalendar(anchorYear: number = new Date().getFullYea
     generation: construction ? { ruleSetId: 'NL', generatedFromYear: from, generatedToYear: to } : undefined,
   };
 }
+
+/**
+ * De ENE fabriek voor een nieuwe bibliotheekkalender (zonder id — de bibliotheek kent er een toe):
+ * "+" in de kalenderdialoog, "+ Resourcekalender" in de resourcerij en MCP `update_calendar` met
+ * `create: true`. Voorheen gaf de kalenderdialoog een kalender zonder feestdagen en de resourcerij
+ * (en MCP) de app-standaard, waardoor dezelfde handeling 0 of 29 feestdagen opleverde.
+ *
+ * Gekozen standaard = de app-standaard (`createDefaultCalendar`): ma-vr 07:00-16:00, 8 u, en in
+ * bouwmodus de NL-feestdagen met hun generatie-herkomst. Waarom deze en niet "leeg":
+ *  - het is wat een nieuw project, MCP `create` (bewust, zie M7 in calendarResourceTools.ts) en de
+ *    resourcerij al deden; alleen de "+" van de kalenderdialoog week af;
+ *  - of er standaard feestdagen in zitten is de keuze van de instelling Bouwmodus, niet van de knop
+ *    waarmee je de kalender maakt (bouwmodus uit ⇒ ook hier geen feestdagen);
+ *  - de fouten zijn niet symmetrisch: een vergeten feestdag plant stil werk op Kerst of Koningsdag,
+ *    een ongewenste staat zichtbaar in de lijst en is met "Feestdagen genereren… → Geen feestdagen"
+ *    in één handeling weg.
+ */
+export function createNewCalendar(name: string): Omit<WorkCalendar, 'id'> {
+  const { id: _id, ...base } = createDefaultCalendar();
+  void _id;
+  return { ...base, name };
+}

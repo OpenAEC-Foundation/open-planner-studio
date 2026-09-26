@@ -111,6 +111,12 @@
     "relationCreated": "Utworzono relację: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Taka relacja już istnieje",
     "relationAncestorEndpoint": "Relacja między zadaniem a jego własnym nadrzędnym zadaniem sumarycznym jest niedozwolona.",
+    "relationCycle": "Ta relacja utworzyłaby cykl w harmonogramie ({{cycle}}) i nie została utworzona.",
+    "hierarchyCycle": "To przeniesienie utworzyłoby cykl w harmonogramie ({{cycle}}): relacje zadania sumarycznego dotyczą również jego podzadań. Niczego nie przeniesiono.",
+    "relationsExcludedByHierarchy_one": "Po przeniesieniu {{count}} relacja łączy zadanie z jego własnym nadrzędnym zadaniem sumarycznym; nie jest już uwzględniana w obliczeniach.",
+    "relationsExcludedByHierarchy_few": "Po przeniesieniu {{count}} relacje łączą zadanie z jego własnym nadrzędnym zadaniem sumarycznym; nie są już uwzględniane w obliczeniach.",
+    "relationsExcludedByHierarchy_many": "Po przeniesieniu {{count}} relacji łączy zadanie z jego własnym nadrzędnym zadaniem sumarycznym; nie są one już uwzględniane w obliczeniach.",
+    "relationsExcludedByHierarchy_other": "Po przeniesieniu {{count}} relacji łączy zadanie z jego własnym nadrzędnym zadaniem sumarycznym; nie są one już uwzględniane w obliczeniach.",
     "summaryRelationsDropped": "Nie udało się uwzględnić {{total}} relacji. Sprawdź kolumny Poprzedniki i Następniki.",
     "relationsSkippedOnInsert_one": "Nie utworzono {{count}} relacji: nieprawidłowe powiązanie (np. zadanie połączone z własnym zadaniem nadrzędnym lub duplikat).",
     "relationsSkippedOnInsert_few": "Nie utworzono {{count}} relacji: nieprawidłowe powiązanie (np. zadanie połączone z własnym zadaniem nadrzędnym lub duplikat).",
@@ -149,6 +155,44 @@
     "levelingDelayRoundedToWorkdays_few": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych.",
     "levelingDelayRoundedToWorkdays_many": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych.",
     "levelingDelayRoundedToWorkdays_other": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych.",
+    "startSnetCreated": "'{{name}}' ma poprzednika: nowy początek jest teraz ograniczeniem Rozpocznij nie wcześniej niż (SNET) {{date}}. Po przeliczeniu (F5) zadanie nie rozpocznie się przed tą datą.",
+    "startSnetUpdated": "Ograniczenie Rozpocznij nie wcześniej niż (SNET) zadania '{{name}}' przesunięto na {{date}}. Po przeliczeniu (F5) zadanie nie rozpocznie się przed tą datą.",
+    "startSnetMany_one": "Nowy początek {{count}} zadania z poprzednikiem jest teraz ograniczeniem Rozpocznij nie wcześniej niż (SNET). Po przeliczeniu (F5) nie rozpocznie się ono przed swoją datą.",
+    "startSnetMany_few": "Nowe początki {{count}} zadań z poprzednikiem są teraz ograniczeniami Rozpocznij nie wcześniej niż (SNET). Po przeliczeniu (F5) żadne nie rozpocznie się przed swoją datą.",
+    "startSnetMany_many": "Nowe początki {{count}} zadań z poprzednikiem są teraz ograniczeniami Rozpocznij nie wcześniej niż (SNET). Po przeliczeniu (F5) żadne nie rozpocznie się przed swoją datą.",
+    "startSnetMany_other": "Nowe początki {{count}} zadania z poprzednikiem są teraz ograniczeniami Rozpocznij nie wcześniej niż (SNET). Po przeliczeniu (F5) żadne nie rozpocznie się przed swoją datą.",
+    "startBlockedByConstraint": "Nowy początek zadania '{{name}}' nie został zastosowany: zadanie ma poprzednika i ograniczenie $t(task:constraintType.{{type}}) {{date}}, które wyznaczają jego początek. Zmień to ograniczenie, aby przesunąć początek.",
+    "startBlockedByConstraintNoDate": "Nowy początek zadania '{{name}}' nie został zastosowany: zadanie ma poprzednika i ograniczenie $t(task:constraintType.{{type}}), które wyznaczają jego początek. Zmień to ograniczenie, aby przesunąć początek.",
+    "startBlockedByConstraintMany_one": "Nowy początek {{count}} zadania nie został zastosowany: ma ono poprzednika i ograniczenie inne niż Rozpocznij nie wcześniej niż (SNET). Zmień to ograniczenie, aby przesunąć początek.",
+    "startBlockedByConstraintMany_few": "Nowe początki {{count}} zadań nie zostały zastosowane: mają one poprzednika i ograniczenie inne niż Rozpocznij nie wcześniej niż (SNET). Zmień te ograniczenia, aby przesunąć początki.",
+    "startBlockedByConstraintMany_many": "Nowe początki {{count}} zadań nie zostały zastosowane: mają one poprzednika i ograniczenie inne niż Rozpocznij nie wcześniej niż (SNET). Zmień te ograniczenia, aby przesunąć początki.",
+    "startBlockedByConstraintMany_other": "Nowe początki {{count}} zadania nie zostały zastosowane: mają one poprzednika i ograniczenie inne niż Rozpocznij nie wcześniej niż (SNET). Zmień te ograniczenia, aby przesunąć początki.",
+    "referencesClearedOnPaste_one": "{{count}} odwołanie nie istniało w tym dokumencie i zostało wyczyszczone (kalendarz zadania, własny typ zadania, kod zadania lub pole użytkownika z dokumentu źródłowego).",
+    "referencesClearedOnPaste_few": "{{count}} odwołania nie istniały w tym dokumencie i zostały wyczyszczone (kalendarze zadań, własne typy zadań, kody zadań lub pola użytkownika z dokumentu źródłowego).",
+    "referencesClearedOnPaste_many": "{{count}} odwołań nie istniało w tym dokumencie i zostało wyczyszczonych (kalendarze zadań, własne typy zadań, kody zadań lub pola użytkownika z dokumentu źródłowego).",
+    "referencesClearedOnPaste_other": "{{count}} odwołania nie istniało w tym dokumencie i zostało wyczyszczone (kalendarze zadań, własne typy zadań, kody zadań lub pola użytkownika z dokumentu źródłowego).",
+    "milestoneRefusedAssignments_one": "„{{task}}” ma przydziały zasobów i nie może stać się kamieniem milowym. Najpierw usuń przydziały.",
+    "milestoneRefusedAssignments_few": "{{count}} zadania mają przydziały zasobów i nie mogą stać się kamieniami milowymi. Najpierw usuń przydziały.",
+    "milestoneRefusedAssignments_many": "{{count}} zadań ma przydziały zasobów i nie może stać się kamieniami milowymi. Najpierw usuń przydziały.",
+    "milestoneRefusedAssignments_other": "{{count}} zadania ma przydziały zasobów i nie może stać się kamieniami milowymi. Najpierw usuń przydziały.",
+    "milestoneRefusedSummary_one": "„{{task}}” jest zadaniem sumarycznym z podzadaniami i nie może stać się kamieniem milowym.",
+    "milestoneRefusedSummary_few": "{{count}} zadania są zadaniami sumarycznymi z podzadaniami i nie mogą stać się kamieniami milowymi.",
+    "milestoneRefusedSummary_many": "{{count}} zadań jest zadaniami sumarycznymi z podzadaniami i nie może stać się kamieniami milowymi.",
+    "milestoneRefusedSummary_other": "{{count}} zadania jest zadaniami sumarycznymi z podzadaniami i nie może stać się kamieniami milowymi.",
+    "assignmentsMovedToSubtask_one": "Przydział {{resources}} przeniesiono z „{{phase}}” do nowego podzadania „{{child}}”: zadanie sumaryczne samo nie ma przydziałów.",
+    "assignmentsMovedToSubtask_few": "{{count}} przydziały ({{resources}}) przeniesiono z „{{phase}}” do nowego podzadania „{{child}}”: zadanie sumaryczne samo nie ma przydziałów.",
+    "assignmentsMovedToSubtask_many": "{{count}} przydziałów ({{resources}}) przeniesiono z „{{phase}}” do nowego podzadania „{{child}}”: zadanie sumaryczne samo nie ma przydziałów.",
+    "assignmentsMovedToSubtask_other": "{{count}} przydziału ({{resources}}) przeniesiono z „{{phase}}” do nowego podzadania „{{child}}”: zadanie sumaryczne samo nie ma przydziałów.",
+    "assignmentsMovedToSubtasks_one": "{{count}} zadanie stało się zadaniem sumarycznym; jego przydziały przeniesiono do pierwszego nowego podzadania.",
+    "assignmentsMovedToSubtasks_few": "{{count}} zadania stały się zadaniami sumarycznymi; ich przydziały przeniesiono do pierwszego nowego podzadania każdego z nich.",
+    "assignmentsMovedToSubtasks_many": "{{count}} zadań stało się zadaniami sumarycznymi; ich przydziały przeniesiono do pierwszego nowego podzadania każdego z nich.",
+    "assignmentsMovedToSubtasks_other": "{{count}} zadania stało się zadaniami sumarycznymi; ich przydziały przeniesiono do pierwszego nowego podzadania każdego z nich.",
+    "milestoneClearedOnPhase_one": "Kamień milowy „{{phase}}” ma teraz podzadania i stał się zadaniem sumarycznym; oznaczenie kamienia milowego usunięto.",
+    "milestoneClearedOnPhase_few": "{{count}} kamienie milowe mają teraz podzadania i stały się zadaniami sumarycznymi; oznaczenie kamienia milowego usunięto.",
+    "milestoneClearedOnPhase_many": "{{count}} kamieni milowych ma teraz podzadania i stało się zadaniami sumarycznymi; oznaczenie kamienia milowego usunięto.",
+    "milestoneClearedOnPhase_other": "{{count}} kamienia milowego ma teraz podzadania i stało się zadaniami sumarycznymi; oznaczenie kamienia milowego usunięto.",
+    "phaseRefusedNoAssignableChild": "„{{phase}}” nie może stać się zadaniem sumarycznym: jego przydziały nie mają dokąd trafić, bo żadne z nowych podzadań nie może mieć przydziałów (kamień milowy lub zadanie sumaryczne). Nic nie zmieniono.",
+    "phaseRefusedDuplicateResource": "„{{phase}}” nie może stać się zadaniem sumarycznym: przydziału {{resource}} nie można przenieść do nowego podzadania „{{child}}”, bo ma ono już {{resource}}. Nic nie zmieniono.",
     "schedulingProfileApplied": "Ten projekt liczy się jako {{profile}}. Zmień to w Plik → Info o projekcie → Profil obliczeń i opcje.",
     "schedulingProfileShifted_one": "Po zastosowaniu przesunięto {{count}} zadanie.",
     "schedulingProfileShifted_few": "Po zastosowaniu przesunięto {{count}} zadania.",
@@ -166,6 +210,14 @@
     "xerArchiveReasonBytesMissing": "Powód: brakuje samych bajtów źródłowych — prawdopodobnie inny program IFC przepisał plik.",
     "xerArchiveReasonMetadataInvalid": "Powód: bajty źródłowe są nienaruszone, ale dane z nich wyprowadzone są bezużyteczne.",
     "xerArchiveReasonStructure": "Powód: struktura archiwum w IFC jest nieprawidłowa (zdublowana, przestawiona lub błędnie powiązana)."
+  },
+  "scheduleErrors": {
+    "cycle": "Zależność cykliczna między zadaniami: {{path}}",
+    "noWorkingDays": "W kalendarzu nie ustawiono dni roboczych",
+    "invalidDayDuration": "Nieprawidłowy czas trwania w dniach dla zadania '{{task}}'",
+    "invalidHourDuration": "Nieprawidłowy czas trwania w godzinach dla zadania '{{task}}'",
+    "hourTaskWithoutWorkHours": "Zadanie godzinowe '{{task}}' nie ma prawidłowych godzin pracy w swoim kalendarzu",
+    "invalidStartDate": "Nieprawidłowa data rozpoczęcia dla zadania '{{task}}'"
   },
   "yes": "Tak",
   "no": "Nie",
@@ -344,7 +396,7 @@
     "aiAutostartHint": "Uruchamia most MCP od razu po starcie aplikacji, dzięki czemu klient AI może się połączyć bez otwierania karty AI. Tylko w aplikacji desktopowej.",
     "legacySection": "Funkcje starszego typu",
     "classicViewControls": "Pokaż klasyczne przyciski widoku",
-    "classicViewControlsHint": "Przywraca osobne przyciski Kolumny, Filtr, Grupuj i Sortuj na karcie Widok. Ich funkcja znajduje się teraz w przyciskach układu i w oknie układów."
+    "classicViewControlsHint": "Przywraca osobne przyciski Kolumny, Filtr, Grupuj i Sortuj na karcie Widok. Kolumny wybiera się teraz plusem w nagłówku tabeli lub przez Tabela → Kolumny…; filtrowanie, grupowanie i sortowanie znajdują się w przyciskach układu i w oknie układów."
   },
   "ai": {
     "start": "Uruchom mostek",
@@ -805,7 +857,8 @@
       "project": "Kalendarz projektu",
       "new": "Nowy kalendarz",
       "duplicate": "Duplikuj",
-      "setDefault": "Ustaw jako domyślny dla projektu"
+      "setDefault": "Ustaw jako domyślny dla projektu",
+      "invalid": "Ten kalendarz zawiera nieprawidłowe dane"
     },
     "generate": {
       "button": "Generuj święta…",
@@ -867,6 +920,11 @@
         "consumesWorkingDay": "Przerwa nie może zajmować całego dnia pracy."
       }
     },
+    "holidayErrors": {
+      "invalidStart": "Wpisz prawidłową datę początkową.",
+      "invalidEnd": "Wpisz prawidłową datę końcową albo pozostaw ją pustą dla jednego dnia.",
+      "endBeforeStart": "Data końcowa jest wcześniejsza niż data początkowa."
+    },
     "worktime": {
       "section": "Godziny pracy",
       "derivedHpd": "Wyliczone godziny/dzień:",
@@ -888,11 +946,7 @@
     "structureLockedHint": "Niedostępne podczas filtrowania/grupowania/sortowania",
     "columns": {
       "title": "Kolumny",
-      "visible": "Widoczna",
-      "width": "Szerokość",
-      "resetDefault": "Przywróć domyślne",
-      "available": "Dostępne pola",
-      "scopeHint": "Te kolumny dotyczą widoku Tabela. Lista zadań obok wykresu Gantta zawsze pokazuje WBS, nazwę i czas trwania."
+      "resetDefault": "Przywróć domyślne"
     },
     "filter": {
       "title": "Filtr",

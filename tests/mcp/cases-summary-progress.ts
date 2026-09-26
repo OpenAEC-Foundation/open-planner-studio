@@ -1,7 +1,8 @@
 // Voortgang van een verzameltaak via de MCP-LEESKANT. De schrijfkant weigert al voortgang op een
-// verzameltaak met "voortgang wordt afgeleid uit de kinderen"; deze batterij bewijst dat de
-// leestools dan ook de AFGELEIDE waarde tonen (duurgewogen over de bladen, dezelfde helper als het
-// WBS-rapport) en niet de opgeslagen 0% of een bevroren importwaarde.
+// verzameltaak ("voortgang, status en werkelijke datums worden afgeleid uit de bladtaken"); deze
+// batterij bewijst dat de leestools dan ook de AFGELEIDE waarde tonen (duurgewogen over de bladen,
+// dezelfde helper als het WBS-rapport) en niet de opgeslagen 0% of een bevroren importwaarde — ook
+// voor de werkelijke start en het werkelijke einde van de fase.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { getTool } from '@/services/mcp/toolRegistry';
 import type { McpToolOk, McpToolResult } from '@/services/mcp/contracts';
@@ -57,6 +58,39 @@ test('list_tasks(status: COMPLETED) vindt een fase waarvan alle bladen klaar zij
   const listed = callOk('planner_list_tasks', { status: 'COMPLETED' });
   const ids = (listed.tasks as { id: string }[]).map(t => t.id);
   assert(ids.includes(P), `fase ontbreekt in list_tasks(COMPLETED): ${JSON.stringify(ids)}`);
+});
+
+test('get_task op een fase toont de afgeleide werkelijke datums (vroegste start; einde pas als alles klaar is)', () => {
+  const { P, A, B } = setup();
+  assert(S().setActualStart(A, '2026-03-03'), 'fixture: start A');
+  assert(S().setActualFinish(A, '2026-03-06'), 'fixture: einde A');
+  assert(S().setActualStart(B, '2026-03-05'), 'fixture: start B');
+  S().runCPM();
+  let data = callOk('planner_get_task', { taskId: P });
+  assertEq(data.progress.actualStart, '2026-03-03', 'fase-actualStart = de vroegste van de bladen');
+  assertEq(data.progress.actualFinish, undefined, 'geen fase-actualFinish zolang B nog loopt');
+  assert(S().setActualFinish(B, '2026-03-20'), 'fixture: einde B');
+  S().runCPM();
+  data = callOk('planner_get_task', { taskId: P });
+  assertEq(data.progress.actualFinish, '2026-03-20', 'alle bladen klaar ⇒ fase-actualFinish = het laatste einde');
+  assertEq(data.status, 'COMPLETED', 'en de fase is COMPLETED');
+});
+
+test('update_tasks: werkelijke datums op een fase ⇒ zachte weigering met uitleg, fase ongemoeid', async () => {
+  const { P, A } = setup();
+  assert(S().setActualStart(A, '2026-03-04'), 'fixture: start A');
+  S().runCPM();
+  const tool = getTool('planner_update_tasks');
+  assert(!!tool, 'planner_update_tasks niet geregistreerd');
+  const ctx = makeMcpContext(appStoreContext, { expectedDocId: S().activeDocumentId });
+  const res = await tool!.handler({ updates: [{ id: P, progress: { actualStart: '2026-03-02' } }] }, ctx) as McpToolResult;
+  assert(res.ok, `de call slaagt (zachte per-item-weigering): ${res.ok ? '' : res.error}`);
+  const rejections = (res as McpToolOk).itemRejections ?? [];
+  assertEq(rejections.length, 1, 'één zachte weigering');
+  assert(/werkelijke datums/.test(rejections[0]?.reason ?? '') && /bladtaken/.test(rejections[0]?.reason ?? ''),
+    `de reden noemt dat werkelijke datums uit de bladtaken komen: ${rejections[0]?.reason}`);
+  const phase = S().tasks.find(t => t.id === P)!;
+  assertEq(phase.time.actualStart, '2026-03-04', 'de fase houdt haar afgeleide start');
 });
 
 await run();

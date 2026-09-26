@@ -48,7 +48,7 @@ There are three places where you manage an assignment — they operate on the sa
 2. **Task dialog** — the same **Assignments** section, in the **Edit task** window.
 3. **Ribbon** — **Resources** tab, **Assignment** ribbon group, the **Assign ▾** button. This button is only active when exactly one non-milestone, non-summary task is selected; the dropdown lets you set **units/day** and **curve** first and then lists the not-yet-assigned resources below — click a name to complete an assignment in one go.
 
-Milestones and summary tasks cannot carry resources (they have no duration of their own to load) — both places show an explanation instead of the assignment form.
+Milestones and summary tasks cannot carry resources (they have no duration of their own to load) — both places show an explanation instead of the assignment form. That is also why a task with assignments cannot become a milestone, and why its assignments move to the first new subtask when it gets subtasks; see the Planning & WBS guide.
 
 ### Moving an assignment
 
@@ -91,7 +91,7 @@ If a bar is red on a day the task itself keeps running normally, check the resou
 
 Turn the histogram on via the **Histogram** ribbon group on the **Resources** tab (the **Histogram** button). A strip appears under the Gantt on the same time axis: bars per day, with the part above the capacity line shown in red.
 
-To the left of the bars, above the task-table column, sits the **resource picker**: a list with "All resources" at the top and every resource below it, each with a red dot if that resource is overallocated anywhere. Click a name to zoom in on that one resource — the histogram rescales to its load and capacity alone. Click back on "All resources" to see the sum of all resources again. Besides clicking, you can also step through resources with the **Previous**/**Next** buttons in the **Histogram** ribbon group, without touching the picker itself.
+Below the task table, next to the bars, sits the **resource picker**: a list with "All resources" at the top and every resource below it, each with a red dot if that resource is overallocated anywhere. Click a name to zoom in on that one resource — the histogram rescales to its load and capacity alone. Click back on "All resources" to see the sum of all resources again. Besides clicking, you can also step through resources with the **Previous**/**Next** buttons in the **Histogram** ribbon group, without touching the picker itself.
 
 With many resources the list no longer fits the strip's height: the "All resources" row stays pinned at the top, while the resources below it **scroll within the picker area** — with the mouse wheel over the list, or automatically whenever a resource you pick via the warnings panel or the resource panel sits just out of view. A thin strip on the right of the picker then shows where you are in the list; it's a position indicator only, not draggable. To see more resources at once without scrolling, drag the divider above the strip to make it taller.
 

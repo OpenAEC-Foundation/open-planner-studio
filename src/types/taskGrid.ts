@@ -163,9 +163,21 @@ export interface TaskColumnContext {
   taskTypesUnlocked?: boolean;
 }
 
-export interface TaskColumnDescriptor {
+/**
+ * Waar de kop van een kolom vandaan komt. `labelKey` is een vertaalsleutel (task-namespace).
+ * `labelText` is een naam die de gebruiker zelf gaf (activity code, eigen veld, baseline): gewone
+ * tekst, GEEN vertaalsleutel, en hij gaat dus nooit door `t()`. Daar werd een punt als sleutelscheiding
+ * gelezen: "Fase 1.2" werd "2", "Blok v.o." leeg. Met beide wordt de kop "<labelText> — <vertaalde
+ * labelKey>" (baselinekolommen). Lees een kop via `taskColumnLabel` (taskColumnRegistry).
+ */
+export type TaskColumnLabelSource =
+  | { labelKey: string; labelText?: undefined }
+  | { labelText: string; labelKey?: string };
+
+export type TaskColumnDescriptor = TaskColumnDescriptorFields & TaskColumnLabelSource;
+
+interface TaskColumnDescriptorFields {
   id: TaskColumnId;
-  labelKey: string;
   category: TaskColumnCategory;
   valueKind: 'text' | 'number' | 'boolean' | 'date' | 'datetime' | 'duration' | 'enum' | 'tokens' | 'technical';
   editorKind: 'text' | 'number' | 'percentage' | 'date' | 'datetime' | 'duration' | 'boolean' | 'enum' | 'color' | 'autocomplete' | 'relations' | 'custom' | 'none';

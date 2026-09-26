@@ -108,6 +108,7 @@ S().runCPM();
       [rxMix]: { '2026-09-08': 'over-capacity', '2026-09-09': 'non-working-day', '2026-09-10': 'non-working-day' },
       [rxNone]: { '2026-09-08': 'over-capacity' },
     },
+    hours: {},
   };
   const w = collectScheduleWarnings({
     tasks: s.tasks, sequences: s.sequences, resources: s.resources,
@@ -216,7 +217,11 @@ S().runCPM();
 
 // ── 4) Cyclus: `cycleTaskIds` op het cyclus-pad en navigatie naar de loop ────
 {
-  S().addSequence({ predecessorId: c, successorId: a, type: 'FINISH_START', lagDays: 0 });
+  // De store-route weigert een kring vooraf (check-relation-routes.ts); een kring komt nog wel binnen
+  // zoals een importer hem schrijft: rechtstreeks in `sequences`.
+  ctx.store.setState(st => {
+    st.sequences.push({ id: 'seq-kring', predecessorId: c, successorId: a, type: 'FINISH_START', lagDays: 0 });
+  });
   S().runCPM();
   const s = S();
   eq('40 cyclus geeft een fout', !!s.cpmResult?.error, true);

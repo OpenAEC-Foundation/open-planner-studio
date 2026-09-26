@@ -26,6 +26,7 @@ import { GRID_CLIP_ATTRIBUTE } from '@/engine/taskGrid/cellTitle';
 import { shouldCancelTaskGridEdit } from '@/engine/taskGrid/editLifecycle';
 import {
   computeTaskGridAutoFitWidth,
+  defaultTaskGridSurfaceColumns,
   taskGridAutoFitValueVersion,
 } from '@/engine/taskGrid/preferences';
 import { nextTaskGridMenuIndex } from '@/engine/taskGrid/menuNavigation';
@@ -164,13 +165,10 @@ function humanizeTaskGridKey(labelKey: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
+/** Vertaalt de sleutel van een kolomkop, met een leesbare terugval als een vertaling ontbreekt. Krijgt
+ *  alleen vertaalsleutels: namen die de gebruiker gaf (codes, eigen velden, baselines) zet
+ *  `taskColumnLabel` letterlijk in de kop, zodat ze nooit door `t()` of `humanizeTaskGridKey` gaan. */
 function resolveColumnLabel(labelKey: string, translate: (key: string) => string): string {
-  const dynamicSeparator = labelKey.indexOf(' — ');
-  if (dynamicSeparator > 0) {
-    const prefix = labelKey.slice(0, dynamicSeparator);
-    const fieldKey = labelKey.slice(dynamicSeparator + 3);
-    return `${prefix} — ${resolveColumnLabel(fieldKey, translate)}`;
-  }
   const direct = translate(labelKey);
   if (direct !== labelKey) return direct;
   const alias = COLUMN_LABEL_ALIASES[labelKey];
@@ -410,6 +408,12 @@ export function TaskGridSurface({
     () => surfacePreferences.columns.filter(column => availableIds.has(column.id)).map(column => column.id),
     [availableIds, surfacePreferences.columns],
   );
+  // "Herstel standaard": dezelfde standaard als bij de eerste start, voor het actieve project.
+  const defaultColumns = useMemo(() => defaultTaskGridSurfaceColumns(surfaceId, {
+    projectId: project.id,
+    activityCodeTypeIds: activityCodeTypes.map(type => type.id),
+    customFieldDefIds: customFieldDefs.map(def => def.id),
+  }), [activityCodeTypes, customFieldDefs, project.id, surfaceId]);
 
   const previousRowsRef = useRef(rowIndex);
   const previousColumnsRef = useRef<readonly TaskColumnId[]>(visibleColumnIds);
@@ -660,6 +664,7 @@ export function TaskGridSurface({
       searchResults: tTask('taskGrid.controls.searchResults'),
       noSearchResults: tTask('taskGrid.controls.noResults'),
       category: category => tTask(`taskGrid.category.${category}`, { defaultValue: categoryFallback(category) }),
+      resetDefault: tCommon('view.columns.resetDefault'),
     },
     noColumns: tTask('table.noColumns', { defaultValue: 'Voeg met + een kolom toe.' }),
     history: {
@@ -670,8 +675,9 @@ export function TaskGridSurface({
       moveColumn: column => tTask('taskGrid.history.moveColumn', { column }),
       resizeColumn: column => tTask('taskGrid.history.resizeColumn', { column }),
       autoFitColumn: column => tTask('taskGrid.history.autoFitColumn', { column }),
+      resetColumns: tTask('taskGrid.history.resetColumns'),
     },
-  }), [tTask]);
+  }), [tCommon, tTask]);
 
   // Boom of gegroepeerd bepaalt hoe de naamkolom inspringt (zie nameIndent.ts) — voor de cel én
   // voor de auto-fit-meting, die anders de inspringing en de subtaak-plus niet meetelt.
@@ -892,6 +898,7 @@ export function TaskGridSurface({
         surfacePreferences={surfacePreferences}
         recentColumnIds={recentColumnIds}
         availableColumns={adapter.availableColumns}
+        defaultColumns={defaultColumns}
         labels={labels}
         rows={renderedRows}
         selection={selection}

@@ -12,6 +12,7 @@ import {
 } from '@/engine/scheduler/scheduleWarnings';
 import type { Sequence } from '@/types/sequence';
 import { revealScheduleWarning } from '@/state/warningNavigation';
+import { scheduleErrorText } from '@/i18n/scheduleErrors';
 import type { Task } from '@/types/task';
 
 /**
@@ -78,7 +79,9 @@ export function WarningsPanel() {
   const describe = (w: ScheduleWarning): string => {
     const f = w.facts;
     switch (w.kind) {
-      case 'scheduleError': return t('warnings.kind.scheduleError', { message: f.message ?? '' });
+      case 'scheduleError': return t('warnings.kind.scheduleError', {
+        message: scheduleErrorText({ error: f.message, errorInfo: f.errorInfo }, t),
+      });
       case 'missedDeadline': return t('warnings.kind.missedDeadline', { deadline: dd.date(f.deadline), finish: dd.date(f.finish) });
       case 'violatedConstraint': return t('warnings.kind.violatedConstraint', { constraint: constraintLabel(f) });
       case 'outOfSequence': return t('warnings.kind.outOfSequence');

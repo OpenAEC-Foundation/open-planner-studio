@@ -75,7 +75,7 @@ Dit is de kern om te onthouden: sommige velden zijn een bedrijfsafspraak en volg
 - De tijdgefaseerde beschikbaarheid
 - De **keuze** wélke kalender aan de resource hangt
 
-Wijs je een bibliotheekresource toe, dan reist zijn kalender mee als een gekoppelde kopie die zelf ook de bibliotheek blijft volgen — vandaar dat de *inhoud* van die kalender in de linkerlijst hierboven staat. Maar de *keuze* wélke kalender aan een resource hangt, staat in de rechterlijst: dezelfde ploeg kan op een spoedklus zomaar een andere kalender draaien dan normaal, zonder dat dat een afwijking van de bibliotheek is. Dit onderscheid is subtiel maar belangrijk: verander je bij een bibliotheekresource de tarief of naam, dan wijkt de kopie af van de bibliotheek; verander je de kalenderkeuze of de max. eenheden, dan doe je precies waar dat veld voor bedoeld is.
+Wijs je een bibliotheekresource toe, dan reist zijn kalender mee als een gekoppelde kopie die zelf ook de bibliotheek blijft volgen — vandaar dat de *inhoud* van die kalender hierboven onder **Volgt de bibliotheek mee** staat. Maar de *keuze* wélke kalender aan een resource hangt, staat onder **Bepaal je per project**: dezelfde ploeg kan op een spoedklus zomaar een andere kalender draaien dan normaal, zonder dat dat een afwijking van de bibliotheek is. Dit onderscheid is subtiel maar belangrijk: verander je bij een bibliotheekresource het tarief of de naam, dan wijkt de kopie af van de bibliotheek; verander je de kalenderkeuze of de max. eenheden, dan doe je precies waar dat veld voor bedoeld is.
 
 ## Drie acties die de werelden verbinden
 

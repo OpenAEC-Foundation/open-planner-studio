@@ -17,7 +17,10 @@ import type { Sequence } from '@/types/sequence';
 import type { ResourceAssignment } from '@/types/resource';
 import { collectSubtreeIds } from '@/state/taskTree';
 import { generateId } from '@/utils/id';
-import { assignInsertedWbsCodes, insertRemappedRelations, notifyRelationsSkipped } from '@/state/insertedBranch';
+import {
+  assignInsertedWbsCodes, insertRemappedRelations, normalizeInsertedBranch, notifyReferencesCleared,
+  notifyRelationsSkipped,
+} from '@/state/insertedBranch';
 import {
   normalizeTaskRowCursor,
   uniqueTaskIds,
@@ -186,6 +189,7 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
   pasteTasks: () => {
     const newRootIds: string[] = [];
     let skippedRelations = 0;
+    let clearedReferences = 0;
     set((s) => {
       const clip = s.taskClipboard;
       if (!clip || clip.tasks.length === 0) return;
@@ -244,6 +248,10 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
         });
       }
 
+      // Het klembord is app-globaal: kalenders, eigen taaktypes, activiteitscodes en eigen velden
+      // uit een ander document bestaan hier misschien niet — die verwijzingen leegmaken en melden.
+      clearedReferences = normalizeInsertedBranch(s, idMap.values());
+
       // WBS: geplakte takken zouden anders de codes van hun bron letterlijk dupliceren.
       assignInsertedWbsCodes(s, idMap.values());
 
@@ -254,6 +262,7 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
     get().recomputeViewRows();
     // Ná `set()`: `get().notify(...)` binnen een actieve producer aanroepen kan niet.
     notifyRelationsSkipped(get().notify, skippedRelations, 'relations-skipped-on-paste');
+    notifyReferencesCleared(get().notify, clearedReferences);
     return newRootIds;
   },
 });

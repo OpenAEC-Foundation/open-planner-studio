@@ -94,6 +94,11 @@
     "relationCreated": "Relación creada: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Esa relación ya existe",
     "relationAncestorEndpoint": "No se permite una relación entre una tarea y su propia tarea de resumen antecesora.",
+    "relationCycle": "Esta relación crearía un ciclo en la planificación ({{cycle}}) y no se ha creado.",
+    "hierarchyCycle": "Este traslado crearía un ciclo en la planificación ({{cycle}}): las relaciones de una tarea de resumen también se aplican a sus subtareas. No se ha movido nada.",
+    "relationsExcludedByHierarchy_one": "Tras el traslado, {{count}} relación vincula una tarea con su propia tarea de resumen antecesora; ya no se tiene en cuenta en el cálculo.",
+    "relationsExcludedByHierarchy_many": "Tras el traslado, {{count}} relaciones vinculan una tarea con su propia tarea de resumen antecesora; ya no se tienen en cuenta en el cálculo.",
+    "relationsExcludedByHierarchy_other": "Tras el traslado, {{count}} relaciones vinculan una tarea con su propia tarea de resumen antecesora; ya no se tienen en cuenta en el cálculo.",
     "summaryRelationsDropped": "{{total}} relación(es) no se pudieron incluir en el cálculo. Revise las columnas Predecesores y Sucesores.",
     "relationsSkippedOnInsert_one": "No se creó {{count}} relación: vínculo no válido (por ejemplo, una tarea vinculada a su propia tarea de resumen superior, o un duplicado).",
     "relationsSkippedOnInsert_many": "No se crearon {{count}} relaciones: vínculo no válido (por ejemplo, una tarea vinculada a su propia tarea de resumen superior, o un duplicado).",
@@ -124,6 +129,36 @@
     "levelingDelayRoundedToWorkdays_one": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tarea a días laborables completos.",
     "levelingDelayRoundedToWorkdays_many": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tareas a días laborables completos.",
     "levelingDelayRoundedToWorkdays_other": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tareas a días laborables completos.",
+    "startSnetCreated": "'{{name}}' tiene una predecesora: el nuevo comienzo es ahora la restricción No comenzar antes del (SNET) {{date}}. Tras recalcular (F5), la tarea no empieza antes de esa fecha.",
+    "startSnetUpdated": "La restricción No comenzar antes del (SNET) de '{{name}}' se movió al {{date}}. Tras recalcular (F5), la tarea no empieza antes de esa fecha.",
+    "startSnetMany_one": "El nuevo comienzo de {{count}} tarea con predecesora es ahora una restricción No comenzar antes del (SNET). Tras recalcular (F5), esa tarea no empieza antes de su fecha.",
+    "startSnetMany_many": "Los nuevos comienzos de {{count}} tareas con predecesora son ahora restricciones No comenzar antes del (SNET). Tras recalcular (F5), ninguna empieza antes de su fecha.",
+    "startSnetMany_other": "Los nuevos comienzos de {{count}} tareas con predecesora son ahora restricciones No comenzar antes del (SNET). Tras recalcular (F5), ninguna empieza antes de su fecha.",
+    "startBlockedByConstraint": "El nuevo comienzo de '{{name}}' no se aplicó: la tarea tiene una predecesora y la restricción $t(task:constraintType.{{type}}) {{date}}, que determinan su comienzo. Cambie esa restricción para mover el comienzo.",
+    "startBlockedByConstraintNoDate": "El nuevo comienzo de '{{name}}' no se aplicó: la tarea tiene una predecesora y la restricción $t(task:constraintType.{{type}}), que determinan su comienzo. Cambie esa restricción para mover el comienzo.",
+    "startBlockedByConstraintMany_one": "El nuevo comienzo de {{count}} tarea no se aplicó: tiene una predecesora y una restricción distinta de No comenzar antes del (SNET). Cambie esa restricción para mover el comienzo.",
+    "startBlockedByConstraintMany_many": "Los nuevos comienzos de {{count}} tareas no se aplicaron: tienen una predecesora y una restricción distinta de No comenzar antes del (SNET). Cambie esas restricciones para mover los comienzos.",
+    "startBlockedByConstraintMany_other": "Los nuevos comienzos de {{count}} tareas no se aplicaron: tienen una predecesora y una restricción distinta de No comenzar antes del (SNET). Cambie esas restricciones para mover los comienzos.",
+    "referencesClearedOnPaste_one": "{{count}} referencia no existía en este documento y se ha borrado (un calendario de tarea, tipo de tarea personalizado, código de actividad o campo personalizado del documento de origen).",
+    "referencesClearedOnPaste_many": "{{count}} referencias no existían en este documento y se han borrado (calendarios de tarea, tipos de tarea personalizados, códigos de actividad o campos personalizados del documento de origen).",
+    "referencesClearedOnPaste_other": "{{count}} referencias no existían en este documento y se han borrado (calendarios de tarea, tipos de tarea personalizados, códigos de actividad o campos personalizados del documento de origen).",
+    "milestoneRefusedAssignments_one": "«{{task}}» tiene asignaciones de recursos y no puede convertirse en hito. Elimine primero las asignaciones.",
+    "milestoneRefusedAssignments_many": "{{count}} tareas tienen asignaciones de recursos y no pueden convertirse en hitos. Elimine primero las asignaciones.",
+    "milestoneRefusedAssignments_other": "{{count}} tareas tienen asignaciones de recursos y no pueden convertirse en hitos. Elimine primero las asignaciones.",
+    "milestoneRefusedSummary_one": "«{{task}}» es una tarea de resumen con subtareas y no puede convertirse en hito.",
+    "milestoneRefusedSummary_many": "{{count}} tareas son tareas de resumen con subtareas y no pueden convertirse en hitos.",
+    "milestoneRefusedSummary_other": "{{count}} tareas son tareas de resumen con subtareas y no pueden convertirse en hitos.",
+    "assignmentsMovedToSubtask_one": "La asignación de {{resources}} se ha movido de «{{phase}}» a la nueva subtarea «{{child}}»: una tarea de resumen no lleva asignaciones propias.",
+    "assignmentsMovedToSubtask_many": "Las {{count}} asignaciones ({{resources}}) se han movido de «{{phase}}» a la nueva subtarea «{{child}}»: una tarea de resumen no lleva asignaciones propias.",
+    "assignmentsMovedToSubtask_other": "Las {{count}} asignaciones ({{resources}}) se han movido de «{{phase}}» a la nueva subtarea «{{child}}»: una tarea de resumen no lleva asignaciones propias.",
+    "assignmentsMovedToSubtasks_one": "{{count}} tarea se convirtió en tarea de resumen; sus asignaciones se movieron a su primera subtarea nueva.",
+    "assignmentsMovedToSubtasks_many": "{{count}} tareas se convirtieron en tareas de resumen; sus asignaciones se movieron cada una a su primera subtarea nueva.",
+    "assignmentsMovedToSubtasks_other": "{{count}} tareas se convirtieron en tareas de resumen; sus asignaciones se movieron cada una a su primera subtarea nueva.",
+    "milestoneClearedOnPhase_one": "El hito «{{phase}}» ahora tiene subtareas y se ha convertido en tarea de resumen; se ha quitado la marca de hito.",
+    "milestoneClearedOnPhase_many": "{{count}} hitos ahora tienen subtareas y se han convertido en tareas de resumen; se ha quitado la marca de hito.",
+    "milestoneClearedOnPhase_other": "{{count}} hitos ahora tienen subtareas y se han convertido en tareas de resumen; se ha quitado la marca de hito.",
+    "phaseRefusedNoAssignableChild": "«{{phase}}» no puede convertirse en tarea de resumen: sus asignaciones no tienen adónde ir, porque ninguna de las nuevas subtareas puede llevar asignaciones (un hito o una tarea de resumen). No se ha cambiado nada.",
+    "phaseRefusedDuplicateResource": "«{{phase}}» no puede convertirse en tarea de resumen: la asignación de {{resource}} no puede pasar a la nueva subtarea «{{child}}», porque ya tiene {{resource}}. No se ha cambiado nada.",
     "schedulingProfileApplied": "Este proyecto calcula como {{profile}}. Cámbialo en Archivo → Info del proyecto → Perfil de cálculo y opciones.",
     "schedulingProfileShifted_one": "Tras aplicar, se movió {{count}} tarea.",
     "schedulingProfileShifted_many": "Tras aplicar, se movieron {{count}} tareas.",
@@ -140,6 +175,14 @@
     "xerArchiveReasonBytesMissing": "Motivo: faltan los propios bytes de origen; probablemente otro programa IFC reescribió el fichero.",
     "xerArchiveReasonMetadataInvalid": "Motivo: los bytes de origen están intactos, pero los datos derivados de ellos no se pueden usar.",
     "xerArchiveReasonStructure": "Motivo: la estructura del archivo en el IFC no es correcta (duplicada, reordenada o mal vinculada)."
+  },
+  "scheduleErrors": {
+    "cycle": "Dependencia circular entre tareas: {{path}}",
+    "noWorkingDays": "El calendario no tiene días laborables configurados",
+    "invalidDayDuration": "Duración en días no válida para la tarea '{{task}}'",
+    "invalidHourDuration": "Duración en horas no válida para la tarea '{{task}}'",
+    "hourTaskWithoutWorkHours": "La tarea horaria '{{task}}' no tiene un horario laboral válido en su calendario",
+    "invalidStartDate": "Fecha de inicio no válida para la tarea '{{task}}'"
   },
   "yes": "Sí",
   "no": "No",
@@ -318,7 +361,7 @@
     "aiAutostartHint": "Activa el puente MCP nada más iniciar la aplicación, para que un cliente de IA pueda conectarse sin que abras antes la pestaña IA. Solo en la aplicación de escritorio.",
     "legacySection": "Funciones heredadas",
     "classicViewControls": "Mostrar los botones de vista clásicos",
-    "classicViewControlsHint": "Devuelve los botones separados Columnas, Filtro, Agrupar y Ordenar a la pestaña Vista. Su función está ahora en los botones de diseño y en el cuadro de diseños."
+    "classicViewControlsHint": "Devuelve los botones separados Columnas, Filtro, Agrupar y Ordenar a la pestaña Vista. Las columnas se eligen ahora con el signo más del encabezado de la tabla o en Tabla → Columnas…; filtrar, agrupar y ordenar están en los botones de diseño y en el cuadro de diseños."
   },
   "ai": {
     "start": "Iniciar puente",
@@ -772,7 +815,8 @@
       "project": "Calendario del proyecto",
       "new": "Nuevo calendario",
       "duplicate": "Duplicar",
-      "setDefault": "Establecer como predeterminado del proyecto"
+      "setDefault": "Establecer como predeterminado del proyecto",
+      "invalid": "Este calendario contiene datos no válidos"
     },
     "generate": {
       "button": "Generar festivos…",
@@ -834,6 +878,11 @@
         "consumesWorkingDay": "La pausa no puede ocupar toda la jornada laboral."
       }
     },
+    "holidayErrors": {
+      "invalidStart": "Introduzca una fecha de inicio válida.",
+      "invalidEnd": "Introduzca una fecha de fin válida o déjela vacía para un solo día.",
+      "endBeforeStart": "La fecha de fin es anterior a la fecha de inicio."
+    },
     "worktime": {
       "section": "Horarios de trabajo",
       "derivedHpd": "Horas/día derivadas:",
@@ -855,11 +904,7 @@
     "structureLockedHint": "No disponible mientras se filtra/agrupa/ordena",
     "columns": {
       "title": "Columnas",
-      "visible": "Visible",
-      "width": "Ancho",
-      "resetDefault": "Restablecer valores predeterminados",
-      "available": "Campos disponibles",
-      "scopeHint": "Estas columnas se aplican a la vista Tabla. La lista de tareas junto al Gantt siempre muestra EDT, nombre y duración."
+      "resetDefault": "Restablecer valores predeterminados"
     },
     "filter": {
       "title": "Filtro",

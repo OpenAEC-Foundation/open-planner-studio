@@ -19,7 +19,7 @@ Siga com [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-apparteme
 
 Prima **F5** (ou o botão **Calcular**) para executar o cronograma. A barra de estado no fundo mostra então, por exemplo, "Caminho crítico: N tarefas, M dias úteis" — o número de tarefas no caminho crítico e a duração total. No diagrama de Gantt, as tarefas críticas recebem a sua própria cor de barra (vermelha): tarefas sem folga, em que cada dia de atraso empurra diretamente a data de fim do projeto.
 
-Faça duplo clique numa tarefa e procure na secção **Resultado CPM** os números exatos: **Início mais cedo:**, **Fim mais cedo:**, **Início mais tarde:**, **Fim mais tarde:**, **Folga total:**, **Folga livre:** e (quando aplicável) **Folga interferente:**, além de se a tarefa está no **Caminho crítico:**. Quer estes campos como colunas na tabela de tarefas? **Visualização → Colunas…** e assinale-os.
+Faça duplo clique numa tarefa e procure na secção **Resultado CPM** os números exatos: **Início mais cedo:**, **Fim mais cedo:**, **Início mais tarde:**, **Fim mais tarde:**, **Folga total:**, **Folga livre:** e (quando aplicável) **Folga interferente:**, além de se a tarefa está no **Caminho crítico:**. Quer estes campos como colunas na tabela de tarefas? Clique no sinal de mais à direita do cabeçalho da tabela e escolha-os no seletor de colunas, em **Calculado**, um de cada vez; um campo que já é uma coluna está assinalado. Veja [Escolher colunas](docs://ref-kolommen).
 
 ### Folga total, livre e interferente
 

@@ -61,7 +61,11 @@ S().newProject();
 const c1 = S().addTask({ name: 'C1' });
 const c2 = S().addTask({ name: 'C2' });
 S().addSequence({ predecessorId: c1, successorId: c2, type: 'FINISH_START', lagDays: 0 });
-S().addSequence({ predecessorId: c2, successorId: c1, type: 'FINISH_START', lagDays: 0 });
+// De store-route weigert een kring vooraf; een kring komt nog wel binnen zoals een importer hem
+// schrijft: rechtstreeks in `sequences`.
+useAppStore.setState(s => {
+  s.sequences.push({ id: 'seq-kring', predecessorId: c2, successorId: c1, type: 'FINISH_START', lagDays: 0 });
+});
 S().runCPM();
 truthy('6 opzet: de solver meldt een cyclus', !!S().cpmResult?.error);
 // De mislukte solve houdt de planning verouderd: geen oude datums als actuele uitkomst tonen.

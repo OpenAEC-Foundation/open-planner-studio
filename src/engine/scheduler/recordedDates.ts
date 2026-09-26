@@ -1,8 +1,9 @@
-import type { Task, TaskStatus, TaskTimeComputed, TaskTimeInput } from '@/types/task';
+import type { Task, TaskTimeComputed, TaskTimeInput } from '@/types/task';
 import { rollupSummaryTasks } from './applyCpmResult';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import type { WorkCalendar } from '@/types/calendar';
 import type { CPMResult, CPMTaskResult } from './CPMSolver';
+import { writeSummaryProgress, type SummaryProgress } from './summaryProgress';
 import { CalendarEngine } from './CalendarEngine';
 import { parseInstant } from '@/utils/dateUtils';
 import { projectDurationOf } from './projectDuration';
@@ -33,11 +34,11 @@ export interface RecordedTime {
   totalFloat?: number;
   freeFloat?: number;
   isCritical?: boolean;
-  /** Alleen op een VERZAMELTAAK: haar opgeslagen voortgang en status. Buiten de modus leidt de
-   *  rollup (`applyCpmResult`) die af uit de bladen; ín de modus toont de fase — net als haar
-   *  datums — wat het bestand zei. Voor een blad bestaat dit niet: diens voortgang raakt de solve
-   *  niet aan. */
-  summaryProgress?: { completion: number; status: TaskStatus };
+  /** Alleen op een VERZAMELTAAK: haar opgeslagen voortgang, status en werkelijke datums. Buiten de
+   *  modus leidt de rollup (`applyCpmResult`) die af uit de bladen; ín de modus toont de fase — net
+   *  als haar datums — wat het bestand zei. Voor een blad bestaat dit niet: diens voortgang raakt de
+   *  solve niet aan. */
+  summaryProgress?: SummaryProgress;
 }
 
 // Drift-anker (kwaliteitsreview MOET 3): elk CPM-veld in `TaskTimeComputed` moet ook hier een plek
@@ -243,7 +244,14 @@ export function captureRecordedDates(
       freeFloat: has.has('freeFloat') ? t.freeFloat : undefined,
       isCritical: has.has('isCritical') ? t.isCritical : undefined,
       ...(isSummaryTask(task)
-        ? { summaryProgress: { completion: t.completion, status: task.status } }
+        ? {
+            summaryProgress: {
+              completion: t.completion,
+              status: task.status,
+              ...(t.actualStart ? { actualStart: t.actualStart } : {}),
+              ...(t.actualFinish ? { actualFinish: t.actualFinish } : {}),
+            },
+          }
         : {}),
     };
   }
@@ -459,10 +467,8 @@ export function applyRecordedTimesToTasks(
     task.time.isCritical = rec.isCritical ?? false;
     // Een verzameltaak toont in de modus ook haar opgeslagen voortgang: de solve bij het laden
     // leidde die af uit de bladen (`applyCpmResult`), net zoals hij haar datums oprolde.
-    if (rec.summaryProgress) {
-      task.time.completion = rec.summaryProgress.completion;
-      task.status = rec.summaryProgress.status;
-    }
+    // Dezelfde schrijver als de rollup (#214): voortgang, status én werkelijke datums samen.
+    if (rec.summaryProgress) writeSummaryProgress(task, rec.summaryProgress);
     task.time.interferingFloat = undefined;
     task.time.isNearCritical = undefined;
     task.time.floatPath = undefined;

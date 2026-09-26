@@ -177,6 +177,12 @@ instelling is een permanente eigenschap van het project: ze blijft ook na **Opsl
 een volgende **Openen** intact. Deze conventie heet in Projectinfo *Restwerk hervat na de al
 verstreken duur* en hoort bij het profiel Microsoft Project.
 
+De **statusdatum** komt mee met zijn tijdstip. MS Project bewaart hem op de standaard eindtijd van de
+werkdag (meestal 17:00): de statusdag zelf telt daar dus als voorbij. In een urenproject rekent Open
+Planner Studio net zo: het restwerk van een lopende taak gaat op zijn vroegst de volgende werkdag
+verder. Plant het project in hele dagen, dan rekent Open Planner Studio alleen met de datum. Een MS
+Project XML-bestand (MSPDI) levert voor hetzelfde project dezelfde statusdatum op.
+
 ## Kalenderuitzonderingen en werkweken
 
 Concrete, eenmalige uitzonderingsdatums in een kalender (een specifieke vrije dag op een vaste

@@ -10,12 +10,12 @@ Das Fenster **Kalender** verwaltet die Kalenderbibliothek des Projekts: links di
 
 ## Anwenden und Abbrechen
 
-Alle Bearbeitungen — einschließlich Neu/Duplizieren/Löschen — erfolgen in einer Arbeitskopie. **Anwenden** (oder **Enter**) schreibt alles zugleich und berechnet den Terminplan neu; **Abbrechen**, **Esc**, das Schließen-Kreuz oder ein Klick außerhalb des Fensters verwirft alle Änderungen.
+Alle Bearbeitungen — einschließlich Neu/Duplizieren/Löschen — erfolgen in einer Arbeitskopie. **Anwenden** schreibt alles zugleich, berechnet den Terminplan neu und schließt das Fenster; **Enter** in einem Textfeld wie dem Namen tut dasselbe, lässt das Fenster aber geöffnet. Wurde nichts geändert, bewirken **Anwenden** und **Enter** nichts: Das Dokument bleibt unverändert und der Terminplan wird nicht neu berechnet. **Abbrechen**, **Esc**, das Schließen-Kreuz oder ein Klick außerhalb des Fensters verwirft alle Änderungen, die noch nicht mit **Anwenden** oder **Enter** übernommen wurden.
 
 ## Bibliothek (linke Spalte)
 
-- **Liste** — alle Kalender; der Stern markiert den **Projektkalender** (der Standard für Aufgaben ohne eigenen Kalender).
-- **+** — **Neuer Kalender**.
+- **Liste** — alle Kalender; der Stern markiert den **Projektkalender** (der Standard für Aufgaben ohne eigenen Kalender). Ein Warnzeichen markiert einen Kalender mit ungültigen Eingaben.
+- **+** — **Neuer Kalender**, mit demselben Standard wie **+ Ressourcenkalender** im Ressourcenbereich und wie ein neues Projekt: Mo–Fr 07:00–16:00 und, bei eingeschaltetem **Baumodus**, die niederländischen Feiertage. Möchten Sie keine, wählen Sie **Feiertage generieren…** → **Keine Feiertage**.
 - **Duplizieren** — Kopie des ausgewählten Kalenders.
 - **Löschen** — beim letzten Kalender nicht möglich; das Löschen des Projektstandards macht einen anderen Kalender zum Standard.
 - **Als Projektstandard festlegen** — macht den ausgewählten Kalender zum Projektkalender (Schaltfläche über dem Formular).
@@ -47,4 +47,4 @@ Generiert die Feiertags-Liste regelbasiert über den Projektzeitraum:
 
 ## Feiertage
 
-Die Liste selbst: pro Zeile **Beschreibung**, **Von**, **Bis** und eine Entfernen-Schaltfläche; **Feiertag hinzufügen** erstellt eine neue Zeile. Mehrzeiträume (Bauferien, Frostverzögerung) sind einfach eine Zeile mit einer längeren Von–Bis-Spanne.
+Die Liste selbst: pro Zeile **Beschreibung**, **Von**, **Bis** und eine Entfernen-Schaltfläche; **Feiertag hinzufügen** erstellt eine neue Zeile. Mehrzeiträume (Bauferien, Frostverzögerung) sind einfach eine Zeile mit einer längeren Von–Bis-Spanne. Ein leeres **Bis** bedeutet einen eintägigen Feiertag. Fehlt **Von** oder liegt **Bis** vor **Von**, wird die Zeile rot markiert und erklärt, und **Anwenden** sowie **Enter** bleiben gesperrt, bis Sie sie korrigieren.

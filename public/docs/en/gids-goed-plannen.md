@@ -209,7 +209,9 @@ without setting its next successor in motion. The difference is the float that t
 date but does get in someone's way — useful when you work with subcontractors you cannot reschedule
 twice.
 
-Add those columns to the task table — via **View → Columns…** — and watch for three signals. A task
+Add those columns to the task table — with the plus at the right of the table header, under
+**Calculated** in the column chooser ([Choosing columns](docs://ref-kolommen)) — and watch for three
+signals. A task
 with a couple of days of float is not a safe task but a near-critical one; turn on the near-critical
 threshold and you see them in a colour of their own. A task with an extreme amount of float — more
 than about two months, counted in schedule reviews as 44 working days — is

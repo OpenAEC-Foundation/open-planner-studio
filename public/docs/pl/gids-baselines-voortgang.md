@@ -45,6 +45,8 @@ Rzeczywiste daty nigdy nie mogą wypadać później niż data statusu — sprób
 
 Faza — zadanie z zadaniami pod nim — nie ma własnego postępu. Jej **procent ukończenia** i **status** są przy każdym przeliczeniu (**F5** lub **Oblicz**) wyliczane z zadań pod nią. Procent jest ważony czasem trwania: zadanie na dziesięć dni roboczych liczy się dwa razy mocniej niż zadanie na pięć. To dokładnie ta liczba, którą pokazuje **Podsumowanie WBS** na karcie **Raport**, i którą widzą Tabela, podpowiedź, PDF i asystent AI. Status podąża za tym: **Ukończone**, gdy wszystkie zadania pod fazą są gotowe, **W toku**, gdy jedno się rozpoczęło, w przeciwnym razie **Nierozpoczęte**.
 
+To samo dotyczy jej **rzeczywistych dat**. **Rzeczywisty początek** fazy to najwcześniejszy rzeczywisty początek zadań pod nią, gdy tylko jedno się rozpoczęło. Jej **Rzeczywisty koniec** to najpóźniejszy rzeczywisty koniec, ale dopiero gdy wszystkie zadania pod nią są gotowe: dopóki jedno jeszcze trwa, faza nie ma rzeczywistego końca. Te wyliczone daty trafiają też do eksportów i do pliku IFC, a dwa poniższe wyjątki dotyczą również ich.
+
 Dlatego nie możesz samodzielnie wpisać postępu fazy. W panelu właściwości i oknie dialogowym zadania suwak i rzeczywiste daty fazy są wyłączone, a w **Tabeli** kolumny postępu wiersza fazy są tylko do odczytu. Wybierz **Postęp** w menu kontekstowym na fazie, a wszystkie zadania pod nią otrzymają ten procent; po następnym przeliczeniu faza podąży sama.
 
 Dwa wyjątki podlegają tej samej regule co daty fazy. Faza planowana ręcznie z pliku MS Project (`.mpp`) zachowuje postęp zapisany w pliku. A dopóki oglądasz [daty w zapisanej postaci](docs://datums-zoals-opgeslagen), faza pokazuje postęp z pliku; gdy tylko przeliczysz ponownie, jest znowu wyliczany.

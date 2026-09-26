@@ -75,7 +75,7 @@ This is the part worth remembering: some fields are a company-wide agreement and
 - The time-phased availability
 - The **choice** of which calendar is attached to the resource
 
-Assign a library resource, and its calendar travels along as a linked copy that itself keeps following the library — which is why the *content* of that calendar sits in the left-hand list above. But the *choice* of which calendar is attached to a resource sits in the right-hand list: the same crew might run on a different calendar for a rush job than it normally would, without that being a deviation from the library. This distinction is subtle but important: change a library resource's rate or name, and the copy deviates from the library; change its calendar choice or max units, and you're doing exactly what that field is there for.
+Assign a library resource, and its calendar travels along as a linked copy that itself keeps following the library — which is why the *content* of that calendar is listed above under **Follows the library**. But the *choice* of which calendar is attached to a resource is listed under **You decide per project**: the same crew might run on a different calendar for a rush job than it normally would, without that being a deviation from the library. This distinction is subtle but important: change a library resource's rate or name, and the copy deviates from the library; change its calendar choice or max units, and you're doing exactly what that field is there for.
 
 ## Three actions that connect the two worlds
 

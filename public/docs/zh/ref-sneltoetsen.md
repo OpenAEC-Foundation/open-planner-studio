@@ -1,4 +1,4 @@
-# Sneltoetsenoverzicht
+# 键盘快捷键参考
 
 完整且始终最新的快捷键列表存在于应用本身之中：**键盘快捷键**窗口。本文档刻意不重复该列表——该窗口直接由应用构建而成，因此永远不会过时。
 
@@ -21,4 +21,4 @@
 
 ## 延伸阅读
 
-- [Sneltoetsen & bediening](docs://gids-sneltoetsen-bediening) — 围绕快捷键的工作流程：上下文菜单、鼠标操作、拖拽和缩放。
+- [键盘快捷键与操作](docs://gids-sneltoetsen-bediening) — 围绕快捷键的工作流程：上下文菜单、鼠标操作、拖拽和缩放。

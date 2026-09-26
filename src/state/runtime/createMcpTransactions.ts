@@ -1,6 +1,10 @@
-import type { AppStoreContext } from '../appStore';
-import { attachToParent, removeTaskSubtrees } from '@/state/taskTree';
-import { createSnapshot, restoreSnapshot, type Snapshot } from '../snapshot';
+import type { AppState, AppStoreContext } from '../appStore';
+import { attachToParent, isSelfOrDescendant, removeTaskSubtrees, reparentTask } from '@/state/taskTree';
+import {
+  applyPhaseTransitions, describePhaseRefusal, describePhaseTransitions, firstChildGains, planPhaseTransitions,
+  type PhaseTransitionReport,
+} from '../structuralTransition';
+import { createSnapshot, documentDataChanged, restoreSnapshot, type Snapshot } from '../snapshot';
 import { replaceSessionHistoryState } from '../sessionHistory';
 import { relationVerdict } from '../relationRules';
 import { generateId } from '@/utils/id';
@@ -183,7 +187,11 @@ function createMcpDraft(
    * een positie worden in INPUTvolgorde toegepast (meerdere posities in dezelfde ouder stapelen dus
    * voorspelbaar).
    */
-  addTasks(items: BulkTaskItem[]): Map<string, string> {
+  addTasks(items: BulkTaskItem[], phaseReport?: PhaseTransitionReport[]): Map<string, string> {
+    // Welke bestaande taken zijn nu nog blad? Krijgt er één in deze call kinderen, dan wordt hij
+    // een fase — zie "Wordt fase" onderaan.
+    const leafIdsBefore = new Set(store.getState().tasks.filter((t) => t.childIds.length === 0).map((t) => t.id));
+
     // ---- Pre-validatie (VÓÓR enige mutatie) ----------------------------------------------------
     // 1) Dubbele tempId's binnen de call.
     const tempIds = new Set<string>();
@@ -296,16 +304,62 @@ function createMcpDraft(
       });
     }
 
+    // ---- Wordt fase (audit taakmutaties §6) ---------------------------------------------------
+    // Pas NA aanmaak en positie: dan staan alle nieuwe kinderen in hun eindvolgorde en kiest de
+    // gedeelde regel (`structuralTransition.ts`) de eerste nieuwe subtaak die toewijzingen mag
+    // dragen. Een weigering gooit — de transactie rolt dan alles terug. Geen UI-melding: het rapport
+    // gaat via `phaseReport` naar het tool-antwoord.
+    store.setState((s) => {
+      const gains = s.tasks
+        .filter((t) => leafIdsBefore.has(t.id) && t.childIds.length > 0)
+        .map((t) => ({ phaseId: t.id, childIds: [...t.childIds] }));
+      if (gains.length === 0) return;
+      const plan = planPhaseTransitions(s, gains);
+      if (!plan.ok) throw new Error(describePhaseRefusal(s, plan.refusal));
+      for (const lostId of applyPhaseTransitions(s, plan.transitions)) recordTimephasedLoss(lostId);
+      phaseReport?.push(...describePhaseTransitions(s, plan.transitions));
+    });
+
     return idMap;
   },
 
   /**
-   * Snapshot/recompute-vrije variant van de store-`addSequence`: dezelfde regels als de store-actie,
-   * uit `relationRules.ts` (dedup op predecessor+successor+type — meerdere relatietypes tussen
-   * hetzelfde paar blijven toegestaan — plus self/onbekende-taak/verzameltaak-eindpunt). Dit was een
-   * handgeschreven kopie van alleen de dedup-regel; die kopie is precies waarom validatie in de
-   * slice-actie de MCP-laag zou overslaan. Retourneert het nieuwe id, of `null` wanneer de relatie is
-   * geweigerd.
+   * Snapshot/recompute-vrije variant van de store-`moveTask` (`planner_move_task`): dezelfde
+   * verhanging (`reparentTask`) en dezelfde "wordt fase"-regel (`structuralTransition.ts`) — krijgt
+   * de nieuwe ouder hierdoor zijn eerste kind terwijl hij toewijzingen draagt, dan verhuizen die naar
+   * de verplaatste taak, of weigert de verhanging. Geen UI-melding: het rapport komt terug voor het
+   * tool-antwoord. Onbekende taak/ouder of een kring GOOIT (de toollaag toetst dat al vooraf).
+   */
+  moveTask(id: string, newParentId: string | null, position?: number): PhaseTransitionReport[] {
+    let reports: PhaseTransitionReport[] = [];
+    store.setState((s) => {
+      if (!s.tasks.some((t) => t.id === id)) throw new Error(`draft.moveTask: onbekende taak '${id}'`);
+      if (newParentId !== null) {
+        if (!s.tasks.some((t) => t.id === newParentId)) throw new Error(`draft.moveTask: onbekende ouder '${newParentId}'`);
+        if (isSelfOrDescendant(s.tasks, newParentId, id)) {
+          throw new Error(`draft.moveTask: '${id}' kan niet onder zichzelf of een eigen afstammeling`);
+        }
+      }
+      const plan = planPhaseTransitions(s, firstChildGains(s.tasks, [{ childId: id, parentId: newParentId }]));
+      if (!plan.ok) throw new Error(describePhaseRefusal(s, plan.refusal));
+      reparentTask(s.tasks, id, newParentId, position);
+      if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
+      for (const lostId of applyPhaseTransitions(s, plan.transitions)) recordTimephasedLoss(lostId);
+      reports = describePhaseTransitions(s, plan.transitions);
+      markDocumentEdited(s);
+    });
+    return reports;
+  },
+
+  /**
+   * Snapshot/recompute-vrije variant van de store-`addSequence`: dezelfde lokale regels als de
+   * store-actie, uit `relationRules.ts` (`relationVerdict`: dedup op predecessor+successor+type —
+   * meerdere relatietypes tussen hetzelfde paar blijven toegestaan — plus self/onbekende-taak/
+   * voorouder-eindpunt). Dit was een handgeschreven kopie van alleen de dedup-regel; die kopie is
+   * precies waarom validatie in de slice-actie de MCP-laag zou overslaan. De kringtoets van de
+   * store-route (`relationAddVerdict`) zit hier bewust niet: de MCP-tools toetsen een kring vooraf
+   * over de hele batch (`validate.noCycle`) en de eindberekening van de transactie rolt een kring
+   * alsnog terug. Retourneert het nieuwe id, of `null` wanneer de relatie is geweigerd.
    */
   addSequence(seq: Omit<Sequence, 'id'>): string | null {
     const id = generateId('seq');
@@ -961,13 +1015,18 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
       // dus er kan tijdens dit venster geen onafhankelijke gebruikersmelding tussendoor komen.
       const prevNotifications = initial.ui.notifications;
 
+      /** Het document terug op de stand van vóór de callback — gedeeld door rollback en no-op. */
+      const restoreDocument = (state: AppState): void => {
+        restoreSnapshot(state, snapshot, { markDirty: false, clearImportPristine: false });
+        state.viewRows = previousViewRows;
+        state.resourceLoadResult = previousResourceLoad;
+        state.isDirty = previousDirty;
+        state.importPristine = previousPristine;
+      };
+
       const rollback = (error: string): { ok: false; error: string } => {
         store.setState((state) => {
-          restoreSnapshot(state, snapshot, { markDirty: false, clearImportPristine: false });
-          state.viewRows = previousViewRows;
-          state.resourceLoadResult = previousResourceLoad;
-          state.isDirty = previousDirty;
-          state.importPristine = previousPristine;
+          restoreDocument(state);
           replaceSessionHistoryState(state, previousHistory, previousSequence);
           state.ui.notifications = prevNotifications;
         });
@@ -976,19 +1035,42 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
       };
 
       let value: T;
+      let dataChanged = false;
       try {
         value = fn() as T;
         if (isThenable(value)) {
           throw new Error('MCP-transactiecallback moet strikt synchroon zijn en mag geen Promise/thenable retourneren');
         }
+        // Wijzigde de callback per saldo projectdata? Gemeten VÓÓR de eindherberekening: `runCPM`
+        // alléén is nooit een wijziging. Dit is de ene plek waar elke MCP-schrijfactie langskomt — ook
+        // de toollaag-producers die geen draft-primitief gebruiken (het voortgangspad van
+        // `update_tasks` zette zo nooit `isDirty`, dus sluiten vroeg niet om op te slaan en de
+        // crashherstel-auto-save sloeg de wijziging over). Dezelfde meting beslist over de undo-stap
+        // (G5, hieronder).
+        dataChanged = documentDataChanged(snapshot, createSnapshot(store.getState()));
 
         // De volledige eindherberekening blijft binnen dezelfde lease. Dat onderdrukt ook de
-        // modus-verlaat-snapshot van "datums zoals opgeslagen".
-        store.getState().runCPM();
-        store.getState().recomputeViewRows();
-        store.getState().recomputeResourceLoad();
+        // modus-verlaat-snapshot van "datums zoals opgeslagen". Zonder datawijziging valt er niets
+        // te herrekenen.
+        if (dataChanged) {
+          store.getState().runCPM();
+          store.getState().recomputeViewRows();
+          store.getState().recomputeResourceLoad();
+        }
       } catch (error) {
         return rollback(error instanceof Error ? error.message : String(error));
+      }
+
+      // G5 — per saldo niets gewijzigd ⇒ er is niets gebeurd, dezelfde regel als de no-op-guards van
+      // de UI-routes. Dus geen undo-stap (die zou ook de redo-stapel van de gebruiker wissen), en
+      // `cpmResult`, `scheduleStale`, "datums zoals opgeslagen" en `isDirty` blijven zoals ze waren:
+      // ook wat de callback daar onderweg aan veranderde (een tussentijdse herberekening in een
+      // batch, een draftprimitief dat `isDirty` zet, een nieuw object met dezelfde inhoud) gaat terug.
+      // De historie en de meldingen blijven staan: die raakt een no-op niet.
+      if (!dataChanged) {
+        store.setState(restoreDocument);
+        runtime.resetUndoCoalescing();
+        return { ok: true, value, timephasedGuidanceLost: 0 };
       }
 
       const cpm = store.getState().cpmResult;
@@ -997,6 +1079,7 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
       runtime.resetUndoCoalescing();
       store.setState((state) => {
         runtime.recordDocumentDataHistory(state, snapshot, documentId, 'MCP-bewerking');
+        markDocumentEdited(state);
       });
       const lostCount = runtime.countMcpTimephasedLoss(lease);
       if (lostCount > 0) {

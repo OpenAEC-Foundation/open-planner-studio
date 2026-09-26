@@ -4,7 +4,7 @@ La fenêtre **Filtre** contrôle quelles tâches sont visibles — dans le Gantt
 
 ## Ouverture
 
-**Affichage** → groupe de ruban **Affichage** → **Filtre…**. Le bouton reste en surbrillance tant qu'un filtre est actif. **Échap**, la croix de fermeture ou un clic en dehors de la fenêtre ferme sans appliquer.
+Un filtre se définit dans la fenêtre des layouts : **Affichage** → groupe de ruban **Layout** → **Nouveau layout**, cochez **Filtre** et construisez les règles en dessous. **Enregistrer** en fait un bouton de layout, **Appliquer sans enregistrer** affiche seulement le filtre à l'écran pour l'instant. La fenêtre Filtre séparée décrite ci-dessous appartient aux boutons d'affichage classiques : **Affichage** → groupe de ruban **Affichage** → **Filtre…**, visible uniquement si vous activez ces boutons via **Paramètres** → **Avancé** → **Fonctions héritées**. Les règles elles-mêmes fonctionnent de la même façon aux deux endroits. Le bouton reste en surbrillance tant qu'un filtre est actif. Si vous n'avez encore aucun filtre enregistré, il ouvre directement la fenêtre Filtre. Sinon, sa flèche ouvre aussi vos filtres enregistrés : en choisir un l'applique immédiatement ; **Effacer** désactive le filtre actif. **Échap**, la croix de fermeture ou un clic en dehors de la fenêtre ferme sans appliquer.
 
 ## Groupes : toutes ou une
 

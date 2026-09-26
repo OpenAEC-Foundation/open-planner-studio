@@ -90,7 +90,7 @@ Now that you have tasks and relations, you can have the schedule calculated (CPM
 - At the bottom of the screen, the status bar shows for example "Critical path: 4 tasks, 62 work days" once the schedule has been calculated. If you've changed something since the last calculation, it instead shows "Out of date — recalculate (F5)".
 - In the Gantt chart, critical tasks — tasks with no float, which therefore directly determine the project's end date — get a different bar colour than tasks that still have room (float). If a critical task runs late, the whole project end date shifts with it; a task with float can run late without consequences, as long as the float isn't used up.
 - Double-click a task to reopen the **Edit task** window. Under the **CPM Result** section you'll find, per task: **Early start**, **Early finish**, **Late start**, **Late finish**, **Total float**, **Free float**, and whether the task lies on the **Critical path**.
-- Want this data as columns in the task table too, instead of having to open each task? Go to the ribbon tab **View**, click **Columns…** in the **Display** group, and check **Critical** and **Total Float**.
+- Want this data as columns in the task table too, instead of having to open each task? On the **Table** tab, **Critical** and **Total float** are already in the table by default. In the task list next to the Gantt you add them with the plus at the right of the table header: it opens the column chooser, where you pick one field at a time under **Calculated**. See [Choosing columns](docs://ref-kolommen).
 
 ## Step 7 — Save
 

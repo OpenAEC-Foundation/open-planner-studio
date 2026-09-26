@@ -28,7 +28,7 @@ Après l'installation, l'extension est activée immédiatement et tout bouton de
 
 ## Importer via les extensions
 
-**Fichier** → **Importer** liste les formats d'import proposés par les extensions installées ; cliquez sur un format et choisissez un fichier. Sans extension d'import, la page indique : « Aucune extension d'import installée. Ajoutez-en une via Extensions. » Les formats d'import intégrés (CSV, MS Project, P6) sont distincts de ceci — voir [Im-/export](docs://gids-import-export).
+**Fichier** → **Importer** liste les formats d'import proposés par les extensions installées ; cliquez sur un format et choisissez un fichier. Sans extension d'import, la page indique : « Aucune extension d'import installée. Ajoutez-en une via Extensions. » Les formats d'import intégrés (CSV, MS Project, P6) sont distincts de ceci — voir [Import & export](docs://gids-import-export).
 
 ## Écrire ses propres extensions
 

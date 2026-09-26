@@ -3,6 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
+import { CommitColorInput, CommitTextInput } from '@/components/common/CommitInput';
 import type { CustomFieldType } from '@/types/structure';
 
 const inputCls = 'input !text-small !leading-4 !px-2 !py-1 w-full';
@@ -10,8 +11,10 @@ const FIELD_TYPES: CustomFieldType[] = ['text', 'number', 'integer', 'cost', 'da
 
 /**
  * Beheerdialoog voor projectstructuur (fase 2.2): activity-code-types met waarden
- * (code + omschrijving + kleur) en getypeerde custom fields. Wijzigingen gaan direct
- * de store in (alle acties hebben undo); geen aparte concept-kopie nodig.
+ * (code + omschrijving + kleur) en getypeerde custom fields. Wijzigingen gaan zonder concept-kopie
+ * de store in, maar per VOLTOOIDE bewerking (`CommitTextInput`/`CommitColorInput`): tekst bij het
+ * verlaten van het veld of Enter, kleur bij het kiezen — één undo-stap per bewerking, niet één per
+ * toetsaanslag of sleepstap in de kleurkiezer.
  */
 export function StructureDialog() {
   const { t } = useTranslation('task');
@@ -49,10 +52,10 @@ export function StructureDialog() {
             {activityCodeTypes.map(type => (
               <div key={type.id} className="border border-border rounded-[8px] p-2 flex flex-col gap-1.5">
                 <div className="flex items-center gap-2">
-                  <input
+                  <CommitTextInput
                     className={inputCls + ' font-semibold'}
                     value={type.name}
-                    onChange={e => renameActivityCodeType(type.id, e.target.value)}
+                    onCommit={name => renameActivityCodeType(type.id, name)}
                   />
                   <button
                     onClick={() => removeActivityCodeType(type.id)}
@@ -64,23 +67,22 @@ export function StructureDialog() {
                 </div>
                 {type.values.map(v => (
                   <div key={v.id} className="flex items-center gap-1.5 pl-2">
-                    <input
+                    <CommitTextInput
                       className="input !text-small !leading-4 !px-2 !py-1 !w-24"
                       value={v.code}
                       placeholder={t('structure.valueCode')}
-                      onChange={e => updateActivityCodeValue(type.id, v.id, { code: e.target.value })}
+                      onCommit={code => updateActivityCodeValue(type.id, v.id, { code })}
                     />
-                    <input
+                    <CommitTextInput
                       className={inputCls}
                       value={v.description ?? ''}
                       placeholder={t('structure.valueDescription')}
-                      onChange={e => updateActivityCodeValue(type.id, v.id, { description: e.target.value })}
+                      onCommit={description => updateActivityCodeValue(type.id, v.id, { description })}
                     />
-                    <input
-                      type="color"
+                    <CommitColorInput
                       value={v.color ?? '#94A3B8'}
-                      title={t('structure.valueColor')}
-                      onChange={e => updateActivityCodeValue(type.id, v.id, { color: e.target.value })}
+                      label={t('structure.valueColor')}
+                      onCommit={color => updateActivityCodeValue(type.id, v.id, { color })}
                       className="w-7 h-6 rounded cursor-pointer border border-border bg-transparent"
                     />
                     <button
@@ -131,10 +133,10 @@ export function StructureDialog() {
             <p className="text-text-secondary">{t('structure.customFieldsHint')}</p>
             {customFieldDefs.map(def => (
               <div key={def.id} className="flex items-center gap-2">
-                <input
+                <CommitTextInput
                   className={inputCls}
                   value={def.name}
-                  onChange={e => renameCustomField(def.id, e.target.value)}
+                  onCommit={name => renameCustomField(def.id, name)}
                 />
                 <span className="text-text-secondary w-24 shrink-0">{t(`structure.fieldType.${def.type}`)}</span>
                 <button onClick={() => removeCustomField(def.id)} style={{ color: 'var(--error)' }}>

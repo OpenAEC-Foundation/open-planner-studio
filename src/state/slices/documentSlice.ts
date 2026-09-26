@@ -39,6 +39,7 @@ import { withXerArchiveIssueNotice } from '../xerArchiveIssueNotice';
 import {
   mergeCalendarLibrarySettle, notifyCalendarLibrarySettle, NO_CALENDAR_LIBRARY_SETTLE, type CalendarLibrarySettle,
 } from '../calendarTasks';
+import { scheduleFailedNotice } from '../scheduleErrorNotice';
 
 // Het documentcontract (payload-vorm + capture/hydrate/fresh) woont nu in `../documentContract`
 // (audit P10). Hier blijft alleen de multi-document back-end (registry, switchen, sluiten,
@@ -711,14 +712,8 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     // De solve gebeurde al op de geïsoleerde actieve payload. Herstel nu alleen dezelfde zichtbare
     // foutmelding en extension-eventsemantiek als een gewone runCPM, ná de atomaire publicatie.
     const cpm = activePayload.cpmResult;
-    if (cpm?.error) {
-      get().notify({
-        severity: 'error',
-        messageKey: 'notifications.scheduleFailed',
-        detail: cpm.error,
-        dedupeKey: 'cpm-error',
-      });
-    }
+    const failed = scheduleFailedNotice(cpm);
+    if (failed) get().notify(failed);
     // Eigenaarsbesluit 2026-09-24 ("openen met melding"): ook een herstelsnapshot waarvan het
     // XER-bronarchief onbruikbaar was, komt terug zónder archief — met één melding voor de hele
     // herstelbatch (alleen de daadwerkelijk herstelde documenten).

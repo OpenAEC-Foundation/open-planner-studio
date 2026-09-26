@@ -412,6 +412,7 @@ const load: ResourceLoadResult = {
   // R1: beide overbezette dagen zijn "gewone" overvraag (inzet > capaciteit op een echte werkdag),
   // geen kalendermismatch — vandaar over-capacity op allebei.
   overallocatedReasons: { r1: { '2027-03-01': 'over-capacity', '2027-03-05': 'over-capacity' } },
+  hours: {},
 };
 // Losse fixture waarin ALLEEN materiaal overbelast is. Nodig omdat `anyRenewableOver` in de fixture
 // hierboven sowieso true is (r1 is overbelast): de MATERIAL-uitsluiting in `buildHistogramPicker`
@@ -421,6 +422,7 @@ const materialOnlyOver: ResourceLoadResult = {
   capacity: { r3: { '2027-03-01': 999 } },
   overallocatedDays: { r1: [], r2: [], r3: ['2027-03-01'], r4: [] },
   overallocatedReasons: { r3: { '2027-03-01': 'over-capacity' } },
+  hours: {},
 };
 for (const [i, sel] of [undefined, 'r1', 'r3', 'onbekend'].entries()) {
   eqDeep(`16.${i} histogramSeries identiek aan het orakel (selectie=${sel ?? 'alle'})`,
@@ -787,8 +789,11 @@ eq('35 secundair: eigen scrollX', optsSecondary.view.scrollX, 400);
     (src.match(/externalStaleLabel:\s*tTask\(/g) ?? []).length, 2);
   eq('43 geen pane laat externalStaleLabel leeg',
     /externalStaleLabel:\s*undefined/.test(src), false);
-  eq('44 histogramas gebruikt pickerWidth als eigen chartOriginX',
-    /const histogramAxis[\s\S]{0,500}chartOriginX:\s*input\.histogramPickerWidth/.test(coordinatorSrc), true);
+  // G13: de kiezer staat aan de kant van de takenlijst (rechts in ar/fa); de as begint op het
+  // plotbegin van dezelfde indeling als de renderer, niet altijd op pickerWidth.
+  eq('44 histogramas begint op het plotbegin uit pickerWidth en pickerSide',
+    /const histogramAxis[\s\S]{0,500}chartOriginX:\s*histogramPlotInsets\(input\.histogramPickerWidth,\s*input\.histogramPickerSide\)\.left/
+      .test(coordinatorSrc), true);
   eq('45 HistogramRenderer krijgt pickerWidth en de primaire histogramas samen',
     /const histogramRenderInput[\s\S]{0,500}pickerWidth:\s*histogramPickerWidth[\s\S]{0,500}axis:\s*histogramAxis/.test(src)
       && /new HistogramRenderer[\s\S]{0,200}\.\.\.input\.histogram/.test(hostSrc), true);

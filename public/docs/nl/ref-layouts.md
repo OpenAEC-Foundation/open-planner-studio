@@ -43,4 +43,4 @@ Filters die je in een eerdere versie had opgeslagen, staan nu als layoutknop met
 
 ## De klassieke weergaveknoppen
 
-De losse knoppen **Kolommen…**, **Filteren…**, **Groeperen…** en **Sorteren…** op het tabblad Beeld zijn vervangen door de layoutknoppen en het layoutvenster. Wie ze terug wil, zet ze aan via **Instellingen** → tab **Geavanceerd** → **Legacy-functies**.
+De losse knoppen **Filteren…**, **Groeperen…** en **Sorteren…** op het tabblad Beeld zijn vervangen door de layoutknoppen en het layoutvenster, de losse knop **Kolommen…** door het plusje in de tabelkop en **Tabel** → **Kolommen…**. Wie de losse knoppen terug wil, zet ze aan via **Instellingen** → tab **Geavanceerd** → **Legacy-functies**.

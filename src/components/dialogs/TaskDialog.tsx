@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
 import type { HistorySessionMark } from '@/state/slices/historySlice';
+import { moveTaskVerdict } from '@/state/slices/taskSlice';
+import { notifyHierarchyCycle } from '@/state/hierarchyRelationNotice';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -8,6 +10,8 @@ import {
   draftWithActualFinish, draftWithActualStart, draftWithProgress, saveTaskDialog,
 } from '@/state/taskDialogSave';
 import { shownStart } from '@/utils/taskDates';
+import { milestoneRefusal } from '@/engine/taskMilestoneTransition';
+import { milestoneRefusalNotices } from '@/state/structuralTransition';
 import { Select } from '@/components/common/Select';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { X } from 'lucide-react';
@@ -130,6 +134,32 @@ export function TaskDialog() {
 
   const handleSave = () => {
     if (!draft.name.trim()) return;
+    // Een andere bovenliggende taak die via de relaties van de nieuwe fase een kring zou maken
+    // (audit taakmutaties, S4): weigeren VÓÓR er iets wordt opgeslagen. `moveTask` weigert zelf ook,
+    // maar dan zou de rest van de bewerking al zijn doorgevoerd en de dialoog sluiten; zo blijft hij
+    // open met de melding, zoals de conceptrelatie in het paneel, en kan de gebruiker corrigeren.
+    if (editingTask && draft.parentId !== editingTask.parentId) {
+      const current = useAppStore.getState();
+      const verdict = moveTaskVerdict(current, editingTask.id, draft.parentId);
+      if (!verdict.ok) {
+        notifyHierarchyCycle(current, verdict.cycle);
+        return;
+      }
+    }
+    // Wordt mijlpaal (audit §6): het vinkje weigert al in het concept (`TaskMilestoneFields`); dit
+    // vangt de toewijzing die intussen via de relationele sectie van deze dialoog is toegevoegd.
+    // Weigeren houdt de dialoog open met de rest van het concept intact.
+    if (editingTask && draft.isMilestone && !editingTask.isMilestone) {
+      const store = useAppStore.getState();
+      const refusal = milestoneRefusal({
+        hasChildren: editingTask.childIds.length > 0,
+        hasAssignments: store.assignments.some(a => a.taskId === editingTask.id),
+      });
+      if (refusal) {
+        for (const notice of milestoneRefusalNotices([{ name: editingTask.name, refusal }])) store.notify(notice);
+        return;
+      }
+    }
     // Opslaan = één undo-stap met dezelfde voortgangsregels als het paneel; de details (vers uit de
     // store vs uit de draft, het scheduleStart-anker, `moveTask` voor de ouder, de duur alleen bij
     // een echte duurbewerking) staan in state/taskDialogSave.ts. G5 (#170): met een open

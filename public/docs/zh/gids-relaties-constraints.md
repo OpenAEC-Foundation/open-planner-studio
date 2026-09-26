@@ -1,6 +1,6 @@
-# Relaties & constraints
+# 关系与限制
 
-单独存在的任务在计划变化时不会跟着移动。**关系**记录这种依赖关系；**限制**记录对日期的硬性或软性要求。本指南比 [Snel starten](docs://quick-start) 更深入地探讨这两者：何时该选哪种关系类型，延时/提前量究竟做了什么，硬钉住是什么意思、以及何时特别*不应*使用它，还有期限与限制之间的区别。
+单独存在的任务在计划变化时不会跟着移动。**关系**记录这种依赖关系；**限制**记录对日期的硬性或软性要求。本指南比 [快速入门](docs://quick-start) 更深入地探讨这两者：何时该选哪种关系类型，延时/提前量究竟做了什么，硬钉住是什么意思、以及何时特别*不应*使用它，还有期限与限制之间的区别。
 
 ## 您将在此学到什么
 
@@ -95,6 +95,6 @@ MSO 和 MFO 还可以通过**强制（钉住逻辑）**复选框设为**硬性**
 
 - 实际查看 SNET、SS 重叠和 FF 关联：[Verbouwing & Aanbouw Eengezinswoning](examples://showcase-verbouwing-eengezinswoning.ifc)。
 - 实际查看期限冲突：[Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc)。
-- 结构尚未搭建好？请先阅读 [Plannen & WBS](docs://gids-plannen-wbs)。
-- 关于影响任务工期的日历和工作时间：请参阅指南 [Kalenders & uren-planning](docs://gids-kalenders-uren)。
+- 结构尚未搭建好？请先阅读 [计划与 WBS](docs://gids-plannen-wbs)。
+- 关于影响任务工期的日历和工作时间：请参阅指南 [日历与小时计划](docs://gids-kalenders-uren)。
 - 所有错过的截止日期和违反的限制集中在一处，并可跳转到任务：[警告面板](docs://ref-waarschuwingen)。

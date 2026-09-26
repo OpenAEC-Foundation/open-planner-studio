@@ -2,21 +2,25 @@ import { useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import type { WorkCalendar } from '@/types/calendar';
-import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
+import { createNewCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
 import { computeGenerateSpan } from '@/engine/calendar/generateCalendarHolidays';
 import { CalendarForm } from './CalendarForm';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { calendarScalarBreakIssue } from '@/utils/effectiveWorkTime';
+import { calendarHasHolidayIssue, withCanonicalHolidayEnds } from '@/utils/holidayRange';
+import { withTransaction } from '@/state/batchTransaction';
 
 /**
  * Resource-kalender-editor (fase 2.5, §3.4) — hergebruikt `CalendarForm`, net als de
  * projectkalender-`CalendarDialog`, maar schrijft naar `s.calendars` via `addCalendar`/
  * `updateCalendar` i.p.v. `s.calendar`/`setCalendar`.
  *
- * Bewust GEEN `runCPM()`-aanroep na Apply: resource-kalenders zijn informatief en raken de
- * CPM-datums niet aan (§3.2) — alleen belasting/nivellering lezen ze, en dat gebeurt pas als
- * de gebruiker expliciet Nivelleren/Herberekenen drukt (die leest `resourceLoadResult` opnieuw).
+ * Bewust GEEN `runCPM()`-aanroep na Apply ("plannen is handmatig"). In zijn rol als resource-
+ * kalender raakt een kalender de CPM-datums niet (§3.2) — alleen belasting/nivellering lezen hem.
+ * Maar de bibliotheek is gedeeld (fase 2.8a): de keuzelijst in de resourcerij biedt ook de
+ * projectkalender en taakkalenders aan. Bewerk je zo'n gedeelde kalender hier, dan verandert de
+ * planning wél; `updateCalendar` markeert hem dan als verouderd (stale) en F5 rekent hem door.
  *
  * `poolCompanyId` (issue #19, Bibliotheekweergave-editor): aanwezig ⇒ POOL-modus — lees/schrijf
  * `pools[poolCompanyId].calendars` via `addPoolCalendar`/`updatePoolCalendar` in plaats van de
@@ -24,16 +28,21 @@ import { calendarScalarBreakIssue } from '@/utils/effectiveWorkTime';
  *
  * `calendarId`: id van een bestaande kalender-entry (project- of poolbibliotheek, afhankelijk van
  * `poolCompanyId`) om te bewerken, of `undefined` om een nieuwe resource-kalender aan te maken
- * (draft start als kopie van `createDefaultCalendar` met een lege naam, zodat de gebruiker 'm
- * meteen kan hernoemen).
+ * (AANMAAKMODUS: de draft komt uit `createNewCalendar`, dezelfde fabriek als "+" in de
+ * kalenderdialoog). In aanmaakmodus bestaat de kalender pas na Toepassen; `onCreated` krijgt dan
+ * het nieuwe id — "+ Resourcekalender" koppelt er de resource mee. In de projectbibliotheek zijn
+ * aanmaken en koppelen samen één undo-stap; Annuleren laat niets achter.
  */
 export function ResourceCalendarDialog({
   calendarId,
   poolCompanyId,
+  onCreated,
   onClose,
 }: {
   calendarId?: string;
   poolCompanyId?: string;
+  /** Alleen in aanmaakmodus: na Toepassen aangeroepen met het id van de nieuwe kalender. */
+  onCreated?: (calendarId: string) => void;
   onClose: () => void;
 }) {
   const { t: tCommon } = useTranslation('common');
@@ -51,24 +60,40 @@ export function ResourceCalendarDialog({
 
   // Local working copy — only committed on Apply.
   const [draft, setDraft] = useState<WorkCalendar>(() =>
-    existing ? structuredClone(existing) : { ...createDefaultCalendar(), id: generateId('rescal'), name: '' },
+    existing
+      ? structuredClone(existing)
+      : { ...createNewCalendar(tCommon('resource.calendarDialog.title')), id: generateId('rescal') },
   );
   const [scalarTimeTextInvalid, setScalarTimeTextInvalid] = useState(false);
 
-  const simpleBreakInvalid = scalarTimeTextInvalid || calendarScalarBreakIssue(draft) !== undefined;
+  // Dezelfde poort als de kalenderdialoog: ongeldige pauze of een ongeldige feestdagregel
+  // (`holidayIssue`, gedeeld met MCP) blokkeert Toepassen.
+  const invalid = scalarTimeTextInvalid || calendarScalarBreakIssue(draft) !== undefined
+    || calendarHasHolidayIssue(draft);
 
   const handleApply = () => {
-    if (simpleBreakInvalid) return;
+    if (invalid) return;
+    // Zelfde opslagvorm als de kalenderdialoog: een lege einddatum wordt een eendaagse feestdag.
+    const saved = withCanonicalHolidayEnds(draft);
     // Een nieuwe kalender gaat zonder id de bibliotheek in; die kent zelf een id toe.
-    const { id: _unused, ...rest } = draft;
+    const { id: _unused, ...rest } = saved;
     void _unused;
     if (poolCompanyId) {
-      if (existing) updatePoolCalendar(poolCompanyId, existing.id, draft);
-      else addPoolCalendar(poolCompanyId, rest);
+      // De poolbibliotheek is niet undo-baar (app-globaal); aanmaken en koppelen blijven twee
+      // pool-mutaties, maar pas ná Toepassen.
+      if (existing) updatePoolCalendar(poolCompanyId, existing.id, saved);
+      else {
+        const newId = addPoolCalendar(poolCompanyId, rest);
+        if (newId) onCreated?.(newId);
+      }
     } else if (existing) {
-      updateCalendar(existing.id, draft);
+      updateCalendar(existing.id, saved);
     } else {
-      addCalendar(rest);
+      // Aanmaken + (via onCreated) koppelen = één gebruikershandeling ⇒ één undo-stap.
+      withTransaction(() => {
+        const newId = addCalendar(rest);
+        onCreated?.(newId);
+      });
     }
     onClose();
   };
@@ -92,7 +117,7 @@ export function ResourceCalendarDialog({
           <button onClick={onClose} className="btn btn--sm btn--secondary">
             {tCommon('cancel')}
           </button>
-          <button onClick={handleApply} disabled={simpleBreakInvalid} className="btn btn--sm btn--primary shadow-[var(--shadow-glow)] disabled:opacity-40">
+          <button onClick={handleApply} disabled={invalid} className="btn btn--sm btn--primary shadow-[var(--shadow-glow)] disabled:opacity-40">
             {tCommon('apply')}
           </button>
         </div>

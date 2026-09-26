@@ -10,8 +10,8 @@ La finestra **Calendario risorsa** modifica il calendario proprio di una singola
 ## Differenze rispetto alla finestra di dialogo calendario
 
 - **Un calendario alla volta** — nessun elenco di libreria a sinistra, nessuna stella per il predefinito del progetto; solo il modulo.
-- **Applica** salva il calendario; **Annulla**, **Esc**, la crocetta di chiusura o un clic fuori dalla finestra scarta le modifiche.
-- **Nessun ricalcolo automatico** — un calendario risorsa non modifica le date CPM; conta ai fini del carico (istogramma) e del livellamento, che riesegui tu stesso con F5 o **Livella…** rispettivamente.
+- **Applica** salva il calendario; **Annulla**, **Esc**, la crocetta di chiusura o un clic fuori dalla finestra scarta le modifiche. Un nuovo calendario creato con **+ Calendario risorsa** nel menu a tendina esiste solo dopo **Applica** e viene allora subito collegato alla risorsa (insieme, un solo passo di Annulla); dopo **Annulla** non resta nulla. Parte dalla stessa impostazione predefinita di **+** nella finestra dei calendari.
+- **Nessun ricalcolo automatico** — **Applica** non ricalcola la pianificazione. Nel suo ruolo di calendario risorsa, un calendario non modifica le date CPM; conta ai fini del carico (istogramma) e del livellamento, che riesegui tu stesso con F5 o **Livella…** rispettivamente. Il menu a tendina offre però tutti i calendari del progetto: se modifichi qui un calendario che è anche il calendario di progetto o quello di un'attività, la pianificazione cambia eccome. Viene allora segnata come non aggiornata e F5 la ricalcola.
 
 ## Campi
 

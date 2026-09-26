@@ -10,12 +10,12 @@ A janela **Calendários** gere a biblioteca de calendários do projeto: a lista 
 
 ## Aplicar e cancelar
 
-Todas as edições — incluindo novo/duplicar/eliminar — acontecem numa cópia de trabalho. **Aplicar** (ou **Enter**) escreve tudo de uma vez e recalcula o cronograma; **Cancelar**, **Esc**, a cruz de fecho ou um clique fora da janela descarta todas as alterações.
+Todas as edições — incluindo novo/duplicar/eliminar — acontecem numa cópia de trabalho. **Aplicar** escreve tudo de uma vez, recalcula o cronograma e fecha a janela; **Enter** num campo de texto como o nome faz o mesmo, mas mantém a janela aberta. Se nada mudou, **Aplicar** e **Enter** não fazem nada: o documento fica inalterado e o cronograma não é recalculado. **Cancelar**, **Esc**, a cruz de fecho ou um clique fora da janela descarta todas as alterações que ainda não foram confirmadas com **Aplicar** ou **Enter**.
 
 ## Biblioteca (coluna esquerda)
 
-- **Lista** — todos os calendários; a estrela assinala o **Calendário do projeto** (a predefinição para tarefas sem calendário próprio).
-- **+** — **Novo calendário**.
+- **Lista** — todos os calendários; a estrela assinala o **Calendário do projeto** (a predefinição para tarefas sem calendário próprio). Um sinal de aviso marca um calendário com dados inválidos.
+- **+** — **Novo calendário**, com a mesma predefinição que **+ Calendário do recurso** no painel de recursos e que um projeto novo: seg–sex 07:00–16:00 e, com o **Modo construção** ativo, os feriados neerlandeses. Se não quiser nenhum, escolha **Gerar feriados…** → **Sem feriados**.
 - **Duplicar** — cópia do calendário selecionado.
 - **Eliminar** — não é possível para o último calendário; eliminar a predefinição do projeto torna outro calendário na predefinição.
 - **Definir como padrão do projeto** — torna o calendário selecionado no calendário do projeto (botão acima do formulário).
@@ -47,4 +47,4 @@ Gera a lista de feriados com base em regras ao longo do período do projeto:
 
 ## Feriados
 
-A própria lista: por linha **Descrição**, **De**, **Até** e um botão de remover; **Adicionar feriado** cria uma nova linha. Períodos de vários dias (férias da construção, paragem de inverno) são simplesmente uma linha com um intervalo De–Até mais longo.
+A própria lista: por linha **Descrição**, **De**, **Até** e um botão de remover; **Adicionar feriado** cria uma nova linha. Períodos de vários dias (férias da construção, paragem de inverno) são simplesmente uma linha com um intervalo De–Até mais longo. Um **Até** vazio significa um feriado de um só dia. Se faltar **De**, ou se **Até** for anterior a **De**, a linha é marcada a vermelho com uma explicação e **Aplicar** e **Enter** ficam bloqueados até a corrigir.

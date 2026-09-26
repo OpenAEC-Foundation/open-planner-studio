@@ -77,6 +77,10 @@
     "relationCreated": "Relatie aangemaakt: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Deze relatie bestaat al",
     "relationAncestorEndpoint": "Een relatie tussen een taak en zijn eigen (voor)ouder-samenvattingstaak is niet toegestaan.",
+    "relationCycle": "Deze relatie zou een kring in de planning maken ({{cycle}}) en is niet aangemaakt.",
+    "hierarchyCycle": "Deze verplaatsing zou een kring in de planning maken ({{cycle}}): de relaties van een samenvattingstaak gelden ook voor haar subtaken. Er is niets verplaatst.",
+    "relationsExcludedByHierarchy_one": "Na het verplaatsen verbindt {{count}} relatie een taak met zijn eigen samenvattingstaak; die telt niet meer mee in de berekening.",
+    "relationsExcludedByHierarchy_other": "Na het verplaatsen verbinden {{count}} relaties een taak met zijn eigen samenvattingstaak; die tellen niet meer mee in de berekening.",
     "summaryRelationsDropped": "{{total}} relatie(s) konden niet worden meegerekend. Controleer de voorganger- en opvolgerkolommen.",
     "relationsSkippedOnInsert_one": "{{count}} relatie is niet aangemaakt: ongeldige koppeling (bijv. een taak aan zijn eigen (voor)ouder-samenvattingstaak, of een duplicaat).",
     "relationsSkippedOnInsert_other": "{{count}} relaties zijn niet aangemaakt: ongeldige koppeling (bijv. een taak aan zijn eigen (voor)ouder-samenvattingstaak, of een duplicaat).",
@@ -99,6 +103,28 @@
     "librarySaveFailed": "Bibliotheek kon niet worden opgeslagen",
     "levelingDelayRoundedToWorkdays_one": "Nivelleren rondt de minuutprecieze nivelleervertraging van MS Project van {{count}} taak af op hele werkdagen.",
     "levelingDelayRoundedToWorkdays_other": "Nivelleren rondt de minuutprecieze nivelleervertraging van MS Project van {{count}} taken af op hele werkdagen.",
+    "startSnetCreated": "'{{name}}' heeft een voorganger: de nieuwe start is vastgelegd als constraint Start niet eerder dan (SNET) {{date}}. Na herberekenen (F5) begint de taak niet vóór die datum.",
+    "startSnetUpdated": "De constraint Start niet eerder dan (SNET) van '{{name}}' is verzet naar {{date}}. Na herberekenen (F5) begint de taak niet vóór die datum.",
+    "startSnetMany_one": "De nieuwe start van {{count}} taak met een voorganger is vastgelegd als constraint Start niet eerder dan (SNET). Na herberekenen (F5) begint die taak niet vóór die datum.",
+    "startSnetMany_other": "De nieuwe starts van {{count}} taken met een voorganger zijn vastgelegd als constraint Start niet eerder dan (SNET). Na herberekenen (F5) begint geen van die taken vóór haar datum.",
+    "startBlockedByConstraint": "De nieuwe start van '{{name}}' is niet toegepast: de taak heeft een voorganger en de constraint $t(task:constraintType.{{type}}) {{date}}, en die bepalen de start. Pas die constraint aan om de start te verplaatsen.",
+    "startBlockedByConstraintNoDate": "De nieuwe start van '{{name}}' is niet toegepast: de taak heeft een voorganger en de constraint $t(task:constraintType.{{type}}), en die bepalen de start. Pas die constraint aan om de start te verplaatsen.",
+    "startBlockedByConstraintMany_one": "De nieuwe start van {{count}} taak is niet toegepast: die taak heeft een voorganger en een andere constraint dan Start niet eerder dan (SNET). Pas die constraint aan om de start te verplaatsen.",
+    "startBlockedByConstraintMany_other": "De nieuwe starts van {{count}} taken zijn niet toegepast: die taken hebben een voorganger en een andere constraint dan Start niet eerder dan (SNET). Pas die constraints aan om de starts te verplaatsen.",
+    "referencesClearedOnPaste_one": "{{count}} verwijzing bestond niet in dit document en is leeggemaakt (een taakkalender, eigen taaktype, activity code of gebruikersveld uit het brondocument).",
+    "referencesClearedOnPaste_other": "{{count}} verwijzingen bestonden niet in dit document en zijn leeggemaakt (taakkalenders, eigen taaktypes, activity codes of gebruikersvelden uit het brondocument).",
+    "milestoneRefusedAssignments_one": "'{{task}}' heeft resource-toewijzingen en kan geen mijlpaal worden. Verwijder eerst de toewijzingen.",
+    "milestoneRefusedAssignments_other": "{{count}} taken hebben resource-toewijzingen en kunnen geen mijlpaal worden. Verwijder eerst de toewijzingen.",
+    "milestoneRefusedSummary_one": "'{{task}}' is een samenvattingstaak met subtaken en kan geen mijlpaal worden.",
+    "milestoneRefusedSummary_other": "{{count}} taken zijn samenvattingstaken met subtaken en kunnen geen mijlpaal worden.",
+    "assignmentsMovedToSubtask_one": "De toewijzing van {{resources}} is verplaatst van '{{phase}}' naar de nieuwe subtaak '{{child}}': een samenvattingstaak draagt zelf geen toewijzingen.",
+    "assignmentsMovedToSubtask_other": "De {{count}} toewijzingen ({{resources}}) zijn verplaatst van '{{phase}}' naar de nieuwe subtaak '{{child}}': een samenvattingstaak draagt zelf geen toewijzingen.",
+    "assignmentsMovedToSubtasks_one": "{{count}} taak werd een samenvattingstaak; haar toewijzingen zijn naar de eerste nieuwe subtaak verplaatst.",
+    "assignmentsMovedToSubtasks_other": "{{count}} taken werden samenvattingstaken; hun toewijzingen zijn elk naar hun eerste nieuwe subtaak verplaatst.",
+    "milestoneClearedOnPhase_one": "Mijlpaal '{{phase}}' heeft nu subtaken en is een samenvattingstaak geworden; de mijlpaalmarkering is eraf gehaald.",
+    "milestoneClearedOnPhase_other": "{{count}} mijlpalen hebben nu subtaken en zijn samenvattingstaken geworden; de mijlpaalmarkering is eraf gehaald.",
+    "phaseRefusedNoAssignableChild": "'{{phase}}' kan geen samenvattingstaak worden: de toewijzingen ervan kunnen nergens heen, want geen van de nieuwe subtaken mag toewijzingen dragen (een mijlpaal of samenvattingstaak). Er is niets gewijzigd.",
+    "phaseRefusedDuplicateResource": "'{{phase}}' kan geen samenvattingstaak worden: de toewijzing van {{resource}} kan niet naar de nieuwe subtaak '{{child}}', want die heeft {{resource}} al. Er is niets gewijzigd.",
     "schedulingProfileApplied": "Dit project rekent als {{profile}}. Aanpassen via Bestand → Projectinfo → Rekenprofiel en reken-opties.",
     "schedulingProfileShifted_one": "Na het toepassen is {{count}} taak verschoven.",
     "schedulingProfileShifted_other": "Na het toepassen zijn {{count}} taken verschoven.",
@@ -114,6 +140,14 @@
     "xerArchiveReasonBytesMissing": "Reden: de bronbytes zelf ontbreken — waarschijnlijk heeft een ander IFC-programma het bestand herschreven.",
     "xerArchiveReasonMetadataInvalid": "Reden: de bronbytes kloppen, maar de daaruit afgeleide gegevens zijn onbruikbaar.",
     "xerArchiveReasonStructure": "Reden: de opbouw van het archief in het IFC klopt niet (dubbel, herordend of verkeerd gekoppeld)."
+  },
+  "scheduleErrors": {
+    "cycle": "Kringverwijzing tussen taken: {{path}}",
+    "noWorkingDays": "De kalender heeft geen werkdagen ingesteld",
+    "invalidDayDuration": "Ongeldige duur in dagen voor taak '{{task}}'",
+    "invalidHourDuration": "Ongeldige duur in uren voor taak '{{task}}'",
+    "hourTaskWithoutWorkHours": "Urentaak '{{task}}' heeft geen geldige werktijden in zijn kalender",
+    "invalidStartDate": "Ongeldige startdatum voor taak '{{task}}'"
   },
   "yes": "Ja",
   "no": "Nee",
@@ -292,7 +326,7 @@
     "aiAutostartHint": "Zet de MCP-bridge meteen live bij het opstarten van de app, zodat een AI-client kan koppelen zonder dat je eerst het AI-tabblad opent. Alleen in de desktop-app.",
     "legacySection": "Legacy-functies",
     "classicViewControls": "Klassieke weergaveknoppen tonen",
-    "classicViewControlsHint": "Zet de losse knoppen Kolommen, Filter, Groeperen en Sorteren terug op het tabblad Beeld. Hun functie zit nu in de layoutknoppen en de layoutdialoog."
+    "classicViewControlsHint": "Zet de losse knoppen Kolommen, Filter, Groeperen en Sorteren terug op het tabblad Beeld. Kolommen kies je nu met het plusje in de tabelkop of via Tabel → Kolommen…; filteren, groeperen en sorteren zitten in de layoutknoppen en de layoutdialoog."
   },
   "ai": {
     "start": "Bridge starten",
@@ -739,7 +773,8 @@
       "project": "Projectkalender",
       "new": "Nieuwe kalender",
       "duplicate": "Dupliceren",
-      "setDefault": "Als projectdefault"
+      "setDefault": "Als projectdefault",
+      "invalid": "Deze kalender bevat ongeldige invoer"
     },
     "generate": {
       "button": "Feestdagen genereren…",
@@ -801,6 +836,11 @@
         "consumesWorkingDay": "De pauze mag niet de volledige werkdag beslaan."
       }
     },
+    "holidayErrors": {
+      "invalidStart": "Vul een geldige begindatum in.",
+      "invalidEnd": "Vul een geldige einddatum in, of laat hem leeg voor één dag.",
+      "endBeforeStart": "De einddatum ligt vóór de begindatum."
+    },
     "worktime": {
       "section": "Werktijden",
       "derivedHpd": "Afgeleide uren/dag:",
@@ -822,11 +862,7 @@
     "structureLockedHint": "Niet beschikbaar tijdens filteren/groeperen/sorteren",
     "columns": {
       "title": "Kolommen",
-      "visible": "Zichtbaar",
-      "width": "Breedte",
-      "resetDefault": "Herstel standaard",
-      "available": "Beschikbare velden",
-      "scopeHint": "Deze kolommen gelden voor de Tabel-weergave. De takenlijst naast de Gantt toont altijd WBS, taaknaam en duur."
+      "resetDefault": "Herstel standaard"
     },
     "filter": {
       "title": "Filteren",

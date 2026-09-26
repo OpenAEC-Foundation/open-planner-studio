@@ -64,10 +64,12 @@ export function enrichOk(res: McpToolResult, build: () => unknown): McpToolResul
 
 /**
  * Directe Ok-respons ZONDER transactie (lege-batch-snelpad, T19-reviewfix Issue 2). Wordt gebruikt
- * wanneer een muterende bulk-call statisch nul uitvoerbare items heeft: dan mag er géén
- * `runInMcpTransaction` draaien — dat zou een spurious undo-snapshot pushen én de redo-stack van de
- * user wissen door een AI-no-op. Ook het pad voor bewust mutatie-vrije tools (`level_resources`
- * met `dryRun`).
+ * wanneer een muterende bulk-call statisch nul uitvoerbare items heeft: dan hoeft er géén
+ * `runInMcpTransaction` (en dus ook geen AI-backup) te draaien. Vroeger pushte die transactie ook
+ * bij een AI-no-op een undo-stap en wiste ze de redo-stack van de user; sinds G5 laat de transactie
+ * zelf een wijziging-loze call ongemoeid (`documentDataChanged` op haar commit-plek), dus dit
+ * snelpad is nu de goedkope voorkant van dezelfde regel. Ook het pad voor bewust mutatie-vrije
+ * tools (`level_resources` met `dryRun`).
  */
 export function okDirect(
   ctx: McpContext,

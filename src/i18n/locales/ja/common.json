@@ -60,6 +60,9 @@
     "relationCreated": "関係を作成しました: {{predecessor}} → {{successor}}",
     "relationDuplicate": "この関係はすでに存在します",
     "relationAncestorEndpoint": "タスクとその自身の(祖先)サマリータスクとの間の関係は許可されません。",
+    "relationCycle": "この関係はスケジュールに循環を発生させるため（{{cycle}}）、作成されませんでした。",
+    "hierarchyCycle": "この移動はスケジュールに循環を発生させます（{{cycle}}）。サマリータスクの関係はそのサブタスクにも適用されます。何も移動されませんでした。",
+    "relationsExcludedByHierarchy_other": "移動後、{{count}} 件の関係がタスクをその自身の上位サマリータスクに結び付けています。これらは計算に含まれなくなりました。",
     "summaryRelationsDropped": "{{total}} 件の関係が計算に含められませんでした。先行タスク列と後続タスク列を確認してください。",
     "relationsSkippedOnInsert_other": "{{count}} 件の関係を作成しませんでした。リンクが無効です（例：タスクが自身の（上位）サマリータスクにリンクしている、または重複している）。",
     "mppSourceScheduleNotes_other": "この MS Project ファイルには、分割・平準化・リソース主導で計画されたタスクが {{count}} 件含まれています。そのまま読み込まれ、表示されます。",
@@ -74,6 +77,20 @@
     "pasteSkippedReadOnly_other": "{{count}} 件の読み取り専用セルをスキップしました（例：自動採番の WBS コードや計算列など）。",
     "librarySaveFailed": "ライブラリを保存できませんでした",
     "levelingDelayRoundedToWorkdays_other": "山崩しは、MS Project の分単位の山崩し遅延（タスク {{count}} 件分）を整数の稼働日に丸めます。",
+    "startSnetCreated": "「{{name}}」には先行タスクがあります。新しい開始日を制約「指定日以降に開始 (SNET)」{{date}} として設定しました。再計算（F5）後、このタスクはその日より前には開始しません。",
+    "startSnetUpdated": "「{{name}}」の制約「指定日以降に開始 (SNET)」を {{date}} に移動しました。再計算（F5）後、このタスクはその日より前には開始しません。",
+    "startSnetMany_other": "先行タスクのあるタスク {{count}} 件で、新しい開始日を制約「指定日以降に開始 (SNET)」として設定しました。再計算（F5）後、どのタスクもそれぞれの日付より前には開始しません。",
+    "startBlockedByConstraint": "「{{name}}」の新しい開始日は適用されませんでした。このタスクには先行タスクと制約「$t(task:constraintType.{{type}})」{{date}} があり、それらが開始日を決めます。開始日を移動するには、その制約を変更してください。",
+    "startBlockedByConstraintNoDate": "「{{name}}」の新しい開始日は適用されませんでした。このタスクには先行タスクと制約「$t(task:constraintType.{{type}})」があり、それらが開始日を決めます。開始日を移動するには、その制約を変更してください。",
+    "startBlockedByConstraintMany_other": "タスク {{count}} 件の新しい開始日は適用されませんでした。これらのタスクには先行タスクと「指定日以降に開始 (SNET)」以外の制約があります。開始日を移動するには、それらの制約を変更してください。",
+    "referencesClearedOnPaste_other": "この文書に存在しない参照 {{count}} 件をクリアしました（元の文書のタスクカレンダー、カスタムタスク種別、アクティビティコード、カスタムフィールド）。",
+    "milestoneRefusedAssignments_other": "リソースの割り当てがあるタスク {{count}} 件はマイルストーンにできません。先に割り当てを削除してください。",
+    "milestoneRefusedSummary_other": "サブタスクを持つサマリータスク {{count}} 件はマイルストーンにできません。",
+    "assignmentsMovedToSubtask_other": "{{count}} 件の割り当て（{{resources}}）を「{{phase}}」から新しいサブタスク「{{child}}」に移動しました。サマリータスク自体は割り当てを持ちません。",
+    "assignmentsMovedToSubtasks_other": "{{count}} 件のタスクがサマリータスクになりました。それぞれの割り当ては最初の新しいサブタスクに移動しました。",
+    "milestoneClearedOnPhase_other": "{{count}} 件のマイルストーンにサブタスクができ、サマリータスクになりました。マイルストーンの指定を解除しました。",
+    "phaseRefusedNoAssignableChild": "「{{phase}}」はサマリータスクにできません。新しいサブタスクはどれも割り当てを持てない（マイルストーンまたはサマリータスク）ため、その割り当ての移動先がありません。何も変更していません。",
+    "phaseRefusedDuplicateResource": "「{{phase}}」はサマリータスクにできません。新しいサブタスク「{{child}}」には既に {{resource}} が割り当てられているため、{{resource}} の割り当てを移動できません。何も変更していません。",
     "schedulingProfileApplied": "このプロジェクトは {{profile}} として計算されます。ファイル → プロジェクト情報 → 計算プロファイルとオプション で変更できます。",
     "schedulingProfileShifted_other": "適用後に {{count}} 件のタスクが移動しました。",
     "actions": {
@@ -88,6 +105,14 @@
     "xerArchiveReasonBytesMissing": "理由: ソースバイト自体がありません。別の IFC プログラムがファイルを書き換えた可能性があります。",
     "xerArchiveReasonMetadataInvalid": "理由: ソースバイトは無傷ですが、そこから導出したデータが使用できません。",
     "xerArchiveReasonStructure": "理由: IFC 内のアーカイブ構造が正しくありません（重複、並べ替え、または誤った関連付け）。"
+  },
+  "scheduleErrors": {
+    "cycle": "タスク間に循環依存があります: {{path}}",
+    "noWorkingDays": "カレンダーに稼働日が設定されていません",
+    "invalidDayDuration": "タスク「{{task}}」の日単位の期間が無効です",
+    "invalidHourDuration": "タスク「{{task}}」の時間単位の期間が無効です",
+    "hourTaskWithoutWorkHours": "時間タスク「{{task}}」のカレンダーに有効な稼働時間がありません",
+    "invalidStartDate": "タスク「{{task}}」の開始日が無効です"
   },
   "yes": "はい",
   "no": "いいえ",
@@ -266,7 +291,7 @@
     "aiAutostartHint": "アプリの起動と同時に MCP ブリッジを有効にします。AI タブを開かなくても AI クライアントが接続できます。デスクトップアプリのみ。",
     "legacySection": "レガシー機能",
     "classicViewControls": "従来の表示ボタンを表示",
-    "classicViewControlsHint": "「列」「フィルター」「グループ化」「並べ替え」の個別ボタンを表示タブに戻します。これらの機能は現在、レイアウトボタンとレイアウトダイアログにあります。"
+    "classicViewControlsHint": "「列」「フィルター」「グループ化」「並べ替え」の個別ボタンを表示タブに戻します。列は現在、テーブル見出しのプラスか「テーブル → 列…」で選びます。フィルター、グループ化、並べ替えはレイアウトボタンとレイアウトダイアログにあります。"
   },
   "ai": {
     "start": "ブリッジを開始",
@@ -706,7 +731,8 @@
       "project": "プロジェクトカレンダー",
       "new": "新規カレンダー",
       "duplicate": "複製",
-      "setDefault": "プロジェクトの既定に設定"
+      "setDefault": "プロジェクトの既定に設定",
+      "invalid": "このカレンダーには無効な入力があります"
     },
     "generate": {
       "button": "祝日を生成…",
@@ -768,6 +794,11 @@
         "consumesWorkingDay": "休憩が勤務日全体を占めることはできません。"
       }
     },
+    "holidayErrors": {
+      "invalidStart": "有効な開始日を入力してください。",
+      "invalidEnd": "有効な終了日を入力するか、1日だけの場合は空欄のままにしてください。",
+      "endBeforeStart": "終了日が開始日より前になっています。"
+    },
     "worktime": {
       "section": "稼働時間",
       "derivedHpd": "算出された時間/日：",
@@ -789,11 +820,7 @@
     "structureLockedHint": "フィルター/グループ化/並べ替え中は使用できません",
     "columns": {
       "title": "列",
-      "visible": "表示",
-      "width": "幅",
-      "resetDefault": "既定値に戻す",
-      "available": "利用可能なフィールド",
-      "scopeHint": "これらの列はテーブル ビューに適用されます。ガント横のタスク一覧は常に WBS・タスク名・期間を表示します。"
+      "resetDefault": "既定値に戻す"
     },
     "filter": {
       "title": "フィルター",

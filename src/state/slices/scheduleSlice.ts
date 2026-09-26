@@ -10,6 +10,7 @@ import {
   type LevelingResult,
 } from '@/engine/scheduler/ResourceLeveler';
 import { markScheduleStale } from '../transaction';
+import { scheduleFailedNotice } from '../scheduleErrorNotice';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import { notifyLevelingDelayRounded } from '../timephasedLossNotice';
 import { clearLevelingOutput, hasLevelingOutput, writeLevelingResult } from '@/utils/taskDefaults';
@@ -160,15 +161,8 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     // van deze actie — de cyclus-bail boven én het normale pad — want in beide staat `cpmResult`
     // met de fout. Winst: de fout is nu óók zichtbaar vanuit Backstage/tabel/rapport, waar de
     // canvas-component (vroeger de énige toast) niet gemonteerd is.
-    const cpmError = get().cpmResult?.error;
-    if (cpmError) {
-      get().notify({
-        severity: 'error',
-        messageKey: 'notifications.scheduleFailed',
-        detail: cpmError,
-        dedupeKey: 'cpm-error',
-      });
-    }
+    const failed = scheduleFailedNotice(get().cpmResult);
+    if (failed) get().notify(failed);
 
     const cpm = get().cpmResult;
     runtime.emitHostEvent(HOST_EVENTS.scheduleCalculated, {
