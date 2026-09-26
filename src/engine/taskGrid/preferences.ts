@@ -119,6 +119,18 @@ export function createDefaultTaskGridPreferences(
   };
 }
 
+/**
+ * De standaardkolommen van één taakoppervlak voor het actieve project: dezelfde bron als de eerste
+ * standaard bij opstarten (`createDefaultTaskGridPreferences`). "Herstel standaard" in de
+ * kolomkiezer zet de indeling hierop terug, zodat er één definitie van "standaard" is.
+ */
+export function defaultTaskGridSurfaceColumns(
+  surface: TaskGridSurfaceId,
+  fields: TaskGridProjectFields,
+): TaskGridColumnPreference[] {
+  return createDefaultTaskGridPreferences(fields).surfaces[surface].columns;
+}
+
 function validTaskColumnId(value: unknown): value is string {
   if (typeof value !== 'string' || value.length === 0) return false;
   for (let index = 0; index < value.length; index++) {

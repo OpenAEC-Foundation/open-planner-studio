@@ -21,7 +21,7 @@ Debajo de las columnas elegidas está la lista de **Campos disponibles**: todo c
 
 ## Restablecer valores predeterminados
 
-**Restablecer valores predeterminados** restaura el conjunto de columnas estándar; los campos adicionales añadidos vuelven a la lista de campos disponibles.
+**Restablecer valores predeterminados** está al pie del selector de columnas (el signo más a la derecha del encabezado de la tabla, o la pestaña **Tabla** → **Columnas…**). Un clic devuelve las columnas de esa tabla a la disposición predeterminada: qué columnas se muestran, su orden y ancho, y las columnas fijadas. Los campos añadidos de más salen de la tabla y siguen disponibles en la lista. Así también obtiene la nueva disposición predeterminada tras una actualización, por ejemplo **Inicio** y **Fin** en lugar de **Inicio programado** y **Fin programado**: una disposición propia guardada antes no cambia por sí sola. Es una sola acción, así que **Ctrl+Z** recupera su propia disposición. Si la tabla ya usa la disposición predeterminada, el botón está desactivado.
 
 El conjunto de columnas forma parte de un layout guardado — vea [Guardar y cargar layouts](docs://ref-layouts).
 

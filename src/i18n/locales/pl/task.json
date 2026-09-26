@@ -266,7 +266,8 @@
       "unpinColumn": "Odepnij kolumnę {{column}}",
       "moveColumn": "Przenieś kolumnę {{column}}",
       "resizeColumn": "Zmień szerokość kolumny {{column}}",
-      "autoFitColumn": "Automatycznie dopasuj kolumnę {{column}}"
+      "autoFitColumn": "Automatycznie dopasuj kolumnę {{column}}",
+      "resetColumns": "Przywróć domyślny układ kolumn"
     },
     "summary": {
       "activityCodeAssignments_one": "{{count}} przypisanie kodu czynności",

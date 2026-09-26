@@ -266,7 +266,8 @@
       "unpinColumn": "{{column}} sütununun sabitlemesini kaldır",
       "moveColumn": "{{column}} sütununu taşı",
       "resizeColumn": "{{column}} sütununu yeniden boyutlandır",
-      "autoFitColumn": "{{column}} sütununu otomatik sığdır"
+      "autoFitColumn": "{{column}} sütununu otomatik sığdır",
+      "resetColumns": "Sütun düzenini varsayılana sıfırla"
     },
     "summary": {
       "activityCodeAssignments_one": "{{count}} aktivite kodu ataması",

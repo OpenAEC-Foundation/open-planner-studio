@@ -21,7 +21,7 @@ Abaixo das colunas escolhidas está a lista **Campos disponíveis**: todos os ca
 
 ## Repor predefinição
 
-**Repor predefinição** restaura o conjunto de colunas padrão; os campos extra adicionados voltam para a lista de campos disponíveis.
+**Repor predefinição** fica no fundo do seletor de colunas (o sinal de mais à direita do cabeçalho da tabela, ou o separador **Tabela** → **Colunas…**). Um clique repõe as colunas dessa tabela na disposição predefinida: que colunas são mostradas, a sua ordem e largura, e as colunas fixadas. Os campos adicionados a mais saem da tabela e continuam disponíveis na lista. É também assim que obtém a nova disposição predefinida após uma atualização, por exemplo **Início** e **Fim** em vez de **Início planeado** e **Fim planeado**: uma disposição própria guardada antes não muda por si só. É uma única ação, por isso **Ctrl+Z** repõe a sua própria disposição. Se a tabela já usa a disposição predefinida, o botão fica desativado.
 
 O conjunto de colunas faz parte de um layout guardado — veja [Guardar e carregar layouts](docs://ref-layouts).
 

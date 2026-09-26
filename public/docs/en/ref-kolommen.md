@@ -25,7 +25,7 @@ The fields **Scheduled start** and **Scheduled finish** show the entered dates t
 
 ## Reset to default
 
-**Reset to default** restores the standard column set; extra added fields move back to the available-fields list.
+**Reset to default** sits at the bottom of the column chooser (the plus at the right of the table header, or the **Table** tab → **Columns…**). One click puts the columns of that table back to the default layout: which columns are shown, their order and width, and pinned columns. Extra added fields leave the table and stay available in the list. This is also how you get a new default after an update, for example **Start** and **Finish** instead of **Scheduled start** and **Scheduled finish**: a layout of your own that was saved earlier does not change by itself. It is a single action, so **Ctrl+Z** brings your own layout back. When the table already uses the default, the button is disabled.
 
 The column set is part of a saved layout — see [Saving and loading layouts](docs://ref-layouts).
 

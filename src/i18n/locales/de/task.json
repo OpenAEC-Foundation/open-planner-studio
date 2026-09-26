@@ -266,7 +266,8 @@
       "unpinColumn": "Spalte {{column}} lösen",
       "moveColumn": "Spalte {{column}} verschieben",
       "resizeColumn": "Breite der Spalte {{column}} ändern",
-      "autoFitColumn": "Spalte {{column}} automatisch anpassen"
+      "autoFitColumn": "Spalte {{column}} automatisch anpassen",
+      "resetColumns": "Spaltenanordnung auf Standard zurücksetzen"
     },
     "summary": {
       "activityCodeAssignments_one": "{{count}} Aktivitätscode-Zuweisung",

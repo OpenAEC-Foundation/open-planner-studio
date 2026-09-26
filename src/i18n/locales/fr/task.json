@@ -266,7 +266,8 @@
       "unpinColumn": "Désépingler la colonne {{column}}",
       "moveColumn": "Déplacer la colonne {{column}}",
       "resizeColumn": "Redimensionner la colonne {{column}}",
-      "autoFitColumn": "Ajuster automatiquement la colonne {{column}}"
+      "autoFitColumn": "Ajuster automatiquement la colonne {{column}}",
+      "resetColumns": "Rétablir la disposition des colonnes par défaut"
     },
     "summary": {
       "activityCodeAssignments_one": "{{count}} affectation de code d’activité",

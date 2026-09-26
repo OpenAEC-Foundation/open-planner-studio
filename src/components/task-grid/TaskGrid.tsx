@@ -25,6 +25,7 @@ export interface TaskGridHistoryLabels {
   moveColumn: (label: string) => string;
   resizeColumn: (label: string) => string;
   autoFitColumn: (label: string) => string;
+  resetColumns: string;
 }
 
 export interface TaskGridLabels extends DataGridLabels {
@@ -52,6 +53,8 @@ export interface TaskGridProps extends CoreProps {
   surfacePreferences: Readonly<TaskGridSurfacePreferences>;
   recentColumnIds: readonly TaskColumnId[];
   availableColumns: readonly TaskGridColumnOption[];
+  /** De standaardindeling van dit oppervlak (`defaultTaskGridSurfaceColumns`), voor "Herstel standaard". */
+  defaultColumns: readonly TaskGridColumnPreference[];
   labels: TaskGridLabels;
   /** Commit een al gevalideerde gebruikersvoorkeur als precies één history-event. */
   onCommitColumns: (label: string, columns: readonly TaskGridColumnPreference[]) => void;
@@ -82,6 +85,7 @@ export function TaskGrid({
   surfacePreferences,
   recentColumnIds,
   availableColumns,
+  defaultColumns,
   labels,
   onCommitColumns,
   onRecordRecentColumn,
@@ -213,6 +217,9 @@ export function TaskGrid({
         open={chooserOpen}
         onOpenChange={onChooserOpenChange}
         beforeOpen={allowAction}
+        // Dezelfde commitroute als elke andere kolomhandeling: één history-event, direct opgeslagen.
+        resetDisabled={sameColumns(surfacePreferences.columns, defaultColumns)}
+        onReset={() => commitAction(labels.history.resetColumns, () => cloneColumns(defaultColumns))}
         onChoose={option => {
           const added = commitAction(
             labels.history.addColumn(option.label),

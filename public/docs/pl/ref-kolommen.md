@@ -21,7 +21,7 @@ Pod wybranymi kolumnami znajduje się lista **Dostępne pola**: każde pole, kt�
 
 ## Przywróć domyślne
 
-**Przywróć domyślne** przywraca standardowy zestaw kolumn; dodatkowo dodane pola wracają na listę dostępnych pól.
+**Przywróć domyślne** znajduje się na dole selektora kolumn (plus po prawej stronie nagłówka tabeli lub karta **Tabela** → **Kolumny…**). Jedno kliknięcie przywraca domyślny układ kolumn tej tabeli: które kolumny są widoczne, ich kolejność i szerokość oraz przypięte kolumny. Dodatkowo dodane pola znikają z tabeli i nadal można je wybrać z listy. W ten sposób po aktualizacji otrzymasz też nowy układ domyślny, na przykład **Początek** i **Koniec** zamiast **Planowane rozpoczęcie** i **Planowane zakończenie**: wcześniej zapisany własny układ nie zmienia się sam. To jedna czynność, więc **Ctrl+Z** przywraca twój własny układ. Jeśli tabela ma już układ domyślny, przycisk jest nieaktywny.
 
 Zestaw kolumn jest częścią zapisanego layoutu — zobacz [Zapisywanie i wczytywanie layoutów](docs://ref-layouts).
 

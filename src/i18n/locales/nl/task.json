@@ -266,7 +266,8 @@
       "unpinColumn": "Kolom {{column}} losmaken",
       "moveColumn": "Kolom {{column}} verplaatsen",
       "resizeColumn": "Breedte van kolom {{column}} wijzigen",
-      "autoFitColumn": "Kolom {{column}} passend maken"
+      "autoFitColumn": "Kolom {{column}} passend maken",
+      "resetColumns": "Kolomindeling op standaard zetten"
     },
     "summary": {
       "activityCodeAssignments_one": "{{count}} codetoewijzing",

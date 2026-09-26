@@ -25,7 +25,7 @@ De velden **Geplande start** en **Gepland einde** tonen de ingevoerde datums zel
 
 ## Herstel standaard
 
-**Herstel standaard** zet de kolommenset terug naar de standaardindeling; extra toegevoegde velden verhuizen dan terug naar de lijst met beschikbare velden.
+**Herstel standaard** staat onderaan de kolomkiezer (het plusje rechts in de tabelkop, of tabblad **Tabel** → **Kolommen…**). Eén klik zet de kolommen van die tabel terug naar de standaardindeling: welke kolommen er staan, hun volgorde en breedte, en vastgezette kolommen. Extra toegevoegde velden verdwijnen uit de tabel en blijven kiesbaar in de lijst. Zo krijg je na een update ook de nieuwe standaard, bijvoorbeeld **Start** en **Einde** in plaats van **Geplande start** en **Gepland einde**: een eigen, eerder bewaarde indeling verandert niet vanzelf. Het is één handeling, dus **Ctrl+Z** zet je eigen indeling terug. Staat de tabel al op de standaard, dan is de knop uitgeschakeld.
 
 De kolommenset maakt deel uit van een opgeslagen layout — zie [Layouts opslaan/laden](docs://ref-layouts).
 
