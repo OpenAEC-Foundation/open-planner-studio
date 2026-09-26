@@ -40,7 +40,11 @@ const original: Omit<ExternalLink, 'id'> = {
 const linkId = S().addExternalLink(taskId, original);
 const current = () => S().tasks.find(task => task.id === taskId)?.externalLinks?.find(link => link.id === linkId);
 // Geimporteerde links hebben niet noodzakelijk dezelfde objectsleutelvolgorde als addExternalLink.
-S().updateTask(taskId, { externalLinks: [{ id: linkId, ...original }] });
+// Rechtstreeks als fixture gezet: `updateTask` ziet een alleen anders geordende maar gelijke lijst
+// terecht als no-op (structurele gelijkheid, `sameValue`) en zou de volgorde dus niet omzetten.
+useAppStore.setState((s) => {
+  s.tasks.find(task => task.id === taskId)!.externalLinks = [{ id: linkId, ...original }];
+});
 const beforeGuards = S().historyEvents.length;
 
 eq('verkeerde taak/link-combinatie wordt geweigerd', S().updateExternalLink(taskId, 'bestaat-niet', original), false);

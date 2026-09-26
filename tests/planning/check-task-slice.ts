@@ -208,7 +208,7 @@ ok(
 // `timephasedFinishFloor`/`timephasedStartAnchor` moeten wijken zodra een gebruiker duur/datums of
 // kalender wijzigt (`updateTask`/`setTaskCalendar`); de RAUWE bron (`timephasedContours`) blijft
 // altijd staan — dat is precies wat het eigenaarsprincipe eist. Zie `taskDefaults.ts`'s
-// `clearTimephasedWindow`/`timeUpdateTouchesTimephasedWindow` voor de volledige triggerset-uitleg.
+// `clearTimephasedWindow`/`taskTriggerChanges` voor de volledige triggerset-uitleg.
 {
   S().runCPM();
   const idW = S().addTask({ name: 'Z14b-venster', time: createDefaultTaskTime('2026-08-03', 5) });

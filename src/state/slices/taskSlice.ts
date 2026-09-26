@@ -1,7 +1,7 @@
-import { Task, type ExternalLink, type TaskSplitGap } from '@/types/task';
+import { Task, type ExternalLink, type TaskSplitGap, type TaskTime } from '@/types/task';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import {
-  adoptLevelingGaps, canSplitTask, clipUserGapsToWork, fromSplitPieces, splitScheduleFinish,
+  adoptLevelingGaps, canSplitTask, fromSplitPieces, splitScheduleFinish,
   type SplitPiece, type SplitRefusal,
 } from '@/engine/scheduler/splitEdit';
 import { buildEditedContourPeriods, contourDaySlots } from '@/engine/contour/contourEdit';
@@ -11,10 +11,10 @@ import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { isSummaryTask } from '@/engine/scheduler/relationRules';
 import {
   buildNewTask, createDefaultTaskTime, deriveScheduleDurationFromMinutes, mergeTaskTime, clearTimephasedWindow,
-  timeUpdateTouchesTimephasedWindow, invalidateForTimeBaseChange, clearLevelingGaps,
-  taskUpdateInvalidatesLevelingGaps,
-  rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
+  mergeTaskUpdate, taskTriggerChanges, invalidateForTimeBaseChange, clearLevelingGaps,
+  rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf, applyDurationChangeRules,
 } from '@/utils/taskDefaults';
+import { sameValue } from '@/utils/sameValue';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import { ancestorIds, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
@@ -54,6 +54,11 @@ export interface TaskSlice {
      *  `anchorId` valt stil terug op het default-gedrag (stille tolerantie, zoals elders). */
     position?: { anchorId: string; where: 'above' | 'below' };
   }) => string;
+  /** Top-level velden overschrijven, `time` samenvoegen (`mergeTaskUpdate`). Verandert de aanroep
+   *  per saldo niets (structureel, `sameValue`), dan is hij een no-op: geen undo-stap, geen
+   *  `isDirty`, geen melding. De gevolgregels (laag 3/4 ontkoppelen, nivelleergaten, duurgevolgen)
+   *  vuren alleen op een ECHT gewijzigde waarde, niet op een meegestuurde sleutel
+   *  (`taskTriggerChanges`). */
   updateTask: (id: string, updates: Partial<Task>, opts?: { coalesceKey?: string }) => void;
   deleteTask: (id: string) => void;
   /** Verwijder meerdere taken en hun subbomen als precies één undoable storehandeling. */
@@ -98,7 +103,10 @@ export interface TaskSlice {
   /** Voeg een WBS-sjabloon in onder een ouder (null = rootniveau); geeft de nieuwe root-id terug. */
   insertWbsTemplate: (template: WbsTemplate, parentId: string | null) => string | null;
   /** Voortgang (fase 2.6): zet completion (0..1), dwingt de §3.2-invarianten af (auto-actualStart bij
-   *  completion>0, remainingTime afgeleid, status). scheduleStale alleen als er een statusdatum is. */
+   *  completion>0, remainingTime afgeleid, status). Een echte wijziging maakt de planning altijd
+   *  stale; verandert de taak per saldo niet, dan is het een no-op (geen undo-stap, geen `isDirty`,
+   *  niet stale, nivelleergaten blijven) — geldt ook voor de twee actual-setters hieronder, zie
+   *  `commitProgressEdit`. */
   setTaskProgress: (taskId: string, completion: number, opts?: { coalesceKey?: string }) => void;
   /** Werkelijke start (fase 2.6). undefined = wissen. Retourneert false als de datum ná de
    *  statusdatum ligt (geweigerd, geen mutatie — de UI toont een toast). `opts.coalesceKey` voegt
@@ -286,11 +294,57 @@ function applyTaskPlacement(tasks: Task[], id: string, plan: TaskPlacement): voi
 export { applyProgressInvariants };
 
 /**
+ * De ene commit van de drie voortgangssetters (`setTaskProgress`/`setActualStart`/`setActualFinish`,
+ * fase 2.6), binnen hun producer en ná hun eigen guards. `edit` is de setter-specifieke bewerking op
+ * `time`; daarna volgen altijd de §3.2-invarianten (`applyProgressInvariants`).
+ *
+ * Verandert de bewerking per saldo niets aan de taak, dan is ze een no-op — dezelfde regel als
+ * `updateTask`: geen snapshot, geen gevolgregel (`clearLevelingGaps`), geen `isDirty`, geen stale
+ * (en dus ook niet uit "datums zoals opgeslagen"). Het contextmenu zet de voortgang op de hele
+ * selectie, ook op taken die al op die waarde staan; en een slider of datumveld meldt dezelfde
+ * waarde soms nog eens. Beslist op de UITKOMST, niet op de invoer: een 50%-taak zonder `actualStart`
+ * opnieuw op 50% zetten vult die start in, en dát is wel een wijziging. Een no-op raakt ook de
+ * undo-coalescing niet aan, dus een lopende slider-sleep blijft één stap.
+ *
+ * Eerst proef op een kopie (`time` is plat, `status` een scalar op de kopie zelf, dus de proef lekt
+ * niet in de draft); pas bij een echte wijziging draait dezelfde bewerking op de draft, in dezelfde
+ * volgorde als vóór deze guard.
+ */
+function commitProgressEdit(
+  runtime: StoreRuntime,
+  s: AppState,
+  task: Task,
+  edit: (time: TaskTime) => void,
+  opts: { coalesceKey?: string } | undefined,
+): void {
+  const statusDate = s.project.statusDate;
+  const apply = (target: Task): void => {
+    edit(target.time);
+    applyProgressInvariants(target, statusDate);
+  };
+  const probe: Task = { ...task, time: { ...task.time } };
+  apply(probe);
+  if (sameValue(task, probe)) return;
+  runtime.beginUndoable(s, opts); // `opts` = coalesceKey (slider-sleep / per-toetsaanslag-commits = 1 stap).
+  apply(task);
+  // B1c-plan-2 spec §4 "Invalidatie", vierde klasse — bedraad in de fixronde op etappe 3
+  // (bevinding B7). Voortgang loopt buiten `updateTask` om, dus deze setters hebben hun eigen
+  // aanroep; zie `LEVELING_GAP_TIME_TRIGGERS` in taskDefaults.ts voor het waarom.
+  clearLevelingGaps(task);
+  // H1 (Opus-review T15-iteratie-2): ALTIJD stale — sinds `applyProgressInvariants`'s
+  // completion===1-tak niet meer op een statusdatum leunt (die pint nu altijd op actuals/eigen
+  // finish, zie de toelichting daar) én de IN-PROGRESS-tak in CPMSolver (M1) evenmin, is elke
+  // voortgangsmutatie datum-beïnvloedend, met of zonder statusdatum. Het oude commentaar
+  // ("alleen datum-beïnvloedend mét statusdatum") was juist tot vóór die fixes.
+  runtime.finishMutation(s, { stale: true });
+}
+
+/**
  * De gedeelde kern van `setActualStart`/`setActualFinish` (fase 2.6), binnen hun producer. `false`
  * ⇒ geweigerd: actuals liggen nooit ná de statusdatum — weigeren i.p.v. stil klemmen (§3.2, BESLIST),
  * zonder snapshot. T16-veeglijst-fix: `isActualPastStatusDate` vergelijkt geparste instanten i.p.v.
  * rauwe ISO-strings (het uur-precies-op-de-statusdatum-dag-gat). Een onbekende taak is een stille
- * no-op (`true`, zoals voorheen).
+ * no-op (`true`, zoals voorheen); dezelfde datum nog eens ook (`true`, zie `commitProgressEdit`).
  */
 function applyActualDate(
   runtime: StoreRuntime,
@@ -303,15 +357,12 @@ function applyActualDate(
   const task = s.tasks.find((t) => t.id === taskId);
   if (!task) return true;
   if (date && s.project.statusDate && isActualPastStatusDate(date, s.project.statusDate)) return false;
-  runtime.beginUndoable(s, opts); // `opts` = coalesceKey: per-toetsaanslag-commits van één datumveld = 1 undo-stap.
-  task.time[field] = date || undefined;
-  // Finish wissen terwijl de taak op 100% stond ⇒ terug naar in-uitvoering (anders re-default de
-  // invariant meteen een nieuw actualFinish en is wissen onmogelijk).
-  if (field === 'actualFinish' && !date && task.time.completion >= 1) task.time.completion = 0;
-  applyProgressInvariants(task, s.project.statusDate);
-  clearLevelingGaps(task); // B7 — zie `setTaskProgress`.
-  // H1 (Opus-review T15-iteratie-2) — elke voortgangsmutatie is datum-beïnvloedend, zie `setTaskProgress`.
-  runtime.finishMutation(s, { stale: true });
+  commitProgressEdit(runtime, s, task, (time) => {
+    time[field] = date || undefined;
+    // Finish wissen terwijl de taak op 100% stond ⇒ terug naar in-uitvoering (anders re-default de
+    // invariant meteen een nieuw actualFinish en is wissen onmogelijk).
+    if (field === 'actualFinish' && !date && time.completion >= 1) time.completion = 0;
+  }, opts);
   return true;
 }
 
@@ -400,43 +451,43 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     set((s) => {
       const idx = s.tasks.findIndex(t => t.id === id);
       if (idx < 0) return; // onbekend id: geen snapshot, geen loze undo-stap (R3).
-      runtime.beginUndoable(s, opts); // snapshot pas ná de guard, vóór de mutatie; `opts` = coalesceKey (bv. balk-sleep = 1 stap).
+      const task = s.tasks[idx];
       // T14b-vervolg (gebruikstestbevinding): `updates.time` (indien meegegeven) apart mergen tegen
       // de BESTAANDE tijd van de taak i.p.v. 'm via Object.assign in zijn geheel te laten vervangen —
       // anders wist een PARTIEEL time-object (bv. via de publieke `api.data.updateTask`, waar de
       // `ExtTaskTime`-volledigheid niet op runtime wordt afgedwongen) stil bestaande verplichte velden
       // (completion/floats/…) tot een lege plek diezelfde writeIFC-crash weer opende. Zie
       // `mergeTaskTime` in taskDefaults.ts voor de ADD-vs-UPDATE-basissemantiek.
-      const { time, ...rest } = updates;
+      const next = mergeTaskUpdate(task, updates);
+      // Per saldo niets gewijzigd — "Taak bewerken" → OK zonder wijziging stuurt álle velden terug
+      // (TaskDialog.handleSave) — ⇒ net als een onbekend id: geen snapshot, geen isDirty, geen
+      // gevolgregel en dus ook geen melding.
+      if (sameValue(task, next)) return;
+      // WANNEER de gevolgregels hieronder vuren: alleen als de relevante WAARDE echt verandert, niet
+      // omdat de sleutel is meegestuurd — de ene definitie die dit pad deelt met het taakraster en de
+      // MCP-draft, zie `taskTriggerChanges` in taskDefaults.ts. Vóór de mutatie vastgelegd.
+      const changes = taskTriggerChanges(task, next);
+      runtime.beginUndoable(s, opts); // snapshot pas ná de guards, vóór de mutatie; `opts` = coalesceKey (bv. balk-sleep = 1 stap).
       // Contour-engine (2026-09): de oude werkduur vóór de merge, voor de herschaling hieronder.
-      const contourHpd = taskCalendarHoursPerDay(s.tasks[idx], s.calendars, s.calendar);
-      const oldWorkMinutes = taskWorkMinutesOf(s.tasks[idx], contourHpd);
-      Object.assign(s.tasks[idx], rest);
-      if (time) s.tasks[idx].time = mergeTaskTime(s.tasks[idx].time, time);
-      // Contour-engine (2026-09): een duurwijziging herschaalt de contour (én de importsplits)
-      // proportioneel — de verdeling reist mee met de bewerking i.p.v. te verouderen. Zie
-      // `taskDefaults.ts`'s `rescaleTaskContours`. Kalender-/datumwijzigingen raken de as niet.
-      const rescaled = timeUpdateTouchesTimephasedWindow(time)
-        && rescaleTaskContours(s.tasks[idx], oldWorkMinutes, contourHpd);
-      // Issue #146: zonder contour is er niets dat de gaten meeschaalt, dus een duurKRIMP kan een
-      // gebruikersgat op of voorbij het nieuwe werktotaal laten liggen. De lijst is dan niet meer
-      // wélgevormd en de taak wordt voor splits stilzwijgend ALLEEN-LEZEN — erger dan het gat laten
-      // vervallen. Importgaten en nivelleergaten blijven bij hun eigen levenscyclus.
-      if (timeUpdateTouchesTimephasedWindow(time) && !rescaled) {
-        const newWorkMinutes = taskWorkMinutesOf(s.tasks[idx], contourHpd);
-        if (newWorkMinutes < oldWorkMinutes - 1e-6) {
-          const clipped = clipUserGapsToWork(s.tasks[idx].splitGaps, newWorkMinutes);
-          s.tasks[idx].splitGaps = clipped && clipped.length > 0 ? clipped : undefined;
-        }
+      const contourHpd = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
+      const oldWorkMinutes = taskWorkMinutesOf(task, contourHpd);
+      const { time, ...rest } = updates;
+      Object.assign(task, rest);
+      if (time) task.time = next.time;
+      // Duur-/datumwijziging: contour meeschalen, gebruikersgaten afknippen (issue #146), laag 3/4
+      // ontkoppelen en nivelleergaten wissen — de gevolgregels die dit pad deelt met het taakraster en
+      // de MCP-draft, zie `applyDurationChangeRules` in taskDefaults.ts. Een kale datumwijziging telt
+      // hier mee; de werkduur blijft dan gelijk, dus meeschalen en afknippen doen niets.
+      if (changes.timeBase) {
+        lostTimephasedGuidance = applyDurationChangeRules(task, oldWorkMinutes, contourHpd);
       }
-      // Z14b (eigenaarsprincipe 2026-08-18) — een inhoudelijke bewerking (duur/datums/kalender)
-      // ontkoppelt het GELEZEN Z8-venster van de motor; de rauwe bron (`timephasedContours`) blijft
-      // staan. Zie `taskDefaults.ts`'s `clearTimephasedWindow`/`timeUpdateTouchesTimephasedWindow`
-      // voor de volledige triggerset-toelichting.
+      // Z14b (eigenaarsprincipe 2026-08-18) — ook een kalenderwissel ontkoppelt het GELEZEN Z8-venster
+      // van de motor; de rauwe bron (`timephasedContours`) blijft staan. Zie `taskDefaults.ts`'s
+      // `clearTimephasedWindow` voor de volledige triggerset.
       // N2 (Opus-her-check, tweede ronde) — laag 4 stroomt NIET altijd live mee: een walk met
-      // bevroren `workMinutes` negeert een duur-/datum-/kalenderwijziging anders stilzwijgend.
-      if (('calendarId' in rest) || timeUpdateTouchesTimephasedWindow(time)) {
-        lostTimephasedGuidance = invalidateForTimeBaseChange(s.tasks[idx]);
+      // bevroren `workMinutes` negeert een wijziging anders stilzwijgend.
+      if (changes.calendar) {
+        lostTimephasedGuidance = invalidateForTimeBaseChange(task) || lostTimephasedGuidance;
       }
       // B1c-plan3 taak 3 (spec §4, "Invalidatie"): een bewerking die de tijdbasis van de taak verzet,
       // maakt ook een door de nivelleerder ingevoegde pauzedag ongeldig — het gat ligt dan op een
@@ -446,8 +497,9 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // afgeleide nivelleeruitvoer op een as die de gebruiker zelf zojuist heeft verzet.
       // EIGEN POORT sinds de fixronde op etappe 3 (bevinding B7): de triggerset is BREDER dan die van
       // het Z8-venster hierboven — voortgang en constraints horen erbij. Zie
-      // `taskUpdateInvalidatesLevelingGaps` in taskDefaults.ts.
-      if (taskUpdateInvalidatesLevelingGaps(rest, time)) clearLevelingGaps(s.tasks[idx]);
+      // `LEVELING_GAP_TIME_TRIGGERS` in taskDefaults.ts. (Bij een duur-/datumwijziging deed
+      // `applyDurationChangeRules` dit al; dan is deze aanroep een no-op.)
+      if (changes.levelingGaps) clearLevelingGaps(task);
       // Datum-rakende mutatie (duur/start/constraint/mijlpaal → planning verouderd tot F5, A6).
       runtime.finishMutation(s, { stale: true });
     });
@@ -1036,20 +1088,9 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     set((s) => {
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) return;
-      runtime.beginUndoable(s, opts); // `opts` = coalesceKey (bv. slider-sleep = 1 stap).
       // §3.2: % > 0 ⇒ gestart (auto actualStart), teruggedraaid onder 100% ⇒ actualFinish vervalt.
-      applyCompletionEdit(task.time, Math.max(0, Math.min(1, raw)));
-      applyProgressInvariants(task, s.project.statusDate);
-      // B1c-plan-2 spec §4 "Invalidatie", vierde klasse — bedraad in de fixronde op etappe 3
-      // (bevinding B7). Voortgang loopt buiten `updateTask` om, dus deze drie setters hebben hun
-      // eigen aanroep; zie `taskUpdateInvalidatesLevelingGaps` in taskDefaults.ts voor het waarom.
-      clearLevelingGaps(task);
-      // H1 (Opus-review T15-iteratie-2): ALTIJD stale — sinds `applyProgressInvariants`'s
-      // completion===1-tak niet meer op een statusdatum leunt (die pint nu altijd op actuals/eigen
-      // finish, zie de toelichting daar) én de IN-PROGRESS-tak in CPMSolver (M1) evenmin, is elke
-      // voortgangsmutatie datum-beïnvloedend, met of zonder statusdatum. Het oude commentaar
-      // ("alleen datum-beïnvloedend mét statusdatum") was juist tot vóór die fixes.
-      runtime.finishMutation(s, { stale: true });
+      // Snapshot, nivelleergaten, stale en de no-op-regel: zie `commitProgressEdit`.
+      commitProgressEdit(runtime, s, task, (time) => applyCompletionEdit(time, Math.max(0, Math.min(1, raw))), opts);
     });
     get().recomputeViewRows();
   },
