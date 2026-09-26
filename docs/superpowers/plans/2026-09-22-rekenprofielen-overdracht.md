@@ -489,6 +489,40 @@ c09674ba lokaal; afaf33f7 en de poorten nog te doen). Main-CI groen na #226, dep
 verify:docs) — na groep B als **groep C** op dezelfde manier (integratiebranch vanaf main, één verify + measure,
 groeps-PR), eigenaar wordt geïnformeerd.
 
+**26-09 13:20 — GROEP B GEMERGED naar `main` (#233 → `531940ac`, `--admin` na groene parallelle CI op dc544f33).**
+Stap 2 (Opus 5.5): main t/m #226 erin; #200's c09674ba als cherry-pick (7c517686, `deferCellFocus` via `utils/nextFrame`);
+afaf33f7 bleek al op main als bc0ec631 (lege cherry-pick, overgeslagen); één echte merge-fout (Duur-cel in print altijd
+'d', ook in fr) gevangen door `check-print-report` en gefixt (dc544f33). Alle poorten exit 0, verify browser 242,
+mpp-fidelity 216/0/0, measure 76/0/0/0 (42 uitgesloten). Automatisch als merged: #172. De andere zestien
+(#178, #179, #181, #183–#188, #196–#198, #201–#203, #205) waren wel voorouder van main maar bleven "open" ⇒ gesloten
+met verwijzing naar #233; hun branches blijven staan omdat groep C erop stapelt. #200 was al gesloten.
+
+**Groep C (`opus-midden-groep-c-integratie`, `claude/integratie-groep-c`):** 25 van de 26 PR's hebben base ≠ main
+(gestapeld op groep-B-branches en op elkaar); alleen #228 staat op main. Aanpak van de agent, goedgekeurd: fundament =
+groep B's lokale kop 7c517686 (main + B), daarna de 26 heads in volgorde docs → tooling → RTL/UI → MCP/kalender/
+resources/relaties/fasen/voortgang, aan het eind na-merge van dc544f33/main. **#232 (voortgangsregels, 26-09) blijft
+buiten groep C — eindvraag 18 (§1d):** het botst inhoudelijk met de taaktypes-etappe (restduur bij duurwijziging:
+`carryRemainingThroughDurationEdit` klemt op 0 (besluiten 05/06-09) versus `applyRunningDurationChange` uit #232 dat
+een duur onder het gedane werk weigert en andere eenheidswissel-regels heeft); 35 conflictblokken in 31 bestanden met
+drie merge-bases; én #232 noemt zichzelf onaf ("volgt nog: voortgangsblad"). Voorstel: na het eigenaarsbesluit
+klemmen/weigeren één mechanisme herbouwen op main.
+
+18. **#232 (voortgangsregels 26-09) — restduur bij een duurwijziging op een lopende taak: klemmen of weigeren?**
+    De taaktypes-etappe (#170, besluiten 05/06-09) laat de rest meeschuiven en klemt op 0
+    (`carryRemainingThroughDurationEdit`, `src/engine/work/workRuleApply.ts`). #232 (besluit 26-09, andere sessie)
+    laat de rest ook meeschuiven maar **weigert** een duur kleiner dan het gedane werk (melding/celfout/zachte
+    MCP-weigering) en heeft eigen regels bij een eenheidswissel (`applyRunningDurationChange` in
+    `engine/taskMutationRules.ts`, andere signatuur van `applyDurationChangeRules`). Samenvoegen zonder keuze past
+    de rest twee keer aan; de merge geeft bovendien 35 conflictblokken met drie merge-bases, en #232 noemt zichzelf
+    onaf (voortgangsblad volgt nog). Daarom buiten groep C gehouden. **Aanbeveling: weigeren (26-09 is het jongste
+    besluit en is gebruikersvriendelijker dan stil klemmen), als één mechanisme herbouwd bovenop
+    `carryRemainingThroughDurationEdit` op `main`, in een eigen PR na de visuele check.** Zeg je "klemmen", dan
+    wordt #232 gesloten en gaan alleen de regels 1, 2 en 4 (statusdatum vandaag, vraag naar werkelijke start,
+    AI-koppeling) opnieuw op main gebouwd.
+19. **#189 ↔ #144: relatielijnen als layout-instelling.** In groep A heb ik #189 gevolgd (relatielijnen horen bij
+    een opgeslagen weergave, via `setOverlays`), waardoor de losse toggle van #144 daarin is opgegaan (§1c). Dat is
+    een orkestratorkeuze op een echte visiebotsing; omkeerbaar in een kleine PR als je de losse toggle terugwilt.
+
 ## 2. Waar het werk staat (bijwerken bij elke mijlpaal)
 
 | wat | branch | stand |
