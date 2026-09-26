@@ -647,6 +647,40 @@ const ASSIGNMENT_DEFAULT_FIELD_MAP: FieldMapTable = new Map(Object.entries(DEFAU
   truthy('T7-spec-review-B2 elapsedPercent-lag (code 20): lagUnit === ELAPSEDTIME', elapsedPercentSeq?.lagUnit === 'ELAPSEDTIME');
 }
 
+// ── (e2) Import/export-audit 2026-09 (bevinding 4): elapsed-UREN/-MINUTEN-lag (unit-code 6/4,
+// "ehr"/"emin" — dezelfde codering als MSPDI's LagFormat) wordt minuut-exact gelezen als
+// `lagMinutes` + ELAPSEDTIME, voor een dag- én een uur-opvolger — vóór de fix werd hij afgerond op
+// hele kalenderdagen (12 ehr → 1 dag = 24 u, 8 ehr → 0). Elapsed DAGEN (code 8) blijven `lagDays`.
+// Spiegelt mspdiReader.ts (check-xml-adapter-fidelity.ts). ──────────────────────────────────────
+{
+  const taskIdByUniqueId = new Map<number, string>([[10, 'task-A'], [11, 'task-B'], [12, 'task-C'], [13, 'task-D']]);
+  const fixedMeta = buildConsFixedMetaBlob([0, 20, 40]);
+  const fixedData = concatBytes(
+    buildConsFixedDataRecord({ uniqueId: 1, predecessorTaskUid: 10, successorTaskUid: 11, relationType: 1, durationUnits: 6, duration: 7200 }),
+    buildConsFixedDataRecord({ uniqueId: 2, predecessorTaskUid: 11, successorTaskUid: 12, relationType: 1, durationUnits: 4, duration: 900 }),
+    buildConsFixedDataRecord({ uniqueId: 3, predecessorTaskUid: 12, successorTaskUid: 13, relationType: 1, durationUnits: 8, duration: 28800 }),
+  );
+  const cfb = new CfbFile(buildNestedCfb({
+    '   114': { children: { TBkndCons: { children: { FixedMeta: { data: fixedMeta }, FixedData: { data: fixedData } } } } },
+  }));
+  const hourSucc = new Map<string, boolean>([['task-B', true], ['task-C', true], ['task-D', true]]);
+  for (const [label, sequences] of [['dag-opvolger', readRelations(cfb, null, 8, taskIdByUniqueId)], ['uur-opvolger', readRelations(cfb, null, 8, taskIdByUniqueId, hourSucc)]] as const) {
+    const bySucc = (id: string) => sequences.find((s) => s.successorId === id);
+    const ehr = bySucc('task-B');
+    const emin = bySucc('task-C');
+    const ed = bySucc('task-D');
+    truthy(`audit-4 ${label}: 3 relaties gelezen`, sequences.length === 3);
+    truthy(`audit-4 ${label} "12 ehr" (code 6): lagMinutes 720 (kreeg ${ehr?.lagMinutes})`, ehr?.lagMinutes === 720);
+    truthy(`audit-4 ${label} "12 ehr" (code 6): lagDays 0 (kreeg ${ehr?.lagDays})`, ehr?.lagDays === 0);
+    truthy(`audit-4 ${label} "12 ehr" (code 6): lagUnit ELAPSEDTIME`, ehr?.lagUnit === 'ELAPSEDTIME');
+    truthy(`audit-4 ${label} "90 emin" (code 4): lagMinutes 90 (kreeg ${emin?.lagMinutes})`, emin?.lagMinutes === 90);
+    truthy(`audit-4 ${label} "90 emin" (code 4): lagUnit ELAPSEDTIME`, emin?.lagUnit === 'ELAPSEDTIME');
+    truthy(`audit-4 ${label} "2 edays" (code 8) ongewijzigd: lagDays 2 (kreeg ${ed?.lagDays})`, ed?.lagDays === 2);
+    truthy(`audit-4 ${label} "2 edays" (code 8) ongewijzigd: geen lagMinutes`, ed?.lagMinutes === undefined);
+    truthy(`audit-4 ${label} "2 edays" (code 8) ongewijzigd: lagUnit ELAPSEDTIME`, ed?.lagUnit === 'ELAPSEDTIME');
+  }
+}
+
 // ── readAssignments/readResources: lege/ontbrekende storage ⇒ lege array, gooit niet (spiegelt
 // readRelations se lege-stream-terugval hierboven). ──────────────────────────────────────────────
 {

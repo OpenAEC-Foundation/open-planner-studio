@@ -74,7 +74,7 @@ export function WorkTimeEditor({
           <div key={wd} className="flex flex-col gap-1 border-b border-[var(--theme-border-light)] pb-2 last:border-0">
             <div className="flex items-center gap-2">
               <span className="w-8 font-medium text-text-secondary">
-                {tMenu(`ribbon.calendarDialog.days.${wd}` as 'ribbon.calendarDialog.days.1')}
+                {tMenu(`ribbon.calendarDialog.days.${wd}`)}
               </span>
               <span className="!text-small text-text-secondary tabular-nums">
                 {(dayMinutes(wd) / 60).toFixed(2)}h

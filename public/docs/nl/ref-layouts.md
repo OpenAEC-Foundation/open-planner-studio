@@ -1,6 +1,6 @@
 # Layouts
 
-Een layout is een opgeslagen weergave: kolommen, filter, groepering, sortering, tijdschaal en relatielijnen — of alleen een deel daarvan. Elke layout is een eigen knop op het lint, met een icoon en een naam. Layouts zijn app-globaal (op dit apparaat): ze horen niet bij één projectbestand en zijn in elk document te gebruiken.
+Een layout is een opgeslagen weergave: kolommen, filter, groepering, sortering, tijdschaal en overlays (zoals relatielijnen en de basislijn) — of alleen een deel daarvan. Elke layout is een eigen knop op het lint, met een icoon en een naam. Layouts zijn app-globaal (op dit apparaat): ze horen niet bij één projectbestand en zijn in elk document te gebruiken.
 
 ## De layoutknoppen
 
@@ -10,12 +10,15 @@ Een layout is een opgeslagen weergave: kolommen, filter, groepering, sortering, 
 - **Nog een klik** op dezelfde knop zet hem uit. Het beeld gaat terug naar hoe het was voordat je op een layoutknop klikte.
 - Een layout verandert alleen de onderdelen die hij vastlegt. De rest van je beeld blijft staan. Zoom je zelf in terwijl een layout aanstaat, en legt die layout de tijdschaal niet vast, dan blijft je zoom ook na het uitzetten staan.
 - Knoppen die verschillende onderdelen vastleggen kunnen tegelijk aanstaan, bijvoorbeeld het resourcediagram samen met een filterknop. Een knop die hetzelfde onderdeel vastlegt als een knop die al aanstaat, vervangt die andere.
-- Verander je met de hand iets wat de layout vastlegt, dan gaat de knop uit: het scherm komt dan niet meer overeen met de layout.
+- Verander je met de hand het filter, de groepering, de sortering of een overlay terwijl de layout die vastlegt, dan gaat de knop uit. De andere onderdelen van die layout gaan dan terug naar hoe ze waren voordat je de knop aanzette; alleen wat je zelf veranderde blijft staan. Zo blijft er geen half beeld over dat de layout niet meer is en je oude beeld ook niet.
+- Zoomen of een kolombreedte slepen zet de knop ook uit, maar laat de rest van je beeld staan.
 - Aan- en uitzetten zijn elk één stap voor **Ongedaan maken**.
 
 ## De meegeleverde layout Resourcediagram
 
 **Resourcediagram** groepeert de Gantt per resource, sorteert binnen elke resource op start en zet de relatielijnen uit — hetzelfde beeld als het afdrukrapport Resourcediagram (tabblad **Rapport**), maar op het scherm. Handig in een overleg: één klik om per persoon of ploeg te zien wie wat doet, één klik terug. Je zoom, je kolommen en je filter blijven staan. Een taak met meerdere resources staat onder elk van die resources.
+
+Wil je eerst per resourcetype (arbeid, ploeg, materieel, …) en daaronder per resource, zoals de optie in het rapport? Maak dan een eigen layout met twee groepeerniveaus: eerst **Resourcetype**, dan **Resource**. Onder elk type staan dan alleen de resources van dat type. **Resourcetype** kun je ook kiezen om op te sorteren.
 
 De meegeleverde layout is niet te wijzigen of te verwijderen. Wil je een eigen variant, dupliceer hem dan via rechtsklik.
 
@@ -25,7 +28,7 @@ Klik op de plusknop **Nieuwe layout**. In het venster:
 
 - **Naam** en **Icoon** — zo herken je de knop op het lint.
 - **Wat legt deze layout vast?** — zes onderdelen met elk een vinkje. Alleen aangevinkte onderdelen veranderen als je op de knop klikt. Het i-tje achter elk onderdeel legt uit wat het vastlegt.
-- Onder een aangevinkt onderdeel stel je het meteen in: de filterregels, de groepeerniveaus, de sorteerniveaus, de tijdschaal, en of de relatielijnen zichtbaar zijn. Bij **Kolommen** neemt de layout de kolommen over zoals ze nu in de tabel staan; kolommen kies je met het plusje in de tabelkop — zie [Kolommen kiezen](docs://ref-kolommen).
+- Onder een aangevinkt onderdeel stel je het meteen in: de filterregels, de groepeerniveaus, de sorteerniveaus en de tijdschaal. Onder **Overlay** kies je wat er over de balken getekend wordt: relatielijnen, basislijn, voortgangslijn, statusdatumlijn, resource-accent en spelingsband, en welke balkkleuren de Gantt gebruikt. Bij **Kolommen** neemt de layout de kolommen over zoals ze nu in de tabel staan; kolommen kies je met het plusje in de tabelkop — zie [Kolommen kiezen](docs://ref-kolommen).
 - **Huidige weergave overnemen** vult alle onderdelen met wat er nu op het scherm staat. Het venster begint daar ook mee.
 
 Onderaan staan drie knoppen. **Opslaan** maakt de layoutknop; het scherm verandert pas als je op die knop klikt. **Toepassen zonder opslaan** zet de aangevinkte onderdelen op het scherm zonder er een knop van te maken — voor een snel, tijdelijk filter. **Annuleren** sluit zonder iets te doen.

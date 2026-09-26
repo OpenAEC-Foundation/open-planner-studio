@@ -14,7 +14,6 @@ import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
 import {
   saveShowMiniMap, loadLayouts, saveLayouts,
 } from '@/utils/settingsStore';
-import { saveBarColorSelection } from '@/utils/barColorSettings';
 import { applySetting } from '@/components/settings/applySetting';
 import { ExportFormat } from '@/state/appStore';
 import { EXPORT_FORMATS } from '@/services/formatRegistry';
@@ -27,7 +26,7 @@ import { RibbonTab, type Layout, type TimeScale } from '@/state/slices/types';
 import type { ResourceCurve } from '@/types/resource';
 import { RESOURCE_CURVES, CURVE_KEY } from '@/components/task-sections/shared';
 import { UnitsInput } from '@/components/common/UnitsInput';
-import { groupFieldList, fullFieldList, fieldOptions } from '@/components/viewControls/fieldCatalog';
+import { groupFieldList, sortFieldList, fieldOptions } from '@/components/viewControls/fieldCatalog';
 import { useFieldCatalogCtx } from '@/components/viewControls/useFieldCatalogCtx';
 import {
   barColorFieldOptions,
@@ -49,6 +48,7 @@ import {
 import { useRibbonDensity } from './ribbonDensity';
 import { ZOOM_STEP, DEFAULT_ZOOM } from '@/utils/ganttViewport';
 import { createRelationWithFeedback } from '@/state/relationActions';
+import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { ExternalLinkDialog } from '@/components/dialogs/ExternalLinkDialog';
 
 /**
@@ -257,6 +257,8 @@ export function RelationDropdown() {
   const [refreshStatus, setRefreshStatus] = useState('');
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const dependencyMode = useAppStore(s => s.ui.showDependencyMode);
+  // Issue #174: tekenen gebeurt van balk naar balk; zonder Gantt in beeld kan dat niet.
+  const ganttVisible = useAppStore(s => isGanttWorkspaceVisible(s.ui));
   const externalRelationCount = useAppStore(s => s.tasks.reduce(
     (count, task) => count + (task.externalLinks?.length ?? 0),
     0,
@@ -276,9 +278,10 @@ export function RelationDropdown() {
     {
       key: 'draw',
       label: tMenu('ribbon.relationDraw'),
-      disabled: false,
+      disabled: !ganttVisible,
       active: dependencyMode,
-      title: tMenu(dependencyMode ? 'ribbon.relationDrawOffHint' : 'ribbon.relationDrawOnHint'),
+      title: !ganttVisible ? tMenu('ribbon.ganttOnlyHint')
+        : tMenu(dependencyMode ? 'ribbon.relationDrawOffHint' : 'ribbon.relationDrawOnHint'),
       onClick: () => {
         setUI({ showDependencyMode: !dependencyMode });
         setOpen(false);
@@ -671,12 +674,13 @@ export function ResourceAssignDropdown() {
 export function ScreenColorsPopoverButton() {
   const { t: tMenu } = useTranslation('menu');
   const selection = useAppStore(s => s.ui.barColorSelection);
+  const setOverlays = useAppStore(s => s.setOverlays);
   const ctx = useFieldCatalogCtx();
   const fields = barColorFieldOptions(ctx);
   const control = effectiveBarColorControl(selection, ctx);
   const [open, setOpen] = useState(false);
 
-  const updateSelection = (next: typeof selection) => applySetting('barColorSelection', next, saveBarColorSelection);
+  const updateSelection = (next: typeof selection) => setOverlays({ barColors: next });
   const selectMode = (mode: 'critical' | 'auto' | 'category') => {
     if (mode === 'critical' || mode === 'auto') {
       updateSelection({ mode });
@@ -793,7 +797,7 @@ export function SortPopoverButton() {
   const sort = useAppStore(s => s.view.sort);
   const setSort = useAppStore(s => s.setSort);
   const ctx = useFieldCatalogCtx();
-  const fields = fullFieldList(ctx);
+  const fields = sortFieldList(ctx);
   const options = fieldOptions(fields, ctx);
   const [open, setOpen] = useState(false);
 

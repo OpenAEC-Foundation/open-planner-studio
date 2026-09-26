@@ -7,7 +7,10 @@ import type { Task } from '@/types/task';
 import type {
   FieldRef, FilterNode, GroupLevel, SortLevel, ViewState,
 } from '@/state/slices/types';
-import { asNum, evaluate, resolveField, resourceNames, type FieldValue, type ViewContext } from './filterEval';
+import {
+  asNum, assignedResources, evaluate, resolveField, resourceNames, resourceTypeRank, resourceTypes,
+  type FieldValue, type ViewContext,
+} from './filterEval';
 import { isLeafTask } from '@/utils/taskHierarchy';
 
 export type { ViewContext } from './filterEval';
@@ -74,6 +77,16 @@ function cmpValues(a: FieldValue, b: FieldValue): number {
   return sa < sb ? -1 : sa > sb ? 1 : 0;
 }
 
+/** Sorteersleutel van één veld. Resourcetype sorteert in de vaste bandvolgorde (arbeid eerst), niet
+ *  alfabetisch op het vertaalde label; een taak met meerdere typen telt met haar eerste. */
+function sortValue(field: FieldRef, task: Task, ctx: ViewContext): FieldValue {
+  if (field.src === 'resourceType') {
+    const types = resourceTypes(task, ctx);
+    return types.length > 0 ? resourceTypeRank(types[0]) : undefined;
+  }
+  return resolveField(field, task, ctx);
+}
+
 /** Stabiele multi-key sort (§7.2). `sort: []` ⇒ oorspronkelijke volgorde behouden. */
 function sortTasks(tasks: Task[], sort: SortLevel[], ctx: ViewContext): Task[] {
   if (sort.length === 0) return tasks;
@@ -81,7 +94,7 @@ function sortTasks(tasks: Task[], sort: SortLevel[], ctx: ViewContext): Task[] {
     .map((t, i) => [t, i] as const)
     .sort(([a, ia], [b, ib]) => {
       for (const lvl of sort) {
-        const c = cmpValues(resolveField(lvl.field, a, ctx), resolveField(lvl.field, b, ctx));
+        const c = cmpValues(sortValue(lvl.field, a, ctx), sortValue(lvl.field, b, ctx));
         if (c !== 0) return lvl.dir === 'asc' ? c : -c;
       }
       return ia - ib; // stabiliteit: gelijke sleutels behouden invoervolgorde
@@ -98,12 +111,36 @@ interface BandBucket {
   isNone: boolean;
 }
 
+/**
+ * Het bereik van een geneste band (issue #173). Resource en resourcetype zijn twee kanten van
+ * dezelfde toewijzingen: onder de typeband Arbeid hoort alleen de ARBEIDSresource van een taak,
+ * niet ook het beton dat op dezelfde taak staat. Zo geeft Resourcetype → Resource dezelfde indeling
+ * als het rapport Resourcediagram, en Resource → Resourcetype alleen het type van die resource.
+ */
+interface BandScope {
+  resourceType?: string;
+  resourceName?: string;
+}
+
 /** De band(en) waarin een taak op dit groepniveau valt. Resource kan er MEERDERE zijn (§7.1). */
-function bucketsForLeaf(field: FieldRef, task: Task, ctx: ViewContext): BandBucket[] {
+function bucketsForLeaf(field: FieldRef, task: Task, ctx: ViewContext, scope: BandScope): BandBucket[] {
   if (field.src === 'resource') {
-    const names = resourceNames(task, ctx);
+    const names = scope.resourceType === undefined
+      ? resourceNames(task, ctx)
+      : assignedResources(task, ctx).filter(r => r.type === scope.resourceType && r.name).map(r => r.name);
     if (names.length === 0) return [noneBucket(ctx)];
     return names.map(n => ({ rawKey: n, label: n, order: n, isNone: false }));
+  }
+  if (field.src === 'resourceType') {
+    // Net als resource: een taak met resources van twee typen staat onder beide typebanden.
+    const types = scope.resourceName === undefined
+      ? resourceTypes(task, ctx)
+      : resourceTypes(task, ctx).filter(type => assignedResources(task, ctx)
+        .some(r => r.type === type && r.name === scope.resourceName));
+    if (types.length === 0) return [noneBucket(ctx)];
+    return types.map(type => ({
+      rawKey: type, label: ctx.resourceTypeLabels?.[type] ?? type, order: resourceTypeRank(type), isNone: false,
+    }));
   }
   if (field.src === 'activityCode') {
     const valueId = task.activityCodes?.[field.typeId];
@@ -128,12 +165,12 @@ function noneBucket(ctx: ViewContext): BandBucket {
 
 /** Partitioneer bladeren in gesorteerde banden op één niveau; "(geen)" altijd achteraan. */
 function partition(
-  leaves: Task[], level: GroupLevel, ctx: ViewContext,
+  leaves: Task[], level: GroupLevel, ctx: ViewContext, scope: BandScope,
 ): { rawKey: string; label: string; leaves: Task[]; isNone: boolean }[] {
   const real = new Map<string, { label: string; order: FieldValue; leaves: Task[] }>();
   let none: { label: string; leaves: Task[] } | null = null;
   for (const leaf of leaves) {
-    for (const b of bucketsForLeaf(level.field, leaf, ctx)) {
+    for (const b of bucketsForLeaf(level.field, leaf, ctx, scope)) {
       if (b.isNone) {
         if (!none) none = { label: b.label, leaves: [] };
         none.leaves.push(leaf);
@@ -183,7 +220,7 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
   if (group.length > 0) {
     const rows: ViewRow[] = [];
     const visibleLeaves = tasks.filter(t => isLeafTask(t) && visible.has(t.id));
-    const walk = (leaves: Task[], levelIndex: number, path: string[]) => {
+    const walk = (leaves: Task[], levelIndex: number, path: string[], scope: BandScope) => {
       if (levelIndex >= group.length) {
         for (const leaf of sortTasks(leaves, sort, ctx)) {
           rows.push({
@@ -196,17 +233,22 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
         }
         return;
       }
-      for (const band of partition(leaves, group[levelIndex], ctx)) {
+      const field = group[levelIndex].field;
+      for (const band of partition(leaves, group[levelIndex], ctx, scope)) {
         const key = encodeBandKey([...path, band.rawKey]);
         const collapsed = collapsedGroupKeys.has(key);
         rows.push({
           kind: 'group', rowKey: key, key, label: band.label, count: band.leaves.length,
           depth: levelIndex, levelIndex, collapsed,
         });
-        if (!collapsed) walk(band.leaves, levelIndex + 1, [...path, band.rawKey]);
+        const inner: BandScope = band.isNone ? scope
+          : field.src === 'resourceType' ? { ...scope, resourceType: band.rawKey }
+            : field.src === 'resource' ? { ...scope, resourceName: band.rawKey }
+              : scope;
+        if (!collapsed) walk(band.leaves, levelIndex + 1, [...path, band.rawKey], inner);
       }
     };
-    walk(visibleLeaves, 0, []);
+    walk(visibleLeaves, 0, [], {});
     return rows;
   }
 

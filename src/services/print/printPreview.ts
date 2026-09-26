@@ -393,6 +393,9 @@ type CellTextOptions = Pick<PrintOptions,
   /** De projectkalender: terugval voor de effectieve taakkalender van de Duur-kolom. Afwezig ⇒ 8 u/dag
    *  (dan zijn alleen de omrekeningen tussen dagen en uren een schatting; de eigen eenheid niet). */
   calendar?: WorkCalendar;
+  /** `labels.daySuffix` is dezelfde dag-afkorting als in de projectkop (main, #190); de Duur-cel
+   *  gebruikt zelf `durationSuffixes` (groep B), de kolommeting geeft dit ene label door. */
+  labels?: Pick<NonNullable<PrintOptions['labels']>, 'daySuffix'>;
 };
 
 /** De Duur-cel: dezelfde tekst als taakraster en tooltip (`formatTaskDurationText`). */
@@ -601,6 +604,13 @@ export interface PrintOptions {
     statusDate: string;
     /** Eigen label voor de voortgangslijn; dezelfde datum krijgt daarmee geen onjuiste statusnaam. */
     progressDate?: string;
+    /** Labels van de derde projectkopregel (`report:projectStart`/`projectEnd`/`projectDuration`),
+     *  inclusief dubbele punt — net als `printed`, zodat elke taal haar eigen interpunctie kiest. */
+    projectStart: string;
+    projectEnd: string;
+    projectDuration: string;
+    /** Dag-afkorting achter de projectduur; dezelfde als overal in de app (`common:duration.suffixDay`). */
+    daySuffix: string;
   };
   localizedMonths?: string[];
   localizedMonthsShort?: string[];
@@ -1872,20 +1882,22 @@ function drawProjectHeader(
 
   d2d.fillText(ellipsize(d2d, row2Text, rowMaxW), pad, row2Y);
 
-  // Row 3: Project dates and duration
+  // Row 3: Project dates and duration — labels vertaald via `options.labels`, zonder labels Engels
+  // (zelfde terugval als `printed` hierboven).
   const row3Y = m.s(48);
+  const labels = options.labels;
   let row3Text = '';
   if (options.projectStartDate) {
-    row3Text += `Start: ${displayDate(options.projectStartDate, options.dateNotation ?? 'dmy')}`;
+    row3Text += `${labels?.projectStart ?? 'Start:'} ${displayDate(options.projectStartDate, options.dateNotation ?? 'dmy')}`;
   }
   if (options.projectEndDate) {
-    row3Text += (row3Text ? '  |  ' : '') + `Eind: ${displayDate(options.projectEndDate, options.dateNotation ?? 'dmy')}`;
+    row3Text += (row3Text ? '  |  ' : '') + `${labels?.projectEnd ?? 'End:'} ${displayDate(options.projectEndDate, options.dateNotation ?? 'dmy')}`;
   }
   if (options.projectStartDate && options.projectEndDate) {
     const sd = parseDate(options.projectStartDate);
     const ed = parseDate(options.projectEndDate);
     const dur = diffCalendarDays(sd, ed);
-    row3Text += `  |  Duur: ${dur}d`;
+    row3Text += `  |  ${labels?.projectDuration ?? 'Duration:'} ${dur}${labels?.daySuffix ?? 'd'}`;
   }
 
   d2d.fillText(ellipsize(d2d, row3Text, rowMaxW), pad, row3Y);

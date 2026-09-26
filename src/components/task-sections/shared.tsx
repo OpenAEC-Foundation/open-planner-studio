@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, useState } from 'react';
 import type { ResourceCurve } from '@/types/resource';
 import type { CustomFieldDef, CustomFieldValue } from '@/types/structure';
 import { DateTextInput } from '@/components/common/DateTextInput';
@@ -100,13 +100,28 @@ export const Input = forwardRef<HTMLInputElement, {
   max?: number;
   step?: number;
   disabled?: boolean;
-}>(function Input({ value, onChange, type = 'text', min, max, step, disabled }, ref) {
+  /**
+   * Verplicht tekstveld (taaknaam, WBS-code): een lege (of alleen-spaties) invoer gaat NIET naar
+   * `onChange` — het veld toont de lege invoer lokaal zolang de gebruiker bezig is en valt bij het
+   * verlaten terug op de huidige waarde. Zelfde regel als het raster (`required`) en de dialoog
+   * (Opslaan uitgeschakeld bij een lege naam).
+   */
+  required?: boolean;
+}>(function Input({ value, onChange, type = 'text', min, max, step, disabled, required }, ref) {
+  // Alleen gezet zolang een verplicht veld leeg is gemaakt; `null` = toon de echte waarde.
+  const [pendingEmpty, setPendingEmpty] = useState<string | null>(null);
   return (
     <input
       ref={ref}
       type={type}
-      value={value}
-      onChange={e => onChange(e.target.value)}
+      value={pendingEmpty ?? value}
+      onChange={e => {
+        const v = e.target.value;
+        if (required && !v.trim()) { setPendingEmpty(v); return; }
+        setPendingEmpty(null);
+        onChange(v);
+      }}
+      onBlur={() => setPendingEmpty(null)}
       min={min}
       max={max}
       step={step}

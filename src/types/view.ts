@@ -8,6 +8,7 @@
  */
 
 import type { TaskGridColumnPreference } from '@/types/taskGrid';
+import type { BarColorSelection } from '@/types/barColor';
 
 // Fase 2.7 (§3): 'year' toegevoegd als directe keuze; 'quarter' aan de dropdown.
 // Fase 2.8b (§6.2): 'hour' toegevoegd — alleen bereikbaar/zichtbaar als de hoofdschakelaar
@@ -44,7 +45,10 @@ export type FieldRef =
   | { src: 'builtin'; key: BuiltinFieldKey }
   | { src: 'activityCode'; typeId: string }   // waarde = valueId (uit task.activityCodes)
   | { src: 'customField'; defId: string }      // waarde = task.customFields[defId]
-  | { src: 'resource' };                        // afgeleide waarde = namen van toegewezen resources
+  | { src: 'resource' }                          // afgeleide waarde = namen van toegewezen resources
+  // Issue #173: afgeleide waarde = de TYPES van de toegewezen resources (arbeid, materieel, …), zodat
+  // het scherm de tweelaagse indeling van het rapport Resourcediagram kan nabouwen.
+  | { src: 'resourceType' };
 
 /** Kolomconfiguratie op de Tabel-weergave (FullTaskGrid, §2.2). Volgorde = arrayvolgorde. */
 export interface ColumnConfig {
@@ -105,12 +109,29 @@ export interface Layout {
   /** Relatielijnen in de Gantt tonen. Het resourcediagram zet ze uit: een taak kan daar onder
    *  meerdere banden staan, waardoor de pijlen kriskras door het beeld lopen. */
   showRelations?: boolean;
+  /** De overige Gantt-overlays (issue #173). Anders dan de relatielijnen zijn dit app-brede
+   *  schermopties (`ui.*`, bewaard in `localStorage`), geen documentdata. */
+  overlays?: LayoutOverlays;
   /** Sleutel uit de vaste icoonset van de layoutknoppen (`layoutIcons.tsx`); geen layoutDEEL. */
   icon?: string;
 }
 
+/**
+ * Het layoutdeel Overlay (issue #173): de schermopties uit Beeld → Basislijnen & voortgang, op de
+ * relatielijnen na — die zijn al sinds #144 een eigen deel (`showRelations`, per document) en dat
+ * blijft zo voor bestaande layouts. De dialoog toont beide onder één kop.
+ */
+export interface LayoutOverlays {
+  baseline: boolean;
+  progressLine: boolean;
+  statusDateLine: boolean;
+  resourceAccent: boolean;
+  floatBand: boolean;
+  barColors: BarColorSelection;
+}
+
 /** De delen die een layout kan dragen, in vaste UI-volgorde. */
-export const LAYOUT_PARTS = ['columns', 'filter', 'group', 'sort', 'timeScale', 'showRelations'] as const;
+export const LAYOUT_PARTS = ['columns', 'filter', 'group', 'sort', 'timeScale', 'showRelations', 'overlays'] as const;
 export type LayoutPart = typeof LAYOUT_PARTS[number];
 
 /** Het deel van het scherm waar een layout over gaat — precies de layoutdelen, volledig ingevuld. */
@@ -121,6 +142,7 @@ export interface LayoutViewParts {
   sort: SortLevel[];
   timeScale: TimeScale;
   showRelations: boolean;
+  overlays: LayoutOverlays;
 }
 
 /**

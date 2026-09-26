@@ -240,6 +240,7 @@ export function TaskDialog() {
             <Field label={t('dialog.startDate')}>
               <DateTextInput
                 value={startDate}
+                required
                 onCommit={setStartDate}
                 className="input !text-small !leading-4 !px-2.5 !py-1.5"
                 ariaLabel={t('dialog.startDate')}

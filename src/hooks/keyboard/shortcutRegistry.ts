@@ -24,6 +24,7 @@
 // presentatie-afsluiting nooit meer bereiken.
 
 import { useAppStore } from '@/state/appStore';
+import type { ParseKeys } from 'i18next';
 import type { UIState } from '@/state/slices/types';
 import type { AppState } from '@/state/appStore';
 import { isAnyDialogOpen } from '@/hooks/useDialogKeys';
@@ -50,7 +51,7 @@ export interface ShortcutDef {
   id: string;                                 // stabiel, bv. 'edit.editTask'
   combo: ShortcutCombo;
   category: ShortcutCategory;
-  labelKey: string;                           // i18n-key voor de overzichtsdialoog (golf 3)
+  labelKey: ParseKeys<['common', 'menu']>;    // i18n-key voor de overzichtsdialoog (golf 3)
   run: (store: AppState) => void;             // roept bestaande store-acties aan
   allowInInput?: boolean;                     // werkt óók in invoervelden (zoals Ctrl+S/F5/F11)
   when?: () => boolean;                       // optionele extra-guard

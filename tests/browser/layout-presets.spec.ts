@@ -155,7 +155,7 @@ test('layoutdialoog: plus maakt een eigen knop; je stelt de delen IN de dialoog 
   const dialog = page.locator('[data-ops-layout-dialog]');
   await dialog.locator('[data-ops-layout-name]').fill('Per resource, zonder lijnen');
   await dialog.locator('[data-ops-layout-icon="star"]').click();
-  // Alleen groepering en relatielijnen vastleggen; de rest uitvinken.
+  // Alleen groepering en de overlaygroep (met de relatielijnen) vastleggen; de rest uitvinken.
   for (const part of ['columns', 'filter', 'sort', 'timeScale']) {
     await dialog.locator(`[data-ops-layout-part="${part}"]`).uncheck();
   }
@@ -171,7 +171,8 @@ test('layoutdialoog: plus maakt een eigen knop; je stelt de delen IN de dialoog 
 
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('ops-taskGridLayouts')!).layouts);
   expect(stored).toHaveLength(1);
-  expect(Object.keys(stored[0]).sort()).toEqual(['group', 'icon', 'id', 'name', 'showRelations']);
+  // Issue #173: het vinkje Overlay legt de relatielijnen én de overige overlays vast.
+  expect(Object.keys(stored[0]).sort()).toEqual(['group', 'icon', 'id', 'name', 'overlays', 'showRelations']);
   // Opslaan past NIET toe: het scherm verandert pas bij een klik op de knop.
   expect((await viewState(page)).group).toEqual([]);
 
@@ -209,4 +210,127 @@ test('layoutdialoog: plus maakt een eigen knop; je stelt de delen IN de dialoog 
   await page.getByRole('button', { name: /^(Delete|Verwijderen)$/ }).click();
   await page.getByRole('button', { name: /^(Delete|Verwijderen|OK|Confirm|Bevestigen)$/ }).last().click();
   await expect(page.locator('[data-ops-layout-button]')).toHaveCount(2);
+});
+
+// Issue #173 punt 1 (manu varkey): een handmatige wijziging aan een deel van de actieve layout zet de
+// knop uit — en dan gaan ook zijn ANDERE delen terug, in plaats van half te blijven staan.
+test('layoutknop: relatielijnen met de hand omzetten zet het resourcediagram helemaal uit', async ({ page, ops: _ops }) => {
+  await seedWithResources(page);
+  await page.evaluate(() => window.__OPS__!.store.getState().setSort([{ field: { src: 'builtin', key: 'name' }, dir: 'desc' }]));
+  const before = await viewState(page);
+
+  await page.getByRole('button', { name: /^(View|Beeld)$/ }).click();
+  const button = page.locator(RESOURCE_DIAGRAM);
+  await button.click();
+  await expect(button).toHaveClass(/active/);
+  expect((await viewState(page)).group).toEqual([{ field: { src: 'resource' }, dir: 'asc' }]);
+
+  await page.locator('[data-ops-ribbon-item="toggleRelations"]').click();
+  await expect(button).not.toHaveClass(/active/);
+  const after = await viewState(page);
+  expect(after.showRelations).toBe(true);
+  // Groepering en sortering van het resourcediagram zijn terug naar het beeld van vóór de klik.
+  expect(after.group).toEqual(before.group);
+  expect(after.sort).toEqual(before.sort);
+  await expect(page.locator('[data-grid-group-cell]')).toHaveCount(0);
+});
+
+// Issue #173 punt 2 en 3: de overlays als groep in de layoutdialoog, en Resourcetype bij groeperen.
+test('layoutdialoog: overlays als eigen deel, en groeperen op resourcetype', async ({ page, ops: _ops }) => {
+  await page.evaluate(() => { localStorage.removeItem('ops-taskGridLayouts'); });
+  await seedWithResources(page);
+  await page.evaluate(() => window.__OPS__!.store.getState().setOverlays({ baseline: false, floatBand: true }));
+
+  await page.getByRole('button', { name: /^(View|Beeld)$/ }).click();
+  await page.getByRole('button', { name: /^(New layout|Nieuwe layout)$/ }).click();
+  const dialog = page.locator('[data-ops-layout-dialog]');
+  await dialog.locator('[data-ops-layout-name]').fill('Basislijn, per type');
+  for (const part of ['columns', 'filter', 'sort', 'timeScale']) {
+    await dialog.locator(`[data-ops-layout-part="${part}"]`).uncheck();
+  }
+  // Alle overlays staan in één groep, met de relatielijnen erbij.
+  const overlayRow = dialog.locator('[data-ops-layout-part-row="overlays"]');
+  await expect(overlayRow.locator('[data-ops-layout-relations]')).toBeVisible();
+  for (const key of ['baseline', 'progressLine', 'statusDateLine', 'resourceAccent', 'floatBand']) {
+    await expect(overlayRow.locator(`[data-ops-layout-overlay="${key}"]`)).toBeVisible();
+  }
+  await expect(overlayRow.locator('[data-ops-layout-bar-colors]')).toBeVisible();
+  await overlayRow.locator('[data-ops-layout-overlay="baseline"]').check();
+  await overlayRow.locator('[data-ops-layout-overlay="floatBand"]').uncheck();
+
+  const groupRow = dialog.locator('[data-ops-layout-part-row="group"]');
+  await groupRow.getByRole('button').click();
+  await groupRow.locator('select').first().selectOption(JSON.stringify({ src: 'resourceType' }));
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/07-overlay-en-resourcetype.png` });
+  await page.locator('[data-ops-layout-save]').click();
+  await expect(dialog).toHaveCount(0);
+
+  const own = page.locator('[data-ops-layout-button]').filter({ hasText: 'Basislijn' }).locator('button');
+  await own.click();
+  await expect(own).toHaveClass(/active/);
+  const overlays = () => page.evaluate(() => {
+    const ui = window.__OPS__!.store.getState().ui;
+    return { baseline: ui.showBaselineOverlay, floatBand: ui.showFloatBand };
+  });
+  expect(await overlays()).toEqual({ baseline: true, floatBand: false });
+  expect((await viewState(page)).group).toEqual([{ field: { src: 'resourceType' }, dir: 'asc' }]);
+  // Twee typebanden (ploeg, materieel) plus "(geen)" voor de taak zonder resource.
+  await expect(page.locator('[data-grid-group-cell]')).toHaveCount(3);
+
+  // Undo van de layoutklik zet ook de (app-brede) overlays terug — één klik, één stap.
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(own).not.toHaveClass(/active/);
+  expect(await overlays()).toEqual({ baseline: false, floatBand: true });
+  expect((await viewState(page)).group).toEqual([]);
+  // Aan → uit → Ctrl+Z → uit: het herstelpunt blijft het beeld van vóór de layout.
+  await own.click();
+  await own.click();
+  expect(await overlays()).toEqual({ baseline: false, floatBand: true });
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(own).toHaveClass(/active/);
+  expect(await overlays()).toEqual({ baseline: true, floatBand: false });
+  await own.click();
+  expect((await viewState(page)).group).toEqual([]);
+  expect(await overlays()).toEqual({ baseline: false, floatBand: true });
+  await own.click();
+  await expect(own).toHaveClass(/active/);
+
+  // Een overlay met de hand omzetten zet de knop uit en haalt ook de groepering weg (punt 1). De
+  // overlays zijn samen één deel — het deel dat de gebruiker wijzigde — en blijven dus zoals ze nu staan.
+  await page.locator('[data-ops-ribbon-item="toggleFloatBand"]').click();
+  await expect(own).not.toHaveClass(/active/);
+  expect((await viewState(page)).group).toEqual([]);
+  expect(await overlays()).toEqual({ baseline: true, floatBand: true });
+});
+
+// Review op #173: een layout van vóór de overlays (alleen relatielijnen) hernoemen mag er niet stil de
+// overlays van het scherm van nu in vastleggen.
+test('layoutdialoog: een oude layout bewerken voegt geen overlays toe', async ({ page, ops: _ops }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('ops-taskGridLayouts', JSON.stringify({ version: 1, layouts: [{
+      id: 'oud', name: 'Oud', icon: 'users',
+      group: [{ field: { src: 'resource' }, dir: 'asc' }], showRelations: false,
+    }] }));
+  });
+  await page.reload();
+  await page.locator('[data-ops-welcome-dialog]').waitFor({ state: 'attached', timeout: 15_000 });
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.newProject();
+    s.setUI({ showWelcomeDialog: false, showTourOverlay: false, activeRibbonTab: 'start' });
+  });
+  await seedWithResources(page);
+
+  await page.getByRole('button', { name: /^(View|Beeld)$/ }).click();
+  await page.locator('[data-ops-layout-button="oud"] button').click({ button: 'right' });
+  await page.getByRole('button', { name: /^(Edit…|Bewerken…)$/ }).click();
+  const dialog = page.locator('[data-ops-layout-dialog]');
+  await expect(dialog.locator('[data-ops-layout-overlays-not-stored]')).toBeVisible();
+  await dialog.locator('[data-ops-layout-name]').fill('Oud, hernoemd');
+  await page.locator('[data-ops-layout-save]').click();
+  await expect(dialog).toHaveCount(0);
+
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('ops-taskGridLayouts')!).layouts);
+  expect(stored[0].name).toBe('Oud, hernoemd');
+  expect(Object.keys(stored[0]).sort()).toEqual(['group', 'icon', 'id', 'name', 'showRelations']);
 });

@@ -18,7 +18,10 @@
     "hint": "De verdeling verandert alleen de uren per dag van deze toewijzing; de taakdatums en onderbrekingen blijven zoals ze zijn. Een fase met inzet 0 blijft binnen de duur van de taak.",
     "release": "Verdeling loslaten"
   },
-  "durationType": { "WORKTIME": "Werktijd", "ELAPSEDTIME": "Verstreken tijd" },
+  "durationType": {
+    "WORKTIME": "Werktijd",
+    "ELAPSEDTIME": "Verstreken tijd"
+  },
   "table": {
     "title": "Tabel",
     "wbs": "WBS",
@@ -555,6 +558,7 @@
   "defaultInspection": "Nieuw inspectiemoment",
   "column": {
     "resource": "Resources",
+    "resourceType": "Resourcetype",
     "activityCodeSuffix": "activiteitcode",
     "customFieldSuffix": "eigen veld"
   },

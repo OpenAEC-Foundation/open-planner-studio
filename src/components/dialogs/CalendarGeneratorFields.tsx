@@ -68,7 +68,7 @@ export function CalendarGeneratorFields({
   const hasRegions = !!set?.regions && set.regions.length > 0;
 
   const countryOptions = [
-    ...COUNTRIES.map(c => ({ value: c, label: tCommon(`calendar.countryName.${c}` as 'calendar.countryName.NL') })),
+    ...COUNTRIES.map(c => ({ value: c, label: tCommon(`calendar.countryName.${c}`) })),
     ...(allowNone ? [{ value: 'none', label: noneLabel ?? tCommon('calendar.countryName.none') }] : []),
     ...extraCountryOptions,
   ];
@@ -124,7 +124,7 @@ export function CalendarGeneratorFields({
                   onClick={() => onChange({ bouwvak: choice })}
                   className={accentChipClass(active)}
                 >
-                  {tCommon(`calendar.generate.bouwvak.${BOUWVAK_I18N_KEY[choice]}` as 'calendar.generate.bouwvak.none')}
+                  {tCommon(`calendar.generate.bouwvak.${BOUWVAK_I18N_KEY[choice]}`)}
                 </button>
               );
             })}

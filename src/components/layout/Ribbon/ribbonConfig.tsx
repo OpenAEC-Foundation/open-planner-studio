@@ -19,11 +19,8 @@ import { useCommandBinding } from './useCommandBinding';
 import { addTaskNearSelection } from '@/state/taskInsertActions';
 import { isTreeMode } from '@/engine/view/visibleRows';
 import { hasLevelingOutput } from '@/utils/taskDefaults';
-import {
-  saveShowBaselineOverlay, saveShowFloatBand, saveShowProgressLine, saveShowResourceAccent, saveShowStatusDateLine,
-} from '@/utils/settingsStore';
+import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import type { RibbonTab, UIState } from '@/state/slices/types';
-import { applySetting } from '@/components/settings/applySetting';
 import {
   BaselinesProgressGroupContent, MilestoneDropdown, RelationDropdown, TemplatesDropdown, RecentFilesDropdown,
   ScreenColorsPopoverButton,
@@ -118,17 +115,6 @@ function uiAction(patch: Partial<UIState>): () => RibbonButtonBinding {
   };
 }
 
-type PersistedOverlayFlag =
-  'showBaselineOverlay' | 'showProgressLine' | 'showStatusDateLine' | 'showResourceAccent' | 'showFloatBand';
-
-/** `use`-hook van een gepersisteerde aan/uit-vlag: actief ⇔ aan, klikken zet om én bewaart. */
-function persistedToggle(key: PersistedOverlayFlag, save: (value: boolean) => Promise<void>): () => RibbonButtonBinding {
-  return function usePersistedToggle() {
-    const on = useAppStore(s => s.ui[key]);
-    return { active: on, onClick: () => applySetting(key, !on, save) };
-  };
-}
-
 /** Bereken/CPM-knop — voorheen 4× letterlijk gekopieerd (start/planning/relations/table). */
 const calcButton: RibbonButtonSpec = {
   kind: 'button', id: 'calc', icon: <Play size={20} />, labelKey: 'menu:ribbon.calculate', primary: true,
@@ -171,10 +157,14 @@ const splitTaskButton: RibbonButtonSpec = {
   use: () => {
     const { t } = useTranslation('menu');
     const splitMode = useAppStore(s => s.ui.showSplitMode);
+    // Issue #174: het gebaar vraagt een balk in de Gantt; op de Tabel-tab is die er niet.
+    const ganttVisible = useAppStore(s => isGanttWorkspaceVisible(s.ui));
     const setUI = useAppStore(s => s.setUI);
     return {
       active: splitMode,
-      title: t(splitMode ? 'ribbon.splitTaskOffHint' : 'ribbon.splitTaskOnHint'),
+      disabled: !ganttVisible,
+      title: !ganttVisible ? t('ribbon.ganttOnlyHint')
+        : t(splitMode ? 'ribbon.splitTaskOffHint' : 'ribbon.splitTaskOnHint'),
       onClick: () => setUI({ showSplitMode: !splitMode }),
     };
   },
@@ -793,15 +783,27 @@ const beeldTab: RibbonTabConfig = [
         kind: 'stack', id: 'overlaysStack', items: [
           {
             kind: 'small', id: 'toggleBaselineOverlay', icon: <LayoutGrid size={14} />, labelKey: 'menu:ribbon.toggleBaselineOverlay',
-            use: persistedToggle('showBaselineOverlay', saveShowBaselineOverlay),
+            use: () => {
+              const showBaselineOverlay = useAppStore(s => s.ui.showBaselineOverlay);
+              const setOverlays = useAppStore(s => s.setOverlays);
+              return { active: showBaselineOverlay, onClick: () => setOverlays({ baseline: !showBaselineOverlay }) };
+            },
           },
           {
             kind: 'small', id: 'toggleProgressLine', icon: <TrendingUp size={14} />, labelKey: 'menu:ribbon.toggleProgressLine',
-            use: persistedToggle('showProgressLine', saveShowProgressLine),
+            use: () => {
+              const showProgressLine = useAppStore(s => s.ui.showProgressLine);
+              const setOverlays = useAppStore(s => s.setOverlays);
+              return { active: showProgressLine, onClick: () => setOverlays({ progressLine: !showProgressLine }) };
+            },
           },
           {
             kind: 'small', id: 'toggleStatusDateLine', icon: <CalendarDays size={14} />, labelKey: 'menu:ribbon.toggleStatusDateLine',
-            use: persistedToggle('showStatusDateLine', saveShowStatusDateLine),
+            use: () => {
+              const showStatusDateLine = useAppStore(s => s.ui.showStatusDateLine);
+              const setOverlays = useAppStore(s => s.setOverlays);
+              return { active: showStatusDateLine, onClick: () => setOverlays({ statusDateLine: !showStatusDateLine }) };
+            },
           },
         ],
       },
@@ -812,13 +814,21 @@ const beeldTab: RibbonTabConfig = [
           { kind: 'component', id: 'screenColors', Component: ScreenColorsPopoverButton },
           {
             kind: 'small', id: 'toggleResourceAccent', icon: <Palette size={14} />, labelKey: 'menu:ribbon.toggleResourceAccent',
-            use: persistedToggle('showResourceAccent', saveShowResourceAccent),
+            use: () => {
+              const showResourceAccent = useAppStore(s => s.ui.showResourceAccent);
+              const setOverlays = useAppStore(s => s.setOverlays);
+              return { active: showResourceAccent, onClick: () => setOverlays({ resourceAccent: !showResourceAccent }) };
+            },
           },
           {
             // #130: de groene speling-band ná niet-kritieke balken uit kunnen zetten. Derde knop
             // in deze kolom (drie per stack is de vaste linthoogte), naast de andere balk-overlays.
             kind: 'small', id: 'toggleFloatBand', icon: <MoveHorizontal size={14} />, labelKey: 'menu:ribbon.toggleFloatBand',
-            use: persistedToggle('showFloatBand', saveShowFloatBand),
+            use: () => {
+              const showFloatBand = useAppStore(s => s.ui.showFloatBand);
+              const setOverlays = useAppStore(s => s.setOverlays);
+              return { active: showFloatBand, onClick: () => setOverlays({ floatBand: !showFloatBand }) };
+            },
           },
         ],
       },

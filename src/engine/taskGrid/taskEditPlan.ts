@@ -6,6 +6,7 @@ import { decodeDynamicTaskColumnId } from '@/engine/taskGrid/fieldIds';
 import {
   applyCompletionEdit,
   applyProgressInvariants,
+  defaultActualStart,
   assignTaskActivityCode,
   assignTaskCustomField,
   fillMissingActualStart,
@@ -477,6 +478,9 @@ function applyStatus(task: Task, status: TaskStatus, statusDate: string | undefi
     fillMissingActualStart(task.time, statusDate);
   } else {
     task.time.completion = 1;
+    // Zelfde regel als setTaskProgress en de completion-cel: zonder actualStart geldt de eigen
+    // geplande start, niet AS = AF (dan kromp de voltooide balk tot zijn laatste dag).
+    task.time.actualStart ||= defaultActualStart(task.time);
   }
   applyProgressInvariants(task, statusDate);
 }

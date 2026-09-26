@@ -39,6 +39,8 @@ export function TaskTimeFields({ task, onChange }: {
   // (`startAnchorAfterEdit`, gedeeld met het Opslaan van TaskDialog in state/taskDialogSave.ts en de Tabel) — anders zou elke render/commit-
   // cyclus het anker naar de berekende datum laten meeschuiven.
   const shown = shownStart(task);
+  // Start is verplicht (`required`): een leeggemaakt veld valt terug i.p.v. `''` als anker te
+  // schrijven — een lege start maakt het hele project onberekenbaar ("Ongeldige startdatum").
 
   return (
     <>
@@ -55,7 +57,9 @@ export function TaskTimeFields({ task, onChange }: {
             ariaLabel={t('properties.start')}
             title={t('properties.scheduleStartHint')}
             value={shown}
+            required
             onCommit={v => {
+              if (!v) return;
               const anchor = startAnchorAfterEdit(task, v);
               if (anchor !== undefined) updateTime('scheduleStart', anchor);
             }}

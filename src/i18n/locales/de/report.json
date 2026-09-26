@@ -23,7 +23,12 @@
   "showBaselineOverlay": "Baseline-Overlay anzeigen",
   "autoFit": "Automatisch an Papier anpassen",
   "zoom": "Zoom:",
-  "previewQuality": { "label": "Vorschauqualität", "standard": "Standard", "high": "Hoch", "maximum": "Maximal" },
+  "previewQuality": {
+    "label": "Vorschauqualität",
+    "standard": "Standard",
+    "high": "Hoch",
+    "maximum": "Maximal"
+  },
   "repeatHeader": "Kopfzeile auf jeder Seite wiederholen",
   "repeatFooter": "Fußzeile auf jeder Seite wiederholen",
   "reportFontScaleLabel": "Schriftgröße:",
@@ -38,6 +43,9 @@
   "exportPDF": "PDF exportieren",
   "noTasks": "Keine Aufgaben vorhanden",
   "printed": "Gedruckt:",
+  "projectStart": "Anfang:",
+  "projectEnd": "Ende:",
+  "projectDuration": "Dauer:",
   "today": "Heute",
   "previewPageLimit_one": "… und {{count}} weitere Seite — für das vollständige Dokument exportieren",
   "previewPageLimit_other": "… und {{count}} weitere Seiten — für das vollständige Dokument exportieren",

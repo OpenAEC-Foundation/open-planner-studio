@@ -34,9 +34,9 @@ multiple worktrees at the same time is fine for exactly that reason:
 npm run verify
 ```
 
-That is literally the same command that CI, the release gate and the deploy gate
-run — one definition, in `package.json`. If it is green locally, it is green in
-CI. Twelve steps, run in this order:
+That is the same definition, in `package.json`, that the release and deploy gates
+run; CI runs exactly its steps, split over parallel jobs by `scripts/verify-parts.mjs`. If it is green locally, it is green in
+CI. The steps, in this order:
 
 | component | what |
 |---|---|
@@ -96,6 +96,8 @@ CLDR plural categories per language.
   you verified it is worth more than a list of changed files.
 - One topic per pull request. Small PRs get read faster.
 - Mention in the PR how you tested it, and which suite you ran.
+- A user-visible feature comes with an in-app guide in `public/docs/{nl,en}/` (plus a
+  manifest entry), and a UI interaction with a browser test in `tests/browser/`.
 
 Does your change touch scheduling code? Add a case to `tests/planning/` — see
 [`tests/planning/README.md`](tests/planning/README.md). For a bugfix, a case that

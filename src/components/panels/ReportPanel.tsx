@@ -34,8 +34,6 @@ import { TableReportOptionsBlock } from './reports/TableReportOptionsBlock';
 import { OrientationSelect, PaperSizeSelect, ReportCheckRow, ReportFieldRow, ReportOptionsCard } from './reports/reportFormPrimitives';
 import { useTableReportSpec } from './reports/useTableReportSpec';
 import { toPdfSpec } from './reports/tableReportSpec';
-import { saveBarColorSelection } from '@/utils/barColorSettings';
-import { applySetting } from '@/components/settings/applySetting';
 import { useDisplayDate } from '@/hooks/displayDate';
 import { MilestoneReport, useMilestoneRows, STATUS_COLOR as MILESTONE_STATUS_COLOR, type MilestoneRow } from './MilestoneReport';
 import { VarianceReport, useVarianceResult, STATUS_COLOR as VARIANCE_STATUS_COLOR, fmtDelta } from './VarianceReport';
@@ -261,6 +259,7 @@ export function ReportPanel() {
       {t('tableReports.recordedDatesNote')}
     </div>
   ) : null;
+  const setOverlays = useAppStore(s => s.setOverlays);
   const fieldCtx = useFieldCatalogCtx();
   const barColorFields = barColorFieldOptions(fieldCtx);
   const barColorControl = effectiveBarColorControl(barColorSelection, fieldCtx);
@@ -572,6 +571,9 @@ export function ReportPanel() {
   }), [t]);
 
   const assignmentColumns = reportType === 'resourceGantt' && resourceGanttOptions.showAssignmentColumns;
+  // Dag-afkorting achter de duur (projectkop én Duur-cel), dezelfde als in de taakgrid. Eén waarde
+  // voor meting en render, zodat de gemeten Duur-kolom past op wat er getekend wordt.
+  const daySuffix = tCommon('duration.suffixDay');
 
   // De zes overgebleven datakolommen (WBS, Duur, Start, Einde, Volt., Eenh./d) schalen mee met wat
   // dít rapport toont, net als de naam- en curvekolom hierboven. Ze stonden vast, en dat hield niet:
@@ -592,6 +594,7 @@ export function ReportPanel() {
         rows,
         {
           showCompletion, assignmentColumns, dateNotation, numberLocale: i18n.language, tableHeaders,
+          labels: { daySuffix },
           // Precies wat de render in de Duur-cel tekent (zelfde velden als `options` hieronder).
           durationDisplay, durationSuffixes, calendar, calendars,
         },
@@ -600,7 +603,7 @@ export function ReportPanel() {
     });
     return () => { cancelled = true; };
   }, [tasks, reportRows, resourceGantt, assignmentColumns, showCompletion, dateNotation, i18n.language, tableHeaders,
-    durationDisplay, durationSuffixes, calendar, calendars]);
+    daySuffix, durationDisplay, durationSuffixes, calendar, calendars]);
 
   const milestoneRef = useRef<HTMLDivElement>(null);
   const varianceRef = useRef<HTMLDivElement>(null);
@@ -684,6 +687,10 @@ export function ReportPanel() {
       today: t('today', { defaultValue: 'Vandaag' }),
       statusDate: t('statusDateLabel', { defaultValue: 'Statusdatum' }),
       progressDate: t('progressDateLabel', { defaultValue: 'Voortgangsdatum' }),
+      projectStart: t('projectStart'),
+      projectEnd: t('projectEnd'),
+      projectDuration: t('projectDuration'),
+      daySuffix,
     },
     localizedMonths: getLocalizedMonths(locale),
     localizedMonthsShort: getLocalizedMonthsShort(locale),
@@ -738,7 +745,7 @@ export function ReportPanel() {
     autoFit, customZoom, paperSize, orientation, companyName, effectiveNameColumnWidth, t, locale, project.startDate,
     project.endDate, project.author, dateNotation, weekStartDay, reportCompressNonWorkdays, timelineColumns, reportFontScale,
     cpmResult, barColorSelection, fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs,
-    reportTaskTypeLabels, tTask, statusLine, statusDate, resources,
+    reportTaskTypeLabels, tTask, daySuffix, statusLine, statusDate, resources,
     assignments, baselineOverlay, reportRows, reportType, resourceGanttOptions.pageBreakPerResource, tasks.length,
     resourceGantt, resourceGanttWindow, assignmentColumns, curveLabels, curveColumnWidth, columnWidths, tableHeaders, i18n.language,
     durationDisplay, durationSuffixes, calendars]);
@@ -1441,14 +1448,16 @@ export function ReportPanel() {
                 value={barColorSelection.mode}
                 onChange={value => {
                   if (value === 'critical' || value === 'auto') {
-                    applySetting('barColorSelection', { mode: value }, saveBarColorSelection);
+                    const next = { mode: value } as const;
+                    setOverlays({ barColors: next });
                     return;
                   }
                   const field = barColorControl.effective.mode === 'category'
                     ? barColorControl.effective.field
                     : barColorFields[0]?.field;
                   if (!field) return;
-                  applySetting('barColorSelection', { mode: 'category', field }, saveBarColorSelection);
+                  const next = { mode: 'category', field } as const;
+                  setOverlays({ barColors: next });
                 }}
                 options={[
                   { value: 'critical', label: t('barColorMode_critical') },
@@ -1464,9 +1473,10 @@ export function ReportPanel() {
                   className="flex-1 min-w-0"
                   aria-label={t('barColorFieldLabel')}
                   value={encodeFieldRef(barColorControl.effective.field)}
-                  onChange={value => applySetting(
-                    'barColorSelection', { mode: 'category', field: decodeFieldRef(value) }, saveBarColorSelection,
-                  )}
+                  onChange={value => {
+                    const next = { mode: 'category', field: decodeFieldRef(value) } as const;
+                    setOverlays({ barColors: next });
+                  }}
                   options={barColorFields.map(option => ({
                     value: encodeFieldRef(option.field),
                     label: option.label,

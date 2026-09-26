@@ -30,6 +30,14 @@ export function formatLagShort(seq: LagFields): string {
 }
 
 /**
+ * De eenheden die `parseLagInput` achter het getal accepteert, als regex-alternatie. Eén bron: de
+ * CSV-voorgangerkolom (`csvReader`, "1.1FS+2u") bouwt zijn token-regex hieruit, zodat een CSV
+ * precies de notatie leest die `formatLagShort` schrijft en de app overal toont.
+ */
+export const LAG_UNIT_SUFFIXES = 'ed|eu|eh|e%|d|u|h|%';
+const LAG_INPUT = new RegExp(`^([+-]?\\d+(?:[.,]\\d+)?)(${LAG_UNIT_SUFFIXES})?$`);
+
+/**
  * Parse gebruikersinvoer naar lag-velden. Accepteert "2", "+2", "-1", "2d", "3ed", "50%",
  * "-25e%" (hoofdletterongevoelig, spaties genegeerd), én uren: "2u"/"2h" (werktijd-uren,
  * minuut-precies) en "3eu"/"3eh" (elapsed uren — kalonderuren, 24/7). `u` is de weergave-vorm
@@ -46,7 +54,7 @@ export function formatLagShort(seq: LagFields): string {
 export function parseLagInput(input: string): LagFields | null {
   const s = input.trim().toLowerCase().replace(/\s+/g, '');
   if (!s) return { lagDays: 0, lagUnit: undefined, lagPercent: undefined, lagMinutes: undefined };
-  const m = s.match(/^([+-]?\d+(?:[.,]\d+)?)(ed|eu|eh|e%|d|u|h|%)?$/);
+  const m = s.match(LAG_INPUT);
   if (!m) return null;
   const num = parseFloat(m[1].replace(',', '.'));
   if (!Number.isFinite(num)) return null;

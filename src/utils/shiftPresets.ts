@@ -1,3 +1,4 @@
+import type { ParseKeys } from 'i18next';
 import type { WorkCalendar, WorkTimeBands } from '@/types/calendar';
 import { workDaysFromBands } from '@/services/subdayIo';
 import { makeBands } from '@/utils/effectiveWorkTime';
@@ -91,13 +92,13 @@ export function shiftPresetPatch(key: ShiftPresetKey): WorkTimePatch {
 }
 
 /** i18n-key (common-namespace) voor een preset-label. */
-export const SHIFT_PRESET_LABEL: Record<ShiftPresetKey, string> = {
+export const SHIFT_PRESET_LABEL = {
   'day': 'calendar.shift.day',
   'two-shift': 'calendar.shift.twoShift',
   'three-shift': 'calendar.shift.threeShift',
   'night': 'calendar.shift.night',
   'continuous': 'calendar.shift.continuous',
-};
+} as const satisfies Record<ShiftPresetKey, ParseKeys<'common'>>;
 
 // ── Preset-omschrijving (B3, gebruikstest-bevinding 2026-08-15) ────────────────────────────────
 // `applyPreset` in CalendarForm.tsx patchte tot dusver workTime/shift/uren, maar NOOIT

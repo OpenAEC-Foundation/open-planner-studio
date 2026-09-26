@@ -159,7 +159,8 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
       // scheduleStart (het geplande anker) alléén bijwerken als de gebruiker de startdatum
       // daadwerkelijk wijzigde — anders zou opslaan de berekende start als nieuw anker vastleggen
       // en de drift na herberekenen herintroduceren.
-      const anchor = startAnchorAfterEdit(editingTask, startDate);
+      // Start is verplicht: het veld weigert leeg al (`required`, #200), dit is het vangnet.
+      const anchor = startDate ? startAnchorAfterEdit(editingTask, startDate) : undefined;
       if (anchor !== undefined) time.scheduleStart = anchor;
       const patch: Partial<Task> = {
         name: draft.name,

@@ -108,6 +108,43 @@ test('Splits-modus: een losse klik geeft een pauze van één werkdag', async ({ 
   ]);
 });
 
+test('Splits-modus: een door een voorganger opgeschoven taak splitst waar je klikt (#171)', async ({ page, ops: _ops }) => {
+  // De opvolger houdt zijn `scheduleStart`-anker op de projectstart; alleen `earlyStart` (waar de
+  // balk staat) schuift mee. Het gebaar mat vanaf het anker en splitste dus twee weken te vroeg.
+  const [predId, succId] = await seedProject(page, [
+    { name: 'Voorganger', start: START, finish: FINISH, durationDays: 10 },
+    { name: 'Opvolger', start: START, finish: FINISH, durationDays: 10 },
+  ]);
+  await page.evaluate(({ pred, succ }) => {
+    const s = window.__OPS__!.store.getState();
+    s.setUI({ compressNonWorkdays: false, showPropertiesPanel: false, rightPanelCollapsed: true });
+    s.setZoom(20);
+    s.setScroll(0, 0);
+    for (const id of [pred, succ]) s.updateTask(id, { manuallyScheduled: false });
+    s.addSequence({ predecessorId: pred, successorId: succ, type: 'FINISH_START', lagDays: 0 });
+    s.runCPM();
+  }, { pred: predId, succ: succId });
+  await expect.poll(() => page.evaluate((id) => {
+    const t = window.__OPS__!.store.getState().tasks.find(task => task.id === id)!;
+    return [t.time.scheduleStart, t.time.earlyStart];
+  }, succId)).toEqual([START, '2026-06-15']);
+  await enableSplitMode(page);
+
+  const point = await barPoint(page, succId);
+  // Maandag 2026-06-22: zeven kalenderdagen na de balkstart = na vijf werkdagen.
+  await page.mouse.move(await dayColumnX(page, succId, 7), point.y);
+  await page.mouse.down();
+  await page.mouse.up();
+
+  await expect.poll(() => splitGapsOf(page, succId)).toEqual([
+    { afterMinutes: 2400, gapMinutes: 480, source: 'user' },
+  ]);
+  // Het voorlopige balkeinde telt vanaf de balkstart: 11 werkdagen spanne ⇒ maandag 29 juni.
+  expect(await page.evaluate((id) => (
+    window.__OPS__!.store.getState().tasks.find(task => task.id === id)!.time.earlyFinish
+  ), succId)).toBe('2026-06-29');
+});
+
 test('Splits-modus: Escape zet de modus uit en haalt het meldingsblok weg', async ({ page, ops: _ops }) => {
   await seedSplittableTask(page);
   await enableSplitMode(page);
@@ -151,6 +188,12 @@ async function seedSplit(page: Page, taskId: string, days: number[]): Promise<vo
     pieces: days.map((d, i) => ({ kind: i % 2 === 0 ? 'work' : 'gap', minutes: d * DAY, ...(i % 2 ? { source: 'user' } : {}) })),
   });
   expect(refusal).toBeNull();
+  // Het contextmenu en de hit-test lezen de GETEKENDE taak, niet de store. Wacht dus tot de Gantt de
+  // nieuwe stukken getekend heeft; anders kan een rechtsklik nét vóór de repaint vallen en een menu
+  // zonder splitsitems openen (gezien in CI op een trage runner, PR #177).
+  const workPieces = Math.ceil(days.length / 2);
+  await expect.poll(() => page.evaluate(id => window.__OPS__!.gantt.taskSegmentCount(id), taskId))
+    .toBe(workPieces);
 }
 
 async function drag(page: Page, from: { x: number; y: number }, toX: number): Promise<void> {

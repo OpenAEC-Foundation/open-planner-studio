@@ -357,7 +357,8 @@
     "dialogTitle": "Restore unsaved work",
     "explanation": "Open Planner Studio did not close normally. The following documents had unsaved changes that can be restored:",
     "timeLabel": "Saved",
-    "taskCount": "{{count}} tasks",
+    "taskCount_one": "{{count}} task",
+    "taskCount_other": "{{count}} tasks",
     "restore": "Restore",
     "dontRestore": "Don't restore"
   },
@@ -660,7 +661,8 @@
     },
     "histogram": {
       "allResources": "All resources",
-      "overallocatedTooltip": "{{count}} tasks contribute on {{date}}",
+      "overallocatedTooltip_one": "{{count}} task contributes on {{date}}",
+      "overallocatedTooltip_other": "{{count}} tasks contribute on {{date}}",
       "overallocatedNonWorkingDay": "Does not work this day per calendar \"{{calendar}}\"",
       "noData": "Recalculate (F5) to show the load",
       "noResources": "No resources yet",
@@ -904,7 +906,11 @@
       "applyOnly": "Apply without saving",
       "infoApplyOnly": "Puts the ticked parts on screen without making a layout button. Useful for a quick, temporary filter.",
       "columnsNote": "Takes over the columns as they are in the table now. You choose columns with the plus in the table header.",
-      "relationsShow": "Show relationship lines"
+      "relationsShow": "Show relationship lines",
+      "partOverlays": "Overlay",
+      "infoOverlays": "Relationship lines, baseline, progress line, status date line, resource accent, float band and bar colors. Unticked: these stay as they are.",
+      "overlaysNotStored": "This layout stores only the relationship lines. If you change an overlay below, it stores all overlays too.",
+      "missingColorField": "Category: field does not exist in this project"
     },
     "presentation": {
       "hint": "Press Esc or F11 to exit full screen."

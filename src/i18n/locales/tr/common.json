@@ -357,7 +357,8 @@
     "dialogTitle": "Kaydedilmemiş çalışmayı geri yükle",
     "explanation": "Open Planner Studio normal şekilde kapanmadı. Aşağıdaki belgelerde geri yüklenebilecek kaydedilmemiş değişiklikler vardı:",
     "timeLabel": "Kaydedildi",
-    "taskCount": "{{count}} görev",
+    "taskCount_one": "{{count}} görev",
+    "taskCount_other": "{{count}} görev",
     "restore": "Geri yükle",
     "dontRestore": "Geri yükleme"
   },
@@ -660,7 +661,8 @@
     },
     "histogram": {
       "allResources": "Tüm kaynaklar",
-      "overallocatedTooltip": "{{date}} tarihinde {{count}} görev katkıda bulunuyor",
+      "overallocatedTooltip_one": "{{date}} tarihinde {{count}} görev katkıda bulunuyor",
+      "overallocatedTooltip_other": "{{date}} tarihinde {{count}} görev katkıda bulunuyor",
       "overallocatedNonWorkingDay": "Bu gün \"{{calendar}}\" takvimine göre çalışmıyor",
       "noData": "Yükü göstermek için yeniden hesaplayın (F5)",
       "noResources": "Henüz kaynak yok",
@@ -904,7 +906,11 @@
       "applyOnly": "Kaydetmeden uygula",
       "infoApplyOnly": "İşaretli bölümleri düzen düğmesi oluşturmadan ekrana uygular. Hızlı, geçici bir filtre için kullanışlıdır.",
       "columnsNote": "Sütunları tabloda şu anda olduğu gibi alır. Sütunları tablo başlığındaki artı ile seçersiniz.",
-      "relationsShow": "İlişki çizgilerini göster"
+      "relationsShow": "İlişki çizgilerini göster",
+      "partOverlays": "Katman",
+      "infoOverlays": "İlişki çizgileri, temel plan, ilerleme çizgisi, durum tarihi çizgisi, kaynak vurgusu, bolluk bandı ve çubuk renkleri. İşaretli değilse: oldukları gibi kalırlar.",
+      "overlaysNotStored": "Bu düzen yalnızca ilişki çizgilerini kaydeder. Aşağıda bir katmanı değiştirirseniz tüm katmanları da kaydeder.",
+      "missingColorField": "Kategori: alan bu projede yok"
     },
     "presentation": {
       "hint": "Tam ekrandan çıkmak için Esc veya F11'e basın."

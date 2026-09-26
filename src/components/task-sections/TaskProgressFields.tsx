@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { holdAutoCalc } from '@/state/editHold';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 import { DateTextInput } from '@/components/common/DateTextInput';
@@ -41,6 +42,13 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
   const [actualError, setActualError] = useState(false);
   const dragKey = useRef<string | undefined>(undefined);
   const derived = isSummaryTask(task);
+  const releaseHold = useRef<(() => void) | null>(null);
+  const endSlide = () => {
+    dragKey.current = undefined;
+    releaseHold.current?.();
+    releaseHold.current = null;
+  };
+  useEffect(() => () => { releaseHold.current?.(); }, []);
 
   return (
     <>
@@ -56,8 +64,15 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
             min={0}
             max={100}
             value={Math.round(task.time.completion * 100)}
-            onPointerDown={() => { dragKey.current = `progress:${task.id}:${++progressSeq}`; }}
-            onPointerUp={() => { dragKey.current = undefined; }}
+            onPointerDown={() => {
+              dragKey.current = `progress:${task.id}:${++progressSeq}`;
+              // Automatisch berekenen pas na het loslaten, niet bij elke stap van de schuif.
+              releaseHold.current?.();
+              releaseHold.current = holdAutoCalc();
+            }}
+            onPointerUp={endSlide}
+            onPointerCancel={endSlide}
+            onLostPointerCapture={endSlide}
             onChange={e => onSetProgress(parseInt(e.target.value) / 100, dragKey.current ? { coalesceKey: dragKey.current } : undefined)}
             disabled={derived}
             data-ops-progress-slider

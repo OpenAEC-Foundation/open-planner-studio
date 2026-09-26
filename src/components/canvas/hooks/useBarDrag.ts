@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { holdAutoCalc } from '@/state/editHold';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { parseDate, parseInstant, formatDate, formatInstant } from '@/utils/dateUtils';
 import { isCompressedEffective } from '@/engine/renderer/workdayAxis';
@@ -206,6 +207,12 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
     setSplitLabel(null);
     setDragState({ ...next, pointerStart, split });
   }, [axis, canvasRef, prepareSplitDrag]);
+
+  // Automatisch berekenen wacht tot de sleep af is: elke mousemove commit, en een CPM-run midden in
+  // het gebaar liet de balk onder de muis verspringen. Het effect laat ook los bij een afgebroken
+  // gebaar of unmount.
+  const dragging = dragState !== null;
+  useEffect(() => (dragging ? holdAutoCalc() : undefined), [dragging]);
 
   // Drag and drop: mousemove (via native event for performance)
   useEffect(() => {

@@ -240,18 +240,22 @@ export function completedWorkMinutes(task: Task, hoursPerDay: number): number {
  * kalender MÉT banden zet de solver de finish op het LAATSTE band-eind van de laatste werkdag
  * (`addDurationChecked`s `dayLastBandEnd`); dat wordt hier gespiegeld via `effectiveBandsOn`, zodat
  * de voorlopige waarde niet een halve dag van de echte afwijkt.
+ *
+ * `startStr` (issue #171): standaard het anker `scheduleStart` — het invoerpaar scheduleStart/
+ * scheduleFinish blijft zo consistent. Voor het BALKeinde (`earlyFinish`) geeft de store de start
+ * mee waar de balk staat (`earlyStart || scheduleStart`): een door een voorganger opgeschoven taak
+ * houdt haar anker op de projectstart, en dan sprong het balkeinde na een split daarnaartoe terug.
  */
-export function splitScheduleFinish(task: Task, eng: CalendarEngine): string {
-  const startStr = task.time.scheduleStart;
-  const hasTime = startStr.includes('T');
-  const start = hasTime ? parseInstant(startStr) : parseDate(startStr);
+export function splitScheduleFinish(task: Task, eng: CalendarEngine, startStr = task.time.scheduleStart): string {
+  const hasTime = task.time.scheduleStart.includes('T');
+  const start = startStr.includes('T') ? parseInstant(startStr) : parseDate(startStr);
   if (Number.isNaN(start.getTime())) return task.time.scheduleFinish; // corrupte invoer: niets verzinnen
   if (eng.isHourMode && taskDurationUnit(task) === 'hours') {
     const minutes = splitTotalSpanMinutes(task.splitGaps, durationMinutesOf(task, eng));
     return formatInstant(eng.addWorkMinutes(start, minutes), 'hour');
   }
   const totalDays = splitTotalSpanDays(task, eng);
-  const lastDay = eng.addWorkDays(hasTime ? utcDayStart(start) : start, totalDays);
+  const lastDay = eng.addWorkDays(utcDayStart(start), totalDays);
   if (!hasTime) return formatDate(lastDay);
   const bands = eng.effectiveBandsOn(lastDay);
   const finish = new Date(lastDay.getTime());

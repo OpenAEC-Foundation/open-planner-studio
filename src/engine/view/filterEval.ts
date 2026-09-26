@@ -4,7 +4,7 @@
 
 import type { Task } from '@/types/task';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
-import type { Resource, ResourceAssignment } from '@/types/resource';
+import type { Resource, ResourceAssignment, ResourceType } from '@/types/resource';
 import { groupBy } from '@/utils/collections';
 import type { FieldRef, FilterNode, FilterOperator } from '@/types/view';
 import { shownStart, shownFinish, shownSpanOverlapsDays } from '@/utils/taskDates';
@@ -17,6 +17,8 @@ export interface ViewContext {
   assignments: ResourceAssignment[];
   /** = t('structure.none') — de bestaande i18n-key, hergebruikt (§4.1). */
   noneLabel: string;
+  /** Vertaalde bandlabels voor groeperen op resourcetype (issue #173); ontbreekt ⇒ de enum-naam. */
+  resourceTypeLabels?: Partial<Record<ResourceType, string>>;
 }
 
 /** Ruwe, vergelijkbare veldwaarde (filter/sort). `resource` levert een array van namen. */
@@ -76,6 +78,43 @@ export function resourceNames(task: Task, ctx: ViewContext): string[] {
   return out;
 }
 
+/**
+ * Bandvolgorde van de resourcetypen: wie het werk doet eerst, dan waarmee, dan waarvan. Bewust vast
+ * en niet op vertaald label gesorteerd, zodat een uitgedeeld vel in elke taal dezelfde blokvolgorde
+ * heeft. Gedeeld door de schermgroepering (issue #173) en het rapport Resourcediagram. Een type dat
+ * hier zou ontbreken (kan niet met het huidige enum) komt achteraan.
+ */
+export const RESOURCE_TYPE_BAND_ORDER: readonly ResourceType[] = ['LABOR', 'CREW', 'SUBCONTRACTOR', 'EQUIPMENT', 'MATERIAL'];
+
+export function resourceTypeRank(type: ResourceType): number {
+  const i = RESOURCE_TYPE_BAND_ORDER.indexOf(type);
+  return i < 0 ? RESOURCE_TYPE_BAND_ORDER.length : i;
+}
+
+/** De aan de taak toegewezen resources zelf (join via assignments), in toewijzingsvolgorde. */
+export function assignedResources(task: Task, ctx: ViewContext): Resource[] {
+  const { assignmentsByTask, resourceById } = indexesFor(ctx);
+  const out: Resource[] = [];
+  for (const a of assignmentsByTask.get(task.id) ?? []) {
+    const resource = resourceById.get(a.resourceId);
+    if (resource) out.push(resource);
+  }
+  return out;
+}
+
+/** De verschillende TYPES van de aan de taak toegewezen resources, in de vaste bandvolgorde. */
+export function resourceTypes(task: Task, ctx: ViewContext): ResourceType[] {
+  const { assignmentsByTask, resourceById } = indexesFor(ctx);
+  const mine = assignmentsByTask.get(task.id);
+  if (!mine) return [];
+  const types = new Set<ResourceType>();
+  for (const a of mine) {
+    const type = resourceById.get(a.resourceId)?.type;
+    if (type) types.add(type);
+  }
+  return [...types].sort((a, b) => resourceTypeRank(a) - resourceTypeRank(b));
+}
+
 /** Komma-gescheiden resource-namen voor de resource-kolom (§5.3). */
 export function resourceCellValue(task: Task, ctx: ViewContext): string {
   return resourceNames(task, ctx).join(', ');
@@ -114,6 +153,8 @@ export function resolveField(field: FieldRef, task: Task, ctx: ViewContext): Fie
       return task.customFields?.[field.defId];
     case 'resource':
       return resourceNames(task, ctx);
+    case 'resourceType':
+      return resourceTypes(task, ctx).map(type => ctx.resourceTypeLabels?.[type] ?? type);
   }
 }
 

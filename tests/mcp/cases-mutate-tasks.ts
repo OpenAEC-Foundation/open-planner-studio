@@ -408,7 +408,15 @@ test('registratie: registerToolModules([taskTools]) ⇒ tools/list draagt prefix
   const msg = JSON.parse(raw);
   const tools: any[] = msg.result.tools;
   assertEq(tools.length, taskTools.length, 'alle T19-tools verschijnen in tools/list');
-  assert(tools.length === 10, 'de negen T19-tools (add/update/delete/move/add_dep/remove_dep/undo/redo/run_cpm) + set_task_splits (#146)');
+  // Geen vast aantal (dat moest bij elke nieuwe taaktool mee omhoog): wel dat de kern er staat.
+  const listed = new Set(tools.map((t) => t.name));
+  for (const name of [
+    'planner_add_tasks', 'planner_update_tasks', 'planner_delete_tasks', 'planner_move_task',
+    'planner_add_dependencies', 'planner_remove_dependencies', 'planner_undo', 'planner_redo',
+    'planner_run_cpm', 'planner_set_task_splits',
+  ]) {
+    assert(listed.has(name), `${name} ontbreekt in de T19-module`);
+  }
   for (const t of tools) {
     assert(typeof t.name === 'string' && t.name.startsWith('planner_'), `prefix op ${t.name}`);
     assert(typeof t.description === 'string' && t.description.trim().length > 0, `description op ${t.name}`);

@@ -599,7 +599,7 @@ export function CalendarForm({
                 onClick={() => toggleWorkDay(day)}
                 className={accentChipClass(active)}
               >
-                {tMenu(`ribbon.calendarDialog.days.${day}` as 'ribbon.calendarDialog.days.1')}
+                {tMenu(`ribbon.calendarDialog.days.${day}`)}
               </button>
             );
           })}
@@ -735,7 +735,7 @@ export function CalendarForm({
             {CALENDAR_PRESETS.map(key => (
               <button key={key} type="button" onClick={() => applyBuiltinPreset(key)}
                 className="btn btn--sm btn--secondary" data-ops-preset={key}>
-                {tCommon(SHIFT_PRESET_LABEL[key] as 'calendar.shift.day')}
+                {tCommon(SHIFT_PRESET_LABEL[key])}
               </button>
             ))}
             {ownPresets.map(p => (

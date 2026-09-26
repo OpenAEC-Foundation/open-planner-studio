@@ -13,18 +13,42 @@ export function isActualPastStatusDate(dateIso: string, statusDateIso: string): 
   return parseInstant(dateIso).getTime() > parseInstant(statusDateIso).getTime();
 }
 
+/**
+ * Werkelijk einde voor een taak op 100 % zonder `actualFinish`: de statusdatum, anders de EIGEN
+ * geplande finish (berekend, anders gepland); de regel valt nooit terug op "vandaag" (H1,
+ * `check-task-slice.ts`). Eén regel voor de store (`applyProgressInvariants`: grid, store-setters,
+ * MCP-validatie) én voor elke lezer (`normalizeImportedProgress`: IFC/CSV/MSPDI/P6/MPP). Die tweede
+ * kopie viel nog terug op vandaag, waardoor een bestand met 100 % zonder werkelijk einde bij elke
+ * opening op de leesdatum voltooid werd en zijn opvolgers mee opschoof (import/export-audit,
+ * bevinding 6; `tests/planning/check-import-progress-default.ts`). Bewust alleen de AF-default
+ * gedeeld, niet de hele invariant: de import houdt zijn eigen STARTED-regel voor completion > 0
+ * zonder actualStart (solver-vangnet §4.2 tak 2b).
+ */
+export function defaultActualFinish(
+  time: Pick<TaskTime, 'earlyFinish' | 'scheduleFinish'>,
+  statusDate: string | undefined,
+): string {
+  return statusDate || time.earlyFinish || time.scheduleFinish;
+}
+
+/**
+ * Impliciete werkelijke start (§3.2, MSP-conventie "% invullen ⇒ gestart"): de eigen geplande start
+ * (berekend, anders gepland). Eén regel voor de store-paden die voortgang zonder `actualStart` zetten
+ * (`setTaskProgress`, de Tabel, MCP-validatie) én voor de lezers bij een VOLTOOIDE taak zonder
+ * werkelijke start (`normalizeImportedProgress`). Zonder die gedeelde regel kreeg een ingelezen taak op
+ * 100 % zonder actuals AS = AF en kromp de voltooide balk tot zijn laatste dag (import/export-audit,
+ * vervolg op bevinding 6). Een LOPENDE taak zonder actualStart krijgt bij import bewust géén start
+ * (solver-vangnet §4.2 tak 2b).
+ */
+export function defaultActualStart(time: Pick<TaskTime, 'earlyStart' | 'scheduleStart'>): string {
+  return time.earlyStart || time.scheduleStart;
+}
+
 /** Werkelijk einde vóór werkelijke start? Op instantprecisie (`parseInstant`), niet als ruwe
  *  string: een date-only waarde en een datetime op dezelfde dag vergelijken anders verkeerd. */
 export function isActualFinishBeforeStart(time: Pick<TaskTime, 'actualStart' | 'actualFinish'>): boolean {
   return !!time.actualStart && !!time.actualFinish
     && parseInstant(time.actualFinish).getTime() < parseInstant(time.actualStart).getTime();
-}
-
-/** Het werkelijke einde dat `applyProgressInvariants` afleidt voor een 100%-taak zonder opgegeven
- *  einde: de statusdatum, anders de eigen geplande finish (nooit "vandaag", zie check-task-slice.ts).
- *  Eén bron, zodat `fillMissingActualStart` precies het einde voorspelt dat de invariant straks zet. */
-function derivedActualFinish(time: TaskTime, statusDate: string | undefined): string {
-  return statusDate || time.earlyFinish || time.scheduleFinish;
 }
 
 /**
@@ -36,7 +60,7 @@ function derivedActualFinish(time: TaskTime, statusDate: string | undefined): st
  * werkelijke start ná het werkelijke einde (= de statusdatum).
  *
  * "Het einde" is het al gezette `actualFinish`, of — staat de taak op 100% zonder einde — het einde
- * dat `applyProgressInvariants` daarna afleidt (`derivedActualFinish`). Roep dit dus aan NÁ het
+ * dat `applyProgressInvariants` daarna afleidt (`defaultActualFinish`). Roep dit dus aan NÁ het
  * vastleggen van `completion` en het wissen van een verouderd einde, en vóór de invarianten.
  * Vergelijken gaat met `isActualFinishBeforeStart` (instantprecisie): date-only waarden vallen op
  * UTC-middernacht, dus dagtaken vergelijken per dag en een uurtaak krijgt exact het einde-instant.
@@ -46,9 +70,9 @@ function derivedActualFinish(time: TaskTime, statusDate: string | undefined): st
  */
 export function fillMissingActualStart(time: TaskTime, statusDate: string | undefined): void {
   if (time.actualStart) return;
-  const start = time.earlyStart || time.scheduleStart;
+  const start = defaultActualStart(time);
   const finish = time.actualFinish
-    || (time.completion >= 1 ? derivedActualFinish(time, statusDate) : undefined);
+    || (time.completion >= 1 ? defaultActualFinish(time, statusDate) : undefined);
   time.actualStart = finish && isActualFinishBeforeStart({ actualStart: start, actualFinish: finish })
     ? finish
     : start;
@@ -89,7 +113,7 @@ export function applyProgressInvariants(task: Task, statusDate: string | undefin
     if (!time.actualStart) time.actualStart = time.actualFinish;
     task.status = 'COMPLETED';
   } else if (time.completion >= 1) {
-    time.actualFinish = derivedActualFinish(time, statusDate);
+    time.actualFinish = defaultActualFinish(time, statusDate);
     if (!time.actualStart) time.actualStart = time.actualFinish;
     task.status = 'COMPLETED';
   } else if (time.actualStart) {

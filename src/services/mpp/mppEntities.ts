@@ -124,7 +124,9 @@ const CONS_FIXED_DATA_ITEM_SIZE = 20;
  *    `Sequence.lagPercent`) te laten leveren, past deze functie dezelfde /10 toe als mspdiReader.ts
  *    — vóór deze fix gaf een percent-lag hier 100× de waarde die mspdiReader voor eenzelfde
  *    LinkLag-getal zou leveren (T7-spec-review, B2).
- *  - elke andere "elapsed"-variant (minuten/uren/dagen/weken/maanden delen allemaal dezelfde ruwe
+ *  - elapsedMinutes/elapsedHours: minuut-exact `lagMinutes` (`rawLag / 10`) + ELAPSEDTIME — identiek
+ *    aan mspdiReader's `ELAPSED_SUBDAY_FORMATS`-tak (import/export-audit 2026-09, bevinding 4).
+ *  - elke andere "elapsed"-variant (dagen/weken/maanden delen dezelfde ruwe
  *    tienden-van-minuut-basis): kalenderdag-omrekening via `getDuration(rawLag, 'elapsedDays')`
  *    (mppPrimitives.ts — T7-kwaliteitsreview M1: hergebruikt i.p.v. een losse `rawLag/10/60/24`-
  *    inline-formule; `getDuration`'s `elapsedDays`-tak deelt door 14400 = 24*60*10, wiskundig
@@ -151,6 +153,12 @@ function mppLagToSequenceFields(rawLag: number, unitCode: number, hoursPerDay: n
     const fields: SequenceLagFields = { lagDays: 0, lagPercent: rawLag / 10 };
     if (unit === 'elapsedPercent') fields.lagUnit = 'ELAPSEDTIME';
     return fields;
+  }
+  // Elapsed MINUTEN/UREN ("emin"/"ehr") zijn een uur-lag: minuut-exact, ongeacht de modus van de
+  // opvolger — spiegelt mspdiReader's `ELAPSED_SUBDAY_FORMATS`-tak (import/export-audit 2026-09,
+  // bevinding 4: de elapsed-dag-afronding hieronder maakte van "12 ehr" 24 uur en van "8 ehr" 0).
+  if (unit === 'elapsedMinutes' || unit === 'elapsedHours') {
+    return { lagDays: 0, lagMinutes: Math.round(rawLag / 10), lagUnit: 'ELAPSEDTIME' };
   }
   if (unit.startsWith('elapsed')) {
     return { lagDays: Math.round(getDuration(rawLag, 'elapsedDays')), lagUnit: 'ELAPSEDTIME' };

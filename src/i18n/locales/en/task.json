@@ -18,7 +18,10 @@
     "hint": "The distribution only changes the hours per day of this assignment; task dates and splits stay as they are. A phase with effort 0 stays within the task duration.",
     "release": "Release distribution"
   },
-  "durationType": { "WORKTIME": "Work time", "ELAPSEDTIME": "Elapsed time" },
+  "durationType": {
+    "WORKTIME": "Work time",
+    "ELAPSEDTIME": "Elapsed time"
+  },
   "table": {
     "title": "Table",
     "wbs": "WBS",
@@ -461,11 +464,6 @@
       "workDeviatesHint": "Stored work {{stored}} h differs from units × remaining duration ({{derived}} h). The histogram follows the stored work across the whole task duration; the units stay as the file gave them.",
       "locked": "Protected by the work rule {{rule}}"
     },
-    "calendar": "Calendar",
-    "calendarProject": "Project calendar",
-    "priority": "Leveling priority",
-    "levelingDelay": "Leveling delay",
-    "durationHours": "Duration (hours)",
     "notes": {
       "title": "Notes",
       "add": "Add note",
@@ -474,6 +472,11 @@
       "done": "Done",
       "empty": "No notes yet."
     },
+    "calendar": "Calendar",
+    "calendarProject": "Project calendar",
+    "priority": "Leveling priority",
+    "levelingDelay": "Leveling delay",
+    "durationHours": "Duration (hours)",
     "splits": {
       "title": "Breaks",
       "after": "after",
@@ -555,6 +558,7 @@
   "defaultInspection": "New inspection point",
   "column": {
     "resource": "Resources",
+    "resourceType": "Resource type",
     "activityCodeSuffix": "activity code",
     "customFieldSuffix": "custom field"
   },

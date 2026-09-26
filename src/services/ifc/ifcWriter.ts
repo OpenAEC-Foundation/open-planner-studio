@@ -69,12 +69,31 @@ function ifcDateTimeHour(iso: string): string {
   return `'${iso}'`;
 }
 
+/**
+ * Het getal in een ISO-8601-dagduur (`P…D`). Hele dagen (en niet-eindige waarden) blijven exact
+ * `${days}`, dus bestaande bestanden zijn byte-identiek. Een fractionele dag (CSV-import, Tabel
+ * "1d 4u", AI-bridge, afgeleide speling van uurtaken) wordt afgerond op 6 decimalen, zodat er nooit
+ * float-ruis (`0.30000000000000004`) of exponent-notatie (`1e-7`) in het bestand komt.
+ *
+ * Waarom 6: de fijnste kalender (24 u/dag) heeft 1440 minuten per dag, dus één minuut is ≈ 6,9·10⁻⁴
+ * dag. De afrondfout is hooguit 5·10⁻⁷ dag, oftewel 0,0007 minuut (43 ms) bij 24 u/dag: `dagen ×
+ * uren-per-dag × 60` geeft na teruglezen dezelfde minuut, bij elke taakkalender. Float-ruis ligt rond
+ * 10⁻¹⁵ relatief en valt voor elke realistische duur ruim onder die grens, dus hij verdwijnt altijd.
+ * Hetzelfde afrondniveau als de procent-lag in de reader. Na afronding is de kleinste waarde ≠ 0
+ * 0.000001, en die schrijft JS nog zonder exponent (dat doet hij pas onder 10⁻⁶ en vanaf 10²¹ dagen).
+ */
+function ifcDayNumber(days: number): string {
+  if (!Number.isFinite(days) || Number.isInteger(days)) return `${days}`;
+  return `${Math.round(days * 1e6) / 1e6}`;
+}
+
 function ifcDuration(days: number): string {
-  return `'P0Y0M${days}D'`;
+  return `'P0Y0M${ifcDayNumber(days)}D'`;
 }
 
 /** Fase 2.8b (§7.1) — duur van een UUR-taak in minuten als ISO-8601-duur met tijdcomponent
- *  (`PT{h}H{m}M0S`); minuut-precies en byte-stabiel terug te lezen (`isoDurationToMinutes`). */
+ *  (`PT{h}H{m}M0S`); minuut-precies en byte-stabiel terug te lezen (`isoDurationToMinutes`). Geen
+ *  ruis- of exponentrisico zoals bij `ifcDayNumber`: `minutesToIsoDuration` rondt op hele minuten. */
 function ifcDurationHour(minutes: number): string {
   return `'${minutesToIsoDuration(minutes)}'`;
 }
@@ -1135,7 +1154,7 @@ function ifcLagValue(seq: Sequence): string {
     return `IFCDURATION('${minutesToIsoDuration(seq.lagMinutes)}')`;
   }
   const d = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
-  return d < 0 ? `IFCDURATION('-P${-d}D')` : `IFCDURATION('P${d}D')`;
+  return d < 0 ? `IFCDURATION('-P${ifcDayNumber(-d)}D')` : `IFCDURATION('P${ifcDayNumber(d)}D')`;
 }
 
 function writeSequence(ctx: WriteContext, seq: Sequence, ownerHistId: number): void {

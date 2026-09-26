@@ -40,6 +40,9 @@ Generator-details (hoe `publish-wiki.mjs` werkt, slugs, `docs://`-omzetting) sta
 - **Brontalen zijn `nl` + `en`** — die werk je **allebei** bij, altijd. De overige locales laat je
   met rust: die lopen in een aparte maandelijkse vertaalronde. `verify:docs` eist alleen nl+en en
   accepteert ontbrekende vertalingen (bewezen: `gids-ai-mcp` bestaat alleen in nl+en, poort groen).
+  Voeg je in nl+en een kop of `docs://`-link toe aan een gids die al vertalingen heeft, dan meldt
+  `verify:docs` per vertaling een `!`-waarschuwing ("loopt achter op EN") — geen fout, dus niet
+  bijwerken. Alleen een afwijking tussen `nl` en `en` zelf maakt de poort rood.
 - **`public/docs/en` voedt twee consumenten**: de in-app Help **én** de GitHub-wiki. Eén edit daar
   verandert allebei.
 - **Wiki-only pagina's** = alles in `docs/wiki/*.md` (Engels; o.a. `Home`, `Features`,

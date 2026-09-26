@@ -15,15 +15,62 @@ poort; loopt dit document ooit achter, dan heeft die het gelijk.
 1. **Kies de namespace.** `common` voor generieke UI-tekst, `task` voor taakspecifieke labels,
    `report` voor rapport-/exportcontext, `menu` voor ribbon-/backstage-/menutekst. De vier bestanden
    staan naast elkaar per taal: `src/i18n/locales/<taal>/{common,task,report,menu}.json`.
-2. **Schrijf de sleutel eerst in `nl`.** Gebruik geneste paden waar dat de bestaande structuur volgt
-   (`collectPaths` in `i18n-diff.mjs` loopt recursief door geneste objecten).
-3. **Roep hem aan met `t('namespace:pad.naar.sleutel')`** — nooit hardgecodeerde zichtbare tekst.
-4. **Vertaal naar minstens Engels.** In theorie valt een ontbrekende vertaling terug op Engels
-   (`fallbackLng: 'en'` in `config.ts`) en niet op een kale sleutel — maar `verify:i18n` (zie hieronder)
-   eist voor een NIET-meervoudige sleutel gewoon dat **alle 14 locales** hem hebben, dus dat vangnet is
-   voor gebruikers zichtbare taalvervuiling, niet voor de CI-poort. Vertaal dus naar alle 14, of
-   accepteer een rode `verify:i18n` totdat dat gebeurd is.
+2. **Schrijf de vertalingen in één JSON-bestand**, per locale één tekst — alle 14, want elke nieuwe
+   tekst gaat meteen in alle talen (besluit werkwijze 2026-09):
+   ```json
+   { "nl": "Onderbreking opheffen", "en": "Remove break", "fr": "…", "de": "…", … }
+   ```
+   Telt de tekst iets (`t(key, { count })`), schrijf dan per locale de meervoudsvormen van díé taal
+   (zie *De valkuil* hieronder):
+   ```json
+   { "nl": { "one": "{{count}} taak", "other": "{{count}} taken" },
+     "pl": { "one": "…", "few": "…", "many": "…", "other": "…" }, "zh": { "other": "…" }, … }
+   ```
+3. **Zet hem in alle 14 locales met één commando:**
+   ```bash
+   npm run i18n:add -- common:pad.naar.sleutel vertalingen.json              # nieuw, achteraan
+   npm run i18n:add -- common:pad.naar.sleutel vertalingen.json --after broer # nieuw, na een broer
+   npm run i18n:add -- common:pad.naar.sleutel vertalingen.json --update     # bestaande wijzigen
+   ```
+   Het script schrijft niets en noemt de fout als een locale ontbreekt, een taal niet precies haar
+   CLDR-meervoudscategorieën heeft, of de `{{invulplekken}}` afwijken van `nl` (een meervoudsvorm mag
+   `{{count}}` in woorden uitschrijven, zoals het Arabische "مهمة واحدة"). De sleutel komt in elke
+   locale op dezelfde plek, want alle bestanden volgen de volgorde van `nl`.
+4. **Roep hem aan met `t('namespace:pad.naar.sleutel')`** — nooit hardgecodeerde zichtbare tekst.
 5. **Draai `npm run verify:i18n`.** Zie hieronder wat hij precies controleert.
+
+Met de hand bewerken mag nog steeds (het blijft gewone JSON); draai daarna `npm run i18n:fmt`, anders
+faalt `verify:i18n` op de opmaak.
+
+## De vaste opmaak (`npm run i18n:fmt`)
+
+Alle 56 locale-bestanden hebben één opmaak: één sleutel per regel (JSON, twee spaties), in precies de
+volgorde van `nl`; een meervoudsfamilie staat op de plek van haar `nl`-familie met de categorieën van
+de eigen taal in CLDR-volgorde (`zero`, `one`, `two`, `few`, `many`, `other`). Daardoor valt een
+mergeconflict op één regel in plaats van op een blok (vroeger stonden in zes talen 70 kolomnamen op één
+regel van ~2.600 tekens), en staat een nieuwe sleutel in elke taal op dezelfde plek. `npm run i18n:fmt`
+zet alles recht; `verify:i18n` draait dezelfde opmaak als controle (`--check`). Opmaken verandert nooit
+de inhoud — `tests/planning/check-i18n-tools.ts` bewijst dat op alle echte bestanden.
+
+## Mergen (`npm run i18n:resolve`)
+
+Draai na elke `git merge` waarbij aan beide kanten locale-bestanden veranderden `npm run i18n:resolve`,
+óók als git daar geen conflict meldde. Het script voegt alle 56 bestanden per sleutel samen uit de drie
+versies die git kent (merge-base, jouw kant, de andere kant), zet ze in de vaste opmaak en doet
+`git add`. Wat maar één kant toevoegde, wijzigde of verwijderde, gaat mee.
+
+Waarom niet op git vertrouwen: git vergelijkt regels. Verwijdert jouw branch een sleutel die de andere
+kant alleen verplaatste (zoals bij de eenmalige herschikking), dan voegt git "zonder conflict" samen en
+staat de sleutel er stil weer. `tests/planning/check-i18n-resolve.ts` bootst dat na met echte git.
+
+- **Merge loopt nog** (git meldde conflicten): `npm run i18n:resolve` en daarna `git commit`.
+- **Git maakte de merge-commit al**: hetzelfde commando controleert die commit. Klopt hij, dan wijzigt
+  het niets; anders staat de correctie klaar voor `git commit --amend --no-edit`.
+- **Echte botsing** (dezelfde sleutel aan beide kanten anders gewijzigd): exit 1. Het script noemt
+  per sleutel beide waarden en laat dat bestand open (voorlopig jouw waarde, niet ge-`git add`). Kies
+  de juiste waarde, doe `git add` en draai `npm run verify:i18n`.
+- **`package.json` in conflict**: los dat eerst op. Zolang daar conflictmarkeringen in staan, start
+  geen enkel npm-script.
 
 ## Wat `verify:i18n` (`scripts/i18n-diff.mjs`) doet
 
@@ -44,6 +91,23 @@ een letterlijke sleutelvergelijking:
 - **Poort, geen rapportage — met een uitzondering.** Zonder `--json` eindigt het script op exit 1
   zodra er ergens een sleutel ontbreekt (`npm run verify:i18n`, onderdeel van `npm run verify`).
   `--json` blijft rapportagemodus (exit 0) voor doorsluizen naar tooling.
+
+## Een samengestelde sleutel: geen `as`
+
+De typecheck controleert elke sleutel die je aan `t(...)` geeft tegen de nl-bronbestanden
+(`src/i18n/types.d.ts`), ook een samengestelde zoals ``t(`taskType.${type}`)``, zolang het variabele
+deel een vaste set waarden heeft (een union-type). Een cast als ``t(`…${x}` as 'a.b')`` of
+`t(tabel[k] as 'a.b')` zet die controle uit: een ontbrekende vertaling valt dan pas op als de gebruiker
+Engels of de kale sleutel ziet. `verify:i18n` weigert zo'n cast daarom (`scripts/verify-i18n-keys.mjs`;
+`as const` mag wel).
+
+Geef in plaats daarvan de bron het sleuteltype:
+
+- een tabel: `const LABEL = { … } as const satisfies Record<Soort, ParseKeys<'common'>>;`
+- een veld in een type: `titleKey: ParseKeys<'common'>` (sleutels uit meer namespaces:
+  `ParseKeys<['common', 'menu']>`, met `useTranslation(['common', 'menu'])` bij de aanroep).
+
+`ParseKeys` komt uit `i18next` (`import type { ParseKeys } from 'i18next'`).
 
 ## De valkuil: een kale `t(key, { count })` wordt niet automatisch een pluralfamilie
 
@@ -72,5 +136,8 @@ geen generieke poort die elke `t(key, { count })`-aanroep in de hele codebase vi
 | i18next-init, eager (en) vs. lazy (overige) | `src/i18n/config.ts` |
 | lazy-loader per taal | `src/i18n/` (`loadLocale()`) |
 | de poort: CLDR-pluralcategorieën per locale | `scripts/i18n-diff.mjs` (`npm run verify:i18n`) |
+| toevoegen/wijzigen in alle 14 locales, vaste opmaak | `scripts/i18n-add.ts` (`npm run i18n:add`), `scripts/i18n-fmt.ts` (`npm run i18n:fmt`), kern `scripts/i18n-tools.ts` |
+| test van die kern (inhoud blijft gelijk op alle echte bestanden) | `tests/planning/check-i18n-tools.ts` |
+| locale-bestanden per sleutel samenvoegen na `git merge` | `scripts/i18n-resolve.ts` (`npm run i18n:resolve`), end-to-end getest in `tests/planning/check-i18n-resolve.ts` |
 | domeincheck: taakgrid-registerlabels + echte `count`-aanroepen | `tests/planning/check-task-grid-i18n.ts` |
 | RTL-locales (`ar`, `fa`) | `RTL_LOCALES` in `src/i18n/config.ts` |

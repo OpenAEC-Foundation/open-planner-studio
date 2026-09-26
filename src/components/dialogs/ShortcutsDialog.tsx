@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Keyboard } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
-import { SHORTCUTS, type ShortcutCategory, type ShortcutCombo } from '@/hooks/keyboard/shortcutRegistry';
+import { SHORTCUTS, type ShortcutCategory, type ShortcutCombo, type ShortcutDef } from '@/hooks/keyboard/shortcutRegistry';
 import { isMacPlatform, formatComboGroup } from '@/hooks/keyboard/shortcutFormat';
 
 /** Volgorde uit het ontwerpdocument (§"Overzichtsdialoog"); `grid` staat achteraan als eigen
@@ -11,7 +11,7 @@ import { isMacPlatform, formatComboGroup } from '@/hooks/keyboard/shortcutFormat
 const CATEGORY_ORDER: ShortcutCategory[] = ['file', 'edit', 'structure', 'view', 'nav', 'grid'];
 
 interface ShortcutRow {
-  labelKey: string;
+  labelKey: ShortcutDef['labelKey'];
   combos: ShortcutCombo[];
 }
 
@@ -48,7 +48,7 @@ function buildRows(): Record<ShortcutCategory, ShortcutRow[]> {
  * uitgesteld, zie het ontwerpdocument).
  */
 export function ShortcutsDialog() {
-  const { t } = useTranslation('common');
+  const { t } = useTranslation(['common', 'menu']);
   const setUI = useAppStore(s => s.setUI);
   const close = () => setUI({ showShortcutsDialog: false });
 
@@ -80,12 +80,10 @@ export function ShortcutsDialog() {
                       key={row.labelKey}
                       className="flex items-center justify-between gap-3 px-2 py-1.5 rounded-[8px] hover:bg-surface-hover"
                     >
-                      {/* `row.labelKey` is dynamisch (register-driven, incl. `menu:`/`context.`-
-                          verwijzingen naar andere namespaces) — geen statisch literal, dus buiten
-                          de gegenereerde resource-key-typing van i18next. Zelfde geaccepteerde
-                          patroon als de dynamische `tMenu(... as 'ribbon.calendarDialog.days.1')`-
-                          cast in CalendarForm.tsx/WorkTimeEditor.tsx. */}
-                      <span className="flex-1 truncate">{t(row.labelKey as 'close')}</span>
+                      {/* `row.labelKey` komt uit het register en is getypt als sleutel uit
+                          `common` of `menu` (`ShortcutDef.labelKey`): de typecheck vangt een
+                          ontbrekende vertaling, zonder cast. */}
+                      <span className="flex-1 truncate">{t(row.labelKey)}</span>
                       <span className="flex-shrink-0 font-mono !text-body text-text-secondary whitespace-nowrap">
                         {formatComboGroup(row.combos, isMac, orJoiner)}
                       </span>

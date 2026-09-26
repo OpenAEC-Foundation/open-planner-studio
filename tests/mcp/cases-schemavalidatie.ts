@@ -209,12 +209,15 @@ test('dispatcher: een GELDIGE call passeert de poort ongehinderd', async () => {
 });
 
 // =================================================================================================
-// 3) Schema-dekking over ALLE 42 tools
+// 3) Schema-dekking over ALLE geregistreerde tools
 // =================================================================================================
-test('alle 42 inputSchema\'s gebruiken uitsluitend trefwoorden die de validator afdwingt', () => {
+// Bewust geen vast aantal: dat moest bij elke nieuwe tool mee omhoog. Dat de registry compleet is
+// (broncode ⇄ registratie, exact dezelfde namen) bewaakt `cases-toolregistry.ts`; hier alleen dat
+// de lus niet leeg — en daarmee vacuüm groen — is.
+test('alle inputSchema\'s gebruiken uitsluitend trefwoorden die de validator afdwingt', () => {
   registerAllTools();
   const tools = getTools();
-  assert(tools.length === 42, `verwachtte 42 tools, kreeg ${tools.length}`);
+  assert(tools.length > 0, 'geen enkele tool geregistreerd — de schemacontrole zou niets keuren');
   const offenders: string[] = [];
   for (const t of tools) {
     const unknown = unsupportedKeywords(t.inputSchema);

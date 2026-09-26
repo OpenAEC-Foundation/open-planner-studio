@@ -111,14 +111,19 @@ check_batteries () {
 check_batteries
 
 # ── Check-scriptinventaris ──────────────────────────────────────────────────────────────────
-# Een `check-*.ts`-bestand dat op schijf staat maar door GEEN ENKELE `if bundle_check
-# "$DIR/check-..."`-regel wordt aangeroepen, draait in een volledige run stilzwijgend niet mee —
-# geen foutmelding, gewoon een lager totaal (zo werd `check-tauri-refresh-evidence.ts` wees:
-# bestond, typechecte mee via tsconfig.check.json, maar was door geen `bundle_check`-regel
-# aangesloten — gevonden 2026-09, inmiddels bedraad). Iedere `check-*.ts` moet daarom OFWEL
-# aangeroepen worden, OFWEL expliciet met reden op CHECK_SCRIPT_ALLOWLIST staan — naar het model
-# van EXPECTED_BATTERIES/check_batteries hierboven, maar dan voor de losse check-scripts i.p.v.
-# de cases-*.json-batterijen.
+# Een nieuwe `check-*.ts` draait vanzelf mee: je hoeft hem NIET in dit script te bedraden. Elke
+# `check-*.ts` die door geen enkele `if bundle_check "$DIR/check-..."`-regel wordt aangeroepen en
+# niet op CHECK_SCRIPT_ALLOWLIST staat, bundelt en draait de volledige run automatisch (zie
+# "Automatisch meegenomen checks" onderaan het volledige-run-blok), inclusief de tijdzone-matrix.
+# Een eigen `bundle_check`-regel is alleen nog nodig voor een check die iets bijzonders vraagt:
+# een omgevingsvariabele, een vaste plek in de volgorde, of juist NIET in de tijdzone-matrix.
+#
+# Voorheen was bedraden verplicht en faalde deze inventaris rood op een onbedrade check (nadat
+# `check-tauri-refresh-evidence.ts` stil wees was geraakt: hij bestond, typechecte mee, maar draaide
+# nergens). Automatisch meenemen dicht datzelfde gat zonder dat elke nieuwe test dit script raakt.
+# CHECK_SCRIPT_ALLOWLIST is daarmee de lijst van checks die bewust NIET meedraaien — een
+# handmatige of bewust rode check, met een regel die uitlegt waarom, plus een verwijzing naar de
+# bijbehorende docs/TODO.md-notitie.
 CHECK_SCRIPT_ALLOWLIST=(
   # (Een bewust handmatige/rode check hoort hier met een regel die uitlegt waarom, plus een
   # verwijzing naar de bijbehorende docs/TODO.md-notitie.)
@@ -133,8 +138,9 @@ CHECK_SCRIPT_ALLOWLIST=(
   check-xer-resource-catalog-types.ts
 )
 
+AUTO_CHECK_SCRIPTS=()
 check_check_scripts () {
-  local f base missing=() allow
+  local f base allow
   local -A wired=() allowed=()
   for base in $(grep -E '^[[:space:]]*if bundle_check "\$DIR/check-' "${BASH_SOURCE[0]}" \
       | grep -oE 'check-[A-Za-z0-9_-]+\.ts' | sort -u || true); do
@@ -146,16 +152,13 @@ check_check_scripts () {
   for f in "$DIR"/check-*.ts; do
     base="$(basename "$f")"
     if [ -z "${wired[$base]:-}" ] && [ -z "${allowed[$base]:-}" ]; then
-      missing+=("$base")
+      AUTO_CHECK_SCRIPTS+=("$base")
     fi
   done
-  if [ "${#missing[@]}" -gt 0 ]; then
-    echo "XX  check-scriptinventaris: ${#missing[@]} bestand(en) niet aangeroepen en niet op de allowlist: ${missing[*]}"
-    echo "    (nieuwe/vergeten check-*.ts? bedraad 'm met 'if bundle_check ...; then ...; fi', of zet 'm"
-    echo "    met een reden op CHECK_SCRIPT_ALLOWLIST bovenin dit script — nooit stilzwijgend een rode check bedraden)"
-    STATUS=1
+  if [ "${#AUTO_CHECK_SCRIPTS[@]}" -gt 0 ]; then
+    echo "OK  check-scriptinventaris: ${#AUTO_CHECK_SCRIPTS[@]} check(s) zonder eigen regel draaien automatisch mee: ${AUTO_CHECK_SCRIPTS[*]}"
   else
-    echo "OK  check-scriptinventaris: alle check-*.ts-bestanden aangesloten of op de allowlist"
+    echo "OK  check-scriptinventaris: alle check-*.ts-bestanden hebben een eigen regel of staan op de allowlist"
   fi
 }
 check_check_scripts
@@ -232,6 +235,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # in de standaard 'blur'-modus precies EEN commit (en dus een undo-stap) opleveren.
   DICHECK="$DIR/.date-input-commit-check.mjs"
   if bundle_check "$DIR/check-date-input-commit.ts" "$DICHECK"; then node "$DICHECK" || STATUS=1; fi
+
+  # Verplichte startdatum in de store: `updateTask` legt een lege/onleesbare `scheduleStart` nooit
+  # vast (vangnet onder paneel, dialoog en extensie-API; het raster weigert al met `required`).
+  RSCHECK="$DIR/.required-task-start-check.mjs"
+  if bundle_check "$DIR/check-required-task-start.ts" "$RSCHECK"; then node "$RSCHECK" || STATUS=1; fi
 
   # "Je bent net geüpdatet"-vergelijklogica (releaseInfo.ts — pure functies, los van de CPM-cases).
   JUCHECK="$DIR/.just-updated-check.mjs"
@@ -713,6 +721,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # isMilestone bewust NIET.
   AHCHECK="$DIR/.adapters-hierarchy-rest.mjs"
   if bundle_check "$DIR/check-adapters-hierarchy-rest.ts" "$AHCHECK"; then node "$AHCHECK" || STATUS=1; fi
+  # Import/export-audit 2026-09 (bevindingen 3/4/7/8): XML-formaatherkenning op root-element i.p.v.
+  # vrije tekst ("Primavera"), elapsed-uur-lag in MSPDI (writer + lezer), soort mijlpaal via een
+  # OPS-ExtendedAttribute in MSPDI, en P6-datumprecisie volgens de kalender i.p.v. de duureenheid.
+  XACHECK="$DIR/.xml-adapter-fidelity.mjs"
+  if bundle_check "$DIR/check-xml-adapter-fidelity.ts" "$XACHECK"; then node "$XACHECK" || STATUS=1; fi
   # Contour-engine (2026-09): engine-kern, lastlezer-integratie, herschaling bij bewerken en de
   # native MSPDI-/P6-/IFC-round-trip van contouren en 21-punts-curves.
   CECHECK="$DIR/.check-contour-engine.mjs"
@@ -791,6 +804,19 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # via exact de draft- en opslagfuncties van de dialoog. Browserkant: tests/browser/task-dialog-save.spec.ts.
   TDSCHECK="$DIR/.task-dialog-save.mjs"
   if bundle_check "$DIR/check-task-dialog-save.ts" "$TDSCHECK"; then node "$TDSCHECK" || STATUS=1; fi
+  # Import/export-audit bevinding 6: dezelfde AF-default ("100 % zonder werkelijk einde" ⇒
+  # statusdatum, anders de eigen geplande finish — nooit vandaag) in de store én in elke lezer
+  # (`normalizeImportedProgress`), via de echte CSV-/IFC-/MSPDI-lezer en de store-open-actie.
+  IPDCHECK="$DIR/.import-progress-default.mjs"
+  if bundle_check "$DIR/check-import-progress-default.ts" "$IPDCHECK"; then node "$IPDCHECK" || STATUS=1; fi
+  # Idem, vervolg: lege IFC-datumslots (`$`) worden geen "vandaag" (rekenslots ⇒ eigen geplande
+  # datum, WORKPLAN-einde ⇒ leeg, feestdag zonder datum ⇒ geen feestdag).
+  IEDSCHECK="$DIR/.ifc-empty-date-slots.mjs"
+  if bundle_check "$DIR/check-ifc-empty-date-slots.ts" "$IEDSCHECK"; then node "$IEDSCHECK" || STATUS=1; fi
+  # Idem: een ontbrekende geplande start (alle lezers) ⇒ projectstart, ontbrekende finish ⇒ start +
+  # duur waar eenduidig — één gedeelde regel (`resolveMissingScheduleDates`), per lezer getoetst.
+  IMSDCHECK="$DIR/.import-missing-schedule-dates.mjs"
+  if bundle_check "$DIR/check-import-missing-schedule-dates.ts" "$IMSDCHECK"; then node "$IMSDCHECK" || STATUS=1; fi
   EXTEDITCHECK="$DIR/.external-link-edit.mjs"
   if bundle_check "$DIR/check-external-link-edit.ts" "$EXTEDITCHECK"; then node "$EXTEDITCHECK" || STATUS=1; fi
 
@@ -1001,6 +1027,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # occurrence-range met unieke domeinselectie en cursorherstel als filter/collapse een rij wist.
   VRKCHECK="$DIR/.view-row-key.mjs"
   if bundle_check "$DIR/check-view-row-key.ts" "$VRKCHECK"; then node "$VRKCHECK" || STATUS=1; fi
+
+  # Issue #173: groeperen/sorteren op resourcetype — de vaste typevolgorde van het rapport
+  # Resourcediagram, en geneste banden die resource en type op elkaar laten aansluiten.
+  RTVCHECK="$DIR/.resource-type-view.mjs"
+  if bundle_check "$DIR/check-resource-type-view.ts" "$RTVCHECK"; then node "$RTVCHECK" || STATUS=1; fi
 
   # Gantt-eventeigenaars (tabel-overhaul task 0): iedere actie heeft precies één actuele
   # eigenaar, zodat de DOM-gridmigratie geen dubbele canvas-/DOM-listeners achterlaat.
@@ -1317,6 +1348,19 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # exact de categorieën die Intl.PluralRules opgeeft, en vuurt ze daarna nog echt af.
   I18NCHECK="$DIR/.i18n-plurals.mjs"
   if bundle_check "$DIR/check-i18n-plurals.ts" "$I18NCHECK"; then node "$I18NCHECK" || STATUS=1; fi
+  # Poort `verify-i18n-keys` (in `verify:i18n`): geen cast op een vertaalsleutel. Bewijst dat elke
+  # castvorm op t/tX/i18n.t rood wordt en `as const`, commentaar en andere functies niet.
+  I18NKEYSCHECK="$DIR/.i18n-keys.mjs"
+  if bundle_check "$DIR/check-i18n-keys.ts" "$I18NKEYSCHECK"; then node "$I18NKEYSCHECK" || STATUS=1; fi
+  # Kern van `npm run i18n:fmt` / `i18n:add`: opmaken verandert nooit de inhoud (op alle 56 echte
+  # locale-bestanden), nl-volgorde, meervoudsfamilies en de validatie vóór het schrijven.
+  I18NTOOLSCHECK="$DIR/.i18n-tools.mjs"
+  if bundle_check "$DIR/check-i18n-tools.ts" "$I18NTOOLSCHECK"; then node "$I18NTOOLSCHECK" || STATUS=1; fi
+  # `npm run i18n:resolve` end-to-end in een wegwerp-git-repo: git brengt een verwijderde sleutel
+  # stil terug wanneer de overkant hem alleen verplaatste; het script herstelt dat (tijdens én na de
+  # merge-commit), laat een echte botsing open en weigert buiten een merge.
+  I18NRESOLVECHECK="$DIR/.i18n-resolve.mjs"
+  if bundle_check "$DIR/check-i18n-resolve.ts" "$I18NRESOLVECHECK"; then node "$I18NRESOLVECHECK" || STATUS=1; fi
 
   # Het "vandaag"-label in de printkopstrook. Lag vóór `drawTimelineHeader` en werd daardoor in de
   # RASTER-preview weggeschilderd, terwijl het in de VECTOR-PDF (waar alle tekst boven alle vormen
@@ -1680,6 +1724,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # …plus de bestandskant: id-kolom, ruime datumherkenning, dag/maand-detectie en percentages.
   PICSVCHECK="$DIR/.progress-import-csv.mjs"
   if bundle_check "$DIR/check-progress-import-csv.ts" "$PICSVCHECK"; then node "$PICSVCHECK" || STATUS=1; fi
+  # CSV-lezer/-schrijver (audit import/export): "Completion (%)" via dezelfde percentageparser als de
+  # voortgangsimport, de gedeelde prioriteit-default, uur-lags in de korte lag-notatie van de app en
+  # de decimale komma waar die eenduidig is.
+  CSVIMPCHECK="$DIR/.csv-import.mjs"
+  if bundle_check "$DIR/check-csv-import.ts" "$CSVIMPCHECK"; then node "$CSVIMPCHECK" || STATUS=1; fi
 
   # Issue #27 etappe 3: de `.xlsx`-laag onder het voortgangsblad. Vier batterijen, van onder naar
   # boven: de XML-/serialdatum-primitieven, de eigen ZIP-schrijver en -lezer (inclusief de
@@ -1693,6 +1742,15 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-progress-xlsx-writer.ts" "$PXLSXWCHECK"; then node "$PXLSXWCHECK" || STATUS=1; fi
   PIXLSXCHECK="$DIR/.progress-import-xlsx.mjs"
   if bundle_check "$DIR/check-progress-import-xlsx.ts" "$PIXLSXCHECK"; then node "$PIXLSXCHECK" || STATUS=1; fi
+
+  # ── Automatisch meegenomen checks ──────────────────────────────────────────────────────────
+  # Elke check-*.ts zonder eigen `bundle_check`-regel hierboven (zie de check-scriptinventaris
+  # bovenin). Zelfde mechanisme als een gerichte run: bundelen, draaien, en via `bundle_check`
+  # vanzelf in BUNDLES, dus ook in de tijdzone-matrix.
+  for name in "${AUTO_CHECK_SCRIPTS[@]}"; do
+    out="$DIR/.${name%.ts}.mjs"
+    if bundle_check "$DIR/$name" "$out"; then node "$out" || STATUS=1; fi
+  done
 fi
 
 # ── Losse check-bestanden bij een gerichte run (argumentvorm check-*.ts) ───────────────────
@@ -1745,31 +1803,65 @@ fi
 #                     suite staat hij op +0, dus alleen deze zone betrapt fouten die pas buiten
 #                     de zomer (wintertijd = −1) zichtbaar worden.
 # Alleen bij een volledige run — met een losse batterij als argument is dit onnodige looptijd.
+#
+# Parallel sinds 2026-09 (besluit werkwijze 4c): de matrix was ~70% van de looptijd van deze suite
+# (gemeten 173 van 243 s). Elke zone draait in een eigen achtergrondproces, hoogstens OPS_TZ_JOBS
+# tegelijk (standaard het aantal kernen, maximaal vijf; OPS_TZ_JOBS=1 = één zone tegelijk, zoals
+# voorheen). Dat kan veilig: de twee checks die bestanden schrijven doen dat in een eigen
+# mkdtemp-map, geen check opent een poort, en de twee zware performance-poorten staan al buiten de
+# matrix. De tijdgevoelige checks (o.a. de 100-ms-grenzen in grid-nav/task-grid-selection en de
+# tijdslimieten van de .mpp-lezer) bleven groen met vijf zones tegelijk (8 checks × 5 zones × 3
+# rondes). De uitvoer blijft in vaste zonevolgorde, ook als een latere zone eerder klaar is.
 if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   echo ""
   echo "── Tijdzone-matrix (herdraait de gebouwde bundels onder andere TZ) ──"
-  for TZONE in UTC America/New_York Pacific/Midway Pacific/Auckland Atlantic/Azores; do
-    TZ_STATUS=0
-    TZ_LOG=""
-    # $OUT alleen meenemen als de harness gebouwd is; anders draaien we een niet-bestaand bestand.
-    MATRIX=("${BUNDLES[@]}")
-    [ "$HARNESS_OK" -eq 1 ] && MATRIX+=("$OUT")
-    for BUNDLE in "${MATRIX[@]}"; do
-      if [ "$BUNDLE" = "$OUT" ]; then
-        BUNDLE_OUT="$(TZ="$TZONE" node "$OUT" "${FILES[@]}" 2>&1)" || TZ_STATUS=1
+  ZONES=(UTC America/New_York Pacific/Midway Pacific/Auckland Atlantic/Azores)
+  TZ_JOBS="${OPS_TZ_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)}"
+  if ! [[ "$TZ_JOBS" =~ ^[1-9][0-9]*$ ]]; then TZ_JOBS=1; fi
+  if [ "$TZ_JOBS" -gt "${#ZONES[@]}" ]; then TZ_JOBS="${#ZONES[@]}"; fi
+  # $OUT alleen meenemen als de harness gebouwd is; anders draaien we een niet-bestaand bestand.
+  MATRIX=("${BUNDLES[@]}")
+  [ "$HARNESS_OK" -eq 1 ] && MATRIX+=("$OUT")
+  TZ_DIR="$(mktemp -d)"
+  run_zone () {
+    local zone="$1" log="$2" st=0 bundle
+    for bundle in "${MATRIX[@]}"; do
+      echo "--- $(basename "$bundle") ---" >> "$log"
+      if [ "$bundle" = "$OUT" ]; then
+        TZ="$zone" node "$OUT" "${FILES[@]}" >> "$log" 2>&1 || st=1
       else
-        BUNDLE_OUT="$(TZ="$TZONE" node "$BUNDLE" 2>&1)" || TZ_STATUS=1
+        TZ="$zone" node "$bundle" >> "$log" 2>&1 || st=1
       fi
-      TZ_LOG+="--- $(basename "$BUNDLE") ---"$'\n'"$BUNDLE_OUT"$'\n'
     done
-    if [ "$TZ_STATUS" -eq 0 ]; then
-      echo "TZ $TZONE: groen"
+    return "$st"
+  }
+  declare -A ZONE_PID=() ZONE_RC=()
+  RUNNING=()
+  for i in "${!ZONES[@]}"; do
+    # Vol? Wacht dan eerst op de oudste lopende zone.
+    if [ "${#RUNNING[@]}" -ge "$TZ_JOBS" ]; then
+      oldest="${RUNNING[0]}"
+      RUNNING=("${RUNNING[@]:1}")
+      if wait "${ZONE_PID[$oldest]}"; then ZONE_RC[$oldest]=0; else ZONE_RC[$oldest]=1; fi
+    fi
+    : > "$TZ_DIR/$i.log"
+    run_zone "${ZONES[$i]}" "$TZ_DIR/$i.log" &
+    ZONE_PID[$i]=$!
+    RUNNING+=("$i")
+  done
+  for i in "${RUNNING[@]}"; do
+    if wait "${ZONE_PID[$i]}"; then ZONE_RC[$i]=0; else ZONE_RC[$i]=1; fi
+  done
+  for i in "${!ZONES[@]}"; do
+    if [ "${ZONE_RC[$i]}" -eq 0 ]; then
+      echo "TZ ${ZONES[$i]}: groen"
     else
-      echo "TZ $TZONE: ROOD — volledige uitvoer volgt"
-      printf '%s\n' "$TZ_LOG"
+      echo "TZ ${ZONES[$i]}: ROOD — volledige uitvoer volgt"
+      cat "$TZ_DIR/$i.log"
       STATUS=1
     fi
   done
+  rm -rf "$TZ_DIR"
 fi
 
 # ── Waarschuwing bij een gerichte run ───────────────────────────────────────────────────────
@@ -1792,9 +1884,11 @@ fi
 #     twee van het totaal af terwijl er maar één overgeslagen werd, en een check-bestand dat wel
 #     op schijf staat maar niet via een `bundle_check`-regel is aangesloten (een wees, zie de
 #     check-scriptinventaris hierboven) telde toch mee als "gedraaid" zodra je 'm als argument gaf.
+#     Sinds checks zonder eigen regel automatisch meedraaien, telt AUTO_CHECK_SCRIPTS hier mee:
+#     het totaal is precies wat een volledige run draait (alles behalve CHECK_SCRIPT_ALLOWLIST).
 if [ "$RUN_HOLIDAYS" -eq 0 ]; then
-  mapfile -t WIRED_CHECK_NAMES < <(grep -E '^[[:space:]]*if bundle_check "\$DIR/check-' "${BASH_SOURCE[0]}" \
-    | grep -oE 'check-[A-Za-z0-9_-]+\.ts' | sort -u || true)
+  mapfile -t WIRED_CHECK_NAMES < <( { grep -E '^[[:space:]]*if bundle_check "\$DIR/check-' "${BASH_SOURCE[0]}" \
+    | grep -oE 'check-[A-Za-z0-9_-]+\.ts'; printf '%s\n' "${AUTO_CHECK_SCRIPTS[@]}"; } | grep . | sort -u || true)
   TOTAL_CHECK_SCRIPTS="${#WIRED_CHECK_NAMES[@]}"
   declare -A REQUESTED_CHECK_NAMES=()
   for n in "${CHECK_NAMES[@]}"; do REQUESTED_CHECK_NAMES[$n]=1; done
@@ -1814,4 +1908,13 @@ if [ "$RUN_HOLIDAYS" -eq 0 ]; then
   echo "############################################################################"
 fi
 
+# ── Eindoordeel ─────────────────────────────────────────────────────────────────────────────
+# Eén regel die altijd klopt met de exitcode. Tussenregels als "(alles groen)" of "TZ …: groen"
+# gaan elk maar over hun eigen deel; deze regel gaat over de hele run.
+echo ""
+if [ "$STATUS" -eq 0 ]; then
+  echo "EINDOORDEEL planningssuite: GROEN (exit 0)"
+else
+  echo "EINDOORDEEL planningssuite: ROOD (exit $STATUS) — zoek hierboven naar regels met 'XX' of 'ROOD'"
+fi
 exit "$STATUS"

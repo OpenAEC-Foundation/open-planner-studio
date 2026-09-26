@@ -274,6 +274,7 @@ export function Ribbon() {
             key={tab}
             className={`ribbon-tab ${activeTab === tab ? 'active' : ''}`}
             onClick={() => setActiveTab(tab)}
+            data-ops-ribbon-tab={tab}
           >
             {tMenu(`ribbon.${tab === 'beeld' ? 'view' : tab === 'instellingen' ? 'settings' : tab}`)}
           </button>

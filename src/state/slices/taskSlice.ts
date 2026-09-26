@@ -10,7 +10,7 @@ import {
 } from '@/utils/taskDefaults';
 import { sameValue } from '@/utils/sameValue';
 import { generateId } from '@/utils/id';
-import { formatDate } from '@/utils/dateUtils';
+import { formatDate, parseDate } from '@/utils/dateUtils';
 import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { ancestorIds, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
@@ -470,6 +470,14 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       const idx = s.tasks.findIndex(t => t.id === id);
       if (idx < 0) return; // onbekend id: geen snapshot, geen loze undo-stap (R3).
       const task = s.tasks[idx];
+      // Start is verplicht (vangnet onder paneel, dialoog en extensie-API, #200): een onleesbare
+      // `scheduleStart` (bv. `''` uit een leeggemaakt datumveld) maakt het HELE project onberekenbaar
+      // ("Ongeldige startdatum") en wordt bij heropenen stil "vandaag". Het raster weigert dit al met
+      // `required`; hier blijft het bestaande anker staan en gaat de rest van de patch gewoon door.
+      // Bleef er daarna niets te wijzigen over, dan vangt de no-op-guard hieronder dat (R3).
+      if (updates.time && 'scheduleStart' in updates.time && isNaN(parseDate(updates.time.scheduleStart ?? '').getTime())) {
+        updates = { ...updates, time: { ...updates.time, scheduleStart: task.time.scheduleStart } };
+      }
       // T14b-vervolg (gebruikstestbevinding): `updates.time` (indien meegegeven) apart mergen tegen
       // de BESTAANDE tijd van de taak i.p.v. 'm via Object.assign in zijn geheel te laten vervangen —
       // anders wist een PARTIEEL time-object (bv. via de publieke `api.data.updateTask`, waar de
@@ -486,6 +494,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // `settleRuleChange` (legt onder een werkbeschermende regel het restwerk vast — besluit 2),
       // zodat `updateTask(id, { workRule })` (extensie-`data.updateTask`, dialogen) hetzelfde doet
       // als `setTaskWorkRule`.
+      // `updates` is hierboven al start-gecontroleerd (#199/#200).
       const { time, workRule, calendarId, ...rest } = updates;
       // B1-vervolg — de basis van het ingevoerde einde VÓÓR elke mutatie, dus ook vóór de K2-
       // kalenderstap hieronder (integratie #101, valkuil b): anders zit de kalenderwissel al in de

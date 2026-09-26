@@ -357,7 +357,8 @@
     "dialogTitle": "Nicht gespeicherte Arbeit wiederherstellen",
     "explanation": "Open Planner Studio wurde nicht normal beendet. Die folgenden Dokumente enthielten nicht gespeicherte Änderungen, die wiederhergestellt werden können:",
     "timeLabel": "Gespeichert",
-    "taskCount": "{{count}} Aufgaben",
+    "taskCount_one": "{{count}} Aufgabe",
+    "taskCount_other": "{{count}} Aufgaben",
     "restore": "Wiederherstellen",
     "dontRestore": "Nicht wiederherstellen"
   },
@@ -660,7 +661,8 @@
     },
     "histogram": {
       "allResources": "Alle Ressourcen",
-      "overallocatedTooltip": "{{count}} Aufgaben tragen bei am {{date}}",
+      "overallocatedTooltip_one": "{{count}} Aufgabe trägt bei am {{date}}",
+      "overallocatedTooltip_other": "{{count}} Aufgaben tragen bei am {{date}}",
       "overallocatedNonWorkingDay": "Arbeitet an diesem Tag laut Kalender „{{calendar}}“ nicht",
       "noData": "Neu berechnen (F5), um die Auslastung anzuzeigen",
       "noResources": "Noch keine Ressourcen",
@@ -904,7 +906,11 @@
       "applyOnly": "Anwenden ohne Speichern",
       "infoApplyOnly": "Bringt die angehakten Teile auf den Bildschirm, ohne eine Layout-Schaltfläche anzulegen. Praktisch für einen schnellen, vorübergehenden Filter.",
       "columnsNote": "Übernimmt die Spalten, wie sie jetzt in der Tabelle stehen. Spalten wählen Sie mit dem Plus im Tabellenkopf.",
-      "relationsShow": "Beziehungslinien anzeigen"
+      "relationsShow": "Beziehungslinien anzeigen",
+      "partOverlays": "Overlay",
+      "infoOverlays": "Beziehungslinien, Basisplan, Fortschrittslinie, Statusdatumslinie, Ressourcenakzent, Pufferband und Balkenfarben. Nicht angehakt: Diese bleiben, wie sie sind.",
+      "overlaysNotStored": "Dieses Layout speichert nur die Beziehungslinien. Wenn Sie unten ein Overlay ändern, speichert es auch alle Overlays.",
+      "missingColorField": "Kategorie: Feld existiert in diesem Projekt nicht"
     },
     "presentation": {
       "hint": "Esc oder F11 drücken, um den Vollbildmodus zu verlassen."
