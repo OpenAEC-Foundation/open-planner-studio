@@ -302,6 +302,19 @@ export function axisDayDistance(
   };
 }
 
+/**
+ * Browsers begrenzen de breedte van een element (Firefox ~17,9M px, Chromium/WebKit ~33,5M px). De
+ * horizontale scrollbalk hangt aan een spacer ter breedte van de inhoud; op kwartierzoom (4000 px/dag)
+ * gaat een project van een paar jaar daar overheen, waarna de browser `scrollLeft` afkapt en de
+ * scroll-handler die afgekapte waarde terugschreef — het einde van het project was onbereikbaar.
+ * Boven deze grens wordt de spacer geschaald: `scrollLeft = scrollX × schaal`. Daaronder is de
+ * schaal precies 1 (ongewijzigd gedrag).
+ */
+export const MAX_SCROLL_SPACER_PX = 15_000_000;
+export function scrollbarScale(contentWidth: number): number {
+  return contentWidth > MAX_SCROLL_SPACER_PX ? MAX_SCROLL_SPACER_PX / contentWidth : 1;
+}
+
 let chartWidth: number | null = null;
 
 export function setGanttChartWidth(width: number): void {

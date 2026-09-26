@@ -313,8 +313,6 @@ export function GanttCanvas({
     const originIndex = axis.dayIndexOf(parseDate(effectiveViewStart));
     return (date: Date) => axis.dayIndexOf(date) - originIndex;
   }, [calendar, compressNonWorkdays, effectiveViewStart]);
-  const totalContentWidth = viewport.primary.contentWidth;
-  const secondaryContentWidth = viewport.secondary?.contentWidth ?? 0;
   const primaryChartWidth = viewport.primary.chartWidth;
   const secondaryChartWidth = viewport.secondary?.chartWidth ?? 0;
   const histogramSplitter = viewport.splitters.histogram;
@@ -937,7 +935,7 @@ export function GanttCanvas({
           style={{ left: 0, right: 0, bottom: 0, height: SCROLLBAR_GUTTER, zIndex: 4 }}
           onScroll={viewport.scrollHandlers.onPrimaryHorizontalScroll}
         >
-          <div style={{ width: Math.max(1, totalContentWidth), height: 1 }} />
+          <div style={{ width: Math.max(1, viewport.primary.scrollbarWidth), height: 1 }} />
         </div>
       </div>
       {/* Secundair pane (§10): eigen tijdvenster, gedeelde rijen + verticale scroll */}
@@ -968,7 +966,7 @@ export function GanttCanvas({
               style={{ left: 0, right: 0, bottom: 0, height: SCROLLBAR_GUTTER, zIndex: 4 }}
               onScroll={viewport.scrollHandlers.onSecondaryHorizontalScroll}
             >
-              <div style={{ width: Math.max(1, secondaryContentWidth), height: 1 }} />
+              <div style={{ width: Math.max(1, viewport.secondary?.scrollbarWidth ?? 0), height: 1 }} />
             </div>
           </div>
         </>

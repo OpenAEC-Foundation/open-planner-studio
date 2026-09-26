@@ -168,6 +168,35 @@ test('Gantt viewport: inzoomen tegen de rechtergrens houdt het punt onder de cur
   expect(Math.abs(dayAfter - dayBefore)).toBeLessThan(0.5);
 });
 
+test('Gantt viewport: een tijdlijn breder dan de browser toestaat blijft via de scrollbalk tot het einde bereikbaar', async ({ page, ops: _ops }) => {
+  // 20 jaar op kwartierzoom (4000 px/dag): de inhoud is ~35M px, boven de elementgrens van elke
+  // browser. De browser kapte de scrollbalk-spacer daar af (Chromium: 33.554.428 px) en de
+  // scroll-handler schreef de afgekapte scrollLeft terug naar de store: zonder schaling bleef zelfs
+  // een scroll naar het einde ruim een jaar ervóór steken (gemeten: 33.553.816 i.p.v. ~35M px).
+  await seedProject(page, [
+    { name: 'Begin', start: '2026-01-05', finish: '2026-01-09', durationDays: 5 },
+    { name: 'Einde', start: '2045-12-04', finish: '2045-12-08', durationDays: 5 },
+  ]);
+  const paints = await page.evaluate(() => window.__OPS__!.gantt.paintCount('primary'));
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.setUI({ enableQuarterHourZoom: true });
+    s.setZoom(4000);
+  });
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.gantt.paintCount('primary'))).toBeGreaterThan(paints);
+  await expect.poll(() => state(page).then(s => s.view.zoom)).toBe(4000);
+  // De echte inhoudsgrens: setScroll klemt daarop.
+  await page.evaluate(() => window.__OPS__!.store.getState().setScroll(1e12, 0));
+  const atEnd = (await state(page)).view.scrollX;
+  expect(atEnd).toBeGreaterThan(34_000_000);
+  await page.evaluate(() => window.__OPS__!.store.getState().setScroll(0, 0));
+  await expect.poll(() => state(page).then(s => s.view.scrollX)).toBe(0);
+  // De scrollbalk helemaal naar rechts (wat slepen van de duim tot het einde doet).
+  await page.getByTestId('gantt-hscroll').evaluate(el => { el.scrollLeft = el.scrollWidth; });
+  await expect.poll(() => state(page).then(s => s.view.scrollX)).toBeGreaterThan(0);
+  await expect.poll(() => state(page).then(s => Math.abs(s.view.scrollX - atEnd))).toBeLessThanOrEqual(1);
+});
+
 test('Gantt viewport: een gewone klik in de takenlijst onthult alleen een verborgen balk', async ({ page, ops: _ops }) => {
   const [nearId, farId] = await seedProject(page, [
     { name: 'Nabije balk', start: '2026-01-05', finish: '2026-01-09', durationDays: 5 },

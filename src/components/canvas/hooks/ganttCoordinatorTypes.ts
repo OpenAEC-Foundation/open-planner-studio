@@ -102,6 +102,8 @@ export interface GanttViewportCoordinatorInput {
 export interface GanttPaneViewport {
   chartWidth: number;
   contentWidth: number;
+  /** Breedte van de scrollbalk-spacer (`contentWidth × scrollbarScale`, zie `scrollbarScale`). */
+  scrollbarWidth: number;
   scrollX: number;
   zoom: number;
 }

@@ -9,6 +9,7 @@ import {
 } from '../ganttRenderOptions';
 import {
   axisDayDistance,
+  scrollbarScale,
   computeTimelineZoom,
   computeEffectiveViewStart,
   computeFitToProject,
@@ -317,27 +318,40 @@ export function useGanttViewportCoordinator(
     current.setScroll(horizontal.scrollX, scrollY);
   }, [input.view.pendingFocusTaskId, input.view.scrollY, input.tasks, input.rows, input.rowHeight, input.headerHeight, input.clearPendingFocusTask, input.setZoom, input.setScroll, sharedAxis, contentWidthFor]);
 
+  // Scrollbalk ↔ scrollX via `scrollbarScale` (1 zolang de inhoud onder de elementgrens blijft).
+  const primaryScrollbarScale = scrollbarScale(primaryContentWidth);
+  const secondaryScrollbarScale = scrollbarScale(secondaryContentWidth);
+  const scrollbarScalesRef = useRef({ primary: primaryScrollbarScale, secondary: secondaryScrollbarScale });
+  scrollbarScalesRef.current = { primary: primaryScrollbarScale, secondary: secondaryScrollbarScale };
   useEffect(() => {
     const element = primaryHScrollRef.current;
-    if (element && Math.abs(element.scrollLeft - input.view.scrollX) > 1) {
-      element.scrollLeft = input.view.scrollX;
+    const target = input.view.scrollX * primaryScrollbarScale;
+    if (element && Math.abs(element.scrollLeft - target) > 1) {
+      element.scrollLeft = target;
     }
-  }, [input.view.scrollX, input.view.zoom]);
+  }, [input.view.scrollX, input.view.zoom, primaryScrollbarScale]);
   useEffect(() => {
     const element = secondaryHScrollRef.current;
-    if (element && splitView && Math.abs(element.scrollLeft - splitView.secondaryScrollX) > 1) {
-      element.scrollLeft = splitView.secondaryScrollX;
+    const target = splitView ? splitView.secondaryScrollX * secondaryScrollbarScale : 0;
+    if (element && splitView && Math.abs(element.scrollLeft - target) > 1) {
+      element.scrollLeft = target;
     }
-  }, [splitView, secondaryContentWidth]);
+  }, [splitView, secondaryContentWidth, secondaryScrollbarScale]);
   const onPrimaryHorizontalScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     const current = latest.current;
-    current.setScroll(event.currentTarget.scrollLeft, current.view.scrollY);
+    const scale = scrollbarScalesRef.current.primary;
+    const scrollX = event.currentTarget.scrollLeft / scale;
+    // Geschaald: een scroll-event dat alleen onze eigen (afgeronde) terugschrijving weerkaatst, mag
+    // de exacte scrollX niet overschrijven.
+    if (scale !== 1 && Math.abs(scrollX - current.view.scrollX) * scale <= 1) return;
+    current.setScroll(scrollX, current.view.scrollY);
   }, []);
   const onSecondaryHorizontalScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     const current = latest.current;
     const currentSplit = current.view.splitView;
-    const scrollX = event.currentTarget.scrollLeft;
-    if (!currentSplit || Math.abs(currentSplit.secondaryScrollX - scrollX) <= 1) return;
+    const scale = scrollbarScalesRef.current.secondary;
+    const scrollX = event.currentTarget.scrollLeft / scale;
+    if (!currentSplit || Math.abs(currentSplit.secondaryScrollX - scrollX) * scale <= 1) return;
     current.setSplitView({ ...currentSplit, secondaryScrollX: Math.max(0, scrollX) });
   }, []);
   // Secondary gebruikt dezelfde wheelbeslissing en dezelfde ankerformule als primary, maar schrijft
@@ -446,12 +460,14 @@ export function useGanttViewportCoordinator(
     primary: {
       chartWidth: primaryChartWidth,
       contentWidth: primaryContentWidth,
+      scrollbarWidth: primaryContentWidth * primaryScrollbarScale,
       scrollX: input.view.scrollX,
       zoom: input.view.zoom,
     },
     secondary: splitView ? {
       chartWidth: secondaryChartWidth,
       contentWidth: secondaryContentWidth,
+      scrollbarWidth: secondaryContentWidth * secondaryScrollbarScale,
       scrollX: splitView.secondaryScrollX,
       zoom: splitView.secondaryZoom,
     } : undefined,
