@@ -5,7 +5,7 @@ import { displayDateTime } from '@/utils/displayDate';
 import type { NotifyInput } from './slices/types';
 
 /**
- * Eén taak waarvan een getypte start iets met de constraint deed:
+ * Eén taak waarvan een nieuwe start (getypt of gesleept) iets met de constraint deed:
  *  - `snet`: de start werd een SNET, of verzette de datum van een bestaande;
  *  - `blocked`: een andere constraint houdt de start tegen, dus de start is niet toegepast.
  */
@@ -17,7 +17,7 @@ export type StartEditNotice =
 const HELP_ARTICLE_ID = 'gids-relaties-constraints';
 
 /**
- * De meldingen voor alle startroutes (Tabel, eigenschappenpaneel, Taak bewerken) via
+ * De meldingen voor alle startroutes (Tabel, eigenschappenpaneel, Taak bewerken, Gantt-sleep) via
  * het ene meldkanaal: hooguit één voor de SNET-gevallen en één voor de tegengehouden starts. Eén taak
  * ⇒ naam en datum (bij een urentaak met tijd) in de weergavenotatie van de gebruiker; meer taken in
  * één bewerking (plakken, vullen) ⇒ één melding met het aantal. Het constrainttype noemt de tekst in
@@ -68,7 +68,7 @@ export function startEditNotifications(
   return out;
 }
 
-/** Toon de meldingen van `startEditNotifications` via het ene meldkanaal (paneel, dialoog). */
+/** Toon de meldingen van `startEditNotifications` via het ene meldkanaal (paneel, dialoog, Gantt). */
 export function notifyStartEdit(
   notify: (notification: NotifyInput) => void,
   notices: readonly StartEditNotice[],

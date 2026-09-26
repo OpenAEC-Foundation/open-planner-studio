@@ -153,7 +153,8 @@ export function TaskDialog() {
         Object.assign(time, milestoneTransition.time);
       }
       // Een getypte start op een taak met voorganger wordt een beperking "Start niet eerder dan"
-      // (dezelfde regel als Tabel en paneel), in dezelfde `updateTask` en dus dezelfde undo-stap. Houdt een andere constraint de start tegen, dan wordt de start niet toegepast en
+      // (dezelfde regel als Tabel, paneel en Gantt-sleep), in dezelfde `updateTask` en dus dezelfde
+      // undo-stap. Houdt een andere constraint de start tegen, dan wordt de start niet toegepast en
       // volgt een melding. Koos de gebruiker in deze dialoog zelf een beperking, dan wint die
       // expliciete keuze en doet de startregel niets.
       const constraintEditedHere = JSON.stringify(draft.constraint) !== JSON.stringify(editingTask.constraint)

@@ -50,7 +50,9 @@ duur). Zolang je aan een **rand** trekt, verschijnt er een klein donker pilletje
 de duur die de taak op dat moment zou krijgen — bijvoorbeeld `15d`, of `6u` bij een taak in uren.
 Het loopt live mee terwijl je sleept, zodat je de nieuwe duur al ziet vóórdat je de muisknop
 loslaat. Bij het verplaatsen van de héle balk verschijnt het niet: de duur verandert dan immers
-niet. Houd **Shift** ingedrukt terwijl je vanaf een balk sleept, en je start in plaats daarvan het
+niet. Verschuif je een taak met een voorganger (de hele balk, of de linkerrand), dan wordt de nieuwe
+start een constraint **Start niet eerder dan (SNET)**, net als bij het typen van een startdatum; heeft
+de taak een andere constraint, dan beweegt de start niet en noemt een melding die constraint. Houd **Shift** ingedrukt terwijl je vanaf een balk sleept, en je start in plaats daarvan het
 leggen van een **relatie** naar de taak waar je loslaat — hetzelfde als **Relatie leggen vanaf hier**
 in het balk-contextmenu, maar dan met de muis in één beweging.
 

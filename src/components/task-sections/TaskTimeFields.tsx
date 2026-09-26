@@ -22,7 +22,8 @@ import { TaskDurationField } from './TaskDurationField';
  * `utils/taskDates.ts`) tonen — nu gelijkgetrokken. De Tabel-kolom **Start** toont en schrijft via
  * dezelfde twee helpers; de kiesbare kolom **Geplande start** toont bewust het rauwe anker.
  * Op een taak met voorganger wordt een getypte start bovendien een beperking "Start niet eerder dan"
- * (`startConstraintAfterEdit`, dezelfde regel als Tabel en Taak bewerken), in dezelfde undo-stap. Houdt een andere constraint de start tegen (`constraintBlockingStart`), dan wordt er
+ * (`startConstraintAfterEdit`, dezelfde regel als Tabel, Taak bewerken en Gantt-sleep), in dezelfde
+ * undo-stap. Houdt een andere constraint de start tegen (`constraintBlockingStart`), dan wordt er
  * niets toegepast: een melding noemt die constraint en het veld valt terug.
  *
  * Het startveld blijft paneel-instant-apply; `TaskDialog` bewaart zijn bestaande Save-commitgrens.

@@ -3,13 +3,14 @@
 // elke route alleen het anker `scheduleStart`; de solver leest dat alleen voor een taak zónder
 // voorganger, dus na F5 sprong de taak stil terug achter haar voorganger.
 //
-// Drie routes, elk met echte toetsen: de Tabel-kolom Start (klik, Enter, typen, Enter), het
-// eigenschappenpaneel (datumsegmenten typen, Enter) en Taak bewerken (typen, Opslaan). Herberekenen
-// is F5, ongedaan maken Ctrl+Z. Heeft de taak een andere constraint (MSO, FNLT, …), dan heeft een
-// nieuwe start geen effect: niets toepassen, constraint laten staan, melden (besluit eigenaar). De
-// `__OPS__`-brug zet alleen de fixture (A → B, eventueel een constraint) en leest state.
+// Vier routes, elk met echte events: de Tabel-kolom Start (klik, Enter, typen, Enter), het
+// eigenschappenpaneel (datumsegmenten typen, Enter), Taak bewerken (typen, Opslaan) en de Gantt-balk
+// (muis: body verschuiven of linkerrand slepen). Herberekenen is F5, ongedaan maken Ctrl+Z. Heeft de
+// taak een andere constraint (MSO, FNLT, …), dan heeft een nieuwe start geen effect: niets
+// toepassen, constraint laten staan, melden (besluit eigenaar). De `__OPS__`-brug zet alleen de
+// fixture (A → B, eventueel een constraint) en leest state.
 import type { Locator, Page } from '@playwright/test';
-import { expect, state, test } from './fixtures/ops';
+import { barPoint, expect, state, test } from './fixtures/ops';
 
 const surface = (page: Page) => page.locator('[data-task-grid-surface-id="full-task-grid"]');
 
@@ -161,6 +162,96 @@ test('Taak bewerken: een in dezelfde dialoog gekozen constraint wint van de gety
   await expect(toast(page)).toHaveCount(0);
 });
 
+/** Fixture voor de Gantt-sleep: de rechterrail dicht zodat de balken vrij liggen, optioneel een
+ *  constraint op B. */
+async function seedChainForDrag(
+  page: Page,
+  constraint?: { type: 'MSO'; date: string },
+): Promise<{ a: string; b: string }> {
+  const ids = await seedChain(page);
+  await page.evaluate(({ b, c }) => {
+    const s = window.__OPS__!.store.getState();
+    s.setUI({ rightPanelCollapsed: true, showPropertiesPanel: false });
+    if (c) s.updateTask(b, { constraint: c });
+    window.__OPS__!.store.getState().runCPM();
+  }, { b: ids.b, c: constraint });
+  return ids;
+}
+
+/** Een echte muissleep op de balk: `days` getoonde dagen naar rechts (negatief: links). */
+async function dragBar(page: Page, taskId: string, edge: 'body' | 'left' | 'right', days: number): Promise<void> {
+  const zoom = await page.evaluate(() => window.__OPS__!.store.getState().view.zoom);
+  const point = await barPoint(page, taskId, edge);
+  await page.mouse.move(point.x, point.y);
+  await page.mouse.down();
+  await page.mouse.move(point.x + (days * zoom) / 2, point.y, { steps: 6 });
+  await page.mouse.move(point.x + days * zoom, point.y, { steps: 6 });
+  await page.mouse.up();
+}
+
+test('Gantt: balk van een taak met voorganger verschuiven wordt SNET in één undo-stap', async ({ page, ops: _ops }) => {
+  const { b } = await seedChainForDrag(page);
+  const undoBefore = (await state(page)).undoDepth;
+  await dragBar(page, b, 'body', 7);
+
+  await expect.poll(() => taskState(page, b)).toMatchObject({
+    constraint: { type: 'SNET', date: '2026-06-15' },
+    anchor: '2026-06-15',
+  });
+  await expect(toast(page)).toContainText('SNET');
+  await expect(toast(page)).toContainText('Metselwerk');
+  expect((await state(page)).undoDepth).toBe(undoBefore + 1);
+
+  await page.keyboard.press('F5');
+  await expect.poll(async () => (await taskState(page, b)).start).toBe('2026-06-15');
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => taskState(page, b)).toMatchObject({ constraint: null, anchor: '2026-06-01' });
+});
+
+test('Gantt: linkerrand slepen wordt SNET op de nieuwe start; vóór de voorganger wint de voorganger', async ({ page, ops: _ops }) => {
+  const { b } = await seedChainForDrag(page);
+  await dragBar(page, b, 'left', 1);
+  await expect.poll(() => taskState(page, b)).toMatchObject({
+    constraint: { type: 'SNET', date: '2026-06-09' },
+    anchor: '2026-06-09',
+  });
+  await page.keyboard.press('F5');
+  await expect.poll(async () => (await taskState(page, b)).start).toBe('2026-06-09');
+
+  // Vijf dagen vóór wat de voorganger toelaat: de SNET komt er, maar na F5 wint de voorganger.
+  await dragBar(page, b, 'body', -6);
+  await expect.poll(async () => (await taskState(page, b)).constraint).toEqual({ type: 'SNET', date: '2026-06-03' });
+  await page.keyboard.press('F5');
+  await expect.poll(async () => (await taskState(page, b)).start).toBe('2026-06-08');
+});
+
+test('Gantt: taak met MSO en voorganger slepen past niets toe en meldt de constraint', async ({ page, ops: _ops }) => {
+  const { b } = await seedChainForDrag(page, { type: 'MSO', date: '2026-06-10' });
+  const before = await taskState(page, b);
+  expect(before.start).toBe('2026-06-10');
+  const undoBefore = (await state(page)).undoDepth;
+  await dragBar(page, b, 'body', 7);
+
+  await expect(toast(page)).toContainText('MSO');
+  await expect(toast(page)).toContainText('10-06-2026');
+  await expect(toast(page)).not.toContainText('$t(');
+  expect(await taskState(page, b)).toEqual(before);
+  expect((await state(page)).undoDepth).toBe(undoBefore);
+});
+
+test('Gantt: rechterrand en een taak zonder voorganger blijven zonder constraint', async ({ page, ops: _ops }) => {
+  const { a, b } = await seedChainForDrag(page);
+  await dragBar(page, b, 'right', 2);
+  await expect.poll(async () => (await taskState(page, b)).anchor).toBe('2026-06-01');
+  await expect.poll(() => page.evaluate(id => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.time.scheduleDuration, b))
+    .toBe(5);
+  expect((await taskState(page, b)).constraint).toBeNull();
+
+  await dragBar(page, a, 'body', 7);
+  await expect.poll(async () => (await taskState(page, a)).anchor).toBe('2026-06-08');
+  expect((await taskState(page, a)).constraint).toBeNull();
+  await expect(toast(page)).toHaveCount(0);
+});
 
 test('eigenschappenpaneel: Start typen op een taak met MSO en voorganger meldt de constraint, het veld valt terug', async ({ page, ops: _ops }) => {
   const { b } = await seedChain(page);

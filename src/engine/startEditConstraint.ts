@@ -1,6 +1,7 @@
 import type { Sequence } from '@/types/sequence';
 import type { Task, TaskConstraint } from '@/types/task';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
+import { shownStart } from '@/utils/taskDates';
 
 /**
  * Een getypte startdatum op een taak MET voorganger wordt een beperking "Start niet eerder dan"
@@ -15,10 +16,10 @@ import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelation
  * samen met de voorganger de start (per type gemeten in `check-start-snet.ts`). Besluit eigenaar:
  * "melden, beperking laten staan" — de start wordt dan niet toegepast (`constraintBlockingStart`).
  *
- * Eén regel voor elke UI-route waar je een start typt: de Tabel-kolommen Start en Geplande start
- * (`taskEditPlan.ts`), het eigenschappenpaneel (`TaskTimeFields`) en Taak bewerken (`TaskDialog`).
- * De meldingen bouwt `state/startConstraintNotice.ts`. Bewust NIET: de Gantt-balksleep en de
- * MCP-tools (daarover beslist de eigenaar apart).
+ * Eén regel voor elke UI-route waar je een start zet: de Tabel-kolommen Start en Geplande start
+ * (`taskEditPlan.ts`), het eigenschappenpaneel (`TaskTimeFields`), Taak bewerken (`TaskDialog`) en
+ * de Gantt-balk (body verschuiven, linkerrand slepen; `useBarDrag`). De meldingen bouwt
+ * `state/startConstraintNotice.ts`. Bewust NIET: de MCP-tools (daarover beslist de eigenaar apart).
  */
 
 /**
@@ -96,3 +97,17 @@ export function constraintBlockingStart(task: Task, drivenByPredecessor: boolean
   return current && current.type !== 'ASAP' && current.type !== 'SNET' ? current : undefined;
 }
 
+/**
+ * De beperking bij een GESLEEPTE start (Gantt-balk: body verschuiven of linkerrand slepen), altijd
+ * gerekend vanaf `original`, de taak zoals ze bij het begin van het gebaar was: elke muisbeweging
+ * geeft dan dezelfde uitkomst als één keer typen, en terug op de oorspronkelijke start ⇒ weer de
+ * oorspronkelijke constraint (`undefined`).
+ */
+export function constraintForDraggedStart(
+  original: Task,
+  start: string,
+  drivenByPredecessor: boolean,
+): StartConstraintEdit | undefined {
+  if (start === shownStart(original)) return undefined;
+  return startConstraintAfterEdit(original, start, drivenByPredecessor);
+}

@@ -16,9 +16,9 @@ import type {
 } from '@/engine/renderer/HistogramRenderer';
 import type { GanttAxis } from '@/engine/renderer/timeAxis';
 import type { ViewRow } from '@/engine/view/visibleRows';
-import type { ModifierMap, PositionDivision, ScrollMode } from '@/state/slices/types';
+import type { ModifierMap, NotifyInput, PositionDivision, ScrollMode } from '@/state/slices/types';
 import type { Task } from '@/types/task';
-import type { SplitViewState, ViewState } from '@/types/view';
+import type { DateNotation, SplitViewState, ViewState } from '@/types/view';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Splitter } from '@/hooks/useSplitter';
 import type { GanttRenderOptionsSourceInput } from '../ganttRenderOptions';
@@ -221,6 +221,13 @@ export interface GanttPointerCoordinatorInput {
     startClientX: number;
     startClientY: number;
   }) => void;
+  /** W2-vervolg: bepaalt een voorganger de start van deze taak? Een gesleepte start (body, linkerrand)
+   *  volgt dan dezelfde regel als een getypte: SNET, of — bij een andere constraint — niets toepassen
+   *  en melden (`src/engine/startEditConstraint.ts`). */
+  isStartDrivenByPredecessor: (taskId: string) => boolean;
+  /** Het ene meldkanaal en de datumnotatie voor die startmelding na het loslaten. */
+  notify: (notification: NotifyInput) => void;
+  dateNotation: DateNotation;
 }
 
 /** React-bedrading en vluchtige presentatie die uitsluitend bij pointerinteractie hoort. */

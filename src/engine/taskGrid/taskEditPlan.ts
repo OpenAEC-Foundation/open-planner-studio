@@ -294,7 +294,7 @@ function durationForShownFinish(
 /**
  * Een getypte start (Tabel-kolom Start of Geplande start): het nieuwe anker, en op een taak waarvan
  * een voorganger de start bepaalt de beperking "Start niet eerder dan" (`startConstraintAfterEdit`,
- * dezelfde regel als paneel en Taak bewerken). Zonder die beperking sprong de taak na F5
+ * dezelfde regel als paneel, Taak bewerken en Gantt-sleep). Zonder die beperking sprong de taak na F5
  * stil terug achter haar voorganger: de solver leest het anker alleen voor een taak zónder voorganger.
  * Houdt een andere constraint de start tegen (`constraintBlockingStart`), dan verandert er niets —
  * ook geen dood anker — en meldt de transactie die constraint.

@@ -23,6 +23,7 @@ import type { Task } from '@/types/task';
 import type { CellEditIntent } from '@/types/taskGrid';
 import {
   constraintBlockingStart,
+  constraintForDraggedStart,
   predecessorDrivenTaskIds,
   startConstraintAfterEdit,
 } from '@/engine/startEditConstraint';
@@ -348,6 +349,10 @@ for (const constraint of OTHER_CONSTRAINTS) {
   eq('Blokkade: gestart ⇒ niets', constraintBlockingStart(
     { ...base, constraint: mso, time: { ...base.time, actualStart: '2026-06-08', completion: 0.2 } }, true), undefined);
 
+  // Slepen rekent vanaf de taak bij het begin van het gebaar: terug op de oude start ⇒ niets.
+  eq('Sleep: naar 15-06 ⇒ SNET', constraintForDraggedStart(base, '2026-06-15', true),
+    { constraint: { type: 'SNET', date: '2026-06-15' }, change: 'created' });
+  eq('Sleep: terug op de getoonde start ⇒ oorspronkelijke constraint', constraintForDraggedStart(base, shownStart(base), true), undefined);
 
   // De melding: één taak met naam en datum in de notatie van de gebruiker, meer taken met een aantal,
   // en altijd een "Lees meer" naar een gids die bestaat.
