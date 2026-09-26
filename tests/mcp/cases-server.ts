@@ -387,10 +387,12 @@ test('dialoogguard leest uitsluitend de ui-state uit de requestcontext', () => {
  * een unlisten die 'm er weer uit haalt; `fire` roept alleen de nog-gekoppelde handlers aan. Zo
  * meet de test rechtstreeks of `cleanup()` verweesde listeners echt afmeldt (geen dubbele dispatch).
  */
-function makeFakeTauri(opts?: { failStart?: boolean }) {
+function makeFakeTauri(opts?: { failStart?: boolean; alreadyRunningOnce?: boolean; token?: () => string }) {
+  let alreadyRunning = opts?.alreadyRunningOnce === true;
   const handlers = new Map<string, Set<(p: any) => void>>();
   const emitted: Array<{ event: string; payload: any }> = [];
   const invokeCalls: Array<{ cmd: string; args: any }> = [];
+  const statuses: string[] = [];
   let dispatchCount = 0;
 
   const deps: BridgeDeps = {
@@ -403,15 +405,17 @@ function makeFakeTauri(opts?: { failStart?: boolean }) {
     invoke: async (cmd, args) => {
       invokeCalls.push({ cmd, args });
       if (opts?.failStart && cmd === 'mcp_bridge_start') throw new Error('kon niet binden op 127.0.0.1');
+      if (cmd === 'mcp_bridge_start' && alreadyRunning) throw new Error('mcp-bridge draait al');
+      if (cmd === 'mcp_bridge_stop') alreadyRunning = false;
       return undefined;
     },
     emit: (event, payload) => { emitted.push({ event, payload }); },
-    setStatus: () => { /* niet relevant voor deze cases */ },
+    setStatus: (status) => { statuses.push(status.state); },
     buildContext: buildMcpContext,
     // Tel elke echte dispatch; body maakt niet uit voor de listener-telling.
     handleMessage: async () => { dispatchCount += 1; return '{"ok":true}'; },
     getPort: () => 3877,
-    getToken: () => 'tok',
+    getToken: opts?.token ?? (() => 'tok'),
   };
 
   return {
@@ -420,9 +424,61 @@ function makeFakeTauri(opts?: { failStart?: boolean }) {
     fire: (event: string, payload: any) => { for (const h of [...(handlers.get(event) ?? [])]) h(payload); },
     invokeCalls,
     emitted,
+    statuses,
     dispatchCount: () => dispatchCount,
   };
 }
+
+test('start na een webview-herlaad ("draait al"): stop + tweede poging, geen port-busy (audit 2026-09-26)', async () => {
+  const fake = makeFakeTauri({ alreadyRunningOnce: true });
+  const controller = createBridgeController(fake.deps);
+  await controller.start();
+  assertEq(fake.invokeCalls.map((c) => c.cmd), ['mcp_bridge_start', 'mcp_bridge_stop', 'mcp_bridge_start'], 'start → stop → start');
+  assert(!fake.statuses.includes('port-busy'), `geen port-busy, kreeg ${fake.statuses.join(',')}`);
+  assertEq(fake.handlerCount('mcp://request'), 1, 'request-listener blijft gekoppeld');
+});
+
+test('restart pikt een nieuw token op; het oude wordt niet meer aan Rust gegeven (audit 2026-09-26)', async () => {
+  let token = 'oud';
+  const fake = makeFakeTauri({ token: () => token });
+  const controller = createBridgeController(fake.deps);
+  await controller.start();
+  token = 'nieuw';
+  await controller.restart();
+  const starts = fake.invokeCalls.filter((c) => c.cmd === 'mcp_bridge_start').map((c) => c.args.token);
+  assertEq(starts, ['oud', 'nieuw'], 'tweede start draagt het nieuwe token');
+  assert(fake.invokeCalls.some((c) => c.cmd === 'mcp_bridge_stop'), 'de oude bridge is gestopt');
+  assertEq(fake.handlerCount('mcp://request'), 1, 'na restart precies één request-listener');
+});
+
+test('createRequestHandler: requests lopen na elkaar; een werpende verwerking geeft een JSON-RPC-fout (audit 2026-09-26)', async () => {
+  const order: string[] = [];
+  let releaseFirst: () => void = () => {};
+  const firstGate = new Promise<void>((r) => { releaseFirst = r; });
+  const emitted: any[] = [];
+  const handler = createRequestHandler({
+    emit: (_e, payload) => { emitted.push(payload); },
+    buildContext: buildMcpContext,
+    handleMessage: async (body) => {
+      const { id } = JSON.parse(body);
+      order.push(`begin:${id}`);
+      if (id === 1) await firstGate;
+      if (id === 2) throw new Error('kapot');
+      order.push(`eind:${id}`);
+      return JSON.stringify({ jsonrpc: '2.0', id, result: {} });
+    },
+  });
+  const p1 = handler({ id: 11, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'x' }) });
+  const p2 = handler({ id: 12, body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'x' }) });
+  await Promise.resolve(); await Promise.resolve();
+  assertEq(order, ['begin:1'], 'het tweede request wacht op het eerste');
+  releaseFirst();
+  await p1; await p2;
+  assertEq(order, ['begin:1', 'eind:1', 'begin:2'], 'daarna pas het tweede');
+  assertEq(emitted.map((e) => e.id), [11, 12], 'beide krijgen een antwoord, in volgorde');
+  const err = JSON.parse(emitted[1].body);
+  assertEq([err.id, err.error?.code], [2, -32603], 'werpende verwerking ⇒ -32603 met het JSON-RPC-id');
+});
 
 const REQ_BODY = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' });
 

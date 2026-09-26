@@ -83,6 +83,24 @@ export function regenerateMcpToken(): string {
   return token;
 }
 
+/**
+ * Regenereer het token én trek het oude echt in (audit 2026-09-26). De Rust-bridge kopieert het
+ * token bij `mcp_bridge_start`; alleen de opgeslagen waarde vervangen liet een uitgelekt token
+ * gewoon werken tot de volgende herstart, terwijl de bevestigingstekst belooft dat bestaande
+ * koppelingen verbroken worden. Draait de bridge, dan herstarten we hem met het nieuwe token (via
+ * de bestaande commands — geen nieuw Rust-oppervlak).
+ */
+export async function regenerateAndApplyMcpToken(
+  isRunning: () => boolean = () => useAppStore.getState().ui.aiServerStatus.state === 'live',
+): Promise<string> {
+  const token = regenerateMcpToken();
+  if (isTauri() && isRunning()) {
+    const controller = await getLiveController();
+    await controller.restart();
+  }
+  return token;
+}
+
 // --- AI-modus-toggle (injecteerbaar → headless testbaar) -----------------------------------------
 
 export interface ApplyAiModeDeps {
@@ -293,13 +311,22 @@ export function createRequestHandler(
   // `import_schedule` ging met de weggegooide ctx verloren. `tempIdMap` blijft bewust per request
   // (batch-only, de batch-executor bezit hem).
   let expectedDocId: string | null = null;
-  return async (payload) => {
+  // Requests strikt NA elkaar (audit 2026-09-26). Rust houdt één request tegelijk in de lucht, maar
+  // geeft dat slot na zijn time-out (120 s) vrij terwijl de webview nog aan het oude request werkt;
+  // zonder deze keten liep het volgende request (vaak een retry van dezelfde import) bij elke await
+  // door het oude heen en opende bv. hetzelfde bestand twee keer.
+  let tail: Promise<void> = Promise.resolve();
+  const handleOne = async (payload: { id: number; body: string }): Promise<void> => {
     const ctx = deps.buildContext();
     if (ctx.expectedDocId === null) ctx.expectedDocId = expectedDocId;
     const start = performance.now();
     let body: string;
     try {
       body = await deps.handleMessage(payload.body, ctx);
+    } catch (error) {
+      // Vangnet buiten de dispatcher-crashbarrière (bv. een niet-serialiseerbaar resultaat): altijd
+      // een JSON-RPC-fout terugsturen, anders wacht de client tot de Rust-time-out.
+      body = internalErrorResponse(payload.body, error);
     } finally {
       expectedDocId = ctx.expectedDocId;
     }
@@ -307,6 +334,24 @@ export function createRequestHandler(
     recordRequestActivity(payload.body, body, performance.now() - start);
     await deps.emit('mcp://response', { id: payload.id, body });
   };
+  return (payload) => {
+    const run = tail.then(() => handleOne(payload));
+    tail = run.catch((error) => { console.error('MCP: antwoord versturen mislukt:', error); });
+    return run;
+  };
+}
+
+/** JSON-RPC `-32603 Internal error` voor een request waarvan de verwerking zelf wierp. Een
+ *  notificatie (geen `id`) krijgt, zoals altijd, een lege body. */
+function internalErrorResponse(rawBody: string, error: unknown): string {
+  let id: unknown = null;
+  try {
+    const parsed = JSON.parse(rawBody) as { id?: unknown };
+    if (parsed && typeof parsed === 'object' && !('id' in parsed)) return '';
+    id = parsed?.id ?? null;
+  } catch { /* onparseerbaar ⇒ id null */ }
+  const message = error instanceof Error ? error.message : String(error);
+  return JSON.stringify({ jsonrpc: '2.0', id, error: { code: -32603, message: `Interne fout: ${message}` } });
 }
 
 // --- Status-handler (injecteerbaar) --------------------------------------------------------------
@@ -391,6 +436,8 @@ export interface BridgeDeps {
 export interface BridgeController {
   start: () => Promise<void>;
   stop: () => Promise<void>;
+  /** Stop + start: pikt een gewijzigd token (of poort) op zonder dat de gebruiker het doet. */
+  restart: () => Promise<void>;
   /** Aantal op dit moment gekoppelde listeners (test-inspectie). */
   activeListenerCount: () => number;
 }
@@ -438,7 +485,17 @@ export function createBridgeController(deps: BridgeDeps): BridgeController {
       const unStatus = await deps.listen<{ state: string; port: number; message?: string }>('mcp://status', (p) => { onStatus(p); });
       unlisteners = [unReq, unStatus];
 
-      const started = await attemptBridgeStart({ invoke: deps.invoke, setStatus: deps.setStatus, port, token });
+      // Eerste poging stil: mislukt hij, dan kan het zijn dat de Rust-bridge van een eerdere
+      // webview-sessie nog draait (herlaad van de webview: JS-status is weer "uit", Rust luistert
+      // nog) — `mcp_bridge_start` zegt dan "draait al", en zonder herstel bleef de status op
+      // port-busy hangen terwijl requests naar een listener gingen die er niet meer was. Daarom één
+      // keer stoppen (onschadelijk als er niets draait) en opnieuw; pas die tweede mislukking is
+      // echt port-busy.
+      let started = await attemptBridgeStart({ invoke: deps.invoke, setStatus: () => {}, port, token });
+      if (!started) {
+        try { await deps.invoke('mcp_bridge_stop', {}); } catch { /* er draaide niets — prima */ }
+        started = await attemptBridgeStart({ invoke: deps.invoke, setStatus: deps.setStatus, port, token });
+      }
       if (!started) {
         // Bind mislukt: `attemptBridgeStart` heeft net (synchroon, in de invoke-reject-catch)
         // `setStatus(port-busy)` gezet; hier ruimen we — óók synchroon, zonder tussenliggende
@@ -461,7 +518,12 @@ export function createBridgeController(deps: BridgeDeps): BridgeController {
     deps.setStatus({ state: 'off', port: deps.getPort() });
   }
 
-  return { start, stop, activeListenerCount: () => unlisteners.length };
+  async function restart(): Promise<void> {
+    await stop();
+    await start();
+  }
+
+  return { start, stop, restart, activeListenerCount: () => unlisteners.length };
 }
 
 // --- Live wiring (Tauri-only; achter isTauri(), niet headless getest — dat is E2E/poort 2) --------
