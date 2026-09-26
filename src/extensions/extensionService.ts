@@ -2,7 +2,7 @@
  * Installeren, verwijderen en catalogusbeheer van extensies.
  * ZIP-parsing gebeurt met een minimale eigen parser op basis van DecompressionStream — geen
  * JSZip-dependency (zelfde aanpak als Open Calc Studio). Die parser woont in
- * `src/services/zip/zipReader.ts`; dit bestand is er sinds issue #27 etappe 3 alleen nog afnemer van.
+ * `src/services/zip/zipReader.ts`; dit bestand is er alleen afnemer van.
  */
 import type { ExtensionManifest, ReadyExtension, CatalogEntry } from './types';
 import { manifestFromJavaScript, parseCatalog, parseExtensionManifest } from './validation';
@@ -20,10 +20,9 @@ import { askExtensionConsent, type ConsentSource, type ConsentVerification, type
 import { isTauri } from '@/utils/platform';
 import { EXTENSION_ZIP_LIMITS, parseZipEntries, type ZipEntry } from '@/services/zip/zipReader';
 
-// De ZIP-lezer woont sinds issue #27 etappe 3 in `src/services/zip/` (X2), zodat de `.xlsx`-lezer
-// hem kan delen zonder de hele extensie-/store-laag mee de bundel in te trekken. Hier blijft hij
-// heruitgevoerd omdat bestaande afnemers (o.a. `tests/planning/check-ext-integrity.ts`) hem via
-// dit pad importeren.
+// De ZIP-lezer woont in `src/services/zip/`, zodat de `.xlsx`-lezer hem kan delen zonder de hele
+// extensie-/store-laag mee de bundel in te trekken. Hier blijft hij heruitgevoerd omdat afnemers
+// (o.a. `tests/planning/check-ext-integrity.ts`) hem via dit pad importeren.
 export { parseZipEntries };
 export type { ZipEntry };
 
@@ -123,7 +122,7 @@ export function buildConsentRequest(
 }
 
 /**
- * De vertrouwensvraag, op één plek voor élk installatiepad (K-item 38).
+ * De vertrouwensvraag, op één plek voor élk installatiepad.
  *
  * Staat bewust VÓÓR elke schrijfactie: bij een weigering mag er niets in IndexedDB staan, niets in
  * de store geregistreerd zijn, en een al geïnstalleerde vorige versie onaangeroerd blijven.
@@ -179,7 +178,7 @@ export interface DownloadVerdict {
 }
 
 /**
- * Mag deze download geïnstalleerd worden (K-item 38)?
+ * Mag deze download geïnstalleerd worden?
  *
  * De catalogus is een extern JSON-bestand en `downloadUrl` wijst naar een release-asset; zonder
  * hash zijn "wat de catalogus beschrijft" en "wat je installeert" alleen door TLS aan elkaar

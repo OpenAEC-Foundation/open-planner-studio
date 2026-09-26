@@ -1,4 +1,4 @@
-// MCP-bridge — server-levenscyclus (fase 1, spec §Beveiliging & levenscyclus).
+// MCP-bridge — server-levenscyclus.
 //
 // Deze module bedient de Tauri-only bridge: token verzekeren, `mcp_bridge_start`/`mcp_bridge_stop`
 // invoken, en de twee Tauri-events koppelen aan de dispatcher + de ui-state:
@@ -11,11 +11,11 @@
 // `attemptBridgeStart`, `buildMcpContext`, `ensureMcpToken`/`generateToken`) nemen hun Tauri-randen
 // als injecteerbare functies, zodat ze headless — zonder Tauri — te testen zijn (`tests/mcp/`).
 //
-// De per-request `ctx` is VOLLEDIG aangesloten (SYNC-2): `paused`/`readOnly` komen live uit de
-// ui-state, `expectedDocId` (drift-anker) en `tempIdMap` (batch-executor) zijn per verbinding
-// meegroeiende velden, en `ensureBackup` wijst naar de ECHTE AI-backup uit `backup.ts` — geen stub
-// meer. `initMcpRuntime()` hieronder registreert de tool-modules; de T16-backupfuncties reizen als
-// één contextbinding met ieder request mee. Zie de tool-contracten in `contracts.ts` (`McpContext`).
+// De per-request `ctx`: `paused`/`readOnly` komen live uit de ui-state, `expectedDocId`
+// (drift-anker) en `tempIdMap` (batch-executor) zijn per verbinding meegroeiende velden, en
+// `ensureBackup` wijst naar de AI-backup uit `backup.ts`. `initMcpRuntime()` hieronder registreert
+// de tool-modules; de backupfuncties reizen als één contextbinding met ieder request mee. Zie de
+// tool-contracten in `contracts.ts` (`McpContext`).
 
 import { appStoreContext, useAppStore, type AppStoreContext } from '@/state/appStore';
 import { mcpTransactions } from '@/state/mcpTransaction';
@@ -28,16 +28,16 @@ import { createAppBackupService, ensureBackup, resetBackupSession, markDuplicate
 import { registerAllTools } from './toolRegistry';
 import type { McpBackupBinding, McpContext, McpServerStatus, ActivityEntry } from './contracts';
 
-// --- Runtime-init (SYNC-2: de integratiedraden tussen de tool-banen) ------------------------------
+// --- Runtime-init ---------------------------------------------------------------------------------
 
 /**
- * Knoop de losse tool-banen aan elkaar. Idempotent en zonder Tauri-afhankelijkheid, dus veilig om
- * meermaals én in de web-build aan te roepen. Twee draden:
+ * Registreer de toolset. Idempotent en zonder Tauri-afhankelijkheid, dus veilig om meermaals én in
+ * de web-build aan te roepen.
  *
  * **De toolregistratie.** `toolRegistry.ts` registreert zichzelf al bij module-load, maar dat is
  *     een side-effect van het importeren. Deze expliciete aanroep garandeert dat `tools/list` in de
  *     echte app de VOLLEDIGE set toont, ook als een eerdere (test-)aanroep de registratie tot een
- *     deelverzameling had afgeknot. De T16-backupbinding zit niet langer in module-init: iedere
+ *     deelverzameling had afgeknot. De backupbinding zit niet in module-init: iedere
  *     `McpContext` draagt `ensureBackup` en `markDuplicateBorn` van exact dezelfde service.
  */
 export function initMcpRuntime(): void {
@@ -99,7 +99,7 @@ export interface ApplyAiModeDeps {
 }
 
 /**
- * Pas de AI-modus toe (T14, spec §UI): schrijf de ui-spiegel + persisteer. Bij UITZETTEN wordt de
+ * Pas de AI-modus toe: schrijf de ui-spiegel + persisteer. Bij UITZETTEN wordt de
  * bridge geforceerd gestopt en de serverstatus expliciet op `off` gezet (op de web-build is
  * `stopMcpServer` een no-op, dus de status-reset moet hier gebeuren, niet uit een stop-event).
  * De reducer (`setUI`) valt zelf al terug naar de start-tab als het AI-tabblad actief was.
@@ -176,7 +176,7 @@ export interface RequestHandlerDeps {
   handleMessage: (body: string, ctx: McpContext) => Promise<string>;
 }
 
-// --- Activiteits-samenvatting (T15) --------------------------------------------------------------
+// --- Activiteits-samenvatting --------------------------------------------------------------------
 
 /**
  * Vat de args van een `tools/call` compact samen voor het activiteitenpaneel: het eerste array-veld
@@ -288,7 +288,7 @@ export function createRequestHandler(
     const ctx = deps.buildContext();
     const start = performance.now();
     const body = await deps.handleMessage(payload.body, ctx);
-    // T15: leg de aanroep vast in het activiteitenlog (notificaties = lege body worden overgeslagen).
+    // Leg de aanroep vast in het activiteitenlog (notificaties = lege body worden overgeslagen).
     recordRequestActivity(payload.body, body, performance.now() - start);
     await deps.emit('mcp://response', { id: payload.id, body });
   };
@@ -449,7 +449,7 @@ export function createBridgeController(deps: BridgeDeps): BridgeController {
   return { start, stop, activeListenerCount: () => unlisteners.length };
 }
 
-// --- Live wiring (Tauri-only; achter isTauri(), niet headless getest — dat is E2E/poort 2) --------
+// --- Live wiring (Tauri-only; achter isTauri(), niet headless getest) ----------------------------
 
 /** Gecachte controller-belofte: gedeeld over alle start/stop-aanroepen zodat er nooit twee losse
  *  controllers (elk met een eigen listener-set) ontstaan bij een gelijktijdige start. */
@@ -483,7 +483,7 @@ function getLiveController(): Promise<BridgeController> {
 export async function startMcpServer(): Promise<void> {
   initMcpRuntime(); // backup-naad + volledige toolregistratie (idempotent; zie initMcpRuntime)
   if (!isTauri()) return;
-  resetBackupSession(); // verse server-sessie ⇒ per-document auto-backup-tellers leeg (spec §Triggerregels)
+  resetBackupSession(); // verse server-sessie ⇒ per-document auto-backup-tellers leeg
   const controller = await getLiveController();
   await controller.start();
 }

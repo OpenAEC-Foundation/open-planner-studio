@@ -1,7 +1,5 @@
-// proposalFingerprint.ts — B1c-plan3 taak 4 (spec §6a).
-//
 /**
- * Vingerafdruk van de documentstate waarop een verdelingsvoorstel gerekend heeft (spec §6a).
+ * Vingerafdruk van de documentstate waarop een verdelingsvoorstel gerekend heeft.
  *
  * Referentie-gebaseerd, met opzet: Immer bevriest de state na elke producer en levert bij elke
  * mutatie een NIEUWE referentie voor het gemuteerde deel. Een vergelijking op inhoud zou duurder én
@@ -10,9 +8,9 @@
  * De velden zijn precies wat `computeDistribution` leest: de taken (datums, delays, gaten, prioriteit),
  * de relaties, de resources en toewijzingen (wie boekt), de kalenders, het project (statusdatum,
  * voortgangsmodus, planningsopties, bibliotheekkoppeling) en `cpmResult` (de doorgerekende cijfers
- * waar §3.1 op staat), plus `scheduleStale`/`datesAsRecorded` (§3.1/§3.3a bepalen mee of een document
- * meetelt). Groeit die leeslijst, dan groeit deze functie mee — anders overleeft een voorstel een
- * bewerking die het wél ongeldig maakt.
+ * waar de verdeling op staat), plus `scheduleStale`/`datesAsRecorded` (die bepalen mee of een
+ * document meetelt). Groeit die leeslijst, dan groeit deze functie mee — anders overleeft een
+ * voorstel een bewerking die het wél ongeldig maakt.
  *
  * Puur, geen store-import (bewaakt door `verify:store-boundaries`).
  */

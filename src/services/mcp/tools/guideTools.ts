@@ -1,12 +1,12 @@
 // MCP-bridge — `planner_get_planning_guide`: de planningsgids en de agent-skill bij de agent
-// brengen (werkblok D2b).
+// brengen.
 //
-// WAAROM EEN TOOL EN NIET ALLEEN `instructions`. De initialize-respons draagt sinds D2b de
-// kernregels mee (`MCP_INSTRUCTIONS` in `dispatcher.ts`), maar die tekst moet kort blijven — hij
-// gaat in élke systeemprompt mee. De volledige gids ("Goed plannen") is een artikel van duizenden
-// woorden; die haalt een agent hier op wanneer hij hem
-// nodig heeft. Daarnaast levert deze tool de agent-SKILL plus de aanwijzing waar hij die zelf kan
-// neerzetten, zodat de gids ook in een vólgende sessie meekomt zonder dat de gebruiker iets doet.
+// WAAROM EEN TOOL EN NIET ALLEEN `instructions`. De initialize-respons draagt de kernregels mee
+// (`MCP_INSTRUCTIONS` in `dispatcher.ts`), maar die tekst moet kort blijven — hij gaat in élke
+// systeemprompt mee. De volledige gids ("Goed plannen") is een artikel van duizenden woorden; die
+// haalt een agent hier op wanneer hij hem nodig heeft. Daarnaast levert deze tool de agent-SKILL plus
+// de aanwijzing waar hij die zelf kan neerzetten, zodat de gids ook in een vólgende sessie meekomt
+// zonder dat de gebruiker iets doet.
 //
 // DE BRON. Gids en skill zijn RUNTIME-ASSETS in `public/` — geen bundelinhoud. We halen ze op met
 // `fetchTextAsset` (`@/utils/textAsset`), precies zoals `HelpPanel.tsx` dat doet: `BASE_URL`-
@@ -18,7 +18,7 @@
 // niet — er is geen half-bewerkte state die hij verkeerd kan zien. Hij is ook zinvol juist wanneer
 // er een dialoog openstaat (de agent oriënteert zich dan). `ensureFreshSchedule` is om dezelfde
 // reden niet nodig: er wordt geen berekende waarde gelezen. Read-only-modus en pauze raken alleen
-// mutaties, dus deze tool blijft daar gewoon werken (spec regel 116).
+// mutaties, dus deze tool blijft daar gewoon werken.
 
 import { fetchTextAsset, type TextAssetFetch } from '@/utils/textAsset';
 import { buildEnvelope, toolError } from './runtime';

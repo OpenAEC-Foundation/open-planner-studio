@@ -137,8 +137,8 @@ function toIntHoliday(h: ExtHoliday): Holiday {
   return { name: h.name, startDate: h.startDate, endDate: h.endDate };
 }
 
-/** T13 (§T2-afwijking): `bands` mee-kopiëren (niet spreaden) — een kale spread zou anders het
- *  bevroren store-array-object doorgeven (zelfde reviewbevinding als `copySchedulingOptions`). */
+/** `bands` mee-kopiëren (niet spreaden) — een kale spread zou anders het bevroren store-array-object
+ *  doorgeven. */
 function copyWorkingException(w: WorkingException): ExtWorkingException {
   return { name: w.name, startDate: w.startDate, endDate: w.endDate, ...(w.bands ? { bands: w.bands.map((b) => ({ start: b.start, end: b.end })) } : {}) };
 }
@@ -173,7 +173,7 @@ export function toExtProject(p: Project): ExtProject {
     defaultTaskDurationUnit: p.defaultTaskDurationUnit,
     defaultWorkRule: p.defaultWorkRule,
     schedulingOptions: p.schedulingOptions ? publicSchedulingOptions(p.schedulingOptions) : undefined,
-    // Rekenprofielen C8 (contract 1.2.0): het opgeloste profiel, alleen-lezen.
+    // Contract 1.2.0: het opgeloste profiel, alleen-lezen.
     schedulingProfile: {
       id: p.schedulingProfile?.id ?? 'ops',
       baseId: p.schedulingProfile?.baseId ?? 'ops',
@@ -201,7 +201,7 @@ export function fromExtProject(p: ExtProject): Project {
     defaultTaskDurationUnit: p.defaultTaskDurationUnit,
     defaultWorkRule: p.defaultWorkRule,
     schedulingOptions: p.schedulingOptions ? publicSchedulingOptions(p.schedulingOptions) : undefined,
-    // Bewust géén `schedulingProfile`: een extensie-import rekent als OPS (spec v3.1 §7).
+    // Bewust géén `schedulingProfile`: een extensie-import rekent als OPS.
   };
 }
 
@@ -271,7 +271,7 @@ export function toExtTaskTime(tt: TaskTime): ExtTaskTime {
     remainingTime: tt.remainingTime,
     remainingMinutes: tt.remainingMinutes,
     completion: tt.completion,
-    // Z14 (Z12-herwerk): resume/stop, zelfde onvoorwaardelijke doorgifte als de andere optionele
+    // resume/stop: zelfde onvoorwaardelijke doorgifte als de andere optionele
     // tracking-velden hierboven (`undefined` blijft `undefined`).
     resume: tt.resume,
     stop: tt.stop,
@@ -279,15 +279,14 @@ export function toExtTaskTime(tt: TaskTime): ExtTaskTime {
 }
 
 /**
- * T14b (gebruikstestbevinding, ernst hoog — dataverlies): `ExtTaskTime` declareert `durationType`/
+ * Grensverdediging bij `addTask`: `ExtTaskTime` declareert `durationType`/
  * `scheduleDuration`/`scheduleStart`/`scheduleFinish`/`earlyStart`/`earlyFinish`/`lateStart`/
  * `lateFinish`/`freeFloat`/`totalFloat`/`isCritical`/`completion` als VERPLICHT — maar dat is alleen
  * een TS-compileertijd-garantie. Een extensie draait ONGETYPEERD (`new Function`-sandbox, CommonJS);
- * niets valideert op runtime dat een binnenkomend object die velden ook echt draagt. Vóór deze fix
- * gaf een ontbrekend `completion` hier `undefined` door tot in `Task.time`, en de eerstvolgende
- * `writeIFC` crashte op `time.completion.toFixed(1)` (`ifcTaskSlots.ts`) — bereikbaar via de publieke,
- * gedocumenteerde `api.data.addTask`. Elk verplicht veld krijgt daarom een expliciete, niet-crashende
- * terugval (`??`, dus `false`/`0` blijven staan): datumvelden vallen terug op `scheduleStart`/
+ * niets valideert op runtime dat een binnenkomend object die velden ook echt draagt. Een ontbrekend
+ * `completion` zou tot in `Task.time` doorlopen en `writeIFC` laten crashen op
+ * `time.completion.toFixed(1)` (`ifcTaskSlots.ts`). Elk verplicht veld krijgt daarom een expliciete,
+ * niet-crashende terugval (`??`, dus `false`/`0` blijven staan): datumvelden vallen terug op `scheduleStart`/
  * `-Finish` (zelf terugvallend op vandaag), getallen op 0, `isCritical` op `false`, `completion` op 0
  * — dezelfde geest als `createDefaultTaskTime`. De bron-laag (`taskSlice`/`mcpTransaction`, zie hun
  * `mergeTaskTime`) herstelt daarna evt. datum-samenhang tegen het echte projectanker; dit is de
@@ -319,7 +318,7 @@ export function fromExtTaskTime(tt: ExtTaskTime): TaskTime {
     remainingTime: tt.remainingTime,
     remainingMinutes: tt.remainingMinutes,
     completion: tt.completion ?? 0,
-    // Z14 (Z12-herwerk): resume/stop hebben geen zinvolle generieke fallback (net als
+    // resume/stop hebben geen zinvolle generieke fallback (net als
     // actualStart/actualFinish hierboven) — afwezig blijft afwezig.
     resume: tt.resume,
     stop: tt.stop,
@@ -342,19 +341,20 @@ export function toExtTask(t: Task, customTaskType?: { id: string; name: string }
     mandatory: t.mandatory,
     priority: t.priority,
     levelingDelay: t.levelingDelay,
-    // Z14: vier Z0-typecontractvelden — zelfde onvoorwaardelijke doorgifte als levelingDelay hierboven.
+    // levelingDelayMinutes/-Elapsed, splitGaps, manuallyScheduled: zelfde onvoorwaardelijke
+    // doorgifte als levelingDelay hierboven.
     levelingDelayMinutes: t.levelingDelayMinutes,
     levelingDelayElapsed: t.levelingDelayElapsed,
     splitGaps: t.splitGaps ? t.splitGaps.map(g => ({ ...g })) : undefined,
     manuallyScheduled: t.manuallyScheduled,
-    // Z14b (F5) + main-merge vóór v2026.8.1 (herzien): deze .mpp-importvelden reizen WEL mee door
-    // de VOLLEDIGE vertaling (`fromExtTask` — het invoerpad van een extensie-importer mag geen
-    // velden laten vallen, contract-poort `check-ext-contract.ts`), maar blijven buiten de
-    // create-/update-paden (`fromExtTaskInput`) en de MCP-zetbaarheid (`taskFields.ts` REJECT_HINTS).
+    // Deze velden reizen WEL mee door de VOLLEDIGE vertaling (`fromExtTask` — het invoerpad van een
+    // extensie-importer mag geen velden laten vallen, contract-poort `check-ext-contract.ts`), maar
+    // blijven buiten de create-/update-paden (`fromExtTaskInput`). `mspTaskType`/`effortDriven` zijn
+    // ook via MCP niet zetbaar (`taskFields.ts` REJECT_HINTS); `workRule` wel.
     mspTaskType: t.mspTaskType,
     effortDriven: t.effortDriven,
     workRule: t.workRule,
-    // X0/X12: P6/XER-herkomst is READ-ONLY voor extensies. `toExtTask` toont de bronvelden voor
+    // P6/XER-herkomst is READ-ONLY voor extensies. `toExtTask` toont de bronvelden voor
     // analyse; `fromExtTask` hieronder accepteert ze bewust niet als generieke invoer.
     p6DurationType: t.p6DurationType,
     p6ActivityType: t.p6ActivityType,
@@ -401,18 +401,19 @@ export function fromExtTask(t: ExtTask): Task {
     mandatory: t.mandatory,
     priority: t.priority,
     levelingDelay: t.levelingDelay,
-    // Z14: vier Z0-typecontractvelden — zelfde onvoorwaardelijke doorgifte als levelingDelay hierboven.
+    // levelingDelayMinutes/-Elapsed, splitGaps, manuallyScheduled: zelfde onvoorwaardelijke
+    // doorgifte als levelingDelay hierboven.
     levelingDelayMinutes: t.levelingDelayMinutes,
     levelingDelayElapsed: t.levelingDelayElapsed,
     splitGaps: t.splitGaps ? t.splitGaps.map(g => ({ ...g })) : undefined,
     manuallyScheduled: t.manuallyScheduled,
-    // Main-merge vóór v2026.8.1 (contract-poort `check-ext-contract.ts`): de VOLLEDIGE vertaling
-    // vernietigt geen data — ook de .mpp-leeskant-velden reizen mee terug. De create-/update-paden
-    // (`fromExtTaskInput`, extensie-API) blijven hier bewust buiten (leeskant-alleen-besluit F5).
+    // De VOLLEDIGE vertaling vernietigt geen data (contract-poort `check-ext-contract.ts`) — ook de
+    // .mpp-leeskant-velden reizen mee terug. De create-/update-paden (`fromExtTaskInput`,
+    // extensie-API) blijven hier bewust buiten.
     mspTaskType: t.mspTaskType,
     effortDriven: t.effortDriven,
     workRule: t.workRule,
-    // X12-herreview: de zeven P6/XER-velden zijn bronprovenance, geen publieke generieke invoer.
+    // De P6/XER-velden zijn bronprovenance, geen publieke generieke invoer.
     // De native XER-reader en het IFC-round-trippad materialiseren ze rechtstreeks op `Task`;
     // een ongetypeerde extensiepayload mag via deze mapper geen P6-solverroute activeren.
     timephasedContours: t.timephasedContours ? t.timephasedContours.map(c => ({ resourceUid: c.resourceUid, ...(c.resourceId !== undefined ? { resourceId: c.resourceId } : {}), periods: c.periods.map(p => ({ ...p })) })) : undefined,
@@ -463,7 +464,8 @@ export function fromExtTaskInput(
   if (input.mandatory !== undefined) out.mandatory = input.mandatory;
   if (input.priority !== undefined) out.priority = input.priority;
   if (input.levelingDelay !== undefined) out.levelingDelay = input.levelingDelay;
-  // Z14: vier Z0-typecontractvelden — zelfde "alleen-als-gezet"-vorm als levelingDelay hierboven.
+  // levelingDelayMinutes/-Elapsed, splitGaps, manuallyScheduled: zelfde "alleen-als-gezet"-vorm als
+  // levelingDelay hierboven.
   if (input.levelingDelayMinutes !== undefined) out.levelingDelayMinutes = input.levelingDelayMinutes;
   if (input.levelingDelayElapsed !== undefined) out.levelingDelayElapsed = input.levelingDelayElapsed;
   if (input.splitGaps !== undefined) out.splitGaps = input.splitGaps.map(g => ({ ...g }));
@@ -487,18 +489,18 @@ export function fromExtTaskInput(
 }
 
 /**
- * `api.data.addTask`-invoer (Fable-critreview PR #169, bevinding 10): als `fromExtTaskInput`, maar een
+ * `api.data.addTask`-invoer: als `fromExtTaskInput`, maar een
  * URENtaak waarvoor de extensie GEEN `scheduleFinish` meegaf krijgt ook geen einde uit de grensterugval
  * (`fromExtTaskTime` vult `scheduleFinish`/`earlyFinish`/`lateFinish` anders met de start). Zo ziet de
  * store-`addTask` geen "meegegeven einde" en leidt `seedNewHourTaskFinish` het einde af uit start + duur
  * op de taakkalender — dezelfde regel als elke andere nieuwe urentaak. Een meegegeven einde wint; een
- * dagtaak blijft byte-identiek. Niet voor `sdk.factory.createTask`: die bouwt een volledig DTO zonder
+ * dagtaak blijft ongewijzigd. Niet voor `sdk.factory.createTask`: die bouwt een volledig DTO zonder
  * document of kalender en kan dus niets afleiden.
  *
  * Alleen voor een taak die meebeweegt (`hourInputFinishFollowsEdits`: niet gestart, niet handmatig,
  * geen samenvatting/hammock/P6-targetvenster) — anders zou de store het einde niet afleiden en viel het
  * op de verse default terug. Ook een meegegeven `earlyFinish`/`lateFinish` zonder `scheduleFinish` wordt
- * genegeerd (critreview 2e ronde): dat is rekenuitvoer die de eerstvolgende berekening toch overschrijft,
+ * genegeerd: dat is rekenuitvoer die de eerstvolgende berekening toch overschrijft,
  * en zo zijn gepland en vroegst einde vóór die berekening coherent.
  */
 export function fromExtTaskAddInput(
@@ -518,40 +520,26 @@ export function fromExtTaskAddInput(
 }
 
 /**
- * T14b-vervolg (extensie-rand, UPDATE-pad): `fromExtTaskTime` (hierboven) is bedoeld voor `addTask` —
- * een ontbrekend verplicht veld krijgt daar een GENERIEKE default (vandaag/0/false), want er is nog
- * geen bestaande taak om uit te putten. Voor `api.data.updateTask` is dat verkeerd: zou
- * `fromExtTaskUpdates` hier ook `fromExtTaskTime` gebruiken, dan fabriceert die al een VOLLEDIG
- * `TaskTime`-object mét generieke defaults vóórdat `taskSlice.updateTask`'s `mergeTaskTime` er ooit
- * aan te pas komt — de merge ziet dan een reeds-compleet object en kan de ECHTE bestaande
- * completion/floats/etc. niet meer terugvinden. Deze functie kopieert daarom VELD-VOOR-VELD zonder
- * enige fallback-fabricage (ontbrekend blijft ontbrekend); `taskSlice.updateTask`'s `mergeTaskTime`
- * (basis = de bestaande taaktijd) vult het ontbrekende aan tegen de ECHTE waarden.
+ * Extensie-rand, UPDATE-pad. `fromExtTaskTime` (hierboven) vult ontbrekende verplichte velden met
+ * GENERIEKE defaults — goed voor `addTask`, fout voor `api.data.updateTask`: `mergeTaskTime` zou
+ * dan een reeds-compleet object zien en de ECHTE bestaande completion/floats/etc. overschrijven.
+ * Deze functie kopieert daarom VELD-VOOR-VELD zonder fallback (ontbrekend blijft ontbrekend);
+ * `taskSlice.updateTask`'s `mergeTaskTime` vult het ontbrekende aan uit de bestaande taaktijd.
  *
- * SPEC-REVIEW-FIXRONDE (2026-08-17): een object-LITERAL met elke sleutel expliciet genoemd
- * (`{ durationMinutes: tt.durationMinutes, ... }`) zet die sleutel ALTIJD als eigen property, ook al
- * is `tt.durationMinutes` `undefined` omdat de sleutel op `tt` zelf gewoon nooit voorkwam. Dat verslikt
- * zich in `mergeTaskTime`'s sleutel-aanwezigheid-conventie: élk optioneel veld leek dan "expliciet
- * gewist", ook velden die de aanroeper nooit noemde — een partiële `api.data.updateTask({time:
- * {scheduleStart:...}})` wiste zo alsnog `durationMinutes`/`actualStart`/`actualFinish`/
- * `remainingTime`/`remainingMinutes` (bewezen in blok (10b) van check-ifc-roundtrip.ts, pad 3). Elk
- * optioneel veld wordt daarom pas op `out` gezet als de sleutel ook ECHT op `tt` aanwezig is
- * (`'veld' in tt`, NIET `tt.veld !== undefined` — dat laatste zou een BEWUSTE clear via een
- * expliciete `undefined`-waarde weer verkeerd als "niet genoemd" lezen, het spiegelbeeld-gat).
+ * Een object-LITERAL met elke sleutel expliciet genoemd (`{ durationMinutes: tt.durationMinutes, ... }`)
+ * zet die sleutel ALTIJD als eigen property, ook als hij op `tt` nooit voorkwam — en `mergeTaskTime`
+ * leest sleutel-aanwezigheid als "expliciet gewist". Een partiële `api.data.updateTask({time:
+ * {scheduleStart:...}})` zou zo `durationMinutes`/`actualStart`/… wissen (gepind in blok (10b) van
+ * check-ifc-roundtrip.ts). Elk optioneel veld wordt daarom pas op `out` gezet als de sleutel ook ECHT
+ * op `tt` aanwezig is (`'veld' in tt`, NIET `tt.veld !== undefined` — dat laatste zou een BEWUSTE
+ * clear via een expliciete `undefined`-waarde weer verkeerd als "niet genoemd" lezen).
  *
- * T16-VEEGLIJST (theoretische fractionele-remaining-kier, becommentarieerd — bewust niet dichtgetimmerd):
- * `remainingTime`/`remainingMinutes` gaan hier ONGEVALIDEERD door naar `TaskTime`, ZONDER de
- * consistentiecheck tegen `completion` die T9 voor de MPP-lezer bouwde (die leest een bestandseigen,
- * al-MSP-getrouw-afgeronde `RemainingDuration` i.p.v. hem uit `completion` af te leiden — precies om
- * de "klokstanden die MSP nooit toont"-fout te voorkomen). De MCP-tools (`planner_*`) SLUITEN dit gat
- * al af: `taskFields.ts`'s `PROGRESS_REJECT_HINTS` weigert `remaining`/`remainingTime` expliciet bij
- * naam ("de resterende duur wordt afgeleid uit `completion`"). Extensies hebben dat hek niet — een
- * extensie die `completion` en een daarmee INCONSISTENTE `remainingTime` in dezelfde
- * `api.data.updateTask`-aanroep zet, kan dus in principe dezelfde niet-ronde klokstand produceren die
- * T9 voor MPP-import wegnam. Bewust ongefixt: dit vergt een schrijvende, kwaadwillige of onzorgvuldige
- * extensie (geen bereikbaar pad via import/UI/MCP), en directe veldtoegang is precies het contract dat
- * de extensie-API voor `TaskTime` biedt — een consistentiecheck hier zou legitiem gebruik (een
- * extensie die zelf een precieze restduur bijhoudt) net zo goed blokkeren als het misbruikgeval.
+ * Bewust open: `remainingTime`/`remainingMinutes` gaan hier ONGEVALIDEERD door naar `TaskTime`, zonder
+ * consistentiecheck tegen `completion`. De MCP-tools weigeren die velden (`taskFields.ts`'s
+ * `PROGRESS_REJECT_HINTS`); een extensie kan met een inconsistente `remainingTime` dus een niet-ronde
+ * klokstand zetten. Directe veldtoegang is precies het contract dat de extensie-API voor `TaskTime`
+ * biedt — een check hier zou legitiem gebruik (een extensie die zelf een precieze restduur bijhoudt)
+ * net zo goed blokkeren.
  */
 function fromExtTaskTimePatch(tt: Partial<ExtTaskTime>): Partial<TaskTime> {
   const out: Partial<TaskTime> = {};
@@ -576,7 +564,7 @@ function fromExtTaskTimePatch(tt: Partial<ExtTaskTime>): Partial<TaskTime> {
   if ('remainingTime' in tt) out.remainingTime = tt.remainingTime;
   if ('remainingMinutes' in tt) out.remainingMinutes = tt.remainingMinutes;
   if ('completion' in tt) out.completion = tt.completion;
-  // Z14 (Z12-herwerk): resume/stop volgen dezelfde sleutel-aanwezigheid-conventie als de andere
+  // resume/stop volgen dezelfde sleutel-aanwezigheid-conventie als de andere
   // optionele velden hierboven — cruciaal voor dezelfde reden (zie de docstring boven deze functie):
   // `mergeTaskTime` (taskDefaults.ts) onderscheidt "niet genoemd" van "bewust gewist" via `in`.
   if ('resume' in tt) out.resume = tt.resume;
@@ -604,7 +592,8 @@ export function fromExtTaskUpdates(updates: Partial<ExtTask>): Partial<Task> {
   if (updates.mandatory !== undefined) out.mandatory = updates.mandatory;
   if (updates.priority !== undefined) out.priority = updates.priority;
   if (updates.levelingDelay !== undefined) out.levelingDelay = updates.levelingDelay;
-  // Z14: vier Z0-typecontractvelden — zelfde "alleen-als-gezet"-vorm als levelingDelay hierboven.
+  // levelingDelayMinutes/-Elapsed, splitGaps, manuallyScheduled: zelfde "alleen-als-gezet"-vorm als
+  // levelingDelay hierboven.
   if (updates.levelingDelayMinutes !== undefined) out.levelingDelayMinutes = updates.levelingDelayMinutes;
   if (updates.levelingDelayElapsed !== undefined) out.levelingDelayElapsed = updates.levelingDelayElapsed;
   if (updates.splitGaps !== undefined) out.splitGaps = updates.splitGaps.map(g => ({ ...g }));
@@ -612,7 +601,7 @@ export function fromExtTaskUpdates(updates: Partial<ExtTask>): Partial<Task> {
   if (updates.parentId !== undefined) out.parentId = updates.parentId;
   if (updates.childIds !== undefined) out.childIds = [...updates.childIds];
   if (updates.isSummary !== undefined) out.isSummary = updates.isSummary;
-  // T14b-vervolg: `fromExtTaskTimePatch`, NIET `fromExtTaskTime` — zie de docstring daarboven. `out.time`
+  // `fromExtTaskTimePatch`, NIET `fromExtTaskTime` — zie de docstring daarboven. `out.time`
   // is hier op TS-niveau een volledige `TaskTime`, maar dat is dezelfde bewuste afwijking als
   // `addTask`'s `partial.time`: de echte volledigheid wordt pas door `taskSlice.updateTask`'s
   // `mergeTaskTime` (tegen de bestaande taaktijd) gegarandeerd, niet hier.
@@ -783,10 +772,10 @@ export function fromExtImportResult(r: ExtImportResult): ImportResult {
 /**
  * Ext-facing tabblad-id → intern tabblad-id.
  *
- * De publieke waarde `relations` blijft voor bestaande extensies geldig, maar landt sinds de
- * tabel-overhaul op `table`: het zelfstandige paneel bestaat niet meer en de volledige taakgrid
- * bevat nu alle relatiefunctionaliteit. De `Record` over de volledige `ExtRibbonTab`-unie dwingt
- * af dat een nieuw ext-tabblad ook echt ergens op uitkomt.
+ * De publieke waarde `relations` blijft voor bestaande extensies geldig, maar landt op `table`: er is
+ * geen zelfstandig relatiepaneel; de volledige taakgrid bevat alle relatiefunctionaliteit. De
+ * `Record` over de volledige `ExtRibbonTab`-unie dwingt af dat een nieuw ext-tabblad ook echt ergens
+ * op uitkomt.
  */
 const RIBBON_TAB_MAP: Record<ExtRibbonTab, RibbonTab> = {
   file: 'file',

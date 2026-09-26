@@ -1,55 +1,43 @@
-// B1c — de verdeler-kern (spec 2026-08-17-b1c-nivelleren-restcapaciteit-design.md §4).
-// Herverdeelt de boeking op ÉÉN poolitem over de geopende documenten die het boeken. Volledig puur
-// en headless testbaar (tests/library/check-distribute.ts): geen store, geen I/O — het schrijfpad en
-// het paneel zijn etappe 3.
+// De verdeler-kern: herverdeelt de boeking op ÉÉN poolitem over de geopende documenten die het
+// boeken. Volledig puur en headless testbaar (tests/library/check-distribute.ts): geen store, geen
+// I/O — het schrijfpad staat in `applyDistribution.ts` en `librarySlice`.
 //
-// HET PROTOCOL IS SEQUENTIEEL, NIET SIMULTAAN. De eerste versie van de spec gaf een formule waarin
-// iedereen iedereen op zijn huidige plek zag — dan is er nergens rest en is verdelen onmogelijk.
-// Hier: documenten één voor één in RANGORDE. Nr. 1 nivelleert alleen tegen de vaste last; elk
-// volgend document ziet de ECHTE boekingen van zijn voorgangers.
+// HET PROTOCOL IS SEQUENTIEEL, NIET SIMULTAAN. Als iedereen iedereen op zijn huidige plek ziet, is er
+// nergens rest en is verdelen onmogelijk. Daarom: documenten één voor één in RANGORDE. Nr. 1
+// nivelleert alleen tegen de vaste last; elk volgend document ziet de ECHTE boekingen van zijn voorgangers.
 //
 // TWEE GROOTBOEKEN. De motor toetst per `resourceId` tegen de eigen projectinzet (dat voorkomt dat
 // we een bibliotheekconflict oplossen door een projectconflict te maken); dit bestand voegt het
-// gedeelde POOLITEM-grootboek toe. Beide toetsen moeten slagen — identiek aan de
-// `min(projectinzet, poolrest)`-formulering elders in de spec.
+// gedeelde POOLITEM-grootboek toe. Beide toetsen moeten slagen: `min(projectinzet, poolrest)`.
 //
 // EEN TEKORT CASCADEERT NIET. Kan een taak binnen plafond en profiel niet geplaatst worden, dan
 // wordt haar vraag NIET in het poolgrootboek geboekt (`LevelingPoolLedger.book` wordt overgeslagen)
 // maar als tekort geregistreerd. Zo blijft het restprofiel ≥ 0 en krijgt het volgende document
 // exact de ruimte die er echt is. Een voorstel mét tekorten is een geldige preview, maar blokkeert
-// Toepassen (etappe 3 zet die knop uit-met-reden).
+// Toepassen.
 //
-// UITSLUITEND DOORGEREKENDE CIJFERS (§3.1). `computeLibraryOccupancy` rekent stale documenten
+// UITSLUITEND DOORGEREKENDE CIJFERS. `computeLibraryOccupancy` rekent stale documenten
 // efemeer door; blijft er tóch één `counted: false`, dan is de hele actie GEBLOKKEERD met uitleg —
 // nooit een stille uitsluiting, want nivelleren tegen een niet-doorgerekend document is nivelleren
 // tegen een getal dat nergens vandaan komt.
 //
-// "FLOAT EERST, UITSCHIETER MINIMAAL" IS GEEN TWEEDE ALGORITME (spec §4 stap 2, KEUZE VAN DIT PLAN
-// — concretisering, geen afwijking). De SGS-plaatsing in `levelResources` zoekt per taak het
-// VROEGSTE venster vanaf haar PF, dus float wordt per constructie eerst opgesoupeerd en de uitloop
-// is per taak minimaal; de rangorde bepaalt wie de vroege ruimte krijgt. Er is dus geen aparte
-// "float-pass" nodig — dat zou het bestaande, al-geteste SGS-gedrag dupliceren.
+// "FLOAT EERST, UITSCHIETER MINIMAAL" IS GEEN TWEEDE ALGORITME. De SGS-plaatsing in
+// `levelResources` zoekt per taak het VROEGSTE venster vanaf haar PF, dus float wordt per constructie
+// eerst opgesoupeerd en de uitloop is per taak minimaal; de rangorde bepaalt wie de vroege ruimte
+// krijgt. Er is dus geen aparte "float-pass" nodig — dat zou het bestaande, al-geteste SGS-gedrag dupliceren.
 //
-// `afterLoadByDay` KAN BUITEN DE VOOR-DAGEN VALLEN — EN `endShiftWorkdays` IS GEEN MAAT DAARVOOR
-// (onderzoek 2026-09-14, naar aanleiding van een "lege na-balk" in de verdeeldialoog). Een deelnemer
-// die wijkt boekt per definitie op ANDERE dagen dan in `bookingByDay`, en die dagen kunnen volledig
-// buiten de vereniging van `bookingByDay` + `fixedLoadByDay` liggen: twee documenten met elk tien
-// werkdagen op hetzelfde poolitem van capaciteit 1 geven na verdeling een B-boeking die pas ná de
-// laatste voor-dag begint. Een afnemer die zijn tijdas uit de VOOR-stand opbouwt tekent zo'n
-// document als een LEGE balk — terwijl het voorstel eerlijk is: de boeking staat gewoon in
-// `afterLoadByDay`, er is geen tekort, en niets is stil verdwenen. Dat is dus een presentatiefout,
-// geen verdelerfout; hier een tekort of blokkade van maken zou liegen over een geslaagde plaatsing.
+// `afterLoadByDay` KAN BUITEN DE VOOR-DAGEN VALLEN — EN `endShiftWorkdays` IS GEEN MAAT DAARVOOR.
+// Een deelnemer die wijkt boekt op ANDERE dagen, mogelijk volledig buiten `bookingByDay` +
+// `fixedLoadByDay` (twee documenten van tien werkdagen op capaciteit 1: de B-boeking begint pas ná
+// de laatste voor-dag). Een tijdas die alleen uit de VOOR-stand is opgebouwd, tekent dan een LEGE
+// balk — een presentatiefout, geen verdelerfout. `endShiftWorkdays` meet de PROJECTeinddatum en blijft
+// bv. 0 wanneer een `manuallyScheduled`-taak haar opgeslagen datums houdt; de enige betrouwbare bron
+// voor "welke dagen tonen" is de vereniging van `fixedLoadByDay`, `bookingByDay` ÉN `afterLoadByDay`
+// (gepind in `check-distribute.ts`).
 //
-// `endShiftWorkdays` mag daarbij NIET als staartmarge voor zo'n as gebruikt worden. Dat getal meet
-// de PROJECTeinddatum, en een `manuallyScheduled`-taak houdt haar eigen opgeslagen datums in de
-// CPM-solve (`CPMSolver.ts`): haar boeking schuift dan tien werkdagen op terwijl `endShiftWorkdays`
-// gewoon 0 blijft. De enige betrouwbare bron voor "welke dagen moet ik tonen" is de vereniging van
-// `fixedLoadByDay`, `bookingByDay` ÉN `afterLoadByDay`. `check-distribute.ts` (case 18) pint dit.
-//
-// DE KOSTENLABELS EN DE GEREEDSCHAPSSCHAKELAAR ZIJN GEEN APARTE API (spec §4 stap 1 / §6). "Alleen
-// dit project laten opschuiven kost +N werkdagen" en het prijskaartje van "onderbrekingen toestaan"
-// zijn `computeDistribution` opnieuw draaien met een andere rangorde resp. `allowSplits` — de kern
-// levert dus alles wat het paneel nodig heeft; het cache-/schaalbeleid (§3.4) hoort bij het paneel.
+// DE KOSTENLABELS EN DE GEREEDSCHAPSSCHAKELAAR ZIJN GEEN APARTE API. "Alleen dit project laten
+// opschuiven kost +N werkdagen" en het prijskaartje van "onderbrekingen toestaan" zijn
+// `computeDistribution` opnieuw draaien met een andere rangorde resp. `allowSplits`.
 import type { Task, TaskSplitGap } from '@/types/task';
 import type { CompanyPool } from '@/types/library';
 import type { WorkCalendar } from '@/types/calendar';
@@ -66,42 +54,40 @@ import { computeLibraryOccupancy, solveClone, type OccupancyDocInput, type Occup
 import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
 
 /** Eén deelnemend document. Erft de bezettings-invoer (zodat aanroeper en bezettingsoverzicht
- *  dezelfde mapping delen) en voegt de drie tune-bedieningen van spec §6 toe. */
+ *  dezelfde mapping delen) en voegt de tune-bedieningen toe. */
 export interface DistributionDocInput extends OccupancyDocInput {
   /** 1 = wordt het meest ontzien en plaatst als eerste. Duplicaten worden stabiel op `docId`
    *  gebroken; de aanroeper (het paneel) levert een echte volgorde. */
   rank: number;
-  /** De pin uit §6: bevriest het document volledig (einddatum ÉN werkdagen). Doet niet mee in de
+  /** De pin: bevriest het document volledig (einddatum ÉN werkdagen). Doet niet mee in de
    *  verdeling, telt als vaste last. */
   pinned: boolean;
-  /** #63 — "datums zoals opgeslagen" (§3.3a). Impliciet gepind: het document meldt `counted: true`
-   *  met datums die de motor niet berekend heeft, dus B1c raakt zijn data NOOIT aan. */
+  /** "Datums zoals opgeslagen". Impliciet gepind: het document meldt `counted: true` met datums die
+   *  de motor niet berekend heeft, dus de verdeler raakt zijn data NOOIT aan. */
   datesAsRecorded: boolean;
   /** "Maximale uitloop van de einddatum", in werkdagen; `null` = onbegrensd. `0` = einddatum vast,
-   *  float mag benut worden (§6: plafond 0 ≠ bevroren — daarvoor is de pin). */
+   *  float mag benut worden (plafond 0 ≠ bevroren — daarvoor is de pin). */
   ceilingWorkdays: number | null;
   /** Planningsinvoer voor de motor-run van dít document: de VOLLEDIGE takenlijst, relaties en
    *  CPM-opties — zelfde eis en zelfde reden als `OccupancySolveInput` (een gesnoeide lijst geeft
-   *  een andere planning dan `runCPM`). Een productiebouwer (straks de verdeeldialoog) bouwt hem met
-   *  `occupancySolveInputFor(payload)`, zodat de opties die van F5 zijn. */
+   *  een andere planning dan `runCPM`). Bouw hem met `occupancySolveInputFor(payload)`, zodat de
+   *  opties die van een gewone herberekening zijn. */
   levelInput: OccupancySolveInput;
 }
 
 export interface DistributionOptions {
-  /** "Onderbrekingen toestaan" (§4 stap 0 / §11.4). */
+  /** "Onderbrekingen toestaan". */
   allowSplits: boolean;
 }
 
 /** Waarom een document niet kon wijken — DOCUMENT-niveau, naast de taak-niveau `LevelingReason`. */
 export type DistributionPinReason = 'pin' | 'dates-as-recorded';
 
-/** Waarom de HELE actie geblokkeerd is (§3.1-vorm: vóór al het rekenwerk, geen stille uitsluiting).
+/** Waarom de HELE actie geblokkeerd is (vóór al het rekenwerk, geen stille uitsluiting).
  *  - `UNCOUNTED_DOCUMENT` — een deelnemer is niet doorgerekend (zie `computeLibraryOccupancy`).
- *  - `MATERIAL_ITEM` (fixronde B1c-plan-2-etappe-2, bevinding 1) — `levelResources` nivelleert nooit
- *    `MATERIAL` (spec §5.3, `ResourceLeveler.ts`s `renewable`-filter); zonder deze poort filterde
- *    `computeDistribution` niet op resourcetype, dus elke scope-taak kreeg stilzwijgend `hasDemand
- *    === false` — een LEEG voorstel dat "opgelost" oogt (geen delays, geen tekorten) terwijl het
- *    bezettingsoverzicht gewoon een conflict toont.
+ *  - `MATERIAL_ITEM` — `levelResources` nivelleert nooit `MATERIAL` (`ResourceLeveler.ts`s
+ *    `renewable`-filter); zonder deze poort krijgt elke scope-taak stilzwijgend `hasDemand === false`
+ *    — een LEEG voorstel dat "opgelost" oogt terwijl het bezettingsoverzicht een conflict toont.
  *  - `NO_DEMAND` — algemener vangnet: geen enkele deelnemende scope-taak heeft daadwerkelijk vraag op
  *    een nivelleerbare (niet-MATERIAL) resource. In de praktijk raakt dit vrijwel alleen een
  *    inconsistente stempel (projectresource op `MATERIAL` gezet terwijl het poolitem zelf dat niet
@@ -118,10 +104,10 @@ export interface DistributionShortfall {
 export interface DistributionDocResult {
   docId: string;
   title: string;
-  /** false ⇒ gepind of #63: het document telde als vaste last en werd niet herplaatst. */
+  /** false ⇒ gepind of `datesAsRecorded`: het document telde als vaste last en werd niet herplaatst. */
   participated: boolean;
   pinnedReason?: DistributionPinReason;
-  /** Alle taken in het document zijn priority 1000 ⇒ het KAN niet wijken (§4-taxonomie): een eigen
+  /** Alle taken in het document zijn priority 1000 ⇒ het KAN niet wijken: een eigen
    *  uitkomst, geen generieke capaciteitsmelding. */
   cannotMove: boolean;
   delays: Record<string, number>;
@@ -129,7 +115,7 @@ export interface DistributionDocResult {
   gaps: Record<string, TaskSplitGap[]>;
   projectEndBefore: string;
   projectEndAfter: string;
-  /** Werkdagen die de einddatum opschuift — het getal dat het paneel bij de handle toont (§6). */
+  /** Werkdagen die de einddatum opschuift — het getal dat het paneel bij de handle toont. */
   endShiftWorkdays: number;
   shortfalls: DistributionShortfall[];
 }
@@ -142,19 +128,20 @@ export interface DistributionProposal {
   blocked: { reason: DistributionBlockReason; docIds: string[] } | null;
   docs: DistributionDocResult[];
   /** ISO-dag → vaste last (gepinde documenten + documenten buiten de verdeling die op dit poolitem
-   *  boeken). Voedt de fasestrook-achtergrond in etappe 3. */
+   *  boeken). Voedt de fasestrook-achtergrond. */
   fixedLoadByDay: Record<string, number>;
   /** ISO-dag → wat er ná de hele verdeling nog vrij is. ALTIJD ≥ 0. */
   residualByDay: Record<string, number>;
-  /** Minstens één document houdt een tekort ⇒ Toepassen blijft uit (etappe 3). */
+  /** Minstens één document houdt een tekort ⇒ Toepassen blijft uit. */
   hasShortfall: boolean;
   /** docId → ISO-dag → boeking VÓÓR de verdeling (letterlijk `dailyLoad` uit `computeLibraryOccupancy`,
-   *  voor elk document dat op dit poolitem boekt — ook gepind/#63/cannotMove). Voedt de fasestroken en
-   *  de "voor"-stand van de preview zonder tweede bezettingsberekening. */
+   *  voor elk document dat op dit poolitem boekt — ook gepind/datesAsRecorded/cannotMove). Voedt de
+   *  fasestroken en de "voor"-stand van de preview zonder tweede bezettingsberekening. */
   bookingByDay: Record<string, Record<string, number>>;
-  /** docId → ISO-dag → boeking NA de verdeling (spec §7, voor/na-preview). Dezelfde boekhouding als het
+  /** docId → ISO-dag → boeking NA de verdeling (voor/na-preview). Dezelfde boekhouding als het
    *  grootboek zelf: elke boeking die in `residualOn` meetelt komt hier langs, en geen andere. Gepinde/
-   *  #63-documenten staan er met hun ongewijzigde boeking in (= hun aandeel in `fixedLoadByDay`). */
+   *  datesAsRecorded-documenten staan er met hun ongewijzigde boeking in (= hun aandeel in
+ *  `fixedLoadByDay`). */
   afterLoadByDay: Record<string, Record<string, number>>;
   /** `true` ⇒ minstens één taak kon niet geplaatst worden, dus haar vraag staat NERGENS in
    *  `afterLoadByDay`. Loopt altijd gelijk op met `hasShortfall`; apart benoemd omdat de preview er iets
@@ -177,7 +164,8 @@ const defaultLevelRun: DistributionLevelRun = (doc, options) => {
 };
 
 /** De huidige (ongewijzigde) projecteinddatum van een document — het maximum over de `earlyFinish`
- *  van zijn bladtaken. Gebruikt voor documenten die de motor NIET draait (gepind/#63/`cannotMove`):
+ *  van zijn bladtaken. Gebruikt voor documenten die de motor NIET draait (gepind/datesAsRecorded/
+ *  `cannotMove`):
  *  hun `projectEndBefore`/`projectEndAfter` zijn per definitie gelijk, want er verandert niets. */
 function currentProjectEnd(tasks: Task[]): string {
   let end = '';
@@ -188,14 +176,13 @@ function currentProjectEnd(tasks: Task[]): string {
   return end;
 }
 
-/** `currentProjectEnd`, maar STALE-bewust (fixronde B1c-plan-2-etappe-2, bevinding 3). Deelnemers
- *  krijgen hun `projectEndBefore` uit een VERSE `defaultLevelRun`-solve (zie hierboven); een gepind/
- *  #63/`cannotMove`-document draait de motor niet en las tot nu toe altijd de rauwe
- *  `t.time.earlyFinish` — bij een STALE document (open, maar niet herberekend sinds de laatste
- *  taakwijziging) een verouderd getal, inconsistent met wat de deelnemers wél zien.
+/** `currentProjectEnd`, maar STALE-bewust. Deelnemers krijgen hun `projectEndBefore` uit een VERSE
+ *  `defaultLevelRun`-solve; een gepind/datesAsRecorded/`cannotMove`-document draait de motor niet,
+ *  en de rauwe `t.time.earlyFinish` van een STALE document (open, maar niet herberekend sinds de
+ *  laatste taakwijziging) is een verouderd getal, inconsistent met wat de deelnemers wél zien.
  *
  *  Zelfde route als de efemere doorrekening in `occupancy.ts`s `ephemeralSolve`: een KLOON
- *  doorrekenen, geen write-back naar de payload. #63-documenten (`datesAsRecorded`) zijn hier per
+ *  doorrekenen, geen write-back naar de payload. `datesAsRecorded`-documenten zijn hier per
  *  invariant NOOIT stale — `scheduleStale` mag nooit `true` zijn terwijl `datesAsRecorded` aanstaat
  *  (bewaakt door `tests/planning/check-recorded-dates.ts`) — dus deze tak raakt hun opgeslagen datums
  *  nooit aan; die blijven altijd via de rauwe (want per definitie verse) `earlyFinish` gelezen. Een
@@ -213,7 +200,7 @@ function currentProjectEndFor(doc: DistributionDocInput): string {
 }
 
 /** Werkdagen die de einddatum is opgeschoven (getekend), op de PROJECTkalender van het document —
- *  zelfde meting als `ResourceLeveler.ts`s eigen `shifts`-berekening (M9). */
+ *  zelfde meting als `ResourceLeveler.ts`s eigen `shifts`-berekening. */
 function endShiftWorkdays(before: string, after: string, calendar: WorkCalendar): number {
   const eng = new CalendarEngine(calendar);
   const from = parseDate(before), to = parseDate(after);
@@ -222,13 +209,12 @@ function endShiftWorkdays(before: string, after: string, calendar: WorkCalendar)
 }
 
 /** Alle taak-id's in dit document die via een resource stempel naar `libraryItemId` (in `companyId`)
- *  daadwerkelijk op deze pool boeken — de `scopeTaskIds` die de motor scope-behoudend nivelleert
- *  (B1c-plan-2 taak 3), zodat taken die niets met dit poolitem te maken hebben nooit verschuiven.
+ *  daadwerkelijk op deze pool boeken — de `scopeTaskIds` die de motor scope-behoudend nivelleert,
+ *  zodat taken die niets met dit poolitem te maken hebben nooit verschuiven.
  *
- *  GEËXPORTEERD (B1c-plan3 taak 8) omdat de verdeeldialoog exact dezelfde snit nodig heeft: de
- *  startvolgorde is float-gesorteerd over precies de BOEKENDE taken van elk document (§4 stap 1),
- *  en het schrijfpad (taak 6/12) geeft dezelfde scope door aan `applyDistribution`. Een tweede,
- *  handgeschreven versie in de UI zou stilzwijgend van deze kunnen afwijken. */
+ *  Geëxporteerd zodat afnemers (een startvolgorde over precies de BOEKENDE taken, en het schrijfpad
+ *  dat dezelfde scope aan `applyDistribution` geeft) exact deze snit gebruiken; een tweede,
+ *  handgeschreven versie zou stilzwijgend kunnen afwijken. */
 export function scopeTaskIdsFor(doc: DistributionDocInput, companyId: string, libraryItemId: string): string[] {
   const stampedResourceIds = new Set(
     doc.resources
@@ -241,11 +227,11 @@ export function scopeTaskIdsFor(doc: DistributionDocInput, companyId: string, li
   return [...new Set(doc.assignments.filter(a => stampedResourceIds.has(a.resourceId)).map(a => a.taskId))];
 }
 
-/** Heeft minstens één taak in `scopeTaskIds` daadwerkelijk vraag die `levelResources` zou zien
- *  (fixronde B1c-plan-2-etappe-2, bevinding 1)? Mirror van `ResourceLeveler.ts`s eigen `hasDemand`-
+/** Heeft minstens één taak in `scopeTaskIds` daadwerkelijk vraag die `levelResources` zou zien?
+ *  Mirror van `ResourceLeveler.ts`s eigen `hasDemand`-
  *  voorwaarden (niet-mijlpaal, geen verzameltaak, `scheduleDuration > 0`, een toewijzing met
- *  `unitsPerDay > 0` op een NIET-`MATERIAL`-resource — de motor nivelleert `MATERIAL` nooit, spec
- *  §5.3). `scopeTaskIdsFor` levert alleen taken die al via een stempel op DIT poolitem boeken; als
+ *  `unitsPerDay > 0` op een NIET-`MATERIAL`-resource — de motor nivelleert `MATERIAL` nooit).
+ *  `scopeTaskIdsFor` levert alleen taken die al via een stempel op DIT poolitem boeken; als
  *  GEEN daarvan hier `true` geeft, zou de motor niets plaatsen en de aanroeper een leeg — maar
  *  "opgelost" ogend — voorstel krijgen. */
 function scopeHasDemand(doc: DistributionDocInput, scopeTaskIds: string[]): boolean {
@@ -265,8 +251,8 @@ function scopeHasDemand(doc: DistributionDocInput, scopeTaskIds: string[]): bool
   return false;
 }
 
-/** Ondergrens-argument voor `LevelingPoolLedger.horizonIso` (zelfde geest als `scanLimit`/L4 in
- *  `ResourceLeveler.ts`, B1c-plan-2 taak 6): de laatste dag met vaste last of al geplaatste
+/** Ondergrens-argument voor `LevelingPoolLedger.horizonIso` (zelfde geest als `scanLimit` in
+ *  `ResourceLeveler.ts`): de laatste dag met vaste last of al geplaatste
  *  boeking, plus een marge van de langste taakspanne over de deelnemende documenten. Dit is GEEN
  *  garantie — de motor mag verder scannen — alleen "tot hier heeft doorscannen zeker zin".
  */
@@ -312,25 +298,25 @@ export function computeDistribution(
   const poolItem = pool.resources.find(r => r.id === libraryItemId);
   if (!poolItem) return empty;
 
-  // Stap 1 (§3.1): de bezetting is de ENE bron voor "wie boekt hier al" — puur, zelfde reken-kern
+  // Stap 1: de bezetting is de ENE bron voor "wie boekt hier al" — puur, zelfde reken-kern
   // als het bezettingsoverzicht. `docs` is structureel een `OccupancyDocInput[]` (de drie
   // tune-velden zijn extra, `computeLibraryOccupancy` negeert ze).
   const { rows } = computeLibraryOccupancy(companyId, pool, docs);
   const row = rows.find(r => r.libraryItemId === libraryItemId);
   if (!row) return empty;
 
-  // Blokkade (§3.1) — VÓÓR al het rekenwerk: nivelleren tegen een niet-doorgerekend document is
+  // Blokkade — VÓÓR al het rekenwerk: nivelleren tegen een niet-doorgerekend document is
   // nivelleren tegen een getal dat nergens vandaan komt.
   const uncounted = row.docs.filter(b => !b.counted);
   if (uncounted.length > 0) {
     return { ...empty, blocked: { reason: 'UNCOUNTED_DOCUMENT', docIds: uncounted.map(b => b.docId) } };
   }
 
-  // Bevinding 1 (fixronde B1c-plan-2-etappe-2): `levelResources` nivelleert `MATERIAL` nooit (spec
-  // §5.3) — zonder deze poort zou elke scope-taak stilzwijgend `hasDemand === false` krijgen, niets
-  // boeken en niets tekortkomen: een LEEG voorstel dat "opgelost" oogt. Vóór al het rekenwerk, net
-  // als de UNCOUNTED_DOCUMENT-poort hierboven — de reden ligt aan het POOLITEM, niet aan een
-  // specifiek document, dus `docIds` noemt iedereen die er (volgens de bezetting) al op boekt.
+  // `levelResources` nivelleert `MATERIAL` nooit — zonder deze poort zou elke scope-taak stilzwijgend
+  // `hasDemand === false` krijgen, niets boeken en niets tekortkomen: een LEEG voorstel dat
+  // "opgelost" oogt. Vóór al het rekenwerk, net als de UNCOUNTED_DOCUMENT-poort hierboven — de reden
+  // ligt aan het POOLITEM, niet aan een specifiek document, dus `docIds` noemt iedereen die er
+  // (volgens de bezetting) al op boekt.
   if (poolItem.type === 'MATERIAL') {
     return { ...empty, blocked: { reason: 'MATERIAL_ITEM', docIds: row.docs.map(b => b.docId) } };
   }
@@ -338,17 +324,17 @@ export function computeDistribution(
   const docById = new Map(docs.map(d => [d.docId, d]));
   const bookingByDocId = new Map(row.docs.map(b => [b.docId, b]));
 
-  // Stap 3 (vaste last): gepinde + #63-documenten. "Een document dat wél op het poolitem boekt maar
+  // Vaste last: gepinde + datesAsRecorded-documenten. "Een document dat wél op het poolitem boekt maar
   // níét als deelnemer meedoet" heeft in dit contract maar één mechanisme — de aanroeper levert het
   // gewoon mee met `pinned: true` (zie `DistributionDocInput.pinned`s docblok).
-  // `bookingByDay` (B1c-plan3 taak 11): de "voor"-boeking, letterlijk `row.docs[].dailyLoad` — voor
-  // ELK boekend document, ongeacht gepind/#63/cannotMove/deelnemer. Één kopie per document zodat de
+  // `bookingByDay`: de "voor"-boeking, letterlijk `row.docs[].dailyLoad` — voor ELK boekend
+  // document, ongeacht gepind/datesAsRecorded/cannotMove/deelnemer. Één kopie per document zodat de
   // aanroeper nooit per ongeluk `computeLibraryOccupancy`s eigen map muteert.
   const bookingByDay: Record<string, Record<string, number>> = {};
   for (const booking of row.docs) bookingByDay[booking.docId] = { ...booking.dailyLoad };
 
-  // `afterLoadByDay` (B1c-plan3 taak 11): de na-stand, per document. Gevuld op twee manieren die
-  // samen dezelfde boekhouding als het grootboek vormen: gepinde/#63-documenten hieronder met hun
+  // `afterLoadByDay`: de na-stand, per document. Gevuld op twee manieren die samen dezelfde
+  // boekhouding als het grootboek vormen: gepinde/datesAsRecorded-documenten hieronder met hun
   // ONGEWIJZIGDE boeking (zij veranderen niet — hun aandeel in `fixedLoadByDay`); deelnemers verderop
   // via `bookPlaced`, die exact meeloopt met wat er in `placedByItem` (dus `residualOn`) terechtkomt.
   const afterLoadByDay: Record<string, Record<string, number>> = {};
@@ -363,17 +349,16 @@ export function computeDistribution(
     afterLoadByDay[booking.docId] = { ...booking.dailyLoad };
   }
 
-  // Het gedeelde poolitem-grootboek (§4 stap 2), PER ITEM geboekt (B1c-plan3 taak 1, bevinding 6).
-  // Vandaag levert `poolItemOf` uitsluitend `libraryItemId` terug, dus één emmer zou volstaan — maar
-  // dat is een ongeschreven invariant, en het contract van `LevelingPoolLedger` belooft expliciet een
-  // per-item-boekhouding. De sleutel gebruiken kost niets en maakt een latere verdeler over meerdere
-  // poolitems tegelijk een uitbreiding in plaats van een herschrijving. `placed[libraryItemId]`
-  // accumuleert over ALLE deelnemende documenten, in rangorde — dat IS de sequentiële kern van het
-  // protocol.
+  // Het gedeelde poolitem-grootboek, PER ITEM geboekt. Vandaag levert `poolItemOf` uitsluitend
+  // `libraryItemId` terug, dus één emmer zou volstaan — maar dat is een ongeschreven invariant, en
+  // het contract van `LevelingPoolLedger` belooft expliciet een per-item-boekhouding. De sleutel
+  // gebruiken kost niets en maakt een latere verdeler over meerdere poolitems tegelijk een
+  // uitbreiding in plaats van een herschrijving. `placed[libraryItemId]` accumuleert over ALLE
+  // deelnemende documenten, in rangorde — dat IS de sequentiële kern van het protocol.
   const placedByItem: Record<string, Record<string, number>> = {};
-  // `docId` erbij (B1c-plan3 taak 11): elke boeking die hier langskomt telt zowel in het gedeelde
-  // grootboek (`placedByItem`, ongewijzigd t.o.v. vóór taak 11) als onder het boekende document in
-  // `afterLoadByDay` — dezelfde boekhouding, twee aanzichten, één plek die ze bijhoudt.
+  // Elke boeking die hier langskomt telt zowel in het gedeelde grootboek (`placedByItem`) als onder
+  // het boekende document in `afterLoadByDay` — dezelfde boekhouding, twee aanzichten, één plek die
+  // ze bijhoudt.
   const bookPlaced = (itemId: string, iso: string, units: number, docId: string) => {
     const bucket = placedByItem[itemId] ?? (placedByItem[itemId] = {});
     bucket[iso] = (bucket[iso] ?? 0) + units;
@@ -387,11 +372,8 @@ export function computeDistribution(
       // plaats van de capaciteit van DIT item — dat zou een vreemd item gratis ruimte geven.
       : 0;
 
-  // Bevinding 5 (fixronde B1c-plan-2-etappe-2): `poolItemOf` wordt door `findSlot` per KANDIDAATDAG
-  // aangeroepen (elke conflictcheck, elke boeking); een `Array.find` over `doc.resources` daarbinnen
-  // is dus O(kandidaten × resources) i.p.v. één keer O(resources) per document. `makeLedgerForDoc`
-  // zelf draait al maar één keer per deelnemend document (zie de aanroep hieronder), dus de map hier
-  // bouwen — buiten `poolItemOf`, binnen `makeLedgerForDoc` — is voldoende.
+  // `poolItemOf` wordt door `findSlot` per KANDIDAATDAG aangeroepen; daarom de resource-map één keer
+  // per document hier bouwen in plaats van een `Array.find` binnen `poolItemOf`.
   const makeLedgerForDoc = (doc: DistributionDocInput, horizonIso: string | null): LevelingPoolLedger => {
     const resourceById = new Map(doc.resources.map(r => [r.id, r]));
     return {
@@ -408,7 +390,7 @@ export function computeDistribution(
   };
 
   // Deelnemers: alle documenten met een booking op dit poolitem, MIN de vaste-last-documenten,
-  // gesorteerd op rangorde (dan `docId` voor een stabiele tie-break — spec §4 stap 3, "één pass").
+  // gesorteerd op rangorde (dan `docId` voor een stabiele tie-break; één pass).
   const participantBookings = row.docs.filter(b => {
     const input = docById.get(b.docId);
     return input !== undefined && !input.pinned && !input.datesAsRecorded;
@@ -417,7 +399,7 @@ export function computeDistribution(
     .map(b => docById.get(b.docId)!)
     .sort((a, b) => a.rank - b.rank || a.docId.localeCompare(b.docId));
 
-  // Bevinding 1 (algemener deel): scope-taak-id's per deelnemer alvast bepalen — nodig voor de
+  // Scope-taak-id's per deelnemer alvast bepalen — nodig voor de
   // NO_DEMAND-poort hieronder én voor de hoofdlus verderop (één berekening, niet twee).
   const scopeTaskIdsByDoc = new Map(participants.map(doc => [doc.docId, scopeTaskIdsFor(doc, companyId, libraryItemId)]));
 
@@ -425,15 +407,15 @@ export function computeDistribution(
   // ENKELE daarvan daadwerkelijk vraag op dit poolitem (zie `scopeHasDemand`s docblok voor wanneer
   // dat — buiten een MATERIAL-poolitem — kan gebeuren)? Dan zou de hoofdlus verderop alsnog een leeg
   // maar "opgelost" ogend voorstel opleveren. GEEN documenten (bv. alles gepind) is geen blokkade —
-  // dat is gewoon een geldig voorstel zonder deelnemers (zie case 7).
+  // dat is gewoon een geldig voorstel zonder deelnemers.
   if (participants.length > 0 && !participants.some(doc => scopeHasDemand(doc, scopeTaskIdsByDoc.get(doc.docId)!))) {
     return { ...empty, blocked: { reason: 'NO_DEMAND', docIds: participants.map(d => d.docId) } };
   }
 
   const results: DistributionDocResult[] = [];
 
-  // Vaste-last-/#63-documenten eerst in de uitkomst (volgorde is verder niet betekenisvol voor deze
-  // documenten — ze draaien geen motor), daarna de deelnemers in rangorde.
+  // Vaste-last-/datesAsRecorded-documenten eerst in de uitkomst (volgorde is verder niet betekenisvol
+  // voor deze documenten — ze draaien geen motor), daarna de deelnemers in rangorde.
   for (const booking of row.docs) {
     const input = docById.get(booking.docId);
     if (!input || (!input.pinned && !input.datesAsRecorded)) continue;
@@ -459,7 +441,7 @@ export function computeDistribution(
     const cannotMove = scopeTaskIds.length > 0 && scopeTaskIds.every(id => tasksById.get(id)?.priority === 1000);
 
     if (cannotMove) {
-      // Het document KAN niet wijken (§4-taxonomie): alle betrokken taken zijn vastgepind. Boek de
+      // Het document KAN niet wijken: alle betrokken taken zijn vastgepind. Boek de
       // bestaande boeking rechtstreeks in het grootboek (het document bezet de pool wél — het is
       // gewoon niet verplaatsbaar), geen motor-run.
       const booking = bookingByDocId.get(doc.docId)!;

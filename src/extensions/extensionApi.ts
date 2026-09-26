@@ -95,14 +95,14 @@ export function createExtensionApi(
   };
 
   /**
-   * WBS-ouder vanuit `data.addTask`/`data.updateTask` toetsen VÓÓR er iets gemuteerd wordt.
-   * Voorheen ging `parentId` rauw via `fromExtTaskUpdates` + `updateTask` (Object.assign) de store
-   * in: `kind.parentId` wees dan naar de ouder terwijl diens `childIds` van niets wist — na `runCPM`
-   * werd de ouder zo géén samenvattingstaak — en een onbekende ouder werd gewoon aangenomen. De
-   * guards zijn die van de store-route (`moveTaskTo`/`planTaskPlacement`: onbekende ouder, taak
-   * onder zichzelf of een eigen afstammeling), maar de store weigert stil; een extensie krijgt hier
-   * een fout, in dezelfde vorm als de `customTaskType`-weigeringen hierboven. `taskId` ontbreekt
-   * bij `addTask`: een nieuwe taak heeft nog geen afstammelingen, dus een kring kan daar niet.
+   * WBS-ouder vanuit `data.addTask`/`data.updateTask` toetsen VÓÓR er iets gemuteerd wordt. Rauw
+   * via `fromExtTaskUpdates` + `updateTask` (Object.assign) zou `kind.parentId` naar de ouder wijzen
+   * terwijl diens `childIds` van niets weet — na `runCPM` wordt de ouder zo géén samenvattingstaak —
+   * en een onbekende ouder zou gewoon aangenomen worden. De guards zijn die van de store-route
+   * (`moveTaskTo`/`planTaskPlacement`: onbekende ouder, taak onder zichzelf of een eigen
+   * afstammeling), maar de store weigert stil; een extensie krijgt hier een fout, in dezelfde vorm
+   * als de `customTaskType`-weigeringen hierboven. `taskId` ontbreekt bij `addTask`: een nieuwe taak
+   * heeft nog geen afstammelingen, dus een kring kan daar niet.
    */
   const assertParentAllowed = (taskId: string | undefined, parentId: string): void => {
     const tasks = document.store.getState().tasks;
@@ -118,13 +118,12 @@ export function createExtensionApi(
 
   /**
    * `resourceIds` van een taak is een AFGELEIDE van de toewijzingen (`assignResource` houdt hem bij,
-   * de lezers reconstrueren hem uit de toewijzingen en hij wordt niet los opgeslagen). Voorheen ging
-   * het veld rauw via `fromExtTaskInput`/`fromExtTaskUpdates` de store in: de taak leek toegewezen,
-   * maar er was geen toewijzing, dus geen belasting, en na opslaan was het weg. MCP weigert het veld
-   * ook. Zelfde vorm als de ouderwijziging (#183, `parentId`): gelijk aan de huidige waarde — een
-   * ongewijzigd `getTasks()`-object, of `[]` bij een nieuwe taak — wordt genegeerd; een andere waarde
-   * gooit een fout vóór er iets gewijzigd is, met de route die wél toewijst. De volgorde telt niet
-   * (het is een verzameling).
+   * de lezers reconstrueren hem uit de toewijzingen en hij wordt niet los opgeslagen). Rauw
+   * doorgegeven lijkt de taak toegewezen, maar zonder toewijzing is er geen belasting, en na opslaan
+   * is het weg. MCP weigert het veld ook. Zelfde vorm als de ouderwijziging (`parentId`): gelijk aan
+   * de huidige waarde — een ongewijzigd `getTasks()`-object, of `[]` bij een nieuwe taak — wordt
+   * genegeerd; een andere waarde gooit een fout vóór er iets gewijzigd is, met de route die wél
+   * toewijst. De volgorde telt niet (het is een verzameling).
    */
   const assertResourceIdsUnchanged = (
     taskLabel: string,
@@ -197,7 +196,7 @@ export function createExtensionApi(
         // het actieve document NA een `switchDocument` helemaal geen XER-bron meer heeft, wordt die
         // functie hier onder nooit aangeroepen (er is geen `archive` om aan door te geven). Zonder
         // deze losse check zou een `expectedSourceProjectId` dan stil een `null` terugkrijgen i.p.v.
-        // de bedoelde `ExtImportSourceDriftError` — dezelfde stille-modus die de fix net oplost.
+        // de bedoelde `ExtImportSourceDriftError`.
         if (!state.xerSourceArchive) {
           assertNoImportSourceDrift(options?.expectedSourceProjectId, null);
           return null;
@@ -206,7 +205,7 @@ export function createExtensionApi(
           state.xerSourceArchive, state.xerImportMetadata, state.xerSourceProjectId, collection, options,
         );
       },
-      // PR #170-her-check (dialoog-undo, punt 1): ÁLLE `data.*`-schrijfroutes lopen via
+      // ÁLLE `data.*`-schrijfroutes lopen via
       // `batch.withTransaction` — één undo-stap per call, en nooit via `finishUndoable` buiten batch.
       // Die route stempelt tijdens een open bewerksessie (taakdialoog) de `sessionKey`, en dan zou
       // Annuleren in de dialoog extensiewerk stil terugdraaien (docblok `SessionHistoryEvent.sessionKey`).
@@ -215,7 +214,7 @@ export function createExtensionApi(
         const { resourceIds: requestedResourceIds, ...input } = task;
         assertResourceIdsUnchanged('een nieuwe taak', [], requestedResourceIds);
         // De store-`addTask` weigert (met melding, `''` als id) een mijlpaal als eerste kind van een
-        // taak met toewijzingen: die toewijzingen zouden nergens heen kunnen (audit §6). Een
+        // taak met toewijzingen: die toewijzingen zouden nergens heen kunnen. Een
         // extensie krijgt dan een fout in plaats van een id dat niet bestaat.
         const added = (id: string): string => {
           if (!id) {
@@ -259,11 +258,11 @@ export function createExtensionApi(
         if (move?.parentId) assertParentAllowed(id, move.parentId);
         const materialize = customTaskTypeToMaterialize(fieldUpdates.customTaskType);
         const patch = fromExtTaskUpdates(fieldUpdates);
-        // Niets over (bv. alleen een ongewijzigde `resourceIds` of ouder): geen lege undo-stap (#208).
+        // Niets over (bv. alleen een ongewijzigde `resourceIds` of ouder): geen lege undo-stap.
         if (!materialize && !move && Object.keys(patch).length === 0) return;
         // Catalogus, verplaatsing en veldwijziging vormen voor de gebruiker één wijziging en dus
         // één undo-stap. Eerst verplaatsen: met WBS-autonummering hernummert `moveTaskTo`, en een
-        // `wbsCode` uit dezelfde aanroep blijft dan net als voorheen staan.
+        // `wbsCode` uit dezelfde aanroep blijft dan staan.
         batch.withTransaction(() => {
           if (materialize) document.store.getState().ensureProjectTaskType(materialize);
           // Index voorbij het einde wordt in de store geklemd ⇒ achteraan bij de nieuwe ouder, zoals
@@ -281,7 +280,7 @@ export function createExtensionApi(
         store.runCPM();
       },
       recalculate: () => document.store.getState().runCPM(),
-      // K-item 32: één snapshot voor de hele reeks i.p.v. één per mutatie — lineair in plaats van
+      // Eén snapshot voor de hele reeks i.p.v. één per mutatie — lineair in plaats van
       // kwadratisch, en één undo-stap voor wat de gebruiker als één handeling ziet.
       batch: <T,>(fn: () => T): T => batch.withTransaction(fn),
     },

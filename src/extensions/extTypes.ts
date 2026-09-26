@@ -8,7 +8,7 @@
  * `Ext*`-DTO's staan daar bewust los van: ze worden VERSTABILISEERD. Een interne rename raakt
  * alleen de mappers in `extMappers.ts`, nooit extensie-code.
  *
- * NB (2026, audit P16/D2): de vormen SPIEGELEN vandaag nog grotendeels de interne velden — dat is
+ * NB: de vormen SPIEGELEN vandaag nog grotendeels de interne velden — dat is
  * prima; het punt is de ONTKOPPELING, niet een andere gedaante. Voeg je hier een veld toe, dan
  * dwingt `extMappers.ts` (expliciete, veld-voor-veld return-types) af dat je het ook mapt.
  */
@@ -40,7 +40,7 @@ export interface ExtProject {
   progressMode?: 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE';
   /** Projectstandaard voor handmatig aangemaakte taken. Oudere extensies mogen dit weglaten. */
   defaultTaskDurationUnit?: 'days' | 'hours';
-  /** Sinds 1.3.0 (taaktypes, spec §4.1): projectstandaard-werkregel; afwezig ⇒ FIXED_DURATION_RATE. */
+  /** Sinds 1.3.0: projectstandaard-werkregel; afwezig ⇒ FIXED_DURATION_RATE. */
   defaultWorkRule?: 'FIXED_DURATION_RATE' | 'FIXED_DURATION_WORK' | 'FIXED_WORK' | 'FIXED_RATE';
   /** Project-scoped reken-opties (P6-geavanceerd). undefined ⇒ alle defaults. */
   schedulingOptions?: ExtSchedulingOptions;
@@ -83,11 +83,9 @@ export interface ExtHoliday {
   endDate: string;   // ISO date
 }
 
-/** Eén dag-uitzondering die een dag WERKEND maakt (fase 3.8, T2; MS Project: "werkende
- *  uitzondering"). Spiegelt `WorkingException`. T13 (§T2-afwijking, LAAG-7-afnemer): vóór deze
- *  taak ontbrak dit veld op `ExtCalendar` volledig — een extensie die een kalender via
- *  `toExtCalendar`/`fromExtCalendar` round-trippede (lezen, iets anders wijzigen, terugschrijven)
- *  wiste zo stilzwijgend elke workingException. */
+/** Eén dag-uitzondering die een dag WERKEND maakt (MS Project: "werkende uitzondering"). Spiegelt
+ *  `WorkingException`. Moet op `ExtCalendar` staan: anders wist een kalender-round-trip via
+ *  `toExtCalendar`/`fromExtCalendar` stilzwijgend elke workingException. */
 export interface ExtWorkingException {
   name: string;
   startDate: string; // ISO date
@@ -115,7 +113,7 @@ export interface ExtCalendar {
   workTime?: ExtWorkTimeBands;
   /** Ploeg-classificatie. undefined ⇒ FIRST. */
   shift?: 'FIRST' | 'SECOND' | 'THIRD' | 'USERDEFINED';
-  /** Dag-uitzonderingen die een dag WERKEND maken (fase 3.8, T2/T13). Afwezig ⇒ geen. */
+  /** Dag-uitzonderingen die een dag WERKEND maken. Afwezig ⇒ geen. */
   workingExceptions?: ExtWorkingException[];
   /** Alleen-lezen P6/XER-herkomststempel. `toExtCalendar` toont hem voor analyse;
    *  `fromExtCalendar` accepteert hem nooit als generieke solverinvoer. */
@@ -159,10 +157,10 @@ export interface ExtTaskTime {
   remainingMinutes?: number;
   /** 0.0 – 1.0. */
   completion: number;
-  /** Z14 (Z12-herwerk) — MSP's eigen hervattingsinstant voor een out-of-sequence-taak. Spiegelt
+  /** MSP's eigen hervattingsinstant voor een out-of-sequence-taak. Spiegelt
    *  {@link import('@/types/task').TaskTime}.resume. */
   resume?: string;
-  /** Z14 (Z12-herwerk) — spiegelt `resume`. Spiegelt {@link import('@/types/task').TaskTime}.stop. */
+  /** Hoort bij `resume`. Spiegelt {@link import('@/types/task').TaskTime}.stop. */
   stop?: string;
 }
 
@@ -217,32 +215,32 @@ export interface ExtTask {
   /** Leveling-prioriteit (0–1000, default 500). */
   priority: number;
   levelingDelay?: number;
-  /** Z0/Z14 — subdag-precisie van `levelingDelay` (MSP-tienden-van-minuut, hier hele minuten).
+  /** Subdag-precisie van `levelingDelay` (MSP-tienden-van-minuut, hier hele minuten).
    *  Aanwezig ⇒ bron van waarheid; afwezig ⇒ `levelingDelay` (hele werkdagen) blijft de bron. */
   levelingDelayMinutes?: number;
-  /** Z0/Z14 — begeleidt `levelingDelayMinutes`: true = kloktijd (ELAPSED) i.p.v. werktijd. */
+  /** Begeleidt `levelingDelayMinutes`: true = kloktijd (ELAPSED) i.p.v. werktijd. */
   levelingDelayElapsed?: boolean;
-  /** Z0/Z14 — werkonderbrekingen (MS Project "split"), offset-gebaseerd t.o.v. de taakstart.
+  /** Werkonderbrekingen (MS Project "split"), offset-gebaseerd t.o.v. de taakstart.
    *  Spiegelt {@link import('@/types/task').TaskSplitGap}. */
   splitGaps?: { afterMinutes: number; gapMinutes: number }[];
-  /** Z0/Z14 — handmatig geplande taak (MS Project "Manually Scheduled"): de solver respecteert
+  /** Handmatig geplande taak (MS Project "Manually Scheduled"): de solver respecteert
    *  `time.scheduleStart`/`scheduleFinish` dan RAUW (geen kalendersnap/relatiedruk/constraints). */
   manuallyScheduled?: boolean;
-  /** Z14b (eigenaarsbesluit 2026-08-18, punt 1) — MSP's eigen Task Type bij .mpp-import. Puur data.
-   *  Sinds de main-merge vóór v2026.8.1 reist dit veld mee door de VOLLEDIGE vertaling
+  /** MSP's eigen Task Type bij .mpp-import. Puur data. Reist mee door de VOLLEDIGE vertaling
    *  (`fromExtTask`, contract-poort `check-ext-contract.ts`); alleen de create-/update-paden
    *  (`fromExtTaskInput`) en de MCP-zetbaarheid (`taskFields.ts`'s `REJECT_HINTS`) laten het buiten. */
   mspTaskType?: 'FIXED_UNITS' | 'FIXED_DURATION' | 'FIXED_WORK';
-  /** Z14b — MSP's "Effort Driven"-vlag bij .mpp-import. Puur data; voor de vertaal-/zetbaarheidsnuance zie `mspTaskType`. */
+  /** MSP's "Effort Driven"-vlag bij .mpp-import. Puur data; voor de vertaal-/zetbaarheidsnuance zie
+   *  `mspTaskType`. */
   effortDriven?: boolean;
-  /** Sinds 1.3.0. Taaktypes-etappe (ontwerp 2026-09-04 §4.1) — de neutrale werkregel van de taak (welke hoeken van
-   *  werk = duur × inzet beschermd zijn bij een bewerking). Volledige-round-trip-veld zoals
-   *  `mspTaskType`; zetbaar via de bridge volgt in de bedradingsstap. */
+  /** Sinds 1.3.0. De neutrale werkregel van de taak (welke hoeken van werk = duur × inzet beschermd
+   *  zijn bij een bewerking). Volledige-round-trip-veld zoals `mspTaskType`; niet zetbaar via de
+   *  create-/update-paden van de extensie-API, wél via de MCP-bridge (`taskFields.ts`). */
   workRule?: 'FIXED_DURATION_RATE' | 'FIXED_DURATION_WORK' | 'FIXED_WORK' | 'FIXED_RATE';
-  /** X0/X12 — P6's eigen Duration Type bij .xer-import. Uitsluitend read-model voor extensies:
+  /** P6's eigen Duration Type bij .xer-import. Uitsluitend read-model voor extensies:
    *  `toExtTask` toont het, maar geen enkel generiek from-extensionpad mag het terugschrijven. */
   p6DurationType?: 'DT_FixedDrtn' | 'DT_FixedDUR2' | 'DT_FixedRate' | 'DT_FixedQty';
-  /** X0/X12 — P6's eigen Activity Type bij .xer-import. Zelfde read-onlygrens als `p6DurationType`. */
+  /** P6's eigen Activity Type bij .xer-import. Zelfde read-onlygrens als `p6DurationType`. */
   p6ActivityType?: 'TT_Task' | 'TT_Rsrc' | 'TT_LOE' | 'TT_Mile' | 'TT_FinMile' | 'TT_WBS';
   p6ProjectId?: string;
   p6TaskId?: string;
@@ -250,16 +248,16 @@ export interface ExtTask {
   p6ExplicitTargetWindow?: boolean;
   p6CompletePctType?: 'CP_Drtn' | 'CP_Phys' | 'CP_Units';
   p6ExpectedFinish?: string;
-  /** X0/X12 — read-only herkomstvlag voor `time.resume`/`time.stop`: signaleert P6-suspend/
+  /** Read-only herkomstvlag voor `time.resume`/`time.stop`: signaleert P6-suspend/
    *  resume-herkomst (XER `suspend_date`/`resume_date`) i.p.v. de MSP-conventie. Alleen native
    *  XER-/IFC-paden zetten haar intern. Spiegelt {@link import('@/types/task').Task}.p6SuspendResume. */
   p6SuspendResume?: boolean;
-  /** Z14b (eigenaarsprincipe 2026-08-18) — rauwe, gedecodeerde .mpp-contourperiodes; de bron ONDER
-   *  `splitGaps`, blijft ALTIJD staan (ook ná een bewerking die het Z8-venster invalideert). Puur
+  /** Rauwe, gedecodeerde .mpp-contourperiodes; de bron ONDER `splitGaps`, blijft ALTIJD staan (ook ná
+   *  een bewerking die het werkvenster invalideert). Puur
    *  data; voor de vertaal-/zetbaarheidsnuance zie `mspTaskType`. Spiegelt {@link import('@/types/task').
    *  TaskTimephasedContour}. */
   timephasedContours?: { resourceUid: number | null; resourceId?: string; periods: { afterMinutes: number; minutes: number; workMinutes: number; kind: 'actual' | 'remaining' }[] }[];
-  /** Volledige-round-trip-velden (main-merge vóór v2026.8.1): de drie afgeleide-sturing-velden uit
+  /** Volledige-round-trip-velden: de drie afgeleide-sturing-velden uit
    *  de .mpp-import reizen mee door de VOLLEDIGE Ext-vertaling zodat een extensie-round-trip geen
    *  data vernietigt (zelfde principe als de IFC-round-trip). Ze zijn géén invoer voor de create-/
    *  update-paden — daar blijven ze bewust buiten (zie `fromExtTaskInput`). ISO-instants. */
@@ -347,17 +345,17 @@ export interface ExtAssignment {
   /** Eenheden per werkdag (1 = 100%). */
   unitsPerDay: number;
   curve?: 'UNIFORM' | 'FRONT_LOADED' | 'BACK_LOADED' | 'BELL' | 'EARLY_PEAK' | 'LATE_PEAK' | 'DOUBLE_PEAK' | 'TURTLE';
-  /** Z8-werkvenster (.mpp-import) — volledige-round-trip-velden, zie `ExtTask.timephasedFinishFloor`. */
+  /** Werkvenster (.mpp-import) — volledige-round-trip-velden, zie `ExtTask.timephasedFinishFloor`. */
   workWindowStart?: string;
   /** Zie `workWindowStart`. */
   workWindowFinish?: string;
-  /** Contour-engine (2026-09): exacte 21-punts curve (P6/MSPDI), zie `ResourceAssignment.curveValues`. */
+  /** Exacte 21-punts curve (P6/MSPDI), zie `ResourceAssignment.curveValues`. */
   curveValues?: number[];
-  /** Taaktypes-etappe (spec §4.3): begroot werk in werkminuten; afwezig ⇒ afgeleid. */
+  /** Sinds 1.3.0: begroot werk in werkminuten; afwezig ⇒ afgeleid. */
   plannedWorkMinutes?: number;
-  /** Taaktypes-etappe (spec §4.3): verricht werk in werkminuten; afwezig ⇒ afgeleid. */
+  /** Sinds 1.3.0: verricht werk in werkminuten; afwezig ⇒ afgeleid. */
   actualWorkMinutes?: number;
-  /** Taaktypes-etappe (spec §4.3): resterend werk in werkminuten; afwezig ⇒ restduur × inzet. */
+  /** Sinds 1.3.0: resterend werk in werkminuten; afwezig ⇒ restduur × inzet. */
   remainingWorkMinutes?: number;
 }
 
@@ -366,7 +364,7 @@ export interface ExtAssignment {
 /**
  * Ext-facing ribbontabblad. Spiegelt {@link import('@/state/slices/types').RibbonTab}.
  *
- * Waarom een eigen unie en niet gewoon `RibbonTab` importeren (wat `types.ts` hiervóór deed): dan
+ * Waarom een eigen unie en niet gewoon `RibbonTab` importeren: dan
  * is het interne tabblad-id ONDERDEEL VAN HET PUBLIEKE CONTRACT. Hernoemt de app ooit `'beeld'`
  * naar `'view'` — een puur interne opruiming — dan breekt elke geïnstalleerde extensie die een knop
  * op dat tabblad zet, zonder dat iemand dat als contractwijziging herkent. Met deze unie ertussen
@@ -445,7 +443,7 @@ export interface ExtImportSourcePageOptions {
   /** Aantal records; default 100, maximum `EXT_IMPORT_SOURCE_PAGE_SIZE_MAX`. */
   limit?: number;
   /**
-   * Fail-closed documentdriftbewaking (her-review 2, P2): geef het `sourceProjectId` mee dat je
+   * Fail-closed documentdriftbewaking: geef het `sourceProjectId` mee dat je
    * van een eerdere `getImportSourceInfo()`/`getImportSourceCatalogPage()`-aanroep kreeg. Wijkt de
    * bronselector van het ACTIEVE document af — bijvoorbeeld omdat de gebruiker tussen twee
    * paginaverzoeken met `switchDocument` gewisseld is — dan gooit de aanroep een
@@ -568,7 +566,7 @@ export interface ExtImportSourceCatalogCounts {
 /**
  * Waarom `getImportSourceInfo()` `null` geeft terwijl het document WEL een XER-bron had: het
  * IFC droeg een XER-bronarchief dat bij het openen niet valideerde en daarom is weggelaten
- * (eigenaarsbesluit 2026-09-24, "openen met melding"). Het project zelf is volledig; alleen de
+ * ("openen met melding"). Het project zelf is volledig; alleen de
  * bronroute ontbreekt. Spiegelt `XerArchiveIssue` in `src/services/importTypes.ts` — alleen de code:
  * de technische reden bevat bestandsgestuurde namen en hoort niet in het publieke contract.
  */

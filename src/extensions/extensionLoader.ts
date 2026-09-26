@@ -235,7 +235,7 @@ export function executeExtensionCode(mainCode: string): ExtensionPlugin {
   };
 
   try {
-    // AFSCHERMING (K-item 38). De namen hieronder worden als functieparameter meegegeven en dus
+    // AFSCHERMING. De namen hieronder worden als functieparameter meegegeven en dus
     // BINNEN de extensie-scope geschaduwd op `undefined`. Ze hebben geen legitiem gebruik in
     // extensie-code — `__TAURI_INTERNALS__` is de rauwe Tauri-invoke-brug (dus bestandssysteem,
     // shell, updater, buiten élke plugin-scope om), `__OPS__` is de dev-bridge met de kale store,
@@ -246,7 +246,7 @@ export function executeExtensionCode(mainCode: string): ExtensionPlugin {
     // realm, dus `globalThis.__TAURI_INTERNALS__`, `window[...]` of `Function('return this')()`
     // komen er nog steeds bij. Wat dit wél doet: het weghalen van de KANSLOZE route (een
     // kale identifier), zodat wie er alsnog bij komt dat aantoonbaar met opzet deed. De echte
-    // grens is een Web Worker of een iframe; zie docs/extensions.md en het rapport-item.
+    // grens is een Web Worker of een iframe; zie docs/extensions.md.
     const AFGESCHERMD = ['__TAURI_INTERNALS__', '__TAURI__', '__OPS__'] as const;
     const fn = new Function('module', 'exports', 'require', ...AFGESCHERMD, mainCode);
     fn(moduleObj, moduleExports, requireFn, ...AFGESCHERMD.map(() => undefined));
@@ -296,10 +296,10 @@ export async function enableExtension(
       );
     }
 
-    // Poort 2 — CONTRACT-versie (K-item 37). Los van poort 1: CalVer draagt geen
+    // Poort 2 — CONTRACT-versie. Los van poort 1: CalVer draagt geen
     // breaking-change-signaal, dus zonder deze poort laadt een extensie voor een ander
     // API-contract gewoon en klapt hij pas halverwege `onLoad` op een verdwenen methode.
-    // Een manifest zonder `apiVersion` (alles van vóór dit item) blijft laden — weigeren zou elke
+    // Een manifest zonder `apiVersion` (oudere manifesten) blijft laden — weigeren zou elke
     // geïnstalleerde extensie in één update slopen — maar wordt wél zichtbaar gelogd.
     const compat = checkApiCompatibility(stored.manifest.apiVersion);
     if (!compat.ok) {
