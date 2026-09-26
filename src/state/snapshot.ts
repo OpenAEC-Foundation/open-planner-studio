@@ -7,6 +7,7 @@ import { syncProjectCalendar } from './syncProjectCalendar';
 import { createDefaultProject } from './defaults';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { markDocumentEdited, markDocumentUnsaved } from '@/state/documentEdited';
+import { sameValue } from '@/utils/sameValue';
 
 /**
  * De undo/redo-snapshot is een EXPLICIETE subset van het documentcontract (audit P10).
@@ -17,12 +18,13 @@ import { markDocumentEdited, markDocumentUnsaved } from '@/state/documentEdited'
  *
  *  IN (muteerbare projectdata, 'data'):
  *    project, calendar, tasks, sequences, resources, assignments, calendars, activityCodeTypes,
- *    customFieldDefs, baselines
- *  IN (afgeleid/scalar, 'derived'; runCPM vervangt ze als geheel, muteert nooit in-place, dus delen
+ *    customFieldDefs, baselines, activeBaselineId (G5: door de gebruiker gekozen en in het bestand
+ *    bewaard, dus projectdata — geen rekenresultaat; `documentDataChanged` moet hem zien)
+ *  IN (afgeleid, 'derived'; runCPM vervangt ze als geheel, muteert nooit in-place, dus delen
  *      is veilig). cpmResult en scheduleStale moeten exact de handmatig berekende toestand kunnen
  *      herstellen. recordedDates/datesAsRecorded (issue #63) horen om dezelfde reden hier: samen
  *      met `tasks` ('data') draait één undo de datums én de modus terug:
- *    cpmResult, scheduleStale, activeBaselineId, recordedDates, datesAsRecorded
+ *    cpmResult, scheduleStale, recordedDates, datesAsRecorded
  *  UIT ('none' — undo mag deze bewust NIET aanraken):
  *    selectedTaskIds, resourceLoadResult, view, collapsedTaskIds, filePath, fileHandle en isDirty
  *    (data-undo/redo zet isDirty altijd op true; `importPristine` wist alleen een undo/redo van een
@@ -195,16 +197,28 @@ export function migrateSnapshot(raw: Snapshot): Snapshot {
 }
 
 /**
- * Verschilt de PROJECTDATA (de `'data'`-rol van `DOCUMENT_FIELDS`) tussen twee snapshots? Per
- * referentie, zoals `snapshotsEqual`: Immer levert bij elke echte mutatie een nieuw object op. De
- * afgeleide velden (`cpmResult`, `scheduleStale`, …) tellen bewust niet mee — een herberekening
- * alléén maakt een document niet gewijzigd (de `runCPM`-invariant). De MCP-transactie leidt hier
- * `isDirty` uit af op haar ene commit-plek (`createMcpTransactions` → `run`).
+ * Verschilt de PROJECTDATA (de `'data'`-rol van `DOCUMENT_FIELDS`) PER SALDO tussen twee snapshots?
+ * De afgeleide velden (`cpmResult`, `scheduleStale`, …) tellen bewust niet mee — een herberekening
+ * alléén maakt een document niet gewijzigd (de `runCPM`-invariant). De MCP-transactie leidt hier op
+ * haar ene commit-plek (`createMcpTransactions` → `run`) zowel `isDirty` als de undo-stap uit af.
+ *
+ * Per WAARDE (`sameValue`; een gelijke referentie is het snelpad, dus ongewijzigde velden kosten
+ * niets), niet alleen per referentie — dezelfde "per saldo"-regel als de no-op-guards van de
+ * UI-routes (G5). Een nieuwe referentie is niet altijd een wijziging: een draftprimitief levert bij
+ * dezelfde duur of constraint toch een nieuw taakobject op, en een batch kan een naam wijzigen en weer
+ * terugzetten. `project.modifiedAt` telt niet mee: elke projectmutator ververst dat veld, ook zonder
+ * wijziging — dezelfde uitzondering als `projectChanges` in `projectSlice`.
  */
 export function documentDataChanged(before: Snapshot, after: Snapshot): boolean {
   const b = before as unknown as Record<string, unknown>;
   const a = after as unknown as Record<string, unknown>;
-  return DOCUMENT_FIELDS.some((f) => f.snapshot === 'data' && !Object.is(b[f.key], a[f.key]));
+  return DOCUMENT_FIELDS.some((f) => {
+    if (f.snapshot !== 'data' || b[f.key] === a[f.key]) return false;
+    if (f.key === 'project') {
+      return !sameValue({ ...before.project, modifiedAt: undefined }, { ...after.project, modifiedAt: undefined });
+    }
+    return !sameValue(b[f.key], a[f.key]);
+  });
 }
 
 /** Herstel een snapshot in de live state (gedeeld door undo én redo). Zet de snapshot-velden terug
