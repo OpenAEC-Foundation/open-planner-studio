@@ -638,6 +638,69 @@ function sessionId(): Promise<string> {
   return sessionIdPromise;
 }
 
+/**
+ * Vastgehouden herstelgeneraties van DIT tab (audit 2026-09-26). Kiest de gebruiker in het
+ * herstel-venster voor "later" (of kon een snapshot niet gelezen/hersteld worden), dan moeten die
+ * snapshots de eerstvolgende crashherstel-ronde overleven. Op het web deelt een herlaad dezelfde
+ * sessie-id, dus `saveWeb` overschreef het manifest en wiste elk documentrecord dat niet meer open
+ * was — precies de uitgestelde snapshots. Daarom verhuist `holdRecoveryForLater` de huidige
+ * generatie naar een vastgehouden id (in sessionStorage onder `HELD_KEY`) en krijgt het tab een
+ * verse sessie-id voor nieuwe snapshots. `loadWeb` leest eigen + vastgehouden generaties,
+ * `clearWeb` wist ze allemaal. Tauri heeft dit niet nodig: daar is een manifest van een vorige
+ * app-start `foreign` en blijft het via de carry-over in `planRecoveryCleanup` staan.
+ */
+const HELD_KEY = `${SESSION_KEY}:held`;
+
+function readHeldSessionIds(): string[] {
+  try {
+    const raw = sessionStorage.getItem(HELD_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeHeldSessionIds(ids: readonly string[]): void {
+  try {
+    if (ids.length === 0) sessionStorage.removeItem(HELD_KEY);
+    else sessionStorage.setItem(HELD_KEY, JSON.stringify(ids));
+  } catch { /* sessionStorage geblokkeerd — dan blijft alleen de eigen generatie bestaan */ }
+}
+
+/** Vastgehouden generaties die dit tab mag lezen/wissen: een gedupliceerd tabblad erft de lijst
+ *  via sessionStorage, maar alleen het tab dat de lease (Web Lock) krijgt, bezit ze. */
+let heldSessionIdsPromise: Promise<string[]> | null = null;
+function heldSessionIds(): Promise<string[]> {
+  if (!heldSessionIdsPromise) {
+    heldSessionIdsPromise = (async () => {
+      const own: string[] = [];
+      for (const id of readHeldSessionIds()) {
+        const key = `${SESSION_KEY}:${id}`;
+        if (await claimLock(key)) { own.push(id); continue; }
+        await delay(CLAIM_RETRY_MS);
+        if (await claimLock(key)) own.push(id);
+      }
+      writeHeldSessionIds(own);
+      return own;
+    })();
+  }
+  return heldSessionIdsPromise;
+}
+
+async function holdWeb(): Promise<void> {
+  const current = await sessionId();
+  const held = await heldSessionIds();
+  if (!held.includes(current)) held.push(current);
+  writeHeldSessionIds(held);
+  // De huidige generatie blijft onder haar id staan (de lock houdt dit tab al vast); nieuwe
+  // snapshots gaan naar een verse id.
+  const fresh = crypto.randomUUID();
+  try { sessionStorage.setItem(SESSION_KEY, fresh); } catch { /* id blijft lokaal */ }
+  await claimLock(`${SESSION_KEY}:${fresh}`);
+  sessionIdPromise = Promise.resolve(fresh);
+}
+
 interface WebDocRecord {
   id: string; // `${sid}::doc::${docId}`
   kind: 'doc';
@@ -753,34 +816,44 @@ async function saveWeb(input: RecoverySaveInput): Promise<void> {
 
 async function loadWeb(): Promise<LoadedRecovery> {
   const sid = await sessionId();
+  const held = await heldSessionIds();
   const all = await idbGetAll<WebRecord>(WEB_DB, WEB_STORE);
-  const manifest = all.find((r) => r.kind === 'manifest' && r.sessionId === sid) as WebManifestRecord | undefined;
-  if (!manifest) return { activeDocumentId: null, docs: [] };
   const docs: LoadedRecoveryDoc[] = [];
-  const metadata = Array.isArray(manifest.documents)
-    ? manifest.documents
-    : (manifest.docIds ?? []).map((id) => ({
-      id, ifc: docKey(sid, id), filePath: null, isDirty: true, datesAsRecorded: false,
-    }));
-  for (const document of metadata) {
-    const docId = document.id;
-    const rec = all.find((r) => r.kind === 'doc' && r.id === docKey(sid, docId)) as WebDocRecord | undefined;
-    if (!rec) continue;
-    docs.push({
-      id: rec.docId,
-      ifc: rec.ifc,
-      filePath: document.filePath ?? rec.filePath ?? null,
-      isDirty: document.isDirty ?? rec.isDirty ?? true,
-      // v1–v3-webrecord kent het veld niet ⇒ `false` (aanbod, geen modus).
-      datesAsRecorded: document.datesAsRecorded ?? false,
-      mtime: new Date(rec.addedAt),
-    });
+  const seen = new Set<string>();
+  let activeDocumentId: string | null = null;
+  // Eigen generatie eerst (haar actieve tabblad wint), daarna de vastgehouden, oudste eerst.
+  for (const generation of [sid, ...held.filter((id) => id !== sid)]) {
+    const manifest = all.find((r) => r.kind === 'manifest' && r.sessionId === generation) as WebManifestRecord | undefined;
+    if (!manifest) continue;
+    if (activeDocumentId === null) activeDocumentId = manifest.activeDocumentId;
+    const metadata = Array.isArray(manifest.documents)
+      ? manifest.documents
+      : (manifest.docIds ?? []).map((id) => ({
+        id, ifc: docKey(generation, id), filePath: null, isDirty: true, datesAsRecorded: false,
+      }));
+    for (const document of metadata) {
+      const docId = document.id;
+      if (seen.has(docId)) continue;
+      const rec = all.find((r) => r.kind === 'doc' && r.id === docKey(generation, docId)) as WebDocRecord | undefined;
+      if (!rec) continue;
+      seen.add(docId);
+      docs.push({
+        id: rec.docId,
+        ifc: rec.ifc,
+        filePath: document.filePath ?? rec.filePath ?? null,
+        isDirty: document.isDirty ?? rec.isDirty ?? true,
+        // v1–v3-webrecord kent het veld niet ⇒ `false` (aanbod, geen modus).
+        datesAsRecorded: document.datesAsRecorded ?? false,
+        mtime: new Date(rec.addedAt),
+      });
+    }
   }
-  return { activeDocumentId: manifest.activeDocumentId, docs };
+  return { activeDocumentId, docs };
 }
 
 async function clearWeb(): Promise<void> {
   const sid = await sessionId();
+  const generations = new Set([sid, ...(await heldSessionIds())]);
   const db = await openDb(WEB_DB, WEB_STORE);
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(WEB_STORE, 'readwrite');
@@ -790,8 +863,10 @@ async function clearWeb(): Promise<void> {
     const allRequest = store.getAll();
     allRequest.onerror = () => reject(allRequest.error);
     allRequest.onsuccess = () => {
-      const ours = (allRequest.result as WebRecord[]).filter((record) => record.sessionId === sid);
+      const ours = (allRequest.result as WebRecord[]).filter((record) => generations.has(record.sessionId));
       for (const record of ours) store.delete(record.id);
+      writeHeldSessionIds([]);
+      heldSessionIdsPromise = Promise.resolve([]);
       // Echte IndexedDB committeert ook een lege transactie; de kleine headless dubbel plant dan
       // geen `oncomplete`. Alleen voor dat lege, write-loze geval lossen we lokaal op — nooit een
       // tweede, losse transaction openen: dat zou de atomische grens breken.
@@ -825,4 +900,14 @@ export function loadRecovery(): Promise<LoadedRecovery> {
 
 export function clearRecovery(): Promise<void> {
   return serializeRecoveryWrite(() => (isTauri() ? clearTauri() : clearWeb()));
+}
+
+/**
+ * "Nu niet herstellen, maar ook niet weggooien": de gevonden snapshots moeten de volgende
+ * crashherstel-rondes overleven en bij de volgende start opnieuw aangeboden worden. Aanroepen
+ * vóórdat de auto-save weer aan gaat. Tauri: no-op (een vorige app-start is `foreign` en wordt al
+ * meegedragen); web: zie `holdWeb`.
+ */
+export function holdRecoveryForLater(): Promise<void> {
+  return serializeRecoveryWrite(() => (isTauri() ? Promise.resolve() : holdWeb()));
 }
