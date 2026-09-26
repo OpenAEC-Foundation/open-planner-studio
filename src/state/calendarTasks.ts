@@ -33,6 +33,26 @@ export function tasksFollowingProjectCalendar(s: Pick<CalendarState, 'tasks' | '
 }
 
 /**
+ * De toewijzingen per taak, in de volgorde van `assignments` — dezelfde (draft-)objecten, dus een
+ * mutatie via een lijst hier landt in de draft. De K2-momentopname en -settle filteren per taak op
+ * `taskId` en zoeken binnen die taak op id; met deze groepering krijgen ze precies die deelverzameling
+ * en blijft een kalenderwijziging over alle taken O(taken + toewijzingen) in plaats van
+ * O(taken × toewijzingen) (gemeten: 8000 taken 62 s vóór de index). Bouw hem ná een mutatie die
+ * toewijzingen toevoegt of verwijdert opnieuw.
+ */
+export function assignmentsByTask(assignments: readonly ResourceAssignment[]): Map<string, ResourceAssignment[]> {
+  const byTask = new Map<string, ResourceAssignment[]>();
+  for (const a of assignments) {
+    let list = byTask.get(a.taskId);
+    if (!list) { list = []; byTask.set(a.taskId, list); }
+    list.push(a);
+  }
+  return byTask;
+}
+
+const NONE: readonly ResourceAssignment[] = [];
+
+/**
  * Fable-critreview PR #170, bevinding 2: een mutatie van de hele kalenderbibliotheek — de
  * kalenderdialoog (`CalendarDialog` → `resourceSlice.commitCalendarLibrary`, de enige plek in de UI
  * waar je uren per dag wijzigt) en `removeCalendar` — moet door dezelfde K2-route als
@@ -54,13 +74,8 @@ export interface CalendarLibraryCapture {
 
 /** Momentopname VÓÓR de bibliotheekmutatie. */
 export function captureCalendarLibraryChange(s: LibraryState): CalendarLibraryCapture {
-  const byTask = new Map<string, ResourceAssignment[]>();
-  for (const a of s.assignments) {
-    let list = byTask.get(a.taskId);
-    if (!list) { list = []; byTask.set(a.taskId, list); }
-    list.push(a);
-  }
-  return { entries: s.tasks.map((task) => ({ task, before: captureCalendarChange(task, byTask.get(task.id) ?? [], s) })) };
+  const byTask = assignmentsByTask(s.assignments);
+  return { entries: s.tasks.map((task) => ({ task, before: captureCalendarChange(task, byTask.get(task.id) ?? NONE, s) })) };
 }
 
 /** Wat een settle opleverde. De ids naast de tellers laten een SLAPEND document meerdere
@@ -78,8 +93,9 @@ export interface CalendarLibrarySettle {
 export function settleCalendarLibraryChange(s: LibraryState, captured: CalendarLibraryCapture): CalendarLibrarySettle {
   const changedTaskIds: string[] = [];
   const lostTaskIds: string[] = [];
+  const byTask = assignmentsByTask(s.assignments);
   for (const { task, before } of captured.entries) {
-    const settled = settleCalendarChange(task, s.assignments, before, s);
+    const settled = settleCalendarChange(task, byTask.get(task.id) ?? [], before, s);
     if (settled.durationChanged) changedTaskIds.push(task.id);
     if (settled.timephasedLost) lostTaskIds.push(task.id);
   }

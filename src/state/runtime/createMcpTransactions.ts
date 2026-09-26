@@ -22,7 +22,7 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { syncProjectCalendar } from '../syncProjectCalendar';
 import { notifyTimephasedLoss, notifyLevelingDelayRounded } from '../timephasedLossNotice';
 import { notifyWorkRuleDurationsChanged } from '../taskTypesNotice';
-import { tasksOnCalendar } from '../calendarTasks';
+import { assignmentsByTask, tasksOnCalendar } from '../calendarTasks';
 import type { McpTransactionLease } from './storeRuntime';
 import type { DurationType, Task, TimephasedContourPeriod } from '@/types/task';
 import {
@@ -665,11 +665,12 @@ function createMcpDraft(
       const idx = s.calendars.findIndex((c) => c.id === id);
       if (idx < 0) throw new Error(`draft.updateCalendar: onbekende kalender-id '${id}'`);
       // K2 — tweeling van resourceSlice.ts's `updateCalendar`: momentopnamen vóór de mutatie.
-      const affected = tasksOnCalendar(s, id).map((task) => ({ task, before: captureCalendarChange(task, s.assignments, s) }));
+      const byTask = assignmentsByTask(s.assignments);
+      const affected = tasksOnCalendar(s, id).map((task) => ({ task, before: captureCalendarChange(task, byTask.get(task.id) ?? [], s) }));
       Object.assign(s.calendars[idx], updates);
       syncProjectCalendar(s);
       for (const { task, before } of affected) {
-        const settled = settleCalendarChange(task, s.assignments, before, s);
+        const settled = settleCalendarChange(task, byTask.get(task.id) ?? [], before, s);
         if (settled.durationChanged) changed++;
         if (settled.timephasedLost) recordTimephasedLoss(task.id);
       }

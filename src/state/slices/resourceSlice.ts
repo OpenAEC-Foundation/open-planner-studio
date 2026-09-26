@@ -16,7 +16,7 @@ import {
   captureCalendarChange, settleCalendarChange, settleDurationAftermath, syncAssignmentWorkToContour,
 } from '@/engine/work/workRuleApply';
 import { notifyWorkRuleDurationsChanged } from '../taskTypesNotice';
-import { captureCalendarLibraryChange, settleCalendarLibraryChange, tasksOnCalendar } from '../calendarTasks';
+import { assignmentsByTask, captureCalendarLibraryChange, settleCalendarLibraryChange, tasksOnCalendar } from '../calendarTasks';
 import type { Task } from '@/types/task';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import type { AppSliceFactory } from './types';
@@ -322,11 +322,12 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       runtime.beginUndoable(s);
       // K2 (eigenaarsbesluit 2026-09-05): andere uren per dag ⇒ de werkregel beslist per taak op
       // deze kalender (momentopnamen vóór de mutatie, want de kalender muteert in-place).
-      const affected = tasksOnCalendar(s, id).map(task => ({ task, before: captureCalendarChange(task, s.assignments, s) }));
+      const byTask = assignmentsByTask(s.assignments); // O(taken + toewijzingen), zie de helper
+      const affected = tasksOnCalendar(s, id).map(task => ({ task, before: captureCalendarChange(task, byTask.get(task.id) ?? [], s) }));
       Object.assign(s.calendars[idx], updates);
       syncProjectCalendar(s);
       for (const { task, before } of affected) {
-        const settled = settleCalendarChange(task, s.assignments, before, s);
+        const settled = settleCalendarChange(task, byTask.get(task.id) ?? [], before, s);
         if (settled.durationChanged) changed++;
         if (settled.timephasedLost) lost++; // reviewronde G4: zelfde melding als de andere paden.
       }

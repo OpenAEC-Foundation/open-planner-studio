@@ -27,7 +27,7 @@ import { HOST_EVENTS } from '@/services/extensionEvents';
 import { clearTimephasedLossNoticeForDoc } from '../timephasedLossNotice';
 import { clearTaskTypesNoticeForDoc, notifyWorkRuleDurationsChanged } from '../taskTypesNotice';
 import { captureCalendarChange, settleCalendarChange } from '@/engine/work/workRuleApply';
-import { tasksFollowingProjectCalendar } from '../calendarTasks';
+import { assignmentsByTask, tasksFollowingProjectCalendar } from '../calendarTasks';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import type { AppSliceFactory } from './types';
 import { effHoursPerDay } from '@/utils/taskDuration';
@@ -260,11 +260,12 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       // K2 (eigenaarsbesluit 2026-09-05): alle taken die de projectkalender VOLGEN (geen eigen
       // kalender, of een bungelende verwijzing — reviewbevinding F9) gaan mee; momentopnamen vóór
       // de wissel, daarna beslist de werkregel per taak.
-      const affected = tasksFollowingProjectCalendar(s).map((task) => ({ task, before: captureCalendarChange(task, s.assignments, s) }));
+      const byTask = assignmentsByTask(s.assignments); // O(taken + toewijzingen), zie de helper
+      const affected = tasksFollowingProjectCalendar(s).map((task) => ({ task, before: captureCalendarChange(task, byTask.get(task.id) ?? [], s) }));
       s.project.calendarId = id;
       syncProjectCalendar(s); // §9.1: cache gelijkzetten (vóór de settle: die leest `s.calendar`).
       for (const { task, before } of affected) {
-        const settled = settleCalendarChange(task, s.assignments, before, s);
+        const settled = settleCalendarChange(task, byTask.get(task.id) ?? [], before, s);
         if (settled.durationChanged) changed++;
         if (settled.timephasedLost) lost++; // reviewronde G4
       }
