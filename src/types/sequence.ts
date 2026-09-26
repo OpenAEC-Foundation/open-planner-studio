@@ -6,8 +6,8 @@ export type SequenceType =
 
 /**
  * Lag-eenheid, benoemd naar IfcTaskDurationEnum zodat de IFC-round-trip 1-op-1 is:
- * WORKTIME = werkdagen op de projectkalender (default), ELAPSEDTIME = kalenderdagen (24/7,
- * bv. uitharden van beton dat in het weekend doorloopt).
+ * WORKTIME = werktijd in de lagkalender (default; zie `SchedulingOptions.lagCalendar`),
+ * ELAPSEDTIME = kalendertijd (24/7, bv. uitharden van beton dat in het weekend doorloopt).
  */
 export type LagUnit = 'WORKTIME' | 'ELAPSEDTIME';
 
@@ -18,10 +18,10 @@ export interface Sequence {
   type: SequenceType;
   /** Vaste lag in dagen (positief = uitloop, negatief = lead). Genegeerd wanneer lagPercent gezet is. */
   lagDays: number;
-  /** OPTIONEEL — vaste lag in integer MINUTEN (fase 2.8b, §3.3). Aanwezig ⇒ bron van waarheid;
-   *  afwezig ⇒ `lagDays` (dagen) is de bron (byte-identiek). */
+  /** Vaste lag in integer MINUTEN. Aanwezig ⇒ bron van waarheid; afwezig ⇒ `lagDays` (dagen) is de
+   *  bron. */
   lagMinutes?: number;
-  /** Lag-eenheid; ontbreekt = WORKTIME (werkdagen) — bestaand gedrag, migratieloos. */
+  /** Lag-eenheid; ontbreekt = WORKTIME. */
   lagUnit?: LagUnit;
   /** XER/P6-bronsemantiek: een nul-lag FS waarvan de expliciete geplande opvolgerstart exact op
    *  het geplande voorgangereinde én een kalenderbandeinde ligt, behoudt die finishgrens als
@@ -30,7 +30,7 @@ export interface Sequence {
   /**
    * Procentuele lag: percentage van de duur van de VOORGANGER (bv. 50 = "SS+50%"),
    * per CPM-run opnieuw geëvalueerd uit de actuele duur (MS Project-semantiek) en
-   * afgerond op hele dagen (Math.round; de engine is dag-granulair). Sluit lagDays uit.
+   * afgerond (Math.round) op hele dagen in dagmodus, op hele minuten in uurmodus. Sluit lagDays uit.
    */
   lagPercent?: number;
 }

@@ -28,7 +28,7 @@ export type BaselineOverlay = Map<string, BaselineOverlayEntry>;
 /** Een P6-stijl baseline: onbeperkt aantal; precies één is "actief" (activeBaselineId in de slice). */
 export interface Baseline {
   id: string;
-  /** Projectidentiteit van een gematerialiseerd extern baselineproject (onder meer XER X4b). */
+  /** Projectidentiteit van een gematerialiseerd extern baselineproject (bv. een XER-baselineproject). */
   sourceProjectId?: string;
   name: string;
   createdAt: string;       // ISO datetime — de snapshot-datum (ook getoond in het rapport)
