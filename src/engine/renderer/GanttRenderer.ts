@@ -2024,6 +2024,25 @@ export class GanttRenderer {
     ctx.stroke();
   }
 
+  /**
+   * X van het relatie-anker op de balkrand: `atStart` = linkerrand, anders rechterrand. Dagtaken
+   * (datums zonder tijd): de dagcelranden zoals altijd — begin van de startdag, einde van de
+   * einddag. Uurtaken: dezelfde randen als de balk (`barGeometry`: het tijdstip zelf, het einde via
+   * de rollupregel). Vroeger rekende de pijl ook bij een uurtaak met `parseDate` + één dag, zodat
+   * hij tot een dag naast een uurbalk begon of eindigde.
+   */
+  private relationAnchorX(task: Task, atStart: boolean): number {
+    const start = shownStart(task);
+    const finish = shownFinish(task);
+    if ((start ?? '').includes('T') || (finish ?? '').includes('T')) {
+      const geo = this.barGeometry(task);
+      return atStart ? geo.x1 : geo.x2;
+    }
+    return atStart
+      ? this.dateToX(parseDate(start))
+      : this.dateToX(parseDate(finish)) + this.opts.view.zoom;
+  }
+
   private drawDependencyArrows(): void {
     const ctx = this.ctx;
     // `lineWidth` blijft VÓÓR de vroege uitstap staan: de today-/statusdatumlijn hierboven laat 'm op
@@ -2089,16 +2108,8 @@ export class GanttRenderer {
       let fromX: number, toX: number, dirOut: number, dirIn: number;
       const predStart = seq.type === 'START_START' || seq.type === 'START_FINISH';
       const succFinish = seq.type === 'FINISH_FINISH' || seq.type === 'START_FINISH';
-      if (predStart) {
-        fromX = this.dateToX(parseDate(shownStart(pred)));
-      } else {
-        fromX = this.dateToX(parseDate(shownFinish(pred))) + this.opts.view.zoom;
-      }
-      if (succFinish) {
-        toX = this.dateToX(parseDate(shownFinish(succ))) + this.opts.view.zoom;
-      } else {
-        toX = this.dateToX(parseDate(shownStart(succ)));
-      }
+      fromX = this.relationAnchorX(pred, predStart);
+      toX = this.relationAnchorX(succ, !succFinish);
       // dirOut = uitloop WEG van de voorgangerbalk; dirIn = aankomstkant bij de opvolger:
       // start-anker (FS/SS) komt van links (kop wijst naar rechts); finish-anker (FF/SF) van rechts.
       dirOut = predStart ? -1 : 1;
