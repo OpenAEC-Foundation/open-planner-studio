@@ -87,7 +87,7 @@ Bir kaynak **Proje takvimi**nde (varsayılan) veya kendi takviminde olabilir —
 
 Histogramı **Kaynaklar** sekmesindeki **Histogram** şerit grubu üzerinden açın (**Histogram** düğmesi). Aynı zaman eksenindeki Gantt'ın altında bir şerit görünür: gün başına çubuklar, kapasite çizgisinin üzerindeki kısım kırmızı gösterilir.
 
-Çubukların solunda, görev-tablosu sütununun üzerinde, **kaynak seçici** bulunur: üstte "Tüm kaynaklar" ve altında her kaynak, aşırı atanmışsa kırmızı bir noktayla. Bir isme tıklayarak o tek kaynağa yakınlaşırsınız — histogram yalnızca onun yükü ve kapasitesine göre yeniden ölçeklenir. Tüm kaynakların toplamını tekrar görmek için "Tüm kaynaklar"a geri tıklayın. Tıklamanın yanı sıra, seçicinin kendisine dokunmadan **Histogram** şerit grubundaki **Önceki**/**Sonraki** düğmeleriyle kaynaklar arasında da adım adım gezinebilirsiniz.
+Görev tablosunun altında, çubukların yanında, **kaynak seçici** bulunur: üstte "Tüm kaynaklar" ve altında her kaynak, aşırı atanmışsa kırmızı bir noktayla. Bir isme tıklayarak o tek kaynağa yakınlaşırsınız — histogram yalnızca onun yükü ve kapasitesine göre yeniden ölçeklenir. Tüm kaynakların toplamını tekrar görmek için "Tüm kaynaklar"a geri tıklayın. Tıklamanın yanı sıra, seçicinin kendisine dokunmadan **Histogram** şerit grubundaki **Önceki**/**Sonraki** düğmeleriyle kaynaklar arasında da adım adım gezinebilirsiniz.
 
 Aşırı yüklü bir çubuğa tıklayın, bir araç ipucu o gün kaç görevin yüke katkıda bulunduğunu, ilk birkaç görev adıyla gösterir — her atamayı elle kontrol etmeden aşırı atamaya neden olan görev kombinasyonunu hızla görmek için kullanışlıdır.
 

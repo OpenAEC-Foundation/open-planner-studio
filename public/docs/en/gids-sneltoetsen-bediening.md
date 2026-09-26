@@ -63,7 +63,7 @@ and **↓** the next visible task. The selection, properties panel and bar highl
 away. Collapsed, filtered-out or differently sorted tasks are not visited: you move through exactly
 the list currently on screen.
 
-Click the **resource picker** on the left of the histogram to make that surface active. There **↑**
+Click the **resource picker** of the histogram (below the task table) to make that surface active. There **↑**
 and **↓** follow that same list: **All resources** first, then every project resource. This makes it
 quick to compare resource load without repeatedly clicking a name. At either end, the current
 selection remains in place. Arrow keys with Ctrl, Alt, Shift or ⌘ keep their existing meaning
