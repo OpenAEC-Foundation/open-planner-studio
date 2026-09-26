@@ -57,6 +57,24 @@ export interface ExtensionHostBinding {
   ): void;
 }
 
+/**
+ * Na `_cleanup` is de api ingetrokken (audit 2026-09-26): elke methode gooit. Een `onLoad` die pas
+ * ná een time-out, een deactivering of een verwijdering verder loopt, kan zo geen knoppen,
+ * importers of taken meer registreren die niemand meer opruimt. Een nieuwe activatie krijgt een
+ * verse api.
+ */
+function revokeApi(api: Record<string, unknown>, extensionId: string): void {
+  for (const [groupName, group] of Object.entries(api)) {
+    if (groupName === '_cleanup' || !group || typeof group !== 'object') continue;
+    for (const [name, value] of Object.entries(group as Record<string, unknown>)) {
+      if (typeof value !== 'function') continue;
+      (group as Record<string, unknown>)[name] = () => {
+        throw new Error(`Extensie "${extensionId}" is gedeactiveerd; ${groupName}.${name} is niet meer beschikbaar`);
+      };
+    }
+  }
+}
+
 export function createExtensionApi(
   extensionId: string,
   permissions: ExtensionPermission[],
@@ -370,6 +388,7 @@ export function createExtensionApi(
       cleanupFns.forEach((fn) => fn());
       cleanupFns.length = 0;
       host.app.store.getState().removeAllExtensionUI(extensionId);
+      revokeApi(api as unknown as Record<string, unknown>, extensionId);
     },
   };
 

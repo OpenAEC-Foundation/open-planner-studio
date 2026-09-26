@@ -1788,15 +1788,31 @@ export class CPMSolver {
     return null;
   }
 
+  /**
+   * Iteratieve DFS vanaf `start` — letterlijk dezelfde bezoek- en rapportvolgorde als de vroegere
+   * recursieve versie (zelfde opvolger-arrays, zelfde kleurmomenten, zelfde cyclusreconstructie),
+   * maar met een expliciete stapel: de recursie liep bij een lineaire keten van ~6000 taken op
+   * `RangeError: Maximum call stack size exceeded` (audit 2026-09-26).
+   */
   private dfsVisit(
-    u: string,
+    start: string,
     color: Map<string, number>,
     parent: Map<string, string | null>,
   ): string[] | null {
-    color.set(u, 1); // GRAY
+    color.set(start, 1); // GRAY
+    const stack: Array<{ u: string; succ: Sequence[]; i: number }> = [
+      { u: start, succ: this.successors.get(start) || [], i: 0 },
+    ];
 
-    for (const seq of this.successors.get(u) || []) {
-      const v = seq.successorId;
+    while (stack.length > 0) {
+      const frame = stack[stack.length - 1];
+      if (frame.i >= frame.succ.length) {
+        color.set(frame.u, 2); // BLACK
+        stack.pop();
+        continue;
+      }
+      const u = frame.u;
+      const v = frame.succ[frame.i++].successorId;
       if (!this.tasks.has(v)) continue;
 
       if (color.get(v) === 1) { // GRAY = back edge
@@ -1816,12 +1832,10 @@ export class CPMSolver {
 
       if (color.get(v) === 0) { // WHITE
         parent.set(v, u);
-        const cycle = this.dfsVisit(v, color, parent);
-        if (cycle) return cycle;
+        color.set(v, 1); // GRAY
+        stack.push({ u: v, succ: this.successors.get(v) || [], i: 0 });
       }
     }
-
-    color.set(u, 2); // BLACK
     return null;
   }
 
@@ -1839,10 +1853,14 @@ export class CPMSolver {
       if (deg === 0) queue.push(id);
     }
 
+    // Kop-index i.p.v. `queue.shift()` en een Set i.p.v. `result.includes` hieronder: allebei O(n)
+    // per stap, samen O(n²) per solve (0,8 s sorteren op een net van 20k taken). Zelfde volgorde.
     const result: string[] = [];
-    while (queue.length > 0) {
-      const id = queue.shift()!;
+    const inResult = new Set<string>();
+    for (let head = 0; head < queue.length; head++) {
+      const id = queue[head];
       result.push(id);
+      inResult.add(id);
       for (const seq of this.successors.get(id) || []) {
         const newDeg = (inDegree.get(seq.successorId) || 1) - 1;
         inDegree.set(seq.successorId, newDeg);
@@ -1852,7 +1870,7 @@ export class CPMSolver {
 
     // Tasks not in the dependency graph (isolated) are still included
     for (const id of this.tasks.keys()) {
-      if (!result.includes(id)) result.push(id);
+      if (!inResult.has(id)) result.push(id);
     }
 
     return result;

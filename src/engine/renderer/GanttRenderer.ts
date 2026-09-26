@@ -2,7 +2,7 @@ import { Task } from '@/types/task';
 import type { BaselineOverlay } from '@/types/baseline';
 import { Sequence } from '@/types/sequence';
 import type { ViewState, BarSplitMode, DurationDisplay } from '@/types/view';
-import { parseDate, parseInstant, addCalendarDays, diffCalendarDays, isoDayOfWeek, getWeekNumberFor, utcDayStart } from '@/utils/dateUtils';
+import { parseDate, parseInstant, addCalendarDays, diffCalendarDays, isoDayOfWeek, getWeekNumberFor, utcDayStart, localNowOnDayAxis, MS_PER_DAY } from '@/utils/dateUtils';
 import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { calendarWithEffectiveWorkTime } from '@/utils/effectiveWorkTime';
 import { effHoursPerDay, formatTaskDurationDisplay, taskDurationMinutes } from '@/utils/taskDuration';
@@ -670,8 +670,7 @@ export class GanttRenderer {
 
   private drawTodayLine(): void {
     const ctx = this.ctx;
-    const today = new Date();
-    const x = this.dateToX(today);
+    const x = this.dateToX(localNowOnDayAxis());
 
     if (x >= 0 && x < this.opts.canvasWidth) {
       ctx.strokeStyle = this.colors.today;
@@ -1279,9 +1278,26 @@ export class GanttRenderer {
       }
     } else if (geo.hourMode && this.shouldSplit(isSelected)) {
       const eng = this.engineFor(task);
-      const intervals = eng ? eng.workIntervalsBetween(geo.start, geo.end) : [];
+      // Alleen het ZICHTBARE stuk van de balk opsplitsen (plus een dag marge): een lange uur-taak
+      // (> ~1 jaar) werd anders na de scanlimiet van `workIntervalsBetween` afgekapt getekend, en
+      // elke frame materialiseerde alle banden van de hele looptijd (audit 2026-09-26).
+      const visFrom = Math.max(geo.start.getTime(), this.axis.xToDate(-this.opts.view.zoom).getTime() - MS_PER_DAY);
+      const visTo = Math.min(geo.end.getTime(), this.axis.xToDate(this.opts.canvasWidth + this.opts.view.zoom).getTime() + MS_PER_DAY);
+      const clipped = visFrom > geo.start.getTime() || visTo < geo.end.getTime();
+      const intervals = eng && visTo > visFrom ? eng.workIntervalsBetween(new Date(visFrom), new Date(visTo)) : [];
       if (intervals.length > 0) {
         segs = intervals.map(iv => ({ x1: this.dateToX(iv.start), x2: this.dateToX(iv.end) }));
+        // Een segment dat tegen de knip aanligt loopt in werkelijkheid door: teken het tot de
+        // volle balkrand (die buiten beeld ligt), niet tot de knipgrens.
+        if (intervals[0].start.getTime() <= visFrom && visFrom > geo.start.getTime()) segs[0].x1 = x1;
+        const last = segs.length - 1;
+        if (intervals[last].end.getTime() >= visTo && visTo < geo.end.getTime()) segs[last].x2 = x2;
+        split = true;
+      } else if (eng && clipped && visTo > visFrom) {
+        // Het zichtbare stuk valt helemaal in een werkgat: alleen de necking-lijn erdoorheen.
+        const lx = this.dateToX(new Date(visFrom));
+        const rx = this.dateToX(new Date(visTo));
+        segs = [{ x1: lx, x2: lx }, { x1: rx, x2: rx }];
         split = true;
       }
     }

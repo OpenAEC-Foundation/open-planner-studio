@@ -7,6 +7,7 @@ import { taskDurationUnit, writeDerivedSpan, isZeroDurationMilestone } from './d
 import { CalendarEngine } from './CalendarEngine';
 import { descendantLeaves, summaryProgressOf, taskWorkDays, writeSummaryProgress } from './summaryProgress';
 import { finishInstant, latestFinish } from '@/utils/taskDates';
+import { minOf } from '@/utils/collections';
 
 /**
  * Schrijf een CPM-resultaat terug op de taken: per blad de berekende velden, daarna de
@@ -254,8 +255,8 @@ export function rollupSummaryTasks(
       task.time.lateStart = lateStarts[0];
       task.time.lateFinish = latestFinish(children.map(c => c.time.lateFinish));
       // Een verzameltaak kan maar zo veel opschuiven als zijn krapste kind: min over de kinderen.
-      task.time.totalFloat = Math.min(...children.map(c => c.time.totalFloat));
-      task.time.freeFloat = Math.min(...children.map(c => c.time.freeFloat));
+      task.time.totalFloat = minOf(children.map(c => c.time.totalFloat));
+      task.time.freeFloat = minOf(children.map(c => c.time.freeFloat));
       // Interfererende speling op de samenvatting = tf−ff (fase 2.9 golf 2, §4.6) — houdt de
       // invariant ook op verzameltaken en vult de kolom voor WBS-rijen.
       task.time.interferingFloat = task.time.totalFloat - task.time.freeFloat;

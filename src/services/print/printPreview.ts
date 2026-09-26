@@ -1,7 +1,7 @@
 import { Task } from '@/types/task';
 import { Sequence } from '@/types/sequence';
 import { WorkCalendar } from '@/types/calendar';
-import { parseDate, formatDate, addCalendarDays, getWeekNumberFor, diffCalendarDays, isoDayOfWeek, utcDayStart } from '@/utils/dateUtils';
+import { parseDate, formatDate, addCalendarDays, getWeekNumberFor, diffCalendarDays, isoDayOfWeek, utcDayStart, localNowOnDayAxis } from '@/utils/dateUtils';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import type { DateNotation, DurationDisplay } from '@/types/view';
 import type { Draw2D } from '@/services/pdf/draw2d';
@@ -338,13 +338,29 @@ export function buildPrintRows(
     }
     return printRows;
   }
+  // Eén keer indexeren i.p.v. per taak `tasks.filter` + per taak `printRows.some`: dat was O(n²) en
+  // draait per render-venster (1–3 per pagina) plus bij meten — seconden per pagina bij 10k taken.
+  // Kindvolgorde = arrayvolgorde, dus dezelfde rijen als voorheen.
+  const childrenOf = new Map<string, Task[]>();
+  for (const t of tasks) {
+    if (!t.parentId) continue;
+    const list = childrenOf.get(t.parentId);
+    if (list) list.push(t);
+    else childrenOf.set(t.parentId, [t]);
+  }
+  const placed = new Set<string>();
   const addRecursive = (task: Task, depth: number) => {
+    if (placed.has(task.id)) return;
+    placed.add(task.id);
     printRows.push({ kind: 'task', task, depth });
-    for (const child of tasks.filter(t => t.parentId === task.id)) addRecursive(child, depth + 1);
+    for (const child of childrenOf.get(task.id) ?? []) addRecursive(child, depth + 1);
   };
-  for (const root of tasks.filter(t => !t.parentId)) addRecursive(root, 0);
+  for (const root of tasks) if (!root.parentId) addRecursive(root, 0);
   for (const task of tasks) {
-    if (!printRows.some(r => r.kind === 'task' && r.task!.id === task.id)) printRows.push({ kind: 'task', task, depth: 0 });
+    if (!placed.has(task.id)) {
+      placed.add(task.id);
+      printRows.push({ kind: 'task', task, depth: 0 });
+    }
   }
   return printRows;
 }
@@ -1180,8 +1196,7 @@ export function renderReport(
   // dus gewoon weggepoetst. In de VECTOR-PDF gebeurde dat níét (tekst staat daar altijd boven alle
   // vormen, zie `PdfVectorDraw2D.operators` vs `.texts`), zodat preview en export uit elkaar liepen
   // en het label in de PDF bovendien pal op het dagcijfer van vandaag landde.
-  const today = new Date();
-  const todayX = dateToX(today);
+  const todayX = dateToX(localNowOnDayAxis());
   const todayVisible = todayX > m.tableWidth && todayX < canvasWidth;
   if (todayVisible) {
     d2d.strokeStyle = PRINT_COLORS.today;

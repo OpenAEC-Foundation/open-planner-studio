@@ -5,6 +5,7 @@ import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { RecoveryDeltaTracker, type RecoverySourceDocument } from '@/services/recovery/recoveryDelta';
 import { saveRecovery } from '@/services/recovery/recoveryStore';
+import { registerRecoveryFlush } from '@/services/recovery/recoveryFlush';
 import { canWriteToRefWithoutPrompt, saveToRefWithoutPrompt, type FileRef } from '@/services/fileAccess';
 import { actualAutoSaveDelay, createActualAutoSaveController, type ActualAutoSaveCandidate } from '@/services/actualAutosave/actualAutoSave';
 import { isProjectFileWriteBusy, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
@@ -91,6 +92,12 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
     // geplande save (die de dán-actuele state leest), dus geen verloren bewerkingen.
     let timer: ReturnType<typeof setTimeout> | null = null;
     let lastSaveAt = 0;
+    // Directe ronde op verzoek (updater vóór `relaunch`): wacht een lopende save af en schrijft
+    // daarna de actuele staat, buiten de throttle om.
+    const unregisterFlush = registerRecoveryFlush(async () => {
+      for (let i = 0; saving && i < 200; i++) await new Promise((r) => setTimeout(r, 25));
+      await runAutoSave();
+    });
     const unsub = useAppStore.subscribe(() => {
       if (timer) return; // er staat al een save gepland binnen dit interval
       const wait = Math.max(0, AUTOSAVE_INTERVAL_MS - (Date.now() - lastSaveAt));
@@ -104,6 +111,7 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
     return () => {
       if (timer) clearTimeout(timer);
       unsub();
+      unregisterFlush();
     };
   }, [autoSaveEnabled]);
 
@@ -128,7 +136,8 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
         // Wachten op een handmatige write mag nooit alsnog een inmiddels oude autosave-inhoud
         // laten overschrijven. Kijk dus OPNIEUW onder de exclusieve lock.
         const current = useAppStore.getState().getOpenDocumentPayloads().find((d) => d.id === candidate.id)?.payload;
-        if (!current || !sameIFCSource(candidate.source, current)) return false;
+        if (!current) return false;
+        if (!sameIFCSource(candidate.source, current)) return 'stale';
         return saveToRefWithoutPrompt(candidate.ref!, content);
       }),
       markSavedIfUnchanged: candidate => useAppStore.getState().markAutoSaveVersionSaved(candidate.id, candidate.source),
@@ -157,7 +166,7 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
 
   // Web-only sluitwaarschuwing: een browsertab kan zomaar gesloten/herladen worden terwijl er
   // niet-opgeslagen wijzigingen zijn. Tauri heeft daarvoor zijn eigen sluitflow
-  // (CloseDocumentDialog), dus daar geen native prompt bovenop.
+  // (`useAppCloseGuard` → CloseDocumentDialog per document), dus daar geen native prompt bovenop.
   useEffect(() => {
     if (isTauri()) return;
     const onBeforeUnload = (e: BeforeUnloadEvent) => {

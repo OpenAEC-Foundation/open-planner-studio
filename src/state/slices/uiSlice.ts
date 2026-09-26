@@ -110,6 +110,7 @@ export function createDefaultUI(): UIState {
     ribbonCompact: false,
     showProjectOverview: false,
     pendingCloseDocId: null,
+    appQuitPending: false,
     showNewProjectDialog: false,
     showNewOrOpenProjectDialog: false,
     pendingTaskNameFocusId: null,

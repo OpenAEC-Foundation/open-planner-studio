@@ -35,8 +35,10 @@ export function createActualAutoSaveController(deps: {
   serialize: (candidate: ActualAutoSaveCandidate) => string;
   /** Zonder permissieprompt nagaan of een bestaand doel nog schrijfbaar is. */
   canWrite: (ref: FileRef) => Promise<boolean>;
-  /** Stil naar het bestaande doel schrijven; false betekent geen beschikbaar schrijfdoel. */
-  write: (candidate: ActualAutoSaveCandidate, content: string) => Promise<boolean>;
+  /** Stil naar het bestaande doel schrijven; false betekent geen beschikbaar schrijfdoel,
+   *  `'stale'` dat de inhoud intussen gewijzigd is (niets geschreven, geen fout — een nieuwe ronde
+   *  pakt de actuele inhoud op). */
+  write: (candidate: ActualAutoSaveCandidate, content: string) => Promise<boolean | 'stale'>;
   /** Wist dirty uitsluitend wanneer exact deze bronversie nog actueel is. */
   markSavedIfUnchanged: (candidate: ActualAutoSaveCandidate) => void;
   onFailure: (candidate: ActualAutoSaveCandidate, error: unknown) => void;
@@ -46,6 +48,9 @@ export function createActualAutoSaveController(deps: {
   let current: Promise<void> | null = null;
 
   const run = async () => {
+    // Begrensd: blijft een bron "stale" (bv. doordat elke lezing een nieuw object oplevert), dan
+    // mag dat nooit een eindeloze schrijflus worden — de volgende throttle-ronde probeert opnieuw.
+    let staleRounds = 0;
     do {
       pending = false;
       for (const candidate of deps.listCandidates()) {
@@ -53,7 +58,13 @@ export function createActualAutoSaveController(deps: {
         try {
           if (!await deps.canWrite(candidate.ref)) continue;
           const content = deps.serialize(candidate);
-          if (await deps.write(candidate, content)) {
+          const written = await deps.write(candidate, content);
+          if (written === 'stale') {
+            // De bron veranderde terwijl we op een eerdere write of `canWrite` wachtten: dat is
+            // geen onschrijfbaar bestand (audit 2026-09-26 — het gaf een valse foutmelding), maar
+            // een reden voor nog een ronde met de actuele inhoud.
+            if (staleRounds++ < 3) pending = true;
+          } else if (written) {
             deps.markSavedIfUnchanged(candidate);
           } else {
             // Geen stille "opgeslagen"-indruk bij een verdwenen/vergrendeld doel. De UI-laag

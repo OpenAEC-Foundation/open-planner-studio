@@ -443,6 +443,9 @@ export interface UIState {
   ribbonCompact: boolean; // persisted — compacte ribbon voor kleine schermen
   showProjectOverview: boolean;             // session — projectoverzicht-overlay open
   pendingCloseDocId: string | null;         // session — document met openstaande sluit-bevestiging
+  /** Session — de gebruiker sluit de hele app: `useAppCloseGuard` loopt de documenten met
+   *  niet-opgeslagen wijzigingen één voor één langs via de sluit-bevestiging (`pendingCloseDocId`). */
+  appQuitPending: boolean;
   showNewProjectDialog: boolean;            // session — nieuw-project-wizard open
   /** Compacte keuze na een plusknop in de projectkiezer; maakt pas na een keuze iets aan/open. */
   showNewOrOpenProjectDialog: boolean;

@@ -3,7 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, X, Check, Unlink2, Library } from 'lucide-react';
 import type { Resource, ResourceType, AvailabilityStep } from '@/types/resource';
-import { formatDate } from '@/utils/dateUtils';
+import { localTodayIso } from '@/utils/dateUtils';
 import { ResourceCalendarDialog } from '@/components/dialogs/ResourceCalendarDialog';
 import { UnitsInput } from '@/components/common/UnitsInput';
 import { DateTextInput } from '@/components/common/DateTextInput';
@@ -1306,7 +1306,7 @@ function AvailabilityStepsEditor({ steps, onChange }: {
     onChange(steps.map((s, i) => (i === idx ? { ...s, ...patch } : s)));
   };
   const remove = (idx: number) => onChange(steps.filter((_, i) => i !== idx));
-  const add = () => onChange([...steps, { from: formatDate(new Date()), maxUnits: 1 }]);
+  const add = () => onChange([...steps, { from: localTodayIso(), maxUnits: 1 }]);
 
   return (
     <div className="flex flex-col gap-1.5">

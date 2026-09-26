@@ -10,6 +10,7 @@
 
 import { isTauri } from '@/utils/platform';
 import { GITHUB_REPO } from '@/services/githubRepo';
+import { flushRecoveryNow } from '@/services/recovery/recoveryFlush';
 
 export interface UpdateInfo {
   version: string;
@@ -150,6 +151,13 @@ export async function downloadAndInstall(
       }
     });
 
+    // Geen normale afsluiting (geen sluitvraag): leg vóór de herstart nog één herstelsnapshot vast,
+    // zodat bewerkingen van de laatste seconden na de update via het herstel-venster terugkomen.
+    try {
+      await flushRecoveryNow();
+    } catch (flushErr) {
+      console.error('Herstelsnapshot vóór de update-herstart mislukt:', flushErr);
+    }
     await relaunch();
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

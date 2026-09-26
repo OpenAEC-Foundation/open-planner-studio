@@ -13,7 +13,7 @@ import type { LibraryOrigin } from '@/types/library';
 import { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types/structure';
 import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
-import { formatDate, formatInstant, parseInstant } from '@/utils/dateUtils';
+import { formatInstant, parseInstant, localTodayIso } from '@/utils/dateUtils';
 import { ifcGuid } from './ifcWriter';
 import { IfcParseError } from './ifcErrors';
 import type { ImportLabels, ImportResult, RecordedSourceFormat, XerArchiveIssue, XerArchiveIssueCode } from '@/services/importTypes';
@@ -969,7 +969,7 @@ function parseRefs(s: string): string[] {
 // STEP-quoting (`stripQuotes`) en de `$`-null-conventie af en houdt de exacte lege-tail-semantiek
 // (een quoted-lege slot geeft '' terug, niet vandaag) — dat is STEP-specifiek en mag niet verschuiven.
 function parseDateFromIFC(s: string): string {
-  if (!s || s === '$') return formatDate(new Date());
+  if (!s || s === '$') return localTodayIso();
   const clean = stripQuotes(s);
   // Extract just the date part
   return clean.substring(0, 10);
@@ -1358,7 +1358,7 @@ function extractTasks(
     // Parse IfcTaskTime reference
     const taskTimeRef = parseRef(te.args[taskTimeIdx] || '');
     const ttEntity = taskTimeRef ? entityMap.get(taskTimeRef) : undefined;
-    const time = ttEntity ? parseTaskTime(ttEntity, hoursPerDay) : createDefaultTaskTime(formatDate(new Date()), 5);
+    const time = ttEntity ? parseTaskTime(ttEntity, hoursPerDay) : createDefaultTaskTime(localTodayIso(), 5);
     if (ttEntity) taskTimeEntities.set(id, ttEntity);
     recordedFields[id] = ttEntity ? recordedSlotsOf(ttEntity) : [];
 
@@ -1376,7 +1376,7 @@ function extractTasks(
 
     tasks.push({
       id,
-      name: stripQuotes(te.args[TASK_SLOT.name] || '') || 'Naamloze taak',
+      name: ifcSlotText(te.args[TASK_SLOT.name]) || 'Naamloze taak',
       // `$`/leeg/afwezig ⇒ '' (niet de letterlijke '$' — zelfde bug/fix als IFCPROJECT.Description
       // hierboven; de writer schrijft description/identification bewust als bare `$` via `ifcStr`
       // wanneer leeg, zie ifcTaskSlots.ts).
@@ -1945,7 +1945,7 @@ function extractResources(
 
     resources.push({
       id,
-      name: stripQuotes(e.args[2] || '') || 'Resource',
+      name: ifcSlotText(e.args[2]) || 'Resource',
       type: resType,
       // `$`/leeg/afwezig ⇒ '' (zelfde bug/fix als IfcTask.Description hierboven).
       description: ifcSlotText(e.args[3]),
@@ -2381,7 +2381,7 @@ function buildCalendarFromEntity(
   entities: StepEntity[],
 ): WorkCalendar {
   const calendar = createDefaultCalendar();
-  calendar.name = stripQuotes(cal.args[2] || '') || calendar.name;
+  calendar.name = ifcSlotText(cal.args[2]) || calendar.name;
   // Fix B7: `ifcSlotText` i.p.v. kale `stripQuotes` — een lege omschrijving schrijft de writer als
   // STEP-null (`$`), en `stripQuotes('$')` geeft het letterlijke tweetekentje `'$'` terug (het start/
   // eindigt niet met een quote, dus de functie laat de string ongewijzigd) i.p.v. '' — dezelfde
@@ -2484,7 +2484,7 @@ function buildCalendarFromEntity(
     if (!range) continue;
     if (!workingExceptionIds?.has(ref)) {
       holidays.push({
-        name: stripQuotes(wt.args[0] || '') || 'Feestdag',
+        name: ifcSlotText(wt.args[0]) || 'Feestdag',
         ...range,
       });
       continue;
@@ -2512,7 +2512,7 @@ function buildCalendarFromEntity(
       }
     }
     workingExceptions.push({
-      name: stripQuotes(wt.args[0] || '') || 'Werkende uitzondering',
+      name: ifcSlotText(wt.args[0]) || 'Werkende uitzondering',
       ...range,
       ...(bands.length > 0 ? { bands } : {}),
     });

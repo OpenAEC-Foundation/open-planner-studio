@@ -43,6 +43,9 @@ interface CoalesceMarker {
   key: string;
   eventId: string;
   documentId: string;
+  /** `sequence` van het gecoalesceerde event: alleen zolang dat nog het LAATST opgenomen event is
+   *  (`nextHistorySequence === sequence + 1`) mag een volgende mutatie erin opgaan. */
+  sequence: number;
 }
 
 export interface StoreRuntime {
@@ -197,9 +200,15 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
       const after = snapshotOfCurrentState(state);
       if (snapshotsEqual(pending.before, after)) return null;
 
+      // Alleen coalescen als er sinds het marker-event NIETS anders in de geschiedenis is opgenomen.
+      // Paden die buiten deze runtime om een event opnemen (de taakraster-commit via
+      // `recordDocumentDataHistoryDelta`) resetten de marker niet; zonder deze check schreef een
+      // tweede statusdatumwijziging ná een celbewerking de `after` van het OUDERE event over met een
+      // toestand mét die celbewerking — undo draaide dan beide terug en redo verloor de tweede datum.
       const compatible = pending.coalesceKey !== null
         && coalesce?.key === pending.coalesceKey
         && coalesce.documentId === pending.documentId
+        && state.nextHistorySequence === coalesce.sequence + 1
         && replaceCoalescedAfter(state, coalesce, after);
       if (compatible) {
         return state.historyEvents.find(event => event.id === coalesce?.eventId) ?? null;
@@ -213,7 +222,7 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
         ...(nonEdit ? { nonEdit: true as const } : {}),
       }], activeHistorySession ?? undefined);
       coalesce = pending.coalesceKey && event
-        ? { key: pending.coalesceKey, eventId: event.id, documentId: pending.documentId }
+        ? { key: pending.coalesceKey, eventId: event.id, documentId: pending.documentId, sequence: event.sequence }
         : null;
       return event;
     },

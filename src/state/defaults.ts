@@ -1,7 +1,7 @@
 import type { Project } from '@/types/project';
 import type { ViewState } from './slices/types';
 import { generateId } from '@/utils/id';
-import { formatDate } from '@/utils/dateUtils';
+import { localTodayIso } from '@/utils/dateUtils';
 
 /**
  * Default-fabrieken voor documentvelden — een BLADMODULE: hij importeert niets uit `slices/` en
@@ -34,7 +34,7 @@ export function createDefaultProject(): Project {
     // daarom bij een lege naam terug op `common:project.untitled`.
     name: '',
     description: '',
-    startDate: formatDate(new Date()),
+    startDate: localTodayIso(),
     endDate: '',
     calendarId: 'cal-default',
     createdAt: new Date().toISOString(),
@@ -54,7 +54,7 @@ export function createDefaultView(): ViewState {
     scrollY: 0,
     zoom: 30, // pixels per dag
     timeScale: 'week',
-    viewStartDate: formatDate(new Date()),
+    viewStartDate: localTodayIso(),
     filter: null,
     group: [],
     sort: [],

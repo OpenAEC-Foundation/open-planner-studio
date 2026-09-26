@@ -208,6 +208,20 @@ export function preBackupGuards(ctx: McpContext): McpToolErr | null {
 }
 
 /**
+ * Dezelfde guards als `preBackupGuards`, maar NÁ een async grens: `ctx.paused`/`ctx.readOnly` zijn
+ * een snapshot bij `buildMcpContext`, en tijdens een await (backup-write, bestand lezen/parsen,
+ * `homeDir`/`exists`) kan de gebruiker de bridge pauzeren, alleen-lezen zetten of een dialoog
+ * openen. Die keuze moet dan nog winnen vóór er iets gemuteerd of weggeschreven wordt (audit
+ * 2026-09-26). Werkt de ctx-vlaggen bij, zodat de envelop van een eventuele fout klopt.
+ */
+export function postAwaitGuards(ctx: McpContext): McpToolErr | null {
+  const ui = ctx.app.store.getState().ui;
+  ctx.paused = ui.aiPaused;
+  ctx.readOnly = ui.aiReadOnly;
+  return preBackupGuards(ctx);
+}
+
+/**
  * Drift-check + anker-binding tegen het HUIDIGE actieve doc-id. Bij `runMutateTool` wordt dit PAS ná
  * de backup-await aangeroepen (de user kan tijdens die await nog wisselen). Is het anker gezet én ≠
  * het actieve doc ⇒ `DOC_DRIFT`; is het nog null ⇒ deze (eerste) muterende stap bindt het anker.
@@ -296,6 +310,9 @@ export async function runMutateTool(
   // (5) drift-check / anker-binding — PAS NU, ná de backup-await: tijdens die await kan de user van
   //     tabblad zijn gewisseld (synchrone store-actie op een klik). Een gedrifte call laat het reeds
   //     geschreven backup-bestand onschadelijk staan.
+  //     Ook pauze/alleen-lezen/dialoog opnieuw: die kunnen tijdens dezelfde await omgezet zijn.
+  const postErr = postAwaitGuards(ctx);
+  if (postErr) return postErr;
   const driftErr = driftGuard(ctx);
   if (driftErr) return driftErr;
 

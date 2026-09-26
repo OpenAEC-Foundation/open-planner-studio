@@ -24,6 +24,7 @@ import { useSettingsBootstrap } from '@/hooks/useSettingsBootstrap';
 import { useAutoCalcCPM } from '@/hooks/useAutoCalcCPM';
 import { useExitRecordedDates } from '@/hooks/useExitRecordedDates';
 import { useAutoSave } from '@/hooks/useAutoSave';
+import { useAppCloseGuard } from '@/hooks/useAppCloseGuard';
 import { useRecoveryRestore } from '@/hooks/useRecoveryRestore';
 import { useUpdateCheck } from '@/hooks/useUpdateCheck';
 import { useAiAutostart } from '@/hooks/useAiAutostart';
@@ -210,6 +211,10 @@ function AppContent() {
   // geen debounce): recovery-snapshots per open document,
   // plus de web-only beforeunload-waarschuwing bij niet-opgeslagen wijzigingen.
   useAutoSave(autoSaveEnabled);
+
+  // Desktop: app sluiten vraagt per document met niet-opgeslagen wijzigingen om bevestiging en
+  // ruimt bij een schone exit de herstelsnapshots op (Tauri-only).
+  useAppCloseGuard(autoSaveEnabled);
 
   // Stille opstart-update-check (Tauri-only).
   useUpdateCheck();

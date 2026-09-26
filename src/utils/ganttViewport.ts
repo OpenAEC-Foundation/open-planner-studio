@@ -5,7 +5,7 @@
 // recenter-ankerformule (viewportmidden vasthouden) kunnen toepassen zonder dat de
 // store aan React/DOM hangt. Headless (tests) blijft de breedte null → geen recenter.
 
-import { parseDate, diffCalendarDays, addCalendarDays, formatDate } from '@/utils/dateUtils';
+import { parseDate, diffCalendarDays, addCalendarDays, formatDate, localTodayIso } from '@/utils/dateUtils';
 import type { Task, TaskTime } from '@/types/task';
 import { maxGanttZoom, TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
 
@@ -267,7 +267,7 @@ export interface ScrollToDateState {
  * door `Ctrl/Cmd+Home` (sneltoets-register, fase 2.10 golf 1).
  */
 export function computeScrollToDate(date: string | undefined, state: ScrollToDateState): number {
-  const target = date || state.project.statusDate || formatDate(new Date());
+  const target = date || state.project.statusDate || localTodayIso();
   const effectiveViewStart = parseDate(computeEffectiveViewStart(state.tasks, state.view.viewStartDate));
 
   const days = diffCalendarDays(effectiveViewStart, parseDate(target));

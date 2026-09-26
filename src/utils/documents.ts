@@ -5,6 +5,7 @@ import { shownStart, shownFinish } from '@/utils/taskDates';
 import { parseInstant } from '@/utils/dateUtils';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { xerDocumentName } from '@/utils/xerDocumentName';
+import { maxOf, minOf } from '@/utils/collections';
 
 /**
  * Afgeleide identiteit + statistieken per geopend document, voor de
@@ -161,8 +162,8 @@ export function buildThumbnail(tasks: Task[], identityColor: string, maxBars = 9
   }
   if (points.length === 0) return [];
 
-  const min = Math.min(...points.map((p) => p.start));
-  const max = Math.max(...points.map((p) => p.end));
+  const min = minOf(points.map((p) => p.start));
+  const max = maxOf(points.map((p) => p.end));
   const span = Math.max(1, max - min);
 
   points.sort((a, b) => a.start - b.start);

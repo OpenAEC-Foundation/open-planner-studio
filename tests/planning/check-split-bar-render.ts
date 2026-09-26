@@ -443,6 +443,24 @@ console.log('-- split-bar-render: hit-test per stuk (segmentIndex/segmentCount, 
   eq('ongesplitst: getSplitGapAt null', renderer.getSplitGapAt(150, y2), null);
 }
 
+// ── Audit 2026-09-26: een uur-taak van TWEE jaar, gescrold naar het tweede jaar. De necking
+//    (`workIntervalsBetween`) stopte na ~368 dagen, dus hier stond vroeger geen enkel segment. Nu
+//    wordt alleen het zichtbare venster opgesplitst, over de hele looptijd.
+console.log('-- split-bar-render: uur-taak > 1 jaar, gescrold naar jaar 2 ⇒ segmenten in beeld --');
+{
+  const longHour = hourTask('row0', '2026-06-01T08:00', '2028-06-01T16:00');
+  longHour.time = { ...longHour.time, durationUnit: 'hours' };
+  const rows: ViewRow[] = [
+    { kind: 'task', rowKey: 'row0', task: longHour, depth: 0, dimmed: false },
+  ];
+  // zoom 240 px/dag; scroll naar 2027-09-01 (457 dagen na viewStart).
+  const scrollX = 457 * 240;
+  const { rects } = renderRows(rows, { barSplitMode: 'always', view: { ...view, zoom: 240, scrollX } });
+  const visible = rects.filter(r => inRow(r, 0) && r.x + r.w > 0 && r.x < W && r.w > 0);
+  ok(`uur-taak in jaar 2: werksegmenten in beeld (kreeg ${visible.length})`, visible.length >= 3);
+  ok('uur-taak in jaar 2: segmenten zijn een werkdag breed of smaller (gesplitst)', visible.every(r => r.w <= 240));
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Deel B — print/PDF (`renderReport`, via de gedeelde `Draw2D`-opnemer, patroon
 // `check-print-working-exceptions.ts`/`check-today-label.ts`)

@@ -977,10 +977,16 @@ function applyCalendarBody(calEl: Element, calendar: WorkCalendar, budget: Holid
   // blok als scalar) → rauwe banden voor de uur-modus-beslissing.
   const rawByWeekday: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>> = {};
 
+  // Eerste werktijdblok van de standaardwerkweek (voor de scalaire uren hieronder).
+  let firstWorkingTime: Element | undefined;
+
   for (let i = 0; i < weekDays.length; i++) {
     const wd = weekDays[i];
-    // Only process direct children of WeekDays
-    if (wd.parentElement?.tagName !== 'WeekDays') continue;
+    // Alleen de STANDAARDwerkweek: `<Calendar><WeekDays><WeekDay>`. Een tijdelijke werkweek
+    // (`<WorkWeeks><WorkWeek><WeekDays><WeekDay>`, bv. een zomerrooster met zaterdag) heeft óók een
+    // `WeekDays`-ouder; zonder de grootouder-check werden die dagen permanente werkdagen van het hele
+    // jaar en kromp de planning stil.
+    if (wd.parentElement?.tagName !== 'WeekDays' || wd.parentElement.parentElement !== calEl) continue;
 
     const dayType = getElementInt(wd, 'DayType');
     const dayWorking = getElementInt(wd, 'DayWorking');
@@ -997,6 +1003,7 @@ function applyCalendarBody(calEl: Element, calendar: WorkCalendar, budget: Holid
         if (s != null && e != null) dayBands.push({ start: s, end: e });
       }
       if (dayBands.length > 0) rawByWeekday[isoDay as 1] = dayBands;
+      if (!firstWorkingTime && wts.length > 0) firstWorkingTime = wts[0];
     }
   }
 
@@ -1004,11 +1011,12 @@ function applyCalendarBody(calEl: Element, calendar: WorkCalendar, budget: Holid
     calendar.workDays = workDays.sort((a, b) => a - b);
   }
 
-  // Parse working times for start/end hours (scalar, bestaand dag-pad)
-  const workingTimes = calEl.getElementsByTagName('WorkingTime');
-  if (workingTimes.length > 0) {
-    const fromTime = getElementText(workingTimes[0], 'FromTime');
-    const toTime = getElementText(workingTimes[0], 'ToTime');
+  // Parse working times for start/end hours (scalar, bestaand dag-pad). Uit de standaardwerkweek
+  // hierboven, niet het eerste `WorkingTime` van de hele kalender: dat kan van een uitzondering of een
+  // tijdelijke werkweek zijn (een kalender zonder eigen `WeekDays` houdt zo zijn standaarduren).
+  if (firstWorkingTime) {
+    const fromTime = getElementText(firstWorkingTime, 'FromTime');
+    const toTime = getElementText(firstWorkingTime, 'ToTime');
     if (fromTime) {
       const h = parseInt(fromTime.split(':')[0]);
       if (!isNaN(h)) calendar.workStartHour = h;

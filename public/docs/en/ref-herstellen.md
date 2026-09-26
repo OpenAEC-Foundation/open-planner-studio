@@ -12,6 +12,12 @@ The desktop app automatically keeps recovery snapshots of your work. If the app 
 - In a browser, the existing file must already have write permission. Grant that deliberately through a regular manual save; AutoSave never requests permission on its own.
 - The snapshots are cleaned up as soon as you make a choice in the recovery window (**Restore** or **Don't restore**).
 
+## Closing the app
+
+- When you close the desktop app (close button, Alt+F4 or your operating system's menu) while documents with unsaved changes are open, it asks per document what you want: **Save**, **Don't save** or **Cancel**.
+- **Cancel** (or a save that fails) stops closing; the app stays open and nothing is lost.
+- After a normal, clean exit the app cleans up the recovery snapshots itself. The recovery window therefore only appears after a real crash or power failure.
+
 ## The "Restore unsaved work" window
 
 Appears at startup when snapshots are found: "Open Planner Studio did not close normally. The following documents had unsaved changes that can be restored:" For each document it shows:

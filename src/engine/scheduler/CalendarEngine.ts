@@ -879,7 +879,9 @@ export class CalendarEngine {
     const lastDay = this.dayStartMsOf(toMs);
     let dayMs = this.dayStartMsOf(fromMs) - MS_PER_DAY; // vang wrap-staart vorige dag
     let scan = 0;
-    while (dayMs <= lastDay && scan <= CalendarEngine.MAX_SCAN + 2) {
+    // Absolute iteratielimiet i.p.v. MAX_SCAN (366): een uur-taak van meer dan een jaar werd anders
+    // afgekapt getekend. De renderer vraagt alleen het zichtbare venster op (audit 2026-09-26).
+    while (dayMs <= lastDay && scan <= CalendarEngine.MAX_DAYS) {
       for (const band of this.bandsStartingOn(dayMs)) {
         const s = Math.max(band.start, fromMs);
         const e = Math.min(band.end, toMs);

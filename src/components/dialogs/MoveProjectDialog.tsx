@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { AlertTriangle } from 'lucide-react';
 import { displayDate } from '@/utils/displayDate';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
-import { formatDate } from '@/utils/dateUtils';
+import { localTodayIso } from '@/utils/dateUtils';
 import type { MoveProjectPreview } from '@/state/slices/projectSlice';
 
 /**
@@ -55,7 +55,7 @@ export function MoveProjectDialog() {
   };
 
   const canApply = !!preview && !preview.error && Number.isFinite(delta) && delta !== 0;
-  const isPast = validNewStart && newStart < formatDate(new Date());
+  const isPast = validNewStart && newStart < localTodayIso();
   const fmt = (iso: string) => displayDate(iso, notation) || '—';
 
   // R2/ontwerpbesluit 2: schuift het EINDE met een ander aantal dagen op dan de verschuiving zelf,

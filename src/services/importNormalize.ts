@@ -3,6 +3,7 @@ import type { ResourceAssignment } from '@/types/resource';
 import { applyRemainingDuration, defaultActualFinish, defaultActualStart } from '@/engine/taskMutationRules';
 import { orderActualsAfterDerivedFinish } from '@/engine/actualDatesOrder';
 import { workRuleFromMsp, workRuleFromXerDurationType } from '@/engine/work/workRuleMapping';
+import { minOf } from '@/utils/collections';
 
 /**
  * Taaktypes-etappe (ontwerp 2026-09-04 §4.2), bouwstap 2 — de WERKREGEL afleiden uit de bewaarde
@@ -124,7 +125,7 @@ export function rebuildWbsHierarchy(tasks: Task[]): void {
 function outlineParents(tasks: readonly Task[], levels: readonly (number | undefined)[]): Map<string, string | null> | undefined {
   if (levels.length !== tasks.length || tasks.length === 0) return undefined;
   if (!levels.every(l => l !== undefined && Number.isInteger(l) && l >= 0)) return undefined;
-  const shift = Math.min(...(levels as number[])) === 0 ? 1 : 0;
+  const shift = minOf(levels as number[]) === 0 ? 1 : 0;
   const parents = new Map<string, string | null>();
   const stack: { id: string; level: number }[] = [];
   for (let i = 0; i < tasks.length; i++) {
