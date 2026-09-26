@@ -7,6 +7,7 @@ import { CalendarEngine } from './CalendarEngine';
 import { resolveCalendar } from './resolveCalendar';
 import {
   parseDate, formatDate, parseInstant, utcDayStart, MS_PER_DAY, type DateMode,
+  formatInstant,
 } from '@/utils/dateUtils';
 import {
   durationMinutesOf, elapsedMinutesOf, addElapsedMinutes, subtractElapsedMinutes,
@@ -1627,7 +1628,10 @@ export class CPMSolver {
     return eng.signedWorkDaysBetween(a, b);
   }
 
-  solve(): CPMResult {
+  /** Gedeelde voorbereiding van `solve()` en `solveEarlyStarts()`: toestand resetten, de guards
+   *  (kring, geen werkdagen, ongeldige duur/start) en statusdatum/projectstart. Een `CPMResult` =
+   *  de foutuitkomst van een guard; `null` = rekenen maar. */
+  private prepareSolve(): CPMResult | null {
     // Idempotentie: reset ALLE per-solve accumulerende instance-state, zodat een tweede
     // solve() op dezelfde instance byte-identiek is aan een verse instance (geen duplicaten
     // uit een vorige run in de side-channels). De overige velden zijn constructor-vast
@@ -1714,6 +1718,34 @@ export class CPMSolver {
     // `project.startDate` nooit heeft).
     const psd = this.options.projectStartDate ? parseDate(this.options.projectStartDate) : null;
     this.projectStartRaw = psd && !isNaN(psd.getTime()) ? psd : null;
+
+    return null;
+  }
+
+  /**
+   * Alleen de vroege starts (voorwaartse pass), in dezelfde serialisatie als `solve().tasks[..]
+   * .earlyStart` — voor de resource-leveler, die per plaatsing alleen de PF van één taak nodig heeft
+   * (audit 2026-09-26: de achterwaartse pass en de speling-analyse waren daar ruim de helft van de
+   * kosten). EXACT gelijk aan `solve()` voor elke taak die niet voltooid is en die niet door ALAP of
+   * een hammock na de voorwaartse pass nog verschuift; de leveler gebruikt dit daarom alleen voor
+   * zijn actieve taken en alleen zonder ALAP/hammock in het netwerk. `null` = een guard faalde.
+   */
+  solveEarlyStarts(): Map<string, string> | null {
+    if (this.prepareSolve()) return null;
+    const order = this.topologicalSort();
+    const earlyDates = this.forwardPass(order);
+    const out = new Map<string, string>();
+    for (const [taskId, early] of earlyDates) {
+      const task = this.tasks.get(taskId);
+      if (!task) continue;
+      out.set(taskId, formatInstant(early.es, this.modeOf(this.calendarFor(task))));
+    }
+    return out;
+  }
+
+  solve(): CPMResult {
+    const guardResult = this.prepareSolve();
+    if (guardResult) return guardResult;
 
     const order = this.topologicalSort();
     const earlyDates = this.forwardPass(order);

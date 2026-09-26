@@ -191,6 +191,10 @@ const HARD_SCAN_CAP = 200_000;
  */
 export const LEVELER_TEST_HOOKS = { incremental: true };
 
+/** De volledige argumentenlijst van `levelResources`, als plain data — dezelfde invoer voor de
+ *  synchrone route en de Web Worker van de nivelleer-dialoog (`services/leveling/`). */
+export type LevelingInput = Parameters<typeof levelResources>;
+
 export function levelResources(
   tasks: Task[],
   sequences: Sequence[],
@@ -729,8 +733,12 @@ export function levelResources(
       return computePF(id, workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions);
     }
     if (!pfEarlyStart || globallyStale || stale.has(id)) {
-      const res = new CPMSolver(workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions).solve();
-      pfEarlyStart = new Map([...res.tasks].map(([taskId, r]) => [taskId, r.earlyStart]));
+      const solver = new CPMSolver(workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions);
+      // Zonder ALAP/hammock is de vroege start van een actieve taak volledig bepaald door de
+      // voorwaartse pass; de achterwaartse pass en de speling-analyse zijn dan overbodig.
+      pfEarlyStart = globalDeps
+        ? new Map([...solver.solve().tasks].map(([taskId, r]) => [taskId, r.earlyStart]))
+        : solver.solveEarlyStarts() ?? new Map();
       stale.clear();
       globallyStale = false;
     }
