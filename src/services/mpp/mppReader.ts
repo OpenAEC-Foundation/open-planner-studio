@@ -165,6 +165,7 @@ import {
   deriveSplitGapsFromPeriods, deriveTaskSplitGaps, shiftPeriods, hasAnyTimephasedData,
   type AssignmentTimephasedRaw, type TimephasedWorkPeriod,
 } from './mppTimephased';
+import { maxOf, minOf } from '@/utils/collections';
 
 // ── PropsKey-sleutels voor projecteigenschappen (PropsKey.java; gelezen uit `"   114"/Props`,
 // NIET uit de root-`Props14`-stream — die draagt alleen de wachtwoordvlag, zie mppContainer.ts). ──
@@ -1691,7 +1692,7 @@ function computeShiftedAssignmentPeriods(
   if (actualPeriods.length > 0) {
     remainingShift = engine.isHourMode && link.assignmentResume
       ? Math.max(0, engine.workMinutesBetween(taskStart, link.assignmentResume))
-      : Math.max(...actualPeriods.map((p) => p.elapsedWorkMinutesEnd));
+      : maxOf(actualPeriods.map((p) => p.elapsedWorkMinutesEnd));
   }
   const remainingPeriods = shiftPeriods(remainingPeriodsRaw, remainingShift);
 
@@ -2162,9 +2163,9 @@ export function deriveTimephasedWindowsForTasks(
 
   const result = new Map<string, TimephasedWindowResult>();
   for (const [taskId, finishes] of finishesByTask) {
-    const finishFloor = new Date(Math.max(...finishes.map((d) => d.getTime())));
+    const finishFloor = new Date(maxOf(finishes.map((d) => d.getTime())));
     const starts = startsByTask.get(taskId);
-    const startAnchor = starts ? new Date(Math.min(...starts.map((d) => d.getTime()))) : null;
+    const startAnchor = starts ? new Date(minOf(starts.map((d) => d.getTime()))) : null;
     result.set(taskId, { finishFloor, startAnchor, durationWalks: [] });
   }
   // Herwerkronde-slotronde: GEEN gelezen terugval meer (fee9ecb4 in een nieuw jasje, afgekeurd door
@@ -2224,7 +2225,7 @@ export function deriveTimephasedWindowsForTasks(
       // hierboven). GEEN MATERIAL-filter hier: bij één toewijzing is er geen "meerdere bronnen,
       // welke tellen mee"-vraag, en de volle taakduur (niet `workMinutes`) is hier het bewezen
       // juiste wandelgetal — dat blijft ONGEWIJZIGD, ongeacht het toewijzings-type.
-      const startAnchor = new Date(Math.min(...walks.map((w) => w.anchor.getTime())));
+      const startAnchor = new Date(minOf(walks.map((w) => w.anchor.getTime())));
       result.set(taskId, {
         finishFloor: null, startAnchor,
         durationWalks: walks.map((w) => ({ anchor: w.anchor, resourceCalendarId: w.resourceCalendarId })),
@@ -2259,7 +2260,7 @@ export function deriveTimephasedWindowsForTasks(
         // anker (08:00, MSP's eigen taak-start); zonder hen zou `startAnchor` op Brian Leach se
         // latere 23:00 belanden — een NIEUWE, eigen regressie op de START (gemeten tijdens deze
         // fixronde, hersteld vóór commit).
-        const startAnchor = new Date(Math.min(...walks.map((w) => w.anchor.getTime())));
+        const startAnchor = new Date(minOf(walks.map((w) => w.anchor.getTime())));
         result.set(taskId, {
           finishFloor: null, startAnchor,
           durationWalks: laborWalks.map((w) => ({ anchor: w.anchor, resourceCalendarId: w.resourceCalendarId, workMinutes: w.workMinutes! })),

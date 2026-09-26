@@ -52,6 +52,7 @@ import { isPinnedComplete, isPinnedInProgress } from './duration';
 import { parseDate, formatDate, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
+import { maxOf } from '@/utils/collections';
 
 /**
  * Het GEDEELDE poolitem-grootboek (spec §4, "twee grootboeken"). De motor toetst per `resourceId`
@@ -936,7 +937,7 @@ export function levelResources(
     horizonExhausted: boolean,
   ): LevelingReason {
     for (const [resId, arr] of byRes) {
-      const peak = arr.length > 0 ? Math.max(...arr) : 0;
+      const peak = arr.length > 0 ? maxOf(arr) : 0;
       if (peak > maxCapacityOf(resId) + EPS) return 'INTRINSIC_OVERRUN';
     }
     if (ceilingUnreachable) return 'CEILING_UNREACHABLE';
