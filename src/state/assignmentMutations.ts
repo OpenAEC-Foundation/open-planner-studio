@@ -1,8 +1,8 @@
 // Gedeelde muteerlichamen voor resources en toewijzingen (resourceSlice én de MCP-draft).
 //
-// Deze stonden twee keer uitgeschreven: in de slice-acties (`resourceSlice.ts`) en in hun
-// snapshot-vrije tweelingen (`runtime/createMcpTransactions.ts`). De LICHAMEN waren identiek; wat
-// verschilt blijft bewust bij de aanroeper:
+// Gedeeld door de slice-acties (`resourceSlice.ts`) en hun snapshot-vrije tweelingen
+// (`runtime/createMcpTransactions.ts`). Het LICHAAM is gedeeld; wat verschilt blijft bewust bij de
+// aanroeper:
 //  - de guards — de slice weigert STIL (geen snapshot), de draft GOOIT een herkenbare fout, en de
 //    slice toetst bij toewijzen ook onbekende resource en dubbele resource-op-taak (de MCP-toollaag
 //    valideert dat vooraf);
@@ -14,13 +14,12 @@
 // Werkt op Immer-drafts (zoals `taskTree.ts`): de functies MUTEREN, doen geen snapshot en geen
 // guard. Roep ze pas aan nadat de aanroeper zijn guards en `beginUndoable` gedaan heeft.
 //
-// Integratie groep B × #170 (besluit 2): dit is ook DE plek van de werkregel-nazorg (taaktypes-
-// etappe, spec §5 rij 2/4/5): momentopname van de werkdriehoek vóór de wijziging (`captureTriangle`
-// + oude werkminuten + `hourInputFinishBasis`), de regel na de wijziging (`settleAssignmentAdded`/
-// `settleAssignmentRemoved`/`settleUnitsEdit`) en bij een gewijzigde taakduur de duurnazorg
-// (`settleDurationAftermath`). DAARNA volgt onvoorwaardelijk de toewijzingen-trigger
-// (`invalidateForAssignmentChange`). De uitkomst zegt welke taken MSP-sturing verloren en of er een
-// taakduur veranderde (⇒ de slice markeert de planning verouderd).
+// Dit is ook DE plek van de werkregel-nazorg: momentopname van de werkdriehoek vóór de wijziging
+// (`captureTriangle` + oude werkminuten + `hourInputFinishBasis`), de regel na de wijziging
+// (`settleAssignmentAdded`/`settleAssignmentRemoved`/`settleUnitsEdit`) en bij een gewijzigde
+// taakduur de duurnazorg (`settleDurationAftermath`). DAARNA volgt onvoorwaardelijk de
+// toewijzingen-trigger (`invalidateForAssignmentChange`). De uitkomst zegt welke taken MSP-sturing
+// verloren en of er een taakduur veranderde (⇒ de slice markeert de planning verouderd).
 import type { Task, TaskTimephasedContour, TimephasedContourPeriod } from '@/types/task';
 import { isValidUnits, type Resource, type ResourceAssignment } from '@/types/resource';
 import { contourIndexForAssignment } from '@/engine/contour/contourEngine';
@@ -54,7 +53,7 @@ export interface AssignmentChangeOutcome {
 }
 
 /** Momentopname van één taak vóór een toewijzingswijziging (werkdriehoek, oude werkminuten en de
- *  basis van het ingevoerde uur-einde — B1: altijd van vóór de wijziging). */
+ *  basis van het ingevoerde uur-einde — altijd van vóór de wijziging). */
 interface AssignmentTaskCapture {
   task: Task;
   triangle: CapturedTriangle | null;
@@ -98,7 +97,7 @@ class OutcomeBuilder {
 
 export type AssignmentPatch = Partial<Pick<ResourceAssignment, 'unitsPerDay' | 'curve'>>;
 
-/** Voegt een nieuwe resource toe. #21: automatische kleur bij aanmaak (B7) — de eerste vrije
+/** Voegt een nieuwe resource toe, met automatische kleur bij aanmaak — de eerste vrije
  *  paletkleur, tenzij de aanroeper zelf al een kleur meegaf (de resource-editor kan dat). Kleurloze
  *  resources vallen in de weergave terug op de deterministische hash — dit veld is dus puur gemak,
  *  geen vereiste. */
@@ -114,12 +113,12 @@ export function insertResource(s: AssignmentState, res: Omit<Resource, 'id'>, id
  *
  *  Elke taak die daarbij een toewijzing kwijtraakt, krijgt dezelfde "toewijzingen"-trigger als
  *  `removeAssignment` (`invalidateForAssignmentChange`: laag 3/4 en de nivelleergaten) — anders
- *  bleef hier nivelleer- en MSP-sturing staan die bij de verdwenen toewijzing hoorde. Taken met
+ *  blijft hier nivelleer- en MSP-sturing staan die bij de verdwenen toewijzing hoorde. Taken met
  *  alleen een verweesde `resourceIds`-verwijzing (zonder toewijzing) houden hun toewijzingenset en
  *  blijven dus ongemoeid. Werkregel: elke verdwijnende toewijzing is een "resource eraf" voor haar
  *  taak (zie `removeAssignment`). */
 export function purgeResource(s: AssignmentState, id: string, crewKey: 'unset' | 'delete'): AssignmentChangeOutcome {
-  // Taaktypes-etappe (spec §5 rij 5, reviewbevinding B4): elke verdwijnende toewijzing is een
+  // Elke verdwijnende toewijzing is een
   // "resource eraf" voor haar taak — momentopname MÉT de toewijzing, settle erná.
   const captured = s.assignments
     .filter(a => a.resourceId === id)
@@ -158,19 +157,19 @@ export function pruneTaskResourceRef(s: AssignmentState, taskId: string, resourc
 
 /** Voegt een al gevalideerde toewijzing toe aan `task`. Onder FIXED_WORK/FIXED_RATE (zonder MSP-
  *  `effortDriven: false`) blijft het restwerk staan en wordt de restduur korter; onder de
- *  standaardregel verandert niets (spec §5 rij 4, beslispunt 8-B: momentopname ZONDER de nieuwe). */
+ *  standaardregel verandert niets (momentopname ZONDER de nieuwe). */
 export function insertAssignment(s: AssignmentState, task: Task, assignment: ResourceAssignment): AssignmentChangeOutcome {
   const capture = captureAssignmentTask(s, task);
   s.assignments.push(assignment);
   if (!task.resourceIds.includes(assignment.resourceId)) task.resourceIds.push(assignment.resourceId);
   const out = new OutcomeBuilder();
   out.settled(s, capture, settleAssignmentAdded(task, s.assignments, capture.triangle, assignment).durationChanged);
-  // Z14b (F2-fixronde): "toewijzingen" hoort bij de invalidatie-triggerset, zie `taskDefaults.ts`.
+  // "Toewijzingen" hoort bij de invalidatie-triggerset, zie `taskDefaults.ts`.
   out.invalidate(task);
   return out.build();
 }
 
-/** Verwijdert een bestaande toewijzing (spec §5 rij 5: momentopname MÉT de toewijzing). */
+/** Verwijdert een bestaande toewijzing (momentopname MÉT de toewijzing). */
 export function removeAssignment(s: AssignmentState, removed: ResourceAssignment): AssignmentChangeOutcome {
   const task = s.tasks.find(t => t.id === removed.taskId);
   const capture = task ? captureAssignmentTask(s, task) : null;
@@ -183,7 +182,7 @@ export function removeAssignment(s: AssignmentState, removed: ResourceAssignment
 }
 
 /** Verplaatst `assignment` naar `newTask` (eenheden/curve blijven staan) en werkt `resourceIds` op
- *  oude én nieuwe taak bij. Werkregel (spec §5 rij 4/5, reviewbevinding B4): eraf bij de oude taak
+ *  oude én nieuwe taak bij. Werkregel: eraf bij de oude taak
  *  én erbij bij de nieuwe, beide momentopnamen vóór de wissel. De trigger raakt BEIDE taken; de
  *  verlieslijst noemt de oude taak eerst. */
 export function relocateAssignment(s: AssignmentState, assignment: ResourceAssignment, newTask: Task): AssignmentChangeOutcome {
@@ -202,7 +201,7 @@ export function relocateAssignment(s: AssignmentState, assignment: ResourceAssig
   return out.build();
 }
 
-/** Weigeren-met-behoud (bevinding 1): een ongeldige eenheden/dag valt uit de patch, een
+/** Weigeren-met-behoud: een ongeldige eenheden/dag valt uit de patch, een
  *  gelijktijdige curvewijziging gaat door. `null` ⇒ er blijft niets te doen. */
 export function acceptedAssignmentPatch(updates: AssignmentPatch): AssignmentPatch | null {
   let patch = updates;
@@ -214,7 +213,7 @@ export function acceptedAssignmentPatch(updates: AssignmentPatch): AssignmentPat
 }
 
 /** Schrijft een geaccepteerde patch. Een inzetwijziging laat werk en/of restduur de werkregel van
- *  de taak volgen (spec §5 rij 2: momentopname VÓÓR, de exacte invoer eerst geschreven). Geen
+ *  de taak volgen (momentopname VÓÓR, de exacte invoer eerst geschreven). Geen
  *  toewijzingen-trigger: de toewijzingenset blijft gelijk. */
 export function applyAssignmentPatch(s: AssignmentState, assignment: ResourceAssignment, patch: AssignmentPatch): AssignmentChangeOutcome {
   const task = s.tasks.find(t => t.id === assignment.taskId);
@@ -222,7 +221,7 @@ export function applyAssignmentPatch(s: AssignmentState, assignment: ResourceAss
     ? captureAssignmentTask(s, task)
     : null;
   Object.assign(assignment, patch);
-  // Contour-engine (2026-09): een bewuste curvekeuze van de gebruiker vervangt de exacte
+  // Een bewuste curvekeuze van de gebruiker vervangt de exacte
   // geïmporteerde 21-punts curve (`curveValues`, P6/MSPDI) — anders zou het histogram de oude
   // P6-vorm blijven tonen terwijl de dropdown de nieuwe keuze laat zien.
   if ('curve' in patch) delete assignment.curveValues;

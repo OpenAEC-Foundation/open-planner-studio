@@ -1,10 +1,10 @@
-// Rem voor Automatisch berekenen na een rekenfout (review taakmutaties, bijvangst A).
+// Rem voor Automatisch berekenen na een rekenfout.
 //
 // Een mislukte `runCPM` laat `scheduleStale` bewust staan (de statusbalk houdt zo de waarschuwing
-// vast) en pusht een melding. Die melding wijzigt de store, dus `useAutoCalcCPM` rekende meteen
-// opnieuw — ~10 solves per seconde en een meldingsteller die in 3 s tot ×42 opliep, zolang de fout
-// bestond. De regel: na een mislukte berekening rekent automatisch berekenen pas opnieuw als de
-// plannings-invoer ECHT verandert. De eigen melding, de stale-vlag, selectie of UI zijn geen invoer.
+// vast) en pusht een melding. Die melding wijzigt de store, dus zonder rem rekent `useAutoCalcCPM`
+// meteen opnieuw — tientallen solves en meldingen per seconde zolang de fout bestaat. De regel: na
+// een mislukte berekening rekent automatisch berekenen pas opnieuw als de plannings-invoer ECHT
+// verandert. De eigen melding, de stale-vlag, selectie of UI zijn geen invoer.
 //
 // Een losse bladmodule (net als `editHold.ts`) zodat de hook zelf alleen de aanroep krijgt.
 import type { AppState } from './appStore';
@@ -17,7 +17,7 @@ type GateState = Pick<AppState, 'cpmResult' | 'tasks' | 'sequences' | 'calendar'
  * bouwt — de vier lijsten plus de projectvelden van `SolveProjectFields`. Niet de afgeleide
  * `SolveProjectInput` zelf: `solveOptionsFor` bouwt `schedulingOptions` (profiel + projectopties) bij
  * elke aanroep als NIEUW object, dus een referentievergelijking daarop zou altijd "gewijzigd" zeggen
- * en de rem nooit laten grijpen (integratie groep C: #209 × rekenprofielen).
+ * en de rem nooit laten grijpen.
  */
 interface PlanningInput {
   tasks: GateState['tasks'];

@@ -1,15 +1,15 @@
 import type { NotifyInput } from './slices/types';
 
 /**
- * mpp-nul-data-etappe, DEEL 1 — de eenmalige K8a-melding wanneer een gebruikersbewerking aantoonbaar
+ * De eenmalige melding (via het meldingenkanaal) wanneer een gebruikersbewerking aantoonbaar
  * de MSP-timephased-sturing van een taak loslaat (`clearTimephasedWindow`/
  * `clearTimephasedDurationWalks` in `taskDefaults.ts` gaven `true` terug op minstens één taak).
  *
- * SESSIE-ONLY "AL GEMELD"-REGISTRATIE PER DOCUMENT — de eigenaarseis is "eenmalig per document per
+ * SESSIE-ONLY "AL GEMELD"-REGISTRATIE PER DOCUMENT — de eis is "eenmalig per document per
  * sessie". `notify`'s eigen `dedupeKey`-samenvouwing (uiSlice.ts) volstaat daar NIET voor: die vouwt
  * alleen samen zolang de eerdere melding nog in de actieve lijst staat, en een `info`-toast
  * verdwijnt na 5 s vanzelf (`NotificationHost.tsx`). Zonder aparte registratie zou een tweede
- * bewerking een halve minuut later gewoon een NIEUWE toast opleveren — precies wat de eis uitsluit.
+ * bewerking een halve minuut later gewoon een NIEUWE toast opleveren.
  * Deze module is die aparte, voor de sessie PERMANENTE gate; `dedupeKey` blijft daarnaast nuttig
  * voor het samenvouwen BINNEN ÉÉN BURST (bv. meerdere taken die in één bewerking tegelijk sturing
  * verliezen — de aanroepers tellen dat zelf en geven één `count` mee, zie `notifyTimephasedLoss`).
@@ -58,40 +58,33 @@ export function __resetTimephasedLossNoticeForTests(): void {
 }
 
 /**
- * Wis de registratie voor ÉÉN document-id (P1-fix, spec-review op 3fba671b). `newProject()` en
- * `createNewProject()`'s pristine-hergebruikpad (`projectSlice.ts`) HERGEBRUIKEN het actieve docId
- * voor een compleet vers document via `hydratePayload(s, freshPayload())` — zonder deze reset zou
- * een tweede, geheel ander project op datzelfde tabblad de "al gemeld"-registratie van het VORIGE
- * project overerven en dus NOOIT meer melden, ook al verliest een taak in het NIEUWE project
- * aantoonbaar sturing. De reviewer bewees dit met een probe; het is niet UI-bereikbaar zonder de
- * wizard/"Nieuw project" te gebruiken, maar wél het patroon dat `tests/mcp/*.ts` breed gebruikt
- * tussen cases (`newProject()` als reset tussen tests op hetzelfde tabblad) — zonder deze fix zou
- * elke suite die de melding test na de EERSTE case stil dood liggen.
+ * Wis de registratie voor ÉÉN document-id. `newProject()` en `createNewProject()`'s
+ * pristine-hergebruikpad (`projectSlice.ts`) HERGEBRUIKEN het actieve docId voor een compleet vers
+ * document via `hydratePayload(s, freshPayload())` — zonder deze reset zou een ander project op
+ * datzelfde tabblad de "al gemeld"-registratie van het VORIGE project overerven en nooit meer
+ * melden. Dat geldt ook voor tests die `newProject()` als reset tussen cases gebruiken
+ * (`tests/mcp/*.ts`).
  *
  * BEWUST NIET aangeroepen vanuit `newDocument()`/`closeDocument()` (die geven sowieso een VERS
- * docId — er is dan niets te wissen) en NIET vanuit een echte bestandsopen-route (`openFile`/
- * `loadState`/`applyLoadedProject`, ook niet op het pristine-hergebruikpad daar): die dragen hun
- * EIGEN, mogelijk al gemelde MSP-herkomst mee (een `.mpp`-heropening op hetzelfde tabblad hoort de
- * sessie-gate niet kwijt te raken — "IFC-heropening mag NOOIT een melding geven" uit de opzet slaat
- * hier andersom door: het zou een STILLE melding kunnen SUPPRESSEN die er wél hoort te zijn als het
- * heropende bestand een ANDERE taak met verloren sturing bevat). Alleen de twee "leeg, vers begin"-
- * paden (`newProject`/`createNewProject`) horen bij deze reset, want alleen daar is de nieuwe inhoud
- * per definitie NIET van een `.mpp`-import afkomstig op het moment van de reset zelf.
+ * docId) en NIET vanuit een bestandsopen-route (`openFile`/`loadState`/`applyLoadedProject`, ook
+ * niet op het pristine-hergebruikpad daar): een heropening op hetzelfde tabblad hoort de
+ * sessie-gate niet kwijt te raken. Alleen de twee "leeg, vers begin"-paden horen bij deze reset,
+ * want alleen daar komt de nieuwe inhoud per definitie niet uit een `.mpp`-import.
  */
 export function clearTimephasedLossNoticeForDoc(docId: string): void {
   notifiedDocIds.delete(docId);
   notifiedLevelingDelayDocIds.delete(docId);
 }
 
-/** Het artikel-id waar de melding + de paneelmarkering (DEEL 2) naar doorlinken (mpp-nul-data-
- *  etappe, "lees meer"-eigenaarseis) — sectie "Gecontoureerde toewijzingen" in de gids. */
+/** Het artikel-id waar de melding en de paneelmarkering naar doorlinken ("lees meer") — sectie
+ *  "Gecontoureerde toewijzingen" in de gids. */
 export const MPP_TIMEPHASED_HELP_ARTICLE_ID = 'gids-msproject-import';
 
 /**
- * Gedeelde notify-aanroep voor alle aanroepplekken (taskSlice.ts, resourceSlice.ts,
- * mcpTransaction.ts): claimt de eenmalige-per-document-gate en pusht de melding als de claim slaagt.
- * `count` is het aantal taken dat in DEZE bewerking/transactie aantoonbaar sturing verloor — `<= 0`
- * is een no-op (nooit aanroepen zonder een echt verlies).
+ * Gedeelde notify-aanroep voor alle aanroepplekken (de slices, `calendarTasks.ts`,
+ * `createMcpTransactions.ts`, `workRuleApply.ts`): claimt de eenmalige-per-document-gate en pusht
+ * de melding als de claim slaagt. `count` is het aantal taken dat in DEZE bewerking/transactie
+ * aantoonbaar sturing verloor — `<= 0` is een no-op (nooit aanroepen zonder een echt verlies).
  */
 export function notifyTimephasedLoss(
   notify: (n: NotifyInput) => void,
@@ -105,17 +98,16 @@ export function notifyTimephasedLoss(
 }
 
 /**
- * B1c-plan-2 taak 1 (M10, eigenaarsbesluit 2026-08-31) — een EIGEN `Set`, apart van
- * `notifiedDocIds` hierboven: een document kan onafhankelijk zowel urensturing (DEEL 1/2) als
- * nivelleervertraging-precisie (M10) verliezen, dus de ene gate mag de andere niet onderdrukken.
- * Zelfde sessie-only, permanent-per-document contract als `notifiedDocIds`.
+ * Een EIGEN `Set`, apart van `notifiedDocIds` hierboven: een document kan onafhankelijk zowel
+ * urensturing als sub-dag-precisie van de nivelleervertraging verliezen, dus de ene gate mag de
+ * andere niet onderdrukken. Zelfde sessie-only, permanent-per-document contract als
+ * `notifiedDocIds`.
  */
 const notifiedLevelingDelayDocIds = new Set<string>();
 
 /** Zelfde contract als `claimTimephasedLossNotice` hierboven, maar voor de sub-dag-nivelleer-
- *  vertraging (M10, eigenaarsbesluit 2026-08-31) — apart geregistreerd, want de twee soorten
- *  MSP-precisieverlies zijn onafhankelijk van elkaar en horen elk hun eigen eenmalige melding te
- *  krijgen. */
+ *  vertraging — apart geregistreerd, want elk soort MSP-precisieverlies krijgt een eigen eenmalige
+ *  melding. */
 export function claimLevelingDelayRoundedNotice(docId: string): boolean {
   return claimOnce(notifiedLevelingDelayDocIds, docId);
 }

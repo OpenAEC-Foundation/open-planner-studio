@@ -1,24 +1,22 @@
-// scratchDocument.ts — B1c-plan3 taak 5 (spec §5, "Toepassen: schrijven in meerdere documenten").
+// scratchDocument.ts — "Toepassen": schrijven in meerdere documenten.
 /**
  * Draai een bewerking op een SLAPENDE documentpayload in een eigen, headless storecontext.
  *
  * Waarom niet gewoon de payload spreaden zoals `recalculateStaleSleepingDocuments` doet: die route
  * doet de bewerking na in plaats van hem uit te voeren. Hier draait de ECHTE actie op een echte
- * context — `applyLeveling` met zijn M10-strip, `finishMutation({ stale: true })`, de aansluitende
- * `runCPM` en de meldingen die daaruit komen — dus het documentcontract en de transactie-runtime
- * gelden vanzelf, en de uitkomst is per constructie dezelfde als wanneer de gebruiker het document
- * eerst had geactiveerd.
+ * context — `applyLeveling` met het wissen van sub-dag-vertragingen,
+ * `finishMutation({ stale: true })`, de aansluitende `runCPM` en de meldingen die daaruit komen —
+ * dus het documentcontract en de transactie-runtime gelden vanzelf, en de uitkomst is per
+ * constructie dezelfde als wanneer de gebruiker het document eerst had geactiveerd.
  *
- * WAT DEZE CONTEXT NIET LEVERT (aangepast na de merge met main — sessiehistorie, 2026-09-04). In de
- * eerste opzet was de undo-stap zélf de opbrengst: undo/redo was toen een `undoStack` PER document,
- * dus de scratch-context liet de terug-te-draaien stap gewoon in de payload achter. Undo/redo is nu
- * één app-globale sessiechronologie (`AppState.historyEvents`), en die van een scratch-context wordt
- * met de context weggegooid. De aanroeper registreert het history-event daarom zelf in de ECHTE
- * store — zie `librarySlice`'s `applyDistribution`, dat de payload van vóór en ná deze run met
- * `snapshotOfPayload` tot één `document-data`-delta maakt. Deze functie levert dus uitsluitend de
- * nieuwe payload en de meldingen; de historie is de verantwoordelijkheid van de aanroeper.
+ * WAT DEZE CONTEXT NIET LEVERT: een undo-stap. Undo/redo is één app-globale sessiechronologie
+ * (`AppState.historyEvents`), en die van een scratch-context wordt met de context weggegooid. De
+ * aanroeper registreert het history-event daarom zelf in de ECHTE store — zie `librarySlice`'s
+ * `applyDistribution`, dat de payload van vóór en ná deze run met `snapshotOfPayload` tot één
+ * `document-data`-delta maakt. Deze functie levert dus uitsluitend de nieuwe payload en de
+ * meldingen; de historie is de verantwoordelijkheid van de aanroeper.
  *
- * Twee singleton-randen staan dicht (spec §5):
+ * Twee singleton-randen staan dicht:
  *  (a) host-events — de context wordt met `emitHostEvents: false` gebouwd, zodat extensies geen
  *      cijfers krijgen van een document waar de gebruiker niet naar kijkt;
  *  (b) meldingen — `ui.notifications` van deze context rendert niemand. Ze worden na afloop
@@ -95,9 +93,9 @@ export function runInScratchDocument<T>(
   //    `docId` is de DERDE singleton-rand (naast host-events en meldingen): het document-id is geen
   //    documentVELD (het staat niet in `DOCUMENT_FIELDS`, het is registry-state), dus zonder deze
   //    stap draait de bewerking onder het VERSE id van de scratch-context. Twee dingen gaan daar mis:
-  //    (a) sessie-permanente, app-globale registraties die op docId sleutelen — de M10-gate in
-  //    `state/timephasedLossNotice.ts` — zouden op een fantoom-id landen (en, tot de per-context-fix
-  //    in `documentSlice`, zelfs op het id van het ECHTE eerste document); (b) een melding die de
+  //    (a) sessie-permanente, app-globale registraties die op docId sleutelen — de
+  //    nivelleervertraging-gate in `state/timephasedLossNotice.ts` — zouden op een fantoom-id
+  //    landen; (b) een melding die de
   //    aanroeper doorgeeft aan de gebruiker zou over een ander document gaan dan het document dat
   //    werkelijk beschreven is. Meegeven van het echte id maakt de scratch-run per constructie
   //    dezelfde bewerking als wanneer de gebruiker dat document eerst had geactiveerd.

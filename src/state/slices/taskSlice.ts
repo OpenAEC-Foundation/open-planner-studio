@@ -66,9 +66,8 @@ export interface TaskSlice {
    *  voegt `addTask` NIETS toe, meldt het en geeft `''` terug. */
   addTask: (task: Partial<Task> & {
     name: string;
-    /** Golf 1 (fase 2.10, Insert-sneltoets/contextmenu "invoegen boven/onder"): plaats de nieuwe
-     *  taak vlak vóór/ná `anchorId` binnen diens ouder, i.p.v. achteraan. Zonder → exact het
-     *  huidige gedrag (bestaande callers ONGEWIJZIGD: achteraan childIds/tasks). Een onbekende
+    /** Insert-sneltoets/contextmenu "invoegen boven/onder": plaats de nieuwe taak vlak vóór/ná
+     *  `anchorId` binnen diens ouder, i.p.v. achteraan. Zonder → achteraan childIds/tasks. Een onbekende
      *  `anchorId` valt stil terug op het default-gedrag (stille tolerantie, zoals elders). */
     position?: { anchorId: string; where: 'above' | 'below' };
   }) => string;
@@ -78,9 +77,9 @@ export interface TaskSlice {
    *  vuren alleen op een ECHT gewijzigde waarde, niet op een meegestuurde sleutel
    *  (`taskTriggerChanges`).
    *  Wordt `isMilestone` aangezet op een fase of een taak met toewijzingen, dan weigert `updateTask`
-   *  de HELE patch (geen mutatie, geen undo-stap) en meldt het — `milestoneRefusal` (#210). */
+   *  de HELE patch (geen mutatie, geen undo-stap) en meldt het — `milestoneRefusal`. */
   updateTask: (id: string, updates: Partial<Task>, opts?: { coalesceKey?: string }) => void;
-  /** Taaktypes-etappe (spec 2026-09-04 §5 rij 6): zet de werkregel van één taak (`undefined` = terug
+  /** Zet de werkregel van één taak (`undefined` = terug
    *  naar de projectstandaard). Geen getal verandert; een werkbeschermende regel legt het huidige
    *  restwerk van de werkresources vast (`workTriangle.ts`'s `applyRuleChange`). Geen
    *  `scheduleStale` (geen datum raakt). Onbekend id of ongewijzigde regel ⇒ no-op. */
@@ -88,13 +87,13 @@ export interface TaskSlice {
   deleteTask: (id: string) => void;
   /** Verwijder meerdere taken en hun subbomen als precies één undoable storehandeling. */
   deleteTasksBulk: (ids: readonly string[]) => void;
-  /** Verplaats `id` onder een nieuwe ouder (null = root). `position` afwezig ⇒ byte-identiek aan het
-   *  oude gedrag (achteraan childIds, rauwe array ongemoeid). `position` aanwezig ⇒ insert op die
+  /** Verplaats `id` onder een nieuwe ouder (null = root). `position` afwezig ⇒ achteraan, in
+   *  childIds én in de rauwe array (zie `moveTaskEdit`). `position` aanwezig ⇒ insert op die
    *  index — consistent in childIds (zichtbare volgorde niet-root, visibleRows.ts) ÉN in de rauwe
    *  s.tasks-array (root-volgorde + WBS via flattenOrder, dat childIds negeert); dubbele-volgorde-
    *  principe als store-`addTask` met anker. Out-of-range positie klemt naar [0, aantal siblings]. */
   moveTask: (id: string, newParentId: string | null, position?: number) => void;
-  /** Issue #21 punt 1 (fase 1): verticaal taak-verslepen — verplaatst `id` naar een exacte positie
+  /** Verticaal taak-verslepen — verplaatst `id` naar een exacte positie
    *  (i.p.v. `moveTask`'s "altijd achteraan"). `target.parentId` = nieuwe ouder (`null` = root);
    *  `target.childIndex` = gewenste 0-based positie in diens kindlijst, geklemd op `[0..length]`.
    *  Houdt (net als `addTask`-position) ALLE drie waarheidsbronnen synchroon: `parentId`,
@@ -105,7 +104,7 @@ export interface TaskSlice {
    *  `scheduleStale` alleen bij reparent (andere ouder) — pure herordening binnen dezelfde ouder
    *  raakt geen summary-rollups, net als `reorderSibling`. */
   moveTaskTo: (id: string, target: { parentId: string | null; childIndex: number }) => void;
-  /** Issue #26 (vervolgmelding op punt 6): verplaats een hele SELECTIE naar één doelpositie, met
+  /** Verplaats een hele SELECTIE naar één doelpositie, met
    *  behoud van hun onderlinge (weergave)volgorde en in ÉÉN undo-stap. Gebruikt door beide
    *  sleep-hooks zodra de gesleepte rij deel uitmaakt van een meervoudige selectie; één losse rij
    *  blijft via `moveTaskTo` lopen. Regels: (a) een geselecteerde taak waarvan óók een voorouder
@@ -115,7 +114,7 @@ export interface TaskSlice {
    *  zelf blijft ongewijzigd. Verder identiek aan `moveTaskTo` (WBS-hernummering, `stale` alleen
    *  bij een echte reparent). */
   moveTasksTo: (ids: string[], target: { parentId: string | null; childIndex: number }) => void;
-  /** Golf 1 (fase 2.10, Ctrl/Cmd+Alt+↑/↓): verwissel `taskId` met zijn vorige/volgende sibling
+  /** Ctrl/Cmd+Alt+↑/↓: verwissel `taskId` met zijn vorige/volgende sibling
    *  binnen dezelfde ouder (top-level: de root-lijst). No-op aan de rand. Puur volgorde — raakt
    *  GEEN tijden/CPM, dus (in tegenstelling tot de meeste taak-acties) GEEN scheduleStale. */
   reorderSibling: (taskId: string, direction: SiblingDirection) => void;
@@ -127,7 +126,7 @@ export interface TaskSlice {
   outdentTasks: (ids: string[]) => void;
   /** Voeg een WBS-sjabloon in onder een ouder (null = rootniveau); geeft de nieuwe root-id terug. */
   insertWbsTemplate: (template: WbsTemplate, parentId: string | null) => string | null;
-  /** Voortgang (fase 2.6): zet completion (0..1), dwingt de §3.2-invarianten af (auto-actualStart bij
+  /** Voortgang: zet completion (0..1), dwingt de voortgangsinvarianten af (auto-actualStart bij
  *  completion>0, remainingTime afgeleid, status). Een echte wijziging maakt de planning altijd
  *  stale; verandert de taak per saldo niet, dan is het een no-op (geen undo-stap, geen `isDirty`,
  *  niet stale, nivelleergaten blijven) — geldt ook voor de twee actual-setters hieronder, zie
@@ -135,21 +134,21 @@ export interface TaskSlice {
  *  de bladen (`applyCpmResult`), dus geweigerd, geen mutatie en geen undo-stap — net als MCP en de
  *  voortgangsimport. Een onbekende taak is een stille no-op (`true`). */
   setTaskProgress: (taskId: string, completion: number, opts?: { coalesceKey?: string }) => boolean;
-  /** Werkelijke start (fase 2.6). undefined = wissen. Retourneert false als de datum ná de
+  /** Werkelijke start. undefined = wissen. Retourneert false als de datum ná de
    *  statusdatum ligt, of op een verzameltaak (zie `setTaskProgress`) — geweigerd, geen mutatie
    *  (de UI toont een toast; op een verzameltaak is het veld al uitgeschakeld). `opts.coalesceKey` voegt
    *  de per-toetsaanslag-commits van het LIVE-committerende datumveld tot één undo-stap samen. */
   setActualStart: (taskId: string, date: string | undefined, opts?: { coalesceKey?: string }) => boolean;
-  /** Werkelijke einde (fase 2.6): zet completion=1 + status COMPLETED. undefined = wissen.
+  /** Werkelijke einde: zet completion=1 + status COMPLETED. undefined = wissen.
    *  Retourneert false als de datum ná de statusdatum ligt (geweigerd). `opts.coalesceKey` als bij
    *  setActualStart. */
   setActualFinish: (taskId: string, date: string | undefined, opts?: { coalesceKey?: string }) => boolean;
   /**
    * Voortgang INVULLEN vanuit de UI (eigenschappenpaneel, contextmenu): dezelfde bewerking als de
-   * drie setters hierboven, plus de invoerregels van `engine/progressEntry.ts`. Z1: staat er geen
+   * drie setters hierboven, plus de invoerregels van `engine/progressEntry.ts`. Staat er geen
    * statusdatum en houdt de taak na de bewerking voortgang over, dan gaat de statusdatum in DEZELFDE
    * undo-stap op `opts.today` (wat het statusdatumveld voor vandaag oplevert, `localTodayIso`) en volgt
-   * één melding. Een werkelijke datum ná die (effectieve) statusdatum wordt geweigerd. Z1b: zou de
+   * één melding. Een werkelijke datum ná die (effectieve) statusdatum wordt geweigerd. Zou de
    * bewerking de werkelijke start afleiden uit een geplande start ná de statusdatum, dan verandert er
    * niets en komt `needsActualStart` terug met de vraag; de UI stelt die en roept opnieuw aan met
    * het antwoord in `opts.actualStart` (samen één undo-stap). De setters zelf blijven het vangnet
@@ -161,7 +160,7 @@ export interface TaskSlice {
     opts: { today: string; actualStart?: string; coalesceKey?: string },
   ) => ProgressEntryResult;
   /**
-   * Issue #146 — de ENIGE schrijver van gebruikerssplits. Bewust een EIGEN, smalle mutatie en géén
+   * De ENIGE schrijver van gebruikerssplits. Bewust een EIGEN, smalle mutatie en géén
    * `updateTask`-patch: die wist nivelleergaten (`clearLevelingGaps`) en herschaalt gaten
    * fractioneel, precies het tegenovergestelde van wat een splitbewerking wil. `pieces` is de
    * stukkenlijst uit `engine/scheduler/splitEdit.ts` (werk/pauze/werk in werkminuten); `null` =
@@ -175,26 +174,26 @@ export interface TaskSlice {
     pieces: SplitPiece[] | null,
     opts?: { coalesceKey?: string },
   ) => SplitRefusal | null;
-  /** Taak-kalender (fase 2.8a, §7.3): wijs een bibliotheek-kalender toe (undefined = projectkalender).
+  /** Taak-kalender: wijs een bibliotheek-kalender toe (undefined = projectkalender).
    *  Dwingt niets af — zet alleen `calendarId` + undo-snapshot + scheduleStale (datum-beïnvloedend). */
   setTaskCalendar: (taskId: string, calendarId: string | undefined) => void;
-  /** Externe (cross-project) dependency (fase 2.9, §4.5/§5.5): voeg een link toe (genereert de id),
+  /** Externe (cross-project) dependency: voeg een link toe (genereert de id),
    *  geeft de nieuwe link-id terug. Datum-beïnvloedend ⇒ scheduleStale. */
   addExternalLink: (taskId: string, link: Omit<ExternalLink, 'id'>) => string;
   /** Vervang één externe link verliesloos met behoud van id; false bij verkeerde taak/link-id. */
   updateExternalLink: (taskId: string, linkId: string, link: Omit<ExternalLink, 'id'>) => boolean;
-  /** Verwijder een externe link van een taak (fase 2.9). Datum-beïnvloedend ⇒ scheduleStale. */
+  /** Verwijder een externe link van een taak. Datum-beïnvloedend ⇒ scheduleStale. */
   removeExternalLink: (taskId: string, linkId: string) => void;
-  /** Issue #27 etappe 2 (T5): bouwt het voortgangsplan tegen de HUIDIGE taken. Muteert niets — de
+  /** Bouwt het voortgangsplan tegen de HUIDIGE taken. Muteert niets — de
    *  `ProgressImportDialog` toont dit als preview en herbouwt het bij elke wijziging in de
-   *  handmatige koppelingen (A11: "herbouw, niet bijwerken"). Precedent voor een lezende actie:
+   *  handmatige koppelingen ("herbouw, niet bijwerken"). Precedent voor een lezende actie:
    *  `isLocalPoolNewer` (librarySlice). */
   previewProgressImport: (
     rows: readonly ProgressRow[],
     overrides?: ProgressOverrides,
     opts?: ProgressImportEntryOptions,
   ) => ProgressImportPlan;
-  /** Herberekent hetzelfde plan tegen de LIVE taken en past het in ÉÉN undo-stap toe (A4/A8): drift
+  /** Herberekent hetzelfde plan tegen de LIVE taken en past het in ÉÉN undo-stap toe: drift
    *  tussen preview en apply wordt opgelost door opnieuw te bouwen, nooit door het preview-plan te
    *  hergebruiken. Nul toepassingen ⇒ nul undo-stappen (zoals `setActualStart` bij een weigering). */
   applyProgressImport: (
@@ -205,15 +204,15 @@ export interface TaskSlice {
 }
 
 /**
- * Voortgangsblad inlezen als UI-route (besluiten eigenaar 26-09, herbouw #232): met `today`
+ * Voortgangsblad inlezen als UI-route: met `today`
  * (`localTodayIso`, meegegeven door `ProgressImportDialog`) gelden dezelfde invoerregels als in
  * paneel, contextmenu, raster en "Taak bewerken" (`engine/progressEntry.ts`):
- *  - Z1: zonder statusdatum plant het blad met vandaag; houdt een toegepaste rij voortgang over, dan
+ *  - zonder statusdatum plant het blad met vandaag; houdt een toegepaste rij voortgang over, dan
  *    gaat de statusdatum in dezelfde undo-stap op vandaag, met de melding `statusDateSetToday`;
- *  - Z1b: een rij die de werkelijke start zou AFLEIDEN uit een geplande start ná de statusdatum
+ *  - een rij die de werkelijke start zou AFLEIDEN uit een geplande start ná de statusdatum
  *    (`actualStartQuestionFor`) wordt geweigerd met `actualStartRequired` — het blad moet de
  *    werkelijke start zelf aanleveren.
- * Zonder `today` (headless, tests, extensies) blijven de oude regels gelden.
+ * Zonder `today` (headless, tests, extensies) gelden die invoerregels niet.
  */
 export interface ProgressImportEntryOptions {
   today?: string;
@@ -276,8 +275,8 @@ interface TaskPlacement {
 
 /**
  * Bepaalt de doelpositie van een taak ZONDER iets te muteren. Gedeeld door `moveTaskTo`
- * (rij-slepen, issue #21) en `outdentTasks` (uitspringen, issue #26) zodat uitspringen niet
- * opnieuw uit de pas kan lopen met slepen: één plek waar de guards, het klemmen én de
+ * (rij-slepen) en `outdentTasks` (uitspringen) zodat uitspringen niet uit de pas kan lopen met
+ * slepen: één plek waar de guards, het klemmen én de
  * ankerbepaling wonen.
  *
  * Guards (in volgorde) ⇒ `null`, en `null` betekent voor de aanroeper: HELEMAAL niets doen —
@@ -386,7 +385,7 @@ function applyTaskPlacement(tasks: Task[], id: string, plan: TaskPlacement): voi
 /**
  * `moveTask`: `id` onder `newParentId` (null = root), op `position` of achteraan.
  *
- * Cykel-preventie (QA-fix P1, fase 2.10 onderdeel 2): newParentId mag niet id zelf zijn, en niet een
+ * Cykel-preventie: newParentId mag niet id zelf zijn, en niet een
  * afstammeling van id — anders ontstaat een lus in de boom (oneindige loops in flattenOrder/viewRows).
  * Geweigerd ⇒ niets gewijzigd: geen snapshot, geen halftoegepaste state. Dit is de enige plek die
  * parentId/childIds voor "Taak bewerken" mag muteren (zie TaskDialog.handleSave — die haalt parentId
@@ -397,27 +396,24 @@ function moveTaskEdit(id: string, newParentId: string | null, position?: number)
   return (tasks) => {
     const task = tasks.find(t => t.id === id);
     if (!task) return NO_HIERARCHY_CHANGE;
-    // Cyklusguard (review issue #21 pt. 1): de nieuwe ouder mag de taak zelf of een afstammeling
-    // ervan niet zijn — corrupte parentId-cycli zijn bereikbaar via een IFC waarin `extractNesting`
-    // de nesting zonder cyklusguard zet. Sinds K-item 35 de gedeelde functie; hier stond tot een
-    // review een vijfde handkopie inclusief eigen bezocht-set.
+    // Cyklusguard: de nieuwe ouder mag de taak zelf of een afstammeling ervan niet zijn — corrupte
+    // parentId-cycli zijn bereikbaar via een IFC waarin `extractNesting` de nesting zonder
+    // cyklusguard zet.
     if (newParentId != null && isSelfOrDescendant(tasks, newParentId, id)) return NO_HIERARCHY_CHANGE;
     const oldParentId = task.parentId;
 
     // Remove from old parent
     detachFromParent(tasks, id);
 
-    // Insert op `position` (T12), of — zonder positie — achteraan, volgens het dubbele-
+    // Insert op `position`, of — zonder positie — achteraan, volgens het dubbele-
     // volgorde-principe van de store-`addTask` met anker. WBS-nummering (flattenOrder) leest de
     // RAUWE array-volgorde en negeert childIds; de zichtbare volgorde van niet-root taken leest
     // juist childIds (visibleRows.ts). Daarom moet de invoegplek op BEIDE plekken kloppen — ook
-    // zonder expliciete `position` (voorheen liet die tak de rauwe array ongemoeid, waardoor het
-    // WBS-nummer de oude array-positie van vóór de move bleef volgen terwijl de taak zichtbaar
-    // achteraan verscheen: gerapporteerde 3.1/3.2/3.3-bug, taskDialog "parent wijzigen").
+    // zonder expliciete `position` (anders volgt het WBS-nummer de oude array-positie terwijl de
+    // taak zichtbaar achteraan verschijnt).
     //
     // (1) childIds van de nieuwe ouder — zichtbare volgorde voor niet-root taken.
-    // `attachToParent` zet parentId én voegt geklemd in — hier stond diezelfde klem-en-splice
-    // tot een review nog een keer overgetypt.
+    // `attachToParent` zet parentId én voegt geklemd in.
     attachToParent(tasks, id, newParentId, position);
     // (2) rauwe tasks-array — root-volgorde + WBS. Haal de taak eruit en zet 'm terug zó dat
     // hij — gerekend over alléén zijn siblings (taken met dezelfde parentId, in array-volgorde)
@@ -448,7 +444,7 @@ function moveTaskEdit(id: string, newParentId: string | null, position?: number)
 }
 
 /**
- * `moveTaskTo` (rij slepen, issue #21): één taak naar een exacte positie. Alle guards (onbekende
+ * `moveTaskTo` (rij slepen): één taak naar een exacte positie. Alle guards (onbekende
  * taak/ouder, cykel, no-op) zitten in de gedeelde planner; `null` ⇒ niets gewijzigd.
  * `rejectNoOp: true` — slepen naar de eigen plek mag geen undo-entry of dirty-vlag opleveren.
  */
@@ -464,7 +460,7 @@ function moveTaskToEdit(id: string, target: { parentId: string | null; childInde
   };
 }
 
-/** `moveTasksTo` (issue #26): een hele selectie naar één doelpositie — zie de interfacedoc. */
+/** `moveTasksTo`: een hele selectie naar één doelpositie — zie de interfacedoc. */
 function moveTasksToEdit(ids: string[], target: { parentId: string | null; childIndex: number }): HierarchyEdit {
   return (tasks) => {
     // ---- 1. Onbekende ids weg, en afstammelingen van een mede-geselecteerde taak weg ----------
@@ -597,17 +593,15 @@ function outdentEdit(ids: string[]): HierarchyEdit {
       const parent = tasks.find(t => t.id === task.parentId);
       if (!parent) continue;
 
-      // Doel (issue #26): sibling DIRECT ná de voormalige ouder — precies wat de
-      // interface-comment belooft. Zoek daarvoor de positie van `parent` in DIENS
-      // eigen siblinglijst: de childIds van de grootouder, of — als `parent` op rootniveau
-      // staat — de root-volgorde uit de rauwe array (zie engine/view/dropTarget.ts).
-      // Dat root-geval was het echte gat: daar werd de volgorde vroeger helemaal niet
-      // bijgewerkt, waardoor de taak op zijn oude (meestal laatste) array-plek bleef staan.
+      // Doel: sibling DIRECT ná de voormalige ouder. Zoek daarvoor de positie van `parent` in
+      // DIENS eigen siblinglijst: de childIds van de grootouder, of — als `parent` op rootniveau
+      // staat — de root-volgorde uit de rauwe array (zie engine/view/dropTarget.ts). Ook in dat
+      // root-geval moet de rauwe array mee, anders blijft de taak op haar oude array-plek staan.
       const parentSiblingIds = parent.parentId
         ? (tasks.find(t => t.id === parent.parentId)?.childIds ?? [])
         : tasks.filter(t => !t.parentId).map(t => t.id);
       const parentIdx = parentSiblingIds.indexOf(parent.id);
-      // `parent` niet in zijn eigen siblinglijst (corrupte state): achteraan, zoals vroeger.
+      // `parent` niet in zijn eigen siblinglijst (corrupte state): achteraan.
       const childIndex = parentIdx >= 0 ? parentIdx + 1 : parentSiblingIds.length;
 
       // Zelfde plaatsingslogica als rij-slepen (`moveTaskTo`), inclusief het synchroon houden
@@ -646,9 +640,8 @@ type SliceGet = Parameters<AppSlice<TaskSlice>>[1];
 /**
  * De ene weg voor een verhanging: proef + kringtoets, en pas dan de mutatie.
  *  - kring ⇒ melding die de kring noemt, verder NIETS: geen snapshot, geen undo-stap, geen
- *    isDirty/stale (audit taakmutaties, S4);
- *  - niets te verhangen (onbekende taak, cykelguard in de boom, al op zijn plek) ⇒ niets, zoals
- *    voorheen de lazy snapshot al garandeerde;
+ *    isDirty/stale;
+ *  - niets te verhangen (onbekende taak, cykelguard in de boom, al op zijn plek) ⇒ niets;
  *  - anders: één undo-stap, WBS-hernummering, `stale` naar `staleWhen` (pure herordening binnen
  *    dezelfde ouder raakt geen summary-rollups — `moveTaskTo`/`moveTasksTo`), en de melding over
  *    relaties die door het verhangen niet meer meetellen (`watchAncestorRelations`).
@@ -668,7 +661,7 @@ function applyHierarchyEdit(
     return;
   }
   if (!verdict.changed) return;
-  // "Wordt fase" (#210, audit §6): krijgt een taak zonder kinderen door deze verhanging haar eerste
+  // "Wordt fase": krijgt een taak zonder kinderen door deze verhanging haar eerste
   // kinderen, dan verhuizen haar toewijzingen naar de eerste nieuwe subtaak — of weigert de hele
   // handeling, vóór snapshot en mutatie, net als de kringtoets hierboven.
   const phasePlan = planPhaseTransitions(before, hierarchyPhaseGains(before.tasks, edit));
@@ -683,7 +676,7 @@ function applyHierarchyEdit(
     edit(s.tasks);
     if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
     settlePhaseTransitions(s, phasePlan.transitions, outcome);
-    // Datum-rakende mutatie (A6): planning verouderd tot F5 — behalve pure herordening.
+    // Datum-rakende mutatie: planning verouderd tot F5 — behalve pure herordening.
     runtime.finishMutation(s, { stale: staleWhen === 'always' || verdict.reparented });
   });
   finishStructural(get, outcome);
@@ -692,7 +685,7 @@ function applyHierarchyEdit(
 }
 
 /**
- * De "wordt fase"-winst van een boomwijziging (integratie groep C: #210 × #234): welke taken hadden
+ * De "wordt fase"-winst van een boomwijziging: welke taken hadden
  * vóór `edit` geen kinderen en erna wel, met hun nieuwe kinderen in de eindvolgorde — dezelfde vorm
  * als `firstChildGains`, maar afgelezen van DEZELFDE boomwijziging die de actie en de kringproef
  * draaien, zodat de regel voor elke verhangroute (`moveTask`, `moveTaskTo`, `moveTasksTo`,
@@ -718,8 +711,8 @@ function hierarchyPhaseGains(tasks: readonly Task[], edit: HierarchyEdit): Phase
 export { applyProgressInvariants };
 
 /**
- * De ene commit van de voortgangssetters (`setTaskProgress`/`setActualStart`/`setActualFinish`,
- * fase 2.6) en van de UI-invoer (`enterTaskProgress`), binnen hun producer. Wat de bewerking doet,
+ * De ene commit van de voortgangssetters (`setTaskProgress`/`setActualStart`/`setActualFinish`)
+ * en van de UI-invoer (`enterTaskProgress`), binnen hun producer. Wat de bewerking doet,
  * beslist `planProgressEntry` (engine/progressEntry.ts) — dezelfde functies die ook de concepttaak in
  * "Taak bewerken" gebruikt (`state/taskDialogSave.ts`); deze functie legt die uitkomst alleen vast.
  *
@@ -731,7 +724,7 @@ export { applyProgressInvariants };
  * opnieuw op 50% zetten vult die start in, en dát is wel een wijziging. Een no-op raakt ook de
  * undo-coalescing niet aan, dus een lopende slider-sleep blijft één stap.
  *
- * Z1 (alleen met `ctx.today`, de UI): gaat de statusdatum op vandaag, dan gebeurt dat in dezelfde
+ * Alleen met `ctx.today` (de UI): gaat de statusdatum op vandaag, dan gebeurt dat in dezelfde
  * snapshot als de voortgang — één undo-stap. Retourneert die datum, zodat de aanroeper ná `set()`
  * kan melden.
  */
@@ -744,20 +737,19 @@ function commitProgressEdit(
   opts: { coalesceKey?: string } | undefined,
 ): ProgressEntryResult & { statusDateToday?: string } {
   const task = s.tasks.find((t) => t.id === taskId);
-  if (!task) return { ok: true }; // onbekende taak: stille no-op, zoals voorheen
+  if (!task) return { ok: true }; // onbekende taak: stille no-op
   // Voortgang op een verzameltaak is alleen-lezen: de rollup in `applyCpmResult` leidt haar af uit
   // de bladen. Weigeren vóór elke mutatie, dus zonder snapshot (transaction.ts-patroon).
   if (isSummaryTask(task)) return { ok: false, reason: 'summaryTask' };
-  // Actuals liggen nooit ná de statusdatum — weigeren i.p.v. stil klemmen (§3.2, BESLIST), zonder
-  // snapshot. T16-veeglijst-fix: `isActualPastStatusDate` vergelijkt geparste instanten i.p.v. rauwe
+  // Actuals liggen nooit ná de statusdatum — weigeren i.p.v. stil klemmen, zonder snapshot.
+  // `isActualPastStatusDate` vergelijkt geparste instanten i.p.v. rauwe
   // ISO-strings (het uur-precies-op-de-statusdatum-dag-gat).
   const plan = planProgressEntry(task, edit, { ...ctx, statusDate: s.project.statusDate });
   if (!plan.ok) return plan;
   if (!plan.change) return { ok: true };
   runtime.beginUndoable(s, opts); // `opts` = coalesceKey (slider-sleep / per-toetsaanslag-commits = 1 stap).
-  // Fable-critreview #170, bevinding 1: voortgang verplaatst opgeslagen werk van rest naar verricht —
-  // momentopname op de ongewijzigde taak, settle ná de mutatie. Integratie groep B (besluit 5): ná
-  // de no-op-check, zodat een no-op ook het werk niet raakt.
+  // Voortgang verplaatst opgeslagen werk van rest naar verricht — momentopname op de ongewijzigde
+  // taak, settle ná de mutatie. Ná de no-op-check, zodat een no-op ook het werk niet raakt.
   const progressWork = captureProgressWork(task, s);
   const { statusDateToday } = plan.change;
   if (statusDateToday) {
@@ -767,15 +759,13 @@ function commitProgressEdit(
   task.time = plan.change.task.time;
   task.status = plan.change.task.status;
   settleProgressWork(task, s.assignments, progressWork);
-  // B1c-plan-2 spec §4 "Invalidatie", vierde klasse — bedraad in de fixronde op etappe 3
-  // (bevinding B7). Voortgang loopt buiten `updateTask` om, dus deze setters hebben hun eigen
-  // aanroep; zie `LEVELING_GAP_TIME_TRIGGERS` in taskDefaults.ts voor het waarom.
+  // Invalidatie van nivelleergaten, klasse voortgang. Voortgang loopt buiten `updateTask` om, dus
+  // deze setters hebben hun eigen aanroep; zie `LEVELING_GAP_TIME_TRIGGERS` in taskDefaults.ts voor
+  // het waarom.
   clearLevelingGaps(task);
-  // H1 (Opus-review T15-iteratie-2): ALTIJD stale — sinds `applyProgressInvariants`'s
-  // completion===1-tak niet meer op een statusdatum leunt (die pint nu altijd op actuals/eigen
-  // finish, zie de toelichting daar) én de IN-PROGRESS-tak in CPMSolver (M1) evenmin, is elke
-  // voortgangsmutatie datum-beïnvloedend, met of zonder statusdatum. Het oude commentaar
-  // ("alleen datum-beïnvloedend mét statusdatum") was juist tot vóór die fixes.
+  // ALTIJD stale: elke voortgangsmutatie is datum-beïnvloedend, met of zonder statusdatum
+  // (`applyProgressInvariants` pint completion===1 op actuals/eigen finish, en de IN-PROGRESS-tak
+  // in CPMSolver leunt evenmin op de statusdatum).
   runtime.finishMutation(s, { stale: true });
   return statusDateToday ? { ok: true, statusDateToday } : { ok: true };
 }
@@ -815,7 +805,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     const outcome = emptyOutcome();
     let refused = false;
     set((s) => {
-      // Golf 1 (fase 2.10, Insert/contextmenu "invoegen boven/onder"): een geldige `position`
+      // Insert/contextmenu "invoegen boven/onder": een geldige `position`
       // bepaalt zowel de OUDER (die van de anker) als de invoegplek — de aanroeper hoeft dan geen
       // (of een niet-matchende) `parentId` mee te geven. Onbekende anchorId ⇒ stille tolerantie:
       // terugval op het standaardgedrag (achteraan, partial.parentId).
@@ -825,7 +815,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       const parentId = anchorTask ? anchorTask.parentId : (partial.parentId || null);
       const parentTask = parentId ? s.tasks.find(t => t.id === parentId) : undefined;
 
-      // Wordt de ouder hierdoor een fase (audit §6)? Plan VÓÓR enige mutatie: een weigering laat
+      // Wordt de ouder hierdoor een fase? Plan VÓÓR enige mutatie: een weigering laat
       // geen taak en geen undo-stap achter.
       const pending = new Map<string, PendingChild>([[id, {
         name: partial.name, isMilestone: !!partial.isMilestone, hasChildren: false,
@@ -859,12 +849,12 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       const task = buildNewTask(partial, {
         id, parentId, parentTask, constructionMode: s.ui.constructionMode, time: initialTime,
       });
-      // B1-vervolg: de solve schrijft `scheduleFinish` niet meer terug, dus een nieuwe urentaak krijgt
+      // De solve schrijft `scheduleFinish` niet terug, dus een nieuwe urentaak krijgt
       // hier haar ingevoerde einde (start + duur op de echte kalender), zie `seedNewHourTaskFinish`.
       seedNewHourTaskFinish(task, partial.time, effectiveNewTaskCalendar);
-      if (partial.workRule !== undefined) s.taskTypesVisible = true; // review K3
+      if (partial.workRule !== undefined) s.taskTypesVisible = true; // een gezette regel ontsluit de UI
 
-      // Zonder `position` (of een onbekende anker): exact het bestaande gedrag — achteraan.
+      // Zonder `position` (of een onbekende anker): achteraan.
       // Mét een geldige anker: vlak vóór/ná de anker inserten, zowel in de rauwe array (bepaalt
       // de ROOT-siblingvolgorde, zie reorderSibling hieronder + wbs.ts/flattenOrder) als in de
       // childIds van de ouder (bepaalt de zichtbare volgorde voor niet-root taken, zie
@@ -898,7 +888,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       if (s.project.wbsAutoNumber || !partial.wbsCode) assignInsertedWbsCodes(s, [id]);
 
       settlePhaseTransitions(s, phasePlan.transitions, outcome);
-      runtime.finishMutation(s, { stale: true }); // nieuwe taak (A6): planning verouderd tot F5.
+      runtime.finishMutation(s, { stale: true }); // nieuwe taak: planning verouderd tot F5.
     });
     finishStructural(get, outcome);
     if (refused) return '';
@@ -907,24 +897,24 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
   },
 
   updateTask: (id, updates, opts) => {
-    // mpp-nul-data-etappe, DEEL 1 — buiten de Immer-producer bijgehouden (zelfde discipline als
+    // Verlies van MSP-sturing — buiten de Immer-producer bijgehouden (zelfde discipline als
     // `fileSlice.ts`'s `applyLoadedProject`: `notify` doet zelf een `set()`, dus nooit ván bínnen
     // een lopende producer aanroepen). `true` alleen bij een ECHT verlies, zie taskDefaults.ts.
     let lostTimephasedGuidance = false;
     let refusedNotices: NotifyInput[] = [];
     set((s) => {
       const idx = s.tasks.findIndex(t => t.id === id);
-      if (idx < 0) return; // onbekend id: geen snapshot, geen loze undo-stap (R3).
+      if (idx < 0) return; // onbekend id: geen snapshot, geen loze undo-stap.
       const task = s.tasks[idx];
-      // Start is verplicht (vangnet onder paneel, dialoog en extensie-API, #200): een onleesbare
+      // Start is verplicht (vangnet onder paneel, dialoog en extensie-API): een onleesbare
       // `scheduleStart` (bv. `''` uit een leeggemaakt datumveld) maakt het HELE project onberekenbaar
       // ("Ongeldige startdatum") en wordt bij heropenen stil "vandaag". Het raster weigert dit al met
       // `required`; hier blijft het bestaande anker staan en gaat de rest van de patch gewoon door.
-      // Bleef er daarna niets te wijzigen over, dan vangt de no-op-guard hieronder dat (R3).
+      // Bleef er daarna niets te wijzigen over, dan vangt de no-op-guard hieronder dat.
       if (updates.time && 'scheduleStart' in updates.time && isNaN(parseDate(updates.time.scheduleStart ?? '').getTime())) {
         updates = { ...updates, time: { ...updates.time, scheduleStart: task.time.scheduleStart } };
       }
-      // Wordt mijlpaal (audit §6): dezelfde regel als raster en MCP. Een fase of een taak met
+      // Wordt mijlpaal: dezelfde regel als raster en MCP. Een fase of een taak met
       // toewijzingen weigert de HELE patch — een halve patch (bv. duur 0 zonder de mijlpaalvlag)
       // zou erger zijn. Paneel, dialoog en contextmenu toetsen dit al vóór ze hier komen.
       if (updates.isMilestone === true && !task.isMilestone) {
@@ -937,18 +927,18 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
           return;
         }
       }
-      // T14b-vervolg (gebruikstestbevinding): `updates.time` (indien meegegeven) apart mergen tegen
-      // de BESTAANDE tijd van de taak i.p.v. 'm via Object.assign in zijn geheel te laten vervangen —
-      // anders wist een PARTIEEL time-object (bv. via de publieke `api.data.updateTask`, waar de
-      // `ExtTaskTime`-volledigheid niet op runtime wordt afgedwongen) stil bestaande verplichte velden
-      // (completion/floats/…) tot een lege plek diezelfde writeIFC-crash weer opende. Zie
+      // `updates.time` (indien meegegeven) apart mergen tegen de BESTAANDE tijd van de taak i.p.v.
+      // 'm via Object.assign in zijn geheel te laten vervangen — anders wist een PARTIEEL time-object
+      // (bv. via de publieke `api.data.updateTask`, waar de `ExtTaskTime`-volledigheid niet op runtime
+      // wordt afgedwongen) stil bestaande verplichte velden (completion/floats/…), en crasht writeIFC
+      // later op die lege plek. Zie
       // `mergeTaskTime` in taskDefaults.ts voor de ADD-vs-UPDATE-basissemantiek.
       const next = mergeTaskUpdate(task, updates);
       // Per saldo niets gewijzigd — "Taak bewerken" → OK zonder wijziging stuurt álle velden terug
       // (TaskDialog.handleSave) — ⇒ net als een onbekend id: geen snapshot, geen isDirty, geen
-      // gevolgregel en dus ook geen melding (#186).
+      // gevolgregel en dus ook geen melding.
       if (sameValue(task, next)) return;
-      // Eigenaarsbesluit 2026-09-26 (optie 2): een nieuwe duur korter dan het gedane werk van een
+      // Een nieuwe duur korter dan het gedane werk van een
       // lopende taak wordt geweigerd — vóór de snapshot, dus niets veranderd, met een melding
       // (paneel, Gantt, extensie-API). Dezelfde regel die hieronder de rest laat meeschuiven, zie
       // `durationEditRefusal`/`carryRemainingThroughDurationEdit` in engine/work/workRuleApply.ts.
@@ -960,18 +950,18 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         }
       }
       runtime.beginUndoable(s, opts); // snapshot pas ná de guards, vóór de mutatie; `opts` = coalesceKey (bv. balk-sleep = 1 stap).
-      // Taaktypes-etappe (reviewbevinding K1): `workRule` loopt niet via de kale merge maar via
-      // `settleRuleChange` (legt onder een werkbeschermende regel het restwerk vast — besluit 2),
+      // `workRule` loopt niet via de kale merge maar via `settleRuleChange` (legt onder een
+      // werkbeschermende regel het restwerk vast),
       // zodat `updateTask(id, { workRule })` (extensie-`data.updateTask`, dialogen) hetzelfde doet
       // als `setTaskWorkRule`.
-      // `updates` is hierboven al start-gecontroleerd (#199/#200).
+      // `updates` is hierboven al start-gecontroleerd.
       const { time, workRule, calendarId, ...rest } = updates;
-      // B1-vervolg — de basis van het ingevoerde einde VÓÓR elke mutatie, dus ook vóór de K2-
-      // kalenderstap hieronder (integratie #101, valkuil b): anders zit de kalenderwissel al in de
+      // De basis van het ingevoerde einde VÓÓR elke mutatie, dus ook vóór de kalenderstap
+      // hieronder: anders zit de kalenderwissel al in de
       // sleutel van de basis, ziet `reconcileHourInputFinish` "geen invoerwijziging" en blijft het
       // ingevoerde einde op de oude kalender staan.
       const finishBasis = hourInputFinishBasis(task);
-      // K2 (eigenaarsbesluit 2026-09-05): een kalenderwissel EERST en apart — de slotgrootte
+      // Een kalenderwissel EERST en apart — de slotgrootte
       // verandert en de werkregel beslist wat meebeweegt (`settleCalendarChange`); daarna pas de
       // momentopname voor een eventuele duurwijziging in dezelfde patch, zodat die op de nieuwe slot rekent.
       const calendarChanged = 'calendarId' in updates && task.calendarId !== calendarId;
@@ -982,18 +972,18 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       }
       // WANNEER de gevolgregels hieronder vuren: alleen als de relevante WAARDE echt verandert, niet
       // omdat de sleutel is meegestuurd — de ene definitie die dit pad deelt met het taakraster en de
-      // MCP-draft, zie `taskTriggerChanges` in taskDefaults.ts (#186). Gemeten ná de kalenderstap,
-      // tegen de taak zoals die er dan staat (integratie groep B × #170).
+      // MCP-draft, zie `taskTriggerChanges` in taskDefaults.ts. Gemeten ná de kalenderstap,
+      // tegen de taak zoals die er dan staat.
       const afterRest = mergeTaskUpdate(task, time ? { ...rest, time } : rest);
       const changes = taskTriggerChanges(task, afterRest);
-      // Contour-engine (2026-09): de oude werkduur vóór de merge, voor de herschaling hieronder —
-      // ná de kalenderstap, zodat een duur in dezelfde patch tegen de nieuwe slot rekent (F2-tweeling).
+      // De oude werkduur vóór de merge, voor de herschaling hieronder — ná de kalenderstap, zodat
+      // een duur in dezelfde patch tegen de nieuwe slot rekent.
       const contourHpd = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
       const oldWorkMinutes = taskWorkMinutesOf(task, contourHpd);
-      // Taaktypes-etappe (2026-09, bouwstap 4): momentopname van de werkdriehoek VÓÓR de merge —
+      // Momentopname van de werkdriehoek VÓÓR de merge —
       // een duurwijziging laat de toewijzingen hun regel volgen (`settleDurationEdit` hieronder).
       const triangle = changes.timeBase ? captureTriangle(task, s.assignments, s) : null;
-      // Fable-critreview #170, bevinding 1: een voortgangspatch (completion/rest) verplaatst opgeslagen
+      // Een voortgangspatch (completion/rest) verplaatst opgeslagen
       // werk van rest naar verricht — `settleProgressWork` hieronder; een duurpatch laat hij liggen.
       const progressWork = time ? captureProgressWork(task, s) : null;
       // De tijd van vóór de merge (kopie): de restregel meet daaraan het gedane werk.
@@ -1001,50 +991,48 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       Object.assign(task, rest);
       if (time) task.time = afterRest.time;
       if (changes.timeBase) {
-        // Eigenaarsbesluiten 2026-09-05/26: een lopende taak houdt haar gedane werk — de rest schuift
+        // Een lopende taak houdt haar gedane werk — de rest schuift
         // mee met het duurverschil, het percentage volgt (`carryRemainingThroughDurationEdit`; de
         // weigering stond hierboven al). Vóór de driehoekstap, die de rest leest. Niet als de patch
         // zelf voortgang opgaf: die wint.
         carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate);
         // Duur-/datumwijziging: contour meeschalen (werkbehoud volgens de werkregel), gebruikersgaten
-        // afknippen (issue #146), laag 3/4 ontkoppelen en nivelleergaten wissen — de gevolgregels die
+        // afknippen, laag 3/4 ontkoppelen en nivelleergaten wissen — de gevolgregels die
         // dit pad deelt met het taakraster en de MCP-draft, zie `applyDurationChangeRules` in
         // taskDefaults.ts (de kern van `settleDurationAftermath`). Een kale datumwijziging telt hier
         // mee; de werkduur blijft dan gelijk, dus meeschalen en afknippen doen niets.
         lostTimephasedGuidance = applyDurationChangeRules(task, oldWorkMinutes, contourHpd, {
           keepWork: contourKeepsWork(task, s.project.defaultWorkRule),
         }) || lostTimephasedGuidance;
-        // Spec §5 rij 1: werk beschermd ⇒ inzet = W / R'; anders volgt een aanwezig werkveld de
-        // nieuwe duur. Onder de standaardregel zonder werkvelden gebeurt er niets (byte-identiek).
+        // Werk beschermd ⇒ inzet = W / R'; anders volgt een aanwezig werkveld de nieuwe duur.
+        // Onder de standaardregel zonder werkvelden gebeurt er niets.
         settleDurationEdit(task, s.assignments, triangle);
       }
       settleProgressWork(task, s.assignments, progressWork);
       if ('workRule' in updates && task.workRule !== workRule) {
         settleRuleChange(task, s.assignments, s, workRule);
-        if (workRule !== undefined) s.taskTypesVisible = true; // review K3: elk schrijfpad ontsluit.
+        if (workRule !== undefined) s.taskTypesVisible = true; // elk schrijfpad ontsluit.
       }
       reconcileP6SuspendResume(task);
-      // Z14b (eigenaarsprincipe 2026-08-18) — ook een kalenderwissel ontkoppelt het GELEZEN Z8-venster
-      // van de motor; de rauwe bron (`timephasedContours`) blijft staan. Zie `taskDefaults.ts`'s
-      // `clearTimephasedWindow` voor de volledige triggerset.
-      // N2 (Opus-her-check, tweede ronde) — laag 4 stroomt NIET altijd live mee: een walk met
-      // bevroren `workMinutes` negeert een wijziging anders stilzwijgend.
+      // Ook een kalenderwissel ontkoppelt het GELEZEN MSP-timephased-venster (laag 3) van de motor;
+      // de rauwe bron (`timephasedContours`) blijft staan. Zie `taskDefaults.ts`'s
+      // `clearTimephasedWindow` voor de volledige triggerset. Laag 4 stroomt NIET altijd live mee:
+      // een walk met bevroren `workMinutes` negeert een wijziging anders stilzwijgend.
       if (calendarChanged) {
         lostTimephasedGuidance = invalidateForTimeBaseChange(task) || lostTimephasedGuidance;
       }
-      // B1c-plan3 taak 3 (spec §4, "Invalidatie"): een bewerking die de tijdbasis van de taak verzet,
-      // maakt ook een door de nivelleerder ingevoegde pauzedag ongeldig — het gat ligt dan op een
-      // verouderde tijd-as. EIGEN POORT sinds de fixronde op etappe 3 (bevinding B7): de triggerset is
-      // BREDER dan die van het Z8-venster — voortgang en constraints horen erbij. Zie
-      // `LEVELING_GAP_TIME_TRIGGERS` in taskDefaults.ts. (Bij een duur-/datumwijziging deed
-      // `applyDurationChangeRules` dit al; dan is deze aanroep een no-op.) De kalenderwissel is al
-      // vóór `changes` doorgevoerd, dus die telt hier apart mee (integratie #101, valkuil a).
+      // Een bewerking die de tijdbasis van de taak verzet, maakt ook een door de nivelleerder
+      // ingevoegde pauzedag ongeldig — het gat ligt dan op een verouderde tijd-as. EIGEN POORT: de
+      // triggerset is BREDER dan die van het timephased-venster — voortgang en constraints horen
+      // erbij. Zie `LEVELING_GAP_TIME_TRIGGERS` in taskDefaults.ts. (Bij een duur-/datumwijziging
+      // deed `applyDurationChangeRules` dit al; dan is deze aanroep een no-op.) De kalenderwissel
+      // is al vóór `changes` doorgevoerd, dus die telt hier apart mee.
       if (changes.levelingGaps || calendarChanged) clearLevelingGaps(task);
-      // B1-vervolg: het ingevoerde einde van een niet-gestarte urentaak beweegt mee met duur/start/
+      // Het ingevoerde einde van een niet-gestarte urentaak beweegt mee met duur/start/
       // kalender — aan de INVOERKANT, nooit vanuit de solve. Zie `reconcileHourInputFinish`. BEWUST
       // NA `clearLevelingGaps`: anders telt het einde nivelleergaten mee die deze bewerking wist.
       reconcileHourInputFinish(task, finishBasis, resolveCalendar(task.calendarId, s.calendars, s.calendar));
-      // Datum-rakende mutatie (duur/start/constraint/mijlpaal → planning verouderd tot F5, A6).
+      // Datum-rakende mutatie (duur/start/constraint/mijlpaal → planning verouderd tot F5).
       runtime.finishMutation(s, { stale: true });
     });
     for (const notice of refusedNotices) get().notify(notice);
@@ -1058,15 +1046,15 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       if (!task || task.workRule === rule) return; // onbekend id of ongewijzigd: geen snapshot.
       runtime.beginUndoable(s);
       settleRuleChange(task, s.assignments, s, rule);
-      s.taskTypesVisible = true; // spec §7: wie een regel zet, ziet de regel (documentontsluiting).
-      runtime.finishMutation(s); // geen `stale`: een typewissel raakt geen datum (spec besluit 2).
+      s.taskTypesVisible = true; // wie een regel zet, ziet de regel (documentontsluiting).
+      runtime.finishMutation(s); // geen `stale`: een typewissel raakt geen datum.
     });
     get().recomputeResourceLoad(); // een vastgelegd restwerk kan de vierde bron van `assignmentDayUnits` activeren.
     get().recomputeViewRows();
   },
 
   setTaskSplits: (taskId, pieces, opts) => {
-    // mpp-nul-data-etappe, DEEL 1 — zie `updateTask` hierboven: `notify` doet zelf een `set()`.
+    // Verlies van MSP-sturing — zie `updateTask` hierboven: `notify` doet zelf een `set()`.
     let lostTimephasedGuidance = false;
     let refusal: SplitRefusal | null = null;
     set((s) => {
@@ -1087,7 +1075,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // contour, tijdbasis-gevolgen en de eigen finish.
       lostTimephasedGuidance = applyTaskSplits(s, task, pieces, hoursPerDay);
 
-      // (8) `markScheduleStale` via `finishMutation` — nooit de vlag rechtstreeks (issue #63).
+      // (8) `markScheduleStale` via `finishMutation` — nooit de vlag rechtstreeks.
       runtime.finishMutation(s, { stale: true });
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
@@ -1096,28 +1084,28 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
   },
 
   setTaskCalendar: (taskId, calendarId) => {
-    // mpp-nul-data-etappe, DEEL 1 — zie `updateTask` hierboven.
+    // Verlies van MSP-sturing — zie `updateTask` hierboven.
     let lostTimephasedGuidance = false;
     set((s) => {
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) return;
       if (task.calendarId === calendarId) return; // no-op: geen snapshot, geen stale
       runtime.beginUndoable(s);
-      // B1-vervolg — basis VÓÓR de wissel (integratie #101: vóór de K2-stap, anders zit de
-      // kalenderwissel niet in de sleutel en blijft het ingevoerde einde oud).
+      // Basis VÓÓR de wissel (vóór de kalenderstap, anders zit de kalenderwissel niet in de
+      // sleutel en blijft het ingevoerde einde oud).
       const finishBasis = hourInputFinishBasis(task);
-      // K2 (eigenaarsbesluit 2026-09-05): momentopname vóór de wissel; daarna beslist de werkregel.
+      // Momentopname vóór de wissel; daarna beslist de werkregel.
       const before = captureCalendarChange(task, s.assignments, s);
       task.calendarId = calendarId; // undefined = projectkalender
       const settled = settleCalendarChange(task, s.assignments, before, s);
-      // Z14b — kalenderwissel is een trigger, zie taskDefaults.ts. De nazorg van de regel kan het
+      // Een kalenderwissel is een trigger, zie taskDefaults.ts. De nazorg van de regel kan het
       // venster al gewist hebben (dan is die tweede aanroep een no-op): beide tellen als verlies.
       lostTimephasedGuidance = settled.timephasedLost || clearTimephasedWindow(task);
-      // B1c-plan3 taak 3 — zie `updateTask` hierboven.
+      // Nivelleergaten-invalidatie — zie `updateTask` hierboven.
       clearLevelingGaps(task);
-      // B1-vervolg — ná `clearLevelingGaps`, zie `updateTask`.
+      // Ingevoerd einde bijwerken — ná `clearLevelingGaps`, zie `updateTask`.
       reconcileHourInputFinish(task, finishBasis, resolveCalendar(calendarId, s.calendars, s.calendar));
-      runtime.finishMutation(s, { stale: true }); // taak-kalender-toewijzing is datum-beïnvloedend (§5.4).
+      runtime.finishMutation(s, { stale: true }); // taak-kalender-toewijzing is datum-beïnvloedend.
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
     get().recomputeViewRows();
@@ -1131,7 +1119,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       runtime.beginUndoable(s);
       const full: ExternalLink = { ...link, id };
       task.externalLinks = [...(task.externalLinks ?? []), full];
-      runtime.finishMutation(s, { stale: true }); // een bevroren datum-grens is datum-beïnvloedend (§4.5).
+      runtime.finishMutation(s, { stale: true }); // een bevroren datum-grens is datum-beïnvloedend.
     });
     get().recomputeViewRows();
     return id;
@@ -1179,7 +1167,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       runtime.beginUndoable(s);
       removeTaskSubtrees(s, [id]);
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
-      runtime.finishMutation(s, { stale: true }); // datum-rakende mutatie (A6): planning verouderd tot F5.
+      runtime.finishMutation(s, { stale: true }); // datum-rakende mutatie: planning verouderd tot F5.
     });
     get().recomputeViewRows();
   },
@@ -1248,10 +1236,10 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         parent.childIds[swapIdx] = tmp;
 
         // Rauwe s.tasks-array meeschuiven (WBS/flattenOrder-bron, zie utils/wbs.ts) —
-        // ENKEL-NODE-splice, exact zoals moveTaskTo hierboven (:414-434): alleen `taskId`
-        // zelf verhuist relatief t.o.v. `otherId`, subtrees blijven via parentId gewoon
-        // hangen. Zonder deze stap loopt de WBS-nummering (raw-array-volgorde) uit de pas
-        // met de weergave (childIds-volgorde, zie visibleRows.ts:242).
+        // ENKEL-NODE-splice, zoals `applyTaskPlacement`: alleen `taskId` zelf verhuist relatief
+        // t.o.v. `otherId`, subtrees blijven via parentId gewoon hangen. Zonder deze stap loopt
+        // de WBS-nummering (raw-array-volgorde) uit de pas met de weergave (childIds-volgorde,
+        // zie visibleRows.ts).
         const rawIdx = s.tasks.findIndex(t => t.id === taskId);
         const [node] = s.tasks.splice(rawIdx, 1);
         const otherRawIdx = s.tasks.findIndex(t => t.id === otherId);
@@ -1282,7 +1270,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       }
 
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
-      // Geen scheduleStale: pure volgorde-mutatie, raakt geen tijden/CPM (golf 1-spec, expliciet).
+      // Geen scheduleStale: pure volgorde-mutatie, raakt geen tijden/CPM.
       runtime.finishMutation(s);
     });
     get().recomputeViewRows();
@@ -1306,7 +1294,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       const idMap = new Map<string, string>();
       for (const tt of template.tasks) idMap.set(tt.id, generateId('task'));
 
-      // Wordt `parentId` hierdoor een fase (audit §6)? De sjabloonwortel is het nieuwe kind.
+      // Wordt `parentId` hierdoor een fase? De sjabloonwortel is het nieuwe kind.
       const root = [...template.tasks].reverse().find(tt => tt.parentId === null);
       const pending = new Map<string, PendingChild>();
       if (root) {
@@ -1363,7 +1351,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         s.activeTaskId = newRootId;
       }
       settlePhaseTransitions(s, phasePlan.transitions, outcome);
-      runtime.finishMutation(s, { stale: true }); // ingevoegd WBS-sjabloon (A6): planning verouderd tot F5.
+      runtime.finishMutation(s, { stale: true }); // ingevoegd WBS-sjabloon: planning verouderd tot F5.
     });
     finishStructural(get, outcome);
     get().recomputeViewRows();
@@ -1374,10 +1362,10 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
 
   setTaskProgress: (taskId, raw, opts) => {
     let accepted = true;
-    // §3.2: % > 0 ⇒ gestart (auto actualStart, nooit ná het werkelijke einde), teruggedraaid
+    // % > 0 ⇒ gestart (auto actualStart, nooit ná het werkelijke einde), teruggedraaid
     // onder 100% ⇒ actualFinish vervalt. Dezelfde regel als de concept in "Taak bewerken"
     // (`draftWithProgress`). Verzameltaak (alleen-lezen), snapshot, nivelleergaten, stale, de
-    // no-op-regel en de werknazorg (#170): zie `commitProgressEdit`.
+    // no-op-regel en de werknazorg: zie `commitProgressEdit`.
     set((s) => { accepted = commitProgressEdit(runtime, s, taskId, { field: 'completion', value: raw }, {}, opts).ok; });
     get().recomputeViewRows();
     return accepted;
@@ -1417,8 +1405,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     return buildProgressImportPlan(rows, s.tasks, progressImportDeps(s, opts?.today), overrides);
   },
 
-  // A4 (issue #27 etappe 2, T5): het plan wordt HIER, binnen dezelfde `set()`, opnieuw gebouwd
-  // tegen de LIVE taken — nooit het (mogelijk verouderde) preview-plan hergebruikt (A8, drift).
+  // Het plan wordt HIER, binnen dezelfde `set()`, opnieuw gebouwd tegen de LIVE taken — nooit het
+  // (mogelijk verouderde) preview-plan hergebruikt (drift).
   // Atomair: het hele plan staat vast vóórdat er iets geschreven wordt. Nul toepassingen ⇒ geen
   // snapshot (net als een geweigerde `setActualStart`); één undo-stap voor het HELE blad, nooit één
   // per rij.
@@ -1429,7 +1417,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       plan = buildProgressImportPlan(rows, s.tasks, progressImportDeps(s, opts?.today), overrides);
       if (plan.appliedCount === 0) return;
       runtime.beginUndoable(s);
-      // Z1 (`ProgressImportEntryOptions`): houdt een toegepaste rij voortgang over en was er geen
+      // Met `ProgressImportEntryOptions`: houdt een toegepaste rij voortgang over en was er geen
       // statusdatum, dan gaat die in deze undo-stap op vandaag.
       if (!s.project.statusDate && opts?.today
         && plan.rows.some(row => row.outcome === 'apply' && row.plannedTask && hasRecordedProgress(row.plannedTask.time))) {
@@ -1441,13 +1429,13 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         if (row.outcome !== 'apply') continue;
         const index = s.tasks.findIndex((t) => t.id === row.taskId);
         if (index >= 0) {
-          // Fable-critreview #170, bevinding 1 — zelfde werkverplaatsing als `setTaskProgress`.
+          // Zelfde werkverplaatsing als `setTaskProgress`.
           const progressWork = captureProgressWork(s.tasks[index], s);
           s.tasks[index] = row.plannedTask!;
           settleProgressWork(s.tasks[index], s.assignments, progressWork);
         }
       }
-      runtime.finishMutation(s, { stale: true }); // datum-rakende mutatie (A6): planning verouderd tot F5.
+      runtime.finishMutation(s, { stale: true }); // datum-rakende mutatie: planning verouderd tot F5.
     });
     get().recomputeViewRows();
     // Ná `set()`: `get().notify(...)` binnen een actieve producer aanroepen kan niet.

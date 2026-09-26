@@ -3,7 +3,7 @@ import type { Task } from '@/types/task';
 import type { RecordedTaskAxis, RecordedTaskMark } from '@/types/taskGrid';
 
 /**
- * "Datums zoals opgeslagen" (issue #63, XER-etappeplan laag 3 §3.6) — de PURE afgeleide over
+ * "Datums zoals opgeslagen" — de PURE afgeleide over
  * bestaande documentstate (`recordedDates`/`datesAsRecorded`), gedeeld door de taaktabel-kolom
  * (`taskColumnRegistry.ts`, via `TaskColumnContext.recordedMark`/`recordedUnrecordedAxes`) en het
  * eigenschappenpaneel (`TaskRecordedDatesNotice.tsx`). Bladmodule: importeert alleen types, geen
@@ -11,8 +11,7 @@ import type { RecordedTaskAxis, RecordedTaskMark } from '@/types/taskGrid';
  *
  * `RecordedTaskMark`/`RecordedTaskAxis` staan in `@/types/taskGrid.ts` (niet hier) omdat
  * `TaskColumnContext` ze nodig heeft en `types/` bewust geen afhankelijkheid richting `state/`
- * krijgt (elders in de codebase importeert niets uit `src/types/*.ts` van `@/state/*`) — dit
- * bestand hergebruikt ze als type-only import, dit bestand is de eigenaar van het GEDRAG, niet
+ * krijgt. Dit bestand hergebruikt ze als type-only import: het is de eigenaar van het GEDRAG, niet
  * van de typenaam.
  */
 export type { RecordedTaskAxis, RecordedTaskMark };
@@ -43,11 +42,10 @@ export function unrecordedAxes(rec: RecordedTime | undefined): readonly Recorded
  * de MCP-leestools) — daarom in `Task['time']`-veldnamen en mét `isCritical`, dat geen tabelkolom
  * met een "niet vastgelegd"-tekst heeft maar wél door dezelfde `?? false` naar buiten zou reizen.
  *
- * Critreview laag 3, bevinding 6: zolang "datums zoals opgeslagen" een KNOP was, was het tonen van
- * de terugvallen (`lateStart ?? rec.start`, `totalFloat ?? 0`, `isCritical ?? false`) een bewuste
- * gebruikershandeling. Met standaard-aan op elke XER met restverschillen is het de standaard-
- * toestand, en dan mag een verzonnen 0 of een verzonnen late datum niet stilzwijgend een
- * CSV-export of een AI-antwoord in — daar is geen strook of badge die de stand toelicht.
+ * De modus staat standaard aan bij een import met restverschillen, dus de terugvallen
+ * (`lateStart ?? rec.start`, `totalFloat ?? 0`, `isCritical ?? false`) zijn geen bewuste
+ * gebruikerskeuze. Een verzonnen 0 of late datum mag dan niet stilzwijgend een CSV-export of een
+ * AI-antwoord in — daar is geen strook of badge die de stand toelicht.
  */
 export type UnrecordedExportField = 'lateStart' | 'lateFinish' | 'totalFloat' | 'freeFloat' | 'isCritical';
 
@@ -86,11 +84,11 @@ export function unrecordedExportGate(
  *     `rec.finish` rechtstreeks naar `task.time.early*`), dus "wijkt af" zou daar altijd `false`
  *     zijn — geen zinvol signaal, dus niet apart gemeld.
  *  2. `'partly-unrecorded'` — de vastlegging zelf is onvolledig (`unrecordedAxes(rec).length > 0`):
- *     één of meer van de vier optionele assen ontbreken. UITSLUITEND IN DE MODUS (critreview
- *     laag 3, bevinding 1): de markering is een uitspraak over WAT ER OP HET SCHERM STAAT, niet
- *     over het bestand. Buiten de modus staat onze eigen, zojuist berekende late-/spelinguitvoer
- *     in die kolommen — daar is niets "niet vastgelegd" aan, en de badge zou de gebruiker een
- *     echt getal laten wantrouwen (of, via `recordedUnrecordedAxes`, zelfs verbergen).
+ *     één of meer van de vier optionele assen ontbreken. UITSLUITEND IN DE MODUS: de markering is
+ *     een uitspraak over WAT ER OP HET SCHERM STAAT, niet over het bestand. Buiten de modus staat
+ *     onze eigen, zojuist berekende late-/spelinguitvoer in die kolommen — daar is niets "niet
+ *     vastgelegd" aan, en de badge zou de gebruiker een echt getal laten wantrouwen (of, via
+ *     `recordedUnrecordedAxes`, zelfs verbergen).
  *  3. `undefined` — geen vastlegging voor deze taak, of een volledige vastlegging die (buiten de
  *     modus) niet afwijkt van de herberekening.
  *
@@ -136,13 +134,12 @@ export function recordedNoticeState(
  * rasteroppervlak (`FullTaskGrid` voor Gantt-taakraster én het tabblad Tabel, en het schrijfpad in
  * `gridTransaction.ts`) dezelfde poort gebruikt.
  *
- * De poort is `datesAsRecorded`, NIET `recordedDates !== null` (critreview laag 3, bevinding 1 —
- * een gemeten regressie op de bestaande #63-route, niet iets XER-specifieks). `recordedDates !== null
- * && !datesAsRecorded` is namelijk de AANBOD-stand: er is gewoon gesolved, `task.time.lateStart` en
- * de floats zijn echte CPM-uitvoer, en `recordedAxisFormat` zou ze door "Niet vastgelegd" vervangen
- * — permanent, want `runCPM` wist de vastlegging alleen bij het VERLATEN van de modus, dus ook F5
- * haalde het niet weg. Een IFC vult zelden `LateStart`/`TotalFloat`, dus dat trof zo goed als elk
- * document met een #63-aanbod.
+ * De poort is `datesAsRecorded`, NIET `recordedDates !== null`. `recordedDates !== null
+ * && !datesAsRecorded` is de AANBOD-stand: er is gewoon gesolved, `task.time.lateStart` en de
+ * floats zijn echte CPM-uitvoer, en `recordedAxisFormat` zou ze door "Niet vastgelegd" vervangen —
+ * permanent, want `runCPM` wist de vastlegging alleen bij het VERLATEN van de modus, dus ook F5
+ * haalt het niet weg. Een IFC vult zelden `LateStart`/`TotalFloat`, dus dat zou vrijwel elk
+ * document met een aanbod raken.
  *
  * `recordedMark` hangt bewust wél aan `recordedDates` alleen: "wijkt af" is juist buiten de modus
  * het zinvolle signaal, en die kolom vervangt geen enkele berekende waarde — hij zet er een

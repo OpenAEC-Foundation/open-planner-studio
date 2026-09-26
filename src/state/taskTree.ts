@@ -1,26 +1,18 @@
-// Boomprimitieven voor de takenhiërarchie (K-item 35).
+// Boomprimitieven voor de takenhiërarchie.
 //
-// HET PROBLEEM. De hiërarchie heeft DRIE waarheidsbronnen die met de hand in de pas gehouden
-// worden: `task.parentId`, `parent.childIds` (de zichtbare volgorde, zie `visibleRows.ts`) en de
-// volgorde van de rauwe `s.tasks`-array (WBS-nummering, zie `utils/wbs.ts` `flattenOrder`). Elke
-// mutatie moet ze alle drie kloppend achterlaten, en dat gebeurde tot nu toe met overgetypte
-// regels: `childIds.filter(c => c !== id)` stond vier keer, `childIds.splice(at, 0, id)` drie keer,
-// en de recursieve afstammelingenverzamelaar vier keer — verspreid over `taskSlice.ts`,
-// `mcpTransaction.ts` en `wbsTemplates.ts`.
+// De hiërarchie heeft DRIE waarheidsbronnen die in de pas moeten blijven: `task.parentId`,
+// `parent.childIds` (de zichtbare volgorde, zie `visibleRows.ts`) en de volgorde van de rauwe
+// `s.tasks`-array (WBS-nummering, zie `utils/wbs.ts` `flattenOrder`). Elke mutatie moet ze alle drie
+// kloppend achterlaten. Deze module is de gedeelde definitie, zodat geen callsite een guard mist die
+// een andere wél heeft; als pure functies zijn ze headless te toetsen.
 //
-// Die kopieën zijn niet identiek gebleven, en dat is het punt: elk van die plekken kan een guard
-// missen die de andere wél heeft, zonder dat iets omvalt. Deze module is de gedeelde definitie, en
-// omdat het pure functies zijn zijn ze headless te toetsen — precies wat de losse regels midden in
-// een Immer-producer niet waren.
-//
-// STAND VAN DE CONSOLIDATIE (een eerdere versie van deze kop beweerde "maakt er één definitie
-// van"; dat was toen niet waar en twee reviews wezen het aan). Aangesloten: `taskSlice`
-// (`applyTaskPlacement`, `moveTask`, `deleteTask`, `deleteTasksBulk`, `copyTasks`, de bulk-move),
-// `mcpTransaction` (aanmaken + verwijderen) en `wbsTemplates`. De drie verwijderpaden delen
-// bovendien `removeTaskSubtrees`, zodat ze niet opnieuw uit elkaar lopen in wat ze opruimen. NIET aangesloten, bewust: de detach/attach in
-// `mcpTransaction.ts` rond regel 320 en de sibling-hulpjes `siblingIdsOf` (`taskSlice.ts`) en de
-// variant in `dropTarget.ts` — die laatste twee werken op andere invoer dan `siblingIds` hier.
-// `tests/planning/check-task-tree.ts` bewaakt met een bron-assert dat de aangesloten plekken
+// Aangesloten: `taskSlice` (`applyTaskPlacement`, `moveTask`, `deleteTask`, `deleteTasksBulk`,
+// `copyTasks`, de bulk-move), `selectionSlice` (kopiëren), `runtime/createMcpTransactions.ts`
+// (aanmaken, verhangen, verwijderen) en `wbsTemplates`. De verwijderpaden delen `removeTaskSubtrees`,
+// zodat ze niet uit elkaar lopen in wat ze opruimen. NIET aangesloten, bewust: de
+// positie-herinvoeging bij `position` in `createMcpTransactions.ts` en `siblingIdsOf` in
+// `engine/view/dropTarget.ts` (werkt op weergaverijen, niet op `tasks`).
+// `tests/planning/check-task-tree.ts` bewaakt met een bron-assert dat `taskSlice` en `wbsTemplates`
 // aangesloten blijven.
 //
 // WERKT OP IMMER-DRAFTS. Deze functies MUTEREN de meegegeven array/objecten. Dat is opzet: ze
@@ -31,9 +23,9 @@
 //
 // WAT HIER NIET IN HOORT: de rauwe-array-herordening. Die is per callsite anders (achteraan, bij
 // een anker, op een expliciete positie) en zit in `applyTaskPlacement`; hem hierheen halen zou een
-// functie met vier vlaggen opleveren in plaats van een primitieve. Eén uitzondering, omdat hij
-// letterlijk op TWEE plekken hetzelfde moet doen: `reparentTask`, de verhanging van de store-
-// `moveTask` die ook de MCP-draft (`planner_move_task`) gebruikt.
+// functie met vier vlaggen opleveren in plaats van een primitieve. Eén uitzondering: `reparentTask`,
+// de verhanging van de MCP-draft (`planner_move_task`); de store-`moveTask` (`moveTaskEdit` in
+// `taskSlice.ts`) doet hetzelfde op zijn proefkopie en moet daarmee in de pas blijven.
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { ResourceAssignment } from '@/types/resource';
@@ -94,14 +86,14 @@ export function isSelfOrDescendant(tasks: Task[], candidateId: string, ancestorI
 }
 
 /**
- * De verhanging van `moveTask` (store en MCP-draft): `id` onder `newParentId` (null = wortel), op
- * `position` binnen de nieuwe ouder of — zonder positie — achteraan, in `childIds` ÉN in de rauwe
- * array. WBS-nummering (`flattenOrder`) leest de RAUWE array-volgorde en negeert `childIds`; de
- * zichtbare volgorde van niet-wortels leest juist `childIds` (`visibleRows.ts`). Daarom moet de
- * invoegplek op beide plekken kloppen — ook zonder `position` (anders volgde het WBS-nummer de oude
- * array-positie terwijl de taak zichtbaar achteraan verscheen: de 3.1/3.2/3.3-bug bij "ouder
- * wijzigen" in het taakvenster). Nakomelingen blijven staan waar ze staan; `flattenOrder` herbouwt
- * de boom uit `parentId`. Geen guards: de aanroeper toetst bestaan en cykel vooraf.
+ * De verhanging van de MCP-draft (`planner_move_task`), gelijk aan `moveTaskEdit` in
+ * `taskSlice.ts`: `id` onder `newParentId` (null = wortel), op `position` binnen de nieuwe ouder of
+ * — zonder positie — achteraan, in `childIds` ÉN in de rauwe array. WBS-nummering (`flattenOrder`)
+ * leest de RAUWE array-volgorde en negeert `childIds`; de zichtbare volgorde van niet-wortels leest
+ * juist `childIds` (`visibleRows.ts`). Daarom moet de invoegplek op beide plekken kloppen — ook
+ * zonder `position` (anders volgt het WBS-nummer de oude array-positie terwijl de taak zichtbaar
+ * achteraan verschijnt). Nakomelingen blijven staan waar ze staan; `flattenOrder` herbouwt de boom
+ * uit `parentId`. Geen guards: de aanroeper toetst bestaan en cykel vooraf.
  */
 export function reparentTask(tasks: Task[], id: string, newParentId: string | null, position?: number): void {
   detachFromParent(tasks, id);
@@ -135,8 +127,7 @@ export function reparentTask(tasks: Task[], id: string, newParentId: string | nu
  * kopiëren en het opslaan van een tak als sjabloon.
  *
  * Zelfde bezocht-bewaking als hierboven, en om dezelfde reden: een corrupte `childIds` die naar een
- * voorouder terugwijst zou anders oneindig doorlopen. De vier handgeschreven varianten die dit
- * verving hadden die bewaking géén van alle.
+ * voorouder terugwijst zou anders oneindig doorlopen.
  */
 export function collectSubtreeIds(tasks: Task[], rootId: string): string[] {
   const out: string[] = [];
@@ -189,8 +180,7 @@ export function removeTaskSubtrees(s: TaskRemovalState, rootIds: readonly string
  *
  * Neemt bewust een PARENT-id en niet een taak-id: dat is wat elke aanroeper nodig heeft (waar komt
  * deze taak tussen zijn buren te staan), en het werkt ook voor een ouder waarvan het kind nog niet
- * bestaat. Een eerdere versie nam een taak-id en had daardoor nul aanroepers — dode code die drie
- * testchecks bezighield.
+ * bestaat.
  */
 export function siblingIds(tasks: Task[], parentId: string | null): string[] {
   if (parentId === null) return tasks.filter(t => !t.parentId).map(t => t.id);

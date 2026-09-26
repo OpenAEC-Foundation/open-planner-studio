@@ -1,7 +1,7 @@
 import type { NotificationDetailLine, NotifyInput } from './slices/types';
 
 /**
- * Taaktypes-etappe (spec §7, "automatische ontsluiting"): één informatieve melding per document
+ * Automatische ontsluiting van taaktypes: één informatieve melding per document
  * per sessie wanneer een geladen bestand taaktypedata draagt terwijl de instelling "Toon
  * taaktypes" uit staat — dezelfde sessie-gate als `timephasedLossNotice.ts` (module-state, geen
  * documentveld: sessie-UI-gedrag, overleeft een documentwissel-en-terug). Zichtbaar wordt de
@@ -19,7 +19,7 @@ export function claimTaskTypesNotice(docId: string): boolean {
 }
 
 /** Wis de registratie voor ÉÉN document-id — zelfde reden als `clearTimephasedLossNoticeForDoc`:
- *  `newProject`/`createNewProject` hergebruiken het actieve docId voor een vers document (review K1). */
+ *  `newProject`/`createNewProject` hergebruiken het actieve docId voor een vers document. */
 export function clearTaskTypesNoticeForDoc(docId: string): void {
   notifiedDocIds.delete(docId);
 }
@@ -30,9 +30,9 @@ export function __resetTaskTypesNoticeForTests(): void {
 }
 
 /**
- * K2 (eigenaarsbesluit 2026-09-05): een project- of kalenderwijziging heeft via de werkregel de duur
+ * Een project- of kalenderwijziging heeft via de werkregel de duur
  * van `count` taken veranderd (minder/meer uren per dag ⇒ langer/korter onder Vast werk en Vaste
- * inzet). Geen sessie-gate en bewust GEEN `dedupeKey` (reviewbevinding F10): de dedupe vervangt
+ * inzet). Geen sessie-gate en bewust GEEN `dedupeKey`: de dedupe vervangt
  * `params` en telt alleen een badge op, zodat twee bewerkingen van 5 en daarna 2 taken als
  * "2 taken ×2" zouden lezen. Eén melding per bewerking met het echte aantal; `MAX_NOTIFICATIONS`
  * begrenst de stapel.
@@ -48,7 +48,7 @@ export function notifyWorkRuleDurationsChanged(notify: (n: NotifyInput) => void,
 }
 
 /** De detailregel in de ene bestandsmelding (.mpp/XER): eigen gidslink naar `gids-taaktypes`
- *  (gebruikstest #170, G3 — de melding zelf linkt naar het bestand/rekenprofiel). */
+ *  (de melding zelf linkt naar het bestand/rekenprofiel). */
 export const TASK_TYPES_DETAIL_LINE: NotificationDetailLine = {
   messageKey: 'notifications.taskTypesUnlockedDetail',
   helpArticleId: TASK_TYPES_HELP_ARTICLE_ID,

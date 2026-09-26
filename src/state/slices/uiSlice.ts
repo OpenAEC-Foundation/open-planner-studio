@@ -10,7 +10,7 @@ import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 export interface UiSlice {
   ui: UIState;
   setUI: (updates: Partial<UIState>) => void;
-  /** MCP-bridge (fase 1): schrijf de serverstatus (uit/live/poort-bezet/fout) — gevoed door
+  /** MCP-bridge: schrijf de serverstatus (uit/live/poort-bezet/fout) — gevoed door
    *  `server.ts` uit de `mcp://status`-events + de start-fout. */
   setAiServerStatus: (status: McpServerStatus) => void;
   /** MCP-bridge: zet de pauze-vlag (muterende tools tijdelijk geweigerd, leestools door). */
@@ -18,38 +18,38 @@ export interface UiSlice {
   /** MCP-bridge: zet de alleen-lezen-vlag (muterende tools geweigerd zolang actief). */
   setAiReadOnly: (readOnly: boolean) => void;
   toggleCollapse: (taskId: string) => void;
-  /** Issue #35 punt 3: klap de opgegeven summary-taken expliciet IN (collapsed=true, niet togglen).
+  /** Klap de opgegeven summary-taken expliciet IN (collapsed=true, niet togglen).
    *  Zonder lijst — of met een lege lijst — geldt de actie voor ALLE summary-taken; zo kan de
    *  ribbon-knop zonder selectie toch iets zinnigs doen. Ids die geen summary-taak zijn (geen
    *  kinderen) worden stil genegeerd: een blad inklappen is betekenisloos, geen fout. Geen undo —
    *  `collapsedTaskIds` is UI-sessiestate, net als `toggleCollapse` hierboven (zit niet in de
    *  undo-snapshot, zie `state/snapshot.ts`). */
   collapseTasks: (taskIds?: string[]) => void;
-  /** Issue #35 punt 3: tegenhanger van `collapseTasks` — klapt expliciet UIT. Zie daar. */
+  /** Tegenhanger van `collapseTasks` — klapt expliciet UIT. Zie daar. */
   expandTasks: (taskIds?: string[]) => void;
-  /** Klap de VOLLEDIGE oudersketen van `taskId` uit (issue #65: "spring naar taak" mag een taak
+  /** Klap de VOLLEDIGE oudersketen van `taskId` uit ("spring naar taak" mag een taak
    *  onthullen die in een ingeklapte samenvattingstaak zit). Loopt via `parentId` omhoog tot de
    *  root en klapt elke ingeklapte voorouder uit — niet alleen de directe ouder, want die kan
    *  zelf weer in een ingeklapte grootouder zitten. */
   expandAncestorsOf: (taskId: string) => void;
-  /** Golf 1 (fase 2.10, bandkop-contextmenu §2.10): klap ALLES uit in de HUIDIGE weergavemodus.
+  /** Bandkop-contextmenu: klap ALLES uit in de HUIDIGE weergavemodus.
    *  Boommodus ⇒ alle summary-taken (`expandTasks()`); gegroepeerde weergave ⇒ alle groepsbanden
    *  (`expandAllGroups()`), want daar negeert `computeViewRows` de taak-collapse volledig en zou
-   *  de actie anders een dode klik zijn (issue #35). Dunne wrappers zodat er één waarheid is. */
+   *  de actie anders een dode klik zijn. Dunne wrappers zodat er één waarheid is. */
   expandAll: () => void;
-  /** Golf 1 (fase 2.10): klap ALLES in in de huidige weergavemodus. Zie `expandAll`. */
+  /** Klap ALLES in in de huidige weergavemodus. Zie `expandAll`. */
   collapseAll: () => void;
-  /** Presentatie-modus (§9): zet de flag + roept de echte Fullscreen-API aan. */
+  /** Presentatie-modus: zet de flag + roept de echte Fullscreen-API aan. */
   setPresentationMode: (on: boolean) => void;
   /** Meld dat een structuurmutatie geweigerd is omdat de weergave niet in pure boommodus staat
-   *  (issue #26): hoogt de teller op zodat `StructureLockedNotice` (opnieuw) verschijnt. */
+   *  — hoogt de teller op zodat `StructureLockedNotice` (opnieuw) verschijnt. */
   notifyStructureLocked: () => void;
-  /** Toon een melding aan de gebruiker (bevinding K8). Met `dedupeKey` vouwt een herhaling
+  /** Toon een melding aan de gebruiker. Met `dedupeKey` vouwt een herhaling
    *  samen tot één regel met een teller — nodig omdat de auto-save herhaaldelijk kan falen en
    *  anders meldingen zouden stapelen. Een `error` verdwijnt niet uit zichzelf (klik = weg). */
   notify: (n: NotifyInput) => void;
   dismissNotification: (id: string) => void;
-  /** Open Backstage → Help op een specifiek artikel (mpp-nul-data-etappe, "lees meer"-link vanuit
+  /** Open Backstage → Help op een specifiek artikel ("lees meer"-link vanuit
    *  een melding of het eigenschappenpaneel). Zet dezelfde twee velden die de Help-navigatie al
    *  kent (`activeRibbonTab`/`backstageSection`) plus `pendingHelpArticleId`, dat `HelpPanel`
    *  consumeert om die ene keer op het gevraagde artikel te selecteren. Géén nieuw
@@ -84,20 +84,20 @@ export function createDefaultUI(): UIState {
     showCalendarDialog: false,
     showUpdateDialog: false,
     justUpdated: null,
-    // Issue #61: synchroon uit localStorage, zodat de default nooit afwijkt van wat het
+    // Synchroon uit localStorage, zodat de default nooit afwijkt van wat het
     // pre-paint-script in index.html al op <html> zette (headless valt peekTheme terug op 'dark').
     uiTheme: peekTheme(),
     // Systeemkleurschema bij het bouwen van de store — synchroon, om dezelfde reden als hierboven:
     // bij voorkeur 'system' moet de eerste React-commit meteen het juiste thema kiezen. De
     // listener in App.tsx houdt het daarna bij.
     systemPrefersDark: detectSystemPrefersDark(),
-    // Issue #25.4: interface-lettertype — default = huidige stylesheet-defaults + 100% schaal
-    // (bestaande gebruikers merken niets; App.tsx hydrateert bij opstart uit localStorage).
+    // Interface-lettertype — default = stylesheet-defaults + 100% schaal (App.tsx hydrateert bij
+    // opstart uit localStorage).
     uiFontFamily: 'default',
     uiFontScale: 100,
     enableQuarterHourZoom: false,
     weekStartDay: 'monday',
-    // 'drag' (zoom + slepen, map-style) is sinds issue #22 de standaard: het is de meest
+    // 'drag' (zoom + slepen, map-style) is de standaard: het is de meest
     // intuïtieve navigatie en werkt zonder modifier-toetsen. Wie eerder al een voorkeur opsloeg
     // houdt die — settingsRegistry patcht dit veld alleen bij een aanwezige localStorage-sleutel,
     // en die wordt uitsluitend geschreven als de gebruiker de modus zelf omzet.
@@ -118,9 +118,8 @@ export function createDefaultUI(): UIState {
     traceMode: 'off',
     showResourcePanel: false,
     resourcePanelDocked: false,
-    // Issue #46 (slot) — de rechter-rail. Eigenschappen staat standaard aan (byte-identieke
-    // opstart), het resourcepaneel niet; de hoogteverdeling is alleen van kracht als ze allebei
-    // aan staan.
+    // De rechter-rail. Eigenschappen staat standaard aan, het resourcepaneel niet; de
+    // hoogteverdeling is alleen van kracht als ze allebei aan staan.
     showPropertiesPanel: true,
     railPropertiesHeight: 240,
     showWarningsPanel: false,
@@ -133,8 +132,8 @@ export function createDefaultUI(): UIState {
     showBaselineOverlay: true,
     showProgressLine: true,
     showStatusDateLine: true,
-    showResourceAccent: false,   // #21: schermbeeld verandert eerst niet — expliciet aanzetten
-    showFloatBand: true,         // #130: de speling-band was altijd zichtbaar; uitzetten is de nieuwe keuze
+    showResourceAccent: false,   // opt-in: expliciet aanzetten
+    showFloatBand: true,         // standaard zichtbaar; uitzetten is een keuze
     barColorSelection: DEFAULT_BAR_COLOR_SELECTION,
     presentationMode: false,
     showMiniMap: false,
@@ -144,7 +143,7 @@ export function createDefaultUI(): UIState {
     layoutDialogTargetId: null,
     showClassicViewControls: false,
     autoCalcCPM: false,
-    // Bouwmodus (2026-07-13): default AAN = huidige bouwgerichte defaults/framing ongewijzigd.
+    // Bouwmodus: default AAN = bouwgerichte defaults/framing.
     // App.tsx hydrateert bij opstart uit localStorage (loadConstructionMode).
     constructionMode: true,
     dateNotation: 'dmy',
@@ -154,7 +153,7 @@ export function createDefaultUI(): UIState {
     allowMixedDayHour: true,
     durationDisplay: 'auto',
     barSplitMode: 'selection',
-    // Issue #21 punt 5 (fase 2): default UIT (§0/§7.1 user-besluit).
+    // «Alleen werkbare dagen tonen»: default UIT.
     compressNonWorkdays: false,
     hourDataNotice: false,
     showTaskTypes: false,
@@ -170,15 +169,15 @@ export function createDefaultUI(): UIState {
     showProgressImportDialog: false,
     libraryRefreshNotice: null,
     resourcesView: 'project',
-    // Issue #48-1: ephemeral verzoek-vlag voor een concept-rij in het resource-paneel (zie UIState).
+    // Ephemeral verzoek-vlag voor een concept-rij in het resource-paneel (zie UIState).
     pendingNewResource: false,
-    // Fase 2.10 onderdeel 3: first-startup — ephemeral, bootstrap-hook in App.tsx zet
+    // First-startup — ephemeral, bootstrap-hook in App.tsx zet
     // showWelcomeDialog o.b.v. de persistente `welcomeSeen`-vlag (settingsStore.ts).
     showWelcomeDialog: false,
     showTourOverlay: false,
     tourStepIndex: 0,
     tourSnapshot: null,
-    // MCP-bridge / AI-modus (fase 1): AI-modus default uit (geen AI-tabblad); server staat default
+    // MCP-bridge / AI-modus: AI-modus default uit (geen AI-tabblad); server staat default
     // uit op de default-poort; geen pauze/lezen.
     aiMode: false,
     aiAutostart: false,
@@ -196,20 +195,20 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
 
   setUI: (updates) =>
     set((s) => {
-      // Tabel-overhaul: oude sessie-/tour-/extensiestaat kan nog naar het verwijderde zelfstandige
-      // Relaties-tabblad wijzen. Alle functies daarvan wonen nu in de taakgrids en hun lintacties;
+      // Oude sessie-/tour-/extensiestaat kan nog naar het verwijderde zelfstandige Relaties-tabblad
+      // wijzen. Alle functies daarvan wonen in de taakgrids en hun lintacties;
       // herstel daarom naar de volledige Tabel zonder documentdata of historie te muteren.
       if ((updates as { activeRibbonTab?: unknown }).activeRibbonTab === 'relations') {
         (updates as Partial<UIState>).activeRibbonTab = 'table';
       }
-      // Issue #146: relatiemodus en splits-modus kapen allebei de sleep vanaf een balk, dus ze
+      // Relatiemodus en splits-modus kapen allebei de sleep vanaf een balk, dus ze
       // sluiten elkaar uit. Hier afgedwongen en niet in de twee lintknoppen: elke aanroeper (lint,
       // sneltoets, extensie, testbrug) mag de ene aanzetten zonder de andere te kennen.
       if (updates.showSplitMode === true) (updates as Partial<UIState>).showDependencyMode = false;
       else if (updates.showDependencyMode === true) (updates as Partial<UIState>).showSplitMode = false;
-      // Issue #174: beide modi werken alleen op een balk in de Gantt. Verdwijnt de Gantt uit de
-      // werkruimte (Tabel, IFC, Rapport, volledig resourcepaneel), dan gaan ze uit — anders bleef
-      // de modusstrook staan boven een weergave waarin het gebaar niets kan.
+      // Beide modi werken alleen op een balk in de Gantt. Verdwijnt de Gantt uit de werkruimte
+      // (Tabel, IFC, Rapport, volledig resourcepaneel), dan gaan ze uit — anders blijft de
+      // modusstrook staan boven een weergave waarin het gebaar niets kan.
       if (!isGanttWorkspaceVisible({
         activeRibbonTab: updates.activeRibbonTab ?? s.ui.activeRibbonTab,
         showResourcePanel: updates.showResourcePanel ?? s.ui.showResourcePanel,
@@ -222,18 +221,18 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       if (updates.debugTerminalEnabled === false) {
         (updates as Partial<UIState>).debugTerminalOpen = false;
       }
-      // T14: als AI-modus uitgezet wordt terwijl het AI-tabblad actief is, val terug naar 'start'
+      // Als AI-modus uitgezet wordt terwijl het AI-tabblad actief is, val terug naar 'start'
       // (het tabblad verdwijnt uit de ribbon; de content mag niet als wees-tab blijven staan). Het
       // geforceerd stoppen van de bridge is een async neveneffect en gebeurt op de aanroepplek
       // (`applyAiMode`), niet in deze synchrone reducer.
       if (updates.aiMode === false && (updates.activeRibbonTab ?? s.ui.activeRibbonTab) === 'ai') {
         (updates as Partial<UIState>).activeRibbonTab = 'start';
       }
-      // T15: AI-modus uit ⇒ het activiteitenpaneel mag niet als wees blijven staan.
+      // AI-modus uit ⇒ het activiteitenpaneel mag niet als wees blijven staan.
       if (updates.aiMode === false) {
         (updates as Partial<UIState>).aiActivityOpen = false;
       }
-      // Issue #46c-nasleep: een actie die een paneel AANZET moet dat paneel ook echt zichtbaar
+      // Een actie die een paneel AANZET moet dat paneel ook echt zichtbaar
       // maken. De rechter-rail huisvest twee panelen (het eigenschappenpaneel én de GEDOCKTE
       // resource-lijst) en kent twee dingen die hem verbergen: `rightPanelCollapsed`, en het
       // VOLLEDIGE resource-paneel (`showResourcePanel && !resourcePanelDocked`) dat de hele
@@ -243,24 +242,23 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       const showResourceNext = updates.showResourcePanel ?? s.ui.showResourcePanel;
       const dockedNext = updates.resourcePanelDocked ?? s.ui.resourcePanelDocked;
       const dockIsPresent = showResourceNext && dockedNext;
-      // (1) + (1b) Issue #46c en #46-slot — één regel, twee gelijkwaardige railpanelen:
+      // (1) + (1b) Eén regel, twee gelijkwaardige railpanelen:
       //
       //     een paneel expliciet AANzetten maakt het ook echt zichtbaar.
       //
-      // Zonder dit lichtte "Resourcedock" wel op terwijl de ingeklapte rail leeg bleef (#46c), en
-      // met twee panelen geldt precies hetzelfde voor "Eigenschappen".
+      // Anders licht "Resourcedock" op terwijl de ingeklapte rail leeg blijft, en met twee panelen
+      // geldt precies hetzelfde voor "Eigenschappen".
       //
       // Let op de vorm van de test: hij kijkt naar wat de AANROEPER schrijft, niet naar een
       // false→true-overgang. Twee redenen, allebei nagemeten:
       //   - een overgangstest mist de stand "paneel staat al aan, maar de kolom is ingeklapt":
-      //     de knop is dan niet actief, en zijn klik zou een stille no-op zijn — precies de
-      //     #46c-klacht terug;
+      //     de knop is dan niet actief, en zijn klik zou een stille no-op zijn;
       //   - een test op de EINDstand (`dockIsPresent`) zou bij élke `setUI` vuren zolang het dock
       //     aan staat, en de kolom dus nooit ingeklapt laten blijven.
       // `updates.rightPanelCollapsed === undefined` laat een expliciete patch altijd winnen.
       const turnsDockOn = (updates.showResourcePanel === true || updates.resourcePanelDocked === true) && dockIsPresent;
       const turnsPropertiesOn = updates.showPropertiesPanel === true;
-      // Issue #53: het Waarschuwingenpaneel is het derde railpaneel en volgt dezelfde regel.
+      // Het Waarschuwingenpaneel is het derde railpaneel en volgt dezelfde regel.
       const turnsWarningsOn = updates.showWarningsPanel === true;
       if ((turnsDockOn || turnsPropertiesOn || turnsWarningsOn) && updates.rightPanelCollapsed === undefined) {
         (updates as Partial<UIState>).rightPanelCollapsed = false;
@@ -276,7 +274,7 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
         (updates as Partial<UIState>).showResourcePanel = false;
         (updates as Partial<UIState>).resourcePanelDocked = false;
       }
-      // (3) Issue #46 (slot) — sluitstuk van dezelfde familie: wie de rail UITklapt moet ook echt
+      // (3) Sluitstuk van dezelfde familie: wie de rail UITklapt moet ook echt
       //     iets te zien krijgen. Staat er geen enkel railpaneel aan, dan is er niets om uit te
       //     klappen; zet dan Eigenschappen aan (het paneel dat standaard aan staat). Let op de
       //     volgorde: invariant (2) hierboven kan het volledige resourcepaneel net hebben
@@ -295,7 +293,7 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       if (s.view.zoom > max) s.view.zoom = max;
     }),
 
-  // Presentation mode (fase 2.7, §9): ui-flag + echte Fullscreen-API. De fullscreenchange-listener
+  // Presentation mode: ui-flag + echte Fullscreen-API. De fullscreenchange-listener
   // (App.tsx) zet de flag terug op false als de gebruiker fullscreen verlaat buiten onze knop/F11 om
   // (bv. OS-toets), zodat flag en werkelijkheid nooit desyncen.
   setPresentationMode: (on) => {
@@ -311,7 +309,7 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
   setAiServerStatus: (status) => set((s) => { s.ui.aiServerStatus = status; }),
   setAiPaused: (paused) => set((s) => { s.ui.aiPaused = paused; }),
   setAiReadOnly: (readOnly) => set((s) => { s.ui.aiReadOnly = readOnly; }),
-  // issue #26: sessie-UI-state, dus geen undo-snapshot en niet gepersisteerd — puur een signaal
+  // Sessie-UI-state, dus geen undo-snapshot en niet gepersisteerd — puur een signaal
   // waar `StructureLockedNotice` op reageert.
   notifyStructureLocked: () =>
     set((s) => { s.ui.structureLockedNotice += 1; }),
@@ -329,8 +327,8 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
           existing.messageKey = n.messageKey;
           existing.params = n.params;
           existing.detail = n.detail;
-          // Optionele X10-uitbreidingen alleen aanraken wanneer de nieuwe melding ze werkelijk
-          // meebrengt. Zo blijven alle historische meldingen byte-identiek bij een dedupe-update.
+          // Optionele velden (detailregels, gidslink) alleen aanraken wanneer de nieuwe melding ze
+          // werkelijk meebrengt, zodat een dedupe-update ze niet wist.
           if (n.detailLines !== undefined) existing.detailLines = [...n.detailLines];
           if (n.helpArticleId !== undefined) existing.helpArticleId = n.helpArticleId;
           // Rekenprofielen: de serialiseerbare vervolgactie volgt dezelfde regel.
@@ -379,7 +377,7 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
         s.ui.collapsedTaskIds.push(taskId);
       }
     });
-    get().recomputeViewRows(); // taak-collapse verandert de zichtbaarheid van kinderen (§4.3).
+    get().recomputeViewRows(); // taak-collapse verandert de zichtbaarheid van kinderen.
   },
 
   collapseTasks: (taskIds) => {
@@ -399,7 +397,7 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
         s.ui.collapsedTaskIds.push(id);
       }
     });
-    get().recomputeViewRows(); // collapse verandert de zichtbaarheid van kinderen (§4.3).
+    get().recomputeViewRows(); // collapse verandert de zichtbaarheid van kinderen.
   },
 
   expandTasks: (taskIds) => {
@@ -432,7 +430,7 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
     if (toExpand.length > 0) get().expandTasks(toExpand);
   },
 
-  // Modus-bewust (issue #35): de enige aanroeper is het bandkop-contextmenu, en dat verschijnt
+  // Modus-bewust: de enige aanroeper is het bandkop-contextmenu, en dat verschijnt
   // alléén in gegroepeerde weergave — daar bedoelt "alles uit-/inklappen" dus de banden.
   expandAll: () => {
     const s = get();

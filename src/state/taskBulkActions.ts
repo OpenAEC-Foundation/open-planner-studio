@@ -2,8 +2,7 @@ import { appStoreContext, type AppState, type AppStoreContext } from '@/state/ap
 import { createBatchTransactions } from '@/state/runtime/createBatchTransactions';
 
 /**
- * Bulk-acties over een lijst taak-ids als ÉÉN ongedaan-maakbare stap (issue #45, en de
- * gelijktrekking van lintknop/Delete/Backspace daarna).
+ * Bulk-acties over een lijst taak-ids als ÉÉN ongedaan-maakbare stap.
  *
  * Bewust in `src/state/` en niet in de component-boom (naar het model van `relationActions.ts` en
  * `taskInsertActions.ts`): het contextmenu (`components/canvas/contextMenuScope.ts`), de lintknop

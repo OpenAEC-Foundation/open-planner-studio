@@ -23,7 +23,7 @@ export type SessionHistoryDelta =
       before: Snapshot;
       after: Snapshot;
       /** Het event was GEEN bewerking (F5 of "toon opgeslagen datums" in de modus): undo/redo ervan
-       *  laat `isDirty` en `importPristine` staan (critreview op ded4d8c3, bevinding 3). Afwezig ⇒
+       *  laat `isDirty` en `importPristine` staan. Afwezig ⇒
        *  een gewone bewerking, en undo/redo markeert het document als bewerkt. */
       nonEdit?: true;
     }
@@ -32,7 +32,7 @@ export type SessionHistoryDelta =
       documentId: string;
       before: ViewLayoutHistoryState;
       after: ViewLayoutHistoryState;
-      /** Issue #173: een layoutklik die ook de app-brede overlays zette. */
+      /** Een layoutklik die ook de app-brede overlays zette. */
       overlays?: { before: LayoutOverlays; after: LayoutOverlays };
     }
   | {
@@ -51,7 +51,7 @@ export interface SessionHistoryEvent {
   state: 'applied' | 'undone';
   deltas: readonly [SessionHistoryDelta, ...SessionHistoryDelta[]];
   /**
-   * PR #170-hercheck: herkomst binnen een BEWERKSESSIE (de taakdialoog, `historyMark`). Alleen de
+   * Herkomst binnen een BEWERKSESSIE (de taakdialoog, `historyMark`). Alleen de
    * interactieve UI-route (`finishUndoable` buiten batch en MCP-lease) stempelt hem; een MCP-,
    * batch- of extensie-event dat tijdens de open dialoog landt blijft ongestempeld, zodat
    * `revertHistorySince`/`squashHistorySince` het nooit meenemen.
@@ -102,7 +102,7 @@ export function captureViewLayoutHistoryState(view: Readonly<ViewState>): ViewLa
     scrollX: view.scrollX,
     timeScale: view.timeScale,
     collapsedGroupKeys: [...view.collapsedGroupKeys],
-    // Issue #144: beide sleutels staan er ALTIJD (ook als `undefined`), zodat undo van een layoutklik
+    // Beide sleutels staan er ALTIJD (ook als `undefined`), zodat undo van een layoutklik
     // ze via Object.assign terugzet; rauw overgenomen, zodat een ontbrekend veld ontbrekend blijft.
     showRelations: view.showRelations,
     layoutSession: view.layoutSession,
@@ -328,7 +328,7 @@ export function pruneSessionHistory(
   return events.filter((_event, index) => keep.has(index));
 }
 
-/** Gemeenschappelijke pure registratiegrens voor latere storetaken. */
+/** Gemeenschappelijke pure registratiegrens. */
 export function appendSessionHistoryEvent(
   events: readonly SessionHistoryEvent[],
   newEvent: SessionHistoryEvent,
@@ -339,8 +339,8 @@ export function appendSessionHistoryEvent(
   }
   if (events.some(event => event.id === newEvent.id)) {
     // Alleen de actuele ledger hoeft uniek te zijn: een gepruned event is niet meer selecteerbaar
-    // en heeft nergens een blijvende verwijzing. Task 4C laat ids door de sessiegenerator maken en
-    // bewaart daarnaast `nextHistorySequence`, dat juist onafhankelijk van pruning blijft oplopen.
+    // en heeft nergens een blijvende verwijzing. Ids komen van de sessiegenerator;
+    // `nextHistorySequence` blijft juist onafhankelijk van pruning oplopen.
     throw new Error(`History-event-id bestaat al: ${newEvent.id}`);
   }
   if (events.some(event => event.sequence === newEvent.sequence)) {

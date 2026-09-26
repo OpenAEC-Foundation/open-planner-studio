@@ -5,7 +5,7 @@ import type { NotifyInput } from './slices/types';
 /**
  * De gebruikersmelding voor een mislukte berekening — één definitie voor de drie plekken die hem
  * tonen: `runCPM`, de documentwissel en het openen van een bestand. De reden gaat mee als sleutel +
- * parameters (TB), zodat `NotificationHost` hem in de UI-taal toont; alleen een resultaat zonder
+ * parameters, zodat `NotificationHost` hem in de UI-taal toont; alleen een resultaat zonder
  * `errorInfo` valt terug op de vaste `error`-tekst. Samenvouwen op `cpm-error`: een herhaalde fout
  * wordt één regel met een teller. Geen fout ⇒ `null`.
  */

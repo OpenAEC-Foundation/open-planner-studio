@@ -19,13 +19,13 @@ import { isLeafTask } from '@/utils/taskHierarchy';
 
 export interface ScheduleSlice {
   cpmResult: CPMResult | null;
-  /** Belasting/capaciteit/overallocatie per resource, herberekend bij elke `runCPM` (fase 2.5,
-   *  resources-ontwerp §4.2) — "manual, not reactive", net als `cpmResult` zelf. */
+  /** Belasting/capaciteit/overallocatie per resource, herberekend bij elke `runCPM`
+   *  — "manual, not reactive", net als `cpmResult` zelf. */
   resourceLoadResult: ResourceLoadResult | null;
-  /** "Verouderd"-vlag (A6): gezet door datum-rakende mutaties (taak-/relatie-/projectkalender-
+  /** "Verouderd"-vlag: gezet door datum-rakende mutaties (taak-/relatie-/projectkalender-
    *  wijzigingen), gewist door `runCPM`. Voedt een subtiele "herbereken (F5)"-hint. */
   scheduleStale: boolean;
-  /** "Datums zoals opgeslagen" (issue #63) — wat het geopende bestand vastlegde, plus de teller
+  /** "Datums zoals opgeslagen" — wat het geopende bestand vastlegde, plus de teller
    *  voor de melding. Niet-null ⇒ herberekening verschoof datums en de strook biedt de modus aan.
    *  Bestaat alleen tussen het laden en de eerste bewerking/berekening. */
   recordedDates: RecordedDatesState | null;
@@ -41,23 +41,22 @@ export interface ScheduleSlice {
    *  verdwijnt. */
   dismissRecordedDates: () => void;
   runCPM: () => void;
-  /** Herbereken ALLEEN de resource-belasting op de bestaande CPM-datums (A6): pure resource-
+  /** Herbereken ALLEEN de resource-belasting op de bestaande CPM-datums: pure resource-
    *  mutaties (toewijzen, capaciteit, kalender) verversen zo het histogram direct, ZONDER runCPM en
    *  ZONDER de datums aan te raken — past binnen "manual, not reactive". Datum-rakende mutaties
    *  blijven handmatig (F5) en zetten in plaats hiervan `scheduleStale`. */
   recomputeResourceLoad: () => void;
-  /** Nivelleer-preview (fase 2.5, §5): berekent de resource-nivellering tegen de laatst gedraaide
+  /** Nivelleer-preview: berekent de resource-nivellering tegen de laatst gedraaide
    *  CPM-run en geeft het resultaat terug ZONDER de store te muteren (UI toont eerst een diff,
    *  commit gaat via `applyLeveling`). Vereist een geldige `cpmResult`. */
   levelResources: (options: LevelingOptions) => LevelingResult;
   /** Commit een nivelleerresultaat: één undo-snapshot, schrijf `levelingDelay`s + `splitGaps`
-   *  (idempotent — reset eerst álles binnen de scope, dan de nieuwe waarden) en her-draai CPM (§5.6).
+   *  (idempotent — reset eerst álles binnen de scope, dan de nieuwe waarden) en her-draai CPM.
    *  `write` is precies wat de verdeler levert (`Pick<LevelingResult, 'delays' | 'gaps'>`) — een
    *  volle `LevelingResult` is hieraan toewijsbaar, dus bestaande aanroepers (LevelingDialog, MCP)
-   *  blijven ongewijzigd werken. Met `opts.scopeTaskIds` (B1c-plan3 taak 2, spec §5 "scope-behoudend
-   *  toepassen — op drie plekken") raken alleen de gescopete taken hun delay/gaten kwijt; taken
-   *  buiten de scope zijn vaste last waarop het voorstel gerekend heeft en blijven ongemoeid. Afwezig
-   *  ⇒ byte-identiek aan het gedrag van vóór B1c-plan3: alle taken worden gereset. */
+   *  blijven ongewijzigd werken. Met `opts.scopeTaskIds` (scope-behoudend toepassen) raken alleen
+   *  de gescopete taken hun delay/gaten kwijt; taken buiten de scope zijn vaste last waarop het
+   *  voorstel gerekend heeft en blijven ongemoeid. Afwezig ⇒ alle taken worden gereset. */
   applyLeveling: (
     write: Pick<LevelingResult, 'delays' | 'gaps'>,
     opts?: { scopeTaskIds?: string[] },
@@ -78,8 +77,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     // Rekenen BUITEN de producer, alleen het resultaat erin — zelfde vorm als `recomputeViewRows`.
     // `computeResourceLoad` leest élke resource, toewijzing en taak; deed het dat op de draft, dan
     // maakte Immer voor stuk voor stuk een proxy die het aan het eind van de producer weer moet
-    // finaliseren en bevriezen. Dat was zichtbaar duur: bij 1.000 taken/toewijzingen ging ~16% van
-    // één `assignResource` op aan Immer-proxywerk waar nul mutaties tegenover stonden. `get()` levert
+    // finaliseren en bevriezen — zichtbaar duur, voor nul mutaties. `get()` levert
     // dezelfde (bevroren, dus veilig te lezen) staat plain.
     const s = get();
     const result = computeReliableResourceLoad(
@@ -92,27 +90,27 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     set((s) => {
       const refreshPreviousEventAfter = s.scheduleStale && !s.datesAsRecorded;
       let openedHistory = false;
-      // "Datums zoals opgeslagen" (issue #63): dit is de ENIGE situatie waarin `runCPM` een undo-
-      // snapshot pusht. Buiten de modus blijft het gedrag byte-identiek en blijft de invariant
+      // "Datums zoals opgeslagen": dit is de ENIGE situatie waarin `runCPM` een undo-snapshot
+      // pusht. Buiten de modus blijft de invariant
       // intact waar `staleGuard.ts` (ensureFreshSchedule) en `batchTool.ts` (recomputeMidBatch) op
       // leunen: "runCPM zet géén isDirty en pusht géén undo-snapshot". Binnen de modus is
       // doorrekenen wél een datawijziging — de opgeslagen datums worden overschreven — en die hoort
       // ongedaan te kunnen.
       //
       // Positie: bovenaan de producer uit hygiëne (de huisconventie "guards; beginUndoable;
-      // mutatie"). Op het normale pad maakt het niets uit — `beginUndoable` kloont uit
-      // `original(s)`, de pre-producer-basisstaat, dus de plek binnen deze producer verandert de
-      // snapshot niet. Op de defensieve `?? s`-terugval in transaction.ts (mocht `original` ooit
-      // undefined geven) kloont hij wél de draft, en dán telt de positie alsnog. Laat 'm dus staan.
+      // mutatie"). Op het normale pad maakt het niets uit — `beginUndoable` legt de snapshot vast
+      // via `originalAppState(s)`, de pre-producer-basisstaat, dus de plek binnen deze producer
+      // verandert de snapshot niet. Op de defensieve `?? s`-terugval in `createSnapshot`
+      // (snapshot.ts) leest hij wél de draft, en dán telt de positie alsnog. Laat 'm dus staan.
       //
       // Binnen een MCP- of bulk-transactie zwijgt `beginUndoable`; de transactie nam haar ene
       // snapshot al vóór de eerste mutatie (dus mét de modus aan) en dekt dit mee — zie
-      // `mcpTransaction.ts` stap 5 en `batchTool.ts` (recomputeMidBatch).
+      // `runtime/createMcpTransactions.ts` (stap 5) en `batchTool.ts` (recomputeMidBatch).
       //
       // Dit is een BACKSTOP-pad, geen hoofdpad: de datum-rakende mutaties die zélf herrekenen
-      // (moveProject, applyLeveling, clearLeveling) verlaten de modus sinds de review van taak 6
-      // in hun eigen producer, via `finishMutation({ stale: true })`. Zo blijft het bij één
-      // undo-stap in plaats van twee, met een tussentoestand die de gebruiker nooit gezien heeft.
+      // (moveProject, applyLeveling, clearLeveling) verlaten de modus in hun eigen producer, via
+      // `finishMutation({ stale: true })`. Zo blijft het bij één undo-stap in plaats van twee, met
+      // een tussentoestand die de gebruiker nooit gezien heeft.
       if (s.datesAsRecorded) {
         runtime.beginUndoable(s);
         openedHistory = true;
@@ -120,13 +118,13 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
         s.recordedDates = null;
       }
       s.scheduleStale = false; // F5/Bereken gedraaid — schema is (voor deze taken/relaties) vers.
-      // De reken-kern (leaf-filter → solve → terugschrijven/rollup) staat sinds A3/M3 in
-      // `solveProject` en draait rechtstreeks op de Immer-draft: `s.tasks` wordt in-place gemuteerd,
-      // net als voorheen. Dezelfde functie draait het bezettingsoverzicht op een KLOON van de taken
-      // van een stale document (B1b §4.3b) — één implementatie, geen divergentie. De samenvattings-
+      // De reken-kern (leaf-filter → solve → terugschrijven/rollup) staat in `solveProject` en
+      // draait rechtstreeks op de Immer-draft: `s.tasks` wordt in-place gemuteerd. Dezelfde functie
+      // draait het bezettingsoverzicht op een KLOON van de taken van een stale document — één
+      // implementatie, geen divergentie. De samenvattings-
       // relatie-propagatie (MS Project-semantiek) zit dáár, zodat elke afnemer van de kern hem krijgt.
-      // `solveInputFor` (rekenprofielen C1) levert de volledige projectinvoer, incl. de projectstart
-      // als ondergrens (`rootFloor`, gebruikstest-bevinding 2026-08) en de opgeloste conventies.
+      // `solveInputFor` levert de volledige projectinvoer, incl. de projectstart als ondergrens
+      // (`rootFloor`) en de opgeloste conventies.
       const result = solveProject(solveInputFor(s.project, s.tasks, s.sequences, s.calendar, s.calendars));
 
       // If circular dependency detected, store the result (with error) and bail
@@ -153,14 +151,13 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       else if (refreshPreviousEventAfter) runtime.refreshLatestDocumentDataHistoryAfter(s);
     });
 
-    // Filter/sort kunnen op de zojuist bijgewerkte totalFloat/isCritical/earlyStart keyen (§4.3).
+    // Filter/sort kunnen op de zojuist bijgewerkte totalFloat/isCritical/earlyStart keyen.
     get().recomputeViewRows();
 
-    // Bevinding K8: een CPM-fout (cyclus, kalender zonder werkdagen, ongeldige startdatum) pusht
-    // zichzelf naar het gecentraliseerde meldingenkanaal. Eén controle hier dekt beide uitgangen
-    // van deze actie — de cyclus-bail boven én het normale pad — want in beide staat `cpmResult`
-    // met de fout. Winst: de fout is nu óók zichtbaar vanuit Backstage/tabel/rapport, waar de
-    // canvas-component (vroeger de énige toast) niet gemonteerd is.
+    // Een CPM-fout (cyclus, kalender zonder werkdagen, ongeldige startdatum) pusht zichzelf naar
+    // het gecentraliseerde meldingenkanaal. Eén controle hier dekt beide uitgangen van deze actie —
+    // de cyclus-bail boven én het normale pad — want in beide staat `cpmResult` met de fout. Zo is
+    // de fout óók zichtbaar vanuit Backstage/tabel/rapport, waar het canvas niet gemonteerd is.
     const failed = scheduleFailedNotice(get().cpmResult);
     if (failed) get().notify(failed);
 
@@ -178,9 +175,9 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       if (!info || s.datesAsRecorded) return; // no-op ⇒ géén snapshot (transaction.ts-patroon)
       runtime.beginUndoable(s);
 
-      // Gedeelde kern (XER-etappeplan §3.4, taak T3): schrijft de vastlegging in de taken en levert
-      // meteen het gereconstrueerde `CPMResult` — dezelfde functie die de standaard-aan-laadroute
-      // (taak T4) op een payload-kloon zal gebruiken. Geen gedragswijziging t.o.v. vóór de extractie.
+      // Gedeelde kern: schrijft de vastlegging in de taken en levert meteen het gereconstrueerde
+      // `CPMResult` — dezelfde functie die de laadroute (`enterRecordedDatesMode`) op een payload
+      // gebruikt.
       s.cpmResult = applyRecordedTimesToTasks(s.tasks, info.times, s.calendar);
       s.resourceLoadResult = computeReliableResourceLoad(
         s.cpmResult, s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
@@ -189,7 +186,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       // De weergave is consistent met wat er getoond wordt — niet verouderd.
       s.scheduleStale = false;
       // Wel history sluiten, maar bewust niet dirty maken: er is niets gewijzigd t.o.v. het bestand.
-      // `nonEdit`: undo/redo van deze stap wist "ongewijzigd sinds import" niet (bevinding 3).
+      // `nonEdit`: undo/redo van deze stap wist "ongewijzigd sinds import" niet.
       runtime.finishUndoable(s, { nonEdit: true });
     });
     get().recomputeViewRows();
@@ -198,15 +195,15 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
   dismissRecordedDates: () => {
     // Géén beginUndoable/finishMutation: dit vuurt alleen in de AANBOD-stand (recordedDates gezet,
     // datesAsRecorded nog false) en raakt geen projectdata (tasks/cpmResult) of `datesAsRecorded`
-    // aan — alleen het aanbod zelf verdwijnt. Dat lijkt in te gaan tegen de snapshot.ts-invariant
-    // ("élke mutator van een 'ref'-snapshotveld pusht een snapshot"), maar die invariant bewaakt
-    // DATA-consistentie: dat een undo nooit een half-oude/half-nieuwe combinatie van velden kan
-    // opleveren (bug-klasse B3, bv. wbsAutoNumber). Hier is er geen combinatie om uit elkaar te
+    // aan — alleen het aanbod zelf verdwijnt. Dat lijkt in te gaan tegen de documentcontract-
+    // invariant ("élke mutator van een 'derived'-snapshotveld pusht een snapshot"), maar die
+    // invariant bewaakt DATA-consistentie: dat een undo nooit een half-oude/half-nieuwe combinatie
+    // van velden kan opleveren. Hier is er geen combinatie om uit elkaar te
     // laten lopen — `recordedDates` bepaalt alleen of de strook een aanbod tóónt, en elke ECHTE
     // mutator (showRecordedDates, runCPM) pusht zijn EIGEN snapshot mét de op-dat-moment geldende
     // waarde van dit veld erin, dus die snapshots blijven intern consistent ongeacht wat dismiss
-    // deed. Precedent: `recomputeResourceLoad` muteert `resourceLoadResult` (ook 'ref') net zo
-    // zonder snapshot, om dezelfde reden — een zuiver afgeleid/advies-veld, geen brondata.
+    // deed. Vergelijk `recomputeResourceLoad`, dat `resourceLoadResult` (rol 'none') ook zonder
+    // snapshot muteert — een zuiver afgeleid veld, geen brondata.
     // Effect van het ontbreken van een snapshot: een latere undo die vóór deze dismiss terugspoelt
     // laat het aanbod correct herverschijnen (het bestond toen echt), in plaats van dat "dismiss"
     // een eigen ongedaan-te-maken stap wordt — precies de bedoeling voor een wegklikbare melding.
@@ -228,33 +225,33 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     // taakboom (parentId/childIds) als bron — `ResourceLeveler` zelf blijft ongewijzigd, die kent
     // de WBS-boom sowieso niet en hoeft dat ook niet te weten.
     const { sequences: expandedSequences } = expandSummaryRelations(s.tasks, s.sequences);
-    // Fase 2.10 (P1-verwante correctie): dezelfde CPMOptions als `runCPM` hierboven meegeven —
-    // zonder `dataDate`/`progressMode` rekende de nivelleerder intern op een pure-ASAP-realiteit
+    // Dezelfde solve-opties als `runCPM` hierboven meegeven — zonder `dataDate`/`progressMode`
+    // rekent de nivelleerder intern op een pure-ASAP-realiteit
     // die van de echte (actual-gepinde) planning kan afwijken zodra er voortgang+statusdatum is
     // (zie de parameter-toelichting in `ResourceLeveler.ts:levelResources`); zonder de
-    // projectstart-vloer kon hij een wortel-taak vóór het projectbegin laten staan.
+    // projectstart-vloer kan hij een wortel-taak vóór het projectbegin laten staan.
     return computeLeveling(
       leafTasks, expandedSequences, s.resources, s.assignments, s.calendar, s.calendars, cpm, options,
-      // Zelfde invoer als runCPM hierboven (incl. projectstart-vloer, gebruikstest-bevinding 2026-08) —
+      // Zelfde invoer als runCPM hierboven (incl. projectstart-vloer) —
       // anders zou de nivelleerder een wortel-taak vóór het projectbegin kunnen laten staan.
       solveOptionsFor(s.project),
     );
   },
 
   applyLeveling: (write, opts) => {
-    // B1c-plan-2 taak 1 (M10, eigenaarsbesluit 2026-08-31): telt HOEVEEL taken hier hun sub-dag-
+    // Telt HOEVEEL taken hier hun sub-dag-
     // precisie verliezen, voor de eenmalige-per-document melding hieronder (buiten de producer,
     // zie `notifyTimephasedLoss`-precedent — `notify` roept zelf `set` aan, dus niet genest).
     let roundedCount = 0;
     set((s) => {
       runtime.beginUndoable(s);
-      // Scope-behoudend toepassen (spec §5, derde plek — B1c-plan3 taak 2): de verdeler nivelleert
-      // per POOLITEM, dus een delay op een taak buiten de scope is VASTE LAST waarop het voorstel
-      // gerekend heeft. M10: de nivelleerder rekent in hele werkdagen, dus de sub-dag-precisie van de
-      // VORIGE nivellering vervalt hier bewust — zichtbaar gebruikersverlies (eigenaarsbesluit
-      // 2026-08-31), geteld voor de melding hieronder. Zie `writeLevelingResult` in taskDefaults.ts.
+      // Scope-behoudend toepassen: de verdeler nivelleert per POOLITEM, dus een delay op een taak
+      // buiten de scope is VASTE LAST waarop het voorstel gerekend heeft. De nivelleerder rekent in
+      // hele werkdagen, dus de sub-dag-precisie van de VORIGE nivellering vervalt hier bewust —
+      // zichtbaar gebruikersverlies, geteld voor de melding hieronder. Zie `writeLevelingResult` in
+      // taskDefaults.ts.
       roundedCount = writeLevelingResult(s.tasks, write, opts?.scopeTaskIds);
-      // Wél de stale-vlag (issue #63): dit is een datum-rakende mutatie, en `stale` is het signaal
+      // Wél de stale-vlag: dit is een datum-rakende mutatie, en `stale` is het signaal
       // waarop `finishMutation` de modus "datums zoals opgeslagen" verlaat — in dezelfde producer
       // die de snapshot hierboven al nam, dus in één undo-stap i.p.v. twee (zie moveProject).
       // De aansluitende runCPM zet `scheduleStale` meteen weer op false.
@@ -270,12 +267,9 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     let changed = false;
     let roundedCount = 0;
     set((s) => {
-      // M10: het no-op-guard breidt uit naar `levelingDelayMinutes` — anders zou een taak die
-      // UITSLUITEND sub-dag-precisie draagt (geen `levelingDelay`) hier stil overgeslagen worden.
-      // Fixronde B1c-plan-2-etappe-2 (bevinding 6): `levelingDelayElapsed` ontbrak hier terwijl de
-      // teller vlak eronder 'm wél meetelt — een taak met UITSLUITEND `levelingDelayElapsed` werd zo
-      // stil overgeslagen (geen snapshot, geen melding), ook al zou de lus 'm wél gewist hebben.
-      // B1c-plan3 taak 2: de guard telt sinds nu ook leveling-GATEN mee — dezelfde `hasLevelingOutput`
+      // De no-op-guard telt ALLE nivelleeruitvoer mee: `levelingDelay`, de sub-dag-precisie
+      // (`levelingDelayMinutes`/`levelingDelayElapsed`) en leveling-GATEN — anders wordt een taak
+      // met uitsluitend één daarvan stil overgeslagen. Dezelfde `hasLevelingOutput`
       // als de ribbon-enable-check in `ribbonConfig.tsx` en `planner_clear_leveling`.
       if (!s.tasks.some(hasLevelingOutput)) return; // niets te wissen, geen snapshot
       runtime.beginUndoable(s);

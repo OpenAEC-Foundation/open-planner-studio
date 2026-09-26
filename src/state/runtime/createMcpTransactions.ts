@@ -64,15 +64,13 @@ export interface McpTransactions {
 }
 
 // =================================================================================================
-// Draft-primitieven (taak T2, spec §Werkpakket 0 "draft-primitieven vereist voor het hele
-// batch-oppervlak").
+// Draft-primitieven voor het hele batch-oppervlak.
 //
 // Elk primitief is een SNAPSHOT-VRIJE, RECOMPUTE-VRIJE variant van de bijbehorende store-actie,
 // bedoeld om BINNEN de gebonden `McpTransactions.run` te draaien. Ze roepen bewust NIET `beginUndoable`,
 // `finishMutation` of een recompute/`runCPM` aan: de transactie neemt zelf één snapshot vooraf en
-// draait éénmaal de eindherberekening. Ze zijn ONAFHANKELIJK van de T1-suppressievlag — ze pushen
-// überhaupt geen snapshot, dus of de vlag aan- of uitstaat maakt niet uit (buiten een transactie
-// missen ze alleen de undo-stap/recompute, wat correct is: ze horen niet los aangeroepen te worden).
+// draait éénmaal de eindherberekening. Buiten een transactie missen ze alleen de undo-stap en de
+// herberekening, wat correct is: ze horen niet los aangeroepen te worden.
 //
 // Elk primitief muteert via een eigen `context.store.setState(...)`-Immer-producer (de gekozen
 // consistente vorm) en zet `isDirty` (de `finishMutation`-tegenhanger); `scheduleStale` wordt bewust
@@ -81,18 +79,19 @@ export interface McpTransactions {
 // GUARD-SEMANTIEK: waar de store-actie op een triviale foutconditie STIL terugvalt (onbekend id,
 // mijlpaal-/samenvattings-doeltaak, ongeldige eenheden), GOOIT het draft-primitief in plaats daarvan
 // een herkenbare fout. Binnen een transactie propageert die throw naar de gebonden `run`, die
-// schoon terugrolt ({ ok: false, error }); de tool-laag (T4+) vangt 'm en rapporteert per item.
-// Rijkere validatie (bv. leaf-only-pre-checks) hoort in T4 — deze throws zijn de laatste vangrail.
+// schoon terugrolt ({ ok: false, error }); de tool-laag vangt 'm en rapporteert per item.
+// Rijkere validatie (bv. leaf-only-pre-checks) hoort in `mcpValidation.ts` — deze throws zijn de
+// laatste vangrail.
 // =================================================================================================
 
 /**
- * Eén item van een `draft.addTasks`-bulk (spec §Werkpakket 2). Alle velden die `draft.addTask`
+ * Eén item van een `draft.addTasks`-bulk. Alle velden die `draft.addTask`
  * accepteert (via `Partial<Task>` — `name`, `time`, `taskType`, …), plus drie bulk-only velden:
  *  - `tempId`  — door de client gekozen, UNIEK binnen de call; wordt de sleutel in de terugmap.
  *  - `parentId` — een ECHT bestaand taak-id ÓF een `tempId` uit dezelfde call (voor geneste aanmaak).
  *  - `position` — insert-index binnen de ouder (`parent.childIds`, of de wortelvolgorde bij `null`);
  *    afwezig ⇒ achteraan. Een out-of-range index klemt STIL naar `[0, lengte]` (negatief ⇒ 0,
- *    te groot ⇒ achteraan) — geen fout; de tool-schema-beschrijving (T19) leunt op deze regel.
+ *    te groot ⇒ achteraan) — geen fout; de tool-schema-beschrijving leunt op deze regel.
  */
 export type BulkTaskItem = Partial<Task> & {
   name: string;
@@ -101,10 +100,10 @@ export type BulkTaskItem = Partial<Task> & {
 };
 
 /**
- * Wat een veldpatch met de voortgang van een LOPENDE taak deed (eigenaarsbesluit 2026-09-26, optie 2
- * — `durationEditProgress` in engine/work/workRuleApply.ts): de nieuwe duur is korter dan het gedane
- * werk en dus geweigerd (de taak is ONGEWIJZIGD), of het percentage en de restduur zijn meegeschoven.
- * `null` = geen lopende taak of geen duurwijziging.
+ * Wat een veldpatch met de voortgang van een LOPENDE taak deed (`durationEditProgress` in
+ * engine/work/workRuleApply.ts): de nieuwe duur is korter dan het gedane werk en dus geweigerd (de
+ * taak is ONGEWIJZIGD), of het percentage en de restduur zijn meegeschoven. `null` = geen lopende
+ * taak of geen duurwijziging.
  */
 export type McpDurationProgressOutcome =
   | { refused: Extract<DurationEditProgress, { refused: true }> }
@@ -120,7 +119,7 @@ function createMcpDraft(
     runtime.recordMcpTimephasedLoss(activeLease(), taskId);
   };
 
-  /** Taaktypes-etappe: nazorg bij een duur uit de werkdriehoek — `settleDurationAftermath` (één
+  /** Nazorg bij een duur uit de werkdriehoek — `settleDurationAftermath` (één
    *  definitie voor store/raster/MCP) plus de verliesmelding via de actieve runtimelease;
    *  `scheduleStale` blijft bewust aan de transactie (zie het docblok hierboven). */
   const afterTriangleDurationChange = (
@@ -151,15 +150,15 @@ function createMcpDraft(
         throw new Error(`draft.addTask: onbekende parentId '${parentId}'`);
       }
       // Zelfde veld-afleiding (incl. taaktype-overerving) als de store-`addTask`: `buildNewTask`.
-      // De Z0-typecontractvelden zijn niet via de `taskFields.ts`-allowlist zetbaar (REJECT_HINTS);
+      // De typecontractvelden zijn niet via de `taskFields.ts`-allowlist zetbaar (REJECT_HINTS);
       // ze gaan alleen mee voor aanroepers die een `Partial<Task>` rechtstreeks doorgeven.
       const task = buildNewTask(partial, {
         id, parentId, parentTask, constructionMode: s.ui.constructionMode,
         time: mergeTaskTime(createDefaultTaskTime(now, partial.isMilestone ? 0 : 5), partial.time),
       });
-      // B1-vervolg — tweeling van taskSlice.ts addTask: het ingevoerde einde van een nieuwe urentaak.
+      // Tweeling van taskSlice.ts addTask: het ingevoerde einde van een nieuwe urentaak.
       seedNewHourTaskFinish(task, partial.time, resolveCalendar(task.calendarId, s.calendars, s.calendar));
-      if (partial.workRule !== undefined) s.taskTypesVisible = true; // review K3
+      if (partial.workRule !== undefined) s.taskTypesVisible = true; // een gezette regel ontsluit de UI
 
       s.tasks.push(task);
       if (parentId) attachToParent(s.tasks, id, parentId);
@@ -174,7 +173,7 @@ function createMcpDraft(
   },
 
   /**
-   * Geneste WBS in ÉÉN aanroep (spec §Werkpakket 2). Maakt een reeks taken aan die naar elkaar mogen
+   * Geneste WBS in ÉÉN aanroep. Maakt een reeks taken aan die naar elkaar mogen
    * verwijzen via client-gekozen `tempId`'s, en retourneert de VOLLEDIGE `tempId`→`realId`-map van
    * álle aangemaakte taken (ook diep genest). Bedoeld om BINNEN de gebonden `run` te draaien (net
    * als de andere draft-primitieven: geen eigen snapshot/recompute).
@@ -316,7 +315,7 @@ function createMcpDraft(
       });
     }
 
-    // ---- Wordt fase (audit taakmutaties §6) ---------------------------------------------------
+    // ---- Wordt fase ----------------------------------------------------------------------------
     // Pas NA aanmaak en positie: dan staan alle nieuwe kinderen in hun eindvolgorde en kiest de
     // gedeelde regel (`structuralTransition.ts`) de eerste nieuwe subtaak die toewijzingen mag
     // dragen. Een weigering gooit — de transactie rolt dan alles terug. Geen UI-melding: het rapport
@@ -388,14 +387,14 @@ function createMcpDraft(
 
   /**
    * Kale veld-merge op een taak (snapshot/recompute-vrij), ZONDER de voortgangsinvarianten — die
-   * lopen in T4 via de dedicated invariant-setters. Onbekend id ⇒ stille no-op (zoals de store-
+   * lopen via de dedicated invariant-setters. Onbekend id ⇒ stille no-op (zoals de store-
    * `updateTask`); geen throw, want een leeg-effect-merge is geen structurele fout.
    *
    * `time` wordt bewust GEMERGED in plaats van vervangen: een `Object.assign` van de hele `time`-tak
    * wiste anders in één klap de CPM-datums, floats, actuals en completion van elke sleutel die de
    * aanroeper niet toevallig meestuurde. De MCP-toollaag zet `time` sowieso niet meer rechtstreeks
    * (zie `patchTaskFields` + `taskFields.ts`); deze merge is de vangrail voor elke andere aanroeper.
-   * T14b-vervolg: `mergeTaskTime` (basis = de BESTAANDE tijd, zie de docstring daar) i.p.v. een kale
+   * `mergeTaskTime` (basis = de BESTAANDE tijd, zie de docstring daar) i.p.v. een kale
    * `Object.assign` — die liet een expliciet-`undefined`-sleutel (bv. van een ongetypeerde aanroeper)
    * nog steeds een verplicht veld overschrijven; `mergeTaskTime` beschermt die klasse expliciet.
    */
@@ -409,19 +408,19 @@ function createMcpDraft(
       // Per saldo niets gewijzigd ⇒ no-op, net als taskSlice.ts's `updateTask`: geen mutatie, geen
       // gevolgregel en geen `isDirty`. (De undo-stap en de herberekening zijn van de transactie.)
       if (sameValue(task, next)) return;
-      // Eigenaarsbesluit 2026-09-26 (optie 2) — tweeling van taskSlice.ts's `updateTask`: korter dan
+      // Tweeling van taskSlice.ts's `updateTask`: korter dan
       // het gedane werk van een lopende taak ⇒ geweigerd, vóór enige mutatie.
       if (taskTriggerChanges(task, next).timeBase) {
         const refusal = durationEditRefusal(task, next.time, taskCalendarHoursPerDay(next, s.calendars, s.calendar));
         if (refusal) { outcome = { refused: refusal }; return; }
       }
-      // Taaktypes-etappe (reviewbevinding K1) — tweeling van taskSlice.ts's `updateTask`: `workRule`
+      // Tweeling van taskSlice.ts's `updateTask`: `workRule`
       // loopt via `settleRuleChange`, niet via de kale merge.
       const { time, workRule, calendarId, ...rest } = updates;
-      // B1-vervolg — tweeling van taskSlice.ts's `updateTask`: de basis VÓÓR de K2-kalenderstap
-      // (integratie #101, valkuil b), anders ziet de reconcile de kalenderwissel niet.
+      // Tweeling van taskSlice.ts's `updateTask`: de basis VÓÓR de kalenderstap, anders ziet de
+      // reconcile de kalenderwissel niet.
       const finishBasis = hourInputFinishBasis(task);
-      // K2 — tweeling van taskSlice.ts's `updateTask`: kalenderwissel eerst en apart.
+      // Tweeling van taskSlice.ts's `updateTask`: kalenderwissel eerst en apart.
       const calendarChanged = 'calendarId' in updates && task.calendarId !== calendarId;
       let lost = false;
       if (calendarChanged) {
@@ -436,14 +435,14 @@ function createMcpDraft(
       const changes = taskTriggerChanges(task, afterRest);
       const contourHpd = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
       const oldWorkMinutes = taskWorkMinutesOf(task, contourHpd);
-      // Taaktypes-etappe (bouwstap 4) — tweeling van taskSlice.ts's `updateTask`: momentopname vóór.
+      // Tweeling van taskSlice.ts's `updateTask`: momentopname vóór.
       const triangle = changes.timeBase ? captureTriangle(task, s.assignments, s) : null;
-      const progressWork = time ? captureProgressWork(task, s) : null; // bevinding 1 — tweeling
+      const progressWork = time ? captureProgressWork(task, s) : null; // tweeling van `updateTask`
       const timeBefore = { ...task.time };
       Object.assign(task, rest);
       if (time) task.time = afterRest.time;
       if (changes.timeBase) {
-        // Eigenaarsbesluiten 2026-09-05/26 — tweeling van taskSlice.ts: de rest schuift mee, het
+        // Tweeling van taskSlice.ts: de rest schuift mee, het
         // percentage volgt, tenzij de patch zelf voortgang opgaf (`carryRemainingThroughDurationEdit`).
         const carried = carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate);
         if (carried && !carried.refused) outcome = { progress: carried };
@@ -457,23 +456,25 @@ function createMcpDraft(
       settleProgressWork(task, s.assignments, progressWork);
       if ('workRule' in updates && task.workRule !== workRule) {
         settleRuleChange(task, s.assignments, s, workRule);
-        if (workRule !== undefined) s.taskTypesVisible = true; // review K3
+        if (workRule !== undefined) s.taskTypesVisible = true; // een gezette regel ontsluit de UI
       }
       reconcileP6SuspendResume(task);
-      // Z14b — een kalenderwissel ontkoppelt ook het Z8-venster (zelfde triggerset/uitleg in `taskDefaults.ts`).
+      // Een kalenderwissel ontkoppelt ook het MSP-timephased-venster (triggerset/uitleg in
+      // `taskDefaults.ts`).
       if (calendarChanged) lost = invalidateForTimeBaseChange(task) || lost;
-      // mpp-nul-data-etappe, DEEL 1 — meld alleen bij een ECHT verlies via de actieve runtimelease.
+      // Verlies van MSP-sturing — meld alleen bij een ECHT verlies via de actieve runtimelease.
       if (lost) recordTimephasedLoss(id);
-      // B1c-plan3 taak 3 (spec §4, "Invalidatie"): een bewerking die de tijdbasis van de taak verzet,
+      // Een bewerking die de tijdbasis van de taak verzet,
       // maakt ook een door de nivelleerder ingevoegde pauzedag ongeldig — het gat ligt dan op een
       // verouderde tijd-as. Importsplits (gaten zonder `source`) zijn brondata en blijven staan;
-      // `clearLevelingGaps` doet dat onderscheid. GEEN melding: anders dan de M10-afronding hierboven
+      // `clearLevelingGaps` doet dat onderscheid. GEEN melding: anders dan de afronding van de
+      // sub-dag-nivelleervertraging
       // is dit geen verlies van gebruikersdata uit een importbestand maar het opruimen van app-eigen
       // afgeleide nivelleeruitvoer op een as die de aanroeper zelf zojuist heeft verzet.
-      // EIGEN, BREDERE poort sinds de fixronde op etappe 3 (bevinding B7) — gedocumenteerde tweeling
+      // EIGEN, BREDERE poort — gedocumenteerde tweeling
       // van taskSlice.ts's `updateTask`; zie `LEVELING_GAP_TIME_TRIGGERS` in taskDefaults.ts.
       if (changes.levelingGaps || calendarChanged) clearLevelingGaps(task);
-      // B1-vervolg — tweeling van taskSlice.ts's `updateTask`: het ingevoerde einde beweegt mee,
+      // Tweeling van taskSlice.ts's `updateTask`: het ingevoerde einde beweegt mee,
       // bewust NA `clearLevelingGaps` (anders telt het einde gewiste nivelleergaten mee).
       reconcileHourInputFinish(task, finishBasis, resolveCalendar(task.calendarId, s.calendars, s.calendar));
       markDocumentEdited(s);
@@ -522,15 +523,15 @@ function createMcpDraft(
       const next: Task = { ...task, ...top };
       next.time = patchTime(next.time);
       if (sameValue(task, next)) return;
-      // Eigenaarsbesluit 2026-09-26 (optie 2), zie `updateTaskFields` hierboven: vóór enige mutatie.
+      // Duur korter dan het gedane werk, zie `updateTaskFields` hierboven: vóór enige mutatie.
       if (taskTriggerChanges(task, next).timeBase) {
         const refusal = durationEditRefusal(task, next.time, taskCalendarHoursPerDay(next, s.calendars, s.calendar));
         if (refusal) { outcome = { refused: refusal }; return; }
       }
       const { workRule, calendarId, ...topRest } = top;
-      // B1-vervolg — basis VÓÓR de K2-kalenderstap (integratie #101, valkuil b), zie `updateTaskFields`.
+      // Basis VÓÓR de kalenderstap, zie `updateTaskFields`.
       const finishBasis = hourInputFinishBasis(task);
-      // K2 — zelfde kalenderstap als `updateTaskFields` hierboven, vóór de momentopname voor de duur.
+      // Zelfde kalenderstap als `updateTaskFields` hierboven, vóór de momentopname voor de duur.
       const calendarChanged = 'calendarId' in top && task.calendarId !== calendarId;
       let lost = false;
       if (calendarChanged) {
@@ -544,42 +545,42 @@ function createMcpDraft(
       // dus staan. Gemeten ná de kalenderstap.
       const patchedTime = patchTime(topRest.time ?? task.time);
       const changes = taskTriggerChanges(task, { ...task, ...topRest, time: patchedTime });
-      // Reviewbevinding F2: de referentie voor Δ-rest en contourherschaling ná de kalenderstap
+      // De referentie voor Δ-rest en contourherschaling ná de kalenderstap
       // (die kan de duur al verschoven hebben), precies zoals `updateTaskFields`.
       const contourHpd = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
       const oldWorkMinutes = taskWorkMinutesOf(task, contourHpd);
-      // Taaktypes-etappe (bouwstap 4) — zelfde momentopname als `updateTaskFields` hierboven.
+      // Zelfde momentopname als `updateTaskFields` hierboven.
       const triangle = changes.timeBase ? captureTriangle(task, s.assignments, s) : null;
       const timeBefore = { ...task.time };
       Object.assign(task, topRest);
       task.time = patchedTime;
       if (changes.timeBase) {
-        // Reviewbevinding F8 — zelfde poort als `updateTaskFields`: `top.time` past in `Partial<Task>`,
+        // Zelfde poort als `updateTaskFields`: `top.time` past in `Partial<Task>`,
         // dus een aanroeper kan de voortgang zelf zetten; die wint dan (`carryRemainingThroughDurationEdit`).
         const carried = carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate);
         if (carried && !carried.refused) outcome = { progress: carried };
         // Duurwijziging: dezelfde gevolgregels als `updateTaskFields` hierboven, zie
-        // `applyDurationChangeRules` in taskDefaults.ts (inclusief het wissen van de nivelleergaten, B7).
+        // `applyDurationChangeRules` in taskDefaults.ts (inclusief het wissen van de nivelleergaten).
         lost = applyDurationChangeRules(task, oldWorkMinutes, contourHpd, {
           keepWork: contourKeepsWork(task, s.project.defaultWorkRule),
         }) || lost;
         settleDurationEdit(task, s.assignments, triangle);
       }
-      // Reviewbevinding K1: `workRule` via de driehoek-bewuste route, ná de duurpatch.
+      // `workRule` via de driehoek-bewuste route, ná de duurpatch.
       if ('workRule' in top && task.workRule !== workRule) {
         settleRuleChange(task, s.assignments, s, workRule);
-        if (workRule !== undefined) s.taskTypesVisible = true; // review K3
+        if (workRule !== undefined) s.taskTypesVisible = true; // een gezette regel ontsluit de UI
       }
       reconcileP6SuspendResume(task);
-      // Z14b — een kalenderwissel ontkoppelt het Z8-venster, zie `updateTaskFields` hierboven.
+      // Een kalenderwissel ontkoppelt het MSP-timephased-venster, zie `updateTaskFields` hierboven.
       if (calendarChanged) lost = invalidateForTimeBaseChange(task) || lost;
       if (lost) recordTimephasedLoss(id); // zie `updateTaskFields` hierboven.
-      // B1c-plan3 taak 3 (spec §4, "Invalidatie") — zie `updateTaskFields` hierboven voor de
+      // Nivelleergaten-invalidatie — zie `updateTaskFields` hierboven voor de
       // motivering (geen melding: app-eigen afgeleide uitvoer, geen importverlies). `timePatch` kent
       // geen voortgangsvelden; de `time`-kant zat al in `applyDurationChangeRules`, de top-level
-      // triggers (`calendarId`, `constraint`, `constraint2`) lopen via dezelfde poort (B7).
+      // triggers (`calendarId`, `constraint`, `constraint2`) lopen via dezelfde poort.
       if (changes.levelingGaps || calendarChanged) clearLevelingGaps(task);
-      // B1-vervolg — zie `updateTaskFields` hierboven (ná `clearLevelingGaps`).
+      // Ingevoerd einde — zie `updateTaskFields` hierboven (ná `clearLevelingGaps`).
       reconcileHourInputFinish(task, finishBasis, resolveCalendar(task.calendarId, s.calendars, s.calendar));
       markDocumentEdited(s);
     });
@@ -587,7 +588,7 @@ function createMcpDraft(
   },
 
   /**
-   * Snapshot/recompute-vrije variant van de store-`setTaskSplits` (issue #146), met hetzelfde
+   * Snapshot/recompute-vrije variant van de store-`setTaskSplits`, met hetzelfde
    * lichaam (`splitMutations.ts`). Onbekend id ⇒ fout (guard-semantiek hierboven). Een inhoudelijke
    * weigering komt, zoals bij de store-actie, terug als `SplitRefusal` zonder dat er iets geschreven
    * is; de toollaag maakt er een VALIDATION van. Verloren MSP-sturing (laag 3/4) gaat via de actieve
@@ -642,7 +643,7 @@ function createMcpDraft(
   /**
    * Snapshot/recompute-vrije variant van de store-`addCalendar`: voegt een bibliotheek-kalender toe
    * en houdt de gedenormaliseerde projectkalender-cache (`s.calendar`) in sync (`syncProjectCalendar`,
-   * §9.1 — dat is cache-sync, geen snapshot/recompute). Retourneert het nieuwe id.
+   * dat is cache-sync, geen snapshot/recompute). Retourneert het nieuwe id.
    */
   addCalendar(cal: Omit<WorkCalendar, 'id'>): string {
     const id = generateId('cal');
@@ -656,15 +657,15 @@ function createMcpDraft(
 
   /**
    * Snapshot/recompute-vrije variant van de store-`updateCalendar`: merge-t velden op een
-   * bibliotheek-kalender en synct de projectkalender-cache (§9.1). Onbekend id ⇒ herkenbare fout
-   * (de tool-laag WP5 valideert dat vooraf; dit is de vangrail).
+   * bibliotheek-kalender en synct de projectkalender-cache. Onbekend id ⇒ herkenbare fout
+   * (de tool-laag valideert dat vooraf; dit is de vangrail).
    */
   updateCalendar(id: string, updates: Partial<WorkCalendar>): void {
     let changed = 0;
     store.setState((s) => {
       const idx = s.calendars.findIndex((c) => c.id === id);
       if (idx < 0) throw new Error(`draft.updateCalendar: onbekende kalender-id '${id}'`);
-      // K2 — tweeling van resourceSlice.ts's `updateCalendar`: momentopnamen vóór de mutatie.
+      // Tweeling van resourceSlice.ts's `updateCalendar`: momentopnamen vóór de mutatie.
       const affected = tasksOnCalendar(s, id).map((task) => ({ task, before: captureCalendarChange(task, s.assignments, s) }));
       Object.assign(s.calendars[idx], updates);
       syncProjectCalendar(s);
@@ -680,9 +681,9 @@ function createMcpDraft(
 
   /**
    * Snapshot/recompute-vrije variant van de store-`addResource`. Retourneert het nieuwe id. De
-   * eenheden-guard (§2.4) is hier — net als bij `assignResource` — een FOUT i.p.v. een stille
+   * eenheden-guard is hier — net als bij `assignResource` — een FOUT i.p.v. een stille
    * terugval: een resource met 0/negatieve capaciteit is nooit bedoeld. Dezelfde paletkleur-default
-   * als de store-actie (`insertResource`); vroeger kreeg een via MCP aangemaakte resource geen kleur.
+   * als de store-actie (`insertResource`).
    */
   addResource(res: Omit<Resource, 'id'>): string {
     const id = generateId('res');
@@ -731,8 +732,8 @@ function createMcpDraft(
    * leden (`parentId`). Onbekend id ⇒ herkenbare fout.
    *
    * Retourneert het VOLLEDIGE voor/na-verschil, zodat de tool-laag exact kan rapporteren wat er
-   * meeging in plaats van het te schatten (audit-bevinding M1 bij `delete_tasks`: een cascade die
-   * niet volledig gerapporteerd wordt, leest als "er is niets anders gebeurd").
+   * meeging in plaats van het te schatten (een cascade die niet volledig gerapporteerd wordt, leest
+   * als "er is niets anders gebeurd").
    */
   removeResource(id: string): {
     removedAssignmentIds: string[];
@@ -752,7 +753,7 @@ function createMcpDraft(
 
       // Ploeglid-`parentId` via `delete` i.p.v. `= undefined` — zie de noot bij updateResource.
       // Zelfde lichaam als de store-actie (`assignmentMutations.ts`), inclusief de werkregel-nazorg
-      // (taaktypes-etappe, spec §5 rij 5) en de toewijzingen-trigger per geraakte taak; verlies via de
+      // en de toewijzingen-trigger per geraakte taak; verlies via de
       // lease, zoals `unassignResource` hieronder.
       for (const lostTaskId of purgeResource(s, id, 'delete').lostTaskIds) recordTimephasedLoss(lostTaskId);
       markDocumentEdited(s);
@@ -762,7 +763,7 @@ function createMcpDraft(
 
   /**
    * Snapshot/recompute-vrije variant van de store-`assignResource`. Leaf-only/mijlpaal-guard en
-   * eenheden-validatie (§2.4) worden hier tot FOUT verheven i.p.v. stil genegeerd (de tool-laag T4
+   * eenheden-validatie worden hier tot FOUT verheven i.p.v. stil genegeerd (de tool-laag
    * pre-valideert; dit is de vangrail). Retourneert het nieuwe assignment-id.
    */
   assignResource(taskId: string, resourceId: string, unitsPerDay: number, curve?: ResourceCurve): string {
@@ -776,8 +777,8 @@ function createMcpDraft(
       if (!isValidUnits(unitsPerDay)) {
         throw new Error(`draft.assignResource: ongeldige unitsPerDay ${String(unitsPerDay)} (strikt positief vereist)`);
       }
-      // Zelfde lichaam als de store-actie (`assignmentMutations.ts`, incl. de werkregel — spec §5
-      // rij 4); verlies via de lease.
+      // Zelfde lichaam als de store-actie (`assignmentMutations.ts`, incl. de werkregel); verlies
+      // via de lease.
       for (const lostTaskId of insertAssignment(s, task, { id, taskId, resourceId, unitsPerDay, curve }).lostTaskIds) {
         recordTimephasedLoss(lostTaskId);
       }
@@ -797,17 +798,17 @@ function createMcpDraft(
       if (idx < 0) throw new Error(`draft.updateAssignment: onbekende assignmentId '${assignmentId}'`);
       const patch = acceptedAssignmentPatch(updates);
       if (!patch) return;
-      // Zelfde lichaam als de store-actie (`assignmentMutations.ts`, incl. de werkregel — spec §5 rij 2).
+      // Zelfde lichaam als de store-actie (`assignmentMutations.ts`, incl. de werkregel).
       for (const lostTaskId of applyAssignmentPatch(s, s.assignments[idx], patch).lostTaskIds) recordTimephasedLoss(lostTaskId);
       markDocumentEdited(s);
     });
   },
 
   /**
-   * Snapshot/recompute-vrije variant van de store-`setAssignmentWork` (taaktypes-etappe, spec §5
-   * rij 3): zet het resterende werk (werkminuten, > 0) van één toewijzing; de werkdriehoek leidt
-   * inzet of restduur af. Onbekend id, ongeldig werk of een taak buiten de regel ⇒ FOUT (de
-   * toollaag pre-valideert; dit is de vangrail).
+   * Snapshot/recompute-vrije variant van de store-`setAssignmentWork`: zet het resterende werk
+   * (werkminuten, > 0) van één toewijzing; de werkdriehoek leidt inzet of restduur af. Onbekend id,
+   * ongeldig werk of een taak buiten de regel ⇒ FOUT (de toollaag pre-valideert; dit is de
+   * vangrail).
    */
   setAssignmentWork(assignmentId: string, remainingWorkMinutes: number): void {
     store.setState((s) => {
@@ -816,19 +817,19 @@ function createMcpDraft(
       const task = s.tasks.find((t) => t.id === a.taskId);
       if (!task) throw new Error(`draft.setAssignmentWork: toewijzing '${assignmentId}' zonder taak`);
       const oldWorkMinutes = taskWorkMinutesOf(task, taskCalendarHoursPerDay(task, s.calendars, s.calendar));
-      const finishBasis = hourInputFinishBasis(task); // B1: vóór `commitTrianglePlan`.
+      const finishBasis = hourInputFinishBasis(task); // vóór `commitTrianglePlan`.
       const plan = planWorkEdit(task, s.assignments, s, assignmentId, remainingWorkMinutes);
       if (!plan) {
         throw new Error(`draft.setAssignmentWork: werk ${String(remainingWorkMinutes)} geweigerd (strikt positief vereist; de werkregel geldt niet op mijlpalen, hangmatten, samenvattingen of ELAPSEDTIME-taken)`);
       }
       if (commitTrianglePlan(task, s.assignments, plan).durationChanged) afterTriangleDurationChange(s, task, oldWorkMinutes, finishBasis);
-      s.taskTypesVisible = true; // review K3
+      s.taskTypesVisible = true; // een gezette regel ontsluit de UI
       markDocumentEdited(s);
     });
   },
 
   /**
-   * Snapshot/recompute-vrije variant van de store-`setTaskWorkRule` (spec §5 rij 6): zet de
+   * Snapshot/recompute-vrije variant van de store-`setTaskWorkRule`: zet de
    * werkregel van een taak (`undefined` = projectstandaard). Geen getal verandert; een
    * werkbeschermende regel legt het huidige restwerk vast. Onbekend id ⇒ fout.
    */
@@ -838,13 +839,13 @@ function createMcpDraft(
       if (!task) throw new Error(`draft.setTaskWorkRule: onbekende taskId '${taskId}'`);
       if (task.workRule === rule) return;
       settleRuleChange(task, s.assignments, s, rule);
-      if (rule !== undefined) s.taskTypesVisible = true; // review K3
+      if (rule !== undefined) s.taskTypesVisible = true; // een gezette regel ontsluit de UI
       markDocumentEdited(s);
     });
   },
 
   /**
-   * Snapshot/recompute-vrije variant van de store-`setAssignmentContour` (contour-UI, 2026-09):
+   * Snapshot/recompute-vrije variant van de store-`setAssignmentContour` (contour-UI):
    * zet/vervangt de opgeslagen contour van één toewijzing, of laat 'm los (`null`). Onbekend id ⇒
    * fout; `null` zonder bestaande contour ⇒ no-op. Raakt geen taakdatum (zie `contourEdit.ts`).
    */
@@ -857,7 +858,7 @@ function createMcpDraft(
       const edit = contoursAfterEdit(s, task, a, periods);
       if (!edit) return;
       task.timephasedContours = edit.contours;
-      syncAssignmentWorkToContour(a, periods); // bevinding 3 — tweeling van resourceSlice.
+      syncAssignmentWorkToContour(a, periods); // tweeling van resourceSlice.
       markDocumentEdited(s);
     });
   },
@@ -908,14 +909,14 @@ function createMcpDraft(
    * `splitGaps` (idempotent — reset eerst álles binnen de scope, dan de nieuwe waarden). GEEN eigen
    * `runCPM`: de transactie herrekent aan het eind en verwerkt de delays dan precies één keer.
    *
-   * B1c-plan-2 taak 1 (M10, eigenaarsbesluit 2026-08-31) — zelfde fix + melding als de store-
-   * `applyLeveling` (`scheduleSlice.ts`): strip ook `levelingDelayMinutes`/`levelingDelayElapsed`
-   * (anders overrult `CPMSolver.shiftByLevelingDelay` de zojuist geschreven delay), en meld het
-   * eenmalig per document als dat écht iets wiste. De notify-aanroep staat BEWUST BUITEN
-   * `store.setState`: `notify` roept zelf `set` aan, dus genest zou een tweede, nog lopende
-   * Immer-produce triggeren (zelfde precedent als de eind-notify in `run()` hieronder).
+   * Zelfde strip + melding als de store-`applyLeveling` (`scheduleSlice.ts`): strip ook
+   * `levelingDelayMinutes`/`levelingDelayElapsed` (anders overrult `CPMSolver.shiftByLevelingDelay`
+   * de zojuist geschreven delay), en meld het eenmalig per document als dat écht iets wiste. De
+   * notify-aanroep staat BEWUST BUITEN `store.setState`: `notify` roept zelf `set` aan, dus genest
+   * zou een tweede, nog lopende Immer-produce triggeren (zelfde precedent als de eind-notify in
+   * `run()` hieronder).
    *
-   * B1c-plan3 taak 2 — zelfde twee uitbreidingen als de store-variant: `write` is nu
+   * Zelfde vorm als de store-variant: `write` is
    * `Pick<LevelingResult, 'delays' | 'gaps'>` (een volle `LevelingResult` blijft toewijsbaar) met een
    * optionele `opts.scopeTaskIds` die het resetten tot de gescopete taken beperkt. Het schrijven zelf
    * deelt deze variant met `scheduleSlice.ts`'s `applyLeveling` via `writeLevelingResult`
@@ -935,7 +936,7 @@ function createMcpDraft(
 
   /** Snapshot/recompute-vrije variant van de store-`clearLeveling`: wist per taak alle
    *  nivelleeruitvoer via dezelfde `clearLevelingOutput`. GEEN eigen `runCPM` (de transactie
-   *  herrekent). M10: zelfde melding als `applyLeveling` hierboven — zie dat docblok voor de "notify
+   *  herrekent). Zelfde melding als `applyLeveling` hierboven — zie dat docblok voor de "notify
    *  buiten setState"-motivering. */
   clearLeveling(): void {
     let roundedCount = 0;
@@ -957,10 +958,9 @@ function createMcpDraft(
    * is `moveProject`). De store-no-op-guard (`projectChanges`) wordt hier weggelaten: binnen een
    * transactie is de snapshot al genomen, dus een leeg-effect-merge kost niets extra's.
    *
-   * T7-review H1: dit AI-bewerkmoment hoort zich IDENTIEK te gedragen als de UI-variant
-   * (`projectSlice.setProject`) — vóór deze fix deed dit alleen `Object.assign`, dus een LATERE
-   * `startDate` liet een verouderd wortel-anker via de AI stil vóór het officiële projectbegin
-   * hangen (headless bewezen: geen klem, geen melding). Dezelfde gedeelde `applyProjectPatch`
+   * Dit AI-bewerkmoment hoort zich IDENTIEK te gedragen als de UI-variant
+   * (`projectSlice.setProject`) — anders laat een LATERE `startDate` een verouderd wortel-anker via
+   * de AI stil vóór het officiële projectbegin hangen. Dezelfde gedeelde `applyProjectPatch`
    * (`state/projectPatch.ts`) als de UI-kant — één definitie, geen tweede die kan afdrijven. GEEN
    * eigen `runCPM`/melding hier: de gebonden transactierun herrekent precies
    * één keer aan het eind (stap 5); het AANTAL geklemde ankers gaat terug naar de AANROEPER (i.p.v.
@@ -1033,8 +1033,8 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
       const previousViewRows = initial.viewRows;
       const previousResourceLoad = initial.resourceLoadResult;
       const previousDirty = initial.isDirty;
-      // Critreview op ded4d8c3, bevinding 4: ook "ongewijzigd sinds import" hoort bij de poging —
-      // een geweigerde AI-actie is geen bewerking en mag het heropen-beleid (optie B) niet raken.
+      // Ook "ongewijzigd sinds import" hoort bij de poging — een geweigerde AI-actie is geen
+      // bewerking en mag `importPristine` niet raken.
       const previousPristine = initial.importPristine;
       // `runCPM` publiceert een gebruikersmelding zodra de tijdelijke solve een cyclus/fout ziet.
       // Als die solve de omvattende MCP-transactie vervolgens laat falen, hoort ook die melding bij
@@ -1071,10 +1071,10 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
         }
         // Wijzigde de callback per saldo projectdata? Gemeten VÓÓR de eindherberekening: `runCPM`
         // alléén is nooit een wijziging. Dit is de ene plek waar elke MCP-schrijfactie langskomt — ook
-        // de toollaag-producers die geen draft-primitief gebruiken (het voortgangspad van
-        // `update_tasks` zette zo nooit `isDirty`, dus sluiten vroeg niet om op te slaan en de
-        // crashherstel-auto-save sloeg de wijziging over). Dezelfde meting beslist over de undo-stap
-        // (G5, hieronder).
+        // de toollaag-producers die geen draft-primitief gebruiken (zoals het voortgangspad van
+        // `update_tasks`; zonder deze meting zet dat nooit `isDirty`, vraagt sluiten niet om op te
+        // slaan en slaat de crashherstel-auto-save de wijziging over). Dezelfde meting beslist over
+        // de undo-stap (hieronder).
         dataChanged = documentDataChanged(snapshot, createSnapshot(store.getState()));
 
         // De volledige eindherberekening blijft binnen dezelfde lease. Dat onderdrukt ook de
@@ -1089,7 +1089,7 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
         return rollback(error instanceof Error ? error.message : String(error));
       }
 
-      // G5 — per saldo niets gewijzigd ⇒ er is niets gebeurd, dezelfde regel als de no-op-guards van
+      // Per saldo niets gewijzigd ⇒ er is niets gebeurd, dezelfde regel als de no-op-guards van
       // de UI-routes. Dus geen undo-stap (die zou ook de redo-stapel van de gebruiker wissen), en
       // `cpmResult`, `scheduleStale`, "datums zoals opgeslagen" en `isDirty` blijven zoals ze waren:
       // ook wat de callback daar onderweg aan veranderde (een tussentijdse herberekening in een

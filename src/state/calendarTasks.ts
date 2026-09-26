@@ -13,9 +13,9 @@ import { notifyTimephasedLoss } from './timephasedLossNotice';
 type CalendarState = { tasks: Task[]; calendars: WorkCalendar[]; calendar: WorkCalendar; project: { calendarId: string } };
 
 /**
- * K2 (eigenaarsbesluit 2026-09-05): de taken waarvan de EFFECTIEVE kalender `calendarId` is —
- * dezelfde opzoeking als de motor (`resolveCalendar`: eigen kalender, anders — óók bij een
- * bungelende verwijzing, reviewbevinding F9 — de projectkalender). Gedeeld door
+ * De taken waarvan de EFFECTIEVE kalender `calendarId` is — dezelfde opzoeking als de motor
+ * (`resolveCalendar`: eigen kalender, anders — óók bij een bungelende verwijzing — de
+ * projectkalender). Gedeeld door
  * `resourceSlice.updateCalendar` en de MCP-tweeling `draft.updateCalendar`.
  */
 export function tasksOnCalendar(s: CalendarState, calendarId: string): Task[] {
@@ -33,17 +33,16 @@ export function tasksFollowingProjectCalendar(s: Pick<CalendarState, 'tasks' | '
 }
 
 /**
- * Fable-critreview PR #170, bevinding 2: een mutatie van de hele kalenderbibliotheek — de
- * kalenderdialoog (`CalendarDialog` → `resourceSlice.commitCalendarLibrary`, de enige plek in de UI
- * waar je uren per dag wijzigt) en `removeCalendar` — moet door dezelfde K2-route als
- * `updateCalendar`/`setTaskCalendar`/`setProjectCalendar` (eigenaarsbesluit 2026-09-05, spec §6.4):
- * de restduur in dagen blijft, de werkregel beslist per taak wat meebeweegt.
+ * Een mutatie van de hele kalenderbibliotheek — de kalenderdialoog (`CalendarDialog` →
+ * `resourceSlice.commitCalendarLibrary`, de enige plek in de UI waar je uren per dag wijzigt) en
+ * `removeCalendar` — volgt dezelfde kalenderregel als `updateCalendar`/`setTaskCalendar`/
+ * `setProjectCalendar`: de restduur in dagen blijft, de werkregel beslist per taak wat meebeweegt.
  *
  * Omdat zo'n mutatie élke taak kan raken (een andere projectkalender raakt ook de taken die erop
  * terugvallen, een verwijderde kalender laat zijn taken op de projectkalender vallen), neemt deze
  * momentopname ALLE taken vast — per taak met een voorgegroepeerde toewijzingenlijst, zodat het
  * O(taken + toewijzingen) blijft. `settleCalendarChange` doet daarna niets voor een taak waarvan de
- * slot gelijk bleef (byte-identiek), en is verder de ENE definitie (F3): contour-as, gestarte taak,
+ * slot gelijk bleef, en is verder de ENE definitie: contour-as, gestarte taak,
  * nazorg en melding komen dezelfde weg als op de andere zes paden.
  */
 type LibraryState = WorkRuleDeps & { tasks: Task[]; assignments: ResourceAssignment[] };
@@ -89,7 +88,7 @@ export function settleCalendarLibraryChange(s: LibraryState, captured: CalendarL
 export const NO_CALENDAR_LIBRARY_SETTLE: CalendarLibrarySettle = { changed: 0, lost: 0, changedTaskIds: [], lostTaskIds: [] };
 
 /**
- * H6 (eigenaarsbesluit 2026-09-26, "zelfde regel als de dialoog"): de bibliotheekroutes die
+ * Zelfde regel als de dialoog: de bibliotheekroutes die
  * kalenderwaarden van een document vervangen (`applyCalendarUpdate` in `refreshAllDocumentsFromPool`,
  * `updateProjectCalendarFromLibrary`, `linkRecognizedItems`, `resolveDeviation('company')`) doen
  * capture → `mutate` → settle in één aanroep, zodat geen route de settle kan vergeten. `s` is een

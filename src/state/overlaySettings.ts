@@ -5,7 +5,7 @@ import {
 import { saveBarColorSelection } from '@/utils/barColorSettings';
 
 /**
- * Bewaar de overlay-schermopties (issue #173) — dezelfde `ops-`-sleutels die het lint altijd al
+ * Bewaar de overlay-schermopties — dezelfde `ops-`-sleutels die het lint altijd al
  * schreef. Gedeeld door `setOverlays`, het toepassen van een layout en undo/redo van een layoutklik.
  */
 export function persistOverlays(overlays: Partial<LayoutOverlays>): void {

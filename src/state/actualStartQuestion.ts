@@ -1,5 +1,5 @@
 /**
- * De vraag naar de werkelijke start (Z1b, besluit eigenaar — zie `engine/progressEntry.ts`) tussen
+ * De vraag naar de werkelijke start (zie `engine/progressEntry.ts`) tussen
  * de UI-routes en de ene dialoog die hem stelt (`components/dialogs/ActualStartDialog.tsx`).
  *
  * Zelfde opzet als de toestemmingsvraag bij extensies (`extensions/consentBridge.ts`): de store

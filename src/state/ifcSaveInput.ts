@@ -6,8 +6,8 @@ import { unrecordedExportFields } from './recordedDatesSelectors';
 /**
  * De projectdata-velden die in een IFC-save meeschrijven — precies de round-trip-velden van het
  * documentcontract. Zowel de live (top-level) `AppState` als een `DocumentPayload` voldoen
- * structureel aan deze vorm, dus alle callsites (canoniek save-pad, de inmiddels verwijderde MenuBar-quicksave, IFCPanel,
- * auto-save, devBridge) kunnen dezelfde bron doorgeven.
+ * structureel aan deze vorm, dus alle callsites (canoniek save-pad, IFCPanel, auto-save, devBridge)
+ * kunnen dezelfde bron doorgeven.
  */
 export type IFCSaveSource = Pick<
   DocumentPayload,
@@ -29,18 +29,17 @@ export type IFCSaveSource = Pick<
     | 'recordedDates' | 'datesAsRecorded'>>;
 
 /**
- * "Datums zoals opgeslagen" (critreview PR #167, bevinding 1): in de modus draagt `task.time` op de
+ * "Datums zoals opgeslagen": in de modus draagt `task.time` op de
  * assen die het bronbestand NIET vastlegde een weergave-terugval (`applyRecordedTimesToTasks`:
- * `lateStart ?? start`, `totalFloat ?? 0`, `isCritical ?? false`). Zonder dit schreef de writer die
- * terugvallen als gewone waarden weg en las een heropening ze als vastlegging — "speling 0, niet
- * kritiek, zoals opgeslagen" over iets wat MS Project/P6/CSV nooit zei. Hier per taak de assen die de
+ * `lateStart ?? start`, `totalFloat ?? 0`, `isCritical ?? false`). Schreef de writer die terugvallen
+ * als gewone waarden weg, dan las een heropening ze als vastlegging — "speling 0, niet kritiek, zoals
+ * opgeslagen" over iets wat MS Project/P6/CSV nooit zei. Hier per taak de assen die de
  * writer als `$` moet schrijven; dezelfde definitie als de CSV-/MCP-uitgang (`unrecordedExportFields`).
  * Buiten de modus staat er onze eigen, echte berekening: dan niets achterhouden.
  *
- * Tweede critreview-ronde, bevinding 1: een taak ZONDER vastlegging (niet in het bronbestand, of een
- * samenvatting die in de modus uit haar kinderen oprolt) draagt in de modus de datums van een solve
- * die de modus juist verwierp. Die werden gewoon geschreven, en een heropening als eigen IFC mét
- * bron las ze als vastlegging ("2 vastgelegd ⇒ na heropenen 3"). Voor zo'n taak dus álle zeven
+ * Een taak ZONDER vastlegging (niet in het bronbestand, of een samenvatting die in de modus uit haar
+ * kinderen oprolt) draagt in de modus de datums van een solve die de modus juist verwierp; een
+ * heropening als eigen IFC mét bron zou die als vastlegging lezen. Voor zo'n taak dus álle zeven
  * rekenslots `$`, de vroege datums inbegrepen. ScheduleStart/-Finish (invoer) blijven staan.
  */
 const ALL_COMPUTED_SLOTS: readonly WithheldTaskTimeField[] = [
@@ -60,9 +59,8 @@ function withheldFieldsFor(src: IFCSaveSource): WriteIFCInput['withheldTaskTimeF
 
 /**
  * Bouw de VOLLEDIGE `writeIFC`-invoer uit de state/payload. Eén plek bepaalt welke velden
- * meeschrijven, zodat losse callsites niet meer stil velden kunnen weglaten (bug-klasse B4/R1:
- * de (inmiddels verwijderde) MenuBar-quicksave liet structuur — activity-codes/custom-fields — én baselines vallen →
- * stil dataverlies bij opslaan via die weg). De enige naamsvertaling: het store-veld `calendars`
+ * meeschrijven, zodat losse callsites niet stil velden kunnen weglaten (stil dataverlies bij
+ * opslaan). De enige naamsvertaling: het store-veld `calendars`
  * (de gedeelde kalender-bibliotheek) heet in de writer-invoer `resourceCalendars`.
  */
 export function buildWriteIFCInput(src: IFCSaveSource): WriteIFCInput {
@@ -83,14 +81,13 @@ export function buildWriteIFCInput(src: IFCSaveSource): WriteIFCInput {
     xer: src.xerImportMetadata ?? undefined,
     xerSourceArchive: src.xerSourceArchive ?? undefined,
     xerSourceProjectId: src.xerSourceProjectId ?? undefined,
-    // Heropen-beleid optie B: alleen `true` wordt geschreven (`writeImportProvenanceMeta`).
+    // Alleen `true` wordt geschreven (`writeImportProvenanceMeta`).
     ...(src.importPristine ? { importPristine: true } : {}),
     ...(withheld ? { withheldTaskTimeFields: withheld } : {}),
-    // Eigenaarsbesluit 2026-09-24 ("beperken"): de oorspronkelijke bron reist mee in
-    // OPS_ImportProvenance, zodat een heropening op de BRON poort en niet op "het is nu een IFC".
-    // Tweede critreview-ronde, bevinding 2: ALLEEN in de modus. Buiten de modus (aanbodstand) staat
+    // De oorspronkelijke bron reist mee in OPS_ImportProvenance, zodat een heropening op de BRON
+    // poort en niet op "het is nu een IFC". ALLEEN in de modus: buiten de modus (aanbodstand) staat
     // onze eigen solve in het bestand; een bron noemen zou bij heropenen onze oude solve met de
-    // nieuwe laten vergelijken en dat "MS Project-datums" noemen — precies wat "beperken" verbiedt.
+    // nieuwe laten vergelijken en dat bv. "MS Project-datums" noemen.
     ...(src.datesAsRecorded && src.recordedDates?.sourceFormat
       ? { recordedSourceFormat: src.recordedDates.sourceFormat } : {}),
   };
@@ -115,8 +112,8 @@ void _assertSaveKeysNoExtras;
 /** Is de op te slaan documentinhoud nog dezelfde? Referentievergelijking volstaat: Immer geeft
  *  elk gemuteerd veld een NIEUWE referentie, dus ongelijkheid = "er is iets gewijzigd". Gebruikt
  *  door `saveFile`/`saveFileAs` om te bepalen of `isDirty` gewist mag worden ná een opslaan-dialoog
- *  die minuten open kan hebben gestaan (bevinding K8b: stilletjes `isDirty=false` zetten terwijl de
- *  gebruiker onderhanden wijzigingen deed, was stil dataverlies). */
+ *  die minuten open kan hebben gestaan (stil `isDirty=false` zetten terwijl de gebruiker intussen
+ *  wijzigde, is stil dataverlies). */
 export function sameIFCSource(a: IFCSaveSource, b: IFCSaveSource): boolean {
   return IFC_SAVE_KEYS.every((k) => a[k] === b[k]);
 }

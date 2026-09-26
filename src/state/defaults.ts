@@ -7,22 +7,21 @@ import { formatDate } from '@/utils/dateUtils';
  * Default-fabrieken voor documentvelden — een BLADMODULE: hij importeert niets uit `slices/` en
  * niets uit het documentcontract, alleen types en twee utils.
  *
- * Waarom apart (K-item 27). `createDefaultProject` en `createDefaultView` woonden in
- * `projectSlice` respectievelijk `viewSlice`, terwijl `documentContract` en `snapshot` ze als
- * WAARDE importeerden en `projectSlice` daar weer `beginUndoable`/`freshPayload`/`hydratePayload`
- * uit terug-importeerde. Dat gaf twee echte runtime-cykels:
+ * Waarom apart. `documentContract` en `snapshot` importeren deze fabrieken als WAARDE, en
+ * `projectSlice` hangt (via `transaction`) weer van die modules af. Stonden de fabrieken in
+ * `projectSlice`/`viewSlice`, dan ontstaan twee echte runtime-cykels:
  *
  *   projectSlice → transaction → snapshot → documentContract → projectSlice
  *   projectSlice → transaction → snapshot → projectSlice
  *
- * Die werkten uitsluitend doordat beide fabrieken *function declarations* waren en dus gehoist
+ * Die werken uitsluitend zolang beide fabrieken *function declarations* zijn en dus gehoist
  * worden: `DOCUMENT_FIELDS` is een module-level const die `createDefaultProject` op evaluatietijd
  * als `fresh`-callback vastlegt. Iemand die er `export const createDefaultProject = () => …` van
- * maakt — een volstrekt onschuldig ogende stijlwijziging — laat de app crashen bij module-init met
- * een TDZ-`ReferenceError`, mogelijk pas in de productiebundel omdat Vite daar een andere
+ * maakt — een volstrekt onschuldig ogende stijlwijziging — laat de app dan crashen bij module-init
+ * met een TDZ-`ReferenceError`, mogelijk pas in de productiebundel omdat Vite daar een andere
  * modulevolgorde kiest dan in dev.
  *
- * Vanuit deze bladmodule kan die cyclus niet meer ontstaan. Nieuwe `fresh`-defaults voor
+ * Vanuit deze bladmodule kan die cyclus niet ontstaan. Nieuwe `fresh`-defaults voor
  * documentvelden horen hier, niet in de slice die het veld toevallig bezit.
  */
 
