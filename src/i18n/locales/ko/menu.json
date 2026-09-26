@@ -233,6 +233,10 @@
       "lagSuccessor": "후행",
       "lag24hour": "24시간",
       "lagProjectDefault": "프로젝트 캘린더",
+      "ssLagFrom": "진행 중인 선행 작업의 시작-시작 지연 계산 기준",
+      "ssLagEarlyStart": "빠른 시작(잔여 작업 시작)",
+      "ssLagActualStart": "실제 시작(데이터 날짜)",
+      "ssLagNeedsConvention": "규칙 “{{convention}}”이(가) 켜져 있을 때만 적용됩니다.",
       "criticalDefinition": "크리티컬 정의",
       "critTotalFloat": "총 여유 ≤ 임계값",
       "critLongestPath": "최장 경로",
@@ -250,7 +254,9 @@
       "floatPathsMethod": "방법",
       "methodFree": "자유 여유(피일링)",
       "methodTotal": "총 여유(순위)",
-      "maxPaths": "최대 경로 수"
+      "maxPaths": "최대 경로 수",
+      "tfAuto": "자동(기본값)",
+      "critThresholdHours": "임계값(시간, 작업 달력 기준)"
     }
   },
   "newProject": {
@@ -315,6 +321,13 @@
       "quickstart": "빠른 시작",
       "gidsen": "주제별 가이드",
       "referentie": "참조"
+    },
+    "unapplied": {
+      "title": "변경 사항이 적용되지 않음",
+      "body": "프로젝트 정보를 변경했지만 아직 적용하지 않았습니다. 이 변경 사항을 어떻게 하시겠습니까?",
+      "marker": "변경 사항이 적용되지 않았습니다. 유지하려면 {{apply}}을(를) 클릭하세요.",
+      "discard": "버리기",
+      "invalid": "사용자 지정 계산 프로필에 아직 이름이 없습니다. 이름을 지정하거나 변경 사항을 버리세요."
     }
   },
   "export": {

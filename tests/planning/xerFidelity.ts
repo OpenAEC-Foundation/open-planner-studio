@@ -1,5 +1,13 @@
 import { createHash } from 'node:crypto';
 import {
+  filterTruthExclusions,
+  readManifestExclusions,
+  resolveExclusions,
+  type XerProjectExclusion,
+  type XerTaskExclusion,
+} from './xerManifestExclusions';
+import { readManifestLeveledProjects, type XerLeveledProject } from './xerManifestLeveling';
+import {
   classifyExact,
   classifyMinuteExact,
   compareFidelityRow,
@@ -74,7 +82,9 @@ export type XerCorpusRole =
   | 'parser-fixture'
   | 'pseudo-xer'
   | 'reference-only'
-  | 'synthetic-fixture';
+  | 'synthetic-fixture'
+  /** Echt XER-bestand zonder aantoonbare P6-doorrekening (eigenaarsbesluit 2026-09-23): lezer-/prestatietest, geen orakel. */
+  | 'reader-only';
 
 export interface XerCorpusManifestEntry {
   sha256: string;
@@ -82,6 +92,17 @@ export interface XerCorpusManifestEntry {
   role: XerCorpusRole;
   included: boolean;
   exclusionReason?: string;
+  /** Vrije toelichting bij een entry (bv. een twijfel over het orakel, zoals bij ashspace); stuurt de populatie niet. */
+  note?: string;
+  /** Eigenaarsbesluit (JJJJ-MM-DD … eigenaarsbesluit …) achter `excludeProjects`/`excludeTasks`; zonder dit weigert de lezer ze. */
+  decision?: string;
+  /** Projecten binnen dit orakelbestand die niet meetellen (`xerManifestExclusions.ts`). */
+  excludeProjects?: XerProjectExclusion[];
+  /** Taken binnen dit orakelbestand die niet meetellen (`xerManifestExclusions.ts`). */
+  excludeTasks?: XerTaskExclusion[];
+  /** Projecten die P6 volgens de eigenaar genivelleerd heeft (`xerManifestLeveling.ts`). Mechanisme
+   *  zonder data en zonder invloed op de telling: alleen gevalideerd en gerapporteerd (eigenaarsbeslissing 2 open). */
+  leveledProjects?: XerLeveledProject[];
 }
 
 export interface XerCorpusManifest {
@@ -320,6 +341,11 @@ export function buildXerTargetBaseline(
   for (const label of [...filesByLabel.keys()].filter(label => !(label in manifest.files)).sort()) {
     errors.push(`corpusbestand ontbreekt in manifest: ${label}`);
   }
+  // Uitsluiting per project/taak (eigenaarsbesluit, `xerManifestExclusions.ts`): ongeldig ⇒ weigeren.
+  const exclusions = readManifestExclusions(manifest);
+  errors.push(...exclusions.problems);
+  // Nivelleerclassificatie (eigenaarsbesluit per project): ongeldig ⇒ weigeren; telt verder nergens mee.
+  errors.push(...readManifestLeveledProjects(manifest).problems);
   const seenSchemas = new Set<string>();
   const filesByHash = new Map<string, Array<{
     file: XerCorpusFile;
@@ -358,17 +384,24 @@ export function buildXerTargetBaseline(
     const oracle = group.find(candidate =>
       candidate.manifestEntry.included && candidate.manifestEntry.role === 'oracle');
     const selected = oracle ?? group[0];
-    const { file, truth } = selected;
+    const { file } = selected;
+    // De schemavingerafdruk (dedup) blijft op het hele bestand; tellen doet alleen wat niet is uitgesloten.
+    const fileTruth = selected.truth;
+    const resolved = oracle ? resolveExclusions(fileTruth.tasks, exclusions.bySha.get(fullByteHash) ?? []) : undefined;
+    if (resolved) errors.push(...resolved.problems.map(problem => `${file.label}: ${problem}`));
+    const truth = resolved ? filterTruthExclusions(fileTruth, resolved) : fileTruth;
 
-    const fullOracleTasks = truth.tasks.filter(isFullOracleTask).length;
-    const axisTasks = truth.tasks.filter(hasOracleAxis).length;
+    // Ruwe corpusdekking (vóór selectie): over het hele bestand, uitsluitingen tellen hier niet.
+    const fullOracleTasks = fileTruth.tasks.filter(isFullOracleTask).length;
+    const fileAxisTasks = fileTruth.tasks.filter(hasOracleAxis).length;
     const axisCells = XER_FIDELITY_AXES.reduce((sum, axis) =>
-      sum + truth.tasks.filter(task => task.axes[axis] !== null).length, 0);
-    if (axisTasks > 0 && fullOracleTasks === 0) {
+      sum + fileTruth.tasks.filter(task => task.axes[axis] !== null).length, 0);
+    if (fileAxisTasks > 0 && fullOracleTasks === 0) {
       stats.partialOnlyByteUniqueFiles++;
       stats.partialOnlyAxisCells += axisCells;
     }
     if (!oracle) continue;
+    const axisTasks = truth.tasks.filter(hasOracleAxis).length;
     if (truth.errors.length > 0) {
       errors.push(...truth.errors.map(error => `${file.label}: ${error}`));
       continue;
@@ -380,7 +413,7 @@ export function buildXerTargetBaseline(
     stats.byteUniqueOracleFiles++;
     stats.byteUniqueOracleTasks += axisTasks;
 
-    const fingerprint = xerSchemaFingerprint(truth);
+    const fingerprint = xerSchemaFingerprint(fileTruth);
     if (seenSchemas.has(fingerprint)) {
       stats.schemaDuplicateFiles++;
       continue;

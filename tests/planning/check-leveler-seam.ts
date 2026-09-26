@@ -18,6 +18,7 @@ import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { Task } from '@/types/task';
 import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
+import { legacyCpmOptions } from './legacySolveOptions';
 
 let checks = 0;
 const diffs: string[] = [];
@@ -92,7 +93,7 @@ console.log('-- leveler-seam: nul capaciteit is geen kalender-mismatch (geval 1)
   const cpmResult = stubCpmResult('2026-06-01');
 
   const r1 = levelResources(
-    [taskA], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, { constrainToFloat: false },
+    [taskA], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, { constrainToFloat: false }, legacyCpmOptions(),
   );
   ok('geen slot', (r1.unresolved['a1']?.length ?? 0) > 0);
   ok('reden is NIET CALENDAR_MISMATCH', r1.unresolvedReasons['a1'] !== 'CALENDAR_MISMATCH');
@@ -113,7 +114,7 @@ console.log('-- leveler-seam: een echte kalender-mismatch blijft herkend (geval 
 
   const r2 = levelResources(
     [taskA], [], [resourceR], assignments, PROJECT_CAL, [SATURDAY_ONLY_CAL], cpmResult,
-    { constrainToFloat: false },
+    { constrainToFloat: false }, legacyCpmOptions(),
   );
   eq('echte mismatch blijft herkend', r2.unresolvedReasons['a2'], 'CALENDAR_MISMATCH');
 }
@@ -145,7 +146,7 @@ console.log('-- leveler-seam: nul-guard in de conflictverzamelaar (geval 3) --')
   const cpmResult = stubCpmResult('2026-06-08');
 
   const r3 = levelResources(
-    [taskZ, taskY], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, { constrainToFloat: false },
+    [taskZ, taskY], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, { constrainToFloat: false }, legacyCpmOptions(),
   );
 
   ok('Y is onopgelost (haar staartvraag past nergens binnen capaciteit 1)',

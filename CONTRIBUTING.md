@@ -36,7 +36,7 @@ npm run verify
 
 That is literally the same command that CI, the release gate and the deploy gate
 run — one definition, in `package.json`. If it is green locally, it is green in
-CI. Ten steps, run in this order:
+CI. Twelve steps, run in this order:
 
 | component | what |
 |---|---|
@@ -48,6 +48,7 @@ CI. Ten steps, run in this order:
 | `npm run verify:i18n` | missing translation keys relative to `nl` |
 | `npm run verify:release-highlights-json` | `public/release-highlights.json` matches the release-highlight catalog |
 | `npm run verify:store-boundaries` | core runtime factories and store-bound MCP tools never import `useAppStore`/`appStoreContext` |
+| `npm run verify:conventions` | AST gate: the scheduling engine (`src/engine/`) never reads the source format (`p6Source`, reader imports, XER source signals); provenance data-gate reads are pinned and may only go down |
 | `npm run verify:gantt-boundaries` | AST gate on the renderer/viewport/pointer/table boundaries |
 | `npm run verify:cycles` | circular imports within `src/` |
 | `npm run verify:text-roles` | interface text sizes only via the six text roles (`text-caption` … `text-title`, `var(--text-…)`) — no bare px/rem, `text-[Npx]` or Tailwind default sizes |

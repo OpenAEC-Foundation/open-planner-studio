@@ -1,5 +1,5 @@
 import { Task, type TaskConstraint, type ExternalLink } from '@/types/task';
-import type { SchedulingOptions } from '@/types/project';
+import type { EffectiveSchedulingOptions } from '@/types/project';
 import { Sequence, LagUnit } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import { calendarWithEffectiveWorkTime } from '@/utils/effectiveWorkTime';
@@ -16,17 +16,18 @@ import {
 import { computeScheduleResults } from './scheduleAnalysis';
 import { hasValidP6SuspendResume } from '@/utils/p6SuspendResume';
 import {
-  explainP6CompletedDataDateWindow,
+  explainP6CompletedDataDateWindowResolved,
+  explainP6CompletedPhysicalPoint,
   type P6CompletedWindowDecision,
-} from '@/utils/p6CompletedTargetWindow';
+} from '@/engine/scheduler/p6CompletedTargetWindow';
 import {
   explainBackwardActualPinEligibility,
-  explainCompletedXerLoeActualFinishEligibility,
-  explainP6CompletedLateRemainingWindowEligibility,
+  explainCompletedXerLoeActualFinishEligibilityResolved,
+  explainP6CompletedLateRemainingWindowEligibilityResolved,
   type CpmBackwardActualPinDecision,
   type CpmDisplayActualLateDecision,
 } from './p6CompletedRouteTrace';
-import { explainOpenXerLoeTargetSpanEligibility } from './p6OpenLoeTargetSpanTrace';
+import { explainOpenXerLoeTargetSpanEligibilityResolved } from './p6OpenLoeTargetSpanTrace';
 import {
   forwardConstraint, forwardFinishFloor, backwardConstraint, MS_PER_MIN, MS_PER_DAY, type RelationDeps,
 } from './relationMath';
@@ -137,6 +138,9 @@ export interface CPMPlannedFloorTrace {
   targetStart: string;
   targetFinish: string;
   plannedWindowIsLater: boolean;
+  /** Of de vloer daadwerkelijk is toegepast: `plannedWindowIsLater` en niet overruled door C8
+   *  (`p6StartedTaskIgnoresPlannedStartFloor`, lopende taak). */
+  floorApplied: boolean;
   boundarySource: 'project-start' | 'relationship' | 'relationship:p6-predecessor-finish-boundary';
   boundarySequenceId?: string;
   boundaryPredecessorTaskCode?: string;
@@ -146,9 +150,9 @@ export interface CPMPlannedFloorTrace {
 export interface CPMOptions {
   dataDate?: string;                                     // ISO date; undefined ⇒ geen statusdatum-gedrag
   progressMode?: 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE'; // default RETAINED_LOGIC
-  /** Project-scoped rekenopties. Afwezig ⇒ elke brongebonden uitbreiding blijft uit en het
-   *  algemene solvergedrag blijft byte-identiek. */
-  schedulingOptions?: SchedulingOptions;
+  /** Rekenprofielen (spec v3.1 §3.1): verplicht en uitsluitend het opgeloste type. Aanroepers komen
+   *  hier via `solveOptionsFor`/`solveInputFor` (`solveInput.ts`) of `effectiveSchedulingOptions`. */
+  schedulingOptions: EffectiveSchedulingOptions;
   /** De geconfigureerde PROJECTSTARTDATUM (`Project.startDate`, ISO-datum), gebruikstest-bevinding
    *  2026-08: ondergrens voor de early-start-berekening van ELKE taak MET voorganger (en
    *  hammocks) — NIET uitsluitend tegen leads (T7-review M2, gecorrigeerd): ook een gewone FS/FF-
@@ -168,8 +172,29 @@ export interface CPMOptions {
    *  volledige motivatie. */
   projectStartDate?: string;
   /** Geconfigureerde projecteinddatum. Alleen actief wanneer de brongebonden
-   *  `useProjectEndDateForFloat`-optie aan staat; anders blijft max(EF) leidend. */
+   *  `useProjectEndDateForFloat`-optie aan staat; anders blijft max(EF) leidend. Leeg of
+   *  onparseerbaar mét de optie ⇒ exact het netwerkeinde (zie `withEffectiveProjectEndAnchor`). */
   projectEndDate?: string;
+}
+
+/**
+ * `useProjectEndDateForFloat` zonder bruikbare projecteinddatum is een no-op: de late pass
+ * verankert dan op het netwerkeinde, max(EF) — precies wat P6 doet wanneer "Must Finish By" leeg
+ * is (Oracle P6 Help, *Schedule Options → Compute Total Float As / Calculate float based on finish
+ * date of*: zonder projecteinddatum is het laatste (vroege) activiteiteneinde de basis). Eigenaars-
+ * besluit 2026-09-24 ("eigen PR"; Fable-critreview PR #109 bevinding 2).
+ *
+ * De optie stuurt naast het anker zelf nog drie takken (de open-finishmijlpaalgrens hier en in
+ * `scheduleAnalysis`, en de FF=0-klem van een eindmijlpaal). Zonder datum mogen die níét anders
+ * lopen dan met de optie uit, anders is "netwerkeinde" alleen op het anker waar. Daarom normaliseert
+ * de solver op één plek: optie aan + geen geldige datum ⇒ de optie geldt als uit. Met een geldige
+ * datum of met de optie uit blijft `options` hetzelfde object (byte-identiek).
+ */
+export function withEffectiveProjectEndAnchor(options: CPMOptions): CPMOptions {
+  const so = options.schedulingOptions;
+  if (so?.useProjectEndDateForFloat !== true) return options;
+  if (!isNaN(parseInstant(options.projectEndDate ?? '').getTime())) return options;
+  return { ...options, schedulingOptions: { ...so, useProjectEndDateForFloat: false } };
 }
 
 /**
@@ -306,6 +331,13 @@ export class CPMSolver {
   // opvolger, vóór de projectstart-vloer en de werkdag-snap. Eén bron van waarheid voor
   // vrije speling én driving-markering, ongeacht lag-eenheid.
   private seqConstraint: Map<string, Date> = new Map();
+  /** Conventie C4: begin (ES) van het naar achteren geschoven nul-restvenster per voltooide taak
+   *  buiten volgorde. Alleen gevuld als het venster ná het statusdatumvenster ligt. */
+  private completedOutOfSequenceEs: Map<string, Date> = new Map();
+  /** Conventie C4: het relatie-instant van dat venster (de grens op de kalender van de voorganger). */
+  private completedOutOfSequenceRelation: Map<string, { at: Date; eng: CalendarEngine }> = new Map();
+  /** Conventie C5: het ene punt (ES = EF) van een voltooide CP_Phys-activiteit, forward bepaald. */
+  private completedPhysicalPoints: Map<string, Date> = new Map();
   // Relaties waarvan de lead in de forward-pass door de projectstart-vloer is afgekapt.
   private truncatedLeadIds: string[] = [];
   // Taken met een harde MSO/MFO-pin (fase 2.9, §4.2) waarvan de voorganger-druk (`rawMax`) later
@@ -328,6 +360,9 @@ export class CPMSolver {
   private options: CPMOptions;
   // Werkdag-gesnapte statusdatum (fase 2.6), of null ⇒ geen statusdatum-gedrag. Gezet in solve().
   private dataDate: Date | null = null;
+  /** De statusdatum zoals opgegeven, NIET gesnapt op de projectkalender (conventie C5: het punt van een
+   *  voltooide CP_Phys-activiteit ligt in P6 op dit rauwe instant, ook buiten de werktijd). */
+  private rawDataDate: Date | null = null;
   // RUWE (ongesnapte) geconfigureerde projectstartdatum, of null ⇒ geen ondergrens-gedrag (byte-
   // identiek aan vóór deze optie). Ongesnapt omdat elke wortel-taak 'm in zíjn EIGEN kalender snapt
   // (`rootFloor`) — een taak op een kalender met een afwijkende werkweek mag de vloer dus op een
@@ -353,7 +388,7 @@ export class CPMSolver {
     sequences: Sequence[],
     projectCalendar: WorkCalendar,
     registry: WorkCalendar[] = [],
-    options: CPMOptions = {},
+    options: CPMOptions,
   ) {
     this.tasks = new Map(tasks.map(t => [t.id, t]));
 
@@ -386,16 +421,15 @@ export class CPMSolver {
         dropped.push(seq.id);
       }
     }
-    // X12: relationele P6/XER-ankers vormen één brongepoorte grens. RelationMath en alle solver-
-    // paden zien uitsluitend deze effectieve relaties; een LOSSE relatievlag zonder projectniveau-
-    // `p6Source` kan daarmee geen P6-gedrag activeren. Wat deze poort NIET is (eindreview
-    // bevinding 4): een bescherming tegen een vervalst projectbestand — `p6Source` round-tript
-    // bewust door het `OPS_SchedulingOptions`-pset van het IFC (een uit XER geïmporteerd project moet
-    // na opslaan/heropenen dezelfde P6-opties dragen), dus de IFC-lezer is náást de XER-lezer een
-    // legitieme schrijver. Die lezer valideert sleutels en typen (`sanitizeSchedulingOptions`),
-    // meer niet; wie een IFC met `p6Source: 'XER'` opent, kiest daarmee voor P6-semantiek.
-    const p6SourceActive = options.schedulingOptions?.p6Source === 'XER';
-    this.sequences = p6SourceActive
+    // Conventie B1 `p6RelationFinishBoundary` (rekenprofielen baan B; vroeger gepoort op de
+    // bronmarkering van het project). RelationMath en alle solverpaden zien uitsluitend deze
+    // effectieve relaties: staat de conventie niet aan, dan wordt de relatievlag
+    // `p6StartAtPredecessorFinishBoundary` gestript, zodat een LOSSE relatievlag geen P6-gedrag kan
+    // activeren. Dit is geen bescherming tegen een vervalst projectbestand: de vlag round-tript
+    // bewust door het `OPS_SchedulingProfile`-pset, dus wie een IFC met de conventie aan opent,
+    // kiest daarmee voor die P6-semantiek.
+    const schedulingOptions = options.schedulingOptions;
+    this.sequences = schedulingOptions?.p6RelationFinishBoundary === true
       ? kept
       : kept.map(sequence => sequence.p6StartAtPredecessorFinishBoundary === true
         ? { ...sequence, p6StartAtPredecessorFinishBoundary: undefined }
@@ -423,7 +457,7 @@ export class CPMSolver {
     this.registry = registry;
     this.projectEngine = new CalendarEngine(projectCalendar);
     this.engineCache.set(projectCalendar.id, this.projectEngine);
-    this.options = options;
+    this.options = withEffectiveProjectEndAnchor(options);
     this.successors = new Map();
     this.predecessors = new Map();
 
@@ -461,12 +495,353 @@ export class CPMSolver {
     );
   }
 
-  private p6XerOption(value: boolean | undefined): boolean {
-    return this.options.schedulingOptions?.p6Source === 'XER' && value === true;
+  private p6CompletedDataDateWindowDecision(task: Task): P6CompletedWindowDecision {
+    return explainP6CompletedDataDateWindowResolved(task, this.dataDate, this.options.schedulingOptions);
   }
 
-  private p6CompletedDataDateWindowDecision(task: Task): P6CompletedWindowDecision {
-    return explainP6CompletedDataDateWindow(task, this.dataDate, this.options.schedulingOptions);
+  /**
+   * Conventie C1 `p6CompletedPredecessorAtDataDate` (docblok + bron bij de sleutel in
+   * `types/project.ts`): het venster waarmee een VOLTOOIDE voorganger zijn opvolgers vasthoudt. Een
+   * werkelijk einde ná de statusdatum telt voor de relatiegrens als de werkgrens vlak vóór de
+   * statusdatum op de voortgangskalender (dezelfde grens als het B3-statusdatumvenster). Alleen het
+   * einde wordt begrensd: FS/FF lezen `ef`; SS/SF (`es`) blijven ongemoeid. Conventie uit, geen
+   * statusdatum, dagmodus, niet voltooid of einde op/vóór die grens ⇒ exact `window` (dezelfde
+   * referentie).
+   */
+  private completedPredecessorRelationWindow(
+    predTask: Task,
+    window: { es: Date; ef: Date },
+  ): { es: Date; ef: Date } {
+    // C4: een nul-restvenster buiten volgorde is voor de relatie één instant (ES = EF): de grens
+    // die zijn eigen maatgevende voorganger oplegde, op de kalender van díe voorganger — niet het
+    // op de eigen kalender gesnapte vensterbegin. Gemeten (rehab-2): V3163130 (kal. 842, venster
+    // 10-11) → V3163135 (kal. 893) start in P6 op 09-29 08:00, direct na de voorganger-EF 09-28;
+    // V3119130 → V3119135 op 09-13 08:00, direct na de voorganger-EF 09-12.
+    const outOfSequenceRelation = this.completedOutOfSequenceRelation.get(predTask.id);
+    if (outOfSequenceRelation) return { es: outOfSequenceRelation.at, ef: outOfSequenceRelation.at };
+    // C5: het punt van een voltooide CP_Phys-voorganger ligt al op of ná de statusdatum en is zelf de
+    // relatiegrens; de C1-klem (die een werkelijk einde terugzet) geldt daar niet.
+    if (this.completedPhysicalPoints.has(predTask.id)) return window;
+    if (this.options.schedulingOptions?.p6CompletedPredecessorAtDataDate !== true) return window;
+    if (this.dataDate === null) return window;
+    const t = predTask.time;
+    if (!(t.actualFinish && t.completion >= 1)) return window;
+    const progressCal = this.progressCalendarFor(predTask);
+    // Instantgrens: alleen uurmodus (P6-kalenders zijn altijd uurprecies); dagmodus ongewijzigd.
+    if (!progressCal.isHourMode) return window;
+    const cap = progressCal.prevWorkInstant(this.snapOnOrAfter(progressCal, this.dataDate));
+    if (Number.isNaN(cap.getTime()) || window.ef <= cap) return window;
+    return { es: window.es, ef: cap };
+  }
+
+  /**
+   * Conventie C4, relatiekant: uit een voltooide voorganger met een verschoven nul-restvenster telt
+   * van een positieve lag alleen het deel dat op de statusdatum nog niet verstreken is — dezelfde
+   * rekenregel als C3 (`completedRemainingLagSeq`, en alleen als C3 aan staat), nu voorwaarts.
+   * Gemeten: rehab-2 V3117150 → V3117160 (FS+8 h, werkelijk einde 04-03) en V3229080 → V3229090
+   * (FS+16 h): P6 start de opvolger op het vensterbegin zelf. Geen verschoven venster ⇒ `seq` zelf.
+   */
+  /** De kalender waarin een relatie uit `predTask` rekent: bij een C4-venster de kalender van zijn
+   *  relatie-instant (een nul-restvenster heeft geen eigen werktijd), anders zijn eigen kalender. */
+  private relationEngineFor(predTask: Task): CalendarEngine {
+    return this.completedOutOfSequenceRelation.get(predTask.id)?.eng ?? this.calendarFor(predTask);
+  }
+
+  private completedOutOfSequenceRelationSeq(predTask: Task, seq: Sequence, succCal: CalendarEngine): Sequence {
+    // C5 deelt deze regel: uit het punt van een voltooide CP_Phys-voorganger telt alleen de nog niet
+    // verstreken lag (Roads A15087 → A15089, SS+30 h: P6 start de opvolger direct na het punt).
+    if (!this.completedOutOfSequenceEs.has(predTask.id) && !this.completedPhysicalPoints.has(predTask.id)) return seq;
+    const lagEng = this.relDeps.lagEngine(this.relationEngineFor(predTask), succCal);
+    return this.completedRemainingLagSeq(seq, predTask, lagEng);
+  }
+
+  /**
+   * Conventie C5 `p6CompletedPhysicalAtDataDate` (docblok + bron bij de sleutel in `types/project.ts`):
+   * het ene punt (ES = EF) van een voltooide CP_Phys-activiteit. Begint op het RAUWE statusdatum-
+   * instant (niet gesnapt) en schuift naar de laatste rauwe relatiegrens uit een voorganger die zelf
+   * nog niet klaar is (FS/FF: zijn EF, SS/SF: zijn ES, plus de volle lag met een finishgrens — niet
+   * naar de volgende werkstart) of uit een voorganger die zelf zo'n punt heeft (plus alleen de nog
+   * niet verstreken lag, rekenregel C3). Een gewone voltooide voorganger is historie en telt niet.
+   * Poort: `explainP6CompletedPhysicalPoint`; uurmodus vereist (P6-kalenders zijn uurprecies).
+   */
+  private recordCompletedPhysicalPoint(
+    task: Task,
+    preds: Sequence[],
+    results: Map<string, { es: Date; ef: Date }>,
+    progressCal: CalendarEngine,
+  ): Date | null {
+    if (this.dataDate === null || this.rawDataDate === null || !progressCal.isHourMode) return null;
+    if (!explainP6CompletedPhysicalPoint(task, this.rawDataDate, this.options.schedulingOptions).eligible) return null;
+    let point = new Date(this.rawDataDate.getTime());
+    for (const seq of preds) {
+      const predTask = this.tasks.get(seq.predecessorId);
+      const predResult = results.get(seq.predecessorId);
+      if (!predTask || !predResult || predTask.isHammock) continue;
+      const predPoint = this.completedPhysicalPoints.get(predTask.id);
+      if (!predPoint && predTask.time.completion >= 1) continue;
+      const predEng = this.calendarFor(predTask);
+      const lagEng = this.relDeps.lagEngine(predEng, progressCal);
+      const relSeq = predPoint
+        ? this.completedRemainingLagSeq(seq, predTask, lagEng)
+        : this.inProgressStartLagSeq(predTask, seq, lagEng);
+      const fromStart = seq.type === 'START_START' || seq.type === 'START_FINISH';
+      const anchorResult = predPoint ? predResult : this.inProgressStartLagAnchor(predTask, seq, lagEng, predResult);
+      const anchor = predPoint ?? (fromStart ? anchorResult.es : anchorResult.ef);
+      const bound = this.physicalPointLag(anchor, relSeq, predTask, lagEng, 1);
+      if (Number.isNaN(bound.getTime())) continue;
+      if (bound > point) point = bound;
+    }
+    this.completedPhysicalPoints.set(task.id, point);
+    return point;
+  }
+
+  /**
+   * Conventie C6 `p6InProgressStartLagElapsed` (docblok + bron bij de sleutel in `types/project.ts`):
+   * van een positieve WORKTIME-lag op een SS-relatie uit een LOPENDE voorganger (werkelijke start,
+   * niet voltooid) telt voorwaarts alleen het deel dat op de statusdatum nog niet verstreken is sinds
+   * die werkelijke start: `max(0, lag − werktijd(werkelijke start → statusdatum))` in de lag-kalender.
+   * Alleen met A19 (de ES van een lopende taak is dan haar restwerkstart). Conventie uit, geen
+   * statusdatum, dagmodus, ander relatietype, ELAPSEDTIME- of niet-positieve lag ⇒ `seq` zelf.
+   */
+  private inProgressStartLagSeq(predTask: Task, seq: Sequence, lagEng: CalendarEngine): Sequence {
+    const lag = this.inProgressStartLag(predTask, seq, lagEng);
+    if (!lag || lag.remaining === lag.lagMinutes) return seq;
+    const remaining = lag.remaining;
+    return { ...seq, lagMinutes: remaining, lagDays: remaining / (lagEng.hoursPerDay * 60), lagPercent: undefined };
+  }
+
+  /** De C6-poort en de rest-lag, gedeeld door `inProgressStartLagSeq` en `inProgressStartLagAnchor`:
+   *  `null` ⇒ C6 geldt niet voor deze relatie (zie het docblok van `inProgressStartLagSeq`). */
+  private inProgressStartLag(
+    predTask: Task, seq: Sequence, lagEng: CalendarEngine,
+  ): { lagMinutes: number; remaining: number } | null {
+    const so = this.options.schedulingOptions;
+    if (so?.p6InProgressStartLagElapsed !== true || so.p6UseRemainingStartForProgress !== true) return null;
+    if (seq.type !== 'START_START' || this.dataDate === null || !lagEng.isHourMode) return null;
+    if (seq.lagUnit === 'ELAPSEDTIME') return null;
+    const t = predTask.time;
+    if (!t.actualStart || t.completion >= 1) return null;
+    const lagMinutes = this.resolveLagMinutes(seq, predTask, lagEng);
+    if (!(lagMinutes > 0)) return null;
+    const actualStart = this.parseIn(lagEng, t.actualStart);
+    if (Number.isNaN(actualStart.getTime()) || actualStart >= this.dataDate) return null;
+    const remaining = Math.max(0, lagMinutes - lagEng.workMinutesBetween(actualStart, this.dataDate));
+    return { lagMinutes, remaining };
+  }
+
+  /**
+   * Projectoptie `startToStartLagFrom` (P6 "Calculate Start-to-Start lag from", docblok bij de sleutel
+   * in `types/project.ts`): de variant van C6, VOORWAARTS. `'actualStart'` ankert de rest-lag van een
+   * SS-relatie uit een lopende voorganger op de STATUSDATUM in plaats van op diens restwerkstart ("the
+   * data date plus any remaining lag"). Zelfde poort als C6 (`inProgressStartLag`); optie afwezig of
+   * `'earlyStart'`, of C6 geldt niet ⇒ `predResult` zelf. Late kant, spiegel: bij `'actualStart'` (en
+   * geldende C6-poort) begrenst de relatie de lopende voorganger achterwaarts NIET (zie `backwardPass`);
+   * [VERMOED] intern consistent, P6's achterwaartse gedrag is ongemeten (geen orakel met
+   * `sched_lag_early_start_flag` = N).
+   */
+  private inProgressStartLagAnchor<T extends { es: Date }>(
+    predTask: Task, seq: Sequence, lagEng: CalendarEngine, predResult: T,
+  ): T {
+    if (this.options.schedulingOptions?.startToStartLagFrom !== 'actualStart') return predResult;
+    if (this.dataDate === null || !this.inProgressStartLag(predTask, seq, lagEng)) return predResult;
+    return { ...predResult, es: new Date(this.dataDate.getTime()) };
+  }
+
+  /** C5: verschuif een rauw instant met de relatie-lag, zonder te snappen: WORKTIME via de bandwandeling
+   *  (een landing op een band-eind blijft dat eind), ELAPSEDTIME als klokminuten. `sign` −1 = achterwaarts. */
+  private physicalPointLag(anchor: Date, seq: Sequence, predTask: Task, lagEng: CalendarEngine, sign: 1 | -1): Date {
+    if (seq.lagUnit === 'ELAPSEDTIME') {
+      const minutes = this.resolveElapsedMinutes(seq, predTask);
+      return new Date(anchor.getTime() + sign * minutes * 60_000);
+    }
+    const minutes = sign * this.resolveLagMinutes(seq, predTask, lagEng);
+    if (minutes > 0) return lagEng.addWorkMinutes(anchor, minutes);
+    if (minutes < 0) return lagEng.subtractWorkMinutes(anchor, -minutes);
+    return new Date(anchor.getTime());
+  }
+
+  /**
+   * Conventie C4 `p6CompletedOutOfSequenceWindow` (docblok + bron bij de sleutel in
+   * `types/project.ts`): Retained Logic voor een voltooide taak buiten volgorde. Het nul-restvenster
+   * van een taak op de statusdatumroute (B3-poort) begint op de laatste van: de statusdatumgrens en
+   * de voorwaartse FS/SS-relatiegrens uit elke voorganger die nog niet klaar is. Een voorganger die
+   * zelf op de B3-route staat, telt met zijn eigen (eventueel verschoven) venster en alleen als dat
+   * venster verschoven is; een gewone voltooide voorganger telt niet (zijn voortgang is historie).
+   * Ligt de uitkomst ná het statusdatumvenster, dan komt ze in `completedOutOfSequenceEs`; die map
+   * stuurt de weergave (`scheduleAnalysis`) en de relatiegrens naar opvolgers
+   * (`completedPredecessorRelationWindow`). Conventie uit, Progress Override, geen statusdatum,
+   * dagmodus of niet op de B3-route ⇒ geen effect.
+   */
+  private recordCompletedOutOfSequenceWindow(
+    task: Task,
+    preds: Sequence[],
+    results: Map<string, { es: Date; ef: Date }>,
+    progressCal: CalendarEngine,
+  ): void {
+    if (this.options.schedulingOptions?.p6CompletedOutOfSequenceWindow !== true) return;
+    if (this.options.progressMode === 'PROGRESS_OVERRIDE') return;
+    if (this.dataDate === null || !progressCal.isHourMode || preds.length === 0) return;
+    if (!this.p6CompletedDataDateWindowDecision(task).eligible) return;
+    const windowEs = this.snapOnOrAfter(progressCal, this.dataDate);
+    let anchor = windowEs;
+    let relation: { at: Date; eng: CalendarEngine } | null = null;
+    for (const seq of preds) {
+      // FF/SF: de relatie ankert op de finish van deze taak; ongemeten, dus geen effect.
+      if (seq.type !== 'FINISH_START' && seq.type !== 'START_START') continue;
+      const predTask = this.tasks.get(seq.predecessorId);
+      const rawPredResult = results.get(seq.predecessorId);
+      if (!predTask || !rawPredResult || predTask.isHammock) continue;
+      const predOnWindowRoute = this.p6CompletedDataDateWindowDecision(predTask).eligible;
+      if (predOnWindowRoute) {
+        if (!this.completedOutOfSequenceEs.has(predTask.id)) continue;
+      } else if (predTask.time.completion >= 1) {
+        continue;
+      }
+      const predResult = this.completedPredecessorRelationWindow(predTask, rawPredResult);
+      const relSeq = this.completedOutOfSequenceRelationSeq(predTask, seq, progressCal);
+      // De grens op de kalender van de voorganger (een nul-restvenster heeft geen eigen werktijd);
+      // het weergegeven vensterbegin is die grens gesnapt op de eigen voortgangskalender.
+      const predEng = this.relationEngineFor(predTask);
+      const bound = forwardConstraint(this.relDeps, predResult, predTask, relSeq, task, predEng, predEng, false);
+      if (Number.isNaN(bound.getTime())) continue;
+      const es = this.snapOnOrAfter(progressCal, bound);
+      if (es > anchor) anchor = es;
+      if (relation === null || bound > relation.at) relation = { at: bound, eng: predEng };
+    }
+    if (anchor > windowEs && relation !== null) {
+      this.completedOutOfSequenceEs.set(task.id, anchor);
+      this.completedOutOfSequenceRelation.set(task.id, relation);
+    }
+  }
+
+  /**
+   * Conventie C9 `p6LateFinishOnOwnCalendar` (docblok + bron bij de sleutel in `types/project.ts`):
+   * de late finish op de eigen kalender. Ligt de grens buiten de werktijd van de taak (niet binnen een
+   * band en niet op een band-rand), dan wordt hij het einde van de vorige werkperiode. Een grens op of
+   * binnen de werktijd blijft staan. De aanroeper past dit alleen toe als een opvolgergrens de late
+   * finish bepaalt, ook ná de late-zijde-constraints (projecteinde en een strakkere constraint/deadline
+   * zijn ongemeten). Conventie uit of dagmodus ⇒ `lateFinish` zelf.
+   */
+  private lateFinishOnOwnCalendar(eng: CalendarEngine, lateFinish: Date): Date {
+    if (this.options.schedulingOptions?.p6LateFinishOnOwnCalendar !== true || !eng.isHourMode) return lateFinish;
+    const t = lateFinish.getTime();
+    if (eng.nextWorkInstant(lateFinish).getTime() === t || eng.prevWorkInstant(lateFinish).getTime() === t) return lateFinish;
+    const snapped = eng.prevWorkInstant(lateFinish);
+    return Number.isNaN(snapped.getTime()) ? lateFinish : snapped;
+  }
+
+  /**
+   * A19 `p6UseRemainingStartForProgress`, late kant (X12 brok 6; docblok bij de sleutel in
+   * `types/project.ts`): de restduurregel. P6 plant een LOPENDE activiteit op haar RESTduur ("The total
+   * working time from the activity remaining start date to the remaining finish date", Oracle P6 Help,
+   * Durations Columns, https://docs.oracle.com/cd/F37125_01/p6help/en/47223.htm); achterwaarts over een
+   * SS-relatie is haar late finish dus de late start die de relatie toelaat plus de restduur, niet plus de
+   * volle geplande duur. Rest 0 ⇒ een nulduur (LS = LF). Alleen SS: SF is niet gepind. Anders ⇒ `task`.
+   */
+  private remainingDurationTaskForStartRelation(task: Task, eng: CalendarEngine): Task {
+    if (this.options.schedulingOptions?.p6UseRemainingStartForProgress !== true || !eng.isHourMode) return task;
+    const t = task.time;
+    if (t.actualStart === undefined || !(t.completion > 0 && t.completion < 1)) return task;
+    if (t.durationType === 'ELAPSEDTIME' || (task.splitGaps?.length ?? 0) > 0) return task;
+    const planned = durationMinutesOf(task, eng);
+    const rest = t.remainingMinutes;
+    if (rest === undefined || !(rest >= 0) || rest >= planned) return task;
+    if (rest === 0) {
+      return { ...task, isMilestone: true, milestoneKind: undefined, time: { ...t, scheduleDuration: 0, durationMinutes: 0 } };
+    }
+    return taskDurationUnit(task) === 'hours'
+      ? { ...task, time: { ...t, durationMinutes: rest } }
+      : { ...task, time: { ...t, scheduleDuration: rest / (eng.hoursPerDay * 60) } };
+  }
+
+  /**
+   * Conventie C11 `p6ProgressOverrideIgnoresStartedSuccessor` (docblok + bron bij de sleutel in
+   * `types/project.ts`): onder Progress Override negeert de planning de netwerklogica naar een al
+   * gestarte, nog lopende opvolger — niet alleen voorwaarts (de voortgangstak rekent daar al zonder
+   * voorgangerdruk), maar ook achterwaarts en in de vrije speling. Waar voor deze relatie: conventie
+   * aan, `progressMode === 'PROGRESS_OVERRIDE'`, de opvolger heeft een werkelijke start (of voortgang)
+   * en is niet voltooid, en de voorganger is niet voltooid.
+   */
+  private progressOverrideIgnoresRelation(predTask: Task, succTask: Task): boolean {
+    if (this.options.schedulingOptions?.p6ProgressOverrideIgnoresStartedSuccessor !== true) return false;
+    if (this.options.progressMode !== 'PROGRESS_OVERRIDE') return false;
+    const succStarted = !!succTask.time.actualStart || succTask.time.completion > 0;
+    return succStarted && succTask.time.completion < 1 && predTask.time.completion < 1;
+  }
+
+  /**
+   * Conventie C12 `p6FinishNotBeforeFinishFinishBound` (docblok + bron bij de sleutel in
+   * `types/project.ts`): de vroege finish ligt in kloktijd nooit vóór de grens van een FF-relatie.
+   * Per WORKTIME-FF-voorganger: grens X = voorgangerfinish + lag (lagkalender), genormaliseerd naar de
+   * finish-kant (`prevWorkInstant`: een interne bandstart wordt het vorige bandeinde), behalve als de
+   * voorganger een startmijlpaal is (die ankert op een start-instant). Ligt X ná de berekende EF met nul
+   * werkminuten ertussen op de eigen kalender, dan wordt EF de eerste werkgrens op of ná X. Conventie
+   * uit of dagmodus ⇒ `earlyFinish` zelf.
+   */
+  private finishNotBeforeFinishFinishBound(
+    preds: Sequence[], results: Map<string, { es: Date; ef: Date }>, cal: CalendarEngine, earlyFinish: Date,
+  ): Date {
+    if (this.options.schedulingOptions?.p6FinishNotBeforeFinishFinishBound !== true || !cal.isHourMode) return earlyFinish;
+    let out = earlyFinish;
+    for (const seq of preds) {
+      if (seq.type !== 'FINISH_FINISH' || seq.lagUnit === 'ELAPSEDTIME') continue;
+      const predTask = this.tasks.get(seq.predecessorId);
+      const rawPredResult = results.get(seq.predecessorId);
+      if (!predTask || !rawPredResult || predTask.isHammock) continue;
+      const predResult = this.completedPredecessorRelationWindow(predTask, rawPredResult);
+      const lagEng = this.relDeps.lagEngine(this.relationEngineFor(predTask), cal);
+      let bound = this.shiftLagPred(lagEng, predResult.ef, seq, predTask, 1);
+      const predIsStartMilestone = isZeroDurationMilestone(predTask) && predTask.milestoneKind !== 'FINISH'
+        && predTask.time.completion < 1;
+      if (!predIsStartMilestone) bound = lagEng.prevWorkInstant(bound);
+      if (Number.isNaN(bound.getTime()) || bound <= out || cal.workMinutesBetween(out, bound) !== 0) continue;
+      const snapped = this.snapOnOrAfter(cal, bound);
+      if (!Number.isNaN(snapped.getTime()) && snapped > out) out = snapped;
+    }
+    return out;
+  }
+
+  /**
+   * Conventie C7 `p6FinishFinishStartMilestoneLateFinish` (docblok + bron bij de sleutel in
+   * `types/project.ts`): bindt een FF-relatie naar een nulduur-STARTmijlpaal aan de mijlpaal zelf
+   * in plaats van aan haar dagbegin-anker — terugwaarts de late finish van de mijlpaal, voorwaarts
+   * alleen de relatiegrens voor de vrije speling van een NIET-bindende FF (de vroege start van de
+   * mijlpaal verandert nooit). Niet in de nulrestduur-voortgangstak van de terugwaartse pass.
+   * Alleen uur-modus aan beide kanten: het insluiten van uur-modus is gemeten, het uitsluiten van
+   * dagmodus niet — de poort is een bewuste beperking, geen gemeten grens. Een eindmijlpaal
+   * (`milestoneKind: 'FINISH'`) valt er per definitie buiten. Voorwaarts doet C7 onder P6 niets meer
+   * sinds C12 dezelfde vrije speling levert (vrije-spelingkant van C12); arm 3 (OPS-basis) van de
+   * groep-C-fixture bewaakt hem.
+   */
+  private finishFinishAtStartMilestoneLateFinish(
+    seq: Sequence, succTask: Task, predEng: CalendarEngine, succEng: CalendarEngine,
+  ): boolean {
+    return this.options.schedulingOptions?.p6FinishFinishStartMilestoneLateFinish === true
+      && seq.type === 'FINISH_FINISH'
+      && predEng.isHourMode && succEng.isHourMode
+      && succTask.isMilestone && succTask.milestoneKind === 'START'
+      && isZeroDurationMilestone(succTask);
+  }
+
+  /**
+   * Conventie C3 `p6CompletedRemainingLag` (docblok + bron bij de sleutel in `types/project.ts`): aan
+   * de late kant van een voltooide voorganger telt alleen het deel van een positieve WORKTIME-lag dat
+   * na zijn werkelijke einde op de statusdatum nog niet verstreken is:
+   * `max(0, lag − werktijd(werkelijk einde → statusdatum))` in de lag-kalender. Conventie uit, geen
+   * statusdatum, dagmodus, ELAPSEDTIME- of niet-positieve lag, of geen werkelijk einde ⇒ `seq` zelf.
+   */
+  private completedRemainingLagSeq(seq: Sequence, task: Task, lagEng: CalendarEngine): Sequence {
+    if (this.options.schedulingOptions?.p6CompletedRemainingLag !== true) return seq;
+    if (this.dataDate === null || !lagEng.isHourMode || seq.lagUnit === 'ELAPSEDTIME') return seq;
+    if (!task.time.actualFinish || task.time.completion < 1) return seq;
+    const lagMinutes = this.resolveLagMinutes(seq, task, lagEng);
+    if (!(lagMinutes > 0)) return seq;
+    const actualFinish = this.parseIn(lagEng, task.time.actualFinish);
+    if (Number.isNaN(actualFinish.getTime()) || actualFinish >= this.dataDate) return seq;
+    const elapsed = lagEng.workMinutesBetween(actualFinish, this.dataDate);
+    const remaining = Math.max(0, lagMinutes - elapsed);
+    if (remaining === lagMinutes) return seq;
+    return { ...seq, lagMinutes: remaining, lagDays: remaining / (lagEng.hoursPerDay * 60), lagPercent: undefined };
   }
 
   private recordBackwardFloatTrace(
@@ -479,7 +854,7 @@ export class CPMSolver {
       lateStartSource: 'subDuration',
       freeFloatSource: 'derivedFromSuccessor',
       displayActualLate: false,
-      completedWindow: { eligible: false, reason: 'notXerSource' } as const,
+      completedWindow: { eligible: false, reason: 'conventionOff' } as const,
       backwardActualPin: { eligible: false, reason: 'missingDataDate' } as const,
       displayActualLateDecision: { eligible: false, reason: 'missingDataDate' } as const,
     };
@@ -605,7 +980,7 @@ export class CPMSolver {
   /** P6 bewaart TT_Mile als één enum, maar de geplande TASK-grens maakt het operationele verschil:
    *  start van een band ⇒ volgende werkstart; einde van een band ⇒ voorgangerfinish blijft geldig. */
   private p6ZeroDurationUsesFinishBoundary(task: Task, eng: CalendarEngine): boolean {
-    if (!this.p6XerOption(this.options.schedulingOptions?.p6ZeroDurationUsesPlannedBoundary)
+    if (this.options.schedulingOptions?.p6ZeroDurationUsesPlannedBoundary !== true
       || !eng.isHourMode || !isZeroDurationMilestone(task)) return false;
     const planned = parseInstant(task.time.scheduleStart);
     if (Number.isNaN(planned.getTime())) return false;
@@ -617,7 +992,7 @@ export class CPMSolver {
    *  geïnverteerde geplande venster is het invoersignaal; zonder XER-vlag of op andere taaktypen
    *  blijft de algemene nulduursemantiek ongewijzigd. */
   private p6ZeroDurationActivityUsesBoundaryPair(task: Task, eng: CalendarEngine): boolean {
-    if (!this.p6XerOption(this.options.schedulingOptions?.p6ZeroDurationUsesPlannedBoundary)
+    if (this.options.schedulingOptions?.p6ZeroDurationUsesPlannedBoundary !== true
       || !eng.isHourMode || task.time.scheduleDuration !== 0
       || (task.p6ActivityType !== 'TT_Task' && task.p6ActivityType !== 'TT_Rsrc')) return false;
     const plannedStart = parseInstant(task.time.scheduleStart);
@@ -903,12 +1278,10 @@ export class CPMSolver {
     if (eng.isHourMode && taskDurationUnit(task) === 'hours') {
       const totalMinutes = splitTotalSpanMinutes(task.splitGaps, durationMinutesOf(task, eng));
       const natural = eng.subtractWorkMinutes(end, totalMinutes);
-      if (totalMinutes > 0 && this.p6FinishBoundaryStartTaskIds.has(task.id)) {
-        const naturalDayStart = this.dayFirstBandStart(eng, natural);
-        if (naturalDayStart?.getTime() === natural.getTime()) {
-          return eng.prevWorkInstantBefore(natural);
-        }
-      }
+      // B1 (X12 brok 6): de late start van een opvolger op een voorgangerfinishgrens-relatie is een
+      // gewone bandSTART (P6: Hotel HCSWB1Z1240 LS 03-04 08:00). De finishgrens voor de voorganger
+      // legt de gewone FS-backward in `relationMath` (`prevWorkInstant` op de voorgangerkalender); hier
+      // vroeger `prevWorkInstantBefore(natural)` — 9 ls-cellen fout, 0 goed.
       // Z13 (backward-spiegel van `addDurationChecked`s band-eind-wacht): voor een WORTEL-taak
       // (geen voorganger) wier eigen `ownAnchor` het rauwe band-eind-anker behoudt (zie die
       // functie), telt `addDurationChecked` de EIGEN kalenderdag van dat anker mee als volledig
@@ -1075,12 +1448,19 @@ export class CPMSolver {
         // min twee werkdagen = ma 17:00, niet di 08:00. Alleen de XER-resultaatprojectie krijgt
         // deze conventie; duur-aftrek en de generieke kalenderprimitieven blijven fysiek/invers.
         const projectedDayStart = this.dayFirstBandStart(predEng, projected);
-        if (this.options.schedulingOptions?.p6Source === 'XER'
+        if (this.options.schedulingOptions?.p6BackwardLagFinishBoundary === true
           && this.isExactBandEnd(predEng, base)
           && projectedDayStart?.getTime() === projected.getTime()) {
           return predEng.prevWorkInstantBefore(projected);
         }
         return projected;
+      }
+      // B2 bij lag 0 (X12 brok 6): een FF-grens op een exact bandeinde blijft die finishgrens; de
+      // generieke normalisatie (`nextWorkInstant`) zou hem naar de volgende bandstart duwen.
+      if (sign < 0 && minutes === 0 && seq.type === 'FINISH_FINISH'
+        && this.options.schedulingOptions?.p6BackwardLagFinishBoundary === true
+        && this.isExactBandEnd(predEng, base)) {
+        return new Date(base.getTime());
       }
       return predEng.addWorkingMinutesSigned(base, sign * minutes);
     }
@@ -1196,15 +1576,24 @@ export class CPMSolver {
     // (graaf/kalenders/opties) of worden per solve onvoorwaardelijk herschreven; de
     // engine-cache is deterministisch per kalender-id en mag blijven staan.
     this.seqConstraint.clear();
+    this.completedOutOfSequenceEs.clear();
+    this.completedOutOfSequenceRelation.clear();
+    this.completedPhysicalPoints.clear();
     this.truncatedLeadIds = [];
     this.hardPinViolatedIds = [];
     this.hammockNoFinishDriverIds = [];
     this.cappedTaskIds = [];
     this.plannedFloorTraceByTaskId = {};
-    this.backwardFloatTrace = this.options.schedulingOptions?.p6Source === 'XER'
+    // Diagnose-trace zonder rekeneffect; volgt conventie B3 als aan-schakelaar. Sinds B3 in elk
+    // ingebouwd profiel uit is (eigenaarsvraag §1d-7) staat de trace onder P6 standaard uit; de
+    // enige lezer (`check-xer-backward-float-trace`) zet B3 als afwijking aan. Bewust niet
+    // losgekoppeld: de trace beschrijft de B3-vensterroute en `result.backwardFloatTrace` hoort
+    // afwezig te zijn als die route uit staat (gepind in diezelfde check).
+    this.backwardFloatTrace = this.options.schedulingOptions?.p6CompletedDataDateWindow === true
       ? { projectEndSource: 'maxEarlyFinish', byTaskId: {} }
       : undefined;
     this.dataDate = null; // wordt hieronder herzet; zo blijft hij ook over guard-returns heen nooit stale
+    this.rawDataDate = null;
     this.projectStartRaw = null; // idem — herzet vóór elke solve, nooit stale over guard-returns heen
 
     // Check for circular dependencies before running CPM
@@ -1258,6 +1647,7 @@ export class CPMSolver {
     // Uur-projectkalender ⇒ instant-snap via `nextWorkInstant` (§5.3); dag ⇒ `nextWorkDay` (byte-identiek).
     const dd = this.options.dataDate ? this.parseIn(this.projectEngine, this.options.dataDate) : null;
     this.dataDate = dd && !isNaN(dd.getTime()) ? this.snapOnOrAfter(this.projectEngine, dd) : null;
+    this.rawDataDate = this.dataDate === null ? null : dd;
 
     // Projectstartdatum (RUW, ongesnapt — zie `rootFloor`/`projectStartRaw`). Date-only strings
     // (het enige wat de wizard/`DateTextInput` produceren) parsen via `parseDate` modus-onafhankelijk
@@ -1297,6 +1687,8 @@ export class CPMSolver {
       snapOnOrBefore: (eng, d) => this.snapOnOrBefore(eng, d),
       modeOf: (eng) => this.modeOf(eng),
       backwardFloatTrace: this.backwardFloatTrace,
+      completedOutOfSequenceEs: this.completedOutOfSequenceEs,
+      completedPhysicalPoints: this.completedPhysicalPoints,
     });
     // Zachte WP7-waarschuwing: alleen bij een echt onwerkbaar venster het veld zetten, zodat een
     // normale solve byte-identiek blijft (veld afwezig ⇒ geen wijziging aan bestaande consumenten).
@@ -1449,7 +1841,7 @@ export class CPMSolver {
       // Gebruik hier bewust de rauwe XER-datadatum, vóór kalendersnap. De smalle guard vergelijkt
       // haar met het opgeslagen actual-finish-instant; een naar de volgende werkband gesnapte datum
       // zou een actualFinish ná P6's datadatum ten onrechte toelaten.
-      const completedXerLoeActualFinish = explainCompletedXerLoeActualFinishEligibility(
+      const completedXerLoeActualFinish = explainCompletedXerLoeActualFinishEligibilityResolved(
         task,
         this.options.dataDate ? parseInstant(this.options.dataDate) : null,
         this.options.schedulingOptions,
@@ -1460,16 +1852,16 @@ export class CPMSolver {
         const relationalEarlyStart = this.hammockEarlyStart(task, preds, results, projectStart, cal);
         // De duurmeting is een uurkalender-primitief en hoort pas ná de expliciete XER-bronpoort
         // bereikbaar te zijn. Generieke hammocks en een onvolledige XER-dagkalender sluiten hier
-        // fail-closed via NaN; `explainOpenXerLoeTargetSpanEligibility` leest dat alleen nadat alle
+        // fail-closed via NaN; `explainOpenXerLoeTargetSpanEligibilityResolved` leest dat alleen nadat alle
         // voorafgaande bron-/provenance-/taakpoorten zijn gepasseerd.
-        const targetWindowWorkMinutes = this.options.schedulingOptions?.p6Source === 'XER'
+        const targetWindowWorkMinutes = this.options.schedulingOptions?.p6OpenLoeTargetSpan === true
           && cal.isHourMode
           ? cal.workMinutesBetween(
               parseInstant(task.time.scheduleStart),
               parseInstant(task.time.scheduleFinish),
             )
           : Number.NaN;
-        const openXerLoeTargetSpan = explainOpenXerLoeTargetSpanEligibility(
+        const openXerLoeTargetSpan = explainOpenXerLoeTargetSpanEligibilityResolved(
           task,
           this.options.schedulingOptions,
           preds,
@@ -1645,6 +2037,12 @@ export class CPMSolver {
           : timephasedAnchor
             ? parseInstant(timephasedAnchor)
             : this.ownAnchor(cal, task.time.scheduleStart, task);
+        // Conventie C14 `p6AlapPositionedFromSuccessors`: een niet-gestarte ALAP-wortel heeft geen
+        // eigen anker; haar vroege start is de statusdatum, en `applyAlapFromSuccessors` legt haar
+        // daarna zo laat als haar opvolgers toestaan.
+        if (this.dataDate && this.isUnstartedAlapPositionedFromSuccessors(task, cal)) {
+          earlyStart = this.snapOnOrAfter(cal, this.dataDate);
+        }
         // Geen voorganger-druk ⇒ rawMax null ⇒ een (root-)pin kan de logica niet breken (§4.2).
         const beforeConstraint = earlyStart;
         earlyStart = this.applyForwardConstraints(task, earlyStart, null, cal);
@@ -1679,15 +2077,31 @@ export class CPMSolver {
         // (de opvolger haalt de eis vanzelf) en wordt een lead niet vóór dag 1 getrokken.
         earlyStart = projectStart ? new Date(projectStart.getTime()) : new Date(0);
         let rawMax: Date | null = null;
+        const c6FloatBoundaries: Array<[string, Date, Date]> = [];
         for (const seq of preds) {
-          const predResult = results.get(seq.predecessorId);
+          const rawPredResult = results.get(seq.predecessorId);
           const predTask = this.tasks.get(seq.predecessorId);
-          if (!predResult || !predTask) continue;
+          if (!rawPredResult || !predTask) continue;
+          const c6LagEng = this.relDeps.lagEngine(this.relationEngineFor(predTask), cal);
+          const oosSeq = this.completedOutOfSequenceRelationSeq(predTask, seq, cal);
+          const relSeq = this.inProgressStartLagSeq(predTask, oosSeq, c6LagEng);
+          // Projectoptie `startToStartLagFrom` = 'actualStart': de rest-lag vanaf de statusdatum.
+          const predResult = this.inProgressStartLagAnchor(
+            predTask, oosSeq, c6LagEng, this.completedPredecessorRelationWindow(predTask, rawPredResult),
+          );
           const constraintDate = forwardConstraint(
-            this.relDeps, predResult, predTask, seq, task, this.calendarFor(predTask), cal,
+            this.relDeps, predResult, predTask, relSeq, task, this.relationEngineFor(predTask), cal,
             this.p6ZeroDurationUsesFinishBoundary(task, cal),
           );
           this.seqConstraint.set(seq.id, constraintDate);
+          // Conventie C7 voorwaarts: alleen de relatiegrens voor de vrije speling, nooit de vroege
+          // start van de mijlpaal (die blijft op de gewone grens; zie het docblok in `types/project.ts`).
+          if (this.finishFinishAtStartMilestoneLateFinish(seq, task, this.relationEngineFor(predTask), cal)) {
+            c6FloatBoundaries.push([seq.id, forwardConstraint(
+              this.relDeps, predResult, predTask, relSeq, task, this.relationEngineFor(predTask), cal,
+              this.p6ZeroDurationUsesFinishBoundary(task, cal), true,
+            ), constraintDate]);
+          }
           if (!rawMax || constraintDate > rawMax) rawMax = constraintDate;
           if (constraintDate > earlyStart) {
             earlyStart = constraintDate;
@@ -1696,16 +2110,22 @@ export class CPMSolver {
           // declaratie hierboven) — `null` voor alle andere relatietypes, dus deze regel is een
           // no-op zonder SF-voorganger.
           const finishFloor = forwardFinishFloor(
-            this.relDeps, predResult, predTask, seq, task, this.calendarFor(predTask), cal,
+            this.relDeps, predResult, predTask, relSeq, task, this.relationEngineFor(predTask), cal,
             this.p6ZeroDurationUsesFinishBoundary(task, cal),
           );
           if (finishFloor && (!sfFinishFloor || finishFloor > sfFinishFloor)) sfFinishFloor = finishFloor;
+        }
+        // C7: een niet-bindende FF naar de startmijlpaal krijgt de grens zonder dagsprong, zodat de
+        // vrije speling tot de mijlpaal zelf telt. Een bindende (= maximale) relatie houdt de gewone
+        // grens: zij blijft driving en de vroege start verschuift niet.
+        for (const [seqId, c6Boundary, normalBoundary] of c6FloatBoundaries) {
+          if (rawMax && normalBoundary < rawMax) this.seqConstraint.set(seqId, c6Boundary);
         }
         // P6-bronsemantiek: target_start is alleen een aanvullende geplande vloer wanneer zowel
         // het geplande begin als einde meer dan één kalenderdag ná het netwerkvenster liggen. Dat
         // dubbele criterium voorkomt dat een lang targetvenster of een gewone volgende-bandstart
         // als impliciete constraint wordt behandeld. Relatiedruk die later ligt blijft altijd winnen.
-        if (this.p6XerOption(this.options.schedulingOptions?.p6UseTaskPlannedStartFloor)) {
+        if (this.options.schedulingOptions?.p6UseTaskPlannedStartFloor === true) {
           const plannedFloor = this.ownAnchor(cal, task.time.scheduleStart, task);
           const networkFinish = this.finishFromStart(cal, earlyStart, task);
           const plannedFinish = this.parseIn(cal, task.time.scheduleFinish);
@@ -1715,9 +2135,16 @@ export class CPMSolver {
             ? plannedFloor > earlyStart
             : plannedFloor.getTime() - earlyStart.getTime() > MS_PER_DAY
               && plannedFinish.getTime() - networkFinish.getTime() > MS_PER_DAY;
+          // Conventie C8 `p6StartedTaskIgnoresPlannedStartFloor` (docblok + bron bij de sleutel in
+          // `types/project.ts`): voor een lopende taak (werkelijke start, nog niet voltooid) is het
+          // geplande venster geen vloer; haar resterende werk start op statusdatum + relatiegrens.
+          const startedTaskSkipsFloor = this.options.schedulingOptions?.p6StartedTaskIgnoresPlannedStartFloor === true
+            && !!task.time.actualStart && task.time.completion < 1;
+          // Conventie C14 `p6AlapPositionedFromSuccessors`: voor een niet-gestarte ALAP-taak telt het
+          // eigen geplande venster niet (`applyAlapFromSuccessors` positioneert haar vanuit de opvolgers).
+          const alapSkipsFloor = this.isUnstartedAlapPositionedFromSuccessors(task, cal);
           if (
-            this.options.schedulingOptions?.p6Source === 'XER'
-            && task.p6ActivityType !== undefined
+            task.p6ActivityType !== undefined
             && task.p6ExplicitTargetWindow === true
             && !Number.isNaN(plannedFloor.getTime())
             && !Number.isNaN(plannedFinish.getTime())
@@ -1745,13 +2172,14 @@ export class CPMSolver {
                 targetStart: plannedFloor.toISOString().slice(0, 16),
                 targetFinish: plannedFinish.toISOString().slice(0, 16),
                 plannedWindowIsLater,
+                floorApplied: plannedWindowIsLater && !startedTaskSkipsFloor && !alapSkipsFloor,
                 boundarySource,
                 ...(drivingSequence ? { boundarySequenceId: drivingSequence.id } : {}),
                 ...(drivingPredecessor ? { boundaryPredecessorTaskCode: drivingPredecessor.wbsCode } : {}),
               };
             }
           }
-          if (plannedWindowIsLater) earlyStart = plannedFloor;
+          if (plannedWindowIsLater && !startedTaskSkipsFloor && !alapSkipsFloor) earlyStart = plannedFloor;
         }
         // Vloer-afkap: wilde óók de strengste relatie de taak nog vóór het projectbegin trekken,
         // markeer dan de bindende lead(s) als afgekapt — de gebruiker moet kunnen zien dat een
@@ -1875,6 +2303,17 @@ export class CPMSolver {
       // geen echte afwijking) ⇒ `progressCal = cal`, BYTE-IDENTIEK — dat is de overgrote meerderheid
       // van alle taken, inclusief de volledige Z12-/Z6-/Z7-populaties (regressiewacht hieronder).
       const progressCal = this.progressCalendarFor(task, cal);
+      this.recordCompletedOutOfSequenceWindow(task, preds, results, progressCal);
+      const physicalPoint = this.recordCompletedPhysicalPoint(task, preds, results, progressCal);
+      if (physicalPoint !== null) {
+        // C5: één punt, ES = EF. Net als een gewone voltooide taak (hieronder) levert een voltooide
+        // opvolger onder A12 geen relatiegrens voor vrije speling of driving.
+        if (this.options.schedulingOptions?.preserveActualDatesInBackwardPass === true) {
+          for (const seq of preds) this.seqConstraint.delete(seq.id);
+        }
+        results.set(taskId, { es: physicalPoint, ef: new Date(physicalPoint.getTime()) });
+        continue;
+      }
       {
         const t = task.time;
         if (t.actualFinish && t.completion >= 1) {
@@ -1884,7 +2323,7 @@ export class CPMSolver {
           // zaterdag → maandag). Zie die functie se docblock voor de twee tegenstrijdige
           // corpusmetingen die dit reconcilieert.
           const preserveP6ActualInstants = task.p6ProjectId !== undefined
-            && this.p6XerOption(this.options.schedulingOptions?.p6PreserveActualInstants);
+            && this.options.schedulingOptions?.p6PreserveActualInstants === true;
           const actualStart = this.parseIn(progressCal, t.actualStart ?? t.actualFinish);
           let es = preserveP6ActualInstants
             ? actualStart
@@ -1947,7 +2386,7 @@ export class CPMSolver {
           // kreeg zo een ANDER antwoord al naargelang completion toevallig <1 of ===1 stond.
           const actualES = t.actualStart
             ? task.p6ProjectId !== undefined
-                && this.p6XerOption(this.options.schedulingOptions?.p6PreserveActualInstants)
+                && this.options.schedulingOptions?.p6PreserveActualInstants === true
               ? this.parseIn(progressCal, t.actualStart)
               : this.snapActualForward(progressCal, this.parseIn(progressCal, t.actualStart))
             : earlyStart;
@@ -1981,6 +2420,12 @@ export class CPMSolver {
           // RESUME-veld komt i.p.v. de gewone voorganger-druk/elapsed-vloer — stuurt de ef<es-
           // inversiecorrectie ná de gedeelde ef-berekening (zie die toelichting verderop).
           let usedResumeOverride = false;
+          // C11: onder Progress Override telt de relatie van een open voorganger naar deze lopende taak
+          // nergens mee; zonder relatiegrens geen vrije speling en geen driving-markering voor haar.
+          for (const seq of preds) {
+            const predTask = this.tasks.get(seq.predecessorId);
+            if (predTask && this.progressOverrideIgnoresRelation(predTask, task)) this.seqConstraint.delete(seq.id);
+          }
           if (this.options.progressMode !== 'PROGRESS_OVERRIDE') {
             // Z12-herwerk (dossier out-of-sequence-actuals, ná Opus-weerlegging van het eerdere
             // anker-ontwerp) → Z8-HERWERKRONDE-FIXRONDE 2 ("laag 1/2-gat") → Z19 (residu-iteratie
@@ -2351,9 +2796,10 @@ export class CPMSolver {
           // opgebouwd (statusdatum, relatiegrens en eventueel gevalideerde suspend/resume); er
           // wordt geen P6 early/late-uitvoer gelezen. Andere formaten houden hun bestaande
           // actual-startweergave doordat alleen het XER-pad deze vlag zet.
-          const displayedEarlyStart = this.p6XerOption(
-            this.options.schedulingOptions?.p6UseRemainingStartForProgress,
-          )
+          // C12, lopende taak (restant-onderzoek 284 §3a: Roads A10660): dezelfde FF-grens op het restwerk.
+          ef = this.finishNotBeforeFinishFinishBound(preds, results, progressCal, ef);
+          const displayedEarlyStart =
+            this.options.schedulingOptions?.p6UseRemainingStartForProgress === true
             ? remStart
             : actualES;
           results.set(taskId, { es: displayedEarlyStart, ef });
@@ -2422,11 +2868,13 @@ export class CPMSolver {
       // corpus+crawl) BLEEF dit vóór de wacht al 0/0 — de wacht is dus verdedigend (defense-in-depth
       // tegen een nog niet waargenomen bestand-vorm), corpusloos mutatiebewijs in cases-advanced-cpm.json.
       if (tf && earlyFinish < earlyStart) earlyFinish = earlyStart;
+      // C12: de vroege finish niet in kloktijd vóór een FF-relatiegrens (geen harde finish-pin).
+      if (!hardFinishPin) earlyFinish = this.finishNotBeforeFinishFinishBound(preds, results, cal, earlyFinish);
 
       // XER/P6-grensvenster voor de zeldzame TT_FinMile-vorm waarin scheduleStart de eerste
       // bandstart en scheduleFinish het vorige bandeinde draagt. Alleen toepassen zolang de
       // netwerkuitkomst exact op dat geplande startanker staat; latere relatiedruk wint gewoon.
-      if (this.p6XerOption(this.options.schedulingOptions?.p6FinishMilestoneBoundaryWindow)
+      if (this.options.schedulingOptions?.p6FinishMilestoneBoundaryWindow === true
         && isZeroDurationMilestone(task) && task.milestoneKind === 'FINISH') {
         const plannedStart = this.parseIn(cal, task.time.scheduleStart);
         const plannedFinish = this.parseIn(cal, task.time.scheduleFinish);
@@ -2792,9 +3240,8 @@ export class CPMSolver {
   private backwardBoundOf(task: Task, c: TaskConstraint | undefined, eng: CalendarEngine): Date | null {
     const d = this.constraintInstant(c, eng);
     if (!c || !d) return null;
-    const preserveMilestoneInstant = this.p6XerOption(
-      this.options.schedulingOptions?.p6PreserveZeroDurationConstraintInstants,
-    )
+    const preserveMilestoneInstant =
+      this.options.schedulingOptions?.p6PreserveZeroDurationConstraintInstants === true
       && isZeroDurationMilestone(task) && eng.isHourMode && c.date?.includes('T');
     const dW = preserveMilestoneInstant ? d : this.snapOnOrBefore(eng, d);
     if (c.type === 'FNLT' || c.type === 'MFO') return dW;
@@ -2972,10 +3419,19 @@ export class CPMSolver {
     earlyDates: Map<string, { es: Date; ef: Date }>,
     lateDates: Map<string, { ls: Date; lf: Date }>,
   ): void {
+    // Conventie C14 `p6AlapPositionedFromSuccessors`: dezelfde ALAP-selectie (incl. Z9b-uitsluiting
+    // (1)); een niet-gestarte ALAP-taak op een uurkalender wordt daarna in `applyAlapFromSuccessors`
+    // gepositioneerd, opvolgers eerst. Alle andere ALAP-taken houden de oude stap hieronder.
+    const fromSuccessors = this.options.schedulingOptions?.p6AlapPositionedFromSuccessors === true;
+    const alapTaskIds: string[] = [];
     for (const taskId of order) {
       const task = this.tasks.get(taskId);
       if (task?.constraint?.type !== 'ALAP') continue;
       if (task.manuallyScheduled) continue;   // Z9b, uitsluiting (1) — zie moduleheader hierboven.
+      if (fromSuccessors && this.isUnstartedAlapPositionedFromSuccessors(task, this.calendarFor(task))) {
+        alapTaskIds.push(taskId);
+        continue;
+      }
       const early = earlyDates.get(taskId);
       const late = lateDates.get(taskId);
       if (!early || !late) continue;
@@ -3004,6 +3460,95 @@ export class CPMSolver {
         const succTask = this.tasks.get(seq.successorId);
         if (!succTask) continue;
         if (succTask.manuallyScheduled) continue;   // Z9b, uitsluiting (2) — zie moduleheader hierboven.
+        this.seqConstraint.set(
+          seq.id,
+          forwardConstraint(
+            this.relDeps, early, task, seq, succTask, cal, this.calendarFor(succTask),
+            this.p6ZeroDurationUsesFinishBoundary(succTask, this.calendarFor(succTask)),
+          ),
+        );
+      }
+    }
+    if (fromSuccessors) this.applyAlapFromSuccessors(alapTaskIds, earlyDates, lateDates);
+  }
+
+  /** Conventie C14: valt deze taak onder de ALAP-positionering vanuit de opvolgers? Niet-gestart,
+   *  uurkalender. (Een handmatig geplande taak bereikt de aanroepers niet: `forwardPass` handelt
+   *  haar vooraf af, `applyAlap` filtert haar weg — Z9b.) */
+  private isUnstartedAlapPositionedFromSuccessors(task: Task, cal: CalendarEngine): boolean {
+    return this.options.schedulingOptions?.p6AlapPositionedFromSuccessors === true
+      && task.constraint?.type === 'ALAP' && cal.isHourMode
+      && !task.time.actualStart && task.time.completion === 0;
+  }
+
+  /**
+   * Conventie C14 `p6AlapPositionedFromSuccessors` (docblok + bron bij de sleutel in
+   * `types/project.ts`): een ALAP-taak krijgt als vroege finish de strengste grens die haar
+   * opvolgers (met hun vroege datums) via de relatiewiskunde van de achterwaartse berekening
+   * toestaan, in werktijd; zonder opvolger haar late finish. Opvolgers eerst (omgekeerde
+   * topologische volgorde), zodat een keten van ALAP-taken achter elkaar aansluit. Ondergrens: de
+   * relatiegrenzen van haar voorgangers en de statusdatum — haar eigen geplande start (A16) of
+   * eigen anker telt niet. Een secundaire constraint (`constraint2`) blijft gelden: SNLT/FNLT als
+   * bovengrens, SNET/FNET als ondergrens; de ondergrens wint (bron en corpusstand in `types/project.ts`).
+   * Opvolgers bewegen niet. `alapTaskIds` staat in topologische volgorde.
+   */
+  private applyAlapFromSuccessors(
+    alapTaskIds: string[],
+    earlyDates: Map<string, { es: Date; ef: Date }>,
+    lateDates: Map<string, { ls: Date; lf: Date }>,
+  ): void {
+    for (let i = alapTaskIds.length - 1; i >= 0; i--) {
+      const taskId = alapTaskIds[i];
+      const task = this.tasks.get(taskId);
+      if (!task) continue;
+      const cal = this.calendarFor(task);
+      const early = earlyDates.get(taskId);
+      const late = lateDates.get(taskId);
+      if (!early || !late) continue;
+      const succs = this.successors.get(taskId) || [];
+      let finish: Date | null = succs.length === 0 ? late.lf : null;
+      for (const seq of succs) {
+        const succTask = this.tasks.get(seq.successorId);
+        const succEarly = earlyDates.get(seq.successorId);
+        // Z9b (2): `forwardPass` zet nooit een `seqConstraint` naar een handmatige opvolger; zo'n
+        // relatie doet hier dus ook niet mee.
+        if (!succTask || !succEarly || !this.seqConstraint.has(seq.id)) continue;
+        const succCal = this.calendarFor(succTask);
+        const bound = backwardConstraint(
+          this.relDeps, { ls: succEarly.es, lf: succEarly.ef }, seq, task, succTask, cal, succCal,
+          this.p6ZeroDurationUsesFinishBoundary(succTask, succCal),
+          this.finishFinishAtStartMilestoneLateFinish(seq, succTask, cal, succCal),
+        );
+        if (!finish || bound < finish) finish = bound;
+      }
+      if (!finish) continue;
+      // Secundaire constraint (`constraint2`; de primaire ís ALAP). Bovengrens: SNLT/FNLT (en een
+      // zachte MSO/MFO) via dezelfde `backwardBoundOf` als `applyBackwardBound` — de ALAP-taak schuift
+      // nooit over haar eigen FNLT heen. Ondergrens hieronder: SNET/FNET via `forwardBoundOf`, net als
+      // `applyForwardConstraints`. Botsen ze, dan wint de ondergrens (vroege datums liggen nooit vóór een
+      // SNET/FNET; een overschreden FNLT wordt negatieve speling aan de late kant, zoals overal).
+      const upper = this.backwardBoundOf(task, task.constraint2, cal);
+      if (upper && finish > upper) finish = upper;
+      let start = this.startFromFinish(cal, finish, task);
+      // Ondergrens: voorgangerrelaties (`seqConstraint`, voorwaarts), de statusdatum en de secundaire
+      // SNET/FNET.
+      let floor: Date | null = this.dataDate;
+      for (const seq of this.predecessors.get(taskId) || []) {
+        const c = this.seqConstraint.get(seq.id);
+        if (c && (!floor || c > floor)) floor = c;
+      }
+      const secondaryFloor = this.forwardBoundOf(task, task.constraint2, cal);
+      if (secondaryFloor && (!floor || secondaryFloor > floor)) floor = secondaryFloor;
+      if (floor && start < floor) {
+        start = this.snapOnOrAfter(cal, floor);
+        finish = this.finishFromStart(cal, start, task);
+      }
+      if (start.getTime() === early.es.getTime() && finish.getTime() === early.ef.getTime()) continue;
+      early.es = start;
+      early.ef = finish;
+      for (const seq of succs) {
+        const succTask = this.tasks.get(seq.successorId);
+        if (!succTask || !this.seqConstraint.has(seq.id)) continue;   // Z9b (2), zie hierboven.
         this.seqConstraint.set(
           seq.id,
           forwardConstraint(
@@ -3042,7 +3587,8 @@ export class CPMSolver {
       let candidateEf = early.ef;
       if (usesCompletedDisplayWindow) {
         const progressCal = this.progressCalendarFor(task);
-        const projectedEs = this.snapOnOrAfter(progressCal, this.dataDate!);
+        const projectedEs = this.completedOutOfSequenceEs.get(taskId)
+          ?? this.snapOnOrAfter(progressCal, this.dataDate!);
         candidateEf = progressCal.prevWorkInstant(projectedEs);
       }
       if (candidateEf > projectEnd) {
@@ -3077,17 +3623,49 @@ export class CPMSolver {
       );
       this.recordBackwardFloatTrace(taskId, { completedWindow, backwardActualPin });
 
+      // C5: ook de late kant is één punt, LS = LF = de vroegste rauwe grens die de opvolgers stellen
+      // (FS/SS: hun LS, FF/SF: hun LF, min alleen de nog niet verstreken lag), zonder statusdatumklem.
+      // Gemeten: alle 187 voltooide CP_Phys-activiteiten met een laat orakel in Roads, HarbourPointe en
+      // OZB; zonder opvolger (HarbourPointe EC1040/EC1050) het projecteinde.
+      const physicalPoint = this.completedPhysicalPoints.get(taskId);
+      if (physicalPoint) {
+        let latePoint: Date | null = null;
+        const ownEng = this.calendarFor(task);
+        for (const seq of succs) {
+          const succResult = results.get(seq.successorId);
+          const succTask = this.tasks.get(seq.successorId);
+          if (!succResult || !succTask || succTask.isHammock) continue;
+          const succCompleted = !!succTask.time.actualFinish && succTask.time.completion >= 1;
+          if (succCompleted && !this.completedPhysicalPoints.has(succTask.id)
+            && !explainP6CompletedLateRemainingWindowEligibilityResolved(
+              succTask, this.dataDate, this.options.schedulingOptions,
+            ).eligible) continue;
+          const lagEng = this.relDeps.lagEngine(ownEng, this.calendarFor(succTask));
+          const relSeq = this.completedRemainingLagSeq(seq, task, lagEng);
+          const toStart = seq.type === 'FINISH_START' || seq.type === 'START_START';
+          const bound = this.physicalPointLag(toStart ? succResult.ls : succResult.lf, relSeq, task, lagEng, -1);
+          if (Number.isNaN(bound.getTime())) continue;
+          if (latePoint === null || bound < latePoint) latePoint = bound;
+        }
+        const late = latePoint ?? new Date(projectEnd.getTime());
+        this.recordBackwardFloatTrace(taskId, {
+          lateFinishSource: latePoint === null ? 'projectEnd' : 'successorConstraint',
+        });
+        results.set(taskId, { ls: late, lf: new Date(late.getTime()) });
+        continue;
+      }
+
       // Brongebonden XER-beleid: een voltooide activiteit houdt haar bestaande completed-pin aan
       // de late zijde. De smalle data-date-route verandert uitsluitend de forwarddatums; opgeslagen
       // XER early/late/float-uitkomsten zijn op geen van beide paden solverinvoer.
       if (backwardActualPin.eligible) {
         // Review-bevinding 4 (poortdivergentie): dezelfde gedeelde poort als `scheduleAnalysis`
-        // (`explainP6CompletedLateRemainingWindowEligibility`) — inclusief de `backwardActualPin`-
+        // (`explainP6CompletedLateRemainingWindowEligibilityResolved`) — inclusief de `backwardActualPin`-
         // voorwaarde die hierboven al gold, zodat een taak nooit "tussen de twee poorten in" kan
         // vallen (bv. `TK_Complete` zonder `act_end_date`: wel completedWindow-eligible, niet
         // backwardActualPin-eligible — de weergave mag dan niet stilzwijgend meebewegen terwijl
         // deze tak overgeslagen wordt).
-        if (explainP6CompletedLateRemainingWindowEligibility(
+        if (explainP6CompletedLateRemainingWindowEligibilityResolved(
           task, this.dataDate, this.options.schedulingOptions,
         ).eligible) {
           // Diagnose laag 1, klasse (i) (rehab-2, 2.036 voltooide taken, 99,9% dekking): een
@@ -3101,7 +3679,7 @@ export class CPMSolver {
           // die ook de FORWARD-display stuurt): dat is precies de asymmetrie uit de diagnose — ES
           // toont daar al het statusdatumvenster, dus LS hoort dat ook te doen. Een voltooide taak
           // die niet door die (nauwe) poort komt — de CP_Phys-route of de LOE/hammock-actual-finish-
-          // uitzondering (`explainCompletedXerLoeActualFinishEligibility`, expliciet ZONDER
+          // uitzondering (`explainCompletedXerLoeActualFinishEligibilityResolved`, expliciet ZONDER
           // uitgaande relatie) — heeft geen zinvol statusdatumvenster aan de vroege kant en moet dus
           // ook aan de late kant op haar bestaande actual-pin blijven staan; anders raakt LS/LF los
           // van de eigen (niet-venster-)ES/EF van diezelfde taak.
@@ -3120,7 +3698,7 @@ export class CPMSolver {
             // (bron-onafhankelijke) completedWindow-poort komen maar zelf NIET door
             // `backwardActualPin`, en heeft dan géén door deze tak berekende ls/lf om op terug te
             // rekenen — dat zou anders precies de poortdivergentie uit de review reproduceren.
-            const succUsesRemainingWindow = explainP6CompletedLateRemainingWindowEligibility(
+            const succUsesRemainingWindow = explainP6CompletedLateRemainingWindowEligibilityResolved(
               succTask, this.dataDate, this.options.schedulingOptions,
             ).eligible;
             // Een voltooide opvolger die zelf niet door de gedeelde poort kwam (CP_Phys, de
@@ -3156,7 +3734,7 @@ export class CPMSolver {
                 };
             const effectiveSeq = succUsesRemainingWindow
               ? { ...seq, lagDays: 0, lagMinutes: 0, lagPercent: undefined }
-              : percentResolvedSeq;
+              : this.completedRemainingLagSeq(percentResolvedSeq, task, lagEng);
             const delayShiftedSuccResult = {
               ls: this.shiftByLevelingDelay(succCal, succTask, succResult.ls, -1),
               lf: this.shiftByLevelingDelay(succCal, succTask, succResult.lf, -1),
@@ -3196,6 +3774,7 @@ export class CPMSolver {
             const constraintFinish = backwardConstraint(
               this.relDeps, delayShiftedSuccResult, effectiveSeq, zeroRemainingPredTask, succTask,
               progressCal, succCal, this.p6ZeroDurationUsesFinishBoundary(succTask, succCal),
+              // C7 bewust NIET in deze nulrestduur-voortgangstak: ongemeten (B05-vorm, geschrapt).
             );
             // FS/FF: `constraintFinish` is een echte late FINISH van de voorganger — de
             // nulrestduur-conversie naar een late START loopt via `nextWorkInstant` (spiegel van
@@ -3219,9 +3798,9 @@ export class CPMSolver {
         }
         const ed = earlyDates.get(taskId)!;
         this.recordBackwardFloatTrace(taskId, {
-          lateStartSource: this.p6XerOption(
-            this.options.schedulingOptions?.p6UseRemainingStartForProgress,
-          ) ? 'subRemainingDuration' : 'subDuration',
+          lateStartSource: this.options.schedulingOptions?.p6UseRemainingStartForProgress === true
+            ? 'subRemainingDuration'
+            : 'subDuration',
         });
         results.set(taskId, { ls: new Date(ed.es.getTime()), lf: new Date(ed.ef.getTime()) });
         continue;
@@ -3285,7 +3864,7 @@ export class CPMSolver {
       // dat projecteinde juist de late-passgrens (Terminal-fixture). De voorgangerpoort houdt een
       // volledig geïsoleerde finishmijlpaal buiten deze regel. Alleen de bestaande XER-vlag kan de
       // tak activeren; alle andere formaten blijven byte-identiek.
-      if (this.p6XerOption(this.options.schedulingOptions?.p6FinishMilestoneBoundaryWindow)
+      if (this.options.schedulingOptions?.p6FinishMilestoneBoundaryWindow === true
         && this.options.schedulingOptions?.useProjectEndDateForFloat !== true
         && succs.length === 0
         && (this.predecessors.get(taskId)?.length ?? 0) > 0
@@ -3319,10 +3898,16 @@ export class CPMSolver {
           && succTask.time.completion >= 1;
         // Zelfde gedeelde poort als hierboven (review-bevinding 4): alleen een opvolger die er zelf
         // door komt draagt een zinvolle late kant om op terug te rekenen.
-        const succUsesRemainingWindow = explainP6CompletedLateRemainingWindowEligibility(
+        const succUsesRemainingWindow = explainP6CompletedLateRemainingWindowEligibilityResolved(
           succTask, this.dataDate, this.options.schedulingOptions,
         ).eligible;
-        if (succCompletedHistoric && !succUsesRemainingWindow) continue;
+        // C5, late kant: een voltooide CP_Phys-opvolger met een statusdatumpunt draagt een zinvolle
+        // late kant (LS = LF = zijn punt) en legt dus gewone backward-druk op een open voorganger.
+        // Gemeten (X12 brok 6): Roads B2911 → OCEC11361, A33 → A65, OCEC10851 —SS→ OCEC10791.
+        const succIsPhysicalPoint = this.completedPhysicalPoints.has(succTask.id);
+        if (succCompletedHistoric && !succUsesRemainingWindow && !succIsPhysicalPoint) continue;
+        // C11: onder Progress Override legt een lopende opvolger geen backward-druk op een open voorganger.
+        if (this.progressOverrideIgnoresRelation(task, succTask)) continue;
         // Een hammock is een gevolg, geen oorzaak (§4.4): hij legt GEEN backward-druk op zijn
         // voorgangers (drivers). Een strakke opvolger van de hammock kan zo nooit via de hammock heen
         // negatieve float op de start-/finish-driver leggen — de driver ziet alleen zijn eigen
@@ -3352,9 +3937,22 @@ export class CPMSolver {
           ls: this.shiftByLevelingDelay(succCal, succTask, succResult.ls, -1),
           lf: this.shiftByLevelingDelay(succCal, succTask, succResult.lf, -1),
         };
+        // C6, late kant: van een SS-lag uit deze LOPENDE taak telt ook achterwaarts alleen de rest-lag
+        // (Roads OCEC10311 —SS+70 h→ OCEC10851: P6-LS = de LS van de opvolger). Conventie uit ⇒ `seq`.
+        const lateLagEng = this.relDeps.lagEngine(predCal, succCal);
+        // Projectoptie `startToStartLagFrom` = 'actualStart', late kant (SPIEGEL van het anker): voorwaarts
+        // hangt deze SS-relatie aan de statusdatum, niet aan deze lopende taak — dus begrenst ze haar
+        // achterwaarts ook niet (anders onechte negatieve speling). Wat P6 hier doet is ongemeten.
+        if (this.options.schedulingOptions?.startToStartLagFrom === 'actualStart'
+          && this.dataDate !== null && this.inProgressStartLag(task, seq, lateLagEng)) continue;
+        const lateSeq = this.inProgressStartLagSeq(task, seq, lateLagEng);
+        // A19, late kant: een lopende taak telt achterwaarts over een SS-grens alleen haar restduur.
+        const remainingTask = seq.type === 'START_START'
+          ? this.remainingDurationTaskForStartRelation(task, predCal) : task;
         const constraintDate = backwardConstraint(
-          this.relDeps, delayShiftedSuccResult, seq, task, succTask, predCal, succCal,
+          this.relDeps, delayShiftedSuccResult, lateSeq, remainingTask, succTask, predCal, succCal,
           this.p6ZeroDurationUsesFinishBoundary(succTask, succCal),
+          this.finishFinishAtStartMilestoneLateFinish(seq, succTask, predCal, succCal),
         );
         if (constraintDate < lateFinish) {
           lateFinish = constraintDate;
@@ -3363,7 +3961,13 @@ export class CPMSolver {
       }
 
       // Late-zijde datum-constraints + deadline (fase 2.3) als extra bovengrens.
+      const successorBound = lateFinish;
       lateFinish = this.applyBackwardBound(task, lateFinish, predCal);
+      // C9: een opvolgergrens buiten de eigen werktijd naar het einde van de vorige werkperiode — alleen
+      // als die grens ook ná de late-zijde-constraints de late finish bepaalt.
+      if (lateFinishSource === 'successorConstraint' && lateFinish.getTime() === successorBound.getTime()) {
+        lateFinish = this.lateFinishOnOwnCalendar(predCal, lateFinish);
+      }
       if (this.p6ZeroDurationActivityUsesBoundaryPair(task, predCal)) {
         // Een opvolgergrens kan als volgende bandSTART binnenkomen. P6 toont voor deze
         // geïnverteerde nulduurvorm de complementaire finishrand; op een echt bandeinde is deze
@@ -3371,9 +3975,7 @@ export class CPMSolver {
         lateFinish = predCal.prevWorkInstant(lateFinish);
       }
 
-      const useP6RemainingProgress = this.p6XerOption(
-        this.options.schedulingOptions?.p6UseRemainingStartForProgress,
-      )
+      const useP6RemainingProgress = this.options.schedulingOptions?.p6UseRemainingStartForProgress === true
         && task.time.actualStart !== undefined && task.time.completion > 0 && task.time.completion < 1;
       const computedLateStart = useP6RemainingProgress
         ? this.subRemainingDuration(predCal, lateFinish, task)
@@ -3381,10 +3983,10 @@ export class CPMSolver {
       // Bij P6-voortgang is een geregistreerde actual start ook de getoonde LS; LF blijft uit het
       // resterende netwerk volgen. Zonder bronvlag blijft de berekende late start leidend.
       let lateStart = preserveActualDates && task.time.actualStart && task.time.completion < 1
-          && !this.p6XerOption(this.options.schedulingOptions?.p6UseRemainingStartForProgress)
+          && this.options.schedulingOptions?.p6UseRemainingStartForProgress !== true
         ? new Date(earlyDates.get(taskId)!.es.getTime())
         : computedLateStart;
-      if (this.p6XerOption(this.options.schedulingOptions?.p6FinishMilestoneBoundaryWindow)
+      if (this.options.schedulingOptions?.p6FinishMilestoneBoundaryWindow === true
         && isZeroDurationMilestone(task) && task.milestoneKind === 'FINISH') {
         const plannedStart = this.parseIn(predCal, task.time.scheduleStart);
         const plannedFinish = this.parseIn(predCal, task.time.scheduleFinish);

@@ -93,9 +93,15 @@
     "librarySaveFailed": "Bibliothek konnte nicht gespeichert werden",
     "levelingDelayRoundedToWorkdays_one": "Der Ressourcenabgleich rundet die minutengenaue Abgleichverzögerung aus MS Project für {{count}} Vorgang auf ganze Arbeitstage.",
     "levelingDelayRoundedToWorkdays_other": "Der Ressourcenabgleich rundet die minutengenaue Abgleichverzögerung aus MS Project für {{count}} Vorgänge auf ganze Arbeitstage.",
+    "schedulingProfileApplied": "Dieses Projekt rechnet als {{profile}}. Ändern über Datei → Projektinfo → Berechnungsprofil und Berechnungsoptionen.",
+    "schedulingProfileShifted_one": "Nach dem Anwenden wurde {{count}} Vorgang verschoben.",
+    "schedulingProfileShifted_other": "Nach dem Anwenden wurden {{count}} Vorgänge verschoben.",
+    "actions": {
+      "openProjectInfo": "Berechnungsprofil öffnen"
+    },
     "xerArchiveUnusable": "Das XER-Quellarchiv in dieser Datei ist unbrauchbar und wurde weggelassen; das Projekt selbst wurde vollständig geöffnet.",
     "xerArchiveUnusableLine": "Das XER-Quellarchiv in dieser Datei war unbrauchbar und wurde weggelassen.",
-    "xerArchiveUnusableConsequence": "Terminplan und alle Projektdaten aus der IFC sind vollständig. Es fehlen: die Termine, wie Primavera sie gespeichert hat, und die Quellherkunft für KI und Erweiterungen. Beim Speichern wird die Datei ohne Archiv geschrieben; importieren Sie die ursprüngliche .xer erneut, um das Archiv zurückzubekommen.",
+    "xerArchiveUnusableConsequence": "Terminplan, Berechnungsprofil und alle Projektdaten aus der IFC sind vollständig. Es fehlen: die Termine, wie Primavera sie gespeichert hat, und die Quellherkunft für KI und Erweiterungen. Beim Speichern wird die Datei ohne Archiv geschrieben; importieren Sie die ursprüngliche .xer erneut, um das Archiv zurückzubekommen.",
     "xerArchiveReasonSchemaVersion": "Grund: Das Archiv hat eine unbekannte Schemaversion oder ein unbekanntes Format (neuerer oder anderer Schreiber).",
     "xerArchiveReasonHashMismatch": "Grund: Die Prüfsumme passt nicht zu den Quellbytes — das Archiv ist beschädigt.",
     "xerArchiveReasonTruncated": "Grund: Das Archiv ist abgeschnitten — ein Teil der Quellbytes fehlt.",
@@ -1170,6 +1176,162 @@
       "completion": "Fertigstellung",
       "actualStart": "Tatsächlicher Start",
       "actualFinish": "Tatsächliches Ende"
+    }
+  },
+  "conventions": {
+    "preserveActualDatesInBackwardPass": {
+      "label": "Istdaten in der Rückwärtsrechnung beibehalten",
+      "help": "Ein begonnener oder abgeschlossener Vorgang behält seine erfassten Termine auch auf der späten Seite; ein abgeschlossener Nachfolger zieht einen offenen Vorgänger nicht in die Vergangenheit zurück."
+    },
+    "clampNegativeFreeFloat": {
+      "label": "Freier Puffer nie negativ",
+      "help": "Bei einer nicht einhaltbaren späten Einschränkung bleibt der Gesamtpuffer negativ, der freie Puffer wird jedoch null."
+    },
+    "p6ZeroDurationUsesPlannedBoundary": {
+      "label": "Meilenstein folgt der geplanten Kalendergrenze",
+      "help": "Ein Meilenstein ohne Dauer bleibt auf der Kalendergrenze, die die Datei geplant hat: ein Tagesbeginn bleibt ein Startmeilenstein, ein Bandende darf auf dem Ende des Vorgängers landen."
+    },
+    "p6UseTaskPlannedStartFloor": {
+      "label": "Geplanter Start als zusätzliche Untergrenze",
+      "help": "Der geplante Start aus der Datei gilt als Untergrenze, sobald Start und Ende mehr als einen Kalendertag später liegen, als das Netzwerk zulässt."
+    },
+    "p6FinishMilestoneBoundaryWindow": {
+      "label": "Endmeilenstein als Grenzfenster",
+      "help": "Ein Endmeilenstein darf auf zwei benachbarten Kalendergrenzen stehen: früher Start am Beginn eines Bandes, frühes Ende am Ende des vorherigen Bandes."
+    },
+    "p6PreserveActualInstants": {
+      "label": "Istdaten exakt übernehmen",
+      "help": "Erfasste Ist-Start- und Ist-Endtermine werden nicht auf ein Arbeitszeitband verschoben."
+    },
+    "p6UseRemainingStartForProgress": {
+      "label": "Laufender Vorgang: früher Start = Beginn der Restarbeit",
+      "help": "Früher und später Start eines laufenden Vorgangs beschreiben, wo die Restarbeit beginnt, nicht den historischen Ist-Start. Bei der Rückwärtsrechnung über eine Anfang-Anfang-Beziehung zählt nur die Restdauer."
+    },
+    "p6PreserveZeroDurationConstraintInstants": {
+      "label": "Exakter Einschränkungszeitpunkt auf einem Meilenstein",
+      "help": "Eine Datums-und-Uhrzeit-Einschränkung auf einem Meilenstein ohne Dauer ist ein exakter Punkt, auch am Beginn eines Arbeitsbandes."
+    },
+    "resumeFromActualElapsed": {
+      "label": "Restarbeit wird nach der verstrichenen Dauer fortgesetzt",
+      "help": "Ein laufender Vorgang setzt seine Restarbeit am Ist-Start plus der verstrichenen Dauer fort, nicht am Statusdatum."
+    },
+    "unstartedIgnoresStatusDate": {
+      "label": "Nicht begonnene Vorgänge nicht zum Statusdatum verschieben",
+      "help": "Ein noch nicht begonnener Vorgang wird nicht automatisch auf oder nach das Statusdatum verschoben."
+    },
+    "p6RelationFinishBoundary": {
+      "label": "Nachfolger beginnt an der Endgrenze",
+      "help": "Bei einer Ende-Anfang-Beziehung ohne Zeitabstand auf einer gemeinsamen Bandgrenze beginnt der Nachfolger am Ende des Vorgängers (nur Beziehungen, die die Datei so kennzeichnet). Bei der Rückwärtsrechnung zeigt der Nachfolger seinen spätesten Anfang einfach als Beginn eines Arbeitsbands."
+    },
+    "p6BackwardLagFinishBoundary": {
+      "label": "Zeitabstand rückwärts ab einer Endgrenze",
+      "help": "Zieht die Rückwärtsrechnung einen Arbeitszeit-Zeitabstand von einer Endgrenze ab und landet genau auf einem Bandbeginn, landet sie auf der vorherigen Endgrenze. Auch bei einer Ende-Ende-Beziehung ohne Zeitabstand bleibt ein spätestes Ende auf einem Bandende diese Endgrenze."
+    },
+    "p6CompletedDataDateWindow": {
+      "label": "Abgeschlossener Vorgang im Statusdatumsfenster",
+      "help": "Ein abgeschlossener Vorgang erhält frühe Termine im Fenster des Statusdatums, und sein Ende zählt für das Projektende (nur Vorgänge mit P6-Herkunft)."
+    },
+    "p6CompletedLoeActualFinish": {
+      "label": "Abgeschlossene LOE über das Ist-Ende",
+      "help": "Eine abgeschlossene Level-of-Effort-Aktivität mit nur einem Anfang-Anfang-Eingang folgt der Route über ihr Ist-Ende (nur Vorgänge mit P6-Herkunft)."
+    },
+    "p6OpenLoeTargetSpan": {
+      "label": "Nicht begonnene LOE übernimmt das Zielfenster",
+      "help": "Eine noch nicht begonnene Level-of-Effort-Aktivität übernimmt ihr Zielfenster als Laufzeit (nur Vorgänge mit P6-Herkunft)."
+    },
+    "p6CompletedPredecessorAtDataDate": {
+      "label": "Abgeschlossener Vorgänger hält nicht über das Statusdatum hinaus",
+      "help": "Liegt das Ist-Ende eines abgeschlossenen Vorgängers nach dem Statusdatum, dürfen seine Nachfolger trotzdem schon am Statusdatum beginnen."
+    },
+    "p6FreeFloatOnOwnCalendar": {
+      "label": "Freier Puffer im eigenen Kalender",
+      "help": "Der freie Puffer eines nicht begonnenen Vorgangs zählt je Beziehung im Kalender des Vorgangs selbst, nicht in dem des Nachfolgers: bei Ende-Anfang, Anfang-Anfang und Ende-Ende, auch mit einem Zeitabstand in Arbeitszeit im Kalender des Vorgängers. Ein begonnener Vorgang nur bei Ende-Anfang ohne Zeitabstand."
+    },
+    "p6CompletedRemainingLag": {
+      "label": "Verstrichener Zeitabstand eines abgeschlossenen Vorgängers zählt nicht",
+      "help": "Auf der späten Seite zählt vom Zeitabstand nach einem abgeschlossenen Vorgänger nur der Teil, der am Statusdatum noch nicht verstrichen ist."
+    },
+    "p6CompletedOutOfSequenceWindow": {
+      "label": "Abgeschlossener Vorgang außerhalb der Reihenfolge wartet auf seine Vorgänger",
+      "help": "Ein abgeschlossener Vorgang, dessen Vorgänger noch nicht fertig ist, erhält sein Nullfenster nach diesem Vorgänger statt am Statusdatum (Retained Logic)."
+    },
+    "p6CompletedPhysicalAtDataDate": {
+      "label": "Abgeschlossener Vorgang mit physischem Fortschritt steht am Statusdatum",
+      "help": "Ein abgeschlossener Vorgang mit physischem Fertigstellungsgrad steht als ein Punkt am Statusdatum, oder später, wenn ein Vorgänger es verlangt, statt auf seinen Ist-Terminen. Nur für physischen Fertigstellungsgrad gemessen; für andere Fertigstellungsarten (P6-Standard: Dauer) ist dieses Verhalten nicht gemessen und bleibt aus."
+    },
+    "p6InProgressStartLagElapsed": {
+      "label": "Verstrichener AA-Zeitabstand eines laufenden Vorgängers zählt nicht",
+      "help": "Bei einer Anfang-Anfang-Beziehung von einem bereits begonnenen Vorgang zählt vom Zeitabstand nur der Teil, der seit dessen Ist-Anfang am Statusdatum noch nicht verstrichen ist."
+    },
+    "p6FinishFinishStartMilestoneLateFinish": {
+      "label": "Ende-Ende-Beziehung zu einem Startmeilenstein bindet an den Meilenstein selbst",
+      "help": "Eine Ende-Ende-Beziehung zu einem Startmeilenstein zählt bis zum Meilenstein selbst, nicht bis zum Beginn seines Tages: das späteste Ende des Vorgängers darf bis zum spätesten Ende des Meilensteins reichen."
+    },
+    "p6StartedTaskIgnoresPlannedStartFloor": {
+      "label": "Geplanter Anfang ist keine Untergrenze für einen laufenden Vorgang",
+      "help": "Die Restarbeit eines begonnenen Vorgangs beginnt am Statusdatum und direkt nach seinen Vorgängern, auch wenn sein geplanter Anfang später liegt."
+    },
+    "p6LateFinishOnOwnCalendar": {
+      "label": "Spätestes Ende im eigenen Kalender",
+      "help": "Fällt das späteste Ende, das ein Nachfolger vorgibt, außerhalb der Arbeitszeit des Vorgangs, wird es zum Ende der vorherigen Arbeitsperiode im eigenen Kalender."
+    },
+    "p6ProgressOverrideIgnoresStartedSuccessor": {
+      "label": "Progress Override ignoriert einen begonnenen Nachfolger auch rückwärts",
+      "help": "Bei Progress Override zählt die Beziehung zu einem bereits begonnenen Nachfolger nicht für die späten Termine und die freie Pufferzeit eines noch nicht abgeschlossenen Vorgängers."
+    },
+    "p6FinishNotBeforeFinishFinishBound": {
+      "label": "Früheres Ende nicht vor einer Ende-Ende-Grenze",
+      "help": "Bei einer Ende-Ende-Beziehung liegt das frühe Ende des Nachfolgers in Uhrzeit nie vor der Grenze, die der Vorgänger setzt. Fällt diese Grenze in arbeitsfreie Zeit des Nachfolgers, wird das Ende der Beginn der nächsten Arbeitsperiode."
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "ALAP-Vorgänge so spät, wie die Nachfolger es zulassen",
+      "help": "Ein nicht begonnener Vorgang mit der Einschränkung 'so spät wie möglich' endet auf die Minute, zu der seine Nachfolger ihn brauchen, Nachfolger zuerst, sodass eine Kette lückenlos anschließt. Sein eigener geplanter Anfang zählt nicht; ein Vorgang ohne Vorgänger beginnt dann nicht vor dem Statusdatum. Gilt nur bei einem Stundenkalender."
+    }
+  },
+  "profiles": {
+    "builtIn": {
+      "p6": "Primavera P6",
+      "msproject": "Microsoft Project",
+      "ops": "Open Planner Studio"
+    },
+    "modified": "{{name}} (angepasst)",
+    "copyOf": "Kopie von {{name}}"
+  },
+  "schedulingProfile": {
+    "title": "Berechnungsprofil und Berechnungsoptionen",
+    "profile": "Berechnungsprofil",
+    "conventionsTitle": "Konventionen dieses Profils",
+    "optionsTitle": "Berechnungsoptionen dieses Projekts",
+    "customName": "Name dieses eigenen Profils",
+    "saveAsTemplate": "Als Vorlage speichern",
+    "updateTemplate": "Vorlage aus diesem Projekt aktualisieren",
+    "applyTemplate": "Aus Vorlage aktualisieren",
+    "deleteTemplate": "Vorlage löschen",
+    "templateDeviates": "Dieses Profil weicht von der Vorlage „{{name}}“ ab.",
+    "applyDefaultOptions": "Standardoptionen dieses Profils anwenden",
+    "themes": {
+      "completedWork": "Fortschritt und abgeschlossene Arbeit",
+      "relationsLag": "Beziehungen und Zeitabstand",
+      "milestones": "Meilensteine und LOE-Vorgänge",
+      "float": "Puffer und späte Termine",
+      "instants": "Termine und Zeitpunkte aus der Datei",
+      "msproject": "Fortschritt wie in Microsoft Project",
+      "ownProfilesOnly": "Nur für eigene Profile"
+    },
+    "ownProfilesOnlyNote": "Diese Konventionen sind in jedem integrierten Profil aus, auch unter Primavera P6. Wenn Sie eine einschalten, wird daraus ein eigenes Profil.",
+    "deviatingCount": "abweichend: {{n}}",
+    "baseValue": "Basis: {{value}}",
+    "on": "an",
+    "off": "aus",
+    "resetToBase": "zurück zur Basis",
+    "showHelp": "Erläuterung zu „{{name}}“",
+    "sourceOptions": {
+      "title": "Einstellungen aus der Quelldatei",
+      "intro": "Diese Berechnungsoptionen stammen aus einer Primavera-P6-Datei (.xer). Sie fließen in die Berechnung ein, sind hier aber nicht änderbar.",
+      "useExpectedFinishDates": "Erwartete Endtermine verwenden (P6: Use Expected Finish Dates)",
+      "useProjectEndDateForFloat": "Puffer bis zum Projektendtermin berechnen",
+      "p6CompletedLateFromRemainingWindow": "Abgeschlossener Vorgang: späte Termine ab dem Statusdatum",
+      "needsConvention": "Wirkt nur zusammen mit der Konvention „{{convention}}“, die derzeit aus ist."
     }
   }
 }

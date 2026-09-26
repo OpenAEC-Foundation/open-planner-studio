@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Check, Pencil, X } from 'lucide-react';
@@ -7,11 +7,12 @@ import { DateTextInput } from '@/components/common/DateTextInput';
 import { formatDate } from '@/utils/dateUtils';
 import { PROJECT_TEMPLATES, templatePhases, buildGeneratedCalendar, type TemplateKey } from '@/utils/projectTemplates';
 import { CalendarGeneratorFields } from '@/components/dialogs/CalendarGeneratorFields';
-import { CalcOptionsSection } from '@/components/dialogs/CalcOptionsSection';
+import { SchedulingProfileSection } from '@/components/settings/SchedulingProfileSection';
+import { hasValidProfileName, sameSettings, type SchedulingSettingsDraft } from '@/state/schedulingProfileDraft';
+import { projectInfoPatch } from '@/state/projectInfoPatch';
 import { computeGenerateSpan, type HolidayGenParams } from '@/engine/calendar/generateCalendarHolidays';
 import type { HolidayCountry } from '@/engine/calendar/holidays';
 import { WIZARD_PRESETS, SHIFT_PRESET_LABEL, shiftPresetPatch, type ShiftPresetKey } from '@/utils/shiftPresets';
-import type { Project, SchedulingOptions } from '@/types/project';
 import { hasConcreteWorkBlocks } from '@/services/subdayIo';
 
 /** Wizard-generatorstatus: `HolidayGenParams` uitgebreid met de wizard-only pseudo-keuze
@@ -28,13 +29,23 @@ const NEW_COMPANY_OPTION = '__new__';
 
 export interface ProjectInfoPanelContentHandle {
   /** Committeert de huidige draft — wizard ⇒ createNewProject + bibliotheek-koppeling; edit ⇒
-   *  setProject + bibliotheek-(ont)koppeling (+ runCPM als de Berekening-sectie wijzigde). */
-  submit: () => void;
+   *  setProject + bibliotheek-(ont)koppeling (+ applySchedulingSettings als het blok Rekenprofiel en
+   *  reken-opties werd aangeraakt: één undo-stap, herberekenen, melding "N taken verschoven"). */
+  submit: (options?: ProjectInfoSubmitOptions) => boolean;
+  /** Gooit de draft weg en zet alle velden terug op het huidige project (B2, gebruikstest 24-09:
+   *  "Verwerpen" in de plakkende voetbalk en in de niet-toegepast-dialoog van Backstage). */
+  discard: () => void;
+}
+
+export interface ProjectInfoSubmitOptions {
+  /** `onDone` NIET aanroepen: de Backstage-wegnavigeerbewaking past toe en navigeert daarna zelf
+   *  naar het gekozen doel, in plaats van via `onDone` terug naar de Start-tab. */
+  skipDone?: boolean;
 }
 
 export interface ProjectInfoPanelContentProps {
   /** 'wizard' = nieuw-project-wizard (ui.showNewProjectDialog): toont sjabloon/ploeg-preset/
-   *  kalender-generator, geen Berekening-sectie.
+   *  kalender-generator en van het rekenprofielblok alleen de keuzelijst.
    *  'edit' = bestaand project bewerken — zowel de dialoog-op-bestaand-project als de
    *  Backstage → Projectinfo-sectie draaien in deze modus. */
   mode: 'wizard' | 'edit';
@@ -44,6 +55,13 @@ export interface ProjectInfoPanelContentProps {
   /** Autofocus op het Naam-veld — ALLEEN de modale dialoog/wizard mag dit aanzetten (GO-NA-fix 4):
    *  in de niet-modale Backstage-pagina zou autoFocus bij elk bezoek de focus grijpen. Default: uit. */
   autoFocusName?: boolean;
+  /** Meldt of de draft nu toe te passen is (rekenprofielen: een eigen profiel zonder naam is dat niet).
+   *  De wrapper zet daarmee zijn Toepassen/Aanmaken-knop uit; `submit()` weigert zelf ook. */
+  onValidityChange?: (valid: boolean) => void;
+  /** Meldt of de draft afwijkt van het project (B2, gebruikstest 24-09): Backstage toont dan de
+   *  gekleurde markering "niet toegepast" en vraagt bij wegnavigeren Toepassen/Verwerpen/Annuleren.
+   *  Zelfde maatstaf als `submit()`: alleen wat Toepassen echt zou wijzigen telt. */
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 /**
@@ -63,7 +81,8 @@ export interface ProjectInfoPanelContentProps {
  *  - `mode="wizard"`: `createNewProject(...)` + bibliotheek-koppeling (`bindProjectToCompany`) +
  *    herkenning (`computeRecognition` → evt. `showLibraryLinkDialog`).
  *  - `mode="edit"`: `setProject(...)` + bibliotheek-(ont)koppeling (`bindProjectToCompany`/
- *    `unbindProject`) + (bij gewijzigde Berekening-sectie) `runCPM()`.
+ *    `unbindProject`) + (bij een aangeraakt rekenprofielblok) `applySchedulingSettings` (no-op bij
+ *    inhoudelijk gelijke instellingen; anders één undo-stap + `runCPM()` + telling).
  *
  * STALE-DRAFT-GUARD (GO-NA-fix 1, code review op bf1c851): `ProjectInfoSection` in Backstage blijft
  * gemount zolang de gebruiker op die pagina staat. `nav.switchDocumentN` (Ctrl+1..9) en `edit.undo`/
@@ -73,7 +92,7 @@ export interface ProjectInfoPanelContentProps {
  * component met de OUDE `useState`-waarden gemount blijft. Twee onafhankelijke vangnetten:
  *  (a) re-init-effect op `activeDocumentId` (documentwissel — swapt `project` als geheel, dus dít is
  *      het bewezen identiteitssignaal; zie hieronder waarom NIET op undo).
- *  (b) `companyTouched`/`calcTouched`: de bibliotheek-(ont)koppeling en de Berekening/runCPM-tak
+ *  (b) `companyTouched`/`calcTouched`: de bibliotheek-(ont)koppeling en de rekenprofiel-tak
  *      committeren ALLEEN als de gebruiker die specifieke control in DEZE mount daadwerkelijk heeft
  *      aangeraakt — dus zelfs als (a) een scenario zou missen, kan een stale draft nooit meer stilletjes
  *      een bibliotheek los- of vastkoppelen (het destructieve pad: `unbindProject()` strip ALLE
@@ -87,7 +106,7 @@ export interface ProjectInfoPanelContentProps {
  *  later wél projectvelden zou gaan raken).
  */
 export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle, ProjectInfoPanelContentProps>(
-  function ProjectInfoPanelContent({ mode, onDone, autoFocusName }, ref) {
+  function ProjectInfoPanelContent({ mode, onDone, autoFocusName, onValidityChange, onDirtyChange }, ref) {
     const isNew = mode === 'wizard';
     const { t: tMenu } = useTranslation('menu');
     const { t: tCommon } = useTranslation('common');
@@ -96,10 +115,9 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
     const projectCalendar = useAppStore(s => s.calendar);
     const activeDocumentId = useAppStore(s => s.activeDocumentId);
     const activeRibbonTab = useAppStore(s => s.ui.activeRibbonTab);
-    const setProject = useAppStore(s => s.setProject);
     const createNewProject = useAppStore(s => s.createNewProject);
     const setUI = useAppStore(s => s.setUI);
-    const runCPM = useAppStore(s => s.runCPM);
+    const applyProjectInfo = useAppStore(s => s.applyProjectInfo);
 
     const [name, setName] = useState(isNew ? '' : project.name);
     const [description, setDescription] = useState(isNew ? '' : project.description);
@@ -110,11 +128,12 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
     const [defaultTaskDurationUnit, setDefaultTaskDurationUnit] = useState<'days' | 'hours'>(
       isNew ? 'days' : (project.defaultTaskDurationUnit ?? 'days'),
     );
-    // Berekening-sectie als DRAFT (fase 2.9-fix): net als Naam/Omschrijving bewerkt de Berekening-sectie
-    // een lokale kopie; de store wijzigt pas op submit() (consistent Annuleren-gedrag). Vers gemount ⇒
-    // initialiseert uit het huidige project.
-    const [schedulingOptions, setSchedulingOptionsRaw] = useState<SchedulingOptions>(
-      isNew ? {} : (project.schedulingOptions ?? {}),
+    // Rekenprofiel + reken-opties als DRAFT (spec v3.1 §6): net als Naam/Omschrijving een lokale kopie;
+    // de store wijzigt pas op submit() (consistent Annuleren-gedrag). Vers gemount ⇒ initialiseert uit
+    // het huidige project; de wizard start op het standaardprofiel.
+    const [scheduling, setSchedulingRaw] = useState<SchedulingSettingsDraft>(
+      isNew ? { profile: undefined, options: undefined }
+        : { profile: project.schedulingProfile, options: project.schedulingOptions },
     );
     // Bouwmodus (2026-07-13): in bouw-agnostische modus (bouwmodus UIT) start de kalender-generator op
     // `country: 'none'` (geen NL-feestdagen) i.p.v. NL. Het component wordt vers gemount, dus de
@@ -151,13 +170,33 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
     const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
     const [shiftPreset, setShiftPreset] = useState<ShiftPresetKey>('day');
     const canDefaultToHours = isNew ? shiftPreset !== 'day' : hasConcreteWorkBlocks(projectCalendar);
-    // GO-NA-fix 1b: net als companyTouched — de Berekening-sectie/runCPM-tak committeert ALLEEN als de
-    // gebruiker CalcOptionsSection in deze mount daadwerkelijk bewerkte.
+    // GO-NA-fix 1b: net als companyTouched — de rekenprofiel-tak committeert ALLEEN als de gebruiker
+    // het blok in deze mount daadwerkelijk bewerkte.
     const [calcTouched, setCalcTouched] = useState(false);
-    const setSchedulingOptions = (next: SchedulingOptions) => {
+    const setScheduling = (next: SchedulingSettingsDraft) => {
       setCalcTouched(true);
-      setSchedulingOptionsRaw(next);
+      setSchedulingRaw(next);
     };
+
+    // Zet de hele draft terug op het (verse) actieve project: gedeeld door de documentwissel
+    // hieronder en `discard()` ("Verwerpen", B2). Leest de store op het moment zelf.
+    const resetDraftFromProject = useCallback(() => {
+      const p = useAppStore.getState().project;
+      setName(p.name);
+      setDescription(p.description);
+      setAuthor(p.author);
+      setCompany(p.company);
+      setStartDate(p.startDate);
+      setEndDate(p.endDate);
+      setDefaultTaskDurationUnit(p.defaultTaskDurationUnit ?? 'days');
+      setSchedulingRaw({ profile: p.schedulingProfile, options: p.schedulingOptions });
+      setCalcTouched(false);
+      setLinkedCompanyId(p.companyId ?? '');
+      setCompanyTouched(false);
+      setCreatingCompany(false);
+      setPendingNewCompany(false);
+      setNewCompanyName('');
+    }, []);
 
     // GO-NA-fix 1a: her-initialiseer de VOLLEDIGE draft zodra het ACTIEVE document verandert
     // (Ctrl+1..9 kan vuren terwijl deze component gemount blijft — zie de JSDoc hierboven). Alléén
@@ -171,27 +210,35 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
       if (isNew) return;
       if (activeDocumentId === draftDocIdRef.current) return;
       draftDocIdRef.current = activeDocumentId;
-      const p = useAppStore.getState().project; // vers — dit IS de state ná de documentwissel
-      setName(p.name);
-      setDescription(p.description);
-      setAuthor(p.author);
-      setCompany(p.company);
-      setStartDate(p.startDate);
-      setEndDate(p.endDate);
-      setDefaultTaskDurationUnit(p.defaultTaskDurationUnit ?? 'days');
-      setSchedulingOptionsRaw(p.schedulingOptions ?? {});
-      setCalcTouched(false);
-      setLinkedCompanyId(p.companyId ?? '');
-      setCompanyTouched(false);
-      setCreatingCompany(false);
-      setPendingNewCompany(false);
-      setNewCompanyName('');
-    }, [isNew, activeDocumentId]);
+      resetDraftFromProject();
+    }, [isNew, activeDocumentId, resetDraftFromProject]);
+
 
     // Generatie-spanne bij aanmaak (§4.4): nog geen projecteinde bekend ⇒ startjaar−1..+3.
     const calSpan = useMemo(() => computeGenerateSpan(startDate, endDate || undefined), [startDate, endDate]);
 
-    const handleSubmit = () => {
+    // Her-check eindreview: een eigen profiel zonder naam is "nog niet geldig". Dan committeert
+    // submit() NIETS — ook de metadata niet — en blijft de dialoog/sectie open met het gekleurde blok
+    // "verplicht" in beeld; anders zou Toepassen de conventiewijzigingen stil weggooien.
+    const draftValid = hasValidProfileName(scheduling.profile);
+    useEffect(() => { onValidityChange?.(draftValid); }, [draftValid, onValidityChange]);
+
+    // B2 (gebruikstest 24-09): wijkt de draft af van het project? Zelfde maatstaven als de commit
+    // hieronder — metadata via `projectInfoPatch`, het rekenprofiel alleen na aanraken én inhoudelijk
+    // anders (`sameSettings`, zoals `applyProjectInfo`), de bibliotheek alleen na aanraken. De wizard
+    // maakt een nieuw project en kent dus geen "niet toegepast".
+    const dirty = !isNew && (
+      Object.keys(projectInfoPatch(project, { name, description, author, company, startDate, endDate, defaultTaskDurationUnit })).length > 0
+      || (calcTouched && !sameSettings({ profile: project.schedulingProfile, options: project.schedulingOptions }, scheduling))
+      || pendingNewCompany
+      || (companyTouched && linkedCompanyId !== (project.companyId ?? ''))
+    );
+    useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+    // Bij unmount is er niets meer "niet toegepast" (de draft bestaat dan niet meer).
+    useEffect(() => () => { onDirtyChange?.(false); }, [onDirtyChange]);
+
+    const handleSubmit = (options?: ProjectInfoSubmitOptions): boolean => {
+      if (!draftValid) return false;
       // "+ Nieuwe resourcebibliotheek…" materialiseert pas HIER (GO-NA-fix 2) — vóór dit punt bestaat
       // er geen store-mutatie, dus Annuleren van de dialoog/sectie laat niets achter. `pendingNewCompany`
       // (niet `creatingCompany`, dat sluit al bij "bevestigen" — zie confirmNewCompany) blijft de
@@ -203,6 +250,10 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
         const createdId = addCompany(newCompanyName.trim() || tCommon('companyLibrary.newCompany'));
         effectiveLinkedCompanyId = createdId;
         effectiveCompanyTouched = true;
+        // Gematerialiseerd: de intentie is vervuld (anders bleef de draft na een `skipDone`-submit "vuil").
+        setPendingNewCompany(false);
+        setCreatingCompany(false);
+        setLinkedCompanyId(createdId);
       }
 
       if (isNew) {
@@ -226,6 +277,9 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
           calendar,
           phaseNames: templatePhases(template),
           defaultTaskDurationUnit: enableHourPlanning && canDefaultToHours ? defaultTaskDurationUnit : 'days',
+          // Rekenprofiel uit de keuzelijst hoort bij de aanmaak zelf (geen losse undo-stap erna).
+          schedulingProfile: scheduling.profile,
+          schedulingOptions: scheduling.options,
         });
         // Spec §2/§5: koppel aan het gekozen bedrijf (default = standaardbedrijf). Herkenning start
         // pas als het project al inhoud heeft — bij een vers, leeg project is dat een no-op. Geen
@@ -245,25 +299,19 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
           ...(activeRibbonTab === 'file' ? { activeRibbonTab: 'start' as const } : {}),
         });
       } else {
-        // Committeer de metadata altijd; de Berekening-draft ALLEEN als de gebruiker CalcOptionsSection
-        // aanraakte (GO-NA-fix 1b — anders geen spurious dirty / geen onnodige herberekening op een
-        // stale of nooit-bekeken draft). Genormaliseerd via JSON-roundtrip zodat undefined-sleutels
-        // verdwijnen ⇒ leeg wordt `undefined` (byte-identiek met "geen opties").
-        const patch: Partial<Project> = {
-          name, description, author, company, startDate, endDate,
-          // Een tijdelijk verborgen of momenteel onbruikbare uurdefault blijft documentdata.
-          // Nieuwe taken vallen in taskSlice veilig terug op dagen zolang de capability of
-          // concrete werkblokken ontbreken; alleen deze voorkeur hier stil terugzetten zou een
-          // ongerelateerde metadata-edit echter dataverlies laten veroorzaken.
-          defaultTaskDurationUnit,
-        };
-        let soChanged = false;
-        if (calcTouched) {
-          const normalized = JSON.parse(JSON.stringify(schedulingOptions)) as SchedulingOptions;
-          soChanged = JSON.stringify(normalized) !== JSON.stringify(project.schedulingOptions ?? {});
-          if (soChanged) patch.schedulingOptions = Object.keys(normalized).length > 0 ? normalized : undefined;
-        }
-        setProject(patch);
+        // Committeer de metadata altijd; het rekenprofielblok ALLEEN als de gebruiker het aanraakte
+        // (GO-NA-fix 1b — anders geen spurious dirty / geen onnodige herberekening op een stale of
+        // nooit-bekeken draft). De store-actie normaliseert zelf (leeg ⇒ `undefined`).
+        // Gebruikstest I5: alleen de ÉCHT gewijzigde metadata (afwezige eenheid ≡ 'days', geen
+        // modifiedAt), en samen met het rekenprofiel in ÉÉN undo-stap ("Projectinfo"). Toepassen
+        // zonder wijziging doet dan niets: geen undo-stap, niet vuil, "datums zoals opgeslagen" blijft.
+        // Een tijdelijk verborgen of momenteel onbruikbare uurdefault blijft documentdata: nieuwe
+        // taken vallen in taskSlice veilig terug op dagen zolang de capability of concrete
+        // werkblokken ontbreken; hem hier stil terugzetten zou dataverlies zijn.
+        applyProjectInfo(
+          projectInfoPatch(project, { name, description, author, company, startDate, endDate, defaultTaskDurationUnit }),
+          calcTouched ? scheduling : undefined,
+        );
         // GO-NA-fix 1b: bind/unbind ALLEEN als de gebruiker de select in DEZE mount aanraakte — dit is
         // de vangrail tegen de stale-draft-unbind (zie JSDoc hierboven).
         if (effectiveCompanyTouched) {
@@ -279,15 +327,15 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
             }
           }
         }
-        if (calcTouched && soChanged) runCPM();
       }
-      onDone();
+      if (!options?.skipDone) onDone();
+      return true;
     };
 
     // BEWUST geen dependency-array: elke render moet de NIEUWSTE `handleSubmit`-closure (met de
     // actuele draft-state) aan de ref hangen. Een `[]` zou de closure op de EERSTE render bevriezen en
     // submit() daarna altijd de staat van dat allereerste render laten committeren.
-    useImperativeHandle(ref, () => ({ submit: handleSubmit }));
+    useImperativeHandle(ref, () => ({ submit: handleSubmit, discard: resetDraftFromProject }));
 
     const inputCls =
       'px-2 py-1.5 bg-surface border-[1.5px] border-[var(--theme-control-border)] rounded-[8px] text-text-primary focus:outline-none focus:border-accent focus:shadow-[0_0_0_3px_rgba(217,119,6,0.2)] transition-[border-color,box-shadow]';
@@ -496,10 +544,10 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
           </>
         )}
 
-        {/* Berekening-sectie (fase 2.9 §5.7/§7, besluit B5) — alleen bij het bewerken van een
-            bestaand project (niet in de nieuw-project-wizard). Draait nu identiek op beide
-            edit-oppervlakken (dialoog én Backstage). onChange markeert calcTouched (GO-NA-fix 1b). */}
-        {!isNew && <CalcOptionsSection value={schedulingOptions} onChange={setSchedulingOptions} />}
+        {/* Rekenprofiel en reken-opties (spec v3.1 §6): in de wizard alleen de keuzelijst (die de
+            standaardopties van het profiel toepast), bij bewerken het volledige blok — identiek op
+            beide edit-oppervlakken (dialoog én Backstage). onChange markeert calcTouched. */}
+        <SchedulingProfileSection mode={isNew ? 'wizard' : 'edit'} value={scheduling} onChange={setScheduling} />
       </div>
     );
   },

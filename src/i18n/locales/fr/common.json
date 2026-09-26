@@ -117,9 +117,16 @@
     "levelingDelayRoundedToWorkdays_one": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâche à des journées de travail entières.",
     "levelingDelayRoundedToWorkdays_many": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâches à des journées de travail entières.",
     "levelingDelayRoundedToWorkdays_other": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâches à des journées de travail entières.",
+    "schedulingProfileApplied": "Ce projet calcule comme {{profile}}. Modifiable via Fichier → Info projet → Profil de calcul et options.",
+    "schedulingProfileShifted_many": "Après application, {{count}} tâches ont été déplacées.",
+    "schedulingProfileShifted_one": "Après application, {{count}} tâche a été déplacée.",
+    "schedulingProfileShifted_other": "Après application, {{count}} tâches ont été déplacées.",
+    "actions": {
+      "openProjectInfo": "Ouvrir le profil de calcul"
+    },
     "xerArchiveUnusable": "L'archive source XER de ce fichier est inutilisable et a été omise ; le projet lui-même s'est ouvert en entier.",
     "xerArchiveUnusableLine": "L'archive source XER de ce fichier était inutilisable et a été omise.",
-    "xerArchiveUnusableConsequence": "Le planning et toutes les données de projet de l'IFC sont complets. Ce qui manque : les dates telles que Primavera les a enregistrées et la provenance source pour l'IA et les extensions. L'enregistrement écrit le fichier sans l'archive ; importez à nouveau le .xer d'origine pour récupérer l'archive.",
+    "xerArchiveUnusableConsequence": "Le planning, le profil de calcul et toutes les données de projet de l'IFC sont complets. Ce qui manque : les dates telles que Primavera les a enregistrées et la provenance source pour l'IA et les extensions. L'enregistrement écrit le fichier sans l'archive ; importez à nouveau le .xer d'origine pour récupérer l'archive.",
     "xerArchiveReasonSchemaVersion": "Raison : l'archive a une version de schéma ou une structure inconnue (rédacteur plus récent ou différent).",
     "xerArchiveReasonHashMismatch": "Raison : la somme de contrôle ne correspond pas aux octets source — l'archive est endommagée.",
     "xerArchiveReasonTruncated": "Raison : l'archive est tronquée — une partie des octets source manque.",
@@ -1207,6 +1214,162 @@
       "completion": "Avancement",
       "actualStart": "Début réel",
       "actualFinish": "Fin réelle"
+    }
+  },
+  "conventions": {
+    "preserveActualDatesInBackwardPass": {
+      "label": "Conserver les dates réelles dans le calcul au plus tard",
+      "help": "Une tâche commencée ou terminée conserve ses dates enregistrées aussi du côté tardif ; un successeur terminé ne ramène pas un prédécesseur ouvert dans le passé."
+    },
+    "clampNegativeFreeFloat": {
+      "label": "Marge libre jamais négative",
+      "help": "Avec une contrainte tardive irréalisable, la marge totale reste négative, mais la marge libre devient nulle."
+    },
+    "p6ZeroDurationUsesPlannedBoundary": {
+      "label": "Le jalon suit la limite de calendrier planifiée",
+      "help": "Un jalon sans durée reste sur la limite de calendrier planifiée par le fichier : un début de journée reste un jalon de début, une fin de plage peut tomber sur la fin du prédécesseur."
+    },
+    "p6UseTaskPlannedStartFloor": {
+      "label": "Début planifié comme plancher supplémentaire",
+      "help": "Le début planifié du fichier sert de plancher dès que le début et la fin se situent plus d’un jour calendaire plus tard que ce que le réseau permet."
+    },
+    "p6FinishMilestoneBoundaryWindow": {
+      "label": "Jalon de fin comme fenêtre de limite",
+      "help": "Un jalon de fin peut se trouver sur deux limites de calendrier adjacentes : début au plus tôt au début d’une plage, fin au plus tôt à la fin de la plage précédente."
+    },
+    "p6PreserveActualInstants": {
+      "label": "Reprendre les dates réelles exactement",
+      "help": "Les dates réelles de début et de fin enregistrées ne sont pas déplacées vers une plage de travail."
+    },
+    "p6UseRemainingStartForProgress": {
+      "label": "Tâche en cours : début au plus tôt = début du travail restant",
+      "help": "Les débuts au plus tôt et au plus tard d’une tâche en cours indiquent où commence le travail restant, et non le début réel historique. En calcul arrière sur une relation début-début, seule la durée restante compte."
+    },
+    "p6PreserveZeroDurationConstraintInstants": {
+      "label": "Instant de contrainte exact sur un jalon",
+      "help": "Une contrainte date-et-heure sur un jalon sans durée est un point exact, même au début d’une plage de travail."
+    },
+    "resumeFromActualElapsed": {
+      "label": "Le travail restant reprend après la durée écoulée",
+      "help": "Une tâche en cours reprend son travail restant au début réel plus la durée écoulée, et non à la date d’état."
+    },
+    "unstartedIgnoresStatusDate": {
+      "label": "Ne pas déplacer les tâches non commencées à la date d’état",
+      "help": "Une tâche qui n’a pas commencé n’est pas déplacée automatiquement à la date d’état ou après."
+    },
+    "p6RelationFinishBoundary": {
+      "label": "Le successeur commence sur la limite de fin",
+      "help": "Pour une relation fin-début sans décalage sur une limite de plage partagée, le successeur commence à la fin du prédécesseur (uniquement les relations que le fichier marque ainsi). En calcul arrière, le successeur affiche son début au plus tard simplement comme le début d'une plage de travail."
+    },
+    "p6BackwardLagFinishBoundary": {
+      "label": "Décalage arrière depuis une limite de fin",
+      "help": "Lorsque le calcul au plus tard soustrait un décalage en temps de travail depuis une limite de fin et tombe exactement sur un début de plage, il tombe sur la limite de fin précédente. Pour une relation fin-fin sans décalage, une fin au plus tard sur une fin de plage reste aussi cette limite de fin."
+    },
+    "p6CompletedDataDateWindow": {
+      "label": "Tâche terminée dans la fenêtre de la date d’état",
+      "help": "Une tâche terminée reçoit des dates au plus tôt dans la fenêtre de la date d’état, et sa fin compte pour la fin du projet (uniquement les tâches d’origine P6)."
+    },
+    "p6CompletedLoeActualFinish": {
+      "label": "LOE terminée via sa fin réelle",
+      "help": "Une activité level-of-effort terminée avec une seule entrée début-début suit la route par sa fin réelle (uniquement les tâches d’origine P6)."
+    },
+    "p6OpenLoeTargetSpan": {
+      "label": "LOE non commencée prend la fenêtre cible",
+      "help": "Une activité level-of-effort non commencée prend sa fenêtre cible comme durée (uniquement les tâches d’origine P6)."
+    },
+    "p6CompletedPredecessorAtDataDate": {
+      "label": "Un prédécesseur achevé ne retient pas au-delà de la date d’état",
+      "help": "Si la fin réelle d'un prédécesseur achevé tombe après la date d’état, ses successeurs peuvent quand même commencer à la date d’état."
+    },
+    "p6FreeFloatOnOwnCalendar": {
+      "label": "Marge libre dans le calendrier de la tâche",
+      "help": "La marge libre d'une tâche non commencée se compte, pour chaque liaison, dans le calendrier de la tâche elle-même et non dans celui du successeur : pour fin-début, début-début et fin-fin, y compris avec un décalage en temps de travail sur le calendrier du prédécesseur. Une tâche commencée seulement pour fin-début sans décalage."
+    },
+    "p6CompletedRemainingLag": {
+      "label": "Le décalage écoulé d’un prédécesseur achevé ne compte pas",
+      "help": "Côté dates au plus tard, seule la partie du décalage après un prédécesseur achevé qui n’est pas encore écoulée à la date d’état compte."
+    },
+    "p6CompletedOutOfSequenceWindow": {
+      "label": "Une tâche achevée hors séquence attend ses prédécesseurs",
+      "help": "Une tâche achevée dont un prédécesseur n’est pas encore terminé reçoit sa fenêtre nulle après ce prédécesseur plutôt qu’à la date d’état (logique conservée)."
+    },
+    "p6CompletedPhysicalAtDataDate": {
+      "label": "Tâche terminée à avancement physique placée à la date d'état",
+      "help": "Une tâche terminée avec un pourcentage d'avancement physique apparaît comme un seul point à la date d'état, ou plus tard si un prédécesseur l'exige, au lieu de ses dates réelles. Mesuré uniquement pour l'avancement physique ; pour les autres types d'avancement (par défaut dans P6 : durée), ce comportement n'a pas été mesuré et reste désactivé."
+    },
+    "p6InProgressStartLagElapsed": {
+      "label": "Le décalage DD écoulé d'un prédécesseur en cours ne compte pas",
+      "help": "Pour une relation début-début depuis une tâche déjà commencée, seule la partie du décalage non encore écoulée depuis son début réel à la date d'état compte."
+    },
+    "p6FinishFinishStartMilestoneLateFinish": {
+      "label": "Une liaison fin-fin vers un jalon de début se lie au jalon lui-même",
+      "help": "Une liaison fin-fin vers un jalon de début compte jusqu’au jalon lui-même, et non jusqu’au début de sa journée : la fin au plus tard du prédécesseur peut aller jusqu’à la fin au plus tard du jalon."
+    },
+    "p6StartedTaskIgnoresPlannedStartFloor": {
+      "label": "Le début planifié n’est pas un plancher pour une tâche en cours",
+      "help": "Le travail restant d’une tâche commencée débute à la date d’état et juste après ses prédécesseurs, même si son début planifié est plus tardif."
+    },
+    "p6LateFinishOnOwnCalendar": {
+      "label": "Fin au plus tard sur le calendrier propre de l'activité",
+      "help": "Si la fin au plus tard imposée par un successeur tombe en dehors du temps de travail de l'activité, elle devient la fin de la période de travail précédente sur le calendrier propre de l'activité."
+    },
+    "p6ProgressOverrideIgnoresStartedSuccessor": {
+      "label": "Progress Override ignore aussi en arrière un successeur commencé",
+      "help": "Avec Progress Override, la relation vers un successeur déjà commencé ne compte pas dans les dates au plus tard ni dans la marge libre d'un prédécesseur non terminé."
+    },
+    "p6FinishNotBeforeFinishFinishBound": {
+      "label": "Fin au plus tôt jamais avant une limite fin-fin",
+      "help": "Avec une relation fin-fin, la fin au plus tôt du successeur n'est jamais, en heure réelle, avant la limite fixée par le prédécesseur. Si cette limite tombe hors du temps de travail du successeur, la fin devient le début de la période de travail suivante."
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "Tâches ALAP aussi tard que les successeurs le permettent",
+      "help": "Une tâche non commencée avec la contrainte « dès que possible au plus tard » se termine à la minute où ses successeurs en ont besoin, successeurs d'abord, afin qu'une chaîne se referme. Son propre début planifié ne compte pas ; une tâche sans prédécesseur ne commence alors pas avant la date d'état. S'applique uniquement avec un calendrier horaire."
+    }
+  },
+  "profiles": {
+    "builtIn": {
+      "p6": "Primavera P6",
+      "msproject": "Microsoft Project",
+      "ops": "Open Planner Studio"
+    },
+    "modified": "{{name}} (modifié)",
+    "copyOf": "Copie de {{name}}"
+  },
+  "schedulingProfile": {
+    "title": "Profil de calcul et options",
+    "profile": "Profil de calcul",
+    "conventionsTitle": "Conventions de ce profil",
+    "optionsTitle": "Options de calcul de ce projet",
+    "customName": "Nom de ce profil personnalisé",
+    "saveAsTemplate": "Enregistrer comme modèle",
+    "updateTemplate": "Mettre à jour le modèle depuis ce projet",
+    "applyTemplate": "Mettre à jour depuis le modèle",
+    "deleteTemplate": "Supprimer le modèle",
+    "templateDeviates": "Ce profil diffère du modèle « {{name}} ».",
+    "applyDefaultOptions": "Appliquer les options par défaut de ce profil",
+    "themes": {
+      "completedWork": "Avancement et travail terminé",
+      "relationsLag": "Liens et décalage",
+      "milestones": "Jalons et activités LOE",
+      "float": "Marge et dates au plus tard",
+      "instants": "Dates et instants du fichier",
+      "msproject": "Avancement comme dans Microsoft Project",
+      "ownProfilesOnly": "Profils personnalisés uniquement"
+    },
+    "ownProfilesOnlyNote": "Ces conventions sont désactivées dans chaque profil intégré, y compris Primavera P6. En activer une crée un profil personnalisé.",
+    "deviatingCount": "modifiées : {{n}}",
+    "baseValue": "base : {{value}}",
+    "on": "activée",
+    "off": "désactivée",
+    "resetToBase": "revenir à la base",
+    "showHelp": "Explication de « {{name}} »",
+    "sourceOptions": {
+      "title": "Paramètres du fichier source",
+      "intro": "Ces options de calcul proviennent d’un fichier Primavera P6 (.xer). Elles sont prises en compte dans le calcul mais ne sont pas modifiables ici.",
+      "useExpectedFinishDates": "Utiliser les dates de fin prévues (P6 : Use Expected Finish Dates)",
+      "useProjectEndDateForFloat": "Calculer la marge jusqu’à la date de fin du projet",
+      "p6CompletedLateFromRemainingWindow": "Tâche terminée : dates au plus tard à partir de la date d’état",
+      "needsConvention": "Ne fonctionne qu’avec la convention « {{convention}} », actuellement désactivée."
     }
   }
 }

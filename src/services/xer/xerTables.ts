@@ -229,6 +229,9 @@ export const XER_KNOWN_FIELDS_BY_TABLE: Readonly<Record<string, readonly string[
     'sched_use_project_end_date_for_float', 'schedhash', 'schedoptions_id',
     'use_total_float', 'use_total_float_multiple_longest_paths',
   ],
+  // Nivelleerresourcelijst per SCHEDOPTIONS-rij (P6 "Level Resources → Select resources"); alleen
+  // gelezen als instelling (`xerScheduleOptions.ts`, `SchedulingOptions.leveling`), nooit als rekeninvoer.
+  RSRCLEVELLIST: ['rsrc_level_list_id', 'schedoptions_id', 'rsrc_id'],
   ACTVTYPE: [
     'actv_code_type_id', 'parent_actv_code_type_id', 'actv_code_type',
     'actv_code_type_name', 'seq_num',

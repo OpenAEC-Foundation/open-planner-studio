@@ -727,7 +727,7 @@ export class CalendarEngine {
   //     NIET `a.getTime() === b.getTime()`.
   //
   // Er is in dit bestand GEEN brongebonden uitzondering meer op die drie regels. Tot etappe 7b-2
-  // droeg deze klasse een `subtractP6XerProjectedWorkMinutes`-projectie achter `p6Source === 'XER'`
+  // droeg deze klasse een `subtractP6XerProjectedWorkMinutes`-projectie achter de XER-bronmarkering
   // die de achterwaartse wandeling bewust asymmetrisch maakte; die is verwijderd nadat de
   // XER-decoder de werkelijk bedoelde vrije dagen kon reconstrueren en de projectie op elk
   // penaltydragend corpusbestand nul cellen bleek te verklaren (zie `xerCalendarData.ts`).

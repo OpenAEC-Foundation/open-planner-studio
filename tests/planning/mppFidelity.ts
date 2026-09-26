@@ -28,6 +28,7 @@ import { parseInstant } from '@/utils/dateUtils';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { Project } from '@/types/project';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 
 export { classify } from './fidelityCore';
 
@@ -62,7 +63,7 @@ export function solveMppBytes(bytes: Uint8Array): SolvedMpp {
     calendars: result.resourceCalendars ?? [],
     dataDate: result.project.statusDate,
     progressMode: result.project.progressMode,
-    schedulingOptions: result.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(result.project).schedulingOptions,
     // Gebruikstest-bevinding 2026-08 (zelfde optie als runCPM): sinds T7 (§9/O2, review-fixronde)
     // is dit UITSLUITEND nog een early-start-ondergrens voor taken MÉT voorganger (en hammocks) —
     // een taak zonder voorganger houdt sindsdien altijd haar eigen (evt. vóór-projectstart) anker aan.

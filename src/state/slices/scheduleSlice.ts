@@ -1,6 +1,7 @@
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { applyRecordedTimesToTasks, type RecordedDatesState } from '@/engine/scheduler/recordedDates';
 import { solveProject } from '@/engine/scheduler/solveProject';
+import { solveInputFor, solveOptionsFor } from '@/engine/scheduler/solveInput';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import {
@@ -124,20 +125,9 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       // net als voorheen. Dezelfde functie draait het bezettingsoverzicht op een KLOON van de taken
       // van een stale document (B1b §4.3b) — één implementatie, geen divergentie. De samenvattings-
       // relatie-propagatie (MS Project-semantiek) zit dáár, zodat elke afnemer van de kern hem krijgt.
-      const result = solveProject({
-        tasks: s.tasks,
-        sequences: s.sequences,
-        calendar: s.calendar,
-        calendars: s.calendars,
-        dataDate: s.project.statusDate,
-        progressMode: s.project.progressMode,
-        schedulingOptions: s.project.schedulingOptions,
-        // Gebruikstest-bevinding 2026-08: ondergrens voor taken zónder voorganger (`rootFloor` in
-        // CPMSolver) — zonder deze optie kon een taak met een verouderde `scheduleStart` (bv. gezet
-        // vóór een latere wijziging van de projectstartdatum) gewoon vóór het projectbegin doorlopen.
-        projectStartDate: s.project.startDate,
-        projectEndDate: s.project.endDate,
-      });
+      // `solveInputFor` (rekenprofielen C1) levert de volledige projectinvoer, incl. de projectstart
+      // als ondergrens (`rootFloor`, gebruikstest-bevinding 2026-08) en de opgeloste conventies.
+      const result = solveProject(solveInputFor(s.project, s.tasks, s.sequences, s.calendar, s.calendars));
 
       // If circular dependency detected, store the result (with error) and bail
       if (result.error) {
@@ -251,14 +241,9 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     // (zie de parameter-toelichting in `ResourceLeveler.ts:levelResources`).
     return computeLeveling(
       leafTasks, expandedSequences, s.resources, s.assignments, s.calendar, s.calendars, cpm, options,
-      {
-        dataDate: s.project.statusDate, progressMode: s.project.progressMode,
-        schedulingOptions: s.project.schedulingOptions,
-        // Zelfde projectstart-vloer als runCPM hierboven (gebruikstest-bevinding 2026-08) — anders
-        // zou de nivelleerder een wortel-taak vóór het projectbegin kunnen laten staan.
-        projectStartDate: s.project.startDate,
-        projectEndDate: s.project.endDate,
-      },
+      // Zelfde invoer als runCPM hierboven (incl. projectstart-vloer, gebruikstest-bevinding 2026-08) —
+      // anders zou de nivelleerder een wortel-taak vóór het projectbegin kunnen laten staan.
+      solveOptionsFor(s.project),
     );
   },
 

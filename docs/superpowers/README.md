@@ -79,7 +79,7 @@ zijn vooral naslag; de vijf hierboven genoemde bestanden zijn uitvoerwerk. **Bij
 actuele code, behalve wanneer een nog uit te voeren plan juist expliciet een gewenste grens
 definieert.**
 
-## Overzicht per stuk (peildatum 2026-09-14, bijgewerkt 2026-09-15)
+## Overzicht per stuk (peildatum 2026-09-14, bijgewerkt 2026-09-24)
 
 Volgorde: eerst de levende stukken (specs, plannen, los), daarna de verhuisde stukken.
 
@@ -166,6 +166,35 @@ Volgorde: eerst de levende stukken (specs, plannen, los), daarna de verhuisde st
 | `plans/2026-08-31-b1c-plan2-verdeler-kern.md` | verhuisd naar archief (2026-09-14) | 0 |
 | `plans/2026-09-11-plan-issue27-xlsx-voortgangsblad.md` | verhuisd naar archief (2026-09-14) | 0 |
 | `plans/archief-2026-08-14-f0-brief-concept.md` | verhuisd naar archief (2026-09-14) | 0 |
+
+**Na de peildatum toegevoegd: XER-lezer, rekenprofielen en X12 naar nul (bijgewerkt 2026-09-23).**
+Verwijzingen hier = aantal bestanden in `src/`, `tests/`, `docs/`, `public/` en `scripts/` dat de
+bestandsnaam noemt (zelfde uitsluitingen als hierboven).
+
+| stuk | stand | verwijzingen |
+|---|---|---|
+| `plans/2026-08-20-plan-xer-p6-lezer.md` | actief — het XER-etappeplan; §4.1 veldwhitelist, §9 dossiers, §10 overdrachtsstand | 2 |
+| `specs/2026-09-22-rekenprofielen-design.md` | naslag (opgeleverd; groep C daarna bijgeschreven) — het register is de bron | 8 |
+| `plans/2026-09-22-plan-rekenprofielen.md` | naslag (opgeleverd) | 2 |
+| `plans/2026-09-22-rekenprofielen-overdracht.md` | actief — eigenaarsbesluiten en de lopende stand van het programma | 1 |
+| `plans/2026-09-22-goalprompt-x12-naar-nul.md` | actief — regel A/B en de opdrachttekst voor elk X12-brok | 4 |
+| `plans/2026-09-23-x12-restant-classificatie.md` | actief — brokkentelling per populatie (kop "Populatie na 24-09" is de actuele) | 5 |
+| `plans/2026-09-23-x12-c1-c4-toets-buiten-rehab2.md` | naslag — meetonderzoek achter C1/C4 uit | 5 |
+| `plans/2026-09-23-x12-b01-onderzoek.md` | naslag — meetonderzoek (rehab-2 = P3-uitvoer) | 2 |
+| `plans/2026-09-24-x12-harbourpointe-kalender.md` | invoer voor lopend X12-werk | 1 |
+| `plans/2026-09-24-x12-hotel-ff-60min.md` | X12-dossier (Hotel FF-60-minuten, ALAP-eindmijlpaal) — uitgesloten per eigenaarsbesluit 23-09 | 0 |
+| `plans/2026-09-24-x12-sample-sf-lag0.md` | X12-dossier (Sample SF-lag-0-minuut, n=1 zonder bron) — restant | 0 |
+| `plans/2026-09-24-gebruikstest-rekenprofielen-26.md` | gebruikstest van het profielblok; bevindingen B1–B5 alle gefixt (B1 invoercoherentie, B2/B5 vertrekbewaking en meldingen, B3 thema-indeling, B4 heropen-melding) | 0 |
+| `plans/2026-09-24-ui-conventies-groepen-voorstel.md` | UI-voorstel conventies per thema — gemerged 24-09 (eigenaar "mergen") | 0 |
+| `plans/2026-09-24-nivellering-etappe-onderzoek.md` | onderzoek P6-nivellering; fundament (data) gemerged, motoretappe wacht op vijf eigenaarsbesluiten (§8) | 0 |
+| `plans/2026-09-24-pr169-body-voorstel.md` | voorstel PR-body #169 — overgenomen 24-09, daarna bijgewerkt op GitHub | 0 |
+| `plans/2026-09-24-eindreview-fable-pr169.md` | eindreview van de orkestrator (Fable) op #169 in drie delen — GO met B1 inbegrepen | 0 |
+| `plans/2026-09-24-fable-critreview-pr109.md` | onafhankelijke Fable-critreview #109 — LANDEN-MET-FIXES; fixes op `claude/xer-etappe3-fixes` | 0 |
+| `plans/2026-09-24-fable-critreview-pr167.md` | onafhankelijke Fable-critreview #167 — LANDEN-MET-FIXES; fixes op `claude/recorded-all-formats-fixes` | 0 |
+| `plans/2026-09-24-fable-critreview-pr169.md` | onafhankelijke Fable-critreview #169 — LANDEN-MET-FIXES; eigenaarsvragen A19-basis en C5 open | 0 |
+| `plans/2026-09-24-verkenning-pr101-taaktypes.md` | verkenningsdossier voor de overname van PR #101 (taaktypes/werkregels): banen, 29 conflicten, regel-A-risico's, eigenaarsvragen E1–E5 | 0 |
+| `plans/2026-09-24-x12-restant-onderzoek-284.md` | invoer voor lopend X12-werk (o.a. DCP-03 Baseline = generatoruitvoer) | 3 |
+| `plans/patches/` | geparkeerde, niet gelande motorpatches (B15, zie plan XER §9) | — |
 
 Betekenis van de standen: **actief** = er wordt nu aan gewerkt of het is het geldende programma;
 **naslag** = het werk is gedaan, het stuk blijft als uitleg bij de code;

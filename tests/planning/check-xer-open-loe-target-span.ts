@@ -1,6 +1,6 @@
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import { explainOpenXerLoeTargetSpanEligibility } from '@/engine/scheduler/p6OpenLoeTargetSpanTrace';
+import { explainOpenXerLoeTargetSpanEligibilityResolved } from '@/engine/scheduler/p6OpenLoeTargetSpanTrace';
 import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
 import { readIFCWithXerReconstruction } from '@/services/formatRegistry';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -8,6 +8,8 @@ import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readXER } from '@/services/xer/xerReader';
 import type { Task } from '@/types/task';
 import { parseInstant } from '@/utils/dateUtils';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
+import { setConvention, withoutP6Semantics } from './p6SemanticsOff';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -80,7 +82,7 @@ function task(imported: ImportResult): Task {
 const imported = importedFixture();
 const loe = task(imported);
 eq('open XER LOE: raw fixture levert uitsluitend toegestane provenance', {
-  source: imported.project.schedulingOptions?.p6Source,
+  profile: imported.project.schedulingProfile?.id,
   activity: loe.p6ActivityType,
   completePct: loe.p6CompletePctType,
   duration: loe.p6DurationType,
@@ -89,7 +91,7 @@ eq('open XER LOE: raw fixture levert uitsluitend toegestane provenance', {
   actualStart: loe.time.actualStart,
   actualFinish: loe.time.actualFinish,
 }, {
-  source: 'XER', activity: 'TT_LOE', completePct: 'CP_Drtn', duration: 'DT_FixedDUR2',
+  profile: 'p6', activity: 'TT_LOE', completePct: 'CP_Drtn', duration: 'DT_FixedDUR2',
   targetWindow: true, status: 'NOT_STARTED', actualStart: undefined, actualFinish: undefined,
 });
 const calendar = new CalendarEngine(imported.calendar);
@@ -102,9 +104,9 @@ eq('open XER LOE: targetvenster en bronduur gebruiken dezelfde positieve werkmin
   ),
 }, { durationMinutes: 80 * 60, scheduleDuration: 10, targetWindowMinutes: 72 * 60 });
 eq('open XER LOE: de pure diagnose accepteert de positieve raw-vorm',
-  explainOpenXerLoeTargetSpanEligibility(
+  explainOpenXerLoeTargetSpanEligibilityResolved(
     loe,
-    imported.project.schedulingOptions,
+    solveOptionsFor(imported.project).schedulingOptions,
     imported.sequences.filter(sequence => sequence.successorId === loe.id),
     imported.sequences.filter(sequence => sequence.predecessorId === loe.id),
     parseInstant(loe.time.scheduleStart),
@@ -121,7 +123,7 @@ const result = solveProject({
   calendars: imported.resourceCalendars ?? [],
   dataDate: imported.project.statusDate,
   progressMode: imported.project.progressMode,
-  schedulingOptions: imported.project.schedulingOptions,
+  schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
   projectStartDate: imported.project.startDate,
   projectEndDate: imported.project.endDate,
 });
@@ -144,9 +146,10 @@ eq('open XER LOE: expliciet targetvenster bepaalt de eigen span', {
 function diagnose(input: ImportResult) {
   const candidate = task(input);
   const candidateCalendar = new CalendarEngine(input.calendar);
-  return explainOpenXerLoeTargetSpanEligibility(
+  return explainOpenXerLoeTargetSpanEligibilityResolved(
     candidate,
-    input.project.schedulingOptions,
+    // Rekenprofielen C2: de diagnose krijgt dezelfde opgeloste set als de solver.
+    solveOptionsFor(input.project).schedulingOptions,
     input.sequences.filter(sequence => sequence.successorId === candidate.id),
     input.sequences.filter(sequence => sequence.predecessorId === candidate.id),
     parseInstant('2026-01-05T08:00'),
@@ -162,7 +165,7 @@ function axes(input: ImportResult) {
   const solvedResult = solveProject({
     tasks: input.tasks, sequences: input.sequences, calendar: input.calendar,
     calendars: input.resourceCalendars ?? [], dataDate: input.project.statusDate,
-    progressMode: input.project.progressMode, schedulingOptions: input.project.schedulingOptions,
+    progressMode: input.project.progressMode, schedulingOptions: solveOptionsFor(input.project).schedulingOptions,
     projectStartDate: input.project.startDate, projectEndDate: input.project.endDate,
   });
   if (solvedResult.error) throw new Error(solvedResult.error);
@@ -191,7 +194,7 @@ const dayModeCalendar = new CalendarEngine(dayModeImported.calendar);
 // echte readXER-provenance, taakvorm of het gelezen doelvenster te vervangen.
 dayModeLoe.time.durationMinutes = 80 * 60;
 eq('open XER LOE dagmodus: echte reader bewaart provenance en expliciet doelvenster zonder workTime', {
-  source: dayModeImported.project.schedulingOptions?.p6Source,
+  profile: dayModeImported.project.schedulingProfile?.id,
   activity: dayModeLoe.p6ActivityType,
   targetWindow: dayModeLoe.p6ExplicitTargetWindow,
   start: dayModeLoe.time.scheduleStart,
@@ -199,13 +202,13 @@ eq('open XER LOE dagmodus: echte reader bewaart provenance en expliciet doelvens
   workTime: dayModeImported.calendar.workTime,
   hourMode: dayModeCalendar.isHourMode,
 }, {
-  source: 'XER', activity: 'TT_LOE', targetWindow: true,
+  profile: 'p6', activity: 'TT_LOE', targetWindow: true,
   start: '2026-01-05', finish: '2026-01-16', workTime: undefined, hourMode: false,
 });
 eq('open XER LOE dagmodus: uur-native route sluit fail-closed',
-  explainOpenXerLoeTargetSpanEligibility(
+  explainOpenXerLoeTargetSpanEligibilityResolved(
     dayModeLoe,
-    dayModeImported.project.schedulingOptions,
+    solveOptionsFor(dayModeImported.project).schedulingOptions,
     dayModeImported.sequences.filter(sequence => sequence.successorId === dayModeLoe.id),
     dayModeImported.sequences.filter(sequence => sequence.predecessorId === dayModeLoe.id),
     parseInstant(dayModeLoe.time.scheduleStart),
@@ -246,7 +249,10 @@ for (const mutation of [
   { label: 'omgekeerd targetvenster', mutate: (_input: ImportResult, candidate: Task) => { candidate.time.scheduleStart = '2026-01-17T08:00'; }, reason: 'targetWindowNotPositive' },
   { label: 'half targetvenster', mutate: (_input: ImportResult, candidate: Task) => { candidate.time.scheduleFinish = ''; }, reason: 'missingScheduleFinish' },
   { label: 'ongeldig targetvenster', mutate: (_input: ImportResult, candidate: Task) => { candidate.time.scheduleFinish = 'geen-datum'; }, reason: 'invalidScheduleFinish' },
-  { label: 'andere bron', mutate: (input: ImportResult) => { delete input.project.schedulingOptions?.p6Source; }, reason: 'notXerSource' },
+  // Rekenprofielen baan B: de poort is conventie B5 `p6OpenLoeTargetSpan`. Twee armen: expliciet
+  // uit (wint van de tijdelijke bronvertaling) en bron weg (vertaling zet haar niet aan).
+  { label: 'conventie B5 expliciet uit', mutate: (input: ImportResult) => { setConvention(input, 'p6OpenLoeTargetSpan', false); }, reason: 'conventionOff' },
+  { label: 'andere bron', mutate: (input: ImportResult) => { withoutP6Semantics(input); }, reason: 'conventionOff' },
   { label: 'ander taaktype', mutate: (_input: ImportResult, candidate: Task) => { candidate.p6ActivityType = 'TT_Task'; }, reason: 'wrongActivityType' },
   { label: 'ander duurtype', mutate: (_input: ImportResult, candidate: Task) => { candidate.p6DurationType = 'DT_FixedDrtn'; }, reason: 'wrongDurationType' },
   { label: 'andere voortgangsfamilie', mutate: (_input: ImportResult, candidate: Task) => { candidate.p6CompletePctType = 'CP_Phys'; }, reason: 'wrongCompletePctType' },
@@ -276,19 +282,19 @@ eq('open XER LOE: toegevoegde toewijzingen veranderen de span niet', axes(assign
 
 const reloaded = await readIFCWithXerReconstruction(writeIFC(importedFixture()));
 eq('open XER LOE: XER-IFC-reload bewaart de relevante XER-provenance en span', {
-  source: reloaded.project.schedulingOptions?.p6Source,
+  profile: reloaded.project.schedulingProfile?.id,
   decision: diagnose(reloaded),
   axes: axes(reloaded),
-}, { source: 'XER', decision: { eligible: true, reason: 'eligible' }, axes: baseAxes });
+}, { profile: 'p6', decision: { eligible: true, reason: 'eligible' }, axes: baseAxes });
 
 const genericIfcSource = structuredClone(importedFixture());
-delete genericIfcSource.project.schedulingOptions?.p6Source;
+withoutP6Semantics(genericIfcSource);
 genericIfcSource.xer = undefined;
 genericIfcSource.xerSourceArchive = undefined;
 genericIfcSource.xerSourceProjectId = undefined;
 const genericIfc = readIFC(writeIFC(genericIfcSource));
 eq('open XER LOE: generieke IFC zonder XER-provenance blijft fail-closed',
-  diagnose(genericIfc), { eligible: false, reason: 'notXerSource' });
+  diagnose(genericIfc), { eligible: false, reason: 'conventionOff' });
 
 if (diffs.length > 0) {
   console.error(`XER open LOE targetspan RED: ${diffs.length}/${checks} checks rood`);

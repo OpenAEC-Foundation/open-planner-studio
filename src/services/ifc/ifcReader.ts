@@ -4,7 +4,7 @@ import type { CustomTaskType } from '@/types/taskType';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, AvailabilityStep, ResourceCurve } from '@/types/resource';
-import { Project, SchedulingOptions } from '@/types/project';
+import { Project, ProjectSchedulingOptions, SchedulingOptions, SchedulingProfile } from '@/types/project';
 import { WorkCalendar, Holiday, CalendarGeneration, WorkingException } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import type { HolidayCountry } from '@/engine/calendar/holidays';
@@ -36,7 +36,10 @@ import {
   type XerSourceArchiveEncoding, type XerSourceArchiveNewline, type XerArchiveMetadataPayloadV1,
   type XerSourceReconstruction,
 } from '@/services/xerSourceArchive';
-import { sanitizeSchedulingOptions } from '@/services/ifc/schedulingOptionsRead';
+import {
+  MAX_PROFILE_JSON_LENGTH, profileAfterRead, sanitizeSchedulingOptions, sanitizeSchedulingProfile,
+} from '@/services/ifc/schedulingOptionsRead';
+import { optionKeysOnly } from '@/services/ifc/schedulingProfileMigration';
 import {
   canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isoDurationToMinutes,
   isSubDayMinutes, promoteHourCalendar, registerCalendarBands,
@@ -265,9 +268,17 @@ export function readIFC(
   // Baselines (fase 2.6, §8.3): autoritatieve OPS_Baselines-JSON, met taskId-remap via GlobalId.
   const { baselines, activeBaselineId } = extractBaselines(entities, entityMap, taskStepIdMap);
 
-  // Scheduling-options (fase 2.9, §3.4/§6): het volledige blok uit de OPS_SchedulingOptions-JSON.
+  // Scheduling-options (fase 2.9, §3.4/§6) en rekenprofiel (spec v3.1 §3.3): eerst het profiel —
+  // de OPS_SchedulingProfile-pset wint, anders `legacyOptionsToProfile` over het gelezen blok —, dán
+  // conventiesleutels en de XER-bronmarkering strippen: het project draagt alleen projectopties.
   const schedulingOptions = extractSchedulingOptions(entities, entityMap);
-  if (schedulingOptions) project.schedulingOptions = schedulingOptions;
+  const schedulingProfile = profileAfterRead(extractSchedulingProfile(entities, entityMap), schedulingOptions);
+  if (schedulingProfile) project.schedulingProfile = schedulingProfile;
+  const projectOptions = optionKeysOnly(schedulingOptions);
+  if (projectOptions) {
+    remapLevelingResourceIds(projectOptions, resourceGuidMap);
+    project.schedulingOptions = projectOptions;
+  }
 
   // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6) — ná extractStructure zodat
   // project.statusDate (uit OPS_ProjectSettings) beschikbaar is als default-actualFinish.
@@ -307,7 +318,10 @@ export function readIFC(
     ...(recordedSourceFormat ? { recordedSourceFormat } : {}),
     ...(xerSourceArchive ? { xerSourceArchive } : {}),
     ...(xerSourceProjectId ? { xerSourceProjectId } : {}),
-    ...(xer ? { xer } : {}),
+    // `xerOrigin` is eerlijk: alleen gezet wanneer er ook echt archiefmetadata (`xer`) is. Een
+    // onbruikbaar archief is weggelaten (`xerArchiveIssue`) en draagt dus géén `xer` en géén
+    // `xerOrigin` — er is geen archief om naar te verwijzen.
+    ...(xer ? { xer, xerOrigin: 'xer-archive' as const } : {}),
     ...(xerArchiveIssue ? { xerArchiveIssue } : {}),
   };
 }
@@ -2705,6 +2719,19 @@ function remapContourResourceIds(tasks: Task[], resourceGuidMap: Map<string, str
 }
 
 /**
+ * Nivellering (fundament): `schedulingOptions.leveling.resources[].resourceId` draagt de resource-id
+ * van het geschreven document; de lezer regenereert resource-ids, dus terugmappen via dezelfde
+ * GlobalId die `writeResource` uit de id afleidde (spiegel van `remapContourResourceIds`). Een id
+ * zonder resource in dit bestand blijft letterlijk staan (data, geen rekeninvoer).
+ */
+function remapLevelingResourceIds(options: ProjectSchedulingOptions, resourceGuidMap: Map<string, string>): void {
+  for (const entry of options.leveling?.resources ?? []) {
+    const mapped = resourceGuidMap.get(ifcGuid(entry.resourceId));
+    if (mapped) entry.resourceId = mapped;
+  }
+}
+
+/**
  * Fase 3 (H2) — `task.resourceIds` reconstrueren uit de assignments. Het IFC-bestand slaat de
  * taak↔resource-koppeling uitsluitend op via de `ResourceAssignment`s (IFCRELASSIGNSTOPROCESS +
  * OPS_Assignments); `resourceIds` is een afgeleide projectie daarvan en wordt NIET los in het
@@ -2901,6 +2928,44 @@ function extractTimephasedDurationWalksMeta(
       if (task) task.timephasedDurationWalks = walks;
     }
   }
+}
+
+/**
+ * Rekenprofielen — alleen de `OPS_SchedulingProfile`-pset uit een IFC-tekst lezen, los van `readIFC`
+ * (diagnose/tests). Geen pset of een onbruikbare ⇒ `undefined`; de migratie van het legacy-blok doet
+ * `profileAfterRead` (in `readIFC`).
+ */
+export function readSchedulingProfile(content: string): SchedulingProfile | undefined {
+  const entities = parseSTEP(content);
+  const entityMap = new Map<string, StepEntity>();
+  for (const e of entities) entityMap.set(e.id, e);
+  return extractSchedulingProfile(entities, entityMap);
+}
+
+/**
+ * Rekenprofielen — het profiel teruglezen uit de `OPS_SchedulingProfile`-JSON op de
+ * `IfcWorkSchedule` (spiegel van `writeSchedulingProfileMeta`, exact het extractSchedulingOptions-
+ * patroon). Afwezig, te groot (> `MAX_PROFILE_JSON_LENGTH`), corrupte JSON of geen object ⇒
+ * `undefined`, waarna de lezer op de legacy-migratie terugvalt.
+ */
+function extractSchedulingProfile(
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+): SchedulingProfile | undefined {
+  for (const e of entities) {
+    if (e.type !== 'IFCPROPERTYSET' || stripQuotes(e.args[2] || '') !== PSET.SchedulingProfile) continue;
+    for (const propRef of parseRefs(e.args[4] || '')) {
+      const prop = entityMap.get(propRef);
+      if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+      if (stripQuotes(prop.args[0] || '') !== 'SchedulingProfile') continue;
+      const raw = parseTypedValue(prop.args[2] || '');
+      if (typeof raw !== 'string' || !raw || raw.length > MAX_PROFILE_JSON_LENGTH) continue;
+      try {
+        return sanitizeSchedulingProfile(JSON.parse(raw));
+      } catch { /* corrupte JSON — negeer, de legacy-migratie neemt het over */ }
+    }
+  }
+  return undefined;
 }
 
 /**

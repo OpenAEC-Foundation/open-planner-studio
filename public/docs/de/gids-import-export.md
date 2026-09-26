@@ -27,6 +27,8 @@ IFC ist zudem die Art, wie diese App sich mit dem restlichen OpenAEC-Toolkit ver
 
 Jedes Format hat seine eigenen Einschränkungen: Je reicher das Zielformat, desto mehr kommt mit, aber keines der drei externen Formate ist ein vollständiges Abbild von IFC.
 
+Das Berechnungsprofil wird nicht nach CSV, MS Project XML oder P6 XML übernommen; siehe [Berechnungsprofile](docs://gids-rekenprofielen).
+
 ### CSV
 
 Der CSV-Export enthält **nur die Aufgabentabelle**: WBS-Code, Name, Dauer (Tage), Anfang, Ende, Vorgänger (als Textcode, z.B. `2.1FS+3d`), Aufgabentyp, Status, Fortschritt (%), Ist-Anfang/-Ende, Kritisch (ja/nein), Gesamtpuffer und Beschreibung. **Ressourcen, Zuweisungen, Kalender und Baselines werden bewusst weggelassen** — CSV ist rein eine Aufgabentabelle für alle, die den Terminplan in einer Tabellenkalkulation ansehen oder bearbeiten möchten, kein voll-treuer Projektaustausch. Wenn Sie eine CSV-Datei wieder **importieren**, bleiben Baselines daher leer (es gab nichts, aus dem sie gelesen werden könnten).
@@ -73,3 +75,4 @@ Eine `.xer`-Datei ist das Austauschformat von Primavera P6. Sie wird direkt impo
 
 - Baselines kommen nur über IFC und MS Project XML mit, nicht über CSV oder P6 — lesen Sie die Anleitung [Baselines & Fortschritt](docs://gids-baselines-voortgang), wie Sie eine Baseline erfassen.
 - Ressourcen, Zuweisungen und Belastungskurven — lesen Sie die Anleitung [Ressourcen, Histogramm & Abgleich](docs://gids-resources-histogram), wie diese aufgebaut werden, bevor Sie exportieren.
+- Welches Berechnungsprofil eine geöffnete Datei erhält und was IFC davon speichert — lesen Sie die Anleitung [Berechnungsprofile](docs://gids-rekenprofielen).

@@ -763,21 +763,34 @@ if (!corpusRoot) {
     files: corpus.stats.partialOnlyByteUniqueFiles,
     cells: corpus.stats.partialOnlyAxisCells,
   }, { files: 27, cells: 2_025 });
-  eq('C5 herkomstgeselecteerde orakelbestanden na byte-dedup', corpus.stats.byteUniqueOracleFiles, 36);
-  eq('C6 meetbare orakeltaken na byte-dedup', corpus.stats.byteUniqueOracleTasks, 18_190);
-  eq('C7 unieke orakelbestanden na beide deduplagen', corpus.stats.uniqueOracleFiles, 34);
-  eq('C8 meetbare orakeltaken na beide deduplagen', corpus.stats.uniqueOracleTasks, 13_959);
-  eq('C8a twee inhoudsduplicaten na byte-dedup', corpus.stats.schemaDuplicateFiles, 2);
+  // C5–C8b: populatie na het eigenaarsbesluit van 2026-09-23 (alleen aantoonbaar door P6 doorgerekende
+  // orakels, zie `xer-corpus-manifest.json` policy); vóór dat besluit 36/18.190/34/13.959/2. Herpin
+  // 2026-09-23 (tweede toepassing van hetzelfde besluit: DCP-03 Baseline, generatoruitvoer van
+  // build_programmes.py, naar reader-only): 10/10.178/9/5.961 → 9/10.118/8/5.901.
+  // Herpin 2026-09-23 (eigenaarsbesluiten vraag 8/10/12, manifestuitsluiting per taak/project: HarbourPointe
+  // 8 taken, OZB project 9033, Hotel project CR 2665; die taken vallen uit de meetbare orakelpopulatie, de
+  // bestanden blijven orakel): C6 10.118 → 10.096, C8 5.901 → 5.879 (tf/ff 5.712 → 5.690).
+  // Herpin 2026-09-24 (eigenaarsbesluit vraag 13 "Vraag 13, ja uitsluiten": HarbourPointe EC1420 erbij in
+  // excludeTasks): C6 10.096 → 10.095, C8 5.879 → 5.878 (tf/ff 5.690 → 5.689).
+  eq('C5 herkomstgeselecteerde orakelbestanden na byte-dedup', corpus.stats.byteUniqueOracleFiles, 9);
+  eq('C6 meetbare orakeltaken na byte-dedup', corpus.stats.byteUniqueOracleTasks, 10_095);
+  eq('C7 unieke orakelbestanden na beide deduplagen', corpus.stats.uniqueOracleFiles, 8);
+  eq('C8 meetbare orakeltaken na beide deduplagen', corpus.stats.uniqueOracleTasks, 5_878);
+  eq('C8a één inhoudsduplicaat na byte-dedup', corpus.stats.schemaDuplicateFiles, 1);
   eq('C8b geselecteerde meetbaarheid wordt per as uit de bytes herleid', corpus.stats.selectedMeasurable, {
-    es: 13_931, ef: 13_937, ls: 13_822, lf: 13_813, tf: 13_677, ff: 13_322,
+    es: 5_878, ef: 5_878, ls: 5_878, lf: 5_878, tf: 5_689, ff: 5_689,
   });
 
   const baselinePath = join(HERE, 'xer-fidelity-baseline.json');
   const committed = JSON.parse(readFileSync(baselinePath, 'utf-8')) as XerFidelityBaseline;
+  // De scanneroverzetting geldt per bronhash, los van de rol: de scanner meet ook een hash die sinds
+  // het populatiebesluit van 2026-09-23 (alleen P6-doorgerekende orakels) geen orakel meer is. De
+  // gecommitte baseline draagt zo'n hash dan niet meer — daar verwachten we null, niet `current`.
+  const oracleHashes = new Set(Object.values(manifest.files)
+    .filter(entry => entry.included && entry.role === 'oracle').map(entry => entry.sha256));
   const measuredFingerprintTransitions = Object.fromEntries(
     Object.entries(scannerTransition.oracleFingerprintTransitions).map(([fullHash]) => {
-      const truth = scansByHash.get(fullHash)?.find(file =>
-        manifest.files[file.label]?.included && manifest.files[file.label]?.role === 'oracle')?.truth;
+      const truth = scansByHash.get(fullHash)?.[0]?.truth;
       return [fullHash, truth ? xerSchemaFingerprint(truth) : null];
     }),
   );
@@ -793,12 +806,18 @@ if (!corpusRoot) {
       transition.current,
     ]),
   );
+  const expectedBaselineFingerprints = Object.fromEntries(
+    Object.entries(scannerTransition.oracleFingerprintTransitions).map(([fullHash, transition]) => [
+      fullHash,
+      oracleHashes.has(fullHash) ? transition.current : null,
+    ]),
+  );
   eq('C8c de 14 X12-fingerprintovergangen zijn per volledige bronhash exact verklaard', {
     scanner: measuredFingerprintTransitions,
     baseline: committedFingerprintTransitions,
   }, {
     scanner: expectedFingerprintTransitions,
-    baseline: expectedFingerprintTransitions,
+    baseline: expectedBaselineFingerprints,
   });
   if (REPORT !== 'baseline') {
     eq('C9 committe baseline is exact de opnieuw gemeten per-bestandssom', committed, corpus.baseline);

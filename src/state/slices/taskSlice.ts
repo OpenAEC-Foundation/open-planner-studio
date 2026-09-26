@@ -14,6 +14,7 @@ import {
   clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork, clearLevelingGaps,
   taskUpdateInvalidatesLevelingGaps,
   rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
+  hourInputFinishBasis, reconcileHourInputFinish, seedNewHourTaskFinish,
 } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
@@ -321,6 +322,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         now,
         partial.isMilestone ? 0 : 5,
         defaultDurationUnit,
+        effectiveNewTaskCalendar,
       ), partial.time);
       if (initialTime.durationUnit === 'hours') {
         const hoursPerDay = effectiveNewTaskCalendar.workTime
@@ -381,6 +383,9 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         levelingDelayMinutes: partial.levelingDelayMinutes,
         levelingDelayElapsed: partial.levelingDelayElapsed,
       };
+      // B1-vervolg: de solve schrijft `scheduleFinish` niet meer terug, dus een nieuwe urentaak krijgt
+      // hier haar ingevoerde einde (start + duur op de echte kalender), zie `seedNewHourTaskFinish`.
+      seedNewHourTaskFinish(task, partial.time, effectiveNewTaskCalendar);
 
       // Zonder `position` (of een onbekende anker): exact het bestaande gedrag — achteraan.
       // Mét een geldige anker: vlak vóór/ná de anker inserten, zowel in de rauwe array (bepaalt
@@ -445,6 +450,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // Contour-engine (2026-09): de oude werkduur vóór de merge, voor de herschaling hieronder.
       const contourHpd = taskCalendarHoursPerDay(s.tasks[idx], s.calendars, s.calendar);
       const oldWorkMinutes = taskWorkMinutesOf(s.tasks[idx], contourHpd);
+      const finishBasis = hourInputFinishBasis(s.tasks[idx]);
       Object.assign(s.tasks[idx], rest);
       if (time) s.tasks[idx].time = mergeTaskTime(s.tasks[idx].time, time);
       // Contour-engine (2026-09): een duurwijziging herschaalt de contour (én de importsplits)
@@ -487,6 +493,11 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // het Z8-venster hierboven — voortgang en constraints horen erbij. Zie
       // `taskUpdateInvalidatesLevelingGaps` in taskDefaults.ts.
       if (taskUpdateInvalidatesLevelingGaps(rest, time)) clearLevelingGaps(s.tasks[idx]);
+      // B1-vervolg: het ingevoerde einde van een niet-gestarte urentaak beweegt mee met duur/start/
+      // kalender — aan de INVOERKANT, nooit vanuit de solve. Zie `reconcileHourInputFinish`. BEWUST
+      // NA `clearLevelingGaps`: anders telt het einde nivelleergaten mee die deze bewerking wist.
+      reconcileHourInputFinish(s.tasks[idx], finishBasis,
+        resolveCalendar(s.tasks[idx].calendarId, s.calendars, s.calendar));
       // Datum-rakende mutatie (duur/start/constraint/mijlpaal → planning verouderd tot F5, A6).
       runtime.finishMutation(s, { stale: true });
     });
@@ -582,10 +593,13 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       if (!task) return;
       if (task.calendarId === calendarId) return; // no-op: geen snapshot, geen stale
       runtime.beginUndoable(s);
+      const finishBasis = hourInputFinishBasis(task);
       task.calendarId = calendarId; // undefined = projectkalender
       lostTimephasedGuidance = clearTimephasedWindow(task); // Z14b — kalenderwissel is een trigger, zie taskDefaults.ts
       // B1c-plan3 taak 3 — zie `updateTask` hierboven.
       clearLevelingGaps(task);
+      // B1-vervolg — ná `clearLevelingGaps`, zie `updateTask`.
+      reconcileHourInputFinish(task, finishBasis, resolveCalendar(calendarId, s.calendars, s.calendar));
       runtime.finishMutation(s, { stale: true }); // taak-kalender-toewijzing is datum-beïnvloedend (§5.4).
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);

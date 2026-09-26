@@ -233,6 +233,10 @@
       "lagSuccessor": "後続",
       "lag24hour": "24時間",
       "lagProjectDefault": "プロジェクトカレンダー",
+      "ssLagFrom": "進行中の先行作業の開始-開始ラグの計算起点",
+      "ssLagEarlyStart": "最早開始（残作業の開始）",
+      "ssLagActualStart": "実績開始（データ日付）",
+      "ssLagNeedsConvention": "規約「{{convention}}」がオンのときのみ適用されます。",
       "criticalDefinition": "クリティカルの定義",
       "critTotalFloat": "トータルフロート ≤ しきい値",
       "critLongestPath": "最長パス",
@@ -250,7 +254,9 @@
       "floatPathsMethod": "方式",
       "methodFree": "フリーフロート（ピーリング）",
       "methodTotal": "トータルフロート（ランキング）",
-      "maxPaths": "最大パス数"
+      "maxPaths": "最大パス数",
+      "tfAuto": "自動（既定）",
+      "critThresholdHours": "しきい値（時間、タスクカレンダーごと）"
     }
   },
   "newProject": {
@@ -315,6 +321,13 @@
       "quickstart": "クイックスタート",
       "gidsen": "トピック別ガイド",
       "referentie": "リファレンス"
+    },
+    "unapplied": {
+      "title": "変更が適用されていません",
+      "body": "プロジェクト情報を変更しましたが、まだ適用していません。これらの変更をどうしますか？",
+      "marker": "変更が適用されていません。保持するには［{{apply}}］をクリックしてください。",
+      "discard": "破棄",
+      "invalid": "カスタム計算プロファイルにまだ名前がありません。名前を付けるか、変更を破棄してください。"
     }
   },
   "export": {

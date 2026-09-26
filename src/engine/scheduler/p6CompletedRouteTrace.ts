@@ -3,15 +3,15 @@ import type { Sequence } from '@/types/sequence';
 import type { Task } from '@/types/task';
 import { parseInstant } from '@/utils/dateUtils';
 import {
-  explainP6CompletedDataDateWindow,
+  explainP6CompletedDataDateWindowResolved,
   type P6CompletedWindowReason,
-} from '@/utils/p6CompletedTargetWindow';
+} from '@/engine/scheduler/p6CompletedTargetWindow';
 
 export type CompletedXerLoeActualFinishReason =
   | 'eligible'
   | 'missingDataDate'
   | 'invalidDataDate'
-  | 'notXerSource'
+  | 'conventionOff'
   | 'remainingStartOff'
   | 'preserveActualDatesOff'
   | 'preserveActualInstantsOff'
@@ -73,7 +73,7 @@ export interface CpmDisplayActualLateDecision {
  * actualFinish gebruikt. De helper leest uitsluitend toegestane invoer/bronprovenance, nooit P6's
  * opgeslagen early/late/float-uitkomst.
  */
-export function explainCompletedXerLoeActualFinishEligibility(
+export function explainCompletedXerLoeActualFinishEligibilityResolved(
   task: Task,
   dataDate: Date | null,
   schedulingOptions: SchedulingOptions | undefined,
@@ -82,7 +82,10 @@ export function explainCompletedXerLoeActualFinishEligibility(
 ): CompletedXerLoeActualFinishDecision {
   if (dataDate === null) return { eligible: false, reason: 'missingDataDate' };
   if (!Number.isFinite(dataDate.getTime())) return { eligible: false, reason: 'invalidDataDate' };
-  if (schedulingOptions?.p6Source !== 'XER') return { eligible: false, reason: 'notXerSource' };
+  // Conventie B4 `p6CompletedLoeActualFinish` — exact op de plek van de vroegere bron-check.
+  if (schedulingOptions?.p6CompletedLoeActualFinish !== true) {
+    return { eligible: false, reason: 'conventionOff' };
+  }
   if (schedulingOptions.p6UseRemainingStartForProgress !== true) {
     return { eligible: false, reason: 'remainingStartOff' };
   }
@@ -181,7 +184,7 @@ export function explainDisplayActualLateEligibility(
 export type P6CompletedLateRemainingWindowReason =
   | 'eligible'
   | CpmBackwardActualPinReason
-  | 'notXerSource'
+  | 'conventionOff'
   | 'flagOff'
   | P6CompletedWindowReason;
 
@@ -197,22 +200,28 @@ export interface P6CompletedLateRemainingWindowDecision {
  * `act_end_date`: wel `completedWindow.eligible`, niet `backwardActualPin.eligible`) en verandert
  * de getoonde late datum/float wél terwijl de solvertak zelf niet draait. Eén functie, drie
  * bestaande, los getoetste bouwstenen in vaste volgorde: eerst de completed-actual-pin-poort
- * (dataDate/preserve/actualFinish/completion — dezelfde als de oude, brede backward-pin), dan de
- * XER-brongebonden vlag zelf, dan de nauwe statusdatumvenster-poort (dezelfde als de forward-
- * display). De eerste afwijzing is de enige gerapporteerde reden.
+ * (dataDate/preserve/actualFinish/completion — dezelfde als de oude, brede backward-pin), dan
+ * conventie B3 (`p6CompletedDataDateWindow`, op de plek van de vroegere bron-check), dan de vlag
+ * `p6CompletedLateFromRemainingWindow` zelf, dan de nauwe statusdatumvenster-poort (dezelfde als
+ * de forward-display). De eerste afwijzing is de enige gerapporteerde reden.
  */
-export function explainP6CompletedLateRemainingWindowEligibility(
+export function explainP6CompletedLateRemainingWindowEligibilityResolved(
   task: Task,
   dataDate: Date | null,
   schedulingOptions: SchedulingOptions | undefined,
 ): P6CompletedLateRemainingWindowDecision {
   const pin = explainBackwardActualPinEligibility(task, dataDate, schedulingOptions);
   if (!pin.eligible) return { eligible: false, reason: pin.reason };
-  if (schedulingOptions?.p6Source !== 'XER') return { eligible: false, reason: 'notXerSource' };
+  // Op de plek van de vroegere bron-check: deze regel meet tegen het statusdatumvenster van
+  // conventie B3 (`p6CompletedDataDateWindow`); staat die uit, dan kan de regel niet gelden.
+  // Zelfde uitkomst als de venster-poort verderop, maar met de reden op de oude plek.
+  if (schedulingOptions?.p6CompletedDataDateWindow !== true) {
+    return { eligible: false, reason: 'conventionOff' };
+  }
   if (schedulingOptions.p6CompletedLateFromRemainingWindow !== true) {
     return { eligible: false, reason: 'flagOff' };
   }
-  const window = explainP6CompletedDataDateWindow(task, dataDate, schedulingOptions);
+  const window = explainP6CompletedDataDateWindowResolved(task, dataDate, schedulingOptions);
   if (!window.eligible) return { eligible: false, reason: window.reason };
   return { eligible: true, reason: 'eligible' };
 }

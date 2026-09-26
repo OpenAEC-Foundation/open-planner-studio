@@ -15,6 +15,7 @@ import { HOST_EVENTS } from '@/services/extensionEvents';
 import { documentTitle, untitledOrdinals } from '@/utils/documents';
 import { xerProjectCode } from '@/utils/xerDocumentName';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
+import { solveInputFor } from '@/engine/scheduler/solveInput';
 import type { XerImportMetadata, XerResourceMetadata } from '@/services/importTypes';
 import {
   bindXerImportMetadataToArchive,
@@ -724,17 +725,8 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
         const tasks = cloneTasksForSolve(payload.tasks);
         // Exact dezelfde reken-kern (en dezelfde opties) die `runCPM` op het actieve document
         // draait — pariteit by construction, geen tweede implementatie (A3/M3).
-        const result = solveProject({
-          tasks,
-          sequences: payload.sequences,
-          calendar: payload.calendar,
-          calendars: payload.calendars,
-          dataDate: payload.project.statusDate,
-          progressMode: payload.project.progressMode,
-          schedulingOptions: payload.project.schedulingOptions,
-          projectStartDate: payload.project.startDate,
-          projectEndDate: payload.project.endDate,
-        });
+        const result = solveProject(
+          solveInputFor(payload.project, tasks, payload.sequences, payload.calendar, payload.calendars));
         // Cyclus/solverfout: dit document volledig ONAANGERAAKT laten (het vangnet van §4.3 blijft
         // dan gelden — het overzicht toont zijn boeking ongeteld met de ⚠) en doorgaan met de rest.
         if (result.error) continue;

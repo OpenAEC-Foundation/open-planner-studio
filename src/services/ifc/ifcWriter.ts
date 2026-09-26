@@ -2,7 +2,9 @@ import { Task } from '@/types/task';
 import { Sequence } from '@/types/sequence';
 import { Resource } from '@/types/resource';
 import { ResourceAssignment } from '@/types/resource';
-import { Project, SchedulingOptions } from '@/types/project';
+import { Project, SchedulingOptions, SchedulingProfile } from '@/types/project';
+import { carriesProfile, schedulingProfileToJson } from '@/services/ifc/schedulingOptionsRead';
+import { legacyOptionsBlobFor } from '@/services/ifc/schedulingProfileMigration';
 import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { Baseline } from '@/types/baseline';
@@ -75,7 +77,7 @@ function ifcDurationHour(minutes: number): string {
   return `'${minutesToIsoDuration(minutes)}'`;
 }
 
-interface WriteContext {
+export interface WriteContext {
   lines: string[];
   nextId: number;
   idMap: Map<string, number>; // our ID -> STEP #id
@@ -340,7 +342,11 @@ export function writeIFC(input: WriteIFCInput): string {
   // Baselines (fase 2.6): OPS_Baselines-pset (JSON autoritair) op de IfcWorkSchedule
   writeBaselineMeta(ctx, workSchedId, baselines, activeBaselineId, ownerHistId);
   // Scheduling-options (fase 2.9, §3.4/§6): OPS_SchedulingOptions-pset (JSON autoritair) op de IfcWorkSchedule
-  writeSchedulingOptionsMeta(ctx, workSchedId, project.schedulingOptions, ownerHistId);
+  // Rekenprofielen (spec v3.1 §3.3): OPS_SchedulingOptions = projectopties + A22/A23 alleen als ze
+  // opgelost true zijn (compat met uitgebrachte versies); het profiel staat in OPS_SchedulingProfile,
+  // alleen als het ≠ het standaardprofiel (OPS-bestanden blijven byte-identiek).
+  writeSchedulingOptionsMeta(ctx, workSchedId, legacyOptionsBlobFor(project), ownerHistId);
+  writeSchedulingProfileMeta(ctx, workSchedId, project.schedulingProfile, ownerHistId);
   // Heropen-beleid optie B: OPS_ImportProvenance-pset, alleen bij `importPristine === true`.
   writeImportProvenanceMeta(ctx, workSchedId, importPristine === true, recordedSourceFormat, ownerHistId);
 
@@ -726,6 +732,29 @@ function writeSchedulingOptionsMeta(
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_schedopts'))},#${ownerHistId},${ifcStr(PSET.SchedulingOptions)},$,(#${propId}))`);
   addLine(ctx, '_rel_schedopts',
     `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_schedopts'))},#${ownerHistId},$,$,(#${workSchedId}),#${setId})`);
+}
+
+/**
+ * Rekenprofielen — het profiel als één `OPS_SchedulingProfile`-pset op de `IfcWorkSchedule`
+ * (exact het `writeSchedulingOptionsMeta`-patroon). De JSON draagt alle zevenentwintig conventies
+ * OPGELOST (`schedulingProfileToJson`), plus de afwijkingen letterlijk. Golden rule: afwezig profiel
+ * of het standaardprofiel (`ops` zonder enige afwijking, `carriesProfile`) ⇒ geen pset, zodat
+ * bestaande bestanden byte-identiek blijven.
+ */
+export function writeSchedulingProfileMeta(
+  ctx: WriteContext,
+  workSchedId: number,
+  profile: SchedulingProfile | undefined,
+  ownerHistId: number,
+): void {
+  if (!carriesProfile(profile)) return;
+  const json = JSON.stringify(schedulingProfileToJson(profile));
+  const propId = addLine(ctx, '_ps_schedprofile',
+    `IFCPROPERTYSINGLEVALUE('SchedulingProfile',$,IFCTEXT(${ifcStr(json)}),$)`);
+  const setId = addLine(ctx, '_pset_schedprofile',
+    `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_schedprofile'))},#${ownerHistId},${ifcStr(PSET.SchedulingProfile)},$,(#${propId}))`);
+  addLine(ctx, '_rel_schedprofile',
+    `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_schedprofile'))},#${ownerHistId},$,$,(#${workSchedId}),#${setId})`);
 }
 
 /**

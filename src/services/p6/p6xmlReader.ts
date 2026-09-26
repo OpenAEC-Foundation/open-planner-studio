@@ -818,6 +818,9 @@ export function readP6XML(content: string): ImportResult {
     assignments,
     resourceCalendars,
     customTaskTypes: [...customTaskTypes.values()],
+    // Rekenprofielen (spec v3.1 §6): P6-XML opent in deze etappe als OPS — de lezer zet geen
+    // opties, en onder P6 gingen A12/A13/A16/A17/A20/B2 aan zonder orakel.
+    suggestedProfileId: 'ops',
     ...(Object.keys(recordedTimes).length > 0 ? { recordedTimes, recordedTimesOrigin: 'p6xml' as const } : {}),
   };
 }

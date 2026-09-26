@@ -88,6 +88,8 @@ export const PSET = {
   // Op de IfcWorkSchedule (autoritaire JSON-blob — alleen naam gedeeld).
   Baselines: 'OPS_Baselines',
   SchedulingOptions: 'OPS_SchedulingOptions',
+  /** Rekenprofielen: `{ id, baseId, conventions, overrides, name? }` — alle zevenentwintig conventies opgelost plus de letterlijke afwijkingen. */
+  SchedulingProfile: 'OPS_SchedulingProfile',
   /** Heropen-beleid optie B (eigenaarsbesluit 2026-09-09): `UnchangedSinceImport` op de
    *  IfcWorkSchedule — alleen geschreven als `true` (golden rule: afwezig ⇒ `false`, bestaande
    *  bestanden blijven byte-identiek). Zie `ImportResult.importPristine`. */

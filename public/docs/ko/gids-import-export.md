@@ -39,6 +39,8 @@ IFC는 이 앱이 나머지 OpenAEC 툴킷에 연결되는 방식이기도 합�
 각 형식에는 고유한 제한이 있습니다: 대상 형식이 풍부할수록 더 많은 것이 함께 가지만, 세 가지
 외부 형식 중 어느 것도 IFC의 완전한 거울상은 아닙니다.
 
+계산 프로필은 CSV, MS Project XML 또는 P6 XML로 넘어가지 않습니다. [계산 프로필](docs://gids-rekenprofielen)을 참조하세요.
+
 ### CSV
 
 CSV 내보내기에는 **작업 표만** 포함됩니다: WBS 코드, 이름, 기간(일), 시작, 종료, 선행 작업(텍스트
@@ -116,3 +118,4 @@ Primavera 또는 MS Project 파일에는 해당 프로그램이 직접 계산한
   방법은 가이드 [기준선 및 진행](docs://gids-baselines-voortgang)을 읽어보세요.
 - 자원, 할당, 로딩 곡선 — 내보내기 전에 이들이 어떻게 구성되는지는 가이드
   [자원, 히스토그램 및 평준화](docs://gids-resources-histogram)를 읽어보세요.
+- 열린 파일이 어떤 계산 프로필을 받는지, IFC가 그중 무엇을 저장하는지 — 가이드 [계산 프로필](docs://gids-rekenprofielen)을 읽어 보세요.

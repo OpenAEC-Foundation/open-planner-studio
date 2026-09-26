@@ -14,6 +14,7 @@ import {
 } from '@/engine/taskGrid/assignmentPlan';
 import { isHourCalendar } from '@/services/subdayIo';
 import { effectiveCalendarOf, effHoursPerDay } from '@/utils/taskDuration';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { recordedGridBinding } from './recordedDatesSelectors';
 import { createSnapshot, restoreSnapshot, type Snapshot } from './snapshot';
 import { recordDocumentDataHistoryDelta } from './sessionHistory';
@@ -428,6 +429,7 @@ export function buildTaskEditPlanEnvironment(state: AppState, task: Task): TaskE
     effectiveHoursPerDay: effHoursPerDay(effectiveCalendar),
     hourMode: isHourCalendar(effectiveCalendar) === true,
     effectiveCalendar,
+    calendarFor: (calendarId) => resolveCalendar(calendarId, state.calendars, state.calendar),
     enableHourPlanning: state.ui.enableHourPlanning,
     customTaskTypeIds: new Set(state.customTaskTypes.map(type => type.id)),
     activityCodeTypes: state.activityCodeTypes,

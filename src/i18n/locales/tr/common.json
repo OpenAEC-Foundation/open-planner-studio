@@ -93,9 +93,15 @@
     "librarySaveFailed": "Kitaplık kaydedilemedi",
     "levelingDelayRoundedToWorkdays_one": "Kaynak dengeleme, MS Project'ten gelen dakika hassasiyetindeki dengeleme gecikmesini {{count}} görev için tam iş gününe yuvarlar.",
     "levelingDelayRoundedToWorkdays_other": "Kaynak dengeleme, MS Project'ten gelen dakika hassasiyetindeki dengeleme gecikmesini {{count}} görev için tam iş gününe yuvarlar.",
+    "schedulingProfileApplied": "Bu proje {{profile}} olarak hesaplanıyor. Dosya → Proje bilgisi → Hesaplama profili ve seçenekleri üzerinden değiştirin.",
+    "schedulingProfileShifted_one": "Uygulamadan sonra {{count}} görev kaydı.",
+    "schedulingProfileShifted_other": "Uygulamadan sonra {{count}} görev kaydı.",
+    "actions": {
+      "openProjectInfo": "Hesaplama profilini aç"
+    },
     "xerArchiveUnusable": "Bu dosyadaki XER kaynak arşivi kullanılamaz durumda ve dışarıda bırakıldı; projenin kendisi eksiksiz açıldı.",
     "xerArchiveUnusableLine": "Bu dosyadaki XER kaynak arşivi kullanılamaz durumdaydı ve dışarıda bırakıldı.",
-    "xerArchiveUnusableConsequence": "IFC'deki çizelge ve tüm proje verileri eksiksiz. Eksik olanlar: Primavera'nın kaydettiği haliyle tarihler ve yapay zekâ ile uzantılar için kaynak kökeni. Kaydetme dosyayı arşiv olmadan yazar; arşivi geri almak için orijinal .xer dosyasını yeniden içe aktarın.",
+    "xerArchiveUnusableConsequence": "IFC'deki çizelge, hesaplama profili ve tüm proje verileri eksiksiz. Eksik olanlar: Primavera'nın kaydettiği haliyle tarihler ve yapay zekâ ile uzantılar için kaynak kökeni. Kaydetme dosyayı arşiv olmadan yazar; arşivi geri almak için orijinal .xer dosyasını yeniden içe aktarın.",
     "xerArchiveReasonSchemaVersion": "Neden: arşivin şema sürümü veya düzeni bilinmiyor (daha yeni ya da farklı bir yazıcı).",
     "xerArchiveReasonHashMismatch": "Neden: sağlama toplamı kaynak baytlarıyla eşleşmiyor — arşiv hasarlı.",
     "xerArchiveReasonTruncated": "Neden: arşiv kesilmiş — kaynak baytlarının bir kısmı eksik.",
@@ -1170,6 +1176,162 @@
       "completion": "Tamamlanma",
       "actualStart": "Gerçek başlangıç",
       "actualFinish": "Gerçek bitiş"
+    }
+  },
+  "conventions": {
+    "preserveActualDatesInBackwardPass": {
+      "label": "Geri hesaplamada gerçekleşen tarihleri koru",
+      "help": "Başlamış veya tamamlanmış bir görev kayıtlı tarihlerini geç tarafta da korur; tamamlanmış bir ardıl, açık bir öncülü geçmişe çekmez."
+    },
+    "clampNegativeFreeFloat": {
+      "label": "Serbest bolluk asla negatif değil",
+      "help": "Karşılanamayan bir geç kısıtta toplam bolluk negatif kalır, ancak serbest bolluk sıfır olur."
+    },
+    "p6ZeroDurationUsesPlannedBoundary": {
+      "label": "Kilometre taşı planlanan takvim sınırını izler",
+      "help": "Süresiz bir kilometre taşı dosyanın planladığı takvim sınırında kalır: gün başlangıcı bir başlangıç taşı olarak kalır, bant sonu öncülün bitişine denk gelebilir."
+    },
+    "p6UseTaskPlannedStartFloor": {
+      "label": "Planlanan başlangıç ek alt sınır olarak",
+      "help": "Dosyadaki planlanan başlangıç, başlangıç ve bitiş ağın izin verdiğinden bir takvim gününden fazla sonra olduğunda alt sınır olarak sayılır."
+    },
+    "p6FinishMilestoneBoundaryWindow": {
+      "label": "Bitiş kilometre taşı sınır penceresi olarak",
+      "help": "Bir bitiş kilometre taşı iki bitişik takvim sınırında durabilir: erken başlangıç bir bandın başında, erken bitiş önceki bandın sonunda."
+    },
+    "p6PreserveActualInstants": {
+      "label": "Gerçekleşen tarihleri aynen al",
+      "help": "Kayıtlı gerçekleşen başlangıç ve bitiş tarihleri bir çalışma zamanı bandına kaydırılmaz."
+    },
+    "p6UseRemainingStartForProgress": {
+      "label": "Devam eden görev: erken başlangıç = kalan işin başlangıcı",
+      "help": "Devam eden bir görevin erken ve geç başlangıcı, geçmişteki gerçek başlangıcı değil, kalan işin nerede başladığını gösterir. Başlangıç-başlangıç ilişkisi üzerinden geriye hesaplamada yalnızca kalan süre sayılır."
+    },
+    "p6PreserveZeroDurationConstraintInstants": {
+      "label": "Kilometre taşında kesin kısıt anı",
+      "help": "Süresiz bir kilometre taşındaki tarih-saat kısıtı, bir çalışma bandının başında da kesin bir noktadır."
+    },
+    "resumeFromActualElapsed": {
+      "label": "Kalan iş geçen süreden sonra devam eder",
+      "help": "Devam eden bir görev kalan işine durum tarihinde değil, gerçek başlangıç artı geçen sürede devam eder."
+    },
+    "unstartedIgnoresStatusDate": {
+      "label": "Başlamamış görevleri durum tarihine taşıma",
+      "help": "Henüz başlamamış bir görev otomatik olarak durum tarihine veya sonrasına kaydırılmaz."
+    },
+    "p6RelationFinishBoundary": {
+      "label": "Ardıl bitiş sınırında başlar",
+      "help": "Ortak bir bant sınırında gecikmesiz bir bitiş-başlangıç ilişkisinde ardıl, öncülün bitişinde başlar (yalnızca dosyanın böyle işaretlediği ilişkiler). Geriye hesaplamada ardıl, en geç başlangıcını basitçe bir çalışma bandının başlangıcı olarak gösterir."
+    },
+    "p6BackwardLagFinishBoundary": {
+      "label": "Bitiş sınırından geriye gecikme",
+      "help": "Geri hesaplama bir bitiş sınırından çalışma zamanı gecikmesini çıkarıp tam bir bant başlangıcına denk gelirse, önceki bitiş sınırına iner. Gecikmesiz bir bitiş-bitiş ilişkisinde de bant sonundaki en geç bitiş o bitiş sınırında kalır."
+    },
+    "p6CompletedDataDateWindow": {
+      "label": "Durum tarihi penceresinde tamamlanan görev",
+      "help": "Tamamlanmış bir görev durum tarihi penceresinde erken tarihler alır ve bitişi proje bitişine sayılır (yalnızca P6 kaynaklı görevler)."
+    },
+    "p6CompletedLoeActualFinish": {
+      "label": "Gerçek bitiş üzerinden tamamlanan LOE",
+      "help": "Yalnızca başlangıç-başlangıç girişi olan tamamlanmış bir level-of-effort etkinliği gerçek bitişi üzerinden yolu izler (yalnızca P6 kaynaklı görevler)."
+    },
+    "p6OpenLoeTargetSpan": {
+      "label": "Başlamamış LOE hedef pencereyi alır",
+      "help": "Henüz başlamamış bir level-of-effort etkinliği hedef penceresini süre olarak alır (yalnızca P6 kaynaklı görevler)."
+    },
+    "p6CompletedPredecessorAtDataDate": {
+      "label": "Tamamlanmış öncül durum tarihinden sonra tutmaz",
+      "help": "Tamamlanmış bir öncülün gerçek bitişi durum tarihinden sonraysa, ardılları yine de durum tarihinde başlayabilir."
+    },
+    "p6FreeFloatOnOwnCalendar": {
+      "label": "Serbest bolluk kendi takviminde",
+      "help": "Başlamamış bir görevin serbest bolluğu her ilişki için ardılın değil görevin kendi takviminde hesaplanır: bitiş-başlangıç, başlangıç-başlangıç ve bitiş-bitiş için, öncülün takvimindeki çalışma süresi cinsinden gecikmeler dahil. Başlamış bir görev yalnızca gecikmesiz bitiş-başlangıç için."
+    },
+    "p6CompletedRemainingLag": {
+      "label": "Tamamlanmış öncülün geçmiş gecikmesi sayılmaz",
+      "help": "Geç tarihler tarafında, tamamlanmış bir öncülden sonraki gecikmenin yalnızca durum tarihinde henüz geçmemiş kısmı sayılır."
+    },
+    "p6CompletedOutOfSequenceWindow": {
+      "label": "Sıra dışı tamamlanan görev öncüllerini bekler",
+      "help": "Öncülü henüz bitmemiş tamamlanmış bir görevin sıfır penceresi, durum tarihine değil o öncülden sonraya yerleştirilir (Retained Logic)."
+    },
+    "p6CompletedPhysicalAtDataDate": {
+      "label": "Fiziksel ilerlemeli tamamlanan görev durum tarihinde durur",
+      "help": "Fiziksel tamamlanma yüzdesine sahip tamamlanmış bir görev, gerçek tarihleri yerine durum tarihinde ya da bir öncül gerektiriyorsa daha sonra tek bir nokta olarak gösterilir. Yalnızca fiziksel ilerleme için ölçülmüştür; diğer ilerleme türleri için (P6 varsayılanı: süre) bu davranış ölçülmemiştir ve kapalı kalır."
+    },
+    "p6InProgressStartLagElapsed": {
+      "label": "Devam eden bir öncülden geçmiş BB gecikmesi sayılmaz",
+      "help": "Zaten başlamış bir görevden başla-başla ilişkisinde, gecikmenin yalnızca gerçek başlangıcından durum tarihine kadar henüz geçmemiş kısmı sayılır."
+    },
+    "p6FinishFinishStartMilestoneLateFinish": {
+      "label": "Başlangıç kilometre taşına bitiş-bitiş ilişkisi kilometre taşının kendisine bağlanır",
+      "help": "Başlangıç kilometre taşına bitiş-bitiş ilişkisi, kilometre taşının gününün başına değil kendisine kadar sayılır: öncülün en geç bitişi kilometre taşının en geç bitişine kadar uzayabilir."
+    },
+    "p6StartedTaskIgnoresPlannedStartFloor": {
+      "label": "Planlanan başlangıç, devam eden bir görev için alt sınır değildir",
+      "help": "Başlamış bir görevin kalan işi, planlanan başlangıcı daha geç olsa bile durum tarihinde ve öncüllerinin hemen ardından başlar."
+    },
+    "p6LateFinishOnOwnCalendar": {
+      "label": "Geç bitiş, faaliyetin kendi takviminde",
+      "help": "Ardıl faaliyetin belirlediği geç bitiş, faaliyetin çalışma saatleri dışına düşerse, faaliyetin kendi takvimindeki önceki çalışma döneminin sonu olur."
+    },
+    "p6ProgressOverrideIgnoresStartedSuccessor": {
+      "label": "Progress Override başlamış bir ardılı geriye doğru da yok sayar",
+      "help": "Progress Override altında, zaten başlamış bir ardılla olan ilişki, henüz bitmemiş bir öncülün geç tarihlerinde ve serbest bolluğunda hesaba katılmaz."
+    },
+    "p6FinishNotBeforeFinishFinishBound": {
+      "label": "Erken bitiş bir bitiş-bitiş sınırından önce olmaz",
+      "help": "Bitiş-bitiş ilişkisinde ardılın erken bitişi, saat olarak öncülün koyduğu sınırdan asla önce olmaz. Bu sınır ardılın çalışma dışı zamanına denk gelirse, bitiş bir sonraki çalışma döneminin başlangıcı olur."
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "ALAP görevleri ardılların izin verdiği kadar geç",
+      "help": "'Olabildiğince geç' kısıtlı, başlamamış bir görev, ardıllarının ona ihtiyaç duyduğu dakikada biter; önce ardıllar hesaplanır, böylece bir zincir kesintisiz birleşir. Kendi planlanan başlangıcı sayılmaz; öncülü olmayan bir görev bu durumda durum tarihinden önce başlamaz. Yalnızca saatlik takvimde geçerlidir."
+    }
+  },
+  "profiles": {
+    "builtIn": {
+      "p6": "Primavera P6",
+      "msproject": "Microsoft Project",
+      "ops": "Open Planner Studio"
+    },
+    "modified": "{{name}} (değiştirildi)",
+    "copyOf": "{{name}} kopyası"
+  },
+  "schedulingProfile": {
+    "title": "Hesaplama profili ve seçenekleri",
+    "profile": "Hesaplama profili",
+    "conventionsTitle": "Bu profilin kuralları",
+    "optionsTitle": "Bu projenin hesaplama seçenekleri",
+    "customName": "Bu özel profilin adı",
+    "saveAsTemplate": "Şablon olarak kaydet",
+    "updateTemplate": "Şablonu bu projeden güncelle",
+    "applyTemplate": "Şablondan güncelle",
+    "deleteTemplate": "Şablonu sil",
+    "templateDeviates": "Bu profil “{{name}}” şablonundan farklı.",
+    "applyDefaultOptions": "Bu profilin varsayılan seçeneklerini uygula",
+    "themes": {
+      "completedWork": "İlerleme ve tamamlanan iş",
+      "relationsLag": "İlişkiler ve gecikme",
+      "milestones": "Kilometre taşları ve LOE etkinlikleri",
+      "float": "Bolluk ve geç tarihler",
+      "instants": "Dosyadaki tarihler ve anlar",
+      "msproject": "Microsoft Project gibi ilerleme",
+      "ownProfilesOnly": "Yalnızca özel profiller için"
+    },
+    "ownProfilesOnlyNote": "Bu kurallar Primavera P6 dahil her yerleşik profilde kapalıdır. Birini açarsanız özel bir profil oluşur.",
+    "deviatingCount": "değişen: {{n}}",
+    "baseValue": "temel: {{value}}",
+    "on": "açık",
+    "off": "kapalı",
+    "resetToBase": "temele dön",
+    "showHelp": "“{{name}}” açıklaması",
+    "sourceOptions": {
+      "title": "Kaynak dosyadaki ayarlar",
+      "intro": "Bu hesaplama seçenekleri bir Primavera P6 dosyasından (.xer) gelir. Hesaplamada kullanılır ancak burada değiştirilemez.",
+      "useExpectedFinishDates": "Beklenen bitiş tarihlerini kullan (P6: Use Expected Finish Dates)",
+      "useProjectEndDateForFloat": "Bolluğu proje bitiş tarihine kadar hesapla",
+      "p6CompletedLateFromRemainingWindow": "Tamamlanan görev: durum tarihinden itibaren geç tarihler",
+      "needsConvention": "Yalnızca şu anda kapalı olan “{{convention}}” kuralıyla birlikte çalışır."
     }
   }
 }

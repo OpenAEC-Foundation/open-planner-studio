@@ -42,6 +42,9 @@ Open **Backstage → Export** for four formats:
 Each format has its own limitations: the richer the target format, the more comes along, but none of
 the three external formats is a full mirror of IFC.
 
+The calculation profile does not come along to CSV, MS Project XML or P6 XML; see
+[Calculation profiles](docs://gids-rekenprofielen).
+
 ### CSV
 
 The CSV export contains **only the task table**: WBS code, outline level (1 = top level, so a
@@ -176,3 +179,5 @@ section is empty. Check **Backstage → Extensions** to see what's available.
 - Resources, assignments and loading curves — read the guide
   [Resources, histogram & leveling](docs://gids-resources-histogram) for how those are built before
   you export.
+- Which calculation profile an opened file gets and what IFC keeps of it — read the guide
+  [Calculation profiles](docs://gids-rekenprofielen).

@@ -93,9 +93,15 @@
     "librarySaveFailed": "Library could not be saved",
     "levelingDelayRoundedToWorkdays_one": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} task to whole workdays.",
     "levelingDelayRoundedToWorkdays_other": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} tasks to whole workdays.",
+    "schedulingProfileApplied": "This project calculates as {{profile}}. Change it via File → Project info → Calculation profile and options.",
+    "schedulingProfileShifted_one": "After applying, {{count}} task moved.",
+    "schedulingProfileShifted_other": "After applying, {{count}} tasks moved.",
+    "actions": {
+      "openProjectInfo": "Open calculation profile"
+    },
     "xerArchiveUnusable": "The XER source archive in this file is unusable and was left out; the project itself opened in full.",
     "xerArchiveUnusableLine": "The XER source archive in this file was unusable and has been left out.",
-    "xerArchiveUnusableConsequence": "The schedule and all project data from the IFC are complete. What is missing: the dates as Primavera stored them and the source provenance for AI and extensions. Saving writes the file without the archive; import the original .xer again to get the archive back.",
+    "xerArchiveUnusableConsequence": "The schedule, the calculation profile and all project data from the IFC are complete. What is missing: the dates as Primavera stored them and the source provenance for AI and extensions. Saving writes the file without the archive; import the original .xer again to get the archive back.",
     "xerArchiveReasonSchemaVersion": "Reason: the archive has an unknown schema version or layout (a newer or different writer).",
     "xerArchiveReasonHashMismatch": "Reason: the checksum does not match the source bytes — the archive is damaged.",
     "xerArchiveReasonTruncated": "Reason: the archive is truncated — part of the source bytes is missing.",
@@ -1170,6 +1176,162 @@
       "completion": "Completion",
       "actualStart": "Actual start",
       "actualFinish": "Actual finish"
+    }
+  },
+  "conventions": {
+    "preserveActualDatesInBackwardPass": {
+      "label": "Keep actual dates in the backward pass",
+      "help": "A started or completed task keeps its recorded dates on the late side too; a completed successor does not pull an open predecessor back into the past."
+    },
+    "clampNegativeFreeFloat": {
+      "label": "Free float never negative",
+      "help": "With an unachievable late constraint, total float stays negative but free float becomes zero."
+    },
+    "p6ZeroDurationUsesPlannedBoundary": {
+      "label": "Milestone follows the planned calendar boundary",
+      "help": "A zero-duration milestone stays on the calendar boundary the file planned: a day start stays a start milestone, a band end may land on the predecessor's finish."
+    },
+    "p6UseTaskPlannedStartFloor": {
+      "label": "Planned start as an extra floor",
+      "help": "The planned start from the file acts as a floor once both start and finish lie more than one calendar day later than the network allows."
+    },
+    "p6FinishMilestoneBoundaryWindow": {
+      "label": "Finish milestone as a boundary window",
+      "help": "A finish milestone may sit on two adjacent calendar boundaries: early start at the start of a band, early finish at the end of the previous band."
+    },
+    "p6PreserveActualInstants": {
+      "label": "Keep actual dates exact",
+      "help": "Recorded actual start and finish dates are not moved to a working-time band."
+    },
+    "p6UseRemainingStartForProgress": {
+      "label": "In-progress task: early start = start of remaining work",
+      "help": "The early and late start of an in-progress task describe where the remaining work begins, not the historical actual start. Calculating backward over a start-to-start relationship, only the remaining duration counts."
+    },
+    "p6PreserveZeroDurationConstraintInstants": {
+      "label": "Exact constraint moment on a milestone",
+      "help": "A date-and-time constraint on a zero-duration milestone is an exact point, also at the start of a working band."
+    },
+    "resumeFromActualElapsed": {
+      "label": "Remaining work resumes after the elapsed duration",
+      "help": "An in-progress task resumes its remaining work at the actual start plus the elapsed duration, not at the status date."
+    },
+    "unstartedIgnoresStatusDate": {
+      "label": "Don't move unstarted tasks to the status date",
+      "help": "A task that has not started is not moved to on or after the status date automatically."
+    },
+    "p6RelationFinishBoundary": {
+      "label": "Successor starts on the finish boundary",
+      "help": "For a finish-to-start relation without lag on a shared band boundary, the successor starts at the predecessor's finish (only relations the file marks this way). Calculating backward, the successor shows its late start simply as the start of a work band."
+    },
+    "p6BackwardLagFinishBoundary": {
+      "label": "Backward lag from a finish boundary",
+      "help": "When the backward pass subtracts a working-time lag from a finish boundary and lands exactly on a band start, it lands on the previous finish boundary. With a finish-to-finish relationship without lag, a late finish on a band end also stays on that finish boundary."
+    },
+    "p6CompletedDataDateWindow": {
+      "label": "Completed task in the data-date window",
+      "help": "A completed task gets early dates in the data-date window, and its finish counts toward the project finish (only tasks with P6 provenance)."
+    },
+    "p6CompletedLoeActualFinish": {
+      "label": "Completed LOE via its actual finish",
+      "help": "A completed level-of-effort activity with only a start-to-start input follows the route through its actual finish (only tasks with P6 provenance)."
+    },
+    "p6OpenLoeTargetSpan": {
+      "label": "Unstarted LOE uses the target window",
+      "help": "A level-of-effort activity that has not started takes its target window as its span (only tasks with P6 provenance)."
+    },
+    "p6CompletedPredecessorAtDataDate": {
+      "label": "Completed predecessor does not hold past the data date",
+      "help": "If a completed predecessor's actual finish lies after the data date, its successors may still start at the data date."
+    },
+    "p6FreeFloatOnOwnCalendar": {
+      "label": "Free float in the task's own calendar",
+      "help": "The free float of a not-started task counts per relationship in the task's own calendar, not in the successor's: for finish-to-start, start-to-start and finish-to-finish, including a working-time lag on the predecessor's calendar. A started task only for finish-to-start without lag."
+    },
+    "p6CompletedRemainingLag": {
+      "label": "Elapsed lag of a completed predecessor does not count",
+      "help": "On the late side, only the part of the lag after a completed predecessor that has not yet elapsed at the data date counts."
+    },
+    "p6CompletedOutOfSequenceWindow": {
+      "label": "Completed out-of-sequence task waits for its predecessors",
+      "help": "A completed task whose predecessor is not yet finished gets its zero window after that predecessor instead of at the data date (Retained Logic)."
+    },
+    "p6CompletedPhysicalAtDataDate": {
+      "label": "Completed physical-progress task sits at the data date",
+      "help": "A completed task with physical percent complete is shown as a single point at the data date, or later if a predecessor requires it, instead of at its actual dates. Only measured for physical percent complete; for other percent complete types (P6 default: duration) this behaviour has not been measured and stays off."
+    },
+    "p6InProgressStartLagElapsed": {
+      "label": "Elapsed SS lag from an in-progress predecessor does not count",
+      "help": "For a start-to-start relationship from a task that has already started, only the part of the lag that has not yet elapsed since its actual start at the data date counts."
+    },
+    "p6FinishFinishStartMilestoneLateFinish": {
+      "label": "Finish-to-finish relationship to a start milestone binds to the milestone itself",
+      "help": "A finish-to-finish relationship to a start milestone counts up to the milestone itself, not up to the start of the milestone's day: the predecessor's late finish may run up to the milestone's late finish."
+    },
+    "p6StartedTaskIgnoresPlannedStartFloor": {
+      "label": "Planned start is not a floor for a task in progress",
+      "help": "The remaining work of a started task begins at the data date and right after its predecessors, even if its planned start is later."
+    },
+    "p6LateFinishOnOwnCalendar": {
+      "label": "Late finish on the task's own calendar",
+      "help": "If the late finish imposed by a successor falls outside the task's working time, it becomes the end of the previous work period on the task's own calendar."
+    },
+    "p6ProgressOverrideIgnoresStartedSuccessor": {
+      "label": "Progress Override ignores a started successor on the late side too",
+      "help": "Under Progress Override, the relationship to a successor that has already started does not count in the late dates and free float of a predecessor that is not finished."
+    },
+    "p6FinishNotBeforeFinishFinishBound": {
+      "label": "Early finish not before a finish-to-finish boundary",
+      "help": "With a finish-to-finish relationship, the successor's early finish never lies before the boundary set by the predecessor in clock time. If that boundary falls in the successor's non-working time, the finish becomes the start of the next work period."
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "ALAP tasks as late as the successors allow",
+      "help": "An unstarted task with the 'as late as possible' constraint finishes at the minute its successors need it, successors first, so a chain closes up. Its own planned start does not count; a task without a predecessor then starts no earlier than the status date. Applies only on an hourly calendar."
+    }
+  },
+  "profiles": {
+    "builtIn": {
+      "p6": "Primavera P6",
+      "msproject": "Microsoft Project",
+      "ops": "Open Planner Studio"
+    },
+    "modified": "{{name}} (modified)",
+    "copyOf": "Copy of {{name}}"
+  },
+  "schedulingProfile": {
+    "title": "Calculation profile and options",
+    "profile": "Calculation profile",
+    "conventionsTitle": "Conventions of this profile",
+    "optionsTitle": "Calculation options of this project",
+    "customName": "Name of this custom profile",
+    "saveAsTemplate": "Save as template",
+    "updateTemplate": "Update template from this project",
+    "applyTemplate": "Update from template",
+    "deleteTemplate": "Delete template",
+    "templateDeviates": "This profile differs from the template “{{name}}”.",
+    "applyDefaultOptions": "Apply this profile's default options",
+    "themes": {
+      "completedWork": "Progress and completed work",
+      "relationsLag": "Relationships and lag",
+      "milestones": "Milestones and LOE activities",
+      "float": "Float and late dates",
+      "instants": "Dates and moments from the file",
+      "msproject": "Progress as in Microsoft Project",
+      "ownProfilesOnly": "Custom profiles only"
+    },
+    "ownProfilesOnlyNote": "These conventions are off in every built-in profile, including Primavera P6. Turning one on makes it a custom profile.",
+    "deviatingCount": "changed: {{n}}",
+    "baseValue": "base: {{value}}",
+    "on": "on",
+    "off": "off",
+    "resetToBase": "back to base",
+    "showHelp": "Explanation of “{{name}}”",
+    "sourceOptions": {
+      "title": "Settings from the source file",
+      "intro": "These calculation options come from a Primavera P6 file (.xer). They are used in the calculation but cannot be changed here.",
+      "useExpectedFinishDates": "Use expected finish dates (P6: Use Expected Finish Dates)",
+      "useProjectEndDateForFloat": "Calculate float up to the project finish date",
+      "p6CompletedLateFromRemainingWindow": "Completed task: late dates from the data date",
+      "needsConvention": "Only works together with the convention “{{convention}}”, which is currently off."
     }
   }
 }

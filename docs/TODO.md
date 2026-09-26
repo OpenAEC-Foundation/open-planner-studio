@@ -11,6 +11,20 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 
 ## Openstaand
 
+- [ ] **Rekenprofielen / X12 (PR #169, stand 2026-09-24):** restant 76 zesassige afwijkingen op de
+  P6-doorgerekende orakels — HarbourPointe-opvolgers van verouderde P6-uitvoer (nieuw P6-bewijs nodig),
+  mijlpaalvloer (n=1), Sample SF-lag-0-minuut (n=1). Eigenaarsbesluiten 2026-09-24: A19 in P6 aan en
+  per-bestand vervallen ("a", branch `claude/x12-a19-basis`); C5 smal. Zie `docs/superpowers/plans/2026-09-22-rekenprofielen-overdracht.md` §1d.
+- [ ] **P6-nivellering (motoretappe):** fundament (data) ligt; vijf eigenaarsbesluiten in
+  `docs/superpowers/plans/2026-09-24-nivellering-etappe-onderzoek.md` §8.
+- [ ] **XER-lezer (PR #109) vervolg:** statisch anker bij `sched_use_project_end_date_for_float=Y` zonder
+  `plan_end_date` (37 corpusprojecten; eigen PR met herpin); corrupt bronarchief openen zónder archief met
+  melding (eigenaarsvraag); documentnaam = Project-ID i.p.v. projectnaam.
+- [ ] **Datums zoals opgeslagen (PR #167) vervolg:** een taak zonder enige vastlegging telt na opslaan-in-modus
+  bij heropenen als vastgelegd (geen vals aanbod, wel in de telling).
+- [ ] **Taaktypes (PR #101) overname:** dossier `docs/superpowers/plans/2026-09-24-verkenning-pr101-taaktypes.md`;
+  integratie op de #169-kop pas als #169 stabiel is; eigenaarsvragen E1–E5.
+
 ### Rapporten (tabelrapporten uit discussie #31, review 2026-09-08)
 - [ ] **Twaalf vertaalde gidsen beschrijven een niet-bestaande knop "Afdrukken…".** In
   `public/docs/{de,fr,es,it,pt,pl,tr,ar,fa,zh,ja,ko}/gids-rapporten-printen.md` staat nog dat het
@@ -814,14 +828,18 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
   die exact was en fout wordt, is op die twee bestanden mechanisch rood. Voor de overige 32 entries
   blijft de v2-karakterisering (`check-xer-corpusless-fidelity-gate.ts`, in-bron pin per as) de
   enige bewaking — per as, niet per cel.
-- [ ] **XER: projecteinde valt terug op de projectSTART bij `sched_use_project_end_date_for_float=Y`
-  zonder `plan_end_date`** (her-review 7a, 2026-09-07; `xerReader.ts` `taskDerivedProjectEnd =
-  finishes[last] ?? projectStart`). Op de echte P6-export van de dertien casussen
-  (`cases-import.xer`: geen enkele `target_end_date`, geen `plan_end_date`) verankert de hele late
-  zijde daardoor op de start: 77/160 P6-cellen zoals gelezen, 156/160 met de optie uit. Gepind in
-  sectie 7 van `check-p6-verified-cases-engine.ts`. Fix-kandidaat: zonder bruikbaar einde
-  (`plan_end_date` leeg én geen taakeinde) de optie gerapporteerd uitzetten — met blastradius-
-  meting op het corpus (39 van 50 SCHEDOPTIONS-rijen dragen `Y`), niet als zijklus.
+- [x] **XER: projecteinde valt terug op de projectSTART bij `sched_use_project_end_date_for_float=Y`
+  zonder `plan_end_date`** — in twee stappen opgelost. (1) X12-brok 1 (2026-09-23, branch
+  `claude/x12-brok1-projecteinde`): zonder bruikbaar einde (`plan_end_date` leeg én geen enkele
+  `target_end_date`) zet `deriveXerScheduleOptions` de optie gerapporteerd uit (`hasUsableProjectEnd`,
+  terugvalmelding); `cases-import.xer` 77/160 → 156/160 (sectie 7 van `check-p6-verified-cases-engine.ts`).
+  (2) Eigenaarsbesluit 2026-09-24 "eigen PR" (Fable-critreview PR #109 bevinding 2), gemerged in de
+  rekenprofielen-etappe 2026-09-25: bij `Y` zonder `plan_end_date` laat de lezer `project.endDate` leeg in
+  plaats van het taak-afgeleide einde te verzinnen, de optie blijft aan, en `withEffectiveProjectEndAnchor`
+  (CPMSolver) laat de solver exact op het netwerkeinde rekenen; corpusloos bewaakt in `check-xer-reader.ts`
+  13c–13g. Meting: op de #169-kop 0 cellen verschil (76/0/0/0); op de oude #109-basis 149 cellen slechter
+  omdat het verzonnen anker daar een fout aan de vroege kant maskeerde — daarom niet los op #109 geland.
+  Oorspronkelijke registratie: her-review 7a, 2026-09-07.
 - [ ] **Meetlat per formaat (nul afwijkingen zoals XER §1), als aparte etappe ná de
   etappe "datums zoals opgeslagen voor alle formaten"** (eigenaarsbesluit 2026-09-09, optie 3;
   die etappe zelf wordt gebouwd en staat daarom niet hier maar in plan §10.f). Nu: alleen XER (93 bestanden,
@@ -853,8 +871,10 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 - [ ] **`lagCalendar` is sinds X5 effectief voor élk formaat** (eindreview bevinding 5): een
   bestaand document waarin ooit 'successor'/'24hour'/'projectDefault' is gekozen plant na de
   volgende release anders. Regel in de releasenotities van die versie; eventueel migratienoot.
-- [ ] **XER: `rem_target_link_flag=Y` maakt de vroege start van een bezig zijnde taak de reststart**
-  waar P6 de werkelijke start opneemt (casus 08 A, casus 10 B: ES én LS, vier cellen). Zie plan §9.
+- [ ] **XER: A19 (P6-basis) geeft de reststart waar de verified cases 08 A / 10 B de werkelijke
+  start tonen** ('A'-datum = Start-kolom; ES én LS, vier cellen). Nog te checken: welk veld de
+  vergelijking eigenlijk hoort te gebruiken (werkelijke start versus reststart) vóór er een oorzaak
+  wordt aangewezen. Zie plan §9.
 
 - [ ] **Geen enkele poort raakt het Tauri-asset-protocol — een hele klasse desktopbugs is
   structureel onzichtbaar.** Aangetoond 2026-07-28: in de uitgeleverde `.deb` v2026.7.13 toonde

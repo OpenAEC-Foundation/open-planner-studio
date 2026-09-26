@@ -2,8 +2,10 @@ import { cloneTasksForSolve, solveProject } from '@/engine/scheduler/solveProjec
 import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
 import { readXER } from '@/services/xer/xerReader';
 import { parseInstant } from '@/utils/dateUtils';
-import { explainP6CompletedDataDateWindow } from '@/utils/p6CompletedTargetWindow';
+import { explainP6CompletedDataDateWindow } from '@/engine/scheduler/p6CompletedTargetWindow';
 import type { Task } from '@/types/task';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
+import { setConvention, withoutP6Semantics } from './p6SemanticsOff';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -39,6 +41,10 @@ function importFixture(): ImportResult {
     '%E',
   ]));
   if (isMultiDocumentImport(opened)) throw new Error('completed suspend/resume fixture moet precies één project openen');
+  // B3/B4 staan sinds 2026-09-23 (eigenaarsvraag §1d-7) in elk ingebouwd profiel uit (0 cellen op de
+  // P6-doorgerekende populatie; gebouwd op rehab-2 = P3). Deze fixture toetst de regel zelf: als afwijking aan.
+  setConvention(opened, 'p6CompletedDataDateWindow', true);
+  setConvention(opened, 'p6CompletedLoeActualFinish', true);
   return opened;
 }
 
@@ -63,7 +69,7 @@ function solveProjection(mutate?: (imported: ImportResult, task: Task) => void) 
   const decision = explainP6CompletedDataDateWindow(
     task,
     imported.project.statusDate ? parseInstant(imported.project.statusDate) : null,
-    imported.project.schedulingOptions,
+    solveOptionsFor(imported.project).schedulingOptions,
   );
   const result = solveProject({
     tasks: solveTasks,
@@ -72,7 +78,7 @@ function solveProjection(mutate?: (imported: ImportResult, task: Task) => void) 
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
     projectEndDate: imported.project.endDate,
   });
@@ -116,7 +122,7 @@ function decisionProjection(mutate?: (imported: ImportResult, task: Task) => voi
   return explainP6CompletedDataDateWindow(
     task,
     imported.project.statusDate ? parseInstant(imported.project.statusDate) : null,
-    imported.project.schedulingOptions,
+    solveOptionsFor(imported.project).schedulingOptions,
   );
 }
 
@@ -209,22 +215,25 @@ const rejectionCases: Array<{
   {
     label: 'preserve-uit',
     mutate: imported => {
-      imported.project.schedulingOptions = {
-        ...imported.project.schedulingOptions,
-        preserveActualDatesInBackwardPass: false,
-      };
+      setConvention(imported, 'preserveActualDatesInBackwardPass', false);
     },
     want: { eligible: false, reason: 'hasSuspendResume' },
+  },
+  // Rekenprofielen baan B: de poort is conventie B3 `p6CompletedDataDateWindow`. Twee armen:
+  // expliciet uit (wint van de tijdelijke bronvertaling) en bron weg (vertaling zet haar niet aan).
+  {
+    label: 'conventie B3 expliciet uit',
+    mutate: imported => {
+      setConvention(imported, 'p6CompletedDataDateWindow', false);
+    },
+    want: { eligible: false, reason: 'conventionOff' },
   },
   {
     label: 'niet-XER',
     mutate: imported => {
-      imported.project.schedulingOptions = {
-        ...imported.project.schedulingOptions,
-        p6Source: undefined,
-      };
+      withoutP6Semantics(imported);
     },
-    want: { eligible: false, reason: 'notXerSource' },
+    want: { eligible: false, reason: 'conventionOff' },
   },
   {
     label: 'completion kleiner dan 1',

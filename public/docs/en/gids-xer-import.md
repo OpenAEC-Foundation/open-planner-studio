@@ -22,6 +22,8 @@ A P6 baseline project is not opened as a separate schedulable document. When it 
 
 Relations between two different P6 projects are retained as external source links. The app does not schedule them as ordinary relations, because every opened document is an independent schedule.
 
+A `.xer` file opens with the calculation profile **Primavera P6**; see [Calculation profiles](docs://gids-rekenprofielen).
+
 ## What comes from P6
 
 The import reads, among other things:
@@ -34,15 +36,23 @@ The import reads, among other things:
 
 One calendar rule deserves a separate mention. Some P6 exports clamp a contiguous non-working block onto the Monday–Friday axis: a non-working Saturday then appears as a duplicate record on the Friday before, a non-working Sunday on the Monday after. When the reader sees that pattern on a calendar that does work on Saturday or Sunday, it makes that weekend day non-working after all. Such a reconstructed day is not a record in the file; it is named "Calendar exception (weekend reconstruction)" in the calendar and counts towards the calendar findings in the opening notification, so you can always see that the app derived something here. The rule was derived from a single file and only fires on a multi-day block with evidence on the record itself; on an ordinary Monday–Friday calendar nothing changes.
 
+The P6 option **compute total float against the project finish** comes along as well. If the project has a *Must Finish By* date, that becomes the project finish in Project info and the app calculates the late dates and float back from that date. If the option is on but the date is missing, the app does what Primavera does in that case: it calculates back from the actual end of the network, the latest early finish. The project finish in Project info then stays empty; the app no longer fills it in itself with the latest planned finish from the file. Previously it did, and after an edit almost every activity then got negative float. If you enter a project finish yourself, the app calculates from that date.
+
 The raw P6 source data that Open Planner Studio reads remains part of the document. It survives tab switching, undo, recovery and saving. That is different from claiming that every P6 feature already has an equivalent editing or scheduling model: when such a model is missing, source data is retained rather than silently discarded.
 
 ## Completed activities get real float
 
-Since September 2026 Open Planner Studio gives a completed activity from a `.xer` file a late side as if it were a task with zero remaining work on the data date. As a result such an activity shows real total float instead of always zero, and it exerts backward pressure on its own predecessors like any other task. Your data does not change: the actual start and finish dates stay exactly as the file recorded them.
+Open Planner Studio can give a completed activity from a `.xer` file a late side as if it were a task with zero remaining work on the data date. As a result such an activity shows real total float instead of always zero, and it exerts backward pressure on its own predecessors like any other task. Your data does not change: the actual start and finish dates stay exactly as the file recorded them.
 
-Be aware of what this rule is and is not. It is **derived from corpus material**: it explains the dates recorded in one large sample file, but it is **not confirmed by Primavera documentation**. The only direct test case scheduled in P6 itself actually contradicts the rule as soon as it would apply there; that it does not fire there is due to the strict conditions below, not because it is correct there. Treat it as an approximation that follows the stored P6 dates more closely on similar files, not as a reproduced P6 mechanism. To see what Primavera itself recorded, use the **dates as recorded** view (below).
+This rule depends on the calculation profile, not on the file format. A `.xer` file turns on the project option **Completed task: late dates from the data date**, but that option only works together with the convention **Completed task in the data-date window**, which is off in the built-in Primavera P6 profile. Under that profile nothing changes; turn the convention on in a custom profile and the rule applies. See [Calculation profiles](docs://gids-rekenprofielen).
 
-The rule is only active under exactly these source conditions: activities of the "fixed duration and units" type with duration-based percent complete, a recorded planned window, and a project that links remaining work to the plan. If the file also declares that it was scheduled with *progress override* rather than *retained logic*, the previous behaviour stays. Projects from IFC, MS Project or Primavera P6 XML are unaffected.
+Be aware of what this rule is and is not. It is **derived from corpus material**: it explains the stored dates of a single (P3) file, but it is **not confirmed by Primavera documentation**. The only direct test case scheduled in P6 itself actually contradicts the rule as soon as it would apply there; that it does not fire there is due to the strict conditions below, not because it is correct there. Treat it as an approximation that follows the stored dates of a single (P3) file more closely, not as a reproduced P6 mechanism. To see what Primavera itself recorded, use the **dates as recorded** view (below).
+
+Even with the convention on, the rule is only active under exactly these source conditions: activities of the "fixed duration and units" type with duration-based percent complete, a recorded planned window, and a project that links remaining work to the plan. If the file also declares that it was scheduled with *progress override* rather than *retained logic*, the previous behaviour stays. Projects from IFC, MS Project or Primavera P6 XML are unaffected.
+
+## Start-to-start lag from an in-progress activity
+
+P6 has the setting *Calculate Start-to-Start lag from* with two choices: *Early Start* and *Actual Start*. Both count only the part of the lag of a start-to-start relationship from an already started activity that has not yet elapsed at the data date. With *Early Start* (the P6 default) the successor starts after the start of the predecessor's remaining work plus that remaining lag; with *Actual Start* after the data date plus that remaining lag. Open Planner Studio reads that choice from the `.xer` file and shows it in **File → Project info → Calculation profile and options** as **Calculate SS lag from an in-progress predecessor from**. Every test file scheduled by P6 uses *Early Start*; the *Actual Start* variant follows the P6 documentation but has not been checked against a P6 calculation. See also [Calculation profiles](docs://gids-rekenprofielen).
 
 ## Text encoding and numbers
 
@@ -95,7 +105,7 @@ The retained XER source archive in the IFC file is checked every time you open i
 - the file was truncated or damaged along the way, so the checksum no longer matches;
 - the archive was written by a newer or different version that this version does not know.
 
-What stays: the complete schedule from the IFC. Tasks, relationships, calendars, resources, progress, baselines and the scheduling options are all stored in the IFC itself and load and calculate as usual.
+What stays: the complete schedule from the IFC. Tasks, relationships, calendars, resources, progress, baselines, the calculation profile (including your own deviations) and the scheduling options are all stored in the IFC itself and load and calculate as usual. The project therefore calculates with the same profile as before it was saved.
 
 What is missing: everything that comes from the archive itself. That is the **dates as recorded** view (the dates Primavera calculated itself), the source provenance for the AI assistant and the source route for extensions. The AI assistant and extensions do not see "no XER source", but that there was an archive that turned out unusable when the file was opened, with the reason.
 
@@ -107,8 +117,8 @@ Some P6 concepts are already retained but do not yet have a fully equivalent sch
 
 - **`TT_Rsrc`** (resource-dependent activity) and **`TT_WBS`** are retained as P6 source types. The solver does not yet have a separate P6 scheduling mode for these types.
 - A P6 resource curve with 21 points is retained as source distribution. A recognisable shape can be mapped to the nearest built-in curve for the histogram, but the original 21-point shape is not yet recalculated after an edit.
+- **Leveling settings** from P6 (preserving scheduled dates, which resources, the priority list) are read and kept in the project file, but not yet applied: the app does not level automatically when calculating.
 - The existing **P6 XML** reader and this XER reader do not yet cover the same full field set. XER can therefore contain data that P6 XML in the app does not yet read or write.
-- **Project finish as float anchor without a finish date.** If the file has the P6 option "compute total float against the project finish" switched on, but the project has no *Must Finish By* date and no activity has a planned finish date, the app's project finish falls back to the project start. All late dates then anchor on it and almost every activity shows negative float and is critical. In the test material this combination occurs in P6 exports of small, bare projects. The early dates and the **dates as recorded** view are correct; only the recalculated late side is unusable then, and there is no switch yet to turn the option off. This is registered as a known defect.
 
 These limits do not remove source data from the IFC project file. When XER-specific source data is present and you export to CSV, MS Project XML or Primavera P6 XML, that source information cannot fit completely in the target format. After a successful export, one informational notification appears with a link to this guide. If you cancel the export or saving fails, that notification does not appear. Exporting to IFC retains the XER source data; the other exports include only the data their own format supports. The original `.xer` file is not overwritten.
 
@@ -118,3 +128,4 @@ These limits do not remove source data from the IFC project file. When XER-speci
 - [Resources, histogram & leveling](docs://gids-resources-histogram) covers resources, assignments and loading in Open Planner Studio.
 - [Baselines & progress](docs://gids-baselines-voortgang) explains how to use baselines after import.
 - [Import/export](docs://gids-import-export) compares IFC, CSV, MS Project XML and Primavera P6 XML.
+- [Calculation profiles](docs://gids-rekenprofielen) explains which P6 conventions a `.xer` project gets and how to switch profiles.

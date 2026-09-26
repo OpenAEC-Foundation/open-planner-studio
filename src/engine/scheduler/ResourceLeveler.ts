@@ -198,8 +198,9 @@ export function levelResources(
   // proef-solve voor de preview weken af van de werkelijke (actual-gepinde) datums, waardoor de
   // plaatsingslus conflicten miste die `computeResourceLoad` (WEL op de echte datums) wél zag —
   // zichtbaar als "0 taken verschoven, 0 onopgelost" terwijl er gewoon overallocatie bleef staan.
-  // Optioneel + default `{}` ⇒ byte-identiek voor elke aanroeper die niets doorgeeft.
-  cpmOptions: CPMOptions = {},
+  // Rekenprofielen C1: verplicht (`solveOptionsFor(project)`), want `CPMOptions.schedulingOptions`
+  // eist de opgeloste conventies.
+  cpmOptions: CPMOptions,
 ): LevelingResult {
   // Defensief dezelfde semantische bladgrens als scheduleSlice: directe aanroepers mogen een lege,
   // expliciete WBS-samenvatting nooit als nivelleer-/interne CPM-taak laten binnenglippen.

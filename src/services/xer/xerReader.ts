@@ -50,6 +50,7 @@ import {
   type XerResourceCatalog,
 } from './xerResources';
 import { assembleXerMultiProjectImport, type XerMultiProjectImport } from './xerMultiProject';
+import { builtInProfile } from '@/engine/scheduler/conventions/registry';
 import {
   deriveXerScheduleOptions,
   indexXerScheduleOptions,
@@ -623,12 +624,14 @@ function readXerProject(
     'PROJECT',
   );
   const mappedActivities: Task[] = [];
+  let hasExplicitTaskFinish = false;
   for (const row of activityRows) {
     const effectiveCalendar = calendarById.get(row.cells.clndr_id) ?? projectCalendar;
     const hourMode = effectiveCalendar.workTime !== undefined;
     const explicitTargetStart = sourceInstant(row.cells.target_start_date ?? '', hourMode);
     const explicitTargetFinish = sourceInstant(row.cells.target_end_date ?? '', hourMode);
     const hasExplicitTargetWindow = explicitTargetStart !== undefined && explicitTargetFinish !== undefined;
+    if (explicitTargetFinish !== undefined) hasExplicitTaskFinish = true;
     let start = explicitTargetStart
       ?? sourceInstant(projectRow.cells.last_recalc_date ?? '', hourMode)
       ?? '1970-01-01';
@@ -796,9 +799,11 @@ function readXerProject(
   }
 
   const projectHourMode = projectCalendar.workTime !== undefined;
+  const sourceProjectEnd = sourceInstant(projectRow.cells.plan_end_date ?? '', projectHourMode);
   const derivedSchedule = deriveXerScheduleOptions(scheduleOptionsIndex, projectId, {
     hoursPerDay: projectCalendar.hoursPerDay,
     taskCount: mappedActivities.length,
+    hasUsableProjectEnd: sourceProjectEnd !== undefined || hasExplicitTaskFinish,
   });
   const {
     progressMode,
@@ -839,12 +844,16 @@ function readXerProject(
   const finishes = mappedActivities.map(task => task.time.scheduleFinish).filter(Boolean).sort();
   const projectStart = starts[0];
   const taskDerivedProjectEnd = finishes[finishes.length - 1] ?? projectStart;
-  const sourceProjectEnd = sourceInstant(projectRow.cells.plan_end_date ?? '', projectHourMode);
   // PROJECT.plan_end_date is allowed project input, but changes the late pass only when P6's
   // corresponding SCHEDOPTIONS switch is explicitly Y. Without that switch, the historical
   // task-derived project range remains byte-identical for XER and every other format.
-  const projectEnd = schedulingOptions.useProjectEndDateForFloat && sourceProjectEnd
-    ? sourceProjectEnd
+  // Y zonder plan_end_date (eigenaarsbesluit 2026-09-24, Fable-critreview PR #109 bevinding 2):
+  // de optie blijft aan — dat is wat het bestand zegt — maar de lezer verzint geen anker meer uit
+  // het maximum van de geplande taakeinden. Het projecteinde blijft leeg en de solver rekent de late
+  // pass vanaf het netwerkeinde, max(EF), zoals P6 zonder "Must Finish By" doet
+  // (`withEffectiveProjectEndAnchor` in CPMSolver).
+  const projectEnd = schedulingOptions.useProjectEndDateForFloat
+    ? sourceProjectEnd ?? ''
     : taskDerivedProjectEnd;
   const statusDate = projectStatusDate(tables, projectRow, projectHourMode);
 
@@ -982,6 +991,9 @@ function readXerProject(
       ...(statusDate ? { statusDate } : {}),
       progressMode,
       schedulingOptions,
+      // Rekenprofielen (spec v3.1 §6): XER ⇒ P6 zonder afwijkingen. A19 staat sinds 2026-09-24 in de
+      // P6-basis; PROJECT.rem_target_link_flag stuurt geen conventie meer (eigenaarsbesluit "a").
+      schedulingProfile: builtInProfile('p6'),
     },
     calendar: projectCalendar,
     resourceCalendars: calendarList.filter(calendar => calendar.id !== projectCalendar.id),
@@ -993,6 +1005,7 @@ function readXerProject(
     customFieldDefs: metadata.customFieldDefs,
     recordedTimes,
     recordedTimesOrigin: 'xer',
+    suggestedProfileId: 'p6',
     xer: {
       sourceProjectId: projectId,
       defaultCurrencyCode: tables.header.defaultCurrencyCode,

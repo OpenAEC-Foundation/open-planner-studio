@@ -1,4 +1,5 @@
 import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
+import { setConvention } from './p6SemanticsOff';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { readXER } from '@/services/xer/xerReader';
 import { parseInstant } from '@/utils/dateUtils';
@@ -6,10 +7,12 @@ import { scanXerGroundTruth } from './xerGroundTruth';
 import {
   explainP6CompletedDataDateWindow,
   type P6CompletedWindowReason,
-} from '@/utils/p6CompletedTargetWindow';
+} from '@/engine/scheduler/p6CompletedTargetWindow';
 import type { Task } from '@/types/task';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
+import { resolveConventions } from '@/engine/scheduler/conventions/registry';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -42,6 +45,10 @@ function fixtureBytes(): Uint8Array {
 function importedFixture(): ImportResult {
   const imported = readXER(fixtureBytes());
   if (isMultiDocumentImport(imported)) throw new Error('CP_Phys-fixture moet precies één project openen');
+  // B3/B4 staan sinds 2026-09-23 (eigenaarsvraag §1d-7) in elk ingebouwd profiel uit (0 cellen op de
+  // P6-doorgerekende populatie; gebouwd op rehab-2 = P3). Deze fixture toetst de regel zelf: als afwijking aan.
+  setConvention(imported, 'p6CompletedDataDateWindow', true);
+  setConvention(imported, 'p6CompletedLoeActualFinish', true);
   return imported;
 }
 
@@ -59,7 +66,7 @@ function decisionOf(
   mutate?.(imported, task);
   const dataDate = imported.project.statusDate ? parseInstant(imported.project.statusDate) : null;
   return {
-    decision: explainP6CompletedDataDateWindow(task, dataDate, imported.project.schedulingOptions),
+    decision: explainP6CompletedDataDateWindow(task, dataDate, solveOptionsFor(imported.project).schedulingOptions),
     task,
     imported,
   };
@@ -74,7 +81,7 @@ function solveFixture(mutate?: (imported: ImportResult, task: Task) => void) {
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
     projectEndDate: imported.project.endDate,
   });
@@ -83,8 +90,8 @@ function solveFixture(mutate?: (imported: ImportResult, task: Task) => void) {
   const trace = result.backwardFloatTrace?.byTaskId[task.id];
   return {
     source: {
-      p6Source: imported.project.schedulingOptions?.p6Source,
-      p6UseRemainingStartForProgress: imported.project.schedulingOptions?.p6UseRemainingStartForProgress,
+      profile: imported.project.schedulingProfile?.id,
+      p6UseRemainingStartForProgress: resolveConventions(imported.project.schedulingProfile).p6UseRemainingStartForProgress,
       p6CompletePctType: task.p6CompletePctType,
       p6DurationType: task.p6DurationType,
       p6ActivityType: task.p6ActivityType,
@@ -253,17 +260,20 @@ if (!corpusRoot) {
     }
     const imports = isMultiDocumentImport(opened) ? opened.taskProjects.map(project => project.result) : [opened];
     for (const imported of imports) {
+      // B3 staat sinds 2026-09-23 (eigenaarsvraag §1d-7) in het P6-profiel uit; deze corpusinversie
+      // toetst de populatie van de B3-vensterregel zelf, dus met B3 als afwijking aan (zoals vóór het besluit).
+      setConvention(imported, 'p6CompletedDataDateWindow', true);
       const dataDate = imported.project.statusDate ? parseInstant(imported.project.statusDate) : null;
       const physical = imported.tasks.filter(task => task.p6CompletePctType === 'CP_Phys');
       const sourceForm = physical.filter(task => {
         if (task.time.completion < 1 || !task.time.actualFinish) return false;
         const asDuration = structuredClone(task);
         asDuration.p6CompletePctType = 'CP_Drtn';
-        return explainP6CompletedDataDateWindow(asDuration, dataDate, imported.project.schedulingOptions).eligible;
+        return explainP6CompletedDataDateWindow(asDuration, dataDate, solveOptionsFor(imported.project).schedulingOptions).eligible;
       });
       const sourceFormIds = new Set(sourceForm.map(task => task.id));
       const eligible = physical.filter(task =>
-        explainP6CompletedDataDateWindow(task, dataDate, imported.project.schedulingOptions).eligible,
+        explainP6CompletedDataDateWindow(task, dataDate, solveOptionsFor(imported.project).schedulingOptions).eligible,
       );
       if (sourceForm.length === 0 && eligible.length === 0) continue;
       const result = solveProject({
@@ -273,7 +283,7 @@ if (!corpusRoot) {
         calendars: imported.resourceCalendars ?? [],
         dataDate: imported.project.statusDate,
         progressMode: imported.project.progressMode,
-        schedulingOptions: imported.project.schedulingOptions,
+        schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
         projectStartDate: imported.project.startDate,
         projectEndDate: imported.project.endDate,
       });

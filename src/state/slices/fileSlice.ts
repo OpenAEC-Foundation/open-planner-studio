@@ -26,6 +26,7 @@ import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerExportLoss';
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
+import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
 import type { ImportLabelT } from '@/i18n/importLabels';
 import {
   invalidateUndoneHistoryForScopes,
@@ -118,13 +119,17 @@ export function xerImportNotice(
    *
    *  De SPLITSING is critreview laag 3, bevinding 4: `xerImportDatesAsRecorded` zegt letterlijk
    *  "niet herberekend", en dat mag alleen staan wanneer de modus daadwerkelijk aanging. Een
-   *  heropende IFC met XER-archief draagt óók `xer`-metadata, maar krijgt per heropen-beleid
-   *  alleen het AANBOD — daar is wél herberekend, dus die telt in `offerTotal` en krijgt zijn
-   *  eigen, aanbiedende regel. Beide `0` ⇒ geen detailregel. */
+   *  verse XER waarvan de modus niet aanging telt in `offerTotal` en krijgt een eigen, aanbiedende
+   *  regel. (Een heropende IFC met XER-archief meldt sinds B4 helemaal niets meer.) Beide `0` ⇒
+   *  geen detailregel. */
   datesAsRecordedShiftedTotal = 0,
   /** Som van `recordedDates.shifted` over de documenten die de modus alléén AANBIEDEN. */
   datesAsRecordedOfferTotal = 0,
 ): NotifyInput | undefined {
+  // Gebruikstest rekenprofielen 24-09 (B4): alleen een VERSE XER-import meldt. Een heropende IFC
+  // draagt via het bronarchief óók `xer`-metadata, maar is geen import — het aanbod "datums zoals
+  // opgeslagen" loopt daar via `RecordedDatesNotice`, niet via deze melding.
+  results = results.filter(result => result.xerOrigin !== 'xer-archive');
   const xers = results.flatMap(result => result.xer ? [result.xer] : []);
   const xer = xers[0];
   if (!xer) return undefined;
@@ -575,16 +580,22 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // leveren geen `xer`-metadata en houden hun bestaande, stille openpad.
       // Eigenaarsbesluit 2026-09-09 ("het moet altijd gaan zoals het nu bij XER werkt"): de andere
       // formaten hebben geen eigen openingsmelding, maar wél dezelfde ene regel over "datums zoals
-      // opgeslagen" — formaatneutraal verwoord (de strook kiest zelf de Primavera-tekst voor P6 XML).
-      // `withRecordedDatesNotice` hangt die regel aan een al bestaande melding in plaats van hem via
-      // `!notice` te laten verdringen (zie de helper).
+      // opgeslagen" — formaatneutraal verwoord. `withRecordedDatesNotice` hangt die regel aan een al
+      // bestaande melding (bv. de profielmelding van een `.mpp`) in plaats van hem via `!notice` te
+      // laten verdringen (zie de helper).
+      // Rekenprofielen (spec v3.1 §6): één melding per geopend bestand — bij XER samengevoegd met de
+      // openingsmelding, anders een eigen melding met de actie naar Bestand → Projectinfo.
       // Eigenaarsbesluit 2026-09-24 ("openen met melding"): een onbruikbaar XER-bronarchief is
-      // weggelaten door `readIFC`; dat meldt zich als detailregels in de bestandsmelding als die er
-      // is, anders als eigen melding. Nooit stil — zie `withXerArchiveIssueNotice`. Die laag is de
-      // buitenste, zodat de archiefregels ook onder een datumregel-only-melding komen te staan.
+      // weggelaten door `readIFC`; dat meldt zich als BUITENSTE laag, als detailregels in de
+      // bestandsmelding als die er is, anders als eigen melding. Nooit stil — zie
+      // `withXerArchiveIssueNotice`.
       const notice = withXerArchiveIssueNotice(
         withRecordedDatesNotice(
-          xerImportNotice(results, datesAsRecordedShiftedTotal, datesAsRecordedOfferTotal),
+          withSchedulingProfileNotice(
+            results,
+            xerImportNotice(results, datesAsRecordedShiftedTotal, datesAsRecordedOfferTotal),
+            openedDocumentIds[0] ?? '',
+          ),
           freshShiftedTotal,
           freshOfferTotal,
         ),

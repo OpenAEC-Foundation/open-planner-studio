@@ -151,7 +151,7 @@ const PROJECT_VERDICTS = {
   modifiedAt: 'keep',             // wél op `now` gezet door de store-actie, niet met Δ
   author: 'n/a', company: 'n/a', wbsAutoNumber: 'n/a',
   statusDate: 'shift',            // P6 data date (R5)
-  progressMode: 'n/a', schedulingOptions: 'n/a',
+  progressMode: 'n/a', schedulingOptions: 'n/a', schedulingProfile: 'n/a',
   defaultTaskDurationUnit: 'n/a',
   companyId: 'n/a', companyName: 'n/a',  // B1: statische bibliotheekbinding, geen planningsdatum
 } satisfies Record<keyof Project, MoveVerdict>;

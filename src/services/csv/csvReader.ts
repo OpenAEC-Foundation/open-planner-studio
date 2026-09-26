@@ -411,6 +411,8 @@ export function readCSV(content: string): ImportResult {
     resources: [],
     assignments: [],
     customTaskTypes: [...customById.values()],
+    // Rekenprofielen (spec v3.1 §6): CSV ⇒ OPS (defaultOptionsFor('ops') is leeg).
+    suggestedProfileId: 'ops',
     ...(Object.keys(recordedTimes).length > 0 ? { recordedTimes, recordedTimesOrigin: 'csv' as const } : {}),
   };
 }

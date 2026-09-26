@@ -36,6 +36,7 @@ import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { expandSummaryRelations, foldSyntheticSequenceIds } from '@/engine/scheduler/expandSummaryRelations';
 import { installDOMParser } from './xmldom-shim';
+import { legacyCpmOptions } from './legacySolveOptions';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -117,7 +118,7 @@ if (!path) {
     let solveThrew: unknown = null;
     let cpm: ReturnType<CPMSolver['solve']> | null = null;
     try {
-      const solver = new CPMSolver(leafTasks, expandedSequences, calendar, resourceCalendars, {});
+      const solver = new CPMSolver(leafTasks, expandedSequences, calendar, resourceCalendars, legacyCpmOptions());
       cpm = solver.solve();
     } catch (err) {
       solveThrew = err;

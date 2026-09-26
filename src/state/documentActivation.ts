@@ -1,5 +1,6 @@
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import { cloneTasksForSolve, solveProject } from '@/engine/scheduler/solveProject';
+import { solveInputFor } from '@/engine/scheduler/solveInput';
 import {
   applyRecordedTimesToTasks,
   captureRecordedDates,
@@ -197,20 +198,11 @@ export function prepareLoadedPayload(
   if (!options.recompute || payload.cpmResult !== null) return payload;
 
   payload.tasks = cloneTasksForSolve(payload.tasks);
-  payload.cpmResult = solveProject({
-    tasks: payload.tasks,
-    sequences: payload.sequences,
-    calendar: payload.calendar,
-    calendars: payload.calendars,
-    dataDate: payload.project.statusDate,
-    progressMode: payload.project.progressMode,
-    schedulingOptions: payload.project.schedulingOptions,
-    projectStartDate: payload.project.startDate,
-    // Fable-critreview PR #109 bevinding 1 (benoemde gedragswijziging): dezelfde projectinvoer als
-    // F5 (`runCPM`), óók het projecteinde — anders rekent een XER-document met
-    // `useProjectEndDateForFloat` bij openen een andere late kant/speling/kritiek pad dan na F5.
-    projectEndDate: payload.project.endDate,
-  });
+  // Rekenprofielen C5 (benoemde gedragswijziging): dezelfde volledige invoer als F5, óók het
+  // projecteinde — een slapend XER-document met `useProjectEndDateForFloat` rekent bij laden nu met
+  // het projecteinde-anker.
+  payload.cpmResult = solveProject(
+    solveInputFor(payload.project, payload.tasks, payload.sequences, payload.calendar, payload.calendars));
   payload.scheduleStale = false;
   return payload;
 }

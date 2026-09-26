@@ -35,7 +35,7 @@ import {
   toExtSequence,
   toExtResource,
   toExtAssignment,
-  fromExtTaskInput,
+  fromExtTaskAddInput,
   fromExtTaskUpdates,
   fromExtSequenceInput,
   fromExtImportResult,
@@ -160,11 +160,11 @@ export function createExtensionApi(
       },
       addTask: (task) => {
         const materialize = customTaskTypeToMaterialize(task.customTaskType);
-        if (!materialize) return document.store.getState().addTask(fromExtTaskInput(task));
+        if (!materialize) return document.store.getState().addTask(fromExtTaskAddInput(task));
         // Catalogus + toewijzing vormen voor de gebruiker één wijziging en dus één undo-stap.
         return batch.withTransaction(() => {
           document.store.getState().ensureProjectTaskType(materialize);
-          return document.store.getState().addTask(fromExtTaskInput(task));
+          return document.store.getState().addTask(fromExtTaskAddInput(task));
         });
       },
       updateTask: (id, updates) => {

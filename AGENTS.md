@@ -33,10 +33,10 @@ npx playwright install --with-deps --only-shell chromium  # one-time setup for t
   graph, no false positives on `import type`).
 - **`npm run verify` is one definition, in `package.json`** — ci.yml, the
   release gate and the deploy gate all run that single line, so what passes
-  locally is exactly what passes in CI. Eleven steps, run in this order:
+  locally is exactly what passes in CI. Twelve steps, run in this order:
   `typecheck` → `lint` → `test` (all five suites) → `verify:examples` →
   `verify:docs` → `verify:i18n` → `verify:release-highlights-json` →
-  `verify:store-boundaries` → `verify:gantt-boundaries` → `verify:cycles` →
+  `verify:store-boundaries` → `verify:conventions` → `verify:gantt-boundaries` → `verify:cycles` →
   `verify:text-roles`. (`verify:audit` is a separate command, deliberately not in the chain.)
 - Five behavioral suites behind `npm test`: `tests/planning/` (data-driven
   CPM/calendar cases + a large set of `check-*.ts` contract batteries plus a

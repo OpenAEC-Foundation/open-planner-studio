@@ -601,7 +601,66 @@ dan meet, meet zijn eigen aannames.
 
 ### 7b-4 — forward-anker na gereconstrueerde kalenderblokken
 
-**Status:** geregistreerd, niet gebouwd. Ontstaan bij etappe 7b (weekend-klemherstel), her-check
+**Status:** GEBOUWD 2026-09-23 (X12 naar nul, brok 2) als conventie C1
+`p6CompletedPredecessorAtDataDate` (P6 aan / MS Project uit / OPS uit; docblok en bron in
+`src/types/project.ts`). De oorzaak was geen kalenderfout en geen `ownAnchor`-vloer: vijf voltooide
+taken (V3209120, V3227100, V3247140, V3248140, V3265140) hebben `act_end_date` 2008-05-27 17:00, ná de
+statusdatum 2008-05-27 00:00; P6 laat hun opvolgers op de statusdatum beginnen, wij deden dat pas ná
+het werkelijke einde. C1 begrenst de relatiegrens van een voltooide voorganger op de werkgrens vóór de
+statusdatum. Samen geland met C2 `p6FreeFloatOnOwnCalendar` (brok B06), omdat C1 alleen één ff-cel
+(V3248175) liet omslaan die C2 verklaart. X12 15.056 → 13.324 (−1.732, 0 slechter); de dossiertaak
+V3109400 staat nu op ES 12-04 zoals P6. De resterende LS/LF/tf-cellen van deze keten horen bij brok
+B01 (de zes TF-0-ankers). Oorspronkelijke registratie hieronder blijft als geschiedenis.
+
+**Meetuitkomst brok 2 (compleet, 2026-09-23; `npm run measure:profiles` mét corpus, herpind per
+commit volgens het recept).** Drie conventies in groep C, alle drie P6 aan / MS Project uit / OPS uit:
+
+| stap | conventie(s) | X12 zesassig | cel-delta (nieuw/slechter/beter) | per as |
+|---|---|---|---|---|
+| vóór | — | 15.056 | — | — |
+| `7c37b212` | C1 `p6CompletedPredecessorAtDataDate` + C2 `p6FreeFloatOnOwnCalendar` | 13.324 | 0 / 0 / 1.732 | es −497, ef −497, tf −267, ff −471 (rehab-2 1.476, Hotel 244, Roads 11, DCP-03 1) |
+| `d6db800c` | C3 `p6CompletedRemainingLag` | 12.973 | 0 / 0 / 351 | ls −122, lf −122, tf −107 (alles rehab-2) |
+
+Totaal −2.083, 0 cellen slechter; drivingPath (417) en MS Project (2.196 checks, GOAL_ZERO-rood 0)
+ongewijzigd. Waarom C1 en C2 samen: C1 alleen gaf +1.301/−1; die ene cel (rehab-2 V3248175, ff) was
+vóór C1 toevallig exact via de opvolgerkalender, en C2 is de regel die hem verklaart.
+
+**Voorbehoud orakel (toets 2026-09-23, `2026-09-23-x12-c1-c4-toets-buiten-rehab2.md` op de
+etappebranch).** Het orakel van `rehab-2.xer` is P3-uitvoer (geen SCHEDOPTIONS, `rem_late_start_date`
+0/4.940, geen `driving_path_flag`). C1 en C3 veranderden buiten rehab-2 geen enkele cel; hun P6-waarde
+"aan" stond daarom onder voorbehoud van het eigenaarsbesluit over dat orakel (manifest). **Uitkomst na het
+populatiebesluit (2026-09-23, integratie):** C1 (en C4) staan in P6 uit. C3 blijft aan: sinds C5 draagt C3
+op de P6-doorgerekende bestanden echte cellen — C5 rekent de lag tussen zijn statusdatumpunt en een
+opvolger met rekenregel C3; C3 uit kost 640 exacte cellen (Roads 503: es 153, ef 153, tf 142, ff 41,
+ls 7, lf 7; HarbourPointe 137: es 50, ef 48, tf 34, ff 3, ls 1, lf 1). rehab-2 was de eerste vindplaats, geen orakel
+meer. C2 staat deels op eigen
+benen: de HOOFDREGEL (vrije speling op de eigen kalender) is gesteund door 256 ff-cellen in drie
+P6-doorgerekende bestanden (Hotel +244, Roads +11, DCP-03 BL +1), 0 slechter; de DEELTAK "voltooide
+opvolger ⇒ ff = 0" niet — die is uitsluitend in rehab-2 gemeten (mutant M4 = tak weg: 12.973 →
+12.980, alle 8 cellen `ff` in rehab-2) en valt onder hetzelfde voorbehoud als C1/C3. Dat de
+hoofdregel "op de eigen kalender" rekent is bovendien interpretatie: de Oracle-zin ("View activity
+float values") zegt niets over kalenders. De Oracle-tekst "Using the data date" beschrijft de C1-regel (actual ná de statusdatum) niet;
+de docblokken in `src/types/project.ts` zeggen dat nu zo.
+
+**Open meetpunt (her-check-critreview brok 2, [VERMOED], niet bouwen).** C3 meet de verstreken lag
+altijd vanaf het werkelijke EINDE van de voorganger, ook bij SS/SF-relaties (waar de lag op de start
+steunt); de fixtures zijn alleen FS. Of P6 bij SS/SF vanaf de werkelijke start telt is ongemeten.
+Ook de C1-grenskeuze (`prevWorkInstant(snapOnOrAfter(…))` vs `snapOnOrAfter(…)`, mutant M5) is door
+geen orakel of fixture onderscheiden; zie het C1-docblok. De gelande stand blijft (de ratchet gaat
+alleen omlaag); de standaardwaarde van C1/C3 wordt pas herzien na het manifestbesluit.
+
+**Inzicht uit de critreview: 761 cellen binnen de bucket verder van P6.** De cel-ratchet kent alleen
+de buckets exact/sameday/diff/missing. Onder C1–C3 zijn 761 cellen die al `diff` waren binnen die
+bucket VERDER van P6 komen te liggen — onzichtbaar voor de ratchet. Verklaring: compensatie met brok
+B01 (de zes TF-0-ankers aan de late kant). Met het B01-tegenfeit (meting van de reviewer; niet
+opnieuw gedraaid in de fixronde) zijn de conventies zelf zuiver: C1+C2 = +1.706 beter / 0 slechter, C3 = +772 / 0 — de 761
+cellen zijn dus B01-schuld die door een eerder toevallig compenserende fout heen zichtbaar wordt, geen
+regressie van C1–C3. Gevolg: de bucket-ratchet bewijst "geen exacte cel wordt inexact" (regel A), niet
+"geen cel komt verder van P6". Of er een extra ratchet op de afwijkingsGROOTTE per cel moet komen, is
+een open eigenaarsbesluit (overdracht rekenprofielen, open vraag 3 "Grootte-ratchet?"); tot dat besluit
+dwingt het nuldoel het vanzelf af zodra B01 landt.
+
+**Status (oud):** geregistreerd, niet gebouwd. Ontstaan bij etappe 7b (weekend-klemherstel), her-check
 2026-09-05.
 
 **Wat er staat.** Op `rehab-2.xer` verschuiven 344 ES- en 327 EF-cellen van goed naar fout
@@ -658,10 +717,36 @@ bewaart. Klasse (ii)-materiaal (bezig zijnde taken rond de statusdatum, X5-vlag)
 
 ### Projecteinde valt terug op de projectstart bij leeg `plan_end_date` (her-review 7a, 2026-09-07)
 
-**Status:** geregistreerd in `docs/TODO.md`, niet gefixt. `sched_use_project_end_date_for_float = Y`
-zonder `plan_end_date` en zonder één `target_end_date` (de echte `cases-import.xer`) ⇒ het
-taak-afgeleide projecteinde is de projectSTART en de hele late zijde verankert daarop: 77/160
-P6-cellen zoals gelezen, 156/160 met de optie uit. Gepind in sectie 7 van de engine-check.
+**Status:** GEFIXT in X12-brok 1 (2026-09-23, branch `claude/x12-brok1-projecteinde`).
+`sched_use_project_end_date_for_float = Y` zonder `plan_end_date` en zonder één `target_end_date`
+(de echte `cases-import.xer`) ⇒ het taak-afgeleide projecteinde was de projectSTART en de hele late
+zijde verankerde daarop: 77/160 P6-cellen zoals gelezen, 156/160 met de optie uit.
+
+Fix (lezer, geen motorwijziging): `deriveXerScheduleOptions` krijgt van `xerReader` de vlag
+`hasUsableProjectEnd` (geldige `plan_end_date` óf minstens één geldige `target_end_date`); is die
+`false`, dan gaat de optie gerapporteerd uit (terugvalmelding op `sched_use_project_end_date_for_float`,
+bron-`Y` blijft in `retainedSource`) en verankert de solver op max(EF) — het P6-gedrag zonder Must
+Finish By volgens de P6-documentatie. Onafhankelijk gespiegeld in `xerScheduleOptionsGroundTruth.ts`.
+
+Metingen (ZEKER, zelf gemeten):
+- Corpusbreed 39 `Y`-rijen: 3 met `plan_end_date` (Hotel 2666 in twee kopieën, TERMINAL
+  BUILDING-AIRPORT), 20 met taakeinden (12× OZB 9029–10096, Roads, HarbourPointe, xernative,
+  ashspace, vier MPXJ-kalenderfixtures), 16 zonder enig einde (13× cases-import.xer, OZB 9026–9028
+  zonder taken). De fix raakt alleen die 16.
+- `cases-import.xer` zoals gelezen: 77/160 → 156/160 (sectie 7a gepind op 156; 7c: vlag nu uit).
+- X12: 15.056 → 15.056, cel-delta `nieuw=0 verslechterd=0 verbeterd=0` — geen van de 34
+  X12-entries valt in de klasse (de drie OZB-projecten hebben geen taken). Geen herpin nodig.
+- mpp-fidelity 216 ongewijzigd; `check-xer-schedule-options-corpus` `derivedFallbacks` 8 → 24.
+
+**Open vraag (escalatie, niet gepind).** De bredere variant — de optie óók uitzetten wanneer er
+wél taakeinden zijn (dus max(EF) in plaats van max(`target_end_date`) als anker) — is gemeten en
+afgewezen: 100 X12-cellen slechter, 6 beter, allemaal op `OZB-Start-09Dec24.xer` (projecten 9032,
+9033, 9049, 10096; ls/lf/tf + 2× drivingPath). P6 zet daar NEGATIEVE totale float (bijv. 9032/OZ1040
+tf −720 min) zonder `plan_end_date`, dus P6 verankert de late zijde vóór max(EF) — in tegenspraak met
+de gedocumenteerde "geen Must Finish By ⇒ max(EF)". Het huidige anker (max `target_end_date`) geeft
+op die projecten −1440 waar P6 −720 heeft: dichterbij, niet exact. Onverklaard uit P6-documentatie
+of corpus; kandidaat-verklaringen (constraints in de workshopprojecten, een ander forward-resultaat
+dan P6) zijn niet onderzocht. Hoort bij een volgende brok.
 
 ### De ONBEKENDE categorieën, gemeten (2026-09-07, volledig corpus)
 
@@ -675,6 +760,182 @@ P6-cellen zoals gelezen, 156/160 met de optie uit. Gepind in sectie 7 van de eng
   groupdocs 70, TERMINAL BUILDING-AIRPORT 35, OZB 29, gimmer-crag 24, meridianiq 20+18, ashspace
   10, p6diff 8+7, HarbourPointe 7, Harbour Point DCP-03 7, sample-target 4, stack_data_center 4.
   Of die as poort wordt is een eigenaarsbesluit (§3).
+
+### C10 ALAP-positionering (geparkeerd; vóór 23-09 "C9" genoemd) + duur uit toewijzingen (HarbourPointe) (2026-09-23)
+
+*In gewone taal: de regel voor "zo laat mogelijk"-taken (C10) klopt en maakt 27 cellen exact, maar
+drie cellen komen verder van P6 te staan. Dat komt niet door ALAP maar doordat P6 één taak (EC1430)
+24 uur korter laat duren dan haar opgegeven duur, en welke toewijzing P6 daarvoor kiest, is uit de
+bestanden niet af te leiden. Daarom landt C10 niet. Gemeten door Opus 5.5 (uitvoerder-opus-midden)
+op `claude/x12-brok5-klein`.*
+
+**Stand 2026-09-24:** C10 is volledig gebouwd als registerconventie **C14** (C11–C13 waren vergeven)
+op `claude/x12-c10-alap-port`, als voorbereidingscommit die pas landt ná de uitsluiting van de acht
+verouderde HarbourPointe-taken (eigenaarsbesluit 24-09, vraag 8): op de populatie van 175 geeft ze
+X12 → 148 (+27 exact, 11 kleiner, 0 slechter), maar de 3 groter-cellen hieronder staan nog, en die
+liggen op EC1420/EC1430.
+**Geland 2026-09-24** (`claude/x12-c14-land`) als C14, samen met eigenaarsbesluit vraag 13 ("Vraag 13, ja
+uitsluiten": EC1420 uit de meetlat, naast EC1430 van vraag 8): X12 104 → 76, CELLDELTA p6 nieuw=0
+verslechterd=0 groter=0 verbeterd=23 kleiner=9 schuld=0, uitgesloten 42 taken.
+**Landfixes 2026-09-24** (`claude/x12-c14-landfixes`, critreview C14-landing): (1) de secundaire
+constraint (`constraint2`) geldt nu ook bij de ALAP-positionering — SNLT/FNLT als bovengrens, SNET/FNET
+als ondergrens, de ondergrens wint; bron Oracle P6 Help "Working with Activity Constraints" (ALAP mag een
+secundaire dragen); corpus: 0 van de 46 ALAP-taken in de orakelbestanden heeft een `cstr_type2`, dus
+geen celeffect. (2) Drie **bewuste, gemeten beperkingen zonder P6-bron**, nu ook zo benoemd in docblok
+en gids: alleen uurkalenders (een ALAP-taak op een dagkalender houdt stil de oude stap; geen
+P6-doorgerekende ALAP-taak op een dagkalender in het corpus, dus geen wijziging zonder meting), alleen
+niet-gestarte taken (EC1030), en de ALAP-wortel op de statusdatum (EC1420).
+
+**De C10-regel** (`p6AlapPositionedFromSuccessors`, geparkeerd op `d9973123`,
+`claude/x12-brok5-klein`). Een niet-gestarte ALAP-taak op een uurkalender krijgt als vroege finish
+de strengste grens die haar opvolgers met hun vroege datums via de achterwaartse relatiewiskunde
+toestaan, op de minuut. Opvolgers eerst, zodat een ALAP-keten aaneensluit. Ondergrens: de
+voorgangers en de statusdatum; het eigen geplande venster (en de A16-vloer) telt niet. Gestarte en
+voltooide ALAP-taken houden de oude stap. Bron: HarbourPointe, de keten EC1420 → EC1430 → EC1810 →
+EC2090; P6 zet EC1810 op EF 2012-03-06 16:49 = de start van EC2090.
+
+- Per emmer: **+27 / 0** (es 8, ef 8, tf 7, ff 4), alles HarbourPointe (P6-doorgerekend); geen
+  ander bestand verandert. X12 11.529 → 11.502.
+- **Grootte-ratchet rood op 3 cellen** (afstand tot P6 in werkminuten, vóór → na): EC1420 es
+  11 → 1.440, EC1420 ef 11 → 1.440, EC1430 es 11 → 1.440. Oorzaak: EC1430 eindigt nu exact op
+  2011-10-27 16:49; wij rekenen de start terug met `remain_drtn_hr_cnt` = 720 u (→ 06-21 16:49),
+  P6 geeft EC1430 een span van **696** werkuren (06-24 16:49 → 10-27 16:49, en in het late venster
+  evenzo). De oude positie lag er toevallig 11 minuten naast (het geplande venster van EC1420).
+- Getoetst en verworpen: kalenderuitzondering (de 24 uitzonderingsdagen van 5829 kloppen; EC1620
+  over 09-05 is exact), lag-kalender (alleen FS0), ALAP met de late datums van de opvolger (EC1430
+  eindigt in P6 op de vroege start van EC1810). Met brok 3 (C5 `p6CompletedPhysicalAtDataDate`,
+  wegwerpmerge van `e76e3d39`) verandert EC1030 met en zonder C10 niet.
+
+**Duur uit toewijzingen, corpusbreed.** Niet-gestarte taken met uurkalender in de acht
+P6-doorgerekende bestanden: 5.660; bij **9** wijkt P6's span af van `remain_drtn_hr_cnt` — 8
+HarbourPointe-taken (`DT_FixedDrtn` met toewijzingen) plus E-1000 (B10). `DT_FixedDUR2` (4.435,
+waarvan 1.278 met toewijzingen) heeft altijd span = resterende duur. Gelezen zijn alleen
+TASKRSRC-invoerkolommen die de lezer al leest (`remain_qty`, `remain_qty_per_hr`,
+`relag_drtn_hr_cnt`, `rsrc_id`); geen `restart_date`/`reend_date`/`rem_late_*`.
+
+Formules op de 821 niet-gestarte `DT_FixedDrtn`-taken met toewijzingen (fouten = span ≠ formule):
+
+- `remain_drtn_hr_cnt` (huidig gedrag): 8 fout;
+- max(qty/rate + toewijzingslag): 52 fout;
+- **max(qty/rate), zonder lag, terugval op `remain_drtn_hr_cnt` zonder tarief: 3 fout** (EC1430,
+  EC2380, EC1590);
+- qty/rate van de primaire resource (`TASK.rsrc_id`): 75 fout;
+- min(qty/rate): 67 fout.
+
+De vijf lag-gevallen: EC2170, EC2200, EC2410, EC1680 en EC2060 hebben een toewijzing met
+`relag_drtn_hr_cnt` 240/240/200/24/72 u; `remain_drtn_hr_cnt` = langste qty/rate + die lag, P6's
+span = langste qty/rate zonder lag. Die deelregel ("toewijzingslag telt niet mee in de span") is op
+zichzelf eenduidig, maar neemt EC1430 niet weg.
+
+Zes taken met dezelfde vorm (primaire resource 6686, een toewijzing op 6604 "Project Managers" die
+langer duurt dan de overige), uren:
+
+- EC1430 (ALAP): 6604 720, overige 696, P6-span 696 → volgt de overige;
+- EC2380: 6604 144, overige 96, P6-span 96 → volgt de overige;
+- EC1590: 6604 720, overige 696, P6-span 696 → volgt de overige;
+- EC1810 (ALAP): 6604 720, overige 696, P6-span 720 → volgt 6604;
+- EC2090: 6604 960, overige 936, P6-span 960 → volgt 6604;
+- EC1280: 6604 960, overige 888, P6-span 960 → volgt 6604.
+
+Alle TASKRSRC-invoerkolommen van de 6604-rijen, de RSRC-rijen, de dubbele 76xxx/82xxx-
+toewijzingsrijen, de target-vensters en `target_drtn_hr_cnt` zijn in beide groepen gelijk; de spans
+in de "6604"-groep zijn echte duren (EC2280 hangt alleen aan EC2090; late spans = vroege spans).
+**De invoerkolommen scheiden de twee groepen niet**; daarom is er geen C10 gebouwd.
+
+**Open vraag.** Welke toewijzing bepaalt in P6 de duur van een `DT_FixedDrtn`-activiteit bij
+gelijke invoer? Mogelijk een niet-geëxporteerde "Drive activity dates"-vlag per toewijzing. Zolang
+dat open is, blijft C10 geparkeerd.
+
+**B15 (vrije speling over gelagde relaties op de eigen kalender; in brok 5 "C8" genoemd — C8 is sinds
+brok 4 `p6StartedTaskIgnoresPlannedStartFloor`)** is gemeten maar niet geland: +2/−1 (Hotel +1, rehab-2 +1 en −1). De patch staat in
+`docs/superpowers/plans/patches/2026-09-23-c8-p6FreeFloatLaggedRelationsOnOwnCalendar.patch`.
+### Vervolgpunten X12 brok 3 (C5/C6, 2026-09-23)
+
+- **C6 als projectoptie — GEBOUWD (2026-09-23, branch `claude/x12-c6-projectoptie-laglag`).** Oracle
+  P6 Help "Calculate Start-to-Start lag from" (https://docs.oracle.com/cd/G18294_01/p6help/en/99348.htm)
+  documenteert twee varianten: *Early Start* (restwerkstart voorganger + rest-lag, = C6) en *Actual
+  Start* (statusdatum + rest-lag). In XER is dat `sched_lag_early_start_flag` (corpus: Y 40, N 8, leeg
+  2; Roads Y, DCP-03 Baseline/As-Built N). Nu de tiende projectoptie `startToStartLagFrom`
+  (`earlyStart` | `actualStart`; Y/leeg ⇒ earlyStart, N ⇒ actualStart; `xerScheduleOptions.ts` kolom
+  `mapped`); C6 blijft de schakelaar, de optie kiest het voorwaartse anker
+  (`CPMSolver.inProgressStartLagAnchor`). De late kant houdt in beide varianten de C6-rest-lag —
+  voor `actualStart` ongemeten: alle P6-orakels hebben Y (DCP-03 is sinds 2026-09-23 geen orakel).
+- **[GEMETEN, afgesloten 2026-09-23] C5 zonder Progress-Override-poort.** C4 geldt niet onder
+  Progress Override (`CPMSolver.ts` bij de C4-tak), C5 kent die poort niet. Oracle P6 Help
+  (https://docs.oracle.com/cd/F88966_01/p6help/en/99348.htm): onder Progress Override negeert P6 de
+  netwerklogica voor voortgezette activiteiten — een poort zou het C5-punt dus op de rauwe statusdatum
+  laten staan en de relatiegrens uit open voorgangers negeren. Meting (Opus 5.5, branch
+  `claude/x12-c5-progress-override`, basis `24acf986`): in het hele corpus (93 `.xer`) heeft precies
+  één project `sched_progress_override=Y` — OZB-Start-09Dec24.xer project 10093 (OZB-14 2nd Update,
+  statusdatum 2024-12-23 08:00; oracle, included). **Risicokring = 0**: 10093 heeft drie voltooide
+  CP_Phys-taken (OZ1000 mijlpaal, OZ1010, OZ1020), hun enige voorgangers zijn zelf voltooid met FS+0
+  (OZ1000 → OZ1010 → OZ1020); geen enkele voltooide CP_Phys-taak heeft een open voorganger of een
+  positieve lag, dus met en zonder poort ligt elk punt op de rauwe statusdatum. P6 schrijft voor die
+  drie taken bovendien geen ES/EF weg (leeg), er is dus ook geen directe orakelcel. Tegenfeit
+  gebouwd en gemeten (poort `progressMode !== 'PROGRESS_OVERRIDE'` om de voorgangerlus in
+  `recordCompletedPhysicalPoint`): X12 192 → 192, `CELLDELTA p6 nieuw=0 verslechterd=0 groter=0
+  verbeterd=0 kleiner=0 onmeetbaar=0 onbekend=0 ongemeten=0 schuld=0 totaal=361` (exit 0, alleen de
+  drie verwachte nuldoelregels rood). Per bestand: 0 beter, 0 slechter, 0 groter. De vier inexacte
+  cellen van 10093 (één taak: ls/lf/tf/ff, plus drivingPath) zijn de late kant onder Progress
+  Override (C11, brok 8), niet C5. **Besluit: niet bouwen** — een poort zonder meetbaar effect is een
+  ongetoetste conventie (regel A/B). Heropenen zodra een PO-orakel een voltooide CP_Phys-taak met een
+  open voorganger of positieve lag bevat.
+
+### Vervolgpunten manifest-etappe (populatie = P6-doorgerekend, critreview 2026-09-23)
+
+Genoteerd, niet gebouwd.
+
+- **Blast-radius volgt het manifest niet.** `check-xer-schedule-options-corpus.ts` (r. ~597,
+  `oracleFiles = scanned.filter(file => hasOracleAxis(file.truth))`) selecteert over alle 93
+  corpusbestanden op meetbare orakelassen, niet op `role`/`included` uit `xer-corpus-manifest.json`.
+  Daardoor pint `xer-schedoptions-blast-radius.json` na de populatiewijziging nog steeds rehab-2 (P3-
+  uitvoer) en de synthetische bestanden mee: in de praktijk een ratchet op P3-gedrag. Vervolg: de
+  selectie op het manifest laten lopen (of expliciet per rol splitsen) en de pin daarna opnieuw meten.
+  **Gedaan 2026-09-23 (integratie, orkestratorbesluit optie (b)).** De populatie volledig op het manifest
+  laten lopen maakte de defaults-projectie leeg: die meet bestanden ZONDER SCHEDOPTIONS-rij, en
+  SCHEDOPTIONS is een van de drie P6-kenmerken (13 → 0 bestanden). Daarom: detectie, bedrading en
+  bewegingsvectoren blijven corpusbreed (karakterisering, herpinbaar); de fidelity-afwijkingen tellen
+  alleen op manifest-orakels en staan dus op 0 meetbaar, expliciet gepind. Aanleiding: C1/C4 uit in het
+  P6-profiel liet de oude pin in rehab-2 stijgen (xerDefaults es 452 → 1384, ef 482 → 1414, tf 3196 →
+  3761, ff 47 → 139) zonder dat er op de P6-populatie iets veranderde.
+- **Het As-Built-vangnet voor een brede B07/C5-poort is weg uit de corpuspoort.** Een naïeve poort
+  "elke voltooide taak met werkelijk einde op/vóór de statusdatum staat op het statusdatumpunt" gaf 216
+  verslechteringen (285 cellen in de brede C5-meting), allemaal in DCP-03 As-Built. As-Built is sinds het
+  besluit `reader-only` (p6Computed `unknown`), dus regel A ziet die verslechteringen niet meer. Het
+  vangnet is vervangen door een corpusloze casus in `check-conventions-p6-flags.ts` ("C5-vangnet":
+  voltooide CP_Drtn/CP_Units/DT_FixedDrtn-taken houden hun werkelijke datums, alleen CP_Phys schuift),
+  maar dat is een fixture, geen orakel; of P6 een voltooide CP_Drtn-taak werkelijk op haar datums laat,
+  steunt alleen op As-Built (eigenaarsvraag overdracht §1d-6).
+
+### Ratchet-schuld 2026-09-23 (merge van de grootte-ratchet; eerste opdracht van de volgende brok)
+
+De grootte-ratchet (cellenbestand versie 2) werd gemerged in de etappebranch nadat brok 2, 3 en 4 al
+geland waren. De v2-kant van de ratchetbranch was gemeten op de motor van `d4a66772` (X12 15.056); op de
+huidige motor (C1–C8, C1/C4 uit in P6, populatie = P6-doorgerekend) liggen 14 cellen in
+`Roads_Project_TEC.xer` in dezelfde emmer `diff` verder van P6 af (minuten, oud → nieuw):
+
+- voltooid (TK_Complete, CP_Phys): A15112 (`1346/85462`) ls 151.800 → 358.920, lf 137.400 → 358.920;
+  B2921 (`1346/86905`) ls 172.320 → 182.880, lf 127.680 → 182.880; B2922 (`1346/86912`) idem;
+- niet gestart (TK_NotStart, CP_Phys), tf: OCEC10851 (`86945`) 24.600 → 28.800, OCEC11701 (`86962`)
+  32.400 → 36.600, OCEC20101 (`87055`) 41.400 → 45.600, OCEC11741/11751/11762/11771/12121
+  (`87145`–`87149`) elk 4.800 → 9.000.
+
+Ze staan als `ratchetDebt` in `xer-product-fidelity-cells.json` (`reference` = oud, `current` = nieuw) en
+mogen alleen dalen (scripts/README.md). Vermoedelijke oorzaak, NIET bewezen: de late kant van C5 (een
+voltooide CP_Phys-taak staat ook laat als één punt op de vroegste opvolgergrens; A15112/B2921/B2922) en de
+B07-keten van voltooide CP_Phys-voorgangers die de late kant van niet-gestarte CP_Phys-opvolgers (de
+tf-cellen) meetrekt. Omdat de v2-kant op `d4a66772` is gemeten, kan elke motorwijziging sinds brok 2 de
+groei veroorzaakt hebben; per conventie terugrekenen (C5/C6/C7/C8 één voor één uit) is de eerste stap.
+Bekend uit overdracht §1d-3: vijf lopende CP_Phys-taken in Roads (OCEC10801/10811/11371/18391/11791) die
+sinds C7 binnen de emmer verder van P6 kwamen (oorzaak B07) — dat zijn andere taken dan deze 14.
+
+**Opgelost in X12 brok 6 (2026-09-23, `claude/x12-brok6-c5-late-kant`).** Oorzaak per cel bewezen door
+C5–C8 één voor één uit te zetten: de zes ls/lf-cellen komen van C5 (met C5 uit staan ze exact op
+`reference`), de acht tf-cellen van C6 (idem). Beide conventies misten hun late kant: een open taak vóór
+een CP_Phys-punt keek achterwaarts niet naar dat punt (de generieke backward pass sloeg een voltooide
+opvolger over, dus viel ze op het projecteinde en het punt volgde haar), en de verstreken SS-lag uit een
+lopende voorganger viel alleen voorwaarts weg. Beide gespiegeld; X12 428 → 350, 0 slechter, 0 groter,
+schuld 14 → 0. Details: `2026-09-23-x12-restant-classificatie.md`, kop "Restant 428 na integratie 23-09".
 
 ## §10 Overdrachtsstand 2026-09-07 — herzien na de integratie (avond)
 
@@ -771,6 +1032,8 @@ AFGELEID (uit een subagentrapport, niet zelf nagemeten), ONBEKEND.*
 ### 10.d Dossier 7b-4
 
 - **ZEKER.** Gemeten, niet gebouwd — §9 draagt de cijfers. Bouwbesluit bij de eigenaar.
+- **Bijgewerkt 2026-09-23.** Gebouwd in X12 brok 2 als C1–C3 (X12 15.056 → 12.973, 0 slechter); zie §9
+  7b-4 voor de meetuitkomst en de 761-cellen-kanttekening.
 
 ### 10.e Poorten op de kop van de branch
 
@@ -882,7 +1145,11 @@ exportverliesmelding (ná het schrijven), een bovengrens op documenten per besta
   - **(11) `lagCalendar`** effectief voor alle formaten: accepteren, met releasenotitie.
   - Regel A (landingsregel voor de gedeelde motor) en regel B (nieuwe conventies als benoemde
     instelling) gaan beide in de goal prompt van het "naar nul"-vervolg.
-  - Solverprofiel per project: geparkeerd als eigen etappe ná X12.
+  - Solverprofiel per project: in de ochtend geparkeerd als eigen etappe ná X12; later op de dag
+    (2026-09-22, brainstorm) HERZIEN: het wordt de etappe **rekenprofielen** die VÓÓR het
+    X12-vervolg wordt gebouwd, omdat regel A pas met profielen als poort te meten is — zie
+    `docs/superpowers/specs/2026-09-22-rekenprofielen-design.md` §2. De inhoud van het
+    OPS-profiel wordt wél pas ná X12 gekozen.
   - De 49 OzBuild-bestanden gaan in de privérepo (optie 1). Door de eigenaar uitgevoerd en
     gemeten: `check-mpp-fidelity.ts` 213 pins groen in de cloud — de ONBEKEND-status van de
     49 OzBuild-pins in §10.e is daarmee opgeheven.

@@ -27,6 +27,8 @@ IFC 也是本应用连接 OpenAEC 工具套件其余部分的方式：同一个�
 
 每种格式都有自己的限制：目标格式越丰富，随行的内容就越多，但三种外部格式都不是 IFC 的完整镜像。
 
+计算配置文件不会随 CSV、MS Project XML 或 P6 XML 导出；参见[计算配置文件](docs://gids-rekenprofielen)。
+
 ### CSV
 
 CSV 导出**仅包含任务表格**：WBS 编码、名称、工期（天）、开始、完成、前置任务（作为文本代码，例如 `2.1FS+3d`）、任务类型、状态、完成度（%）、实际开始/完成、关键（是/否）、总浮动和描述。**资源、分配、日历和基线被刻意排除在外**——CSV 纯粹是一份任务表格，供想在电子表格中查看或编辑计划的用户使用，而不是一次完整保真的项目交换。当您把 CSV 文件重新**导入**时，基线因此会保持为空（本来就没有可读取的内容）。
@@ -73,3 +75,4 @@ MSPDI 比 CSV 丰富得多：资源、分配（包括其负荷曲线）、日历
 
 - 基线只通过 IFC 和 MS Project XML 随行，而不通过 CSV 或 P6——阅读指南 [Baselines & voortgang](docs://gids-baselines-voortgang) 了解如何记录基线。
 - 资源、分配和负荷曲线——阅读指南 [Resources, histogram & nivellering](docs://gids-resources-histogram) 了解导出之前这些内容是如何构建的。
+- 打开的文件会获得哪个计算配置文件，以及 IFC 会保存其中哪些内容 — 请阅读指南[计算配置文件](docs://gids-rekenprofielen)。

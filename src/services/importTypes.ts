@@ -1,4 +1,4 @@
-import type { Project } from '@/types/project';
+import type { BuiltInProfileId, Project } from '@/types/project';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
@@ -312,8 +312,20 @@ export interface ImportResult {
    *  EIGEN IFC — alleen gevuld door `readIFC` uit `OPS_ImportProvenance.SourceFormat`. Een eigen IFC
    *  zonder deze uitspraak vergelijkt onze eigen oude solve met de nieuwe en krijgt geen modus. */
   recordedSourceFormat?: RecordedSourceFormat;
+  /** Rekenprofielen (spec v3.1 §6): welk ingebouwd profiel deze LEZER voorstelt. Gezet door de
+   *  formaatlezers (XER ⇒ 'p6', `.mpp` ⇒ 'msproject', MSPDI/P6-XML/CSV ⇒ 'ops'); afwezig bij IFC
+   *  (het bestand draagt zijn eigen profiel) en bij extensie-importers. `applyOpenedImport` meldt
+   *  alleen bij een voorstel ≠ 'ops' (C6). Het profiel zelf staat al op `project.schedulingProfile`. */
+  suggestedProfileId?: BuiltInProfileId;
   /** Alleen XER: bronmetadata en solverloze cross-projectrelaties voor het geladen document. */
   xer?: XerImportMetadata;
+  /** Herkomst van `xer`: `'xer-archive'` wanneer `readIFC` de metadata uit het meegereisde
+   *  bronarchief van een HEROPENDE IFC reconstrueert; afwezig bij een verse `readXER`. De
+   *  XER-openingsmelding (`xerImportNotice`) vuurt alleen bij een verse XER-import — heropenen uit
+   *  eigen IFC meldt niets (gebruikstest rekenprofielen 24-09, B4). Afwezig wanneer `readIFC` een
+   *  onbruikbaar archief weggelaten heeft (`xerArchiveIssue`): dan is er geen `xer` en dus ook
+   *  geen archiefherkomst. */
+  xerOrigin?: 'xer-archive';
   /** Alleen XER: exact, gedeeld en immutable bronarchief; nooit solverinvoer. */
   xerSourceArchive?: XerSourceArchive;
   /** Selector uit OPS_XerDocument; bronproject binnen een self-contained IFC. */

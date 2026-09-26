@@ -1,0 +1,129 @@
+# Rekenprofielen
+
+Open Planner Studio rekent met één planningsmotor, maar Primavera P6 en Microsoft Project maken op een handvol plekken een andere keuze. Een **rekenprofiel** bundelt die keuzes. Elk project heeft precies één profiel; je ziet en wijzigt het onder **Bestand → Projectinfo → Rekenprofiel en reken-opties**.
+
+## Wat je hier leert
+
+- Wat een rekenprofiel is en welke drie ingebouwde profielen er zijn.
+- Welk profiel een geopend bestand krijgt, en waarom je daar een melding over ziet.
+- Hoe je van profiel wisselt en wat er dan met je planning gebeurt.
+- Hoe je een eigen profiel maakt en als sjabloon bewaart.
+- Wat de zevenentwintig conventies doen.
+- Wanneer een combinatie geen referentiepakket heeft.
+
+## Wat een rekenprofiel is
+
+Een profiel is een set van zevenentwintig **conventies**: regels die bij een planningspakket horen, zoals "een niet-gestarte taak schuift niet vanzelf naar de statusdatum". Daarnaast heeft elk project **reken-opties** die per bestand verschillen, zoals de lag-kalender, de kritiek-definitie en de speling-berekening. Die opties horen bij het project; het profiel levert er alleen de standaard voor bij een nieuw project.
+
+De drie ingebouwde profielen:
+
+- **Open Planner Studio** — de standaard voor nieuwe projecten, CSV-bestanden en IFC-bestanden uit andere programma's. Rekent zoals Open Planner Studio altijd rekende.
+- **Primavera P6** — de conventies van P6. Een `.xer`-bestand opent met dit profiel.
+- **Microsoft Project** — de voortgangsconventies van MS Project. Een `.mpp`-bestand opent met dit profiel.
+
+## Welk profiel krijgt een geopend bestand?
+
+- `.xer` (Primavera P6): **Primavera P6**. De reken-opties uit het bestand worden de reken-opties van het project.
+- `.mpp` (Microsoft Project): **Microsoft Project**.
+- MS Project XML en P6 XML: in deze versie **Open Planner Studio**. Voor deze formaten bestaat nog geen referentiemeting; een automatische keuze zou datums verschuiven zonder dat aantoonbaar is dat het klopt.
+- CSV, een nieuw project en IFC uit een ander programma: **Open Planner Studio**.
+- Een eigen IFC-bestand: het profiel dat erin is opgeslagen.
+- Een IFC-bestand uit een oudere versie van Open Planner Studio, zonder opgeslagen profiel: het profiel volgt uit de opgeslagen reken-opties. Een eerder geopend `.xer`-project krijgt zo **Primavera P6**, een eerder geopend `.mpp`-project **Microsoft Project**, al het andere **Open Planner Studio**.
+
+Open je een `.xer`- of `.mpp`-bestand, dan zie je één melding, bijvoorbeeld "Dit project rekent als Primavera P6". De knop in die melding opent Projectinfo. Bij een `.xer`-bestand staat die regel in de gewone openingsmelding, ook als het bestand meerdere projecten bevat. Bij het heropenen van een eigen IFC-bestand en bij crashherstel komt die melding niet: het profiel stond er al, en je hebt het zelf gekozen of gezien.
+
+## Van profiel wisselen
+
+Kies in **Projectinfo** een ander profiel en klik op **Toepassen**. De planning wordt meteen opnieuw berekend, ook als *Automatisch berekenen* uit staat. Verschuiven daardoor taken, dan vertelt een melding hoeveel; verschuift er niets, dan komt er geen melding. De telling gaat over gewone taken, niet over samenvattingstaken (die volgen hun onderliggende taken). Een wissel is één stap in *Ongedaan maken*.
+
+Zolang je iets hebt gewijzigd maar nog niet hebt toegepast, staat onderaan in beeld een gekleurd blok *Wijzigingen niet toegepast*, met **Verwerpen** naast **Toepassen**. Ga je dan naar een ander onderdeel, klik je op **Terug**, druk je op Escape of F1, dan vraagt de app eerst of je de wijzigingen wilt toepassen, verwerpen of wilt blijven; wisselen naar een ander project (Ctrl+1–9, Ctrl+N, Ctrl+O) kan pas als je hebt toegepast of verworpen. Is het venster te smal om meldingen naast die vraag te tonen, dan staan ze gedimd achter de dialoog en komen ze terug zodra je een keuze hebt gemaakt.
+
+Wissel je tussen de ingebouwde profielen, dan blijven alle afwijkingen letterlijk staan, ook een afwijking die onder het nieuwe profiel toevallig gelijk is aan de standaard. Zo geeft Primavera P6 → Open Planner Studio → Primavera P6 precies het profiel terug waarmee je begon, en de planning: de berekende datums zijn daarna weer dezelfde als voor de wissel, ook na **Bereken** en na opslaan en heropenen.
+
+De reken-opties van het project veranderen bij een wissel niet. Wil je de standaardopties van het nieuwe profiel, klik dan op **Standaardopties van dit profiel toepassen**.
+
+Let op bij een wissel naar Primavera P6 voor een project dat niet uit P6 komt: de conventie *Geplande start als extra ondergrens* maakt de geplande start van een taak tot ondergrens zodra die meer dan een kalenderdag later ligt dan het netwerk toelaat.
+
+De kolommen *Geplande start* en *Gepland einde* zijn invoer, geen rekenuitkomst: de berekende datums staan in *Vroegste start* en *Vroegste einde*. Een berekening of profielwissel verandert ze dus niet, en sommige Primavera P6-conventies lezen ze als het geplande venster uit het bestand. Bij een taak in uren die nog niet gestart is, beweegt *Gepland einde* wel mee als je de duur, de start of de kalender van de taak zelf wijzigt: het wordt dan de start plus de duur op de kalender van de taak zelf. Een in dezelfde bewerking gewijzigd einde wint. Het einde wordt niet herleid bij een wijziging aan de projectkalender of aan kalenderuitzonderingen, bij het verwijderen van de kalender van de taak (de taak rekent dan op de projectkalender), bij een split zonder duurwijziging, na nivelleren, bij het verschuiven van het hele project, en bij `.mpp`-taken die op een resourcekalender rekenen; het volgt dan bij de volgende bewerking van de taak. Bij een gestarte taak, een handmatig geplande taak, een samenvattende taak, een hammock en een P6-taak met een eigen gepland venster uit het `.xer`-bestand blijft het staan.
+
+## Een eigen profiel maken
+
+Zet in het blok een conventie aan of uit. Is het profiel ingebouwd, dan maakt Open Planner Studio er automatisch een eigen kopie van, bijvoorbeeld "Kopie van Primavera P6". Die naam kun je aanpassen.
+
+Met **Opslaan als sjabloon** bewaar je het eigen profiel in de app, zodat je het in andere projecten kunt kiezen. Een project bewaart altijd een eigen kopie van zijn profiel: een sjabloon later wijzigen verandert geen bestaand project. Wijkt het profiel van een project af van zijn sjabloon, dan zie je dat in een gekleurd blok, met de knoppen **Bijwerken vanuit sjabloon** en **Sjabloon bijwerken vanuit dit project**. Met **Sjabloon verwijderen** haal je het sjabloon weer uit de app; het project houdt zijn eigen kopie.
+
+## De zevenentwintig conventies
+
+Onder Open Planner Studio staan ze alle zevenentwintig uit. In Projectinfo staan ze per onderwerp gegroepeerd, net als hieronder. Achter elke regel staat grijs de waarde van het gekozen basisprofiel ("basis: aan" of "basis: uit"). Wijkt je project daarvan af, dan is de regel gekleurd en kun je met **terug naar basis** de waarde van het profiel terugzetten. Met het pijltje vóór een regel klap je de uitleg uit.
+
+Staat de afwijking op een ingebouwd profiel, dan blijft het profiel na **terug naar basis** het ingebouwde profiel; er ontstaat geen kopie.
+### Voortgang en voltooid werk
+- **Werkelijke datums behouden in de terugwaartse berekening** (Primavera P6) — een gestarte of voltooide taak houdt haar geregistreerde datums ook aan de late kant.
+- **Lopende taak: vroege start = begin van het restwerk** (Primavera P6) — de vroege start van een lopende taak is waar het resterende werk begint. Terugrekenend over een start-start-relatie telt alleen haar restduur: zonder restwerk vallen late start en late finish samen. In alle gemeten, door Primavera P6 doorgerekende bestanden begint een lopende taak zo. Tot en met september 2026 nam Open Planner Studio deze regel per `.xer`-bestand over uit een projectinstelling (`rem_target_link_flag`); die koppeling was nooit getoetst en wordt niet meer gelezen. Of een P6-project met een andere waarde van die instelling anders rekent, is niet bekend.
+- **Voltooide fysieke-voortgangstaak staat op de statusdatum** (Primavera P6) — een voltooide taak met een fysiek voortgangspercentage staat niet op haar werkelijke datums, maar als één punt op de statusdatum, of later als een voorganger die nog loopt of nog moet beginnen dat eist. Haar opvolgers rekenen vanaf dat punt, en de vrije speling van een voorganger die nog niet klaar is telt tot dat punt. Voorbehoud: alleen gemeten op fysieke voortgang; voor voltooide taken met voortgangstype duur (de P6-standaard) of eenheden is het niet gemeten, dus die houden hun werkelijke datums.
+- **Geplande start is geen vloer voor een lopende taak** (Primavera P6) — het resterende werk van een gestarte taak begint op de statusdatum en direct na haar voorgangers, ook als haar geplande start later ligt. Haar opvolgers schuiven mee. Voor een taak die nog niet gestart is, blijft de geplande start een ondergrens (*Geplande start als extra ondergrens*).
+- **Progress Override negeert een gestarte opvolger ook achterwaarts** (Primavera P6) — alleen als het project de voortgangsinstelling *Progress Override* gebruikt. Is een opvolger al gestart terwijl zijn voorganger nog loopt, dan negeert de planning die relatie al bij het vooruit rekenen. Met deze conventie telt ze ook niet mee in de late datums en de vrije speling van de voorganger. Zonder deze conventie kan de voorganger daardoor negatieve speling krijgen, terwijl Primavera P6 hem speling geeft tot zijn andere opvolgers.
+
+### Relaties en lag
+
+- **Opvolger start op de finishgrens** (Primavera P6) — bij relaties die het bestand zo markeert. Terugrekenend toont de opvolger haar late start gewoon als begin van een werkband.
+- **Lag terugrekenen vanaf een finishgrens** (Primavera P6) — een lag die precies op een bandstart uitkomt, landt op de vorige finishgrens. Ook bij een eind-eind-relatie zonder lag blijft een late finish op een bandeinde die finishgrens.
+- **Verstreken lag van een voltooide voorganger telt niet** (Primavera P6) — van de lag na een voltooide taak telt alleen het deel dat op de statusdatum nog niet verstreken is. Dat geldt aan de late kant, en ook vooruit: staat een voltooide taak op de statusdatum (of direct na een voorganger die nog niet klaar is), dan begint haar opvolger na de rest van de lag. Uitzetten verslechtert in de gemeten Primavera P6-bestanden 640 datums en floats die nu exact kloppen, en 56 die al afweken wijken verder af.
+- **Verstreken SS-lag uit een lopende voorganger telt niet** (Primavera P6) — bij een start-start-relatie uit een taak die al gestart is, telt van de lag alleen het deel dat sinds haar werkelijke start op de statusdatum nog niet verstreken is. Is de lag al verstreken, dan mag de opvolger beginnen zodra het restwerk van de voorganger begint. Vanaf welk punt de resterende lag telt, kies je met de reken-optie **SS-lag van een lopende voorganger rekenen vanaf**: *Vroege start* (de standaard in P6: de start van het restwerk van de voorganger) of *Werkelijke start* (de statusdatum, ook als het restwerk van de voorganger later begint). Een `.xer`-bestand neemt die keuze over uit de P6-instelling *Calculate Start-to-Start lag from*. Staat deze conventie uit, dan doet de optie niets.
+- **Vroege finish niet vóór een eind-eind-grens** (Primavera P6) — bij een eind-eind-relatie mag de opvolger pas klaar zijn als de voorganger klaar is. Valt dat moment in vrije tijd van de opvolger, dan toont Open Planner Studio zonder deze conventie het einde van de werkperiode ervóór (evenveel werktijd, maar op de klok te vroeg). Met de conventie wordt de vroege finish het begin van de volgende werkperiode, zoals in Primavera P6. De vrije speling over zo'n relatie telt dan tot de vroege finish van de opvolger.
+
+### Mijlpalen en LOE-activiteiten
+
+- **Mijlpaal volgt de geplande kalendergrens** (Primavera P6) — een mijlpaal zonder duur blijft op de kalendergrens die het bestand plande.
+- **Niet-gestarte LOE neemt het doelvenster** (Primavera P6) — alleen voor taken met P6-herkomst.
+- **Eind-eind-relatie naar een startmijlpaal bindt aan de mijlpaal zelf** (Primavera P6) — bij een eind-eind-relatie naar een startmijlpaal mag de voorganger uitlopen tot de mijlpaal zelf, niet alleen tot het begin van de mijlpaaldag. Dat verandert de late datums en de speling van die voorganger. Een eindmijlpaal verandert niet.
+
+### Speling en late datums
+
+- **Vrije speling nooit negatief** (Primavera P6) — bij een onhaalbare late constraint blijft de totale speling negatief, maar wordt de vrije speling nul.
+- **Vrije speling in de eigen kalender** (Primavera P6) — de vrije speling van een niet-gestarte taak telt per relatie in de kalender van de taak zelf, niet in die van de opvolger. Dat geldt voor eind-start, start-start en eind-eind, ook met een lag in werktijd, zolang die lag op de kalender van de voorganger rekent. Een gestarte taak telt zo alleen over een eind-start-relatie zonder lag. Voorbeeld: een taak werkt tot 17:00, haar opvolger (start-start met lag) tot 16:00. Valt de relatiegrens om 16:00, dan begint de opvolger pas de volgende ochtend en heeft de taak één uur vrije speling. Start-eind-relaties, lags in kalendertijd, procentlags en lags op een andere lagkalender zijn niet gemeten en houden de gewone berekening.
+- **Late finish op de eigen kalender** (Primavera P6) — legt een opvolger een late finish op die buiten de werktijd van de taak zelf valt (meestal omdat die opvolger op een andere kalender rekent), dan wordt de late finish het einde van de vorige werkperiode op de eigen kalender. Voorbeeld: een taak werkt niet op vrijdag en haar opvolger moet vrijdag 16:00 starten; dan is haar late finish donderdag 17:00.
+- **ALAP-taken zo laat als de opvolgers toestaan** (Primavera P6) — een niet-gestarte taak met de beperking *zo laat mogelijk* schuift zonder deze conventie in hele werkdagen op met haar vrije speling, en begint niet vóór haar eigen geplande start. Met de conventie eindigt ze op de minuut waarop haar opvolgers haar nodig hebben, en een keten van zulke taken sluit aaneen, zoals in Primavera P6. Haar eigen geplande start telt dan niet: een taak zonder voorganger begint niet vóór de statusdatum. Een tweede beperking op dezelfde taak blijft gelden: met *eind uiterlijk op* schuift ze niet voorbij die datum, met *start niet eerder dan* begint ze niet eerder. Drie grenzen zijn bewust gekozen op basis van metingen en niet uit de P6-handleiding afgeleid: de regel geldt alleen voor taken op een kalender met uren, alleen voor taken die nog niet gestart zijn, en een taak zonder voorganger rekent vanaf de statusdatum. Een gestarte of voltooide taak, of een taak op een dagkalender, houdt dus het oude gedrag; voor een taak op een dagkalender is er geen door P6 doorgerekend voorbeeld om tegen te meten.
+
+### Datums en tijdstippen uit het bestand
+
+- **Geplande start als extra ondergrens** (Primavera P6) — zie de waarschuwing hierboven.
+- **Werkelijke datums exact overnemen** (Primavera P6) — geregistreerde werkelijke datums worden niet naar een werktijdband verschoven.
+- **Constraintmoment op een mijlpaal exact** (Primavera P6) — een datum-en-tijdconstraint op een mijlpaal is een exact punt.
+
+### Voortgang zoals Microsoft Project
+
+- **Restwerk hervat na de al verstreken duur** (Microsoft Project) — een lopende taak hervat op de werkelijke start plus de al verstreken duur.
+- **Niet-gestarte taken niet naar de statusdatum** (Microsoft Project) — een taak die nog niet begonnen is, schuift niet vanzelf naar de statusdatum.
+
+### Alleen voor eigen profielen
+
+Vijf conventies staan in elk ingebouwd profiel uit, ook onder Primavera P6. Ze zijn afgeleid uit een bestand dat niet door P6 is doorgerekend (uitvoer van het oudere Primavera P3) en veranderen niets in de bestanden die wel aantoonbaar door P6 zijn doorgerekend. Wil je ze toch gebruiken, zet ze dan aan in een eigen profiel.
+
+- **Voltooide voorganger houdt niet vast na de statusdatum** (standaard uit) — staat het werkelijke einde van een voltooide taak ná de statusdatum, dan mogen haar opvolgers toch al op de statusdatum beginnen. De eigen datums van de voltooide taak veranderen niet.
+- **Voltooide taak buiten volgorde wacht op haar voorgangers** (standaard uit) — is een taak al voltooid terwijl een voorganger nog loopt of nog moet beginnen, dan staat ze niet op de statusdatum maar direct ná die voorganger, en haar opvolgers schuiven mee. Onder de P6-instelling Progress Override geldt dit niet.
+- **Eindmijlpaal als grensvenster** (standaard uit) — een eindmijlpaal mag op twee aangrenzende kalendergrenzen staan.
+- **Voltooide taak in het statusdatumvenster** (standaard uit) — alleen voor taken met P6-herkomst.
+- **Voltooide LOE via het werkelijke einde** (standaard uit) — alleen voor taken met P6-herkomst.
+
+Bestanden uit Primavera P6 dragen daarnaast een projectinstelling die de late datums van een voltooide taak uit het restvenster haalt. Die werkt alleen samen met **Voltooide taak in het statusdatumvenster**, dus onder het ingebouwde profiel Primavera P6 doet ze niets. Zet je die conventie in een eigen profiel aan, dan telt de instelling weer mee.
+
+## Instellingen uit het bronbestand
+
+Een project uit een `.xer`-bestand draagt drie reken-opties die alleen uit Primavera P6 komen: *Verwachte einddatums gebruiken*, *Speling rekenen tot de einddatum van het project* en *Voltooide taak: late datums vanaf de statusdatum*. Ze rekenen mee, maar je kunt ze niet wijzigen. Onderaan het blok staan ze alleen-lezen in een blauw blok, zodat je ziet waarom twee projecten met hetzelfde profiel anders kunnen rekenen. De laatste werkt alleen samen met de conventie *Voltooide taak in het statusdatumvenster*; staat die uit, dan zegt het blok dat.
+
+## Combinaties zonder referentiepakket
+
+Een deel van de P6-conventies werkt alleen op taken met P6-herkomst, dus uit een `.xer`-bestand. Kies je Primavera P6 voor een eigen project, een `.mpp`-bestand of een P6 XML-bestand, dan gaan die regels niet aan. Een `.xer`-project onder het profiel Microsoft Project is eveneens een combinatie waarvoor geen referentiepakket bestaat. Zulke combinaties rekenen consistent, maar er is geen pakket om de uitkomst tegen te controleren.
+
+## Opslaan en uitwisselen
+
+Het profiel wordt in het IFC-bestand opgeslagen, met alle zevenentwintig waarden, zodat het bestand overal hetzelfde rekent. Een project met het standaardprofiel slaat niets extra's op. Oudere versies van Open Planner Studio kennen het profiel niet: zij lezen alleen de reken-opties en de twee voortgangsconventies van Microsoft Project, en rekenen een P6-project zonder P6-conventies.
+
+Bij exporteren naar CSV, MS Project XML of P6 XML gaat het profiel niet mee; die bestanden openen weer als Open Planner Studio. Voor een project uit een `.xer`-bestand meldt de export dat er XER-broninformatie verloren gaat; het rekenprofiel hoort daarbij, maar de melding noemt het niet apart.
+
+## Verder lezen
+
+- [Primavera P6 (.xer) openen](docs://gids-xer-import)
+- [MS Project (.mpp) openen](docs://gids-msproject-import)
+- [Im-/export](docs://gids-import-export)
