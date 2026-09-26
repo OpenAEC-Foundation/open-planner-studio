@@ -89,6 +89,11 @@ task's row instead, and it nests: the task becomes that summary task's new last 
 it in one motion — that's the mouse equivalent of Alt+→. Select several tasks first (Ctrl/Cmd-click,
 or a box-select) and the whole selection drags and drops together.
 
+Indenting, outdenting and dragging don't go ahead if the move would create a cycle in the schedule
+through a phase's relations — a phase's relations also apply to its subtasks. You then get a
+notification naming the tasks in the cycle, and nothing changes; with several tasks at once, the
+whole move is cancelled. The **Relations & constraints** guide explains how that works.
+
 You can do the same with the **bar** itself: grab a task bar by its middle in the Gantt chart and
 drag mostly up or down. The bar then follows the same row drag as the task table — same drop
 positions, same nesting rule, one undo step — and the task's dates stay unchanged. The insertion

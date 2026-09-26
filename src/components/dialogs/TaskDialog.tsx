@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
+import { moveTaskVerdict } from '@/state/slices/taskSlice';
+import { notifyHierarchyCycle } from '@/state/hierarchyRelationNotice';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -115,6 +117,18 @@ export function TaskDialog() {
 
   const handleSave = () => {
     if (!draft.name.trim()) return;
+    // Een andere bovenliggende taak die via de relaties van de nieuwe fase een kring zou maken
+    // (audit taakmutaties, S4): weigeren VÓÓR er iets wordt opgeslagen. `moveTask` weigert zelf ook,
+    // maar dan zou de rest van de bewerking al zijn doorgevoerd en de dialoog sluiten; zo blijft hij
+    // open met de melding, zoals de conceptrelatie in het paneel, en kan de gebruiker corrigeren.
+    if (editingTask && draft.parentId !== editingTask.parentId) {
+      const current = useAppStore.getState();
+      const verdict = moveTaskVerdict(current, editingTask.id, draft.parentId);
+      if (!verdict.ok) {
+        notifyHierarchyCycle(current, verdict.cycle);
+        return;
+      }
+    }
     if (draft.customTaskTypeId) {
       const definition = customTaskTypes.find(type => type.id === draft.customTaskTypeId)
         ?? getPersonalTaskTypes().find(type => type.id === draft.customTaskTypeId);
@@ -166,8 +180,9 @@ export function TaskDialog() {
       // synchroniseert childIds op ZOWEL de oude als de nieuwe ouder en weigert cykels (een
       // summary onder zijn eigen kind hangen). `updateTask` is een kale Object.assign zonder die
       // sync — parentId hierboven meepatchen zou de boom stil corrumperen (parentId wijst naar de
-      // nieuwe ouder, maar diens childIds weet van niets). Bij een geweigerde move (cykel) doet
-      // `moveTask` niets: parentId blijft dan ook ongewijzigd — geen halftoegepaste state.
+      // nieuwe ouder, maar diens childIds weet van niets). Bij een geweigerde move (cykel in de
+      // boom) doet `moveTask` niets: parentId blijft dan ook ongewijzigd — geen halftoegepaste
+      // state. Een kring in de RELATIES is hierboven al vóór het opslaan geweigerd.
       if (draft.parentId !== editingTask.parentId) {
         moveTask(editingTask.id, draft.parentId);
       }

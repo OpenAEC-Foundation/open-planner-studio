@@ -41,7 +41,8 @@ task grid's relation-warning column flags it as *not included*.
 
 Such a relation can also appear when you move a task: if you indent a task under its own
 predecessor or successor, drag it there, or pick that task as its parent task, the move simply goes
-ahead. The existing relation is kept but no longer counts from then on, and a notification tells you
+ahead — unless the move would create a cycle (see *Relations on summary tasks*). The existing
+relation is kept but no longer counts from then on, and a notification tells you
 how many relations that affects. A kept relation like that doesn't block the task grid: you can
 still edit the other relations, as well as the type and lag of the kept relation itself.
 
@@ -79,6 +80,10 @@ You can also put a relation directly on a summary task (a phase or WBS group) in
 - **Summary on both sides**: every task on one side gets a relation with every task on the other side.
 
 This is exact for **FS and FF** with a summary as predecessor, and for **FS and SS** with a summary as successor. For **SS/SF** with a summary as predecessor and **FF/SF** with a summary as successor — rare combinations in construction practice — Open Planner Studio deliberately plans on the safe side: possibly a bit later than strictly necessary, never earlier.
+
+Because such a relation applies to every task in the phase, **moving** a task also changes which relations apply. If you indent a task under a phase, drag it into one, or pick the phase as the parent task in **Edit task**, the phase's relations apply to that task from then on. If that would create a **cycle** — for example: Earthworks → Inspection and Inspection → Foundation, and you move Foundation under Earthworks; Earthworks → Inspection then also applies to Foundation — the move is not carried out, because such a cycle makes the whole calculation fail. The same goes for outdenting, when a relation between the task and its phase that didn't count so far starts counting again and closes a cycle.
+
+A notification then names the tasks in the cycle, and nothing changes: not even an Undo step. If you move several tasks at once (indenting them together, or dragging a block), the whole action is cancelled, including for the tasks that would have been fine on their own. In **Edit task** the window stays open so you can choose a different parent task; the rest of your changes hasn't been saved yet. If you do want the task there, first remove or reverse the relation that closes the cycle. A cycle that was already in a file you opened doesn't block a move that adds nothing to it.
 
 ## Jumping to a linked task
 

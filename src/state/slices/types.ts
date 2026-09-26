@@ -197,6 +197,9 @@ export type NotificationMessageKey =
   // Audit taakmutaties, bevinding 3: verhangen maakte een bestaande relatie tot voorouder-relatie
   // (telt niet meer mee) zonder enig signaal — zie `hierarchyRelationNotice.ts`. Meervoud, `count`.
   | 'notifications.relationsExcludedByHierarchy'
+  // Audit taakmutaties, rapport S4: verhangen dat via een fase een kring zou maken, wordt vooraf
+  // geweigerd — zie `hierarchyChange.ts`. Parameter `cycle`: de taaknamen, "A → B → A".
+  | 'notifications.hierarchyCycle'
   | 'notifications.summaryRelationsDropped'
   | 'notifications.relationsSkippedOnInsert'
   | 'notifications.mppLegacy'

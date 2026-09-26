@@ -9,17 +9,17 @@
 // aanwijsbare reden. Deze module legt de toestand vóór de verhanging vast en meldt na afloop via het
 // meldingenkanaal hoeveel relaties er NIEUW niet meer meetellen.
 //
+// Anders ligt het als verhangen een KRING maakt (rapport S4): dan rekent de hele planning niet meer,
+// en wordt de verhanging vooraf geweigerd (`hierarchyChange.ts`). Die weigering meldt zich ook hier
+// (`notifyHierarchyCycle`), zodat de twee meldingen over verhangen en relaties op één plek staan.
+//
 // De melding hoort BUITEN de Immer-producer (`notify` doet zelf een `set()`), vandaar de vorm: een
 // watcher vóór `set`, de rapportage erna.
-import type { Sequence } from '@/types/sequence';
+import type { RelationTree } from '@/engine/scheduler/relationRules';
 import type { Task } from '@/types/task';
+import { cycleLabel } from './notificationLabels';
 import { isAncestorRelation } from './relationRules';
 import type { NotifyInput } from './slices/types';
-
-interface RelationTree {
-  tasks: readonly Task[];
-  sequences: readonly Sequence[];
-}
 
 /** Ids van relaties die een taak met zijn eigen (voor)ouder verbinden. */
 function ancestorRelationIds(state: RelationTree): Set<string> {
@@ -51,4 +51,23 @@ export function watchAncestorRelations(
       helpArticleId: 'gids-relaties-constraints',
     });
   };
+}
+
+/**
+ * Meld een geweigerde verhanging die een kring zou maken, met de taaknamen van die kring
+ * ("Fundering → Keuring → Fundering"): zo ziet de gebruiker welke relatie via de nieuwe fase
+ * rondloopt en eerst weg of om moet.
+ */
+export function notifyHierarchyCycle(
+  state: { tasks: readonly Task[]; notify: (notification: NotifyInput) => void },
+  cycle: readonly string[],
+): void {
+  state.notify({
+    severity: 'info',
+    messageKey: 'notifications.hierarchyCycle',
+    params: { cycle: cycleLabel(state.tasks, cycle) },
+    // Samenvouwen: herhaald op Alt+Shift+→ drukken levert één regel met een teller op.
+    dedupeKey: 'hierarchy-cycle',
+    helpArticleId: 'gids-relaties-constraints',
+  });
 }

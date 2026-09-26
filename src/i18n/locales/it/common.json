@@ -28,6 +28,7 @@
     "relationDuplicate": "Questa relazione esiste già",
     "relationAncestorEndpoint": "Una relazione tra un'attività e la propria attività di riepilogo antenata non è consentita.",
     "relationCycle": "Questa relazione creerebbe un ciclo nella pianificazione ({{cycle}}) e non è stata creata.",
+    "hierarchyCycle": "Questo spostamento creerebbe un ciclo nella pianificazione ({{cycle}}): le relazioni di un'attività di riepilogo valgono anche per le sue sottoattività. Non è stato spostato nulla.",
     "relationsExcludedByHierarchy_one": "Dopo lo spostamento, {{count}} relazione collega un'attività alla propria attività di riepilogo antenata; non viene più considerata nel calcolo.",
     "relationsExcludedByHierarchy_many": "Dopo lo spostamento, {{count}} relazioni collegano un'attività alla propria attività di riepilogo antenata; non vengono più considerate nel calcolo.",
     "relationsExcludedByHierarchy_other": "Dopo lo spostamento, {{count}} relazioni collegano un'attività alla propria attività di riepilogo antenata; non vengono più considerate nel calcolo.",

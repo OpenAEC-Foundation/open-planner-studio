@@ -28,6 +28,7 @@
     "relationDuplicate": "Essa relação já existe",
     "relationAncestorEndpoint": "Não é permitida uma relação entre uma tarefa e a sua própria tarefa de resumo ancestral.",
     "relationCycle": "Esta relação criaria um ciclo no planeamento ({{cycle}}) e não foi criada.",
+    "hierarchyCycle": "Esta mudança criaria um ciclo no planeamento ({{cycle}}): as relações de uma tarefa de resumo também se aplicam às suas subtarefas. Nada foi movido.",
     "relationsExcludedByHierarchy_one": "Após a mudança, {{count}} relação liga uma tarefa à sua própria tarefa de resumo ancestral; deixa de contar no cálculo.",
     "relationsExcludedByHierarchy_many": "Após a mudança, {{count}} relações ligam uma tarefa à sua própria tarefa de resumo ancestral; deixam de contar no cálculo.",
     "relationsExcludedByHierarchy_other": "Após a mudança, {{count}} relações ligam uma tarefa à sua própria tarefa de resumo ancestral; deixam de contar no cálculo.",

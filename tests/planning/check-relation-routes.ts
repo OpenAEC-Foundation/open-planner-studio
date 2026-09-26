@@ -18,6 +18,11 @@ import './domStub';
 //      (ook tussen ongerelateerde taken) met de tekst "eigen samenvattende taak". Nu meldt het
 //      verhangen hoeveel relaties niet meer meetellen, en telt het raster alleen de fouten die de
 //      bewerking zelf toevoegt.
+//   3. KRING DOOR VERHANGEN (rapport S4). Een relatie op een fase geldt voor elke taak in die fase.
+//      Hang je een taak onder een fase, dan kunnen haar relaties via die taak rondlopen (en bij
+//      uitspringen kan een relatie die niet meetelde weer gaan tellen). Elke verhangroute weigert
+//      zo'n NIEUWE kring nu vooraf — melding met de kring, geen wijziging, geen undo-stap — en
+//      meerdere taken tegelijk als geheel. Een al bestaande kring houdt niets tegen.
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
@@ -235,6 +240,134 @@ const hierarchyNotes = () => notes().filter(n => n.key === 'notifications.relati
   clearNotes();
   S().moveTask(los, b); // B was al samenvatting van A; de relatie telde al niet mee
   eq('6.5 een relatie die al niet meetelde, wordt niet opnieuw gemeld', hierarchyNotes(), []);
+}
+
+// ── 7. Verhangen dat via een fase een KRING maakt, wordt vooraf geweigerd (rapport S4) ────────
+// A, B, C met A→C en C→B. Hang B onder A en A wordt een fase: de relatie A→C geldt dan voor elke
+// taak in A, dus ook als B→C — samen met C→B een kring. Voorheen voerde elke verhangroute dat stil
+// uit en liep pas F5 vast ("Circular dependency"), waarna de hele planning bevroren was.
+const cycleNotes = () => notes().filter(n => n.key === 'notifications.hierarchyCycle');
+const parentName = (id: string) => {
+  const parentId = S().tasks.find(t => t.id === id)!.parentId;
+  return parentId ? S().tasks.find(t => t.id === parentId)!.name : null;
+};
+/** Het S4-uitgangspunt, doorgerekend en schoon (geen meldingen, niet gewijzigd). */
+function s4(extra: readonly string[] = []): Record<string, string> {
+  fresh();
+  const ids: Record<string, string> = {};
+  for (const name of ['Grondwerk', 'Fundering', ...extra, 'Keuring']) ids[name] = S().addTask({ name });
+  S().addSequence({ predecessorId: ids.Grondwerk, successorId: ids.Keuring, type: 'FINISH_START', lagDays: 0 });
+  S().addSequence({ predecessorId: ids.Keuring, successorId: ids.Fundering, type: 'FINISH_START', lagDays: 0 });
+  S().runCPM();
+  eq('7.0 opzet: het uitgangspunt rekent', S().cpmResult?.error, undefined);
+  useAppStore.setState(state => { state.ui.notifications = []; state.isDirty = false; });
+  return ids;
+}
+/** Na een geweigerde verhanging: niets gewijzigd, geen undo-stap, één melding die de kring noemt. */
+function expectRefused(label: string, depth: number, cycle: string, parents: Record<string, string | null>): void {
+  for (const [name, parent] of Object.entries(parents)) {
+    const id = S().tasks.find(t => t.name === name)!.id;
+    eq(`${label}: ${name} hangt nog onder ${parent ?? 'de wortel'}`, parentName(id), parent);
+  }
+  eq(`${label}: geen undo-stap`, undoDepth(), depth);
+  eq(`${label}: document niet gewijzigd`, S().isDirty, false);
+  eq(`${label}: planning niet verouderd`, S().scheduleStale, false);
+  eq(`${label}: melding noemt de kring`, cycleNotes(), [{ key: 'notifications.hierarchyCycle', params: { cycle } }]);
+  eq(`${label}: geen "telt niet mee"-melding over een verhanging die niet doorging`, hierarchyNotes(), []);
+  S().runCPM();
+  eq(`${label}: F5 blijft rekenen`, S().cpmResult?.error, undefined);
+}
+{
+  // Inspringen: Alt+Shift+→, de lintknop en het contextmenu komen allemaal in `indentTasks`.
+  let ids = s4();
+  let depth = undoDepth();
+  S().indentTasks([ids.Fundering]);
+  expectRefused('7.1 inspringen', depth, 'Fundering → Keuring → Fundering', { Fundering: null });
+
+  // Rij slepen (ook de balk-naar-rij-sleep in de Gantt): één taak via `moveTaskTo`.
+  ids = s4();
+  depth = undoDepth();
+  S().moveTaskTo(ids.Fundering, { parentId: ids.Grondwerk, childIndex: 0 });
+  expectRefused('7.2 rij slepen', depth, 'Fundering → Keuring → Fundering', { Fundering: null });
+
+  // Selectie slepen: `moveTasksTo`.
+  ids = s4();
+  depth = undoDepth();
+  S().moveTasksTo([ids.Fundering], { parentId: ids.Grondwerk, childIndex: 0 });
+  expectRefused('7.3 selectie slepen', depth, 'Fundering → Keuring → Fundering', { Fundering: null });
+
+  // "Bovenliggende taak" in Taak bewerken (en MCP move_task): `moveTask`.
+  ids = s4();
+  depth = undoDepth();
+  S().moveTask(ids.Fundering, ids.Grondwerk);
+  expectRefused('7.4 ouder kiezen', depth, 'Fundering → Keuring → Fundering', { Fundering: null });
+
+  // Tegenproef: dezelfde verhanging zonder de relatie C→B maakt geen kring en gaat gewoon door.
+  ids = s4();
+  S().removeSequence(S().sequences.find(q => q.predecessorId === ids.Keuring)!.id);
+  S().indentTasks([ids.Fundering]);
+  eq('7.5 zonder kring gaat inspringen gewoon door', parentName(ids.Fundering), 'Grondwerk');
+  eq('7.6 zonder melding over een kring', cycleNotes(), []);
+}
+
+// ── 8. Meerdere taken tegelijk: de hele handeling wordt geweigerd, niet de helft ──────────────
+// Volgorde Grondwerk, Fundering, Steiger, Dak, Keuring. Inspringen van {Fundering, Dak}: Dak onder
+// Steiger is onschuldig, Fundering onder Grondwerk maakt de S4-kring. Half inspringen zou de
+// structuur onverwacht anders achterlaten dan de gebruiker vroeg: dus niets.
+{
+  let ids = s4(['Steiger', 'Dak']);
+  let depth = undoDepth();
+  S().indentTasks([ids.Fundering, ids.Dak]);
+  expectRefused('8.1 inspringen van twee taken', depth, 'Fundering → Keuring → Fundering', { Fundering: null, Dak: null });
+  S().indentTasks([ids.Dak]);
+  eq('8.2 tegenproef: Dak alleen inspringen gaat door', parentName(ids.Dak), 'Steiger');
+
+  ids = s4(['Steiger', 'Dak']);
+  depth = undoDepth();
+  S().moveTasksTo([ids.Dak, ids.Fundering], { parentId: ids.Grondwerk, childIndex: 0 });
+  expectRefused('8.3 blok slepen', depth, 'Fundering → Keuring → Fundering', { Fundering: null, Dak: null });
+}
+
+// ── 9. Uitspringen kan óók een kring maken (gemeten) ─────────────────────────────────────────
+// Een relatie tussen een taak en haar eigen fase telt niet mee (ingesprongen, of geïmporteerd). Spring
+// je die taak weer uit, dan telt de relatie weer: Kozijnen → Casco geldt dan voor Metselwerk in Casco,
+// en met Metselwerk → Kozijnen erbij is dat een kring.
+{
+  fresh();
+  const casco = S().addTask({ name: 'Casco' });
+  const kozijnen = S().addTask({ name: 'Kozijnen' });
+  S().addSequence({ predecessorId: kozijnen, successorId: casco, type: 'FINISH_START', lagDays: 0 });
+  S().indentTasks([kozijnen]); // Kozijnen → Casco telt vanaf nu niet meer mee (melding, #207)
+  const metselwerk = S().addTask({ name: 'Metselwerk', parentId: casco });
+  ok('9.0 opzet: Metselwerk → Kozijnen binnen dezelfde fase mag', S().addSequence({
+    predecessorId: metselwerk, successorId: kozijnen, type: 'FINISH_START', lagDays: 0,
+  }) !== null);
+  S().runCPM();
+  eq('9.0 opzet: rekent', S().cpmResult?.error, undefined);
+  useAppStore.setState(state => { state.ui.notifications = []; state.isDirty = false; });
+  const depth = undoDepth();
+  S().outdentTasks([kozijnen]);
+  expectRefused('9.1 uitspringen', depth, 'Kozijnen → Metselwerk → Kozijnen', { Kozijnen: 'Casco' });
+}
+
+// ── 10. Een kring die er al was (bv. geïmporteerd) houdt een onschuldige verhanging niet tegen ──
+{
+  fresh();
+  const x = S().addTask({ name: 'X' });
+  const y = S().addTask({ name: 'Y' });
+  const fase = S().addTask({ name: 'Fase' });
+  const taak = S().addTask({ name: 'Taak' });
+  useAppStore.setState(state => {
+    state.sequences.push(
+      { id: 'imp-xy', predecessorId: x, successorId: y, type: 'FINISH_START', lagDays: 0 },
+      { id: 'imp-yx', predecessorId: y, successorId: x, type: 'FINISH_START', lagDays: 0 },
+    );
+    state.ui.notifications = [];
+  });
+  S().indentTasks([taak]);
+  eq('10.1 inspringen los van de bestaande kring gaat door', parentName(taak), 'Fase');
+  eq('10.2 zonder kringmelding', cycleNotes(), []);
+  ok('10.3 (fase bestaat)', fase.length > 0);
 }
 
 // Sanity: de rasterroute is dezelfde als de publieke `runGridMutation`-export.
