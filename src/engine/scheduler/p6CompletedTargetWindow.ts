@@ -104,7 +104,7 @@ function mayUseSuspendResumeCompletedWindow(
  * de projectstatusdatum valt (`target_end_date <= actualFinish <= dataDate`), de backward-actual-
  * preserve-vlag aan staat, de resume niet ná de actual-finish valt en het interne stop/resume-paar
  * geldig is. Actieve, halve, omgekeerde of stale suspend/resume-vormen houden dus expliciet de
- * bestaande `hasSuspendResume`-reden. Nulduurmijlpalen blijven buiten dit eerste causaliteitspakket.
+ * `hasSuspendResume`-reden. Nulduurmijlpalen vallen buiten deze route.
  *
  * Guardvolgorde is bewust vast en fail-closed: de eerste afwijzing is de ENIGE reden die we
  * rapporteren. Zo blijft de diagnose stabiel en deelt de boolean-wrapper exact dezelfde bron.
@@ -114,7 +114,7 @@ export function explainP6CompletedDataDateWindow(
   dataDate: Date | null,
   schedulingOptions: SchedulingOptions | undefined,
 ): P6CompletedWindowDecision {
-  // Rekenprofielen: de aanroeper geeft de opgeloste set (`solveOptionsFor(project)`); geen vertaling meer.
+  // De aanroeper geeft de opgeloste set (`solveOptionsFor(project)`).
   return explainP6CompletedDataDateWindowResolved(task, dataDate, schedulingOptions);
 }
 
@@ -125,7 +125,7 @@ export function explainP6CompletedDataDateWindowResolved(
   schedulingOptions: SchedulingOptions | undefined,
 ): P6CompletedWindowDecision {
   if (dataDate === null) return { eligible: false, reason: 'missingDataDate' };
-  // Conventie B3 `p6CompletedDataDateWindow` — staat exact op de plek van de vroegere bron-check.
+  // Conventie B3 `p6CompletedDataDateWindow`.
   if (schedulingOptions?.p6CompletedDataDateWindow !== true) {
     return { eligible: false, reason: 'conventionOff' };
   }
@@ -135,13 +135,12 @@ export function explainP6CompletedDataDateWindowResolved(
   const fields = p6CompletedGateFields(task);
   const provenance = provenanceRejection(task, fields);
   if (provenance !== null) return { eligible: false, reason: provenance };
-  // CP_Phys is hier UITSLUITEND een diagnosetak, geen beslisroute (Fable-critreview PR #109
-  // bevinding 5): een `CP_Phys`-taak wordt NOOIT `eligible` — ze eindigt altijd op een afwijzing
+  // CP_Phys is hier UITSLUITEND een diagnosetak, geen beslisroute: een `CP_Phys`-taak wordt NOOIT `eligible` — ze eindigt altijd op een afwijzing
   // (onderaan `wrongCompletePctType`, of eerder `notCompleted`/`wrongActivityType`/…). De
   // tussenliggende uitzonderingen bestaan alleen zodat de GERAPPORTEERDE reden de eerste echte
   // blokkade is in plaats van altijd `wrongCompletePctType`; die redenen zijn gepind in
-  // `tests/planning/check-xer-completed-cp-phys-window.ts`. Een CP_Phys-route openen is een
-  // eigenaarsbesluit met eigen meting, geen kwestie van de laatste `return` weghalen. Het
+  // `tests/planning/check-xer-completed-cp-phys-window.ts`. Een CP_Phys-route openen vraagt een
+  // eigen meting, niet het weghalen van de laatste `return`. Het
   // CP_Phys-punt op de statusdatum (conventie C5) is een aparte tak, `explainP6CompletedPhysicalPoint`
   // hieronder — geen verbreding van dit venster.
   const isPhysicalCompletion = fields.completePctType === 'CP_Phys';

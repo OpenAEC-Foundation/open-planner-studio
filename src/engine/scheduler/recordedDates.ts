@@ -9,7 +9,7 @@ import { parseInstant } from '@/utils/dateUtils';
 import { projectDurationOf } from './projectDuration';
 
 /**
- * "Datums zoals opgeslagen" (issue #63) — de pure laag.
+ * "Datums zoals opgeslagen" — de pure laag.
  *
  * Een via P6 → IFC geïmporteerde planning draagt datums maar vaak geen sluitende logica. Openen
  * herberekent onvoorwaardelijk (dat blijft zo — die solve ís de detectie), waarna de bron onzichtbaar
@@ -21,7 +21,7 @@ import { projectDurationOf } from './projectDuration';
  * is de enige betrouwbare bron voor "dit stond er echt". Dat geldt niet alleen voor de zeven
  * REKENSLOTS (early-, late-, float- en isCritical-slots) maar ook voor de twee INVOERSLOTS ScheduleStart/
  * ScheduleFinish: een taak zonder IfcTaskTime, of met `$` op ScheduleStart, mag NOOIT als "vandaag
- * opgeslagen" verschijnen (kwaliteitsreview MOET 1) — zie de laagkeuze in `captureRecordedDates`.
+ * opgeslagen" verschijnen — zie de laagkeuze in `captureRecordedDates`.
  */
 
 /** Wat het bestand per taak vastlegde. Alles behalve start/finish is optioneel: ontbreekt het in het
@@ -41,7 +41,7 @@ export interface RecordedTime {
   summaryProgress?: SummaryProgress;
 }
 
-// Drift-anker (kwaliteitsreview MOET 3): elk CPM-veld in `TaskTimeComputed` moet ook hier een plek
+// Drift-anker: elk CPM-veld in `TaskTimeComputed` moet ook hier een plek
 // hebben, op precies twee bewuste uitzonderingen na — `earlyStart`/`earlyFinish` heten hier `start`/
 // `finish` (de laagkeuze in `captureRecordedDates` kan ze immers ook uit `schedule*` vullen, dus de
 // neutrale naam). Een NIEUW CPM-veld dat noch hier noch in die uitzonderingslijst landt geeft een
@@ -53,16 +53,9 @@ type _RecordedTimeOngedekt = Exclude<keyof TaskTimeComputed, keyof RecordedTime 
 const _assertRecordedTimeCompleet: _Expect<_IsNever<_RecordedTimeOngedekt>> = true;
 void _assertRecordedTimeCompleet;
 
-/** Vastlegging voor een set taken: per taak-id wat het bestand zei, plus de noemer voor de melding.
- *  BEWUST GEEN `shifted`-veld hier (kwaliteitsreview MOET 5): dat is een NÁ-de-solve-vergelijking
- *  (`countShiftedTasks`) en zou hier alleen als een placeholder-nul kunnen staan — precies de
- *  "0 taken verschoven"-leugen die een consument die het veld zonder na te denken uitleest, gelooft.
- *  Wil een aanroeper capture + shifted-telling samen bewaren, dan bouwt hij zelf
- *  `{ ...captureRecordedDates(...), shifted: countShiftedTasks(...) }` — de twee bronwaarden bestaan
- *  dan pas ECHT allebei. */
 /**
  * Eén vastlegging uit losse, elk OPTIONELE assen — de gedeelde bouwsteen voor de lezers van
- * P6 XML, MSPDI, `.mpp` en CSV (eigenaarsbesluit 2026-09-09: elk formaat vergelijkt "wat er is").
+ * P6 XML, MSPDI, `.mpp` en CSV (elk formaat vergelijkt "wat er is").
  * Zonder start én einde is er geen uitspraak (`undefined`, nooit een terugval); een ontbrekende
  * andere as blijft weg uit het object ("niet vastgelegd"), nooit `0` of een gekopieerde datum —
  * dezelfde regel als `readXerRecordedTimes` (`xerRecordedTimes.ts`).
@@ -89,12 +82,12 @@ export function buildRecordedTime(input: {
 }
 
 /**
- * Alleen BLADTAKEN houden hun vastlegging (critreview PR #167, bevinding 6). MS Project schrijft
+ * Alleen BLADTAKEN houden hun vastlegging. MS Project schrijft
  * EarlyStart ook op samenvattingen; zo'n eigen record liet "N taken" per formaat iets anders tellen
  * dan bij XER (P6 heeft geen TASK-rij per WBS) en telde een verschoven kind vaak dubbel via de ouder.
  * Een samenvatting zonder record rolt in de modus op uit haar vastgelegde kinderen
  * (`applyRecordedTimesToTasks`). Bewust in de MSPDI-/`.mpp`-lezer aangeroepen en NIET in
- * `captureRecordedDates`: de #63-IFC-route (R1) houdt samenvattingen met eigen vastlegging.
+ * `captureRecordedDates`: de IFC-route houdt samenvattingen met eigen vastlegging.
  */
 export function leafRecordedTimes(
   tasks: readonly Pick<Task, 'id' | 'childIds'>[],
@@ -114,6 +107,10 @@ export function recordedFloatDays(minutes: number | null | undefined, minutesPer
   return Math.round(minutes) / minutesPerDay;
 }
 
+/** Vastlegging voor een set taken: per taak-id wat het bestand zei, plus de noemer voor de melding.
+ *  BEWUST GEEN `shifted`-veld: dat is een NÁ-de-solve-vergelijking (`countShiftedTasks`) en zou hier
+ *  alleen als een placeholder-nul kunnen staan — een "0 taken verschoven"-leugen. Zie
+ *  `RecordedDatesState`. */
 export interface RecordedDates {
   /** Per taak-id wat het bestand vastlegde. */
   times: Record<string, RecordedTime>;
@@ -123,30 +120,28 @@ export interface RecordedDates {
 
 /** Wat de store bewaart: de vastlegging plus de ná de solve gemeten verschuiving. Bewust alleen een
  *  TYPE — `captureRecordedDates` levert `shifted` niet, want die waarde bestaat op dat moment nog
- *  niet (zie de docstring van `RecordedDates` hierboven). De aanroeper (`fileSlice.applyLoadedProject`,
- *  taak 4) bouwt zelf `{ ...captureRecordedDates(...), shifted: countShiftedTasks(...) }` —
+ *  niet (zie de docstring van `RecordedDates` hierboven). De aanroeper (`fileSlice.applyLoadedProject`)
+ *  bouwt zelf `{ ...captureRecordedDates(...), shifted: countShiftedTasks(...) }` —
  *  `documentContract.ts` draagt alleen het type in `DOCUMENT_FIELDS`, niet de samenstelling ervan. */
 export interface RecordedDatesState extends RecordedDates {
   /** Aantal taken waarvan de herberekening de datums verschoof — de teller in de melding.
-   *  OPTIONEEL (her-check laag 3, bevinding 4): een SLAPEND hersteld document staat in de modus
+   *  OPTIONEEL: een SLAPEND hersteld document staat in de modus
    *  zonder ooit gesolved te zijn (`applyRestoredRecordedMode`, `documentActivation.ts`), dus daar
    *  bestáát de teller niet. Afwezig ⇒ de strook valt terug op zijn tellerloze tekst; alles wat aan
    *  "in de modus" hangt (export-poort, "niet vastgelegd"-kolommen, badge) blijft wél gewoon werken,
    *  want dat hangt aan `times`, niet aan deze teller. Een verzonnen `shifted: 0` blijft verboden. */
   shifted?: number;
-  /** Bronformaat van de vastlegging (spiegelt `ImportResult.recordedTimesOrigin`, XER-etappe laag
-   *  3, taak T4/T5) — bewust GEEN import van dat type hier: de engine-laag kent geen formaten,
+  /** Bronformaat van de vastlegging (spiegelt `ImportResult.recordedTimesOrigin`) — bewust GEEN import van dat type hier: de engine-laag kent geen formaten,
    *  alleen deze twee letterlijke waarden. Stuurt uitsluitend WOORDKEUZE in de strook
    *  (`RecordedDatesNotice.tsx` noemt "Primavera" alleen wanneer dit gezet is); de modus-
    *  beslissing zelf ligt al vast in `datesAsRecorded` tegen de tijd dat dit veld gelezen wordt.
-   *  `undefined` ⇒ de bestaande, formaatneutrale #63-route (IFC/CSV/MSPDI/MPP/P6XML zonder
-   *  bron-orakel). */
+   *  `undefined` ⇒ de formaatneutrale route (IFC/CSV/MSPDI/MPP/P6XML zonder bron-orakel). */
   origin?: 'xer' | 'xer-archive' | 'p6xml' | 'mspdi' | 'mpp' | 'csv' | 'ifc' | 'ifc-own';
-  /** Eigenaarsbesluit 2026-09-24 ("beperken"): de OORSPRONKELIJKE bron die echte rekenuitvoer
+  /** De OORSPRONKELIJKE bron die echte rekenuitvoer
    *  droeg — ook na een heropening van het eigen IFC (dan komt hij uit `OPS_ImportProvenance`).
    *  Reist bij opslaan mee als `SourceFormat`, zodat een eigen IFC dat van een MSPDI-import stamt de
    *  modus kan heropenen en een eigen IFC zonder bron niet. `'ifc'` = een vreemd IFC met echte
-   *  early-slots (de #63-route). */
+   *  early-slots. */
   sourceFormat?: 'xer' | 'p6xml' | 'mspdi' | 'mpp' | 'ifc';
 }
 
@@ -154,10 +149,9 @@ export interface RecordedDatesState extends RecordedDates {
  * Leg vast wat het bestand zei. ROEP DIT AAN VÓÓR `runCPM`: de store deelt de taak-objecten met het
  * parse-resultaat, dus na de solve zijn de oorspronkelijke waarden overschreven.
  *
- * DE LAAGKEUZE — DRIE LAGEN, IN DEZE VOLGORDE (XER-etappeplan laag 3, §3.3, bovenop kwaliteitsreview
- * MOET 1 + MOET 4):
+ * DE LAAGKEUZE — DRIE LAGEN, IN DEZE VOLGORDE:
  *  0. **Bron-orakel** (`recordedTimes`, derde parameter): heeft de AANROEPER al een kant-en-klare
- *     `Record<taskId, RecordedTime>` (XER's bak 4 — `ImportResult.recordedTimes`, uitsluitend
+ *     `Record<taskId, RecordedTime>` (`ImportResult.recordedTimes`, uitsluitend
  *     gevuld door `readXER`), dan is DÁT het antwoord — ongefilterd op de laagkeuze hieronder, wél
  *     gefilterd op taken die daadwerkelijk in `tasks` zitten (zelfde regel als de andere twee lagen:
  *     een vastgelegde id die niet meer bestaat telt niet mee). `recordedFields` wordt in dat geval
@@ -167,7 +161,7 @@ export interface RecordedDatesState extends RecordedDates {
  *     `earlyFinish`) van `recordedFields` aanwezig ⇒ "berekend, maar het bestand droeg het
  *     resultaat".
  *  2. **Schedule-laag**: geen van beide bovenstaande, en beide schedule-slots (`scheduleStart` ÉN
- *     `scheduleFinish`) aanwezig ⇒ "zoals opgeslagen" in de zin van issue #63 — een P6-export die
+ *     `scheduleFinish`) aanwezig ⇒ "zoals opgeslagen" — een P6-export die
  *     alleen ScheduleStart/ScheduleFinish vult.
  *  Geen van de drie van toepassing ⇒ GEEN uitspraak over deze taak; hij wordt overgeslagen (landt
  *  niet in `times`, telt niet mee in `total`). Dit is (voor lagen 1/2) het pad dat een IFCTASK zonder
@@ -187,8 +181,8 @@ export interface RecordedDatesState extends RecordedDates {
  *
  * `recordedFields` komt uit `ImportResult.recordedFields` (`src/services/ifc/ifcTaskSlots.ts`,
  * `RECORDED_SLOT_KEYS` + `RECORDED_INPUT_SLOT_KEYS`) — de engine mag niet uit de services-laag
- * importeren, dus dit neemt bewust het structurele unietype via `@/types/task` (MOET 2:
- * `keyof TaskTimeComputed | keyof TaskTimeInput` i.p.v. een ongecontroleerd `string`), zodat een
+ * importeren, dus dit neemt bewust het structurele unietype via `@/types/task`
+ * (`keyof TaskTimeComputed | keyof TaskTimeInput` i.p.v. een ongecontroleerd `string`), zodat een
  * hernoemd CPM-veld hier een compile-fout geeft in plaats van een `has.has(...)` die stil nooit meer
  * waar wordt. `recordedTimes` komt overeenkomstig uit `ImportResult.recordedTimes` — ook hier geen
  * services-import, `RecordedTime` is al een engine-eigen type (hierboven in dit bestand).
@@ -197,8 +191,8 @@ export function captureRecordedDates(
   tasks: Task[],
   recordedFields: Record<string, readonly (keyof TaskTimeComputed | keyof TaskTimeInput)[]> | undefined,
   recordedTimes?: Record<string, RecordedTime>,
-  /** Eigenaarsbesluit 2026-09-24 ("beperken"): `false` ⇒ laag 2 (alleen ScheduleStart/-Finish) telt
-   *  niet als vastlegging — dat is invoer, geen rekenuitvoer. Standaard `true` (de pure #63-laag). */
+  /** `false` ⇒ laag 2 (alleen ScheduleStart/-Finish) telt niet als vastlegging — dat is invoer, geen
+   *  rekenuitvoer. Standaard `true`. */
   opts: { scheduleLayer?: boolean } = {},
 ): RecordedDates {
   if (recordedTimes) {
@@ -232,7 +226,7 @@ export function captureRecordedDates(
       start = t.scheduleStart;
       finish = t.scheduleFinish;
     } else {
-      continue; // geen van beide lagen compleet ⇒ geen uitspraak (MOET 1) — niet in times, niet in total
+      continue; // geen van beide lagen compleet ⇒ geen uitspraak — niet in times, niet in total
     }
 
     times[task.id] = {
@@ -261,7 +255,7 @@ export function captureRecordedDates(
 /** Hoeveel taken kregen door de solve andere datums dan het bestand vastlegde? Roep dit aan NÁ
  *  `runCPM`, met dezelfde `times` die vóór de solve is vastgelegd (`captureRecordedDates(...).times`
  *  — symmetrisch met `cpmResultFromRecorded` hieronder, die dezelfde `Record<string, RecordedTime>`
- *  neemt, geen bredere wrapper: KLEIN-8, kwaliteitsreview). */
+ *  neemt, geen bredere wrapper). */
 export function countShiftedTasks(tasks: Task[], times: Record<string, RecordedTime>): number {
   let n = 0;
   for (const task of tasks) {
@@ -275,8 +269,8 @@ export function countShiftedTasks(tasks: Task[], times: Record<string, RecordedT
 /**
  * Bouw een `CPMResult` uit de vastlegging, zonder te solven.
  *
- * Neemt `times` — dezelfde vorm als `countShiftedTasks`, niet de bredere `RecordedDates`-wrapper
- * (KLEIN-8, kwaliteitsreview): die suggereerde ten onrechte dat `total` de reconstructie zou kunnen
+ * Neemt `times` — dezelfde vorm als `countShiftedTasks`, niet de bredere `RecordedDates`-wrapper:
+ * die suggereert ten onrechte dat `total` de reconstructie zou kunnen
  * beïnvloeden. Een aanroeper geeft dus `captureRecordedDates(...).times` door.
  *
  * Gevuld: per-taak-resultaten, projecteinde, projectduur, gemiste deadlines, en — alléén wanneer het
@@ -292,10 +286,9 @@ export function countShiftedTasks(tasks: Task[], times: Record<string, RecordedT
  *
  * `projectDuration` deelt `projectDurationOf` (`projectDuration.ts`) met de solver-post-pass
  * (`scheduleAnalysis.ts`) — inclusief de mijlpaal-alleen-uitzondering (een project dat op één dag
- * valt zonder échte werk-taken krijgt duur 0). Vóór deze extractie week de reconstructie hier
- * stilzwijgend af (eerder gedocumenteerd als "afwijking 1"); die afwijking bestaat nu niet meer.
+ * valt zonder échte werk-taken krijgt duur 0).
  *
- * RANDGEVAL VAN DIE UITZONDERING (hercontrole kwaliteitsreview, bewust NIET afgedekt): "échte werk-
+ * RANDGEVAL VAN DIE UITZONDERING (bewust NIET afgedekt): "échte werk-
  * taak" wordt door `projectDurationOf` bepaald via `!t.isMilestone && t.time.scheduleDuration > 0`,
  * gelezen van het LEVENDE `Task`-object (`recorded`, dus de `tasks`-parameter van deze functie) — NIET
  * uit de vastlegging (`RecordedTime`). Deze module registreert bewust GEEN aanwezigheid voor
@@ -308,10 +301,9 @@ export function countShiftedTasks(tasks: Task[], times: Record<string, RecordedT
  * `scheduleDuration` altijd, want die IS de rekeninvoer). Lage impact (vereist: uur-precisie
  * projectgrootte van exact één dag, én een bewust weggelaten ScheduleDuration in een verder geldig
  * bestand) en hier bewust niet gedicht — dichten vraagt een derde presence-registratie
- * (`scheduleDuration`) die deze module tot nu toe niet nodig had.
+ * (`scheduleDuration`) die deze module niet heeft.
  *
- * ÉÉN OVERGEBLEVEN, SCHERP AFGEBAKENDE AFWIJKING van `scheduleAnalysis.ts` (GRAAG-7,
- * kwaliteitsreview): `missedDeadlineTaskIds` vergelijkt hier met simpele stringvergelijking
+ * ÉÉN SCHERP AFGEBAKENDE AFWIJKING van `scheduleAnalysis.ts`: `missedDeadlineTaskIds` vergelijkt hier met simpele stringvergelijking
  * (`rec.finish > task.deadline`); de solver rekent i.p.v. daarvan met instants en met
  * `cal.prevWorkDay(deadline)`, over de KALENDER VAN DIE TAAK (`calendarFor(task)`). Met ÉÉN kalender
  * (de enige die deze functie kent — haar `calendar`-parameter) lopen de twee BEWIJSBAAR NOOIT uiteen:
@@ -324,7 +316,7 @@ export function countShiftedTasks(tasks: Task[], times: Record<string, RecordedT
  * `rec.finish` exact op `'…T00:00'` van de deadline-dag — de stringvergelijking hier meldt "gemist",
  * de solver niet (middernacht hoort bij de vorige werkdag, `prevWorkDay`-semantiek).
  *
- * KLEIN-9 (kwaliteitsreview): `projectStart`/`projectEnd` worden hieronder met stringvergelijking
+ * `projectStart`/`projectEnd` worden hieronder met stringvergelijking
  * (`<`/`>`) bepaald. Bij GEMENGDE dag/uur-formaten binnen dezelfde taakset (bv. `'2026-03-09T17:00'`
  * naast `'2026-03-09'`) wint de datetime-string lexicografisch ook wanneer de dag-taak semantisch
  * later eindigt. `projectDuration` blijft correct (die rekent met `parseInstant`, niet met de ruwe
@@ -366,7 +358,7 @@ export function cpmResultFromRecorded(
     if (rec.finish > projectEnd) projectEnd = rec.finish;
   }
 
-  // Her-check laag 3, R1: samenvattingen ZONDER eigen vastlegging waaronder wél vastgelegde taken
+  // Samenvattingen ZONDER eigen vastlegging waaronder wél vastgelegde taken
   // hangen, zijn zojuist door `applyRecordedTimesToTasks` opgerold uit die kinderen; hun `task.time`
   // is dus de afgeleide van de vastlegging. Neem ze mee in het resultaat, anders spreken de twee
   // oppervlakken (Gantt/taakraster op `task.time`, rapporten/`projectEnd` op `cpmResult`) elkaar
@@ -400,9 +392,8 @@ export function cpmResultFromRecorded(
   // tijdzone. `new Date(...)` leest zo'n string per ES2015 als LOKALE tijd, terwijl de hele engine
   // hem als UTC leest (zie `parseInstant`-docstring in dateUtils.ts) — bij een positieve offset (bv.
   // Pacific/Auckland, UTC+12/13) verschuift de dag-index en telt `workDaysBetween` een werkdag te
-  // weinig of te veel (bewezen: 4 i.p.v. 5 onder TZ=Pacific/Auckland vóór deze fix — kwaliteitsreview
-  // MOET 1 op deze functie in een eerdere ronde). `parseInstant` deelt de UTC-aanname met de rest van
-  // de engine (date-only blijft byte-identiek: die tak delegeert intern gewoon aan `parseDate`).
+  // weinig of te veel (4 i.p.v. 5 onder TZ=Pacific/Auckland). `parseInstant` deelt de UTC-aanname met
+  // de rest van de engine (date-only delegeert intern gewoon aan `parseDate`).
   let projectDuration = 0;
   if (projectStart && projectEnd) {
     // CalendarEngine neemt precies één kalender (zie zijn constructor) — de projectkalender.
@@ -431,18 +422,18 @@ export function cpmResultFromRecorded(
 /**
  * Schrijf de vastlegging in de taken en lever het gereconstrueerde `CPMResult` — ÉÉN implementatie
  * voor `showRecordedDates` (`scheduleSlice.ts`) en de standaard-aan-route bij het laden
- * (`fileSlice.applyLoadedProject`, taak T4). Muteert `tasks` IN-PLACE (een Immer-draft óf een
+ * (`fileSlice.applyLoadedProject`). Muteert `tasks` IN-PLACE (een Immer-draft óf een
  * payload-kloon — de aanroeper bepaalt welke) en geeft daarna hetzelfde `CPMResult` terug als
  * `cpmResultFromRecorded(times, tasks, calendar)` op diezelfde, nu-bijgewerkte taken zou geven.
  *
- * DE TERUGVALLEN BINNEN DEZE KERN ZIJN BEWUST ONGEWIJZIGD (plan §3.4): `TaskTime.lateStart` is een
+ * DE TERUGVALLEN BINNEN DEZE KERN ZIJN BEWUST: `TaskTime.lateStart` is een
  * verplichte `string`, `totalFloat`/`freeFloat` verplichte `number`s (`TaskTimeComputed`,
  * `src/types/task.ts`) — optioneel maken heeft een blast radius over renderer, taakraster, rapport,
  * MCP en export, dus deze functie raakt dat type NIET aan. In plaats daarvan blijven de bestaande
  * `?? rec.start`/`?? rec.finish`/`?? 0`/`?? false`-terugvallen hier als VELDWAARDE staan; "niet
  * vastgelegd" leeft uitsluitend in `times[id].lateStart === undefined` enz. (al bestaande,
- * gepersisteerde documentstate) en wordt pas in de UI als weergave afgedwongen (taak T6) — dit is
- * een bewust compromis, zie plan §5/§6.
+ * gepersisteerde documentstate) en wordt pas in de UI als weergave afgedwongen — een bewust
+ * compromis.
  *
  * Wist daarnaast per geraakte taak `interferingFloat`/`isNearCritical`/`floatPath`: die drie
  * analyse-afgeleiden komen uit de zojuist weggegooide solve en zouden een planning beschrijven die
@@ -467,13 +458,13 @@ export function applyRecordedTimesToTasks(
     task.time.isCritical = rec.isCritical ?? false;
     // Een verzameltaak toont in de modus ook haar opgeslagen voortgang: de solve bij het laden
     // leidde die af uit de bladen (`applyCpmResult`), net zoals hij haar datums oprolde.
-    // Dezelfde schrijver als de rollup (#214): voortgang, status én werkelijke datums samen.
+    // Dezelfde schrijver als de rollup: voortgang, status én werkelijke datums samen.
     if (rec.summaryProgress) writeSummaryProgress(task, rec.summaryProgress);
     task.time.interferingFloat = undefined;
     task.time.isNearCritical = undefined;
     task.time.floatPath = undefined;
   }
-  // Her-check laag 3, bevinding 3: samenvattingen (XER-WBS-rijen, IFC-fasen) hebben nooit een eigen
+  // Samenvattingen (XER-WBS-rijen, IFC-fasen) hebben nooit een eigen
   // vastlegging — P6 schrijft de zes kolommen alleen in TASK — en hielden dus de datums van de solve
   // die deze modus net verwierp. Dezelfde rollup als ná een echte solve (`applyCpmResult`), zodat
   // een fasebalk in de Gantt de vastgelegde kinderen omspant en niet een weggegooide berekening.
@@ -481,10 +472,9 @@ export function applyRecordedTimesToTasks(
   // samenvatting heeft geen "niet vastgelegd"-markering per as (geen eigen `times[id]`), dus haar
   // late zijde/speling zijn afgeleid van wat de kinderen op het scherm tonen. De drie analyse-
   // afgeleiden worden ook op de samenvattingen gewist, om dezelfde reden als op de bladtaken.
-  // Her-check R1: een samenvatting MET eigen vastlegging (de #63-IFC-route) blijft staan zoals het
-  // bestand haar gaf — de rollup slaat haar over; alleen samenvattingen zónder vastlegging rollen op.
-  // Issue #145 (main): ook hier rekent de auto-verzameltaak haar duur uit de opgerolde span, in de
-  // projectkalender — dezelfde rollup als ná een echte solve, dus dezelfde afleiding.
+  // Een samenvatting MET eigen vastlegging (de IFC-route) blijft staan zoals het bestand haar gaf —
+  // de rollup slaat haar over; alleen samenvattingen zónder vastlegging rollen op. Ook hier rekent de
+  // auto-verzameltaak haar duur uit de opgerolde span, in de projectkalender.
   rollupSummaryTasks(tasks, { skip: task => times[task.id] !== undefined, projectCalendar: calendar });
   for (const task of tasks) {
     if (isLeafTask(task) || times[task.id]) continue;

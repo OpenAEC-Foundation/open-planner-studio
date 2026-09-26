@@ -93,7 +93,7 @@ export interface RelationTree {
  * De kring die `after` ten opzichte van `before` TOEVOEGT, getoetst zoals de solver rekent: beide
  * over de bladgraaf na `expandSummaryRelations`. Een relatie op een fase geldt voor elke taak in die
  * fase, dus niet alleen een nieuwe relatie maar ook een andere BOOM kan een kring maken — hang een
- * taak onder een fase en haar relaties gelden voortaan ook voor die taak (audit taakmutaties, S4);
+ * taak onder een fase en haar relaties gelden voortaan ook voor die taak;
  * spring een taak uit haar fase en een relatie tussen die twee, die zolang niet meetelde, telt weer.
  * Gedeeld door de verhangregel (`hierarchyChangeVerdict`: zelfde relaties, andere boom) en de
  * MCP-voorafcontrole (`validate.noCycle`: zelfde boom, andere relaties).

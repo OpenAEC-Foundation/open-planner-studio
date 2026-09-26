@@ -1,5 +1,5 @@
-// splitEdit.ts — het ENE bewerkmodel voor gebruikerssplits (issue #146). Gantt, eigenschappenpaneel
-// en MCP rekenen nooit zelf op `afterMinutes`/`gapMinutes`: de H1-as (elk gat telt mee in de
+// splitEdit.ts — het ENE bewerkmodel voor gebruikerssplits. Gantt, eigenschappenpaneel
+// en MCP rekenen nooit zelf op `afterMinutes`/`gapMinutes`: de cumulatieve as (elk gat telt mee in de
 // aspositie van het volgende, zie `splitWalk.ts`) wordt hier één keer vertaald naar STUKKEN — een
 // afwisselende lijst werk/pauze/werk in werkminuten — en weer terug. Puur: geen store, geen kalender.
 //
@@ -109,7 +109,7 @@ export function splitAt(pieces: readonly SplitPiece[], workOffsetMinutes: number
 }
 
 /**
- * Half-open werkafstand tussen twee momenten, op de H1-as (waar een pauze gewoon werktijd
+ * Half-open werkafstand tussen twee momenten, op de cumulatieve as (waar een pauze gewoon werktijd
  * VERBRUIKT — deze functie kent de stukken niet). Half-open = de einddag telt zelf niet mee, zodat
  * "van maandag tot woensdag" twee werkdagen is: dezelfde telling als `addWorkingDaysSigned`, en
  * daarmee als `splitWalk`. `workDaysBetween` is inclusief, dus de einddag gaat er weer af wanneer
@@ -127,9 +127,9 @@ export function workAxisMinutesBetween(from: Date, to: Date, eng: CalendarEngine
 }
 
 /**
- * Datum → positie op de WERK-as van de taak (etappe 2, het splitsgebaar). De Gantt kent alleen een
+ * Datum → positie op de WERK-as van de taak (voor het splitsgebaar). De Gantt kent alleen een
  * gesnapte datum onder de muis; `splitAt` wil een werkminuten-offset zonder de pauzes. Deze functie
- * is de brug: eerst de as-afstand vanaf de taakstart (de H1-as, waar een pauze wél meetelt), dan die
+ * is de brug: eerst de as-afstand vanaf de taakstart (de cumulatieve as, waar een pauze wél meetelt), dan die
  * afstand door de stukken lopen en alleen het WERK optellen.
  *
  * De as-afstand is HALF-OPEN — de dag waarop je klikt hoort bij het stuk dát je afsplitst, niet bij
@@ -190,7 +190,7 @@ export function removeAllGaps(pieces: readonly SplitPiece[]): SplitPiece[] {
   return [{ kind: 'work', minutes: totalWork(pieces) }];
 }
 
-/** Adoptieregel (spec §2): na een gebruikersbewerking zijn nivelleergaten van de gebruiker. */
+/** Adoptieregel: na een gebruikersbewerking zijn nivelleergaten van de gebruiker. */
 export function adoptLevelingGaps(pieces: readonly SplitPiece[]): SplitPiece[] {
   return pieces.map(p => (p.kind === 'gap' && p.source === 'leveling' ? { ...p, source: 'user' as const } : p));
 }
@@ -231,7 +231,7 @@ export function completedWorkMinutes(task: Task, hoursPerDay: number): number {
 
 /**
  * De VOORLOPIGE `scheduleFinish` na een splitbewerking: taakstart ⊕ de volledige spanne (werk én
- * pauzes), gerekend met dezelfde `splitTotalSpan*`-wandeling als de solver. Spec §2 stap 7 — de
+ * pauzes), gerekend met dezelfde `splitTotalSpan*`-wandeling als de solver. De
  * balk moet meteen meegroeien; de échte datums komen bij de eerstvolgende `runCPM`, net als bij
  * elke andere duurwijziging.
  *
@@ -241,10 +241,10 @@ export function completedWorkMinutes(task: Task, hoursPerDay: number): number {
  * (`addDurationChecked`s `dayLastBandEnd`); dat wordt hier gespiegeld via `effectiveBandsOn`, zodat
  * de voorlopige waarde niet een halve dag van de echte afwijkt.
  *
- * `startStr` (issue #171): standaard het anker `scheduleStart` — het invoerpaar scheduleStart/
- * scheduleFinish blijft zo consistent. Voor het BALKeinde (`earlyFinish`) geeft de store de start
- * mee waar de balk staat (`earlyStart || scheduleStart`): een door een voorganger opgeschoven taak
- * houdt haar anker op de projectstart, en dan sprong het balkeinde na een split daarnaartoe terug.
+ * `startStr`: standaard het anker `scheduleStart` — het invoerpaar scheduleStart/scheduleFinish
+ * blijft zo consistent. Voor het BALKeinde (`earlyFinish`) geeft de store de start mee waar de balk
+ * staat (`earlyStart || scheduleStart`): een door een voorganger opgeschoven taak houdt haar anker
+ * op de projectstart, en anders springt het balkeinde na een split daarnaartoe terug.
  */
 export function splitScheduleFinish(task: Task, eng: CalendarEngine, startStr = task.time.scheduleStart): string {
   const hasTime = task.time.scheduleStart.includes('T');

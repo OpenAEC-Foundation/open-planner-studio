@@ -10,10 +10,7 @@ import { formatDate } from '@/utils/dateUtils';
  *
  * GEDEELD door de solver-post-pass (`computeScheduleResults` in `scheduleAnalysis.ts`, de vaste-
  * datums-afleiding ná een echte solve) en de "datums zoals opgeslagen"-reconstructie
- * (`cpmResultFromRecorded` in `recordedDates.ts`, GEEN solve). Vóór deze extractie dupliceerde
- * `recordedDates.ts` alleen de werkdagen-telling en liet de mijlpaal-uitzondering bewust weg —
- * gedocumenteerd als semantische afwijking. Nu delen beide callsites exact dezelfde regel, dus die
- * afwijking bestaat niet meer (was: kwaliteitsreview GRAAG-6, taak 2 van issue #63).
+ * (`cpmResultFromRecorded` in `recordedDates.ts`, GEEN solve), zodat beide exact dezelfde regel volgen.
  *
  * `projStart === null` ⇒ geen enkele taak leverde een datum (leeg schema) ⇒ duur 0, geen meting.
  */
