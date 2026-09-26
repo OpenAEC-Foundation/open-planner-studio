@@ -27,6 +27,9 @@ import { snapshotOfPayload, type Snapshot } from '../snapshot';
 import { capturePayload, hydratePayload, type DocumentPayload } from '../documentContract';
 import { materializeLibraryBoundary } from '../documentActivation';
 import { markDocumentEdited } from '@/state/documentEdited';
+import {
+  applyCalendarLibraryChange, mergeCalendarLibrarySettle, notifyCalendarLibrarySettle, NO_CALENDAR_LIBRARY_SETTLE,
+} from '../calendarTasks';
 
 /** Het history-label van een B1c-verdeling. Zelfde soort korte Nederlandse omschrijving als
  *  `gridTransaction.ts` gebruikt; labels zijn interne historie-omschrijvingen, geen UI-tekst. */
@@ -816,6 +819,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
   },
 
   updateProjectCalendarFromLibrary: (calendarId) => {
+    let settled = NO_CALENDAR_LIBRARY_SETTLE;
     set((s) => {
       const idx = s.calendars.findIndex(c => c.id === calendarId);
       const cal = idx >= 0 ? s.calendars[idx] : undefined;
@@ -831,10 +835,14 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       // voor 'up-to-date' (project is al gelijk aan de pool; critreview taak 9).
       if (diffCalendarVsPool(snapCal, pool).status !== 'changed') return;
       runtime.beginUndoable(s);
-      s.calendars[idx] = applyCalendarUpdate(snapCal, pool);
-      syncProjectCalendar(s); // gedenormaliseerde projectkalender-cache in sync (E-2, §9.1).
+      // H6: expliciet gebaar ⇒ de werkregel-settle zit in DEZELFDE undo-stap als de kalender.
+      settled = applyCalendarLibraryChange(s, (d) => {
+        d.calendars[idx] = applyCalendarUpdate(snapCal, pool);
+        syncProjectCalendar(d); // gedenormaliseerde projectkalender-cache in sync (E-2, §9.1).
+      });
       runtime.finishMutation(s, { stale: true }); // kalenderwijziging raakt datums.
     });
+    notifyCalendarLibrarySettle(get().notify, get().activeDocumentId, settled);
     get().recomputeResourceLoad();
   },
 
@@ -892,6 +900,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       s.ui.libraryRefreshNotice = activation.signals.libraryRefreshNotice;
       if (activation.invalidateRedoScope) invalidateDocumentRedo(s, s.activeDocumentId);
     });
+    notifyCalendarLibrarySettle(get().notify, get().activeDocumentId, activation.workRuleSettle);
     persist(get);
   },
 
@@ -933,6 +942,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       s.ui.libraryRefreshNotice = activation.signals.libraryRefreshNotice;
       if (activation.invalidateRedoScope) invalidateDocumentRedo(s, s.activeDocumentId);
     });
+    notifyCalendarLibrarySettle(get().notify, get().activeDocumentId, activation.workRuleSettle);
     persist(get);
     // De actie koppelt het actieve project niet automatisch. Alleen een al in het bestand aanwezige
     // binding met hetzelfde, behouden companyId kan hierdoor meteen zijn open-boundary doorlopen.
@@ -960,11 +970,13 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       s.resourceLoadResult = activation.resourceLoadResult;
       if (activation.invalidateRedoScope) invalidateDocumentRedo(s, s.activeDocumentId);
     });
+    notifyCalendarLibrarySettle(get().notify, get().activeDocumentId, activation.workRuleSettle);
     return changed;
   },
 
   refreshAllDocumentsFromPool: (companyId) => {
     let changed = 0;
+    let activeSettle = NO_CALENDAR_LIBRARY_SETTLE;
     set((s) => {
       if (!s.companies.some((c) => c.id === companyId)) return;
       const draftPool = s.pools[companyId];
@@ -1017,8 +1029,16 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
         // identiteitschurn bij nul treffers).
         invalidateDocumentRedo(s, s.activeDocumentId);
         if (docChanged > 0) {
-          if (cals.calChanged > 0) s.calendars = cals.items;
           if (ress.resChanged > 0) s.resources = ress.items;
+          if (cals.calChanged > 0) {
+            // H6 (eigenaarsbesluit 2026-09-26, "zelfde regel als de dialoog"): taken met een
+            // werkregel settelen op de nieuwe uren per dag. Net als de verversing zelf buiten undo en
+            // isDirty (spec §3): heropenen zonder opslaan ververst en settelt opnieuw tot hetzelfde.
+            activeSettle = applyCalendarLibraryChange(s, (d) => {
+              d.calendars = cals.items;
+              refreshProjectCalendarCache(d);
+            });
+          }
           refreshProjectCalendarCache(s);
           if (cals.calChanged > 0) markScheduleStale(s); // kalenderwijziging raakt datums (geen isDirty, geen runCPM)
           changed += docChanged;
@@ -1039,21 +1059,30 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
         // bedrijf gebonden is (zie toelichting bij de actieve-documenttak hierboven).
         invalidateDocumentRedo(s, doc.id);
         if (docChanged > 0) {
-          if (cals.calChanged > 0) {
-            payload.calendars = cals.items;
-            // F1 (vloot-fixpakket, issue #19): de gedenormaliseerde projectkalender-cache van deze
-            // SLAPENDE payload meesyncen met de zojuist ververste `calendars` — zonder dit blijft
-            // `payload.calendar` de OUDE (mogelijk stale) waarde dragen terwijl de auto-save die
-            // cache rechtstreeks serialiseert (geen hydrate), wat verkeerde uren in de recovery-IFC
-            // oplevert. Alleen binnen deze tak (calendars daadwerkelijk gewijzigd).
-            refreshProjectCalendarCache(payload);
-          }
           if (ress.resChanged > 0) payload.resources = ress.items;
-          if (cals.calChanged > 0) markScheduleStale(payload); // zichtbaar bij switchDocument/activering
+          if (cals.calChanged > 0) {
+            // H6: dezelfde settle op de EIGEN taken en toewijzingen van dit slapende document (zie de
+            // actieve tak). De melding wacht tot het document weer actief wordt — dan staat ze bij
+            // het document waar ze over gaat (`DocumentEntry.pendingWorkRuleSettle`, `switchDocument`).
+            const settled = applyCalendarLibraryChange(payload, (p) => {
+              p.calendars = cals.items;
+              // F1 (vloot-fixpakket, issue #19): de gedenormaliseerde projectkalender-cache van deze
+              // SLAPENDE payload meesyncen met de zojuist ververste `calendars` — zonder dit blijft
+              // `payload.calendar` de OUDE (mogelijk stale) waarde dragen terwijl de auto-save die
+              // cache rechtstreeks serialiseert (geen hydrate), wat verkeerde uren in de recovery-IFC
+              // oplevert. Alleen binnen deze tak (calendars daadwerkelijk gewijzigd).
+              refreshProjectCalendarCache(p);
+            });
+            if (settled.changed + settled.lost > 0) {
+              doc.pendingWorkRuleSettle = mergeCalendarLibrarySettle(doc.pendingWorkRuleSettle ?? NO_CALENDAR_LIBRARY_SETTLE, settled);
+            }
+            markScheduleStale(payload); // zichtbaar bij switchDocument/activering
+          }
           changed += docChanged;
         }
       }
     });
+    notifyCalendarLibrarySettle(get().notify, get().activeDocumentId, activeSettle);
     if (changed > 0) {
       get().recomputeResourceLoad();
       get().recomputeViewRows();
@@ -1104,6 +1133,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
   },
 
   linkRecognizedItems: (links) => {
+    let settled = NO_CALENDAR_LIBRARY_SETTLE;
     set((s) => {
       const companyId = s.project.companyId;
       if (!companyId) return;
@@ -1124,25 +1154,34 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       let calendarLinked = false;
       // Plan-eis 5: alles in één set() — atomisch, geen half-gestempelde tussentoestand.
       for (const link of links) {
-        if (link.kind === 'resource') {
-          if (!pool.resources.some((r) => r.id === link.poolId)) continue; // GO-NA-fix 3: verdwenen kandidaat ⇒ stille skip
-          const idx = s.resources.findIndex((r) => r.id === link.projectId);
-          if (idx < 0) continue;
-          const stamped = { ...current(s.resources[idx]), libraryOrigin: makeOrigin(pool, link.poolId) };
-          s.resources[idx] = applyResourceUpdate(stamped, pool); // stempelt + ververst + zet syncedHash
-        } else {
-          if (!pool.calendars.some((c) => c.id === link.poolId)) continue; // GO-NA-fix 3: verdwenen kandidaat ⇒ stille skip
-          const idx = s.calendars.findIndex((c) => c.id === link.projectId);
-          if (idx < 0) continue;
-          const stamped = { ...current(s.calendars[idx]), libraryOrigin: makeOrigin(pool, link.poolId) };
-          s.calendars[idx] = applyCalendarUpdate(stamped, pool);
-          calendarLinked = true;
-        }
+        if (link.kind !== 'resource') continue;
+        if (!pool.resources.some((r) => r.id === link.poolId)) continue; // GO-NA-fix 3: verdwenen kandidaat ⇒ stille skip
+        const idx = s.resources.findIndex((r) => r.id === link.projectId);
+        if (idx < 0) continue;
+        const stamped = { ...current(s.resources[idx]), libraryOrigin: makeOrigin(pool, link.poolId) };
+        s.resources[idx] = applyResourceUpdate(stamped, pool); // stempelt + ververst + zet syncedHash
+      }
+      const calendarLinks = links.filter((link) => link.kind === 'calendar'
+        && pool.calendars.some((c) => c.id === link.poolId)); // GO-NA-fix 3: verdwenen kandidaat ⇒ stille skip
+      if (calendarLinks.length > 0) {
+        // H6: koppelen neemt de bibliotheekwaarden over ⇒ taken met een werkregel settelen, in
+        // DEZELFDE undo-stap als het koppelen (expliciet gebaar).
+        settled = applyCalendarLibraryChange(s, (d) => {
+          for (const link of calendarLinks) {
+            const idx = d.calendars.findIndex((c) => c.id === link.projectId);
+            if (idx < 0) continue;
+            const stamped = { ...current(d.calendars[idx]), libraryOrigin: makeOrigin(pool, link.poolId) };
+            d.calendars[idx] = applyCalendarUpdate(stamped, pool);
+            calendarLinked = true;
+          }
+          refreshProjectCalendarCache(d);
+        });
       }
       refreshProjectCalendarCache(s);
       // GO-NA-fix 2: een gelinkte kalender raakt datums ⇒ scheduleStale (patroon updateProjectCalendarFromLibrary).
       runtime.finishMutation(s, { stale: calendarLinked });
     });
+    notifyCalendarLibrarySettle(get().notify, get().activeDocumentId, settled);
     get().recomputeResourceLoad();
     get().recomputeViewRows();
   },
@@ -1168,6 +1207,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
     if (!companyId) return;
     if (choice === 'company') {
       // Neem poolwaarde over: gerichte niet-undoable verversing van dit ene item.
+      let settled = NO_CALENDAR_LIBRARY_SETTLE;
       set((s) => {
         const draftPool = s.pools[companyId];
         if (!draftPool) return;
@@ -1179,13 +1219,17 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
         } else {
           const idx = s.calendars.findIndex((c) => c.id === ref.projectId);
           if (idx < 0 || diffCalendarVsPool(current(s.calendars[idx]), pool).status !== 'changed') return;
-          s.calendars[idx] = applyCalendarUpdate(current(s.calendars[idx]), pool);
-          refreshProjectCalendarCache(s);
+          // H6: de werkregel-settle hoort bij de verversing en is dus net zo niet-undoable (spec §3).
+          settled = applyCalendarLibraryChange(s, (d) => {
+            d.calendars[idx] = applyCalendarUpdate(current(d.calendars[idx]), pool);
+            refreshProjectCalendarCache(d);
+          });
           // Review-fix (spec §3): kalenderwaarden gewijzigd ⇒ scheduleStale (geen isDirty, geen runCPM).
           markScheduleStale(s);
         }
         invalidateDocumentRedo(s, s.activeDocumentId);
       });
+      notifyCalendarLibrarySettle(get().notify, get().activeDocumentId, settled);
       get().recomputeResourceLoad();
       get().recomputeViewRows();
       return;

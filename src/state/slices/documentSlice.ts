@@ -37,6 +37,9 @@ import {
 import { sameIFCSource, type IFCSaveSource } from '../ifcSaveInput';
 import { withXerArchiveIssueNotice } from '../xerArchiveIssueNotice';
 import { scheduleFailedNotice } from '../scheduleErrorNotice';
+import {
+  mergeCalendarLibrarySettle, notifyCalendarLibrarySettle, NO_CALENDAR_LIBRARY_SETTLE, type CalendarLibrarySettle,
+} from '../calendarTasks';
 
 // Het documentcontract (payload-vorm + capture/hydrate/fresh) woont nu in `../documentContract`
 // (audit P10). Hier blijft alleen de multi-document back-end (registry, switchen, sluiten,
@@ -61,6 +64,11 @@ export interface DocumentEntry {
   id: string;
   /** null wanneer dit het actieve document is — zijn data leeft dan op top-level. */
   payload: DocumentPayload | null;
+  /** H6: een bibliotheekverversing heeft in dit SLAPENDE document taken via hun werkregel aangepast
+   *  (`refreshAllDocumentsFromPool`). De melding ("N taken aangepast", zoals de kalenderdialoog)
+   *  volgt bij activering, bij het document waar ze over gaat. Sessie-UI, geen documentdata: hoort
+   *  daarom niet in de payload/het documentcontract en verdwijnt met het document. */
+  pendingWorkRuleSettle?: CalendarLibrarySettle;
 }
 
 /**
@@ -96,6 +104,22 @@ function publishActivation(s: AppState, activation: DocumentActivationMaterializ
   s.resourceLoadResult = activation.resourceLoadResult;
   s.ui.showLibraryLinkDialog = activation.signals.showLibraryLinkDialog;
   s.ui.libraryRefreshNotice = activation.signals.libraryRefreshNotice;
+}
+
+/**
+ * H6: meld na de publicatie wat de werkregel deed — de settle van deze activatiegrens
+ * (`materializeBehindOnlyRefresh`) plus wat een bibliotheekverversing eerder in dit document deed terwijl
+ * het sliep (`DocumentEntry.pendingWorkRuleSettle`). Eén melding per document, een taak één keer
+ * geteld; dezelfde melding als de kalenderdialoog.
+ */
+function announceWorkRuleSettle(
+  notify: AppState['notify'],
+  documentId: string,
+  entry: Pick<DocumentEntry, 'pendingWorkRuleSettle'> | null,
+  activation: DocumentActivationMaterialization,
+): void {
+  const pending = entry?.pendingWorkRuleSettle ?? NO_CALENDAR_LIBRARY_SETTLE;
+  notifyCalendarLibrarySettle(notify, documentId, mergeCalendarLibrarySettle(pending, activation.workRuleSettle));
 }
 
 /** Lichtgewicht weergave voor consumenten (bv. een toekomstige FileTabBar). */
@@ -423,6 +447,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       resetDocumentScopedUI(s);
       publishActivation(s, activation);
     });
+    announceWorkRuleSettle(get().notify, newId, null, activation);
     // Issue #173: de overlays zijn app-breed; in het andere document kan een layout van dit document
     // daardoor zijn gevallen. Ruim die nu op, niet pas bij de volgende klik.
     get().settleLayoutSession();
@@ -451,12 +476,16 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       const cur = s.documents.find((d) => d.id === s.activeDocumentId);
       if (cur) cur.payload = castDraft(outgoing);
       const inc = s.documents.find((d) => d.id === id);
-      if (inc) inc.payload = null;
+      if (inc) {
+        inc.payload = null;
+        delete inc.pendingWorkRuleSettle;
+      }
       s.activeDocumentId = id;
       resetDocumentScopedUI(s);
       if (activation.invalidateRedoScope) invalidateDocumentRedo(s, id);
       publishActivation(s, activation);
     });
+    announceWorkRuleSettle(get().notify, id, target, activation);
     runtime.emitHostEvent(HOST_EVENTS.projectLoaded, {
       tasks: incoming.tasks.length,
       sequences: incoming.sequences.length,
@@ -506,12 +535,16 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       removeSessionHistoryForDocumentFromState(s, id);
       s.documents = s.documents.filter((d) => d.id !== id);
       const n = s.documents.find((d) => d.id === neighbor.id);
-      if (n) n.payload = null;
+      if (n) {
+        n.payload = null;
+        delete n.pendingWorkRuleSettle;
+      }
       s.activeDocumentId = neighbor.id;
       resetDocumentScopedUI(s);
       if (activation.invalidateRedoScope) invalidateDocumentRedo(s, neighbor.id);
       publishActivation(s, activation);
     });
+    announceWorkRuleSettle(get().notify, neighbor.id, neighbor, activation);
     runtime.emitHostEvent(HOST_EVENTS.projectLoaded, {
       tasks: incoming.tasks.length,
       sequences: incoming.sequences.length,
@@ -675,6 +708,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       if (activation2.invalidateRedoScope) invalidateDocumentRedo(s, activeDoc.id);
       publishActivation(s, activation2);
     });
+    announceWorkRuleSettle(get().notify, activeDoc.id, null, activation2);
     // De solve gebeurde al op de geïsoleerde actieve payload. Herstel nu alleen dezelfde zichtbare
     // foutmelding en extension-eventsemantiek als een gewone runCPM, ná de atomaire publicatie.
     const cpm = activePayload.cpmResult;
