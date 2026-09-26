@@ -27,7 +27,10 @@ jobs:
   gate:
     # Bevinding O6. De `deploy`-job hieronder krijgt er bewust géén: op een job
     # met `uses:` (reusable workflow) is `timeout-minutes` niet toegestaan.
-    timeout-minutes: 20
+    # 45 zoals de verify-jobs in ci.yml (#229): de volledige verify in één job haalt de 20 min
+    # op de GitHub-runner niet meer — de gates van #233, #235, #237 en #238 werden na 20 min
+    # afgebroken, de deploy sloeg over en de site bleef op #226 staan.
+    timeout-minutes: 45
     permissions:
       contents: read
     runs-on: ubuntu-latest
