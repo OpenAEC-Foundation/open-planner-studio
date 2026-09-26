@@ -300,6 +300,41 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   }
 }
 
+// ── Statusdatum MÉT tijd (uur-modus, `Project.statusDate`) round-trippt door IFC ─────────────────
+// Bijvondst: de writer zette `2026-07-06T10:00` als `IFCDATE('2026-07-06T10:00')` in
+// OPS_ProjectSettings en de reader kapte de waarde af op tien tekens. Na opslaan + openen stond de
+// statusdatum dus op middernacht en verschoof het einde van een lopende urentaak (resterende duur
+// telt vanaf de statusdatum): hier EF 13:00 ⇒ 11:00. Een datum zonder tijd blijft byte-identiek
+// `IFCDATE(...)` en date-only; een bestand van vóór de fix (tijd ín `IFCDATE`) krijgt zijn tijd terug.
+{
+  const projS: Project = { ...project, statusDate: '2026-07-06T10:00' };
+  const running = mk('t-run', 'Lopend', '1', '2026-07-06T08:00', '2026-07-06T14:00', 360);
+  running.status = 'STARTED';
+  running.time = { ...running.time, actualStart: '2026-07-06T08:00', completion: 0.5, remainingMinutes: 180 };
+  const efAfterSolve = (tk: Task[], cal: WorkCalendar, statusDate: string | undefined): string | undefined => {
+    solveProject(opsSolveInput({ tasks: tk, sequences: [], calendar: cal, calendars: [], dataDate: statusDate, projectStartDate: projS.startDate }));
+    return tk.find(t => t.name === 'Lopend')?.time.earlyFinish;
+  };
+  const efBefore = efAfterSolve([structuredClone(running)], H8, projS.statusDate);
+  eq('statusdatum-tijd: voorwaarde EF vóór opslaan', efBefore, '2026-07-06T13:00');
+
+  const ifc = writeIFC({ project: projS, calendar: H8, tasks: [running], sequences: [], resources: [], assignments: [] });
+  assert(ifc.includes("IFCPROPERTYSINGLEVALUE('StatusDate',$,IFCDATETIME('2026-07-06T10:00:00'),$)"),
+    `statusdatum-tijd: geschreven als IFCDATETIME, kreeg ${ifc.split('\n').find(l => l.includes("'StatusDate'"))}`);
+  const back = readIFC(ifc);
+  eq('statusdatum-tijd: komt mét tijd terug', back.project.statusDate, '2026-07-06T10:00');
+  eq('statusdatum-tijd: EF lopende urentaak na opslaan + openen', efAfterSolve(back.tasks, back.calendar, back.project.statusDate), efBefore);
+
+  // Bestand van vóór deze fix: de tijd stond al in het bestand, alleen onder het type IFCDATE.
+  const legacy = ifc.replace("IFCDATETIME('2026-07-06T10:00:00')", "IFCDATE('2026-07-06T10:00')");
+  eq('statusdatum-tijd: oud bestand (tijd in IFCDATE) houdt zijn tijd', readIFC(legacy).project.statusDate, '2026-07-06T10:00');
+
+  // Datum zonder tijd: ongewijzigd (byte-identiek geschreven, date-only terug).
+  const ifcDay = writeIFC({ project: { ...project, statusDate: '2026-07-06' }, calendar: H8, tasks: [running], sequences: [], resources: [], assignments: [] });
+  assert(ifcDay.includes("IFCPROPERTYSINGLEVALUE('StatusDate',$,IFCDATE('2026-07-06'),$)"), 'statusdatum zonder tijd: blijft IFCDATE');
+  eq('statusdatum zonder tijd: blijft date-only', readIFC(ifcDay).project.statusDate, '2026-07-06');
+}
+
 // ── Dag-bestand-discriminator (geen uur-lek + identieke leaf-schedule) ──────
 {
   const src = readFileSync(join(HERE, '..', '..', 'examples', '03-kantoorgebouw-zuidas.ifc'), 'utf8');

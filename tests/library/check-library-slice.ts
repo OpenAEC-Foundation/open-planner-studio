@@ -5,13 +5,14 @@ import { createAppStore, useAppStore } from '@/state/appStore';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { normalizeLoadedLibrary, persistLibrary } from '@/state/slices/librarySlice';
-import { computeCalendarHash, computeResourceHash, isResourceFieldLocked } from '@/services/library/libraryOps';
+import { computeCalendarHash, computeResourceHash, diffCalendarVsPool, isResourceFieldLocked } from '@/services/library/libraryOps';
 import { PoolImportDialog } from '@/components/dialogs/PoolImportDialog';
 import { DEFAULT_COMPANY_ID, createDefaultLibrary } from '@/types/library';
 import { DEMO_COMPANY_ID } from '@/services/library/demoLibrary';
 import { createSnapshot } from '@/state/snapshot';
 import { capturePayload, hydratePayload } from '@/state/documentContract';
 import { materializeLibraryBoundary } from '@/state/documentActivation';
+import { readIFC } from '@/services/ifc/ifcReader';
 
 let checks = 0; let fails = 0;
 function assert(cond: boolean, msg: string): void {
@@ -2038,6 +2039,32 @@ function commitOpenBoundaryForTest(): { refreshed: number; deviated: number; rem
   assert(afterBoundary.historyEvents.filter(event => event.state === 'applied').length === undoBefore, 'F3: geen undo-stap (grens 1 is niet-undoable, ongewijzigd gedrag)');
   assert(afterBoundary.isDirty === isDirtyBefore, 'F3: isDirty blijft ongewijzigd (niet-undoable verversing zet geen isDirty)');
   assert(afterBoundary.historyEvents.filter(event => event.state === 'undone').length === 0, 'F3: de redoStack is gewist door de stille verversing');
+}
+
+// --- Kalender met LEGE omschrijving: na opslaan + openen nog steeds leeg en "in sync" ---------------
+// Bijvondst: de writer schrijft een lege omschrijving als STEP-null `$` (`ifcStr('')`), en de reader
+// viel dan terug op de standaardtekst van `createDefaultCalendar()` ("Standaard bouwkalender: …",
+// afhankelijk van de lokale Bouwmodus-instelling). Een bibliotheekkopie met lege omschrijving stond
+// na heropenen daardoor onterecht op "wijkt af". Project-, taak- en resource-omschrijving lezen `$`
+// al als '' — de kalender nu ook.
+{
+  const iso = createAppStore();
+  const S = () => iso.getState();
+  S().setProject({ startDate: '2026-06-01' });
+  const cid = S().addCompany('Leeg BV');
+  const poolCalId = S().addPoolCalendar(cid, { name: 'Bouw', description: '', workDays: [1, 2, 3, 4, 5], workStartHour: 7, workEndHour: 16, hoursPerDay: 8, holidays: [] })!;
+  S().bindProjectToCompany(cid);
+  const calId = S().addLibraryCalendarToProject(cid, poolCalId).calendarId!;
+  S().setCalendar({ ...S().calendar, description: '' });
+  assert(S().onOpenStatusForCalendar(calId) === 'in-sync', 'lege kalenderomschrijving: voorwaarde — kopie is in sync vóór opslaan');
+  const parsed = readIFC(writeIFC(buildWriteIFCInput(S())));
+  assert(parsed.calendar.description === '', `lege omschrijving projectkalender blijft leeg na round-trip, kreeg ${JSON.stringify(parsed.calendar.description)}`);
+  S().newDocument();
+  S().applyLoadedProject(parsed, { filePath: 'leeg.ifc', linkedOpen: true });
+  const copy = S().calendars.find(c => c.libraryOrigin?.libraryItemId === poolCalId);
+  assert(copy?.description === '', `lege omschrijving bibliotheekkopie blijft leeg na heropenen, kreeg ${JSON.stringify(copy?.description)}`);
+  assert(!!copy && S().onOpenStatusForCalendar(copy.id) === 'in-sync', `bibliotheekkopie met lege omschrijving is na heropenen in sync, kreeg ${copy ? S().onOpenStatusForCalendar(copy.id) : 'geen kopie'}`);
+  assert(!!copy && diffCalendarVsPool(copy, S().pools[cid]).status === 'up-to-date', 'bibliotheekkopie met lege omschrijving: diff up-to-date na heropenen');
 }
 
 console.log(`library-slice: ${checks - fails}/${checks} groen`);

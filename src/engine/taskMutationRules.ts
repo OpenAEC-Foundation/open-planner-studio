@@ -1,6 +1,7 @@
 import type { CustomFieldValue } from '@/types/structure';
 import type { Task, TaskTime } from '@/types/task';
 import { parseDate, parseInstant } from '@/utils/dateUtils';
+import { orderActualsAfterDerivedFinish } from '@/engine/actualDatesOrder';
 
 /**
  * Vergelijkt een actual met de statusdatum op dezelfde precisie als de bestaande taaksetters.
@@ -115,6 +116,8 @@ export function applyProgressInvariants(task: Task, statusDate: string | undefin
   } else if (time.completion >= 1) {
     time.actualFinish = defaultActualFinish(time, statusDate);
     if (!time.actualStart) time.actualStart = time.actualFinish;
+    // Afgeleid einde vóór een (vaak zelf afgeleide) start: zelfde regel als de lezers.
+    orderActualsAfterDerivedFinish(time, statusDate);
     task.status = 'COMPLETED';
   } else if (time.actualStart) {
     task.status = 'STARTED';

@@ -13,6 +13,7 @@ import { resourceDisplayColor, nextFreePaletteColor } from '@/engine/renderer/re
 import { useLiveGridNav } from './hooks/useLiveGridNav';
 import { controlKindOf, liveGridNavDirection } from '@/utils/gridNavigation';
 import { StatusBanner } from './StatusBanner';
+import { CommitColorInput } from '@/components/common/CommitInput';
 
 const RESOURCE_TYPES: ResourceType[] = ['LABOR', 'EQUIPMENT', 'MATERIAL', 'SUBCONTRACTOR', 'CREW'];
 
@@ -813,13 +814,12 @@ function ResourceRow({
         <td className="px-1 py-1">
           {/* #21: kleurkolom — toont de EFFECTIEVE kleur (eigen keuze of hash-fallback), zodat de
               cel nooit "leeg" oogt terwijl balken wél gekleurd zijn. Bewust zonder geërfd-gating:
-              kleur is geen bibliotheekafspraak (RESOURCE_DIFF_FIELDS) en mag overal gekozen worden. */}
-          <input
-            type="color"
-            aria-label={t('resource.color')}
-            title={t('resource.color')}
+              kleur is geen bibliotheekafspraak (RESOURCE_DIFF_FIELDS) en mag overal gekozen worden.
+              Commit pas bij het kiezen (native `change`), niet per sleepstap: zie `CommitColorInput`. */}
+          <CommitColorInput
+            label={t('resource.color')}
             value={resourceDisplayColor(resource)}
-            onChange={e => onPatch({ color: e.target.value })}
+            onCommit={color => onPatch({ color })}
             className="block h-6 w-8 cursor-pointer rounded border border-border bg-transparent p-0"
           />
         </td>

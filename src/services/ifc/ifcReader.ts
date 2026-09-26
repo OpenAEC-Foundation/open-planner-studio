@@ -973,6 +973,15 @@ function parseDateFromIFC(s: string): string {
   return clean.substring(0, 10);
 }
 
+/** `OPS_ProjectSettings.StatusDate` → `project.statusDate`. Zonder tijd ⇒ `YYYY-MM-DD`; mét tijd ⇒
+ *  de store-vorm van een uur-instant (`YYYY-MM-DDTHH:mm`, zoals de uur-slots in `applyHourModeIFC`). */
+function statusDateFromIFC(v: string): string {
+  const day = v.substring(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)) return day;
+  const instant = parseInstant(v);
+  return Number.isNaN(instant.getTime()) ? day : formatInstant(instant, 'hour');
+}
+
 function parseDurationDays(s: string, hoursPerDay: number): number {
   if (!s || s === '$') return 0;
   const clean = stripQuotes(s);
@@ -1805,8 +1814,10 @@ function extractStructure(
           // Taaktypes-etappe (spec §4.1): onbekende waarde ⇒ stil weg (byte-identiek default).
           if (typeof v === 'string' && (WORK_RULES as readonly string[]).includes(v)) project.defaultWorkRule = v as WorkRule;
         } else if (name === 'StatusDate') {
-          // Fase 2.6 (§8.2): P6 data date → project.statusDate.
-          if (typeof v === 'string' && v) project.statusDate = v.substring(0, 10);
+          // Fase 2.6 (§8.2): P6 data date → project.statusDate. Een tijd-van-de-dag (uur-modus) blijft
+          // behouden: IFCDATETIME, én bestanden van vóór die writer-keuze die de tijd in IFCDATE zetten
+          // (spiegel van writeStructure). Datum zonder tijd ⇒ `YYYY-MM-DD`, zoals altijd.
+          if (typeof v === 'string' && v) project.statusDate = statusDateFromIFC(v);
         } else if (name === 'ProgressMode') {
           // Fase 2.6 (§8.2): alleen PROGRESS_OVERRIDE wordt geschreven; RETAINED_LOGIC is de default.
           if (v === 'PROGRESS_OVERRIDE' || v === 'RETAINED_LOGIC') project.progressMode = v;
@@ -2304,7 +2315,11 @@ function buildCalendarFromEntity(
   // STEP-null (`$`), en `stripQuotes('$')` geeft het letterlijke tweetekentje `'$'` terug (het start/
   // eindigt niet met een quote, dus de functie laat de string ongewijzigd) i.p.v. '' — dezelfde
   // `$`-conventie die elders al via `ifcSlotText` wordt toegepast (bv. project-omschrijving).
-  calendar.description = ifcSlotText(cal.args[3]) || calendar.description;
+  // Bewust GEEN terugval op de omschrijving van `createDefaultCalendar()`: `$` is een lege
+  // omschrijving (zoals bij project, taak en resource), geen "onbekend". Die terugval maakte van een
+  // bewust lege omschrijving na heropenen de standaardtekst van déze machine (Bouwmodus-afhankelijk),
+  // zodat een bibliotheekkopie onterecht "wijkt af" werd.
+  calendar.description = ifcSlotText(cal.args[3]);
   Object.assign(calendar, extractCalendarSimpleBreak(cal.id, entities, entityMap));
 
   // Werkweek + uren (§8.1). WorkingTimes (args[5]) is een lijst met precies één ref (zo schrijft
