@@ -357,7 +357,8 @@
     "dialogTitle": "Niet-opgeslagen werk herstellen",
     "explanation": "Open Planner Studio is niet normaal afgesloten. De volgende documenten hadden niet-opgeslagen wijzigingen die hersteld kunnen worden:",
     "timeLabel": "Opgeslagen",
-    "taskCount": "{{count}} taken",
+    "taskCount_one": "{{count}} taak",
+    "taskCount_other": "{{count}} taken",
     "restore": "Herstellen",
     "dontRestore": "Niet herstellen"
   },
@@ -660,7 +661,8 @@
     },
     "histogram": {
       "allResources": "Alle resources",
-      "overallocatedTooltip": "{{count}} taken dragen bij op {{date}}",
+      "overallocatedTooltip_one": "{{count}} taak draagt bij op {{date}}",
+      "overallocatedTooltip_other": "{{count}} taken dragen bij op {{date}}",
       "overallocatedNonWorkingDay": "Werkt volgens kalender \"{{calendar}}\" niet op deze dag",
       "noData": "Herbereken (F5) om de belasting te tonen",
       "noResources": "Nog geen resources",
@@ -904,7 +906,11 @@
       "applyOnly": "Toepassen zonder opslaan",
       "infoApplyOnly": "Zet de aangevinkte onderdelen op het scherm zonder er een layoutknop van te maken. Handig voor een snel, tijdelijk filter.",
       "columnsNote": "Neemt de kolommen over zoals ze nu in de tabel staan. Kolommen kies je met het plusje in de tabelkop.",
-      "relationsShow": "Relatielijnen tonen"
+      "relationsShow": "Relatielijnen tonen",
+      "partOverlays": "Overlay",
+      "infoOverlays": "Relatielijnen, basislijn, voortgangslijn, statusdatumlijn, resource-accent, spelingsband en balkkleuren. Niet aangevinkt: die blijven zoals ze staan.",
+      "overlaysNotStored": "Deze layout legt alleen de relatielijnen vast. Zet je hieronder een overlay om, dan legt hij ook alle overlays vast.",
+      "missingColorField": "Categorie: veld bestaat niet in dit project"
     },
     "presentation": {
       "hint": "Druk op Esc of F11 om volledig scherm te verlaten."

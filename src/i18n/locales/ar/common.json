@@ -200,11 +200,11 @@
     "levelingDelayRoundedToWorkdays_many": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لـ {{count}} مهمة إلى أيام عمل كاملة.",
     "levelingDelayRoundedToWorkdays_other": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لـ {{count}} من المهام إلى أيام عمل كاملة.",
     "schedulingProfileApplied": "يُحسب هذا المشروع وفق {{profile}}. غيّر ذلك عبر ملف ← معلومات المشروع ← ملف الحساب وخيارات الحساب.",
-    "schedulingProfileShifted_few": "بعد التطبيق انتقلت {{count}} مهام.",
-    "schedulingProfileShifted_many": "بعد التطبيق انتقلت {{count}} مهمة.",
+    "schedulingProfileShifted_zero": "بعد التطبيق لم تنتقل أي مهمة.",
     "schedulingProfileShifted_one": "بعد التطبيق انتقلت مهمة واحدة.",
     "schedulingProfileShifted_two": "بعد التطبيق انتقلت مهمتان.",
-    "schedulingProfileShifted_zero": "بعد التطبيق لم تنتقل أي مهمة.",
+    "schedulingProfileShifted_few": "بعد التطبيق انتقلت {{count}} مهام.",
+    "schedulingProfileShifted_many": "بعد التطبيق انتقلت {{count}} مهمة.",
     "schedulingProfileShifted_other": "بعد التطبيق انتقلت {{count}} من المهام.",
     "actions": {
       "openProjectInfo": "فتح ملف الحساب"
@@ -461,7 +461,12 @@
     "dialogTitle": "استعادة العمل غير المحفوظ",
     "explanation": "لم يتم إغلاق Open Planner Studio بشكل طبيعي. المستندات التالية بها تغييرات غير محفوظة يمكن استعادتها:",
     "timeLabel": "تم الحفظ",
-    "taskCount": "{{count}} مهمة",
+    "taskCount_zero": "لا توجد مهام",
+    "taskCount_one": "مهمة واحدة",
+    "taskCount_two": "مهمتان",
+    "taskCount_few": "{{count}} مهام",
+    "taskCount_many": "{{count}} مهمة",
+    "taskCount_other": "{{count}} مهمة",
     "restore": "استعادة",
     "dontRestore": "عدم الاستعادة"
   },
@@ -772,7 +777,12 @@
     },
     "histogram": {
       "allResources": "جميع الموارد",
-      "overallocatedTooltip": "{{count}} مهام تساهم في {{date}}",
+      "overallocatedTooltip_zero": "لا توجد مهام تساهم في {{date}}",
+      "overallocatedTooltip_one": "مهمة واحدة تساهم في {{date}}",
+      "overallocatedTooltip_two": "مهمتان تساهمان في {{date}}",
+      "overallocatedTooltip_few": "{{count}} مهام تساهم في {{date}}",
+      "overallocatedTooltip_many": "{{count}} مهمة تساهم في {{date}}",
+      "overallocatedTooltip_other": "{{count}} مهمة تساهم في {{date}}",
       "overallocatedNonWorkingDay": "لا يعمل في هذا اليوم وفق تقويم \"{{calendar}}\"",
       "noData": "أعد الحساب (F5) لإظهار الحمل",
       "noResources": "لا توجد موارد بعد",
@@ -1028,7 +1038,11 @@
       "applyOnly": "تطبيق بدون حفظ",
       "infoApplyOnly": "يطبّق الأجزاء المحددة على الشاشة دون إنشاء زر تخطيط. مفيد لعامل تصفية سريع ومؤقت.",
       "columnsNote": "يعتمد الأعمدة كما هي الآن في الجدول. تُختار الأعمدة بعلامة الزائد في رأس الجدول.",
-      "relationsShow": "إظهار خطوط العلاقات"
+      "relationsShow": "إظهار خطوط العلاقات",
+      "partOverlays": "الطبقات",
+      "infoOverlays": "خطوط العلاقات وخط الأساس وخط التقدم وخط تاريخ الحالة وتمييز المورد وشريط الفائض وألوان الأشرطة. بدون تحديد: تبقى كما هي.",
+      "overlaysNotStored": "يحفظ هذا التخطيط خطوط العلاقات فقط. إذا غيّرت طبقة أدناه، فسيحفظ جميع الطبقات أيضًا.",
+      "missingColorField": "الفئة: الحقل غير موجود في هذا المشروع"
     },
     "presentation": {
       "hint": "اضغط Esc أو F11 للخروج من ملء الشاشة."

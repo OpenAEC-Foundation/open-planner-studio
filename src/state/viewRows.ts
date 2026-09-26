@@ -4,7 +4,7 @@ import {
   type ViewRow,
   type ViewRowOpts,
 } from '@/engine/view/visibleRows';
-import { getNoneLabelValue } from '@/utils/noneLabel';
+import { getNoneLabelValue, getResourceTypeLabelsValue } from '@/utils/noneLabel';
 
 /** Minimale structurele invoer; bewust geen AppState-import, zodat dit een echte bladmodule blijft. */
 export interface ViewRowsState {
@@ -38,6 +38,7 @@ export function viewRowInputs(state: ViewRowsState): { opts: ViewRowOpts; ctx: V
       resources: state.resources,
       assignments: state.assignments,
       noneLabel: getNoneLabelValue(),
+      resourceTypeLabels: getResourceTypeLabelsValue(),
     },
   };
 }

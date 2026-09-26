@@ -240,6 +240,19 @@ eq('Status voltooid routeert via completion/actual-invarianten', completed.ok ? 
   completion: completed.value.task.time.completion,
   actualFinish: completed.value.task.time.actualFinish,
 } : completed, { status: 'COMPLETED', completion: 1, actualFinish: '2026-01-07' });
+// Import/export-audit (vervolg bevinding 6): status "voltooid" op een taak zonder actualStart volgt
+// dezelfde regel als setTaskProgress/de completion-cel — AS = de eigen geplande start, niet AS = AF
+// (anders krimpt de voltooide balk tot zijn laatste dag).
+eq('Status voltooid zonder actualStart ⇒ AS = geplande start (zelfde regel als completion)',
+  completed.ok ? completed.value.task.time.actualStart : completed, '2026-01-05');
+const completedViaCompletion = plan('task.time.completion', 'task-progress', 1);
+eq('Status voltooid en completion 100 % geven dezelfde actuals',
+  completed.ok && completedViaCompletion.ok
+    ? [completed.value.task.time.actualStart, completed.value.task.time.actualFinish]
+    : [completed, completedViaCompletion],
+  completedViaCompletion.ok
+    ? [completedViaCompletion.value.task.time.actualStart, completedViaCompletion.value.task.time.actualFinish]
+    : null);
 
 const primary = plan('task.constraint.type', 'task-constraint', 'SNET');
 eq('Constrainttype krijgt een bruikbare datum', primary.ok ? primary.value.task.constraint : primary,

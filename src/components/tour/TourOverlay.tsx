@@ -277,9 +277,9 @@ export function TourOverlay() {
         }}
       >
         <span className="font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
-          {t(step.titleKey as 'tour.step1Title')}
+          {t(step.titleKey)}
         </span>
-        <p className="text-text-secondary">{t(step.bodyKey as 'tour.step1Body')}</p>
+        <p className="text-text-secondary">{t(step.bodyKey)}</p>
         <div className="flex items-center justify-between gap-2 pt-1">
           <button onClick={finish} className="btn btn--sm">{t('tour.skip')}</button>
           <div className="flex items-center gap-2">

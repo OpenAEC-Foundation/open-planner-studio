@@ -62,9 +62,20 @@ export type SegState = Record<SegKind, string>;
 
 const EMPTY_SEG: SegState = { day: '', month: '', year: '' };
 
-/** Splits een interne ISO-datum in segment-strings (padded). `''`/niet-ISO → alle segmenten leeg. */
-function isoToSegments(iso: string): SegState {
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+/**
+ * Splits een veldwaarde in het datumdeel (`YYYY-MM-DD`) en een eventueel tijddeel (`T07:00`, of
+ * wat er ook na de datum staat). Een taak op een kalender met werktijden draagt datum-met-tijd
+ * (`2027-05-13T07:00`); het veld bewerkt alleen het datumdeel en zet het tijddeel ongewijzigd terug.
+ * Niet-ISO of `''` → `{ date: '', time: '' }`.
+ */
+export function splitDateValue(value: string): { date: string; time: string } {
+  const m = /^(\d{4}-\d{2}-\d{2})(T.*)?$/.exec(value);
+  return m ? { date: m[1], time: m[2] ?? '' } : { date: '', time: '' };
+}
+
+/** Splits een interne ISO-datum(-tijd) in segment-strings (padded). `''`/niet-ISO → alle segmenten leeg. */
+export function isoToSegments(iso: string): SegState {
+  const m = splitDateValue(iso).date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return { ...EMPTY_SEG };
   return { day: m[3], month: m[2], year: m[1] };
 }
@@ -118,19 +129,39 @@ export type DateCommitResolution =
  * toetsaanslagreeks kan naspelen (`tests/planning/check-date-input-commit.ts`).
  */
 export function resolveDateCommit(
-  phase: DateCommitPhase, mode: DateCommitMode, seg: SegState,
+  phase: DateCommitPhase, mode: DateCommitMode, seg: SegState, required = false,
 ): DateCommitResolution {
   const st = computeSeg(seg);
   if (phase === 'typing') {
     if (mode === 'blur') return { kind: 'idle' };
-    if (st.status === 'empty') return { kind: 'write', iso: '' };
+    if (st.status === 'empty') return required ? { kind: 'idle' } : { kind: 'write', iso: '' };
     if (st.status === 'valid') return { kind: 'write', iso: st.iso! };
     return { kind: 'idle' };
   }
-  if (st.status === 'empty') return { kind: 'write', iso: '' };
+  // Verplicht veld (startdatum, beperkingsdatum): leeg afronden is geen geldige waarde — stille
+  // terugval op de laatst gecommitte waarde, net als incomplete invoer (zelfde gedrag als het raster,
+  // dat leeg op zo'n veld met `required` weigert).
+  if (st.status === 'empty') return required ? { kind: 'revert' } : { kind: 'write', iso: '' };
   if (st.status === 'valid') return { kind: 'write', iso: st.iso! };
   if (st.status === 'incomplete') return { kind: 'revert' };
   return { kind: 'error' };
+}
+
+/**
+ * Welke waarde een `write` naar buiten brengt, afgezet tegen de huidige veldwaarde — of `null` als er
+ * niets te committen valt. Pure kern van de datum-met-tijd-regel:
+ *  - Vergeleken wordt met het DATUMDEEL van `value`: wie een veld met `2027-05-13T07:00` onaangeroerd
+ *    verlaat, heeft `2027-05-13` "ingevoerd" en dat is geen wijziging (geen commit, geen undo-stap).
+ *  - Een echte datumwijziging krijgt het oorspronkelijke tijddeel terug (`2027-05-17T07:00`): het veld
+ *    bewerkt de datum, niet het tijdstip.
+ *  - `''` gaat alleen naar buiten als er een datum stond; een onaangeroerd leeg (of onleesbaar) veld
+ *    commit dus nooit `''`.
+ */
+export function dateCommitValue(iso: string, value: string): string | null {
+  const current = splitDateValue(value);
+  if (iso === current.date) return null;
+  if (iso === '') return '';
+  return iso + current.time;
 }
 
 /**
@@ -177,10 +208,22 @@ const SEP_STYLE: React.CSSProperties = {
 };
 
 interface DateTextInputProps {
-  /** Huidige waarde als ISO-datum (`YYYY-MM-DD`) of `''` voor "geen datum". */
+  /**
+   * Huidige waarde als ISO-datum (`YYYY-MM-DD`), datum-met-tijd (`YYYY-MM-DDTHH:mm`, taken op een
+   * kalender met werktijden) of `''` voor "geen datum". Het veld toont en bewerkt het datumdeel.
+   */
   value: string;
-  /** Commit-callback met de genormaliseerde ISO-datum, of `''` bij een leeggemaakt veld. */
+  /**
+   * Commit-callback met de genormaliseerde ISO-datum (met het oorspronkelijke tijddeel terug, zie
+   * {@link dateCommitValue}), of `''` bij een door de gebruiker leeggemaakt veld. Wordt alleen
+   * aangeroepen bij een echte wijziging van de datum.
+   */
   onCommit: (iso: string) => void;
+  /**
+   * Verplicht veld: leeg afronden commit niets en valt terug op de huidige waarde (zie
+   * {@link resolveDateCommit}). Voor de startdatum en beperkingsdatums.
+   */
+  required?: boolean;
   className?: string;
   style?: React.CSSProperties;
   ariaLabel?: string;
@@ -224,7 +267,7 @@ interface DateTextInputProps {
  * VALIDATIE PAS BIJ AFRONDEN — tijdens typen (of bij incomplete/lege segmenten terwijl de focus in
  * de groep staat) is er GEEN foutindicatie. Er wordt alleen gevalideerd bij (a) blur van de HELE
  * groep of (b) Enter:
- *  - Blur, leeg          → commit `''` (geen datum).
+ *  - Blur, leeg          → commit `''` (geen datum); bij `required` stille terugval (geen commit).
  *  - Blur, geldig        → normaliseer segmenten + commit ISO.
  *  - Blur, incompleet    → stille terugval op de laatst geldige waarde (bestaand gedrag).
  *  - Blur, compleet-maar-ongeldig (bv. 31-02-2026) → foutindicatie (`aria-invalid` + `role=alert`);
@@ -250,12 +293,16 @@ interface DateTextInputProps {
  * Alleen bij ONGELDIGE of INCOMPLETE invoer eet het veld de toets op (`preventDefault` +
  * `stopPropagation`) en toont het de foutindicatie; de focus blijft in de groep.
  *
- * TOEKOMST (fase 2.8b — uren-scheduling): er komt tijd-van-de-dag. Deze component blokkeert die
- * uitbreiding niet; de parser is puur en tijd-loos. Bouw die tijd-invoer hier NU niet.
+ * DATUM-MET-TIJD (uren-scheduling): een taak op een kalender met werktijden draagt `2027-05-13T07:00`.
+ * Het veld toont het datumdeel, vergelijkt bij afronden met dat datumdeel (onaangeroerd verlaten ⇒
+ * geen commit) en zet bij een echte datumwijziging het oorspronkelijke tijddeel terug — zie
+ * {@link dateCommitValue}. Tijdinvoer bouwt het veld bewust niet.
+ *
+ * VERPLICHT (`required`): leeg afronden valt stil terug op de huidige waarde, zoals incomplete invoer.
  */
 export function DateTextInput({
   value, onCommit, className = '', style, ariaLabel, title, disabled, placeholder, id,
-  commitMode = 'blur',
+  commitMode = 'blur', required = false,
 }: DateTextInputProps) {
   const { t } = useTranslation('common');
   // Weergave-/segmentvolgorde volgt de instelling (reactief: hertekent bij wijziging).
@@ -316,8 +363,11 @@ export function DateTextInput({
   // de store op de laatst geldige waarde staan. De fase bepaalt (samen met `commitMode`) óf er
   // überhaupt geschreven wordt — zie `resolveDateCommit`.
   const commitFrom = (s: SegState, phase: DateCommitPhase): DateCommitResolution => {
-    const res = resolveDateCommit(phase, commitMode, s);
-    if (res.kind === 'write' && res.iso !== value) onCommit(res.iso);
+    const res = resolveDateCommit(phase, commitMode, s, required);
+    if (res.kind === 'write') {
+      const next = dateCommitValue(res.iso, value);
+      if (next !== null) onCommit(next);
+    }
     return res;
   };
 
@@ -409,7 +459,8 @@ export function DateTextInput({
     const segs = isoToSegments(iso);
     setSeg(segs);
     setShowError(false);
-    if (iso !== value) onCommit(iso);
+    const next = dateCommitValue(iso, value);
+    if (next !== null) onCommit(next);
   };
 
   const handleGroupFocus = () => setGroupFocused(true);

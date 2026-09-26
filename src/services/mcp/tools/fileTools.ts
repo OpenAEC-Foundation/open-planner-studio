@@ -19,8 +19,9 @@
 //     resultaat is altijd zichtbaar (import = een tabblad, export = een gemeld pad).
 //  4. GEEN AI-BACKUP, GEEN TRANSACTIE. Spec regel 130: `import_schedule` triggert zelf géén backup
 //     (de per-document-teller start op het RESULTERENDE document, zodat de eerste echte mutatie
-//     precies de post-import-staat vastlegt) ⇒ `kind: 'other'`, en het laden loopt via het bestaande
-//     `applyLoadedProject`-pad, niet via `runInMcpTransaction`.
+//     precies de post-import-staat vastlegt) ⇒ `kind: 'other'`, en het laden loopt via de gedeelde
+//     open-actie `openAsDocument` (→ `applyLoadedProject`, net als Bestand → Openen), niet via
+//     `runInMcpTransaction`.
 //  5. DRIFT-ANKER. `export_ifc` schrijft de inhoud van het ACTIEVE document weg ⇒ volle drift-check
 //     (het verkeerde document exporteren is stil fout). `import_schedule` verzet het anker naar het
 //     resulterende document (spec regel 111) — zonder dat zou de import zichzelf klemzetten.
@@ -31,7 +32,7 @@
 
 import { isTauri } from '@/utils/platform';
 import { writeIFC } from '@/services/ifc/ifcWriter';
-import { parseOpenedFile, readFormatForFile, readFormatInput, type FormatInput } from '@/services/formatRegistry';
+import { detectXmlFlavor, parseOpenedFile, readFormatInput, type FormatInput } from '@/services/formatRegistry';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { extensionOf } from '@/utils/filePath';
 import type { OpenedImport } from '@/services/importTypes';
@@ -151,7 +152,8 @@ export function checkScope(home: string, input: string): ScopeCheck {
 
 // --- Formaatherkenning ---------------------------------------------------------------------------
 
-/** Leesbaar formaatlabel op basis van de extensie (de XML-variant wordt op inhoud gesnifft).
+/** Leesbaar formaatlabel op basis van de extensie (de XML-variant volgt het root-element via
+ *  `detectXmlFlavor` — dezelfde beslissing als de lezerkeuze in `formatRegistry`, nooit vrije tekst).
  *  `MPP14` (T8): de enige binaire indeling die dit pad kent — `.mpp` (MS Project 2010-2021,
  *  alleen-lezen native lezer, zie `src/services/mpp/`). */
 function formatOf(path: string, content: string): 'IFC' | 'CSV' | 'P6-XML' | 'MSPDI-XML' | 'MPP14' | 'XER' {
@@ -159,9 +161,7 @@ function formatOf(path: string, content: string): 'IFC' | 'CSV' | 'P6-XML' | 'MS
   if (ext === 'csv') return 'CSV';
   if (ext === 'mpp') return 'MPP14';
   if (ext === 'xer') return 'XER';
-  if (ext === 'xml') {
-    return content.includes('APIBusinessObjects') || content.includes('Primavera') ? 'P6-XML' : 'MSPDI-XML';
-  }
+  if (ext === 'xml') return detectXmlFlavor(content) === 'p6' ? 'P6-XML' : 'MSPDI-XML';
   return 'IFC';
 }
 
@@ -342,12 +342,11 @@ export const fileTools: McpToolDef[] = [
       } catch (e) {
         return toolError(ctx, 'INTERNAL', `Kon het bronpad niet controleren: ${e instanceof Error ? e.message : String(e)}`);
       }
-      const readFormat = readFormatForFile(path);
       // `content` blijft '' voor een binair formaat — puur voor `formatOf` (verderop) se sniffen
       // op CSV/P6-XML/MSPDI-XML-inhoud; het OPSLAGDOEL-besluit hangt sinds T11 niet meer af van
-      // `formatOf`'s AI-facing label maar rechtstreeks van `readFormat.canBeSaveTarget` (zie
-      // verderop) — dus geen risico meer dat een binair formaat via `formatOf`'s IFC-terugval per
-      // ongeluk als opslagdoel-waardig zou worden gelezen.
+      // `formatOf`'s AI-facing label maar van de registry-vlag `canBeSaveTarget` (in
+      // `openAsDocument`, zie verderop) — dus geen risico meer dat een binair formaat via
+      // `formatOf`'s IFC-terugval per ongeluk als opslagdoel-waardig zou worden gelezen.
       let input: FormatInput;
       try {
         // T11 (T2-kwaliteitsreview-agenda stap 0 a): gedeelde isBinary?readFile:readTextFile-tak,
@@ -368,24 +367,22 @@ export const fileTools: McpToolDef[] = [
         return toolError(ctx, 'VALIDATION', `'${path}' kon niet worden gelezen als planning: ${e instanceof Error ? e.message : String(e)}`);
       }
 
-      // Exact het bestaande laadpatroon (fileSlice.openFile), inclusief X4b's meervoudige XER-vorm:
-      // `applyOpenedImport` hergebruikt zelf een pristine tabblad en opent anders nieuwe documenten.
       const format = formatOf(path, content);
-      // OPSLAGDOEL alleen bij een formaat dat `canBeSaveTarget` draagt (T11 — vóór deze fix: `format
-      // === 'IFC' && !isBinary`, twee losse classificaties die uit elkaar konden lopen). Opslaan
-      // schrijft ALTIJD IFC; zou een geïmporteerd .csv-/.xml-/.mpp-pad het opslagdoel worden, dan
-      // overschrijft de eerstvolgende Ctrl+S van de user zijn eigen bronbestand met IFC-inhoud onder
-      // die naam. Zelfde motief als de genulde `filePath` van `duplicate_document`. Gevolg: na een
-      // CSV-/XML-/MPP-import is het document "naamloos" en wordt opslaan een opslaan-als — precies
-      // wat je wilt. `formatOf` blijft puur het AI-facing label (`format` hieronder, voor de respons
-      // en de notices) — de opslagdoel-beslissing leest voortaan uitsluitend `readFormat.
-      // canBeSaveTarget`, dezelfde registry-vlag als `fileSlice.ts`.
-      const opened = ctx.app.store.getState().applyOpenedImport(parsed, {
-        filePath: readFormat.canBeSaveTarget ? path : null,
-        fileHandle: null,
-        recompute: true,
-        fit: true,
-        hourDataNotice: true,
+      // Exact het laadpatroon van Bestand → Openen, want het IS dezelfde store-actie
+      // (`openAsDocument` → `applyOpenedImport`): pristine tabblad hergebruiken of nieuwe
+      // documenten (ook X4b's meervoudige XER-vorm; bewust geen merge), OPSLAGDOEL alleen bij een
+      // formaat dat `canBeSaveTarget` draagt, en GEKOPPELD laden (`linkedOpen`). Opslaan schrijft
+      // ALTIJD IFC; zou een geïmporteerd .csv-/.xml-/.mpp-/.xer-pad het opslagdoel worden, dan
+      // overschrijft de eerstvolgende Ctrl+S van de user zijn eigen bronbestand met IFC-inhoud
+      // onder die naam. Omgekeerd: krijgt een .ifc het bronpad als opslagdoel, dan moet hij ook
+      // alles laden wat erin stond — vóór deze route via `openAsDocument` liep, gaf de tool een
+      // eigen opts-object zonder `linkedOpen` mee en wiste Ctrl+S de bibliotheekkoppeling +
+      // herkomststempels uit het bronbestand (import/export-audit, bevinding 2;
+      // `tests/mcp/cases-import-bibliotheek.ts`). `formatOf` blijft puur het AI-facing label
+      // (`format`, voor de respons en de notices).
+      const opened = ctx.app.store.getState().openAsDocument(parsed, {
+        name: path,
+        ref: { kind: 'path', path },
       });
       // Drift-anker naar het RESULTERENDE document (spec regel 111) — anders zou de eerstvolgende
       // mutatie op het importdocument als drift falen en zet de import zichzelf klem.

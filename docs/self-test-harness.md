@@ -13,7 +13,7 @@ Doel: Claude Code kan functies zelf uittesten voordat een mens erbij hoeft.
 Begin altijd bij Tier 1; pak Tier 2 wanneer je de échte Tauri-runtime of schijf-I/O nodig hebt.
 De round-trip-check (`roundTrip()`: serialiseer→parse, meet dataverlies) werkt in beide tiers.
 Daarnaast bestaat de app-eigen MCP-bridge (Tier 1½, hieronder): geen dev-only testhaak maar het
-echte AI-assistent-oppervlak van de app (39 `planner_*`-tools) — Tauri-only en een bewuste
+echte AI-assistent-oppervlak van de app (de `planner_*`-tools) — Tauri-only en een bewuste
 gebruikerskeuze (`ui.aiMode`), geen vervanging van Tier 1 of 2.
 
 ## Gecommitteerde browserpoort
@@ -139,7 +139,7 @@ enkele tier — die omzeil je altijd met een expliciet pad.)
 ## Tier 1½ — De app-eigen MCP-bridge (Tauri-only, bewuste gebruikerskeuze)
 
 Naast de twee testkanalen hierboven heeft de app zélf een MCP-bridge: het AI-assistent-oppervlak uit
-CLAUDE.md → *AI-assistent (MCP-bridge)*, met 39 `planner_*`-tools. Dit is **geen dev-only testhaak**
+CLAUDE.md → *AI-assistent (MCP-bridge)*, met de `planner_*`-tools. Dit is **geen dev-only testhaak**
 maar een productiefunctie — je verbindt er elke MCP-client mee, ook een aparte Claude Code-sessie.
 De Rust-kant (`src-tauri/src/mcp_bridge.rs`) bindt een `tiny_http`-server op `127.0.0.1:<poort>`; de
 TS-kant (`src/services/mcp/server.ts`) start/stopt 'm via Tauri `invoke`/`listen`. **Tauri-only**: in
@@ -171,7 +171,7 @@ de browser-dev-build bestaat de bridge niet, dus voor browserzelftests blijft Ti
    strikt één-voor-één door de bridge (een `inflight`-mutex in `mcp_bridge.rs`): geen gelijktijdige
    aanroepen.
 
-Voor de toolcatalogus (39 `planner_*`-tools; taken, relaties, resources, kalender, project,
+Voor de toolcatalogus (de `planner_*`-tools; taken, relaties, resources, kalender, project,
 baselines, documenten/bestanden, leestools, `planner_batch`) zie CLAUDE.md → *AI-assistent
 (MCP-bridge)* — niet hier gedupliceerd.
 

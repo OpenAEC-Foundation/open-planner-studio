@@ -1,6 +1,6 @@
 import { createSnapshot, restoreSnapshot, type Snapshot } from './snapshot';
 import type { TaskGridSurfaceId, TaskGridSurfacePreferences } from '@/types/taskGrid';
-import type { ViewState } from '@/types/view';
+import type { LayoutOverlays, ViewState } from '@/types/view';
 import type { AppState } from './appStore';
 import { deriveViewRows } from './viewRows';
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
@@ -32,6 +32,8 @@ export type SessionHistoryDelta =
       documentId: string;
       before: ViewLayoutHistoryState;
       after: ViewLayoutHistoryState;
+      /** Issue #173: een layoutklik die ook de app-brede overlays zette. */
+      overlays?: { before: LayoutOverlays; after: LayoutOverlays };
     }
   | {
       kind: 'grid-preference';
@@ -79,6 +81,7 @@ export type MaterializedHistoryTarget =
       kind: 'document-view';
       documentId: string;
       view: ViewLayoutHistoryState;
+      overlays?: LayoutOverlays;
       viewRows: ViewRow[];
       isDirty: false;
     }
@@ -145,6 +148,7 @@ export function materializeHistoryTarget(
       kind: 'document-view',
       documentId: delta.documentId,
       view,
+      ...(delta.overlays ? { overlays: delta.overlays[side] } : {}),
       viewRows: deriveViewRows(isolated),
       isDirty: false,
     };

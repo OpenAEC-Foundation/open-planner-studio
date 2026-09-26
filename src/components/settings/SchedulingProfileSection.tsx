@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { ParseKeys } from 'i18next';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { Select } from '@/components/common/Select';
 import {
-  BUILT_IN_PROFILE_IDS, CONVENTIONS, CONVENTION_THEMES, builtInConventions, displayNameKey, isOffInEveryBuiltIn,
+  BUILT_IN_PROFILE_IDS, CONVENTIONS, CONVENTION_THEMES, builtInConventions, isOffInEveryBuiltIn,
   resolveConventions, type ConventionDescriptor, type ConventionTheme,
 } from '@/engine/scheduler/conventions/registry';
 import { deleteCustomProfile, loadCustomProfiles, upsertCustomProfile } from '@/services/schedulingProfiles/profileStore';
@@ -28,13 +29,13 @@ interface SchedulingProfileSectionProps {
   onChange: (next: SchedulingSettingsDraft) => void;
 }
 
-// De i18n-typering kent alleen letterlijke sleutels; de conventie- en profielsleutels komen uit het
-// register (`labelKey`, `displayNameKey`) en worden daarom naar één concrete sleutel gecast (zelfde
-// patroon als `SHIFT_PRESET_LABEL` in ProjectInfoPanelContent). `check-conventions-registry` sectie 8
-// bewijst dat elke sleutel in alle 14 locales bestaat.
-type ConventionLabelKey = 'conventions.clampNegativeFreeFloat.label';
-type BuiltInNameKey = 'profiles.builtIn.ops';
-type ThemeTitleKey = 'schedulingProfile.themes.completedWork';
+// De conventie-, profiel-, thema- en bronoptiesleutels worden uit een getypeerde id opgebouwd; het
+// retourtype `ParseKeys<'common'>` laat de typecheck elke samengestelde sleutel controleren (geen cast,
+// `verify:i18n`). `check-conventions-registry` sectie 8 bewijst daarnaast dat elke sleutel in alle
+// 14 locales bestaat.
+const conventionLabelKey = (id: ConventionKey): ParseKeys<'common'> => `conventions.${id}.label`;
+const conventionHelpKey = (id: ConventionKey): ParseKeys<'common'> => `conventions.${id}.help`;
+const builtInNameKey = (id: BuiltInProfileId): ParseKeys<'common'> => `profiles.builtIn.${id}`;
 
 /** De groepen in het blok: de zes thema's uit het register, en als laatste de conventies die in élk
  *  ingebouwd profiel uit staan (alleen in een eigen profiel aan te zetten). Een lege groep valt weg. */
@@ -51,7 +52,9 @@ const CONVENTION_GROUPS: readonly { id: ConventionGroupId; items: readonly Conve
  *  (gebruikstest B10): alleen-lezen getoond, zodat zichtbaar is waarom twee projecten met hetzelfde
  *  profiel anders rekenen. */
 const SOURCE_ONLY_OPTIONS = ['useExpectedFinishDates', 'useProjectEndDateForFloat', 'p6CompletedLateFromRemainingWindow'] as const;
-type SourceOptionKey = 'schedulingProfile.sourceOptions.useExpectedFinishDates';
+const sourceOptionKey = (key: typeof SOURCE_ONLY_OPTIONS[number]): ParseKeys<'common'> =>
+  `schedulingProfile.sourceOptions.${key}`;
+const themeTitleKey = (id: ConventionGroupId): ParseKeys<'common'> => `schedulingProfile.themes.${id}`;
 
 /**
  * Rekenprofielen (spec v3.1 §6) — opvolger van `CalcOptionsSection`. Bovenaan het profiel (ingebouwd,
@@ -108,7 +111,7 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
     : !conventions.p6UseRemainingStartForProgress ? 'p6UseRemainingStartForProgress' : null;
   const label = profileLabel(profile);
   const relation = templateRelation(profile, templates);
-  const brand = (id: BuiltInProfileId) => t(displayNameKey(id) as BuiltInNameKey);
+  const brand = (id: BuiltInProfileId) => t(builtInNameKey(id));
   const currentName = label.kind === 'builtIn' ? brand(label.baseId) : label.name;
   const choice = choiceOf(profile, templates);
 
@@ -241,7 +244,7 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
               style={{ border: '1px solid var(--theme-border-light)' }} data-ops-convention-group={group.id}>
               <div className="flex items-center gap-2">
                 <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
-                  {t(`schedulingProfile.themes.${group.id}` as ThemeTitleKey)}
+                  {t(themeTitleKey(group.id))}
                 </span>
                 <span className="text-text-secondary">({group.items.length})</span>
                 {deviating > 0 && (
@@ -254,7 +257,7 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
                 <div className="alert alert--info" data-ops-convention-own-only-note>{t('schedulingProfile.ownProfilesOnlyNote')}</div>
               )}
               {group.items.map(c => {
-                const name = t(`${c.labelKey}.label` as ConventionLabelKey);
+                const name = t(conventionLabelKey(c.id));
                 const deviates = conventions[c.id] !== base[c.id];
                 const helpOpen = openHelp.has(c.id);
                 return (
@@ -290,7 +293,7 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
                     </div>
                     {helpOpen && (
                       <div className="alert alert--info ml-5" data-ops-convention-help={c.id}>
-                        {t(`${c.labelKey}.help` as ConventionLabelKey)}
+                        {t(conventionHelpKey(c.id))}
                       </div>
                     )}
                   </div>
@@ -443,7 +446,7 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
             ]} />
           {ssLagMissing && (
             <div className="alert alert--info" data-ops-ss-lag-needs-convention>
-              {tMenu('projectInfo.calc.ssLagNeedsConvention', { convention: t(`conventions.${ssLagMissing}.label` as ConventionLabelKey) })}
+              {tMenu('projectInfo.calc.ssLagNeedsConvention', { convention: t(conventionLabelKey(ssLagMissing)) })}
             </div>
           )}
         </div>
@@ -456,12 +459,12 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
           {sourceOptions.map(key => (
             <div key={key} className="flex flex-col" data-ops-scheduling-source-option={key}>
               <span>
-                {t(`schedulingProfile.sourceOptions.${key}` as SourceOptionKey)}: <strong>{so[key] ? t('schedulingProfile.on') : t('schedulingProfile.off')}</strong>
+                {t(sourceOptionKey(key))}: <strong>{so[key] ? t('schedulingProfile.on') : t('schedulingProfile.off')}</strong>
               </span>
               {key === 'p6CompletedLateFromRemainingWindow' && so[key] && !conventions.p6CompletedDataDateWindow && (
                 <span data-ops-scheduling-source-option-inert>
                   {t('schedulingProfile.sourceOptions.needsConvention', {
-                    convention: t('conventions.p6CompletedDataDateWindow.label' as ConventionLabelKey),
+                    convention: t('conventions.p6CompletedDataDateWindow.label'),
                   })}
                 </span>
               )}

@@ -380,3 +380,43 @@ test('Gantt pointer priority: Escape annuleert row- en boxgesture zonder mutatie
   expect(after.undoDepth).toBe(before.undoDepth);
   await expect(page.getByTestId('box-select-rect')).toHaveCount(0);
 });
+
+// Eigenaar 2026-09-24: na het slepen van een relatie moest je ernaast klikken om het venstertje te
+// sluiten en de relatie vast te leggen; Enter hoort dat ook te doen — ook vanuit het lagveld.
+for (const via of ['type', 'lag'] as const) {
+  test(`Gantt relationpopover: Enter legt de relatie vast (vanuit ${via}veld)`, async ({ page, ops: _ops }) => {
+    const [sourceId, targetId] = await seedProject(page, [
+      { name: `Enter ${via} bron`, start: '2026-09-07', finish: '2026-09-11', durationDays: 5 },
+      { name: `Enter ${via} doel`, start: '2026-09-21', finish: '2026-09-25', durationDays: 5 },
+    ]);
+    await showRelationBars(page, [sourceId, targetId]);
+    const before = await state(page);
+    const source = await barPoint(page, sourceId);
+    const target = await barPoint(page, targetId);
+
+    await page.keyboard.down('Shift');
+    await page.mouse.move(source.x, source.y);
+    await page.mouse.down();
+    await page.mouse.move(target.x, target.y, { steps: 5 });
+    await page.mouse.up();
+    await page.keyboard.up('Shift');
+    const popover = page.locator('[data-ops-relation-popover]');
+    await expect(popover).toBeVisible();
+
+    if (via === 'lag') {
+      const lag = popover.locator('input');
+      await lag.click();
+      await lag.fill('2d');
+    }
+    await page.keyboard.press('Enter');
+
+    await expect(popover).toHaveCount(0);
+    await expect.poll(() => state(page).then(s => s.sequences.length)).toBe(1);
+    const after = await state(page);
+    expect(after.sequences[0]).toMatchObject({
+      predecessorId: sourceId, successorId: targetId, type: 'FINISH_START',
+      ...(via === 'lag' ? { lagDays: 2 } : {}),
+    });
+    expect(after.undoDepth).toBe(before.undoDepth + 1);
+  });
+}

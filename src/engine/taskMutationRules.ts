@@ -1,5 +1,5 @@
 import type { CustomFieldValue } from '@/types/structure';
-import type { Task } from '@/types/task';
+import type { Task, TaskTime } from '@/types/task';
 import { parseDate, parseInstant } from '@/utils/dateUtils';
 
 /**
@@ -13,6 +13,37 @@ export function isActualPastStatusDate(dateIso: string, statusDateIso: string): 
   return parseInstant(dateIso).getTime() > parseInstant(statusDateIso).getTime();
 }
 
+/**
+ * Werkelijk einde voor een taak op 100 % zonder `actualFinish`: de statusdatum, anders de EIGEN
+ * geplande finish (berekend, anders gepland); de regel valt nooit terug op "vandaag" (H1,
+ * `check-task-slice.ts`). Eén regel voor de store (`applyProgressInvariants`: grid, store-setters,
+ * MCP-validatie) én voor elke lezer (`normalizeImportedProgress`: IFC/CSV/MSPDI/P6/MPP). Die tweede
+ * kopie viel nog terug op vandaag, waardoor een bestand met 100 % zonder werkelijk einde bij elke
+ * opening op de leesdatum voltooid werd en zijn opvolgers mee opschoof (import/export-audit,
+ * bevinding 6; `tests/planning/check-import-progress-default.ts`). Bewust alleen de AF-default
+ * gedeeld, niet de hele invariant: de import houdt zijn eigen STARTED-regel voor completion > 0
+ * zonder actualStart (solver-vangnet §4.2 tak 2b).
+ */
+export function defaultActualFinish(
+  time: Pick<TaskTime, 'earlyFinish' | 'scheduleFinish'>,
+  statusDate: string | undefined,
+): string {
+  return statusDate || time.earlyFinish || time.scheduleFinish;
+}
+
+/**
+ * Impliciete werkelijke start (§3.2, MSP-conventie "% invullen ⇒ gestart"): de eigen geplande start
+ * (berekend, anders gepland). Eén regel voor de store-paden die voortgang zonder `actualStart` zetten
+ * (`setTaskProgress`, de Tabel, MCP-validatie) én voor de lezers bij een VOLTOOIDE taak zonder
+ * werkelijke start (`normalizeImportedProgress`). Zonder die gedeelde regel kreeg een ingelezen taak op
+ * 100 % zonder actuals AS = AF en kromp de voltooide balk tot zijn laatste dag (import/export-audit,
+ * vervolg op bevinding 6). Een LOPENDE taak zonder actualStart krijgt bij import bewust géén start
+ * (solver-vangnet §4.2 tak 2b).
+ */
+export function defaultActualStart(time: Pick<TaskTime, 'earlyStart' | 'scheduleStart'>): string {
+  return time.earlyStart || time.scheduleStart;
+}
+
 /** Centrale voortgangsinvarianten, gedeeld door grid, store-setters en MCP-validatie. */
 export function applyProgressInvariants(task: Task, statusDate: string | undefined): void {
   const time = task.time;
@@ -21,7 +52,7 @@ export function applyProgressInvariants(task: Task, statusDate: string | undefin
     if (!time.actualStart) time.actualStart = time.actualFinish;
     task.status = 'COMPLETED';
   } else if (time.completion >= 1) {
-    time.actualFinish = statusDate || time.earlyFinish || time.scheduleFinish;
+    time.actualFinish = defaultActualFinish(time, statusDate);
     if (!time.actualStart) time.actualStart = time.actualFinish;
     task.status = 'COMPLETED';
   } else if (time.actualStart) {

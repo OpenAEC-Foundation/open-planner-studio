@@ -31,7 +31,6 @@ import { ReportingPeriodField, useResolvedPeriod } from './reports/ReportingPeri
 import { TableReportOptionsBlock } from './reports/TableReportOptionsBlock';
 import { useTableReportSpec } from './reports/useTableReportSpec';
 import { toPdfSpec } from './reports/tableReportSpec';
-import { saveBarColorSelection } from '@/utils/barColorSettings';
 import { useDisplayDate } from '@/hooks/displayDate';
 import { MilestoneReport, useMilestoneRows, STATUS_COLOR as MILESTONE_STATUS_COLOR, type MilestoneRow } from './MilestoneReport';
 import { VarianceReport, useVarianceResult, STATUS_COLOR as VARIANCE_STATUS_COLOR, fmtDelta } from './VarianceReport';
@@ -236,7 +235,6 @@ export function ReportPanel() {
   const baselines = useAppStore(s => s.baselines);
   const activeBaselineId = useAppStore(s => s.activeBaselineId);
   const barColorSelection = useAppStore(s => s.ui.barColorSelection);
-  const setUI = useAppStore(s => s.setUI);
   // "Datums zoals opgeslagen" (issue #63; eindreview XER-etappe bevinding 6): de tabelrapporten dragen
   // de melding in hun spec (`useTableReportSpec`); Gantt, mijlpalen en afwijkingen krijgen 'm hier,
   // boven het voorbeeld — dezelfde tekst, zodat geen enkel rapport nullen toont zonder te zeggen dat
@@ -250,6 +248,7 @@ export function ReportPanel() {
       {t('tableReports.recordedDatesNote')}
     </div>
   ) : null;
+  const setOverlays = useAppStore(s => s.setOverlays);
   const fieldCtx = useFieldCatalogCtx();
   const barColorFields = barColorFieldOptions(fieldCtx);
   const barColorControl = effectiveBarColorControl(barColorSelection, fieldCtx);
@@ -561,6 +560,9 @@ export function ReportPanel() {
   }), [t]);
 
   const assignmentColumns = reportType === 'resourceGantt' && resourceGanttOptions.showAssignmentColumns;
+  // Dag-afkorting achter de duur (projectkop én Duur-cel), dezelfde als in de taakgrid. Eén waarde
+  // voor meting en render, zodat de gemeten Duur-kolom past op wat er getekend wordt.
+  const daySuffix = tCommon('duration.suffixDay');
 
   // De zes overgebleven datakolommen (WBS, Duur, Start, Einde, Volt., Eenh./d) schalen mee met wat
   // dít rapport toont, net als de naam- en curvekolom hierboven. Ze stonden vast, en dat hield niet:
@@ -579,12 +581,12 @@ export function ReportPanel() {
       const rows = buildPrintRows(tasks, reportRows, assignmentColumns ? resourceGantt?.assignmentByRowKey : undefined);
       setColumnWidths(measureTableColumnWidths(
         rows,
-        { showCompletion, assignmentColumns, dateNotation, numberLocale: i18n.language, tableHeaders },
+        { showCompletion, assignmentColumns, dateNotation, numberLocale: i18n.language, tableHeaders, labels: { daySuffix } },
         (text, font) => { ctx.font = font; return ctx.measureText(text).width; },
       ));
     });
     return () => { cancelled = true; };
-  }, [tasks, reportRows, resourceGantt, assignmentColumns, showCompletion, dateNotation, i18n.language, tableHeaders]);
+  }, [tasks, reportRows, resourceGantt, assignmentColumns, showCompletion, dateNotation, i18n.language, tableHeaders, daySuffix]);
 
   const milestoneRef = useRef<HTMLDivElement>(null);
   const varianceRef = useRef<HTMLDivElement>(null);
@@ -668,6 +670,10 @@ export function ReportPanel() {
       today: t('today', { defaultValue: 'Vandaag' }),
       statusDate: t('statusDateLabel', { defaultValue: 'Statusdatum' }),
       progressDate: t('progressDateLabel', { defaultValue: 'Voortgangsdatum' }),
+      projectStart: t('projectStart'),
+      projectEnd: t('projectEnd'),
+      projectDuration: t('projectDuration'),
+      daySuffix,
     },
     localizedMonths: getLocalizedMonths(locale),
     localizedMonthsShort: getLocalizedMonthsShort(locale),
@@ -719,7 +725,7 @@ export function ReportPanel() {
     autoFit, customZoom, paperSize, orientation, companyName, effectiveNameColumnWidth, t, locale, project.startDate,
     project.endDate, project.author, dateNotation, weekStartDay, reportCompressNonWorkdays, timelineColumns, reportFontScale,
     cpmResult, barColorSelection, fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs,
-    reportTaskTypeLabels, tTask, statusLine, statusDate, resources,
+    reportTaskTypeLabels, tTask, daySuffix, statusLine, statusDate, resources,
     assignments, baselineOverlay, reportRows, reportType, resourceGanttOptions.pageBreakPerResource, tasks.length,
     resourceGantt, resourceGanttWindow, assignmentColumns, curveLabels, curveColumnWidth, columnWidths, tableHeaders, i18n.language]);
   // `options` bevat afgeleide catalogus-/vertaalobjecten die bij een lokale preview-state-update
@@ -1449,8 +1455,7 @@ export function ReportPanel() {
                 onChange={value => {
                   if (value === 'critical' || value === 'auto') {
                     const next = { mode: value } as const;
-                    setUI({ barColorSelection: next });
-                    void saveBarColorSelection(next);
+                    setOverlays({ barColors: next });
                     return;
                   }
                   const field = barColorControl.effective.mode === 'category'
@@ -1458,8 +1463,7 @@ export function ReportPanel() {
                     : barColorFields[0]?.field;
                   if (!field) return;
                   const next = { mode: 'category', field } as const;
-                  setUI({ barColorSelection: next });
-                  void saveBarColorSelection(next);
+                  setOverlays({ barColors: next });
                 }}
                 options={[
                   { value: 'critical', label: t('barColorMode_critical') },
@@ -1477,8 +1481,7 @@ export function ReportPanel() {
                   value={encodeFieldRef(barColorControl.effective.field)}
                   onChange={value => {
                     const next = { mode: 'category', field: decodeFieldRef(value) } as const;
-                    setUI({ barColorSelection: next });
-                    void saveBarColorSelection(next);
+                    setOverlays({ barColors: next });
                   }}
                   options={barColorFields.map(option => ({
                     value: encodeFieldRef(option.field),

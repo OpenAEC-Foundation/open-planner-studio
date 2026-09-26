@@ -142,7 +142,7 @@ export function lagPatchOf(lag: ParsedLag): Pick<Sequence, 'lagDays' | 'lagPerce
 export function parseLag(raw: unknown): { ok: true; value: ParsedLag } | { ok: false; reason: string } {
   if (raw === undefined || raw === null) return { ok: true, value: { days: 0 } };
   if (typeof raw === 'number') {
-    if (!Number.isFinite(raw)) return { ok: false, reason: '`lag` moet een eindig getal zijn (hele werkdagen)' };
+    if (!Number.isFinite(raw)) return { ok: false, reason: '`lag` moet een eindig getal zijn (werkdagen)' };
     return { ok: true, value: { days: raw } };
   }
   if (typeof raw === 'string') {
@@ -162,7 +162,7 @@ export function parseLag(raw: unknown): { ok: true; value: ParsedLag } | { ok: f
     return {
       ok: false,
       reason:
-        `\`lag\` '${s}' is geen geldige lag; geef hele werkdagen als getal (2, -1), als string ` +
+        `\`lag\` '${s}' is geen geldige lag; geef werkdagen (een fractie als 0.5 mag) als getal (2, -1), als string ` +
         '("+2d", "-1d", "2") of een procent-lag van de voorgangerduur ("+50%")',
     };
   }
@@ -182,9 +182,9 @@ export const SEQ_TYPE_SCHEMA = {
 export const LAG_SCHEMA = {
   type: ['number', 'string'],
   description:
-    'Lag. Als getal (2, -1) of als de leeskant-string ("+2d", "-1d", "2") = HELE WERKDAGEN ' +
-    '(negatief = lead); als procent-string ("+50%") = percentage van de VOORGANGERDUUR, per ' +
-    'herberekening opnieuw bepaald. Elke andere vorm wordt geweigerd — nooit stil op 0 gezet.',
+    'Lag. Als getal (2, -1) of als de leeskant-string ("+2d", "-1d", "2") = WERKDAGEN; een fractie ' +
+    '(0.5, "+0.5d") mag en wordt niet afgerond (negatief = lead); als procent-string ("+50%") = ' +
+    'percentage van de VOORGANGERDUUR, per herberekening opnieuw bepaald. Elke andere vorm wordt geweigerd — nooit stil op 0 gezet.',
 };
 
 /** Gedeelde documentatiezin over de lag-notatie voor de tool-descriptions. */

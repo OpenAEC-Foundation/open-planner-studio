@@ -23,7 +23,12 @@
   "showBaselineOverlay": "Baseline-overlay tonen",
   "autoFit": "Auto-fit op papier",
   "zoom": "Zoomen:",
-  "previewQuality": { "label": "Previewkwaliteit", "standard": "Standaard", "high": "Hoog", "maximum": "Maximaal" },
+  "previewQuality": {
+    "label": "Previewkwaliteit",
+    "standard": "Standaard",
+    "high": "Hoog",
+    "maximum": "Maximaal"
+  },
   "repeatHeader": "Kop op elke pagina herhalen",
   "repeatFooter": "Voet op elke pagina herhalen",
   "reportFontScaleLabel": "Lettergrootte:",
@@ -38,6 +43,9 @@
   "exportPDF": "Exporteer PDF",
   "noTasks": "Geen taken om weer te geven",
   "printed": "Afgedrukt:",
+  "projectStart": "Start:",
+  "projectEnd": "Eind:",
+  "projectDuration": "Duur:",
   "today": "Vandaag",
   "previewPageLimit_one": "… en nog {{count}} pagina — exporteer voor het volledige document",
   "previewPageLimit_other": "… en nog {{count}} pagina's — exporteer voor het volledige document",

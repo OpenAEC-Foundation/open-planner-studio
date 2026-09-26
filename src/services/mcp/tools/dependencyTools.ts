@@ -68,7 +68,7 @@ const FIELD_HINTS: Record<string, string> = {
     'hem niet, dus je zou het resultaat niet kunnen teruglezen',
   lagMinutes:
     'een minuut-precieze lag (uit een IFC-/P6-import) is via de bridge bewust niet zetbaar: de ' +
-    'leestools tonen hem niet. Geef de lag in hele werkdagen via `lag` — dat WIST de minuut-lag, ' +
+    'leestools tonen hem niet. Geef de lag in werkdagen via `lag` (een fractie als 0.5 mag) — dat WIST de minuut-lag, ' +
     'zodat de opgegeven waarde ook echt de werkzame is',
   fields: 'de velden staan hier direct op het item (geen `fields`-blok): { seqId, type, lag, … }',
 };
