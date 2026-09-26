@@ -140,6 +140,7 @@ import { normalizeImportedProgress, deriveImportedWorkRules, reconstructResource
 import { emptyMissingScheduleDates, resolveMissingScheduleDates } from '@/services/importDates';
 import { tenthsOfMinutesToDays } from '@/services/importDurations';
 import { mspCodeToConstraint } from '@/services/msproject/mspdiReader';
+import { statusDateFromXml, toXmlDateTime } from '@/services/xmlInterchange';
 import { hasNonAnchorTime, isSubDayMinutes, milestoneKindAt } from '@/services/subdayIo';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { isSummaryTask } from '@/utils/taskHierarchy';
@@ -1407,9 +1408,13 @@ export function parseProjectProperties(
     schedulingProfile: builtInProfile('msproject'),
   };
 
+  // Statusdatum mét tijd (H4): MS Project bewaart hem op de standaard eindtijd (17:00 = einde van die
+  // dag) en schrijft dezelfde waarde in MSPDI als `<StatusDate>…T17:00:00`. Daarom in precies die vorm
+  // gelezen met de regel van de MSPDI-lezer (`statusDateFromXml`): een tijd blijft, het dag-anker
+  // (08:00) geeft exact de datum — zo levert `.mpp` voor hetzelfde project hetzelfde op als MSPDI.
   const statusBytes = props.getByteArray(PROPS_KEY_STATUS_DATE);
   const statusDate = statusBytes && statusBytes.length >= 4 ? getTimestamp(statusBytes, 0, 'Props statusDate') : null;
-  if (statusDate) project.statusDate = formatDate(statusDate);
+  if (statusDate) project.statusDate = statusDateFromXml(toXmlDateTime(formatInstant(statusDate, 'hour')));
 
   return {
     project, hoursPerDay, calendarHoursPerDayOverride: minutesPerDayValid ? hoursPerDay : null,

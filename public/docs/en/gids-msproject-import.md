@@ -174,6 +174,12 @@ the project: it stays intact across **Save** (as IFC) and a later **Open**. In P
 convention is called *Remaining work resumes after the elapsed duration* and belongs to the
 Microsoft Project profile.
 
+The **status date** comes along with its time of day. MS Project stores it at the default end of the
+working day (usually 17:00), so there the status day itself counts as done. In an hours project Open
+Planner Studio does the same: the remaining work of a task in progress continues on the next working
+day at the earliest. If the project plans in whole days, Open Planner Studio calculates with the
+date only. An MS Project XML file (MSPDI) of the same project yields the same status date.
+
 ## Calendar exceptions and work weeks
 
 Concrete, one-off exception dates in a calendar (a specific day off on a fixed date) come along
