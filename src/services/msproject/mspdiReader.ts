@@ -8,7 +8,7 @@ import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
 import { parseInstant, parseDate } from '@/utils/dateUtils';
 import { normalizeImportedProgress, deriveImportedWorkRules, rebuildImportedHierarchy, reconstructResourceIds } from '@/services/importNormalize';
-import { emptyMissingScheduleDates, importDateTime, isoDatePrefixOrToday, resolveMissingScheduleDates } from '@/services/importDates';
+import { emptyMissingScheduleDates, importDateTime, isoDatePrefixOrToday, parseImportedInstant, resolveMissingScheduleDates } from '@/services/importDates';
 import { tenthsOfMinutesToDays } from '@/services/importDurations';
 import { descendantText, toInt, toFloat } from '@/services/xmlDom';
 import type { ImportResult } from '@/services/importTypes';
@@ -727,7 +727,7 @@ export function readMSPDI(content: string): ImportResult {
           const workMinutes = mspdiValueToMinutes(getElementText(tp, 'Value'));
           if (workMinutes === null) continue;
           items.push({
-            start: parseInstant(startRaw), finish: parseInstant(finishRaw), workMinutes,
+            start: parseImportedInstant(startRaw), finish: parseImportedInstant(finishRaw), workMinutes,
             kind: type === 2 ? 'actual' : 'remaining',
           });
         }

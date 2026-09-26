@@ -13,7 +13,7 @@ import type { LibraryOrigin } from '@/types/library';
 import { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types/structure';
 import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
-import { formatInstant, parseInstant, localTodayIso } from '@/utils/dateUtils';
+import { formatInstant, localTodayIso } from '@/utils/dateUtils';
 import { ifcGuid } from './ifcWriter';
 import { IfcParseError } from './ifcErrors';
 import type { ImportLabels, ImportResult, RecordedSourceFormat, XerArchiveIssue, XerArchiveIssueCode } from '@/services/importTypes';
@@ -41,7 +41,7 @@ import {
   MAX_PROFILE_JSON_LENGTH, profileAfterRead, sanitizeSchedulingOptions, sanitizeSchedulingProfile,
 } from '@/services/ifc/schedulingOptionsRead';
 import { optionKeysOnly } from '@/services/ifc/schedulingProfileMigration';
-import { emptyMissingScheduleDates, importStatusDate, resolveMissingScheduleDates } from '@/services/importDates';
+import { emptyMissingScheduleDates, importStatusDate, parseImportedInstant, resolveMissingScheduleDates } from '@/services/importDates';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { seedScalarBands } from '@/utils/effectiveWorkTime';
 import { hourRemainingDays } from '@/engine/taskMutationRules';
@@ -1208,7 +1208,7 @@ function applyHourModeIFC(
     }
     const toHour = (raw: string | undefined): string | undefined => {
       const q = stripQuotes(raw || '');
-      return q && q !== '$' ? formatInstant(parseInstant(q), 'hour') : undefined;
+      return q && q !== '$' ? formatInstant(parseImportedInstant(q), 'hour') : undefined;
     };
     const ss = toHour(e.args[TASKTIME_SLOT.scheduleStart]); if (ss) t.time.scheduleStart = ss;
     const sf = toHour(e.args[TASKTIME_SLOT.scheduleFinish]); if (sf) t.time.scheduleFinish = sf;

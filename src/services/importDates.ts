@@ -18,6 +18,17 @@ import { calendarForEngine } from '@/utils/effectiveWorkTime';
  * (`importStatusDate`) deelt de IFC-reader wél: die krijgt de waarde al ontdaan van de STEP-typering.
  */
 
+/**
+ * Een datum-tijd uit een BESTAND als wandklok: het model rekent in lokale wandkloktijd (naïef, als
+ * UTC opgeslagen), dus een tijdzone-aanduiding (`Z`, `+01:00`, `-0500`) wordt genegeerd — dezelfde
+ * regel als `hasNonAnchorTime` (subdayIo) die over de uur-/dagmodus beslist. `parseInstant` paste de
+ * offset wél toe: `2026-03-09T09:30:00+01:00` werd als uurtaak herkend (09:30) maar om 08:30
+ * ingelezen, en een tijd kort na middernacht belandde op de vorige dag.
+ */
+export function parseImportedInstant(raw: string): Date {
+  return parseInstant(raw.includes('T') ? raw.replace(/(?:[Zz]|[+-]\d{2}:?\d{2})$/, '') : raw);
+}
+
 /** ISO-datum-prefix (`YYYY-MM-DD`) uit een datetime-string; lege invoer ⇒ vandaag. */
 export function isoDatePrefixOrToday(s: string): string {
   if (!s) return localTodayIso();
@@ -28,7 +39,7 @@ export function isoDatePrefixOrToday(s: string): string {
  *  (`YYYY-MM-DDTHH:mm`, §7.3), DAG ⇒ de datum-prefix. Lege invoer ⇒ vandaag, zoals hierboven. */
 export function importDateTime(s: string, hour: boolean): string {
   if (!s) return localTodayIso();
-  return hour ? formatInstant(parseInstant(s), 'hour') : s.substring(0, 10);
+  return hour ? formatInstant(parseImportedInstant(s), 'hour') : s.substring(0, 10);
 }
 
 /** Statusdatum uit een bestand → `project.statusDate`, voor élke lezer die hem kent (IFC, MSPDI, P6,
@@ -40,7 +51,7 @@ export function importDateTime(s: string, hour: boolean): string {
 export function importStatusDate(v: string): string {
   const day = v.substring(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)) return day;
-  const instant = parseInstant(v);
+  const instant = parseImportedInstant(v);
   return Number.isNaN(instant.getTime()) ? day : formatInstant(instant, 'hour');
 }
 
