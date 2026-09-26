@@ -557,6 +557,68 @@ const stubDeps: ProgressPlanDeps = { planEdits: stubPlanEdits };
   eq('…en de status is COMPLETED via de invarianten', rowR?.plannedTask?.status, 'COMPLETED');
 }
 
+// ════════════════════════════════════════════════════════════════════════════════════════════
+// Deel 6 — de voortgangsregels van de UI (besluiten eigenaar 26-09, herbouw #232) gelden ook voor
+// het inlezen van een voortgangsblad, zodra de dialoog `today` meegeeft (een UI-route):
+//   Z1  — geen statusdatum ⇒ die gaat op vandaag, in dezelfde undo-stap als het blad, met melding;
+//         een werkelijke datum ná vandaag wordt dan geweigerd;
+//   Z1b — een taak die volgens planning pas ná de statusdatum begint en nog geen werkelijke start
+//         heeft, krijgt die niet verzonnen: de rij wordt geweigerd (`actualStartRequired`) tot het
+//         blad de werkelijke start zelf aanlevert.
+// Zonder `today` (headless) blijven de oude regels gelden (Deel 4).
+// ════════════════════════════════════════════════════════════════════════════════════════════
+{
+  const S = () => useAppStore.getState();
+  const TODAY = '2026-01-07';
+  S().newProject();
+  S().setProject({ startDate: '2026-01-05' });
+  const idA = S().addTask({ name: 'A', time: createDefaultTaskTime('2026-01-05', 5) });
+  const idL = S().addTask({ name: 'L', time: createDefaultTaskTime('2026-02-02', 5) });
+  S().runCPM();
+  useAppStore.setState((s) => { s.historyEvents = []; s.nextHistorySequence = 1; s.isDirty = false; s.ui.notifications = []; });
+
+  // Z1: preview muteert niets, ook de statusdatum niet.
+  const rowsA = [makeRow(2, { taskId: idA, completion: pct(0.4) })];
+  const previewA = S().previewProgressImport(rowsA, undefined, { today: TODAY });
+  eq('6a preview zonder statusdatum telt de rij', previewA.appliedCount, 1);
+  eq('6a …en laat de statusdatum leeg', S().project.statusDate, undefined);
+
+  const historyBefore = S().historyEvents.length;
+  S().applyProgressImport(rowsA, undefined, { today: TODAY });
+  eq('6b apply zonder statusdatum zet hem op vandaag', S().project.statusDate, TODAY);
+  eq('6b …en schrijft de voortgang', S().tasks.find((t) => t.id === idA)!.time.completion, 0.4);
+  eq('6b …in één undo-stap', S().historyEvents.length, historyBefore + 1);
+  eq('6b …met één melding statusDateSetToday',
+    S().ui.notifications.filter((n) => n.messageKey === 'notifications.statusDateSetToday').length, 1);
+  S().undo();
+  eq('6c één Ctrl+Z draait voortgang én statusdatum terug',
+    [S().project.statusDate, S().tasks.find((t) => t.id === idA)!.time.completion], [undefined, 0]);
+
+  // Z1: zonder statusdatum is een werkelijke datum ná vandaag geen feit.
+  const future = S().previewProgressImport([makeRow(3, { taskId: idA, actualStart: dateVal('2026-01-08') })], undefined, { today: TODAY });
+  eq('6d werkelijke start ná vandaag zonder statusdatum ⇒ geweigerd', future.rows[0]?.reason, 'actualAfterStatusDate');
+
+  // Z1b: een later geplande taak krijgt geen verzonnen werkelijke start.
+  S().setStatusDate(TODAY);
+  S().runCPM();
+  const rowL = makeRow(4, { taskId: idL, completion: pct(0.3) });
+  const refusedL = S().applyProgressImport([rowL], undefined, { today: TODAY });
+  eq('6e later geplande taak zonder werkelijke start ⇒ rij geweigerd (actualStartRequired)',
+    [refusedL.rows[0]?.outcome, refusedL.rows[0]?.reason], ['refused', 'actualStartRequired']);
+  eq('6e …taak onaangeroerd', S().tasks.find((t) => t.id === idL)!.time.completion, 0);
+  const rowLStart = makeRow(5, { taskId: idL, completion: pct(0.3), actualStart: dateVal('2026-01-06') });
+  S().applyProgressImport([rowLStart], undefined, { today: TODAY });
+  const l = S().tasks.find((t) => t.id === idL)!;
+  eq('6f mét werkelijke start in het blad ⇒ toegepast zoals opgegeven',
+    [l.time.completion, l.time.actualStart], [0.3, '2026-01-06']);
+
+  // Headless vangnet: zonder `today` de oude regels (geen vraag, de start wordt afgeleid).
+  const idH = S().addTask({ name: 'H', time: createDefaultTaskTime('2026-02-02', 5) });
+  S().runCPM();
+  const headless = S().applyProgressImport([makeRow(6, { taskId: idH, completion: pct(0.3) })]);
+  eq('6g zonder today (headless) ⇒ toegepast zoals voorheen', headless.rows[0]?.outcome, 'apply');
+}
+
 if (diffs.length > 0) {
   console.error(`FAIL progress-import: ${diffs.length}/${checks} afwijkingen`);
   for (const diff of diffs) console.error(`XX ${diff}`);

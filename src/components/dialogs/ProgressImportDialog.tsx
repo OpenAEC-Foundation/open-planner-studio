@@ -4,7 +4,7 @@ import { AlertTriangle } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { openFileDialog } from '@/services/fileAccess';
-import { parseDate } from '@/utils/dateUtils';
+import { localTodayIso, parseDate } from '@/utils/dateUtils';
 import { formatDisplayDate } from '@/i18n/dateFormat';
 import { extensionOf } from '@/utils/filePath';
 import { ProgressImportLinkPicker } from './ProgressImportLinkPicker';
@@ -30,7 +30,11 @@ type Stage = 'pick' | 'dateOrder' | 'preview' | 'result';
  *  hetzelfde plan tegen de live taken en past het in één undo-stap toe (A4/A8). Expliciet getypeerd
  *  zodat het ONTBREKEN van deze store-acties (baan A, T5 nog te leveren) hier één keer een fout geeft
  *  in plaats van via `any` door te lekken naar elk gebruik van `plan` verderop. */
-type ProgressImportPlanFn = (rows: readonly ProgressRow[], overrides?: ProgressOverrides) => ProgressImportPlan;
+type ProgressImportPlanFn = (
+  rows: readonly ProgressRow[],
+  overrides?: ProgressOverrides,
+  opts?: { today?: string },
+) => ProgressImportPlan;
 
 /** Fixronde bevinding 1: een blad van een ANDER project maakt alle rijen unmatched — tot
  *  `PROGRESS_IMPORT_LIMITS.maxRows` (50.000). Zonder grens rendert elke sectie evenveel DOM-knopen
@@ -127,7 +131,9 @@ export function ProgressImportDialog() {
   // toelichting hierboven (Ctrl+Z/Ctrl+Y muteren `s.tasks` terwijl deze dialoog open staat). De
   // linter kan die indirecte afhankelijkheid niet zien, vandaar de gerichte suppressie hieronder.
   const plan = useMemo(
-    () => (stage === 'preview' && rows ? previewProgressImport(rows, overrides) : null),
+    // UI-route (besluiten eigenaar 26-09): `today` zet dezelfde voortgangsregels aan als paneel en
+    // raster — zonder statusdatum op vandaag, geen verzonnen werkelijke start (`ProgressImportEntryOptions`).
+    () => (stage === 'preview' && rows ? previewProgressImport(rows, overrides, { today: localTodayIso() }) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [stage, rows, overrides, tasks, previewProgressImport],
   );
@@ -238,7 +244,7 @@ export function ProgressImportDialog() {
 
   const confirm = () => {
     if (!rows) return;
-    setResult(applyProgressImport(rows, overrides));
+    setResult(applyProgressImport(rows, overrides, { today: localTodayIso() }));
     setStage('result');
   };
 

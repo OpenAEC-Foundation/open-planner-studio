@@ -1284,6 +1284,7 @@
       "actualAfterStatusDate": "La data effettiva è successiva alla data di stato.",
       "actualFinishBeforeStart": "La fine effettiva precede l'inizio effettivo.",
       "conflictingProgressInputs": "I valori inseriti si contraddicono.",
+      "actualStartRequired": "Questa attività è pianificata per iniziare dopo la data di stato: inserisci prima il suo inizio effettivo nel foglio.",
       "rejected": "Rifiutato dal pianificatore."
     },
     "field": {

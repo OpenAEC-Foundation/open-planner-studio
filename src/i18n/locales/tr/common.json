@@ -1234,6 +1234,7 @@
       "actualAfterStatusDate": "Gerçek tarih, durum tarihinden sonra.",
       "actualFinishBeforeStart": "Gerçek bitiş, gerçek başlangıçtan önce.",
       "conflictingProgressInputs": "Girilen değerler birbiriyle çelişiyor.",
+      "actualStartRequired": "Bu görev plana göre durum tarihinden sonra başlıyor: önce sayfaya gerçek başlangıcını girin.",
       "rejected": "Planlayıcı tarafından reddedildi."
     },
     "field": {

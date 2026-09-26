@@ -1334,6 +1334,7 @@
       "actualAfterStatusDate": "Rzeczywista data przypada po dacie statusu.",
       "actualFinishBeforeStart": "Rzeczywiste zakończenie przypada przed rzeczywistym startem.",
       "conflictingProgressInputs": "Wprowadzone wartości są ze sobą sprzeczne.",
+      "actualStartRequired": "To zadanie zgodnie z planem zaczyna się dopiero po dacie statusu: najpierw wpisz w arkuszu jego rzeczywisty początek.",
       "rejected": "Odrzucone przez planistę."
     },
     "field": {

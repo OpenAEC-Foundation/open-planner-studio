@@ -1234,6 +1234,7 @@
       "actualAfterStatusDate": "De werkelijke datum ligt na de peildatum.",
       "actualFinishBeforeStart": "Werkelijk einde ligt vóór werkelijke start.",
       "conflictingProgressInputs": "De ingevulde waarden spreken elkaar tegen.",
+      "actualStartRequired": "Deze taak begint volgens de planning pas na de peildatum: vul in het blad eerst de werkelijke start in.",
       "rejected": "Geweigerd door de planner."
     },
     "field": {

@@ -16,7 +16,8 @@ import { isSummaryTask } from '@/utils/taskHierarchy';
 import { ancestorIds, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
 import { applyProgressInvariants } from '@/engine/taskMutationRules';
 import {
-  planProgressEntry, type ProgressEdit, type ProgressEntryContext, type ProgressEntryResult,
+  actualStartQuestionFor, hasRecordedProgress, planProgressEntry, progressEntryStatusDate,
+  type ProgressEdit, type ProgressEntryContext, type ProgressEntryResult,
 } from '@/engine/progressEntry';
 import { durationBelowDoneWorkNotice, statusDateSetTodayNotice } from '@/state/progressEntryNotice';
 import type { WbsTemplate } from '@/utils/wbsTemplates';
@@ -49,6 +50,7 @@ import { buildTaskEditPlanEnvironment } from '../gridTransaction';
 import { planTaskCellEdits } from '@/engine/taskGrid/taskEditPlan';
 import { buildProgressImportPlan } from '@/services/progressImport';
 import type { ProgressImportPlan, ProgressOverrides, ProgressRow } from '@/services/progressImport';
+import type { ProgressPlanDeps } from '@/services/progressImport';
 
 /**
  * Zelfstandige kopie van een takenselectie (incl. subtaken), de interne
@@ -190,6 +192,7 @@ export interface TaskSlice {
   previewProgressImport: (
     rows: readonly ProgressRow[],
     overrides?: ProgressOverrides,
+    opts?: ProgressImportEntryOptions,
   ) => ProgressImportPlan;
   /** Herberekent hetzelfde plan tegen de LIVE taken en past het in ÉÉN undo-stap toe (A4/A8): drift
    *  tussen preview en apply wordt opgelost door opnieuw te bouwen, nooit door het preview-plan te
@@ -197,7 +200,50 @@ export interface TaskSlice {
   applyProgressImport: (
     rows: readonly ProgressRow[],
     overrides?: ProgressOverrides,
+    opts?: ProgressImportEntryOptions,
   ) => ProgressImportPlan;
+}
+
+/**
+ * Voortgangsblad inlezen als UI-route (besluiten eigenaar 26-09, herbouw #232): met `today`
+ * (`localTodayIso`, meegegeven door `ProgressImportDialog`) gelden dezelfde invoerregels als in
+ * paneel, contextmenu, raster en "Taak bewerken" (`engine/progressEntry.ts`):
+ *  - Z1: zonder statusdatum plant het blad met vandaag; houdt een toegepaste rij voortgang over, dan
+ *    gaat de statusdatum in dezelfde undo-stap op vandaag, met de melding `statusDateSetToday`;
+ *  - Z1b: een rij die de werkelijke start zou AFLEIDEN uit een geplande start ná de statusdatum
+ *    (`actualStartQuestionFor`) wordt geweigerd met `actualStartRequired` — het blad moet de
+ *    werkelijke start zelf aanleveren.
+ * Zonder `today` (headless, tests, extensies) blijven de oude regels gelden.
+ */
+export interface ProgressImportEntryOptions {
+  today?: string;
+}
+
+/** De planner-naad van het voortgangsblad (`buildProgressImportPlan`), met de regels hierboven. */
+function progressImportDeps(s: AppState, today: string | undefined): ProgressPlanDeps {
+  const statusDate = progressEntryStatusDate(s.project.statusDate, today);
+  return {
+    planEdits: (task, edits) => {
+      const environment = buildTaskEditPlanEnvironment(s, task);
+      const planned = planTaskCellEdits(task, edits, statusDate ? { ...environment, statusDate } : environment);
+      if (!planned.ok || !today) return planned;
+      const wrote = (columnId: string) => edits.some(edit => String(edit.columnId) === columnId && !!edit.value);
+      const question = actualStartQuestionFor(task, planned.value.task, statusDate, {
+        actualStart: wrote('task.time.actualStart'),
+        actualFinish: wrote('task.time.actualFinish'),
+      });
+      if (!question) return planned;
+      return {
+        ok: false,
+        errors: [{
+          code: 'actualStartRequired',
+          messageKey: 'taskGrid.validation.actualStartRequired',
+          taskId: task.id,
+          value: { statusDate: question.statusDate, latest: question.latest },
+        }],
+      };
+    },
+  };
 }
 
 function sameExternalLink(left: ExternalLink, right: ExternalLink): boolean {
@@ -1366,14 +1412,9 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     return result.ok ? { ok: true } : result;
   },
 
-  previewProgressImport: (rows, overrides) => {
+  previewProgressImport: (rows, overrides, opts) => {
     const s = get();
-    return buildProgressImportPlan(
-      rows,
-      s.tasks,
-      { planEdits: (task, edits) => planTaskCellEdits(task, edits, buildTaskEditPlanEnvironment(s, task)) },
-      overrides,
-    );
+    return buildProgressImportPlan(rows, s.tasks, progressImportDeps(s, opts?.today), overrides);
   },
 
   // A4 (issue #27 etappe 2, T5): het plan wordt HIER, binnen dezelfde `set()`, opnieuw gebouwd
@@ -1381,17 +1422,21 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
   // Atomair: het hele plan staat vast vóórdat er iets geschreven wordt. Nul toepassingen ⇒ geen
   // snapshot (net als een geweigerde `setActualStart`); één undo-stap voor het HELE blad, nooit één
   // per rij.
-  applyProgressImport: (rows, overrides) => {
+  applyProgressImport: (rows, overrides, opts) => {
     let plan!: ProgressImportPlan;
+    let statusDateToday: string | undefined;
     set((s) => {
-      plan = buildProgressImportPlan(
-        rows,
-        s.tasks,
-        { planEdits: (task, edits) => planTaskCellEdits(task, edits, buildTaskEditPlanEnvironment(s, task)) },
-        overrides,
-      );
+      plan = buildProgressImportPlan(rows, s.tasks, progressImportDeps(s, opts?.today), overrides);
       if (plan.appliedCount === 0) return;
       runtime.beginUndoable(s);
+      // Z1 (`ProgressImportEntryOptions`): houdt een toegepaste rij voortgang over en was er geen
+      // statusdatum, dan gaat die in deze undo-stap op vandaag.
+      if (!s.project.statusDate && opts?.today
+        && plan.rows.some(row => row.outcome === 'apply' && row.plannedTask && hasRecordedProgress(row.plannedTask.time))) {
+        s.project.statusDate = opts.today;
+        s.project.modifiedAt = new Date().toISOString();
+        statusDateToday = opts.today;
+      }
       for (const row of plan.rows) {
         if (row.outcome !== 'apply') continue;
         const index = s.tasks.findIndex((t) => t.id === row.taskId);
@@ -1405,6 +1450,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       runtime.finishMutation(s, { stale: true }); // datum-rakende mutatie (A6): planning verouderd tot F5.
     });
     get().recomputeViewRows();
+    // Ná `set()`: `get().notify(...)` binnen een actieve producer aanroepen kan niet.
+    if (statusDateToday) get().notify(statusDateSetTodayNotice(statusDateToday, get().ui.dateNotation));
     return plan;
   },
 });

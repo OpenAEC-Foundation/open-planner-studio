@@ -1284,6 +1284,7 @@
       "actualAfterStatusDate": "La date réelle est postérieure à la date de statut.",
       "actualFinishBeforeStart": "La fin réelle précède le début réel.",
       "conflictingProgressInputs": "Les valeurs saisies se contredisent.",
+      "actualStartRequired": "Cette tâche est planifiée pour commencer après la date de statut : saisissez d'abord son début réel dans la feuille.",
       "rejected": "Refusé par le planificateur."
     },
     "field": {

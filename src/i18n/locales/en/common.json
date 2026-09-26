@@ -1234,6 +1234,7 @@
       "actualAfterStatusDate": "The actual date is after the status date.",
       "actualFinishBeforeStart": "Actual finish is before actual start.",
       "conflictingProgressInputs": "The entered values contradict each other.",
+      "actualStartRequired": "This task is planned to start after the status date: fill in its actual start in the sheet first.",
       "rejected": "Refused by the planner."
     },
     "field": {

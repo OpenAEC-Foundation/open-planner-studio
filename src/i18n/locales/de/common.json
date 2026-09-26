@@ -1234,6 +1234,7 @@
       "actualAfterStatusDate": "Das tatsächliche Datum liegt nach dem Stichtag.",
       "actualFinishBeforeStart": "Tatsächliches Ende liegt vor tatsächlichem Start.",
       "conflictingProgressInputs": "Die eingegebenen Werte widersprechen sich.",
+      "actualStartRequired": "Diese Aufgabe beginnt laut Planung erst nach dem Stichtag: Tragen Sie zuerst den tatsächlichen Beginn im Blatt ein.",
       "rejected": "Vom Planer abgelehnt."
     },
     "field": {

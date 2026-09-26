@@ -1434,6 +1434,7 @@
       "actualAfterStatusDate": "التاريخ الفعلي بعد تاريخ الحالة.",
       "actualFinishBeforeStart": "النهاية الفعلية قبل البداية الفعلية.",
       "conflictingProgressInputs": "القيم المُدخلة متناقضة.",
+      "actualStartRequired": "هذه المهمة مخطط لها أن تبدأ بعد تاريخ الحالة: أدخل أولاً البداية الفعلية في الورقة.",
       "rejected": "مرفوض من قِبل المخطِّط."
     },
     "field": {

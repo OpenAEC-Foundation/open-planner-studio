@@ -1184,6 +1184,7 @@
       "actualAfterStatusDate": "实际日期晚于状态日期。",
       "actualFinishBeforeStart": "实际完成早于实际开始。",
       "conflictingProgressInputs": "填写的值互相矛盾。",
+      "actualStartRequired": "此任务计划在状态日期之后才开始：请先在表格中填写其实际开始日期。",
       "rejected": "被计划引擎拒绝。"
     },
     "field": {
