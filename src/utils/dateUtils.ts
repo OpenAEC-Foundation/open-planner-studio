@@ -75,6 +75,20 @@ export function localTodayIso(now: Date = new Date()): string {
 }
 
 /**
+ * "Nu" als instant op de UTC-dag-as van de Gantt (de as rekent in UTC-middernachten, §1): de
+ * LOKALE wandkloktijd van de gebruiker, genoteerd als UTC-velden. `new Date()` zelf is het echte
+ * UTC-moment en landt daardoor in Nederland tussen 00:00 en 02:00 nog in de kolom van gisteren (en
+ * in de VS 's avonds al in die van morgen). Voor de vandaag-lijn in scherm en print. `now` alleen
+ * voor tests.
+ */
+export function localNowOnDayAxis(now: Date = new Date()): Date {
+  const d = new Date(0);
+  d.setUTCFullYear(now.getFullYear(), now.getMonth(), now.getDate());
+  d.setUTCHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+  return d;
+}
+
+/**
  * Serialisatie-modus van een datum-instant (fase 2.8b, §2.4). De MODUS is de enige
  * discriminator voor de output-vorm — niet de waarde van de instant.
  */

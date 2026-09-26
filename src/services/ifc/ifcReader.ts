@@ -13,7 +13,7 @@ import type { LibraryOrigin } from '@/types/library';
 import { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types/structure';
 import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
-import { formatDate, formatInstant, parseInstant } from '@/utils/dateUtils';
+import { formatInstant, parseInstant, localTodayIso } from '@/utils/dateUtils';
 import { ifcGuid } from './ifcWriter';
 import { IfcParseError } from './ifcErrors';
 import type { ImportLabels, ImportResult, RecordedSourceFormat, XerArchiveIssue, XerArchiveIssueCode } from '@/services/importTypes';
@@ -969,7 +969,7 @@ function parseRefs(s: string): string[] {
 // STEP-quoting (`stripQuotes`) en de `$`-null-conventie af en houdt de exacte lege-tail-semantiek
 // (een quoted-lege slot geeft '' terug, niet vandaag) — dat is STEP-specifiek en mag niet verschuiven.
 function parseDateFromIFC(s: string): string {
-  if (!s || s === '$') return formatDate(new Date());
+  if (!s || s === '$') return localTodayIso();
   const clean = stripQuotes(s);
   // Extract just the date part
   return clean.substring(0, 10);
@@ -1358,7 +1358,7 @@ function extractTasks(
     // Parse IfcTaskTime reference
     const taskTimeRef = parseRef(te.args[taskTimeIdx] || '');
     const ttEntity = taskTimeRef ? entityMap.get(taskTimeRef) : undefined;
-    const time = ttEntity ? parseTaskTime(ttEntity, hoursPerDay) : createDefaultTaskTime(formatDate(new Date()), 5);
+    const time = ttEntity ? parseTaskTime(ttEntity, hoursPerDay) : createDefaultTaskTime(localTodayIso(), 5);
     if (ttEntity) taskTimeEntities.set(id, ttEntity);
     recordedFields[id] = ttEntity ? recordedSlotsOf(ttEntity) : [];
 

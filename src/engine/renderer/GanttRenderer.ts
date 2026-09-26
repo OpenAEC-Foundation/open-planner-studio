@@ -2,7 +2,7 @@ import { Task } from '@/types/task';
 import type { BaselineOverlay } from '@/types/baseline';
 import { Sequence } from '@/types/sequence';
 import type { ViewState, BarSplitMode, DurationDisplay } from '@/types/view';
-import { parseDate, parseInstant, addCalendarDays, diffCalendarDays, isoDayOfWeek, getWeekNumberFor, utcDayStart } from '@/utils/dateUtils';
+import { parseDate, parseInstant, addCalendarDays, diffCalendarDays, isoDayOfWeek, getWeekNumberFor, utcDayStart, localNowOnDayAxis } from '@/utils/dateUtils';
 import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { calendarWithEffectiveWorkTime } from '@/utils/effectiveWorkTime';
 import { effHoursPerDay, formatTaskDurationDisplay, taskDurationMinutes } from '@/utils/taskDuration';
@@ -670,8 +670,7 @@ export class GanttRenderer {
 
   private drawTodayLine(): void {
     const ctx = this.ctx;
-    const today = new Date();
-    const x = this.dateToX(today);
+    const x = this.dateToX(localNowOnDayAxis());
 
     if (x >= 0 && x < this.opts.canvasWidth) {
       ctx.strokeStyle = this.colors.today;

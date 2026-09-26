@@ -1,4 +1,4 @@
-import { formatDate, formatInstant, parseDate, parseInstant } from '@/utils/dateUtils';
+import { formatDate, formatInstant, parseDate, parseInstant, localTodayIso } from '@/utils/dateUtils';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
@@ -20,14 +20,14 @@ import { calendarForEngine } from '@/utils/effectiveWorkTime';
 
 /** ISO-datum-prefix (`YYYY-MM-DD`) uit een datetime-string; lege invoer ⇒ vandaag. */
 export function isoDatePrefixOrToday(s: string): string {
-  if (!s) return formatDate(new Date());
+  if (!s) return localTodayIso();
   return s.substring(0, 10);
 }
 
 /** Een datetime uit MSPDI/P6 in de modus van de taak: UUR ⇒ de echte tijd-van-de-dag
  *  (`YYYY-MM-DDTHH:mm`, §7.3), DAG ⇒ de datum-prefix. Lege invoer ⇒ vandaag, zoals hierboven. */
 export function importDateTime(s: string, hour: boolean): string {
-  if (!s) return formatDate(new Date());
+  if (!s) return localTodayIso();
   return hour ? formatInstant(parseInstant(s), 'hour') : s.substring(0, 10);
 }
 
@@ -59,7 +59,7 @@ export function csvDate(s: string): string | undefined {
 
 /** `csvDate` met de bestaande vandaag-terugval (actuals/kalender-datums gebruiken hem niet). */
 export function csvDateOrToday(s: string): string {
-  return csvDate(s) ?? formatDate(new Date());
+  return csvDate(s) ?? localTodayIso();
 }
 
 // ── Ontbrekende geplande start/finish van ingelezen taken ───────────────────────────────────────
@@ -131,7 +131,7 @@ export function resolveMissingScheduleDates(
   }
   const anchor = fileProjectStart
     ? fileProjectStart.substring(0, 10)
-    : (earliest ? earliest.substring(0, 10) : formatDate(new Date()));
+    : (earliest ? earliest.substring(0, 10) : localTodayIso());
   for (const t of tasks) {
     const time = t.time;
     if (missing.start.has(t.id)) {

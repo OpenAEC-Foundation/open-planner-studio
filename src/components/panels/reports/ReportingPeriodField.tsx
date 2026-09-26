@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Select } from '@/components/common/Select';
 import { useAppStore } from '@/state/appStore';
 import { useDisplayDate } from '@/hooks/displayDate';
-import { formatDate } from '@/utils/dateUtils';
+import { localTodayIso } from '@/utils/dateUtils';
 import {
   REPORTING_PERIOD_PRESETS, type ReportingPeriod, type ReportingPeriodPreset, type ResolvedPeriod,
   isIsoDay, projectSpan, referenceDayOf, resolveReportingPeriod,
@@ -45,7 +45,7 @@ interface Props {
 export function useResolvedPeriod(period: ReportingPeriod): ResolvedPeriod {
   const tasks = useAppStore(s => s.tasks);
   const statusDate = useAppStore(s => s.project.statusDate);
-  const today = formatDate(new Date());
+  const today = localTodayIso();
   return useMemo(() => {
     const { day } = referenceDayOf(statusDate, today);
     return resolveReportingPeriod(period, day, projectSpan(tasks));

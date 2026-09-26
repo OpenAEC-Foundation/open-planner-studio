@@ -61,7 +61,7 @@ import type { PhaseTransitionReport } from '@/state/structuralTransition';
 import { watchAncestorRelations } from '@/state/hierarchyRelationNotice';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
-import { formatDate } from '@/utils/dateUtils';
+import { localTodayIso } from '@/utils/dateUtils';
 import { ancestorIds } from '@/utils/wbs';
 import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 import { hasConcreteWorkBlocks } from '@/services/subdayIo';
@@ -188,7 +188,7 @@ function addTasksCore(ctx: McpContext, items: ParsedAddItem[]): MutationOutcome 
   for (const item of items) {
     if (item.patch.customTaskType) ctx.transactions.draft.ensureCustomTaskType(item.patch.customTaskType);
   }
-  const anchor = st.project.startDate || formatDate(new Date());
+  const anchor = st.project.startDate || localTodayIso();
   const bulk: BulkTaskItem[] = items.map((it) => {
     const top = it.patch.top;
     const tp = it.patch.time;

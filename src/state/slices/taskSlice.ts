@@ -10,7 +10,7 @@ import {
 } from '@/utils/taskDefaults';
 import { sameValue } from '@/utils/sameValue';
 import { generateId } from '@/utils/id';
-import { formatDate, parseDate } from '@/utils/dateUtils';
+import { parseDate, localTodayIso } from '@/utils/dateUtils';
 import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { ancestorIds, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
@@ -839,7 +839,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
 
       runtime.beginUndoable(s);
 
-      const now = s.project.startDate || formatDate(new Date());
+      const now = s.project.startDate || localTodayIso();
       const effectiveNewTaskCalendar = resolveCalendar(partial.calendarId, s.calendars, s.calendar);
       const defaultDurationUnit = s.ui.enableHourPlanning
         && s.project.defaultTaskDurationUnit === 'hours'
@@ -1326,7 +1326,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
 
       runtime.beginUndoable(s);
 
-      const startDate = s.project.startDate || formatDate(new Date());
+      const startDate = s.project.startDate || localTodayIso();
 
       for (const tt of template.tasks) {
         const id = idMap.get(tt.id)!;

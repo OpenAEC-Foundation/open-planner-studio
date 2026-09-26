@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Check, Pencil, X } from 'lucide-react';
 import { Select } from '@/components/common/Select';
 import { DateTextInput } from '@/components/common/DateTextInput';
-import { formatDate } from '@/utils/dateUtils';
+import { localTodayIso } from '@/utils/dateUtils';
 import { PROJECT_TEMPLATES, templatePhases, buildGeneratedCalendar, type TemplateKey } from '@/utils/projectTemplates';
 import { CalendarGeneratorFields } from '@/components/dialogs/CalendarGeneratorFields';
 import { SchedulingProfileSection } from '@/components/settings/SchedulingProfileSection';
@@ -123,7 +123,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
     const [description, setDescription] = useState(isNew ? '' : project.description);
     const [author, setAuthor] = useState(isNew ? '' : project.author);
     const [company, setCompany] = useState(isNew ? '' : project.company);
-    const [startDate, setStartDate] = useState(isNew ? formatDate(new Date()) : project.startDate);
+    const [startDate, setStartDate] = useState(isNew ? localTodayIso() : project.startDate);
     const [endDate, setEndDate] = useState(isNew ? '' : project.endDate);
     const [defaultTaskDurationUnit, setDefaultTaskDurationUnit] = useState<'days' | 'hours'>(
       isNew ? 'days' : (project.defaultTaskDurationUnit ?? 'days'),

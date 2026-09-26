@@ -15,7 +15,7 @@
  *       `fromExt*Input`/`fromExt*Updates`-paden, die per veld `if (x !== undefined)` doorgeven);
  *   (b) hernoem je een INTERN veld → dat duikt alléén hier op, nooit in extensie-code.
  */
-import { formatDate } from '@/utils/dateUtils';
+import { localTodayIso } from '@/utils/dateUtils';
 import type { Project } from '@/types/project';
 import { resolveConventions } from '@/engine/scheduler/conventions/registry';
 import type { WorkCalendar, Holiday, WorkTimeBands, WorkingException } from '@/types/calendar';
@@ -294,7 +294,7 @@ export function toExtTaskTime(tt: TaskTime): ExtTaskTime {
  * grensverdediging die voorkomt dat een onvolledig extensie-object hier al een writer-crash veroorzaakt.
  */
 export function fromExtTaskTime(tt: ExtTaskTime): TaskTime {
-  const start = tt.scheduleStart ?? formatDate(new Date());
+  const start = tt.scheduleStart ?? localTodayIso();
   const finish = tt.scheduleFinish ?? start;
   return {
     durationType: tt.durationType ?? 'WORKTIME',

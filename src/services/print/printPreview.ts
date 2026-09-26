@@ -1,7 +1,7 @@
 import { Task } from '@/types/task';
 import { Sequence } from '@/types/sequence';
 import { WorkCalendar } from '@/types/calendar';
-import { parseDate, formatDate, addCalendarDays, getWeekNumberFor, diffCalendarDays, isoDayOfWeek, utcDayStart } from '@/utils/dateUtils';
+import { parseDate, formatDate, addCalendarDays, getWeekNumberFor, diffCalendarDays, isoDayOfWeek, utcDayStart, localNowOnDayAxis } from '@/utils/dateUtils';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import type { DateNotation, DurationDisplay } from '@/types/view';
 import type { Draw2D } from '@/services/pdf/draw2d';
@@ -1196,8 +1196,7 @@ export function renderReport(
   // dus gewoon weggepoetst. In de VECTOR-PDF gebeurde dat níét (tekst staat daar altijd boven alle
   // vormen, zie `PdfVectorDraw2D.operators` vs `.texts`), zodat preview en export uit elkaar liepen
   // en het label in de PDF bovendien pal op het dagcijfer van vandaag landde.
-  const today = new Date();
-  const todayX = dateToX(today);
+  const todayX = dateToX(localNowOnDayAxis());
   const todayVisible = todayX > m.tableWidth && todayX < canvasWidth;
   if (todayVisible) {
     d2d.strokeStyle = PRINT_COLORS.today;

@@ -8,7 +8,7 @@ import { createSnapshot, documentDataChanged, restoreSnapshot, type Snapshot } f
 import { replaceSessionHistoryState } from '../sessionHistory';
 import { relationVerdict } from '../relationRules';
 import { generateId } from '@/utils/id';
-import { formatDate } from '@/utils/dateUtils';
+import { localTodayIso } from '@/utils/dateUtils';
 import {
   buildNewTask, createDefaultTaskTime, mergeTaskTime, mergeTaskUpdate, taskTriggerChanges,
   taskCalendarHoursPerDay, taskWorkMinutesOf, invalidateForTimeBaseChange, clearLevelingGaps,
@@ -143,7 +143,7 @@ function createMcpDraft(
   addTask(partial: Partial<Task> & { name: string }): string {
     const id = generateId('task');
     store.setState((s) => {
-      const now = s.project.startDate || formatDate(new Date());
+      const now = s.project.startDate || localTodayIso();
       const parentId = partial.parentId ?? null;
       // Onbekende parentId ⇒ herkenbare fout (VÓÓR enige mutatie, dus geen halve state).
       const parentTask = parentId !== null ? s.tasks.find((t) => t.id === parentId) : undefined;

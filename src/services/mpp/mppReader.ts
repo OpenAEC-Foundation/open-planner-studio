@@ -135,7 +135,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import type { Resource, ResourceType } from '@/types/resource';
 import type { ImportLabels, ImportResult } from '@/services/importTypes';
 import { generateId } from '@/utils/id';
-import { formatDate, formatInstant, parseInstant } from '@/utils/dateUtils';
+import { formatDate, formatInstant, parseInstant, localTodayIso } from '@/utils/dateUtils';
 import { normalizeImportedProgress, deriveImportedWorkRules, reconstructResourceIds } from '@/services/importNormalize';
 import { emptyMissingScheduleDates, resolveMissingScheduleDates } from '@/services/importDates';
 import { tenthsOfMinutesToDays } from '@/services/importDurations';
@@ -1163,7 +1163,7 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
     const isManual = raw.taskMode === 'MANUALLY_SCHEDULED';
     const resolvedStartTs = resolveScheduleField(raw.manualStartTs, raw.startTs, isManual);
     const resolvedFinishTs = resolveScheduleField(raw.manualFinishTs, raw.finishTs, isManual);
-    const start = formatField(resolvedStartTs) ?? formatDate(new Date());
+    const start = formatField(resolvedStartTs) ?? localTodayIso();
     const finish = formatField(resolvedFinishTs) ?? start;
     const actualStart = formatField(raw.actualStartTs);
     const actualFinish = formatField(raw.actualFinishTs);
@@ -1383,7 +1383,7 @@ export function parseProjectProperties(
     id: generateId('proj'),
     name,
     description: '',
-    startDate: startDate ? formatDate(startDate) : formatDate(new Date()),
+    startDate: startDate ? formatDate(startDate) : localTodayIso(),
     endDate: finishDate ? formatDate(finishDate) : '',
     calendarId: 'cal-default',
     createdAt: new Date().toISOString(),

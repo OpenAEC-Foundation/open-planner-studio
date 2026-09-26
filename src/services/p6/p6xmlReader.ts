@@ -7,7 +7,7 @@ import { Project } from '@/types/project';
 import { WorkCalendar, Holiday } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
-import { formatDate, parseInstant } from '@/utils/dateUtils';
+import { parseInstant, localTodayIso } from '@/utils/dateUtils';
 import { normalizeImportedProgress, deriveImportedWorkRules, reconstructResourceIds } from '@/services/importNormalize';
 import { flattenOrder } from '@/utils/wbs';
 import { emptyMissingScheduleDates, importDateTime, isoDatePrefixOrToday, resolveMissingScheduleDates } from '@/services/importDates';
@@ -821,7 +821,7 @@ function parseProject(doc: Document): Project {
       id: generateId('proj'),
       name: 'P6 Import',
       description: '',
-      startDate: formatDate(new Date()),
+      startDate: localTodayIso(),
       endDate: '',
       calendarId: 'cal-default',
       createdAt: new Date().toISOString(),
