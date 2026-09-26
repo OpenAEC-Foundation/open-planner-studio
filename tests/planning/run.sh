@@ -1613,6 +1613,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   BREAKCHECK="$DIR/.calendar-breaks.mjs"
   if bundle_check "$DIR/check-calendar-breaks.ts" "$BREAKCHECK"; then node "$BREAKCHECK" || STATUS=1; fi
 
+  # Kalenderdialogen (audit resources-kalenders 4/5/7): Toepassen/Enter zonder wijziging is een
+  # no-op (ook in de modus "datums zoals opgeslagen"), feestdagvalidatie gedeeld met MCP, en één
+  # fabriek voor een nieuwe kalender.
+  CALDLGCHECK="$DIR/.calendar-dialog-commits.mjs"
+  if bundle_check "$DIR/check-calendar-dialog-commits.ts" "$CALDLGCHECK"; then node "$CALDLGCHECK" || STATUS=1; fi
+
   # IFC-round-trip-contract (fase 3, P11, bevinding A2/F2). Twee stappen:
   #  (1) COMPILE-AFDWINGING van de fixture-volledigheid — de hoofd-tsconfig sluit tests/ uit, dus een
   #      eigen tsconfig die de check-batterijen typecheckt (`satisfies Required<...>`); een

@@ -10,8 +10,8 @@ La ventana **Calendario del recurso** edita el calendario propio de un único re
 ## Diferencias con el diálogo de calendario
 
 - **Un calendario a la vez** — sin lista de biblioteca a la izquierda, sin estrella de predeterminado del proyecto; solo el formulario.
-- **Aplicar** guarda el calendario; **Cancelar**, **Esc**, la cruz de cierre o un clic fuera de la ventana descarta los cambios.
-- **Sin recálculo automático** — un calendario de recurso no cambia las fechas CPM; cuenta para la carga (histograma) y la nivelación, que usted mismo vuelve a ejecutar con F5 o **Nivelar…** respectivamente.
+- **Aplicar** guarda el calendario; **Cancelar**, **Esc**, la cruz de cierre o un clic fuera de la ventana descarta los cambios. Un calendario nuevo creado con **+ Calendario del recurso** en la lista desplegable solo existe tras **Aplicar** y entonces se vincula de inmediato al recurso (juntos, un solo paso de Deshacer); tras **Cancelar** no queda nada. Parte del mismo valor predeterminado que **+** en el diálogo de calendarios.
+- **Sin recálculo automático** — **Aplicar** no recalcula la planificación. En su papel de calendario de recurso, un calendario no cambia las fechas CPM; cuenta para la carga (histograma) y la nivelación, que usted mismo vuelve a ejecutar con F5 o **Nivelar…** respectivamente. Sin embargo, la lista desplegable ofrece todos los calendarios del proyecto: si edita aquí un calendario que también es el calendario del proyecto o el de una tarea, la planificación sí cambia. Entonces se marca como desactualizada y F5 la recalcula.
 
 ## Campos
 

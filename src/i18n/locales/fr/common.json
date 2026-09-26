@@ -772,7 +772,8 @@
       "project": "Calendrier du projet",
       "new": "Nouveau calendrier",
       "duplicate": "Dupliquer",
-      "setDefault": "Définir comme calendrier par défaut du projet"
+      "setDefault": "Définir comme calendrier par défaut du projet",
+      "invalid": "Ce calendrier contient une saisie non valide"
     },
     "generate": {
       "button": "Générer les jours fériés…",
@@ -833,6 +834,11 @@
         "outsideWorkingDay": "La pause doit être entièrement comprise dans la journée de travail.",
         "consumesWorkingDay": "La pause ne peut pas couvrir toute la journée de travail."
       }
+    },
+    "holidayErrors": {
+      "invalidStart": "Saisissez une date de début valide.",
+      "invalidEnd": "Saisissez une date de fin valide, ou laissez-la vide pour un seul jour.",
+      "endBeforeStart": "La date de fin est antérieure à la date de début."
     },
     "worktime": {
       "section": "Horaires de travail",

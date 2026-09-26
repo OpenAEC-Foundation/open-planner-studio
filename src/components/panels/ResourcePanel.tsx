@@ -3,7 +3,6 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, X, Check, Unlink2, Library } from 'lucide-react';
 import type { Resource, ResourceType, AvailabilityStep } from '@/types/resource';
-import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { formatDate } from '@/utils/dateUtils';
 import { ResourceCalendarDialog } from '@/components/dialogs/ResourceCalendarDialog';
 import { UnitsInput } from '@/components/common/UnitsInput';
@@ -170,7 +169,6 @@ export function ResourcePanel() {
   const updateResource = useAppStore(s => s.updateResource);
   const removeResource = useAppStore(s => s.removeResource);
   const unlinkResourceFromLibrary = useAppStore(s => s.unlinkResourceFromLibrary);
-  const addCalendar = useAppStore(s => s.addCalendar);
   const setUI = useAppStore(s => s.setUI);
   const project = useAppStore(s => s.project);
   const companies = useAppStore(s => s.companies);
@@ -180,7 +178,6 @@ export function ResourcePanel() {
   const addPoolResource = useAppStore(s => s.addPoolResource);
   const removePoolResource = useAppStore(s => s.removePoolResource);
   const updatePoolResource = useAppStore(s => s.updatePoolResource);
-  const addPoolCalendar = useAppStore(s => s.addPoolCalendar);
   const addLibraryResourceToProject = useAppStore(s => s.addLibraryResourceToProject);
   const promoteResourceToPool = useAppStore(s => s.promoteResourceToPool);
   const linked = !!project.companyId && companies.some(c => c.id === project.companyId);
@@ -193,8 +190,9 @@ export function ResourcePanel() {
   const inOccupancyView = linked && resourcesView === 'occupancy' && !!pool;
 
   // Kalender-editor: null = dicht. `poolCompanyId` aanwezig ⇒ de dialoog bewerkt/maakt een
-  // POOL-kalender (via addPoolCalendar/updatePoolCalendar) i.p.v. een projectkalender.
-  const [calDialog, setCalDialog] = useState<{ id: string; poolCompanyId?: string } | null>(null);
+  // POOL-kalender (via addPoolCalendar/updatePoolCalendar) i.p.v. een projectkalender. Zonder `id`
+  // staat hij in aanmaakmodus; `linkResourceId` is dan de resource die de nieuwe kalender krijgt.
+  const [calDialog, setCalDialog] = useState<{ id?: string; poolCompanyId?: string; linkResourceId?: string } | null>(null);
   // Uitgeklapte availabilitySteps-subrij (één tegelijk) — gedeeld tussen beide weergaven; nooit
   // gelijktijdig zichtbaar omdat er maar één tabel tegelijk gerenderd wordt.
   const [expandedSteps, setExpandedSteps] = useState<string | null>(null);
@@ -448,40 +446,28 @@ export function ResourcePanel() {
     if (project.companyId) updatePoolResource(project.companyId, id, updates);
   };
 
-  // Een lege resource-kalender (zonder id — die kent de bibliotheek toe) voor "+ nieuwe kalender".
-  const newResourceCalendar = () => {
-    const { id: _drop, ...base } = createDefaultCalendar();
-    void _drop;
-    return { ...base, name: t('resource.calendarDialog.title') };
+  // Na Toepassen in aanmaakmodus: koppel de zojuist aangemaakte kalender aan de resource van "+".
+  const linkNewCalendar = (dialog: { poolCompanyId?: string; linkResourceId?: string }, calendarId: string) => {
+    if (!dialog.linkResourceId) return;
+    if (dialog.poolCompanyId) updatePoolResource(dialog.poolCompanyId, dialog.linkResourceId, { calendarId });
+    else updateResource(dialog.linkResourceId, { calendarId });
   };
 
-  // "+ nieuwe kalender": maak direct een lege resource-kalender aan, koppel 'm en open de editor.
-  const createAndEditCalendar = (resourceId: string) => {
-    const id = addCalendar(newResourceCalendar());
-    updateResource(resourceId, { calendarId: id });
-    setCalDialog({ id });
-  };
-
-  // Poolvariant: dezelfde flow, maar tegen de pool-kalenderbibliotheek van het gekoppelde bedrijf.
-  const createAndEditPoolCalendar = (resourceId: string) => {
-    if (!project.companyId) return;
-    const id = addPoolCalendar(project.companyId, newResourceCalendar());
-    if (!id) return;
-    updatePoolResource(project.companyId, resourceId, { calendarId: id });
-    setCalDialog({ id, poolCompanyId: project.companyId });
-  };
-
+  // "+ nieuwe kalender": open de editor in AANMAAKMODUS. De kalender bestaat pas na Toepassen en
+  // wordt dán aan de resource gekoppeld (`linkNewCalendar`); Annuleren laat niets achter. Voorheen
+  // werd hij vóór het openen al aangemaakt en gekoppeld, zodat Annuleren beide liet staan.
   const onCalendarChange = (resource: Resource, value: string) => {
     if (value === NEW_CAL) {
-      createAndEditCalendar(resource.id);
+      setCalDialog({ linkResourceId: resource.id });
       return;
     }
     updateResource(resource.id, { calendarId: value || undefined });
   };
 
+  // Poolvariant: dezelfde flow, tegen de pool-kalenderbibliotheek van het gekoppelde bedrijf.
   const onPoolCalendarChange = (resource: Resource, value: string) => {
     if (value === NEW_CAL) {
-      createAndEditPoolCalendar(resource.id);
+      if (project.companyId) setCalDialog({ poolCompanyId: project.companyId, linkResourceId: resource.id });
       return;
     }
     poolPatch(resource.id, { calendarId: value || undefined });
@@ -680,7 +666,12 @@ export function ResourcePanel() {
       )}
 
       {calDialog !== null && (
-        <ResourceCalendarDialog calendarId={calDialog.id} poolCompanyId={calDialog.poolCompanyId} onClose={() => setCalDialog(null)} />
+        <ResourceCalendarDialog
+          calendarId={calDialog.id}
+          poolCompanyId={calDialog.poolCompanyId}
+          onCreated={calDialog.linkResourceId ? (calendarId) => linkNewCalendar(calDialog, calendarId) : undefined}
+          onClose={() => setCalDialog(null)}
+        />
       )}
     </div>
   );

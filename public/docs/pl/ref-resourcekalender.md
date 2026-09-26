@@ -10,8 +10,8 @@ Okno **Kalendarz zasobu** edytuje własny kalendarz pojedynczego zasobu — na p
 ## Różnice względem okna dialogowego kalendarza
 
 - **Jeden kalendarz naraz** — brak listy biblioteki po lewej, brak gwiazdki domyślnego dla projektu; tylko formularz.
-- **Zastosuj** zapisuje kalendarz; **Anuluj**, **Esc**, krzyżyk zamykający albo kliknięcie poza oknem odrzuca zmiany.
-- **Brak automatycznego przeliczenia** — kalendarz zasobu nie zmienia dat CPM; wpływa na obciążenie (histogram) i bilansowanie, które ponownie uruchamiasz sam, odpowiednio przez F5 lub **Bilansuj…**.
+- **Zastosuj** zapisuje kalendarz; **Anuluj**, **Esc**, krzyżyk zamykający albo kliknięcie poza oknem odrzuca zmiany. Nowy kalendarz utworzony przez **+ Kalendarz zasobu** na liście rozwijanej powstaje dopiero po **Zastosuj** i jest wtedy od razu przypisywany do zasobu (razem jeden krok Cofnij); po **Anuluj** nic nie zostaje. Zaczyna od tych samych ustawień domyślnych co **+** w oknie kalendarzy.
+- **Brak automatycznego przeliczenia** — **Zastosuj** nie przelicza harmonogramu. W roli kalendarza zasobu kalendarz nie zmienia dat CPM; wpływa na obciążenie (histogram) i bilansowanie, które ponownie uruchamiasz sam, odpowiednio przez F5 lub **Bilansuj…**. Lista rozwijana oferuje jednak wszystkie kalendarze projektu: jeśli edytujesz tu kalendarz, który jest też kalendarzem projektu lub zadania, harmonogram się zmienia. Zostaje wtedy oznaczony jako nieaktualny, a F5 przelicza go ponownie.
 
 ## Pola
 

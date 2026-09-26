@@ -706,7 +706,8 @@
       "project": "프로젝트 달력",
       "new": "새 달력",
       "duplicate": "복제",
-      "setDefault": "프로젝트 기본값으로 설정"
+      "setDefault": "프로젝트 기본값으로 설정",
+      "invalid": "이 달력에 잘못된 입력이 있습니다"
     },
     "generate": {
       "button": "공휴일 생성…",
@@ -767,6 +768,11 @@
         "outsideWorkingDay": "휴식은 설정된 근무일 안에 모두 있어야 합니다.",
         "consumesWorkingDay": "휴식이 근무일 전체를 차지할 수 없습니다."
       }
+    },
+    "holidayErrors": {
+      "invalidStart": "올바른 시작 날짜를 입력하세요.",
+      "invalidEnd": "올바른 종료 날짜를 입력하거나, 하루만이면 비워 두세요.",
+      "endBeforeStart": "종료 날짜가 시작 날짜보다 앞섭니다."
     },
     "worktime": {
       "section": "근무 시간",

@@ -10,12 +10,12 @@ Okno **Kalendarze** zarządza biblioteką kalendarzy projektu: listą wszystkich
 
 ## Zastosowanie i anulowanie
 
-Wszystkie edycje — w tym nowy/duplikat/usuń — odbywają się w kopii roboczej. **Zastosuj** (albo **Enter**) zapisuje wszystko naraz i przelicza harmonogram; **Anuluj**, **Esc**, krzyżyk zamykający albo kliknięcie poza oknem odrzuca wszystkie zmiany.
+Wszystkie edycje — w tym nowy/duplikat/usuń — odbywają się w kopii roboczej. **Zastosuj** zapisuje wszystko naraz, przelicza harmonogram i zamyka okno; **Enter** w polu tekstowym, takim jak nazwa, robi to samo, ale pozostawia okno otwarte. Jeśli nic się nie zmieniło, **Zastosuj** i **Enter** nic nie robią: dokument pozostaje niezmieniony, a harmonogram nie jest przeliczany. **Anuluj**, **Esc**, krzyżyk zamykający albo kliknięcie poza oknem odrzuca wszystkie zmiany, które nie zostały jeszcze zatwierdzone przez **Zastosuj** lub **Enter**.
 
 ## Biblioteka (lewa kolumna)
 
-- **Lista** — wszystkie kalendarze; gwiazdka oznacza **Kalendarz projektu** (domyślny dla zadań bez własnego kalendarza).
-- **+** — **Nowy kalendarz**.
+- **Lista** — wszystkie kalendarze; gwiazdka oznacza **Kalendarz projektu** (domyślny dla zadań bez własnego kalendarza). Znak ostrzegawczy oznacza kalendarz z nieprawidłowymi danymi.
+- **+** — **Nowy kalendarz**, z tymi samymi ustawieniami domyślnymi co **+ Kalendarz zasobu** w panelu zasobów i co nowy projekt: pon.–pt. 07:00–16:00 oraz, przy włączonym **Trybie budowlanym**, holenderskie święta. Jeśli nie chcesz żadnych, wybierz **Generuj święta…** → **Bez świąt**.
 - **Duplikuj** — kopia zaznaczonego kalendarza.
 - **Usuń** — niemożliwe dla ostatniego kalendarza; usunięcie domyślnego kalendarza projektu czyni innym kalendarz domyślnym.
 - **Ustaw jako domyślny dla projektu** — czyni zaznaczony kalendarz kalendarzem projektu (przycisk nad formularzem).
@@ -47,4 +47,4 @@ Generuje listę dni wolnych na podstawie reguł dla całego okresu projektu:
 
 ## Dni wolne
 
-Sama lista: dla każdego wiersza **Opis**, **Od**, **Do** i przycisk usuwania; **Dodaj dzień wolny** tworzy nowy wiersz. Wielodniowe okresy (urlop budowlany, przerwa mrozowa) to po prostu wiersz z dłuższym przedziałem Od–Do.
+Sama lista: dla każdego wiersza **Opis**, **Od**, **Do** i przycisk usuwania; **Dodaj dzień wolny** tworzy nowy wiersz. Wielodniowe okresy (urlop budowlany, przerwa mrozowa) to po prostu wiersz z dłuższym przedziałem Od–Do. Puste pole **Do** oznacza jednodniowy dzień wolny. Jeśli brakuje **Od** albo **Do** wypada przed **Od**, wiersz zostaje oznaczony na czerwono z wyjaśnieniem, a **Zastosuj** i **Enter** pozostają zablokowane, dopóki go nie poprawisz.

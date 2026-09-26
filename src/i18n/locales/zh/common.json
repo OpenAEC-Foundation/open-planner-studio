@@ -706,7 +706,8 @@
       "project": "项目日历",
       "new": "新建日历",
       "duplicate": "复制",
-      "setDefault": "设为项目默认"
+      "setDefault": "设为项目默认",
+      "invalid": "此日历包含无效输入"
     },
     "generate": {
       "button": "生成假日…",
@@ -767,6 +768,11 @@
         "outsideWorkingDay": "休息必须完全在设定的工作日内。",
         "consumesWorkingDay": "休息不能占用整个工作日。"
       }
+    },
+    "holidayErrors": {
+      "invalidStart": "请输入有效的开始日期。",
+      "invalidEnd": "请输入有效的结束日期，或留空表示单日。",
+      "endBeforeStart": "结束日期早于开始日期。"
     },
     "worktime": {
       "section": "工作时间",

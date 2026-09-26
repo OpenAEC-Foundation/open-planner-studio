@@ -739,7 +739,8 @@
       "project": "Projectkalender",
       "new": "Nieuwe kalender",
       "duplicate": "Dupliceren",
-      "setDefault": "Als projectdefault"
+      "setDefault": "Als projectdefault",
+      "invalid": "Deze kalender bevat ongeldige invoer"
     },
     "generate": {
       "button": "Feestdagen genereren…",
@@ -800,6 +801,11 @@
         "outsideWorkingDay": "De pauze moet volledig binnen de ingestelde werkdag vallen.",
         "consumesWorkingDay": "De pauze mag niet de volledige werkdag beslaan."
       }
+    },
+    "holidayErrors": {
+      "invalidStart": "Vul een geldige begindatum in.",
+      "invalidEnd": "Vul een geldige einddatum in, of laat hem leeg voor één dag.",
+      "endBeforeStart": "De einddatum ligt vóór de begindatum."
     },
     "worktime": {
       "section": "Werktijden",

@@ -772,7 +772,8 @@
       "project": "Calendario del proyecto",
       "new": "Nuevo calendario",
       "duplicate": "Duplicar",
-      "setDefault": "Establecer como predeterminado del proyecto"
+      "setDefault": "Establecer como predeterminado del proyecto",
+      "invalid": "Este calendario contiene datos no válidos"
     },
     "generate": {
       "button": "Generar festivos…",
@@ -833,6 +834,11 @@
         "outsideWorkingDay": "La pausa debe estar completamente dentro de la jornada laboral.",
         "consumesWorkingDay": "La pausa no puede ocupar toda la jornada laboral."
       }
+    },
+    "holidayErrors": {
+      "invalidStart": "Introduzca una fecha de inicio válida.",
+      "invalidEnd": "Introduzca una fecha de fin válida o déjela vacía para un solo día.",
+      "endBeforeStart": "La fecha de fin es anterior a la fecha de inicio."
     },
     "worktime": {
       "section": "Horarios de trabajo",
