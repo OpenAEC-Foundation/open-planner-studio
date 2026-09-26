@@ -195,7 +195,7 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
   const { filter, group, sort, collapsedTaskIds, collapsedGroupKeys } = opts;
   const byId = new Map(tasks.map(t => [t.id, t]));
 
-  // Stap 1 — filter (§4.2/§6): matchende bladeren + hun gedimde ouderketen (P6 "show summaries").
+  // Stap 1 — filter: matchende bladeren + hun gedimde ouderketen (P6 "show summaries").
   const visible = new Set<string>();
   const dimmed = new Map<string, boolean>();
   if (filter === null) {
@@ -216,7 +216,7 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
     }
   }
 
-  // Stap 2 — gegroepeerde modus (§4.2/§7): platte banden op zichtbare bladeren.
+  // Stap 2 — gegroepeerde modus: platte banden op zichtbare bladeren.
   if (group.length > 0) {
     const rows: ViewRow[] = [];
     const visibleLeaves = tasks.filter(t => isLeafTask(t) && visible.has(t.id));
@@ -252,7 +252,7 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
     return rows;
   }
 
-  // Stap 2' — boommodus (§4.2 stap 2, else-tak): behoud de WBS-boom. Ingeklapte nakomelingen tellen
+  // Stap 2' — boommodus: behoud de WBS-boom. Ingeklapte nakomelingen tellen
   // als "gezien" (recursie gaat door, maar emit niet: de `hidden`-vlag), zodat het wees-vangnet ze
   // niet oppikt.
   const rows: ViewRow[] = [];
@@ -269,7 +269,7 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
   };
   const roots = tasks.filter(t => !t.parentId);
   for (const r of sortTasks(roots, sort, ctx)) emit(r, 0, false);
-  // Wees-vangnet (§4.2): taken met een onbekende ouder alsnog tonen.
+  // Wees-vangnet: taken met een onbekende ouder alsnog tonen.
   for (const t of tasks) {
     if (!seen.has(t.id) && visible.has(t.id)) {
       rows.push({ kind: 'task', rowKey: t.id, task: t, depth: 0, dimmed: dimmed.get(t.id) ?? false });
@@ -280,12 +280,12 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
 
 /**
  * Alle bandsleutels van de huidige groepering — óók die van banden die op dit moment ingeklapt
- * zijn. Voor "alle groepen inklappen" (issue #35).
+ * zijn. Voor "alle groepen inklappen".
  *
  * Bewust NIET afgeleid uit de bestaande `viewRows`: `walk()` hierboven daalt niet af in een
  * ingeklapte band, dus zodra er ook maar één band dicht staat ontbreken de sleutels van al zijn
  * subbanden in `viewRows`. "Alles inklappen" zou dan precies de takken overslaan die de gebruiker
- * al eerder had dichtgeklapt — en na één keer uitklappen stonden die weer open. Daarom draaien we
+ * al eerder had dichtgeklapt — en na één keer uitklappen zouden die weer open staan. Daarom draaien we
  * de pijplijn hier één keer met een LEGE collapse-set: dan emit elk niveau al zijn banden.
  * Zonder groepering zijn er per definitie geen banden ⇒ lege lijst.
  */
@@ -299,7 +299,7 @@ export function allBandKeys(tasks: Task[], opts: ViewRowOpts, ctx: ViewContext):
 }
 
 /**
- * taskId → eerste rij-index in `viewRows` (§7.1): bij multi-band-duplicaten wint de laagste index,
+ * taskId → eerste rij-index in `viewRows`: bij multi-band-duplicaten wint de laagste index,
  * zodat de pijl-renderer één keer verbindt i.p.v. pijl-spaghetti.
  */
 export function firstRowIndexByTask(rows: ViewRow[]): Map<string, number> {

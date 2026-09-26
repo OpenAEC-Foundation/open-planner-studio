@@ -189,7 +189,7 @@ export function computeScheduleHealth(ctx: ReportContext, opts: HealthOptions): 
     return { sequenceId: shown.id, wbs: `${p?.wbsCode ?? '?'} → ${q?.wbsCode ?? '?'}`, name: `${p?.name ?? '?'} → ${q?.name ?? '?'}`, detail };
   };
   // Eén lag-definitie met de solver (`resolveEffectiveLagDays`): procent-lag uit de voorgangerduur,
-  // `lagDays` leidend, minuut-lag via de uren/dag van de voorgangerkalender (review-bevinding 3).
+  // `lagDays` leidend, minuut-lag via de uren/dag van de voorgangerkalender.
   const reportedLag = new Set<string>();
   for (const s of relations) {
     const orig = originalSequenceId(s.id);

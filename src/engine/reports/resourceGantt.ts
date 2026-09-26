@@ -190,8 +190,7 @@ export function computeResourceGanttRows(
   // Contourkoppeling op de VOLLEDIGE recordlijst per taak — ook records naar een onbekende
   // resource (die filtert de rij-opbouw hieronder pas weg) — precies zoals `ResourceLoad.ts`'s
   // `contourLookup` en het eigenschappenpaneel de lijst aanbieden; anders kan de legacy-terugval
-  // in `matchContoursToAssignments` (`assignments.length === 1`) hier anders uitvallen dan daar
-  // (review ronde 2, bevinding 3).
+  // in `matchContoursToAssignments` (`assignments.length === 1`) hier anders uitvallen dan daar.
   const recordsByTask = new Map<string, ResourceAssignment[]>();
   for (const a of ctx.assignments) {
     if (!leafById.has(a.taskId)) continue;

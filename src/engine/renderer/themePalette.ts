@@ -172,7 +172,7 @@ export function compositeOver(top: string, base: string): string {
  * WCAG-contrastverhouding haalt. Eén gebruiksplek: het TAAKBALK-label in `GanttRenderer`, dat op
  * de balkkleur zelf of op de voortgangsvulling staat. Labels op de CANVAS-achtergrond horen bij
  * `palette.text`/`textSecondary` en niet hier.
- * Onparseerbare invoer (een `rgba()`-string, een CSS-var) ⇒ wit, het vroegere gedrag.
+ * Onparseerbare invoer (een `rgba()`-string, een CSS-var) ⇒ wit.
  */
 export function barLabelColor(barColor: string): string {
   const rgb = hexToRgb(barColor);
@@ -188,7 +188,7 @@ export interface GanttPalette {
   surface: string;
   grid: string;
   gridWeekend: string;
-  /** Om-en-om weekband in de GECOMPRIMEERDE modus (issue #21 punt 2): de achtergrondtint van de
+  /** Om-en-om weekband in de GECOMPRIMEERDE modus: de achtergrondtint van de
    *  dagkolommen van oneven ISO-weken. Onder compressie bestaan weekendkolommen niet meer, dus de
    *  weekendarcering — de enige visuele weekscheiding — vervalt daar; deze band neemt die rol
    *  over. Aparte var (géén hergebruik van `gridWeekend`): de band bedekt hele weken (5+ kolommen
@@ -226,11 +226,11 @@ export interface GanttPalette {
   floatPathTints: string[];
   /** Tekstkleur ÓP een accent-vlak (`--theme-accent-on`): wit in licht/donker, zwart in
    *  high-contrast. Zelfde paar dat de DOM-chrome al gebruikt voor accentknoppen — de tekenlaag
-   *  mag daar geen eigen wit-op-oranje van maken (issue #51). */
+   *  mag daar geen eigen wit-op-oranje van maken. */
   accentOn: string;
 }
 
-/** Leest het Gantt-palet uit de CSS-thema-vars (met de vroegere fallbacks) + de merk-hex-tabel. */
+/** Leest het Gantt-palet uit de CSS-thema-vars (met fallbacks) + de merk-hex-tabel. */
 export function readGanttPalette(): GanttPalette {
   const v = cssVarReader();
   return {
@@ -246,7 +246,7 @@ export function readGanttPalette(): GanttPalette {
     textSecondary: v('--theme-text-dim', '#5B6472'),
     // De balktinten komen uit BRAND, maar via een thema-var met BRAND als fallback — hetzelfde
     // patroon dat `--theme-bar-float` al had. Licht en donker definiëren die vars NIET, dus daar
-    // valt alles terug op BRAND en is de uitkomst byte-identiek aan een directe `BRAND.x`. Alleen
+    // valt alles terug op BRAND en is de uitkomst gelijk aan een directe `BRAND.x`. Alleen
     // het hoog-contrastthema zet ze, omdat de verzadigde set daar onder 3:1 zakt (complete 2,95).
     critical: v('--theme-bar-critical', BRAND.critical),
     criticalLight: v('--theme-bar-critical-progress', BRAND.criticalLight),
@@ -262,7 +262,7 @@ export function readGanttPalette(): GanttPalette {
     selected: v('--theme-accent', '#B45309'),
     dependency: BRAND.dependency,
     today: v('--theme-accent', '#B45309'),
-    // statusdatum-/voortgangslijn: accent-oranje, zelfde bron als today/selected (fase 2.6)
+    // statusdatum-/voortgangslijn: accent-oranje, zelfde bron als today/selected
     statusDate: v('--theme-accent', '#B45309'),
     headerBg: v('--theme-surface-alt', '#F6F8FB'),
     summary: BRAND.summary,
@@ -341,7 +341,7 @@ export function readMiniMapPalette(): MiniMapPalette {
 // ── Print (printPreview.ts) ────────────────────────────────────────────────────
 // Print-vriendelijk schema, DOM-loos (papier-witte achtergrond, donkere greys). Kritiek/normaal/
 // mijlpaal/samenvatting delen de merk-hex; de print-specifieke greys/tinten blijven literalen. De
-// *Dark-varianten staan bewust in lowercase (vroegere print-casing) en delen dus NIET met de
+// *Dark-varianten staan bewust in lowercase (print-casing) en delen dus NIET met de
 // uppercase Gantt-varianten.
 export const PRINT_PALETTE = {
   bg: '#ffffff',
@@ -350,23 +350,22 @@ export const PRINT_PALETTE = {
   gridWeekend: '#f0f1f3',
   // Weekbanden horen alleen op de gecomprimeerde werkdagen-as: daar bestaan geen weekendkolommen
   // meer om de weekgrens te lezen. Lichter dan `gridWeekend`, omdat een heel weekvlak rustiger
-  // moet blijven dan twee losse vrije dagen (issue #21 punt 2).
+  // moet blijven dan twee losse vrije dagen.
   gridWeekBand: '#f1f4f9',
   gridHoliday: '#fef3c7',
   border: '#d1d5db',
   borderDark: '#9ca3af',
   text: '#111827',
   textSecondary: '#6b7280',
-  // Het printpalet loopt BEWUST niet met `BRAND` mee, ook al zijn de waarden sinds het herstel van
-  // 18-09-2026 weer identiek. De reden om ze apart te houden is dat ze op verschillende eisen zijn
+  // Het printpalet loopt BEWUST niet met `BRAND` mee, ook al zijn de waarden nu identiek. De reden om
+  // ze apart te houden is dat ze op verschillende eisen zijn
   // gekozen: het scherm weegt twee kaarten (licht/donker) tegen elkaar af, papier is altijd wit en
   // moet daarnaast in grijstinten nog te onderscheiden zijn — een ontzadigde tint verdwijnt daar
   // sneller. Wordt het schermpalet ooit opnieuw bijgesteld, dan hoeft de print daar niet in mee.
-  // De casing is hier lowercase waar dat vroeger zo stond; dat is load-bearing (zie de kop).
+  // De lowercase casing hier is load-bearing (zie de kop).
   critical: '#DC2626',
   criticalDark: '#991b1b',
-  // Bijna-kritiek (#21 kleurmodi): de print tekende bijna-kritiek nooit zelf (critical/normal
-  // waren de enige balkkleuren); de 'critical'-kleurmodus deelt die keuze nu met barColors.
+  // Bijna-kritiek: de 'critical'-kleurmodus van de print deelt deze keuze met barColors.
   nearCritical: BRAND.nearCritical, // '#F59E0B'
   normal: '#2563EB',
   normalDark: '#1d4ed8',

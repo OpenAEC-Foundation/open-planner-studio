@@ -288,10 +288,10 @@ export class GanttRenderer {
     return `${bold ? 'bold ' : ''}${size}px ${this.opts.fontFamily ?? FALLBACK_FONT_STACK}`;
   }
 
-  /** Basis-balkkleur (fase 2.9 §5.4): kritiek-rood ≻ near-critical-amber ≻ float-path-tint ≻
+  /** Basis-balkkleur: kritiek-rood ≻ near-critical-amber ≻ float-path-tint ≻
    *  normaal-blauw. `overrideColor` (trace-tint) wint altijd. Near-critical en de
-   *  float-path-tint zijn analyse-overlays die alleen bestaan wanneer hun optie aanstaat ⇒ default
-   *  byte-identiek (`isNearCritical`/`floatPath` afwezig). */
+   *  float-path-tint zijn analyse-overlays die alleen bestaan wanneer hun optie aanstaat
+   *  (`isNearCritical`/`floatPath` anders afwezig). */
   private barColor(task: Task, overrideColor?: string): string {
     if (overrideColor) return overrideColor;
     if (task.time.isCritical) return this.colors.critical;
@@ -304,11 +304,11 @@ export class GanttRenderer {
     return this.colors.normal;
   }
 
-  /** Duurkolom-tekst (§6.5): de blijvende taakeenheid blijft óók zichtbaar wanneer de globale
+  /** Duurkolom-tekst: de blijvende taakeenheid blijft óók zichtbaar wanneer de globale
    * urenplanningsschakelaar uit staat; die schakelaar mag geïmporteerde urendata niet herinterpreteren. */
   private durationText(task: Task): string {
-    // M3 (Opus-review T15-iteratie-2): `isZeroDurationMilestone` i.p.v. de kale vlag — een
-    // mijlpaal-met-duur (T15) toont haar EIGEN duur, niet "0d" (zelfde discriminator als de solver).
+    // `isZeroDurationMilestone` i.p.v. de kale vlag — een
+    // mijlpaal-met-duur toont haar EIGEN duur, niet "0d" (zelfde discriminator als de solver).
     if (isZeroDurationMilestone(task)) return '0d';
     const cal = this.opts.effectiveCalById?.get(task.id) ?? this.opts.calendar;
     return formatTaskDurationDisplay(
@@ -321,11 +321,9 @@ export class GanttRenderer {
   }
 
   /** Convert a date (with optional sub-day precision) to X position on canvas.
-   *  Issue #21 punt 5 (fase 2): het ENE as-chokepoint (ontwerp §2.1/§10) — nu `this.axis.dateToX`
-   *  i.p.v. rechtstreeks `timeAxis.dateToX`. Toggle uit ⇒ `this.axis` ís de kalender-as (dunne
-   *  wrapper om exact dezelfde `axisDateToX`-aanroep, zie `buildCalendarAxis`) ⇒ byte-identiek.
-   *  Alle 30+ bestaande call-sites (grid, balken, pijlen, mijlpalen, header, …) werken ongewijzigd
-   *  door dit ene punt. */
+   *  Het ENE as-chokepoint: `this.axis.dateToX`, nooit rechtstreeks `timeAxis.dateToX`. Toggle
+   *  uit ⇒ `this.axis` ís de kalender-as (dunne wrapper om `axisDateToX`, zie `buildCalendarAxis`).
+   *  Alle call-sites (grid, balken, pijlen, mijlpalen, header, …) lopen via dit punt. */
   dateToX(date: Date): number {
     return this.axis.dateToX(date);
   }
@@ -335,17 +333,17 @@ export class GanttRenderer {
     return this.opts.headerHeight + rowIndex * this.opts.rowHeight - this.opts.view.scrollY;
   }
 
-  // ── Fase 2.8b: uur-bewuste balkgeometrie (§6.1) ────────────────────────────
+  // ── Uur-bewuste balkgeometrie ──────────────────────────────────────────────
   // Discriminator: een taak is UUR-modus zodra zijn (early/schedule-)datumstring een tijdcomponent
-  // ('T') draagt — precies wat `formatInstant('hour')` emitteert (§2.4). Dag-taken (YYYY-MM-DD)
-  // vallen dus ALTIJD op het bestaande dag-pad (`parseDate` + één dag breedte) ⇒ bit-identiek.
+  // ('T') draagt — precies wat `formatInstant('hour')` emitteert. Dag-taken (YYYY-MM-DD)
+  // vallen dus ALTIJD op het dag-pad (`parseDate` + één dag breedte).
 
-  /** Balk-uiteinden voor een taak. Uur-taak: `[dateToX(start), dateToX(finish))` (geen +dag, §6.1).
-   *  Dag-taak: `[dateToX(start), dateToX(finish)+zoom)` (inclusieve eind-dag, ongewijzigd). */
+  /** Balk-uiteinden voor een taak. Uur-taak: `[dateToX(start), dateToX(finish))` (geen +dag).
+   *  Dag-taak: `[dateToX(start), dateToX(finish)+zoom)` (inclusieve eind-dag). */
   private barGeometry(task: Task): { x1: number; x2: number; hourMode: boolean; start: Date; end: Date } {
-    // Guard (TODO 2026-07-28): een taak zonder énige datum (noch CPM- noch schedule-, bv. uit een
-    // onvolledige import) crashte hier per frame op `undefined.includes(...)` — de hele Gantt bleef
-    // zwart. Terugval: de ontbrekende kant leent van de andere kant; ontbreken beide, dan één
+    // Guard: een taak zonder énige datum (noch CPM- noch schedule-, bv. uit een onvolledige import)
+    // zou hier per frame crashen op `undefined.includes(...)`. Terugval: de ontbrekende kant leent
+    // van de andere kant; ontbreken beide, dan één
     // dag-cel op de viewstart (zichtbaar, maar zonder datums geen sleep/resize — getTaskBarBounds
     // weigert zulke taken).
     const rawStart = shownStart(task) || '';
@@ -361,7 +359,7 @@ export class GanttRenderer {
     const start = hourMode ? parseInstant(startStr) : parseDate(startStr);
     // Uur-balk: het einde als tijdstip met de rollupregel (`finishInstant`) — een einde ZONDER tijd
     // (een fase met een uren-start en een dagkind als laatste) loopt tot het einde van die dag, niet
-    // tot middernacht aan het begin ervan (audit weergaven, bevinding 10). Voor een einde mét tijd
+    // tot middernacht aan het begin ervan. Voor een einde mét tijd
     // is dat gewoon `parseInstant`.
     const end = hourMode ? finishInstant(endStr) : parseDate(endStr);
     const x1 = this.dateToX(start);
@@ -369,7 +367,7 @@ export class GanttRenderer {
     return { x1, x2, hourMode, start, end };
   }
 
-  /** De effectieve `CalendarEngine` voor een taak, ONGEACHT dag-/uur-modus (Z15). Gedeelde cache
+  /** De effectieve `CalendarEngine` voor een taak, ONGEACHT dag-/uur-modus. Gedeelde cache
    *  met `engineFor` (hieronder), dat bewust NULL teruggeeft in dag-modus omdat de kalender-
    *  necking (`workIntervalsBetween`) daar toch niets oplevert. `Task.splitGaps` heeft echter
    *  ALTIJD een engine nodig — ook een dag-modus-taak (`workTime` ontbreekt) — om de gat-offsets
@@ -402,10 +400,10 @@ export class GanttRenderer {
     return eng;
   }
 
-  /** Of een uur-taakbalk in werkblok-segmenten wordt getekend (§6.9): 'always' ⇒ altijd,
-   *  'selection' ⇒ alleen als de taak geselecteerd is, 'never' ⇒ nooit. Z15: dit stuurt
+  /** Of een uur-taakbalk in werkblok-segmenten wordt getekend: 'always' ⇒ altijd,
+   *  'selection' ⇒ alleen als de taak geselecteerd is, 'never' ⇒ nooit. Dit stuurt
    *  UITSLUITEND de kalender-necking (uur-modus, geen echte splits) — een taak met `Task.splitGaps`
-   *  (een ECHTE MS Project-split) raadpleegt deze methode nooit, zie de O5-uitleg bij `drawTaskBar`. */
+   *  (een ECHTE MS Project-split) raadpleegt deze methode nooit, zie `drawTaskBar`. */
   private shouldSplit(isSelected: boolean): boolean {
     const mode = this.opts.barSplitMode ?? 'selection';
     return mode === 'always' || (mode === 'selection' && isSelected);
@@ -426,10 +424,9 @@ export class GanttRenderer {
     this.drawDependencyArrows();
     this.drawTaskBars();
     // Ná de taakbalken (niet direct na de grid): een balk die een feestdagblok overspant zou het
-    // naamlabel anders overschilderen — juist het scenario dat §6.2 zichtbaar moet maken (2.5-QA:
-    // "opgerekte balk van vier weken" zonder duiding).
+    // naamlabel anders overschilderen — juist dat label moet de "opgerekte balk" verklaren.
     this.drawHolidayLabels();
-    // Issue #51: het duur-pilletje van een lopende rand-sleep. Ná alle chart-lagen (het moet
+    // Het duur-pilletje van een lopende rand-sleep. Ná alle chart-lagen (het moet
     // leesbaar bovenop de balk staan), maar vóór de header.
     this.drawDragDurationBadge();
     this.drawTimelineHeader();
@@ -437,31 +434,28 @@ export class GanttRenderer {
     // wanneer de losse statusdatumlijn terugtreedt, dus deze aanroepen blijven exclusief.
     this.drawProgressLine();
     this.drawStatusDateLine();
-    // U2: het horizontale statusdatum-labelvlak, bovenop beide varianten van de markering.
+    // Het horizontale statusdatum-labelvlak, bovenop beide varianten van de markering.
     this.drawStatusDateBadge();
   }
 
   private drawGridBackground(): void {
     const { canvasWidth, canvasHeight, headerHeight, view } = this.opts;
     const ctx = this.ctx;
-    // U2 — rasterdichtheid volgt de zoom (zie `gridDensityForZoom`).
+    // Rasterdichtheid volgt de zoom (zie `gridDensityForZoom`).
     const density = gridDensityForZoom(view.zoom);
 
     // Calculate visible date range
     const visibleDays = Math.ceil(canvasWidth / view.zoom) + 2;
     // startOffset = eerste zichtbare dag-index t.o.v. `viewStart`. Gelijk aan de inverse van
     // `this.dateToX` op x=0 (de lokale timeline-oorsprong): `xToDayOffset(0, 0, zoom, scrollX)` =
-    // `scrollX/zoom` — algebraïsch en drijvende-komma-identiek aan de vorige inline `scrollX/zoom`
-    // (issue #21 punt 5, fase 0-consolidatie; geen Date-round-trip, dus geen ms-afronding erbij).
+    // `scrollX/zoom` (geen Date-round-trip, dus geen ms-afronding erbij).
     const startOffset = Math.floor(xToDayOffset(0, 0, view.zoom, view.scrollX));
 
-    // Issue #21 punt 5 (fase 2, ontwerp §4.2/§10): bij een DAADWERKELIJK gecomprimeerde as bestaan
-    // niet-werkdagen niet meer op het raster — itereren per kalenderdag zou meerdere niet-werkdagen
-    // (za+zo+feestdag) op DEZELFDE naad-x laten samenvallen (kleef-rechts, §2.4), met dubbele
-    // rasterlijnen en een arcering die per ongeluk over de eerstvolgende werkdag-kolom zou vallen.
-    // Daarom hieronder een apart, index-gebaseerd pad dat uitsluitend over de as-eigen `dateAtIndex`
-    // loopt (elke stap = één ECHTE werkdag); de niet-gecomprimeerde tak hieronder blijft ONGEWIJZIGD
-    // (byte-identiek aan vóór fase 2 — geen enkele regel in die tak is aangeraakt).
+    // Bij een DAADWERKELIJK gecomprimeerde as bestaan niet-werkdagen niet op het raster — itereren
+    // per kalenderdag zou meerdere niet-werkdagen (za+zo+feestdag) op DEZELFDE naad-x laten
+    // samenvallen (kleef-rechts), met dubbele rasterlijnen en een arcering die per ongeluk over de
+    // eerstvolgende werkdag-kolom zou vallen. Daarom hieronder een apart, index-gebaseerd pad dat
+    // uitsluitend over de as-eigen `dateAtIndex` loopt (elke stap = één ECHTE werkdag).
     if (this.compressed) {
       // `axisStartIndex` = de as-index op x=0: `axis.dayIndexOf(viewStart)` (het
       // as-eigen nulpunt, kan >0 zijn — de as telt vanaf de epoch, zie workdayAxis.ts) plus
@@ -473,12 +467,11 @@ export class GanttRenderer {
         const x = this.axis.dateToX(date);
 
         // Geen weekend-arcering: `dateAtIndex` op de werkdagen-as geeft ALTIJD een echte werkdag
-        // terug (§2.2: de prefix-som is per definitie een rij werkdag-indices) — er is niets om te
-        // arceren (§4.2: "de arcering vervalt volledig").
+        // terug (de prefix-som is per definitie een rij werkdag-indices) — er is niets om te
+        // arceren.
         //
-        // Issue #21 punt 2 — om-en-om weekbanden: juist DIE weggevallen arcering was de enige
-        // visuele weekscheiding ("je gebruikt de weekenddagen als visuele scheiding, die zijn
-        // namelijk lichter"). Daarom krijgen hier de kolommen van ONEVEN weeknummers een licht
+        // Om-en-om weekbanden: juist DIE weggevallen arcering was de enige visuele
+        // weekscheiding. Daarom krijgen hier de kolommen van ONEVEN weeknummers een licht
         // getinte achtergrond en de even weken de neutrale canvas-kleur. De pariteit hangt BEWUST
         // aan het WEEKNUMMER (via `getWeekNumberFor`, dezelfde bron als het "W{n}"-headerlabel)
         // en niet aan "om en om vanaf de beeldrand": nummer-pariteit is scroll-invariant, terwijl
@@ -489,18 +482,18 @@ export class GanttRenderer {
         // aangrenzende weken dezelfde pariteit hebben (W53→W1 is oneven→oneven); de dikke weeklijn
         // markeert die ene grens dan alsnog, en de band blijft consistent met het getoonde
         // weeknummer. Alleen in deze gecomprimeerde tak — niet-gecomprimeerd is de
-        // weekend-arcering zelf de scheiding en blijft dat pad byte-identiek.
+        // weekend-arcering zelf de scheiding.
         if (getWeekNumberFor(date, this.opts.weekStartDay ?? 'monday') % 2 === 1) {
           ctx.fillStyle = this.colors.gridWeekBand;
           ctx.fillRect(x, headerHeight, view.zoom, canvasHeight - headerHeight);
         }
 
-        // U2 — rasterdichtheid: op dagzoom (>=8 px/dag) ONGEWIJZIGD (elke dag een lijn, dikke
-        // weekgrens); daaronder alleen nog de weekgrens, en onder 2 px/dag alleen de maandgrens.
+        // Rasterdichtheid: op dagzoom (>=8 px/dag) elke dag een lijn met dikke weekgrens;
+        // daaronder alleen nog de weekgrens, en onder 2 px/dag alleen de maandgrens.
         // Een maandgrens op de WERKDAGEN-as is de eerste WERKDAG van de maand — `getDate() === 1`
         // faalt hier, want de 1e kan een niet-werkdag zijn en bestaat dan niet als kolom.
-        // U2-fixronde — de WEEKGRENS is op deze as een OVERGANG tussen twee getekende kolommen, net
-        // als de maandgrens hieronder. Hangen aan `isWeekStart` (de weekstartdag zelf) gaf op een
+        // Ook de WEEKGRENS is op deze as een OVERGANG tussen twee getekende kolommen, net
+        // als de maandgrens hieronder. Hangen aan `isWeekStart` (de weekstartdag zelf) geeft op een
         // gecomprimeerde as NUL rasterlijnen zodra die dag geen werkdag is: bij
         // `weekStartDay: 'sunday'` bestaat zondag per definitie niet als kolom, en bij een kalender
         // di–za ontbreekt maandag. De overgang bestaat altijd. Bron is `getWeekNumberFor` —
@@ -516,8 +509,8 @@ export class GanttRenderer {
         const isMonthStart = density === 'month' && prevDate.getUTCMonth() !== date.getUTCMonth();
         if (density === 'day' || (density === 'week' && isWeekBoundary) || isMonthStart) {
           ctx.strokeStyle = this.colors.grid;
-          // U2-slotronde — ook de DIKTE hangt aan de overgang, niet aan de weekstartdag zelf: op
-          // dagzoom verdween de dikke weekscheiding anders volledig zodra die dag geen kolom is
+          // Ook de DIKTE hangt aan de overgang, niet aan de weekstartdag zelf: op
+          // dagzoom verdwijnt de dikke weekscheiding anders volledig zodra die dag geen kolom is
           // (`weekStartDay: 'sunday'`, of een kalender zonder maandag).
           ctx.lineWidth = density === 'day' ? (isWeekBoundary ? 1 : 0.5) : 1;
           ctx.beginPath();
@@ -532,15 +525,14 @@ export class GanttRenderer {
         const x = this.dateToX(date);
         const dayOfWeek = isoDayOfWeek(date);
 
-        // Niet-werkdag-arcering (B2): de PROJECTKALENDER is de enige waarheid — weekpatroon +
-        // feestdagen via `CalendarEngine.isWorkDay`, geen hardcoded za/zo. Bij een afwijkende
-        // werkweek (bv. za werkdag) volgt de arcering nu de kalender; ma–vr blijft visueel identiek.
+        // Niet-werkdag-arcering: de PROJECTKALENDER is de enige waarheid — weekpatroon +
+        // feestdagen via `CalendarEngine.isWorkDay`, geen hardcoded za/zo.
         if (!this.projectEngine.isWorkDay(date)) {
           ctx.fillStyle = this.colors.gridWeekend;
           ctx.fillRect(x, headerHeight, view.zoom, canvasHeight - headerHeight);
         }
 
-        // Vertical grid line — U2: dichtheid volgt de zoom (dagzoom byte-identiek aan voorheen).
+        // Vertical grid line — dichtheid volgt de zoom.
         const isWeekStart = dayOfWeek === (this.opts.weekStartDay === 'sunday' ? 7 : 1);
         const isMonthStart = date.getUTCDate() === 1; // UTC: zie de compressie-tak hierboven
         if (density === 'day' || (density === 'week' && isWeekStart) || (density === 'month' && isMonthStart)) {
@@ -568,20 +560,18 @@ export class GanttRenderer {
   }
 
   /**
-   * Naamlabel bij meerdaagse feestdagblokken (fase 2.8a, §6.2 — 2.5-QA-verhaal: een 5-daagse
-   * taak leek een "opgerekte balk van vier weken" zonder dat de bouwvak-arcering zich verklaarde).
-   * De arcering zelf blijft uitsluitend de projectkalender (§6.1); deze pass tekent alleen een
+   * Naamlabel bij meerdaagse feestdagblokken: zonder label lijkt een korte taak over de bouwvak een
+   * "opgerekte balk" zonder dat de arcering zich verklaart.
+   * De arcering zelf blijft uitsluitend de projectkalender; deze pass tekent alleen een
    * naam bovenop bestaande feestdagblokken die breder zijn dan ~3× de dagbreedte (te smal ⇒ geen
    * label, voorkomt onleesbare rommel bij losse enkele-dag-feestdagen). Horizontaal gecentreerd
    * bij voldoende breedte, anders verticaal (90°) langs de linkerrand van het blok.
    */
   private drawHolidayLabels(): void {
-    // Issue #21 punt 5 (header-bugfix, vervolg fase 3 van werkdagen-as-ontwerp.md §4.3): onder
-    // compressie bestaan feestdagen niet meer op de as (0 kolommen) — `widthPx = days*zoom`
-    // gebruikt hieronder nog de OUDE, ongecomprimeerde dagbreedte, wat op de gecomprimeerde
+    // Onder compressie bestaan feestdagen niet op de as (0 kolommen) — `widthPx = days*zoom`
+    // gebruikt hieronder de ongecomprimeerde dagbreedte, wat op de gecomprimeerde
     // `dateToX(start)`-positie een breed blok zou overtekenen dat niet bij de echte (0-brede)
-    // naad past. §4.3 wijst dit zelf aan als toekomstige "naad-marker"-vervanging (latere fase,
-    // hier niet gebouwd) — tot dan: simpelweg niets tekenen i.p.v. het 0-breedte-artefact.
+    // naad past. Daarom tekenen we dan niets.
     if (this.compressed) return;
 
     const { canvasWidth, canvasHeight, headerHeight, view } = this.opts;
@@ -613,7 +603,7 @@ export class GanttRenderer {
 
       if (widthPx >= 70) {
         // Breed genoeg: horizontaal, gecentreerd in het zichtbare deel van het blok, bovenaan.
-        // Issue #21 (holiday-labels-clip-fix): ware grootte tekenen en CLIPPEN op het zichtbare
+        // Ware grootte tekenen en CLIPPEN op het zichtbare
         // gebied i.p.v. samenknijpen via een fillText-maxWidth — een lang woord valt dan gewoon
         // gedeeltelijk buiten beeld i.p.v. onleesbaar verdrukt te worden.
         ctx.font = this.font(11, true);
@@ -622,9 +612,9 @@ export class GanttRenderer {
         ctx.beginPath();
         ctx.rect(clipX1, headerHeight, visibleWidth, Math.max(0, canvasHeight - headerHeight));
         ctx.clip();
-        // User-feedback issue #21: centreren + clippen sneed een te lange naam aan TWEE kanten af
-        // ("stverlet funder" — het begin ontbrak, leest als wartaal). Past de naam in het zichtbare
-        // deel: gecentreerd zoals voorheen. Past hij niet: links uitlijnen op de échte blokstart
+        // Centreren + clippen snijdt een te lange naam aan TWEE kanten af (het begin ontbreekt,
+        // leest als wartaal). Past de naam in het zichtbare deel: gecentreerd. Past hij niet: links
+        // uitlijnen op de échte blokstart
         // (x1), zodat altijd het BEGIN van het woord zichtbaar is en alleen het einde wegvalt.
         if (ctx.measureText(h.name).width <= visibleWidth - 8) {
           ctx.textAlign = 'center';
@@ -674,7 +664,7 @@ export class GanttRenderer {
     }
   }
 
-  /** Statusdatumlijn (fase 2.6, §6.1): kopie van drawTodayLine met de statusdatum + eigen kleur.
+  /** Statusdatumlijn: kopie van drawTodayLine met de statusdatum + eigen kleur.
    *  Getekend ná de vandaag-lijn zodat beide zichtbaar zijn (statusdatum bovenop).
    *  De voortgangslijn (`drawProgressLine`, verderop getekend) tekent zelf al een ononderbroken
    *  spine op exact dezelfde X in dezelfde kleur — als die actief is zou deze gestippelde lijn er
@@ -698,10 +688,10 @@ export class GanttRenderer {
   }
 
   /**
-   * U2 — statusdatum-label: een klein horizontaal vlakje naast de markering, net onder de kop.
+   * Statusdatum-label: een klein horizontaal vlakje naast de markering, in de kop.
    *
-   * De statusdatummarkering (gestippelde lijn óf de voortgangs-zigzag) is tot nu toe ONBENOEMD: hij
-   * is optisch niet te onderscheiden van de vandaag-lijn, die dezelfde accentkleur en hetzelfde
+   * Zonder label is de statusdatummarkering (gestippelde lijn óf de voortgangs-zigzag) optisch niet
+   * te onderscheiden van de vandaag-lijn, die dezelfde accentkleur en hetzelfde
    * streepjespatroon draagt. Een naam bij de lijn hoort horizontaal en leesbaar te staan, niet
    * 90° gedraaid langs de lijn omlaag. Kleuren komen uit dezelfde thematokens als het sleep-pilletje
    * (`--theme-accent` via `colors.statusDate` + `--theme-accent-on`), dus per thema correct.
@@ -724,10 +714,9 @@ export class GanttRenderer {
     let bx = x + 4;
     if (bx + w > canvasWidth - 2) bx = x - 4 - w;
     bx = Math.max(2, bx);
-    // U2-fixronde: het vlakje hoort IN de kopstrook, op de onderste tier-band — dezelfde band waar
-    // het weeknummer/de dagkop staat. Het stond op `headerHeight + 4`, dus bovenop de eerste
-    // taakrij: daar dekt het balken en labels af, en het verschoof mee met het scrollen van de
-    // rijen terwijl de lijn zelf blijft staan. In de kop staat het stil en dekt het niets af.
+    // Het vlakje hoort IN de kopstrook, op de onderste tier-band — dezelfde band waar het
+    // weeknummer/de dagkop staat. Op de eerste taakrij zou het balken en labels afdekken en met
+    // het scrollen van de rijen meeschuiven; in de kop staat het stil en dekt het niets af.
     const by = headerHeight - h - 2;
 
     // Randje (1px) in de paneelkleur: het vlakje ligt vlak naast de even accentkleurige lijn en zou
@@ -762,7 +751,7 @@ export class GanttRenderer {
     ctx.fillText(label, x + GanttRenderer.DRAG_BADGE_PAD_X, y + h / 2 + 0.5);
   }
 
-  /** Voortgangslijn (fase 2.6, §6.3): één verticale lijn op de statusdatum die per zichtbare
+  /** Voortgangslijn: één verticale lijn op de statusdatum die per zichtbare
    *  leaf-rij naar de voortgangspositie uitstulpt (MSP-zigzag). Hidden rijen worden overgeslagen
    *  (drawTaskBars-filter is impliciet: `rows` bevat geen hidden rijen). Summary-/band-/mijlpaal-
    *  rijen volgen de statusdatumlijn recht. */
@@ -780,7 +769,7 @@ export class GanttRenderer {
 
     ctx.strokeStyle = this.colors.statusDate;
     ctx.lineWidth = 2;
-    ctx.setLineDash([4, 4]); // zelfde patroon als de vandaag-/statusdatumlijn (user-wens: één beeld)
+    ctx.setLineDash([4, 4]); // zelfde patroon als de vandaag-/statusdatumlijn (één beeld)
     ctx.beginPath();
     ctx.moveTo(statusX, headerHeight);
 
@@ -793,9 +782,9 @@ export class GanttRenderer {
       const task = row.kind === 'task' ? row.task : null;
 
       let progressX = statusX;
-      // Alleen echte leaf-taken (geen samenvatting/mijlpaal/band) stulpen uit. M3 (Opus-review
-      // T15-iteratie-2): `isZeroDurationMilestone` — een mijlpaal-met-duur tekent als gewone balk
-      // (regel ~940 hierboven) en krijgt dus ook haar eigen statusdatum-uitstulping.
+      // Alleen echte leaf-taken (geen samenvatting/mijlpaal/band) stulpen uit.
+      // `isZeroDurationMilestone` — een mijlpaal-met-duur tekent als gewone balk (zie
+      // `drawTaskBars`) en krijgt dus ook haar eigen statusdatum-uitstulping.
       if (task && !isZeroDurationMilestone(task) && isLeafTask(task)) {
         const geo = this.barGeometry(task);
         const c = Math.max(0, Math.min(1, task.time.completion || 0));
@@ -819,7 +808,7 @@ export class GanttRenderer {
     ctx.restore();
   }
 
-  /** Baseline-onderbalk (fase 2.6, §6.2): dunne balk (of ruit voor mijlpalen) in de baseline-kleur
+  /** Baseline-onderbalk: dunne balk (of ruit voor mijlpalen) in de baseline-kleur
    *  onder de hoofdbalk, uit de actieve-baseline-overlay. Alleen als de taak een baseline-entry heeft. */
   private drawBaselineOverlay(task: Task, y: number, height: number, resourceAccentHeight = 0): void {
     const overlay = this.opts.baselineOverlay;
@@ -880,22 +869,16 @@ export class GanttRenderer {
     ctx.stroke();
 
     const enableQH = enableQuarterHourZoom ?? false;
-    // De kopstrook volgt dezelfde tierkeuze als de uurinteractie. De oude harde `false` maakte
-    // de instelling “kwartieren tonen bij ver inzoomen” alleen voor snapping effectief: uren en
-    // kwartieren werden in de schermtijdlijn nooit getekend.
+    // De kopstrook volgt dezelfde tierkeuze als de uurinteractie, zodat “kwartieren tonen bij ver
+    // inzoomen” ook de uren/kwartieren in de schermtijdlijn tekent, niet alleen de snapping.
     const { major, mid, minor } = pickTiers(view.zoom, enableQH, this.opts.enableHourPlanning ?? false);
 
-    // Visible date range. Issue #21 punt 5 (header-bugfix, vervolg fase 3 van
-    // werkdagen-as-ontwerp.md §4.1/§10): via de as-index (`this.axis.dayIndexOf`/`dateAtIndex`)
-    // i.p.v. de kalenderdag-aanname `scrollX/zoom` — die laatste gaat er impliciet van uit dat
-    // 1 kalenderdag = 1 zoom-kolom, wat alleen klopt op de ongecomprimeerde as. Onder compressie
-    // "kost" elke overgeslagen niet-werkdag 0 px maar telde in de oude formule als 1 kalenderdag
-    // mee, dus het berekende bereik liep steeds verder ACHTER op het werkelijk zichtbare venster
-    // naarmate scrollX groeide — bij genoeg scroll viel de tick-loop (`drawTierLabels`) stil
-    // vóórdat hij het canvas had bereikt: een (deels of geheel) LEGE datumregel, precies het
-    // gerapporteerde "zwarte" headergedeelte (bevestigd headless: bij scrollX=3000, zoom=26 gaf
-    // de oude formule 0 dag-labels i.p.v. de volle breedte — zie `tests/planning/
-    // check-header-compress.ts` voor de blijvende regressiebewaking).
+    // Visible date range, via de as-index (`this.axis.dayIndexOf`/`dateAtIndex`) i.p.v. de
+    // kalenderdag-aanname `scrollX/zoom` — die gaat ervan uit dat 1 kalenderdag = 1 zoom-kolom,
+    // wat alleen klopt op de ongecomprimeerde as. Onder compressie "kost" elke overgeslagen
+    // niet-werkdag 0 px, dus die aanname loopt steeds verder ACHTER op het zichtbare venster en
+    // laat de tick-loop (`drawTierLabels`) stilvallen: een (deels) LEGE datumregel
+    // (`tests/planning/check-header-compress.ts` bewaakt dit).
     // Op de niet-gecomprimeerde as is `CalendarAxis.dayIndexOf(viewStart)`===0, dus dit reduceert
     // algebraïsch tot de kalenderdag-formule met `addCalendarDays(...)`.
     const axisViewStartIdx = this.axis.dayIndexOf(this.viewStart);
@@ -1070,9 +1053,8 @@ export class GanttRenderer {
       case 'quarter':     return `Q${Math.floor(d.getUTCMonth() / 3) + 1} ${d.getUTCFullYear()}`;
       case 'month':       return `${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
       case 'week':        return `W${getWeekNumberFor(d, weekStartDay)}`;
-      // issue #21 punt 2 (vervolg: dagnamen): bij voldoende inzoomen (zoom≥40 px/dag) de
-      // weekdag-afkorting vóór het dagnummer tonen ('wo 23'); anders alleen het dagnummer.
-      // Zonder localizedWeekdays valt het terug op alleen het dagnummer (backwards-compat).
+      // Bij voldoende inzoomen (zoom≥40 px/dag) de weekdag-afkorting vóór het dagnummer tonen
+      // ('wo 23'); anders, of zonder localizedWeekdays, alleen het dagnummer.
       case 'day': {
         const dayNum = d.getUTCDate();
         if (localizedWeekdays && this.opts.view.zoom >= 40) {
@@ -1100,7 +1082,7 @@ export class GanttRenderer {
       if (y + barHeight < this.opts.headerHeight || y > this.opts.canvasHeight) continue;
 
       if (row.kind === 'group') {
-        // Bandkop-rij (§4.4): volle-breedte strook over de timeline, op exact dezelfde
+        // Bandkop-rij: volle-breedte strook over de timeline, op exact dezelfde
         // rij-index als de DOM-grid-bandkop.
         const rowY = this.rowToY(i);
         this.ctx.fillStyle = this.colors.summary + '14';
@@ -1122,10 +1104,9 @@ export class GanttRenderer {
       }
 
       if (dimmed) this.ctx.globalAlpha = 0.25;
-      else if (row.dimmed) this.ctx.globalAlpha = GanttRenderer.DIM_ALPHA; // filter-ouderketen (§4.2)
-      // M3 (Opus-review T15-iteratie-2): `isZeroDurationMilestone` — een mijlpaal-met-duur (T15) is
-      // voor de PLANNING geen mijlpaal (zelfde discriminator als de solver) en tekent dus als een
-      // gewone balk, niet als ruit.
+      else if (row.dimmed) this.ctx.globalAlpha = GanttRenderer.DIM_ALPHA; // filter-ouderketen
+      // `isZeroDurationMilestone` — een mijlpaal-met-duur is voor de PLANNING geen mijlpaal (zelfde
+      // discriminator als de solver) en tekent dus als een gewone balk, niet als ruit.
       let resourceAccentHeight = 0;
       if (isZeroDurationMilestone(task)) {
         this.drawMilestone(task, y, barHeight, isSelected, overrideColor);
@@ -1138,17 +1119,17 @@ export class GanttRenderer {
       }
       this.drawConstraintMarkers(task, y);
       this.drawNotesIndicator(task, y);
-      // Externe (cross-project) ghost-balken (fase 2.9, §5.5): op volle dekking (niet mee-dimmen),
+      // Externe (cross-project) ghost-balken: op volle dekking (niet mee-dimmen),
       // ná de constraint-markers zodat de badge bovenop leesbaar blijft.
       if (dimmed || row.dimmed) this.ctx.globalAlpha = 1;
       this.drawExternalGhosts(task, y, barHeight);
-      // Baseline-onderbalk (fase 2.6): op volle dekking, ná het eventuele dim-herstel.
+      // Baseline-onderbalk: op volle dekking, ná het eventuele dim-herstel.
       this.drawBaselineOverlay(task, y, barHeight, resourceAccentHeight);
     }
   }
 
   /**
-   * U2 — kapt `text` met een echte ellips af zodat het binnen `maxWidth` past (zie `ellipsize`).
+   * Kapt `text` met een echte ellips af zodat het binnen `maxWidth` past (zie `ellipsize`).
    *
    * Waarom niet `fillText(text, x, y, maxWidth)`: die KNIJPT de glyphs horizontaal samen; een lange
    * taaknaam wordt dan onleesbaar smal in plaats van kort. Waarom niet alleen `clip()`: dat snijdt
@@ -1184,21 +1165,21 @@ export class GanttRenderer {
     // Die breedte MOET in de zichtbaarheidstest mee: anders verdwijnt een band die nog ruim in
     // beeld staat zodra alleen de BALK links buiten beeld schuift — precies het gerapporteerde
     // gedrag. Eén bron voor de breedte, zodat test en tekening niet uit elkaar kunnen lopen.
-    // Z15: deze cull-test redeneert bewust op de VOLLE extent (`x1`/`x2` uit `geo`, vóór segmentatie)
+    // Deze cull-test redeneert bewust op de VOLLE extent (`x1`/`x2` uit `geo`, vóór segmentatie)
     // — ook voor een gesplitste taak. De segmenten (`segs`, hieronder) worden pas ná deze return
     // berekend en zijn nooit breder dan `[x1,x2]`, dus "volledig buiten beeld" op de volle extent
     // impliceert hetzelfde voor elk segment (`check-gantt-float-cull.ts` bewaakt dit).
-    // #130: staat de band uit, dan is zijn breedte 0 — de cull-test valt dan terug op de balk zelf.
+    // Staat de band uit, dan is zijn breedte 0 — de cull-test valt dan terug op de balk zelf.
     // De band eindigt op "Laatste einde" (`floatBandEnd`, dezelfde helper als de afdruk), niet op
-    // x2 + totalFloat × zoom: dat waren werkdagen maal pixels per kalenderdag, en over een weekend
-    // stopte de band dan dagen te vroeg (`check-float-band-end.ts`).
+    // x2 + totalFloat × zoom: dat zijn werkdagen maal pixels per kalenderdag, en over een weekend
+    // stopt de band dan dagen te vroeg (`check-float-band-end.ts`).
     const bandEnd = this.opts.showFloatBand !== false ? floatBandEnd(task) : null;
     const floatWidth = bandEnd ? Math.max(0, this.dateToX(bandEnd) - x2) : 0;
     if (x2 + floatWidth < 0 || x1 > this.opts.canvasWidth) return 0;
 
     const width = Math.max(x2 - x1, 4);
     // De gedeelde selectie gebruikt dezelfde pure engine als print. In critical blijft de
-    // bestaande schermanalyse (float-pad-tinten) intact; Task.color wordt nergens meer gelezen.
+    // schermanalyse (float-pad-tinten) intact; Task.color wordt hier niet gelezen.
     const selection = this.opts.barColorSelection ?? { mode: 'critical' as const };
     const dark = this.opts.darkTheme === true;
     const modeAdvies = selection.mode === 'critical'
@@ -1233,19 +1214,19 @@ export class GanttRenderer {
     const color = overrideColor ?? modeColor ?? this.barColor(task);
     // Voortgangsvulling: in de modi ligt er geen bijpassende "licht"-variant van een willekeurige
     // moduskleur — dan de vaste semi-transparante donkere laag (zelfde keuze als de printlaag).
-    // Issue #114: óók bij een trace-tint (`overrideColor`). De blauwe/rode "licht"-variant hoort bij
-    // de standaardbalkkleur; op een goud/paarse voorganger-/opvolgerbalk verving hij die kleur juist —
-    // een voltooide taak was dan van een gedimde niet te onderscheiden en de trace leek niet te werken.
+    // Óók bij een trace-tint (`overrideColor`): de blauwe/rode "licht"-variant hoort bij de
+    // standaardbalkkleur; op een goud/paarse voorganger-/opvolgerbalk zou hij die kleur vervangen en
+    // is een voltooide taak niet meer van een gedimde te onderscheiden.
     const progressColor = selection.mode !== 'critical' || overrideColor
       ? 'rgba(0, 0, 0, 0.25)'
       : task.time.isCritical ? this.colors.criticalLight : this.colors.normalLight;
 
-    // Fase 2.8b (§6.9): een uur-taak splitst in werkblok-segmenten (pauzes/nachten vallen als gaten
+    // Een uur-taak splitst in werkblok-segmenten (pauzes/nachten vallen als gaten
     // weg) volgens de instelling; dag-taken en niet-gesplitste uur-taken zijn één doorlopend segment.
     // Segmenten komen uit de op het kalender-object gememoizede banden-materialisatie (geen extra solve).
     let segs: { x1: number; x2: number }[] = [{ x1, x2 }];
     let split = false;
-    // Z15 (O5-besluit, plan-§10): een ECHTE split (`Task.splitGaps`, uit een .mpp-import afgeleid)
+    // Een ECHTE split (`Task.splitGaps`, uit een .mpp-import afgeleid)
     // tekent ALTIJD gesplitst — een werkonderbreking is DATA, geen weergavevoorkeur. Deze tak
     // raadpleegt `shouldSplit`/`barSplitMode` daarom NIET; die blijven uitsluitend voor de
     // hieronder-volgende `else`-tak (kalender-necking, puur weergave, uur-modus-only).
@@ -1321,7 +1302,7 @@ export class GanttRenderer {
       }
     }
 
-    // #21: rode rand om kritieke taken — in de scherm-kleurmodi uit het modusadvies (spiegel van
+    // Rode rand om kritieke taken — in de scherm-kleurmodi uit het modusadvies (spiegel van
     // de rapportmodi), in 'critical' bij een expliciete taakkleur (de kleur is dan de vulling;
     // zonder rand zou het kritieke pad onleesbaar worden). Volle [x1,x2]-extent, ook bij splits.
     const outlineColor = overrideColor ? null : modeAdvies?.outline;
@@ -1333,8 +1314,8 @@ export class GanttRenderer {
       ctx.stroke();
     }
 
-    // High-contrast-thema (fase 2.9 §5.4, BINDEND): kleur alléén is onvoldoende, dus de drie
-    // toestanden krijgen een texture-onderscheid — kritiek=massief (ongewijzigd), near-critical=
+    // High-contrast-thema: kleur alléén is onvoldoende, dus de drie
+    // toestanden krijgen een texture-onderscheid — kritiek=massief, near-critical=
     // GEBLOKT (gememoized diagonaal-blok-patroon bovenop de amber), normaal=OMLIJND (rand). In
     // licht/donker blijft de amber-kleur het primaire signaal (geen texture).
     if (this.highContrast && !task.time.isCritical) {
@@ -1364,19 +1345,19 @@ export class GanttRenderer {
     // Float indicator (ná de exclusieve balk-finish x2) — breedte is hierboven al bepaald en
     // wordt daar ook in de zichtbaarheidstest gebruikt.
     if (floatWidth > 0) {
-      // U2 — ingetogen speling: halve balkhoogte, verticaal gecentreerd (ongewijzigd) maar op 60%
-      // dekking i.p.v. ~90%. Op 90% domineerde de groene band het beeld: hij is vaak veel BREDER
-      // dan de balk zelf, dus een even "harde" kleur trekt de blik weg van de planning.
-      // U2-fixronde: 40% was te ver. Wat telt is het GEBLENDE contrast van de band tegen zijn
+      // Ingetogen speling: halve balkhoogte, verticaal gecentreerd, op 60% dekking. Veel hoger
+      // domineert de groene band het beeld: hij is vaak veel BREDER dan de balk zelf, dus een even
+      // "harde" kleur trekt de blik weg van de planning. Wat telt is het GEBLENDE contrast van de
+      // band tegen zijn
       // ondergrond, niet dat van de ongemengde float-kleur. De kleur komt per thema uit
       // `--theme-bar-float` (donker #10B981, licht #059669, high-contrast #34D399) — als enige
       // balktint thema-afhankelijk, juist omdat de band halfdoorzichtig is en geen label draagt.
       // Gemeten (WCAG 2.x) voor de band over zijn ondergrond, op 0.60 dekking:
       //   #10B981 op de donkere kaart #2E3239 => 2,75
       //   #059669 op de lichte kaart  #FAFAFA => 2,12
-      // Op 0.40 zakte dat naar ~1,6 — daar was de band op weekendarcering niet meer van een vrije
+      // Op 0.40 zakt dat naar ~1,6 — dan is de band op weekendarcering niet meer van een vrije
       // dag te onderscheiden. Op 0.60 leest hij als eigen band en blijft hij achtergrondinformatie.
-      // De band is bewust geen tekstdrager, dus 3:1 is hier geen eis; 1,5:1 was wél te weinig.
+      // De band is bewust geen tekstdrager, dus 3:1 is hier geen eis; 1,5:1 is wél te weinig.
       ctx.fillStyle = this.colors.float + '99'; // 0.6 alpha
       ctx.fillRect(x2, y + height / 4, floatWidth, height / 2);
     }
@@ -1390,7 +1371,7 @@ export class GanttRenderer {
       ctx.stroke();
     }
 
-    // Resource-accent (#21): dun streepje in de resourcekleur direct ónder de balk, gesegmenteerd
+    // Resource-accent: dun streepje in de resourcekleur direct ónder de balk, gesegmenteerd
     // naar rato van unitsPerDay bij meerdere resources. Eén vast hoogtemaatje van 3 px — subtiel
     // genoeg om het kritiek-pad-beeld niet te verdringen, duidelijk genoeg om "wie doet dit" te lezen.
     let resourceAccentHeight = 0;
@@ -1414,7 +1395,7 @@ export class GanttRenderer {
       }
     }
 
-    // Task name on bar (if wide enough) — U2: ellips i.p.v. een harde clip-snede.
+    // Task name on bar (if wide enough) — ellips i.p.v. een harde clip-snede.
     if (width > 40) {
       // Labelkleur volgt de BALK, niet een vaste witte hex. Op de vijf standaard-balktinten kiest
       // `barLabelColor` vanzelf wit, maar op nearCritical, ghost en de trace-/float-pad-tinten
@@ -1434,7 +1415,7 @@ export class GanttRenderer {
   }
 
   /**
-   * Fase 2.9 §5.3 — hammock/LOE-balk. P6-conventie: een dunne balk die tussen de start- en
+   * Hammock/LOE-balk. P6-conventie: een dunne balk die tussen de start- en
    * finish-driver spant, met haakvormige eind-caps (brackets naar beneden) i.p.v. een gevulde
    * taakbalk. De duur is afgeleid (de solver schrijft early/late), dus geen voortgangsvulling.
    */
@@ -1478,7 +1459,7 @@ export class GanttRenderer {
 
   private drawSummaryBar(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): void {
     const ctx = this.ctx;
-    // Samenvattingsbalken zijn ALTIJD doorlopend (§6.9), maar wel uur-bewust gepositioneerd
+    // Samenvattingsbalken zijn ALTIJD doorlopend, maar wel uur-bewust gepositioneerd
     // wanneer hun rollup-datums een tijdcomponent dragen.
     const { x1, x2 } = this.barGeometry(task);
 
@@ -1519,18 +1500,16 @@ export class GanttRenderer {
   /** Schermpositie (canvas-x) van de mijlpaal-ruit voor `task`, of `null` als er niets is om op te
    *  ankeren. Gedeeld tussen `drawMilestone` (tekenen) en `getRelationSourceAt` (relatie-hittest),
    *  zodat een mijlpaal met alleen een start — zonder finish — precies daar hit-test waar hij ook
-   *  getekend wordt: vóór deze extractie eiste `getRelationSourceAt` via `barGeometry` altíjd zowel
-   *  start als finish, terwijl `drawMilestone` al langer genoeg had aan één van beide (TODO
-   *  'mijlpaal met start maar zonder finish is niet relatie-sleepbaar', docs/TODO.md). Bewust géén
+   *  getekend wordt — `drawMilestone` heeft genoeg aan één van beide datums. Bewust géén
    *  `barGeometry`-hergebruik: die geeft een `[x1,x2)`-balkbreedte, geen enkel ruitmidden. */
   private milestoneAnchorX(task: Task): number | null {
     const startStr = shownStart(task) || shownFinish(task);
     if (!startStr) return null;
     const hourMode = startStr.includes('T');
     const date = hourMode ? parseInstant(startStr) : parseDate(startStr);
-    // Grens-model (fase 2.4): een startmijlpaal ankert op het dagBEGIN (linkerrand van de
-    // dagcel), een eindmijlpaal op het dagEINDE (rechterrand); automatisch blijft
-    // dag-gecentreerd zoals voorheen. Fase 2.8b: een UUR-mijlpaal draagt de exacte instant al,
+    // Grens-model: een startmijlpaal ankert op het dagBEGIN (linkerrand van de
+    // dagcel), een eindmijlpaal op het dagEINDE (rechterrand); automatisch is
+    // dag-gecentreerd. Een UUR-mijlpaal draagt de exacte instant al,
     // dus die ankert op de instant zelf (anchor 0) zonder dag-cel-verschuiving.
     const zoom = this.opts.view.zoom;
     const anchor = hourMode ? 0 : task.milestoneKind === 'START' ? 0 : task.milestoneKind === 'FINISH' ? zoom : zoom / 2;
@@ -1539,7 +1518,7 @@ export class GanttRenderer {
 
   private drawMilestone(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): void {
     const ctx = this.ctx;
-    // Zelfde guard als barGeometry (TODO 2026-07-28): een datumloze mijlpaal heeft niets om op te
+    // Zelfde guard als barGeometry: een datumloze mijlpaal heeft niets om op te
     // ankeren — niets tekenen i.p.v. per frame crashen op `undefined.includes(...)`.
     const x = this.milestoneAnchorX(task);
     if (x === null) return;
@@ -1591,8 +1570,8 @@ export class GanttRenderer {
       ctx.stroke();
     }
 
-    // Label — U2-fixronde: ook hier een echte ellips. Het mijlpaallabel stond ongebreideld naast de
-    // ruit en liep bij een lange naam dwars over de volgende balken heen. Grens: de ruimte tot het
+    // Label — ook hier een echte ellips, anders loopt een lange naam dwars over de volgende
+    // balken heen. Grens: de ruimte tot het
     // canvas-einde, maar hoogstens 200 px (voorbij die breedte is een naam als aanduiding klaar en
     // begint hij alleen nog te overlappen).
     const labelX = x + size + 6;
@@ -1604,11 +1583,11 @@ export class GanttRenderer {
   }
 
   /**
-   * Fase 2.9 (§5.5) — externe (cross-project) ghost-balken. Per `ExternalLink` een grijze balk die op
+   * Externe (cross-project) ghost-balken. Per `ExternalLink` een grijze balk die op
    * het bevroren anker EINDIGT (predecessor: de externe taak eindigt vóór mijn start) resp. BEGINT
    * (successor). `sourceMissing` ⇒ gestippelde rand + een "verouderd"-badge (bron niet geladen; her-
    * importeer om te verversen). De ghost is géén echte rij — puur weergave naast de lokale balk;
-   * afwezig/leeg `externalLinks` ⇒ deze methode is een no-op (byte-identiek). */
+   * afwezig/leeg `externalLinks` ⇒ deze methode is een no-op. */
   private drawExternalGhosts(task: Task, y: number, height: number): void {
     const links = task.externalLinks;
     if (!links || links.length === 0) return;
@@ -1667,7 +1646,7 @@ export class GanttRenderer {
   }
 
   /**
-   * Fase 2.3 — constraint-pins en deadline-markers (F10/F11):
+   * Constraint-pins en deadline-markers:
    *  - constraint: klein pin-ruitje boven de balkrand — blauw aan de startkant voor
    *    vroege-zijde types (SNET/FNET), violet aan de betreffende kant voor late-zijde/
    *    pinnende types (SNLT/FNLT/MSO/MFO), rood wanneer de constraint geschonden is;
@@ -1691,7 +1670,7 @@ export class GanttRenderer {
           ? this.colors.critical
           : earlySide ? this.colors.constraintEarly : this.colors.constraintLate;
         if (c.hard && (c.type === 'MSO' || c.type === 'MFO')) {
-          // Harde Mandatory-pin (fase 2.9 §5.1, besluit B2): een pin-glyph (kopje + steel) i.p.v.
+          // Harde Mandatory-pin: een pin-glyph (kopje + steel) i.p.v.
           // het soft-ruitje; bij logica-schending in de waarschuwkleur (violatedSet, incl.
           // hard-pin-schending) — het kopje leest als een pushpin die de balk vastzet.
           ctx.strokeStyle = ctx.fillStyle as string;
@@ -1737,7 +1716,7 @@ export class GanttRenderer {
   }
 
   /**
-   * Fase 2.10 (item 1) — klein, neutraal-gekleurd "aantekeningen aanwezig"-badge, rechtsboven de
+   * Klein, neutraal-gekleurd "aantekeningen aanwezig"-badge, rechtsboven de
    * balk (naast `drawConstraintMarkers`, hetzelfde badge-precedent). Alleen zichtbaar bij ≥1 OPEN
    * (`!done`) aantekening — een volledig afgevinkte lijst toont niets meer (bewust informatief,
    * geen waarschuwingskleur).
@@ -1756,7 +1735,7 @@ export class GanttRenderer {
     ctx.fill();
   }
 
-  // ── Issue #51: live duur-pilletje tijdens een rand-sleep ────────────────────
+  // ── Live duur-pilletje tijdens een rand-sleep ──────────────────────────────
 
   /** Halve tekstmarge links/rechts binnen het pilletje. */
   private static readonly DRAG_BADGE_PAD_X = 5;
@@ -1764,7 +1743,7 @@ export class GanttRenderer {
    *  chipje leest en niet als een stuk vulling van de balk zelf. */
   private static readonly DRAG_BADGE_H = 16;
   /** Afstand tussen het pilletje en de gesleepte balkrand. Klein genoeg dat het label duidelijk
-   *  bij die rand hoort (de melder plakte hem in zijn voorbeeld tegen de resize-cursor aan). */
+   *  bij die rand hoort. */
   private static readonly DRAG_BADGE_GAP = 4;
 
   /**
@@ -1793,7 +1772,7 @@ export class GanttRenderer {
   }
 
   /**
-   * Issue #51 — compact duur-pilletje tegen de rand die op dit moment gerekt wordt.
+   * Compact duur-pilletje tegen de rand die op dit moment gerekt wordt.
    *
    * Waarom hier en niet als DOM-overlay: de x van een balkrand komt uit `barGeometry` bovenop de
    * gedeelde (mogelijk werkdag-gecomprimeerde) as. Buiten de renderer zou die geometrie een tweede
@@ -1802,7 +1781,7 @@ export class GanttRenderer {
    * dezelfde paint als de balk die het beschrijft (geen frame-lag/scheuring tussen DOM en canvas),
    * en de knipping tegen taaktabel/header komt gratis uit de tekenvolgorde in `render()`.
    *
-   * Plaatsing: bij voorkeur BINNEN de balk tegen de gesleepte rand (zoals de melder het tekende);
+   * Plaatsing: bij voorkeur BINNEN de balk tegen de gesleepte rand;
    * past hij daar niet (smalle balk), dan net BUITEN die rand. In beide gevallen geklemd op het
    * chart-gebied, zodat een balk die tegen de vensterrand aan ligt zijn label niet kwijtraakt.
    */
@@ -1831,13 +1810,13 @@ export class GanttRenderer {
     const { x1, x2 } = this.barGeometry(task);
     let x: number;
     if (drag.edge === 'right') {
-      // Rechts: bij voorkeur IN de balk (zoals de melder het tekende). De taaknaam staat links
+      // Rechts: bij voorkeur IN de balk. De taaknaam staat links
       // uitgelijnd en wordt afgekapt, dus daar is het rustig.
       x = x2 - gap - w;
       if (x < x1 + 2) x = x2 + gap;           // past niet in de balk ⇒ er net buiten
     } else {
       // Links: juist BUITEN de balk. Binnenin valt het pilletje per definitie bovenop het
-      // naamlabel (dat begint op x1 + een paar px) — gemeten gaf dat "8d)annen".
+      // naamlabel (dat begint op x1 + een paar px).
       x = x1 - gap - w;
       if (x < 2) x = x1 + gap;
     }
@@ -1856,16 +1835,16 @@ export class GanttRenderer {
     // Randje in de paneelkleur is hier FUNCTIONEEL, niet decoratief: de gesleepte balk is altijd
     // ook de GESELECTEERDE balk (mousedown selecteert hem), en die draagt een 2px selectiering in
     // exact dezelfde accentkleur. Zonder deze scheiding vloeit het pilletje aan de balkrand samen
-    // met die ring. BEKENDE GRENS (gemeten, issue #51): op een NEAR-CRITICAL balk — amber #F59E0B,
+    // met die ring. BEKENDE GRENS: op een NEAR-CRITICAL balk — amber #F59E0B,
     // alleen zichtbaar met die analyse-optie aan — ligt het accent (#D97706) daar zó dicht bij dat
     // het pilletje zijn eigen vlak nauwelijks aftekent; leesbaar blijft het wel, want de witte
-    // tekst en dit randje dragen het contrast. Een dikker randje (2px geprobeerd) helpt daar niet
-    // zichtbaar aan en maakt het chipje alleen zwaarder, dus 1.5 gehouden.
+    // tekst en dit randje dragen het contrast. Een dikker randje helpt daar niet zichtbaar en
+    // maakt het chipje alleen zwaarder.
     this.drawPill(label, x, y, w, h / 2, this.colors.selected, 1.5);
     this.ctx.restore();
   }
 
-  // ── Relatie-routing (issue #41) ─────────────────────────────────────────────
+  // ── Relatie-routing ─────────────────────────────────────────────────────────
   // De pijlen worden VÓÓR de balken getekend (render-volgorde), dus alles wat onder een balk
   // doorloopt is per definitie onzichtbaar. De routing moet de balken daarom écht ontwijken.
   // Twee bouwstenen: (1) horizontaal reizen gebeurt in de GOOT tussen twee rijen — balken beslaan
@@ -1886,7 +1865,7 @@ export class GanttRenderer {
 
   /**
    * Bouwt de obstakel-index van de zichtbare rijen. Bewuste keuzes over wat wél/niet als obstakel telt:
-   *  - de BALK zelf (taak/summary/hammock/mijlpaal) telt — dat is de dekkende vulling uit de melding;
+   *  - de BALK zelf (taak/summary/hammock/mijlpaal) telt — dat is de dekkende vulling;
    *  - een BANDKOPRIJ telt NIET: die strook is 8% transparant (`summary + '14'`) en verbergt niets,
    *    terwijl hij de volle breedte beslaat en dus élke kolom zou blokkeren;
    *  - de SPELINGSBAND, baseline-onderbalk, constraint-pins en aantekening-badges tellen NIET.
@@ -1913,7 +1892,7 @@ export class GanttRenderer {
       const geo = this.barGeometry(row.task);
       // Een mijlpaalruit steekt buiten [x1,x2] uit (anker + halve ruitbreedte); ruimer padden i.p.v.
       // de anker-logica van `drawMilestone` te dupliceren (die zou stil uit de pas kunnen lopen).
-      // M3 (Opus-review T15-iteratie-2): `isZeroDurationMilestone` — een mijlpaal-met-duur tekent
+      // `isZeroDurationMilestone` — een mijlpaal-met-duur tekent
       // als gewone balk en heeft dus de gewone pijl-padding nodig, niet de ruit-padding.
       const pad = isZeroDurationMilestone(row.task) ? 6 : GanttRenderer.ARROW_PAD;
       x1[i - first] = geo.x1 - pad;
@@ -2014,7 +1993,7 @@ export class GanttRenderer {
     const trace = this.opts.trace;
 
     for (const seq of this.opts.sequences) {
-      // §7.1: taskId→rij-index-map is "eerste occurrence wint" — bij multi-band-duplicaten
+      // taskId→rij-index-map is "eerste occurrence wint" — bij multi-band-duplicaten
       // verbindt de pijl één keer, latere occurrences krijgen geen pijlen.
       const predIdx = this.rowIndexByTask.get(seq.predecessorId) ?? -1;
       const succIdx = this.rowIndexByTask.get(seq.successorId) ?? -1;
@@ -2042,8 +2021,8 @@ export class GanttRenderer {
       const predY = this.rowToY(predIdx) + rowH / 2;
       const succY = this.rowToY(succIdx) + rowH / 2;
 
-      // Verticale offscreen-cull (prestatie). Issue #41: het pad is niet langer één elleboog, dus
-      // de marge is opnieuw afgeleid. Alle y-waarden van de route liggen in {predY, succY, laneP,
+      // Verticale offscreen-cull (prestatie). Het pad is niet één elleboog, dus de marge is
+      // hieruit afgeleid: alle y-waarden van de route liggen in {predY, succY, laneP,
       // laneS}; de goten `laneP`/`laneS` liggen op een rijgrens op ±rowHeight/2 van hun eigen
       // endpoint en dus (bij verschillende rijen) TUSSEN predY en succY. Alleen in het degeneratieve
       // geval predIdx === succIdx kan een goot rowHeight/2 buiten het paar vallen. Marge =
@@ -2053,8 +2032,7 @@ export class GanttRenderer {
       const cullMargin = rowH / 2 + 8;
       if (Math.max(predY, succY) < -cullMargin || Math.min(predY, succY) > canvasH + cullMargin) continue;
 
-      // Ankerpunten + looprichtingen per relatietype (issue #59: de oude `default`-tak tekende
-      // FF en SF als FS, dus landden ze altijd op de opvolger-START i.p.v. de FINISH).
+      // Ankerpunten + looprichtingen per relatietype (FF en SF landen op de opvolger-FINISH).
       //   predStart  — voorganger-anker = start/linkerrand  (SS, SF)
       //   succFinish — opvolger-anker  = finish/rechterrand (FF, SF)
       let fromX: number, toX: number, dirOut: number, dirIn: number;
@@ -2077,10 +2055,10 @@ export class GanttRenderer {
 
       if (fromX < 0 && toX < 0) continue;
 
-      // ── Routing (issue #41, uitbreiding #59 voor FF/SF) ───────────────────
+      // ── Routing ───────────────────────────────────────────────────────────
       // `dirOut`/`dirIn` zijn hierboven berekend. `xa` ligt naast de voorgangerbalk (aan de
       // uitloopkant); `enter` ligt naast de opvolgerbalk aan de AANKOMSTkant — bij FS/SS links
-      // (dirIn −1), bij FF/SF rechts (dirIn +1). Vóór #41 liep de SS-stub de balk ín.
+      // (dirIn −1), bij FF/SF rechts (dirIn +1).
       const tight = Math.abs(toX - fromX) < 2 * GanttRenderer.ARROW_STUB;
       const stub = tight ? GanttRenderer.ARROW_STUB_TIGHT : GanttRenderer.ARROW_STUB;
       const xa = fromX + dirOut * stub;      // naast de voorgangerbalk
@@ -2093,8 +2071,8 @@ export class GanttRenderer {
       // gespiegelde `xa >= enter` — én de kolom niet door een tussenliggende balk wordt geblokkeerd.
       const elbowOk = dirIn < 0 ? xa <= enter : xa >= enter;
       if (elbowOk && this.isColumnFree(obs, xa, predIdx, succIdx)) {
-        // Klassieke elleboog — ongewijzigd t.o.v. vóór #41 (op de stublengte na, die alleen in
-        // krappe gevallen kleiner wordt): er is ruimte vóór de opvolger én de kolom is vrij.
+        // Klassieke elleboog (de stub wordt alleen in krappe gevallen kleiner): er is ruimte vóór
+        // de opvolger én de kolom is vrij.
         // Het laatste horizontale stuk loopt op succY naar `toX` toe en blijft dus links van de
         // opvolgerbalk; de daling bij `xa` blijft naast de voorgangerbalk.
         pts[n++] = fromX; pts[n++] = predY;
@@ -2104,7 +2082,7 @@ export class GanttRenderer {
       } else {
         // Trap om de balken heen: uit de balk stappen, in de GOOT tussen de rijen reizen, en pas
         // links van de opvolgerbalk weer de rij in zakken. Dekt (a) FS zonder gat (toX ≈ fromX),
-        // waar de oude route haar laatste stuk + pijlkop ónder de opvolgerbalk legde, (b) negatieve
+        // waar een elleboog het laatste stuk + pijlkop ónder de opvolgerbalk legt, (b) negatieve
         // lag / toX < fromX, en (c) een tussenliggende balk die de kolom blokkeert.
         const down = succIdx >= predIdx;
         const predTop = predY - rowH / 2;
@@ -2126,7 +2104,7 @@ export class GanttRenderer {
       this.strokeArrowPath(pts, n);
 
       // Arrowhead — base aan de aankomstkant (dirIn): FS/SS wijst naar rechts (base links), FF/SF
-      // naar links (base rechts). `toX + dirIn*5` geeft voor dirIn −1 de oude `toX − 5`.
+      // naar links (base rechts): `toX + dirIn*5`.
       ctx.beginPath();
       ctx.moveTo(toX, succY);
       ctx.lineTo(toX + dirIn * 5, succY - 3);
@@ -2140,12 +2118,12 @@ export class GanttRenderer {
   }
 
 
-  /** Hit test (§4.5): welke gedeelde ViewRow ligt op deze canvas-Y? */
+  /** Hit test: welke gedeelde ViewRow ligt op deze canvas-Y? */
   getRowAtY(canvasY: number): ViewRow | null {
     return this.rows[this.getRowIndex(canvasY)] ?? null;
   }
 
-  /** Hit test: which task row is at the given canvas Y? Bandrijen geven null (§4.5). */
+  /** Hit test: which task row is at the given canvas Y? Bandrijen geven null. */
   getTaskAtY(canvasY: number): Task | null {
     const row = this.getRowAtY(canvasY);
     return row?.kind === 'task' ? row.task : null;
@@ -2156,7 +2134,7 @@ export class GanttRenderer {
     return Math.floor((canvasY - this.opts.headerHeight + this.opts.view.scrollY) / this.opts.rowHeight);
   }
 
-  /** Hit test (fase 2.10 golf 4, box-selection): welke taak-ids liggen met hun rij-band verticaal
+  /** Hit test (box-selection): welke taak-ids liggen met hun rij-band verticaal
    *  in [y1,y2] (canvas-coördinaten, willekeurige volgorde)? Bandrijen (`kind:'group'`) doen niet
    *  mee. Zelfde rij-index-wiskunde als getRowAtY, dus consistent met alle andere hit-tests. */
   getTaskIdsInYRange(y1: number, y2: number): string[] {
@@ -2208,9 +2186,9 @@ export class GanttRenderer {
 
   /** Hit test: get task bar bounds for a task at row index (for drag & drop).
    *
-   *  Issue #146 etappe 3: `segmentIndex`/`segmentCount` zeggen op WELK stuk van een gesplitste balk
+   *  `segmentIndex`/`segmentCount` zeggen op WELK stuk van een gesplitste balk
    *  (`Task.splitGaps`) de muis staat; een ongesplitste balk is één stuk (0 van 1) en houdt zijn
-   *  randen byte-identiek. Op een gesplitste balk is elk stuk een eigen grijpvlak: de linkerrand
+   *  randen. Op een gesplitste balk is elk stuk een eigen grijpvlak: de linkerrand
    *  bestaat ALLEEN op stuk 0 (hele taak, zoals altijd), een rechterrand op elk stuk (de lengte van
    *  dát stuk), en een x in een pauze is GEEN grijpvlak (`null` — zie `getSplitGapAt`). Het
    *  vertalen van een stuk naar een bewerking is niet van de renderer: dat doen `useBarDrag` en
@@ -2220,11 +2198,11 @@ export class GanttRenderer {
   } | null {
     if (canvasX < 0 || canvasX >= this.opts.canvasWidth) return null;
     const task = this.getTaskAtY(canvasY);
-    // M3 (Opus-review T15-iteratie-2): `isZeroDurationMilestone` — een mijlpaal-met-duur tekent als
-    // gewone balk (regel ~940) en moet dus ook gewoon sleep-/resize-baar zijn, zoals elke andere
+    // `isZeroDurationMilestone` — een mijlpaal-met-duur tekent als
+    // gewone balk en moet dus ook gewoon sleep-/resize-baar zijn, zoals elke andere
     // taak met een echte duur.
     if (!task || isSummaryTask(task) || isZeroDurationMilestone(task)) return null;
-    // Datumloos-guard (TODO 2026-07-28): barGeometry tekent voor zo'n taak een terugval-stub op de
+    // Datumloos-guard: barGeometry tekent voor zo'n taak een terugval-stub op de
     // viewstart, maar die mag geen sleep/resize armen — de drag-hooks zouden met undefined
     // originalStart/originalFinish rekenen.
     if (!shownStart(task) || !shownFinish(task)) {
@@ -2251,7 +2229,7 @@ export class GanttRenderer {
       return null;
     }
 
-    // Uur-bewuste balk-uiteinden, zodat de resize-grepen op een sub-dag-balk kloppen (§6.1/§6.3).
+    // Uur-bewuste balk-uiteinden, zodat de resize-grepen op een sub-dag-balk kloppen .
     const { x1, x2 } = this.barGeometry(task);
 
     if (canvasX >= x1 - edgeZone && canvasX <= x2 + edgeZone) {
@@ -2262,7 +2240,7 @@ export class GanttRenderer {
     return null;
   }
 
-  /** Issue #146 etappe 3: ligt `canvasX` in een PAUZE van een getekende gesplitste balk? Geeft de
+  /** Ligt `canvasX` in een PAUZE van een getekende gesplitste balk? Geeft de
    *  pauze-index (0 = tussen stuk 0 en 1). Precies het complement van de stuk-grijpvlakken in
    *  `getTaskBarBounds`: waar die `null` geeft binnen de balk, geeft deze de pauze. Gebruikt door
    *  het contextmenu ("de pauze onder de cursor") en door de splits-modus (klik in een pauze = niets). */
@@ -2291,19 +2269,16 @@ export class GanttRenderer {
    * Bewust een aparte methode náást `getTaskBarBounds` en géén versoepeling daarvan. Die functie
    * armt slepen én resizen, en weigert mijlpalen en verzamelbalken om goede redenen: een ruit heeft
    * geen duur om te resizen, en de datums van een verzamelbalk zijn afgeleid uit de kinderen.
-   * Sinds issue #40 armt dezelfde functie óók de relatie-sleep, en dáár slaat de mijlpaal-clausule
-   * nergens op: een mijlpaal is een bladtaak met duur 0 die de solver volledig ondersteunt als
-   * voorganger én opvolger. Dat was de bug.
+   * Voor een relatie-sleep slaat de mijlpaal-clausule nergens op: een mijlpaal is een bladtaak met
+   * duur 0 die de solver volledig ondersteunt als voorganger én opvolger.
    *
-   * VERZAMELTAKEN ZIJN SINDS HET EIGENAARSBESLUIT VAN 2026-08-15 EXPLICIET WÉL TOEGESTAAN ALS BRON.
-   * Tot dan weerde deze hit-test ze ("de solver krijgt alleen bladtaken, dus zo'n relatie zou een
-   * spookrelatie zijn") — maar `expandSummaryRelations` (`engine/scheduler/expandSummaryRelations.ts`)
-   * rekent een relatie mét een verzameltaak-eindpunt sindsdien gewoon door naar de onderliggende
-   * bladtaken (MS Project-semantiek), en droppen óp een verzamelbalk werkte via `relationVerdict`
-   * (`state/relationRules.ts`) al langer. Slepen VANAF een verzamelbalk hoorde in lockstep te
-   * blijven met droppen ERÓP; deze functie liep sinds die wijziging achter. De uiteindelijke
-   * legaliteit van de relatie (inclusief de resterende voorouder-weigering) wordt hoe dan ook pas
-   * bij het loslaten bepaald — door `createRelationWithFeedback`/`relationVerdict`, niet hier — dus
+   * VERZAMELTAKEN ZIJN EXPLICIET WÉL TOEGESTAAN ALS BRON: `expandSummaryRelations`
+   * (`engine/scheduler/expandSummaryRelations.ts`) rekent een relatie mét een
+   * verzameltaak-eindpunt door naar de onderliggende bladtaken (MS Project-semantiek), en droppen
+   * óp een verzamelbalk werkt via `relationVerdict` (`state/relationRules.ts`). Slepen VANAF een
+   * verzamelbalk blijft in lockstep met droppen ERÓP. De uiteindelijke legaliteit van de relatie
+   * (inclusief de resterende voorouder-weigering) wordt hoe dan ook pas bij het loslaten bepaald —
+   * door `createRelationWithFeedback`/`relationVerdict`, niet hier — dus
    * deze hit-test hoeft alleen nog te weigeren waar helemaal geen zinnige balk staat (datumloos,
    * buiten de balk).
    *
@@ -2319,13 +2294,11 @@ export class GanttRenderer {
     const hasStart = !!shownStart(task);
     const hasFinish = !!shownFinish(task);
 
-    // Randgeval (docs/TODO.md): een mijlpaal met precies ÉÉN kant (alleen start, of — symmetrisch —
-    // alleen finish) — bv. handmatig gezet vóórdat runCPM() gedraaid heeft. `drawMilestone` tekent
-    // 'm gewoon (leent bij ontbreken desnoods van de andere kant, zie `milestoneAnchorX`), maar
-    // viel hieronder altijd door de guard verderop, die BEIDE kanten eiste. Bewust ALLEEN dit
-    // eenzijdige geval via de tekenhelper: heeft de taak beide data (het gebruikelijke geval), dan
-    // blijft de bestaande `barGeometry`-brede grijpzone hieronder ongewijzigd — geen
-    // gedragswijziging voor een mijlpaal die al twee data draagt.
+    // Randgeval: een mijlpaal met precies ÉÉN kant (alleen start, of — symmetrisch — alleen
+    // finish) — bv. handmatig gezet vóórdat runCPM() gedraaid heeft. `drawMilestone` tekent
+    // 'm gewoon (leent bij ontbreken desnoods van de andere kant, zie `milestoneAnchorX`), maar de
+    // guard verderop eist BEIDE kanten. Bewust ALLEEN dit eenzijdige geval via de tekenhelper:
+    // heeft de taak beide data, dan geldt de `barGeometry`-brede grijpzone hieronder.
     if (hasStart !== hasFinish && isZeroDurationMilestone(task)) {
       const x = this.milestoneAnchorX(task);
       if (x === null) return null;
