@@ -858,17 +858,20 @@ function writeCalendar(
     // (byte-identiek). IFC's enkele recurrence draagt één set periodes voor alle DayComponent-dagen;
     // we schrijven de banden van de eerste werkdag (uniform-over-de-week-conventie, §3.2). Een
     // wrap-band (`end > 1440`) emitteert het eind als tijd-van-de-dag (`end % 1440`), waaruit de
-    // reader de wrap herkent (`end ≤ start`).
+    // reader de wrap herkent (`end ≤ start`). Een band tot precies middernacht eindigt op '24:00:00'
+    // (einde van de dag, begin vóór eind); oudere bestanden met '00:00:00' leest de wrapregel nog.
     const firstDay = cal.workDays[0] as 1 | 2 | 3 | 4 | 5 | 6 | 7 | undefined;
     const bands = (firstDay && workTime.byWeekday[firstDay]) || [];
     const ids = bands.map((b) =>
-      addLine(ctx, '_timeperiod', `IFCTIMEPERIOD('${minutesToClock(b.start)}','${minutesToClock(b.end)}')`),
+      addLine(ctx, '_timeperiod', `IFCTIMEPERIOD('${minutesToClock(b.start)}','${minutesToClock(b.end, true)}')`),
     );
     timePeriodRefs = ids.map((i) => `#${i}`).join(',');
-    if (bands[0]) firstPeriod = [minutesToClock(bands[0].start), minutesToClock(bands[0].end)];
+    if (bands[0]) firstPeriod = [minutesToClock(bands[0].start), minutesToClock(bands[0].end, true)];
   } else {
-    const startTime = `${String(cal.workStartHour).padStart(2, '0')}:00:00`;
-    const endTime = `${String(cal.workEndHour).padStart(2, '0')}:00:00`;
+    // Geldige IfcTime `hh:mm:ss` (07:30 ⇒ '07:30:00', niet '7.5:00:00'); 24 ⇒ '24:00:00' (einde dag).
+    // Hele uren blijven byte-identiek.
+    const startTime = minutesToClock(Math.round(cal.workStartHour * 60));
+    const endTime = minutesToClock(Math.round(cal.workEndHour * 60), true);
     const timePeriodId = addLine(ctx, '_timeperiod', `IFCTIMEPERIOD('${startTime}','${endTime}')`);
     timePeriodRefs = `#${timePeriodId}`;
     firstPeriod = [startTime, endTime];
@@ -908,7 +911,7 @@ function writeCalendar(
   const workingExceptionStepIds: number[] = [];
   for (const exc of cal.workingExceptions ?? []) {
     const bandIds = (exc.bands ?? []).map((b) =>
-      addLine(ctx, '_excband', `IFCTIMEPERIOD('${minutesToClock(b.start)}','${minutesToClock(b.end)}')`));
+      addLine(ctx, '_excband', `IFCTIMEPERIOD('${minutesToClock(b.start)}','${minutesToClock(b.end, true)}')`));
     const bandRefs = bandIds.length > 0 ? `(${bandIds.map((i) => `#${i}`).join(',')})` : '$';
     const excRecId = addLine(ctx, '_excrecurrence', `IFCRECURRENCEPATTERN(.DAILY.,$,$,$,$,$,$,${bandRefs})`);
     const wId = addLine(ctx, `_workexc_${exc.name}`,

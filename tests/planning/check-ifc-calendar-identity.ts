@@ -328,6 +328,83 @@ same('§9 fixture: oude writer schreef geen H7-markering', ['WorkStartHour', 'Wo
     { vroeg: ['HoursPerDay'], pauze: ['HoursPerDay', 'SimpleBreakStart', 'SimpleBreakDuration'] });
 }
 
+// ── §11: werktijden als geldige IfcTime (`hh:mm:ss`, IFC 4.3 + XML Schema Part 2) ────────────────
+// De scalar-weg schreef `String(uur).padStart(2,'0') + ':00:00'`, dus 07:30 werd '7.5:00:00' — geen
+// IfcTime. Een bandeinde om 24:00 werd '00:00:00' (begin van de dag), wat IfcTimePeriods "start vóór
+// eind" breekt; OPS las het alleen via de middernacht-wrapregel terug. Nu: hh:mm:ss, en einde van de
+// dag als '24:00:00' (XML Schema staat 24:00:00 toe; de lezer leest het als 1440 minuten).
+{
+  const project = { ...createDefaultProject(), calendarId: 'k', startDate: '2026-06-01' };
+  const week = (bands: { start: number; end: number }[]) => ({ byWeekday: {
+    1: bands, 2: bands, 3: bands, 4: bands, 5: bands, 6: [], 7: [] } });
+  const kal = (patch: Partial<WorkCalendar>): WorkCalendar => ({
+    id: 'k', name: 'K', description: '', workDays: [1, 2, 3, 4, 5],
+    workStartHour: 7, workEndHour: 16, hoursPerDay: 8, holidays: [], ...patch,
+  });
+  const urentaak = (cal: WorkCalendar): Task => ({
+    id: 't', name: 'Urentaak', description: '', wbsCode: '1', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
+    isMilestone: false, priority: 500, parentId: null, childIds: [], resourceIds: [],
+    time: createDefaultTaskTime('2026-06-01', 10, 'hours', cal),
+  } as Task);
+  const cases: [string, WorkCalendar, boolean, string | null][] = [
+    ['07:30-16:00 dag', kal({ workStartHour: 7.5, hoursPerDay: 8 }), false, "IFCTIMEPERIOD('07:30:00','16:00:00')"],
+    ['07:30-16:00 dag, hpd 8,5', kal({ workStartHour: 7.5, hoursPerDay: 8.5 }), false, "IFCTIMEPERIOD('07:30:00','16:00:00')"],
+    ['07:15-15:45 dag', kal({ workStartHour: 7.25, workEndHour: 15.75 }), false, "IFCTIMEPERIOD('07:15:00','15:45:00')"],
+    ['07:15-15:45 + urentaak', kal({ workStartHour: 7.25, workEndHour: 15.75 }), true, "IFCTIMEPERIOD('07:15:00','12:00:00')"],
+    ['16:00-24:00 dag', kal({ workStartHour: 16, workEndHour: 24 }), false, "IFCTIMEPERIOD('16:00:00','24:00:00')"],
+    ['16:00-24:00 dag + urentaak', kal({ workStartHour: 16, workEndHour: 24 }), true, "IFCTIMEPERIOD('16:00:00','24:00:00')"],
+    ['uurkalender 16:00-24:00', kal({ workStartHour: 16, workEndHour: 24, workTime: week([{ start: 960, end: 1440 }]) }), false,
+      "IFCTIMEPERIOD('16:00:00','24:00:00')"],
+    ['uurkalender 07:45-12:15 + 12:45-16:15', kal({
+      workStartHour: 7.75, workEndHour: 16.25, hoursPerDay: 8,
+      workTime: week([{ start: 465, end: 735 }, { start: 765, end: 975 }]),
+    }), false, "IFCTIMEPERIOD('07:45:00','12:15:00')"],
+    ['werkende uitzondering tot 24:00', kal({
+      workingExceptions: [{ name: 'Avondwerk', startDate: '2026-06-06', endDate: '2026-06-06', bands: [{ start: 960, end: 1440 }] }],
+    }), false, "IFCTIMEPERIOD('16:00:00','24:00:00')"],
+  ];
+  const invalid: string[] = [];
+  for (const [label, cal, withHourTask, needle] of cases) {
+    const ifc = writeIFC({ project, calendar: cal, tasks: withHourTask ? [urentaak(cal)] : [], sequences: [], resources: [], assignments: [] });
+    for (const [, s, e] of ifc.matchAll(/IFCTIMEPERIOD\('([^']*)','([^']*)'\)/g)) {
+      const valid = /^([01]\d|2[0-4]):[0-5]\d:[0-5]\d$/;
+      if (!valid.test(s) || !valid.test(e) || s >= e) invalid.push(`${label}: '${s}'-'${e}'`);
+    }
+    if (needle) same(`§11 ${label}: schrijft ${needle}`, ifc.includes(needle), true);
+    const back = readIFC(ifc).calendar;
+    same(`§11 ${label}: round-trip exact`, {
+      ...calendarShape(back), workingExceptions: back.workingExceptions ?? null,
+    }, { ...calendarShape(cal), workingExceptions: cal.workingExceptions ?? null });
+  }
+  same('§11 elke IFCTIMEPERIOD is een geldige IfcTime met begin vóór eind', invalid, []);
+}
+
+// §11c. Oude bestanden (writer 531940ac) met '7.5:00:00', '7.25:00:00'/'15.75:00:00' en een bandeinde
+//       '00:00:00' blijven leesbaar — en de fractie komt nu exact terug in plaats van afgekapt.
+{
+  const oldIfc = readFileSync(join(HERE, 'fixtures', 'h7-tijden-oude-writer.ifc'), 'utf8');
+  const oldExpect = JSON.parse(readFileSync(join(HERE, 'fixtures', 'h7-tijden-oude-writer.json'), 'utf8')) as {
+    projectCalendar: Pick<WorkCalendar, 'workStartHour' | 'workEndHour' | 'hoursPerDay'>;
+    libraryCalendars: Record<string, Pick<WorkCalendar, 'workStartHour' | 'workEndHour' | 'hoursPerDay' | 'workTime'>>;
+  };
+  same('§11c fixture draagt het oude formaat', ["'7.5:00:00'", "'15.75:00:00'", "'16:00:00','00:00:00'"]
+    .filter((needle) => !oldIfc.includes(needle)), []);
+  const parsed = readIFC(oldIfc);
+  const scalar = (c: WorkCalendar) => ({ s: c.workStartHour, e: c.workEndHour, hpd: c.hoursPerDay, wt: c.workTime ?? null });
+  const want = (c: { workStartHour: number; workEndHour: number; hoursPerDay: number; workTime?: unknown }) => ({
+    s: c.workStartHour, e: c.workEndHour, hpd: c.hoursPerDay, wt: c.workTime ?? null,
+  });
+  same('§11c oud 07:30-16:00/8 (project) exact terug', scalar(parsed.calendar), want(oldExpect.projectCalendar));
+  for (const name of ['Halfuur netto', 'Kwartier', 'Avond dag']) {
+    same(`§11c oud "${name}" exact terug`, scalar(libCal(parsed, name)), want(oldExpect.libraryCalendars[name]));
+  }
+  // De band van de uurkalender eindigde in het oude bestand op '00:00:00'; de wrapregel leest dat nog
+  // steeds als 24:00. (Zijn scalar einde stond er niet in: bekend, dat blijft de oude afleiding.)
+  const avond = libCal(parsed, 'Avond uur');
+  same('§11c oud bandeinde 00:00 blijft einde van de dag', [avond.workTime?.byWeekday[1], avond.workStartHour],
+    [oldExpect.libraryCalendars['Avond uur'].workTime?.byWeekday[1], 16]);
+}
+
 if (failures.length > 0) {
   for (const failure of failures) console.log(`XX ${failure}`);
   console.log(`\n${failures.length}/${checks} kalenderidentiteitschecks mislukt.`);

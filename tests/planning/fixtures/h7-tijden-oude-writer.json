@@ -1,0 +1,106 @@
+{
+  "_toelichting": "Tijdformaat-legacyfixture: kalenders in het geheugen vóór opslaan (writer origin/main 531940ac, schreef 7.5:00:00 en een bandeinde 24:00 als 00:00:00).",
+  "writerCommit": "531940ac",
+  "projectCalendar": {
+    "workDays": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "workStartHour": 7.5,
+    "workEndHour": 16,
+    "hoursPerDay": 8,
+    "workTime": null
+  },
+  "libraryCalendars": {
+    "Halfuur netto": {
+      "workDays": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "workStartHour": 7.5,
+      "workEndHour": 16,
+      "hoursPerDay": 8.5,
+      "workTime": null
+    },
+    "Kwartier": {
+      "workDays": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "workStartHour": 7.25,
+      "workEndHour": 15.75,
+      "hoursPerDay": 8,
+      "workTime": null
+    },
+    "Avond dag": {
+      "workDays": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "workStartHour": 16,
+      "workEndHour": 24,
+      "hoursPerDay": 8,
+      "workTime": null
+    },
+    "Avond uur": {
+      "workDays": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "workStartHour": 16,
+      "workEndHour": 24,
+      "hoursPerDay": 8,
+      "workTime": {
+        "byWeekday": {
+          "1": [
+            {
+              "start": 960,
+              "end": 1440
+            }
+          ],
+          "2": [
+            {
+              "start": 960,
+              "end": 1440
+            }
+          ],
+          "3": [
+            {
+              "start": 960,
+              "end": 1440
+            }
+          ],
+          "4": [
+            {
+              "start": 960,
+              "end": 1440
+            }
+          ],
+          "5": [
+            {
+              "start": 960,
+              "end": 1440
+            }
+          ],
+          "6": [],
+          "7": []
+        }
+      }
+    }
+  }
+}

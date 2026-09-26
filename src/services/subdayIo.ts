@@ -39,8 +39,16 @@ import { modalBandHoursPerDay } from '@/engine/scheduler/CalendarEngine';
 
 const MIN_PER_DAY = 1440;
 
-/** `min` (minuten-vanaf-middernacht, 0..1440) → `'HH:MM:SS'`. */
-export function minutesToClock(min: number): string {
+/**
+ * `min` (minuten-vanaf-middernacht, 0..1440) → `'HH:MM:SS'`. Standaard valt 1440 op `'00:00:00'`
+ * (tijd-van-de-dag, zoals de MSPDI/P6-writers het schrijven). `endOfDay` is voor het EINDE van een
+ * IFC-tijdvak: precies 1440 wordt dan `'24:00:00'` — een geldige IfcTime (XML Schema Part 2 staat 24:00:00
+ * toe) die, anders dan `'00:00:00'`, IfcTimePeriods "begin vóór eind" respecteert; de IFC-lezer leest
+ * hem als 1440 (`clockToMinutes`) resp. 24 (`scalarHourFromClock`). Een wrap-einde (> 1440) blijft
+ * tijd-van-de-dag.
+ */
+export function minutesToClock(min: number, endOfDay = false): string {
+  if (endOfDay && min === MIN_PER_DAY) return '24:00:00';
   const m = ((min % MIN_PER_DAY) + MIN_PER_DAY) % MIN_PER_DAY;
   const h = Math.floor(m / 60);
   const mm = m % 60;
@@ -49,12 +57,14 @@ export function minutesToClock(min: number): string {
 
 /**
  * Het scalar UUR dat de IFC-lezer uit een `IFCTIMEPERIOD`-klokstring haalt: het deel vóór de eerste
- * `:` via `parseInt` (een minuutdeel valt dus weg; onparseerbaar ⇒ `NaN`). Gedeeld door lezer én
- * schrijver: de schrijver bepaalt hiermee of de scalar werktijd apart in `OPS_Calendar` moet — alleen
- * wanneer deze afleiding uit de eerste geschreven periode hem niet teruggeeft (H7).
+ * `:` (een minuutdeel valt dus weg; onparseerbaar ⇒ `NaN`). Voor een geldige IfcTime (`hh:mm:ss`) is
+ * dat het hele uur; het oude OPS-formaat met een uurfractie (`'7.5:00:00'`, geschreven tot de
+ * tijdformaatfix) levert via `parseFloat` zijn fractie exact terug. Gedeeld door lezer én schrijver: de
+ * schrijver bepaalt hiermee of de scalar werktijd apart in `OPS_Calendar` moet — alleen wanneer deze
+ * afleiding uit de eerste geschreven periode hem niet teruggeeft (H7).
  */
 export function scalarHourFromClock(clock: string): number {
-  return parseInt(clock.split(':')[0], 10);
+  return parseFloat(clock.split(':')[0]);
 }
 
 /** `'HH:MM[:SS]'` → minuten-vanaf-middernacht, of `null` bij een onparseerbare klokstring. */
