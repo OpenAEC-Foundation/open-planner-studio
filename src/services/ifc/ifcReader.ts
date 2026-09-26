@@ -1376,7 +1376,7 @@ function extractTasks(
 
     tasks.push({
       id,
-      name: stripQuotes(te.args[TASK_SLOT.name] || '') || 'Naamloze taak',
+      name: ifcSlotText(te.args[TASK_SLOT.name]) || 'Naamloze taak',
       // `$`/leeg/afwezig ⇒ '' (niet de letterlijke '$' — zelfde bug/fix als IFCPROJECT.Description
       // hierboven; de writer schrijft description/identification bewust als bare `$` via `ifcStr`
       // wanneer leeg, zie ifcTaskSlots.ts).
@@ -1945,7 +1945,7 @@ function extractResources(
 
     resources.push({
       id,
-      name: stripQuotes(e.args[2] || '') || 'Resource',
+      name: ifcSlotText(e.args[2]) || 'Resource',
       type: resType,
       // `$`/leeg/afwezig ⇒ '' (zelfde bug/fix als IfcTask.Description hierboven).
       description: ifcSlotText(e.args[3]),
@@ -2381,7 +2381,7 @@ function buildCalendarFromEntity(
   entities: StepEntity[],
 ): WorkCalendar {
   const calendar = createDefaultCalendar();
-  calendar.name = stripQuotes(cal.args[2] || '') || calendar.name;
+  calendar.name = ifcSlotText(cal.args[2]) || calendar.name;
   // Fix B7: `ifcSlotText` i.p.v. kale `stripQuotes` — een lege omschrijving schrijft de writer als
   // STEP-null (`$`), en `stripQuotes('$')` geeft het letterlijke tweetekentje `'$'` terug (het start/
   // eindigt niet met een quote, dus de functie laat de string ongewijzigd) i.p.v. '' — dezelfde
@@ -2484,7 +2484,7 @@ function buildCalendarFromEntity(
     if (!range) continue;
     if (!workingExceptionIds?.has(ref)) {
       holidays.push({
-        name: stripQuotes(wt.args[0] || '') || 'Feestdag',
+        name: ifcSlotText(wt.args[0]) || 'Feestdag',
         ...range,
       });
       continue;
@@ -2512,7 +2512,7 @@ function buildCalendarFromEntity(
       }
     }
     workingExceptions.push({
-      name: stripQuotes(wt.args[0] || '') || 'Werkende uitzondering',
+      name: ifcSlotText(wt.args[0]) || 'Werkende uitzondering',
       ...range,
       ...(bands.length > 0 ? { bands } : {}),
     });
