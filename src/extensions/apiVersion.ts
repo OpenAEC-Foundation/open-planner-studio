@@ -1,5 +1,5 @@
 /**
- * Versie van het PUBLIEKE EXTENSIE-CONTRACT — los van de app-versie (K-item 37).
+ * Versie van het PUBLIEKE EXTENSIE-CONTRACT — los van de app-versie.
  *
  * WAAROM DIT NAAST `minAppVersion` BESTAAT. De app-versie is CalVer (`2026.8.3`): die zegt wanneer
  * een build gemaakt is, niet of het contract veranderd is. Een extensie die `minAppVersion` op
@@ -22,11 +22,11 @@
  * versienummer, dus 1.0.0 betekent "de vorm zoals die op het moment van invoering was". Elke
  * volgende wijziging aan `extTypes.ts`/`types.ts` hoort hier een bump te krijgen.
  *
- * Historie: 1.1.0 — read-only XER-bronroute (`data.getImportSource*`); 1.2.0 — rekenprofiel (#169:
- * `ExtProject.schedulingProfile`, het opgeloste rekenprofiel, alleen-lezen) + `getImportSourceIssue()`
- * (#109: het signaal voor een weggevallen XER-bronarchief). Beide toevoegingen landen onder dezelfde
- * minor; een extensie die op één van beide rekent declareert `"apiVersion": "1.2"`.
- * 1.3.0 — taaktypes (#170): `ExtTask.workRule`, `ExtProject.defaultWorkRule` en de drie optionele
+ * Versies: 1.1.0 — read-only XER-bronroute (`data.getImportSource*`); 1.2.0 — rekenprofiel
+ * (`ExtProject.schedulingProfile`, het opgeloste rekenprofiel, alleen-lezen) + `getImportSourceIssue()`
+ * (het signaal voor een weggevallen XER-bronarchief); een extensie die op één van beide rekent
+ * declareert `"apiVersion": "1.2"`.
+ * 1.3.0 — taaktypes: `ExtTask.workRule`, `ExtProject.defaultWorkRule` en de drie optionele
  * werkvelden op de toewijzing (`plannedWorkMinutes`/`actualWorkMinutes`/`remainingWorkMinutes`).
  */
 export const EXTENSION_API_VERSION = '1.3.0';
@@ -35,7 +35,7 @@ export interface ApiCompatibility {
   ok: boolean;
   /** Gevulde, gebruikergerichte reden wanneer `ok` onwaar is. */
   reason?: string;
-  /** True wanneer het manifest géén `apiVersion` declareert (van vóór K-item 37). */
+  /** True wanneer het manifest géén `apiVersion` declareert (oudere manifesten). */
   legacy?: boolean;
 }
 

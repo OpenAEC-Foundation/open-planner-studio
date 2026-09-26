@@ -1,11 +1,11 @@
-// MCP-bridge — `planner_batch`: de batch-executor (taak T22, spec §Compositie (1): `batch`).
+// MCP-bridge — `planner_batch`: de batch-executor.
 //
 // Eén call met een DECLARATIEF draaiboek: `steps: [{ tool, args }, …]` (max 100), synchroon en in
 // volgorde uitgevoerd binnen het actieve document, als ÉÉN `runInMcpTransaction`. Bewust géén
 // scripttaal (geen loops/expressies): dat zou een tweede, zwakkere sandbox zijn met onbeheersbare
 // undo-/beveiligingssemantiek. Wie wil programmeren heeft het extensiesysteem.
 //
-// DE VIER DRAGENDE EIGENSCHAPPEN (spec §Compositie):
+// DE VIER DRAGENDE EIGENSCHAPPEN:
 //  1. Eén undo-snapshot + één eindherberekening — de batch draait als één `runMutateTool(kind:'batch')`,
 //     dus ook precies één AI-backup-trigger en één drift-/dialoog-check (nooit één per stap).
 //  2. Gedeelde temp-id-namespace — de executor bezit de tempId→realId-map (`ctx.tempIdMap`): zodra een
@@ -15,7 +15,7 @@
 //     geblokkeerde dialoog, kring, `cpmResult.error`) rolt de HELE batch terug en levert een rapport
 //     per stap (uitgevoerd/gefaald/niet bereikt). PER-ITEM-weigeringen binnen een bulk-stap zijn ZACHT:
 //     de stap telt als geslaagd en de weigeringen worden prominent bovenaan de respons verzameld.
-//  4. De stappenloop is VOLLEDIG SYNCHROON (WP0-invariant b): geen enkele asynchrone grens tussen
+//  4. De stappenloop is VOLLEDIG SYNCHROON (transactie-invariant): geen enkele asynchrone grens tussen
 //     stappen, zodat de user fysiek niet mid-batch van tabblad kan wisselen. `tests/mcp/cases-batch.ts`
 //     dwingt dat statisch af op de broncode van `executeSteps`/`invokeStep`/`recomputeMidBatch`.
 //
@@ -29,24 +29,14 @@
 // Een tool die batchable heet maar geen synchrone kern aanbiedt, wordt vóór enige mutatie geweigerd
 // met een expliciete melding — nooit stil overgeslagen.
 //
-// SCHEMAPOORT PER STAP — waarom hier en niet in `checkExclusions`.
-// Omdat de stappen NIET via `dispatcher.ts` lopen, zou de schemapoort die daar vóór `def.handler`
-// hangt (audit-fix S) elke batch-stap missen: een agent kon élk `type`/`enum`/`required`/`minItems`/
-// `additionalProperties` van alle 33 tools omzeilen door zijn call in een batch te wikkelen. Daarom
-// draait `validateToolArgs` hier óók, met EXACT dezelfde diepte-instelling als de dispatcher
-// (`deepArrayItems: ATOMIC_ITEM_TOOLS.has(def.name)`), zodat een stap zich precies gedraagt als
-// dezelfde call los — één waarheid, geen tweede validator.
-// De plek is bewust IN DE STAPPENLOOP, niet in de pre-transactionele `checkExclusions`:
-//   1. De spec noemt "schema-ongeldige args" letterlijk een STRUCTURELE STAPFOUT (zie punt 3 boven),
-//      met volledige rollback én een rapport per stap (uitgevoerd/gefaald/niet bereikt). Datzelfde
-//      argument staat al bij `checkExclusions`: de onbekende tool wordt daar bewust NIET afgevangen,
-//      juist zodat de loop hem tegenkomt en het rapport betekenis heeft. Een schemafout hoort in
-//      precies dezelfde categorie thuis.
-//   2. TEMP-ID'S. Vooraf keuren zou args keuren waarin de `tmp-…`-verwijzingen nog NIET vervangen
-//      zijn. Dat levert valse afwijzingen zodra een schema meer eist dan "string" op een id-plek —
-//      `planner_add_tasks.tasks[].tempId` draagt bijvoorbeeld `pattern: ^tmp[-_]`, en een hergebruikte
-//      tempId wordt door `resolveTempIds` juist wél naar een echt id herschreven. Door ná
-//      `resolveTempIds` te valideren keuren we exact de args die de stap daadwerkelijk uitvoert.
+// SCHEMAPOORT PER STAP. De stappen lopen NIET via `dispatcher.ts`, dus zonder eigen poort zou een
+// agent elk schema omzeilen door zijn call in een batch te wikkelen. `validateToolArgs` draait hier
+// met EXACT dezelfde diepte-instelling als de dispatcher (`deepArrayItems:
+// ATOMIC_ITEM_TOOLS.has(def.name)`). Bewust IN DE STAPPENLOOP, niet in `checkExclusions`:
+//   1. schema-ongeldige args zijn een STRUCTURELE STAPFOUT (punt 3 boven) en horen in het rapport
+//      per stap, net als een onbekende tool;
+//   2. pas ná `resolveTempIds` zijn de `tmp-…`-verwijzingen vervangen — vooraf keuren geeft valse
+//      afwijzingen zodra een schema meer eist dan "string" op een id-plek (bv. `pattern: ^tmp[-_]`).
 // Bewust de leaf-module `toolIndex` en NIET `toolRegistry`: die laatste importeert alle tool-modules
 // (incl. deze) en zou een import-cyclus opleveren — zie de kop van toolIndex.ts.
 import { getTool } from '../toolIndex';
@@ -59,7 +49,7 @@ import { isRecord, isThenable } from '@/utils/guards';
 import { createSnapshot, documentDataChanged } from '@/state/snapshot';
 import { TEMP_ID_PATTERN } from './helpers';
 
-/** Harde bovengrens op het aantal stappen (spec §Compositie). */
+/** Harde bovengrens op het aantal stappen. */
 export const MAX_BATCH_STEPS = 100;
 
 /** JSON-afkapgrens per substep-veld: het activiteitenpaneel toont samenvattingen, geen dumps. */
@@ -68,13 +58,13 @@ const MAX_JSON_CHARS = 4000;
 /**
  * Tooldefinitie mét synchrone batch-kern. Additieve, OPTIONELE uitbreiding op `McpToolDef` — bewust
  * hier en niet in het bevroren `contracts.ts`: alleen de batch-executor kent dit veld, en de
- * mutatiemodules (andere banen) kunnen het bij SYNC-2 toevoegen zonder het gedeelde contract te raken.
+ * mutatiemodules kunnen het toevoegen zonder het gedeelde contract te raken.
  *
- * WIE KRIJGT ER ÉÉN: uitsluitend de tools uit spec §Tool-set *Muteren* die op een draft-primitief
- * draaien (taken, relaties, kalenders, assignments, leveling, project) — precies het oppervlak dat WP0
- * transactie-veilig heeft gemaakt. Leestools hebben er geen nodig (hun handler is al synchroon), en
- * alles wat géén draft-primitief heeft (document- en bestandstools, undo/redo, save_baseline) hoort
- * per spec sowieso niet in een batch en krijgt er dus expliciet géén.
+ * WIE KRIJGT ER ÉÉN: uitsluitend de muterende tools die op een draft-primitief draaien (taken,
+ * relaties, kalenders, assignments, leveling, project) — precies het transactie-veilige oppervlak.
+ * Leestools hebben er geen nodig (hun handler is al synchroon), en alles wat géén draft-primitief
+ * heeft (document- en bestandstools, undo/redo, save_baseline) hoort sowieso niet in een batch en
+ * krijgt er dus expliciet géén.
  *
  * De kern draait BINNEN de batch-transactie en moet daarom:
  *   - synchroon zijn (geen asynchrone grens, geen I/O);
@@ -110,15 +100,15 @@ interface Rejection {
 }
 
 /**
- * Tools die NOOIT als batch-stap mogen draaien, ongeacht wat hun `batchable`-vlag zegt (spec
- * §Compositie "Uitgesloten"). `def.batchable === false` is de primaire poort; deze lijst is de
+ * Tools die NOOIT als batch-stap mogen draaien, ongeacht wat hun `batchable`-vlag zegt.
+ * `def.batchable === false` is de primaire poort; deze lijst is de
  * defense-in-depth voor het geval een toolmodule zijn vlag verkeerd zet — precies de tools waar dat
  * echt schade doet:
  *   - `planner_batch` zelf (geneste transactie, onbepaalde semantiek);
  *   - `undo`/`redo` (beheren hun eigen undo-stack; binnen één batch-snapshot betekenisloos);
  *   - de document-tools (een documentwissel mid-batch breekt de "één actief document"-aanname).
- *     `list_documents` staat er óók bij hoewel het alleen leest: de spec rekent het bij de
- *     document-tools, en zijn antwoord gaat over ANDERE documenten dan het document waarop de batch
+ *     `list_documents` staat er óók bij hoewel het alleen leest: het hoort bij de document-tools,
+ *     en zijn antwoord gaat over ANDERE documenten dan het document waarop de batch
  *     werkt — het beschrijft bovendien planningen die de batch niet herrekent, dus de cijfers zouden
  *     misleidend vers lijken. Als losse call is de tool volledig beschikbaar;
  *   - `export_ifc`/`import_schedule` (echte bestands-I/O ⇒ asynchroon, en niet terug te rollen);
@@ -139,7 +129,7 @@ const BLOCKED_STEP_NAMES = new Set<string>([
 ]);
 
 /** De levelingtool heeft — net als een leesstap — een VERSE planning nodig, anders kloppen de
- *  before/after-delta's niet (spec §level_resources-contract). */
+ *  before/after-delta's niet. */
 const LEVEL_TOOL = 'planner_level_resources';
 
 // ── Hulpjes ──────────────────────────────────────────────────────────────────────────────────────
@@ -232,8 +222,8 @@ function formatReport(report: StepReport[]): string {
 /**
  * Herbereken MIDDEN in de batch — synchroon, exact de drie stappen die de transactie ook aan het eind
  * doet. Nodig vóór een leesstap of een `level_resources`-stap die op mutaties volgt: die zouden anders
- * verouderde datums lezen. `runCPM` pusht per invariant (WP0-a) geen undo-snapshot, dus dit kost géén
- * extra undo-stap — met één uitzondering (issue #63): staat het document in "datums zoals opgeslagen",
+ * verouderde datums lezen. `runCPM` pusht per invariant geen undo-snapshot, dus dit kost géén
+ * extra undo-stap — met één uitzondering: staat het document in "datums zoals opgeslagen",
  * dan verlaat `runCPM` die modus en pusht daarvoor wél één snapshot. Binnen een batch is dat onzichtbaar,
  * want `beginUndoable` zwijgt zolang de transactie loopt en die nam haar ene snapshot al vóór de eerste
  * stap — mét de modus aan, dus één undo draait de hele batch inclusief het modusverlies terug.
@@ -274,11 +264,11 @@ export function invokeStep(def: BatchStepTool, args: unknown, ctx: McpContext): 
 // ── De stappenloop ───────────────────────────────────────────────────────────────────────────────
 
 /**
- * De stappenloop — draait BINNEN `runInMcpTransaction` en is daarom volledig synchroon (WP0-invariant
- * b; statisch afgedwongen door cases-batch.ts). Vult `report`, `substeps` en `rejections` in-place, zodat
+ * De stappenloop — draait BINNEN `runInMcpTransaction` en is daarom volledig synchroon (statisch
+ * afgedwongen door cases-batch.ts). Vult `report`, `substeps` en `rejections` in-place, zodat
  * die ook ná een rollback nog beschikbaar zijn voor de foutrapportage.
  *
- * Per stap: tool opzoeken (onbekend ⇒ structurele stapfout, spec) → args herschrijven met de
+ * Per stap: tool opzoeken (onbekend ⇒ structurele stapfout) → args herschrijven met de
  * temp-id-map → zo nodig tussentijds herberekenen (leesstap of levelingstap ná mutaties) → uitvoeren →
  * `created`-map overnemen → zachte weigeringen verzamelen (met stapherkomst) → activiteitsregel loggen.
  */
@@ -326,14 +316,14 @@ export function executeSteps(
         );
       }
 
-      // Verse planning vóór een lezing of een levelingstap die op mutaties volgt (spec §Compositie).
+      // Verse planning vóór een lezing of een levelingstap die op mutaties volgt.
       if (mutatedSinceRecompute && (def.kind === 'read' || def.name === LEVEL_TOOL)) {
         recomputeMidBatch(ctx);
         mutatedSinceRecompute = false;
       }
 
-      // Alleen een stap die per saldo projectdata wijzigde, vraagt om een tussentijdse herberekening
-      // (G5): een no-op-stap is geen mutatie. Anders zou een no-op gevolgd door een leesstap een
+      // Alleen een stap die per saldo projectdata wijzigde, vraagt om een tussentijdse herberekening:
+      // een no-op-stap is geen mutatie. Anders zou een no-op gevolgd door een leesstap een
       // verouderde planning herrekenen, en telde de hele batch daardoor tóch als wijziging. Dezelfde
       // meting als de commit-plek van de transactie (`documentDataChanged`).
       const beforeStep = def.kind === 'read' ? null : createSnapshot(ctx.app.store.getState());
@@ -372,8 +362,8 @@ export function executeSteps(
   }
 
   return {
-    // `rejections` staat bewust VOORAAN in het object: de spec eist dat deel-weigeringen prominent
-    // bovenaan de batch-respons komen — nooit stil onderin.
+    // `rejections` staat bewust VOORAAN in het object: deel-weigeringen horen prominent bovenaan de
+    // batch-respons — nooit stil onderin.
     data: { rejections, stepCount: steps.length, steps: report, substeps },
     ...(rejections.length > 0 ? { itemRejections: rejections } : {}),
   };
@@ -404,9 +394,9 @@ function parseSteps(args: unknown): ParsedStep[] | string {
 }
 
 /**
- * Beleidspoort vóór de transactie: welke BEKENDE tools mogen nooit een batch-stap zijn (spec
- * §Compositie "Uitgesloten"), en welke missen een synchrone batch-kern. Een ONBEKENDE tool wordt hier
- * bewust NIET afgevangen: de spec rekent die tot de structurele STAP-fouten (volledige rollback +
+ * Beleidspoort vóór de transactie: welke BEKENDE tools mogen nooit een batch-stap zijn, en welke
+ * missen een synchrone batch-kern. Een ONBEKENDE tool wordt hier bewust NIET afgevangen: die hoort
+ * bij de structurele STAP-fouten (volledige rollback +
  * rapport uitgevoerd/gefaald/niet bereikt), en dat rapport heeft alleen betekenis als de loop hem
  * tegenkomt. Retourneert een foutboodschap, of null wanneer het draaiboek uitvoerbaar is.
  */
@@ -497,7 +487,7 @@ const batch: McpToolDef = {
 
     // LEVENSDUUR VAN DE TEMP-ID-MAP: strikt per batch. `ctx` leeft per server-sessie, dus zonder deze
     // schoonmaak zouden tempId's uit een eerdere batch de args van een látere batch herschrijven —
-    // actie-op-afstand die niemand kan zien (reviewbevinding I1c). Leegmaken vóór ÉN na de uitvoering:
+    // actie-op-afstand die niemand kan zien. Leegmaken vóór ÉN na de uitvoering:
     // vooraf zodat we gegarandeerd leeg starten, achteraf zodat er niets blijft hangen voor de
     // volgende call — ook niet na een rollback.
     ctx.tempIdMap.clear();
@@ -510,7 +500,7 @@ const batch: McpToolDef = {
     // uit te leggen. Kwam de loop wél op gang, dan reist het rapport twee keer mee: leesbaar in
     // `error` (voor de AI/gebruiker) en gestructureerd in het additieve `data`-veld van de McpToolErr —
     // zonder dat laatste zou het activiteitenpaneel juist bij een MISLUKTE batch zijn sub-stappen
-    // kwijt zijn (reviewbevinding I2).
+    // kwijt zijn.
     if (!res.ok && report.some((r) => r.status !== 'niet bereikt')) {
       return { ...res, error: `${res.error}\n${formatReport(report)}`, data: { steps: report, substeps } };
     }
@@ -518,5 +508,5 @@ const batch: McpToolDef = {
   },
 };
 
-/** Module-export voor de registry (spec §componenten: elke tool-module levert zijn eigen array). */
+/** Module-export voor de registry (elke tool-module levert zijn eigen array). */
 export const batchTools: McpToolDef[] = [batch];

@@ -56,20 +56,15 @@ function validatePageOptions(options?: ExtImportSourcePageOptions): { offset: nu
 }
 
 /**
- * Canoniseer `offset` tegen de werkelijke collectiegrootte, VÓÓR de slice (reviewbevinding P2).
+ * Canoniseer `offset` tegen de werkelijke collectiegrootte, VÓÓR de slice.
  *
  * `validatePageOptions` bewijst alleen dat `offset` zelf een safe integer is — niet dat
- * `offset + limit` dat ook blijft: met `offset` tot aan `Number.MAX_SAFE_INTEGER` en `limit` tot
- * `EXT_IMPORT_SOURCE_PAGE_SIZE_MAX` (500) kon die som het safe integer-bereik verlaten, en
- * `records.slice(offset, offset + limit)` liet zo'n offset gewoon door in plaats van fail-closed
- * te weigeren. Elke echte collectie telt hooguit een paar duizend records, dus de juiste grens is
- * niet "offset ligt onder MAX_SAFE_INTEGER - limit" maar "offset ligt hoogstens op het einde van de
- * collectie": begrens `offset` op `total` — een lege, geldige laatste pagina in plaats van een fout —
- * en de daaropvolgende `offset + limit` blijft daarmee altijd ruim binnen het safe integer-bereik,
- * want `total` is per definitie het aantal records dat al in het geheugen staat.
+ * `offset + limit` dat ook blijft. Begrens `offset` daarom op `total` (een lege, geldige laatste
+ * pagina in plaats van een fout); `offset + limit` blijft dan altijd ruim binnen het safe
+ * integer-bereik, want `total` is het aantal records dat al in het geheugen staat.
  */
 function resolvePageOffset(offset: number, total: number): number {
-  // `+ 0` normaliseert een `-0`-offset naar `+0` (reviewbevinding P3): `Number.isSafeInteger(-0)`
+  // `+ 0` normaliseert een `-0`-offset naar `+0`: `Number.isSafeInteger(-0)`
   // is `true` en `-0 < 0` is `false`, dus `validatePageOptions` liet 'm ongewijzigd door. Cosmetisch
   // voor JSON (`JSON.stringify(-0) === '0'`), maar een extensie die `Object.is()` gebruikt of de
   // offset als objectsleutel neemt zou anders `-0` kunnen zien.
@@ -77,13 +72,13 @@ function resolvePageOffset(offset: number, total: number): number {
 }
 
 /**
- * Fail-closed documentdriftbewaking (her-review 2, P2). `getImportSourceCatalogPage` werkt op het
+ * Fail-closed documentdriftbewaking. `getImportSourceCatalogPage` werkt op het
  * ACTIEVE document — er is geen intern paginasessie-object dat aan één document vastzit. Pagineren
  * is per definitie meerdere aanroepen over tijd; wisselt de gebruiker tussen twee van die aanroepen
  * van document (`switchDocument`), dan combineert een extensie zonder deze bewaking in stilte
  * pagina 1 van project A met pagina 2 van project B — of ziet een lege pagina en concludeert ten
  * onrechte "klaar". `getImportSourceChunk`/`getImportSourceInfo` hebben dezelfde documentbinding,
- * maar zijn doorgaans één aanroep; pagineren met meerdere aanroepen is de nieuwe risicoklasse.
+ * maar zijn doorgaans één aanroep; bij pagineren over meerdere aanroepen zit het risico.
  *
  * Vergelijkbaar met het `expectedDocId`-driftanker in `src/services/mcp/tools/runtime.ts`, maar
  * hier expliciet door de AANROEPER meegegeven (geen sessiestate in de host) omdat de extensie-API

@@ -1,15 +1,14 @@
-// Gedeelde post-transactie-helpers voor de MCP-toolmodules (T19 taskTools, T20 calendarResourceTools).
+// Gedeelde post-transactie-helpers voor de MCP-toolmodules.
 //
-// Deze helpers zitten BEWUST niet in `runtime.ts`: dat bestand draagt het (bevroren) F1-runtime-
-// contract — envelop/guards/transactie-wrapper — en wordt bij de F-merge 1-op-1 door de echte
-// F1-implementatie vervangen. De helpers hieronder zijn puur tool-laag-conventie: hoe een geslaagd
+// Deze helpers zitten BEWUST niet in `runtime.ts`: dat bestand draagt het runtime-contract —
+// envelop/guards/transactie-wrapper. De helpers hieronder zijn puur tool-laag-conventie: hoe een geslaagd
 // resultaat ná de transactie wordt verrijkt met verse, herrekende store-waarden, en hoe een
 // statisch-lege bulk zónder transactie wordt beantwoord.
 import type { AppState } from '@/state/appStore';
 import type { McpContext, McpToolAnnotations, McpToolOk, McpToolResult } from '../contracts';
 import { contextEnvelope, guardNonTransactional, McpStepError, type MutationOutcome } from './runtime';
 
-/** Leestool-annotaties (spec §Naamgeving): readOnly, niet-destructief, geen open wereld. `idempotentHint`
+/** Leestool-annotaties: readOnly, niet-destructief, geen open wereld. `idempotentHint`
  *  is per MCP-conventie alleen zinvol op niet-readOnly tools ⇒ false. */
 export const READ_ANNOTATIONS: McpToolAnnotations = {
   readOnlyHint: true,
@@ -30,8 +29,8 @@ export const WRITE_ANNOTATIONS: McpToolAnnotations = {
  * GERESERVEERDE TEMP-ID-SYNTAX. Binnen een batch moet elke tempId met `tmp-` of `tmp_` beginnen.
  * Alleen strings die aan dit patroon voldoen ÉN als tempId geregistreerd zijn, worden in de args van
  * latere stappen vervangen. Zonder zo'n gereserveerd naamruimtetje is elke vrije tekst een potentieel
- * doelwit: een `add_tasks` met `tempId:'Fundering'` maakte van een latere `name:'Fundering'` stil het
- * interne taak-id (reviewbevinding I1, met probe bewezen). Een `created`-map met een tempId die niet
+ * doelwit: een `add_tasks` met `tempId:'Fundering'` zou van een latere `name:'Fundering'` stil het
+ * interne taak-id maken. Een `created`-map met een tempId die niet
  * aan het patroon voldoet, laat de batch LUID falen — nooit stil half toepassen. Tools die zelf
  * tempId's aannemen (`planner_manage_resources`) valideren tegen hetzelfde patroon.
  */
@@ -63,13 +62,11 @@ export function enrichOk(res: McpToolResult, build: () => unknown): McpToolResul
 }
 
 /**
- * Directe Ok-respons ZONDER transactie (lege-batch-snelpad, T19-reviewfix Issue 2). Wordt gebruikt
- * wanneer een muterende bulk-call statisch nul uitvoerbare items heeft: dan hoeft er géén
- * `runInMcpTransaction` (en dus ook geen AI-backup) te draaien. Vroeger pushte die transactie ook
- * bij een AI-no-op een undo-stap en wiste ze de redo-stack van de user; sinds G5 laat de transactie
- * zelf een wijziging-loze call ongemoeid (`documentDataChanged` op haar commit-plek), dus dit
- * snelpad is nu de goedkope voorkant van dezelfde regel. Ook het pad voor bewust mutatie-vrije
- * tools (`level_resources` met `dryRun`).
+ * Directe Ok-respons ZONDER transactie (lege-batch-snelpad). Wordt gebruikt wanneer een muterende
+ * bulk-call statisch nul uitvoerbare items heeft: dan hoeft er géén `runInMcpTransaction` (en dus ook
+ * geen AI-backup) te draaien. De transactie zelf laat een wijziging-loze call ook ongemoeid
+ * (`documentDataChanged` op haar commit-plek); dit snelpad is de goedkope voorkant van die regel. Ook
+ * het pad voor bewust mutatie-vrije tools (`level_resources` met `dryRun`).
  */
 export function okDirect(
   ctx: McpContext,
@@ -97,7 +94,7 @@ export function okDirectGuarded(
 }
 
 /**
- * De `batchStep` van een bulk-mutatietool (SYNC-2, zie de noot bovenin taskTools.ts): dezelfde
+ * De `batchStep` van een bulk-mutatietool (zie de noot bovenin taskTools.ts): dezelfde
  * `parse` als de handler, maar een vormfout is binnen een batch een STRUCTURELE stapfout (harde
  * `VALIDATION`, de hele batch rolt terug) in plaats van een `toolError`; daarna de synchrone kern.
  */

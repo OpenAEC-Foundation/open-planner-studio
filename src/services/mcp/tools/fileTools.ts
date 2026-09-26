@@ -1,8 +1,8 @@
-// MCP-bridge — de TWEE BESTANDS-TOOLS (taak T21, spec §Bestands-tools 107-111, §Overig regel 105).
+// MCP-bridge — de TWEE BESTANDS-TOOLS.
 //
 // `export_ifc` en `import_schedule` zijn de enige tools die de wereld BUITEN de app raken. Daarom:
 //
-//  1. FS-SCOPE. De Tauri-capability dekt `$HOME` (recursief), niet de hele schijf (spec regel 109).
+//  1. FS-SCOPE. De Tauri-capability dekt `$HOME` (recursief), niet de hele schijf.
 //     Elk pad wordt eerst genormaliseerd (`..`/`.`/dubbele scheiders, `~`-expansie) en daarna tegen
 //     de home-map gehouden; erbuiten ⇒ code `SCOPE` met uitleg. Normaliseren VÓÓR de vergelijking is
 //     het hele punt: `$HOME/../../etc/x` ziet er anders uit als "binnen $HOME". Deze guard is
@@ -10,21 +10,21 @@
 //     BINNEN `$HOME` die naar buiten wijst passeert hem dus; dat is bewust: de Tauri-fs-scope
 //     (capability) is de tweede, gezaghebbende poort die zulke ontsnappingen alsnog weigert. De
 //     JS-guard levert de nette, uitlegbare fout; de capability levert de harde grens.
-//  2. OVERSCHRIJVEN. `export_ifc` weigert een bestaand bestand zonder expliciete `overwrite: true`
-//     (spec regel 110). Die controle is NIET atomair (check-dan-schrijf): tussen `exists` en
+//  2. OVERSCHRIJVEN. `export_ifc` weigert een bestaand bestand zonder expliciete `overwrite: true`.
+//     Die controle is NIET atomair (check-dan-schrijf): tussen `exists` en
 //     `writeTextFile` kan een ander proces het bestand aanmaken. Acceptabel voor deze
 //     single-user-desktopcontext; er is geen exclusief-aanmaken-primitief in plugin-fs.
-//  3. GEEN USER-DIALOOG. Bewust geaccepteerd (spec regel 111): het pad komt uit de AI-args in plaats
+//  3. GEEN USER-DIALOOG. Bewust geaccepteerd: het pad komt uit de AI-args in plaats
 //     van uit een bestandskiezer — de instemming verschuift naar de opt-in van de bridge zelf. Het
 //     resultaat is altijd zichtbaar (import = een tabblad, export = een gemeld pad).
-//  4. GEEN AI-BACKUP, GEEN TRANSACTIE. Spec regel 130: `import_schedule` triggert zelf géén backup
+//  4. GEEN AI-BACKUP, GEEN TRANSACTIE. `import_schedule` triggert zelf géén backup
 //     (de per-document-teller start op het RESULTERENDE document, zodat de eerste echte mutatie
 //     precies de post-import-staat vastlegt) ⇒ `kind: 'other'`, en het laden loopt via de gedeelde
 //     open-actie `openAsDocument` (→ `applyLoadedProject`, net als Bestand → Openen), niet via
 //     `runInMcpTransaction`.
 //  5. DRIFT-ANKER. `export_ifc` schrijft de inhoud van het ACTIEVE document weg ⇒ volle drift-check
 //     (het verkeerde document exporteren is stil fout). `import_schedule` verzet het anker naar het
-//     resulterende document (spec regel 111) — zonder dat zou de import zichzelf klemzetten.
+//     resulterende document — zonder dat zou de import zichzelf klemzetten.
 //
 // De fs-rand loopt via de injecteerbare naad `fileToolDeps` (zelfde motief als `backup.ts`): de
 // echte implementatie importeert `@tauri-apps/*` DYNAMISCH binnen een `isTauri()`-tak (anders breekt
@@ -118,7 +118,7 @@ export function normalizeAbsolutePath(input: string): string | null {
 type ScopeCheck = { ok: true; path: string } | { ok: false; reason: string };
 
 /**
- * Controleer of `input` binnen de `$HOME`-fs-scope valt (spec regel 109). `~`/`~/…` wordt eerst naar
+ * Controleer of `input` binnen de `$HOME`-fs-scope valt. `~`/`~/…` wordt eerst naar
  * de home-map geëxpandeerd (comfort — het resultaat ligt per definitie binnen de scope). Vergelijking
  * gebeurt op genormaliseerde paden; bij een Windows-driveletter hoofdletterongevoelig.
  */
@@ -155,7 +155,7 @@ export function checkScope(home: string, input: string): ScopeCheck {
 
 /** Leesbaar formaatlabel op basis van de extensie (de XML-variant volgt het root-element via
  *  `detectXmlFlavor` — dezelfde beslissing als de lezerkeuze in `formatRegistry`, nooit vrije tekst).
- *  `MPP14` (T8): de enige binaire indeling die dit pad kent — `.mpp` (MS Project 2010-2021,
+ *  `MPP14`: de enige binaire indeling die dit pad kent — `.mpp` (MS Project 2010-2021,
  *  alleen-lezen native lezer, zie `src/services/mpp/`). */
 function formatOf(path: string, content: string): 'IFC' | 'CSV' | 'P6-XML' | 'MSPDI-XML' | 'MPP14' | 'XER' {
   const ext = extensionOf(path);
@@ -169,8 +169,8 @@ function formatOf(path: string, content: string): 'IFC' | 'CSV' | 'P6-XML' | 'MS
 // --- Annotaties ----------------------------------------------------------------------------------
 
 /**
- * Bestands-tool-annotaties. `openWorldHint: true` is de expliciete uitzondering uit spec regel 65
- * ("de server raakt niets buiten de app **behalve de expliciete bestands-tools**"): deze twee tools
+ * Bestands-tool-annotaties. `openWorldHint: true` is de expliciete uitzondering ("de server raakt
+ * niets buiten de app **behalve de expliciete bestands-tools**"): deze twee tools
  * lezen/schrijven op het bestandssysteem van de gebruiker, dus de MCP-client hoort dat te weten.
  */
 const EXPORT_ANNOTATIONS: McpToolAnnotations = {
@@ -182,7 +182,7 @@ const EXPORT_ANNOTATIONS: McpToolAnnotations = {
 
 const IMPORT_ANNOTATIONS: McpToolAnnotations = {
   readOnlyHint: false,
-  destructiveHint: true, // spec regel 65: destructiveHint op import_schedule
+  destructiveHint: true, // destructiveHint op import_schedule
   idempotentHint: false,
   openWorldHint: true,
 };
@@ -202,7 +202,7 @@ export const fileTools: McpToolDef[] = [
       '"opslaan als". Let op: het pad komt uit jouw argumenten, niet uit een bestandsdialoog van de ' +
       'gebruiker; noem het gekozen pad dus altijd in je antwoord.',
     kind: 'other',
-    batchable: false, // spec regel 100: export_ifc/import_schedule zijn uitgesloten van batch
+    batchable: false, // export_ifc/import_schedule zijn uitgesloten van batch
     inputSchema: {
       type: 'object',
       properties: {
@@ -320,7 +320,7 @@ export const fileTools: McpToolDef[] = [
     annotations: IMPORT_ANNOTATIONS,
     handler: async (args, ctx): Promise<McpToolResult> => {
       // GEEN drift-check: het resultaat is per definitie een vers/hergebruikt tabblad en het anker
-      // verzet mee (spec regel 111). Wel de veiligheidsvlaggen + dialoog-guard.
+      // verzet mee. Wel de veiligheidsvlaggen + dialoog-guard.
       const blocked = guardBridgeFlags(ctx);
       if (blocked) return blocked;
       const raw = (args ?? {}) as { path?: unknown };
@@ -343,14 +343,14 @@ export const fileTools: McpToolDef[] = [
       } catch (e) {
         return toolError(ctx, 'INTERNAL', `Kon het bronpad niet controleren: ${e instanceof Error ? e.message : String(e)}`);
       }
-      // `content` blijft '' voor een binair formaat — puur voor `formatOf` (verderop) se sniffen
-      // op CSV/P6-XML/MSPDI-XML-inhoud; het OPSLAGDOEL-besluit hangt sinds T11 niet meer af van
-      // `formatOf`'s AI-facing label maar van de registry-vlag `canBeSaveTarget` (in
-      // `openAsDocument`, zie verderop) — dus geen risico meer dat een binair formaat via
-      // `formatOf`'s IFC-terugval per ongeluk als opslagdoel-waardig zou worden gelezen.
+      // `content` blijft '' voor een binair formaat — puur voor `formatOf` (verderop) om te sniffen
+      // op CSV/P6-XML/MSPDI-XML-inhoud; het OPSLAGDOEL-besluit hangt niet af van `formatOf`'s
+      // AI-facing label maar van de registry-vlag `canBeSaveTarget` (in `openAsDocument`, zie
+      // verderop) — dus een binair formaat kan via `formatOf`'s IFC-terugval nooit per ongeluk als
+      // opslagdoel-waardig gelezen worden.
       let input: FormatInput;
       try {
-        // T11 (T2-kwaliteitsreview-agenda stap 0 a): gedeelde isBinary?readFile:readTextFile-tak,
+        // Gedeelde isBinary?readFile:readTextFile-tak,
         // óók hier — `fs` (McpFileFs) is structureel compatibel met `readFormatInput`'s `FormatIO`.
         input = await readFormatInput(path, fs);
       } catch (e) {
@@ -371,21 +371,20 @@ export const fileTools: McpToolDef[] = [
       const format = formatOf(path, content);
       // Exact het laadpatroon van Bestand → Openen, want het IS dezelfde store-actie
       // (`openAsDocument` → `applyOpenedImport`): pristine tabblad hergebruiken of nieuwe
-      // documenten (ook X4b's meervoudige XER-vorm; bewust geen merge), OPSLAGDOEL alleen bij een
+      // documenten (ook de meervoudige XER-vorm; bewust geen merge), OPSLAGDOEL alleen bij een
       // formaat dat `canBeSaveTarget` draagt, en GEKOPPELD laden (`linkedOpen`). Opslaan schrijft
       // ALTIJD IFC; zou een geïmporteerd .csv-/.xml-/.mpp-/.xer-pad het opslagdoel worden, dan
       // overschrijft de eerstvolgende Ctrl+S van de user zijn eigen bronbestand met IFC-inhoud
       // onder die naam. Omgekeerd: krijgt een .ifc het bronpad als opslagdoel, dan moet hij ook
-      // alles laden wat erin stond — vóór deze route via `openAsDocument` liep, gaf de tool een
-      // eigen opts-object zonder `linkedOpen` mee en wiste Ctrl+S de bibliotheekkoppeling +
-      // herkomststempels uit het bronbestand (import/export-audit, bevinding 2;
-      // `tests/mcp/cases-import-bibliotheek.ts`). `formatOf` blijft puur het AI-facing label
+      // alles laden wat erin stond — zonder `linkedOpen` zou Ctrl+S de bibliotheekkoppeling +
+      // herkomststempels uit het bronbestand wissen (`tests/mcp/cases-import-bibliotheek.ts`).
+      // `formatOf` blijft puur het AI-facing label
       // (`format`, voor de respons en de notices).
       const opened = ctx.app.store.getState().openAsDocument(parsed, {
         name: path,
         ref: { kind: 'path', path },
       });
-      // Drift-anker naar het RESULTERENDE document (spec regel 111) — anders zou de eerstvolgende
+      // Drift-anker naar het RESULTERENDE document — anders zou de eerstvolgende
       // mutatie op het importdocument als drift falen en zet de import zichzelf klem.
       bindExpectedDoc(ctx);
 

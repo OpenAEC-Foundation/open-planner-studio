@@ -1,13 +1,13 @@
 // MCP-bridge — EXPLICIETE veld-allowlist voor taak-invoer (`planner_add_tasks` items en
 // `planner_update_tasks.fields`).
 //
-// WAAROM DIT BESTAAT (root-cause van de duur-bug): `fields` was een kale `Partial<Task>`-merge
-// (`Object.assign`). Twee faalvormen kwamen daaruit voort:
-//   1. STILLE NO-OP — een agent stuurde `fields: { duration: 10 }` (de naam die de LEEStools
-//      teruggeven), `Object.assign` plakte `duration` als rommelveld op het Task-object, de tool
-//      antwoordde `ok` en er veranderde niets. De echte duur woont op `time.scheduleDuration`.
-//   2. TAK-OVERSCHRIJVING — `fields: { time: {...} }` verving de HELE `time`-tak, waarmee
-//      CPM-datums, floats, actuals en completion in één klap verdwenen.
+// WAAROM DIT BESTAAT: een kale `Partial<Task>`-merge (`Object.assign`) van `fields` geeft twee
+// faalvormen:
+//   1. STILLE NO-OP — `fields: { duration: 10 }` (de naam die de LEEStools teruggeven) plakt
+//      `duration` als rommelveld op het Task-object; de tool antwoordt `ok` en er verandert niets.
+//      De echte duur woont op `time.scheduleDuration`.
+//   2. TAK-OVERSCHRIJVING — `fields: { time: {...} }` vervangt de HELE `time`-tak, waarmee
+//      CPM-datums, floats, actuals en completion in één klap verdwijnen.
 //
 // Daarom: één allowlist met PLATTE, agent-vriendelijke namen die exact spiegelen wat
 // `planner_get_task` teruggeeft (`duration`, `durationType`, `name`, …). Alles wat er niet in staat
@@ -15,18 +15,17 @@
 // (`time`) zijn nooit rechtstreeks zetbaar — `duration`/`durationType` worden hier vertaald naar een
 // veld-voor-veld `TaskTimePatch` die de draft-laag individueel toepast.
 //
-// DUUR-SEMANTIEK (dag-modus): `duration` is ALTIJD in dagen — een fractie (2.5) mag en wordt niet
-// afgerond (de app kent fractionele dagtaken: CSV-import, Tabel "1d 4u"; afronden zou een
-// ontwerpkeuze zijn, geen validatie) — WERKdagen voor de default
+// DUUR-SEMANTIEK: `duration` staat in de eenheid van `durationUnit` (default `days`). In dagen mag
+// een fractie (2.5) en wordt niet afgerond (de app kent fractionele dagtaken: CSV-import, Tabel
+// "1d 4u"; afronden zou een ontwerpkeuze zijn, geen validatie) — WERKdagen voor de default
 // `durationType: 'WORKTIME'`, KALENDERdagen (24/7, geen kalenderband-toetsing) voor
-// `durationType: 'ELAPSEDTIME'` (T8, T8-review L1-correctie: eerdere versies van deze regel
-// spraken uitsluitend van "werkdagen" zonder dat onderscheid — zie `duration.ts`'s
-// `elapsedMinutesOf` voor de bron van waarheid). `TaskTime.durationMinutes`
-// (uur-modus, fase 2.8b) is via de bridge NIET zetbaar; wél wordt hij bij elke duur-wijziging
+// `durationType: 'ELAPSEDTIME'` (zie `duration.ts`'s `elapsedMinutesOf` voor de bron van waarheid).
+// `TaskTime.durationMinutes` is nooit rechtstreeks zetbaar. Bij `durationUnit: 'days'` wordt hij
 // GEWIST — precies zoals de dag-tak van de gedeelde duurbediening (`time.scheduleDuration = durDays;
-// time.durationMinutes = undefined`). Dat is geen detail maar de éne-bron-invariant: deze bridge
-// zet expliciet `durationUnit: 'days'`, waarna uitsluitend `scheduleDuration` invoerbron mag zijn.
-// Een achtergebleven minutenwaarde zou een tweede, concurrerende bron vormen.
+// time.durationMinutes = undefined`). Dat is de éne-bron-invariant: daarna mag uitsluitend
+// `scheduleDuration` invoerbron zijn; een achtergebleven minutenwaarde zou een tweede, concurrerende
+// bron vormen. Bij `durationUnit: 'hours'` (vereist een taakkalender met werkblokken) berekent de
+// bridge de exacte minutenbron zelf.
 
 import type {
   ConstraintType,
@@ -66,9 +65,9 @@ export interface TaskFieldPatch {
   top: Partial<Task>;
   time?: TaskTimePatch;
   customTaskType?: CustomTaskType;
-  /** Taaktypes-etappe (bouwstap 7): de werkregel loopt NIET via de kale veld-merge maar via
-   *  `draft.setTaskWorkRule` — een werkbeschermende regel legt bij het zetten het huidige restwerk
-   *  van de toewijzingen vast (spec §5 rij 6). `null` = terug naar de projectstandaard. */
+  /** De werkregel loopt NIET via de kale veld-merge maar via `draft.setTaskWorkRule` — een
+   *  werkbeschermende regel legt bij het zetten het huidige restwerk van de toewijzingen vast. `null`
+   *  = terug naar de projectstandaard. */
   workRule?: WorkRule | null;
 }
 
@@ -102,7 +101,7 @@ const HARD_CONSTRAINTS: ConstraintType[] = ['MSO', 'MFO'];
 /**
  * De volledige allowlist, in de volgorde waarin hij in foutmeldingen en schema's verschijnt.
  *
- * KEUZE-VERANTWOORDING (waarom deze twaalf, en niet meer):
+ * KEUZE-VERANTWOORDING (waarom deze, en niet meer):
  *  - `name`/`description`/`taskType`/`mandatory`/`milestoneKind` — platte, valideerbare
  *    top-level velden die de leestools ook teruggeven; geen enkel neveneffect.
  *  - `duration`/`durationType` — de ontbrekende hoofdrolspelers (zie de kop).
@@ -110,16 +109,16 @@ const HARD_CONSTRAINTS: ConstraintType[] = ['MSO', 'MFO'];
  *    duur-0-invariant + de "geen kinderen/toewijzingen"-guard worden hier afgedwongen.
  *  - `priority` — stuurt `planner_level_resources`; er is geen andere weg om hem te zetten.
  *  - `constraint`/`deadline` — de hefbomen voor wat-als-werk die de tool-beschrijving al belooft.
- *  - `calendarId` — taak-kalender (fase 2.8a); geen aparte tool, en een onbekend id zou stil op de
+ *  - `calendarId` — taak-kalender; geen aparte tool, en een onbekend id zou stil op de
  *    projectkalender terugvallen — daarom hier gevalideerd.
  * BEWUST NIET (elk met een gerichte weiger-hint hieronder): `time`/`status` (voortgangspad =
  * `progress`), `parentId` (`planner_move_task`), `resourceIds` (`planner_manage_assignments`),
  * `constraint2` (P6-combinatieregels die de bridge niet valideert), `isHammock` (maakt de duur
  * AFGELEID en zou duur-invoer opnieuw stil laten verdampen), `wbsCode`/`childIds`/`id`
  * (afgeleid/structureel), en de vrije-vorm-bakken `notes`/`color`/`activityCodes`/`customFields`/
- * `externalLinks`/`levelingDelay` (geen validatie mogelijk, geen leestool-tegenhanger). Z14 voegde
- * daar vier Z0-typecontractvelden aan toe, zelfde behandeling: `splitGaps`/`levelingDelayMinutes`/
- * `levelingDelayElapsed` (vrije-vorm/geen leestool) en `manuallyScheduled` (isHammock-patroon).
+ * `externalLinks`/`levelingDelay` (geen validatie mogelijk, geen leestool-tegenhanger), en evenzo
+ * `levelingDelayMinutes`/`levelingDelayElapsed`, `manuallyScheduled` (isHammock-patroon) en
+ * `splitGaps` (eigen tool: `planner_set_task_splits`).
  */
 export const TASK_FIELD_NAMES = [
   'name',
@@ -156,28 +155,24 @@ const REJECT_HINTS: Record<string, string> = {
   constraint2: 'een secundaire constraint is via de bridge niet zetbaar (P6-combinatieregels worden hier niet gevalideerd)',
   isHammock: 'hammock/LOE is via de bridge niet zetbaar (de duur wordt dan afgeleid en negeert `duration`)',
   notes: 'taak-aantekeningen zijn via de bridge niet zetbaar',
-  // Z14 (etappe "nul afwijkingen"): vier Z0-typecontractvelden, expliciet NIET zetbaar via de
-  // bridge (O3-besluit voor manuallyScheduled: "MCP-kant volgt Z14's allowlist-besluit; conform het
-  // bestaande isHammock-patroon" — d.w.z. leesbaar via de leestools, maar hier geweigerd, net als
-  // isHammock hierboven). splitGaps/levelingDelayMinutes/levelingDelayElapsed volgen dezelfde
-  // "vrije-vorm-bak, geen leestool-tegenhanger"-redenering als levelingDelay (zie de klasse-toelichting
-  // bovenaan dit bestand).
+  // Niet via `fields` zetbaar. `manuallyScheduled` volgt het isHammock-patroon (leesbaar via de
+  // leestools, hier geweigerd); levelingDelayMinutes/levelingDelayElapsed volgen de "vrije-vorm-bak,
+  // geen leestool-tegenhanger"-redenering van levelingDelay; splitGaps heeft een eigen tool.
   splitGaps: 'werkonderbrekingen (splits) zet je met planner_set_task_splits (`interruptions` op de werk-as: afterWorkDays/pauseDays of afterWorkHours/pauseHours), niet via `fields`',
   manuallyScheduled: 'handmatig plannen is via de bridge niet zetbaar (de datums blijven dan RAUW staan, ongeacht kalender/relaties/`duration`)',
   levelingDelayMinutes: 'sub-dag-nivelleervertraging is via de bridge niet zetbaar (geen leestool-tegenhanger, zie `levelingDelay`)',
   levelingDelayElapsed: 'sub-dag-nivelleervertraging is via de bridge niet zetbaar (geen leestool-tegenhanger, zie `levelingDelay`)',
-  // Z14b (eigenaarsbesluit 2026-08-18 punt 1, F5-fixronde spec-review op 526af9f9): drie NIEUWE
-  // .mpp-import-velden, puur data — zelfde "read-only, geen agent-invoervorm"-redenering als
-  // splitGaps hierboven, geen van drieën heeft een schrijf-workflow om te valideren.
+  // Drie .mpp-importvelden, puur data — read-only, geen agent-invoervorm; geen van drieën heeft een
+  // schrijf-workflow om te valideren.
   mspTaskType: 'MSP\'s eigen Task Type is via de bridge niet zetbaar (puur .mpp-importdata, geen rekengedrag — zie planner_get_task)',
   effortDriven: 'MSP\'s "Effort Driven"-vlag is via de bridge niet zetbaar (puur .mpp-importdata, geen rekengedrag — zie planner_get_task)',
   timephasedContours: 'de rauwe contourperiodes zijn via de bridge niet zetbaar (afgeleid uit een .mpp-import, geen agent-invoervorm — zie planner_get_task)',
-  // Taaktypes-etappe: de werkvelden per TOEWIJZING zijn geen taakvelden.
+  // De werkvelden per TOEWIJZING zijn geen taakvelden.
   remainingWorkMinutes: 'resterend werk hoort bij een TOEWIJZING: planner_manage_assignments `update` met `remainingWorkMinutes`',
   plannedWorkMinutes: 'begroot werk is via de bridge niet zetbaar (referentiewaarde uit een import — zie planner_get_task)',
   actualWorkMinutes: 'verricht werk is via de bridge niet zetbaar (een feit uit een import; voortgang loopt via `progress`)',
-  // X0 (XER-etappeplan, 2026-08-20): drie nieuwe .xer-importvelden, zelfde "read-only, geen
-  // agent-invoervorm"-redenering als mspTaskType/effortDriven hierboven.
+  // P6/.xer-importvelden, zelfde "read-only, geen agent-invoervorm"-redenering als
+  // mspTaskType/effortDriven hierboven.
   p6DurationType: 'P6\'s eigen Duration Type is via de bridge niet zetbaar (puur .xer-importdata, geen rekengedrag — zie planner_get_task)',
   p6ActivityType: 'P6\'s eigen Activity Type is via de bridge niet zetbaar (puur .xer-importdata, geen rekengedrag — zie planner_get_task)',
   p6ExplicitTargetWindow: 'de P6-XER-provenance voor een expliciet targetvenster is via de bridge niet zetbaar (puur .xer-importdata, geen agent-invoervorm — zie planner_get_task)',
@@ -209,7 +204,7 @@ function isIsoDate(v: unknown): v is string {
   return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}([T ].*)?$/.test(v) && !Number.isNaN(new Date(v).getTime());
 }
 
-/** Validatie van één `constraint`-object (fase 2.3/2.9-semantiek). */
+/** Validatie van één `constraint`-object. */
 function parseConstraint(raw: unknown): { ok: true; value: TaskConstraint } | { ok: false; reason: string } {
   if (!isRecord(raw)) return { ok: false, reason: '`constraint` moet een object zijn ({ type, date?, hard? }) of null om te wissen' };
   const type = raw.type;
@@ -401,7 +396,7 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
     }
     // Zelfde canonicalisatie als paneel en raster: null/ASAP wist ook de secundaire constraint,
     // ALAP eveneens; een datumconstraint moet met de bestaande secundaire een geldig paar vormen.
-    // Voorheen bleef `constraint2` na "constraint wissen" stil staan en bleef de taak begrensd.
+    // Anders blijft `constraint2` na "constraint wissen" stil staan en blijft de taak begrensd.
     const pair = withPrimaryConstraint(next, ctx.currentConstraint2);
     const validation = validateConstraintPair(pair.constraint, pair.constraint2);
     if (!validation.ok) return { ok: false, reason: constraintPairReason(pair, validation.issues) };
@@ -441,11 +436,10 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
 
 // --- Voortgangs-allowlist (`update_tasks.progress`) ----------------------------------------------
 //
-// ZELFDE ROOT-CAUSE ALS `fields`, ANDERE TAK (audit-bevinding K3): `progress` ging ONGEZIEN naar
-// `progress.applyProgressUpdate`, die exact drie sleutels leest (`completion`/`actualStart`/
-// `actualFinish`). Een agent die `progress: { percent: 50 }` stuurde, raakte geen van die drie ⇒
-// `touchesProgress` bleef false ⇒ zelfs de statusdatum-guard sloeg over ⇒ `{ applied: true }` ⇒ de
-// tool antwoordde `updated: ['t1']` terwijl de taak op 0% bleef staan. Idem voor `progress: {}`.
+// ZELFDE RISICO ALS `fields`, ANDERE TAK: `progress.applyProgressUpdate` leest exact drie sleutels
+// (`completion`/`actualStart`/`actualFinish`). `progress: { percent: 50 }` raakt geen van die drie ⇒
+// `touchesProgress` blijft false ⇒ zelfs de statusdatum-guard slaat over ⇒ `{ applied: true }` ⇒ de
+// tool zou `updated: ['t1']` antwoorden terwijl de taak op 0% blijft. Idem voor `progress: {}`.
 // Daarom hier dezelfde behandeling als `fields`: expliciete allowlist, onbekende sleutel bij NAAM
 // geweigerd, en een `progress` zonder ook maar één bekende sleutel geweigerd.
 

@@ -1,8 +1,8 @@
 /**
- * Persistentie van de bedrijfsbibliotheek (spec §5). Pools zijn BEDRIJFSDATA, geen instellingen ⇒
+ * Persistentie van de resourcebibliotheek. Pools zijn BEDRIJFSDATA, geen instellingen ⇒
  * NIET in localStorage. Browser: IndexedDB (patroon van het extensiesysteem, eigen database
  * `ops-library`). Desktop (Tauri): JSON-bestand in `appDataDir` (patroon van recoveryStore), buiten
- * de browserprofiel-levensduur. Export (libraryIfc) is het backupmechanisme (spec §5).
+ * de browserprofiel-levensduur. Export (libraryIfc) is het backupmechanisme.
  */
 import { isTauri } from '@/utils/platform';
 import type { CompanyLibrary } from '@/types/library';
@@ -54,7 +54,7 @@ async function saveTauri(lib: CompanyLibrary): Promise<void> {
   const { mkdir } = await import('@tauri-apps/plugin-fs');
   const { appDataDir } = await import('@tauri-apps/api/path');
   const dir = await appDataDir();
-  await mkdir(dir, { recursive: true }); // op een verse installatie bestaat de map nog niet (issue #72)
+  await mkdir(dir, { recursive: true }); // op een verse installatie bestaat de map nog niet
   // Schrijf-en-vervang: een afgekapt bestand na een crash leest `loadTauri` als corrupt, valt terug
   // op een VERSE bibliotheek, en de eerstvolgende save overschrijft dan de hele bibliotheek.
   await writeTextFileAtomic(dir, LIBRARY_FILE, JSON.stringify(lib));
@@ -70,7 +70,7 @@ export async function loadLibrary(): Promise<CompanyLibrary> {
   return loaded ?? createDefaultLibrary();
 }
 
-// Serialiseer schrijfacties (eindreview-fix): meerdere snelle mutaties (bijv. promote gevolgd door
+// Serialiseer schrijfacties: meerdere snelle mutaties (bijv. promote gevolgd door
 // een pool-bewerking) roepen `saveLibrary` elk fire-and-forget aan; zonder serialisatie kan een
 // tragere eerdere save na een snellere latere save landen en zo de nieuwste stand overschrijven met
 // een oudere. `lastSave` is de interne kettingpromise — die MOET altijd resolven (nooit rejecten),

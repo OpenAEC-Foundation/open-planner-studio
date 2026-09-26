@@ -1,6 +1,6 @@
 // MCP-toolindex — de KALE registratie-staat (naam→def + vlakke lijst) zonder enige tool-import.
 //
-// WAAROM EEN APART BESTAND (T22): `toolRegistry.ts` importeert álle tool-modules en registreert ze bij
+// WAAROM EEN APART BESTAND: `toolRegistry.ts` importeert álle tool-modules en registreert ze bij
 // module-load. `tools/batchTool.ts` moet op zijn beurt tools kúnnen opzoeken (`getTool`) om een
 // draaiboekstap te dispatchen. Zouden die twee elkaar direct importeren, dan ontstaat een
 // import-cyclus waarvan de afloop van de laadvolgorde afhangt: wordt de cyclus via `batchTool`
@@ -12,7 +12,7 @@
 // tests hoeven niets te weten van deze splitsing.
 import type { McpToolDef } from './contracts';
 
-/** Service-prefix; alle toolnamen dragen hem (spec §Naamgeving — voorkomt botsingen met andere MCP-servers). */
+/** Service-prefix; alle toolnamen dragen hem (voorkomt botsingen met andere MCP-servers). */
 export const TOOL_PREFIX = 'planner_';
 
 let flatTools: McpToolDef[] = [];

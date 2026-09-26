@@ -1,4 +1,4 @@
-// AI-backup-service (T16, spec §AI-backup — NORMATIEF, review-gehard).
+// AI-backup-service.
 //
 // Draait op de dispatch-grens, vóór `runInMcpTransaction`: bij de EERSTE muterende tool-aanroep per
 // document (per server-sessie) schrijft de service eerst een IFC-snapshot naar
@@ -24,7 +24,7 @@ export const BACKUP_ROOT = 'ai-backups';
 /** Opruimbeleid: hoogstens dit aantal backups per document-id-submap; oudere worden verwijderd. */
 export const MAX_PER_DOC = 10;
 
-/** Alleen deze tool-`kind`s triggeren een auto-backup (spec §Triggerregels). `batch` telt als ÉÉN. */
+/** Alleen deze tool-`kind`s triggeren een auto-backup. `batch` telt als ÉÉN. */
 const MUTATING_KINDS: ReadonlySet<McpToolDef['kind']> = new Set<McpToolDef['kind']>(['mutate', 'batch']);
 
 // --- Injecteerbare naden -------------------------------------------------------------------------
@@ -45,7 +45,7 @@ export interface BackupDeps {
   getFs: () => Promise<BackupFs>;
   /** Serialiseer document `docId` naar IFC + lever de projectnaam; null = document niet gevonden. */
   getDoc: (docId: string) => { ifc: string; projectName: string } | null;
-  /** Staat de auto-backup-toggle aan? (spec: default aan; uit ⇒ altijd null). */
+  /** Staat de auto-backup-toggle aan? (default aan; uit ⇒ altijd null). */
   autoBackupEnabled: () => Promise<boolean>;
   /** Tijdstempel-bron (testbaar); moet monotoon oplopen voor sorteerbare bestandsnamen. */
   now: () => number;
@@ -141,7 +141,7 @@ export function createBackupService(deps: BackupDeps): BackupService {
     const docId = deps.activeDocId();
     if (!docId) throw new Error('AI-backup: geen actief document om te back-uppen');
     const path = await writeSnapshot(docId);
-    autoBackedUp.delete(docId); // reset de auto-teller voor dit document (spec)
+    autoBackedUp.delete(docId); // reset de auto-teller voor dit document
     return path;
   }
 
@@ -232,7 +232,7 @@ export function makeManualBackup(): Promise<string> {
 }
 
 /**
- * Registreer een via `duplicate_document` (baan F2) in DEZE sessie geboren document, zodat het de
+ * Registreer een via `duplicate_document` in DEZE sessie geboren document, zodat het de
  * automatische backup overslaat (zijn geboortestaat is de nog-openstaande bron). CONTRACT voor de
  * document-tools: roep dit aan direct nadat een `duplicate_document`-kopie het actieve document is
  * geworden, met het id van de kopie. "Nu backup maken" blijft op zo'n document gewoon werken.

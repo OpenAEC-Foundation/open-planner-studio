@@ -1,21 +1,16 @@
 // MCP-toolmodule — het WIJZIGEN van bestaande relaties (`planner_update_dependencies`).
 //
-// HET GAT DAT DIT DICHT. De bridge kende alleen `planner_add_dependencies` en
-// `planner_remove_dependencies`. Een FS naar SS omzetten, of alleen de lag bijstellen, moest dus via
-// verwijderen-en-opnieuw-toevoegen — nergens gedocumenteerd als route, en met twee nadelen die een
-// agent niet kan zien: het sequence-id verandert (elke verwijzing die hij net uit
-// `get_project_overview` haalde is dood) en het kost twee undo-stappen. Sinds de overview de
-// sequence-id's in de relatienotatie meegeeft (`"→2.3 FS+2d #seq-7"`) bestaat het gereedschap om een
-// relatie AAN TE WIJZEN; deze module levert het gereedschap om hem te VERANDEREN.
+// WAAROM. Zonder deze tool kan een FS naar SS, of alleen de lag, uitsluitend via
+// verwijderen-en-opnieuw-toevoegen — met twee nadelen die een agent niet kan zien: het sequence-id
+// verandert (elke verwijzing die hij net uit `get_project_overview` haalde is dood) en het kost twee
+// undo-stappen. De overview geeft sequence-id's in de relatienotatie mee (`"→2.3 FS+2d #seq-7"`) om
+// een relatie AAN TE WIJZEN; deze module levert het gereedschap om hem te VERANDEREN.
 //
-// WAAROM EEN EIGEN MODULE en niet in `taskTools.ts`. Dat bestand is met ~1000 regels al de grootste
-// toolmodule van de bridge en draagt vier verschillende onderwerpen (taken, relaties, historie,
-// herberekening). De relatie-tools erbij houden zou de enige winst zijn — maar die winst is er niet:
-// de daadwerkelijk gedeelde kennis (type-aliassen, lag-notatie, schema-fragmenten) zit sinds deze
-// wijziging in de leaf-module `sequenceFields.ts`, die `taskTools`, `readTools` én deze module
-// gebruiken. Er is dus GEEN tweede parser; wel een tweede, kleiner bestand met één onderwerp.
-// `add_/remove_dependencies` blijven bewust staan waar ze stonden: verhuizen zou een grote,
-// betekenisloze diff opleveren midden in parallel werk.
+// WAAROM EEN EIGEN MODULE en niet in `taskTools.ts`: dat bestand draagt al vier onderwerpen (taken,
+// relaties, historie, herberekening). De gedeelde kennis (type-aliassen, lag-notatie,
+// schema-fragmenten) zit in de leaf-module `sequenceFields.ts`, die `taskTools`, `readTools` én deze
+// module gebruiken — er is dus GEEN tweede parser. `add_/remove_dependencies` staan nog in
+// `taskTools.ts`.
 //
 // CONVENTIES (identiek aan de andere bulk-mutatietools):
 //   * driedeling `parseX` / `xCore` / `handler`, zodat de tool los én als `planner_batch`-stap werkt;
@@ -55,8 +50,8 @@ const ITEM_KEYS = ['seqId', 'type', 'lag', 'predecessorId', 'successorId'];
  *   - modelvelden die BEWUST NIET zetbaar zijn (`lagUnit`, `lagMinutes`) ⇒ zeg dat, en waarom. Die
  *     twee bestaan in `Sequence` en overleven de IFC-round-trip, maar de LEESKANT toont ze niet
  *     (`lagLabel` rendert alleen dagen en procent). Ze schrijfbaar maken zou een agent iets laten
- *     zetten dat hij daarna nergens kan teruglezen of verifiëren — de spiegel van precies de
- *     asymmetrie die deze ronde opruimt. Zodra de leeskant ze toont, horen ze hier zetbaar te worden.
+ *     zetten dat hij daarna nergens kan teruglezen of verifiëren. Zodra de leeskant ze toont, horen
+ *     ze hier zetbaar te worden.
  */
 const FIELD_HINTS: Record<string, string> = {
   id: 'gebruik `seqId` — het sequence-id dat get_project_overview/get_task achter de `#` teruggeven',
@@ -122,8 +117,7 @@ function classifyDepUpdates(
   const candidates: DepCandidate[] = [];
   const byId = new Map(st.sequences.map((s) => [s.id, s]));
   const projected = new Map(st.sequences.map((s) => [s.id, fieldsOf(s)]));
-  // Eén Map voor zowel het bestaan-check als de verzameltaak-lookup hieronder — vervangt de losse
-  // `taskIds`-Set van vóór de verzameltaak-check, die dezelfde informatie droeg zonder de taakobjecten.
+  // Eén Map voor zowel het bestaan-check als de verzameltaak-lookup hieronder.
   const byTaskId = new Map(st.tasks.map((t) => [t.id, t]));
   const lookupTask = (tid: string) => byTaskId.get(tid);
   const seenSeqIds = new Set<string>();
@@ -211,10 +205,10 @@ function classifyDepUpdates(
       rejections.push({ id: seqId, reason: selfRelationReason(nextPred) });
       continue;
     }
-    // Voorouder-relatie als NIEUW eindpunt-paar (eigenaarsbesluit 2026-08-15): verhangen náár een
+    // Voorouder-relatie als NIEUW eindpunt-paar: verhangen náár een
     // relatie tussen een taak en zijn EIGEN (voor)ouder-samenvatting zou `expandSummaryRelations`
     // een directe cyclus laten genereren. Een gewoon verzameltaak-eindpunt is verder GEEN
-    // weigergrond meer — dat rekent gewoon mee. Dit pad schrijft de eindpunten rechtstreeks op de
+    // weigergrond — dat rekent gewoon mee. Dit pad schrijft de eindpunten rechtstreeks op de
     // draft (zie de mutatie verderop), dus dit is de ENIGE plek waar dit tegengehouden kan worden —
     // anders dan bij het aanmaken (classifyDeps → addSequence) zit er hier geen tweede laag onder.
     //
@@ -334,7 +328,7 @@ function updateDependenciesCore(ctx: McpContext, updates: unknown[]): MutationOu
   // hetzelfde pad als `add_dependencies` — `validate.noCycle` telt `sequences` plus de voorgestelde
   // kanten (uitgevouwen over de samenvattingstaken van `tasks`), dus voeren we de projectie als
   // "voorgestelde" kanten aan en houden we de bestaande verzameling leeg. Elke kring in de projectie
-  // telt daardoor, ook een die er al was — zoals vóór de uitvouwing.
+  // telt daardoor, ook een die er al was.
   //
   // NB: een TYPE- of LAG-wijziging alleen kan nooit een kring maken (de kanten-graaf kent alleen
   // voorganger→opvolger, en die blijven dan gelijk). Verleg je een EINDPUNT, dan kan het wel — en
@@ -354,8 +348,8 @@ function updateDependenciesCore(ctx: McpContext, updates: unknown[]): MutationOu
         seq.successorId = c.next.successorId;
         seq.type = c.next.type;
         seq.lagDays = c.next.lagDays;
-        // `delete` i.p.v. `= undefined`: zo blijft de relatie byte-identiek aan een die deze velden
-        // nooit had (en aan wat de IFC-reader teruggeeft).
+        // `delete` i.p.v. `= undefined`: zo is de relatie identiek aan een die deze velden nooit had
+        // (en aan wat de IFC-reader teruggeeft).
         if (c.next.lagPercent === undefined) delete seq.lagPercent;
         else seq.lagPercent = c.next.lagPercent;
         if (c.next.lagMinutes === undefined) delete seq.lagMinutes;
@@ -444,7 +438,7 @@ const updateDependencies: BatchStepTool = {
     const before = new Map(ctx.app.store.getState().sequences.map((s) => [s.id, fieldsOf(s)]));
     // Lege-batch-snelpad (zelfde reden als bij de andere bulk-tools): levert de statische
     // classificatie nul kandidaten, dan hoeft er géén transactie (en AI-backup) te draaien. Een
-    // wijziging-loze transactie legt sinds G5 ook zelf geen undo-stap vast (zie `okDirect`).
+    // wijziging-loze transactie legt ook zelf geen undo-stap vast (zie `okDirect`).
     {
       const state = ctx.app.store.getState();
       const pre = classifyDepUpdates(state, parsed);

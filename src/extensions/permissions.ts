@@ -1,10 +1,9 @@
 /**
- * ÉÉN declaratieve bron voor de permissie-afdwinging van de extensie-API (audit P16/D3).
+ * ÉÉN declaratieve bron voor de permissie-afdwinging van de extensie-API.
  *
- * Vóór dit pakket zaten `requirePermission`-aanroepen verspreid door `extensionApi.ts` en dekten ze
- * maar 2 van de 6 gedeclareerde permissies. Nu staat élk API-methode-pad hier met zijn vereiste
- * permissie (of `null` voor de kern-API), en past één generieke wrapper (`applyPermissionGuards`)
- * de checks toe. Wil je het permissiegedrag van een methode weten of wijzigen, dan is dit de enige plek.
+ * Élk API-methode-pad staat hier met zijn vereiste permissie (of `null` voor de kern-API), en past
+ * één generieke wrapper (`applyPermissionGuards`) de checks toe. Wil je het permissiegedrag van een
+ * methode weten of wijzigen, dan is dit de enige plek.
  */
 import type { ExtensionPermission } from './types';
 import { appLog } from '@/services/debug/appLog';
@@ -24,7 +23,7 @@ export interface PermissionCheck {
 /**
  * API-methode-pad → vereiste permissie, of `null` voor de kern-API (altijd toegestaan).
  *
- * Toewijzingen (ontwerp P16):
+ * Toewijzingen:
  *   • events.*            → 'events'    (throw)
  *   • ui.addRibbonButton  → 'ribbon'    (throw)
  *   • importers.*         → 'backstage' (WARN) — compat: de gepubliceerde referentie-extensie
@@ -76,7 +75,7 @@ export const API_PERMISSIONS: Record<string, PermissionCheck | null> = {
   'data.recalculate': null,
   'data.batch': null,
 
-  // Read-only XER-bronroute — hard, DEFAULT-DENY (P1-privacyfix; zie de uitleg hierboven).
+  // Read-only XER-bronroute — hard, DEFAULT-DENY (privacy; zie de uitleg hierboven).
   'data.getImportSourceInfo': { perm: 'importSource', mode: 'throw' },
   'data.getImportSourceIssue': { perm: 'importSource', mode: 'throw' },
   'data.getImportSourceChunk': { perm: 'importSource', mode: 'throw' },
