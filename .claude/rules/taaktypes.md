@@ -60,11 +60,18 @@ gemeld bij activering) — zie `docs/library.md`. Twee randpaden die de slot ó�
 (`setCalendar` en de `workTime`-verwijdering in de MCP-kalendertool) zijn bewust NIET bedraad — zie
 `docs/TODO.md`.
 
-Een duurbewerking op een taak met EXPLICIETE restduur schuift die rest mee met Δ, geklemd op 0
-(`carryRemainingThroughDurationEdit`). Schrijft de brug de rest expliciet — Δ-regel of kalenderwissel op een
-gestarte taak — dan volgt `completion` daaruit als 1 − rest ÷ duur (`syncCompletionToRemaining`, dezelfde
-formule als een restbewerking in het raster; eigenaarsbesluit 2026-09-06), zodat Gantt-balk, solver en
-rapportage één waarheid delen — eigenaarsbesluiten 2026-09-05/06, spec §6.4/§6.5, meetlat 32–36.
+Een duurbewerking op een LOPENDE taak (gestart, niet voltooid; ook 0 % met werkelijke start) houdt het
+gedane werk (% × duur) gelijk: de rest schuift exact mee met Δ in de eigen eenheid en `completion` wordt
+oud % × oude duur ÷ nieuwe duur, onafgerond (`carryRemainingThroughDurationEdit`, pure kern
+`durationEditProgress`; eigenaarsbesluit 2026-09-26 "optie 2", herbouw van #232). Een nieuwe duur KORTER
+dan het gedane werk wordt geweigerd — geen klem op 0 meer: store/extensie-API via `durationEditRefusal`
+vóór de snapshot met melding `durationBelowDoneWork`, "Taak bewerken" slaat niets op, raster celfout
+`durationBelowDoneWork`, MCP zachte weigering per item (`planner_update_tasks` meldt een aanpassing als
+`progressAdjusted`). Precies gelijk ⇒ 100 %. Geeft dezelfde bewerking zelf voortgang op, dan wint die.
+`setTaskSplits` valt erbuiten. Schrijft de brug de rest expliciet vanuit de driehoek of een kalenderwissel
+op een gestarte taak, dan volgt `completion` daaruit als 1 − rest ÷ duur (`syncCompletionToRemaining`,
+eigenaarsbesluit 2026-09-06), zodat Gantt-balk, solver en rapportage één waarheid delen — spec §6.4/§6.5,
+meetlat 32–36. IFC schrijft `completion` verliesvrij (`ifcCompletionReal`; hele procenten byte-identiek).
 
 Regressie: `tests/planning/check-work-triangle.ts` (kern + meetlat `work-triangle-cases.json`),
 `check-work-rule-mapping.ts` (MSP/P6/XER-vertaling) en `check-work-rule-store.ts` (store/raster/MCP). Via de

@@ -183,6 +183,8 @@
       "milestoneUnavailable": "Uma tarefa de resumo com subtarefas não pode tornar-se um marco.",
       "actualAfterStatusDate": "A data real é posterior à data de estado.",
       "actualFinishBeforeStart": "O fim real é anterior ao início real.",
+      "actualStartRequired": "Esta tarefa só começaria depois da data de estado: introduza primeiro o início real.",
+      "durationBelowDoneWork": "Esta duração é inferior ao trabalho já realizado.",
       "conflictingProgressInputs": "Estes valores de progresso contradizem-se.",
       "constraintDateUnavailable": "Defina um tipo de restrição antes de introduzir uma data de restrição.",
       "constraintHardUnavailable": "Uma restrição rígida exige um tipo de restrição com data.",

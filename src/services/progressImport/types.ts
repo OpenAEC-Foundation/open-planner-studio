@@ -81,6 +81,9 @@ export type ProgressRowReason =
   // scheider las ("8,38" ⇒ 838). De dialoog mag dat verschil expliciet benoemen.
   | 'percentOutOfRange'
   | 'actualAfterStatusDate' | 'actualFinishBeforeStart' | 'conflictingProgressInputs'
+  // Z1b (besluit eigenaar 26-09, `ProgressImportEntryOptions` in taskSlice.ts): de taak begint volgens
+  // planning pas ná de statusdatum en het blad levert geen werkelijke start — niet verzinnen.
+  | 'actualStartRequired'
   | 'rejected';          // overige plannerfout; `plannerCode` draagt de originele code
 
 export interface ProgressFieldChange {

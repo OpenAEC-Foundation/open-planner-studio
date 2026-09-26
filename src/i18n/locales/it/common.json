@@ -174,7 +174,9 @@
     "xerArchiveReasonTruncated": "Motivo: l'archivio è troncato: manca una parte dei byte sorgente.",
     "xerArchiveReasonBytesMissing": "Motivo: mancano i byte sorgente stessi; probabilmente un altro programma IFC ha riscritto il file.",
     "xerArchiveReasonMetadataInvalid": "Motivo: i byte sorgente sono intatti, ma i dati derivati sono inutilizzabili.",
-    "xerArchiveReasonStructure": "Motivo: la struttura dell'archivio nell'IFC non è corretta (duplicata, riordinata o collegata in modo errato)."
+    "xerArchiveReasonStructure": "Motivo: la struttura dell'archivio nell'IFC non è corretta (duplicata, riordinata o collegata in modo errato).",
+    "statusDateSetToday": "Non c’era ancora una data di stato: ora è impostata a oggi ({{date}}), perché l’avanzamento si misura fino alla data di stato. Puoi modificarla in Pianificazione → Data di stato.",
+    "durationBelowDoneWork": "«{{name}}» è già completata al {{percent}}%: una durata inferiore al lavoro già svolto non è possibile. La durata non è stata modificata."
   },
   "scheduleErrors": {
     "cycle": "Dipendenza circolare tra attività: {{path}}",
@@ -596,7 +598,19 @@
     }
   },
   "progress": {
-    "actualsAfterStatusDate": "Le date effettive non possono essere successive alla data di stato"
+    "actualsAfterStatusDate": "Le date effettive non possono essere successive alla data di stato",
+    "actualStartAfterFinish": "L’inizio effettivo è successivo alla fine effettiva."
+  },
+  "actualStartQuestion": {
+    "title": "Indica l’inizio effettivo",
+    "introOne": "«{{name}}» doveva iniziare dopo la data di stato ({{statusDate}}), ma ora riceve avanzamento. Quando è iniziata davvero?",
+    "introMany": "Queste attività dovevano iniziare dopo la data di stato ({{statusDate}}), ma ora ricevono avanzamento. Quando sono iniziate davvero?",
+    "fieldLabel": "Inizio effettivo di {{name}}",
+    "latest": "Al più tardi il {{date}}.",
+    "required": "Inserisci una data.",
+    "afterStatusDate": "Questa data è successiva alla data di stato ({{date}}).",
+    "afterActualFinish": "Questa data è successiva alla fine effettiva ({{date}}).",
+    "confirm": "Applica avanzamento"
   },
   "companyLibrary": {
     "title": "Libreria di risorse",
@@ -1270,6 +1284,7 @@
       "actualAfterStatusDate": "La data effettiva è successiva alla data di stato.",
       "actualFinishBeforeStart": "La fine effettiva precede l'inizio effettivo.",
       "conflictingProgressInputs": "I valori inseriti si contraddicono.",
+      "actualStartRequired": "Questa attività è pianificata per iniziare dopo la data di stato: inserisci prima il suo inizio effettivo nel foglio.",
       "rejected": "Rifiutato dal pianificatore."
     },
     "field": {

@@ -174,7 +174,9 @@
     "xerArchiveReasonTruncated": "Motivo: o arquivo está truncado — falta parte dos bytes de origem.",
     "xerArchiveReasonBytesMissing": "Motivo: faltam os próprios bytes de origem — provavelmente outro programa IFC reescreveu o ficheiro.",
     "xerArchiveReasonMetadataInvalid": "Motivo: os bytes de origem estão intactos, mas os dados derivados deles são inutilizáveis.",
-    "xerArchiveReasonStructure": "Motivo: a estrutura do arquivo no IFC está incorreta (duplicada, reordenada ou mal associada)."
+    "xerArchiveReasonStructure": "Motivo: a estrutura do arquivo no IFC está incorreta (duplicada, reordenada ou mal associada).",
+    "statusDateSetToday": "Ainda não havia data de estado: foi definida para hoje ({{date}}), porque o progresso é medido até à data de estado. Pode alterá-la em Planeamento → Data de estado.",
+    "durationBelowDoneWork": "«{{name}}» já está {{percent}}% feita: uma duração inferior ao trabalho já realizado não é possível. A duração não foi alterada."
   },
   "scheduleErrors": {
     "cycle": "Dependência circular entre tarefas: {{path}}",
@@ -596,7 +598,19 @@
     }
   },
   "progress": {
-    "actualsAfterStatusDate": "As datas reais não podem ser posteriores à data de estado"
+    "actualsAfterStatusDate": "As datas reais não podem ser posteriores à data de estado",
+    "actualStartAfterFinish": "O início real é posterior ao fim real."
+  },
+  "actualStartQuestion": {
+    "title": "Indicar o início real",
+    "introOne": "«{{name}}» estava planeada para começar depois da data de estado ({{statusDate}}), mas agora recebe progresso. Quando começou realmente?",
+    "introMany": "Estas tarefas estavam planeadas para começar depois da data de estado ({{statusDate}}), mas agora recebem progresso. Quando começaram realmente?",
+    "fieldLabel": "Início real de {{name}}",
+    "latest": "O mais tardar a {{date}}.",
+    "required": "Introduza uma data.",
+    "afterStatusDate": "Esta data é posterior à data de estado ({{date}}).",
+    "afterActualFinish": "Esta data é posterior ao fim real ({{date}}).",
+    "confirm": "Aplicar progresso"
   },
   "companyLibrary": {
     "title": "Biblioteca de recursos",
@@ -1270,6 +1284,7 @@
       "actualAfterStatusDate": "A data real é posterior à data de estado.",
       "actualFinishBeforeStart": "O fim real é anterior ao início real.",
       "conflictingProgressInputs": "Os valores inseridos contradizem-se.",
+      "actualStartRequired": "Esta tarefa está planeada para começar após a data de estado: indique primeiro o seu início real na folha.",
       "rejected": "Recusado pelo planeador."
     },
     "field": {

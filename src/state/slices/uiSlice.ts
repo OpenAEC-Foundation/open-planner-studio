@@ -163,6 +163,7 @@ export function createDefaultUI(): UIState {
     showBenchmarkDialog: false,
     showStatsDialog: false,
     pendingExtensionConsent: null,
+    pendingActualStartQuestion: null,
     showPoolImportDialog: false,
     poolImportCompanyId: null,
     showLibraryLinkDialog: false,

@@ -88,7 +88,7 @@ S().runCPM();
 eq('2 opzet: A loopt nog tot 13:00 (3 uur werk)', [taskOf(A).time.completion, taskOf(A).time.earlyFinish], [0.4, '2026-06-01T13:00']);
 eq('2a raster Resterende duur A', gridCell(A, 'task.time.remainingTime'), '3h');
 const progress = renderToStaticMarkup(createElement(TaskProgressFields, {
-  task: taskOf(A), onSetProgress: () => {}, onSetActualStart: () => true, onSetActualFinish: () => true,
+  task: taskOf(A), onSetProgress: () => ({ ok: true as const }), onSetActualStart: () => ({ ok: true as const }), onSetActualFinish: () => ({ ok: true as const }),
 }));
 eq('2b paneel Resterend A', /<input[^>]*value="([^"]*)"[^>]*disabled/.exec(progress)?.[1] ?? /<input[^>]*disabled[^>]*value="([^"]*)"/.exec(progress)?.[1], '3h');
 eq('2c paneel-label zonder "(werkdagen)" (de waarde draagt haar eenheid)', progress.includes('(werkdagen)'), false);

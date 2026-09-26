@@ -64,6 +64,17 @@ export function formatDate(d: Date): string {
 }
 
 /**
+ * "Vandaag" als datum zonder tijd (`YYYY-MM-DD`): de KALENDERDAG van de gebruiker, dus met de lokale
+ * getters en niet `formatDate(new Date())` (dat leest de UTC-dag en geeft in Nederland tussen 00:00
+ * en 02:00 nog gisteren). Precies wat het statusdatumveld in het lint oplevert als de gebruiker daar
+ * de datum van vandaag intypt: dezelfde vorm, geen tijd. Gebruikt waar de app zelf de statusdatum op
+ * vandaag zet (voortgang zonder statusdatum, `engine/progressEntry.ts`). `now` alleen voor tests.
+ */
+export function localTodayIso(now: Date = new Date()): string {
+  return `${String(now.getFullYear()).padStart(4, '0')}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+}
+
+/**
  * Serialisatie-modus van een datum-instant (fase 2.8b, §2.4). De MODUS is de enige
  * discriminator voor de output-vorm — niet de waarde van de instant.
  */

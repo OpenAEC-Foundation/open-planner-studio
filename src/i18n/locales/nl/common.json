@@ -139,7 +139,9 @@
     "xerArchiveReasonTruncated": "Reden: het archief is afgeknot — een deel van de bronbytes ontbreekt.",
     "xerArchiveReasonBytesMissing": "Reden: de bronbytes zelf ontbreken — waarschijnlijk heeft een ander IFC-programma het bestand herschreven.",
     "xerArchiveReasonMetadataInvalid": "Reden: de bronbytes kloppen, maar de daaruit afgeleide gegevens zijn onbruikbaar.",
-    "xerArchiveReasonStructure": "Reden: de opbouw van het archief in het IFC klopt niet (dubbel, herordend of verkeerd gekoppeld)."
+    "xerArchiveReasonStructure": "Reden: de opbouw van het archief in het IFC klopt niet (dubbel, herordend of verkeerd gekoppeld).",
+    "statusDateSetToday": "Er stond nog geen statusdatum: die staat nu op vandaag ({{date}}), want voortgang wordt tot de statusdatum gemeten. Aanpassen kan via Planning → Statusdatum.",
+    "durationBelowDoneWork": "‘{{name}}’ is al voor {{percent}}% gedaan: een duur korter dan het gedane werk kan niet. De duur is niet gewijzigd."
   },
   "scheduleErrors": {
     "cycle": "Kringverwijzing tussen taken: {{path}}",
@@ -560,7 +562,19 @@
     }
   },
   "progress": {
-    "actualsAfterStatusDate": "Actuals kunnen niet ná de statusdatum liggen"
+    "actualsAfterStatusDate": "Actuals kunnen niet ná de statusdatum liggen",
+    "actualStartAfterFinish": "De werkelijke start ligt ná het werkelijke einde."
+  },
+  "actualStartQuestion": {
+    "title": "Werkelijke start opgeven",
+    "introOne": "‘{{name}}’ stond gepland om na de statusdatum ({{statusDate}}) te beginnen, maar krijgt nu voortgang. Wanneer is hij werkelijk begonnen?",
+    "introMany": "Deze taken stonden gepland om na de statusdatum ({{statusDate}}) te beginnen, maar krijgen nu voortgang. Wanneer zijn ze werkelijk begonnen?",
+    "fieldLabel": "Werkelijke start van {{name}}",
+    "latest": "Uiterlijk {{date}}.",
+    "required": "Vul een datum in.",
+    "afterStatusDate": "Deze datum ligt na de statusdatum ({{date}}).",
+    "afterActualFinish": "Deze datum ligt na het werkelijke einde ({{date}}).",
+    "confirm": "Voortgang toepassen"
   },
   "companyLibrary": {
     "title": "Resourcebibliotheek",
@@ -1220,6 +1234,7 @@
       "actualAfterStatusDate": "De werkelijke datum ligt na de peildatum.",
       "actualFinishBeforeStart": "Werkelijk einde ligt vóór werkelijke start.",
       "conflictingProgressInputs": "De ingevulde waarden spreken elkaar tegen.",
+      "actualStartRequired": "Deze taak begint volgens de planning pas na de peildatum: vul in het blad eerst de werkelijke start in.",
       "rejected": "Geweigerd door de planner."
     },
     "field": {

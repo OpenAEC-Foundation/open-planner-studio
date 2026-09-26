@@ -306,7 +306,13 @@ export type NotificationMessageKey =
   // `task:constraintType`); `NoDate` voor ALAP, `Many` het meervoud (`count`).
   | 'notifications.startBlockedByConstraint'
   | 'notifications.startBlockedByConstraintNoDate'
-  | 'notifications.startBlockedByConstraintMany';
+  | 'notifications.startBlockedByConstraintMany'
+  // Z1 (besluit eigenaar): voortgang ingevuld zonder statusdatum ⇒ de app zette hem op vandaag —
+  // zie `engine/progressEntry.ts` en `state/progressEntryNotice.ts`. Parameter `date`.
+  | 'notifications.statusDateSetToday'
+  // Besluit eigenaar (restduur): een nieuwe duur korter dan het gedane werk van een lopende taak is
+  // geweigerd — zie `runningDurationChange` in engine/taskMutationRules.ts. Parameters `name`, `percent`.
+  | 'notifications.durationBelowDoneWork';
 
 /** Rekenprofielen (spec v3.1 §6): het actielabel is een i18n-sleutel in `common`. */
 export type NotificationActionLabelKey = 'notifications.actions.openProjectInfo';
@@ -367,6 +373,22 @@ export interface AppNotification {
 export type NotifyInput = Omit<AppNotification, 'id' | 'count'>;
 /** Een gridprepare verzamelt meldingen in deze vorm en toont ze pas ná een geslaagde commit. */
 export type DeferredNotification = NotifyInput;
+
+/** Eén taak in de vraag naar de werkelijke start (Z1b, `engine/progressEntry.ts`): de gegevens die
+ *  de dialoog toont en toetst. Bewust platte data (bladmodule, geen import uit `@/engine`). */
+export interface ActualStartQuestionItem {
+  taskId: string;
+  taskName: string;
+  /** De statusdatum waartegen gevraagd wordt; het antwoord mag er niet na liggen. */
+  statusDate: string;
+  /** Laatst mogelijke werkelijke start (opgegeven werkelijk einde, anders de statusdatum); ook het
+   *  voorstel in het veld. */
+  latest: string;
+}
+
+export interface ActualStartQuestionRequest {
+  items: ActualStartQuestionItem[];
+}
 
 export interface UIState {
   showTaskDialog: boolean;
@@ -525,6 +547,11 @@ export interface UIState {
    *  hele state-laag en mag niet van `@/extensions` afhangen (verify:cycles). De dialoog cast naar
    *  `ExtensionConsentRequest`. */
   pendingExtensionConsent: unknown | null;
+  /** session — Z1b: de openstaande vraag naar de werkelijke start (`engine/progressEntry.ts`,
+   *  besluit eigenaar), of `null`. Draagt alleen de VRAAG; het antwoord gaat via de resolver in
+   *  `state/actualStartQuestion.ts` (een promise-resolver hoort niet in state thuis, zoals bij
+   *  `pendingExtensionConsent`). Modaal: telt mee in `hasBlockingDialogOpen`. */
+  pendingActualStartQuestion: ActualStartQuestionRequest | null;
   // --- B1 (bedrijfsbibliotheken): Backstage-sectie Bibliotheek-dialogen ---
   /** session — pool-importdialoog open (met demping-waarschuwing). */
   showPoolImportDialog: boolean;

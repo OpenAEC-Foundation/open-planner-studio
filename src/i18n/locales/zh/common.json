@@ -104,7 +104,9 @@
     "xerArchiveReasonTruncated": "原因：存档被截断——部分源字节缺失。",
     "xerArchiveReasonBytesMissing": "原因：源字节本身缺失——很可能是其他 IFC 程序重写了该文件。",
     "xerArchiveReasonMetadataInvalid": "原因：源字节完好，但由此派生的数据不可用。",
-    "xerArchiveReasonStructure": "原因：存档在 IFC 中的结构不正确（重复、重新排序或关联错误）。"
+    "xerArchiveReasonStructure": "原因：存档在 IFC 中的结构不正确（重复、重新排序或关联错误）。",
+    "statusDateSetToday": "此前没有状态日期：现已设为今天（{{date}}），因为进度按状态日期计量。可在“计划 → 状态日期”中修改。",
+    "durationBelowDoneWork": "“{{name}}”已完成 {{percent}}%：工期不能短于已完成的工作。工期未更改。"
   },
   "scheduleErrors": {
     "cycle": "任务之间存在循环依赖：{{path}}",
@@ -524,7 +526,19 @@
     }
   },
   "progress": {
-    "actualsAfterStatusDate": "实际日期不能晚于状态日期"
+    "actualsAfterStatusDate": "实际日期不能晚于状态日期",
+    "actualStartAfterFinish": "实际开始日期晚于实际完成日期。"
+  },
+  "actualStartQuestion": {
+    "title": "填写实际开始日期",
+    "introOne": "“{{name}}”原计划在状态日期（{{statusDate}}）之后开始，但现在录入了进度。它实际是何时开始的？",
+    "introMany": "这些任务原计划在状态日期（{{statusDate}}）之后开始，但现在录入了进度。它们实际是何时开始的？",
+    "fieldLabel": "{{name}} 的实际开始日期",
+    "latest": "不晚于 {{date}}。",
+    "required": "请输入日期。",
+    "afterStatusDate": "此日期晚于状态日期（{{date}}）。",
+    "afterActualFinish": "此日期晚于实际完成日期（{{date}}）。",
+    "confirm": "应用进度"
   },
   "companyLibrary": {
     "title": "资源库",
@@ -1170,6 +1184,7 @@
       "actualAfterStatusDate": "实际日期晚于状态日期。",
       "actualFinishBeforeStart": "实际完成早于实际开始。",
       "conflictingProgressInputs": "填写的值互相矛盾。",
+      "actualStartRequired": "此任务计划在状态日期之后才开始：请先在表格中填写其实际开始日期。",
       "rejected": "被计划引擎拒绝。"
     },
     "field": {

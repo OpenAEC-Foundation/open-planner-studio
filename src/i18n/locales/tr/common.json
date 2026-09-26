@@ -139,7 +139,9 @@
     "xerArchiveReasonTruncated": "Neden: arşiv kesilmiş — kaynak baytlarının bir kısmı eksik.",
     "xerArchiveReasonBytesMissing": "Neden: kaynak baytlarının kendisi eksik — dosyayı muhtemelen başka bir IFC programı yeniden yazdı.",
     "xerArchiveReasonMetadataInvalid": "Neden: kaynak baytları sağlam, ancak bunlardan türetilen veriler kullanılamaz.",
-    "xerArchiveReasonStructure": "Neden: arşivin IFC içindeki yapısı hatalı (yinelenmiş, yeniden sıralanmış veya yanlış bağlanmış)."
+    "xerArchiveReasonStructure": "Neden: arşivin IFC içindeki yapısı hatalı (yinelenmiş, yeniden sıralanmış veya yanlış bağlanmış).",
+    "statusDateSetToday": "Henüz durum tarihi yoktu: ilerleme durum tarihine kadar ölçüldüğü için bugüne ({{date}}) ayarlandı. Planlama → Durum tarihi altından değiştirebilirsiniz.",
+    "durationBelowDoneWork": "“{{name}}” zaten %{{percent}} tamamlandı: yapılmış işten kısa bir süre olamaz. Süre değiştirilmedi."
   },
   "scheduleErrors": {
     "cycle": "Görevler arasında döngüsel bağımlılık: {{path}}",
@@ -560,7 +562,19 @@
     }
   },
   "progress": {
-    "actualsAfterStatusDate": "Gerçekleşen tarihler durum tarihinden sonra olamaz"
+    "actualsAfterStatusDate": "Gerçekleşen tarihler durum tarihinden sonra olamaz",
+    "actualStartAfterFinish": "Gerçekleşen başlangıç, gerçekleşen bitişten sonra."
+  },
+  "actualStartQuestion": {
+    "title": "Gerçekleşen başlangıcı girin",
+    "introOne": "“{{name}}” durum tarihinden ({{statusDate}}) sonra başlayacak şekilde planlanmıştı, ancak şimdi ilerleme giriliyor. Gerçekte ne zaman başladı?",
+    "introMany": "Bu görevler durum tarihinden ({{statusDate}}) sonra başlayacak şekilde planlanmıştı, ancak şimdi ilerleme giriliyor. Gerçekte ne zaman başladılar?",
+    "fieldLabel": "{{name}} için gerçekleşen başlangıç",
+    "latest": "En geç {{date}}.",
+    "required": "Bir tarih girin.",
+    "afterStatusDate": "Bu tarih durum tarihinden ({{date}}) sonra.",
+    "afterActualFinish": "Bu tarih gerçekleşen bitişten ({{date}}) sonra.",
+    "confirm": "İlerlemeyi uygula"
   },
   "companyLibrary": {
     "title": "Kaynak kitaplığı",
@@ -1220,6 +1234,7 @@
       "actualAfterStatusDate": "Gerçek tarih, durum tarihinden sonra.",
       "actualFinishBeforeStart": "Gerçek bitiş, gerçek başlangıçtan önce.",
       "conflictingProgressInputs": "Girilen değerler birbiriyle çelişiyor.",
+      "actualStartRequired": "Bu görev plana göre durum tarihinden sonra başlıyor: önce sayfaya gerçek başlangıcını girin.",
       "rejected": "Planlayıcı tarafından reddedildi."
     },
     "field": {
