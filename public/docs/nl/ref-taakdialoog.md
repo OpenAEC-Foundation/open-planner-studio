@@ -29,7 +29,7 @@ Een checklist per taak: per regel een **afvink-hokje**, een tekstvak en een verw
 
 ## Mijlpaal
 
-- **Mijlpaal** — aanvinken zet de duur op 0 en toont de ruit in plaats van een balk.
+- **Mijlpaal** — aanvinken zet de duur op 0 en toont de ruit in plaats van een balk. Niet mogelijk op een samenvattende taak of een taak met resource-toewijzingen; een melding legt uit waarom.
 - **Soort mijlpaal** — **Automatisch**, **Startmijlpaal** of **Eindmijlpaal**.
 - **Verplicht (contractueel)** — markeert de mijlpaal als contractueel.
 

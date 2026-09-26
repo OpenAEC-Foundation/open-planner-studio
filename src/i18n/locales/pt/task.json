@@ -180,6 +180,7 @@
       "hourPlanningDisabled": "O planeamento por horas está desligado nas definições.",
       "durationConversionNotExact": "Esta duração não pode ser convertida exatamente para a outra unidade.",
       "milestoneRequired": "Este campo aplica-se apenas a marcos.",
+      "milestoneUnavailable": "Uma tarefa de resumo com subtarefas não pode tornar-se um marco.",
       "actualAfterStatusDate": "A data real é posterior à data de estado.",
       "actualFinishBeforeStart": "O fim real é anterior ao início real.",
       "conflictingProgressInputs": "Estes valores de progresso contradizem-se.",

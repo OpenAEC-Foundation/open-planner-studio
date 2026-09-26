@@ -180,6 +180,7 @@
       "hourPlanningDisabled": "Planowanie godzinowe jest wyłączone w ustawieniach.",
       "durationConversionNotExact": "Tego czasu trwania nie da się dokładnie przeliczyć na drugą jednostkę.",
       "milestoneRequired": "To pole dotyczy tylko kamieni milowych.",
+      "milestoneUnavailable": "Zadanie sumaryczne z podzadaniami nie może stać się kamieniem milowym.",
       "actualAfterStatusDate": "Data rzeczywista przypada po dacie stanu.",
       "actualFinishBeforeStart": "Rzeczywiste zakończenie przypada przed rzeczywistym rozpoczęciem.",
       "conflictingProgressInputs": "Te wartości postępu są ze sobą sprzeczne.",

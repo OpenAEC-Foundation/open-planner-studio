@@ -180,6 +180,7 @@
       "hourPlanningDisabled": "時間単位の計画は設定で無効になっています。",
       "durationConversionNotExact": "この期間は別の単位に正確に換算できません。",
       "milestoneRequired": "この項目はマイルストーンにのみ適用されます。",
+      "milestoneUnavailable": "サブタスクを持つサマリータスクはマイルストーンにできません。",
       "actualAfterStatusDate": "実績日がステータス日より後です。",
       "actualFinishBeforeStart": "実績終了が実績開始より前です。",
       "conflictingProgressInputs": "これらの進捗値は互いに矛盾しています。",

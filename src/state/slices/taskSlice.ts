@@ -21,7 +21,14 @@ import {
   isActualPastStatusDate,
 } from '@/engine/taskMutationRules';
 import type { WbsTemplate } from '@/utils/wbsTemplates';
-import { detachFromParent, attachToParent, isSelfOrDescendant, removeTaskSubtrees, siblingIds } from '@/state/taskTree';
+import {
+  detachFromParent, attachToParent, isSelfOrDescendant, removeTaskSubtrees, siblingIds,
+} from '@/state/taskTree';
+import { milestoneRefusal } from '@/engine/taskMilestoneTransition';
+import {
+  applyPhaseTransitions, firstChildGains, milestoneRefusalNotices, phaseRefusalNotice, phaseTransitionNotices,
+  planPhaseTransitions, type PendingChild, type PhaseGain, type PhaseTransition,
+} from '@/state/structuralTransition';
 import { assignInsertedWbsCodes, insertRemappedRelations, notifyRelationsSkipped } from '@/state/insertedBranch';
 import { notifyHierarchyCycle, watchAncestorRelations } from '@/state/hierarchyRelationNotice';
 import {
@@ -34,7 +41,7 @@ import {
   settleDurationEdit, settleRuleChange, captureProgressWork, settleProgressWork,
 } from '@/engine/work/workRuleApply';
 import type { WorkRule } from '@/types/workRule';
-import type { AppSlice, AppSliceFactory, SiblingDirection } from './types';
+import type { AppSlice, AppSliceFactory, NotifyInput, SiblingDirection } from './types';
 import type { AppState } from '../appStore';
 import type { StoreRuntime } from '../runtime/storeRuntime';
 import { hasConcreteWorkBlocks } from '@/services/subdayIo';
@@ -53,6 +60,9 @@ import type { ProgressImportPlan, ProgressOverrides, ProgressRow } from '@/servi
  */
 export interface TaskSlice {
   tasks: Task[];
+  /** Wordt de OUDER hierdoor een fase terwijl hij toewijzingen draagt, dan verhuizen die naar de
+   *  nieuwe taak (`structuralTransition.ts`); kan dat niet — de nieuwe taak is een mijlpaal — dan
+   *  voegt `addTask` NIETS toe, meldt het en geeft `''` terug. */
   addTask: (task: Partial<Task> & {
     name: string;
     /** Golf 1 (fase 2.10, Insert-sneltoets/contextmenu "invoegen boven/onder"): plaats de nieuwe
@@ -65,7 +75,9 @@ export interface TaskSlice {
    *  per saldo niets (structureel, `sameValue`), dan is hij een no-op: geen undo-stap, geen
    *  `isDirty`, geen melding. De gevolgregels (laag 3/4 ontkoppelen, nivelleergaten, duurgevolgen)
    *  vuren alleen op een ECHT gewijzigde waarde, niet op een meegestuurde sleutel
-   *  (`taskTriggerChanges`). */
+   *  (`taskTriggerChanges`).
+   *  Wordt `isMilestone` aangezet op een fase of een taak met toewijzingen, dan weigert `updateTask`
+   *  de HELE patch (geen mutatie, geen undo-stap) en meldt het — `milestoneRefusal` (#210). */
   updateTask: (id: string, updates: Partial<Task>, opts?: { coalesceKey?: string }) => void;
   /** Taaktypes-etappe (spec 2026-09-04 §5 rij 6): zet de werkregel van één taak (`undefined` = terug
    *  naar de projectstandaard). Geen getal verandert; een werkbeschermende regel legt het huidige
@@ -595,16 +607,43 @@ function applyHierarchyEdit(
     return;
   }
   if (!verdict.changed) return;
+  // "Wordt fase" (#210, audit §6): krijgt een taak zonder kinderen door deze verhanging haar eerste
+  // kinderen, dan verhuizen haar toewijzingen naar de eerste nieuwe subtaak — of weigert de hele
+  // handeling, vóór snapshot en mutatie, net als de kringtoets hierboven.
+  const phasePlan = planPhaseTransitions(before, hierarchyPhaseGains(before.tasks, edit));
+  if (!phasePlan.ok) {
+    get().notify(phaseRefusalNotice(before, phasePlan.refusal));
+    return;
+  }
+  const outcome = emptyOutcome();
   const reportAncestorRelations = watchAncestorRelations(before);
   set((s) => {
     runtime.beginUndoable(s); // één undo-stap, vóór de eerste draftmutatie (zie state/transaction.ts).
     edit(s.tasks);
     if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
+    settlePhaseTransitions(s, phasePlan.transitions, outcome);
     // Datum-rakende mutatie (A6): planning verouderd tot F5 — behalve pure herordening.
     runtime.finishMutation(s, { stale: staleWhen === 'always' || verdict.reparented });
   });
+  finishStructural(get, outcome);
   reportAncestorRelations(get());
   get().recomputeViewRows();
+}
+
+/**
+ * De "wordt fase"-winst van een boomwijziging (integratie groep C: #210 × #234): welke taken hadden
+ * vóór `edit` geen kinderen en erna wel, met hun nieuwe kinderen in de eindvolgorde — dezelfde vorm
+ * als `firstChildGains`, maar afgelezen van DEZELFDE boomwijziging die de actie en de kringproef
+ * draaien, zodat de regel voor elke verhangroute (`moveTask`, `moveTaskTo`, `moveTasksTo`,
+ * `indentTasks`, `outdentTasks`) vanzelf klopt. Proef op een kopie; de state blijft onaangeroerd.
+ */
+function hierarchyPhaseGains(tasks: readonly Task[], edit: HierarchyEdit): PhaseGain[] {
+  const trial = tasks.map(task => ({ ...task, childIds: [...task.childIds] }));
+  edit(trial);
+  const hadChildren = new Map(tasks.map(task => [task.id, task.childIds.length > 0]));
+  return trial
+    .filter(task => hadChildren.get(task.id) === false && task.childIds.length > 0)
+    .map(task => ({ phaseId: task.id, childIds: [...task.childIds] }));
 }
 
 /**
@@ -693,16 +732,41 @@ function applyActualDate(
   return true;
 }
 
+/**
+ * Wat een structuuractie (verhangen, inspringen, een kind toevoegen) na haar producer nog moet doen
+ * — de "wordt fase"-regel uit `structuralTransition.ts`: meldingen (via het ene kanaal, dus BUITEN de
+ * producer), het verlies van MSP-sturing door verhuisde toewijzingen, en een verse belasting.
+ */
+interface StructuralOutcome {
+  notices: NotifyInput[];
+  lostSteering: number;
+  assignmentsMoved: boolean;
+}
+const emptyOutcome = (): StructuralOutcome => ({ notices: [], lostSteering: 0, assignmentsMoved: false });
+
+/** Binnen de producer, NA de structuurmutatie en in dezelfde undo-stap: voer het plan uit. */
+function settlePhaseTransitions(s: AppState, transitions: readonly PhaseTransition[], outcome: StructuralOutcome): void {
+  if (transitions.length === 0) return;
+  outcome.lostSteering += applyPhaseTransitions(s, transitions).length;
+  outcome.notices.push(...phaseTransitionNotices(s, transitions));
+  if (transitions.some(t => t.assignmentIds.length > 0)) outcome.assignmentsMoved = true;
+}
+
+/** Buiten de producer: meldingen en belasting. */
+function finishStructural(get: () => AppState, outcome: StructuralOutcome): void {
+  for (const notice of outcome.notices) get().notify(notice);
+  if (outcome.lostSteering > 0) notifyTimephasedLoss(get().notify, get().activeDocumentId, outcome.lostSteering);
+  if (outcome.assignmentsMoved) get().recomputeResourceLoad();
+}
+
 export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, get) => ({
   tasks: [],
 
   addTask: (partial) => {
     const id = generateId('task');
+    const outcome = emptyOutcome();
+    let refused = false;
     set((s) => {
-      runtime.beginUndoable(s);
-
-      const now = s.project.startDate || formatDate(new Date());
-
       // Golf 1 (fase 2.10, Insert/contextmenu "invoegen boven/onder"): een geldige `position`
       // bepaalt zowel de OUDER (die van de anker) als de invoegplek — de aanroeper hoeft dan geen
       // (of een niet-matchende) `parentId` mee te geven. Onbekende anchorId ⇒ stille tolerantie:
@@ -712,6 +776,22 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         : undefined;
       const parentId = anchorTask ? anchorTask.parentId : (partial.parentId || null);
       const parentTask = parentId ? s.tasks.find(t => t.id === parentId) : undefined;
+
+      // Wordt de ouder hierdoor een fase (audit §6)? Plan VÓÓR enige mutatie: een weigering laat
+      // geen taak en geen undo-stap achter.
+      const pending = new Map<string, PendingChild>([[id, {
+        name: partial.name, isMilestone: !!partial.isMilestone, hasChildren: false,
+      }]]);
+      const phasePlan = planPhaseTransitions(s, firstChildGains(s.tasks, [{ childId: id, parentId }]), pending);
+      if (!phasePlan.ok) {
+        outcome.notices.push(phaseRefusalNotice(s, phasePlan.refusal, pending));
+        refused = true;
+        return;
+      }
+
+      runtime.beginUndoable(s);
+
+      const now = s.project.startDate || formatDate(new Date());
       const effectiveNewTaskCalendar = resolveCalendar(partial.calendarId, s.calendars, s.calendar);
       const defaultDurationUnit = s.ui.enableHourPlanning
         && s.project.defaultTaskDurationUnit === 'hours'
@@ -769,8 +849,11 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // aanroeper er zelf geen meegaf.
       if (s.project.wbsAutoNumber || !partial.wbsCode) assignInsertedWbsCodes(s, [id]);
 
+      settlePhaseTransitions(s, phasePlan.transitions, outcome);
       runtime.finishMutation(s, { stale: true }); // nieuwe taak (A6): planning verouderd tot F5.
     });
+    finishStructural(get, outcome);
+    if (refused) return '';
     get().recomputeViewRows();
     return id;
   },
@@ -780,6 +863,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     // `fileSlice.ts`'s `applyLoadedProject`: `notify` doet zelf een `set()`, dus nooit ván bínnen
     // een lopende producer aanroepen). `true` alleen bij een ECHT verlies, zie taskDefaults.ts.
     let lostTimephasedGuidance = false;
+    let refusedNotices: NotifyInput[] = [];
     set((s) => {
       const idx = s.tasks.findIndex(t => t.id === id);
       if (idx < 0) return; // onbekend id: geen snapshot, geen loze undo-stap (R3).
@@ -791,6 +875,19 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // Bleef er daarna niets te wijzigen over, dan vangt de no-op-guard hieronder dat (R3).
       if (updates.time && 'scheduleStart' in updates.time && isNaN(parseDate(updates.time.scheduleStart ?? '').getTime())) {
         updates = { ...updates, time: { ...updates.time, scheduleStart: task.time.scheduleStart } };
+      }
+      // Wordt mijlpaal (audit §6): dezelfde regel als raster en MCP. Een fase of een taak met
+      // toewijzingen weigert de HELE patch — een halve patch (bv. duur 0 zonder de mijlpaalvlag)
+      // zou erger zijn. Paneel, dialoog en contextmenu toetsen dit al vóór ze hier komen.
+      if (updates.isMilestone === true && !task.isMilestone) {
+        const refusal = milestoneRefusal({
+          hasChildren: isSummaryTask(task),
+          hasAssignments: s.assignments.some(a => a.taskId === id),
+        });
+        if (refusal) {
+          refusedNotices = milestoneRefusalNotices([{ name: task.name, refusal }]);
+          return;
+        }
       }
       // T14b-vervolg (gebruikstestbevinding): `updates.time` (indien meegegeven) apart mergen tegen
       // de BESTAANDE tijd van de taak i.p.v. 'm via Object.assign in zijn geheel te laten vervangen —
@@ -891,6 +988,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // Datum-rakende mutatie (duur/start/constraint/mijlpaal → planning verouderd tot F5, A6).
       runtime.finishMutation(s, { stale: true });
     });
+    for (const notice of refusedNotices) get().notify(notice);
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
     get().recomputeViewRows();
   },
@@ -1144,12 +1242,32 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     if (template.tasks.length === 0) return null;
     let newRootId: string | null = null;
     let skippedRelations = 0;
+    const outcome = emptyOutcome();
     set((s) => {
+      const idMap = new Map<string, string>();
+      for (const tt of template.tasks) idMap.set(tt.id, generateId('task'));
+
+      // Wordt `parentId` hierdoor een fase (audit §6)? De sjabloonwortel is het nieuwe kind.
+      const root = [...template.tasks].reverse().find(tt => tt.parentId === null);
+      const pending = new Map<string, PendingChild>();
+      if (root) {
+        pending.set(idMap.get(root.id)!, {
+          name: root.name,
+          isMilestone: root.isMilestone,
+          hasChildren: template.tasks.some(c => c.parentId === root.id),
+        });
+      }
+      const phasePlan = planPhaseTransitions(
+        s, firstChildGains(s.tasks, [...pending.keys()].map(childId => ({ childId, parentId }))), pending,
+      );
+      if (!phasePlan.ok) {
+        outcome.notices.push(phaseRefusalNotice(s, phasePlan.refusal, pending));
+        return;
+      }
+
       runtime.beginUndoable(s);
 
       const startDate = s.project.startDate || formatDate(new Date());
-      const idMap = new Map<string, string>();
-      for (const tt of template.tasks) idMap.set(tt.id, generateId('task'));
 
       for (const tt of template.tasks) {
         const id = idMap.get(tt.id)!;
@@ -1185,8 +1303,10 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         s.selectedTaskIds = [newRootId];
         s.activeTaskId = newRootId;
       }
+      settlePhaseTransitions(s, phasePlan.transitions, outcome);
       runtime.finishMutation(s, { stale: true }); // ingevoegd WBS-sjabloon (A6): planning verouderd tot F5.
     });
+    finishStructural(get, outcome);
     get().recomputeViewRows();
     // Ná `set()`: `get().notify(...)` binnen een actieve producer aanroepen kan niet.
     notifyRelationsSkipped(get().notify, skippedRelations, 'relations-skipped-on-insert-template');

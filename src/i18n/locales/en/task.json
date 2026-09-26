@@ -180,6 +180,7 @@
       "hourPlanningDisabled": "Hour planning is switched off in the settings.",
       "durationConversionNotExact": "This duration cannot be converted to the other unit exactly.",
       "milestoneRequired": "This field only applies to milestones.",
+      "milestoneUnavailable": "A summary task with subtasks cannot become a milestone.",
       "actualAfterStatusDate": "The actual date lies after the status date.",
       "actualFinishBeforeStart": "The actual finish lies before the actual start.",
       "conflictingProgressInputs": "These progress values contradict each other.",

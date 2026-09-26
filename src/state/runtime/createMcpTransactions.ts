@@ -1,5 +1,9 @@
 import type { AppStoreContext } from '../appStore';
-import { attachToParent, removeTaskSubtrees } from '@/state/taskTree';
+import { attachToParent, isSelfOrDescendant, removeTaskSubtrees, reparentTask } from '@/state/taskTree';
+import {
+  applyPhaseTransitions, describePhaseRefusal, describePhaseTransitions, firstChildGains, planPhaseTransitions,
+  type PhaseTransitionReport,
+} from '../structuralTransition';
 import { createSnapshot, documentDataChanged, restoreSnapshot, type Snapshot } from '../snapshot';
 import { replaceSessionHistoryState } from '../sessionHistory';
 import { relationVerdict } from '../relationRules';
@@ -183,7 +187,11 @@ function createMcpDraft(
    * een positie worden in INPUTvolgorde toegepast (meerdere posities in dezelfde ouder stapelen dus
    * voorspelbaar).
    */
-  addTasks(items: BulkTaskItem[]): Map<string, string> {
+  addTasks(items: BulkTaskItem[], phaseReport?: PhaseTransitionReport[]): Map<string, string> {
+    // Welke bestaande taken zijn nu nog blad? Krijgt er één in deze call kinderen, dan wordt hij
+    // een fase — zie "Wordt fase" onderaan.
+    const leafIdsBefore = new Set(store.getState().tasks.filter((t) => t.childIds.length === 0).map((t) => t.id));
+
     // ---- Pre-validatie (VÓÓR enige mutatie) ----------------------------------------------------
     // 1) Dubbele tempId's binnen de call.
     const tempIds = new Set<string>();
@@ -296,7 +304,51 @@ function createMcpDraft(
       });
     }
 
+    // ---- Wordt fase (audit taakmutaties §6) ---------------------------------------------------
+    // Pas NA aanmaak en positie: dan staan alle nieuwe kinderen in hun eindvolgorde en kiest de
+    // gedeelde regel (`structuralTransition.ts`) de eerste nieuwe subtaak die toewijzingen mag
+    // dragen. Een weigering gooit — de transactie rolt dan alles terug. Geen UI-melding: het rapport
+    // gaat via `phaseReport` naar het tool-antwoord.
+    store.setState((s) => {
+      const gains = s.tasks
+        .filter((t) => leafIdsBefore.has(t.id) && t.childIds.length > 0)
+        .map((t) => ({ phaseId: t.id, childIds: [...t.childIds] }));
+      if (gains.length === 0) return;
+      const plan = planPhaseTransitions(s, gains);
+      if (!plan.ok) throw new Error(describePhaseRefusal(s, plan.refusal));
+      for (const lostId of applyPhaseTransitions(s, plan.transitions)) recordTimephasedLoss(lostId);
+      phaseReport?.push(...describePhaseTransitions(s, plan.transitions));
+    });
+
     return idMap;
+  },
+
+  /**
+   * Snapshot/recompute-vrije variant van de store-`moveTask` (`planner_move_task`): dezelfde
+   * verhanging (`reparentTask`) en dezelfde "wordt fase"-regel (`structuralTransition.ts`) — krijgt
+   * de nieuwe ouder hierdoor zijn eerste kind terwijl hij toewijzingen draagt, dan verhuizen die naar
+   * de verplaatste taak, of weigert de verhanging. Geen UI-melding: het rapport komt terug voor het
+   * tool-antwoord. Onbekende taak/ouder of een kring GOOIT (de toollaag toetst dat al vooraf).
+   */
+  moveTask(id: string, newParentId: string | null, position?: number): PhaseTransitionReport[] {
+    let reports: PhaseTransitionReport[] = [];
+    store.setState((s) => {
+      if (!s.tasks.some((t) => t.id === id)) throw new Error(`draft.moveTask: onbekende taak '${id}'`);
+      if (newParentId !== null) {
+        if (!s.tasks.some((t) => t.id === newParentId)) throw new Error(`draft.moveTask: onbekende ouder '${newParentId}'`);
+        if (isSelfOrDescendant(s.tasks, newParentId, id)) {
+          throw new Error(`draft.moveTask: '${id}' kan niet onder zichzelf of een eigen afstammeling`);
+        }
+      }
+      const plan = planPhaseTransitions(s, firstChildGains(s.tasks, [{ childId: id, parentId: newParentId }]));
+      if (!plan.ok) throw new Error(describePhaseRefusal(s, plan.refusal));
+      reparentTask(s.tasks, id, newParentId, position);
+      if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
+      for (const lostId of applyPhaseTransitions(s, plan.transitions)) recordTimephasedLoss(lostId);
+      reports = describePhaseTransitions(s, plan.transitions);
+      s.isDirty = true;
+    });
+    return reports;
   },
 
   /**

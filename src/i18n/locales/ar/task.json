@@ -180,6 +180,7 @@
       "hourPlanningDisabled": "التخطيط بالساعات معطّل في الإعدادات.",
       "durationConversionNotExact": "لا يمكن تحويل هذه المدة بدقة إلى الوحدة الأخرى.",
       "milestoneRequired": "هذا الحقل ينطبق على المعالم فقط.",
+      "milestoneUnavailable": "لا يمكن لمهمة موجزة لها مهام فرعية أن تصبح معلمًا.",
       "actualAfterStatusDate": "التاريخ الفعلي يقع بعد تاريخ الحالة.",
       "actualFinishBeforeStart": "النهاية الفعلية تقع قبل البداية الفعلية.",
       "conflictingProgressInputs": "قيم التقدم هذه تتعارض مع بعضها.",

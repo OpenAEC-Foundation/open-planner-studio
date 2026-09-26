@@ -180,6 +180,7 @@
       "hourPlanningDisabled": "La planificación por horas está desactivada en la configuración.",
       "durationConversionNotExact": "Esta duración no se puede convertir exactamente a la otra unidad.",
       "milestoneRequired": "Este campo solo se aplica a hitos.",
+      "milestoneUnavailable": "Una tarea de resumen con subtareas no puede convertirse en hito.",
       "actualAfterStatusDate": "La fecha real es posterior a la fecha de estado.",
       "actualFinishBeforeStart": "El fin real es anterior al inicio real.",
       "conflictingProgressInputs": "Estos valores de progreso se contradicen.",

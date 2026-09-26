@@ -1,7 +1,7 @@
 import { WORK_RULES, type WorkRule } from '@/types/workRule';
 import { carryRemainingThroughDurationEdit } from '@/engine/work/workRuleApply';
-import { validateConstraintPair } from '@/engine/scheduler/constraintValidation';
-import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
+import { validateConstraintPair, withPrimaryConstraint } from '@/engine/scheduler/constraintValidation';
+import { milestoneRefusal, taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { decodeDynamicTaskColumnId } from '@/engine/taskGrid/fieldIds';
 import {
   applyCompletionEdit,
@@ -437,6 +437,11 @@ function applyMilestoneEdit(
   if (id === 'task.isMilestone') {
     if (typeof edit.value !== 'boolean') return failure('boolean', edit);
     if (task.isMilestone !== edit.value) {
+      // Gedeelde "wordt mijlpaal"-regel (audit §6): een fase wordt geen ruit. Toewijzingen toetst
+      // het raster na afloop over de hele transactie (`planTaskAssignmentSet`), daarom hier `false`.
+      if (edit.value && milestoneRefusal({ hasChildren: task.childIds.length > 0, hasAssignments: false })) {
+        return failure('milestoneUnavailable', edit);
+      }
       const transition = taskMilestoneTransition(task, edit.value);
       scheduleChanged = transition.time !== undefined
         && (task.time.scheduleDuration !== transition.time.scheduleDuration
@@ -584,15 +589,14 @@ function nextConstraintType(
     task.constraint2 = value === undefined
       ? undefined
       : { type: value, date: task.constraint2?.date ?? task.time.scheduleStart };
-  } else if (value === 'ASAP' || value === undefined) {
-    task.constraint = undefined;
-    task.constraint2 = undefined;
-  } else if (value === 'ALAP') {
-    task.constraint = { type: value };
-    task.constraint2 = undefined;
   } else {
+    // Gedeelde canonicalisatie met paneel en MCP (`withPrimaryConstraint`): ASAP/leeg wist beide,
+    // ALAP wist de secundaire; de paartoets volgt in `applyConstraintEdit`.
     const hard = value === 'MSO' || value === 'MFO' ? task.constraint?.hard : undefined;
-    task.constraint = { type: value, date: task.constraint?.date ?? task.time.scheduleStart, hard };
+    const next = value === undefined
+      ? undefined
+      : { type: value, date: task.constraint?.date ?? task.time.scheduleStart, hard };
+    Object.assign(task, withPrimaryConstraint(next, task.constraint2));
   }
   return { ok: true, value: undefined };
 }

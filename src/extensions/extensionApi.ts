@@ -214,6 +214,16 @@ export function createExtensionApi(
         // Een nieuwe taak heeft nog geen toewijzingen: alleen `[]` (bv. uit de SDK-taakfabriek) mag mee.
         const { resourceIds: requestedResourceIds, ...input } = task;
         assertResourceIdsUnchanged('een nieuwe taak', [], requestedResourceIds);
+        // De store-`addTask` weigert (met melding, `''` als id) een mijlpaal als eerste kind van een
+        // taak met toewijzingen: die toewijzingen zouden nergens heen kunnen (audit §6). Een
+        // extensie krijgt dan een fout in plaats van een id dat niet bestaat.
+        const added = (id: string): string => {
+          if (!id) {
+            throw new Error(`Extensie "${extensionId}": taak '${task.name}' niet toegevoegd — de ouder heeft `
+              + 'toewijzingen die niet naar deze nieuwe subtaak kunnen (zie de melding in de app)');
+          }
+          return id;
+        };
         // Een bestaande ouder hangt de store-`addTask` zelf aan beide kanten op; alleen een
         // onbekende ouder liet hij als bungelende `parentId` staan. `''` ⇒ wortel, net als daar
         // (`partial.parentId || null`).
@@ -222,7 +232,7 @@ export function createExtensionApi(
         // Catalogus + toewijzing vormen voor de gebruiker één wijziging en dus één undo-stap.
         return batch.withTransaction(() => {
           if (materialize) document.store.getState().ensureProjectTaskType(materialize);
-          return document.store.getState().addTask(fromExtTaskAddInput(input));
+          return added(document.store.getState().addTask(fromExtTaskAddInput(input)));
         });
       },
       updateTask: (id, updates) => {

@@ -180,6 +180,7 @@
       "hourPlanningDisabled": "Saat planlaması ayarlarda kapalı.",
       "durationConversionNotExact": "Bu süre diğer birime tam olarak dönüştürülemiyor.",
       "milestoneRequired": "Bu alan yalnızca kilometre taşları için geçerlidir.",
+      "milestoneUnavailable": "Alt görevleri olan bir özet görev kilometre taşı olamaz.",
       "actualAfterStatusDate": "Gerçek tarih, durum tarihinden sonra.",
       "actualFinishBeforeStart": "Gerçek bitiş, gerçek başlangıçtan önce.",
       "conflictingProgressInputs": "Bu ilerleme değerleri birbiriyle çelişiyor.",

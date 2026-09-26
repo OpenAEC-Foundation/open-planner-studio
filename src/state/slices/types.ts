@@ -203,6 +203,19 @@ export type NotificationMessageKey =
   | 'notifications.hierarchyCycle'
   | 'notifications.summaryRelationsDropped'
   | 'notifications.relationsSkippedOnInsert'
+  // Plakken uit een ander document: kalender-/taaktype-/code-/veldverwijzingen die hier niet
+  // bestaan zijn leeggemaakt (`insertedBranch.ts`s `normalizeInsertedBranch`). Meervoud, `count`.
+  | 'notifications.referencesClearedOnPaste'
+  // Structuurovergangen met toewijzingen (audit taakmutaties §6, `src/state/structuralTransition.ts`):
+  // wordt mijlpaal ⇒ weigeren; wordt fase ⇒ toewijzingen naar de eerste nieuwe subtaak, of weigeren
+  // als dat niet schoon kan; een mijlpaal die kinderen krijgt verliest zijn mijlpaalvlag.
+  | 'notifications.milestoneRefusedAssignments'
+  | 'notifications.milestoneRefusedSummary'
+  | 'notifications.assignmentsMovedToSubtask'
+  | 'notifications.assignmentsMovedToSubtasks'
+  | 'notifications.milestoneClearedOnPhase'
+  | 'notifications.phaseRefusedNoAssignableChild'
+  | 'notifications.phaseRefusedDuplicateResource'
   | 'notifications.mppLegacy'
   | 'notifications.mppEncrypted'
   | 'notifications.xerInvalidInput'

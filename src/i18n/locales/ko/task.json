@@ -180,6 +180,7 @@
       "hourPlanningDisabled": "시간 단위 계획이 설정에서 꺼져 있습니다.",
       "durationConversionNotExact": "이 기간은 다른 단위로 정확히 변환할 수 없습니다.",
       "milestoneRequired": "이 필드는 마일스톤에만 적용됩니다.",
+      "milestoneUnavailable": "하위 작업이 있는 요약 작업은 마일스톤이 될 수 없습니다.",
       "actualAfterStatusDate": "실제 날짜가 상태 날짜 이후입니다.",
       "actualFinishBeforeStart": "실제 종료가 실제 시작보다 앞섭니다.",
       "conflictingProgressInputs": "이 진행률 값들이 서로 모순됩니다.",

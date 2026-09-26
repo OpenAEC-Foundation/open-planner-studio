@@ -31,7 +31,9 @@
 //
 // WAT HIER NIET IN HOORT: de rauwe-array-herordening. Die is per callsite anders (achteraan, bij
 // een anker, op een expliciete positie) en zit in `applyTaskPlacement`; hem hierheen halen zou een
-// functie met vier vlaggen opleveren in plaats van een primitieve.
+// functie met vier vlaggen opleveren in plaats van een primitieve. Eén uitzondering, omdat hij
+// letterlijk op TWEE plekken hetzelfde moet doen: `reparentTask`, de verhanging van de store-
+// `moveTask` die ook de MCP-draft (`planner_move_task`) gebruikt.
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { ResourceAssignment } from '@/types/resource';
@@ -89,6 +91,43 @@ export function isSelfOrDescendant(tasks: Task[], candidateId: string, ancestorI
     cur = cur.parentId ? tasks.find(t => t.id === cur!.parentId) : undefined;
   }
   return false;
+}
+
+/**
+ * De verhanging van `moveTask` (store en MCP-draft): `id` onder `newParentId` (null = wortel), op
+ * `position` binnen de nieuwe ouder of — zonder positie — achteraan, in `childIds` ÉN in de rauwe
+ * array. WBS-nummering (`flattenOrder`) leest de RAUWE array-volgorde en negeert `childIds`; de
+ * zichtbare volgorde van niet-wortels leest juist `childIds` (`visibleRows.ts`). Daarom moet de
+ * invoegplek op beide plekken kloppen — ook zonder `position` (anders volgde het WBS-nummer de oude
+ * array-positie terwijl de taak zichtbaar achteraan verscheen: de 3.1/3.2/3.3-bug bij "ouder
+ * wijzigen" in het taakvenster). Nakomelingen blijven staan waar ze staan; `flattenOrder` herbouwt
+ * de boom uit `parentId`. Geen guards: de aanroeper toetst bestaan en cykel vooraf.
+ */
+export function reparentTask(tasks: Task[], id: string, newParentId: string | null, position?: number): void {
+  detachFromParent(tasks, id);
+  attachToParent(tasks, id, newParentId, position);
+  // Rauwe array: haal de taak eruit en zet hem terug zó dat hij — gerekend over alléén zijn siblings
+  // (taken met dezelfde parentId, in array-volgorde) — op index `position` (of achteraan) staat.
+  const fromIdx = tasks.findIndex(t => t.id === id);
+  if (fromIdx < 0) return;
+  const [moved] = tasks.splice(fromIdx, 1);
+  const sibIdx: number[] = [];
+  tasks.forEach((t, i) => { if (t.parentId === newParentId) sibIdx.push(i); });
+  const at = position === undefined
+    ? sibIdx.length
+    : Math.max(0, Math.min(position, sibIdx.length)); // klem naar [0, aantal siblings]
+  let insertAt: number;
+  if (at < sibIdx.length) {
+    insertAt = sibIdx[at];                       // vóór de huidige `at`-de sibling
+  } else if (sibIdx.length > 0) {
+    insertAt = sibIdx[sibIdx.length - 1] + 1;    // achter de laatste sibling
+  } else if (newParentId) {
+    const p = tasks.findIndex(t => t.id === newParentId);
+    insertAt = p >= 0 ? p + 1 : tasks.length;    // enig kind: vlak achter de ouder
+  } else {
+    insertAt = tasks.length;                     // enige wortel: achteraan
+  }
+  tasks.splice(insertAt, 0, moved);
 }
 
 /**

@@ -10,6 +10,8 @@ import {
   draftWithActualFinish, draftWithActualStart, draftWithProgress, saveTaskDialog,
 } from '@/state/taskDialogSave';
 import { shownStart } from '@/utils/taskDates';
+import { milestoneRefusal } from '@/engine/taskMilestoneTransition';
+import { milestoneRefusalNotices } from '@/state/structuralTransition';
 import { Select } from '@/components/common/Select';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { X } from 'lucide-react';
@@ -141,6 +143,20 @@ export function TaskDialog() {
       const verdict = moveTaskVerdict(current, editingTask.id, draft.parentId);
       if (!verdict.ok) {
         notifyHierarchyCycle(current, verdict.cycle);
+        return;
+      }
+    }
+    // Wordt mijlpaal (audit §6): het vinkje weigert al in het concept (`TaskMilestoneFields`); dit
+    // vangt de toewijzing die intussen via de relationele sectie van deze dialoog is toegevoegd.
+    // Weigeren houdt de dialoog open met de rest van het concept intact.
+    if (editingTask && draft.isMilestone && !editingTask.isMilestone) {
+      const store = useAppStore.getState();
+      const refusal = milestoneRefusal({
+        hasChildren: editingTask.childIds.length > 0,
+        hasAssignments: store.assignments.some(a => a.taskId === editingTask.id),
+      });
+      if (refusal) {
+        for (const notice of milestoneRefusalNotices([{ name: editingTask.name, refusal }])) store.notify(notice);
         return;
       }
     }
