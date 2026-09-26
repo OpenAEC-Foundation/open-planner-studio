@@ -85,6 +85,10 @@ async function openDialogByDoubleClick(page: Page, taskId: string) {
   await page.mouse.dblclick(point.x, point.y);
   const dialog = page.locator('[data-ops-task-dialog]');
   await expect(dialog).toBeVisible();
+  // De dialoog zet na openen (±30 ms) zelf de focus op het naamveld. Wacht daarop: anders kan die
+  // focussprong tussen `slider.focus()` en de toetsaanslag vallen, en gaat de toets naar het
+  // naamveld (flake onder belasting, gezien in de integratie van groep B met main).
+  await expect(dialog.locator('[data-ops-task-name]')).toBeFocused();
   return dialog;
 }
 

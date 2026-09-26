@@ -194,6 +194,7 @@ export function TaskDialog() {
             <label className="text-text-secondary">{t('dialog.nameRequired')}</label>
             <input
               ref={nameInputRef}
+              data-ops-task-name
               value={draft.name}
               onChange={e => onChange({ name: e.target.value })}
               className={inputCls}
