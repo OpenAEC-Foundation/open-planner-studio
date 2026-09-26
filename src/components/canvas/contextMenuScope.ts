@@ -6,6 +6,7 @@ import { milestoneRefusal, taskMilestoneTransition, type MilestoneRefusal } from
 import { milestoneRefusalNotices } from '@/state/structuralTransition';
 import { descendantLeaves } from '@/engine/scheduler/summaryProgress';
 import { isLeafTask } from '@/utils/taskHierarchy';
+import { localTodayIso } from '@/utils/dateUtils';
 
 /**
  * Reikwijdte en uitvoering van de taak-contextmenu-acties (issue #42, issue #45).
@@ -139,9 +140,12 @@ export const contextMenuBulk = {
       if (isLeafTask(task)) ids.add(task.id);
       else for (const leaf of descendantLeaves(task, byId)) ids.add(leaf.id);
     }
+    // UI-route: via `enterTaskProgress` (`engine/progressEntry.ts`) — zonder statusdatum gaat die op
+    // vandaag, bij de eerste taak die voortgang krijgt, in dezelfde undo-stap, met één melding.
+    const today = localTodayIso();
     appTaskBulkActions.applyToTaskIds(
       [...ids],
-      (state, id) => { state.setTaskProgress(id, completion); },
+      (state, id) => { state.enterTaskProgress(id, { field: 'completion', value: completion }, { today }); },
     );
   },
 

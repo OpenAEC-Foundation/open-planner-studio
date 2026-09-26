@@ -41,6 +41,8 @@ You set progress in three places, all with the same effect:
 
 Actual dates can never be later than the status date — try to enter a later one and the app rejects it with an error. That's a deliberate boundary: a "fact" (something that actually happened) can, by definition, not lie in the future relative to the moment you're recording progress.
 
+**No status date yet?** Progress is measured up to the status date. If you enter progress — a percentage, an actual date, or in the Table view also the status or an actual or remaining duration — while no status date is set, the app sets it to today and tells you so at the bottom of the screen. Feel free to move it to your real data date afterwards. A single **Undo** (Ctrl+Z) reverts the progress and the status date together. An actual date later than today is rejected in that case: it would lie after the new status date. Without a status date the calculation would treat an in-progress task inconsistently (forward with the remaining duration, backward with the full duration), which shows up as false negative float.
+
 ### Progress of a phase
 
 A phase — a task with tasks below it — has no progress of its own. Its **percent complete** and its **status** are derived from the tasks below it on every calculation (**F5** or **Calculate**). The percentage is weighted by duration: a ten-work-day task counts twice as much as a five-day one. It is exactly the number the **WBS summary** on the **Report** tab shows, and what the Table, the tooltip, the PDF and the AI assistant see. The status follows along: **Completed** once every task below it is done, **In progress** as soon as one has begun, otherwise **Not started**.

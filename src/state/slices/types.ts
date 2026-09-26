@@ -306,7 +306,10 @@ export type NotificationMessageKey =
   // `task:constraintType`); `NoDate` voor ALAP, `Many` het meervoud (`count`).
   | 'notifications.startBlockedByConstraint'
   | 'notifications.startBlockedByConstraintNoDate'
-  | 'notifications.startBlockedByConstraintMany';
+  | 'notifications.startBlockedByConstraintMany'
+  // Z1 (besluit eigenaar): voortgang ingevuld zonder statusdatum ⇒ de app zette hem op vandaag —
+  // zie `engine/progressEntry.ts` en `state/progressEntryNotice.ts`. Parameter `date`.
+  | 'notifications.statusDateSetToday';
 
 /** Rekenprofielen (spec v3.1 §6): het actielabel is een i18n-sleutel in `common`. */
 export type NotificationActionLabelKey = 'notifications.actions.openProjectInfo';

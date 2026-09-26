@@ -174,7 +174,8 @@
     "xerArchiveReasonTruncated": "Motivo: o arquivo está truncado — falta parte dos bytes de origem.",
     "xerArchiveReasonBytesMissing": "Motivo: faltam os próprios bytes de origem — provavelmente outro programa IFC reescreveu o ficheiro.",
     "xerArchiveReasonMetadataInvalid": "Motivo: os bytes de origem estão intactos, mas os dados derivados deles são inutilizáveis.",
-    "xerArchiveReasonStructure": "Motivo: a estrutura do arquivo no IFC está incorreta (duplicada, reordenada ou mal associada)."
+    "xerArchiveReasonStructure": "Motivo: a estrutura do arquivo no IFC está incorreta (duplicada, reordenada ou mal associada).",
+    "statusDateSetToday": "Ainda não havia data de estado: foi definida para hoje ({{date}}), porque o progresso é medido até à data de estado. Pode alterá-la em Planeamento → Data de estado."
   },
   "scheduleErrors": {
     "cycle": "Dependência circular entre tarefas: {{path}}",

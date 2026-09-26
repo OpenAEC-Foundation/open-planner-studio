@@ -2,6 +2,7 @@ import { useTextEntryAutoCalcHold } from '@/hooks/useTextEntryAutoCalcHold';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
+import { localTodayIso } from '@/utils/dateUtils';
 import { Trash2 } from 'lucide-react';
 import { TaskBasicFields } from '@/components/task-sections/TaskBasicFields';
 import { TaskNotesFields } from '@/components/task-sections/TaskNotesFields';
@@ -42,11 +43,11 @@ export function TaskPropertiesPanel() {
   const deleteTask = useAppStore(s => s.deleteTask);
   const runCPM = useAppStore(s => s.runCPM);
   const setTaskCalendar = useAppStore(s => s.setTaskCalendar);
-  // Voortgang (fase 2.6): de acties dwingen de §3.2-invarianten af — zie TaskProgressFields-docstring
-  // voor waarom deze als dedicated setters (i.p.v. de generieke patch) worden doorgegeven.
-  const setTaskProgress = useAppStore(s => s.setTaskProgress);
-  const setActualStart = useAppStore(s => s.setActualStart);
-  const setActualFinish = useAppStore(s => s.setActualFinish);
+  // Voortgang (fase 2.6): de actie dwingt de §3.2-invarianten af — zie TaskProgressFields-docstring
+  // voor waarom dit dedicated setters zijn (i.p.v. de generieke patch). `enterTaskProgress` is de
+  // UI-variant: dezelfde bewerking plus de invoerregels van `engine/progressEntry.ts` (Z1: zonder
+  // statusdatum gaat die op vandaag, met een melding).
+  const enterTaskProgress = useAppStore(s => s.enterTaskProgress);
   // Automatisch berekenen pas als een veld af is, niet halverwege het typen.
   const textEntryHold = useTextEntryAutoCalcHold();
 
@@ -125,9 +126,13 @@ export function TaskPropertiesPanel() {
 
       <TaskProgressFields
         task={task}
-        onSetProgress={(v, opts) => setTaskProgress(task.id, v, opts)}
-        onSetActualStart={(d, opts) => setActualStart(task.id, d, opts)}
-        onSetActualFinish={(d, opts) => setActualFinish(task.id, d, opts)}
+        onSetProgress={(v, opts) => {
+          enterTaskProgress(task.id, { field: 'completion', value: v }, { ...opts, today: localTodayIso() });
+        }}
+        onSetActualStart={(d, opts) =>
+          enterTaskProgress(task.id, { field: 'actualStart', value: d }, { ...opts, today: localTodayIso() }).ok}
+        onSetActualFinish={(d, opts) =>
+          enterTaskProgress(task.id, { field: 'actualFinish', value: d }, { ...opts, today: localTodayIso() }).ok}
       />
 
       <TaskCpmResultSection taskId={task.id} />

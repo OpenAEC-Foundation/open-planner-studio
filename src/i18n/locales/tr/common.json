@@ -139,7 +139,8 @@
     "xerArchiveReasonTruncated": "Neden: arşiv kesilmiş — kaynak baytlarının bir kısmı eksik.",
     "xerArchiveReasonBytesMissing": "Neden: kaynak baytlarının kendisi eksik — dosyayı muhtemelen başka bir IFC programı yeniden yazdı.",
     "xerArchiveReasonMetadataInvalid": "Neden: kaynak baytları sağlam, ancak bunlardan türetilen veriler kullanılamaz.",
-    "xerArchiveReasonStructure": "Neden: arşivin IFC içindeki yapısı hatalı (yinelenmiş, yeniden sıralanmış veya yanlış bağlanmış)."
+    "xerArchiveReasonStructure": "Neden: arşivin IFC içindeki yapısı hatalı (yinelenmiş, yeniden sıralanmış veya yanlış bağlanmış).",
+    "statusDateSetToday": "Henüz durum tarihi yoktu: ilerleme durum tarihine kadar ölçüldüğü için bugüne ({{date}}) ayarlandı. Planlama → Durum tarihi altından değiştirebilirsiniz."
   },
   "scheduleErrors": {
     "cycle": "Görevler arasında döngüsel bağımlılık: {{path}}",

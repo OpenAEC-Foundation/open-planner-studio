@@ -14,12 +14,11 @@ import { formatDate, parseDate } from '@/utils/dateUtils';
 import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { ancestorIds, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
+import { applyProgressInvariants } from '@/engine/taskMutationRules';
 import {
-  applyActualDateEdit,
-  applyCompletionEdit,
-  applyProgressInvariants,
-  isActualPastStatusDate,
-} from '@/engine/taskMutationRules';
+  planProgressEntry, type ProgressEdit, type ProgressEntryContext, type ProgressEntryResult,
+} from '@/engine/progressEntry';
+import { statusDateSetTodayNotice } from '@/state/progressEntryNotice';
 import type { WbsTemplate } from '@/utils/wbsTemplates';
 import {
   detachFromParent, attachToParent, isSelfOrDescendant, removeTaskSubtrees, siblingIds,
@@ -143,6 +142,19 @@ export interface TaskSlice {
    *  Retourneert false als de datum ná de statusdatum ligt (geweigerd). `opts.coalesceKey` als bij
    *  setActualStart. */
   setActualFinish: (taskId: string, date: string | undefined, opts?: { coalesceKey?: string }) => boolean;
+  /**
+   * Voortgang INVULLEN vanuit de UI (eigenschappenpaneel, contextmenu): dezelfde bewerking als de
+   * drie setters hierboven, plus de invoerregels van `engine/progressEntry.ts`. Z1: staat er geen
+   * statusdatum en houdt de taak na de bewerking voortgang over, dan gaat de statusdatum in DEZELFDE
+   * undo-stap op `opts.today` (wat het statusdatumveld voor vandaag oplevert, `localTodayIso`) en volgt
+   * één melding. Een werkelijke datum ná die (effectieve) statusdatum wordt geweigerd. De setters
+   * zelf blijven het vangnet voor headless aanroepers, zonder deze regels.
+   */
+  enterTaskProgress: (
+    taskId: string,
+    edit: ProgressEdit,
+    opts: { today: string; coalesceKey?: string },
+  ) => ProgressEntryResult;
   /**
    * Issue #146 — de ENIGE schrijver van gebruikerssplits. Bewust een EIGEN, smalle mutatie en géén
    * `updateTask`-patch: die wist nivelleergaten (`clearLevelingGaps`) en herschaalt gaten
@@ -657,9 +669,10 @@ function hierarchyPhaseGains(tasks: readonly Task[], edit: HierarchyEdit): Phase
 export { applyProgressInvariants };
 
 /**
- * De ene commit van de drie voortgangssetters (`setTaskProgress`/`setActualStart`/`setActualFinish`,
- * fase 2.6), binnen hun producer en ná hun eigen guards. `edit` is de setter-specifieke bewerking op
- * de taak (in de praktijk alleen `time`); daarna volgen altijd de §3.2-invarianten (`applyProgressInvariants`).
+ * De ene commit van de voortgangssetters (`setTaskProgress`/`setActualStart`/`setActualFinish`,
+ * fase 2.6) en van de UI-invoer (`enterTaskProgress`), binnen hun producer. Wat de bewerking doet,
+ * beslist `planProgressEntry` (engine/progressEntry.ts) — dezelfde functies die ook de concepttaak in
+ * "Taak bewerken" gebruikt (`state/taskDialogSave.ts`); deze functie legt die uitkomst alleen vast.
  *
  * Verandert de bewerking per saldo niets aan de taak, dan is ze een no-op — dezelfde regel als
  * `updateTask`: geen snapshot, geen gevolgregel (`clearLevelingGaps`), geen `isDirty`, geen stale
@@ -669,31 +682,41 @@ export { applyProgressInvariants };
  * opnieuw op 50% zetten vult die start in, en dát is wel een wijziging. Een no-op raakt ook de
  * undo-coalescing niet aan, dus een lopende slider-sleep blijft één stap.
  *
- * Eerst proef op een kopie (`time` is plat, `status` een scalar op de kopie zelf, dus de proef lekt
- * niet in de draft); pas bij een echte wijziging draait dezelfde bewerking op de draft, in dezelfde
- * volgorde als vóór deze guard.
+ * Z1 (alleen met `ctx.today`, de UI): gaat de statusdatum op vandaag, dan gebeurt dat in dezelfde
+ * snapshot als de voortgang — één undo-stap. Retourneert die datum, zodat de aanroeper ná `set()`
+ * kan melden.
  */
 function commitProgressEdit(
   runtime: StoreRuntime,
   s: AppState,
-  task: Task,
-  edit: (target: Task) => void,
+  taskId: string,
+  edit: ProgressEdit,
+  ctx: Omit<ProgressEntryContext, 'statusDate'>,
   opts: { coalesceKey?: string } | undefined,
-): void {
-  const statusDate = s.project.statusDate;
-  const apply = (target: Task): void => {
-    edit(target);
-    applyProgressInvariants(target, statusDate);
-  };
-  const probe: Task = { ...task, time: { ...task.time } };
-  apply(probe);
-  if (sameValue(task, probe)) return;
+): ProgressEntryResult & { statusDateToday?: string } {
+  const task = s.tasks.find((t) => t.id === taskId);
+  if (!task) return { ok: true }; // onbekende taak: stille no-op, zoals voorheen
+  // Voortgang op een verzameltaak is alleen-lezen: de rollup in `applyCpmResult` leidt haar af uit
+  // de bladen. Weigeren vóór elke mutatie, dus zonder snapshot (transaction.ts-patroon).
+  if (isSummaryTask(task)) return { ok: false, reason: 'summaryTask' };
+  // Actuals liggen nooit ná de statusdatum — weigeren i.p.v. stil klemmen (§3.2, BESLIST), zonder
+  // snapshot. T16-veeglijst-fix: `isActualPastStatusDate` vergelijkt geparste instanten i.p.v. rauwe
+  // ISO-strings (het uur-precies-op-de-statusdatum-dag-gat).
+  const plan = planProgressEntry(task, edit, { ...ctx, statusDate: s.project.statusDate });
+  if (!plan.ok) return plan;
+  if (!plan.change) return { ok: true };
   runtime.beginUndoable(s, opts); // `opts` = coalesceKey (slider-sleep / per-toetsaanslag-commits = 1 stap).
   // Fable-critreview #170, bevinding 1: voortgang verplaatst opgeslagen werk van rest naar verricht —
   // momentopname op de ongewijzigde taak, settle ná de mutatie. Integratie groep B (besluit 5): ná
   // de no-op-check, zodat een no-op ook het werk niet raakt.
   const progressWork = captureProgressWork(task, s);
-  apply(task);
+  const { statusDateToday } = plan.change;
+  if (statusDateToday) {
+    s.project.statusDate = statusDateToday;
+    s.project.modifiedAt = new Date().toISOString();
+  }
+  task.time = plan.change.task.time;
+  task.status = plan.change.task.status;
   settleProgressWork(task, s.assignments, progressWork);
   // B1c-plan-2 spec §4 "Invalidatie", vierde klasse — bedraad in de fixronde op etappe 3
   // (bevinding B7). Voortgang loopt buiten `updateTask` om, dus deze setters hebben hun eigen
@@ -705,31 +728,7 @@ function commitProgressEdit(
   // voortgangsmutatie datum-beïnvloedend, met of zonder statusdatum. Het oude commentaar
   // ("alleen datum-beïnvloedend mét statusdatum") was juist tot vóór die fixes.
   runtime.finishMutation(s, { stale: true });
-}
-
-/**
- * De gedeelde kern van `setActualStart`/`setActualFinish` (fase 2.6), binnen hun producer. `false`
- * ⇒ geweigerd: actuals liggen nooit ná de statusdatum — weigeren i.p.v. stil klemmen (§3.2, BESLIST),
- * zonder snapshot. T16-veeglijst-fix: `isActualPastStatusDate` vergelijkt geparste instanten i.p.v.
- * rauwe ISO-strings (het uur-precies-op-de-statusdatum-dag-gat). Een onbekende taak is een stille
- * no-op (`true`, zoals voorheen); dezelfde datum nog eens ook (`true`, zie `commitProgressEdit`).
- */
-function applyActualDate(
-  runtime: StoreRuntime,
-  s: AppState,
-  taskId: string,
-  field: 'actualStart' | 'actualFinish',
-  date: string | undefined,
-  opts: { coalesceKey?: string } | undefined,
-): boolean {
-  const task = s.tasks.find((t) => t.id === taskId);
-  if (!task) return true;
-  // Een verzameltaak draagt geen eigen voortgang (zie `setTaskProgress`).
-  if (isSummaryTask(task)) return false;
-  if (date && s.project.statusDate && isActualPastStatusDate(date, s.project.statusDate)) return false;
-  // Zetten/wissen + invarianten; gedeeld met de velden in "Taak bewerken" (state/taskDialogSave.ts).
-  commitProgressEdit(runtime, s, task, (target) => applyActualDateEdit(target, field, date, s.project.statusDate), opts);
-  return true;
+  return statusDateToday ? { ok: true, statusDateToday } : { ok: true };
 }
 
 /**
@@ -1315,33 +1314,40 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
 
   setTaskProgress: (taskId, raw, opts) => {
     let accepted = true;
-    set((s) => {
-      const task = s.tasks.find((t) => t.id === taskId);
-      if (!task) return;
-      // Voortgang op een verzameltaak is alleen-lezen: de rollup in `applyCpmResult` leidt haar af
-      // uit de bladen. Weigeren vóór elke mutatie, dus zonder snapshot (transaction.ts-patroon).
-      if (isSummaryTask(task)) { accepted = false; return; }
-      // §3.2: % > 0 ⇒ gestart (auto actualStart, nooit ná het werkelijke einde), teruggedraaid
-      // onder 100% ⇒ actualFinish vervalt. Snapshot, nivelleergaten, stale, de no-op-regel en de
-      // werknazorg (#170): zie `commitProgressEdit`.
-      commitProgressEdit(runtime, s, task, (target) => applyCompletionEdit(target.time, Math.max(0, Math.min(1, raw)), s.project.statusDate), opts);
-    });
+    // §3.2: % > 0 ⇒ gestart (auto actualStart, nooit ná het werkelijke einde), teruggedraaid
+    // onder 100% ⇒ actualFinish vervalt. Dezelfde regel als de concept in "Taak bewerken"
+    // (`draftWithProgress`). Verzameltaak (alleen-lezen), snapshot, nivelleergaten, stale, de
+    // no-op-regel en de werknazorg (#170): zie `commitProgressEdit`.
+    set((s) => { accepted = commitProgressEdit(runtime, s, taskId, { field: 'completion', value: raw }, {}, opts).ok; });
     get().recomputeViewRows();
     return accepted;
   },
 
   setActualStart: (taskId, date, opts) => {
     let accepted = true;
-    set((s) => { accepted = applyActualDate(runtime, s, taskId, 'actualStart', date, opts); });
+    set((s) => { accepted = commitProgressEdit(runtime, s, taskId, { field: 'actualStart', value: date }, {}, opts).ok; });
     get().recomputeViewRows();
     return accepted;
   },
 
   setActualFinish: (taskId, date, opts) => {
     let accepted = true;
-    set((s) => { accepted = applyActualDate(runtime, s, taskId, 'actualFinish', date, opts); });
+    set((s) => { accepted = commitProgressEdit(runtime, s, taskId, { field: 'actualFinish', value: date }, {}, opts).ok; });
     get().recomputeViewRows();
     return accepted;
+  },
+
+  enterTaskProgress: (taskId, edit, opts) => {
+    let result: ReturnType<typeof commitProgressEdit> = { ok: true };
+    set((s) => {
+      result = commitProgressEdit(runtime, s, taskId, edit, { today: opts.today }, { coalesceKey: opts.coalesceKey });
+    });
+    get().recomputeViewRows();
+    // Ná `set()`: `get().notify(...)` binnen een actieve producer aanroepen kan niet.
+    if (result.ok && result.statusDateToday) {
+      get().notify(statusDateSetTodayNotice(result.statusDateToday, get().ui.dateNotation));
+    }
+    return result.ok ? { ok: true } : result;
   },
 
   previewProgressImport: (rows, overrides) => {

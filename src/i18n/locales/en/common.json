@@ -139,7 +139,8 @@
     "xerArchiveReasonTruncated": "Reason: the archive is truncated — part of the source bytes is missing.",
     "xerArchiveReasonBytesMissing": "Reason: the source bytes themselves are missing — another IFC program probably rewrote the file.",
     "xerArchiveReasonMetadataInvalid": "Reason: the source bytes are intact, but the data derived from them is unusable.",
-    "xerArchiveReasonStructure": "Reason: the archive's structure in the IFC is wrong (duplicated, reordered or attached incorrectly)."
+    "xerArchiveReasonStructure": "Reason: the archive's structure in the IFC is wrong (duplicated, reordered or attached incorrectly).",
+    "statusDateSetToday": "There was no status date yet: it is now set to today ({{date}}), because progress is measured up to the status date. You can change it under Planning → Status date."
   },
   "scheduleErrors": {
     "cycle": "Circular dependency between tasks: {{path}}",

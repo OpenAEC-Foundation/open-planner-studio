@@ -104,7 +104,8 @@
     "xerArchiveReasonTruncated": "原因：存档被截断——部分源字节缺失。",
     "xerArchiveReasonBytesMissing": "原因：源字节本身缺失——很可能是其他 IFC 程序重写了该文件。",
     "xerArchiveReasonMetadataInvalid": "原因：源字节完好，但由此派生的数据不可用。",
-    "xerArchiveReasonStructure": "原因：存档在 IFC 中的结构不正确（重复、重新排序或关联错误）。"
+    "xerArchiveReasonStructure": "原因：存档在 IFC 中的结构不正确（重复、重新排序或关联错误）。",
+    "statusDateSetToday": "此前没有状态日期：现已设为今天（{{date}}），因为进度按状态日期计量。可在“计划 → 状态日期”中修改。"
   },
   "scheduleErrors": {
     "cycle": "任务之间存在循环依赖：{{path}}",

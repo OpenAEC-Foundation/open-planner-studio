@@ -139,7 +139,8 @@
     "xerArchiveReasonTruncated": "Grund: Das Archiv ist abgeschnitten — ein Teil der Quellbytes fehlt.",
     "xerArchiveReasonBytesMissing": "Grund: Die Quellbytes selbst fehlen — vermutlich hat ein anderes IFC-Programm die Datei neu geschrieben.",
     "xerArchiveReasonMetadataInvalid": "Grund: Die Quellbytes sind intakt, aber die daraus abgeleiteten Daten sind unbrauchbar.",
-    "xerArchiveReasonStructure": "Grund: Der Aufbau des Archivs in der IFC stimmt nicht (doppelt, umsortiert oder falsch verknüpft)."
+    "xerArchiveReasonStructure": "Grund: Der Aufbau des Archivs in der IFC stimmt nicht (doppelt, umsortiert oder falsch verknüpft).",
+    "statusDateSetToday": "Es gab noch kein Statusdatum: Es ist jetzt auf heute ({{date}}) gesetzt, weil der Fortschritt bis zum Statusdatum gemessen wird. Ändern können Sie es unter Planung → Statusdatum."
   },
   "scheduleErrors": {
     "cycle": "Zirkelbezug zwischen Aufgaben: {{path}}",

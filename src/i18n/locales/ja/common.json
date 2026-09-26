@@ -104,7 +104,8 @@
     "xerArchiveReasonTruncated": "理由: アーカイブが途中で切れています。ソースバイトの一部がありません。",
     "xerArchiveReasonBytesMissing": "理由: ソースバイト自体がありません。別の IFC プログラムがファイルを書き換えた可能性があります。",
     "xerArchiveReasonMetadataInvalid": "理由: ソースバイトは無傷ですが、そこから導出したデータが使用できません。",
-    "xerArchiveReasonStructure": "理由: IFC 内のアーカイブ構造が正しくありません（重複、並べ替え、または誤った関連付け）。"
+    "xerArchiveReasonStructure": "理由: IFC 内のアーカイブ構造が正しくありません（重複、並べ替え、または誤った関連付け）。",
+    "statusDateSetToday": "状態日がまだありませんでした。進捗は状態日までで測るため、今日（{{date}}）に設定しました。計画 → 状態日で変更できます。"
   },
   "scheduleErrors": {
     "cycle": "タスク間に循環依存があります: {{path}}",
