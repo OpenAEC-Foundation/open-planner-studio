@@ -12,8 +12,8 @@
 // als injecteerbare functies, zodat ze headless — zonder Tauri — te testen zijn (`tests/mcp/`).
 //
 // De per-request `ctx` is VOLLEDIG aangesloten (SYNC-2): `paused`/`readOnly` komen live uit de
-// ui-state, `expectedDocId` (drift-anker) en `tempIdMap` (batch-executor) zijn per verbinding
-// meegroeiende velden, en `ensureBackup` wijst naar de ECHTE AI-backup uit `backup.ts` — geen stub
+// ui-state, `expectedDocId` (drift-anker) leeft per verbinding (de request-handler draagt hem van
+// request naar request over), `tempIdMap` (batch-executor) is per request, en `ensureBackup` wijst naar de ECHTE AI-backup uit `backup.ts` — geen stub
 // meer. `initMcpRuntime()` hieronder registreert de tool-modules; de T16-backupfuncties reizen als
 // één contextbinding met ieder request mee. Zie de tool-contracten in `contracts.ts` (`McpContext`).
 
@@ -131,7 +131,8 @@ export function applyAiModeLive(value: boolean): Promise<void> {
  * Bouw de `McpContext` voor één request. Store en transacties worden samen gebonden: de app-singleton
  * hergebruikt zijn compatibiliteitsfactory, een geïnjecteerde context krijgt standaard een verse
  * factory rond diezelfde runtime. `paused`/`readOnly` worden LIVE uit die ui-state gelezen (de user
- * kan ze tussen requests door omzetten). `expectedDocId` begint op null en `tempIdMap` is leeg.
+ * kan ze tussen requests door omzetten). `expectedDocId` begint op null (de request-handler zet het
+ * anker van de verbinding erin) en `tempIdMap` is leeg.
  * De backup-hook hoort bij dezelfde storecontext. De app-singleton behoudt de publieke, Tauri-gated
  * wrapper; een custom context krijgt zijn eigen per-context service. Tests en andere composition
  * roots mogen die hook expliciet injecteren.
@@ -284,10 +285,24 @@ function recordRequestActivity(reqBody: string, respBody: string, durationMs: nu
 export function createRequestHandler(
   deps: RequestHandlerDeps,
 ): (payload: { id: number; body: string }) => Promise<void> {
+  // Het drift-anker leeft per VERBINDING (= per handler, dus per bridge-start), niet per request:
+  // `buildContext` levert elk request een verse ctx met `expectedDocId: null`. Zonder deze overdracht
+  // bond elke eerste mutatie van ieder request opnieuw aan het dán actieve document, zodat een
+  // user-tabwissel tussen twee AI-calls nooit `DOC_DRIFT` gaf en de mutatie stil op het andere
+  // tabblad landde; ook het verzetten door `switch_document`/`new_document`/`duplicate_document`/
+  // `import_schedule` ging met de weggegooide ctx verloren. `tempIdMap` blijft bewust per request
+  // (batch-only, de batch-executor bezit hem).
+  let expectedDocId: string | null = null;
   return async (payload) => {
     const ctx = deps.buildContext();
+    if (ctx.expectedDocId === null) ctx.expectedDocId = expectedDocId;
     const start = performance.now();
-    const body = await deps.handleMessage(payload.body, ctx);
+    let body: string;
+    try {
+      body = await deps.handleMessage(payload.body, ctx);
+    } finally {
+      expectedDocId = ctx.expectedDocId;
+    }
     // T15: leg de aanroep vast in het activiteitenlog (notificaties = lege body worden overgeslagen).
     recordRequestActivity(payload.body, body, performance.now() - start);
     await deps.emit('mcp://response', { id: payload.id, body });

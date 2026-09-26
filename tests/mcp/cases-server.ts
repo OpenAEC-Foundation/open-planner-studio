@@ -117,6 +117,44 @@ test('createRequestHandler emit óók een (leeg) antwoord voor een notificatie (
   assertEq(captured!.payload.body, '', 'notificatie ⇒ lege respons-body');
 });
 
+test('createRequestHandler: het drift-anker overleeft de request-grens (user-tabwissel tussen twee calls ⇒ DOC_DRIFT)', async () => {
+  registerAllTools();
+  const st = useAppStore.getState();
+  st.setUI({ aiPaused: false, aiReadOnly: false });
+  st.newDocument();
+  const noBackup = { ensureBackup: async () => null, markDuplicateBorn: () => {} };
+  const responses: any[] = [];
+  const handler = createRequestHandler({
+    emit: (_event, payload: any) => { responses.push(JSON.parse(payload.body)); },
+    buildContext: () => buildMcpContext(undefined, undefined, noBackup),
+    handleMessage: handleMcpMessage,
+  });
+  let rpcId = 0;
+  const call = async (name: string, args: unknown) => {
+    await handler({ id: ++rpcId, body: JSON.stringify({ jsonrpc: '2.0', id: rpcId, method: 'tools/call', params: { name, arguments: args } }) });
+    return responses[responses.length - 1].result.structuredContent;
+  };
+
+  const docA = useAppStore.getState().activeDocumentId;
+  const first = await call('planner_add_tasks', { tasks: [{ tempId: 'tmp-A', name: 'eerste' }] });
+  assertEq(first.ok, true, `de eerste mutatie bindt het anker en slaagt: ${JSON.stringify(first)}`);
+
+  useAppStore.getState().newDocument(); // user wisselt zelf van tabblad, buiten de AI om
+  const docB = useAppStore.getState().activeDocumentId;
+  assert(docA !== docB, 'voorwaarde: een ander document is actief');
+  const tasksBefore = useAppStore.getState().tasks.length;
+  const second = await call('planner_add_tasks', { tasks: [{ tempId: 'tmp-B', name: 'tweede' }] });
+  assertEq(second.ok, false, 'een mutatie in een VOLGEND request na een user-tabwissel moet falen');
+  assertEq(second.code, 'DOC_DRIFT', 'code hoort DOC_DRIFT te zijn');
+  assertEq(useAppStore.getState().tasks.length, tasksBefore, 'het andere tabblad blijft onaangeroerd');
+
+  // switch_document verzet het anker; dat moet óók het volgende request halen.
+  const sw = await call('planner_switch_document', { documentId: docB });
+  assertEq(sw.ok, true, 'switch_document naar het actieve document slaagt');
+  const third = await call('planner_add_tasks', { tasks: [{ tempId: 'tmp-C', name: 'derde' }] });
+  assertEq(third.ok, true, 'na switch_document ankert het volgende request op het nieuwe document');
+});
+
 // --- (3) status-flow -----------------------------------------------------------------------------
 
 test('createStatusHandler mapt Rust-statusstrings naar de contract-state en schrijft de store bij', () => {
