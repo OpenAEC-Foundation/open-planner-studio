@@ -158,33 +158,31 @@ export function createExtensionApi(
           state.xerSourceArchive, state.xerImportMetadata, state.xerSourceProjectId, collection, options,
         );
       },
+      // PR #170-her-check (dialoog-undo, punt 1): ÁLLE `data.*`-schrijfroutes lopen via
+      // `batch.withTransaction` — één undo-stap per call, en nooit via `finishUndoable` buiten batch.
+      // Die route stempelt tijdens een open bewerksessie (taakdialoog) de `sessionKey`, en dan zou
+      // Annuleren in de dialoog extensiewerk stil terugdraaien (docblok `SessionHistoryEvent.sessionKey`).
       addTask: (task) => {
         const materialize = customTaskTypeToMaterialize(task.customTaskType);
-        if (!materialize) return document.store.getState().addTask(fromExtTaskAddInput(task));
         // Catalogus + toewijzing vormen voor de gebruiker één wijziging en dus één undo-stap.
         return batch.withTransaction(() => {
-          document.store.getState().ensureProjectTaskType(materialize);
+          if (materialize) document.store.getState().ensureProjectTaskType(materialize);
           return document.store.getState().addTask(fromExtTaskAddInput(task));
         });
       },
       updateTask: (id, updates) => {
         // Bestaand API-gedrag voor een onbekend taak-id is een stille no-op; materialiseer in dat
         // geval ook geen los catalogusitem waar uiteindelijk geen taaktoewijzing tegenover staat.
-        if (!document.store.getState().tasks.some(task => task.id === id)) {
-          document.store.getState().updateTask(id, fromExtTaskUpdates(updates));
-          return;
-        }
-        const materialize = customTaskTypeToMaterialize(updates.customTaskType);
-        if (!materialize) {
-          document.store.getState().updateTask(id, fromExtTaskUpdates(updates));
-          return;
-        }
+        const known = document.store.getState().tasks.some(task => task.id === id);
+        const materialize = known ? customTaskTypeToMaterialize(updates.customTaskType) : undefined;
         batch.withTransaction(() => {
-          document.store.getState().ensureProjectTaskType(materialize);
+          if (materialize) document.store.getState().ensureProjectTaskType(materialize);
           document.store.getState().updateTask(id, fromExtTaskUpdates(updates));
         });
       },
-      addSequence: (seq) => document.store.getState().addSequence(fromExtSequenceInput(seq)),
+      addSequence: (seq) => batch.withTransaction(
+        () => document.store.getState().addSequence(fromExtSequenceInput(seq)),
+      ),
       loadProject: (result: ExtImportResult) => {
         const store = document.store.getState();
         store.loadState(fromExtImportResult(result));

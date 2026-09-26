@@ -96,7 +96,7 @@
       "manuallyScheduled": "수동 일정",
       "milestone": "마일스톤",
       "milestoneKind": "마일스톤 유형",
-      "mspTaskType": "Microsoft Project 작업 유형",
+      "mspTaskType": "MS Project 작업 유형(가져오기)",
       "name": "작업 이름",
       "nearCritical": "준주공정",
       "noteData": "메모 데이터",
@@ -123,7 +123,11 @@
       "totalFloat": "총 여유",
       "wbs": "작업 분류 체계(WBS)",
       "workWindowFinish": "작업 창 종료",
-      "workWindowStart": "작업 창 시작"
+      "workWindowStart": "작업 창 시작",
+      "workRule": "작업 규칙",
+      "assignmentPlannedWork": "계획 작업(시간)",
+      "assignmentActualWork": "실제 작업(시간)",
+      "assignmentRemainingWork": "잔여 작업(시간)"
     },
     "category": {
       "task": "작업",
@@ -189,6 +193,7 @@
       "assignmentDuplicateId": "이 배정이 여러 번 나타납니다.",
       "assignmentIdentity": "이 배정은 다른 리소스에 속합니다.",
       "assignmentUnits": "하루 단위를 0보다 큰 숫자로 입력하세요.",
+      "assignmentWork": "남은 작업량을 0보다 큰 숫자(시간)로 입력하세요(이름: 시간; …).",
       "assignmentCurve": "알려진 부하 곡선을 선택하세요.",
       "assignmentTaskNotFound": "이 배정의 작업이 더 이상 존재하지 않습니다.",
       "assignmentTaskUnavailable": "이 작업에서는 배정을 편집할 수 없습니다.",
@@ -331,6 +336,22 @@
     "durationTotalHours": "총 시간",
     "hourCalendarHint": "시간 입력에는 시간 달력(근무 시간)이 필요합니다."
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "고정 기간 및 단위",
+    "FIXED_DURATION_WORK": "고정 기간 및 작업량",
+    "FIXED_WORK": "고정 작업량",
+    "FIXED_RATE": "고정 단위",
+    "label": "작업 규칙",
+    "projectDefault": "프로젝트 기본값({{rule}})",
+    "protects": "보호됨: {{what}}",
+    "protectsFIXED_DURATION_RATE": "기간과 단위(작업량이 따라감)",
+    "protectsFIXED_DURATION_WORK": "기간과 작업량(단위가 따라감)",
+    "protectsFIXED_WORK": "작업량(기간이 단위를 따름)",
+    "protectsFIXED_RATE": "단위(기간이 작업량을 따름)",
+    "mspEffortDriven": "MS Project에서: 작업량 기준",
+    "mspNotEffortDriven": "MS Project에서: 작업량 기준 아님",
+    "none": "프로젝트 기본값"
+  },
   "properties": {
     "task": "작업",
     "deleteTask": "작업 삭제",
@@ -424,7 +445,12 @@
       "contour": "시간 분배…",
       "contoured": "윤곽",
       "contouredHint": "이 배정에는 고유한 시간 분배가 있습니다. 시간 분배 버튼으로 편집하거나 해제하세요.",
-      "importedCurve": "가져온 곡선"
+      "importedCurve": "가져온 곡선",
+      "work": "작업량(남음)",
+      "workHint": "남은 작업량(시간). 기간과 단위 중 무엇이 변하는지는 작업 규칙이 결정합니다.",
+      "workDeviates": "단위 × 기간과 다름",
+      "workDeviatesHint": "저장된 작업량 {{stored}}시간이 단위 × 남은 기간({{derived}}시간)과 다릅니다. 히스토그램은 저장된 작업량을 작업 기간 전체에 걸쳐 따릅니다. 단위는 파일의 값 그대로입니다.",
+      "locked": "작업 규칙 {{rule}}에 의해 보호됨"
     },
     "notes": {
       "title": "메모",

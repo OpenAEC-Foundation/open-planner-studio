@@ -96,7 +96,7 @@
       "manuallyScheduled": "مجدول يدويًا",
       "milestone": "معلم",
       "milestoneKind": "نوع المعلم",
-      "mspTaskType": "نوع مهمة Microsoft Project",
+      "mspTaskType": "نوع مهمة MS Project (استيراد)",
       "name": "اسم المهمة",
       "nearCritical": "شبه حرج",
       "noteData": "بيانات الملاحظات",
@@ -123,7 +123,11 @@
       "totalFloat": "الفائض الكلي",
       "wbs": "هيكل تقسيم العمل (WBS)",
       "workWindowFinish": "نهاية نافذة العمل",
-      "workWindowStart": "بداية نافذة العمل"
+      "workWindowStart": "بداية نافذة العمل",
+      "workRule": "قاعدة العمل",
+      "assignmentPlannedWork": "العمل المخطط (ساعات)",
+      "assignmentActualWork": "العمل الفعلي (ساعات)",
+      "assignmentRemainingWork": "العمل المتبقي (ساعات)"
     },
     "category": {
       "task": "المهمة",
@@ -189,6 +193,7 @@
       "assignmentDuplicateId": "هذا التعيين يتكرر أكثر من مرة.",
       "assignmentIdentity": "هذا التعيين يخص موردًا آخر.",
       "assignmentUnits": "أدخل الوحدات في اليوم كرقم أكبر من 0.",
+      "assignmentWork": "أدخل العمل المتبقي بالساعات كرقم أكبر من 0 (الاسم: الساعات؛ …).",
       "assignmentCurve": "اختر منحنى تحميل معروفًا.",
       "assignmentTaskNotFound": "مهمة هذا التعيين لم تعد موجودة.",
       "assignmentTaskUnavailable": "لا يمكن تعديل التعيينات في هذه المهمة.",
@@ -351,6 +356,22 @@
     "durationTotalHours": "إجمالي الساعات",
     "hourCalendarHint": "يتطلب إدخال الساعات تقويمًا بالساعة (أوقات العمل)."
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "مدة ووحدات ثابتة",
+    "FIXED_DURATION_WORK": "مدة وعمل ثابتان",
+    "FIXED_WORK": "عمل ثابت",
+    "FIXED_RATE": "وحدات ثابتة",
+    "label": "قاعدة العمل",
+    "projectDefault": "الافتراضي للمشروع ({{rule}})",
+    "protects": "محمي: {{what}}",
+    "protectsFIXED_DURATION_RATE": "المدة والوحدات (يتبع العمل)",
+    "protectsFIXED_DURATION_WORK": "المدة والعمل (تتبع الوحدات)",
+    "protectsFIXED_WORK": "العمل (تتبع المدة الوحدات)",
+    "protectsFIXED_RATE": "الوحدات (تتبع المدة العمل)",
+    "mspEffortDriven": "من MS Project: مدفوع بالجهد",
+    "mspNotEffortDriven": "من MS Project: غير مدفوع بالجهد",
+    "none": "الافتراضي للمشروع"
+  },
   "properties": {
     "task": "المهمة",
     "deleteTask": "حذف المهمة",
@@ -444,7 +465,12 @@
       "contour": "توزيع الساعات…",
       "contoured": "مخطط",
       "contouredHint": "لهذا التعيين توزيع ساعات خاص به؛ عدّله أو حرّره عبر زر توزيع الساعات.",
-      "importedCurve": "منحنى مستورد"
+      "importedCurve": "منحنى مستورد",
+      "work": "العمل (المتبقي)",
+      "workHint": "العمل المتبقي بالساعات؛ تحدد قاعدة العمل ما إذا كانت المدة أم الوحدات تتغير.",
+      "workDeviates": "يختلف عن الوحدات × المدة",
+      "workDeviatesHint": "العمل المحفوظ {{stored}} س يختلف عن الوحدات × المدة المتبقية ({{derived}} س). يتبع المدرج التكراري العمل المحفوظ على مدى المهمة كلها؛ تبقى الوحدات كما وردت في الملف.",
+      "locked": "محمي بقاعدة العمل {{rule}}"
     },
     "notes": {
       "title": "ملاحظات",

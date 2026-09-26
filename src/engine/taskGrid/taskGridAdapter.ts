@@ -121,6 +121,8 @@ export interface CreateTaskGridAdapterDomainInput {
   recordedUnrecordedAxes?: (task: Task) => readonly RecordedTaskAxis[];
   dateNotation?: DateNotation;
   calendarOptions?: readonly { value: string; label: string }[];
+  /** Taaktypes-etappe (spec §7): zie `TaskColumnContext.taskTypesUnlocked`. */
+  taskTypesUnlocked?: boolean;
 }
 
 export interface CreateTaskGridAdapterProjectionInput {
@@ -246,6 +248,7 @@ export function createTaskGridAdapterDomain(
     signedWorkDaysBetween: input.signedWorkDaysBetween,
     recordedMark: input.recordedMark,
     recordedUnrecordedAxes: input.recordedUnrecordedAxes,
+    taskTypesUnlocked: input.taskTypesUnlocked,
   };
   const descriptors = buildTaskColumnRegistry({
     projectId: input.projectId,

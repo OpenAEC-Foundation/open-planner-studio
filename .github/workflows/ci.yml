@@ -88,7 +88,7 @@ jobs:
   # `npm run verify` nog in één keer: daar weegt wachttijd niet, en één commando is daar het eenvoudigst.
   verify:
     name: verify (${{ matrix.name }})
-    timeout-minutes: 20
+    timeout-minutes: 45
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false

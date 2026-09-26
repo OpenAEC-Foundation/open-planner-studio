@@ -96,7 +96,7 @@
       "manuallyScheduled": "زمان‌بندی دستی",
       "milestone": "نقطه عطف",
       "milestoneKind": "نوع نقطه عطف",
-      "mspTaskType": "نوع وظیفه Microsoft Project",
+      "mspTaskType": "نوع وظیفه MS Project (درون‌بری)",
       "name": "نام وظیفه",
       "nearCritical": "نزدیک به بحرانی",
       "noteData": "داده‌های یادداشت",
@@ -123,7 +123,11 @@
       "totalFloat": "شناوری کل",
       "wbs": "ساختار شکست کار (WBS)",
       "workWindowFinish": "پایان بازه کاری",
-      "workWindowStart": "شروع بازه کاری"
+      "workWindowStart": "شروع بازه کاری",
+      "workRule": "قاعده کار",
+      "assignmentPlannedWork": "کار برنامه‌ریزی‌شده (ساعت)",
+      "assignmentActualWork": "کار انجام‌شده (ساعت)",
+      "assignmentRemainingWork": "کار باقی‌مانده (ساعت)"
     },
     "category": {
       "task": "وظیفه",
@@ -189,6 +193,7 @@
       "assignmentDuplicateId": "این تخصیص بیش از یک بار وجود دارد.",
       "assignmentIdentity": "این تخصیص به منبع دیگری تعلق دارد.",
       "assignmentUnits": "واحد در روز را به‌صورت عددی بزرگ‌تر از 0 وارد کنید.",
+      "assignmentWork": "کار باقی‌مانده را به ساعت به‌صورت عددی بزرگ‌تر از 0 وارد کنید (نام: ساعت؛ …).",
       "assignmentCurve": "یک منحنی بار شناخته‌شده انتخاب کنید.",
       "assignmentTaskNotFound": "کارِ این تخصیص دیگر وجود ندارد.",
       "assignmentTaskUnavailable": "تخصیص‌ها در این کار قابل ویرایش نیستند.",
@@ -335,6 +340,22 @@
     "durationTotalHours": "مجموع ساعات",
     "hourCalendarHint": "ورود ساعتی به یک تقویم ساعتی (ساعات کاری) نیاز دارد."
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "مدت و واحدهای ثابت",
+    "FIXED_DURATION_WORK": "مدت و کار ثابت",
+    "FIXED_WORK": "کار ثابت",
+    "FIXED_RATE": "واحدهای ثابت",
+    "label": "قاعدهٔ کار",
+    "projectDefault": "پیش‌فرض پروژه ({{rule}})",
+    "protects": "محافظت‌شده: {{what}}",
+    "protectsFIXED_DURATION_RATE": "مدت و واحدها (کار تبعیت می‌کند)",
+    "protectsFIXED_DURATION_WORK": "مدت و کار (واحدها تبعیت می‌کنند)",
+    "protectsFIXED_WORK": "کار (مدت از واحدها تبعیت می‌کند)",
+    "protectsFIXED_RATE": "واحدها (مدت از کار تبعیت می‌کند)",
+    "mspEffortDriven": "از MS Project: مبتنی بر تلاش",
+    "mspNotEffortDriven": "از MS Project: غیرمبتنی بر تلاش",
+    "none": "پیش‌فرض پروژه"
+  },
   "properties": {
     "task": "وظیفه",
     "deleteTask": "حذف وظیفه",
@@ -428,7 +449,12 @@
       "contour": "توزیع ساعات…",
       "contoured": "کانتور",
       "contouredHint": "این تخصیص توزیع ساعات مخصوص به خود دارد؛ آن را با دکمهٔ توزیع ساعات ویرایش یا رها کنید.",
-      "importedCurve": "منحنی وارد‌شده"
+      "importedCurve": "منحنی وارد‌شده",
+      "work": "کار (باقی‌مانده)",
+      "workHint": "کار باقی‌مانده به ساعت؛ قاعدهٔ کار تعیین می‌کند مدت یا واحدها تغییر کنند.",
+      "workDeviates": "با واحد × مدت فرق دارد",
+      "workDeviatesHint": "کار ذخیره‌شده {{stored}} ساعت با واحد × مدت باقی‌مانده ({{derived}} ساعت) فرق دارد. هیستوگرام کار ذخیره‌شده را در سراسر مدت وظیفه دنبال می‌کند؛ واحدها همان مقدار پرونده می‌مانند.",
+      "locked": "محافظت‌شده توسط قاعدهٔ کار {{rule}}"
     },
     "notes": {
       "title": "یادداشت‌ها",

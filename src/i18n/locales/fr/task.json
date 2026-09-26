@@ -96,7 +96,7 @@
       "manuallyScheduled": "Planifiée manuellement",
       "milestone": "Jalon",
       "milestoneKind": "Type de jalon",
-      "mspTaskType": "Type de tâche Microsoft Project",
+      "mspTaskType": "Type de tâche MS Project (import)",
       "name": "Nom de tâche",
       "nearCritical": "Presque critique",
       "noteData": "Données des notes",
@@ -123,7 +123,11 @@
       "totalFloat": "Marge totale",
       "wbs": "Structure de découpage du projet (SDP)",
       "workWindowFinish": "Fin de fenêtre de travail",
-      "workWindowStart": "Début de fenêtre de travail"
+      "workWindowStart": "Début de fenêtre de travail",
+      "workRule": "Règle de travail",
+      "assignmentPlannedWork": "Travail prévu (heures)",
+      "assignmentActualWork": "Travail réel (heures)",
+      "assignmentRemainingWork": "Travail restant (heures)"
     },
     "category": {
       "task": "Tâche",
@@ -189,6 +193,7 @@
       "assignmentDuplicateId": "Cette affectation apparaît plusieurs fois.",
       "assignmentIdentity": "Cette affectation appartient à une autre ressource.",
       "assignmentUnits": "Saisissez les unités par jour sous forme de nombre supérieur à 0.",
+      "assignmentWork": "Saisissez le travail restant en heures sous forme de nombre supérieur à 0 (nom : heures ; …).",
       "assignmentCurve": "Choisissez une courbe de charge connue.",
       "assignmentTaskNotFound": "La tâche de cette affectation n'existe plus.",
       "assignmentTaskUnavailable": "Les affectations ne peuvent pas être modifiées sur cette tâche.",
@@ -339,6 +344,22 @@
     "durationTotalHours": "Heures totales",
     "hourCalendarHint": "La saisie en heures nécessite un calendrier horaire (horaires de travail)."
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "Durée et unités fixes",
+    "FIXED_DURATION_WORK": "Durée et travail fixes",
+    "FIXED_WORK": "Travail fixe",
+    "FIXED_RATE": "Unités fixes",
+    "label": "Règle de travail",
+    "projectDefault": "Valeur par défaut du projet ({{rule}})",
+    "protects": "Protégé : {{what}}",
+    "protectsFIXED_DURATION_RATE": "durée et unités (le travail suit)",
+    "protectsFIXED_DURATION_WORK": "durée et travail (les unités suivent)",
+    "protectsFIXED_WORK": "travail (la durée suit les unités)",
+    "protectsFIXED_RATE": "unités (la durée suit le travail)",
+    "mspEffortDriven": "Depuis MS Project : piloté par l'effort",
+    "mspNotEffortDriven": "Depuis MS Project : non piloté par l'effort",
+    "none": "Valeur par défaut du projet"
+  },
   "properties": {
     "task": "Tâche",
     "deleteTask": "Supprimer la tâche",
@@ -432,7 +453,12 @@
       "contour": "Répartition des heures…",
       "contoured": "Contour",
       "contouredHint": "Cette affectation a sa propre répartition des heures ; modifiez-la ou libérez-la via le bouton Répartition des heures.",
-      "importedCurve": "Courbe importée"
+      "importedCurve": "Courbe importée",
+      "work": "Travail (rest.)",
+      "workHint": "Travail restant en heures ; la règle de travail décide si la durée ou les unités bougent.",
+      "workDeviates": "Diffère de unités × durée",
+      "workDeviatesHint": "Le travail enregistré {{stored}} h diffère de unités × durée restante ({{derived}} h). L’histogramme suit le travail enregistré sur toute la durée de la tâche ; les unités restent celles du fichier.",
+      "locked": "Protégé par la règle de travail {{rule}}"
     },
     "notes": {
       "title": "Notes",

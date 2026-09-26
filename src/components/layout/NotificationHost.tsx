@@ -140,8 +140,23 @@ export function NotificationHost() {
           </div>
           {n.detail && <div className="ops-toast-detail">{n.detail}</div>}
           {n.detailLines?.map((line, index) => (
-            <div className="ops-toast-detail" key={`${line.messageKey}-${index}`}>
+            <div className="ops-toast-detail" key={`${line.messageKey}-${index}`} data-ops-toast-detail={line.messageKey}>
               {notificationDetailText(t, line)}
+              {line.helpArticleId && (
+                // Gebruikstest #170, G3: een regel met een eigen onderwerp krijgt een eigen gidslink.
+                <button
+                  type="button"
+                  className="ops-textlink ops-toast-readmore"
+                  data-ops-toast-detail-link={line.helpArticleId}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const articleId = line.helpArticleId!;
+                    leaveBackstageGuarded(() => openHelpArticle(articleId));
+                  }}
+                >
+                  {t(line.linkKey ?? 'notifications.readMore')}
+                </button>
+              )}
             </div>
           ))}
           {n.helpArticleId && (

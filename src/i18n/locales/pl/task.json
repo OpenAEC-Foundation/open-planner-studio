@@ -96,7 +96,7 @@
       "manuallyScheduled": "Planowane ręcznie",
       "milestone": "Kamień milowy",
       "milestoneKind": "Typ kamienia milowego",
-      "mspTaskType": "Typ zadania Microsoft Project",
+      "mspTaskType": "Typ zadania MS Project (import)",
       "name": "Nazwa zadania",
       "nearCritical": "Prawie krytyczne",
       "noteData": "Dane notatek",
@@ -123,7 +123,11 @@
       "totalFloat": "Zapas całkowity",
       "wbs": "Struktura podziału pracy (SPP)",
       "workWindowFinish": "Koniec okna pracy",
-      "workWindowStart": "Początek okna pracy"
+      "workWindowStart": "Początek okna pracy",
+      "workRule": "Reguła pracy",
+      "assignmentPlannedWork": "Praca planowana (godziny)",
+      "assignmentActualWork": "Praca rzeczywista (godziny)",
+      "assignmentRemainingWork": "Praca pozostała (godziny)"
     },
     "category": {
       "task": "Zadanie",
@@ -189,6 +193,7 @@
       "assignmentDuplicateId": "To przypisanie występuje więcej niż raz.",
       "assignmentIdentity": "To przypisanie należy do innego zasobu.",
       "assignmentUnits": "Wprowadź jednostki na dzień jako liczbę większą od 0.",
+      "assignmentWork": "Wpisz pozostałą pracę w godzinach jako liczbę większą od 0 (nazwa: godziny; …).",
       "assignmentCurve": "Wybierz znaną krzywą obciążenia.",
       "assignmentTaskNotFound": "Zadanie tego przypisania już nie istnieje.",
       "assignmentTaskUnavailable": "Przypisań nie można edytować w tym zadaniu.",
@@ -343,6 +348,22 @@
     "durationTotalHours": "Suma godzin",
     "hourCalendarHint": "Wprowadzanie w godzinach wymaga kalendarza godzinowego (godzin pracy)."
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "Stały czas trwania i jednostki",
+    "FIXED_DURATION_WORK": "Stały czas trwania i praca",
+    "FIXED_WORK": "Stała praca",
+    "FIXED_RATE": "Stałe jednostki",
+    "label": "Reguła pracy",
+    "projectDefault": "Domyślna dla projektu ({{rule}})",
+    "protects": "Chronione: {{what}}",
+    "protectsFIXED_DURATION_RATE": "czas trwania i jednostki (praca się dostosowuje)",
+    "protectsFIXED_DURATION_WORK": "czas trwania i praca (jednostki się dostosowują)",
+    "protectsFIXED_WORK": "praca (czas trwania zależy od jednostek)",
+    "protectsFIXED_RATE": "jednostki (czas trwania zależy od pracy)",
+    "mspEffortDriven": "Z MS Project: sterowane nakładem pracy",
+    "mspNotEffortDriven": "Z MS Project: niesterowane nakładem pracy",
+    "none": "Domyślna dla projektu"
+  },
   "properties": {
     "task": "Zadanie",
     "deleteTask": "Usuń zadanie",
@@ -436,7 +457,12 @@
       "contour": "Rozkład godzin…",
       "contoured": "Kontur",
       "contouredHint": "To przypisanie ma własny rozkład godzin; edytuj go lub zwolnij przyciskiem Rozkład godzin.",
-      "importedCurve": "Zaimportowana krzywa"
+      "importedCurve": "Zaimportowana krzywa",
+      "work": "Praca (pozost.)",
+      "workHint": "Pozostała praca w godzinach; reguła pracy decyduje, czy zmienia się czas trwania, czy jednostki.",
+      "workDeviates": "Różni się od jednostek × czasu trwania",
+      "workDeviatesHint": "Zapisana praca {{stored}} h różni się od jednostek × pozostałego czasu trwania ({{derived}} h). Histogram podąża za zapisaną pracą przez cały czas trwania zadania; jednostki pozostają takie jak w pliku.",
+      "locked": "Chronione przez regułę pracy {{rule}}"
     },
     "notes": {
       "title": "Notatki",

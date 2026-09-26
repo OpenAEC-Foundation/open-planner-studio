@@ -5,10 +5,36 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { addElapsedMinutes, splitTotalSpanMinutes } from '@/engine/scheduler/duration';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
+import { effHoursPerDay } from '@/utils/taskDuration';
 import { splitUnitMinutes } from '@/engine/scheduler/splitEdit';
 import {
   rescaleContourForDuration, rescaleFactor, rescaleSplitGaps, taskWorkMinutes,
 } from '@/engine/contour/contourEngine';
+import { DEFAULT_WORK_RULE, type WorkRule } from '@/types/workRule';
+import { ruleProtectsWork } from '@/engine/work/workTriangle';
+
+// ── Bewerkregels die per-taak-herkomst lezen (E6, PR #101 baan 1) ───────────────────────────────
+// Deze twee lezen `mspTaskType` — bewaarde bronherkomst van één taak — om te bepalen hoe een
+// BEWERKING uitpakt (contour herschalen, 8-B-effort-driven). Dat is geen solverinvoer en geen
+// conventie (regel B): de motor (`src/engine/`) mag geen bronformaat lezen, dus ze wonen hier, naast
+// `rescaleTaskContours`, dat de uitkomst van `contourKeepsWork` als `keepWork` krijgt.
+
+/** Bewaard MSP-vinkje voor beslispunt 8-B: alleen betekenisvol op een taak met MSP-herkomst
+ *  (`mspTaskType`); daar is "afwezig" letterlijk "niet effort-driven". Zonder herkomst ⇒ zuiver P6.
+ *  Formaatafhankelijke BEWERKREGEL (driehoek, paneel), niet iets wat de solver leest. */
+export function effectiveEffortDriven(task: Pick<Task, 'mspTaskType' | 'effortDriven'>): boolean | undefined {
+  return task.mspTaskType ? (task.effortDriven ?? false) : undefined;
+}
+
+/**
+ * Herschaalt een contour met werkbehoud onder de werkbeschermende regels (spec §6.3). Zonder eigen
+ * `workRule` geldt de oude MSP-afleiding (`mspTaskType === 'FIXED_WORK'`) náást de projectstandaard,
+ * zodat een vóór deze etappe opgeslagen MSP-import byte-identiek blijft herschalen.
+ */
+export function contourKeepsWork(task: Pick<Task, 'workRule' | 'mspTaskType'>, defaultWorkRule?: WorkRule): boolean {
+  if (task.workRule !== undefined) return ruleProtectsWork(task.workRule);
+  return task.mspTaskType === 'FIXED_WORK' || ruleProtectsWork(defaultWorkRule ?? DEFAULT_WORK_RULE);
+}
 
 /**
  * Fabrieksfunctie voor een verse {@link TaskTime}. Leeft in de utils-laag (niet in `src/types/`)
@@ -71,6 +97,17 @@ export function createDefaultTaskTime(
 // duurtype- of kalenderwijziging leidt de bewerking het einde af uit start + duur op de kalender van
 // de taak zelf. Nooit vanuit de solve, en alleen voor een urentaak — een dagtaak blijft byte-identiek
 // (daar volgde het einde ook vóór B1 de solve niet).
+//
+// Paden die het einde WEL herleiden: `taskSlice.updateTask`/`setTaskCalendar`, de MCP-tweelingen
+// `updateTaskFields`/`patchTaskFields`, het taakraster (`taskEditPlan.ts`, ook de gesplitste
+// kalenderroute in `gridTransaction.ts`), en — sinds baan 2 van de overname van PR #101 — elke duur
+// die uit de WERKDRIEHOEK komt: inzet, werk of resource erbij/eraf onder Vast werk/Vaste inzet
+// (`resourceSlice` `updateAssignment`/`setAssignmentWork`/`assignResource`/`unassignResource`/
+// `moveAssignment`/`removeResource`, het assignment-set-pad van het raster, en de MCP-toewijzingen
+// achter `planner_manage_assignments`/`planner_manage_resources`). Die komen allemaal samen in
+// `workRuleApply.ts`'s `settleDurationAftermath`, die de basis van VÓÓR de bewerking als verplichte
+// parameter krijgt en in dezelfde volgorde als `updateTask` eerst `clearLevelingGaps` en dan
+// `reconcileHourInputFinish` draait. Laden (`applyOpenedImport`) loopt daar nooit doorheen.
 //
 // Wat NIET meebeweegt (zie `hourInputFinishFollowsEdits`): een gestarte of voltooide taak (het geplande
 // einde is dan geschiedenis, zoals in P6), een taak met een expliciet P6-targetvenster uit de XER
@@ -534,7 +571,9 @@ export function timephasedDurationWalksHaveFrozenWork(task: Task): boolean {
  *  de projectkalender). Voor de HERSCHALINGSFACTOR is de exacte waarde alleen relevant bij een
  *  eenheidswissel dagen↔uren (bij dagen↔dagen en uren↔uren valt hij tegen elkaar weg). */
 export function taskCalendarHoursPerDay(task: Task, calendars: WorkCalendar[], projectCalendar: WorkCalendar): number {
-  return resolveCalendar(task.calendarId, calendars, projectCalendar).hoursPerDay;
+  // Reviewronde G5 (2026-09-05): de EFFECTIEVE uren per dag — op een uurkalender uit de banden
+  // afgeleid — zodat contourreferentie, werkdriehoek en raster dezelfde slot zien.
+  return effHoursPerDay(resolveCalendar(task.calendarId, calendars, projectCalendar));
 }
 
 /** Werkduur van de taak in werkminuten (zie `contourEngine.ts`'s `taskWorkMinutes`) — aan te
@@ -553,9 +592,11 @@ export function taskWorkMinutesOf(task: Task, hoursPerDay: number): number {
  * Muteert `task` in-place (Immer-draft-stijl, zoals `clearTimephasedWindow`). Retourneert `true`
  * als er ECHT iets herschaald is.
  *
- * Bewust GEEN aanroep bij een kalender- of datumverschuiving: de as is offset-gebaseerd
- * (shift-invariant, zie `TaskSplitGap`'s docblok), dus een verplaatsing kost geen herschaling, en
- * een taakkalenderwissel verandert de werkminuten-duur van de taak niet.
+ * Bewust GEEN aanroep bij een datumverschuiving: de as is offset-gebaseerd (shift-invariant, zie
+ * `TaskSplitGap`'s docblok), dus een verplaatsing kost geen herschaling. Een kalenderwissel die de
+ * SLOT verandert (uren per dag) is sinds K2 (2026-09-05) wél een aanroeper — via
+ * `workRuleApply.ts`'s `settleCalendarChange`: dezelfde dagen zijn dan een andere hoeveelheid
+ * werkminuten, en de as leeft op werkminuten.
  *
  * `opts.keepGaps` (issue #146): sla de `rescaleSplitGaps`-stap over. `taskSlice.setTaskSplits`
  * schrijft de gatenlijst in dezelfde bewerking ZELF — die komt rechtstreeks uit het stukkenmodel en
@@ -566,6 +607,10 @@ export function rescaleTaskContours(
   task: Task,
   oldWorkMinutes: number,
   hoursPerDay: number,
+  // Taaktypes-etappe (2026-09, bouwstap 4): werkbehoud is een REGELkeuze (`workRuleApply.ts`'s
+  // `contourKeepsWork`), niet langer alleen een MSP-herkomstvinkje. Zonder argument geldt de oude
+  // afleiding, zodat elke bestaande aanroeper byte-identiek blijft.
+  keepWork: boolean = task.mspTaskType === 'FIXED_WORK',
   opts?: { keepGaps?: boolean },
 ): boolean {
   const contours = task.timephasedContours;
@@ -581,7 +626,7 @@ export function rescaleTaskContours(
   if (!rescaleFactor(reference.periods, oldWorkMinutes, newWorkMinutes)) return false;
   task.timephasedContours = contours.map((c) => ({
     ...c,
-    periods: rescaleContourForDuration(c.periods, oldWorkMinutes, newWorkMinutes, task.mspTaskType),
+    periods: rescaleContourForDuration(c.periods, oldWorkMinutes, newWorkMinutes, keepWork ? 'FIXED_WORK' : undefined),
   }));
   if (!opts?.keepGaps) {
     const gaps = rescaleSplitGaps(

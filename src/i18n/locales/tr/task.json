@@ -96,7 +96,7 @@
       "manuallyScheduled": "Elle planlandı",
       "milestone": "Kilometre taşı",
       "milestoneKind": "Kilometre taşı türü",
-      "mspTaskType": "Microsoft Project görev türü",
+      "mspTaskType": "MS Project görev türü (içe aktarma)",
       "name": "Görev adı",
       "nearCritical": "Kritiğe yakın",
       "noteData": "Not verileri",
@@ -123,7 +123,11 @@
       "totalFloat": "Toplam bolluk",
       "wbs": "İş kırılım yapısı (WBS)",
       "workWindowFinish": "Çalışma penceresi bitişi",
-      "workWindowStart": "Çalışma penceresi başlangıcı"
+      "workWindowStart": "Çalışma penceresi başlangıcı",
+      "workRule": "İş kuralı",
+      "assignmentPlannedWork": "Planlanan iş (saat)",
+      "assignmentActualWork": "Gerçekleşen iş (saat)",
+      "assignmentRemainingWork": "Kalan iş (saat)"
     },
     "category": {
       "task": "Görev",
@@ -189,6 +193,7 @@
       "assignmentDuplicateId": "Bu atama birden çok kez geçiyor.",
       "assignmentIdentity": "Bu atama başka bir kaynağa ait.",
       "assignmentUnits": "Günlük birimleri 0'dan büyük bir sayı olarak girin.",
+      "assignmentWork": "Kalan işi saat olarak 0'dan büyük bir sayı girin (ad: saat; …).",
       "assignmentCurve": "Bilinen bir yük eğrisi seçin.",
       "assignmentTaskNotFound": "Bu atamanın görevi artık mevcut değil.",
       "assignmentTaskUnavailable": "Bu görevde atamalar düzenlenemez.",
@@ -335,6 +340,22 @@
     "durationTotalHours": "Toplam saat",
     "hourCalendarHint": "Saat girişi bir saat takvimi (çalışma saatleri) gerektirir."
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "Sabit süre ve birimler",
+    "FIXED_DURATION_WORK": "Sabit süre ve iş",
+    "FIXED_WORK": "Sabit iş",
+    "FIXED_RATE": "Sabit birimler",
+    "label": "İş kuralı",
+    "projectDefault": "Proje varsayılanı ({{rule}})",
+    "protects": "Korunan: {{what}}",
+    "protectsFIXED_DURATION_RATE": "süre ve birimler (iş uyar)",
+    "protectsFIXED_DURATION_WORK": "süre ve iş (birimler uyar)",
+    "protectsFIXED_WORK": "iş (süre birimleri izler)",
+    "protectsFIXED_RATE": "birimler (süre işi izler)",
+    "mspEffortDriven": "MS Project'ten: çabaya dayalı",
+    "mspNotEffortDriven": "MS Project'ten: çabaya dayalı değil",
+    "none": "Proje varsayılanı"
+  },
   "properties": {
     "task": "Görev",
     "deleteTask": "Görevi sil",
@@ -428,7 +449,12 @@
       "contour": "Saat dağılımı…",
       "contoured": "Kontur",
       "contouredHint": "Bu atamanın kendi saat dağılımı var; Saat dağılımı düğmesiyle düzenleyin veya kaldırın.",
-      "importedCurve": "İçe aktarılan eğri"
+      "importedCurve": "İçe aktarılan eğri",
+      "work": "İş (kalan)",
+      "workHint": "Saat cinsinden kalan iş; iş kuralı sürenin mi yoksa birimlerin mi değişeceğine karar verir.",
+      "workDeviates": "Birim × süreden farklı",
+      "workDeviatesHint": "Kaydedilmiş iş {{stored}} sa, birim × kalan süreden ({{derived}} sa) farklı. Histogram kaydedilmiş işi tüm görev süresi boyunca izler; birimler dosyadaki gibi kalır.",
+      "locked": "{{rule}} iş kuralı tarafından korunuyor"
     },
     "notes": {
       "title": "Notlar",

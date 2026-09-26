@@ -23,12 +23,18 @@ die histogram, overallocatie, nivelleerder (`ResourceLeveler.ts`) en bezettingso
 (1) een opgeslagen contour (gekoppeld aan de toewijzing via `TaskTimephasedContour.resourceId`,
 `matchContoursToAssignments`) ⇒ data, zonder de hele-eenheden-afronding; (2) `ResourceAssignment.
 curveValues` (de exacte 21-punts P6-/MSPDI-curve, `CONTOUR_SHAPE_VALUES`-vorm) ⇒ eveneens data;
-(3) anders de bestaande `distributeUnits`-formule, byte-identiek. De engine raakt **geen taakdatum**:
+(3) opgeslagen werk (`ResourceAssignment.remainingWorkMinutes` [+ `actualWorkMinutes`], taaktypes-
+etappe) ⇒ als data met de curvevorm over de duur gespreid; (4) anders de bestaande `distributeUnits`-
+formule, byte-identiek. De engine raakt **geen taakdatum**:
 de CPM-datums van een import blijven bij laag 3/4 van de Z8-beslistabel en `splitGaps` — de
 fidelity-poort bewaakt dat. Een duurwijziging (`taskSlice.updateTask`, `createMcpTransactions`,
 `taskEditPlan`) herschaalt de contour én de importsplits proportioneel via `taskDefaults.ts`'s
-`rescaleTaskContours` (actuals blijven, `mspTaskType === 'FIXED_WORK'` houdt het werk vast); een
-datum-/kalender-/toewijzingswijziging raakt de as niet. `src/services/contourIo.ts` is de adapterlaag:
+`rescaleTaskContours` (actuals blijven; werkbehoud volgt de effectieve werkregel via
+`workRuleApply.ts`'s `contourKeepsWork` — zonder eigen `workRule` geldt nog `mspTaskType ===
+'FIXED_WORK'`); een datum-/kalender-/toewijzingswijziging raakt de as niet (een kalenderwissel
+herschaalt de as wél van oude naar nieuwe werkminuten — zie de `taaktypes`-rule). Verandert het
+restwerk van een toewijzing mét contour, dan zakt de contourhoogte mee (`reconcileContourWork`, "vorm
+blijft, hoogte zakt"). `src/services/contourIo.ts` is de adapterlaag:
 MSPDI `<TimephasedData>` (Type 1/2, per werkdag) en P6 `<ResourceCurve>` + `<ResourceCurveObjectId>`
 + de `PlannedCurve`/`RemainingCurve`/`ActualCurve`-spreidingsstrings (`"werkuren:periodeuren;…"`,
 MPXJ `TimephasedHelper`) round-trippen daar doorheen — let op: P6's `<PlannedCurve>` is dus GEEN
@@ -41,7 +47,8 @@ splitsen/samenvoegen/grens/inzet), als sleepbare SVG-strook (`ContourPhaseStrip.
 dus buiten de Gantt-renderergrenzen) én als tabel; vorm-als-data, toepassen/loslaten — op het pure
 bewerkmodel `contourEdit.ts` (dagslots ↔ periodes met gat-herinvoeging; de OPSLAGvorm blijft één periode
 per werkdag) en de store-actie `resourceSlice.setAssignmentContour` (undo, `isDirty`, GEEN
-`scheduleStale`: een contour raakt geen datum en maakt geen split; een 0-inzet-fase blijft binnen de duur).
+`scheduleStale`: een contour raakt geen datum en maakt geen split; een 0-inzet-fase blijft binnen de duur;
+een aanwezig werkveld van de toewijzing volgt de contoursom, `syncAssignmentWorkToContour`).
 Dagenlijst via `ResourceLoad.ts`'s `taskWorkDayIsos` — dezelfde als het histogram. Regressie:
 `tests/planning/check-contour-engine.ts` en `tests/browser/contour-dialog.spec.ts`; gidsen:
 `public/docs/{nl,en}/gids-msproject-import.md` §"Gecontoureerde toewijzingen" en

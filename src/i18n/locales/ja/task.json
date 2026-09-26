@@ -96,7 +96,7 @@
       "manuallyScheduled": "手動スケジュール",
       "milestone": "マイルストーン",
       "milestoneKind": "マイルストーンタイプ",
-      "mspTaskType": "Microsoft Project タスクタイプ",
+      "mspTaskType": "MS Project タスクタイプ（インポート）",
       "name": "タスク名",
       "nearCritical": "準クリティカル",
       "noteData": "メモデータ",
@@ -123,7 +123,11 @@
       "totalFloat": "総余裕",
       "wbs": "作業分解構成（WBS）",
       "workWindowFinish": "作業枠の終了",
-      "workWindowStart": "作業枠の開始"
+      "workWindowStart": "作業枠の開始",
+      "workRule": "作業ルール",
+      "assignmentPlannedWork": "計画作業（時間）",
+      "assignmentActualWork": "実績作業（時間）",
+      "assignmentRemainingWork": "残作業（時間）"
     },
     "category": {
       "task": "タスク",
@@ -189,6 +193,7 @@
       "assignmentDuplicateId": "この割り当てが複数回出現しています。",
       "assignmentIdentity": "この割り当ては別のリソースのものです。",
       "assignmentUnits": "1日あたりの単位を 0 より大きい数値で入力してください。",
+      "assignmentWork": "残作業を 0 より大きい数値（時間）で入力してください（名前: 時間; …）。",
       "assignmentCurve": "既知の負荷カーブを選んでください。",
       "assignmentTaskNotFound": "この割り当てのタスクはもう存在しません。",
       "assignmentTaskUnavailable": "このタスクでは割り当てを編集できません。",
@@ -331,6 +336,22 @@
     "durationTotalHours": "合計時間",
     "hourCalendarHint": "時間入力には時間カレンダー（稼働時間）が必要です。"
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "固定期間・固定単位",
+    "FIXED_DURATION_WORK": "固定期間・固定作業",
+    "FIXED_WORK": "固定作業",
+    "FIXED_RATE": "固定単位",
+    "label": "作業ルール",
+    "projectDefault": "プロジェクトの既定（{{rule}}）",
+    "protects": "保護：{{what}}",
+    "protectsFIXED_DURATION_RATE": "期間と単位（作業が追従）",
+    "protectsFIXED_DURATION_WORK": "期間と作業（単位が追従）",
+    "protectsFIXED_WORK": "作業（期間は単位に追従）",
+    "protectsFIXED_RATE": "単位（期間は作業に追従）",
+    "mspEffortDriven": "MS Project より：実効作業駆動",
+    "mspNotEffortDriven": "MS Project より：実効作業駆動ではない",
+    "none": "プロジェクトの既定"
+  },
   "properties": {
     "task": "タスク",
     "deleteTask": "タスクを削除",
@@ -424,7 +445,12 @@
       "contour": "時間配分…",
       "contoured": "輪郭",
       "contouredHint": "この割り当てには独自の時間配分があります。「時間配分」ボタンで編集または解除してください。",
-      "importedCurve": "インポートされた曲線"
+      "importedCurve": "インポートされた曲線",
+      "work": "作業（残）",
+      "workHint": "残作業（時間）。期間と単位のどちらが変わるかは作業ルールが決めます。",
+      "workDeviates": "単位 × 期間と一致しません",
+      "workDeviatesHint": "保存済み作業 {{stored}} 時間は単位 × 残り期間（{{derived}} 時間）と一致しません。ヒストグラムは保存済み作業をタスク期間全体に配分します。単位はファイルの値のままです。",
+      "locked": "作業ルール {{rule}} により保護"
     },
     "notes": {
       "title": "メモ",

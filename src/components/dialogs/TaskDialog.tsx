@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
+import type { HistorySessionMark } from '@/state/slices/historySlice';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -19,6 +20,7 @@ import { TaskProgressFields } from '@/components/task-sections/TaskProgressField
 import { TaskCpmResultSection } from '@/components/task-sections/TaskCpmResultSection';
 import { TaskDependenciesSection } from '@/components/task-sections/TaskDependenciesSection';
 import { TaskAssignmentsSection } from '@/components/task-sections/TaskAssignmentsSection';
+import { TaskWorkRuleField } from '@/components/task-sections/TaskWorkRuleField';
 import { TaskCodesFieldsSection } from '@/components/task-sections/TaskCodesFieldsSection';
 import { getPersonalTaskTypes } from '@/services/taskTypes/personalTaskTypes';
 import { isActualPastStatusDate } from '@/engine/taskMutationRules';
@@ -36,6 +38,21 @@ function blankDraft(startDate: string, constructionMode: boolean, durationUnit: 
   };
 }
 
+/** G7: verschilt de patch van de taak? `time` veld voor veld (een nieuw object met dezelfde waarden
+ *  is geen wijziging); de rest per referentie — de draft deelt ongewijzigde objecten met de taak. */
+function taskPatchChanges(task: Task, patch: Partial<Task>): boolean {
+  for (const key of Object.keys(patch) as (keyof Task)[]) {
+    if (key === 'time') {
+      const next = patch.time!;
+      const keys = new Set([...Object.keys(task.time), ...Object.keys(next)]) as Set<keyof Task['time']>;
+      for (const k of keys) if (!Object.is(task.time[k], next[k])) return true;
+      continue;
+    }
+    if (!Object.is(task[key], patch[key])) return true;
+  }
+  return false;
+}
+
 export function TaskDialog() {
   const { t } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
@@ -46,6 +63,7 @@ export function TaskDialog() {
   const setUI = useAppStore(s => s.setUI);
   const addTask = useAppStore(s => s.addTask);
   const updateTask = useAppStore(s => s.updateTask);
+  const setTaskWorkRule = useAppStore(s => s.setTaskWorkRule);
   const moveTask = useAppStore(s => s.moveTask);
   const project = useAppStore(s => s.project);
   const constructionMode = useAppStore(s => s.ui.constructionMode);
@@ -70,6 +88,7 @@ export function TaskDialog() {
   // store) i.p.v. `draft.time`, zodat een eventuele CPM-herberekening tijdens het open staan van de
   // dialoog niet wordt teruggedraaid door een verouderde draft-snapshot.
   const [startDate, setStartDate] = useState('');
+  const initialDurationRef = useRef<{ unit: 'days' | 'hours'; scheduleDuration: number; durationMinutes?: number } | null>(null);
   const calendars = useAppStore(s => s.calendars);
   const projectCal = useAppStore(s => s.calendar);
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -77,6 +96,12 @@ export function TaskDialog() {
   // (zoals resourcetoewijzingen). Een storemutatie mag de nog niet opgeslagen draft nooit opnieuw
   // initialiseren; alleen openen of naar een andere taak wisselen begint een nieuwe sessie.
   const initializedSessionRef = useRef<string | null>(null);
+  // G5 (gebruikstest #170): begin van deze bewerksessie in de sessiehistorie.
+  const historyMarkRef = useRef<HistorySessionMark | null>(null);
+  const historyMark = useAppStore(s => s.historyMark);
+  const endHistorySession = useAppStore(s => s.endHistorySession);
+  const revertHistorySince = useAppStore(s => s.revertHistorySince);
+  const squashHistorySince = useAppStore(s => s.squashHistorySince);
 
   // Effectieve kalender volgt de kalender-dropdown live; de gedeelde duurbediening gebruikt hem
   // alleen voor plaatsing en exacte conversievoorstellen, nooit om de taakeenheid af te leiden.
@@ -85,15 +110,23 @@ export function TaskDialog() {
   useEffect(() => {
     if (!showTaskDialog) {
       initializedSessionRef.current = null;
+      // Dicht op een andere manier dan Opslaan/Annuleren: de sessie sluiten, de historie laten staan.
+      if (historyMarkRef.current !== null) endHistorySession(historyMarkRef.current);
+      historyMarkRef.current = null;
       return;
     }
 
     const sessionKey = editingTaskId ? `task:${editingTaskId}` : 'new-task';
     if (initializedSessionRef.current === sessionKey) return;
     initializedSessionRef.current = sessionKey;
+    if (historyMarkRef.current !== null) endHistorySession(historyMarkRef.current);
+    historyMarkRef.current = editingTaskId ? historyMark() : null;
 
     if (editingTask) {
       setDraft({ ...editingTask, time: { ...editingTask.time } });
+      initialDurationRef.current = {
+        unit: editingTask.time.durationUnit, scheduleDuration: editingTask.time.scheduleDuration, durationMinutes: editingTask.time.durationMinutes,
+      };
       // Toon de berekende start (consistent met tabel/Gantt); scheduleStart is de geplande anker.
       setStartDate(editingTask.time.earlyStart || editingTask.time.scheduleStart);
     } else {
@@ -101,7 +134,7 @@ export function TaskDialog() {
       setStartDate(project.startDate);
     }
 
-  }, [showTaskDialog, editingTaskId, editingTask, project.startDate, constructionMode, newTaskUnit]);
+  }, [showTaskDialog, editingTaskId, editingTask, project.startDate, constructionMode, newTaskUnit, historyMark, endHistorySession]);
 
   useEffect(() => {
     if (!showTaskDialog) return;
@@ -128,11 +161,21 @@ export function TaskDialog() {
       // teruggedraaid. Voortgangs-velden (completion/actualStart/actualFinish) komen WEL uit de
       // draft — dat zijn de enige `time`-subvelden die deze dialoog-sessie zelf muteert buiten de
       // hieronder-berekende schedule-ankervelden.
+      // Review B4 (taaktypes): de duur ALLEEN uit de draft wanneer de gebruiker hem in deze sessie
+      // wijzigde — anders zou Opslaan een duur die de werkdriehoek intussen via de toewijzingssectie
+      // veranderde stil terugdraaien.
+      const initial = initialDurationRef.current;
+      const durationTouched = !initial
+        || draft.time.durationUnit !== initial.unit
+        || draft.time.scheduleDuration !== initial.scheduleDuration
+        || draft.time.durationMinutes !== initial.durationMinutes;
       const time = {
         ...editingTask.time,
-        durationUnit: draft.time.durationUnit,
-        scheduleDuration: draft.time.scheduleDuration,
-        durationMinutes: draft.time.durationUnit === 'hours' ? draft.time.durationMinutes : undefined,
+        ...(durationTouched ? {
+          durationUnit: draft.time.durationUnit,
+          scheduleDuration: draft.time.scheduleDuration,
+          durationMinutes: draft.time.durationUnit === 'hours' ? draft.time.durationMinutes : undefined,
+        } : {}),
         completion: draft.time.completion,
         actualStart: draft.time.actualStart,
         actualFinish: draft.time.actualFinish,
@@ -147,7 +190,7 @@ export function TaskDialog() {
       if (milestoneTransition.time) {
         Object.assign(time, milestoneTransition.time);
       }
-      updateTask(editingTask.id, {
+      const patch: Partial<Task> = {
         name: draft.name,
         description: draft.description,
         wbsCode: draft.wbsCode,
@@ -163,7 +206,10 @@ export function TaskDialog() {
         deadline: draft.deadline,
         notes: draft.notes,
         time,
-      });
+      };
+      // Gebruikstest #170, G7: Opslaan zonder échte wijziging schreef toch een (lege) undo-stap,
+      // want een nieuw `time`-object is voor de snapshot een wijziging. Alleen patchen wat verschilt.
+      if (taskPatchChanges(editingTask, patch)) updateTask(editingTask.id, patch);
       // QA-fix P1 (fase 2.10, onderdeel 2): een gewijzigde ouder gaat via `moveTask` — die
       // synchroniseert childIds op ZOWEL de oude als de nieuwe ouder en weigert cykels (een
       // summary onder zijn eigen kind hangen). `updateTask` is een kale Object.assign zonder die
@@ -180,6 +226,7 @@ export function TaskDialog() {
         wbsCode: draft.wbsCode,
         taskType: draft.taskType,
         customTaskTypeId: draft.customTaskTypeId,
+        workRule: draft.workRule,
         isMilestone: draft.isMilestone,
         parentId: draft.parentId || null,
         calendarId: draft.calendarId,
@@ -202,10 +249,16 @@ export function TaskDialog() {
       });
     }
 
+    // G5: alles wat deze sessie direct op de store deed (werkregel, toewijzingen, werk, relaties)
+    // plus de patch hierboven is één undo-stap.
+    if (historyMarkRef.current !== null) squashHistorySince(historyMarkRef.current, 'Taak bewerken');
     setUI({ showTaskDialog: false, editingTaskId: null });
   };
 
   const handleClose = () => {
+    // Gebruikstest #170, G5: de relationele secties (werkregel, toewijzingen, werk, relaties)
+    // committen direct zodat ze in de dialoog met elkaar rekenen; Annuleren draait ze terug.
+    if (historyMarkRef.current !== null) revertHistorySince(historyMarkRef.current);
     setUI({ showTaskDialog: false, editingTaskId: null });
   };
 
@@ -299,6 +352,18 @@ export function TaskDialog() {
               <TaskDurationField task={draft} calendar={effCal} onChange={onChange} />
             </Field>
           </div>
+          {/* Taaktypes-etappe (spec §7): zelfde veld als het paneel; commit op Opslaan via `workRule`
+              in de updateTask-/addTask-patch (de store legt het werk vast, K1). */}
+          <TaskWorkRuleField
+            task={draft}
+            onChange={patch => {
+              // Review B4: op een bestaande taak direct committen (zoals de toewijzingssectie, die óók
+              // rechtstreeks op de store werkt) zodat werk/inzet in dezelfde dialoog met de gekozen
+              // regel rekenen; de draft spiegelt. Een nieuwe taak houdt 'm in de draft tot Opslaan.
+              onChange(patch);
+              if (editingTask) setTaskWorkRule(editingTask.id, patch.workRule);
+            }}
+          />
 
           <TaskHammockFields task={draft} onChange={onChange} />
 

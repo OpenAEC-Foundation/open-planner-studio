@@ -13,7 +13,7 @@ import {
   createDefaultTaskTime, mergeTaskTime, clearTimephasedWindow, timeUpdateTouchesTimephasedWindow,
   clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork, clearLevelingGaps,
   taskUpdateInvalidatesLevelingGaps,
-  rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
+  contourKeepsWork, rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
   hourInputFinishBasis, reconcileHourInputFinish, seedNewHourTaskFinish,
 } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
@@ -29,6 +29,11 @@ import type { WbsTemplate } from '@/utils/wbsTemplates';
 import { detachFromParent, attachToParent, isSelfOrDescendant, collectSubtreeIds, siblingIds } from '@/state/taskTree';
 import { relationVerdict } from '@/state/relationRules';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
+import {
+  captureCalendarChange, captureTriangle, carryRemainingThroughDurationEdit, settleCalendarChange,
+  settleDurationEdit, settleRuleChange, captureProgressWork, settleProgressWork,
+} from '@/engine/work/workRuleApply';
+import type { WorkRule } from '@/types/workRule';
 import type { AppSliceFactory, SiblingDirection } from './types';
 import { deriveHoursPerDay, hasConcreteWorkBlocks } from '@/services/subdayIo';
 import { buildTaskEditPlanEnvironment } from '../gridTransaction';
@@ -54,6 +59,11 @@ export interface TaskSlice {
     position?: { anchorId: string; where: 'above' | 'below' };
   }) => string;
   updateTask: (id: string, updates: Partial<Task>, opts?: { coalesceKey?: string }) => void;
+  /** Taaktypes-etappe (spec 2026-09-04 §5 rij 6): zet de werkregel van één taak (`undefined` = terug
+   *  naar de projectstandaard). Geen getal verandert; een werkbeschermende regel legt het huidige
+   *  restwerk van de werkresources vast (`workTriangle.ts`'s `applyRuleChange`). Geen
+   *  `scheduleStale` (geen datum raakt). Onbekend id of ongewijzigde regel ⇒ no-op. */
+  setTaskWorkRule: (id: string, rule: WorkRule | undefined) => void;
   deleteTask: (id: string) => void;
   /** Verwijder meerdere taken en hun subbomen als precies één undoable storehandeling. */
   deleteTasksBulk: (ids: readonly string[]) => void;
@@ -383,10 +393,14 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         manuallyScheduled: partial.manuallyScheduled,
         levelingDelayMinutes: partial.levelingDelayMinutes,
         levelingDelayElapsed: partial.levelingDelayElapsed,
+        // Taaktypes-etappe (bouwstap 7): de werkregel bij aanmaak (planner_add_tasks `workRule`);
+        // een nieuwe taak heeft nog geen toewijzingen, dus dit is een kaal veld zonder driehoekstap.
+        workRule: partial.workRule,
       };
       // B1-vervolg: de solve schrijft `scheduleFinish` niet meer terug, dus een nieuwe urentaak krijgt
       // hier haar ingevoerde einde (start + duur op de echte kalender), zie `seedNewHourTaskFinish`.
       seedNewHourTaskFinish(task, partial.time, effectiveNewTaskCalendar);
+      if (partial.workRule !== undefined) s.taskTypesVisible = true; // review K3
 
       // Zonder `position` (of een onbekende anker): exact het bestaande gedrag — achteraan.
       // Mét een geldige anker: vlak vóór/ná de anker inserten, zowel in de rauwe array (bepaalt
@@ -461,18 +475,50 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // `ExtTaskTime`-volledigheid niet op runtime wordt afgedwongen) stil bestaande verplichte velden
       // (completion/floats/…) tot een lege plek diezelfde writeIFC-crash weer opende. Zie
       // `mergeTaskTime` in taskDefaults.ts voor de ADD-vs-UPDATE-basissemantiek.
-      const { time: _unguardedTime, ...rest } = updates; // `time` = de start-gecontroleerde variant hierboven.
-      // Contour-engine (2026-09): de oude werkduur vóór de merge, voor de herschaling hieronder.
+      // Taaktypes-etappe (reviewbevinding K1): `workRule` loopt niet via de kale merge maar via
+      // `settleRuleChange` (legt onder een werkbeschermende regel het restwerk vast — besluit 2),
+      // zodat `updateTask(id, { workRule })` (extensie-`data.updateTask`, dialogen) hetzelfde doet
+      // als `setTaskWorkRule`.
+      // `time` = de start-gecontroleerde variant hierboven (#199), niet `updates.time`.
+      const { time: _unguardedTime, workRule, calendarId, ...rest } = updates;
+      // B1-vervolg — de basis van het ingevoerde einde VÓÓR elke mutatie, dus ook vóór de K2-
+      // kalenderstap hieronder (integratie #101, valkuil b): anders zit de kalenderwissel al in de
+      // sleutel van de basis, ziet `reconcileHourInputFinish` "geen invoerwijziging" en blijft het
+      // ingevoerde einde op de oude kalender staan.
+      const finishBasis = hourInputFinishBasis(s.tasks[idx]);
+      // K2 (eigenaarsbesluit 2026-09-05): een kalenderwissel EERST en apart — de slotgrootte
+      // verandert en de werkregel beslist wat meebeweegt (`settleCalendarChange`); daarna pas de
+      // momentopname voor een eventuele duurwijziging in dezelfde patch, zodat die op de nieuwe slot rekent.
+      if ('calendarId' in updates && s.tasks[idx].calendarId !== calendarId) {
+        const before = captureCalendarChange(s.tasks[idx], s.assignments, s);
+        s.tasks[idx].calendarId = calendarId;
+        lostTimephasedGuidance = settleCalendarChange(s.tasks[idx], s.assignments, before, s).timephasedLost;
+      }
+      // Contour-engine (2026-09): de oude werkduur vóór de merge, voor de herschaling hieronder —
+      // ná de kalenderstap, zodat een duur in dezelfde patch tegen de nieuwe slot rekent (F2-tweeling).
       const contourHpd = taskCalendarHoursPerDay(s.tasks[idx], s.calendars, s.calendar);
       const oldWorkMinutes = taskWorkMinutesOf(s.tasks[idx], contourHpd);
-      const finishBasis = hourInputFinishBasis(s.tasks[idx]);
+      // Taaktypes-etappe (2026-09, bouwstap 4): momentopname van de werkdriehoek VÓÓR de merge —
+      // een duurwijziging laat de toewijzingen hun regel volgen (`settleDurationEdit` hieronder).
+      const triangle = timeUpdateTouchesTimephasedWindow(time) ? captureTriangle(s.tasks[idx], s.assignments, s) : null;
+      // Fable-critreview #170, bevinding 1: een voortgangspatch (completion/rest) verplaatst opgeslagen
+      // werk van rest naar verricht — `settleProgressWork` hieronder; een duurpatch laat hij liggen.
+      const progressWork = time ? captureProgressWork(s.tasks[idx], s) : null;
+      const restBefore = [s.tasks[idx].time.remainingTime, s.tasks[idx].time.remainingMinutes];
       Object.assign(s.tasks[idx], rest);
       if (time) s.tasks[idx].time = mergeTaskTime(s.tasks[idx].time, time);
+      // Eigenaarsbesluit 2026-09-05: een duurbewerking schuift een EXPLICIETE restduur mee (Δ,
+      // geklemd op 0) — het verrichte deel is een feit. Vóór de driehoekstap, die de rest leest.
+      // Alleen wanneer de patch de rest niet ZELF zette (een gespreide `time`-tak met dezelfde
+      // waarde telt als "niet gezet").
+      const restUntouched = s.tasks[idx].time.remainingTime === restBefore[0] && s.tasks[idx].time.remainingMinutes === restBefore[1];
+      if (timeUpdateTouchesTimephasedWindow(time) && restUntouched) carryRemainingThroughDurationEdit(s.tasks[idx], oldWorkMinutes, contourHpd);
       // Contour-engine (2026-09): een duurwijziging herschaalt de contour (én de importsplits)
       // proportioneel — de verdeling reist mee met de bewerking i.p.v. te verouderen. Zie
       // `taskDefaults.ts`'s `rescaleTaskContours`. Kalender-/datumwijzigingen raken de as niet.
+      // Werkbehoud volgt de effectieve werkregel (`contourKeepsWork`).
       const rescaled = timeUpdateTouchesTimephasedWindow(time)
-        && rescaleTaskContours(s.tasks[idx], oldWorkMinutes, contourHpd);
+        && rescaleTaskContours(s.tasks[idx], oldWorkMinutes, contourHpd, contourKeepsWork(s.tasks[idx], s.project.defaultWorkRule));
       // Issue #146: zonder contour is er niets dat de gaten meeschaalt, dus een duurKRIMP kan een
       // gebruikersgat op of voorbij het nieuwe werktotaal laten liggen. De lijst is dan niet meer
       // wélgevormd en de taak wordt voor splits stilzwijgend ALLEEN-LEZEN — erger dan het gat laten
@@ -484,19 +530,27 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
           s.tasks[idx].splitGaps = clipped && clipped.length > 0 ? clipped : undefined;
         }
       }
+      // Spec §5 rij 1: werk beschermd ⇒ inzet = W / R'; anders volgt een aanwezig werkveld de
+      // nieuwe duur. Onder de standaardregel zonder werkvelden gebeurt er niets (byte-identiek).
+      if (timeUpdateTouchesTimephasedWindow(time)) settleDurationEdit(s.tasks[idx], s.assignments, triangle);
+      settleProgressWork(s.tasks[idx], s.assignments, progressWork);
+      if ('workRule' in updates && s.tasks[idx].workRule !== workRule) {
+        settleRuleChange(s.tasks[idx], s.assignments, s, workRule);
+        if (workRule !== undefined) s.taskTypesVisible = true; // review K3: elk schrijfpad ontsluit.
+      }
       reconcileP6SuspendResume(s.tasks[idx]);
       // Z14b (eigenaarsprincipe 2026-08-18) — een inhoudelijke bewerking (duur/datums/kalender)
       // ontkoppelt het GELEZEN Z8-venster van de motor; de rauwe bron (`timephasedContours`) blijft
       // staan. Zie `taskDefaults.ts`'s `clearTimephasedWindow`/`timeUpdateTouchesTimephasedWindow`
       // voor de volledige triggerset-toelichting.
-      if (('calendarId' in rest) || timeUpdateTouchesTimephasedWindow(time)) {
+      if (('calendarId' in updates) || timeUpdateTouchesTimephasedWindow(time)) {
         const clearedWindow = clearTimephasedWindow(s.tasks[idx]);
         // N2 (Opus-her-check, tweede ronde) — laag 4 stroomt NIET altijd live mee (zie
         // `taskDefaults.ts`'s bijgewerkte docblok): een walk met bevroren `workMinutes` negeert een
         // duur-/datum-/kalenderwijziging anders stilzwijgend.
         const clearedWalks = timephasedDurationWalksHaveFrozenWork(s.tasks[idx])
           && clearTimephasedDurationWalks(s.tasks[idx]);
-        lostTimephasedGuidance = clearedWindow || clearedWalks;
+        lostTimephasedGuidance ||= clearedWindow || clearedWalks;
       }
       // B1c-plan3 taak 3 (spec §4, "Invalidatie"): een bewerking die de tijdbasis van de taak verzet,
       // maakt ook een door de nivelleerder ingevoegde pauzedag ongeldig — het gat ligt dan op een
@@ -507,7 +561,10 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // EIGEN POORT sinds de fixronde op etappe 3 (bevinding B7): de triggerset is BREDER dan die van
       // het Z8-venster hierboven — voortgang en constraints horen erbij. Zie
       // `taskUpdateInvalidatesLevelingGaps` in taskDefaults.ts.
-      if (taskUpdateInvalidatesLevelingGaps(rest, time)) clearLevelingGaps(s.tasks[idx]);
+      // Integratie #101 (valkuil a): `updates`, NIET `rest` — `rest` mist sinds de taaktypes-
+      // etappe `calendarId` (die gaat door de K2-stap hierboven), en een kalenderwissel moet de
+      // nivelleergaten net zo goed wissen als vóór de merge.
+      if (taskUpdateInvalidatesLevelingGaps(updates, time)) clearLevelingGaps(s.tasks[idx]);
       // B1-vervolg: het ingevoerde einde van een niet-gestarte urentaak beweegt mee met duur/start/
       // kalender — aan de INVOERKANT, nooit vanuit de solve. Zie `reconcileHourInputFinish`. BEWUST
       // NA `clearLevelingGaps`: anders telt het einde nivelleergaten mee die deze bewerking wist.
@@ -517,6 +574,19 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       runtime.finishMutation(s, { stale: true });
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
+    get().recomputeViewRows();
+  },
+
+  setTaskWorkRule: (id, rule) => {
+    set((s) => {
+      const task = s.tasks.find(t => t.id === id);
+      if (!task || task.workRule === rule) return; // onbekend id of ongewijzigd: geen snapshot.
+      runtime.beginUndoable(s);
+      settleRuleChange(task, s.assignments, s, rule);
+      s.taskTypesVisible = true; // spec §7: wie een regel zet, ziet de regel (documentontsluiting).
+      runtime.finishMutation(s); // geen `stale`: een typewissel raakt geen datum (spec besluit 2).
+    });
+    get().recomputeResourceLoad(); // een vastgelegd restwerk kan de vierde bron van `assignmentDayUnits` activeren.
     get().recomputeViewRows();
   },
 
@@ -543,6 +613,9 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // (3) De oude werkduur — nodig vóór de duur eronder verschuift.
       const oldWorkMinutes = taskWorkMinutesOf(task, hoursPerDay);
       const slotMinutes = Math.max(1, hoursPerDay * 60);
+      // Taaktypes-etappe (integratie #170 op #146): een splitbewerking die de werkduur verandert is
+      // een duurbewerking — de werkdriehoek volgt, net als in `updateTask`.
+      const triangle = captureTriangle(task, s.assignments, s);
 
       // (4) Nieuwe gaten + werkduur uit het stukkenmodel. `adoptLevelingGaps` is stap 5 van spec §2
       // (adoptieregel): wat de gebruiker na zijn bewerking op het scherm ziet staan, blijft staan —
@@ -555,7 +628,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         if (taskDurationUnit(task) === 'hours') task.time.durationMinutes = totalWorkMinutes;
         // `keepGaps`: de gatenlijst hierboven is al op de NIEUWE werkduur gerekend — nog een keer
         // laten schalen zou dubbel zijn (spec §2 stap 3).
-        rescaleTaskContours(task, oldWorkMinutes, hoursPerDay, { keepGaps: true });
+        rescaleTaskContours(task, oldWorkMinutes, hoursPerDay, contourKeepsWork(task, s.project.defaultWorkRule), { keepGaps: true });
+        settleDurationEdit(task, s.assignments, triangle);
       }
 
       // (5) Contour meeverhuizen: dagslots lezen met de OUDE gaten (de as waarop het profiel nu
@@ -608,9 +682,16 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       if (!task) return;
       if (task.calendarId === calendarId) return; // no-op: geen snapshot, geen stale
       runtime.beginUndoable(s);
+      // B1-vervolg — basis VÓÓR de wissel (integratie #101: vóór de K2-stap, anders zit de
+      // kalenderwissel niet in de sleutel en blijft het ingevoerde einde oud).
       const finishBasis = hourInputFinishBasis(task);
+      // K2 (eigenaarsbesluit 2026-09-05): momentopname vóór de wissel; daarna beslist de werkregel.
+      const before = captureCalendarChange(task, s.assignments, s);
       task.calendarId = calendarId; // undefined = projectkalender
-      lostTimephasedGuidance = clearTimephasedWindow(task); // Z14b — kalenderwissel is een trigger, zie taskDefaults.ts
+      const settled = settleCalendarChange(task, s.assignments, before, s);
+      // Z14b — kalenderwissel is een trigger, zie taskDefaults.ts. De nazorg van de regel kan het
+      // venster al gewist hebben (dan is die tweede aanroep een no-op): beide tellen als verlies.
+      lostTimephasedGuidance = settled.timephasedLost || clearTimephasedWindow(task);
       // B1c-plan3 taak 3 — zie `updateTask` hierboven.
       clearLevelingGaps(task);
       // B1-vervolg — ná `clearLevelingGaps`, zie `updateTask`.
@@ -1177,6 +1258,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) return;
       runtime.beginUndoable(s, opts); // `opts` = coalesceKey (bv. slider-sleep = 1 stap).
+      // Fable-critreview #170, bevinding 1: voortgang verplaatst opgeslagen werk van rest naar verricht.
+      const progressWork = captureProgressWork(task, s);
       const completion = Math.max(0, Math.min(1, raw));
       task.time.completion = completion;
       // §3.2: completion>0 zonder actualStart ⇒ auto actualStart (MSP-conventie: % ⇒ gestart).
@@ -1186,6 +1269,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // Voortgang teruggedraaid onder 100% ⇒ een verouderd actualFinish laten vallen.
       if (completion < 1) task.time.actualFinish = undefined;
       applyProgressInvariants(task, s.project.statusDate);
+      settleProgressWork(task, s.assignments, progressWork);
       // B1c-plan-2 spec §4 "Invalidatie", vierde klasse — bedraad in de fixronde op etappe 3
       // (bevinding B7). Voortgang loopt buiten `updateTask` om, dus deze drie setters hebben hun
       // eigen aanroep; zie `taskUpdateInvalidatesLevelingGaps` in taskDefaults.ts voor het waarom.
@@ -1213,8 +1297,10 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // functie se toelichting voor de volledige analyse (het uur-precies-op-de-statusdatum-dag-gat).
       if (date && s.project.statusDate && isActualPastStatusDate(date, s.project.statusDate)) { accepted = false; return; }
       runtime.beginUndoable(s, opts); // `opts` = coalesceKey: per-toetsaanslag-commits van één datumveld = 1 undo-stap.
+      const progressWork = captureProgressWork(task, s); // bevinding 1 — zie `setTaskProgress`.
       task.time.actualStart = date || undefined;
       applyProgressInvariants(task, s.project.statusDate);
+      settleProgressWork(task, s.assignments, progressWork);
       clearLevelingGaps(task); // B7 — zie `setTaskProgress` hierboven.
       // H1 (Opus-review T15-iteratie-2) — zie de toelichting bij `setTaskProgress` hierboven.
       runtime.finishMutation(s, { stale: true });
@@ -1232,11 +1318,13 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // `setActualStart` hierboven, geen tweede, potentieel afdrijvende implementatie).
       if (date && s.project.statusDate && isActualPastStatusDate(date, s.project.statusDate)) { accepted = false; return; }
       runtime.beginUndoable(s, opts); // `opts` = coalesceKey: per-toetsaanslag-commits van één datumveld = 1 undo-stap.
+      const progressWork = captureProgressWork(task, s); // bevinding 1 — zie `setTaskProgress`.
       task.time.actualFinish = date || undefined;
       // Finish wissen terwijl de taak op 100% stond ⇒ terug naar in-uitvoering (anders re-default
       // de invariant meteen een nieuw actualFinish en is wissen onmogelijk).
       if (!date && task.time.completion >= 1) task.time.completion = 0;
       applyProgressInvariants(task, s.project.statusDate);
+      settleProgressWork(task, s.assignments, progressWork);
       clearLevelingGaps(task); // B7 — zie `setTaskProgress` hierboven.
       // H1 (Opus-review T15-iteratie-2) — zie de toelichting bij `setTaskProgress` hierboven.
       runtime.finishMutation(s, { stale: true });
@@ -1274,7 +1362,12 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       for (const row of plan.rows) {
         if (row.outcome !== 'apply') continue;
         const index = s.tasks.findIndex((t) => t.id === row.taskId);
-        if (index >= 0) s.tasks[index] = row.plannedTask!;
+        if (index >= 0) {
+          // Fable-critreview #170, bevinding 1 — zelfde werkverplaatsing als `setTaskProgress`.
+          const progressWork = captureProgressWork(s.tasks[index], s);
+          s.tasks[index] = row.plannedTask!;
+          settleProgressWork(s.tasks[index], s.assignments, progressWork);
+        }
       }
       runtime.finishMutation(s, { stale: true }); // datum-rakende mutatie (A6): planning verouderd tot F5.
     });

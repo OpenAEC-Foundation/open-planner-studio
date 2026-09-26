@@ -96,7 +96,7 @@
       "manuallyScheduled": "手动计划",
       "milestone": "里程碑",
       "milestoneKind": "里程碑类型",
-      "mspTaskType": "Microsoft Project 任务类型",
+      "mspTaskType": "MS Project 任务类型（导入）",
       "name": "任务名称",
       "nearCritical": "接近关键",
       "noteData": "备注数据",
@@ -123,7 +123,11 @@
       "totalFloat": "总浮时",
       "wbs": "工作分解结构（WBS）",
       "workWindowFinish": "工作窗口结束",
-      "workWindowStart": "工作窗口开始"
+      "workWindowStart": "工作窗口开始",
+      "workRule": "工作规则",
+      "assignmentPlannedWork": "计划工时（小时）",
+      "assignmentActualWork": "实际工时（小时）",
+      "assignmentRemainingWork": "剩余工时（小时）"
     },
     "category": {
       "task": "任务",
@@ -189,6 +193,7 @@
       "assignmentDuplicateId": "此分配出现多次。",
       "assignmentIdentity": "此分配属于另一个资源。",
       "assignmentUnits": "请以大于 0 的数字输入每日单位。",
+      "assignmentWork": "请以大于 0 的数字输入剩余工时（小时）（名称: 小时; …）。",
       "assignmentCurve": "请选择已知的负荷曲线。",
       "assignmentTaskNotFound": "此分配所属的任务已不存在。",
       "assignmentTaskUnavailable": "无法在此任务上编辑分配。",
@@ -331,6 +336,22 @@
     "durationTotalHours": "总小时数",
     "hourCalendarHint": "按小时输入需要小时日历（工作时间）。"
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "固定工期和单位",
+    "FIXED_DURATION_WORK": "固定工期和工时",
+    "FIXED_WORK": "固定工时",
+    "FIXED_RATE": "固定单位",
+    "label": "工作规则",
+    "projectDefault": "项目默认（{{rule}}）",
+    "protects": "受保护：{{what}}",
+    "protectsFIXED_DURATION_RATE": "工期和单位（工时随之变化）",
+    "protectsFIXED_DURATION_WORK": "工期和工时（单位随之变化）",
+    "protectsFIXED_WORK": "工时（工期随单位变化）",
+    "protectsFIXED_RATE": "单位（工期随工时变化）",
+    "mspEffortDriven": "来自 MS Project：投入驱动",
+    "mspNotEffortDriven": "来自 MS Project：非投入驱动",
+    "none": "项目默认"
+  },
   "properties": {
     "task": "任务",
     "deleteTask": "删除任务",
@@ -424,7 +445,12 @@
       "contour": "工时分布…",
       "contoured": "轮廓",
       "contouredHint": "此分配拥有自己的工时分布；请通过“工时分布”按钮编辑或释放。",
-      "importedCurve": "导入的曲线"
+      "importedCurve": "导入的曲线",
+      "work": "工时（剩余）",
+      "workHint": "剩余工时（小时）；工作规则决定工期或单位随之变化。",
+      "workDeviates": "与单位 × 工期不一致",
+      "workDeviatesHint": "已保存的工时 {{stored}} 小时与单位 × 剩余工期（{{derived}} 小时）不一致。直方图按整个任务工期分布已保存的工时；单位保持文件中的值。",
+      "locked": "受工作规则 {{rule}} 保护"
     },
     "notes": {
       "title": "备注",

@@ -253,6 +253,26 @@
       "cluster": "voortgang-importeren"
     },
     {
+      "id": "gids-taaktypes",
+      "title": {
+        "nl": "Werkregels en werk",
+        "en": "Work rules and work",
+        "de": "Arbeitsregeln und Arbeit",
+        "fr": "Règles de travail et travail",
+        "es": "Reglas de trabajo y trabajo",
+        "zh": "工作规则与工时",
+        "it": "Regole di lavoro e lavoro",
+        "pt": "Regras de trabalho e trabalho",
+        "pl": "Reguły pracy i praca",
+        "tr": "İş kuralları ve iş",
+        "ar": "قواعد العمل والعمل",
+        "ja": "作業ルールと作業",
+        "ko": "작업 규칙과 작업량",
+        "fa": "قواعد کار و کار"
+      },
+      "layer": "gidsen"
+    },
+    {
       "id": "gids-msproject-import",
       "title": {
         "nl": "MS Project (.mpp) openen",
