@@ -56,7 +56,7 @@ export type RelationAddVerdict =
  * "Geselecteerde taken koppelen", het relatiepaneel en de extensie-API samenkomen: eerst
  * `relationVerdict`, daarna of de relatie een kring zou sluiten (`relationCycle`, over de
  * geëxpandeerde bladgraaf en alleen voor de kring door deze relatie). Raster en MCP weigerden een
- * kring al vooraf; zonder deze toets meldde de store-route "Relatie aangemaakt" en liep pas F5 vast.
+ * kring al vooraf; zonder deze toets zou de store-route "Relatie aangemaakt" melden en pas F5 vastlopen.
  *
  * Bewust NIET in `relationVerdict` zelf: die draait ook per relatie bij plakken/sjabloon invoegen
  * (`insertRemappedRelations`, waar een kopie van een acyclische tak geen kring kan maken) en in de

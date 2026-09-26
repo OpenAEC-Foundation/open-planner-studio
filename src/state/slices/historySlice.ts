@@ -31,13 +31,13 @@ export interface HistorySlice {
   undo: () => void;
   redo: () => void;
   /**
-   * Gebruikstest #170, G5: een BEWERKSESSIE (de taakdialoog) die relationele secties direct op de
+   * Een BEWERKSESSIE (de taakdialoog) die relationele secties direct op de
    * store laat werken (toewijzingen, werkregel, werk) — `historyMark` opent de sessie (runtime-
    * sleutel + begin-sequence, en breekt undo-coalescing af zodat de eerste dialoogbewerking nooit
    * bij een ouder event aanschuift), `revertHistorySince` draait bij Annuleren de events van DEZE
    * sessie terug zonder redo, `squashHistorySince` maakt er bij Opslaan één undo-stap van.
    *
-   * Alleen events met de `sessionKey` van de sessie tellen (PR #170-hercheck): een MCP-, batch- of
+   * Alleen events met de `sessionKey` van de sessie tellen: een MCP-, batch- of
    * extensiemutatie die tijdens de open dialoog landt is geen dialoogwerk en blijft altijd staan.
    * Omdat een history-event een volledige documentsnapshot draagt, kan een dialoog-event dat ONDER
    * zo'n vreemd event ligt niet los worden teruggedraaid zonder het vreemde werk mee te nemen;

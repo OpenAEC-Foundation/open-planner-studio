@@ -19,7 +19,7 @@ export interface McpTransactionLease {
 }
 
 export interface StoreRuntimeOptions {
-  /** `false` ⇒ deze context zendt GEEN host-events uit (spec §5, rand (a)). Gebruikt door de
+  /** `false` ⇒ deze context zendt GEEN host-events uit. Gebruikt door de
    *  scratch-instantie (`scratchDocument.ts`): extensies zijn app-globaal geregistreerd en zouden
    *  anders cijfers krijgen van een document waar de gebruiker niet naar kijkt. Default `true`. */
   emitHostEvents?: boolean;
@@ -60,7 +60,7 @@ export interface StoreRuntime {
   ): SessionHistoryEvent | null;
   resetUndoCoalescing(): void;
   /**
-   * PR #170-hercheck: open een bewerksessie (de taakdialoog). Zolang hij open staat krijgt elk
+   * Open een bewerksessie (de taakdialoog). Zolang hij open staat krijgt elk
    * event dat via de interactieve route (`finishUndoable`, dus buiten batch en MCP-lease) ontstaat
    * `sessionKey` = de teruggegeven sleutel. Een nieuwe sessie vervangt een vergeten oude.
    */
@@ -76,25 +76,24 @@ export interface StoreRuntime {
   exitMcpTransaction(lease: McpTransactionLease): void;
   /**
    * Monotone teller die bij ELKE undoable mutatie in deze context omhoog gaat — óók bij een
-   * gecoalesceerde mutatie, die bewust géén nieuw history-event oplevert (spec §6a). Bewust NIET
+   * gecoalesceerde mutatie, die bewust géén nieuw history-event oplevert. Bewust NIET
    * hetzelfde als `nextHistorySequence` of de eventtelling: een gecoalesceerde sleepreeks schrijft
    * alleen de `after` van een BESTAAND event bij (`replaceCoalescedAfter`), dus die tellers staan
    * dan stil; en `historyDepthsForActiveScope().undoDepth` is bovendien onbruikbaar omdat
    * `pruneSessionHistory` van onderaf trimt op `MAX_SESSION_HISTORY_EVENTS_PER_SCOPE`.
    *
-   * Afnemer: de voorstel-invalidatie van de B1c-verdeeldialoog. Die combineert deze teller met de
-   * REFERENTIES van de documentvelden waarop het voorstel gerekend heeft — de teller is de goedkope,
-   * grofmazige backstop; de referenties maken de bewaking sluitend (`runCPM` muteert datums zonder
-   * ooit langs `beginUndoable` te komen).
+   * Afnemer: de voorstel-invalidatie van de verdeeldialoog (`proposalFingerprint.ts`). Die
+   * combineert deze teller met de REFERENTIES van de documentvelden waarop het voorstel gerekend
+   * heeft — de teller is de goedkope, grofmazige backstop; de referenties maken de bewaking
+   * sluitend (`runCPM` muteert datums zonder ooit langs `beginUndoable` te komen).
    */
   mutationSeq(): number;
   /**
-   * Zend een host-lifecycle-event uit namens DEZE context (B1c-plan3 taak 5, spec §5 rand (a)).
-   * Slices roepen dit aan in plaats van `emitExtensionEvent` rechtstreeks — de bus zelf blijft
-   * app-globaal (dat hoort zo: extensies zijn app-niveau), maar of een context er iets op zet is nu
-   * een eigenschap van die context. De scratch-instantie bouwt haar context met
-   * `emitHostEvents: false`, zodat een efemere run op een slapend document geen extensie-luisteraar
-   * bereikt.
+   * Zend een host-lifecycle-event uit namens DEZE context. Slices roepen dit aan in plaats van
+   * `emitExtensionEvent` rechtstreeks — de bus zelf is app-globaal (extensies zijn app-niveau), maar
+   * of een context er iets op zet is een eigenschap van die context. De scratch-instantie bouwt
+   * haar context met `emitHostEvents: false`, zodat een efemere run op een slapend document geen
+   * extensie-luisteraar bereikt.
    */
   emitHostEvent(event: HostEventName, data?: unknown): void;
 }
@@ -126,7 +125,7 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
   let activeMcpLease: ActiveMcpLease | null = null;
   let activeHistorySession: string | null = null;
   let historySessionCounter = 0;
-  // B1c-plan3 taak 4 (spec §6a): monotone, per-context mutatieteller — zie het docblok bij
+  // Monotone, per-context mutatieteller — zie het docblok bij
   // `StoreRuntime.mutationSeq`.
   let mutationSeq = 0;
 
@@ -159,7 +158,7 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
 
   const runtime: StoreRuntime = {
     beginUndoable(state, opts) {
-      // B1c-plan3 taak 4: de bump staat als EERSTE regel — vóór de batch-/lease-guard én vóór de
+      // De bump staat als EERSTE regel — vóór de batch-/lease-guard én vóór de
       // pending-tak. Een mutatie binnen een batch of MCP-transactie is nog steeds een mutatie, ook
       // al neemt de omvattende transactie het history-event; en een geneste of gecoalesceerde
       // mutatie (die géén nieuw event oplevert) is precies het geval waarvoor deze teller bestaat

@@ -22,18 +22,12 @@ import { syncProjectCalendar, promoteProjectCalendarToLibrary } from './syncProj
 import { normalizeTaskDurationUnits } from '@/utils/taskDefaults';
 
 /**
- * HET DOCUMENTCONTRACT — één canonieke bron voor de per-document-state (audit P10, F1/F3).
+ * HET DOCUMENTCONTRACT — één canonieke bron voor de per-document-state.
  *
- * De ~20 per-document-velden werden voorheen ONAFHANKELIJK opgesomd op ~13 plekken
- * (`DocumentPayload`, `capturePayload`, `hydratePayload`, `freshPayload`, `payloadFromInput`,
- * `Snapshot`+`createSnapshot`, undo/redo-restore, de reset-blokken in projectSlice/fileSlice, de
- * recovery-mapping). De imperatieve varianten (hydrate, undo/redo, reset) checkten volledigheid
- * NIET — een vergeten veld lekte stil van het vorige document/project.
- *
- * Nu is er één `DOCUMENT_FIELDS`-descriptorlijst. Elk veld beschrijft:
+ * Eén `DOCUMENT_FIELDS`-descriptorlijst; elk veld beschrijft:
  *  - `get`/`set`: waar het in de live (top-level) state woont — default `s[key]`, met één
- *    expliciete uitzondering: `collapsedTaskIds` woont in `s.ui` (per-document geswapt, maar de
- *    rest van `ui` blijft app-globaal).
+ *    uitzondering: `collapsedTaskIds` woont in `s.ui` (per document geswapt, de rest van `ui` is
+ *    app-globaal).
  *  - `fresh`: de verse default voor een nieuw, leeg document.
  *  - `snapshot`: de rol in de undo/redo-snapshot ('data' = muteerbare projectdata, 'derived' =
  *    afgeleid resultaat/scalar, 'none' = niet in de snapshot). Zie `snapshot.ts` voor de
@@ -41,8 +35,9 @@ import { normalizeTaskDurationUnits } from '@/utils/taskDefaults';
  *  - `fromPayload` (optioneel): lees-migratie bij hydrate (defaults / legacy-alias / normalisatie).
  *
  * `capturePayload`/`hydratePayload`/`freshPayload` lopen key-gedreven over deze ENE lijst, zodat
- * capture en hydrate niet meer kunnen divergeren. Een nieuw veld in `DocumentPayload` dat de lijst
- * mist geeft een COMPILE-fout (`_assertAllFieldsCovered` onderaan).
+ * capture en hydrate niet kunnen divergeren; een vergeten veld zou anders stil van het vorige
+ * document lekken. Een nieuw veld in `DocumentPayload` dat de lijst mist geeft een COMPILE-fout
+ * (`_assertAllFieldsCovered` onderaan).
  */
 export interface DocumentPayload {
   project: Project;
@@ -51,7 +46,7 @@ export interface DocumentPayload {
   sequences: Sequence[];
   resources: Resource[];
   assignments: ResourceAssignment[];
-  /** Gedeelde kalender-bibliotheek (fase 2.8a; hernoemd uit `resourceCalendars`). */
+  /** Gedeelde kalenderbibliotheek (legacy-naam in oude payloads: `resourceCalendars`). */
   calendars: WorkCalendar[];
   activityCodeTypes: ActivityCodeType[];
   customFieldDefs: CustomFieldDef[];
@@ -60,16 +55,16 @@ export interface DocumentPayload {
   /** Actieve taak voor het enkelvoudige eigenschappenpaneel; los van de meervoudige taakset. */
   activeTaskId: string | null;
   cpmResult: CPMResult | null;
-  /** Afgeleide belasting per document (A5): anders toont het histogram na een tabwissel dat van het
+  /** Afgeleide belasting per document: anders toont het histogram na een tabwissel dat van het
    *  vórige document. */
   resourceLoadResult: ResourceLoadResult | null;
-  /** "Verouderd"-vlag per document (A6) — leekt anders tussen documenten. */
+  /** "Verouderd"-vlag per document — lekt anders tussen documenten. */
   scheduleStale: boolean;
-  /** "Datums zoals opgeslagen" (issue #63) — zie `ScheduleSlice.recordedDates`. */
+  /** "Datums zoals opgeslagen" — zie `ScheduleSlice.recordedDates`. */
   recordedDates: RecordedDatesState | null;
-  /** "Datums zoals opgeslagen" (issue #63) — zie `ScheduleSlice.datesAsRecorded`. */
+  /** "Datums zoals opgeslagen" — zie `ScheduleSlice.datesAsRecorded`. */
   datesAsRecorded: boolean;
-  /** Baselines per document (fase 2.6). `statusDate`/`progressMode` rijden mee in `project`. */
+  /** Baselines per document. `statusDate`/`progressMode` rijden mee in `project`. */
   baselines: Baseline[];
   activeBaselineId: string | null;
   view: ViewState;
@@ -82,28 +77,27 @@ export interface DocumentPayload {
   autoSaveToFile: boolean;
   isDirty: boolean;
   /** XER-bronmetadata per document; geen onderdeel van undo omdat bewerkingen dit niet muteren.
-   *  X9 archiveert deze selectorgebonden provenance via IFC-diagnostics; X4b bewaart haar al
-   *  door documentwissel en de recovery-inputlaag. */
+   *  Overleeft documentwissel en crashherstel; IFC bewaart haar als diagnostiek. */
   xerImportMetadata: XerImportMetadata | null;
-  /** X9: exacte immutable bronbytes; bewust gedeeld en buiten undo/redo. */
+  /** Exacte, onveranderlijke XER-bronbytes; bewust gedeeld tussen tabs en buiten undo/redo. */
   xerSourceArchive: XerSourceArchive | null;
   /** Selector van dit document binnen xerSourceArchive; semantiek is documentgebonden. */
   xerSourceProjectId: string | null;
-  /** Taaktypes-etappe (spec §7): de werkregel-UI is voor dit document ontsloten omdat het al
+  /** De werkregel-UI is voor dit document ontsloten omdat het al
    *  taaktypedata draagt (`hasTaskTypeData`) of omdat de gebruiker er een regel/werk in zette.
    *  Niet gepersisteerd (bij laden opnieuw afgeleid), niet in undo. */
   taskTypesVisible: boolean;
-  /** "Ongewijzigd sinds import" (heropen-beleid optie B, eigenaarsbesluit 2026-09-09). `true`
+  /** "Ongewijzigd sinds import". `true`
    *  vanaf een verse import tot de eerste bewerking (`markDocumentEdited`); opslaan wist hem niet.
    *  Round-tript via `OPS_ImportProvenance` (alleen als `true`), zodat een heropend eigen IFC
    *  weet of het automatisch in "datums zoals opgeslagen" mag. Geen undo-rol: undo maakt een
    *  bewerkt document niet weer "ongewijzigd" (conservatief — nooit een gok richting automatisch
    *  aan). */
   importPristine: boolean;
-  /** Eigenaarsbesluit 2026-09-24 ("openen met melding"): het XER-bronarchief was bij het openen
-   *  onbruikbaar en is weggelaten. SESSIE-ONLY: rijdt mee door documentwissel (anders zou MCP/de
-   *  extensie-API na een tabwissel weer "nooit een XER-bron" zeggen), maar staat bewust NIET in
-   *  `IFC_SAVE_KEYS` en niet in undo — er is niets om terug te schrijven, het archief is weg. */
+  /** Het XER-bronarchief was bij het openen onbruikbaar en is weggelaten (openen met melding).
+   *  SESSIE-ONLY: rijdt mee door documentwissel (anders zou MCP/de extensie-API na een tabwissel
+   *  weer "nooit een XER-bron" zeggen), maar staat bewust NIET in `IFC_SAVE_KEYS` en niet in undo —
+   *  er is niets om terug te schrijven, het archief is weg. */
   xerArchiveIssue: XerArchiveIssue | null;
 }
 
@@ -111,13 +105,10 @@ export interface DocumentPayload {
  *  Alleen de IFC-round-trip-velden + identiteit; view/history/cpm worden vers
  *  opgebouwd (zijn niet kritiek na een crash).
  *
- *  AFGELEID van `ImportResult` (bevinding K3), niet meer met de hand opgesomd. De twee lijsten
- *  waren uit elkaar gelopen: `baselines`/`activeBaselineId` stonden hier wél, maar de recovery-
- *  leeskant vulde ze niet — en omdat ze optioneel zijn zweeg `tsc`, dus baselines verdwenen STIL
- *  bij crashherstel terwijl de writer ze gewoon had weggeschreven. Door af te leiden GROEIT dit
- *  type automatisch MEE met `ImportResult`: een nieuw round-trip-veld kan niet opnieuw stil
- *  wegvallen. Het verschil met `ImportResult` is uitsluitend de document-identiteit
- *  (`id`/`filePath`/`isDirty`) — dezelfde les als `buildWriteIFCInput` op de schrijfkant. */
+ *  AFGELEID van `ImportResult`, niet met de hand opgesomd: optionele round-trip-velden die een
+ *  handlijst mist, vallen anders STIL weg bij crashherstel (`tsc` zwijgt). Het verschil met
+ *  `ImportResult` is uitsluitend de document-identiteit (`id`/`filePath`/`isDirty`), net als
+ *  `buildWriteIFCInput` op de schrijfkant. */
 export type RecoveryDocInput = ImportResult & {
   id: string;
   filePath: string | null;
@@ -143,10 +134,8 @@ export interface RecoveryDocMeta {
 /**
  * Bouw de VOLLEDIGE recovery-invoer uit een geparste snapshot — de leeskant-spiegel van
  * `buildWriteIFCInput` (`./ifcSaveInput.ts`). Eén plek bepaalt welke velden bij crashherstel
- * meegaan, zodat de aanroeper (de recovery-hook) geen veldkennis meer heeft en niet opnieuw stil
- * velden kan laten vallen (bug-klasse K3: de hook somde de velden met de hand op en sloeg
- * `baselines`/`activeBaselineId` over — beide optioneel, dus `tsc` zweeg en de baselines
- * verdwenen geruisloos bij crashherstel).
+ * meegaan, zodat de aanroeper (de recovery-hook) geen veldkennis heeft en geen optioneel veld stil
+ * kan laten vallen.
  *
  * De spread is hier de hele implementatie: `RecoveryDocInput` ÍS `ImportResult` + identiteit, dus
  * élk round-trip-veld rijdt automatisch mee, ook velden die er later bij komen. `meta` staat NA
@@ -162,12 +151,12 @@ export function recoveryInputFromParsed(parsed: ImportResult, meta: RecoveryDocM
  * De rollen 'data' en 'derived' zeggen allebei "dit veld zit IN de snapshot" en verschillen alleen
  * in wát voor waarde het is; ze worden allebei per REFERENTIE opgeslagen. Dat mag omdat Immer de
  * hele state na elke producer diep bevriest — zie de kop van `snapshot.ts` voor de invariant en
- * waarom hier vroeger een diepe JSON-kloon stond.
+ * waarom er geen diepe kloon nodig is.
  */
 export type SnapshotRole =
-  | 'data' // projectdata die de gebruiker zet en die in het bestand staat (heette 'clone' toen de
-  //          snapshot nog diep kloonde). `documentDataChanged` (snapshot.ts) kijkt alleen hiernaar.
-  | 'derived' // rekenresultaat of weergavemodus: runCPM / "datums zoals opgeslagen" (heette 'ref').
+  | 'data' // projectdata die de gebruiker zet en die in het bestand staat.
+  //          `documentDataChanged` (snapshot.ts) kijkt alleen hiernaar.
+  | 'derived' // rekenresultaat of weergavemodus: runCPM / "datums zoals opgeslagen".
   | 'none'; // niet in de snapshot (selectie/view/pad/undo-stacks e.d.).
 
 interface FieldDesc<K extends keyof DocumentPayload, R extends SnapshotRole = SnapshotRole> {
@@ -193,12 +182,12 @@ function field<K extends keyof DocumentPayload, R extends SnapshotRole>(d: Field
 }
 
 /**
- * Vul ontbrekende fase-2.7-view-velden aan en migreer het oude `groupBy` naar `group` (§12.2/§7.5).
- * Oude payloads/recovery (van vóór 2.7) missen filter/group/sort/collapsedGroupKeys; `?? default`-
- * guards houden ze veilig. Migratie: een `groupBy`-string zonder `group` → één activity-code-niveau.
+ * Vul ontbrekende view-velden aan en migreer het oude `groupBy` naar `group`. Oude payloads/recovery
+ * kunnen filter/group/sort/collapsedGroupKeys missen; `?? default`-guards houden ze veilig.
+ * Migratie: een `groupBy`-string zonder `group` → één activity-code-niveau.
  */
 export function normalizeView(v: ViewState): ViewState {
-  // `groupBy` bestaat niet meer op ViewState (golf 2) maar kan nog in oude payloads/recovery zitten.
+  // `groupBy` bestaat niet meer op ViewState maar kan nog in oude payloads/recovery zitten.
   const legacyGroupBy = (v as ViewState & { groupBy?: string }).groupBy;
   const group = v.group && v.group.length > 0
     ? v.group
@@ -213,17 +202,16 @@ export function normalizeView(v: ViewState): ViewState {
     collapsedGroupKeys: v.collapsedGroupKeys ?? [],
   };
   delete out.groupBy; // gemigreerd — niet opnieuw laten meereizen in payloads
-  delete out.columns; // taakgridkolommen zijn vanaf Task 3 uitsluitend app-globale voorkeuren
+  delete out.columns; // taakgridkolommen zijn uitsluitend app-globale voorkeuren
   return out;
 }
 
 /** De canonieke documentveld-lijst. Volgorde = onafhankelijk; volledigheid compile-gecheckt. */
 export const DOCUMENT_FIELDS = [
-  // Pakket H: `project` doet VOLLEDIG mee in de snapshot (was 'none' met een nauwe wbsAutoNumber-
-  // projectie). Voorwaarde daarvoor — elke project-mutator pusht zelf een snapshot — is vervuld in
-  // projectSlice; zie de kop van snapshot.ts.
+  // `project` doet VOLLEDIG mee in de snapshot. Voorwaarde — elke project-mutator pusht zelf een
+  // snapshot — is vervuld in projectSlice; zie de kop van snapshot.ts.
   field({ key: 'project', get: (s) => s.project, set: (s, v) => { s.project = v; }, fresh: createDefaultProject, snapshot: 'data' }),
-  // De gedenormaliseerde projectkalender-cache rijdt mee (§9.1): `restoreSnapshot` synct hem ná de
+  // De gedenormaliseerde projectkalender-cache rijdt mee: `restoreSnapshot` synct hem ná de
   // restore alsnog uit `calendars`, maar zonder eigen snapshot-waarde zou de undo-orphan-fallback
   // (`promoteProjectCalendarToLibrary`) de NIEUWE cache promoveren i.p.v. de oude.
   field({ key: 'calendar', get: (s) => s.calendar, set: (s, v) => { s.calendar = v; }, fresh: createDefaultCalendar, snapshot: 'data' }),
@@ -236,7 +224,7 @@ export const DOCUMENT_FIELDS = [
   field({ key: 'assignments', get: (s) => s.assignments, set: (s, v) => { s.assignments = v; }, fresh: () => [], snapshot: 'data' }),
   field({
     key: 'calendars', get: (s) => s.calendars, set: (s, v) => { s.calendars = v; }, fresh: () => [], snapshot: 'data',
-    // Lees-alias (§4.2): oude payloads dragen `resourceCalendars`; nieuwe `calendars`.
+    // Lees-alias: oude payloads dragen `resourceCalendars`; nieuwe `calendars`.
     fromPayload: (p) => p.calendars ?? (p as { resourceCalendars?: WorkCalendar[] }).resourceCalendars ?? [],
   }),
   field({ key: 'activityCodeTypes', get: (s) => s.activityCodeTypes, set: (s, v) => { s.activityCodeTypes = v; }, fresh: () => [], snapshot: 'data', fromPayload: (p) => p.activityCodeTypes ?? [] }),
@@ -249,14 +237,14 @@ export const DOCUMENT_FIELDS = [
   // Historymaterialisatie berekent hem vóór publicatie opnieuw uit het herstelde target.
   field({ key: 'resourceLoadResult', get: (s) => s.resourceLoadResult, set: (s, v) => { s.resourceLoadResult = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.resourceLoadResult ?? null }),
   field({ key: 'scheduleStale', get: (s) => s.scheduleStale, set: (s, v) => { s.scheduleStale = v; }, fresh: () => false, snapshot: 'derived', fromPayload: (p) => p.scheduleStale ?? false }),
-  // "Datums zoals opgeslagen" (issue #63). `snapshot: 'derived'` net als cpmResult/scheduleStale:
+  // "Datums zoals opgeslagen". `snapshot: 'derived'` net als cpmResult/scheduleStale:
   // beide worden altijd als geheel vervangen, nooit in-place gemuteerd. Dat is precies wat Ctrl+Z
   // nodig heeft — samen met `tasks` ('data') draait één undo de datums én de modus terug.
   // De invariant uit snapshot.ts geldt: élke mutator van deze velden pusht een snapshot.
   field({ key: 'recordedDates', get: (s) => s.recordedDates, set: (s, v) => { s.recordedDates = v; }, fresh: () => null, snapshot: 'derived', fromPayload: (p) => p.recordedDates ?? null }),
   field({ key: 'datesAsRecorded', get: (s) => s.datesAsRecorded, set: (s, v) => { s.datesAsRecorded = v; }, fresh: () => false, snapshot: 'derived', fromPayload: (p) => p.datesAsRecorded ?? false }),
   field({ key: 'baselines', get: (s) => s.baselines, set: (s, v) => { s.baselines = v; }, fresh: () => [], snapshot: 'data', fromPayload: (p) => p.baselines ?? [] }),
-  // 'data', niet 'derived' (G5): de gebruiker kiest hem en hij gaat mee in het bestand. Als 'derived'
+  // 'data', niet 'derived': de gebruiker kiest hem en hij gaat mee in het bestand. Als 'derived'
   // zag `documentDataChanged` een activatie niet, en telde een MCP-transactie die alleen de actieve
   // baseline wisselt als "niets gewijzigd".
   field({ key: 'activeBaselineId', get: (s) => s.activeBaselineId, set: (s, v) => { s.activeBaselineId = v; }, fresh: () => null, snapshot: 'data', fromPayload: (p) => p.activeBaselineId ?? null }),
@@ -271,7 +259,7 @@ export const DOCUMENT_FIELDS = [
   field({ key: 'xerImportMetadata', get: (s) => s.xerImportMetadata, set: (s, v) => { s.xerImportMetadata = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerImportMetadata ?? null }),
   field({ key: 'xerSourceArchive', get: (s) => s.xerSourceArchive, set: (s, v) => { s.xerSourceArchive = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerSourceArchive ?? null }),
   field({ key: 'xerSourceProjectId', get: (s) => s.xerSourceProjectId, set: (s, v) => { s.xerSourceProjectId = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerSourceProjectId ?? null }),
-  // Taaktypes-etappe (spec §7): sessie-afgeleide zichtbaarheid, geen projectdata — rol `none`.
+  // Sessie-afgeleide zichtbaarheid, geen projectdata — rol `none`.
   field({ key: 'taskTypesVisible', get: (s) => s.taskTypesVisible, set: (s, v) => { s.taskTypesVisible = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.taskTypesVisible ?? false }),
   field({ key: 'importPristine', get: (s) => s.importPristine, set: (s, v) => { s.importPristine = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.importPristine ?? false }),
   field({ key: 'xerArchiveIssue', get: (s) => s.xerArchiveIssue, set: (s, v) => { s.xerArchiveIssue = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerArchiveIssue ?? null }),
@@ -287,15 +275,11 @@ void _assertAllFieldsCovered;
 
 // ── De andere kant van het contract: geen ongeclassificeerde state ────────────────────────────
 //
-// De check hierboven sluit de PAYLOAD-kant: elk `DocumentPayload`-veld heeft een descriptor. Wat
-// hij NIET zag, is de STATE-kant. Wie een nieuw top-level veld aan een slice toevoegt kreeg
-// stilzwijgend app-globaal gedrag: het lekt tussen documenten, staat niet in de undo-snapshot en
-// wordt niet gereset door `newProject()`. De compiler zweeg, de suite zweeg, en je merkt het pas
-// als een gebruiker data van document A in document B ziet staan.
-//
-// Daarom classificeert de assert hieronder ELKE niet-functie-key van `AppState` in precies één van
-// drie categorieën. Voeg je een veld toe zonder keuze te maken, dan faalt de build — de keuze is
-// dus verplicht en bewust, in plaats van een stille default.
+// De check hierboven sluit de PAYLOAD-kant: elk `DocumentPayload`-veld heeft een descriptor. Dit
+// deel sluit de STATE-kant: een nieuw top-level slice-veld zonder classificatie zou stil app-globaal
+// worden (lekt tussen documenten, niet in undo, niet gereset door `newProject()`). De assert
+// hieronder deelt daarom ELKE niet-functie-key van `AppState` in precies één van drie categorieën
+// in; zonder keuze faalt de build.
 
 /** Niet-functie-keys van T: de dataterreinen van de state, zonder de acties. */
 type StateDataKey<T> = { [K in keyof T]-?: T[K] extends (...a: never[]) => unknown ? never : K }[keyof T];
@@ -393,10 +377,10 @@ export function hydratePayload(s: AppState, p: DocumentPayload): void {
   for (const f of DOCUMENT_FIELDS) {
     writeField(f, s, f.fromPayload ? f.fromPayload(p) : raw[f.key]);
   }
-  // §4.3: oude/verse documenten zonder bibliotheek-entry voor hun projectkalender krijgen er hier
+  // Oude/verse documenten zonder bibliotheek-entry voor hun projectkalender krijgen er hier
   // één (idempotent — no-op als de entry al bestaat, bv. bij een gewone switchDocument/undo).
   promoteProjectCalendarToLibrary(s);
-  syncProjectCalendar(s); // §9.1: gedenormaliseerde projectkalender-cache gelijkzetten ná hydrate/switch.
+  syncProjectCalendar(s); // Gedenormaliseerde projectkalender-cache gelijkzetten ná hydrate/switch.
 }
 
 /** Verse, lege document-payload (nieuw project). */
@@ -408,10 +392,10 @@ export function freshPayload(): DocumentPayload {
 
 /** Verse payload uit herstelde recovery-projectdata (view/history/cpm worden vers opgebouwd).
  *
- *  Delegeert naar `payloadFromImport` (bevinding K3): een `RecoveryDocInput` ÍS een `ImportResult`
+ *  Delegeert naar `payloadFromImport`: een `RecoveryDocInput` ÍS een `ImportResult`
  *  + identiteit, dus de veldmapping is exact dezelfde — inclusief de `resourceCalendars`→
  *  `calendars`-hernoeming en alle `?? []` / `?? null`-defaults. Eén veldlijst i.p.v. twee die uit
- *  elkaar kunnen lopen. Twee echte verschillen met de import-kant:
+ *  elkaar kunnen lopen. Verschillen met de import-kant:
  *
  *  1. Recovery herstelt een NIET-opgeslagen document, dus `isDirty` komt uit de snapshot-metadata
  *     in plaats van hard op `false`.
@@ -422,18 +406,16 @@ export function freshPayload(): DocumentPayload {
  *     `StatusBar` dan geen waarschuwing terwijl er geen kritiek pad en geen float berekend is:
  *     een planning die er correct uitziet en het niet is. `true` vertelt de waarheid — het
  *     schema ís nog niet berekend — en laat de gebruiker met F5 verder.
+ *  3. De modusvlag `datesAsRecorded` wordt hier NIET gezet: samen met `scheduleStale: true` is dat
+ *     een verboden combinatie (invariant uit `state/scheduleStale.ts`, bewaakt door
+ *     check-recorded-dates 11d–11g). De modus komt er pas ná de payloadbouw op, samen met het
+ *     bijbehorende `cpmResult` en `scheduleStale = false` — zie
+ *     `applyRecordedDatesOnLoad`/`applyRestoredRecordedMode` in `documentActivation.ts`.
  */
 export function payloadFromInput(d: RecoveryDocInput): DocumentPayload {
   return { ...payloadFromImport(d, d.filePath), isDirty: d.isDirty, scheduleStale: true };
 }
 
-/**
- *  Verschil 3 met de import-kant, en de reden dat `payloadFromInput` de modusvlag NIET zelf zet:
- *  `datesAsRecorded: true` met `scheduleStale: true` is een verboden combinatie (de invariant uit
- *  `state/scheduleStale.ts`, bewaakt door check-recorded-dates 11d–11g). De modus komt er daarom
- *  pas ná de payloadbouw op, samen met het bijbehorende `cpmResult` en `scheduleStale = false` —
- *  zie `applyRecordedDatesOnLoad`/`applyRestoredRecordedMode` in `documentActivation.ts`.
- */
 
 /** Verse payload uit een ingelezen project (IFC/CSV/MSPDI/P6). Alleen de IFC-round-trip-velden
  *  worden overgenomen; selectie/cpm/history/scheduleStale starten vers. `view`/`collapsedTaskIds`
@@ -456,9 +438,9 @@ export function payloadFromImport(parsed: ImportResult, filePath: string | null)
     xerImportMetadata: parsed.xer ?? null,
     xerSourceArchive: parsed.xerSourceArchive ?? null,
     xerSourceProjectId: parsed.xer?.sourceProjectId ?? parsed.xerSourceProjectId ?? null,
-    // Taaktypes-etappe (spec §7): het geladen bestand ontsluit de werkregel-UI voor zichzelf.
+    // Het geladen bestand ontsluit de werkregel-UI voor zichzelf.
     taskTypesVisible: hasTaskTypeData(parsed.tasks, parsed.assignments, parsed.project),
-    // Heropen-beleid optie B: een VERSE import (xer/p6xml/mspdi/mpp/csv/ifc-uit-ander-pakket) is
+    // Een VERSE import (xer/p6xml/mspdi/mpp/csv/ifc-uit-ander-pakket) is
     // per definitie ongewijzigd; een HEROPENING (eigen IFC: 'ifc-own'/'xer-archive') draagt de
     // vlag alleen als het bestand haar zelf zegt (`OPS_ImportProvenance`), anders `false`. Zonder
     // herkomst (extensie-importer) `false`: nooit een gok richting automatisch aan.

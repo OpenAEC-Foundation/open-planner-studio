@@ -1,7 +1,7 @@
 /**
- * De ene in-app melding voor een onbruikbaar XER-bronarchief (eigenaarsbesluit 2026-09-24, "openen
- * met melding"). `readIFC` laat zo'n archief vallen en zet `ImportResult.xerArchiveIssue`; deze
- * module maakt daar de gebruikerstekst van — via het K8a-meldingskanaal, nooit een native dialoog.
+ * De ene in-app melding voor een onbruikbaar XER-bronarchief ("openen met melding"). `readIFC` laat
+ * zo'n archief vallen en zet `ImportResult.xerArchiveIssue`; deze module maakt daar de
+ * gebruikerstekst van — via het meldingenkanaal, nooit een native dialoog.
  *
  * Bladmodule (importeert niets uit `slices/`), zodat zowel `fileSlice` (openen) als `documentSlice`
  * (crashherstel) hem kunnen gebruiken zonder importcyclus.
@@ -34,7 +34,7 @@ function reasonAndConsequenceLines(issues: readonly XerArchiveIssue[]): Notifica
 
 /**
  * Voeg de archiefmelding toe aan een bestaande bestandsmelding (als detailregels), of maak er een
- * eigen melding van als er geen is. Geen issues ⇒ `notice` ongewijzigd terug (byte-identiek pad).
+ * eigen melding van als er geen is. Geen issues ⇒ `notice` ongewijzigd terug.
  */
 export function withXerArchiveIssueNotice(
   notice: NotifyInput | undefined,

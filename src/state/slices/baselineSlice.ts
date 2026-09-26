@@ -24,7 +24,7 @@ export const createBaselineSlice: AppSliceFactory<BaselineSlice> = (runtime) => 
     const id = generateId('baseline');
     set((s) => {
       runtime.beginUndoable(s);
-      // Snapshot de CPM-early-datums (= de balk zoals getekend, §2.1) per leaf-taak; fallback op
+      // Snapshot de CPM-early-datums (= de balk zoals getekend) per leaf-taak; fallback op
       // de schedule-datums voor het geval er nog nooit een runCPM is geweest.
       const leaves = s.tasks.filter(isLeafTask);
       s.baselines.push({

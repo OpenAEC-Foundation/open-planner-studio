@@ -1,4 +1,4 @@
-// De melding "dit project rekent als …" bij het openen van een bestand (rekenprofielen, spec v3.1 §6).
+// De melding "dit project rekent als …" bij het openen van een bestand.
 // Puur: de store roept hem aan in `applyOpenedImport`. Eén melding per geopend BESTAND: een XER met N
 // projecten geeft er één, samengevoegd met de bestaande XER-openingsmelding; andere formaten met een
 // voorstel ≠ 'ops' krijgen een eigen melding. Heropenen uit eigen IFC (geen voorstel) en crashherstel

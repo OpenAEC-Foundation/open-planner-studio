@@ -1,4 +1,4 @@
-// Selectie + klembord (K-item 35, tweede helft).
+// Selectie + klembord.
 //
 // Deze twee horen bij elkaar en niet bij `taskSlice`: het klembord werkt op de selectie, en beide
 // zijn iets anders dan de taken zelf. Het onderscheid dat ze deelt is de UNDO-regel — selectie is
@@ -61,11 +61,11 @@ export interface SelectionSlice {
   selectTask: (id: string, multi?: boolean, range?: boolean) => void;
   selectTaskRange: (fromId: string, toId: string) => void;
   deselectAll: () => void;
-  /** Golf 1 (fase 2.10, Ctrl/Cmd+A): selecteer alle ZICHTBARE taken — leest `viewRows` (dezelfde
+  /** Ctrl/Cmd+A: selecteer alle ZICHTBARE taken — leest `viewRows` (dezelfde
    *  zichtbaarheids-afleiding als de tabel/Gantt, respecteert dus ingeklapte groepen/summaries).
    *  Geen undo: selectie is geen documentdata. */
   selectAllTasks: () => void;
-  /** Golf 4 (fase 2.10, box-selection): zet de selectie op precies `ids` (vervangen), of voeg ze
+  /** Box-selectie: zet de selectie op precies `ids` (vervangen), of voeg ze
    *  toe aan de bestaande selectie (`additive`, Ctrl/Cmd tijdens het slepen). Geen undo. */
   selectTasks: (ids: string[], additive: boolean, activeTaskId?: string | null) => void;
 
@@ -257,7 +257,7 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
 
       s.selectedTaskIds = newRootIds;
       s.activeTaskId = newRootIds[0] ?? null;
-      runtime.finishMutation(s, { stale: true }); // geplakte taken (A6): planning verouderd tot F5.
+      runtime.finishMutation(s, { stale: true }); // geplakte taken: planning verouderd tot F5.
     });
     get().recomputeViewRows();
     // Ná `set()`: `get().notify(...)` binnen een actieve producer aanroepen kan niet.

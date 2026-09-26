@@ -3,14 +3,14 @@ import type { ScheduleWarning } from '@/engine/scheduler/scheduleWarnings';
 import { saveShowHistogram } from '@/utils/settingsStore';
 
 /**
- * "Ga naar" voor een rij uit het Waarschuwingenpaneel (issue #53). Imperatief op de store, naar het
+ * "Ga naar" voor een rij uit het Waarschuwingenpaneel. Imperatief op de store, naar het
  * model van `COMMANDS.*.run`: de UI roept 'm aan met `useAppStore.getState()`, de headless test
  * met een eigen `createAppStoreContext()`. Geen undo-stap — selectie, focus en histogramkeuze zijn
  * geen documentdata.
  *
  * Per doelsoort de bestaande mechaniek, niets nieuws in de renderer:
  *  - taak      → `focusOnTask`: selecteert, klapt een ingeklapte oudersketen uit en laat de
- *                GanttCanvas ernaartoe zoomen/scrollen (issue #65-sprong).
+ *                GanttCanvas ernaartoe zoomen/scrollen.
  *  - relatie   → focus op de OPVOLGER (die ondervindt de waarschuwing) en daarna beide taken
  *                geselecteerd met de opvolger actief: beide balken gemarkeerd, en het
  *                eigenschappenpaneel toont de relatie in "Afhankelijkheden".

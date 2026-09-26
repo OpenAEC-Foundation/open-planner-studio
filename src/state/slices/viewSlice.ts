@@ -1,5 +1,5 @@
-// K-item 27: zie de kop van ../defaults — de fabriek is een bladmodule geworden om de
-// import-cyclus met documentContract/snapshot te breken. Hier doorgegeven voor bestaande importers.
+// Zie de kop van ../defaults — de fabriek is een bladmodule om de import-cyclus met
+// documentContract/snapshot te breken. Hier doorgegeven voor bestaande importers.
 import { createDefaultView } from '../defaults';
 export { createDefaultView };
 import { maxGanttZoom, TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
@@ -47,23 +47,23 @@ export function resolveFirstVisibleFocusOccurrence(
 
 export interface ViewSlice {
   view: ViewState;
-  /** Gedeelde, afgeleide zichtbare-rijenlijst (§4.3). Top-level cache, geen React/component-memo.
-   *  NIET in payload/undo/IFC — herberekend via `recomputeViewRows()` op de §4.3-triggers. */
+  /** Gedeelde, afgeleide zichtbare-rijenlijst. Top-level cache, geen React/component-memo.
+   *  NIET in payload/undo/IFC — herberekend via `recomputeViewRows()` na elke relevante mutatie. */
   viewRows: ViewRow[];
   setZoom: (zoom: number) => void;
   setTimeScale: (scale: TimeScale) => void;
   setScroll: (x: number, y: number) => void;
   setViewStartDate: (date: string) => void;
-  /** Vraag een fit-to-project aan (issue #16): het HELE project moet in beeld komen (zoals Ctrl+0),
+  /** Vraag een fit-to-project aan: het HELE project moet in beeld komen (zoals Ctrl+0),
    *  niet alleen het begin. Zet enkel het `pendingFit`-signaal; de GanttCanvas voert de eigenlijke
    *  fit uit (die kent de viewport-breedte) en wist het signaal. Twee soorten aanroepers: laadpaden
    *  (openFile/openRecentFile/voorbeeld) en een expliciete gebruikersactie (Ctrl+0, canvas-
-   *  contextmenu, ribbon-knop Beeld → Tijdschaal, issue #78) — NIET bij undo/redo of herberekeningen.
+   *  contextmenu, ribbon-knop Beeld → Tijdschaal) — NIET bij undo/redo of herberekeningen.
    *  Een leeg project blijft "vandaag" (de canvas slaat de fit dan over). */
   requestFitToProject: () => void;
   /** Wis het `pendingFit`-signaal (door de GanttCanvas aangeroepen nadat de fit is uitgevoerd). */
   clearPendingFit: () => void;
-  /** "Spring naar taak" (issue #65): klapt de oudersketen van `taskId` uit, selecteert 'm, en
+  /** "Spring naar taak": klapt de oudersketen van `taskId` uit, selecteert 'm, en
    *  zet het `pendingFocusTaskId`-signaal — naar het patroon van `requestFitToProject`.
    *  GanttCanvas kent de canvas-afmetingen en de bijgewerkte `viewRows` (ná het uitklappen) en
    *  voert daar de echte zoom-/scrollberekening uit (`computeFocusTaskHorizontal`/
@@ -74,34 +74,34 @@ export interface ViewSlice {
   clearPendingFocusTask: () => void;
   /** Kies de resource die de histogramstrook toont (undefined = alle renewables samen). */
   setHistogramResource: (resourceId?: string) => void;
-  /** Split view (§10): twee tijdvensters binnen één document; undefined = uit. */
+  /** Split view: twee tijdvensters binnen één document; undefined = uit. */
   setSplitView: (splitView: SplitViewState | undefined) => void;
-  // --- Fase 2.7 view-mutaties (§4.3) ---
+  // --- View-mutaties (filter/groeperen/sorteren) ---
   setFilter: (filter: FilterNode | null) => void;
   setGroup: (group: GroupLevel[]) => void;
   setSort: (sort: SortLevel[]) => void;
-  /** Klap een groepsband in/uit op zijn pad-gecodeerde sleutel (§7.1). */
+  /** Klap een groepsband in/uit op zijn pad-gecodeerde sleutel. */
   setCollapsedGroupKey: (key: string, collapsed: boolean) => void;
-  /** Issue #35: klap ALLE groepsbanden in — ook geneste, ook die nu al dicht staan (hun subbanden
+  /** Klap ALLE groepsbanden in — ook geneste, ook die nu al dicht staan (hun subbanden
    *  zitten dan niet in `viewRows`, zie `allBandKeys`). Zonder groepering een no-op. */
   collapseAllGroups: () => void;
-  /** Issue #35: tegenhanger van `collapseAllGroups` — opent alle banden in één keer. */
+  /** Tegenhanger van `collapseAllGroups` — opent alle banden in één keer. */
   expandAllGroups: () => void;
-  /** Herbereken de `viewRows`-cache (resourceLoadResult-patroon: "manual, not reactive", §4.3). */
+  /** Herbereken de `viewRows`-cache (resourceLoadResult-patroon: "manual, not reactive"). */
   recomputeViewRows: () => void;
-  /** Layouts toepassen (§8.3): schrijft columns/group/sort/filter + de tijdschaal-zoom naar de
-   *  huidige view en herberekent viewRows. Onbekende refs zijn stille tolerantie (§8.4) — die zit al
+  /** Layouts toepassen: schrijft columns/group/sort/filter + de tijdschaal-zoom naar de
+   *  huidige view en herberekent viewRows. Onbekende refs zijn stille tolerantie — die zit al
    *  in de evaluatie/render, niet hier. */
   applyLayout: (layout: Layout) => void;
   /** Weergave-instellingen toepassen zonder layoutknop (de layoutdialoog, "zonder opslaan"). */
   applyViewSettings: (parts: Layout, label: string) => void;
-  /** Layoutknop (issue #144): aan = toepassen; nogmaals = uit, terug naar het beeld van vóór de klik. */
+  /** Layoutknop: aan = toepassen; nogmaals = uit, terug naar het beeld van vóór de klik. */
   toggleLayout: (layout: Layout) => void;
   /** Relatielijnen in de Gantt tonen of verbergen (schermtegenhanger van de rapportoptie). */
   setShowRelations: (show: boolean) => void;
-  /** De overige Gantt-overlays (issue #173): zet de app-brede schermopties en bewaart ze. */
+  /** De overige Gantt-overlays: zet de app-brede schermopties en bewaart ze. */
   setOverlays: (overlays: Partial<LayoutOverlays>) => void;
-  /** Ruim layoutknoppen op die niet meer op het scherm staan (issue #173) — ook na een
+  /** Ruim layoutknoppen op die niet meer op het scherm staan — ook na een
    *  documentwissel, want de overlays zijn app-breed. Geen undo-stap. */
   settleLayoutSession: () => void;
 }
@@ -145,7 +145,7 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => {
     };
     const deltas: SessionHistoryDelta[] = [];
     // De overlays zijn app-brede `ui`-velden, maar een layoutklik is één stap: ze reizen mee in de
-    // view-delta van het actieve document, zodat Ctrl+Z ook hen terugzet (issue #173).
+    // view-delta van het actieve document, zodat Ctrl+Z ook hen terugzet.
     const overlaysAfter = currentOverlays(afterState.ui);
     const overlaysChanged = JSON.stringify(overlaysBefore) !== JSON.stringify(overlaysAfter);
     if (documentId && (overlaysChanged || JSON.stringify(viewBefore) !== JSON.stringify(viewAfter))) {
@@ -161,7 +161,7 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => {
   };
 
   /**
-   * Issue #173: na een HANDMATIGE wijziging de layoutknoppen opruimen die daardoor afvielen — hun
+   * Na een HANDMATIGE wijziging de layoutknoppen opruimen die daardoor afvielen — hun
    * overige delen terug naar het herstelpunt (`dropBrokenLayouts`). Bewust alleen voor
    * de weloverwogen delen (filter, groeperen, sorteren, relatielijnen, overlays): zoomen of een
    * kolombreedte slepen zet een knop wel uit, maar wist niet ongevraagd je filter.
@@ -185,8 +185,8 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => {
       s.view.zoom = Math.max(0.5, Math.min(max, zoom));
     }),
 
-  // §3.2/3.3: de schaalkeuze mapt naar een zoom-preset; `view.timeScale` is geen bron van waarheid
-  // meer (de getoonde schaal wordt afgeleid via `scaleFromZoom`). Recenter (BESLIST §3.3): de datum
+  // De schaalkeuze mapt naar een zoom-preset; `view.timeScale` is geen bron van waarheid (de
+  // getoonde schaal wordt afgeleid via `scaleFromZoom`). Recenter: de datum
   // onder het viewportmidden blijft onder het midden — dezelfde ankerformule als Ctrl+= /−
   // (useGanttZoom.zoomAt) met anchorX = midden van het chart-gedeelte. Headless (geen
   // geregistreerde viewport-breedte) valt terug op alleen zoomen.
@@ -209,11 +209,11 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => {
     }
   },
 
-  // Fix 2 (fase 2.8a QA): boven de ondergrens (§0) ook een bovengrens klemmen op de werkelijke
+  // Boven de ondergrens ook een bovengrens klemmen op de werkelijke
   // inhoud (GanttCanvas registreert die bij elke render, `ganttViewport.ts`) — anders kan een
   // (per ongeluk) verticale overscroll of een horizontale scroll ná een extreme zoom-cyclus de
   // taakbalken-laag permanent buiten beeld duwen, zonder enige render-pass die dat herstelt.
-  // Headless (geen geregistreerde grenzen): identiek aan de oude ondergrens-only-clamp.
+  // Headless (geen geregistreerde grenzen): alleen de ondergrens.
   setScroll: (x, y) =>
     set((s) => {
       const clamped = clampGanttScroll(Math.max(0, x), Math.max(0, y));
@@ -226,9 +226,9 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => {
       s.view.viewStartDate = date;
     }),
 
-  // Issue #16: een planning die pas in (bv.) 2027 start opende op "vandaag", ver links van de
-  // balken — en zelfs een verschuiving-naar-begin liet alleen het BEGIN zien. Wens: het HELE
-  // project in beeld (zoals Ctrl+0). De fit heeft de viewport-breedte nodig (die de store niet
+  // Een planning die pas later start zou anders op "vandaag" openen, ver links van de balken, en
+  // een verschuiving-naar-begin toont alleen het BEGIN. Doel: het HELE project in beeld (zoals
+  // Ctrl+0). De fit heeft de viewport-breedte nodig (die de store niet
   // kent), dus we zetten hier enkel een signaal; de GanttCanvas voert de gedeelde
   // computeFitToProject uit en wist het signaal.
   requestFitToProject: () =>
@@ -322,9 +322,9 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => {
   },
 
   applyLayout: (layout) => {
-    // Issue #144: een layout zet alleen de delen die hij draagt; zie `switchLayoutOn` voor wat er
+    // Een layout zet alleen de delen die hij draagt; zie `switchLayoutOn` voor wat er
     // met de al aanstaande layoutknoppen gebeurt. Eerst een verouderde sessie opruimen: anders wordt
-    // een half beeld het herstelpunt (issue #173).
+    // een half beeld het herstelpunt.
     settleManualChange();
     const state = get();
     const { session, write } = switchLayoutOn(state.view.layoutSession, currentLayoutParts(state), layout);

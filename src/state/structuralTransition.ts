@@ -1,4 +1,4 @@
-// De structuurovergangen van een taak die iets met haar TOEWIJZINGEN doen (audit taakmutaties §6).
+// De structuurovergangen van een taak die iets met haar TOEWIJZINGEN doen.
 //
 // Een toewijzing hoort alleen op een BLADTAAK die geen mijlpaal is: elke toewijsroute weigert een
 // mijlpaal of fase als doel (`assignResource`, `moveAssignment`, raster, MCP), en belasting en
@@ -8,7 +8,7 @@
 //  1. WORDT MIJLPAAL — de regel staat bij de overgang zelf (`milestoneRefusal` in
 //     `engine/taskMilestoneTransition.ts`); deze module levert alleen de melding.
 //  2. WORDT FASE — een taak krijgt haar eerste kind(eren) via inspringen, verhangen, slepen, een
-//     subtaak toevoegen of een sjabloon invoegen. Eigenaarsbesluit "B met melding": de toewijzingen
+//     subtaak toevoegen of een sjabloon invoegen. De toewijzingen
 //     VERHUIZEN naar de eerste nieuwe subtaak die ze mag dragen, in dezelfde undo-stap, met een
 //     melding. Kan dat niet schoon (geen geschikte subtaak, of die subtaak heeft dezelfde resource
 //     al — één resource per taak is een P6/MSP-invariant, zie `moveAssignment`), dan WEIGERT de hele
@@ -141,7 +141,7 @@ export function planPhaseTransitions(
  * route als `moveAssignment`. Retourneert de taak-ids die daarbij MSP-sturing verloren.
  */
 export function applyPhaseTransitions(
-  // De volledige toewijzingsstate van `relocateAssignment` (werkregel + kalenders, groep B/#170).
+  // De volledige toewijzingsstate van `relocateAssignment` (werkregel + kalenders).
   s: Parameters<typeof relocateAssignment>[0],
   transitions: readonly PhaseTransition[],
 ): string[] {

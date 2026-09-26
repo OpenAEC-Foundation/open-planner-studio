@@ -1,27 +1,17 @@
-// Commandoregister (K-item 34) — ÉÉN definitie per actie, gedeeld door het lint en de sneltoetsen.
+// Commandoregister — ÉÉN definitie per actie, gedeeld door het lint en de sneltoetsen, zodat de
+// twee oppervlakken niet uit elkaar kunnen lopen (zelfde id, zelfde gedrag, zelfde zoomstap).
 //
-// HET PROBLEEM. Dezelfde elf acties stonden twee keer los gedefinieerd: in `ribbonConfig.tsx` als
-// een React-hook met reactieve `disabled`/`title`, en in `shortcutRegistry.ts` als een imperatieve
-// `run(store)`. Ze deelden niet eens een id — de knop heette `undo`, de sneltoets `edit.undo` — dus
-// er was niets dat ze bij elkaar hield. Ze waren dan ook al uit elkaar gelopen: `toggleHistogram`
-// stond letterlijk twee keer uitgeschreven, en de zoomstap verschilde (de knop zoomde uit met 5, de
-// sneltoets met 10 — apart gerepareerd vóór deze commit, want dat is een gedragswijziging).
-//
-// HET CONTRACT, en waarom het afwijkt van het onderhoudbaarheidsrapport. Dat rapport schrijft een
-// tweedelig contract voor: imperatieve `run` plus een REACTIEVE `useEnabled`-hook, omdat het lint
-// zijn reactiviteit niet mag verliezen terwijl de toetsenbord-dispatcher geen hooks kan aanroepen.
-// Die tweedeling is niet nodig. Eén IMPERATIEVE `isEnabled(store)` levert beide gezichten:
+// HET CONTRACT. Eén IMPERATIEVE `isEnabled(store)` levert beide gezichten; een aparte reactieve
+// hook is niet nodig:
 //
 //   - het lint wikkelt hem in een selector — `useAppStore(s => cmd.isEnabled(s))` — en is daarmee
 //     gewoon reactief, want Zustand abonneert op de afgeleide waarde;
-//   - de dispatcher roept dezelfde functie direct aan.
-//
-// Eén definitie, geen hook-grens, en niets dat de twee kanten uit de pas kan laten lopen.
+//   - de dispatcher roept dezelfde functie direct aan (die kan geen hooks aanroepen).
 //
 // `isEnabled` en `run` zijn BEWUST niet aan elkaar gekoppeld. Dat is geen slordigheid maar de reden
 // dat dit contract het `indent`-geval aankan: buiten boommodus zet het lint de knop op grijs (dat
 // is `isEnabled`), terwijl de sneltoets wél vuurt en via `notifyStructureLocked()` uitlegt waaróm
-// er niets gebeurt (issue #26). Een sneltoets kan namelijk geen tooltip dragen. `run` handelt het
+// er niets gebeurt. Een sneltoets kan namelijk geen tooltip dragen. `run` handelt het
 // geblokkeerde geval dus zelf af; de dispatcher hoeft `isEnabled` niet te raadplegen.
 //
 // WAT HIER NIET IN HOORT. Acties die maar op één oppervlak bestaan. Die dupliceren niets, en ze
@@ -76,9 +66,8 @@ export const COMMANDS = {
   },
   open: {
     id: 'open',
-    // De vertaalde naam voor een geïmporteerd project. Het lint haalde die vroeger uit
-    // `useTranslation`, de sneltoets uit de globale `i18n` — zelfde instantie, zelfde taal, dus
-    // hier op één van de twee gestandaardiseerd. Moet de globale zijn: dit is geen hook.
+    // De vertaalde naam voor een geïmporteerd project, via de globale `i18n` (zelfde instantie als
+    // `useTranslation`): dit is geen hook.
     run: (s) => { void s.openFile(buildImportLabels((key) => i18n.t(key, { ns: 'common' }))); },
   },
   delete: {
@@ -91,8 +80,8 @@ export const COMMANDS = {
   indent: {
     id: 'indent',
     // Buiten boommodus doet inspringen niets zinnigs. Het lint grijst de knop uit (via `isEnabled`)
-    // en hangt er een tooltip aan; de sneltoets kán dat niet en legt het daarom uit met een melding
-    // (issue #26). Vandaar dat `run` het geblokkeerde geval zelf afvangt.
+    // en hangt er een tooltip aan; de sneltoets kán dat niet en legt het daarom uit met een melding.
+    // Vandaar dat `run` het geblokkeerde geval zelf afvangt.
     run: (s) => {
       if (isTreeMode(s.view)) s.indentTasks(s.selectedTaskIds);
       else s.notifyStructureLocked();
@@ -123,8 +112,8 @@ export const COMMANDS = {
       void saveShowHistogram(next);
     },
   },
-  // Issue #53: het Waarschuwingenpaneel aan/uit (Beeld → Panelen). Sessie-vlag, dus niets te
-  // persisteren; het uitklappen van een ingeklapte rail regelt `setUI` (invariant 1b).
+  // Het Waarschuwingenpaneel aan/uit (Beeld → Panelen). Sessie-vlag, dus niets te persisteren;
+  // het uitklappen van een ingeklapte rail regelt `setUI`.
   toggleWarningsPanel: {
     id: 'toggleWarningsPanel',
     run: (s) => {

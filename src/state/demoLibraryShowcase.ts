@@ -1,5 +1,5 @@
 /**
- * Bedrading voor "showcase-voorbeelden delen één demo-resourcebibliotheek" (issue #19, user-verzoek).
+ * Bedrading voor "showcase-voorbeelden delen één demo-resourcebibliotheek".
  * Gedeelde helper voor de twee aanroeppunten die een showcase-voorbeeld openen — Backstage
  * (`ExamplesSection.handleOpen`) en `HelpPanel` (`handleOpenExample`) — zodat de logica niet
  * dupliceert.
@@ -13,7 +13,7 @@
  * ONDUBBELZINNIGE naam-match (`computeRecognition`/`linkRecognizedItems`) — zonder het
  * afwijkingenscherm aan de gebruiker te tonen: dit is een demo, geen vraag.
  *
- * F2 (critreview, issue #19): UITSLUITEND resources worden zo gekoppeld — kalenders NIET, ook al
+ * UITSLUITEND resources worden zo gekoppeld — kalenders NIET, ook al
  * matcht `computeRecognition` ze net zo goed op naam. Grond: showcase-kalenders zijn bewust
  * gemodelleerd (bijv. "Construction calendar NL" met een eigen `hoursPerDay` en een specifieke
  * "Frost delay, foundations"-vakantie in "6 New Terraced Houses, De Akkers") en voeden de CPM-berekening

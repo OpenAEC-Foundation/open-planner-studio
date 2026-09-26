@@ -19,13 +19,12 @@ const REJECTION_MESSAGE: Record<RelationAddRejection, NotificationMessageKey> = 
 };
 
 /**
- * Relatie aanmaken MÉT gebruikerszichtbare terugkoppeling (issue #40).
+ * Relatie aanmaken MÉT gebruikerszichtbare terugkoppeling.
  *
- * Waarom deze wrapper bestaat: `addSequence` weigert stil (geen mutatie, geen undo-stap). Alle drie
- * de callsites die met één gebaar een Eind-Start-relatie leggen (de lint-knop bij 2 selecties, de
- * knop in het Relaties-paneel, en het slepen in de Gantt) hadden daardoor exact hetzelfde symptoom
- * als de gemelde bug: er gebeurt zichtbaar niets. Hier gaat dat door één deur, met het
- * gecentraliseerde meldingenkanaal (bevinding K8) als uitgang.
+ * Waarom deze wrapper bestaat: `addSequence` weigert stil (geen mutatie, geen undo-stap), dus zonder
+ * wrapper gebeurt er bij een weigering zichtbaar niets. Alle callsites die met één gebaar een
+ * Eind-Start-relatie leggen (de lint-knop bij 2 selecties, de knop in het Relaties-paneel, het
+ * slepen in de Gantt) gaan hier door één deur, met het meldingenkanaal als uitgang.
  *
  * De REDEN komt uit `relationAddVerdict`, dezelfde pure functie die `addSequence` zelf gebruikt als
  * handhavingsgrens. Twee aanroepen van een pure functie is goedkoper dan de reden door het
