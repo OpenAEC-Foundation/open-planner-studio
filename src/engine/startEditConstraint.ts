@@ -2,6 +2,7 @@ import type { Sequence } from '@/types/sequence';
 import type { Task, TaskConstraint } from '@/types/task';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { shownStart } from '@/utils/taskDates';
+import { isManuallyScheduled } from '@/utils/manualScheduling';
 
 /**
  * Een getypte startdatum op een taak MET voorganger wordt een beperking "Start niet eerder dan"
@@ -58,7 +59,9 @@ export interface StartConstraintEdit {
  */
 function startRuleApplies(task: Task, drivenByPredecessor: boolean): boolean {
   if (!drivenByPredecessor) return false;
-  if (task.childIds.length > 0 || task.manuallyScheduled === true || task.isHammock === true) return false;
+  // `isManuallyScheduled` (utils): bewerksemantiek, geen motorlezing van de datagate `manuallyScheduled`
+  // (integratie groep C × rekenprofielen, `verify:conventions`).
+  if (task.childIds.length > 0 || isManuallyScheduled(task) || task.isHammock === true) return false;
   return !task.time.actualStart && !(task.time.completion > 0);
 }
 
