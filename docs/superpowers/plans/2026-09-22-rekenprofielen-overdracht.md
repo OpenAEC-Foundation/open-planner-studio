@@ -514,6 +514,27 @@ een duur onder het gedane werk weigert en andere eenheidswissel-regels heeft); 3
 drie merge-bases; én #232 noemt zichzelf onaf ("volgt nog: voortgangsblad"). Voorstel: na het eigenaarsbesluit
 klemmen/weigeren één mechanisme herbouwen op main.
 
+**26-09 14:40 — GROEP C GEMERGED naar `main` (#235 → `a84b42df`, `--admin` na groene PR-CI én lokale verify op 85b00da6).**
+Integratie (Opus 5.5) op fundament groep B 7c517686, 25 heads in topologische volgorde (#213 eerst: #217 stapelt erop), na-merge
+main 531940ac conflictvrij; vijf fixcommits (P6-herkomstvelden kalender alleen-lees in `update_calendar` (#206 × rekenprofielen);
+rem na rekenfout vergelijkt ruwe store-invoer omdat `solveOptionsFor` telkens een nieuw object geeft (#209); `manuallyScheduled`
+via `isManuallyScheduled` verhuisd (#231 × verify:conventions); MCP-voortgangsdraft volledige store-vorm in twee checks
+(#211/#215 × groep B); `isDirty = true` → `markDocumentEdited` (#209/#210 × heropen-beleid)). Eerste verify op 8cbd8b27 rood:
+3/340 browsertests (lokaal én CI) ⇒ fixronde (Opus 5.5, 85b00da6): calendar-dialog-commits pinde gedrag van vóór #167
+(vreemde IFC schakelt zelf naar "datums zoals opgeslagen", geen aanbodknop meer) — test; paste-references = echte focus-race in
+het raster (uitgestelde celfocus pakte focus terug van het Gantt-canvas; nu `focusBelongsOutside`) — app-fix `DataGridCore.tsx`;
+schedule-error-language vond twee "Sluiten"-knoppen (kruisje kreeg in groep B een aria-label) — test kiest `.modal-close-btn`.
+Eindstand 85b00da6: verify EXIT 0 (browser 340/340), measure 76/0/0/0 schuld 0, mpp-fidelity 216/0/0. Alle 25 sub-PR's gesloten
+met verwijzing (#228's enige extra commit was een merge van main). Main-CI loopt. Punten voor de visuele check (uit het
+integratierapport): "wordt fase" (#210) hangt aan de verhangproef van #234 in `taskSlice.ts`; ouderguard (#183) + `resourceIds`-guard
+(#208) samen in één extensie-route; MCP-verplaatsing doet kringtoets vóór `draft.moveTask`; SNET-regel (#231) naast de sessie-squash
+in `taskDialogSave.ts`; raster pakt de focus niet meer terug als je elders klikt.
+
+**Vervolg:** (1) `opus-midden-h1-voortgang-herbouw` bouwt #232 opnieuw (`claude/h1-voortgang-herbouw` vanaf groep C; eigenaarsbesluit
+"optie 2" = weigeren als één mechanisme in de duurroute van de etappe) ⇒ eigen PR, verify + measure, merge; #232 daarna sluiten.
+(2) Nieuwe PR #236 (andere sessie, 12:36 UTC, bibliotheek-kalenderverversing volgt de werkregel, R1 uit de #170-audit) is
+CONFLICTING met main ⇒ **groep D** (`opus-midden-groep-d-236`, `claude/integratie-groep-d` vanaf main) op dezelfde manier.
+
 18. *(beantwoord 26-09: "optie 2" = weigeren, zie §1a)* **#232 (voortgangsregels 26-09) — restduur bij een duurwijziging op een lopende taak: klemmen of weigeren?**
     De taaktypes-etappe (#170, besluiten 05/06-09) laat de rest meeschuiven en klemt op 0
     (`carryRemainingThroughDurationEdit`, `src/engine/work/workRuleApply.ts`). #232 (besluit 26-09, andere sessie)
