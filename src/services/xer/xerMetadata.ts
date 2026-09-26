@@ -1,7 +1,8 @@
 /**
- * Bestandsbrede X8-mapping voor P6-activitycodes, UDF's en taaknotities.
+ * Bestandsbrede mapping voor P6-activitycodes, UDF's en taaknotities.
  *
- * De catalogus wordt precies één keer uit X2-tabellen afgeleid vóór X4b zijn documenten maakt.
+ * De catalogus wordt precies één keer uit de tabellen afgeleid vóór de meerprojectenroute zijn
+ * documenten maakt.
  * De projectview hieronder doet daarna uitsluitend lookup en kleine, mutable documentkopieën.
  */
 import type { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
@@ -261,7 +262,7 @@ function mapUdfs(
     }
   }
   // Het bestaande OPS-taakmodel kent alleen taakvelden; alle andere definities/waarden blijven
-  // volledig in de catalogus tot X9 ze op hun eigen entiteit kan round-trippen.
+  // volledig in de catalogus (en daarmee in het bronarchief).
   const definitions = [...known.entries()].filter(([, info]) => info.row.cells.table_name?.trim().toUpperCase() === 'TASK')
     .sort(([a], [b]) => compareText(a, b)).map(([id, info]) => ({ id, name: info.row.cells.udf_type_label || info.row.cells.udf_type_name || id, type: info.type }));
   return { definitions, deferred, unknown };
@@ -319,7 +320,7 @@ function freezeCatalog<T>(value: T, seen = new Set<object>()): T {
   return value;
 }
 
-/** Bouw eenmaal de gehele X8-catalogus, inclusief baselineprojecttaken die X4b niet als document opent. */
+/** Bouw eenmaal de gehele catalogus, inclusief baselineprojecttaken die niet als document openen. */
 export function buildXerMetadataCatalog(tables: XerTables): XerMetadataCatalog {
   const issues: XerMetadataIssue[] = [];
   const counts = issueState();

@@ -30,7 +30,7 @@ export type {
 
 export interface XerScheduleOptionsResult extends XerScheduleOptionsMetadata {
   progressMode: ProgressMode;
-  /** Alleen projectopties (rekenprofielen C3); de conventies komen uit het P6-profiel. */
+  /** Alleen projectopties; de conventies komen uit het P6-profiel. */
   schedulingOptions: ProjectSchedulingOptions;
 }
 
@@ -122,11 +122,11 @@ export const XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS: readonly XerScheduleOptionCol
 
 const P6_OPTIONS = p6OptionDefaults();
 
-/** XER-eigen defaults; worden nooit als algemene OPS-projectdefaults toegepast. Sinds rekenprofielen
- *  C3 alleen PROJECTOPTIES (de P6-conventies staan in het profiel dat `xerReader` zet). De WAARDEN
- *  komen uit het conventieregister (`p6OptionDefaults`); hier staat alleen welke sleutels de lezer
- *  zaait en in welke volgorde (die volgorde is de bytevolgorde van het IFC-optieblok). Dat deze set
- *  gelijk is aan `defaultOptionsFor('p6')`, pint `check-conventions-registry.ts`. */
+/** XER-eigen defaults; worden nooit als algemene OPS-projectdefaults toegepast. Alleen PROJECTOPTIES
+ *  (de P6-conventies staan in het profiel dat `xerReader` zet). De WAARDEN komen uit het
+ *  conventieregister (`p6OptionDefaults`); hier staat alleen welke sleutels de lezer zaait en in welke
+ *  volgorde (die volgorde is de bytevolgorde van het IFC-optieblok). Dat deze set gelijk is aan
+ *  `defaultOptionsFor('p6')`, pint `check-conventions-registry.ts`. */
 export const XER_SCHEDULING_DEFAULTS = {
   progressMode: 'RETAINED_LOGIC',
   schedulingOptions: {
@@ -202,11 +202,10 @@ function retainedBooleanValue(
   return undefined;
 }
 
-/** `PROJECT.rem_target_link_flag` stuurt sinds 2026-09-24 GEEN conventie meer (eigenaarsbesluit "a",
- *  Fable-critreview PR #169 bevinding 2): A19 staat gewoon aan in het P6-profiel. De vlag wordt nog
- *  alleen als diagnose gelezen: een onbekend token komt als fallback in de metadata, Y/N/leeg niet.
- *  [VERMOED · hoog] In P6 heet het veld `LinkPlannedAndAtCompletionFlag` ("Link Budget and At
- *  Completion for not started activities") — een eenheden-/kostenkoppeling, geen datumregel. */
+/** `PROJECT.rem_target_link_flag` stuurt GEEN conventie: A19 staat gewoon aan in het P6-profiel. De
+ *  vlag wordt alleen als diagnose gelezen: een onbekend token komt als fallback in de metadata,
+ *  Y/N/leeg niet. [VERMOED · hoog] In P6 heet het veld `LinkPlannedAndAtCompletionFlag` ("Link Budget
+ *  and At Completion for not started activities") — een eenheden-/kostenkoppeling, geen datumregel. */
 function reportRemainingTargetLinkFlag(
   row: XerRow | undefined,
   fallbacks: XerScheduleOptionFallback[],
@@ -420,11 +419,10 @@ function levelPriorityValue(
 }
 
 /**
- * Nivelleerinstellingen van één SCHEDOPTIONS-rij als DATA (`SchedulingOptions.leveling`, etappe
- * P6-nivellering fundament). Leest uitsluitend invoerinstellingen: de drie `level_*`-kolommen hieronder,
- * RSRCLEVELLIST (via `schedoptions_id`) en `RSRCRATE.max_qty_per_hr` — nooit opgeslagen rekenuitvoer
- * (bak 4) en nooit een afleiding "is er genivelleerd": P6 slaat niet op of er genivelleerd is, en het
- * blok heeft bewust geen aan/uit-veld (eigenaarsbeslissing 1 open, onderzoek §2b).
+ * Nivelleerinstellingen van één SCHEDOPTIONS-rij als DATA (`SchedulingOptions.leveling`). Leest
+ * uitsluitend invoerinstellingen: de drie `level_*`-kolommen hieronder, RSRCLEVELLIST (via
+ * `schedoptions_id`) en `RSRCRATE.max_qty_per_hr` — nooit opgeslagen rekenuitvoer en nooit een
+ * afleiding "is er genivelleerd": P6 slaat dat niet op, en het blok heeft bewust geen aan/uit-veld.
  * Draagt de rij geen van de drie kolommen en geen resourcelijst, dan `undefined` (geen blok).
  */
 function levelingValue(
@@ -552,17 +550,14 @@ export function deriveXerScheduleOptions(
   if (retainedProjectEndValue !== undefined) {
     schedulingOptions.useProjectEndDateForFloat = retainedProjectEndValue;
   }
-  // Projecteinde zonder einde (her-review 7a, plan XER §9, X12-brok 1). `Y` zegt dat de late pass op
-  // het projecteinde verankert, maar het bestand draagt dan geen einde: geen PROJECT-einddatum (P6's
-  // "Must Finish By") en geen enkele TASK-doeleinddatum. Het taak-afgeleide einde van de lezer valt
-  // dan terug op de projectSTART en de hele late zijde verankerde daarop (cases-import.xer: 77/160
-  // P6-cellen). Volgens de P6-documentatie rekent P6 zonder Must Finish By de late datums terug
-  // vanaf het vroegste projecteinde, max(EF) — wat de solver doet met de optie uit; gemeten op
-  // cases-import.xer: 156/160, gelijk aan de transcriptie. Daarom: optie uit, en zichtbaar als
-  // terugval gerapporteerd. De bronwaarde `Y` blijft in `retainedSource` bewaard.
-  // Bewust smal: een bestand mét taakeinden houdt het taak-afgeleide einde (OZB, Roads, Harbour,
-  // xernative, ashspace — de optie daar óók uitzetten verslechterde 100 X12-cellen op OZB; open
-  // vraag in plan XER §9).
+  // Projecteinde zonder einde. `Y` zegt dat de late pass op het projecteinde verankert, maar het
+  // bestand draagt dan geen einde: geen PROJECT-einddatum (P6's "Must Finish By") en geen enkele
+  // TASK-doeleinddatum. Het taak-afgeleide einde valt dan terug op de projectSTART en de hele late
+  // zijde zou daarop verankeren (cases-import.xer: 77/160 P6-cellen). Zonder Must Finish By rekent
+  // P6 de late datums terug vanaf max(EF) — wat de solver doet met de optie uit (cases-import.xer:
+  // 156/160). Daarom: optie uit, zichtbaar als terugval gerapporteerd; de bronwaarde `Y` blijft in
+  // `retainedSource`. Bewust smal: een bestand mét taakeinden houdt het taak-afgeleide einde (daar
+  // de optie óók uitzetten verslechterde 100 cellen op OZB).
   if (schedulingOptions.useProjectEndDateForFloat === true && context.hasUsableProjectEnd === false) {
     schedulingOptions.useProjectEndDateForFloat = false;
     reportFallback(
@@ -575,15 +570,12 @@ export function deriveXerScheduleOptions(
   }
 
   const progressMode = progressModeValue(row, fallbacks);
-  // X-O7 laag 1, klasse (i) (review-bevinding 6, aangescherpt in de her-review, bevinding 3): de
-  // bewijsbasis voor `p6CompletedLateFromRemainingWindow` is uitsluitend RETAINED_LOGIC-corpus
-  // (rehab-2, geen enkel gemeten bestand declareert iets anders) — zie het docblok bij het veld in
-  // `types/project.ts`. De klem is daarom fail-closed op "aantoonbaar retained logic": de vlag
-  // blijft alleen aan wanneer de bron géén van beide velden declareert (P6-default, rehab-2) of
-  // exact Y/N zegt. Niet alleen `sched_progress_override=Y` (N/Y) zet 'm uit, maar óók P6's
-  // "Actual Dates" (N/N) en de tegenstrijdige Y/Y — die vielen in `progressModeValue` zichtbaar
-  // terug op RETAINED_LOGIC en hielden de vlag stil aan, terwijl juist Actual Dates de modus is
-  // waarin P6 voltooid werk anders behandelt en daar geen enkele meting van bestaat.
+  // De bewijsbasis voor `p6CompletedLateFromRemainingWindow` is uitsluitend RETAINED_LOGIC-corpus
+  // (rehab-2) — zie het docblok bij het veld in `types/project.ts`. De klem is daarom fail-closed op
+  // "aantoonbaar retained logic": de vlag blijft alleen aan wanneer de bron géén van beide velden
+  // declareert (P6-default) of exact Y/N zegt. Ook P6's "Actual Dates" (N/N) en de tegenstrijdige
+  // Y/Y zetten hem uit — die vallen in `progressModeValue` zichtbaar terug op RETAINED_LOGIC, maar
+  // juist in Actual Dates behandelt P6 voltooid werk anders, en daar bestaat geen meting van.
   if (!declaresRetainedLogic(row)) {
     schedulingOptions.p6CompletedLateFromRemainingWindow = false;
   }

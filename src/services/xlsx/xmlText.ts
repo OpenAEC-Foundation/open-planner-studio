@@ -1,5 +1,5 @@
 /**
- * Tekst-escaping voor SpreadsheetML (issue #27, etappe 3).
+ * Tekst-escaping voor SpreadsheetML.
  *
  * Bladmodule: geen imports, geen state, geen module-level muteerbare singletons.
  *

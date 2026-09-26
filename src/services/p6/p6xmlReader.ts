@@ -38,21 +38,20 @@ import {
   promoteHourCalendars, registerCalendarBands,
 } from '@/services/subdayIo';
 
-// De rauwe-banden-registry (voorheen een lokale WeakMap) en `synth*BandsFromScalar` wonen nu gedeeld
-// in subdayIo (F5-c/d/e). P6_NAME_TO_CURVE (P6-curvenaam → OPS-curve) komt uit p6xmlWriter, waar beide
-// (bewust asymmetrische) richtingen naast elkaar staan (spiegel van P6_DAY_NAMES-patroon).
+// De rauwe-bandenregistry en `synth*BandsFromScalar` staan in subdayIo. P6_NAME_TO_CURVE (P6-curvenaam
+// → OPS-curve) komt uit p6xmlWriter, waar beide (bewust asymmetrische) richtingen naast elkaar staan.
 
-// P6 onderscheidt Nonlabor niet verder in Equipment/Subcontractor — invulling §8.1:
-// zonder verdere hint komt Nonlabor terug als EQUIPMENT (geaccepteerd verlies, §8.4).
+// P6 onderscheidt Nonlabor niet verder in Equipment/Subcontractor — zonder verdere hint komt
+// Nonlabor terug als EQUIPMENT (geaccepteerd verlies).
 function resourceTypeFromP6(p6Type: string): ResourceType {
   if (p6Type === 'Material') return 'MATERIAL';
   if (p6Type === 'Nonlabor') return 'EQUIPMENT';
   return 'LABOR';
 }
 
-// Dunne lokale wrappers rond de gedeelde XML-primitieven (F5-b). P6 leest UITSLUITEND directe
-// kinderen (anders pikt hij geneste subbomen met dezelfde tag op, bv. binnen een Relationship); die
-// scope-keuze — het verschil met MSPDI's descendant-search — blijft hiermee per formaat bewaard.
+// Dunne lokale wrappers rond de gedeelde XML-primitieven. P6 leest UITSLUITEND directe kinderen
+// (anders pikt hij geneste subbomen met dezelfde tag op, bv. binnen een Relationship); die scope-keuze
+// — het verschil met MSPDI's descendant-search — blijft hiermee per formaat bewaard.
 function getElementText(parent: Element, tagName: string): string {
   return directChildText(parent, tagName);
 }
@@ -65,7 +64,7 @@ function getElementFloat(parent: Element, tagName: string, fallback = 0): number
   return toFloat(getElementText(parent, tagName), fallback);
 }
 
-/** P6-datum in DAG-modus (`2026-03-09T08:00:00` → `2026-03-09`); gedeeld met MSPDI (F5-a). */
+/** P6-datum in DAG-modus (`2026-03-09T08:00:00` → `2026-03-09`); gedeeld met MSPDI. */
 function parseP6Date(s: string): string {
   return isoDatePrefixOrToday(s);
 }
@@ -78,9 +77,9 @@ function p6HoursToDays(hours: number, hoursPerDay: number): number {
 }
 
 /**
- * Fase 2.9 (§6) — P6 `CS_*`-code → OPS-constraint (spiegel van `p6ConstraintCode` in de writer).
- * De harde `CS_MANDSTART`/`CS_MANDFIN` komen terug als `MSO`/`MFO` mét `hard:true`; de soft-typen
- * als hun OPS-equivalent. Onbekende code ⇒ `undefined` (veld gewoon afwezig, dag-modus-analoog).
+ * P6 `CS_*`-code → OPS-constraint (spiegel van `p6ConstraintCode` in de writer). De harde
+ * `CS_MANDSTART`/`CS_MANDFIN` komen terug als `MSO`/`MFO` mét `hard:true`; de soft-typen als hun
+ * OPS-equivalent. Onbekende code ⇒ `undefined` (veld afwezig).
  */
 function p6CodeToConstraint(code: string): { type: ConstraintType; hard?: boolean } | undefined {
   switch (code) {
@@ -99,13 +98,12 @@ function p6CodeToConstraint(code: string): { type: ConstraintType; hard?: boolea
 
 // P6-XML (PMXML) draagt `<DurationType>` als Engels label, niet als het XER-token
 // (`DT_FixedDrtn`/`DT_FixedDUR2`/`DT_FixedRate`/`DT_FixedQty`) — zelfde vier canonieke P6-waarden,
-// andere schrijfwijze per bronformaat. Labels geverifieerd tegen MPXJ `DurationTypeHelper`
-// (LGPL-2.1, lezen-om-te-begrijpen, §4 harde regel) en Oracle's PMXML-schemadocumentatie.
-// Taaktypes-etappe (2026-09-05): de twee Fixed-Duration-labels stonden hier verwisseld. Oracle's
-// eigen XER-datamap (P6 EPPM XER Import/Export Data Map Guide, TASK.duration_type) geeft:
-// DT_FixedDrtn = "Fixed Duration and Units/Time", DT_FixedDUR2 = "Fixed Duration and Units",
-// DT_FixedQty = "Fixed Units", DT_FixedRate = "Fixed Units/Time" — dezelfde paren als
-// `workRuleMapping.ts` (`XER_DURATION_TYPE_TOKEN` ↔ `P6_DURATION_TYPE_NAME`).
+// andere schrijfwijze. Labels geverifieerd tegen MPXJ `DurationTypeHelper` en Oracle's
+// PMXML-schemadocumentatie. Oracle's XER-datamap (P6 EPPM XER Import/Export Data Map Guide,
+// TASK.duration_type): DT_FixedDrtn = "Fixed Duration and Units/Time", DT_FixedDUR2 = "Fixed Duration
+// and Units", DT_FixedQty = "Fixed Units", DT_FixedRate = "Fixed Units/Time" — dezelfde paren als
+// `workRuleMapping.ts` (`XER_DURATION_TYPE_TOKEN` ↔ `P6_DURATION_TYPE_NAME`). Valkuil: de twee
+// Fixed-Duration-labels worden makkelijk verwisseld.
 const P6_XML_DURATION_TYPE_BY_LABEL: Readonly<Record<string, P6DurationType>> = {
   'Fixed Duration and Units': 'DT_FixedDUR2',
   'Fixed Duration and Units/Time': 'DT_FixedDrtn',
@@ -114,11 +112,9 @@ const P6_XML_DURATION_TYPE_BY_LABEL: Readonly<Record<string, P6DurationType>> = 
 };
 
 /**
- * Contour-engine-etappe (2026-09), taaktypes-vervolgafspraak: `<DurationType>` is puur data — géén
- * solverstap leest dit veld, zelfde eigenaarsbesluit als de XER-lezer's `p6DurationType`
- * (`task.ts`'s docblok). Onbekend/leeg label ⇒ veld AFWEZIG (byte-identiek), nooit een aanname;
- * de onbekende waarde wordt gerapporteerd zodat een nieuw of vreemd PMXML-label zichtbaar blijft
- * in plaats van stil te verdwijnen.
+ * `<DurationType>` → `p6DurationType`, dat via `deriveImportedWorkRules` de werkregel voedt (net als
+ * bij de XER-lezer). Onbekend/leeg label ⇒ veld AFWEZIG, nooit een aanname; de onbekende waarde wordt
+ * gerapporteerd zodat een vreemd PMXML-label zichtbaar blijft.
  */
 function p6DurationTypeFromXml(raw: string): P6DurationType | undefined {
   const label = raw.trim();
@@ -129,12 +125,11 @@ function p6DurationTypeFromXml(raw: string): P6DurationType | undefined {
   return undefined;
 }
 
-/** Werkweek teruglezen (fase 2.8a, §8.3, spiegel van `writeStandardWorkWeek`): per
- *  `<StandardWorkHour>` de dagnaam terugmappen naar een ISO-dagnummer via `P6_DAY_NAMES`; een dag
- *  telt als werkdag zodra hij een `<WorkTime>`-blok heeft. `workStartHour`/`workEndHour` komen van
- *  het LAATST gevonden werktijdblok (één scalar per kalender, bestaande aanname). Golden rule:
- *  geen `<StandardWorkWeek>` (ander tool / oud bestand) ⇒ lege workDays, aanroeper valt terug op
- *  de `createDefaultCalendar()`-defaults. */
+/** Werkweek teruglezen (spiegel van `writeStandardWorkWeek`): per `<StandardWorkHour>` de dagnaam
+ *  terugmappen naar een ISO-dagnummer via `P6_DAY_NAMES`; een dag telt als werkdag zodra hij een
+ *  `<WorkTime>`-blok heeft. `workStartHour`/`workEndHour` komen van het LAATST gevonden werktijdblok
+ *  (één scalar per kalender). Golden rule: geen `<StandardWorkWeek>` (ander tool / oud bestand) ⇒
+ *  lege workDays, de aanroeper valt terug op de `createDefaultCalendar()`-defaults. */
 export function parseP6StandardWorkWeek(calEl: Element): {
   workDays: number[]; workStartHour?: number; workEndHour?: number;
   rawByWeekday: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>>;
@@ -151,8 +146,7 @@ export function parseP6StandardWorkWeek(calEl: Element): {
     if (dayEl.localName !== 'StandardWorkHour' && dayEl.tagName !== 'StandardWorkHour') continue;
     const dayName = getElementText(dayEl, 'DayOfWeek');
     const isoDay = P6_DAY_NAMES.indexOf(dayName); // index == ISO-dagnummer (array begint met '' op 0)
-    // Fase 2.8b (§7.2): ALLE <WorkTime>-banden van deze dag lezen (nu las de reader alleen het
-    // láátste blok als scalar). Elke band → minuten-vanaf-middernacht.
+    // ALLE <WorkTime>-banden van deze dag lezen; elke band → minuten-vanaf-middernacht.
     const wts = dayEl.getElementsByTagName('WorkTime');
     const dayBands: { start: number; end: number }[] = [];
     for (let k = 0; k < wts.length; k++) {
@@ -161,7 +155,7 @@ export function parseP6StandardWorkWeek(calEl: Element): {
       const e = clockToMinutes(getElementText(wt, 'Finish'));
       if (s == null || e == null) continue;
       dayBands.push({ start: s, end: e });
-      // Scalar (laatst gevonden blok, bestaand gedrag) voor het dag-pad.
+      // Scalar (laatst gevonden blok) voor het dag-pad.
       workStartHour = Math.floor(s / 60);
       workEndHour = Math.floor(e / 60);
     }
@@ -172,13 +166,13 @@ export function parseP6StandardWorkWeek(calEl: Element): {
   return { workDays, workStartHour, workEndHour, rawByWeekday };
 }
 
-/** Canonicaliseer de rauwe banden en registreer ze + de afwijking (a/b) op de kalender (§7.2). */
+/** Canonicaliseer de rauwe banden en registreer ze + de afwijking (a/b) op de kalender. */
 function registerP6Bands(cal: WorkCalendar, rawByWeekday: Partial<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>>): void {
   const { bands, deviates } = canonicalizeBands(rawByWeekday);
   registerCalendarBands(cal, { canonical: bands, deviates });
 }
 
-/** Feestdagen/exceptions teruglezen (fase 2.8a, §8.3, spiegel van `writeHolidayOrExceptions`). */
+/** Feestdagen/exceptions teruglezen (spiegel van `writeHolidayOrExceptions`). */
 function parseP6HolidayOrExceptions(calEl: Element): Holiday[] {
   const hoEl = calEl.getElementsByTagName('HolidayOrExceptions')[0];
   if (!hoEl) return [];
@@ -220,8 +214,8 @@ export function readP6XML(content: string): ImportResult {
   const calendar = parseCalendar(doc);
   const hoursPerDay = calendar.hoursPerDay;
 
-  // Resource-kalenders (fase 2.5, §8.1): elke <Calendar> met Type=Resource, behalve de eerste
-  // (die is altijd de projectkalender, zelfde aanname als de bestaande parseCalendar).
+  // Resourcekalenders: elke <Calendar> met Type=Resource, behalve de eerste (die is altijd de
+  // projectkalender, zelfde aanname als parseCalendar).
   const calElements = getAllByLocalName(doc, 'Calendar');
   const calObjIdToId = new Map<number, string>();
   const resourceCalendars: WorkCalendar[] = [];
@@ -236,7 +230,7 @@ export function readP6XML(content: string): ImportResult {
     resourceCalendars.push(cal);
   }
 
-  // Resources (fase 2.5, §8.1)
+  // Resources
   const resourceElements = getAllByLocalName(doc, 'Resource');
   const resources: Resource[] = [];
   const resObjIdToId = new Map<number, string>();
@@ -260,8 +254,8 @@ export function readP6XML(content: string): ImportResult {
       name,
       type: resourceTypeFromP6(p6Type),
       description: '',
-      // MaxUnitsPerTime is in P6-XML een dimensieloze fractie (1.0 = 100%), geen uren/dag
-      // (L2-fix — spiegel van p6xmlWriter, MPXJ-bron aldaar), dus 1:1 overnemen.
+      // MaxUnitsPerTime is in P6-XML een dimensieloze fractie (1.0 = 100%), geen uren/dag (zie
+      // p6xmlWriter), dus 1:1 overnemen.
       maxUnits: maxUnitsPerTime > 0 ? maxUnitsPerTime : 1,
     };
     if (unitOfMeasure) resource.unitOfMeasure = unitOfMeasure;
@@ -276,10 +270,9 @@ export function readP6XML(content: string): ImportResult {
     if (resource) resource.parentId = parentId;
   }
 
-  // ResourceRates (fase 2.5, M4-fix): top-level <ResourceRate>-elementen (siblings van
-  // <Resource>, spiegel van p6xmlWriter) — PricePerUnit is het uurtarief. Meerdere rijen
-  // per resource (effective-dated staffel, P6-native): de rij met de vroegste EffectiveDate
-  // wint als ons ene vlakke `costPerHour` (staffels zijn buiten scope, §1/§8.4).
+  // ResourceRates: top-level <ResourceRate>-elementen (siblings van <Resource>, spiegel van
+  // p6xmlWriter) — PricePerUnit is het uurtarief. Bij meerdere rijen per resource (effective-dated
+  // staffel, P6-native) wint de rij met de vroegste EffectiveDate als ons ene vlakke `costPerHour`.
   const rateElements = getAllByLocalName(doc, 'ResourceRate');
   const earliestRate = new Map<string, { effective: string; price: number }>();
   for (const rateEl of rateElements) {
@@ -341,9 +334,9 @@ export function readP6XML(content: string): ImportResult {
     if (!projectStartRaw) { missingDates.start.add(id); missingDates.finish.add(id); }
   }
 
-  // Broer/zus-volgorde uit `SequenceNumber` (issue #159, vervolg — critreview PR #162: de writer
-  // schrijft hem, dus de lezer hoort hem ook te honoreren). Stabiele sortering; zonder het element
-  // blijft de documentvolgorde gelden. `flattenOrder` leest de kindvolgorde uit de array-volgorde.
+  // Broer/zus-volgorde uit `SequenceNumber` (de writer schrijft hem, dus de lezer honoreert hem).
+  // Stabiele sortering; zonder het element blijft de documentvolgorde gelden. `flattenOrder` leest de
+  // kindvolgorde uit de array-volgorde.
   const seqNrByObjId = new Map<number, number>();
   for (const wbsEl of wbsElements) {
     const objId = getElementInt(wbsEl, 'ObjectId', -1);
@@ -386,7 +379,7 @@ export function readP6XML(content: string): ImportResult {
   const actObjIdToId = new Map<number, string>();
   const leafTasks: Task[] = [];
   const customTaskTypes = new Map<string, CustomTaskType>();
-  const taskHourById = new Map<string, boolean>(); // taak-id → uur-modus (voor lag-eenheid, §7.2)
+  const taskHourById = new Map<string, boolean>(); // taak-id → uur-modus (voor lag-eenheid)
 
   // PMXML bewaart UDF's als top-level objecten. Selecteer uitsluitend onze benoemde definitie en
   // marker, zodat een toevallig JSON-object in een vreemde vrije tekst nooit taaktype-data wordt.
@@ -400,8 +393,8 @@ export function readP6XML(content: string): ImportResult {
   for (const udfValue of getAllByLocalName(doc, 'UDFValue')) {
     if (!opsUdfTypeIds.has(getElementInt(udfValue, 'UDFTypeObjectId', -1))) continue;
     const foreignObjectId = getElementInt(udfValue, 'ForeignObjectId', -1);
-    // Oracle noemt het tekstveld `Text`. `TextValue` blijft als tolerante leeskant bestaan voor
-    // tijdelijke OPS-builds die vóór deze contractcorrectie zijn gemaakt.
+    // Oracle noemt het tekstveld `Text`. `TextValue` wordt tolerant ook gelezen, voor oudere
+    // OPS-builds die dat veld schreven.
     const parsed = decodeCustomTaskType(
       getElementText(udfValue, 'Text') || getElementText(udfValue, 'TextValue'),
     );
@@ -434,9 +427,9 @@ export function readP6XML(content: string): ImportResult {
     }
   }
 
-  // Fase 2.8b (§7.2): uur-modus-beslissing per kalender (discriminator a/b/c) vóór het bouwen van de
-  // taken. `calById` mapt zowel de projectkalender als de bibliotheek-kalenders; `effCalIdOf` geeft
-  // per activity de effectieve kalender-id (CalendarObjectId 1/ontbrekend = projectkalender).
+  // Uur-modus-beslissing per kalender (discriminator a/b/c) vóór het bouwen van de taken. `calById`
+  // mapt de projectkalender én de bibliotheekkalenders; `effCalIdOf` geeft per activity de effectieve
+  // kalender-id (CalendarObjectId 1/ontbrekend = projectkalender).
   const calById = new Map<string, WorkCalendar>([calendar, ...resourceCalendars].map(c => [c.id, c]));
   const effCalIdOf = (calObjId: number): string => (calObjId > 1 && calObjIdToId.get(calObjId)) || calendar.id;
 
@@ -452,15 +445,14 @@ export function readP6XML(content: string): ImportResult {
     if (durSignal || dateSignal) cSignalCalIds.add(calId);
   }
   // P6 valt terug op de scalar-synth zodra de geregistreerde canonical geen werkdag draagt
-  // (preferCanonicalWhenEmpty = false) — zie de F5-noot bij `promoteHourCalendar`.
+  // (preferCanonicalWhenEmpty = false) — zie `promoteHourCalendar`.
   const hourModeCalIds = promoteHourCalendars(calById, id => cSignalCalIds.has(id), false);
 
-  // "Datums zoals opgeslagen" voor P6 XML (eigenaarsbesluit 2026-09-09): P6's EIGEN rekenuitvoer
-  // per activiteit — `EarlyStartDate`/`EarlyFinishDate` (terugval `StartDate`/`FinishDate`),
-  // `LateStartDate`/`LateFinishDate`, `TotalFloat`/`FreeFloat` (uren) en `IsCritical` — als apart,
-  // waardedragend kanaal naast de taken (`ImportResult.recordedTimes`), nooit als solverinvoer:
-  // `task.time` krijgt hieronder onverkort de geplande datums, precies als vóór dit kanaal (bak 4,
-  // XER-etappeplan §4.1). Ontbrekende assen ontbreken, nooit een terugval.
+  // "Datums zoals opgeslagen" voor P6 XML: P6's EIGEN rekenuitvoer per activiteit —
+  // `EarlyStartDate`/`EarlyFinishDate` (terugval `StartDate`/`FinishDate`), `LateStartDate`/
+  // `LateFinishDate`, `TotalFloat`/`FreeFloat` (uren) en `IsCritical` — als apart kanaal
+  // (`ImportResult.recordedTimes`), nooit als solverinvoer: `task.time` krijgt de geplande datums.
+  // Ontbrekende assen ontbreken, nooit een terugval.
   const recordedTimes: Record<string, RecordedTime> = {};
 
   for (const actEl of activityElements) {
@@ -484,19 +476,18 @@ export function readP6XML(content: string): ImportResult {
       customTaskTypes.set(customTaskType.id, { id: customTaskType.id, name: customTaskType.name });
     }
     const wbsObjId = getElementInt(actEl, 'WBSObjectId', -1);
-    // Taak-kalender (fase 2.8a, §8.3): effectieve <CalendarObjectId> → task.calendarId. ObjectId 1
-    // (of ontbrekend, legacy-bestanden) = projectkalender ⇒ undefined (bestaande conventie).
+    // Taakkalender: effectieve <CalendarObjectId> → task.calendarId. ObjectId 1 (of ontbrekend) =
+    // projectkalender ⇒ undefined.
     const calObjId = getElementInt(actEl, 'CalendarObjectId', 1);
     const taskCalendarId = calObjId > 1 ? calObjIdToId.get(calObjId) : undefined;
 
-    // Fase 2.8b (§7.2): uur- vs dag-modus voor deze taak.
+    // Uur- vs dag-modus voor deze taak.
     const effCalId = effCalIdOf(calObjId);
     const explicitUnit = explicitUnitByActivityObjectId.get(objId);
     const isHour = explicitUnit ? explicitUnit === 'hours' : hourModeCalIds.has(effCalId);
     // Datumprecisie volgt de KALENDER, niet de duureenheid — zoals mspdiReader en de IFC-lezer: een
     // dagtaak op een urenkalender blijft een dagtaak (eenheid uit de OPS-marker), maar haar datums
-    // houden hun echte tijd. Import/export-audit 2026-09, bevinding 8: met `isHour` hier verloor zo'n
-    // taak de tijd van al haar datums, ook de actuals (AF 16:00 werd de dag zonder tijd).
+    // (ook de actuals) houden hun echte tijd.
     const hourDates = hourModeCalIds.has(effCalId);
     const effHpd = calById.get(effCalId)?.hoursPerDay ?? hoursPerDay;
     // Datum-parser: uur ⇒ echte tijd (`parseInstant`+`formatInstant`), dag ⇒ tijd-strippen.
@@ -527,30 +518,30 @@ export function readP6XML(content: string): ImportResult {
       if (recorded) recordedTimes[id] = recorded;
     }
 
-    // Actuals (fase 2.6, §9.2) — leeg ⇒ undefined (invarianten via normalizeImportedProgress).
+    // Actuals — leeg ⇒ undefined (invarianten via normalizeImportedProgress).
     const actualStartRaw = getElementText(actEl, 'ActualStartDate');
     const actualFinishRaw = getElementText(actEl, 'ActualFinishDate');
     const remainingRaw = getElementText(actEl, 'RemainingDuration');
     const actualStart = actualStartRaw ? importDateTime(actualStartRaw, hourDates) : undefined;
     const actualFinish = actualFinishRaw ? importDateTime(actualFinishRaw, hourDates) : undefined;
-    // RemainingDuration: uur ⇒ minuten (`uren × 60`, geen afronding, §7.2); dag ⇒ het bestaande pad.
+    // RemainingDuration: uur ⇒ minuten (`uren × 60`, geen afronding); dag ⇒ het dag-pad.
     const remainingMinutes = isHour && remainingRaw ? Math.round(parseFloat(remainingRaw) * 60) : undefined;
-    // Zelfde `effHpd` als de duur hieronder (issue #159, vervolg) — symmetrisch met de writer.
+    // Zelfde `effHpd` als de duur hieronder — symmetrisch met de writer.
     const remainingTime = !isHour && remainingRaw ? p6HoursToDays(parseFloat(remainingRaw), effHpd) : undefined;
 
-    // Duur: uur ⇒ minuten (`uren × 60`) als bron van waarheid; dag ⇒ `Math.round(uren/hpd)` (bestaand).
+    // Duur: uur ⇒ minuten (`uren × 60`) als bron van waarheid; dag ⇒ `Math.round(uren/hpd)`.
     const durationMinutes = isHour ? Math.round(plannedDuration * 60) : undefined;
     const durationDays = isHour ? (effHpd > 0 ? durationMinutes! / (effHpd * 60) : 0) : p6HoursToDays(plannedDuration, effHpd);
     const isMilestone = p6Type.includes('Milestone');
-    // Fase 2.4: P6 onderscheidt Start/Finish Milestone — bewaar de soort expliciet.
+    // P6 onderscheidt Start/Finish Milestone — bewaar de soort expliciet.
     const milestoneKind = !isMilestone ? undefined
       : p6Type.includes('Finish') ? 'FINISH' as const
       : 'START' as const;
 
     const parentId = wbsObjId >= 0 ? wbsObjIdToId.get(wbsObjId) || null : null;
 
-    // Datum-constraints (fase 2.9, §6): primair + secundair uit de `CS_*`-codes. Secundair is altijd
-    // soft (P6-invariant) ⇒ `hard` wordt gedropt. Datum: uur ⇒ echte tijd, dag ⇒ tijd-strippen.
+    // Datumconstraints: primair + secundair uit de `CS_*`-codes. Secundair is altijd soft
+    // (P6-invariant) ⇒ `hard` wordt gedropt. Datum: uur ⇒ echte tijd, dag ⇒ tijd-strippen.
     const parseCstrDate = (raw: string): string => importDateTime(raw, hourDates);
     let constraint: TaskConstraint | undefined;
     const primCode = getElementText(actEl, 'PrimaryConstraintType');
@@ -630,9 +621,8 @@ export function readP6XML(content: string): ImportResult {
     }
   }
 
-  // Combine tasks: WBS (summary) + leaf activities — in BOOMVOLGORDE (issue #159, vervolg). De
-  // ruwe "samenvattingen eerst, dan bladen"-volgorde was precies de store-volgorde waar de MSPDI-
-  // export op stukliep; de andere lezers leveren documentvolgorde (= diepte-eerst), deze nu ook.
+  // Combine tasks: WBS (summary) + leaf activities — in BOOMVOLGORDE (diepte-eerst, zoals de andere
+  // lezers); "samenvattingen eerst, dan bladen" brak de hiërarchie in de MSPDI-export.
   const tasks = [...flattenOrder([...wbsTasks, ...leafTasks])];
 
   // Anker = projectstart uit het bestand, anders de vroegste aanwezige activiteitstart; finish uit
@@ -641,9 +631,9 @@ export function readP6XML(content: string): ImportResult {
   project.startDate = resolveMissingScheduleDates(tasks, missingDates, projectStartRaw ? project.startDate : '',
     (task) => resolveCalendar(task.calendarId, resourceCalendars, calendar));
 
-  // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6).
+  // Voortgang-invarianten op de rauw ingelezen actuals.
   normalizeImportedProgress(tasks, project.statusDate);
-  deriveImportedWorkRules(tasks); // taaktypes-etappe: werkregel uit <DurationType>
+  deriveImportedWorkRules(tasks); // werkregel uit <DurationType>
 
   // Parse relationships
   const relElements = getAllByLocalName(doc, 'Relationship');
@@ -661,8 +651,7 @@ export function readP6XML(content: string): ImportResult {
     const p6Type = getElementText(relEl, 'Type');
     const lagHours = getElementFloat(relEl, 'Lag');
 
-    // Fase 2.8b (§7.2): een uur-opvolger ⇒ lag minuut-precies (`uren × 60`, geen dag-afronding);
-    // anders het bestaande dag-pad.
+    // Een uur-opvolger ⇒ lag minuut-precies (`uren × 60`, geen dag-afronding); anders het dag-pad.
     const lagHourMode = taskHourById.get(succId) ?? false;
     const seq: Sequence = {
       id: generateId('seq'),
@@ -675,9 +664,9 @@ export function readP6XML(content: string): ImportResult {
     sequences.push(seq);
   }
 
-  // Contour-engine (2026-09) — `<ResourceCurve>`-catalogus: P6's resourcecurves als 21 waarden
-  // (`Value0`..`Value100`, MPXJ `XmlContextReader.processWorkContour`), gekeyd op ObjectId. Een
-  // toewijzing verwijst ernaar via `<ResourceCurveObjectId>`.
+  // `<ResourceCurve>`-catalogus: P6's resourcecurves als 21 waarden (`Value0`..`Value100`, MPXJ
+  // `XmlContextReader.processWorkContour`), gekeyd op ObjectId. Een toewijzing verwijst ernaar via
+  // `<ResourceCurveObjectId>`.
   const curveByObjId = new Map<number, { name: string; values: number[] }>();
   for (const curveEl of getAllByLocalName(doc, 'ResourceCurve')) {
     const objId = getElementInt(curveEl, 'ObjectId', -1);
@@ -705,7 +694,7 @@ export function readP6XML(content: string): ImportResult {
   };
   const contoursByTaskId = new Map<string, TaskTimephasedContour[]>();
 
-  // ResourceAssignments (fase 2.5, §8.1)
+  // ResourceAssignments
   const asgnElements = getAllByLocalName(doc, 'ResourceAssignment');
   const assignments: ResourceAssignment[] = [];
   for (const asgnEl of asgnElements) {
@@ -718,11 +707,10 @@ export function readP6XML(content: string): ImportResult {
 
     const plannedUnitsPerTime = getElementFloat(asgnEl, 'PlannedUnitsPerTime');
 
-    // Contour-engine (2026-09) — de CURVE. Schema-native: `<ResourceCurveObjectId>` → catalogus;
-    // de 21 waarden zijn de exacte data (`curveValues`), `curve` is de OPS-benadering: een exacte
-    // tabelmatch, anders de P6-curvenaam (`P6_NAME_TO_CURVE`), anders geen OPS-vorm. Een vlakke
-    // curve is geen curve. COMPAT: bestanden van de OPS-schrijver van vóór deze etappe droegen
-    // de curveNAAM in `<PlannedCurve>` (een verkeerde lezing van het schema — daar hoort een
+    // De CURVE. Schema-native: `<ResourceCurveObjectId>` → catalogus; de 21 waarden zijn de exacte
+    // data (`curveValues`), `curve` is de OPS-benadering: een exacte tabelmatch, anders de
+    // P6-curvenaam (`P6_NAME_TO_CURVE`), anders geen OPS-vorm. Een vlakke curve is geen curve.
+    // COMPAT: oudere OPS-exports schreven de curveNAAM in `<PlannedCurve>` (daar hoort een
     // spreidingsstring `"werkuren:periodeuren;…"`, MPXJ `TimephasedHelper`); een `<PlannedCurve>`
     // zonder `:` wordt daarom nog als naam gelezen.
     const plannedCurveRaw = getElementText(asgnEl, 'PlannedCurve');
@@ -737,11 +725,11 @@ export function readP6XML(content: string): ImportResult {
       curve = P6_NAME_TO_CURVE[plannedCurveRaw];
     }
 
-    // PlannedUnitsPerTime is een fractie (1.0 = 100%), geen uren/dag (L2-fix,
-    // spiegel van p6xmlWriter) — 1:1 overnemen.
+    // PlannedUnitsPerTime is een fractie (1.0 = 100%), geen uren/dag (spiegel van p6xmlWriter) —
+    // 1:1 overnemen.
     const unitsPerDay = plannedUnitsPerTime > 0 ? plannedUnitsPerTime : 1;
-    // Taaktypes-etappe (spec §4.3, geval c): <PlannedUnits>/<ActualUnits>/<RemainingUnits> in UREN
-    // → minuten, alleen bewaard wanneer ze afwijken van `duur × inzet/tijd` (`importedWorkFields`).
+    // <PlannedUnits>/<ActualUnits>/<RemainingUnits> in UREN → minuten, alleen bewaard wanneer ze
+    // afwijken van `duur × inzet/tijd` (`importedWorkFields`).
     const workTask = taskById.get(taskId);
     const derivedWork = workTask ? taskWorkMinutes(workTask.time, engineForTask(workTask).hoursPerDay) * unitsPerDay : 0;
     const unitsMinutes = (tag: string): number | undefined => {
@@ -765,11 +753,11 @@ export function readP6XML(content: string): ImportResult {
       ...workFields,
     });
 
-    // Contour-engine (2026-09) — de SPREIDING: `<ActualCurve>` (verricht, anker `ActualStartDate`)
-    // en `<RemainingCurve>` (resterend, anker `RemainingStartDate`) hebben voorrang; zonder die
-    // twee geldt `<PlannedCurve>` (anker `PlannedStartDate`) als resterend werk — MPXJ
-    // `XmlProjectReader` leest exact deze drie met deze ankers. Ankers worden op de taak-as gezet
-    // via de taakkalender (`axisOffsetMinutes`); ontbreekt een anker, dan geldt de taakstart.
+    // De SPREIDING: `<ActualCurve>` (verricht, anker `ActualStartDate`) en `<RemainingCurve>`
+    // (resterend, anker `RemainingStartDate`) hebben voorrang; zonder die twee geldt `<PlannedCurve>`
+    // (anker `PlannedStartDate`) als resterend werk — MPXJ `XmlProjectReader` leest exact deze drie
+    // met deze ankers. Ankers worden op de taak-as gezet via de taakkalender (`axisOffsetMinutes`);
+    // ontbreekt een anker, dan geldt de taakstart.
     const task = taskById.get(taskId);
     if (task && task.time.scheduleStart && task.childIds.length === 0) {
       const engine = engineForTask(task);
@@ -805,8 +793,8 @@ export function readP6XML(content: string): ImportResult {
     assignments,
     resourceCalendars,
     customTaskTypes: [...customTaskTypes.values()],
-    // Rekenprofielen (spec v3.1 §6): P6-XML opent in deze etappe als OPS — de lezer zet geen
-    // opties, en onder P6 gingen A12/A13/A16/A17/A20/B2 aan zonder orakel.
+    // Rekenprofielen: P6-XML opent als OPS — de lezer zet geen opties, en onder het P6-profiel zouden
+    // A12/A13/A16/A17/A20/B2 aangaan zonder orakel.
     suggestedProfileId: 'ops',
     ...(Object.keys(recordedTimes).length > 0 ? { recordedTimes, recordedTimesOrigin: 'p6xml' as const } : {}),
   };
@@ -846,7 +834,7 @@ function parseProject(doc: Document): Project {
     author: '',
     company: '',
   };
-  // Data date (fase 2.6, §9.2) → project.statusDate. Alleen wanneer aanwezig.
+  // Data date → project.statusDate. Alleen wanneer aanwezig.
   const dataDateRaw = getElementText(projEl, 'DataDate');
   if (dataDateRaw) project.statusDate = statusDateFromXml(dataDateRaw);
   return project;
@@ -862,15 +850,15 @@ function parseCalendar(doc: Document): WorkCalendar {
 function readP6Calendar(calEl: Element): WorkCalendar {
   const calendar = createDefaultCalendar();
   calendar.name = getElementText(calEl, 'Name') || calendar.name;
-  // P6 kent geen regelset-herkomst (verliesmatrix §8.4) — createDefaultCalendar() zet 'm altijd;
-  // een uit P6 gelezen kalender is dat niet.
+  // P6 kent geen regelset-herkomst — createDefaultCalendar() zet 'm altijd; een uit P6 gelezen
+  // kalender is dat niet.
   delete calendar.generation;
 
   const hpd = getElementFloat(calEl, 'HoursPerDay');
   if (hpd > 0) calendar.hoursPerDay = hpd; // authoritatief — StandardWorkWeek-uren overschrijven dit niet
 
-  // Werkweek + feestdagen (fase 2.8a, §8.3) — golden rule: geen <StandardWorkWeek>/
-  // <HolidayOrExceptions> (ander tool / oud bestand) ⇒ createDefaultCalendar()-defaults blijven staan.
+  // Werkweek + feestdagen — golden rule: geen <StandardWorkWeek>/<HolidayOrExceptions> (ander tool /
+  // oud bestand) ⇒ createDefaultCalendar()-defaults blijven staan.
   const ww = parseP6StandardWorkWeek(calEl);
   if (ww.workDays.length > 0) calendar.workDays = ww.workDays.sort((a, b) => a - b);
   if (ww.workStartHour !== undefined) calendar.workStartHour = ww.workStartHour;
