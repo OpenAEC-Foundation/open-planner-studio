@@ -1745,6 +1745,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   SUMPROG="$DIR/.summary-progress.mjs"
   if bundle_check "$DIR/check-summary-progress.ts" "$SUMPROG"; then node "$SUMPROG" || STATUS=1; fi
 
+  # Werkelijke datums van een verzameltaak: afgeleid uit de bladen in dezelfde rollup (vroegste
+  # start; laatste einde pas als alle bladen klaar zijn), alleen-lezen, met dezelfde uitzonderingen;
+  # exports, IFC-round-trip en de verplaats-telling volgen.
+  SUMACT="$DIR/.summary-actuals.mjs"
+  if bundle_check "$DIR/check-summary-actuals.ts" "$SUMACT"; then node "$SUMACT" || STATUS=1; fi
+
   # Datums zoals opgeslagen (issue #63) — de pure laag: aanwezigheidsregistratie, verschiltelling,
   # reconstructie. Betreden/verlaten en de undo-keten volgen later (aparte taak, hangt de store/UI
   # eraan). Draait mee in de tijdzone-matrix — de reconstructie rekent met datums, dus

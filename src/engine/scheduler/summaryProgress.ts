@@ -3,9 +3,11 @@ import type { WorkCalendar } from '@/types/calendar';
 import { effHoursPerDay, effectiveCalendarOf, taskDurationMinutes } from '@/utils/taskDuration';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { isManuallyScheduled } from '@/utils/manualScheduling';
+import { latestFinish } from '@/utils/taskDates';
 
 /**
- * Voortgang en status van een VERZAMELTAAK (fase), afgeleid uit haar bladtaken — één definitie.
+ * Voortgang, status en werkelijke datums van een VERZAMELTAAK (fase), afgeleid uit haar bladtaken
+ * — één definitie.
  *
  * Waarom een eigen module. De formule stond alleen in het WBS-samenvattingsrapport
  * (`reports/wbsSummary.ts`), terwijl de verzameltaak-rollup (`applyCpmResult`) wel datums, speling
@@ -22,6 +24,13 @@ import { isManuallyScheduled } from '@/utils/manualScheduling';
  * De status volgt de voortgangsstaat van de bladen (`progressState`): alle bladen voltooid ⇒
  * `COMPLETED` (en dan ook precies 100%), minstens één gestart of voltooid ⇒ `STARTED`, anders
  * `NOT_STARTED`.
+ *
+ * De werkelijke datums van een fase komen uit dezelfde bladen, in dezelfde lus:
+ * - werkelijke start = de vroegste werkelijke start van de bladen, zodra er één een werkelijke
+ *   start heeft;
+ * - werkelijk einde = het laatste werkelijke einde, alleen als ALLE bladen voltooid zijn (status
+ *   `COMPLETED`). Zolang er nog één blad loopt, heeft de fase geen werkelijk einde.
+ * Zo klopt de invariant van een blad ook op de fase: 100% ⇔ een werkelijk einde.
  */
 
 export type ProgressState = 'notStarted' | 'inProgress' | 'complete';
@@ -85,14 +94,21 @@ export interface SummaryProgress {
   /** 0..1, afgerond op 0,1 procentpunt (zoals het WBS-rapport altijd deed). */
   completion: number;
   status: TaskStatus;
+  /** Vroegste werkelijke start van de bladen; afwezig zolang geen blad er een heeft. */
+  actualStart?: string;
+  /** Laatste werkelijke einde van de bladen; alleen als alle bladen voltooid zijn. */
+  actualFinish?: string;
 }
 
-/** De afgeleide voortgang en status over een set bladen. `workDaysOf` levert het gewicht. */
+/** De afgeleide voortgang, status en werkelijke datums over een set bladen. `workDaysOf` levert
+ *  het gewicht. */
 export function summaryProgressOf(leaves: readonly Task[], workDaysOf: (t: Task) => number): SummaryProgress {
   let weight = 0;
   let done = 0;
   let complete = 0;
   let started = 0;
+  let actualStart: string | undefined;
+  let actualFinish: string | undefined;
   for (const l of leaves) {
     const d = workDaysOf(l);
     weight += d;
@@ -100,6 +116,15 @@ export function summaryProgressOf(leaves: readonly Task[], workDaysOf: (t: Task)
     const state = progressState(l);
     if (state === 'complete') complete++;
     else if (state === 'inProgress') started++;
+    // De start als tekst vergeleken: de waarden zijn ISO-datum(tijd)en (`JJJJ-MM-DD` of
+    // `JJJJ-MM-DDTHH:mm`); een dagwaarde sorteert vóór een uurwaarde op dezelfde dag, wat voor een
+    // start klopt.
+    const as = l.time.actualStart;
+    if (as && (actualStart === undefined || as < actualStart)) actualStart = as;
+    // Het einde als tijdstip (`latestFinish`, #205): een dagwaarde telt als einde van die dag, zodat
+    // gemengde dag- en uurkalenders het juiste laatste einde geven (integratie groep C, #214).
+    const af = l.time.actualFinish;
+    if (af) actualFinish = actualFinish === undefined ? af : latestFinish([actualFinish, af]);
   }
   const status: TaskStatus = leaves.length > 0 && complete === leaves.length
     ? 'COMPLETED'
@@ -107,15 +132,33 @@ export function summaryProgressOf(leaves: readonly Task[], workDaysOf: (t: Task)
   const raw = status === 'COMPLETED'
     ? 1
     : weight > 0 ? done / weight : leaves.length > 0 ? complete / leaves.length : 0;
-  return { completion: Math.round(raw * 1000) / 1000, status };
+  const out: SummaryProgress = { completion: Math.round(raw * 1000) / 1000, status };
+  if (actualStart !== undefined) out.actualStart = actualStart;
+  if (status === 'COMPLETED' && actualFinish !== undefined) out.actualFinish = actualFinish;
+  return out;
 }
 
 /**
- * Wordt de voortgang van deze verzameltaak afgeleid? Nee voor een HANDMATIG geplande verzameltaak:
- * die rolt in `applyCpmResult` ook haar datums niet op maar houdt haar opgeslagen waarden (MS
- * Project-conventie, `.mpp`-getrouwheid) — de voortgang volgt exact dezelfde uitzondering. De
- * tweede uitzondering, "datums zoals opgeslagen" (issue #63), is een documenttoestand en geen
- * taakeigenschap; die regelen `showRecordedDates` (herstel) en het WBS-rapport (`datesAsRecorded`).
+ * Schrijf een fasevoortgang (afgeleid, of in "datums zoals opgeslagen" de bestandswaarde) op de
+ * verzameltaak: voortgang, status en werkelijke datums samen, zodat ze nooit uit elkaar lopen. Een
+ * ontbrekende werkelijke datum wist het veld; een ongewijzigd veld wordt niet aangeraakt (op een
+ * Immer-draft blijft de taak dan hetzelfde object).
+ */
+export function writeSummaryProgress(task: Task, progress: SummaryProgress): void {
+  const time = task.time;
+  time.completion = progress.completion;
+  task.status = progress.status;
+  if (time.actualStart !== progress.actualStart) time.actualStart = progress.actualStart;
+  if (time.actualFinish !== progress.actualFinish) time.actualFinish = progress.actualFinish;
+}
+
+/**
+ * Wordt de voortgang (en daarmee de status en de werkelijke datums) van deze verzameltaak afgeleid?
+ * Nee voor een HANDMATIG geplande verzameltaak: die rolt in `applyCpmResult` ook haar datums niet op
+ * maar houdt haar opgeslagen waarden (MS Project-conventie, `.mpp`-getrouwheid) — de voortgang volgt
+ * exact dezelfde uitzondering. De tweede uitzondering, "datums zoals opgeslagen" (issue #63), is
+ * een documenttoestand en geen taakeigenschap; die regelen `showRecordedDates` (herstel) en het
+ * WBS-rapport (`datesAsRecorded`).
  */
 export function isSummaryProgressDerived(task: Task): boolean {
   return isSummaryTask(task) && !isManuallyScheduled(task);

@@ -1090,7 +1090,9 @@ export const readTools: McpToolDef[] = [
       'Detail van één taak (`taskId` verplicht): metadata, duur/durationType, vroege/late datums, ' +
       'total/free float, kritiek-vlag, voortgang (+actuals), constraints (primair/secundair) en ' +
       'deadline, de effectieve kalender, ouder/kinderen, alle toewijzingen (resource, units/dag, ' +
-      'curve) en voorgangers/opvolgers (met type + lag). Een onderbroken taak draagt `splitGaps` ' +
+      'curve) en voorgangers/opvolgers (met type + lag). Op een verzameltaak (fase) zijn voortgang, ' +
+      'status en actuals AFGELEID uit de bladtaken (alleen-lezen): actualStart = de vroegste, ' +
+      'actualFinish = de laatste zodra alle bladtaken klaar zijn. Een onderbroken taak draagt `splitGaps` ' +
       '(rauw) plus de leesbare `interruptions` — dezelfde vorm die planner_set_task_splits accepteert; ' +
       '`splitsEditable: false` = een importsplit die alleen opgeheven kan worden. Bij een uit .mpp ' +
       'geïmporteerde taak, indien aanwezig: READ-ONLY `manuallyScheduled` (handmatig gepland), ' +
