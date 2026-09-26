@@ -22,29 +22,56 @@ import {
   normalizeTaskGridColumnPreferences,
 } from '@/engine/taskGrid/preferences';
 
+/**
+ * Alle localStorage-toegang van de instellingenlaag loopt hierlangs (audit 2026-09-26). Is opslag
+ * geblokkeerd (privémodus, beleid: `SecurityError` bij élke toegang) of vol (`QuotaExceededError`),
+ * dan liet één kale `getItem`/`setItem` de hele `loadAllSettings()` verwerpen — alle instellingen
+ * vielen dan terug op de standaard — of werd een opslagactie een onafgehandelde rejection. Lezen
+ * geeft dan `null` (= "niet ingesteld"), schrijven waarschuwt één keer en gaat door.
+ */
+function readLocal(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+let warnedSettingsWrite = false;
+function writeLocal(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch (error) {
+    if (!warnedSettingsWrite) {
+      warnedSettingsWrite = true;
+      console.warn('Instelling kon niet worden bewaard (opslag geblokkeerd of vol):', key, error);
+    }
+  }
+}
+
 export async function getSetting<T>(key: string): Promise<T | undefined> {
-  const raw = localStorage.getItem(`ops-${key}`);
+  const raw = readLocal(`ops-${key}`);
   if (raw === null) return undefined;
   try { return JSON.parse(raw) as T; } catch { return raw as unknown as T; }
 }
 
 export async function setSetting<T>(key: string, value: T): Promise<void> {
-  localStorage.setItem(`ops-${key}`, typeof value === 'string' ? value : JSON.stringify(value));
+  writeLocal(`ops-${key}`, typeof value === 'string' ? value : JSON.stringify(value));
 }
 
 export async function syncSettingToLocalStorage(storeKey: string, localStorageKey: string): Promise<void> {
-  const value = localStorage.getItem(`ops-${storeKey}`);
+  const value = readLocal(`ops-${storeKey}`);
   if (value) {
-    localStorage.setItem(localStorageKey, value);
+    writeLocal(localStorageKey, value);
   }
 }
 
 export async function saveLocale(code: string): Promise<void> {
-  localStorage.setItem('ops-locale', code);
+  writeLocal('ops-locale', code);
 }
 
 export async function saveTheme(theme: UITheme): Promise<void> {
-  localStorage.setItem('ops-theme', theme);
+  writeLocal('ops-theme', theme);
 }
 
 // Migration map: 7 oude thema's → 3 nieuwe (post stylebook alignment), plus de latere
@@ -71,13 +98,13 @@ export const THEME_MIGRATION: Record<string, UITheme> = {
 };
 
 export async function initTheme(): Promise<UITheme> {
-  const saved = localStorage.getItem('ops-theme');
+  const saved = readLocal('ops-theme');
   if (!saved) return 'dark';
 
   const migrated = THEME_MIGRATION[saved] ?? 'dark';
   if (migrated !== saved) {
     // Persisteer de migratie zodat dit een eenmalige conversie is
-    localStorage.setItem('ops-theme', migrated);
+    writeLocal('ops-theme', migrated);
   }
   return migrated;
 }
@@ -89,7 +116,7 @@ export async function initTheme(): Promise<UITheme> {
  *  geen localStorage) valt dit terug op 'dark'; `initTheme` blijft de persisterende bron. */
 export function peekTheme(): UITheme {
   try {
-    const saved = localStorage.getItem('ops-theme');
+    const saved = readLocal('ops-theme');
     if (!saved) return 'dark';
     return THEME_MIGRATION[saved] ?? 'dark';
   } catch {
@@ -220,7 +247,7 @@ export type TaskGridPreferencesLoadResult =
 export async function loadTaskGridPreferences(
   defaults: PersistedTaskGridPreferencesV1,
 ): Promise<TaskGridPreferencesLoadResult> {
-  const raw = localStorage.getItem('ops-taskGridPreferences');
+  const raw = readLocal('ops-taskGridPreferences');
   if (raw === null) return { status: 'missing' };
   let parsed: unknown;
   try {
@@ -438,14 +465,14 @@ export async function saveAutoCalcCPM(value: boolean): Promise<void> {
 // localStorage) op de default (bouwmodus aan) — zo blijft de bestaande CPM-suite byte-identiek.
 export function loadConstructionMode(): boolean {
   if (typeof localStorage === 'undefined') return true;
-  const raw = localStorage.getItem('ops-constructionMode');
+  const raw = readLocal('ops-constructionMode');
   if (raw === null) return true;
   try { return JSON.parse(raw) !== false; } catch { return true; }
 }
 
 export function saveConstructionMode(value: boolean): void {
   if (typeof localStorage === 'undefined') return;
-  localStorage.setItem('ops-constructionMode', JSON.stringify(value));
+  writeLocal('ops-constructionMode', JSON.stringify(value));
 }
 
 // Datumnotatie (taak #53): app-instelling, dus WEL onder de 3-plekken-regel (tandwiel,
@@ -601,7 +628,7 @@ export const MCP_DEFAULT_PORT = 3877;
 
 export function loadMcpPort(): number {
   if (typeof localStorage === 'undefined') return MCP_DEFAULT_PORT;
-  const raw = localStorage.getItem('ops-mcpPort');
+  const raw = readLocal('ops-mcpPort');
   if (raw === null) return MCP_DEFAULT_PORT;
   let n: number;
   try { n = Number(JSON.parse(raw)); } catch { return MCP_DEFAULT_PORT; }
@@ -610,17 +637,17 @@ export function loadMcpPort(): number {
 
 export function saveMcpPort(value: number): void {
   if (typeof localStorage === 'undefined') return;
-  localStorage.setItem('ops-mcpPort', JSON.stringify(Math.round(value)));
+  writeLocal('ops-mcpPort', JSON.stringify(Math.round(value)));
 }
 
 /** Bridge-Bearer-token. Default null (nog niet gegenereerd); `server.ensureMcpToken` vult 'm bij eerste start. */
 export function loadMcpToken(): string | null {
   if (typeof localStorage === 'undefined') return null;
-  const raw = localStorage.getItem('ops-mcpToken');
+  const raw = readLocal('ops-mcpToken');
   return typeof raw === 'string' && raw ? raw : null;
 }
 
 export function saveMcpToken(value: string): void {
   if (typeof localStorage === 'undefined') return;
-  localStorage.setItem('ops-mcpToken', value);
+  writeLocal('ops-mcpToken', value);
 }
