@@ -83,7 +83,7 @@ Größere Terminpläne brauchen schnell zusätzliche Dimensionen, die nicht in d
 - **Aufgabencodes** sind frei definierbare Dimensionen (zum Beispiel „Standort" oder „Disziplin") mit einer Werteliste — jeder Wert hat einen **Code**, eine **Beschreibung** und eine **Farbe**. Eine Aufgabe kann höchstens einen Wert pro Codetyp haben. Verwenden Sie **Codetyp hinzufügen**, um eine neue Dimension zu beginnen, und **Wert hinzufügen**, um die möglichen Werte aufzubauen.
 - **Benutzerdefinierte Felder** sind eigene, typisierte Felder — **Text**, **Zahl**, **Ganze Zahl**, **Kosten**, **Datum** oder **Ja/Nein** —, die als Spalte in der Aufgabentabelle erscheinen und pro Aufgabe ausgefüllt werden können. Denken Sie an ein Feld „Auftragnehmer" (Text) oder „Genehmigung eingegangen" (Ja/Nein).
 
-Sobald sie erstellt sind, weisen Sie einen Aufgabencode zu oder füllen ein benutzerdefiniertes Feld über die Spalten in der Aufgabentabelle aus (machen Sie sie bei Bedarf vorher über **Ansicht → Spalten…** sichtbar) oder über den Eigenschaftenbereich der Aufgabe.
+Sobald sie erstellt sind, weisen Sie einen Aufgabencode zu oder füllen ein benutzerdefiniertes Feld über die Spalten in der Aufgabentabelle oder über den Eigenschaftenbereich der Aufgabe aus. Steht die Spalte noch nicht in der Tabelle, fügen Sie sie mit dem Plus rechts im Tabellenkopf hinzu: Die Spaltenauswahl zeigt die Aufgabencodes und benutzerdefinierten Felder unter **Benutzerdefiniert** — siehe [Spalten wählen](docs://ref-kolommen).
 
 ### Gruppieren nach Codes und Feldern
 

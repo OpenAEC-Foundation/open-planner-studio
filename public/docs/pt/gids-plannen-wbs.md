@@ -84,7 +84,7 @@ Cronogramas maiores rapidamente precisam de dimensões extra que não cabem na W
 - **Códigos de atividade** são dimensões livremente definíveis (por exemplo "Localização" ou "Disciplina") com uma lista de valores — cada valor tem um **Código**, uma **Descrição** e uma **Cor**. Uma tarefa pode ter no máximo um valor por tipo de código. Use **Adicionar tipo de código** para iniciar uma nova dimensão, e **Adicionar valor** para construir os valores possíveis.
 - **Campos personalizados** são campos próprios tipados — **Texto**, **Número**, **Número inteiro**, **Custo**, **Data** ou **Sim/não** — que aparecem como coluna na tabela de tarefas e podem ser preenchidos por tarefa. Pense num campo "Empreiteiro" (texto) ou "Licença recebida" (sim/não).
 
-Uma vez criados, atribui um código de atividade ou preenche um campo personalizado através das colunas na tabela de tarefas (torne-as visíveis primeiro através de **Visualização → Colunas…**, se necessário) ou através do painel de propriedades da tarefa.
+Uma vez criados, atribui um código de atividade ou preenche um campo personalizado através das colunas na tabela de tarefas ou através do painel de propriedades da tarefa. Se a coluna ainda não estiver na tabela, adicione-a com o sinal de mais à direita do cabeçalho da tabela: o seletor de colunas mostra os códigos de atividade e os campos personalizados em **Personalizado** — veja [Escolher colunas](docs://ref-kolommen).
 
 ### Agrupar por códigos e campos
 

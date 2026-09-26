@@ -90,7 +90,7 @@ Artık görevleriniz ve ilişkileriniz olduğuna göre, planı hesaplatabilirsin
 - Ekranın altında, durum çubuğu plan hesaplandıktan sonra örneğin "Kritik yol: 4 görev, 62 iş günü" gösterir. Son hesaplamadan bu yana bir şey değiştirdiyseniz, bunun yerine "Güncel değil — yeniden hesaplayın (F5)" gösterir.
 - Gantt şemasında, kritik görevler — bolluğu olmayan, dolayısıyla doğrudan projenin bitiş tarihini belirleyen görevler — hâlâ alanı (bolluk) olan görevlerden farklı bir çubuk rengi alır. Kritik bir görev geç kalırsa, projenin tüm bitiş tarihi onunla birlikte kayar; bolluğu olan bir görev, bolluk tükenmediği sürece sonuç doğurmadan geç kalabilir.
 - **Görevi düzenle** penceresini yeniden açmak için bir göreve çift tıklayın. **CPM Sonucu** bölümünde, görev başına şunları bulacaksınız: **Erken başlangıç**, **Erken bitiş**, **Geç başlangıç**, **Geç bitiş**, **Toplam bolluk**, **Serbest bolluk** ve görevin **Kritik yol** üzerinde olup olmadığı.
-- Her görevi açmak zorunda kalmadan bu verileri görev tablosunda sütun olarak da mı görmek istiyorsunuz? **Görünüm** şerit sekmesine gidin, **Görüntüleme** grubunda **Sütunlar…**'a tıklayın ve **Kritik** ile **Toplam bolluk**'u işaretleyin.
+- Her görevi açmak zorunda kalmadan bu verileri görev tablosunda sütun olarak da mı görmek istiyorsunuz? **Tablo** sekmesinde **Kritik** ve **Toplam bolluk** varsayılan olarak zaten tablodadır. Gantt'ın yanındaki görev listesinde bunları tablo başlığının sağındaki artıyla eklersiniz: artı sütun seçiciyi açar; orada **Hesaplanan** altından her seferinde bir alan seçersiniz. Bkz. [Sütun seçimi](docs://ref-kolommen).
 
 ## Adım 7 — Kaydedin
 

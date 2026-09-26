@@ -83,7 +83,7 @@ Daha büyük planlar hızla WBS'ye sığmayan ek boyutlara ihtiyaç duyar: hangi
 - **Aktivite kodları**, bir değer listesine sahip serbestçe tanımlanabilir boyutlardır (örneğin "Lokasyon" veya "Disiplin") — her değerin bir **Kod**u, bir **Açıklama**sı ve bir **Renk**i vardır. Bir görevin, kod türü başına en fazla bir değeri olabilir. Yeni bir boyut başlatmak için **Kod türü ekle**'yi, olası değerleri oluşturmak için **Değer ekle**'yi kullanın.
 - **Kullanıcı alanları**, görev tablosunda bir sütun olarak görünen ve görev başına doldurulabilen, kendi **Metin**, **Sayı**, **Tam sayı**, **Maliyet**, **Tarih** veya **Evet/hayır** türündeki alanlarınızdır. "Yüklenici" (metin) veya "Ruhsat alındı" (evet/hayır) gibi bir alan düşünün.
 
-Oluşturulduktan sonra, bir aktivite kodunu görev tablosundaki sütunlar (gerekirse önce **Görünüm → Sütunlar…** üzerinden görünür yapın) veya görevin özellikler paneli üzerinden atarsınız veya bir kullanıcı alanını doldurursunuz.
+Oluşturulduktan sonra, bir aktivite kodunu görev tablosundaki sütunlar veya görevin özellikler paneli üzerinden atarsınız veya bir kullanıcı alanını doldurursunuz. Sütun henüz tabloda yoksa, tablo başlığının sağındaki artıyla ekleyin: sütun seçici aktivite kodlarını ve kullanıcı alanlarını **Özel** altında gösterir — bkz. [Sütun seçimi](docs://ref-kolommen).
 
 ### Kodlara ve alanlara göre gruplama
 

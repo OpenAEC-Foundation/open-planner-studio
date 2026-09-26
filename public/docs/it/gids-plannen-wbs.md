@@ -84,7 +84,7 @@ Le pianificazioni più grandi hanno presto bisogno di dimensioni extra che non r
 - I **codici attività** sono dimensioni definibili liberamente (ad esempio "Ubicazione" o "Disciplina") con un elenco di valori — ogni valore ha un **Codice**, una **Descrizione** e un **Colore**. Un'attività può avere al massimo un valore per tipo di codice. Usa **Aggiungi tipo di codice** per iniziare una nuova dimensione, e **Aggiungi valore** per costruire i possibili valori.
 - I **campi personalizzati** sono campi tipizzati propri — **Testo**, **Numero**, **Numero intero**, **Costo**, **Data** o **Sì/no** — che compaiono come colonna nella tabella delle attività e possono essere compilati per attività. Pensa a un campo "Appaltatore" (testo) o "Permesso ricevuto" (sì/no).
 
-Una volta creati, assegni un codice attività o compili un campo personalizzato tramite le colonne nella tabella delle attività (rendile visibili prima tramite **Vista → Colonne…** se necessario) oppure tramite il pannello delle proprietà dell'attività.
+Una volta creati, assegni un codice attività o compili un campo personalizzato tramite le colonne nella tabella delle attività oppure tramite il pannello delle proprietà dell'attività. Se la colonna non è ancora nella tabella, aggiungila con il più a destra nell'intestazione della tabella: il selettore delle colonne mostra i codici attività e i campi personalizzati sotto **Personalizzato** — vedi [Scelta delle colonne](docs://ref-kolommen).
 
 ### Raggruppare per codici e campi
 

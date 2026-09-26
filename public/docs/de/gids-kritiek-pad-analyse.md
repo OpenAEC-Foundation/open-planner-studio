@@ -19,7 +19,7 @@ Folgen Sie mit [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-app
 
 Drücken Sie **F5** (oder die Schaltfläche **Berechnen**), um den Terminplan zu berechnen. Die Statusleiste unten zeigt dann beispielsweise „Kritischer Pfad: N Aufgaben, M Arbeitstage" — die Anzahl der Aufgaben auf dem kritischen Pfad und die Gesamtdauer. Im Gantt-Diagramm erhalten kritische Aufgaben ihre eigene (rote) Balkenfarbe: Aufgaben ohne Puffer, bei denen jeder Tag Verzug das Projektende unmittelbar hinausschiebt.
 
-Doppelklicken Sie auf eine Aufgabe und schauen Sie im Abschnitt **CPM-Ergebnis** nach den genauen Zahlen: **Frühester Anfang**, **Frühestes Ende**, **Spätester Anfang**, **Spätestes Ende**, **Gesamtpuffer**, **Freier Puffer** und (wo zutreffend) **Interferierender Puffer** sowie ob die Aufgabe auf dem **Kritischen Pfad** liegt. Möchten Sie diese Felder als Spalten in der Aufgabentabelle? **Ansicht → Spalten…** und aktivieren Sie sie.
+Doppelklicken Sie auf eine Aufgabe und schauen Sie im Abschnitt **CPM-Ergebnis** nach den genauen Zahlen: **Frühester Anfang**, **Frühestes Ende**, **Spätester Anfang**, **Spätestes Ende**, **Gesamtpuffer**, **Freier Puffer** und (wo zutreffend) **Interferierender Puffer** sowie ob die Aufgabe auf dem **Kritischen Pfad** liegt. Möchten Sie diese Felder als Spalten in der Aufgabentabelle? Klicken Sie auf das Plus rechts im Tabellenkopf und wählen Sie sie in der Spaltenauswahl unter **Berechnet**, jeweils eines; ein Feld, das bereits eine Spalte ist, ist abgehakt. Siehe [Spalten wählen](docs://ref-kolommen).
 
 ### Gesamt-, Freier und Interferierender Puffer
 
