@@ -11,6 +11,7 @@ import type {
 } from 'react';
 import type { GanttRenderer } from '@/engine/renderer/GanttRenderer';
 import type {
+  HistogramPickerSide,
   HistogramRenderer,
   HistogramRenderOptions,
 } from '@/engine/renderer/HistogramRenderer';
@@ -74,6 +75,8 @@ export interface GanttViewportCoordinatorInput {
   calendar: WorkCalendar;
   view: ViewState;
   histogramPickerWidth: number;
+  /** Kant van de histogramkiezer (= de takenlijst); bepaalt mee waar de histogramas begint. */
+  histogramPickerSide: HistogramPickerSide;
   histogramHeight: number;
   rowHeight: number;
   headerHeight: number;

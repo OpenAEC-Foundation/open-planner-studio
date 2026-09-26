@@ -9,7 +9,12 @@ import { isTimelineCanvasX } from '@/components/canvas/hooks/useCanvasLayer';
 import type { WorkCalendar } from '@/types/calendar';
 import { useAppStore } from '@/state/appStore';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
-import { HistogramRenderer } from '@/engine/renderer/HistogramRenderer';
+import {
+  HistogramRenderer,
+  histogramLayout,
+  histogramPlotInsets,
+  type HistogramPickerSide,
+} from '@/engine/renderer/HistogramRenderer';
 import { readGanttPalette, readHistogramPalette } from '@/engine/renderer/themePalette';
 import { computeSplitPaneWidths, computeTimelineZoom, splitPanePrimaryWidthCss } from '@/utils/ganttViewport';
 
@@ -240,6 +245,84 @@ equal('histogramdatumhit weigert de laatste kiezerpixel', histogram.dayAt(349, 1
 equal('histogramdatumhit raakt de eerste plotpixel', histogram.dayAt(350, 10), '2026-08-24');
 equal('histogram gebruikt pickerWidth als chartOriginX', histogram.dateAtX(350), '2026-08-24');
 equal('histogramcode kent alleen de semantische pickerWidth', /taskTableWidth/.test(histogramSource), false);
+
+// G13: in ar/fa spiegelt de werkruimte — de takenlijst, en dus de kiezer, staat RECHTS. De tijdplot
+// blijft ltr en begint dan op x = 0, zodat zijn dagas samenvalt met die van de tijdlijn (die in rtl
+// links van de takenlijst begint). Eén indeling (`histogramLayout`) voor as, tekenen en hit-test.
+deepEqual('plotinsets ltr: kiezer links', histogramPlotInsets(350, 'left'), { left: 350, right: 0 });
+deepEqual('plotinsets rtl: kiezer rechts', histogramPlotInsets(350, 'right'), { left: 0, right: 350 });
+deepEqual('plotinsets zonder kant = ltr', histogramPlotInsets(350), { left: 350, right: 0 });
+deepEqual('indeling ltr', histogramLayout(1000, 350, 'left'),
+  { picker: { left: 0, right: 350 }, plot: { left: 350, right: 1000 } });
+deepEqual('indeling rtl', histogramLayout(1000, 350, 'right'),
+  { picker: { left: 650, right: 1000 }, plot: { left: 0, right: 650 } });
+
+/** Canvas-stub die de tekenaanroepen van de renderer vastlegt (geen DOM nodig). */
+function recordingContext(): { ctx: CanvasRenderingContext2D; calls: string[] } {
+  const calls: string[] = [];
+  const ctx = new Proxy({}, {
+    get: (_target, prop) => {
+      if (prop === 'measureText') return (text: string) => ({ width: text.length * 6 });
+      return (...args: unknown[]) => { calls.push(`${String(prop)}(${args.join(',')})`); };
+    },
+    set: () => true,
+  }) as unknown as CanvasRenderingContext2D;
+  return { ctx, calls };
+}
+
+function sideRenderer(side: HistogramPickerSide, ctx: CanvasRenderingContext2D): HistogramRenderer {
+  return new HistogramRenderer(ctx, {
+    series: {
+      // 24 aug = eerste plotdag; 27/28 okt = dag 64/65 (x 640 en 650 bij zoom 10 in rtl).
+      load: { '2026-08-24': 1, '2026-10-27': 1, '2026-10-28': 1 },
+      capacity: { '2026-08-24': 1, '2026-10-27': 1, '2026-10-28': 1 },
+      overSet: new Set<string>(),
+    },
+    picker: [{ label: 'Alle resources', overallocated: false }],
+    selectedResourceId: undefined,
+    view: useAppStore.getState().view,
+    canvasWidth: 1000,
+    canvasHeight: 120,
+    pickerWidth: 350,
+    pickerSide: side,
+    labels: { unitsSuffix: 'u' },
+    palette: readHistogramPalette(),
+    axis: buildSharedAxis({
+      calendar,
+      compressNonWorkdays: false,
+      viewStartDate: '2026-08-24',
+      chartOriginX: histogramPlotInsets(350, side).left,
+      zoom: 10,
+      scrollX: 0,
+    }),
+  });
+}
+
+{
+  const rtl = sideRenderer('right', {} as CanvasRenderingContext2D);
+  equal('rtl: kiezer weigert de laatste plotpixel', rtl.pickerAt(649, 10), null);
+  deepEqual('rtl: kiezer raakt zijn eerste pixel', rtl.pickerAt(650, 10), { id: undefined });
+  deepEqual('rtl: kiezer raakt zijn laatste pixel', rtl.pickerAt(999, 10), { id: undefined });
+  equal('rtl: kiezer weigert x = 0 (plot)', rtl.pickerAt(0, 10), null);
+  equal('rtl: plot begint op x = 0', rtl.dateAtX(0), '2026-08-24');
+  equal('rtl: datumhit raakt de eerste plotpixel', rtl.dayAt(0, 10), '2026-08-24');
+  equal('rtl: datumhit raakt de laatste plotpixel', rtl.dayAt(649, 10), '2026-10-27');
+  equal('rtl: datumhit weigert de eerste kiezerpixel (ook met belasting eronder)', rtl.dayAt(650, 10), null);
+}
+
+// Wat er getekend wordt volgt dezelfde indeling: kiezerachtergrond, plotclip, scheidingslijn op de
+// eerste plotpixel aan de kiezerkant (onder de lijn van de werkruimtesplitter), staaf op 24 aug.
+for (const [side, pickerRect, plotClip, separator, bar] of [
+  ['left', 'fillRect(0,0,350,120)', 'rect(350,0,650,120)', 'moveTo(350.5,0)', 'fillRect(351,'],
+  ['right', 'fillRect(650,0,350,120)', 'rect(0,0,650,120)', 'moveTo(649.5,0)', 'fillRect(1,'],
+] as const) {
+  const { ctx, calls } = recordingContext();
+  sideRenderer(side, ctx).render();
+  equal(`tekenen ${side}: kiezerachtergrond`, calls.includes(pickerRect), true);
+  equal(`tekenen ${side}: plot geclipt op zijn zone`, calls.includes(plotClip), true);
+  equal(`tekenen ${side}: scheidingslijn`, calls.includes(separator), true);
+  equal(`tekenen ${side}: staaf van de eerste plotdag`, calls.some(call => call.startsWith(bar)), true);
+}
 equal('workspace bezit een full-width histogramhost',
   /data-testid="gantt-histogram-host"/.test(ganttWorkspaceSource), true);
 equal('workspace geeft zijn linkerbreedte als histogramkiezerbreedte door',

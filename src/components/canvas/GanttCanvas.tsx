@@ -11,7 +11,12 @@ import { useAppStore } from '@/state/appStore';
 import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
 import { useDisplayDate } from '@/hooks/displayDate';
 import { useTranslation } from 'react-i18next';
-import type { HistogramSeries, HistogramPickerItem } from '@/engine/renderer/HistogramRenderer';
+import {
+  histogramPlotInsets,
+  type HistogramPickerItem,
+  type HistogramPickerSide,
+  type HistogramSeries,
+} from '@/engine/renderer/HistogramRenderer';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
 import { resolveUIFontStack } from '@/utils/uiFont';
 import { scopeTaskResources } from '@/utils/taskResourceScope';
@@ -82,6 +87,8 @@ export interface GanttCanvasProps {
   revealRequest?: GanttGridRevealRequest | null;
   histogramHost: HTMLDivElement | null;
   histogramPickerWidth: number;
+  /** Kant van de takenlijst en dus van de histogramkiezer: links in ltr, rechts in ar/fa. */
+  histogramPickerSide: HistogramPickerSide;
   miniMapHost: HTMLDivElement | null;
 }
 
@@ -91,6 +98,7 @@ export function GanttCanvas({
   revealRequest = null,
   histogramHost,
   histogramPickerWidth,
+  histogramPickerSide,
   miniMapHost,
 }: GanttCanvasProps) {
   const { t: tTask, i18n } = useTranslation('task');
@@ -237,6 +245,7 @@ export function GanttCanvas({
     calendar,
     view,
     histogramPickerWidth,
+    histogramPickerSide,
     histogramHeight,
     rowHeight,
     headerHeight,
@@ -509,6 +518,7 @@ export function GanttCanvas({
   const { pickerScrollY: histogramPickerScrollY } = useGanttHistogramPickerScroll({
     container: showHistogram ? histogramContainerEl : null,
     pickerWidth: histogramPickerWidth,
+    pickerSide: histogramPickerSide,
     canvasHeight: histogramHeight,
     itemCount: histogramPicker.length,
     pickerIds: histogramPickerIds,
@@ -523,6 +533,7 @@ export function GanttCanvas({
       selectedResourceId: effectiveHistogramResourceId,
       view: effectiveView,
       pickerWidth: histogramPickerWidth,
+      pickerSide: histogramPickerSide,
       pickerScrollY: histogramPickerScrollY,
       axis: histogramAxis,
       // Issue #25 punt 4: zelfde lettertypefamilie als de Gantt erboven en de DOM-chrome.
@@ -537,7 +548,7 @@ export function GanttCanvas({
           ? tCommon('resource.histogram.noResources')
           : undefined,
     } : undefined
-  ), [showHistogram, histogramSeries, histogramPicker, effectiveHistogramResourceId, effectiveView, histogramPickerWidth, histogramPickerScrollY, scopedResourceLoadResult, scopedTaskResources.resources.length, tCommon, histogramAxis, canvasFontFamily, fontScale]);
+  ), [showHistogram, histogramSeries, histogramPicker, effectiveHistogramResourceId, effectiveView, histogramPickerWidth, histogramPickerSide, histogramPickerScrollY, scopedResourceLoadResult, scopedTaskResources.resources.length, tCommon, histogramAxis, canvasFontFamily, fontScale]);
 
   const primaryRenderInput = useMemo<GanttRenderOptionsSourceInput>(() => ({
     rows: viewRows,
@@ -697,9 +708,16 @@ export function GanttCanvas({
               onKeyDown={histogramInteraction.onKeyDown}
             />
             {scheduleStale && (
+              // Hoort bij de grafiek: rechtsboven in de plot, dus in ar/fa (kiezer rechts) vóór de
+              // kiezer in plaats van eroverheen — dezelfde indeling als de renderer.
               <div
-                className="absolute top-1 right-2 !text-small px-1.5 py-0.5 rounded pointer-events-none"
-                style={{ background: 'var(--theme-surface)', color: 'var(--theme-warning-text)', opacity: 0.9 }}
+                className="absolute top-1 !text-small px-1.5 py-0.5 rounded pointer-events-none"
+                style={{
+                  right: `calc(${histogramPlotInsets(histogramPickerWidth, histogramPickerSide).right}px + 0.5rem)`,
+                  background: 'var(--theme-surface)',
+                  color: 'var(--theme-warning-text)',
+                  opacity: 0.9,
+                }}
               >
                 ⚠ {tCommon('resource.histogram.staleHint')}
               </div>
