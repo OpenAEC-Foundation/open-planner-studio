@@ -31,7 +31,7 @@ import {
 } from './p6xmlWriter';
 import { invertRecord } from '@/utils/collections';
 import {
-  DAY_TIME_ANCHOR, decodeCustomTaskType, isTaskDurationUnit, OPS_DURATION_UNIT_NAME,
+  DAY_TIME_ANCHOR, decodeCustomTaskType, isTaskDurationUnit, OPS_DURATION_UNIT_NAME, statusDateFromXml,
 } from '@/services/xmlInterchange';
 import {
   canonicalizeBands, clockToMinutes, hasNonAnchorTime, isSubDayMinutes,
@@ -848,7 +848,7 @@ function parseProject(doc: Document): Project {
   };
   // Data date (fase 2.6, §9.2) → project.statusDate. Alleen wanneer aanwezig.
   const dataDateRaw = getElementText(projEl, 'DataDate');
-  if (dataDateRaw) project.statusDate = parseP6Date(dataDateRaw);
+  if (dataDateRaw) project.statusDate = statusDateFromXml(dataDateRaw);
   return project;
 }
 

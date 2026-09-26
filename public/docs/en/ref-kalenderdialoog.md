@@ -10,12 +10,12 @@ The **Calendars** window manages the project's calendar library: the list of all
 
 ## Applying and cancelling
 
-All edits — including new/duplicate/delete — happen in a working copy. **Apply** (or **Enter**) writes everything at once and recalculates the schedule; **Cancel**, **Esc**, the close cross or a click outside the window discards all changes.
+All edits — including new/duplicate/delete — happen in a working copy. **Apply** writes everything at once, recalculates the schedule and closes the window; **Enter** in a text field such as the name does the same but keeps the window open. If nothing has changed, **Apply** and **Enter** do nothing: the document stays unmodified and the schedule is not recalculated. **Cancel**, **Esc**, the close cross or a click outside the window discards every change that has not yet been committed with **Apply** or **Enter**.
 
 ## Library (left column)
 
-- **List** — all calendars; the star marks the **Project calendar** (the default for tasks without their own calendar).
-- **+** — **New calendar**.
+- **List** — all calendars; the star marks the **Project calendar** (the default for tasks without their own calendar). A warning sign marks a calendar with invalid input.
+- **+** — **New calendar**, with the same default as **+ Resource calendar** in the resource panel and as a new project: Mon–Fri 07:00–16:00 and, with **Construction mode** on, the Dutch public holidays. If you want none, choose **Generate holidays…** → **No holidays**.
 - **Duplicate** — copy of the selected calendar.
 - **Delete** — not possible for the last calendar; deleting the project default makes another calendar the default.
 - **Set as project default** — makes the selected calendar the project calendar (button above the form).
@@ -49,4 +49,4 @@ Generates the holiday list rule-based across the project period:
 
 ## Holidays
 
-The list itself: per row **Description**, **From**, **Until** and a remove button; **Add holiday** creates a new row. Multi-day periods (construction holiday, frost delay) are simply a row with a longer From–Until span.
+The list itself: per row **Description**, **From**, **Until** and a remove button; **Add holiday** creates a new row. Multi-day periods (construction holiday, frost delay) are simply a row with a longer From–Until span. An empty **Until** means a single-day holiday. If **From** is missing, or **Until** is before **From**, the row is marked in red with an explanation and **Apply** and **Enter** stay blocked until you correct it.

@@ -94,6 +94,11 @@
     "relationCreated": "Relation créée : {{predecessor}} → {{successor}}",
     "relationDuplicate": "Cette relation existe déjà",
     "relationAncestorEndpoint": "Une relation entre une tâche et sa propre tâche récapitulative parente (ou ancêtre) n'est pas autorisée.",
+    "relationCycle": "Cette relation créerait un cycle dans la planification ({{cycle}}) et n'a pas été créée.",
+    "hierarchyCycle": "Ce déplacement créerait un cycle dans la planification ({{cycle}}) : les relations d'une tâche récapitulative s'appliquent aussi à ses sous-tâches. Rien n'a été déplacé.",
+    "relationsExcludedByHierarchy_one": "Après le déplacement, {{count}} relation relie une tâche à sa propre tâche récapitulative parente ; elle n'est plus prise en compte dans le calcul.",
+    "relationsExcludedByHierarchy_many": "Après le déplacement, {{count}} relations relient une tâche à sa propre tâche récapitulative parente ; elles ne sont plus prises en compte dans le calcul.",
+    "relationsExcludedByHierarchy_other": "Après le déplacement, {{count}} relations relient une tâche à sa propre tâche récapitulative parente ; elles ne sont plus prises en compte dans le calcul.",
     "summaryRelationsDropped": "{{total}} relation(s) n'ont pas pu être prises en compte. Vérifiez les colonnes Prédécesseurs et Successeurs.",
     "relationsSkippedOnInsert_one": "{{count}} relation n'a pas été créée : lien invalide (par exemple une tâche liée à sa propre tâche récapitulative parente, ou un doublon).",
     "relationsSkippedOnInsert_many": "{{count}} relations n'ont pas été créées : lien invalide (par exemple une tâche liée à sa propre tâche récapitulative parente, ou un doublon).",
@@ -124,6 +129,36 @@
     "levelingDelayRoundedToWorkdays_one": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâche à des journées de travail entières.",
     "levelingDelayRoundedToWorkdays_many": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâches à des journées de travail entières.",
     "levelingDelayRoundedToWorkdays_other": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâches à des journées de travail entières.",
+    "startSnetCreated": "'{{name}}' a un prédécesseur : le nouveau début devient la contrainte Début au plus tôt le (SNET) {{date}}. Après recalcul (F5), la tâche ne commence pas avant cette date.",
+    "startSnetUpdated": "La contrainte Début au plus tôt le (SNET) de '{{name}}' a été déplacée au {{date}}. Après recalcul (F5), la tâche ne commence pas avant cette date.",
+    "startSnetMany_one": "Le nouveau début de {{count}} tâche avec un prédécesseur devient une contrainte Début au plus tôt le (SNET). Après recalcul (F5), cette tâche ne commence pas avant sa date.",
+    "startSnetMany_many": "Les nouveaux débuts de {{count}} tâches avec un prédécesseur deviennent des contraintes Début au plus tôt le (SNET). Après recalcul (F5), aucune ne commence avant sa date.",
+    "startSnetMany_other": "Les nouveaux débuts de {{count}} tâches avec un prédécesseur deviennent des contraintes Début au plus tôt le (SNET). Après recalcul (F5), aucune ne commence avant sa date.",
+    "startBlockedByConstraint": "Le nouveau début de '{{name}}' n'a pas été appliqué : la tâche a un prédécesseur et la contrainte $t(task:constraintType.{{type}}) {{date}}, qui déterminent son début. Modifiez cette contrainte pour déplacer le début.",
+    "startBlockedByConstraintNoDate": "Le nouveau début de '{{name}}' n'a pas été appliqué : la tâche a un prédécesseur et la contrainte $t(task:constraintType.{{type}}), qui déterminent son début. Modifiez cette contrainte pour déplacer le début.",
+    "startBlockedByConstraintMany_one": "Le nouveau début de {{count}} tâche n'a pas été appliqué : elle a un prédécesseur et une contrainte autre que Début au plus tôt le (SNET). Modifiez cette contrainte pour déplacer le début.",
+    "startBlockedByConstraintMany_many": "Les nouveaux débuts de {{count}} tâches n'ont pas été appliqués : elles ont un prédécesseur et une contrainte autre que Début au plus tôt le (SNET). Modifiez ces contraintes pour déplacer les débuts.",
+    "startBlockedByConstraintMany_other": "Les nouveaux débuts de {{count}} tâches n'ont pas été appliqués : elles ont un prédécesseur et une contrainte autre que Début au plus tôt le (SNET). Modifiez ces contraintes pour déplacer les débuts.",
+    "referencesClearedOnPaste_one": "{{count}} référence n'existait pas dans ce document et a été effacée (un calendrier de tâche, type de tâche personnalisé, code d'activité ou champ personnalisé du document source).",
+    "referencesClearedOnPaste_many": "{{count}} références n'existaient pas dans ce document et ont été effacées (calendriers de tâche, types de tâche personnalisés, codes d'activité ou champs personnalisés du document source).",
+    "referencesClearedOnPaste_other": "{{count}} références n'existaient pas dans ce document et ont été effacées (calendriers de tâche, types de tâche personnalisés, codes d'activité ou champs personnalisés du document source).",
+    "milestoneRefusedAssignments_one": "« {{task}} » a des affectations de ressources et ne peut pas devenir un jalon. Supprimez d'abord les affectations.",
+    "milestoneRefusedAssignments_many": "{{count}} tâches ont des affectations de ressources et ne peuvent pas devenir des jalons. Supprimez d'abord les affectations.",
+    "milestoneRefusedAssignments_other": "{{count}} tâches ont des affectations de ressources et ne peuvent pas devenir des jalons. Supprimez d'abord les affectations.",
+    "milestoneRefusedSummary_one": "« {{task}} » est une tâche récapitulative avec des sous-tâches et ne peut pas devenir un jalon.",
+    "milestoneRefusedSummary_many": "{{count}} tâches sont des tâches récapitulatives avec des sous-tâches et ne peuvent pas devenir des jalons.",
+    "milestoneRefusedSummary_other": "{{count}} tâches sont des tâches récapitulatives avec des sous-tâches et ne peuvent pas devenir des jalons.",
+    "assignmentsMovedToSubtask_one": "L'affectation de {{resources}} a été déplacée de « {{phase}} » vers la nouvelle sous-tâche « {{child}} » : une tâche récapitulative ne porte pas elle-même d'affectations.",
+    "assignmentsMovedToSubtask_many": "Les {{count}} affectations ({{resources}}) ont été déplacées de « {{phase}} » vers la nouvelle sous-tâche « {{child}} » : une tâche récapitulative ne porte pas elle-même d'affectations.",
+    "assignmentsMovedToSubtask_other": "Les {{count}} affectations ({{resources}}) ont été déplacées de « {{phase}} » vers la nouvelle sous-tâche « {{child}} » : une tâche récapitulative ne porte pas elle-même d'affectations.",
+    "assignmentsMovedToSubtasks_one": "{{count}} tâche est devenue une tâche récapitulative ; ses affectations ont été déplacées vers sa première nouvelle sous-tâche.",
+    "assignmentsMovedToSubtasks_many": "{{count}} tâches sont devenues des tâches récapitulatives ; leurs affectations ont chacune été déplacées vers leur première nouvelle sous-tâche.",
+    "assignmentsMovedToSubtasks_other": "{{count}} tâches sont devenues des tâches récapitulatives ; leurs affectations ont chacune été déplacées vers leur première nouvelle sous-tâche.",
+    "milestoneClearedOnPhase_one": "Le jalon « {{phase}} » a maintenant des sous-tâches et est devenu une tâche récapitulative ; l'indicateur de jalon a été retiré.",
+    "milestoneClearedOnPhase_many": "{{count}} jalons ont maintenant des sous-tâches et sont devenus des tâches récapitulatives ; l'indicateur de jalon a été retiré.",
+    "milestoneClearedOnPhase_other": "{{count}} jalons ont maintenant des sous-tâches et sont devenus des tâches récapitulatives ; l'indicateur de jalon a été retiré.",
+    "phaseRefusedNoAssignableChild": "« {{phase}} » ne peut pas devenir une tâche récapitulative : ses affectations ne peuvent aller nulle part, car aucune des nouvelles sous-tâches ne peut porter d'affectations (un jalon ou une tâche récapitulative). Rien n'a été modifié.",
+    "phaseRefusedDuplicateResource": "« {{phase}} » ne peut pas devenir une tâche récapitulative : l'affectation de {{resource}} ne peut pas aller vers la nouvelle sous-tâche « {{child}} », qui a déjà {{resource}}. Rien n'a été modifié.",
     "schedulingProfileApplied": "Ce projet calcule comme {{profile}}. Modifiable via Fichier → Info projet → Profil de calcul et options.",
     "schedulingProfileShifted_one": "Après application, {{count}} tâche a été déplacée.",
     "schedulingProfileShifted_many": "Après application, {{count}} tâches ont été déplacées.",
@@ -140,6 +175,14 @@
     "xerArchiveReasonBytesMissing": "Raison : les octets source eux-mêmes manquent — un autre logiciel IFC a probablement réécrit le fichier.",
     "xerArchiveReasonMetadataInvalid": "Raison : les octets source sont intacts, mais les données qui en sont dérivées sont inutilisables.",
     "xerArchiveReasonStructure": "Raison : la structure de l'archive dans l'IFC est incorrecte (dupliquée, réordonnée ou mal rattachée)."
+  },
+  "scheduleErrors": {
+    "cycle": "Dépendance circulaire entre les tâches : {{path}}",
+    "noWorkingDays": "Aucun jour ouvré n'est défini dans le calendrier",
+    "invalidDayDuration": "Durée en jours non valide pour la tâche '{{task}}'",
+    "invalidHourDuration": "Durée en heures non valide pour la tâche '{{task}}'",
+    "hourTaskWithoutWorkHours": "La tâche en heures '{{task}}' n'a pas d'horaires de travail valides dans son calendrier",
+    "invalidStartDate": "Date de début non valide pour la tâche '{{task}}'"
   },
   "yes": "Oui",
   "no": "Non",
@@ -318,7 +361,7 @@
     "aiAutostartHint": "Active la passerelle MCP dès le démarrage de l'application, afin qu'un client IA puisse se connecter sans que vous ouvriez d'abord l'onglet IA. Application de bureau uniquement.",
     "legacySection": "Fonctions héritées",
     "classicViewControls": "Afficher les boutons d’affichage classiques",
-    "classicViewControlsHint": "Remet les boutons séparés Colonnes, Filtre, Grouper et Trier dans l’onglet Affichage. Leur fonction se trouve désormais dans les boutons de layout et la boîte de dialogue des layouts."
+    "classicViewControlsHint": "Remet les boutons séparés Colonnes, Filtre, Grouper et Trier dans l’onglet Affichage. Les colonnes se choisissent désormais avec le plus dans l’en-tête du tableau ou via Tableau → Colonnes… ; le filtrage, le regroupement et le tri se trouvent dans les boutons de layout et la boîte de dialogue des layouts."
   },
   "ai": {
     "start": "Démarrer le pont",
@@ -772,7 +815,8 @@
       "project": "Calendrier du projet",
       "new": "Nouveau calendrier",
       "duplicate": "Dupliquer",
-      "setDefault": "Définir comme calendrier par défaut du projet"
+      "setDefault": "Définir comme calendrier par défaut du projet",
+      "invalid": "Ce calendrier contient une saisie non valide"
     },
     "generate": {
       "button": "Générer les jours fériés…",
@@ -834,6 +878,11 @@
         "consumesWorkingDay": "La pause ne peut pas couvrir toute la journée de travail."
       }
     },
+    "holidayErrors": {
+      "invalidStart": "Saisissez une date de début valide.",
+      "invalidEnd": "Saisissez une date de fin valide, ou laissez-la vide pour un seul jour.",
+      "endBeforeStart": "La date de fin est antérieure à la date de début."
+    },
     "worktime": {
       "section": "Horaires de travail",
       "derivedHpd": "Heures/jour dérivées :",
@@ -855,11 +904,7 @@
     "structureLockedHint": "Non disponible pendant le filtrage/regroupement/tri",
     "columns": {
       "title": "Colonnes",
-      "visible": "Visible",
-      "width": "Largeur",
-      "resetDefault": "Réinitialiser par défaut",
-      "available": "Champs disponibles",
-      "scopeHint": "Ces colonnes s’appliquent à la vue Tableau. La liste des tâches à côté du Gantt affiche toujours WBS, nom et durée."
+      "resetDefault": "Réinitialiser par défaut"
     },
     "filter": {
       "title": "Filtre",

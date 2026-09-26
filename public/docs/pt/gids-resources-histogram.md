@@ -87,7 +87,7 @@ Um recurso pode estar no **Calendário do projeto** (predefinição) ou no seu p
 
 Ative o histograma através do grupo do friso **Histograma** no separador **Recursos** (o botão **Histograma**). Aparece uma faixa sob o Gantt no mesmo eixo temporal: barras por dia, com a parte acima da linha de capacidade mostrada a vermelho.
 
-À esquerda das barras, acima da coluna da tabela de tarefas, situa-se o **seletor de recursos**: uma lista com "Todos os recursos" no topo e cada recurso abaixo, cada um com um ponto vermelho se esse recurso estiver sobrealocado nalgum lugar. Clique num nome para ampliar esse recurso — o histograma reajusta a escala apenas à sua carga e capacidade. Clique de volta em "Todos os recursos" para ver de novo a soma de todos os recursos. Além de clicar, também pode percorrer os recursos com os botões **Anterior**/**Seguinte** no grupo do friso **Histograma**, sem tocar no seletor propriamente dito.
+Por baixo da tabela de tarefas, ao lado das barras, situa-se o **seletor de recursos**: uma lista com "Todos os recursos" no topo e cada recurso abaixo, cada um com um ponto vermelho se esse recurso estiver sobrealocado nalgum lugar. Clique num nome para ampliar esse recurso — o histograma reajusta a escala apenas à sua carga e capacidade. Clique de volta em "Todos os recursos" para ver de novo a soma de todos os recursos. Além de clicar, também pode percorrer os recursos com os botões **Anterior**/**Seguinte** no grupo do friso **Histograma**, sem tocar no seletor propriamente dito.
 
 Clique numa barra sobrecarregada e uma dica mostra quantas tarefas contribuem para a carga nesse dia, com os primeiros nomes de tarefas — útil para ver rapidamente qual combinação de tarefas causa a sobrealocação sem verificar cada atribuição à mão.
 

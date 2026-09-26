@@ -1,8 +1,9 @@
 // Histogram-renderer (fase 2.5, §6.4). Tekent één resource-belastingsstrook onder de Gantt met
-// dezelfde primaire tijdsinstellingen als GanttRenderer (pickerWidth + dagen*zoom - scrollX),
-// zodat de dagkolommen 1-op-1 boven de taakbalken staan. Eigen verticale schaal (eenheden i.p.v.
-// rijen). Links van pickerWidth: een resourcekiezer-lijst; rechts: staafjes per dag met het
-// deel boven de capaciteitslijn in rood (P6-patroon). Thema-bewust via CSS-variabelen.
+// dezelfde primaire tijdsinstellingen als GanttRenderer (plotbegin + dagen*zoom - scrollX),
+// zodat de dagkolommen 1-op-1 onder de taakbalken staan. Eigen verticale schaal (eenheden i.p.v.
+// rijen). Onder de takenlijst: een resourcekiezer-lijst; onder de tijdlijn: staafjes per dag met
+// het deel boven de capaciteitslijn in rood (P6-patroon). Thema-bewust via CSS-variabelen.
+// Welke x bij kiezer en plot hoort, staat op één plek: `histogramLayout` hieronder.
 import type { ViewState } from '@/types/view';
 import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
 import { readHistogramPalette, type HistogramPalette } from './themePalette';
@@ -32,8 +33,12 @@ export interface HistogramRenderOptions {
   view: ViewState;               // effectiveView (zelfde origin als de Gantt)
   canvasWidth: number;
   canvasHeight: number;
-  /** Breedte van uitsluitend de resourcekiezer; tevens de lokale oorsprong van de tijdplot. */
+  /** Breedte van uitsluitend de resourcekiezer (= de takenlijst erboven). */
   pickerWidth: number;
+  /** Aan welke kant van het canvas de kiezer staat: aan de kant van de takenlijst erboven, dus links
+   *  in ltr en rechts in ar/fa. Afwezig ⇒ `'left'` (byte-identiek aan vóór G13). Zie
+   *  `histogramLayout`. */
+  pickerSide?: HistogramPickerSide;
   /** R2a: verticale scrollpositie (px) van de kiezerlijst — de gepinde "alle resources"-somrij zelf
    *  scrollt nooit mee, dit geldt alleen voor de resourcerijen eronder. Sessiestate; eigendom van de
    *  aanroepende hook, niet van deze renderer — die klemt hier alleen af op `[0, maxScroll]` (zie
@@ -74,6 +79,54 @@ const LEFT_PAD = 8;        // padding binnen de kiezerzone
 const PICKER_SCROLLBAR_W = 2; // breedte van de smalle, niet-sleepbare scroll-positie-indicator (R2a)
 const PICKER_SCROLLBAR_ALPHA = 0.45; // dekking van de indicator — subtiel, geen interactief element
 
+// ── Horizontale indeling: kiezer en tijdplot ──────────────────────────────────────────────────
+// Het histogram is één canvas over de volle breedte van de Gantt-werkruimte. De kiezer staat onder
+// de takenlijst, de tijdplot onder de tijdlijn. In ar/fa spiegelt de werkruimte (de takenlijst staat
+// dan RECHTS), maar de tijdlijn zelf blijft ltr: de tijd loopt ook daar links naar rechts. De plot
+// wordt dus niet gespiegeld; kiezer en plot wisselen alleen van plek, elk met hun eigen inhoud
+// ongewijzigd. Tekenen, hit-test, wielscroll en de gedeelde as (`chartOriginX`) lezen allemaal deze
+// indeling — wie los `x >= pickerWidth` of `chartOriginX = pickerWidth` schrijft, neemt stil aan
+// dat de kiezer links staat (zo begon de dagas in ar een kiezerbreedte na die van de tijdlijn).
+
+/** Kant van het canvas waar de resourcekiezer staat. */
+export type HistogramPickerSide = 'left' | 'right';
+
+/** Wat de kiezer links en rechts van de tijdplot inneemt, in canvas-px. Hangt niet van de
+ *  canvasbreedte af, zodat ook de gedeelde as er zonder gemeten canvas uit volgt:
+ *  `chartOriginX` = `left`. */
+export function histogramPlotInsets(
+  pickerWidth: number,
+  pickerSide: HistogramPickerSide = 'left',
+): { left: number; right: number } {
+  return pickerSide === 'right' ? { left: 0, right: pickerWidth } : { left: pickerWidth, right: 0 };
+}
+
+/** Halfopen x-bereiken `[left, right)` in canvas-px. */
+export interface HistogramLayout {
+  picker: { left: number; right: number };
+  /** `plot.left` is de oorsprong van de tijdas (`chartOriginX`). */
+  plot: { left: number; right: number };
+}
+
+export function histogramLayout(
+  canvasWidth: number,
+  pickerWidth: number,
+  pickerSide: HistogramPickerSide = 'left',
+): HistogramLayout {
+  const inset = histogramPlotInsets(pickerWidth, pickerSide);
+  return {
+    picker: pickerSide === 'right'
+      ? { left: canvasWidth - pickerWidth, right: canvasWidth }
+      : { left: 0, right: pickerWidth },
+    plot: { left: inset.left, right: canvasWidth - inset.right },
+  };
+}
+
+/** Ligt canvas-x `x` in de kiezer? Eén definitie voor klik, hover en wielscroll. */
+export function isInHistogramPicker(layout: HistogramLayout, x: number): boolean {
+  return x >= layout.picker.left && x < layout.picker.right;
+}
+
 /** Rijhoogte van de kiezerlijst, geschaald met `fontScale` — dezelfde afronding als
  *  `HistogramRenderer.rowH`, maar als los aanroepbare functie zodat de scroll-eigenaar
  *  (buiten de renderer, zie de Gantt-grenzenpoort) zonder instantie dezelfde maat kent. */
@@ -106,7 +159,9 @@ export class HistogramRenderer {
   private colors: HistogramPalette;
   private viewStart: Date;
   private fontScale: number;
-  /** Lokale oorsprong van de tijdplot, één keer afgeleid van de semantische kiezerbreedte. */
+  /** Kiezer- en plotzone, één keer afgeleid uit kiezerbreedte en -kant (`histogramLayout`). */
+  private layout: HistogramLayout;
+  /** Lokale oorsprong van de tijdplot: het begin van de plotzone. */
   private chartOriginX: number;
   /** Kiezerrij-hoogte, geschaald met `fontScale` (issue #60-nazit) — één instance-waarde voor
    *  tekenen én hit-test, zodat die twee nooit uit elkaar kunnen lopen. */
@@ -126,7 +181,8 @@ export class HistogramRenderer {
     this.colors = opts.palette ?? readHistogramPalette();
     this.viewStart = parseDate(opts.view.viewStartDate);
     this.fontScale = opts.fontScale ?? 1;
-    this.chartOriginX = opts.pickerWidth;
+    this.layout = histogramLayout(opts.canvasWidth, opts.pickerWidth, opts.pickerSide);
+    this.chartOriginX = this.layout.plot.left;
     this.rowH = histogramPickerRowHeight(this.fontScale);
     this.maxScroll = histogramPickerMaxScroll(opts.picker.length, opts.canvasHeight, this.fontScale);
     this.pickerScrollY = Math.min(this.maxScroll, Math.max(0, opts.pickerScrollY ?? 0));
@@ -163,7 +219,7 @@ export class HistogramRenderer {
    *  rijen erna liggen in het scrollbare deel eronder, verschoven met `pickerScrollY` — exact de
    *  geometrie die `drawPicker` ook tekent. */
   pickerAt(x: number, y: number): { id?: string } | null {
-    if (x >= this.opts.pickerWidth) return null;
+    if (!isInHistogramPicker(this.layout, x)) return null;
     if (this.opts.picker.length === 0) return null;
     if (y >= TOP_PAD && y < TOP_PAD + this.rowH) return { id: this.opts.picker[0].id };
     const scrollTop = TOP_PAD + this.rowH;
@@ -177,14 +233,15 @@ export class HistogramRenderer {
 
   /** Hit-test op een dagkolom in de plotzone: geeft de iso-datum terug als daar belasting is. */
   dayAt(x: number, y: number): string | null {
-    if (x < this.chartOriginX || y < 0 || y > this.opts.canvasHeight) return null;
+    const { plot } = this.layout;
+    if (x < plot.left || x >= plot.right || y < 0 || y > this.opts.canvasHeight) return null;
     const iso = this.dateAtX(x);
     return this.opts.series.load[iso] !== undefined ? iso : null;
   }
 
   render(): void {
     const { canvasWidth, canvasHeight } = this.opts;
-    const chartOriginX = this.chartOriginX;
+    const { plot } = this.layout;
     const ctx = this.ctx;
     const c = this.colors;
 
@@ -202,10 +259,10 @@ export class HistogramRenderer {
 
     this.drawPicker();
 
-    // Plotzone rechts van de tabel
+    // Plotzone onder de tijdlijn
     ctx.save();
     ctx.beginPath();
-    ctx.rect(chartOriginX, 0, canvasWidth - chartOriginX, canvasHeight);
+    ctx.rect(plot.left, 0, plot.right - plot.left, canvasHeight);
     ctx.clip();
 
     if (this.opts.emptyHint) {
@@ -213,7 +270,7 @@ export class HistogramRenderer {
       ctx.font = this.font(11);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(this.opts.emptyHint, (chartOriginX + canvasWidth) / 2, canvasHeight / 2);
+      ctx.fillText(this.opts.emptyHint, (plot.left + plot.right) / 2, canvasHeight / 2);
       ctx.restore();
       return;
     }
@@ -221,11 +278,13 @@ export class HistogramRenderer {
     this.drawBars();
     ctx.restore();
 
-    // Scheidingslijn tussen kiezer en plot
+    // Scheidingslijn tussen kiezer en plot: de eerste plotpixel aan de kiezerkant, zodat hij onder
+    // de lijn van de werkruimtesplitter valt (die ligt in beide richtingen aan de Gantt-kant).
+    const separatorX = this.opts.pickerSide === 'right' ? plot.right - 0.5 : plot.left + 0.5;
     ctx.strokeStyle = c.border;
     ctx.beginPath();
-    ctx.moveTo(chartOriginX + 0.5, 0);
-    ctx.lineTo(chartOriginX + 0.5, canvasHeight);
+    ctx.moveTo(separatorX, 0);
+    ctx.lineTo(separatorX, canvasHeight);
     ctx.stroke();
   }
 
@@ -235,24 +294,25 @@ export class HistogramRenderer {
     const ctx = this.ctx;
     const c = this.colors;
     const { pickerWidth } = this.opts;
+    const x0 = this.layout.picker.left;
     const selected = item.id === this.opts.selectedResourceId;
     if (selected) {
       ctx.fillStyle = c.active;
-      ctx.fillRect(0, y, pickerWidth, this.rowH);
+      ctx.fillRect(x0, y, pickerWidth, this.rowH);
     }
     // Rood badge bij overallocatie
     if (item.overallocated) {
       ctx.fillStyle = c.barOver;
       ctx.beginPath();
-      ctx.arc(LEFT_PAD + 3, y + this.rowH / 2, 3, 0, Math.PI * 2);
+      ctx.arc(x0 + LEFT_PAD + 3, y + this.rowH / 2, 3, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.fillStyle = selected ? c.text : c.textDim;
-    const textX = LEFT_PAD + 12;
+    const textOffset = LEFT_PAD + 12;
     // R2a-fixronde punt 7: label niet onder de scroll-indicator laten doorlopen zodra die getekend
     // wordt — de gepinde somrij (nooit `reserveScrollbar`) blijft de volle breedte gebruiken.
-    const maxW = pickerWidth - textX - 4 - (reserveScrollbar ? PICKER_SCROLLBAR_W + 2 : 0);
-    ctx.fillText(ellipsize(ctx, item.label, maxW), textX, y + this.rowH / 2);
+    const maxW = pickerWidth - textOffset - 4 - (reserveScrollbar ? PICKER_SCROLLBAR_W + 2 : 0);
+    ctx.fillText(ellipsize(ctx, item.label, maxW), x0 + textOffset, y + this.rowH / 2);
   }
 
   /** R2a: de gepinde "alle resources"-rij (index 0) blijft altijd op `TOP_PAD` staan; de overige
@@ -263,9 +323,10 @@ export class HistogramRenderer {
     const ctx = this.ctx;
     const c = this.colors;
     const { pickerWidth, picker, canvasHeight } = this.opts;
+    const x0 = this.layout.picker.left;
 
     ctx.fillStyle = c.surfaceAlt;
-    ctx.fillRect(0, 0, pickerWidth, canvasHeight);
+    ctx.fillRect(x0, 0, pickerWidth, canvasHeight);
 
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
@@ -284,7 +345,7 @@ export class HistogramRenderer {
 
     ctx.save();
     ctx.beginPath();
-    ctx.rect(0, scrollTop, pickerWidth, canvasHeight - scrollTop);
+    ctx.rect(x0, scrollTop, pickerWidth, canvasHeight - scrollTop);
     ctx.clip();
     scrollableItems.forEach((item, i) => {
       const y = scrollTop - this.pickerScrollY + i * this.rowH;
@@ -306,7 +367,7 @@ export class HistogramRenderer {
     ctx.save();
     ctx.fillStyle = c.textDim;
     ctx.globalAlpha = PICKER_SCROLLBAR_ALPHA;
-    ctx.fillRect(pickerWidth - PICKER_SCROLLBAR_W - 1, thumbY, PICKER_SCROLLBAR_W, thumbHeight);
+    ctx.fillRect(x0 + pickerWidth - PICKER_SCROLLBAR_W - 1, thumbY, PICKER_SCROLLBAR_W, thumbHeight);
     ctx.restore();
   }
 
@@ -314,6 +375,7 @@ export class HistogramRenderer {
     const ctx = this.ctx;
     const c = this.colors;
     const { series, view, canvasHeight } = this.opts;
+    const { plot } = this.layout;
 
     const isos = Object.keys(series.load);
     if (isos.length === 0) return;
@@ -328,7 +390,7 @@ export class HistogramRenderer {
     let yMaxData = 1;
     for (const iso of isos) {
       const x = this.dateToX(parseDate(iso));
-      if (x + dayW < this.chartOriginX || x > this.opts.canvasWidth) continue;
+      if (x + dayW < plot.left || x > plot.right) continue;
       yMaxData = Math.max(yMaxData, series.load[iso] ?? 0, series.capacity[iso] ?? 0);
     }
     const yMax = yMaxData * 1.05;
@@ -341,8 +403,8 @@ export class HistogramRenderer {
     ctx.strokeStyle = c.grid;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(this.chartOriginX, plotBottom + 0.5);
-    ctx.lineTo(this.opts.canvasWidth, plotBottom + 0.5);
+    ctx.moveTo(plot.left, plotBottom + 0.5);
+    ctx.lineTo(plot.right, plotBottom + 0.5);
     ctx.stroke();
 
     for (const iso of isos) {
@@ -350,7 +412,7 @@ export class HistogramRenderer {
       const capVal = series.capacity[iso] ?? 0;
       if (loadVal <= 0 && capVal <= 0) continue;
       const x = this.dateToX(parseDate(iso));
-      if (x + dayW < this.chartOriginX || x > this.opts.canvasWidth) continue;
+      if (x + dayW < plot.left || x > plot.right) continue;
 
       const capY = unitToY(capVal);
 
@@ -382,12 +444,12 @@ export class HistogramRenderer {
       }
     }
 
-    // Y-as-label (max) linksboven in de plotzone
+    // Y-as-label (max) linksboven in de plotzone, aan het begin van de tijd (ook in ar/fa)
     ctx.fillStyle = c.textDim;
     ctx.font = this.font(9);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText(`${this.formatUnits(yMaxData)} ${this.opts.labels.unitsSuffix}`, this.chartOriginX + 4, 2);
+    ctx.fillText(`${this.formatUnits(yMaxData)} ${this.opts.labels.unitsSuffix}`, plot.left + 4, 2);
   }
 
   private formatUnits(n: number): string {

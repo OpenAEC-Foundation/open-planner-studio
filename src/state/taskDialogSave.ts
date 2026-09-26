@@ -5,6 +5,10 @@ import {
 } from '@/engine/taskMutationRules';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { startAnchorAfterEdit } from '@/utils/taskDates';
+import {
+  constraintBlockingStart, predecessorDrivenTaskIds, startConstraintAfterEdit,
+} from '@/engine/startEditConstraint';
+import { notifyStartEdit, type StartEditNotice } from '@/state/startConstraintNotice';
 import { getPersonalTaskTypes } from '@/services/taskTypes/personalTaskTypes';
 import type { Task } from '@/types/task';
 import { isSummaryTask } from '@/utils/taskHierarchy';
@@ -110,7 +114,10 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
   const batch = createBatchTransactions(context);
   const S = () => context.store.getState();
 
-  const save = ({ editingTaskId, draft, startDate, initialDuration }: TaskDialogSaveInput): void => {
+  const save = (
+    { editingTaskId, draft, startDate, initialDuration }: TaskDialogSaveInput,
+    notices: StartEditNotice[],
+  ): void => {
     if (draft.customTaskTypeId) {
       const definition = S().customTaskTypes.find(type => type.id === draft.customTaskTypeId)
         ?? getPersonalTaskTypes().find(type => type.id === draft.customTaskTypeId);
@@ -161,7 +168,21 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
       // en de drift na herberekenen herintroduceren.
       // Start is verplicht: het veld weigert leeg al (`required`, #200), dit is het vangnet.
       const anchor = startDate ? startAnchorAfterEdit(editingTask, startDate) : undefined;
-      if (anchor !== undefined) time.scheduleStart = anchor;
+      // Een getypte start op een taak met voorganger wordt een beperking "Start niet eerder dan"
+      // (#231: dezelfde regel als Tabel, paneel en Gantt-sleep), in dezelfde `updateTask` en dus
+      // dezelfde undo-stap. Houdt een andere constraint de start tegen, dan wordt de start niet
+      // toegepast en volgt een melding. Koos de gebruiker in deze dialoog zelf een beperking, dan
+      // wint die expliciete keuze en doet de startregel niets.
+      const constraintEditedHere = JSON.stringify(draft.constraint) !== JSON.stringify(editingTask.constraint)
+        || JSON.stringify(draft.constraint2) !== JSON.stringify(editingTask.constraint2);
+      const driven = anchor !== undefined && !constraintEditedHere
+        && predecessorDrivenTaskIds(S().tasks, S().sequences).has(editingTask.id);
+      const prospective: Task = { ...editingTask, isHammock: draft.isHammock, time };
+      const blocking = constraintBlockingStart(prospective, driven);
+      const snet = anchor !== undefined && !blocking ? startConstraintAfterEdit(prospective, anchor, driven) : undefined;
+      if (anchor !== undefined && !blocking) time.scheduleStart = anchor;
+      if (blocking) notices.push({ kind: 'blocked', name: draft.name, constraint: blocking });
+      else if (snet && anchor !== undefined) notices.push({ kind: 'snet', name: draft.name, date: anchor, change: snet.change });
       const patch: Partial<Task> = {
         name: draft.name,
         description: draft.description,
@@ -173,7 +194,7 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
         milestoneKind: draft.milestoneKind,
         mandatory: draft.mandatory,
         isHammock: draft.isHammock,
-        constraint: draft.constraint,
+        constraint: snet ? snet.constraint : draft.constraint,
         constraint2: draft.constraint2,
         deadline: draft.deadline,
         notes: draft.notes,
@@ -227,12 +248,15 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
   };
 
   return (input) => {
+    // Meldingen (startregel, #231) pas ná de mutaties en de undo-stap, via het ene kanaal.
+    const notices: StartEditNotice[] = [];
     if (input.session) {
-      save(input);
+      save(input, notices);
       S().squashHistorySince(input.session, 'Taak bewerken');
-      return;
+    } else {
+      batch.withTransaction(() => save(input, notices));
     }
-    batch.withTransaction(() => save(input));
+    notifyStartEdit(S().notify, notices, S().ui.dateNotation);
   };
 }
 

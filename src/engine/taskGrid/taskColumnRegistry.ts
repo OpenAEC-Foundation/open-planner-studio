@@ -16,6 +16,7 @@ import type {
   TaskColumnContext,
   TaskColumnDescriptor,
   TaskColumnId,
+  TaskColumnLabelSource,
 } from '@/types/taskGrid';
 import {
   activityCodeColumnId,
@@ -73,9 +74,8 @@ type Parser = NonNullable<TaskColumnDescriptor['parse']>;
 type Validator = NonNullable<TaskColumnDescriptor['validate']>;
 type Writer = NonNullable<TaskColumnDescriptor['planWrite']>;
 
-interface ReadonlyColumnConfig {
+interface ReadonlyColumnFields {
   id: string | TaskColumnId;
-  labelKey: string;
   category: TaskColumnCategory;
   valueKind: ValueKind;
   defaultWidth?: number;
@@ -87,7 +87,9 @@ interface ReadonlyColumnConfig {
   tooltip?: (value: unknown, task: Task, ctx: TaskColumnContext) => string | null;
 }
 
-interface EditableColumnConfig extends Omit<ReadonlyColumnConfig, 'copy'> {
+type ReadonlyColumnConfig = ReadonlyColumnFields & TaskColumnLabelSource;
+
+interface EditableColumnFields extends Omit<ReadonlyColumnFields, 'copy'> {
   editorKind: Exclude<EditorKind, 'none'>;
   editorOptions?: readonly { value: string; labelKey?: string; label?: string }[];
   readOnly?: (task: Task, ctx: TaskColumnContext) => boolean;
@@ -98,6 +100,28 @@ interface EditableColumnConfig extends Omit<ReadonlyColumnConfig, 'copy'> {
   planWrite?: Writer;
   copy?: (task: Task, ctx: TaskColumnContext) => string;
   editText?: (task: Task, ctx: TaskColumnContext) => string;
+}
+
+type EditableColumnConfig = EditableColumnFields & TaskColumnLabelSource;
+
+/** Alleen de labelbron van een config, zodat een descriptor nooit sleutel en naam verwart. */
+function labelSource(config: TaskColumnLabelSource): TaskColumnLabelSource {
+  if (config.labelText === undefined) return { labelKey: config.labelKey };
+  return config.labelKey === undefined
+    ? { labelText: config.labelText }
+    : { labelText: config.labelText, labelKey: config.labelKey };
+}
+
+/**
+ * De kop van een kolom, voor elke plek die hem toont: kolomkop, kolomkiezer en zoeken daarin,
+ * undo-labels en celeditor lezen allemaal `TaskGridAdapterColumn.label`, dat hieruit komt. Alleen
+ * `labelKey` gaat door `translate`; een naam die de gebruiker gaf blijft letterlijk staan.
+ */
+export function taskColumnLabel(source: TaskColumnLabelSource, translate: (key: string) => string): string {
+  if (source.labelText === undefined) return translate(source.labelKey);
+  return source.labelKey === undefined
+    ? source.labelText
+    : `${source.labelText} — ${translate(source.labelKey)}`;
 }
 
 function success<T>(value: T): GridResult<T, readonly CellValidationError[]> {
@@ -199,7 +223,7 @@ function readonlyColumn(config: ReadonlyColumnConfig): TaskColumnDescriptor {
   const copy = config.copy ?? ((task: Task, ctx: TaskColumnContext) => copyScalar(config.read(task, ctx)));
   return {
     id,
-    labelKey: config.labelKey,
+    ...labelSource(config),
     category: config.category,
     valueKind: config.valueKind,
     editorKind: 'none',
@@ -237,7 +261,7 @@ function editableColumn(config: EditableColumnConfig): TaskColumnDescriptor {
     : rawPlanWrite(value, task, ctx);
   return {
     id,
-    labelKey: config.labelKey,
+    ...labelSource(config),
     category: config.category,
     valueKind: config.valueKind,
     editorKind: config.editorKind,
@@ -1106,7 +1130,7 @@ function activityCodeColumns(input: TaskColumnRegistryInput): TaskColumnDescript
     const id = activityCodeColumnId(input.projectId, type.id);
     return editableColumn({
       id,
-      labelKey: type.name,
+      labelText: type.name,
       category: 'custom',
       valueKind: 'enum',
       editorKind: 'autocomplete',
@@ -1185,7 +1209,7 @@ function customValueKind(def: CustomFieldDef): ValueKind {
 function customFieldColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[] {
   return input.customFieldDefs.map(def => editableColumn({
     id: customFieldColumnId(input.projectId, def.id),
-    labelKey: def.name,
+    labelText: def.name,
     category: 'custom',
     valueKind: customValueKind(def),
     editorKind: customEditorKind(def),
@@ -1246,7 +1270,8 @@ function baselineColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[]
             : fieldName === 'duration' ? 'duration' : 'number';
       result.push(readonlyColumn({
         id: baselineColumnId(input.projectId, baseline.id, fieldName),
-        labelKey: `${baseline.name} — ${fieldLabelKeys[fieldName]}`,
+        labelText: baseline.name,
+        labelKey: fieldLabelKeys[fieldName],
         category: technical ? 'technical' : 'baseline',
         valueKind,
         available: ctx => ctx.projectId === input.projectId && ctx.baselinesById.has(baseline.id),

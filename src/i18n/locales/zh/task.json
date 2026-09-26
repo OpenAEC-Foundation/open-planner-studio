@@ -180,6 +180,7 @@
       "hourPlanningDisabled": "设置中已关闭按小时计划。",
       "durationConversionNotExact": "此工期无法精确换算为另一单位。",
       "milestoneRequired": "此字段仅适用于里程碑。",
+      "milestoneUnavailable": "带子任务的摘要任务无法变为里程碑。",
       "actualAfterStatusDate": "实际日期晚于状态日期。",
       "actualFinishBeforeStart": "实际完成早于实际开始。",
       "conflictingProgressInputs": "这些进度值相互矛盾。",
@@ -266,7 +267,8 @@
       "unpinColumn": "取消固定列 {{column}}",
       "moveColumn": "移动列 {{column}}",
       "resizeColumn": "调整列 {{column}} 的宽度",
-      "autoFitColumn": "自动调整列 {{column}}"
+      "autoFitColumn": "自动调整列 {{column}}",
+      "resetColumns": "将列布局恢复为默认"
     },
     "summary": {
       "activityCodeAssignments_other": "{{count}} 个活动代码分配",

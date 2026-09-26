@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  histogramLayout,
   histogramPickerMaxScroll,
   histogramPickerRowHeight,
   histogramPickerTrackHeight,
+  isInHistogramPicker,
+  type HistogramPickerSide,
 } from '@/engine/renderer/HistogramRenderer';
 
 interface GanttHistogramPickerScrollInput {
@@ -16,8 +19,10 @@ interface GanttHistogramPickerScrollInput {
    *  aanroeper geeft daarom de node zelf door, via een callback-ref naar React-state, zodat elke
    *  echte wissel een nieuwe waarde — en dus een effect-rerun — oplevert. */
   container: HTMLDivElement | null;
-  /** Breedte van uitsluitend de kiezerzone — wielscroll telt alleen mee links van deze grens. */
+  /** Breedte van uitsluitend de kiezerzone — wielscroll telt alleen mee boven de kiezer. */
   pickerWidth: number;
+  /** Kant van de kiezer (links in ltr, rechts in ar/fa) — dezelfde als de renderer tekent. */
+  pickerSide: HistogramPickerSide;
   /** Hoogte van de histogramstrook (== canvasHeight van de renderer). */
   canvasHeight: number;
   /** Lengte van de VOLLEDIGE pickerlijst, inclusief de gepinde "alle resources"-rij op index 0. */
@@ -36,9 +41,9 @@ interface GanttHistogramPickerScrollOutput {
 
 /**
  * Bezit de verticale scrollpositie van de histogram-resourcekiezer (R2a). De kiezerlijst deelt het
- * canvas met de dagplot rechts ervan, dus "wielscroll boven de lijst" wordt hier onderscheiden van
- * de rest van de strook via de X-positie van het wielevent — niet via een apart DOM-element, want
- * de lijst zelf is getekend, niet een echte scrollbare lijstbox.
+ * canvas met de dagplot ernaast (`histogramLayout`), dus "wielscroll boven de lijst" wordt hier
+ * onderscheiden van de rest van de strook via de X-positie van het wielevent — niet via een apart
+ * DOM-element, want de lijst zelf is getekend, niet een echte scrollbare lijstbox.
  */
 export function useGanttHistogramPickerScroll(
   input: GanttHistogramPickerScrollInput,
@@ -68,8 +73,10 @@ export function useGanttHistogramPickerScroll(
       if (event.ctrlKey) return;
       const current = latest.current;
       const rect = container.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      if (x >= current.pickerWidth) return;
+      // Het canvas vult de container (`inset-0`) en de renderer meet dezelfde breedte, dus deze
+      // indeling is exact die van het getekende beeld.
+      const layout = histogramLayout(rect.width, current.pickerWidth, current.pickerSide);
+      if (!isInHistogramPicker(layout, event.clientX - rect.left)) return;
       const max = histogramPickerMaxScroll(current.itemCount, current.canvasHeight, current.fontScale);
       if (max <= 0) return;
       event.preventDefault();

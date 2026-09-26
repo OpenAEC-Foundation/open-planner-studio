@@ -10,8 +10,8 @@ The **Resource calendar** window edits the own calendar of a single resource —
 ## Differences from the calendar dialog
 
 - **One calendar at a time** — no library list on the left, no project-default star; just the form.
-- **Apply** saves the calendar; **Cancel**, **Esc**, the close cross or a click outside the window discards the changes.
-- **No automatic recalculation** — a resource calendar does not change the CPM dates; it counts towards the load (histogram) and leveling, which you rerun yourself with F5 or **Level…** respectively.
+- **Apply** saves the calendar; **Cancel**, **Esc**, the close cross or a click outside the window discards the changes. A new calendar made with **+ Resource calendar** in the dropdown only exists after **Apply** and is then linked to the resource straight away (together one step for Undo); after **Cancel** nothing is left behind. It starts from the same default as **+** in the calendar dialog.
+- **No automatic recalculation** — **Apply** does not recalculate the schedule. In its role as a resource calendar, a calendar does not change the CPM dates; it counts towards the load (histogram) and leveling, which you rerun yourself with F5 or **Level…** respectively. The dropdown does offer every calendar of the project, though: if you edit a calendar here that is also the project calendar or a task calendar, the schedule does change. It is then marked as out of date and F5 recalculates it.
 
 ## Fields
 

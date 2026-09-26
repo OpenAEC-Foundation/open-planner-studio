@@ -18,7 +18,10 @@ import {
   materializeHolidays, computeGenerateSpan, DEFAULT_GEN_PARAMS, type HolidayGenParams,
 } from '@/engine/calendar/generateCalendarHolidays';
 import { orderedWeekDays } from '@/utils/weekDays';
-import { calendarScalarBreakIssue, scalarBreakIssue, simpleBreakNetHours } from '@/utils/effectiveWorkTime';
+import {
+  calendarScalarBreakIssue, legacySimpleBreakDurationMinutes, scalarBreakIssue, simpleBreakPatch,
+} from '@/utils/effectiveWorkTime';
+import { holidayIssue } from '@/utils/holidayRange';
 
 function minutesToTime(value: number): string {
   const totalMinutes = Math.round(value);
@@ -38,6 +41,9 @@ function timeToMinutes(value: string): number | undefined {
 }
 
 const TIME_STEP_MINUTES = 15;
+
+/** Rode rand voor een ongeldige feestdagdatum; `DateTextInput` legt `style` op de omrande groep. */
+const INVALID_DATE_STYLE = { borderColor: 'var(--error)' } as const;
 
 type ScalarTimeField = 'workStart' | 'workEnd' | 'breakStart' | 'breakDuration';
 type ScalarTimeIssue = 'invalidWorkStart' | 'invalidWorkEnd' | 'invalidWorkTimeOrder' | 'invalidStart' | 'invalidDuration' | 'outsideWorkingDay' | 'consumesWorkingDay';
@@ -160,9 +166,7 @@ export function CalendarForm({
   // Oude scalar-kalenders hebben nog geen velden, maar hun zichtbare waarden moeten het bestaande
   // gedrag verklaren: 07:00–16:00 / 8 uur toont daarom de afgeleide 12:00 / 60 min, terwijl
   // 08:00–16:00 / 8 uur terecht 0 minuten toont.
-  const inferredSimpleBreakDuration = Math.max(0, Math.round(
-    (draft.workEndHour - draft.workStartHour - draft.hoursPerDay) * 60,
-  ));
+  const inferredSimpleBreakDuration = legacySimpleBreakDurationMinutes(draft);
   const [workStartText, setWorkStartText] = useState(() => minutesToTime(draft.workStartHour * 60));
   const [workEndText, setWorkEndText] = useState(() => minutesToTime(draft.workEndHour * 60));
   const [simpleBreakStartText, setSimpleBreakStartText] = useState(() =>
@@ -337,25 +341,11 @@ export function CalendarForm({
 
   // Het eenvoudige patroon is geen tweede engineformule: de netto uren worden alleen als
   // gebruikersfeedback uit hetzelfde effectieve-worktime-model afgeleid. Expliciete weekbanden
-  // blijven volledig buiten dit pad en dus absoluut leidend.
+  // blijven volledig buiten dit pad en dus absoluut leidend. Een oude scalar heeft een impliciete
+  // pauze om haar bestaande netto-uren te verklaren; zodra de gebruiker één van de vier
+  // scalarbedieningen wijzigt, wordt die veilig expliciet. Eén definitie met MCP: `simpleBreakPatch`.
   const patchSimpleBreak = (patch: Partial<WorkCalendar>) => {
-    // Een oude scalar heeft een impliciete pauze om haar bestaande netto-uren te verklaren. Zodra
-    // de gebruiker één van die vier scalarbedieningen wijzigt, wordt die bestaande semantiek veilig
-    // expliciet: anders zouden Start/Einde een oud handmatig hoursPerDay-veld als verborgen bron
-    // behouden en zou de readout niet werkelijk afgeleid zijn.
-    const changesScalarTime = patch.workStartHour !== undefined
-      || patch.workEndHour !== undefined
-      || patch.simpleBreakStartMinute !== undefined
-      || patch.simpleBreakDurationMinutes !== undefined;
-    const materializedLegacyDuration = changesScalarTime && draft.simpleBreakDurationMinutes === undefined
-      ? {
-          simpleBreakStartMinute: draft.simpleBreakStartMinute ?? 12 * 60,
-          simpleBreakDurationMinutes: inferredSimpleBreakDuration,
-        }
-      : {};
-    const next = { ...draft, ...materializedLegacyDuration, ...patch };
-    const netHours = simpleBreakNetHours(next);
-    onChange({ ...materializedLegacyDuration, ...patch, ...(netHours !== undefined ? { hoursPerDay: netHours } : {}) });
+    onChange(simpleBreakPatch(draft, patch));
   };
 
   const setScalarTimeIssue = (field: ScalarTimeField, issue?: ScalarTimeIssue) => {
@@ -869,34 +859,50 @@ export function CalendarForm({
               <span>{tMenu('ribbon.calendarDialog.until')}</span>
               <span />
             </div>
-            {draft.holidays.map((h, i) => (
-              <div key={i} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-center">
-                <input
-                  value={h.name}
-                  onChange={e => updateHoliday(i, { name: e.target.value })}
-                  className={inputCls}
-                />
-                <DateTextInput
-                  value={h.startDate}
-                  onCommit={v => updateHoliday(i, { startDate: v })}
-                  className={inputCls}
-                  ariaLabel={tMenu('ribbon.calendarDialog.from')}
-                />
-                <DateTextInput
-                  value={h.endDate}
-                  onCommit={v => updateHoliday(i, { endDate: v })}
-                  className={inputCls}
-                  ariaLabel={tMenu('ribbon.calendarDialog.until')}
-                />
-                <button
-                  onClick={() => removeHoliday(i)}
-                  className="p-1.5 hover:bg-surface-hover rounded-[8px] text-text-secondary"
-                  title={tCommon('delete')}
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))}
+            {draft.holidays.map((h, i) => {
+              // Dezelfde regel als MCP (`holidayIssue`): een regel zonder geldige Van of met Tot vóór
+              // Van telt in de engine stil als nul dagen. Markeer hem; de aanroeper blokkeert Toepassen.
+              const issue = holidayIssue(h);
+              const startInvalid = issue === 'invalidStart' || issue === 'endBeforeStart';
+              const endInvalid = issue === 'invalidEnd' || issue === 'endBeforeStart';
+              return (
+                <div key={i} className="flex flex-col gap-1" data-ops-holiday-row={i} data-ops-holiday-invalid={issue}>
+                  <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-center">
+                    <input
+                      value={h.name}
+                      onChange={e => updateHoliday(i, { name: e.target.value })}
+                      className={inputCls}
+                    />
+                    <DateTextInput
+                      value={h.startDate}
+                      onCommit={v => updateHoliday(i, { startDate: v })}
+                      className={inputCls}
+                      style={startInvalid ? INVALID_DATE_STYLE : undefined}
+                      ariaLabel={tMenu('ribbon.calendarDialog.from')}
+                    />
+                    <DateTextInput
+                      value={h.endDate}
+                      onCommit={v => updateHoliday(i, { endDate: v })}
+                      className={inputCls}
+                      style={endInvalid ? INVALID_DATE_STYLE : undefined}
+                      ariaLabel={tMenu('ribbon.calendarDialog.until')}
+                    />
+                    <button
+                      onClick={() => removeHoliday(i)}
+                      className="p-1.5 hover:bg-surface-hover rounded-[8px] text-text-secondary"
+                      title={tCommon('delete')}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                  {issue && (
+                    <p className="!text-body text-red-600" role="alert" data-ops-holiday-error>
+                      {tCommon(`calendar.holidayErrors.${issue}` as const)}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

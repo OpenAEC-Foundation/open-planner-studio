@@ -3,6 +3,12 @@ import { useAppStore } from '@/state/appStore';
 import type { WorkCalendar } from '@/types/calendar';
 import { effectiveCalendarOf } from '@/utils/taskDuration';
 import { shownStart, startAnchorAfterEdit } from '@/utils/taskDates';
+import {
+  constraintBlockingStart,
+  predecessorDrivenTaskIds,
+  startConstraintAfterEdit,
+} from '@/engine/startEditConstraint';
+import { notifyStartEdit } from '@/state/startConstraintNotice';
 import { Task } from '@/types/task';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { Field } from './shared';
@@ -15,6 +21,10 @@ import { TaskDurationField } from './TaskDurationField';
  * `scheduleStart`-anker, terwijl Gantt, tooltip en TaskDialog de getoonde start (`shownStart`,
  * `utils/taskDates.ts`) tonen — nu gelijkgetrokken. De Tabel-kolom **Start** toont en schrijft via
  * dezelfde twee helpers; de kiesbare kolom **Geplande start** toont bewust het rauwe anker.
+ * Op een taak met voorganger wordt een getypte start bovendien een beperking "Start niet eerder dan"
+ * (`startConstraintAfterEdit`, dezelfde regel als Tabel, Taak bewerken en Gantt-sleep), in dezelfde
+ * undo-stap. Houdt een andere constraint de start tegen (`constraintBlockingStart`), dan wordt er
+ * niets toegepast: een melding noemt die constraint en het veld valt terug.
  *
  * Het startveld blijft paneel-instant-apply; `TaskDialog` bewaart zijn bestaande Save-commitgrens.
  * Alleen de duurbediening is gedeeld. Hammock-toggle/-info staat apart in `TaskHammockFields`.
@@ -26,10 +36,6 @@ export function TaskTimeFields({ task, onChange }: {
   const { t } = useTranslation('task');
   const calendars = useAppStore(s => s.calendars);
   const projectCal = useAppStore(s => s.calendar);
-
-  const updateTime = (key: string, value: string | number) => {
-    onChange({ time: { ...task.time, [key]: value } });
-  };
 
   const cal: WorkCalendar = effectiveCalendarOf(task, projectCal, calendars);
   // Getoonde start = berekende start (`shownStart`), dezelfde datum als de Gantt-balk, de tooltip,
@@ -61,7 +67,27 @@ export function TaskTimeFields({ task, onChange }: {
             onCommit={v => {
               if (!v) return;
               const anchor = startAnchorAfterEdit(task, v);
-              if (anchor !== undefined) updateTime('scheduleStart', anchor);
+              if (anchor === undefined) return;
+              const state = useAppStore.getState();
+              const driven = predecessorDrivenTaskIds(state.tasks, state.sequences).has(task.id);
+              // Een andere constraint houdt de start tegen: niets toepassen (ook geen dood anker),
+              // melden, en het veld laat de invoer los (`false`).
+              const blocking = constraintBlockingStart(task, driven);
+              if (blocking) {
+                notifyStartEdit(state.notify, [{ kind: 'blocked', name: task.name, constraint: blocking }], state.ui.dateNotation);
+                return false;
+              }
+              // Voorganger? Dan wordt de getypte start een SNET. Anker en beperking in één patch,
+              // dus in één undo-stap.
+              const snet = startConstraintAfterEdit(task, anchor, driven);
+              // Niets nieuws (zoals de Tabel: `applyTypedStart`). Het veld toont tot F5 de oude
+              // berekende start, dus het verlaten na Enter committeert dezelfde datum nog eens; die
+              // lege patch zou anders een loze undo-stap vóór de echte bewerking leggen.
+              if (!snet && anchor === task.time.scheduleStart) return;
+              onChange({ time: { ...task.time, scheduleStart: anchor }, ...(snet ? { constraint: snet.constraint } : {}) });
+              if (snet) {
+                notifyStartEdit(state.notify, [{ kind: 'snet', name: task.name, date: anchor, change: snet.change }], state.ui.dateNotation);
+              }
             }}
           />
         </Field>

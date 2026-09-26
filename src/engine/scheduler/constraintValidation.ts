@@ -49,6 +49,24 @@ export function constraintSide(type: ConstraintType): BoundSide {
   }
 }
 
+/**
+ * Het constraint-PAAR nadat de gebruiker (of een agent) een nieuw PRIMAIR constraint kiest — één
+ * canonicalisatie voor eigenschappenpaneel, taakraster en MCP (`taskFields.ts`):
+ *  - geen primair of ASAP ⇒ beide weg (ASAP is de afwezigheid van een constraint);
+ *  - ALAP ⇒ `{ type: 'ALAP' }` zonder datum, en de secundaire vervalt (ALAP draagt geen grens);
+ *  - een datumconstraint ⇒ precies `next`, de bestaande secundaire blijft staan. Of dat paar mag,
+ *    beslist daarna `validateConstraintPair` — de aanroeper weigert een ongeldig paar.
+ * Puur: bouwt geen datum of harde pin (dat blijft bij de aanroeper), muteert niets.
+ */
+export function withPrimaryConstraint(
+  next: TaskConstraint | undefined,
+  secondary: TaskConstraint | undefined,
+): { constraint: TaskConstraint | undefined; constraint2: TaskConstraint | undefined } {
+  if (!next || next.type === 'ASAP') return { constraint: undefined, constraint2: undefined };
+  if (next.type === 'ALAP') return { constraint: { type: 'ALAP' }, constraint2: undefined };
+  return { constraint: next, constraint2: secondary };
+}
+
 export function validateConstraintPair(
   primary: TaskConstraint | undefined,
   secondary: TaskConstraint | undefined,

@@ -62,7 +62,7 @@ Esta é a parte que vale a pena memorizar: alguns campos são um acordo à escal
 - A disponibilidade faseada no tempo
 - A **escolha** de qual o calendário associado ao recurso
 
-Atribua um recurso da biblioteca e o seu calendário viaja junto como uma cópia associada que continua, por sua vez, a acompanhar a biblioteca — daí que o *conteúdo* desse calendário esteja na lista à esquerda acima. Mas a *escolha* de qual o calendário associado a um recurso está na lista à direita: a mesma equipa pode perfeitamente trabalhar com um calendário diferente numa obra urgente do que trabalharia normalmente, sem que isso seja um desvio da biblioteca. Esta distinção é subtil mas importante: altere a tarifa ou o nome de um recurso da biblioteca, e a cópia desvia-se da biblioteca; altere a escolha do calendário ou as unidades máx., e está a fazer exatamente aquilo para que esse campo existe.
+Atribua um recurso da biblioteca e o seu calendário viaja junto como uma cópia associada que continua, por sua vez, a acompanhar a biblioteca — daí que o *conteúdo* desse calendário esteja acima, em **Acompanha a biblioteca**. Mas a *escolha* de qual o calendário associado a um recurso está em **Decide por projeto**: a mesma equipa pode perfeitamente trabalhar com um calendário diferente numa obra urgente do que trabalharia normalmente, sem que isso seja um desvio da biblioteca. Esta distinção é subtil mas importante: altere a tarifa ou o nome de um recurso da biblioteca, e a cópia desvia-se da biblioteca; altere a escolha do calendário ou as unidades máx., e está a fazer exatamente aquilo para que esse campo existe.
 
 ## Três ações que ligam os dois mundos
 

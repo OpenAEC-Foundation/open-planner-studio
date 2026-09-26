@@ -41,6 +41,29 @@ export function computePinnedColumnLayout(
   return { stickyEnabled, totalPinnedWidth, leftByColumnId };
 }
 
+/** Laagste laag van een vastgezette kolomkop (de laatste van het vastgezette blok). */
+const PINNED_HEADER_Z_INDEX = 6;
+
+/**
+ * Laag (`z-index`) van een kolomkop in de kopregel. De breedtegreep (4 px, `.task-grid-resize-handle`)
+ * hangt deels over de volgende kop. Kreeg elke kop een eigen laag, dan lag die volgende kop (later
+ * in de DOM, zelfde laag) over dat deel en was de greep feitelijk 3 px (ltr) of 2 px (rtl) pakbaar.
+ *
+ * - Een gewone kop krijgt GEEN laag (`undefined`): zijn greep (z 2) en invoegstreep (z 4) liggen dan
+ *   in de kopregel zelf, boven alle gewone koppen.
+ * - Een vastgezette (sticky) kop moet boven de wegscrollende koppen en hun grepen blijven en krijgt
+ *   dus wel een laag; binnen het vastgezette blok ligt elke kop boven zijn rechterbuur, zodat ook
+ *   daar de hele greep pakbaar is.
+ */
+export function columnHeaderZIndex(layout: PinnedColumnLayout, columnId: TaskColumnId): number | undefined {
+  let rank = 0;
+  for (const id of layout.leftByColumnId.keys()) {
+    if (id === columnId) return PINNED_HEADER_Z_INDEX + layout.leftByColumnId.size - 1 - rank;
+    rank += 1;
+  }
+  return undefined;
+}
+
 function clampWidth(width: number): number {
   return Math.max(DATA_GRID_COLUMN_MIN_WIDTH, Math.min(DATA_GRID_COLUMN_MAX_WIDTH, Math.round(width)));
 }
@@ -443,7 +466,7 @@ export function DataGridHeader({
               height,
               position: isSticky ? 'sticky' : 'relative',
               left: isSticky ? left : undefined,
-              zIndex: isSticky ? 6 : 5,
+              zIndex: columnHeaderZIndex(pinned, column.id),
               justifyContent: column.align === 'end' ? 'flex-end' : column.align === 'center' ? 'center' : 'flex-start',
             }}
             onDragStart={event => {

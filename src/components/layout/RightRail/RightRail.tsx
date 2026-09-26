@@ -2,7 +2,7 @@ import { Suspense, lazy, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronRight, Maximize2, PanelRightClose, X } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
-import { useSplitter } from '@/hooks/useSplitter';
+import { inlineDirectionOf, panelWidthAtPointer, useSplitter } from '@/hooks/useSplitter';
 import { TaskPropertiesPanel } from '@/components/panels/TaskPropertiesPanel';
 import { ResourcePanelCompact } from '@/components/panels/ResourcePanelCompact';
 import { WarningsPanel } from '@/components/panels/WarningsPanel';
@@ -89,11 +89,18 @@ export function RightRail() {
   /** Stapel + waarschuwingensectie samen — de referentie voor de sleepklem van issue #53. */
   const bodyRef = useRef<HTMLDivElement>(null);
 
-  // Breedte slepen (ongewijzigd t.o.v. de oude rail): één splitter, één `rightPanelWidth`.
+  // Breedte slepen (ongewijzigd t.o.v. de oude rail): één splitter, één `rightPanelWidth`. De rail
+  // ligt aan de EINDkant van het venster (rechts in ltr, links in ar/fa); de gedeelde regel in
+  // `useSplitter` rekent dat voor beide richtingen.
   const widthSplitter = useSplitter({
     min: RIGHT_PANEL_MIN_WIDTH,
     max: () => Math.round(window.innerWidth * 0.6),
-    computeSize: e => Math.round(document.documentElement.dir === 'rtl' ? e.clientX : window.innerWidth - e.clientX),
+    computeSize: e => Math.round(panelWidthAtPointer(
+      e.clientX,
+      { left: 0, right: window.innerWidth },
+      'inline-end',
+      inlineDirectionOf(document.documentElement),
+    )),
     onResize: w => useAppStore.getState().setUI({ rightPanelWidth: w }),
     onCommit: () => { void saveRightPanelWidth(useAppStore.getState().ui.rightPanelWidth); },
   });

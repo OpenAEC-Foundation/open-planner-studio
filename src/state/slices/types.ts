@@ -21,6 +21,7 @@ import type {
   GroupLevel, SortLevel, Layout, LayoutSession, LayoutViewParts, SplitViewState, ViewState,
 } from '@/types/view';
 import type { BarColorSelection } from '@/types/barColor';
+import type { ScheduleErrorKey } from '@/i18n/scheduleErrors';
 export type {
   TimeScale, DateNotation, DurationDisplay, BarSplitMode,
   BuiltinFieldKey, FieldRef, ColumnConfig, FilterOperator, FilterNode, SavedFilter,
@@ -191,8 +192,30 @@ export type NotificationMessageKey =
   | 'notifications.relationCreated'
   | 'notifications.relationDuplicate'
   | 'notifications.relationAncestorEndpoint'
+  // Audit taakmutaties, bevinding 2: de store-route weigert een relatie die een kring sluit (zoals
+  // raster en MCP al deden). Parameter `cycle`: de taaknamen van de kring, "A → B → A".
+  | 'notifications.relationCycle'
+  // Audit taakmutaties, bevinding 3: verhangen maakte een bestaande relatie tot voorouder-relatie
+  // (telt niet meer mee) zonder enig signaal — zie `hierarchyRelationNotice.ts`. Meervoud, `count`.
+  | 'notifications.relationsExcludedByHierarchy'
+  // Audit taakmutaties, rapport S4: verhangen dat via een fase een kring zou maken, wordt vooraf
+  // geweigerd — zie `hierarchyChange.ts`. Parameter `cycle`: de taaknamen, "A → B → A".
+  | 'notifications.hierarchyCycle'
   | 'notifications.summaryRelationsDropped'
   | 'notifications.relationsSkippedOnInsert'
+  // Plakken uit een ander document: kalender-/taaktype-/code-/veldverwijzingen die hier niet
+  // bestaan zijn leeggemaakt (`insertedBranch.ts`s `normalizeInsertedBranch`). Meervoud, `count`.
+  | 'notifications.referencesClearedOnPaste'
+  // Structuurovergangen met toewijzingen (audit taakmutaties §6, `src/state/structuralTransition.ts`):
+  // wordt mijlpaal ⇒ weigeren; wordt fase ⇒ toewijzingen naar de eerste nieuwe subtaak, of weigeren
+  // als dat niet schoon kan; een mijlpaal die kinderen krijgt verliest zijn mijlpaalvlag.
+  | 'notifications.milestoneRefusedAssignments'
+  | 'notifications.milestoneRefusedSummary'
+  | 'notifications.assignmentsMovedToSubtask'
+  | 'notifications.assignmentsMovedToSubtasks'
+  | 'notifications.milestoneClearedOnPhase'
+  | 'notifications.phaseRefusedNoAssignableChild'
+  | 'notifications.phaseRefusedDuplicateResource'
   | 'notifications.mppLegacy'
   | 'notifications.mppEncrypted'
   | 'notifications.xerInvalidInput'
@@ -271,7 +294,19 @@ export type NotificationMessageKey =
   | 'notifications.xerArchiveReasonTruncated'
   | 'notifications.xerArchiveReasonBytesMissing'
   | 'notifications.xerArchiveReasonMetadataInvalid'
-  | 'notifications.xerArchiveReasonStructure';
+  | 'notifications.xerArchiveReasonStructure'
+  // W2-vervolg (besluit eigenaar "zoals MS Project"): een getypte start op een taak mét voorganger
+  // werd een beperking "Start niet eerder dan", of verzette de datum van een bestaande — zie
+  // `src/state/startConstraintNotice.ts`. `Many` is het meervoud (`count`) voor plakken/vullen.
+  | 'notifications.startSnetCreated'
+  | 'notifications.startSnetUpdated'
+  | 'notifications.startSnetMany'
+  // Idem, besluit eigenaar "melden, beperking laten staan": een andere constraint (MSO, FNLT, …) houdt
+  // de nieuwe start tegen. Het type staat er in gebruikerstaal in (i18next-nesting op
+  // `task:constraintType`); `NoDate` voor ALAP, `Many` het meervoud (`count`).
+  | 'notifications.startBlockedByConstraint'
+  | 'notifications.startBlockedByConstraintNoDate'
+  | 'notifications.startBlockedByConstraintMany';
 
 /** Rekenprofielen (spec v3.1 §6): het actielabel is een i18n-sleutel in `common`. */
 export type NotificationActionLabelKey = 'notifications.actions.openProjectInfo';
@@ -309,6 +344,11 @@ export interface AppNotification {
   detail?: string;
   /** Optionele, vertaalde feiten onder de hoofdboodschap (X10: één XER-bestandsverslag). */
   detailLines?: NotificationDetailLine[];
+  /** Vertaalbare detailregel (namespace `common`) met `detailParams`; heeft voorrang op `detail`.
+   *  Voor solverfouten, die als code + parameters komen (`src/i18n/scheduleErrors.ts`) zodat ze in
+   *  de UI-taal verschijnen en bij een taalwissel meevertalen. */
+  detailKey?: ScheduleErrorKey;
+  detailParams?: Record<string, string | number>;
   /** Samenvouw-sleutel: een tweede melding met dezelfde sleutel wordt één regel met een teller. */
   dedupeKey?: string;
   /** Aantal samengevouwen voorkomens; 1 bij de eerste. */

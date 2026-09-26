@@ -35,13 +35,13 @@ import { syncProjectCalendar } from '@/state/syncProjectCalendar';
 import { validate } from '@/state/mcpValidation';
 import { resolveCalendarHolidays } from '../calendarGenerate';
 import { ensureFreshSchedule } from '../staleGuard';
-import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
+import { createNewCalendar } from '@/engine/calendar/defaultCalendar';
 import { computeMoveDelta } from '@/engine/moveProject';
 import { diffDays } from '@/utils/dateUtils';
 import { deriveHoursPerDay, workDaysFromBands } from '@/services/subdayIo';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import type { GeneratorCountry, HolidayGenParams } from '@/engine/calendar/generateCalendarHolidays';
-import type { CalendarGeneration, Holiday, WorkCalendar, WorkTimeBands } from '@/types/calendar';
+import type { CalendarGeneration, Holiday, WorkCalendar, WorkingException, WorkTimeBands } from '@/types/calendar';
 import { isResourceCurve, isValidUnits, RESOURCE_CURVES, type ResourceCurve } from '@/types/resource';
 import type { Project } from '@/types/project';
 import type { LevelingOptions, LevelingResult } from '@/engine/scheduler/ResourceLeveler';
@@ -49,6 +49,10 @@ import { isFiniteNumber } from '@/utils/guards';
 import { hasLevelingOutput } from '@/utils/taskDefaults';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { markDocumentEdited } from '@/state/documentEdited';
+import { holidayIssue, ISO_DATE_ONLY } from '@/utils/holidayRange';
+import {
+  calendarScalarBreakIssue, simpleBreakNetHours, simpleBreakPatch, type ScalarBreakIssue,
+} from '@/utils/effectiveWorkTime';
 
 /**
  * Curve-toets (`isResourceCurve`, `types/resource.ts`) — exact het `isSeqType`-patroon uit T19
@@ -102,6 +106,13 @@ interface CalendarItem {
   workTime?: WorkTimeBands | null;
   /** Ploeg-classificatie (IFC `PredefinedType`). `null` ⇒ wissen. Leesvorm van `get_calendars`. */
   shift?: WorkCalendar['shift'] | null;
+  /** Eenvoudig pauzepatroon van een DAG-kalender, in MINUTEN (begin vanaf middernacht, duur). Leesvorm
+   *  van `get_calendars`; de netto uren worden eruit afgeleid zoals in de kalenderdialoog. */
+  simpleBreakStartMinute?: number;
+  simpleBreakDurationMinutes?: number;
+  /** Dagen die WERKEND worden (MS Project "werkende uitzondering"), optioneel met eigen banden. De
+   *  volledige lijst; vervangt de bestaande exact (`[]` wist ze). Leesvorm van `get_calendars`. */
+  workingExceptions?: WorkingException[];
   /** Herkomst-metadata IN DE LEESVORM (`ruleSetId`/`breakChoice`/jaren). `null` ⇒ wissen. */
   generation?: CalendarGeneration | null;
   /** De VOLLEDIGE feestdagenlijst in de leesvorm van `get_calendars`; vervangt de lijst exact. */
@@ -116,7 +127,8 @@ interface CalendarItem {
  *  `holidaysMode` staat er BEWUST niet bij: een modus zonder `rawHolidays` verandert niets. */
 const CAL_FIELD_KEYS: (keyof CalendarItem)[] = [
   'name', 'description', 'workDays', 'workStartHour', 'workEndHour', 'hoursPerDay',
-  'workTime', 'shift', 'generation', 'holidays', 'generate', 'rawHolidays',
+  'simpleBreakStartMinute', 'simpleBreakDurationMinutes',
+  'workTime', 'shift', 'generation', 'holidays', 'generate', 'rawHolidays', 'workingExceptions',
 ];
 
 /**
@@ -132,8 +144,21 @@ const CAL_ITEM_KEYS: string[] = ['id', 'create', ...(CAL_FIELD_KEYS as string[])
  * LETTERLIJK terug te schrijven zijn — maar expliciet gemeld als `ignoredFields` per rij, nooit stil
  * geslikt. Wisselen van projectkalender doe je met de app; `update_project.calendarId` weigert dat
  * met een verwijzing (zie PROJECT_REFUSED).
+ *
+ * `libraryOrigin` hoort in dezelfde groep: het is de bibliotheekstempel van de kalender in HET
+ * BRONdocument (welk bibliotheekitem, welke versie, welke hash). Letterlijk overschrijven zou in een
+ * ander document een koppeling vervalsen die de bibliotheek nooit gemaakt heeft; koppelen loopt via de
+ * bibliotheek zelf. Dus: mag mee, doet niets, wordt gemeld.
+ *
+ * De P6-herkomstvelden (`p6Source`, `p6NonWorkPenaltyDates`, `p6NonWorkPenaltyDatesState`,
+ * rekenprofielen-etappe) horen om dezelfde reden in deze groep: alleen de XER-reader mag de stempel
+ * zetten (`types/calendar.ts`). `get_calendars` geeft ze letterlijk mee, dus ze moeten mee terug
+ * kunnen, maar een MCP-schrijfactie mag in een ander document geen XER-herkomst vervalsen.
  */
-const CAL_READONLY_KEYS: string[] = ['isProjectDefault', 'usedByTasks', 'usedByResources'];
+const CAL_READONLY_KEYS: string[] = [
+  'isProjectDefault', 'usedByTasks', 'usedByResources', 'libraryOrigin',
+  'p6Source', 'p6NonWorkPenaltyDates', 'p6NonWorkPenaltyDatesState',
+];
 
 // ── Invoervalidatie (auditbevindingen K6 + H7) ───────────────────────────────────────────────────
 //
@@ -145,7 +170,6 @@ const CAL_READONLY_KEYS: string[] = ['isProjectDefault', 'usedByTasks', 'usedByR
 /** Het ECHTE domein van `generate.country` (holidays.ts + generateCalendarHolidays.ts). */
 const GEN_COUNTRIES: GeneratorCountry[] = ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH', 'none'];
 const BOUWVAK_CHOICES = ['geen', 'noord', 'midden', 'zuid'];
-const ISO_DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
 // ── H5 — DE KALENDER MOET ÉCHT OVERZETBAAR ZIJN ──────────────────────────────────────────────────
 //
@@ -185,7 +209,9 @@ function clockLabel(min: number): string {
   return `${hh}:${mm}${wrapped ? ' (volgende dag)' : ''}`;
 }
 
-/** Vormvalidatie van een feestdagenlijst (gedeeld door `rawHolidays` en `holidays`). */
+/** Vormvalidatie van een feestdagenlijst (gedeeld door `rawHolidays` en `holidays`). De leesvorm eist
+ *  een expliciete `endDate`; of de regel bruikbaar is (einde niet vóór begin) is dezelfde regel als
+ *  in de kalenderdialogen (`holidayIssue`). */
 function holidayListReason(list: unknown, field: string): string | null {
   if (!Array.isArray(list)) return `\`${field}\` moet een array zijn`;
   for (const h of list as unknown[]) {
@@ -197,7 +223,7 @@ function holidayListReason(list: unknown, field: string): string | null {
         return `\`${field}.${k}\` moet een ISO-datum zijn (JJJJ-MM-DD), kreeg '${String(hh[k])}'`;
       }
     }
-    if ((hh.endDate as string) < (hh.startDate as string)) {
+    if (holidayIssue({ startDate: hh.startDate as string, endDate: hh.endDate as string }) === 'endBeforeStart') {
       return `\`${field}\`: endDate '${String(hh.endDate)}' ligt vóór startDate '${String(hh.startDate)}'`;
     }
   }
@@ -247,35 +273,9 @@ function workTimeReason(wt: unknown): string | null {
   for (const key of WEEKDAY_KEYS) {
     const list = rec[key];
     if (!Array.isArray(list)) return `\`workTime.byWeekday.${key}\` moet een array van banden zijn ([] = niet-werkende dag)`;
-    let prevEnd = -1;
-    for (const raw of list as unknown[]) {
-      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-        return `elke band in \`workTime.byWeekday.${key}\` moet een object {start, end} zijn (minuten vanaf middernacht)`;
-      }
-      const b = raw as Record<string, unknown>;
-      for (const k of Object.keys(b)) {
-        if (k !== 'start' && k !== 'end') return `onbekend veld \`workTime.byWeekday.${key}[].${k}\`; een band kent alleen \`start\` en \`end\``;
-      }
-      if (!isFiniteNumber(b.start) || !isFiniteNumber(b.end)) {
-        return `\`workTime.byWeekday.${key}\`: \`start\` en \`end\` moeten getallen zijn in MINUTEN vanaf middernacht (07:00 = 420)`;
-      }
-      const start = b.start;
-      const end = b.end;
-      if (start < 0 || start >= MIN_PER_DAY) {
-        return `\`workTime.byWeekday.${key}\`: \`start\` ${start} valt buiten de dag; geldig is 0 t/m 1439 minuten vanaf middernacht (0:00–23:59)`;
-      }
-      if (end <= start) {
-        return `\`workTime.byWeekday.${key}\`: \`end\` ${end} (${clockLabel(end)}) ligt niet ná \`start\` ${start} (${clockLabel(start)}). ` +
-          'Een dienst over middernacht telt DOOR in minuten: 22:00→06:00 is start 1320, end 1800 — niet 1320→360.';
-      }
-      if (end > 2 * MIN_PER_DAY) {
-        return `\`workTime.byWeekday.${key}\`: \`end\` ${end} overschrijdt 2880 (een band mag hoogstens 24 uur na middernacht van de startdag eindigen)`;
-      }
-      if (start < prevEnd) {
-        return `\`workTime.byWeekday.${key}\`: de banden overlappen of staan niet op volgorde (band vanaf ${clockLabel(start)} begint vóór het einde ${clockLabel(prevEnd)} van de vorige); geef ze oplopend en niet-overlappend`;
-      }
-      prevEnd = end;
-    }
+    const bad = bandListReason(list, `workTime.byWeekday.${key}`);
+    if (bad) return bad;
+    const prevEnd = list.length > 0 ? (list[list.length - 1] as { end: number }).end : -1;
     // Wrap-staart mag niet over de eerste band van de VOLGENDE dag heen lopen (7 wrapt naar 1).
     if (prevEnd > MIN_PER_DAY) {
       const nextKey = key === '7' ? '1' : String(Number(key) + 1);
@@ -286,6 +286,80 @@ function workTimeReason(wt: unknown): string | null {
     }
   }
   return null;
+}
+
+/**
+ * Vorm van één lijst banden `[start, end)` in minuten-vanaf-middernacht van de STARTdag: gedeeld door
+ * `workTime.byWeekday.<dag>` en `workingExceptions[].bands` (zelfde canonieke vorm, `WorkTimeBands`).
+ * `label` is het veldpad in de melding.
+ */
+function bandListReason(list: unknown[], label: string): string | null {
+  let prevEnd = -1;
+  for (const raw of list) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      return `elke band in \`${label}\` moet een object {start, end} zijn (minuten vanaf middernacht)`;
+    }
+    const b = raw as Record<string, unknown>;
+    for (const k of Object.keys(b)) {
+      if (k !== 'start' && k !== 'end') return `onbekend veld \`${label}[].${k}\`; een band kent alleen \`start\` en \`end\``;
+    }
+    if (!isFiniteNumber(b.start) || !isFiniteNumber(b.end)) {
+      return `\`${label}\`: \`start\` en \`end\` moeten getallen zijn in MINUTEN vanaf middernacht (07:00 = 420)`;
+    }
+    const start = b.start;
+    const end = b.end;
+    if (start < 0 || start >= MIN_PER_DAY) {
+      return `\`${label}\`: \`start\` ${start} valt buiten de dag; geldig is 0 t/m 1439 minuten vanaf middernacht (0:00–23:59)`;
+    }
+    if (end <= start) {
+      return `\`${label}\`: \`end\` ${end} (${clockLabel(end)}) ligt niet ná \`start\` ${start} (${clockLabel(start)}). ` +
+        'Een dienst over middernacht telt DOOR in minuten: 22:00→06:00 is start 1320, end 1800 — niet 1320→360.';
+    }
+    if (end > 2 * MIN_PER_DAY) {
+      return `\`${label}\`: \`end\` ${end} overschrijdt 2880 (een band mag hoogstens 24 uur na middernacht van de startdag eindigen)`;
+    }
+    if (start < prevEnd) {
+      return `\`${label}\`: de banden overlappen of staan niet op volgorde (band vanaf ${clockLabel(start)} begint vóór het einde ${clockLabel(prevEnd)} van de vorige); geef ze oplopend en niet-overlappend`;
+    }
+    prevEnd = end;
+  }
+  return null;
+}
+
+/** Vormvalidatie van `workingExceptions` (leesvorm): datums en volgorde zoals feestdagen
+ *  (`holidayListReason`, dus ook `holidayIssue`), optioneel `bands` in de vorm van `workTime`. */
+function workingExceptionsReason(list: unknown): string | null {
+  const field = 'workingExceptions';
+  const shape = holidayListReason(list, field);
+  if (shape) return shape;
+  for (const raw of list as Record<string, unknown>[]) {
+    for (const k of Object.keys(raw)) {
+      if (!['name', 'startDate', 'endDate', 'bands'].includes(k)) {
+        return `onbekend veld \`${field}[].${k}\`; een werkende uitzondering kent alleen name, startDate, endDate en (optioneel) bands`;
+      }
+    }
+    if (raw.bands === undefined) continue;
+    if (!Array.isArray(raw.bands)) {
+      return `\`${field}[].bands\` moet een array van banden zijn (weglaten = de gewone werktijd van de kalender)`;
+    }
+    const bad = bandListReason(raw.bands, `${field}[].bands`);
+    if (bad) return bad;
+  }
+  return null;
+}
+
+/** Leesbare reden bij een ongeldig pauzepatroon (zelfde regels als de kalenderdialoog). */
+function scalarBreakReason(issue: ScalarBreakIssue, cal: Pick<WorkCalendar, 'workStartHour' | 'workEndHour' | 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'>): string {
+  const day = `${clockLabel(cal.workStartHour * 60)}–${clockLabel(cal.workEndHour * 60)}`;
+  const pause = `pauze vanaf ${clockLabel(cal.simpleBreakStartMinute ?? 12 * 60)}, ${String(cal.simpleBreakDurationMinutes ?? 0)} min`;
+  switch (issue) {
+    case 'invalidDuration':
+      return '`simpleBreakDurationMinutes` moet een geheel aantal minuten van 0 of meer zijn (0 = geen pauze)';
+    case 'outsideWorkingDay':
+      return `de ${pause} moet volledig binnen de werkdag ${day} vallen (\`simpleBreakStartMinute\`/\`simpleBreakDurationMinutes\` in MINUTEN, 12:30 = 750)`;
+    case 'consumesWorkingDay':
+      return `de ${pause} beslaat de hele werkdag ${day}; er blijft geen werktijd over`;
+  }
 }
 
 /** Vormvalidatie van `generation` (de LEESVORM van de herkomst-metadata). */
@@ -346,6 +420,18 @@ function calendarItemReason(item: CalendarItem): string | null {
   }
   for (const k of ['workStartHour', 'workEndHour', 'hoursPerDay'] as const) {
     if (item[k] !== undefined && !isFiniteNumber(item[k])) return `\`${k}\` moet een getal in UREN zijn`;
+  }
+  if (item.simpleBreakStartMinute !== undefined
+    && (!Number.isInteger(item.simpleBreakStartMinute) || item.simpleBreakStartMinute < 0 || item.simpleBreakStartMinute >= MIN_PER_DAY)) {
+    return '`simpleBreakStartMinute` moet een geheel aantal MINUTEN vanaf middernacht zijn (0–1439; 12:30 = 750)';
+  }
+  if (item.simpleBreakDurationMinutes !== undefined
+    && (!Number.isInteger(item.simpleBreakDurationMinutes) || item.simpleBreakDurationMinutes < 0 || item.simpleBreakDurationMinutes > MIN_PER_DAY)) {
+    return '`simpleBreakDurationMinutes` moet een geheel aantal minuten zijn (0–1440; 0 = geen pauze)';
+  }
+  if (item.workingExceptions !== undefined) {
+    const bad = workingExceptionsReason(item.workingExceptions);
+    if (bad) return bad;
   }
 
   // ── Uur-kalender: banden + ploeg ──────────────────────────────────────────────────────────────
@@ -471,10 +557,22 @@ function classifyCalendars(s: StoreState, items: CalendarItem[]): { plans: Calen
         });
         continue;
       }
+      const existing = s.calendars.find((c) => c.id === item.id) ?? s.calendar;
+      const badBreak = mergedBreakReason(item, existing) ?? netHoursReason(item, existing);
+      if (badBreak) {
+        rejections.push({ id: item.id, reason: badBreak });
+        continue;
+      }
       plans.push({ mode: 'update', item, targetId: item.id, needsPromotion: !inLibrary });
       continue;
     }
     if (item.create === true) {
+      const base = newCalendarBase(item);
+      const badBreak = mergedBreakReason(item, base) ?? netHoursReason(item, base);
+      if (badBreak) {
+        rejections.push({ id: item.id, reason: badBreak });
+        continue;
+      }
       plans.push({ mode: 'create', item });
       continue;
     }
@@ -506,9 +604,95 @@ function cloneBands(wt: WorkTimeBands): WorkTimeBands {
   return { byWeekday };
 }
 
+/** Basis van een nieuwe kalender (`create: true`): de gedeelde fabriek, met de naam van het item. */
+function newCalendarBase(item: CalendarItem): Omit<WorkCalendar, 'id'> {
+  return createNewCalendar(item.name ?? 'Nieuwe kalender');
+}
+
+type CalendarBase = Omit<WorkCalendar, 'id'>;
+
+/**
+ * Zou dit item, samengevoegd met `existing`, een ongeldig pauzepatroon opleveren? Zelfde regels als
+ * de kalenderdialoog (`calendarScalarBreakIssue`), alleen getoetst als het item de werkdag of de
+ * pauze raakt — een naamswijziging op een kalender met oude, ongeldige data blijft mogelijk.
+ */
+function mergedBreakReason(item: CalendarItem, existing: CalendarBase): string | null {
+  const touches = item.workStartHour !== undefined || item.workEndHour !== undefined
+    || item.simpleBreakStartMinute !== undefined || item.simpleBreakDurationMinutes !== undefined;
+  if (!touches) return null;
+  const merged = { ...existing, ...calendarFieldPatch(item, existing) };
+  const issue = calendarScalarBreakIssue(merged);
+  return issue ? scalarBreakReason(issue, merged) : null;
+}
+
+/** Uren leesbaar in een reden, zoals de dialoog ze toont (twee decimalen): 8, 8.5, 8.33. */
+function hoursLabel(hours: number): string {
+  return String(Math.round(hours * 100) / 100);
+}
+
+/**
+ * NETTO UREN OP EEN KALENDER MET PAUZE (ronde 3, G1 — "MCP doet wat de kalenderdialoog doet"). In de
+ * dialoog is "Netto-uren per dag" een niet-bewerkbare afleiding uit werkdag − pauze
+ * (`simpleBreakPatch` → `simpleBreakNetHours`); een losse opgave bestaat daar niet. Geeft dit item een
+ * `hoursPerDay` mee voor een DAG-kalender die (na samenvoegen) een pauzepatroon heeft, dan moet die
+ * dus gelijk zijn aan werkdag − pauze. Afwijkend ⇒ zachte weigering met de velden die de AI wél moet
+ * wijzigen (vroeger won de opgave stil: de respons zei 6, de engine rekende 8). Gelijk ⇒ geen
+ * bezwaar; `calendarFieldPatch` neemt dan de afgeleide waarde, dus een gelijke opgave is een no-op.
+ *
+ * "Gelijk" is gelijk op de MINUUT: werkdag en pauze zijn hele minuten, en de dialoog toont twee
+ * decimalen (8,33 voor 8 u 20 min), wat hoogstens 0,3 min afwijkt.
+ *
+ * Buiten dit besluit, ongewijzigd: een legacy-kalender zonder pauzevelden (daar is `hoursPerDay` de
+ * opgave en leidt de engine juist de impliciete pauze eruit af) en een uurkalender (banden leidend).
+ */
+function netHoursReason(item: CalendarItem, existing: CalendarBase): string | null {
+  if (item.hoursPerDay === undefined) return null;
+  const merged: CalendarBase = { ...existing, ...calendarFieldPatch(item, existing) };
+  if (item.workTime === null) delete merged.workTime;
+  if (merged.workTime !== undefined) return null;
+  if (merged.simpleBreakStartMinute === undefined && merged.simpleBreakDurationMinutes === undefined) return null;
+  const net = simpleBreakNetHours(merged);
+  if (net === undefined) {
+    // Alleen bij oude/externe data met een ongeldige pauze (een item dat werkdag of pauze raakt, is
+    // al door `mergedBreakReason` getoetst). De dialoog laat dan ook niets toepassen.
+    const issue = calendarScalarBreakIssue(merged);
+    return `${issue ? scalarBreakReason(issue, merged) : 'het pauzepatroon is ongeldig'}; de netto uren ` +
+      '(`hoursPerDay`) volgen uit werkdag min pauze, dus herstel eerst de pauze ' +
+      '(`simpleBreakStartMinute`/`simpleBreakDurationMinutes`) of de werkdag (`workStartHour`/`workEndHour`)';
+  }
+  if (Math.abs(item.hoursPerDay - net) * 60 < 0.5) return null;
+
+  const start = merged.workStartHour * 60;
+  const end = merged.workEndHour * 60;
+  const pause = merged.simpleBreakDurationMinutes ?? 0;
+  const wanted = item.hoursPerDay * 60;
+  // Twee concrete uitwegen, alleen als ze zelf geldig zijn: de werkdag later/eerder laten eindigen, of
+  // de pauze aanpassen (begin en pauzebegin gelijk).
+  const examples: string[] = [];
+  if (Number.isInteger(wanted)) {
+    const altEnd = start + wanted + pause;
+    // Alleen als het label (twee decimalen) exact die minuut is: 15.25 wel, 15.33 (= 15:19,8) niet.
+    const endLabel = hoursLabel(altEnd / 60);
+    if (altEnd > start && altEnd <= MIN_PER_DAY && Math.abs(Number(endLabel) * 60 - altEnd) < 1e-6
+      && !calendarScalarBreakIssue({ ...merged, workEndHour: altEnd / 60 })) {
+      examples.push(`\`workEndHour: ${endLabel}\``);
+    }
+    const altPause = end - start - wanted;
+    if (altPause >= 0 && !calendarScalarBreakIssue({ ...merged, simpleBreakDurationMinutes: altPause })) {
+      examples.push(`\`simpleBreakDurationMinutes: ${altPause}\``);
+    }
+  }
+  return `\`hoursPerDay\` ${hoursLabel(item.hoursPerDay)} klopt niet met deze kalender: met een pauze zijn de netto ` +
+    'uren AFGELEID uit werkdag min pauze, zoals de niet-bewerkbare "Netto-uren per dag" in de kalenderdialoog — ' +
+    `hier ${clockLabel(start)}–${clockLabel(end)} met ${pause} min pauze = ${hoursLabel(net)} u netto. Laat \`hoursPerDay\` ` +
+    'weg, of wijzig de werkdag (`workStartHour`/`workEndHour`, in UREN) of de pauzeduur ' +
+    `(\`simpleBreakDurationMinutes\`, in MINUTEN) zodat werkdag min pauze ${hoursLabel(item.hoursPerDay)} u wordt` +
+    (examples.length > 0 ? ` (bijv. ${examples.join(' of ')})` : '');
+}
+
 /** De scalaire (niet-holiday) velden van een item als `Partial<WorkCalendar>`. `existing` levert de
- *  fallback voor de afgeleide `hoursPerDay` (bij `create` de app-default-basis). */
-function calendarFieldPatch(item: CalendarItem, existing: Pick<WorkCalendar, 'hoursPerDay'>): Partial<WorkCalendar> {
+ *  fallback voor de afgeleide `hoursPerDay` (bij `create` de basis uit `newCalendarBase`). */
+function calendarFieldPatch(item: CalendarItem, existing: CalendarBase): Partial<WorkCalendar> {
   const patch: Partial<WorkCalendar> = {};
   if (item.name !== undefined) patch.name = item.name;
   if (item.description !== undefined) patch.description = item.description;
@@ -526,6 +710,39 @@ function calendarFieldPatch(item: CalendarItem, existing: Pick<WorkCalendar, 'ho
     if (item.hoursPerDay === undefined) patch.hoursPerDay = deriveHoursPerDay(bands, existing.hoursPerDay);
   }
   if (item.shift !== undefined && item.shift !== null) patch.shift = item.shift;
+  if (item.simpleBreakStartMinute !== undefined) patch.simpleBreakStartMinute = item.simpleBreakStartMinute;
+  if (item.simpleBreakDurationMinutes !== undefined) patch.simpleBreakDurationMinutes = item.simpleBreakDurationMinutes;
+  if (item.workingExceptions !== undefined && item.workingExceptions.length > 0) {
+    patch.workingExceptions = item.workingExceptions.map((w) => ({
+      name: w.name, startDate: w.startDate, endDate: w.endDate,
+      ...(w.bands !== undefined ? { bands: w.bands.map((b) => ({ start: b.start, end: b.end })) } : {}),
+    }));
+  }
+  // PAUZE ↔ NETTO UREN, zoals de kalenderdialoog (`simpleBreakPatch`, één definitie): raakt het item
+  // de pauze, of de werkdag van een kalender die al een expliciete pauze heeft, dan wordt een legacy-
+  // pauze eerst expliciet en volgt `hoursPerDay` uit werkdag + pauze — anders zegt het veld (en de
+  // respons) 8 terwijl de engine 9 rekent. Niet op een UURkalender (daar zijn de banden leidend en
+  // leidt de banden-tak hierboven `hoursPerDay` af). Werkdag wijzigen op een legacy-kalender zonder
+  // pauzevelden blijft zoals het was.
+  const touchesBreak = item.simpleBreakStartMinute !== undefined || item.simpleBreakDurationMinutes !== undefined;
+  const touchesDay = item.workStartHour !== undefined || item.workEndHour !== undefined;
+  const hasExplicitBreak = existing.simpleBreakStartMinute !== undefined || existing.simpleBreakDurationMinutes !== undefined;
+  const hourCalendar = item.workTime === null ? false : (patch.workTime ?? existing.workTime) !== undefined;
+  if (!hourCalendar && (touchesBreak || (hasExplicitBreak && touchesDay))) {
+    const scalar: Partial<WorkCalendar> = {};
+    for (const k of ['workStartHour', 'workEndHour', 'simpleBreakStartMinute', 'simpleBreakDurationMinutes'] as const) {
+      if (patch[k] !== undefined) scalar[k] = patch[k];
+    }
+    Object.assign(patch, simpleBreakPatch(existing, scalar));
+  }
+  // Een meegegeven `hoursPerDay` op een DAG-kalender met pauzepatroon is geen opgave maar een
+  // afleiding, net als in de dialoog: `netHoursReason` heeft een afwijkende waarde al geweigerd, dus
+  // wat hier aankomt is gelijk en geldt de exacte afgeleide waarde (no-op). Legacy zonder pauzevelden:
+  // `simpleBreakNetHours` geeft `undefined` en de opgave blijft staan.
+  if (item.hoursPerDay !== undefined && !hourCalendar) {
+    const net = simpleBreakNetHours({ ...existing, ...patch });
+    if (net !== undefined) patch.hoursPerDay = net;
+  }
   return patch;
 }
 
@@ -594,12 +811,12 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
       const ignoredFields = CAL_READONLY_KEYS.filter((k) => k in (item as unknown as Record<string, unknown>));
 
       if (plan.mode === 'create') {
-        // Basis = de app-default (ma-vr 07-16); de opgegeven velden overschrijven hem. Het id van
-        // de default wordt weggegooid: draft.addCalendar genereert een vers, document-lokaal id.
-        const { id: _ignored, ...base } = createDefaultCalendar();
+        // Basis = de gedeelde fabriek voor een nieuwe kalender (app-default ma-vr 07-16, dezelfde
+        // als "+" in de kalenderdialoog en de resourcerij); de opgegeven velden overschrijven hem.
+        // Zonder id: draft.addCalendar genereert een vers, document-lokaal id.
+        const base = newCalendarBase(item);
         const cal: Omit<WorkCalendar, 'id'> = {
           ...base,
-          name: item.name ?? 'Nieuwe kalender',
           ...calendarFieldPatch(item, base),
         };
         // Een verse kalender erft de dag-vorm van de app-default; een expliciete `workTime: null`
@@ -625,7 +842,7 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
         if (item.generation === null) delete cal.generation;
         else if (item.generation !== undefined) cal.generation = { ...item.generation };
         const newId = ctx.transactions.draft.addCalendar(cal);
-        // M7 — MAAK DE GEËRFDE FEESTDAGEN ZICHTBAAR. De basis is `createDefaultCalendar()`, en die
+        // M7 — MAAK DE GEËRFDE FEESTDAGEN ZICHTBAAR. De basis is `createNewCalendar()`, en die
         // levert in bouwmodus (de default) een VOLLEDIGE NL-feestdagenset mét `generation`. Een
         // agent die "een lege kalender" aanmaakt kreeg dus stilzwijgend ~30 NL-feestdagen mee,
         // zonder dat één respons of beschrijving dat noemde. De herkomst staat nu per rij; de
@@ -668,7 +885,7 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
       let becameLiteral = false;
       // `draft.updateCalendar` doet een Object.assign en kan dus geen sleutel VERWIJDEREN; alles wat
       // weg moet (herkomst, banden, ploeg) verzamelen we hier en wissen we in één gerichte producer.
-      const dropKeys: ('generation' | 'workTime' | 'shift')[] = [];
+      const dropKeys: ('generation' | 'workTime' | 'shift' | 'workingExceptions')[] = [];
       let dropGeneration = false;
       if (wantsHolidays) {
         const r = resolveHolidaysForItem(
@@ -697,6 +914,8 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
       if (dropGeneration) dropKeys.push('generation');
       if (item.workTime === null && existing.workTime !== undefined) dropKeys.push('workTime');
       if (item.shift === null && existing.shift !== undefined) dropKeys.push('shift');
+      // Een lege lijst wist de werkende uitzonderingen; afwezig (niet `[]`) is de opslagvorm van de lezers.
+      if (item.workingExceptions?.length === 0 && existing.workingExceptions !== undefined) dropKeys.push('workingExceptions');
 
       // Een expliciete urentaak bewaart haar minuten onafhankelijk van de kalender. Zonder concrete
       // banden kan de solver die minuten echter niet langs werkende tijd plaatsen. Weiger daarom
@@ -809,11 +1028,19 @@ const updateCalendar: BatchStepTool = {
     '`generate: { country: "none" }` of `holidays: []` mee. ' +
     'KALENDER OVERZETTEN NAAR EEN ANDER DOCUMENT: geef een kalenderobject uit `planner_get_calendars` ' +
     'LETTERLIJK terug (met `create: true`). Alle leesvelden worden geaccepteerd — `workTime` (uurbanden), ' +
-    '`shift`, `generation` (herkomst in de LEESVORM: `ruleSetId`/`breakChoice`/jaren) en `holidays` (de ' +
-    'volledige lijst, die de bestaande lijst exact VERVANGT). De afgeleide leesvelden ' +
-    '`isProjectDefault`/`usedByTasks`/`usedByResources` mogen mee maar doen niets; de respons meldt ze als ' +
-    '`ignoredFields`. Gebruik `generate` (land/regio/bouwvak) óf `generation` (herkomst van meegestuurde ' +
-    'dagen), nooit allebei — `generate` DRAAIT de generator over de projectspanne van DIT document, ' +
+    '`shift`, `generation` (herkomst in de LEESVORM: `ruleSetId`/`breakChoice`/jaren), `holidays` (de ' +
+    'volledige lijst, die de bestaande lijst exact VERVANGT), het pauzepatroon ' +
+    '`simpleBreakStartMinute`/`simpleBreakDurationMinutes` (minuten) en `workingExceptions` (werkende dagen, ' +
+    'vervangt de lijst exact). De afgeleide leesvelden `isProjectDefault`/`usedByTasks`/`usedByResources` en ' +
+    'de bibliotheekstempel `libraryOrigin` mogen mee maar doen niets; de respons meldt ze als `ignoredFields`. ' +
+    'PAUZE: op een DAG-kalender met een pauze is `hoursPerDay` AFGELEID uit werkdag min pauze, net als de ' +
+    'niet-bewerkbare "Netto-uren per dag" in de kalenderdialoog. Raak je de pauze of begin/einde, dan volgt ' +
+    '`hoursPerDay` vanzelf. Meer of minder netto uren wil zeggen: wijzig `workStartHour`/`workEndHour` of ' +
+    '`simpleBreakDurationMinutes`. Een meegegeven `hoursPerDay` die niet klopt met werkdag min pauze (op de ' +
+    'minuut) wordt zacht geweigerd met de velden die je wél moet wijzigen; een gelijke waarde (zoals in een ' +
+    'letterlijke lezing) doet niets. Zonder pauzevelden (een legacy-kalender) blijft `hoursPerDay` gewoon te ' +
+    'zetten. Een pauze buiten de werkdag of over de hele dag wordt zacht geweigerd. ' +
+    'Gebruik `generate` (land/regio/bouwvak) óf `generation` (herkomst van meegestuurde dagen), nooit allebei — `generate` DRAAIT de generator over de projectspanne van DIT document, ' +
     '`generation` schrijft alleen de herkomst. ' +
     'UUR- VS DAG-KALENDER: `workTime` maakt er een UUR-kalender van (`null` zet hem terug op DAG). ' +
     'Een kalenderwijziging verandert NOOIT de gekozen eenheid of native hoeveelheid van een taak. ' +
@@ -856,7 +1083,36 @@ const updateCalendar: BatchStepTool = {
             },
             workStartHour: { type: 'number', description: 'Begin werkdag in UREN (0–24), bijv. 7.' },
             workEndHour: { type: 'number', description: 'Einde werkdag in UREN (0–24), bijv. 16.' },
-            hoursPerDay: { type: 'number', description: 'Netto werkuren per werkdag (UREN), bijv. 8.' },
+            hoursPerDay: {
+              type: 'number',
+              description: 'Netto werkuren per werkdag (UREN), bijv. 8. Op een DAG-kalender MET pauze afgeleid (werkdag min pauze): ' +
+                'een afwijkende waarde wordt zacht geweigerd, een gelijke doet niets — wijzig daar de werkdag of de pauzeduur.',
+            },
+            simpleBreakStartMinute: {
+              type: 'integer', minimum: 0, maximum: 1439,
+              description: 'Begin van de pauze op een DAG-kalender, in MINUTEN vanaf middernacht (12:30 = 750). Leesveld van get_calendars. De netto uren (`hoursPerDay`) worden eruit afgeleid, zoals in de kalenderdialoog.',
+            },
+            simpleBreakDurationMinutes: {
+              type: 'integer', minimum: 0, maximum: 1440,
+              description: 'Pauzeduur in MINUTEN (0 = geen pauze). Moet binnen de werkdag vallen en mag hem niet helemaal beslaan. Leesveld van get_calendars.',
+            },
+            workingExceptions: {
+              type: 'array',
+              description:
+                'Dagen die WERKEND worden (bijv. een inhaalzaterdag) — de VOLLEDIGE lijst, exact het leesveld van ' +
+                'planner_get_calendars; vervangt de bestaande lijst (lege lijst = wissen). Optioneel per uitzondering ' +
+                '`bands` in dezelfde vorm als `workTime` (weglaten = de gewone werktijd van de kalender).',
+              items: {
+                type: 'object',
+                required: ['name', 'startDate', 'endDate'],
+                properties: {
+                  name: { type: 'string' },
+                  startDate: { type: 'string', description: 'ISO-datum (JJJJ-MM-DD), inclusief.' },
+                  endDate: { type: 'string', description: 'ISO-datum (JJJJ-MM-DD), inclusief.' },
+                  bands: WORKTIME_DAY_SCHEMA,
+                },
+              },
+            },
             generate: {
               type: 'object',
               description: 'Generator-basis voor feestdagen; de jaarspanne wordt uit het project afgeleid.',
@@ -922,6 +1178,7 @@ const updateCalendar: BatchStepTool = {
             isProjectDefault: { type: 'boolean', description: 'AFGELEID leesveld van get_calendars — mag mee, wordt genegeerd (komt terug als `ignoredFields`).' },
             usedByTasks: { type: 'integer', description: 'AFGELEID leesveld van get_calendars — mag mee, wordt genegeerd.' },
             usedByResources: { type: 'integer', description: 'AFGELEID leesveld van get_calendars — mag mee, wordt genegeerd.' },
+            libraryOrigin: { type: 'object', description: 'Bibliotheekstempel uit get_calendars (hoort bij het BRONdocument) — mag mee, wordt genegeerd (komt terug als `ignoredFields`); koppelen aan de bibliotheek gaat via de app.' },
           },
         },
       },
@@ -1548,6 +1805,18 @@ const clearLeveling: BatchStepTool = {
 // =================================================================================================
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}/;
 
+/** Datumvorm van `update_project`: `JJJJ-MM-DD`, en met `allowTime` ook `JJJJ-MM-DDTHH:mm` (de
+ *  store-vorm van een uur-instant; alleen de statusdatum mag een tijd dragen, uurplanning). De datum
+ *  moet bestaan (geen 31 februari). Vroeger liet een prefix-regex alles door wat met een datum begon
+ *  — ook een tijd of een willekeurige staart — terwijl de melding alleen `JJJJ-MM-DD` noemde. */
+function isProjectDateValue(v: unknown, allowTime: boolean): v is string {
+  if (typeof v !== 'string') return false;
+  const m = /^(\d{4}-\d{2}-\d{2})(T\d{2}:\d{2})?$/.exec(v);
+  if (!m || (m[2] && !allowTime)) return false;
+  const d = new Date(`${m[1]}${m[2] ?? 'T00:00'}:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, v.length) === v;
+}
+
 /** Elke sleutel die `update_project` KENT — de allowlist waartegen onbekende sleutels afketsen. */
 const PROJECT_KEYS = [
   'name', 'description', 'author', 'company', 'startDate', 'endDate', 'statusDate', 'progressMode',
@@ -1611,8 +1880,8 @@ function parseUpdateProject(
     }
   }
   if (a.startDate !== undefined) {
-    if (typeof a.startDate !== 'string' || !ISO_DATE.test(a.startDate)) {
-      return '`startDate` moet een ISO-datum zijn (JJJJ-MM-DD)';
+    if (!isProjectDateValue(a.startDate, false)) {
+      return '`startDate` moet een bestaande ISO-datum zijn (JJJJ-MM-DD, zonder tijd)';
     }
     updates.startDate = a.startDate;
   }
@@ -1622,8 +1891,8 @@ function parseUpdateProject(
   // `moveProject` laat '' bewust '' en de exporteurs slaan het veld dan over) — géén `null`, want
   // het veld is in het type een verplichte string.
   if (a.endDate !== undefined) {
-    if (typeof a.endDate !== 'string' || (a.endDate !== '' && !ISO_DATE.test(a.endDate))) {
-      return '`endDate` moet een ISO-datum zijn (JJJJ-MM-DD) of een lege string om hem te wissen';
+    if (a.endDate !== '' && !isProjectDateValue(a.endDate, false)) {
+      return '`endDate` moet een bestaande ISO-datum zijn (JJJJ-MM-DD, zonder tijd) of een lege string om hem te wissen';
     }
     updates.endDate = a.endDate;
   }
@@ -1659,8 +1928,9 @@ function parseUpdateProject(
   if (a.statusDate !== undefined) {
     if (a.statusDate === null || a.statusDate === '') {
       clearStatusDate = true;
-    } else if (typeof a.statusDate !== 'string' || !ISO_DATE.test(a.statusDate)) {
-      return '`statusDate` moet een ISO-datum zijn (JJJJ-MM-DD) of null';
+    } else if (!isProjectDateValue(a.statusDate, true)) {
+      return '`statusDate` moet een bestaande ISO-datum zijn (JJJJ-MM-DD) of, bij uurplanning, een ' +
+        'datum-tijd tot op de minuut (JJJJ-MM-DDTHH:mm); null of een lege string wist hem';
     } else {
       updates.statusDate = a.statusDate;
     }
@@ -1761,7 +2031,8 @@ const updateProject: BatchStepTool = {
       statusDate: {
         type: ['string', 'null'],
         description:
-          'ISO-datum (JJJJ-MM-DD) of null om te wissen. Dit is de DATA DATE: niet-gestart werk ' +
+          'ISO-datum (JJJJ-MM-DD) — bij uurplanning mag een tijd tot op de minuut (JJJJ-MM-DDTHH:mm) — ' +
+          'of null om te wissen. Dit is de DATA DATE: niet-gestart werk ' +
           '(completion 0) wordt naar deze datum vooruitgeschoven, dus het zetten ervan verschuift ' +
           'ook zonder enige voortgang de hele planning en het projecteinde.',
       },

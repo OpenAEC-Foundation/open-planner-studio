@@ -1,4 +1,4 @@
-# Codes & velden (structuurdialoog)
+# 代码与字段（结构对话框）
 
 **代码与字段**窗口管理项目结构定义：**活动代码**（可自由定义的维度，例如位置或专业）和**自定义字段**（带类型的用户字段）。每个任务的具体值随后通过属性面板或[任务对话框](docs://ref-taakdialoog)填写。
 
@@ -34,4 +34,4 @@
 
 ## 延伸阅读
 
-- [Plannen & WBS](docs://gids-plannen-wbs) — 计划结构化，包括代码和字段的实际应用。
+- [计划与 WBS](docs://gids-plannen-wbs) — 计划结构化，包括代码和字段的实际应用。

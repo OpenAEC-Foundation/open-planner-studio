@@ -10,12 +10,12 @@ Het venster **Kalenders** beheert de kalenderbibliotheek van het project: links 
 
 ## Toepassen en annuleren
 
-Alle bewerkingen — ook nieuw/dupliceren/verwijderen — gebeuren in een werkkopie. **Toepassen** (of **Enter**) schrijft alles in één keer weg en herberekent de planning; **Annuleren**, **Esc**, het kruisje of een klik buiten het venster gooit álle wijzigingen weg.
+Alle bewerkingen — ook nieuw/dupliceren/verwijderen — gebeuren in een werkkopie. **Toepassen** schrijft alles in één keer weg, herberekent de planning en sluit het venster; **Enter** in een tekstveld zoals de naam doet hetzelfde, maar laat het venster open. Is er niets gewijzigd, dan doen **Toepassen** en **Enter** niets: het document blijft ongewijzigd en de planning wordt niet herberekend. **Annuleren**, **Esc**, het kruisje of een klik buiten het venster gooit alle wijzigingen weg die nog niet met **Toepassen** of **Enter** zijn vastgelegd.
 
 ## Bibliotheek (linkerkolom)
 
-- **Lijst** — alle kalenders; de ster markeert de **Projectkalender** (de standaard voor taken zonder eigen kalender).
-- **+** — **Nieuwe kalender**.
+- **Lijst** — alle kalenders; de ster markeert de **Projectkalender** (de standaard voor taken zonder eigen kalender). Een waarschuwingsteken markeert een kalender met ongeldige invoer.
+- **+** — **Nieuwe kalender**, met dezelfde standaard als **+ Resourcekalender** in het resourcepaneel en als een nieuw project: ma–vr 07:00–16:00 en, met **Bouwmodus** aan, de Nederlandse feestdagen. Wil je er geen, kies dan **Feestdagen genereren…** → **Geen feestdagen**.
 - **Dupliceren** — kopie van de geselecteerde kalender.
 - **Verwijderen** — kan niet bij de laatste kalender; verwijder je de projectdefault, dan wordt een andere kalender de default.
 - **Als projectdefault** — maakt de geselecteerde kalender de projectkalender (knop boven het formulier).
@@ -49,4 +49,4 @@ Genereert de feestdagenlijst regelgebaseerd over de projectperiode:
 
 ## Feestdagen
 
-De lijst zelf: per regel **Omschrijving**, **Van**, **Tot** en een verwijderknop; **Feestdag toevoegen** maakt een nieuwe regel. Meerdaagse periodes (bouwvak, vorstverlet) zijn gewoon een regel met een langere Van–Tot-spanne.
+De lijst zelf: per regel **Omschrijving**, **Van**, **Tot** en een verwijderknop; **Feestdag toevoegen** maakt een nieuwe regel. Meerdaagse periodes (bouwvak, vorstverlet) zijn gewoon een regel met een langere Van–Tot-spanne. Een lege **Tot** betekent een eendaagse feestdag. Ontbreekt **Van**, of ligt **Tot** vóór **Van**, dan wordt de regel rood gemarkeerd met een uitleg en blijven **Toepassen** en **Enter** geblokkeerd tot je hem corrigeert.

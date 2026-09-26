@@ -41,9 +41,10 @@ import {
   MAX_PROFILE_JSON_LENGTH, profileAfterRead, sanitizeSchedulingOptions, sanitizeSchedulingProfile,
 } from '@/services/ifc/schedulingOptionsRead';
 import { optionKeysOnly } from '@/services/ifc/schedulingProfileMigration';
-import { emptyMissingScheduleDates, resolveMissingScheduleDates } from '@/services/importDates';
+import { emptyMissingScheduleDates, importStatusDate, resolveMissingScheduleDates } from '@/services/importDates';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { seedScalarBands } from '@/utils/effectiveWorkTime';
+import { hourRemainingDays } from '@/engine/taskMutationRules';
 import {
   canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isoDurationToMinutes,
   isSubDayMinutes, promoteHourCalendar, promoteHourCalendars, registerCalendarBands, scalarHourFromClock,
@@ -1197,6 +1198,7 @@ function applyHourModeIFC(
       if (t.time.durationUnit === 'hours' && t.time.durationMinutes != null && effCal.hoursPerDay > 0) {
         t.time.scheduleDuration = t.time.durationMinutes / (effCal.hoursPerDay * 60);
       }
+      if (t.time.durationUnit === 'hours') readRemainingMinutes(t, taskTimeEntities.get(t.id));
       continue;
     }
     const e = taskTimeEntities.get(t.id);
@@ -1223,9 +1225,21 @@ function applyHourModeIFC(
     const lf = toHour(e.args[TASKTIME_SLOT.lateFinish]); if (lf) t.time.lateFinish = lf;
     const as = toHour(e.args[TASKTIME_SLOT.actualStart]); if (as) t.time.actualStart = as;
     const af = toHour(e.args[TASKTIME_SLOT.actualFinish]); if (af) t.time.actualFinish = af;
-    const remMin = isoDurationToMinutes(stripQuotes(e.args[TASKTIME_SLOT.remainingTime] || ''));
-    if (remMin != null) t.time.remainingMinutes = remMin;
+    readRemainingMinutes(t, e);
   }
+}
+
+/**
+ * Restduur-minuten uit een `PT…`-RemainingTime-slot. Bij een urentaak krijgt `remainingTime` dezelfde
+ * werkdagfractie als de store haar geeft (`hourRemainingDays`, de vorm van `scheduleDuration`): de
+ * `parseDurationDays`-lezing van `PT5H` is `ceil(5 / uren per dag)` hele dagen, en een taak zonder
+ * voortgang komt niet langs `normalizeImportedProgress`, dus die waarde bleef anders staan (G4).
+ */
+function readRemainingMinutes(t: Task, e: StepEntity | undefined): void {
+  const remMin = e ? isoDurationToMinutes(stripQuotes(e.args[TASKTIME_SLOT.remainingTime] || '')) : null;
+  if (remMin == null) return;
+  t.time.remainingMinutes = remMin;
+  if (t.time.durationUnit === 'hours') t.time.remainingTime = hourRemainingDays(t.time, remMin);
 }
 
 /**
@@ -1816,8 +1830,11 @@ function extractStructure(
           // Taaktypes-etappe (spec §4.1): onbekende waarde ⇒ stil weg (byte-identiek default).
           if (typeof v === 'string' && (WORK_RULES as readonly string[]).includes(v)) project.defaultWorkRule = v as WorkRule;
         } else if (name === 'StatusDate') {
-          // Fase 2.6 (§8.2): P6 data date → project.statusDate.
-          if (typeof v === 'string' && v) project.statusDate = v.substring(0, 10);
+          // Fase 2.6 (§8.2): P6 data date → project.statusDate. Een tijd-van-de-dag (uur-modus) blijft
+          // behouden: IFCDATETIME, én bestanden van vóór die writer-keuze die de tijd in IFCDATE zetten
+          // (spiegel van writeStructure). Datum zonder tijd ⇒ `YYYY-MM-DD`, zoals altijd. Zelfde
+          // regel als MSPDI en P6 (`statusDateFromXml`).
+          if (typeof v === 'string' && v) project.statusDate = importStatusDate(v);
         } else if (name === 'ProgressMode') {
           // Fase 2.6 (§8.2): alleen PROGRESS_OVERRIDE wordt geschreven; RETAINED_LOGIC is de default.
           if (v === 'PROGRESS_OVERRIDE' || v === 'RETAINED_LOGIC') project.progressMode = v;
@@ -2369,7 +2386,11 @@ function buildCalendarFromEntity(
   // STEP-null (`$`), en `stripQuotes('$')` geeft het letterlijke tweetekentje `'$'` terug (het start/
   // eindigt niet met een quote, dus de functie laat de string ongewijzigd) i.p.v. '' — dezelfde
   // `$`-conventie die elders al via `ifcSlotText` wordt toegepast (bv. project-omschrijving).
-  calendar.description = ifcSlotText(cal.args[3]) || calendar.description;
+  // Bewust GEEN terugval op de omschrijving van `createDefaultCalendar()`: `$` is een lege
+  // omschrijving (zoals bij project, taak en resource), geen "onbekend". Die terugval maakte van een
+  // bewust lege omschrijving na heropenen de standaardtekst van déze machine (Bouwmodus-afhankelijk),
+  // zodat een bibliotheekkopie onterecht "wijkt af" werd.
+  calendar.description = ifcSlotText(cal.args[3]);
   Object.assign(calendar, extractCalendarSimpleBreak(cal.id, entities, entityMap));
   const hourMeta = extractCalendarHourMeta(cal.id, entities, entityMap);
 

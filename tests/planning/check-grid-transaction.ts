@@ -849,7 +849,11 @@ function observed(state: AppState): unknown {
   const a = S().addTask({ name: 'Cyclus A' });
   const b = S().addTask({ name: 'Cyclus B' });
   S().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
-  S().addSequence({ predecessorId: b, successorId: a, type: 'FINISH_START', lagDays: 0 });
+  // De store-route weigert een kring vooraf (check-relation-routes.ts); een kring komt nog wel binnen
+  // zoals een importer hem schrijft: rechtstreeks in `sequences`.
+  useAppStore.setState(state => {
+    state.sequences.push({ id: 'seq-kring', predecessorId: b, successorId: a, type: 'FINISH_START', lagDays: 0 });
+  });
   S().runCPM();
   eq('Opzet heeft echte solverfout', typeof S().cpmResult?.error, 'string');
   eq('Opzet heeft geen betrouwbare resourcebelasting', S().resourceLoadResult, null);

@@ -83,11 +83,13 @@ Daha büyük planlar hızla WBS'ye sığmayan ek boyutlara ihtiyaç duyar: hangi
 - **Aktivite kodları**, bir değer listesine sahip serbestçe tanımlanabilir boyutlardır (örneğin "Lokasyon" veya "Disiplin") — her değerin bir **Kod**u, bir **Açıklama**sı ve bir **Renk**i vardır. Bir görevin, kod türü başına en fazla bir değeri olabilir. Yeni bir boyut başlatmak için **Kod türü ekle**'yi, olası değerleri oluşturmak için **Değer ekle**'yi kullanın.
 - **Kullanıcı alanları**, görev tablosunda bir sütun olarak görünen ve görev başına doldurulabilen, kendi **Metin**, **Sayı**, **Tam sayı**, **Maliyet**, **Tarih** veya **Evet/hayır** türündeki alanlarınızdır. "Yüklenici" (metin) veya "Ruhsat alındı" (evet/hayır) gibi bir alan düşünün.
 
-Oluşturulduktan sonra, bir aktivite kodunu görev tablosundaki sütunlar (gerekirse önce **Görünüm → Sütunlar…** üzerinden görünür yapın) veya görevin özellikler paneli üzerinden atarsınız veya bir kullanıcı alanını doldurursunuz.
+Oluşturulduktan sonra, bir aktivite kodunu görev tablosundaki sütunlar veya görevin özellikler paneli üzerinden atarsınız veya bir kullanıcı alanını doldurursunuz. Sütun henüz tabloda yoksa, tablo başlığının sağındaki artıyla ekleyin: sütun seçici aktivite kodlarını ve kullanıcı alanlarını **Özel** altında gösterir — bkz. [Sütun seçimi](docs://ref-kolommen).
 
 ### Kodlara ve alanlara göre gruplama
 
-Aktivite kodları ve kullanıcı alanları, onlara göre gruplandığınızda gerçekten karşılığını verir: **Görünüm** şerit sekmesine gidin, **Grupla**'yı açın ve **Alan** altında hangi aktivite koduna veya kullanıcı alanına göre kümeleneceğini seçin. Görev tablosu daha sonra WBS ağacı yerine grup başlıkları gösterir — örneğin tüm görevleri birim başına veya disiplin başına, fazlama boyunca bir arada görmek için kullanışlıdır. Aynı anda en fazla iki gruplama düzeyi ayarlayabilirsiniz (örneğin önce birime, ardından disipline göre).
+Aktivite kodları ve kullanıcı alanları, onlara göre gruplandığınızda gerçekten karşılığını verir. Görev tablosu bu durumda WBS ağacı yerine grup başlıkları gösterir — örneğin tüm görevleri birim başına veya disiplin başına, fazlama boyunca bir arada görmek için kullanışlıdır. Aynı anda en fazla iki gruplama düzeyi ayarlayabilirsiniz (örneğin önce birime, ardından disipline göre).
+
+Gruplamayı bir düzenle ayarlarsınız. **Görünüm** şerit sekmesinde **Layout** şerit grubuna gidin ve **Yeni düzen**'e tıklayın. Pencerede **Grupla** altında **+ düzey**'e tıklayın ve listeden aktivite kodunu veya kullanıcı alanını seçin. **Kaydet** bundan bir düzen düğmesi yapar: bir tıklama gruplamayı açar, bir tıklama daha kapatır. **Kaydetmeden uygula** gruplamayı düğme oluşturmadan hemen ekrana getirir. Bir düzen düğmesinin başka neleri kaydettiği [Layout kaydetme & yükleme](docs://ref-layouts) bölümünde açıklanır.
 
 ## Notlar: görev başına bir kontrol listesi
 

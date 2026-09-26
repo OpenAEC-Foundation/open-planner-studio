@@ -232,7 +232,10 @@ module.exports = {
 
 `addSequence` retourneert `string | null`: het nieuwe relatie-id, of **`null`** wanneer de relatie
 geweigerd is — een duplicaat (zelfde voorganger + opvolger + type), een zelfrelatie, een onbekende
-taak, of een **samenvattingstaak** (een taak met subtaken) als voorganger of opvolger. Controleer
+taak, een relatie tussen een taak en zijn eigen (voor)ouder-samenvattingstaak, of een relatie die een
+**kring** zou sluiten (ook via de bladtaken van een samenvattingstaak). Een gewone samenvattingstaak
+als voorganger of opvolger is toegestaan: de berekening rekent zo'n relatie door naar de
+onderliggende taken. Controleer
 het resultaat dus op `null` in plaats van aan te nemen dat elke aanroep slaagt. Dit retourtype is
 strikt correcter dan het oude gedrag: bij een geweigerd duplicaat gaf `addSequence` voorheen ook al
 gewoon een `string` terug — een id dat nergens naar verwees, omdat de relatie zelf nooit is
@@ -245,6 +248,14 @@ nieuwe ouder (`null` = wortel) en de kindlijsten van oude en nieuwe ouder worden
 een fout** vóór er iets gewijzigd is — ook de overige velden uit dezelfde aanroep worden dan niet
 toegepast. Dezelfde ouder terugschrijven (bijvoorbeeld een ongewijzigd object uit `getTasks()`)
 verplaatst niets. `addTask({ ..., parentId })` weigert een onbekende ouder op dezelfde manier.
+
+`resourceIds` op een taak is **geen schrijfbaar veld**: het is een afgeleide van de toewijzingen
+(`getAssignments()`), en alleen een toewijzing geeft belasting en overleeft opslaan. `updateTask`
+negeert een `resourceIds` die gelijk is aan de huidige waarde (bijvoorbeeld een ongewijzigd object uit
+`getTasks()`; de volgorde telt niet) en `addTask` accepteert alleen `[]`. Een andere waarde **gooit een
+fout** vóór er iets gewijzigd is — ook de overige velden uit dezelfde aanroep worden dan niet toegepast.
+Toewijzingen zet een extensie mee via `loadProject(result)` (`result.assignments`); losse
+toewijzingsmutaties kent de API niet.
 
 Belangrijk: na het muteren van taken/relaties zelf `api.data.recalculate()` aanroepen — het schema wordt niet reactief herberekend. `loadProject()` doet dat automatisch.
 

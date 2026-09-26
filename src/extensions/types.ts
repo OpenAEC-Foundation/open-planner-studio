@@ -208,13 +208,19 @@ export interface ExtensionApi {
       collection: ExtImportSourceCollection,
       options?: ExtImportSourcePageOptions,
     ): ExtImportSourceCatalogPage | null;
-    /** Een `parentId` moet een bestaande taak zijn; een onbekende ouder gooit een fout. */
+    /**
+     * Een `parentId` moet een bestaande taak zijn; een onbekende ouder gooit een fout. `resourceIds`
+     * volgt uit de toewijzingen: alleen `[]` mag mee; een andere waarde gooit een fout.
+     */
     addTask(task: Partial<ExtTask> & { name: string }): string;
     /**
      * Een gewijzigde `parentId` wordt uitgevoerd als verplaatsing (achteraan bij de nieuwe ouder,
      * `null` = wortel), met de kindlijsten van oude en nieuwe ouder bijgewerkt. Een onbekende ouder
      * of een ouder die de taak zelf of een eigen afstammeling is, gooit een fout vóór er iets
-     * gewijzigd is. Een onbekend taak-id blijft een stille no-op.
+     * gewijzigd is. `resourceIds` volgt uit de toewijzingen en is niet los te zetten: gelijk aan de
+     * huidige waarde (bv. een ongewijzigd `getTasks()`-object; volgorde telt niet) wordt genegeerd,
+     * een andere waarde gooit een fout vóór er iets gewijzigd is. Een onbekend taak-id blijft een
+     * stille no-op.
      */
     updateTask(id: string, updates: Partial<ExtTask>): void;
     /** Retourneert het nieuwe relatie-id, of `null` wanneer de relatie geweigerd is. */

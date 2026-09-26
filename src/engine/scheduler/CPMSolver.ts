@@ -90,7 +90,13 @@ export interface CPMResult {
   droppedSequenceIds?: string[];
   projectEnd: string;
   projectDuration: number; // work days
-  error?: string; // Set if circular dependency detected
+  /** Gezet als de solve niet kon rekenen (kring, kalender zonder werkdagen, ongeldige invoer). De
+   *  vaste tekst die MCP-tools, extensies (`scheduleCalculated`) en logs al kennen — ongewijzigd,
+   *  en deels Nederlands, deels Engels. Gebruikerszichtbare UI vertaalt `errorInfo` in plaats hiervan. */
+  error?: string;
+  /** Dezelfde fout als code + parameters (TB): de UI vertaalt hem via `scheduleErrors.<code>`
+   *  (`src/i18n/scheduleErrors.ts`). Altijd samen met `error` gezet door `solve()`. */
+  errorInfo?: ScheduleErrorInfo;
   /** OPTIONEEL (issue #53, waarschuwingenpaneel): de taak-ids van de gedetecteerde cyclus, in
    *  loopvolgorde — dezelfde ids waarvan `error` de namen noemt. Alleen gezet op het cyclus-pad;
    *  afwezig op elk ander pad (byte-identiek default), zodat een consument de cyclus kan
@@ -319,12 +325,44 @@ const TWENTY_FOUR_HOUR_LAG_CALENDAR: WorkCalendar = {
   },
 };
 
+/** Waarom een solve niet kon rekenen — één code per guard in `solve()`. */
+export type ScheduleErrorCode =
+  | 'cycle'
+  | 'noWorkingDays'
+  | 'invalidDayDuration'
+  | 'invalidHourDuration'
+  | 'hourTaskWithoutWorkHours'
+  | 'invalidStartDate';
+
+/** Solverfout als code + parameters; de vertaling hoort in de UI-laag, niet in de solver. */
+export interface ScheduleErrorInfo {
+  code: ScheduleErrorCode;
+  /** De betrokken taak (alle codes behalve `cycle` en `noWorkingDays`). */
+  taskName?: string;
+  /** Alleen `cycle`: de taaknamen van de kring in loopvolgorde; de eerste staat ook achteraan. */
+  cycleNames?: string[];
+}
+
+/** De vaste `error`-tekst per code — letterlijk wat de solver altijd al gaf (MCP en extensies
+ *  lezen hem; `mapTransactionError` herkent een kring aan "Circular dependency"). */
+function scheduleErrorLegacyText(info: ScheduleErrorInfo): string {
+  const name = info.taskName ?? '';
+  switch (info.code) {
+    case 'cycle': return `Circular dependency detected: ${(info.cycleNames ?? []).join(' -> ')}`;
+    case 'noWorkingDays': return 'Kalender heeft geen werkdagen ingesteld';
+    case 'invalidDayDuration': return `Ongeldige dagduur voor taak "${name}"`;
+    case 'invalidHourDuration': return `Ongeldige urenduur voor taak "${name}"`;
+    case 'hourTaskWithoutWorkHours': return `Uurtaak "${name}" heeft geen geldige werktijden in zijn kalender`;
+    case 'invalidStartDate': return `Ongeldige startdatum voor taak "${name}"`;
+  }
+}
+
 /**
  * Leeg `CPMResult` voor de degradatiepaden in `solve()` (cyclus, kalender zonder werkdagen,
- * onparseerbare startdatum): alle verzamelingen leeg, alleen de foutmelding verschilt per pad.
- * Eén fabriek zodat de drie guards nooit kunnen divergeren.
+ * ongeldige duur, urentaak zonder werktijden, onparseerbare startdatum): alle verzamelingen leeg,
+ * alleen de fout verschilt per pad. Eén fabriek zodat de guards nooit kunnen divergeren.
  */
-function emptyResult(error: string, cycleTaskIds?: string[]): CPMResult {
+function emptyResult(errorInfo: ScheduleErrorInfo, cycleTaskIds?: string[]): CPMResult {
   return {
     tasks: new Map(),
     criticalPath: [],
@@ -340,7 +378,8 @@ function emptyResult(error: string, cycleTaskIds?: string[]): CPMResult {
     hammockNoFinishDriverTaskIds: [],
     projectEnd: '',
     projectDuration: 0,
-    error,
+    error: scheduleErrorLegacyText(errorInfo),
+    errorInfo,
     ...(cycleTaskIds ? { cycleTaskIds } : {}),
   };
 }
@@ -1618,15 +1657,15 @@ export class CPMSolver {
     // Check for circular dependencies before running CPM
     const cycle = this.detectCycle();
     if (cycle) {
-      const cycleNames = cycle.map(id => this.tasks.get(id)?.name || id).join(' -> ');
+      const cycleNames = cycle.map(id => this.tasks.get(id)?.name || id);
       // `cycle` sluit de lus (eerste knoop staat ook achteraan); voor navigatie tellen unieke ids.
-      return emptyResult(`Circular dependency detected: ${cycleNames}`, [...new Set(cycle)]);
+      return emptyResult({ code: 'cycle', cycleNames }, [...new Set(cycle)]);
     }
 
     // Guard: een kalender zonder werkdagen zou anders (via de MAX_SCAN-fallback) stil
     // datums ver in de toekomst opleveren zonder enige waarschuwing. Degradeer met een fout.
     if (!this.projectEngine.hasWorkingDays()) {
-      return emptyResult('Kalender heeft geen werkdagen ingesteld');
+      return emptyResult({ code: 'noWorkingDays' });
     }
 
     // Elke expliciete eenheid heeft precies een eigen invoerbron. Valideer die bron voor er ook
@@ -1636,8 +1675,8 @@ export class CPMSolver {
       const unit = taskDurationUnit(task);
       const source = unit === 'hours' ? task.time.durationMinutes : task.time.scheduleDuration;
       if (typeof source !== 'number' || !Number.isFinite(source) || source < 0) {
-        const label = unit === 'hours' ? 'urenduur' : 'dagduur';
-        return emptyResult(`Ongeldige ${label} voor taak "${task.name}"`);
+        const code = unit === 'hours' ? 'invalidHourDuration' : 'invalidDayDuration';
+        return emptyResult({ code, taskName: task.name });
       }
     }
 
@@ -1649,7 +1688,7 @@ export class CPMSolver {
       if (taskDurationUnit(task) === 'hours'
         && task.time.durationType === 'WORKTIME'
         && !this.calendarFor(task).isHourMode) {
-        return emptyResult(`Uurtaak "${task.name}" heeft geen geldige werktijden in zijn kalender`);
+        return emptyResult({ code: 'hourTaskWithoutWorkHours', taskName: task.name });
       }
     }
 
@@ -1658,7 +1697,7 @@ export class CPMSolver {
     // Degradeer netjes met een foutmelding i.p.v. te crashen.
     for (const task of this.tasks.values()) {
       if (isNaN(parseDate(task.time.scheduleStart).getTime())) {
-        return emptyResult(`Ongeldige startdatum voor taak "${task.name}"`);
+        return emptyResult({ code: 'invalidStartDate', taskName: task.name });
       }
     }
 

@@ -4,6 +4,8 @@
  * transportvelden (MSPDI-ExtendedAttribute-FieldID, P6-UDF-titel/-ObjectId) blijven bij hun formaat.
  */
 import type { CustomTaskType } from '@/types/taskType';
+import { importStatusDate } from '@/services/importDates';
+import { hasNonAnchorTime } from '@/services/subdayIo';
 
 /** Escapet tekst voor XML-inhoud én attributen (de vijf voorgedefinieerde entiteiten). */
 export function escapeXml(s: string): string {
@@ -26,6 +28,17 @@ export function toXmlDateTime(iso: string): string {
   if (iso.length === 10) return `${iso}T${DAY_TIME_ANCHOR}`;
   if (iso.length === 16) return `${iso}:00`;
   return iso;
+}
+
+/** Leesrichting van {@link toXmlDateTime} voor de statusdatum (MSPDI `<StatusDate>`, P6 `<DataDate>`)
+ *  → `project.statusDate`, met dezelfde regel als IFC ({@link importStatusDate}): een echte tijd blijft
+ *  (`YYYY-MM-DDTHH:mm`), ook een tijd van een ander programma (MS Project bewaart 17:00). Het dag-anker
+ *  betekent "geen tijd" ⇒ `YYYY-MM-DD`, precies wat een datum zonder tijd was — zo lezen ook alle
+ *  bestaande bestanden. Grens van het formaat: een statusdatum op precies 08:00 is in het bestand niet
+ *  van het anker te onderscheiden en komt date-only terug. De `.mpp`-lezer leest zijn statusdatum in
+ *  dezelfde vorm hiermee (MS Project schrijft die waarde zo in MSPDI), zodat beide routes gelijk zijn. */
+export function statusDateFromXml(raw: string): string {
+  return hasNonAnchorTime(raw, DAY_TIME_ANCHOR) ? importStatusDate(raw) : raw.substring(0, 10);
 }
 
 /** Naam van de OPS-duureenheidmarker: MSPDI-veldnaam/-alias en P6-UDF-titel. */

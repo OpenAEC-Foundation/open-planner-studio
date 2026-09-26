@@ -1,5 +1,8 @@
 import type { Task } from '@/types/task';
 import { isSummaryTask as taskIsSummary } from '@/utils/taskHierarchy';
+import type { Sequence } from '@/types/sequence';
+import { expandSummaryRelations } from './expandSummaryRelations';
+import { detectCycleInEdges, detectIntroducedCycle } from './graphWalk';
 
 export interface RelationEndpoints {
   predecessorId: string;
@@ -50,4 +53,62 @@ export function relationStructureVerdict(
     return { ok: false, reason: 'unknown-task' };
   }
   return isAncestorRelation(lookup, relation) ? { ok: false, reason: 'ancestor' } : { ok: true };
+}
+
+/**
+ * Zou één NIEUWE relatie een kring sluiten? Getoetst zoals de solver rekent: over de bladgraaf na
+ * `expandSummaryRelations`, dus een samenvattingseindpunt telt mee (een relatie naar een fase kan
+ * via een van haar kinderen rondlopen). Alleen de kring door de nieuwe relatie telt
+ * (`detectIntroducedCycle`): een al bestaande kring elders — bv. uit een import — blokkeert geen
+ * onschuldige relatie.
+ *
+ * @returns de kring (bladtaak-ids, begint bij de nieuwe relatie, begin = eind) of `null`.
+ */
+export function relationCycle(
+  tasks: readonly Task[],
+  sequences: readonly Sequence[],
+  relation: RelationEndpoints,
+): string[] | null {
+  const before = expandSummaryRelations(tasks, sequences).sequences;
+  // Expansie is per relatie onafhankelijk (op de MAX_EXPANDED_RELATIONS-klem na): alleen de
+  // kandidaat apart uitvouwen volstaat.
+  const candidate = expandSummaryRelations(tasks, [{
+    id: '__candidate-relation',
+    predecessorId: relation.predecessorId,
+    successorId: relation.successorId,
+    type: 'FINISH_START',
+    lagDays: 0,
+  }]).sequences;
+  if (candidate.length === 0) return null;
+  return detectIntroducedCycle(before, [...before, ...candidate]);
+}
+
+/** Een relatiegraaf zoals de solver hem ziet: de boom (wie is fase, wie is blad) plus de relaties. */
+export interface RelationTree {
+  tasks: readonly Task[];
+  sequences: readonly Sequence[];
+}
+
+/**
+ * De kring die `after` ten opzichte van `before` TOEVOEGT, getoetst zoals de solver rekent: beide
+ * over de bladgraaf na `expandSummaryRelations`. Een relatie op een fase geldt voor elke taak in die
+ * fase, dus niet alleen een nieuwe relatie maar ook een andere BOOM kan een kring maken — hang een
+ * taak onder een fase en haar relaties gelden voortaan ook voor die taak (audit taakmutaties, S4);
+ * spring een taak uit haar fase en een relatie tussen die twee, die zolang niet meetelde, telt weer.
+ * Gedeeld door de verhangregel (`hierarchyChangeVerdict`: zelfde relaties, andere boom) en de
+ * MCP-voorafcontrole (`validate.noCycle`: zelfde boom, andere relaties).
+ *
+ * Alleen een NIEUWE kring telt (`detectIntroducedCycle`, zoals `relationCycle`): een kring die er al
+ * was — bv. uit een import — blokkeert geen onschuldige bewerking.
+ *
+ * Kosten: de gewone weg (geen kring na de bewerking) is één uitvouwing plus één DFS; de graaf van
+ * vóór wordt alleen uitgevouwen als er na de bewerking een kring is.
+ *
+ * @returns de kring (bladtaak-ids, begint bij een nieuwe kant, begin = eind) of `null`.
+ */
+export function introducedCycle(before: RelationTree, after: RelationTree): string[] | null {
+  if (after.sequences.length === 0) return null;
+  const expandedAfter = expandSummaryRelations(after.tasks, after.sequences).sequences;
+  if (!detectCycleInEdges(expandedAfter)) return null;
+  return detectIntroducedCycle(expandSummaryRelations(before.tasks, before.sequences).sequences, expandedAfter);
 }

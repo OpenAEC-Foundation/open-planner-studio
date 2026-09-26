@@ -62,7 +62,7 @@ Esta es la parte que vale la pena recordar: algunos campos son un acuerdo de tod
 - La capacidad escalonada en el tiempo
 - La **elección** de qué calendario está vinculado al recurso
 
-Asigne un recurso de la biblioteca, y su calendario viaja junto como una copia vinculada que a su vez sigue siguiendo a la biblioteca — por eso el *contenido* de ese calendario está en la lista de la izquierda arriba. Pero la *elección* de qué calendario está vinculado a un recurso está en la lista de la derecha: la misma cuadrilla puede funcionar con un calendario distinto para un trabajo urgente del que usa normalmente, sin que eso sea una desviación de la biblioteca. Esta distinción es sutil pero importante: cambie la tarifa o el nombre de un recurso de la biblioteca, y la copia se desvía de la biblioteca; cambie su elección de calendario o las unidades máx., y estará haciendo exactamente para lo que ese campo está pensado.
+Asigne un recurso de la biblioteca, y su calendario viaja junto como una copia vinculada que a su vez sigue siguiendo a la biblioteca — por eso el *contenido* de ese calendario aparece arriba, en **Sigue a la biblioteca**. Pero la *elección* de qué calendario está vinculado a un recurso aparece en **Usted decide por proyecto**: la misma cuadrilla puede funcionar con un calendario distinto para un trabajo urgente del que usa normalmente, sin que eso sea una desviación de la biblioteca. Esta distinción es sutil pero importante: cambie la tarifa o el nombre de un recurso de la biblioteca, y la copia se desvía de la biblioteca; cambie su elección de calendario o las unidades máx., y estará haciendo exactamente para lo que ese campo está pensado.
 
 ## Tres acciones que conectan los dos mundos
 

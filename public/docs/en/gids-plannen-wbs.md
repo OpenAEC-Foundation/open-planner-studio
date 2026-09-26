@@ -25,6 +25,8 @@ A flat list of tasks says nothing about how they relate. By indenting a task und
 
 As soon as a task has at least one subtask, it automatically becomes a summary task: its bar in the Gantt chart then spans the full period from the earliest start to the latest finish of all subtasks beneath it, and its own duration and dates can no longer be set independently. A summary task is therefore normally always a derived value, never a schedule you enter directly — delete or shift the subtasks, and the summary task's bar adjusts itself automatically. The same goes for the **Duration** column: it shows the time between the summary task's start and finish — measured in the project calendar, since a summary task has no work of its own — recalculated as soon as you run **Calculate** (F5), and it cannot be edited on such a row. One exception: a **manually scheduled** summary task (that flag arises from a `.mpp` import) does *not* roll up — it keeps its own stored dates, even when its subtasks shift.
 
+**Assignments move to the first subtask.** A summary task carries no resources itself: assignments on it would stay invisible and not count towards the load. So if the task you turn into a summary task already had resources assigned, they move to the **first new subtask that can carry assignments** — not a milestone and not a summary task — keeping their units per day and curve. A notification tells you which resources went where. This applies to indenting, dragging, **Add subtask**, changing the parent task in **Edit task** and inserting a template, and it is part of the same undo step: one **Ctrl+Z** restores the structure and the assignment together. If the assignment has nowhere to go — all new subtasks are milestones or summary tasks, or the first subtask already has the same resource — nothing happens and a notification explains why. If a milestone becomes a summary task this way, its **Milestone** checkbox is cleared.
+
 **Recognizable in the name column.** In the task table (the **Table** tab, and the same name column in the right rail) a summary task shows in bold with a subtle background tint on the name cell; a milestone shows in bold in the same colour as its bar in the Gantt chart. A regular task stays unchanged. This is purely visual — it doesn't change how you select, drag, or edit a task.
 
 **Collapse and expand.** With a large WBS you'll sometimes want to compact the tree temporarily. The **View** ribbon tab, **Outline** group, has two separate buttons for this — **Collapse** and **Expand** — deliberately not a single toggle, because with a mixed selection (some branches open, others closed) a toggle could never set everything the same way.
@@ -89,6 +91,11 @@ task's row instead, and it nests: the task becomes that summary task's new last 
 it in one motion — that's the mouse equivalent of Alt+→. Select several tasks first (Ctrl/Cmd-click,
 or a box-select) and the whole selection drags and drops together.
 
+Indenting, outdenting and dragging don't go ahead if the move would create a cycle in the schedule
+through a phase's relations — a phase's relations also apply to its subtasks. You then get a
+notification naming the tasks in the cycle, and nothing changes; with several tasks at once, the
+whole move is cancelled. The **Relations & constraints** guide explains how that works.
+
 You can do the same with the **bar** itself: grab a task bar by its middle in the Gantt chart and
 drag mostly up or down. The bar then follows the same row drag as the task table — same drop
 positions, same nesting rule, one undo step — and the task's dates stay unchanged. The insertion
@@ -113,7 +120,7 @@ above the active row, with the cursor placed straight in its name cell — use *
 
 ## Milestone kinds
 
-A milestone marks a moment — a start, a handover, an inspection — and normally has zero duration; if a milestone has been given a duration greater than 0 itself (via an import, for example), Open Planner Studio simply schedules it as a task with that duration, with the **Milestone** checkbox still on. Open Planner Studio has three ways to add a milestone, all via the **Tasks** ribbon group, using the arrow next to the **Milestone** button:
+A milestone marks a moment — a start, a handover, an inspection — and normally has zero duration; if a milestone has been given a duration greater than 0 itself (via an import, for example), Open Planner Studio simply schedules it as a task with that duration, with the **Milestone** checkbox still on. A summary task or a task with resource assignments cannot become a milestone: the **Milestone** checkbox (properties panel, **Edit task**, the context menu and the **Table** tab) refuses that with a notification — remove the assignments first. Open Planner Studio has three ways to add a milestone, all via the **Tasks** ribbon group, using the arrow next to the **Milestone** button:
 
 - **Start milestone** — marks the beginning of a phase or the project.
 - **Finish milestone** — marks a completion, for example a handover.
@@ -130,11 +137,13 @@ Larger schedules quickly need extra dimensions that don't fit the WBS: which uni
 - **Activity codes** are freely definable dimensions (for example "Location" or "Discipline") with a list of values — each value has a **Code**, a **Description** and a **Colour**. A task can have at most one value per code type. Use **Add code type** to start a new dimension, and **Add value** to build up the possible values.
 - **Custom fields** are typed fields of your own — **Text**, **Number**, **Integer**, **Cost**, **Date** or **Yes/No** — that appear as a column in the task table and can be filled in per task. Think of a field "Contractor" (text) or "Permit received" (yes/no).
 
-Once created, you assign an activity code or fill in a custom field via the columns in the task table (make them visible first via **View → Columns…** if needed) or via the task's properties panel.
+Once created, you assign an activity code or fill in a custom field via the columns in the task table or via the task's properties panel. If the column is not in the table yet, add it with the plus at the right of the table header: the column chooser lists the activity codes and custom fields under **Custom** — see [Choosing columns](docs://ref-kolommen).
 
 ### Grouping by codes and fields
 
-Activity codes and custom fields really pay off once you group by them: go to the ribbon tab **View**, open **Group** and pick the activity code or custom field to cluster by under **Field**. The task table then shows group headers instead of the WBS tree — handy for seeing, for example, all tasks per unit or per discipline together, across the phasing. You can set up to two grouping levels at once (for example first by unit, then by discipline).
+Activity codes and custom fields really pay off once you group by them. The task table then shows group headers instead of the WBS tree — handy for seeing, for example, all tasks per unit or per discipline together, across the phasing. You can set up to two grouping levels at once (for example first by unit, then by discipline).
+
+You set up a grouping with a layout. Go to the ribbon tab **View**, ribbon group **Layout**, and click **New layout**. In the window, under **Group**, click **+ level** and pick the activity code or custom field in the list. **Save** turns it into a layout button: one click switches the grouping on, another click switches it off again. **Apply without saving** puts the grouping on screen right away, without a button. What else a layout button stores is explained in [Saving and loading layouts](docs://ref-layouts).
 
 ## Notes: a checklist per task
 

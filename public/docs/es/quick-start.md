@@ -90,7 +90,7 @@ Ahora que tiene tareas y relaciones, puede hacer que se calcule la planificació
 - En la parte inferior de la pantalla, la barra de estado muestra, por ejemplo, "Ruta crítica: 4 tareas, 62 días laborables" una vez calculada la planificación. Si ha cambiado algo desde el último cálculo, muestra en su lugar "Desactualizado — recalcula (F5)".
 - En el diagrama de Gantt, las tareas críticas — tareas sin holgura, que por tanto determinan directamente la fecha de fin del proyecto — reciben un color de barra distinto al de las tareas que aún tienen margen (holgura). Si una tarea crítica se retrasa, toda la fecha de fin del proyecto se desplaza con ella; una tarea con holgura puede retrasarse sin consecuencias, mientras la holgura no se agote.
 - Haga doble clic en una tarea para volver a abrir la ventana **Editar tarea**. En la sección **Resultado CPM** encontrará, por tarea: **Inicio temprano**, **Fin temprano**, **Inicio tardío**, **Fin tardío**, **Holgura total**, **Holgura libre**, y si la tarea está en la **Ruta crítica**.
-- ¿Quiere tener estos datos también como columnas en la tabla de tareas, en lugar de tener que abrir cada tarea? Vaya a la pestaña de la cinta **Vista**, haga clic en **Columnas…** en el grupo **Visualización**, y marque **Crítica** y **Holgura total**.
+- ¿Quiere tener estos datos también como columnas en la tabla de tareas, en lugar de tener que abrir cada tarea? En la pestaña **Tabla**, **Crítica** y **Holgura total** ya están en la tabla de forma predeterminada. En la lista de tareas junto al Gantt las añade con el signo más a la derecha del encabezado de la tabla: abre el selector de columnas, donde elige un campo cada vez en **Calculado**. Vea [Elegir columnas](docs://ref-kolommen).
 
 ## Paso 7 — Guardar
 

@@ -165,8 +165,9 @@ export function recoveryInputFromParsed(parsed: ImportResult, meta: RecoveryDocM
  * waarom hier vroeger een diepe JSON-kloon stond.
  */
 export type SnapshotRole =
-  | 'data' // muteerbare projectdata (heette 'clone' toen de snapshot nog diep kloonde).
-  | 'derived' // afgeleid resultaat of scalar (heette 'ref').
+  | 'data' // projectdata die de gebruiker zet en die in het bestand staat (heette 'clone' toen de
+  //          snapshot nog diep kloonde). `documentDataChanged` (snapshot.ts) kijkt alleen hiernaar.
+  | 'derived' // rekenresultaat of weergavemodus: runCPM / "datums zoals opgeslagen" (heette 'ref').
   | 'none'; // niet in de snapshot (selectie/view/pad/undo-stacks e.d.).
 
 interface FieldDesc<K extends keyof DocumentPayload, R extends SnapshotRole = SnapshotRole> {
@@ -255,7 +256,10 @@ export const DOCUMENT_FIELDS = [
   field({ key: 'recordedDates', get: (s) => s.recordedDates, set: (s, v) => { s.recordedDates = v; }, fresh: () => null, snapshot: 'derived', fromPayload: (p) => p.recordedDates ?? null }),
   field({ key: 'datesAsRecorded', get: (s) => s.datesAsRecorded, set: (s, v) => { s.datesAsRecorded = v; }, fresh: () => false, snapshot: 'derived', fromPayload: (p) => p.datesAsRecorded ?? false }),
   field({ key: 'baselines', get: (s) => s.baselines, set: (s, v) => { s.baselines = v; }, fresh: () => [], snapshot: 'data', fromPayload: (p) => p.baselines ?? [] }),
-  field({ key: 'activeBaselineId', get: (s) => s.activeBaselineId, set: (s, v) => { s.activeBaselineId = v; }, fresh: () => null, snapshot: 'derived', fromPayload: (p) => p.activeBaselineId ?? null }),
+  // 'data', niet 'derived' (G5): de gebruiker kiest hem en hij gaat mee in het bestand. Als 'derived'
+  // zag `documentDataChanged` een activatie niet, en telde een MCP-transactie die alleen de actieve
+  // baseline wisselt als "niets gewijzigd".
+  field({ key: 'activeBaselineId', get: (s) => s.activeBaselineId, set: (s, v) => { s.activeBaselineId = v; }, fresh: () => null, snapshot: 'data', fromPayload: (p) => p.activeBaselineId ?? null }),
   field({ key: 'view', get: (s) => s.view, set: (s, v) => { s.view = v; }, fresh: createDefaultView, snapshot: 'none', fromPayload: (p) => normalizeView(p.view) }),
   // Uitzondering: collapsedTaskIds woont in `s.ui` (wordt wél per-document geswapt).
   field({ key: 'collapsedTaskIds', get: (s) => s.ui.collapsedTaskIds, set: (s, v) => { s.ui.collapsedTaskIds = v; }, fresh: () => [], snapshot: 'none' }),

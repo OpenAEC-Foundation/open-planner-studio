@@ -3,6 +3,7 @@ import type { AppSliceFactory, NotifyInput } from './types';
 import type { Company, CompanyPool, CompanyLibrary } from '@/types/library';
 import { createDefaultLibrary, createEmptyPool, DEFAULT_COMPANY_ID } from '@/types/library';
 import { generateId } from '@/utils/id';
+import { sameValue } from '@/utils/sameValue';
 import { nextFreePaletteColor } from '@/engine/renderer/resourcePalette';
 import { loadLibrary, saveLibrary, stripLibraryOrigins, bumpPool, makeOrigin, copyCalendarToProject, copyResourceToProject, diffCalendarVsPool, diffResourceVsPool, applyCalendarUpdate, applyResourceUpdate, writePoolIFC, isPoolNewer, computeCalendarHash, computeResourceHash, classifyCalendarOnOpen, classifyResourceOnOpen, matchByName, normalizePoolShape, resolveUniqueCompanyName, isReservedCompanyId, isSafeFileCompanyId, buildDemoLibrarySeed, migrateDemoLibrarySeed, DEMO_COMPANY_ID, DEMO_LIBRARY_SEED_VERSION, CALENDAR_DIFF_FIELDS as CALENDAR_DIFF_FIELDS_LOCAL, RESOURCE_DIFF_FIELDS as RESOURCE_DIFF_FIELDS_LOCAL } from '@/services/library';
 import { markScheduleStale } from '../transaction';
@@ -429,6 +430,15 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       c.name = name.trim() || c.name;
       // Gedenormaliseerde companyName in de pool meelopen.
       if (s.pools[id]) s.pools[id].companyName = c.name;
+      // …en in elk GEOPEND document dat aan deze bibliotheek gekoppeld is (actief én slapend), zoals
+      // `bindProjectToCompany` en `removeCompany` dat veld ook bijhouden. Anders schreef een opgeslagen
+      // IFC de oude bibliotheeknaam weg (audit resources-kalenders R10). Zelfde regime als
+      // `removeCompany`: bibliotheekbeheer is app-globaal, geen undo-stap en geen isDirty.
+      if (s.project.companyId === id) s.project.companyName = c.name;
+      for (const d of s.documents) {
+        if (d.payload?.project.companyId !== id) continue;
+        d.payload.project = { ...d.payload.project, companyName: c.name };
+      }
     });
     persist(get);
   },
@@ -600,13 +610,21 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
   },
 
   updatePoolCalendar: (companyId, calendarId, updates) => {
+    let changed = false;
     set((s) => {
       const pool = s.pools[companyId];
       const idx = pool?.calendars.findIndex(c => c.id === calendarId) ?? -1;
       if (!pool || idx < 0) return;
+      // No-op-guard (spiegelt `updateCalendar`): de kalendereditor in de Bibliotheekweergave stuurt
+      // bij Toepassen de hele draft. Ongewijzigd ⇒ geen poolversie-bump, geen opslag en geen
+      // verversing (die wist onvoorwaardelijk de redo-geschiedenis van elk gekoppeld document).
+      const currentCal = pool.calendars[idx] as unknown as Record<string, unknown>;
+      if (Object.entries(updates).every(([k, v]) => sameValue(currentCal[k], v))) return;
       Object.assign(pool.calendars[idx], updates);
       s.pools[companyId] = bumpPool(pool);
+      changed = true;
     });
+    if (!changed) return;
     persist(get);
     get().refreshAllDocumentsFromPool(companyId);
   },

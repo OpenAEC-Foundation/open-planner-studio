@@ -90,7 +90,7 @@ Agora que tem tarefas e relações, pode mandar calcular o cronograma (CPM — C
 - No fundo do ecrã, a barra de estado mostra, por exemplo, "Caminho crítico: 4 tarefas, 62 dias úteis" assim que o cronograma foi calculado. Se alterou algo desde o último cálculo, mostra em vez disso "Desatualizado — recalcule (F5)".
 - No diagrama de Gantt, as tarefas críticas — tarefas sem folga, que por isso determinam diretamente a data de fim do projeto — recebem uma cor de barra diferente das tarefas que ainda têm margem (folga). Se uma tarefa crítica atrasar, toda a data de fim do projeto desloca-se com ela; uma tarefa com folga pode atrasar sem consequências, desde que a folga não se esgote.
 - Faça duplo clique numa tarefa para reabrir a janela **Editar tarefa**. Na secção **Resultado CPM** encontra, por tarefa: **Início mais cedo:**, **Fim mais cedo:**, **Início mais tarde:**, **Fim mais tarde:**, **Folga total:**, **Folga livre:**, e se a tarefa se situa no **Caminho crítico:**.
-- Quer estes dados também como colunas na tabela de tarefas, em vez de ter de abrir cada tarefa? Vá ao separador do friso **Visualização**, clique em **Colunas…** no grupo **Apresentação**, e assinale **Crítica** e **Folga total**.
+- Quer estes dados também como colunas na tabela de tarefas, em vez de ter de abrir cada tarefa? No separador **Tabela**, **Crítica** e **Folga total** já estão na tabela por predefinição. Na lista de tarefas ao lado do Gantt adiciona-as com o sinal de mais à direita do cabeçalho da tabela: abre o seletor de colunas, onde escolhe um campo de cada vez em **Calculado**. Veja [Escolher colunas](docs://ref-kolommen).
 
 ## Passo 7 — Guardar
 

@@ -39,6 +39,13 @@ contains such a relation anyway — for example from Primavera P6 or MS Project,
 it's preserved and carried through unchanged on save, but it doesn't count in the calculation: the
 task grid's relation-warning column flags it as *not included*.
 
+Such a relation can also appear when you move a task: if you indent a task under its own
+predecessor or successor, drag it there, or pick that task as its parent task, the move simply goes
+ahead — unless the move would create a cycle (see *Relations on summary tasks*). The existing
+relation is kept but no longer counts from then on, and a notification tells you
+how many relations that affects. A kept relation like that doesn't block the task grid: you can
+still edit the other relations, as well as the type and lag of the kept relation itself.
+
 ## Lag and lead
 
 A relation doesn't have to be zero: a **lag** (positive) adds wait time between predecessor and successor, a **lead** (negative, entered as a negative number) lets the successor start earlier — a deliberate overlap. The lag field (**Lag**, in the properties panel and in the predecessor/successor cell editor) accepts a short notation:
@@ -58,7 +65,9 @@ There are four ways to create a relation, depending on where you're already work
 2. **Selection + button**: select the predecessor first, hold Ctrl/Cmd and select the successor next (in that order). With exactly two tasks selected this way, choose **Relation → Link selected tasks** on the **Start**, **Planning**, or **Table** ribbon tab. This immediately creates an FS relation with lag 0. Open its token in the task grid afterwards if you need another type or lag.
 3. **Directly in the task grid**: add the **Predecessors** or **Successors** column via the plus button. Open a cell to search by WBS/task name and set FS/SS/FF/SF plus lag. Existing relation tokens can be opened to edit or remove them; related free float, driving state, and warnings are available as separate columns. Predecessors and successors each have their own color in these columns; a driving relation gets a stronger tint of that same color, plus bold.
 
-4. **In the properties panel**: the **Dependencies** section has an **Add relation** button. It opens a draft row inside the same list — no separate window. First pick the direction (**Predecessor** or **Successor**, seen from the selected task), then type part of the WBS code or task name in the search field and pick a task with the mouse or with the arrow keys plus **Enter**. Set the type and the lag, then confirm with the check mark (or press **Enter** again). **Esc** discards the draft row without changing anything. If the relation is refused — because it already exists, for instance, or because both endpoints sit in the same parent-child chain — a notification explains why and the draft row stays open so you can correct your choice.
+4. **In the properties panel**: the **Dependencies** section has an **Add relation** button. It opens a draft row inside the same list — no separate window. First pick the direction (**Predecessor** or **Successor**, seen from the selected task), then type part of the WBS code or task name in the search field and pick a task with the mouse or with the arrow keys plus **Enter**. Set the type and the lag, then confirm with the check mark (or press **Enter** again). **Esc** discards the draft row without changing anything. If the relation is refused — because it already exists, for instance, because both endpoints sit in the same parent-child chain, or because it would close a cycle — a notification explains why and the draft row stays open so you can correct your choice.
+
+Whichever way you choose: a relation that would close a **cycle** is not created. That is the case when the successor already comes before the predecessor through other relations, even when that path runs through a task inside a summary task. Such a cycle would make the whole calculation fail. When you drag, use the button, or use the properties panel, the notification names the tasks in the cycle, so you can see which existing relation to reverse or remove first.
 
 The **Driving** column shows, after a calculation, which relation actually determines the successor's start or finish date — for a task with multiple predecessors, that isn't necessarily the relation you created most recently, but the one with the latest (driving) date.
 
@@ -71,6 +80,10 @@ You can also put a relation directly on a summary task (a phase or WBS group) in
 - **Summary on both sides**: every task on one side gets a relation with every task on the other side.
 
 This is exact for **FS and FF** with a summary as predecessor, and for **FS and SS** with a summary as successor. For **SS/SF** with a summary as predecessor and **FF/SF** with a summary as successor — rare combinations in construction practice — Open Planner Studio deliberately plans on the safe side: possibly a bit later than strictly necessary, never earlier.
+
+Because such a relation applies to every task in the phase, **moving** a task also changes which relations apply. If you indent a task under a phase, drag it into one, or pick the phase as the parent task in **Edit task**, the phase's relations apply to that task from then on. If that would create a **cycle** — for example: Earthworks → Inspection and Inspection → Foundation, and you move Foundation under Earthworks; Earthworks → Inspection then also applies to Foundation — the move is not carried out, because such a cycle makes the whole calculation fail. The same goes for outdenting, when a relation between the task and its phase that didn't count so far starts counting again and closes a cycle.
+
+A notification then names the tasks in the cycle, and nothing changes: not even an Undo step. If you move several tasks at once (indenting them together, or dragging a block), the whole action is cancelled, including for the tasks that would have been fine on their own. In **Edit task** the window stays open so you can choose a different parent task; the rest of your changes hasn't been saved yet. If you do want the task there, first remove or reverse the relation that closes the cycle. A cycle that was already in a file you opened doesn't block a move that adds nothing to it.
 
 ## Jumping to a linked task
 
@@ -96,6 +109,8 @@ A constraint imposes a date boundary on a task, independent of its relations. Op
 - **Must finish on (MFO)** — a fixed finish date.
 
 SNET/SNLT/FNET/FNLT are all **soft boundaries**: the CPM calculation takes them into account, but a violation "only" leads to negative float, not a crash or a block. The "Verbouwing & Aanbouw Eengezinswoning" example uses an SNET constraint, for instance, to keep a task from starting before the permit is granted.
+
+**A new start on a task with a predecessor.** The predecessor decides when such a task can begin, so a new start date on its own would do nothing once you recalculate. That is why Open Planner Studio, like MS Project, automatically turns it into a **Start no earlier than (SNET)** constraint: when you type the start in the Table (Start or Scheduled start column), in the properties panel or in **Edit task**, and when you move the bar or drag its left edge in the Gantt chart. A notification tells you what happened. If the date is earlier than the predecessor allows, the predecessor wins; if it is later, the task starts on that date after you recalculate (F5). If the task already had an SNET, only its date moves along. If the task has a different constraint (for example ALAP, MSO or FNLT), that constraint and the predecessor together determine the start and a new start date would change nothing: Open Planner Studio then does not apply it, leaves the constraint in place and names it in a notification. Change that constraint if you want to move the start. A manually scheduled or already started task gets no constraint: there the entered or the actual start already drives the schedule. **Ctrl+Z** undoes the new start and the constraint together.
 
 ### The hard pin (P6 Mandatory)
 

@@ -1,6 +1,6 @@
 import type { Task } from '@/types/task';
 import type { ResourceAssignment } from '@/types/resource';
-import { defaultActualFinish, defaultActualStart } from '@/engine/taskMutationRules';
+import { applyRemainingDuration, defaultActualFinish, defaultActualStart } from '@/engine/taskMutationRules';
 import { orderActualsAfterDerivedFinish } from '@/engine/actualDatesOrder';
 import { workRuleFromMsp, workRuleFromXerDurationType } from '@/engine/work/workRuleMapping';
 
@@ -37,9 +37,10 @@ export function deriveImportedWorkRules(tasks: Task[]): void {
  *
  * Golden rule: een taak ZONDER enig voortgangssignaal (geen actuals, completion 0) blijft
  * volledig ongemoeid — status NOT_STARTED, geen `remainingTime` gezet — zodat bestaande
- * bestanden byte-identiek round-trippen. `remainingTime` is in 2.6 altijd afgeleid uit
- * `completion` (§9.4-noot): een afwijkende geïmporteerde waarde wordt naar de afgeleide
- * genormaliseerd (gedocumenteerd verlies).
+ * bestanden byte-identiek round-trippen. De restduur is afgeleid uit `completion` (§9.4-noot,
+ * `applyRemainingDuration`): een afwijkende geïmporteerde dag-restduur wordt naar de afgeleide
+ * genormaliseerd (gedocumenteerd verlies); vastgelegde restduur-minuten van een urentaak blijven
+ * staan (T9).
  */
 export function normalizeImportedProgress(tasks: Task[], statusDate?: string): void {
   for (const task of tasks) {
@@ -78,8 +79,11 @@ export function normalizeImportedProgress(tasks: Task[], statusDate?: string): v
       task.status = 'STARTED';
     }
 
-    // RemainingTime altijd afgeleid (§9.4-noot): overschrijf een eventueel geïmporteerde waarde.
-    t.remainingTime = Math.round(t.scheduleDuration * (1 - t.completion));
+    // Restduur afgeleid (§9.4-noot) met dezelfde regel als de store, in de vorm van de duur: een
+    // dagtaak hele werkdagen (een geïmporteerde waarde wordt overschreven), een urentaak minuten plus
+    // een onafgeronde werkdagfractie. Uitzondering: in het bestand vastgelegde restduur-MINUTEN
+    // blijven staan (T9, MSP's eigen exacte restduur bij een afgeronde voortgang).
+    applyRemainingDuration(task, true);
   }
 }
 

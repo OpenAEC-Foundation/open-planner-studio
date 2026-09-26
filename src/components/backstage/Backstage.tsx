@@ -25,6 +25,8 @@ import { isAnyDialogOpen } from '@/hooks/useDialogKeys';
 import { leaveBackstageGuarded, setBackstageLeaveGuard } from './backstageLeaveGuard';
 import { UnappliedChangesDialog } from './UnappliedChangesDialog';
 import { notifyToastLayoutChange } from '@/components/layout/toastPlacement';
+import type { CPMResult } from '@/engine/scheduler/CPMSolver';
+import { scheduleErrorText } from '@/i18n/scheduleErrors';
 import './Backstage.css';
 
 export function Backstage() {
@@ -432,7 +434,7 @@ function ExportSection() {
   // Backstage vervangt de hele body, dus GanttCanvas is hier niet gemonteerd en de cyclus-toast
   // (die in GanttCanvas leeft) vuurt niet — toon de fout daarom zelf in de bestaande
   // backstage-stijl. Tussenstand: K8 trekt dit foutkanaal samen tot één toast in uiSlice.
-  const [exportError, setExportError] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<Pick<CPMResult, 'error' | 'errorInfo'> | null>(null);
 
   const handleExport = async (format: ExportFormat) => {
     // Pool-ernaast geldt alleen voor de IFC-kaart (spec §4: het is een IFC-tweede-bestand, geen
@@ -443,7 +445,7 @@ function ExportSection() {
       : await exportAs(format);
     if (!result.ok) {
       // Blijf in Backstage zodat de fout zichtbaar is; ga niet terug naar het Start-tab.
-      setExportError(result.error);
+      setExportError({ error: result.error, errorInfo: result.errorInfo });
       return;
     }
     setExportError(null);
@@ -455,7 +457,7 @@ function ExportSection() {
       <h2 className="backstage-title">{tMenu('backstage.exportTitle')}</h2>
       <p className="backstage-subtitle">{tMenu('backstage.exportSubtitle')}</p>
       {exportError && (
-        <div className="backstage-empty">{exportError}</div>
+        <div className="backstage-empty">{scheduleErrorText(exportError, tCommon)}</div>
       )}
       <div className="backstage-export-grid">
         {formats.map(f => (

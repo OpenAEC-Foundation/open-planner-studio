@@ -56,6 +56,7 @@ import type {
   ActivityEntry, McpContext, McpToolDef, McpToolResult,
 } from '../contracts';
 import { isRecord, isThenable } from '@/utils/guards';
+import { createSnapshot, documentDataChanged } from '@/state/snapshot';
 import { TEMP_ID_PATTERN } from './helpers';
 
 /** Harde bovengrens op het aantal stappen (spec §Compositie). */
@@ -331,8 +332,15 @@ export function executeSteps(
         mutatedSinceRecompute = false;
       }
 
+      // Alleen een stap die per saldo projectdata wijzigde, vraagt om een tussentijdse herberekening
+      // (G5): een no-op-stap is geen mutatie. Anders zou een no-op gevolgd door een leesstap een
+      // verouderde planning herrekenen, en telde de hele batch daardoor tóch als wijziging. Dezelfde
+      // meting als de commit-plek van de transactie (`documentDataChanged`).
+      const beforeStep = def.kind === 'read' ? null : createSnapshot(ctx.app.store.getState());
       const outcome = invokeStep(def, args, ctx);
-      if (def.kind !== 'read') mutatedSinceRecompute = true;
+      if (beforeStep && documentDataChanged(beforeStep, createSnapshot(ctx.app.store.getState()))) {
+        mutatedSinceRecompute = true;
+      }
 
       collectCreated(outcome.data, ctx.tempIdMap, i + 1);
       for (const r of outcome.itemRejections ?? []) {

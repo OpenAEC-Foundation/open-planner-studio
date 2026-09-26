@@ -10,12 +10,12 @@ La fenêtre **Calendriers** gère la bibliothèque de calendriers du projet : la
 
 ## Appliquer et annuler
 
-Toutes les modifications — y compris nouveau/dupliquer/supprimer — se font dans une copie de travail. **Appliquer** (ou **Entrée**) écrit tout d'un coup et recalcule le planning ; **Annuler**, **Échap**, la croix de fermeture ou un clic en dehors de la fenêtre abandonne toutes les modifications.
+Toutes les modifications — y compris nouveau/dupliquer/supprimer — se font dans une copie de travail. **Appliquer** écrit tout d'un coup, recalcule le planning et ferme la fenêtre ; **Entrée** dans un champ de texte comme le nom fait de même mais laisse la fenêtre ouverte. Si rien n'a changé, **Appliquer** et **Entrée** ne font rien : le document reste inchangé et le planning n'est pas recalculé. **Annuler**, **Échap**, la croix de fermeture ou un clic en dehors de la fenêtre abandonne toutes les modifications qui n'ont pas encore été validées avec **Appliquer** ou **Entrée**.
 
 ## Bibliothèque (colonne de gauche)
 
-- **Liste** — tous les calendriers ; l'étoile marque le **Calendrier du projet** (celui par défaut pour les tâches sans calendrier propre).
-- **+** — **Nouveau calendrier**.
+- **Liste** — tous les calendriers ; l'étoile marque le **Calendrier du projet** (celui par défaut pour les tâches sans calendrier propre). Un signe d'avertissement signale un calendrier contenant une saisie non valide.
+- **+** — **Nouveau calendrier**, avec la même valeur par défaut que **+ Calendrier de la ressource** dans le panneau des ressources et qu'un nouveau projet : lun.–ven. 07:00–16:00 et, avec le **Mode construction** activé, les jours fériés néerlandais. Si vous n'en voulez pas, choisissez **Générer les jours fériés…** → **Aucun jour férié**.
 - **Dupliquer** — copie du calendrier sélectionné.
 - **Supprimer** — impossible pour le dernier calendrier ; supprimer le calendrier par défaut du projet en fait un autre le nouveau par défaut.
 - **Définir comme calendrier par défaut du projet** — fait du calendrier sélectionné le calendrier du projet (bouton au-dessus du formulaire).
@@ -47,4 +47,4 @@ Génère la liste des jours fériés de manière automatisée sur toute la péri
 
 ## Jours fériés
 
-La liste elle-même : par ligne, **Description**, **Du**, **Au** et un bouton de suppression ; **Ajouter un jour férié** crée une nouvelle ligne. Les périodes de plusieurs jours (congés du bâtiment, arrêt pour gel) sont simplement une ligne avec une plage Du–Au plus longue.
+La liste elle-même : par ligne, **Description**, **Du**, **Au** et un bouton de suppression ; **Ajouter un jour férié** crée une nouvelle ligne. Les périodes de plusieurs jours (congés du bâtiment, arrêt pour gel) sont simplement une ligne avec une plage Du–Au plus longue. Un champ **Au** vide signifie un jour férié d'une seule journée. Si **Du** manque, ou si **Au** précède **Du**, la ligne est marquée en rouge avec une explication et **Appliquer** et **Entrée** restent bloqués jusqu'à ce que vous la corrigiez.

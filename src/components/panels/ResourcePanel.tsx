@@ -3,7 +3,6 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, X, Check, Unlink2, Library } from 'lucide-react';
 import type { Resource, ResourceType, AvailabilityStep } from '@/types/resource';
-import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { formatDate } from '@/utils/dateUtils';
 import { ResourceCalendarDialog } from '@/components/dialogs/ResourceCalendarDialog';
 import { UnitsInput } from '@/components/common/UnitsInput';
@@ -14,6 +13,7 @@ import { resourceDisplayColor, nextFreePaletteColor } from '@/engine/renderer/re
 import { useLiveGridNav } from './hooks/useLiveGridNav';
 import { controlKindOf, liveGridNavDirection } from '@/utils/gridNavigation';
 import { StatusBanner } from './StatusBanner';
+import { CommitColorInput } from '@/components/common/CommitInput';
 
 const RESOURCE_TYPES: ResourceType[] = ['LABOR', 'EQUIPMENT', 'MATERIAL', 'SUBCONTRACTOR', 'CREW'];
 
@@ -165,12 +165,10 @@ export function ResourcePanel() {
   const resourceCalendars = useAppStore(s => s.calendars);
   const assignments = useAppStore(s => s.assignments);
   const resourceLoadResult = useAppStore(s => s.resourceLoadResult);
-  const hoursPerDay = useAppStore(s => s.calendar.hoursPerDay);
   const addResource = useAppStore(s => s.addResource);
   const updateResource = useAppStore(s => s.updateResource);
   const removeResource = useAppStore(s => s.removeResource);
   const unlinkResourceFromLibrary = useAppStore(s => s.unlinkResourceFromLibrary);
-  const addCalendar = useAppStore(s => s.addCalendar);
   const setUI = useAppStore(s => s.setUI);
   const project = useAppStore(s => s.project);
   const companies = useAppStore(s => s.companies);
@@ -180,7 +178,6 @@ export function ResourcePanel() {
   const addPoolResource = useAppStore(s => s.addPoolResource);
   const removePoolResource = useAppStore(s => s.removePoolResource);
   const updatePoolResource = useAppStore(s => s.updatePoolResource);
-  const addPoolCalendar = useAppStore(s => s.addPoolCalendar);
   const addLibraryResourceToProject = useAppStore(s => s.addLibraryResourceToProject);
   const promoteResourceToPool = useAppStore(s => s.promoteResourceToPool);
   const linked = !!project.companyId && companies.some(c => c.id === project.companyId);
@@ -193,8 +190,9 @@ export function ResourcePanel() {
   const inOccupancyView = linked && resourcesView === 'occupancy' && !!pool;
 
   // Kalender-editor: null = dicht. `poolCompanyId` aanwezig ⇒ de dialoog bewerkt/maakt een
-  // POOL-kalender (via addPoolCalendar/updatePoolCalendar) i.p.v. een projectkalender.
-  const [calDialog, setCalDialog] = useState<{ id: string; poolCompanyId?: string } | null>(null);
+  // POOL-kalender (via addPoolCalendar/updatePoolCalendar) i.p.v. een projectkalender. Zonder `id`
+  // staat hij in aanmaakmodus; `linkResourceId` is dan de resource die de nieuwe kalender krijgt.
+  const [calDialog, setCalDialog] = useState<{ id?: string; poolCompanyId?: string; linkResourceId?: string } | null>(null);
   // Uitgeklapte availabilitySteps-subrij (één tegelijk) — gedeeld tussen beide weergaven; nooit
   // gelijktijdig zichtbaar omdat er maar één tabel tegelijk gerenderd wordt.
   const [expandedSteps, setExpandedSteps] = useState<string | null>(null);
@@ -401,20 +399,21 @@ export function ResourcePanel() {
     [i18n.language],
   );
 
-  // Kosten-totaal per resource (bevinding 8): Σ belaste eenheden × uren/dag × tarief.
-  // uren = eenheden × hoursPerDay van de projectkalender; undefined = "—" (geen tarief of belasting).
-  // Puur een PROJECT-grootheid (leunt op resourceLoadResult/hoursPerDay van dit project) — de pool
-  // heeft hier bewust geen equivalent (zie "Totaal" hieronder).
+  // Kosten-totaal per resource (bevinding 8): belaste uren × tarief. De uren komen uit de belasting
+  // zelf (`resourceLoadResult.hours`: per toewijzing de eenheden × uren/dag van de TAAKkalender),
+  // dezelfde bron als de contourdialoog en `<Work>` in de MSPDI-export. Vroeger rekende deze kolom
+  // met de uren/dag van de projectkalender en gaf zo bij een taak op een 10-uurskalender 40 u i.p.v.
+  // 50 u (audit resources-kalenders R6). undefined = "—" (geen tarief of belasting).
+  // Puur een PROJECT-grootheid (leunt op resourceLoadResult van dit project) — de pool heeft hier
+  // bewust geen equivalent (zie "Totaal" hieronder).
   const costByResource = useMemo(() => {
     const map: Record<string, number | undefined> = {};
     for (const r of resources) {
-      const load = resourceLoadResult?.load[r.id];
-      if (!load || r.costPerHour == null) { map[r.id] = undefined; continue; }
-      const totalUnits = Object.values(load).reduce((a, b) => a + b, 0);
-      map[r.id] = totalUnits * hoursPerDay * r.costPerHour;
+      const hours = resourceLoadResult?.hours[r.id];
+      map[r.id] = hours === undefined || r.costPerHour == null ? undefined : hours * r.costPerHour;
     }
     return map;
-  }, [resources, resourceLoadResult, hoursPerDay]);
+  }, [resources, resourceLoadResult]);
 
   const grandTotal = useMemo(() => {
     const vals = Object.values(costByResource).filter((v): v is number => v !== undefined);
@@ -448,40 +447,28 @@ export function ResourcePanel() {
     if (project.companyId) updatePoolResource(project.companyId, id, updates);
   };
 
-  // Een lege resource-kalender (zonder id — die kent de bibliotheek toe) voor "+ nieuwe kalender".
-  const newResourceCalendar = () => {
-    const { id: _drop, ...base } = createDefaultCalendar();
-    void _drop;
-    return { ...base, name: t('resource.calendarDialog.title') };
+  // Na Toepassen in aanmaakmodus: koppel de zojuist aangemaakte kalender aan de resource van "+".
+  const linkNewCalendar = (dialog: { poolCompanyId?: string; linkResourceId?: string }, calendarId: string) => {
+    if (!dialog.linkResourceId) return;
+    if (dialog.poolCompanyId) updatePoolResource(dialog.poolCompanyId, dialog.linkResourceId, { calendarId });
+    else updateResource(dialog.linkResourceId, { calendarId });
   };
 
-  // "+ nieuwe kalender": maak direct een lege resource-kalender aan, koppel 'm en open de editor.
-  const createAndEditCalendar = (resourceId: string) => {
-    const id = addCalendar(newResourceCalendar());
-    updateResource(resourceId, { calendarId: id });
-    setCalDialog({ id });
-  };
-
-  // Poolvariant: dezelfde flow, maar tegen de pool-kalenderbibliotheek van het gekoppelde bedrijf.
-  const createAndEditPoolCalendar = (resourceId: string) => {
-    if (!project.companyId) return;
-    const id = addPoolCalendar(project.companyId, newResourceCalendar());
-    if (!id) return;
-    updatePoolResource(project.companyId, resourceId, { calendarId: id });
-    setCalDialog({ id, poolCompanyId: project.companyId });
-  };
-
+  // "+ nieuwe kalender": open de editor in AANMAAKMODUS. De kalender bestaat pas na Toepassen en
+  // wordt dán aan de resource gekoppeld (`linkNewCalendar`); Annuleren laat niets achter. Voorheen
+  // werd hij vóór het openen al aangemaakt en gekoppeld, zodat Annuleren beide liet staan.
   const onCalendarChange = (resource: Resource, value: string) => {
     if (value === NEW_CAL) {
-      createAndEditCalendar(resource.id);
+      setCalDialog({ linkResourceId: resource.id });
       return;
     }
     updateResource(resource.id, { calendarId: value || undefined });
   };
 
+  // Poolvariant: dezelfde flow, tegen de pool-kalenderbibliotheek van het gekoppelde bedrijf.
   const onPoolCalendarChange = (resource: Resource, value: string) => {
     if (value === NEW_CAL) {
-      createAndEditPoolCalendar(resource.id);
+      if (project.companyId) setCalDialog({ poolCompanyId: project.companyId, linkResourceId: resource.id });
       return;
     }
     poolPatch(resource.id, { calendarId: value || undefined });
@@ -680,7 +667,12 @@ export function ResourcePanel() {
       )}
 
       {calDialog !== null && (
-        <ResourceCalendarDialog calendarId={calDialog.id} poolCompanyId={calDialog.poolCompanyId} onClose={() => setCalDialog(null)} />
+        <ResourceCalendarDialog
+          calendarId={calDialog.id}
+          poolCompanyId={calDialog.poolCompanyId}
+          onCreated={calDialog.linkResourceId ? (calendarId) => linkNewCalendar(calDialog, calendarId) : undefined}
+          onClose={() => setCalDialog(null)}
+        />
       )}
     </div>
   );
@@ -778,21 +770,38 @@ function ResourceRow({
   // volledige bibliotheekschrijfacties opleveren voor het typen van tien letters. Tekstvelden
   // (naam/eenheid) committeren daarom op blur/Enter, net als de bedrijfsnaam-draft in
   // `LibrarySection.tsx` (zelfde patroon: lokale draft, resync op externe wijziging, commit alleen bij
-  // een echt verschil). Numerieke/select-velden (max.eenheden via `UnitsInput`, type, kalender) blijven
-  // bewust WEL direct: het zijn korte, atomaire wijzigingen (een paar cijfers, of één discrete keuze),
-  // geen aanhoudende vrije tekst-compositie — de marginale pool-bump-kost daarvan is verwaarloosbaar
-  // vergeleken met een meerdere-woorden-lange naam, en `UnitsInput` doet dit al overal (ook in de
-  // Projectweergave) zo. Alleen relevant voor `isPool`; de Projectweergave-tak van elke cel hieronder
-  // (locked ? static : direct invoerveld) is ongewijzigd.
+  // een echt verschil). Max.eenheden (`UnitsInput`), type en kalender blijven bewust WEL direct: korte,
+  // atomaire wijzigingen (een paar cijfers, of één discrete keuze).
+  //
+  // Audit resources-kalenders R9: de Projectweergave schreef naam, tarief en eenheid wél per
+  // toetsaanslag (`updateResource` → één undo-stap per letter; Ctrl+Z haalde één teken weg, en
+  // alles-selecteren + Backspace zette een lege naam in de store en de undo-geschiedenis). Beide
+  // weergaven lopen nu door dezelfde drafts hieronder: één commit bij het verlaten van het veld, dus
+  // één undo-stap. Een lege naam wordt nooit gecommit — het veld valt terug op de huidige naam (de
+  // AI-route weigert een lege naam ook). Het tarief volgt hetzelfde pad: leeg = geen tarief, een
+  // ongeldig getal valt terug.
   const [nameDraft, setNameDraft] = useState(resource.name);
   useEffect(() => { setNameDraft(resource.name); }, [resource.id, resource.name]);
-  const commitNameDraft = () => { if (nameDraft !== resource.name) onPatch({ name: nameDraft }); };
+  const commitNameDraft = () => {
+    if (nameDraft.trim() === '') { setNameDraft(resource.name); return; }
+    if (nameDraft !== resource.name) onPatch({ name: nameDraft });
+  };
 
   const [unitDraft, setUnitDraft] = useState(resource.unitOfMeasure ?? '');
   useEffect(() => { setUnitDraft(resource.unitOfMeasure ?? ''); }, [resource.id, resource.unitOfMeasure]);
   const commitUnitDraft = () => {
     const v = unitDraft || undefined;
     if (v !== resource.unitOfMeasure) onPatch({ unitOfMeasure: v });
+  };
+
+  const rateText = resource.costPerHour == null ? '' : String(resource.costPerHour);
+  const [rateDraft, setRateDraft] = useState(rateText);
+  useEffect(() => { setRateDraft(rateText); }, [resource.id, rateText]);
+  const commitRateDraft = () => {
+    const raw = rateDraft.trim();
+    const next = raw === '' ? undefined : parseFloat(raw);
+    if (next !== undefined && !Number.isFinite(next)) { setRateDraft(rateText); return; }
+    if (next !== resource.costPerHour) onPatch({ costPerHour: next });
   };
 
   return (
@@ -805,37 +814,28 @@ function ResourceRow({
         <td className="px-1 py-1">
           {/* #21: kleurkolom — toont de EFFECTIEVE kleur (eigen keuze of hash-fallback), zodat de
               cel nooit "leeg" oogt terwijl balken wél gekleurd zijn. Bewust zonder geërfd-gating:
-              kleur is geen bibliotheekafspraak (RESOURCE_DIFF_FIELDS) en mag overal gekozen worden. */}
-          <input
-            type="color"
-            aria-label={t('resource.color')}
-            title={t('resource.color')}
+              kleur is geen bibliotheekafspraak (RESOURCE_DIFF_FIELDS) en mag overal gekozen worden.
+              Commit pas bij het kiezen (native `change`), niet per sleepstap: zie `CommitColorInput`. */}
+          <CommitColorInput
+            label={t('resource.color')}
             value={resourceDisplayColor(resource)}
-            onChange={e => onPatch({ color: e.target.value })}
+            onCommit={color => onPatch({ color })}
             className="block h-6 w-8 cursor-pointer rounded border border-border bg-transparent p-0"
           />
         </td>
         <td className="px-2 py-1">
           <div className="flex items-center gap-1 min-w-0">
-            {isPool ? (
+            {locked ? (
+              <span className={cellStatic} title={t('resource.inheritedFieldHint')}>
+                {resource.name || '—'}
+              </span>
+            ) : (
               <input
                 value={nameDraft}
                 onChange={e => setNameDraft(e.target.value)}
                 onBlur={commitNameDraft}
                 // Enter/↑/↓ verplaatsen de cursor (#48); de focuswissel blurt dit veld en dat is
                 // precies wat de draft committeert — daarom hier geen eigen Enter-blur meer.
-                {...cellProps(resource.id, 'name')}
-                className={cellInput}
-                placeholder={t('resource.name')}
-              />
-            ) : locked ? (
-              <span className={cellStatic} title={t('resource.inheritedFieldHint')}>
-                {resource.name || '—'}
-              </span>
-            ) : (
-              <input
-                value={resource.name}
-                onChange={e => onPatch({ name: e.target.value })}
                 {...cellProps(resource.id, 'name')}
                 className={cellInput}
                 placeholder={t('resource.name')}
@@ -974,43 +974,30 @@ function ResourceRow({
               type="number"
               min={0}
               step="any"
-              value={resource.costPerHour ?? ''}
-              onChange={e => {
-                const raw = e.target.value;
-                if (raw === '') { onPatch({ costPerHour: undefined }); return; }
-                const n = parseFloat(raw);
-                if (Number.isFinite(n)) onPatch({ costPerHour: n });
-              }}
+              value={rateDraft}
+              onChange={e => setRateDraft(e.target.value)}
+              onBlur={commitRateDraft}
               {...cellProps(resource.id, 'cost')}
               className={cellInput + ' text-right'}
             />
           )}
         </td>
         {costLabel !== undefined && (
-          <td className="px-2 py-1 text-right tabular-nums" title={t('resource.totalHint')}>
+          <td className="px-2 py-1 text-right tabular-nums" title={t('resource.totalHint')} data-ops-resource-total={resource.id}>
             {costLabel}
           </td>
         )}
         <td className="px-2 py-1">
-          {isPool ? (
-            <input
-              value={unitDraft}
-              disabled={!isMaterial}
-              onChange={e => setUnitDraft(e.target.value)}
-              onBlur={commitUnitDraft}
-              {...cellProps(resource.id, 'unit')}
-              className={cellInput + ' disabled:opacity-30'}
-              title={isMaterial ? undefined : t('resource.unitOnlyMaterial')}
-            />
-          ) : locked ? (
+          {locked ? (
             <span className={cellStatic} title={t('resource.inheritedFieldHint')}>
               {isMaterial ? (resource.unitOfMeasure || '—') : '—'}
             </span>
           ) : (
             <input
-              value={resource.unitOfMeasure ?? ''}
+              value={unitDraft}
               disabled={!isMaterial}
-              onChange={e => onPatch({ unitOfMeasure: e.target.value || undefined })}
+              onChange={e => setUnitDraft(e.target.value)}
+              onBlur={commitUnitDraft}
               {...cellProps(resource.id, 'unit')}
               className={cellInput + ' disabled:opacity-30'}
               title={isMaterial ? undefined : t('resource.unitOnlyMaterial')}

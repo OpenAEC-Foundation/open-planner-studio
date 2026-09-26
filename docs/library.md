@@ -94,8 +94,8 @@ Dit is de kern, en de plek waar het model door meerdere reviewrondes is bijgeste
 - **Volgt de bibliotheek** (wordt bij een verversing overgenomen): de **identiteitsvelden** van een
   bibliotheekresource — naam, type, beschrijving, tarief/uur, eenheid. De bibliotheek bepaalt WAT de
   resource IS; dat geldt voor elk project dat 'm gebruikt.
-- **Volgt de bibliotheek**: de **inhoud** van een meegereisde kalender (werkdagen, uren, vrije
-  dagen/feestdagen). Wijs je een bibliotheekresource toe, dan reist zijn kalender mee als gestempelde
+- **Volgt de bibliotheek**: de **inhoud** van een meegereisde kalender (werkdagen, uren, pauze, vrije
+  dagen/feestdagen, werkende uitzonderingen — alle inhoudsvelden van de kalender). Wijs je een bibliotheekresource toe, dan reist zijn kalender mee als gestempelde
   kopie die de pool blijft volgen — precies als de resource zelf.
 - **Volgt de bibliotheek NIET**: max. eenheden en de tijdgefaseerde beschikbaarheid. Dat is
   projectinzet — hoeveel dit project van de resource opeist, en op welk ritme — geen
@@ -124,7 +124,7 @@ niet van toepassing (er is geen actieve koppeling).
 | Max. eenheden | Projectweergave (dit project) | Nee — projectinzet |
 | Tijdgefaseerde beschikbaarheid | Projectweergave (dit project) | Nee — projectinzet |
 | Kalenderkeuze (welke kalender hangt eraan) | Projectweergave (dit project) | Nee — projectkeuze |
-| Kalenderinhoud (werkdagen/uren/vrije dagen van de gekozen, meegereisde kalender) | Bibliotheekweergave (de pool-kalender) | Ja |
+| Kalenderinhoud (werkdagen/uren/pauze/vrije dagen van de gekozen, meegereisde kalender) | Bibliotheekweergave (de pool-kalender) | Ja |
 
 ## Drie acties verbinden de werelden
 
@@ -183,6 +183,20 @@ heel verschillende situaties:
 
 Een projectitem zonder `syncedHash` (een bestand van vóór dit veld bestond) valt aan de veilige kant:
 het telt altijd als mogelijk lokaal bewerkt, dus als `deviated` — nooit als `behind`.
+
+**Twee hashvormen voor kalenders.** Het pauzepatroon (`simpleBreakStartMinute`/
+`simpleBreakDurationMinutes`) en de werkende uitzonderingen (`workingExceptions`) zijn later aan de
+gevolgde kalendervelden toegevoegd (audit resources-kalenders R2; daarvoor bereikte een pauzewijziging
+in de bibliotheek de kopieën nooit). Omdat `syncedHash` via IFC round-tript, dragen bestaande bestanden
+een hash over de tien oudere velden. Daarom:
+
+- een kalender zonder die drie velden (verreweg de meeste) krijgt nog steeds exact die oude hash — zijn
+  stempel verandert niet;
+- een kalender mét een van die velden krijgt een hash over alle inhoudsvelden;
+- een oude stempel op een kopie mét pauzevelden dekt die velden niet. Hij telt als onbewerkt zolang de
+  oude velden kloppen én de pauzevelden gelijk zijn aan de bibliotheek. Wijken de pauzevelden af, dan is
+  niet te zeggen wie ze veranderde en valt hij aan de veilige kant (`deviated`). De eerstvolgende
+  verversing zet een stempel in de nieuwe vorm.
 
 ## De vier verversingsgrenzen
 

@@ -10,12 +10,12 @@ La finestra **Calendari** gestisce la libreria dei calendari del progetto: l'ele
 
 ## Applicare e annullare
 
-Tutte le modifiche — comprese nuovo/duplica/elimina — avvengono in una copia di lavoro. **Applica** (o **Invio**) scrive tutto in una volta e ricalcola la pianificazione; **Annulla**, **Esc**, la crocetta di chiusura o un clic fuori dalla finestra scarta tutte le modifiche.
+Tutte le modifiche — comprese nuovo/duplica/elimina — avvengono in una copia di lavoro. **Applica** scrive tutto in una volta, ricalcola la pianificazione e chiude la finestra; **Invio** in un campo di testo come il nome fa lo stesso ma lascia la finestra aperta. Se non è cambiato nulla, **Applica** e **Invio** non fanno nulla: il documento resta invariato e la pianificazione non viene ricalcolata. **Annulla**, **Esc**, la crocetta di chiusura o un clic fuori dalla finestra scarta tutte le modifiche non ancora confermate con **Applica** o **Invio**.
 
 ## Libreria (colonna sinistra)
 
-- **Elenco** — tutti i calendari; la stella contrassegna il **Calendario del progetto** (il predefinito per le attività senza un proprio calendario).
-- **+** — **Nuovo calendario**.
+- **Elenco** — tutti i calendari; la stella contrassegna il **Calendario del progetto** (il predefinito per le attività senza un proprio calendario). Un segnale di avviso indica un calendario con dati non validi.
+- **+** — **Nuovo calendario**, con la stessa impostazione predefinita di **+ Calendario risorsa** nel pannello risorse e di un nuovo progetto: lun–ven 07:00–16:00 e, con la **Modalità cantiere** attiva, le festività olandesi. Se non ne vuoi, scegli **Genera festività…** → **Nessuna festività**.
 - **Duplica** — copia del calendario selezionato.
 - **Elimina** — non possibile per l'ultimo calendario; eliminando il predefinito del progetto un altro calendario diventa il predefinito.
 - **Imposta come predefinito del progetto** — rende il calendario selezionato il calendario del progetto (pulsante sopra il modulo).
@@ -47,4 +47,4 @@ Genera l'elenco delle festività in base a regole sull'intero periodo del proget
 
 ## Festività
 
-L'elenco vero e proprio: per ogni riga **Descrizione**, **Da**, **A** e un pulsante di rimozione; **Aggiungi festività** crea una nuova riga. I periodi pluri-giornalieri (ferie edili, sospensione per gelo) sono semplicemente una riga con un intervallo Da–A più lungo.
+L'elenco vero e proprio: per ogni riga **Descrizione**, **Da**, **A** e un pulsante di rimozione; **Aggiungi festività** crea una nuova riga. I periodi pluri-giornalieri (ferie edili, sospensione per gelo) sono semplicemente una riga con un intervallo Da–A più lungo. Un campo **A** vuoto indica una festività di un solo giorno. Se manca **Da**, oppure **A** precede **Da**, la riga viene evidenziata in rosso con una spiegazione e **Applica** e **Invio** restano bloccati finché non la correggi.

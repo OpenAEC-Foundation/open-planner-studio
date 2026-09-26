@@ -10,12 +10,12 @@ La ventana **Calendarios** gestiona la biblioteca de calendarios del proyecto: l
 
 ## Aplicar y cancelar
 
-Todas las ediciones — incluidas nuevo/duplicar/eliminar — ocurren en una copia de trabajo. **Aplicar** (o **Intro**) escribe todo de una vez y recalcula la planificación; **Cancelar**, **Esc**, la cruz de cierre o un clic fuera de la ventana descarta todos los cambios.
+Todas las ediciones — incluidas nuevo/duplicar/eliminar — ocurren en una copia de trabajo. **Aplicar** escribe todo de una vez, recalcula la planificación y cierra la ventana; **Intro** en un campo de texto como el nombre hace lo mismo pero deja la ventana abierta. Si no ha cambiado nada, **Aplicar** e **Intro** no hacen nada: el documento sigue sin modificar y la planificación no se recalcula. **Cancelar**, **Esc**, la cruz de cierre o un clic fuera de la ventana descarta todos los cambios que aún no se hayan confirmado con **Aplicar** o **Intro**.
 
 ## Biblioteca (columna izquierda)
 
-- **Lista** — todos los calendarios; la estrella marca el **Calendario del proyecto** (el predeterminado para tareas sin calendario propio).
-- **+** — **Nuevo calendario**.
+- **Lista** — todos los calendarios; la estrella marca el **Calendario del proyecto** (el predeterminado para tareas sin calendario propio). Un signo de advertencia marca un calendario con datos no válidos.
+- **+** — **Nuevo calendario**, con el mismo valor predeterminado que **+ Calendario del recurso** en el panel de recursos y que un proyecto nuevo: lun–vie 07:00–16:00 y, con el **Modo construcción** activado, los festivos neerlandeses. Si no quiere ninguno, elija **Generar festivos…** → **Sin festivos**.
 - **Duplicar** — copia del calendario seleccionado.
 - **Eliminar** — no es posible para el último calendario; eliminar el predeterminado del proyecto hace que otro calendario pase a ser el predeterminado.
 - **Establecer como predeterminado del proyecto** — convierte el calendario seleccionado en el calendario del proyecto (botón encima del formulario).
@@ -47,4 +47,4 @@ Genera la lista de festivos basada en reglas a lo largo del período del proyect
 
 ## Festivos
 
-La lista en sí: por fila **Descripción**, **Desde**, **Hasta** y un botón de eliminar; **Añadir festivo** crea una nueva fila. Los períodos de varios días (vacaciones de construcción, parada por heladas) son simplemente una fila con un intervalo Desde–Hasta más largo.
+La lista en sí: por fila **Descripción**, **Desde**, **Hasta** y un botón de eliminar; **Añadir festivo** crea una nueva fila. Los períodos de varios días (vacaciones de construcción, parada por heladas) son simplemente una fila con un intervalo Desde–Hasta más largo. Un **Hasta** vacío significa un festivo de un solo día. Si falta **Desde**, o **Hasta** es anterior a **Desde**, la fila se marca en rojo con una explicación y **Aplicar** e **Intro** quedan bloqueados hasta que la corrija.

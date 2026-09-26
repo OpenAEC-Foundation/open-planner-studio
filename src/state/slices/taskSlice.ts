@@ -21,15 +21,27 @@ import {
   isActualPastStatusDate,
 } from '@/engine/taskMutationRules';
 import type { WbsTemplate } from '@/utils/wbsTemplates';
-import { detachFromParent, attachToParent, isSelfOrDescendant, removeTaskSubtrees, siblingIds } from '@/state/taskTree';
+import {
+  detachFromParent, attachToParent, isSelfOrDescendant, removeTaskSubtrees, siblingIds,
+} from '@/state/taskTree';
+import { milestoneRefusal } from '@/engine/taskMilestoneTransition';
+import {
+  applyPhaseTransitions, firstChildGains, milestoneRefusalNotices, phaseRefusalNotice, phaseTransitionNotices,
+  planPhaseTransitions, type PendingChild, type PhaseGain, type PhaseTransition,
+} from '@/state/structuralTransition';
 import { assignInsertedWbsCodes, insertRemappedRelations, notifyRelationsSkipped } from '@/state/insertedBranch';
+import { notifyHierarchyCycle, watchAncestorRelations } from '@/state/hierarchyRelationNotice';
+import {
+  hierarchyChangeVerdict, NO_HIERARCHY_CHANGE, type HierarchyChangeVerdict, type HierarchyEdit,
+} from '@/state/hierarchyChange';
+import type { RelationTree } from '@/engine/scheduler/relationRules';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import {
   captureCalendarChange, captureTriangle, carryRemainingThroughDurationEdit, settleCalendarChange,
   settleDurationEdit, settleRuleChange, captureProgressWork, settleProgressWork,
 } from '@/engine/work/workRuleApply';
 import type { WorkRule } from '@/types/workRule';
-import type { AppSliceFactory, SiblingDirection } from './types';
+import type { AppSlice, AppSliceFactory, NotifyInput, SiblingDirection } from './types';
 import type { AppState } from '../appStore';
 import type { StoreRuntime } from '../runtime/storeRuntime';
 import { hasConcreteWorkBlocks } from '@/services/subdayIo';
@@ -48,6 +60,9 @@ import type { ProgressImportPlan, ProgressOverrides, ProgressRow } from '@/servi
  */
 export interface TaskSlice {
   tasks: Task[];
+  /** Wordt de OUDER hierdoor een fase terwijl hij toewijzingen draagt, dan verhuizen die naar de
+   *  nieuwe taak (`structuralTransition.ts`); kan dat niet — de nieuwe taak is een mijlpaal — dan
+   *  voegt `addTask` NIETS toe, meldt het en geeft `''` terug. */
   addTask: (task: Partial<Task> & {
     name: string;
     /** Golf 1 (fase 2.10, Insert-sneltoets/contextmenu "invoegen boven/onder"): plaats de nieuwe
@@ -60,7 +75,9 @@ export interface TaskSlice {
    *  per saldo niets (structureel, `sameValue`), dan is hij een no-op: geen undo-stap, geen
    *  `isDirty`, geen melding. De gevolgregels (laag 3/4 ontkoppelen, nivelleergaten, duurgevolgen)
    *  vuren alleen op een ECHT gewijzigde waarde, niet op een meegestuurde sleutel
-   *  (`taskTriggerChanges`). */
+   *  (`taskTriggerChanges`).
+   *  Wordt `isMilestone` aangezet op een fase of een taak met toewijzingen, dan weigert `updateTask`
+   *  de HELE patch (geen mutatie, geen undo-stap) en meldt het — `milestoneRefusal` (#210). */
   updateTask: (id: string, updates: Partial<Task>, opts?: { coalesceKey?: string }) => void;
   /** Taaktypes-etappe (spec 2026-09-04 §5 rij 6): zet de werkregel van één taak (`undefined` = terug
    *  naar de projectstandaard). Geen getal verandert; een werkbeschermende regel legt het huidige
@@ -293,6 +310,342 @@ function applyTaskPlacement(tasks: Task[], id: string, plan: TaskPlacement): voi
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+//  Verhangen: de boomwijziging per route, en één weg om hem toe te passen
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+//
+// Elke verhangroute (`moveTask`, `moveTaskTo`, `moveTasksTo`, `indentTasks`, `outdentTasks`) is hier
+// een `HierarchyEdit`: de boomwijziging zelf, als functie op een takenlijst. `applyHierarchyEdit`
+// draait die functie EERST op een proefkopie (`hierarchyChangeVerdict`: maakt de uitkomst een nieuwe
+// kring in de relatiegraaf zoals de solver hem uitvouwt?) en pas daarna op de draft. Zo toetst de
+// kringregel exact wat de actie gaat doen, en weigert hij vóór er een undo-snapshot of mutatie is.
+// De dialoog "Taak bewerken" en MCP `planner_move_task` gebruiken via `moveTaskVerdict` dezelfde
+// proef.
+
+/**
+ * `moveTask`: `id` onder `newParentId` (null = root), op `position` of achteraan.
+ *
+ * Cykel-preventie (QA-fix P1, fase 2.10 onderdeel 2): newParentId mag niet id zelf zijn, en niet een
+ * afstammeling van id — anders ontstaat een lus in de boom (oneindige loops in flattenOrder/viewRows).
+ * Geweigerd ⇒ niets gewijzigd: geen snapshot, geen halftoegepaste state. Dit is de enige plek die
+ * parentId/childIds voor "Taak bewerken" mag muteren (zie TaskDialog.handleSave — die haalt parentId
+ * daarom uit de kale `updateTask`-patch en roept in plaats daarvan `moveTask` aan). `position`
+ * verandert deze guards NIET: een geweigerde move blijft ook mét positie geweigerd.
+ */
+function moveTaskEdit(id: string, newParentId: string | null, position?: number): HierarchyEdit {
+  return (tasks) => {
+    const task = tasks.find(t => t.id === id);
+    if (!task) return NO_HIERARCHY_CHANGE;
+    // Cyklusguard (review issue #21 pt. 1): de nieuwe ouder mag de taak zelf of een afstammeling
+    // ervan niet zijn — corrupte parentId-cycli zijn bereikbaar via een IFC waarin `extractNesting`
+    // de nesting zonder cyklusguard zet. Sinds K-item 35 de gedeelde functie; hier stond tot een
+    // review een vijfde handkopie inclusief eigen bezocht-set.
+    if (newParentId != null && isSelfOrDescendant(tasks, newParentId, id)) return NO_HIERARCHY_CHANGE;
+    const oldParentId = task.parentId;
+
+    // Remove from old parent
+    detachFromParent(tasks, id);
+
+    // Insert op `position` (T12), of — zonder positie — achteraan, volgens het dubbele-
+    // volgorde-principe van de store-`addTask` met anker. WBS-nummering (flattenOrder) leest de
+    // RAUWE array-volgorde en negeert childIds; de zichtbare volgorde van niet-root taken leest
+    // juist childIds (visibleRows.ts). Daarom moet de invoegplek op BEIDE plekken kloppen — ook
+    // zonder expliciete `position` (voorheen liet die tak de rauwe array ongemoeid, waardoor het
+    // WBS-nummer de oude array-positie van vóór de move bleef volgen terwijl de taak zichtbaar
+    // achteraan verscheen: gerapporteerde 3.1/3.2/3.3-bug, taskDialog "parent wijzigen").
+    //
+    // (1) childIds van de nieuwe ouder — zichtbare volgorde voor niet-root taken.
+    // `attachToParent` zet parentId én voegt geklemd in — hier stond diezelfde klem-en-splice
+    // tot een review nog een keer overgetypt.
+    attachToParent(tasks, id, newParentId, position);
+    // (2) rauwe tasks-array — root-volgorde + WBS. Haal de taak eruit en zet 'm terug zó dat
+    // hij — gerekend over alléén zijn siblings (taken met dezelfde parentId, in array-volgorde)
+    // — op index `position` (of, zonder positie, achteraan) staat. Nakomelingen blijven staan
+    // waar ze staan; flattenOrder herbouwt de boom uit parentId, dus alleen de sibling-volgorde
+    // van deze taak telt.
+    const fromIdx = tasks.findIndex(t => t.id === id);
+    const [moved] = tasks.splice(fromIdx, 1);
+    const sibIdx: number[] = [];
+    tasks.forEach((t, i) => { if (t.parentId === newParentId) sibIdx.push(i); });
+    const at = position === undefined
+      ? sibIdx.length
+      : Math.max(0, Math.min(position, sibIdx.length)); // klem naar [0, aantal siblings]
+    let insertAt: number;
+    if (at < sibIdx.length) {
+      insertAt = sibIdx[at];                       // vóór de huidige `at`-de sibling
+    } else if (sibIdx.length > 0) {
+      insertAt = sibIdx[sibIdx.length - 1] + 1;    // achter de laatste sibling
+    } else if (newParentId) {
+      const p = tasks.findIndex(t => t.id === newParentId);
+      insertAt = p >= 0 ? p + 1 : tasks.length;    // enig kind: vlak achter de ouder
+    } else {
+      insertAt = tasks.length;                     // enige root: achteraan
+    }
+    tasks.splice(insertAt, 0, moved);
+    return { changed: true, reparented: newParentId !== oldParentId };
+  };
+}
+
+/**
+ * `moveTaskTo` (rij slepen, issue #21): één taak naar een exacte positie. Alle guards (onbekende
+ * taak/ouder, cykel, no-op) zitten in de gedeelde planner; `null` ⇒ niets gewijzigd.
+ * `rejectNoOp: true` — slepen naar de eigen plek mag geen undo-entry of dirty-vlag opleveren.
+ */
+function moveTaskToEdit(id: string, target: { parentId: string | null; childIndex: number }): HierarchyEdit {
+  return (tasks) => {
+    const task = tasks.find(t => t.id === id);
+    if (!task) return NO_HIERARCHY_CHANGE;
+    const oldParentId = task.parentId; // vóór de mutatie lezen (bepaalt `stale`).
+    const plan = planTaskPlacement(tasks, id, target, { rejectNoOp: true });
+    if (!plan) return NO_HIERARCHY_CHANGE;
+    applyTaskPlacement(tasks, id, plan);
+    return { changed: true, reparented: plan.parentId !== oldParentId };
+  };
+}
+
+/** `moveTasksTo` (issue #26): een hele selectie naar één doelpositie — zie de interfacedoc. */
+function moveTasksToEdit(ids: string[], target: { parentId: string | null; childIndex: number }): HierarchyEdit {
+  return (tasks) => {
+    // ---- 1. Onbekende ids weg, en afstammelingen van een mede-geselecteerde taak weg ----------
+    // Een kind verhuist automatisch mee met zijn ouder (de subboom hangt aan `parentId`), dus
+    // een apart verplaatst kind zou zichzelf uit de meeverhuisde ouder trekken. `indentTasks`/
+    // `outdentTasks` lossen ditzelfde probleem op met een diepste-eerst-sortering; hier is
+    // wegfilteren juist, want de groep landt op één doelpositie.
+    const geselecteerd = new Set(ids.filter(id => tasks.some(t => t.id === id)));
+    // `ancestorIds` is cyclusveilig tegen corrupte parentId-cycli uit een kapot IFC.
+    const parentOf = (id: string) => tasks.find(t => t.id === id)?.parentId;
+    /** Zit er in de ouderketen van `id` een mede-geselecteerde taak? */
+    const heeftGeselecteerdeVoorouder = (id: string): boolean => {
+      for (const voorouder of ancestorIds(id, parentOf)) if (geselecteerd.has(voorouder)) return true;
+      return false;
+    };
+    const teVerplaatsen = [...geselecteerd].filter(id => !heeftGeselecteerdeVoorouder(id));
+    if (teVerplaatsen.length === 0) return NO_HIERARCHY_CHANGE;
+
+    // ---- 2. Sorteren op WEERGAVEvolgorde ----------------------------------------------------
+    // Niet op selectievolgorde: de groep hoort in zijn oorspronkelijke volgorde neer te komen,
+    // ook als de gebruiker eerst de onderste en daarna de bovenste rij aanklikte.
+    const order = flattenOrder(tasks).map(t => t.id);
+    const gesorteerd = teVerplaatsen.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+
+    // ---- 3. Cykelguard op GROEPSniveau ------------------------------------------------------
+    // `planTaskPlacement` guardt dit per taak, maar dan zou de ene helft van de groep wél en de
+    // andere niet verhuizen. Een groep die je op zichzelf (of op een eigen afstammeling) dropt
+    // doet daarom HELEMAAL niets.
+    if (target.parentId !== null) {
+      const groep = new Set(gesorteerd);
+      if (groep.has(target.parentId)) return NO_HIERARCHY_CHANGE;
+      for (const voorouder of ancestorIds(target.parentId, parentOf)) if (groep.has(voorouder)) return NO_HIERARCHY_CHANGE;
+    }
+
+    // ---- 4. Eén voor één plaatsen, elk direct ná zijn voorganger -----------------------------
+    let changed = false;
+    let reparented = false;
+    /** De vorige taak van de groep die daadwerkelijk op zijn plek staat; de volgende landt er
+     *  direct achter. `null` = nog geen enkele geplaatst ⇒ start op `target.childIndex`. */
+    let vorigeId: string | null = null;
+    for (const id of gesorteerd) {
+      const task = tasks.find(t => t.id === id);
+      if (!task) continue;
+
+      // De doelindex opnieuw AFLEIDEN uit de werkelijke positie van de voorganger — niet blind
+      // ophogen. `planTaskPlacement` klemt en telt tegen de siblinglijst ZÓNDER `id` zelf, dus
+      // meten we hier in exact diezelfde lijst. Blind `idx + 1` gaat mis zodra `id` vóór de
+      // voorganger stond (de lijst schuift dan een plek op) — dat keert de volgorde om of laat
+      // gaten vallen.
+      let childIndex = target.childIndex;
+      if (vorigeId !== null) {
+        // `id` er expliciet uit: `planTaskPlacement` klemt en telt tegen de siblinglijst ZÓNDER
+        // de verplaatste taak (zie `siblingIdsAfterRemoval`). Meten we hier in de lijst MÉT `id`,
+        // dan is de index één te hoog zodra `id` momenteel vóór de voorganger staat.
+        const siblingsZonderId = siblingIds(tasks, target.parentId).filter(x => x !== id);
+        const vorigeIdx = siblingsZonderId.indexOf(vorigeId);
+        // −1 kan alleen bij een kapotte boom: dan achteraan, net als de fallbacks elders.
+        childIndex = vorigeIdx >= 0 ? vorigeIdx + 1 : siblingsZonderId.length;
+      }
+
+      const oudeOuder = task.parentId;
+      // `rejectNoOp: false`: de no-op-guard mag hier geen legitieme herplaatsing tegenhouden —
+      // hij zou ook `vorigeId` niet bijwerken en daarmee de rest van de groep verkeerd plaatsen.
+      // De no-op-detectie doen we hieronder zelf, puur om te bepalen of er iets te ondoen valt.
+      const plan = planTaskPlacement(tasks, id, { parentId: target.parentId, childIndex }, { rejectNoOp: false });
+      if (!plan) continue; // onbekende doel-ouder of cykel (stap 3 dekt de groep al) ⇒ overslaan.
+
+      // Staat de taak al precies goed? Dan niets muteren (en dus ook geen undo-stap forceren),
+      // maar wél als voorganger tellen — hij stáát immers op de doelpositie. `curIdx` (index MÉT
+      // zichzelf) en `plan.index` (ZONDER zichzelf) zijn direct vergelijkbaar, zie guard 4.
+      const curIdx = siblingIds(tasks, oudeOuder).indexOf(id);
+      if (plan.parentId !== oudeOuder || plan.index !== curIdx) {
+        applyTaskPlacement(tasks, id, plan);
+        changed = true;
+        if (plan.parentId !== oudeOuder) reparented = true;
+      }
+      vorigeId = id;
+    }
+    return { changed, reparented };
+  };
+}
+
+/**
+ * `indentTasks` (MSP Alt+Shift+→). Kandidaat-ouder = de voorgaande sibling in de weergavevolgorde
+ * (flattenOrder). Geen voorgaande sibling => no-op voor die taak. De subboom lift mee via parentId.
+ * Binnen een meervoudige selectie springt een aaneengesloten blok als geheel in: geselecteerde
+ * voorgaande siblings worden overgeslagen als kandidaat-ouder, anders nest het blok trapsgewijs in
+ * elkaar.
+ */
+function indentEdit(ids: string[]): HierarchyEdit {
+  return (tasks) => {
+    const selected = new Set(ids);
+    let changed = false;
+    const order = flattenOrder(tasks).map(t => t.id);
+    for (const id of order) {
+      if (!selected.has(id)) continue;
+      const task = tasks.find(t => t.id === id);
+      if (!task) continue;
+      const idx = order.indexOf(id);
+      let newParentId: string | null = null;
+      for (let i = idx - 1; i >= 0; i--) {
+        const cand = tasks.find(t => t.id === order[i]);
+        if (!cand) continue;
+        if (cand.parentId === task.parentId && !selected.has(cand.id)) {
+          newParentId = cand.id;
+          break;
+        }
+        // Voorbij het bereik van dezelfde ouder (omhoog de boom uit): stoppen.
+        if (cand.id === task.parentId) break;
+      }
+      if (!newParentId) continue;
+      detachFromParent(tasks, id);
+      attachToParent(tasks, id, newParentId);
+      changed = true;
+    }
+    return { changed, reparented: changed };
+  };
+}
+
+/** `outdentTasks` (MSP Alt+Shift+←): elke taak wordt sibling direct ná haar huidige ouder. */
+function outdentEdit(ids: string[]): HierarchyEdit {
+  return (tasks) => {
+    // Diepste taken eerst zodat een geselecteerde ouder+kind-combinatie niet dubbelt.
+    const order = flattenOrder(tasks).map(t => t.id);
+    const sorted = [...ids].sort((a, b) => order.indexOf(b) - order.indexOf(a));
+    let changed = false;
+    for (const id of sorted) {
+      const task = tasks.find(t => t.id === id);
+      if (!task || !task.parentId) continue;
+      const parent = tasks.find(t => t.id === task.parentId);
+      if (!parent) continue;
+
+      // Doel (issue #26): sibling DIRECT ná de voormalige ouder — precies wat de
+      // interface-comment belooft. Zoek daarvoor de positie van `parent` in DIENS
+      // eigen siblinglijst: de childIds van de grootouder, of — als `parent` op rootniveau
+      // staat — de root-volgorde uit de rauwe array (zie engine/view/dropTarget.ts).
+      // Dat root-geval was het echte gat: daar werd de volgorde vroeger helemaal niet
+      // bijgewerkt, waardoor de taak op zijn oude (meestal laatste) array-plek bleef staan.
+      const parentSiblingIds = parent.parentId
+        ? (tasks.find(t => t.id === parent.parentId)?.childIds ?? [])
+        : tasks.filter(t => !t.parentId).map(t => t.id);
+      const parentIdx = parentSiblingIds.indexOf(parent.id);
+      // `parent` niet in zijn eigen siblinglijst (corrupte state): achteraan, zoals vroeger.
+      const childIndex = parentIdx >= 0 ? parentIdx + 1 : parentSiblingIds.length;
+
+      // Zelfde plaatsingslogica als rij-slepen (`moveTaskTo`), inclusief het synchroon houden
+      // van parentId + childIds + rauwe array. `rejectNoOp: false`: uitspringen is per definitie
+      // een reparent, dus de no-op-guard kan hier nooit terecht afgaan — uitgezet zodat hij een
+      // legitieme herplaatsing niet per ongeluk kan tegenhouden.
+      const plan = planTaskPlacement(
+        tasks, id, { parentId: parent.parentId, childIndex }, { rejectNoOp: false },
+      );
+      if (!plan) continue; // alleen bij een kapotte boom (bv. verweesde grootouder-id).
+      applyTaskPlacement(tasks, id, plan);
+      changed = true;
+    }
+    return { changed, reparented: changed };
+  };
+}
+
+/**
+ * Mag `moveTask(id, newParentId, position)`? Dezelfde proef als de actie zelf doet — voor wie vóór
+ * de actie moet weten of hij doorgaat: "Taak bewerken" (weigeren vóór het opslaan, zodat een
+ * geweigerde ouder niet de rest van de bewerking half laat doorgaan) en MCP `planner_move_task`
+ * (weigeren als stapfout vóór de mutatie, in plaats van pas bij de eindberekening).
+ */
+export function moveTaskVerdict(
+  state: RelationTree,
+  id: string,
+  newParentId: string | null,
+  position?: number,
+): HierarchyChangeVerdict {
+  return hierarchyChangeVerdict(state, moveTaskEdit(id, newParentId, position));
+}
+
+type SliceSet = Parameters<AppSlice<TaskSlice>>[0];
+type SliceGet = Parameters<AppSlice<TaskSlice>>[1];
+
+/**
+ * De ene weg voor een verhanging: proef + kringtoets, en pas dan de mutatie.
+ *  - kring ⇒ melding die de kring noemt, verder NIETS: geen snapshot, geen undo-stap, geen
+ *    isDirty/stale (audit taakmutaties, S4);
+ *  - niets te verhangen (onbekende taak, cykelguard in de boom, al op zijn plek) ⇒ niets, zoals
+ *    voorheen de lazy snapshot al garandeerde;
+ *  - anders: één undo-stap, WBS-hernummering, `stale` naar `staleWhen` (pure herordening binnen
+ *    dezelfde ouder raakt geen summary-rollups — `moveTaskTo`/`moveTasksTo`), en de melding over
+ *    relaties die door het verhangen niet meer meetellen (`watchAncestorRelations`).
+ * De meldingen staan BUITEN de producer (`notify` doet zelf een `set()`).
+ */
+function applyHierarchyEdit(
+  runtime: StoreRuntime,
+  set: SliceSet,
+  get: SliceGet,
+  edit: HierarchyEdit,
+  staleWhen: 'always' | 'on-reparent',
+): void {
+  const before = get();
+  const verdict = hierarchyChangeVerdict(before, edit);
+  if (!verdict.ok) {
+    notifyHierarchyCycle(before, verdict.cycle);
+    return;
+  }
+  if (!verdict.changed) return;
+  // "Wordt fase" (#210, audit §6): krijgt een taak zonder kinderen door deze verhanging haar eerste
+  // kinderen, dan verhuizen haar toewijzingen naar de eerste nieuwe subtaak — of weigert de hele
+  // handeling, vóór snapshot en mutatie, net als de kringtoets hierboven.
+  const phasePlan = planPhaseTransitions(before, hierarchyPhaseGains(before.tasks, edit));
+  if (!phasePlan.ok) {
+    get().notify(phaseRefusalNotice(before, phasePlan.refusal));
+    return;
+  }
+  const outcome = emptyOutcome();
+  const reportAncestorRelations = watchAncestorRelations(before);
+  set((s) => {
+    runtime.beginUndoable(s); // één undo-stap, vóór de eerste draftmutatie (zie state/transaction.ts).
+    edit(s.tasks);
+    if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
+    settlePhaseTransitions(s, phasePlan.transitions, outcome);
+    // Datum-rakende mutatie (A6): planning verouderd tot F5 — behalve pure herordening.
+    runtime.finishMutation(s, { stale: staleWhen === 'always' || verdict.reparented });
+  });
+  finishStructural(get, outcome);
+  reportAncestorRelations(get());
+  get().recomputeViewRows();
+}
+
+/**
+ * De "wordt fase"-winst van een boomwijziging (integratie groep C: #210 × #234): welke taken hadden
+ * vóór `edit` geen kinderen en erna wel, met hun nieuwe kinderen in de eindvolgorde — dezelfde vorm
+ * als `firstChildGains`, maar afgelezen van DEZELFDE boomwijziging die de actie en de kringproef
+ * draaien, zodat de regel voor elke verhangroute (`moveTask`, `moveTaskTo`, `moveTasksTo`,
+ * `indentTasks`, `outdentTasks`) vanzelf klopt. Proef op een kopie; de state blijft onaangeroerd.
+ */
+function hierarchyPhaseGains(tasks: readonly Task[], edit: HierarchyEdit): PhaseGain[] {
+  const trial = tasks.map(task => ({ ...task, childIds: [...task.childIds] }));
+  edit(trial);
+  const hadChildren = new Map(tasks.map(task => [task.id, task.childIds.length > 0]));
+  return trial
+    .filter(task => hadChildren.get(task.id) === false && task.childIds.length > 0)
+    .map(task => ({ phaseId: task.id, childIds: [...task.childIds] }));
+}
+
 /**
  * De siblinglijst van `parentId` in DISPLAY-volgorde. Voor een echte ouder is dat gewoon zijn
  * `childIds`; op rootniveau bestaat die array niet — daar is de volgorde de relatieve volgorde
@@ -379,16 +732,41 @@ function applyActualDate(
   return true;
 }
 
+/**
+ * Wat een structuuractie (verhangen, inspringen, een kind toevoegen) na haar producer nog moet doen
+ * — de "wordt fase"-regel uit `structuralTransition.ts`: meldingen (via het ene kanaal, dus BUITEN de
+ * producer), het verlies van MSP-sturing door verhuisde toewijzingen, en een verse belasting.
+ */
+interface StructuralOutcome {
+  notices: NotifyInput[];
+  lostSteering: number;
+  assignmentsMoved: boolean;
+}
+const emptyOutcome = (): StructuralOutcome => ({ notices: [], lostSteering: 0, assignmentsMoved: false });
+
+/** Binnen de producer, NA de structuurmutatie en in dezelfde undo-stap: voer het plan uit. */
+function settlePhaseTransitions(s: AppState, transitions: readonly PhaseTransition[], outcome: StructuralOutcome): void {
+  if (transitions.length === 0) return;
+  outcome.lostSteering += applyPhaseTransitions(s, transitions).length;
+  outcome.notices.push(...phaseTransitionNotices(s, transitions));
+  if (transitions.some(t => t.assignmentIds.length > 0)) outcome.assignmentsMoved = true;
+}
+
+/** Buiten de producer: meldingen en belasting. */
+function finishStructural(get: () => AppState, outcome: StructuralOutcome): void {
+  for (const notice of outcome.notices) get().notify(notice);
+  if (outcome.lostSteering > 0) notifyTimephasedLoss(get().notify, get().activeDocumentId, outcome.lostSteering);
+  if (outcome.assignmentsMoved) get().recomputeResourceLoad();
+}
+
 export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, get) => ({
   tasks: [],
 
   addTask: (partial) => {
     const id = generateId('task');
+    const outcome = emptyOutcome();
+    let refused = false;
     set((s) => {
-      runtime.beginUndoable(s);
-
-      const now = s.project.startDate || formatDate(new Date());
-
       // Golf 1 (fase 2.10, Insert/contextmenu "invoegen boven/onder"): een geldige `position`
       // bepaalt zowel de OUDER (die van de anker) als de invoegplek — de aanroeper hoeft dan geen
       // (of een niet-matchende) `parentId` mee te geven. Onbekende anchorId ⇒ stille tolerantie:
@@ -398,6 +776,22 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         : undefined;
       const parentId = anchorTask ? anchorTask.parentId : (partial.parentId || null);
       const parentTask = parentId ? s.tasks.find(t => t.id === parentId) : undefined;
+
+      // Wordt de ouder hierdoor een fase (audit §6)? Plan VÓÓR enige mutatie: een weigering laat
+      // geen taak en geen undo-stap achter.
+      const pending = new Map<string, PendingChild>([[id, {
+        name: partial.name, isMilestone: !!partial.isMilestone, hasChildren: false,
+      }]]);
+      const phasePlan = planPhaseTransitions(s, firstChildGains(s.tasks, [{ childId: id, parentId }]), pending);
+      if (!phasePlan.ok) {
+        outcome.notices.push(phaseRefusalNotice(s, phasePlan.refusal, pending));
+        refused = true;
+        return;
+      }
+
+      runtime.beginUndoable(s);
+
+      const now = s.project.startDate || formatDate(new Date());
       const effectiveNewTaskCalendar = resolveCalendar(partial.calendarId, s.calendars, s.calendar);
       const defaultDurationUnit = s.ui.enableHourPlanning
         && s.project.defaultTaskDurationUnit === 'hours'
@@ -455,8 +849,11 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // aanroeper er zelf geen meegaf.
       if (s.project.wbsAutoNumber || !partial.wbsCode) assignInsertedWbsCodes(s, [id]);
 
+      settlePhaseTransitions(s, phasePlan.transitions, outcome);
       runtime.finishMutation(s, { stale: true }); // nieuwe taak (A6): planning verouderd tot F5.
     });
+    finishStructural(get, outcome);
+    if (refused) return '';
     get().recomputeViewRows();
     return id;
   },
@@ -466,6 +863,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     // `fileSlice.ts`'s `applyLoadedProject`: `notify` doet zelf een `set()`, dus nooit ván bínnen
     // een lopende producer aanroepen). `true` alleen bij een ECHT verlies, zie taskDefaults.ts.
     let lostTimephasedGuidance = false;
+    let refusedNotices: NotifyInput[] = [];
     set((s) => {
       const idx = s.tasks.findIndex(t => t.id === id);
       if (idx < 0) return; // onbekend id: geen snapshot, geen loze undo-stap (R3).
@@ -477,6 +875,19 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // Bleef er daarna niets te wijzigen over, dan vangt de no-op-guard hieronder dat (R3).
       if (updates.time && 'scheduleStart' in updates.time && isNaN(parseDate(updates.time.scheduleStart ?? '').getTime())) {
         updates = { ...updates, time: { ...updates.time, scheduleStart: task.time.scheduleStart } };
+      }
+      // Wordt mijlpaal (audit §6): dezelfde regel als raster en MCP. Een fase of een taak met
+      // toewijzingen weigert de HELE patch — een halve patch (bv. duur 0 zonder de mijlpaalvlag)
+      // zou erger zijn. Paneel, dialoog en contextmenu toetsen dit al vóór ze hier komen.
+      if (updates.isMilestone === true && !task.isMilestone) {
+        const refusal = milestoneRefusal({
+          hasChildren: isSummaryTask(task),
+          hasAssignments: s.assignments.some(a => a.taskId === id),
+        });
+        if (refusal) {
+          refusedNotices = milestoneRefusalNotices([{ name: task.name, refusal }]);
+          return;
+        }
       }
       // T14b-vervolg (gebruikstestbevinding): `updates.time` (indien meegegeven) apart mergen tegen
       // de BESTAANDE tijd van de taak i.p.v. 'm via Object.assign in zijn geheel te laten vervangen —
@@ -577,6 +988,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // Datum-rakende mutatie (duur/start/constraint/mijlpaal → planning verouderd tot F5, A6).
       runtime.finishMutation(s, { stale: true });
     });
+    for (const notice of refusedNotices) get().notify(notice);
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
     get().recomputeViewRows();
   },
@@ -732,284 +1144,28 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     get().recomputeViewRows();
   },
 
+  // Alle verhangroutes lopen via `applyHierarchyEdit`: eerst de proef met de kringtoets
+  // (`hierarchyChangeVerdict`), dan pas de mutatie — geweigerd ⇒ melding, geen wijziging, geen
+  // undo-stap. De boomwijziging zelf staat per route in een `HierarchyEdit` bovenaan dit bestand.
   moveTask: (id, newParentId, position) => {
-    set((s) => {
-      const task = s.tasks.find(t => t.id === id);
-      if (!task) return;
-
-      // Cykel-preventie (QA-fix P1, fase 2.10 onderdeel 2): newParentId mag niet id zelf zijn,
-      // en niet een afstammeling van id — anders ontstaat een lus in de boom (oneindige loops in
-      // flattenOrder/viewRows). Geweigerd ⇒ GEEN snapshot, GEEN mutatie: geen halftoegepaste
-      // state. Dit is de enige plek die parentId/childIds mag muteren (zie state/taskDialogSave.ts —
-      // het Opslaan van "Taak bewerken" haalt parentId daarom uit de kale `updateTask`-patch en
-      // roept in plaats daarvan dit aan).
-      // `position` verandert deze guards NIET: een geweigerde move blijft ook mét positie geweigerd.
-      if (newParentId != null) {
-        // Cyklusguard (review issue #21 pt. 1): de nieuwe ouder mag de taak zelf of een
-        // afstammeling ervan niet zijn — corrupte parentId-cycli zijn bereikbaar via een IFC
-        // waarin `extractNesting` de nesting zonder cyklusguard zet. Sinds K-item 35 de gedeelde
-        // functie; hier stond tot een review een vijfde handkopie inclusief eigen bezocht-set.
-        if (isSelfOrDescendant(s.tasks, newParentId, id)) return;
-      }
-
-      runtime.beginUndoable(s);
-
-      // Remove from old parent
-      detachFromParent(s.tasks, id);
-
-      // Insert op `position` (T12), of — zonder positie — achteraan, volgens het dubbele-
-      // volgorde-principe van de store-`addTask` met anker. WBS-nummering (flattenOrder) leest de
-      // RAUWE array-volgorde en negeert childIds; de zichtbare volgorde van niet-root taken leest
-      // juist childIds (visibleRows.ts). Daarom moet de invoegplek op BEIDE plekken kloppen — ook
-      // zonder expliciete `position` (voorheen liet die tak de rauwe array ongemoeid, waardoor het
-      // WBS-nummer de oude array-positie van vóór de move bleef volgen terwijl de taak zichtbaar
-      // achteraan verscheen: gerapporteerde 3.1/3.2/3.3-bug, taskDialog "parent wijzigen").
-      //
-      // (1) childIds van de nieuwe ouder — zichtbare volgorde voor niet-root taken.
-      // `attachToParent` zet parentId én voegt geklemd in — hier stond diezelfde klem-en-splice
-      // tot een review nog een keer overgetypt.
-      attachToParent(s.tasks, id, newParentId, position);
-      // (2) rauwe s.tasks-array — root-volgorde + WBS. Haal de taak eruit en zet 'm terug zó dat
-      // hij — gerekend over alléén zijn siblings (taken met dezelfde parentId, in array-volgorde)
-      // — op index `position` (of, zonder positie, achteraan) staat. Nakomelingen blijven staan
-      // waar ze staan; flattenOrder herbouwt de boom uit parentId, dus alleen de sibling-volgorde
-      // van deze taak telt.
-      const fromIdx = s.tasks.findIndex(t => t.id === id);
-      const [moved] = s.tasks.splice(fromIdx, 1);
-      const sibIdx: number[] = [];
-      s.tasks.forEach((t, i) => { if (t.parentId === newParentId) sibIdx.push(i); });
-      const at = position === undefined
-        ? sibIdx.length
-        : Math.max(0, Math.min(position, sibIdx.length)); // klem naar [0, aantal siblings]
-      let insertAt: number;
-      if (at < sibIdx.length) {
-        insertAt = sibIdx[at];                       // vóór de huidige `at`-de sibling
-      } else if (sibIdx.length > 0) {
-        insertAt = sibIdx[sibIdx.length - 1] + 1;    // achter de laatste sibling
-      } else if (newParentId) {
-        const p = s.tasks.findIndex(t => t.id === newParentId);
-        insertAt = p >= 0 ? p + 1 : s.tasks.length;  // enig kind: vlak achter de ouder
-      } else {
-        insertAt = s.tasks.length;                   // enige root: achteraan
-      }
-      s.tasks.splice(insertAt, 0, moved);
-
-      if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
-      runtime.finishMutation(s, { stale: true }); // datum-rakende mutatie (A6): planning verouderd tot F5.
-    });
-    get().recomputeViewRows();
+    applyHierarchyEdit(runtime, set, get, moveTaskEdit(id, newParentId, position), 'always');
   },
 
   moveTaskTo: (id, target) => {
-    set((s) => {
-      const task = s.tasks.find(t => t.id === id);
-      if (!task) return;
-      const oldParentId = task.parentId; // vóór de mutatie lezen (bepaalt hieronder `stale`).
-
-      // Alle guards (onbekende taak/ouder, cykel, no-op) zitten in de gedeelde planner; `null` ⇒
-      // GEEN snapshot, GEEN mutatie. `rejectNoOp: true` — slepen naar de eigen plek mag geen
-      // undo-entry of dirty-vlag opleveren.
-      const plan = planTaskPlacement(s.tasks, id, target, { rejectNoOp: true });
-      if (!plan) return;
-
-      runtime.beginUndoable(s); // één undo-stap, géén coalesceKey (één aanroep per geslaagde move).
-      applyTaskPlacement(s.tasks, id, plan);
-
-      if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
-      // Pure herordening (zelfde ouder) ⇒ géén stale (identiek aan reorderSibling: raakt geen
-      // tijden/CPM). Reparent (andere ouder) ⇒ stale:true — summary-rollups (vroege start/einde)
-      // verschuiven, dat herberekent alleen F5/runCPM. De taak zelf (`task.time`) blijft ongemoeid.
-      runtime.finishMutation(s, { stale: plan.parentId !== oldParentId });
-    });
-    get().recomputeViewRows();
+    applyHierarchyEdit(runtime, set, get, moveTaskToEdit(id, target), 'on-reparent');
   },
 
   moveTasksTo: (ids, target) => {
-    set((s) => {
-      // ---- 1. Onbekende ids weg, en afstammelingen van een mede-geselecteerde taak weg ----------
-      // Een kind verhuist automatisch mee met zijn ouder (de subboom hangt aan `parentId`), dus
-      // een apart verplaatst kind zou zichzelf uit de meeverhuisde ouder trekken. `indentTasks`/
-      // `outdentTasks` lossen ditzelfde probleem op met een diepste-eerst-sortering; hier is
-      // wegfilteren juist, want de groep landt op één doelpositie.
-      const geselecteerd = new Set(ids.filter(id => s.tasks.some(t => t.id === id)));
-      // `ancestorIds` is cyclusveilig tegen corrupte parentId-cycli uit een kapot IFC.
-      const parentOf = (id: string) => s.tasks.find(t => t.id === id)?.parentId;
-      /** Zit er in de ouderketen van `id` een mede-geselecteerde taak? */
-      const heeftGeselecteerdeVoorouder = (id: string): boolean => {
-        for (const voorouder of ancestorIds(id, parentOf)) if (geselecteerd.has(voorouder)) return true;
-        return false;
-      };
-      const teVerplaatsen = [...geselecteerd].filter(id => !heeftGeselecteerdeVoorouder(id));
-      if (teVerplaatsen.length === 0) return;
-
-      // ---- 2. Sorteren op WEERGAVEvolgorde ----------------------------------------------------
-      // Niet op selectievolgorde: de groep hoort in zijn oorspronkelijke volgorde neer te komen,
-      // ook als de gebruiker eerst de onderste en daarna de bovenste rij aanklikte.
-      const order = flattenOrder(s.tasks).map(t => t.id);
-      const gesorteerd = teVerplaatsen.sort((a, b) => order.indexOf(a) - order.indexOf(b));
-
-      // ---- 3. Cykelguard op GROEPSniveau ------------------------------------------------------
-      // `planTaskPlacement` guardt dit per taak, maar dan zou de ene helft van de groep wél en de
-      // andere niet verhuizen. Een groep die je op zichzelf (of op een eigen afstammeling) dropt
-      // doet daarom HELEMAAL niets: geen snapshot, geen mutatie.
-      if (target.parentId !== null) {
-        const groep = new Set(gesorteerd);
-        if (groep.has(target.parentId)) return;
-        for (const voorouder of ancestorIds(target.parentId, parentOf)) if (groep.has(voorouder)) return;
-      }
-
-      // ---- 4. Eén voor één plaatsen, elk direct ná zijn voorganger -----------------------------
-      let snapshotPushed = false;
-      let reparented = false;
-      /** De vorige taak van de groep die daadwerkelijk op zijn plek staat; de volgende landt er
-       *  direct achter. `null` = nog geen enkele geplaatst ⇒ start op `target.childIndex`. */
-      let vorigeId: string | null = null;
-      for (const id of gesorteerd) {
-        const task = s.tasks.find(t => t.id === id);
-        if (!task) continue;
-
-        // De doelindex opnieuw AFLEIDEN uit de werkelijke positie van de voorganger — niet blind
-        // ophogen. `planTaskPlacement` klemt en telt tegen de siblinglijst ZÓNDER `id` zelf, dus
-        // meten we hier in exact diezelfde lijst. Blind `idx + 1` gaat mis zodra `id` vóór de
-        // voorganger stond (de lijst schuift dan een plek op) — dat keert de volgorde om of laat
-        // gaten vallen.
-        let childIndex = target.childIndex;
-        if (vorigeId !== null) {
-          // `id` er expliciet uit: `planTaskPlacement` klemt en telt tegen de siblinglijst ZÓNDER
-          // de verplaatste taak (zie `siblingIdsAfterRemoval`). Meten we hier in de lijst MÉT `id`,
-          // dan is de index één te hoog zodra `id` momenteel vóór de voorganger staat.
-          const siblingsZonderId = siblingIds(s.tasks, target.parentId).filter(x => x !== id);
-          const vorigeIdx = siblingsZonderId.indexOf(vorigeId);
-          // −1 kan alleen bij een kapotte boom: dan achteraan, net als de fallbacks elders.
-          childIndex = vorigeIdx >= 0 ? vorigeIdx + 1 : siblingsZonderId.length;
-        }
-
-        const oudeOuder = task.parentId;
-        // `rejectNoOp: false`: de no-op-guard mag hier geen legitieme herplaatsing tegenhouden —
-        // hij zou ook `vorigeId` niet bijwerken en daarmee de rest van de groep verkeerd plaatsen.
-        // De no-op-detectie doen we hieronder zelf, puur om te bepalen of er iets te ondoen valt.
-        const plan = planTaskPlacement(s.tasks, id, { parentId: target.parentId, childIndex }, { rejectNoOp: false });
-        if (!plan) continue; // onbekende doel-ouder of cykel (stap 3 dekt de groep al) ⇒ overslaan.
-
-        // Staat de taak al precies goed? Dan niets muteren (en dus ook geen undo-stap forceren),
-        // maar wél als voorganger tellen — hij stáát immers op de doelpositie. `curIdx` (index MÉT
-        // zichzelf) en `plan.index` (ZONDER zichzelf) zijn direct vergelijkbaar, zie guard 4.
-        const curIdx = siblingIds(s.tasks, oudeOuder).indexOf(id);
-        if (plan.parentId !== oudeOuder || plan.index !== curIdx) {
-          // Lazy snapshot: pas bij de EERSTE échte verplaatsing, één keer voor de hele groep.
-          // Vóór enige draft-mutatie, zoals de conventie in state/transaction.ts voorschrijft.
-          if (!snapshotPushed) {
-            runtime.beginUndoable(s);
-            snapshotPushed = true;
-          }
-          applyTaskPlacement(s.tasks, id, plan);
-          if (plan.parentId !== oudeOuder) reparented = true;
-        }
-        vorigeId = id;
-      }
-
-      if (!snapshotPushed) return; // niets verplaatst ⇒ geen undo-stap, geen dirty-vlag.
-      if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
-      // Zelfde regel als `moveTaskTo`: pure herordening binnen dezelfde ouder raakt geen
-      // summary-rollups; wisselde minstens één taak van ouder, dan is de planning verouderd.
-      runtime.finishMutation(s, { stale: reparented });
-      // De selectie blijft bewust ongemoeid: de gebruiker heeft na de sleep nog dezelfde taken vast.
-    });
-    get().recomputeViewRows();
+    // De selectie blijft bewust ongemoeid: de gebruiker heeft na de sleep nog dezelfde taken vast.
+    applyHierarchyEdit(runtime, set, get, moveTasksToEdit(ids, target), 'on-reparent');
   },
 
   indentTasks: (ids) => {
-    set((s) => {
-      // Kandidaat-ouder = de voorgaande sibling in de weergavevolgorde (flattenOrder).
-      // Geen voorgaande sibling => no-op voor die taak. De subboom lift mee via parentId.
-      // Binnen een meervoudige selectie springt een aaneengesloten blok als geheel in:
-      // geselecteerde voorgaande siblings worden overgeslagen als kandidaat-ouder,
-      // anders nest het blok trapsgewijs in elkaar.
-      const selected = new Set(ids);
-      let changed = false;
-      let snapshotPushed = false;
-      const order = flattenOrder(s.tasks).map(t => t.id);
-      for (const id of order) {
-        if (!selected.has(id)) continue;
-        const task = s.tasks.find(t => t.id === id);
-        if (!task) continue;
-        const idx = order.indexOf(id);
-        let newParentId: string | null = null;
-        for (let i = idx - 1; i >= 0; i--) {
-          const cand = s.tasks.find(t => t.id === order[i]);
-          if (!cand) continue;
-          if (cand.parentId === task.parentId && !selected.has(cand.id)) {
-            newParentId = cand.id;
-            break;
-          }
-          // Voorbij het bereik van dezelfde ouder (omhoog de boom uit): stoppen.
-          if (cand.id === task.parentId) break;
-        }
-        if (!newParentId) continue;
-        if (!snapshotPushed) {
-          runtime.beginUndoable(s);
-          snapshotPushed = true;
-        }
-        detachFromParent(s.tasks, id);
-        attachToParent(s.tasks, id, newParentId);
-        changed = true;
-      }
-      if (!changed) return;
-      if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
-      runtime.finishMutation(s, { stale: true }); // datum-rakende mutatie (A6): planning verouderd tot F5.
-    });
-    get().recomputeViewRows();
+    applyHierarchyEdit(runtime, set, get, indentEdit(ids), 'always');
   },
 
   outdentTasks: (ids) => {
-    set((s) => {
-      // Diepste taken eerst zodat een geselecteerde ouder+kind-combinatie niet dubbelt.
-      const order = flattenOrder(s.tasks).map(t => t.id);
-      const sorted = [...ids].sort((a, b) => order.indexOf(b) - order.indexOf(a));
-      let changed = false;
-      let snapshotPushed = false;
-      for (const id of sorted) {
-        const task = s.tasks.find(t => t.id === id);
-        if (!task || !task.parentId) continue;
-        const parent = s.tasks.find(t => t.id === task.parentId);
-        if (!parent) continue;
-
-        // Doel (issue #26): sibling DIRECT ná de voormalige ouder — precies wat de
-        // interface-comment hierboven belooft. Zoek daarvoor de positie van `parent` in DIENS
-        // eigen siblinglijst: de childIds van de grootouder, of — als `parent` op rootniveau
-        // staat — de root-volgorde uit de rauwe array (zie engine/view/dropTarget.ts).
-        // Dat root-geval was het echte gat: daar werd de volgorde vroeger helemaal niet
-        // bijgewerkt, waardoor de taak op zijn oude (meestal laatste) array-plek bleef staan.
-        const parentSiblingIds = parent.parentId
-          ? (s.tasks.find(t => t.id === parent.parentId)?.childIds ?? [])
-          : s.tasks.filter(t => !t.parentId).map(t => t.id);
-        const parentIdx = parentSiblingIds.indexOf(parent.id);
-        // `parent` niet in zijn eigen siblinglijst (corrupte state): achteraan, zoals vroeger.
-        const childIndex = parentIdx >= 0 ? parentIdx + 1 : parentSiblingIds.length;
-
-        // Zelfde plaatsingslogica als rij-slepen (`moveTaskTo`), inclusief het synchroon houden
-        // van parentId + childIds + rauwe array. `rejectNoOp: false`: uitspringen is per definitie
-        // een reparent, dus de no-op-guard kan hier nooit terecht afgaan — uitgezet zodat hij een
-        // legitieme herplaatsing niet per ongeluk kan tegenhouden.
-        const plan = planTaskPlacement(
-          s.tasks, id, { parentId: parent.parentId, childIndex }, { rejectNoOp: false },
-        );
-        if (!plan) continue; // alleen bij een kapotte boom (bv. verweesde grootouder-id).
-
-        // Lazy snapshot: pas bij de EERSTE échte wijziging, zodat een volledig geweigerde poging
-        // géén undo-stap oplevert — en meerdere taken samen precies één undo-stap.
-        if (!snapshotPushed) {
-          runtime.beginUndoable(s);
-          snapshotPushed = true;
-        }
-        applyTaskPlacement(s.tasks, id, plan);
-        changed = true;
-      }
-      if (!changed) return;
-      if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
-      runtime.finishMutation(s, { stale: true }); // datum-rakende mutatie (A6): planning verouderd tot F5.
-    });
-    get().recomputeViewRows();
+    applyHierarchyEdit(runtime, set, get, outdentEdit(ids), 'always');
   },
 
   reorderSibling: (taskId, direction) => {
@@ -1086,12 +1242,32 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     if (template.tasks.length === 0) return null;
     let newRootId: string | null = null;
     let skippedRelations = 0;
+    const outcome = emptyOutcome();
     set((s) => {
+      const idMap = new Map<string, string>();
+      for (const tt of template.tasks) idMap.set(tt.id, generateId('task'));
+
+      // Wordt `parentId` hierdoor een fase (audit §6)? De sjabloonwortel is het nieuwe kind.
+      const root = [...template.tasks].reverse().find(tt => tt.parentId === null);
+      const pending = new Map<string, PendingChild>();
+      if (root) {
+        pending.set(idMap.get(root.id)!, {
+          name: root.name,
+          isMilestone: root.isMilestone,
+          hasChildren: template.tasks.some(c => c.parentId === root.id),
+        });
+      }
+      const phasePlan = planPhaseTransitions(
+        s, firstChildGains(s.tasks, [...pending.keys()].map(childId => ({ childId, parentId }))), pending,
+      );
+      if (!phasePlan.ok) {
+        outcome.notices.push(phaseRefusalNotice(s, phasePlan.refusal, pending));
+        return;
+      }
+
       runtime.beginUndoable(s);
 
       const startDate = s.project.startDate || formatDate(new Date());
-      const idMap = new Map<string, string>();
-      for (const tt of template.tasks) idMap.set(tt.id, generateId('task'));
 
       for (const tt of template.tasks) {
         const id = idMap.get(tt.id)!;
@@ -1127,8 +1303,10 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         s.selectedTaskIds = [newRootId];
         s.activeTaskId = newRootId;
       }
+      settlePhaseTransitions(s, phasePlan.transitions, outcome);
       runtime.finishMutation(s, { stale: true }); // ingevoegd WBS-sjabloon (A6): planning verouderd tot F5.
     });
+    finishStructural(get, outcome);
     get().recomputeViewRows();
     // Ná `set()`: `get().notify(...)` binnen een actieve producer aanroepen kan niet.
     notifyRelationsSkipped(get().notify, skippedRelations, 'relations-skipped-on-insert-template');

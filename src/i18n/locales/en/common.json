@@ -77,6 +77,10 @@
     "relationCreated": "Relation created: {{predecessor}} → {{successor}}",
     "relationDuplicate": "That relation already exists",
     "relationAncestorEndpoint": "A relation between a task and its own (grand)parent summary task is not allowed.",
+    "relationCycle": "This relation would create a cycle in the schedule ({{cycle}}) and was not created.",
+    "hierarchyCycle": "This move would create a cycle in the schedule ({{cycle}}): a summary task's relations also apply to its subtasks. Nothing was moved.",
+    "relationsExcludedByHierarchy_one": "After the move, {{count}} relation links a task to its own summary task; it no longer counts in the calculation.",
+    "relationsExcludedByHierarchy_other": "After the move, {{count}} relations link a task to its own summary task; they no longer count in the calculation.",
     "summaryRelationsDropped": "{{total}} relation(s) could not be included in the calculation. Check the Predecessors and Successors columns.",
     "relationsSkippedOnInsert_one": "{{count}} relation was not created: invalid link (for example a task linked to its own (grand)parent summary task, or a duplicate).",
     "relationsSkippedOnInsert_other": "{{count}} relations were not created: invalid link (for example a task linked to its own (grand)parent summary task, or a duplicate).",
@@ -99,6 +103,28 @@
     "librarySaveFailed": "Library could not be saved",
     "levelingDelayRoundedToWorkdays_one": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} task to whole workdays.",
     "levelingDelayRoundedToWorkdays_other": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} tasks to whole workdays.",
+    "startSnetCreated": "'{{name}}' has a predecessor: the new start is now a Start no earlier than (SNET) constraint on {{date}}. After recalculating (F5) the task won't start before that date.",
+    "startSnetUpdated": "The Start no earlier than (SNET) constraint of '{{name}}' moved to {{date}}. After recalculating (F5) the task won't start before that date.",
+    "startSnetMany_one": "The new start of {{count}} task with a predecessor is now a Start no earlier than (SNET) constraint. After recalculating (F5) that task won't start before its date.",
+    "startSnetMany_other": "The new starts of {{count}} tasks with a predecessor are now Start no earlier than (SNET) constraints. After recalculating (F5) none of them will start before its date.",
+    "startBlockedByConstraint": "The new start of '{{name}}' was not applied: the task has a predecessor and the constraint $t(task:constraintType.{{type}}) {{date}}, and those determine its start. Change that constraint to move the start.",
+    "startBlockedByConstraintNoDate": "The new start of '{{name}}' was not applied: the task has a predecessor and the constraint $t(task:constraintType.{{type}}), and those determine its start. Change that constraint to move the start.",
+    "startBlockedByConstraintMany_one": "The new start of {{count}} task was not applied: it has a predecessor and a constraint other than Start no earlier than (SNET). Change that constraint to move the start.",
+    "startBlockedByConstraintMany_other": "The new starts of {{count}} tasks were not applied: they have a predecessor and a constraint other than Start no earlier than (SNET). Change those constraints to move the starts.",
+    "referencesClearedOnPaste_one": "{{count}} reference did not exist in this document and was cleared (a task calendar, custom task type, activity code or custom field from the source document).",
+    "referencesClearedOnPaste_other": "{{count}} references did not exist in this document and were cleared (task calendars, custom task types, activity codes or custom fields from the source document).",
+    "milestoneRefusedAssignments_one": "'{{task}}' has resource assignments and cannot become a milestone. Remove the assignments first.",
+    "milestoneRefusedAssignments_other": "{{count}} tasks have resource assignments and cannot become milestones. Remove the assignments first.",
+    "milestoneRefusedSummary_one": "'{{task}}' is a summary task with subtasks and cannot become a milestone.",
+    "milestoneRefusedSummary_other": "{{count}} tasks are summary tasks with subtasks and cannot become milestones.",
+    "assignmentsMovedToSubtask_one": "The assignment of {{resources}} was moved from '{{phase}}' to the new subtask '{{child}}': a summary task carries no assignments itself.",
+    "assignmentsMovedToSubtask_other": "The {{count}} assignments ({{resources}}) were moved from '{{phase}}' to the new subtask '{{child}}': a summary task carries no assignments itself.",
+    "assignmentsMovedToSubtasks_one": "{{count}} task became a summary task; its assignments were moved to its first new subtask.",
+    "assignmentsMovedToSubtasks_other": "{{count}} tasks became summary tasks; their assignments were each moved to their first new subtask.",
+    "milestoneClearedOnPhase_one": "Milestone '{{phase}}' now has subtasks and has become a summary task; the milestone flag was removed.",
+    "milestoneClearedOnPhase_other": "{{count}} milestones now have subtasks and have become summary tasks; the milestone flag was removed.",
+    "phaseRefusedNoAssignableChild": "'{{phase}}' cannot become a summary task: its assignments have nowhere to go, because none of the new subtasks can carry assignments (a milestone or summary task). Nothing was changed.",
+    "phaseRefusedDuplicateResource": "'{{phase}}' cannot become a summary task: the assignment of {{resource}} cannot move to the new subtask '{{child}}', because it already has {{resource}}. Nothing was changed.",
     "schedulingProfileApplied": "This project calculates as {{profile}}. Change it via File → Project info → Calculation profile and options.",
     "schedulingProfileShifted_one": "After applying, {{count}} task moved.",
     "schedulingProfileShifted_other": "After applying, {{count}} tasks moved.",
@@ -114,6 +140,14 @@
     "xerArchiveReasonBytesMissing": "Reason: the source bytes themselves are missing — another IFC program probably rewrote the file.",
     "xerArchiveReasonMetadataInvalid": "Reason: the source bytes are intact, but the data derived from them is unusable.",
     "xerArchiveReasonStructure": "Reason: the archive's structure in the IFC is wrong (duplicated, reordered or attached incorrectly)."
+  },
+  "scheduleErrors": {
+    "cycle": "Circular dependency between tasks: {{path}}",
+    "noWorkingDays": "The calendar has no working days set",
+    "invalidDayDuration": "Invalid duration in days for task '{{task}}'",
+    "invalidHourDuration": "Invalid duration in hours for task '{{task}}'",
+    "hourTaskWithoutWorkHours": "Hour task '{{task}}' has no valid working hours in its calendar",
+    "invalidStartDate": "Invalid start date for task '{{task}}'"
   },
   "yes": "Yes",
   "no": "No",
@@ -292,7 +326,7 @@
     "aiAutostartHint": "Brings the MCP bridge live as soon as the app starts, so an AI client can connect without you opening the AI tab first. Desktop app only.",
     "legacySection": "Legacy features",
     "classicViewControls": "Show classic view buttons",
-    "classicViewControlsHint": "Puts the separate Columns, Filter, Group and Sort buttons back on the View tab. Their function now lives in the layout buttons and the layout dialog."
+    "classicViewControlsHint": "Puts the separate Columns, Filter, Group and Sort buttons back on the View tab. You now choose columns with the plus in the table header or via Table → Columns…; filtering, grouping and sorting live in the layout buttons and the layout dialog."
   },
   "ai": {
     "start": "Start bridge",
@@ -739,7 +773,8 @@
       "project": "Project calendar",
       "new": "New calendar",
       "duplicate": "Duplicate",
-      "setDefault": "Set as project default"
+      "setDefault": "Set as project default",
+      "invalid": "This calendar contains invalid input"
     },
     "generate": {
       "button": "Generate holidays…",
@@ -801,6 +836,11 @@
         "consumesWorkingDay": "The break cannot take up the whole working day."
       }
     },
+    "holidayErrors": {
+      "invalidStart": "Enter a valid start date.",
+      "invalidEnd": "Enter a valid end date, or leave it empty for a single day.",
+      "endBeforeStart": "The end date is before the start date."
+    },
     "worktime": {
       "section": "Working times",
       "derivedHpd": "Derived hours/day:",
@@ -822,11 +862,7 @@
     "structureLockedHint": "Not available while filtering/grouping/sorting",
     "columns": {
       "title": "Columns",
-      "visible": "Visible",
-      "width": "Width",
-      "resetDefault": "Reset to default",
-      "available": "Available fields",
-      "scopeHint": "These columns apply to the Table view. The task list next to the Gantt always shows WBS, task name and duration."
+      "resetDefault": "Reset to default"
     },
     "filter": {
       "title": "Filter",

@@ -25,6 +25,8 @@ Een platte lijst taken vertelt niets over samenhang. Door taken in te laten spri
 
 Zodra een taak minstens één subtaak heeft, wordt hij automatisch een samenvattende taak: de balk in het Gantt-diagram overspant dan de volledige periode van de vroegste start tot de laatste finish van alle subtaken eronder, en zijn eigen duur en data zijn niet langer los in te stellen. Een samenvattende taak is dus normaal gesproken altijd een afgeleide, geen los ingevoerde planning — verwijder of verschuif je de subtaken, dan past de balk van de samenvattende taak zich vanzelf aan. Dat geldt ook voor de kolom **Duur**: die toont de tijd tussen de start en de finish van de samenvattende taak — gerekend in de projectkalender, want een samenvattende taak heeft zelf geen werk — herberekend zodra je **Berekenen** (F5) draait, en op zo'n rij niet te bewerken. Eén uitzondering: een **handmatig geplande** samenvattingstaak (die vlag ontstaat bij een `.mpp`-import) rolt juist niét op — die houdt haar eigen opgeslagen datums, ook als haar subtaken verschuiven.
 
+**Toewijzingen verhuizen naar de eerste subtaak.** Een samenvattende taak draagt zelf geen resources: toewijzingen erop zouden onzichtbaar blijven en niet meetellen in de belasting. Had de taak die je zo tot samenvattende taak maakt al resources toegewezen, dan verhuizen die daarom naar de **eerste nieuwe subtaak die toewijzingen mag dragen** — geen mijlpaal en geen samenvattende taak — met behoud van eenheden per dag en curve. Een melding zegt welke resources waarheen gingen. Dat geldt voor inspringen, slepen, **Subtaak toevoegen**, de bovenliggende taak wijzigen in **Taak bewerken** en een sjabloon invoegen, en het zit in dezelfde undo-stap: één **Ctrl+Z** zet structuur en toewijzing samen terug. Kan de toewijzing nergens heen — alle nieuwe subtaken zijn mijlpalen of samenvattende taken, of de eerste subtaak heeft dezelfde resource al — dan gebeurt er niets en legt een melding uit waarom. Wordt een mijlpaal zo een samenvattende taak, dan gaat het vinkje **Mijlpaal** eraf.
+
 **Herkenbaar in de naamkolom.** In de taaktabel (het tabblad **Tabel**, en dezelfde naamkolom in de rechterrail) staat een samenvattende taak vet en met een subtiele achtergrondtint op de naamcel; een mijlpaal staat vet in dezelfde kleur als zijn balk in het Gantt-diagram. Een gewone taak blijft ongewijzigd. Dat is puur visueel — er verandert niets aan hoe je een taak selecteert, sleept of bewerkt.
 
 **Inklappen en uitklappen.** Bij een grote WBS wil je de boom soms tijdelijk compacter maken. Het lint-tabblad **Beeld**, groep **Overzicht**, heeft daarvoor twee aparte knoppen — **Inklappen** en **Uitklappen** — bewust geen schakelaar, want bij een gemengde selectie (de ene tak open, de andere dicht) kan een schakelaar nooit alles dezelfde kant op zetten.
@@ -92,6 +94,12 @@ de taak wordt de nieuwe, laatste subtaak van die samenvattende taak — opnieuw 
 beweging, het muis-equivalent van Alt+→. Selecteer eerst meerdere taken (Ctrl/Cmd-klik, of een
 box-selectie) en de hele selectie sleept en landt samen.
 
+Inspringen, uitspringen en slepen gaan niet door als de verplaatsing via de relaties van een fase
+een kring in de planning zou maken — de relaties van een fase gelden namelijk ook voor haar
+subtaken. Je krijgt dan een melding die de taken van de kring noemt, en er verandert niets; bij
+meerdere taken tegelijk gaat de hele verplaatsing niet door. De gids **Relaties & constraints** legt
+uit hoe dat zit.
+
 Dat kan ook aan de **balk** zelf: pak in het Gantt-diagram een taakbalk in het midden vast en sleep
 overwegend omhoog of omlaag. De balk volgt dan dezelfde rijsleep als de taaktabel — zelfde
 invoegplekken, zelfde nestregel, één undo-stap — en de datums van de taak veranderen niet. De
@@ -118,7 +126,7 @@ meteen in de naamcel — gaat met **Insert**.
 
 ## Mijlpaal-soorten
 
-Een mijlpaal markeert een moment — een start, een oplevering, een keuring — en heeft normaal gesproken duur 0; heeft een mijlpaal zelf een duur groter dan 0 gekregen (bijvoorbeeld via een import), dan plant Open Planner Studio 'm gewoon als een taak met die duur, met het vinkje **Mijlpaal** nog aan. Open Planner Studio kent drie manieren om een mijlpaal toe te voegen, allemaal via de lintgroep **Taken** op het pijltje naast de knop **Mijlpaal**:
+Een mijlpaal markeert een moment — een start, een oplevering, een keuring — en heeft normaal gesproken duur 0; heeft een mijlpaal zelf een duur groter dan 0 gekregen (bijvoorbeeld via een import), dan plant Open Planner Studio 'm gewoon als een taak met die duur, met het vinkje **Mijlpaal** nog aan. Een samenvattende taak of een taak met resource-toewijzingen kan geen mijlpaal worden: het vinkje **Mijlpaal** (eigenschappenpaneel, **Taak bewerken**, het contextmenu en het tabblad **Tabel**) weigert dat met een melding — haal eerst de toewijzingen weg. Open Planner Studio kent drie manieren om een mijlpaal toe te voegen, allemaal via de lintgroep **Taken** op het pijltje naast de knop **Mijlpaal**:
 
 - **Startmijlpaal** — markeert het begin van een fase of het project.
 - **Eindmijlpaal** — markeert een afronding, bijvoorbeeld een oplevering.
@@ -135,11 +143,13 @@ Grotere planningen hebben al snel behoefte aan extra dimensies die niet in de WB
 - **Activity codes** zijn vrij definieerbare dimensies (bijvoorbeeld "Locatie" of "Discipline") met een lijst waarden — elke waarde heeft een **Code**, een **Omschrijving** en een **Kleur**. Een taak kan per codetype maximaal één waarde hebben. Gebruik **Codetype toevoegen** om een nieuwe dimensie te starten, en **Waarde toevoegen** om de mogelijke waarden op te bouwen.
 - **Gebruikersvelden** zijn getypeerde eigen velden — **Tekst**, **Getal**, **Geheel getal**, **Kosten**, **Datum** of **Ja/nee** — die als kolom in de taaktabel verschijnen en per taak in te vullen zijn. Denk aan een veld "Aannemer" (tekst) of "Vergunning binnen" (ja/nee).
 
-Eenmaal aangemaakt, wijs je een activity code of vul je een gebruikersveld in via de kolommen in de taaktabel (zet ze eventueel eerst zichtbaar via **Beeld → Kolommen…**) of via het eigenschappenpaneel van de taak.
+Eenmaal aangemaakt, wijs je een activity code of vul je een gebruikersveld in via de kolommen in de taaktabel of via het eigenschappenpaneel van de taak. Staat de kolom nog niet in de tabel, voeg hem dan toe met het plusje rechts in de tabelkop: de kolomkiezer toont de activity codes en gebruikersvelden onder **Aangepast** — zie [Kolommen kiezen](docs://ref-kolommen).
 
 ### Groeperen op codes en velden
 
-Activity codes en gebruikersvelden worden pas echt nuttig zodra je erop groepeert: ga naar het lint-tabblad **Beeld**, open **Groeperen** en kies bij **Veld** de activity code of het gebruikersveld waarop je wilt clusteren. De taaktabel toont dan groepskoppen in plaats van de WBS-boom — handig om bijvoorbeeld alle taken per woning of per discipline bij elkaar te zien, dwars door de fasering heen. Je kunt tot twee groepeerniveaus tegelijk instellen (bijvoorbeeld eerst op woning, dan op discipline).
+Activity codes en gebruikersvelden worden pas echt nuttig zodra je erop groepeert. De taaktabel toont dan groepskoppen in plaats van de WBS-boom — handig om bijvoorbeeld alle taken per woning of per discipline bij elkaar te zien, dwars door de fasering heen. Je kunt tot twee groepeerniveaus tegelijk instellen (bijvoorbeeld eerst op woning, dan op discipline).
+
+Een groepering stel je in met een layout. Ga naar het lint-tabblad **Beeld**, lintgroep **Layout**, en klik op **Nieuwe layout**. Klik in het venster onder **Groeperen** op **+ niveau** en kies in de keuzelijst de activity code of het gebruikersveld. **Opslaan** maakt er een layoutknop van: één klik zet de groepering aan, nog een klik zet hem weer uit. **Toepassen zonder opslaan** zet de groepering meteen op het scherm, zonder knop. Wat een layoutknop verder nog vastlegt, lees je in [Layouts opslaan/laden](docs://ref-layouts).
 
 ## Aantekeningen: een checklist per taak
 
