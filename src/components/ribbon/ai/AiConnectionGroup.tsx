@@ -84,7 +84,7 @@ export function AiConnectionGroup() {
   const onRegenerate = () => {
     setConfirming(false);
     // Draait de bridge, dan herstart hij met het nieuwe token: het oude werkt daarna echt niet meer.
-    void regenerateAndApplyMcpToken().then((fresh) => {
+    void regenerateAndApplyMcpToken(() => useAppStore.getState().ui.aiServerStatus.state === 'live').then((fresh) => {
       setToken(fresh);
       setShowToken(true);
     });

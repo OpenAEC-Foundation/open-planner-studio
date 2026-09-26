@@ -90,9 +90,7 @@ export function regenerateMcpToken(): string {
  * koppelingen verbroken worden. Draait de bridge, dan herstarten we hem met het nieuwe token (via
  * de bestaande commands — geen nieuw Rust-oppervlak).
  */
-export async function regenerateAndApplyMcpToken(
-  isRunning: () => boolean = () => useAppStore.getState().ui.aiServerStatus.state === 'live',
-): Promise<string> {
+export async function regenerateAndApplyMcpToken(isRunning: () => boolean): Promise<string> {
   const token = regenerateMcpToken();
   if (isTauri() && isRunning()) {
     const controller = await getLiveController();
