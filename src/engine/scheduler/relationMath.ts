@@ -33,6 +33,8 @@ import { isElapsedTask, isZeroDurationMilestone } from './duration';
 // Milliseconde-constanten (uur-pad); HOUR_SCAN = veiligheidsplafond voor de dag→uur-backward-scan.
 export const MS_PER_MIN = 60_000;
 export const HOUR_SCAN = 400;
+/** Plafond voor de galopperende dag→uur-lagzoektocht (backward): ruim boven elke echte lag. */
+export const MAX_LAG_SEARCH_DAYS = 100 * 366;
 
 /** De grensvlaggen die de mijlpaal-grens-semantiek (fase 2.4/§4.4) beschrijven voor één relatie.
  *  Voorheen 4× identiek herberekend in elk van de forward/backward × dag/uur-blokken. */
@@ -977,18 +979,52 @@ function backwardHour(
       // pariteitsbreuk). Mét speling wordt de fout niet geabsorbeerd maar eet hij er precies één
       // werkdag van op (zie de case rr-fs-crossmode-daypred-hourms-slack: tf 1 stond op 0).
       const noDayBoundary = succIsFinishMs || predEndsBeginOfDay;
-      let d = succDayStart();
-      for (let scan = 0; scan <= HOUR_SCAN; scan++) {
-        if (pe.isWorkDay(d)) {
-          const predDone = noDayBoundary
-            ? new Date(d.getTime())                                  // mijlpaal-grens: dagbegin-anker
-            : new Date(d.getTime() + MS_PER_DAY);                    // (d+1)@00:00
-          // Spiegel exact de forward-pass: de geselecteerde XER-lagkalender verschuift het anker,
-          // ook wanneer voorganger en opvolger verschillende kalenderprecisies gebruiken.
-          const shifted = deps.shiftLagPred(lagEng, predDone, seq, predTask, 1);
-          if (se.nextWorkInstant(shifted).getTime() <= succResult.ls.getTime()) return d;
+      // "Past dag d nog?": de forward-afleiding vanaf d mag succ.LS niet overschrijden.
+      const fits = (d: Date): boolean => {
+        const predDone = noDayBoundary
+          ? new Date(d.getTime())                                    // mijlpaal-grens: dagbegin-anker
+          : new Date(d.getTime() + MS_PER_DAY);                      // (d+1)@00:00
+        // Spiegel exact de forward-pass: de geselecteerde XER-lagkalender verschuift het anker,
+        // ook wanneer voorganger en opvolger verschillende kalenderprecisies gebruiken.
+        const shifted = deps.shiftLagPred(lagEng, predDone, seq, predTask, 1);
+        return se.nextWorkInstant(shifted).getTime() <= succResult.ls.getTime();
+      };
+      // Audit 2026-09-26: vroeger een dag-voor-dag-scan van hoogstens HOUR_SCAN (400) kalenderdagen
+      // terug vanaf de succ-startdag. Een lag groter dan dat bereik (≈ 280 werkdagen) vond niets en
+      // viel terug op de snap ZONDER lag: de voorganger kreeg een late finish vlak vóór de opvolger
+      // en honderden dagen onterechte speling — het kritieke pad verdween. Bovendien kostte elke
+      // stap een volledige lag-verschuiving (O(lag²) per relatie).
+      // `fits` is monotoon (een latere dag geeft een latere of gelijke forward-instant), dus: zoek
+      // galopperend + binair de LAATSTE dag D waarop hij past, en loop daarna terug naar de laatste
+      // WERKdag ≤ D. Dat is exact dezelfde dag als de oude scan vond waar die iets vond (de grootste
+      // werkdag ≤ succ-startdag die past); daarbuiten nu het juiste antwoord i.p.v. de lagloze snap.
+      const start = succDayStart();
+      let lastFit: Date | null = null;
+      if (fits(start)) {
+        lastFit = start;
+      } else {
+        let fail = 0;          // aantal dagen terug waarop het (nog) niet past
+        let back = 1;
+        while (back <= MAX_LAG_SEARCH_DAYS && !fits(addCalendarDays(start, -back))) {
+          fail = back;
+          back *= 2;
         }
-        d = addCalendarDays(d, -1);
+        if (back <= MAX_LAG_SEARCH_DAYS) {
+          let ok = back;       // past; zoek de kleinste `ok` in (fail, back]
+          while (ok - fail > 1) {
+            const mid = fail + Math.floor((ok - fail) / 2);
+            if (fits(addCalendarDays(start, -mid))) ok = mid;
+            else fail = mid;
+          }
+          lastFit = addCalendarDays(start, -ok);
+        }
+      }
+      if (lastFit) {
+        let d = lastFit;
+        for (let scan = 0; scan <= HOUR_SCAN; scan++) {
+          if (pe.isWorkDay(d)) return d;
+          d = addCalendarDays(d, -1);
+        }
       }
       return deps.snapOnOrBefore(pe, succDayStart());   // best effort (kapotte kalender)
     }
