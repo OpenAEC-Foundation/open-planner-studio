@@ -38,7 +38,9 @@ jobs:
   # updater gelijke versies en blijft de release voor bestaande installaties
   # STIL onzichtbaar. Bij verschil faalt deze job expliciet vóór create-release.
   gate:
-    timeout-minutes: 20
+    # 45 zoals de verify-jobs in ci.yml (#229) en de deploy-gate in live.yml: de volledige verify
+    # in één job haalt de 20 min op de GitHub-runner niet meer.
+    timeout-minutes: 45
     permissions:
       contents: read
     runs-on: ubuntu-latest
