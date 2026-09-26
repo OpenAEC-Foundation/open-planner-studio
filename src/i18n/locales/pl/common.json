@@ -112,6 +112,7 @@
     "relationDuplicate": "Taka relacja już istnieje",
     "relationAncestorEndpoint": "Relacja między zadaniem a jego własnym nadrzędnym zadaniem sumarycznym jest niedozwolona.",
     "relationCycle": "Ta relacja utworzyłaby cykl w harmonogramie ({{cycle}}) i nie została utworzona.",
+    "hierarchyCycle": "To przeniesienie utworzyłoby cykl w harmonogramie ({{cycle}}): relacje zadania sumarycznego dotyczą również jego podzadań. Niczego nie przeniesiono.",
     "relationsExcludedByHierarchy_one": "Po przeniesieniu {{count}} relacja łączy zadanie z jego własnym nadrzędnym zadaniem sumarycznym; nie jest już uwzględniana w obliczeniach.",
     "relationsExcludedByHierarchy_few": "Po przeniesieniu {{count}} relacje łączą zadanie z jego własnym nadrzędnym zadaniem sumarycznym; nie są już uwzględniane w obliczeniach.",
     "relationsExcludedByHierarchy_many": "Po przeniesieniu {{count}} relacji łączy zadanie z jego własnym nadrzędnym zadaniem sumarycznym; nie są one już uwzględniane w obliczeniach.",

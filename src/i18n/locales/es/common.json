@@ -95,6 +95,7 @@
     "relationDuplicate": "Esa relación ya existe",
     "relationAncestorEndpoint": "No se permite una relación entre una tarea y su propia tarea de resumen antecesora.",
     "relationCycle": "Esta relación crearía un ciclo en la planificación ({{cycle}}) y no se ha creado.",
+    "hierarchyCycle": "Este traslado crearía un ciclo en la planificación ({{cycle}}): las relaciones de una tarea de resumen también se aplican a sus subtareas. No se ha movido nada.",
     "relationsExcludedByHierarchy_one": "Tras el traslado, {{count}} relación vincula una tarea con su propia tarea de resumen antecesora; ya no se tiene en cuenta en el cálculo.",
     "relationsExcludedByHierarchy_many": "Tras el traslado, {{count}} relaciones vinculan una tarea con su propia tarea de resumen antecesora; ya no se tienen en cuenta en el cálculo.",
     "relationsExcludedByHierarchy_other": "Tras el traslado, {{count}} relaciones vinculan una tarea con su propia tarea de resumen antecesora; ya no se tienen en cuenta en el cálculo.",

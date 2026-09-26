@@ -331,8 +331,10 @@ function updateDependenciesCore(ctx: McpContext, updates: unknown[]): MutationOu
   const { candidates, rejections, projected } = classifyDepUpdates(st, updates);
 
   // KRING: over de VOLLEDIGE projectie (alle relaties mét de geaccepteerde wijzigingen), via exact
-  // hetzelfde pad als `add_dependencies` — `validate.noCycle` leest alleen `sequences`, dus voeren we
-  // de projectie als "voorgestelde" kanten aan en houden we de bestaande verzameling leeg.
+  // hetzelfde pad als `add_dependencies` — `validate.noCycle` telt `sequences` plus de voorgestelde
+  // kanten (uitgevouwen over de samenvattingstaken van `tasks`), dus voeren we de projectie als
+  // "voorgestelde" kanten aan en houden we de bestaande verzameling leeg. Elke kring in de projectie
+  // telt daardoor, ook een die er al was — zoals vóór de uitvouwing.
   //
   // NB: een TYPE- of LAG-wijziging alleen kan nooit een kring maken (de kanten-graaf kent alleen
   // voorganger→opvolger, en die blijven dan gelijk). Verleg je een EINDPUNT, dan kan het wel — en

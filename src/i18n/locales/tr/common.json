@@ -78,6 +78,7 @@
     "relationDuplicate": "Bu ilişki zaten var",
     "relationAncestorEndpoint": "Bir görev ile kendi üst özet görevi arasında ilişki kurulmasına izin verilmez.",
     "relationCycle": "Bu ilişki programda bir döngü oluşturur ({{cycle}}); ilişki oluşturulmadı.",
+    "hierarchyCycle": "Bu taşıma programda bir döngü oluşturur ({{cycle}}): bir özet görevin ilişkileri alt görevleri için de geçerlidir. Hiçbir şey taşınmadı.",
     "relationsExcludedByHierarchy_one": "Taşımadan sonra {{count}} ilişki bir görevi kendi üst özet görevine bağlıyor; artık hesaplamaya dahil edilmiyor.",
     "relationsExcludedByHierarchy_other": "Taşımadan sonra {{count}} ilişki bir görevi kendi üst özet görevine bağlıyor; artık hesaplamaya dahil edilmiyor.",
     "summaryRelationsDropped": "{{total}} ilişki hesaplamaya dahil edilemedi. Öncüller ve Ardıllar sütunlarını kontrol edin.",

@@ -78,6 +78,7 @@
     "relationDuplicate": "Diese Beziehung besteht bereits",
     "relationAncestorEndpoint": "Eine Beziehung zwischen einer Aufgabe und ihrer eigenen übergeordneten Sammelaufgabe ist nicht zulässig.",
     "relationCycle": "Diese Beziehung würde einen Zyklus im Terminplan erzeugen ({{cycle}}) und wurde nicht erstellt.",
+    "hierarchyCycle": "Diese Verschiebung würde einen Zyklus im Terminplan erzeugen ({{cycle}}): Die Beziehungen einer Sammelaufgabe gelten auch für ihre Teilaufgaben. Es wurde nichts verschoben.",
     "relationsExcludedByHierarchy_one": "Nach dem Verschieben verbindet {{count}} Beziehung eine Aufgabe mit ihrer eigenen übergeordneten Sammelaufgabe; sie fließt nicht mehr in die Berechnung ein.",
     "relationsExcludedByHierarchy_other": "Nach dem Verschieben verbinden {{count}} Beziehungen eine Aufgabe mit ihrer eigenen übergeordneten Sammelaufgabe; sie fließen nicht mehr in die Berechnung ein.",
     "summaryRelationsDropped": "{{total}} Beziehung(en) konnten nicht einbezogen werden. Prüfen Sie die Vorgänger- und Nachfolgerspalten.",

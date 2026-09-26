@@ -41,6 +41,7 @@ import type { SequenceType } from '@/types/sequence';
 import type { Task } from '@/types/task';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { isAncestorRelation, relationKey } from '@/state/relationRules';
+import { moveTaskVerdict } from '@/state/slices/taskSlice';
 // De relatie-NOTATIE (type-aliassen, lag-vormen, schema-fragmenten) woont in de gedeelde veldlaag
 // `sequenceFields.ts` — één implementatie voor `add_dependencies` hier, `update_dependencies` in
 // `dependencyTools.ts` en de leeskant in `readTools.ts`. Zie de kop van dat bestand.
@@ -619,8 +620,9 @@ function parseMoveTask(args: unknown): { id: string; newParentId: string | null;
   };
 }
 
-/** Synchrone, transactie-vrije kern van `move_task`. Structurele fouten (onbekend id, kringouder)
- *  gooien een `McpStepError` — die code overleeft de rollback van beide aanroepers. */
+/** Synchrone, transactie-vrije kern van `move_task`. Structurele fouten (onbekend id, kringouder,
+ *  een kring in de relaties via de nieuwe fase) gooien een `McpStepError` — die code overleeft de
+ *  rollback van beide aanroepers. */
 function moveTaskCore(ctx: McpContext, p: { id: string; newParentId: string | null; position?: number }): MutationOutcome {
   const { id, newParentId, position } = p;
   const st = ctx.app.store.getState();
@@ -636,6 +638,17 @@ function moveTaskCore(ctx: McpContext, p: { id: string; newParentId: string | nu
       || [...ancestorIds(newParentId, (tid) => parentById.get(tid))].includes(id);
     if (ownDescendant) throw new McpStepError('VALIDATION', 'kan een taak niet onder zichzelf of een eigen afstammeling plaatsen');
   }
+  // Zelfde voorafregel als de UI (audit taakmutaties, S4): een relatie op een fase geldt voor elke
+  // taak erin, dus verhangen kan een kring maken. Zonder deze toets ving pas de eindberekening dat,
+  // met de Engelse solvertekst en — in een batch — zonder te zeggen wélke stap het was.
+  const verdict = moveTaskVerdict(st, id, newParentId, position);
+  if (!verdict.ok) {
+    throw new McpStepError(
+      'CYCLE',
+      `kringverwijzing gedetecteerd: ${verdict.cycle.join(' → ')} — de relaties van een samenvattingstaak ` +
+      'gelden voor al haar subtaken, dus deze verplaatsing zou de planning laten vastlopen; de taak is niet verplaatst',
+    );
+  }
   ctx.app.store.getState().moveTask(id, newParentId, position);
   return { data: { moved: id } };
 }
@@ -645,7 +658,9 @@ const moveTask: BatchStepTool = {
   description:
     'Verplaats een taak naar een nieuwe ouder (`newParentId: null` = wortel) en optioneel een `position` ' +
     '(invoeg-index binnen de ouder; klemt stil naar [0, aantal siblings]). Een taak onder zichzelf of een ' +
-    'eigen afstammeling plaatsen is een harde fout.',
+    'eigen afstammeling plaatsen is een harde fout. Een relatie op een samenvattingstaak geldt voor al haar ' +
+    'subtaken: een verplaatsing die zo een kringverwijzing maakt, is een harde fout (CYCLE) die de hele call ' +
+    'terugrolt.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -789,7 +804,7 @@ const addDependencies: BatchStepTool = {
     'doorgerekend naar de onderliggende bladtaken. Onbekende taak-id\'s, een reeds bestaande relatie, ' +
     'of een voorouder-relatie (een taak gekoppeld aan zijn eigen (voor)ouder-samenvattingstaak) ' +
     'worden per item zacht geweigerd; een kringverwijzing (over de bestaande én voorgestelde ' +
-    'relaties) is een harde fout die de hele call terugrolt. ' +
+    'relaties, ook via de subtaken van een samenvattingstaak) is een harde fout die de hele call terugrolt. ' +
     'WIL JE EEN BESTAANDE RELATIE WIJZIGEN (ander type, andere lag, andere voorganger/opvolger)? ' +
     'Gebruik planner_update_dependencies met het sequence-id — NIET verwijderen-en-opnieuw-toevoegen: ' +
     'dat verliest het id en levert twee undo-stappen op.',

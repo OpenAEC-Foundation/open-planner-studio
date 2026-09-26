@@ -92,6 +92,12 @@ de taak wordt de nieuwe, laatste subtaak van die samenvattende taak — opnieuw 
 beweging, het muis-equivalent van Alt+→. Selecteer eerst meerdere taken (Ctrl/Cmd-klik, of een
 box-selectie) en de hele selectie sleept en landt samen.
 
+Inspringen, uitspringen en slepen gaan niet door als de verplaatsing via de relaties van een fase
+een kring in de planning zou maken — de relaties van een fase gelden namelijk ook voor haar
+subtaken. Je krijgt dan een melding die de taken van de kring noemt, en er verandert niets; bij
+meerdere taken tegelijk gaat de hele verplaatsing niet door. De gids **Relaties & constraints** legt
+uit hoe dat zit.
+
 Dat kan ook aan de **balk** zelf: pak in het Gantt-diagram een taakbalk in het midden vast en sleep
 overwegend omhoog of omlaag. De balk volgt dan dezelfde rijsleep als de taaktabel — zelfde
 invoegplekken, zelfde nestregel, één undo-stap — en de datums van de taak veranderen niet. De

@@ -41,7 +41,8 @@ berekening: de relatiewaarschuwingenkolom in de taakgrid markeert hem als *niet 
 
 Zo'n relatie kan ook ontstaan als je een taak verhangt: spring je een taak in onder zijn eigen
 voorganger of opvolger, sleep je hem daaronder, of kies je die taak als bovenliggende taak, dan gaat
-dat gewoon door. De bestaande relatie blijft bewaard, maar telt vanaf dan niet meer mee; een melding
+dat gewoon door — behalve als het verhangen een kring zou maken (zie *Relaties op
+samenvattingstaken*). De bestaande relatie blijft bewaard, maar telt vanaf dan niet meer mee; een melding
 vertelt hoeveel relaties dat zijn. Zo'n bewaarde relatie houdt de taakgrid niet tegen: je kunt de
 andere relaties gewoon blijven bewerken, en ook type en lag van de bewaarde relatie zelf.
 
@@ -79,6 +80,10 @@ Je kunt een relatie ook rechtstreeks op een samenvattingstaak leggen (een fase o
 - **Samenvatting aan beide kanten**: elke taak aan de ene kant krijgt een relatie met elke taak aan de andere kant.
 
 Dit is exact voor **FS en FF** met een samenvatting als voorganger, en voor **FS en SS** met een samenvatting als opvolger. Voor **SS/SF** met een samenvatting als voorganger en **FF/SF** met een samenvatting als opvolger — zeldzame combinaties in de bouwpraktijk — plant Open Planner Studio bewust aan de veilige kant: mogelijk iets later dan strikt nodig, nooit vroeger.
+
+Omdat zo'n relatie voor elke taak in de fase geldt, verandert **verhangen** ook welke relaties er gelden. Spring je een taak in onder een fase, sleep je hem erin, of kies je de fase als bovenliggende taak in **Taak bewerken**, dan gelden de relaties van die fase voortaan ook voor die taak. Zou daardoor een **kring** ontstaan — bijvoorbeeld: Grondwerk → Keuring en Keuring → Fundering, en je hangt Fundering onder Grondwerk; dan geldt Grondwerk → Keuring ook voor Fundering — dan wordt de verplaatsing niet uitgevoerd, want zo'n kring laat de hele berekening vastlopen. Hetzelfde geldt voor uitspringen, als een relatie tussen de taak en haar fase, die zolang niet meetelde, daardoor weer meetelt en een kring sluit.
+
+Een melding noemt dan de taken van de kring, en er verandert niets: ook geen stap in Ongedaan maken. Verplaats je meerdere taken tegelijk (samen inspringen, of een blok slepen), dan gaat de hele handeling niet door, ook niet voor de taken die op zich wel hadden gekund. In **Taak bewerken** blijft het venster open, zodat je een andere bovenliggende taak kunt kiezen; de rest van je wijzigingen is dan nog niet opgeslagen. Wil je de taak toch daar hebben, haal dan eerst de relatie die de kring sluit weg, of draai hem om. Een kring die al in een geopend bestand zat, houdt een verplaatsing die er niets aan toevoegt niet tegen.
 
 ## Naar een gekoppelde taak springen
 

@@ -78,6 +78,7 @@
     "relationDuplicate": "That relation already exists",
     "relationAncestorEndpoint": "A relation between a task and its own (grand)parent summary task is not allowed.",
     "relationCycle": "This relation would create a cycle in the schedule ({{cycle}}) and was not created.",
+    "hierarchyCycle": "This move would create a cycle in the schedule ({{cycle}}): a summary task's relations also apply to its subtasks. Nothing was moved.",
     "relationsExcludedByHierarchy_one": "After the move, {{count}} relation links a task to its own summary task; it no longer counts in the calculation.",
     "relationsExcludedByHierarchy_other": "After the move, {{count}} relations link a task to its own summary task; they no longer count in the calculation.",
     "summaryRelationsDropped": "{{total}} relation(s) could not be included in the calculation. Check the Predecessors and Successors columns.",

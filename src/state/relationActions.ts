@@ -2,11 +2,7 @@ import { useAppStore } from '@/state/appStore';
 import { relationAddVerdict, type RelationAddRejection } from '@/state/relationRules';
 import type { Sequence, SequenceType } from '@/types/sequence';
 import type { NotificationMessageKey } from '@/state/slices/types';
-
-/** Namen in een melding blijven leesbaar: langere taaknamen worden afgekapt. */
-const MAX_NAME = 40;
-const shortName = (name: string | undefined) =>
-  !name ? '?' : name.length > MAX_NAME ? `${name.slice(0, MAX_NAME - 1)}…` : name;
+import { cycleLabel, shortTaskName } from '@/state/notificationLabels';
 
 /** Welke melding hoort bij een weigering? `self` is via de UI niet te maken: de selectie is een
  *  Set-unie en de Gantt-sleep guardt op een ander doel. `unknown-task` is wél bereikbaar, maar
@@ -61,7 +57,7 @@ export function createRelationDraftWithFeedback(relation: Omit<Sequence, 'id'>):
       // Een kring noemt zijn taken: "Fundering → Grondwerk → Fundering" zegt meteen welke bestaande
       // relatie de gebruiker eerst moet omdraaien of weghalen.
       ...(verdict.reason === 'cycle'
-        ? { params: { cycle: verdict.cycle.map(id => shortName(st.tasks.find(t => t.id === id)?.name)).join(' → ') } }
+        ? { params: { cycle: cycleLabel(st.tasks, verdict.cycle) } }
         : {}),
       // Samenvouwen: herhaald op dezelfde knop rammen levert één regel met een teller op.
       dedupeKey: `relation-rejected-${verdict.reason}`,
@@ -76,8 +72,8 @@ export function createRelationDraftWithFeedback(relation: Omit<Sequence, 'id'>):
     severity: 'info',
     messageKey: 'notifications.relationCreated',
     params: {
-      predecessor: shortName(after.tasks.find((t) => t.id === relation.predecessorId)?.name),
-      successor: shortName(after.tasks.find((t) => t.id === relation.successorId)?.name),
+      predecessor: shortTaskName(after.tasks.find((t) => t.id === relation.predecessorId)?.name),
+      successor: shortTaskName(after.tasks.find((t) => t.id === relation.successorId)?.name),
     },
   });
   return id;

@@ -26,7 +26,8 @@ import {
 import { captureProgressWork, settleProgressWork } from '@/engine/work/workRuleApply';
 import { clearLevelingGaps } from '@/utils/taskDefaults';
 import { sameValue } from '@/utils/sameValue';
-import { detectCycleInEdges } from '@/engine/scheduler/graphWalk';
+import { introducedCycle } from '@/engine/scheduler/relationRules';
+import type { Sequence } from '@/types/sequence';
 import { isValidUnits } from '@/types/resource';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 
@@ -78,21 +79,31 @@ export const validate = {
   },
 
   /**
-   * Cyclus-precheck (WP3): draait een DFS over de BESTAANDE relaties (`state.sequences`) plus de
-   * VOORGESTELDE batch (`newSequences`, alleen `predecessor/successor` telt mee) en retourneert de
-   * kring als taak-id-lijst bij detectie, anders `null`. PUUR — muteert niets. De transactie-rollback
-   * (via `cpmResult.error` in de eind-runCPM) is het vangnet voor wat hier onverhoopt doorheen glipt;
-   * deze pre-check maakt de fout goedkoop en de melding precies (noemt de betrokken taken).
+   * Cyclus-precheck (WP3): toetst de BESTAANDE relaties (`state.sequences`) plus de VOORGESTELDE
+   * batch (`newSequences`, alleen `predecessor/successor` telt mee) en retourneert de kring als
+   * taak-id-lijst bij detectie, anders `null`. PUUR — muteert niets.
+   *
+   * Getoetst zoals de solver rekent en zoals de UI weigert (`introducedCycle`, dezelfde regel als
+   * `relationAddVerdict` en het verhangen): over de bladgraaf na `expandSummaryRelations` — een
+   * relatie naar een samenvattingstaak kan via een van haar subtaken rondlopen (audit taakmutaties,
+   * S5) — en alleen een kring die de batch TOEVOEGT; een al bestaande kring noemt deze toets dus niet
+   * als schuld van de batch. De transactie-rollback (via `cpmResult.error` in de eind-runCPM) blijft
+   * het vangnet voor wat hier onverhoopt doorheen glipt, of voor een kring die er al was; deze
+   * pre-check maakt de fout goedkoop en de melding precies (noemt de betrokken taken, begint bij de
+   * nieuwe relatie).
    */
   noCycle(
     state: ReadableState,
     newSequences: { predecessorId: string; successorId: string }[],
   ): string[] | null {
-    const edges: { predecessorId: string; successorId: string }[] = [
-      ...state.sequences.map((s) => ({ predecessorId: s.predecessorId, successorId: s.successorId })),
-      ...newSequences.map((s) => ({ predecessorId: s.predecessorId, successorId: s.successorId })),
-    ];
-    return detectCycleInEdges(edges);
+    const proposed: Sequence[] = newSequences.map((s, index) => ({
+      id: `__proposed-${index}`,
+      predecessorId: s.predecessorId,
+      successorId: s.successorId,
+      type: 'FINISH_START', // type en lag doen voor een kring niet mee
+      lagDays: 0,
+    }));
+    return introducedCycle(state, { tasks: state.tasks, sequences: [...state.sequences, ...proposed] });
   },
 
   /**
