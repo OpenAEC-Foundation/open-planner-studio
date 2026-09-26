@@ -328,6 +328,16 @@ test('H8: `shiftBaselines: "ja"` ⇒ VALIDATION-fout (zelfde patroon, lagere inz
   assertEq(S().project.startDate, '2026-06-01', 'niets verschoven');
 });
 
+test('move_project: niet-bestaande of vervuilde datum ⇒ VALIDATION, niets verschoven (audit 2026-09-26)', async () => {
+  for (const bad of ['2026-02-30', '2026-13-45', '2026-03-01xyz', '2026-03-01T08:00']) {
+    cleanProject([]);
+    S().addTask({ name: 'A' });
+    const res = await call('planner_move_project', { newStartDate: bad });
+    expectValidation(res, 'newStartDate', `newStartDate ${bad}`);
+    assertEq(S().project.startDate, '2026-06-01', `niets verschoven bij ${bad}`);
+  }
+});
+
 // =================================================================================================
 // H9 — `ensureFreshSchedule` miste het NOOIT-berekende document (cpmResult null, scheduleStale false).
 // =================================================================================================
