@@ -1,4 +1,4 @@
-// contourIo.ts — de adapterlaag van de contour-engine (2026-09): vertaalt tussen de RAUWE vormen
+// contourIo.ts — de adapterlaag van de contour-engine: vertaalt tussen de RAUWE vormen
 // waarin MS Project (MSPDI `<TimephasedData>`) en Primavera P6 (`<PlannedCurve>`/`<RemainingCurve>`/
 // `<ActualCurve>`-spreidingsstrings) een werkverdeling opslaan, en de ene interne vorm die de
 // engine rekent: `TimephasedContourPeriod[]` op de cumulatieve werkminuten-as van de taak (zie
@@ -29,7 +29,7 @@ import { isSummaryTask } from '@/utils/taskHierarchy';
 export type ContourKind = TimephasedContourPeriod['kind'];
 
 /**
- * Aantal taken waarvan de onderbrekingen bij een MSPDI-/P6-export VERLOREN gaan (issue #146): beide
+ * Aantal taken waarvan de onderbrekingen bij een MSPDI-/P6-export VERLOREN gaan: beide
  * formaten kennen een onderbreking alleen als werkverdeling van een toewijzing, en zonder contour is
  * er geen verdeling om te schrijven. Eén telling voor beide writers (console) én voor
  * `fileSlice.exportAs` (de gebruikersmelding) — anders kan de melding iets anders zeggen dan de writer doet.
@@ -143,9 +143,8 @@ export function attachContours(
 /**
  * De gaten tussen GEWERKTE spans op de werkminuten-as van één toewijzing. De aanroeper laat periodes
  * zonder werk vooraf weg: zo'n periode overbrugt juist de discontinuïteit die anders zichtbaar zou
- * zijn (mutatiebewijs `check-mpp-import.ts`, Z4 punt 3). STRIKT `>`: twee AANGRENZENDE werkperiodes
- * (bv. de naad tussen een "actual"- en een "remaining"-record) leveren geen fantoomgat van 0 minuten
- * (Z4 punt 4).
+ * zijn (bewaakt door `check-mpp-import.ts`). STRIKT `>`: twee AANGRENZENDE werkperiodes
+ * (bv. de naad tussen een "actual"- en een "remaining"-record) leveren geen fantoomgat van 0 minuten.
  */
 export function gapsBetweenWorkedSpans(spans: readonly { start: number; end: number }[]): TaskSplitGap[] {
   const worked = spans.slice().sort((a, b) => a.start - b.start);

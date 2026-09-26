@@ -5,15 +5,14 @@ import { orderActualsAfterDerivedFinish } from '@/engine/actualDatesOrder';
 import { workRuleFromMsp, workRuleFromXerDurationType } from '@/engine/work/workRuleMapping';
 
 /**
- * Taaktypes-etappe (ontwerp 2026-09-04 §4.2), bouwstap 2 — de WERKREGEL afleiden uit de bewaarde
- * importvelden, één keer, in elke lezer die zulke velden zet (.mpp, MSPDI, P6 XML, XER). De
- * importvelden zelf blijven onaangeraakt (O3-precedent: één klasse taakvelden); de regel is een
+ * De WERKREGEL afleiden uit de bewaarde importvelden, één keer, in elke lezer die zulke velden zet
+ * (.mpp, MSPDI, P6 XML, XER). De importvelden zelf blijven onaangeraakt; de regel is een
  * apart opgeslagen afgeleide, zodat een latere typewissel de herkomst niet vernietigt.
  *   - MSP: `mspTaskType` + `effortDriven` → `workRuleFromMsp` (Fixed Units ⇒ FIXED_RATE, Fixed
  *     Duration ± effort-driven ⇒ FIXED_DURATION_WORK/-RATE, Fixed Work ⇒ FIXED_WORK).
  *   - P6 (XER én PMXML, beide via `p6DurationType`): `workRuleFromXerDurationType`.
- * Een taak die al een `workRule` draagt (IFC) wordt niet overschreven; geen bron ⇒ geen veld
- * (byte-identiek). Puur data — géén solverstap leest het; het gedrag komt in de bewerkingslaag.
+ * Een taak die al een `workRule` draagt (IFC) wordt niet overschreven; geen bron ⇒ geen veld.
+ * Puur data — géén solverstap leest het; het gedrag komt in de bewerkingslaag.
  */
 export function deriveImportedWorkRules(tasks: Task[]): void {
   for (const task of tasks) {
@@ -26,21 +25,21 @@ export function deriveImportedWorkRules(tasks: Task[]): void {
 }
 
 /**
- * Fase 2.6 — voortgang-invarianten toepassen op RAUW ingelezen taken (IFC/MSPDI/P6/CSV).
+ * Voortgang-invarianten toepassen op RAUW ingelezen taken (IFC/MSPDI/P6/CSV).
  *
  * Externe bestanden kunnen inconsistente combinaties bevatten (bv. een `actualFinish` zonder
  * `completion === 1`, of een `RemainingDuration` die niet strookt met het percentage). De store
- * dwingt deze invarianten normaal af in de progress-acties (§3.2), maar de reader zet de velden
+ * dwingt deze invarianten normaal af in de progress-acties, maar de reader zet de velden
  * rauw. Deze helper normaliseert daarom bij het INLEZEN — één plek die álle load-paden dekt
  * (openFile, voorbeelden, recovery, IFC-panel-plak, extensie-API), omdat elke route door een
  * reader loopt.
  *
  * Golden rule: een taak ZONDER enig voortgangssignaal (geen actuals, completion 0) blijft
  * volledig ongemoeid — status NOT_STARTED, geen `remainingTime` gezet — zodat bestaande
- * bestanden byte-identiek round-trippen. De restduur is afgeleid uit `completion` (§9.4-noot,
- * `applyRemainingDuration`): een afwijkende geïmporteerde dag-restduur wordt naar de afgeleide
+ * bestanden ongewijzigd round-trippen. De restduur is afgeleid uit `completion`
+ * (`applyRemainingDuration`): een afwijkende geïmporteerde dag-restduur wordt naar de afgeleide
  * genormaliseerd (gedocumenteerd verlies); vastgelegde restduur-minuten van een urentaak blijven
- * staan (T9).
+ * staan.
  */
 export function normalizeImportedProgress(tasks: Task[], statusDate?: string): void {
   for (const task of tasks) {
@@ -57,9 +56,9 @@ export function normalizeImportedProgress(tasks: Task[], statusDate?: string): v
       continue;
     }
 
-    // §3.2-invarianten (spiegel van applyProgressInvariants, engine/taskMutationRules.ts). De
+    // Voortgang-invarianten (spiegel van applyProgressInvariants, engine/taskMutationRules.ts). De
     // AF-default is niet gespiegeld maar GEDEELD (`defaultActualFinish`): statusdatum, anders de
-    // eigen geplande finish — nooit de leesdatum (import/export-audit, bevinding 6).
+    // eigen geplande finish — nooit de leesdatum.
     if (t.actualFinish) {
       t.completion = 1;
       if (!t.actualStart) t.actualStart = t.actualFinish;
@@ -75,21 +74,21 @@ export function normalizeImportedProgress(tasks: Task[], statusDate?: string): v
       task.status = 'COMPLETED';
     } else {
       // In progress: actualStart gezet óf completion > 0 (impliciete start dekt het
-      // solver-vangnet §4.2 tak 2b — hier NIET een actualStart verzinnen).
+      // solver-vangnet — hier NIET een actualStart verzinnen).
       task.status = 'STARTED';
     }
 
-    // Restduur afgeleid (§9.4-noot) met dezelfde regel als de store, in de vorm van de duur: een
+    // Restduur afgeleid met dezelfde regel als de store, in de vorm van de duur: een
     // dagtaak hele werkdagen (een geïmporteerde waarde wordt overschreven), een urentaak minuten plus
     // een onafgeronde werkdagfractie. Uitzondering: in het bestand vastgelegde restduur-MINUTEN
-    // blijven staan (T9, MSP's eigen exacte restduur bij een afgeronde voortgang).
+    // blijven staan (MSP's eigen exacte restduur bij een afgeronde voortgang).
     applyRemainingDuration(task, true);
   }
 }
 
 /**
- * Herbouw de parent-child-hiërarchie uit gepunte WBS-codes (F5-f) — gedeeld door de MSPDI- en
- * CSV-readers, die hier eerder identieke code hadden. Een taak met een punt in zijn `wbsCode` (bv.
+ * Herbouw de parent-child-hiërarchie uit gepunte WBS-codes — gedeeld door de MSPDI- en
+ * CSV-readers. Een taak met een punt in zijn `wbsCode` (bv.
  * `1.2.3`) hangt onder de taak met de code één niveau hoger (`1.2`), als die bestaat. Bouwt zijn
  * eigen `wbsCode → id`-map, muteert `parentId`/`childIds` in-place en dupliceert nooit een childId.
  */
@@ -114,7 +113,7 @@ export function rebuildWbsHierarchy(tasks: Task[]): void {
 }
 
 /**
- * Ouder per taak uit OUTLINE-NIVEAUS in documentvolgorde (issue #159) — de MS-Project-semantiek:
+ * Ouder per taak uit OUTLINE-NIVEAUS in documentvolgorde — de MS-Project-semantiek:
  * een taak hangt onder de dichtstbijzijnde VOORAFGAANDE taak met een lager niveau. `levels[i]` hoort
  * bij `tasks[i]`. Geeft `undefined` zodra één niveau ontbreekt of geen geheel getal ≥ 0 is; een
  * 0-gebaseerde reeks (sommige exporteurs tellen vanaf 0) wordt genormaliseerd naar 1-gebaseerd.
@@ -182,12 +181,12 @@ function applyParents(tasks: Task[], parents: Map<string, string | null>): void 
 export type ImportedHierarchySource = 'outline' | 'wbs';
 
 /**
- * Herbouw de parent-child-hiërarchie van een geïmporteerde takenlijst (issue #159 + critreview).
+ * Herbouw de parent-child-hiërarchie van een geïmporteerde takenlijst.
  * Twee bronnen: de outline-niveaus (`<OutlineLevel>` in MSPDI, de 'Outline Level'-kolom in CSV) en de
  * gepunte WBS-codes. Beslisregel:
  *
  *  1. Leveren de gepunte codes een VOLLEDIGE boom (`wbsParents.complete`) die de outline-afleiding
- *     ergens tegenspreekt, dan wint de WBS. Dat is het geval van onze eigen exports van vóór #159:
+ *     ergens tegenspreekt, dan wint de WBS. Dat is het geval van onze eigen oudere exports:
  *     die schreven `<OutlineLevel>` uit `wbsCode.split('.').length` in store-volgorde ("samenvattingen
  *     eerst, dan bladen") — het niveau staat er, maar de VOLGORDE klopt niet, dus de outline-stack
  *     hangt de bladen onder de laatste samenvatting terwijl de codes de boom exact beschrijven. Die
@@ -196,7 +195,7 @@ export type ImportedHierarchySource = 'outline' | 'wbs';
  *     dat klopt zodra de WBS vrije tekst (`T107`, `A-1`) of een eigen masker is.
  *  3. Zonder bruikbare outline: de gepunte-WBS-afleiding zoals altijd (ook een gedeeltelijke).
  *
- * Een bestand van MS Project zelf (outline-nummer = standaard-WBS) of een export van ná #159 (boom-
+ * Een bestand van MS Project zelf (outline-nummer = standaard-WBS) of een huidige export (boom-
  * volgorde) valt in 1 en 2 op hetzelfde uit; de regel doet alleen iets bij een echte tegenspraak.
  * Muteert `parentId`/`childIds` in-place; geeft de gebruikte bron terug.
  */
@@ -215,7 +214,7 @@ export function rebuildImportedHierarchy(tasks: Task[], levels: readonly (number
 }
 
 /**
- * Fase 3 (H2) — `task.resourceIds` reconstrueren uit de assignments. De bestanden slaan de
+ * `task.resourceIds` reconstrueren uit de assignments. De bestanden slaan de
  * taak↔resource-koppeling uitsluitend op via de toewijzingen (IFC: IFCRELASSIGNSTOPROCESS +
  * OPS_Assignments); `resourceIds` is een afgeleide projectie daarvan en wordt NIET los bewaard (geen
  * dubbele opslag/waarheid). Gedeeld door de lezers die toewijzingen kennen. Volgorde is deterministisch: eerste-zien in de

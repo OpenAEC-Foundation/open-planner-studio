@@ -56,18 +56,18 @@ export function isGanttReportType(type: ReportType): boolean {
  * resource die eraan hangt, dus de printrender (`rowIndexOf`, laatste kopie wint) zou een pijl op
  * een willekeurige kopie ankeren en bij "blad per resource" de bladrand af sturen. Eén predicaat voor
  * de forcering van `showDeps` én het verbergen van het vinkje — twee losse condities lopen uit
- * elkaar (hyperkritische review op #132, tweede ronde, N6).
+ * elkaar.
  */
 export function reportTypeDrawsRelations(type: ReportType): boolean {
   return type !== 'resourceGantt';
 }
 
 /**
- * Toont dit rapporttype het vinkje *Kritiek pad*? Sinds de balkkleurkeuze (`barColorSelection`)
+ * Toont dit rapporttype het vinkje *Kritiek pad*? Met de balkkleurkeuze (`barColorSelection`)
  * stuurt dat vinkje alléén de relatielijnen (rood tussen twee kritieke taken) en de legendaregel;
  * de balken zelf volgen `criticalFill` in `barColors.ts`, ongeacht het vinkje. Bij een type zonder
  * relatiepijlen zou het vinkje dus nog uitsluitend de legendaregel wegnemen terwijl de balken rood
- * blijven — misleidend (manuvarkey op #113). Daarom hetzelfde predicaat als de relaties; het paneel
+ * blijven — misleidend. Daarom hetzelfde predicaat als de relaties; het paneel
  * forceert `showCritical` dan op `true`, zodat de legenda bij de rode balken past.
  */
 export function reportTypeShowsCriticalToggle(type: ReportType): boolean {
@@ -85,9 +85,9 @@ export function isTableReportType(type: ReportType): boolean {
 
 /**
  * Opties van de tabelrapporten — één object, samen bewaard met de rest van de rapportinstellingen.
- * De drempels zijn werkdagen; de vensters zijn rapportageperiodes (issue #120: één gedeeld
- * periodemodel met presets rond de statusdatum, de projectspanne of een eigen datumbereik — zie
- * `src/engine/reports/reportingPeriod.ts`). Defaults volgen issue #120: look-ahead de komende maand,
+ * De drempels zijn werkdagen; de vensters zijn rapportageperiodes (één gedeeld periodemodel met
+ * presets rond de statusdatum, de projectspanne of een eigen datumbereik — zie
+ * `src/engine/reports/reportingPeriod.ts`). Defaults: look-ahead de komende maand,
  * voortgang de afgelopen maand, belasting en toewijzingen de hele projectspanne; near-critical ≤ 5 wd,
  * gezondheid volgens DCMA (44 wd). Bestaande gebruikers raken die defaults niet: hun opgeslagen
  * weken-getal migreert naar de bijbehorende preset (zie `legacyWeeksPeriod`). De oude sleutels
@@ -103,7 +103,7 @@ export interface TableReportOptions {
   healthLongDurationDays: number;
   healthLagDays: number;
   resourceLoadPeriod: ReportingPeriod;
-  /** Aggregatie van het belastingsrapport: per kalenderweek of per kalendermaand (issue #119). */
+  /** Aggregatie van het belastingsrapport: per kalenderweek of per kalendermaand. */
   resourceLoadBucket: ResourceLoadingBucket;
   resourceLoadOnlyOverloaded: boolean;
   resourceAssignmentPeriod: ReportingPeriod;
@@ -134,15 +134,14 @@ export const TABLE_REPORT_PERIOD_KEYS = ['lookAheadPeriod', 'progressPeriod', 'r
 export type TableReportPeriodKey = (typeof TABLE_REPORT_PERIOD_KEYS)[number];
 
 /**
- * Opties van het resourcediagram (issue #113). `pageBreakPerResource` = "een blad per persoon":
+ * Opties van het resourcediagram. `pageBreakPerResource` = "een blad per persoon":
  * elke resource begint op een nieuwe pagina, zodat je per ploeg of medewerker één vel kunt
  * uitdelen; uit = één doorlopend overlegdocument. `includeUnassigned` neemt de taken zonder
  * resource als laatste band mee — handig om in een overleg te zien wat nog niemand heeft.
- * `groupByType` (manuvarkey, punt 2) zet er een laag boven: eerst een band per resourcetype
- * (arbeid, ploeg, onderaannemer, materieel, materiaal), daarbinnen per resource. `period` (punt 3)
- * is de gedeelde rapportageperiode (issue #120): alleen taken die het venster raken, en de tijdas
- * exact op het venster; default `project` = het oude gedrag. `showAssignmentColumns` (punt 1)
- * zet achter de taaknaam twee kolommen met eenheden per dag en verdeelcurve van de resource van
+ * `groupByType` zet er een laag boven: eerst een band per resourcetype (arbeid, ploeg,
+ * onderaannemer, materieel, materiaal), daarbinnen per resource. `period` is de gedeelde
+ * rapportageperiode: alleen taken die het venster raken, en de tijdas exact op het venster; default
+ * `project` = de hele projectspanne. `showAssignmentColumns` zet achter de taaknaam twee kolommen met eenheden per dag en verdeelcurve van de resource van
  * de band — standaard aan: dat is de informatie waarvoor je dit rapport uitdeelt.
  */
 export interface ResourceGanttReportOptions {
@@ -199,9 +198,9 @@ export interface ReportSettings {
   repeatFooter: boolean;
   timelineColumns: number;
   reportFontScale: number;
-  /** Statuslijn in de export (#54), letterlijk drie opties zoals gevraagd. */
+  /** Statuslijn in de export: drie opties. */
   statusLine: 'none' | 'statusDate' | 'progress';
-  /** Export volgt de schermweergave — filter, groepering, sortering én inklapstatus (#54). */
+  /** Export volgt de schermweergave — filter, groepering, sortering én inklapstatus. */
   followView: boolean;
   previewQuality: ReportPreviewQuality;
   tableReports: TableReportOptions;
@@ -209,9 +208,8 @@ export interface ReportSettings {
 }
 
 /**
- * De defaults zijn EXACT de waarden waarmee `ReportPanel` z'n `useState`-hooks initialiseerde vóór
- * deze persistentie bestond. Een verse installatie (of een gewiste sleutel) gedraagt zich dus
- * byte-identiek aan de oude situatie — persistentie mag geen stille gedragswijziging zijn.
+ * De defaults van een verse installatie (of een gewiste sleutel); persistentie mag geen stille
+ * gedragswijziging zijn.
  */
 export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   reportType: 'gantt',
@@ -231,7 +229,7 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   paperSize: 'A3',
   orientation: 'landscape',
   repeatHeader: true,
-  // Standaard aan, net als de kop: een uitdeelvel zonder legenda is onleesbaar (issue #113).
+  // Standaard aan, net als de kop: een uitdeelvel zonder legenda is onleesbaar.
   repeatFooter: true,
   timelineColumns: 1,
   reportFontScale: 100,
@@ -278,7 +276,7 @@ export function parseReportingPeriod(raw: unknown, fallback: ReportingPeriod): R
 }
 
 /**
- * Migratie van de oude "N weken"-getallen (vóór issue #120) naar een preset: de kleinste preset
+ * Migratie van de oude "N weken"-getallen naar een preset: de kleinste preset
  * die N dekt (3 weken ⇒ 4 weken), 0 toewijzingsweken ⇒ hele project. Alleen gebruikt wanneer het
  * nieuwe periodeveld ontbreekt; de oude sleutel wordt daarna niet meer teruggeschreven.
  */
@@ -362,8 +360,8 @@ export async function loadReportSettings(): Promise<ReportSettings> {
     reportFontScale: snapToChoice(FONT_SCALES, s.reportFontScale) ?? d.reportFontScale,
     statusLine: parseEnum(STATUS_LINES, s.statusLine) ?? d.statusLine,
     followView: parseBoolean(s.followView) ?? d.followView,
-    // `previewZoom` uit de kortstondige 69ad-versie wordt bewust genegeerd: de preview verandert
-    // sindsdien nooit meer van CSS-formaat. Alleen een geldige kwaliteitswaarde heeft effect.
+    // Een opgeslagen `previewZoom` (oudere versie) wordt bewust genegeerd: de preview verandert
+    // niet van CSS-formaat. Alleen een geldige kwaliteitswaarde heeft effect.
     previewQuality: parseEnum(PREVIEW_QUALITIES, s.previewQuality) ?? d.previewQuality,
     tableReports: parseTableReportOptions(s.tableReports),
     resourceGantt: parseResourceGanttOptions(s.resourceGantt),

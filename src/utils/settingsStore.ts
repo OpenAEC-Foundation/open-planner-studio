@@ -47,11 +47,11 @@ export async function saveTheme(theme: UITheme): Promise<void> {
   localStorage.setItem('ops-theme', theme);
 }
 
-// Migration map: 7 oude thema's → 3 nieuwe (post stylebook alignment), plus de latere
+// Migration map: 7 oude thema's → 3 nieuwe, plus de
 // 'system'-voorkeur (volg het OS-kleurschema) die geen migratie nodig heeft maar wél in deze map
 // moet staan — een onbekende sleutel valt hieronder terug op 'dark'.
-// 'default' was de warme bruine + amber dark theme; nu de canonical 'dark'
-// 'light' blijft 'light' (light kleuren krijgen OpenAEC token-update in globals.css)
+// 'default' wordt de canonical 'dark'
+// 'light' blijft 'light'
 // 'highContrast' wordt 'high-contrast' (consistente naamgeving)
 // Alle andere oude thema's vallen terug op 'dark'
 //
@@ -82,10 +82,10 @@ export async function initTheme(): Promise<UITheme> {
   return migrated;
 }
 
-/** Synchrone tegenhanger van `initTheme` voor de stóre-default (issue #61): leest en migreert de
+/** Synchrone tegenhanger van `initTheme` voor de stóre-default: leest en migreert de
  *  opgeslagen themavoorkeur zonder te persisteren. Zo start `ui.uiTheme` met hetzelfde thema als
  *  het pre-paint-script in index.html en kan het `data-theme`-effect in App.tsx bij de eerste
- *  commit nooit een verkeerde default terugzetten (de flits die #61 meldde). Headless (Node,
+ *  commit nooit een verkeerde default terugzetten (een themaflits). Headless (Node,
  *  geen localStorage) valt dit terug op 'dark'; `initTheme` blijft de persisterende bron. */
 export function peekTheme(): UITheme {
   try {
@@ -105,9 +105,9 @@ export interface PersistedZoomSettings {
   modifierMap: ModifierMap;
 }
 
-// De LOAD-kant van de zoom-instellingen (`loadZoomSettings`) + de `isValidModifierMap`-validator zijn
-// naar het settings-register verhuisd (`src/utils/settingsRegistry.ts`, pakket M/audit H1). De
-// SAVE-kant blijft hier als dunne wrapper zodat de bestaande UI-callsites ongemoeid blijven.
+// De LOAD-kant van de zoom-instellingen (`loadZoomSettings`) + de `isValidModifierMap`-validator
+// staan in het settings-register (`src/utils/settingsRegistry.ts`). De SAVE-kant is hier een dunne
+// wrapper voor de UI-callsites.
 export async function saveZoomSettings(settings: Partial<PersistedZoomSettings>): Promise<void> {
   if (settings.enableQuarterHourZoom !== undefined) await setSetting('enableQuarterHourZoom', settings.enableQuarterHourZoom);
   if (settings.weekStartDay !== undefined) await setSetting('weekStartDay', settings.weekStartDay);
@@ -141,7 +141,7 @@ export async function saveRightPanelWidth(value: number): Promise<void> {
   await setSetting('rightPanelWidth', Math.round(value));
 }
 
-// Hoogte van de Eigenschappen-sectie in de rail-accordeon (issue #46, slot; ui.railPropertiesHeight)
+// Hoogte van de Eigenschappen-sectie in de rail-accordeon (ui.railPropertiesHeight)
 // wanneer BEIDE secties openstaan. Zelfde categorie als histogramHeight hieronder: view-state, geen
 // instelling — persist via de ops-prefix, buiten de 3-plekken-regel. De boven-klem is bewust ruim en
 // statisch (een corrupte localStorage-waarde mag de rail niet onbruikbaar maken); de live klem
@@ -153,7 +153,7 @@ export async function saveRailPropertiesHeight(value: number): Promise<void> {
   await setSetting('railPropertiesHeight', Math.round(value));
 }
 
-// Issue #53: hoogte van het Waarschuwingenpaneel onderin de rail (ui.railWarningsHeight) — zelfde
+// Hoogte van het Waarschuwingenpaneel onderin de rail (ui.railWarningsHeight) — zelfde
 // categorie en klemmen als de Eigenschappen-sectie hierboven.
 export async function saveRailWarningsHeight(value: number): Promise<void> {
   await setSetting('railWarningsHeight', Math.round(value));
@@ -163,7 +163,7 @@ export async function saveRibbonCompact(value: boolean): Promise<void> {
   await setSetting('ribbonCompact', value);
 }
 
-// Histogramstrook (fase 2.5, §6.5): zichtbaarheid + hoogte zijn view-state (net als
+// Histogramstrook: zichtbaarheid + hoogte zijn view-state (net als
 // leftPanelWidth), geen instellingen — persist via dezelfde ops-prefix, geen 3-plekken-regel.
 export async function saveShowHistogram(value: boolean): Promise<void> {
   await setSetting('showHistogram', value);
@@ -176,7 +176,7 @@ export async function saveHistogramHeight(value: number): Promise<void> {
   await setSetting('histogramHeight', Math.round(value));
 }
 
-// Baseline-/voortgang-overlays (fase 2.6, §11.1): view-state zoals showHistogram — geen
+// Baseline-/voortgang-overlays: view-state zoals showHistogram — geen
 // instellingen, persist via dezelfde ops-prefix, buiten de 3-plekken-regel.
 export async function saveShowBaselineOverlay(value: boolean): Promise<void> {
   await setSetting('showBaselineOverlay', value);
@@ -190,7 +190,7 @@ export async function saveShowStatusDateLine(value: boolean): Promise<void> {
   await setSetting('showStatusDateLine', value);
 }
 
-/** #130: de groene speling-band in de Gantt aan/uit — view-state, zelfde model als hierboven. */
+/** De groene speling-band in de Gantt aan/uit — view-state, zelfde model als hierboven. */
 export async function saveShowFloatBand(value: boolean): Promise<void> {
   await setSetting('showFloatBand', value);
 }
@@ -199,7 +199,7 @@ export async function saveShowResourceAccent(value: boolean): Promise<void> {
   await setSetting('showResourceAccent', value);
 }
 
-// Mini-map (fase 2.7, §11.3): app-globale zichtbaarheid, view-state zoals showHistogram —
+// Mini-map: app-globale zichtbaarheid, view-state zoals showHistogram —
 // persist via dezelfde ops-prefix (`ops-showMiniMap`), buiten de 3-plekken-regel.
 export async function saveShowMiniMap(value: boolean): Promise<void> {
   await setSetting('showMiniMap', value);
@@ -238,7 +238,7 @@ export async function saveTaskGridPreferences(
   await setSetting('taskGridPreferences', preferences);
 }
 
-// Layouts (fase 2.7, §8.2): app-globaal in localStorage, géén Tauri-store. Parse-guard: corrupte JSON
+// Layouts: app-globaal in localStorage, géén Tauri-store. Parse-guard: corrupte JSON
 // of een item zonder de juiste shape → weggelaten (nooit een crash op een handmatig geprutste
 // localStorage-waarde). `ops-lastLayoutId` moet naar een BESTAANDE layout wijzen, anders `null` —
 // die check gebeurt hier niet (de aanroeper kent de actuele lijst pas na `loadLayouts()`).
@@ -256,7 +256,7 @@ interface LegacyColumnConfigLike {
 }
 
 /**
- * Structurele check van het overlay-deel (issue #173). Bewust zonder `barColorSettings` (dat
+ * Structurele check van het overlay-deel. Bewust zonder `barColorSettings` (dat
  * importeert deze module): een categorieveld dat in dit project niet bestaat, vangt
  * `effectiveBarColorSelection` bij het tekenen al op.
  */
@@ -275,7 +275,7 @@ function isLayoutOverlays(value: unknown): value is LayoutOverlays {
 function baseLayout(v: unknown): Record<string, unknown> | null {
   if (!v || typeof v !== 'object') return null;
   const l = v as Record<string, unknown>;
-  // Issue #144: elk deel is optioneel (afwezig = "laat met rust"), maar een AANWEZIG deel moet de
+  // Elk deel is optioneel (afwezig = "laat met rust"), maar een AANWEZIG deel moet de
   // juiste vorm hebben — een half kapotte layout wordt weggelaten, niet half toegepast.
   return (
     typeof l.id === 'string' &&
@@ -349,14 +349,14 @@ async function loadStoredLayouts(): Promise<Layout[]> {
       if (normalized) return normalized;
     }
   }
-  // Lazy legacy-read: de oude sleutel blijft byte-identiek staan totdat de gebruiker expliciet
+  // Lazy legacy-read: de oude sleutel blijft ongewijzigd staan totdat de gebruiker expliciet
   // opslaat/bijwerkt. Dynamische refs worden hier opaque, zonder actief project te raden.
   const legacy = await getSetting<unknown>('layouts');
   return normalizeLayouts(legacy) ?? [];
 }
 
 /**
- * Issue #144: de losse opgeslagen filters (issue #85) gaan EENMALIG op in de layouts, als layouts
+ * De losse opgeslagen filters gaan EENMALIG op in de layouts, als layouts
  * die alleen een filter dragen. De vlag voorkomt dat een daarna verwijderde filter-layout bij de
  * volgende start terugkomt. `ops-savedFilters` zelf blijft bewust staan: wie terugvalt naar een
  * oudere versie houdt zijn filters.
@@ -378,7 +378,7 @@ export async function saveLayouts(layouts: Layout[]): Promise<void> {
   await setSetting('taskGridLayouts', payload);
 }
 
-// Opgeslagen filters (issue #85): net als layouts app-breed op dit apparaat, maar bewust alleen
+// Opgeslagen filters: net als layouts app-breed op dit apparaat, maar bewust alleen
 // de filterboom. Daardoor blijft de rest van de actuele weergave onaangetast bij snel wisselen.
 const FILTER_OPERATORS = new Set(['eq', 'neq', 'lt', 'lte', 'gt', 'gte', 'contains', 'startsWith', 'between', 'isEmpty', 'in']);
 
@@ -415,10 +415,10 @@ export async function saveSavedFilters(filters: SavedFilter[]): Promise<void> {
   await setSetting('savedFilters', filters);
 }
 
-// Automatisch berekenen (fase 2.7 vervolg): app-instelling, dus WEL onder de 3-plekken-regel
+// Automatisch berekenen: app-instelling, dus WEL onder de 3-plekken-regel
 // (tandwiel, Instellingen-ribbontab, File-backstage delen allemaal SettingsPanelContent). Default
-// UIT — huidig handmatige (F5) gedrag blijft ongewijzigd tenzij de gebruiker 'm expliciet aanzet.
-// Legacy-functie (issue #144): de losse weergaveknoppen op Beeld zijn vervangen door de layoutknoppen
+// UIT — handmatig (F5) rekenen tenzij de gebruiker 'm expliciet aanzet.
+// Legacy-functie: de losse weergaveknoppen op Beeld zijn vervangen door de layoutknoppen
 // en de layoutdialoog; wie eraan gewend is zet ze hiermee terug. Default uit.
 export async function saveShowClassicViewControls(value: boolean): Promise<void> {
   await setSetting('showClassicViewControls', value);
@@ -428,14 +428,14 @@ export async function saveAutoCalcCPM(value: boolean): Promise<void> {
   await setSetting('autoCalcCPM', value);
 }
 
-// Bouwmodus (bouw-agnostische modus, 2026-07-13): app-instelling onder de 3-plekken-regel
+// Bouwmodus (bouw-agnostische modus): app-instelling onder de 3-plekken-regel
 // (tandwiel/ribbontab/backstage delen SettingsPanelContent). AAN = huidige bouwgerichte app;
 // UIT = bouw-agnostisch (neutrale default-kalender, geen bouwvak/NL-feestdagen, alleen "Leeg"-
-// sjabloon, neutraal taaktype). Default AAN, dus bestaande gebruikers merken niets.
+// sjabloon, neutraal taaktype). Default AAN.
 // AFWIJKING van de meeste load*-helpers: dit paar is SYNCHROON (geen Promise) omdat de synchrone
 // default-kalenderfabriek (`createDefaultCalendar`/`buildGeneratedCalendar`) de vlag direct moet
 // kunnen uitlezen. De `typeof localStorage`-guard houdt de headless test-/Node-omgeving (geen
-// localStorage) op de default (bouwmodus aan) — zo blijft de bestaande CPM-suite byte-identiek.
+// localStorage) op de default (bouwmodus aan), waar de CPM-suite op rekent.
 export function loadConstructionMode(): boolean {
   if (typeof localStorage === 'undefined') return true;
   const raw = localStorage.getItem('ops-constructionMode');
@@ -448,14 +448,14 @@ export function saveConstructionMode(value: boolean): void {
   localStorage.setItem('ops-constructionMode', JSON.stringify(value));
 }
 
-// Datumnotatie (taak #53): app-instelling, dus WEL onder de 3-plekken-regel (tandwiel,
+// Datumnotatie: app-instelling, dus WEL onder de 3-plekken-regel (tandwiel,
 // Instellingen-ribbontab, File-backstage delen allemaal SettingsPanelContent). Ontbrekende of
 // corrupte sleutel ⇒ undefined → de store houdt de default 'dmy' (dd-mm-jjjj), geen reset.
 export async function saveDateNotation(value: DateNotation): Promise<void> {
   await setSetting('dateNotation', value);
 }
 
-// Lettertype-instellingen interface (issue #25.4): app-instellingen onder de 3-plekken-regel
+// Lettertype-instellingen interface: app-instellingen onder de 3-plekken-regel
 // (tandwiel/ribbontab/backstage delen SettingsPanelContent). Ontbrekende/corrupte sleutel ⇒
 // undefined → de store houdt zijn default ('default' / 100), zonder reset van andere voorkeuren.
 export async function saveUIFontFamily(value: UIFontFamily): Promise<void> {
@@ -466,15 +466,15 @@ export async function saveUIFontScale(value: number): Promise<void> {
   await setSetting('uiFontScale', value);
 }
 
-// --- Fase 2.8b: urenplanning-instellingen (§6.8). App-instellingen, dus onder de 3-plekken-regel
+// --- Urenplanning-instellingen. App-instellingen, dus onder de 3-plekken-regel
 //     (tandwiel/ribbontab/backstage delen SettingsPanelContent). Ontbrekende/corrupte sleutel ⇒
-//     undefined → de store houdt zijn default (§6.8: hoofdschakelaar uit, gemengd aan, duurweergave
+//     undefined → de store houdt zijn default (hoofdschakelaar uit, gemengd aan, duurweergave
 //     automatisch, balk-opsplitsing bij selectie), zonder reset van andere voorkeuren.
 export async function saveEnableHourPlanning(value: boolean): Promise<void> {
   await setSetting('enableHourPlanning', value);
 }
 
-/** Taaktypes-etappe (spec §7): "Toon taaktypes" — werkregel en resterend werk zichtbaar in de UI. */
+/** "Toon taaktypes" — werkregel en resterend werk zichtbaar in de UI. */
 export async function saveShowTaskTypes(value: boolean): Promise<void> {
   await setSetting('showTaskTypes', value);
 }
@@ -492,13 +492,13 @@ export async function saveBarSplitMode(value: BarSplitMode): Promise<void> {
   await setSetting('barSplitMode', value);
 }
 
-// Issue #21 punt 5 (fase 2): «alleen werkbare dagen tonen» — globale weergavevoorkeur, zelfde
+// «alleen werkbare dagen tonen» — globale weergavevoorkeur, zelfde
 // 1-op-1-patroon als barSplitMode hierboven.
 export async function saveCompressNonWorkdays(value: boolean): Promise<void> {
   await setSetting('compressNonWorkdays', value);
 }
 
-// Eigen werktijd-presets (§6.6b): app-niveau localStorage, NIET in het projectbestand — ze reizen
+// Eigen werktijd-presets: app-niveau localStorage, NIET in het projectbestand — ze reizen
 // niet mee met een project maar zijn op elke machine van de gebruiker beschikbaar. Parse-guard:
 // corrupte JSON of een item zonder de juiste shape ⇒ weggelaten (nooit een crash op een handmatig
 // geprutste localStorage-waarde), analoog aan `loadLayouts`.
@@ -536,8 +536,8 @@ export async function saveLastLayoutId(id: string | null): Promise<void> {
   await setSetting('lastLayoutId', id);
 }
 
-// First-startup-ervaring (fase 2.10, onderdeel 3, §1/§3): of de welkomstdialoog al gezien is.
-// Géén appversie in de sleutel (bindend architect-besluit) — eenmaal gezet, blijft de app 'm
+// First-startup-ervaring: of de welkomstdialoog al gezien is.
+// Bewust géén appversie in de sleutel — eenmaal gezet, blijft de app 'm
 // nooit meer tonen, ook niet na een update. Zelfde ops-* localStorage-pad als alle andere
 // instellingen (geen Tauri plugin-store), patroon identiek aan loadShowHistogram/saveShowHistogram.
 export async function loadWelcomeSeen(): Promise<boolean | undefined> {
@@ -562,7 +562,7 @@ export async function saveLastVersion(value: string): Promise<void> {
   await setSetting('lastVersion', value);
 }
 
-// --- MCP-bridge / AI-modus (fase 1 MCP, spec §UI + §Beveiliging). ---------------------------------
+// --- MCP-bridge / AI-modus. -------------------------------------------------------------------------
 // Alle vier via de vertrouwde ops-* localStorage-prefix (geen Tauri plugin-store). `aiMode` en
 // `aiAutoBackup` zijn app-instellingen (async, patroon van saveAutoCalcCPM). `mcpPort` en `mcpToken`
 // zijn SYNCHROON (zelfde afwijking als loadConstructionMode): de bridge-levenscyclus (`server.ts`)
@@ -586,7 +586,7 @@ export async function saveAiAutostart(value: boolean): Promise<void> {
   await setSetting('aiAutostart', value);
 }
 
-/** Automatische AI-backup vóór de eerste mutatie per document (spec §AI-backup). Default AAN. */
+/** Automatische AI-backup vóór de eerste mutatie per document. Default AAN. */
 export async function loadAiAutoBackup(): Promise<boolean> {
   const v = await getSetting<boolean>('aiAutoBackup');
   return typeof v === 'boolean' ? v : true;

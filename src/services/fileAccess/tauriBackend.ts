@@ -53,7 +53,7 @@ async function pickSavePathTauri(
   }
   const picked = await save({ defaultPath, filters });
   if (!picked) return null;
-  // Linux/GTK plakt de filter-extensie niet automatisch → normaliseren (net als de oude code).
+  // Linux/GTK plakt de filter-extensie niet automatisch → normaliseren.
   const ext = filters[0]?.extensions[0] ?? '';
   return ext ? ensureExtension(picked, ext) : picked;
 }
@@ -67,7 +67,7 @@ export async function saveFileDialogTauri(
   return { ref: { kind: 'path', path: savedPath }, name: basename(savedPath) };
 }
 
-/** Binaire tegenhanger van `saveFileDialogTauri` (X8): zelfde kiezer, `writeFile` i.p.v.
+/** Binaire tegenhanger van `saveFileDialogTauri`: zelfde kiezer, `writeFile` i.p.v.
  *  `writeTextFile`. Geen `viaDownload` — op desktop bestaat die route niet. */
 export async function saveBytesDialogTauri(
   defaultName: string, bytes: Uint8Array, filters: FileFilter[], opts?: SaveDialogOpts,

@@ -10,7 +10,7 @@
  *
  * De fallback (niet-date-only invoer, bv. een volledige datetime met offset) laat `Date`
  * zelf parsen en kapt daarna met UTC-getters af, want de engine rekent overal in
- * UTC-instants (§1) — lokale getters zouden hier dezelfde dagverschuiving terugbrengen.
+ * UTC-instants — lokale getters zouden hier dezelfde dagverschuiving terugbrengen.
  * Onparsebare invoer geeft bewust de `Invalid Date` ongewijzigd terug; de guards verderop
  * (o.a. `CPMSolver`) leunen op `isNaN(getTime())` om zulke data af te vangen.
  */
@@ -41,19 +41,16 @@ const pad2 = (n: number) => (n < 10 ? '0' + n : String(n));
 /**
  * Format a Date as ISO date string (YYYY-MM-DD).
  *
- * PRESTATIE. Hier stond `d.toISOString().split('T')[0]`, wat per aanroep een string van 24 tekens
- * én een array van twee strings alloceert om er één van 10 tekens uit te houden. Dat is duur op de
- * plek waar deze functie werkelijk draait: de werkdagen-enumeraties in de solver en de
- * resourcebelasting roepen hem per DAG per taak aan. Gemeten op een project van 5.000 taken met
- * 5.000 toewijzingen: `runCPM` 677 → 604 ms, `recomputeResourceLoad` 126 → 90 ms, `assignResource`
- * 133 → 106 ms, `writeIFC` 212 → 201 ms.
+ * PRESTATIE. Geen `d.toISOString().split('T')[0]`: dat alloceert per aanroep een string van 24
+ * tekens én een array, en deze functie draait per DAG per taak in de werkdagen-enumeraties van de
+ * solver en de resourcebelasting (gemeten op 5.000 taken: `runCPM` 677 → 604 ms).
  *
- * BYTE-IDENTIEK, ook aan de randen. Voor jaren 0…9999 geeft `toISOString` een viercijferig jaartal
- * met UTC-velden — precies wat de snelle tak opbouwt. Daarbuiten (negatieve of uitgebreide jaren,
- * waar `toISOString` `-000001-…` respectievelijk `+275760-…` schrijft) valt hij terug op het
- * origineel, en een Invalid Date valt daar óók in en gooit dus dezelfde `RangeError` als voorheen —
- * `getUTCFullYear()` is dan NaN, en `NaN >= 0` is onwaar. `check-date-format.ts` toetst dat tegen de
- * oude implementatie als orakel, over ruim tienduizend datums plus de randgevallen.
+ * Gelijk aan `toISOString`, ook aan de randen. Voor jaren 0…9999 geeft `toISOString` een
+ * viercijferig jaartal met UTC-velden — precies wat de snelle tak opbouwt. Daarbuiten (negatieve of
+ * uitgebreide jaren, waar `toISOString` `-000001-…` respectievelijk `+275760-…` schrijft) valt hij
+ * terug op `toISOString`, en een Invalid Date valt daar óók in en gooit dus dezelfde `RangeError` —
+ * `getUTCFullYear()` is dan NaN, en `NaN >= 0` is onwaar. `check-date-format.ts` toetst dat tegen
+ * `toISOString` als orakel, over ruim tienduizend datums plus de randgevallen.
  */
 export function formatDate(d: Date): string {
   const y = d.getUTCFullYear();
@@ -75,20 +72,19 @@ export function localTodayIso(now: Date = new Date()): string {
 }
 
 /**
- * Serialisatie-modus van een datum-instant (fase 2.8b, §2.4). De MODUS is de enige
+ * Serialisatie-modus van een datum-instant. De MODUS is de enige
  * discriminator voor de output-vorm — niet de waarde van de instant.
  */
 export type DateMode = 'day' | 'hour';
 
 /**
- * Parse een ISO-string naar een Date die de TIJD-VAN-DE-DAG behoudt (fase 2.8b, §2.4).
+ * Parse een ISO-string naar een Date die de TIJD-VAN-DE-DAG behoudt.
  * Tegenhanger van `parseInstant` t.o.v. `parseDate`: `parseDate` kapt altijd naar
  * middernacht (dag-substraat, ongewijzigd); `parseInstant` houdt uren/minuten vast.
  *
- * - Date-only ("YYYY-MM-DD") ⇒ delegeer aan `parseDate` (byte-identiek dag-substraat,
- *   middernacht UTC).
+ * - Date-only ("YYYY-MM-DD") ⇒ delegeer aan `parseDate` (dag-substraat, middernacht UTC).
  * - Datetime ("...THH:mm") zonder tijdzone ⇒ interpreteer als UTC (de engine rekent in
- *   UTC-instants zonder DST, §1); een expliciete Z/offset wordt gerespecteerd.
+ *   UTC-instants zonder DST); een expliciete Z/offset wordt gerespecteerd.
  */
 export function parseInstant(iso: string): Date {
   if (iso.includes('T')) {
@@ -99,9 +95,9 @@ export function parseInstant(iso: string): Date {
 }
 
 /**
- * Formatteer een instant volgens de MODUS (fase 2.8b, §2.4). De modus is de ENIGE
+ * Formatteer een instant volgens de MODUS. De modus is de ENIGE
  * discriminator; er is geen middernacht-uitzondering:
- * - `'day'`  ⇒ altijd `YYYY-MM-DD` via het bestaande `formatDate` (byte-identiek).
+ * - `'day'`  ⇒ altijd `YYYY-MM-DD` via `formatDate`.
  * - `'hour'` ⇒ altijd `YYYY-MM-DDTHH:mm` (minuut-precisie), óók op een rond uur en óók
  *   om middernacht (een uur-taak die op `T00:00` landt behoudt zijn tijd-component).
  */
@@ -157,7 +153,7 @@ export function getMonthStart(d: Date): Date {
 /**
  * Kalendermaanden optellen met klem op de maandlengte: 31 jan + 1 maand = 28/29 feb, niet 3 mrt.
  * Zo blijft "een maand vanaf de statusdatum" altijd één kalendermaand en lekt de rapportageperiode
- * (issue #120) nooit een paar dagen de volgende maand in. UTC-velden, net als de rest van dit bestand.
+ * nooit een paar dagen de volgende maand in. UTC-velden, net als de rest van dit bestand.
  */
 export function addCalendarMonths(d: Date, months: number): Date {
   const y = d.getUTCFullYear();

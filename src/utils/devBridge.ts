@@ -87,10 +87,9 @@ async function saveToPath(path: string) {
   return { path, bytes: content.length };
 }
 
-/** Niveau 2 — lees een bestand van schijf en laad het in de store (route op extensie). Tauri-only.
- *  Dev-only gedragsverbetering (T1): loopt nu via de formatRegistry, dus `.xml` wordt hier ook
- *  herkend (voorheen viel dat stil terug op IFC). T2: binaire formaten worden als bytes gelezen
- *  i.p.v. tekst. */
+/** Niveau 2 — lees een bestand van schijf en laad het in de store (route op extensie via de
+ *  formatRegistry, dus ook `.xml`). Tauri-only. Binaire formaten worden als bytes gelezen i.p.v.
+ *  tekst. */
 export async function openFromPathWithIO(path: string, io: FormatIO) {
   const input = await readFormatInput(path, io);
   const parsed = await parseOpenedFile(input);
@@ -291,7 +290,7 @@ export interface OpsDevBridge {
      *  vertrouwensvraag overgeslagen — een zelftest heeft geen mens die een dialoog wegklikt.
      *  De dialoog zelf test je via `__OPS__.extensions.consent`. */
     installFromZip: (blob: Blob, expected?: ExpectedExtensionIdentity) => Promise<InstallOutcome>;
-    /** Haken op de toestemmingsvraag (K-item 38), zodat een zelftest zowel het toestaan- als het
+    /** Haken op de toestemmingsvraag, zodat een zelftest zowel het toestaan- als het
      *  weigeren-pad kan aansturen zonder de echte dialoog. */
     consent: {
       set: (fn: (req: unknown) => Promise<boolean>) => void;
@@ -301,7 +300,7 @@ export interface OpsDevBridge {
     disable: typeof disableExtension;
     remove: typeof removeExtension;
   };
-  /** Dev-only bedrijfsbibliotheek-haken voor zelftests (B1). */
+  /** Dev-only bedrijfsbibliotheek-haken voor zelftests. */
   library: {
     state: () => {
       companies: number;

@@ -10,7 +10,7 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 
 /**
  * Bouw de vertaalde duur-suffixen uit de i18n-`t` (common-namespace). Licht adapter-laagje zodat de PURE
- * engine-util `durationFormat.ts` geen i18n hoeft te importeren (§6.4/§11): de UI reikt de vertaalde
+ * engine-util `durationFormat.ts` geen i18n hoeft te importeren: de UI reikt de vertaalde
  * afkortingen als parameter aan. Uitsluitend voor de WEERGAVE; edit-seeds houden de default (parsebare) vorm.
  */
 export function durationSuffixesFrom(t: TFunction<'common'>): DurationSuffixes {
@@ -18,13 +18,13 @@ export function durationSuffixesFrom(t: TFunction<'common'>): DurationSuffixes {
 }
 
 /**
- * UI-zijde duur-helpers (fase 2.8b, §6.4/§6.5). Spiegelen de engine-helpers
+ * UI-zijde duur-helpers. Spiegelen de engine-helpers
  * (`duration.ts` `durationMinutesOf`/`durationDaysOf`) maar werken rechtstreeks op een
  * `WorkCalendar` (met afgeleide `hoursPerDay`), zodat dialogen/tabellen/panelen ze zonder
  * engine-instantie kunnen gebruiken.
  */
 
-/** Effectieve kalender van een taak (§5): eigen `calendarId` uit de bibliotheek, anders de
+/** Effectieve kalender van een taak: eigen `calendarId` uit de bibliotheek, anders de
  *  projectkalender — `resolveCalendar` met de argumenten in UI-volgorde. */
 export function effectiveCalendarOf(
   task: Task,
@@ -74,8 +74,8 @@ function suffixesOf(fmt: DurationTextFormat | undefined): DurationSuffixes {
  * Een aantal WERKDAGEN als weergavetekst — speling, restduur van een dagtaak, baselineduur, en de
  * dagvorm van een duur. Eén getalnotatie voor alle schermen: hoogstens twee decimalen, het
  * decimaalteken van de app-taal en geen duizendtalscheiding (`formatReportNumber`, dezelfde als de
- * rapporten), met de dag-afkorting erachter. Niet-eindig ⇒ "—". Zo staat er nooit meer
- * "1.6666666666666667" in een Nederlands scherm (audit weergaven, bevinding 8).
+ * rapporten), met de dag-afkorting erachter. Niet-eindig ⇒ "—". Zo staat er nooit
+ * "1.6666666666666667" in een Nederlands scherm.
  */
 export function formatWorkDaysText(days: number, fmt?: DurationTextFormat): string {
   const text = formatReportNumber(days, fmt?.locale);
@@ -89,8 +89,8 @@ function hoursText(minutes: number, hoursPerDay: number, suffixes: DurationSuffi
 
 /**
  * DE duur-celtekst van een taak: taakraster, Gantt-afdruk/PDF, tooltip en balklabels lezen allemaal
- * deze ene functie (audit weergaven, bevinding 7 — het raster negeerde Duurweergave en de afdruk
- * toonde een urentaak van 5h als "0,56d").
+ * deze ene functie, zodat ze allemaal Duurweergave volgen (anders toont bv. de afdruk een urentaak
+ * van 5h als "0,56d").
  * - `auto` ⇒ de door de gebruiker gekozen, blijvende taakeenheid ("5h", "2d");
  * - `days`/`hours` ⇒ die eenheid, met de eigen eenheid erachter als ze verschilt ("18h(2d)").
  * Een nulduur-mijlpaal is "0d". `hoursPerDay` is die van de effectieve taakkalender (de omrekening
@@ -142,9 +142,9 @@ export function formatRemainingDurationText(task: Task, fmt?: DurationTextFormat
 }
 
 /**
- * Geformatteerde duur voor tabellen/panelen/tooltips (§6.5) op basis van de effectieve kalender:
+ * Geformatteerde duur voor tabellen/panelen/tooltips op basis van de effectieve kalender:
  * {@link formatTaskDurationText} met de uren per dag van `cal`. `enableHourPlanning` doet bewust
- * niets meer — de blijvende taakeenheid blijft ook zichtbaar als de schakelaar uit staat.
+ * niets — de blijvende taakeenheid blijft ook zichtbaar als de schakelaar uit staat.
  */
 export function formatTaskDurationDisplay(
   task: Task,
@@ -159,7 +159,7 @@ export function formatTaskDurationDisplay(
 }
 
 /**
- * Mixed-kalender-detectie (§6.5): een project mengt duur-eenheden zodra het kalenders met
+ * Mixed-kalender-detectie: een project mengt duur-eenheden zodra het kalenders met
  * verschillende `hoursPerDay` gebruikt, óf dag- én uur-taken tegelijk heeft. Kijkt naar de
  * effectieve kalender van elke taak plus de projectkalender.
  */
@@ -193,7 +193,7 @@ export function detectMixedCalendars(
     else hasDay = true;
   }
   const hpds = [...hpdSet].sort((a, b) => a - b);
-  // §6.5: waarschuw zodra het project duur-eenheden mengt — óf verschillende effectieve daglengtes
+  // Waarschuw zodra het project duur-eenheden mengt — óf verschillende effectieve daglengtes
   // (`hpds.length > 1`), óf dag- én uur-taken tegelijk (`hasDay && hasHour`, óók bij gelijke hoursPerDay).
   const mixed = hpds.length > 1 || (hasDay && hasHour);
   return { mixed, hpds, hasDay, hasHour, calendars: [...seen.values()] };

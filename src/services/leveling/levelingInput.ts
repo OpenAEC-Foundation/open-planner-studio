@@ -1,8 +1,6 @@
 /**
- * Harde voorwaarden voor de nivelleer-MOTORetappe (onderzoek
- * `docs/superpowers/plans/2026-09-24-nivellering-etappe-onderzoek.md` §8), nu al gelegd zodat die etappe
- * ze niet kan overslaan. Puur, format-neutraal (geen import uit een lezer), nog door niets in de motor
- * gelezen:
+ * Harde voorwaarden voor de nivelleermotor. Puur, format-neutraal (geen import uit een lezer), nog
+ * door niets in de motor gelezen:
  *
  * 1. `resolveLevelingResources` — de resourcelijst van `SchedulingOptions.leveling` kan ids dragen zonder
  *    resource (verwijderd na import, of een IFC-id die niet terug te mappen was). De motor leest de lijst

@@ -1,5 +1,5 @@
 /**
- * Toetsenbordnavigatie in tabelvormige editors — de PURE kern voor de LIVE rasters (issue #48): de
+ * Toetsenbordnavigatie in tabelvormige editors — de PURE kern voor de LIVE rasters: de
  * resourcetabel (`ResourcePanel`) en de fasentabel van `ContourDialog`, allebei via `useLiveGridNav`.
  *
  * De app heeft bewust twee verschillende raster-*mechanieken*, en die zijn niet samen te voegen:
@@ -85,8 +85,7 @@ export interface GridBox {
  * Hoeveel moet `scrollTop` van de scroller verschuiven om `row` volledig zichtbaar te maken?
  * `0` = hij staat al goed. Positief = naar beneden scrollen, negatief = naar boven.
  *
- * Waarom dit expliciet gerekend wordt in plaats van op `el.focus()` te leunen (issue #48, tweede
- * ronde): de browser scrolt alleen mee wanneer de focus DAADWERKELIJK verspringt. Bij doorlopend
+ * Waarom dit expliciet gerekend wordt in plaats van op `el.focus()` te leunen: de browser scrolt alleen mee wanneer de focus DAADWERKELIJK verspringt. Bij doorlopend
  * invoeren met Enter houdt hetzelfde naamveld de focus (de concept-rij blijft dezelfde
  * DOM-node, alleen de rij erboven is aangegroeid), dus `focus()` is een no-op — inclusief het
  * scrollen. Gemeten bij 40 resources in een venster van 900 px: de rij zakte naar y 865 terwijl de
@@ -122,7 +121,7 @@ export interface GridKeyEventLike {
  *
  * - **Enter** navigeert altijd omlaag, **Shift+Enter** omhoog — op élk besturingselement. Enter
  *   heeft in een los invoerveld/`<select>` geen eigen betekenis (er is geen formulier om te
- *   versturen), dus die toets is vrij. Dit is ook precies wat de melder van #48 vroeg.
+ *   versturen), dus die toets is vrij.
  * - **↑/↓** navigeren ALLEEN in een tekstveld. In een `<select>` kiezen ze de volgende optie en in
  *   een `<input type=number>` stappen ze de waarde — dat native gedrag afpakken zou de kalender-,
  *   type- en ploegkolom en de max.eenheden-spinner onbruikbaar maken. Het taakraster gebruikt dit

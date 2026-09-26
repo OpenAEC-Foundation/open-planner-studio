@@ -10,11 +10,11 @@ import { actualAutoSaveDelay, createActualAutoSaveController, type ActualAutoSav
 import { isProjectFileWriteBusy, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import { sameIFCSource } from '@/state/ifcSaveInput';
 
-// Auto-save GETHROTTLED op ~10 s (voorheen 800 ms-debounce): bij een reeks wijzigingen
+// Auto-save GETHROTTLED op ~10 s (bewust geen debounce): bij een reeks wijzigingen
 // schrijven we een recovery-snapshot HOOGSTENS eens per `AUTOSAVE_INTERVAL_MS`, óók tijdens
 // aanhoudend bewerken (een debounce zou juist pas 10 s ná de laatste wijziging schrijven en
 // dus tijdens een lange bewerksessie het dataverlies-venster vergroten). De throttle coalesceert
-// snelle bursts (slepen/typen) net als voorheen tot één schrijfactie per interval. Alle open
+// snelle bursts (slepen/typen) tot één schrijfactie per interval. Alle open
 // documenten krijgen een eigen IFC-snapshot; het opslagbackend (Tauri: appDataDir-bestanden +
 // manifest; web: IndexedDB per tab-sessie) zit in `recoveryStore` — deze hook is
 // platform-agnostisch en draait dus OOK in de browser-build.

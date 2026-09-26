@@ -45,17 +45,16 @@ export function templatePhases(key: TemplateKey): string[] {
 }
 
 /**
- * Kalender-generator-parameters voor de nieuw-project-wizard (fase 2.8a, §7.2). Vervangt de
- * oude vaste presets (`CalendarPreset`/`buildPresetCalendar`) door de regelgebaseerde
- * feestdagen-engine: land/regio en NL-bouwvak (default GEEN — harde eis TODO.md r192-194).
- * `span` is de generatie-spanne in jaren (§4.4: bij aanmaak startjaar−1..+3).
+ * Kalender-generator-parameters voor de nieuw-project-wizard, voor de regelgebaseerde
+ * feestdagen-engine: land/regio en NL-bouwvak (default GEEN — harde eis).
+ * `span` is de generatie-spanne in jaren (bij aanmaak startjaar−1..+3).
  */
 export function buildGeneratedCalendar(
   params: HolidayGenParams,
   span: { from: number; to: number },
   name?: string,
 ): WorkCalendar {
-  // Bouwmodus (2026-07-13): default-naam/omschrijving volgen de vlag (agnostisch ⇒ "Standaardkalender").
+  // Bouwmodus: default-naam/omschrijving volgen de vlag (agnostisch ⇒ "Standaardkalender").
   // De feestdagen komen uit `params` (de wizard zet in agnostische modus zelf `country: 'none'`), dus
   // die worden hier niet apart geneutraliseerd. Namen blijven bewust hardcoded (geen t()).
   const construction = loadConstructionMode();

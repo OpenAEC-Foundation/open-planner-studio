@@ -51,7 +51,7 @@ export interface XerArchiveSourceRowV1 {
 export interface XerArchiveReadModelV1 {
   readonly schemaVersion: 1;
   readonly numberFormat: XerNumberFormatMetadata;
-  /** X5: de enige file-wide PROJECT/SCHEDOPTIONS-broncache. */
+  /** De enige file-wide PROJECT/SCHEDOPTIONS-broncache. */
   readonly scheduleOptionsSourceArchive: XerScheduleOptionsSourceArchive;
   readonly resourceCatalog: XerResourceCatalog;
   readonly metadataCatalog: XerMetadataCatalog;
@@ -126,10 +126,9 @@ export interface XerSourceArchive {
 /**
  * Wat de (lazy geladen) XER-lezer uit de canonieke bronbytes teruggeeft aan de IFC-lezer.
  *
- * T5 (XER-etappeplan laag 3, §3.8) verbreedt deze naad van "alleen het archief" naar "alles wat
- * uitsluitend uit de bron af te leiden is". Reden: de reconstructie draaide al een VOLLEDIGE
- * `readXER` over dezelfde, sha256-geverifieerde bytes — die uitkomst bevatte de bak-4-vastlegging
- * (`ImportResult.recordedTimes`) al en gooide 'm alleen weg. Door 'm hier mee te geven is de
+ * Niet alleen het archief, maar alles wat uitsluitend uit de bron af te leiden is. De reconstructie
+ * draait een VOLLEDIGE `readXER` over dezelfde, sha256-geverifieerde bytes — die uitkomst bevat de
+ * bak-4-vastlegging (`ImportResult.recordedTimes`) al. Door 'm hier mee te geven is de
  * "datums zoals opgeslagen"-vastlegging van een heropend XER-document per constructie IDENTIEK aan
  * die van het oorspronkelijke openen: zelfde code, zelfde bytes, zelfde kalenderpromotie, zelfde
  * getalnotatie. Er is geen tweede afleiding in de IFC-laag — en dus ook geen tweede waarheid die
@@ -185,7 +184,7 @@ export function createXerSourceArchive(
 
 /**
  * Ownership-transfer voor readers die diagnostics/readmodel in dezelfde call vers hebben gebouwd
- * en geen referentie buiten het resultaat publiceren. Dit voorkomt bij grote X6/X8-catalogi een
+ * en geen referentie buiten het resultaat publiceren. Dit voorkomt bij grote catalogi een
  * tweede volledige heapkopie. Algemene aanroepers gebruiken altijd `createXerSourceArchive`, dat
  * invoeraliasing door een defensive clone uitsluit.
  */
@@ -202,7 +201,7 @@ function buildXerSourceArchive(
   copyMetadata: boolean,
 ): XerSourceArchive {
   // Valideer vóór de base64-chunks worden gereserveerd. De structurele validator maakt bij een
-  // groot X8-readmodel kortlevende pad-/sleutelwaarden; als de blijvende chunks dan al live zijn,
+  // groot readmodel kortlevende pad-/sleutelwaarden; als de blijvende chunks dan al live zijn,
   // moet V8 daarvoor extra heap-pagina's openen en blijft de verse reader onnodig veel RSS houden.
   validateXerArchiveDiagnosticsV1(presentation.diagnostics);
   validateXerArchiveReadModelV1(presentation.readModel);
@@ -1150,7 +1149,7 @@ function validateArchiveMetadataRelations(
     taskIdsByProject.set(projectId, taskIds);
   }
 
-  // X8 bewaart één canonieke, op projectId+taskId gesorteerde lijst. De byProject-index is geen
+  // De catalogus bewaart één canonieke, op projectId+taskId gesorteerde lijst. De byProject-index is geen
   // tweede waarheid: hij moet die lijst volledig opdelen én elke projectie moet naar TASK wijzen.
   const expectedProjections = new Map<string, XerMetadataCatalog['taskProjections'] extends readonly (infer T)[] ? T[] : never>();
   const projectionIdentities = new Set<string>();

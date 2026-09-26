@@ -26,8 +26,7 @@ export type XerExportLossCategory =
 export interface XerExportLossWarning {
   readonly code: 'XER_ONLY_DATA_NOT_EXPRESSIBLE';
   readonly format: XerLossyExportFormat;
-  /** Er bestaat geen `.mpp`-export (de lezer is alleen-lezen); de dode `'mpp'`/`'unsupported'`-tak
-   *  is verwijderd (Fable-critreview PR #109 bevinding 12). */
+  /** Er bestaat geen `.mpp`-export (de lezer is alleen-lezen). */
   readonly availability: 'supported-lossy';
   readonly categories: readonly XerExportLossCategory[];
 }
@@ -55,7 +54,7 @@ interface ExportCapabilities {
   readonly elapsedLag: boolean;
   readonly schedulingOptions: 'none' | 'critical-slack-limit';
   /** Met welk ingebouwd profiel dit doelformaat heropent = het `suggestedProfileId` van zijn lezer.
-   *  Deze etappe heropenen CSV, MSPDI en P6-XML alle drie als OPS (spec v3.1 §6). */
+   *  CSV, MSPDI en P6-XML heropenen alle drie als OPS. */
   readonly reopenProfile: BuiltInProfileId;
 }
 
@@ -63,11 +62,9 @@ interface ExportCapabilities {
  * Gemeten tegen de drie writerimplementaties. Dit is een capabilitymatrix, geen vaste verlieslijst:
  * een categorie ontstaat pas wanneer de bijbehorende retained/live data werkelijk aanwezig is.
  */
-/** De voortgangsbladen (issue #27) zijn werkbladen om rond te sturen, geen projectexport: ze dragen
- *  alleen id/WBS/naam/datums/voortgang en worden via `OPS Task ID` teruggekoppeld. Een
- *  XER-verliesmelding is daar per definitie loos (gevonden in de critreview op de merge van main,
- *  2026-09-22: elke voortgangsexport van een XER-document meldde "PROGRESS-CSV" met de categorie
- *  relatie-lag-degradatie, voor een blad zonder relaties). */
+/** De voortgangsbladen zijn werkbladen om rond te sturen, geen projectexport: ze dragen alleen
+ *  id/WBS/naam/datums/voortgang en worden via `OPS Task ID` teruggekoppeld. Een XER-verliesmelding
+ *  is daar per definitie loos (bv. relatie-lag-degradatie voor een blad zonder relaties). */
 type ProgressSheetFormat = 'progress-csv' | 'progress-xlsx';
 const isProgressSheetFormat = (format: string): format is ProgressSheetFormat =>
   format === 'progress-csv' || format === 'progress-xlsx';
@@ -169,7 +166,7 @@ function hasRetainedAssignmentDetails(metadata: XerImportMetadata | null): boole
     || source.assignedRole !== undefined
     // `curveSourceId` verwijst naar de retained 21-punts curve in de bestandsbrede catalogus.
     // Geen doelwriter schrijft deze BRONIDENTITEIT (curv_id/curv_name) terug — de P6-writer
-    // (p6xmlWriter.ts's `curveObjIdFor`, ná de contour-engine-etappe 2026-09) genereert bij export
+    // (p6xmlWriter.ts's `curveObjIdFor`) genereert bij export
     // een NIEUW `<ResourceCurve><ObjectId>` en een synthetische naam (`Curve N`) voor
     // `ResourceAssignment.curveValues`; de 21 waarden zelf komen voor het P6-doel dus wél
     // schema-natief terug, maar niet de oorspronkelijke P6-curve-identiteit/-naam, en MSPDI/CSV
@@ -220,7 +217,7 @@ function hasScheduleProvenance(input: XerExportLossInput): boolean {
 
 function hasScheduleLoss(capabilities: ExportCapabilities, input: XerExportLossInput): boolean {
   if (hasScheduleProvenance(input) || input.project.progressMode !== undefined) return true;
-  // Rekenprofielen (spec v3.1 §7): een profiel dat niet overleeft wat de lezer van het doelformaat
+  // Rekenprofielen: een profiel dat niet overleeft wat de lezer van het doelformaat
   // voorstelt, is verlies — niet "er is iets gedefinieerd".
   const kept = resolveConventions(input.project.schedulingProfile);
   const reopened = builtInConventions(capabilities.reopenProfile);
@@ -263,8 +260,8 @@ function categoriesFor(
 }
 
 /**
- * X9-dienstcontract voor verliesdetectie. Dit levert uitsluitend getypeerde feiten in de bestaande
- * exportAs-return-envelope; X10 bepaalt later vertaling, dedupe, toast en Lees-meer-link.
+ * Dienstcontract voor verliesdetectie. Dit levert uitsluitend getypeerde feiten in de
+ * exportAs-return-envelope; vertaling, dedupe, toast en Lees-meer-link liggen bij de aanroeper.
  */
 export function detectXerExportLoss(
   format: ExportFormat,

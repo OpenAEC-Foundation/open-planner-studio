@@ -1,7 +1,7 @@
 import type { XerImportMetadata } from '@/services/importTypes';
 
 /**
- * Documentnaam na een XER-import (eigenaarsbesluit 2026-09-24, "projectnaam"): de projectnaam met
+ * Documentnaam na een XER-import: de projectnaam met
  * het P6 Project-ID (`PROJECT.proj_short_name`) erachter tussen haakjes wanneer dat afwijkt, bv.
  * "HarbourPointe Assisted Living (4408)". Geen naam ⇒ het ID; naam gelijk aan het ID ⇒ één keer.
  * `project.name` zelf blijft de kale projectnaam — dit is uitsluitend de weergavenaam.
@@ -16,7 +16,7 @@ export function xerDocumentName(name: string | null | undefined, id: string | nu
 }
 
 /**
- * Het P6 Project-ID van een XER-document, afgeleid uit de PROJECT-bronrij die de X5-broncache
+ * Het P6 Project-ID van een XER-document, afgeleid uit de PROJECT-bronrij die de XER-broncache
  * (`scheduleOptions.sourceRows`) al per document draagt en die het IFC-bronarchief round-tript.
  * Daardoor is er geen nieuw metadataveld of archiefschema nodig. Geen XER ⇒ `undefined`.
  */

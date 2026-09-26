@@ -13,7 +13,7 @@ export interface FileFilter {
 }
 
 /**
- * Opake verwijzing naar een bestand als opslaan-doel (spec §3.1).
+ * Opake verwijzing naar een bestand als opslaan-doel.
  * - `path`   : Tauri — echt OS-pad; herbruikbaar voor in-place opslaan.
  * - `handle` : Chromium-web — FileSystemFileHandle; herbruikbaar voor in-place opslaan.
  * Fallback-web (Firefox/Safari) heeft geen herbruikbare ref → `null`.
@@ -35,8 +35,8 @@ export interface OpenDialogOpts {
   binaryExtensions?: string[];
 }
 
-/** Extra sturing voor `saveFileDialog` — optioneel, bestaande callers ongewijzigd (E7,
- *  voortgangsblad-export). `preferDownloads` opent de dialoog waar mogelijk al in de downloadmap:
+/** Extra sturing voor `saveFileDialog` — optioneel (o.a. de voortgangsblad-export).
+ *  `preferDownloads` opent de dialoog waar mogelijk al in de downloadmap:
  *  Tauri kan dat via een volledig `defaultPath` (downloadDir() + bestandsnaam); Chromium-web kent
  *  `showSaveFilePicker({ startIn: 'downloads' })`. Firefox/Safari (geen FSA) landen sowieso al in
  *  de downloadmap via de bestaande `downloadBlob`-terugval — daar verandert deze vlag niets aan. */
@@ -83,7 +83,7 @@ export function saveFileDialog(
 }
 
 /**
- * Opslaan-als / export van BYTES via picker (X8) — de binaire tegenhanger van `saveFileDialog`,
+ * Opslaan-als / export van BYTES via picker — de binaire tegenhanger van `saveFileDialog`,
  * met dezelfde annuleer-, weigerings- en download-terugvalafhandeling. Dit is het ENIGE
  * byte-schrijfpad in de app: een tweede zou onvermijdelijk een eigen foutafhandeling krijgen.
  */
