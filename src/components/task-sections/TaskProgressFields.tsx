@@ -3,6 +3,8 @@ import { holdAutoCalc } from '@/state/editHold';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 import { DateTextInput } from '@/components/common/DateTextInput';
+import type { ActualStartQuestion, ProgressEntryResult } from '@/engine/progressEntry';
+import { askActualStart } from '@/state/actualStartQuestion';
 import { Field } from './shared';
 import { durationSuffixesFrom, formatRemainingDurationText } from '@/utils/taskDuration';
 import { isSummaryTask } from '@/utils/taskHierarchy';
@@ -30,25 +32,86 @@ let progressSeq = 0;
  * elke berekening afgeleid uit de bladtaken (`applyCpmResult`, dezelfde gewogen formule als het
  * WBS-rapport); `setTaskProgress`/`setActualStart`/`setActualFinish` weigeren een verzameltaak, net
  * als MCP en de voortgangsimport. De sectie toont dan de afgeleide waarde plus een uitleg.
+ *
+ * Voortgang INVULLEN (`engine/progressEntry.ts`): elke setter geeft een `ProgressEntryResult` terug.
+ * Een weigering toont deze sectie zelf; `needsActualStart` (Z1b: een taak die pas na de statusdatum
+ * zou beginnen, nog zonder werkelijke start) beantwoordt ze met de ene vraagdialoog
+ * (`askActualStart`) en roept de setter opnieuw aan met het antwoord — annuleren verandert niets.
+ * Tijdens een sleep met de schuif wordt pas bij het loslaten gevraagd; tot dan toont de schuif de
+ * gesleepte waarde zonder iets toe te passen.
  */
+type EntryOpts = { coalesceKey?: string; actualStart?: string };
+type EntryRefusal = 'afterStatusDate' | 'actualFinishBeforeStart';
+
 export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSetActualFinish }: {
   task: Task;
-  onSetProgress: (completion: number, opts?: { coalesceKey?: string }) => void;
-  onSetActualStart: (date: string | undefined, opts?: { coalesceKey?: string }) => boolean;
-  onSetActualFinish: (date: string | undefined, opts?: { coalesceKey?: string }) => boolean;
+  onSetProgress: (completion: number, opts?: EntryOpts) => ProgressEntryResult;
+  onSetActualStart: (date: string | undefined, opts?: EntryOpts) => ProgressEntryResult;
+  onSetActualFinish: (date: string | undefined, opts?: EntryOpts) => ProgressEntryResult;
 }) {
   const { t, i18n } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
-  const [actualError, setActualError] = useState(false);
+  const [actualError, setActualError] = useState<EntryRefusal | null>(null);
   const dragKey = useRef<string | undefined>(undefined);
   const derived = isSummaryTask(task);
   const releaseHold = useRef<(() => void) | null>(null);
-  const endSlide = () => {
+  useEffect(() => () => { releaseHold.current?.(); }, []);
+  // Z1b tijdens een sleep: de vraag wacht tot het loslaten; de schuif toont zolang de gesleepte waarde.
+  const pendingQuestion = useRef<{ question: ActualStartQuestion; retry: (actualStart: string) => ProgressEntryResult } | null>(null);
+  const [pendingPercent, setPendingPercent] = useState<number | null>(null);
+
+  const clearPending = () => {
+    pendingQuestion.current = null;
+    setPendingPercent(null);
+  };
+
+  const ask = async (question: ActualStartQuestion, retry: (actualStart: string) => ProgressEntryResult) => {
+    const answers = await askActualStart([{ ...question, taskName: task.name }]);
+    const answer = answers?.[question.taskId];
+    if (!answer) return; // Annuleren: er verandert niets.
+    const result = retry(answer);
+    setActualError(result.ok || result.reason === 'needsActualStart' || result.reason === 'summaryTask' ? null : result.reason);
+  };
+
+  /** Verwerk de uitkomst van een setter. `slidePercent`: de aanroep kwam van de schuif. */
+  const handle = (
+    result: ProgressEntryResult,
+    retry: (actualStart: string) => ProgressEntryResult,
+    slidePercent?: number,
+  ) => {
+    if (result.ok) {
+      setActualError(null);
+      if (slidePercent !== undefined) clearPending();
+      return;
+    }
+    if (result.reason !== 'needsActualStart') {
+      // `summaryTask`: de velden van een verzameltaak zijn al uitgeschakeld; niets te tonen.
+      setActualError(result.reason === 'summaryTask' ? null : result.reason);
+      return;
+    }
+    setActualError(null);
+    if (slidePercent !== undefined && dragKey.current) {
+      pendingQuestion.current = { question: result.question, retry };
+      setPendingPercent(slidePercent);
+      return;
+    }
+    void ask(result.question, retry);
+  };
+
+  const endDrag = () => {
     dragKey.current = undefined;
     releaseHold.current?.();
     releaseHold.current = null;
+    const pending = pendingQuestion.current;
+    clearPending();
+    if (pending) void ask(pending.question, pending.retry);
   };
-  useEffect(() => () => { releaseHold.current?.(); }, []);
+  const cancelDrag = () => {
+    dragKey.current = undefined;
+    releaseHold.current?.();
+    releaseHold.current = null;
+    clearPending();
+  };
 
   return (
     <>
@@ -63,22 +126,30 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
             type="range"
             min={0}
             max={100}
-            value={Math.round(task.time.completion * 100)}
+            value={pendingPercent ?? Math.round(task.time.completion * 100)}
             onPointerDown={() => {
               dragKey.current = `progress:${task.id}:${++progressSeq}`;
               // Automatisch berekenen pas na het loslaten, niet bij elke stap van de schuif.
               releaseHold.current?.();
               releaseHold.current = holdAutoCalc();
             }}
-            onPointerUp={endSlide}
-            onPointerCancel={endSlide}
-            onLostPointerCapture={endSlide}
-            onChange={e => onSetProgress(parseInt(e.target.value) / 100, dragKey.current ? { coalesceKey: dragKey.current } : undefined)}
+            onPointerUp={endDrag}
+            onPointerCancel={cancelDrag}
+            onLostPointerCapture={() => { if (dragKey.current) endDrag(); }}
+            onChange={e => {
+              const percent = parseInt(e.target.value);
+              const completion = percent / 100;
+              handle(
+                onSetProgress(completion, dragKey.current ? { coalesceKey: dragKey.current } : undefined),
+                actualStart => onSetProgress(completion, { actualStart }),
+                percent,
+              );
+            }}
             disabled={derived}
             data-ops-progress-slider
             className={`flex-1 accent-accent${derived ? ' opacity-60' : ''}`}
           />
-          <span className="w-8 text-right">{Math.round(task.time.completion * 100)}%</span>
+          <span className="w-8 text-right">{pendingPercent ?? Math.round(task.time.completion * 100)}%</span>
         </div>
       </Field>
 
@@ -91,7 +162,10 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
             ariaLabel={t('properties.progress.actualDate')}
             value={task.time.actualFinish ?? ''}
             disabled={derived}
-            onCommit={v => { setActualError(!onSetActualFinish(v || undefined, { coalesceKey: `actualFinish:${task.id}` })); }}
+            onCommit={v => handle(
+              onSetActualFinish(v || undefined, { coalesceKey: `actualFinish:${task.id}` }),
+              actualStart => onSetActualFinish(v || undefined, { actualStart }),
+            )}
           />
         </Field>
       ) : (
@@ -103,7 +177,10 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
                 ariaLabel={t('properties.progress.actualStart')}
                 value={task.time.actualStart ?? ''}
                 disabled={derived}
-                onCommit={v => { setActualError(!onSetActualStart(v || undefined, { coalesceKey: `actualStart:${task.id}` })); }}
+                onCommit={v => handle(
+                  onSetActualStart(v || undefined, { coalesceKey: `actualStart:${task.id}` }),
+                  () => onSetActualStart(v || undefined),
+                )}
               />
             </Field>
             <Field label={t('properties.progress.actualFinish')}>
@@ -112,7 +189,10 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
                 ariaLabel={t('properties.progress.actualFinish')}
                 value={task.time.actualFinish ?? ''}
                 disabled={derived}
-                onCommit={v => { setActualError(!onSetActualFinish(v || undefined, { coalesceKey: `actualFinish:${task.id}` })); }}
+                onCommit={v => handle(
+                  onSetActualFinish(v || undefined, { coalesceKey: `actualFinish:${task.id}` }),
+                  actualStart => onSetActualFinish(v || undefined, { actualStart }),
+                )}
               />
             </Field>
           </div>
@@ -128,7 +208,9 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
       )}
       {actualError && (
         <div className="!text-body" style={{ color: 'var(--error)' }}>
-          {tCommon('progress.actualsAfterStatusDate')}
+          {actualError === 'afterStatusDate'
+            ? tCommon('progress.actualsAfterStatusDate')
+            : tCommon('progress.actualStartAfterFinish')}
         </div>
       )}
     </>

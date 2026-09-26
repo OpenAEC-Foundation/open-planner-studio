@@ -183,6 +183,8 @@
       "milestoneUnavailable": "带子任务的摘要任务无法变为里程碑。",
       "actualAfterStatusDate": "实际日期晚于状态日期。",
       "actualFinishBeforeStart": "实际完成早于实际开始。",
+      "actualStartRequired": "此任务要到状态日期之后才开始：请先输入实际开始日期。",
+      "durationBelowDoneWork": "此工期短于已完成的工作。",
       "conflictingProgressInputs": "这些进度值相互矛盾。",
       "constraintDateUnavailable": "请先设置约束类型，再输入约束日期。",
       "constraintHardUnavailable": "硬约束需要带日期的约束类型。",

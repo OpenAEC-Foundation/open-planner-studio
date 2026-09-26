@@ -20,6 +20,7 @@ import type {
   TaskConstraint,
   TaskDurationUnit,
   TaskStatus,
+  TaskTime,
   TaskType,
 } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
@@ -175,21 +176,35 @@ function expectedRoute(columnId: string): CellEditIntent['route'] | null {
 
 /** Een duurwijziging in het raster (duur-, eenheid-, mijlpaal- en Eindecel): dezelfde gevolgregels
  *  als `taskSlice.updateTask` en de MCP-draft, zie `applyDurationChangeRules` in taskDefaults.ts
- *  (de kern van `settleDurationAftermath`, workRuleApply.ts). `oldWorkMinutes` legt de aanroeper
- *  vóór de mutatie vast, met dezelfde uren-per-dag. Het raster meet met
+ *  (de kern van `settleDurationAftermath`, workRuleApply.ts). `before` is een kopie van de tijd die
+ *  de aanroeper vóór de mutatie vastlegde; gemeten met dezelfde uren-per-dag. Het raster meet met
  *  `environment.effectiveHoursPerDay` (bij een urenkalender de afgeleide bandsom); het ingevoerde
- *  einde van een urentaak herleidt `applyOneCellEdit` aan het eind (`reconcileGridInputFinish`). */
-function finishDurationEdit(task: Task, oldWorkMinutes: number, environment: TaskEditPlanEnvironment): boolean {
+ *  einde van een urentaak herleidt `applyOneCellEdit` aan het eind (`reconcileGridInputFinish`).
+ *  Een lopende taak houdt haar gedane werk (`carryRemainingThroughDurationEdit`, eigenaarsbesluit
+ *  2026-09-26); een nieuwe duur korter dan dat werk is een celfout (`durationBelowDoneWork`). */
+function finishDurationEdit(
+  task: Task,
+  before: TaskTime,
+  environment: TaskEditPlanEnvironment,
+  edit: CellEditIntent,
+): GridResult<boolean, readonly CellValidationError[]> {
   const hoursPerDay = environment.effectiveHoursPerDay;
   const usableHours = Number.isFinite(hoursPerDay) && hoursPerDay > 0;
-  // Eigenaarsbesluit 2026-09-05: een expliciete restduur schuift mee met de duurwijziging.
-  if (usableHours) carryRemainingThroughDurationEdit(task, oldWorkMinutes, hoursPerDay);
-  return applyDurationChangeRules(task, oldWorkMinutes, hoursPerDay, {
-    // Eigen afwijking van het raster: de contour alleen herschalen bij een bruikbare uren-per-dag
-    // (store en MCP roepen de herschaling onvoorwaardelijk aan).
-    rescaleContours: usableHours,
-    keepWork: environment.contourKeepsWork,
-  });
+  const oldWorkMinutes = taskWorkMinutes(before, hoursPerDay);
+  // Eigenaarsbesluiten 2026-09-05/26: de rest schuift mee met de duurwijziging, het percentage volgt;
+  // korter dan het gedane werk wordt geweigerd.
+  if (usableHours && carryRemainingThroughDurationEdit(task, before, hoursPerDay, environment.statusDate)?.refused) {
+    return failure('durationBelowDoneWork', edit);
+  }
+  return {
+    ok: true,
+    value: applyDurationChangeRules(task, oldWorkMinutes, hoursPerDay, {
+      // Eigen afwijking van het raster: de contour alleen herschalen bij een bruikbare uren-per-dag
+      // (store en MCP roepen de herschaling onvoorwaardelijk aan).
+      rescaleContours: usableHours,
+      keepWork: environment.contourKeepsWork,
+    }),
+  };
 }
 
 /**
@@ -288,7 +303,7 @@ function applyParsedDuration(
   parsed: ParsedTaskDuration,
   edit: CellEditIntent,
   environment: TaskEditPlanEnvironment,
-  oldWorkMinutes: number,
+  timeBefore: TaskTime,
 ): GridResult<boolean, readonly CellValidationError[]> {
   // Deze functie schrijft de drie duurvelden altijd; of dat een duurWIJZIGING is, beslist dezelfde
   // waardevergelijking als store en MCP (`taskTriggerChanges`, #186).
@@ -310,7 +325,7 @@ function applyParsedDuration(
     task.time.durationMinutes = undefined;
   }
   if (!taskTriggerChanges(before, task).timeBase) return { ok: true, value: false };
-  return { ok: true, value: finishDurationEdit(task, oldWorkMinutes, environment) };
+  return finishDurationEdit(task, timeBefore, environment, edit);
 }
 
 /**
@@ -381,7 +396,7 @@ function applyScheduleEdit(
 ): GridResult<boolean, readonly CellValidationError[]> {
   const id = String(edit.columnId);
   let lost = false;
-  const oldWorkMinutes = taskWorkMinutes(task.time, environment.effectiveHoursPerDay);
+  const timeBefore: TaskTime = { ...task.time };
   if (id === 'task.time.durationType') {
     if (edit.value !== 'WORKTIME' && edit.value !== 'ELAPSEDTIME') return failure('enum', edit);
     if (task.time.durationType !== edit.value) {
@@ -410,10 +425,12 @@ function applyScheduleEdit(
       task.time.durationMinutes = minutes;
       task.time.scheduleDuration = minutes / (environment.effectiveHoursPerDay * 60);
     }
-    lost = finishDurationEdit(task, oldWorkMinutes, environment);
+    const finished = finishDurationEdit(task, timeBefore, environment, edit);
+    if (!finished.ok) return finished;
+    lost = finished.value;
   } else if (id === 'task.time.scheduleDuration') {
     if (edit.value && typeof edit.value === 'object' && 'unit' in edit.value) {
-      return applyParsedDuration(task, edit.value as ParsedTaskDuration, edit, environment, oldWorkMinutes);
+      return applyParsedDuration(task, edit.value as ParsedTaskDuration, edit, environment, timeBefore);
     }
     if (!isFiniteNumber(edit.value) || edit.value < 0) return failure('duration', edit);
     if (task.isHammock) return failure('readOnly', edit);
@@ -425,7 +442,9 @@ function applyScheduleEdit(
       task.time.scheduleDuration = days;
       if (environment.hourMode) task.time.durationMinutes = edit.value;
       else delete task.time.durationMinutes;
-      lost = finishDurationEdit(task, oldWorkMinutes, environment);
+      const finished = finishDurationEdit(task, timeBefore, environment, edit);
+      if (!finished.ok) return finished;
+      lost = finished.value;
     }
   } else if (id === 'task.time.start') {
     // De GETOONDE start (Tabel-kolom Start): dezelfde regel als paneel en Taak bewerken — er
@@ -458,7 +477,7 @@ function applyScheduleEdit(
     if (!environment.effectiveCalendar) return failure('calendarNotFound', edit);
     const duration = durationForShownFinish(task, edit.value, environment.effectiveCalendar);
     if (!duration.ok) return failure(duration.code, edit);
-    return applyParsedDuration(task, duration.value, edit, environment, oldWorkMinutes);
+    return applyParsedDuration(task, duration.value, edit, environment, timeBefore);
   } else if (id === 'task.time.scheduleStart' || id === 'task.time.scheduleFinish') {
     if (!optionalString(edit.value)) return failure('date', edit);
     const key = id === 'task.time.scheduleStart' ? 'scheduleStart' : 'scheduleFinish';
@@ -493,7 +512,7 @@ function applyMilestoneEdit(
 ): GridResult<boolean, readonly CellValidationError[]> {
   const id = String(edit.columnId);
   let scheduleChanged = false;
-  const oldWorkMinutes = taskWorkMinutes(task.time, environment.effectiveHoursPerDay);
+  const timeBefore: TaskTime = { ...task.time };
   if (id === 'task.isMilestone') {
     if (typeof edit.value !== 'boolean') return failure('boolean', edit);
     if (task.isMilestone !== edit.value) {
@@ -526,10 +545,7 @@ function applyMilestoneEdit(
   }
   // Mijlpaal aan ⇒ duur 0: een duurwijziging, dus dezelfde gevolgregels als de duurcel. (Uitzetten
   // verzint geen duur, zie `taskMilestoneTransition`, en raakt de tijdbasis dan niet.)
-  return {
-    ok: true,
-    value: scheduleChanged ? finishDurationEdit(task, oldWorkMinutes, environment) : false,
-  };
+  return scheduleChanged ? finishDurationEdit(task, timeBefore, environment, edit) : { ok: true, value: false };
 }
 
 function applyStatus(task: Task, status: TaskStatus, statusDate: string | undefined): void {

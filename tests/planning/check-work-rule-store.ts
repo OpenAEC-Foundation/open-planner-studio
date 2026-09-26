@@ -681,7 +681,11 @@ console.log('-- (p) eigenaarsbesluiten 2026-09-05: kalenderwissel door de werkre
   const mr = runInMcpTransaction(() => { draft.patchTaskFields(m.t, { calendarId: six3Id }); });
   eq('p13 MCP patchTaskFields({ calendarId }) ⇒ duur 6', [mr.ok, task(m.t).time.scheduleDuration], [true, 6]);
 
-  // ── Beslispunt 2: expliciete rest schuift mee met Δ, geklemd op 0; completion volgt (optie a, 2026-09-06).
+  // ── Beslispunt 2: expliciete rest schuift mee met Δ; completion volgt. Eigenaarsbesluit 2026-09-26
+  // (optie 2, herbouw #232): het gedane werk is % × duur en blijft gelijk — percentage = oud % × oude
+  // duur ÷ nieuwe duur, onafgerond — en een duur korter dan het gedane werk wordt GEWEIGERD in plaats
+  // van de rest op 0 te klemmen. De rest 3 hieronder is bewust inconsistent met 50 % (zoals uit een
+  // bestand): rest en gedaan werk schuiven elk exact, geen van beide wordt uit de ander herleid.
   reset();
   const q = S().addTask({ name: 'q', time: createDefaultTaskTime('2026-06-01', 10) });
   const qr = labor('r-q');
@@ -689,12 +693,13 @@ console.log('-- (p) eigenaarsbesluiten 2026-09-05: kalenderwissel door de werkre
   S().updateTask(q, { time: { ...task(q).time, completion: 0.5, remainingTime: 3 } });
   S().runCPM();
   S().updateTask(q, { time: { ...task(q).time, scheduleDuration: 12 } });
-  eq('q1 duur 10→12 bij expliciete rest 3 ⇒ rest 5, completion = 7/12', [task(q).time.remainingTime, near(task(q).time.completion, 7 / 12)], [5, true]);
+  eq('q1 duur 10→12 bij expliciete rest 3 ⇒ rest 5, completion = 0,5 × 10 / 12', [task(q).time.remainingTime, near(task(q).time.completion, 5 / 12)], [5, true]);
   S().updateTask(q, { time: { ...task(q).time, scheduleDuration: 4 } });
-  eq('q2 duur 12→4 (−8) ⇒ rest geklemd op 0, completion 1', [task(q).time.remainingTime, task(q).time.completion], [0, 1]);
+  eq('q2 duur 12→4 is korter dan het gedane werk (5 d) ⇒ geweigerd, taak ongewijzigd', [task(q).time.scheduleDuration, task(q).time.remainingTime, near(task(q).time.completion, 5 / 12)], [12, 5, true]);
   // Onder FIXED_WORK volgt de driehoek de verschoven rest.
-  S().updateTask(q, { time: { ...task(q).time, scheduleDuration: 10, remainingTime: 5 } });
-  eq('q2b een patch die de rest ZELF zet, wordt niet ook nog verschoven', task(q).time.remainingTime, 5);
+  S().updateTask(q, { time: { ...task(q).time, scheduleDuration: 10, remainingTime: 6, completion: 0.5 } });
+  eq('q2b een patch die de voortgang ZELF zet, wordt niet ook nog verschoven', [task(q).time.remainingTime, task(q).time.completion], [6, 0.5]);
+  S().updateTask(q, { time: { ...task(q).time, remainingTime: 5 } });
   S().runCPM();
   S().setTaskWorkRule(q, 'FIXED_WORK');
   eq('q3 voorwaarde: restwerk 5 d vastgelegd', asgOf(q, qr).remainingWorkMinutes, 5 * slot());
@@ -706,7 +711,7 @@ console.log('-- (p) eigenaarsbesluiten 2026-09-05: kalenderwissel door de werkre
   const u = S().addTask({ name: 'u', time: createDefaultTaskTime('2026-06-01', 4, 'hours') });
   S().updateTask(u, { time: { ...task(u).time, completion: 0.5, remainingMinutes: 100 } });
   S().updateTask(u, { time: { ...task(u).time, durationMinutes: 300 } });
-  eq('q6 uurmodus: 240→300 min bij rest 100 ⇒ rest 160, completion 140/300', [task(u).time.remainingMinutes, near(task(u).time.completion, 140 / 300)], [160, true]);
+  eq('q6 uurmodus: 240→300 min bij rest 100 ⇒ rest 160, completion 0,5 × 240 / 300', [task(u).time.remainingMinutes, near(task(u).time.completion, 0.5 * 240 / 300)], [160, true]);
   const mq = runInMcpTransaction(() => { draft.patchTaskFields(q, {}, { scheduleDuration: 22 }); });
   eq('q7 MCP patchTaskFields duur 20→22 ⇒ rest 17, completion 5/22', [mq.ok, task(q).time.remainingTime, near(task(q).time.completion, 5 / 22)], [true, 17, true]);
 }

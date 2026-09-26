@@ -183,6 +183,8 @@
       "milestoneUnavailable": "하위 작업이 있는 요약 작업은 마일스톤이 될 수 없습니다.",
       "actualAfterStatusDate": "실제 날짜가 상태 날짜 이후입니다.",
       "actualFinishBeforeStart": "실제 종료가 실제 시작보다 앞섭니다.",
+      "actualStartRequired": "이 작업은 상태 날짜 이후에야 시작됩니다. 먼저 실제 시작을 입력하세요.",
+      "durationBelowDoneWork": "이 기간은 이미 수행한 작업보다 짧습니다.",
       "conflictingProgressInputs": "이 진행률 값들이 서로 모순됩니다.",
       "constraintDateUnavailable": "제약 날짜를 입력하기 전에 제약 유형을 설정하세요.",
       "constraintHardUnavailable": "강한 제약에는 날짜가 있는 제약 유형이 필요합니다.",

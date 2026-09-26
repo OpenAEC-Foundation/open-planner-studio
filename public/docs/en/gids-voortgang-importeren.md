@@ -28,6 +28,11 @@ and that check is exactly the protection against a typo in a returned sheet (for
 start accidentally entered as next month). How to set the status date, and what else it does, is
 covered in the [Baselines & progress](docs://gids-baselines-voortgang) guide.
 
+Forgot? If you read a sheet in while no status date is set, the app sets it to today — just like when
+you enter progress in the panel or the Table view — and tells you so at the bottom of the screen. A
+single **Undo** (Ctrl+Z) reverts the sheet and the status date together. An actual date later than
+today is rejected in that case.
+
 ## Exporting the sheet
 
 The fastest route is the **Export progress sheet** button on the Planning, Table or Report tab, in the
@@ -154,6 +159,8 @@ itself.
 A row is refused, with a reason shown in the preview, in cases including:
 
 - The actual date is after the status date (hence: set that status date first).
+- The task is planned to start after the status date and the row gives progress but no actual start.
+  The app doesn't make that start up: fill it in in the sheet and read it in again.
 - Actual finish is before actual start.
 - The row refers to a summary task — those can't carry their own progress; the sheet the app exports
   says so in the cells themselves: a summary task's fill-in cells read "— summary task: do not fill

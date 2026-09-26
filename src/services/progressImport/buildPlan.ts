@@ -24,6 +24,8 @@ export interface ProgressPlanDeps {
  *  `'rejected'` terug, met de originele code in `plannerCode` (A3/T3). */
 const KNOWN_PLANNER_REASONS = new Set<string>([
   'actualAfterStatusDate', 'actualFinishBeforeStart', 'conflictingProgressInputs',
+  // Z1b (besluit eigenaar 26-09): een later geplande taak zonder werkelijke start in het blad.
+  'actualStartRequired',
 ]);
 
 /** Rijkop in de preview (gebruikstest 2026-09-11, fix 3): "ik hoef toch alleen de wbs te zien,

@@ -51,7 +51,7 @@ Alleen op een taak zonder subtaken die geen mijlpaal is. Aanvinken maakt de duur
 
 ## Voortgang
 
-- **Voortgang (%)** — schuifregelaar 0–100%.
+- **Voortgang (%)** — schuifregelaar 0–100%. Staat er nog geen statusdatum, dan zet **Opslaan** hem op vandaag; zou de taak pas ná de statusdatum beginnen, dan vraagt de dialoog eerst de werkelijke start (zie de gids bij Resterend hieronder).
 - **Werkelijke start** / **Werkelijke einde** — vastgelegde feiten; bij een mijlpaal één veld **Werkelijke datum**. Datums ná de statusdatum worden geweigerd.
 - **Resterend** — read-only, afgeleid van duur × (1 − voortgang): een dagtaak in werkdagen, een urentaak in uren en minuten. Zie [Baselines & voortgang](docs://gids-baselines-voortgang).
 

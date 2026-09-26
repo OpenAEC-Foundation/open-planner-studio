@@ -80,6 +80,8 @@ export function hasBlockingDialogOpen(ui: UIState = useAppStore.getState().ui): 
     // K-item 38: de toestemmingsvraag bij een extensie-installatie is net zo goed modaal — hij
     // wacht op een antwoord en er mag intussen niets aan de planning gebeuren.
     ui.pendingExtensionConsent !== null ||
+    // Z1b: de vraag naar de werkelijke start wacht op een antwoord; intussen verandert er niets.
+    ui.pendingActualStartQuestion !== null ||
     // Issue #27/E4: handmatig koppelwerk in de voortgangsimportdialoog hangt aan taak-id's van
     // ÉÉN document en leeft alleen in de dialoog — een documentwissel moet onmogelijk zijn zolang
     // hij openstaat, niet: dat werk over de wissel heen bewaren.

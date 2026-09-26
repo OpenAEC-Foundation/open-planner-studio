@@ -30,6 +30,11 @@ teruggestuurd blad (bijvoorbeeld een werkelijke start die per ongeluk volgende m
 je de statusdatum zet en wat hij verder betekent, lees je in de gids
 [Baselines & voortgang](docs://gids-baselines-voortgang).
 
+Vergeten? Lees je een blad in terwijl er nog geen statusdatum staat, dan zet de app hem op vandaag —
+net als bij voortgang invullen in het paneel of de Tabel — en meldt dat onderin het scherm. Eén keer
+**Ongedaan maken** (Ctrl+Z) draait het blad en de statusdatum samen terug. Een werkelijke datum ná
+vandaag wordt dan geweigerd.
+
 ## Het blad exporteren
 
 De snelste weg is de knop **Voortgangsblad exporteren** op het Planning-, Tabel- of Rapport-tabblad, in de groep
@@ -157,6 +162,8 @@ je nieuwe taken toevoegen, doe dat in de app zelf.
 Een rij wordt geweigerd, met een reden die de preview toont, in onder meer deze gevallen:
 
 - De werkelijke datum ligt na de peildatum (vandaar: zet die peildatum eerst).
+- De taak zou volgens de planning pas ná de peildatum beginnen en de rij geeft wel voortgang maar geen
+  werkelijke start. De app verzint die start niet: vul hem in het blad in en lees het opnieuw in.
 - Werkelijk einde ligt vóór werkelijke start.
 - De rij verwijst naar een verzameltaak — die kan geen eigen voortgang dragen; in het blad dat de app
   zelf exporteert staat dat er meteen bij: de invulcellen van een verzameltaak dragen de tekst
