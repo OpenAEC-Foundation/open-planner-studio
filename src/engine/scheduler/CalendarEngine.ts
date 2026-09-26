@@ -257,6 +257,11 @@ export class CalendarEngine {
     }
 
     let remaining = workDays - 1; // first work day counts as day 1
+    // Audit 2026-09-26: rekenkundig i.p.v. dag voor dag (was de grootste kostenpost van elke solve
+    // en van de leveler). Exact dezelfde dag; waar de oude lus op MAX_DAYS zou afkappen (of bij
+    // NaN/∞) valt dit terug op die lus, zodat ook dat randgedrag identiek blijft.
+    const fastOffset = this.offsetOfNthWorkday(current, remaining, 1);
+    if (fastOffset !== null) return { date: addCalendarDays(current, fastOffset), capped: false };
     let steps = 0;
     while (remaining > 0) {
       current = addCalendarDays(current, 1);
@@ -431,6 +436,8 @@ export class CalendarEngine {
     }
 
     let remaining = workDays - 1;
+    const fastOffset = this.offsetOfNthWorkday(current, remaining, -1);
+    if (fastOffset !== null) return addCalendarDays(current, -fastOffset);
     let steps = 0;
     while (remaining > 0) {
       current = addCalendarDays(current, -1);
@@ -458,6 +465,8 @@ export class CalendarEngine {
     if (n === 0) return current;
     const step = n > 0 ? 1 : -1;
     let remaining = Math.abs(n);
+    const fastOffset = this.offsetOfNthWorkday(current, remaining, step);
+    if (fastOffset !== null) return addCalendarDays(current, step * fastOffset);
     let guard = 0;
     while (remaining > 0) {
       current = addCalendarDays(current, step);
@@ -465,6 +474,45 @@ export class CalendarEngine {
       if (++guard > CalendarEngine.MAX_DAYS) break;
     }
     return current;
+  }
+
+  /**
+   * Rekenkundige tegenhanger van de lus "stap één kalenderdag in richting `dir`; is het een werkdag,
+   * dan `remaining--`; stop zodra `remaining <= 0`": het aantal kalenderdagen D waarna die lus stopt,
+   * of `null` als de lus niet in D ≤ MAX_DAYS stappen stopt (of `remaining` geen eindig getal is) —
+   * dan houdt de aanroeper de oude lus aan, inclusief haar afkapgedrag. `remaining ≤ 0` ⇒ 0.
+   * Werkt met dezelfde telling als `workDaysBetween` (weekpatroon − feestdagen + werkende
+   * uitzonderingen), dus exact dezelfde dag als dag voor dag lopen met `isWorkDay`.
+   */
+  private offsetOfNthWorkday(from: Date, remaining: number, dir: 1 | -1): number | null {
+    if (!Number.isFinite(remaining)) return null;
+    if (remaining <= 0) return 0;
+    const need = Math.ceil(remaining);
+    const fromIdx = utcDayIndex(from.getTime());
+    if (!Number.isFinite(fromIdx)) return null;
+    // Werkdagen in de D kalenderdagen ná (dir 1) resp. vóór (dir -1) `from`, `from` zelf niet meegeteld.
+    const countWithin = (d: number): number => {
+      const a = dir === 1 ? fromIdx + 1 : fromIdx - d;
+      const b = dir === 1 ? fromIdx + d : fromIdx - 1;
+      return this.countWorkWeekdays(a, b)
+        - this.countHolidayWorkdaysInRange(a, b)
+        + this.countWorkingExceptionsAddedInRange(a, b);
+    };
+    const limit = CalendarEngine.MAX_DAYS;
+    let lo = 0;
+    let hi = Math.max(1, Math.min(limit, Math.ceil((need * 7) / Math.max(1, this.workDaysPerWeek))));
+    while (countWithin(hi) < need) {
+      if (hi >= limit) return null;
+      lo = hi;
+      hi = Math.min(limit, hi * 2);
+    }
+    // Kleinste D in (lo, hi] met countWithin(D) >= need.
+    while (hi - lo > 1) {
+      const mid = lo + Math.floor((hi - lo) / 2);
+      if (countWithin(mid) >= need) hi = mid;
+      else lo = mid;
+    }
+    return hi;
   }
 
   get hoursPerDay(): number {
