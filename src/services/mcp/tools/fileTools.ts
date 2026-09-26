@@ -36,7 +36,7 @@ import { detectXmlFlavor, parseOpenedFile, readFormatInput, type FormatInput } f
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { extensionOf } from '@/utils/filePath';
 import type { OpenedImport } from '@/services/importTypes';
-import { bindExpectedDoc, buildEnvelope, guardNonTransactional, toolError } from './runtime';
+import { bindExpectedDoc, buildEnvelope, guardNonTransactional, postAwaitGuards, toolError } from './runtime';
 import { guardBridgeFlags } from './documentTools';
 import type { McpToolAnnotations, McpToolDef, McpToolResult } from '../contracts';
 import { writeUserTextFileTauri } from '@/services/fileAccess/atomicWrite';
@@ -254,6 +254,11 @@ export const fileTools: McpToolDef[] = [
         return toolError(ctx, 'INTERNAL', `Kon het doelpad niet controleren: ${e instanceof Error ? e.message : String(e)}`);
       }
 
+      // Na de fs-awaits opnieuw: de gebruiker kan intussen gepauzeerd, alleen-lezen gezet, een
+      // dialoog geopend of van tabblad gewisseld hebben — dan zou hier een ander document of een
+      // half-bewerkte staat weggeschreven worden.
+      const lateBlocked = postAwaitGuards(ctx) ?? guardNonTransactional(ctx);
+      if (lateBlocked) return lateBlocked;
       const state = ctx.app.store.getState();
       // Gedeelde state→writer-invoer (dezelfde bron als opslaan/auto-save), zodat deze route nooit
       // stil velden kan laten vallen.
@@ -381,6 +386,10 @@ export const fileTools: McpToolDef[] = [
       // herkomststempels uit het bronbestand (import/export-audit, bevinding 2;
       // `tests/mcp/cases-import-bibliotheek.ts`). `formatOf` blijft puur het AI-facing label
       // (`format`, voor de respons en de notices).
+      // Lezen en parsen kunnen seconden duren: controleer pauze/alleen-lezen/dialoog opnieuw vlak
+      // vóór het openen, anders opent de AI alsnog een document nadat de gebruiker hem stopte.
+      const lateBlocked = postAwaitGuards(ctx);
+      if (lateBlocked) return lateBlocked;
       const opened = ctx.app.store.getState().openAsDocument(parsed, {
         name: path,
         ref: { kind: 'path', path },
