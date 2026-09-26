@@ -417,11 +417,11 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 - [ ] **MS Project-meting van K2 en de Δ-regel (§6.4/§6.5):** beide zijn *documented* voor de richting
       en *reasoned* voor de OPS-werkdagen; wie MS Project heeft, meet cases 32–36 plus "duur wijzigen
       op een taak met ingevoerde resterende duur" en noteert de uren.
-- [ ] **K2 niet bedraad op drie randpaden (review G9, 2026-09-05):** `projectSlice.setCalendar`
-      (vervangt de hele projectkalender; geen UI-aanroeper meer, wel API-oppervlak),
-      `librarySlice.resolveDeviation(ref, 'company')` (neemt poolwaarden incl. `hoursPerDay` over) en
+- [ ] **K2 niet bedraad op twee randpaden (review G9, 2026-09-05):** `projectSlice.setCalendar`
+      (vervangt de hele projectkalender; geen UI-aanroeper meer, wel API-oppervlak) en
       de `workTime`-verwijdering ná `draft.updateCalendar` in `calendarResourceTools.ts` wijzigen de
-      slot buiten `settleCalendarChange` om. Bedraden zodra een van die paden weer een UI-ingang
+      slot buiten `settleCalendarChange` om. (`resolveDeviation(ref, 'company')` en de rest van de
+      bibliotheekverversing zijn sinds H6, 2026-09-26, wél bedraad — zie `docs/library.md`.) Bedraden zodra een van die paden weer een UI-ingang
       krijgt; tot dan volgt de werkregel daar niet. Daarnaast (G10): `updateCalendar`/
       `setProjectCalendar` wissen het Z8-venster alleen wanneer de regel de duur wijzigt, terwijl
       `setTaskCalendar` dat bij elke kalenderwissel doet — zelfde trigger, ander gedrag.

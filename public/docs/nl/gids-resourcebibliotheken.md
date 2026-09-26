@@ -89,6 +89,7 @@ De app controleert op vier vaste momenten of jouw kopieën nog bij de bibliothee
 
 - Loopt een kopie alleen achter (jij hebt hem niet zelf aangepast, de bibliotheek intussen wel), dan wordt hij **stil bijgewerkt** — je ziet alleen een korte melding, geen vraag.
 - Is een kopie lokaal (of door iemand anders) aangepast, dan verschijnt de markering **wijkt af — beslis**, en vraagt de app per item wat er moet gebeuren: **Bibliotheekwaarden gebruiken**, **Bestandswaarden overnemen in de bibliotheek**, of **Later beslissen**.
+- Krijgt een kalender daarbij andere uren per dag, dan beslist de werkregel van elke taak op die kalender wat er meebeweegt, precies zoals in de kalenderdialoog: onder *Vast werk* wordt een taak van 32 uur op 6 uur per dag 6 dagen. De app meldt hoeveel taken zijn aangepast; voor een document waar je op dat moment niet in werkt, komt die melding zodra je ernaar wisselt. Stil bijwerken maakt een document niet gewijzigd: open je het bestand opnieuw zonder op te slaan, dan werkt de app het opnieuw bij en kom je op dezelfde duur uit.
 
 Deze keuzes zijn niet met Ctrl+Z terug te draaien — de tweede optie wijzigt namelijk de bibliotheek zelf, en die valt buiten de projecthistorie.
 
