@@ -1,7 +1,8 @@
 // Headless store-batterij voor de bedrijfsbibliotheek (spec B1). Draait de ECHTE Zustand-store op
 // Node (patroon tests/planning/check-move-assignment.ts). Persistentie (saveLibrary) valt in Node
 // stil terug (geen IndexedDB/Tauri) — we asserten alleen de in-memory state. Exitcode = poort.
-import { useAppStore } from '@/state/appStore';
+import { createAppStore, useAppStore } from '@/state/appStore';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { normalizeLoadedLibrary, persistLibrary } from '@/state/slices/librarySlice';
 import { computeCalendarHash, computeResourceHash, isResourceFieldLocked } from '@/services/library/libraryOps';
 import { PoolImportDialog } from '@/components/dialogs/PoolImportDialog';
@@ -2005,6 +2006,76 @@ function commitOpenBoundaryForTest(): { refreshed: number; deviated: number; rem
   assert(afterBoundary.historyEvents.filter(event => event.state === 'applied').length === undoBefore, 'F3: geen undo-stap (grens 1 is niet-undoable, ongewijzigd gedrag)');
   assert(afterBoundary.isDirty === isDirtyBefore, 'F3: isDirty blijft ongewijzigd (niet-undoable verversing zet geen isDirty)');
   assert(afterBoundary.historyEvents.filter(event => event.state === 'undone').length === 0, 'F3: de redoStack is gewist door de stille verversing');
+}
+
+// --- H6 (eigenaarsbesluit 2026-09-26, "zelfde regel als de dialoog"): een bibliotheekverversing van
+// een kalender laat taken met een werkregel meebewegen in ÉLK gekoppeld document — het actieve én de
+// slapende (settle op hun eigen taken en toewijzingen) — buiten undo en isDirty, zoals de verversing
+// zelf. De melding ("N taken aangepast") staat bij het document waar ze over gaat: het actieve meteen,
+// een slapend document bij zijn activering. Eigen storecontext, zodat de rest van dit bestand niets merkt. ---
+{
+  const ctx = createAppStore();
+  const g = () => ctx.getState();
+  const durKey = 'notifications.workRuleDurationsChanged';
+  const durMsgs = () => g().ui.notifications.filter(n => n.messageKey === durKey).map(n => n.params?.count);
+  const fixedWorkTask = (name: string): string => {
+    const t = g().addTask({ name, time: createDefaultTaskTime('2026-06-01', 4) });
+    g().assignResource(t, g().addResource({ name: `ploeg ${name}`, type: 'LABOR', description: '', maxUnits: 1 }), 1);
+    g().setTaskWorkRule(t, 'FIXED_WORK'); // 4 d × 8 u = 32 u
+    return t;
+  };
+  // Document A: projectkalender naar de bibliotheek gepromoveerd.
+  g().setProject({ startDate: '2026-06-01' });
+  g().ensureProjectCalendarInLibrary();
+  const cid = g().addCompany('H6 Bouw BV');
+  g().bindProjectToCompany(cid);
+  const poolCalId = g().promoteCalendarToPool(cid, g().calendars.find(c => c.id === g().project.calendarId)!)!;
+  const tA = fixedWorkTask('A');
+  const docA = g().activeDocumentId;
+  // Document B: dezelfde bibliotheekkalender als projectkalender.
+  g().newDocument();
+  g().setProject({ startDate: '2026-06-01' });
+  g().bindProjectToCompany(cid);
+  const copyId = g().addLibraryCalendarToProject(cid, poolCalId).calendarId!;
+  g().setProjectCalendar(copyId);
+  const tB = fixedWorkTask('B');
+  const docB = g().activeDocumentId;
+  g().switchDocument(docA);
+  ctx.setState((st) => {
+    st.ui.notifications = [];
+    st.isDirty = false;
+    const b = st.documents.find(d => d.id === docB)!.payload!;
+    b.isDirty = false;
+  });
+  const eventsBefore = g().historyEvents.length;
+  const poolCal = g().pools[cid].calendars.find(c => c.id === poolCalId)!;
+  g().updatePoolCalendar(cid, poolCalId, { ...structuredClone(poolCal), workEndHour: 13, hoursPerDay: 6 });
+  const payloadB = g().documents.find(d => d.id === docB)!.payload!;
+  const durB = payloadB.tasks.find(t => t.id === tB)!.time.scheduleDuration;
+  assert(g().tasks.find(t => t.id === tA)!.time.scheduleDuration === 6, 'H6: actief document — Vast werk 32 u op 8→6 u/d ⇒ 6 d');
+  assert(durB === 6, `H6: slapend document — settle op zijn eigen taken ⇒ 6 d (kreeg ${durB})`);
+  assert(payloadB.assignments.find(a => a.taskId === tB)!.remainingWorkMinutes === 32 * 60, 'H6: slapend document — werk blijft 32 u');
+  assert(g().historyEvents.length === eventsBefore, 'H6: verversing + settle zijn niet-undoable (geen history-event)');
+  assert(!g().isDirty && !payloadB.isDirty, 'H6: verversing + settle zetten geen isDirty (actief noch slapend)');
+  assert(g().scheduleStale && payloadB.scheduleStale, 'H6: beide documenten staan op herberekenen');
+  assert(JSON.stringify(durMsgs()) === '[1]', `H6: één melding voor het actieve document (kreeg ${JSON.stringify(durMsgs())})`);
+  assert(g().documents.find(d => d.id === docB)!.pendingWorkRuleSettle?.changed === 1, 'H6: de melding voor het slapende document staat klaar');
+  ctx.setState((st) => { st.ui.notifications = []; });
+  g().switchDocument(docB);
+  assert(JSON.stringify(durMsgs()) === '[1]', `H6: bij activeren van B één samenvattende melding (kreeg ${JSON.stringify(durMsgs())})`);
+  assert(g().documents.find(d => d.id === docA)!.pendingWorkRuleSettle === undefined, 'H6: A heeft niets openstaan');
+  // De activatiegrens zelf (pure functie): een achterlopende payload levert de settle in zijn signalen.
+  ctx.setState((st) => {
+    const cal = st.calendars.find(c => c.id === st.project.calendarId)!;
+    Object.assign(cal, { workEndHour: 16, hoursPerDay: 8, libraryOrigin: { ...cal.libraryOrigin!, syncedHash: computeCalendarHash({ ...cal, workEndHour: 16, hoursPerDay: 8 }) } });
+    st.calendar = cal;
+    const t = st.tasks.find(x => x.id === tB)!;
+    t.time.scheduleDuration = 4;
+  });
+  const boundary = materializeLibraryBoundary({ payload: capturePayload(g()), companies: g().companies, pools: g().pools, mode: 'open-boundary' });
+  assert(boundary.signals.refreshed === 1 && boundary.workRuleSettle?.changed === 1, `H6: de grens ververst de achterlopende kalender en meldt 1 aangepaste taak (kreeg ${JSON.stringify(boundary.signals)})`);
+  assert(boundary.payload.tasks.find(t => t.id === tB)!.time.scheduleDuration === 6, 'H6: de grens settelt de taak op de payload (6 d)');
+  assert(g().tasks.find(t => t.id === tB)!.time.scheduleDuration === 4, 'H6: de grens raakt de store niet aan (pure materialisatie)');
 }
 
 console.log(`library-slice: ${checks - fails}/${checks} groen`);

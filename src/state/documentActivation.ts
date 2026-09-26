@@ -23,6 +23,9 @@ import { markScheduleStale } from './transaction';
 import type { DocumentPayload } from './documentContract';
 import { isFreshImportOrigin } from './documentContract';
 import { promoteProjectCalendarToLibrary, syncProjectCalendar } from './syncProjectCalendar';
+import {
+  NO_CALENDAR_LIBRARY_SETTLE, settleCalendarLibraryChangeOnPayload, type CalendarLibrarySettle,
+} from './calendarTasks';
 
 export type LibraryBoundaryMode = 'silent-switch' | 'open-boundary';
 
@@ -30,6 +33,8 @@ export interface BehindRefreshMaterialization {
   payload: DocumentPayload;
   calendarsChanged: number;
   resourcesChanged: number;
+  /** H6: taken die door de werkregel een andere duur kregen (of sturing verloren) bij de verversing. */
+  workRuleSettle: CalendarLibrarySettle;
   invalidateRedoScope: boolean;
 }
 
@@ -46,6 +51,9 @@ export interface DocumentActivationMaterialization {
   viewRows: readonly ViewRow[];
   resourceLoadResult: ResourceLoadResult | null;
   signals: LibraryBoundarySignals;
+  /** H6: wat de werkregel bij deze grens deed (naast de UI-signalen, geen signaal zelf); de aanroeper
+   *  meldt het ná zijn publicatie (`notifyCalendarLibrarySettle`, dezelfde melding als de kalenderdialoog). */
+  workRuleSettle: CalendarLibrarySettle;
   invalidateRedoScope: boolean;
 }
 
@@ -77,20 +85,7 @@ export function materializeBehindOnlyRefresh(input: {
   syncProjectCalendar(payload);
   const pool = localPool(payload, input.companies, input.pools);
   if (!pool) {
-    return { payload, calendarsChanged: 0, resourcesChanged: 0, invalidateRedoScope: false };
-  }
-
-  let calendarsChanged = 0;
-  const calendars = payload.calendars.map(calendar => {
-    if (calendar.libraryOrigin?.companyId !== pool.companyId) return calendar;
-    if (classifyCalendarOnOpen(calendar, pool) !== 'behind') return calendar;
-    calendarsChanged++;
-    return applyCalendarUpdate(calendar, pool);
-  });
-  if (calendarsChanged > 0) {
-    payload.calendars = calendars;
-    syncProjectCalendar(payload);
-    markScheduleStale(payload);
+    return { payload, calendarsChanged: 0, resourcesChanged: 0, workRuleSettle: NO_CALENDAR_LIBRARY_SETTLE, invalidateRedoScope: false };
   }
 
   let resourcesChanged = 0;
@@ -102,10 +97,31 @@ export function materializeBehindOnlyRefresh(input: {
   });
   if (resourcesChanged > 0) payload.resources = resources;
 
+  let calendarsChanged = 0;
+  let workRuleSettle = NO_CALENDAR_LIBRARY_SETTLE;
+  const calendars = payload.calendars.map(calendar => {
+    if (calendar.libraryOrigin?.companyId !== pool.companyId) return calendar;
+    if (classifyCalendarOnOpen(calendar, pool) !== 'behind') return calendar;
+    calendarsChanged++;
+    return applyCalendarUpdate(calendar, pool);
+  });
+  if (calendarsChanged > 0) {
+    // H6: dezelfde regel als de kalenderdialoog — taken met een werkregel settelen op de nieuwe
+    // uren per dag (`settleCalendarLibraryChangeOnPayload`). Net als de verversing zelf geen
+    // bewerking: geen undo-stap en geen isDirty (heropenen zonder opslaan ververst en settelt
+    // opnieuw tot hetzelfde resultaat), wel stale.
+    const previous = { calendars: payload.calendars, calendar: payload.calendar, project: payload.project, resources: payload.resources };
+    payload.calendars = calendars;
+    syncProjectCalendar(payload);
+    workRuleSettle = settleCalendarLibraryChangeOnPayload(payload, previous);
+    markScheduleStale(payload);
+  }
+
   return {
     payload,
     calendarsChanged,
     resourcesChanged,
+    workRuleSettle,
     invalidateRedoScope: calendarsChanged + resourcesChanged > 0,
   };
 }
@@ -183,6 +199,7 @@ export function materializeLibraryBoundary(input: {
       showLibraryLinkDialog: input.mode === 'open-boundary' && classified.deviated > 0,
       libraryRefreshNotice: refreshedCount > 0 ? refreshedCount : null,
     },
+    workRuleSettle: refreshed.workRuleSettle,
     invalidateRedoScope: refreshed.invalidateRedoScope,
   };
 }

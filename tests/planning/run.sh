@@ -726,6 +726,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
 
   WRSCHECK="$DIR/.check-work-rule-store.mjs"
   if bundle_check "$DIR/check-work-rule-store.ts" "$WRSCHECK"; then node "$WRSCHECK" || STATUS=1; fi
+  # H6 (eigenaarsbesluit 2026-09-26): de bibliotheekverversing van een kalender volgt de werkregel op
+  # elke route (verversen, bijwerken, koppelen, afwijking oplossen, openen/activeren), incl.
+  # idempotentie bij heropenen zonder opslaan.
+  WRLCHECK="$DIR/.check-work-rule-library.mjs"
+  if bundle_check "$DIR/check-work-rule-library.ts" "$WRLCHECK"; then node "$WRLCHECK" || STATUS=1; fi
 
   # Geavanceerde-CPM golf-0-checks (fase 2.9 — datamodel + plumbing default-inert, los van de CPM-cases).
   ACPMCHECK="$DIR/.advanced-cpm-check.mjs"
