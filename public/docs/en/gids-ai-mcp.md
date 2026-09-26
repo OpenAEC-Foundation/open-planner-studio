@@ -75,6 +75,8 @@ The bridge is deliberately narrower than the app. A few things an assistant simp
 
 **Which calendar is the project calendar.** It may edit the contents of that calendar, but swapping which one the project uses is something you do yourself in the calendar library. The same goes for scheduling options such as the multiple-critical-paths setting.
 
+**Filling in progress.** In the app, entering progress without a status date sets it to today, and the app asks for the actual start of a task that would only start after the status date. An assistant does neither on its own: without a status date the bridge refuses progress, explaining that a status date has to be set first (your data date), and for such a later-planned task it has to supply the actual start itself. If it changes the duration of a task that's already running, the same rule applies as in the app: the work already done stays the same, the remaining duration and the percentage adjust — and it gets those new values back.
+
 **The app itself.** There is no tool for settings, theme, language, extensions or the updater. An assistant changes nothing about how your program is set up.
 
 **Files — yes, but within limits.** Importing means it may read a schedule file from your disk, and exporting means it may write an IFC. Writing is confined to your personal folder, and an existing file is never overwritten unless that was asked for explicitly. An export is also not a "save": your document stays marked unsaved in the app, so it cannot replace your project file behind your back.

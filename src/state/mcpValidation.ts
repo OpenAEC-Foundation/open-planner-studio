@@ -23,6 +23,7 @@ import type { Task } from '@/types/task';
 import {
   applyProgressInvariants, fillMissingActualStart, isActualFinishBeforeStart, isActualPastStatusDate,
 } from '@/engine/taskMutationRules';
+import { actualStartQuestionFor } from '@/engine/progressEntry';
 import { clearLevelingGaps } from '@/utils/taskDefaults';
 import { sameValue } from '@/utils/sameValue';
 import { detectCycleInEdges } from '@/engine/scheduler/graphWalk';
@@ -132,10 +133,16 @@ export const progress = {
    *      meteen een nieuw `actualFinish`);
    *   7. `actualFinish >= actualStart`-check;
    *   8. GEEN statusdatum maar wél actuals/voortgang ⇒ weigering met uitleg (MCP-specifieke guard:
-   *      voortgang registreren vereist een projectstatusdatum);
+   *      voortgang registreren vereist een projectstatusdatum). Besluit eigenaar: de AI-koppeling
+   *      doet hier NIETS automatisch — anders dan de UI, die de statusdatum op vandaag zet (Z1,
+   *      `engine/progressEntry.ts`); de reden zegt wat de AI moet doen;
    *   9. voortgang op een taak met kinderen (verzameltaak) ⇒ weigering;
    *  10. dán `applyProgressInvariants` (de invariant-functie alléén is een deelverzameling en zou een
-   *      40%-taak als NOT_STARTED zonder gepinde `actualStart` achterlaten) en COMMIT naar de draft.
+   *      40%-taak als NOT_STARTED zonder gepinde `actualStart` achterlaten);
+   *  11. Z1b (besluit eigenaar): zou de update de werkelijke start AFLEIDEN uit een geplande start ná
+   *      de statusdatum (`actualStartQuestionFor`, hetzelfde criterium als de vraag in de UI) ⇒
+   *      weigering met uitleg: de AI moet `actualStart` meegeven. Niets automatisch, zoals bij 8;
+   *  12. COMMIT naar de draft.
    */
   applyProgressUpdate(
     draftState: ReadableState,
@@ -204,7 +211,10 @@ export const progress = {
     if (!statusDate && touchesProgress) {
       return {
         applied: false,
-        reason: `geen statusdatum ingesteld: voortgang/actuals kunnen niet worden geregistreerd zonder een projectstatusdatum (zet die eerst via update_project → statusDate)`,
+        reason: 'geen statusdatum ingesteld: voortgang/actuals worden gemeten tot de statusdatum en kunnen zonder '
+          + 'niet worden geregistreerd. Zet eerst de statusdatum (de peildatum van deze voortgang) met '
+          + 'planner_update_project → `statusDate` en herhaal dan deze update; de AI-koppeling kiest die datum '
+          + 'niet zelf',
       };
     }
 
@@ -213,8 +223,24 @@ export const progress = {
       return { applied: false, reason: `taak '${taskId}' is een verzameltaak (heeft kinderen); voortgang wordt afgeleid uit de kinderen, niet direct gezet` };
     }
 
-    // (10) invarianten + COMMIT naar de draft.
+    // (10) invarianten.
     applyProgressInvariants(scratch, statusDate);
+    // (11) Z1b: geen verzonnen werkelijke start — de AI geeft hem zelf op.
+    const question = actualStartQuestionFor(task, scratch, statusDate, {
+      actualStart: !!update.actualStart,
+      actualFinish: !!update.actualFinish,
+    });
+    if (question) {
+      const planned = scratch.time.earlyStart || scratch.time.scheduleStart;
+      return {
+        applied: false,
+        reason: `taak '${taskId}' heeft nog geen werkelijke start en stond gepland om pas ná de statusdatum `
+          + `(${question.statusDate}) te beginnen (geplande start ${planned}): voortgang betekent dat hij al begonnen `
+          + `is, maar wanneer weet alleen de gebruiker. Geef de werkelijke start mee in \`progress.actualStart\` `
+          + `(uiterlijk ${question.latest}); de AI-koppeling leidt hem niet af`,
+      };
+    }
+    // (12) COMMIT naar de draft.
     // Per saldo niets gewijzigd (bv. dezelfde completion nog eens) ⇒ niets committen en vooral de
     // nivelleergaten NIET wissen — dezelfde no-op-regel als taskSlice.ts's voortgangssetters
     // (`commitProgressEdit`). Het item is wél verwerkt: het staat al zoals gevraagd.

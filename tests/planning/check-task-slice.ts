@@ -189,8 +189,14 @@ ok(
   const mcpDraft = { tasks: structuredClone(S().tasks) } as unknown as Parameters<typeof progress.applyProgressUpdate>[0];
   const mcpTask = (mcpDraft.tasks as Task[]).find(t => t.name === 'F')!;
   mcpTask.time.completion = 0; mcpTask.time.actualStart = undefined; mcpTask.time.actualFinish = undefined;
-  const mcp = progress.applyProgressUpdate(mcpDraft, mcpTask.id, { completion: 100 }, '2026-06-10');
-  ok(`toekomstige-taak-100 (MCP): toegepast en AS niet ná AF (${mcp.applied}, ${actuals(mcpTask.time)})`, mcp.applied && inOrder(mcpTask.time));
+  // Besluit eigenaar (regel 4): de AI-koppeling leidt de start van zo'n later geplande taak niet af
+  // — zonder opgegeven `actualStart` geweigerd (taak ongemoeid); mét opgegeven start toegepast en in
+  // volgorde. Zie tests/mcp/cases-progress-entry-ai.ts.
+  const refused = progress.applyProgressUpdate(mcpDraft, mcpTask.id, { completion: 100 }, '2026-06-10');
+  ok(`toekomstige-taak-100 (MCP): zonder actualStart geweigerd, taak ongemoeid (${refused.applied}, ${actuals(mcpTask.time)})`,
+    !refused.applied && !mcpTask.time.actualStart && !mcpTask.time.actualFinish);
+  const mcp = progress.applyProgressUpdate(mcpDraft, mcpTask.id, { completion: 100, actualStart: '2026-06-08' }, '2026-06-10');
+  ok(`toekomstige-taak-100 (MCP): mét actualStart toegepast en AS niet ná AF (${mcp.applied}, ${actuals(mcpTask.time)})`, mcp.applied && inOrder(mcpTask.time));
 
   // Zonder statusdatum: een vastgelegde start ná een verouderde geplande finish blijft staan; het
   // afgeleide einde schuift mee (niet andersom).

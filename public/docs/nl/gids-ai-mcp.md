@@ -75,6 +75,8 @@ De bridge is bewust smaller dan de app. Een paar dingen kan een assistent niet, 
 
 **Wélke kalender de projectkalender is.** De inhoud van die kalender mag hij wijzigen, maar het omwisselen van de projectkalender doe je zelf in de kalenderbibliotheek. Hetzelfde geldt voor planningsopties zoals de meervoudige-kritieke-paden-stand.
 
+**Voortgang aanvullen.** In de app zet voortgang zonder statusdatum die op vandaag, en vraagt de app naar de werkelijke start van een taak die pas ná de statusdatum zou beginnen. Een assistent doet geen van beide vanzelf: zonder statusdatum weigert de bridge voortgang, met de uitleg dat hij eerst een statusdatum moet zetten (jouw peildatum), en op zo'n later geplande taak moet hij de werkelijke start zelf meegeven. Wijzigt hij de duur van een taak die al loopt, dan geldt dezelfde regel als in de app: het gedane werk blijft gelijk, de resterende duur en het percentage passen zich aan — en hij krijgt die nieuwe waarden terug.
+
 **De app zelf.** Er is geen tool voor instellingen, thema, taal, extensies of de updater. Een assistent verandert niets aan hoe je programma is ingericht.
 
 **Bestanden — wel, maar met grenzen.** Importeren betekent dat hij een planningsbestand van je schijf mag lezen, en exporteren dat hij een IFC mag wegschrijven. Dat wegschrijven kan alleen binnen je persoonlijke map, en een bestaand bestand wordt nooit overschreven tenzij dat expliciet gevraagd is. Een export is bovendien geen "opslaan": je document blijft in de app als niet-opgeslagen staan, dus hij kan je projectbestand niet onder je vandaan vervangen.

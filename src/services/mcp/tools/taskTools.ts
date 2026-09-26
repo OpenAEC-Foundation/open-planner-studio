@@ -424,7 +424,10 @@ const updateTasks: BatchStepTool = {
     'PROCENTEN 0–100, `actualStart` en `actualFinish` als ISO-datum — elke andere sleutel, en een leeg ' +
     '`progress`-object, wordt per item zacht GEWEIGERD, nooit stil genegeerd). ' + TASK_FIELDS_DOC + ' Een ' +
     'geweigerd `fields`-blok laat de taak volledig ONGEWIJZIGD (nooit een halve merge). ' +
-    'Voortgang > 0 leidt de actualStart af; actuals ná de ' +
+    'Voortgang vraagt een projectstatusdatum: zonder statusdatum wordt `progress` per item geweigerd — zet ' +
+    'hem eerst met planner_update_project → `statusDate` (de peildatum); de AI-koppeling kiest die niet zelf. ' +
+    'Voortgang > 0 leidt de actualStart af uit de geplande start, BEHALVE als die geplande start ná de ' +
+    'statusdatum ligt: dan wordt het item geweigerd en geef je `actualStart` (≤ statusdatum) zelf mee. Actuals ná de ' +
     'projectstatusdatum of buiten 0–100 worden per item zacht geweigerd — geldige items blijven staan. ' +
     'Een DUURWIJZIGING op een lopende taak (gestart, nog niet voltooid) houdt het gedane werk gelijk, zoals ' +
     'MS Project: restduur = nieuwe duur − gedane werk en het percentage past zich aan (10 d op 40% → 12 d ⇒ ' +
@@ -463,7 +466,7 @@ const updateTasks: BatchStepTool = {
                 'en een leeg `progress`-object ook: geef minstens één van de drie.',
               properties: {
                 completion: { type: 'number', minimum: 0, maximum: 100, description: 'Voltooiing in PROCENTEN (0–100).' },
-                actualStart: { type: ['string', 'null'], description: 'ISO-datum; mag niet ná de statusdatum liggen. null wist hem.' },
+                actualStart: { type: ['string', 'null'], description: 'ISO-datum; mag niet ná de statusdatum liggen. null wist hem. Verplicht bij voortgang op een taak zonder werkelijke start waarvan de geplande start ná de statusdatum ligt.' },
                 actualFinish: { type: ['string', 'null'], description: 'ISO-datum; ≥ actualStart en niet ná de statusdatum. null wist hem.' },
               },
               additionalProperties: false,
