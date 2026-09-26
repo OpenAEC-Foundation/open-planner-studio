@@ -21,8 +21,13 @@ import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Task } from '@/types/task';
 import type { CellEditIntent } from '@/types/taskGrid';
-import { predecessorDrivenTaskIds, startConstraintAfterEdit } from '@/engine/startEditConstraint';
-import { startConstraintNotification } from '@/state/startConstraintNotice';
+import {
+  constraintBlockingStart,
+  predecessorDrivenTaskIds,
+  startConstraintAfterEdit,
+} from '@/engine/startEditConstraint';
+import { startEditNotifications } from '@/state/startConstraintNotice';
+import i18next from 'i18next';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -140,24 +145,53 @@ function setup(): { a: string; b: string } {
   eq('Start na F5 = nieuwe SNET-datum', shownStart(task(b)), '2026-06-17');
 }
 
-// ── 4. Ander constrainttype: niet raden, beperking blijft staan (gedrag ongewijzigd) ─────────────
-for (const constraint of [
-  { type: 'MSO', date: '2026-06-10' },
-  { type: 'FNLT', date: '2026-06-30' },
+// ── 4. Ander constrainttype: de start heeft geen effect ⇒ melden, constraint laten staan ─────────
+// Besluit eigenaar: "melden, beperking laten staan". Niet geraden per type: eerst per type METEN dat
+// een ander anker na F5 niets verandert (a), pas dan de melding eisen (b). De invoer wordt dan niet
+// als dood anker weggeschreven.
+const dmyOf = (iso: string) => `${iso.slice(8, 10)}-${iso.slice(5, 7)}-${iso.slice(0, 4)}`;
+const OTHER_CONSTRAINTS: readonly Task['constraint'][] = [
   { type: 'ALAP' },
-] as const) {
+  { type: 'SNLT', date: '2026-06-20' },
+  { type: 'FNET', date: '2026-06-15' },
+  { type: 'FNLT', date: '2026-06-30' },
+  { type: 'MSO', date: '2026-06-10' },
+  { type: 'MFO', date: '2026-06-12' },
+  { type: 'MSO', date: '2026-06-10', hard: true },
+  { type: 'MFO', date: '2026-06-12', hard: true },
+];
+for (const constraint of OTHER_CONSTRAINTS) {
+  const label = `${constraint!.type}${constraint!.hard ? ' (hard)' : ''}`;
   const { b } = setup();
-  S().updateTask(b, { constraint: { ...constraint } });
+  S().updateTask(b, { constraint: { ...constraint! } });
   S().runCPM();
   clearNotices();
-  const startBefore = shownStart(task(b));
-  const typed = type(b, 'task.time.start', '17-06-2026');
-  eq(`${constraint.type}: commit slaagt`, typed.ok, true);
-  eq(`${constraint.type}: beperking onaangeroerd`, task(b).constraint, constraint);
-  eq(`${constraint.type}: alleen het anker (zoals vóór deze wijziging)`, task(b).time.scheduleStart, '2026-06-17');
-  eq(`${constraint.type}: geen SNET-melding`, notices(), []);
+  const before = { start: shownStart(task(b)), finish: task(b).time.earlyFinish, anchor: task(b).time.scheduleStart };
+
+  // (a) Meting: een later én een eerder anker (de oude schrijfweg) verandert na F5 niets.
+  for (const anchor of ['2026-06-17', '2026-05-25']) {
+    S().updateTask(b, { time: { ...task(b).time, scheduleStart: anchor } });
+    S().runCPM();
+    eq(`${label}: anker ${anchor} heeft na F5 geen effect`,
+      { start: shownStart(task(b)), finish: task(b).time.earlyFinish }, { start: before.start, finish: before.finish });
+  }
+  S().updateTask(b, { time: { ...task(b).time, scheduleStart: before.anchor } });
   S().runCPM();
-  eq(`${constraint.type}: start na F5 ongewijzigd`, shownStart(task(b)), startBefore);
+  clearNotices();
+
+  // (b) Typen in de Tabel (Start en Geplande start): niets toegepast, constraint blijft, melding.
+  const expected = constraint!.date
+    ? [{ key: 'notifications.startBlockedByConstraint', params: { name: 'B', type: constraint!.type, date: dmyOf(constraint!.date) } }]
+    : [{ key: 'notifications.startBlockedByConstraintNoDate', params: { name: 'B', type: constraint!.type } }];
+  for (const column of ['task.time.start', 'task.time.scheduleStart']) {
+    clearNotices();
+    const typed = type(b, column, '17-06-2026');
+    eq(`${label} via ${column}: commit slaagt (geen celfout)`, typed.ok, true);
+    eq(`${label} via ${column}: constraint onaangeroerd`, task(b).constraint, constraint);
+    eq(`${label} via ${column}: geen dood anker weggeschreven`, task(b).time.scheduleStart, before.anchor);
+    eq(`${label} via ${column}: planning niet verouderd`, S().scheduleStale, false);
+    eq(`${label} via ${column}: melding met type en datum`, notices(), expected);
+  }
 }
 
 // ── 5. Taak zonder voorganger: alleen het anker, zoals altijd ───────────────────────────────────
@@ -250,6 +284,28 @@ for (const constraint of [
   eq('Start + Constraint ASAP in één rij: geen SNET-melding', notices(), []);
 }
 
+// ── 11b. Plakken over een SNET-kandidaat én een taak met MSO: twee meldingen, alleen B verandert ──
+{
+  const { a, b } = setup();
+  const c = S().addTask({ name: 'C', time: { scheduleDuration: 2 } as Task['time'] });
+  S().addSequence({ predecessorId: a, successorId: c, type: 'FINISH_START', lagDays: 0 });
+  S().updateTask(c, { constraint: { type: 'MSO', date: '2026-06-10' } });
+  S().runCPM();
+  clearNotices();
+  const edit = (taskId: string, value: string): CellEditIntent => ({
+    kind: 'cell-edit', taskId, columnId: taskColumnId('task.time.start'), route: 'task-schedule', value,
+  });
+  const cAnchor = task(c).time.scheduleStart;
+  const pasted = S().runGridMutation([{ kind: 'paste', writes: [edit(b, '2026-06-15'), edit(c, '2026-06-16')] }]);
+  eq('Plakken gemengd: slaagt', pasted.ok, true);
+  eq('Plakken gemengd: B SNET, C onaangeroerd', [task(b).constraint, task(c).constraint, task(c).time.scheduleStart],
+    [{ type: 'SNET', date: '2026-06-15' }, { type: 'MSO', date: '2026-06-10' }, cAnchor]);
+  eq('Plakken gemengd: één SNET-melding en één blokkeermelding', notices(), [
+    { key: 'notifications.startSnetCreated', params: { name: 'B', date: '15-06-2026' } },
+    { key: 'notifications.startBlockedByConstraint', params: { name: 'C', type: 'MSO', date: '10-06-2026' } },
+  ]);
+}
+
 // ── 12. De beperking overleeft opslaan/openen (IFC) ──────────────────────────────────────────────
 {
   const { b } = setup();
@@ -279,16 +335,64 @@ for (const constraint of [
   eq('Regel: hangmat ⇒ niets', startConstraintAfterEdit({ ...base, isHammock: true }, '2026-06-15', true), undefined);
   eq('Regel: samenvatting ⇒ niets', startConstraintAfterEdit({ ...base, childIds: [a] }, '2026-06-15', true), undefined);
 
+  // Tegenhouden: alleen waar de startregel geldt, en alleen bij een ander type dan ASAP/SNET.
+  const mso = { type: 'MSO', date: '2026-06-10' } as const;
+  eq('Blokkade: MSO + voorganger ⇒ die MSO', constraintBlockingStart({ ...base, constraint: mso }, true), mso);
+  eq('Blokkade: MSO zonder voorganger ⇒ niets', constraintBlockingStart({ ...base, constraint: mso }, false), undefined);
+  eq('Blokkade: ASAP/SNET ⇒ niets', [
+    constraintBlockingStart(base, true),
+    constraintBlockingStart({ ...base, constraint: { type: 'SNET', date: '2026-06-10' } }, true),
+  ], [undefined, undefined]);
+  eq('Blokkade: handmatig gepland ⇒ niets (het anker is daar de planning)',
+    constraintBlockingStart({ ...base, constraint: mso, manuallyScheduled: true }, true), undefined);
+  eq('Blokkade: gestart ⇒ niets', constraintBlockingStart(
+    { ...base, constraint: mso, time: { ...base.time, actualStart: '2026-06-08', completion: 0.2 } }, true), undefined);
+
+
   // De melding: één taak met naam en datum in de notatie van de gebruiker, meer taken met een aantal,
   // en altijd een "Lees meer" naar een gids die bestaat.
-  eq('Melding: geen taken ⇒ geen melding', startConstraintNotification([], 'dmy'), null);
+  eq('Melding: geen taken ⇒ geen melding', startEditNotifications([], 'dmy'), []);
   eq('Melding: urentaak toont de tijd',
-    startConstraintNotification([{ name: 'U', date: '2026-06-15T13:00', change: 'created' }], 'ymd')?.params,
+    startEditNotifications([{ kind: 'snet', name: 'U', date: '2026-06-15T13:00', change: 'created' }], 'ymd')[0]?.params,
     { name: 'U', date: '2026-06-15 13:00' });
-  const help = startConstraintNotification([{ name: 'B', date: '2026-06-15', change: 'created' }], 'dmy')?.helpArticleId;
+  eq('Melding: tegengehouden zonder datum (ALAP)',
+    startEditNotifications([{ kind: 'blocked', name: 'B', constraint: { type: 'ALAP' } }], 'dmy')
+      .map(n => ({ key: n.messageKey, params: n.params })),
+    [{ key: 'notifications.startBlockedByConstraintNoDate', params: { name: 'B', type: 'ALAP' } }]);
+  eq('Melding: meerdere tegengehouden ⇒ één melding met aantal',
+    startEditNotifications([
+      { kind: 'blocked', name: 'B', constraint: mso }, { kind: 'blocked', name: 'C', constraint: { type: 'FNLT', date: '2026-06-30' } },
+    ], 'dmy').map(n => ({ key: n.messageKey, params: n.params })),
+    [{ key: 'notifications.startBlockedByConstraintMany', params: { count: 2 } }]);
+  const help = startEditNotifications([{ kind: 'snet', name: 'B', date: '2026-06-15', change: 'created' }], 'dmy')[0]?.helpArticleId;
+  eq('Melding: tegengehouden linkt naar dezelfde gids',
+    startEditNotifications([{ kind: 'blocked', name: 'B', constraint: mso }], 'dmy')[0]?.helpArticleId, help);
   const manifestPath = fileURLToPath(new URL('../../public/docs/manifest.json', import.meta.url));
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { articles: { id: string }[] };
   eq('Melding: "Lees meer" wijst naar een bestaande gids', manifest.articles.some(article => article.id === help), true);
+}
+
+// ── 14. De tegenhoudmelding noemt het type in gebruikerstaal, in alle 14 talen ─────────────────
+// De tekst nest `$t(task:constraintType.{{type}})`: controleer per taal met een echte i18next-instantie
+// dat die nesting heel is gebleven en het eigen label van die taal oplevert.
+{
+  const LOCALES = ['nl', 'en', 'fr', 'de', 'es', 'zh', 'it', 'pt', 'pl', 'tr', 'ar', 'ja', 'ko', 'fa'];
+  for (const locale of LOCALES) {
+    const read = (ns: string) => JSON.parse(readFileSync(
+      fileURLToPath(new URL(`../../src/i18n/locales/${locale}/${ns}.json`, import.meta.url)), 'utf8')) as Record<string, unknown>;
+    const task = read('task') as { constraintType: Record<string, string> };
+    const instance = i18next.createInstance();
+    await instance.init({
+      lng: locale, fallbackLng: false, ns: ['common', 'task'], defaultNS: 'common',
+      interpolation: { escapeValue: false }, resources: { [locale]: { common: read('common'), task } },
+    });
+    const withDate = instance.t('notifications.startBlockedByConstraint', { name: 'B', type: 'MFO', date: '12-06-2026' });
+    const noDate = instance.t('notifications.startBlockedByConstraintNoDate', { name: 'B', type: 'ALAP' });
+    eq(`${locale}: tegenhoudmelding noemt het eigen MFO-label en de datum`,
+      [withDate.includes(task.constraintType.MFO), withDate.includes('12-06-2026'), withDate.includes('$t(')], [true, true, false]);
+    eq(`${locale}: tegenhoudmelding zonder datum noemt het eigen ALAP-label`,
+      [noDate.includes(task.constraintType.ALAP), noDate.includes('$t(')], [true, false]);
+  }
 }
 
 if (diffs.length) {

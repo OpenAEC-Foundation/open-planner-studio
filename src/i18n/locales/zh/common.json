@@ -37,7 +37,10 @@
     "levelingDelayRoundedToWorkdays_other": "资源平衡会将 MS Project 精确到分钟的平衡延迟（{{count}} 项任务）四舍五入为整个工作日。",
     "startSnetCreated": "“{{name}}”有前置任务：输入的开始日期已设为限制“不得早于…开始 (SNET)” {{date}}。重新计算（F5）后，该任务不会早于此日期开始。",
     "startSnetUpdated": "“{{name}}”的限制“不得早于…开始 (SNET)”已移至 {{date}}。重新计算（F5）后，该任务不会早于此日期开始。",
-    "startSnetMany_other": "为 {{count}} 个有前置任务的任务输入的开始日期已设为限制“不得早于…开始 (SNET)”。重新计算（F5）后，这些任务都不会早于各自的日期开始。"
+    "startSnetMany_other": "为 {{count}} 个有前置任务的任务输入的开始日期已设为限制“不得早于…开始 (SNET)”。重新计算（F5）后，这些任务都不会早于各自的日期开始。",
+    "startBlockedByConstraint": "“{{name}}”的新开始日期未应用：该任务有前置任务和限制“$t(task:constraintType.{{type}})” {{date}}，由它们决定开始日期。请修改该限制以移动开始日期。",
+    "startBlockedByConstraintNoDate": "“{{name}}”的新开始日期未应用：该任务有前置任务和限制“$t(task:constraintType.{{type}})”，由它们决定开始日期。请修改该限制以移动开始日期。",
+    "startBlockedByConstraintMany_other": "{{count}} 个任务的新开始日期未应用：这些任务有前置任务，且限制不是“不得早于…开始 (SNET)”。请修改这些限制以移动开始日期。"
   },
   "yes": "是",
   "no": "否",

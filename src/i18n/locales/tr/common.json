@@ -46,7 +46,11 @@
     "startSnetCreated": "'{{name}}' görevinin bir öncülü var: yazılan başlangıç artık Şu tarihten önce başlamaz (SNET) {{date}} kısıtlaması. Yeniden hesaplamadan (F5) sonra görev bu tarihten önce başlamaz.",
     "startSnetUpdated": "'{{name}}' görevinin Şu tarihten önce başlamaz (SNET) kısıtlaması {{date}} tarihine taşındı. Yeniden hesaplamadan (F5) sonra görev bu tarihten önce başlamaz.",
     "startSnetMany_one": "Öncülü olan {{count}} görev için yazılan başlangıç artık bir Şu tarihten önce başlamaz (SNET) kısıtlaması. Yeniden hesaplamadan (F5) sonra görev kendi tarihinden önce başlamaz.",
-    "startSnetMany_other": "Öncülü olan {{count}} görev için yazılan başlangıçlar artık Şu tarihten önce başlamaz (SNET) kısıtlamaları. Yeniden hesaplamadan (F5) sonra hiçbiri kendi tarihinden önce başlamaz."
+    "startSnetMany_other": "Öncülü olan {{count}} görev için yazılan başlangıçlar artık Şu tarihten önce başlamaz (SNET) kısıtlamaları. Yeniden hesaplamadan (F5) sonra hiçbiri kendi tarihinden önce başlamaz.",
+    "startBlockedByConstraint": "'{{name}}' görevinin yeni başlangıcı uygulanmadı: görevin bir öncülü ve $t(task:constraintType.{{type}}) {{date}} kısıtlaması var; başlangıcı bunlar belirliyor. Başlangıcı taşımak için bu kısıtlamayı değiştirin.",
+    "startBlockedByConstraintNoDate": "'{{name}}' görevinin yeni başlangıcı uygulanmadı: görevin bir öncülü ve $t(task:constraintType.{{type}}) kısıtlaması var; başlangıcı bunlar belirliyor. Başlangıcı taşımak için bu kısıtlamayı değiştirin.",
+    "startBlockedByConstraintMany_one": "{{count}} görevin yeni başlangıcı uygulanmadı: görevin bir öncülü ve Şu tarihten önce başlamaz (SNET) dışında bir kısıtlaması var. Başlangıcı taşımak için bu kısıtlamayı değiştirin.",
+    "startBlockedByConstraintMany_other": "{{count}} görevin yeni başlangıçları uygulanmadı: bu görevlerin bir öncülü ve Şu tarihten önce başlamaz (SNET) dışında bir kısıtlaması var. Başlangıçları taşımak için bu kısıtlamaları değiştirin."
   },
   "yes": "Evet",
   "no": "Hayır",

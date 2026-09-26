@@ -19,7 +19,7 @@ import { effectiveCalendarOf, effHoursPerDay } from '@/utils/taskDuration';
 import { createSnapshot, restoreSnapshot, type Snapshot } from './snapshot';
 import { recordDocumentDataHistoryDelta } from './sessionHistory';
 import { notifyTimephasedLoss } from './timephasedLossNotice';
-import { startConstraintNotification, type StartConstraintNotice } from './startConstraintNotice';
+import { startEditNotifications, type StartEditNotice } from './startConstraintNotice';
 import { predecessorDrivenTaskIds } from '@/engine/startEditConstraint';
 import { markDateMutation, snapshotsEqual } from './transaction';
 import { generateId } from '@/utils/id';
@@ -453,7 +453,7 @@ function applyCellEdits(
 ): GridResult<{
   timephasedGuidanceLost: boolean;
   skippedReadOnlyCount: number;
-  startConstraint?: StartConstraintNotice;
+  startNotice?: StartEditNotice;
 }, readonly CellValidationError[]> {
   const first = edits[0];
   if (!first) return { ok: true, value: { timephasedGuidanceLost: false, skippedReadOnlyCount: 0 } };
@@ -648,16 +648,17 @@ function applyCellEdits(
     state.tasks[taskIndex] = planned.value.task;
     if (planned.value.scheduleStale) markDateMutation(state);
   }
+  // Meldbaar: een SNET die er echt kwam (dus alleen bij een wijziging), of een start die een andere
+  // constraint tegenhield — die laat de taak juist ongemoeid, dus daar geldt `changed` niet.
   const snet = planned.value.task.constraint;
+  const startNotice: StartEditNotice | undefined = planned.value.startBlocked
+    ? { kind: 'blocked', name: planned.value.task.name, constraint: planned.value.startBlocked }
+    : planned.value.changed && planned.value.startConstraint && snet?.date
+      ? { kind: 'snet', name: planned.value.task.name, date: snet.date, change: planned.value.startConstraint }
+      : undefined;
   return {
     ok: true,
-    value: {
-      timephasedGuidanceLost: planned.value.timephasedGuidanceLost,
-      skippedReadOnlyCount,
-      startConstraint: planned.value.changed && planned.value.startConstraint && snet?.date
-        ? { name: planned.value.task.name, date: snet.date, change: planned.value.startConstraint }
-        : undefined,
-    },
+    value: { timephasedGuidanceLost: planned.value.timephasedGuidanceLost, skippedReadOnlyCount, startNotice },
   };
 }
 
@@ -692,7 +693,7 @@ export function prepareGridMutation(
   const assignmentValidationTaskIds = new Set<string>();
   const appliedRelationWrites: RelationSetIntent[] = [];
   let skippedReadOnlyFromTransaction = 0;
-  const startConstraintNotices: StartConstraintNotice[] = [];
+  const startNotices: StartEditNotice[] = [];
   const isolated = produce(state as AppState, draft => {
     // Welke taken hebben een voorganger (W2-vervolg, getypte start ⇒ SNET)? Lui: alleen een getypte
     // start vraagt ernaar, en dan één keer per transactie. Cellen verzetten geen relaties of
@@ -744,7 +745,7 @@ export function prepareGridMutation(
           }
           if (applied.value.timephasedGuidanceLost) timephasedLossTaskIds.add(write.taskId);
           skippedReadOnlyFromTransaction += applied.value.skippedReadOnlyCount;
-          if (applied.value.startConstraint) startConstraintNotices.push(applied.value.startConstraint);
+          if (applied.value.startNotice) startNotices.push(applied.value.startNotice);
         }
         if (taskWrites.some(item => String(item.columnId) === 'task.isMilestone')) {
           assignmentValidationTaskIds.add(write.taskId);
@@ -843,7 +844,6 @@ export function prepareGridMutation(
   } catch (error) {
     return { ok: false, errors: [validationError('derivedCalculation', undefined, String(error))] };
   }
-  const startNotice = startConstraintNotification(startConstraintNotices, state.ui.dateNotation);
   return {
     ok: true,
     value: {
@@ -851,7 +851,7 @@ export function prepareGridMutation(
       before,
       after,
       derivedAfter: { viewRows, resourceLoadResult },
-      notifications: startNotice ? [startNotice] : [],
+      notifications: startEditNotifications(startNotices, state.ui.dateNotation),
       timephasedLossCount: timephasedLossTaskIds.size,
       skippedReadOnlyCount: skippedReadOnlyFromPlanning + skippedReadOnlyFromTransaction,
       label: normalized.value.length === 1 ? 'Cel bewerken' : 'Cellen bewerken',

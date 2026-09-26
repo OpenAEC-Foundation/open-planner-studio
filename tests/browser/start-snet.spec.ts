@@ -5,7 +5,9 @@
 //
 // Drie routes, elk met echte toetsen: de Tabel-kolom Start (klik, Enter, typen, Enter), het
 // eigenschappenpaneel (datumsegmenten typen, Enter) en Taak bewerken (typen, Opslaan). Herberekenen
-// is F5, ongedaan maken Ctrl+Z. De `__OPS__`-brug zet alleen de fixture (A → B) en leest state.
+// is F5, ongedaan maken Ctrl+Z. Heeft de taak een andere constraint (MSO, FNLT, …), dan heeft een
+// nieuwe start geen effect: niets toepassen, constraint laten staan, melden (besluit eigenaar). De
+// `__OPS__`-brug zet alleen de fixture (A → B, eventueel een constraint) en leest state.
 import type { Locator, Page } from '@playwright/test';
 import { expect, state, test } from './fixtures/ops';
 
@@ -157,4 +159,47 @@ test('Taak bewerken: een in dezelfde dialoog gekozen constraint wint van de gety
   expect(after.constraint).toMatchObject({ type: 'MSO' });
   expect(after.anchor).toBe('2026-06-15');
   await expect(toast(page)).toHaveCount(0);
+});
+
+
+test('eigenschappenpaneel: Start typen op een taak met MSO en voorganger meldt de constraint, het veld valt terug', async ({ page, ops: _ops }) => {
+  const { b } = await seedChain(page);
+  await page.evaluate(id => {
+    const s = window.__OPS__!.store.getState();
+    s.updateTask(id, { constraint: { type: 'MSO', date: '2026-06-10' } });
+    window.__OPS__!.store.getState().runCPM();
+    window.__OPS__!.store.getState().selectTask(id);
+  }, b);
+  const before = await taskState(page, b);
+  const startField = page.locator('[data-ops-rail]').getByRole('group', { name: /^Start$/ });
+  await expect(startField.locator('input').first()).toHaveValue('10');
+
+  const undoBefore = (await state(page)).undoDepth;
+  await typeDate(startField, '17062026');
+  await page.keyboard.press('Enter');
+
+  await expect(toast(page)).toContainText('MSO');
+  await expect(startField.locator('input').first()).toHaveValue('10');
+  expect(await taskState(page, b)).toEqual(before);
+  expect((await state(page)).undoDepth).toBe(undoBefore);
+});
+
+test('Taak bewerken: Startdatum typen op een taak met MSO en voorganger meldt de constraint bij Opslaan', async ({ page, ops: _ops }) => {
+  const { b } = await seedChain(page);
+  await page.evaluate(id => {
+    const s = window.__OPS__!.store.getState();
+    s.updateTask(id, { constraint: { type: 'MSO', date: '2026-06-10' } });
+    window.__OPS__!.store.getState().runCPM();
+    window.__OPS__!.store.getState().setUI({ showTaskDialog: true, editingTaskId: id });
+  }, b);
+  const before = await taskState(page, b);
+  const dialog = page.locator('[data-ops-task-dialog]');
+  const startField = dialog.getByRole('group', { name: /^(Start date|Startdatum)$/ });
+  await typeDate(startField, '17062026');
+  await page.keyboard.press('Tab');
+  await dialog.locator('[data-ops-task-save]').click();
+  await expect(dialog).toHaveCount(0);
+
+  await expect(toast(page)).toContainText('MSO');
+  expect(await taskState(page, b)).toEqual(before);
 });

@@ -211,7 +211,13 @@ export type NotificationMessageKey =
   // `src/state/startConstraintNotice.ts`. `Many` is het meervoud (`count`) voor plakken/vullen.
   | 'notifications.startSnetCreated'
   | 'notifications.startSnetUpdated'
-  | 'notifications.startSnetMany';
+  | 'notifications.startSnetMany'
+  // Idem, besluit eigenaar "melden, beperking laten staan": een andere constraint (MSO, FNLT, …) houdt
+  // de nieuwe start tegen. Het type staat er in gebruikerstaal in (i18next-nesting op
+  // `task:constraintType`); `NoDate` voor ALAP, `Many` het meervoud (`count`).
+  | 'notifications.startBlockedByConstraint'
+  | 'notifications.startBlockedByConstraintNoDate'
+  | 'notifications.startBlockedByConstraintMany';
 
 export interface AppNotification {
   /** Stabiele id — uitsluitend voor de React-key en voor `dismissNotification`. */

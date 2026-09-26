@@ -46,7 +46,11 @@
     "startSnetCreated": "'{{name}}' hat einen Vorgänger: Der eingegebene Anfang ist jetzt die Einschränkung Anfang nicht früher als (SNET) {{date}}. Nach dem Neuberechnen (F5) beginnt der Vorgang nicht vor diesem Datum.",
     "startSnetUpdated": "Die Einschränkung Anfang nicht früher als (SNET) von '{{name}}' wurde auf {{date}} verschoben. Nach dem Neuberechnen (F5) beginnt der Vorgang nicht vor diesem Datum.",
     "startSnetMany_one": "Der eingegebene Anfang von {{count}} Vorgang mit Vorgänger ist jetzt eine Einschränkung Anfang nicht früher als (SNET). Nach dem Neuberechnen (F5) beginnt er nicht vor seinem Datum.",
-    "startSnetMany_other": "Die eingegebenen Anfänge von {{count}} Vorgängen mit Vorgänger sind jetzt Einschränkungen Anfang nicht früher als (SNET). Nach dem Neuberechnen (F5) beginnt keiner vor seinem Datum."
+    "startSnetMany_other": "Die eingegebenen Anfänge von {{count}} Vorgängen mit Vorgänger sind jetzt Einschränkungen Anfang nicht früher als (SNET). Nach dem Neuberechnen (F5) beginnt keiner vor seinem Datum.",
+    "startBlockedByConstraint": "Der neue Anfang von '{{name}}' wurde nicht übernommen: Der Vorgang hat einen Vorgänger und die Einschränkung $t(task:constraintType.{{type}}) {{date}}, die seinen Anfang bestimmen. Ändern Sie diese Einschränkung, um den Anfang zu verschieben.",
+    "startBlockedByConstraintNoDate": "Der neue Anfang von '{{name}}' wurde nicht übernommen: Der Vorgang hat einen Vorgänger und die Einschränkung $t(task:constraintType.{{type}}), die seinen Anfang bestimmen. Ändern Sie diese Einschränkung, um den Anfang zu verschieben.",
+    "startBlockedByConstraintMany_one": "Der neue Anfang von {{count}} Vorgang wurde nicht übernommen: Er hat einen Vorgänger und eine andere Einschränkung als Anfang nicht früher als (SNET). Ändern Sie diese Einschränkung, um den Anfang zu verschieben.",
+    "startBlockedByConstraintMany_other": "Die neuen Anfänge von {{count}} Vorgängen wurden nicht übernommen: Sie haben einen Vorgänger und eine andere Einschränkung als Anfang nicht früher als (SNET). Ändern Sie diese Einschränkungen, um die Anfänge zu verschieben."
   },
   "yes": "Ja",
   "no": "Nein",

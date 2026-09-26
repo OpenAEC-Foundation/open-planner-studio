@@ -5,8 +5,12 @@ import { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { shownStart, startAnchorAfterEdit } from '@/utils/taskDates';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
-import { predecessorDrivenTaskIds, startConstraintAfterEdit } from '@/engine/startEditConstraint';
-import { startConstraintNotification } from '@/state/startConstraintNotice';
+import {
+  constraintBlockingStart,
+  predecessorDrivenTaskIds,
+  startConstraintAfterEdit,
+} from '@/engine/startEditConstraint';
+import { notifyStartEdit, type StartEditNotice } from '@/state/startConstraintNotice';
 import { Select } from '@/components/common/Select';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { X } from 'lucide-react';
@@ -144,24 +148,23 @@ export function TaskDialog() {
       // daadwerkelijk wijzigde — anders zou opslaan de berekende start als nieuw anker vastleggen
       // en de drift na herberekenen herintroduceren.
       const anchor = startAnchorAfterEdit(editingTask, startDate);
-      if (anchor !== undefined) time.scheduleStart = anchor;
       const milestoneTransition = taskMilestoneTransition(editingTask, draft.isMilestone);
       if (milestoneTransition.time) {
         Object.assign(time, milestoneTransition.time);
       }
       // Een getypte start op een taak met voorganger wordt een beperking "Start niet eerder dan"
-      // (dezelfde regel als Tabel en paneel), in dezelfde `updateTask` en dus dezelfde undo-stap.
-      // Koos de gebruiker in deze dialoog zelf een beperking, dan wint die expliciete keuze.
+      // (dezelfde regel als Tabel en paneel), in dezelfde `updateTask` en dus dezelfde undo-stap. Houdt een andere constraint de start tegen, dan wordt de start niet toegepast en
+      // volgt een melding. Koos de gebruiker in deze dialoog zelf een beperking, dan wint die
+      // expliciete keuze en doet de startregel niets.
       const constraintEditedHere = JSON.stringify(draft.constraint) !== JSON.stringify(editingTask.constraint)
         || JSON.stringify(draft.constraint2) !== JSON.stringify(editingTask.constraint2);
       const store = useAppStore.getState();
-      const snet = anchor !== undefined && !constraintEditedHere
-        ? startConstraintAfterEdit(
-          { ...editingTask, isHammock: draft.isHammock, time },
-          anchor,
-          predecessorDrivenTaskIds(store.tasks, store.sequences).has(editingTask.id),
-        )
-        : undefined;
+      const driven = anchor !== undefined && !constraintEditedHere
+        && predecessorDrivenTaskIds(store.tasks, store.sequences).has(editingTask.id);
+      const prospective = { ...editingTask, isHammock: draft.isHammock, time };
+      const blocking = constraintBlockingStart(prospective, driven);
+      const snet = anchor !== undefined && !blocking ? startConstraintAfterEdit(prospective, anchor, driven) : undefined;
+      if (anchor !== undefined && !blocking) time.scheduleStart = anchor;
       updateTask(editingTask.id, {
         name: draft.name,
         description: draft.description,
@@ -179,10 +182,10 @@ export function TaskDialog() {
         notes: draft.notes,
         time,
       });
-      const notice = snet && anchor !== undefined && startConstraintNotification(
-        [{ name: draft.name, date: anchor, change: snet.change }], store.ui.dateNotation,
-      );
-      if (notice) store.notify(notice);
+      const notices: StartEditNotice[] = blocking
+        ? [{ kind: 'blocked', name: draft.name, constraint: blocking }]
+        : snet && anchor !== undefined ? [{ kind: 'snet', name: draft.name, date: anchor, change: snet.change }] : [];
+      notifyStartEdit(store.notify, notices, store.ui.dateNotation);
       // QA-fix P1 (fase 2.10, onderdeel 2): een gewijzigde ouder gaat via `moveTask` — die
       // synchroniseert childIds op ZOWEL de oude als de nieuwe ouder en weigert cykels (een
       // summary onder zijn eigen kind hangen). `updateTask` is een kale Object.assign zonder die

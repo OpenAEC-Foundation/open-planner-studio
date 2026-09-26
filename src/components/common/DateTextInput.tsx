@@ -179,8 +179,11 @@ const SEP_STYLE: React.CSSProperties = {
 interface DateTextInputProps {
   /** Huidige waarde als ISO-datum (`YYYY-MM-DD`) of `''` voor "geen datum". */
   value: string;
-  /** Commit-callback met de genormaliseerde ISO-datum, of `''` bij een leeggemaakt veld. */
-  onCommit: (iso: string) => void;
+  /** Commit-callback met de genormaliseerde ISO-datum, of `''` bij een leeggemaakt veld. Geeft de
+   *  aanroeper `false` terug, dan past hij de waarde bewust niet toe (en meldt hij zelf waarom): het
+   *  veld valt dan terug op `value`, zodat de geweigerde invoer niet blijft staan en bij het verlaten
+   *  van het veld niet nog eens gecommit wordt. */
+  onCommit: (iso: string) => void | false;
   className?: string;
   style?: React.CSSProperties;
   ariaLabel?: string;
@@ -317,7 +320,8 @@ export function DateTextInput({
   // überhaupt geschreven wordt — zie `resolveDateCommit`.
   const commitFrom = (s: SegState, phase: DateCommitPhase): DateCommitResolution => {
     const res = resolveDateCommit(phase, commitMode, s);
-    if (res.kind === 'write' && res.iso !== value) onCommit(res.iso);
+    // Geweigerd door de aanroeper: net als incomplete invoer terug naar de laatst gecommitte waarde.
+    if (res.kind === 'write' && res.iso !== value && onCommit(res.iso) === false) return { kind: 'revert' };
     return res;
   };
 
@@ -409,7 +413,7 @@ export function DateTextInput({
     const segs = isoToSegments(iso);
     setSeg(segs);
     setShowError(false);
-    if (iso !== value) onCommit(iso);
+    if (iso !== value && onCommit(iso) === false) setSeg(isoToSegments(value));
   };
 
   const handleGroupFocus = () => setGroupFocused(true);
