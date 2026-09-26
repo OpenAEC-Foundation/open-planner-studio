@@ -405,7 +405,9 @@ function durationCellText(task: Task, options: CellTextOptions): string {
     : 8;
   return formatTaskDurationText(task, hoursPerDay, {
     display: options.durationDisplay,
-    suffixes: options.durationSuffixes,
+    // Groep B's volledige suffixset wint; anders de dag-afkorting van de projectkop (main, #190).
+    suffixes: options.durationSuffixes
+      ?? (options.labels?.daySuffix ? { day: options.labels.daySuffix, hour: 'h', minute: 'm' } : undefined),
     locale: options.numberLocale,
   });
 }
