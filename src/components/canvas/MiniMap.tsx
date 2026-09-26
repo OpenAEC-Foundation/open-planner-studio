@@ -29,6 +29,8 @@ interface MiniMapProps {
   onScrollXChange?: (scrollX: number) => void;
   /** Onderscheidt de twee stroken in self-tests; default is de bestaande 'minimap'. */
   testId?: string;
+  /** As-dag t.o.v. `originDate` op de werkdagen-as (zie `MiniMapOptions.axisDayOf`). */
+  axisDayOf?: (date: Date) => number;
 }
 
 export function MiniMap({
@@ -38,6 +40,7 @@ export function MiniMap({
   zoom: zoomProp,
   onScrollXChange,
   testId = 'minimap',
+  axisDayOf,
 }: MiniMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -76,10 +79,11 @@ export function MiniMap({
       scrollX,
       zoom,
       chartWidth: timelineWidth,
+      axisDayOf,
     });
     rendererRef.current = renderer;
     renderer.render();
-  }, [viewRows, originDate, scrollX, zoom, timelineWidth]);
+  }, [viewRows, originDate, scrollX, zoom, timelineWidth, axisDayOf]);
 
   useCanvasLayer({
     canvasRef,

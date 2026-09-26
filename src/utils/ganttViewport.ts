@@ -7,6 +7,9 @@
 
 import { parseDate, diffCalendarDays, addCalendarDays, formatDate, localTodayIso } from '@/utils/dateUtils';
 import type { Task, TaskTime } from '@/types/task';
+import type { WorkCalendar } from '@/types/calendar';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { resolveGanttAxis } from '@/engine/renderer/workdayAxis';
 import { maxGanttZoom, TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
 
 /** Start-keten: early → schedule (opgeslagen) → late. Gedeeld door {@link resolveTaskFinish},
@@ -256,6 +259,10 @@ export interface ScrollToDateState {
   tasks: Task[];
   view: { viewStartDate: string; zoom: number };
   project: { statusDate?: string };
+  /** Projectkalender + de werkdagen-as-instelling: staat die (effectief) aan, dan telt de afstand
+   *  in WERKdagen, zoals de renderer de as tekent. Afwezig ⇒ kalenderdagen. */
+  calendar?: WorkCalendar;
+  ui?: { compressNonWorkdays?: boolean };
 }
 
 /**
@@ -270,8 +277,21 @@ export function computeScrollToDate(date: string | undefined, state: ScrollToDat
   const target = date || state.project.statusDate || localTodayIso();
   const effectiveViewStart = parseDate(computeEffectiveViewStart(state.tasks, state.view.viewStartDate));
 
-  const days = diffCalendarDays(effectiveViewStart, parseDate(target));
+  const days = state.calendar && state.ui?.compressNonWorkdays
+    ? axisDaysBetween(state.calendar, effectiveViewStart, parseDate(target))
+    : diffCalendarDays(effectiveViewStart, parseDate(target));
   return Math.max(0, (days - SCROLL_TO_DATE_MARGIN_DAYS) * state.view.zoom);
+}
+
+/** Afstand in AS-dagen tussen twee datums op de werkdagen-as (dezelfde `resolveGanttAxis` als de
+ *  renderer; een kalender zonder werkdagen valt daar terug op de kalender-as). Vroeger telde
+ *  Ctrl+Home altijd kalenderdagen, zodat hij met "alleen werkdagen tonen" ver voorbij de datum
+ *  sprong (elk weekend telt dan twee dagen te veel). */
+function axisDaysBetween(calendar: WorkCalendar, from: Date, to: Date): number {
+  const axis = resolveGanttAxis({
+    calendar: new CalendarEngine(calendar), compressNonWorkdays: true, origin: from, chartOriginX: 0, zoom: 1, scrollX: 0,
+  });
+  return axis.dayIndexOf(to) - axis.dayIndexOf(from);
 }
 
 let chartWidth: number | null = null;

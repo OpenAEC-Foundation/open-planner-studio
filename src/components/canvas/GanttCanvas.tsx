@@ -300,6 +300,13 @@ export function GanttCanvas({
   const effectiveView = viewport.effectiveView;
   const sharedAxis = viewport.sharedAxis;
   const histogramAxis = viewport.histogramAxis;
+  // Minimap op dezelfde as als de Gantt: op de werkdagen-as telt `scrollX / zoom` in werkdagen,
+  // dus de strip moet de balken ook zo plaatsen (anders lopen kader en balken uiteen).
+  const minimapAxisDayOf = useMemo(() => {
+    if (!compressNonWorkdays) return undefined;
+    const originIndex = sharedAxis.dayIndexOf(parseDate(effectiveViewStart));
+    return (date: Date) => sharedAxis.dayIndexOf(date) - originIndex;
+  }, [compressNonWorkdays, sharedAxis, effectiveViewStart]);
   const totalContentWidth = viewport.primary.contentWidth;
   const secondaryContentWidth = viewport.secondary?.contentWidth ?? 0;
   const primaryChartWidth = viewport.primary.chartWidth;
@@ -760,6 +767,7 @@ export function GanttCanvas({
           >
             <MiniMap
               originDate={effectiveViewStart}
+              axisDayOf={minimapAxisDayOf}
               timelineWidth={primaryChartWidth}
               scrollX={viewport.primary.scrollX}
               zoom={viewport.primary.zoom}
@@ -772,6 +780,7 @@ export function GanttCanvas({
               <div className="flex-1 min-w-0">
                 <MiniMap
                   originDate={effectiveViewStart}
+                  axisDayOf={minimapAxisDayOf}
                   timelineWidth={secondaryChartWidth}
                   scrollX={splitView.secondaryScrollX}
                   zoom={splitView.secondaryZoom}
