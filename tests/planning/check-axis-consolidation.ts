@@ -304,8 +304,23 @@ const histogramSource = fs.readFileSync(
   path.join(sourceRoot, 'src/engine/renderer/HistogramRenderer.ts'),
   'utf8',
 );
-eq('HistogramRenderer leidt chartOriginX exact eenmaal van pickerWidth af',
-  (histogramSource.match(/chartOriginX\s*=\s*opts\.pickerWidth/g) ?? []).length, 1);
+// G13: de kiezer staat aan de kant van de takenlijst (rechts in ar/fa), dus de plotoorsprong is niet
+// altijd `pickerWidth`. De renderer leidt zijn indeling exact eenmaal af van pickerWidth + kiezerkant
+// (`histogramLayout`), en chartOriginX exact eenmaal van het begin van de plot. De gedeelde as in de
+// viewportcoördinator rekent zijn oorsprong met dezelfde functie (`histogramPlotInsets`).
+eq('HistogramRenderer leidt zijn indeling exact eenmaal van pickerWidth en pickerSide af',
+  (histogramSource.match(/histogramLayout\(opts\.canvasWidth,\s*opts\.pickerWidth,\s*opts\.pickerSide\)/g) ?? []).length, 1);
+eq('HistogramRenderer leidt chartOriginX exact eenmaal van het plotbegin af',
+  (histogramSource.match(/chartOriginX\s*=\s*this\.layout\.plot\.left/g) ?? []).length, 1);
+eq('HistogramRenderer schrijft chartOriginX nergens rechtstreeks als pickerWidth',
+  /chartOriginX\s*=\s*opts\.pickerWidth/.test(histogramSource), false);
+const viewportCoordinatorSource = fs.readFileSync(
+  path.join(sourceRoot, 'src/components/canvas/hooks/useGanttViewportCoordinator.ts'),
+  'utf8',
+);
+eq('histogramas in de viewportcoördinator begint op het plotbegin van dezelfde indeling',
+  /chartOriginX:\s*histogramPlotInsets\(input\.histogramPickerWidth,\s*input\.histogramPickerSide\)\.left/
+    .test(viewportCoordinatorSource), true);
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {

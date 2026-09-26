@@ -4,7 +4,7 @@ Okno **Filtr** kontroluje, które zadania są widoczne — na wykresie Gantta i 
 
 ## Otwieranie
 
-**Widok** → grupa wstążki **Wyświetlanie** → **Filtr…**. Przycisk pozostaje podświetlony, dopóki filtr jest aktywny. **Esc**, krzyżyk zamykający albo kliknięcie poza oknem zamyka bez zastosowania.
+Filtr ustawiasz w oknie układów: **Widok** → grupa wstążki **Layout** → **Nowy układ**, zaznacz **Filtr** i zbuduj reguły poniżej. **Zapisz** tworzy z niego przycisk układu, **Zastosuj bez zapisywania** tylko na razie pokazuje filtr na ekranie. Opisane niżej osobne okno Filtr należy do klasycznych przycisków widoku: **Widok** → grupa wstążki **Wyświetlanie** → **Filtr…**, widoczne tylko wtedy, gdy włączysz te przyciski w **Ustawienia** → **Zaawansowane** → **Funkcje starszego typu**. Same reguły działają w obu miejscach tak samo. Przycisk pozostaje podświetlony, dopóki filtr jest aktywny. Jeśli nie masz jeszcze zapisanych filtrów, otwiera od razu okno Filtr. W przeciwnym razie jego strzałka otwiera też zapisane filtry: wybranie jednego od razu go stosuje, a **Wyczyść** wyłącza aktywny filtr. **Esc**, krzyżyk zamykający albo kliknięcie poza oknem zamyka bez zastosowania.
 
 ## Grupy: wszystkie albo dowolne
 

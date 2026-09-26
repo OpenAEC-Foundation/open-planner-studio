@@ -4,7 +4,7 @@ La ventana **Filtro** controla qué tareas son visibles — en el Gantt y en la 
 
 ## Abrir
 
-**Vista** → grupo de la cinta **Visualización** → **Filtro…**. El botón permanece resaltado mientras haya un filtro activo. **Esc**, la cruz de cierre o un clic fuera de la ventana cierra sin aplicar.
+Un filtro se configura en la ventana de diseños: **Vista** → grupo de la cinta **Layout** → **Nuevo diseño**, marque **Filtro** y cree las reglas debajo. **Guardar** lo convierte en un botón de diseño; **Aplicar sin guardar** solo muestra el filtro en pantalla por el momento. La ventana Filtro independiente que se describe a continuación pertenece a los botones de vista clásicos: **Vista** → grupo de la cinta **Visualización** → **Filtro…**, visible solo si activa esos botones en **Configuración** → **Avanzado** → **Funciones heredadas**. Las reglas funcionan igual en ambos lugares. El botón permanece resaltado mientras haya un filtro activo. Si aún no tiene filtros guardados, abre directamente la ventana Filtro. De lo contrario, su flecha también abre sus filtros guardados; elegir uno lo aplica de inmediato y **Borrar** desactiva el filtro activo. **Esc**, la cruz de cierre o un clic fuera de la ventana cierra sin aplicar.
 
 ## Grupos: todo o cualquiera
 

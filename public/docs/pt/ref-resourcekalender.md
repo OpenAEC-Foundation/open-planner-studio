@@ -10,8 +10,8 @@ A janela **Calendário do recurso** edita o calendário próprio de um único re
 ## Diferenças em relação ao diálogo de calendário
 
 - **Um calendário de cada vez** — sem lista de biblioteca à esquerda, sem estrela de predefinição do projeto; apenas o formulário.
-- **Aplicar** guarda o calendário; **Cancelar**, **Esc**, a cruz de fecho ou um clique fora da janela descarta as alterações.
-- **Sem recálculo automático** — um calendário de recurso não altera as datas CPM; conta para a carga (histograma) e o nivelamento, que voltam a ser executados por si, respetivamente com F5 ou **Nivelar…**.
+- **Aplicar** guarda o calendário; **Cancelar**, **Esc**, a cruz de fecho ou um clique fora da janela descarta as alterações. Um calendário novo criado com **+ Calendário do recurso** na lista pendente só existe depois de **Aplicar** e é então ligado de imediato ao recurso (em conjunto, um único passo de Anular); depois de **Cancelar** nada fica para trás. Começa com a mesma predefinição que **+** na caixa de diálogo de calendários.
+- **Sem recálculo automático** — **Aplicar** não recalcula o cronograma. No seu papel de calendário de recurso, um calendário não altera as datas CPM; conta para a carga (histograma) e o nivelamento, que voltam a ser executados por si, respetivamente com F5 ou **Nivelar…**. A lista pendente oferece, no entanto, todos os calendários do projeto: se editar aqui um calendário que também é o calendário do projeto ou de uma tarefa, o cronograma muda mesmo. Fica então marcado como desatualizado e F5 volta a calculá-lo.
 
 ## Campos
 

@@ -331,8 +331,10 @@ function updateDependenciesCore(ctx: McpContext, updates: unknown[]): MutationOu
   const { candidates, rejections, projected } = classifyDepUpdates(st, updates);
 
   // KRING: over de VOLLEDIGE projectie (alle relaties mét de geaccepteerde wijzigingen), via exact
-  // hetzelfde pad als `add_dependencies` — `validate.noCycle` leest alleen `sequences`, dus voeren we
-  // de projectie als "voorgestelde" kanten aan en houden we de bestaande verzameling leeg.
+  // hetzelfde pad als `add_dependencies` — `validate.noCycle` telt `sequences` plus de voorgestelde
+  // kanten (uitgevouwen over de samenvattingstaken van `tasks`), dus voeren we de projectie als
+  // "voorgestelde" kanten aan en houden we de bestaande verzameling leeg. Elke kring in de projectie
+  // telt daardoor, ook een die er al was — zoals vóór de uitvouwing.
   //
   // NB: een TYPE- of LAG-wijziging alleen kan nooit een kring maken (de kanten-graaf kent alleen
   // voorganger→opvolger, en die blijven dan gelijk). Verleg je een EINDPUNT, dan kan het wel — en
@@ -441,8 +443,8 @@ const updateDependencies: BatchStepTool = {
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
     const before = new Map(ctx.app.store.getState().sequences.map((s) => [s.id, fieldsOf(s)]));
     // Lege-batch-snelpad (zelfde reden als bij de andere bulk-tools): levert de statische
-    // classificatie nul kandidaten, dan mag er géén transactie draaien — die zou een spurious
-    // undo-snapshot pushen en de redo-stack van de gebruiker wissen voor een AI-no-op.
+    // classificatie nul kandidaten, dan hoeft er géén transactie (en AI-backup) te draaien. Een
+    // wijziging-loze transactie legt sinds G5 ook zelf geen undo-stap vast (zie `okDirect`).
     {
       const state = ctx.app.store.getState();
       const pre = classifyDepUpdates(state, parsed);

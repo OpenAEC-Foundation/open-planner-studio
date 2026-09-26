@@ -62,7 +62,7 @@ Voici la partie à retenir : certains champs relèvent d'un accord à l'échelle
 - La capacité échelonnée dans le temps
 - Le **choix** du calendrier attaché à la ressource
 
-Affectez une ressource de bibliothèque, et son calendrier voyage avec elle sous forme de copie liée qui continue elle-même de suivre la bibliothèque — c'est pourquoi le *contenu* de ce calendrier figure dans la liste de gauche ci-dessus. Mais le *choix* du calendrier attaché à une ressource figure dans la liste de droite : la même équipe peut très bien tourner sur un calendrier différent pour un chantier urgent que d'habitude, sans que cela constitue un écart par rapport à la bibliothèque. Cette distinction est subtile mais importante : modifiez le tarif ou le nom d'une ressource de bibliothèque, et la copie dévie de la bibliothèque ; modifiez son choix de calendrier ou ses unités max., et vous faites exactement ce pour quoi ce champ est prévu.
+Affectez une ressource de bibliothèque, et son calendrier voyage avec elle sous forme de copie liée qui continue elle-même de suivre la bibliothèque — c'est pourquoi le *contenu* de ce calendrier figure ci-dessus sous **Suit la bibliothèque**. Mais le *choix* du calendrier attaché à une ressource figure sous **Vous décidez par projet** : la même équipe peut très bien tourner sur un calendrier différent pour un chantier urgent que d'habitude, sans que cela constitue un écart par rapport à la bibliothèque. Cette distinction est subtile mais importante : modifiez le tarif ou le nom d'une ressource de bibliothèque, et la copie dévie de la bibliothèque ; modifiez son choix de calendrier ou ses unités max., et vous faites exactement ce pour quoi ce champ est prévu.
 
 ## Trois actions qui relient les deux mondes
 

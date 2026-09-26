@@ -41,6 +41,7 @@ import type { SequenceType } from '@/types/sequence';
 import type { Task } from '@/types/task';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { isAncestorRelation, relationKey } from '@/state/relationRules';
+import { moveTaskVerdict } from '@/state/slices/taskSlice';
 // De relatie-NOTATIE (type-aliassen, lag-vormen, schema-fragmenten) woont in de gedeelde veldlaag
 // `sequenceFields.ts` — één implementatie voor `add_dependencies` hier, `update_dependencies` in
 // `dependencyTools.ts` en de leeskant in `readTools.ts`. Zie de kop van dat bestand.
@@ -56,6 +57,8 @@ import {
   unknownTypeReason,
   type ParsedLag,
 } from './sequenceFields';
+import type { PhaseTransitionReport } from '@/state/structuralTransition';
+import { watchAncestorRelations } from '@/state/hierarchyRelationNotice';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { formatDate } from '@/utils/dateUtils';
@@ -89,6 +92,14 @@ import { interruptionsOf, planTaskSplits } from './splitFields';
 // STRUCTURELE stapfout die de hele batch hoort terug te rollen (spec §Compositie), geen zachte weigering.
 // Die vorm is voor elke tool gelijk en staat daarom één keer in `helpers.ts` (`parsedBatchStep`).
 
+/** "Wordt fase" (audit taakmutaties §6) — gedeeld door add_tasks en move_task. */
+const PHASE_TRANSITION_DOC =
+  'Krijgt een bestaande taak met resource-toewijzingen hierdoor haar EERSTE subtaak (ze wordt een fase), dan ' +
+  'verhuizen die toewijzingen naar de eerste nieuwe subtaak die ze mag dragen (geen mijlpaal of fase); een ' +
+  'mijlpaal die zo een fase wordt verliest zijn mijlpaalvlag. Het antwoord meldt dat in `phaseTransitions`. ' +
+  'Kan het niet schoon (geen geschikte subtaak, of die heeft dezelfde resource al), dan faalt de hele call ' +
+  '(VALIDATION) en verandert er niets.';
+
 // =================================================================================================
 // planner_add_tasks
 // =================================================================================================
@@ -101,6 +112,7 @@ function fieldContext(
     currentIsMilestone: task?.isMilestone ?? false,
     hasChildren: isSummaryTask(task),
     hasAssignments: task ? s.assignments.some((a) => a.taskId === task.id) : false,
+    currentConstraint2: task?.constraint2,
     // De projectkalender-id telt mee: op een vers document staat die alleen als cache in `s.calendar`
     // (`calendars` is dan leeg), maar hij is wel degelijk een geldige taak-kalender.
     calendarExists: (id: string) => s.calendars.some((c) => c.id === id) || id === s.calendar.id,
@@ -205,8 +217,14 @@ function addTasksCore(ctx: McpContext, items: ParsedAddItem[]): MutationOutcome 
       ...(time ? { time } : {}),
     };
   });
-  const map = ctx.transactions.draft.addTasks(bulk);
-  return { data: { created: Object.fromEntries(map) } };
+  const phaseTransitions: PhaseTransitionReport[] = [];
+  const map = ctx.transactions.draft.addTasks(bulk, phaseTransitions);
+  return {
+    data: {
+      created: Object.fromEntries(map),
+      ...(phaseTransitions.length > 0 ? { phaseTransitions } : {}),
+    },
+  };
 }
 
 const addTasks: BatchStepTool = {
@@ -221,8 +239,8 @@ const addTasks: BatchStepTool = {
     'Geef de DUUR direct mee met `duration` en desgewenst `durationUnit` (`days`/`hours`; zonder duur krijgt een taak de ' +
     'standaard 5 werkdagen). Een mijlpaal (`isMilestone`) heeft per definitie duur 0 — `duration` > 0 ' +
     'is daar een fout. ' + TASK_FIELDS_DOC + ' Bij add_tasks is een onbekende sleutel een HARDE fout ' +
-    '(de hele call faalt), niet een per-item-weigering. Retourneert de volledige tempId→realId-map, de ' +
-    'herrekende earlyStart/earlyFinish per aangemaakte taak en het projecteinde.',
+    '(de hele call faalt), niet een per-item-weigering. ' + PHASE_TRANSITION_DOC + ' Retourneert de volledige ' +
+    'tempId→realId-map, de herrekende earlyStart/earlyFinish per aangemaakte taak en het projecteinde.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -264,11 +282,12 @@ const addTasks: BatchStepTool = {
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
     const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => addTasksCore(ctx, parsed));
     return enrichOk(res, () => {
-      const created = (res as McpToolOk).data as { created: Record<string, string> };
+      const core = (res as McpToolOk).data as { created: Record<string, string>; phaseTransitions?: PhaseTransitionReport[] };
       const state = ctx.app.store.getState();
       return {
-        created: created.created,
-        tasks: freshDates(state, Object.values(created.created)),
+        created: core.created,
+        ...(core.phaseTransitions ? { phaseTransitions: core.phaseTransitions } : {}),
+        tasks: freshDates(state, Object.values(core.created)),
         ...projectEndInfo(state),
       };
     });
@@ -394,6 +413,9 @@ const updateTasks: BatchStepTool = {
     'geweigerd `fields`-blok laat de taak volledig ONGEWIJZIGD (nooit een halve merge). ' +
     'Voortgang > 0 leidt de actualStart af; actuals ná de ' +
     'projectstatusdatum of buiten 0–100 worden per item zacht geweigerd — geldige items blijven staan. ' +
+    'Een VERZAMELTAAK (fase) heeft geen eigen voortgang: haar completion, status, actualStart (vroegste ' +
+    'van de bladtaken) en actualFinish (laatste, pas als alle bladtaken klaar zijn) worden bij elke ' +
+    'herberekening afgeleid, dus `progress` op een fase wordt zacht geweigerd — zet het op de bladtaken. ' +
     'Hefboom-tip: hypothetische uitloop = duur of SNET-constraint (via `fields`); geregistreerde voortgang ' +
     '= actuals mét statusdatum (via `progress`). Merk op: één taak-id kan tegelijk in `updated` én in de ' +
     'weigeringen verschijnen (bijv. `fields` geweigerd maar `progress` toegepast) — bewuste granulariteit.',
@@ -596,8 +618,9 @@ const deleteTasks: BatchStepTool = {
 };
 
 // =================================================================================================
-// planner_move_task — roept de slice-actie `moveTask` DIRECT binnen de transactie aan; de
-// suppressievlag dekt de `beginUndoable`, de trailing `recomputeViewRows` is redundant maar onschadelijk.
+// planner_move_task — via `draft.moveTask`: dezelfde verhanging als de slice-actie `moveTask`
+// (`reparentTask`) plus de gedeelde "wordt fase"-regel, maar zonder UI-melding (audit taakmutaties
+// §6); een verhuisde toewijzing staat als `phaseTransitions` in het antwoord.
 // =================================================================================================
 /** Vormvalidatie van `move_task`; string = foutboodschap. */
 function parseMoveTask(args: unknown): { id: string; newParentId: string | null; position?: number } | string {
@@ -619,8 +642,9 @@ function parseMoveTask(args: unknown): { id: string; newParentId: string | null;
   };
 }
 
-/** Synchrone, transactie-vrije kern van `move_task`. Structurele fouten (onbekend id, kringouder)
- *  gooien een `McpStepError` — die code overleeft de rollback van beide aanroepers. */
+/** Synchrone, transactie-vrije kern van `move_task`. Structurele fouten (onbekend id, kringouder,
+ *  een kring in de relaties via de nieuwe fase) gooien een `McpStepError` — die code overleeft de
+ *  rollback van beide aanroepers. */
 function moveTaskCore(ctx: McpContext, p: { id: string; newParentId: string | null; position?: number }): MutationOutcome {
   const { id, newParentId, position } = p;
   const st = ctx.app.store.getState();
@@ -636,8 +660,24 @@ function moveTaskCore(ctx: McpContext, p: { id: string; newParentId: string | nu
       || [...ancestorIds(newParentId, (tid) => parentById.get(tid))].includes(id);
     if (ownDescendant) throw new McpStepError('VALIDATION', 'kan een taak niet onder zichzelf of een eigen afstammeling plaatsen');
   }
-  ctx.app.store.getState().moveTask(id, newParentId, position);
-  return { data: { moved: id } };
+  // Zelfde voorafregel als de UI (audit taakmutaties, S4): een relatie op een fase geldt voor elke
+  // taak erin, dus verhangen kan een kring maken. Zonder deze toets ving pas de eindberekening dat,
+  // met de Engelse solvertekst en — in een batch — zonder te zeggen wélke stap het was.
+  const verdict = moveTaskVerdict(st, id, newParentId, position);
+  if (!verdict.ok) {
+    throw new McpStepError(
+      'CYCLE',
+      `kringverwijzing gedetecteerd: ${verdict.cycle.join(' → ')} — de relaties van een samenvattingstaak ` +
+      'gelden voor al haar subtaken, dus deze verplaatsing zou de planning laten vastlopen; de taak is niet verplaatst',
+    );
+  }
+  // Dezelfde relatiemelding als de store-`moveTask` (audit taakmutaties §3): een bestaande relatie die
+  // hierdoor een voorouder-relatie wordt, telt niet meer mee. Rolt de transactie terug, dan gaat de
+  // melding mee terug (de run herstelt de meldingen van vóór de call).
+  const reportAncestorRelations = watchAncestorRelations(ctx.app.store.getState());
+  const phaseTransitions = ctx.transactions.draft.moveTask(id, newParentId, position);
+  reportAncestorRelations(ctx.app.store.getState());
+  return { data: { moved: id, ...(phaseTransitions.length > 0 ? { phaseTransitions } : {}) } };
 }
 
 const moveTask: BatchStepTool = {
@@ -645,7 +685,9 @@ const moveTask: BatchStepTool = {
   description:
     'Verplaats een taak naar een nieuwe ouder (`newParentId: null` = wortel) en optioneel een `position` ' +
     '(invoeg-index binnen de ouder; klemt stil naar [0, aantal siblings]). Een taak onder zichzelf of een ' +
-    'eigen afstammeling plaatsen is een harde fout.',
+    'eigen afstammeling plaatsen is een harde fout. Een relatie op een samenvattingstaak geldt voor al haar ' +
+    'subtaken: een verplaatsing die zo een kringverwijzing maakt, is een harde fout (CYCLE) die de hele call ' +
+    'terugrolt. ' + PHASE_TRANSITION_DOC,
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -666,6 +708,7 @@ const moveTask: BatchStepTool = {
     const id = parsed.id;
     const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => moveTaskCore(ctx, parsed));
     return enrichOk(res, () => ({
+      ...((res as McpToolOk).data as { moved: string; phaseTransitions?: PhaseTransitionReport[] }),
       moved: id,
       tasks: freshDates(ctx.app.store.getState(), [id]),
       projectEnd: projectEndInfo(ctx.app.store.getState()).projectEnd,
@@ -789,7 +832,7 @@ const addDependencies: BatchStepTool = {
     'doorgerekend naar de onderliggende bladtaken. Onbekende taak-id\'s, een reeds bestaande relatie, ' +
     'of een voorouder-relatie (een taak gekoppeld aan zijn eigen (voor)ouder-samenvattingstaak) ' +
     'worden per item zacht geweigerd; een kringverwijzing (over de bestaande én voorgestelde ' +
-    'relaties) is een harde fout die de hele call terugrolt. ' +
+    'relaties, ook via de subtaken van een samenvattingstaak) is een harde fout die de hele call terugrolt. ' +
     'WIL JE EEN BESTAANDE RELATIE WIJZIGEN (ander type, andere lag, andere voorganger/opvolger)? ' +
     'Gebruik planner_update_dependencies met het sequence-id — NIET verwijderen-en-opnieuw-toevoegen: ' +
     'dat verliest het id en levert twee undo-stappen op.',
@@ -980,8 +1023,10 @@ const redo: McpToolDef = {
 const runCpm: McpToolDef = {
   name: 'planner_run_cpm',
   description:
-    'Vraag de PLANNINGSUITKOMST op. Wijzigingen via de tools zijn al doorgerekend — elke mutatie draait ' +
-    'aan het eind zelf `runCPM` — dus je hoeft dit NIET aan te roepen om te verversen. Deze tool herberekent ' +
+    'Vraag de PLANNINGSUITKOMST op. Wijzigingen via de tools zijn al doorgerekend — elke mutatie die iets ' +
+    'wijzigt draait aan het eind zelf `runCPM` — dus je hoeft dit NIET aan te roepen om te verversen. Een ' +
+    'call die niets wijzigt rekent ook niets door: `scheduleStale` in de envelop zegt of de datums actueel ' +
+    'zijn. Deze tool herberekent ' +
     'idempotent (kritieke-pad-methode + kalender, wist `scheduleStale`) en geeft het projecteinde, de ' +
     'projectduur (werkdagen) en een kritieke-pad-samenvatting terug: precies de cijfers waarmee je de ' +
     'gebruiker het effect van je wijzigingen meldt.',

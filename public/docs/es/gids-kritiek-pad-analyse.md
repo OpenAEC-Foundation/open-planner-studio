@@ -19,7 +19,7 @@ Siga el ejemplo [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-ap
 
 Pulse **F5** (o el botón **Calcular**) para ejecutar la planificación. La barra de estado al pie muestra entonces, por ejemplo, "Ruta crítica: N tareas, M días laborables" — el número de tareas en la ruta crítica y la duración total. En el diagrama de Gantt, las tareas críticas obtienen su propio color de barra (rojo): tareas sin holgura, donde cada día de retraso desplaza directamente la fecha de fin del proyecto.
 
-Haga doble clic en una tarea y busque en la sección **Resultado CPM** las cifras exactas: **Inicio temprano**, **Fin temprano**, **Inicio tardío**, **Fin tardío**, **Holgura total**, **Holgura libre** y (cuando corresponda) **Holgura interferente**, más si la tarea está en la **Ruta crítica**. ¿Quiere estos campos como columnas en la tabla de tareas? **Vista → Columnas…** y márquelos.
+Haga doble clic en una tarea y busque en la sección **Resultado CPM** las cifras exactas: **Inicio temprano**, **Fin temprano**, **Inicio tardío**, **Fin tardío**, **Holgura total**, **Holgura libre** y (cuando corresponda) **Holgura interferente**, más si la tarea está en la **Ruta crítica**. ¿Quiere estos campos como columnas en la tabla de tareas? Haga clic en el signo más a la derecha del encabezado de la tabla y elíjalos en el selector de columnas, en **Calculado**, uno cada vez; un campo que ya es una columna aparece marcado. Vea [Elegir columnas](docs://ref-kolommen).
 
 ### Holgura total, libre e interferente
 

@@ -180,6 +180,7 @@
       "hourPlanningDisabled": "La pianificazione a ore è disattivata nelle impostazioni.",
       "durationConversionNotExact": "Questa durata non può essere convertita esattamente nell'altra unità.",
       "milestoneRequired": "Questo campo vale solo per le milestone.",
+      "milestoneUnavailable": "Un'attività di riepilogo con sottoattività non può diventare un traguardo.",
       "actualAfterStatusDate": "La data effettiva è successiva alla data di stato.",
       "actualFinishBeforeStart": "La fine effettiva è precedente all'inizio effettivo.",
       "conflictingProgressInputs": "Questi valori di avanzamento si contraddicono.",
@@ -266,7 +267,8 @@
       "unpinColumn": "Sblocca la colonna {{column}}",
       "moveColumn": "Sposta la colonna {{column}}",
       "resizeColumn": "Ridimensiona la colonna {{column}}",
-      "autoFitColumn": "Adatta automaticamente la colonna {{column}}"
+      "autoFitColumn": "Adatta automaticamente la colonna {{column}}",
+      "resetColumns": "Ripristina la disposizione predefinita delle colonne"
     },
     "summary": {
       "activityCodeAssignments_one": "{{count}} assegnazione di codice attività",

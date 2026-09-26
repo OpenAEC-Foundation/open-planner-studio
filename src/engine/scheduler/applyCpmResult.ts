@@ -5,7 +5,7 @@ import type { CPMResult } from './CPMSolver';
 import { parseInstant, formatInstant } from '@/utils/dateUtils';
 import { taskDurationUnit, writeDerivedSpan, isZeroDurationMilestone } from './duration';
 import { CalendarEngine } from './CalendarEngine';
-import { descendantLeaves, summaryProgressOf, taskWorkDays } from './summaryProgress';
+import { descendantLeaves, summaryProgressOf, taskWorkDays, writeSummaryProgress } from './summaryProgress';
 import { finishInstant, latestFinish } from '@/utils/taskDates';
 
 /**
@@ -275,12 +275,10 @@ export function rollupSummaryTasks(
       // Dezelfde uitzonderingen als de datums: de `manuallyScheduled`-tak hierboven keert eerder
       // terug (de fase houdt haar opgeslagen voortgang), en "datums zoals opgeslagen" zet de
       // bestandswaarde terug via `showRecordedDates` (`RecordedTime.summaryProgress`).
-      // Werkelijke datums en restduur van de fase worden bewust NIET opgerold: die velden zijn in
-      // paneel en raster alleen-lezen, maar een rollup ervan raakt exports en de verplaats-telling.
+      // De werkelijke datums komen uit dezelfde helper en volgen dezelfde regels (vroegste werkelijke
+      // start; laatste werkelijke einde pas als alle bladen klaar zijn). De restduur niet (#214).
       if (progressCals) {
-        const progress = summaryProgressOf(descendantLeaves(task, byId, leafCache), workDaysOf);
-        task.time.completion = progress.completion;
-        task.status = progress.status;
+        writeSummaryProgress(task, summaryProgressOf(descendantLeaves(task, byId, leafCache), workDaysOf));
       }
     }
   };

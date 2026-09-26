@@ -29,13 +29,13 @@ Een checklist per taak: per regel een **afvink-hokje**, een tekstvak en een verw
 
 ## Mijlpaal
 
-- **Mijlpaal** — aanvinken zet de duur op 0 en toont de ruit in plaats van een balk.
+- **Mijlpaal** — aanvinken zet de duur op 0 en toont de ruit in plaats van een balk. Niet mogelijk op een samenvattende taak of een taak met resource-toewijzingen; een melding legt uit waarom.
 - **Soort mijlpaal** — **Automatisch**, **Startmijlpaal** of **Eindmijlpaal**.
 - **Verplicht (contractueel)** — markeert de mijlpaal als contractueel.
 
 ## Tijd
 
-- **Startdatum** — toont de berekende vroegste start; een handmatige wijziging verankert de nieuwe datum als gepland startpunt.
+- **Startdatum** — toont de berekende vroegste start; een handmatige wijziging verankert de nieuwe datum als gepland startpunt. Heeft de taak een voorganger, dan wordt die datum bij **Opslaan** ook een constraint Start niet eerder dan (SNET), tenzij je in dezelfde dialoog zelf een constraint kiest. Heeft de taak al een andere constraint (bijvoorbeeld MSO), dan wordt de nieuwe start niet toegepast en noemt een melding die constraint.
 - Dialoog en eigenschappenpaneel gebruiken dezelfde bediening **Duur [waarde] [Dagen | Uren]**. Typ bijvoorbeeld `2d`, `12h` of de invoeralias `12u`. Een gewone kalender met werkdagen, begin- en eindtijd en uren per dag levert automatisch effectieve werktijdblokken; de per-weekdag-editor verfijnt die wanneer nodig. Alleen een lege of ongeldige kalender blokkeert uren. Zie [Kalenders & uren-planning](docs://gids-kalenders-uren).
 
 ## Hammock (afgeleide duur)

@@ -48,7 +48,10 @@ Grabbing and dragging a task bar moves the task (or, when grabbing the edge, cha
 While you drag an **edge**, a small dark pill appears against that edge showing the duration the
 task would get — `15d`, for instance, or `6h` for a task planned in hours. It updates live as you
 drag, so you see the new duration before you release the mouse button. Moving the whole bar does not
-show it: that gesture leaves the duration unchanged.
+show it: that gesture leaves the duration unchanged. Move a task that has a predecessor (the whole bar, or
+its left edge) and the new start becomes a **Start no earlier than (SNET)** constraint, just like typing a
+start date; if the task has a different constraint, the start does not move and a notification names that
+constraint.
 Hold **Shift** while dragging from a bar, and instead you start drawing a **relation** to whichever
 task you release on — the same thing as **Start relation from here** in the bar's context menu, but
 in one mouse motion.
@@ -63,7 +66,7 @@ and **↓** the next visible task. The selection, properties panel and bar highl
 away. Collapsed, filtered-out or differently sorted tasks are not visited: you move through exactly
 the list currently on screen.
 
-Click the **resource picker** on the left of the histogram to make that surface active. There **↑**
+Click the **resource picker** of the histogram (below the task table) to make that surface active. There **↑**
 and **↓** follow that same list: **All resources** first, then every project resource. This makes it
 quick to compare resource load without repeatedly clicking a name. At either end, the current
 selection remains in place. Arrow keys with Ctrl, Alt, Shift or ⌘ keep their existing meaning

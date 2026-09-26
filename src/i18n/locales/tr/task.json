@@ -180,6 +180,7 @@
       "hourPlanningDisabled": "Saat planlaması ayarlarda kapalı.",
       "durationConversionNotExact": "Bu süre diğer birime tam olarak dönüştürülemiyor.",
       "milestoneRequired": "Bu alan yalnızca kilometre taşları için geçerlidir.",
+      "milestoneUnavailable": "Alt görevleri olan bir özet görev kilometre taşı olamaz.",
       "actualAfterStatusDate": "Gerçek tarih, durum tarihinden sonra.",
       "actualFinishBeforeStart": "Gerçek bitiş, gerçek başlangıçtan önce.",
       "conflictingProgressInputs": "Bu ilerleme değerleri birbiriyle çelişiyor.",
@@ -266,7 +267,8 @@
       "unpinColumn": "{{column}} sütununun sabitlemesini kaldır",
       "moveColumn": "{{column}} sütununu taşı",
       "resizeColumn": "{{column}} sütununu yeniden boyutlandır",
-      "autoFitColumn": "{{column}} sütununu otomatik sığdır"
+      "autoFitColumn": "{{column}} sütununu otomatik sığdır",
+      "resetColumns": "Sütun düzenini varsayılana sıfırla"
     },
     "summary": {
       "activityCodeAssignments_one": "{{count}} aktivite kodu ataması",

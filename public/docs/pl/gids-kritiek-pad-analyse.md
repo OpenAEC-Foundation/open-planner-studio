@@ -19,7 +19,7 @@ Podążaj za przykładem [Nieuwbouw Appartementencomplex De Vaart](examples://sh
 
 Naciśnij **F5** (lub przycisk **Oblicz**), aby uruchomić harmonogram. Pasek stanu na dole pokazuje wtedy na przykład „Ścieżka krytyczna: N zadań, M dni roboczych" — liczbę zadań na ścieżce krytycznej i łączny czas trwania. Na wykresie Gantta zadania krytyczne otrzymują własny (czerwony) kolor paska: zadania bez zapasu, gdzie każdy dzień opóźnienia bezpośrednio przesuwa datę zakończenia projektu.
 
-Kliknij dwukrotnie zadanie i poszukaj w sekcji **Wynik CPM** dokładnych liczb: **Wczesny początek**, **Wczesny koniec**, **Późny początek**, **Późny koniec**, **Zapas całkowity**, **Zapas swobodny** i (tam, gdzie ma to zastosowanie) **Zapas interferujący**, plus to, czy zadanie jest na ścieżce krytycznej. Chcesz mieć te pola jako kolumny w tabeli zadań? **Widok → Kolumny…** i zaznacz je.
+Kliknij dwukrotnie zadanie i poszukaj w sekcji **Wynik CPM** dokładnych liczb: **Wczesny początek**, **Wczesny koniec**, **Późny początek**, **Późny koniec**, **Zapas całkowity**, **Zapas swobodny** i (tam, gdzie ma to zastosowanie) **Zapas interferujący**, plus to, czy zadanie jest na ścieżce krytycznej. Chcesz mieć te pola jako kolumny w tabeli zadań? Kliknij plus po prawej stronie nagłówka tabeli i wybieraj je w selektorze kolumn w grupie **Obliczone**, po jednym naraz; pole, które już jest kolumną, jest zaznaczone. Zobacz [Wybór kolumn](docs://ref-kolommen).
 
 ### Zapas całkowity, swobodny i interferujący
 

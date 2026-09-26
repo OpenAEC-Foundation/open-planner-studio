@@ -90,7 +90,7 @@ Nu je taken en relaties hebt, kun je de planning laten doorrekenen (CPM — Crit
 - Onderin het scherm toont de statusbalk bijvoorbeeld "Kritiek pad: 4 taken, 62 werkdagen" zodra de planning berekend is. Heb je iets gewijzigd sinds de laatste berekening, dan staat daar in plaats daarvan "Verouderd — herbereken (F5)".
 - In het Gantt-diagram krijgen kritieke taken — taken zonder speling, die dus direct de einddatum van het project bepalen — een andere kleur balk dan taken die nog ruimte (speling) hebben. Loopt een kritieke taak uit, dan schuift de hele projecteinddatum mee; een taak met speling kan uitlopen zonder gevolgen, zolang de speling niet op is.
 - Dubbelklik op een taak om opnieuw het venster **Taak bewerken** te openen. Onder de sectie **CPM Resultaat** vind je per taak: **Vroegste start**, **Vroegste einde**, **Laatste start**, **Laatste einde**, **Totale speling**, **Vrije speling** en of de taak op het **Kritiek pad** ligt.
-- Wil je deze gegevens ook als kolommen in de taaktabel zien, in plaats van per taak te moeten openen? Ga naar het lint-tabblad **Beeld**, klik in de groep **Weergave** op **Kolommen…** en vink **Kritiek** en **Totale speling** aan.
+- Wil je deze gegevens ook als kolommen in de taaktabel zien, in plaats van per taak te moeten openen? Op het tabblad **Tabel** staan **Kritiek** en **Totale speling** standaard al in de tabel. In de takenlijst naast de Gantt voeg je ze toe met het plusje rechts in de tabelkop: dat opent de kolomkiezer, waar je onder **Berekend** telkens één veld kiest. Zie [Kolommen kiezen](docs://ref-kolommen).
 
 ## Stap 7 — Opslaan
 

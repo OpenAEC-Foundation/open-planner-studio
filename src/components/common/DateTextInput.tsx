@@ -216,9 +216,11 @@ interface DateTextInputProps {
   /**
    * Commit-callback met de genormaliseerde ISO-datum (met het oorspronkelijke tijddeel terug, zie
    * {@link dateCommitValue}), of `''` bij een door de gebruiker leeggemaakt veld. Wordt alleen
-   * aangeroepen bij een echte wijziging van de datum.
+   * aangeroepen bij een echte wijziging van de datum. Geeft de aanroeper `false` terug, dan past hij de
+   * waarde bewust niet toe (en meldt hij zelf waarom): het veld valt dan terug op `value`, zodat de
+   * geweigerde invoer niet blijft staan en bij het verlaten niet nog eens gecommit wordt (#231).
    */
-  onCommit: (iso: string) => void;
+  onCommit: (iso: string) => void | false;
   /**
    * Verplicht veld: leeg afronden commit niets en valt terug op de huidige waarde (zie
    * {@link resolveDateCommit}). Voor de startdatum en beperkingsdatums.
@@ -366,7 +368,8 @@ export function DateTextInput({
     const res = resolveDateCommit(phase, commitMode, s, required);
     if (res.kind === 'write') {
       const next = dateCommitValue(res.iso, value);
-      if (next !== null) onCommit(next);
+      // Geweigerd door de aanroeper (#231): net als incomplete invoer terug naar de laatst gecommitte waarde.
+      if (next !== null && onCommit(next) === false) return { kind: 'revert' };
     }
     return res;
   };
@@ -460,7 +463,7 @@ export function DateTextInput({
     setSeg(segs);
     setShowError(false);
     const next = dateCommitValue(iso, value);
-    if (next !== null) onCommit(next);
+    if (next !== null && onCommit(next) === false) setSeg(isoToSegments(value));
   };
 
   const handleGroupFocus = () => setGroupFocused(true);

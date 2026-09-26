@@ -337,8 +337,13 @@
   justify-self: end;
   position: relative;
   /* De volledige 5px-grijpzone ligt aan de Gantt-kant. Gecentreerd op de paneelgrens bedekte deze
-   * anders 2,5px van de 8px brede verticale tabelscrollbar. */
-  transform: translateX(100%);
+   * anders 2,5px van de 8px brede verticale tabelscrollbar.
+   * Logisch, niet fysiek: in ar/fa spiegelt de werkruimte (de takenlijst staat dan RECHTS van de
+   * Gantt) en valt het einde van kolom 1 op de LINKERrand van de lijst. Een negatieve
+   * `margin-inline-end` ter breedte van de zone schuift hem in beide richtingen voorbij dat einde,
+   * de Gantt in. De eerdere `transform: translateX(100%)` duwde altijd naar rechts en legde de zone
+   * in ar/fa 5px BINNEN de lijst, over de WBS-kolom. In ltr is de box identiek. Spec: splitter.spec.ts. */
+  margin-inline-end: -5px;
   z-index: 6;
   width: 5px;
   min-width: 5px;
@@ -551,11 +556,27 @@
  * buur. Smaller gemaakt (4px totaal i.p.v. 8px) zodat er meer ruimte overblijft voor herordenen; de
  * greep blijft een gangbare resize-hitbox (vergelijkbaar met Excel/Sheets, die ook een paar pixels
  * breed zijn, geen 8).
+ *
+ * Die 4 px zijn ook echt pakbaar, ook het deel dat over de volgende kop hangt. Daarvoor krijgt een
+ * gewone kolomkop GEEN eigen laag (`columnHeaderZIndex` in DataGridHeader): met `z-index: 5` op
+ * elke kop lag de volgende kop (later in de DOM, zelfde laag) over dat deel en was de greep
+ * feitelijk 3 px (ltr) of 2 px (rtl, waar de kolomlijn aan de andere kant van de kop zit). Nu ligt
+ * de greep (z 2) in de laag van de kopregel, boven alle gewone koppen; vastgezette koppen houden
+ * een eigen laag boven de wegscrollende koppen, aflopend naar rechts.
+ *
+ * RTL (ar/fa): de kolomkop-bediening volgt het RASTER, niet de tekst. Het raster is in elke taal ltr
+ * (`DataGridCore` pint `direction: ltr`: WBS links, pijl-rechts gaat een kolom naar rechts, de strook
+ * voor het plusje zit rechts); alleen koptekst en celinhoud volgen de taal (`dir={textDirection}`).
+ * Daarom staan deze greep, de invoegstreep, het minteken en het plusje met FYSIEK `left`/`right` en
+ * niet met `inset-inline-*`. Die volgden in ar/fa de rtl-kop (of de rtl-shell) en belandden links:
+ * het plusje over de WBS-kop, deze greep op de linkergrens terwijl slepen de RECHTERgrens verschuift
+ * (`before + clientX − startX`), de invoegstreep aan de andere kant dan waar de kolom landt. In ltr
+ * is `inset-inline-end` gelijk aan `right`, daar verandert niets. Spec: table-column-rtl.spec.ts.
  */
 .task-grid-resize-handle {
   position: absolute;
   inset-block: 0;
-  inset-inline-end: -2px;
+  right: -2px;
   z-index: 2;
   width: 4px;
   padding: 0;
@@ -592,18 +613,21 @@
   background: var(--theme-accent);
 }
 
+/* Fysiek, zoals de breedtegreep: `resolveColumnDropTarget` noemt de linkerhelft "ervoor" en de
+ * kolom landt dan links van zijn doel, ook in ar/fa. */
 .task-grid-column-header[data-grid-drop-before="true"]::before {
-  inset-inline-start: -1px;
+  left: -1px;
 }
 
 .task-grid-column-header[data-grid-drop-after="true"]::after {
-  inset-inline-end: -1px;
+  right: -1px;
 }
 
+/* Fysiek rechts, naast de breedtegreep, in elke taal (zie `.task-grid-resize-handle`). */
 .task-grid-remove-column {
   position: absolute;
   inset-block-start: 50%;
-  inset-inline-end: 7px;
+  right: 7px;
   width: 17px;
   height: 17px;
   display: grid;
@@ -629,11 +653,14 @@
   outline: none;
 }
 
+/* Fysiek rechts: daar eindigen de kolommen en daar reserveren kop en body de strook
+ * (`padding-inline-end` binnen het ltr-raster). De shell zelf erft in ar/fa rtl; met
+ * `inset-inline-end` stond het plusje daar links, over de WBS-kop (zie `.task-grid-resize-handle`). */
 .task-grid-column-chooser-anchor {
   position: absolute;
   z-index: calc(var(--z-sticky) + 1);
   inset-block-start: 0;
-  inset-inline-end: 0;
+  right: 0;
   width: var(--task-grid-chooser-strip, 32px);
   height: var(--task-grid-header-height);
   display: flex;
@@ -712,7 +739,8 @@
 }
 
 .task-grid-column-chooser-item,
-.task-grid-column-chooser-category {
+.task-grid-column-chooser-category,
+.task-grid-column-chooser-reset {
   width: 100%;
   min-height: 28px;
   display: flex;
@@ -730,12 +758,15 @@
 .task-grid-column-chooser-item:hover:not(:disabled),
 .task-grid-column-chooser-item:focus-visible,
 .task-grid-column-chooser-category:hover,
-.task-grid-column-chooser-category:focus-visible {
+.task-grid-column-chooser-category:focus-visible,
+.task-grid-column-chooser-reset:hover:not(:disabled),
+.task-grid-column-chooser-reset:focus-visible {
   background: var(--theme-hover);
   outline: none;
 }
 
-.task-grid-column-chooser-item:disabled {
+.task-grid-column-chooser-item:disabled,
+.task-grid-column-chooser-reset:disabled {
   color: var(--theme-text-muted);
   cursor: default;
 }
@@ -796,6 +827,13 @@
 .task-grid-column-chooser-empty {
   padding: 6px 7px;
   color: var(--theme-text-muted);
+}
+
+/* "Herstel standaard": los van de veldenlijst, onderaan de kiezer. */
+.task-grid-column-chooser-footer {
+  margin-block-start: 5px;
+  padding-block-start: 4px;
+  border-block-start: 1px solid var(--theme-border-light);
 }
 
 .task-grid-editor-host {

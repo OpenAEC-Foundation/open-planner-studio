@@ -2,6 +2,7 @@ import { isValidUnits, type Resource, type ResourceAssignment, type ResourceCurv
 import type { WorkCalendar } from '@/types/calendar';
 import type { TimephasedContourPeriod } from '@/types/task';
 import { generateId } from '@/utils/id';
+import { sameValue } from '@/utils/sameValue';
 import { syncProjectCalendar } from '../syncProjectCalendar';
 import {
   clearTimephasedWindow, clearLevelingGaps, taskCalendarHoursPerDay, taskWorkMinutesOf, hourInputFinishBasis,
@@ -20,10 +21,32 @@ import type { Task } from '@/types/task';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import type { AppSliceFactory } from './types';
 import { isSummaryTask } from '@/utils/taskHierarchy';
+import type { AppState } from '../appStore';
 
 /** Puur leesbaarheids-alias: `WorkCalendar` heeft al `id`/`name`, dus geen aparte intersectie
  *  nodig — een resource-kalender IS gewoon een `WorkCalendar` (zie fase 2.5-ontwerp §3.1). */
 export type NamedCalendar = WorkCalendar;
+
+type CalendarLibraryState = Pick<AppState, 'calendars' | 'calendar' | 'project' | 'resources' | 'tasks'>;
+
+/**
+ * Zou `commitCalendarLibrary(calendars, projectCalendarId)` per saldo iets veranderen? Spiegelt de
+ * effecten van die actie één voor één: de bibliotheek zelf, de projectdefault (met dezelfde
+ * terugval), het opruimen van verweesde verwijzingen en het gelijkzetten van de projectkalender-
+ * cache. Bestaat hier de reden voor: de kalenderdialoog commit bij Toepassen én bij elke Enter de
+ * hele buffer; zonder deze toets werd een ongewijzigde buffer een lege undo-stap, een "gewijzigd"
+ * document en — via de herberekening — het einde van de modus "datums zoals opgeslagen" (#63).
+ */
+function libraryCommitChanges(s: CalendarLibraryState, calendars: WorkCalendar[], projectCalendarId: string): boolean {
+  if (!sameValue(s.calendars, calendars)) return true;
+  const ids = new Set(calendars.map(c => c.id));
+  const nextProjectId = ids.has(projectCalendarId) ? projectCalendarId : (calendars[0]?.id ?? s.project.calendarId);
+  if (nextProjectId !== s.project.calendarId) return true;
+  if (s.resources.some(r => r.calendarId && !ids.has(r.calendarId))) return true;
+  if (s.tasks.some(t => t.calendarId && !ids.has(t.calendarId))) return true;
+  const entry = calendars.find(c => c.id === nextProjectId);
+  return !entry || !sameValue(s.calendar, entry);
+}
 
 export interface ResourceSlice {
   resources: Resource[];
@@ -59,14 +82,18 @@ export interface ResourceSlice {
   moveAssignment: (assignmentId: string, newTaskId: string) => boolean;
   /** Bibliotheek-CRUD (fase 2.8a, §4.1) — hernoemd uit add/update/removeCalendar. */
   addCalendar: (cal: Omit<WorkCalendar, 'id'>) => string;
+  /** No-op (geen snapshot, geen isDirty/stale) als `updates` per saldo niets verandert — de
+   *  resourcekalenderdialoog stuurt bij Toepassen altijd de hele draft mee. */
   updateCalendar: (id: string, updates: Partial<WorkCalendar>) => void;
   /** Verwijder een bibliotheek-kalender: task/resource-verwijzingen én (indien de projectdefault)
    *  de projectkalender vallen terug op een fallback (§4.3/§9.2). */
   removeCalendar: (id: string) => void;
   /** Commit de complete kalender-bibliotheek + projectdefault in één keer (kalenderdialoog-buffer,
    *  fase 2.8b): vervangt `calendars`, ruimt verweesde task/resource-verwijzingen op en zet de
-   *  projectkalender. Eén undo-snapshot voor de hele dialoogsessie. */
-  commitCalendarLibrary: (calendars: WorkCalendar[], projectCalendarId: string) => void;
+   *  projectkalender. Eén undo-snapshot voor de hele dialoogsessie. Verandert de commit per saldo
+   *  niets, dan is hij een no-op (geen snapshot, geen isDirty/stale) en geeft hij `false` terug, zodat
+   *  de dialoog ook de herberekening overslaat; `true` = er is gecommit. */
+  commitCalendarLibrary: (calendars: WorkCalendar[], projectCalendarId: string) => boolean;
 }
 
 /** Taaktypes-etappe: oude werkminuten van een taak vóór een driehoekstap (voor de contourherschaling). */
@@ -288,6 +315,10 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
     set((s) => {
       const idx = s.calendars.findIndex(c => c.id === id);
       if (idx < 0) return;
+      // No-op-guard vóór de snapshot (zoals `setCalendar`): de resourcekalenderdialoog stuurt bij
+      // Toepassen de hele draft; ongewijzigd ⇒ geen lege undo-stap, geen isDirty, geen stale.
+      const current = s.calendars[idx] as unknown as Record<string, unknown>;
+      if (Object.entries(updates).every(([k, v]) => sameValue(current[k], v))) return;
       runtime.beginUndoable(s);
       // K2 (eigenaarsbesluit 2026-09-05): andere uren per dag ⇒ de werkregel beslist per taak op
       // deze kalender (momentopnamen vóór de mutatie, want de kalender muteert in-place).
@@ -361,7 +392,11 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
     // mpp-nul-data-etappe, DEEL 1 — zie `removeCalendar` hierboven.
     let lostCount = 0;
     let changed = 0;
+    let committed = false;
     set((s) => {
+      // No-op-guard vóór de snapshot — zie `libraryCommitChanges`.
+      if (!libraryCommitChanges(s, calendars, projectCalendarId)) return;
+      committed = true;
       runtime.beginUndoable(s);
       // Fable-critreview #170, bevinding 2: dít is de UI-route voor uren per dag (`CalendarDialog`
       // commit de hele bibliotheek). K2 zoals `updateCalendar`: momentopname vóór, werkregel erna.
@@ -394,8 +429,10 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       lostCount += settled.lost;
       runtime.finishMutation(s, { stale: true });
     });
+    if (!committed) return false;
     if (changed > 0) notifyWorkRuleDurationsChanged(get().notify, changed);
     if (lostCount > 0) notifyTimephasedLoss(get().notify, get().activeDocumentId, lostCount);
     get().recomputeResourceLoad();
+    return true;
   },
 });

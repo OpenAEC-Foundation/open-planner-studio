@@ -20,7 +20,8 @@
 //   9. De agent-skill `goed-plannen` staat byte-identiek in `public/skills/` (bron, uitgeleverd)
 //      en `.claude/skills/` (waar Claude Code hem leest) — geen symlink, want Windows-CI.
 //   6. Basishygiëne: geen dubbele koppen binnen één artikel, geen lege bestanden, NL≉EN
-//      (>60% identieke niet-lege regels tussen de twee taalversies = verdachte niet-vertaling).
+//      (>60% identieke niet-lege regels tussen de twee taalversies = verdachte niet-vertaling), en
+//      geen achtergebleven nl/en-titel als h1, manifest-titel of docs://-linktekst in een vertaling.
 //
 //   npm run verify:docs          # exit 0 = alles groen, 1 = minstens één afwijking
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
@@ -189,6 +190,57 @@ function checkTranslationDrift(id: string, lang: string, translated: string, enS
   const ratio = identical / tLines.length;
   if (ratio > 0.6) {
     diffs.push(`${id}: ${lang} verdacht identiek aan EN (${Math.round(ratio * 100)}% van de ${lang}-regels komt woordelijk terug in EN) — vertaling mogelijk vergeten`);
+  }
+}
+
+/** De eerste h1 van een artikel (codeblokken gestript), of undefined. */
+function firstH1(source: string): string | undefined {
+  return /^# (.+)$/m.exec(stripCode(source).replace(/\r\n/g, '\n'))?.[1].trim();
+}
+
+/** De bronnamen van een artikel voor check 6e: de nl- en en-titel en -h1, min elke naam die in nl
+ *  én en voorkomt. Zo'n naam is een internationaal woord ("Filters", "Layouts") en mag in elke taal
+ *  zo heten; een naam die alleen in nl of alleen in en voorkomt, is brontaal. */
+function sourceNames(article: ManifestArticle): Set<string> {
+  const read = (lang: string) => {
+    const p = join(DOCS_DIR, lang, `${article.id}.md`);
+    return existsSync(p) ? firstH1(readFileSync(p, 'utf8')) : undefined;
+  };
+  const nl = [article.title?.nl, read('nl')].filter((s): s is string => !!s);
+  const en = [article.title?.en, read('en')].filter((s): s is string => !!s);
+  return new Set([...nl, ...en].filter((s) => !(nl.includes(s) && en.includes(s))));
+}
+
+/** Check 6e: achtergebleven brontitels. Een vertaling (niet nl/en) mag een bronnaam (zie
+ *  `sourceNames`) niet letterlijk dragen als h1, als manifest-titel of als tekst van een
+ *  docs://-link naar dat artikel. Zo bleven twintig zh-gidsen met een Nederlandse h1 staan
+ *  ("Sneltoetsen & bediening") en stond "Task types" als titel in twaalf talen: de TOC was vertaald,
+ *  het artikel of de verwijzing niet. Alleen letterlijke gelijkheid telt, dus een eigen vertaling
+ *  of parafrase slaagt altijd. */
+function checkUntranslatedTitles(
+  article: ManifestArticle,
+  sources: Record<string, string>,
+  namesById: Map<string, Set<string>>,
+  diffs: string[],
+) {
+  const own = namesById.get(article.id) ?? new Set<string>();
+  for (const lang of LANGS) {
+    if (SOURCE_LANGS.includes(lang)) continue;
+    const title = article.title?.[lang];
+    if (title && own.has(title)) {
+      diffs.push(`title.${lang} "${title}" is de onvertaalde nl/en-titel — vertaal hem of laat hem weg (dan geldt title.en)`);
+    }
+    const source = sources[lang];
+    if (!source) continue;
+    const h1 = firstH1(source);
+    if (h1 && own.has(h1)) {
+      diffs.push(`${lang}: h1 "${h1}" is de onvertaalde nl/en-titel`);
+    }
+    for (const m of stripCode(source).matchAll(/\[([^\]]+)\]\(docs:\/\/([a-zA-Z0-9_-]+)\)/g)) {
+      if (namesById.get(m[2])?.has(m[1].trim())) {
+        diffs.push(`${lang}: linktekst "[${m[1]}](docs://${m[2]})" is de onvertaalde nl/en-titel van dat artikel`);
+      }
+    }
   }
 }
 
@@ -566,6 +618,9 @@ function main() {
   if (globalDiffs.length === 0) console.log('  OK  geen dubbele ids, geen wees-bestanden, de vier onboardingdocumenten lopen gelijk met de code');
   else { anyFail = true; for (const d of globalDiffs) console.log(`  XX  ${d}`); }
 
+  // 6e heeft de bronnamen van ÁLLE artikelen nodig: een linktekst noemt een ander artikel.
+  const namesById = new Map(manifest.articles.map((a) => [a.id, sourceNames(a)] as const));
+
   // 2/3/4/5/6: per artikel.
   for (const article of manifest.articles) {
     const diffs: string[] = [];
@@ -660,6 +715,9 @@ function main() {
         }
       }
     }
+
+    // 6e. Achtergebleven brontitels in vertalingen (zie checkUntranslatedTitles).
+    checkUntranslatedTitles(article, sources, namesById, diffs);
 
     const ok = diffs.length === 0;
     if (!ok) anyFail = true;

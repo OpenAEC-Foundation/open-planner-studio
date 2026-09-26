@@ -180,6 +180,7 @@
       "hourPlanningDisabled": "時間単位の計画は設定で無効になっています。",
       "durationConversionNotExact": "この期間は別の単位に正確に換算できません。",
       "milestoneRequired": "この項目はマイルストーンにのみ適用されます。",
+      "milestoneUnavailable": "サブタスクを持つサマリータスクはマイルストーンにできません。",
       "actualAfterStatusDate": "実績日がステータス日より後です。",
       "actualFinishBeforeStart": "実績終了が実績開始より前です。",
       "conflictingProgressInputs": "これらの進捗値は互いに矛盾しています。",
@@ -266,7 +267,8 @@
       "unpinColumn": "列 {{column}} の固定を解除",
       "moveColumn": "列 {{column}} を移動",
       "resizeColumn": "列 {{column}} の幅を変更",
-      "autoFitColumn": "列 {{column}} を自動調整"
+      "autoFitColumn": "列 {{column}} を自動調整",
+      "resetColumns": "列のレイアウトを既定値に戻す"
     },
     "summary": {
       "activityCodeAssignments_other": "アクティビティコード割り当て {{count}} 件",

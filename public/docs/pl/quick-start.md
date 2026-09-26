@@ -90,7 +90,7 @@ Teraz, gdy masz zadania i relacje, możesz zlecić obliczenie harmonogramu (CPM 
 - Na dole ekranu pasek stanu pokazuje na przykład „Ścieżka krytyczna: 4 zadań, 62 dni robocze", gdy harmonogram zostanie już obliczony. Jeśli coś zmieniłeś od ostatniego obliczenia, pokazuje zamiast tego „Nieaktualne — przelicz (F5)".
 - Na wykresie Gantta zadania krytyczne — zadania bez zapasu, które więc bezpośrednio decydują o dacie zakończenia projektu — mają inny kolor paska niż zadania, które wciąż mają zapas (float). Jeśli zadanie krytyczne się opóźni, cała data zakończenia projektu przesuwa się razem z nim; zadanie z zapasem może się opóźnić bez konsekwencji, dopóki zapas nie zostanie wyczerpany.
 - Kliknij dwukrotnie zadanie, aby ponownie otworzyć okno **Edytuj zadanie**. W sekcji **Wynik CPM** znajdziesz, dla każdego zadania: **Wczesny początek**, **Wczesny koniec**, **Późny początek**, **Późny koniec**, **Zapas całkowity**, **Zapas swobodny** oraz informację, czy zadanie leży na ścieżce krytycznej.
-- Chcesz mieć te dane też jako kolumny w tabeli zadań, zamiast otwierać każde zadanie osobno? Przejdź na kartę wstążki **Widok**, kliknij **Kolumny…** w grupie **Wyświetlanie** i zaznacz **Krytyczne** oraz **Zapas całkowity**.
+- Chcesz mieć te dane też jako kolumny w tabeli zadań, zamiast otwierać każde zadanie osobno? Na karcie **Tabela** kolumny **Krytyczne** i **Zapas całkowity** są domyślnie już w tabeli. Na liście zadań obok wykresu Gantta dodajesz je plusem po prawej stronie nagłówka tabeli: otwiera on selektor kolumn, w którym w grupie **Obliczone** wybierasz po jednym polu naraz. Zobacz [Wybór kolumn](docs://ref-kolommen).
 
 ## Krok 7 — Zapisz
 

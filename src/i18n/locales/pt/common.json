@@ -94,6 +94,11 @@
     "relationCreated": "Relação criada: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Essa relação já existe",
     "relationAncestorEndpoint": "Não é permitida uma relação entre uma tarefa e a sua própria tarefa de resumo ancestral.",
+    "relationCycle": "Esta relação criaria um ciclo no planeamento ({{cycle}}) e não foi criada.",
+    "hierarchyCycle": "Esta mudança criaria um ciclo no planeamento ({{cycle}}): as relações de uma tarefa de resumo também se aplicam às suas subtarefas. Nada foi movido.",
+    "relationsExcludedByHierarchy_one": "Após a mudança, {{count}} relação liga uma tarefa à sua própria tarefa de resumo ancestral; deixa de contar no cálculo.",
+    "relationsExcludedByHierarchy_many": "Após a mudança, {{count}} relações ligam uma tarefa à sua própria tarefa de resumo ancestral; deixam de contar no cálculo.",
+    "relationsExcludedByHierarchy_other": "Após a mudança, {{count}} relações ligam uma tarefa à sua própria tarefa de resumo ancestral; deixam de contar no cálculo.",
     "summaryRelationsDropped": "{{total}} relação(ões) não puderam ser incluídas. Verifique as colunas Predecessoras e Sucessoras.",
     "relationsSkippedOnInsert_one": "{{count}} relação não foi criada: vínculo inválido (por exemplo, uma tarefa ligada à sua própria tarefa de resumo superior, ou uma duplicata).",
     "relationsSkippedOnInsert_many": "{{count}} relações não foram criadas: vínculo inválido (por exemplo, uma tarefa ligada à sua própria tarefa de resumo superior, ou uma duplicata).",
@@ -124,6 +129,36 @@
     "levelingDelayRoundedToWorkdays_one": "O nivelamento arredonda o atraso de nivelamento do MS Project, com precisão de minutos, de {{count}} tarefa para dias úteis inteiros.",
     "levelingDelayRoundedToWorkdays_many": "O nivelamento arredonda o atraso de nivelamento do MS Project, com precisão de minutos, de {{count}} tarefas para dias úteis inteiros.",
     "levelingDelayRoundedToWorkdays_other": "O nivelamento arredonda o atraso de nivelamento do MS Project, com precisão de minutos, de {{count}} tarefas para dias úteis inteiros.",
+    "startSnetCreated": "'{{name}}' tem uma predecessora: o novo início passou a ser a restrição Não começar antes de (SNET) {{date}}. Após recalcular (F5), a tarefa não começa antes dessa data.",
+    "startSnetUpdated": "A restrição Não começar antes de (SNET) de '{{name}}' foi movida para {{date}}. Após recalcular (F5), a tarefa não começa antes dessa data.",
+    "startSnetMany_one": "O novo início de {{count}} tarefa com predecessora passou a ser uma restrição Não começar antes de (SNET). Após recalcular (F5), essa tarefa não começa antes da sua data.",
+    "startSnetMany_many": "Os novos inícios de {{count}} tarefas com predecessora passaram a ser restrições Não começar antes de (SNET). Após recalcular (F5), nenhuma começa antes da sua data.",
+    "startSnetMany_other": "Os novos inícios de {{count}} tarefas com predecessora passaram a ser restrições Não começar antes de (SNET). Após recalcular (F5), nenhuma começa antes da sua data.",
+    "startBlockedByConstraint": "O novo início de '{{name}}' não foi aplicado: a tarefa tem uma predecessora e a restrição $t(task:constraintType.{{type}}) {{date}}, que determinam o seu início. Altere essa restrição para mover o início.",
+    "startBlockedByConstraintNoDate": "O novo início de '{{name}}' não foi aplicado: a tarefa tem uma predecessora e a restrição $t(task:constraintType.{{type}}), que determinam o seu início. Altere essa restrição para mover o início.",
+    "startBlockedByConstraintMany_one": "O novo início de {{count}} tarefa não foi aplicado: tem uma predecessora e uma restrição diferente de Não começar antes de (SNET). Altere essa restrição para mover o início.",
+    "startBlockedByConstraintMany_many": "Os novos inícios de {{count}} tarefas não foram aplicados: têm uma predecessora e uma restrição diferente de Não começar antes de (SNET). Altere essas restrições para mover os inícios.",
+    "startBlockedByConstraintMany_other": "Os novos inícios de {{count}} tarefas não foram aplicados: têm uma predecessora e uma restrição diferente de Não começar antes de (SNET). Altere essas restrições para mover os inícios.",
+    "referencesClearedOnPaste_one": "{{count}} referência não existia neste documento e foi limpa (um calendário de tarefa, tipo de tarefa personalizado, código de atividade ou campo personalizado do documento de origem).",
+    "referencesClearedOnPaste_many": "{{count}} referências não existiam neste documento e foram limpas (calendários de tarefa, tipos de tarefa personalizados, códigos de atividade ou campos personalizados do documento de origem).",
+    "referencesClearedOnPaste_other": "{{count}} referências não existiam neste documento e foram limpas (calendários de tarefa, tipos de tarefa personalizados, códigos de atividade ou campos personalizados do documento de origem).",
+    "milestoneRefusedAssignments_one": "«{{task}}» tem atribuições de recursos e não pode tornar-se um marco. Remova primeiro as atribuições.",
+    "milestoneRefusedAssignments_many": "{{count}} tarefas têm atribuições de recursos e não podem tornar-se marcos. Remova primeiro as atribuições.",
+    "milestoneRefusedAssignments_other": "{{count}} tarefas têm atribuições de recursos e não podem tornar-se marcos. Remova primeiro as atribuições.",
+    "milestoneRefusedSummary_one": "«{{task}}» é uma tarefa de resumo com subtarefas e não pode tornar-se um marco.",
+    "milestoneRefusedSummary_many": "{{count}} tarefas são tarefas de resumo com subtarefas e não podem tornar-se marcos.",
+    "milestoneRefusedSummary_other": "{{count}} tarefas são tarefas de resumo com subtarefas e não podem tornar-se marcos.",
+    "assignmentsMovedToSubtask_one": "A atribuição de {{resources}} foi movida de «{{phase}}» para a nova subtarefa «{{child}}»: uma tarefa de resumo não tem atribuições próprias.",
+    "assignmentsMovedToSubtask_many": "As {{count}} atribuições ({{resources}}) foram movidas de «{{phase}}» para a nova subtarefa «{{child}}»: uma tarefa de resumo não tem atribuições próprias.",
+    "assignmentsMovedToSubtask_other": "As {{count}} atribuições ({{resources}}) foram movidas de «{{phase}}» para a nova subtarefa «{{child}}»: uma tarefa de resumo não tem atribuições próprias.",
+    "assignmentsMovedToSubtasks_one": "{{count}} tarefa tornou-se uma tarefa de resumo; as suas atribuições foram movidas para a primeira nova subtarefa.",
+    "assignmentsMovedToSubtasks_many": "{{count}} tarefas tornaram-se tarefas de resumo; as suas atribuições foram movidas, cada uma, para a primeira nova subtarefa.",
+    "assignmentsMovedToSubtasks_other": "{{count}} tarefas tornaram-se tarefas de resumo; as suas atribuições foram movidas, cada uma, para a primeira nova subtarefa.",
+    "milestoneClearedOnPhase_one": "O marco «{{phase}}» tem agora subtarefas e tornou-se uma tarefa de resumo; a marcação de marco foi removida.",
+    "milestoneClearedOnPhase_many": "{{count}} marcos têm agora subtarefas e tornaram-se tarefas de resumo; a marcação de marco foi removida.",
+    "milestoneClearedOnPhase_other": "{{count}} marcos têm agora subtarefas e tornaram-se tarefas de resumo; a marcação de marco foi removida.",
+    "phaseRefusedNoAssignableChild": "«{{phase}}» não pode tornar-se uma tarefa de resumo: as suas atribuições não têm para onde ir, porque nenhuma das novas subtarefas pode ter atribuições (um marco ou uma tarefa de resumo). Nada foi alterado.",
+    "phaseRefusedDuplicateResource": "«{{phase}}» não pode tornar-se uma tarefa de resumo: a atribuição de {{resource}} não pode passar para a nova subtarefa «{{child}}», porque esta já tem {{resource}}. Nada foi alterado.",
     "schedulingProfileApplied": "Este projeto calcula como {{profile}}. Altere em Ficheiro → Info do projeto → Perfil de cálculo e opções.",
     "schedulingProfileShifted_one": "Após aplicar, {{count}} tarefa foi deslocada.",
     "schedulingProfileShifted_many": "Após aplicar, {{count}} tarefas foram deslocadas.",
@@ -140,6 +175,14 @@
     "xerArchiveReasonBytesMissing": "Motivo: faltam os próprios bytes de origem — provavelmente outro programa IFC reescreveu o ficheiro.",
     "xerArchiveReasonMetadataInvalid": "Motivo: os bytes de origem estão intactos, mas os dados derivados deles são inutilizáveis.",
     "xerArchiveReasonStructure": "Motivo: a estrutura do arquivo no IFC está incorreta (duplicada, reordenada ou mal associada)."
+  },
+  "scheduleErrors": {
+    "cycle": "Dependência circular entre tarefas: {{path}}",
+    "noWorkingDays": "O calendário não tem dias úteis definidos",
+    "invalidDayDuration": "Duração em dias inválida para a tarefa '{{task}}'",
+    "invalidHourDuration": "Duração em horas inválida para a tarefa '{{task}}'",
+    "hourTaskWithoutWorkHours": "A tarefa horária '{{task}}' não tem horário de trabalho válido no seu calendário",
+    "invalidStartDate": "Data de início inválida para a tarefa '{{task}}'"
   },
   "yes": "Sim",
   "no": "Não",
@@ -318,7 +361,7 @@
     "aiAutostartHint": "Ativa a ponte MCP assim que a aplicação arranca, para que um cliente de IA se possa ligar sem abrires primeiro o separador IA. Apenas na aplicação de ambiente de trabalho.",
     "legacySection": "Funcionalidades legadas",
     "classicViewControls": "Mostrar os botões de vista clássicos",
-    "classicViewControlsHint": "Repõe os botões separados Colunas, Filtro, Agrupar e Ordenar no separador Vista. A sua função está agora nos botões de layout e na caixa de diálogo de layouts."
+    "classicViewControlsHint": "Repõe os botões separados Colunas, Filtro, Agrupar e Ordenar no separador Vista. As colunas escolhem-se agora com o sinal de mais no cabeçalho da tabela ou em Tabela → Colunas…; filtrar, agrupar e ordenar estão nos botões de layout e na caixa de diálogo de layouts."
   },
   "ai": {
     "start": "Iniciar ponte",
@@ -772,7 +815,8 @@
       "project": "Calendário do projeto",
       "new": "Novo calendário",
       "duplicate": "Duplicar",
-      "setDefault": "Definir como padrão do projeto"
+      "setDefault": "Definir como padrão do projeto",
+      "invalid": "Este calendário contém dados inválidos"
     },
     "generate": {
       "button": "Gerar feriados…",
@@ -834,6 +878,11 @@
         "consumesWorkingDay": "A pausa não pode ocupar todo o dia de trabalho."
       }
     },
+    "holidayErrors": {
+      "invalidStart": "Introduza uma data de início válida.",
+      "invalidEnd": "Introduza uma data de fim válida ou deixe-a vazia para um único dia.",
+      "endBeforeStart": "A data de fim é anterior à data de início."
+    },
     "worktime": {
       "section": "Horários de trabalho",
       "derivedHpd": "Horas/dia derivadas:",
@@ -855,11 +904,7 @@
     "structureLockedHint": "Não disponível durante a filtragem/agrupamento/ordenação",
     "columns": {
       "title": "Colunas",
-      "visible": "Visível",
-      "width": "Largura",
-      "resetDefault": "Repor predefinição",
-      "available": "Campos disponíveis",
-      "scopeHint": "Estas colunas aplicam-se à vista Tabela. A lista de tarefas junto ao Gantt mostra sempre WBS, nome e duração."
+      "resetDefault": "Repor predefinição"
     },
     "filter": {
       "title": "Filtro",

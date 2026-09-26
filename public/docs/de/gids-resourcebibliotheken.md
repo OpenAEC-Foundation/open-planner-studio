@@ -62,7 +62,7 @@ Das ist der Kern, den Sie sich merken sollten: Manche Felder sind eine unternehm
 - Die zeitlich gestaffelte Verfügbarkeit
 - Die **Wahl**, welcher Kalender an der Ressource hängt
 
-Weisen Sie eine Bibliotheksressource zu, reist ihr Kalender als verknüpfte Kopie mit, die selbst ebenfalls der Bibliothek folgt — deshalb steht der *Inhalt* dieses Kalenders in der linken Liste oben. Die *Wahl*, welcher Kalender an einer Ressource hängt, steht dagegen in der rechten Liste: Dieselbe Kolonne kann bei einem Eilauftrag ohne Weiteres auf einem anderen Kalender laufen als sonst, ohne dass das eine Abweichung von der Bibliothek ist. Dieser Unterschied ist subtil, aber wichtig: Ändern Sie bei einer Bibliotheksressource den Tarif oder den Namen, weicht die Kopie von der Bibliothek ab; ändern Sie die Kalenderwahl oder die Max. Einheiten, tun Sie genau das, wofür dieses Feld da ist.
+Weisen Sie eine Bibliotheksressource zu, reist ihr Kalender als verknüpfte Kopie mit, die selbst ebenfalls der Bibliothek folgt — deshalb steht der *Inhalt* dieses Kalenders oben unter **Folgt der Bibliothek**. Die *Wahl*, welcher Kalender an einer Ressource hängt, steht dagegen unter **Legen Sie pro Projekt fest**: Dieselbe Kolonne kann bei einem Eilauftrag ohne Weiteres auf einem anderen Kalender laufen als sonst, ohne dass das eine Abweichung von der Bibliothek ist. Dieser Unterschied ist subtil, aber wichtig: Ändern Sie bei einer Bibliotheksressource den Tarif oder den Namen, weicht die Kopie von der Bibliothek ab; ändern Sie die Kalenderwahl oder die Max. Einheiten, tun Sie genau das, wofür dieses Feld da ist.
 
 ## Drei Aktionen, die die beiden Welten verbinden
 

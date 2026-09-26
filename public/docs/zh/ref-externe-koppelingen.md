@@ -1,4 +1,4 @@
-# Externe koppelingen
+# 外部链接
 
 **外部（跨项目）链接**窗口记录本项目中的一个任务与另一个项目文件中某个任务之间的依赖关系——例如一个必须在您开工前完成的场地工程项目。
 
@@ -35,4 +35,4 @@
 
 ## 延伸阅读
 
-- [Kritiek pad & geavanceerde analyse](docs://gids-kritiek-pad-analyse) — 外部链接如何影响关键路径。
+- [关键路径与高级分析](docs://gids-kritiek-pad-analyse) — 外部链接如何影响关键路径。

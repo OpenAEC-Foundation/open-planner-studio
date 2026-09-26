@@ -48,7 +48,7 @@ Er zijn drie plekken waar je een toewijzing beheert — ze werken op dezelfde on
 2. **Taakdialoog** — dezelfde sectie **Toewijzingen**, in het venster **Taak bewerken**.
 3. **Lint** — tabblad **Resources**, lintgroep **Toewijzing**, knop **Toewijzen ▾**. Deze knop is alleen actief als precies één niet-mijlpaal-, niet-samenvattende taak geselecteerd is; het uitklapmenu laat je eerst **eenheden/dag** en **curve** instellen en toont daaronder de nog-niet-toegewezen resources — klik een naam aan om in één keer een complete toewijzing te maken.
 
-Mijlpalen en samenvattende taken kunnen geen resources dragen (ze hebben geen eigen duur om te belasten) — beide plekken tonen dat met een uitleg in plaats van het toewijzingsformulier.
+Mijlpalen en samenvattende taken kunnen geen resources dragen (ze hebben geen eigen duur om te belasten) — beide plekken tonen dat met een uitleg in plaats van het toewijzingsformulier. Een taak met toewijzingen kan daarom ook geen mijlpaal worden, en krijgt ze subtaken, dan verhuizen haar toewijzingen naar de eerste nieuwe subtaak, zie de gids Plannen & WBS.
 
 ### Een toewijzing verplaatsen
 
@@ -91,7 +91,7 @@ Staat een staaf rood op een dag waarop de taak zelf gewoon doorloopt, controleer
 
 Zet het histogram aan via de lintgroep **Histogram** op het tabblad **Resources** (knop **Histogram**). Er verschijnt een strook onder de Gantt met dezelfde tijdas: staafjes per dag, met het deel boven de capaciteitslijn in rood.
 
-Links van de staafjes, boven de taaktabel-kolom, staat de **resourcekiezer**: een lijstje met "Alle resources" bovenaan en daaronder elke resource, elk met een rood stipje als die resource ergens overbelast is. Klik op een naam om in te zoomen op precies die resource — het histogram herschaalt naar zijn belasting en capaciteit alleen. Klik terug op "Alle resources" om weer de som van alle resources te zien. Naast klikken kun je ook met de knoppen **Vorige**/**Volgende** in de lintgroep **Histogram** door de resources heen stappen, zonder de kiezer zelf aan te klikken.
+Onder de taaktabel, naast de staafjes, staat de **resourcekiezer**: een lijstje met "Alle resources" bovenaan en daaronder elke resource, elk met een rood stipje als die resource ergens overbelast is. Klik op een naam om in te zoomen op precies die resource — het histogram herschaalt naar zijn belasting en capaciteit alleen. Klik terug op "Alle resources" om weer de som van alle resources te zien. Naast klikken kun je ook met de knoppen **Vorige**/**Volgende** in de lintgroep **Histogram** door de resources heen stappen, zonder de kiezer zelf aan te klikken.
 
 Bij veel resources past de lijst niet in de hoogte van de strook: de rij "Alle resources" blijft dan vastgepind bovenaan, terwijl de resources eronder **scrollen binnen de kiezerzone** — met het muiswiel boven de lijst, of automatisch zodra je via het waarschuwingenpaneel of het resourcepaneel een resource kiest die net buiten beeld staat. Een dun streepje rechts in de kiezer toont dan waar je in de lijst zit; het is uitsluitend een indicator en niet zelf sleepbaar. Wil je meer resources tegelijk zien zonder te scrollen, vergroot dan de strook door de scheidingslijn erboven te verslepen.
 

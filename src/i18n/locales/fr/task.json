@@ -180,6 +180,7 @@
       "hourPlanningDisabled": "La planification en heures est désactivée dans les paramètres.",
       "durationConversionNotExact": "Cette durée ne peut pas être convertie exactement dans l'autre unité.",
       "milestoneRequired": "Ce champ ne s'applique qu'aux jalons.",
+      "milestoneUnavailable": "Une tâche récapitulative avec des sous-tâches ne peut pas devenir un jalon.",
       "actualAfterStatusDate": "La date réelle est postérieure à la date d'état.",
       "actualFinishBeforeStart": "La fin réelle est antérieure au début réel.",
       "conflictingProgressInputs": "Ces valeurs d'avancement se contredisent.",
@@ -266,7 +267,8 @@
       "unpinColumn": "Désépingler la colonne {{column}}",
       "moveColumn": "Déplacer la colonne {{column}}",
       "resizeColumn": "Redimensionner la colonne {{column}}",
-      "autoFitColumn": "Ajuster automatiquement la colonne {{column}}"
+      "autoFitColumn": "Ajuster automatiquement la colonne {{column}}",
+      "resetColumns": "Rétablir la disposition des colonnes par défaut"
     },
     "summary": {
       "activityCodeAssignments_one": "{{count}} affectation de code d’activité",

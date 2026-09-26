@@ -71,7 +71,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { generateId } from '@/utils/id';
-import { isAncestorRelation } from '@/state/relationRules';
+import { isAncestorRelation, relationCycle } from '@/state/relationRules';
 
 const S = () => useAppStore.getState();
 const CLEAN_WORKDAYS = [1, 2, 3, 4, 5];
@@ -573,8 +573,9 @@ function buildAndSolve(c: Case): {
       ...(l.lagUnit !== undefined ? { lagUnit: l.lagUnit as any } : {}),
       ...(l.lagPercent !== undefined ? { lagPercent: l.lagPercent } : {}),
     };
-    // Zelf-lus (edge-selfloop-01) EN voorouder-relaties (wbs-summary-relation-ancestor-guard-01):
-    // `addSequence` weigert beide sinds de relatieregels (verwacht gedrag, zie relationRules.ts) en
+    // Zelf-lus (edge-selfloop-01), voorouder-relaties (wbs-summary-relation-ancestor-guard-01) EN
+    // kringen (edge-cycle-*): `addSequence` weigert ze sinds de relatieregels (verwacht gedrag, zie
+    // relationRules.ts; de kringtoets sinds de audit taakmutaties, bevinding 2) en
     // zou ze stil buiten de sequences houden — dan test dit harnas de CPM-solver/`expandSummaryRelations`
     // z'n EIGEN guards nooit. Zulke relaties kunnen nog steeds bestaan (bv. een corrupt/legacy IFC of
     // een P6/MSP-export die via `loadState` binnenkomt, ongefilterd door de aanmaak-guard — spec §5:
@@ -584,6 +585,7 @@ function buildAndSolve(c: Case): {
     if (
       seqInput.predecessorId === seqInput.successorId
       || isAncestorRelation(lookup, { predecessorId: seqInput.predecessorId, successorId: seqInput.successorId })
+      || relationCycle(S().tasks, S().sequences, seqInput) !== null
     ) {
       useAppStore.setState((s) => {
         s.sequences.push({ ...seqInput, id: generateId('seq') });
@@ -636,8 +638,9 @@ function buildAndSolve(c: Case): {
     if (t.actualStart !== undefined) S().setActualStart(id, t.actualStart);
     if (t.actualFinish !== undefined) S().setActualFinish(id, t.actualFinish);
     if (t.completion !== undefined) S().setTaskProgress(id, t.completion);
-    // remainingMinutes RAUW ná completion (uur-voortgang, §5.3): `applyProgressInvariants` raakt alleen
-    // `remainingTime` (dagen), niet `remainingMinutes`, dus deze override overleeft `setTaskProgress`.
+    // remainingMinutes RAUW ná completion (uur-voortgang, §5.3): `setTaskProgress` leidt de restduur
+    // van een urentaak af uit de voortgang (`applyRemainingDuration`); deze override komt daarna, via
+    // `updateTask` (dat geen invarianten draait), en simuleert zo een geïmporteerde restduur.
     if (t.remainingMinutes !== undefined) {
       const task = S().tasks.find((x) => x.id === id)!;
       S().updateTask(id, { time: { ...task.time, remainingMinutes: t.remainingMinutes } });

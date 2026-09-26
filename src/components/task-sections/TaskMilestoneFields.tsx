@@ -1,17 +1,23 @@
 import { useTranslation } from 'react-i18next';
 import { Task, MilestoneKind } from '@/types/task';
 import { Field } from './shared';
-import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
+import { milestoneRefusal, taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
+import { useAppStore } from '@/state/appStore';
+import { milestoneRefusalNotices } from '@/state/structuralTransition';
 
 /**
  * Mijlpaal-checkbox + mijlpaal-soort (2.4) + verplicht-vlag (2.4) — sectie 3 uit
- * `TaskPropertiesPanel` (fase 2.10, item 2). Pure `{ task, onChange }`.
+ * `TaskPropertiesPanel` (fase 2.10, item 2). `{ task, onChange }`; alleen de "wordt mijlpaal"-regel
+ * leest de toewijzingen uit de store en meldt een weigering via het ene meldingskanaal — zo weigeren
+ * paneel én dialoog (die hier een concept doorgeeft) vóór er iets in de patch of het concept landt.
  */
 export function TaskMilestoneFields({ task, onChange }: {
   task: Task;
   onChange: (patch: Partial<Task>) => void;
 }) {
   const { t } = useTranslation('task');
+  const hasAssignments = useAppStore(s => s.assignments.some(a => a.taskId === task.id));
+  const notify = useAppStore(s => s.notify);
 
   return (
     <>
@@ -20,7 +26,18 @@ export function TaskMilestoneFields({ task, onChange }: {
           <input
             type="checkbox"
             checked={task.isMilestone}
-            onChange={e => onChange(taskMilestoneTransition(task, e.target.checked))}
+            onChange={e => {
+              // Wordt mijlpaal (audit §6): een fase of een taak met toewijzingen weigert, net als
+              // raster, MCP en store. Het vinkje is gecontroleerd en blijft dus gewoon uit.
+              if (e.target.checked && !task.isMilestone) {
+                const refusal = milestoneRefusal({ hasChildren: task.childIds.length > 0, hasAssignments });
+                if (refusal) {
+                  for (const notice of milestoneRefusalNotices([{ name: task.name, refusal }])) notify(notice);
+                  return;
+                }
+              }
+              onChange(taskMilestoneTransition(task, e.target.checked));
+            }}
             className="accent-accent"
           />
           {t('properties.milestone')}

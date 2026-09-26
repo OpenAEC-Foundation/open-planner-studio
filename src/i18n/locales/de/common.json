@@ -77,6 +77,10 @@
     "relationCreated": "Beziehung erstellt: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Diese Beziehung besteht bereits",
     "relationAncestorEndpoint": "Eine Beziehung zwischen einer Aufgabe und ihrer eigenen übergeordneten Sammelaufgabe ist nicht zulässig.",
+    "relationCycle": "Diese Beziehung würde einen Zyklus im Terminplan erzeugen ({{cycle}}) und wurde nicht erstellt.",
+    "hierarchyCycle": "Diese Verschiebung würde einen Zyklus im Terminplan erzeugen ({{cycle}}): Die Beziehungen einer Sammelaufgabe gelten auch für ihre Teilaufgaben. Es wurde nichts verschoben.",
+    "relationsExcludedByHierarchy_one": "Nach dem Verschieben verbindet {{count}} Beziehung eine Aufgabe mit ihrer eigenen übergeordneten Sammelaufgabe; sie fließt nicht mehr in die Berechnung ein.",
+    "relationsExcludedByHierarchy_other": "Nach dem Verschieben verbinden {{count}} Beziehungen eine Aufgabe mit ihrer eigenen übergeordneten Sammelaufgabe; sie fließen nicht mehr in die Berechnung ein.",
     "summaryRelationsDropped": "{{total}} Beziehung(en) konnten nicht einbezogen werden. Prüfen Sie die Vorgänger- und Nachfolgerspalten.",
     "relationsSkippedOnInsert_one": "{{count}} Beziehung wurde nicht erstellt: ungültige Verknüpfung (z. B. ein Vorgang mit seinem eigenen (Groß-)Sammelvorgang oder ein Duplikat).",
     "relationsSkippedOnInsert_other": "{{count}} Beziehungen wurden nicht erstellt: ungültige Verknüpfung (z. B. ein Vorgang mit seinem eigenen (Groß-)Sammelvorgang oder ein Duplikat).",
@@ -99,6 +103,28 @@
     "librarySaveFailed": "Bibliothek konnte nicht gespeichert werden",
     "levelingDelayRoundedToWorkdays_one": "Der Ressourcenabgleich rundet die minutengenaue Abgleichverzögerung aus MS Project für {{count}} Vorgang auf ganze Arbeitstage.",
     "levelingDelayRoundedToWorkdays_other": "Der Ressourcenabgleich rundet die minutengenaue Abgleichverzögerung aus MS Project für {{count}} Vorgänge auf ganze Arbeitstage.",
+    "startSnetCreated": "'{{name}}' hat einen Vorgänger: Der neue Anfang ist jetzt die Einschränkung Anfang nicht früher als (SNET) {{date}}. Nach dem Neuberechnen (F5) beginnt der Vorgang nicht vor diesem Datum.",
+    "startSnetUpdated": "Die Einschränkung Anfang nicht früher als (SNET) von '{{name}}' wurde auf {{date}} verschoben. Nach dem Neuberechnen (F5) beginnt der Vorgang nicht vor diesem Datum.",
+    "startSnetMany_one": "Der neue Anfang von {{count}} Vorgang mit Vorgänger ist jetzt eine Einschränkung Anfang nicht früher als (SNET). Nach dem Neuberechnen (F5) beginnt er nicht vor seinem Datum.",
+    "startSnetMany_other": "Die neuen Anfänge von {{count}} Vorgängen mit Vorgänger sind jetzt Einschränkungen Anfang nicht früher als (SNET). Nach dem Neuberechnen (F5) beginnt keiner vor seinem Datum.",
+    "startBlockedByConstraint": "Der neue Anfang von '{{name}}' wurde nicht übernommen: Der Vorgang hat einen Vorgänger und die Einschränkung $t(task:constraintType.{{type}}) {{date}}, die seinen Anfang bestimmen. Ändern Sie diese Einschränkung, um den Anfang zu verschieben.",
+    "startBlockedByConstraintNoDate": "Der neue Anfang von '{{name}}' wurde nicht übernommen: Der Vorgang hat einen Vorgänger und die Einschränkung $t(task:constraintType.{{type}}), die seinen Anfang bestimmen. Ändern Sie diese Einschränkung, um den Anfang zu verschieben.",
+    "startBlockedByConstraintMany_one": "Der neue Anfang von {{count}} Vorgang wurde nicht übernommen: Er hat einen Vorgänger und eine andere Einschränkung als Anfang nicht früher als (SNET). Ändern Sie diese Einschränkung, um den Anfang zu verschieben.",
+    "startBlockedByConstraintMany_other": "Die neuen Anfänge von {{count}} Vorgängen wurden nicht übernommen: Sie haben einen Vorgänger und eine andere Einschränkung als Anfang nicht früher als (SNET). Ändern Sie diese Einschränkungen, um die Anfänge zu verschieben.",
+    "referencesClearedOnPaste_one": "{{count}} Verweis existierte in diesem Dokument nicht und wurde geleert (ein Vorgangskalender, eigener Vorgangstyp, Aufgabencode oder benutzerdefiniertes Feld aus dem Quelldokument).",
+    "referencesClearedOnPaste_other": "{{count}} Verweise existierten in diesem Dokument nicht und wurden geleert (Vorgangskalender, eigene Vorgangstypen, Aufgabencodes oder benutzerdefinierte Felder aus dem Quelldokument).",
+    "milestoneRefusedAssignments_one": "„{{task}}“ hat Ressourcenzuweisungen und kann kein Meilenstein werden. Entfernen Sie zuerst die Zuweisungen.",
+    "milestoneRefusedAssignments_other": "{{count}} Aufgaben haben Ressourcenzuweisungen und können keine Meilensteine werden. Entfernen Sie zuerst die Zuweisungen.",
+    "milestoneRefusedSummary_one": "„{{task}}“ ist eine Sammelaufgabe mit Unteraufgaben und kann kein Meilenstein werden.",
+    "milestoneRefusedSummary_other": "{{count}} Aufgaben sind Sammelaufgaben mit Unteraufgaben und können keine Meilensteine werden.",
+    "assignmentsMovedToSubtask_one": "Die Zuweisung von {{resources}} wurde von „{{phase}}“ zur neuen Unteraufgabe „{{child}}“ verschoben: Eine Sammelaufgabe trägt selbst keine Zuweisungen.",
+    "assignmentsMovedToSubtask_other": "Die {{count}} Zuweisungen ({{resources}}) wurden von „{{phase}}“ zur neuen Unteraufgabe „{{child}}“ verschoben: Eine Sammelaufgabe trägt selbst keine Zuweisungen.",
+    "assignmentsMovedToSubtasks_one": "{{count}} Aufgabe wurde zur Sammelaufgabe; ihre Zuweisungen wurden zur ersten neuen Unteraufgabe verschoben.",
+    "assignmentsMovedToSubtasks_other": "{{count}} Aufgaben wurden zu Sammelaufgaben; ihre Zuweisungen wurden jeweils zur ersten neuen Unteraufgabe verschoben.",
+    "milestoneClearedOnPhase_one": "Meilenstein „{{phase}}“ hat jetzt Unteraufgaben und ist zur Sammelaufgabe geworden; die Meilensteinmarkierung wurde entfernt.",
+    "milestoneClearedOnPhase_other": "{{count}} Meilensteine haben jetzt Unteraufgaben und sind zu Sammelaufgaben geworden; die Meilensteinmarkierung wurde entfernt.",
+    "phaseRefusedNoAssignableChild": "„{{phase}}“ kann keine Sammelaufgabe werden: Ihre Zuweisungen können nirgendwohin, weil keine der neuen Unteraufgaben Zuweisungen tragen kann (ein Meilenstein oder eine Sammelaufgabe). Es wurde nichts geändert.",
+    "phaseRefusedDuplicateResource": "„{{phase}}“ kann keine Sammelaufgabe werden: Die Zuweisung von {{resource}} kann nicht zur neuen Unteraufgabe „{{child}}“, weil diese {{resource}} bereits hat. Es wurde nichts geändert.",
     "schedulingProfileApplied": "Dieses Projekt rechnet als {{profile}}. Ändern über Datei → Projektinfo → Berechnungsprofil und Berechnungsoptionen.",
     "schedulingProfileShifted_one": "Nach dem Anwenden wurde {{count}} Vorgang verschoben.",
     "schedulingProfileShifted_other": "Nach dem Anwenden wurden {{count}} Vorgänge verschoben.",
@@ -114,6 +140,14 @@
     "xerArchiveReasonBytesMissing": "Grund: Die Quellbytes selbst fehlen — vermutlich hat ein anderes IFC-Programm die Datei neu geschrieben.",
     "xerArchiveReasonMetadataInvalid": "Grund: Die Quellbytes sind intakt, aber die daraus abgeleiteten Daten sind unbrauchbar.",
     "xerArchiveReasonStructure": "Grund: Der Aufbau des Archivs in der IFC stimmt nicht (doppelt, umsortiert oder falsch verknüpft)."
+  },
+  "scheduleErrors": {
+    "cycle": "Zirkelbezug zwischen Aufgaben: {{path}}",
+    "noWorkingDays": "Im Kalender sind keine Arbeitstage festgelegt",
+    "invalidDayDuration": "Ungültige Dauer in Tagen für Aufgabe '{{task}}'",
+    "invalidHourDuration": "Ungültige Dauer in Stunden für Aufgabe '{{task}}'",
+    "hourTaskWithoutWorkHours": "Stundenaufgabe '{{task}}' hat in ihrem Kalender keine gültigen Arbeitszeiten",
+    "invalidStartDate": "Ungültiges Startdatum für Aufgabe '{{task}}'"
   },
   "yes": "Ja",
   "no": "Nein",
@@ -292,7 +326,7 @@
     "aiAutostartHint": "Aktiviert die MCP-Bridge direkt beim Start der App, sodass ein KI-Client sich verbinden kann, ohne dass Sie zuerst den KI-Tab öffnen. Nur in der Desktop-App.",
     "legacySection": "Legacy-Funktionen",
     "classicViewControls": "Klassische Ansichtsschaltflächen anzeigen",
-    "classicViewControlsHint": "Bringt die einzelnen Schaltflächen Spalten, Filter, Gruppieren und Sortieren zurück auf die Registerkarte Ansicht. Ihre Funktion steckt jetzt in den Layout-Schaltflächen und im Layout-Dialog."
+    "classicViewControlsHint": "Bringt die einzelnen Schaltflächen Spalten, Filter, Gruppieren und Sortieren zurück auf die Registerkarte Ansicht. Spalten wählen Sie jetzt mit dem Plus im Tabellenkopf oder über Tabelle → Spalten…; Filtern, Gruppieren und Sortieren stecken in den Layout-Schaltflächen und im Layout-Dialog."
   },
   "ai": {
     "start": "Bridge starten",
@@ -739,7 +773,8 @@
       "project": "Projektkalender",
       "new": "Neuer Kalender",
       "duplicate": "Duplizieren",
-      "setDefault": "Als Projektstandard festlegen"
+      "setDefault": "Als Projektstandard festlegen",
+      "invalid": "Dieser Kalender enthält ungültige Eingaben"
     },
     "generate": {
       "button": "Feiertage generieren…",
@@ -801,6 +836,11 @@
         "consumesWorkingDay": "Die Pause darf nicht den ganzen Arbeitstag einnehmen."
       }
     },
+    "holidayErrors": {
+      "invalidStart": "Geben Sie ein gültiges Anfangsdatum ein.",
+      "invalidEnd": "Geben Sie ein gültiges Enddatum ein oder lassen Sie es für einen einzelnen Tag leer.",
+      "endBeforeStart": "Das Enddatum liegt vor dem Anfangsdatum."
+    },
     "worktime": {
       "section": "Arbeitszeiten",
       "derivedHpd": "Abgeleitete Stunden/Tag:",
@@ -822,11 +862,7 @@
     "structureLockedHint": "Nicht verfügbar während des Filterns/Gruppierens/Sortierens",
     "columns": {
       "title": "Spalten",
-      "visible": "Sichtbar",
-      "width": "Breite",
-      "resetDefault": "Auf Standard zurücksetzen",
-      "available": "Verfügbare Felder",
-      "scopeHint": "Diese Spalten gelten für die Tabellenansicht. Die Vorgangsliste neben dem Gantt zeigt immer PSP, Name und Dauer."
+      "resetDefault": "Auf Standard zurücksetzen"
     },
     "filter": {
       "title": "Filter",

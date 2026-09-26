@@ -84,11 +84,13 @@ Le pianificazioni più grandi hanno presto bisogno di dimensioni extra che non r
 - I **codici attività** sono dimensioni definibili liberamente (ad esempio "Ubicazione" o "Disciplina") con un elenco di valori — ogni valore ha un **Codice**, una **Descrizione** e un **Colore**. Un'attività può avere al massimo un valore per tipo di codice. Usa **Aggiungi tipo di codice** per iniziare una nuova dimensione, e **Aggiungi valore** per costruire i possibili valori.
 - I **campi personalizzati** sono campi tipizzati propri — **Testo**, **Numero**, **Numero intero**, **Costo**, **Data** o **Sì/no** — che compaiono come colonna nella tabella delle attività e possono essere compilati per attività. Pensa a un campo "Appaltatore" (testo) o "Permesso ricevuto" (sì/no).
 
-Una volta creati, assegni un codice attività o compili un campo personalizzato tramite le colonne nella tabella delle attività (rendile visibili prima tramite **Vista → Colonne…** se necessario) oppure tramite il pannello delle proprietà dell'attività.
+Una volta creati, assegni un codice attività o compili un campo personalizzato tramite le colonne nella tabella delle attività oppure tramite il pannello delle proprietà dell'attività. Se la colonna non è ancora nella tabella, aggiungila con il più a destra nell'intestazione della tabella: il selettore delle colonne mostra i codici attività e i campi personalizzati sotto **Personalizzato** — vedi [Scelta delle colonne](docs://ref-kolommen).
 
 ### Raggruppare per codici e campi
 
-I codici attività e i campi personalizzati si ripagano davvero una volta che raggruppi per essi: vai alla scheda della barra multifunzione **Vista**, apri **Raggruppa** e scegli il codice attività o il campo personalizzato da usare per raggruppare sotto **Campo**. La tabella delle attività mostra allora intestazioni di gruppo invece dell'albero WBS — comodo per vedere, ad esempio, tutte le attività per unità o per disciplina insieme, attraverso la suddivisione in fasi. Puoi impostare fino a due livelli di raggruppamento contemporaneamente (ad esempio prima per unità, poi per disciplina).
+I codici attività e i campi personalizzati si ripagano davvero una volta che raggruppi per essi. La tabella delle attività mostra allora intestazioni di gruppo invece dell'albero WBS — comodo per vedere, ad esempio, tutte le attività per unità o per disciplina insieme, attraverso la suddivisione in fasi. Puoi impostare fino a due livelli di raggruppamento contemporaneamente (ad esempio prima per unità, poi per disciplina).
+
+Un raggruppamento si imposta con un layout. Vai alla scheda della barra multifunzione **Vista**, gruppo **Layout**, e fai clic su **Nuovo layout**. Nella finestra, sotto **Raggruppa**, fai clic su **+ livello** e scegli nell'elenco il codice attività o il campo personalizzato. **Salva** ne fa un pulsante di layout: un clic attiva il raggruppamento, un altro clic lo disattiva. **Applica senza salvare** mostra subito il raggruppamento, senza pulsante. Cos'altro memorizza un pulsante di layout è spiegato in [Salvare e caricare i layout](docs://ref-layouts).
 
 ## Note: una checklist per attività
 

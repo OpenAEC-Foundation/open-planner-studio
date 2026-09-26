@@ -1,4 +1,4 @@
-# Kalenders & uren-planning
+# 日历与小时计划
 
 一个工期为“5 天”的任务，只有结合日历才有意义：哪些天是工作日，哪些小时进行工作，又有哪些天因假日或临时停工而不算数？本指南涵盖项目日历、资源日历，以及适用于想要精确到小时排程的用户的可选按小时计划功能。
 
@@ -77,4 +77,4 @@
 
 - 实际查看霜冻停工和 4 天资源日历：[Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc)。
 - 实际查看钢筋和浇筑工作的小时计划：[Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc)。
-- 关系和延时/提前量使用相同的日历单位——阅读 [Relaties & constraints](docs://gids-relaties-constraints) 了解工作日延时与按日历计延时的区别。
+- 关系和延时/提前量使用相同的日历单位——阅读 [关系与限制](docs://gids-relaties-constraints) 了解工作日延时与按日历计延时的区别。

@@ -4,7 +4,7 @@ La finestra **Filtro** controlla quali attività sono visibili — nel Gantt e n
 
 ## Apertura
 
-**Vista** → gruppo della barra multifunzione **Visualizzazione** → **Filtro…**. Il pulsante resta evidenziato mentre un filtro è attivo. **Esc**, la crocetta di chiusura o un clic fuori dalla finestra la chiude senza applicare.
+Un filtro si imposta nella finestra dei layout: **Vista** → gruppo della barra multifunzione **Layout** → **Nuovo layout**, spunta **Filtro** e costruisci le regole sotto. **Salva** ne fa un pulsante di layout, **Applica senza salvare** mette il filtro sullo schermo solo per ora. La finestra Filtro separata descritta sotto appartiene ai pulsanti di vista classici: **Vista** → gruppo della barra multifunzione **Visualizzazione** → **Filtro…**, visibile solo se attivi quei pulsanti da **Impostazioni** → **Avanzate** → **Funzioni legacy**. Le regole funzionano allo stesso modo in entrambi i punti. Il pulsante resta evidenziato mentre un filtro è attivo. Se non hai ancora filtri salvati, apre direttamente la finestra Filtro. Altrimenti la sua freccia apre anche i tuoi filtri salvati: sceglierne uno lo applica subito; **Cancella** disattiva il filtro attivo. **Esc**, la crocetta di chiusura o un clic fuori dalla finestra la chiude senza applicare.
 
 ## Gruppi: tutte o una qualsiasi
 

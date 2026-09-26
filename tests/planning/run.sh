@@ -817,6 +817,10 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # duur waar eenduidig — één gedeelde regel (`resolveMissingScheduleDates`), per lezer getoetst.
   IMSDCHECK="$DIR/.import-missing-schedule-dates.mjs"
   if bundle_check "$DIR/check-import-missing-schedule-dates.ts" "$IMSDCHECK"; then node "$IMSDCHECK" || STATUS=1; fi
+  # Restduur in de eigen eenheid van de taak (G4): een urentaak houdt haar restduur in minuten plus
+  # een onafgeronde werkdagfractie, via één regel voor paneel, raster, MCP en de lezers.
+  RDCHECK="$DIR/.remaining-duration-check.mjs"
+  if bundle_check "$DIR/check-remaining-duration.ts" "$RDCHECK"; then node "$RDCHECK" || STATUS=1; fi
   EXTEDITCHECK="$DIR/.external-link-edit.mjs"
   if bundle_check "$DIR/check-external-link-edit.ts" "$EXTEDITCHECK"; then node "$EXTEDITCHECK" || STATUS=1; fi
 
@@ -851,6 +855,18 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # maar N undo-stappen.
   CMSCHECK="$DIR/.context-menu-scope.mjs"
   if bundle_check "$DIR/check-context-menu-scope.ts" "$CMSCHECK"; then node "$CMSCHECK" || STATUS=1; fi
+
+  # Plakken in een ander document (audit taakmutaties §8): kalender-, taaktype-, activity code- en
+  # gebruikersveldverwijzingen die in het doeldocument niet bestaan worden leeggemaakt, met één
+  # melding; binnen hetzelfde document blijft alles staan.
+  PRCHECK="$DIR/.paste-references.mjs"
+  if bundle_check "$DIR/check-paste-references.ts" "$PRCHECK"; then node "$PRCHECK" || STATUS=1; fi
+
+  # Structuurovergangen met toewijzingen (audit taakmutaties §6): "wordt mijlpaal" weigert in
+  # store/paneel/contextmenu/raster; "wordt fase" verhuist de toewijzing naar de eerste nieuwe
+  # subtaak (of weigert) via inspringen, verhangen, slepen, subtaak en sjabloon — één undo-stap.
+  STCHECK="$DIR/.structural-transition.mjs"
+  if bundle_check "$DIR/check-structural-transition.ts" "$STCHECK"; then node "$STCHECK" || STATUS=1; fi
 
   # Rasternavigatie (issue #48): de gedeelde kern onder de takentabel én de resourcetabel. Bewaakt
   # het RANDgedrag (buur aan de rand = null, niet klemmen — daar hangt "Enter op de laatste rij maakt
@@ -912,6 +928,10 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # bewerken verzet alleen iets bij een echte wijziging; "Gepland einde" is geen dode invoer meer.
   TGSHOWNDATESCHECK="$DIR/.table-shown-dates.mjs"
   if bundle_check "$DIR/check-table-shown-dates.ts" "$TGSHOWNDATESCHECK"; then node "$TGSHOWNDATESCHECK" || STATUS=1; fi
+  # W2-vervolg (besluit eigenaar "zoals MS Project"): een getypte start op een taak mét voorganger
+  # wordt een beperking "Start niet eerder dan"; anders sprong de taak na F5 stil terug.
+  STARTSNETCHECK="$DIR/.start-snet.mjs"
+  if bundle_check "$DIR/check-start-snet.ts" "$STARTSNETCHECK"; then node "$STARTSNETCHECK" || STATUS=1; fi
   # Backdrop-klik op dialogen met invoer (issue #158): de nieuw-project-wizard sloot bij een klik
   # naast het paneel en gooide getypte tekst weg — en vijftien andere dialogen deden hetzelfde.
   # Broncodepoort met allowlist: `onBackdropClick` alleen op dialogen zonder invoerelement.
@@ -1218,6 +1238,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   RESLOADREASONSCHECK="$DIR/.resource-load-reasons.mjs"
   if bundle_check "$DIR/check-resource-load-reasons.ts" "$RESLOADREASONSCHECK"; then node "$RESLOADREASONSCHECK" || STATUS=1; fi
 
+  # Audit resources-kalenders R6: `computeResourceLoad` levert per resource de belaste UREN mee
+  # (eenheden × uren/dag van de TAAKkalender), en de kolom "Totaal" van het resourcepaneel rekent
+  # uren × tarief — gelijk aan de contourdialoog en `<Work>` in de MSPDI-export. Voorheen nam het
+  # paneel de uren/dag van de projectkalender (10-uurstaak: 40 u i.p.v. 50 u).
+  RESCOSTHOURSCHECK="$DIR/.resource-cost-hours.mjs"
+  if bundle_check "$DIR/check-resource-cost-hours.ts" "$RESCOSTHOURSCHECK"; then node "$RESCOSTHOURSCHECK" || STATUS=1; fi
+
   # B1c-W0.2/W0.3: `ResourceLeveler.ts` boekt (`bookDemandAt`) en meet de delay-eenheid nu ook op de
   # TAAKkalender, split-bewust — het derde (en laatste) gat naast de renderer (W0.4/W0.1) en
   # `computeResourceLoad` (W0.1).
@@ -1286,6 +1313,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
 
   RELRULES="$DIR/.relrules.mjs"
   if bundle_check "$DIR/check-relation-rules.ts" "$RELRULES"; then node "$RELRULES" || STATUS=1; fi
+
+  # Relaties over de routes heen (audit taakmutaties): een kring wordt in de store-route net als in
+  # raster en MCP vooraf geweigerd, en alleen de kring die de nieuwe relatie zelf sluit telt.
+  RELROUTES="$DIR/.relation-routes.mjs"
+  if bundle_check "$DIR/check-relation-routes.ts" "$RELROUTES"; then node "$RELROUTES" || STATUS=1; fi
 
   # Pijlrouting (issue #41): relatielijnen worden vóór de balken getekend, dus alles wat onder een
   # balk door loopt is onzichtbaar. De vaste elleboog `fromX+8` lag bij SS midden ín de voorganger-
@@ -1484,6 +1516,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   EXTCHECK="$DIR/.extcontract.mjs"
   if bundle_check "$DIR/check-ext-contract.ts" "$EXTCHECK"; then node "$EXTCHECK" || STATUS=1; fi
 
+  # `resourceIds` via de extensie-API (audit resources-kalenders R8). `addTask`/`updateTask` schreven
+  # het veld rauw: de taak leek toegewezen, maar zonder toewijzing (geen belasting, weg na opslaan).
+  # Nu: gelijk aan de huidige waarde ⇒ genegeerd; anders een fout met de route die wél toewijst.
+  EXTRESIDSCHECK="$DIR/.extresourceids.mjs"
+  if bundle_check "$DIR/check-ext-resourceids.ts" "$EXTRESIDSCHECK"; then node "$EXTRESIDSCHECK" || STATUS=1; fi
+
   # Extensie-integriteit en -afscherming (K-item 38, pragmatische helft). Een catalogusentry met
   # sha256 wordt geverifieerd en bij verschil geweigerd; de rauwe host-globals worden in de
   # extensie-scope geschaduwd. De batterij toont OOK expliciet aan dat dat laatste geen sandbox is —
@@ -1603,6 +1641,19 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   DEVBRIDGEPOLLERCHECK="$DIR/.dev-bridge-poller.mjs"
   if bundle_check "$DIR/check-dev-bridge-poller.ts" "$DEVBRIDGEPOLLERCHECK"; then node "$DEVBRIDGEPOLLERCHECK" || STATUS=1; fi
 
+  # Automatisch berekenen + rekenfout (review taakmutaties, bijvangst A): een mislukte berekening
+  # mocht geen herbereken-lus starten via haar eigen melding (~10 solves/s, teller ×42 in 3 s).
+  # Echte rem (failedSolveGate) op een geïsoleerde storecontext; pas een echte invoerwijziging
+  # rekent opnieuw. De hook zelf met echte timers: tests/browser/auto-calc-stale.spec.ts.
+  AUTOCALCCHECK="$DIR/.auto-calc-cpm.mjs"
+  if bundle_check "$DIR/check-auto-calc-cpm.ts" "$AUTOCALCCHECK"; then node "$AUTOCALCCHECK" || STATUS=1; fi
+
+  # Solverfouten in de UI-taal (review taakmutaties, bijvangst B): elke guard levert een code +
+  # parameters naast de ongewijzigde vaste tekst (MCP/extensies), en elke code heeft in alle
+  # veertien talen een tekst met de juiste placeholder.
+  SCHEDERRCHECK="$DIR/.schedule-errors.mjs"
+  if bundle_check "$DIR/check-schedule-errors.ts" "$SCHEDERRCHECK"; then node "$SCHEDERRCHECK" || STATUS=1; fi
+
   # T1: de duur-eenheid hoort bij de taak, inclusief kalenderplaatsing, legacy-migratie,
   # compacte presentatie en IFC-roundtrip. Deze check draait ook in de tijdzone-matrix.
   T1DURCHECK="$DIR/.task-duration-unit.mjs"
@@ -1612,6 +1663,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # overleven IFC, undo/redo en documentwissel.
   BREAKCHECK="$DIR/.calendar-breaks.mjs"
   if bundle_check "$DIR/check-calendar-breaks.ts" "$BREAKCHECK"; then node "$BREAKCHECK" || STATUS=1; fi
+
+  # Kalenderdialogen (audit resources-kalenders 4/5/7): Toepassen/Enter zonder wijziging is een
+  # no-op (ook in de modus "datums zoals opgeslagen"), feestdagvalidatie gedeeld met MCP, en één
+  # fabriek voor een nieuwe kalender.
+  CALDLGCHECK="$DIR/.calendar-dialog-commits.mjs"
+  if bundle_check "$DIR/check-calendar-dialog-commits.ts" "$CALDLGCHECK"; then node "$CALDLGCHECK" || STATUS=1; fi
 
   # IFC-round-trip-contract (fase 3, P11, bevinding A2/F2). Twee stappen:
   #  (1) COMPILE-AFDWINGING van de fixture-volledigheid — de hoofd-tsconfig sluit tests/ uit, dus een
@@ -1691,6 +1748,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # WBS-rapport), met de uitzonderingen van de datum-rollup, en alleen-lezen in paneel/raster/setters.
   SUMPROG="$DIR/.summary-progress.mjs"
   if bundle_check "$DIR/check-summary-progress.ts" "$SUMPROG"; then node "$SUMPROG" || STATUS=1; fi
+
+  # Werkelijke datums van een verzameltaak: afgeleid uit de bladen in dezelfde rollup (vroegste
+  # start; laatste einde pas als alle bladen klaar zijn), alleen-lezen, met dezelfde uitzonderingen;
+  # exports, IFC-round-trip en de verplaats-telling volgen.
+  SUMACT="$DIR/.summary-actuals.mjs"
+  if bundle_check "$DIR/check-summary-actuals.ts" "$SUMACT"; then node "$SUMACT" || STATUS=1; fi
 
   # Datums zoals opgeslagen (issue #63) — de pure laag: aanwezigheidsregistratie, verschiltelling,
   # reconstructie. Betreden/verlaten en de undo-keten volgen later (aparte taak, hangt de store/UI

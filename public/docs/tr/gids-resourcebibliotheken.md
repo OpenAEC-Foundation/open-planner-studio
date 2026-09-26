@@ -62,7 +62,7 @@ Akılda tutulması gereken kısım burası: bazı alanlar şirket genelinde bir 
 - Zamana bağlı kapasite
 - Kaynağa hangi takvimin bağlı olduğu **seçimi**
 
-Bir kitaplık kaynağını atarsanız, takvimi kendisi de kitaplığı takip etmeye devam eden bağlı bir kopya olarak birlikte gelir — bu yüzden o takvimin *içeriği* yukarıdaki sol listede yer alır. Ama bir kaynağa hangi takvimin bağlı olduğu *seçimi* sağ listede yer alır: aynı ekip, acil bir iş için normalde çalıştığından farklı bir takvimde çalışabilir, bu da kitaplıktan bir sapma sayılmaz. Bu ayrım incedir ama önemlidir: bir kitaplık kaynağının ücretini veya adını değiştirirseniz, kopya kitaplıktan sapar; takvim seçimini veya maks. birimini değiştirirseniz, tam olarak o alanın orada olma amacını yapıyorsunuzdur.
+Bir kitaplık kaynağını atarsanız, takvimi kendisi de kitaplığı takip etmeye devam eden bağlı bir kopya olarak birlikte gelir — bu yüzden o takvimin *içeriği* yukarıda **Kitaplığı takip eder** başlığı altında yer alır. Ama bir kaynağa hangi takvimin bağlı olduğu *seçimi* **Proje başına siz karar verirsiniz** başlığı altında yer alır: aynı ekip, acil bir iş için normalde çalıştığından farklı bir takvimde çalışabilir, bu da kitaplıktan bir sapma sayılmaz. Bu ayrım incedir ama önemlidir: bir kitaplık kaynağının ücretini veya adını değiştirirseniz, kopya kitaplıktan sapar; takvim seçimini veya maks. birimini değiştirirseniz, tam olarak o alanın orada olma amacını yapıyorsunuzdur.
 
 ## İki dünyayı birbirine bağlayan üç eylem
 

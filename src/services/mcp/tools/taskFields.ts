@@ -41,6 +41,12 @@ import type { CustomTaskType } from '@/types/taskType';
 import { isRecord } from '@/utils/guards';
 import { customTaskTypeClashes } from '@/services/taskTypes/customTaskTypeRules';
 import { WORK_RULES, type WorkRule } from '@/types/workRule';
+import { milestoneRefusal } from '@/engine/taskMilestoneTransition';
+import {
+  validateConstraintPair,
+  withPrimaryConstraint,
+  type ConstraintPairIssue,
+} from '@/engine/scheduler/constraintValidation';
 
 // --- Patch-vorm ----------------------------------------------------------------------------------
 
@@ -74,6 +80,10 @@ export interface TaskFieldContext {
   hasChildren: boolean;
   /** Heeft de doeltaak resource-toewijzingen? (mijlpaal mag er geen dragen). */
   hasAssignments: boolean;
+  /** De bestaande SECUNDAIRE constraint van de doeltaak (bij `add_tasks`: geen). Niet zetbaar via de
+   *  bridge, maar een nieuw primair constraint moet er wél mee kloppen — en ASAP/ALAP/null wist hem,
+   *  net als paneel en raster (`withPrimaryConstraint`). */
+  currentConstraint2?: TaskConstraint;
   /** Bestaat deze kalender-id in de bibliotheek? */
   calendarExists: (id: string) => boolean;
   customTaskTypes: readonly CustomTaskType[];
@@ -236,6 +246,26 @@ function parseConstraint(raw: unknown): { ok: true; value: TaskConstraint } | { 
   };
 }
 
+/** Waarom een nieuw primair constraint niet naast de bestaande secundaire past — agent-leesbaar. */
+const CONSTRAINT_PAIR_REASONS: Record<ConstraintPairIssue, string> = {
+  'no-secondary-with-mandatory-or-on': 'MSO/MFO (of een harde pin) legt start én einde al vast en verdraagt geen secundaire constraint',
+  'no-secondary-with-asap-alap': 'ASAP/ALAP draagt geen datumgrens en verdraagt geen secundaire constraint',
+  'secondary-same-side': 'primair en secundair zijn dan allebei een ondergrens (SNET/FNET) of allebei een bovengrens (SNLT/FNLT)',
+  'secondary-type-invalid': 'de secundaire constraint moet SNET, FNET, SNLT of FNLT zijn',
+  'secondary-hard-forbidden': 'een secundaire constraint mag nooit hard zijn',
+};
+
+function constraintPairReason(
+  pair: { constraint: TaskConstraint | undefined; constraint2: TaskConstraint | undefined },
+  issues: readonly ConstraintPairIssue[],
+): string {
+  const primary = pair.constraint?.type ?? 'ASAP';
+  const secondary = pair.constraint2 ? `${pair.constraint2.type} ${pair.constraint2.date ?? ''}`.trim() : '?';
+  return `\`constraint\` ${primary} vormt geen geldig paar met de bestaande secundaire constraint (${secondary}): `
+    + `${issues.map(issue => CONSTRAINT_PAIR_REASONS[issue]).join('; ')}. De secundaire constraint is via de bridge niet `
+    + 'zetbaar; `constraint: null` wist beide, of kies een primair type aan de andere kant van de grens';
+}
+
 /**
  * Valideer + vertaal een veld-set (uit `update_tasks.fields` of een `add_tasks`-item) naar een
  * `TaskFieldPatch`. ALLES-OF-NIETS: bij de eerste fout komt er géén (halve) patch terug — de
@@ -334,8 +364,10 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
   if ('isMilestone' in raw) {
     if (typeof raw.isMilestone !== 'boolean') return { ok: false, reason: '`isMilestone` moet een boolean zijn' };
     if (raw.isMilestone) {
-      if (ctx.hasChildren) return { ok: false, reason: 'een verzameltaak (met kinderen) kan geen mijlpaal worden' };
-      if (ctx.hasAssignments) return { ok: false, reason: 'een taak met resource-toewijzingen kan geen mijlpaal worden; verwijder eerst de toewijzingen' };
+      // Dezelfde "wordt mijlpaal"-regel als paneel, dialoog, contextmenu, store en raster.
+      const refusal = milestoneRefusal(ctx);
+      if (refusal === 'summary') return { ok: false, reason: 'een verzameltaak (met kinderen) kan geen mijlpaal worden' };
+      if (refusal === 'assignments') return { ok: false, reason: 'een taak met resource-toewijzingen kan geen mijlpaal worden; verwijder eerst de toewijzingen' };
       // Mijlpaal ⇒ duur 0 (en géén achtergebleven minutenduur), spiegelt TaskDialog/TaskMilestoneFields.
       time.scheduleDuration = 0;
       time.durationUnit = 'days';
@@ -361,12 +393,20 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
     top.priority = p;
   }
   if ('constraint' in raw) {
-    if (raw.constraint === null) top.constraint = undefined;
-    else {
+    let next: TaskConstraint | undefined;
+    if (raw.constraint !== null) {
       const c = parseConstraint(raw.constraint);
       if (!c.ok) return { ok: false, reason: c.reason };
-      top.constraint = c.value;
+      next = c.value;
     }
+    // Zelfde canonicalisatie als paneel en raster: null/ASAP wist ook de secundaire constraint,
+    // ALAP eveneens; een datumconstraint moet met de bestaande secundaire een geldig paar vormen.
+    // Voorheen bleef `constraint2` na "constraint wissen" stil staan en bleef de taak begrensd.
+    const pair = withPrimaryConstraint(next, ctx.currentConstraint2);
+    const validation = validateConstraintPair(pair.constraint, pair.constraint2);
+    if (!validation.ok) return { ok: false, reason: constraintPairReason(pair, validation.issues) };
+    top.constraint = pair.constraint;
+    if (ctx.currentConstraint2 && !pair.constraint2) top.constraint2 = undefined;
   }
   if ('deadline' in raw) {
     if (raw.deadline === null) top.deadline = undefined;
@@ -530,7 +570,8 @@ export const TASK_FIELD_SCHEMA_PROPERTIES: Record<string, unknown> = {
   priority: { type: 'integer', minimum: 0, maximum: 1000, description: 'Nivelleer-prioriteit (default 500; 1000 = nooit verschuiven).' },
   constraint: {
     type: ['object', 'null'],
-    description: 'Datum-constraint; null wist hem. `date` is verplicht behalve bij ASAP/ALAP; `hard` alleen bij MSO/MFO.',
+    description: 'Datum-constraint; null wist hem. `date` is verplicht behalve bij ASAP/ALAP; `hard` alleen bij MSO/MFO. ' +
+      'null, ASAP en ALAP wissen ook een bestaande secundaire constraint; een datumtype dat met die secundaire geen geldig paar vormt, wordt geweigerd.',
     properties: {
       type: { type: 'string', enum: ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'] },
       date: { type: 'string', description: 'ISO-datum (YYYY-MM-DD).' },

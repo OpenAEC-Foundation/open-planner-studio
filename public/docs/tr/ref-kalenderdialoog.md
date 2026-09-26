@@ -10,12 +10,12 @@
 
 ## Uygulama ve iptal etme
 
-Tüm düzenlemeler — yeni/çoğalt/sil dahil — bir çalışma kopyasında gerçekleşir. **Uygula** (veya **Enter**) her şeyi tek seferde yazar ve planı yeniden hesaplar; **İptal**, **Esc**, kapatma çarpısı veya pencerenin dışına bir tıklama tüm değişiklikleri atar.
+Tüm düzenlemeler — yeni/çoğalt/sil dahil — bir çalışma kopyasında gerçekleşir. **Uygula** her şeyi tek seferde yazar, planı yeniden hesaplar ve pencereyi kapatır; ad gibi bir metin alanında **Enter** aynısını yapar ama pencereyi açık bırakır. Hiçbir şey değişmediyse **Uygula** ve **Enter** hiçbir şey yapmaz: belge değiştirilmemiş kalır ve plan yeniden hesaplanmaz. **İptal**, **Esc**, kapatma çarpısı veya pencerenin dışına bir tıklama, henüz **Uygula** veya **Enter** ile kaydedilmemiş tüm değişiklikleri atar.
 
 ## Kütüphane (sol sütun)
 
-- **Liste** — tüm takvimler; yıldız **Proje takvimi**ni işaretler (kendi takvimi olmayan görevler için varsayılan).
-- **+** — **Yeni takvim**.
+- **Liste** — tüm takvimler; yıldız **Proje takvimi**ni işaretler (kendi takvimi olmayan görevler için varsayılan). Bir uyarı işareti, geçersiz giriş içeren bir takvimi belirtir.
+- **+** — **Yeni takvim**, kaynak panelindeki **+ Kaynak takvimi** ve yeni bir proje ile aynı varsayılanla: Pzt–Cum 07:00–16:00 ve **İnşaat modu** açıkken Hollanda resmî tatilleri. Hiç istemiyorsanız **Tatilleri oluştur…** → **Tatil yok** seçin.
 - **Çoğalt** — seçili takvimin bir kopyası.
 - **Sil** — son takvim için mümkün değildir; proje varsayılanını silmek başka bir takvimi varsayılan yapar.
 - **Proje varsayılanı olarak ayarla** — seçili takvimi proje takvimi yapar (formun üzerindeki düğme).
@@ -47,4 +47,4 @@ Tatil listesini proje dönemi boyunca kural bazlı olarak oluşturur:
 
 ## Tatiller
 
-Listenin kendisi: satır başına **Açıklama**, **Başlangıç**, **Bitiş** ve bir kaldırma düğmesi; **Tatil ekle** yeni bir satır oluşturur. Çok günlük dönemler (inşaat tatili, don gecikmesi) basitçe daha uzun bir Başlangıç-Bitiş aralığına sahip bir satırdır.
+Listenin kendisi: satır başına **Açıklama**, **Başlangıç**, **Bitiş** ve bir kaldırma düğmesi; **Tatil ekle** yeni bir satır oluşturur. Çok günlük dönemler (inşaat tatili, don gecikmesi) basitçe daha uzun bir Başlangıç-Bitiş aralığına sahip bir satırdır. Boş bir **Bitiş** tek günlük bir tatil demektir. **Başlangıç** eksikse veya **Bitiş** **Başlangıç** tarihinden önceyse satır bir açıklamayla kırmızı işaretlenir ve siz düzeltene kadar **Uygula** ve **Enter** engelli kalır.

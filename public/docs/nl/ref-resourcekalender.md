@@ -10,8 +10,8 @@ Het venster **Resourcekalender** bewerkt de eigen kalender van één resource �
 ## Verschillen met de kalenderdialoog
 
 - **Eén kalender per keer** — geen bibliotheek-lijst links, geen projectdefault-ster; alleen het formulier.
-- **Toepassen** slaat de kalender op; **Annuleren**, **Esc**, het kruisje of een klik buiten het venster verwerpt de wijzigingen.
-- **Geen automatische herberekening** — een resourcekalender verandert de CPM-datums niet; hij telt mee in de belasting (histogram) en de nivellering, die je zelf opnieuw uitvoert met F5 respectievelijk **Nivelleren…**.
+- **Toepassen** slaat de kalender op; **Annuleren**, **Esc**, het kruisje of een klik buiten het venster verwerpt de wijzigingen. Een nieuwe kalender via **+ Resourcekalender** in de dropdown bestaat pas na **Toepassen** en wordt dan meteen aan de resource gekoppeld (samen één stap voor Ongedaan maken); na **Annuleren** blijft er niets achter. Hij begint met dezelfde standaard als **+** in de kalenderdialoog.
+- **Geen automatische herberekening** — **Toepassen** herberekent de planning niet. In zijn rol als resourcekalender verandert een kalender de CPM-datums niet; hij telt mee in de belasting (histogram) en de nivellering, die je zelf opnieuw uitvoert met F5 respectievelijk **Nivelleren…**. De dropdown biedt wel alle kalenders van het project aan: bewerk je hier een kalender die ook de projectkalender of een taakkalender is, dan verandert de planning wél. Ze wordt dan als verouderd gemarkeerd en F5 rekent haar opnieuw door.
 
 ## Velden
 

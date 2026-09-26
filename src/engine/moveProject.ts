@@ -8,6 +8,7 @@ import {
   parseInstant, formatInstant, addCalendarDays, diffDays, parseDate, type DateMode,
 } from '@/utils/dateUtils';
 import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
+import { isSummaryProgressDerived } from '@/engine/scheduler/summaryProgress';
 
 /**
  * "Project verplaatsen" (pakket D1) — PURE domeintransformatie, geen store-import.
@@ -354,7 +355,8 @@ export interface MoveImpact {
   /** Taken met een harde Mandatory-pin (R4) — hun pin verschuift mee. */
   hardPinCount: number;
   deadlineCount: number;
-  /** Taken met actualStart en/of actualFinish (R5). */
+  /** Taken met een EIGEN actualStart en/of actualFinish (R5). Een fase telt niet: haar werkelijke
+   *  datums zijn afgeleid uit de bladen (`isSummaryProgressDerived`) en schuiven via hen mee. */
   actualCount: number;
   /** Aantal externe koppelingen (R6) — anker schuift mee, bronproject niet. */
   externalLinkCount: number;
@@ -379,7 +381,10 @@ export function computeMoveImpact(
   for (const t of tasks) {
     const hasConstraintDate = isUsableIso(t.constraint?.date) || isUsableIso(t.constraint2?.date);
     const hasDeadline = isUsableIso(t.deadline);
-    const hasActual = isUsableIso(t.time.actualStart) || isUsableIso(t.time.actualFinish);
+    // Een fase (auto-verzameltaak) heeft geen eigen werkelijke datums: de rollup leidt ze af uit de
+    // bladen, die hier al tellen. Meetellen zou elke begonnen fase dubbel melden.
+    const hasActual = !isSummaryProgressDerived(t)
+      && (isUsableIso(t.time.actualStart) || isUsableIso(t.time.actualFinish));
     const links = t.externalLinks?.filter((l) => isUsableIso(l.anchorDate)) ?? [];
     if (
       isUsableIso(t.time.scheduleStart) || isUsableIso(t.time.scheduleFinish) ||

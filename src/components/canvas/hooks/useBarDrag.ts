@@ -12,8 +12,16 @@ import {
   type SplitPiece,
 } from '@/engine/scheduler/splitEdit';
 import type { GanttAxis } from '@/engine/renderer/timeAxis';
-import type { Task } from '@/types/task';
+import type { Task, TaskConstraint } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
+import type { DateNotation } from '@/types/view';
+import type { NotifyInput } from '@/state/slices/types';
+import {
+  constraintBlockingStart,
+  constraintForDraggedStart,
+  type StartConstraintEdit,
+} from '@/engine/startEditConstraint';
+import { notifyStartEdit, type StartEditNotice } from '@/state/startConstraintNotice';
 import { ROW_DRAG_THRESHOLD } from './constants';
 import { hourSnapMinutesFor, snapTimelineDate } from './timelineSnap';
 import { listenWindowDrag } from '@/hooks/listenWindowDrag';
@@ -41,6 +49,24 @@ export interface SplitDragContext {
   eng: CalendarEngine;
   hourMode: boolean;
   coalesceKey: string;
+}
+
+/**
+ * W2-vervolg (besluit eigenaar: "Gantt-slepen = dezelfde regel als typen"): wat bij de START van een
+ * gebaar dat de start verzet (body verschuiven, linkerrand) over de startregel vastligt. Elke
+ * muisbeweging rekent vanaf `original`, zodat terugslepen de oorspronkelijke constraint herstelt en
+ * de melding na loslaten over het netto-resultaat gaat.
+ */
+interface StartRuleGesture {
+  original: Task;
+  /** Bepaalt een voorganger de start (en geldt de startregel dus)? */
+  driven: boolean;
+  /** Houdt een andere constraint de start tegen? Dan verschuift er niets. */
+  blocking?: TaskConstraint;
+  /** Ooit geprobeerd de tegengehouden start te verzetten (voor de melding na loslaten). */
+  blockedTried: boolean;
+  /** De SNET die de laatst toegepaste beweging zette, of niets. */
+  snet?: StartConstraintEdit;
 }
 
 /** Het sleeplabel van een stuk-/stukrandsleep (DOM, zie `GanttCanvas`), in canvascoördinaten. */
@@ -120,6 +146,13 @@ interface UseBarDragOptions {
   setTaskSplits?: (taskId: string, pieces: SplitPiece[] | null, opts?: { coalesceKey?: string }) => unknown;
   /** Bovenkant van de getekende balk in canvascoördinaten, voor het sleeplabel. */
   barTopOf?: (taskId: string) => number | null;
+  /** W2-vervolg: bepaalt een voorganger de start van deze taak (`predecessorDrivenTaskIds`)? Dan volgt
+   *  een gesleepte start dezelfde regel als een getypte (`constraintForDraggedStart`,
+   *  `constraintBlockingStart`). Afwezig ⇒ nooit (gedrag van vóór de regel). */
+  isStartDrivenByPredecessor?: (taskId: string) => boolean;
+  /** Het ene meldkanaal en de datumnotatie voor de startmelding na het loslaten. */
+  notify?: (notification: NotifyInput) => void;
+  dateNotation?: DateNotation;
 }
 
 // Balk-sleep (resize links/rechts + verplaatsen), dag- én uur-taken. Bezit zijn eigen `dragState`
@@ -143,7 +176,11 @@ interface UseBarDragOptions {
 // laatste stuk: de duur verandert mee). Beide rekenen via `splitEdit.ts` vanaf een bevroren
 // `pieces0` en committen per mousemove via `setTaskSplits` met één coalesce-key per gebaar. Stuk 0
 // (body en linkerrand) en elke ongesplitste balk lopen over de bestaande code hieronder.
-export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, calendar, effectiveCalById, compressNonWorkdays, getTask, updateTask, onVerticalBodyDrag, axis, canvasRef, setTaskSplits, barTopOf }: UseBarDragOptions) {
+export function useBarDrag({
+  zoom, enableQuarterHourZoom, enableHourPlanning, calendar, effectiveCalById, compressNonWorkdays, getTask,
+  updateTask, onVerticalBodyDrag, axis, canvasRef, setTaskSplits, barTopOf, isStartDrivenByPredecessor,
+  notify, dateNotation = 'dmy',
+}: UseBarDragOptions) {
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [splitLabel, setSplitLabel] = useState<SplitDragLabel | null>(null);
   // De kaart met effectieve taakkalenders verandert ook wanneer een live drag de taak muteert. Het
@@ -163,6 +200,9 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
   // in `handleMouseMove`). Ook deze mag een effectherstart niet resetten, anders wordt dezelfde
   // verschuiving na de herstart nog een keer gecommit.
   const lastAppliedDeltaRef = useRef(0);
+  // De startregel van dit gebaar (zie `StartRuleGesture`). Net als de refs hierboven hoort hij bij
+  // het GEBAAR: een effectherstart halverwege mag hem niet resetten.
+  const startRuleRef = useRef<StartRuleGesture | null>(null);
   const hourSnapMinutes = hourSnapMinutesFor(zoom, enableQuarterHourZoom, enableHourPlanning);
   const snapAt = useCallback(
     (x: number, hourMode: boolean) => snapTimelineDate(axis, x, hourMode, hourSnapMinutes),
@@ -201,12 +241,19 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
     const pointerStart = rect ? axis.xToDate(next.startX - rect.left) : undefined;
     const split = prepareSplitDrag(next, rect ? next.startX - rect.left : null);
     undoKeyRef.current = split ? split.coalesceKey : `bardrag:${next.taskId}:${++dragSeq}`;
+    // Alleen body en linkerrand verzetten de start; een stuksleep en de rechterrand niet.
+    const original = getTask(next.taskId);
+    const driven = !split && next.edge !== 'right' && !!original
+      && (isStartDrivenByPredecessor?.(next.taskId) ?? false);
+    startRuleRef.current = original && driven
+      ? { original, driven, blocking: constraintBlockingStart(original, driven), blockedTried: false }
+      : null;
     // Eén gebaar = één richtingskeuze. Alleen hier resetten.
     directionRef.current = 'undecided';
     lastAppliedDeltaRef.current = 0;
     setSplitLabel(null);
     setDragState({ ...next, pointerStart, split });
-  }, [axis, canvasRef, prepareSplitDrag]);
+  }, [axis, canvasRef, prepareSplitDrag, getTask, isStartDrivenByPredecessor]);
 
   // Automatisch berekenen wacht tot de sleep af is: elke mousemove commit, en een CPM-run midden in
   // het gebaar liet de balk onder de muis verspringen. Het effect laat ook los bij een afgebroken
@@ -247,6 +294,26 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
     // dagen omgezet.
     const quantumMin = hourSnapMinutesFor(zoom, enableQuarterHourZoom, enableHourPlanning);
 
+    // De constraint bij een gesleepte start `start` (dezelfde regel als typen): een SNET, of — terug
+    // op de oorspronkelijke start — weer de oorspronkelijke constraint. Leeg zonder startregel, zodat
+    // de sleep voor alle andere taken byte-identiek blijft.
+    const constraintForStart = (start: string): Partial<Task> => {
+      const rule = startRuleRef.current;
+      if (!rule) return {};
+      const hadSnet = rule.snet !== undefined;
+      rule.snet = constraintForDraggedStart(rule.original, start, rule.driven);
+      if (rule.snet) return { constraint: rule.snet.constraint };
+      return hadSnet ? { constraint: rule.original.constraint } : {};
+    };
+    // Houdt een andere constraint de start tegen? Dan past deze beweging niets toe (ook geen dood
+    // anker); na het loslaten volgt één melding.
+    const startBlocked = (moved: boolean): boolean => {
+      const rule = startRuleRef.current;
+      if (!rule?.blocking) return false;
+      if (moved) rule.blockedTried = true;
+      return true;
+    };
+
     const handleHourDrag = (event: MouseEvent) => {
       const canvas = canvasRef.current;
       const rect = canvas?.getBoundingClientRect();
@@ -276,6 +343,7 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
       });
       const nextStart = formatInstant(result.start, 'hour');
       const nextFinish = formatInstant(result.finish, 'hour');
+      if (dragState.edge !== 'right' && startBlocked(nextStart !== dragState.originalStart)) return;
       if (baseTime.scheduleStart === nextStart && baseTime.scheduleFinish === nextFinish
         && baseTime.durationMinutes === result.durationMinutes) return;
       updateTask(dragState.taskId, {
@@ -287,6 +355,7 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
           earlyFinish: nextFinish,
           durationMinutes: result.durationMinutes,
         },
+        ...(dragState.edge !== 'right' ? constraintForStart(nextStart) : {}),
       }, { coalesceKey: undoKey });
     };
 
@@ -347,6 +416,7 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
             startClientY: dragState.startY,
           });
           undoKeyRef.current = null;
+          startRuleRef.current = null;
           setDragState(null);
           return;
         }
@@ -374,6 +444,8 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
       const currentTime = getTask(dragState.taskId)?.time;
       if (!currentTime) return;
 
+      if (dragState.edge !== 'right' && startBlocked(daysDelta !== 0)) return;
+
       if (dragState.edge === 'body') {
         // Move entire task. Issue #21 punt 5 (review §10.3): onder compressie stelt `daysDelta`
         // GETOONDE kolommen = WERKdagen voor, niet kalenderdagen — `shiftByDisplayedColumns` schuift
@@ -389,6 +461,7 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
             earlyStart: formatDate(newStart),
             earlyFinish: formatDate(newFinish),
           },
+          ...constraintForStart(formatDate(newStart)),
         }, { coalesceKey: undoKey });
       } else if (dragState.edge === 'right') {
         // Resize from right (change duration/finish). Bereken de duur uit de rauwe sleep-datum,
@@ -427,12 +500,25 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
             earlyStart: formatDate(canonStart),
             scheduleDuration: newDuration,
           },
+          ...constraintForStart(formatDate(canonStart)),
         }, { coalesceKey: undoKey });
       }
     };
 
     const handleMouseUp = () => {
       undoKeyRef.current = null;
+      // Eén melding per gebaar, over het netto-resultaat: de gezette SNET, of de constraint die de
+      // start tegenhield. Dezelfde meldingen als bij typen (`startEditNotifications`).
+      const rule = startRuleRef.current;
+      startRuleRef.current = null;
+      if (rule && notify) {
+        const notices: StartEditNotice[] = rule.blocking
+          ? (rule.blockedTried ? [{ kind: 'blocked', name: rule.original.name, constraint: rule.blocking }] : [])
+          : rule.snet?.constraint.date
+            ? [{ kind: 'snet', name: rule.original.name, date: rule.snet.constraint.date, change: rule.snet.change }]
+            : [];
+        notifyStartEdit(notify, notices, dateNotation);
+      }
       setSplitLabel(null);
       setDragState(null);
     };
@@ -454,6 +540,8 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
     setTaskSplits,
     barTopOf,
     snapAt,
+    notify,
+    dateNotation,
   ]);
 
   return { dragState, startBarDrag, splitLabel, active: !!dragState };
