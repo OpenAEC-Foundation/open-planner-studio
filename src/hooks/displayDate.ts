@@ -4,7 +4,7 @@ import type { DateNotation } from '@/types/view';
 import { displayDate, displayDateTime } from '@/utils/displayDate';
 
 /**
- * React-hooks rond de datum-weergaveformatters (taak #53). Deze leven in `src/hooks/` (niet in
+ * React-hooks rond de datum-weergaveformatters. Deze leven in `src/hooks/` (niet in
  * `src/utils/`) omdat ze op de Zustand-store subscriben; de pure formatters zelf blijven in
  * `@/utils/displayDate`.
  */

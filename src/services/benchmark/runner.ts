@@ -1,4 +1,4 @@
-// Benchmark-runner (pakket S). Draait een meetreeks over vijf fasen op lokaal gegenereerde data en
+// Benchmark-runner. Draait een meetreeks over vijf fasen op lokaal gegenereerde data en
 // rapporteert per fase mediaan/min/max (`performance.now()`). ISOLATIE: raakt de store/het open
 // project NIET aan — de engine-klassen (CalendarEngine/CPMSolver), writeIFC/readIFC en GanttRenderer
 // worden rechtstreeks op de gegenereerde `ImportResult` aangeroepen. Tussen de fasen (en tussen
@@ -8,10 +8,8 @@
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
-// K-item 30: hier stond een eigen kopie van het terugschrijven, die al was gedivergeerd
-// (miste interferingFloat, isNearCritical, floatPath, de late-datum-rollup, de
-// min-over-kinderen voor tf/ff en de uur-modus). De benchmark mat daardoor niet meer wat
-// de app doet — precies het soort meting waar je beslissingen op baseert.
+// Hetzelfde terugschrijven als de app (`applyCpmResult`), geen eigen kopie: anders meet de
+// benchmark niet meer wat de app doet.
 import { applyCpmResult } from '@/engine/scheduler/applyCpmResult';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFCWithXerReconstruction } from '@/services/formatRegistry';
@@ -51,7 +49,7 @@ export interface BenchmarkResult {
   renderRows: number;
   renderWidth: number;
   renderHeight: number;
-  /** False ⇒ er was geen 2D-canvascontext; de render-fase kon niet draaien (audit-punt 4). */
+  /** False ⇒ er was geen 2D-canvascontext; de render-fase kon niet draaien. */
   renderAvailable: boolean;
   phases: PhaseResult[];
   version: string;
@@ -134,7 +132,7 @@ export async function runBenchmark({ size, version, resourceCount, onProgress }:
   phases.push({ phase: 'generate', iterations: genIters, ...stats(genSamples) });
 
   // Leaf-taken = taken zonder kinderen; dit is EXACT het criterium dat de generator ook voor
-  // `data.leafCount` gebruikt (audit-punt 5), zodat het gerapporteerde aantal overeenkomt met
+  // `data.leafCount` gebruikt, zodat het gerapporteerde aantal overeenkomt met
   // wat de CPM-fase daadwerkelijk verwerkt.
   const leafTasks = data.tasks.filter(isLeafTask);
   // Samenvattingsrelatie-propagatie (zie `scheduleSlice.runCPM`): de generator maakt vandaag alleen
@@ -150,10 +148,10 @@ export async function runBenchmark({ size, version, resourceCount, onProgress }:
   let lastResult: CPMResult | null = null;
   for (let i = 0; i < cpmIters; i++) {
     report('cpm', 1, i + 1, cpmIters);
-    // Rekenprofielen C5: dezelfde projectinvoer als F5 (was: lege opties). Kalenderregister: de
+    // Rekenprofielen: dezelfde projectinvoer als F5. Kalenderregister: de
     // benchmarkdata kent geen kalenderlijst, alleen `data.calendar`; die geven we als register mee
     // (net als `applyCpmResult` hieronder) — voor dit ééncalenderproject is dat wat F5 met
-    // `s.calendars` doet (Fable-critreview PR #109).
+    // `s.calendars` doet.
     const solver = new CPMSolver(leafTasks, expandedSequences, data.calendar, [data.calendar], solveOptionsFor(data.project));
     const t0 = performance.now();
     lastResult = solver.solve();
@@ -230,7 +228,7 @@ export async function runBenchmark({ size, version, resourceCount, onProgress }:
   if (renderAvailable) {
     for (let i = 0; i < renderIters; i++) {
       report('render', 4, i + 1, renderIters);
-      // Constructie BUITEN de timing (audit-punt 3): net als de CPMSolver-constructie hierboven
+      // Constructie BUITEN de timing: net als de CPMSolver-constructie hierboven
       // meten we alleen het eigenlijke werk — hier `render()` — niet het opbouwen van de renderer.
       const renderer = new GanttRenderer(ctx2d, opts);
       const t0 = performance.now();
@@ -240,7 +238,7 @@ export async function runBenchmark({ size, version, resourceCount, onProgress }:
     }
     phases.push({ phase: 'render', iterations: renderSamples.length, ...stats(renderSamples) });
   } else {
-    // Geen 2D-context: luid falen (audit-punt 4) — 0 iteraties + `renderAvailable:false`, zodat de
+    // Geen 2D-context: luid falen — 0 iteraties + `renderAvailable:false`, zodat de
     // dialoog/markdown een expliciete "render niet beschikbaar"-melding tonen i.p.v. stille 0,00 ms.
     phases.push({ phase: 'render', iterations: 0, median: NaN, min: NaN, max: NaN });
   }
@@ -266,8 +264,8 @@ export async function runBenchmark({ size, version, resourceCount, onProgress }:
   };
 }
 
-/** Engelse detail-tekst per fase, opgebouwd uit de gestructureerde velden (audit-punt 1) — geen
- *  hardgecodeerde runner-strings meer. De dialoog rendert dezelfde data via `t(...)`; deze functie
+/** Engelse detail-tekst per fase, opgebouwd uit de gestructureerde velden — geen
+ *  hardgecodeerde runner-strings. De dialoog rendert dezelfde data via `t(...)`; deze functie
  *  is bewust i18n-vrij Engels zodat de export universeel deelbaar is. */
 export function phaseDetailEnglish(phase: PhaseId, r: BenchmarkResult): string {
   switch (phase) {

@@ -31,7 +31,7 @@ export interface XerTableReportMetadata {
     ignoredLines?: number;
   }>;
   unknownTables: Array<{ name: string; rows: number }>;
-  /** Additief sinds XER-exportverlies fixronde 2; afwezig in oudere ingebedde bronarchieven. */
+  /** Optioneel: ontbreekt in oudere ingebedde bronarchieven. */
   unknownFields?: Array<{ table: string; name: string; rows: number }>;
 }
 
@@ -74,7 +74,7 @@ export interface XerScheduleOptionsDiagnostic {
 }
 
 /**
- * Bestandsbreed XER-bronarchief voor X5 en de geplande X9-native opslag. PROJECT- en
+ * Bestandsbreed XER-bronarchief (bronbewijs per document). PROJECT- en
  * SCHEDOPTIONS-rijen worden precies eenmaal gekopieerd. Projectmetadata verwijst met indexen naar
  * deze ene bron; verweesde SCHEDOPTIONS-rijen blijven daardoor zichtbaar zonder aan een verkeerd
  * project te worden toegeschreven.
@@ -85,7 +85,7 @@ export interface XerScheduleOptionsSourceArchive {
   diagnostics: XerScheduleOptionsDiagnostic[];
 }
 
-/** Neutraal documentcontract voor X5-bronbewijs. Dit staat bewust buiten de lazy XER-chunk:
+/** Neutraal documentcontract voor het XER-bronbewijs. Dit staat bewust buiten de lazy XER-chunk:
  * algemene document-/recoverycode mag het type kennen zonder de reader statisch te laden. */
 export interface XerScheduleOptionsMetadata {
   source: 'schedoptions' | 'xer-defaults';
@@ -139,15 +139,15 @@ export interface XerImportReport {
   baselineFallbackReasons: XerBaselineFallbackReason[];
 }
 
-/** X6-bronbewijs. De catalogus is één bestandsbreed, immutable object; per document blijft alleen
- * de gefilterde TASKRSRC-view over. X9 bepaalt later de exacte serialisatie naar IFC/recovery. */
+/** TASKRSRC-bronbewijs. De catalogus is één bestandsbreed, immutable object; per document blijft
+ * alleen de gefilterde TASKRSRC-view over. */
 export interface XerResourceMetadata {
   catalog: XerResourceCatalog;
   assignments: XerTaskResourceSource[];
   issues: XerResourceIssue[];
 }
 
-/** X8-bronbewijs: één readonly catalogus per geopend XER-bestand; projectvelden zijn losse views. */
+/** Bronbewijs: één readonly catalogus per geopend XER-bestand; projectvelden zijn losse views. */
 export interface XerMetadataMetadata {
   catalog: XerMetadataCatalog;
 }
@@ -160,23 +160,22 @@ export interface XerImportMetadata {
   tableReport: XerTableReportMetadata;
   calendarIssues: XerCalendarIssueMetadata[];
   enumFallbacks: XerEnumFallback[];
-  /** X5: afleidingsbron, terugvallen en retained/TODO-waarden van precies dit project. */
+  /** Afleidingsbron, terugvallen en retained/TODO-waarden van precies dit project. */
   scheduleOptions: XerScheduleOptionsMetadata;
   externalRelations: XerExternalRelation[];
   /** Canonieke cross-documentlinks waarbij dit document een eindpunt is; nooit solverinvoer. */
   externalLinks: XerDocumentExternalLink[];
-  /** Bestandsbreed verslag, bewust ook documentgebonden zodat X10 het na openen kan consumeren. */
+  /** Bestandsbreed verslag, bewust ook documentgebonden zodat het na openen nog te consumeren is. */
   report: XerImportReport;
-  /** X6 retained-data; baseline- en unscoped TASKRSRC-rijen blijven uitsluitend catalogusdata voor X9. */
+  /** Retained-data; baseline- en unscoped TASKRSRC-rijen blijven uitsluitend catalogusdata. */
   resources?: XerResourceMetadata;
-  /** X8 retained-data; X9 bepaalt de definitieve documentcontract-/IFC-serialisatie. */
+  /** Retained-data (bronbewijs, geen solverinvoer). */
   metadata?: XerMetadataMetadata;
 }
 
 /**
- * Eén gedeelde payload-vorm voor een ingelezen project (audit P1). De vier readers (`readIFC`,
- * `readMSPDI`, `readP6XML`, `readCSV`) gaven elk een eigen ad-hoc objectvorm terug (11/9/7/6
- * velden), die de store met `as`-casts moest verzoenen. Nu retourneren ze allemaal dit type:
+ * Eén gedeelde payload-vorm voor een ingelezen project; alle readers retourneren dit type, zodat de
+ * store geen `as`-casts nodig heeft:
  *
  *  - De **kernvelden** levert elk formaat altijd.
  *  - De **optionele velden** levert niet elk formaat: CSV/P6 kennen bv. geen baselines, alleen
@@ -206,9 +205,9 @@ export interface ImportLabels {
   importedProject?: string;
   /**
    * Naam voor de ingebouwde "niet-toegewezen"-resource (MPP-uniqueID 0 — MS Project schrijft die
-   * altijd mee, ook in zijn eigen MSPDI-export als "Niet toegekend"; T7-spec-review, B3). Zelfde
-   * DATA-stempel-redenering als `importedProject`. Engelse default `'Unassigned'` — de vertaalde
-   * doorgifte volgt via T8, net als de andere `ImportLabels`-velden.
+   * altijd mee, ook in zijn eigen MSPDI-export als "Niet toegekend"). Zelfde DATA-stempel-redenering
+   * als `importedProject`. Engelse default `'Unassigned'`; de vertaalde tekst komt uit
+   * `i18n/importLabels.ts`.
    */
   unassignedResource?: string;
 }
@@ -233,59 +232,48 @@ export interface ImportResult {
   customTaskTypes?: CustomTaskType[];
   baselines?: Baseline[];
   activeBaselineId?: string | null;
-  /** OPTIONEEL — een pool-bestand (spec B1, §4) draagt zijn autoritatieve pool-JSON in het
+  /** OPTIONEEL — een pool-bestand draagt zijn autoritatieve pool-JSON in het
    *  OPS_Library-pset; een gewoon projectbestand niet. Afwezig ⇒ geen pool-bestand. */
   libraryPool?: CompanyPool;
   /**
-   * OPTIONEEL — T12 (datumgetrouwheid-etappe, §9/O1), HERZIEN door Z16 (etappe "nul afwijkingen").
-   * Telling van taken met een aantoonbaar onderbroken, genivelleerde of resource-gedreven
+   * OPTIONEEL — telling van taken met een aantoonbaar onderbroken, genivelleerde of resource-gedreven
    * (timephased/contouring) planning in het bronbestand. Alleen `readMPP`
-   * (`services/mpp/mppReader.ts`) vult dit vooralsnog — de andere lezers laten het weg.
+   * (`services/mpp/mppReader.ts`) vult dit — de andere lezers laten het weg.
    * Uitsluitend een IMPORT-TIJD-telling voor de eenmalige meldingen bij openen (`fileSlice.ts`,
    * patroon `summaryRelationsDropped`); GEEN persistent taakveld en dus geen documentcontract-
-   * impact (§9/O3) — een taak die zo gemarkeerd was, verliest die markering bij de eerstvolgende
+   * impact — een taak die zo gemarkeerd was, verliest die markering bij de eerstvolgende
    * opslaan/heropenen-cyclus, en dat is bewust zo.
    *
-   * Z16: vóór deze etappe was dit `{ leveled, spanGt }` — `spanGt` was een AFGELEIDE PROXY (het
-   * MSP-eigen venster tussen start en finish, geteld in werkminuten, groter dan de MSP-eigen
-   * opgeslagen duur), nodig omdat splits en timephased-vensters toen nog niet zelf leesbaar waren.
-   * Sinds Z4 (`Task.splitGaps`) en Z8 (`Task.timephasedFinishFloor`/`timephasedDurationWalks`) zijn
-   * beide ECHT leesbaar — de proxy is vervangen door drie ECHTE tellingen, één per categorie uit de
-   * meldingstekst: `leveled` (`Task.levelingDelayMinutes` gezet), `split` (`Task.splitGaps` niet-
-   * leeg), `timephased` (`Task.timephasedFinishFloor` of `Task.timephasedDurationWalks` gezet).
-   * `total` blijft de VERENIGING van alle drie (een taak die meerdere signalen draagt telt in
-   * `total` maar één keer) — dat is het getal dat de melding toont. Zie `countScheduleNotes` in
-   * `mppReader.ts` voor de implementatie en `mpp14resource.mpp`'s "Contoured Task" (nu WEL geteld,
-   * via `timephased`) voor het gevolg: de vroegere "resource-contouring niet betrouwbaar
-   * detecteerbaar"-beperking is met de echte telling opgelost voor elke taak die een échte,
-   * gedecodeerde timephased-periode draagt.
+   * Drie tellingen, één per categorie uit de meldingstekst: `leveled` (`Task.levelingDelayMinutes`
+   * gezet), `split` (`Task.splitGaps` niet-leeg), `timephased` (`Task.timephasedFinishFloor` of
+   * `Task.timephasedDurationWalks` gezet). `total` is de VERENIGING van alle drie (een taak met
+   * meerdere signalen telt maar één keer) — dat is het getal dat de melding toont. Implementatie:
+   * `countScheduleNotes` in `mppReader.ts`.
    */
   sourceScheduleNotes?: { total: number; leveled: number; split: number; timephased: number };
 
   /** OPTIONEEL — per taak-id welke IfcTaskTime-slots het bestand daadwerkelijk vulde: de zeven
    *  REKENSLOTS (`RECORDED_SLOT_KEYS`) én de twee INVOERSLOTS ScheduleStart/ScheduleFinish
    *  (`RECORDED_INPUT_SLOT_KEYS`) — de laatste twee zijn nodig als terugval-anker wanneer de
-   *  rekenslots leeg zijn (issue #63). Alleen `readIFC` levert dit; CSV/MSPDI/P6/extensie-import
+   *  rekenslots leeg zijn. Alleen `readIFC` levert dit; CSV/MSPDI/P6/extensie-import
    *  kennen geen IfcTaskTime-slots en laten het weg. Nodig omdat `parseDateFromIFC` een `$`-slot als
    *  "vandaag" inleest — na het parsen is een leeg slot niet meer van een echte datum te
    *  onderscheiden. Een taak-id ZONDER IfcTaskTime krijgt een lege array (niet: ontbrekende sleutel)
    *  — "geen enkel slot gevuld" is een uitspraak, "onbekend" niet. */
   recordedFields?: Record<string, RecordedFieldKey[]>;
-  /** BAK 4 (XER-etappeplan §4.1, bijgesteld 2026-09-04 — X-O7 laag 3) — uitsluitend
-   *  weergave/meetlat, NOOIT solverinvoer. Per taak-id de rekenuitvoer die de BRON zelf opsloeg:
-   *  voor XER de zes kolommen `early_start_date`/`early_end_date`/`late_start_date`/
+  /** Uitsluitend weergave/meetlat, NOOIT solverinvoer. Per taak-id de rekenuitvoer die de BRON zelf
+   *  opsloeg: voor XER de zes kolommen `early_start_date`/`early_end_date`/`late_start_date`/
    *  `late_end_date`/`total_float_hr_cnt`/`free_float_hr_cnt` (`xerRecordedTimes.ts`), omgerekend
    *  naar dezelfde `RecordedTime`-vorm als de IFC-route (`src/engine/scheduler/recordedDates.ts`)
-   *  gebruikt — dat type wordt hier HERGEBRUIKT, niet gedupliceerd. Alleen `readXER` vult dit
-   *  vooralsnog (en straks de archief-reconstructie in `readIFC`, taak T5); nooit gelezen door
+   *  gebruikt — dat type wordt hier HERGEBRUIKT, niet gedupliceerd. Gevuld door `readXER` en door
+   *  `readIFC` wanneer die het uit een meegereisd XER-bronarchief reconstrueert; nooit gelezen door
    *  `solveProject`, nooit geschreven naar `Task.time` door een lezer. `captureRecordedDates`
    *  gebruikt dit kanaal — indien aanwezig — MET VOORRANG boven `recordedFields` hierboven; de
-   *  twee kanalen worden nooit gemengd (een XER-import heeft geen `recordedFields`, een
-   *  IFC-import geen `recordedTimes`). */
+   *  twee kanalen worden nooit gemengd. */
   recordedTimes?: Record<string, RecordedTime>;
   /** Herkomst van de VASTLEGGING (`recordedTimes`, of voor IFC `recordedFields`) — stuurt het
-   *  standaard-aan-beleid voor "datums zoals opgeslagen" (eigenaarsbesluit 2026-09-09: "het moet
-   *  altijd gaan zoals het nu bij XER werkt", plus heropen-beleid optie B).
+   *  standaard-aan-beleid voor "datums zoals opgeslagen" (voor elke bron zoals bij XER, plus het
+   *  heropen-beleid hieronder).
    *  - VERSE IMPORT — `'xer'`, `'p6xml'`, `'mspdi'`, `'mpp'`, `'csv'` en `'ifc'` (een IFC dat
    *    NIET door deze app is geschreven): standaard AAN zodra er restverschillen zijn.
    *  - HEROPENING — `'xer-archive'` (eigen IFC mét XER-bronarchief) en `'ifc-own'` (eigen IFC
@@ -294,25 +282,25 @@ export interface ImportResult {
    *    bewerkte en opgeslagen planning mag bij heropenen niet stilzwijgend de oude brondatums
    *    tonen.
    *  - `undefined`: geen herkomst (bv. een extensie-importer).
-   *  BEPERKT door het eigenaarsbesluit 2026-09-24 ("beperken"): alleen een bron met echte
+   *  BEPERKT: alleen een bron met echte
    *  rekenuitvoer krijgt de modus, het aanbod of de melding — zie de ene poort
    *  `recordedDatesSource` (`src/state/documentActivation.ts`). 'csv', `undefined`, een 'ifc' met
    *  alleen ScheduleStart/-Finish en een 'ifc-own' zonder `recordedSourceFormat` vallen erbuiten.
    *  `applyRecordedDatesOnLoad` (`src/state/documentActivation.ts`) is de enige plek die op dit
    *  onderscheid let; `recordedDatesNoticeText.ts` kiest er alleen de WOORDKEUZE op. */
   recordedTimesOrigin?: RecordedTimesOrigin;
-  /** "Ongewijzigd sinds import" (heropen-beleid optie B, eigenaarsbesluit 2026-09-09). Alleen
+  /** "Ongewijzigd sinds import" (heropen-beleid). Alleen
    *  gevuld door `readIFC` uit het `OPS_ImportProvenance`-pset van een EIGEN IFC; `true` betekent
    *  dat het document tussen de oorspronkelijke import en dit opslaan geen enkele bewerking heeft
    *  gehad (opslaan zelf telt niet als bewerking). Afwezig ⇒ `false` voor een heropening (nooit
    *  een gok), en irrelevant voor een verse import (die is per definitie ongewijzigd — zie
    *  `payloadFromImport`). Elke mutator wist de vlag via `markDocumentEdited`. */
   importPristine?: boolean;
-  /** Eigenaarsbesluit 2026-09-24 ("beperken"): de OORSPRONKELIJKE bron van de vastlegging in een
+  /** De OORSPRONKELIJKE bron van de vastlegging in een
    *  EIGEN IFC — alleen gevuld door `readIFC` uit `OPS_ImportProvenance.SourceFormat`. Een eigen IFC
    *  zonder deze uitspraak vergelijkt onze eigen oude solve met de nieuwe en krijgt geen modus. */
   recordedSourceFormat?: RecordedSourceFormat;
-  /** Rekenprofielen (spec v3.1 §6): welk ingebouwd profiel deze LEZER voorstelt. Gezet door de
+  /** Rekenprofielen: welk ingebouwd profiel deze LEZER voorstelt. Gezet door de
    *  formaatlezers (XER ⇒ 'p6', `.mpp` ⇒ 'msproject', MSPDI/P6-XML/CSV ⇒ 'ops'); afwezig bij IFC
    *  (het bestand draagt zijn eigen profiel) en bij extensie-importers. `applyOpenedImport` meldt
    *  alleen bij een voorstel ≠ 'ops' (C6). Het profiel zelf staat al op `project.schedulingProfile`. */
@@ -322,7 +310,7 @@ export interface ImportResult {
   /** Herkomst van `xer`: `'xer-archive'` wanneer `readIFC` de metadata uit het meegereisde
    *  bronarchief van een HEROPENDE IFC reconstrueert; afwezig bij een verse `readXER`. De
    *  XER-openingsmelding (`xerImportNotice`) vuurt alleen bij een verse XER-import — heropenen uit
-   *  eigen IFC meldt niets (gebruikstest rekenprofielen 24-09, B4). Afwezig wanneer `readIFC` een
+   *  eigen IFC meldt niets. Afwezig wanneer `readIFC` een
    *  onbruikbaar archief weggelaten heeft (`xerArchiveIssue`): dan is er geen `xer` en dus ook
    *  geen archiefherkomst. */
   xerOrigin?: 'xer-archive';
@@ -340,8 +328,8 @@ export interface ImportResult {
 }
 
 /**
- * Waarom een aanwezig XER-bronarchief bij het openen van een IFC onbruikbaar was (eigenaarsbesluit
- * 2026-09-24, "openen met melding"). Het archief is een sidecar, geen fundament: het project zelf
+ * Waarom een aanwezig XER-bronarchief bij het openen van een IFC onbruikbaar was ("openen met
+ * melding"). Het archief is een sidecar, geen fundament: het project zelf
  * (taken, relaties, kalenders, resources, reken-opties) komt volledig uit het IFC en opent gewoon;
  * alleen het archief — en alles wat daaruit leest — valt weg. Dit signaal is verplicht: een archief
  * dat stil verdwijnt zou de gebruiker laten denken dat het bestand nooit een XER-bron had.
@@ -368,7 +356,7 @@ export const XER_ARCHIVE_ISSUE_CODES: readonly XerArchiveIssueCode[] = [
 
 export interface XerArchiveIssue {
   readonly code: XerArchiveIssueCode;
-  /** Technische, BEWUST onvertaalde reden uit de validator (zoals `IfcParseError.message` vroeger). */
+  /** Technische, BEWUST onvertaalde reden uit de validator. */
   readonly detail: string;
 }
 

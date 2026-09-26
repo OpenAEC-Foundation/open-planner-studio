@@ -1,4 +1,4 @@
-// Deterministische testproject-generator voor de ingebouwde benchmark-tool (pakket S).
+// Deterministische testproject-generator voor de ingebouwde benchmark-tool.
 //
 // PUUR: geen store-/React-imports. Levert een `ImportResult` (= `WriteIFCInput`) zodat de
 // gegenereerde data 1-op-1 door `writeIFC` én rechtstreeks door `CPMSolver`/`GanttRenderer` kan —
@@ -150,7 +150,7 @@ export function generateBenchmarkProject(size: number, opts: BenchmarkOptions = 
   const nSubSummaries = nSummaries - nTopSummaries;
 
   const tasks: Task[] = [];
-  // O(1)-lookup i.p.v. `tasks.find(...)` (audit-punt 6): elke taak wordt bij aanmaak geïndexeerd.
+  // O(1)-lookup i.p.v. `tasks.find(...)`: elke taak wordt bij aanmaak geïndexeerd.
   // De volgorde van aanmaken/rnd()-aanroepen blijft exact gelijk ⇒ de gegenereerde output is
   // bit-identiek, alleen de opzoekingen zijn nu constant i.p.v. lineair.
   const taskById = new Map<string, Task>();
@@ -366,9 +366,9 @@ export function generateBenchmarkProject(size: number, opts: BenchmarkOptions = 
     resources,
     assignments,
     // Leaf-taken = taken zonder kinderen — EXACT hetzelfde criterium als waarop de solver in
-    // `runner.ts` rekent (audit-punt 5). Dit telt ook een eventuele verzameltaak die (door de
-    // willekeurige verdeling) geen kinderen kreeg, zodat het gerapporteerde aantal en het aantal
-    // dat de CPM-fase daadwerkelijk verwerkt niet meer uiteenlopen (geen "91 vs 90").
+    // `runner.ts` rekent. Dit telt ook een eventuele verzameltaak die (door de willekeurige
+    // verdeling) geen kinderen kreeg, zodat het gerapporteerde aantal en het aantal dat de CPM-fase
+    // daadwerkelijk verwerkt niet uiteenlopen.
     leafCount: tasks.filter(isLeafTask).length,
   };
 }

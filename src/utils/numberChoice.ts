@@ -1,12 +1,9 @@
 /**
  * Eén antwoord op de vraag "wat doe je met een getal dat buiten de toegestane keuzelijst valt?".
  *
- * Aanleiding (hyperkritische review, ronde 2): er stonden drie verschillende antwoorden in de
- * codebase voor exact dezelfde situatie — de settings-loader SNAPTE (108 → 110), de rapport-loader
- * VERWIERP (108 → default 100) en de render-engine KLEMDE op het bereik (108 → 108, en tekende dus
- * op een grootte die geen enkele Select kan tonen). Twee van die drie functies heetten bovendien
- * allebei `parseNumberChoice`. Deze module is het enige antwoord: snappen naar de dichtstbijzijnde
- * toegestane waarde.
+ * Deze module is het enige antwoord: snappen naar de dichtstbijzijnde toegestane waarde — gedeeld
+ * door de settings-loader, de rapport-loader en de render-engine, zodat die niet elk een eigen regel
+ * (snappen/verwerpen/klemmen) hanteren.
  *
  * Waarom snappen en niet verwerpen: een waarde buiten de lijst is meestal een handmatig bewerkte of
  * half-gemigreerde voorkeur, geen rommel. Snappen behoudt de bedoeling van de gebruiker ("iets

@@ -1,27 +1,27 @@
 /**
- * Duur-parser en -formatter (fase 2.8b, §6.4/§6.5).
+ * Duur-parser en -formatter.
  *
- * BINDENDE USER-REGEL (hele-eenheden-besluit, recenter dan het ontwerpdoc): een duur is
+ * BINDENDE REGEL (hele eenheden): een duur is
  * uitsluitend een GEHEEL aantal dagen en/of GEHELE uren (en/of GEHELE minuten). Decimalen
  * (bv. "2.5d", "1,5u") zijn een parse-fout — géén stille conversie naar fractionele dagen.
- * Een NAAKT geheel getal = werkdagen (§6.4, Bevinding 10). NL- en EN-suffixen: `d` (dagen),
+ * Een NAAKT geheel getal = werkdagen. NL- en EN-suffixen: `d` (dagen),
  * `u`/`h` (uren), `m` (minuten).
  *
- * De interne bron-van-waarheid voor duur is integer MINUTEN (§2.1); `effHoursPerDay` is de
- * dag↔minuut-factor (een dag = `effHoursPerDay × 60` minuten, §2.3 — nooit
+ * De interne bron-van-waarheid voor duur is integer MINUTEN; `effHoursPerDay` is de
+ * dag↔minuut-factor (een dag = `effHoursPerDay × 60` minuten — nooit
  * `workEndHour − workStartHour`).
  *
  * Afwijzing gebeurt via een `null`-return (geen throw), zodat de UI een inline-fout kan tonen.
  */
 
-/** Weergave-eenheid voor `formatDuration` (§6.5 Duurweergave). */
+/** Weergave-eenheid voor `formatDuration` (Duurweergave). */
 export type DurationUnit = 'days' | 'hours' | 'auto';
 
 /**
- * Vertaalde eenheid-afkortingen voor de WEERGAVE (fase 2.8b QA-golf, §6.4/§11 open punt). De engine-laag
+ * Vertaalde eenheid-afkortingen voor de WEERGAVE. De engine-laag
  * (`durationFormat.ts`) blijft PUUR — geen i18n-import; de UI geeft de vertaalde suffixen als parameter door
  * (licht adapter-laagje, `durationSuffixesFrom(t)` in `taskDuration.ts`). Default = NL `d`/`u`/`m`, zodat
- * bestaande aanroepers (harness-checks, edit-seeds die weer PARSEBAAR moeten zijn) byte-identiek blijven.
+ * aanroepers zonder suffixen (harness-checks, edit-seeds die weer PARSEBAAR moeten zijn) de parsebare vorm krijgen.
  */
 export interface DurationSuffixes {
   day: string;
@@ -29,7 +29,7 @@ export interface DurationSuffixes {
   minute: string;
 }
 
-/** Default-suffixen (NL, tevens de PARSEBARE vorm) — invoer blijft taalonafhankelijk d/u/h/m (§6.4). */
+/** Default-suffixen (NL, tevens de PARSEBARE vorm) — invoer blijft taalonafhankelijk d/u/h/m. */
 export const DEFAULT_DURATION_SUFFIXES: DurationSuffixes = { day: 'd', hour: 'h', minute: 'm' };
 
 /**
@@ -73,12 +73,12 @@ export function parseDuration(input: string, effHoursPerDay: number): number | n
  * Formatteer integer MINUTEN naar een leesbare duur-string.
  *
  * - `'days'`  ⇒ als (mogelijk fractionele) dagen: `"3d"`, `"0.8d"` (fractionele dagen zijn
- *   toegestaan als WEERGAVE, §6.4 — nooit als invoer).
+ *   toegestaan als WEERGAVE — nooit als invoer).
  * - `'hours'` ⇒ als hele uren + resterende minuten: `"20u"`, `"1u 30m"`, `"45m"`.
  * - `'auto'`  ⇒ hele dagen ⇒ dag-vorm, anders uur-vorm.
  *
  * De eenheid-afkortingen komen via `suffixes` binnen (default NL `d`/`u`/`m`); zo blijft deze util PUUR
- * (geen i18n-import) terwijl de UI de vertaalde suffixen kan doorgeven (§6.4/§11).
+ * (geen i18n-import) terwijl de UI de vertaalde suffixen kan doorgeven.
  */
 export function formatDuration(
   minutes: number,

@@ -77,17 +77,17 @@ export function useKeyboardShortcuts() {
         if (e.key === 'F5') runCPM();
         else if (ctrlB && e.shiftKey && e.key.toLowerCase() === 's') void saveFileAs();
         else if (ctrlB && e.key.toLowerCase() === 's') void saveFile();
-        // Issue #27/E4: zelfde "geen dialoog open"-guard als de Ctrl+N-tak hieronder — `openFile`
+        // Zelfde "geen dialoog open"-guard als de Ctrl+N-tak hieronder — `openFile`
         // opent doorgaans in een NIEUW document (een documentwissel), die onmogelijk moet zijn
         // zolang een blokkerende dialoog (bv. de voortgangsimportdialoog) openstaat. Deze voorpoort
         // draait vóór het sneltoets-register, dus de `when` op de `file.open`-entry in
         // shortcutRegistry.ts dekt dit pad in een productiebuild niet — die tweede helft is hier nodig.
-        // B2: `isDocumentLeaveBlocked` = geen dialoog open (`isAnyDialogOpen`) én geen niet-toegepaste
+        // `isDocumentLeaveBlocked` = geen dialoog open (`isAnyDialogOpen`) én geen niet-toegepaste
         // Projectinfo-draft in Backstage — Ctrl+O/Ctrl+N wisselen van document en zouden die stil verwerpen.
         else if (ctrlB && e.key.toLowerCase() === 'o' && !isDocumentLeaveBlocked()) void openFile(buildImportLabels((key) => i18n.t(key, { ns: 'common' })));
-        // S2 (V1/V3-vondst): dezelfde "geen dialoog open"-guard als de `file.newProject`-entry in
-        // shortcutRegistry.ts — zonder guard opende Ctrl+N de projectwizard óver een al openstaande
-        // dialoog heen (twee overlays, wizard onbereikbaar).
+        // Dezelfde "geen dialoog open"-guard als de `file.newProject`-entry in shortcutRegistry.ts —
+        // zonder guard opent Ctrl+N de projectwizard óver een al openstaande dialoog heen (twee
+        // overlays, wizard onbereikbaar).
         else if (ctrlB && e.key.toLowerCase() === 'n' && !isDocumentLeaveBlocked()) setUI({ showNewProjectDialog: true });
         return;
       }
@@ -96,15 +96,14 @@ export function useKeyboardShortcuts() {
       const typing = isTypingTarget(target);
       if (shouldYieldClipboardShortcutToTaskGrid(e)) return;
 
-      // Sneltoets-register (fase 2.10): matcht in volgorde, stopt bij de EERSTE hit — exact het
-      // prioriteitsgedrag van de vroegere if-keten (zie shortcutRegistry.ts voor de
-      // volgorde-gevoelige gevallen, met name Escape: presentatie-afsluiten vóór deselecteren).
+      // Sneltoets-register: matcht in volgorde, stopt bij de EERSTE hit (zie shortcutRegistry.ts
+      // voor de volgorde-gevoelige gevallen, met name Escape: presentatie-afsluiten vóór deselecteren).
       for (const entry of SHORTCUTS) {
         if (entry.displayOnly) continue;
         if (!matchesCombo(e, entry.combo)) continue;
-        // Invoerveld-guard (QA-bevinding 2.6b, ongewijzigd): normaal negeren we ALLE sneltoetsen in
-        // een invoerveld zodat tekstbewerking niet wordt gekaapt. `allowInInput` whitelist't de
-        // vier toetsen die dat al deden (F5/Ctrl+S/F11/Escape-in-presentatie).
+        // Invoerveld-guard: normaal negeren we ALLE sneltoetsen in een invoerveld zodat
+        // tekstbewerking niet wordt gekaapt. `allowInInput` whitelist't uitzonderingen als
+        // F5/Ctrl+S/F11/Escape-in-presentatie.
         if (typing && !entry.allowInInput) continue;
         if (entry.when && !entry.when()) continue;
 

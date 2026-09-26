@@ -22,7 +22,7 @@ export interface RecoveryState {
 
 export interface RecoveryRestore {
   recovery: RecoveryState | null;
-  // Fase 2.10 onderdeel 3 (§3): reactief signaal "recovery-flow volledig afgehandeld" — waar
+  // Reactief signaal "recovery-flow volledig afgehandeld" — waar
   // `autoSaveEnabled` een ref is (niet reactief, alleen voor de auto-save-timer), heeft de
   // welkomstdialoog-bootstrap-check een render-triggerende state nodig om pas te vuren NADAT de
   // recovery-detectie/-keuze echt klaar is (nooit gelijktijdig met RecoveryDialog).
@@ -73,8 +73,8 @@ export function useRecoveryRestore(): RecoveryRestore {
             const parsed = await readIFCWithXerReconstruction(
               d.ifc, buildImportLabels(startupTRef.current),
             );
-            // Welke velden bij crashherstel meegaan bepaalt `recoveryInputFromParsed` (bevinding
-            // K3) — deze hook houdt bewust geen veldkennis.
+            // Welke velden bij crashherstel meegaan bepaalt `recoveryInputFromParsed` — deze hook
+            // houdt bewust geen veldkennis.
             restored.push(recoveryInputFromParsed(parsed, {
               id: d.id,
               filePath: d.filePath,
@@ -89,9 +89,9 @@ export function useRecoveryRestore(): RecoveryRestore {
               mtime: d.mtime,
             });
           } catch (err) {
-            // Vuurt sinds K4 ook echt: `readIFC` gooit nu een `IfcParseError` bij een bestand
-            // zonder STEP-kop of zonder sluitmarkering (= afgekapt). Zo'n snapshot wordt dus NIET
-            // meer als volwaardig document aangeboden; de overige documenten lopen gewoon door.
+            // `readIFC` gooit een `IfcParseError` bij een bestand zonder STEP-kop of zonder
+            // sluitmarkering (= afgekapt). Zo'n snapshot wordt dus NIET als volwaardig document
+            // aangeboden; de overige documenten lopen gewoon door.
             failed++;
             console.error('Failed to read recovery document:', d.id, err);
             // dedupeKey: de lus hierboven itereert per document, dus bij vijf kapotte snapshots
@@ -119,18 +119,15 @@ export function useRecoveryRestore(): RecoveryRestore {
 
         setRecovery({
           entries,
-          // Volgorde is hier de hele bevinding (K4): `clearRecovery()` liep vroeger NAAST het
-          // herstellen (fire-and-forget, `void`), dus de snapshots konden al gewist zijn terwijl
-          // het herstel nog moest slagen. Nu pas wissen NADAT de documenten aantoonbaar in de
-          // store staan; gooit het herstel, dan blijven de snapshots op schijf staan.
+          // Volgorde is hier essentieel: `clearRecovery()` pas NADAT de documenten aantoonbaar in de
+          // store staan (niet fire-and-forget ernaast); gooit het herstel, dan blijven de snapshots
+          // op schijf staan.
           onRestore: () => {
             void (async () => {
               try {
-                // `restoreDocuments` gooit sinds de recovery-robuustheidsfix niet meer op een
-                // corrupt-maar-parseerbaar document (bv. een cyclische WBS-relatie die de solver
-                // laat gooien) — het slaat zo'n document zelf over en geeft de overgeslagen id's
-                // terug. Zolang er niets is overgeslagen is het resultaat byte-voor-byte hetzelfde
-                // als voorheen.
+                // `restoreDocuments` gooit niet op een corrupt-maar-parseerbaar document (bv. een
+                // cyclische WBS-relatie die de solver laat gooien) — het slaat zo'n document zelf
+                // over en geeft de overgeslagen id's terug.
                 const skipped = restored.length > 0
                   ? useAppStore.getState().restoreDocuments(restored, loaded.activeDocumentId).skippedIds
                   : [];
@@ -155,8 +152,8 @@ export function useRecoveryRestore(): RecoveryRestore {
               } catch (err) {
                 // Snapshots blijven staan. `finish()` gaat bewust wél door: de auto-save-poort
                 // dichthouden zou betekenen dat vanaf nu NIETS meer wordt weggeschreven — een
-                // groter risico dan het verlies van deze ene snapshotgeneratie. De fout is nu
-                // ook gebruikerszichtbaar via het meldingenkanaal (K8b); de debug-terminal houdt
+                // groter risico dan het verlies van deze ene snapshotgeneratie. De fout is ook
+                // gebruikerszichtbaar via het meldingenkanaal; de debug-terminal houdt
                 // via appLog de volledige stack bij.
                 console.error('Recovery: herstellen mislukt — snapshots blijven staan:', err);
                 useAppStore.getState().notify({

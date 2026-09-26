@@ -51,7 +51,7 @@ export function flattenOrder(tasks: readonly Task[]): readonly Task[] {
   const seen = new Set<string>();
   // Ouder→kinderen in array-volgorde: één keer over `tasks` itereren en elke
   // taak achteraan de lijst van zijn ouder pushen levert precies dezelfde
-  // sibling-volgorde als de vroegere per-taak-scan (`child.parentId === id`),
+  // sibling-volgorde als een per-taak-scan (`child.parentId === id`),
   // maar in O(n) i.p.v. O(n²). `!= null` matcht exact wat de `===`-scan als
   // kind zag (een parentId `''` matcht alleen een — pathologisch — id `''`).
   const childrenByParent = new Map<string, Task[]>();
@@ -129,13 +129,12 @@ export function applyWbsNumbering(tasks: Task[]): void {
 
 /**
  * Diepte per taak in de WBS-boom (1 = hoofdniveau), afgeleid van de ECHTE ouderketen en niet van
- * de `wbsCode`-tekst. Dat onderscheid is de kern van issue #159: een IFC-import neemt de code uit
+ * de `wbsCode`-tekst. Een IFC-import neemt de code uit
  * `IfcTask.Identification` over (vrije tekst, bv. `T107` of `1.0`), en `wbsAutoNumber` draait niet
  * bij het laden — een `wbsCode.split('.').length` zegt daar niets over de nesting. Loopt in
  * {@link flattenOrder}: ouders komen vóór hun kinderen, dus één pass volstaat; een wees telt als
  * hoofdniveau, precies zoals `flattenOrder` hem ook als wortel achteraan zet. Dit is DE dieptefunctie:
- * `engine/reports/reportCommon.ts` exporteert hem opnieuw voor de rapportlaag (critreview #159 —
- * geen tweede kopie).
+ * `engine/reports/reportCommon.ts` exporteert hem opnieuw voor de rapportlaag (geen tweede kopie).
  */
 export function taskDepths(tasks: readonly Task[]): Map<string, number> {
   const depth = new Map<string, number>();

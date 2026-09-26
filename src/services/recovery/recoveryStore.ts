@@ -23,7 +23,7 @@ export interface RecoveryDocMetadata {
   isDirty: boolean;
   /**
    * Stond dit document in "datums zoals opgeslagen" toen de snapshot werd geschreven? Expliciet
-   * meegeschreven feit i.p.v. een terugleesheuristiek (critreview laag 3, bevindingen 2/3): de
+   * meegeschreven feit i.p.v. een terugleesheuristiek: de
    * datums in de snapshot kunnen toevallig gelijk zijn aan de vastlegging zónder dat de modus
    * aanstond — bijvoorbeeld wanneer een bewerking de modus verliet en de auto-save vóór de
    * uitgestelde herberekening viel. Zie `RecoveryManifestDoc.datesAsRecorded` voor de
@@ -66,7 +66,7 @@ export interface LoadedRecovery {
 }
 
 // ---------------------------------------------------------------------------
-// Tauri-backend — appDataDir + plugin-fs (dev-slug-isolatie behouden, spec §7).
+// Tauri-backend — appDataDir + plugin-fs (met dev-slug-isolatie).
 // ---------------------------------------------------------------------------
 
 // Padnamen + manifestvorm komen uit `@/hooks/recoveryPaths` — één bron voor de dev-slug-isolatie
@@ -110,10 +110,10 @@ export type ManifestOwnership = 'none' | 'own' | 'legacy' | 'foreign';
  * Van wie is het manifest dat er staat?
  *   `none`    — er is er geen (of hij was onleesbaar);
  *   `own`     — door deze instantie geschreven;
- *   `legacy`  — v1-manifest zonder `ownerId`: geschreven door een build van vóór deze wijziging,
- *               dus per definitie niet door een gelijktijdig draaiende instantie mét de fix.
- *               Overnemen is hier de veilige keuze; niet-overnemen zou betekenen dat de eerste
- *               start na de update nooit meer opruimt;
+ *   `legacy`  — v1-manifest zonder `ownerId`: geschreven door een oudere build, dus per definitie
+ *               niet door een gelijktijdig draaiende instantie die eigenaarschap kent.
+ *               Overnemen is hier de veilige keuze; anders ruimt de eerste start na een update
+ *               nooit meer op;
  *   `foreign` — een andere `ownerId`.
  */
 export function manifestOwnership(prev: RecoveryManifest | null, self: string): ManifestOwnership {
@@ -148,19 +148,17 @@ export interface RecoveryCleanupPlan {
 }
 
 /**
- * Bepaal wat één auto-save-ronde mag opruimen (bevinding K5).
+ * Bepaal wat één auto-save-ronde mag opruimen. Opruimen mag ALLEEN binnen de eigen boekhouding —
+ * vegen op prefix ("alles met de prefix dat niet in mijn keep-set zit") zou bij twee vensters elke
+ * ronde de complete snapshotverzameling van de ander wissen:
  *
- * De oude lus was "alles in de map met de prefix dat niet in mijn keep-set zit" en dat is precies
- * de bug: bij twee vensters wiste elke ronde de complete snapshotverzameling van de ander. De
- * regel is nu omgedraaid — opruimen mag ALLEEN binnen de eigen boekhouding:
- *
- *   kandidaten = (het vorige manifest, mits van onszelf of van vóór deze wijziging)
+ *   kandidaten = (het vorige manifest, mits van onszelf of `legacy`)
  *              ∪ (wat deze instantie zelf heeft geschreven)
  *   minus        (wat we net geschreven hebben)
  *   minus        (wat we van een vreemde eigenaar hebben overgenomen)
  *   ∩            (wat er daadwerkelijk in de map staat, op EXACTE naam)
  *
- * Er wordt dus nooit meer op een prefix door de map geveegd: een bestand dat wij niet zelf hebben
+ * Er wordt dus nooit op een prefix door de map geveegd: een bestand dat wij niet zelf hebben
  * aangemaakt of geërfd, raken we niet aan — ook niet als single-instance ooit bewust uit gaat.
  *
  * Is het manifest van een ander, dan worden diens documentregels NIET gewist maar meegenomen in
@@ -193,8 +191,8 @@ export function planRecoveryCleanup(input: RecoveryCleanupInput): RecoveryCleanu
   const remove: string[] = [];
   for (const name of candidates) {
     if (keepSet.has(name) || adopted.has(name)) continue;
-    // Naamvorm van een ándere base (of geen snapshotnaam) → nooit aanraken. Dit is de tweede
-    // helft van K5: de productie-base `recovery` is een prefix van elke dev-base.
+    // Naamvorm van een ándere base (of geen snapshotnaam) → nooit aanraken: de productie-base
+    // `recovery` is een prefix van elke dev-base.
     if (n.snapshotDocId(name) === null) continue;
     if (present.has(name)) remove.push(name);
     if (present.has(name + recoveryTmpSuffix)) remove.push(name + recoveryTmpSuffix);
@@ -228,14 +226,14 @@ export function planRecoveryCleanup(input: RecoveryCleanupInput): RecoveryCleanu
 /**
  * Bepaal wat `clearRecovery()` weghaalt: alle bestanden van DEZE base, op exacte naam.
  *
- * Bewust breder dan de opruimlus hierboven, en dat is bevinding K4: sinds `loadTauri` bij een
- * corrupt manifest terugvalt op een directory-scan zou een snapshot die het manifest niet noemde
- * anders bij de VOLGENDE start opnieuw als herstelkandidaat opduiken — terwijl de gebruiker net
+ * Bewust breder dan de opruimlus hierboven: `loadTauri` valt bij een corrupt manifest terug op een
+ * directory-scan, dus een snapshot die het manifest niet noemde zou anders bij de VOLGENDE start
+ * opnieuw als herstelkandidaat opduiken — terwijl de gebruiker net
  * "verwerpen" (of een geslaagd herstel) achter de rug heeft. Wissen betekent wissen.
  *
  * Bewust NIET afhankelijk van eigenaarschap: wat hier weggaat is exact wat de gebruiker zojuist
  * kreeg aangeboden, en `loadTauri` biedt aan wat er staat. De begrenzing zit in de EXACTE
- * naamvorm — een productiebuild raakt geen `recovery.<slug>.…` van een dev-worktree meer aan, en
+ * naamvorm — een productiebuild raakt geen `recovery.<slug>.…` van een dev-worktree aan, en
  * een dev-build geen productiebestanden.
  */
 export function planRecoveryClear(
@@ -355,11 +353,11 @@ async function saveTauri(input: RecoverySaveInput): Promise<void> {
   const { readTextFile, exists, remove, mkdir } = await import('@tauri-apps/plugin-fs');
   const { appDataDir, join } = await import('@tauri-apps/api/path');
   const dir = await appDataDir();
-  await mkdir(dir, { recursive: true }); // op een verse installatie bestaat de map nog niet (issue #72)
+  await mkdir(dir, { recursive: true }); // op een verse installatie bestaat de map nog niet
 
-  // Schrijf-en-vervang (bevinding K4): een gewone `writeTextFile` liet bij een crash precies
-  // datgene achter waarvoor recovery bestaat — een AFGEKAPTE snapshot, en die kwam er ongemerkt
-  // doorheen, want `readIFC` gooide nooit. Zie `writeTextFileAtomic` voor wat dit wel/niet dekt.
+  // Schrijf-en-vervang: een gewone `writeTextFile` laat bij een crash precies datgene achter
+  // waarvoor recovery bestaat — een AFGEKAPTE snapshot, en die komt er ongemerkt doorheen, want
+  // `readIFC` gooit daar niet op. Zie `writeTextFileAtomic` voor wat dit wel/niet dekt.
   const writeAtomic = (name: string, text: string) => writeTextFileAtomic(dir, name, text, TMP_SUFFIX);
 
   // Het manifest zoals het er NU staat, vóór we het overschrijven: dat is de enige bron waaruit
@@ -420,10 +418,9 @@ async function saveTauri(input: RecoverySaveInput): Promise<void> {
 }
 
 /**
- * Lees het manifest defensief (bevinding K4). Voorheen stond deze `JSON.parse` BUITEN try/catch,
- * terwijl de per-document-lees eronder wél was afgeschermd: één corrupt manifestbestand liet
- * `loadRecovery()` gooien, waarna de opstartflow alle documenten als verloren beschouwde — terwijl
- * de losse `recovery.*.ifc`-snapshots gewoon nog op schijf stonden. Geeft `null` bij onleesbare of
+ * Lees het manifest defensief: één corrupt manifestbestand mag `loadRecovery()` niet laten gooien,
+ * anders beschouwt de opstartflow alle documenten als verloren terwijl de losse
+ * `recovery.*.ifc`-snapshots gewoon nog op schijf staan. Geeft `null` bij onleesbare of
  * vormvreemde inhoud, zodat de aanroeper kan terugvallen op de directory-scan.
  */
 export function parseRecoveryManifest(raw: string): RecoveryManifest | null {
@@ -432,7 +429,7 @@ export function parseRecoveryManifest(raw: string): RecoveryManifest | null {
     if (!parsed || typeof parsed !== 'object') return null;
     const m = parsed as RecoveryManifest;
     // Geldig JSON dat toevallig geen manifest is (`{"foo":1}`) moet net zo goed terugvallen:
-    // zonder deze check gooide de `for…of` eronder alsnog.
+    // zonder deze check gooit de `for…of` eronder alsnog.
     if (!Array.isArray(m.documents)) return null;
     return m;
   } catch {
@@ -441,7 +438,7 @@ export function parseRecoveryManifest(raw: string): RecoveryManifest | null {
 }
 
 /**
- * Terugval als het manifest ontbreekt of niet parst (bevinding K4): scan de appDataDir op losse
+ * Terugval als het manifest ontbreekt of niet parst: scan de appDataDir op losse
  * `<base>.<docId>.ifc`-snapshots. Eén stukgelopen JSON-bestandje mag nooit betekenen dat het
  * ECHTE werk — de snapshots zelf — als weg wordt beschouwd. Zonder manifest kennen we `filePath`
  * niet meer; `isDirty` staat op `true`, wat voor een crashsnapshot per definitie klopt.
@@ -454,8 +451,8 @@ async function scanTauriSnapshots(): Promise<LoadedRecoveryDoc[]> {
 
   for (const entry of await readDir(dir)) {
     const name = entry.name;
-    // EXACTE naamvorm (K5): met de oude prefix-vergelijking pikte een productiebuild hier ook de
-    // `recovery.<slug>.<docId>.ifc` van elke dev-worktree op. Het legacy-bestand valt hier
+    // EXACTE naamvorm: met een prefix-vergelijking zou een productiebuild hier ook de
+    // `recovery.<slug>.<docId>.ifc` van elke dev-worktree oppikken. Het legacy-bestand valt hier
     // automatisch buiten (dat heeft geen doc-id-segment) en heeft zijn eigen terugval hieronder.
     // Alleen stabiele v1/v2-snapshots mogen zonder manifest worden teruggevonden. Een v3-
     // generatie die vóór de manifest-rename is geschreven, is nog NIET gecommit en mag bij een
@@ -464,7 +461,7 @@ async function scanTauriSnapshots(): Promise<LoadedRecoveryDoc[]> {
     if (!name || !id) continue;
     try {
       const { ifc, mtime } = await readSnapshotTauri(await join(dir, name));
-      // Manifestloze scan: geen metadata, dus geen modus — het bestaande #63-aanbod blijft over.
+      // Manifestloze scan: geen metadata, dus geen modus — alleen het aanbod "datums zoals opgeslagen" blijft over.
       docs.push({ id, ifc, filePath: null, isDirty: true, datesAsRecorded: false, mtime });
     } catch (err) {
       console.error('Recovery: kon gescande snapshot niet lezen:', name, err);
@@ -507,7 +504,7 @@ async function loadTauri(): Promise<LoadedRecovery> {
       console.error('Recovery: manifest onleesbaar of vormvreemd — terugval op directory-scan.');
     }
 
-    // Terugval (K4): de losse snapshots staan er nog; die mogen niet verloren gaan omdat één
+    // Terugval: de losse snapshots staan er nog; die mogen niet verloren gaan omdat één
     // klein JSON-bestand stuk is.
     const scanned = await scanTauriSnapshots();
     if (scanned.length > 0) return { activeDocumentId: scanned[0].id, docs: scanned };
@@ -554,7 +551,7 @@ async function clearTauri(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Web-backend — IndexedDB 'ops-recovery', per-tab sessionId-scoping (spec §7).
+// Web-backend — IndexedDB 'ops-recovery', per-tab sessionId-scoping.
 // ---------------------------------------------------------------------------
 
 const WEB_DB = 'ops-recovery';
@@ -575,7 +572,7 @@ const CLAIM_RETRY_MS = 150;
  */
 function claimLock(name: string): Promise<boolean> {
   const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
-  if (!locks) return Promise.resolve(true); // geen Web Locks → oude situatie, geen detectie
+  if (!locks) return Promise.resolve(true); // geen Web Locks → geen detectie mogelijk
   return new Promise<boolean>((resolve) => {
     locks.request(name, { mode: 'exclusive', ifAvailable: true }, (lock) => {
       resolve(lock !== null);
@@ -590,11 +587,11 @@ const delay = (ms: number) => new Promise<void>((r) => { setTimeout(r, ms); });
 /**
  * Per-tab id: overleeft reload/crash van hetzelfde tab (sessionStorage), niet tab-sluiten.
  *
- * Waarom hier een lock omheen staat (bevinding K5, webhelft). `sessionStorage` scheidt tabs — met
- * één uitzondering: "Tabblad dupliceren" KOPIEERT de volledige sessionStorage naar het nieuwe tab.
- * Twee levende tabs deelden daarna dezelfde sessie-id en daarmee dezelfde IndexedDB-sleutels: de
- * `clearRecovery()` van tab B wiste de records van tab A, en de opruimlus in `saveWeb` verwijderde
- * elke ronde de doc-records die B niet open had. Zelfde bug als de Tauri-kant, ander opslagmedium.
+ * Waarom hier een lock omheen staat: `sessionStorage` scheidt tabs — met één uitzondering:
+ * "Tabblad dupliceren" KOPIEERT de volledige sessionStorage naar het nieuwe tab. Twee levende tabs
+ * zouden dan dezelfde sessie-id en dezelfde IndexedDB-sleutels delen: de `clearRecovery()` van tab B
+ * wist de records van tab A, en de opruimlus in `saveWeb` verwijdert elke ronde de doc-records die
+ * B niet open heeft. Zelfde probleem als aan de Tauri-kant, ander opslagmedium.
  *
  * De detectie moet noodzakelijk aan de andere tabs gevraagd worden — een gekopieerde
  * sessionStorage is lokaal niet van een echte te onderscheiden — en dat kan alleen asynchroon.
@@ -614,7 +611,7 @@ async function resolveSessionId(): Promise<string> {
     id = stored ?? crypto.randomUUID();
     if (!stored) sessionStorage.setItem(SESSION_KEY, id);
   } catch {
-    return 'default'; // sessionStorage geblokkeerd → vaste sleutel, zoals voorheen
+    return 'default'; // sessionStorage geblokkeerd → vaste sleutel
   }
 
   const key = (v: string) => `${SESSION_KEY}:${v}`;

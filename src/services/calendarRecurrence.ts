@@ -1,9 +1,8 @@
 /**
- * Formaat-neutrale kalenderuitzondering-recurrentie/-precedentie-kern (fase 3.8, MSP-pariteit T3,
- * uitgetild uit `services/mpp/mppCalendars.ts` op Opus-review-eis — chunk-grens-coördinatiepunt).
+ * Formaat-neutrale kalenderuitzondering-recurrentie/-precedentie-kern, gedeeld door de MPP- en
+ * MSPDI-lezer (zie BLADMODULE hieronder).
  *
- * T16-VEEGLIJST (herkomstvermelding aangevuld — ontbrak, ondanks de expliciete "poort van drie
- * MPXJ-bronnen" hieronder): afgeleid van de MPXJ-broncode (https://github.com/joniles/mpxj,
+ * Afgeleid van de MPXJ-broncode (https://github.com/joniles/mpxj,
  * © Jon Iles e.a., LGPL-2.1) — structuurkennis/datumgeneratie-algoritmes geport naar TypeScript
  * voor Open Planner Studio (LGPL-3.0), zelfde vermelding als `services/mpp/mppReader.ts`/
  * `mppCalendars.ts`/`limits.ts`.
@@ -18,16 +17,16 @@
  *  - `ProjectCalendar.populateExpandedExceptions()`/`ORDERED_RECURRENCE_TYPES` (org.mpxj) — de
  *    precedentie: recurrente uitzonderingen in de volgorde WEEKLY→MONTHLY→YEARLY→DAILY, dan
  *    niet-recurrente uitzonderingen (INCLUSIEF een recurrente uitzondering die toevallig tot precies
- *    één datum expandeert — zie `buildContributions`'s LAAG-1-toelichting) als hoogste-prioriteitslaag.
+ *    één datum expandeert — zie de toelichting bij `buildContributions`) als hoogste-prioriteitslaag.
  *
  * BLADMODULE (patroon `services/mpp/limits.ts`/`state/slices/defaults.ts`): importeert NIETS uit
  * de mpp-laag (`services/mpp/*`) of enige andere formaat-specifieke lezer. Twee lezers hergebruiken deze module
- * rechtstreeks: `services/mpp/mppCalendars.ts` (T3, MPP/binair — bouwt zijn EIGEN `RawException[]`
+ * rechtstreeks: `services/mpp/mppCalendars.ts` (MPP/binair — bouwt zijn EIGEN `RawException[]`
  * uit 92-byte-blokken en geeft die aan `buildContributions`/`resolveContributions` door) en
- * `services/msproject/mspdiReader.ts` (T4, MSPDI/XML — bouwt zijn EIGEN ruwe-record-vorm uit
+ * `services/msproject/mspdiReader.ts` (MSPDI/XML — bouwt zijn EIGEN ruwe-record-vorm uit
  * `<Exception>`-elementen en gaat rechtstreeks naar `resolveContributions`). Zonder deze bladmodule
  * zou een STATISCHE import uit de mpp-laag (`services/mpp/…`) in `mspdiReader.ts` de hele MPP-parser (CFB +
- * fieldmaps) de main-chunk in trekken (`tests/planning/check-mpp-chunk-boundary.ts`, T11) — Rollup
+ * fieldmaps) de main-chunk in trekken (`tests/planning/check-mpp-chunk-boundary.ts`) — Rollup
  * volgt zo'n import de main-graf in, ongeacht `vite.config.ts`'s `manualChunks`-scheiding.
  *
  * ONTWERPKEUZE — de "autoriteitskaart" (BEWUST STRENGER dan MPXJ): MPXJ's eigen precedentiekaart
@@ -36,8 +35,8 @@
  * maar OVERLAPPENDE bereiken botsen daar dus niet in de kaart, en `getException(date)`'s binary
  * search kan dan een onderbepaald resultaat geven. Voor dit project is dat GEEN acceptabel randgeval:
  * `WorkCalendar`'s invariant ("een datum nooit tegelijk in `holidays` én `workingExceptions`") wordt
- * door `CalendarEngine` NIET zelf afgedwongen — een schending gaf al een echte bug (negatief float,
- * Opus-T2-review LAAG-6/7). `resolveContributions` bouwt daarom een ECHTE per-datum-autoriteitskaart
+ * door `CalendarEngine` NIET zelf afgedwongen — een schending geeft echte fouten (negatieve float).
+ * `resolveContributions` bouwt daarom een ECHTE per-datum-autoriteitskaart
  * (`authority`, sleutel = ISO-datum) die ELKE dag van ELKE uitzondering langsloopt — recurrent én
  * niet-recurrent — zodat de invariant AL BIJ CONSTRUCTIE geldt, ongeacht welke twee brondocument-
  * records elkaar overlappen.
@@ -49,8 +48,7 @@ import { formatDate, parseDate, addCalendarDays } from '@/utils/dateUtils';
 /**
  * Gedeeld TOTAALBUDGET voor gematerialiseerde `Holiday`/`WorkingException`-DAGEN over ALLE
  * kalenders in één lees-aanroep samen (basiskalenders se eigen materialisatie ÉN de
- * base→afgeleide-overerving, `mergeInherited`). Corpusbasislijn: 208 (vóór T3) → 2968 (ná T3) over
- * 49 crawl-bestanden SAMEN — zie `tests/planning/check-mpp-calendars.ts`. 100.000 is ruim boven elk
+ * base→afgeleide-overerving, `mergeInherited`). Corpusbasislijn: 2968 over 49 crawl-bestanden SAMEN — zie `tests/planning/check-mpp-calendars.ts`. 100.000 is ruim boven elk
  * realistisch corpus, maar begrenst de ABSOLUTE bovengrens per bestand hard, ongeacht hoeveel
  * kalenders het claimt.
  */
@@ -85,8 +83,7 @@ export const MAX_HOLIDAY_RANGE_DAYS = 366;
 
 /**
  * Bovengrens op het aantal datums dat `expandRecurrence` uit ÉÉN recurrente uitzondering genereert
- * (poort van `RecurringData.populateDates()`). Gemeten corpuswaarde (plan §1.2.1, causale audit
- * 2026-08-15): 368 niet-geflattende recurrente records over het HELE MPP-corpus samen (YEARLY-
+ * (poort van `RecurringData.populateDates()`). Gemeten corpuswaarde: 368 niet-geflattende recurrente records over het HELE MPP-corpus samen (YEARLY-
  * absoluut 295, YEARLY-relatief 13, MONTHLY-absoluut 7, MONTHLY-relatief 21, WEEKLY 23, DAILY-met-
  * frequentie 9) — de overgrote meerderheid (80%) is YEARLY en genereert dus hoogstens enkele
  * tientallen datums (één per jaar over een paar decennia). 3660 (≈ 10 jaar dagelijks, of ≈ 70 jaar
@@ -98,8 +95,7 @@ export const MAX_HOLIDAY_RANGE_DAYS = 366;
  * datums per RECORD kunnen genereren; met `MAX_CALENDAR_EXCEPTIONS` (2000) uitzonderingen per
  * kalender zou dat zonder klem tot ~130 miljoen datums kunnen oplopen.
  *
- * BLOKKEREND (Opus-review HOOG-1, ná de oorspronkelijke T3-implementatie ontdekt): deze klem alleen
- * volstaat NIET — hij telt `dates.length`, dus een generatorlus die NOOIT een datum toevoegt (twee
+ * VALKUIL: deze klem alleen volstaat NIET — hij telt `dates.length`, dus een generatorlus die NOOIT een datum toevoegt (twee
  * bewezen gevallen: MONTHLY-relatief waar de datumberekening structureel vóór `startDate` blijft
  * landen, en WEEKLY met een LEGE dagen-bitmap) loopt hier ONGEACHT deze klem door, want de
  * while-conditie wordt nooit `false` via de `dates.length`-kant. Zie `MAX_RECURRENCE_ITERATIONS`
@@ -108,12 +104,11 @@ export const MAX_HOLIDAY_RANGE_DAYS = 366;
 export const MAX_RECURRENCE_DATES = 3_660;
 
 /**
- * Opus-review HOOG-1 (kritiek, ná de oorspronkelijke T3-implementatie): onafhankelijke ITERATIE-klem
- * naast `MAX_RECURRENCE_DATES` — elke generatiefunctie (`getDailyDates`/`getWeeklyDates`/…) telt
- * hiermee het aantal WHILE-doorlopen, los van hoeveel datums daadwerkelijk zijn toegevoegd. Zonder
- * deze klem loopt een generator die per doorloop NUL voortgang boekt op `dates.length` (dus
- * `MAX_RECURRENCE_DATES` triggert nooit) ONEINDIG door — twee reviewer-bevestigde, reproduceerbare
- * gevallen (timeout-bewezen, ≥45s, vóór deze fix):
+ * Onafhankelijke ITERATIE-klem naast `MAX_RECURRENCE_DATES` — elke generatiefunctie
+ * (`getDailyDates`/`getWeeklyDates`/…) telt hiermee het aantal WHILE-doorlopen, los van hoeveel
+ * datums daadwerkelijk zijn toegevoegd. Zonder deze klem loopt een generator die per doorloop NUL
+ * voortgang boekt op `dates.length` (dus `MAX_RECURRENCE_DATES` triggert nooit) ONEINDIG door — twee
+ * reproduceerbare gevallen:
  *  (a) MONTHLY-relatief met dagnummer 1 en een weekdag-berekening die de eerste-van-de-maand-cursor
  *      structureel VÓÓR `startDate` laat landen (bv. de gevraagde weekdag valt "terug" in de vorige
  *      maand): de niet-toegevoegde datum wordt verworpen, de cursor wordt teruggezet naar
@@ -129,26 +124,19 @@ export const MAX_RECURRENCE_DATES = 3_660;
  * de twee gevallen hierboven — geen crash, gewoon een niet-materialiserende uitzondering, exact het
  * "minder resultaat dan het bestand claimt"-patroon dat de rest van deze module ook hanteert).
  *
- * MIDDEN-A-FIX (Opus-review, TWEEDE RONDE — de eerste waarde (100.000) was per RECORD goedkoop maar
- * per BESTAND niet): een gedegenereerd record (0 datums, zoals de twee gevallen hierboven) kost de
- * VOLLE `MAX_RECURRENCE_ITERATIONS` maar trekt NIETS af van het gedeelde `HolidayBudget` —
- * `buildContributions`'s `if (dates.length === 0) continue;` slaat de budget-aftrek over omdat er
- * niets te budgetteren valt. Met de oude waarde (100.000) en `MAX_CALENDAR_EXCEPTIONS` (2000)
- * gedegenereerde records in één kalender was het ERGSTE geval dus 2000 × 100.000 = 200 miljoen
- * iteraties — reviewer mat 46,3s voor 2000 gedegenereerde MONTHLY-relatief-records op de UI-thread,
- * ver boven wat één seconde nog acceptabel maakt. §7 van de hardingsdiscipline eist het ERGSTE geval
- * per BESTAND, niet het (goedkopere) geval per record.
+ * De waarde telt per BESTAND, niet per record: een gedegenereerd record (0 datums, zoals de twee
+ * gevallen hierboven) kost de VOLLE `MAX_RECURRENCE_ITERATIONS` maar trekt NIETS af van het gedeelde
+ * `HolidayBudget` (`buildContributions`'s `if (dates.length === 0) continue;`). Bij
+ * `MAX_CALENDAR_EXCEPTIONS` (2000) zulke records is het ergste geval 2000 × deze klem — met een los
+ * getal als 100.000 gemeten 46,3s op de UI-thread.
  *
- * Fix: geklemd op `MAX_RECURRENCE_DATES + 16` i.p.v. een los getal én een monotone-cursorcheck in
- * `getMonthlyRelativeDates`. Elke LEGITIEME generatoraanroep voegt per doorloop minstens één datum
- * toe (DAILY/MONTHLY-absoluut/YEARLY-absoluut: exact 1 per doorloop; WEEKLY: minstens 1 binnen de
- * 7-dagen-binnenlus, tenzij de bitmap leeg is — precies het gedegenereerde geval dat de iteratieklem
- * afvangt). Een patroon dat de maandcursor helemaal niet vooruitbrengt stopt nu na die eerste
- * vaststelling; de onafhankelijke iteratieklem blijft als vangnet voor andere vormen van verspilde
- * doorlopen in alle generatoren. Mutatiebewijs: `check-mpp-calendars.ts`'s bestaande hostile-cases
- * (occurrences=65535+165-jaars-bereik) blijven groen, en de fixture met 2000 gedegenereerde
- * MONTHLY-relatief-records termineert ruim binnen de 5s-poort (de historische 46,3s-regressie komt
- * terug wanneer zowel deze cursorcheck als de verlaagde iteratieklem worden verwijderd).
+ * Daarom `MAX_RECURRENCE_DATES + 16` plus een monotone-cursorcheck in `getMonthlyRelativeDates`. Elke
+ * LEGITIEME generatoraanroep voegt per doorloop minstens één datum toe (DAILY/MONTHLY-absoluut/
+ * YEARLY-absoluut: exact 1; WEEKLY: minstens 1 binnen de 7-dagen-binnenlus, tenzij de bitmap leeg is
+ * — precies het gedegenereerde geval dat deze klem afvangt). Een patroon dat de maandcursor niet
+ * vooruitbrengt stopt na die eerste vaststelling; deze klem blijft het vangnet voor andere vormen van
+ * verspilde doorlopen. Bewaakt door `check-mpp-calendars.ts` (hostile-cases en een fixture met 2000
+ * gedegenereerde MONTHLY-relatief-records binnen de 5s-poort).
  */
 export const MAX_RECURRENCE_ITERATIONS = MAX_RECURRENCE_DATES + 16;
 
@@ -200,15 +188,11 @@ export interface RecurrenceSpec {
  *  `mspdi/MSPDIReader.java`). `null` op index 0 (geen recurrentie) én op elke index buiten dit
  *  bereik (een geprepareerd/corrupt bestand kan hier elke waarde claimen).
  *
- *  LAAG-4-correctie (Opus-review — de vorige versie van dit commentaar beweerde ten onrechte dat
- *  MPXJ hier "0 datums" oplevert): MPXJ's eigen `getRecurrenceType(value)` geeft voor zo'n
- *  out-of-range waarde `null` terug, maar `RecurringData.populateDates()` doet vervolgens een Java
- *  `switch (m_recurrenceType) { … }` op precies dat `null` — een `switch` op een `null`-enum-waarde
- *  gooit in Java een `NullPointerException`, GEEN stille lege-lijst. MPXJ CRASHT hier dus feitelijk;
- *  dat is geen gedrag dat dit project kan/wil spiegelen (een corrupt/geprepareerd bestand mag de
- *  hele import nooit laten vallen). `readRecurringData`/`readMspdiRecurringData` (de aanroepende
- *  lezers) retourneren daarom bewust `null` als EIGEN, BEWUSTE HARDENING — geen MPXJ-spiegeling —
- *  wat de aanroeper behandelt als "0 bijgedragen datums": strikt veiliger dan de Java-referentie. */
+ *  Afwijking van MPXJ: `getRecurrenceType(value)` geeft voor zo'n out-of-range waarde `null`, maar
+ *  `RecurringData.populateDates()` doet daarna een Java-`switch` op dat `null` en gooit een
+ *  `NullPointerException` — MPXJ CRASHT hier. Een corrupt/geprepareerd bestand mag de import nooit
+ *  laten vallen, dus `readRecurringData`/`readMspdiRecurringData` (de aanroepende lezers) retourneren
+ *  bewust `null`, wat de aanroeper behandelt als "0 bijgedragen datums". */
 export const RECURRENCE_TYPES: ReadonlyArray<RecurrenceSpec['type'] | null> = [
   null, 'DAILY', 'YEARLY', 'YEARLY', 'MONTHLY', 'MONTHLY', 'WEEKLY', 'DAILY',
 ];
@@ -271,8 +255,7 @@ function lastRelativeDay(date: Date, dayOfWeekValue: number): Date {
 
 /** MPXJ se `getDailyDates`. Zie `MAX_RECURRENCE_DATES`/`MAX_RECURRENCE_ITERATIONS` voor de dubbele
  *  (output- én iteratie-)klem — hier structureel niet vereist (elke doorloop voegt precies 1 datum
- *  toe), maar aangehouden voor uniformiteit met de andere vijf generatoren (Opus-review HOOG-1: "in
- *  ÉLKE generator"). */
+ *  toe), maar aangehouden voor uniformiteit met de andere vijf generatoren. */
 function getDailyDates(startDate: Date, frequency: number, finishDate: Date | null, occurrences: number): Date[] {
   const dates: Date[] = [];
   let date = startDate;
@@ -291,11 +274,10 @@ function getDailyDates(startDate: Date, frequency: number, finishDate: Date | nu
  *  `java.time.DayOfWeek` 1=ma..7=zo, NIET DayOfWeekHelper se schema — komt toevallig 1:1 overeen met
  *  JS se `getUTCDay()` voor elke niet-zondag-waarde: ma=1..za=6 in beide schema's).
  *
- *  HOOG-1-fix (Opus-review): `iterations` is hier GEEN cosmetische toevoeging — een lege `dayMask`
- *  (geen enkele weekdag aangevinkt) met `finishDate===null` liet deze lus vóór de fix ONEINDIG
- *  doorlopen (`dates.length` blijft 0, dus zowel `MAX_RECURRENCE_DATES` als een `occurrences`-
- *  gebaseerde `moreDates()`-grens triggeren nooit). Timeout-bewezen (≥45s) vóór de fix; zie
- *  `check-mpp-calendars.ts`'s "HOOG-1b" rode-pad-fixture. */
+ *  `iterations` is hier GEEN cosmetische toevoeging — een lege `dayMask` (geen enkele weekdag
+ *  aangevinkt) met `finishDate===null` laat deze lus anders ONEINDIG doorlopen (`dates.length` blijft
+ *  0, dus zowel `MAX_RECURRENCE_DATES` als een `occurrences`-gebaseerde `moreDates()`-grens triggeren
+ *  nooit). Zie `check-mpp-calendars.ts`'s "HOOG-1b" rode-pad-fixture. */
 function getWeeklyDates(startDate: Date, frequency: number, dayMask: number, finishDate: Date | null, occurrences: number): Date[] {
   const dates: Date[] = [];
   let date = startDate;
@@ -349,12 +331,11 @@ function getMonthlyAbsoluteDates(startDate: Date, frequency: number, dayNumber: 
 
 /** MPXJ se `getMonthlyRelativeDates`.
  *
- *  HOOG-1-fix (Opus-review, reviewer-repro "(a)"): dagnummer 1, weekdag-berekening `dayOfWeekValue`
- *  zodanig dat `ordinalRelativeDay` de eerste-van-de-maand-cursor TERUGZET in de vorige maand (een
- *  negatieve dag-offset). Die datum wordt afgewezen (`< startDate`), waarna de cursor terugvalt op
- *  eerste-van-de-VORIGE-maand-plus-`frequency`-maanden — bij frequentie 1 komt dat weer exact uit op
- *  de maand waar de lus al stond: de cursor staat dan STIL, `dates.length` blijft 0, en zonder
- *  `iterations` bleef deze lus vóór de fix ONEINDIG doorlopen (timeout-bewezen, ≥45s). Zie
+ *  VALKUIL: dagnummer 1 met een `dayOfWeekValue` zodanig dat `ordinalRelativeDay` de
+ *  eerste-van-de-maand-cursor TERUGZET in de vorige maand (een negatieve dag-offset). Die datum wordt
+ *  afgewezen (`< startDate`), waarna de cursor terugvalt op eerste-van-de-VORIGE-maand-plus-`frequency`
+ *  — bij frequentie 1 exact de maand waar de lus al stond: de cursor staat STIL en `dates.length`
+ *  blijft 0. Zonder `iterations` en de monotone-cursorcheck loopt de lus ONEINDIG. Zie
  *  `check-mpp-calendars.ts`'s "HOOG-1a" rode-pad-fixture. */
 function getMonthlyRelativeDates(startDate: Date, frequency: number, dayOfWeekValue: number, dayNumber: number, finishDate: Date | null, occurrences: number): Date[] {
   const dates: Date[] = [];
@@ -368,11 +349,9 @@ function getMonthlyRelativeDates(startDate: Date, frequency: number, dayOfWeekVa
       dates.push(date);
       if (!moreDates(date, dates.length, finishDate, occurrences)) break;
     }
-    // MIDDEN-A-nevenoptimalisatie: één allocatie i.p.v. twee — de vorige regel construeerde eerst
-    // een tussentijdse "dag 1 van dezelfde maand"-Date die de daaropvolgende regel meteen weer
-    // weggooide; jaar/maand hier al vastleggen en in één stap doorschuiven scheelt ~1/3 van de
-    // Date-allocaties per doorloop (relevant op de HOOG-1a/MIDDEN-A-gedegenereerde-lus-paden, waar
-    // deze reset duizenden keren per record kan draaien).
+    // Eén allocatie i.p.v. twee: jaar/maand hier vastleggen en in één stap doorschuiven, zonder
+    // tussentijdse "dag 1 van dezelfde maand"-Date. Relevant op de gedegenereerde lus-paden, waar
+    // deze reset duizenden keren per record kan draaien.
     const nextDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + frequency, 1));
     if (nextDate.getTime() <= cursor.getTime()) break;
     date = nextDate;
@@ -386,20 +365,14 @@ function getMonthlyRelativeDates(startDate: Date, frequency: number, dayOfWeekVa
  *  (spiegelt `getCalculatedLastDate`'s eigen documentatie: "de finish-datum hoeft niet exact op een
  *  gegenereerde datum te liggen").
  *
- *  LAAG-2-fix (Opus-review, schrikkeljaar-rollover, TWEEDE RONDE — de eerste poging klemde het
- *  verkeerde getal): de `+1-jaar`-correctie moet `LocalDate.plusYears`'s ECHTE semantiek spiegelen —
+ *  Schrikkeljaar-rollover: de `+1-jaar`-correctie spiegelt `LocalDate.plusYears`'s ECHTE semantiek —
  *  Java construeert het brondatum-object EERST met het AL-GEKLEMDE dagnummer van het ORIGINELE jaar
  *  (`useDay`, bv. 28 in een niet-schrikkeljaar), en `plusYears(1)` klemt DÁT getal (via
- *  `resolvePreviousValid`) opnieuw tegen de nieuwe maandlengte — het rauwe, ORSPRONKELIJK GEVRAAGDE
- *  `dayNumber` (bv. 29) komt daar nooit meer aan te pas, ook niet als het doeljaar toevallig weer een
- *  schrikkeljaar is. Reviewer-repro (LAAG-A, de eerste fix-poging faalde hierop): dag 29 maand 2,
- *  startDate 2019-06-01 ⇒ cursor start op `useDay=min(29,daysInMonthUtc(2019,Feb)=28)=28`
- *  (2019 is GEEN schrikkeljaar) ⇒ Feb28-2019, valt vóór startDate ⇒ correctie naar 2020 (WEL een
- *  schrikkeljaar). Met het rauwe `dayNumber` (29) herklemmen geeft `min(29,29)=29` ⇒ Feb29-2020 —
- *  FOUT, want MPXJ/Java klemt het AL-28-GEWORDEN getal opnieuw: `min(28,29)=28` ⇒ Feb28-2020. Het
- *  bronjaar se eigen klem "kleeft" dus aan het getal, ook al zou het doeljaar zelf ruimte voor 29
- *  bieden. Fix: `useDay` (niet `dayNumber`) opnieuw klemmen tegen het GECORRIGEERDE jaar se
- *  maandlengte. */
+ *  `resolvePreviousValid`) opnieuw tegen de nieuwe maandlengte — het rauwe `dayNumber` (bv. 29) komt
+ *  daar nooit meer aan te pas, ook niet als het doeljaar weer een schrikkeljaar is. Voorbeeld: dag 29
+ *  maand 2, startDate 2019-06-01 ⇒ `useDay=min(29,28)=28` ⇒ Feb28-2019, vóór startDate ⇒ correctie
+ *  naar 2020: `min(28,29)=28` ⇒ Feb28-2020, NIET Feb29-2020. Daarom wordt `useDay` (niet
+ *  `dayNumber`) opnieuw geklemd tegen de maandlengte van het GECORRIGEERDE jaar. */
 function getYearlyAbsoluteDates(startDate: Date, dayNumber: number, monthNumber: number, finishDate: Date | null, occurrences: number): Date[] {
   const dates: Date[] = [];
   let date = new Date(Date.UTC(startDate.getUTCFullYear(), monthNumber - 1, 1));
@@ -412,7 +385,7 @@ function getYearlyAbsoluteDates(startDate: Date, dayNumber: number, monthNumber:
     date = new Date(Date.UTC(year, month0, useDay));
     if (date.getTime() < startDate.getTime()) {
       const bumpedYear = year + 1;
-      const bumpedDay = Math.min(useDay, daysInMonthUtc(bumpedYear, month0)); // LAAG-2: het AL-GEKLEMDE useDay her-klemmen, niet het rauwe dayNumber
+      const bumpedDay = Math.min(useDay, daysInMonthUtc(bumpedYear, month0)); // het AL-GEKLEMDE useDay her-klemmen, niet het rauwe dayNumber
       date = new Date(Date.UTC(bumpedYear, month0, bumpedDay));
     }
     dates.push(date);
@@ -494,32 +467,21 @@ export interface RecordContribution {
  * de volgorde waarin `resolveContributions` ze over de autoriteitskaart legt (latere contributie
  * wint per datum).
  *
- * LAAG-1-fix (Opus-review — ontbrekende MPXJ-regel geport): `ProjectCalendar.
- * populateExpandedExceptions()` classificeert een uitzondering NIET op haar recurrentietype, maar op
- * `exception.getExpandedExceptions().size()` — is dat precies 1 (de uitzondering expandeert, ONGEACHT
- * het type, tot exact één datum), dan behandelt MPXJ 'm als NIET-recurrent (hoogste prioriteit,
- * dezelfde `nonRecurring`-lijst als een letterlijk niet-recurrente uitzondering), NIET via de
- * type-gebaseerde precedentie. Reviewer-repro: een YEARLY-absolute uitzondering met een venster dat
- * toevallig maar één datum oplevert, botsend met een DAILY-frequentie-2-uitzondering (normaliter
- * HOGERE precedentie dan YEARLY) op dezelfde dag — MPXJ laat dan de (tot 1 datum ingeklapte) YEARLY
- * winnen, niet de DAILY. Latent op het huidige corpus (0 treffers: geen enkele recurrente
- * uitzondering expandeert daar toevallig tot precies 1 datum), maar de sectiekop claimde eerder
- * uitputtende precedentie zonder deze regel — hier alsnog geport i.p.v. als afwijking gedocumenteerd,
- * want de poort was niet ingrijpend (één classificatie-check tijdens het opbouwen van de
- * contributies, geen nieuwe datastructuur).
+ * MPXJ-regel: `ProjectCalendar.populateExpandedExceptions()` classificeert een uitzondering NIET op
+ * haar recurrentietype, maar op `exception.getExpandedExceptions().size()` — expandeert ze (ONGEACHT
+ * het type) tot exact één datum, dan geldt ze als NIET-recurrent (hoogste prioriteit, dezelfde
+ * `nonRecurring`-lijst als een letterlijk niet-recurrente uitzondering), NIET via de type-gebaseerde
+ * precedentie. Voorbeeld: een YEARLY-absolute uitzondering met een venster dat maar één datum
+ * oplevert wint op die dag van een DAILY-frequentie-2-uitzondering (normaliter HOGERE precedentie).
  *
- * MIDDEN-1-fix (Opus-review — totale expansie was ongeklemd): `budget` (het GEDEELDE
- * `HolidayBudget` over alle kalenders) begrenst hier AL de TOTALE hoeveelheid gegenereerde
- * `ownDates` — niet pas achteraf in `resolveContributions`. Zonder deze klem alloceerde
- * `buildContributions` EERST alle datums van ALLE records (`expandRecurrence` kent zijn EIGEN
- * `MAX_RECURRENCE_DATES`-klem per record, maar niets begrensde de SOM over meerdere records) vóórdat
- * er ook maar naar het budget gekeken werd — gemeten (Opus-review): 2000 WEEKLY-records × bijna
- * `MAX_RECURRENCE_DATES` datums elk ≈ 5,2s / ~1 GB. Hier wordt een LOKALE aftelling (`remaining`,
- * begonnen bij `budget.remaining`, dus een READ-ONLY snapshot — het GEDEELDE object zelf wordt pas
- * in `resolveContributions` daadwerkelijk gedecrementeerd) bijgehouden en per gegenereerde dag
- * verlaagd; zodra hij op is stopt de opbouw meteen (lopende record afgekapt, resterende records
- * overgeslagen). Dit bindt de PIEK-allocatie aan het budget zelf, ongeacht hoeveel records het
- * bestand claimt.
+ * `budget` (het GEDEELDE `HolidayBudget` over alle kalenders) begrenst hier AL de TOTALE hoeveelheid
+ * gegenereerde `ownDates` — niet pas achteraf in `resolveContributions`. `expandRecurrence` klemt per
+ * record (`MAX_RECURRENCE_DATES`), maar zonder deze klem is de SOM over records onbegrensd (gemeten:
+ * 2000 WEEKLY-records × bijna `MAX_RECURRENCE_DATES` datums ≈ 5,2s / ~1 GB). Een LOKALE aftelling
+ * (`remaining`, begonnen bij `budget.remaining`, dus een READ-ONLY snapshot — het GEDEELDE object
+ * wordt pas in `resolveContributions` gedecrementeerd) daalt per gegenereerde dag; zodra hij op is
+ * stopt de opbouw (lopende record afgekapt, resterende records overgeslagen). Zo is de
+ * PIEK-allocatie gebonden aan het budget, ongeacht hoeveel records het bestand claimt.
  */
 export function buildContributions(raw: RawException[], budget: HolidayBudget): RecordContribution[] {
   const contributions: RecordContribution[] = [];
@@ -535,7 +497,7 @@ export function buildContributions(raw: RawException[], budget: HolidayBudget): 
       if (dates.length === 0) continue; // geen bijdrage, geen budget nodig
 
       if (dates.length === 1) {
-        // LAAG-1: een tot-1-datum-ingeklapte recurrente uitzondering is NIET-recurrent-equivalent
+        // Een tot-1-datum-ingeklapte recurrente uitzondering is NIET-recurrent-equivalent
         // (hoogste prioriteit), ongeacht het recurrentietype — zie de functietoelichting hierboven.
         nonRecurringEquivalent.push({ ownDates: dates, working: exc.periodCount > 0, bands: exc.bands, name: exc.name });
         remaining -= 1;
@@ -550,10 +512,10 @@ export function buildContributions(raw: RawException[], budget: HolidayBudget): 
       if (bucket) bucket.push(entry);
       else recurringByType.set(exc.recurring.type, [entry]);
     } else if (exc.toDate) {
-      // Niet-recurrent ZONDER toDate (sentinel) wordt overgeslagen — bestaand T6-gedrag.
+      // Niet-recurrent ZONDER toDate (sentinel) wordt overgeslagen.
       let clampedTo = exc.toDate;
       const rangeDays = Math.round((exc.toDate.getTime() - exc.fromDate.getTime()) / 86_400_000);
-      // M1-fix (T6-kwaliteitsreview, ongewijzigd voortgezet): `>=` i.p.v. `>` maakt
+      // `>=` i.p.v. `>` maakt
       // `MAX_HOLIDAY_RANGE_DAYS` de ECHTE (inclusieve) bovengrens op het aantal dagen.
       if (rangeDays >= MAX_HOLIDAY_RANGE_DAYS) {
         clampedTo = addCalendarDays(exc.fromDate, MAX_HOLIDAY_RANGE_DAYS - 1);

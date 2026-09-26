@@ -1,7 +1,7 @@
-// Kleine registratie van het zichtbare Gantt-tijdvenster (fase 2.7, §3.3) + de gedeelde
+// Kleine registratie van het zichtbare Gantt-tijdvenster + de gedeelde
 // fit-to-project-berekening.
-// GanttCanvas registreert bij elke render de werkelijk gemeten breedte van het primaire
-// tijdlijnpaneel, zodat store-acties zoals `setTimeScale` de
+// `useGanttViewportCoordinator` registreert bij elke render de werkelijk gemeten breedte van het
+// primaire tijdlijnpaneel, zodat store-acties zoals `setTimeScale` de
 // recenter-ankerformule (viewportmidden vasthouden) kunnen toepassen zonder dat de
 // store aan React/DOM hangt. Headless (tests) blijft de breedte null → geen recenter.
 
@@ -29,14 +29,9 @@ export function resolveTaskFinish(time: TaskTime): string | undefined {
 }
 
 /**
- * Zoomstap van de IN-/UITZOOM-knoppen en -sneltoetsen (K-item 34). Additief, niet
- * vermenigvuldigend — dat laatste is het wiel (×1.1), een bewust ander gebaar.
- *
- * Dit was DRIE losse waarden, en twee ervan waren fout: `ribbonConfig` en `ribbonWidgets` zoomden
- * in met +10 maar uit met −5, terwijl de sneltoets beide op 10 had. Één keer in- en weer uitzoomen
- * met de knoppen bracht je dus niet terug waar je begon, en herhaald klikken liet de zoom weglopen.
- * Er stond geen enkele toelichting bij de −5; alles wijst op een typefout die nooit is opgevallen
- * omdat er geen plek was waar de twee waarden naast elkaar stonden.
+ * Zoomstap van de IN-/UITZOOM-knoppen en -sneltoetsen. Additief, niet vermenigvuldigend — dat
+ * laatste is het wiel (×1.1), een bewust ander gebaar. Eén gedeelde waarde voor in én uit, zodat
+ * één keer in- en weer uitzoomen je terugbrengt waar je begon.
  */
 export const ZOOM_STEP = 10;
 
@@ -139,28 +134,23 @@ export function computeAnchoredZoom(input: AnchoredZoomInput): { zoom: number; s
  * taakstart (of `viewStartDate`, wat eerder is) minus {@link ORIGIN_PADDING_DAYS}.
  *
  * Deze functie woont HIER, en niet bij de renderopties, om een reden: hij hoort bij
- * `ORIGIN_PADDING_DAYS` en bij zijn twee andere gebruikers ({@link computeScrollToDate} hieronder,
- * en indirect de fit-berekening). Tot K-item 33 stond de lus drie keer los in de codebase — in de
- * render-memo, in `GanttCanvas.revealTaskIfOffscreen` en hier — alleen bij elkaar gehouden door
- * commentaarregels die pariteit beloofden. Zet hem dus niet in een module die `ganttViewport`
- * importeert: dat maakt hergebruik hier onmogelijk (circulaire import) en de derde kopie
- * onvermijdelijk.
+ * `ORIGIN_PADDING_DAYS` en bij zijn andere gebruikers ({@link computeScrollToDate} hieronder, en
+ * indirect de fit-berekening). Zet hem dus niet in een module die `ganttViewport` importeert: dat
+ * maakt hergebruik hier onmogelijk (circulaire import) en een losse kopie van de lus onvermijdelijk.
  *
  * Verliesvrij t.o.v. de rauwe `Date`-variant voor elke geldige ISO-datum vanaf jaar 100:
  * `parseDate` kapt altijd naar UTC-middernacht en `addCalendarDays` houdt die vast, dus de
  * format/parse-heenweg voegt niets toe en haalt niets weg.
  *
- * TWEE uitzonderingen, allebei gemeten — "byte-identiek" is dus te sterk:
+ * TWEE uitzonderingen, allebei gemeten:
  *  - Onder jaar 100 loopt de twee-cijferige-jaarafbeelding van `Date.UTC` ertussen
  *    (`0100-01-03` → `1999-12-20` in plaats van `0099-12-20`). Praktisch onbereikbaar.
  *  - Een ONPARSEERBARE datum (leeg, corrupte import) wordt afgevangen: `formatDate`/`toISOString`
- *    zou dan `RangeError: Invalid time value` gooien, waar de oude inline-lussen een Invalid Date
- *    doorgaven en de aanroeper met NaN verder rekende. Zelfde val als beschreven in
- *    `taskDefaults.ts`.
+ *    zou dan `RangeError: Invalid time value` gooien; de functie geeft dan de invoer terug. Zelfde
+ *    val als beschreven in `taskDefaults.ts`.
  *
- *    Een eerdere versie liet die throw staan met als argument "de render-memo roept dezelfde
- *    `formatDate` al aan en sneuvelt dus eerder". Dat argument is ONJUIST, en dat is met een
- *    review vastgesteld: `App.tsx` zet `isFullPanel` op de tabbladen Tabel/Relaties/IFC/Rapport
+ *    Niet aannemen dat de render-memo dezelfde `formatDate` al eerder aanroept en sneuvelt:
+ *    `App.tsx` zet `isFullPanel` op de tabbladen Tabel/Relaties/IFC/Rapport
  *    (en bij een niet-gedockt resourcepaneel), en dan is `GanttCanvas` helemaal niet gemonteerd.
  *    `useKeyboardShortcuts()` staat wél onvoorwaardelijk in `AppContent`, en `nav.scrollToToday`
  *    (Ctrl/Cmd+Home) heeft geen `when`-guard. Daar loopt dus een pad naar deze functie zonder dat
@@ -190,7 +180,7 @@ export function computeEffectiveViewStart(
   }
   // Onparseerbaar (leeg, corrupte import): geef de invoer onveranderd terug in plaats van te
   // gooien. De aanroeper rekent dan met een datum die net zo min klopt als zijn invoer, maar de
-  // app blijft staan — en dat was ook het gedrag vóór K-item 33.
+  // app blijft staan.
   if (Number.isNaN(earliest.getTime())) return viewStartDate;
   return formatDate(addCalendarDays(earliest, -ORIGIN_PADDING_DAYS));
 }
@@ -238,7 +228,7 @@ export function computeFitToProject(
   // De renderer kan zijn oorsprong verder naar links trekken voor kalenderuitzonderingen. Een fit
   // die blind met alleen `ORIGIN_PADDING_DAYS` rekent, zet dan wel de juiste zoom maar laat het
   // project te ver naar rechts staan. Gebruik exact zijn effectieve oorsprong en pan van daaruit
-  // naar de eerste taak; zonder zulke uitzonderingen blijft dit 14 × zoom en dus byte-identiek.
+  // naar de eerste taak; zonder zulke uitzonderingen is dit 14 × zoom.
   const effectiveStart = computeEffectiveViewStart(tasks, minStart, navigationStartDates);
   const scrollX = Math.max(0, diffCalendarDays(parseDate(effectiveStart), parseDate(minStart)) * zoom);
   return { zoom, viewStartDate: minStart, scrollX };
@@ -261,10 +251,9 @@ export interface ScrollToDateState {
 /**
  * Bereken de `scrollX` zodat `date` (default: `project.statusDate`, anders vandaag) links met een
  * kleine marge in het chart-gedeelte in beeld komt. Zoom en `view.viewStartDate` blijven
- * onaangeroerd. Deelt sinds K-item 33 LETTERLIJK {@link computeEffectiveViewStart} met de renderer
- * in plaats van een eigen kopie van die lus, zodat de gesprongen positie 1-op-1 klopt met wat er
- * getekend wordt — die pariteit werd hiervóór alleen door deze commentaarregel beloofd. Gebruikt
- * door `Ctrl/Cmd+Home` (sneltoets-register, fase 2.10 golf 1).
+ * onaangeroerd. Deelt LETTERLIJK {@link computeEffectiveViewStart} met de renderer in plaats van een
+ * eigen kopie van die lus, zodat de gesprongen positie 1-op-1 klopt met wat er getekend wordt.
+ * Gebruikt door `Ctrl/Cmd+Home` (sneltoets-register).
  */
 export function computeScrollToDate(date: string | undefined, state: ScrollToDateState): number {
   const target = date || state.project.statusDate || formatDate(new Date());
@@ -285,27 +274,23 @@ export function getGanttChartWidth(): number | null {
 }
 
 /**
- * Max. scrollbare grenzen (fase 2.8a QA, fix 2): `setScroll` klemde `scrollX`/`scrollY` alleen
- * naar beneden (`>= 0`), zonder bovengrens — een taakbalk-laag die volledig verdwijnt na een
- * (per ongeluk) verticale overscroll (bv. platte wheel-scroll in "position"-modus buiten de
- * rechtsboven-hoek, of horizontaal scrollen na een extreme zoom-uit/-in-cyclus) kwam daardoor
- * NOOIT meer in beeld terug — geen enkele render-pass herstelde het, want er was simpelweg geen
- * geldige boventgrens om naar terug te klemmen. GanttCanvas registreert bij elke render de
- * werkelijke inhoudsgrenzen (rijen×rowHeight, totale dagbreedte×zoom) zodat `setScroll` daar
- * altijd binnen blijft. Headless (tests): beide blijven null → geen bovengrens (ongewijzigd
- * gedrag, zelfde precedent als `chartWidth` hierboven).
+ * Max. scrollbare grenzen: zonder bovengrens op `scrollX`/`scrollY` kan een (per ongeluk)
+ * overscroll (bv. platte wheel-scroll in "position"-modus buiten de rechtsboven-hoek, of
+ * horizontaal scrollen na een extreme zoom-uit/-in-cyclus) de taakbalk-laag volledig uit beeld
+ * duwen, en geen render-pass haalt hem terug. `useGanttViewportCoordinator` registreert bij elke
+ * render de werkelijke inhoudsgrenzen (rijen×rowHeight, totale dagbreedte×zoom) zodat `setScroll`
+ * daar altijd binnen blijft. Headless (tests): beide blijven null → geen bovengrens (zelfde
+ * precedent als `chartWidth` hierboven).
  */
 let maxScrollX: number | null = null;
 let maxScrollY: number | null = null;
 
 /**
- * Pure formule voor de scrolbare grenzen (fase 2.8a QA, fix 2) — DE ene bron voor `drawPrimary`
- * (`GanttCanvas.tsx`, elke render) én de "spring naar taak"-sprong (issue #65). Die laatste zet
- * zelf een NIEUWE zoom/rijtelling en moet de grenzen dus VOORUIT berekenen in plaats van de
- * grenzen van de vorige render te lezen (die staan pas ná de eerstvolgende rAF-paint klaar) —
- * zonder deze gedeelde functie was dat een tweede kopie van dezelfde twee regels geweest, en
- * precies dat patroon (een formule die twee keer los staat) is al drie keer in dit bestand de
- * bron van een regressie gebleken (zie `ZOOM_STEP`/`computeEffectiveViewStart` hierboven).
+ * Pure formule voor de scrolbare grenzen — DE ene bron voor elke render én de "spring naar
+ * taak"-sprong. Die laatste zet zelf een NIEUWE zoom/rijtelling en moet de grenzen dus VOORUIT
+ * berekenen in plaats van de grenzen van de vorige render te lezen (die staan pas ná de
+ * eerstvolgende rAF-paint klaar). Eén formule, geen tweede losse kopie (zie ook `ZOOM_STEP`/
+ * `computeEffectiveViewStart` hierboven).
  */
 export function computeGanttScrollBounds(
   contentWidth: number,
@@ -338,14 +323,13 @@ export function clampGanttScroll(x: number, y: number): { x: number; y: number }
  * bv. headless). De wheel-handler leest `maxScrollY` om te bepalen of een verticale wheel-scroll
  * überhaupt iets kán bewegen: past het hele project verticaal in beeld (`maxScrollY <= 0`), dan
  * is verticaal scrollen een no-op en valt de handler terug op horizontaal — anders voelt het
- * gewone wiel "dood" (§keys-modus: plat wiel = verticaal per default).
+ * gewone wiel "dood" (keys-modus: plat wiel = verticaal per default).
  */
 export function getGanttScrollBounds(): { maxScrollX: number | null; maxScrollY: number | null } {
   return { maxScrollX, maxScrollY };
 }
 
-/** Aandeel van de bruikbare breedte dat de taakbalk zelf inneemt bij "spring naar taak" (issue
- *  #65): hoog genoeg voor duidelijke context ervoor/erna, laag genoeg om niet edge-to-edge te
+/** Aandeel van de bruikbare breedte dat de taakbalk zelf inneemt bij "spring naar taak": hoog genoeg voor duidelijke context ervoor/erna, laag genoeg om niet edge-to-edge te
  *  ogen zoals `computeFitToProject`. */
 const FOCUS_TASK_WIDTH_FRACTION = 0.2;
 
@@ -363,8 +347,7 @@ export interface FocusTaskHorizontal {
 }
 
 /**
- * Zoom + horizontale scroll voor "spring naar taak" (issue #65, WBS-sprongknop bij afhankelijk-
- * heden): de taakbalk krijgt een vast aandeel van de bruikbare breedte en wordt gecentreerd —
+ * Zoom + horizontale scroll voor "spring naar taak" (WBS-sprongknop bij afhankelijkheden): de taakbalk krijgt een vast aandeel van de bruikbare breedte en wordt gecentreerd —
  * bewust anders dan `computeFitToProject` (heel project, edge-to-edge) en `computeScrollToDate`/
  * `GanttCanvas.revealTaskIfOffscreen` (scroll-only, tegen de linkerrand, zoom ongewijzigd).
  *

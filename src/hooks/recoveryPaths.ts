@@ -37,13 +37,12 @@ export interface RecoveryNames {
 }
 
 /**
- * Bouw de bestandsnamen én de HERKENNING voor één base (bevinding K5).
+ * Bouw de bestandsnamen én de HERKENNING voor één base.
  *
  * Waarom dit een exacte match moet zijn en geen `startsWith(base + '.')`. De productie-base is
  * kaal `recovery`, de dev-base is `recovery.<slug>` — dus elke dev-bestandsnaam begint met de
- * productie-prefix. Met een prefix-vergelijking ruimde één start van de productiebuild alle
- * herstel-snapshots van álle dev-worktrees op, en dat gebeurde ONVOORWAARDELIJK, niet alleen bij
- * twee gelijktijdige instanties. De match is nu: precies één segment (geen punt) tussen de base
+ * productie-prefix. Met een prefix-vergelijking ruimt één start van de productiebuild alle
+ * herstel-snapshots van álle dev-worktrees op, ONVOORWAARDELIJK. De match is daarom: precies één segment (geen punt) tussen de base
  * en `.ifc`. Andersom ging het al goed, want de dev-base is de specifiekere van de twee.
  *
  * Dat één segment mag, kan en moet: doc-id's komen uit `generateId('doc')` — `doc-` gevolgd door
@@ -54,8 +53,7 @@ export interface RecoveryNames {
  *
  * Bekende, bewust geaccepteerde rest: `recovery.<slug>.ifc` — het LEGACY-bestand van een oude
  * dev-build — is voor een productiebuild niet te onderscheiden van een snapshot met doc-id
- * `<slug>`. Dat bestand wordt sinds de multi-document-overgang nergens meer geschreven, dus het
- * bestaat alleen nog als restant op een machine die ooit een oude dev-build draaide.
+ * `<slug>`. Dat bestand wordt nergens meer geschreven, dus het bestaat alleen nog als restant op een machine die ooit een oude dev-build draaide.
  */
 export function recoveryNames(base: string): RecoveryNames {
   const snapshotRe = new RegExp(`^${escapeRe(base)}\\.([^.]+)\\.ifc$`);
@@ -104,15 +102,14 @@ export interface RecoveryManifestDoc {
   filePath: string | null;
   isDirty: boolean;
   /**
-   * v4: stond dit document bij het schrijven van de snapshot in "datums zoals opgeslagen"
-   * (issue #63 / XER laag 3)? Crashherstel is het HERVATTEN van een sessie, geen heropening, dus
+   * v4: stond dit document bij het schrijven van de snapshot in "datums zoals opgeslagen"?
+   * Crashherstel is het HERVATTEN van een sessie, geen heropening, dus
    * die weergavestand hoort terug te komen zoals hij was — en dat is een FEIT dat je opschrijft,
-   * geen heuristiek die je achteraf uit de datums probeert af te leiden (critreview laag 3,
-   * bevindingen 2 en 3).
+   * geen heuristiek die je achteraf uit de datums probeert af te leiden.
    *
    * OPTIONEEL getypeerd, met dezelfde regel als `ownerId`/`heartbeatAt`: een v1–v3-manifest staat
-   * op de schijf van iedereen die de vorige versie draaide en MOET leesbaar blijven. Ontbreekt het
-   * veld, dan geldt `false` — het bestaande #63-aanbod, niet de modus.
+   * op de schijf van iedereen die een oudere versie draaide en MOET leesbaar blijven. Ontbreekt het
+   * veld, dan geldt `false` — alleen het aanbod, niet de modus.
    */
   datesAsRecorded?: boolean;
 }
@@ -121,9 +118,9 @@ export interface RecoveryManifest {
   /**
    * 1 = zonder eigenaarschapsvelden (t/m de multi-document-release), 2 = met `ownerId`/
    * `heartbeatAt`, 3 = immutable generatie-snapshots met het manifest als commitpoint, 4 = per
-   * document de modusvlag `datesAsRecorded` als manifestmetadata (XER-etappe laag 3; een oud
-   * manifest zonder vlag leest als `false` = alleen aanbieden).
-   * Een v1/v2-manifest MOET leesbaar blijven: het staat op de schijf van iedereen die de vorige
+   * document de modusvlag `datesAsRecorded` als manifestmetadata (een oud manifest zonder vlag
+   * leest als `false` = alleen aanbieden).
+   * Een v1/v2-manifest MOET leesbaar blijven: het staat op de schijf van iedereen die een oudere
    * versie draaide, en dat weigeren betekent dataverlies bij de eerste start na de update.
    * Beide eigenaarschapsvelden zijn daarom optioneel getypeerd en het versienummer wordt nergens
    * als leespoort gebruikt — alleen als informatie.

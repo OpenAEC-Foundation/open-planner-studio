@@ -2,7 +2,7 @@ import type { Sequence } from '@/types/sequence';
 import { trimNumber } from '@/utils/durationFormat';
 import { isFiniteNumber } from '@/utils/guards';
 
-/** De velden die de lag-notatie samen dragen (fase F1: uren erbij naast dagen/procent). */
+/** De velden die de lag-notatie samen dragen: dagen, procent en uren. */
 type LagFields = Pick<Sequence, 'lagDays' | 'lagUnit' | 'lagPercent' | 'lagMinutes'>;
 
 /**
@@ -42,7 +42,7 @@ const LAG_INPUT = new RegExp(`^([+-]?\\d+(?:[.,]\\d+)?)(${LAG_UNIT_SUFFIXES})?$`
  * "-25e%" (hoofdletterongevoelig, spaties genegeerd), én uren: "2u"/"2h" (werktijd-uren,
  * minuut-precies) en "3eu"/"3eh" (elapsed uren — kalonderuren, 24/7). `u` is de weergave-vorm
  * (taalonafhankelijk, net als `d`); `h` wordt ALLEEN als invoer geaccepteerd, symmetrisch met
- * `parseDuration` in `durationFormat.ts` (§6.4: "invoer blijft taalonafhankelijk d/u/h/m").
+ * `parseDuration` in `durationFormat.ts` (invoer blijft taalonafhankelijk d/u/h/m).
  *
  * Kale getallen = werkdagen. Geeft null terug bij onparseerbare invoer; lege invoer = lag 0
  * (werkdagen). Elke branche zet de NIET-gebruikte lag-velden expliciet op `undefined`/0 —
@@ -65,7 +65,7 @@ export function parseLagInput(input: string): LagFields | null {
     return { lagDays: 0, lagUnit, lagPercent: num, lagMinutes: undefined };
   }
   if (suffix === 'u' || suffix === 'h' || suffix === 'eu' || suffix === 'eh') {
-    // lagDays: 0 — zelfde conventie als mspdiReader (§7.3): een minuut-lag is de bron van
+    // lagDays: 0 — zelfde conventie als mspdiReader: een minuut-lag is de bron van
     // waarheid, lagDays blijft de (niet-misleidende) 0-fallback voor lezers die lagMinutes niet
     // kennen.
     return { lagDays: 0, lagUnit, lagPercent: undefined, lagMinutes: Math.round(num * 60) };

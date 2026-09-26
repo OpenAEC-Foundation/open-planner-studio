@@ -1,11 +1,11 @@
 // Toelichting bij een nieuwe instelling (stappen, drie-plekken-UI, wat níét mechanisch bewaakt
 // wordt): docs/recepten/instelling.md.
 //
-// Settings-register (pakket M, audit H1) — DÉ declaratieve bron van waarheid die per app-instelling
-// (localStorage-sleutel, validator/parser, doel-UIState-veld) bindt. Naar het bewezen `SHORTCUTS`-
-// patroon (`src/hooks/keyboard/shortcutRegistry.ts`): één descriptor-entry per instelling i.p.v. een
-// hand-gesynchroniseerd load-blok in `useSettingsBootstrap` én een parallel `loadX`-paar hier.
-// Doel (audit-eis H1): een nieuwe instelling toevoegen = één entry hieronder (+ eventueel een dunne
+// Settings-register — DÉ declaratieve bron van waarheid die per app-instelling (localStorage-sleutel,
+// validator/parser, doel-UIState-veld) bindt. Naar het `SHORTCUTS`-patroon
+// (`src/hooks/keyboard/shortcutRegistry.ts`): één descriptor-entry per instelling i.p.v. een
+// hand-gesynchroniseerd load-blok in `useSettingsBootstrap` én een parallel `loadX`-paar.
+// Een nieuwe instelling toevoegen = één entry hieronder (+ eventueel een dunne
 // `saveX`-wrapper in `settingsStore.ts` en de gedeelde UI in `SettingsPanelContent`).
 //
 // Contract: elke descriptor is 1-op-1 (één localStorage-sleutel → één UIState-veld). De AFWIJKERS
@@ -15,9 +15,9 @@
 // buiten de opstart-hydratatie lazy worden geladen (layouts, lastLayoutId, workTimePresets,
 // welcomeSeen, locale) staan BEWUST niet in dit register: die voeden geen enkele opstart-`setUI`.
 //
-// De localStorage-sleutels en -formaten MOETEN byte-identiek blijven aan de oude `loadX`-helpers —
-// dit register vervangt alleen de LOAD-kant; de bestaande `saveX`-functies (en dus het
-// serialisatieformaat) blijven ongemoeid.
+// Dit register dekt alleen de LOAD-kant; het serialisatieformaat komt van de `saveX`-functies in
+// `settingsStore.ts`. Sleutels en formaten moeten daarmee in de pas blijven — bestaande opgeslagen
+// voorkeuren moeten gewoon blijven laden.
 
 import { snapToChoice } from '@/utils/numberChoice';
 import { parseBoolean, parseClampedInt as clampedInt, parseEnum as parseEnumValue } from '@/utils/settingParsers';
@@ -55,7 +55,7 @@ import {
 } from '@/utils/settingsStore';
 import type { TaskGridPreferencesLoadResult } from '@/utils/settingsStore';
 
-// --- Parse-/validatiehelpers (byte-identiek aan de oude `loadX`-validators) ---------------------
+// --- Parse-/validatiehelpers ---------------------------------------------------------------------
 
 // De registry-descriptors willen een parser per instelling; deze fabrieken binden de gedeelde
 // validators uit `settingParsers.ts` aan hun keuzelijst/bereik.
@@ -96,7 +96,7 @@ function parseModifierMap(raw: unknown): ModifierMap | undefined {
 }
 
 // Klem-grenzen komen rechtstreeks uit `settingsStore.ts` (dezelfde constanten die GanttCanvas/App
-// voor de live drag-klem gebruiken), zodat de klem byte-identiek blijft aan de oude `loadX`-helpers.
+// voor de live drag-klem gebruiken), zodat laden en slepen dezelfde klem kennen.
 // Geen import-cyclus: `settingsStore` importeert niets uit dit register.
 
 const SCROLL_MODES: ScrollMode[] = ['position', 'modifier', 'drag'];
@@ -121,11 +121,9 @@ function setting<K extends keyof UIState>(d: SettingDescriptor<K>): SettingDescr
 }
 
 // Volgorde is niet betekenisvol: alle velden zijn onafhankelijk en worden tot één `setUI`-patch
-// samengevoegd (geen veld overschrijft een ander). Gegroepeerd zoals de oude load-blokken voor
-// leesbaarheid.
+// samengevoegd (geen veld overschrijft een ander). Gegroepeerd voor leesbaarheid.
 export const SETTINGS: SettingDescriptor[] = [
-  // Zoom/scroll (was `loadZoomSettings` — vijf onafhankelijke sleutels, hier ontbundeld tot vijf
-  // 1-op-1-descriptors; dezelfde sleutels, dezelfde validators).
+  // Zoom/scroll (`loadZoomSettings`: vijf onafhankelijke sleutels als vijf 1-op-1-descriptors).
   setting({ key: 'enableQuarterHourZoom', field: 'enableQuarterHourZoom', parse: parseBoolean }),
   setting({ key: 'weekStartDay', field: 'weekStartDay', parse: parseEnum(WEEK_START_DAYS) }),
   setting({ key: 'scrollMode', field: 'scrollMode', parse: parseEnum(SCROLL_MODES) }),
@@ -135,7 +133,7 @@ export const SETTINGS: SettingDescriptor[] = [
   // Debug-terminal
   setting({ key: 'debugTerminalEnabled', field: 'debugTerminalEnabled', parse: parseBoolean }),
 
-  // AI-modus (MCP-bridge, T14) — persistente spiegel die de conditionele AI-ribbontab voedt.
+  // AI-modus (MCP-bridge) — persistente spiegel die de conditionele AI-ribbontab voedt.
   setting({ key: 'aiMode', field: 'aiMode', parse: parseBoolean }),
   // Bridge automatisch starten bij het opstarten van de app (alleen van kracht mét aiMode, Tauri-only).
   setting({ key: 'aiAutostart', field: 'aiAutostart', parse: parseBoolean }),
@@ -148,11 +146,11 @@ export const SETTINGS: SettingDescriptor[] = [
   setting({ key: 'rightPanelWidth', field: 'rightPanelWidth', parse: parseClampedInt(RIGHT_PANEL_MIN_WIDTH, RIGHT_PANEL_MAX_WIDTH) }),
   setting({ key: 'ribbonCompact', field: 'ribbonCompact', parse: parseBoolean }),
 
-  // Rail-accordeon (issue #46, slot): hoogte van de Eigenschappen-sectie wanneer beide secties
+  // Rail-accordeon: hoogte van de Eigenschappen-sectie wanneer beide secties
   // openstaan. Alleen de AFMETING is een voorkeur; de inklaptoestand per sectie is sessiewerk en
   // staat hier daarom bewust NIET — net zoals `rightPanelCollapsed` er niet staat.
   setting({ key: 'railPropertiesHeight', field: 'railPropertiesHeight', parse: parseClampedInt(RAIL_SECTION_MIN_HEIGHT, RAIL_SECTION_MAX_HEIGHT) }),
-  // Issue #53: idem voor het Waarschuwingenpaneel onderin de rail — alleen de hoogte is een
+  // Idem voor het Waarschuwingenpaneel onderin de rail — alleen de hoogte is een
   // voorkeur, `showWarningsPanel` zelf is sessiewerk.
   setting({ key: 'railWarningsHeight', field: 'railWarningsHeight', parse: parseClampedInt(RAIL_SECTION_MIN_HEIGHT, RAIL_SECTION_MAX_HEIGHT) }),
 
@@ -177,29 +175,27 @@ export const SETTINGS: SettingDescriptor[] = [
   // Datumnotatie
   setting({ key: 'dateNotation', field: 'dateNotation', parse: parseEnum(DATE_NOTATIONS) }),
 
-  // Lettertype interface (issue #25.4): familie (enum) + schaalpercentage. De schaal snapt naar de
+  // Lettertype interface: familie (enum) + schaalpercentage. De schaal snapt naar de
   // dichtstbijzijnde waarde uit UI_FONT_SCALES — dezelfde lijst waaruit de Select zijn opties bouwt
   // — zodat een geladen waarde gegarandeerd overeenkomt met een aanwijsbare optie.
   setting({ key: 'uiFontFamily', field: 'uiFontFamily', parse: parseEnum(UI_FONT_FAMILIES) }),
   setting({ key: 'uiFontScale', field: 'uiFontScale', parse: parseNumberChoice(UI_FONT_SCALES) }),
 
-  // Urenplanning (fase 2.8b, §6.8)
+  // Urenplanning
   setting({ key: 'enableHourPlanning', field: 'enableHourPlanning', parse: parseBoolean }),
   setting({ key: 'showTaskTypes', field: 'showTaskTypes', parse: parseBoolean }),
   setting({ key: 'allowMixedDayHour', field: 'allowMixedDayHour', parse: parseBoolean }),
   setting({ key: 'durationDisplay', field: 'durationDisplay', parse: parseEnum(DURATION_DISPLAYS) }),
   setting({ key: 'barSplitMode', field: 'barSplitMode', parse: parseEnum(BAR_SPLIT_MODES) }),
 
-  // Issue #21 punt 5 (fase 2): «alleen werkbare dagen tonen» — globale weergavevoorkeur, exact
+  // «alleen werkbare dagen tonen» — globale weergavevoorkeur, exact
   // het barSplitMode-patroon (1 sleutel → 1 UIState-veld).
   setting({ key: 'compressNonWorkdays', field: 'compressNonWorkdays', parse: parseBoolean }),
 ];
 
-/** Hydrateert álle opstart-instellingen uit localStorage tot één `setUI`-patch. Vervangt de ~20 losse
- *  `loadX().then(v => setUI({...}))`-blokken in `useSettingsBootstrap`. Gedrag is identiek aan de som
- *  van die blokken: dezelfde sleutels, dezelfde validators, dezelfde defaults (ongeldig/afwezig ⇒
- *  veld weggelaten → store-default blijft). Eén patch i.p.v. ~20 losse `setUI`-calls scheelt alleen
- *  renders; de eindtoestand is identiek (geen veld overlapt een ander).
+/** Hydrateert álle opstart-instellingen uit localStorage tot één `setUI`-patch voor
+ *  `useSettingsBootstrap` (ongeldig/afwezig ⇒ veld weggelaten → store-default blijft). Eén patch
+ *  i.p.v. een `setUI` per instelling scheelt renders; geen veld overlapt een ander.
  *
  *  AFWIJKERS (bewust buiten `SETTINGS`, expliciet hier):
  *  1. Thema: `initTheme()` migreert 7→3 oude thema's, PERSISTEERT de conversie terug naar localStorage
@@ -207,7 +203,7 @@ export const SETTINGS: SettingDescriptor[] = [
  *     van `SETTINGS`, dus expliciet.
  *  2. Bouwmodus: `loadConstructionMode()` is SYNCHROON (geen Promise) — de kalenderfabriek moet de vlag
  *     direct kunnen uitlezen — en heeft eigen serialisatie (`JSON.stringify`, default `true`). Wordt
- *     daarom als losse sync-aanroep toegevoegd; de vlag wordt ALTIJD gezet (net als voorheen).
+ *     daarom als losse sync-aanroep toegevoegd; de vlag wordt ALTIJD gezet.
  *  3. Balkkleurkeuze (`barColorSelection`): `loadBarColorSelection()` is één objectkeuze met
  *     legacy-migratie uit twee oude instellingen — past niet in het 1-op-1-register, want de loader
  *     leest eerst de canonieke sleutel en valt pas bij ontbreken daarvan terug op de twee oude
