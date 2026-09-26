@@ -13,7 +13,9 @@ Het venster **Projectinformatie** bevat de metadata van het project plus het blo
 
 - **Projectnaam** — de naam in de titelbalk en het documenttabblad.
 - **Beschrijving** — vrije tekst.
-- **Ingenieur** en **Bedrijf** — vrije tekst; gaan mee in het IFC-bestand.
+- **Auteur** — vrije tekst; gaat mee in het IFC-bestand.
+- **Resourcebibliotheek** — keuzelijst: **geen bibliotheek (los project)**, een van je bestaande resourcebibliotheken, of **+ Nieuwe resourcebibliotheek…** (je typt de naam; de bibliotheek wordt pas bij **Toepassen** aangemaakt). Koppel je een bibliotheek, dan kan Open Planner Studio aansluitend voorstellen om gelijknamige resources en kalenders aan de bibliotheek te koppelen. Zie de gids [Resourcebibliotheken](docs://gids-resourcebibliotheken).
+- **Opdrachtgever/organisatie** — vrije tekst; gaat mee in het IFC-bestand.
 - **Startdatum** — het vertrekpunt van de berekening. Een taak mét voorganger start nooit vóór deze datum; een taak zónder voorganger behoudt gewoon haar eigen, ingelezen datum, ook als die vóór de projectstart ligt — dat is nodig om een geïmporteerd bestand (bijvoorbeeld uit MS Project) exact zo te tonen als in het bronprogramma. Een harde Must-Start-On/Must-Finish-On-constraint doorbreekt beide regels: zo'n taak start altijd op de geconstrainde datum, mét of zónder voorganger, ook als die vóór de projectstart ligt. Zet je de startdatum hier naar een latere datum, dan schuift Open Planner Studio zulke te-vroege, losstaande taken automatisch mee naar de nieuwe startdatum — met een melding en met Ctrl+Z ongedaan te maken. Dat gebeurt alleen bij het bewust wijzigen van de startdatum, via Projectinfo of de AI-assistent — nooit bij het openen van een bestand.
 - **Einddatum** — informatief einde van het project.
 

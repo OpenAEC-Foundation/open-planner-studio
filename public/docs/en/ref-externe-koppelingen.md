@@ -4,7 +4,7 @@ The **External (cross-project) link** window records a dependency between a task
 
 ## Opening
 
-**Relations** tab → **External link…** button. Exactly one task must be selected; otherwise "Select a single task to add an external link." appears.
+The **Link** drop-down in the ribbon → **Add external relation…**. The drop-down sits on the **Planning** tab (group **Relations**) and on the **Home** and **Table** tabs (group **Tasks**). The item is only available when exactly one task is selected; otherwise it is disabled with the tooltip "Select exactly one task".
 
 ## The frozen anchor
 
@@ -29,7 +29,7 @@ Existing links are shown as tokens in the task grid's **Predecessors** and **Suc
 
 - Per link: the source task, the type, the anchor, and an **outdated** badge once the source could not be loaded (anymore) — with the explanation "source not loaded — re-import to refresh".
 - Right-click a token for **Edit external relation**, **Refresh source**, or **Delete relation**.
-- **Relation → Refresh all external relations** in the ribbon re-reads all available source files and updates their anchors.
+- The **Link** drop-down → **Refresh all external relations** in the ribbon re-reads all available source files and updates their anchors.
 - Refreshing reads files and therefore only works in the desktop app; the browser version reports "Reading source files is desktop-only; use the manual fallback."
 
 ## Further reading

@@ -80,7 +80,7 @@ A full, formatted printout of the Gantt bars — this is the only report type wi
 - **Status line** — *None* (default), *Status date line* (a vertical dashed line at the project's
   status date) or *Progress line* (the same zigzag line as on screen: per task a bulge toward the
   progress position). Without a status date in the project nothing is drawn — set one first via
-  the project info; the panel points this out.
+  **Planning** → **Baselines & progress** → **Status date**; the panel points this out.
 - **Follow view** — when on, the export prints exactly what you see on screen: the active filter,
   grouping, sorting and collapsed groups stay collapsed. Off (default), the export prints the full
   task tree.
@@ -178,8 +178,8 @@ a few conventions:
   (LOE) tasks are left out of the activity reports, but included in the two resource reports:
   supervision books effort too, and it is the same set as the histogram.
 - The **reference day** is the project's status date. Without a status date the report uses today
-  and says so. Set a status date in the project details first if you want a report for a fixed
-  reporting date.
+  and says so. Set a status date first via **Planning** → **Baselines & progress** →
+  **Status date** if you want a report for a fixed reporting date.
 - Dates and float come from the last **calculation**. If the schedule changed since you last
   pressed *Calculate* (F5), a note appears above the report; the PDF export always recalculates
   first.

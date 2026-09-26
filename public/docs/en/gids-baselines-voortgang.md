@@ -8,6 +8,7 @@ A schedule you never update is a forecast. Once work starts, you want to see two
 - Seeing variance: the baseline overlay in the Gantt and the variance report.
 - Entering progress — percentage, actual dates — via the panel, the task dialog and the context menu.
 - The status date: what it does to not-yet-started tasks and to unmarked milestones.
+- The progress mode: Retained Logic or Progress Override.
 - Out-of-sequence warnings: what they mean and how to resolve them.
 - Reading the progress line.
 
@@ -69,6 +70,15 @@ You can see this exactly in the medium-sized showcase: with the status date set 
 ### Why an unmarked milestone "shifts to the right"
 
 In the calculation a milestone is nothing more than a task with zero duration, so the same rule applies: if it hasn't been marked complete yet (no 100%, no actual date), its calculated date cannot fall before the status date. Keep pushing the status date forward without marking the milestone complete, and its displayed date in the Gantt keeps shifting right along with it, even though nothing has changed about the underlying tasks — the schedule is effectively saying "this moment can't lie in the past if you haven't checked it off yet." Once you do mark the milestone complete with an actual date, it snaps back to that fixed date and stops shifting. (The `.mpp` exception above applies here too: in a project imported from MS Project, an unmarked milestone does not shift along with the status date.)
+
+## The progress mode
+
+Next to the status date, the same ribbon group holds the **Progress mode** drop-down, with two values. It determines where the remaining part of an *in-progress* task (started, not yet complete) begins:
+
+- **Retained Logic** (default) — the remainder starts at the status date (without a status date: at the task's own actual start), but not before the moment its predecessors allow. The relations therefore still apply to the work that is left.
+- **Progress Override** — the remainder starts at the status date without waiting for its predecessors: actual progress takes precedence over the relationship logic. In the Primavera P6 calculation profile, the calculation also ignores the relation from a not-yet-complete predecessor to such an in-progress task for float.
+
+The difference only shows on tasks that have started while a predecessor is not yet finished — exactly the cases reported as out-of-sequence (see below). Choosing another mode marks the schedule as out of date; press **F5** (or let *Calculate automatically* do it) to see the effect. The choice belongs to the project, is stored in the IFC file and can be undone with Ctrl+Z; an `.xer` import takes over the P6 project's setting.
 
 ## Out-of-sequence warnings
 

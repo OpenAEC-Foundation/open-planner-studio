@@ -7,9 +7,11 @@ A schedule starts with a task structure: which tasks exist, how are they broken 
 - Building a task structure (WBS) using indenting and summary tasks.
 - Moving tasks within the same level, without re-indenting — with the keyboard, by dragging, or in
   the spreadsheet-style **Table** tab.
+- Renumbering WBS codes, and saving and reusing a branch as a WBS template.
 - The three milestone kinds and the separate mandatory flag for contractual moments.
 - Managing activity codes and custom fields via the **Codes & fields** window, and grouping by them.
 - Using notes (a per-task checklist) to keep track of open items.
+- Moving the whole project to a different start date in one go.
 
 Would you rather follow along with a complete example? Open [Verbouwing & Aanbouw Eengezinswoning](examples://showcase-verbouwing-eengezinswoning.ifc) via **File → Examples** — the phasing "1. Voorbereiding" (Preparation) / "2. Fundering & ruwbouw" (Foundation & shell construction) / "3. Afbouw" (Finishing) / "4. Oplevering" (Handover) with its subtasks is exactly the structure explained below.
 
@@ -118,6 +120,22 @@ previous task row. Indenting and outdenting remain **Alt+→**/**Alt+←**. **En
 row simply opens the active cell's editor; **↓** stops there (no new row). To insert a new task —
 above the active row, with the cursor placed straight in its name cell — use **Insert**.
 
+## Renumbering WBS codes
+
+On the **Planning** tab, group **Structure**, there are two buttons for the WBS codes:
+
+- **WBS auto** — a toggle. When it is on, the app keeps the codes up to date itself (1, 1.1, 1.2 …) and the **WBS Code** field in the task dialog is locked.
+- **Renumber WBS** — renumbers all tasks once according to their position in the tree: the n-th top-level task gets `n`, the n-th child of a task with code P gets `P.n`. Handy after rearranging or after an import with its own codes. **Ctrl+Z** restores the old codes. The button is disabled while **WBS auto** is on — renumbering isn't needed then.
+
+## WBS templates: reusing a branch
+
+A phase you need more often (for example a standard finishing sequence) can be saved as a template:
+
+1. Right-click a summary task — in the Gantt or in the task table — and choose **Save branch as template**. The template gets that task's name; a notification confirms it.
+2. Later, in this or another project, select the task the branch should go under (or select nothing for the top level) and on the **Planning** tab, group **Structure**, choose the **Templates** drop-down → the template. Each template shows how many tasks and relations it contains; the trash icon (**Delete template**) removes it.
+
+A template stores each task's name, description, task type, milestone flag and duration, plus the relations that stay within the branch (with their lag). Relations to tasks outside the branch, dates, progress, resources and codes are not included. The inserted tasks start at the project start and the schedule becomes out of date: press **F5** to calculate the branch in. Templates are stored in the app on this device, not in the project file.
+
 ## Milestone kinds
 
 A milestone marks a moment — a start, a handover, an inspection — and normally has zero duration; if a milestone has been given a duration greater than 0 itself (via an import, for example), Open Planner Studio simply schedules it as a task with that duration, with the **Milestone** checkbox still on. A summary task or a task with resource assignments cannot become a milestone: the **Milestone** checkbox (properties panel, **Edit task**, the context menu and the **Table** tab) refuses that with a notification — remove the assignments first. Open Planner Studio has three ways to add a milestone, all via the **Tasks** ribbon group, using the arrow next to the **Milestone** button:
@@ -155,6 +173,17 @@ Every task has a **Notes** section in the properties panel — essentially a sma
 4. Use the trash icon to permanently remove a note.
 
 Notes are purely informational: they don't affect the schedule or the calculation, so they're the right tool for remarks that can't be expressed as a date or duration. See a mix of open and completed notes in practice in the medium-sized example "Nieuwbouw 6 Rijwoningen De Akkers" (tag *aantekeningen*/notes in **File → Examples**).
+
+## Moving the whole project
+
+If the start of the whole project shifts (for example because the permit comes later), use **Planning** → group **Schedule** → **Move project…**. The button is disabled while the project has no start date.
+
+1. Enter the **New project start** (below the **Current project start**). If that date is in the past, the window warns you.
+2. If there are baselines, you can tick **Shift baselines too**. It is off by default, so the shift stays visible as a variance against the baseline.
+3. Click **Calculate preview**. The preview shows the old and new project start and finish, how many tasks move and what moves along (constraint dates, deadlines, actual dates, external anchors, capacity steps), with warnings where needed.
+4. **Move** carries it out, as a single undo step; the schedule is then recalculated and brought into view.
+
+Everything moves by the same number of calendar days, including the status date. The calendars deliberately do *not* move: public holidays, the builders' holiday and the winter shutdown sit on fixed dates. As a result the project finish can move by a different number of days and the project duration can change; the preview reports this beforehand. Filled-in date custom fields keep their date. This differs from changing the start date in the project information: there only stand-alone tasks that would otherwise lie before the new start move along.
 
 ## Keep reading
 

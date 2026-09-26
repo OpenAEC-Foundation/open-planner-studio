@@ -12,13 +12,13 @@ understanding on their own.
 - How dragging works: moving a bar versus drawing a relation.
 - When a drag on empty canvas pans, and when it box-selects.
 - Moving through visible tasks or histogram resources with the arrow keys.
-- Zooming, document tabs and presentation mode.
+- Zooming, document tabs, presentation mode, split view and mini-map.
 - How to restart the tour.
 
 ## The always-current overview
 
 Press **Ctrl+/** (or **Cmd+/** on macOS) to open the shortcuts overview — the same window is also
-reachable via the **Shortcuts** button on the **View** ribbon tab. This window is read-only and is
+reachable via the **Keyboard Shortcuts** button on the **Settings** ribbon tab (group **Keyboard Shortcuts**). This window is read-only and is
 built directly from the app's source code: a new shortcut shows up here automatically, with no
 separate list for anyone to keep in sync. That's exactly why this guide doesn't duplicate the list —
 a second, hand-maintained list would sooner or later drift from what the app actually does. The
@@ -122,12 +122,20 @@ If you have several projects open at once (each in its own document tab), **Ctrl
 showing the schedule without the editing chrome around it. **Esc** exits presentation mode again
 (and, on a subsequent press, performs the usual "clear selection").
 
+## Split view and mini-map
+
+Besides the **Presentation** button (presentation mode), the **Presentation** ribbon group on the **View** tab holds two more toggles:
+
+- **Split view** — adds a second timeline next to the Gantt timeline, with its own time window. Both parts show the same rows and scroll vertically together, but each has its own zoom and horizontal position; that way you can, for example, keep the start of the project in view while working further along. The second timeline starts at the same zoom and position as the first, split half-and-half; drag the divider between them to change the split. Clicking **Split view** again closes the second timeline.
+- **Mini-map** — shows a narrow strip below the Gantt with a thumbnail of the whole project period and a frame around the part you currently see. Drag the frame or click in the strip to go to that part of the project. With split view on, each timeline gets its own strip. The app remembers whether the mini-map is on.
+
 ## Restarting the tour
 
 Want to run the introduction tour again (for example to show someone else the app)? There are two
-places to do that: the **Tour** button on the **View** ribbon tab, or **Start tour** in the Backstage
-navigation (the row just above Settings). Both start the tour immediately, without showing the
-welcome dialog first.
+places to do that: **Start tour** in the Backstage navigation (the row just above Settings), or
+**Settings** → **Advanced** tab → **Start tour**. Both start the tour immediately, without showing
+the welcome dialog first. On the app's very first launch the welcome dialog itself offers the tour,
+with the **Start tour** button.
 
 ## Further reading
 
