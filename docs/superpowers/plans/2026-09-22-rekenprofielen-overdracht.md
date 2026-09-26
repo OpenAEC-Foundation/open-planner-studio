@@ -482,6 +482,13 @@ op 8 blijft; verify EXIT 0 browser 224, measure 76/0/0/0, mcp 49; gelinkt) — s
 echte waardewijziging; verliesmelding ook via `settleDurationAftermath`; kritieke telling op bladgrens; fasevoortgang
 niet opgerold in "datums zoals opgeslagen").
 
+**26-09 12:26 — app-crash; groep-B-agent hervat** (worktree had 1f77fab7 merge main/#226 + 7c517686 cherry-pick
+c09674ba lokaal; afaf33f7 en de poorten nog te doen). Main-CI groen na #226, deploy loopt. **Nieuwe open PR's**
+(sinds gisteren door andere sessies aangemaakt): #202/#203/#205 (nog open: zitten in groep B), en een nieuwe reeks
+#206–#225, #227, #228, #230–#232, #234 (26 stuks: gidsen/RTL, MCP-fixes, relaties, fasen, kalenders, dev-lock,
+verify:docs) — na groep B als **groep C** op dezelfde manier (integratiebranch vanaf main, één verify + measure,
+groeps-PR), eigenaar wordt geïnformeerd.
+
 ## 2. Waar het werk staat (bijwerken bij elke mijlpaal)
 
 | wat | branch | stand |
