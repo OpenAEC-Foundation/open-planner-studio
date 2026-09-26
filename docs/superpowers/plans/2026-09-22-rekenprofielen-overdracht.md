@@ -459,7 +459,11 @@ Open restpunt uit de her-check: `data.recalculate` in de modus "datums zoals opg
 dialoog nog de sessiestempel krijgen (bewust niet in een batch gezet).
 
 **26-09 08:30 — #169 GEMERGED naar `main` (`6160b477`, `--admin` na groene CI op 6f38d1d7).** #170: `main`
-erin gemerged en gepusht om de PR-CI te starten; daarna merge. Volgende: groep A en B.
+erin gemerged en gepusht (33a410dd) om de PR-CI te starten. **Groep A: PR #226 geopend** (`claude/integratie-groep-a`
+18108d87: main met #169 erin, `SchedulingProfileSection` zonder sleutel-casts (poort #192), `check-xml-adapter-fidelity`
+met `effectiveSchedulingOptions({})`; verify EXIT 0 browser 203, measure 76/0/0/0; gelinkt) — wacht nog op stap 2
+(#170 erin) vóór de merge. CI-runs van main (na #169) en #170 werden om 08:28/08:29 met 'cancelled' op de test-job
+afgebroken (oorzaak onbekend; `concurrency: ci-${ref}` verklaart het niet) ⇒ om 09:00 opnieuw gestart.
 
 ## 2. Waar het werk staat (bijwerken bij elke mijlpaal)
 
