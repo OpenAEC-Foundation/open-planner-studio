@@ -91,8 +91,8 @@ export interface RelationTree {
  * fase, dus niet alleen een nieuwe relatie maar ook een andere BOOM kan een kring maken — hang een
  * taak onder een fase en haar relaties gelden voortaan ook voor die taak (audit taakmutaties, S4);
  * spring een taak uit haar fase en een relatie tussen die twee, die zolang niet meetelde, telt weer.
- * Gebruikt door de verhangregel (`hierarchyChangeVerdict`: zelfde relaties, andere boom); de vorm
- * (vóór/na als volledige graaf) past ook op een bewerking die de relaties verandert.
+ * Gedeeld door de verhangregel (`hierarchyChangeVerdict`: zelfde relaties, andere boom) en de
+ * MCP-voorafcontrole (`validate.noCycle`: zelfde boom, andere relaties).
  *
  * Alleen een NIEUWE kring telt (`detectIntroducedCycle`, zoals `relationCycle`): een kring die er al
  * was — bv. uit een import — blokkeert geen onschuldige bewerking.

@@ -794,7 +794,7 @@ const addDependencies: BatchStepTool = {
     'doorgerekend naar de onderliggende bladtaken. Onbekende taak-id\'s, een reeds bestaande relatie, ' +
     'of een voorouder-relatie (een taak gekoppeld aan zijn eigen (voor)ouder-samenvattingstaak) ' +
     'worden per item zacht geweigerd; een kringverwijzing (over de bestaande én voorgestelde ' +
-    'relaties) is een harde fout die de hele call terugrolt. ' +
+    'relaties, ook via de subtaken van een samenvattingstaak) is een harde fout die de hele call terugrolt. ' +
     'WIL JE EEN BESTAANDE RELATIE WIJZIGEN (ander type, andere lag, andere voorganger/opvolger)? ' +
     'Gebruik planner_update_dependencies met het sequence-id — NIET verwijderen-en-opnieuw-toevoegen: ' +
     'dat verliest het id en levert twee undo-stappen op.',

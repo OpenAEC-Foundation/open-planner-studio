@@ -1,17 +1,21 @@
-// Kring via een fase (audit taakmutaties, rapport S4) — de AI krijgt bij `planner_move_task` dezelfde
-// voorafweigering als de UI in plaats van pas de rollback van de eindberekening.
+// Kring via een fase (audit taakmutaties, rapport S4/S5) — de AI krijgt dezelfde voorafweigering als
+// de UI in plaats van pas de rollback van de eindberekening.
 //
-// Een relatie op een fase geldt voor elke taak in die fase (`expandSummaryRelations`). Hang je een
-// taak onder een fase waarvan de relaties via die taak rondlopen, dan ontstaat een kring die pas in
-// die uitgevouwen graaf zichtbaar is. `planner_move_task` keek daar niet naar; pas de afsluitende
-// herberekening ving het, met de Engelse solvertekst "Circular dependency detected" en — in
-// `planner_batch` — elke stap als "uitgevoerd", zodat de AI niet zag wélke stap de kring maakte.
+// Een relatie op een fase geldt voor elke taak in die fase (`expandSummaryRelations`). Een kring kan
+// dus pas in die uitgevouwen graaf zichtbaar zijn: een taak onder een fase hangen waarvan de relaties
+// via die taak rondlopen (S4, `planner_move_task`), of een relatie naar een fase (S5,
+// `planner_add_dependencies`/`planner_update_dependencies`). `planner_move_task` keek daar helemaal
+// niet naar en de MCP-voorafcontrole (`validate.noCycle`) alleen naar de kale relaties; pas de
+// afsluitende herberekening ving het, met de Engelse solvertekst "Circular dependency detected" en —
+// in `planner_batch` — elke stap als "uitgevoerd", zodat de AI niet zag wélke stap de kring maakte.
 //
-// Gemeten vóór de wijziging (en onveranderd erna): een kring rolt de HELE aanroep terug — in een
-// batch alle stappen. Dat is het bestaande contract; deze cases pinnen alleen dat de fout nu VOORAF
-// komt, met de gewone kringtekst, bij de juiste stap.
+// Gemeten vóór de wijziging (en onveranderd erna): een kring rolt de HELE aanroep terug — ook de
+// geldige items in dezelfde `add_dependencies`, en in een batch alle stappen. Dat is het bestaande,
+// gedocumenteerde contract ("een kringverwijzing is een harde fout die de hele call terugrolt"); deze
+// cases pinnen alleen dat de fout nu VOORAF komt, met de gewone kringtekst, bij de juiste stap.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { getTool, registerAllTools } from '@/services/mcp/toolRegistry';
+import { validate } from '@/state/mcpValidation';
 import { createSnapshot } from '@/state/snapshot';
 import type { McpToolResult } from '@/services/mcp/contracts';
 
@@ -99,6 +103,77 @@ test('batch: de move_task-stap die de kring maakt, faalt zelf — niet pas de ei
   assertEq(batchStatuses(res), ['uitgevoerd', 'gefaald'], 'stap 2 (move_task) is de gefaalde stap');
   assert(error.includes('1. planner_add_dependencies — uitgevoerd (teruggedraaid)'), `stap 1 is teruggedraaid, kreeg: ${error}`);
   assertEq(snapshot(), before, 'de hele batch is teruggedraaid (bestaand contract)');
+});
+
+// ── S5: een relatie die via een fase rondloopt (add/update_dependencies) ─────────────────────
+/** S5: fase P met P1, en P1→Q. Q→P zou via P1 rondlopen. Plus losse X en Y. */
+function s5() {
+  S().newProject();
+  S().setProject({ startDate: '2026-03-02' });
+  const p = S().addTask({ name: 'P' });
+  const p1 = S().addTask({ name: 'P1', parentId: p });
+  const q = S().addTask({ name: 'Q' });
+  const x = S().addTask({ name: 'X' });
+  const y = S().addTask({ name: 'Y' });
+  S().addSequence({ predecessorId: p1, successorId: q, type: 'FINISH_START', lagDays: 0 });
+  S().runCPM();
+  return { p, p1, q, x, y };
+}
+
+test('validate.noCycle: een relatie naar een fase die via haar kind rondloopt, is een kring', () => {
+  const { p, p1, q } = s5();
+  const cycle = validate.noCycle(S(), [{ predecessorId: q, successorId: p }]);
+  assertEq(cycle, [q, p1, q], 'de kring loopt via de bladtaak P1 en begint bij de nieuwe relatie');
+});
+
+test('add_dependencies: kring via een fase ⇒ vooraf CYCLE, hele aanroep terug (ook het geldige item)', async () => {
+  const { p, q, x, y } = s5();
+  const before = snapshot();
+  const res = await call('planner_add_dependencies', { dependencies: [
+    { predecessorId: x, successorId: y, type: 'FS' },
+    { predecessorId: q, successorId: p, type: 'FS' },
+  ] });
+  const error = assertPrecheckedCycle(res, 'add_dependencies Q→P');
+  assert(error.includes(q), 'de kring noemt de taken (ids), zoals bij een kring tussen bladtaken');
+  assertEq(snapshot(), before, 'niets toegepast: ook X→Y niet (bestaand contract: kring = hele call terug)');
+});
+
+test('update_dependencies: een relatie omleggen tot een kring via een fase ⇒ vooraf CYCLE', async () => {
+  const { p, q, x, y } = s5();
+  S().addSequence({ predecessorId: x, successorId: y, type: 'FINISH_START', lagDays: 0 });
+  const seqId = S().sequences.find(sequence => sequence.predecessorId === x)!.id;
+  const before = snapshot();
+  const res = await call('planner_update_dependencies', { updates: [{ seqId, predecessorId: q, successorId: p }] });
+  assertPrecheckedCycle(res, 'update_dependencies X→Y ⇒ Q→P');
+  assertEq(snapshot(), before, 'de relatie is niet omgelegd');
+});
+
+test('batch: de add_dependencies-stap die de kring maakt, faalt zelf', async () => {
+  const { p, q } = s5();
+  const res = await call('planner_batch', { steps: [
+    { tool: 'planner_add_tasks', args: { tasks: [{ tempId: 'tmp-n', name: 'Nieuw' }] } },
+    { tool: 'planner_add_dependencies', args: { dependencies: [{ predecessorId: q, successorId: p, type: 'FS' }] } },
+  ] });
+  assertPrecheckedCycle(res, 'batch met add_dependencies');
+  assertEq(batchStatuses(res), ['uitgevoerd', 'gefaald'], 'stap 2 (add_dependencies) is de gefaalde stap');
+  assertEq(S().tasks.some(task => task.name === 'Nieuw'), false, 'de taak uit stap 1 is teruggedraaid');
+});
+
+test('add_dependencies: een bestaande kring elders wordt de nieuwe relatie niet aangerekend', async () => {
+  const { x, y } = s5();
+  // Zoals een importer rechtstreeks naar `sequences` schrijft.
+  store.setState(state => {
+    state.sequences.push(
+      { id: 'imp-xy', predecessorId: x, successorId: y, type: 'FINISH_START', lagDays: 0 },
+      { id: 'imp-yx', predecessorId: y, successorId: x, type: 'FINISH_START', lagDays: 0 },
+    );
+  });
+  const q = S().tasks.find(task => task.name === 'Q')!.id;
+  const p1 = S().tasks.find(task => task.name === 'P1')!.id;
+  assertEq(validate.noCycle(S(), [{ predecessorId: q, successorId: y }]), null,
+    'Q→Y voegt niets toe aan de kring X↔Y: geen kring op naam van deze relatie');
+  assert(Array.isArray(validate.noCycle(S(), [{ predecessorId: q, successorId: p1 }])),
+    'een NIEUWE kring (Q→P1 naast P1→Q) wordt wel gevonden');
 });
 
 await run();
