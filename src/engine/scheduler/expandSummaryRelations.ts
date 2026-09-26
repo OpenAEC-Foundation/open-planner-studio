@@ -4,11 +4,9 @@ import type { CPMResult } from './CPMSolver';
 import { isLeafTask } from '@/utils/taskHierarchy';
 
 /**
- * Volledige samenvattingsrelatie-propagatie (vervolg op 489a9ef2). `CPMSolver` kent alleen
- * semantische bladtaken als knopen; een relatie die een WBS-samenvattingstaak raakt
- * kan de solver dus niet zelf verwerken. 489a9ef2 loste de crash op door zulke relaties te droppen
- * (`CPMResult.droppedSequenceIds`) — een bewuste tussenoplossing die op een echt corpusbestand
- * (870d339f60603f71, hash-only §8) 28 van de 105 relaties liet vallen: een kwart van de logica.
+ * Volledige samenvattingsrelatie-propagatie. `CPMSolver` kent alleen semantische bladtaken als
+ * knopen; een relatie die een WBS-samenvattingstaak raakt kan de solver dus niet zelf verwerken.
+ * Zulke relaties droppen zou in het corpus (870d339f60603f71) een kwart van de logica weggooien.
  *
  * MS Project-semantiek (referentie: de MSPDI-export van datzelfde bestand, die MS Project's eigen
  * berekende datums bevat) past een relatie op een samenvattingstaak toe op ELK onderliggend
@@ -28,8 +26,7 @@ import { isLeafTask } from '@/utils/taskHierarchy';
  *     genereren en de hele solve laten crashen (`error: "Circular dependency"`, projectbreed geen
  *     datums meer). MS Project staat zo'n koppeling zelf ook niet toe.
  *
- * NAUWKEURIGHEID PER RELATIETYPE (CPM-review, eerlijke claim i.p.v. impliciet "altijd correct" —
- * de MAX-over-bladkinderen-truc uit de vorige alinea is niet voor elk type evenwaardig aan MS
+ * NAUWKEURIGHEID PER RELATIETYPE (de MAX-over-bladkinderen-truc uit de vorige alinea is niet voor elk type evenwaardig aan MS
  * Project's eigen "de samenvatting als geheel"-semantiek):
  *   - FS/FF, samenvatting als VOORGANGER: EXACT. De opvolger moet wachten tot de bladtaak die het
  *     LAATST klaar is (MAX van de kind-finishes) — dat is precies wat "wacht op de hele tak" met FS/
@@ -41,17 +38,16 @@ import { isLeafTask } from '@/utils/taskHierarchy';
  *     forward-pass dwingt de opvolger te wachten op de LAATSTE kind-start (MAX i.p.v. MIN). De
  *     opvolger kan dus later gepland worden dan MS Project zou doen — nooit vroeger. In bouwplanning
  *     is dat de veilige kant (nooit te vroeg beginnen); echte MIN-semantiek vergt de samenvatting
- *     als eigen solver-knoop (zie docs/TODO.md, buiten deze etappe).
+ *     als eigen solver-knoop.
  *   - FF/SF, samenvatting als OPVOLGER: CONSERVATIEF, en een vorm die MS Project op een samenvatting
  *     zelf al ontmoedigt/verbiedt. Het dwingt ELK kind (ook een kind dat allang klaar zou zijn) om
  *     te voldoen aan een constraint die eigenlijk alleen voor de SAMENVATTING als geheel (het LAATST
  *     afgeronde kind) zou moeten gelden — een vroeg kind kan hierdoor onnodig later worden gepland.
- * Corpusincidentie (870d339f60603f71, T8/deze etappe): 0 — geen van de 28 samenvatting-relaties in dat
- * bestand is SS/SF-voorganger of FF/SF-opvolger, dus dit is een gedocumenteerde grens, geen gemeten
- * regressie. Vier regressiecases pinnen het huidige (conservatieve) gedrag, zie
+ * Corpusincidentie (870d339f60603f71): 0 — geen van de 28 samenvatting-relaties in dat bestand is
+ * SS/SF-voorganger of FF/SF-opvolger, dus dit is een gedocumenteerde grens, geen gemeten regressie. Vier regressiecases pinnen het huidige (conservatieve) gedrag, zie
  * `cases-edge.json` ("wbs-summary-relation-conservative-*").
  *
- * BEKENDE BEPERKING (M5): procentuele lag (`lagPercent`) op een relatie met een samenvattingstaak
+ * BEKENDE BEPERKING: procentuele lag (`lagPercent`) op een relatie met een samenvattingstaak
  * wordt ná expansie opgelost tegen de duur van het INDIVIDUELE BLADKIND (`resolveEffectiveLagDays`
  * leest `predTask.time.scheduleDuration` van de synthetische voorganger, en dat IS het bladkind na
  * expansie) — niet tegen de duur/omvang van de samenvatting als geheel. Bij kinderen met sterk
@@ -61,7 +57,7 @@ import { isLeafTask } from '@/utils/taskHierarchy';
  *
  * Lag/type van de oorspronkelijke relatie blijft op elke gegenereerde bladrelatie staan (spread);
  * alleen `id`/`predecessorId`/`successorId` wijzigen. Synthetische ids zijn afleidbaar van het
- * origineel (`${seq.id}::exp-<n>`), met een botsingsklem (M9, zie `usedIds` verderop) tegen een
+ * origineel (`${seq.id}::exp-<n>`), met een botsingsklem (zie `usedIds` verderop) tegen een
  * ECHTE relatie-id die toevallig al op datzelfde patroon eindigt — deze functie is PUUR en schrijft
  * niets naar de store; de synthetische relaties bestaan alleen als solver-invoer. De vier relatie-
  * gekeyde `CPMResult`-velden (`drivingSequenceIds`, `sequenceFreeFloat`, `truncatedLeadSequenceIds`,
@@ -72,8 +68,7 @@ import { isLeafTask } from '@/utils/taskHierarchy';
 /**
  * Kwadratische-explosie-klem, analoog aan `CalendarEngine.MAX_SCAN`/`MAX_DAYS`: het kruisproduct
  * van twee samenvattingstakken met N resp. M bladkinderen genereert N×M relaties. Eén relatie
- * tussen twee samenvattingen van elk 500 bladkinderen is al 250.000 combinaties — precies het soort
- * gat dat hier eerder is gevonden (K-items). Harde bovengrens op het TOTAAL aantal synthetische
+ * tussen twee samenvattingen van elk 500 bladkinderen is al 250.000 combinaties. Harde bovengrens op het TOTAAL aantal synthetische
  * relaties dat deze functie over ALLE input-relaties samen mag produceren.
  *
  * Gedrag bij overschrijding: een relatie waarvan het eigen kruisproduct niet meer past wordt
@@ -82,7 +77,7 @@ import { isLeafTask } from '@/utils/taskHierarchy';
  * her-proberen op een kleiner kruisproduct verderop in de lijst — voorspelbaar "op is op"-gedrag
  * i.p.v. afhankelijk van invoervolgorde toch soms slagen). Relaties die al bladtaak-naar-bladtaak
  * waren (geen expansie nodig) blijven ONGEMOEID doorlopen — zij tellen niet mee tegen de klem, want
- * die groeien nooit kwadratisch (hooguit lineair met het aantal relaties, zoals vóór deze wijziging).
+ * die groeien nooit kwadratisch (hooguit lineair met het aantal relaties).
  */
 export const MAX_EXPANDED_RELATIONS = 50_000;
 
@@ -91,7 +86,7 @@ export interface ExpandSummaryRelationsResult {
   sequences: Sequence[];
   /** Ids van ORIGINELE relaties die niet konden worden gerepresenteerd: een samenvatting zonder
    *  bladafstammelingen (lege/kapotte tak), of de MAX_EXPANDED_RELATIONS-klem. Bedoeld om door de
-   *  aanroeper samengevoegd te worden met `CPMResult.droppedSequenceIds` (de 489a9ef2-guard in de
+   *  aanroeper samengevoegd te worden met `CPMResult.droppedSequenceIds` (de constructor-guard in de
    *  solver zelf blijft het vangnet voor écht verweesde/ongeldige taak-ids). */
   droppedSequenceIds: string[];
 }
@@ -138,7 +133,7 @@ export function expandSummaryRelations(
     return out;
   }
 
-  // M9: bescherming tegen id-botsing. Een synthetische id is `${seq.id}::exp-<n>` — zeldzaam maar
+  // Bescherming tegen id-botsing. Een synthetische id is `${seq.id}::exp-<n>` — zeldzaam maar
   // niet uitgesloten dat een ECHTE (niet-gegenereerde) relatie-id toevallig al op dat patroon
   // eindigt (bv. een importer die zijn eigen id's met een vergelijkbare suffix samenstelt). Een
   // botsing zou twee verschillende relaties op dezelfde id laten landen in de output-array — en
@@ -161,7 +156,7 @@ export function expandSummaryRelations(
     const succTask = byId.get(seq.successorId);
     if (!predTask || !succTask) {
       // Geen samenvattingsgeval — een echt verweesd/ongeldig taak-id. Ongewijzigd doorgeven; de
-      // bestaande CPMSolver-constructor-guard (489a9ef2) droppt 'm met zijn eigen waarschuwing.
+      // CPMSolver-constructor-guard droppt 'm met zijn eigen waarschuwing.
       outSeqs.push(seq);
       continue;
     }
@@ -180,7 +175,7 @@ export function expandSummaryRelations(
       continue;
     }
 
-    // VOOROUDER-/ZELFRELATIE-GUARD (CPM-review, blokkerend): een relatie waarvan de voorganger een
+    // VOOROUDER-/ZELFRELATIE-GUARD: een relatie waarvan de voorganger een
     // (voor)ouder of afstammeling van de opvolger is — inclusief P->P, dezelfde samenvatting aan
     // beide kanten — deelt bladafstammelingen tussen predIds/succIds. In een boom betekent élke
     // niet-lege doorsnede tussen predIds en succIds dat minstens één bladtaak zowel voorganger als
@@ -191,10 +186,7 @@ export function expandSummaryRelations(
     // deze relatie, voor het HELE document. MS Project staat een relatie tussen een taak en zijn
     // eigen (voor)ouder-samenvatting principieel niet toe (een taak kan niet vóór/ná zijn eigen tak
     // liggen); wij droppen 'm daarom hier ATOMAIR — vóór de budget-check, dus ongeacht klemstatus —
-    // i.p.v. de solver te laten crashen. Vóór de propagatie werd zo'n relatie stilzwijgend gedropt
-    // door de "pred/succ niet in de bladtakenset"-guard in de CPMSolver-constructor (489a9ef2); deze
-    // guard behoudt dat eindresultaat (droppen, geen crash) nu de propagatie zulke relaties zelf zou
-    // proberen te expanderen.
+    // i.p.v. de solver te laten crashen.
     const predSet = new Set(predIds);
     if (succIds.some((id) => predSet.has(id))) {
       dropped.push(seq.id);
@@ -210,7 +202,7 @@ export function expandSummaryRelations(
     // DISJUNCT zijn, dus elk (p,s)-paar hieronder is een écht andere bladtaak aan beide kanten.
     const size = predIds.length * succIds.length;
     if (size > budget) {
-      // M6: welke relatie hier precies sneuvelt is AFHANKELIJK VAN DE INVOERVOLGORDE (de eerste
+      // Welke relatie hier precies sneuvelt is AFHANKELIJK VAN DE INVOERVOLGORDE (de eerste
       // die het resterende budget niet meer past) — geen her-proberen verderop in de lijst op een
       // kleiner kruisproduct, zie de moduleheader-klembeschrijving hierboven voor het volledige
       // "op is op"-gedrag.
@@ -258,11 +250,11 @@ export function expandSummaryRelations(
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════
-//  I2 (CPM-review) — synthetische ids terugvouwen in de solver-UITVOER
+//  Synthetische ids terugvouwen in de solver-UITVOER
 // ═══════════════════════════════════════════════════════════════════════════════════════════
 
 /** Herkent het synthetische suffix `::exp-<n>` aan het EINDE van een id (niet een toevallige
- *  "::exp-" ergens in het midden van een echte, niet-gegenereerde id — vgl. de M9-botsingsklem
+ *  "::exp-" ergens in het midden van een echte, niet-gegenereerde id — vgl. de botsingsklem
  *  hierboven, die er juist voor zorgt dat zo'n echte id nooit een gegenereerd suffix draagt). */
 const SYNTHETIC_SUFFIX = /::exp-\d+$/;
 
@@ -290,17 +282,13 @@ function dedupOriginal(ids: string[]): string[] {
  * omdat `CPMSolver` niets van de expansie afweet: draai je 'm op de output van
  * `expandSummaryRelations`, dan bevatten de vier relatie-gekeyde velden synthetische ids die geen
  * van de consumenten (taakgrids, StatusBar, ReportPanel, TaskDependenciesSection, GanttCanvas,
- * de MCP-leestools) herkent — die kennen alleen `s.sequences`, met de originele ids. Gemeten op
- * 870d339f60603f71 vóór deze fold: 114 van de 167 `drivingSequenceIds` synthetisch (dus onvindbaar in
- * `s.sequences` ⇒ stil uit elke driving-weergave gevallen), 261 van de 338 `sequenceFreeFloat`-
- * sleutels synthetisch (dus `sequenceFreeFloat[seq.id]` gaf `undefined` voor die relaties). Op dit
- * corpusbestand raakt `outOfSequenceSequenceIds`/`truncatedLeadSequenceIds` toevallig leeg (geen
- * progress/leads in dit bestand), maar het principe geldt daar identiek: zodra een van die twee wél
- * gevuld raakt op een geëxpandeerde relatie, telt een N-voudig kruisproduct als N in plaats van 1
- * (bv. de StatusBar-teller voor out-of-sequence-relaties) zonder deze fold.
+ * de MCP-leestools) herkent — die kennen alleen `s.sequences`, met de originele ids. Zonder fold
+ * vallen synthetische driving-relaties stil uit elke weergave (op 870d339f60603f71: 114 van de 167
+ * `drivingSequenceIds`), geeft `sequenceFreeFloat[seq.id]` `undefined`, en telt een N-voudig
+ * kruisproduct in `outOfSequenceSequenceIds`/`truncatedLeadSequenceIds` als N in plaats van 1.
  *
- * Muteert `result` IN PLACE (past bij hoe de aanroepers dit object al behandelen, zie
- * `droppedSequenceIds`-merge in `scheduleSlice.runCPM`):
+ * Muteert `result` IN PLACE (past bij hoe de aanroepers dit object al behandelen, zie de
+ * `droppedSequenceIds`-merge in `solveProject`):
  *   - `drivingSequenceIds` — OR: zodra minstens één synthetische instantie van een relatie driving
  *     is, geldt de originele relatie als driving (verzameling, dus meteen gededupliceerd).
  *   - `sequenceFreeFloat` — MIN: de striktste (kleinste) vrije speling over alle synthetische

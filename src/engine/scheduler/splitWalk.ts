@@ -1,16 +1,13 @@
-// splitWalk.ts — B1c-W0: de ENE bron voor "welke dagen werkt een gesplitste taak".
+// splitWalk.ts — de ENE bron voor "welke dagen werkt een gesplitste taak".
 //
-// De as-semantiek (H1): `TaskSplitGap.afterMinutes` ligt op MSP's cumulatieve elapsedWork-as — de
+// De as-semantiek: `TaskSplitGap.afterMinutes` ligt op MSP's cumulatieve elapsedWork-as — de
 // as loopt CUMULATIEF door de tijdgefaseerde periodes en telt daarbij ELK gat zelf ook mee in hoe
 // ver de as voor het VOLGENDE gat al is opgeschoven (`task.ts`'s `TaskSplitGap`-docblok,
 // `duration.ts`'s `splitTotalSpanMinutes`-moduleheader). De aspositie ná gat n is dus
 // `afterMinutes + gapMinutes`, niet `afterMinutes` — wie bij het volgende gat `prevAxis =
-// gap.afterMinutes` bijhoudt (de pre-H1-lezing) telt het vorige gat DUBBEL: het segment vóór gat
-// n+1 wordt dan berekend als `(n+1).afterMinutes − n.afterMinutes`, wat het net gepasseerde gat
-// zelf nog een keer als "werk" meetelt. Reproductiegeval (zie `check-split-walk.ts`): een taak van
-// 06-01 met twee gaten van 1 werkdag na resp. dag 1 en aspositie 1440 (=480 werk + 480 gat + 480
-// werk) gaf pre-H1 de segmenten [06-01..06-02], [06-03..06-05], [06-08..06-05] — het derde segment
-// loopt zelfs TERUG in de tijd. Correct is 06-01 / 06-03 / 06-05.
+// gap.afterMinutes` bijhoudt telt het vorige gat DUBBEL: het segment vóór gat n+1 wordt dan
+// `(n+1).afterMinutes − n.afterMinutes`, wat het net gepasseerde gat nog een keer als "werk"
+// meetelt en een segment zelfs terug in de tijd kan laten lopen (zie `check-split-walk.ts`).
 //
 // DAG- VS UUR-MODUS. `afterMinutes`/`gapMinutes` zijn ALTIJD werkminuten, ongeacht de
 // kalendermodus van de taak (ze komen uit de .mpp-timephased-decoder, die geen dag/uur-onderscheid
@@ -62,9 +59,8 @@
 // earlyFinish-besluit in `ResourceLoad.ts`'s `computeResourceLoad`-docblok.
 //
 // Consumenten: `splitBarGeometry` (renderer/print), `ResourceLoad` (histogram/bezetting),
-// `ResourceLeveler` (boekhouding). Eén wandeling, drie lezers — dat is het hele punt van deze
-// module: vóór B1c-W0 kopieerde elke consument zijn eigen (pre-H1) as-wandeling, en die liepen
-// stilzwijgend uit elkaar.
+// `ResourceLeveler` (boekhouding). Eén wandeling, drie lezers — geen eigen kopieën die stil uit
+// elkaar lopen.
 import type { TaskSplitGap } from '@/types/task';
 import type { CalendarEngine } from './CalendarEngine';
 import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
@@ -76,7 +72,7 @@ export interface SplitSegmentBounds {
 
 /**
  * Segmentgrenzen (Date-paren) voor een taak met `Task.splitGaps`, gewandeld vanaf `taskStart` met
- * de bestaande `CalendarEngine`-primitieven — zie de moduleuitleg hierboven voor de H1-as-
+ * de bestaande `CalendarEngine`-primitieven — zie de moduleuitleg hierboven voor de as-
  * semantiek, de dag/uur-modus-keuze, de overlap-samenvoeging en de taakeinde-klem. `gaps.length
  * === 0` (of `undefined`) ⇒ één segment `[taskStart, taskEnd]` (geen split) — de aanroeper hoeft
  * dus niet zelf te guarden op een lege/afwezige `splitGaps`-array. `gaps` hoeft niet vooraf
@@ -129,7 +125,7 @@ export function computeSplitSegments(
     // `workBefore === 0` mét al een segment op de lijst ⇒ dit gat sluit naadloos op het vorige aan
     // (overlap of aaneensluitend op de as) — geen extra nul-breed segment, het gat wordt verlengd.
     cursor = walk(cursor, gapEndAxis - gapStartAxis); // alleen het niet al ingehaalde deel
-    axisPos = gapEndAxis; // H1: het gat telt zichzelf mee op de as
+    axisPos = gapEndAxis; // het gat telt zichzelf mee op de as
   }
   segments.push({ start: cursor, end: taskEnd });
   return segments;
@@ -139,7 +135,7 @@ export function computeSplitSegments(
  * Dag-granulaire werk/gat-blokken voor een DAG-modus-taak van `durationDays` werkdagen — de
  * dag-tegenhanger van `computeSplitSegments`, uitgedrukt in aantallen dagen in plaats van
  * absolute datums (zodat `enumerateTaskWorkDays` hieronder er kalenderneutraal overheen kan
- * lopen). Zelfde H1-as-wandeling en afronding-op-hele-werkdagen als `computeSplitSegments`s
+ * lopen). Zelfde as-wandeling en afronding-op-hele-werkdagen als `computeSplitSegments`s
  * dag-tak, inclusief dezelfde overlap-samenvoeging: een blok waarvan `work` op 0 uitkomt (omdat
  * het volgende gat al (deels) binnen het vorige valt — de klem op `axisPos` maakt het mogelijk,
  * niet omdat een écht gat te klein is om als hele werkdag te ronden) wordt niet als apart blok
@@ -185,7 +181,7 @@ export function splitDayPattern(
       blocks[blocks.length - 1].gap += gap;
     }
     used += work;
-    axisPos = gapEndAxis; // H1: het gat telt zichzelf mee op de as
+    axisPos = gapEndAxis; // het gat telt zichzelf mee op de as
   }
   blocks.push({ work: Math.max(0, durationDays - used), gap: 0 });
   return blocks;
@@ -193,21 +189,18 @@ export function splitDayPattern(
 
 /**
  * De EXACTE INVERSE van `splitDayPattern`: werk/gat-blokken in hele werkdagen → `TaskSplitGap[]` op
- * de H1-as. Dit is de ene gedeelde conversieroutine waar spec §4 ("As- en eenheidconversie") om
- * vraagt (B1c-plan-2 taak 8; KEUZE VAN DIT PLAN: naast `splitDayPattern` in dit bestand i.p.v. naast
- * `splitTotalSpanMinutes` in `duration.ts` — dit bestand is sinds W0 al de eigenaar van de H1-as-
- * wandeling en draagt de heen-richting, dus de terugweg hoort naast zijn eigen inverse). De verdeler
- * kiest pauzedagen op de TAAKkalender (dus in hele werkdagen van díé kalender) en schrijft ze hiermee
- * om naar de cumulatieve elapsedWork-as die `duration.ts`, `CPMSolver.ts` en de renderer lezen.
+ * de cumulatieve as — de ene gedeelde conversieroutine, naast haar heen-richting. De verdeler kiest
+ * pauzedagen op de TAAKkalender (dus in hele werkdagen van díé kalender) en schrijft ze hiermee om
+ * naar de cumulatieve elapsedWork-as die `duration.ts`, `CPMSolver.ts` en de renderer lezen.
  *
  * De cumulatie is het hele punt: `afterMinutes` van gat n incorporeert alle voorgaande werk- ÉN
  * gat-minuten (`axisPos += work + gap`). Wie hier alleen de werkminuten optelt produceert gaten die
- * de CPM te vroeg laat vallen — de spiegelfout van de pre-H1-bug die W0 repareerde.
+ * de CPM te vroeg laat vallen — de spiegelfout van het dubbeltellen hierboven.
  *
  * Een blok met `gap === 0` levert geen gat op (het slotblok, en elk blok waar de aanroeper geen
  * pauze wil). `source` wordt op elk geproduceerd gat gezet wanneer meegegeven — de verdeler geeft
- * `'leveling'`, zodat "nivellering wissen" zijn eigen gaten later terugvindt (spec §4, "Herkomst",
- * `clearLevelingGaps` in `taskDefaults.ts`).
+ * `'leveling'`, zodat "nivellering wissen" zijn eigen gaten later terugvindt
+ * (`clearLevelingGaps` in `taskDefaults.ts`).
  *
  * INVARIANT (getest in `check-split-walk.ts`):
  *   `splitDayPattern(splitGapsFromWorkDayBlocks(b, mpd), mpd, Σb.work) === b`
@@ -227,7 +220,7 @@ export function splitGapsFromWorkDayBlocks(
     axisPos += work * mpd;
     if (gap > 0) {
       gaps.push(source ? { afterMinutes: axisPos, gapMinutes: gap * mpd, source } : { afterMinutes: axisPos, gapMinutes: gap * mpd });
-      axisPos += gap * mpd; // H1: het gat telt zichzelf mee voor de positie van het VOLGENDE gat
+      axisPos += gap * mpd; // het gat telt zichzelf mee voor de positie van het VOLGENDE gat
     }
   }
   return gaps;

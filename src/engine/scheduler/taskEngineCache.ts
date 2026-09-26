@@ -18,7 +18,7 @@ export interface TaskEngineCache {
  * en de splits van de taak rekent. Gecachet per calendarId, zodat taken op dezelfde kalender geen
  * nieuwe `CalendarEngine` per taak bouwen; maak per berekening een verse cache.
  *
- * Gedeeld door de resourcebelasting, het histogram, de nivelleerder en de rapporten (B1c-W0.1) —
+ * Gedeeld door de resourcebelasting, het histogram, de nivelleerder en de rapporten —
  * één definitie, geen tweede die stil kan afdrijven. Anders dan `CPMSolver.engineForCal` gaat
  * ELKE kalender door `calendarForEngine` (effectieve uurbanden), ook voor dagtaken; voor dagvragen
  * maakt dat geen verschil.

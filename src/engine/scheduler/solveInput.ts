@@ -1,4 +1,4 @@
-// De ENIGE weg van een project naar de solver (rekenprofielen, spec v3.1 §3.2).
+// De ENIGE weg van een project naar de solver.
 //
 // `solveOptionsFor` levert de volledige solve-opties van een project: de effectieve reken-opties
 // (conventies uit het profiel, projectopties uit het bestand — `effectiveSchedulingOptions`), plus

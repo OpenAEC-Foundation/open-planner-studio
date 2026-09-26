@@ -63,30 +63,28 @@ export interface CPMResult {
   /** Taken waarvan de vroege finish voorbij de (zachte) deadline valt. */
   missedDeadlineTaskIds: string[];
   /** Relaties waarvan de opvolger progress/actuals heeft die de voorganger-logica tegenspreekt
-   *  (out-of-sequence, fase 2.6). Waarschuwing, geen fout — het gedrag volgt uit de progressMode. */
+   *  (out-of-sequence). Waarschuwing, geen fout — het gedrag volgt uit de progressMode. */
   outOfSequenceSequenceIds: string[];
-  /** Near-critical-taken (fase 2.9, §4.6): 0 < tf ≤ drempel. Leeg als de drempel ongezet is. */
+  /** Near-critical-taken: 0 < tf ≤ drempel. Leeg als de drempel ongezet is. */
   nearCriticalTaskIds: string[];
-  /** Alle kritieke ketens (fase 2.9, §4.6). ALTIJD aanwezig, lengte ≥1; `criticalPaths[0] ==
+  /** Alle kritieke ketens. ALTIJD aanwezig, lengte ≥1; `criticalPaths[0] ==
    *  criticalPath`. Staat `floatPaths` uit, dan is dit precies `[criticalPath]` — zo hoeven
-   *  consumenten nooit op `undefined` te checken (byte-compat: één keten in een array gewikkeld). */
+   *  consumenten nooit op `undefined` te checken. */
   criticalPaths: string[][];
-  /** Float-path-nummer per taak (fase 2.9, §4.6): 1 = meest kritiek. Leeg als `floatPaths` uit. */
+  /** Float-path-nummer per taak: 1 = meest kritiek. Leeg als `floatPaths` uit. */
   floatPathByTask: Record<string, number>;
-  /** Hammocks (§4.4) zónder finish-driver (geen FF/SF-voorganger): hun EF valt terug op de ES
+  /** Hammocks zónder finish-driver (geen FF/SF-voorganger): hun EF valt terug op de ES
    *  (nul-lengte). Waarschuwingssignaal — de span kan niet uit een finish-driver worden afgeleid. */
   hammockNoFinishDriverTaskIds: string[];
-  /** OPTIONEEL (WP7 "Onwerkbaar-venster-detectie"): taak-ids waarvan de earlyFinish-berekening tegen
+  /** OPTIONEEL: taak-ids waarvan de earlyFinish-berekening tegen
    *  de MAX_SCAN/MAX_DAYS-cap van `addWorkDays` liep — een kalender die het taakvenster onwerkbaar
    *  maakt levert anders stil een onzin-datum. ZACHTE, niet-blokkerende waarschuwing: `error` blijft
-   *  leeg, de overige taken rekenen normaal door. Afwezig/leeg ⇒ byte-identiek default. */
+   *  leeg, de overige taken rekenen normaal door. */
   cappedTaskIds?: string[];
-  /** OPTIONEEL (T8-rooktest): relatie-id's die de solver heeft genegeerd omdat voorganger of
-   *  opvolger geen bladtaak is in de meegegeven set — typisch een relatie die een WBS-samenvattings-
-   *  taak raakt (in MS Project legaal, maar deze solver rekent alleen bladtaken; de samenvatting
-   *  krijgt zijn datums via de rollup in `applyCpmResult`, niet als eigen CPM-knoop). Interim-gedrag:
-   *  genegeerd i.p.v. gecrasht — volledige samenvattingsrelatie-propagatie naar bladtaken is een
-   *  aparte, grotere wijziging. Afwezig/leeg ⇒ byte-identiek default. */
+  /** OPTIONEEL: relatie-id's die de solver heeft genegeerd omdat voorganger of opvolger geen
+   *  bladtaak is in de meegegeven set. Relaties op een WBS-samenvattingstaak herschrijft
+   *  `expandSummaryRelations` vooraf naar bladrelaties; wat hier landt is dus een écht verweesd id,
+   *  of een aanroeper die die expansie oversloeg. Genegeerd i.p.v. gecrasht. */
   droppedSequenceIds?: string[];
   projectEnd: string;
   projectDuration: number; // work days
@@ -94,12 +92,12 @@ export interface CPMResult {
    *  vaste tekst die MCP-tools, extensies (`scheduleCalculated`) en logs al kennen — ongewijzigd,
    *  en deels Nederlands, deels Engels. Gebruikerszichtbare UI vertaalt `errorInfo` in plaats hiervan. */
   error?: string;
-  /** Dezelfde fout als code + parameters (TB): de UI vertaalt hem via `scheduleErrors.<code>`
+  /** Dezelfde fout als code + parameters: de UI vertaalt hem via `scheduleErrors.<code>`
    *  (`src/i18n/scheduleErrors.ts`). Altijd samen met `error` gezet door `solve()`. */
   errorInfo?: ScheduleErrorInfo;
-  /** OPTIONEEL (issue #53, waarschuwingenpaneel): de taak-ids van de gedetecteerde cyclus, in
+  /** OPTIONEEL (waarschuwingenpaneel): de taak-ids van de gedetecteerde cyclus, in
    *  loopvolgorde — dezelfde ids waarvan `error` de namen noemt. Alleen gezet op het cyclus-pad;
-   *  afwezig op elk ander pad (byte-identiek default), zodat een consument de cyclus kan
+   *  afwezig op elk ander pad, zodat een consument de cyclus kan
    *  navigeren/markeren in plaats van namen uit de foutstring te moeten parsen. */
   cycleTaskIds?: string[];
 }
@@ -153,30 +151,22 @@ export interface CPMPlannedFloorTrace {
   boundaryPredecessorTaskCode?: string;
 }
 
-/** Voortgangs-opties (fase 2.6). Leeg ⇒ geen statusdatum-gedrag (byte-identiek aan vóór 2.6). */
+/** Voortgangs-opties. Leeg ⇒ geen statusdatum-gedrag. */
 export interface CPMOptions {
   dataDate?: string;                                     // ISO date; undefined ⇒ geen statusdatum-gedrag
   progressMode?: 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE'; // default RETAINED_LOGIC
-  /** Rekenprofielen (spec v3.1 §3.1): verplicht en uitsluitend het opgeloste type. Aanroepers komen
+  /** Rekenprofielen: verplicht en uitsluitend het opgeloste type. Aanroepers komen
    *  hier via `solveOptionsFor`/`solveInputFor` (`solveInput.ts`) of `effectiveSchedulingOptions`. */
   schedulingOptions: EffectiveSchedulingOptions;
-  /** De geconfigureerde PROJECTSTARTDATUM (`Project.startDate`, ISO-datum), gebruikstest-bevinding
-   *  2026-08: ondergrens voor de early-start-berekening van ELKE taak MET voorganger (en
-   *  hammocks) — NIET uitsluitend tegen leads (T7-review M2, gecorrigeerd): ook een gewone FS/FF-
-   *  relatie met lag 0 van een vroege wortel-taak (die sinds T7 z'n eigen anker vóór de
-   *  projectstart mag houden, zie hieronder) wordt hier gevloerd. Alleen de gebruikerszichtbare
-   *  markering (`truncatedLeadIds`, "afgekapte lead") is wél lead-specifiek — die signaleert
-   *  uitsluitend een negatieve lag die de vloer raakt, niet elke geflooerde relatie in het
-   *  algemeen. Vóór deze optie leidde de forward pass "de projectstart" stilzwijgend af als het
-   *  minimum van de wortel-taken ONDERLING. Afwezig/onparseerbaar ⇒ terugval op het oude gedrag —
-   *  byte-identiek voor elke bestaande aanroeper die deze optie niet meegeeft.
+  /** De geconfigureerde PROJECTSTARTDATUM (`Project.startDate`, ISO-datum): ondergrens voor de
+   *  early-start-berekening van ELKE taak MET voorganger (en hammocks) — niet alleen tegen leads:
+   *  ook een gewone FS/FF-relatie met lag 0 van een vroege wortel-taak wordt hier gevloerd. Alleen
+   *  de gebruikerszichtbare markering (`truncatedLeadIds`, "afgekapte lead") is lead-specifiek.
+   *  Afwezig/onparseerbaar ⇒ "de projectstart" is het minimum van de wortel-taken onderling.
    *
-   *  SINDS T7 (§9/O2, de brede regel "een ingelezen anker wordt nooit door de vloer overruled")
-   *  klemt deze optie NIET meer de eigen ES van een taak ZONDER voorganger — die gebruikt altijd
-   *  zijn eigen `scheduleStart` (`ownAnchor`), ook als die vóór de projectstart ligt. De vloer
-   *  (`rootFloor`) is versmald tot uitsluitend de early-start-ondergrens voor taken MÉT voorganger
-   *  (en hammocks) hierboven; zie de docstrings van `rootFloor`/`ownAnchor` in `CPMSolver` voor de
-   *  volledige motivatie. */
+   *  Een taak ZONDER voorganger klemt deze optie NIET: die gebruikt altijd haar eigen
+   *  `scheduleStart` (`ownAnchor`), ook vóór de projectstart — "een ingelezen anker wordt nooit door
+   *  de vloer overruled". Zie de docstrings van `rootFloor`/`ownAnchor`. */
   projectStartDate?: string;
   /** Geconfigureerde projecteinddatum. Alleen actief wanneer de brongebonden
    *  `useProjectEndDateForFloat`-optie aan staat; anders blijft max(EF) leidend. Leeg of
@@ -188,14 +178,13 @@ export interface CPMOptions {
  * `useProjectEndDateForFloat` zonder bruikbare projecteinddatum is een no-op: de late pass
  * verankert dan op het netwerkeinde, max(EF) — precies wat P6 doet wanneer "Must Finish By" leeg
  * is (Oracle P6 Help, *Schedule Options → Compute Total Float As / Calculate float based on finish
- * date of*: zonder projecteinddatum is het laatste (vroege) activiteiteneinde de basis). Eigenaars-
- * besluit 2026-09-24 ("eigen PR"; Fable-critreview PR #109 bevinding 2).
+ * date of*: zonder projecteinddatum is het laatste (vroege) activiteiteneinde de basis).
  *
  * De optie stuurt naast het anker zelf nog drie takken (de open-finishmijlpaalgrens hier en in
  * `scheduleAnalysis`, en de FF=0-klem van een eindmijlpaal). Zonder datum mogen die níét anders
  * lopen dan met de optie uit, anders is "netwerkeinde" alleen op het anker waar. Daarom normaliseert
  * de solver op één plek: optie aan + geen geldige datum ⇒ de optie geldt als uit. Met een geldige
- * datum of met de optie uit blijft `options` hetzelfde object (byte-identiek).
+ * datum of met de optie uit blijft `options` hetzelfde object.
  */
 export function withEffectiveProjectEndAnchor(options: CPMOptions): CPMOptions {
   const so = options.schedulingOptions;
@@ -206,13 +195,11 @@ export function withEffectiveProjectEndAnchor(options: CPMOptions): CPMOptions {
 
 /**
  * Eerste geldige werk-instant OP-of-NÁ `from`, in `eng` (dag ⇒ `nextWorkDay`, uur ⇒
- * `nextWorkInstant`). Top-level EXPORT (T7-review H1/H3) zodat zowel de solver zélf (`ownAnchor`/
- * `rootFloor` hierboven, via de instance-tunnel `snapOnOrAfter`) als `projectStartAnchorClamp.ts`
- * (de T7b-klem, aangeroepen vanuit zowel `projectSlice.setProject` als `mcpTransaction.ts`'s
- * `draft.setProject`) EXACT dezelfde anker-snap gebruiken. Vóór deze review deed de T7b-klem het
- * anker een kale datumstring toekennen zonder kalender-snap — in uurmodus landde dat na de
- * eerstvolgende `runCPM` op middernacht (H3a) i.p.v. de eerste werkband; nu delen beide plekken
- * één definitie, dus kan dat niet meer uiteenlopen. Puur, geen instantie-state.
+ * `nextWorkInstant`). Top-level EXPORT zodat zowel de solver zélf (`ownAnchor`/`rootFloor`, via de
+ * instance-tunnel `snapOnOrAfter`) als `projectStartAnchorClamp.ts` (de projectstartklem, vanuit
+ * `projectSlice.setProject` én `mcpTransaction.ts`'s `draft.setProject`) EXACT dezelfde anker-snap
+ * gebruiken — een kale datumstring zonder kalender-snap landt in uurmodus op middernacht i.p.v. de
+ * eerste werkband. Puur, geen instantie-state.
  */
 export function snapWorkInstantOnOrAfter(eng: CalendarEngine, from: Date): Date {
   return eng.isHourMode ? eng.nextWorkInstant(from) : eng.nextWorkDay(from);
@@ -223,7 +210,7 @@ export function snapWorkInstantOnOrAfter(eng: CalendarEngine, from: Date): Date 
  * taakkalender via `resolveCalendar`, of bij een resourcekalender-wandeling die van de resource).
  * Top-level EXPORT met dezelfde reden als `snapWorkInstantOnOrAfter` hierboven: de solver
  * (`calendarFor` en de wandelingen, via de instance-tunnel `engineForCal`) én
- * `projectStartAnchorClamp.ts` (de T7b-klem) gebruiken deze ene functie, zodat de klem een anker
+ * `projectStartAnchorClamp.ts` (de projectstartklem) gebruiken deze ene functie, zodat de klem een anker
  * in exact de engine snapt waarin de solver het daarna leest.
  *
  * Regel: een URENtaak (`taskDurationUnit(task) === 'hours'`) rekent in de EFFECTIEVE uurbanden van
@@ -257,11 +244,11 @@ export function engineForTaskCalendar(
  * opgelost (MSP-semantiek, afgerond op hele dagen), anders geldt lagDays. Gedeeld met de UI
  * (relatietabel-waarschuwingen) zodat er één definitie bestaat.
  *
- * `hoursPerDay` (optioneel, fase 2.10) = de dag↔minuut-factor van de kalender waarin de lag telt —
+ * `hoursPerDay` (optioneel) = de dag↔minuut-factor van de kalender waarin de lag telt —
  * de lag-kalender voor WORKTIME (`schedulingOptions.lagCalendar`, default de VOORGANGER-kalender),
  * 24 voor ELAPSEDTIME. Alleen
  * mét die factor kan een lag die uitsluitend als `lagMinutes` bestaat (`lagDays = 0`) in DAGEN
- * uitgedrukt worden. Zonder de factor (UI-aanroepers) is de functie byte-identiek aan vóór 2.10.
+ * uitgedrukt worden. Zonder de factor (UI-aanroepers) telt alleen `lagDays`.
  */
 export function resolveEffectiveLagDays(seq: Sequence, predTask: Task, hoursPerDay?: number): number {
   if (isFiniteNumber(seq.lagPercent)) {
@@ -269,13 +256,13 @@ export function resolveEffectiveLagDays(seq: Sequence, predTask: Task, hoursPerD
     return Math.round((predDur * seq.lagPercent) / 100);
   }
   const days = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
-  // Minuut-lag ZONDER dag-lag (fase 2.10). `p6xmlReader`/`mspdiReader` schrijven `lagDays: 0` +
+  // Minuut-lag ZONDER dag-lag. `p6xmlReader`/`mspdiReader` schrijven `lagDays: 0` +
   // `lagMinutes` zodra de OPVOLGER in uur-modus staat, terwijl de solver de lag in de VOORGANGER-
   // kalender oplost. Bij een DAG-voorganger viel de lag daardoor stil weg (exact lag 0, forward én
   // backward) — stil dataverlies op een reëel importpad. Reken hem om naar hele dagen met de
   // meegegeven factor; half rondt van nul af, zodat een lead (negatief) symmetrisch behandeld wordt.
   // `lagDays ≠ 0` blijft leidend: het IFC-pad vult beide velden (`parseDurationDays` rondt `PT4H`
-  // naar boven op 1 dag) en blijft zo byte-identiek.
+  // naar boven op 1 dag).
   if (
     days === 0 && typeof hoursPerDay === 'number' && hoursPerDay > 0 &&
     isFiniteNumber(seq.lagMinutes) && seq.lagMinutes !== 0
@@ -294,12 +281,12 @@ export interface CPMTaskResult {
   totalFloat: number;
   freeFloat: number;
   isCritical: boolean;
-  /** OPTIONEEL — interfererende speling = totalFloat − freeFloat (fase 2.9, §4.6). Alleen
-   *  geschreven wanneer de analyse-laag draait; ongeschreven ⇒ byte-identiek default. */
+  /** OPTIONEEL — interfererende speling = totalFloat − freeFloat. Alleen
+   *  geschreven wanneer de analyse-laag draait. */
   interferingFloat?: number;
-  /** OPTIONEEL — near-critical (fase 2.9, §4.6). Alleen geschreven bij ingestelde drempel. */
+  /** OPTIONEEL — near-critical. Alleen geschreven bij ingestelde drempel. */
   isNearCritical?: boolean;
-  /** OPTIONEEL — float-path-nummer (fase 2.9, §4.6). Alleen geschreven bij floatPaths. */
+  /** OPTIONEEL — float-path-nummer. Alleen geschreven bij floatPaths. */
   floatPath?: number;
 }
 
@@ -343,8 +330,7 @@ export interface ScheduleErrorInfo {
   cycleNames?: string[];
 }
 
-/** De vaste `error`-tekst per code — letterlijk wat de solver altijd al gaf (MCP en extensies
- *  lezen hem; `mapTransactionError` herkent een kring aan "Circular dependency"). */
+/** De vaste `error`-tekst per code (MCP en extensies lezen hem letterlijk; `mapTransactionError` herkent een kring aan "Circular dependency"). */
 function scheduleErrorLegacyText(info: ScheduleErrorInfo): string {
   const name = info.taskName ?? '';
   switch (info.code) {
@@ -387,10 +373,10 @@ function emptyResult(errorInfo: ScheduleErrorInfo, cycleTaskIds?: string[]): CPM
 export class CPMSolver {
   private tasks: Map<string, Task>;
   private sequences: Sequence[];
-  // Per-taak-kalender (fase 2.8a, §5.1): de projectdefault-engine voor project-brede grenslogica,
+  // Per-taak-kalender: de projectdefault-engine voor project-brede grenslogica,
   // plus een cache van engines per bibliotheek-kalender. `calendarFor(task)` levert de engine waarin
   // de duur/constraints/float van díé taak rekenen; zonder afwijkende `task.calendarId` valt alles
-  // terug op `projectEngine` ⇒ byte-identiek aan het één-kalender-gedrag van vóór 2.8a.
+  // terug op `projectEngine`.
   private projectCal: WorkCalendar;
   private registry: WorkCalendar[];
   private projectEngine: CalendarEngine;
@@ -414,15 +400,15 @@ export class CPMSolver {
   private completedPhysicalPoints: Map<string, Date> = new Map();
   // Relaties waarvan de lead in de forward-pass door de projectstart-vloer is afgekapt.
   private truncatedLeadIds: string[] = [];
-  // Taken met een harde MSO/MFO-pin (fase 2.9, §4.2) waarvan de voorganger-druk (`rawMax`) later
+  // Taken met een harde MSO/MFO-pin waarvan de voorganger-druk (`rawMax`) later
   // valt dan de pin ⇒ de logica is gebroken (taak start vóór z'n voorganger klaar is). Verzameld in
   // de forward pass, samengevoegd met `violatedConstraintTaskIds` in `computeResults`.
   private hardPinViolatedIds: string[] = [];
-  // Hammocks (fase 2.9, §4.4) zónder finish-driver: EF valt terug op ES (nul-lengte). Verzameld in de
+  // Hammocks zónder finish-driver: EF valt terug op ES (nul-lengte). Verzameld in de
   // forward pass, gerapporteerd als waarschuwing in `hammockNoFinishDriverTaskIds`.
   private hammockNoFinishDriverIds: string[] = [];
-  // Taken waarvan de earlyFinish-berekening tegen de MAX_SCAN/MAX_DAYS-cap van `addWorkDays` liep
-  // (WP7 "Onwerkbaar-venster-detectie"): een onwerkbaar taakvenster (bv. een aaneengesloten holiday-
+  // Taken waarvan de earlyFinish-berekening tegen de MAX_SCAN/MAX_DAYS-cap van `addWorkDays` liep:
+  // een onwerkbaar taakvenster (bv. een aaneengesloten holiday-
   // blok). Verzameld in de forward pass, zacht gerapporteerd als `cappedTaskIds`. Geen error, geen
   // rollback — de kalenderwijziging is legitiem; de waarschuwing wijst de te repareren taak aan.
   private cappedTaskIds: string[] = [];
@@ -432,13 +418,12 @@ export class CPMSolver {
   private backwardFloatTrace: CpmBackwardFloatTrace | undefined;
 
   private options: CPMOptions;
-  // Werkdag-gesnapte statusdatum (fase 2.6), of null ⇒ geen statusdatum-gedrag. Gezet in solve().
+  // Werkdag-gesnapte statusdatum, of null ⇒ geen statusdatum-gedrag. Gezet in solve().
   private dataDate: Date | null = null;
   /** De statusdatum zoals opgegeven, NIET gesnapt op de projectkalender (conventie C5: het punt van een
    *  voltooide CP_Phys-activiteit ligt in P6 op dit rauwe instant, ook buiten de werktijd). */
   private rawDataDate: Date | null = null;
-  // RUWE (ongesnapte) geconfigureerde projectstartdatum, of null ⇒ geen ondergrens-gedrag (byte-
-  // identiek aan vóór deze optie). Ongesnapt omdat elke wortel-taak 'm in zíjn EIGEN kalender snapt
+  // RUWE (ongesnapte) geconfigureerde projectstartdatum, of null ⇒ geen ondergrens-gedrag. Ongesnapt omdat elke wortel-taak 'm in zíjn EIGEN kalender snapt
   // (`rootFloor`) — een taak op een kalender met een afwijkende werkweek mag de vloer dus op een
   // andere dag landen dan de projectkalender zelf zou geven. Gezet in solve().
   private projectStartRaw: Date | null = null;
@@ -449,7 +434,7 @@ export class CPMSolver {
   /** Opvolgers van een door de XER-reader bewezen gedeelde FS-finish/startgrens. Afgeleid uit de
    *  relaties bij iedere solve; andere formaten hebben geen vlag en blijven volledig onaangeraakt. */
   private readonly p6FinishBoundaryStartTaskIds: Set<string>;
-  // M7 (CPM-review): dedup-sleutel voor de dropped-relaties-waarschuwing hieronder, STATIC (gedeeld
+  // Dedup-sleutel voor de dropped-relaties-waarschuwing hieronder, STATIC (gedeeld
   // over alle instanties) — `ResourceLeveler` bouwt binnen één nivelleeraanroep O(taken) solvers,
   // typisch allemaal met DEZELFDE gedropte relatieset (die hangt af van welke taak-ids bestaan, niet
   // van de per-kandidaat `levelingDelay`-varianten die tussen die constructies verschillen). Zonder
@@ -466,26 +451,18 @@ export class CPMSolver {
   ) {
     this.tasks = new Map(tasks.map(t => [t.id, t]));
 
-    // Guard (T8-rooktest, 870d339f60603f71 — hash-only §8): de aanroepers (`runCPM`/`levelResources` in
-    // `scheduleSlice.ts`, de leveler in `ResourceLeveler.ts`, `benchmark/runner.ts`) geven hier
-    // opzettelijk alleen semantische BLADTAKEN aan mee — een samenvattingstaak krijgt
-    // zijn datums via de rollup in `applyCpmResult`, niet als eigen CPM-knoop. `sequences` komt
-    // ONGEFILTERD binnen: in MS Project is een relatie op een samenvattingstaak legaal (mspdiReader/
-    // ifcReader/mppReader lezen 'm gewoon in), maar deze solver kent geen samenvattingstaken. Vóór
-    // deze guard duwde zo'n relatie het niet-bestaande taak-id de topologische sortering in
-    // (`topologicalSort` telt `inDegree` onvoorwaardelijk voor élke `successorId`, ook een dat niet
-    // in `this.tasks` zit) en crashte de forward/backward pass op een `this.tasks.get(id)!`-aanname
-    // zodra dat fantoom-id in `order` viel — geen nette foutmelding, een onbehandelde throw die
-    // `openFile`s catch opslokt, zodat het bestand opent maar de planning stil onberekend blijft.
+    // Guard: de aanroepers geven alleen semantische BLADTAKEN mee — een samenvattingstaak krijgt
+    // haar datums via de rollup in `applyCpmResult`, niet als eigen CPM-knoop. `sequences` kan een
+    // taak-id bevatten dat niet in `this.tasks` zit; zo'n fantoom-id zou de topologische sortering in
+    // gaan (`topologicalSort` telt `inDegree` voor élke `successorId`) en de forward/backward pass
+    // laten crashen op een `this.tasks.get(id)!` — een throw die `openFile`s catch opslokt, zodat de
+    // planning stil onberekend blijft.
     //
-    // Semantiek: een relatie die een taak raakt die niet in de meegegeven set zit wordt genegeerd
-    // i.p.v. de solver te laten crashen. Dit blijft het VANGNET voor écht verweesde/ongeldige
-    // taak-ids — sinds `expandSummaryRelations` (vervolgtaak op deze guard) herschrijven de reguliere
-    // aanroepers (`runCPM`/`levelResources` in `scheduleSlice.ts`, de leveler in
-    // `ResourceLeveler.ts`, `benchmark/runner.ts`) een relatie op een WBS-samenvattingstaak ZELF al
-    // naar bladtaak-relaties vóórdat de solver ze ziet; die relaties bereiken deze guard dus normaal
-    // niet meer. Een aanroeper die `expandSummaryRelations` overslaat (bv. rechtstreeks tegen de
-    // solver getest) valt terug op het oude gedrag: droppen, niet crashen.
+    // Semantiek: zo'n relatie wordt genegeerd i.p.v. de solver te laten crashen. Dit is het VANGNET
+    // voor écht verweesde/ongeldige taak-ids: de reguliere aanroepers (o.a. `solveProject`,
+    // `benchmark/runner.ts`) herschrijven een relatie op een WBS-samenvattingstaak al via
+    // `expandSummaryRelations` naar bladrelaties. Wie die expansie overslaat (bv. een test direct
+    // tegen de solver), krijgt droppen i.p.v. crashen.
     const kept: Sequence[] = [];
     const dropped: string[] = [];
     for (const seq of sequences) {
@@ -495,8 +472,7 @@ export class CPMSolver {
         dropped.push(seq.id);
       }
     }
-    // Conventie B1 `p6RelationFinishBoundary` (rekenprofielen baan B; vroeger gepoort op de
-    // bronmarkering van het project). RelationMath en alle solverpaden zien uitsluitend deze
+    // Conventie B1 `p6RelationFinishBoundary`. RelationMath en alle solverpaden zien uitsluitend deze
     // effectieve relaties: staat de conventie niet aan, dan wordt de relatievlag
     // `p6StartAtPredecessorFinishBoundary` gestript, zodat een LOSSE relatievlag geen P6-gedrag kan
     // activeren. Dit is geen bescherming tegen een vervalst projectbestand: de vlag round-tript
@@ -514,7 +490,7 @@ export class CPMSolver {
         .map(sequence => sequence.successorId),
     );
     if (dropped.length > 0) {
-      // M7: alleen loggen als de gedropte SET (niet de instantie) daadwerkelijk is veranderd sinds
+      // Alleen loggen als de gedropte SET (niet de instantie) daadwerkelijk is veranderd sinds
       // de vorige constructie — zie de toelichting bij `lastDroppedWarningSignature`.
       const signature = [...dropped].sort().join(',');
       if (signature !== CPMSolver.lastDroppedWarningSignature) {
@@ -554,7 +530,7 @@ export class CPMSolver {
     return engineForTaskCalendar(this.engineCache, cal, task);
   }
 
-  /** De kalender-engine waarin de duur/constraints/float van `task` rekenen (§5.2). */
+  /** De kalender-engine waarin de duur/constraints/float van `task` rekenen. */
   private calendarFor(task: Task): CalendarEngine {
     return this.engineForCal(resolveCalendar(task.calendarId, this.registry, this.projectCal), task);
   }
@@ -795,8 +771,8 @@ export class CPMSolver {
   }
 
   /**
-   * A19 `p6UseRemainingStartForProgress`, late kant (X12 brok 6; docblok bij de sleutel in
-   * `types/project.ts`): de restduurregel. P6 plant een LOPENDE activiteit op haar RESTduur ("The total
+   * A19 `p6UseRemainingStartForProgress`, late kant (docblok bij de sleutel in `types/project.ts`):
+   * de restduurregel. P6 plant een LOPENDE activiteit op haar RESTduur ("The total
    * working time from the activity remaining start date to the remaining finish date", Oracle P6 Help,
    * Durations Columns, https://docs.oracle.com/cd/F37125_01/p6help/en/47223.htm); achterwaarts over een
    * SS-relatie is haar late finish dus de late start die de relatie toelaat plus de restduur, niet plus de
@@ -939,48 +915,42 @@ export class CPMSolver {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  //  Fase 2.8b (golf 2) — MODUS-BEWUSTE rekenkern (§5). Elke helper reduceert in
-  //  DAG-modus tot exact de bestaande dag-expressie (byte-identiek); alleen een
-  //  UUR-kalender (`isHourMode`) activeert het minuut-native pad. Zo blijven de 290
-  //  dag-cases + 23 examples ongemoeid — de constructie, niet een her-derivatie (§2.2).
+  //  MODUS-BEWUSTE rekenkern. Elke helper reduceert in DAG-modus tot de
+  //  dag-expressie; alleen een UUR-kalender (`isHourMode`) activeert het
+  //  minuut-native pad.
   // ═══════════════════════════════════════════════════════════════════════════
-  /** Parse een datum-string in de kalendermodus: dag ⇒ `parseDate` (middernacht, byte-identiek),
+  /** Parse een datum-string in de kalendermodus: dag ⇒ `parseDate` (middernacht),
    *  uur ⇒ `parseInstant` (behoudt tijd-van-de-dag). */
   private parseIn(eng: CalendarEngine, iso: string): Date {
     return eng.isHourMode ? parseInstant(iso) : parseDate(iso);
   }
   /** Snap op-of-ná (voorwaarts): dag ⇒ `nextWorkDay`, uur ⇒ `nextWorkInstant`. Instance-tunnel naar
-   *  de top-level, GEDEELDE `snapWorkInstantOnOrAfter` (T7-review H1/H3): één definitie voor de
-   *  solver-interne aanroepen hier ÉN voor `projectStartAnchorClamp.ts` (de T7b-klem in
-   *  `projectSlice.setProject`/`mcpTransaction.ts`'s `draft.setProject`) — geen tweede snap-
-   *  implementatie die stil van deze kan afdrijven. */
+   *  de top-level, GEDEELDE `snapWorkInstantOnOrAfter`: één definitie voor de solver-interne
+   *  aanroepen hier ÉN voor `projectStartAnchorClamp.ts`. */
   private snapOnOrAfter(eng: CalendarEngine, d: Date): Date {
     return snapWorkInstantOnOrAfter(eng, d);
   }
-  /** B4 (Opus-her-check T15-fixronde): snap een geregistreerd FEIT (actualStart/actualFinish)
+  /** Snap een geregistreerd FEIT (actualStart/actualFinish)
    *  VOORWAARTS naar de eerstvolgende werk-instant, MAAR alleen als die instant op DEZELFDE
    *  kalenderdag blijft — kruist de snap naar een andere dag, dan blijft het rauwe instant staan.
    *  Reconcilieert twee tegenstrijdige corpusmetingen: `mpp14resource.mpp`'s "Completed Task"
-   *  (actualStart zaterdag, MSP-eigen SCHEDULED_START blijft zaterdag — GEEN dag-kruisende snap;
-   *  de aanleiding voor H1/c2's oorspronkelijke "nooit snappen"-aanname) tegenover
-   *  `mpp14timephasedsegmentsmanual.mpp`'s "Task Three"/"Task Four" (actualStart 07:00, buiten de
-   *  band maar op een GEWONE werkdag — MSP-eigen SCHEDULED_START snapt hier WEL door naar 08:00,
-   *  een BINNEN-dag-snap; gevonden via B4's eigen corpus-verificatie, die de kale "nooit snappen"-
-   *  variant op dit bestand van 100% exact naar 2 sameday-taken liet zakken). MSP normaliseert dus
+   *  (actualStart zaterdag, MSP-eigen SCHEDULED_START blijft zaterdag — GEEN dag-kruisende snap)
+   *  tegenover `mpp14timephasedsegmentsmanual.mpp`'s "Task Three"/"Task Four" (actualStart 07:00,
+   *  buiten de band maar op een GEWONE werkdag — MSP-eigen SCHEDULED_START snapt hier WEL door naar
+   *  08:00, een BINNEN-dag-snap). MSP normaliseert dus
    *  een sub-dag-afwijking BINNEN dezelfde dag, maar verplaatst een geregistreerd feit nooit naar
-   *  een ANDERE kalenderdag — precies wat deze functie doet. Vervangt de kale `snapOnOrAfter`/
-   *  `parseIn`-keuze in zowel de VOLTOOID- als de IN-PROGRESS-branch van de voortgangstak.
+   *  een ANDERE kalenderdag — precies wat deze functie doet. Gebruikt in zowel de VOLTOOID- als de
+   *  IN-PROGRESS-branch van de voortgangstak.
    *
-   *  T16-VEEGLIJST (ná-band-uitkomst, expliciet uitgesproken): `d` NÁ de laatste band van zijn EIGEN
+   *  NÁ-BAND-UITKOMST: `d` NÁ de laatste band van zijn EIGEN
    *  kalenderdag (bv. 20:00 op een werkdag waarvan de laatste band om 17:00 eindigt) laat
    *  `snapOnOrAfter` naar de EERSTVOLGENDE werk-instant snappen — die valt per definitie op een
    *  ANDERE kalenderdag (`nextWorkInstant` heeft op de eigen dag niets meer te vinden). De
    *  `utcDayStart`-gelijkheidstoets hierboven verwerpt die snap dan ook, en de functie geeft het
    *  RAUWE `d` terug (20:00 blijft 20:00) — géén werk-instant, maar wél de dag die MSP zelf opsloeg.
-   *  Dit is een CONSERVATIEVE, maar ONGETOETSTE extrapolatie van dezelfde dag-behoudende regel die
-   *  B4 wél corpusbreed verifieerde (geen gemeten corpusbestand draagt een `actualStart`/
-   *  `actualFinish` ná de laatste band van zijn eigen dag) — bewust zo gelaten i.p.v. gegokt op een
-   *  derde snapregel zonder bewijs. */
+   *  Dit is een CONSERVATIEVE, maar ONGETOETSTE extrapolatie van de corpusbreed geverifieerde
+   *  dag-behoudende regel (geen corpusbestand draagt een `actualStart`/`actualFinish` ná de laatste
+   *  band van zijn eigen dag) — bewust geen derde snapregel zonder bewijs. */
   private snapActualForward(eng: CalendarEngine, d: Date): Date {
     const snapped = this.snapOnOrAfter(eng, d);
     return utcDayStart(snapped).getTime() === utcDayStart(d).getTime() ? snapped : d;
@@ -997,37 +967,29 @@ export class CPMSolver {
   private snapStrictBefore(eng: CalendarEngine, d: Date): Date {
     return eng.isHourMode ? eng.prevWorkInstantBefore(d) : eng.prevWorkDayBefore(d);
   }
-  /** Voorwaartse her-snap van een OPVOLGER-earlyStart die MSP-pariteit (T6, §9/O6) respecteert voor
+  /** Voorwaartse her-snap van een OPVOLGER-earlyStart die MSP-pariteit respecteert voor
    *  een EINDmijlpaal: `snapOnOrAfter` normaliseert met `nextWorkInstant` (rand `[start,end)`), dat
    *  een instant EXACT op een band-eind (bv. di 17:00) altijd naar de volgende werk-instant duwt —
    *  precies de dubbele snap die `relationMath`'s FS-tak met de `lagIsZero`-kortsluiting al voorkomt
    *  vóórdat de waarde hier aankomt. Zonder deze wacht herintroduceert de generieke her-snap
-   *  hieronder (regel 686/728, bestond al vóór T6 voor de "constrained root-taak op middernacht"-
-   *  situatie) diezelfde bug op het volgende niveau. `snapOnOrBefore(...) === d` is de test "`d` is
+   *  (voor de "constrained root-taak op middernacht"-situatie) diezelfde dubbele snap op het
+   *  volgende niveau. `snapOnOrBefore(...) === d` is de test "`d` is
    *  al een geldige `(start,end]`-instant" (band-interieur of band-eind) — precies de conventie
    *  waarmee `finishFromStart` een `ef` bouwt; bij een niet-milestone of een dag-kalender reduceert
-   *  dit byte-identiek tot de kale `snapOnOrAfter`. */
+   *  dit tot de kale `snapOnOrAfter`. */
   private snapSuccessorEarlyStart(
     eng: CalendarEngine,
     d: Date,
     task: Task,
     preserveP6FinishBoundary = false,
   ): Date {
-    // T8-review-BLOCKER (Opus-hercheck 72486257): een ELAPSEDTIME-opvolger krijgt hier GEEN
-    // werk-instant-snap. Orkestratorbesluit op de semantische vraag ("mag een 24/7-taak op een
-    // niet-werk-instant starten?"): JA — MS Project plant elapsed-taken puur in kalendertijd, de
-    // werkkalender is er per definitie niet op van toepassing (dat IS het punt van ELAPSEDTIME).
-    // Zonder deze bypass herintroduceerde deze generieke her-snap (die na ELKE forward-constraint-
-    // berekening draait, dus ook ná H1's al-correcte `deps.startFromFinish`-uitkomst) precies de
-    // H1-schending één stap verderop: een FF+0 naar een elapsed-opvolger die op zaterdag moest
-    // landen, werd hier alsnog naar de eerstvolgende werk-instant/-dag geduwd — de opvolger se EF
-    // schoof daardoor mee, ondanks dat forwardConstraint zelf al goed rekende. `isZeroDurationMilestone`
-    // (niet de kale `task.isMilestone`) blijft uitgesloten: een ECHTE (0-duur) mijlpaal heeft geen
-    // eigen duur/durationType-semantiek, de bestaande FINISH-mijlpaal-tak hieronder regelt zijn eigen
-    // — orthogonale — landing. H3 (Opus-review T15-iteratie-2): met de kale `task.isMilestone` sloot
-    // een MIJLPAAL-MET-DUUR (isMilestone=true, reële duur, T15) die ZELF ELAPSEDTIME is deze bypass
-    // stil uit — precies de H1-schending hierboven (FF-relatie-schending, opvolger op een
-    // zaterdag-einde geduwd) herleeft dan voor die taak, ook al is ze voor de PLANNING geen mijlpaal.
+    // Een ELAPSEDTIME-opvolger krijgt hier GEEN werk-instant-snap: MS Project plant elapsed-taken
+    // puur in kalendertijd, ook op een niet-werk-instant. Deze generieke her-snap draait na ELKE
+    // forward-constraint; zonder bypass wordt bv. een FF+0-opvolger die op zaterdag moet landen alsnog
+    // naar de eerstvolgende werk-instant geduwd, en schuift haar EF mee. Een ECHTE (0-duur) mijlpaal
+    // (`isZeroDurationMilestone`, niet de kale vlag) blijft uitgesloten: de FINISH-mijlpaal-tak
+    // hieronder regelt haar eigen landing. Een mijlpaal-MET-duur die ELAPSEDTIME is, valt wél onder
+    // de bypass.
     if (isElapsedTask(task)) return d;
     if (preserveP6FinishBoundary && eng.isHourMode
       && this.snapOnOrBefore(eng, d).getTime() === d.getTime()) return d;
@@ -1076,37 +1038,28 @@ export class CPMSolver {
   }
 
   /**
-   * De `projectStart`-ONDERGRENS (T7, §9/O2): het MAXIMUM van de taak-eigen gesnapte
+   * De `projectStart`-ONDERGRENS: het MAXIMUM van de taak-eigen gesnapte
    * `scheduleStart` en de geconfigureerde projectstartdatum (zelf ook per `eng` gesnapt — een
    * taak op een afwijkende kalender mag de vloer dus op een andere dag landen dan de
    * projectkalender zelf zou geven). `projectStartRaw` afwezig (optie niet meegegeven, of
-   * onparseerbaar) ⇒ puur de eigen start, byte-identiek aan vóór deze optie.
+   * onparseerbaar) ⇒ puur de eigen start.
    *
-   * UITSLUITEND nog gebruikt voor de `projectStart`-precompute hieronder in `forwardPass`
-   * (taken MET voorganger + hammocks) — dat is de early-start-ONDERGRENS voor DIE hele categorie,
-   * niet uitsluitend tegen relatie-LEADS (T7-review M2, gecorrigeerd): ook een gewone FS/FF-
-   * relatie met lag 0 van een vroege wortel-taak wordt hier gevloerd, niet alleen een negatieve
-   * lag. Alleen de gebruikerszichtbare `truncatedLeadIds`-markering is wél lead-specifiek. Dát is
-   * exact de bescherming die het oorspronkelijke vloer-scenario (gebruikstest-bevinding 2026-08: een
-   * VEROUDERDE `scheduleStart` — bv. gezet vóór een latere wijziging van de projectstartdatum —
-   * die stil vóór het officiële projectbegin bleef doorlopen, in het verkeerde geval zelfs een
-   * weekend "terug" t.o.v. een za/zo-projectstart) beoogde, en die blijft hier onverkort staan.
+   * UITSLUITEND gebruikt voor de `projectStart`-precompute in `forwardPass` (taken MET voorganger
+   * + hammocks) — de early-start-ONDERGRENS voor die hele categorie, niet alleen tegen relatie-LEADS:
+   * ook een gewone FS/FF-relatie met lag 0 van een vroege wortel-taak wordt hier gevloerd. Alleen
+   * de gebruikerszichtbare `truncatedLeadIds`-markering is lead-specifiek. Zo blijft een VEROUDERDE
+   * `scheduleStart` (bv. van vóór een wijziging van de projectstartdatum) niet stil vóór het
+   * projectbegin doorlopen.
    *
-   * Sinds T7 NIET meer gebruikt voor de eigen ES van een wortel-taak zelf (§9/O2, de brede regel:
-   * "een ingelezen anker wordt nooit door de vloer overruled") — zie `ownAnchor` daarvoor. Vóór
-   * T7 leverde deze functie ook dié waarde, wat 25 taken in 12 corpusbestanden vooruit duwde
-   * t.o.v. hun eigen, in het bronbestand opgeslagen anker (11 met een expliciete SNET vóór
-   * projectstart, 14 zonder enige constraint) — minuut-exactheid eist dat het eigen anker wint.
+   * NIET gebruikt voor de eigen ES van een wortel-taak ("een ingelezen anker wordt nooit door de
+   * vloer overruled") — zie `ownAnchor`; minuut-exactheid tegen het corpus eist dat het eigen anker
+   * wint.
    *
-   * T8-review-BLOCKER (Opus-hercheck 72486257, uitgebreid — derde gevonden hersnap-plek): `own`
-   * snapte tot nu toe ALTIJD naar een werk-instant, ook voor een ELAPSEDTIME wortel-taak. Zo'n
-   * taak levert de `projectStart`-vloer (het MINIMUM over alle wortel-taken hieronder) — een
-   * elapsed wortel-taak met bv. een zaterdag-anker duwde die vloer dan naar maandag, wat via de
-   * vloer óók niet-wortel-taken (SS/FS/…) onterecht dichttrok, ook al is de EIGEN ES van die
-   * elapsed taak zelf al correct (`ownAnchor`, hierboven bewust ongesnapt). `elapsedTask`: geef
-   * de rauwe `own` terug, ONGESNAPT — de `projectStartRaw`-vergelijking (een EXPLICIET door de
-   * gebruiker gezette ondergrens) blijft wél gesnapt, net als een constraint (L1-afbakening: een
-   * opgelegde grens is geen relatie-afgeleide instant). */
+   * ELAPSEDTIME wortel-taak: geef de rauwe `own` terug, ONGESNAPT. Zo'n taak levert mee aan de
+   * `projectStart`-vloer (het MINIMUM over alle wortel-taken); een gesnapt zaterdag-anker zou die
+   * vloer naar maandag duwen en via de vloer ook niet-wortel-taken onterecht dichttrekken. De
+   * `projectStartRaw`-vergelijking (een expliciet gezette ondergrens) blijft wél gesnapt, net als
+   * een constraint: een opgelegde grens is geen relatie-afgeleide instant. */
   private rootFloor(eng: CalendarEngine, scheduleStart: string, elapsedTask: boolean): Date {
     const own = elapsedTask
       ? this.parseIn(eng, scheduleStart)
@@ -1117,39 +1070,31 @@ export class CPMSolver {
   }
 
   /**
-   * Taak-eigen gesnapte start, ONGEKLEMD tegen de projectstart (T7, §9/O2). Gebruikt voor de ES
+   * Taak-eigen gesnapte start, ONGEKLEMD tegen de projectstart. Gebruikt voor de ES
    * van een taak ZONDER voorganger (`forwardPass`, `preds.length === 0`-tak): een ingelezen
    * anker wordt nooit door de vloer overruled, ook niet als het vóór de geconfigureerde
-   * projectstartdatum ligt. De vloer zelf (`rootFloor`) bestaat nog onverkort — maar uitsluitend
-   * nog als early-start-ondergrens voor taken MET voorganger (zie `rootFloor`'s docstring: dat
-   * geldt breder dan alleen relatie-leads). Een taak zónder voorganger én zónder relatie kan dus vanaf nu vóór de
-   * projectstart staan als het eigen anker dat zegt — exact de MS Project-semantiek die de
-   * fidelity-audit meet.
+   * projectstartdatum ligt. De vloer (`rootFloor`) geldt alleen als early-start-ondergrens voor
+   * taken MET voorganger. Een taak zónder voorganger kan dus vóór de projectstart staan als het
+   * eigen anker dat zegt — de MS Project-semantiek die de fidelity-audit meet.
    *
-   * Z13 (etappe "nul afwijkingen", dossier "rauw anker zonder constraint"): een instant exact op
+   * RAUW ANKER OP EEN BAND-EIND: een instant exact op
    * het LAATSTE band-eind van zijn eigen kalenderdag (bv. `…T17:00` op een 08:00–17:00-band — niet
    * een TUSSEN-band-eind zoals `12:00` op een 08–12/13–17-dag, zie `isExactBandEnd`'s docblok) is
    * een gedegenereerd geval — er valt niets te snappen, het eerstvolgende werk-instant ÍS de
    * volgende bandstart, maar MSP bewaart het instant zelf (corpusbewijs:
    * `mpxj/junit/data/timephased-prorated-cost-resource.mpp`, taak "No Progress - Actual Cost" —
-   * MSP's eigen SCHEDULED_START blijft `2026-01-29T17:00`, onze `snapOnOrAfter` duwde 'm vóór deze
-   * fix naar `2026-01-30T08:00`). `isExactBandEnd` is hier ONVOORWAARDELIJK toegepast (niet tot
+   * MSP's eigen SCHEDULED_START blijft `2026-01-29T17:00`; `snapOnOrAfter` zou 'm naar
+   * `2026-01-30T08:00` duwen). `isExactBandEnd` is hier ONVOORWAARDELIJK toegepast (niet tot
    * mijlpalen beperkt) — anders dan `snapSuccessorEarlyStart`s bestaande FINISH-mijlpaal-
    * uitzondering hierboven (die deze (start,end]-vrijheid alleen aan een mijlpaal geeft): een
    * WORTEL-anker is per definitie ALTIJD een gelezen waarde, nooit een CPM-berekende — dezelfde
    * grond die `ownAnchor` hierboven al ONGEKLEMD tegen de projectstart houdt. Voor een normale
-   * werk-instant-start is dit byte-identiek (`snapOnOrAfter` was daar toch al een no-op).
-   * Corpusbreed gemeten (216 leesbare bestanden corpus+crawl, wortel-taken zonder manual-vlag/
-   * constraint met een uur-kalender): PRECIES 1 taak in de HELE populatie heeft een raw anker exact
-   * op een bandgrens — de hierboven genoemde, en die bandgrens is het LAATSTE band-eind van haar dag
-   * (geen enkel corpusgeval op een tussen-band-eind). Geen enkel ander bestand raakt deze tak dus
-   * ooit; `cases-advanced-cpm.json` pint zowel dit geval, het band-interieur-gedrag als het
-   * tussen-band-eind-gedrag (mutatiebewijs: zie de case-notities daar).
+   * werk-instant-start is `snapOnOrAfter` toch al een no-op. In het corpus heeft precies 1
+   * wortel-taak een rauw anker exact op een bandgrens (het LAATSTE band-eind van haar dag);
+   * `cases-advanced-cpm.json` pint dit geval, het band-interieur- en het tussen-band-eind-gedrag.
    *
-   * Z19 (residu-iteratie "nul afwijkingen", klokdossier-mijlpaaldossier): EEN 0-DUURMIJLPAAL SNAPT
-   * NOOIT — zelfde regel als `forwardBoundOf`'s eigen Z19-toelichting (die de T6-her-review-aanname
-   * met een corpusfeit weerlegt) — MAAR uitsluitend bij een ECHT datetime-anker (`scheduleStart`
-   * draagt een tijdcomponent) in uur-modus, zelfde "S13"-conventie/mutatiebewijs als daar (een
+   * EEN 0-DUURMIJLPAAL SNAPT NOOIT — zelfde regel als bij `forwardBoundOf` — MAAR uitsluitend bij
+   * een ECHT datetime-anker (`scheduleStart` draagt een tijdcomponent) in uur-modus (een
    * date-only-anker is dag-verankerd en blijft naar het eerste werk-instant van de dag snappen).
    * `isExactBandEnd`-check hierboven blijft ONVOORWAARDELIJK bestaan voor taken MET duur en voor
    * date-only-geankerde mijlpalen. */
@@ -1162,12 +1107,10 @@ export class CPMSolver {
 
   /** `d` valt EXACT op het LAATSTE band-eind van zijn eigen kalenderdag (uur-modus) — niet zelf een
    *  werk-instant (`[start,end)`), maar wél al een geldige `(start,end]`-instant, ÉN geen TUSSEN-
-   *  band-eind (bv. `12:00` in een 08–12/13–17-dag). Reviewbevinding (fixronde ná Opus-afkeuring
-   *  6f4c903f): de eerdere, bredere test (`snapOnOrBefore(eng,d)===d` zonder de laatste-band-eis)
-   *  vuurde ook op `12:00` — daar telt `dayFirstBandStart` dan stilzwijgend de hele OCHTEND mee bij
-   *  de duur-optelling, terwijl het corpusbewijs (`timephased-prorated-cost-resource.mpp`)
-   *  UITSLUITEND het LAATSTE band-eind van de dag betreft (corpusincidentie op een tussen-band-eind:
-   *  0). Vandaar de expliciete vergelijking met `bands[bands.length-1].end` i.p.v. de kale
+   *  band-eind (bv. `12:00` in een 08–12/13–17-dag). De bredere test (`snapOnOrBefore(eng,d)===d`)
+   *  zou ook op `12:00` vuren — dan telt `dayFirstBandStart` stil de hele OCHTEND mee bij de
+   *  duur-optelling, terwijl het corpusbewijs (`timephased-prorated-cost-resource.mpp`) UITSLUITEND
+   *  het LAATSTE band-eind van de dag betreft. Vandaar de expliciete vergelijking met `bands[bands.length-1].end` i.p.v. de kale
    *  `(start,end]`-test. Dag-modus kent geen bandgrenzen ⇒ altijd `false`. */
   private isExactBandEnd(eng: CalendarEngine, d: Date): boolean {
     if (!eng.isHourMode) return false;
@@ -1177,7 +1120,7 @@ export class CPMSolver {
     return d.getTime() === lastBandEndMs;
   }
 
-  /** Het EERSTE band-begin op `d`'s eigen kalenderdag (Z13, gebruikt door `addDurationChecked`s
+  /** Het EERSTE band-begin op `d`'s eigen kalenderdag (gebruikt door `addDurationChecked`s
    *  band-eind-wacht hierboven én `subDuration`s backward-spiegel verderop) — `effectiveBandsOn`
    *  levert de banden al MET geldende werkende uitzonderingen/holidays voor die specifieke dag,
    *  dus dit volgt dezelfde bron als elke andere band-vergelijking in dit bestand. `bands.length===0`
@@ -1186,15 +1129,15 @@ export class CPMSolver {
    *  `effectiveBandsOn(d)` leeg is (zie hierboven) — een dag zonder enige band kan dus nooit als
    *  "band-eind" gekwalificeerd zijn geweest. Geen corpusloze rode-pad-fixture nodig/mogelijk: een
    *  synthetische holiday-op-de-ankerdag-case zou per constructie nooit `isExactBandEnd` passeren,
-   *  dus nooit hier aankomen. De `?? start`/`?? d`-terugval bij de aanroepplekken blijft staan als
-   *  pure verdediging-in-de-diepte (nooit geraakt, geen dode-code-claim in een testcommentaar). */
+   *  dus nooit hier aankomen. De `?? start`/`?? d`-terugval bij de aanroepplekken is pure
+   *  verdediging-in-de-diepte. */
   private dayFirstBandStart(eng: CalendarEngine, d: Date): Date | null {
     const bands = eng.effectiveBandsOn(d);
     if (bands.length === 0) return null;
     return new Date(utcDayStart(d).getTime() + bands[0].start * MS_PER_MIN);
   }
 
-  /** Het LAATSTE band-EIND op `d`'s eigen kalenderdag (Z13, backward-spiegel van `dayFirstBandStart`
+  /** Het LAATSTE band-EIND op `d`'s eigen kalenderdag (backward-spiegel van `dayFirstBandStart`
    *  hierboven — uitsluitend gebruikt door `subDuration`s float-bewuste band-eind-wacht). Zelfde
    *  onbereikbaarheids-redenering als `dayFirstBandStart`'s docblok voor de `bands.length===0`-tak. */
   private dayLastBandEnd(eng: CalendarEngine, d: Date): Date | null {
@@ -1203,7 +1146,7 @@ export class CPMSolver {
     return new Date(utcDayStart(d).getTime() + bands[bands.length - 1].end * MS_PER_MIN);
   }
 
-  /** De mode-bewuste primitieven die de relatie-wiskunde (`relationMath.ts`, audit P15) injectief
+  /** De mode-bewuste primitieven die de relatie-wiskunde (`relationMath.ts`) geïnjecteerd
    *  krijgt aangereikt. Ze blijven hier gedefinieerd (delen de dag↔uur-reductie met de rest van de
    *  solver); `forwardConstraint`/`backwardConstraint` draaien de FS/SS/FF/SF-formules erop. */
   private readonly relDeps: RelationDeps = {
@@ -1230,25 +1173,19 @@ export class CPMSolver {
     startOfDay: utcDayStart,
   };
 
-  /** Vroege finish = start ⊕ duur (§5.1). Mijlpaal ⇒ 0; ELAPSEDTIME ⇒ kale 24/7-klokoptelling
-   *  (T8, precedent `resolveElapsedMinutes`/`relationMath.ts`, GEEN kalenderband-toetsing); uur
+  /** Vroege finish = start ⊕ duur. Mijlpaal ⇒ 0; ELAPSEDTIME ⇒ kale 24/7-klokoptelling
+   *  (zoals `resolveElapsedMinutes`/`relationMath.ts`, GEEN kalenderband-toetsing); uur
    *  (WORKTIME) ⇒ `addWorkMinutes(durationMinutesOf)`; dag (WORKTIME) ⇒ `addWorkDays(durationDaysOf)`
-   *  — LETTERLIJK de huidige regel (`durationDaysOf` levert op een dag-kalender altijd de integer
-   *  `scheduleDuration`, nooit een fractionele dag, Bevinding 2).
+   *  (`durationDaysOf` levert op een dag-kalender altijd de integer `scheduleDuration`).
    *
-   *  Z7 (aangrijpingspunt 1, splits): `task.splitGaps` telt hier mee als EXTRA werkminuten/-dagen
-   *  bovenop de gewone duur, via `splitTotalSpanMinutes`/`splitTotalSpanDays` (`duration.ts` —
-   *  wandelt de synthetische gaten-as i.p.v. een vast venster te klemmen, Z7-fixronde-H1: de
-   *  vroegere venster-vorm trunceerde een gat dat over de `durationMinutesOf`-grens heen liep,
-   *  omdat `TaskSplitGap.afterMinutes` NIET op de zuivere-werkduur-as staat maar op MSP's eigen
-   *  cumulatieve `elapsedWorkMinutes`-as, die voorgaande gaten al meetelt). ELAPSEDTIME blijft
-   *  bewust ONGEMOEID — splits zijn een WERK-tijd-concept (24/7 kent geen "gat", zie `duration.ts`'s
-   *  moduleheader bij deze functies). `task.splitGaps` afwezig ⇒ `splitTotalSpanMinutes`/
-   *  `splitTotalSpanDays` geven de kale duur ongewijzigd terug ⇒ byte-identiek aan vóór Z7. */
+   *  Splits: `task.splitGaps` telt hier mee als EXTRA werkminuten/-dagen bovenop de gewone duur, via
+   *  `splitTotalSpanMinutes`/`splitTotalSpanDays` (`duration.ts` — een wandeling over de cumulatieve
+   *  gaten-as, zie daar). ELAPSEDTIME blijft bewust ONGEMOEID — splits zijn een WERK-tijd-concept
+   *  (24/7 kent geen "gat"). Zonder `splitGaps` geven die helpers de kale duur terug. */
   private addDuration(eng: CalendarEngine, start: Date, task: Task): Date {
     return this.addDurationChecked(eng, start, task).date;
   }
-  /** `addDuration` mét CAP-signaal (WP7): identieke datum-uitkomst, plus `capped` uit de dag-modus-
+  /** `addDuration` mét CAP-signaal: identieke datum-uitkomst, plus `capped` uit de dag-modus-
    *  `addWorkDaysChecked` — een onwerkbaar taakvenster (holiday-blok) dat de earlyFinish tegen de
    *  MAX_SCAN/MAX_DAYS-grens duwt. Mijlpaal, ELAPSEDTIME en uur-modus cappen hier nooit (`false`):
    *  een mijlpaal heeft geen duur, ELAPSEDTIME kent geen onwerkbaar-venster-begrip (24/7), en de
@@ -1267,8 +1204,8 @@ export class CPMSolver {
           capped: false,
         };
       }
-      // Z13 (dossier "rauw anker zonder constraint"): `start` exact op een band-eind (`ownAnchor`
-      // hierboven laat zo'n wortel-anker sinds deze fix bewust RAUW) — INVOERBEWIJS (corpusbestand
+      // Rauw anker op een band-eind: `start` exact op een band-eind (`ownAnchor` laat zo'n
+      // wortel-anker bewust RAUW) — INVOERBEWIJS (corpusbestand
       // `timephased-prorated-cost-resource.mpp`, 4 taken, identieke duur/kalender): MSP's eigen
       // `SCHEDULED_FINISH` is voor ALLE VIER de taken hetzelfde instant (`2026-02-02T17:00`) — óók
       // voor "No Progress - Actual Cost", die als ENIGE om `17:00` (band-eind) start i.p.v. `08:00`
@@ -1277,26 +1214,18 @@ export class CPMSolver {
       // resteren. Reken de duur daarom vanaf de EERSTE band van diezelfde kalenderdag i.p.v. vanaf
       // het band-eind-instant zelf — de GERAPPORTEERDE `earlyStart` blijft ongewijzigd het rauwe
       // band-eind-anker, dit raakt uitsluitend het interne rekenpunt voor de
-      // duur-optelling. `totalMinutes > 0`-wacht (reviewbevinding, `msp-06`/`msp-06b` her-check):
-      // ZONDER die wacht verlegde deze aanpassing ook de RETURN van een NUL-duur, niet-mijlpaal-
-      // taak (`isZeroDurationMilestone` sluit die niet uit — vereist óók `task.isMilestone`) van
-      // `addWorkMinutes`'s eigen `minutes ≤ 0`-kortsluiting (die geeft `startInstant` ONGEWIJZIGD
-      // terug) naar de band-begin-waarde — exact de dataDate-vloer-cases `msp-06`/`msp-06b` (Z's
-      // `ef` verschoof van 17:00 naar 08:00, want Z heeft `dur:0` zonder `milestone:true`). Met
-      // `totalMinutes > 0` raakt deze wacht uitsluitend een taak die ECHT werk-minuten optelt.
-      // Band-INTERIEUR/normale starts ⇒ `isExactBandEnd` levert `false` ⇒ byte-identiek aan vóór
-      // Z13.
+      // duur-optelling. `totalMinutes > 0`-wacht: anders verlegt dit ook de RETURN van een
+      // NUL-duur, niet-mijlpaal-taak (`isZeroDurationMilestone` vereist óók `task.isMilestone`) van
+      // `addWorkMinutes`'s `minutes ≤ 0`-kortsluiting naar de band-begin-waarde (dataDate-vloer-cases
+      // `msp-06`/`msp-06b`). Band-INTERIEUR/normale starts ⇒ `isExactBandEnd` levert `false`.
       const walkStart = totalMinutes > 0 && this.isExactBandEnd(eng, start)
         ? this.dayFirstBandStart(eng, start) ?? start
         : start;
       return { date: eng.addWorkMinutes(walkStart, totalMinutes), capped: false };
     }
     if (eng.isHourMode) {
-      // Z7-nalevering (splits-spec bevinding 2a): een DAG-taak op een kalender MÉT banden liep hier
-      // op de kale `scheduleDuration` en negeerde `splitGaps` — de enige van de vier volledige-duur-
-      // aangrijpingspunten die de gaten-as oversloeg. `splitTotalSpanDays` geeft voor een gatloze
-      // taak `durationDaysOf` = `scheduleDuration` RAUW terug (geen deel-dan-vermenigvuldig-rondje),
-      // dus dat pad blijft byte-identiek.
+      // Ook een DAG-taak op een kalender MÉT banden telt `splitGaps` mee (via `splitTotalSpanDays`,
+      // dat voor een gatloze taak `scheduleDuration` RAUW teruggeeft).
       const totalDays = splitTotalSpanDays(task, eng);
       if (totalDays <= 0) return { date: new Date(start.getTime()), capped: false };
       const dayResult = eng.addWorkDaysChecked(utcDayStart(start), totalDays);
@@ -1308,21 +1237,19 @@ export class CPMSolver {
     const totalDays = splitTotalSpanDays(task, eng);
     return eng.addWorkDaysChecked(start, totalDays);
   }
-  /** Late start = late finish ⊖ duur (§5.1, spiegel van `addDuration`). BEWUST GEEN
-   *  `levelingDelay`/`levelingDelayMinutes`-aftrek hier (Z6-besluit, ongewijzigd na de Z6-
-   *  fixronde): `end` (= `lateFinish`) komt hier al onafhankelijk van deze taak se eigen
+  /** Late start = late finish ⊖ duur (spiegel van `addDuration`). BEWUST GEEN
+   *  `levelingDelay`/`levelingDelayMinutes`-aftrek hier: `end` (= `lateFinish`) komt hier al onafhankelijk van deze taak se eigen
    *  `earlyStart` binnen, dus een aftrek HIER zou de vertraging DUBBEL verrekenen in
    *  `totalFloat`. Dat is een ander mechanisme dan de backward-DOORGIFTE-spiegel in
-   *  `backwardPass` (Z6-fixronde B2, `shiftByLevelingDelay`s aanroep daar): die corrigeert wat
+   *  `backwardPass` (`shiftByLevelingDelay`s aanroep daar): die corrigeert wat
    *  een VOORGANGER van deze taak als late-zijde-druk ziet, niet wat déze taak zelf met haar
    *  eigen duur doet — de twee plekken lossen verschillende problemen op en bijten elkaar niet.
    *
-   *  Z7 (aangrijpingspunt 3, splits — spiegel van `addDurationChecked` hierboven, "anders
-   *  spookfloat", plan-§Z7): zónder deze spiegel zou de backward-pass een LS berekenen die niet
+   *  Splits — spiegel van `addDurationChecked` hierboven: zónder deze spiegel zou de backward-pass een LS berekenen die niet
    *  bij de gaten-bewuste EF van dezelfde taak hoort — LF-EF zou dan systematisch afwijken van
    *  LS-ES, wat via `totalFloat`/`freeFloat` een spook-speling introduceert op elke gesplitste
    *  taak. Zelfde venster `[0, totale duur)`, zelfde ELAPSEDTIME-uitsluiting. */
-  /** `actualEarlyStart` (Z13-fixronde, punt B7): de ES die `earlyDates` voor DEZE taak in DIT solve
+  /** `actualEarlyStart`: de ES die `earlyDates` voor DEZE taak in DIT solve
    *  daadwerkelijk droeg (uit `backwardPass`s eigen `earlyDates`-map, niet `task.time.earlyStart` —
    *  dat veld wordt pas ná `backwardPass` door `computeScheduleResults` geschreven, dus zou hier
    *  een stale waarde van de VORIGE solve teruggeven). Optioneel/`null` voor de dag-modus-tak en
@@ -1336,47 +1263,26 @@ export class CPMSolver {
     if (eng.isHourMode && taskDurationUnit(task) === 'hours') {
       const totalMinutes = splitTotalSpanMinutes(task.splitGaps, durationMinutesOf(task, eng));
       const natural = eng.subtractWorkMinutes(end, totalMinutes);
-      // B1 (X12 brok 6): de late start van een opvolger op een voorgangerfinishgrens-relatie is een
-      // gewone bandSTART (P6: Hotel HCSWB1Z1240 LS 03-04 08:00). De finishgrens voor de voorganger
-      // legt de gewone FS-backward in `relationMath` (`prevWorkInstant` op de voorgangerkalender); hier
-      // vroeger `prevWorkInstantBefore(natural)` — 9 ls-cellen fout, 0 goed.
-      // Z13 (backward-spiegel van `addDurationChecked`s band-eind-wacht): voor een WORTEL-taak
-      // (geen voorganger) wier eigen `ownAnchor` het rauwe band-eind-anker behoudt (zie die
-      // functie), telt `addDurationChecked` de EIGEN kalenderdag van dat anker mee als volledig
-      // verbruikt (`dayFirstBandStart`) — `es` blijft desondanks het RAUWE, latere band-eind-
-      // instant. Zonder deze spiegel weet de backward-pass daar niets van: `subtractWorkMinutes`
-      // hierboven wandelt vanaf `end` terug met de KALE duur — voor een taak zonder speling
-      // (`end` = de eigen `ef`) landt dat vóór `es` (negatieve `tf` op een taak die door NIETS
-      // anders begrensd wordt, een innerlijke tegenstrijdigheid, geen MSP-gedrag); mét speling
-      // (`end` > `ef`, reviewbevinding B3) geeft de kale aftrek een `tf` die stelselmatig één
-      // werkdag te klein is (`lateFinish−earlyFinish` ≠ `lateStart−earlyStart`), onbewaakt door de
-      // fidelity-meting (die alleen ES/EF ziet, geen float).
+      // B1: de late start van een opvolger op een voorgangerfinishgrens-relatie is een gewone
+      // bandSTART (P6: Hotel HCSWB1Z1240 LS 03-04 08:00). De finishgrens voor de voorganger legt de
+      // gewone FS-backward in `relationMath` (`prevWorkInstant` op de voorgangerkalender), niet
+      // `prevWorkInstantBefore(natural)` hier.
+      // Backward-spiegel van `addDurationChecked`s band-eind-wacht: een WORTEL-taak wier `ownAnchor`
+      // het rauwe band-eind-anker behoudt, telt de EIGEN kalenderdag van dat anker als volledig
+      // verbruikt (`dayFirstBandStart`), terwijl `es` het rauwe band-eind blijft. Een kale
+      // duur-aftrek vanaf `end` landt dan vóór `es` (negatieve `tf` zonder oorzaak) of geeft mét
+      // speling een `tf` die één werkdag te klein is (LF−EF ≠ LS−ES) — de fidelity-meting ziet alleen
+      // ES/EF, geen float.
       //
-      // ALGEMENE SPIEGEL (fixronde ná Opus-afkeuring 6f4c903f, punt B3 — niet langer alleen het
-      // nul-speling-geval): in plaats van te toetsen of `natural` toevallig EXACT op `task`'s eigen
-      // ankerdag landt, toetst deze wacht of `natural` op ÉÉN of andere kalenderdag D exact op de
-      // EERSTE band landt (`dayFirstBandStart(natural) === natural`) — dat is precies wat een
-      // kale, "hele-werkdagen"-duur-aftrek altijd doet, met of zonder speling. Zo ja: net als
-      // `addDurationChecked` de EERSTE band van de ankerdag als volledig-verbruikt-krediet gebruikt
-      // (in plaats van het rauwe eind-instant), geeft deze spiegel het LAATSTE band-eind van
-      // diezelfde dag D terug (`dayLastBandEnd`) — mét speling is D een LATERE dag dan `task`'s
-      // eigen ankerdag; zónder speling ís D letterlijk de ankerdag, en dit reduceert tot de oude,
-      // geteste nul-speling-uitkomst (`dayLastBandEnd(dayFirstBandStart(rawOwn)) === rawOwn`,
-      // want `rawOwn` IS per definitie het laatste band-eind van zijn eigen dag). Corpusloos
-      // mutatiebewezen met een taak-mét-speling-case (`cases-advanced-cpm.json`,
-      // `z13-root-anchor-band-eind-speling`): `LF−EF` en `LS−ES` komen daar op hetzelfde aantal
-      // werkdagen uit.
+      // De wacht toetst of `natural` op een kalenderdag D exact op de EERSTE band landt
+      // (`dayFirstBandStart(natural) === natural`) — wat een "hele-werkdagen"-aftrek altijd doet — en
+      // geeft dan het LAATSTE band-eind van D terug (`dayLastBandEnd`). Zonder speling is D de
+      // ankerdag zelf. Gepind in `cases-advanced-cpm.json` (`z13-root-anchor-band-eind-speling`).
       //
-      // GATING (B7-fixronde): `preds.length===0` (alleen wortel-taken hebben `ownAnchor`) +
-      // `isExactBandEnd(rawOwn)` (de taak-eigen `scheduleStart` is zelf gedegenereerd) zijn
-      // NOODZAKELIJK maar niet VOLDOENDE — een harde MSO/MFO-pin of een bindende SNET/MSO-constraint
-      // kan `earlyStart` op een heel ANDERE waarde dan `ownAnchor`s rauwe anker gezet hebben
-      // (`applyForwardConstraints` wint dan van `ownAnchor`). `actualEarlyStart === rawOwn` (uit
-      // `earlyDates`, dus de ECHTE ES van DIT solve) bevestigt dat `ownAnchor` de ES werkelijk
-      // leverde — zonder die toets zou deze spiegel op een gepinde/geconstrainde wortel-taak een
-      // `lateStart` kunnen teruggeven die niets met haar echte `es` te maken heeft. Voor élke andere
-      // taak (voorganger-gedreven, een niet-band-eind-anker, of een anker dat door een pin/
-      // constraint overruled is) is dit `false` ⇒ byte-identiek aan vóór Z13.
+      // GATING: `preds.length===0` + `isExactBandEnd(rawOwn)` zijn nodig maar niet voldoende — een
+      // harde pin of bindende SNET/MSO-constraint kan `earlyStart` elders gezet hebben.
+      // `actualEarlyStart === rawOwn` (de ECHTE ES van dit solve) bevestigt dat `ownAnchor` de ES
+      // leverde. Voor élke andere taak is dit `false`.
       if (
         totalMinutes > 0
         && (this.predecessors.get(task.id) ?? []).length === 0
@@ -1395,9 +1301,9 @@ export class CPMSolver {
       return natural;
     }
     if (eng.isHourMode) {
-      // Spiegel van `addDurationChecked`s dag-taak-op-bandenkalender-tak (splits-spec bevinding 2a):
-      // zonder dezelfde gaten-bewuste aftrek wijkt LS−ES af van LF−EF en ontstaat er spookfloat op
-      // elke gesplitste dag-taak die op een uur-kalender staat. Gatloos ⇒ byte-identiek.
+      // Spiegel van `addDurationChecked`s dag-taak-op-bandenkalender-tak: zonder dezelfde
+      // gaten-bewuste aftrek wijkt LS−ES af van LF−EF en ontstaat er spookfloat op elke gesplitste
+      // dag-taak die op een uur-kalender staat.
       const totalDays = splitTotalSpanDays(task, eng);
       if (totalDays <= 0) return new Date(end.getTime());
       const firstDay = eng.subtractWorkDays(utcDayStart(end), totalDays);
@@ -1435,20 +1341,19 @@ export class CPMSolver {
       : eng.subtractWorkDays(end, remainingWithGaps);
   }
 
-  /** Verschuift `date` met de nivelleer-vertraging van `task` (fase 2.5 §5.6; Z6 uur-/minuut-
-   *  precisie + elapsed-bewustheid; Z6-fixronde). `sign=1` (forward, `forwardPass`s eigen early
+  /** Verschuift `date` met de nivelleer-vertraging van `task` (uur-/minuutprecisie,
+   *  elapsed-bewust). `sign=1` (forward, `forwardPass`s eigen early
    *  start van `task` zelf) of `sign=-1` (backward-DOORGIFTE, `backwardPass`s constraint-druk
-   *  die `task` als OPVOLGER op haar voorganger legt — Z6-fixronde B2, zie de toelichting bij de
-   *  aanroepplek in `backwardPass`). Geen delay ingesteld ⇒ `date` ongewijzigd (no-op, byte-
-   *  identiek), ongeacht `sign`.
+   *  die `task` als OPVOLGER op haar voorganger legt — zie de toelichting bij de aanroepplek in
+   *  `backwardPass`). Geen delay ingesteld ⇒ `date` ongewijzigd, ongeacht `sign`.
    *
-   *  Z7-fixronde (EXTRA, reviewbevinding — crash los van splits): `eng.addWorkingMinutesSigned` is
+   *  VALKUIL: `eng.addWorkingMinutesSigned` is
    *  een UUR-modus-primitief — `CalendarEngine`'s `bandCache` bestaat uitsluitend wanneer de
    *  kalender `workTime` draagt (constructor, `this.mode==='hour'`-tak); op een DAG-kalender blijft
    *  `bandCache` `undefined` en crasht `bandsStartingOn`'s `this.bandCache!`-assertion. `mppReader.ts`
    *  zet `levelingDelayMinutes` op `raw.levelingDelayRaw !== 0`, ONGEACHT het kalender-type van het
-   *  project — een `.mpp`-bestand met nivelleervertraging op een gewone DAG-kalender bereikte deze
-   *  tak dus altijd al, en crashte. Terugval-conventie: identiek aan `durationDaysOf`s "sub-dag-duur
+   *  project — een `.mpp`-bestand met nivelleervertraging op een gewone DAG-kalender bereikt deze
+   *  tak dus. Terugval-conventie: identiek aan `durationDaysOf`s "sub-dag-duur
    *  bestaat niet op een dag-kalender"-precedent en `resolveEffectiveLagDays`s minuten→dagen-
    *  omrekening (`Math.sign(raw) * Math.round(Math.abs(raw))`, half rondt van nul af) — reken de
    *  minuten om naar HELE werkdagen en gebruik `addWorkingDaysSigned` (de dag-modus-tegenhanger). */
@@ -1473,7 +1378,7 @@ export class CPMSolver {
     return date;
   }
 
-  /** WORKTIME-lag in MINUTEN in de voorganger-kalender (§5.2): procent ⇒ uit `durationMinutesOf(pred)`;
+  /** WORKTIME-lag in MINUTEN in de voorganger-kalender: procent ⇒ uit `durationMinutesOf(pred)`;
    *  `lagMinutes` ⇒ bron; anders `lagDays × pred-hoursPerDay × 60` (naakt getal = werkdagen). */
   private resolveLagMinutes(seq: Sequence, predTask: Task, predEng: CalendarEngine): number {
     if (isFiniteNumber(seq.lagPercent)) {
@@ -1484,14 +1389,14 @@ export class CPMSolver {
     const days = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
     return days * predEng.hoursPerDay * 60;
   }
-  /** ELAPSEDTIME-lag in KLOK-minuten (24/7, §5.2): `lagMinutes` ⇒ bron; anders (procent/)dagen × 24 × 60. */
+  /** ELAPSEDTIME-lag in KLOK-minuten (24/7): `lagMinutes` ⇒ bron; anders (procent/)dagen × 24 × 60. */
   private resolveElapsedMinutes(seq: Sequence, predTask: Task): number {
     if (isFiniteNumber(seq.lagMinutes)) return seq.lagMinutes;
     return resolveEffectiveLagDays(seq, predTask) * 24 * 60;
   }
-  /** Verschuif `base` met de relatie-lag in de meegegeven lag-engine (`predEng` is de naam uit de tijd
-   *  dat de voorgangerskalender een constante was; elke aanroeper geeft nu `lagEng` uit
-   *  `relDeps.lagEngine` door — `schedulingOptions.lagCalendar`, default voorganger; §5.2).
+  /** Verschuif `base` met de relatie-lag in de meegegeven lag-engine (de parameter heet `predEng`,
+   *  maar elke aanroeper geeft `lagEng` uit `relDeps.lagEngine` door — `schedulingOptions.lagCalendar`,
+   *  default voorganger).
    *  Uur-pred ⇒ minuten via `addWorkingMinutesSigned`; dag-pred ⇒ dagen via `addWorkingDaysSigned`
    *  (dag-lag blijft exact als nu). `sign` = +1 voorwaarts, −1 achterwaarts (spiegel). */
   private shiftLagPred(
@@ -1513,7 +1418,7 @@ export class CPMSolver {
         }
         return projected;
       }
-      // B2 bij lag 0 (X12 brok 6): een FF-grens op een exact bandeinde blijft die finishgrens; de
+      // B2 bij lag 0: een FF-grens op een exact bandeinde blijft die finishgrens; de
       // generieke normalisatie (`nextWorkInstant`) zou hem naar de volgende bandstart duwen.
       if (sign < 0 && minutes === 0 && seq.type === 'FINISH_FINISH'
         && this.options.schedulingOptions?.p6BackwardLagFinishBoundary === true
@@ -1523,25 +1428,24 @@ export class CPMSolver {
       return predEng.addWorkingMinutesSigned(base, sign * minutes);
     }
     // Dag-voorganger: WORKTIME-lag in dagen; `hoursPerDay` van de voorganger-kalender vertaalt een
-    // lag die alleen als `lagMinutes` bestaat (fase 2.10, zie `resolveEffectiveLagDays`).
+    // lag die alleen als `lagMinutes` bestaat.
     return predEng.addWorkingDaysSigned(
       base, sign * resolveEffectiveLagDays(seq, predTask, predEng.hoursPerDay),
     );
   }
 
-  /** Leid de opvolger-START af uit zijn geëiste FINISH (FF/SF, §5.2): ELAPSEDTIME ⇒ kale 24/7-
-   *  klokaftrek (T8, vóór de hour/day-splitsing — geen kalenderband-toetsing, dus modus-onafhankelijk);
+  /** Leid de opvolger-START af uit zijn geëiste FINISH (FF/SF): ELAPSEDTIME ⇒ kale 24/7-
+   *  klokaftrek (vóór de hour/day-splitsing — geen kalenderband-toetsing, dus modus-onafhankelijk);
    *  uur (WORKTIME) ⇒ `subtractWorkMinutes`; dag (WORKTIME) ⇒ `addWorkingDaysSigned(−(dur−1))` — de
-   *  bestaande inclusieve-dag-aftrek. Mijlpaal-afhandeling ONGEWIJZIGD per tak (Bevinding, T8-review:
-   *  de dag-tak snapt een mijlpaal via `addWorkingDaysSigned(finish, 0)` = `nextWorkDay`, de uur-tak
+   *  inclusieve-dag-aftrek. Mijlpaal-afhandeling verschilt per tak: de dag-tak snapt een mijlpaal via `addWorkingDaysSigned(finish, 0)` = `nextWorkDay`, de uur-tak
    *  geeft de rauwe finish terug ongesnapt — niet symmetrisch, dus niet naar bóven de modus-split
    *  te hijsen zonder dat gedrag te veranderen).
    *
-   *  Z7 (aangrijpingspunt 4, splits): gebruikt door de FF/SF-armen in `relationMath.ts` en door
+   *  Splits: gebruikt door de FF/SF-armen in `relationMath.ts` en door
    *  `forwardBoundOf`/`backwardBoundOf`/`hardPinStart`/`hardPinFinish` — een gesplitste taak als
    *  FF-voorganger zou zonder deze gaten-optelling een START teruggeven die haar EIGEN duur negeert.
    *  Zelfde as-wandeling/ELAPSEDTIME-uitsluiting als `addDurationChecked` (`splitTotalSpanMinutes`/
-   *  `splitTotalSpanDays`, `duration.ts` — Z7-fixronde-H1). */
+   *  `splitTotalSpanDays`, `duration.ts`). */
   private startFromFinish(eng: CalendarEngine, finish: Date, task: Task): Date {
     if (eng.isHourMode && taskDurationUnit(task) === 'hours') {
       if (isZeroDurationMilestone(task)) return new Date(finish.getTime());
@@ -1566,8 +1470,7 @@ export class CPMSolver {
       const firstDay = eng.subtractWorkDays(utcDayStart(finish), totalDays);
       return this.dayFirstBandStart(eng, firstDay) ?? firstDay;
     }
-    // H3 (Opus-review T15-iteratie-2, herbevestigd via msp-30-mutatiebewijs): `isZeroDurationMilestone`
-    // i.p.v. de kale vlag — anders viel een dag-modus mijlpaal-met-duur-ELAPSEDTIME-taak hier stil
+    // `isZeroDurationMilestone` i.p.v. de kale vlag — anders valt een dag-modus mijlpaal-met-duur-ELAPSEDTIME-taak hier stil
     // terug op de WORKTIME-tak (`addWorkingDaysSigned`, telt werkdagen, slaat weekend over) i.p.v.
     // de kloktijd-aftrek — exact het patroon dat msp-30 (FF+0 naar zo'n taak) blootlegde.
     if (isElapsedTask(task)) {
@@ -1578,13 +1481,12 @@ export class CPMSolver {
     const totalDur = splitTotalSpanDays(task, eng);
     return eng.addWorkingDaysSigned(finish, -(totalDur > 0 ? totalDur - 1 : 0));
   }
-  /** Leid de voorganger-FINISH af uit zijn late START (SS/SF backward, §5.2, spiegel van
-   *  `startFromFinish`): ELAPSEDTIME ⇒ kale 24/7-klokoptelling (T8); uur (WORKTIME) ⇒ `addWorkMinutes`;
+  /** Leid de voorganger-FINISH af uit zijn late START (SS/SF backward, spiegel van
+   *  `startFromFinish`): ELAPSEDTIME ⇒ kale 24/7-klokoptelling; uur (WORKTIME) ⇒ `addWorkMinutes`;
    *  dag (WORKTIME) ⇒ `addWorkingDaysSigned(dur−1)`. Zelfde mijlpaal-asymmetrie-voorbehoud als
    *  `startFromFinish` hierboven.
    *
-   *  Z7 (aangrijpingspunt 4, splits) — zelfde as-wandeling, spiegel van `startFromFinish`
-   *  hierboven (Z7-fixronde-H1). */
+   *  Splits — zelfde as-wandeling, spiegel van `startFromFinish` hierboven. */
   private finishFromStart(eng: CalendarEngine, start: Date, task: Task): Date {
     if (eng.isHourMode && taskDurationUnit(task) === 'hours') {
       if (isZeroDurationMilestone(task)) return new Date(start.getTime());
@@ -1606,19 +1508,19 @@ export class CPMSolver {
       const lastDay = eng.addWorkDaysChecked(utcDayStart(start), totalDays).date;
       return this.dayLastBandEnd(eng, lastDay) ?? lastDay;
     }
-    // H3 (Opus-review T15-iteratie-2) — zelfde reden als `startFromFinish` hierboven.
+    // `isZeroDurationMilestone` — zelfde reden als `startFromFinish` hierboven.
     if (isElapsedTask(task)) {
       return addElapsedMinutes(start, elapsedMinutesOf(task, eng));
     }
     const totalDur = splitTotalSpanDays(task, eng);
     return eng.addWorkingDaysSigned(start, totalDur > 0 ? totalDur - 1 : 0);
   }
-  /** Getekende float in eigen-kalender-WERKDAGEN (§5.5, Bevinding 1): uur ⇒ fractioneel
+  /** Getekende float in eigen-kalender-WERKDAGEN: uur ⇒ fractioneel
    *  `workMinutesBetween / (hoursPerDay × 60)`; dag ⇒ de integer `signedWorkDaysBetween`.
-   *  ELAPSEDTIME (T8, msp-14-mutatiebewijs): `a`/`b` mogen op een niet-werkdag liggen (24/7-taak) —
+   *  ELAPSEDTIME (msp-14): `a`/`b` mogen op een niet-werkdag liggen (24/7-taak) —
    *  `workDaysBetween`/`signedWorkDaysBetween` gaan daar stuk (spook-tf, zie `signedElapsedSpan`'s
    *  moduleheader in `duration.ts`), dus een ELAPSEDTIME-taak krijgt de kale klok-span i.p.v.
-   *  werkdag-telling. `task` optioneel: afwezig (of WORKTIME) ⇒ exact de oude twee takken. */
+   *  werkdag-telling. `task` optioneel: afwezig (of WORKTIME) ⇒ de uur-/dagtak. */
   private signedFloat(a: Date, b: Date, eng: CalendarEngine, task?: Task): number {
     if (task?.time.durationType === 'ELAPSEDTIME') return signedElapsedSpan(a, b, eng);
     if (eng.isHourMode && (!task || isZeroDurationMilestone(task) || taskDurationUnit(task) === 'hours')) {
@@ -1629,7 +1531,7 @@ export class CPMSolver {
 
   solve(): CPMResult {
     // Idempotentie: reset ALLE per-solve accumulerende instance-state, zodat een tweede
-    // solve() op dezelfde instance byte-identiek is aan een verse instance (geen duplicaten
+    // solve() op dezelfde instance gelijk is aan een verse instance (geen duplicaten
     // uit een vorige run in de side-channels). De overige velden zijn constructor-vast
     // (graaf/kalenders/opties) of worden per solve onvoorwaardelijk herschreven; de
     // engine-cache is deterministisch per kalender-id en mag blijven staan.
@@ -1642,8 +1544,8 @@ export class CPMSolver {
     this.hammockNoFinishDriverIds = [];
     this.cappedTaskIds = [];
     this.plannedFloorTraceByTaskId = {};
-    // Diagnose-trace zonder rekeneffect; volgt conventie B3 als aan-schakelaar. Sinds B3 in elk
-    // ingebouwd profiel uit is (eigenaarsvraag §1d-7) staat de trace onder P6 standaard uit; de
+    // Diagnose-trace zonder rekeneffect; volgt conventie B3 als aan-schakelaar. Omdat B3 in elk
+    // ingebouwd profiel uit staat, is de trace onder P6 standaard uit; de
     // enige lezer (`check-xer-backward-float-trace`) zet B3 als afwijking aan. Bewust niet
     // losgekoppeld: de trace beschrijft de B3-vensterroute en `result.backwardFloatTrace` hoort
     // afwezig te zijn als die route uit staat (gepind in diezelfde check).
@@ -1701,8 +1603,8 @@ export class CPMSolver {
       }
     }
 
-    // Werkdag-gesnapte statusdatum (fase 2.6). Ongeldig/afwezig ⇒ null (alle voortgangstakken no-op).
-    // Uur-projectkalender ⇒ instant-snap via `nextWorkInstant` (§5.3); dag ⇒ `nextWorkDay` (byte-identiek).
+    // Werkdag-gesnapte statusdatum. Ongeldig/afwezig ⇒ null (alle voortgangstakken no-op).
+    // Uur-projectkalender ⇒ instant-snap via `nextWorkInstant`; dag ⇒ `nextWorkDay`.
     const dd = this.options.dataDate ? this.parseIn(this.projectEngine, this.options.dataDate) : null;
     this.dataDate = dd && !isNaN(dd.getTime()) ? this.snapOnOrAfter(this.projectEngine, dd) : null;
     this.rawDataDate = this.dataDate === null ? null : dd;
@@ -1748,12 +1650,10 @@ export class CPMSolver {
       completedOutOfSequenceEs: this.completedOutOfSequenceEs,
       completedPhysicalPoints: this.completedPhysicalPoints,
     });
-    // Zachte WP7-waarschuwing: alleen bij een echt onwerkbaar venster het veld zetten, zodat een
-    // normale solve byte-identiek blijft (veld afwezig ⇒ geen wijziging aan bestaande consumenten).
-    // N4 (Opus-review, T9): `Set`-dedupe — sinds T9's voortgangstak TWEE aparte checked-aanroepen
-    // per taak kan doen (de `elapsedAnchor`-hervattingspunt-berekening én de `ef`-restwerk-optelling
-    // erna), kan dezelfde `taskId` twee keer gepusht worden als BEIDE tegen de onwerkbaar-venster-cap
-    // lopen — vóór T9 kon een taak hoogstens via één pad hier terechtkomen, dus dit kon niet.
+    // Zachte waarschuwing: alleen bij een echt onwerkbaar venster het veld zetten (anders afwezig).
+    // `Set`-dedupe: de voortgangstak kan per taak TWEE checked-aanroepen doen (het
+    // `elapsedAnchor`-hervattingspunt én de `ef`-restwerk-optelling), die allebei tegen de cap kunnen
+    // lopen.
     if (this.cappedTaskIds.length > 0) result.cappedTaskIds = [...new Set(this.cappedTaskIds)];
     if (Object.keys(this.plannedFloorTraceByTaskId).length > 0) {
       result.plannedFloorTraceByTaskId = { ...this.plannedFloorTraceByTaskId };
@@ -1764,8 +1664,8 @@ export class CPMSolver {
         byTaskId: { ...this.backwardFloatTrace.byTaskId },
       };
     }
-    // T8-rooktest: idem voor relaties die een niet-bladtaak raakten en al bij de constructie
-    // genegeerd zijn (zie de guard in de constructor) — byte-identiek default zolang dat niet gebeurt.
+    // Idem voor relaties die een niet-bladtaak raakten en al bij de constructie genegeerd zijn (zie
+    // de guard in de constructor); anders afwezig.
     if (this.droppedSequenceIds.length > 0) result.droppedSequenceIds = [...this.droppedSequenceIds];
     return result;
   }
@@ -1861,19 +1761,17 @@ export class CPMSolver {
   private forwardPass(order: string[]): Map<string, { es: Date; ef: Date }> {
     const results = new Map<string, { es: Date; ef: Date }>();
     // Vroegste projectstart (= vroegste start onder de taken zónder voorganger, ELK al geklemd op
-    // de geconfigureerde projectstartdatum via `rootFloor` — gebruikstest-bevinding 2026-08). Dient
-    // als ondergrens zodat een negatieve lag (lead) een taak niet vóór het projectbegin trekt.
-    // Vooraf bepaald, zodat de topologische volgorde de uitkomst niet beïnvloedt. Sinds T7 (§9/O2)
-    // is dit de ENIGE plek waar `rootFloor` nog klemt — de eigen ES-tak van een wortel-taak
-    // hieronder gebruikt `ownAnchor` (ongeklemd); deze precompute-lus en `hammockEarlyStart`
-    // (die `projectStart` als basis gebruikt) blijven ongewijzigd.
+    // de geconfigureerde projectstartdatum via `rootFloor`). Dient als ondergrens zodat een
+    // negatieve lag (lead) een taak niet vóór het projectbegin trekt. Vooraf bepaald, zodat de
+    // topologische volgorde de uitkomst niet beïnvloedt. Dit is de ENIGE plek waar `rootFloor`
+    // klemt — de eigen ES-tak van een wortel-taak hieronder gebruikt `ownAnchor` (ongeklemd);
+    // `hammockEarlyStart` gebruikt `projectStart` als basis.
     let projectStart: Date | null = null;
     for (const t of this.tasks.values()) {
       if ((this.predecessors.get(t.id) || []).length > 0) continue;
       const eng = this.calendarFor(t);
-      // H3 (Opus-review T15-iteratie-2): `isZeroDurationMilestone` i.p.v. de kale vlag — een
-      // mijlpaal-met-duur (T15) die zelf ELAPSEDTIME is, is voor de PLANNING geen mijlpaal en moet
-      // dus wél als "root-elapsed" behandeld worden (spiegelt `snapSuccessorEarlyStart` hierboven).
+      // `isZeroDurationMilestone` i.p.v. de kale vlag — een mijlpaal-met-duur die zelf ELAPSEDTIME is,
+      // telt als "root-elapsed" (spiegelt `snapSuccessorEarlyStart` hierboven).
       const s = this.rootFloor(eng, t.time.scheduleStart, isElapsedTask(t));
       if (!projectStart || s < projectStart) projectStart = s;
     }
@@ -1882,20 +1780,18 @@ export class CPMSolver {
       const task = this.tasks.get(taskId)!;
       const cal = this.calendarFor(task);
       const preds = this.predecessors.get(taskId) || [];
-      // Z8-fixronde (VERPLAATST naar hier, was verderop in deze functie): de IN-PROGRESS-tak
-      // hieronder (`if (usedResumeOverride...) { ... results.set(...); continue; }`) heeft haar
-      // EIGEN `ef`-berekening en `continue`t VÓÓR het punt waar dit vroeger stond — de
-      // timephased-finish-override (zie verderop) moet dus ook DÁÁR al gelden, niet alleen in de
-      // gewone AUTO-tak. `hardPinFinish` is een pure functie van `task`/`cal` (geen loop-state),
-      // dus vervroegen is veilig — één berekening, twee toepassingsplekken, geen dubbel werk.
+      // Hier al berekend: de IN-PROGRESS-tak hieronder (`if (usedResumeOverride...) { ...
+      // results.set(...); continue; }`) heeft haar EIGEN `ef`-berekening en `continue`t vóór de gewone
+      // AUTO-tak, en de timephased-finish-override moet op beide plekken gelden. `hardPinFinish` is
+      // een pure functie van `task`/`cal` — één berekening, twee toepassingsplekken.
       const hardFinishPin = this.hardPinFinish(task, cal);
 
-      // ── Hammock / Level of Effort (§4.4) ───────────────────────────────────
+      // ── Hammock / Level of Effort ───────────────────────────────────
       // Een hammock loopt mee in topologische volgorde (drivers staan er per definitie vóór). ES =
       // de gewone forward-max over SS/FS-voorganger-bounds + projectstart-vloer; EF = de max over de
       // FF/SF-voorganger-bounds (ondergrens ES). De AFGELEIDE duur (span ES→EF) wordt naar
       // precies één afgeleide duurbron (`scheduleDuration` of `durationMinutes`) geschreven; eigen duur-invoer
-      // wordt genegeerd. `isHammock` afwezig ⇒ deze tak draait niet (byte-identiek).
+      // wordt genegeerd. `isHammock` afwezig ⇒ deze tak draait niet.
       // Gebruik hier bewust de rauwe XER-datadatum, vóór kalendersnap. De smalle guard vergelijkt
       // haar met het opgeslagen actual-finish-instant; een naar de volgende werkband gesnapte datum
       // zou een actualFinish ná P6's datadatum ten onrechte toelaten.
@@ -1935,61 +1831,38 @@ export class CPMSolver {
           ? { ef: parseInstant(task.time.scheduleFinish), hasFinishDriver: true }
           : this.hammockEarlyFinish(task, preds, results, es, cal);
         if (!hasFinishDriver) this.hammockNoFinishDriverIds.push(taskId);
-        // T8 (T10-reviewtoevoeging): een ELAPSEDTIME-hammock drukt zijn afgeleide span uit in KLOK-
-        // tijd, niet in WERKtijd — `cal.workMinutesBetween`/`workDaysBetween` tellen alleen tijd
-        // binnen kalenderbanden, wat voor een 24/7-taak een te korte duur zou geven. De
-        // uur-omrekening deelt daarbij door de VASTE klokdag (24 × 60), NOOIT door `cal.hoursPerDay`
-        // — dat zou dezelfde dubbele-deling-valkuil zijn die T10 in de lezer fixte, hier toegepast
-        // op de duur-herberekening i.p.v. op de leeskant.
-        // Hammockduur is volledig afgeleid en dus niet door de gebruiker gekozen. Leg na elke
-        // solve precies één passende bron vast: minuten als de kalender concrete banden heeft,
-        // anders werkdagen. Zo blijven er ook hier geen twee concurrerende invoerbronnen staan.
-        // Issue #145: deze vier takken staan sinds die fix in `duration.ts`s `writeDerivedSpan` —
-        // de verzameltaak-rollup (`applyCpmResult`) heeft exact dezelfde behoefte en deelt nu
-        // dezelfde definitie in plaats van er een eigen, incomplete kopie naast te zetten.
+        // Een ELAPSEDTIME-hammock drukt zijn afgeleide span uit in KLOK-tijd, niet in WERKtijd
+        // (`workMinutesBetween`/`workDaysBetween` tellen alleen tijd binnen kalenderbanden); de
+        // uur-omrekening deelt door de VASTE klokdag (24 × 60), NOOIT door `cal.hoursPerDay`
+        // (dubbele-deling-valkuil).
+        // Hammockduur is volledig afgeleid, niet door de gebruiker gekozen. Leg na elke solve
+        // precies één passende bron vast: minuten als de kalender concrete banden heeft, anders
+        // werkdagen. De vier takken staan in `duration.ts`s `writeDerivedSpan`, gedeeld met de
+        // verzameltaak-rollup (`applyCpmResult`).
         writeDerivedSpan(task, es, ef, cal);
         results.set(taskId, { es, ef });
         continue;
       }
 
-      // ── Handmatig gepland (Z9a, etappe "nul afwijkingen") ──────────────────────────────────
+      // ── Handmatig gepland ──────────────────────────────────────────────────────────────────
       // MS Project "Manually Scheduled": een `manuallyScheduled`-taak houdt haar EIGEN opgeslagen
-      // `time.scheduleStart`/`scheduleFinish` RAUW aan — geen kalendersnap (`ownAnchor`/
-      // `snapOnOrAfter` bewust NIET aangeroepen: dát is precies het punt, MSP snapt een manual-
-      // anker nooit naar de werkband), geen relatiedruk (voorganger-`earlyStart`/`rawMax` wordt
-      // hieronder voor deze taak nooit berekend — haar OPVOLGERS lezen gewoon `results` en
-      // rekenen normaal door, `forwardConstraint` kent geen bijzonder manual-geval nodig) en geen
-      // constraint-afdwinging. `mppReader.ts`'s `resolveScheduleField` (zie haar docblok) zorgt
-      // dat `scheduleStart`/`scheduleFinish` voor een `.mpp`-import al het JUISTE veldpaar dragen
-      // (1283/1284 i.p.v. 35/36) — deze tak hoeft dus geen tweede veldkeuze te maken, ze
-      // respecteert gewoon wat er ligt (ook voor MSPDI/P6/CSV/IFC-bronnen, waar `scheduleStart`/
-      // `scheduleFinish` per definitie al "het" antwoord zijn).
+      // `time.scheduleStart`/`scheduleFinish` RAUW aan — geen kalendersnap (MSP snapt een
+      // manual-anker nooit naar de werkband), geen relatiedruk (haar OPVOLGERS rekenen gewoon door op
+      // `results`) en geen constraint-afdwinging. `mppReader.ts`'s `resolveScheduleField` zorgt dat
+      // een `.mpp`-import al het JUISTE veldpaar draagt (1283/1284 i.p.v. 35/36).
       //
-      // BESLUIT (constraint vs. manual, plan-§Z9a): MANUAL WINT. `applyForwardConstraints`/
-      // `hardPinStart`/`hardPinFinish` worden voor deze taak NOOIT aangeroepen, ook niet bij een
-      // harde MSO/MFO-pin — MS Project plant een manual taak op haar getypte datum, een
-      // gelijktijdige constraint is dan een dode letter (gepind: `msp-58-z9a-manual-wint-van-
-      // constraint` in cases-msp-pariteit.json — `violatedConstraintsSet` blijft daar leeg).
+      // CONSTRAINT VS. MANUAL: MANUAL WINT — ook boven een harde MSO/MFO-pin; de constraint is dan
+      // een dode letter (`msp-58-z9a-manual-wint-van-constraint`, `violatedConstraintsSet` leeg).
       //
-      // PRECEDENTIE t.o.v. Z12 (resume-override)/Z8 (progressCal/timephased-venster)/Z6
-      // (leveling-delay-ankerregel): deze tak MOET vóór al die takken staan (topologisch de EERSTE
-      // afvangst in de niet-hammock-tak) — een manual taak met voortgang/venster/delay behoudt
-      // nog steeds haar eigen rauwe anker, niet de door die takken herberekende waarde.
-      // GEMETEN, niet aangenomen (Z9a-probe, wegwerpscript, 2026-08-18): 10 van de 1659
-      // corpusbrede manual-taken dragen ÓÓK voortgang (`percentComplete`/`actualStart`) en een
-      // `resume`-veld — `mpp14timephasedsegmentsmanual.mpp`'s "Task Three"/"Task Four" (pct 50,
-      // actualStart/manualStart 07:00, scheduledStart 08:00 — exact de −60min-translatie uit de
-      // Z1-reviewobservatie) en de vier `assignment-assignments-*`-varianten se "Task 2"/"Task 3".
-      // Voor "Task Three"/"Task Four" is de rauwe manual-start (07:00) MSP's EIGEN opgeslagen
-      // antwoord (START, veld 1283, geverifieerd via de fidelity-meetlat) — niet de via
-      // resume/restwerk herberekende waarde die de IN-PROGRESS-tak verderop zou geven. Geen enkele
-      // gemeten manual-taak draagt `levelingDelayMinutes` (0/1659) — die interactie blijft dus
-      // ONGETOETST tegen een echt samenvallend geval, maar kan de precedentie per constructie niet
-      // schenden (deze tak `continue`t vóór de leveling-toepassing wordt bereikt).
+      // PRECEDENTIE: deze tak staat vóór de resume-override, het progressCal/timephased-venster en de
+      // leveling-delay-ankerregel — een manual taak met voortgang/venster/delay behoudt haar eigen
+      // rauwe anker. Gemeten: 10 van de 1659 corpusbrede manual-taken dragen óók voortgang en
+      // `resume` (o.a. `mpp14timephasedsegmentsmanual.mpp`'s "Task Three"/"Task Four": de rauwe
+      // manual-start 07:00 is MSP's eigen opgeslagen START). Geen gemeten manual-taak draagt
+      // `levelingDelayMinutes`.
       //
-      // Spiegelt de VOLTOOID-tak (voortgangsblok verderop) qua vorm: `parseIn` (dag ⇒ `parseDate`,
-      // uur ⇒ `parseInstant`, GEEN snap) + dezelfde ef<es-inversiecorrectie voor het randgeval
-      // waarin een bestand een finish vóór de start opslaat.
+      // Spiegelt de VOLTOOID-tak qua vorm: `parseIn` (GEEN snap) + dezelfde ef<es-inversiecorrectie
+      // voor een bestand dat een finish vóór de start opslaat.
       if (task.manuallyScheduled) {
         let es = this.parseIn(cal, task.time.scheduleStart);
         const ef = this.parseIn(cal, task.time.scheduleFinish);
@@ -1999,94 +1872,75 @@ export class CPMSolver {
       }
 
       let earlyStart: Date;
-      // Z10 (dossier START_FINISH-semantiek, `mpp14relations.mpp`/"Task 5"): een SF-vereiste-finish
+      // START_FINISH (`mpp14relations.mpp`/"Task 5"): een SF-vereiste-finish
       // ("niet eerder dan pred.START + lag") is een APARTE ondergrens op de EARLY FINISH, naast de
       // gewone `earlyStart`-druk die `forwardConstraint` hierboven al levert — zie
       // `forwardFinishFloor`'s moduleheader in `relationMath.ts` voor de volledige diagnose (het
       // symptoom: `earlyFinish` hieronder wordt UNIFORM als `ES + duur` VOORWAARTS herberekend, wat
       // voor SF de vereiste finish verliest zodra de terugtelling exact een niet-werkperiode
-      // overspant). `null` ⇒ geen SF-voorganger ⇒ byte-identiek (de `if` bij de toepassing hieronder
-      // is dan een no-op). Blijft `null` bij `preds.length === 0` (een wortel-taak heeft geen
+      // overspant). `null` ⇒ geen SF-voorganger (de `if` bij de toepassing hieronder is dan een
+      // no-op). Blijft `null` bij `preds.length === 0` (een wortel-taak heeft geen
       // voorganger-relatie om een finish te eisen).
       let sfFinishFloor: Date | null = null;
-      // Z13: gezet in de `noPreds`-tak hieronder zodra de taak-eigen `scheduleStart` een gedegenereerd
+      // Gezet in de `noPreds`-tak hieronder zodra de taak-eigen `scheduleStart` een gedegenereerd
       // band-eind-anker is (zie `rootAnchorIsBandEnd`/`timephasedAnchorIsDegenerateResnap` daar) —
       // `timephasedFinish()` gebruikt deze vlag om `task.timephasedFinishFloor` in dat geval over te
       // slaan, spiegelt de START-kant.
       let timephasedFinishFloorIsDegenerateResnap = false;
 
-      // Z6-fixronde (ANKERREGEL): `preds.length === 0` bepaalt hieronder al welke tak `earlyStart`
+      // ANKERREGEL: `preds.length === 0` bepaalt hieronder al welke tak `earlyStart`
       // levert (eigen anker vs. voorganger-gedreven herrekening) — hergebruikt verderop om de
       // nivelleer-vertraging te clausuleren (zie de toelichting daar). Eén boolean, geen tweede
       // `preds.length`-check die uit de pas zou kunnen lopen met de branch-keuze hieronder.
       const noPreds = preds.length === 0;
       if (noPreds) {
-        // T8-review-BLOCKER (Opus-hercheck 72486257, uitgebreid): dezelfde bypass als
-        // `snapSuccessorEarlyStart` hieronder — hier voor de WORTEL-taak-tegenhanger. Zonder wacht
-        // duwde `ownAnchor`s `snapOnOrAfter` een elapsed-taak met een op zichzelf staand weekend-
-        // anker (bv. ingelezen scheduleStart = zaterdag, geen voorganger) alsnog naar maandag —
-        // dezelfde H1-schending, maar op de EIGEN-anker-plek i.p.v. de relatie-plek (gevonden bij het
-        // doorzoeken van alle hersnap-plekken die de reviewer vroeg). Het constraint-PAD
-        // (`applyForwardConstraints`/`forwardBoundOf`) blijft bewust ONGEMOEID — dat is de al-
-        // gedocumenteerde L1-afbakening (zie `hardPinStart`): een SNET/MSO-datum snapt nog steeds
-        // naar een werk-instant, ook op een elapsed taak.
-        // H3 (Opus-review T15-iteratie-2): `isZeroDurationMilestone` i.p.v. de kale vlag — zelfde
-        // reden als de precompute-lus hierboven (regel ~797) en `snapSuccessorEarlyStart`.
+        // Dezelfde ELAPSEDTIME-bypass als `snapSuccessorEarlyStart`, hier voor de WORTEL-taak: zonder
+        // wacht duwt `ownAnchor`s `snapOnOrAfter` een elapsed-taak met een weekend-anker (bv.
+        // scheduleStart = zaterdag, geen voorganger) alsnog naar maandag. Het constraint-PAD
+        // (`applyForwardConstraints`/`forwardBoundOf`) blijft bewust ONGEMOEID (zie `hardPinStart`):
+        // een SNET/MSO-datum snapt nog steeds naar een werk-instant, ook op een elapsed taak.
+        // `isZeroDurationMilestone` i.p.v. de kale vlag — zelfde reden als de precompute-lus hierboven.
         const rootElapsed = isElapsedTask(task);
-        // Z8 (etappe "nul afwijkingen", gemeten — zie `mppReader.ts`'s `deriveTimephasedWindowsFor
-        // Tasks`-moduleheader voor het corpusbewijs): een wortel-taak met een timephased-toewijzing
+        // Timephased-anker (zie `mppReader.ts`'s `deriveTimephasedWindowsForTasks`-moduleheader voor
+        // het corpusbewijs): een wortel-taak met een timephased-toewijzing
         // wier eigen `AssignmentField.START` buiten de TAAK-kalenderband ligt maar binnen haar EIGEN
         // resourcekalender (corpusvoorbeeld: een "Night Shift"-resource om 23:00) draagt dat instant
         // al RAUW, precies zoals `rootElapsed` hieronder — MSP snapt dat niet naar de eerstvolgende
-        // taak-kalender-werk-instant, onze `ownAnchor`-snap deed dat vóór deze fixronde wél. Afwezig
-        // ⇒ byte-identiek (de `ownAnchor`-tak hieronder draait ongewijzigd).
+        // taak-kalender-werk-instant, `ownAnchor` zou dat wél doen. Afwezig ⇒ de `ownAnchor`-tak.
         //
-        // HERWERKRONDE-SLOTRONDE (reviewer-eis: "meet wat het is" — dezelfde scrutiny als de
-        // afgekeurde vlakke-finish-terugval): dit is NIET dezelfde categorie als die terugval. Bij
-        // een WORTEL-taak (geen voorganger) is de start per definitie ALTIJD een gelezen anker — nooit
-        // een CPM-berekende waarde — dat is precies `ownAnchor` (`task.time.scheduleStart`, al sinds
-        // etappe 1 geaccepteerd, ONGEWIJZIGD hier). `timephasedAnchor` (`task.timephasedStartAnchor`,
+        // Geen teruggelezen rekenuitvoer: bij een WORTEL-taak (geen voorganger) is de start per
+        // definitie ALTIJD een gelezen anker — nooit een CPM-berekende waarde — dat is precies
+        // `ownAnchor` (`task.time.scheduleStart`). `timephasedAnchor` (`task.timephasedStartAnchor`,
         // `AssignmentField.START`) is dus geen ALTERNATIEF soort mechanisme t.o.v. ownAnchor — het is
         // een PRECIEZER gelezen anker uit een ANDERE bronlocatie (toewijzingsniveau i.p.v. taakniveau),
         // beide even "gelezen". De rechtvaardiging is het INVOERFEIT: MSP bewaart op toewijzings-
         // niveau een ONGESNAPT instant (`AssignmentField.START` ligt in het corpusvoorbeeld buiten
         // de taak-kalenderband en binnen de resourcekalender) — het toewijzingsveld draagt dus
-        // broninformatie die het taakveld mist, en die lezen we, net als `ownAnchor`, als anker.
-        // De mutatieproef (tijdelijk uitgeschakeld, altijd ownAnchor) dient uitsluitend als
-        // niet-circulariteitscontrole: een teruggelezen antwoord zou bij verwijdering GEEN verschil
-        // maken t.o.v. de toch-al-juiste motoruitkomst, terwijl deze tak dan meetbaar ander gedrag
-        // toont (o.a. mpp14timephased.mpp en mpp14timephasedsegmentsmanual(offsets).mpp op hun
-        // wortel-taken). Blijft dus staan.
-        // Z13 (dossier "rauw anker zonder constraint", `timephased-prorated-cost-resource.mpp`,
-        // taak "No Progress - Actual Cost"): `timephasedAnchor` hierboven is normaal een PRECIEZER
+        // broninformatie die het taakveld mist, en die lezen we, net als `ownAnchor`, als anker. Zonder
+        // deze tak verandert het gedrag meetbaar (o.a. mpp14timephased.mpp en
+        // mpp14timephasedsegmentsmanual(offsets).mpp op hun wortel-taken).
+        // Uitzondering (`timephased-prorated-cost-resource.mpp`, taak "No Progress - Actual Cost"):
+        // `timephasedAnchor` hierboven is normaal een PRECIEZER
         // gelezen anker dan `ownAnchor` (zie de toelichting hierboven) — maar in dit ene corpusgeval
         // is de taak-eigen `scheduleStart` een gedegenereerd BAND-EIND-anker (`ownAnchor`s eigen
-        // vrijstelling hierboven), en blijkt `timephasedAnchor` daar NIET onafhankelijk van te zijn:
-        // hij komt uit vóór deze fix op precies dezelfde (verkeerde) waarde uit als het bandgrens-
-        // gesnapte taak-anker. MSP's EIGEN `SCHEDULED_START` (de fidelity-grondwaarheid) houdt hier
-        // het rauwe band-eind aan — `timephasedAnchor` zou die vrijstelling dus ongedaan maken.
-        // FIXRONDE (Opus-afkeuring 6f4c903f, punt B1): de vorige versie discrimineerde op een
-        // BYTE-GELIJKHEID met `snapOnOrAfter(rawOwnAnchor)` — dat is een eigenschap van ONZE eigen
-        // (vóór-Z13) berekening, niet van de invoer, en dus geen geldige generieke regel. Gemeten
-        // (reviewer): de invoer-conditie alléén (`!!veld && isExactBandEnd`, zonder de byte-
-        // gelijkheidsclausule) geeft dezelfde 553/553 en dezelfde fidelity-delta — de bytegelijkheid
-        // voegde dus niets toe buiten dit ene corpusgeval en werd geschrapt. De regel is nu: ELKE
-        // wortel-taak met een gedegenereerd band-eind-anker negeert laag 3 volledig (`timephasedAnchor`/
-        // `timephasedFinishFloor`), ongeacht wat laag 3 concreet draagt — voor élke andere taak
-        // (geen band-eind-anker, zoals de bestaande "Night Shift"-populatie) is dit `false` en blijft
-        // `timephasedAnchor` byte-identiek de voorkeur houden.
+        // vrijstelling hierboven), en is `timephasedAnchor` daar NIET onafhankelijk van: hij valt op
+        // het bandgrens-gesnapte taak-anker. MSP's EIGEN `SCHEDULED_START` houdt hier het rauwe
+        // band-eind aan. De regel is een invoer-conditie, geen vergelijking met onze eigen
+        // berekening: ELKE wortel-taak met een gedegenereerd band-eind-anker negeert laag 3 volledig
+        // (`timephasedAnchor`/`timephasedFinishFloor`); voor élke andere taak (zoals de "Night
+        // Shift"-populatie) is dit `false` en houdt `timephasedAnchor` de voorkeur.
         const rawOwnAnchor = this.parseIn(cal, task.time.scheduleStart);
         const rootAnchorIsBandEnd = this.isExactBandEnd(cal, rawOwnAnchor);
         const timephasedAnchorIsDegenerateResnap = !!task.timephasedStartAnchor && rootAnchorIsBandEnd;
         const timephasedAnchor = timephasedAnchorIsDegenerateResnap ? undefined : task.timephasedStartAnchor;
-        // Z13, FINISH-tegenhanger van de vlag hierboven: `task.timephasedFinishFloor` (laag 3) komt
+        // FINISH-tegenhanger van de vlag hierboven: `task.timephasedFinishFloor` (laag 3) komt
         // van DEZELFDE toewijzing als `timephasedStartAnchor`, dus geldt dezelfde invoer-conditie.
         // `timephasedFinish()` leest deze vlag verderop om `task.timephasedFinishFloor` in dat geval
         // over te slaan, zodat `addDurationChecked`s eigen band-eind-correctie (zie die functie) het
         // laatste woord houdt — anders zou laag 3 die correctie hier alsnog ongedaan maken.
         timephasedFinishFloorIsDegenerateResnap = !!task.timephasedFinishFloor && rootAnchorIsBandEnd;
-        // Geen voorganger: de eigen geplande start, ONGEKLEMD tegen de projectstart (T7, §9/O2 —
-        // "een ingelezen anker wordt nooit door de vloer overruled"; zie `ownAnchor`). Een harde
+        // Geen voorganger: de eigen geplande start, ONGEKLEMD tegen de projectstart ("een ingelezen
+        // anker wordt nooit door de vloer overruled"; zie `ownAnchor`). Een harde
         // MSO/MFO-pin (hieronder in `applyForwardConstraints`) wint hier nog steeds
         // onvoorwaardelijk: die controleert `hardPinStart` EERST en retourneert dan meteen, vóór
         // deze waarde ooit gezien wordt.
@@ -2101,26 +1955,23 @@ export class CPMSolver {
         if (this.dataDate && this.isUnstartedAlapPositionedFromSuccessors(task, cal)) {
           earlyStart = this.snapOnOrAfter(cal, this.dataDate);
         }
-        // Geen voorganger-druk ⇒ rawMax null ⇒ een (root-)pin kan de logica niet breken (§4.2).
+        // Geen voorganger-druk ⇒ rawMax null ⇒ een (root-)pin kan de logica niet breken.
         const beforeConstraint = earlyStart;
         earlyStart = this.applyForwardConstraints(task, earlyStart, null, cal);
-        // Z13: heeft de constraint-toepassing hierboven `earlyStart` daadwerkelijk VERPLAATST (een
+        // Heeft de constraint-toepassing hierboven `earlyStart` daadwerkelijk VERPLAATST (een
         // bindende constraint-grens)? Zo niet — geen constraint, of wel een constraint maar niet
         // bindend — dan is `earlyStart` nog altijd exact `ownAnchor`s eigen resultaat, en heeft de
         // her-snap hieronder NIETS te doen: `ownAnchor` heeft de band-eind-vrijstelling (zie haar
-        // docblok) al zelf correct toegepast. Vóór Z13 was die her-snap voor een ongeconstrainde
-        // taak sowieso al een no-op (ownAnchor snapte toen onvoorwaardelijk) — deze wacht maakt dat
-        // nu EXPLICIET i.p.v. impliciet-toevallig, want zonder wacht zou de her-snap de nieuwe
-        // band-eind-vrijstelling meteen weer ongedaan maken (`snapOnOrAfter` behandelt een band-eind
-        // instant nog steeds als "niet-werk", precies het gedrag dat `ownAnchor` net vermeed).
+        // docblok) al zelf correct toegepast; zonder wacht zou de her-snap die vrijstelling ongedaan
+        // maken (`snapOnOrAfter` behandelt een band-eind-instant als "niet-werk").
         const constraintMoved = earlyStart.getTime() !== beforeConstraint.getTime();
-        // Fase 2.8b (golf 3): her-snap ná de constraint — spiegelt de voorganger-tak (regel 466).
+        // Her-snap ná de constraint — spiegelt de voorganger-tak.
         // `applyForwardConstraint` levert een DAG-conceptuele grens (`nextWorkDay`/
-        // `addWorkingDaysSigned`, §5.2), in uur-modus een middernacht-instant die NIET op een
+        // `addWorkingDaysSigned`), in uur-modus een middernacht-instant die NIET op een
         // werk-instant valt; zonder her-snap rapporteert een constrained root-taak zijn ES op 00:00
         // i.p.v. de bandstart (de `earlyFinish` rekent al vanaf de bandstart ⇒ interne inconsistentie).
         // Idempotent in dag-modus (`nextWorkDay` van een werkdag = diezelfde werkdag) en bij een
-        // niet-bindende constraint (ES al gesnapt op regel 429) ⇒ byte-identiek voor de 290.
+        // niet-bindende constraint (ES al gesnapt).
         // `rootElapsed`/`timephasedAnchor`/`!constraintMoved` slaan deze her-snap over (zelfde
         // MSP-pariteitsgrond als hierboven) — een ONgeconstrainde taak (of een niet-bindende
         // constraint) met zo'n raw anker had hier toch al niets te her-snappen; alleen mét een
@@ -2164,7 +2015,7 @@ export class CPMSolver {
           if (constraintDate > earlyStart) {
             earlyStart = constraintDate;
           }
-          // Z10: SF-vereiste-finish als aparte ondergrens (zie de toelichting bij `sfFinishFloor`s
+          // SF-vereiste-finish als aparte ondergrens (zie de toelichting bij `sfFinishFloor`s
           // declaratie hierboven) — `null` voor alle andere relatietypes, dus deze regel is een
           // no-op zonder SF-voorganger.
           const finishFloor = forwardFinishFloor(
@@ -2247,7 +2098,7 @@ export class CPMSolver {
             const c = this.seqConstraint.get(seq.id);
             const predTask = this.tasks.get(seq.predecessorId);
             if (!c || !predTask) continue;
-            // Zelfde lag-resolutie als de relatie-wiskunde zelf (incl. `lagMinutes`-only, fase 2.10),
+            // Zelfde lag-resolutie als de relatie-wiskunde zelf (incl. `lagMinutes`-only),
             // anders wordt een lead die alleen in minuten bestaat niet als afgekapt gemarkeerd.
             const predLagDays = resolveEffectiveLagDays(
               seq, predTask, this.calendarFor(predTask).hoursPerDay,
@@ -2257,7 +2108,7 @@ export class CPMSolver {
             }
           }
         }
-        // `rawMax` (voorganger-druk) voedt de harde-pin-logicaschending-detectie (§4.2).
+        // `rawMax` (voorganger-druk) voedt de harde-pin-logicaschending-detectie.
         earlyStart = this.applyForwardConstraints(task, earlyStart, rawMax, cal);
         const preserveP6FinishBoundary = preds.some(sequence =>
           sequence.p6StartAtPredecessorFinishBoundary === true
@@ -2270,70 +2121,36 @@ export class CPMSolver {
         );
       }
 
-      // Nivelleer-vertraging (fase 2.5, §5.6; Z6 — uur-/minuutprecisie + elapsed-bewustheid;
-      // Z6-fixronde — de ANKERREGEL). TWEE APARTE BRONNEN, TWEE APARTE REGELS — zie de
-      // "aanwezig ⇒ bron van waarheid"-precedentie in `shiftByLevelingDelay`s docblok:
+      // Nivelleer-vertraging: TWEE BRONNEN, TWEE REGELS (zie de precedentie in
+      // `shiftByLevelingDelay`s docblok):
       //
-      // (1) `task.levelingDelay` (hele WERKdagen) — UITSLUITEND door `ResourceLeveler` gezet (nooit
-      //     door `mppReader.ts`, zie de moduleheader-toelichting daar). Blijft ONGECLAUSULEERD
-      //     toegepast, exact zoals vóór Z6 en vóór de ankerregel: `task.time.scheduleStart` reflecteert
-      //     hier NOOIT de nivellering (`ResourceLeveler` herschrijft dat veld niet, alleen
-      //     `levelingDelay` zelf, vóór de volgende `runCPM`) — of de taak nu een wortel-taak is of
-      //     voorganger-gedreven, de opgeslagen anker weet in BEIDE gevallen niets van de delay, dus
-      //     de ankerregel hieronder is hier niet van toepassing. Mutatiebewijs (deze fixronde): de
-      //     ankerregel per ongeluk óók op dit pad toepassen brak `cases-resource-leveling.json`
-      //     (11/25 i.p.v. 25/25 — genivelleerde WORTEL-taken zoals `lvl-basic-conflict`s "B" bleven
-      //     ongenivelleerd) en `kal-leveler-apply`/`kal-leveler-preview-puur`; teruggedraaid naar
-      //     ongeclausuleerd ⇒ weer groen.
-      // (2) `task.levelingDelayMinutes`/`.levelingDelayElapsed` (uur-/minuutprecisie) — UITSLUITEND
-      //     door `mppReader.ts` gezet uit `.mpp`'s eigen LEVELING_DELAY-veld. HIER geldt de
-      //     ANKERREGEL wél: toegepast UITSLUITEND wanneer `earlyStart` hierboven VOORGANGER-GEDREVEN
-      //     herrekend is (`!noPreds`) — NOOIT wanneer ze uit het eigen opgeslagen anker komt
-      //     (`noPreds`, de `preds.length === 0`/`ownAnchor`-tak). Reden: voor een `.mpp`-geïmporteerde
-      //     wortel-taak IS `task.time.scheduleStart` MSP's EIGEN, AL-berekende eindantwoord
-      //     (inclusief eventueel toegepaste nivellering) — letterlijk wat MSP zelf naar
-      //     SCHEDULED_START schreef, geen tussenstap. Onze vertraging DAAR ook nog eens toepassen zou
-      //     'm dubbel tellen (de eerste Z6-oplevering deed dit ongeclausuleerd en regresseerde
-      //     `mpp14barstyle.mpp` van 0 naar 6 afwijkingen — een PRELEVELED-poort maskeerde dat
-      //     eerst, zie de revert-commit, vóórdat deze ankerregel het onderliggende motorprobleem
-      //     repareerde). Voor een voorganger-gedreven taak berekent `forwardPass` de early start VERS
-      //     uit de relatiewiskunde, zonder ooit de opgeslagen `scheduleStart` te raadplegen — die
-      //     verse berekening kent de vertraging nog niet, dus die ÉÉN keer toepassen is hier wél
-      //     correct (spiegelt MSP's eigen leveler: precedence-feasible-start + delay).
+      // (1) `task.levelingDelay` (hele WERKdagen) — alleen door `ResourceLeveler` gezet. Altijd
+      //     toegepast: de opgeslagen `scheduleStart` weet niets van de nivellering, ook bij een
+      //     wortel-taak (anders blijft bv. `lvl-basic-conflict`s "B" ongenivelleerd).
+      // (2) `task.levelingDelayMinutes`/`.levelingDelayElapsed` — alleen door `mppReader.ts` gezet uit
+      //     `.mpp`'s LEVELING_DELAY. ANKERREGEL: alleen toegepast als `earlyStart` VOORGANGER-GEDREVEN
+      //     is (`!noPreds`). Voor een `.mpp`-wortel-taak IS `scheduleStart` al MSP's eindantwoord,
+      //     inclusief nivellering; nogmaals toepassen telt dubbel (`mpp14barstyle.mpp`). Een
+      //     voorganger-gedreven early start wordt vers berekend en kent de vertraging nog niet (MSP:
+      //     precedence-feasible start + delay).
       //
-      // Corpusmeting (scratchpad, 19 `.mpp`-taken met non-zero `levelingDelayMinutes` over
-      // corpus+crawl): 14/19 hebben een voorganger, 5/19 niet — en die 5 zijn EXACT
-      // `mpp14barstyle.mpp`'s taken (LEVELING_DELAY nooit door MSP geconsumeerd in SCHEDULED_START).
-      // De 14 voorganger-gedreven taken (OzBuild Workshop 17.mpp/…17 Leveling.mpp + het gemengde
-      // corpusbestand a69fec157074d056) zijn stuk voor stuk GENUINE, door MSP toegepaste nivellering.
+      // Corpus: van 19 `.mpp`-taken met `levelingDelayMinutes` hebben er 14 een voorganger (echte
+      // nivellering); de 5 zonder zijn precies `mpp14barstyle.mpp`. Wortel + constraint + delay komt
+      // niet voor en volgt de `noPreds`-regel (`msp-53-z6-anker-regel-wortel-met-constraint`).
       //
-      // CONSTRAINT-GEVAL (expliciet gemeten, niet aangenomen): van de 19 delay-taken dragen er 11
-      // óók een SNET/MSO-achtige constraint — ALLE 11 hebben een voorganger (0 wortel-taken met
-      // zowel een constraint als een delay in het gemeten corpus+crawl). Het wortel-plus-constraint-
-      // geval is dus ONGEMETEN voor `levelingDelayMinutes`; deze regel behandelt het net als het kale
-      // wortel-geval (nog steeds de `noPreds`-tak, ongeacht of een constraint dat anker verder
-      // beïnvloedt) — gepind met een synthetische case
-      // (`msp-53-z6-anker-regel-wortel-met-constraint`) i.p.v. stilzwijgend aangenomen.
-      //
-      // Backward-spiegel — ONGEWIJZIGD besluit: GEEN aftrek van de vertraging in `subDuration` zelf
-      // (zie die functie se docblok). Voor de DOORGIFTE naar de voorganger in `backwardPass` geldt
-      // een ANDER, wél noodzakelijk mechanisme (BEIDE bronnen, `shiftByLevelingDelay` maakt zelf geen
-      // onderscheid) — zie de toelichting bij de aanroepplek in `backwardPass` (Z6-fixronde B2).
-      //
-      // `levelingDelay`/`levelingDelayMinutes` beide afwezig/0 ⇒ exacte no-op in beide takken —
-      // byte-identiek aan vóór Z6.
+      // Backward: GEEN aftrek in `subDuration` zelf; de DOORGIFTE naar de voorganger staat bij de
+      // aanroepplek in `backwardPass`. Beide bronnen afwezig/0 ⇒ no-op.
       if (task.levelingDelay) {
         earlyStart = this.shiftByLevelingDelay(cal, task, earlyStart, 1);
       } else if (!noPreds && task.levelingDelayMinutes) {
         earlyStart = this.shiftByLevelingDelay(cal, task, earlyStart, 1);
-        // M1 (Z6-fixronde, mixed-corpus-probefix): een ELAPSED-FORMAAT vertraging
+        // Een ELAPSED-FORMAAT vertraging
         // (`levelingDelayElapsed`) op een NIET-elapsed taak is een kale kloktijd-optelling die het
         // anker buiten de werkband kan duwen — de taak zelf blijft WORKTIME en moet dus alsnog op
         // een geldig werk-instant landen (`snapOnOrAfter`, dezelfde functie die de gewone
         // constraint-snap elders gebruikt). Een ELAPSEDTIME-taak zelf blijft bewust ONGESNAPT — die
-        // mag legitiem buiten de band staan (T8/Z6-invariant,
-        // `msp-51-z6-invariant-elapsed-opvolger-hele-dagen-delay`). Mutatiebewijs: het gemengde
-        // corpusbestand (hash a69fec157074d056) had zonder deze snap 2 sameday-afwijkingen (onze
+        // mag legitiem buiten de band staan (`msp-51-z6-invariant-elapsed-opvolger-hele-dagen-delay`).
+        // Zonder deze snap gaf het gemengde
         // ES 04:49/03:39 tegen MSP's 08:00 op twee WORKTIME-taken met een elapsed-vertraging); met
         // de snap exact. `msp-48-z6-elapsed-delay` pint dit corpusloos.
         const taskElapsedForSnap = isElapsedTask(task);
@@ -2342,24 +2159,18 @@ export class CPMSolver {
         }
       }
 
-      // Voortgang (fase 2.6): actual-pinning + data-date-vloer. dataDate === null ⇒ elke tak is
+      // Voortgang: actual-pinning + data-date-vloer. dataDate === null ⇒ elke tak is
       // een no-op (backwards-compat). `earlyStart` is hier al de retained-logic voorganger-druk.
       const dataDate = this.dataDate;
-      // Z8-HERWERKRONDE-FIXRONDE 2 ("laag 1/2-gat"): de VOLTOOID-/IN-PROGRESS-tak hieronder rekende
-      // altijd in `cal` (de TAAK-eigen kalender) — voor een taak wier ENIGE toewijzing een écht
-      // afwijkende resourcekalender draagt (`mppReader.ts`'s laag-4-activeringscriterium, HIER
-      // ONGEWIJZIGD gebruikt, GEEN aparte tweede gate) geeft dat een verkeerd antwoord, óók als de
-      // taak allang gestart/voltooid is — exact de 10 resterende afwijkingen ná de eerste
-      // herwerkronde-commit (fee9ecb4→087721bf). `task.timephasedDurationWalks` (mppReader.ts zet
-      // 'm sinds deze fixronde OOK op completion>0-taken, uitsluitend als kalenderREFERENTIE — GEEN
-      // gelezen datum, dus GEEN cirkelmeting-risico) draagt bij precies 1 item de te gebruiken
-      // resourcekalender-id. `progressCal` vervangt `cal` voor de VOLLEDIGE VOLTOOID-/IN-PROGRESS-
-      // tak (niet alleen de eind-`ef`): `remStart`/`actualES`/Z7-splits/Z12-resume rekenen anders
-      // half in de taak- en half in de resourcekalender, een interne inconsistentie die de
-      // "Task A"-multi-toewijzing-bugronde (mppReader.ts) al aantoonde bij een vergelijkbare
-      // gedeeltelijke wandeling. Afwezig/niet-activeerbaar (>1 toewijzing, dag-modus-resourcekalender,
-      // geen echte afwijking) ⇒ `progressCal = cal`, BYTE-IDENTIEK — dat is de overgrote meerderheid
-      // van alle taken, inclusief de volledige Z12-/Z6-/Z7-populaties (regressiewacht hieronder).
+      // `progressCal`: de VOLTOOID-/IN-PROGRESS-tak hieronder rekent normaal in `cal` (de TAAK-eigen
+      // kalender); voor een taak wier ENIGE toewijzing een écht afwijkende resourcekalender draagt
+      // (`mppReader.ts`'s laag-4-activeringscriterium) is dat fout, óók als de taak al gestart/voltooid
+      // is. `task.timephasedDurationWalks` (mppReader.ts zet 'm ook op completion>0-taken, uitsluitend
+      // als kalenderREFERENTIE — geen gelezen datum, dus geen cirkelmeting) draagt bij precies 1 item de
+      // te gebruiken resourcekalender-id. `progressCal` vervangt `cal` voor de VOLLEDIGE tak (niet
+      // alleen de eind-`ef`): `remStart`/`actualES`/splits/resume rekenen anders half in de taak- en
+      // half in de resourcekalender. Afwezig/niet-activeerbaar (>1 toewijzing, dag-modus-
+      // resourcekalender, geen echte afwijking) ⇒ `progressCal = cal` — de overgrote meerderheid.
       const progressCal = this.progressCalendarFor(task, cal);
       this.recordCompletedOutOfSequenceWindow(task, preds, results, progressCal);
       const physicalPoint = this.recordCompletedPhysicalPoint(task, preds, results, progressCal);
@@ -2376,10 +2187,9 @@ export class CPMSolver {
         const t = task.time;
         if (isPinnedComplete(t)) {
           // (1) VOLTOOID: volledig gepind op actuals — geen forward-drift voorbij actualFinish.
-          // B4 (Opus-her-check T15-fixronde): `snapActualForward` i.p.v. een kale parse — snapt
-          // BINNEN dezelfde dag (bv. 07:00 → 08:00), maar verplaatst nooit naar een andere dag (bv.
-          // zaterdag → maandag). Zie die functie se docblock voor de twee tegenstrijdige
-          // corpusmetingen die dit reconcilieert.
+          // `snapActualForward` i.p.v. een kale parse — snapt BINNEN dezelfde dag (bv. 07:00 →
+          // 08:00), maar verplaatst nooit naar een andere dag (bv. zaterdag → maandag). Zie die
+          // functie se docblock voor de twee corpusmetingen die dit reconcilieert.
           const preserveP6ActualInstants = task.p6ProjectId !== undefined
             && this.options.schedulingOptions?.p6PreserveActualInstants === true;
           const actualStart = this.parseIn(progressCal, t.actualStart ?? t.actualFinish);
@@ -2387,11 +2197,10 @@ export class CPMSolver {
             ? actualStart
             : this.snapActualForward(progressCal, actualStart);
           // Milestone: start én finish landen op dezelfde werk(dag)-grens (snap op-of-ná, niet -vóór).
-          // H3 (Opus-review T15-iteratie-2): `isZeroDurationMilestone` i.p.v. de kale vlag — een
-          // VOLTOOIDE mijlpaal-met-duur (T15) is voor de PLANNING een gewone taak en hoort dus de
-          // NORMALE `snapOnOrBefore`-tak te volgen (haar `actualFinish` kan legitiem dagen ná haar
-          // `actualStart` liggen); met de kale vlag zou `snapOnOrAfter` haar EF stelselmatig vóór of
-          // op haar ES kunnen duwen — "ze eindigt ná haar eigen actualFinish" (reviewer-meting).
+          // `isZeroDurationMilestone` i.p.v. de kale vlag — een VOLTOOIDE mijlpaal-met-duur is voor de
+          // PLANNING een gewone taak en volgt de NORMALE `snapOnOrBefore`-tak (haar `actualFinish` kan
+          // dagen ná haar `actualStart` liggen); `snapOnOrAfter` zou haar EF voorbij haar eigen
+          // actualFinish kunnen duwen.
           const actualFinish = this.parseIn(progressCal, t.actualFinish);
           let ef = preserveP6ActualInstants
             ? actualFinish
@@ -2403,20 +2212,16 @@ export class CPMSolver {
           // snapte. Er bestaat dan geen werkdag binnen het feit, dus één van beide moet wijken.
           // Dat MOET de start zijn: een taak die is afgemeld hoort per definitie in het VERLEDEN,
           // nooit voorbij zijn eigen `actualFinish` (en al helemaal niet voorbij de statusdatum).
-          // Vroeger stond hier `ef = es` — dat tilde een op 2 augustus afgemelde taak naar de eerste
-          // werkdag ná de bouwvak (24 augustus, een week ná de statusdatum) en vertraagde daarmee óók
-          // zijn opvolger een dag. Met `es = ef` landt het paar op de laatste werkdag op-of-vóór de
-          // `actualFinish` en start de opvolger op de eerste werkdag daarna — precies waar het feit
-          // hem zet. Buiten dit randgeval (ef ≥ es) verandert er niets.
+          // `ef = es` zou een op 2 augustus afgemelde taak naar de eerste werkdag ná de bouwvak tillen
+          // (een week ná de statusdatum) en zijn opvolger vertragen. Met `es = ef` landt het paar op de
+          // laatste werkdag op-of-vóór de `actualFinish` en start de opvolger op de eerste werkdag
+          // daarna — precies waar het feit hem zet. Buiten dit randgeval (ef ≥ es) verandert er niets.
           if (ef < es) es = ef;
-          // Z8-HERWERKRONDE (LAAG 1 van de gelaagde beslistabel, zie `mppReader.ts`'s
+          // LAAG 1 van de gelaagde beslistabel (zie `mppReader.ts`'s
           // `deriveTimephasedWindowsForTasks`-moduleheader): een VOLTOOIDE taak plant onvoorwaardelijk
-          // op `t.actualFinish` — GEEN Z8-venster-raadpleging hier. De EERSTE Z8-versie deed dat nog
-          // wél (via `timephasedFinish()`, hier verwijderd) — de Opus-review wees aan dat dat een
-          // vrijwel volledige cirkelmeting was; `mppReader.ts` zet sinds de herwerkronde
-          // `timephasedFinishFloor`/`timephasedDurationWalks` NOOIT meer op een taak met
-          // `completion >= 1`, dus een raadpleging hier zou toch altijd `null` opleveren — bewust
-          // weggelaten in plaats van dode code te laten staan.
+          // op `t.actualFinish` — GEEN timephased-venster hier (dat zou een cirkelmeting zijn;
+          // `mppReader.ts` zet `timephasedFinishFloor`/`timephasedDurationWalks` nooit op een taak met
+          // `completion >= 1`).
           // XER/P6-bronsemantiek: een voltooide opvolger is historisch en levert daarom ook geen
           // relatievrije-speling/driving-grens voor een nog open voorganger. De algemene solver-
           // default blijft ongewijzigd; alleen de expliciete bronvlag verwijdert deze grenzen.
@@ -2429,19 +2234,13 @@ export class CPMSolver {
         if (isPinnedInProgress(t)) {
           // (2) IN PROGRESS — actualStart (store-route) óf impliciete actualStart = de gewone
           //     forward-pass-earlyStart (2b, vangnet voor rauwe legacy/externe data).
-          // M1 (Opus-review T15-iteratie-2): niet langer achter `dataDate &&` — een taak die
-          // aantoonbaar gestart is (`actualStart`/`completion>0`) pint haar ES op die start, MET of
-          // ZONDER statusdatum (zelfde MSP-redenering als de VOLTOOID-fix, H1/c2). `remStart`
-          // hieronder valt zonder statusdatum terug op `actualES` zelf (de enige zinvolle "as of"-
-          // ondergrens die overblijft — RETAINED_LOGIC's `max(dataDate, voorganger-druk)`-formule
-          // blijft verder ONGEWIJZIGD, ze krijgt alleen een andere startwaarde vóór de max).
-          // B4 (Opus-her-check T15-fixronde): `snapActualForward` i.p.v. een kale parse — dezelfde
-          // dag-behoudende-snap-redenering als de VOLTOOID-branch hierboven (zie
-          // `snapActualForward`'s docblock voor de twee tegenstrijdige corpusmetingen die dit
-          // reconcilieert: dag-kruisend blijft ongesnapt, binnen-dag snapt wél). Vóór deze fix
-          // snapte een IN-PROGRESS-taak se weekend-actualStart altijd naar de eerstvolgende werkdag
-          // terwijl een VOLTOOIDE taak se weekend-actualStart dat niet deed — dezelfde soort taak
-          // kreeg zo een ANDER antwoord al naargelang completion toevallig <1 of ===1 stond.
+          // Niet achter `dataDate &&`: een taak die aantoonbaar gestart is (`actualStart`/`completion>0`)
+          // pint haar ES op die start, MET of ZONDER statusdatum. `remStart` hieronder valt zonder
+          // statusdatum terug op `actualES` zelf (RETAINED_LOGIC's `max(dataDate, voorganger-druk)`
+          // krijgt alleen een andere startwaarde vóór de max).
+          // `snapActualForward` i.p.v. een kale parse — dezelfde dag-behoudende snap als de
+          // VOLTOOID-branch, zodat een lopende en een voltooide taak met dezelfde weekend-actualStart
+          // hetzelfde antwoord krijgen.
           const actualES = t.actualStart
             ? task.p6ProjectId !== undefined
                 && this.options.schedulingOptions?.p6PreserveActualInstants === true
@@ -2449,34 +2248,26 @@ export class CPMSolver {
               : this.snapActualForward(progressCal, this.parseIn(progressCal, t.actualStart))
             : earlyStart;
           // Restwerk volgt de blijvende TAAK-eenheid, nooit de kalenderidentiteit: uur ⇒
-          // `remainingMinutes ?? durationMinutes × (1−completion)`; dag ⇒ werkdagen (§5.3).
+          // `remainingMinutes ?? durationMinutes × (1−completion)`; dag ⇒ werkdagen.
           const progressInHours = taskDurationUnit(task) === 'hours';
           const totalSpan = progressInHours ? durationMinutesOf(task, progressCal) : t.scheduleDuration;
           const remaining = progressInHours
             ? Math.max(0, t.remainingMinutes ?? Math.round(totalSpan * (1 - t.completion)))
             : Math.max(0, t.remainingTime ?? Math.round(totalSpan * (1 - t.completion)));
-          // M2 (Opus-review, 2026-08-17): ELAPSEDTIME-bewustheid — T8 maakte de rest van de solver
-          // elapsed-bewust (`addDurationChecked` hierboven: `addElapsedMinutes(start,
-          // elapsedMinutesOf(task, eng))`, GEEN kalenderband-toetsing); deze voortgangstak rekende
-          // tot nu toe ONVOORWAARDELIJK met `progressCal.addWorkMinutes`/`progressCal.addWorkDaysChecked` (WERKtijd),
-          // dus een ELAPSEDTIME-taak met `completion > 0` klapte stil om naar WORKTIME-semantiek —
-          // precies het gat dat T8 elders dichtte. `totalSpan`/`remaining` hierboven staan al in de
-          // "eigen eenheid" van de taak (minuten in uur-modus, dagen in dag-modus — BEIDE al
-          // elapsed-klok-consistent gevuld voor een ELAPSEDTIME-taak, zie `mppReader.ts`'s
-          // `raw.isElapsedDuration`-tak voor zowel `duration`/`durationMinutes` als
-          // `remainingTime`/`remainingMinutes`); alleen de dag→minuut-omrekening ontbreekt nog voor
-          // het dag-modus-pad — exact dezelfde stap als `elapsedMinutesOf`'s eigen dag-tak
-          // (`scheduleDuration × 24 × 60`). `isElapsedTask` sluit een ECHTE (0-duur) mijlpaal uit
-          // (spiegelt de `!isZeroDurationMilestone(...) && durationType === 'ELAPSEDTIME'`-guard die
-          // overal elders in dit bestand staat) — H3 (Opus-review T15-iteratie-2): `isZeroDurationMilestone`
-          // i.p.v. de kale vlag, anders klapt het restwerk van een VOORTGANG-dragende mijlpaal-met-duur-
-          // ELAPSEDTIME-taak stil om naar WORKTIME-semantiek (zelfde bugklasse als msp-30).
+          // ELAPSEDTIME-bewust, zoals `addDurationChecked` (`addElapsedMinutes`, GEEN kalenderband-
+          // toetsing): anders klapt een ELAPSEDTIME-taak met `completion > 0` stil om naar
+          // WORKTIME-semantiek. `totalSpan`/`remaining` staan al in de "eigen eenheid" van de taak
+          // (minuten in uur-modus, dagen in dag-modus — voor ELAPSEDTIME elapsed-klok-consistent gevuld,
+          // zie `mppReader.ts`'s `raw.isElapsedDuration`-tak); alleen de dag→minuut-omrekening voor het
+          // dag-modus-pad komt erbij (`scheduleDuration × 24 × 60`, zoals `elapsedMinutesOf`).
+          // `isElapsedTask` sluit een ECHTE (0-duur) mijlpaal uit (`isZeroDurationMilestone`, niet de
+          // kale vlag).
           const isElapsedTask = !isZeroDurationMilestone(task) && t.durationType === 'ELAPSEDTIME';
           const remainingElapsedMinutes = isElapsedTask ? (progressInHours ? remaining : remaining * 24 * 60) : 0;
-          let remStart = dataDate ?? actualES;                      // ondergrens: statusdatum, anders de eigen actualStart (M1)
-          // Z12-herwerk (dossier out-of-sequence-actuals): `true` zodra `remStart` hieronder uit het
-          // RESUME-veld komt i.p.v. de gewone voorganger-druk/elapsed-vloer — stuurt de ef<es-
-          // inversiecorrectie ná de gedeelde ef-berekening (zie die toelichting verderop).
+          let remStart = dataDate ?? actualES;                      // ondergrens: statusdatum, anders de eigen actualStart
+          // `true` zodra `remStart` hieronder uit het RESUME-veld komt i.p.v. de gewone
+          // voorganger-druk/elapsed-vloer — stuurt de ef<es-inversiecorrectie ná de gedeelde
+          // ef-berekening (zie die toelichting verderop).
           let usedResumeOverride = false;
           // C11: onder Progress Override telt de relatie van een open voorganger naar deze lopende taak
           // nergens mee; zonder relatiegrens geen vrije speling en geen driving-markering voor haar.
@@ -2485,102 +2276,27 @@ export class CPMSolver {
             if (predTask && this.progressOverrideIgnoresRelation(predTask, task)) this.seqConstraint.delete(seq.id);
           }
           if (this.options.progressMode !== 'PROGRESS_OVERRIDE') {
-            // Z12-herwerk (dossier out-of-sequence-actuals, ná Opus-weerlegging van het eerdere
-            // anker-ontwerp) → Z8-HERWERKRONDE-FIXRONDE 2 ("laag 1/2-gat") → Z19 (residu-iteratie
-            // "nul afwijkingen", dossier "resumeOverride-gate-verbreding"): MSP slaat het
-            // hervattingsinstant voor een IN-PROGRESS-taak LETTERLIJK op in het bestand — MPP-veld-id
-            // 99 (`TaskField.RESUME`, `DataType.DATE`, `FieldMap14.java` blok 0 offset 20), gelezen
-            // door `mppReader.ts` naar `task.time.resume`. Dit is dus GEEN afgeleide/herberekende
-            // waarde en GEEN historie-afhankelijke aanname — de invoer staat gewoon in het bestand.
-            // Corpusmeting (fase 1, Z12): `finish = addWork(resume, remaining)` op de taak-EIGEN
-            // kalender is 17/17 EXACT op alle out-of-sequence-in-progress-BLADtaken corpusbreed en
-            // 4/4 minuut-exact op de gemeten OzBuild-snapshots.
+            // RESUME-override: MSP slaat het hervattingsinstant voor een IN-PROGRESS-taak LETTERLIJK
+            // op in het bestand — MPP-veld-id 99 (`TaskField.RESUME`, `DataType.DATE`,
+            // `FieldMap14.java` blok 0 offset 20), gelezen door `mppReader.ts` naar `task.time.resume`.
+            // Geen afgeleide waarde: de invoer staat in het bestand. Corpusmeting:
+            // `finish = addWork(resume, remaining)` op de taak-EIGEN kalender is 17/17 EXACT op alle
+            // out-of-sequence-in-progress-BLADtaken en 4/4 minuut-exact op de OzBuild-snapshots.
+            // Hervattingsanker en restwerk zijn in MSP's data ONAFHANKELIJKE feiten: de afgeleide
+            // `elapsed = totalSpan − remaining` (RETAINED_LOGIC) kan beide niet tegelijk reproduceren.
             //
-            // TWEE EERDERE, SMALLERE POGINGEN (Z12: AANTOONBAAR out-of-sequence FS-voorganger via
-            // het inmiddels VERWIJDERDE `isOutOfSequenceFsPredecessor`; Z8-fixronde-2: afwijkende
-            // resourcekalender) bleken geen eigen semantische regel — dossier-voor-dossier ontdekte
-            // DEELVERZAMELINGEN. Vijf resterende taken (Task 6/Task 6 - 50%/Task 6 - 150% in
-            // mpp14timephased.mpp, Task 2/Task 3 in timephased-actual-overtime-work.mpp) zijn
-            // WORTELTAKEN (geen voorgangers) met een STRUCTUREEL IDENTIEKE resourcekalender — beide
-            // sub-condities bleven dicht, dus viel de solver terug op de RETAINED_LOGIC-afleiding
-            // (`elapsed = totalSpan − remaining`, hieronder). Gemeten (Z19-probe): die afgeleide
-            // `elapsed` wijkt structureel af van het ware kalender-werkminuten-verschil tussen
-            // `actualStart` en `t.resume` — er bestaat wiskundig geen `remaining`-waarde die beide
-            // feiten tegelijk reproduceert, want hervattingsanker en restwerk zijn in MSP's data
-            // ONAFHANKELIJKE, apart opgeslagen feiten.
-            //
-            // EEN DERDE POGING, "AANWEZIGHEID ALLEEN IS AL HET SIGNAAL" (`t.resume` is UITSLUITEND
-            // door `mppReader.ts` gezet — een niet-`.mpp`-bron draagt dit veld domweg nooit, zie
-            // `cases-progress.json`'s `prog-Z12-p6-contrast-resume-forced-present`), bleek ZELF TE
-            // BREED: `mpp14assignmentfields.mpp`'s "Task One" (2 toewijzingen, units [1, 0.25],
-            // completion 6%) heeft óók `t.resume` gezet, maar `finish = addWork(resume, remaining)`
-            // wijkt daar ~4,5 uur af van MSP's eigen antwoord — de RETAINED_LOGIC-afleiding was daar
-            // AL exact. Dezelfde les als de "mpp14resource-apportionering"-dossier (Z19, elders in
-            // deze etappe): bij >1 GELIJKTIJDIGE toewijzing is het TAAK-brede `remaining`/`resume`-
-            // paar niet zomaar één rechtlijnige kalenderwandeling — elke toewijzing wandelt haar
-            // EIGEN werk, geen partitie van de taakduur (L2-correctie, zie mppReader.ts's
-            // `decodeAssignmentWorkMinutes`-docblok voor de volledige toelichting).
-            // Discriminator (gemeten, niet aangenomen): ALLE 17 Z12-referentietaken én de 5 hierboven
-            // genoemde dragen PRECIES 0 of 1 toewijzing; "Task One" draagt er 2. `task.resourceIds`
-            // (Z19: sinds deze taak ook door `mppReader.ts` gevuld — spiegelt `ifcReader.ts`'s
-            // `reconstructResourceIds`, was voorheen voor MPP-taken altijd `[]`) geeft die telling.
-            // AANWEZIG ⇒ gebruik het rechtstreeks, MAAR ALLEEN bij ≤1 toewijzing.
-            // `isOutOfSequenceFsPredecessor` is met deze regel overbodig geworden (elke situatie
-            // waarin ze `true` gaf had ook ≤1 toewijzing) en is daarom verwijderd i.p.v. als dode
-            // code te laten staan.
-            //
-            // BLAST-RADIUS >1-TOEWIJZING (Z19-probe, wegwerpscript, corpus+crawl 216 bestanden,
-            // GECORRIGEERD ná Opus-reviewbevinding B1 — de eerdere versie van deze toelichting
-            // beweerde "geen van de 14 viel ooit onder de oude gate", dat was ONWAAR): 137
-            // bladtaken dragen `t.resume`, 23 daarvan hebben >1 toewijzing — 10 VOLTOOID (completion
-            // 1, bereiken deze IN-PROGRESS-tak sowieso nooit) en 13 IN-PROGRESS: `mpp14assignmentfields
-            // .mpp`'s "Task One" (het dossier hierboven), "Some Progress"/"Task 2"
-            // (timephased-end-cost-resource.mpp/timephased-material-resource.mpp), en 10×
-            // "Create Technical Specification" (de OzBuild-"After/End Para"-familie — Z12/T9's eigen
-            // canonieke voorbeeldtaak, over TIEN bestandsvarianten). Van die 10 "Create Technical
-            // Specification"-instanties zijn er 7 (After Papa 12/16, End Para 14/16/17/18/20)
-            // WÉL aantoonbaar out-of-sequence (hun FS-voorganger "Determine Installation
-            // Requirements" is voltooid, maar haar `actualFinish` ligt NÁ déze taak se eigen
-            // `actualStart`) — voor die 7 was de OUDE gate dus WEL open (`isOutOfSequenceFsPredecessor`
-            // gaf `true`), en sluit de NIEUWE ≤1-toewijzing-guard 'm nu juist. Ze WISSELEN dus van
-            // route (resumeOverride → RETAINED_LOGIC), geen "route al vóór deze wijziging
-            // ongewijzigd"-geval zoals eerder beweerd. Per taak nagerekend (Z19-probe): voor ALLE
-            // ZEVEN geeft `addWork(resume, remaining)` [de oude, nu-verlaten route] HETZELFDE
-            // antwoord als de RETAINED_LOGIC/`resumeFromActualElapsed`-afleiding [de nieuwe route] —
-            // en beide zijn gelijk aan MSP's eigen opgeslagen finish (bevestigd via de corpusbrede
-            // fidelity-pin op deze bestanden, die byte-identiek blijft t.o.v. vóór deze wijziging).
-            // De overige 3 ("Create Technical Specification" op After Papa 08/End Para 11/12, plus
-            // "Task One"/"Some Progress"/"Task 2") waren NOOIT out-of-sequence EN droegen geen
-            // afwijkende resourcekalender (`task.timephasedDurationWalks === undefined`) — die
-            // stonden al vóór deze wijziging op de RETAINED_LOGIC-vloer en blijven daar,
-            // ONGEWIJZIGD, via dezelfde ≤1-toewijzing-guard.
-            //
-            // BLAST-RADIUS ≤1-TOEWIJZING (reviewbevinding B2 — eerlijk vastleggen, niet verbloemen
-            // achter de >1-toewijzing-analyse hierboven): van de 137 `t.resume`-dragende bladtaken
-            // hebben 114 ≤1 toewijzing; 56 daarvan zijn IN-PROGRESS (dezelfde `(actualStart ||
-            // completion>0) && completion<1`-poort als de forward-pas zelf). Van die 56 stond de
-            // OUDE gate bij 15 al open (out-of-sequence FS-voorganger of afwijkende resourcekalender)
-            // — ONGEWIJZIGD. Bij de overige 41 was de oude gate DICHT — dit IS de eigenlijke
-            // verruiming van deze fixronde, niet een randgeval: 41 taken krijgen nu structureel de
-            // resumeOverride-route waar ze voorheen op RETAINED_LOGIC zaten. Corpusbreed blijft de
-            // fidelity-pin op ELK van deze 216 bestanden byte-identiek (0 regressies, per-bestand
-            // geverifieerd tegen `mpp-fidelity-baseline.json`) — van de 41 verbeteren dit dossier se
-            // eigen 5 target-taken (Task 6-familie/Task 2/3) van fout naar exact; de overige 36
-            // komen op dezelfde datum uit als RETAINED_LOGIC al gaf (coïncidentie, geen bewijs dat de
-            // twee routes ALGEMEEN equivalent zijn — buiten dít corpus is die aanname niet getoetst).
-            // `isOutOfSequenceFsPredecessor` is met deze regel overbodig geworden (elke situatie
-            // waarin ze `true` gaf had ook ≤1 toewijzing) en is daarom verwijderd i.p.v. als dode
-            // code te laten staan.
+            // Regel: AANWEZIG ⇒ gebruik het rechtstreeks, MAAR ALLEEN bij ≤1 toewijzing
+            // (`task.resourceIds`, door `mppReader.ts` gevuld). Bij >1 GELIJKTIJDIGE toewijzing is het
+            // taakbrede `remaining`/`resume`-paar geen rechtlijnige kalenderwandeling — elke toewijzing
+            // wandelt haar EIGEN werk (zie mppReader.ts's `decodeAssignmentWorkMinutes`-docblok):
+            // `mpp14assignmentfields.mpp`'s "Task One" (2 toewijzingen) wijkt via resume ~4,5 uur af,
+            // terwijl RETAINED_LOGIC daar exact is. Corpusbreed blijft de fidelity-pin op alle
+            // bestanden gelijk; dat de ≤1-toewijzing-populatie via beide routes vaak dezelfde datum
+            // geeft, is buiten dit corpus niet getoetst.
             //
             // `cases-progress.json`'s P6-RETAINED_LOGIC-scenario's dragen `resume` per constructie
-            // NOOIT (mpp-exclusief) en blijven dus byte-identiek; hun `resourceIds` staat bovendien op
-            // de default `[]` (≤1). Nieuw corpusloos mutatiebewijs (reviewbevinding B3):
-            // `prog-Z19-resume-root-no-predecessor` dekt een WORTELtaak zonder enige voorganger — alle
-            // eerdere `resume`-cases hadden een FS-topologie, terwijl dit dossier se eigen vijf
-            // target-taken PRECIES zulke voorgangerloze wortels zijn. De `resumeFromActualElapsed`-
-            // vlag (default UIT) en haar hele RETAINED_LOGIC-vloer (de `else`-tak hieronder) zijn door
-            // deze wijziging GEEN letter geraakt — alleen de `resumeOverride`-voorwaarde zelf kreeg de
-            // extra `&&`-clausule.
+            // nooit (mpp-exclusief); `prog-Z19-resume-root-no-predecessor` dekt een WORTELtaak zonder
+            // voorganger. De `resumeFromActualElapsed`-vloer (de `else`-tak hieronder) staat hier los van.
             // `time.resume` is universele brondata. Het MPP-pad blijft veldgedreven, maar een
             // XER-taak mag nooit door kale veld-aanwezigheid als MPP behandeld worden: P6 activeert
             // zijn eigen route alleen na de gevalideerde suspend/resume-opt-in.
@@ -2594,52 +2310,29 @@ export class CPMSolver {
             } else {
             // RETAINED_LOGIC: remaining respecteert óók de voorganger-druk (earlyStart).
             if (earlyStart > remStart) remStart = earlyStart;
-            // T9 (voortgangsafronding, MEET-EERST-bevinding): MS Project hervat het restwerk NIET
-            // op de statusdatum zelf, maar op `actualStart + reeds-verstreken-duur` (het reeds
-            // AFGEWERKTE deel, `totalSpan − remaining`, vanaf de eigen `actualES`), doorgesnapt via
-            // dezelfde werk-optelling als het restwerk zelf. Bewijs (corpusreconstructie, OzBuild
-            // "Create Technical Specification": completion 20%, scheduleDuration 5d, remainingTime
-            // (nu EXACT uit MSP, zie mppReader.ts) 4d ⇒ verstreken 1d; actualStart vr 07-12 08:00 +
-            // 1 werkdag = za 08-12 → doorgesnapt naar ma 10-12 08:00; + 4 werkdagen restwerk = MSP's
-            // eigen opgeslagen finish woe 12-12 17:00 EXACT. De statusdatum-vloer (`dataDate`) alléén
-            // gaf hier vr 07-12 (te vroeg — MSP's eigen "reeds verstreken" venster loopt door tot in
-            // het weekend, dat P6-achtige RETAINED_LOGIC-model kent dat venster niet).
+            // Conventie A22 `resumeFromActualElapsed`: MS Project hervat het restwerk NIET op de
+            // statusdatum zelf, maar op `actualStart + reeds-verstreken-duur` (`totalSpan − remaining`,
+            // vanaf de eigen `actualES`), doorgesnapt via dezelfde werk-optelling als het restwerk.
+            // Bewijs (OzBuild "Create Technical Specification": 20% van 5d ⇒ verstreken 1d; actualStart
+            // vr 08:00 + 1 werkdag → ma 08:00; + 4 werkdagen restwerk = MSP's eigen opgeslagen finish
+            // EXACT). De statusdatum-vloer alléén geeft hier te vroeg.
             //
-            // NIET UNIVERSEEL: dit is AANTOONBAAR MSP-eigen gedrag, geen (her)ontdekte P6-regel —
-            // P6's eigen, gedocumenteerde RETAINED_LOGIC ("max(dataDate, voorganger-druk)", zónder
-            // een derde "verstreken-vanaf-actualStart"-vloer) staat letterlijk getest in
-            // `cases-progress.json`'s Scenario A/B/C (§3.3-ontwerp, uit een P6-bronvergelijking).
-            // Die scenario's zetten `actualStart` BEWUST los van "wat %complete impliceert" om
-            // precies de voorganger-druk/statusdatum-interactie te isoleren — met deze vloer
-            // ONVOORWAARDELIJK aan zou Scenario A-taak B (dur 5, completion 0.4, actualStart ==
-            // statusDate ⇒ elapsed 2 dagen ná een actualStart die zelf al op de statusdatum ligt)
-            // stilzwijgend 2 werkdagen later landen — een BESLIST, expliciet geciteerd P6-gedrag
-            // breken zonder eigen meting. Vandaar de `resumeFromActualElapsed`-vlag
-            // (`SchedulingOptions`, project.ts): default `undefined`/`false` ⇒ deze hele tak is een
-            // no-op (byte-identiek aan vóór T9), UITSLUITEND `true` voor `.mpp`-imports
-            // (`mppReader.ts` zet 'm project-breed — élke MPP-taak toont dit gedrag, corpusbreed
-            // gemeten, geen per-taak-signaal nodig).
-            // M1 (Opus-review, 2026-08-17): deze vloer is UITSLUITEND geldig als er nog restwerk
-            // ná het "verstreken" venster geplaatst moet worden (`remaining > 0`) — het is per
-            // constructie de hervattingsPUNT voor dat restwerk, geen op-zichzelf-staande finish. De
-            // `elapsed + 1`-telescopie hierboven (dag ÉÉN NA het verstreken venster) is correct
-            // WANNEER `remaining ≥ 1` daarna nog aangevuld wordt (het `+1` en het `−1`-effect van
-            // `remaining` heffen elkaar precies op: dag `elapsed+1` + `(remaining−1)` verder =
-            // dag `elapsed+remaining` = dag `totalSpan` vanaf `actualES` — exact de natuurlijke
-            // finish). Bij `remaining === 0` (bv. `RemainingDuration=0` terwijl `PercentComplete<100`
-            // — inconsistente brondata, of een taak die precies aan haar volledige duur zit) valt
-            // die opheffing weg: `addWorkDaysChecked(remStart, 0)`/`addWorkMinutes(remStart, 0)`
-            // hieronder geven `remStart` ONGEWIJZIGD terug (geen "dag −1"-tegenhanger), dus de finish
-            // zou dan blijven staan op de HERVATTINGSpunt-instant zelf — één werkdag/bandgat VOORBIJ
-            // de natuurlijke finish (gemeten: uur ma 16:00 → di 08:00; dag vr 10-07 → ma 13-07).
-            // Bij `remaining === 0` treedt deze vloer daarom NIET in werking — `remStart` blijft op
-            // de bestaande `max(dataDate, voorganger-druk)`-waarde (byte-identiek aan vóór T9 voor
-            // dit randgeval), zie `cases-progress.json`'s `prog-T9-remaining-nul-hervattingspunt-onaangeroerd`.
+            // NIET UNIVERSEEL: dit is MSP-eigen gedrag. P6's RETAINED_LOGIC ("max(dataDate,
+            // voorganger-druk)", zonder deze derde vloer) staat getest in `cases-progress.json`'s
+            // Scenario A/B/C; daar zou deze vloer bv. taak B (dur 5, completion 0.4, actualStart ==
+            // statusDate) 2 werkdagen later laten landen. Vandaar de conventie (default uit; in het MS
+            // Project-profiel aan).
+            // Alleen bij `remaining > 0`: de `elapsed + 1`-telescopie (dag ÉÉN NA het verstreken venster)
+            // klopt alleen als er daarna nog restwerk volgt (dag `elapsed+1` + `(remaining−1)` = dag
+            // `totalSpan`). Bij `remaining === 0` (inconsistente brondata) geven `addWorkDaysChecked(
+            // remStart, 0)`/`addWorkMinutes(remStart, 0)` `remStart` ongewijzigd terug en zou de finish
+            // één werkdag/bandgat VOORBIJ de natuurlijke finish staan; dan blijft `remStart` de gewone
+            // `max(dataDate, voorganger-druk)` (`prog-T9-remaining-nul-hervattingspunt-onaangeroerd`).
             const elapsed = this.options.schedulingOptions?.resumeFromActualElapsed && remaining > 0
               ? Math.max(0, totalSpan - remaining)
               : 0;
             if (elapsed > 0) {
-              // M2: ELAPSEDTIME rekent hier 24/7 in klok-minuten (`addElapsedMinutes`, T8-precedent)
+              // ELAPSEDTIME rekent hier 24/7 in klok-minuten (`addElapsedMinutes`)
               // — GEEN `snapOnOrAfter` (die zou een legitiem weekend-/nachtinstant, precies het punt
               // van ELAPSEDTIME, alsnog naar de eerstvolgende werkband duwen) en GEEN dag-inclusieve
               // `+1`-telescopie (die hoort bij `addWorkDaysChecked`s "hoeveelste-werkdag"-conventie,
@@ -2666,131 +2359,44 @@ export class CPMSolver {
             }
             }
           }
-          // Z7 (aangrijpingspunt 2, splits — DE reden deze taak "de heetste motorlus" van de
-          // etappe heet, plan-§Z7): deze IN-PROGRESS-tak heeft haar EIGEN duur-optelling
-          // (`addWorkMinutes`/`addWorkDaysChecked` op `remStart` hierboven/hieronder) en loopt
-          // NIET door `addDurationChecked` — een split-implementatie die de gaten-optelling
-          // uitsluitend dáár toevoegt, werkt aantoonbaar niet voor een taak MET voortgang (dat is
-          // nu juist de populatie waar `splitGaps` uit MPP's timephased-data vandaan komt, zie
-          // `mppTimephased.ts`). Mutatiebewijs (`cases-advanced-cpm.json`, `z7-split-*`-cases,
-          // acceptatiepunt 3): de gaten-optelling ALLEEN uit deze tak weglaten laat geval (d) ROOD
-          // terwijl (a)/(b)
-          // (buiten deze tak) groen blijven — precies het bewijs dat dit een EIGEN aangrijpingspunt
-          // is, geen gratis neveneffect van punt 1.
+          // SPLITS IN HET RESTWERK: deze IN-PROGRESS-tak heeft haar EIGEN duur-optelling
+          // (`addWorkMinutes`/`addWorkDaysChecked` op `remStart`) en loopt NIET door
+          // `addDurationChecked` — de gaten-optelling moet hier dus apart (juist taken MET voortgang
+          // dragen `splitGaps` uit MPP's timephased-data, zie `mppTimephased.ts`). Gepind in
+          // `cases-advanced-cpm.json` (`z7-split-*`, geval (d)).
           //
-          // VENSTER: ANDERS dan de vier "volledige-duur"-aangrijpingspunten hierboven/hieronder
-          // (`addDurationChecked`/`subDuration`/`finishFromStart`/`startFromFinish`, die altijd
-          // `[0, totale duur)` gebruiken) telt hier alleen het RESTWERK-venster
-          // `[reeds-afgewerkt, totale duur)` mee — `TaskSplitGap.afterMinutes` is relatief aan de
-          // TAAKSTART (niet aan `remStart`), dus een gat dat vóór het reeds-afgewerkte deel ligt is
-          // al voorbij: dat is GEEN extra restwerk, het zit al in de historie die `actualStart`/
-          // `remStart` vertegenwoordigt. Nogmaals optellen zou de finish onterecht verder optrekken
-          // dan MSP's eigen opgeslagen antwoord.
+          // VENSTER: anders dan de volledige-duur-helpers (`addDurationChecked`/`subDuration`/
+          // `finishFromStart`/`startFromFinish`, venster `[0, totale duur)`) telt hier alleen het
+          // RESTWERK-venster `[reeds-afgewerkt, totale duur)` mee — een gat vóór het reeds-afgewerkte
+          // deel zit al in de historie die `actualStart`/`remStart` vertegenwoordigt. `remStart`/
+          // `actualES` zelf verschuift nooit door een gat: voltooid blijft staan, restwerk schuift.
           //
-          // CORPUSVRAAG (plan-§Z7, verplicht gemeten i.p.v. gegokt): "blijft het voltooide segment
-          // staan terwijl het restwerk schuift, of schuift de hele taak?" ProjectLibre kiest expliciet
-          // het eerste (`Assignment.java`'s `shift()` verplaatst alleen restwerk, met een zelf-erkende
-          // `//TODO integrate split - still needed?` op precies die plek — alleen als HYPOTHESE
-          // gebruikt, zie §9). ONZE keuze volgt daar onafhankelijk uit het VENSTER-ontwerp hierboven,
-          // niet uit die referentie overgenomen: `remStart`/`actualES` (het al-afgewerkte anker)
-          // wordt door GEEN van de twee `if`-takken hierboven aangeraakt — een gat kan uitsluitend het
-          // RESTWERK-venster `[completedSpan, totalSpan)` verlengen, nooit `es`/`remStart` zelf
-          // verschuiven. Dat IS "voltooid blijft staan, restwerk schuift" — zonder dat er een
-          // aparte aftakking voor nodig was.
+          // `resume` en `splitGaps` leven op verschillende assen: `resume` is het KALENDER-anker van
+          // het restwerk (waar `remStart` landt), `splitGaps` leeft op de WERK-as (`completedSpan`).
+          // Het venster wordt onafhankelijk van de `remStart`-keuze berekend en op `remaining`
+          // toegepast; de twee zijn orthogonaal. (In het corpus geldt voor elke taak met splits én
+          // voortgang `resume === stop`.)
           //
-          // `mpp14splittask.mpp` (de VERPLICHTE meetreferentie, zie `mppTimephased.ts`'s moduleheader)
-          // kan deze vraag NIET beantwoorden: beide taken staan op 0% voltooid, geen voortgang om te
-          // meten — ongewijzigd sinds Z4. BREDERE CORPUSMETING (dit punt, wegwerpscript op de bestaande
-          // `readMPP`-infra tegen corpus+crawl): het OzBuild-materiaal draagt GEEN enkele taak met
-          // zowel `splitGaps` als voortgang — de enige gevonden combinaties zitten in twee publieke
-          // MPXJ-crawlbestanden, `mpp14timephased.mpp` (10 taken) en `timephased-actual-overtime-
-          // work.mpp` (2 taken). In ALLE 12 gemeten taken geldt `resume === stop` EXACT (bv. Task 6:
-          // resume/stop beide 2008-12-02T15:00) — MSP's eigen "hervattingsinstant" en "stop-instant"
-          // vallen dus in dit corpus altijd samen, geen enkel geval van een écht UITEENLOPEND
-          // resume/stop-paar naast `splitGaps` is gevonden.
+          // `mpp14timephased.mpp`'s "Task 5 - 24 Hour" klopt toevallig met een kloktijd-som, maar dat
+          // is geen regel: dezelfde kalender reproduceert in `mpp14splittask.mpp` MSP's finish alleen
+          // via de kalenderbewuste werkminuten-wandeling. De afwijkingen in die familie komen uit
+          // resource-/timephased-data (zie `mpp-fidelity-baseline.json`).
           //
-          // VOORRANGSREGEL (uit deze meting, niet aangenomen): `resume`/`splitGaps` zeggen in de
-          // gemeten populatie HETZELFDE, maar over VERSCHILLENDE assen — `resume` (Z12, Z19) is het
-          // CALENDER-anker van het restwerk-startpunt (waar `remStart` op landt, via de
-          // `resumeOverride`-tak of de gewone RETAINED_LOGIC-vloer hierboven);
-          // `splitGaps` (Z7) leeft op de WERK-as (hoeveel werk is al gedaan, `completedSpan`) en is
-          // BLIND voor welk kalenderanker `remStart` daadwerkelijk kreeg. Er ontstaat dus GEEN
-          // conflict om een voorrangsregel voor nodig te hebben: het venster
-          // `[completedSpan, totalSpan)` wordt vóór — en onafhankelijk van — de resume/dataDate/
-          // earlyStart-keuze voor `remStart` berekend, en toegepast op `remaining` (niet op
-          // `remStart`). Áls een bestand ooit `resume ≠ stop` mét `splitGaps` zou dragen, blijft dat
-          // ONGEWIJZIGD gedrag: dezelfde werk-as-vensterlogica, gewoon tegen een ANDER `remStart`-
-          // anker (de resume-override raakt uitsluitend WAAR `remStart` landt, nooit HOEVEEL restwerk
-          // — die twee blijven orthogonaal per ontwerp, niet toevallig).
+          // `totalSpan`/`remaining` staan in de "eigen eenheid" van de taak — omgerekend naar
+          // werkMINUTEN (`TaskSplitGap`s eenheid) vóór de as-wandeling, en de uitkomst weer terug.
+          // ELAPSEDTIME blijft ONGEMOEID (24/7 kent geen "gat").
           //
-          // RESTERENDE `timephased-actual-overtime-work.mpp`-afwijking (2 taken, `mpp-fidelity-
-          // baseline.json`, ongewijzigd door Z7): BEIDE gevonden taken behielden hun bestaande
-          // afwijking na deze fix — de oorzaak is Z8-scope (timephased-vénster bepaalt de taakdatums,
-          // nog niet gebouwd), niet een Z7/splits-tekort: dit bestand blijft `reason`-gepind als
-          // "resource-gedreven/timephased-uitzondering", dezelfde categorie als `mpp14timephased.mpp`
-          // (dat WEL verbeterde door Z7 — 3 taken minder afwijkend — omdat een deel van DIE taken
-          // puur op de splits-fix wachtte, een ander deel nog op Z8). Twee features die uit dezelfde
-          // timephased-decoder (Z3/Z4) putten, raken dus soms dezelfde taken zonder dat de een de
-          // ander vervangt — verwacht, zie plan-§3(c).
+          // De restwerk-as-lengte is het VERSCHIL van twee `splitTotalSpanMinutes`-wandelingen (TOTAAL
+          // en REEDS-AFGEWERKT); een zuiver-werk-hoeveelheid direct tegen `afterMinutes` vergelijken
+          // telt bij ≥2 gaten een gepasseerd gat dubbel (zie `duration.ts`). `Math.max(0, …)` op
+          // `completedSpanMinutes` klemt tegen hostiele invoer (`remainingMinutes` > totale duur) —
+          // anders wordt het doel negatief en tellen alle gaten mee
+          // (`z7-split-h-hostile-remaining-boven-totalspan`).
           //
-          // Z7-FIXRONDE (H1-VERIFICATIE, expliciet gecontroleerd i.p.v. aangenomen): de reviewer-
-          // hypothese "`mpp14timephased.mpp`'s 'Task 5 - 24 Hour' klopt met een ONGEKLEMDE
-          // KLOKTIJD-som (4500+5760 minuten als 24/7-klokminuten ≈ 7,125 dag = MSP's 2008-11-27T12:00)"
-          // is GECONTROLEERD en WEERLEGD als universele regel: diezelfde taak se kalender is
-          // BYTE-IDENTIEK aan `mpp14splittask.mpp`s "Standard"-kalender (8u/dag ma-vr, twee banden
-          // 08-12/13-17) — en DIE taken reproduceren MSP's eigen finish uitsluitend via de
-          // KALENDERBEWUSTE WERKMINUTEN-wandeling (`CalendarEngine.addWorkMinutes`, Z4's eigen
-          // byte-bewijs: 6240 werkminuten = 13 werkdagen × 480 min/dag = precies 2006-10-09, geverifieerd
-          // tot op de minuut). Een universele kloktijd-regel zou die al-bewezen referentie BREKEN.
-          // Conclusie: "Task 5 - 24 Hour" (en de rest van de Night-Shift/24-Hour/50%/150%-familie in
-          // dit bestand) draagt een resource-eigen werkpatroon dat NIET via de nominale taakkalender
-          // loopt — MSP plant die kennelijk via timephased/resource-contourdata (Z8-domein), en de
-          // kloktijd-som klopt daar toevallig mee, niet omdat kloktijd de juiste as is. De
-          // werkminuten-wandeling (dit bestand, H1-fix) blijft daarom de canonieke regel; de
-          // resterende afwijking in deze familie is Z8-scope, geen Z7-tekort — zie de bijgewerkte
-          // `reason` bij deze hash in `mpp-fidelity-baseline.json` voor de volledige hermeting.
-          //
-          // `totalSpan`/`remaining` staan al in de "eigen eenheid" van de taak (minuten uur-modus,
-          // dagen dag-modus, zie de toelichting bij `totalSpan` hierboven) — omgerekend naar
-          // werkMINUTEN (`TaskSplitGap`s eigen eenheid, `duration.ts`) vóór de as-wandeling, en de
-          // uitkomst weer terug. `!isElapsedTask`-guard: ELAPSEDTIME blijft bewust ONGEMOEID (24/7
-          // kent geen "gat"-begrip, zelfde reden als overal elders in dit bestand — splits zijn een
-          // WERKtijd-concept, zie `duration.ts`'s moduleheader bij deze functies).
-          //
-          // Z7-FIXRONDE (H2, WORTELFIX MEE — reviewbevinding): de EERSTE versie vergeleek
-          // `completedSpanMinutes` (een ZUIVERE werk-hoeveelheid) rechtstreeks tegen `afterMinutes`
-          // (een AS-POSITIE die voorgaande gaten al meetelt, zie H1 hierboven) — bij ≥2 gaten waarvan
-          // er één al gepasseerd was liepen die twee assen uiteen en kon een gepasseerd gat dubbel
-          // meetellen. Fix: DEZELFDE `splitTotalSpanMinutes`-wandeling als de vier volledige-duur-
-          // aangrijpingspunten, tweemaal aangeroepen (voor de TOTALE en de REEDS-AFGEWERKTE
-          // werkhoeveelheid) — het VERSCHIL is de restwerk-as-lengte. Omdat de wandeling monotoon/
-          // prefix-consistent is (twee wandelingen vanaf 0 delen exact hetzelfde begin-traject), heft
-          // een gat dat VOLLEDIG vóór het reeds-afgewerkte doel ligt zichzelf in dat verschil precies
-          // op (nul netto bijdrage — geen dubbeltelling meer); een gat (deels) ná dat doel telt voluit
-          // mee. `Math.max(0, …)` op `completedSpanMinutes` klemt tegen hostiele/inconsistente
-          // invoer (`t.remainingMinutes`/`remainingTime` > de eigen totale duur, bv. via MCP gezet) —
-          // zónder deze klem werd `completedSpanMinutes` negatief en viel de wandeling stil terug op
-          // "alle gaten meetellen" (elk gat ligt dan per definitie "ná" een negatief doel). Rode-pad-
-          // mutatiebewijs: `z7-split-h-hostile-remaining-boven-totalspan` (cases-advanced-cpm.json).
-          //
-          // Z7-FIXRONDE-2 (LAAG 2, klem-ASYMMETRIE — bewust, niet vergeten): deze klem raakt
-          // UITSLUITEND de gaten-tak. Een GATLOZE taak met datzelfde hostiele `remainingMinutes`
-          // (bv. 999999) loopt de tak hieronder NIET binnen — `remainingWithGaps` blijft dan de
-          // rauwe `remaining` en gaat ONGEKLEMD naar `addWorkMinutes`/`addWorkDaysChecked`, wat een
-          // even absurd-ver-in-de-toekomst (maar EINDIG, niet-crashend) antwoord geeft. Dat is GEEN
-          // vergeten symmetrie-fix — het is een BEWUSTE scope-grens: de klem hierboven bestrijdt een
-          // kwalitatief ANDERE faalmodus (een NEGATIEF tussendoel dat de as-wandeling semantisch laat
-          // ontsporen, "alle gaten tellen mee" i.p.v. "te veel restwerk") — niet "een groot getal
-          // geeft een ver-weg-datum" (dat is voor ELKE `remaining`-waarde, met of zonder gaten,
-          // altijd al zo geweest, ook vóór Z7; `remainingMinutes` heeft in het datamodel geen
-          // bovengrens t.o.v. de eigen duur, en dat blijft zo). Een taak MET gaten krijgt hierdoor
-          // als NEVENEFFECT wel een BEGRENSD resultaat bij zo'n hostiele invoer (de wandeling valt
-          // terug op "volledige duur+gaten, als 0% voltooid", zie de klem hierboven) — dat is een
-          // toevallig gunstig neveneffect van de negatief-doel-klem, geen doelbewust ontworpen
-          // bovengrens-klem op `remaining` zelf. Symmetrisch maken (`remaining` ook in de gatloze
-          // tak klemmen op de eigen duur) zou progress-tracking-gedrag BUITEN Z7-scope wijzigen
-          // (elke taak, niet alleen gesplitste) zonder corpus- of casebewijs dat dat gewenst is —
-          // bewust NIET gedaan.
+          // Die klem raakt BEWUST alleen de gaten-tak: een gatloze taak met een absurd
+          // `remainingMinutes` loopt ongeklemd naar een verre (maar eindige) datum, zoals altijd.
+          // `remaining` in het algemeen op de eigen duur klemmen zou progress-gedrag van élke taak
+          // wijzigen zonder bewijs dat dat gewenst is.
           let remainingWithGaps = remaining;
           if (!isElapsedTask && task.splitGaps && task.splitGaps.length > 0) {
             const totalSpanMinutes = progressInHours ? totalSpan : totalSpan * progressCal.hoursPerDay * 60;
@@ -2809,31 +2415,27 @@ export class CPMSolver {
           } else if (progressInHours) {
             ef = progressCal.addWorkMinutes(remStart, remainingWithGaps);
           } else {
-            // WP7: ook het rest-werk-pad kan tegen de onwerkbaar-venster-cap lopen ⇒ checked-variant.
+            // Ook het rest-werk-pad kan tegen de onwerkbaar-venster-cap lopen ⇒ checked-variant.
             const r = progressCal.addWorkDaysChecked(remStart, remainingWithGaps);
             // Een dagtaak op een kalender met banden omvat de volledige laatste beschikbare dag.
             ef = progressCal.isHourMode ? (this.dayLastBandEnd(progressCal, r.date) ?? r.date) : r.date;
             if (r.capped) this.cappedTaskIds.push(taskId);
           }
-          // Z12-herwerk, reviewbevinding L1: de VOLTOOID-tak (hierboven, `if (ef < es) es = ef`)
-          // bewaakt al dat een taak nooit "eindigt vóór ze begint"; het eerdere anker-ontwerp op
-          // DEZE tak had die wacht niet. `remStart` (dus ook `ef = addWork(remStart, remaining)`)
-          // komt bij `usedResumeOverride` rechtstreeks uit het RESUME-veld — een bestand met
-          // inconsistente RESUME/ActualStart-velden (RESUME vóór de eigen `actualStart`, corrupt of
-          // hostile) zou anders een `ef` vóór `actualES` kunnen opleveren terwijl `es` hieronder
-          // altijd `actualES` blijft. Klem `ef` dan op `actualES` (nooit `es` verlagen: `actualES`
-          // is hier, anders dan in de VOLTOOID-tak, een AANTOONBAAR feit, geen uit hetzelfde
-          // mechanisme afgeleide waarde). Normale niet-override-pad: `remStart` is per constructie
-          // altijd ≥ `actualES`, dus deze wacht is daar een no-op.
+          // Inversiewacht: de VOLTOOID-tak (`if (ef < es) es = ef`) bewaakt dat een taak nooit
+          // "eindigt vóór ze begint". Bij `usedResumeOverride` komt `remStart` (dus ook
+          // `ef = addWork(remStart, remaining)`) rechtstreeks uit het RESUME-veld — een bestand met
+          // RESUME vóór de eigen `actualStart` zou anders een `ef` vóór `actualES` geven terwijl `es`
+          // `actualES` blijft. Klem `ef` dan op `actualES` (nooit `es` verlagen: `actualES` is hier een
+          // aantoonbaar feit). Zonder override is `remStart` altijd ≥ `actualES`.
           if (usedResumeOverride && ef < actualES) ef = actualES;
-          // X7: de verwachte einddatum is bewaarde P6-brondata totdat de X5-projectvlag hem
-          // expliciet activeert. Daardoor blijft dezelfde taak bij MSP/IFC en bij een uitgeschakelde
-          // P6-vlag volledig op de gewone restduurroute.
+          // De verwachte einddatum is bewaarde P6-brondata totdat de projectoptie
+          // `useExpectedFinishDates` hem activeert; zonder die optie blijft de taak op de gewone
+          // restduurroute.
           if (task.p6ProjectId && this.options.schedulingOptions?.useExpectedFinishDates === true
               && task.p6ExpectedFinish) {
             const parsedExpected = this.parseIn(progressCal, task.p6ExpectedFinish);
-            // X7: date-only Expected Finish heeft FINISH-dagprecisie, ook wanneer een ANDER X7-veld
-            // de taakkalender naar uurmodus promoveerde. Zoek vanaf de volgende daggrens begrensd
+            // Date-only Expected Finish heeft FINISH-dagprecisie, ook wanneer een ander veld de
+            // taakkalender naar uurmodus promoveerde. Zoek vanaf de volgende daggrens begrensd
             // terug naar het laatste effectieve band-einde op of vóór de bedoelde kalenderdag.
             // `null` betekent: binnen CalendarEngine.MAX_SCAN bestaat aantoonbaar geen bandpunt;
             // dan blijft de al berekende finish staan i.p.v. een middernachtanker te verzinnen.
@@ -2844,17 +2446,15 @@ export class CPMSolver {
               : parsedExpected;
             if (expected && !isNaN(expected.getTime())) ef = expected;
           }
-          // Z8-HERWERKRONDE (LAAG 2 van de gelaagde beslistabel): een IN-PROGRESS-taak plant op haar
-          // bestaande resume-/actuals-pad hierboven — GEEN Z8-venster-raadpleging. De EERSTE Z8-versie
-          // deed dat nog wél; de herwerkronde liet die aanroep hier bewust vervallen (spiegelt de
-          // VOLTOOID-tak hierboven) — `mppReader.ts` zet de Z8-velden nooit meer op een taak met
-          // `0 < completion < 1`, dus de aanroep zou toch altijd `null` opleveren.
+          // LAAG 2 van de gelaagde beslistabel: een IN-PROGRESS-taak plant op haar resume-/actuals-pad
+          // hierboven — GEEN timephased-venster (`mppReader.ts` zet die velden nooit op een taak met
+          // `0 < completion < 1`).
           // XER exporteert op de zesassige Early Start-as het begin van het RESTERENDE werk, niet
           // de historische Actual Start. `remStart` is hierboven uitsluitend uit invoersemantiek
           // opgebouwd (statusdatum, relatiegrens en eventueel gevalideerde suspend/resume); er
           // wordt geen P6 early/late-uitvoer gelezen. Andere formaten houden hun bestaande
           // actual-startweergave doordat alleen het XER-pad deze vlag zet.
-          // C12, lopende taak (restant-onderzoek 284 §3a: Roads A10660): dezelfde FF-grens op het restwerk.
+          // C12, lopende taak (Roads A10660): dezelfde FF-grens op het restwerk.
           ef = this.finishNotBeforeFinishFinishBound(preds, results, progressCal, ef);
           const displayedEarlyStart =
             this.options.schedulingOptions?.p6UseRemainingStartForProgress === true
@@ -2863,15 +2463,11 @@ export class CPMSolver {
           results.set(taskId, { es: displayedEarlyStart, ef });
           continue;
         }
-        // B1 (eindreview T16c, dossier (c)4-herdiagnose): deze vloer is P6-eigen RETAINED_LOGIC-
-        // semantiek ("remaining werk nooit in het verleden") — MS Project verschuift een niet-
-        // gestarte taak NIET automatisch naar op-of-ná de statusdatum (reviewer-meting:
-        // `calendar-exception-precedence.mpp`, zonder de vloer minuut-exact tegen MSP's eigen
-        // opgeslagen Start/Finish; mét de vloer ~8 jaar afwijkend, want de taak se eigen anker
-        // 2015-10-01 ligt ver vóór de statusdatum 2023-05-01). `unstartedIgnoresStatusDate` is
-        // uitsluitend `true` voor `.mpp`-imports (`mppReader.ts`); P6-brongegevens (progressMode-
-        // gedreven, ook via MSPDI/CSV/IFC) behouden deze vloer bewust — zie het veld se docblock in
-        // `src/types/project.ts` voor de volledige motivatie.
+        // Conventie A23 `unstartedIgnoresStatusDate`: deze vloer is P6-eigen RETAINED_LOGIC-semantiek
+        // ("remaining werk nooit in het verleden") — MS Project verschuift een niet-gestarte taak NIET
+        // automatisch naar op-of-ná de statusdatum (`calendar-exception-precedence.mpp`: zonder de
+        // vloer minuut-exact, mét de vloer ~8 jaar afwijkend). Zie het docblok bij de sleutel in
+        // `src/types/project.ts`.
         if (
           dataDate && t.completion === 0 && earlyStart < dataDate
           && !this.options.schedulingOptions?.unstartedIgnoresStatusDate
@@ -2882,49 +2478,32 @@ export class CPMSolver {
       }
 
       const { date: earlyFinishRaw, capped } = this.addDurationChecked(cal, earlyStart, task);
-      if (capped) this.cappedTaskIds.push(taskId); // WP7: onwerkbaar venster ⇒ zachte waarschuwing
-      // Z10-fixronde 2 (reviewbevinding 3, BESLUIT: de harde pin wint): een taak met een harde
-      // MFO/MSO-finish-pin belooft een eigen contract — EF = LF = de pin, tf = 0 (`hardPinFinish`/
-      // `applyBackwardBound`). Zonder deze wacht overrulede de SF-vloer dat contract zodra dezelfde
-      // taak óók een SF-opvolger is: de vloer duwde EF ná de pin, terwijl LF op de pin bleef staan
-      // (backward pass kent de vloer niet) ⇒ EF > LF ⇒ negatieve tf, het pin-contract geschonden.
-      // De bestaande `hardPinViolatedIds`-detectie (§4.2, `applyForwardConstraints`) blijft het
-      // signaal voor zo'n conflict — deze wacht verandert daar niets aan, ze voorkomt alleen dat de
-      // vloer een EIGEN, tweede schending introduceert bovenop een taak die al hard gepind is.
-      // `hardPinFinish` afwezig (geen harde pin, verreweg het gebruikelijke geval) ⇒ byte-identiek.
-      // (`hardFinishPin` zelf is vooraan deze functie al berekend — Z8-fixronde, zie die toelichting.)
-      // Z10: de SF-vereiste-finish is een ondergrens op de early finish (zie `sfFinishFloor`s
-      // declaratie hierboven) — vuurt alleen als de gewone `ES + duur`-herberekening er daadwerkelijk
-      // ONDER blijft (het normale, niet-grensoverschrijdende geval reproduceert `sfFinishFloor` toch
-      // al exact, dus deze `max` is dan een no-op). `sfFinishFloor === null` (geen SF-voorganger,
-      // verreweg het gebruikelijke geval) ⇒ byte-identiek aan vóór Z10.
+      if (capped) this.cappedTaskIds.push(taskId); // onwerkbaar venster ⇒ zachte waarschuwing
+      // De harde pin wint: een taak met een harde MFO/MSO-finish-pin belooft EF = LF = de pin, tf = 0
+      // (`hardPinFinish`/`applyBackwardBound`). Anders duwt de SF-vloer EF ná de pin zodra dezelfde
+      // taak óók een SF-opvolger is, terwijl LF op de pin blijft (de backward pass kent de vloer niet)
+      // ⇒ negatieve tf. `hardPinViolatedIds` (`applyForwardConstraints`) blijft het signaal voor een
+      // echt pinconflict; deze wacht voorkomt alleen een tweede, eigen schending (`msp-36`).
+      // (`hardFinishPin` is vooraan deze functie al berekend.)
+      // De SF-vereiste-finish is een ondergrens op de early finish (zie `sfFinishFloor`s declaratie)
+      // — vuurt alleen als de gewone `ES + duur`-herberekening er ONDER blijft.
       let earlyFinish = !hardFinishPin && sfFinishFloor && sfFinishFloor > earlyFinishRaw
         ? sfFinishFloor
         : earlyFinishRaw;
-      // Z8 (etappe "nul afwijkingen", gemeten — zie `mppReader.ts`'s `deriveTimephasedWindowsFor
-      // Tasks`-moduleheader voor het corpusbewijs, en `timephasedFinish()`'s eigen docblok voor de
-      // fixronde-correctie op de precedentie t.o.v. `sfFinishFloor`): het timephased-venster wint
-      // van de kale duur-gebaseerde `earlyFinishRaw`/`sfFinishFloor`-combinatie hierboven (dus ook
-      // als dat een LATERE datum was — `earlyFinishRaw` wordt hier niet meer geraadpleegd), maar
-      // nooit van een harde MFO/MSO-pin en nooit van een échte SF-vereiste-finish (die blijft zijn
-      // eigen `Math.max`-ondergrens, verrekend in `timephasedFinish()` zelf). `task.
-      // timephasedFinishFloor` afwezig ⇒ `tf === null` ⇒ byte-identiek (het overgrote deel van de
-      // taken heeft geen timephased-toewijzingen). Veldnaam ("Floor") bewust ongewijzigd gelaten
-      // ondanks dat het gedrag een override is, geen vloer — hernoemen zou Task/mppReader/
-      // moveProject/check-ifc-roundtrip opnieuw raken voor een zuiver cosmetische reden.
+      // Timephased-venster (zie `mppReader.ts`'s `deriveTimephasedWindowsForTasks`-moduleheader voor
+      // het corpusbewijs, en `timephasedFinish()`'s docblok voor de precedentie t.o.v.
+      // `sfFinishFloor`): het venster wint van de kale duur-gebaseerde `earlyFinishRaw` (ook als die
+      // LATER was), maar nooit van een harde MFO/MSO-pin en nooit van een échte SF-vereiste-finish
+      // (verrekend in `timephasedFinish()` zelf). `task.timephasedFinishFloor` afwezig ⇒
+      // `tf === null`. De veldnaam ("Floor") dekt het override-gedrag niet; hernoemen raakt
+      // Task/mppReader/moveProject/check-ifc-roundtrip.
       const tf = this.timephasedFinish(task, cal, hardFinishPin, sfFinishFloor, timephasedFinishFloorIsDegenerateResnap);
       if (tf) earlyFinish = tf;
-      // Herwerkronde-slotronde (reviewer-eis 4): dezelfde EF<ES-inversiewacht als de VOLTOOID-tak
-      // (`if (ef < es) es = ef`) en de IN-PROGRESS-tak (`if (usedResumeOverride && ef < actualES) ef
-      // = actualES`) ontbrak hier. `tf` (laag 3, een LETTERLIJK gelezen venster) kan in theorie vóór
-      // `earlyStart` liggen wanneer een voorganger-push (of een SNET/MSO-constraint) `earlyStart` ná
-      // het geïmporteerde venster duwt — een bestand-inconsistentie die zonder wacht een taak zou
-      // laten "eindigen vóór ze begint". ANDERS dan de VOLTOOID-tak (waar `es` mag zakken naar `ef`,
-      // want `actualFinish` is daar het hardere feit) is hier `earlyStart` het hardere feit (voorganger-
-      // druk/constraint, niet zelf een gelezen "antwoord") — dus klem `earlyFinish` omhoog naar
-      // `earlyStart`, spiegelt de IN-PROGRESS-tak se klemrichting. Corpusbreed (3105 bladtaken,
-      // corpus+crawl) BLEEF dit vóór de wacht al 0/0 — de wacht is dus verdedigend (defense-in-depth
-      // tegen een nog niet waargenomen bestand-vorm), corpusloos mutatiebewijs in cases-advanced-cpm.json.
+      // Dezelfde EF<ES-inversiewacht als de VOLTOOID- en IN-PROGRESS-tak: `tf` (laag 3, een
+      // LETTERLIJK gelezen venster) kan vóór `earlyStart` liggen wanneer een voorganger-push of een
+      // SNET/MSO-constraint `earlyStart` ná het geïmporteerde venster duwt. Hier is `earlyStart` het
+      // hardere feit, dus klem `earlyFinish` omhoog naar `earlyStart`. In het corpus nooit gezien —
+      // verdedigend, gepind in cases-advanced-cpm.json.
       if (tf && earlyFinish < earlyStart) earlyFinish = earlyStart;
       // C12: de vroege finish niet in kloktijd vóór een FF-relatiegrens (geen harde finish-pin).
       if (!hardFinishPin) earlyFinish = this.finishNotBeforeFinishFinishBound(preds, results, cal, earlyFinish);
@@ -2949,12 +2528,12 @@ export class CPMSolver {
     return results;
   }
 
-  /** Hammock-ES (§4.4): de gewone forward-`max` over de START-drivers (SS/FS-voorgangers), met de
+  /** Hammock-ES: de gewone forward-`max` over de START-drivers (SS/FS-voorgangers), met de
    *  projectstart als vloer. FF/SF-voorgangers (finish-drivers) doen hier NIET mee — die bepalen de
    *  EF. `forwardConstraint` levert voor SS/FS een start-grens; `seqConstraint` wordt bewust NIET
-   *  gezet, zodat de hammock-relaties buiten de driving-/float-path-analyse blijven (§4.4).
+   *  gezet, zodat de hammock-relaties buiten de driving-/float-path-analyse blijven.
    *
-   *  BEKENDE BEPERKING (L4, T6-her-review, §9/O1): een hammock-taak die TEGELIJK `isMilestone` is,
+   *  BEKENDE BEPERKING: een hammock-taak die TEGELIJK `isMilestone` is,
    *  volgt de MSP-instantconventie hier NIET — `snapOnOrAfter` is de kale her-snap, niet de
    *  mijlpaal-bewuste `landRawInstant`/`snapSuccessorEarlyStart`. Bewust niet gefixt: de combinatie
    *  hammock+mijlpaal is pathologisch (een hammock leidt zijn eigen duur af uit ES→EF; een mijlpaal
@@ -2981,7 +2560,7 @@ export class CPMSolver {
     return this.snapOnOrAfter(cal, es);
   }
 
-  /** Hammock-EF (§4.4): de `max` over de FINISH-drivers (FF/SF-voorgangers), met ondergrens `es` (een
+  /** Hammock-EF: de `max` over de FINISH-drivers (FF/SF-voorgangers), met ondergrens `es` (een
    *  hammock is nooit negatief lang). `forwardConstraint` levert de start-equivalente grens; die
    *  wordt via `finishFromStart` terug naar de finish-grens vertaald (de duur-conversie valt weg — de
    *  finish is duur-onafhankelijk, dus idempotent ongeacht de genegeerde duur-invoer). Zonder
@@ -3012,27 +2591,14 @@ export class CPMSolver {
     return { ef: earlyFinish, hasFinishDriver };
   }
 
-  // Z19 (residu-iteratie "nul afwijkingen", dossier "resumeOverride-gate-verbreding", L4-
-  // reviewcorrectie — dit was eerder abusievelijk TUSSEN `detectOutOfSequence`'s eigen docblok en
-  // haar functiesignatuur gezet): de vroegere `isOutOfSequenceFsPredecessor` (Z12) — de LIVE,
-  // tijdens-de-forward-pas-tegenhanger van `detectOutOfSequence`'s eigen FINISH_START-tak, gebruikt
-  // om de `resumeOverride`-gate hierboven te openen — is VERWIJDERD: de gate is vereenvoudigd tot
-  // "AANWEZIG `t.resume` (bij ≤1 toewijzing) ⇒ gebruik het rechtstreeks" (zie de
-  // `resumeOverride`-toelichting in de forward-pas hierboven), waarmee elke situatie die deze
-  // functie ooit `true` liet geven nu al via die bredere regel afgehandeld wordt.
-  // `detectOutOfSequence` hieronder is een ANDERE, ONGEWIJZIGDE functie (de post-hoc WAARSCHUWING
-  // over out-of-sequence-relaties, geen gate) — niet te verwarren met de verwijderde functie.
   /**
-   * Out-of-sequence-detectie (fase 2.6, §4.4): relaties waarvan de opvolger progress/actuals heeft
+   * Out-of-sequence-detectie: relaties waarvan de opvolger progress/actuals heeft
    * die de voorganger-logica tegenspreekt. Waarschuwing, geen correctie — het gedrag volgt uit de
    * gekozen progressMode.
    *
-   * M2 (Opus-review T15-iteratie-2): de vroegere `if (!this.dataDate) return [];`-poort was
-   * KUNSTMATIG — de detectie hieronder gebruikt uitsluitend `earlyDates` (de al-berekende
-   * voorganger-EF) en elke taak se eigen `actualStart`/`actualFinish`, nooit `this.dataDate` zelf.
-   * Dezelfde soort poort als de VOLTOOID-/IN-PROGRESS-branches (H1/c2, M1) die T15 al wegsneed —
-   * een relatie kan aantoonbaar out-of-sequence zijn (opvolger-actuals tegenspreken de voorganger-
-   * logica) ongeacht of het project een statusbrede statusdatum heeft.
+   * Geen `dataDate`-poort: de detectie gebruikt uitsluitend `earlyDates` (de al-berekende
+   * voorganger-EF) en elke taak se eigen `actualStart`/`actualFinish`, nooit `this.dataDate`. Een
+   * relatie kan out-of-sequence zijn ongeacht of het project een statusdatum heeft.
    */
   private detectOutOfSequence(earlyDates: Map<string, { es: Date; ef: Date }>): string[] {
     const out: string[] = [];
@@ -3040,8 +2606,8 @@ export class CPMSolver {
       const pred = this.tasks.get(seq.predecessorId);
       const succ = this.tasks.get(seq.successorId);
       if (!pred || !succ) continue;
-      // Sub-dag-actuals moeten in uur-modus als out-of-sequence tellen ⇒ `parseInstant` (§5.3);
-      // elke taak in zijn eigen engine. Dag ⇒ `parseDate` (byte-identiek).
+      // Sub-dag-actuals moeten in uur-modus als out-of-sequence tellen ⇒ `parseInstant`;
+      // elke taak in zijn eigen engine. Dag ⇒ `parseDate`.
       const succEng = this.calendarFor(succ);
       const predEng = this.calendarFor(pred);
       const succAS = succ.time.actualStart ? this.parseIn(succEng, succ.time.actualStart) : null;
@@ -3078,8 +2644,8 @@ export class CPMSolver {
     return out;
   }
 
-  /** Constraint-instant in de kalendermodus (§4.1), of null bij afwezig/onparseerbaar (soft:
-   *  negeren). Dag ⇒ `parseDate` (middernacht, byte-identiek); uur ⇒ `parseInstant` (behoudt tijd-
+  /** Constraint-instant in de kalendermodus, of null bij afwezig/onparseerbaar (soft:
+   *  negeren). Dag ⇒ `parseDate` (middernacht); uur ⇒ `parseInstant` (behoudt tijd-
    *  van-de-dag). Een date-only-string op een uur-taak = middernacht ⇒ dag-verankerd: de instant-
    *  vinders snappen hem naar de eerste/laatste werk-instant van die dag (S13). Een datetime-string
    *  draagt tijd-van-de-dag en wordt tot de minuut gehonoreerd. */
@@ -3090,18 +2656,15 @@ export class CPMSolver {
     return isNaN(d.getTime()) ? null : d;
   }
 
-  /** De harde-pin-START (§4.2), of null als de PRIMAIRE constraint geen harde MSO/MFO-pin is.
+  /** De harde-pin-START, of null als de PRIMAIRE constraint geen harde MSO/MFO-pin is.
    *  MSO pint de START op de datum; MFO pint de FINISH ⇒ start = finish ⊖ duur. Modus-neutraal
    *  (dag: bevroren dag-primitieven; uur: instant-vinders + minuut-aftrek via `durationMinutesOf`).
    *
-   *  T8-REIKWIJDTE (L1, T8-review — correctie op de T8-commitboodschap, die "MSO/MFO-constraints"
-   *  noemde als afnemer van `finishFromStart`/`startFromFinish`): dat klopt alleen voor de
-   *  DUUR-terugstap hier (MFO ⇒ `startFromFinish`, hierbeneden MSO ⇒ `addDuration`) — dié is
-   *  ELAPSEDTIME-bewust sinds T8. De CONSTRAINT-SNAP zelf (`this.snapOnOrAfter(eng, d)` hierboven,
-   *  en `constraintInstant`/`snapOnOrBefore` in de soft-constraint-tegenhangers `forwardBoundOf`/
-   *  `backwardBoundOf` hieronder) is dat NIET: een MSO/MFO-datum op een taak snapt altijd naar een
-   *  WERK-instant, ook als die taak zelf ELAPSEDTIME is. Bewuste afbakening (niet gefixt in T8 of
-   *  deze reviewronde) — geen synthetische case dekt dit, dus geen mutatiebewijs voor deze regel. */
+   *  ELAPSEDTIME-REIKWIJDTE: alleen de DUUR-terugstap hier (MFO ⇒ `startFromFinish`, MSO ⇒
+   *  `addDuration`) is ELAPSEDTIME-bewust. De CONSTRAINT-SNAP zelf (`this.snapOnOrAfter(eng, d)`, en
+   *  `constraintInstant`/`snapOnOrBefore` in `forwardBoundOf`/`backwardBoundOf`) is dat NIET: een
+   *  MSO/MFO-datum snapt altijd naar een WERK-instant, ook op een ELAPSEDTIME-taak. Bewuste
+   *  afbakening, niet door een case gepind. */
   private hardPinStart(task: Task, eng: CalendarEngine): Date | null {
     const c = task.constraint;
     if (!c?.hard || (c.type !== 'MSO' && c.type !== 'MFO')) return null;
@@ -3111,7 +2674,7 @@ export class CPMSolver {
     return c.type === 'MSO' ? snapped : this.startFromFinish(eng, snapped, task);
   }
 
-  /** De harde-pin-FINISH (§4.2), spiegel van `hardPinStart` (⇒ EF=LF én ES=LS op de pin, tf=0).
+  /** De harde-pin-FINISH, spiegel van `hardPinStart` (⇒ EF=LF én ES=LS op de pin, tf=0).
    *  MFO: EF = snap(datum); MSO: EF = gepinde-start ⊕ duur. */
   private hardPinFinish(task: Task, eng: CalendarEngine): Date | null {
     const c = task.constraint;
@@ -3123,20 +2686,16 @@ export class CPMSolver {
   }
 
   /**
-   * Z8-HERWERKRONDE (etappe "nul afwijkingen") — de gelaagde beslistabel, LAAG 3 en LAAG 4 (zie
-   * `mppReader.ts`'s `deriveTimephasedWindowsForTasks`-moduleheader voor de VOLLEDIGE toelichting,
-   * inclusief de weerlegde eerdere hypotheses). Mutueel exclusief per taak (`mppReader.ts` zet
-   * nooit beide velden op dezelfde taak) — `timephasedFinishFloor` afwezig ⇒ laag-4-tak geprobeerd,
-   * ook die afwezig ⇒ `null` (laag 5, geen Z8-bemoeienis). Lagen 1/2 (VOLTOOID/IN-PROGRESS) worden
-   * hier NOOIT bereikt: `mppReader.ts` zet deze velden uitsluitend op `completion === 0`-taken, dus
-   * de twee call sites in die branches zijn bewust VERWIJDERD (zie hun eigen toelichting).
+   * De gelaagde beslistabel, LAAG 3 en LAAG 4 (zie `mppReader.ts`'s
+   * `deriveTimephasedWindowsForTasks`-moduleheader voor de volledige toelichting). Mutueel exclusief
+   * per taak (`mppReader.ts` zet nooit beide velden op dezelfde taak) — `timephasedFinishFloor`
+   * afwezig ⇒ laag 4 geprobeerd, ook die afwezig ⇒ `null` (laag 5). Lagen 1/2 (VOLTOOID/IN-PROGRESS)
+   * komen hier niet: `mppReader.ts` zet deze velden uitsluitend op `completion === 0`-taken.
    *
-   * LAAG 3 — gelezen venster (`timephasedFinishFloor`, MSP's eigen `AssignmentField.FINISH`).
-   * FIXRONDE-CORRECTIE (regressie gevonden op `mpp14relations.mpp`'s "Task 5", de Z10-dossier-
-   * taak — START_FINISH-opvolger): een EERSTE versie liet dit venster de hele `earlyFinish`
-   * ONVOORWAARDELIJK overschrijven. MSP's per-toewijzing `FINISH`-veld blijkt echter NIET altijd
-   * al de volledige relatiewiskunde te verrekenen — voor Task 5 droeg het de NAÏEVE `ES+duur`-
-   * datum, niet de SF-aangepaste datum die `sfFinishFloor` (Z10) al correct berekent. Conclusie:
+   * LAAG 3 — gelezen venster (`timephasedFinishFloor`, MSP's eigen `AssignmentField.FINISH`). Dit
+   * venster verrekent NIET altijd de volledige relatiewiskunde: voor `mpp14relations.mpp`'s "Task 5"
+   * (SF-opvolger) draagt het de naïeve `ES+duur`-datum, niet de SF-aangepaste datum die
+   * `sfFinishFloor` berekent. Dus:
    * het venster wint van `earlyFinishRaw` (hier niet eens meer geraadpleegd), maar NOOIT van een
    * echte SF-vereiste (`sfFinishFloor`) — die blijft een `Math.max`-ondergrens.
    *
@@ -3149,7 +2708,7 @@ export class CPMSolver {
    * ontbreken ALLE items dan (zeldzaam; `mppReader.ts` activeert laag 4 alleen als er minstens één
    * structureel afwijkende, dus doorgaans al gepromoveerde, kalender is) ⇒ `null`.
    *
-   * WELKE duur per item (Z19, residu-iteratie "nul afwijkingen") — `walk.workMinutes` als die
+   * WELKE duur per item — `walk.workMinutes` als die
    * gezet is, anders de VOLLE `task.time.durationMinutes`. `mppReader.ts` zet `workMinutes`
    * UITSLUITEND bij >1 toewijzing (`deriveTimephasedWindowsForTasks`'s finalisatielus): bij meerdere
    * GELIJKTIJDIGE toewijzingen wandelt geen enkele toewijzing de volle taakduur — elke toewijzing
@@ -3167,10 +2726,9 @@ export class CPMSolver {
   ): Date | null {
     if (hardFinishPin) return null;
     let windowValue: Date | null = null;
-    // Z13: `finishFloorIsDegenerateResnap` (gezet in de `noPreds`-tak, zie de toelichting daar) —
-    // sla laag 3 in dat ene band-eind-corpusgeval over, zodat `addDurationChecked`s eigen correctie
-    // (aangeroepen om `earlyFinishRaw` te leveren, hierboven in `forwardPass`) het laatste woord
-    // houdt. Elders (`false`, verreweg de meerderheid) byte-identiek.
+    // `finishFloorIsDegenerateResnap` (gezet in de `noPreds`-tak, zie de toelichting daar) — sla
+    // laag 3 in dat ene band-eind-geval over, zodat `addDurationChecked`s eigen correctie (via
+    // `earlyFinishRaw` in `forwardPass`) het laatste woord houdt.
     if (cal.isHourMode && task.timephasedFinishFloor && !finishFloorIsDegenerateResnap) {
       windowValue = parseInstant(task.timephasedFinishFloor);
     } else if (task.timephasedDurationWalks && task.timephasedDurationWalks.length > 0) {
@@ -3180,7 +2738,7 @@ export class CPMSolver {
           const resCal = resolveCalendar(walk.resourceCalendarId, this.registry, this.projectCal);
           const resEng = this.engineForCal(resCal, task);
           if (!resEng.isHourMode) continue;
-          // Z19-apportionering: `workMinutes` (alleen gezet bij >1 toewijzing) wint van de volle
+          // Apportionering: `workMinutes` (alleen gezet bij >1 toewijzing) wint van de volle
           // taakduur — zie het docblok hierboven.
           const walkMinutes = walk.workMinutes ?? durMin;
           const candidate = resEng.addWorkMinutes(parseInstant(walk.anchor), walkMinutes);
@@ -3193,14 +2751,14 @@ export class CPMSolver {
   }
 
   /**
-   * Detector-gate voor de harde-pin-logica-schending (fase 2.10, P1). Een taak met een geregistreerd
+   * Detector-gate voor de harde-pin-logica-schending. Een taak met een geregistreerd
    * feit (`actualStart` gezet voor MSO, `actualFinish` gezet voor MFO) waarvan dat feit EXACT op de
    * pin valt, heeft de pin al aantoonbaar gerespecteerd — een later/gevloerd berekende voorganger-EF
    * (`rawMax`, bv. via een niet-afgemelde startmijlpaal die door de data-date-vloer omhoog is
    * geschoven) is dan een achterhaald forward-signaal, geen echte logica-schending. Wijkt het
    * geregistreerde feit zelf af van de pin (te vroeg/te laat), of ontbreekt het feit nog, dan gate
    * dit NIETS — de bestaande melding blijft vuren. Bewust smal: alleen dit ene detector-moment,
-   * de data-date-vloer zelf (§P6) blijft ongewijzigd.
+   * de data-date-vloer zelf blijft ongewijzigd.
    */
   private hardPinRespectedByActual(task: Task, eng: CalendarEngine): boolean {
     const c = task.constraint;
@@ -3221,62 +2779,38 @@ export class CPMSolver {
     return formatDate(actualEF) === formatDate(pinFinish);
   }
 
-  /** Forward-ondergrens (start) van ÉÉN soft constraint (§4.1/§4.3), of null zonder forward-effect.
+  /** Forward-ondergrens (start) van ÉÉN soft constraint, of null zonder forward-effect.
    *  SNET/MSO ⇒ start-ondergrens; FNET/MFO ⇒ finish-ondergrens vertaald naar de start. Dag-modus
-   *  reduceert byte-identiek tot `nextWorkDay`/`addWorkingDaysSigned`; uur-modus gebruikt de instant-
+   *  reduceert tot `nextWorkDay`/`addWorkingDaysSigned`; uur-modus gebruikt de instant-
    *  vinders + de minuut-aftrek van `startFromFinish` (via `durationMinutesOf`).
    *
-   *  VOORHEEN (L5, T6-her-review, §9/O6, WEERLEGD): een SNET/MSO exact op een band-eind (bv. "niet
-   *  vóór di 17:00") volgt de mijlpaal-instantconventie NIET — `snapOnOrAfter` snapt hier altijd
-   *  vooruit via `nextWorkInstant`, ook op een eindmijlpaal. Die claim was NOOIT corpusgetoetst
-   *  (T6-her-review's eigen bewoording: "MS Project zelf leest dit ook als..." — een aanname, geen
-   *  meting).
-   *
-   *  Z19-WEERLEGGING (residu-iteratie "nul afwijkingen", klokdossier-mijlpaaldossier, §9-precedent
-   *  "corpus wint"): het EERSTE corpusfeit over deze vraag zegt het TEGENOVERGESTELDE. Een
-   *  wortelmijlpaal (duur 0) met SNET vóór de eerste band van haar dag (bv. `…T07:15` op een
-   *  08:00–17:00-band — geen bandgrens, een echt gat vóórdat de werkdag begint): MSP's eigen
-   *  `SCHEDULED_START` bleef `07:15`, ONGESNAPT. De juiste, nauwe regel: EEN 0-DUURMIJLPAAL SNAPT
-   *  NIET — er is geen werk te plaatsen dat een "eerstvolgende werk-instant" nodig heeft, een
-   *  mijlpaal is een puntmarkering, geen taak die binnen werktijd moet passen. Taken MÉT duur
-   *  behouden het bestaande snap-gedrag ONGEWIJZIGD (`isZeroDurationMilestone`-poort hieronder).
+   *  EEN 0-DUURMIJLPAAL SNAPT NIET (corpusfeit): een wortelmijlpaal (duur 0) met SNET vóór de eerste
+   *  band van haar dag (bv. `…T07:15` op een 08:00–17:00-band) houdt in MSP's eigen
+   *  `SCHEDULED_START` `07:15`, ongesnapt — een mijlpaal is een puntmarkering, geen werk dat binnen
+   *  werktijd moet passen. Taken MÉT duur snappen gewoon (`isZeroDurationMilestone`-poort hieronder).
    *  Compatibel met de 41 FNLT-bandeind-mijlpalen (regressiepoort, `check-advanced-cpm.ts`): die
-   *  krijgen hun landingsinstant uit een RELATIE (niet uit deze forward-constraint-tak — FNLT is een
-   *  BACKWARD-constraint, `backwardBoundOf`, hier niet aangeraakt) en blijven dus exact.
+   *  krijgen hun landingsinstant uit een RELATIE, en FNLT is een BACKWARD-constraint
+   *  (`backwardBoundOf`).
    *
-   *  VERWANTE OORZAAK (T6-her-review): de `dataDate`-vloer ("NIET GESTART", `forwardPass`) snapt
-   *  in de PROJECT-kalender (`this.projectEngine`), niet in de eigen kalender van de taak — bij
+   *  VERWANTE OORZAAK: de `dataDate`-vloer ("NIET GESTART", `forwardPass`) snapt in de
+   *  PROJECT-kalender (`this.projectEngine`), niet in de eigen kalender van de taak — bij
    *  verschillende bandstructuren kan dat een ES opleveren die in de EIGEN taak-kalender géén
-   *  `[start,end)`-instant is. Dat is precies het mechanisme achter `msp-06` in
-   *  `cases-msp-pariteit.json` (en de FS-tak-verbreding rond `predEndsBeginOfDay` in
-   *  `relationMath.ts`, L3): een relatie-afgeleide instant kan dus, via een taak wiens ES zelf al
-   *  "vuil" is t.o.v. haar eigen kalender, alsnog een constraint-achtig gemengd-kalender-effect
-   *  krijgen — niet gefixt hier (dit blok blijft puur constraint-ondergrenzen), maar wel de
-   *  brug tussen deze beperking en de mijlpaal-instantconventie hierboven. */
+   *  `[start,end)`-instant is (`msp-06` in `cases-msp-pariteit.json`, en de FS-tak rond
+   *  `predEndsBeginOfDay` in `relationMath.ts`). Niet gefixt hier: dit blok blijft puur
+   *  constraint-ondergrenzen. */
   private forwardBoundOf(task: Task, c: TaskConstraint | undefined, eng: CalendarEngine): Date | null {
     const d = this.constraintInstant(c, eng);
     if (!c || !d) return null;
-    // Z19: geen snap voor een 0-duurmijlpaal — MAAR uitsluitend bij een ECHT datetime-anker
-    // (`c.date` draagt een tijdcomponent) in uur-modus. Zelfde "S13"-conventie als elders in dit
-    // bestand (`constraintInstant`'s eigen docblok): een DATE-ONLY constraint-string is per
-    // conventie dag-verankerd — "ergens op die dag" — en blijft dus naar het eerste werk-instant
-    // van de dag snappen (mutatiebewijs: `rr-fs-pred-startms`-familie in `cases-hours-relations.json`
-    // en `msp-56-z9a-manual-anchor-raw-no-snap`/dag-modus in `cases-msp-pariteit.json` gingen ROOD
-    // op een eerdere, te brede versie zonder deze guard). Dag-modus (`!eng.isHourMode`) blijft
-    // hoe dan ook ONGEWIJZIGD (`isExactBandEnd`-precedent: geen corpusmeting op dag-modus gedaan).
+    // Geen snap voor een 0-duurmijlpaal — MAAR uitsluitend bij een ECHT datetime-anker (`c.date`
+    // draagt een tijdcomponent) in uur-modus. Een DATE-ONLY constraint-string is dag-verankerd
+    // ("ergens op die dag", `constraintInstant`) en blijft naar het eerste werk-instant van de dag
+    // snappen (`rr-fs-pred-startms`-familie in `cases-hours-relations.json`,
+    // `msp-56-z9a-manual-anchor-raw-no-snap`). Dag-modus blijft ongewijzigd.
     //
-    // N1 (Opus-her-check, blokkerende fout in de eerdere versie): de `noSnap`-guard stond hier als
-    // een VROEGE `return d;` VÓÓR de type-switch — dat gaf `d` ALTIJD terug zodra een 0-duurmijlpaal
-    // matchte, ONGEACHT `c.type`. FNLT/SNLT hebben in DEZE functie GEEN forward-effect (ze horen
-    // `null` te geven — `backwardBoundOf` hierboven is hun kant) — met de vroege return kreeg een
-    // FNLT-DEADLINE op een mijlpaal plotseling een FORWARD-ondergrens gelijk aan de deadline zelf,
-    // en duwde de mijlpaal naar de deadline toe (of erover heen) i.p.v. 'm als bovengrens te laten
-    // functioneren. Corpusloos gereproduceerd (`cases-hours.json`,
-    // `z19-milestone-fnlt-no-forward-push`): een FNLT-deadline een week ná een ma 09:00-mijlpaal
-    // duwde de mijlpaal daadwerkelijk naar de week erna. De 41 corpus-FNLT-bandeind-mijlpalen vingen
-    // dit niet (hun relatie-instant valt daar toevallig samen met de FNLT-datum, dus de bug bleef
-    // onzichtbaar in de fidelity-cijfers). Fix: de guard ÍN de SNET/MSO- en FNET/MFO-takken zetten,
-    // zodat de FNLT/SNLT-tak (die toch al op `return null` uitkomt) 'm nooit ziet.
+    // De `noSnap`-guard staat BINNEN de SNET/MSO- en FNET/MFO-takken, niet als vroege `return d`
+    // vóór de type-switch: FNLT/SNLT hebben hier GEEN forward-effect (`null`), en een vroege return
+    // zou een FNLT-deadline op een mijlpaal een forward-ondergrens geven en de mijlpaal naar de
+    // deadline duwen (`z19-milestone-fnlt-no-forward-push` in `cases-hours.json`).
     const noSnap = isZeroDurationMilestone(task) && eng.isHourMode && c.date?.includes('T');
     if (c.type === 'SNET' || c.type === 'MSO') return noSnap ? d : this.snapOnOrAfter(eng, d);
     if (c.type === 'FNET' || c.type === 'MFO') {
@@ -3285,9 +2819,9 @@ export class CPMSolver {
     return null;
   }
 
-  /** Backward-bovengrens (late finish) van ÉÉN soft constraint (§4.1/§4.3), of null zonder backward-
+  /** Backward-bovengrens (late finish) van ÉÉN soft constraint, of null zonder backward-
    *  effect. FNLT/MFO ⇒ finish-bovengrens direct; SNLT/MSO ⇒ start-bovengrens vertaald naar de finish.
-   *  Dag-modus byte-identiek (`prevWorkDay`/`addWorkingDaysSigned`); uur-modus via de instant-vinders. */
+   *  Dag-modus via `prevWorkDay`/`addWorkingDaysSigned`; uur-modus via de instant-vinders. */
   private backwardBoundOf(task: Task, c: TaskConstraint | undefined, eng: CalendarEngine): Date | null {
     const d = this.constraintInstant(c, eng);
     if (!c || !d) return null;
@@ -3300,8 +2834,8 @@ export class CPMSolver {
     return null;
   }
 
-  /** Externe-link-lag in MINUTEN (uur-modus, §4.5): `lagMinutes` ⇒ bron; anders `lagDays × hoursPerDay ×
-   *  60` (naakt getal = werkdagen — dezelfde conventie als de Sequence-lag, 2.8b §3.3). */
+  /** Externe-link-lag in MINUTEN (uur-modus): `lagMinutes` ⇒ bron; anders `lagDays × hoursPerDay ×
+   *  60` (naakt getal = werkdagen — dezelfde conventie als de Sequence-lag). */
   private externalLagMinutes(link: ExternalLink, eng: CalendarEngine): number {
     if (isFiniteNumber(link.lagMinutes)) return link.lagMinutes;
     const days = isFiniteNumber(link.lagDays) ? link.lagDays : 0;
@@ -3313,9 +2847,9 @@ export class CPMSolver {
   }
 
   /**
-   * Forward-ondergrens (start-equivalent) van een externe PREDECESSOR-link (§4.5). De bevroren
+   * Forward-ondergrens (start-equivalent) van een externe PREDECESSOR-link. De bevroren
    * `anchorDate` speelt de rol van de driving-datum van de externe taak (de ververs-actie schrijft
-   * daar de source-`earlyFinish` bij FS/FF resp. `earlyStart` bij SS/SF in — §refreshExternalAnchors).
+   * daar de source-`earlyFinish` bij FS/FF resp. `earlyStart` bij SS/SF in).
    * Het TWEEDE relType-teken bepaalt de zijde: FS/SS ⇒ START-grens, FF/SF ⇒ FINISH-grens (via
    * `startFromFinish` naar een start terugvertaald). Het EERSTE teken de dag-boundary-overgang:
    * alleen FS (externe finish → mijn start) krijgt de `nextWorkDayAfter`-+1 (spiegel van
@@ -3342,7 +2876,7 @@ export class CPMSolver {
   }
 
   /**
-   * Backward-bovengrens (late finish) van een externe SUCCESSOR-link (§4.5). Spiegel van
+   * Backward-bovengrens (late finish) van een externe SUCCESSOR-link. Spiegel van
    * `externalForwardBound`: `anchorDate` is de driving-datum van de externe opvolger. Het EERSTE
    * relType-teken bepaalt mijn zijde: FS/FF ⇒ LF-grens direct; SS/SF ⇒ LS-grens (via `finishFromStart`
    * naar mijn LF vertaald). De dag-boundary-overgang zit alleen op FS (mijn finish → externe start ⇒
@@ -3366,19 +2900,19 @@ export class CPMSolver {
   }
 
   /**
-   * Vroege-zijde constraints (fase 2.3, uitgebreid 2.9 §4.1-4.3). Een harde MSO/MFO-pin
-   * OVERSCHRIJFT de voorganger-druk onvoorwaardelijk (barrière, §4.2) en registreert een
+   * Vroege-zijde constraints. Een harde MSO/MFO-pin
+   * OVERSCHRIJFT de voorganger-druk onvoorwaardelijk (barrière) en registreert een
    * logica-schending zodra die druk (`rawMax`, of null bij een worteltaak) later valt dan de pin
    * — dán start de taak vóór z'n voorganger klaar is. Zonder pin stapelen de PRIMAIRE en
    * SECUNDAIRE forward-constraints (SNET/FNET/MSO/MFO) als max-ondergrenzen. `hard`/`constraint2`
-   * afwezig ⇒ exact de bestaande soft-tak (byte-identiek: de 319 cases kennen ze nergens).
+   * afwezig ⇒ alleen de soft-tak.
    */
   private applyForwardConstraints(task: Task, earlyStart: Date, rawMax: Date | null, eng: CalendarEngine): Date {
     const pin = this.hardPinStart(task, eng);
     if (pin) {
-      // Fase 2.10 (P1): een gevloerde/berekende voorganger-EF (bv. een niet-afgemelde startmijlpaal
+      // Een gevloerde/berekende voorganger-EF (bv. een niet-afgemelde startmijlpaal
       // ná de data-date-vloer) mag geen valse schending melden op een taak die al een geregistreerd
-      // feit heeft dat de pin AANTOONBAAR respecteert (§ gate hieronder). Een ECHTE schending —
+      // feit heeft dat de pin AANTOONBAAR respecteert (gate hieronder). Een ECHTE schending —
       // actual wijkt af van de pin, of er is nog geen feit en de logica is structureel te laat —
       // blijft gewoon vuren.
       if (rawMax && rawMax > pin && !this.hardPinRespectedByActual(task, eng)) {
@@ -3391,8 +2925,8 @@ export class CPMSolver {
       const bound = this.forwardBoundOf(task, cc, eng);
       if (bound && bound > es) es = bound;
     }
-    // Externe predecessor-links (§4.5): bevroren forward-ondergrenzen, gestapeld als extra max-terms
-    // (net als een SNET/FNET). Afwezig ⇒ deze lus draait niet (byte-identiek).
+    // Externe predecessor-links: bevroren forward-ondergrenzen, gestapeld als extra max-terms
+    // (net als een SNET/FNET). Afwezig ⇒ deze lus draait niet.
     if (task.externalLinks && task.externalLinks.length > 0) {
       for (const link of task.externalLinks) {
         const bound = this.externalForwardBound(task, link, eng);
@@ -3403,10 +2937,10 @@ export class CPMSolver {
   }
 
   /**
-   * Late-zijde grenzen (fase 2.3, uitgebreid 2.9 §4.1-4.3). Een harde MSO/MFO-pin zet de late
+   * Late-zijde grenzen. Een harde MSO/MFO-pin zet de late
    * finish ONVOORWAARDELIJK op de gepinde waarde (override de successor-druk) ⇒ LS=ES/LF=EF ⇒
    * tf=0 op de pin, en een strengere late-constraint verder downstream propageert zijn negatieve
-   * float NIET dóór de pin heen (P6-barrière, §4.2). Zonder pin stapelen de PRIMAIRE en SECUNDAIRE
+   * float NIET dóór de pin heen (P6-barrière). Zonder pin stapelen de PRIMAIRE en SECUNDAIRE
    * backward-constraints (SNLT/FNLT/MSO/MFO) + de zachte deadline als min-bovengrenzen; vroege
    * datums bewegen nooit, overschrijding wordt negatieve float.
    */
@@ -3418,8 +2952,8 @@ export class CPMSolver {
       const bound = this.backwardBoundOf(task, cc, eng);
       if (bound && bound < lf) lf = bound;
     }
-    // Externe successor-links (§4.5): bevroren backward-bovengrenzen (net als een SNLT/FNLT).
-    // Afwezig ⇒ deze lus draait niet (byte-identiek).
+    // Externe successor-links: bevroren backward-bovengrenzen (net als een SNLT/FNLT).
+    // Afwezig ⇒ deze lus draait niet.
     if (task.externalLinks && task.externalLinks.length > 0) {
       for (const link of task.externalLinks) {
         const bound = this.externalBackwardBound(task, link, eng);
@@ -3442,7 +2976,7 @@ export class CPMSolver {
    * pass; de constraint-cache van uitgaande relaties wordt geactualiseerd zodat de
    * relatie-floats en driving-markering daarna kloppen (de relatie wordt precies bindend).
    *
-   * Handmatig gepland (Z9b, etappe "nul afwijkingen") — TWEE aparte uitsluitingen, niet één:
+   * Handmatig gepland — TWEE aparte uitsluitingen, niet één:
    * (1) een manual taak ZELF wordt NOOIT vooruitgeschoven, ook niet als ze toevallig
    *     `constraint.type === 'ALAP'` draagt (een geïmporteerd/legacy-veld dat een manual taak
    *     evengoed kan meedragen) — MS Project plant een manual taak op haar getypte datum, ALAP
@@ -3470,15 +3004,15 @@ export class CPMSolver {
     earlyDates: Map<string, { es: Date; ef: Date }>,
     lateDates: Map<string, { ls: Date; lf: Date }>,
   ): void {
-    // Conventie C14 `p6AlapPositionedFromSuccessors`: dezelfde ALAP-selectie (incl. Z9b-uitsluiting
-    // (1)); een niet-gestarte ALAP-taak op een uurkalender wordt daarna in `applyAlapFromSuccessors`
-    // gepositioneerd, opvolgers eerst. Alle andere ALAP-taken houden de oude stap hieronder.
+    // Conventie C14 `p6AlapPositionedFromSuccessors`: dezelfde ALAP-selectie (incl. uitsluiting (1));
+    // een niet-gestarte ALAP-taak op een uurkalender wordt daarna in `applyAlapFromSuccessors`
+    // gepositioneerd, opvolgers eerst. Alle andere ALAP-taken volgen de stap hieronder.
     const fromSuccessors = this.options.schedulingOptions?.p6AlapPositionedFromSuccessors === true;
     const alapTaskIds: string[] = [];
     for (const taskId of order) {
       const task = this.tasks.get(taskId);
       if (task?.constraint?.type !== 'ALAP') continue;
-      if (task.manuallyScheduled) continue;   // Z9b, uitsluiting (1) — zie moduleheader hierboven.
+      if (task.manuallyScheduled) continue;   // uitsluiting (1) — zie docblok hierboven.
       if (fromSuccessors && this.isUnstartedAlapPositionedFromSuccessors(task, this.calendarFor(task))) {
         alapTaskIds.push(taskId);
         continue;
@@ -3510,7 +3044,7 @@ export class CPMSolver {
       for (const seq of succs) {
         const succTask = this.tasks.get(seq.successorId);
         if (!succTask) continue;
-        if (succTask.manuallyScheduled) continue;   // Z9b, uitsluiting (2) — zie moduleheader hierboven.
+        if (succTask.manuallyScheduled) continue;   // uitsluiting (2) — zie docblok hierboven.
         this.seqConstraint.set(
           seq.id,
           forwardConstraint(
@@ -3525,7 +3059,7 @@ export class CPMSolver {
 
   /** Conventie C14: valt deze taak onder de ALAP-positionering vanuit de opvolgers? Niet-gestart,
    *  uurkalender. (Een handmatig geplande taak bereikt de aanroepers niet: `forwardPass` handelt
-   *  haar vooraf af, `applyAlap` filtert haar weg — Z9b.) */
+   *  haar vooraf af, `applyAlap` filtert haar weg.) */
   private isUnstartedAlapPositionedFromSuccessors(task: Task, cal: CalendarEngine): boolean {
     return this.options.schedulingOptions?.p6AlapPositionedFromSuccessors === true
       && task.constraint?.type === 'ALAP' && cal.isHourMode
@@ -3561,7 +3095,7 @@ export class CPMSolver {
       for (const seq of succs) {
         const succTask = this.tasks.get(seq.successorId);
         const succEarly = earlyDates.get(seq.successorId);
-        // Z9b (2): `forwardPass` zet nooit een `seqConstraint` naar een handmatige opvolger; zo'n
+        // Uitsluiting (2): `forwardPass` zet nooit een `seqConstraint` naar een handmatige opvolger; zo'n
         // relatie doet hier dus ook niet mee.
         if (!succTask || !succEarly || !this.seqConstraint.has(seq.id)) continue;
         const succCal = this.calendarFor(succTask);
@@ -3599,7 +3133,7 @@ export class CPMSolver {
       early.ef = finish;
       for (const seq of succs) {
         const succTask = this.tasks.get(seq.successorId);
-        if (!succTask || !this.seqConstraint.has(seq.id)) continue;   // Z9b (2), zie hierboven.
+        if (!succTask || !this.seqConstraint.has(seq.id)) continue;   // uitsluiting (2), zie hierboven.
         this.seqConstraint.set(
           seq.id,
           forwardConstraint(
@@ -3613,7 +3147,7 @@ export class CPMSolver {
 
   /** Effectieve lag van een relatie: dagen (via resolveEffectiveLagDays) + eenheid. De dag↔minuut-
    *  factor waarmee een `lagMinutes`-only-lag in dagen wordt uitgedrukt volgt de eenheid: WORKTIME
-   *  telt in WERKuren van de VOORGANGER-kalender (§5.2), ELAPSEDTIME 24/7 in klokuren — exact de
+   *  telt in WERKuren van de VOORGANGER-kalender, ELAPSEDTIME 24/7 in klokuren — exact de
    *  factoren die `resolveLagMinutes`/`resolveElapsedMinutes` in uur-modus gebruiken. */
   private resolveLag(seq: Sequence, predTask: Task, predEng: CalendarEngine): { days: number; unit: LagUnit } {
     const unit: LagUnit = seq.lagUnit === 'ELAPSEDTIME' ? 'ELAPSEDTIME' : 'WORKTIME';
@@ -3710,7 +3244,7 @@ export class CPMSolver {
       // de late zijde. De smalle data-date-route verandert uitsluitend de forwarddatums; opgeslagen
       // XER early/late/float-uitkomsten zijn op geen van beide paden solverinvoer.
       if (backwardActualPin.eligible) {
-        // Review-bevinding 4 (poortdivergentie): dezelfde gedeelde poort als `scheduleAnalysis`
+        // Dezelfde gedeelde poort als `scheduleAnalysis`
         // (`explainP6CompletedLateRemainingWindowEligibilityResolved`) — inclusief de `backwardActualPin`-
         // voorwaarde die hierboven al gold, zodat een taak nooit "tussen de twee poorten in" kan
         // vallen (bv. `TK_Complete` zonder `act_end_date`: wel completedWindow-eligible, niet
@@ -3719,7 +3253,7 @@ export class CPMSolver {
         if (explainP6CompletedLateRemainingWindowEligibilityResolved(
           task, this.dataDate, this.options.schedulingOptions,
         ).eligible) {
-          // Diagnose laag 1, klasse (i) (rehab-2, 2.036 voltooide taken, 99,9% dekking): een
+          // Gemeten (rehab-2, 2.036 voltooide taken, 99,9% dekking): een
           // voltooide activiteit staat aan de late zijde óók op nul restduur op de statusdatum —
           // `LF = prevWorkInstant(LS)` op de taak-eigen (voortgangs)kalender, `LS` = de vroegste
           // van de door haar opvolgers toegestane late finishen, geklemd op de statusdatum. Geen
@@ -3727,7 +3261,7 @@ export class CPMSolver {
           // forward completed-display-window hierboven).
           //
           // Bewust gepoort op `completedWindow.eligible` (dezelfde `explainP6CompletedDataDateWindow`
-          // die ook de FORWARD-display stuurt): dat is precies de asymmetrie uit de diagnose — ES
+          // die ook de FORWARD-display stuurt): ES
           // toont daar al het statusdatumvenster, dus LS hoort dat ook te doen. Een voltooide taak
           // die niet door die (nauwe) poort komt — de CP_Phys-route of de LOE/hammock-actual-finish-
           // uitzondering (`explainCompletedXerLoeActualFinishEligibilityResolved`, expliciet ZONDER
@@ -3744,11 +3278,11 @@ export class CPMSolver {
             if (succTask.isHammock) continue;
             const succCal = this.calendarFor(succTask);
             const succRawCompleted = !!succTask.time.actualFinish && succTask.time.completion >= 1;
-            // Zelfde gedeelde poort als hierboven/verderop (review-bevinding 4) — niet alleen
+            // Zelfde gedeelde poort als hierboven/verderop — niet alleen
             // `completedWindow.eligible`: een opvolger zonder `act_end_date` kan wél door de
             // (bron-onafhankelijke) completedWindow-poort komen maar zelf NIET door
             // `backwardActualPin`, en heeft dan géén door deze tak berekende ls/lf om op terug te
-            // rekenen — dat zou anders precies de poortdivergentie uit de review reproduceren.
+            // rekenen (poortdivergentie).
             const succUsesRemainingWindow = explainP6CompletedLateRemainingWindowEligibilityResolved(
               succTask, this.dataDate, this.options.schedulingOptions,
             ).eligible;
@@ -3761,9 +3295,8 @@ export class CPMSolver {
             // activiteiten (R1 zonder lag: 2.033/2.036), maar WEL zolang de opvolger nog restwerk
             // heeft (R2 mét lag altijd: slechts 1.796/2.036 — de drie R1-uitzonderingen hebben
             // stuk voor stuk een NIET-voltooide maatgevende opvolger).
-            // Her-review bevinding 4: een PROCENTUELE lag wordt tegen de voorgangerduur opgelost, en
-            // de nulrestduur-kloon hieronder zet die duur voor SS/SF op 0 — de lag verdween daar dus
-            // stil (FS/FF hielden 'm wél). Daarom hier eerst tegen de ONGEWIJZIGDE taak vastzetten,
+            // Een PROCENTUELE lag wordt tegen de voorgangerduur opgelost, en de nulrestduur-kloon
+            // hieronder zet die duur voor SS/SF op 0 — de lag zou stil verdwijnen. Daarom hier eerst tegen de ONGEWIJZIGDE taak vastzetten,
             // in de eenheid die de relatiewiskunde voor deze lag-soort leest (WORKTIME: minuten in de
             // lag-kalender én dagen; ELAPSEDTIME: alleen dagen — `resolveElapsedMinutes` zou een
             // minutenwaarde als klokminuten lezen), en `lagPercent` wissen. Daarna is de kloon een
@@ -3774,7 +3307,7 @@ export class CPMSolver {
               ? seq
               : seq.lagUnit === 'ELAPSEDTIME'
                 // `lagMinutes` blijft staan: `resolveElapsedMinutes` geeft hem voorrang, en dat moet
-                // hier niet omkeren (her-review N4) — alleen de PROCENT-tak wordt tegen de echte duur
+                // hier niet omkeren — alleen de PROCENT-tak wordt tegen de echte duur
                 // in dagen vastgezet.
                 ? { ...seq, lagDays: resolveEffectiveLagDays(seq, task), lagPercent: undefined }
                 : {
@@ -3790,7 +3323,7 @@ export class CPMSolver {
               ls: this.shiftByLevelingDelay(succCal, succTask, succResult.ls, -1),
               lf: this.shiftByLevelingDelay(succCal, succTask, succResult.lf, -1),
             };
-            // Review-bevinding 3: voor START_START/START_FINISH geeft `backwardConstraint` de late
+            // Voor START_START/START_FINISH geeft `backwardConstraint` de late
             // START van de voorganger terug via `finishFromStart(pe, predLS, predTask)` — d.w.z.
             // `predLS` plus de VOLLE geplande duur van de voorganger (spiegel van de forward-
             // duurtoepassing, normaal correct). Voor een voltooide taak met nul restduur is die
@@ -3806,14 +3339,13 @@ export class CPMSolver {
             // `milestoneKind: undefined`: `relationBoundaryFlags` leidt `predStartsNextDay` af uit
             // `scheduleDuration <= 0` PLUS `milestoneKind === 'FINISH'`. Door de duur op 0 te zetten
             // wordt de eerste helft altijd waar, dus zonder deze regel zou een voltooide EINDmijlpaal-
-            // met-duur (T15-vorm) hier een extra werkdaggrens-sprong krijgen die een gewone voltooide
+            // met-duur hier een extra werkdaggrens-sprong krijgen die een gewone voltooide
             // taak niet krijgt. Onder de aanname van deze tak — nul restduur, LS is het anker,
             // `LF = prevWorkInstant(LS)` — bestaat die aparte finishgrens niet.
-            // EERLIJK GELABELD (her-review bevinding 6): dit is DEFENSIEF en via de XER-lezer
-            // ONBEREIKBAAR — `xerReader` zet `milestoneKind` alleen voor `TT_Mile`/`TT_FinMile`, en
-            // die weigert de gedeelde poort al met `wrongActivityType`. Het pad bestaat alleen via een
-            // IFC-round-trip plus handmatig markeren als mijlpaal; er is geen test die het raakt en de
-            // regel weglaten laat de suite groen. Geen gefixte bug dus, wel een gesloten deur.
+            // DEFENSIEF en via de XER-lezer ONBEREIKBAAR — `xerReader` zet `milestoneKind` alleen voor
+            // `TT_Mile`/`TT_FinMile`, en die weigert de gedeelde poort al met `wrongActivityType`. Het
+            // pad bestaat alleen via een IFC-round-trip plus handmatig markeren als mijlpaal; geen test
+            // raakt het.
             const zeroRemainingPredTask: Task = isStartSideRelation
               ? {
                 ...task,
@@ -3825,7 +3357,7 @@ export class CPMSolver {
             const constraintFinish = backwardConstraint(
               this.relDeps, delayShiftedSuccResult, effectiveSeq, zeroRemainingPredTask, succTask,
               progressCal, succCal, this.p6ZeroDurationUsesFinishBoundary(succTask, succCal),
-              // C7 bewust NIET in deze nulrestduur-voortgangstak: ongemeten (B05-vorm, geschrapt).
+              // C7 bewust NIET in deze nulrestduur-voortgangstak: ongemeten.
             );
             // FS/FF: `constraintFinish` is een echte late FINISH van de voorganger — de
             // nulrestduur-conversie naar een late START loopt via `nextWorkInstant` (spiegel van
@@ -3857,7 +3389,7 @@ export class CPMSolver {
         continue;
       }
 
-      // Hammock (§4.4, normatief): een gevolg, geen oorzaak. GEEN backward-`min`-doorgifte; per
+      // Hammock (normatief): een gevolg, geen oorzaak. GEEN backward-`min`-doorgifte; per
       // definitie `LS = ES` en `LF = EF` (⇒ tf=ff=0, kritiek-neutraal — geforceerd in computeResults).
       // De gewone min-combinatie wordt overgeslagen.
       if (task.isHammock) {
@@ -3866,42 +3398,23 @@ export class CPMSolver {
         continue;
       }
 
-      // Handmatig gepland (Z9a): VERPLICHTE early-return, zelfde vorm als de hammock-tak
-      // hierboven — `LS = ES`, `LF = EF`. Zonder deze return zou de gewone backward-combinatie
-      // hieronder (`applyBackwardBound` + `subDuration(predCal, lateFinish, task)`) een
-      // `lateFinish`/`lateStart` herrekenen die NIETS met de gepinde `earlyStart`/`earlyFinish`
-      // te maken heeft (`subDuration` trekt de TAAKDUUR van `lateFinish` af — voor een manual
-      // taak is die afgeleide duur toevallig, geen contract) ⇒ spookfloat (mutatiebewijs: deze
-      // return weghalen laat de `A`-cel in `msp-57-z9a-manual-pin-forward` ROOD, zie cases-msp-
-      // pariteit.json — `A` erft dan `B`'s slack via de FS-backward-bound).
+      // Handmatig gepland: VERPLICHTE early-return, zelfde vorm als de hammock-tak hierboven —
+      // `LS = ES`, `LF = EF`. Zonder deze return herrekent de gewone backward-combinatie hieronder
+      // (`applyBackwardBound` + `subDuration(predCal, lateFinish, task)`) een `lateFinish`/`lateStart`
+      // die NIETS met de gepinde `earlyStart`/`earlyFinish` te maken heeft (de afgeleide duur van een
+      // manual taak is geen contract) ⇒ spookfloat (`msp-57-z9a-manual-pin-forward`).
       //
-      // Z9b (UITKOMST — deze paragraaf was hier eerder een vooruitwijzing naar nog te maken werk;
-      // bijgewerkt naar het daadwerkelijke besluit): `totalFloat`/`freeFloat` worden in
-      // `scheduleAnalysis.computeScheduleResults` DEFINITORISCH op 0 geforceerd voor een manual
-      // taak (`ls=es`/`lf=ef` ligt hier vast door CONSTRUCTIE, niet door berekening — elke afwijking
-      // van 0 die de generieke werkdag-tellende `signedFloat`-formule daarop teruggeeft is een
-      // FORMULE-ARTEFACT, geen echte speling; gemeten op het `msp-56`-geval, A op zaterdag: tf=-1
-      // zónder de forcing). `isCritical` wordt DAARENTEGEN BEWUST NIET geforceerd (géén
-      // hammock-achtige `isHammock ? false : ...`-tak) — met tf op 0 geeft de gewone
-      // `tf ≤ drempel`-regel vanzelf het juiste antwoord, en een manual taak is, anders dan een
-      // hammock, een ECHT anker dat legitiem kritiek kan zijn. Zie `scheduleAnalysis.ts` voor de
-      // forcing zelf en `msp-56`/`msp-57` in cases-msp-pariteit.json voor het mutatiebewijs
-      // (resp. het niet-werkdag- en het werkdag-ankergeval).
+      // `totalFloat`/`freeFloat` worden in `scheduleAnalysis.computeScheduleResults` DEFINITORISCH op
+      // 0 gezet voor een manual taak (de werkdag-tellende `signedFloat` geeft op een niet-werkdag-anker
+      // een artefact, `msp-56`). `isCritical` wordt BEWUST NIET geforceerd: met tf op 0 geeft de gewone
+      // `tf ≤ drempel`-regel het juiste antwoord, en een manual taak is, anders dan een hammock, een
+      // ECHT anker dat legitiem kritiek kan zijn.
       //
-      // BACKWARDDRUK-BESLUIT (Z9b, expliciet vastgelegd — was hier eerder "Z9b-scope, nog niet
-      // vooruitgegrepen"): ANDERS dan de hammock-tak hierboven krijgt een manual taak GEEN
-      // opvolger-uitsluiting (`succTask.isHammock`-achtige skip in de lus hieronder) — BEHOUDEN
-      // ZOALS HET IS, geen open punt. Motivering: de `ls`/`lf` die een manual taak via de lus
-      // hieronder (`delayShiftedSuccResult`/`backwardConstraint`) aan haar EIGEN voorgangers
-      // doorgeeft zijn NIET afgeleid (zoals bij een hammock, wiens LS/LF een kunstmatige "geen
-      // kritiek-signaal"-waarde is) — ze zijn IDENTIEK aan haar eigen, rauw gelezen ES/EF (dezelfde
-      // `ed.es`/`ed.ef` die twee regels hierboven worden teruggegeven). Een voorganger die via deze
-      // route backward-druk van een manual opvolger ontvangt, ontvangt dus een ECHT, MSP-getrouw
-      // finish-punt — precies het gedrag dat je van elke andere (auto) opvolger ook zou verwachten.
-      // Dat kan in theorie negatieve float op een voorganger geven wanneer de manual opvolger
-      // vroeger ligt dan de voorganger "zou willen" — dat is inhoudelijk correct MSP-gedrag (een
-      // gepinde datum kan een reëel logicaprobleem blootleggen), geen motor-bug. Geen corpusgeval
-      // gevonden dat dit raakt; bij een toekomstig tegenvoorbeeld wint dat corpusgeval.
+      // BACKWARDDRUK: anders dan een hammock legt een manual taak WEL backward-druk op haar eigen
+      // voorgangers. Haar doorgegeven `ls`/`lf` zijn identiek aan haar rauw gelezen ES/EF — een
+      // echt, MSP-getrouw finish-punt. Dat kan negatieve float op een voorganger geven wanneer de
+      // manual opvolger vroeger ligt; dat is correct (een gepinde datum kan een reëel logicaprobleem
+      // blootleggen). Geen corpusgeval raakt dit.
       if (task.manuallyScheduled) {
         const ed = earlyDates.get(taskId)!;
         results.set(taskId, { ls: new Date(ed.es.getTime()), lf: new Date(ed.ef.getTime()) });
@@ -3914,7 +3427,7 @@ export class CPMSolver {
       // Dit is niet de expliciete PROJECT.plan_end-variant: wanneer die bronoptie aan staat, blijft
       // dat projecteinde juist de late-passgrens (Terminal-fixture). De voorgangerpoort houdt een
       // volledig geïsoleerde finishmijlpaal buiten deze regel. Alleen de bestaande XER-vlag kan de
-      // tak activeren; alle andere formaten blijven byte-identiek.
+      // tak activeren.
       if (this.options.schedulingOptions?.p6FinishMilestoneBoundaryWindow === true
         && this.options.schedulingOptions?.useProjectEndDateForFloat !== true
         && succs.length === 0
@@ -3927,9 +3440,9 @@ export class CPMSolver {
       }
 
       // Niets kan ná het projecteinde eindigen — dat is de bovengrens voor élke taak. Opvolger-
-      // constraints kunnen de late finish alleen verder naar voren halen. (Voorheen kon een
-      // Start-Start-opvolger een late finish ná het projecteinde opleveren, waardoor de
-      // voorganger ten onrechte speling/niet-kritiek kreeg.)
+      // constraints kunnen de late finish alleen verder naar voren halen (anders kan een
+      // Start-Start-opvolger een late finish ná het projecteinde opleveren, en krijgt de voorganger
+      // ten onrechte speling).
       const predCal = this.calendarFor(task);
       let lateFinish = projectEnd;
       let lateFinishSource: CpmLateFinishSource = 'projectEnd';
@@ -3947,42 +3460,31 @@ export class CPMSolver {
         // rauwe actual-pin (ongewijzigd hierboven), niet iets zinvols om op terug te rekenen.
         const succCompletedHistoric = preserveActualDates && !!succTask.time.actualFinish
           && succTask.time.completion >= 1;
-        // Zelfde gedeelde poort als hierboven (review-bevinding 4): alleen een opvolger die er zelf
+        // Zelfde gedeelde poort als hierboven: alleen een opvolger die er zelf
         // door komt draagt een zinvolle late kant om op terug te rekenen.
         const succUsesRemainingWindow = explainP6CompletedLateRemainingWindowEligibilityResolved(
           succTask, this.dataDate, this.options.schedulingOptions,
         ).eligible;
         // C5, late kant: een voltooide CP_Phys-opvolger met een statusdatumpunt draagt een zinvolle
         // late kant (LS = LF = zijn punt) en legt dus gewone backward-druk op een open voorganger.
-        // Gemeten (X12 brok 6): Roads B2911 → OCEC11361, A33 → A65, OCEC10851 —SS→ OCEC10791.
+        // Gemeten: Roads B2911 → OCEC11361, A33 → A65, OCEC10851 —SS→ OCEC10791.
         const succIsPhysicalPoint = this.completedPhysicalPoints.has(succTask.id);
         if (succCompletedHistoric && !succUsesRemainingWindow && !succIsPhysicalPoint) continue;
         // C11: onder Progress Override legt een lopende opvolger geen backward-druk op een open voorganger.
         if (this.progressOverrideIgnoresRelation(task, succTask)) continue;
-        // Een hammock is een gevolg, geen oorzaak (§4.4): hij legt GEEN backward-druk op zijn
+        // Een hammock is een gevolg, geen oorzaak: hij legt GEEN backward-druk op zijn
         // voorgangers (drivers). Een strakke opvolger van de hammock kan zo nooit via de hammock heen
         // negatieve float op de start-/finish-driver leggen — de driver ziet alleen zijn eigen
         // (niet-hammock) opvolgers.
         if (succTask.isHammock) continue;
-        // Z6-fixronde B2 (backward-DOORGIFTE-spiegel, Opus-review-probe P→A(delay)→S): `succTask`
-        // heeft hier per constructie minstens één voorganger (`task`, via déze `seq`), dus de
-        // ANKERREGEL hierboven in `forwardPass` heeft haar eigen `levelingDelay` al toegepast op
-        // haar early start (mits ingesteld). `succResult.ls`/`.lf` zelf blijven daar bewust
-        // ONAFHANKELIJK van (§`subDuration`s docblok, "geen-phantom-float" voor `succTask` zelf) —
-        // maar DAARDOOR kent de late-zijde-druk die `succTask` op HAAR EIGEN voorganger (`task`,
-        // hier) legt de vertraging nog niet: zonder correctie zou `task`s berekende `lateFinish`
-        // een vaste `delay`-hoeveelheid speling tonen die ze feitelijk niet heeft (mutatiebewijs:
-        // een P→A(delay)→S-keten gaf P.tf=`delay` i.p.v. 0, en P kwam ten onrechte niet-kritiek uit
-        // — terwijl elke verschuiving van P via A's vaste delay 1-op-1 doorwerkt naar S en dus naar
-        // `projectEnd`). Spiegelt exact hoe `shiftLagPred` een GEWONE relatie-lag al symmetrisch
-        // forward/backward toepast — `levelingDelay` is hier gewoon een lag die NÁ de relatiewiskunde
-        // wordt opgeteld i.p.v. erin verwerkt, dus de spiegel moet ervóór (backward) plaatsvinden.
-        // EERLIJKE KANTTEKENING: dit repareert de doorgifte VIA de relatie-keten; het herstelt NIET
-        // vanzelf een `projectEnd`-vertekening als de genivelleerde taak zelf (indirect, via een
-        // langere keten) `projectEnd = max(EF)` bepaalt — dat blijft correct omdat `projectEnd`
-        // hierboven al UIT `earlyDates` komt (dus al inclusief elke toegepaste delay), niet omdat
-        // deze spiegel dat apart zou garanderen; de twee mechanismen werken hier los van elkaar
-        // samen, niet omdat het één het ander bewijst.
+        // Backward-DOORGIFTE-spiegel van de nivelleer-vertraging: `succTask` heeft hier per
+        // constructie minstens één voorganger (`task`), dus de ANKERREGEL in `forwardPass` heeft haar
+        // `levelingDelay` al op haar early start toegepast. `succResult.ls`/`.lf` blijven daar bewust
+        // onafhankelijk van (`subDuration`s docblok), dus de late-zijde-druk op `task` kent de
+        // vertraging nog niet: zonder correctie toont `task` een `delay`-hoeveelheid speling die ze niet
+        // heeft (een P→A(delay)→S-keten gaf P.tf=`delay` i.p.v. 0). Spiegelt hoe `shiftLagPred` een
+        // gewone relatie-lag symmetrisch toepast: de delay komt NÁ de relatiewiskunde, dus de spiegel
+        // ervóór. `projectEnd` komt los hiervan al uit `earlyDates` (inclusief elke delay).
         const succCal = this.calendarFor(succTask);
         const delayShiftedSuccResult = {
           ls: this.shiftByLevelingDelay(succCal, succTask, succResult.ls, -1),
@@ -4011,7 +3513,7 @@ export class CPMSolver {
         }
       }
 
-      // Late-zijde datum-constraints + deadline (fase 2.3) als extra bovengrens.
+      // Late-zijde datum-constraints + deadline als extra bovengrens.
       const successorBound = lateFinish;
       lateFinish = this.applyBackwardBound(task, lateFinish, predCal);
       // C9: een opvolgergrens buiten de eigen werktijd naar het einde van de vorige werkperiode — alleen
