@@ -821,6 +821,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # een onafgeronde werkdagfractie, via één regel voor paneel, raster, MCP en de lezers.
   RDCHECK="$DIR/.remaining-duration-check.mjs"
   if bundle_check "$DIR/check-remaining-duration.ts" "$RDCHECK"; then node "$RDCHECK" || STATUS=1; fi
+
+  # Voortgang invullen via de UI (besluiten eigenaar, `engine/progressEntry.ts`): zonder statusdatum
+  # gaat die op vandaag (Z1) — paneel, contextmenu, taakraster en "Taak bewerken", één undo-stap,
+  # één melding. Browserkant: tests/browser/progress-entry.spec.ts.
+  PECHECK="$DIR/.progress-entry.mjs"
+  if bundle_check "$DIR/check-progress-entry.ts" "$PECHECK"; then node "$PECHECK" || STATUS=1; fi
+
   EXTEDITCHECK="$DIR/.external-link-edit.mjs"
   if bundle_check "$DIR/check-external-link-edit.ts" "$EXTEDITCHECK"; then node "$EXTEDITCHECK" || STATUS=1; fi
 

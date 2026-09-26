@@ -174,7 +174,9 @@
     "xerArchiveReasonTruncated": "Raison : l'archive est tronquée — une partie des octets source manque.",
     "xerArchiveReasonBytesMissing": "Raison : les octets source eux-mêmes manquent — un autre logiciel IFC a probablement réécrit le fichier.",
     "xerArchiveReasonMetadataInvalid": "Raison : les octets source sont intacts, mais les données qui en sont dérivées sont inutilisables.",
-    "xerArchiveReasonStructure": "Raison : la structure de l'archive dans l'IFC est incorrecte (dupliquée, réordonnée ou mal rattachée)."
+    "xerArchiveReasonStructure": "Raison : la structure de l'archive dans l'IFC est incorrecte (dupliquée, réordonnée ou mal rattachée).",
+    "statusDateSetToday": "Il n’y avait pas encore de date de statut : elle est maintenant fixée à aujourd’hui ({{date}}), car l’avancement est mesuré jusqu’à la date de statut. Vous pouvez la modifier sous Planification → Date de statut.",
+    "durationBelowDoneWork": "« {{name}} » est déjà réalisée à {{percent}} % : une durée plus courte que le travail déjà effectué est impossible. La durée n’a pas été modifiée."
   },
   "scheduleErrors": {
     "cycle": "Dépendance circulaire entre les tâches : {{path}}",
@@ -596,7 +598,19 @@
     }
   },
   "progress": {
-    "actualsAfterStatusDate": "Les dates réelles ne peuvent pas être postérieures à la date de statut"
+    "actualsAfterStatusDate": "Les dates réelles ne peuvent pas être postérieures à la date de statut",
+    "actualStartAfterFinish": "Le début réel est postérieur à la fin réelle."
+  },
+  "actualStartQuestion": {
+    "title": "Indiquer le début réel",
+    "introOne": "« {{name}} » devait commencer après la date de statut ({{statusDate}}), mais reçoit maintenant un avancement. Quand a-t-elle réellement commencé ?",
+    "introMany": "Ces tâches devaient commencer après la date de statut ({{statusDate}}), mais reçoivent maintenant un avancement. Quand ont-elles réellement commencé ?",
+    "fieldLabel": "Début réel de {{name}}",
+    "latest": "Au plus tard le {{date}}.",
+    "required": "Saisissez une date.",
+    "afterStatusDate": "Cette date est postérieure à la date de statut ({{date}}).",
+    "afterActualFinish": "Cette date est postérieure à la fin réelle ({{date}}).",
+    "confirm": "Appliquer l’avancement"
   },
   "companyLibrary": {
     "title": "Bibliothèque de ressources",
@@ -1270,6 +1284,7 @@
       "actualAfterStatusDate": "La date réelle est postérieure à la date de statut.",
       "actualFinishBeforeStart": "La fin réelle précède le début réel.",
       "conflictingProgressInputs": "Les valeurs saisies se contredisent.",
+      "actualStartRequired": "Cette tâche est planifiée pour commencer après la date de statut : saisissez d'abord son début réel dans la feuille.",
       "rejected": "Refusé par le planificateur."
     },
     "field": {

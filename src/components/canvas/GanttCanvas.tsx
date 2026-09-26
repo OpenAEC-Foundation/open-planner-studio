@@ -1049,7 +1049,7 @@ export function GanttCanvas({
             if (contextMenu.task) contextMenuBulk.setCalendar(contextMenu.task.id, calendarId);
           }}
           onSetProgress={(completion) => {
-            if (contextMenu.task) contextMenuBulk.setProgress(contextMenu.task.id, completion);
+            if (contextMenu.task) void contextMenuBulk.setProgress(contextMenu.task.id, completion);
           }}
           onSetPriority={(priority) => {
             if (contextMenu.task) contextMenuBulk.setPriority(contextMenu.task.id, priority);

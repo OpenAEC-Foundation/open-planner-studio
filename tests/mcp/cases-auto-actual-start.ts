@@ -13,6 +13,12 @@
 // later dan het werkelijke einde, dan wordt de werkelijke start gelijk aan het einde — dagtaken op de
 // dag, uurtaken exact op het einde-instant. Een OPGEGEVEN actualStart blijft onaangeroerd.
 //
+// Besluit eigenaar (Z1b, regel 4): de AI-koppeling leidt die start NIET meer af wanneer de geplande
+// start ná de statusdatum ligt — zo'n update wordt per item geweigerd met de uitleg dat de AI
+// `actualStart` moet meegeven (tests/mcp/cases-progress-entry-ai.ts). De klem hierboven blijft het
+// vangnet van store en raster (tests/planning/check-auto-actual-start.ts); hier toetsen we dat de
+// geweigerde varianten niets veranderen en dat een OPGEGEVEN start gewoon werkt.
+//
 // Alles loopt door de echte JSON-RPC-dispatcher (schema's, stale-guard, transactie), niet door de
 // validatiefunctie alleen.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
@@ -78,36 +84,41 @@ const SCENARIOS: readonly { kind: Kind; statusDate: string; finish: string; expl
 ];
 
 for (const { kind, statusDate, finish, explicitStart } of SCENARIOS) {
-  test(`${kind}: completion 100 ⇒ werkelijke start = werkelijk einde (statusdatum), nooit erna`, async () => {
+  /** Eén zachte weigering die de AI vertelt de werkelijke start mee te geven; taak ongewijzigd. */
+  function assertAskedForActualStart(res: any, t: string, before: string, label: string): void {
+    const rejections: { id: string; reason: string }[] = res.itemRejections ?? [];
+    assertEq(rejections.length, 1, `${label}: precies één per-item-weigering`);
+    assert(/progress\.actualStart/.test(rejections[0]?.reason ?? ''), `${label}: de reden vraagt om actualStart: ${rejections[0]?.reason}`);
+    assertEq(JSON.stringify(timeOf(t)), before, `${label}: taak ongewijzigd`);
+  }
+
+  test(`${kind}: completion 100 zonder actualStart ⇒ geweigerd, de AI moet de werkelijke start meegeven`, async () => {
     const t = setup(kind, statusDate);
     const es = timeOf(t).earlyStart;
     assert(es > statusDate, `voorwaarde: vroege start (${es}) ligt ná de statusdatum (${statusDate})`);
+    const before = JSON.stringify(timeOf(t));
     const res = await rpc('planner_update_tasks', { updates: [{ id: t, progress: { completion: 100 } }] });
-    assertAccepted(res, 'completion 100');
-    assertEq({ as: timeOf(t).actualStart, af: timeOf(t).actualFinish }, { as: statusDate, af: statusDate },
-      'afgeleide start geklemd op het einde');
-    assertEq({ completion: timeOf(t).completion, status: statusOf(t) }, { completion: 1, status: 'COMPLETED' },
-      'taak voltooid');
+    assertAskedForActualStart(res, t, before, 'completion 100');
+    assertEq(statusOf(t), 'NOT_STARTED', 'taak niet gestart');
   });
 
-  test(`${kind}: completion 100 + actualFinish zonder actualStart ⇒ start = dat einde, geen weigering`, async () => {
+  test(`${kind}: completion 100 + actualFinish zonder actualStart ⇒ ook geweigerd (geen verzonnen start)`, async () => {
     const t = setup(kind, statusDate);
+    const before = JSON.stringify(timeOf(t));
     const res = await rpc('planner_update_tasks', {
       updates: [{ id: t, progress: { completion: 100, actualFinish: finish } }],
     });
-    assertAccepted(res, 'completion 100 + actualFinish');
-    assertEq({ as: timeOf(t).actualStart, af: timeOf(t).actualFinish }, { as: finish, af: finish },
-      'afgeleide start = het opgegeven einde');
+    assertAskedForActualStart(res, t, before, 'completion 100 + actualFinish');
   });
 
-  test(`${kind}: completion 100 via planner_batch ⇒ dezelfde regel`, async () => {
+  test(`${kind}: completion 100 via planner_batch ⇒ dezelfde weigering`, async () => {
     const t = setup(kind, statusDate);
+    const before = JSON.stringify(timeOf(t));
     const res = await rpc('planner_batch', {
       steps: [{ tool: 'planner_update_tasks', args: { updates: [{ id: t, progress: { completion: 100 } }] } }],
     });
     assert(res.ok === true, `batch gaf een fout: ${JSON.stringify(res)}`);
-    assertEq({ as: timeOf(t).actualStart, af: timeOf(t).actualFinish }, { as: statusDate, af: statusDate },
-      'afgeleide start geklemd op het einde (batch)');
+    assertEq(JSON.stringify(timeOf(t)), before, 'taak ongewijzigd (batch)');
   });
 
   test(`${kind}: een OPGEGEVEN actualStart blijft onaangeroerd`, async () => {

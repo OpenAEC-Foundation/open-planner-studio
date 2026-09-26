@@ -104,7 +104,9 @@
     "xerArchiveReasonTruncated": "理由: アーカイブが途中で切れています。ソースバイトの一部がありません。",
     "xerArchiveReasonBytesMissing": "理由: ソースバイト自体がありません。別の IFC プログラムがファイルを書き換えた可能性があります。",
     "xerArchiveReasonMetadataInvalid": "理由: ソースバイトは無傷ですが、そこから導出したデータが使用できません。",
-    "xerArchiveReasonStructure": "理由: IFC 内のアーカイブ構造が正しくありません（重複、並べ替え、または誤った関連付け）。"
+    "xerArchiveReasonStructure": "理由: IFC 内のアーカイブ構造が正しくありません（重複、並べ替え、または誤った関連付け）。",
+    "statusDateSetToday": "状態日がまだありませんでした。進捗は状態日までで測るため、今日（{{date}}）に設定しました。計画 → 状態日で変更できます。",
+    "durationBelowDoneWork": "「{{name}}」はすでに {{percent}}% 完了しています。完了済みの作業より短い期間にはできません。期間は変更されていません。"
   },
   "scheduleErrors": {
     "cycle": "タスク間に循環依存があります: {{path}}",
@@ -524,7 +526,19 @@
     }
   },
   "progress": {
-    "actualsAfterStatusDate": "実績日は状態日より後にできません"
+    "actualsAfterStatusDate": "実績日は状態日より後にできません",
+    "actualStartAfterFinish": "実績開始日が実績終了日より後です。"
+  },
+  "actualStartQuestion": {
+    "title": "実績開始日を入力",
+    "introOne": "「{{name}}」は状態日（{{statusDate}}）より後に開始する計画でしたが、進捗が入力されました。実際にはいつ開始しましたか？",
+    "introMany": "これらのタスクは状態日（{{statusDate}}）より後に開始する計画でしたが、進捗が入力されました。実際にはいつ開始しましたか？",
+    "fieldLabel": "{{name}} の実績開始日",
+    "latest": "{{date}} まで。",
+    "required": "日付を入力してください。",
+    "afterStatusDate": "この日付は状態日（{{date}}）より後です。",
+    "afterActualFinish": "この日付は実績終了日（{{date}}）より後です。",
+    "confirm": "進捗を適用"
   },
   "companyLibrary": {
     "title": "リソースライブラリ",
@@ -1170,6 +1184,7 @@
       "actualAfterStatusDate": "実際の日付がステータス日より後です。",
       "actualFinishBeforeStart": "実終了が実開始より前です。",
       "conflictingProgressInputs": "入力された値が矛盾しています。",
+      "actualStartRequired": "このタスクはステータス日より後に開始する計画です。まずシートに実際の開始日を入力してください。",
       "rejected": "プランナーに拒否されました。"
     },
     "field": {

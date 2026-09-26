@@ -66,6 +66,12 @@ Controleer de namen en schema's daar of via `tools/list` — raad ze nooit.
 7. **Baseline en voortgang** — `planner_save_baseline` (en `planner_list_baselines` /
    `planner_activate_baseline` / `planner_rename_baseline` / `planner_delete_baseline`), voortgang
    via `planner_update_tasks`, vergelijken met `planner_compare_baseline` en `planner_analyze_delay`.
+   Voortgang vraagt een statusdatum: zet die eerst met `planner_update_project` → `statusDate` — de
+   peildatum van de gebruiker, verzin hem niet; zonder statusdatum weigert de tool voortgang. Geef
+   voortgang op een taak zonder werkelijke start waarvan de geplande start ná de statusdatum ligt
+   altijd mét `actualStart` op (vraag die datum na); anders weigert de tool het item. Een
+   duurwijziging van een lopende taak houdt het gedane werk gelijk: `progressAdjusted` in het
+   resultaat meldt de nieuwe restduur en het nieuwe percentage; korter dan het gedane werk kan niet.
 
 ## Herberekenen
 

@@ -209,7 +209,9 @@
     "xerArchiveReasonTruncated": "Powód: archiwum jest obcięte — brakuje części bajtów źródłowych.",
     "xerArchiveReasonBytesMissing": "Powód: brakuje samych bajtów źródłowych — prawdopodobnie inny program IFC przepisał plik.",
     "xerArchiveReasonMetadataInvalid": "Powód: bajty źródłowe są nienaruszone, ale dane z nich wyprowadzone są bezużyteczne.",
-    "xerArchiveReasonStructure": "Powód: struktura archiwum w IFC jest nieprawidłowa (zdublowana, przestawiona lub błędnie powiązana)."
+    "xerArchiveReasonStructure": "Powód: struktura archiwum w IFC jest nieprawidłowa (zdublowana, przestawiona lub błędnie powiązana).",
+    "statusDateSetToday": "Nie było jeszcze daty statusu: ustawiono ją na dziś ({{date}}), ponieważ postęp jest mierzony do daty statusu. Możesz ją zmienić w Planowanie → Data statusu.",
+    "durationBelowDoneWork": "„{{name}}” jest już wykonane w {{percent}}%: czas trwania krótszy niż wykonana praca jest niemożliwy. Czas trwania nie został zmieniony."
   },
   "scheduleErrors": {
     "cycle": "Zależność cykliczna między zadaniami: {{path}}",
@@ -632,7 +634,19 @@
     }
   },
   "progress": {
-    "actualsAfterStatusDate": "Rzeczywiste daty nie mogą wypadać po dacie statusu"
+    "actualsAfterStatusDate": "Rzeczywiste daty nie mogą wypadać po dacie statusu",
+    "actualStartAfterFinish": "Rzeczywiste rozpoczęcie jest późniejsze niż rzeczywiste zakończenie."
+  },
+  "actualStartQuestion": {
+    "title": "Podaj rzeczywiste rozpoczęcie",
+    "introOne": "„{{name}}” miało się zacząć po dacie statusu ({{statusDate}}), a teraz otrzymuje postęp. Kiedy faktycznie się rozpoczęło?",
+    "introMany": "Te zadania miały się zacząć po dacie statusu ({{statusDate}}), a teraz otrzymują postęp. Kiedy faktycznie się rozpoczęły?",
+    "fieldLabel": "Rzeczywiste rozpoczęcie: {{name}}",
+    "latest": "Najpóźniej {{date}}.",
+    "required": "Wprowadź datę.",
+    "afterStatusDate": "Ta data jest późniejsza niż data statusu ({{date}}).",
+    "afterActualFinish": "Ta data jest późniejsza niż rzeczywiste zakończenie ({{date}}).",
+    "confirm": "Zastosuj postęp"
   },
   "companyLibrary": {
     "title": "Biblioteka zasobów",
@@ -1320,6 +1334,7 @@
       "actualAfterStatusDate": "Rzeczywista data przypada po dacie statusu.",
       "actualFinishBeforeStart": "Rzeczywiste zakończenie przypada przed rzeczywistym startem.",
       "conflictingProgressInputs": "Wprowadzone wartości są ze sobą sprzeczne.",
+      "actualStartRequired": "To zadanie zgodnie z planem zaczyna się dopiero po dacie statusu: najpierw wpisz w arkuszu jego rzeczywisty początek.",
       "rejected": "Odrzucone przez planistę."
     },
     "field": {

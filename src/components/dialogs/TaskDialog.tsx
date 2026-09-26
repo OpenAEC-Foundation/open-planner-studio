@@ -6,9 +6,9 @@ import { notifyHierarchyCycle } from '@/state/hierarchyRelationNotice';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
-import {
-  draftWithActualFinish, draftWithActualStart, draftWithProgress, saveTaskDialog,
-} from '@/state/taskDialogSave';
+import { localTodayIso } from '@/utils/dateUtils';
+import { planProgressEntry, type ProgressEdit, type ProgressEntryResult } from '@/engine/progressEntry';
+import { saveTaskDialog } from '@/state/taskDialogSave';
 import { shownStart } from '@/utils/taskDates';
 import { milestoneRefusal } from '@/engine/taskMilestoneTransition';
 import { milestoneRefusalNotices } from '@/state/structuralTransition';
@@ -132,6 +132,25 @@ export function TaskDialog() {
     return () => clearTimeout(id);
   }, [showTaskDialog, editingTaskId]);
 
+  // Voortgang invullen is een UI-route (`engine/progressEntry.ts`): dezelfde beslissing als het
+  // paneel (`planProgressEntry`), maar op de concepttaak en pas vastgelegd bij Opslaan. Zonder
+  // statusdatum rekent de concepttaak met vandaag en zet Opslaan de statusdatum op vandaag (Z1);
+  // een taak die pas na de statusdatum zou beginnen vraagt eerst de werkelijke start (Z1b, via
+  // `TaskProgressFields`). Via een ref, omdat het antwoord op die vraag asynchroon terugkomt.
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const enterDraftProgress = (edit: ProgressEdit, opts?: { actualStart?: string }): ProgressEntryResult => {
+    const plan = planProgressEntry(draftRef.current, edit, {
+      statusDate: project.statusDate, today: localTodayIso(), actualStart: opts?.actualStart,
+    });
+    if (!plan.ok) return plan;
+    if (plan.change) {
+      draftRef.current = plan.change.task;
+      setDraft(plan.change.task);
+    }
+    return { ok: true };
+  };
+
   const handleSave = () => {
     if (!draft.name.trim()) return;
     // Een andere bovenliggende taak die via de relaties van de nieuwe fase een kring zou maken
@@ -165,13 +184,17 @@ export function TaskDialog() {
     // een echte duurbewerking) staan in state/taskDialogSave.ts. G5 (#170): met een open
     // bewerksessie maakt die van alles wat deze sessie op de store deed (werkregel, toewijzingen,
     // werk, relaties) plus het Opslaan zelf één undo-stap (`squashHistorySince`).
-    saveTaskDialog({
+    // Geweigerd (een duur korter dan het gedane werk van een lopende taak, met een melding): er is
+    // niets opgeslagen en de dialoog blijft open, zodat de gebruiker de duur kan corrigeren.
+    const saved = saveTaskDialog({
       editingTaskId: editingTask ? editingTask.id : null,
       draft,
       startDate,
       initialDuration: initialDurationRef.current,
       session: historyMarkRef.current,
+      today: localTodayIso(),
     });
+    if (!saved) return;
     setUI({ showTaskDialog: false, editingTaskId: null });
   };
 
@@ -302,20 +325,11 @@ export function TaskDialog() {
 
           <TaskProgressFields
             task={draft}
-            // Dezelfde regels als de paneelsetters (§3.2), maar op de draft — commit pas op Opslaan.
-            // `null` = geweigerd (actual ná de statusdatum), net als de boolean van de store-setters.
-            onSetProgress={raw => setDraft(d => draftWithProgress(d, raw, project.statusDate))}
-            // De weigering hangt alleen van datum en statusdatum af, dus synchroon te beantwoorden.
-            onSetActualStart={date => {
-              if (!draftWithActualStart(draft, date, project.statusDate)) return false;
-              setDraft(d => draftWithActualStart(d, date, project.statusDate) ?? d);
-              return true;
-            }}
-            onSetActualFinish={date => {
-              if (!draftWithActualFinish(draft, date, project.statusDate)) return false;
-              setDraft(d => draftWithActualFinish(d, date, project.statusDate) ?? d);
-              return true;
-            }}
+            // Dezelfde regels als het paneel (§3.2 + invoerregels), maar op de draft — commit pas op
+            // Opslaan. Een weigering of de vraag naar de werkelijke start komt terug als resultaat.
+            onSetProgress={(raw, opts) => enterDraftProgress({ field: 'completion', value: raw }, opts)}
+            onSetActualStart={(date, opts) => enterDraftProgress({ field: 'actualStart', value: date }, opts)}
+            onSetActualFinish={(date, opts) => enterDraftProgress({ field: 'actualFinish', value: date }, opts)}
           />
 
           {editingTask && (

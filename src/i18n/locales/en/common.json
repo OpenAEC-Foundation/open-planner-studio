@@ -139,7 +139,9 @@
     "xerArchiveReasonTruncated": "Reason: the archive is truncated — part of the source bytes is missing.",
     "xerArchiveReasonBytesMissing": "Reason: the source bytes themselves are missing — another IFC program probably rewrote the file.",
     "xerArchiveReasonMetadataInvalid": "Reason: the source bytes are intact, but the data derived from them is unusable.",
-    "xerArchiveReasonStructure": "Reason: the archive's structure in the IFC is wrong (duplicated, reordered or attached incorrectly)."
+    "xerArchiveReasonStructure": "Reason: the archive's structure in the IFC is wrong (duplicated, reordered or attached incorrectly).",
+    "statusDateSetToday": "There was no status date yet: it is now set to today ({{date}}), because progress is measured up to the status date. You can change it under Planning → Status date.",
+    "durationBelowDoneWork": "‘{{name}}’ is already {{percent}}% done: a duration shorter than the work already done isn't possible. The duration was not changed."
   },
   "scheduleErrors": {
     "cycle": "Circular dependency between tasks: {{path}}",
@@ -560,7 +562,19 @@
     }
   },
   "progress": {
-    "actualsAfterStatusDate": "Actuals cannot be after the status date"
+    "actualsAfterStatusDate": "Actuals cannot be after the status date",
+    "actualStartAfterFinish": "The actual start is after the actual finish."
+  },
+  "actualStartQuestion": {
+    "title": "Enter the actual start",
+    "introOne": "‘{{name}}’ was planned to start after the status date ({{statusDate}}), but is now getting progress. When did it actually start?",
+    "introMany": "These tasks were planned to start after the status date ({{statusDate}}), but are now getting progress. When did they actually start?",
+    "fieldLabel": "Actual start of {{name}}",
+    "latest": "No later than {{date}}.",
+    "required": "Enter a date.",
+    "afterStatusDate": "This date is after the status date ({{date}}).",
+    "afterActualFinish": "This date is after the actual finish ({{date}}).",
+    "confirm": "Apply progress"
   },
   "companyLibrary": {
     "title": "Resource library",
@@ -1220,6 +1234,7 @@
       "actualAfterStatusDate": "The actual date is after the status date.",
       "actualFinishBeforeStart": "Actual finish is before actual start.",
       "conflictingProgressInputs": "The entered values contradict each other.",
+      "actualStartRequired": "This task is planned to start after the status date: fill in its actual start in the sheet first.",
       "rejected": "Refused by the planner."
     },
     "field": {

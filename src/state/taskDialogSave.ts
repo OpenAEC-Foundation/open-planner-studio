@@ -9,6 +9,10 @@ import {
   constraintBlockingStart, predecessorDrivenTaskIds, startConstraintAfterEdit,
 } from '@/engine/startEditConstraint';
 import { notifyStartEdit, type StartEditNotice } from '@/state/startConstraintNotice';
+import { hasRecordedProgress } from '@/engine/progressEntry';
+import { durationBelowDoneWorkNotice, statusDateSetTodayNotice } from '@/state/progressEntryNotice';
+import { durationEditRefusal } from '@/engine/work/workRuleApply';
+import { taskCalendarHoursPerDay } from '@/utils/taskDefaults';
 import { getPersonalTaskTypes } from '@/services/taskTypes/personalTaskTypes';
 import type { Task } from '@/types/task';
 import { isSummaryTask } from '@/utils/taskHierarchy';
@@ -105,17 +109,69 @@ export interface TaskDialogSaveInput {
   initialDuration?: TaskDialogInitialDuration | null;
   /** De open bewerksessie van de dialoog (`historyMark`); afwezig ⇒ één `withTransaction`. */
   session?: HistorySessionMark | null;
+  /** Vandaag (`localTodayIso`), meegegeven door de dialoog: de invoerregels van
+   *  `engine/progressEntry.ts` gelden (Z1). Afwezig = vangnet zonder die regels. */
+  today?: string;
 }
 
 const PROGRESS_KEYS = ['completion', 'actualStart', 'actualFinish'] as const;
 
+/**
+ * De tijd die Opslaan op een bestaande taak schrijft, vóór het startanker (#231). Gedeeld door de
+ * weigering vooraf (eigenaarsbesluit 2026-09-26, duur korter dan het gedane werk) en `save`.
+ */
+function savedTime(
+  editingTask: Task,
+  draft: Task,
+  initialDuration: TaskDialogInitialDuration | null | undefined,
+): Task['time'] {
+  // Vers uit de store (niet de draft!): een CPM-herberekening tijdens het open staan van de
+  // dialoog mag niet worden teruggedraaid. Voortgangsvelden (completion/actualStart/actualFinish)
+  // komen WEL uit de draft — dat zijn de enige `time`-subvelden die deze sessie zelf muteert
+  // buiten de hieronder berekende schedule-ankervelden.
+  // Review B4 (taaktypes, #170): de duur ALLEEN uit de concept wanneer de gebruiker hem in deze
+  // sessie wijzigde — anders zou Opslaan een duur die de werkdriehoek intussen via de
+  // toewijzingssectie veranderde stil terugdraaien.
+  const durationTouched = !initialDuration
+    || draft.time.durationUnit !== initialDuration.unit
+    || draft.time.scheduleDuration !== initialDuration.scheduleDuration
+    || draft.time.durationMinutes !== initialDuration.durationMinutes;
+  const time = {
+    ...editingTask.time,
+    ...(durationTouched ? {
+      durationUnit: draft.time.durationUnit,
+      scheduleDuration: draft.time.scheduleDuration,
+      durationMinutes: draft.time.durationUnit === 'hours' ? draft.time.durationMinutes : undefined,
+    } : {}),
+  };
+  // De mijlpaaltransitie levert een VOLLEDIGE tijd (`...editingTask.time` uit de store) met duur
+  // 0. Daarom eerst: de duur uit de transitie wint van de draftduur, maar de sessiebewerkingen
+  // hieronder (voortgang, startdatum) mogen niet door de storewaarden worden overschreven —
+  // anders verdween "mijlpaal aan + voortgang/nieuwe start" in één sessie stil.
+  const milestoneTransition = taskMilestoneTransition(editingTask, draft.isMilestone);
+  if (milestoneTransition.time) Object.assign(time, milestoneTransition.time);
+  // Een verzameltaak draagt geen eigen voortgang (#203): haar waarden komen uit de rollup en de
+  // velden zijn in de dialoog uitgeschakeld. De draft is een momentopname van bij het openen;
+  // een herberekening tussendoor mag Opslaan niet met die verouderde waarde overschrijven.
+  if (!isSummaryTask(editingTask)) {
+    time.completion = draft.time.completion;
+    time.actualStart = draft.time.actualStart;
+    time.actualFinish = draft.time.actualFinish;
+  } else {
+    time.completion = editingTask.time.completion;
+    time.actualStart = editingTask.time.actualStart;
+    time.actualFinish = editingTask.time.actualFinish;
+  }
+  return time;
+}
+
 /** Bind het Opslaan van de dialoog aan precies één storecontext. */
-export function createTaskDialogSave(context: AppStoreContext): (input: TaskDialogSaveInput) => void {
+export function createTaskDialogSave(context: AppStoreContext): (input: TaskDialogSaveInput) => boolean {
   const batch = createBatchTransactions(context);
   const S = () => context.store.getState();
 
   const save = (
-    { editingTaskId, draft, startDate, initialDuration }: TaskDialogSaveInput,
+    { editingTaskId, draft, startDate, initialDuration, today }: TaskDialogSaveInput,
     notices: StartEditNotice[],
   ): void => {
     if (draft.customTaskTypeId) {
@@ -126,43 +182,7 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
 
     const editingTask = editingTaskId ? S().tasks.find(task => task.id === editingTaskId) : undefined;
     if (editingTask) {
-      // Vers uit de store (niet de draft!): een CPM-herberekening tijdens het open staan van de
-      // dialoog mag niet worden teruggedraaid. Voortgangsvelden (completion/actualStart/actualFinish)
-      // komen WEL uit de draft — dat zijn de enige `time`-subvelden die deze sessie zelf muteert
-      // buiten de hieronder berekende schedule-ankervelden.
-      // Review B4 (taaktypes, #170): de duur ALLEEN uit de concept wanneer de gebruiker hem in deze
-      // sessie wijzigde — anders zou Opslaan een duur die de werkdriehoek intussen via de
-      // toewijzingssectie veranderde stil terugdraaien.
-      const durationTouched = !initialDuration
-        || draft.time.durationUnit !== initialDuration.unit
-        || draft.time.scheduleDuration !== initialDuration.scheduleDuration
-        || draft.time.durationMinutes !== initialDuration.durationMinutes;
-      const time = {
-        ...editingTask.time,
-        ...(durationTouched ? {
-          durationUnit: draft.time.durationUnit,
-          scheduleDuration: draft.time.scheduleDuration,
-          durationMinutes: draft.time.durationUnit === 'hours' ? draft.time.durationMinutes : undefined,
-        } : {}),
-      };
-      // De mijlpaaltransitie levert een VOLLEDIGE tijd (`...editingTask.time` uit de store) met duur
-      // 0. Daarom eerst: de duur uit de transitie wint van de draftduur, maar de sessiebewerkingen
-      // hieronder (voortgang, startdatum) mogen niet door de storewaarden worden overschreven —
-      // anders verdween "mijlpaal aan + voortgang/nieuwe start" in één sessie stil.
-      const milestoneTransition = taskMilestoneTransition(editingTask, draft.isMilestone);
-      if (milestoneTransition.time) Object.assign(time, milestoneTransition.time);
-      // Een verzameltaak draagt geen eigen voortgang (#203): haar waarden komen uit de rollup en de
-      // velden zijn in de dialoog uitgeschakeld. De draft is een momentopname van bij het openen;
-      // een herberekening tussendoor mag Opslaan niet met die verouderde waarde overschrijven.
-      if (!isSummaryTask(editingTask)) {
-        time.completion = draft.time.completion;
-        time.actualStart = draft.time.actualStart;
-        time.actualFinish = draft.time.actualFinish;
-      } else {
-        time.completion = editingTask.time.completion;
-        time.actualStart = editingTask.time.actualStart;
-        time.actualFinish = editingTask.time.actualFinish;
-      }
+      const time = savedTime(editingTask, draft, initialDuration);
       // scheduleStart (het geplande anker) alléén bijwerken als de gebruiker de startdatum
       // daadwerkelijk wijzigde — anders zou opslaan de berekende start als nieuw anker vastleggen
       // en de drift na herberekenen herintroduceren.
@@ -204,7 +224,16 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
       // taak (status, afgeleid einde, resterende duur op de eventueel gewijzigde duur).
       if (PROGRESS_KEYS.some(key => time[key] !== editingTask.time[key])) {
         const merged: Task = { ...editingTask, ...patch, time };
-        applyProgressInvariants(merged, S().project.statusDate);
+        // Z1 (`engine/progressEntry.ts`): voortgang ingevuld zonder statusdatum ⇒ die gaat op vandaag,
+        // in deze transactie (één undo-stap samen met de voortgang), met de melding van het paneel.
+        // De concepttaak rekende al met vandaag (`progressEntryStatusDate` in TaskDialog.tsx).
+        let statusDate = S().project.statusDate;
+        if (!statusDate && today && hasRecordedProgress(merged.time)) {
+          S().setStatusDate(today);
+          S().notify(statusDateSetTodayNotice(today, S().ui.dateNotation));
+          statusDate = today;
+        }
+        applyProgressInvariants(merged, statusDate);
         patch.status = merged.status;
       }
       S().updateTask(editingTask.id, patch);
@@ -248,6 +277,18 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
   };
 
   return (input) => {
+    // Eigenaarsbesluit 2026-09-26 (optie 2): een lopende taak houdt bij een duurwijziging haar gedane
+    // werk; een duur korter dan dat werk wordt geweigerd. Vóór de transactie, zodat ook de naam, de
+    // ouder en een nieuw taaktype uit deze sessie niet half worden opgeslagen (`updateTask` zou
+    // alleen zijn eigen deel weigeren). `false` ⇒ niets opgeslagen, de dialoog blijft open.
+    const current = input.editingTaskId ? S().tasks.find(task => task.id === input.editingTaskId) : undefined;
+    if (current) {
+      const hoursPerDay = taskCalendarHoursPerDay({ ...current, calendarId: input.draft.calendarId }, S().calendars, S().calendar);
+      if (durationEditRefusal(current, savedTime(current, input.draft, input.initialDuration), hoursPerDay)) {
+        S().notify(durationBelowDoneWorkNotice(current));
+        return false;
+      }
+    }
     // Meldingen (startregel, #231) pas ná de mutaties en de undo-stap, via het ene kanaal.
     const notices: StartEditNotice[] = [];
     if (input.session) {
@@ -257,6 +298,7 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
       batch.withTransaction(() => save(input, notices));
     }
     notifyStartEdit(S().notify, notices, S().ui.dateNotation);
+    return true;
   };
 }
 

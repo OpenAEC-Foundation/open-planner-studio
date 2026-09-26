@@ -43,9 +43,10 @@ import { isThenable } from '@/utils/guards';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 import {
-  captureCalendarChange, captureTriangle, carryRemainingThroughDurationEdit, planWorkEdit, commitTrianglePlan,
+  captureCalendarChange, captureTriangle, carryRemainingThroughDurationEdit, durationEditRefusal, planWorkEdit, commitTrianglePlan,
   captureProgressWork, settleProgressWork, syncAssignmentWorkToContour,
   settleCalendarChange, settleDurationAftermath, settleDurationEdit, settleRuleChange,
+  type DurationEditProgress,
 } from '@/engine/work/workRuleApply';
 import type { WorkRule } from '@/types/workRule';
 import { markDocumentEdited } from '@/state/documentEdited';
@@ -98,6 +99,17 @@ export type BulkTaskItem = Partial<Task> & {
   tempId: string;
   position?: number;
 };
+
+/**
+ * Wat een veldpatch met de voortgang van een LOPENDE taak deed (eigenaarsbesluit 2026-09-26, optie 2
+ * — `durationEditProgress` in engine/work/workRuleApply.ts): de nieuwe duur is korter dan het gedane
+ * werk en dus geweigerd (de taak is ONGEWIJZIGD), of het percentage en de restduur zijn meegeschoven.
+ * `null` = geen lopende taak of geen duurwijziging.
+ */
+export type McpDurationProgressOutcome =
+  | { refused: Extract<DurationEditProgress, { refused: true }> }
+  | { progress: Extract<DurationEditProgress, { refused: false }> }
+  | null;
 
 function createMcpDraft(
   context: AppStoreContext,
@@ -387,7 +399,8 @@ function createMcpDraft(
    * `Object.assign` — die liet een expliciet-`undefined`-sleutel (bv. van een ongetypeerde aanroeper)
    * nog steeds een verplicht veld overschrijven; `mergeTaskTime` beschermt die klasse expliciet.
    */
-  updateTaskFields(id: string, updates: Partial<Task>): void {
+  updateTaskFields(id: string, updates: Partial<Task>): McpDurationProgressOutcome {
+    let outcome: McpDurationProgressOutcome = null;
     store.setState((s) => {
       const idx = s.tasks.findIndex((t) => t.id === id);
       if (idx < 0) return;
@@ -396,6 +409,12 @@ function createMcpDraft(
       // Per saldo niets gewijzigd ⇒ no-op, net als taskSlice.ts's `updateTask`: geen mutatie, geen
       // gevolgregel en geen `isDirty`. (De undo-stap en de herberekening zijn van de transactie.)
       if (sameValue(task, next)) return;
+      // Eigenaarsbesluit 2026-09-26 (optie 2) — tweeling van taskSlice.ts's `updateTask`: korter dan
+      // het gedane werk van een lopende taak ⇒ geweigerd, vóór enige mutatie.
+      if (taskTriggerChanges(task, next).timeBase) {
+        const refusal = durationEditRefusal(task, next.time, taskCalendarHoursPerDay(next, s.calendars, s.calendar));
+        if (refusal) { outcome = { refused: refusal }; return; }
+      }
       // Taaktypes-etappe (reviewbevinding K1) — tweeling van taskSlice.ts's `updateTask`: `workRule`
       // loopt via `settleRuleChange`, niet via de kale merge.
       const { time, workRule, calendarId, ...rest } = updates;
@@ -420,13 +439,14 @@ function createMcpDraft(
       // Taaktypes-etappe (bouwstap 4) — tweeling van taskSlice.ts's `updateTask`: momentopname vóór.
       const triangle = changes.timeBase ? captureTriangle(task, s.assignments, s) : null;
       const progressWork = time ? captureProgressWork(task, s) : null; // bevinding 1 — tweeling
-      const restBefore = [task.time.remainingTime, task.time.remainingMinutes];
+      const timeBefore = { ...task.time };
       Object.assign(task, rest);
       if (time) task.time = afterRest.time;
       if (changes.timeBase) {
-        // Eigenaarsbesluit 2026-09-05 — tweeling van taskSlice.ts: rest schuift mee, tenzij de patch 'm zelf zette.
-        const restUntouched = task.time.remainingTime === restBefore[0] && task.time.remainingMinutes === restBefore[1];
-        if (restUntouched) carryRemainingThroughDurationEdit(task, oldWorkMinutes, contourHpd);
+        // Eigenaarsbesluiten 2026-09-05/26 — tweeling van taskSlice.ts: de rest schuift mee, het
+        // percentage volgt, tenzij de patch zelf voortgang opgaf (`carryRemainingThroughDurationEdit`).
+        const carried = carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate);
+        if (carried && !carried.refused) outcome = { progress: carried };
         // Duur-/datumwijziging: dezelfde gevolgregels als taskSlice.ts's `updateTask` en het taakraster,
         // zie `applyDurationChangeRules` in taskDefaults.ts (kern van `settleDurationAftermath`).
         lost = applyDurationChangeRules(task, oldWorkMinutes, contourHpd, {
@@ -458,6 +478,7 @@ function createMcpDraft(
       reconcileHourInputFinish(task, finishBasis, resolveCalendar(task.calendarId, s.calendars, s.calendar));
       markDocumentEdited(s);
     });
+    return outcome;
   },
 
   /**
@@ -477,7 +498,8 @@ function createMcpDraft(
     id: string,
     top: Partial<Task>,
     timePatch?: { scheduleDuration?: number; durationUnit?: 'days' | 'hours'; durationMinutes?: number; durationType?: DurationType; clearDurationMinutes?: boolean },
-  ): void {
+  ): McpDurationProgressOutcome {
+    let outcome: McpDurationProgressOutcome = null;
     store.setState((s) => {
       const idx = s.tasks.findIndex((t) => t.id === id);
       if (idx < 0) return;
@@ -500,6 +522,11 @@ function createMcpDraft(
       const next: Task = { ...task, ...top };
       next.time = patchTime(next.time);
       if (sameValue(task, next)) return;
+      // Eigenaarsbesluit 2026-09-26 (optie 2), zie `updateTaskFields` hierboven: vóór enige mutatie.
+      if (taskTriggerChanges(task, next).timeBase) {
+        const refusal = durationEditRefusal(task, next.time, taskCalendarHoursPerDay(next, s.calendars, s.calendar));
+        if (refusal) { outcome = { refused: refusal }; return; }
+      }
       const { workRule, calendarId, ...topRest } = top;
       // B1-vervolg — basis VÓÓR de K2-kalenderstap (integratie #101, valkuil b), zie `updateTaskFields`.
       const finishBasis = hourInputFinishBasis(task);
@@ -523,14 +550,14 @@ function createMcpDraft(
       const oldWorkMinutes = taskWorkMinutesOf(task, contourHpd);
       // Taaktypes-etappe (bouwstap 4) — zelfde momentopname als `updateTaskFields` hierboven.
       const triangle = changes.timeBase ? captureTriangle(task, s.assignments, s) : null;
-      const restBefore = [task.time.remainingTime, task.time.remainingMinutes];
+      const timeBefore = { ...task.time };
       Object.assign(task, topRest);
       task.time = patchedTime;
       if (changes.timeBase) {
-        // Reviewbevinding F8 — zelfde `restUntouched`-poort als `updateTaskFields`: `top.time` past in
-        // `Partial<Task>`, dus een aanroeper kan de rest zelf zetten; die schuift dan niet óók nog.
-        const restUntouched = task.time.remainingTime === restBefore[0] && task.time.remainingMinutes === restBefore[1];
-        if (restUntouched) carryRemainingThroughDurationEdit(task, oldWorkMinutes, contourHpd);
+        // Reviewbevinding F8 — zelfde poort als `updateTaskFields`: `top.time` past in `Partial<Task>`,
+        // dus een aanroeper kan de voortgang zelf zetten; die wint dan (`carryRemainingThroughDurationEdit`).
+        const carried = carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate);
+        if (carried && !carried.refused) outcome = { progress: carried };
         // Duurwijziging: dezelfde gevolgregels als `updateTaskFields` hierboven, zie
         // `applyDurationChangeRules` in taskDefaults.ts (inclusief het wissen van de nivelleergaten, B7).
         lost = applyDurationChangeRules(task, oldWorkMinutes, contourHpd, {
@@ -556,6 +583,7 @@ function createMcpDraft(
       reconcileHourInputFinish(task, finishBasis, resolveCalendar(task.calendarId, s.calendars, s.calendar));
       markDocumentEdited(s);
     });
+    return outcome;
   },
 
   /**
