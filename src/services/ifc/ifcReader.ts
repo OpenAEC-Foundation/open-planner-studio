@@ -43,6 +43,7 @@ import {
 import { optionKeysOnly } from '@/services/ifc/schedulingProfileMigration';
 import { emptyMissingScheduleDates, resolveMissingScheduleDates } from '@/services/importDates';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import { seedScalarBands } from '@/utils/effectiveWorkTime';
 import {
   canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isoDurationToMinutes,
   isSubDayMinutes, promoteHourCalendar, promoteHourCalendars, registerCalendarBands, scalarHourFromClock,
@@ -2222,6 +2223,42 @@ function extractCalendarHourMeta(
   return result;
 }
 
+/**
+ * H7-vervolg — herkent een SCALAIRE dagkalender in een bestand dat OPS schreef vóór de
+ * `IsHourCalendar = .F.`-markering. Die writer materialiseerde voor een scalaire kalender met urentaak
+ * de effectieve banden (07–12 + 13–16) zonder te zeggen dat de kalender scalair was, waardoor hij als
+ * uurkalender 07:00–12:00 terugkwam. Alle drie de voorwaarden zijn vereist:
+ *  1. een OPS-scalarkenmerk in `OPS_Calendar`: `HoursPerDay` of `SimpleBreakStart`/`SimpleBreakDuration`.
+ *     De writer schrijft die sinds hun invoering uitsluitend bij `!cal.workTime` — een uurkalender
+ *     draagt ze nooit (bewaakt in `check-ifc-calendar-identity.ts` §10);
+ *  2. precies twee `IFCTIMEPERIOD`s — meer levert de effectieve-bandafleiding (`seedScalarBands`) niet;
+ *  3. zelfcontrole: de scalar die we reconstrueren (begin eerste band – eind laatste band, hpd en pauze
+ *     uit de pset) levert via `seedScalarBands` exact dezelfde banden op als in het bestand staan.
+ * Faalt één voorwaarde, dan `undefined`: het oude pad (discriminator a/b/c) blijft staan, niets geraden.
+ * Bestanden van andere pakketten dragen geen `OPS_Calendar` en komen hier dus nooit door.
+ */
+function legacyScalarFromEffectiveBands(
+  periods: { start: number; end: number }[],
+  calendar: WorkCalendar,
+  hoursPerDayProp: number | undefined,
+): Pick<WorkCalendar, 'workStartHour' | 'workEndHour' | 'hoursPerDay'> | undefined {
+  const hasSimpleBreak = calendar.simpleBreakStartMinute !== undefined
+    || calendar.simpleBreakDurationMinutes !== undefined;
+  if (hoursPerDayProp === undefined && !hasSimpleBreak) return undefined;
+  if (periods.length !== 2) return undefined;
+  const bands = canonicalizeBands({ 1: periods }).bands.byWeekday[1];
+  const start = bands[0].start;
+  const end = bands[bands.length - 1].end;
+  if (end > 24 * 60) return undefined; // over middernacht: geen scalaire werkdag
+  // Zonder `HoursPerDay` gold bij het schrijven hpd = eind − begin (spiegel `needsHoursPerDayOverride`).
+  const hoursPerDay = hoursPerDayProp ?? (end - start) / 60;
+  const reseeded = seedScalarBands(
+    start, end, hoursPerDay, calendar.simpleBreakStartMinute, calendar.simpleBreakDurationMinutes,
+  );
+  if (JSON.stringify(reseeded) !== JSON.stringify(bands)) return undefined;
+  return { workStartHour: start / 60, workEndHour: end / 60, hoursPerDay };
+}
+
 /** H7 — kalenders die het bestand expliciet als SCALAIR markeert (`IsHourCalendar = .F.`). Per parse
  * aangemaakte objecten als sleutel (zelfde patroon als het bandregister in `subdayIo`), dus niets lekt
  * tussen twee `readIFC`-aanroepen. `applyHourModeIFC` promoveert deze kalenders nooit, en leest de
@@ -2501,6 +2538,14 @@ function buildCalendarFromEntity(
     promoteHourCalendar(calendar, getCalendarBands(calendar), true, true);
   } else if (hourMeta.hourMode === false) {
     declaredScalarCalendars.add(calendar);
+  } else if (hourMeta.workStartHour === undefined && hourMeta.workEndHour === undefined) {
+    // Geen H7-markering: herken een scalaire kalender die OPS vóór die markering schreef
+    // (eigenaarsbesluit: herkennen en herstellen, zonder melding).
+    const legacy = legacyScalarFromEffectiveBands(periods, calendar, hpdOverride);
+    if (legacy) {
+      Object.assign(calendar, legacy);
+      declaredScalarCalendars.add(calendar);
+    }
   }
 
   return calendar;
