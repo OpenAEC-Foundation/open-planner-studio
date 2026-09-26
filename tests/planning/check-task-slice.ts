@@ -186,7 +186,7 @@ ok(
   ok(`toekomstige-taak-100 (rastercel): geaccepteerd en AS niet ná AF (${grid.ok}, ${actuals(task(ids.f)!.time)})`, grid.ok && inOrder(task(ids.f)!.time));
 
   // MCP (`planner_set_progress`-kern).
-  const mcpDraft = { tasks: structuredClone(S().tasks) } as unknown as Parameters<typeof progress.applyProgressUpdate>[0];
+  const mcpDraft = { ...S(), tasks: structuredClone(S().tasks), assignments: structuredClone(S().assignments) } as unknown as Parameters<typeof progress.applyProgressUpdate>[0];
   const mcpTask = (mcpDraft.tasks as Task[]).find(t => t.name === 'F')!;
   mcpTask.time.completion = 0; mcpTask.time.actualStart = undefined; mcpTask.time.actualFinish = undefined;
   const mcp = progress.applyProgressUpdate(mcpDraft, mcpTask.id, { completion: 100 }, '2026-06-10');

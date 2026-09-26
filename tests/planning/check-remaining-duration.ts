@@ -101,7 +101,7 @@ const DAY_30 = { remainingMinutes: undefined, remainingTime: 4 };
 // ── 3. MCP (`planner_set_progress`-kern) ────────────────────────────────────────────────────
 {
   setup();
-  const draft = { tasks: structuredClone(S().tasks) } as unknown as Parameters<typeof progress.applyProgressUpdate>[0];
+  const draft = { ...S(), tasks: structuredClone(S().tasks), assignments: structuredClone(S().assignments) } as unknown as Parameters<typeof progress.applyProgressUpdate>[0];
   const tasks = draft.tasks as Task[];
   const uT = tasks.find(t => t.name === 'U')!;
   const dT = tasks.find(t => t.name === 'D')!;
