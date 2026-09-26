@@ -21,6 +21,7 @@
 import type { AppState } from './appStore';
 import type { Task } from '@/types/task';
 import { applyProgressInvariants } from './slices/taskSlice';
+import { captureProgressWork, settleProgressWork } from '@/engine/work/workRuleApply';
 import { clearLevelingGaps } from '@/utils/taskDefaults';
 import { detectCycleInEdges } from '@/engine/scheduler/graphWalk';
 import { isSummaryTask } from '@/utils/taskHierarchy';
@@ -42,6 +43,8 @@ export type ProgressResult = { applied: true } | { applied: false; reason: strin
 /** Minimale vorm die de validatiehelpers uit de (draft-)state lezen. `AppState` voldoet hieraan; een
  *  Immer-draft van `AppState` structureel ook. */
 type ReadableState = Pick<AppState, 'tasks' | 'sequences' | 'assignments'>;
+/** Wat `applyProgressUpdate` extra leest: slot (kalenders) en de regelcontext voor `captureProgressWork`. */
+type ProgressState = ReadableState & Pick<AppState, 'calendars' | 'calendar' | 'project' | 'resources'>;
 
 /** Geldige capaciteit/eenheden (spiegelt `isValidUnits` in resourceSlice + mcpTransaction): strikt
  *  positief en eindig. 0/negatief/NaN is nooit een geldige toewijzing. */
@@ -156,7 +159,7 @@ export const progress = {
    *      40%-taak als NOT_STARTED zonder gepinde `actualStart` achterlaten) en COMMIT naar de draft.
    */
   applyProgressUpdate(
-    draftState: ReadableState,
+    draftState: ProgressState,
     taskId: string,
     update: { completion?: number; actualStart?: string; actualFinish?: string },
     statusDate: string | undefined,
@@ -231,8 +234,12 @@ export const progress = {
 
     // (10) invarianten + COMMIT naar de draft.
     applyProgressInvariants(scratch, statusDate);
+    // Fable-critreview #170, bevinding 1: de voortgang verplaatst opgeslagen werk van rest naar
+    // verricht — momentopname op de ONGEWIJZIGDE taak, settle ná de commit (zelfde als de store).
+    const progressWork = captureProgressWork(task, draftState);
     Object.assign(task.time, scratch.time);
     task.status = scratch.status;
+    settleProgressWork(task, draftState.assignments, progressWork);
     // B1c-plan-2 spec §4 "Invalidatie", vierde klasse (voortgang) — bedraad in de fixronde op
     // etappe 3, bevinding B7. Dit is het MCP-equivalent van `taskSlice`'s `setTaskProgress`/
     // `setActualStart`/`setActualFinish`: voortgang verzet de werkminuten-as waarop een

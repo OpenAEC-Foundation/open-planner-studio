@@ -48,7 +48,7 @@
   "taskGrid": {
     "columns": {
       "customTaskType": "Tipo de tarefa personalizado",
-      "activityCodeData":"Dados dos códigos de atividade","actualDuration":"Duração real","actualFinish":"Fim real","actualStart":"Início real","assignedResources":"Recursos atribuídos","assignmentCurve":"Curva de atribuição","assignmentId":"ID da atribuição","assignmentResourceId":"ID do recurso da atribuição","assignmentTaskId":"ID da tarefa da atribuição","assignmentUnits":"Unidades de atribuição por dia","calendar":"Calendário","childIds":"IDs das tarefas subordinadas","color":"Cor","completion":"Progresso","constraint2Date":"Data da restrição secundária","constraint2Type":"Tipo da restrição secundária","constraintDate":"Data da restrição","constraintHard":"Restrição rígida","constraintType":"Tipo de restrição","critical":"Crítica","customFieldData":"Dados dos campos personalizados","deadline":"Prazo","description":"Descrição","duration":"Duração","durationMinutes":"Duração (minutos)","durationType":"Tipo de duração","earlyFinish":"Fim antecipado","earlyStart":"Início antecipado","effortDriven":"Orientada pelo esforço","explicitSummary":"Tarefa de resumo explícita","externalRelationData":"Dados das relações externas","floatPath":"Caminho de folga","freeFloat":"Folga livre","hammock":"Hammock (duração derivada)","interferingFloat":"Folga interferente","internalRelationData":"Dados das relações internas","lateFinish":"Fim tardio","lateStart":"Início tardio","levelingDelay":"Atraso de nivelamento","levelingDelayElapsed":"Atraso de nivelamento decorrido","levelingDelayMinutes":"Atraso de nivelamento (minutos)","mandatoryMilestone":"Marco obrigatório","manuallyScheduled":"Agendada manualmente","milestone":"Marco","milestoneKind":"Tipo de marco","mspTaskType":"Tipo de tarefa do Microsoft Project","name":"Nome da tarefa","nearCritical":"Quase crítica","noteData":"Dados das notas","notes":"Notas","p6Provenance":"Proveniência do Primavera P6","parentId":"ID da tarefa principal","priority":"Prioridade de nivelamento","recordedSource":"Origem (datas registadas)","remainingMinutes":"Restante (minutos)","remainingTime":"Restante (dias úteis)","resourceIds":"IDs dos recursos","resume":"Data de retoma","scheduleFinish":"Fim planeado","scheduleStart":"Início planeado","splitGaps":"Interrupções","status":"Estado","stop":"Data de paragem","taskId":"ID da tarefa","taskType":"Tipo de tarefa","timephasedContours":"Contornos faseados no tempo","timephasedDurationWalks":"Segmentos de duração faseados no tempo","timephasedFinishFloor":"Limite inferior do fim faseado","timephasedStartAnchor":"Âncora do início faseado","totalFloat":"Folga total","wbs":"Estrutura analítica do projeto (EAP)","workWindowFinish":"Fim da janela de trabalho","workWindowStart":"Início da janela de trabalho"
+      "activityCodeData":"Dados dos códigos de atividade","actualDuration":"Duração real","actualFinish":"Fim real","actualStart":"Início real","assignedResources":"Recursos atribuídos","assignmentActualWork":"Trabalho real (horas)","assignmentCurve":"Curva de atribuição","assignmentId":"ID da atribuição","assignmentPlannedWork":"Trabalho previsto (horas)","assignmentRemainingWork":"Trabalho restante (horas)","assignmentResourceId":"ID do recurso da atribuição","assignmentTaskId":"ID da tarefa da atribuição","assignmentUnits":"Unidades de atribuição por dia","calendar":"Calendário","childIds":"IDs das tarefas subordinadas","color":"Cor","completion":"Progresso","constraint2Date":"Data da restrição secundária","constraint2Type":"Tipo da restrição secundária","constraintDate":"Data da restrição","constraintHard":"Restrição rígida","constraintType":"Tipo de restrição","critical":"Crítica","customFieldData":"Dados dos campos personalizados","deadline":"Prazo","description":"Descrição","duration":"Duração","durationMinutes":"Duração (minutos)","durationType":"Tipo de duração","earlyFinish":"Fim antecipado","earlyStart":"Início antecipado","effortDriven":"Orientada pelo esforço","explicitSummary":"Tarefa de resumo explícita","externalRelationData":"Dados das relações externas","floatPath":"Caminho de folga","freeFloat":"Folga livre","hammock":"Hammock (duração derivada)","interferingFloat":"Folga interferente","internalRelationData":"Dados das relações internas","lateFinish":"Fim tardio","lateStart":"Início tardio","levelingDelay":"Atraso de nivelamento","levelingDelayElapsed":"Atraso de nivelamento decorrido","levelingDelayMinutes":"Atraso de nivelamento (minutos)","mandatoryMilestone":"Marco obrigatório","manuallyScheduled":"Agendada manualmente","milestone":"Marco","milestoneKind":"Tipo de marco","mspTaskType":"Tipo de tarefa do MS Project (importação)","name":"Nome da tarefa","nearCritical":"Quase crítica","noteData":"Dados das notas","notes":"Notas","p6Provenance":"Proveniência do Primavera P6","parentId":"ID da tarefa principal","priority":"Prioridade de nivelamento","recordedSource":"Origem (datas registadas)","remainingMinutes":"Restante (minutos)","remainingTime":"Restante (dias úteis)","resourceIds":"IDs dos recursos","resume":"Data de retoma","scheduleFinish":"Fim planeado","scheduleStart":"Início planeado","splitGaps":"Interrupções","status":"Estado","stop":"Data de paragem","taskId":"ID da tarefa","taskType":"Tipo de tarefa","timephasedContours":"Contornos faseados no tempo","timephasedDurationWalks":"Segmentos de duração faseados no tempo","timephasedFinishFloor":"Limite inferior do fim faseado","timephasedStartAnchor":"Âncora do início faseado","totalFloat":"Folga total","wbs":"Estrutura analítica do projeto (EAP)","workRule":"Regra de trabalho","workWindowFinish":"Fim da janela de trabalho","workWindowStart":"Início da janela de trabalho"
     },
     "category": {
       "task": "Tarefa", "planning": "Planeamento", "constraints": "Restrições", "relations": "Relações", "resources": "Recursos",
@@ -56,6 +56,7 @@
     },
     "status": { "stale": "obsoleto" },
     "validation": {
+      "assignmentWork": "Introduza o trabalho restante em horas como um número maior que 0 (nome: horas; …).",
       "readOnly": "Esta coluna calculada não pode ser editada.",
       "invalid": "O valor introduzido não é válido.",
       "relationToken": "Use, por exemplo, 1.2 FS+2d.",
@@ -232,6 +233,22 @@
     "durationTotalHours": "Total de horas",
     "hourCalendarHint": "A introdução em horas requer um calendário horário (horários de trabalho)."
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "Duração e unidades fixas",
+    "FIXED_DURATION_WORK": "Duração e trabalho fixos",
+    "FIXED_WORK": "Trabalho fixo",
+    "FIXED_RATE": "Unidades fixas",
+    "label": "Regra de trabalho",
+    "projectDefault": "Predefinição do projeto ({{rule}})",
+    "protects": "Protegido: {{what}}",
+    "protectsFIXED_DURATION_RATE": "duração e unidades (o trabalho segue)",
+    "protectsFIXED_DURATION_WORK": "duração e trabalho (as unidades seguem)",
+    "protectsFIXED_WORK": "trabalho (a duração segue as unidades)",
+    "protectsFIXED_RATE": "unidades (a duração segue o trabalho)",
+    "mspEffortDriven": "Do MS Project: condicionado pelo esforço",
+    "mspNotEffortDriven": "Do MS Project: não condicionado pelo esforço",
+    "none": "Predefinição do projeto"
+  },
   "properties": {
     "task": "Tarefa",
     "deleteTask": "Eliminar tarefa",
@@ -305,7 +322,12 @@
       "contour": "Distribuição de horas…",
       "contoured": "Contorno",
       "contouredHint": "Esta atribuição tem a sua própria distribuição de horas; edite-a ou liberte-a pelo botão Distribuição de horas.",
-      "importedCurve": "Curva importada"
+      "importedCurve": "Curva importada",
+      "work": "Trabalho (rest.)",
+      "workHint": "Trabalho restante em horas; a regra de trabalho decide se a duração ou as unidades se movem.",
+      "workDeviates": "Difere de unidades × duração",
+      "workDeviatesHint": "O trabalho guardado {{stored}} h difere de unidades × duração restante ({{derived}} h). O histograma segue o trabalho guardado ao longo de toda a tarefa; as unidades ficam como o ficheiro as deu.",
+      "locked": "Protegido pela regra de trabalho {{rule}}"
     },
     "calendar": "Calendário",
     "calendarProject": "Calendário do projeto",

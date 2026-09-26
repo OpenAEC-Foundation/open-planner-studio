@@ -1,3 +1,5 @@
+import { claimTaskTypesNotice, notifyTaskTypesUnlocked, notifyTaskTypesUnlockedClaimed, TASK_TYPES_DETAIL_LINE } from '../taskTypesNotice';
+import { taskTypesNeedNotice } from '../taskTypesVisibility';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { writeCSV, writeProgressSheetCSV } from '@/services/csv/csvWriter';
 import { flattenOrder } from '@/utils/wbs';
@@ -270,6 +272,9 @@ export interface ApplyLoadedProjectOpts {
   linkedOpen?: boolean;
   /** Optionele view-start die samen met de nieuwe brondata wordt gepubliceerd (IFC-tab). */
   viewStartDate?: string;
+  /** Integratie #101 op #169: `applyOpenedImport` meldt de taaktypes-ontsluiting zelf, samen met de
+   *  bestandsmelding ("één melding per geopend bestand", rekenprofielen spec v3.1 §6 / X10). */
+  deferTaskTypesNotice?: boolean;
 }
 
 /** Feitelijke uitkomst van de centrale opennaad; gebruikt door DevBridge en MCP voor eerlijke ids. */
@@ -470,6 +475,16 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           s.ui.hourDataNotice = !s.ui.enableHourPlanning && fileHasHourData(s.tasks, [s.calendar, ...s.calendars]);
         }
       });
+      // Taaktypes-etappe (spec §7): het bestand draagt taaktypedata terwijl de instelling uit staat
+      // ⇒ de werkregel-UI is voor dit document ontsloten; meld dat één keer (met gids-link).
+      {
+        const st = get();
+        // E4: alleen een AFGELEIDE regel (uit mspTaskType/p6DurationType) ontsluit stil.
+        if (!opts.deferTaskTypesNotice && st.taskTypesVisible && !st.ui.showTaskTypes
+          && taskTypesNeedNotice(st.tasks, st.assignments, st.project)) {
+          notifyTaskTypesUnlocked(st.notify, st.activeDocumentId);
+        }
+      }
       if (opts.recompute) {
         const cpm = activation.payload.cpmResult;
         if (cpm?.error) {
@@ -546,6 +561,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // Critreview bevinding 4: apart tellen, want de twee uitkomsten zijn verschillende
       // beweringen. Alleen een document waar de modus ECHT aanging is "niet herberekend".
       let datesAsRecordedOfferTotal = 0;
+      let taskTypesUnlockedDocs = 0;
       // Critreview op ded4d8c3, bevinding 6, en critreview PR #167, bevinding 2: de formaatneutrale
       // melding hieronder telt uitsluitend VERSE imports — zowel het aanbod als de automatisch-aan-tak.
       // Een heropend eigen IFC ('ifc-own'/'xer-archive') krijgt de strook (die zegt het al), maar geen
@@ -561,7 +577,17 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         openedDocumentIds.push(get().activeDocumentId);
         // `applyLoadedProject` draait de open-/bibliotheekgrens zelf (materializeLibraryBoundary),
         // dus elk document krijgt hem — geen aparte runOpenBoundary-aanroep meer nodig.
-        get().applyLoadedProject(result, opts);
+        get().applyLoadedProject(result, { ...opts, deferTaskTypesNotice: true });
+        // Taaktypes (#101): ontsloten door de bestandsdata terwijl de instelling uit staat ⇒ één keer
+        // per document geclaimd, maar gemeld in de ene bestandsmelding hieronder.
+        // E4 (orkestratorbesluit 25-09): alleen melden bij opgeslagen werk, een projectstandaard of
+        // een eigen regel; een regel die de lezer alleen uit het importveld afleidde ontsluit stil.
+        const cur = get();
+        if (cur.taskTypesVisible && !cur.ui.showTaskTypes
+          && taskTypesNeedNotice(cur.tasks, cur.assignments, cur.project)
+          && claimTaskTypesNotice(cur.activeDocumentId)) {
+          taskTypesUnlockedDocs++;
+        }
         // Lees DIRECT ná deze aanroep: `applyLoadedProject` maakt het zojuist geladen document
         // actief, dus `get().recordedDates` is op dit punt exact dát document z'n eigen vastlegging.
         const shifted = get().recordedDates?.shifted ?? 0;
@@ -601,7 +627,18 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         ),
         results.map(result => result.xerArchiveIssue),
       );
-      if (notice) get().notify(notice);
+      // Integratie #101 op #169 + E4 (orkestratorbesluit 25-09): de taaktypes-melding is een
+      // detailregel in díe ene bestandsmelding — geen extra toast — met een EIGEN gidslink naar
+      // `gids-taaktypes` (`TASK_TYPES_DETAIL_LINE`; gebruikstest G3: de "Lees meer" van de melding
+      // zelf gaat naar het bestand/rekenprofiel). Zonder bestandsmelding (bv. MSPDI/IFC onder het
+      // ops-profiel) blijft het #101's eigen melding met gids-link.
+      if (notice && taskTypesUnlockedDocs > 0) {
+        get().notify({ ...notice, detailLines: [...(notice.detailLines ?? []), TASK_TYPES_DETAIL_LINE] });
+      } else if (notice) {
+        get().notify(notice);
+      } else if (taskTypesUnlockedDocs > 0) {
+        notifyTaskTypesUnlockedClaimed(get().notify);
+      }
 
       const activeIndex = isMultiDocumentImport(parsed) ? parsed.activeDocumentIndex : 0;
       const activeId = openedDocumentIds[activeIndex];

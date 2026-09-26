@@ -1,7 +1,8 @@
 import type {
-  Task, ConstraintType, TaskSplitGap, TaskTimephasedContour, TimephasedContourPeriod, MspTaskType,
+  Task, ConstraintType, TaskSplitGap, TaskTimephasedContour, TimephasedContourPeriod, MspTaskType, WorkRule,
   P6CompletePctType, P6DurationType, P6ActivityType,
 } from '@/types/task';
+import { WORK_RULES } from '@/types/workRule';
 import { hasValidP6SuspendResume } from '@/utils/p6SuspendResume';
 
 /**
@@ -67,6 +68,10 @@ export const PSET = {
   /** MSP's eigen Task Type + Effort-Driven-vlag (`Task.mspTaskType`/`effortDriven`) — puur data,
    *  geen rekengedrag (eigenaarsbesluit 2026-08-18, punt 1). */
   MspTaskType: 'OPS_MspTaskType',
+  /** Taaktypes-etappe (spec §4.4) — de neutrale werkregel van de taak (`Task.workRule`). Eigen
+   *  pset naast `OPS_MspTaskType`: de importvelden blijven onaangeraakt, de regel is een afgeleide
+   *  die de gebruiker later los kan wijzigen. */
+  WorkRule: 'OPS_WorkRule',
   /** X7: P6-bronidentiteit, voortgangsfamilie, verwacht einde en suspend/resume-firewall. */
   P6Progress: 'OPS_P6Progress',
   /** Expliciete samenvattingsidentiteit voor een WBS-taak zonder kinderen. */
@@ -538,6 +543,24 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
     apply(task, props) {
       for (const { name, value } of props) {
         if (name === 'IsSummary' && value === true) task.isSummary = true;
+      }
+    },
+  },
+  // 17. Taaktypes-etappe (ontwerp 2026-09-04 §4.4) — de neutrale werkregel. Zelfde vorm als 14;
+  //     `WORK_RULES` (satisfies-afgedwongen lijst) is de geldigheidscheck, een onbekende waarde
+  //     blijft stil weg (byte-identiek voor elk bestand zonder dit pset). Staat NAAST
+  //     `OPS_MspTaskType` en `OPS_P6Progress`: de importvelden blijven onaangeraakt, de regel is
+  //     een afgeleide die de gebruiker later los kan wijzigen.
+  {
+    name: PSET.WorkRule, psetSeed: 'pset_wrl_', relSeed: 'rel_wrl_',
+    write(task) {
+      return task.workRule ? [{ name: 'WorkRule', value: `IFCLABEL(${ifcStr(task.workRule)})` }] : null;
+    },
+    apply(task, props) {
+      for (const { name, value } of props) {
+        if (name === 'WorkRule' && typeof value === 'string' && (WORK_RULES as readonly string[]).includes(value)) {
+          task.workRule = value as WorkRule;
+        }
       }
     },
   },

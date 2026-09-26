@@ -48,7 +48,7 @@
   "taskGrid": {
     "columns": {
       "customTaskType": "نوع وظیفه سفارشی",
-      "activityCodeData":"داده‌های کد فعالیت","actualDuration":"مدت واقعی","actualFinish":"پایان واقعی","actualStart":"شروع واقعی","assignedResources":"منابع تخصیص‌یافته","assignmentCurve":"منحنی تخصیص","assignmentId":"شناسه تخصیص","assignmentResourceId":"شناسه منبع تخصیص","assignmentTaskId":"شناسه وظیفه تخصیص","assignmentUnits":"واحدهای تخصیص در روز","calendar":"تقویم","childIds":"شناسه وظیفه‌های فرزند","color":"رنگ","completion":"پیشرفت","constraint2Date":"تاریخ محدودیت ثانویه","constraint2Type":"نوع محدودیت ثانویه","constraintDate":"تاریخ محدودیت","constraintHard":"محدودیت سخت","constraintType":"نوع محدودیت","critical":"بحرانی","customFieldData":"داده‌های فیلد سفارشی","deadline":"مهلت نهایی","description":"توضیحات","duration":"مدت","durationMinutes":"مدت (دقیقه)","durationType":"نوع مدت","earlyFinish":"پایان زودهنگام","earlyStart":"شروع زودهنگام","effortDriven":"مبتنی بر تلاش","explicitSummary":"وظیفه خلاصه صریح","externalRelationData":"داده‌های رابطه خارجی","floatPath":"مسیر شناوری","freeFloat":"شناوری آزاد","hammock":"وظیفه هموک (مدت مشتق‌شده)","interferingFloat":"شناوری مزاحم","internalRelationData":"داده‌های رابطه داخلی","lateFinish":"پایان دیرهنگام","lateStart":"شروع دیرهنگام","levelingDelay":"تأخیر تسطیح منابع","levelingDelayElapsed":"تأخیر سپری‌شده تسطیح","levelingDelayMinutes":"تأخیر تسطیح (دقیقه)","mandatoryMilestone":"نقطه عطف الزامی","manuallyScheduled":"زمان‌بندی دستی","milestone":"نقطه عطف","milestoneKind":"نوع نقطه عطف","mspTaskType":"نوع وظیفه Microsoft Project","name":"نام وظیفه","nearCritical":"نزدیک به بحرانی","noteData":"داده‌های یادداشت","notes":"یادداشت‌ها","p6Provenance":"منشأ Primavera P6","parentId":"شناسه وظیفه والد","priority":"اولویت تسطیح","recordedSource":"منبع (تاریخ‌های ثبت‌شده)","remainingMinutes":"باقی‌مانده (دقیقه)","remainingTime":"باقی‌مانده (روز کاری)","resourceIds":"شناسه‌های منبع","resume":"تاریخ ازسرگیری","scheduleFinish":"پایان برنامه‌ریزی‌شده","scheduleStart":"شروع برنامه‌ریزی‌شده","splitGaps":"وقفه‌ها","status":"وضعیت","stop":"تاریخ توقف","taskId":"شناسه وظیفه","taskType":"نوع وظیفه","timephasedContours":"منحنی‌های زمان‌بندی‌شده","timephasedDurationWalks":"بخش‌های مدت زمان‌بندی‌شده","timephasedFinishFloor":"حد پایین پایان زمان‌بندی‌شده","timephasedStartAnchor":"لنگر شروع زمان‌بندی‌شده","totalFloat":"شناوری کل","wbs":"ساختار شکست کار (WBS)","workWindowFinish":"پایان بازه کاری","workWindowStart":"شروع بازه کاری"
+      "activityCodeData":"داده‌های کد فعالیت","actualDuration":"مدت واقعی","actualFinish":"پایان واقعی","actualStart":"شروع واقعی","assignedResources":"منابع تخصیص‌یافته","assignmentActualWork":"کار انجام‌شده (ساعت)","assignmentCurve":"منحنی تخصیص","assignmentId":"شناسه تخصیص","assignmentPlannedWork":"کار برنامه‌ریزی‌شده (ساعت)","assignmentRemainingWork":"کار باقی‌مانده (ساعت)","assignmentResourceId":"شناسه منبع تخصیص","assignmentTaskId":"شناسه وظیفه تخصیص","assignmentUnits":"واحدهای تخصیص در روز","calendar":"تقویم","childIds":"شناسه وظیفه‌های فرزند","color":"رنگ","completion":"پیشرفت","constraint2Date":"تاریخ محدودیت ثانویه","constraint2Type":"نوع محدودیت ثانویه","constraintDate":"تاریخ محدودیت","constraintHard":"محدودیت سخت","constraintType":"نوع محدودیت","critical":"بحرانی","customFieldData":"داده‌های فیلد سفارشی","deadline":"مهلت نهایی","description":"توضیحات","duration":"مدت","durationMinutes":"مدت (دقیقه)","durationType":"نوع مدت","earlyFinish":"پایان زودهنگام","earlyStart":"شروع زودهنگام","effortDriven":"مبتنی بر تلاش","explicitSummary":"وظیفه خلاصه صریح","externalRelationData":"داده‌های رابطه خارجی","floatPath":"مسیر شناوری","freeFloat":"شناوری آزاد","hammock":"وظیفه هموک (مدت مشتق‌شده)","interferingFloat":"شناوری مزاحم","internalRelationData":"داده‌های رابطه داخلی","lateFinish":"پایان دیرهنگام","lateStart":"شروع دیرهنگام","levelingDelay":"تأخیر تسطیح منابع","levelingDelayElapsed":"تأخیر سپری‌شده تسطیح","levelingDelayMinutes":"تأخیر تسطیح (دقیقه)","mandatoryMilestone":"نقطه عطف الزامی","manuallyScheduled":"زمان‌بندی دستی","milestone":"نقطه عطف","milestoneKind":"نوع نقطه عطف","mspTaskType":"نوع وظیفه MS Project (درون‌بری)","name":"نام وظیفه","nearCritical":"نزدیک به بحرانی","noteData":"داده‌های یادداشت","notes":"یادداشت‌ها","p6Provenance":"منشأ Primavera P6","parentId":"شناسه وظیفه والد","priority":"اولویت تسطیح","recordedSource":"منبع (تاریخ‌های ثبت‌شده)","remainingMinutes":"باقی‌مانده (دقیقه)","remainingTime":"باقی‌مانده (روز کاری)","resourceIds":"شناسه‌های منبع","resume":"تاریخ ازسرگیری","scheduleFinish":"پایان برنامه‌ریزی‌شده","scheduleStart":"شروع برنامه‌ریزی‌شده","splitGaps":"وقفه‌ها","status":"وضعیت","stop":"تاریخ توقف","taskId":"شناسه وظیفه","taskType":"نوع وظیفه","timephasedContours":"منحنی‌های زمان‌بندی‌شده","timephasedDurationWalks":"بخش‌های مدت زمان‌بندی‌شده","timephasedFinishFloor":"حد پایین پایان زمان‌بندی‌شده","timephasedStartAnchor":"لنگر شروع زمان‌بندی‌شده","totalFloat":"شناوری کل","wbs":"ساختار شکست کار (WBS)","workRule":"قاعده کار","workWindowFinish":"پایان بازه کاری","workWindowStart":"شروع بازه کاری"
     },
     "category": {
       "task": "وظیفه", "planning": "برنامه‌ریزی", "constraints": "محدودیت‌ها", "relations": "روابط", "resources": "منابع",
@@ -56,6 +56,7 @@
     },
     "status": { "stale": "قدیمی" },
     "validation": {
+      "assignmentWork": "کار باقی‌مانده را به ساعت به‌صورت عددی بزرگ‌تر از 0 وارد کنید (نام: ساعت؛ …).",
       "readOnly": "این ستون محاسبه‌شده قابل ویرایش نیست.",
       "invalid": "مقدار واردشده معتبر نیست.",
       "relationToken": "برای نمونه از 1.2 FS+2d استفاده کنید.",
@@ -228,6 +229,22 @@
     "durationTotalHours": "مجموع ساعات",
     "hourCalendarHint": "ورود ساعتی به یک تقویم ساعتی (ساعات کاری) نیاز دارد."
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "مدت و واحدهای ثابت",
+    "FIXED_DURATION_WORK": "مدت و کار ثابت",
+    "FIXED_WORK": "کار ثابت",
+    "FIXED_RATE": "واحدهای ثابت",
+    "label": "قاعدهٔ کار",
+    "projectDefault": "پیش‌فرض پروژه ({{rule}})",
+    "protects": "محافظت‌شده: {{what}}",
+    "protectsFIXED_DURATION_RATE": "مدت و واحدها (کار تبعیت می‌کند)",
+    "protectsFIXED_DURATION_WORK": "مدت و کار (واحدها تبعیت می‌کنند)",
+    "protectsFIXED_WORK": "کار (مدت از واحدها تبعیت می‌کند)",
+    "protectsFIXED_RATE": "واحدها (مدت از کار تبعیت می‌کند)",
+    "mspEffortDriven": "از MS Project: مبتنی بر تلاش",
+    "mspNotEffortDriven": "از MS Project: غیرمبتنی بر تلاش",
+    "none": "پیش‌فرض پروژه"
+  },
   "properties": {
     "task": "وظیفه",
     "deleteTask": "حذف وظیفه",
@@ -301,7 +318,12 @@
       "contour": "توزیع ساعات…",
       "contoured": "کانتور",
       "contouredHint": "این تخصیص توزیع ساعات مخصوص به خود دارد؛ آن را با دکمهٔ توزیع ساعات ویرایش یا رها کنید.",
-      "importedCurve": "منحنی وارد‌شده"
+      "importedCurve": "منحنی وارد‌شده",
+      "work": "کار (باقی‌مانده)",
+      "workHint": "کار باقی‌مانده به ساعت؛ قاعدهٔ کار تعیین می‌کند مدت یا واحدها تغییر کنند.",
+      "workDeviates": "با واحد × مدت فرق دارد",
+      "workDeviatesHint": "کار ذخیره‌شده {{stored}} ساعت با واحد × مدت باقی‌مانده ({{derived}} ساعت) فرق دارد. هیستوگرام کار ذخیره‌شده را در سراسر مدت وظیفه دنبال می‌کند؛ واحدها همان مقدار پرونده می‌مانند.",
+      "locked": "محافظت‌شده توسط قاعدهٔ کار {{rule}}"
     },
     "calendar": "تقویم",
     "calendarProject": "تقویم پروژه",

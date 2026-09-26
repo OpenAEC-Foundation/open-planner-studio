@@ -409,6 +409,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       // voor bron, twaalf tabs en varianten; elke IFC-save embedt later wél een eigen container.
       xerSourceArchive: src.xerSourceArchive,
       xerSourceProjectId: src.xerSourceProjectId,
+      taskTypesVisible: src.taskTypesVisible,
       // Een kopie is per definitie geen ongewijzigde import meer (heropen-beleid optie B).
       importPristine: false,
       // Een variant van een document waarvan het archief onbruikbaar was, mist het archief óók —

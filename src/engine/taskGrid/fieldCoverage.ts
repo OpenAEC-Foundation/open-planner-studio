@@ -69,6 +69,7 @@ export const TASK_FIELD_COVERAGE = {
   manuallyScheduled: field('technical', 'task.manuallyScheduled'),
   mspTaskType: field('technical', 'task.mspTaskType'),
   effortDriven: field('technical', 'task.effortDriven'),
+  workRule: field('direct', 'task.workRule'),
   // XER/Primavera-herkomst: acht bronvelden, één gebundelde technische kolom (zie registry).
   p6DurationType: field('technical', 'task.p6Provenance'),
   p6ActivityType: field('technical', 'task.p6Provenance'),
@@ -161,6 +162,10 @@ export const ASSIGNMENT_FIELD_COVERAGE = {
   workWindowStart: field('technical', 'assignment.workWindowStart'),
   workWindowFinish: field('technical', 'assignment.workWindowFinish'),
   curveValues: field('technical', 'assignment.curve'),
+  // taaktypes-etappe (spec §4.3): alleen-lezen technische kolommen tot de bedradingsstap ze bewerkbaar maakt
+  plannedWorkMinutes: field('technical', 'assignment.plannedWork'),
+  actualWorkMinutes: field('technical', 'assignment.actualWork'),
+  remainingWorkMinutes: field('technical', 'assignment.remainingWork'),
 } satisfies Record<keyof ResourceAssignment, FieldCoverage>;
 
 export const BASELINE_TASK_FIELD_COVERAGE = {
