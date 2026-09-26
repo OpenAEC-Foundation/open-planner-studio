@@ -298,11 +298,30 @@ export interface DiffField {
   library: unknown;
 }
 
-/** Velden die we vergelijken bij een kalender-diff (herkomst/id/naam-identiteit tellen niet mee). */
-export const CALENDAR_DIFF_FIELDS: (keyof WorkCalendar)[] = [
+/**
+ * De kalendervelden die de bibliotheek vóór de pauze-/uitzonderingsvelden volgde, in DEZE volgorde.
+ * Elke `syncedHash` die vóór die uitbreiding is gezet (ook in opgeslagen IFC's: de stempel round-tript)
+ * is over precies deze lijst berekend — de "v1-vorm". Nooit wijzigen of herordenen.
+ */
+const CALENDAR_HASH_V1_FIELDS: readonly (keyof WorkCalendar)[] = [
   'name', 'description', 'workDays', 'workStartHour', 'workEndHour', 'hoursPerDay',
   'holidays', 'generation', 'workTime', 'shift',
 ];
+
+/**
+ * Later bijgekomen inhoudsvelden (audit resources-kalenders R2): het pauzepatroon en de werkende
+ * uitzonderingen. Ze stonden niet in de lijst, dus verversen, afwijking bepalen en "bestandswaarde
+ * naar de bibliotheek" lieten ze liggen — een pauzewijziging in de bibliotheek bereikte de kopieën
+ * nooit, terwijl die "in sync" bleven heten. Alle drie optioneel; afwezig is de gewone stand.
+ */
+const CALENDAR_FIELDS_AFTER_V1: readonly (keyof WorkCalendar)[] = [
+  'simpleBreakStartMinute', 'simpleBreakDurationMinutes', 'workingExceptions',
+];
+
+/** Velden die we vergelijken bij een kalender-diff (herkomst/id tellen niet mee): ALLE inhoudsvelden
+ *  van `WorkCalendar`. Dat dit uitputtend is, bewaakt `tests/library/check-library-ops.ts` met een
+ *  `Record<keyof WorkCalendar, …>` (een nieuw kalenderveld is daar een compileerfout). */
+export const CALENDAR_DIFF_FIELDS: (keyof WorkCalendar)[] = [...CALENDAR_HASH_V1_FIELDS, ...CALENDAR_FIELDS_AFTER_V1];
 
 // F1 (critreview op 352bb94, issue #19): `maxUnits`/`availabilitySteps` zijn PROJECTINZET (hoeveel dit
 // project van de resource opeist, en op welk ritme), geen bibliotheekafspraak — ze zaten er eerder
@@ -346,13 +365,40 @@ function diffFields<T>(project: T, library: T, fields: (keyof T)[]): DiffField[]
  *  (`diffKey` per veld → arrays als gesorteerde multiset). Twee items met dezelfde gevolgde
  *  velden — ongeacht array-volgorde — geven dezelfde hash; een verschil op één gevolgd veld
  *  verandert de hash. Deterministisch (JSON van de per-veld-diffKeys), geen externe crypto. */
-function hashFields<T>(item: T, fields: (keyof T)[]): string {
+function hashFields<T>(item: T, fields: readonly (keyof T)[]): string {
   return JSON.stringify(fields.map((f) => diffKey(item[f])));
 }
 
-/** syncedHash van een pool-/projectkalender (spec §2, plan-eis 8). */
+/**
+ * syncedHash van een pool-/projectkalender (spec §2, plan-eis 8).
+ *
+ * Twee vormen, zodat bestaande stempels geldig blijven (de stempel round-tript via IFC):
+ *  - zolang de later bijgekomen velden (`CALENDAR_FIELDS_AFTER_V1`) afwezig zijn — verreweg de
+ *    meeste kalenders — de v1-vorm, byte-identiek aan wat vóór de uitbreiding werd weggeschreven;
+ *  - anders over alle inhoudsvelden (een langere lijst, dus nooit gelijk aan een v1-hash).
+ * Een eenvoudig langere lijst zou de hash van ELKE bestaande kopie veranderen: bij de eerstvolgende
+ * poolwijziging werd een ongewijzigde kopie dan 'deviated' in plaats van 'behind' en stopte het
+ * stille verversen overal. Voor een kopie mét pauzevelden en een v1-stempel: zie
+ * `calendarMatchesStamp`.
+ */
 export function computeCalendarHash(cal: WorkCalendar): string {
-  return hashFields(cal, CALENDAR_DIFF_FIELDS);
+  const later = CALENDAR_FIELDS_AFTER_V1.some((f) => cal[f] !== undefined);
+  return hashFields(cal, later ? CALENDAR_DIFF_FIELDS : CALENDAR_HASH_V1_FIELDS);
+}
+
+/**
+ * Is `projectCal` sinds zijn stempel niet lokaal bewerkt (spec §2: file == syncedHash)? Naast de
+ * gewone vergelijking herkent dit een v1-stempel op een kopie die wél pauzevelden of werkende
+ * uitzonderingen draagt: zo'n stempel dekt die velden niet, dus alleen de v1-velden zijn te toetsen.
+ * De niet-gedekte velden tellen dan als onbewerkt zolang ze gelijk zijn aan de bibliotheek; wijken ze
+ * af, dan is niet te zeggen of de bibliotheek of het bestand ze veranderde en blijft het de veilige
+ * kant ('deviated', dezelfde keuze als voor een stempel zonder hash).
+ */
+function calendarMatchesStamp(projectCal: WorkCalendar, source: WorkCalendar | undefined, syncedHash: string): boolean {
+  if (computeCalendarHash(projectCal) === syncedHash) return true;
+  return source !== undefined
+    && hashFields(projectCal, CALENDAR_HASH_V1_FIELDS) === syncedHash
+    && CALENDAR_FIELDS_AFTER_V1.every((f) => diffKey(projectCal[f]) === diffKey(source[f]));
 }
 
 /** syncedHash van een pool-/projectresource (spec §2, plan-eis 8). */
@@ -435,13 +481,17 @@ export type OnOpenStatus =
   | 'removed'   // pool-origineel bestaat niet meer
   | 'unbound';  // geen libraryOrigin — puur project-eigen item, hoort niet bij een bedrijfspool
 
-function classifyOnOpen(diffStatus: ItemDiff['status'], fileHash: string, syncedHash: string | undefined): OnOpenStatus {
+function classifyOnOpen(
+  diffStatus: ItemDiff['status'],
+  syncedHash: string | undefined,
+  fileMatchesStamp: (syncedHash: string) => boolean,
+): OnOpenStatus {
   if (diffStatus === 'removed') return 'removed';
   if (diffStatus === 'up-to-date') return 'in-sync';
   // diffStatus === 'changed'. Ontbrekende syncedHash (B1-bestand) ⇒ veilige kant: behandel als
   // extern bewerkt (spec §2/§12). Anders: file == syncedHash ⇒ niet-bewerkt ⇒ behind; ongelijk ⇒ deviated.
   if (syncedHash === undefined) return 'deviated';
-  return fileHash === syncedHash ? 'behind' : 'deviated';
+  return fileMatchesStamp(syncedHash) ? 'behind' : 'deviated';
 }
 
 /** companyId-scope (stempel van een ánder bedrijf dan het geopende) is de verantwoordelijkheid van
@@ -450,7 +500,9 @@ function classifyOnOpen(diffStatus: ItemDiff['status'], fileHash: string, synced
  *  samenvallen (een puur project-eigen item is niet "uit het bedrijf verwijderd"). */
 export function classifyCalendarOnOpen(projectCal: WorkCalendar, pool: CompanyPool): OnOpenStatus {
   if (!projectCal.libraryOrigin) return 'unbound';
-  return classifyOnOpen(diffCalendarVsPool(projectCal, pool).status, computeCalendarHash(projectCal), projectCal.libraryOrigin.syncedHash);
+  const source = pool.calendars.find((c) => c.id === projectCal.libraryOrigin!.libraryItemId);
+  return classifyOnOpen(diffCalendarVsPool(projectCal, pool).status, projectCal.libraryOrigin.syncedHash,
+    (synced) => calendarMatchesStamp(projectCal, source, synced));
 }
 
 /** companyId-scope (stempel van een ánder bedrijf dan het geopende) is de verantwoordelijkheid van
@@ -459,7 +511,8 @@ export function classifyCalendarOnOpen(projectCal: WorkCalendar, pool: CompanyPo
  *  samenvallen (een puur project-eigen item is niet "uit het bedrijf verwijderd"). */
 export function classifyResourceOnOpen(projectRes: Resource, pool: CompanyPool): OnOpenStatus {
   if (!projectRes.libraryOrigin) return 'unbound';
-  return classifyOnOpen(diffResourceVsPool(projectRes, pool).status, computeResourceHash(projectRes), projectRes.libraryOrigin.syncedHash);
+  return classifyOnOpen(diffResourceVsPool(projectRes, pool).status, projectRes.libraryOrigin.syncedHash,
+    (synced) => computeResourceHash(projectRes) === synced);
 }
 
 /**
@@ -505,7 +558,9 @@ function applyDiffFields<T>(target: T, source: T, fields: readonly (keyof T)[]):
  *  `CALENDAR_DIFF_FIELDS` dekt hier BEWUST alle inhoudelijke `WorkCalendar`-velden (er is geen
  *  "projectinzet"-veld zoals bij Resource) — `applyDiffFields` levert dus hetzelfde resultaat op als
  *  de vroegere volledige-kloon-aanpak, alleen nu door-constructie veilig tegen een toekomstig
- *  kalenderveld dat WEL projectinzet zou zijn (zie F1-verificatie, issue #19). */
+ *  kalenderveld dat WEL projectinzet zou zijn (zie F1-verificatie, issue #19). Tot audit R2 misten
+ *  het pauzepatroon en de werkende uitzonderingen in die lijst; de uitputtendheid staat nu onder
+ *  test (zie `CALENDAR_DIFF_FIELDS`). */
 export function applyCalendarUpdate(projectCal: WorkCalendar, pool: CompanyPool): WorkCalendar {
   const id = projectCal.libraryOrigin?.libraryItemId;
   const source = id ? pool.calendars.find((c) => c.id === id) : undefined;
