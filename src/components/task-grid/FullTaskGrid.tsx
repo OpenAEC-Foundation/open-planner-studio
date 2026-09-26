@@ -58,6 +58,8 @@ import { buildImportLabels } from '@/i18n/importLabels';
 import type { DataGridCellModel, DataGridDataRowModel } from './taskGridContext';
 import type { GridEditorCommitResult } from './GridEditorHost';
 import type { Task } from '@/types/task';
+import type { GridMutationOptions } from '@/state/gridTransaction';
+import { localTodayIso } from '@/utils/dateUtils';
 import type { TaskColumnCategory, TaskColumnId, TaskGridSurfaceId } from '@/types/taskGrid';
 
 interface EditingCell {
@@ -112,6 +114,13 @@ function useElementSize() {
 
 /** Breedte die de subtaak-plus (Gantt-takenlijst) in de naamkolom inneemt: 18px knop + 4px gap. */
 const SUMMARY_ADD_BUTTON_WIDTH = 22;
+
+/** Het taakraster is een UI-route voor voortgang: de invoerregels van `engine/progressEntry.ts`
+ *  gelden (Z1: zonder statusdatum gaat die op vandaag). Per handeling vers, zodat een sessie die
+ *  over middernacht heen openstaat de juiste dag gebruikt. */
+function progressEntryOptions(): GridMutationOptions {
+  return { progressEntry: { today: localTodayIso() } };
+}
 
 function categoryFallback(category: TaskColumnCategory): string {
   return ({
@@ -364,7 +373,7 @@ export function TaskGridSurface({
             errors: [{ code: 'documentChanged', messageKey: 'taskGrid.validation.invalid' }],
           };
         }
-        const result = runGridMutation(intents);
+        const result = runGridMutation(intents, progressEntryOptions());
         if (result.ok) {
           setEditing(null);
           setSurfaceError(null);
@@ -555,7 +564,7 @@ export function TaskGridSurface({
         setSurfaceError(validationMessage(planned.errors[0], 'taskGrid.validation.clearNotPossible'));
         return;
       }
-      const result = runGridMutation([planned.value]);
+      const result = runGridMutation([planned.value], progressEntryOptions());
       if (!result.ok) {
         setSurfaceError(validationMessage(result.errors[0], 'taskGrid.validation.clearFailed'));
       }
@@ -940,7 +949,7 @@ export function TaskGridSurface({
             return;
           }
           event.preventDefault();
-          const result = runGridMutation([planned.value]);
+          const result = runGridMutation([planned.value], progressEntryOptions());
           if (!result.ok) setSurfaceError(validationMessage(result.errors[0], 'taskGrid.validation.pasteFailed'));
         }}
         onDataRowMouseDown={(row, _absoluteIndex, event) => {

@@ -50,7 +50,8 @@
     "librarySaveFailed": "Impossibile salvare la libreria",
     "levelingDelayRoundedToWorkdays_one": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere.",
     "levelingDelayRoundedToWorkdays_many": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere.",
-    "levelingDelayRoundedToWorkdays_other": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere."
+    "levelingDelayRoundedToWorkdays_other": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere.",
+    "statusDateSetToday": "Non c’era ancora una data di stato: ora è impostata a oggi ({{date}}), perché l’avanzamento si misura fino alla data di stato. Puoi modificarla in Pianificazione → Data di stato."
   },
   "yes": "Sì",
   "no": "No",

@@ -4,6 +4,8 @@ import {
   applyActualDateEdit, applyCompletionEdit, applyProgressInvariants, isActualPastStatusDate,
 } from '@/engine/taskMutationRules';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
+import { hasRecordedProgress } from '@/engine/progressEntry';
+import { statusDateSetTodayNotice } from '@/state/progressEntryNotice';
 import { getPersonalTaskTypes } from '@/services/taskTypes/personalTaskTypes';
 import type { Task } from '@/types/task';
 
@@ -74,6 +76,9 @@ export interface TaskDialogSaveInput {
   draft: Task;
   /** De in de dialoog getoonde startdatum. */
   startDate: string;
+  /** Vandaag (`localTodayIso`), meegegeven door de dialoog: de invoerregels van
+   *  `engine/progressEntry.ts` gelden (Z1). Afwezig = vangnet zonder die regels. */
+  today?: string;
 }
 
 const PROGRESS_KEYS = ['completion', 'actualStart', 'actualFinish'] as const;
@@ -83,7 +88,7 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
   const batch = createBatchTransactions(context);
   const S = () => context.store.getState();
 
-  return ({ editingTaskId, draft, startDate }) => batch.withTransaction(() => {
+  return ({ editingTaskId, draft, startDate, today }) => batch.withTransaction(() => {
     if (draft.customTaskTypeId) {
       const definition = S().customTaskTypes.find(type => type.id === draft.customTaskTypeId)
         ?? getPersonalTaskTypes().find(type => type.id === draft.customTaskTypeId);
@@ -137,7 +142,16 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
       // taak (status, afgeleid einde, resterende duur op de eventueel gewijzigde duur).
       if (PROGRESS_KEYS.some(key => time[key] !== editingTask.time[key])) {
         const merged: Task = { ...editingTask, ...patch, time };
-        applyProgressInvariants(merged, S().project.statusDate);
+        // Z1 (`engine/progressEntry.ts`): voortgang ingevuld zonder statusdatum ⇒ die gaat op vandaag,
+        // in deze transactie (één undo-stap samen met de voortgang), met de melding van het paneel.
+        // De concepttaak rekende al met vandaag (`progressEntryStatusDate` in TaskDialog.tsx).
+        let statusDate = S().project.statusDate;
+        if (!statusDate && today && hasRecordedProgress(merged.time)) {
+          S().setStatusDate(today);
+          S().notify(statusDateSetTodayNotice(today, S().ui.dateNotation));
+          statusDate = today;
+        }
+        applyProgressInvariants(merged, statusDate);
         patch.status = merged.status;
       }
       S().updateTask(editingTask.id, patch);

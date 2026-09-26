@@ -21,6 +21,9 @@ import { recordDocumentDataHistoryDelta } from './sessionHistory';
 import { notifyTimephasedLoss } from './timephasedLossNotice';
 import { markDateMutation, snapshotsEqual } from './transaction';
 import { generateId } from '@/utils/id';
+import { sameValue } from '@/utils/sameValue';
+import { hasRecordedProgress } from '@/engine/progressEntry';
+import { statusDateSetTodayNotice } from './progressEntryNotice';
 import {
   applyRelationMutationPlan,
   isParsedRelationTokenArray,
@@ -67,9 +70,21 @@ export interface GridMutationError {
   message: string;
 }
 
+/**
+ * Opties van een gridtransactie. `progressEntry` zet de invoerregels voor voortgang aan
+ * (`engine/progressEntry.ts`): het taakraster geeft hem mee, headless aanroepers niet (zij houden
+ * het vangnet van de oude regels). Z1: staat er geen statusdatum en houdt een voortgangscel een taak
+ * met voortgang over, dan gaat de statusdatum in DEZELFDE transactie (één undo-stap) op `today`, met
+ * een melding na de commit.
+ */
+export interface GridMutationOptions {
+  progressEntry?: { today: string };
+}
+
 export interface GridTransactionSlice {
   runGridMutation: (
     intents: readonly GridIntent[],
+    options?: GridMutationOptions,
   ) => GridResult<void, readonly CellValidationError[]>;
 }
 
@@ -442,6 +457,9 @@ function applyCellEdits(
   // clipboard.ts en `pasteIntentPresent` in prepareGridMutation hieronder). Een enkele celedit of
   // Delete/Backspace (via `planTaskGridClear`) behoudt de bestaande harde weigering.
   skipReadOnlyCells: boolean,
+  // Z1 (`GridMutationOptions.progressEntry`): de statusdatum waarmee de cellen gepland worden als het
+  // project er nog geen heeft — vandaag. De draft zelf krijgt hem pas als de uitkomst hem houdt.
+  statusDateOverride?: string,
 ): GridResult<{ timephasedGuidanceLost: boolean; skippedReadOnlyCount: number }, readonly CellValidationError[]> {
   const first = edits[0];
   if (!first) return { ok: true, value: { timephasedGuidanceLost: false, skippedReadOnlyCount: 0 } };
@@ -479,7 +497,9 @@ function applyCellEdits(
   const taskForCalendar = calendarEdit
     ? { ...task, calendarId: calendarEdit.value as string | undefined }
     : task;
-  const environment: TaskEditPlanEnvironment = buildTaskEditPlanEnvironment(state, taskForCalendar);
+  const environment: TaskEditPlanEnvironment = statusDateOverride
+    ? { ...buildTaskEditPlanEnvironment(state, taskForCalendar), statusDate: statusDateOverride }
+    : buildTaskEditPlanEnvironment(state, taskForCalendar);
 
   // Algemene gezamenlijke-eindtoestandvalidatie voor conditioneel schrijfbare cellen. Een cel mag
   // worden geschreven wanneer zij in de beginstaat al schrijfbaar is, of wanneer de OVERIGE
@@ -640,11 +660,24 @@ function applyCellEdits(
 export function prepareGridMutation(
   state: Readonly<AppState>,
   intents: readonly GridIntent[],
+  options?: GridMutationOptions,
 ): GridResult<PreparedGridMutation, readonly CellValidationError[]> {
   const flattened = flattenIntents(intents);
   const normalized = normalizeWrites(flattened);
   if (!normalized.ok) return normalized;
   const orderedWrites = orderWritesForDependentTransitions(normalized.value);
+
+  // Z1 (`engine/progressEntry.ts`): voortgang invullen vanuit het raster zonder statusdatum. De
+  // cellen worden gepland met vandaag als statusdatum; pas als een beschreven taak daarna voortgang
+  // heeft, krijgt de draft die datum. Houdt geen enkele taak voortgang over (0 %, datums gewist), dan
+  // blijft het project onaangeroerd — de statusdatum doet bij zo'n uitkomst niets.
+  const progressTaskIds = new Set<string>();
+  for (const write of orderedWrites) {
+    if (write.kind === 'cell-edit' && write.route === 'task-progress') progressTaskIds.add(write.taskId);
+  }
+  const today = options?.progressEntry?.today;
+  const plansStatusDateToday = !!today && !state.project.statusDate && progressTaskIds.size > 0;
+  const notifications: DeferredNotification[] = [];
 
   // FIX 6 (§8.6): alleen aanwezig op een PasteIntent die daar expliciet om vroeg (zie
   // `TaskGridPasteOptions.skipReadOnlyCells` in clipboard.ts) — Delete/Backspace (`planTaskGridClear`)
@@ -696,7 +729,10 @@ export function prepareGridMutation(
         if (appliedCellTaskIds.has(write.taskId)) continue;
         appliedCellTaskIds.add(write.taskId);
         const taskWrites = cellWritesByTaskId.get(write.taskId) ?? [write];
-        const applied = applyCellEdits(draft, taskWrites, runtime, draftTaskIndexById, skipReadOnlyCells);
+        const applied = applyCellEdits(
+          draft, taskWrites, runtime, draftTaskIndexById, skipReadOnlyCells,
+          plansStatusDateToday ? today : undefined,
+        );
         if (!applied.ok) errors.push(...applied.errors);
         else {
           const currentTaskIndex = draftTaskIndexById.get(write.taskId);
@@ -759,6 +795,19 @@ export function prepareGridMutation(
         }
       }
     }
+    if (errors.length === 0 && plansStatusDateToday) {
+      const beforeTasksById = new Map(state.tasks.map(task => [task.id, task] as const));
+      const keepsProgress = [...progressTaskIds].some(taskId => {
+        const before = beforeTasksById.get(taskId);
+        const after = draftTasksById.get(taskId);
+        return !!before && !!after && !sameValue(before, after) && hasRecordedProgress(after.time);
+      });
+      if (keepsProgress) {
+        draft.project.statusDate = today;
+        draft.project.modifiedAt = new Date().toISOString();
+        notifications.push(statusDateSetTodayNotice(today!, state.ui.dateNotation));
+      }
+    }
     if (errors.length === 0) {
       for (const taskId of assignmentValidationTaskIds) {
         const finalAssignments = draftAssignmentsByTaskId.get(taskId) ?? [];
@@ -806,7 +855,7 @@ export function prepareGridMutation(
       before,
       after,
       derivedAfter: { viewRows, resourceLoadResult },
-      notifications: [],
+      notifications,
       timephasedLossCount: timephasedLossTaskIds.size,
       skippedReadOnlyCount: skippedReadOnlyFromPlanning + skippedReadOnlyFromTransaction,
       label: normalized.value.length === 1 ? 'Cel bewerken' : 'Cellen bewerken',
@@ -875,6 +924,7 @@ function runGridMutationAgainstStore(
   get: StoreGet,
   set: StoreSet,
   intents: readonly GridIntent[],
+  options?: GridMutationOptions,
 ): GridResult<void, readonly CellValidationError[]> {
   if (runningStores.has(get)) {
     return { ok: false, errors: [validationError('reentrant')] };
@@ -882,7 +932,7 @@ function runGridMutationAgainstStore(
   runningStores.add(get);
   try {
     if (intents.length === 0) return { ok: true, value: undefined };
-    const prepared = prepareGridMutation(get(), intents);
+    const prepared = prepareGridMutation(get(), intents, options);
     if (!prepared.ok) return prepared;
     const committed = commitPreparedAgainstStore(get, set, prepared.value);
     return committed.ok
@@ -895,11 +945,12 @@ function runGridMutationAgainstStore(
 
 export function runGridMutation(
   intents: readonly GridIntent[],
+  options?: GridMutationOptions,
 ): GridResult<void, readonly CellValidationError[]> {
   const store = getDefaultStore();
-  return runGridMutationAgainstStore(store.get, store.set, intents);
+  return runGridMutationAgainstStore(store.get, store.set, intents, options);
 }
 
 export const createGridTransactionSlice: AppSlice<GridTransactionSlice> = (set, get) => ({
-  runGridMutation: intents => runGridMutationAgainstStore(get, set as StoreSet, intents),
+  runGridMutation: (intents, options) => runGridMutationAgainstStore(get, set as StoreSet, intents, options),
 });

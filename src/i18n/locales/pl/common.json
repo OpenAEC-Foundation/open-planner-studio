@@ -58,7 +58,8 @@
     "levelingDelayRoundedToWorkdays_one": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadania do pełnych dni roboczych.",
     "levelingDelayRoundedToWorkdays_few": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych.",
     "levelingDelayRoundedToWorkdays_many": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych.",
-    "levelingDelayRoundedToWorkdays_other": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych."
+    "levelingDelayRoundedToWorkdays_other": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych.",
+    "statusDateSetToday": "Nie było jeszcze daty statusu: ustawiono ją na dziś ({{date}}), ponieważ postęp jest mierzony do daty statusu. Możesz ją zmienić w Planowanie → Data statusu."
   },
   "yes": "Tak",
   "no": "Nie",

@@ -41,6 +41,8 @@ Voortgang zet je op drie plekken, elk met hetzelfde effect:
 
 Werkelijke datums kunnen nooit ná de statusdatum liggen — vul je toch een latere datum in, dan wijst de app dat af met een foutmelding. Dat is een bewuste grens: een "feit" (wat er echt is gebeurd) kan per definitie niet in de toekomst liggen ten opzichte van het moment waarop je de planning bijwerkt.
 
+**Nog geen statusdatum?** Voortgang wordt gemeten tot de statusdatum. Vul je voortgang in — een percentage, een werkelijke datum, of in de Tabel-weergave ook de status of een werkelijke of resterende duur — terwijl er nog geen statusdatum staat, dan zet de app hem op vandaag en meldt dat onderin het scherm. Zet hem daarna gerust op je echte peildatum. Eén keer **Ongedaan maken** (Ctrl+Z) draait de voortgang en de statusdatum samen terug. Een werkelijke datum ná vandaag wordt in dat geval geweigerd: die zou ná de nieuwe statusdatum liggen. Zonder statusdatum zou de berekening een lopende taak scheef rekenen (vooruit met de resterende duur, terug met de volle duur), met onterecht negatieve speling als gevolg.
+
 ## De statusdatum
 
 De **statusdatum** (lintgroep **Baselines & voortgang** op het tabblad Planning, veld **Statusdatum**) markeert "vandaag" binnen de planning — het moment waarop je de voortgang hebt vastgelegd. Zodra hij gezet is, doet hij twee dingen tegelijk:

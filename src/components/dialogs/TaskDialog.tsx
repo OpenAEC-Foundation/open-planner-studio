@@ -3,6 +3,8 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import { localTodayIso } from '@/utils/dateUtils';
+import { progressEntryStatusDate } from '@/engine/progressEntry';
 import {
   draftWithActualFinish, draftWithActualStart, draftWithProgress, saveTaskDialog,
 } from '@/state/taskDialogSave';
@@ -109,12 +111,17 @@ export function TaskDialog() {
     return () => clearTimeout(id);
   }, [showTaskDialog, editingTaskId]);
 
+  // Voortgang invullen is een UI-route (`engine/progressEntry.ts`): zonder statusdatum rekent de
+  // concepttaak met vandaag, en Opslaan zet de statusdatum dan op vandaag (Z1).
+  const today = localTodayIso();
+  const progressStatusDate = progressEntryStatusDate(project.statusDate, today);
+
   const handleSave = () => {
     if (!draft.name.trim()) return;
     // Opslaan = één undo-stap met dezelfde voortgangsregels als het paneel; de details (vers uit de
     // store vs uit de draft, het scheduleStart-anker, `moveTask` voor de ouder) staan in
     // state/taskDialogSave.ts.
-    saveTaskDialog({ editingTaskId: editingTask ? editingTask.id : null, draft, startDate });
+    saveTaskDialog({ editingTaskId: editingTask ? editingTask.id : null, draft, startDate, today: localTodayIso() });
     setUI({ showTaskDialog: false, editingTaskId: null });
   };
 
@@ -222,16 +229,16 @@ export function TaskDialog() {
             task={draft}
             // Dezelfde regels als de paneelsetters (§3.2), maar op de draft — commit pas op Opslaan.
             // `null` = geweigerd (actual ná de statusdatum), net als de boolean van de store-setters.
-            onSetProgress={raw => setDraft(d => draftWithProgress(d, raw, project.statusDate))}
+            onSetProgress={raw => setDraft(d => draftWithProgress(d, raw, progressStatusDate))}
             // De weigering hangt alleen van datum en statusdatum af, dus synchroon te beantwoorden.
             onSetActualStart={date => {
-              if (!draftWithActualStart(draft, date, project.statusDate)) return false;
-              setDraft(d => draftWithActualStart(d, date, project.statusDate) ?? d);
+              if (!draftWithActualStart(draft, date, progressStatusDate)) return false;
+              setDraft(d => draftWithActualStart(d, date, progressStatusDate) ?? d);
               return true;
             }}
             onSetActualFinish={date => {
-              if (!draftWithActualFinish(draft, date, project.statusDate)) return false;
-              setDraft(d => draftWithActualFinish(d, date, project.statusDate) ?? d);
+              if (!draftWithActualFinish(draft, date, progressStatusDate)) return false;
+              setDraft(d => draftWithActualFinish(d, date, progressStatusDate) ?? d);
               return true;
             }}
           />

@@ -41,6 +41,8 @@ You set progress in three places, all with the same effect:
 
 Actual dates can never be later than the status date — try to enter a later one and the app rejects it with an error. That's a deliberate boundary: a "fact" (something that actually happened) can, by definition, not lie in the future relative to the moment you're recording progress.
 
+**No status date yet?** Progress is measured up to the status date. If you enter progress — a percentage, an actual date, or in the Table view also the status or an actual or remaining duration — while no status date is set, the app sets it to today and tells you so at the bottom of the screen. Feel free to move it to your real data date afterwards. A single **Undo** (Ctrl+Z) reverts the progress and the status date together. An actual date later than today is rejected in that case: it would lie after the new status date. Without a status date the calculation would treat an in-progress task inconsistently (forward with the remaining duration, backward with the full duration), which shows up as false negative float.
+
 ## The status date
 
 The **status date** (**Baselines & progress** ribbon group on the Planning tab, **Status date** field) marks "today" within the schedule — the moment you recorded progress as of. Once it's set, it does two things at once:

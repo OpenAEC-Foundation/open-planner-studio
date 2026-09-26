@@ -3,6 +3,7 @@ import { appTaskBulkActions } from '@/state/taskBulkActions';
 import { addTaskNearSelection, insertTaskRelativeToScope } from '@/state/taskInsertActions';
 import type { Task } from '@/types/task';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
+import { localTodayIso } from '@/utils/dateUtils';
 
 /**
  * Reikwijdte en uitvoering van de taak-contextmenu-acties (issue #42, issue #45).
@@ -103,10 +104,14 @@ export const contextMenuBulk = {
     appTaskBulkActions.applyToTaskIds(ids, (state, id) => state.setTaskCalendar(id, calendarId));
   },
 
+  /** Voortgang op de hele reikwijdte, als één undo-stap. Een UI-route, dus via `enterTaskProgress`
+   *  (`engine/progressEntry.ts`): zonder statusdatum gaat die op vandaag — bij de eerste taak die
+   *  voortgang krijgt, in dezelfde undo-stap, met één melding. */
   setProgress(taskId: string, completion: number): void {
+    const today = localTodayIso();
     appTaskBulkActions.applyToTaskIds(
       contextMenuOutlineScope(taskId),
-      (state, id) => state.setTaskProgress(id, completion),
+      (state, id) => { state.enterTaskProgress(id, { field: 'completion', value: completion }, { today }); },
     );
   },
 

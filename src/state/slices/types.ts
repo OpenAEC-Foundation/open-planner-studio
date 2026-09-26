@@ -205,7 +205,10 @@ export type NotificationMessageKey =
   | 'notifications.levelingDelayRoundedToWorkdays'
   // Issue #146: onderbroken taken zonder urenverdeling verliezen hun onderbrekingen bij een
   // MSPDI-/P6-export — zie `fileSlice.ts`s `exportSplitsLostNotice`. Meervoud, `count`.
-  | 'notifications.exportSplitsLost';
+  | 'notifications.exportSplitsLost'
+  // Z1 (besluit eigenaar): voortgang ingevuld zonder statusdatum ⇒ de app zette hem op vandaag —
+  // zie `engine/progressEntry.ts` en `state/progressEntryNotice.ts`. Parameter `date`.
+  | 'notifications.statusDateSetToday';
 
 export interface AppNotification {
   /** Stabiele id — uitsluitend voor de React-key en voor `dismissNotification`. */

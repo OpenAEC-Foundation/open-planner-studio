@@ -50,7 +50,8 @@
     "librarySaveFailed": "No se pudo guardar la biblioteca",
     "levelingDelayRoundedToWorkdays_one": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tarea a días laborables completos.",
     "levelingDelayRoundedToWorkdays_many": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tareas a días laborables completos.",
-    "levelingDelayRoundedToWorkdays_other": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tareas a días laborables completos."
+    "levelingDelayRoundedToWorkdays_other": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tareas a días laborables completos.",
+    "statusDateSetToday": "Aún no había fecha de estado: ahora es hoy ({{date}}), porque el avance se mide hasta la fecha de estado. Puede cambiarla en Planificación → Fecha de estado."
   },
   "yes": "Sí",
   "no": "No",
