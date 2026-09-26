@@ -34,7 +34,10 @@
     "readMore": "더 알아보기",
     "pasteSkippedReadOnly_other": "읽기 전용 셀 {{count}}개를 건너뛰었습니다(예: 자동 번호가 매겨진 WBS 코드 또는 계산된 열).",
     "librarySaveFailed": "라이브러리를 저장하지 못했습니다",
-    "levelingDelayRoundedToWorkdays_other": "평준화는 MS Project의 분 단위로 정확한 평준화 지연({{count}}개 작업)을 전체 근무일로 반올림합니다."
+    "levelingDelayRoundedToWorkdays_other": "평준화는 MS Project의 분 단위로 정확한 평준화 지연({{count}}개 작업)을 전체 근무일로 반올림합니다.",
+    "startSnetCreated": "'{{name}}'에 선행 작업이 있습니다. 입력한 시작일이 제약 조건 지정일 이후 시작 (SNET) {{date}}(으)로 설정되었습니다. 다시 계산(F5)하면 작업이 이 날짜 전에 시작하지 않습니다.",
+    "startSnetUpdated": "'{{name}}'의 제약 조건 지정일 이후 시작 (SNET)이(가) {{date}}(으)로 이동되었습니다. 다시 계산(F5)하면 작업이 이 날짜 전에 시작하지 않습니다.",
+    "startSnetMany_other": "선행 작업이 있는 작업 {{count}}개의 입력한 시작일이 제약 조건 지정일 이후 시작 (SNET)(으)로 설정되었습니다. 다시 계산(F5)하면 어느 작업도 해당 날짜 전에 시작하지 않습니다."
   },
   "yes": "예",
   "no": "아니오",

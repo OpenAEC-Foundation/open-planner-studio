@@ -50,7 +50,12 @@
     "librarySaveFailed": "La bibliothèque n'a pas pu être enregistrée",
     "levelingDelayRoundedToWorkdays_one": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâche à des journées de travail entières.",
     "levelingDelayRoundedToWorkdays_many": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâches à des journées de travail entières.",
-    "levelingDelayRoundedToWorkdays_other": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâches à des journées de travail entières."
+    "levelingDelayRoundedToWorkdays_other": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâches à des journées de travail entières.",
+    "startSnetCreated": "'{{name}}' a un prédécesseur : le début saisi devient la contrainte Début au plus tôt le (SNET) {{date}}. Après recalcul (F5), la tâche ne commence pas avant cette date.",
+    "startSnetUpdated": "La contrainte Début au plus tôt le (SNET) de '{{name}}' a été déplacée au {{date}}. Après recalcul (F5), la tâche ne commence pas avant cette date.",
+    "startSnetMany_one": "Le début saisi pour {{count}} tâche avec un prédécesseur devient une contrainte Début au plus tôt le (SNET). Après recalcul (F5), cette tâche ne commence pas avant sa date.",
+    "startSnetMany_many": "Les débuts saisis pour {{count}} tâches avec un prédécesseur deviennent des contraintes Début au plus tôt le (SNET). Après recalcul (F5), aucune ne commence avant sa date.",
+    "startSnetMany_other": "Les débuts saisis pour {{count}} tâches avec un prédécesseur deviennent des contraintes Début au plus tôt le (SNET). Après recalcul (F5), aucune ne commence avant sa date."
   },
   "yes": "Oui",
   "no": "Non",

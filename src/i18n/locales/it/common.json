@@ -50,7 +50,12 @@
     "librarySaveFailed": "Impossibile salvare la libreria",
     "levelingDelayRoundedToWorkdays_one": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere.",
     "levelingDelayRoundedToWorkdays_many": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere.",
-    "levelingDelayRoundedToWorkdays_other": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere."
+    "levelingDelayRoundedToWorkdays_other": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere.",
+    "startSnetCreated": "'{{name}}' ha un predecessore: l'inizio digitato è ora il vincolo Iniziare non prima del (SNET) {{date}}. Dopo il ricalcolo (F5) l'attività non inizia prima di quella data.",
+    "startSnetUpdated": "Il vincolo Iniziare non prima del (SNET) di '{{name}}' è stato spostato al {{date}}. Dopo il ricalcolo (F5) l'attività non inizia prima di quella data.",
+    "startSnetMany_one": "L'inizio digitato di {{count}} attività con un predecessore è ora un vincolo Iniziare non prima del (SNET). Dopo il ricalcolo (F5) l'attività non inizia prima della sua data.",
+    "startSnetMany_many": "Gli inizi digitati di {{count}} attività con un predecessore sono ora vincoli Iniziare non prima del (SNET). Dopo il ricalcolo (F5) nessuna inizia prima della sua data.",
+    "startSnetMany_other": "Gli inizi digitati di {{count}} attività con un predecessore sono ora vincoli Iniziare non prima del (SNET). Dopo il ricalcolo (F5) nessuna inizia prima della sua data."
   },
   "yes": "Sì",
   "no": "No",

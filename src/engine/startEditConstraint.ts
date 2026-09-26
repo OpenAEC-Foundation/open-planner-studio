@@ -1,0 +1,72 @@
+import type { Sequence } from '@/types/sequence';
+import type { Task, TaskConstraint } from '@/types/task';
+import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
+
+/**
+ * Een getypte startdatum op een taak MET voorganger wordt een beperking "Start niet eerder dan"
+ * (SNET) — het MS Project-gedrag (besluit eigenaar, audit "weergaven" W2-vervolg). De solver leest
+ * het startanker `scheduleStart` alleen voor een taak zónder voorganger (`CPMSolver.forwardPass`,
+ * de `noPreds`-tak); bij een taak mét voorganger sprong een getypte start na F5 stil terug achter die
+ * voorganger. Een SNET is een ondergrens in de forward pass: een datum ná wat de voorganger toelaat
+ * verschuift de taak, een datum ervóór doet niets — de voorganger wint vanzelf.
+ *
+ * Eén regel voor elke UI-route waar je een start typt: de Tabel-kolommen Start en Geplande start
+ * (`taskEditPlan.ts`), het eigenschappenpaneel (`TaskTimeFields`) en Taak bewerken (`TaskDialog`).
+ * De melding bouwt `state/startConstraintNotice.ts`. Bewust NIET: de Gantt-balksleep en de MCP-tools
+ * (daarover beslist de eigenaar apart).
+ */
+
+/**
+ * De taken waarvan de start door een voorganger wordt bepaald — precies de taken die in de solver
+ * minstens één inkomende relatie hebben. Dezelfde bron als `solveProject`: een relatie op een
+ * samenvatting geldt voor elk bladkind (`expandSummaryRelations`), dus een kind van een fase mét
+ * voorganger telt mee. Een externe koppeling telt niet: die is een extra ondergrens naast het eigen
+ * anker, geen vervanging ervan.
+ */
+export function predecessorDrivenTaskIds(
+  tasks: readonly Task[],
+  sequences: readonly Sequence[],
+): Set<string> {
+  const driven = new Set<string>();
+  for (const sequence of expandSummaryRelations(tasks, sequences).sequences) {
+    driven.add(sequence.successorId);
+  }
+  return driven;
+}
+
+/** Wat de regel met de beperking deed: een nieuwe SNET, of de datum van de bestaande bijgewerkt. */
+export type StartConstraintChange = 'created' | 'updated';
+
+export interface StartConstraintEdit {
+  constraint: TaskConstraint;
+  change: StartConstraintChange;
+}
+
+/**
+ * De beperking na een getypte start `start` (het nieuwe anker, dus alleen bij een ECHTE wijziging —
+ * zie `startAnchorAfterEdit`). `undefined` ⇒ de beperking blijft zoals ze is. Alleen voor een taak
+ * waarvan de start door een voorganger wordt bepaald én waar een SNET het verschil maakt:
+ *  - geen samenvatting (de solver rekent op bladtaken; een beperking op een fase telt niet),
+ *  - niet handmatig gepland (daar IS het anker de planning, ook met voorganger),
+ *  - geen hangmat (die start op zijn start-driver),
+ *  - niet gestart (de werkelijke start pint de taak; een SNET zou niets doen).
+ * Primaire beperking ASAP (of geen) ⇒ SNET op `start`. Al een SNET ⇒ alleen de datum. Elk ander
+ * type (ALAP, MSO, FNLT, …) blijft staan: daar raden we niet wat de gebruiker bedoelde.
+ */
+export function startConstraintAfterEdit(
+  task: Task,
+  start: string,
+  drivenByPredecessor: boolean,
+): StartConstraintEdit | undefined {
+  if (!drivenByPredecessor || !start) return undefined;
+  if (task.childIds.length > 0 || task.manuallyScheduled === true || task.isHammock === true) return undefined;
+  if (task.time.actualStart || task.time.completion > 0) return undefined;
+  const current = task.constraint;
+  if (!current || current.type === 'ASAP') {
+    return { constraint: { type: 'SNET', date: start }, change: 'created' };
+  }
+  if (current.type === 'SNET' && current.date !== start) {
+    return { constraint: { ...current, date: start }, change: 'updated' };
+  }
+  return undefined;
+}

@@ -42,7 +42,11 @@
     "pasteSkippedReadOnly_other": "{{count}} cellen overgeslagen: ze zijn read-only (bijvoorbeeld een automatisch genummerde WBS-code of een berekende kolom).",
     "librarySaveFailed": "Bibliotheek kon niet worden opgeslagen",
     "levelingDelayRoundedToWorkdays_one": "Nivelleren rondt de minuutprecieze nivelleervertraging van MS Project van {{count}} taak af op hele werkdagen.",
-    "levelingDelayRoundedToWorkdays_other": "Nivelleren rondt de minuutprecieze nivelleervertraging van MS Project van {{count}} taken af op hele werkdagen."
+    "levelingDelayRoundedToWorkdays_other": "Nivelleren rondt de minuutprecieze nivelleervertraging van MS Project van {{count}} taken af op hele werkdagen.",
+    "startSnetCreated": "'{{name}}' heeft een voorganger: de getypte start is vastgelegd als constraint Start niet eerder dan (SNET) {{date}}. Na herberekenen (F5) begint de taak niet vóór die datum.",
+    "startSnetUpdated": "De constraint Start niet eerder dan (SNET) van '{{name}}' is verzet naar {{date}}. Na herberekenen (F5) begint de taak niet vóór die datum.",
+    "startSnetMany_one": "De getypte start van {{count}} taak met een voorganger is vastgelegd als constraint Start niet eerder dan (SNET). Na herberekenen (F5) begint die taak niet vóór die datum.",
+    "startSnetMany_other": "De getypte starts van {{count}} taken met een voorganger zijn vastgelegd als constraint Start niet eerder dan (SNET). Na herberekenen (F5) begint geen van die taken vóór haar datum."
   },
   "yes": "Ja",
   "no": "Nee",

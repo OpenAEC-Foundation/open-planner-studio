@@ -205,7 +205,13 @@ export type NotificationMessageKey =
   | 'notifications.levelingDelayRoundedToWorkdays'
   // Issue #146: onderbroken taken zonder urenverdeling verliezen hun onderbrekingen bij een
   // MSPDI-/P6-export — zie `fileSlice.ts`s `exportSplitsLostNotice`. Meervoud, `count`.
-  | 'notifications.exportSplitsLost';
+  | 'notifications.exportSplitsLost'
+  // W2-vervolg (besluit eigenaar "zoals MS Project"): een getypte start op een taak mét voorganger
+  // werd een beperking "Start niet eerder dan", of verzette de datum van een bestaande — zie
+  // `src/state/startConstraintNotice.ts`. `Many` is het meervoud (`count`) voor plakken/vullen.
+  | 'notifications.startSnetCreated'
+  | 'notifications.startSnetUpdated'
+  | 'notifications.startSnetMany';
 
 export interface AppNotification {
   /** Stabiele id — uitsluitend voor de React-key en voor `dismissNotification`. */

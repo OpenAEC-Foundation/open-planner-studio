@@ -34,7 +34,10 @@
     "readMore": "詳細を見る",
     "pasteSkippedReadOnly_other": "{{count}} 件の読み取り専用セルをスキップしました（例：自動採番の WBS コードや計算列など）。",
     "librarySaveFailed": "ライブラリを保存できませんでした",
-    "levelingDelayRoundedToWorkdays_other": "山崩しは、MS Project の分単位の山崩し遅延（タスク {{count}} 件分）を整数の稼働日に丸めます。"
+    "levelingDelayRoundedToWorkdays_other": "山崩しは、MS Project の分単位の山崩し遅延（タスク {{count}} 件分）を整数の稼働日に丸めます。",
+    "startSnetCreated": "「{{name}}」には先行タスクがあります。入力した開始日を制約「指定日以降に開始 (SNET)」{{date}} として設定しました。再計算（F5）後、このタスクはその日より前には開始しません。",
+    "startSnetUpdated": "「{{name}}」の制約「指定日以降に開始 (SNET)」を {{date}} に移動しました。再計算（F5）後、このタスクはその日より前には開始しません。",
+    "startSnetMany_other": "先行タスクのあるタスク {{count}} 件で、入力した開始日を制約「指定日以降に開始 (SNET)」として設定しました。再計算（F5）後、どのタスクもそれぞれの日付より前には開始しません。"
   },
   "yes": "はい",
   "no": "いいえ",

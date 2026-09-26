@@ -5,6 +5,8 @@ import { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { shownStart, startAnchorAfterEdit } from '@/utils/taskDates';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
+import { predecessorDrivenTaskIds, startConstraintAfterEdit } from '@/engine/startEditConstraint';
+import { startConstraintNotification } from '@/state/startConstraintNotice';
 import { Select } from '@/components/common/Select';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { X } from 'lucide-react';
@@ -147,6 +149,19 @@ export function TaskDialog() {
       if (milestoneTransition.time) {
         Object.assign(time, milestoneTransition.time);
       }
+      // Een getypte start op een taak met voorganger wordt een beperking "Start niet eerder dan"
+      // (dezelfde regel als Tabel en paneel), in dezelfde `updateTask` en dus dezelfde undo-stap.
+      // Koos de gebruiker in deze dialoog zelf een beperking, dan wint die expliciete keuze.
+      const constraintEditedHere = JSON.stringify(draft.constraint) !== JSON.stringify(editingTask.constraint)
+        || JSON.stringify(draft.constraint2) !== JSON.stringify(editingTask.constraint2);
+      const store = useAppStore.getState();
+      const snet = anchor !== undefined && !constraintEditedHere
+        ? startConstraintAfterEdit(
+          { ...editingTask, isHammock: draft.isHammock, time },
+          anchor,
+          predecessorDrivenTaskIds(store.tasks, store.sequences).has(editingTask.id),
+        )
+        : undefined;
       updateTask(editingTask.id, {
         name: draft.name,
         description: draft.description,
@@ -158,12 +173,16 @@ export function TaskDialog() {
         milestoneKind: draft.milestoneKind,
         mandatory: draft.mandatory,
         isHammock: draft.isHammock,
-        constraint: draft.constraint,
+        constraint: snet ? snet.constraint : draft.constraint,
         constraint2: draft.constraint2,
         deadline: draft.deadline,
         notes: draft.notes,
         time,
       });
+      const notice = snet && anchor !== undefined && startConstraintNotification(
+        [{ name: draft.name, date: anchor, change: snet.change }], store.ui.dateNotation,
+      );
+      if (notice) store.notify(notice);
       // QA-fix P1 (fase 2.10, onderdeel 2): een gewijzigde ouder gaat via `moveTask` — die
       // synchroniseert childIds op ZOWEL de oude als de nieuwe ouder en weigert cykels (een
       // summary onder zijn eigen kind hangen). `updateTask` is een kale Object.assign zonder die

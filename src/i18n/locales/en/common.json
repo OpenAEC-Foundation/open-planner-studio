@@ -42,7 +42,11 @@
     "pasteSkippedReadOnly_other": "Skipped {{count}} cells: they are read-only (for example an auto-numbered WBS code or a calculated column).",
     "librarySaveFailed": "Library could not be saved",
     "levelingDelayRoundedToWorkdays_one": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} task to whole workdays.",
-    "levelingDelayRoundedToWorkdays_other": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} tasks to whole workdays."
+    "levelingDelayRoundedToWorkdays_other": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} tasks to whole workdays.",
+    "startSnetCreated": "'{{name}}' has a predecessor: the start you typed is now a Start no earlier than (SNET) constraint on {{date}}. After recalculating (F5) the task won't start before that date.",
+    "startSnetUpdated": "The Start no earlier than (SNET) constraint of '{{name}}' moved to {{date}}. After recalculating (F5) the task won't start before that date.",
+    "startSnetMany_one": "The start you typed for {{count}} task with a predecessor is now a Start no earlier than (SNET) constraint. After recalculating (F5) that task won't start before its date.",
+    "startSnetMany_other": "The starts you typed for {{count}} tasks with a predecessor are now Start no earlier than (SNET) constraints. After recalculating (F5) none of them will start before its date."
   },
   "yes": "Yes",
   "no": "No",

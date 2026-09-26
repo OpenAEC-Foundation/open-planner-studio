@@ -34,7 +34,10 @@
     "readMore": "了解更多",
     "pasteSkippedReadOnly_other": "已跳过 {{count}} 个只读单元格（例如自动编号的 WBS 代码或计算列）。",
     "librarySaveFailed": "无法保存库",
-    "levelingDelayRoundedToWorkdays_other": "资源平衡会将 MS Project 精确到分钟的平衡延迟（{{count}} 项任务）四舍五入为整个工作日。"
+    "levelingDelayRoundedToWorkdays_other": "资源平衡会将 MS Project 精确到分钟的平衡延迟（{{count}} 项任务）四舍五入为整个工作日。",
+    "startSnetCreated": "“{{name}}”有前置任务：输入的开始日期已设为限制“不得早于…开始 (SNET)” {{date}}。重新计算（F5）后，该任务不会早于此日期开始。",
+    "startSnetUpdated": "“{{name}}”的限制“不得早于…开始 (SNET)”已移至 {{date}}。重新计算（F5）后，该任务不会早于此日期开始。",
+    "startSnetMany_other": "为 {{count}} 个有前置任务的任务输入的开始日期已设为限制“不得早于…开始 (SNET)”。重新计算（F5）后，这些任务都不会早于各自的日期开始。"
   },
   "yes": "是",
   "no": "否",

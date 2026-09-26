@@ -50,7 +50,12 @@
     "librarySaveFailed": "No se pudo guardar la biblioteca",
     "levelingDelayRoundedToWorkdays_one": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tarea a días laborables completos.",
     "levelingDelayRoundedToWorkdays_many": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tareas a días laborables completos.",
-    "levelingDelayRoundedToWorkdays_other": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tareas a días laborables completos."
+    "levelingDelayRoundedToWorkdays_other": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tareas a días laborables completos.",
+    "startSnetCreated": "'{{name}}' tiene una predecesora: el comienzo escrito es ahora la restricción No comenzar antes del (SNET) {{date}}. Tras recalcular (F5), la tarea no empieza antes de esa fecha.",
+    "startSnetUpdated": "La restricción No comenzar antes del (SNET) de '{{name}}' se movió al {{date}}. Tras recalcular (F5), la tarea no empieza antes de esa fecha.",
+    "startSnetMany_one": "El comienzo escrito de {{count}} tarea con predecesora es ahora una restricción No comenzar antes del (SNET). Tras recalcular (F5), esa tarea no empieza antes de su fecha.",
+    "startSnetMany_many": "Los comienzos escritos de {{count}} tareas con predecesora son ahora restricciones No comenzar antes del (SNET). Tras recalcular (F5), ninguna empieza antes de su fecha.",
+    "startSnetMany_other": "Los comienzos escritos de {{count}} tareas con predecesora son ahora restricciones No comenzar antes del (SNET). Tras recalcular (F5), ninguna empieza antes de su fecha."
   },
   "yes": "Sí",
   "no": "No",
