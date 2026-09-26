@@ -1,6 +1,7 @@
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
-import { cpmResultFromRecorded, type RecordedDatesState } from '@/engine/scheduler/recordedDates';
-import { cpmOptionsOf, solveInputOf, solveProject } from '@/engine/scheduler/solveProject';
+import { applyRecordedTimesToTasks, type RecordedDatesState } from '@/engine/scheduler/recordedDates';
+import { solveProject } from '@/engine/scheduler/solveProject';
+import { solveInputFor, solveOptionsFor } from '@/engine/scheduler/solveInput';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import {
@@ -13,6 +14,7 @@ import { HOST_EVENTS } from '@/services/extensionEvents';
 import { notifyLevelingDelayRounded } from '../timephasedLossNotice';
 import { clearLevelingOutput, hasLevelingOutput, writeLevelingResult } from '@/utils/taskDefaults';
 import type { AppSliceFactory } from './types';
+import { isLeafTask } from '@/utils/taskHierarchy';
 
 export interface ScheduleSlice {
   cpmResult: CPMResult | null;
@@ -122,15 +124,15 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       // net als voorheen. Dezelfde functie draait het bezettingsoverzicht op een KLOON van de taken
       // van een stale document (B1b §4.3b) — één implementatie, geen divergentie. De samenvattings-
       // relatie-propagatie (MS Project-semantiek) zit dáár, zodat elke afnemer van de kern hem krijgt.
-      // De opties (statusdatum, voortgangsmodus, reken-opties, projectstart-vloer) komen uit
-      // `cpmOptionsOf` — dezelfde als elke andere doorrekening van een document.
-      const result = solveProject(solveInputOf(s, s.tasks));
+      // `solveInputFor` (rekenprofielen C1) levert de volledige projectinvoer, incl. de projectstart
+      // als ondergrens (`rootFloor`, gebruikstest-bevinding 2026-08) en de opgeloste conventies.
+      const result = solveProject(solveInputFor(s.project, s.tasks, s.sequences, s.calendar, s.calendars));
 
       // If circular dependency detected, store the result (with error) and bail
       if (result.error) {
         s.cpmResult = result;
         s.resourceLoadResult = null;
-        if (openedHistory) runtime.finishUndoable(s);
+        if (openedHistory) runtime.finishUndoable(s, { nonEdit: true });
         else if (refreshPreviousEventAfter) runtime.refreshLatestDocumentDataHistoryAfter(s);
         // Een mislukte berekening laat de invoer niet actueel worden. Dit is ook belangrijk voor
         // automatisch berekenen: de statusbalk mag de waarschuwing alleen tijdelijk onderdrukken
@@ -146,7 +148,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       s.resourceLoadResult = computeReliableResourceLoad(
         s.cpmResult, s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
       );
-      if (openedHistory) runtime.finishUndoable(s);
+      if (openedHistory) runtime.finishUndoable(s, { nonEdit: true });
       else if (refreshPreviousEventAfter) runtime.refreshLatestDocumentDataHistoryAfter(s);
     });
 
@@ -182,31 +184,10 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       if (!info || s.datesAsRecorded) return; // no-op ⇒ géén snapshot (transaction.ts-patroon)
       runtime.beginUndoable(s);
 
-      for (const task of s.tasks) {
-        const rec = info.times[task.id];
-        if (!rec) continue;
-        task.time.earlyStart = rec.start;
-        task.time.earlyFinish = rec.finish;
-        task.time.lateStart = rec.lateStart ?? rec.start;
-        task.time.lateFinish = rec.lateFinish ?? rec.finish;
-        task.time.totalFloat = rec.totalFloat ?? 0;
-        task.time.freeFloat = rec.freeFloat ?? 0;
-        task.time.isCritical = rec.isCritical ?? false;
-        // Een verzameltaak toont in de modus ook haar opgeslagen voortgang: de solve bij het laden
-        // leidde die af uit de bladen (`applyCpmResult`), net zoals hij haar datums oprolde.
-        if (rec.summaryProgress) {
-          task.time.completion = rec.summaryProgress.completion;
-          task.status = rec.summaryProgress.status;
-        }
-        // De analyse-afleidingen komen uit de zojuist weggegooide solve en zouden een planning
-        // beschrijven die niet meer op het scherm staat. `applyCpmResult` hanteert dezelfde regel
-        // voor uitgezette opties: afwezig ⇒ het veld wordt gewist.
-        task.time.interferingFloat = undefined;
-        task.time.isNearCritical = undefined;
-        task.time.floatPath = undefined;
-      }
-
-      s.cpmResult = cpmResultFromRecorded(info.times, s.tasks, s.calendar);
+      // Gedeelde kern (XER-etappeplan §3.4, taak T3): schrijft de vastlegging in de taken en levert
+      // meteen het gereconstrueerde `CPMResult` — dezelfde functie die de standaard-aan-laadroute
+      // (taak T4) op een payload-kloon zal gebruiken. Geen gedragswijziging t.o.v. vóór de extractie.
+      s.cpmResult = applyRecordedTimesToTasks(s.tasks, info.times, s.calendar);
       s.resourceLoadResult = computeReliableResourceLoad(
         s.cpmResult, s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
       );
@@ -214,7 +195,8 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       // De weergave is consistent met wat er getoond wordt — niet verouderd.
       s.scheduleStale = false;
       // Wel history sluiten, maar bewust niet dirty maken: er is niets gewijzigd t.o.v. het bestand.
-      runtime.finishUndoable(s);
+      // `nonEdit`: undo/redo van deze stap wist "ongewijzigd sinds import" niet (bevinding 3).
+      runtime.finishUndoable(s, { nonEdit: true });
     });
     get().recomputeViewRows();
   },
@@ -246,7 +228,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       return { delays: {}, unresolved: {}, unresolvedReasons: {}, shifts: {}, projectEndBefore: end, projectEndAfter: end, gaps: {} };
     }
     // De leveler werkt op leaf-taken (net als de CPM-pass in runCPM).
-    const leafTasks = s.tasks.filter((t) => t.childIds.length === 0);
+    const leafTasks = s.tasks.filter(isLeafTask);
     // Zelfde samenvattingsrelatie-propagatie als runCPM (zie daar): `ResourceLeveler` krijgt hier
     // alleen bladtaken door, dus de expansie moet vóór het leaf-filter gebeuren, met de VOLLEDIGE
     // taakboom (parentId/childIds) als bron — `ResourceLeveler` zelf blijft ongewijzigd, die kent
@@ -259,7 +241,9 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     // projectstart-vloer kon hij een wortel-taak vóór het projectbegin laten staan.
     return computeLeveling(
       leafTasks, expandedSequences, s.resources, s.assignments, s.calendar, s.calendars, cpm, options,
-      cpmOptionsOf(s.project),
+      // Zelfde invoer als runCPM hierboven (incl. projectstart-vloer, gebruikstest-bevinding 2026-08) —
+      // anders zou de nivelleerder een wortel-taak vóór het projectbegin kunnen laten staan.
+      solveOptionsFor(s.project),
     );
   },
 

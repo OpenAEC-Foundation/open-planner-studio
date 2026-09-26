@@ -24,13 +24,19 @@ import {
 } from '@/services/extensionEvents';
 import { applyPermissionGuards } from './permissions';
 import {
+  assertNoImportSourceDrift,
+  getExtImportSourceCatalogPage,
+  getExtImportSourceChunk,
+  toExtImportSourceInfo,
+} from './extImportSource';
+import {
   toExtProject,
   toExtCalendar,
   toExtTask,
   toExtSequence,
   toExtResource,
   toExtAssignment,
-  fromExtTaskInput,
+  fromExtTaskAddInput,
   fromExtTaskUpdates,
   fromExtSequenceInput,
   fromExtImportResult,
@@ -142,17 +148,53 @@ export function createExtensionApi(
       getSequences: () => document.store.getState().sequences.map(toExtSequence),
       getResources: () => document.store.getState().resources.map(toExtResource),
       getAssignments: () => document.store.getState().assignments.map(toExtAssignment),
+      getImportSourceInfo: () => {
+        const state = document.store.getState();
+        return state.xerSourceArchive
+          ? toExtImportSourceInfo(state.xerSourceArchive, state.xerImportMetadata, state.xerSourceProjectId)
+          : null;
+      },
+      getImportSourceIssue: () => {
+        const state = document.store.getState();
+        // Alleen als er GEEN archief is: een bruikbaar archief heeft per definitie geen issue, en
+        // een verse kopie van de code (geen referentie naar store-state).
+        return !state.xerSourceArchive && state.xerArchiveIssue
+          ? { code: state.xerArchiveIssue.code }
+          : null;
+      },
+      getImportSourceChunk: (index) => {
+        const archive = document.store.getState().xerSourceArchive;
+        return archive ? getExtImportSourceChunk(archive, index) : null;
+      },
+      getImportSourceCatalogPage: (collection, options) => {
+        const state = document.store.getState();
+        // `getExtImportSourceCatalogPage` bewaakt de drift zelf zodra er een archief is — maar als
+        // het actieve document NA een `switchDocument` helemaal geen XER-bron meer heeft, wordt die
+        // functie hier onder nooit aangeroepen (er is geen `archive` om aan door te geven). Zonder
+        // deze losse check zou een `expectedSourceProjectId` dan stil een `null` terugkrijgen i.p.v.
+        // de bedoelde `ExtImportSourceDriftError` — dezelfde stille-modus die de fix net oplost.
+        if (!state.xerSourceArchive) {
+          assertNoImportSourceDrift(options?.expectedSourceProjectId, null);
+          return null;
+        }
+        return getExtImportSourceCatalogPage(
+          state.xerSourceArchive, state.xerImportMetadata, state.xerSourceProjectId, collection, options,
+        );
+      },
+      // PR #170-her-check (dialoog-undo, punt 1): ÁLLE `data.*`-schrijfroutes lopen via
+      // `batch.withTransaction` — één undo-stap per call, en nooit via `finishUndoable` buiten batch.
+      // Die route stempelt tijdens een open bewerksessie (taakdialoog) de `sessionKey`, en dan zou
+      // Annuleren in de dialoog extensiewerk stil terugdraaien (docblok `SessionHistoryEvent.sessionKey`).
       addTask: (task) => {
         // Een bestaande ouder hangt de store-`addTask` zelf aan beide kanten op; alleen een
         // onbekende ouder liet hij als bungelende `parentId` staan. `''` ⇒ wortel, net als daar
         // (`partial.parentId || null`).
         if (task.parentId) assertParentAllowed(undefined, task.parentId);
         const materialize = customTaskTypeToMaterialize(task.customTaskType);
-        if (!materialize) return document.store.getState().addTask(fromExtTaskInput(task));
         // Catalogus + toewijzing vormen voor de gebruiker één wijziging en dus één undo-stap.
         return batch.withTransaction(() => {
-          document.store.getState().ensureProjectTaskType(materialize);
-          return document.store.getState().addTask(fromExtTaskInput(task));
+          if (materialize) document.store.getState().ensureProjectTaskType(materialize);
+          return document.store.getState().addTask(fromExtTaskAddInput(task));
         });
       },
       updateTask: (id, updates) => {
@@ -160,7 +202,7 @@ export function createExtensionApi(
         // geval ook geen los catalogusitem waar uiteindelijk geen taaktoewijzing tegenover staat.
         const current = document.store.getState().tasks.find(task => task.id === id);
         if (!current) {
-          document.store.getState().updateTask(id, fromExtTaskUpdates(updates));
+          batch.withTransaction(() => document.store.getState().updateTask(id, fromExtTaskUpdates(updates)));
           return;
         }
         // Een ouderwijziging is een VERPLAATSING, geen veld: ze loopt via dezelfde store-actie als
@@ -175,10 +217,6 @@ export function createExtensionApi(
         if (move?.parentId) assertParentAllowed(id, move.parentId);
         const materialize = customTaskTypeToMaterialize(updates.customTaskType);
         const patch = fromExtTaskUpdates(fieldUpdates);
-        if (!materialize && !move) {
-          document.store.getState().updateTask(id, patch);
-          return;
-        }
         // Catalogus, verplaatsing en veldwijziging vormen voor de gebruiker één wijziging en dus
         // één undo-stap. Eerst verplaatsen: met WBS-autonummering hernummert `moveTaskTo`, en een
         // `wbsCode` uit dezelfde aanroep blijft dan net als voorheen staan.
@@ -190,7 +228,9 @@ export function createExtensionApi(
           if (!move || Object.keys(patch).length > 0) document.store.getState().updateTask(id, patch);
         });
       },
-      addSequence: (seq) => document.store.getState().addSequence(fromExtSequenceInput(seq)),
+      addSequence: (seq) => batch.withTransaction(
+        () => document.store.getState().addSequence(fromExtSequenceInput(seq)),
+      ),
       loadProject: (result: ExtImportResult) => {
         const store = document.store.getState();
         store.loadState(fromExtImportResult(result));
@@ -290,8 +330,9 @@ export function createExtensionApi(
   };
 
   // Centrale permissie-afdwinging: wikkel de guarded methodes (events.*, ui.addRibbonButton,
-  // importers.*, pdfFonts.register) in checks volgens de tabel in permissions.ts. Kern-API
-  // (data.*, settings.*, assets.get, ui.showNotification) blijft ongewijzigd.
+  // importers.*, pdfFonts.register, data.getImportSource*) in checks volgens de tabel in
+  // permissions.ts. De rest van data.*, settings.*, assets.get en ui.showNotification blijven
+  // ongewijzigd kern-API.
   applyPermissionGuards(api as unknown as Record<string, unknown>, extensionId, permissions);
 
   return api;

@@ -6,8 +6,10 @@ import { TaskBasicFields } from '@/components/task-sections/TaskBasicFields';
 import { TaskNotesFields } from '@/components/task-sections/TaskNotesFields';
 import { TaskMilestoneFields } from '@/components/task-sections/TaskMilestoneFields';
 import { TaskTimeFields } from '@/components/task-sections/TaskTimeFields';
+import { TaskWorkRuleField } from '@/components/task-sections/TaskWorkRuleField';
 import { TaskFreePeriodWarning } from '@/components/task-sections/TaskFreePeriodWarning';
 import { TaskTimephasedNotice } from '@/components/task-sections/TaskTimephasedNotice';
+import { TaskRecordedDatesNotice } from '@/components/task-sections/TaskRecordedDatesNotice';
 import { TaskHammockFields } from '@/components/task-sections/TaskHammockFields';
 import { TaskConstraintFields } from '@/components/task-sections/TaskConstraintFields';
 import { TaskDeadlineField } from '@/components/task-sections/TaskDeadlineField';
@@ -35,6 +37,7 @@ export function TaskPropertiesPanel() {
   const activeTaskId = useAppStore(s => s.activeTaskId);
   const tasks = useAppStore(s => s.tasks);
   const updateTask = useAppStore(s => s.updateTask);
+  const setTaskWorkRule = useAppStore(s => s.setTaskWorkRule);
   const deleteTask = useAppStore(s => s.deleteTask);
   const runCPM = useAppStore(s => s.runCPM);
   const setTaskCalendar = useAppStore(s => s.setTaskCalendar);
@@ -101,9 +104,15 @@ export function TaskPropertiesPanel() {
 
       <TaskTimeFields task={task} onChange={update} />
 
+      {/* Taaktypes-etappe (review B3): een typewissel rekent niets en gaat daarom via `setTaskWorkRule`
+          (geen `scheduleStale`, "datums zoals opgeslagen" blijft staan), niet via de generieke update. */}
+      <TaskWorkRuleField task={task} onChange={patch => setTaskWorkRule(task.id, patch.workRule)} />
+
       <TaskFreePeriodWarning taskId={task.id} />
 
       <TaskTimephasedNotice taskId={task.id} />
+
+      <TaskRecordedDatesNotice taskId={task.id} />
 
       <TaskHammockFields task={task} onChange={update} />
 

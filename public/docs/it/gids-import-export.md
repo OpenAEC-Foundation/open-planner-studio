@@ -42,6 +42,8 @@ Apri **Backstage → Esporta** per quattro formati:
 Ogni formato ha le proprie limitazioni: più ricco è il formato di destinazione, più cose vengono
 incluse, ma nessuno dei tre formati esterni è uno specchio completo di IFC.
 
+Il profilo di calcolo non viene esportato in CSV, MS Project XML o P6 XML; vedi [Profili di calcolo](docs://gids-rekenprofielen).
+
 ### CSV
 
 L'esportazione CSV contiene **solo la tabella delle attività**: codice WBS, nome, durata (giorni),
@@ -108,6 +110,10 @@ riesportare verso MS Project passa per MSPDI XML. Vedi la guida
 [Aprire MS Project (.mpp)](docs://gids-msproject-import) per sapere cosa viene incluso e quali sono i
 limiti.
 
+Un file di Primavera o MS Project porta le date che quel programma ha calcolato da sé, comprese le date al più tardi e gli scorrimenti. Un file CSV contiene solo dati di input e viene semplicemente ricalcolato. Se il ricalcolo di Open Planner Studio se ne discosta, il file si apre nella vista **date come salvate**: vedi prima ciò che diceva il programma di origine, con una notifica, e solo dopo il ricalcolo il nostro risultato. Vedi [Date come salvate](docs://datums-zoals-opgeslagen).
+
+Un file `.xer` è il formato di scambio di Primavera P6. Viene importato direttamente e, dopo la modifica, salvato come IFC; vedi [Aprire Primavera P6 (.xer)](docs://gids-xer-import).
+
 ## Importatori tramite estensioni
 
 Oltre ai formati fissi sopra descritti, le estensioni installate possono aggiungere i propri
@@ -123,3 +129,4 @@ corrispondenti; senza estensioni di importazione installate, quella sezione è v
 - Risorse, assegnazioni e curve di caricamento — leggi la guida
   [Risorse, istogramma e livellamento](docs://gids-resources-histogram) per come si costruiscono prima
   di esportare.
+- Quale profilo di calcolo riceve un file aperto e cosa ne conserva IFC — leggi la guida [Profili di calcolo](docs://gids-rekenprofielen).

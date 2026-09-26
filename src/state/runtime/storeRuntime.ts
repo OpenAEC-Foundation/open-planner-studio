@@ -3,10 +3,12 @@ import { currentAppState } from '../immerDraft';
 import {
   MAX_SESSION_HISTORY_EVENTS_PER_SCOPE,
   recordDocumentDataHistoryDelta,
+  recordSessionHistoryDeltas,
   type SessionHistoryEvent,
 } from '../sessionHistory';
 import type { AppState } from '../appStore';
 import { markDateMutation } from '../scheduleStale';
+import { markDocumentEdited } from '@/state/documentEdited';
 import { emitExtensionEvent, type HostEventName } from '@/services/extensionEvents';
 
 /** Bestaande publieke naam; de grens wordt per session-historyscope afgedwongen. */
@@ -33,6 +35,8 @@ interface PendingDocumentMutation {
   label: string;
   coalesceKey: string | null;
   depth: number;
+  /** Er liep binnen deze open mutatie een `finishMutation` (= een echte bewerking). */
+  edited: boolean;
 }
 
 interface CoalesceMarker {
@@ -43,7 +47,9 @@ interface CoalesceMarker {
 
 export interface StoreRuntime {
   beginUndoable(state: AppState, opts?: { coalesceKey?: string; label?: string }): void;
-  finishUndoable(state: AppState): SessionHistoryEvent | null;
+  /** `nonEdit: true` ⇒ het event is geen bewerking (zie `SessionHistoryDelta.nonEdit`), tenzij er
+   *  binnen dezelfde open mutatie tóch een `finishMutation` liep. */
+  finishUndoable(state: AppState, opts?: { nonEdit?: true }): SessionHistoryEvent | null;
   finishMutation(state: AppState, opts?: { stale?: boolean }): void;
   refreshLatestDocumentDataHistoryAfter(state: AppState): boolean;
   recordDocumentDataHistory(
@@ -53,6 +59,14 @@ export interface StoreRuntime {
     label?: string,
   ): SessionHistoryEvent | null;
   resetUndoCoalescing(): void;
+  /**
+   * PR #170-hercheck: open een bewerksessie (de taakdialoog). Zolang hij open staat krijgt elk
+   * event dat via de interactieve route (`finishUndoable`, dus buiten batch en MCP-lease) ontstaat
+   * `sessionKey` = de teruggegeven sleutel. Een nieuwe sessie vervangt een vergeten oude.
+   */
+  openHistorySession(): string;
+  /** Sluit de sessie met deze sleutel; idempotent, en een andere (nieuwere) sessie blijft open. */
+  endHistorySession(key: string): void;
   isBatchActive(): boolean;
   enterBatch(): void;
   exitBatch(): void;
@@ -110,6 +124,8 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
   let coalesce: CoalesceMarker | null = null;
   let batchDepth = 0;
   let activeMcpLease: ActiveMcpLease | null = null;
+  let activeHistorySession: string | null = null;
+  let historySessionCounter = 0;
   // B1c-plan3 taak 4 (spec §6a): monotone, per-context mutatieteller — zie het docblok bij
   // `StoreRuntime.mutationSeq`.
   let mutationSeq = 0;
@@ -163,13 +179,15 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
         label: opts?.label?.trim() || opts?.coalesceKey || 'Wijziging',
         coalesceKey: opts?.coalesceKey ?? null,
         depth: 1,
+        edited: false,
       });
     },
 
-    finishUndoable(state) {
+    finishUndoable(state, opts) {
       const draftKey = state as object;
       const pending = pendingByDraft.get(draftKey);
       if (!pending) return null;
+      const nonEdit = opts?.nonEdit === true && !pending.edited;
       if (pending.depth > 1) {
         pending.depth--;
         return null;
@@ -187,7 +205,13 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
         return state.historyEvents.find(event => event.id === coalesce?.eventId) ?? null;
       }
 
-      const event = recordDocumentDataHistoryDelta(state, pending.label, pending.documentId, pending.before, after);
+      const event = recordSessionHistoryDeltas(state, pending.label, [{
+        kind: 'document-data',
+        documentId: pending.documentId,
+        before: pending.before,
+        after,
+        ...(nonEdit ? { nonEdit: true as const } : {}),
+      }], activeHistorySession ?? undefined);
       coalesce = pending.coalesceKey && event
         ? { key: pending.coalesceKey, eventId: event.id, documentId: pending.documentId }
         : null;
@@ -195,7 +219,9 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
     },
 
     finishMutation(state, opts) {
-      state.isDirty = true;
+      const pending = pendingByDraft.get(state as object);
+      if (pending) pending.edited = true;
+      markDocumentEdited(state);
       if (opts?.stale) markDateMutation(state);
       runtime.finishUndoable(state);
     },
@@ -232,6 +258,16 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
 
     resetUndoCoalescing() {
       coalesce = null;
+    },
+
+    openHistorySession() {
+      historySessionCounter++;
+      activeHistorySession = `history-session-${historySessionCounter}`;
+      return activeHistorySession;
+    },
+
+    endHistorySession(key) {
+      if (activeHistorySession === key) activeHistorySession = null;
     },
 
     isBatchActive() {

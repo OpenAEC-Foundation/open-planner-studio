@@ -1,3 +1,4 @@
+import { hasTaskTypeData } from '@/state/taskTypesVisibility';
 import type { Project } from '@/types/project';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Task } from '@/types/task';
@@ -9,7 +10,9 @@ import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { RecordedDatesState } from '@/engine/scheduler/recordedDates';
 import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import type { Baseline } from '@/types/baseline';
-import type { ImportResult } from '@/services/importTypes';
+import type { ImportResult, RecordedTimesOrigin } from '@/services/importTypes';
+import type { XerArchiveIssue, XerImportMetadata } from '@/services/importTypes';
+import type { XerSourceArchive } from '@/services/xerSourceArchive';
 import type { ColumnConfig, ViewState } from './slices/types';
 import type { AppState } from './appStore';
 import { createDefaultProject } from './defaults';
@@ -78,6 +81,30 @@ export interface DocumentPayload {
   /** Persoonlijke sessiekeuze: echte bestands-AutoSave, geen IFC-data en geen crashherstel. */
   autoSaveToFile: boolean;
   isDirty: boolean;
+  /** XER-bronmetadata per document; geen onderdeel van undo omdat bewerkingen dit niet muteren.
+   *  X9 archiveert deze selectorgebonden provenance via IFC-diagnostics; X4b bewaart haar al
+   *  door documentwissel en de recovery-inputlaag. */
+  xerImportMetadata: XerImportMetadata | null;
+  /** X9: exacte immutable bronbytes; bewust gedeeld en buiten undo/redo. */
+  xerSourceArchive: XerSourceArchive | null;
+  /** Selector van dit document binnen xerSourceArchive; semantiek is documentgebonden. */
+  xerSourceProjectId: string | null;
+  /** Taaktypes-etappe (spec §7): de werkregel-UI is voor dit document ontsloten omdat het al
+   *  taaktypedata draagt (`hasTaskTypeData`) of omdat de gebruiker er een regel/werk in zette.
+   *  Niet gepersisteerd (bij laden opnieuw afgeleid), niet in undo. */
+  taskTypesVisible: boolean;
+  /** "Ongewijzigd sinds import" (heropen-beleid optie B, eigenaarsbesluit 2026-09-09). `true`
+   *  vanaf een verse import tot de eerste bewerking (`markDocumentEdited`); opslaan wist hem niet.
+   *  Round-tript via `OPS_ImportProvenance` (alleen als `true`), zodat een heropend eigen IFC
+   *  weet of het automatisch in "datums zoals opgeslagen" mag. Geen undo-rol: undo maakt een
+   *  bewerkt document niet weer "ongewijzigd" (conservatief — nooit een gok richting automatisch
+   *  aan). */
+  importPristine: boolean;
+  /** Eigenaarsbesluit 2026-09-24 ("openen met melding"): het XER-bronarchief was bij het openen
+   *  onbruikbaar en is weggelaten. SESSIE-ONLY: rijdt mee door documentwissel (anders zou MCP/de
+   *  extensie-API na een tabwissel weer "nooit een XER-bron" zeggen), maar staat bewust NIET in
+   *  `IFC_SAVE_KEYS` en niet in undo — er is niets om terug te schrijven, het archief is weg. */
+  xerArchiveIssue: XerArchiveIssue | null;
 }
 
 /** Per-document projectdata + metadata om bij crash-recovery te herstellen.
@@ -95,6 +122,8 @@ export type RecoveryDocInput = ImportResult & {
   id: string;
   filePath: string | null;
   isDirty: boolean;
+  /** Zie `RecoveryDocMeta.datesAsRecorded`. */
+  datesAsRecorded: boolean;
 };
 
 /** Document-identiteit rond een herstelde snapshot: alles wat NIET uit de IFC komt maar uit de
@@ -103,6 +132,12 @@ export interface RecoveryDocMeta {
   id: string;
   filePath: string | null;
   isDirty: boolean;
+  /**
+   * Stond het document in "datums zoals opgeslagen" toen de snapshot geschreven werd? Komt uit
+   * de recovery-metadata (`RecoveryManifestDoc.datesAsRecorded`), niet uit de IFC: de weergave-
+   * stand is geen projectdata. Oudere manifesten kennen het veld niet en leveren `false`.
+   */
+  datesAsRecorded: boolean;
 }
 
 /**
@@ -229,6 +264,13 @@ export const DOCUMENT_FIELDS = [
   // Runtime-only: rijdt mee tussen open tabbladen, maar nooit door IFC of recoverymetadata.
   field({ key: 'autoSaveToFile', get: (s) => s.autoSaveToFile, set: (s, v) => { s.autoSaveToFile = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.autoSaveToFile ?? false }),
   field({ key: 'isDirty', get: (s) => s.isDirty, set: (s, v) => { s.isDirty = v; }, fresh: () => false, snapshot: 'none' }),
+  field({ key: 'xerImportMetadata', get: (s) => s.xerImportMetadata, set: (s, v) => { s.xerImportMetadata = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerImportMetadata ?? null }),
+  field({ key: 'xerSourceArchive', get: (s) => s.xerSourceArchive, set: (s, v) => { s.xerSourceArchive = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerSourceArchive ?? null }),
+  field({ key: 'xerSourceProjectId', get: (s) => s.xerSourceProjectId, set: (s, v) => { s.xerSourceProjectId = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerSourceProjectId ?? null }),
+  // Taaktypes-etappe (spec §7): sessie-afgeleide zichtbaarheid, geen projectdata — rol `none`.
+  field({ key: 'taskTypesVisible', get: (s) => s.taskTypesVisible, set: (s, v) => { s.taskTypesVisible = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.taskTypesVisible ?? false }),
+  field({ key: 'importPristine', get: (s) => s.importPristine, set: (s, v) => { s.importPristine = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.importPristine ?? false }),
+  field({ key: 'xerArchiveIssue', get: (s) => s.xerArchiveIssue, set: (s, v) => { s.xerArchiveIssue = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerArchiveIssue ?? null }),
 ];
 
 // Compile-time volledigheidscheck: elke DocumentPayload-key MOET in DOCUMENT_FIELDS staan. Voeg je
@@ -381,6 +423,14 @@ export function payloadFromInput(d: RecoveryDocInput): DocumentPayload {
   return { ...payloadFromImport(d, d.filePath), isDirty: d.isDirty, scheduleStale: true };
 }
 
+/**
+ *  Verschil 3 met de import-kant, en de reden dat `payloadFromInput` de modusvlag NIET zelf zet:
+ *  `datesAsRecorded: true` met `scheduleStale: true` is een verboden combinatie (de invariant uit
+ *  `state/scheduleStale.ts`, bewaakt door check-recorded-dates 11d–11g). De modus komt er daarom
+ *  pas ná de payloadbouw op, samen met het bijbehorende `cpmResult` en `scheduleStale = false` —
+ *  zie `applyRecordedDatesOnLoad`/`applyRestoredRecordedMode` in `documentActivation.ts`.
+ */
+
 /** Verse payload uit een ingelezen project (IFC/CSV/MSPDI/P6). Alleen de IFC-round-trip-velden
  *  worden overgenomen; selectie/cpm/history/scheduleStale starten vers. `view`/`collapsedTaskIds`
  *  vult de aanroeper (`applyLoadedProject` behoudt die van het huidige document — load-semantiek). */
@@ -399,7 +449,25 @@ export function payloadFromImport(parsed: ImportResult, filePath: string | null)
     customTaskTypes: parsed.customTaskTypes ?? [],
     baselines: parsed.baselines ?? [],
     activeBaselineId: parsed.activeBaselineId ?? null,
+    xerImportMetadata: parsed.xer ?? null,
+    xerSourceArchive: parsed.xerSourceArchive ?? null,
+    xerSourceProjectId: parsed.xer?.sourceProjectId ?? parsed.xerSourceProjectId ?? null,
+    // Taaktypes-etappe (spec §7): het geladen bestand ontsluit de werkregel-UI voor zichzelf.
+    taskTypesVisible: hasTaskTypeData(parsed.tasks, parsed.assignments, parsed.project),
+    // Heropen-beleid optie B: een VERSE import (xer/p6xml/mspdi/mpp/csv/ifc-uit-ander-pakket) is
+    // per definitie ongewijzigd; een HEROPENING (eigen IFC: 'ifc-own'/'xer-archive') draagt de
+    // vlag alleen als het bestand haar zelf zegt (`OPS_ImportProvenance`), anders `false`. Zonder
+    // herkomst (extensie-importer) `false`: nooit een gok richting automatisch aan.
+    importPristine: parsed.importPristine ?? isFreshImportOrigin(parsed.recordedTimesOrigin),
+    xerArchiveIssue: parsed.xerArchiveIssue ?? null,
     filePath,
     isDirty: false,
   };
+}
+
+/** Zie `ImportResult.recordedTimesOrigin`: verse import (automatisch aan bij afwijkingen) versus
+ *  heropening van een eigen IFC (alleen automatisch aan zolang `importPristine`). Eén definitie,
+ *  gedeeld door `payloadFromImport` en `applyRecordedDatesOnLoad`. */
+export function isFreshImportOrigin(origin: RecordedTimesOrigin | undefined): boolean {
+  return origin === 'xer' || origin === 'p6xml' || origin === 'mspdi' || origin === 'mpp' || origin === 'csv' || origin === 'ifc';
 }

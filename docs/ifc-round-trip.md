@@ -73,7 +73,8 @@ kanten:
 
 `PSET` bovenin datzelfde bestand is de enige plek waar `OPS_`-namen staan — óók die van de psets die
 géén descriptor hebben (`OPS_ProjectSettings`, `OPS_Resource`, `OPS_Assignments`, `OPS_Calendar`,
-`OPS_CustomFields`, `OPS_ActivityCodes`, `OPS_Baselines`, `OPS_SchedulingOptions`, …). Die laatste
+`OPS_CustomFields`, `OPS_ActivityCodes`, `OPS_Baselines`, `OPS_SchedulingOptions`,
+`OPS_ImportProvenance`, …). Die laatste
 hebben een afwijkende vorm — per resource, per kalender, of één blob op het schedule — en delen
 alleen de naam. Schrijf een nieuwe naam dus in `PSET`, nooit als losse string in de writer.
 
@@ -90,6 +91,13 @@ Twee dingen om te weten:
 Voor structuren die niet in losse properties passen — baselines, `schedulingOptions`, de
 custom-field- en activity-code-definities, de bedrijfsbibliotheek — schrijven we één
 `IFCPROPERTYSINGLEVALUE` met JSON erin, op het `IfcWorkSchedule` of het `IfcProject`.
+
+`OPS_SchedulingProfile` (rekenprofielen) staat naast `OPS_SchedulingOptions` op het `IfcWorkSchedule`:
+één JSON `{ id, baseId, conventions, overrides, name? }` met alle conventies opgelost plus de letterlijke afwijkingen (zodat P6 → OPS → opslaan → P6 het origineel teruggeeft); alleen geschreven als het
+profiel ≠ het standaardprofiel (OPS zonder afwijkingen), zodat bestaande bestanden byte-identiek
+blijven. De lezer geeft hem voorrang op het (gemigreerde) `OPS_SchedulingOptions`-blok
+(`profileAfterRead` in `schedulingOptionsRead.ts`, migratie in `schedulingProfileMigration.ts`). Een nieuwe
+conventie heeft hier geen extra werk nodig (zie `docs/recepten/conventie.md`).
 
 Verliesloos en simpel, maar het is **ondoorzichtig voor andere programma's**. Gebruik deze route
 alleen als 1 en 2 niet kunnen, en niet omdat het sneller opschiet.

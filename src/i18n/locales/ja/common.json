@@ -10,7 +10,42 @@
   },
   "notifications": {
     "dismiss": "通知を閉じる",
+    "taskEditRevertBlocked": "その間に AI アシスタントまたは拡張機能による変更がありました。それ以前のタスクの編集は元に戻されず、「元に戻す」の通常のステップとして残っています。",
     "openFailed": "ファイルを開けませんでした",
+    "xerInvalidInput": "XER のインポートには元のファイルバイトが必要です。",
+    "xerInvalidFile": "これは有効または対応済みの XER ファイルではありません。",
+    "xerInvalidEncoding": "この XER ファイルの文字エンコーディングは無効または途中で切れています。",
+    "xerDuplicateTable": "XER ファイルに重複したテーブルがあります。",
+    "xerMissingRequiredColumns": "XER テーブルに必須列がありません。",
+    "xerMissingRequiredValue": "XER レコードに必須値がありません。",
+    "xerAmbiguousDecimal": "この XER ファイルの小数表記を確実に判定できません。",
+    "xerInvalidNumberFormat": "この XER ファイルの数値形式は無効です。",
+    "xerInvalidNumber": "XER ファイルに無効な数値があります。",
+    "xerSingleProjectRequired": "このインポートは XER ファイルごとに 1 つの P6 プロジェクトのみ対応します。",
+    "xerEmptyProject": "この XER ファイルの P6 プロジェクトにはアクティビティがありません。",
+    "xerDuplicateId": "XER ファイルに重複した WBS、アクティビティ、または関係 ID があります。",
+    "xerAmbiguousLocalRelation": "スコープのない XER 関係を 1 つのローカルプロジェクトに一意に割り当てられません。",
+    "xerDanglingLocalRelation": "ローカル XER 関係が存在しないアクティビティを参照しています。",
+    "xerEnumFallback": "XER {{family}}: 不明なトークン「{{token}}」のため「{{fallback}}」を使用しました。",
+    "xerImportOpened_other": "XER ファイルを開きました: プロジェクト文書 {{count}} 件。",
+    "xerImportProjectsSeen_other": "検出したプロジェクト: {{count}}",
+    "xerImportEmptyProjectsSkipped_other": "空のプロジェクトをスキップ: {{count}}",
+    "xerImportBaselineProjectsExcluded_other": "除外したベースラインプロジェクト: {{count}}",
+    "xerImportBaselinesMaterialized_other": "具体化したベースライン: {{count}}",
+    "xerImportDanglingBaselineReferences_other": "無効なベースライン参照を無視: {{count}}",
+    "xerImportBaselineFallback": "保護的なベースラインのフォールバックを使用しました。",
+    "xerImportExternalLinks_other": "外部リンクを保持: {{count}}",
+    "xerImportEncoding": "選択したテキストエンコーディング: {{encoding}}。",
+    "xerImportParserIssues_other": "パーサーの検出事項: {{count}}",
+    "xerImportCalendarIssues_other": "カレンダーの検出事項: {{count}}",
+    "xerImportNumberIssues_other": "数値形式の問題: {{count}}",
+    "xerImportEnumFallbacks_other": "列挙値のフォールバック: {{count}}",
+    "xerImportUnsupportedSemantics_other": "安全なフォールバックを使った P6 計画設定: {{count}}",
+    "xerImportDatesAsRecorded_other": "Primavera が記録した日付をそのまま表示しているタスク: {{count}} 件（再計算していません）",
+    "xerImportDatesAsRecordedOffer_other": "ファイルに記録された日付と異なるタスク: {{count}} 件（表示できます）",
+    "importDatesAsRecorded_other": "ファイルに記録された日付をそのまま表示しているタスク: {{count}} 件（再計算していません）",
+    "importDatesAsRecordedOffer_other": "ファイルに記録された日付と異なるタスク: {{count}} 件（表示できます）",
+    "xerExportLoss": "{{format}} へのエクスポートでは XER のソース情報が失われます。",
     "mppLegacy": "この .mpp ファイルは古い形式（Project 2007 以前）を使用しています。MS Project で XML としてエクスポートし（ファイル → 名前を付けて保存 → XML）、そのファイルを開いてください。",
     "mppEncrypted": "この .mpp ファイルはパスワードで保護されています。MS Project で XML としてエクスポートし（ファイル → 名前を付けて保存 → XML）、そのファイルを開いてください。",
     "saveFailed": "保存できませんでした",
@@ -32,9 +67,27 @@
     "projectStartAnchorsClamped_other": "プロジェクト開始日を変更しました。先行タスクも制約もないタスクの起点 {{count}} 件を新しい開始日に合わせて移動しました。",
     "mppTimephasedSteeringLost_other": "この編集の後、MS Project の時間配分はもう {{count}} 件のタスクを制御していません。元の配分はファイルに保存されたままです。",
     "readMore": "詳細を見る",
+    "taskTypesUnlocked": "このファイルには保存済みの作業または独自の作業ルールが含まれています。このプロジェクトでは作業ルールと残作業が表示されます。",
+    "taskTypesUnlockedDetail": "このファイルには保存済みの作業または独自の作業ルールが含まれています。このプロジェクトでは作業ルールと残作業が表示されます。",
+    "workRulesReadMore": "作業ルールの説明",
+    "workRuleDurationsChanged_other": "カレンダー変更後、作業ルールにより {{count}} 件のタスクの期間が調整されました（作業は維持、1日の時間数が変更）。",
     "pasteSkippedReadOnly_other": "{{count}} 件の読み取り専用セルをスキップしました（例：自動採番の WBS コードや計算列など）。",
     "librarySaveFailed": "ライブラリを保存できませんでした",
-    "levelingDelayRoundedToWorkdays_other": "山崩しは、MS Project の分単位の山崩し遅延（タスク {{count}} 件分）を整数の稼働日に丸めます。"
+    "levelingDelayRoundedToWorkdays_other": "山崩しは、MS Project の分単位の山崩し遅延（タスク {{count}} 件分）を整数の稼働日に丸めます。",
+    "schedulingProfileApplied": "このプロジェクトは {{profile}} として計算されます。ファイル → プロジェクト情報 → 計算プロファイルとオプション で変更できます。",
+    "schedulingProfileShifted_other": "適用後に {{count}} 件のタスクが移動しました。",
+    "actions": {
+      "openProjectInfo": "計算プロファイルを開く"
+    },
+    "xerArchiveUnusable": "このファイルの XER ソースアーカイブは使用できないため除外しました。プロジェクト自体はすべて開かれています。",
+    "xerArchiveUnusableLine": "このファイルの XER ソースアーカイブは使用できなかったため除外しました。",
+    "xerArchiveUnusableConsequence": "IFC のスケジュール、計算プロファイル、すべてのプロジェクトデータは完全です。欠けているのは、Primavera が保存したとおりの日付と、AI および拡張機能向けのソース来歴です。保存するとアーカイブなしでファイルが書き込まれます。アーカイブを戻すには元の .xer を再度インポートしてください。",
+    "xerArchiveReasonSchemaVersion": "理由: アーカイブのスキーマバージョンまたは形式が不明です（より新しい、または別の書き込みツール）。",
+    "xerArchiveReasonHashMismatch": "理由: チェックサムがソースバイトと一致しません。アーカイブが破損しています。",
+    "xerArchiveReasonTruncated": "理由: アーカイブが途中で切れています。ソースバイトの一部がありません。",
+    "xerArchiveReasonBytesMissing": "理由: ソースバイト自体がありません。別の IFC プログラムがファイルを書き換えた可能性があります。",
+    "xerArchiveReasonMetadataInvalid": "理由: ソースバイトは無傷ですが、そこから導出したデータが使用できません。",
+    "xerArchiveReasonStructure": "理由: IFC 内のアーカイブ構造が正しくありません（重複、並べ替え、または誤った関連付け）。"
   },
   "yes": "はい",
   "no": "いいえ",
@@ -136,6 +189,8 @@
     "hourPlanningSection": "時間計画",
     "enableHourPlanning": "時間計画を有効にする",
     "enableHourPlanningHint": "時間・分単位のスケジューリングを有効にします：時間の時間軸、稼働時間帯を持つシフト、時間単位で正確なタスクバー。オフの場合 ⇒ アプリは従来どおり完全に日単位のままです。",
+    "showTaskTypes": "作業ルールと作業を表示",
+    "showTaskTypesHint": "MS Project や Primavera P6 のファイルでは常に表示されます。オフ：期間と単位はそのままで、作業が追従します。",
     "allowMixedDayHour": "日単位と時間単位の混在計画を許可する",
     "defaultTaskDurationUnit": "新しいタスクの既定単位",
     "defaultTaskDurationUnitHint": "新しいタスクを稼働日または作業時間のどちらで開始するかを決めます。既存のタスクは変わりません。",
@@ -846,9 +901,14 @@
   },
   "recordedDates": {
     "offer_other": "再計算により、{{total}} 件中 {{count}} 件のタスクがファイル内の日付からずれました。",
+    "activeCount_other": "Primavera が記録したスケジュールを表示しています。再計算すると {{count}} 件のタスクがずれます。",
+    "activeCountNeutral_other": "ファイルに記録されている日付を表示しています。再計算すると {{count}} 件のタスクがずれます。",
     "show": "記録された日付を表示",
     "active": "ファイルに記録されている日付をそのまま表示しています。再計算は行われていません。",
-    "recalculate": "再計算"
+    "recalculate": "再計算",
+    "markDeviates": "乖離あり",
+    "markPartlyUnrecorded": "一部未記録",
+    "notRecorded": "未記録"
   },
   "duration": {
     "suffixDay": "日",
@@ -1026,6 +1086,7 @@
     "declaredHeading": "この拡張機能が使用すると申告している項目",
     "declaredNote": "これは作成者による申告であり、制限ではありません。コードはそれ以上のことも実行できます。",
     "declaredNone": "申告なし。",
+    "permImportSource": "importSource — インポートした各ファイルの完全な元のソースバイト (例: 生の Primavera ファイル)。プロジェクトに取り込まれないフィールドも含みます。",
     "cancel": "インストールしない",
     "confirm": "インストール"
   },
@@ -1084,6 +1145,162 @@
       "completion": "完了率",
       "actualStart": "実開始",
       "actualFinish": "実終了"
+    }
+  },
+  "conventions": {
+    "preserveActualDatesInBackwardPass": {
+      "label": "逆算で実績日付を保持",
+      "help": "開始済みまたは完了済みのタスクは、遅い側でも記録済みの日付を保持します。完了した後続タスクが未完了の先行タスクを過去に引き戻すことはありません。"
+    },
+    "clampNegativeFreeFloat": {
+      "label": "フリーフロートを負にしない",
+      "help": "達成不可能な遅い制約がある場合、トータルフロートは負のままですが、フリーフロートはゼロになります。"
+    },
+    "p6ZeroDurationUsesPlannedBoundary": {
+      "label": "マイルストーンは計画されたカレンダー境界に従う",
+      "help": "期間ゼロのマイルストーンはファイルが計画したカレンダー境界に留まります。1日の開始は開始マイルストーンのまま、帯の終わりは先行タスクの終了に一致できます。"
+    },
+    "p6UseTaskPlannedStartFloor": {
+      "label": "計画開始を追加の下限にする",
+      "help": "開始と終了の両方がネットワークの許容より1暦日以上遅い場合、ファイルの計画開始が下限として扱われます。"
+    },
+    "p6FinishMilestoneBoundaryWindow": {
+      "label": "終了マイルストーンを境界ウィンドウとして扱う",
+      "help": "終了マイルストーンは隣接する2つのカレンダー境界に置けます。最早開始は帯の始まり、最早終了は前の帯の終わりです。"
+    },
+    "p6PreserveActualInstants": {
+      "label": "実績日付を正確に取り込む",
+      "help": "記録された実績開始日と実績終了日は稼働時間帯へ移動されません。"
+    },
+    "p6UseRemainingStartForProgress": {
+      "label": "進行中タスク：最早開始 = 残作業の開始",
+      "help": "進行中タスクの最早開始と最遅開始は、過去の実績開始ではなく残作業が始まる位置を表します。開始-開始の関係で逆算するときは、残存期間だけを数えます。"
+    },
+    "p6PreserveZeroDurationConstraintInstants": {
+      "label": "マイルストーン上の制約時刻を正確に",
+      "help": "期間ゼロのマイルストーン上の日時制約は、稼働帯の始まりであっても正確な時点です。"
+    },
+    "resumeFromActualElapsed": {
+      "label": "残作業は経過期間の後に再開",
+      "help": "進行中タスクは、ステータス日付ではなく、実績開始に経過期間を加えた時点で残作業を再開します。"
+    },
+    "unstartedIgnoresStatusDate": {
+      "label": "未開始タスクをステータス日付へ移動しない",
+      "help": "まだ開始していないタスクは、自動的にステータス日付以降へ移動されません。"
+    },
+    "p6RelationFinishBoundary": {
+      "label": "後続タスクは終了境界で開始",
+      "help": "共有する帯の境界上でラグのない終了-開始関係では、後続タスクは先行タスクの終了時に開始します（ファイルがそのように示した関係のみ）。逆算では、後続タスクの最遅開始は単に作業時間帯の開始として表示されます。"
+    },
+    "p6BackwardLagFinishBoundary": {
+      "label": "終了境界からの逆算ラグ",
+      "help": "逆算で終了境界から稼働時間のラグを差し引き、ちょうど帯の開始に当たる場合は、前の終了境界に置かれます。ラグのない終了-終了の関係でも、時間帯の終わりにある最遅終了はその終了境界に留まります。"
+    },
+    "p6CompletedDataDateWindow": {
+      "label": "ステータス日付ウィンドウ内の完了タスク",
+      "help": "完了タスクはステータス日付のウィンドウ内で最早日付を得て、その終了はプロジェクト終了に含まれます（P6 由来のタスクのみ）。"
+    },
+    "p6CompletedLoeActualFinish": {
+      "label": "実績終了を経由する完了 LOE",
+      "help": "開始-開始の入力のみを持つ完了したレベル・オブ・エフォート作業は、実績終了を経由するルートをたどります（P6 由来のタスクのみ）。"
+    },
+    "p6OpenLoeTargetSpan": {
+      "label": "未開始の LOE は目標ウィンドウを使う",
+      "help": "まだ開始していないレベル・オブ・エフォート作業は、目標ウィンドウを期間とします（P6 由来のタスクのみ）。"
+    },
+    "p6CompletedPredecessorAtDataDate": {
+      "label": "完了した先行タスクはステータス日付以降に後続を拘束しない",
+      "help": "完了した先行タスクの実績終了がステータス日付より後でも、その後続タスクはステータス日付に開始できます。"
+    },
+    "p6FreeFloatOnOwnCalendar": {
+      "label": "フリーフロートをタスク自身のカレンダーで計算",
+      "help": "未開始タスクのフリーフロートは、リレーションごとに後続タスクではなくタスク自身のカレンダーで計算します。終了-開始、開始-開始、終了-終了が対象で、先行タスクのカレンダー上の作業時間ラグも含みます。開始済みのタスクはラグなしの終了-開始のみです。"
+    },
+    "p6CompletedRemainingLag": {
+      "label": "完了した先行タスクの経過済みラグは数えない",
+      "help": "遅い日付の側では、完了した先行タスク後のラグのうち、ステータス日付時点でまだ経過していない部分だけを数えます。"
+    },
+    "p6CompletedOutOfSequenceWindow": {
+      "label": "順序外で完了したタスクは先行タスクを待つ",
+      "help": "先行タスクがまだ終わっていない完了タスクは、ゼロ期間をステータス日付ではなくその先行タスクの後に置きます（Retained Logic）。"
+    },
+    "p6CompletedPhysicalAtDataDate": {
+      "label": "物理的進捗の完了タスクはデータ日付に置かれる",
+      "help": "物理的完了率を持つ完了タスクは、実績日ではなくデータ日付（先行タスクが要求する場合はそれ以降）の一点として表示されます。 物理的進捗率についてのみ測定済みです。他の進捗率タイプ（P6 の既定：期間）ではこの動作は測定されておらず、オフのままです。"
+    },
+    "p6InProgressStartLagElapsed": {
+      "label": "進行中の先行タスクからの経過済みSSラグは数えない",
+      "help": "既に開始したタスクからの開始-開始関係では、実績開始からデータ日付までにまだ経過していないラグの部分だけが数えられます。"
+    },
+    "p6FinishFinishStartMilestoneLateFinish": {
+      "label": "開始マイルストーンへの終了-終了関係はマイルストーン自体に結び付く",
+      "help": "開始マイルストーンへの終了-終了関係は、その日の始まりではなくマイルストーン自体までを数えます。先行タスクの最遅終了はマイルストーンの最遅終了まで延ばせます。"
+    },
+    "p6StartedTaskIgnoresPlannedStartFloor": {
+      "label": "計画開始は進行中タスクの下限ではない",
+      "help": "開始済みタスクの残作業は、計画開始がそれより遅くても、ステータス日付かつ先行タスクの直後から始まります。"
+    },
+    "p6LateFinishOnOwnCalendar": {
+      "label": "遅い終了日を自身のカレンダーに合わせる",
+      "help": "後続作業が課す遅い終了日が作業の稼働時間外になる場合、作業自身のカレンダー上の直前の稼働期間の終わりになります。"
+    },
+    "p6ProgressOverrideIgnoresStartedSuccessor": {
+      "label": "Progress Override は開始済みの後続を後方計算でも無視する",
+      "help": "Progress Override では、すでに開始した後続作業との関係は、未完了の先行作業の最遅日付とフリーフロートに含まれません。"
+    },
+    "p6FinishNotBeforeFinishFinishBound": {
+      "label": "最早終了は終了-終了の境界より前にならない",
+      "help": "終了-終了関係では、後続作業の最早終了は時刻で見て先行作業が定める境界より前になりません。その境界が後続作業の非稼働時間にあたる場合、終了は次の稼働時間帯の開始になります。"
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "ALAP タスクを後続タスクが許す限り遅く",
+      "help": "「できるだけ遅く」制約を持つ未開始タスクは、後続タスクが必要とする分単位の時点で終了します。後続タスクを先に計算するため、チェーンは途切れずにつながります。自身の計画開始は考慮されず、先行タスクのないタスクはステータス日付より前には開始しません。時間単位のカレンダーにのみ適用されます。"
+    }
+  },
+  "profiles": {
+    "builtIn": {
+      "p6": "Primavera P6",
+      "msproject": "Microsoft Project",
+      "ops": "Open Planner Studio"
+    },
+    "modified": "{{name}}（変更済み）",
+    "copyOf": "{{name}} のコピー"
+  },
+  "schedulingProfile": {
+    "title": "計算プロファイルとオプション",
+    "profile": "計算プロファイル",
+    "conventionsTitle": "このプロファイルの規則",
+    "optionsTitle": "このプロジェクトの計算オプション",
+    "customName": "このカスタムプロファイルの名前",
+    "saveAsTemplate": "テンプレートとして保存",
+    "updateTemplate": "このプロジェクトからテンプレートを更新",
+    "applyTemplate": "テンプレートから更新",
+    "deleteTemplate": "テンプレートを削除",
+    "templateDeviates": "このプロファイルはテンプレート「{{name}}」と異なります。",
+    "applyDefaultOptions": "このプロファイルの既定オプションを適用",
+    "themes": {
+      "completedWork": "進捗と完了済みの作業",
+      "relationsLag": "関係とラグ",
+      "milestones": "マイルストーンと LOE 作業",
+      "float": "フロートと遅い日付",
+      "instants": "ファイルの日付と時刻",
+      "msproject": "Microsoft Project と同じ進捗",
+      "ownProfilesOnly": "カスタムプロファイル専用"
+    },
+    "ownProfilesOnlyNote": "これらの規則は Primavera P6 を含むすべての組み込みプロファイルでオフです。どれかをオンにするとカスタムプロファイルになります。",
+    "deviatingCount": "変更：{{n}}",
+    "baseValue": "基準：{{value}}",
+    "on": "オン",
+    "off": "オフ",
+    "resetToBase": "基準に戻す",
+    "showHelp": "「{{name}}」の説明",
+    "sourceOptions": {
+      "title": "ソースファイルの設定",
+      "intro": "これらの計算オプションは Primavera P6 ファイル（.xer）から取り込まれます。計算には使われますが、ここでは変更できません。",
+      "useExpectedFinishDates": "予定終了日を使用（P6: Use Expected Finish Dates）",
+      "useProjectEndDateForFloat": "プロジェクト終了日までのフロートを計算",
+      "p6CompletedLateFromRemainingWindow": "完了タスク：データ日付からの遅い日付",
+      "needsConvention": "現在オフの規則「{{convention}}」と組み合わせたときのみ有効です。"
     }
   }
 }

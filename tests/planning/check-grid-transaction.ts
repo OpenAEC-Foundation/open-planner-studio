@@ -964,6 +964,9 @@ function observed(state: AppState): unknown {
       // die zes lezen uitsluitend `task.childIds` — aanname 1 hieronder — dus geen nieuw controllerveld.
       'task.status', 'task.time.actualStart', 'task.time.actualFinish', 'task.time.actualDuration',
       'task.time.remainingTime', 'task.time.completion',
+      // Taaktypes-etappe (2026-09-05): `task.workRule` leest alleen isMilestone/isHammock (controllers)
+      // en childIds (nooit cel-schrijfbaar) — gecertificeerd, zelfde klasse als scheduleDuration.
+      'task.workRule',
     ].sort());
   const manuallyScheduledDescriptor = byId.get('task.manuallyScheduled');
   ok('task.manuallyScheduled is nooit los via een paste schrijfbaar (geen parse-functie)',

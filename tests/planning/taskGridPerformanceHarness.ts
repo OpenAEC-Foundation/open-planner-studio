@@ -330,8 +330,13 @@ export function runTaskGridPasteBenchmark(warmups = 2, runs = 9): TaskGridPasteB
   });
   // Alleen gewone, per-cel bewerkbare velden — relaties/technische samengestelde kolommen
   // ('tokens'/'technical') hebben een eigen tokenformaat en horen niet in deze meting.
+  // Taaktypes-etappe (2026-09-05): kolommen die alleen ontsloten beschikbaar zijn (`task.workRule`,
+  // `available(ctx)` leest `taskTypesUnlocked`) horen niet in de vaste 27 — de meting gebruikt,
+  // net als de echte adapter, alleen kolommen die in DIT (niet-ontsloten) context beschikbaar zijn.
+  const availabilityContext = { projectId: state.project.id } as TaskColumnContext;
   const writable = descriptors.filter(descriptor => descriptor.readOnly !== true
     && typeof descriptor.parse === 'function'
+    && descriptor.available(availabilityContext)
     && descriptor.valueKind !== 'tokens' && descriptor.valueKind !== 'technical');
   const wbsPosition = writable.findIndex(descriptor => descriptor.id === taskColumnId('task.wbsCode'));
   const ordered = wbsPosition > 0

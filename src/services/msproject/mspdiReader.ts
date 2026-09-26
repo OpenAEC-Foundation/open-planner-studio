@@ -7,7 +7,7 @@ import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
 import { parseInstant, parseDate } from '@/utils/dateUtils';
-import { normalizeImportedProgress, rebuildImportedHierarchy, reconstructResourceIds } from '@/services/importNormalize';
+import { normalizeImportedProgress, deriveImportedWorkRules, rebuildImportedHierarchy, reconstructResourceIds } from '@/services/importNormalize';
 import { importDateTime, isoDatePrefixOrToday } from '@/services/importDates';
 import { tenthsOfMinutesToDays } from '@/services/importDurations';
 import { descendantText, toInt, toFloat } from '@/services/xmlDom';
@@ -66,6 +66,9 @@ import {
   absoluteItemsToContourPeriods, attachContours, collectContour, mspdiValueToMinutes, type AbsoluteWorkItem,
 } from '@/services/contourIo';
 import type { TaskTimephasedContour } from '@/types/task';
+import { importedWorkFields, mspTaskTypeFromCode } from '@/engine/work/workRuleMapping';
+import { taskWorkMinutes } from '@/engine/contour/contourEngine';
+import { buildRecordedTime, leafRecordedTimes, recordedFloatDays, type RecordedTime } from '@/engine/scheduler/recordedDates';
 
 function taskDurationType(te: Element): 'WORKTIME' | 'ELAPSEDTIME' {
   const format = Number.parseInt(getElementText(te, 'DurationFormat'), 10);
@@ -308,11 +311,15 @@ export function readMSPDI(content: string): ImportResult {
   // Parse tasks
   const taskElements = root.getElementsByTagName('Task');
   const tasks: Task[] = [];
+  /** Zie de toelichting bij de vastlegging in de taaklus. */
+  const recordedTimes: Record<string, RecordedTime> = {};
   const customTaskTypes = new Map<string, CustomTaskType>();
   const uidToId = new Map<number, string>();
   const uidToWbs = new Map<number, string>();
   // Issue #159: `<OutlineLevel>` per taak, parallel aan `tasks` (undefined = element ontbreekt).
   const outlineLevels: (number | undefined)[] = [];
+  // Taaktypes-etappe: effectieve uren/dag per taak, voor de werkafleiding bij de toewijzingen.
+  const effHpdByTaskId = new Map<string, number>();
   const pendingLinks: { successorId: string; predUid: number; type: number; lag: number; lagFormat: number }[] = [];
   // Baseline 0 (fase 2.6, §9.1): per taak de gesnapshotte Start/Finish/Duration.
   const baselineEntries: BaselineTask[] = [];
@@ -367,6 +374,13 @@ export function readMSPDI(content: string): ImportResult {
     const effCalId = effCalIdOfUid(taskCalUid);
     const isHour = hourModeCalIds.has(effCalId);
     const effHpd = calById.get(effCalId)?.hoursPerDay ?? hoursPerDay;
+    effHpdByTaskId.set(id, effHpd);
+    // Taaktypes-etappe (spec §4.2/§4.4): MSP's <Type> (0/1/2 = Fixed Units/Duration/Work) en
+    // <EffortDriven> — dezelfde bewaarvelden als de .mpp-lezer; de werkregel volgt eruit via
+    // `deriveImportedWorkRules`. Ontbrekend/ongeldig ⇒ geen veld (byte-identiek).
+    const mspTaskType = mspTaskTypeFromCode(getElementInt(te, 'Type', -1));
+    const effortDrivenRaw = getElementText(te, 'EffortDriven').trim().toLowerCase();
+    const effortDriven = mspTaskType !== undefined && (effortDrivenRaw === '1' || effortDrivenRaw === 'true');
 
     const durationStr = getElementText(te, 'Duration');
     // Duur: uur ⇒ minuten (bron van waarheid, geen afronding, §7.3); dag ⇒ het bestaande dag-pad.
@@ -377,6 +391,34 @@ export function readMSPDI(content: string): ImportResult {
       : parseMSPDuration(durationStr, effHpd);
     const start = importDateTime(getElementText(te, 'Start'), isHour);
     const finish = importDateTime(getElementText(te, 'Finish'), isHour);
+
+    // "Datums zoals opgeslagen" voor MSPDI (eigenaarsbesluit 2026-09-09): MS Project's EIGEN
+    // rekenuitvoer — `EarlyStart`/`EarlyFinish` (terugval `Start`/`Finish`), `LateStart`/
+    // `LateFinish`, `TotalSlack`/`FreeSlack` (tienden van een minuut) en `Critical` (0/1) — als
+    // apart kanaal (`ImportResult.recordedTimes`), nooit solverinvoer; `task.time` hieronder blijft
+    // byte-identiek. Ontbrekende assen ontbreken.
+    {
+      const recordedDate = (raw: string): string | undefined =>
+        raw ? importDateTime(raw, isHour) : undefined;
+      const slackDays = (raw: string): number | undefined => {
+        if (!raw) return undefined;
+        const tenths = Number.parseFloat(raw);
+        return Number.isFinite(tenths) ? recordedFloatDays(tenths / 10, effHpd * 60) : undefined;
+      };
+      const criticalRaw = getElementText(te, 'Critical');
+      const earlyStartRaw = getElementText(te, 'EarlyStart');
+      const earlyFinishRaw = getElementText(te, 'EarlyFinish');
+      const recorded = buildRecordedTime({
+        start: earlyStartRaw ? recordedDate(earlyStartRaw) : (getElementText(te, 'Start') ? start : undefined),
+        finish: earlyFinishRaw ? recordedDate(earlyFinishRaw) : (getElementText(te, 'Finish') ? finish : undefined),
+        lateStart: recordedDate(getElementText(te, 'LateStart')),
+        lateFinish: recordedDate(getElementText(te, 'LateFinish')),
+        totalFloat: slackDays(getElementText(te, 'TotalSlack')),
+        freeFloat: slackDays(getElementText(te, 'FreeSlack')),
+        isCritical: criticalRaw === '1' ? true : criticalRaw === '0' ? false : undefined,
+      });
+      if (recorded) recordedTimes[id] = recorded;
+    }
     const isMilestone = getElementInt(te, 'Milestone') === 1;
     // T4 (§9/O6-vervolg) — MSPDI-spiegel van mppReader.ts's T11-afleiding (`fb385191` + de
     // her-reviewfix `c0c2cd27`, niet geëxporteerd daar, dus hier lokaal herhaald in
@@ -495,6 +537,8 @@ export function readMSPDI(content: string): ImportResult {
       ...(constraint ? { constraint } : {}),
       ...(deadline ? { deadline } : {}),
       ...(taskCalendarId ? { calendarId: taskCalendarId } : {}),
+      ...(mspTaskType ? { mspTaskType } : {}),
+      ...(effortDriven ? { effortDriven: true } : {}),
     });
     outlineLevels.push(getElementText(te, 'OutlineLevel') ? outlineLevel : undefined);
     taskHourById.set(id, isHour);
@@ -588,13 +632,24 @@ export function readMSPDI(content: string): ImportResult {
       const units = parseFloat(unitsText);
       const contour = getElementInt(asgnEl, 'WorkContour', 0);
       const curve = WORKCONTOUR_TO_CURVE[contour];
+      const unitsPerDay = Number.isFinite(units) && unitsText ? units : 1;
+      // Taaktypes-etappe (spec §4.3, geval c): <Work>/<ActualWork>/<RemainingWork> in minuten,
+      // alleen bewaard wanneer ze iets zeggen dat `duur × inzet` niet al zegt (`importedWorkFields`).
+      const workTask = taskById.get(taskId);
+      const derivedWork = workTask ? taskWorkMinutes(workTask.time, effHpdByTaskId.get(taskId) ?? hoursPerDay) * unitsPerDay : 0;
+      const workFields = importedWorkFields({
+        plannedMinutes: mspDurationMinutes(getElementText(asgnEl, 'Work')) ?? undefined,
+        actualMinutes: mspDurationMinutes(getElementText(asgnEl, 'ActualWork')) ?? undefined,
+        remainingMinutes: mspDurationMinutes(getElementText(asgnEl, 'RemainingWork')) ?? undefined,
+      }, derivedWork);
 
       assignments.push({
         id: generateId('asgn'),
         taskId,
         resourceId,
-        unitsPerDay: Number.isFinite(units) && unitsText ? units : 1,
+        unitsPerDay,
         ...(curve && curve !== 'UNIFORM' ? { curve } : {}),
+        ...workFields,
       });
 
       // Contour-engine (2026-09): native `<TimephasedData>` (Type 1 = resterend, 2 = verricht werk;
@@ -656,6 +711,7 @@ export function readMSPDI(content: string): ImportResult {
 
   // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6).
   normalizeImportedProgress(tasks, project.statusDate);
+  deriveImportedWorkRules(tasks); // taaktypes-etappe: werkregel uit <Type>/<EffortDriven>
 
   return {
     project,
@@ -668,6 +724,13 @@ export function readMSPDI(content: string): ImportResult {
     customTaskTypes: [...customTaskTypes.values()],
     baselines,
     activeBaselineId,
+    // Rekenprofielen (spec v3.1 §6): MSPDI opent in deze etappe als OPS (C10 wacht op een besluit).
+    suggestedProfileId: 'ops',
+    // Critreview PR #167, bevinding 6: alleen bladtaken — zie `leafRecordedTimes`.
+    ...(() => {
+      const leafTimes = leafRecordedTimes(tasks, recordedTimes);
+      return Object.keys(leafTimes).length > 0 ? { recordedTimes: leafTimes, recordedTimesOrigin: 'mspdi' as const } : {};
+    })(),
   };
 }
 

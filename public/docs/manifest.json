@@ -253,6 +253,26 @@
       "cluster": "voortgang-importeren"
     },
     {
+      "id": "gids-taaktypes",
+      "title": {
+        "nl": "Werkregels en werk",
+        "en": "Work rules and work",
+        "de": "Arbeitsregeln und Arbeit",
+        "fr": "Règles de travail et travail",
+        "es": "Reglas de trabajo y trabajo",
+        "zh": "工作规则与工时",
+        "it": "Regole di lavoro e lavoro",
+        "pt": "Regras de trabalho e trabalho",
+        "pl": "Reguły pracy i praca",
+        "tr": "İş kuralları ve iş",
+        "ar": "قواعد العمل والعمل",
+        "ja": "作業ルールと作業",
+        "ko": "작업 규칙과 작업량",
+        "fa": "قواعد کار و کار"
+      },
+      "layer": "gidsen"
+    },
+    {
       "id": "gids-msproject-import",
       "title": {
         "nl": "MS Project (.mpp) openen",
@@ -272,6 +292,48 @@
       },
       "layer": "gidsen",
       "cluster": "msproject-import"
+    },
+    {
+      "id": "gids-xer-import",
+      "title": {
+        "nl": "Primavera P6 (.xer) openen",
+        "en": "Opening Primavera P6 (.xer)",
+        "de": "Primavera P6 (.xer) öffnen",
+        "fr": "Ouvrir Primavera P6 (.xer)",
+        "es": "Abrir Primavera P6 (.xer)",
+        "zh": "打开 Primavera P6（.xer）",
+        "it": "Aprire Primavera P6 (.xer)",
+        "pt": "Abrir Primavera P6 (.xer)",
+        "pl": "Otwieranie Primavera P6 (.xer)",
+        "tr": "Primavera P6 (.xer) dosyasını açma",
+        "ar": "فتح Primavera P6 (.xer)",
+        "ja": "Primavera P6（.xer）を開く",
+        "ko": "Primavera P6(.xer) 열기",
+        "fa": "باز کردن Primavera P6 (.xer)"
+      },
+      "layer": "gidsen",
+      "cluster": "xer-import"
+    },
+    {
+      "id": "gids-rekenprofielen",
+      "title": {
+        "nl": "Rekenprofielen",
+        "en": "Calculation profiles",
+        "de": "Berechnungsprofile",
+        "fr": "Profils de calcul",
+        "es": "Perfiles de cálculo",
+        "zh": "计算配置文件",
+        "it": "Profili di calcolo",
+        "pt": "Perfis de cálculo",
+        "pl": "Profile obliczeń",
+        "tr": "Hesaplama profilleri",
+        "ar": "ملفات الحساب",
+        "ja": "計算プロファイル",
+        "ko": "계산 프로필",
+        "fa": "پروفایل‌های محاسبه"
+      },
+      "layer": "gidsen",
+      "cluster": "rekenprofielen"
     },
     {
       "id": "datums-zoals-opgeslagen",

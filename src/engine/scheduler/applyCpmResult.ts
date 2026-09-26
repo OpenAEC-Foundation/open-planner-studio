@@ -1,5 +1,6 @@
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
+import { isLeafTask } from '@/utils/taskHierarchy';
 import type { CPMResult } from './CPMSolver';
 import { parseInstant, formatInstant } from '@/utils/dateUtils';
 import { taskDurationUnit, writeDerivedSpan, isZeroDurationMilestone } from './duration';
@@ -98,47 +99,95 @@ export function applyCpmResult(tasks: Task[], result: CPMResult, cals: ApplyCpmC
     // hangen. De berekende planning leeft in earlyStart/earlyFinish; weergave/export gebruikt
     // `earlyStart || scheduleStart`.
     //
-    // UUR-MODUS (fase 2.8b, FIX golf, §2.4): scheduleStart/scheduleFinish moeten wél een
-    // datetime-representatie dragen i.p.v. date-only/verouderd te blijven. scheduleFinish volgt de
-    // berekende finish (geen anker ⇒ veilig; nooit meer stale na een duur-wijziging); scheduleStart
-    // houdt zijn ANKER-instant maar wordt idempotent naar de datetime-vorm genormaliseerd
-    // (parseInstant→formatInstant('hour') verandert de instant niet, dus geen drift). Dag-taken
-    // blijven ONGEMOEID ⇒ byte-identiek (`formatDate`, verify:examples).
+    // EN OOK GEEN scheduleFinish: net als scheduleStart is het INVOER (`TaskTimeInput`, en in de
+    // IFC-laag `RECORDED_INPUT_SLOT_KEYS`: "wat het bestand zei"). De P6-conventies lezen het als
+    // het geplande bronvenster (`target_end_date`: A16-vloer, het TT_FinMile-grensvenster, het
+    // nulduur-grenspaar, het LOE-doelvenster, de voltooid-routes). Tot gebruikstest 24-09 (B1)
+    // schreef deze functie in uur-modus `scheduleFinish = earlyFinish` terug (fase 2.8b, "nooit
+    // meer stale na een duur-wijziging"); daardoor werd de uitvoer van de ene berekening invoer
+    // voor de volgende. Gemeten: XER onder P6 → OPS → P6 gaf de eindmijlpaal ES 27-03 / EF 13-03
+    // (einde vóór start), en Bereken herstelde het niet. De berekende finish leeft in `earlyFinish`.
+    // LET OP (rechtzetting critreview 24-09): niet ÁLLE weergave en export lezen
+    // `earlyFinish || scheduleFinish` — de gridkolom "Gepland einde", IfcTaskTime.ScheduleFinish, het
+    // IFC-werkplan-einde en de extensie-mapping lezen `scheduleFinish` RAUW, als ingevoerd einde. Die
+    // blijft daarom coherent aan de INVOERKANT: nieuwe taak en elke duur-/start-/kalenderwijziging
+    // leiden het einde van een niet-gestarte urentaak af uit start + duur (`reconcileHourInputFinish`,
+    // `seedNewHourTaskFinish` en `createDefaultTaskTime` in utils/taskDefaults.ts) — nooit hier.
+    //
+    // UUR-MODUS (fase 2.8b, FIX golf, §2.4): scheduleStart houdt zijn ANKER-instant maar wordt
+    // idempotent naar de datetime-vorm genormaliseerd (parseInstant→formatInstant('hour') verandert
+    // de instant niet, dus geen drift). Voor scheduleFinish kan dat niet: een date-only finish naar
+    // T00:00 normaliseren zou het einde een dag vervroegen, dus die blijft zoals hij is ingevoerd.
+    // Dag-taken blijven ONGEMOEID ⇒ byte-identiek (`formatDate`, verify:examples).
     if (taskDurationUnit(task) === 'hours') {
-      task.time.scheduleFinish = r.earlyFinish;
       task.time.scheduleStart = formatInstant(parseInstant(task.time.scheduleStart), 'hour');
     }
   }
 
-  // Verzameltaken: datums oprollen uit de kinderen.
+  rollupSummaryTasks(tasks, { projectCalendar: cals.projectCalendar, progressCalendars: cals.calendars });
+}
+
+/**
+ * Verzameltaken: datums oprollen uit de kinderen. Uitgefactoriseerd uit `applyCpmResult` (her-check
+ * laag 3, bevinding 3) zodat "datums zoals opgeslagen" (`applyRecordedTimesToTasks`,
+ * `recordedDates.ts`) DEZELFDE rollup draait: P6 legt zijn zes uitvoerkolommen alleen op TASK-rijen
+ * vast, nooit op PROJWBS-rijen, dus een XER-WBS-rij heeft nooit een eigen vastlegging — zonder deze
+ * rollup hield zo'n samenvattingsbalk de datums van de solve die de modus zojuist verwierp (gemeten:
+ * hoofd-WBS een half jaar ná de `projectEnd` die dezelfde modus rapporteert). Gedrag byte-identiek
+ * aan de inline-versie van vóór de uitfactorisering; alleen de aanroepplek is erbij gekomen.
+ */
+export function rollupSummaryTasks(
+  tasks: Task[],
+  options?: {
+    /** Her-check laag 3, R1: een samenvatting die het bestand ZÉLF vastlegde (de #63-IFC-route
+     *  draagt op fasen gewoon een `IfcTaskTime`) blijft staan zoals het bestand haar gaf — de rollup
+     *  mag daar niet overheen schrijven, anders zegt de modus iets wat het bestand niet zei. De
+     *  kinderen eronder worden nog wél bezocht (die kunnen zelf weer onvastgelegde samenvattingen
+     *  zijn). Afwezig ⇒ elke samenvatting rolt op, byte-identiek aan `applyCpmResult`. */
+    skip?: (task: Task) => boolean;
+    /** Issue #145: de projectkalender waarin de AFGELEIDE duur van een auto-verzameltaak wordt
+     *  gerekend (`applyDerivedSummaryDuration`). Afwezig ⇒ alleen de datum-/spelingrollup, de duur
+     *  blijft onaangeraakt. */
+    projectCalendar?: WorkCalendar;
+    /** Integratie groep B: de kalenderbibliotheek voor de voortgangsrollup van verzameltaken
+     *  (`summaryProgressOf`, gewogen naar werkdagen). Alleen samen met `projectCalendar`; afwezig ⇒
+     *  voortgang en status van de samenvatting blijven onaangeroerd. */
+    progressCalendars?: WorkCalendar[];
+  },
+): void {
   // A4 (prestatie): één vooraf gebouwde id→taak-Map i.p.v. `find` per taak én per kind (recursief) —
   // dat was O(n²) op de rollup.
   const byId = new Map<string, Task>(tasks.map(t => [t.id, t]));
   // Eén engine voor alle verzameltaken: de afleiding rekent per definitie in de projectkalender,
   // dus is er niets per taak te resolven en niets te cachen.
-  const summaryEngine = new CalendarEngine(cals.projectCalendar);
+  const summaryEngine = options?.projectCalendar ? new CalendarEngine(options.projectCalendar) : null;
   // Elke verzameltaak wordt één keer opgerold (kinderen vóór ouders). Dat is ook de cyclusbewaking:
   // een corrupte `childIds`-kring liep hier anders eindeloos rond tot de stack overliep. Een taak die
   // (corrupt) onder twee ouders hangt, levert bij een tweede bezoek toch hetzelfde resultaat op.
   const visited = new Set<string>();
   // Voortgangsrollup: bladnakomelingen en hun gewicht (werkdagen) één keer per taak, want een blad
-  // telt mee in álle verzameltaken boven hem.
+  // telt mee in álle verzameltaken boven hem. Alleen met `progressCalendars` (de `applyCpmResult`-
+  // route); "datums zoals opgeslagen" laat de voortgang zoals hij was (integratie groep B × main).
+  const progressCals = options?.projectCalendar && options.progressCalendars
+    ? { projectCalendar: options.projectCalendar, calendars: options.progressCalendars }
+    : null;
   const leafCache = new Map<string, Task[]>();
   const workDaysCache = new Map<string, number>();
   const workDaysOf = (leaf: Task): number => {
     let d = workDaysCache.get(leaf.id);
     if (d === undefined) {
-      d = taskWorkDays(leaf, cals.projectCalendar, cals.calendars);
+      d = progressCals ? taskWorkDays(leaf, progressCals.projectCalendar, progressCals.calendars) : 0;
       workDaysCache.set(leaf.id, d);
     }
     return d;
   };
   const updateSummary = (taskId: string): void => {
     const task = byId.get(taskId);
-    if (!task || task.childIds.length === 0 || visited.has(taskId)) return;
+    if (!task || isLeafTask(task) || visited.has(taskId)) return;
     visited.add(taskId);
 
     for (const childId of task.childIds) updateSummary(childId);
+    if (options?.skip?.(task)) return;
 
     const children = task.childIds
       .map(cid => byId.get(cid))
@@ -216,7 +265,7 @@ export function applyCpmResult(tasks: Task[], result: CPMResult, cals: ApplyCpmC
       // haar eigen opgeslagen duur — daar is niets afgeleid, en een `.mpp`-geïmporteerde
       // manual-fase mag haar bestandswaarde niet kwijtraken aan een afleiding die de
       // fidelity-poort (die alleen start/finish meet) niet zou zien.
-      applyDerivedSummaryDuration(task, summaryEngine);
+      if (summaryEngine) applyDerivedSummaryDuration(task, summaryEngine);
 
       // Voortgang en status: afgeleid uit de bladen, met de gewogen formule die het WBS-rapport
       // altijd al gebruikte (`summaryProgressOf`, één definitie voor beide). Zonder dit lazen Tabel,
@@ -228,9 +277,11 @@ export function applyCpmResult(tasks: Task[], result: CPMResult, cals: ApplyCpmC
       // bestandswaarde terug via `showRecordedDates` (`RecordedTime.summaryProgress`).
       // Werkelijke datums en restduur van de fase worden bewust NIET opgerold: die velden zijn in
       // paneel en raster alleen-lezen, maar een rollup ervan raakt exports en de verplaats-telling.
-      const progress = summaryProgressOf(descendantLeaves(task, byId, leafCache), workDaysOf);
-      task.time.completion = progress.completion;
-      task.status = progress.status;
+      if (progressCals) {
+        const progress = summaryProgressOf(descendantLeaves(task, byId, leafCache), workDaysOf);
+        task.time.completion = progress.completion;
+        task.status = progress.status;
+      }
     }
   };
 

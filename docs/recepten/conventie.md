@@ -1,0 +1,66 @@
+# Een nieuwe rekenconventie toevoegen
+
+Een **conventie** is een regel die per planningspakket verschilt (P6 doet het zo, MS Project anders) en
+niet per bestand. Verschilt iets per bestand, dan is het een **projectoptie** (`ProjectOptionKey`). Een
+lezer zet geen conventie als override: het per-bestand-mechanisme (A19 uit `rem_target_link_flag`) is op
+2026-09-24 vervallen omdat de koppeling aan de bronvlag nooit getoetst was (Fable-critreview PR #169,
+bevinding 2). Breng het pas terug met een P6-doorgerekend bestand dat het verschil aantoont. Twijfel
+je: regel B uit de goal prompt (`docs/superpowers/plans/2026-09-22-goalprompt-x12-naar-nul.md`) beslist.
+Zie *Rekenprofielen* in `CLAUDE.md` en de spec `docs/superpowers/specs/2026-09-22-rekenprofielen-design.md`.
+
+**Dit is een toelichting, geen vervanging.** Loopt het ooit achter, dan heeft de code gelijk.
+
+---
+
+## De stappen
+
+1. **Type.** Voeg de boolean toe aan `SchedulingOptions` (`src/types/project.ts`) met een docblok (wat,
+   waar in de motor, P6/MS Project/OPS), en aan de unie `ConventionKey`. De compiler dwingt daarna
+   stap 2 af (`_everyConventionNamed` in het register) en houdt `ProjectOptionKey` disjunct.
+2. **Register-rij** in `CONVENTIONS` (`src/engine/scheduler/conventions/registry.ts`): groep (`A`, `B`
+   of `C`; de groep zet niets aan in oude bestanden, zie hieronder), de drie
+   ingebouwde waarden, `gatedByP6Source: false` (nieuwe conventies hebben geen `p6Source`-verleden),
+   en `since` = vandaag.
+   `legacyValue` = het gedrag vóór vandaag (bijna altijd de OPS-waarde): dat geldt voor bestanden mét
+   `OPS_SchedulingProfile` die de sleutel nog niet kennen. De volgorde in de lijst is de sleutelvolgorde
+   in de IFC-JSON: voeg achteraan toe. **Let op de groep:** kies je groep `B`, dan gaat de conventie
+   daarmee NIET vanzelf aan in oude XER-IFC's — die migratie (`legacyOptionsToProfile`) zet alleen de
+   gepinde A19 en B1–B5 uit `LEGACY_XER_ALWAYS_ON` (`src/services/ifc/schedulingProfileMigration.ts`) aan, want
+   een nieuwe conventie bestond in zo'n bestand niet. De regel: een nieuwe conventie gaat voor oude
+   bestanden NOOIT vanzelf aan, welke groep ook, tenzij ze met een meting expliciet in een gepinde set
+   wordt gezet — zoals C1–C9, C11 en C12 in `LEGACY_XER_ALSO_ON_X12` (orkestratorbesluit 2026-09-23, X12
+   15.056 → 10.947 gemeten met C1–C6, 0 slechter; C7/C8 daarna per cel gemeten, 0 slechter; C9 in brok 6 idem, X12 350 → 308). Breid `LEGACY_XER_ALWAYS_ON` nooit uit zonder meting en eigenaarsbesluit (A19 kwam er op 2026-09-24 bij, zie het docblok). Twee sets, twee
+   betekenissen: `LEGACY_XER_ALWAYS_ON` (A19, B1–B5) geeft `d.builtIn.p6` — B1–B5 hingen vroeger letterlijk aan
+   `p6Source`, A19 staat sinds 2026-09-24 in de P6-basis —, `LEGACY_XER_ALSO_ON_X12` (C1–C9, C11 en C12) geeft `d.builtIn.p6`, de P6-profielwaarde (zo'n bestand
+   rekent als een herimport). Een expliciet gezette vlag in het oude blok wint altijd, ook `false`.
+   Bewaakt door 99e–99i in `check-conventions-registry.ts` en 28/28b in
+   `check-scheduling-profile-roundtrip.ts` (echte IFC-leesroute).
+2a. **IFC-sanitizer.** Voeg de sleutel toe aan `BOOLEAN_KEYS` in `src/services/ifc/schedulingOptionsRead.ts`;
+   anders gooit de lezer van het legacy-optieblok (`sanitizeSchedulingOptions`) hem stil weg.
+3. **Motor.** Lees uitsluitend `schedulingOptions.<id>`. Nooit het bronformaat, nooit een lezer-import:
+   `npm run verify:conventions` faalt anders. Een nieuwe lezing van een herkomstveld (`p6ProjectId`
+   e.d.) laat de gepinde datagate-telling stijgen en maakt de poort ook rood — bespreek dat eerst.
+   De poort leest de sleutels uit het register: een sleutel op een opties-object die geen conventie of
+   projectoptie is, een niet-letterlijke sleutel (`so[k]`), een registerconventie die de motor nergens
+   leest (in een vanuit `solveProject.ts` bereikbaar bestand), `Reflect.get`/`Object.entries` e.d. op
+   een opties-object, en een ongepind herkomstveld (`p6…`/`xer…`/`mpp…`/`msp…`, bv. een kalenderveld uit
+   de lezer) zijn allemaal rood. Een conventie toevoegen zonder motorlezing kan dus niet meer. De poort
+   is syntactisch: geef het opties-object daarom nooit onder een neutrale naam aan een helper in een
+   ander bestand door en lees het nooit via `any` — dat ziet hij niet.
+4. **Lezer**: een lezer zet alleen het profiel (`ImportResult.suggestedProfileId` / het ingebouwde
+   profiel), nooit een conventie-override uit een bronvlag (zie de inleiding).
+5. **i18n**: `conventions.<id>.label` en `.help` in alle 14 `common.json`-bestanden (`npm run verify:i18n`;
+   `check-conventions-registry.ts` eist per locale beide teksten en precies de registersleutels).
+6. **Gids**: één regel onder "De zevenentwintig conventies" in `public/docs/{nl,en}/gids-rekenprofielen.md`
+   (pas het aantal aan, ook in de kop en in "Wat je hier leert").
+7. **Tests**: `check-conventions-registry.ts` dekt de rij vanzelf; voeg een aan/uit-fixture met een
+   met de hand afgeleid verschil toe (mutatiebewijs, patroon `check-conventions-p6-flags.ts`).
+8. **Landingspoort**: `npm run measure:profiles` vóór de commit — geen exacte cel mag inexact worden,
+   geen emmer verslechteren en geen inexacte cel binnen haar emmer groter worden (grootte-ratchet,
+   `groter=0`), onder welk profiel met orakel ook; de ratchet-schuld (`ratchetDebt`, sinds X12 brok 6
+   leeg) mag alleen dalen (regel A). Verbetert de X12-meting, dan herpin je in dezelfde commit volgens
+   de zes stappen in `scripts/README.md` (*Herpinnen na een VERBETERD-uitslag*, incl. de tweede-orde pins
+   met de hand) en zet je het getal in het commitbericht; bij alleen `kleiner>0` volstaat de cellenherpin.
+
+IFC hoeft niets: `OPS_SchedulingProfile` schrijft alle conventies opgelost; oude bestanden vallen via
+`legacyValue` terug. Zie `docs/ifc-round-trip.md`.

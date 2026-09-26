@@ -52,6 +52,7 @@ import { effectiveCalendarOf, effHoursPerDay } from '@/utils/taskDuration';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { signedWorkDaysBetween } from '@/engine/variance';
 import { insertTaskRelativeToScope } from '@/state/taskInsertActions';
+import { recordedGridBinding } from '@/state/recordedDatesSelectors';
 import { useAppStore } from '@/state/appStore';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
 import { buildImportLabels } from '@/i18n/importLabels';
@@ -233,7 +234,12 @@ export function TaskGridSurface({
   const calendar = useAppStore(state => state.calendar);
   const calendars = useAppStore(state => state.calendars);
   const scheduleStale = useAppStore(state => state.scheduleStale);
+  // Taaktypes-etappe (spec §7): werkregel-kolommen alleen wanneer ontsloten.
+  const showTaskTypes = useAppStore(state => state.ui.showTaskTypes);
+  const taskTypesVisible = useAppStore(state => state.taskTypesVisible);
   const cpmResult = useAppStore(state => state.cpmResult);
+  const recordedDates = useAppStore(state => state.recordedDates);
+  const datesAsRecorded = useAppStore(state => state.datesAsRecorded);
   const viewRows = useAppStore(state => state.viewRows);
   const view = useAppStore(state => state.view);
   const dateNotation = useAppStore(state => state.ui.dateNotation);
@@ -340,19 +346,31 @@ export function TaskGridSurface({
     numberLocale: taskI18n.language,
     effectiveHoursPerDay: task => effHoursPerDay(effectiveCalendarOf(task, calendar, calendars)),
     signedWorkDaysBetween: (fromIso, toIso) => signedWorkDaysBetween(calendarEngine, fromIso, toIso),
+    // "Datums zoals opgeslagen" (XER-etappeplan laag 3, T6) — `undefined` op documenten zonder
+    // vastlegging, dus de kolom `recorded.source` en de "niet vastgelegd"-tak op late/float
+    // bestaan dan niet (`available`-gates in taskColumnRegistry.ts). De poort per naad staat in
+    // `recordedGridBinding` (gedeeld met `gridTransaction.ts`, headless getest): de "niet
+    // vastgelegd"-tak hangt aan `datesAsRecorded`, niet aan het loutere bestaan van een aanbod.
+    ...recordedGridBinding(recordedDates, datesAsRecorded),
+    taskTypesUnlocked: showTaskTypes || taskTypesVisible,
     labelForColumn: labelKey => resolveColumnLabel(
       labelKey,
       key => tTask(key, { defaultValue: key }),
     ),
     labelForBoolean: value => tCommon(value ? 'yes' : 'no'),
+    // `recordedDates.`-sleutels leven in het `common`-namespace (dezelfde vocabulaire als
+    // `RecordedDatesNotice.tsx`) — de badge-/celtekst van de nieuwe kolom hergebruikt ze in plaats
+    // van "afwijkt"/"niet vastgelegd" een tweede keer in `task.json` te vertalen.
     labelForText: (key, values) => key.startsWith('resource.curve.') || key.startsWith('duration.')
+      || key.startsWith('recordedDates.')
       ? tCommon(key, { ...values, defaultValue: key })
       : tTask(key, { ...values, defaultValue: key }),
     textDirection,
   }), [
     activityCodeTypes, assignments, baselines, calendar, calendarEngine, calendarOptions, calendars,
-    cpmResult, customFieldDefs, customTaskTypes, dateNotation, durationDisplay, project.id, project.wbsAutoNumber,
-    resources, scheduleStale, sequences, tCommon, tTask, taskI18n.language, tasks, textDirection,
+    cpmResult, customFieldDefs, customTaskTypes, datesAsRecorded, dateNotation, durationDisplay, project.id,
+    project.wbsAutoNumber, recordedDates, resources, scheduleStale, sequences, showTaskTypes,
+    taskTypesVisible, tCommon, tTask, taskI18n.language, tasks, textDirection,
   ]);
   const adapter = useMemo(() => createTaskGridAdapter({
     surfaceId,

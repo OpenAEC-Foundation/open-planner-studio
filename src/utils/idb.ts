@@ -2,7 +2,8 @@
  * Piepklein rauw-IndexedDB-helpertje (spec §9). Elke database heeft één object-store met
  * `keyPath: 'id'`. ALLE toegang via de `idb*`-functies zit in try/catch: een IDB-fout (private-mode,
  * quota, geblokkeerd) mag de app-start nooit blokkeren — recents/recovery vallen dan stil terug op
- * "leeg". Wie fouten wél moet zien (de extensieopslag), gebruikt alleen de verbinding: `openDb`.
+ * "leeg". Wie fouten wél moet zien (de extensieopslag, recovery's atomische write-transactie), gebruikt
+ * alleen de verbinding: `openDb`.
  */
 
 const dbPromises = new Map<string, Promise<IDBDatabase>>();

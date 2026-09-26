@@ -16,6 +16,8 @@ import type {
   CellValidationError,
   GridIntent,
   GridResult,
+  RecordedTaskAxis,
+  RecordedTaskMark,
   TaskColumnCategory,
   TaskColumnContext,
   TaskColumnDescriptor,
@@ -119,12 +121,16 @@ export interface CreateTaskGridAdapterDomainInput {
   textDirection?: 'ltr' | 'rtl';
   effectiveHoursPerDay?: (task: Task) => number;
   signedWorkDaysBetween?: (fromIso: string, toIso: string) => number;
+  recordedMark?: (task: Task) => RecordedTaskMark;
+  recordedUnrecordedAxes?: (task: Task) => readonly RecordedTaskAxis[];
   dateNotation?: DateNotation;
   calendarOptions?: readonly { value: string; label: string }[];
   /** Instelling Duurweergave (weergavetekst van de Duur-kolom); ontbreekt ⇒ `'auto'`. */
   durationDisplay?: DurationDisplay;
   /** App-taal voor het decimaalteken van duren en speling; ontbreekt ⇒ punt. */
   numberLocale?: string;
+  /** Taaktypes-etappe (spec §7): zie `TaskColumnContext.taskTypesUnlocked`. */
+  taskTypesUnlocked?: boolean;
 }
 
 export interface CreateTaskGridAdapterProjectionInput {
@@ -238,6 +244,9 @@ export function createTaskGridAdapterDomain(
     signedWorkDaysBetween: input.signedWorkDaysBetween,
     durationDisplay: input.durationDisplay,
     numberLocale: input.numberLocale,
+    recordedMark: input.recordedMark,
+    recordedUnrecordedAxes: input.recordedUnrecordedAxes,
+    taskTypesUnlocked: input.taskTypesUnlocked,
   };
   const descriptors = buildTaskColumnRegistry({
     projectId: input.projectId,

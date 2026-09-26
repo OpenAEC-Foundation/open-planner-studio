@@ -25,12 +25,16 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { isSummaryTask } from '@/engine/scheduler/relationRules';
-import { invalidateForTimeBaseChange, rescaleTaskContours, taskWorkMinutesOf } from '@/utils/taskDefaults';
+import { contourKeepsWork, invalidateForTimeBaseChange, rescaleTaskContours, taskWorkMinutesOf } from '@/utils/taskDefaults';
+import type { ResourceAssignment } from '@/types/resource';
+import { captureTriangle, settleDurationEdit, type WorkRuleDeps } from '@/engine/work/workRuleApply';
 
-/** Minimale state-vorm (subset van AppState) — vermijdt een import van de volledige storetype. */
-interface SplitState {
+/** Minimale state-vorm (subset van AppState) — vermijdt een import van de volledige storetype. De
+ *  werkregelvelden (`WorkRuleDeps` + `assignments`) zijn voor de werkdriehoek (taaktypes-etappe). */
+interface SplitState extends WorkRuleDeps {
   calendars: WorkCalendar[];
   calendar: WorkCalendar;
+  assignments: ResourceAssignment[];
 }
 
 /** Stap (1): de weigering, vóór élke draftmutatie. `null` (alle onderbrekingen opheffen) mag altijd,
@@ -53,6 +57,9 @@ export function applyTaskSplits(
   // (3) De oude werkduur — nodig vóór de duur eronder verschuift.
   const oldWorkMinutes = taskWorkMinutesOf(task, hoursPerDay);
   const slotMinutes = Math.max(1, hoursPerDay * 60);
+  // Taaktypes-etappe (integratie #170 op #146): een splitbewerking die de werkduur verandert is
+  // een duurbewerking — de werkdriehoek volgt, net als in `updateTask`.
+  const triangle = captureTriangle(task, s.assignments, s);
 
   // (4) Nieuwe gaten + werkduur uit het stukkenmodel. `adoptLevelingGaps` is stap 5 van spec §2
   // (adoptieregel): wat de gebruiker na zijn bewerking op het scherm ziet staan, blijft staan —
@@ -65,7 +72,8 @@ export function applyTaskSplits(
     if (taskDurationUnit(task) === 'hours') task.time.durationMinutes = totalWorkMinutes;
     // `keepGaps`: de gatenlijst hierboven is al op de NIEUWE werkduur gerekend — nog een keer
     // laten schalen zou dubbel zijn (spec §2 stap 3).
-    rescaleTaskContours(task, oldWorkMinutes, hoursPerDay, { keepGaps: true });
+    rescaleTaskContours(task, oldWorkMinutes, hoursPerDay, contourKeepsWork(task, s.project.defaultWorkRule), { keepGaps: true });
+    settleDurationEdit(task, s.assignments, triangle);
   }
 
   // (5) Contour meeverhuizen: dagslots lezen met de OUDE gaten (de as waarop het profiel nu

@@ -27,6 +27,8 @@ IFC ist zudem die Art, wie diese App sich mit dem restlichen OpenAEC-Toolkit ver
 
 Jedes Format hat seine eigenen Einschränkungen: Je reicher das Zielformat, desto mehr kommt mit, aber keines der drei externen Formate ist ein vollständiges Abbild von IFC.
 
+Das Berechnungsprofil wird nicht nach CSV, MS Project XML oder P6 XML übernommen; siehe [Berechnungsprofile](docs://gids-rekenprofielen).
+
 ### CSV
 
 Der CSV-Export enthält **nur die Aufgabentabelle**: WBS-Code, Name, Dauer (Tage), Anfang, Ende, Vorgänger (als Textcode, z.B. `2.1FS+3d`), Aufgabentyp, Status, Fortschritt (%), Ist-Anfang/-Ende, Kritisch (ja/nein), Gesamtpuffer und Beschreibung. **Ressourcen, Zuweisungen, Kalender und Baselines werden bewusst weggelassen** — CSV ist rein eine Aufgabentabelle für alle, die den Terminplan in einer Tabellenkalkulation ansehen oder bearbeiten möchten, kein voll-treuer Projektaustausch. Wenn Sie eine CSV-Datei wieder **importieren**, bleiben Baselines daher leer (es gab nichts, aus dem sie gelesen werden könnten).
@@ -61,6 +63,10 @@ Diese Warnungen sind keine Schlamperei — sie sind eine bewusste, ausdrücklich
 
 Eine `.mpp`-Datei (das native Microsoft-Project-Format, Project 2010 bis 2021) ist ein eigener Weg: Dieser Import ist **nur lesend** — es gibt keinen `.mpp`-Export, ein Re-Export nach MS Project läuft daher über MSPDI-XML. Siehe die Anleitung [MS Project (.mpp) öffnen](docs://gids-msproject-import) für das, was mitkommt, und die Einschränkungen.
 
+Eine Datei aus Primavera oder MS Project trägt die Termine, die das Programm selbst berechnet hat, auch die spätesten Termine und die Puffer. Eine CSV-Datei enthält nur Eingaben und wird einfach neu berechnet. Weicht die Neuberechnung von Open Planner Studio davon ab, öffnet sich die Datei in der Ansicht **Termine wie gespeichert**: Sie sehen zuerst, was das Quellprogramm sagte, mit einer Meldung, und erst nach dem Neuberechnen unser eigenes Ergebnis. Siehe [Termine wie gespeichert](docs://datums-zoals-opgeslagen).
+
+Eine `.xer`-Datei ist das Austauschformat von Primavera P6. Sie wird direkt importiert und nach einer Bearbeitung als IFC gespeichert; siehe [Primavera P6 (.xer) öffnen](docs://gids-xer-import).
+
 ## Erweiterungs-Importer
 
 Über die festen Formate hinaus können installierte Erweiterungen eigene Importer hinzufügen — zum Beispiel für ein Format, das standardmäßig nicht unterstützt wird. Diese erscheinen unter **Backstage → Importieren**, jeweils mit eigenem Namen, Beschreibung und passenden Dateierweiterungen; ohne installierte Import-Erweiterungen ist dieser Abschnitt leer. Prüfen Sie **Backstage → Erweiterungen**, um zu sehen, was verfügbar ist.
@@ -69,3 +75,4 @@ Eine `.mpp`-Datei (das native Microsoft-Project-Format, Project 2010 bis 2021) i
 
 - Baselines kommen nur über IFC und MS Project XML mit, nicht über CSV oder P6 — lesen Sie die Anleitung [Baselines & Fortschritt](docs://gids-baselines-voortgang), wie Sie eine Baseline erfassen.
 - Ressourcen, Zuweisungen und Belastungskurven — lesen Sie die Anleitung [Ressourcen, Histogramm & Abgleich](docs://gids-resources-histogram), wie diese aufgebaut werden, bevor Sie exportieren.
+- Welches Berechnungsprofil eine geöffnete Datei erhält und was IFC davon speichert — lesen Sie die Anleitung [Berechnungsprofile](docs://gids-rekenprofielen).

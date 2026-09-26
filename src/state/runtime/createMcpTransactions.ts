@@ -9,12 +9,16 @@ import {
   buildNewTask, createDefaultTaskTime, mergeTaskTime, mergeTaskUpdate, taskTriggerChanges,
   taskCalendarHoursPerDay, taskWorkMinutesOf, invalidateForTimeBaseChange, clearLevelingGaps,
   writeLevelingResult, clearLevelingOutput, applyDurationChangeRules,
+  contourKeepsWork, hourInputFinishBasis, reconcileHourInputFinish, seedNewHourTaskFinish, type HourInputFinishBasis,
 } from '@/utils/taskDefaults';
 import { sameValue } from '@/utils/sameValue';
 import { applyWbsNumbering } from '@/utils/wbs';
 import { assignInsertedWbsCodes } from '../insertedBranch';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { syncProjectCalendar } from '../syncProjectCalendar';
 import { notifyTimephasedLoss, notifyLevelingDelayRounded } from '../timephasedLossNotice';
+import { notifyWorkRuleDurationsChanged } from '../taskTypesNotice';
+import { tasksOnCalendar } from '../calendarTasks';
 import type { McpTransactionLease } from './storeRuntime';
 import type { DurationType, Task, TimephasedContourPeriod } from '@/types/task';
 import {
@@ -32,6 +36,15 @@ import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { applyProjectPatch } from '../projectPatch';
 import { customTaskTypeClashes } from '@/services/taskTypes/customTaskTypeRules';
 import { isThenable } from '@/utils/guards';
+import { isSummaryTask } from '@/utils/taskHierarchy';
+import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
+import {
+  captureCalendarChange, captureTriangle, carryRemainingThroughDurationEdit, planWorkEdit, commitTrianglePlan,
+  captureProgressWork, settleProgressWork, syncAssignmentWorkToContour,
+  settleCalendarChange, settleDurationAftermath, settleDurationEdit, settleRuleChange,
+} from '@/engine/work/workRuleApply';
+import type { WorkRule } from '@/types/workRule';
+import { markDocumentEdited } from '@/state/documentEdited';
 
 export type McpTransactionResult<T> =
   | { ok: true; value: T; timephasedGuidanceLost: number }
@@ -91,6 +104,18 @@ function createMcpDraft(
     runtime.recordMcpTimephasedLoss(activeLease(), taskId);
   };
 
+  /** Taaktypes-etappe: nazorg bij een duur uit de werkdriehoek — `settleDurationAftermath` (één
+   *  definitie voor store/raster/MCP) plus de verliesmelding via de actieve runtimelease;
+   *  `scheduleStale` blijft bewust aan de transactie (zie het docblok hierboven). */
+  const afterTriangleDurationChange = (
+    s: { calendars: WorkCalendar[]; calendar: WorkCalendar; project: Pick<Project, 'defaultWorkRule'>; resources: Resource[] },
+    task: Task,
+    oldWorkMinutes: number,
+    finishBasis: HourInputFinishBasis,
+  ): void => {
+    if (settleDurationAftermath(task, s, oldWorkMinutes, finishBasis)) recordTimephasedLoss(task.id);
+  };
+
   const rawDraft = {
   /**
    * Snapshot/recompute-vrije variant van de store-`addTask`: zelfde veld-afleiding (TaskTime-defaults,
@@ -116,6 +141,9 @@ function createMcpDraft(
         id, parentId, parentTask, constructionMode: s.ui.constructionMode,
         time: mergeTaskTime(createDefaultTaskTime(now, partial.isMilestone ? 0 : 5), partial.time),
       });
+      // B1-vervolg — tweeling van taskSlice.ts addTask: het ingevoerde einde van een nieuwe urentaak.
+      seedNewHourTaskFinish(task, partial.time, resolveCalendar(task.calendarId, s.calendars, s.calendar));
+      if (partial.workRule !== undefined) s.taskTypesVisible = true; // review K3
 
       s.tasks.push(task);
       if (parentId) attachToParent(s.tasks, id, parentId);
@@ -124,7 +152,7 @@ function createMcpDraft(
       // zelf geen meegaf (zelfde regel als de store-`addTask`).
       if (s.project.wbsAutoNumber || !partial.wbsCode) assignInsertedWbsCodes(s, [id]);
 
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
     return id;
   },
@@ -264,7 +292,7 @@ function createMcpDraft(
         }
         // WBS-auto-nummering herafleiden nu de volgorde definitief is (spiegelt draft.addTask).
         if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
-        s.isDirty = true;
+        markDocumentEdited(s);
       });
     }
 
@@ -286,7 +314,7 @@ function createMcpDraft(
       const lookup = (tid: string) => s.tasks.find((t) => t.id === tid);
       if (!relationVerdict(lookup, s.sequences, seq).ok) return; // result blijft null
       s.sequences.push({ ...seq, id });
-      s.isDirty = true;
+      markDocumentEdited(s);
       result = id;
     });
     return result;
@@ -310,24 +338,56 @@ function createMcpDraft(
       const idx = s.tasks.findIndex((t) => t.id === id);
       if (idx < 0) return;
       const task = s.tasks[idx];
-      const { time, ...rest } = updates;
       const next = mergeTaskUpdate(task, updates);
       // Per saldo niets gewijzigd ⇒ no-op, net als taskSlice.ts's `updateTask`: geen mutatie, geen
       // gevolgregel en geen `isDirty`. (De undo-stap en de herberekening zijn van de transactie.)
       if (sameValue(task, next)) return;
+      // Taaktypes-etappe (reviewbevinding K1) — tweeling van taskSlice.ts's `updateTask`: `workRule`
+      // loopt via `settleRuleChange`, niet via de kale merge.
+      const { time, workRule, calendarId, ...rest } = updates;
+      // B1-vervolg — tweeling van taskSlice.ts's `updateTask`: de basis VÓÓR de K2-kalenderstap
+      // (integratie #101, valkuil b), anders ziet de reconcile de kalenderwissel niet.
+      const finishBasis = hourInputFinishBasis(task);
+      // K2 — tweeling van taskSlice.ts's `updateTask`: kalenderwissel eerst en apart.
+      const calendarChanged = 'calendarId' in updates && task.calendarId !== calendarId;
+      let lost = false;
+      if (calendarChanged) {
+        const before = captureCalendarChange(task, s.assignments, s);
+        task.calendarId = calendarId;
+        lost = settleCalendarChange(task, s.assignments, before, s).timephasedLost;
+      }
       // WANNEER de gevolgregels vuren: op een ECHT gewijzigde waarde, niet op een meegestuurde
-      // sleutel — dezelfde poort als taskSlice.ts's `updateTask`, zie `taskTriggerChanges`.
-      const changes = taskTriggerChanges(task, next);
+      // sleutel — dezelfde poort als taskSlice.ts's `updateTask`, zie `taskTriggerChanges`; gemeten
+      // ná de kalenderstap, zoals daar.
+      const afterRest = mergeTaskUpdate(task, time ? { ...rest, time } : rest);
+      const changes = taskTriggerChanges(task, afterRest);
       const contourHpd = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
       const oldWorkMinutes = taskWorkMinutesOf(task, contourHpd);
+      // Taaktypes-etappe (bouwstap 4) — tweeling van taskSlice.ts's `updateTask`: momentopname vóór.
+      const triangle = changes.timeBase ? captureTriangle(task, s.assignments, s) : null;
+      const progressWork = time ? captureProgressWork(task, s) : null; // bevinding 1 — tweeling
+      const restBefore = [task.time.remainingTime, task.time.remainingMinutes];
       Object.assign(task, rest);
-      if (time) task.time = next.time;
-      // Duur-/datumwijziging: dezelfde gevolgregels als taskSlice.ts's `updateTask` en het taakraster,
-      // zie `applyDurationChangeRules` in taskDefaults.ts. Een kalenderwissel ontkoppelt daarnaast
-      // het Z8-venster (Z14b, zelfde triggerset/uitleg in `taskDefaults.ts`).
-      let lost = false;
-      if (changes.timeBase) lost = applyDurationChangeRules(task, oldWorkMinutes, contourHpd);
-      if (changes.calendar) lost = invalidateForTimeBaseChange(task) || lost;
+      if (time) task.time = afterRest.time;
+      if (changes.timeBase) {
+        // Eigenaarsbesluit 2026-09-05 — tweeling van taskSlice.ts: rest schuift mee, tenzij de patch 'm zelf zette.
+        const restUntouched = task.time.remainingTime === restBefore[0] && task.time.remainingMinutes === restBefore[1];
+        if (restUntouched) carryRemainingThroughDurationEdit(task, oldWorkMinutes, contourHpd);
+        // Duur-/datumwijziging: dezelfde gevolgregels als taskSlice.ts's `updateTask` en het taakraster,
+        // zie `applyDurationChangeRules` in taskDefaults.ts (kern van `settleDurationAftermath`).
+        lost = applyDurationChangeRules(task, oldWorkMinutes, contourHpd, {
+          keepWork: contourKeepsWork(task, s.project.defaultWorkRule),
+        }) || lost;
+        settleDurationEdit(task, s.assignments, triangle);
+      }
+      settleProgressWork(task, s.assignments, progressWork);
+      if ('workRule' in updates && task.workRule !== workRule) {
+        settleRuleChange(task, s.assignments, s, workRule);
+        if (workRule !== undefined) s.taskTypesVisible = true; // review K3
+      }
+      reconcileP6SuspendResume(task);
+      // Z14b — een kalenderwissel ontkoppelt ook het Z8-venster (zelfde triggerset/uitleg in `taskDefaults.ts`).
+      if (calendarChanged) lost = invalidateForTimeBaseChange(task) || lost;
       // mpp-nul-data-etappe, DEEL 1 — meld alleen bij een ECHT verlies via de actieve runtimelease.
       if (lost) recordTimephasedLoss(id);
       // B1c-plan3 taak 3 (spec §4, "Invalidatie"): een bewerking die de tijdbasis van de taak verzet,
@@ -338,8 +398,11 @@ function createMcpDraft(
       // afgeleide nivelleeruitvoer op een as die de aanroeper zelf zojuist heeft verzet.
       // EIGEN, BREDERE poort sinds de fixronde op etappe 3 (bevinding B7) — gedocumenteerde tweeling
       // van taskSlice.ts's `updateTask`; zie `LEVELING_GAP_TIME_TRIGGERS` in taskDefaults.ts.
-      if (changes.levelingGaps) clearLevelingGaps(task);
-      s.isDirty = true;
+      if (changes.levelingGaps || calendarChanged) clearLevelingGaps(task);
+      // B1-vervolg — tweeling van taskSlice.ts's `updateTask`: het ingevoerde einde beweegt mee,
+      // bewust NA `clearLevelingGaps` (anders telt het einde gewiste nivelleergaten mee).
+      reconcileHourInputFinish(task, finishBasis, resolveCalendar(task.calendarId, s.calendars, s.calendar));
+      markDocumentEdited(s);
     });
   },
 
@@ -365,43 +428,79 @@ function createMcpDraft(
       const idx = s.tasks.findIndex((t) => t.id === id);
       if (idx < 0) return;
       const task = s.tasks[idx];
-      const contourHpd = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
-      const oldWorkMinutes = taskWorkMinutesOf(task, contourHpd);
-      // De taak zoals de patch haar achterlaat, eerst op een kopie (muteert niets): `top` overschrijft
-      // top-level waarden, `timePatch` zet losse `time`-sleutels (`clearDurationMinutes` verwijdert
-      // de sleutel — `delete`, niet `= undefined`, voor de IFC-round-trip).
-      const next: Task = { ...task, ...top };
-      const time = { ...next.time };
-      if (timePatch) {
+      // `timePatch` zet losse `time`-sleutels op een kopie (`clearDurationMinutes` verwijdert de
+      // sleutel — `delete`, niet `= undefined`, voor de IFC-round-trip).
+      const patchTime = (base: Task['time']): Task['time'] => {
+        const time = { ...base };
+        if (!timePatch) return time;
         if (timePatch.scheduleDuration !== undefined) time.scheduleDuration = timePatch.scheduleDuration;
         if (timePatch.durationUnit !== undefined) time.durationUnit = timePatch.durationUnit;
         if (timePatch.durationMinutes !== undefined) time.durationMinutes = timePatch.durationMinutes;
         if (timePatch.durationType !== undefined) time.durationType = timePatch.durationType;
         if (timePatch.clearDurationMinutes) delete time.durationMinutes;
-      }
-      next.time = time;
-      // Per saldo niets gewijzigd ⇒ no-op, zie `updateTaskFields` hierboven (geen `isDirty`).
+        return time;
+      };
+      // De taak zoals de patch haar achterlaat, eerst op een kopie (muteert niets): `top` overschrijft
+      // top-level waarden, `timePatch` de losse sleutels. Per saldo niets gewijzigd ⇒ no-op, zie
+      // `updateTaskFields` hierboven (geen `isDirty`).
+      const next: Task = { ...task, ...top };
+      next.time = patchTime(next.time);
       if (sameValue(task, next)) return;
+      const { workRule, calendarId, ...topRest } = top;
+      // B1-vervolg — basis VÓÓR de K2-kalenderstap (integratie #101, valkuil b), zie `updateTaskFields`.
+      const finishBasis = hourInputFinishBasis(task);
+      // K2 — zelfde kalenderstap als `updateTaskFields` hierboven, vóór de momentopname voor de duur.
+      const calendarChanged = 'calendarId' in top && task.calendarId !== calendarId;
+      let lost = false;
+      if (calendarChanged) {
+        const before = captureCalendarChange(task, s.assignments, s);
+        task.calendarId = calendarId;
+        lost = settleCalendarChange(task, s.assignments, before, s).timephasedLost;
+      }
       // WANNEER de gevolgregels vuren: op een ECHT gewijzigde waarde, niet op een meegestuurde
       // sleutel — dezelfde poort als `updateTaskFields` hierboven en taskSlice.ts's `updateTask`, zie
       // `taskTriggerChanges`. `planner_update_tasks` met exact de huidige duur laat de MSP-sturing
-      // dus staan.
-      const changes = taskTriggerChanges(task, next);
-      Object.assign(task, top);
-      if (timePatch) task.time = time;
-      // Duurwijziging: dezelfde gevolgregels als `updateTaskFields` hierboven, zie
-      // `applyDurationChangeRules` in taskDefaults.ts (inclusief het wissen van de nivelleergaten, B7).
-      let lost = false;
-      if (changes.timeBase) lost = applyDurationChangeRules(task, oldWorkMinutes, contourHpd);
+      // dus staan. Gemeten ná de kalenderstap.
+      const patchedTime = patchTime(topRest.time ?? task.time);
+      const changes = taskTriggerChanges(task, { ...task, ...topRest, time: patchedTime });
+      // Reviewbevinding F2: de referentie voor Δ-rest en contourherschaling ná de kalenderstap
+      // (die kan de duur al verschoven hebben), precies zoals `updateTaskFields`.
+      const contourHpd = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
+      const oldWorkMinutes = taskWorkMinutesOf(task, contourHpd);
+      // Taaktypes-etappe (bouwstap 4) — zelfde momentopname als `updateTaskFields` hierboven.
+      const triangle = changes.timeBase ? captureTriangle(task, s.assignments, s) : null;
+      const restBefore = [task.time.remainingTime, task.time.remainingMinutes];
+      Object.assign(task, topRest);
+      task.time = patchedTime;
+      if (changes.timeBase) {
+        // Reviewbevinding F8 — zelfde `restUntouched`-poort als `updateTaskFields`: `top.time` past in
+        // `Partial<Task>`, dus een aanroeper kan de rest zelf zetten; die schuift dan niet óók nog.
+        const restUntouched = task.time.remainingTime === restBefore[0] && task.time.remainingMinutes === restBefore[1];
+        if (restUntouched) carryRemainingThroughDurationEdit(task, oldWorkMinutes, contourHpd);
+        // Duurwijziging: dezelfde gevolgregels als `updateTaskFields` hierboven, zie
+        // `applyDurationChangeRules` in taskDefaults.ts (inclusief het wissen van de nivelleergaten, B7).
+        lost = applyDurationChangeRules(task, oldWorkMinutes, contourHpd, {
+          keepWork: contourKeepsWork(task, s.project.defaultWorkRule),
+        }) || lost;
+        settleDurationEdit(task, s.assignments, triangle);
+      }
+      // Reviewbevinding K1: `workRule` via de driehoek-bewuste route, ná de duurpatch.
+      if ('workRule' in top && task.workRule !== workRule) {
+        settleRuleChange(task, s.assignments, s, workRule);
+        if (workRule !== undefined) s.taskTypesVisible = true; // review K3
+      }
+      reconcileP6SuspendResume(task);
       // Z14b — een kalenderwissel ontkoppelt het Z8-venster, zie `updateTaskFields` hierboven.
-      if (changes.calendar) lost = invalidateForTimeBaseChange(task) || lost;
+      if (calendarChanged) lost = invalidateForTimeBaseChange(task) || lost;
       if (lost) recordTimephasedLoss(id); // zie `updateTaskFields` hierboven.
       // B1c-plan3 taak 3 (spec §4, "Invalidatie") — zie `updateTaskFields` hierboven voor de
       // motivering (geen melding: app-eigen afgeleide uitvoer, geen importverlies). `timePatch` kent
       // geen voortgangsvelden; de `time`-kant zat al in `applyDurationChangeRules`, de top-level
       // triggers (`calendarId`, `constraint`, `constraint2`) lopen via dezelfde poort (B7).
-      if (changes.levelingGaps) clearLevelingGaps(task);
-      s.isDirty = true;
+      if (changes.levelingGaps || calendarChanged) clearLevelingGaps(task);
+      // B1-vervolg — zie `updateTaskFields` hierboven (ná `clearLevelingGaps`).
+      reconcileHourInputFinish(task, finishBasis, resolveCalendar(task.calendarId, s.calendars, s.calendar));
+      markDocumentEdited(s);
     });
   },
 
@@ -422,7 +521,7 @@ function createMcpDraft(
       refusal = taskSplitRefusal(task, pieces, hoursPerDay);
       if (refusal) return;
       if (applyTaskSplits(s, task, pieces, hoursPerDay)) recordTimephasedLoss(taskId);
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
     return refusal;
   },
@@ -439,7 +538,7 @@ function createMcpDraft(
       }
       if (sameNameOtherId) throw new Error(`draft.ensureCustomTaskType: naam '${normalized.name}' heeft al id '${sameNameOtherId.id}'`);
       s.customTaskTypes.push(normalized);
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   },
 
@@ -454,7 +553,7 @@ function createMcpDraft(
       if (!s.tasks.some((t) => t.id === id)) return;
       removeTaskSubtrees(s, [id]);
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   },
 
@@ -468,7 +567,7 @@ function createMcpDraft(
     store.setState((s) => {
       s.calendars.push({ ...cal, id });
       syncProjectCalendar(s);
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
     return id;
   },
@@ -479,13 +578,22 @@ function createMcpDraft(
    * (de tool-laag WP5 valideert dat vooraf; dit is de vangrail).
    */
   updateCalendar(id: string, updates: Partial<WorkCalendar>): void {
+    let changed = 0;
     store.setState((s) => {
       const idx = s.calendars.findIndex((c) => c.id === id);
       if (idx < 0) throw new Error(`draft.updateCalendar: onbekende kalender-id '${id}'`);
+      // K2 — tweeling van resourceSlice.ts's `updateCalendar`: momentopnamen vóór de mutatie.
+      const affected = tasksOnCalendar(s, id).map((task) => ({ task, before: captureCalendarChange(task, s.assignments, s) }));
       Object.assign(s.calendars[idx], updates);
       syncProjectCalendar(s);
-      s.isDirty = true;
+      for (const { task, before } of affected) {
+        const settled = settleCalendarChange(task, s.assignments, before, s);
+        if (settled.durationChanged) changed++;
+        if (settled.timephasedLost) recordTimephasedLoss(task.id);
+      }
+      markDocumentEdited(s);
     });
+    if (changed > 0) notifyWorkRuleDurationsChanged(context.store.getState().notify, changed);
   },
 
   /**
@@ -501,7 +609,7 @@ function createMcpDraft(
         throw new Error(`draft.addResource: ongeldige maxUnits ${String(res.maxUnits)} (strikt positief vereist)`);
       }
       insertResource(s, res, id);
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
     return id;
   },
@@ -531,7 +639,7 @@ function createMcpDraft(
         if (value === undefined) delete target[key];
         else target[key] = value;
       }
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   },
 
@@ -561,10 +669,11 @@ function createMcpDraft(
       report.orphanedCrewMemberIds = s.resources.filter((r) => r.parentId === id).map((r) => String(r.id));
 
       // Ploeglid-`parentId` via `delete` i.p.v. `= undefined` — zie de noot bij updateResource.
-      // Zelfde lichaam als de store-actie (`assignmentMutations.ts`), inclusief de toewijzingen-
-      // trigger per geraakte taak; verlies via de lease, zoals `unassignResource` hieronder.
-      for (const lostTaskId of purgeResource(s, id, 'delete')) recordTimephasedLoss(lostTaskId);
-      s.isDirty = true;
+      // Zelfde lichaam als de store-actie (`assignmentMutations.ts`), inclusief de werkregel-nazorg
+      // (taaktypes-etappe, spec §5 rij 5) en de toewijzingen-trigger per geraakte taak; verlies via de
+      // lease, zoals `unassignResource` hieronder.
+      for (const lostTaskId of purgeResource(s, id, 'delete').lostTaskIds) recordTimephasedLoss(lostTaskId);
+      markDocumentEdited(s);
     });
     return report;
   },
@@ -579,15 +688,18 @@ function createMcpDraft(
     store.setState((s) => {
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) throw new Error(`draft.assignResource: onbekende taskId '${taskId}'`);
-      if (task.isMilestone || task.childIds.length > 0) {
+      if (task.isMilestone || isSummaryTask(task)) {
         throw new Error(`draft.assignResource: kan geen resource toewijzen aan een mijlpaal/samenvattingstaak '${taskId}'`);
       }
       if (!isValidUnits(unitsPerDay)) {
         throw new Error(`draft.assignResource: ongeldige unitsPerDay ${String(unitsPerDay)} (strikt positief vereist)`);
       }
-      // Zelfde lichaam als de store-actie (`assignmentMutations.ts`); verlies via de lease.
-      if (insertAssignment(s, task, { id, taskId, resourceId, unitsPerDay, curve })) recordTimephasedLoss(taskId);
-      s.isDirty = true;
+      // Zelfde lichaam als de store-actie (`assignmentMutations.ts`, incl. de werkregel — spec §5
+      // rij 4); verlies via de lease.
+      for (const lostTaskId of insertAssignment(s, task, { id, taskId, resourceId, unitsPerDay, curve }).lostTaskIds) {
+        recordTimephasedLoss(lostTaskId);
+      }
+      markDocumentEdited(s);
     });
     return id;
   },
@@ -603,8 +715,49 @@ function createMcpDraft(
       if (idx < 0) throw new Error(`draft.updateAssignment: onbekende assignmentId '${assignmentId}'`);
       const patch = acceptedAssignmentPatch(updates);
       if (!patch) return;
-      applyAssignmentPatch(s.assignments[idx], patch);
-      s.isDirty = true;
+      // Zelfde lichaam als de store-actie (`assignmentMutations.ts`, incl. de werkregel — spec §5 rij 2).
+      for (const lostTaskId of applyAssignmentPatch(s, s.assignments[idx], patch).lostTaskIds) recordTimephasedLoss(lostTaskId);
+      markDocumentEdited(s);
+    });
+  },
+
+  /**
+   * Snapshot/recompute-vrije variant van de store-`setAssignmentWork` (taaktypes-etappe, spec §5
+   * rij 3): zet het resterende werk (werkminuten, > 0) van één toewijzing; de werkdriehoek leidt
+   * inzet of restduur af. Onbekend id, ongeldig werk of een taak buiten de regel ⇒ FOUT (de
+   * toollaag pre-valideert; dit is de vangrail).
+   */
+  setAssignmentWork(assignmentId: string, remainingWorkMinutes: number): void {
+    store.setState((s) => {
+      const a = s.assignments.find((x) => x.id === assignmentId);
+      if (!a) throw new Error(`draft.setAssignmentWork: onbekende assignmentId '${assignmentId}'`);
+      const task = s.tasks.find((t) => t.id === a.taskId);
+      if (!task) throw new Error(`draft.setAssignmentWork: toewijzing '${assignmentId}' zonder taak`);
+      const oldWorkMinutes = taskWorkMinutesOf(task, taskCalendarHoursPerDay(task, s.calendars, s.calendar));
+      const finishBasis = hourInputFinishBasis(task); // B1: vóór `commitTrianglePlan`.
+      const plan = planWorkEdit(task, s.assignments, s, assignmentId, remainingWorkMinutes);
+      if (!plan) {
+        throw new Error(`draft.setAssignmentWork: werk ${String(remainingWorkMinutes)} geweigerd (strikt positief vereist; de werkregel geldt niet op mijlpalen, hangmatten, samenvattingen of ELAPSEDTIME-taken)`);
+      }
+      if (commitTrianglePlan(task, s.assignments, plan).durationChanged) afterTriangleDurationChange(s, task, oldWorkMinutes, finishBasis);
+      s.taskTypesVisible = true; // review K3
+      markDocumentEdited(s);
+    });
+  },
+
+  /**
+   * Snapshot/recompute-vrije variant van de store-`setTaskWorkRule` (spec §5 rij 6): zet de
+   * werkregel van een taak (`undefined` = projectstandaard). Geen getal verandert; een
+   * werkbeschermende regel legt het huidige restwerk vast. Onbekend id ⇒ fout.
+   */
+  setTaskWorkRule(taskId: string, rule: WorkRule | undefined): void {
+    store.setState((s) => {
+      const task = s.tasks.find((t) => t.id === taskId);
+      if (!task) throw new Error(`draft.setTaskWorkRule: onbekende taskId '${taskId}'`);
+      if (task.workRule === rule) return;
+      settleRuleChange(task, s.assignments, s, rule);
+      if (rule !== undefined) s.taskTypesVisible = true; // review K3
+      markDocumentEdited(s);
     });
   },
 
@@ -622,7 +775,8 @@ function createMcpDraft(
       const edit = contoursAfterEdit(s, task, a, periods);
       if (!edit) return;
       task.timephasedContours = edit.contours;
-      s.isDirty = true;
+      syncAssignmentWorkToContour(a, periods); // bevinding 3 — tweeling van resourceSlice.
+      markDocumentEdited(s);
     });
   },
 
@@ -638,7 +792,7 @@ function createMcpDraft(
       if (!assignment) throw new Error(`draft.moveAssignment: onbekende assignmentId '${assignmentId}'`);
       const newTask = s.tasks.find((t) => t.id === newTaskId);
       if (!newTask) throw new Error(`draft.moveAssignment: onbekende taskId '${newTaskId}'`);
-      if (newTask.isMilestone || newTask.childIds.length > 0) {
+      if (newTask.isMilestone || isSummaryTask(newTask)) {
         throw new Error(`draft.moveAssignment: doeltaak '${newTaskId}' is een mijlpaal/samenvattingstaak`);
       }
       const alreadyOnTarget = s.assignments.some(
@@ -648,8 +802,8 @@ function createMcpDraft(
         throw new Error(`draft.moveAssignment: resource '${assignment.resourceId}' is al toegewezen aan taak '${newTaskId}'`);
       }
 
-      for (const lostTaskId of relocateAssignment(s, assignment, newTask)) recordTimephasedLoss(lostTaskId);
-      s.isDirty = true;
+      for (const lostTaskId of relocateAssignment(s, assignment, newTask).lostTaskIds) recordTimephasedLoss(lostTaskId);
+      markDocumentEdited(s);
     });
   },
 
@@ -662,8 +816,8 @@ function createMcpDraft(
     store.setState((s) => {
       const removed = s.assignments.find((a) => a.id === assignmentId);
       if (!removed) throw new Error(`draft.unassignResource: onbekende assignmentId '${assignmentId}'`);
-      if (removeAssignment(s, removed)) recordTimephasedLoss(removed.taskId);
-      s.isDirty = true;
+      for (const lostTaskId of removeAssignment(s, removed).lostTaskIds) recordTimephasedLoss(lostTaskId);
+      markDocumentEdited(s);
     });
   },
 
@@ -689,7 +843,7 @@ function createMcpDraft(
     let roundedCount = 0;
     store.setState((s) => {
       roundedCount = writeLevelingResult(s.tasks, write, opts?.scopeTaskIds);
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
     if (roundedCount > 0) {
       const state = store.getState();
@@ -707,7 +861,7 @@ function createMcpDraft(
       for (const task of s.tasks) {
         if (clearLevelingOutput(task)) roundedCount++;
       }
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
     if (roundedCount > 0) {
       const state = store.getState();
@@ -735,7 +889,7 @@ function createMcpDraft(
     let clampedAnchors = 0;
     store.setState((s) => {
       clampedAnchors = applyProjectPatch(s, updates);
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
     return clampedAnchors;
   },
@@ -797,6 +951,9 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
       const previousViewRows = initial.viewRows;
       const previousResourceLoad = initial.resourceLoadResult;
       const previousDirty = initial.isDirty;
+      // Critreview op ded4d8c3, bevinding 4: ook "ongewijzigd sinds import" hoort bij de poging —
+      // een geweigerde AI-actie is geen bewerking en mag het heropen-beleid (optie B) niet raken.
+      const previousPristine = initial.importPristine;
       // `runCPM` publiceert een gebruikersmelding zodra de tijdelijke solve een cyclus/fout ziet.
       // Als die solve de omvattende MCP-transactie vervolgens laat falen, hoort ook die melding bij
       // de teruggedraaide poging. Notifications zijn bewust appglobaal en zitten daarom niet in de
@@ -806,10 +963,11 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
 
       const rollback = (error: string): { ok: false; error: string } => {
         store.setState((state) => {
-          restoreSnapshot(state, snapshot);
+          restoreSnapshot(state, snapshot, { markDirty: false, clearImportPristine: false });
           state.viewRows = previousViewRows;
           state.resourceLoadResult = previousResourceLoad;
           state.isDirty = previousDirty;
+          state.importPristine = previousPristine;
           replaceSessionHistoryState(state, previousHistory, previousSequence);
           state.ui.notifications = prevNotifications;
         });

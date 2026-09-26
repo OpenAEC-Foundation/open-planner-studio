@@ -64,8 +64,9 @@ melding — je zit dan weer in de normale, doorgerekende planning. **Ctrl+Z** ma
 en brengt je terug naar de opgeslagen datums.
 
 Werk je eenmaal verder in de doorgerekende planning, dan is er geen knop meer om op elk moment heen
-en weer te schakelen: de enige manier om de oorspronkelijke datums opnieuw te zien is het bestand
-opnieuw te openen.
+en weer te schakelen: de enige manier om de oorspronkelijke datums opnieuw te zien is het
+**oorspronkelijke bronbestand** opnieuw te openen. Een IFC dat je intussen zelf hebt opgeslagen helpt
+daar niet altijd bij — zie hieronder.
 
 ## Opslaan
 
@@ -73,9 +74,105 @@ Sla je op terwijl je de opgeslagen datums bekijkt, dan schrijft de app die datum
 doorgerekende versie. Zo overschrijf je nooit per ongeluk de planning van een collega of van het
 bronpakket met een uitkomst die de app er zelf bij heeft bedacht.
 
+### Wat een opgeslagen project nog weet van het bronbestand
+
+Alleen bij een Primavera `.xer`-import bewaart het projectbestand een volledige kopie van het
+oorspronkelijke bestand. Daardoor kan de app de datums van Primavera ook later nog tonen, zelfs als
+je eerst met **F5** hebt herberekend en daarna hebt opgeslagen.
+
+Bij P6 XML, MS Project XML, `.mpp` en een IFC uit een ander pakket bewaart de app zo'n kopie
+**niet**. Na opslaan staan de oorspronkelijke datums alleen in je projectbestand als je opslaat
+**terwijl deze weergave aanstaat**. Druk je eerst op **F5** en sla je daarna op, dan staan in het
+bestand de herberekende datums, en zijn de oorspronkelijke datums daaruit verdwenen. Heropen je dat
+bestand, dan valt er niets meer te vergelijken: je krijgt dan geen melding en geen weergave. Wil je
+de oorspronkelijke datums dan toch terugzien, open dan opnieuw het oorspronkelijke bronbestand.
+
+## Bij het openen van een ander bestandsformaat gaat deze weergave vanzelf aan
+
+Voor een bestand met datums die een planningspakket zelf heeft berekend, gaat de weergave bij het
+openen meteen aan zodra er verschillen zijn — je hoeft niet eerst op **Opgeslagen datums tonen** te
+klikken. Dat geldt voor Primavera P6 (`.xer` en P6 XML) en Microsoft Project (`.mpp` en MS Project
+XML). De app leest uit zo'n bestand de
+datums die het bronpakket zelf vastlegde — waar het bestand ze draagt ook de late datums, de speling
+en het kritiek-kenmerk — en vergelijkt die met zijn eigen herberekening. Wijkt er iets af, dan zie
+je de opgeslagen datums, met de openingsmelding die het aantal afwijkende taken noemt en de vaste
+strook boven de planning. Wat het bestand niet vastlegde, blijft "Niet vastgelegd" (zie hieronder):
+een MS Project-taak met alleen een vroege start en een vroeg einde wordt op die twee assen vergeleken
+en toont de andere vier leeg.
+
+### Welke bestanden deze weergave wel en niet krijgen
+
+Alleen berekende datums zijn het vergelijken waard. Een startdatum die iemand zelf heeft ingetypt is
+invoer: daarmee vergelijken zou alleen laten zien dat de logica een andere datum geeft dan er getypt
+stond. Daarom:
+
+- **CSV** opent gewoon en wordt doorgerekend — geen weergave, geen aanbod en geen melding. De kolom
+  Start is de invoer, geen uitkomst van een berekening.
+- **Een IFC uit een ander pakket met alleen start- en einddatums** (ScheduleStart/ScheduleFinish)
+  eveneens: dat zijn ook invoerdatums.
+- **Een IFC uit een ander pakket met berekende datums** (EarlyStart/EarlyFinish in de taaktijden, zoals
+  een Primavera-export naar IFC) krijgt de weergave wél.
+- **Een projectbestand dat Open Planner Studio zelf opsloeg** krijgt de weergave alleen als het
+  bestand onthoudt uit welk pakket de datums oorspronkelijk kwamen. De app schrijft dat alleen mee
+  als je opslaat **terwijl deze weergave aanstaat** — dus zolang je geen datums wijzigt of
+  herberekent. Een bewerking die geen datums raakt, zoals de projectomschrijving wijzigen, mag wel.
+  Wijzig je een duur, een relatie of een kalender, of druk je op **F5**, dan staat in het bestand
+  voortaan onze eigen berekening en vervalt die aantekening. Een project dat je in de app zelf hebt
+  gemaakt, of een ouder projectbestand zonder die aantekening, krijgt de weergave nooit: daar zou de
+  app alleen zijn eigen eerdere berekening met de nieuwe vergelijken.
+
+Bij een `.xer`- of P6 XML-bestand zegt de strook "zoals Primavera hem opsloeg"; bij de andere
+formaten "zoals ze in het bestand staan", omdat de app dan niet weet uit welk pakket de datums komen.
+
+Sla je het project daarna op als IFC en open je dat bestand later opnieuw, dan gaat de weergave
+alleen vanzelf aan zolang je het project sinds de import **niet hebt bewerkt** — en zolang het
+bestand de oorspronkelijke datums nog draagt (zie *Wat een opgeslagen project nog weet van het
+bronbestand* hierboven: bij alles behalve `.xer` alleen als je in deze weergave hebt opgeslagen).
+Herberekenen met **F5** en opslaan tellen daarbij niet als bewerking; een taak wijzigen, een relatie
+toevoegen of een kalender aanpassen wel. Heb je bewerkt, dan wordt de weergave bij het heropenen
+alleen nog aangeboden — je klikt dan zelf — zodat een planning die je intussen hebt veranderd nooit
+ongevraagd weer met de oude datums uit het bronbestand op het scherm komt. De app onthoudt dat
+"ongewijzigd sinds import" in het projectbestand zelf.
+
+Bij een `.xer`-project kan dat aanbod altijd, dankzij de kopie van het bronbestand. Bij de andere
+formaten hangt het ervan af of de weergave nog aanstond toen je opsloeg. Een bewerking die datums
+raakt (een duur, een relatie, een kalender) verlaat de weergave, dus wat je daarna opslaat zijn
+herberekende datums en valt er bij het heropenen niets meer aan te bieden. Een bewerking die geen
+datums raakt, zoals de projectomschrijving wijzigen, laat de weergave aan; sla je dan op, dan blijven
+de oorspronkelijke datums in het bestand en krijg je ze bij het heropenen wél aangeboden. Sla je
+daarna op zonder eerst **Opgeslagen datums tonen** te kiezen, dan staat de doorgerekende planning in
+het bestand en is er bij het volgende heropenen niets meer aan te bieden.
+
+De taken die in deze weergave zitten, zijn ook te herkennen in de tabel — kolom **Herkomst (opgeslagen
+datums)** — en met een badge in het eigenschappenpaneel van de geselecteerde taak. **F5** en het
+bewerken van een taak verlaten deze weergave op precies dezelfde manier als hierboven beschreven; de
+berekening zelf gebruikt de opgeslagen datums van het bronpakket nooit als invoer, alleen als
+weergave. Zie [Primavera P6 (.xer) openen](docs://gids-xer-import) en
+[MS Project (.mpp) openen](docs://gids-msproject-import) voor wat die imports verder meebrengen.
+
+## "Niet vastgelegd"
+
+Primavera legt niet voor elke activiteit alle vier de assen laatste start, laatste einde, totale
+speling en vrije speling vast — een activiteit kan bijvoorbeeld wel een vroege datum hebben, maar geen
+speling. Mist zo'n as in het bronbestand, dan toont de betreffende kolom in de tabel "Niet vastgelegd"
+in plaats van een getal. Dat is geen foutmelding: het betekent alleen dat het bestand zelf op dat punt
+niets zei, en Open Planner Studio verzint daar dus ook niets bij. Dit geldt alleen zolang je déze weergave bekijkt:
+zodra de app zijn eigen berekening toont — buiten deze weergave, of na herberekenen met **F5** —
+staat in die kolom gewoon het berekende getal.
+
+Diezelfde eerlijkheid geldt buiten het scherm: exporteer je naar CSV terwijl deze weergave aanstaat,
+dan blijft de cel voor een niet-vastgelegde as leeg in plaats van een `0` te tonen, en de
+AI-assistent krijgt voor zo'n as `null` te zien met de opsomming van welke assen het bestand niet
+vastlegde. De rapporten (het Rapport-tabblad, inclusief de PDF en het printvoorbeeld) kennen die
+lege cel nog niet: daar staat voor een niet-vastgelegde as een leeg veld of een `0`. Zolang deze
+weergave aanstaat, staat daarom boven elk rapport één melding die zegt dat je naar de datums uit het
+bestand kijkt en waar die nullen vandaan komen.
+
 ## Verder lezen
 
 - Meer over welke formaten je kunt importeren en wat daarbij wel en niet meekomt — lees de gids
   [Im-/export](docs://gids-import-export).
 - Speling en kritiek pad in detail, inclusief wat "bepalend" precies betekent — lees de gids
   [Kritiek pad & geavanceerde analyse](docs://gids-kritiek-pad-analyse).
+- Alles over wat een `.xer`-import meebrengt — lees de gids
+  [Primavera P6 (.xer) openen](docs://gids-xer-import).

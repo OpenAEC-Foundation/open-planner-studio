@@ -56,9 +56,8 @@ import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import type { CompanyPool } from '@/types/library';
 import { computeResourceLoad, maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
-import {
-  solveProject, cloneTasksForSolve, cpmOptionsOf, type ProjectSolveOptions,
-} from '@/engine/scheduler/solveProject';
+import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
+import { solveOptionsFor, type ProjectSolveOptions, type SolveProjectFields } from '@/engine/scheduler/solveInput';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 
 /**
@@ -66,23 +65,29 @@ import type { CPMResult } from '@/engine/scheduler/CPMSolver';
  * zelf al leest. Alleen relevant voor stale documenten; ontbreekt hij, dan valt dát document terug
  * op het vangnetgedrag (zichtbaar, niet meegeteld).
  */
-export interface OccupancySolveInput extends ProjectSolveOptions {
+export interface OccupancySolveInput {
   /** De VOLLEDIGE takenlijst van het document — bladen én verzameltaken, ook taken zonder
    *  bibliotheekboeking. Een gesnoeide lijst zou een andere planning opleveren dan `runCPM`; de
    *  bibliotheek-snit die de aggregatie gebruikt is hier dus expliciet NIET goed genoeg. */
   tasks: Task[];
   sequences: Sequence[];
-  // De geërfde opties (`dataDate`/`progressMode`/`schedulingOptions`/`projectStartDate`) zijn
-  // dezelfde die `runCPM` aan de solver geeft, zodat de efemere planning identiek is aan wat F5 in
-  // dat document zou opleveren — bouw hem dus met `occupancySolveInputOf`.
+  /** De solve-opties van het document, via `occupancySolveInputFor` ⇒ `solveOptionsFor(project)` —
+   *  dezelfde opties die `runCPM` aan de solver geeft, zodat de efemere planning identiek is aan
+   *  wat F5 in dat document zou opleveren (rekenprofielen C1). */
+  options: ProjectSolveOptions;
 }
 
-/** De efemere solve-invoer van een document(payload): de volledige takenlijst en relaties plus
- *  exact de opties die `runCPM` meegeeft (`cpmOptionsOf`), óók de projectstart-vloer. */
-export function occupancySolveInputOf(
-  doc: { tasks: Task[]; sequences: Sequence[]; project: Parameters<typeof cpmOptionsOf>[0] },
+/** Bouw de efemere solve-invoer van een document. De ENIGE bouwplek (ResourceOccupancyView gebruikt
+ *  hem). Sinds rekenprofielen C5 (benoemde gedragswijziging) de volledige invoer van F5, óók de
+ *  projectdatums: de bezetting respecteert de projectstart-vloer zoals F5. */
+export function occupancySolveInputFor(
+  payload: { tasks: Task[]; sequences: Sequence[]; project: SolveProjectFields },
 ): OccupancySolveInput {
-  return { tasks: doc.tasks, sequences: doc.sequences, ...cpmOptionsOf(doc.project) };
+  return {
+    tasks: payload.tasks,
+    sequences: payload.sequences,
+    options: solveOptionsFor(payload.project),
+  };
 }
 
 /** Eén open document, gemapt uit zijn payload-snapshot (weergavelaag levert dit aan, §4.4). */
@@ -153,9 +158,8 @@ export function solveClone(
   calendar: WorkCalendar,
   calendars: WorkCalendar[],
 ): { tasks: Task[]; result: CPMResult } {
-  const { tasks: source, sequences, ...options } = input;
-  const tasks = cloneTasksForSolve(source);
-  const result = solveProject({ tasks, sequences, calendar, calendars, ...options });
+  const tasks = cloneTasksForSolve(input.tasks);
+  const result = solveProject({ tasks, sequences: input.sequences, calendar, calendars, ...input.options });
   return { tasks, result };
 }
 

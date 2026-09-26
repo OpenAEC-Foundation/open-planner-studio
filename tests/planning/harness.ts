@@ -52,6 +52,8 @@
 import { useAppStore } from '@/state/appStore';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { SchedulingOptions } from '@/types/project';
+import { isDefaultProfile } from '@/engine/scheduler/conventions/registry';
+import { legacyOptionsToProfile } from '@/services/ifc/schedulingProfileMigration';
 import type { ResourceType, ResourceCurve } from '@/types/resource';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
@@ -616,7 +618,15 @@ function buildAndSolve(c: Case): {
   if (c.statusDate) S().setStatusDate(c.statusDate);
   if (c.scheduleOptions?.progressMode) S().setProgressMode(c.scheduleOptions.progressMode);
   // Reken-opties (fase 2.9, §3.4) op het project — vóór runCPM zodat de solver ze meeneemt.
-  if (c.schedulingOptions) S().setProject({ schedulingOptions: c.schedulingOptions });
+  if (c.schedulingOptions) {
+    // Rekenprofielen: de case-JSON's zijn oude SchedulingOptions-blobs (bv. cases-progress.json met
+    // resumeFromActualElapsed). Ze gaan door EXACT de IFC-migratie, dus het gedrag blijft identiek.
+    const migrated = legacyOptionsToProfile(c.schedulingOptions);
+    S().setProject({
+      schedulingOptions: migrated.options,
+      schedulingProfile: isDefaultProfile(migrated.profile) ? undefined : migrated.profile,
+    });
+  }
   for (const t of c.tasks) {
     const id = ids[t.name];
     if (t.rawCompletion !== undefined) {

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
@@ -23,6 +23,8 @@ export function ProjectInfoDialog() {
   const isNew = useAppStore(s => s.ui.showNewProjectDialog);
   const setUI = useAppStore(s => s.setUI);
   const panelRef = useRef<ProjectInfoPanelContentHandle>(null);
+  // Uit zolang de draft ongeldig is (eigen rekenprofiel zonder naam); Enter loopt via submit(), dat zelf ook weigert.
+  const [canSubmit, setCanSubmit] = useState(true);
 
   const close = () => setUI({ showProjectInfoDialog: false, showNewProjectDialog: false });
   const submit = () => panelRef.current?.submit();
@@ -44,12 +46,12 @@ export function ProjectInfoDialog() {
         />
 
         <div className="flex-1 overflow-y-auto p-4">
-          <ProjectInfoPanelContent ref={panelRef} mode={isNew ? 'wizard' : 'edit'} onDone={close} autoFocusName />
+          <ProjectInfoPanelContent ref={panelRef} mode={isNew ? 'wizard' : 'edit'} onDone={close} autoFocusName onValidityChange={setCanSubmit} />
         </div>
 
         <div className="flex justify-end gap-3 px-4 py-3 border-t border-border">
           <button onClick={close} className="btn btn--sm btn--secondary" data-ops-project-cancel>{tCommon('cancel')}</button>
-          <button onClick={submit} className="btn btn--sm btn--primary shadow-[var(--shadow-glow)]" data-ops-project-primary>
+          <button onClick={submit} disabled={!canSubmit} className="btn btn--sm btn--primary shadow-[var(--shadow-glow)]" data-ops-project-primary>
             {isNew ? tCommon('create') : tCommon('apply')}
           </button>
         </div>

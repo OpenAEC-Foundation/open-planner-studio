@@ -44,6 +44,7 @@ import {
   unknownTypeReason,
 } from './sequenceFields';
 import type { Sequence, SequenceType } from '@/types/sequence';
+import { markDocumentEdited } from '@/state/documentEdited';
 
 /** De ENIGE sleutels die een update-item mag dragen. Alles daarbuiten wordt bij naam geweigerd. */
 const ITEM_KEYS = ['seqId', 'type', 'lag', 'predecessorId', 'successorId'];
@@ -358,7 +359,7 @@ function updateDependenciesCore(ctx: McpContext, updates: unknown[]): MutationOu
         if (c.next.lagMinutes === undefined) delete seq.lagMinutes;
         else seq.lagMinutes = c.next.lagMinutes;
       }
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   }
 

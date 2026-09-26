@@ -10,11 +10,13 @@ import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { exportCalendarLayout, minutesToClock, taskMinutesForWrite } from '@/services/subdayIo';
 import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import { projectFileBase } from '@/utils/documents';
+import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { flattenOrder } from '@/utils/wbs';
 import type { CustomTaskType } from '@/types/taskType';
 import { encodeCustomTaskType, escapeXml, OPS_DURATION_UNIT_NAME, toXmlDateTime } from '@/services/xmlInterchange';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { shownStart, shownFinish } from '@/utils/taskDates';
+import { P6_DURATION_TYPE_NAME, XER_DURATION_TYPE_TOKEN } from '@/engine/work/workRuleMapping';
 
 /** P6-UDF die de OPS-taaktypemarker draagt; geëxporteerd voor de reader. */
 export const OPS_CUSTOM_TASK_TYPE_UDF_TITLE = 'OPS Custom Task Type';
@@ -111,6 +113,14 @@ function taskStatusToP6(task: Task): string {
   return 'Not Started';
 }
 
+/** XER-token → PMXML-label, via de gedeelde tabel in `workRuleMapping.ts` (Oracle-datamap). */
+function p6LabelForToken(token: string): string | undefined {
+  for (const [rule, t] of Object.entries(XER_DURATION_TYPE_TOKEN) as [keyof typeof P6_DURATION_TYPE_NAME, string][]) {
+    if (t === token) return P6_DURATION_TYPE_NAME[rule];
+  }
+  return undefined;
+}
+
 function taskTypeToP6(task: Task): string {
   if (task.isMilestone) {
     // Fase 2.4: de expliciete soort bepaalt het P6-activitytype; automatisch =>
@@ -118,7 +128,7 @@ function taskTypeToP6(task: Task): string {
     // dode code: mijlpalen hebben altijd duur 0.
     return task.milestoneKind === 'FINISH' ? 'Finish Milestone' : 'Start Milestone';
   }
-  if (task.childIds.length > 0) return 'WBS Summary';
+  if (isSummaryTask(task)) return 'WBS Summary';
   return 'Task Dependent';
 }
 
@@ -276,6 +286,11 @@ export function writeP6XML(
     console.warn(`P6-export: ${resumeStopCount} taak/taken met resume/stop (uit-volgorde-hervatting) weggelaten — niet uitdrukbaar in P6-XML (§6).`);
   }
 
+  // X9-besluit: deze adapter is doelbewust asymmetrisch met XER. Een XER-import bewaart zijn
+  // P6-velden en exacte bron alleen via IFC; dit XML-profiel claimt daarvoor geen equivalent.
+  // TODO(X9/P6XML): pas na een gevalideerde Oracle-schema-/corpusmapping eventueel individuele
+  // DurationType/ActivityType/progressvelden lezen/schrijven, met een nieuwe parity-test.
+
   lines.push('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>');
   lines.push('<APIBusinessObjects xmlns="http://xmlns.oracle.com/Primavera/P6/V23.12/API/BusinessObjects" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">');
 
@@ -302,10 +317,11 @@ export function writeP6XML(
   // WBS elements (parent tasks). Diepte-eerst (issue #159, vervolg): een ouder staat vóór zijn
   // kinderen en broers/zussen staan in weergavevolgorde — P6 sorteert WBS-broers op
   // `SequenceNumber`, dat hieronder uit deze volgorde komt; de store-volgorde ("samenvattingen
-  // eerst" na een P6-import) zegt daar niets over.
+  // eerst" na een P6-import) zegt daar niets over. `isSummaryTask`/`isLeafTask` (XER-etappe): een
+  // lege P6-WBS-rij (`isSummary`, geen kinderen) is óók een WBS-element, geen activiteit.
   tasks = [...flattenOrder(tasks)];
-  const wbsTasks = tasks.filter(t => t.childIds.length > 0);
-  const leafTasks = tasks.filter(t => t.childIds.length === 0);
+  const wbsTasks = tasks.filter(isSummaryTask);
+  const leafTasks = tasks.filter(isLeafTask);
   const sequenceNumberByTask = new Map(tasks.map((t, i) => [t.id, i + 1]));
 
   // Project
@@ -467,6 +483,14 @@ export function writeP6XML(
     }
     lines.push(`${indent(2)}<Type>${taskTypeToP6(task)}</Type>`);
     lines.push(`${indent(2)}<Status>${taskStatusToP6(task)}</Status>`);
+    // Taaktypes-etappe (spec §4.2/§4.4): <DurationType> uit de werkregel; zonder werkregel valt een
+    // taak met alleen een bewaard P6-token op dat token terug. Zonder beide schrijft de export niets.
+    const durationTypeLabel = task.workRule
+      ? P6_DURATION_TYPE_NAME[task.workRule]
+      : task.p6DurationType ? p6LabelForToken(task.p6DurationType) : undefined;
+    if (durationTypeLabel && !task.isMilestone) {
+      lines.push(`${indent(2)}<DurationType>${durationTypeLabel}</DurationType>`);
+    }
     // Fase 2.8b (§7.2): uur-taak ⇒ PlannedDuration in fractionele uren uit de minuten (geen
     // dag-afronding); dag-taak ⇒ het bestaande `dagen × hpd`-pad (byte-identiek).
     const effCal = effCalByTask.get(task.id);
@@ -643,6 +667,9 @@ export function writeP6XML(
       lines.push(`${indent(2)}<ActualCurve>${escapeXml(actualSpread)}</ActualCurve>`);
       lines.push(`${indent(2)}<ActualStartDate>${anchorIso}</ActualStartDate>`);
     }
+    // Taaktypes-etappe (spec §4.3/§4.4): de drie werkvelden in UREN, alleen wanneer gezet; op hun
+    // alfabetische plek in de PMXML-sequence (ActualUnits, PlannedUnits, RemainingUnits).
+    if (a.actualWorkMinutes !== undefined) lines.push(`${indent(2)}<ActualUnits>${a.actualWorkMinutes / 60}</ActualUnits>`);
     lines.push(`${indent(2)}<ObjectId>${asgnObjId++}</ObjectId>`);
     if (plannedSpread && anchorIso) {
       lines.push(`${indent(2)}<PlannedCurve>${escapeXml(plannedSpread)}</PlannedCurve>`);
@@ -652,11 +679,13 @@ export function writeP6XML(
     // PlannedUnitsPerTime: fractie, 1.0 = 100% (L2-fix — zelfde semantiek en MPXJ-bron als
     // MaxUnitsPerTime hierboven; PmxmlUnitsHelper schaalt MPXJ-percentages /100 naar het
     // bestand). Ons `unitsPerDay` is al een fractie, dus 1:1.
+    if (a.plannedWorkMinutes !== undefined) lines.push(`${indent(2)}<PlannedUnits>${a.plannedWorkMinutes / 60}</PlannedUnits>`);
     lines.push(`${indent(2)}<PlannedUnitsPerTime>${a.unitsPerDay}</PlannedUnitsPerTime>`);
     if (remainingSpread && anchorIso) {
       lines.push(`${indent(2)}<RemainingCurve>${escapeXml(remainingSpread)}</RemainingCurve>`);
       lines.push(`${indent(2)}<RemainingStartDate>${anchorIso}</RemainingStartDate>`);
     }
+    if (a.remainingWorkMinutes !== undefined) lines.push(`${indent(2)}<RemainingUnits>${a.remainingWorkMinutes / 60}</RemainingUnits>`);
     if (curveObjId !== undefined) {
       lines.push(`${indent(2)}<ResourceCurveObjectId>${curveObjId}</ResourceCurveObjectId>`);
     }

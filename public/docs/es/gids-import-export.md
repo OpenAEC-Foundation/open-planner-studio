@@ -40,6 +40,8 @@ Abra **Backstage → Exportar** para cuatro formatos:
 Cada formato tiene sus propias limitaciones: cuanto más rico es el formato de destino, más se incluye, pero ninguno de
 los tres formatos externos es un espejo completo de IFC.
 
+El perfil de cálculo no se incluye en CSV, MS Project XML ni P6 XML; consulte [Perfiles de cálculo](docs://gids-rekenprofielen).
+
 ### CSV
 
 La exportación CSV contiene **solo la tabla de tareas**: código WBS, nombre, duración (días), inicio, fin,
@@ -101,6 +103,10 @@ importación es **de solo lectura** — no existe una exportación `.mpp`, así 
 pasa por MSPDI XML. Consulte la guía [Abrir MS Project (.mpp)](docs://gids-msproject-import) para saber qué se
 conserva y cuáles son las limitaciones.
 
+Un archivo de Primavera o MS Project lleva las fechas que ese programa calculó por sí mismo, incluidas las fechas tardías y las holguras. Un archivo CSV solo contiene datos de entrada y simplemente se recalcula. Si el recálculo de Open Planner Studio difiere de ellas, el archivo se abre en la vista **fechas tal como se guardaron**: primero ves lo que decía el programa de origen, con una notificación, y solo tras recalcular nuestro propio resultado. Consulta [Fechas tal como se guardaron](docs://datums-zoals-opgeslagen).
+
+Un archivo `.xer` es el formato de intercambio de Primavera P6. Se importa directamente y, después de editarlo, se guarda como IFC; consulta [Abrir Primavera P6 (.xer)](docs://gids-xer-import).
+
 ## Importadores de extensiones
 
 Más allá de los formatos fijos anteriores, las extensiones instaladas pueden añadir sus propios importadores — por ejemplo para un
@@ -115,3 +121,4 @@ sección está vacía. Consulte **Backstage → Extensiones** para ver qué hay 
 - Recursos, asignaciones y curvas de carga — lea la guía
   [Recursos, histograma y nivelación](docs://gids-resources-histogram) para saber cómo se construyen antes de
   exportar.
+- Qué perfil de cálculo recibe un archivo abierto y qué conserva IFC de él — lea la guía [Perfiles de cálculo](docs://gids-rekenprofielen).

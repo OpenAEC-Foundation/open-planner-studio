@@ -7,6 +7,15 @@ import type { TaskRelationIndex } from '@/engine/taskGrid/relationIndex';
 export type TaskGridSurfaceId = 'gantt-task-grid' | 'full-task-grid';
 export type TaskColumnId = string & { readonly __taskColumnId: unique symbol };
 
+/**
+ * "Datums zoals opgeslagen" (issue #63, XER-etappeplan laag 3 §3.6). Gedragslogica en de exacte
+ * regels staan in `src/state/recordedDatesSelectors.ts` — deze twee unietypes wonen hier (leaf-
+ * laag) omdat `TaskColumnContext` hieronder ze nodig heeft en niets in `src/types/*.ts` van
+ * `@/state/*` afhangt; `recordedDatesSelectors.ts` importeert ze hier weer type-only vandaan.
+ */
+export type RecordedTaskAxis = 'ls' | 'lf' | 'tf' | 'ff';
+export type RecordedTaskMark = 'deviates' | 'partly-unrecorded' | undefined;
+
 export type GridResult<T, E> =
   | { ok: true; value: T }
   | { ok: false; errors: E };
@@ -91,6 +100,9 @@ export interface TaskAssignmentToken {
   assignmentId?: string;
   unitsPerDay: number;
   curve?: ResourceCurve;
+  /** Taaktypes-etappe (spec §7): resterend werk in werkminuten — alleen de kolom
+   *  `assignment.remainingWork` zet 'm; `gridTransaction.ts` voert hem via de werkdriehoek uit. */
+  remainingWorkMinutes?: number;
 }
 
 /** Eén al geparseerde domeinwrite. Paste groepeert deze writes, maar mag zichzelf niet nesten. */
@@ -137,6 +149,18 @@ export interface TaskColumnContext {
   /** De echte projectkalenderberekening voor baselineafwijkingen (`variance.signedWorkDaysBetween`).
    *  Ontbreekt hij, dan blijft de afwijking leeg — er is bewust geen kalenderloze terugval. */
   signedWorkDaysBetween?: (fromIso: string, toIso: string) => number;
+  /** "Datums zoals opgeslagen" (XER-etappeplan laag 3, T6) — badge voor de kolom `recorded.source`.
+   *  `undefined` op documenten zonder vastlegging (`recordedDates === null`), dus de kolom bestaat
+   *  dan niet: `available(ctx) => ctx.recordedMark !== undefined`. */
+  recordedMark?: (task: Task) => RecordedTaskMark;
+  /** Welke late-/floatassen het BESTAND niet vastlegde voor deze taak — de bestaande late-/float-
+   *  kolommen gebruiken dit om "niet vastgelegd" te tonen in plaats van de bestaande `?? 0`-
+   *  terugval (die als VELDWAARDE blijft staan, zie `recordedDates.ts` §3.4) als een echt getal te
+   *  presenteren. Zelfde aanwezigheid als `recordedMark` (beide `undefined` zonder vastlegging). */
+  recordedUnrecordedAxes?: (task: Task) => readonly RecordedTaskAxis[];
+  /** Taaktypes-etappe (spec §7): de werkregel-kolommen bestaan alleen wanneer de weergave
+   *  ontsloten is (instelling of documentontsluiting, `taskTypesUnlocked`). */
+  taskTypesUnlocked?: boolean;
 }
 
 export interface TaskColumnDescriptor {

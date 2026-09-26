@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
 import { useAppStore } from '@/state/appStore';
-import { isAnyDialogOpen } from '@/hooks/useDialogKeys';
 import { isTauri } from '@/utils/platform';
-import { SHORTCUTS, matchesCombo } from './shortcutRegistry';
+import { SHORTCUTS, isDocumentLeaveBlocked, matchesCombo } from './shortcutRegistry';
 import { isTypingTarget } from './isTypingTarget';
 // Zelfde bron als `shortcutRegistry` (dat al `i18n.t` gebruikt voor default-taaknamen): deze
 // voorpoort spiegelt de `file.open`-entry daar, dus spiegelt hij ook hóé het label wordt opgehaald.
@@ -83,11 +82,13 @@ export function useKeyboardShortcuts() {
         // zolang een blokkerende dialoog (bv. de voortgangsimportdialoog) openstaat. Deze voorpoort
         // draait vóór het sneltoets-register, dus de `when` op de `file.open`-entry in
         // shortcutRegistry.ts dekt dit pad in een productiebuild niet — die tweede helft is hier nodig.
-        else if (ctrlB && e.key.toLowerCase() === 'o' && !isAnyDialogOpen()) void openFile(buildImportLabels((key) => i18n.t(key, { ns: 'common' })));
+        // B2: `isDocumentLeaveBlocked` = geen dialoog open (`isAnyDialogOpen`) én geen niet-toegepaste
+        // Projectinfo-draft in Backstage — Ctrl+O/Ctrl+N wisselen van document en zouden die stil verwerpen.
+        else if (ctrlB && e.key.toLowerCase() === 'o' && !isDocumentLeaveBlocked()) void openFile(buildImportLabels((key) => i18n.t(key, { ns: 'common' })));
         // S2 (V1/V3-vondst): dezelfde "geen dialoog open"-guard als de `file.newProject`-entry in
         // shortcutRegistry.ts — zonder guard opende Ctrl+N de projectwizard óver een al openstaande
         // dialoog heen (twee overlays, wizard onbereikbaar).
-        else if (ctrlB && e.key.toLowerCase() === 'n' && !isAnyDialogOpen()) setUI({ showNewProjectDialog: true });
+        else if (ctrlB && e.key.toLowerCase() === 'n' && !isDocumentLeaveBlocked()) setUI({ showNewProjectDialog: true });
         return;
       }
 

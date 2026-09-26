@@ -40,6 +40,8 @@ Otwórz **Backstage → Eksportuj** dla czterech formatów:
 Każdy format ma własne ograniczenia: im bogatszy format docelowy, tym więcej się przenosi, ale żaden z
 trzech formatów zewnętrznych nie jest pełnym odzwierciedleniem IFC.
 
+Profil obliczeń nie jest przenoszony do CSV, MS Project XML ani P6 XML; zobacz [Profile obliczeń](docs://gids-rekenprofielen).
+
 ### CSV
 
 Eksport CSV zawiera **tylko tabelę zadań**: kod WBS, nazwę, czas trwania (dni), początek, koniec,
@@ -101,6 +103,10 @@ Plik `.mpp` (natywny format Microsoft Project, Project 2010–2021) to osobna ś
 MSPDI XML. Zobacz przewodnik [Otwieranie MS Project (.mpp)](docs://gids-msproject-import), aby dowiedzieć
 się, co jest przenoszone i jakie są ograniczenia.
 
+Plik z Primavery lub MS Project niesie daty, które ten program sam obliczył, łącznie z najpóźniejszymi datami i zapasami. Plik CSV zawiera tylko dane wejściowe i jest po prostu przeliczany. Jeśli ponowne obliczenie w Open Planner Studio się od nich różni, plik otwiera się w widoku **daty jak zapisano**: najpierw widzisz, co mówił program źródłowy, z powiadomieniem, a dopiero po ponownym obliczeniu nasz własny wynik. Zobacz [Daty jak zapisano](docs://datums-zoals-opgeslagen).
+
+Plik `.xer` jest formatem wymiany Primavera P6. Jest importowany bezpośrednio, a po edycji zapisywany jako IFC; zobacz [Otwieranie Primavera P6 (.xer)](docs://gids-xer-import).
+
 ## Importery z rozszerzeń
 
 Poza powyższymi stałymi formatami, zainstalowane rozszerzenia mogą dodawać własne importery — na przykład dla
@@ -115,3 +121,4 @@ jest pusta. Sprawdź **Backstage → Rozszerzenia**, aby zobaczyć, co jest dost
 - Zasoby, przydziały i krzywe obciążenia — przeczytaj przewodnik
   [Zasoby, histogram i bilansowanie](docs://gids-resources-histogram), aby dowiedzieć się, jak są budowane, zanim
   je eksportujesz.
+- Jaki profil obliczeń otrzymuje otwarty plik i co IFC z niego zachowuje — przeczytaj przewodnik [Profile obliczeń](docs://gids-rekenprofielen).

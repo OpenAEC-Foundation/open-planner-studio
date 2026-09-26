@@ -18,6 +18,7 @@ import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { Task } from '@/types/task';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
+import { legacyCpmOptions } from './legacySolveOptions';
 
 let checks = 0;
 const diffs: string[] = [];
@@ -112,7 +113,7 @@ console.log('-- leveler-pool-ledger: pool blokkeert waar het project ruimte heef
 
   const r1 = levelResources(
     [taskA], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult,
-    { constrainToFloat: false, poolLedger: ledger },
+    { constrainToFloat: false, poolLedger: ledger }, legacyCpmOptions(),
   );
   eq('pool blokkeert waar het project ruimte heeft: geen delay', r1.delays['a1'], undefined);
   ok('geen slot binnen de horizon', (r1.unresolved['a1']?.length ?? 0) > 0);
@@ -137,7 +138,7 @@ console.log('-- leveler-pool-ledger: projectinzet blokkeert (geval 2) --');
 
   const r2 = levelResources(
     [taskA, taskB], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult,
-    { constrainToFloat: true, poolLedger: ledger },
+    { constrainToFloat: true, poolLedger: ledger }, legacyCpmOptions(),
   );
   ok('B blijft onopgelost (geen ruimte om te wijken, float 0)', (r2.unresolved['b2']?.length ?? 0) > 0);
   eq('projectinzet blokkeert ⇒ gewone capaciteitsreden', r2.unresolvedReasons['b2'], 'INSUFFICIENT_CAPACITY');
@@ -162,7 +163,7 @@ console.log('-- leveler-pool-ledger: gedeeld grootboek, geen dubbeltelling (geva
 
   const r3 = levelResources(
     [taskA, taskB], [], [resourceR1, resourceR2], assignments, PROJECT_CAL, [], cpmResult,
-    { constrainToFloat: false, poolLedger: ledger },
+    { constrainToFloat: false, poolLedger: ledger }, legacyCpmOptions(),
   );
   eq('A plaatst zonder delay (eerste in de rangorde, poolrest nog vol)', r3.delays['a3'], undefined);
   eq('gedeeld grootboek: geen dubbeltelling — B wijkt één dag', r3.delays['b3'], 1);
@@ -185,7 +186,7 @@ console.log('-- leveler-pool-ledger: geen boeking voor een niet-plaatsbare taak 
 
   const r4 = levelResources(
     [taskA, taskB], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult,
-    { constrainToFloat: false, poolLedger: ledger },
+    { constrainToFloat: false, poolLedger: ledger }, legacyCpmOptions(),
   );
   eq('A plaatst zonder delay (past binnen het restprofiel)', r4.delays['a4'], undefined);
   ok('B blijft onopgelost (5/dag past nooit binnen restprofiel 1/dag)', (r4.unresolved['b4']?.length ?? 0) > 0);

@@ -81,7 +81,7 @@ jobs:
         run: npm run tauri build -- --no-bundle
 
   test:
-    timeout-minutes: 20
+    timeout-minutes: 45
     runs-on: ubuntu-22.04
 
     steps:

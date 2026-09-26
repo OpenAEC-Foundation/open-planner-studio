@@ -10,7 +10,74 @@
   },
   "notifications": {
     "dismiss": "Chiudi notifica",
+    "taskEditRevertBlocked": "Una modifica dell'assistente IA o di un'estensione è intervenuta nel frattempo. Le modifiche all'attività precedenti non sono state annullate e restano come passaggi normali in Annulla.",
     "openFailed": "Apertura del file non riuscita",
+    "xerInvalidInput": "L’importazione XER richiede i byte originali del file.",
+    "xerInvalidFile": "Questo file XER non è valido o supportato.",
+    "xerInvalidEncoding": "La codifica di testo di questo file XER non è valida o è troncata.",
+    "xerDuplicateTable": "Il file XER contiene una tabella duplicata.",
+    "xerMissingRequiredColumns": "In una tabella XER mancano colonne obbligatorie.",
+    "xerMissingRequiredValue": "In un record XER manca un valore obbligatorio.",
+    "xerAmbiguousDecimal": "La notazione decimale di questo file XER non può essere determinata in modo affidabile.",
+    "xerInvalidNumberFormat": "Il formato numerico di questo file XER non è valido.",
+    "xerInvalidNumber": "Il file XER contiene un numero non valido.",
+    "xerSingleProjectRequired": "Questa importazione supporta esattamente un progetto P6 per file XER.",
+    "xerEmptyProject": "Il progetto P6 in questo file XER non contiene attività.",
+    "xerDuplicateId": "Il file XER contiene un ID WBS, attività o relazione duplicato.",
+    "xerAmbiguousLocalRelation": "Una relazione XER senza ambito non può essere assegnata in modo univoco a un solo progetto locale.",
+    "xerDanglingLocalRelation": "Una relazione XER locale fa riferimento a un’attività mancante.",
+    "xerEnumFallback": "XER {{family}}: token sconosciuto «{{token}}»; usato «{{fallback}}».",
+    "xerImportOpened_one": "File XER aperto: {{count}} documento di progetto.",
+    "xerImportOpened_many": "File XER aperto: {{count}} documenti di progetto.",
+    "xerImportOpened_other": "File XER aperto: {{count}} documenti di progetto.",
+    "xerImportProjectsSeen_one": "{{count}} progetto trovato.",
+    "xerImportProjectsSeen_many": "{{count}} progetti trovati.",
+    "xerImportProjectsSeen_other": "{{count}} progetti trovati.",
+    "xerImportEmptyProjectsSkipped_one": "{{count}} progetto vuoto ignorato.",
+    "xerImportEmptyProjectsSkipped_many": "{{count}} progetti vuoti ignorati.",
+    "xerImportEmptyProjectsSkipped_other": "{{count}} progetti vuoti ignorati.",
+    "xerImportBaselineProjectsExcluded_one": "{{count}} progetto di baseline escluso.",
+    "xerImportBaselineProjectsExcluded_many": "{{count}} progetti di baseline esclusi.",
+    "xerImportBaselineProjectsExcluded_other": "{{count}} progetti di baseline esclusi.",
+    "xerImportBaselinesMaterialized_one": "{{count}} baseline materializzata.",
+    "xerImportBaselinesMaterialized_many": "{{count}} baseline materializzate.",
+    "xerImportBaselinesMaterialized_other": "{{count}} baseline materializzate.",
+    "xerImportDanglingBaselineReferences_one": "{{count}} riferimento di baseline sospeso ignorato.",
+    "xerImportDanglingBaselineReferences_many": "{{count}} riferimenti di baseline sospesi ignorati.",
+    "xerImportDanglingBaselineReferences_other": "{{count}} riferimenti di baseline sospesi ignorati.",
+    "xerImportBaselineFallback": "È stato usato un ripiego protettivo per la baseline.",
+    "xerImportExternalLinks_one": "{{count}} collegamento esterno conservato.",
+    "xerImportExternalLinks_many": "{{count}} collegamenti esterni conservati.",
+    "xerImportExternalLinks_other": "{{count}} collegamenti esterni conservati.",
+    "xerImportEncoding": "Codifica del testo scelta: {{encoding}}.",
+    "xerImportParserIssues_one": "{{count}} riscontro del parser.",
+    "xerImportParserIssues_many": "{{count}} riscontri del parser.",
+    "xerImportParserIssues_other": "{{count}} riscontri del parser.",
+    "xerImportCalendarIssues_one": "{{count}} riscontro del calendario.",
+    "xerImportCalendarIssues_many": "{{count}} riscontri del calendario.",
+    "xerImportCalendarIssues_other": "{{count}} riscontri del calendario.",
+    "xerImportNumberIssues_one": "{{count}} problema di formato numerico.",
+    "xerImportNumberIssues_many": "{{count}} problemi di formato numerico.",
+    "xerImportNumberIssues_other": "{{count}} problemi di formato numerico.",
+    "xerImportEnumFallbacks_one": "{{count}} ripiego enum.",
+    "xerImportEnumFallbacks_many": "{{count}} ripieghi enum.",
+    "xerImportEnumFallbacks_other": "{{count}} ripieghi enum.",
+    "xerImportUnsupportedSemantics_one": "{{count}} impostazione di pianificazione P6 con fallback sicuro.",
+    "xerImportUnsupportedSemantics_many": "{{count}} impostazioni di pianificazione P6 con fallback sicuro.",
+    "xerImportUnsupportedSemantics_other": "{{count}} impostazioni di pianificazione P6 con fallback sicuro.",
+    "xerImportDatesAsRecorded_one": "{{count}} attività mostra le date come registrate da Primavera (non ricalcolate).",
+    "xerImportDatesAsRecorded_many": "{{count}} attività mostrano le date come registrate da Primavera (non ricalcolate).",
+    "xerImportDatesAsRecorded_other": "{{count}} attività mostrano le date come registrate da Primavera (non ricalcolate).",
+    "xerImportDatesAsRecordedOffer_one": "{{count}} attività differisce dalle date registrate nel file — puoi mostrarle.",
+    "xerImportDatesAsRecordedOffer_many": "{{count}} attività differiscono dalle date registrate nel file — puoi mostrarle.",
+    "xerImportDatesAsRecordedOffer_other": "{{count}} attività differiscono dalle date registrate nel file — puoi mostrarle.",
+    "importDatesAsRecorded_one": "{{count}} attività mostra le date come registrate nel file (non ricalcolate).",
+    "importDatesAsRecorded_many": "{{count}} attività mostrano le date come registrate nel file (non ricalcolate).",
+    "importDatesAsRecorded_other": "{{count}} attività mostrano le date come registrate nel file (non ricalcolate).",
+    "importDatesAsRecordedOffer_one": "{{count}} attività differisce dalle date registrate nel file — puoi mostrarle.",
+    "importDatesAsRecordedOffer_many": "{{count}} attività differiscono dalle date registrate nel file — puoi mostrarle.",
+    "importDatesAsRecordedOffer_other": "{{count}} attività differiscono dalle date registrate nel file — puoi mostrarle.",
+    "xerExportLoss": "L’esportazione in {{format}} perde informazioni di origine XER.",
     "mppLegacy": "Questo file .mpp utilizza un formato precedente (Project 2007 o versioni precedenti). Esportalo da MS Project come XML (File → Salva con nome → XML) e apri quel file.",
     "mppEncrypted": "Questo file .mpp è protetto da password. Esportalo da MS Project come XML (File → Salva con nome → XML) e apri quel file.",
     "saveFailed": "Salvataggio non riuscito",
@@ -44,13 +111,35 @@
     "mppTimephasedSteeringLost_many": "La distribuzione oraria di MS Project non guida più {{count}} attività dopo questa modifica; la distribuzione originale resta conservata nel file.",
     "mppTimephasedSteeringLost_other": "La distribuzione oraria di MS Project non guida più {{count}} attività dopo questa modifica; la distribuzione originale resta conservata nel file.",
     "readMore": "Ulteriori informazioni",
+    "taskTypesUnlocked": "Questo file contiene lavoro salvato o regole di lavoro proprie; la regola di lavoro e il lavoro rimanente sono mostrati per questo progetto.",
+    "taskTypesUnlockedDetail": "Questo file contiene lavoro salvato o regole di lavoro proprie; la regola di lavoro e il lavoro rimanente sono mostrati per questo progetto.",
+    "workRulesReadMore": "Regole di lavoro spiegate",
+    "workRuleDurationsChanged_one": "Dopo la modifica del calendario la regola di lavoro ha adeguato la durata di {{count}} attività (il lavoro resta, le ore al giorno sono cambiate).",
+    "workRuleDurationsChanged_many": "Dopo la modifica del calendario la regola di lavoro ha adeguato la durata di {{count}} attività (il lavoro resta, le ore al giorno sono cambiate).",
+    "workRuleDurationsChanged_other": "Dopo la modifica del calendario la regola di lavoro ha adeguato la durata di {{count}} attività (il lavoro resta, le ore al giorno sono cambiate).",
     "pasteSkippedReadOnly_one": "{{count}} cella ignorata: è di sola lettura (ad esempio un codice WBS numerato automaticamente o una colonna calcolata).",
     "pasteSkippedReadOnly_many": "{{count}} celle ignorate: sono di sola lettura (ad esempio un codice WBS numerato automaticamente o una colonna calcolata).",
     "pasteSkippedReadOnly_other": "{{count}} celle ignorate: sono di sola lettura (ad esempio un codice WBS numerato automaticamente o una colonna calcolata).",
     "librarySaveFailed": "Impossibile salvare la libreria",
     "levelingDelayRoundedToWorkdays_one": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere.",
     "levelingDelayRoundedToWorkdays_many": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere.",
-    "levelingDelayRoundedToWorkdays_other": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere."
+    "levelingDelayRoundedToWorkdays_other": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere.",
+    "schedulingProfileApplied": "Questo progetto calcola come {{profile}}. Modificalo da File → Info progetto → Profilo di calcolo e opzioni.",
+    "schedulingProfileShifted_many": "Dopo l’applicazione sono state spostate {{count}} attività.",
+    "schedulingProfileShifted_one": "Dopo l’applicazione è stata spostata {{count}} attività.",
+    "schedulingProfileShifted_other": "Dopo l’applicazione sono state spostate {{count}} attività.",
+    "actions": {
+      "openProjectInfo": "Apri profilo di calcolo"
+    },
+    "xerArchiveUnusable": "L'archivio sorgente XER di questo file è inutilizzabile ed è stato omesso; il progetto stesso è stato aperto per intero.",
+    "xerArchiveUnusableLine": "L'archivio sorgente XER di questo file era inutilizzabile ed è stato omesso.",
+    "xerArchiveUnusableConsequence": "Il programma, il profilo di calcolo e tutti i dati di progetto dell'IFC sono completi. Mancano: le date così come Primavera le ha salvate e la provenienza della sorgente per l'IA e le estensioni. Il salvataggio scrive il file senza l'archivio; importa di nuovo il .xer originale per recuperarlo.",
+    "xerArchiveReasonSchemaVersion": "Motivo: l'archivio ha una versione di schema o un formato sconosciuti (scrittore più recente o diverso).",
+    "xerArchiveReasonHashMismatch": "Motivo: il checksum non corrisponde ai byte sorgente: l'archivio è danneggiato.",
+    "xerArchiveReasonTruncated": "Motivo: l'archivio è troncato: manca una parte dei byte sorgente.",
+    "xerArchiveReasonBytesMissing": "Motivo: mancano i byte sorgente stessi; probabilmente un altro programma IFC ha riscritto il file.",
+    "xerArchiveReasonMetadataInvalid": "Motivo: i byte sorgente sono intatti, ma i dati derivati sono inutilizzabili.",
+    "xerArchiveReasonStructure": "Motivo: la struttura dell'archivio nell'IFC non è corretta (duplicata, riordinata o collegata in modo errato)."
   },
   "yes": "Sì",
   "no": "No",
@@ -152,6 +241,8 @@
     "hourPlanningSection": "Pianificazione oraria",
     "enableHourPlanning": "Attiva pianificazione oraria",
     "enableHourPlanningHint": "Attiva la pianificazione ora/minuto: una scala temporale oraria, turni con fasce orarie di lavoro e barre attività precise all'ora. Disattivato ⇒ l'app resta completamente granulare per giorni, come prima.",
+    "showTaskTypes": "Mostra regole di lavoro e lavoro",
+    "showTaskTypesHint": "I file di MS Project o Primavera P6 lo mostrano sempre. Disattivato: durata e unità restano, il lavoro si adegua.",
     "allowMixedDayHour": "Consenti pianificazione mista giorno/ora",
     "defaultTaskDurationUnit": "Unità predefinita per le nuove attività",
     "defaultTaskDurationUnitHint": "Stabilisce se le nuove attività iniziano in giorni lavorativi o ore di lavoro. Le attività esistenti non cambiano.",
@@ -874,9 +965,18 @@
     "offer_one": "Il ricalcolo ha spostato {{count}} attività su {{total}} rispetto alle date del file.",
     "offer_many": "Il ricalcolo ha spostato {{count}} attività su {{total}} rispetto alle date del file.",
     "offer_other": "Il ricalcolo ha spostato {{count}} attività su {{total}} rispetto alle date del file.",
+    "activeCount_one": "Stai visualizzando la pianificazione come registrata da Primavera; un ricalcolo sposterebbe {{count}} attività.",
+    "activeCount_many": "Stai visualizzando la pianificazione come registrata da Primavera; un ricalcolo sposterebbe {{count}} attività.",
+    "activeCount_other": "Stai visualizzando la pianificazione come registrata da Primavera; un ricalcolo sposterebbe {{count}} attività.",
+    "activeCountNeutral_one": "Stai visualizzando le date come registrate nel file; un ricalcolo sposterebbe {{count}} attività.",
+    "activeCountNeutral_many": "Stai visualizzando le date come registrate nel file; un ricalcolo sposterebbe {{count}} attività.",
+    "activeCountNeutral_other": "Stai visualizzando le date come registrate nel file; un ricalcolo sposterebbe {{count}} attività.",
     "show": "Mostra le date registrate",
     "active": "Stai visualizzando le date come registrate nel file. Non è stato eseguito alcun ricalcolo.",
-    "recalculate": "Ricalcola"
+    "recalculate": "Ricalcola",
+    "markDeviates": "Diverge",
+    "markPartlyUnrecorded": "Parzialmente non registrato",
+    "notRecorded": "Non registrato"
   },
   "duration": {
     "suffixDay": "g",
@@ -1064,6 +1164,7 @@
     "declaredHeading": "Ciò che questa estensione dichiara di usare",
     "declaredNote": "È la dichiarazione dell'autore, non una restrizione: il codice può comunque fare di più.",
     "declaredNone": "Nulla di dichiarato.",
+    "permImportSource": "importSource — i byte di origine completi di ogni file importato (ad esempio un file Primavera grezzo), compresi i campi che non arrivano mai nel progetto.",
     "cancel": "Non installare",
     "confirm": "Installa"
   },
@@ -1122,6 +1223,162 @@
       "completion": "Completamento",
       "actualStart": "Inizio effettivo",
       "actualFinish": "Fine effettiva"
+    }
+  },
+  "conventions": {
+    "preserveActualDatesInBackwardPass": {
+      "label": "Mantieni le date effettive nel calcolo all’indietro",
+      "help": "Un’attività iniziata o completata mantiene le date registrate anche sul lato tardivo; un successore completato non riporta nel passato un predecessore aperto."
+    },
+    "clampNegativeFreeFloat": {
+      "label": "Margine libero mai negativo",
+      "help": "Con un vincolo tardivo irrealizzabile il margine totale resta negativo, ma il margine libero diventa zero."
+    },
+    "p6ZeroDurationUsesPlannedBoundary": {
+      "label": "La milestone segue il limite di calendario pianificato",
+      "help": "Una milestone senza durata resta sul limite di calendario pianificato dal file: un inizio giornata resta una milestone di inizio, una fine fascia può cadere sulla fine del predecessore."
+    },
+    "p6UseTaskPlannedStartFloor": {
+      "label": "Inizio pianificato come limite inferiore aggiuntivo",
+      "help": "L’inizio pianificato del file vale come limite inferiore quando inizio e fine cadono più di un giorno di calendario dopo quanto consentito dalla rete."
+    },
+    "p6FinishMilestoneBoundaryWindow": {
+      "label": "Milestone finale come finestra di limite",
+      "help": "Una milestone finale può trovarsi su due limiti di calendario adiacenti: inizio anticipato all’inizio di una fascia, fine anticipata alla fine della fascia precedente."
+    },
+    "p6PreserveActualInstants": {
+      "label": "Mantieni esatte le date effettive",
+      "help": "Le date effettive di inizio e fine registrate non vengono spostate in una fascia lavorativa."
+    },
+    "p6UseRemainingStartForProgress": {
+      "label": "Attività in corso: inizio anticipato = inizio del lavoro residuo",
+      "help": "L’inizio anticipato e posticipato di un’attività in corso indicano dove inizia il lavoro residuo, non l’inizio effettivo storico. Nel calcolo all'indietro su una relazione inizio-inizio conta solo la durata residua."
+    },
+    "p6PreserveZeroDurationConstraintInstants": {
+      "label": "Istante del vincolo esatto su una milestone",
+      "help": "Un vincolo data e ora su una milestone senza durata è un punto esatto, anche all’inizio di una fascia lavorativa."
+    },
+    "resumeFromActualElapsed": {
+      "label": "Il lavoro residuo riprende dopo la durata trascorsa",
+      "help": "Un’attività in corso riprende il lavoro residuo all’inizio effettivo più la durata trascorsa, non alla data di stato."
+    },
+    "unstartedIgnoresStatusDate": {
+      "label": "Non spostare le attività non iniziate alla data di stato",
+      "help": "Un’attività non ancora iniziata non viene spostata automaticamente alla data di stato o successivamente."
+    },
+    "p6RelationFinishBoundary": {
+      "label": "Il successore inizia sul limite di fine",
+      "help": "In una relazione fine-inizio senza ritardo su un limite di fascia condiviso, il successore inizia alla fine del predecessore (solo le relazioni che il file contrassegna così). Nel calcolo all'indietro, il successore mostra il suo inizio al più tardi semplicemente come inizio di una fascia di lavoro."
+    },
+    "p6BackwardLagFinishBoundary": {
+      "label": "Ritardo all’indietro da un limite di fine",
+      "help": "Quando il calcolo all’indietro sottrae un ritardo in tempo lavorativo da un limite di fine e cade esattamente su un inizio di fascia, cade sul limite di fine precedente. Anche in una relazione fine-fine senza ritardo, una fine al più tardi sulla fine di una fascia resta su quel limite di fine."
+    },
+    "p6CompletedDataDateWindow": {
+      "label": "Attività completata nella finestra della data di stato",
+      "help": "Un’attività completata riceve date anticipate nella finestra della data di stato, e la sua fine conta per la fine del progetto (solo attività con origine P6)."
+    },
+    "p6CompletedLoeActualFinish": {
+      "label": "LOE completata tramite la fine effettiva",
+      "help": "Un’attività level-of-effort completata con un solo ingresso inizio-inizio segue il percorso tramite la sua fine effettiva (solo attività con origine P6)."
+    },
+    "p6OpenLoeTargetSpan": {
+      "label": "LOE non iniziata usa la finestra obiettivo",
+      "help": "Un’attività level-of-effort non ancora iniziata prende la sua finestra obiettivo come durata (solo attività con origine P6)."
+    },
+    "p6CompletedPredecessorAtDataDate": {
+      "label": "Il predecessore completato non trattiene oltre la data di stato",
+      "help": "Se la fine effettiva di un predecessore completato cade dopo la data di stato, i suoi successori possono comunque iniziare alla data di stato."
+    },
+    "p6FreeFloatOnOwnCalendar": {
+      "label": "Margine libero nel calendario dell'attività",
+      "help": "Il margine libero di un'attività non iniziata si calcola, per ogni legame, nel calendario dell'attività stessa e non in quello del successore: per fine-inizio, inizio-inizio e fine-fine, anche con un ritardo in tempo lavorativo sul calendario del predecessore. Un'attività iniziata solo per fine-inizio senza ritardo."
+    },
+    "p6CompletedRemainingLag": {
+      "label": "Il ritardo trascorso di un predecessore completato non conta",
+      "help": "Sul lato delle date al più tardi conta solo la parte del ritardo dopo un predecessore completato non ancora trascorsa alla data di stato."
+    },
+    "p6CompletedOutOfSequenceWindow": {
+      "label": "Un'attività completata fuori sequenza attende i suoi predecessori",
+      "help": "Un'attività completata con un predecessore non ancora terminato riceve la sua finestra nulla dopo quel predecessore invece che alla data di stato (logica mantenuta)."
+    },
+    "p6CompletedPhysicalAtDataDate": {
+      "label": "Attività completata ad avanzamento fisico sulla data di stato",
+      "help": "Un'attività completata con percentuale di avanzamento fisico appare come un unico punto sulla data di stato, o più tardi se un predecessore lo richiede, invece che sulle sue date effettive. Misurato solo per l'avanzamento fisico; per gli altri tipi di avanzamento (predefinito in P6: durata) questo comportamento non è stato misurato e resta disattivato."
+    },
+    "p6InProgressStartLagElapsed": {
+      "label": "Il ritardo II trascorso di un predecessore in corso non conta",
+      "help": "In una relazione inizio-inizio da un'attività già iniziata conta solo la parte del ritardo non ancora trascorsa dal suo inizio effettivo alla data di stato."
+    },
+    "p6FinishFinishStartMilestoneLateFinish": {
+      "label": "Una relazione fine-fine verso una milestone di inizio si lega alla milestone stessa",
+      "help": "Una relazione fine-fine verso una milestone di inizio conta fino alla milestone stessa, non fino all'inizio della sua giornata: la fine tardiva del predecessore può arrivare fino alla fine tardiva della milestone."
+    },
+    "p6StartedTaskIgnoresPlannedStartFloor": {
+      "label": "L'inizio pianificato non è un limite minimo per un'attività in corso",
+      "help": "Il lavoro residuo di un'attività avviata inizia alla data di stato e subito dopo i suoi predecessori, anche se il suo inizio pianificato è successivo."
+    },
+    "p6LateFinishOnOwnCalendar": {
+      "label": "Fine al più tardi sul calendario dell'attività",
+      "help": "Se la fine al più tardi imposta da un successore cade fuori dall'orario di lavoro dell'attività, diventa la fine del periodo lavorativo precedente sul calendario dell'attività."
+    },
+    "p6ProgressOverrideIgnoresStartedSuccessor": {
+      "label": "Progress Override ignora anche all'indietro un successore iniziato",
+      "help": "Con Progress Override, la relazione verso un successore già iniziato non conta nelle date al più tardi né nel margine libero di un predecessore non ancora terminato."
+    },
+    "p6FinishNotBeforeFinishFinishBound": {
+      "label": "Fine anticipata mai prima di un limite fine-fine",
+      "help": "In una relazione fine-fine, la fine anticipata del successore non cade mai, in ora di orologio, prima del limite fissato dal predecessore. Se quel limite cade in tempo non lavorativo del successore, la fine diventa l'inizio del periodo di lavoro successivo."
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "Attività ALAP il più tardi consentito dai successori",
+      "help": "Un'attività non iniziata con il vincolo «il più tardi possibile» termina al minuto in cui i suoi successori ne hanno bisogno, prima i successori, così che una catena si chiuda. Il suo inizio pianificato non conta; un'attività senza predecessore non inizia quindi prima della data di stato. Vale solo con un calendario orario."
+    }
+  },
+  "profiles": {
+    "builtIn": {
+      "p6": "Primavera P6",
+      "msproject": "Microsoft Project",
+      "ops": "Open Planner Studio"
+    },
+    "modified": "{{name}} (modificato)",
+    "copyOf": "Copia di {{name}}"
+  },
+  "schedulingProfile": {
+    "title": "Profilo di calcolo e opzioni",
+    "profile": "Profilo di calcolo",
+    "conventionsTitle": "Convenzioni di questo profilo",
+    "optionsTitle": "Opzioni di calcolo di questo progetto",
+    "customName": "Nome di questo profilo personalizzato",
+    "saveAsTemplate": "Salva come modello",
+    "updateTemplate": "Aggiorna il modello da questo progetto",
+    "applyTemplate": "Aggiorna dal modello",
+    "deleteTemplate": "Elimina modello",
+    "templateDeviates": "Questo profilo differisce dal modello «{{name}}».",
+    "applyDefaultOptions": "Applica le opzioni predefinite di questo profilo",
+    "themes": {
+      "completedWork": "Avanzamento e lavoro completato",
+      "relationsLag": "Relazioni e ritardo",
+      "milestones": "Milestone e attività LOE",
+      "float": "Margine e date più tarde",
+      "instants": "Date e istanti dal file",
+      "msproject": "Avanzamento come in Microsoft Project",
+      "ownProfilesOnly": "Solo per profili personalizzati"
+    },
+    "ownProfilesOnlyNote": "Queste convenzioni sono disattivate in ogni profilo integrato, anche in Primavera P6. Attivandone una si crea un profilo personalizzato.",
+    "deviatingCount": "modificate: {{n}}",
+    "baseValue": "base: {{value}}",
+    "on": "sì",
+    "off": "no",
+    "resetToBase": "torna alla base",
+    "showHelp": "Spiegazione di «{{name}}»",
+    "sourceOptions": {
+      "title": "Impostazioni dal file di origine",
+      "intro": "Queste opzioni di calcolo provengono da un file Primavera P6 (.xer). Vengono usate nel calcolo ma qui non sono modificabili.",
+      "useExpectedFinishDates": "Usa date di fine previste (P6: Use Expected Finish Dates)",
+      "useProjectEndDateForFloat": "Calcola il margine fino alla data di fine progetto",
+      "p6CompletedLateFromRemainingWindow": "Attività completata: date più tarde dalla data di stato",
+      "needsConvention": "Funziona solo insieme alla convenzione «{{convention}}», ora disattivata."
     }
   }
 }

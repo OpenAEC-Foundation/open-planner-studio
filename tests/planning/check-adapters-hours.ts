@@ -26,6 +26,7 @@ import type { Project } from '@/types/project';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { installDOMParser } from './xmldom-shim';
+import { opsSolveInput } from './legacySolveOptions';
 
 installDOMParser();
 
@@ -127,11 +128,16 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   // `task.resourceIds` is een projectie van de toewijzingen; elke lezer met toewijzingen moet hem
   // vullen (de P6- en MSPDI-lezer lieten hem leeg, de IFC- en MPP-lezer niet).
   eq('P6 resourceIds uit de toewijzingen', p.tasks.find(t => t.name === 'Metselen')?.resourceIds, p.assignments.map(a => a.resourceId));
+  eq('P6XML zonder bronwaarde introduceert geen schedulingOptions', p.project.schedulingOptions, undefined);
 }
 {
   const p = readMSPDI(writeMSPDI(project, H8, tasks, sequences, resources, assignments, lib));
   roundTrip('MSPDI', p.tasks, p.sequences, p.calendar, p.resourceCalendars ?? [], false);
   eq('MSPDI resourceIds uit de toewijzingen', p.tasks.find(t => t.name === 'Metselen')?.resourceIds, p.assignments.map(a => a.resourceId));
+  eq('MSPDI zonder CriticalSlackLimit introduceert geen schedulingOptions',
+    p.project.schedulingOptions, undefined);
+  eq('MSPDI introduceert geen XER-project- of kalenderprovenance',
+    [p.project.schedulingProfile, p.calendar.p6Source], [undefined, undefined]);
 }
 
 // Een uurkalender kan dag- en urentaken mengen. De expliciete adaptermarkering moet die keuze
@@ -293,12 +299,12 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   assert([p6.calendar, ...(p6.resourceCalendars ?? [])].every(c => !c.workTime), 'P6-example: geen workTime-lek');
   assert(p6.tasks.every(t => t.time.durationUnit === 'days' && t.time.durationMinutes == null),
     'P6-example: dagprecisie blijft een expliciete dagtaak zonder durationMinutes-lek');
-  const p6Solved = solveProject({
+  const p6Solved = solveProject(opsSolveInput({
     tasks: p6.tasks,
     sequences: p6.sequences,
     calendar: p6.calendar,
     calendars: p6.resourceCalendars ?? [],
-  });
+  }));
   assert(!p6Solved.error, `P6-example: geïmporteerde dagtaken blijven planbaar (${p6Solved.error ?? 'geen fout'})`);
   assert([msp.calendar, ...(msp.resourceCalendars ?? [])].every(c => !c.workTime), 'MSPDI-example: geen workTime-lek');
   assert(msp.tasks.every(t => t.time.durationMinutes == null), 'MSPDI-example: geen durationMinutes-lek');

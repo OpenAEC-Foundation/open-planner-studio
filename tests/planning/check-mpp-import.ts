@@ -97,6 +97,8 @@ import { solveProject } from '@/engine/scheduler/solveProject';
 import { canonicalizeBands, promoteHourCalendar } from '@/services/subdayIo';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { opsSolveInput } from './legacySolveOptions';
+import { builtInProfile } from '@/engine/scheduler/conventions/registry';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -1164,6 +1166,13 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
 
   if (result) {
     truthy('I4 end-to-end readMPP: project.name uit Props/TITLE', result.project.name === 'Fixture Project');
+    // Rekenprofielen C3/C4: de twee MPP-eigen conventies staan in het MS Project-profiel; de lezer zet
+    // geen projectopties meer.
+    truthy('I4 end-to-end readMPP: zonder XER-floatbron geen projectopties, MS Project-profiel',
+      result.project.schedulingOptions === undefined
+        && JSON.stringify(result.project.schedulingProfile) === JSON.stringify(builtInProfile('msproject')));
+    truthy('I4 end-to-end readMPP: project en kalender krijgen nooit XER-provenance',
+      result.project.schedulingProfile?.id === 'msproject' && result.calendar.p6Source === undefined);
     truthy('I4 end-to-end readMPP: hoursPerDay uit MINUTES_PER_DAY (480/60)', result.calendar.hoursPerDay === 8);
     truthy('I4 end-to-end readMPP: 6 taken', result.tasks.length === 6);
 
@@ -3105,10 +3114,10 @@ if (corpusPresent) {
         // plan-§6/§8). "Task A" heeft GEEN contour maar WEL drie toewijzingen met verschillende
         // resourcekalenders (de laag-4-apportioneringspopulatie, zie hierboven); "Contoured Task" is
         // de ECHTE contourtaak met PRECIES 1 toewijzing en volgt op "Task A" (FS+0).
-        const cpm = solveProject({
+        const cpm = solveProject(opsSolveInput({
           tasks: result.tasks, sequences: result.sequences, calendar: result.calendar,
           calendars: result.resourceCalendars ?? [],
-        });
+        }));
         truthy('[T12 mpp14resource, Z8] solveProject zonder cyclus-fout', !cpm.error);
         const taskA = result.tasks.find((t) => t.name === 'Task A');
         truthy('[T12 mpp14resource, Z8] "Task A" gevonden', !!taskA);
@@ -3143,10 +3152,10 @@ if (corpusPresent) {
             ...taskA, time: { ...taskA.time },
             timephasedDurationWalks: taskA.timephasedDurationWalks?.map((w) => ({ anchor: w.anchor, resourceCalendarId: w.resourceCalendarId })),
           };
-          const cpmNaiveWalk = solveProject({
+          const cpmNaiveWalk = solveProject(opsSolveInput({
             tasks: [taskANaiveWalk, ...result.tasks.filter((t) => t.id !== taskA.id)],
             sequences: result.sequences, calendar: result.calendar, calendars: result.resourceCalendars ?? [],
-          });
+          }));
           const naiveWalkFinish = cpmNaiveWalk.tasks.get(taskA.id)?.earlyFinish;
           truthy(
             `[T12 mpp14resource, Z19 mutatiebewijs] ZONDER per-toewijzing workMinutes (volle-duur-wandeling) wijkt "Task A".scheduleFinish af van MSP's antwoord (bewijst dat de apportionering de bepalende factor is, kreeg ${naiveWalkFinish})`,

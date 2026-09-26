@@ -1,31 +1,36 @@
+import { claimTaskTypesNotice, notifyTaskTypesUnlocked, notifyTaskTypesUnlockedClaimed, TASK_TYPES_DETAIL_LINE } from '../taskTypesNotice';
+import { taskTypesNeedNotice } from '../taskTypesVisibility';
 import { writeIFC } from '@/services/ifc/ifcWriter';
-import { readIFC } from '@/services/ifc/ifcReader';
 import { writeCSV, writeProgressSheetCSV } from '@/services/csv/csvWriter';
 import { flattenOrder } from '@/utils/wbs';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
 import { openFileDialog, saveFileDialog, saveBytesDialog, saveToRef, readFromRef, readBytesFromRef, type FileRef, type SaveOutcome } from '@/services/fileAccess';
-import { openDialogFilters, binaryExtensions, readFormatForFile, parseOpenedFile, importErrorMessageKey, saveTargetFor, readFormatInput, type ExportFormat } from '@/services/formatRegistry';
+import { XER_IMPORT_HELP_ARTICLE_ID, withXerArchiveIssueNotice } from '@/state/xerArchiveIssueNotice';
+import { openDialogFilters, binaryExtensions, readFormatForFile, parseOpenedFile, importErrorMessageKey, saveTargetFor, readFormatInput, readIFCWithXerReconstruction, type ExportFormat } from '@/services/formatRegistry';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { HOST_EVENTS } from '@/services/extensionEvents';
-import type { AppSliceFactory, NotifyInput } from './types';
+import type { AppSliceFactory, NotifyInput, NotificationDetailLine } from './types';
 import type { AppState } from '../appStore';
 import { isTauri } from '@/utils/platform';
 import type { Task } from '@/types/task';
-import type { ImportLabels, ImportResult } from '@/services/importTypes';
-import { hydratePayload, payloadFromImport } from '../documentContract';
-import { materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
 import { refreshProjectCalendarCache } from '../syncProjectCalendar';
 import { stripLibraryOrigins } from '@/services/library/libraryOps';
-import { captureRecordedDates, countShiftedTasks } from '@/engine/scheduler/recordedDates';
+import { activeImportResult, isMultiDocumentImport, type ImportLabels, type ImportResult, type OpenedImport } from '@/services/importTypes';
+import { hydratePayload, isFreshImportOrigin, payloadFromImport, type DocumentPayload } from '../documentContract';
+import { applyRecordedDatesOnLoad, materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
+import { unrecordedExportGate } from '../recordedDatesSelectors';
 import { buildWriteIFCInput, sameIFCSource } from '../ifcSaveInput';
 import { fileHasHourData } from '@/services/subdayIo';
-import { projectFileBase } from '@/utils/documents';
+import { documentFileBase } from '@/utils/documents';
+import { xerProjectCode } from '@/utils/xerDocumentName';
 import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
+import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerExportLoss';
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
+import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
 import type { ImportLabelT } from '@/i18n/importLabels';
 import { invalidateDocumentRedo, removeSessionHistoryForDocumentFromState } from '../sessionHistory';
 
@@ -33,6 +38,14 @@ import { invalidateDocumentRedo, removeSessionHistoryForDocumentFromState } from
  *  i.p.v. een nieuw tabblad te openen (anders krijg je een leeg eerste tabblad).
  *  Geëxporteerd omdat de MCP-tool `planner_import_schedule` exact hetzelfde laadpatroon
  *  moet volgen (spec §Bestands-tools) — één definitie, geen tweede die kan afdrijven. */
+/**
+ * Voorgestelde bestandsnaambasis voor opslaan/exporteren: bij een XER-document "Projectnaam
+ * (P6 Project-ID)", zodat tab en titelbalk na het opslaan dezelfde naam houden (vraag 17).
+ */
+export function suggestedFileBase(s: Pick<AppState, 'project' | 'xerImportMetadata'>): string {
+  return documentFileBase(s.project.name, xerProjectCode(s.xerImportMetadata));
+}
+
 export function isActivePristine(s: AppState): boolean {
   return (
     s.tasks.length === 0 &&
@@ -41,6 +54,141 @@ export function isActivePristine(s: AppState): boolean {
     s.filePath === null &&
     !s.isDirty
   );
+}
+
+// De in-app gids achter de XER-meldingen woont sinds de archief-terugval (2026-09-24) in de
+// bladmodule `xerArchiveIssueNotice.ts`; hier her-exporteren voor bestaande importeurs.
+export { XER_IMPORT_HELP_ARTICLE_ID };
+/** Gids achter de formaatneutrale "datums zoals opgeslagen"-melding (zie `applyOpenedImport`). */
+export const RECORDED_DATES_HELP_ARTICLE_ID = 'datums-zoals-opgeslagen';
+
+/**
+ * De formaatneutrale "datums zoals opgeslagen"-regel voor één geopend bestand, samengevoegd met de
+ * openingsmelding die er al is (critreview PR #167, bevinding 3 — de meldingspoort mag de datumregel
+ * NIET via `!notice` laten verdringen: zodra er een andere melding is, bv. de rekenprofielmelding van
+ * #169 bij een `.mpp`, zou de regel dan stil wegvallen).
+ *
+ *  - Geen verse verschillen (`freshShifted`/`freshOffer` beide 0, o.a. elke HEROPENING van een eigen
+ *    IFC) ⇒ `notice` ongewijzigd.
+ *  - De melding draagt al een eigen datumregel (de XER-openingsmelding, `xerImportDatesAsRecorded*`)
+ *    ⇒ ongewijzigd, anders stond het er twee keer.
+ *  - Er is een andere melding ⇒ de regel komt er als detailregel onder.
+ *  - Geen melding ⇒ de regel wordt zelf de melding, met de gids erachter.
+ *
+ * De modus gaat vóór het aanbod: staat hij in minstens één document aan, dan meldt de regel dat.
+ */
+export function withRecordedDatesNotice(
+  notice: NotifyInput | undefined,
+  freshShifted: number,
+  freshOffer: number,
+): NotifyInput | undefined {
+  if (freshShifted <= 0 && freshOffer <= 0) return notice;
+  const shifted = freshShifted > 0;
+  const line: NotificationDetailLine = {
+    messageKey: shifted ? 'notifications.importDatesAsRecorded' : 'notifications.importDatesAsRecordedOffer',
+    params: { count: shifted ? freshShifted : freshOffer },
+  };
+  if (!notice) {
+    return { severity: 'info', ...line, helpArticleId: RECORDED_DATES_HELP_ARTICLE_ID };
+  }
+  const lines = notice.detailLines ?? [];
+  if (lines.some(l => l.messageKey.startsWith('notifications.xerImportDatesAsRecorded'))) return notice;
+  return { ...notice, detailLines: [...lines, line] };
+}
+
+/**
+ * Vorm één gebruikerszichtbaar verslag uit uitsluitend de feiten die de XER-lezer bestandsbreed
+ * bewaart. Deze helper zit nadrukkelijk buiten `applyLoadedProject`: één XER kan twaalf documenten
+ * openen, maar is nog steeds één bestandsactie en dus één melding.
+ */
+export function xerImportNotice(
+  results: readonly ImportResult[],
+  /** XER-etappeplan §3.7 (taak T4): som van `recordedDates.shifted` over alle zojuist geopende
+   *  documenten van dit bestand, GESPLITST naar wat er werkelijk gebeurde. Bewust aparte
+   *  parameters i.p.v. iets uit `results` zelf afgeleid: het aantal afwijkende taken bestaat pas
+   *  ná de solve op elk document (`applyLoadedProject` → `applyRecordedDatesOnLoad`), en
+   *  `ImportResult` draagt zelf geen `shifted`-veld (dat is documentstate, geen import-resultaat).
+   *
+   *  De SPLITSING is critreview laag 3, bevinding 4: `xerImportDatesAsRecorded` zegt letterlijk
+   *  "niet herberekend", en dat mag alleen staan wanneer de modus daadwerkelijk aanging. Een
+   *  verse XER waarvan de modus niet aanging telt in `offerTotal` en krijgt een eigen, aanbiedende
+   *  regel. (Een heropende IFC met XER-archief meldt sinds B4 helemaal niets meer.) Beide `0` ⇒
+   *  geen detailregel. */
+  datesAsRecordedShiftedTotal = 0,
+  /** Som van `recordedDates.shifted` over de documenten die de modus alléén AANBIEDEN. */
+  datesAsRecordedOfferTotal = 0,
+): NotifyInput | undefined {
+  // Gebruikstest rekenprofielen 24-09 (B4): alleen een VERSE XER-import meldt. Een heropende IFC
+  // draagt via het bronarchief óók `xer`-metadata, maar is geen import — het aanbod "datums zoals
+  // opgeslagen" loopt daar via `RecordedDatesNotice`, niet via deze melding.
+  results = results.filter(result => result.xerOrigin !== 'xer-archive');
+  const xers = results.flatMap(result => result.xer ? [result.xer] : []);
+  const xer = xers[0];
+  if (!xer) return undefined;
+
+  // X9 bewaart de file-wide diagnostics precies eenmaal in het immutable bronarchief. De
+  // documentviews bevatten daarnaast de werkelijk projectgebonden keuzes (enum- en
+  // scheduling-terugvallen). Gebruik het archief zodra het er is, maar blijf ook bruikbaar voor
+  // een directe X4b-resultaatview vóórdat die in een archief is gebonden.
+  const archive = results.find(result => result.xerSourceArchive)?.xerSourceArchive;
+  const fileDiagnostics = archive?.diagnostics.file;
+  const report = fileDiagnostics?.importReport ?? xer.report;
+  const tableReport = fileDiagnostics?.tableReport ?? xer.tableReport;
+  const enumFallbacks = xers.reduce((total, item) => total + item.enumFallbacks.length, 0);
+  const scheduleFallbacks = xers.reduce((total, item) => total + item.scheduleOptions.fallbacks.length, 0);
+  const calendarIssues = xer.calendarIssues.length;
+  const numberIssues = tableReport.issues.filter(issue => /(?:NUMBER|DECIMAL)/.test(issue.code)).length
+    + xer.calendarIssues.filter(issue => issue.code === 'XER_CALENDAR_INVALID_PERIOD_HOURS').length;
+  const parserIssues = tableReport.issues.length - tableReport.issues
+    .filter(issue => /(?:NUMBER|DECIMAL)/.test(issue.code)).length;
+  // Deze regel is bewust smaller dan alle overige importdiagnostiek: alleen de P6-
+  // schedulingopties die naar een veilige semantische default terugvallen horen onder
+  // "unsupported semantics". Resource-/metadatacatalogusissues zijn afzonderlijke
+  // bron- of koppelproblemen, geen planningsemantiek, en mogen deze teller niet opblazen.
+  const unsupportedSemantics = scheduleFallbacks;
+  const detailLines: NotificationDetailLine[] = [
+    { messageKey: 'notifications.xerImportProjectsSeen', params: { count: report.projectsSeen } },
+  ];
+  const addCount = (count: number, messageKey: NotificationDetailLine['messageKey']) => {
+    if (count > 0) detailLines.push({ messageKey, params: { count } });
+  };
+
+  addCount(report.emptyProjectsSkipped, 'notifications.xerImportEmptyProjectsSkipped');
+  addCount(report.baselineProjectsExcluded, 'notifications.xerImportBaselineProjectsExcluded');
+  addCount(report.baselinesMaterialized, 'notifications.xerImportBaselinesMaterialized');
+  addCount(report.danglingBaselineReferences, 'notifications.xerImportDanglingBaselineReferences');
+  if (report.baselineExclusionReverted || report.baselineFallbackReasons.length > 0) {
+    detailLines.push({ messageKey: 'notifications.xerImportBaselineFallback' });
+  }
+  addCount(report.externalLinksPreserved, 'notifications.xerImportExternalLinks');
+
+  // UTF-8 zonder BOM is de standaard. Iedere andere gerapporteerde keuze is een daadwerkelijk
+  // detecteerbare bronfeit (BOM of Windows-1252-terugval) en verdient daarom uitleg; we beweren
+  // nadrukkelijk niet dat afzonderlijke rijen werden overgeslagen.
+  if (tableReport.encoding !== 'utf-8') {
+    detailLines.push({
+      messageKey: 'notifications.xerImportEncoding',
+      params: { encoding: tableReport.encoding },
+    });
+  }
+  addCount(parserIssues, 'notifications.xerImportParserIssues');
+  addCount(calendarIssues, 'notifications.xerImportCalendarIssues');
+  addCount(numberIssues, 'notifications.xerImportNumberIssues');
+  addCount(enumFallbacks, 'notifications.xerImportEnumFallbacks');
+  addCount(unsupportedSemantics, 'notifications.xerImportUnsupportedSemantics');
+  // XER-etappeplan §3.7 (taak T4, X-O7 laag 3): "datums zoals opgeslagen" staat standaard aan zodra
+  // er restverschillen zijn. Eén regel voor het HELE bestand, ook bij twaalf documenten — de teller
+  // is de som over alle zojuist geopende documenten (zie `applyOpenedImport`), niet per document.
+  addCount(datesAsRecordedShiftedTotal, 'notifications.xerImportDatesAsRecorded');
+  addCount(datesAsRecordedOfferTotal, 'notifications.xerImportDatesAsRecordedOffer');
+
+  return {
+    severity: 'info',
+    messageKey: 'notifications.xerImportOpened',
+    params: { count: report.documentsOpened },
+    detailLines,
+    helpArticleId: XER_IMPORT_HELP_ARTICLE_ID,
+  };
 }
 
 // `ExportFormat` woont nu in de formatRegistry (T1); hier her-exporteren zodat bestaande
@@ -84,7 +232,9 @@ export function exportSplitsLostNotice(format: ExportFormat, tasks: readonly Tas
 /** Resultaat van `exportAs` (K7): bij een cyclische planning wordt de export afgebroken vóór de
  *  opslaan-dialoog en de CPM-cyclusfout (`cpmResult.error`) als boodschap meegegeven, zodat de
  *  aanroeper die kan tonen i.p.v. stilletjes niets te doen. */
-export type ExportResult = { ok: true } | { ok: false; error: string };
+export type ExportResult =
+  | { ok: true; warnings: readonly XerExportLossWarning[] }
+  | { ok: false; error: string };
 
 /** Opties voor `applyLoadedProject` — de één gedeelde "vul de actieve document-state met een
  *  geparsed project"-implementatie (audit P5/F6). Elke variant (de drie open-paden + `loadState`)
@@ -112,6 +262,16 @@ export interface ApplyLoadedProjectOpts {
   linkedOpen?: boolean;
   /** Optionele view-start die samen met de nieuwe brondata wordt gepubliceerd (IFC-tab). */
   viewStartDate?: string;
+  /** Integratie #101 op #169: `applyOpenedImport` meldt de taaktypes-ontsluiting zelf, samen met de
+   *  bestandsmelding ("één melding per geopend bestand", rekenprofielen spec v3.1 §6 / X10). */
+  deferTaskTypesNotice?: boolean;
+}
+
+/** Feitelijke uitkomst van de centrale opennaad; gebruikt door DevBridge en MCP voor eerlijke ids. */
+export interface AppliedOpenedImport {
+  documentIds: string[];
+  activeDocumentId: string;
+  reusedActiveTab: boolean;
 }
 
 export interface FileSlice {
@@ -119,6 +279,8 @@ export interface FileSlice {
    *  `ImportLabels`); weglaten geeft de Engelse default. Geldt voor elk laadpad hieronder. */
   openFile: (labels?: ImportLabels) => Promise<void>;
   saveFile: () => Promise<void>;
+  /** Bewaar exact het bedoelde document en meld of zijn ongewijzigde snapshot is vastgelegd. */
+  saveFileForDocument: (documentId: string) => Promise<boolean>;
   saveFileAs: () => Promise<void>;
   exportAs: (format: ExportFormat) => Promise<ExportResult>;
   /** Exporteer het project + (spec §4) schrijf de gebonden bedrijfs-pool als tweede, LOS bestand
@@ -142,12 +304,18 @@ export interface FileSlice {
   /** Open een meegeleverd voorbeeldproject uit een IFC-string als NIEUW document
    *  (geen filePath — opslaan wordt opslaan-als; isDirty=false). Werkt in web én
    *  Tauri; het bestand wordt door de aanroeper via fetch('/examples/…') geladen. */
-  openExampleFromString: (content: string, name: string, labels?: ImportLabels) => void;
+  openExampleFromString: (content: string, name: string, labels?: ImportLabels) => Promise<void>;
   /** Eén gedeelde load-implementatie (audit P5/F6): vul de ACTIEVE document-state met een geparsed
    *  project en voer de opt-afhankelijke nastappen uit (runCPM/fit/uur-melding/extensie-event).
    *  Neemt géén besluit over een nieuw tabblad — dat blijft bij de aanroeper vóór de load.
    *  `loadState` en de drie open-paden lopen hier allemaal doorheen. */
   applyLoadedProject: (parsed: ImportResult, opts: ApplyLoadedProjectOpts) => void;
+  /**
+   * Centrale open-naad voor één of meer geparste projectpayloads. Alleen XER gebruikt vandaag de
+   * meervoudige vorm; de individuele documenten lopen daarna letterlijk door hetzelfde
+   * applyLoadedProject-pad als IFC/CSV/MSPDI/MPP/P6XML.
+   */
+  applyOpenedImport: (parsed: OpenedImport, opts: ApplyLoadedProjectOpts) => AppliedOpenedImport;
 }
 
 export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, get) => {
@@ -176,19 +344,73 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     });
   };
 
-  /** Na een geslaagde opslaan-als-dialoog: het nieuwe opslagdoel vastleggen, `isDirty` alleen wissen
-   *  als er tijdens de dialoog niets gewijzigd is (`state` = de momentopname vóór de eerste await,
-   *  K8b — anders houdt de gebruiker terecht zijn sluitwaarschuwing), en recents + melding. */
-  const adoptSaveAsTarget = async (state: AppState, outcome: SaveOutcome) => {
-    const unchanged = sameIFCSource(state, get());
-    set((s) => {
-      s.filePath = outcome.ref?.kind === 'path' ? outcome.ref.path : outcome.name;
-      s.fileHandle = outcome.ref?.kind === 'handle' ? outcome.ref.handle : null;
-      if (unchanged) s.isDirty = false;
-    });
-    await pushRecent(outcome.ref, outcome.name);
-    noticeIfDownloaded(outcome);
+  const saveSourceForDocument = (state: AppState, documentId: string): AppState | DocumentPayload | null => {
+    if (state.activeDocumentId === documentId) return state;
+    return state.documents.find(document => document.id === documentId)?.payload ?? null;
   };
+
+  const commitSavedDocument = (
+    documentId: string,
+    savedSource: AppState,
+    destination?: { filePath: string; fileHandle: FileSystemFileHandle | null },
+  ): boolean => {
+    const currentSource = saveSourceForDocument(get(), documentId);
+    if (!currentSource) return false;
+    const unchanged = sameIFCSource(savedSource, currentSource);
+    set((state) => {
+      if (state.activeDocumentId === documentId) {
+        if (destination) {
+          state.filePath = destination.filePath;
+          state.fileHandle = destination.fileHandle;
+        }
+        if (unchanged) state.isDirty = false;
+        return;
+      }
+      const entry = state.documents.find(document => document.id === documentId);
+      if (!entry?.payload) return;
+      if (destination) {
+        entry.payload.filePath = destination.filePath;
+        entry.payload.fileHandle = destination.fileHandle;
+      }
+      if (unchanged) entry.payload.isDirty = false;
+    });
+    return unchanged;
+  };
+
+  const saveActiveDocument = (expectedDocumentId?: string): Promise<boolean> => runProjectFileWrite(async () => {
+    const state = get();
+    const documentId = state.activeDocumentId;
+    if (expectedDocumentId && expectedDocumentId !== documentId) return false;
+    const content = writeIFC(buildWriteIFCInput(state));
+
+    try {
+      const ref: FileRef | null = state.fileHandle
+        ? { kind: 'handle', handle: state.fileHandle }
+        : (isTauri() && state.filePath ? { kind: 'path', path: state.filePath } : null);
+
+      if (ref && await saveToRef(ref, content)) {
+        return commitSavedDocument(documentId, state);
+      }
+
+      const outcome = await saveFileDialog(
+        `${suggestedFileBase(state)}.ifc`,
+        content,
+        [{ name: 'IFC Files', extensions: ['ifc'] }],
+      );
+      if (!outcome) return false;
+      const saved = commitSavedDocument(documentId, state, {
+        filePath: outcome.ref?.kind === 'path' ? outcome.ref.path : outcome.name,
+        fileHandle: outcome.ref?.kind === 'handle' ? outcome.ref.handle : null,
+      });
+      await pushRecent(outcome.ref, outcome.name);
+      noticeIfDownloaded(outcome);
+      return saved;
+    } catch (err) {
+      console.error('Save failed:', err);
+      get().notify({ severity: 'error', messageKey: 'notifications.saveFailed', detail: (err as Error).message });
+      return false;
+    }
+  });
 
   return {
     applyLoadedProject: (parsed, opts) => {
@@ -205,13 +427,15 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         stripLibraryOrigins(payload);
         refreshProjectCalendarCache(payload);
       }
-      const recorded = opts.recompute
-        ? captureRecordedDates(payload.tasks, parsed.recordedFields)
-        : null;
       const prepared = prepareLoadedPayload(payload, { recompute: !!opts.recompute });
-      if (recorded && recorded.total > 0) {
-        const shifted = countShiftedTasks(prepared.tasks, recorded.times);
-        if (shifted > 0) prepared.recordedDates = { ...recorded, shifted };
+      if (opts.recompute) {
+        // XER-etappeplan §3.5 (taak T4), heropen-beleid (taak T5, 2026-09-05): alleen een VERSE
+        // XER-import (parsed.recordedTimesOrigin === 'xer') zet de modus meteen aan; een heropende
+        // IFC met XER-archief (recordedTimesOrigin === 'xer-archive') en overige formaten bieden
+        // hem alleen aan — ongewijzigd #63-gedrag. `payload.tasks` is hier bewust de PRE-solve
+        // array (zie de docstring van `applyRecordedDatesOnLoad`): `prepareLoadedPayload` muteert
+        // zijn `input`-argument niet.
+        applyRecordedDatesOnLoad(payload.tasks, prepared, parsed);
       }
       const activation = materializeLibraryBoundary({
         payload: prepared,
@@ -233,6 +457,16 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           s.ui.hourDataNotice = !s.ui.enableHourPlanning && fileHasHourData(s.tasks, [s.calendar, ...s.calendars]);
         }
       });
+      // Taaktypes-etappe (spec §7): het bestand draagt taaktypedata terwijl de instelling uit staat
+      // ⇒ de werkregel-UI is voor dit document ontsloten; meld dat één keer (met gids-link).
+      {
+        const st = get();
+        // E4: alleen een AFGELEIDE regel (uit mspTaskType/p6DurationType) ontsluit stil.
+        if (!opts.deferTaskTypesNotice && st.taskTypesVisible && !st.ui.showTaskTypes
+          && taskTypesNeedNotice(st.tasks, st.assignments, st.project)) {
+          notifyTaskTypesUnlocked(st.notify, st.activeDocumentId);
+        }
+      }
       if (opts.recompute) {
         const cpm = activation.payload.cpmResult;
         if (cpm?.error) {
@@ -296,15 +530,113 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       });
     },
 
+    applyOpenedImport: (parsed, opts) => {
+      const results = isMultiDocumentImport(parsed) ? parsed.results : [parsed];
+      if (results.length === 0) throw new Error('Openroute ontving geen projectdocumenten');
+
+      const reusedActiveTab = isActivePristine(get());
+      const openedDocumentIds: string[] = [];
+      // XER-etappeplan §3.7 (taak T4): som van `recordedDates.shifted` over alle zojuist geopende
+      // documenten — per document eigen vlag/eigen vastlegging (elk document leest zijn eigen
+      // `recordedTimes` uit zijn eigen `ImportResult`), maar de MELDING blijft er één per bestand.
+      let datesAsRecordedShiftedTotal = 0;
+      // Critreview bevinding 4: apart tellen, want de twee uitkomsten zijn verschillende
+      // beweringen. Alleen een document waar de modus ECHT aanging is "niet herberekend".
+      let datesAsRecordedOfferTotal = 0;
+      let taskTypesUnlockedDocs = 0;
+      // Critreview op ded4d8c3, bevinding 6, en critreview PR #167, bevinding 2: de formaatneutrale
+      // melding hieronder telt uitsluitend VERSE imports — zowel het aanbod als de automatisch-aan-tak.
+      // Een heropend eigen IFC ('ifc-own'/'xer-archive') krijgt de strook (die zegt het al), maar geen
+      // openingsmelding — dat is het eigen projectbestand, geen import; ook niet als optie B de modus
+      // bij een ongewijzigd bestand automatisch weer aanzet.
+      let freshShiftedTotal = 0;
+      let freshOfferTotal = 0;
+      for (const result of results) {
+        // De eerste payload mag het lege starttabblad hergebruiken; elk volgend project krijgt
+        // gegarandeerd een eigen tab. Dit leest de actuele state per iteratie, want de vorige load
+        // heeft die state bewust niet-pristine gemaakt.
+        if (!isActivePristine(get())) get().newDocument();
+        openedDocumentIds.push(get().activeDocumentId);
+        // `applyLoadedProject` draait de open-/bibliotheekgrens zelf (materializeLibraryBoundary),
+        // dus elk document krijgt hem — geen aparte runOpenBoundary-aanroep meer nodig.
+        get().applyLoadedProject(result, { ...opts, deferTaskTypesNotice: true });
+        // Taaktypes (#101): ontsloten door de bestandsdata terwijl de instelling uit staat ⇒ één keer
+        // per document geclaimd, maar gemeld in de ene bestandsmelding hieronder.
+        // E4 (orkestratorbesluit 25-09): alleen melden bij opgeslagen werk, een projectstandaard of
+        // een eigen regel; een regel die de lezer alleen uit het importveld afleidde ontsluit stil.
+        const cur = get();
+        if (cur.taskTypesVisible && !cur.ui.showTaskTypes
+          && taskTypesNeedNotice(cur.tasks, cur.assignments, cur.project)
+          && claimTaskTypesNotice(cur.activeDocumentId)) {
+          taskTypesUnlockedDocs++;
+        }
+        // Lees DIRECT ná deze aanroep: `applyLoadedProject` maakt het zojuist geladen document
+        // actief, dus `get().recordedDates` is op dit punt exact dát document z'n eigen vastlegging.
+        const shifted = get().recordedDates?.shifted ?? 0;
+        const fresh = isFreshImportOrigin(get().recordedDates?.origin);
+        if (get().datesAsRecorded) {
+          datesAsRecordedShiftedTotal += shifted;
+          if (fresh) freshShiftedTotal += shifted;
+        } else {
+          datesAsRecordedOfferTotal += shifted;
+          if (fresh) freshOfferTotal += shifted;
+        }
+      }
+
+      // X10: de rapportage is bestandsbreed en identiek op iedere XER-resultaatview. Plaats deze
+      // pas ná de volledige lus, anders ontstaat er één toast per nieuw document. Andere formats
+      // leveren geen `xer`-metadata en houden hun bestaande, stille openpad.
+      // Eigenaarsbesluit 2026-09-09 ("het moet altijd gaan zoals het nu bij XER werkt"): de andere
+      // formaten hebben geen eigen openingsmelding, maar wél dezelfde ene regel over "datums zoals
+      // opgeslagen" — formaatneutraal verwoord. `withRecordedDatesNotice` hangt die regel aan een al
+      // bestaande melding (bv. de profielmelding van een `.mpp`) in plaats van hem via `!notice` te
+      // laten verdringen (zie de helper).
+      // Rekenprofielen (spec v3.1 §6): één melding per geopend bestand — bij XER samengevoegd met de
+      // openingsmelding, anders een eigen melding met de actie naar Bestand → Projectinfo.
+      // Eigenaarsbesluit 2026-09-24 ("openen met melding"): een onbruikbaar XER-bronarchief is
+      // weggelaten door `readIFC`; dat meldt zich als BUITENSTE laag, als detailregels in de
+      // bestandsmelding als die er is, anders als eigen melding. Nooit stil — zie
+      // `withXerArchiveIssueNotice`.
+      const notice = withXerArchiveIssueNotice(
+        withRecordedDatesNotice(
+          withSchedulingProfileNotice(
+            results,
+            xerImportNotice(results, datesAsRecordedShiftedTotal, datesAsRecordedOfferTotal),
+            openedDocumentIds[0] ?? '',
+          ),
+          freshShiftedTotal,
+          freshOfferTotal,
+        ),
+        results.map(result => result.xerArchiveIssue),
+      );
+      // Integratie #101 op #169 + E4 (orkestratorbesluit 25-09): de taaktypes-melding is een
+      // detailregel in díe ene bestandsmelding — geen extra toast — met een EIGEN gidslink naar
+      // `gids-taaktypes` (`TASK_TYPES_DETAIL_LINE`; gebruikstest G3: de "Lees meer" van de melding
+      // zelf gaat naar het bestand/rekenprofiel). Zonder bestandsmelding (bv. MSPDI/IFC onder het
+      // ops-profiel) blijft het #101's eigen melding met gids-link.
+      if (notice && taskTypesUnlockedDocs > 0) {
+        get().notify({ ...notice, detailLines: [...(notice.detailLines ?? []), TASK_TYPES_DETAIL_LINE] });
+      } else if (notice) {
+        get().notify(notice);
+      } else if (taskTypesUnlockedDocs > 0) {
+        notifyTaskTypesUnlockedClaimed(get().notify);
+      }
+
+      const activeIndex = isMultiDocumentImport(parsed) ? parsed.activeDocumentIndex : 0;
+      const activeId = openedDocumentIds[activeIndex];
+      if (activeId && activeId !== get().activeDocumentId) get().switchDocument(activeId);
+      return {
+        documentIds: openedDocumentIds,
+        activeDocumentId: get().activeDocumentId,
+        reusedActiveTab,
+      };
+    },
+
     openFile: async (labels) => {
       try {
         const opened = await openFileDialog(openDialogFilters(), { binaryExtensions: binaryExtensions() });
         if (!opened) return;
         const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels);
-
-        // Multi-document: open het bestand in een eigen tabblad. Hergebruik het
-        // actieve tabblad alleen als dat nog leeg en ongewijzigd is.
-        if (!isActivePristine(get())) get().newDocument();
 
         // Opslagdoel-guard (T8, stap 5a; verbreed T8-spec-review F4; T11: via `canBeSaveTarget` op
         // de registry-entry i.p.v. een `id === 'ifc'`-vergelijking hier). Opslaan schrijft altijd
@@ -314,9 +646,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         // MCP-kant (`fileTools.ts` leest óók `canBeSaveTarget`).
         const target = saveTargetFor(readFormatForFile(opened.name), opened.ref, opened.name);
 
-        // Gedeelde load-implementatie; open-pad-semantiek: identiteit + opslaan-doel zetten,
-        // direct doorrekenen + fitten en de uur-melding evalueren.
-        get().applyLoadedProject(parsed, {
+        // De centrale naad splitst alleen een expliciete multi-import; enkelvoudige formaten
+        // volgen byte-identiek hetzelfde laadpad, inclusief pristine-tab-hergebruik.
+        get().applyOpenedImport(parsed, {
           filePath: target.filePath,
           fileHandle: target.fileHandle,
           recompute: true,
@@ -335,47 +667,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
     },
 
-    saveFile: async () => runProjectFileWrite(async () => {
-      const state = get();
-      // Gedeelde helper (pakket R1): één plek voor het state→IFC-options-object, zodat dit
-      // pad niet opnieuw velden kan laten vallen.
-      const content = writeIFC(buildWriteIFCInput(state));
-      // `state` is de momentopname vóór de eerste await. De opslaan-dialoog (en in Tauri de
-      // schrijfactie) kan minuten duren en de gebruiker kan ondertussen doorwerken; `content` is
-      // dan verouderd. Daarom mag `isDirty` pas worden gewist als de inhoud ná de await nog
-      // letterlijk dezelfde is — bepaald via `sameIFCSource` (bevinding K8b: anders stil verlies).
-
-      try {
-        // Bestaand opslaan-doel? Web: fileHandle. Tauri: het echte pad in filePath.
-        const ref: FileRef | null = state.fileHandle
-          ? { kind: 'handle', handle: state.fileHandle }
-          : (isTauri() && state.filePath ? { kind: 'path', path: state.filePath } : null);
-
-        if (ref && await saveToRef(ref, content)) {
-          // "Nog ongewijzigd?" bewust BUITEN de Immer-producer berekend met get(): binnen een draft
-          // is `s.tasks` e.d. een proxy en nóóit referentie-gelijk aan de plain array, dus een
-          // sameIFCSource(state, s) binnen de producer zou altijd false geven en isDirty nóóit
-          // meer wissen — een ergere regressie dan de bug die we hier repareren.
-          if (sameIFCSource(state, get())) set((s) => { s.isDirty = false; });
-          return;
-        }
-
-        // Geen (bruikbare) ref, of in-place opslaan geweigerd → opslaan-als.
-        const outcome = await saveFileDialog(
-          `${projectFileBase(state.project.name)}.ifc`,
-          content,
-          [{ name: 'IFC Files', extensions: ['ifc'] }],
-        );
-        if (!outcome) return;
-        await adoptSaveAsTarget(state, outcome);
-      } catch (err) {
-        console.error('Save failed:', err);
-        get().notify({ severity: 'error', messageKey: 'notifications.saveFailed', detail: (err as Error).message });
-      }
-    }),
+    saveFile: async () => { await saveActiveDocument(); },
+    saveFileForDocument: (documentId) => saveActiveDocument(documentId),
 
     saveFileAs: async () => runProjectFileWrite(async () => {
       const state = get();
+      const documentId = state.activeDocumentId;
       // Gedeelde helper (pakket R1): één plek voor het state→IFC-options-object, zodat dit
       // pad niet opnieuw velden kan laten vallen.
       const content = writeIFC(buildWriteIFCInput(state));
@@ -384,12 +681,17 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
       try {
         const outcome = await saveFileDialog(
-          state.filePath ?? `${projectFileBase(state.project.name)}.ifc`,
+          state.filePath ?? `${suggestedFileBase(state)}.ifc`,
           content,
           [{ name: 'IFC Files', extensions: ['ifc'] }],
         );
         if (!outcome) return;
-        await adoptSaveAsTarget(state, outcome);
+        commitSavedDocument(documentId, state, {
+          filePath: outcome.ref?.kind === 'path' ? outcome.ref.path : outcome.name,
+          fileHandle: outcome.ref?.kind === 'handle' ? outcome.ref.handle : null,
+        });
+        await pushRecent(outcome.ref, outcome.name);
+        noticeIfDownloaded(outcome);
       } catch (err) {
         console.error('Save As failed:', err);
         get().notify({ severity: 'error', messageKey: 'notifications.saveFailed', detail: (err as Error).message });
@@ -411,6 +713,18 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (cpmError) return { ok: false, error: cpmError };
 
       const state = get();
+      const warnings = detectXerExportLoss(format, {
+        sourceArchive: state.xerSourceArchive,
+        importMetadata: state.xerImportMetadata,
+        project: state.project,
+        tasks: state.tasks,
+        sequences: state.sequences,
+        assignments: state.assignments,
+        activityCodeTypes: state.activityCodeTypes,
+        customFieldDefs: state.customFieldDefs,
+        baselines: state.baselines,
+        activeBaselineId: state.activeBaselineId,
+      });
 
       // X9: sinds het `.xlsx`-voortgangsblad draagt de export tekst ÓF bytes. De afsplitsing
       // staat één keer, ná de switch — niet per tak — zodat de recents-, download- en
@@ -450,7 +764,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           ext = 'xlsx';
           filters = [{ name: 'Excel Workbook', extensions: ['xlsx'] }];
           mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-          nameOverride = `${projectFileBase(state.project.name)}-voortgang.${ext}`;
+          nameOverride = `${suggestedFileBase(state)}-voortgang.${ext}`;
           break;
         }
         case 'progress-csv': {
@@ -478,13 +792,16 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           );
           ext = 'csv';
           filters = [{ name: 'CSV Files', extensions: ['csv'] }];
-          nameOverride = `${projectFileBase(state.project.name)}-voortgang.${ext}`;
+          nameOverride = `${suggestedFileBase(state)}-voortgang.${ext}`;
           break;
         }
         case 'csv':
           payload = writeCSV(
             state.project, state.calendar, state.tasks,
             state.sequences, state.resources, state.assignments, state.customTaskTypes,
+            // In "datums zoals opgeslagen" mag een niet-vastgelegde as niet als verzonnen 0/No
+            // het bestand in (critreview laag 3, bevinding 6). Buiten de modus: `undefined`.
+            unrecordedExportGate(state.recordedDates, state.datesAsRecorded),
           );
           ext = 'csv';
           filters = [{ name: 'CSV Files', extensions: ['csv'] }];
@@ -517,7 +834,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           break;
       }
 
-      const defaultName = nameOverride ?? `${projectFileBase(state.project.name)}.${ext}`;
+      const defaultName = nameOverride ?? `${suggestedFileBase(state)}.${ext}`;
       // E7: beide voortgangsformaten openen waar mogelijk meteen in de downloadmap.
       const dialogOpts = format === 'progress-csv' || format === 'progress-xlsx'
         ? { preferDownloads: true, mime }
@@ -525,12 +842,24 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const outcome = typeof payload === 'string'
         ? await saveFileDialog(defaultName, payload, filters, dialogOpts)
         : await saveBytesDialog(defaultName, payload, filters, dialogOpts);
-      if (outcome && exportGoesToRecents(format)) await pushRecent(outcome.ref, outcome.name);
+      // Cancel is geen export: geen toast en ook geen latente warnings in de succes-envelope.
+      // De centrale plaatsing hier maakt Backstage en ribbon automatisch één meldschrijver.
+      if (!outcome) return { ok: true, warnings: [] };
+      if (exportGoesToRecents(format)) await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
-      // Alleen na een GESLAAGDE export (geannuleerde dialoog ⇒ `outcome` null ⇒ er ging niets verloren).
-      const splitsLost = outcome ? exportSplitsLostNotice(format, state.tasks) : null;
+      if (warnings.length > 0) {
+        get().notify({
+          severity: 'info',
+          messageKey: 'notifications.xerExportLoss',
+          params: { format: format === 'mspdi' ? 'MSPDI' : format.toUpperCase() },
+          dedupeKey: `xer-export-loss:${state.activeDocumentId}:${format}`,
+          helpArticleId: XER_IMPORT_HELP_ARTICLE_ID,
+        });
+      }
+      // Alleen na een GESLAAGDE export (geannuleerde dialoog ⇒ hierboven al teruggekeerd).
+      const splitsLost = exportSplitsLostNotice(format, state.tasks);
       if (splitsLost) get().notify(splitsLost);
-      return { ok: true };
+      return { ok: true, warnings };
     },
 
     exportProjectWithPool: async (): Promise<ExportResult> => {
@@ -543,18 +872,18 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const state = get();
       // 1. Het project zelf (bevat altijd al alle gebruikte items — kernprincipe §1).
       const projectContent = writeIFC(buildWriteIFCInput(state));
-      const base = projectFileBase(state.project.name);
+      const base = suggestedFileBase(state);
       const outcome = await saveFileDialog(`${base}.ifc`, projectContent, [{ name: 'IFC Files', extensions: ['ifc'] }]);
-      if (!outcome) return { ok: true }; // dialoog geannuleerd — geen fout
+      if (!outcome) return { ok: true, warnings: [] }; // dialoog geannuleerd — geen fout
       await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
       // 2. De pool ernaast (los bestand), alleen als het project aan een bedrijf gebonden is.
       const companyId = state.project.companyId;
-      if (!companyId) return { ok: true };
+      if (!companyId) return { ok: true, warnings: [] };
       const poolContent = state.exportPoolIFC(companyId);
-      if (!poolContent) return { ok: true };
+      if (!poolContent) return { ok: true, warnings: [] };
       noticeIfDownloaded(await saveFileDialog(`${base}-bibliotheek.ifc`, poolContent, [{ name: 'IFC Files', extensions: ['ifc'] }]));
-      return { ok: true };
+      return { ok: true, warnings: [] };
     },
 
     recentFiles: [],
@@ -569,7 +898,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       try {
         const { readTextFile, readFile } = await import('@tauri-apps/plugin-fs');
         const input = await readFormatInput(filePath, { readTextFile, readFile });
-        const parsed = await parseOpenedFile(input, labels);
+        const parsed = activeImportResult(await parseOpenedFile(input, labels));
         return {
           projectId: parsed.project.id,
           projectName: parsed.project.name,
@@ -743,14 +1072,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           labels,
         );
 
-        if (!isActivePristine(get())) get().newDocument();
-
         // Opslagdoel-guard (T8, stap 5a; verbreed T8-spec-review F4; T11: `saveTargetFor` — zie
         // openFile voor de volledige toelichting). `readFormat` is hierboven al opgezocht (F2).
         const target = saveTargetFor(readFormat, entry.ref, entry.name);
 
-        // Zelfde open-pad-semantiek als openFile (zie daar); loopt door de gedeelde implementatie.
-        get().applyLoadedProject(parsed, {
+        // Zelfde open-pad-semantiek als openFile (zie daar), ook voor meervoudige XER-import.
+        get().applyOpenedImport(parsed, {
           filePath: target.filePath,
           fileHandle: target.fileHandle,
           recompute: true,
@@ -768,9 +1095,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
     },
 
-    openExampleFromString: (content: string, name: string, labels) => {
+    openExampleFromString: async (content: string, name: string, labels) => {
       try {
-        const parsed = readIFC(content, labels);
+        const parsed = await readIFCWithXerReconstruction(content, labels);
 
         // Zelfde multi-document-gedrag als openFile: hergebruik het actieve
         // tabblad alleen als dat nog leeg en ongewijzigd is, anders nieuw tabblad.
@@ -786,6 +1113,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           fit: true,
           hourDataNotice: true,
         });
+        const archiveNotice = withXerArchiveIssueNotice(undefined, [parsed.xerArchiveIssue]);
+        if (archiveNotice) get().notify(archiveNotice);
       } catch (err) {
         console.error(`Failed to open example "${name}":`, err);
         // `params: { name }` achterwege gelaten: de bestaande `notifications.openFailed`-string

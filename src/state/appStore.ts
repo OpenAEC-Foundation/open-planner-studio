@@ -16,6 +16,7 @@ import { createDocumentSlice, type DocumentSlice } from './slices/documentSlice'
 import { createStructureSlice, type StructureSlice } from './slices/structureSlice';
 import { createBaselineSlice, type BaselineSlice } from './slices/baselineSlice';
 import { createLibrarySlice, type LibrarySlice } from './slices/librarySlice';
+import { createSchedulingProfileSlice, type SchedulingProfileSlice } from './slices/schedulingProfileSlice';
 import { createTaskGridSlice, type TaskGridSlice } from './slices/taskGridSlice';
 import {
   bindDefaultGridTransactionStore,
@@ -50,6 +51,7 @@ export type AppState = ProjectSlice &
   StructureSlice &
   BaselineSlice &
   LibrarySlice &
+  SchedulingProfileSlice &
   TaskGridSlice &
   GridTransactionSlice;
 
@@ -93,6 +95,7 @@ export function createAppStoreContext(opts?: StoreRuntimeOptions): AppStoreConte
       ...createStructureSlice(runtime)(...a),
       ...createBaselineSlice(runtime)(...a),
       ...createLibrarySlice(runtime)(...a),
+      ...createSchedulingProfileSlice(runtime)(...a),
       ...createTaskGridSlice(...a),
       ...createGridTransactionSlice(...a),
     })),

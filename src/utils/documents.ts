@@ -3,6 +3,8 @@ import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { basename } from '@/utils/filePath';
 import { shownStart, shownFinish } from '@/utils/taskDates';
 import { parseInstant } from '@/utils/dateUtils';
+import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
+import { xerDocumentName } from '@/utils/xerDocumentName';
 
 /**
  * Afgeleide identiteit + statistieken per geopend document, voor de
@@ -39,10 +41,16 @@ export function documentCode(title: string): string {
 }
 
 /** Afgeleide titel: bestandsnaam zonder extensie, anders de projectnaam. */
-export function documentTitle(filePath: string | null, projectName: string): string {
+export function documentTitle(
+  filePath: string | null,
+  projectName: string,
+  xerProjectCode?: string | null,
+): string {
   if (filePath) {
     return basename(filePath).replace(/\.[^.]+$/, '');
   }
+  // XER-import zonder opslagdoel: "Projectnaam (P6 Project-ID)" — zie `xerDocumentName`.
+  if (xerProjectCode) return xerDocumentName(projectName, xerProjectCode);
   return projectName || '';
 }
 
@@ -61,6 +69,16 @@ export function documentTitle(filePath: string | null, projectName: string): str
 export const DEFAULT_PROJECT_FILE_BASE = 'project';
 export function projectFileBase(projectName: string): string {
   return (projectName ?? '').trim() || DEFAULT_PROJECT_FILE_BASE;
+}
+
+/**
+ * Voorgestelde bestandsnaambasis bij opslaan/"Opslaan als"/exporteren: dezelfde naam als de tab en
+ * de titelbalk vóór het opslaan. Bij een XER-document is dat "Projectnaam (P6 Project-ID)"
+ * (`xerDocumentName`), zodat tab en titelbalk ná het opslaan — dan afgeleid van de bestandsnaam —
+ * dezelfde naam houden. Zonder XER-code gelijk aan `projectFileBase(projectName)`.
+ */
+export function documentFileBase(projectName: string, xerProjectCode?: string | null): string {
+  return projectFileBase(xerProjectCode ? xerDocumentName(projectName, xerProjectCode) : projectName);
 }
 
 /**
@@ -106,7 +124,7 @@ export interface DocStats {
 }
 
 export function buildStats(tasks: Task[], cpm: CPMResult | null, projectEnd: string): DocStats {
-  const leaves = tasks.filter((t) => t.childIds.length === 0);
+  const leaves = tasks.filter(isLeafTask);
   const milestoneCount = tasks.filter((t) => t.isMilestone).length;
   const criticalCount = cpm
     ? cpm.criticalPath.length
@@ -129,7 +147,7 @@ export interface ThumbBar {
 export function buildThumbnail(tasks: Task[], identityColor: string, maxBars = 9): ThumbBar[] {
   const points: { start: number; end: number; ms: boolean; crit: boolean }[] = [];
   for (const t of tasks) {
-    if (t.childIds.length > 0) continue; // alleen bladtaken/mijlpalen
+    if (isSummaryTask(t)) continue; // alleen bladtaken/mijlpalen
     const startStr = shownStart(t);
     if (!startStr) continue;
     // `parseInstant`, niet `Date.parse`: die leest een datetime zonder offset als LOKALE tijd,

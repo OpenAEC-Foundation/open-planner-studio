@@ -14,6 +14,7 @@ import type { Task, TaskSplitGap } from '@/types/task';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
 import { historyDepthsForActiveScope } from '@/state/sessionHistory';
+import { legacyCpmOptions } from './legacySolveOptions';
 
 const S = () => useAppStore.getState();
 const diffs: string[] = [];
@@ -164,7 +165,7 @@ console.log('-- apply-leveling-scope: deel 4 (motor), idempotente onderbreek-mod
 
   const run1 = levelResources(
     [blockerTask, taskZ, taskBuiten], [], [resource4], [blockerAssign, zAssign], PROJECT_CAL, [],
-    stubCpmResult('2026-06-04'), opts,
+    stubCpmResult('2026-06-04'), opts, legacyCpmOptions(),
   );
   ok('run 1: Z krijgt een leveling-gat', (run1.gaps['z']?.filter(g => g.source === 'leveling').length ?? 0) > 0);
 
@@ -172,7 +173,7 @@ console.log('-- apply-leveling-scope: deel 4 (motor), idempotente onderbreek-mod
   const taskZWithGaps: Task = { ...taskZ, splitGaps: run1.gaps['z'] };
   const run2 = levelResources(
     [blockerTask, taskZWithGaps, taskBuiten], [], [resource4], [blockerAssign, zAssign], PROJECT_CAL, [],
-    stubCpmResult('2026-06-04'), opts,
+    stubCpmResult('2026-06-04'), opts, legacyCpmOptions(),
   );
   eq('nivelleren is idempotent in de onderbreek-modus',
     JSON.stringify(run2.gaps['z']), JSON.stringify(run1.gaps['z']));

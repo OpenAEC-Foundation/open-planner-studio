@@ -10,7 +10,90 @@
   },
   "notifications": {
     "dismiss": "Zamknij powiadomienie",
+    "taskEditRevertBlocked": "W międzyczasie pojawiła się zmiana asystenta AI lub rozszerzenia. Wcześniejsze zmiany zadania nie zostały cofnięte i pozostają jako zwykłe kroki w Cofnij.",
     "openFailed": "Nie udało się otworzyć pliku",
+    "xerInvalidInput": "Import XER wymaga oryginalnych bajtów pliku.",
+    "xerInvalidFile": "Ten plik XER jest nieprawidłowy lub nieobsługiwany.",
+    "xerInvalidEncoding": "Kodowanie tekstu w tym pliku XER jest nieprawidłowe lub ucięte.",
+    "xerDuplicateTable": "Plik XER zawiera zduplikowaną tabelę.",
+    "xerMissingRequiredColumns": "W tabeli XER brakuje wymaganych kolumn.",
+    "xerMissingRequiredValue": "W rekordzie XER brakuje wymaganej wartości.",
+    "xerAmbiguousDecimal": "Nie można wiarygodnie ustalić zapisu dziesiętnego w tym pliku XER.",
+    "xerInvalidNumberFormat": "Ten plik XER zawiera nieprawidłowy format liczb.",
+    "xerInvalidNumber": "Plik XER zawiera nieprawidłową liczbę.",
+    "xerSingleProjectRequired": "Ten import obsługuje dokładnie jeden projekt P6 na plik XER.",
+    "xerEmptyProject": "Projekt P6 w tym pliku XER nie zawiera działań.",
+    "xerDuplicateId": "Plik XER zawiera zduplikowany identyfikator WBS, działania lub relacji.",
+    "xerAmbiguousLocalRelation": "Relacji XER bez zakresu nie można jednoznacznie przypisać do jednego projektu lokalnego.",
+    "xerDanglingLocalRelation": "Lokalna relacja XER odwołuje się do brakującego działania.",
+    "xerEnumFallback": "XER {{family}}: nieznany token „{{token}}”; użyto „{{fallback}}”.",
+    "xerImportOpened_one": "Otwarto plik XER: {{count}} dokument projektu.",
+    "xerImportOpened_few": "Otwarto plik XER: {{count}} dokumenty projektu.",
+    "xerImportOpened_many": "Otwarto plik XER: {{count}} dokumentów projektu.",
+    "xerImportOpened_other": "Otwarto plik XER: {{count}} dokumentu projektu.",
+    "xerImportProjectsSeen_one": "Znaleziono {{count}} projekt.",
+    "xerImportProjectsSeen_few": "Znaleziono {{count}} projekty.",
+    "xerImportProjectsSeen_many": "Znaleziono {{count}} projektów.",
+    "xerImportProjectsSeen_other": "Znaleziono {{count}} projektu.",
+    "xerImportEmptyProjectsSkipped_one": "Pominięto {{count}} pusty projekt.",
+    "xerImportEmptyProjectsSkipped_few": "Pominięto {{count}} puste projekty.",
+    "xerImportEmptyProjectsSkipped_many": "Pominięto {{count}} pustych projektów.",
+    "xerImportEmptyProjectsSkipped_other": "Pominięto {{count}} pustego projektu.",
+    "xerImportBaselineProjectsExcluded_one": "Wykluczono {{count}} projekt bazowy.",
+    "xerImportBaselineProjectsExcluded_few": "Wykluczono {{count}} projekty bazowe.",
+    "xerImportBaselineProjectsExcluded_many": "Wykluczono {{count}} projektów bazowych.",
+    "xerImportBaselineProjectsExcluded_other": "Wykluczono {{count}} projektu bazowego.",
+    "xerImportBaselinesMaterialized_one": "Utworzono {{count}} linię bazową.",
+    "xerImportBaselinesMaterialized_few": "Utworzono {{count}} linie bazowe.",
+    "xerImportBaselinesMaterialized_many": "Utworzono {{count}} linii bazowych.",
+    "xerImportBaselinesMaterialized_other": "Utworzono {{count}} linii bazowej.",
+    "xerImportDanglingBaselineReferences_one": "Zignorowano {{count}} oderwane odwołanie do linii bazowej.",
+    "xerImportDanglingBaselineReferences_few": "Zignorowano {{count}} oderwane odwołania do linii bazowych.",
+    "xerImportDanglingBaselineReferences_many": "Zignorowano {{count}} oderwanych odwołań do linii bazowych.",
+    "xerImportDanglingBaselineReferences_other": "Zignorowano {{count}} oderwanego odwołania do linii bazowej.",
+    "xerImportBaselineFallback": "Użyto ochronnego rozwiązania awaryjnego dla linii bazowej.",
+    "xerImportExternalLinks_one": "Zachowano {{count}} zewnętrzne połączenie.",
+    "xerImportExternalLinks_few": "Zachowano {{count}} zewnętrzne połączenia.",
+    "xerImportExternalLinks_many": "Zachowano {{count}} zewnętrznych połączeń.",
+    "xerImportExternalLinks_other": "Zachowano {{count}} zewnętrznego połączenia.",
+    "xerImportEncoding": "Wybrane kodowanie tekstu: {{encoding}}.",
+    "xerImportParserIssues_one": "{{count}} ustalenie parsera.",
+    "xerImportParserIssues_few": "{{count}} ustalenia parsera.",
+    "xerImportParserIssues_many": "{{count}} ustaleń parsera.",
+    "xerImportParserIssues_other": "{{count}} ustalenia parsera.",
+    "xerImportCalendarIssues_one": "{{count}} ustalenie kalendarza.",
+    "xerImportCalendarIssues_few": "{{count}} ustalenia kalendarza.",
+    "xerImportCalendarIssues_many": "{{count}} ustaleń kalendarza.",
+    "xerImportCalendarIssues_other": "{{count}} ustalenia kalendarza.",
+    "xerImportNumberIssues_one": "{{count}} problem formatu liczbowego.",
+    "xerImportNumberIssues_few": "{{count}} problemy formatu liczbowego.",
+    "xerImportNumberIssues_many": "{{count}} problemów formatu liczbowego.",
+    "xerImportNumberIssues_other": "{{count}} problemy formatu liczbowego.",
+    "xerImportEnumFallbacks_one": "{{count}} rozwiązanie awaryjne enum.",
+    "xerImportEnumFallbacks_few": "{{count}} rozwiązania awaryjne enum.",
+    "xerImportEnumFallbacks_many": "{{count}} rozwiązań awaryjnych enum.",
+    "xerImportEnumFallbacks_other": "{{count}} rozwiązania awaryjnego enum.",
+    "xerImportUnsupportedSemantics_one": "{{count}} ustawienie planowania P6 użyło bezpiecznej wartości zastępczej.",
+    "xerImportUnsupportedSemantics_few": "{{count}} ustawienia planowania P6 użyły bezpiecznych wartości zastępczych.",
+    "xerImportUnsupportedSemantics_many": "{{count}} ustawień planowania P6 użyło bezpiecznych wartości zastępczych.",
+    "xerImportUnsupportedSemantics_other": "{{count}} ustawienia planowania P6 użyły bezpiecznych wartości zastępczych.",
+    "xerImportDatesAsRecorded_one": "{{count}} zadanie pokazuje daty tak, jak zapisał je Primavera (bez ponownego przeliczenia).",
+    "xerImportDatesAsRecorded_few": "{{count}} zadania pokazują daty tak, jak zapisał je Primavera (bez ponownego przeliczenia).",
+    "xerImportDatesAsRecorded_many": "{{count}} zadań pokazuje daty tak, jak zapisał je Primavera (bez ponownego przeliczenia).",
+    "xerImportDatesAsRecorded_other": "{{count}} zadania pokazują daty tak, jak zapisał je Primavera (bez ponownego przeliczenia).",
+    "xerImportDatesAsRecordedOffer_one": "{{count}} zadanie różni się od dat zapisanych w pliku — możesz je pokazać.",
+    "xerImportDatesAsRecordedOffer_few": "{{count}} zadania różnią się od dat zapisanych w pliku — możesz je pokazać.",
+    "xerImportDatesAsRecordedOffer_many": "{{count}} zadań różni się od dat zapisanych w pliku — możesz je pokazać.",
+    "xerImportDatesAsRecordedOffer_other": "{{count}} zadania różnią się od dat zapisanych w pliku — możesz je pokazać.",
+    "importDatesAsRecorded_one": "{{count}} zadanie pokazuje daty tak, jak zapisano je w pliku (bez ponownego przeliczenia).",
+    "importDatesAsRecorded_few": "{{count}} zadania pokazują daty tak, jak zapisano je w pliku (bez ponownego przeliczenia).",
+    "importDatesAsRecorded_many": "{{count}} zadań pokazuje daty tak, jak zapisano je w pliku (bez ponownego przeliczenia).",
+    "importDatesAsRecorded_other": "{{count}} zadania pokazują daty tak, jak zapisano je w pliku (bez ponownego przeliczenia).",
+    "importDatesAsRecordedOffer_one": "{{count}} zadanie różni się od dat zapisanych w pliku — możesz je pokazać.",
+    "importDatesAsRecordedOffer_few": "{{count}} zadania różnią się od dat zapisanych w pliku — możesz je pokazać.",
+    "importDatesAsRecordedOffer_many": "{{count}} zadań różni się od dat zapisanych w pliku — możesz je pokazać.",
+    "importDatesAsRecordedOffer_other": "{{count}} zadania różnią się od dat zapisanych w pliku — możesz je pokazać.",
+    "xerExportLoss": "Eksport do {{format}} powoduje utratę informacji źródłowych XER.",
     "mppLegacy": "Ten plik .mpp używa starszego formatu (Project 2007 lub starszy). Wyeksportuj go w MS Project jako XML (Plik → Zapisz jako → XML) i otwórz ten plik.",
     "mppEncrypted": "Ten plik .mpp jest zabezpieczony hasłem. Wyeksportuj go w MS Project jako XML (Plik → Zapisz jako → XML) i otwórz ten plik.",
     "saveFailed": "Nie udało się zapisać",
@@ -50,6 +133,13 @@
     "mppTimephasedSteeringLost_many": "{{count}} zadań straciło powiązanie z rozkładem godzin z MS Project po tej edycji; pierwotny rozkład pozostaje zachowany w pliku.",
     "mppTimephasedSteeringLost_other": "{{count}} zadania straciło powiązanie z rozkładem godzin z MS Project po tej edycji; pierwotny rozkład pozostaje zachowany w pliku.",
     "readMore": "Dowiedz się więcej",
+    "taskTypesUnlocked": "Ten plik zawiera zapisaną pracę lub własne reguły pracy; reguła pracy i pozostała praca są wyświetlane dla tego projektu.",
+    "taskTypesUnlockedDetail": "Ten plik zawiera zapisaną pracę lub własne reguły pracy; reguła pracy i pozostała praca są wyświetlane dla tego projektu.",
+    "workRulesReadMore": "Reguły pracy – wyjaśnienie",
+    "workRuleDurationsChanged_one": "Po zmianie kalendarza reguła pracy dostosowała czas trwania {{count}} zadania (praca pozostaje, zmieniła się liczba godzin dziennie).",
+    "workRuleDurationsChanged_few": "Po zmianie kalendarza reguła pracy dostosowała czas trwania {{count}} zadań (praca pozostaje, zmieniła się liczba godzin dziennie).",
+    "workRuleDurationsChanged_many": "Po zmianie kalendarza reguła pracy dostosowała czas trwania {{count}} zadań (praca pozostaje, zmieniła się liczba godzin dziennie).",
+    "workRuleDurationsChanged_other": "Po zmianie kalendarza reguła pracy dostosowała czas trwania {{count}} zadania (praca pozostaje, zmieniła się liczba godzin dziennie).",
     "pasteSkippedReadOnly_one": "{{count}} komórka pominięta: jest tylko do odczytu (np. automatycznie numerowany kod WBS lub kolumna obliczana).",
     "pasteSkippedReadOnly_few": "{{count}} komórki pominięte: są tylko do odczytu (np. automatycznie numerowany kod WBS lub kolumna obliczana).",
     "pasteSkippedReadOnly_many": "{{count}} komórek pominiętych: są tylko do odczytu (np. automatycznie numerowany kod WBS lub kolumna obliczana).",
@@ -58,7 +148,24 @@
     "levelingDelayRoundedToWorkdays_one": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadania do pełnych dni roboczych.",
     "levelingDelayRoundedToWorkdays_few": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych.",
     "levelingDelayRoundedToWorkdays_many": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych.",
-    "levelingDelayRoundedToWorkdays_other": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych."
+    "levelingDelayRoundedToWorkdays_other": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych.",
+    "schedulingProfileApplied": "Ten projekt liczy się jako {{profile}}. Zmień to w Plik → Info o projekcie → Profil obliczeń i opcje.",
+    "schedulingProfileShifted_few": "Po zastosowaniu przesunięto {{count}} zadania.",
+    "schedulingProfileShifted_many": "Po zastosowaniu przesunięto {{count}} zadań.",
+    "schedulingProfileShifted_one": "Po zastosowaniu przesunięto {{count}} zadanie.",
+    "schedulingProfileShifted_other": "Po zastosowaniu przesunięto {{count}} zadania.",
+    "actions": {
+      "openProjectInfo": "Otwórz profil obliczeń"
+    },
+    "xerArchiveUnusable": "Archiwum źródłowe XER w tym pliku jest bezużyteczne i zostało pominięte; sam projekt otwarto w całości.",
+    "xerArchiveUnusableLine": "Archiwum źródłowe XER w tym pliku było bezużyteczne i zostało pominięte.",
+    "xerArchiveUnusableConsequence": "Harmonogram, profil obliczeń i wszystkie dane projektu z IFC są kompletne. Brakuje: dat w postaci zapisanej przez Primaverę oraz pochodzenia źródła dla AI i rozszerzeń. Zapis tworzy plik bez archiwum; zaimportuj ponownie oryginalny plik .xer, aby odzyskać archiwum.",
+    "xerArchiveReasonSchemaVersion": "Powód: archiwum ma nieznaną wersję schematu lub układ (nowszy lub inny program zapisujący).",
+    "xerArchiveReasonHashMismatch": "Powód: suma kontrolna nie pasuje do bajtów źródłowych — archiwum jest uszkodzone.",
+    "xerArchiveReasonTruncated": "Powód: archiwum jest obcięte — brakuje części bajtów źródłowych.",
+    "xerArchiveReasonBytesMissing": "Powód: brakuje samych bajtów źródłowych — prawdopodobnie inny program IFC przepisał plik.",
+    "xerArchiveReasonMetadataInvalid": "Powód: bajty źródłowe są nienaruszone, ale dane z nich wyprowadzone są bezużyteczne.",
+    "xerArchiveReasonStructure": "Powód: struktura archiwum w IFC jest nieprawidłowa (zdublowana, przestawiona lub błędnie powiązana)."
   },
   "yes": "Tak",
   "no": "Nie",
@@ -160,6 +267,8 @@
     "hourPlanningSection": "Planowanie godzinowe",
     "enableHourPlanning": "Włącz planowanie godzinowe",
     "enableHourPlanningHint": "Włącza planowanie godzinowo-minutowe: skalę czasu w godzinach, zmiany z pasmami czasu pracy i paski zadań z dokładnością do godziny. Wyłączone ⇒ aplikacja pozostaje w pełni dniowa, tak jak wcześniej.",
+    "showTaskTypes": "Pokaż reguły pracy i pracę",
+    "showTaskTypesHint": "Pliki z MS Project lub Primavera P6 zawsze to pokazują. Wyłączone: czas trwania i jednostki pozostają, praca się dostosowuje.",
     "allowMixedDayHour": "Zezwól na mieszane planowanie dniowo-godzinowe",
     "defaultTaskDurationUnit": "Domyślna jednostka nowych zadań",
     "defaultTaskDurationUnitHint": "Określa, czy nowe zadania zaczynają się w dniach roboczych, czy godzinach pracy. Istniejące zadania się nie zmieniają.",
@@ -888,9 +997,20 @@
     "offer_few": "Ponowne przeliczenie przesunęło {{count}} z {{total}} zadań względem dat w pliku.",
     "offer_many": "Ponowne przeliczenie przesunęło {{count}} z {{total}} zadań względem dat w pliku.",
     "offer_other": "Ponowne przeliczenie przesunęło {{count}} z {{total}} zadań względem dat w pliku.",
+    "activeCount_one": "Widzisz harmonogram tak, jak zapisał go Primavera; ponowne przeliczenie przesunęłoby {{count}} zadanie.",
+    "activeCount_few": "Widzisz harmonogram tak, jak zapisał go Primavera; ponowne przeliczenie przesunęłoby {{count}} zadania.",
+    "activeCount_many": "Widzisz harmonogram tak, jak zapisał go Primavera; ponowne przeliczenie przesunęłoby {{count}} zadań.",
+    "activeCount_other": "Widzisz harmonogram tak, jak zapisał go Primavera; ponowne przeliczenie przesunęłoby {{count}} zadania.",
+    "activeCountNeutral_one": "Widzisz daty takie, jak zostały zapisane w pliku; ponowne przeliczenie przesunęłoby {{count}} zadanie.",
+    "activeCountNeutral_few": "Widzisz daty takie, jak zostały zapisane w pliku; ponowne przeliczenie przesunęłoby {{count}} zadania.",
+    "activeCountNeutral_many": "Widzisz daty takie, jak zostały zapisane w pliku; ponowne przeliczenie przesunęłoby {{count}} zadań.",
+    "activeCountNeutral_other": "Widzisz daty takie, jak zostały zapisane w pliku; ponowne przeliczenie przesunęłoby {{count}} zadania.",
     "show": "Pokaż zapisane daty",
     "active": "Widzisz daty takie, jak zostały zapisane w pliku. Nie wykonano ponownego przeliczenia.",
-    "recalculate": "Przelicz"
+    "recalculate": "Przelicz",
+    "markDeviates": "Odbiega",
+    "markPartlyUnrecorded": "Częściowo niezapisane",
+    "notRecorded": "Niezapisane"
   },
   "duration": {
     "suffixDay": "d",
@@ -1083,6 +1203,7 @@
     "declaredHeading": "Co to rozszerzenie deklaruje",
     "declaredNote": "To deklaracja autora, a nie ograniczenie — kod i tak może więcej.",
     "declaredNone": "Nic nie zadeklarowano.",
+    "permImportSource": "importSource — pełne oryginalne bajty źródłowe każdego zaimportowanego pliku (np. surowy plik Primavera), łącznie z polami, które nigdy nie trafiają do projektu.",
     "cancel": "Nie instaluj",
     "confirm": "Zainstaluj"
   },
@@ -1141,6 +1262,162 @@
       "completion": "Ukończenie",
       "actualStart": "Rzeczywisty start",
       "actualFinish": "Rzeczywiste zakończenie"
+    }
+  },
+  "conventions": {
+    "preserveActualDatesInBackwardPass": {
+      "label": "Zachowaj daty rzeczywiste w obliczeniu wstecz",
+      "help": "Rozpoczęte lub zakończone zadanie zachowuje zarejestrowane daty także po stronie późnej; zakończony następnik nie cofa otwartego poprzednika w przeszłość."
+    },
+    "clampNegativeFreeFloat": {
+      "label": "Zapas swobodny nigdy ujemny",
+      "help": "Przy nieosiągalnym późnym ograniczeniu zapas całkowity pozostaje ujemny, ale zapas swobodny wynosi zero."
+    },
+    "p6ZeroDurationUsesPlannedBoundary": {
+      "label": "Kamień milowy trzyma się zaplanowanej granicy kalendarza",
+      "help": "Kamień milowy bez czasu trwania pozostaje na granicy kalendarza zaplanowanej w pliku: początek dnia pozostaje kamieniem początkowym, koniec pasma może wypaść na zakończeniu poprzednika."
+    },
+    "p6UseTaskPlannedStartFloor": {
+      "label": "Planowany początek jako dodatkowa dolna granica",
+      "help": "Planowany początek z pliku działa jako dolna granica, gdy początek i koniec wypadają ponad jeden dzień kalendarzowy później, niż pozwala sieć."
+    },
+    "p6FinishMilestoneBoundaryWindow": {
+      "label": "Kamień końcowy jako okno granicy",
+      "help": "Kamień końcowy może leżeć na dwóch sąsiednich granicach kalendarza: wczesny początek na początku pasma, wczesny koniec na końcu poprzedniego pasma."
+    },
+    "p6PreserveActualInstants": {
+      "label": "Przejmij daty rzeczywiste dokładnie",
+      "help": "Zarejestrowane rzeczywiste daty rozpoczęcia i zakończenia nie są przesuwane do pasma czasu pracy."
+    },
+    "p6UseRemainingStartForProgress": {
+      "label": "Zadanie w toku: wczesny początek = początek pozostałej pracy",
+      "help": "Wczesny i późny początek zadania w toku opisują, gdzie zaczyna się pozostała praca, a nie historyczny rzeczywisty początek. Przy obliczaniu wstecz przez relację rozpoczęcie-rozpoczęcie liczy się tylko pozostały czas trwania."
+    },
+    "p6PreserveZeroDurationConstraintInstants": {
+      "label": "Dokładny moment ograniczenia na kamieniu milowym",
+      "help": "Ograniczenie daty i godziny na kamieniu milowym bez czasu trwania jest dokładnym punktem, także na początku pasma pracy."
+    },
+    "resumeFromActualElapsed": {
+      "label": "Pozostała praca wznawia się po upływie czasu",
+      "help": "Zadanie w toku wznawia pozostałą pracę w rzeczywistym początku plus czas, który już upłynął, a nie w dacie stanu."
+    },
+    "unstartedIgnoresStatusDate": {
+      "label": "Nie przesuwaj nierozpoczętych zadań do daty stanu",
+      "help": "Zadanie, które jeszcze się nie rozpoczęło, nie jest automatycznie przesuwane na datę stanu lub później."
+    },
+    "p6RelationFinishBoundary": {
+      "label": "Następnik zaczyna na granicy zakończenia",
+      "help": "Przy relacji koniec-początek bez opóźnienia na wspólnej granicy pasma następnik zaczyna się w chwili zakończenia poprzednika (tylko relacje oznaczone tak w pliku). Przy obliczaniu wstecz następnik pokazuje swój najpóźniejszy start po prostu jako początek pasma pracy."
+    },
+    "p6BackwardLagFinishBoundary": {
+      "label": "Opóźnienie wstecz od granicy zakończenia",
+      "help": "Gdy obliczenie wstecz odejmuje opóźnienie w czasie pracy od granicy zakończenia i trafia dokładnie na początek pasma, ląduje na poprzedniej granicy zakończenia. Przy relacji zakończenie-zakończenie bez opóźnienia najpóźniejsze zakończenie na końcu pasma również pozostaje na tej granicy zakończenia."
+    },
+    "p6CompletedDataDateWindow": {
+      "label": "Zakończone zadanie w oknie daty stanu",
+      "help": "Zakończone zadanie otrzymuje wczesne daty w oknie daty stanu, a jego koniec liczy się do końca projektu (tylko zadania pochodzące z P6)."
+    },
+    "p6CompletedLoeActualFinish": {
+      "label": "Zakończone LOE przez rzeczywisty koniec",
+      "help": "Zakończone działanie level-of-effort z jednym wejściem początek-początek podąża trasą przez swój rzeczywisty koniec (tylko zadania pochodzące z P6)."
+    },
+    "p6OpenLoeTargetSpan": {
+      "label": "Nierozpoczęte LOE przyjmuje okno docelowe",
+      "help": "Działanie level-of-effort, które jeszcze się nie rozpoczęło, przyjmuje swoje okno docelowe jako czas trwania (tylko zadania pochodzące z P6)."
+    },
+    "p6CompletedPredecessorAtDataDate": {
+      "label": "Zakończony poprzednik nie wstrzymuje po dacie stanu",
+      "help": "Jeśli rzeczywiste zakończenie zakończonego poprzednika przypada po dacie stanu, jego następniki mogą mimo to rozpocząć się w dacie stanu."
+    },
+    "p6FreeFloatOnOwnCalendar": {
+      "label": "Zapas swobodny we własnym kalendarzu",
+      "help": "Zapas swobodny nierozpoczętego zadania liczy się dla każdej relacji w kalendarzu samego zadania, a nie następnika: dla zakończenie-rozpoczęcie, rozpoczęcie-rozpoczęcie i zakończenie-zakończenie, także z opóźnieniem w czasie pracy w kalendarzu poprzednika. Rozpoczęte zadanie tylko dla zakończenie-rozpoczęcie bez opóźnienia."
+    },
+    "p6CompletedRemainingLag": {
+      "label": "Upłynięte opóźnienie zakończonego poprzednika nie jest liczone",
+      "help": "Po stronie terminów najpóźniejszych liczy się tylko ta część opóźnienia po zakończonym poprzedniku, która w dacie stanu jeszcze nie upłynęła."
+    },
+    "p6CompletedOutOfSequenceWindow": {
+      "label": "Zadanie zakończone poza kolejnością czeka na poprzedników",
+      "help": "Zakończone zadanie, którego poprzednik jeszcze się nie zakończył, dostaje swoje zerowe okno po tym poprzedniku zamiast w dacie stanu (Retained Logic)."
+    },
+    "p6CompletedPhysicalAtDataDate": {
+      "label": "Zakończone zadanie z postępem fizycznym na dacie stanu",
+      "help": "Zakończone zadanie z fizycznym procentem ukończenia jest pokazywane jako jeden punkt na dacie stanu lub później, jeśli wymaga tego poprzednik, zamiast na swoich rzeczywistych datach. Zmierzone tylko dla postępu fizycznego; dla innych typów postępu (domyślnie w P6: czas trwania) to zachowanie nie zostało zmierzone i pozostaje wyłączone."
+    },
+    "p6InProgressStartLagElapsed": {
+      "label": "Upłynięte opóźnienie SS od trwającego poprzednika się nie liczy",
+      "help": "Przy relacji start-start od zadania, które już się rozpoczęło, liczy się tylko ta część opóźnienia, która od jego rzeczywistego startu do daty stanu jeszcze nie upłynęła."
+    },
+    "p6FinishFinishStartMilestoneLateFinish": {
+      "label": "Relacja koniec-koniec do kamienia milowego startu wiąże się z samym kamieniem",
+      "help": "Relacja koniec-koniec do kamienia milowego startu liczy się do samego kamienia milowego, a nie do początku jego dnia: najpóźniejsze zakończenie poprzednika może sięgać najpóźniejszego zakończenia kamienia milowego."
+    },
+    "p6StartedTaskIgnoresPlannedStartFloor": {
+      "label": "Planowany start nie jest dolną granicą dla zadania w toku",
+      "help": "Pozostała praca rozpoczętego zadania zaczyna się w dacie stanu i zaraz po jego poprzednikach, nawet jeśli planowany start jest późniejszy."
+    },
+    "p6LateFinishOnOwnCalendar": {
+      "label": "Najpóźniejsze zakończenie w kalendarzu zadania",
+      "help": "Jeśli najpóźniejsze zakończenie wyznaczone przez następnika wypada poza czasem pracy zadania, staje się końcem poprzedniego okresu pracy w kalendarzu zadania."
+    },
+    "p6ProgressOverrideIgnoresStartedSuccessor": {
+      "label": "Progress Override pomija rozpoczętego następnika także wstecz",
+      "help": "Przy Progress Override powiązanie z już rozpoczętym następnikiem nie wpływa na najpóźniejsze terminy ani zapas swobodny niezakończonego poprzednika."
+    },
+    "p6FinishNotBeforeFinishFinishBound": {
+      "label": "Najwcześniejsze zakończenie nie przed granicą koniec-koniec",
+      "help": "Przy powiązaniu koniec-koniec najwcześniejsze zakończenie następnika nigdy nie wypada w czasie zegarowym przed granicą wyznaczoną przez poprzednika. Jeśli ta granica przypada w czasie wolnym następnika, zakończeniem staje się początek następnego okresu pracy."
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "Zadania ALAP tak późno, jak pozwalają następniki",
+      "help": "Nierozpoczęte zadanie z ograniczeniem „najpóźniej jak to możliwe” kończy się co do minuty wtedy, gdy potrzebują go następniki, najpierw następniki, tak aby łańcuch był ciągły. Jego własny planowany początek się nie liczy; zadanie bez poprzednika nie zaczyna się wtedy przed datą stanu. Dotyczy tylko kalendarza godzinowego."
+    }
+  },
+  "profiles": {
+    "builtIn": {
+      "p6": "Primavera P6",
+      "msproject": "Microsoft Project",
+      "ops": "Open Planner Studio"
+    },
+    "modified": "{{name}} (zmieniony)",
+    "copyOf": "Kopia {{name}}"
+  },
+  "schedulingProfile": {
+    "title": "Profil obliczeń i opcje",
+    "profile": "Profil obliczeń",
+    "conventionsTitle": "Konwencje tego profilu",
+    "optionsTitle": "Opcje obliczeń tego projektu",
+    "customName": "Nazwa tego własnego profilu",
+    "saveAsTemplate": "Zapisz jako szablon",
+    "updateTemplate": "Aktualizuj szablon z tego projektu",
+    "applyTemplate": "Aktualizuj z szablonu",
+    "deleteTemplate": "Usuń szablon",
+    "templateDeviates": "Ten profil różni się od szablonu „{{name}}”.",
+    "applyDefaultOptions": "Zastosuj domyślne opcje tego profilu",
+    "themes": {
+      "completedWork": "Postęp i ukończona praca",
+      "relationsLag": "Powiązania i opóźnienie",
+      "milestones": "Kamienie milowe i działania LOE",
+      "float": "Zapas i późne terminy",
+      "instants": "Daty i chwile z pliku",
+      "msproject": "Postęp jak w Microsoft Project",
+      "ownProfilesOnly": "Tylko dla własnych profili"
+    },
+    "ownProfilesOnlyNote": "Te konwencje są wyłączone w każdym wbudowanym profilu, także w Primavera P6. Włączenie którejś tworzy własny profil.",
+    "deviatingCount": "zmienione: {{n}}",
+    "baseValue": "bazowo: {{value}}",
+    "on": "wł.",
+    "off": "wył.",
+    "resetToBase": "przywróć bazę",
+    "showHelp": "Objaśnienie: „{{name}}”",
+    "sourceOptions": {
+      "title": "Ustawienia z pliku źródłowego",
+      "intro": "Te opcje obliczeń pochodzą z pliku Primavera P6 (.xer). Są uwzględniane w obliczeniach, ale nie można ich tu zmienić.",
+      "useExpectedFinishDates": "Używaj oczekiwanych dat zakończenia (P6: Use Expected Finish Dates)",
+      "useProjectEndDateForFloat": "Licz zapas do daty zakończenia projektu",
+      "p6CompletedLateFromRemainingWindow": "Ukończone zadanie: późne terminy od daty stanu",
+      "needsConvention": "Działa tylko razem z konwencją „{{convention}}”, która jest teraz wyłączona."
     }
   }
 }

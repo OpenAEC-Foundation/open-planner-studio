@@ -55,15 +55,20 @@
       "calendar": "Kalender", "childIds": "IDs untergeordneter Aufgaben", "color": "Farbe", "completion": "Fortschritt",
       "constraint2Date": "Datum der sekundären Einschränkung", "constraint2Type": "Typ der sekundären Einschränkung", "constraintDate": "Einschränkungsdatum", "constraintHard": "Harte Einschränkung", "constraintType": "Einschränkungstyp",
       "critical": "Kritisch", "customFieldData": "Benutzerfelddaten", "deadline": "Stichtag", "description": "Beschreibung", "duration": "Dauer", "durationMinutes": "Dauer (Minuten)", "durationType": "Dauertyp",
-      "earlyFinish": "Frühestes Ende", "earlyStart": "Frühester Anfang", "effortDriven": "Aufwandsgesteuert", "externalRelationData": "Daten externer Beziehungen",
+      "earlyFinish": "Frühestes Ende", "earlyStart": "Frühester Anfang", "effortDriven": "Aufwandsgesteuert", "explicitSummary": "Expliziter Sammelvorgang", "externalRelationData": "Daten externer Beziehungen",
       "floatPath": "Pufferpfad", "freeFloat": "Freier Puffer", "hammock": "Hammock (abgeleitete Dauer)", "interferingFloat": "Störender Puffer", "internalRelationData": "Daten interner Beziehungen",
       "lateFinish": "Spätestes Ende", "lateStart": "Spätester Anfang", "levelingDelay": "Kapazitätsabgleichsverzögerung", "levelingDelayElapsed": "Verstrichene Abgleichsverzögerung", "levelingDelayMinutes": "Abgleichsverzögerung (Minuten)",
-      "mandatoryMilestone": "Verbindlicher Meilenstein", "manuallyScheduled": "Manuell geplant", "milestone": "Meilenstein", "milestoneKind": "Meilensteintyp", "mspTaskType": "Microsoft-Project-Aufgabentyp",
-      "name": "Aufgabenname", "nearCritical": "Nahezu kritisch", "noteData": "Notizdaten", "notes": "Notizen", "parentId": "ID der übergeordneten Aufgabe", "priority": "Abgleichspriorität",
+      "mandatoryMilestone": "Verbindlicher Meilenstein", "manuallyScheduled": "Manuell geplant", "milestone": "Meilenstein", "milestoneKind": "Meilensteintyp", "mspTaskType": "MS-Project-Vorgangsart (Import)",
+      "name": "Aufgabenname", "nearCritical": "Nahezu kritisch", "noteData": "Notizdaten", "notes": "Notizen", "p6Provenance": "Primavera-P6-Herkunft", "parentId": "ID der übergeordneten Aufgabe", "priority": "Abgleichspriorität",
+      "recordedSource": "Herkunft (gespeicherte Termine)",
       "remainingMinutes": "Verbleibend (Minuten)", "remainingTime": "Verbleibend", "resourceIds": "Ressourcen-IDs", "resume": "Fortsetzungsdatum",
       "scheduleFinish": "Geplantes Ende", "scheduleStart": "Geplanter Anfang", "splitGaps": "Unterbrechungen", "status": "Status", "stop": "Stoppdatum", "taskId": "Aufgaben-ID", "taskType": "Aufgabentyp",
       "timephasedContours": "Zeitphasenverläufe", "timephasedDurationWalks": "Zeitphasen-Dauersegmente", "timephasedFinishFloor": "Untergrenze des Zeitphasenendes", "timephasedStartAnchor": "Anker des Zeitphasenanfangs",
-      "totalFloat": "Gesamtpuffer", "wbs": "Projektstrukturplan (PSP)", "workWindowFinish": "Ende des Arbeitsfensters", "workWindowStart": "Anfang des Arbeitsfensters"
+      "totalFloat": "Gesamtpuffer", "wbs": "Projektstrukturplan (PSP)", "workWindowFinish": "Ende des Arbeitsfensters", "workWindowStart": "Anfang des Arbeitsfensters",
+      "totalFloat": "Gesamtpuffer", "wbs": "Projektstrukturplan (PSP)", "workWindowFinish": "Ende des Arbeitsfensters", "workRule": "Arbeitsregel",
+      "totalFloat": "Gesamtpuffer", "wbs": "Projektstrukturplan (PSP)", "workWindowFinish": "Ende des Arbeitsfensters", "assignmentPlannedWork": "Geplante Arbeit (Stunden)",
+      "totalFloat": "Gesamtpuffer", "wbs": "Projektstrukturplan (PSP)", "workWindowFinish": "Ende des Arbeitsfensters", "assignmentActualWork": "Ist-Arbeit (Stunden)",
+      "totalFloat": "Gesamtpuffer", "wbs": "Projektstrukturplan (PSP)", "workWindowFinish": "Ende des Arbeitsfensters", "assignmentRemainingWork": "Verbleibende Arbeit (Stunden)"
     },
     "category": {
       "task": "Aufgabe", "planning": "Planung", "constraints": "Einschränkungen", "relations": "Beziehungen", "resources": "Ressourcen",
@@ -71,6 +76,7 @@
     },
     "status": { "stale": "veraltet" },
     "validation": {
+      "assignmentWork": "Geben Sie die Restarbeit in Stunden als Zahl größer als 0 ein (Name: Stunden; …).",
       "readOnly": "Diese berechnete Spalte kann nicht bearbeitet werden.",
       "scheduleFinishNotManual": "Das geplante Ende gilt nur für einen manuell geplanten Vorgang. Ändern Sie das Ende über die Spalte Ende oder über die Dauer.",
       "finishFromDuration": "Bei diesem Vorgang ergibt sich das Ende aus Anfang und Dauer. Ändern Sie den Anfang oder die Dauer.",
@@ -248,6 +254,22 @@
     "durationTotalHours": "Stunden gesamt",
     "hourCalendarHint": "Die Stundeneingabe erfordert einen Stundenkalender (Arbeitszeiten)."
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "Feste Dauer und Einheiten",
+    "FIXED_DURATION_WORK": "Feste Dauer und Arbeit",
+    "FIXED_WORK": "Feste Arbeit",
+    "FIXED_RATE": "Feste Einheiten",
+    "label": "Arbeitsregel",
+    "projectDefault": "Projektstandard ({{rule}})",
+    "protects": "Geschützt: {{what}}",
+    "protectsFIXED_DURATION_RATE": "Dauer und Einheiten (Arbeit folgt)",
+    "protectsFIXED_DURATION_WORK": "Dauer und Arbeit (Einheiten folgen)",
+    "protectsFIXED_WORK": "Arbeit (Dauer folgt den Einheiten)",
+    "protectsFIXED_RATE": "Einheiten (Dauer folgt der Arbeit)",
+    "mspEffortDriven": "Aus MS Project: leistungsgesteuert",
+    "mspNotEffortDriven": "Aus MS Project: nicht leistungsgesteuert",
+    "none": "Projektstandard"
+  },
   "properties": {
     "task": "Aufgabe",
     "deleteTask": "Aufgabe löschen",
@@ -275,6 +297,10 @@
     "timephasedActive": "Folgt der Stundenverteilung aus MS Project",
     "timephasedLost": "Stundenverteilung aus MS Project nach der Bearbeitung nicht mehr angewendet — die ursprüngliche Verteilung bleibt in der Datei erhalten",
     "timephasedContoured": "Eigene Stundenverteilung",
+    "recordedDatesActive": "Zeigt die von Primavera gespeicherten Termine für diese Aufgabe",
+    "recordedDatesActiveNeutral": "Zeigt die in der Datei gespeicherten Termine für diese Aufgabe",
+    "recordedDatesDeviates": "Weicht von den gespeicherten Terminen ab",
+    "recordedDatesPartlyUnrecorded": "Erfassung teilweise unvollständig — siehe die Spalten für spätesten Termin/Puffer",
     "completion": "Fortschritt (%)",
     "progress": {
       "actualStart": "Ist-Anfang",
@@ -318,7 +344,12 @@
       "contour": "Stundenverteilung…",
       "contoured": "Kontur",
       "contouredHint": "Diese Zuweisung hat eine eigene Stundenverteilung; bearbeiten oder aufheben über die Schaltfläche Stundenverteilung.",
-      "importedCurve": "Importierte Kurve"
+      "importedCurve": "Importierte Kurve",
+      "work": "Arbeit (Rest)",
+      "workHint": "Restarbeit in Stunden; die Arbeitsregel bestimmt, ob Dauer oder Einheiten sich bewegen.",
+      "workDeviates": "Weicht von Einheiten × Dauer ab",
+      "workDeviatesHint": "Gespeicherte Arbeit {{stored}} h weicht von Einheiten × Restdauer ({{derived}} h) ab. Das Histogramm folgt der gespeicherten Arbeit über die gesamte Vorgangsdauer; die Einheiten bleiben wie in der Datei.",
+      "locked": "Durch die Arbeitsregel {{rule}} geschützt"
     },
     "calendar": "Kalender",
     "calendarProject": "Projektkalender",

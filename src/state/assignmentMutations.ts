@@ -13,17 +13,87 @@
 //
 // Werkt op Immer-drafts (zoals `taskTree.ts`): de functies MUTEREN, doen geen snapshot en geen
 // guard. Roep ze pas aan nadat de aanroeper zijn guards en `beginUndoable` gedaan heeft.
+//
+// Integratie groep B × #170 (besluit 2): dit is ook DE plek van de werkregel-nazorg (taaktypes-
+// etappe, spec §5 rij 2/4/5): momentopname van de werkdriehoek vóór de wijziging (`captureTriangle`
+// + oude werkminuten + `hourInputFinishBasis`), de regel na de wijziging (`settleAssignmentAdded`/
+// `settleAssignmentRemoved`/`settleUnitsEdit`) en bij een gewijzigde taakduur de duurnazorg
+// (`settleDurationAftermath`). DAARNA volgt onvoorwaardelijk de toewijzingen-trigger
+// (`invalidateForAssignmentChange`). De uitkomst zegt welke taken MSP-sturing verloren en of er een
+// taakduur veranderde (⇒ de slice markeert de planning verouderd).
 import type { Task, TaskTimephasedContour, TimephasedContourPeriod } from '@/types/task';
 import { isValidUnits, type Resource, type ResourceAssignment } from '@/types/resource';
 import { contourIndexForAssignment } from '@/engine/contour/contourEngine';
 import { nextFreePaletteColor } from '@/engine/renderer/resourcePalette';
-import { invalidateForAssignmentChange } from '@/utils/taskDefaults';
+import type { WorkCalendar } from '@/types/calendar';
+import {
+  hourInputFinishBasis, invalidateForAssignmentChange, taskCalendarHoursPerDay, taskWorkMinutesOf,
+  type HourInputFinishBasis,
+} from '@/utils/taskDefaults';
+import {
+  captureTriangle, settleAssignmentAdded, settleAssignmentRemoved, settleDurationAftermath, settleUnitsEdit,
+  type CapturedTriangle, type WorkRuleDeps,
+} from '@/engine/work/workRuleApply';
 
-/** Minimale state-vorm (subset van AppState) — vermijdt een import van de volledige storetype. */
-interface AssignmentState {
+/** Minimale state-vorm (subset van AppState) — vermijdt een import van de volledige storetype. De
+ *  kalender-/projectvelden zijn voor de werkdriehoek (`WorkRuleDeps`). */
+interface AssignmentState extends WorkRuleDeps {
   tasks: Task[];
   resources: Resource[];
   assignments: ResourceAssignment[];
+  calendars: WorkCalendar[];
+  calendar: WorkCalendar;
+}
+
+/** Wat een toewijzingswijziging teweegbracht. `lostTaskIds`: taken die MSP-sturing (laag 3/4)
+ *  verloren, in bewerkingsvolgorde, zonder dubbelen — de slice meldt het aantal, de MCP-draft
+ *  registreert ze op de lease. `durationChanged`: de werkregel veranderde een taakduur. */
+export interface AssignmentChangeOutcome {
+  lostTaskIds: string[];
+  durationChanged: boolean;
+}
+
+/** Momentopname van één taak vóór een toewijzingswijziging (werkdriehoek, oude werkminuten en de
+ *  basis van het ingevoerde uur-einde — B1: altijd van vóór de wijziging). */
+interface AssignmentTaskCapture {
+  task: Task;
+  triangle: CapturedTriangle | null;
+  oldWorkMinutes: number;
+  finishBasis: HourInputFinishBasis;
+}
+
+function captureAssignmentTask(s: AssignmentState, task: Task): AssignmentTaskCapture {
+  return {
+    task,
+    triangle: captureTriangle(task, s.assignments, s),
+    oldWorkMinutes: taskWorkMinutesOf(task, taskCalendarHoursPerDay(task, s.calendars, s.calendar)),
+    finishBasis: hourInputFinishBasis(task),
+  };
+}
+
+/** Verzamelt de uitkomst: duurnazorg bij een gewijzigde taakduur, dan (per taak één keer) de
+ *  toewijzingen-trigger. */
+class OutcomeBuilder {
+  private readonly lost: string[] = [];
+  durationChanged = false;
+
+  settled(s: AssignmentState, c: AssignmentTaskCapture, durationChanged: boolean): void {
+    if (!durationChanged) return;
+    this.durationChanged = true;
+    if (settleDurationAftermath(c.task, s, c.oldWorkMinutes, c.finishBasis)) this.markLost(c.task.id);
+  }
+
+  invalidate(task: Task): void {
+    if (invalidateForAssignmentChange(task)) this.markLost(task.id);
+  }
+
+  private markLost(id: string): void {
+    if (!this.lost.includes(id)) this.lost.push(id);
+  }
+
+  build(): AssignmentChangeOutcome {
+    return { lostTaskIds: this.lost, durationChanged: this.durationChanged };
+  }
 }
 
 export type AssignmentPatch = Partial<Pick<ResourceAssignment, 'unitsPerDay' | 'curve'>>;
@@ -46,25 +116,35 @@ export function insertResource(s: AssignmentState, res: Omit<Resource, 'id'>, id
  *  `removeAssignment` (`invalidateForAssignmentChange`: laag 3/4 en de nivelleergaten) — anders
  *  bleef hier nivelleer- en MSP-sturing staan die bij de verdwenen toewijzing hoorde. Taken met
  *  alleen een verweesde `resourceIds`-verwijzing (zonder toewijzing) houden hun toewijzingenset en
- *  blijven dus ongemoeid. Geeft, zoals `relocateAssignment`, de ids terug van de taken die
- *  MSP-sturing verloren (in takenvolgorde). */
-export function purgeResource(s: AssignmentState, id: string, crewKey: 'unset' | 'delete'): string[] {
-  const affectedTaskIds = new Set<string>();
-  for (const a of s.assignments) if (a.resourceId === id) affectedTaskIds.add(a.taskId);
+ *  blijven dus ongemoeid. Werkregel: elke verdwijnende toewijzing is een "resource eraf" voor haar
+ *  taak (zie `removeAssignment`). */
+export function purgeResource(s: AssignmentState, id: string, crewKey: 'unset' | 'delete'): AssignmentChangeOutcome {
+  // Taaktypes-etappe (spec §5 rij 5, reviewbevinding B4): elke verdwijnende toewijzing is een
+  // "resource eraf" voor haar taak — momentopname MÉT de toewijzing, settle erná.
+  const captured = s.assignments
+    .filter(a => a.resourceId === id)
+    .flatMap((a) => {
+      const task = s.tasks.find(t => t.id === a.taskId);
+      return task ? [{ assignmentId: a.id, capture: captureAssignmentTask(s, task) }] : [];
+    });
   s.resources = s.resources.filter(r => r.id !== id);
   s.assignments = s.assignments.filter(a => a.resourceId !== id);
-  const lost: string[] = [];
+  const out = new OutcomeBuilder();
+  for (const c of captured) {
+    out.settled(s, c.capture, settleAssignmentRemoved(c.capture.task, s.assignments, c.capture.triangle, c.assignmentId).durationChanged);
+  }
+  const affected = new Set(captured.map(c => c.capture.task));
   for (const task of s.tasks) {
     const idx = task.resourceIds.indexOf(id);
     if (idx >= 0) task.resourceIds.splice(idx, 1);
-    if (affectedTaskIds.has(task.id) && invalidateForAssignmentChange(task)) lost.push(task.id);
+    if (affected.has(task)) out.invalidate(task);
   }
   for (const r of s.resources) {
     if (r.parentId !== id) continue;
     if (crewKey === 'delete') delete r.parentId;
     else r.parentId = undefined;
   }
-  return lost;
+  return out.build();
 }
 
 /** Haalt `resourceId` uit `task.resourceIds`, maar alleen als er op die taak geen andere
@@ -76,35 +156,50 @@ export function pruneTaskResourceRef(s: AssignmentState, taskId: string, resourc
   if (task && idx >= 0) task.resourceIds.splice(idx, 1);
 }
 
-/** Voegt een al gevalideerde toewijzing toe aan `task`. `true` ⇒ de taak verloor MSP-sturing. */
-export function insertAssignment(s: AssignmentState, task: Task, assignment: ResourceAssignment): boolean {
+/** Voegt een al gevalideerde toewijzing toe aan `task`. Onder FIXED_WORK/FIXED_RATE (zonder MSP-
+ *  `effortDriven: false`) blijft het restwerk staan en wordt de restduur korter; onder de
+ *  standaardregel verandert niets (spec §5 rij 4, beslispunt 8-B: momentopname ZONDER de nieuwe). */
+export function insertAssignment(s: AssignmentState, task: Task, assignment: ResourceAssignment): AssignmentChangeOutcome {
+  const capture = captureAssignmentTask(s, task);
   s.assignments.push(assignment);
   if (!task.resourceIds.includes(assignment.resourceId)) task.resourceIds.push(assignment.resourceId);
+  const out = new OutcomeBuilder();
+  out.settled(s, capture, settleAssignmentAdded(task, s.assignments, capture.triangle, assignment).durationChanged);
   // Z14b (F2-fixronde): "toewijzingen" hoort bij de invalidatie-triggerset, zie `taskDefaults.ts`.
-  return invalidateForAssignmentChange(task);
+  out.invalidate(task);
+  return out.build();
 }
 
-/** Verwijdert een bestaande toewijzing. `true` ⇒ haar taak verloor MSP-sturing. */
-export function removeAssignment(s: AssignmentState, removed: ResourceAssignment): boolean {
-  s.assignments = s.assignments.filter(a => a.id !== removed.id);
-  pruneTaskResourceRef(s, removed.taskId, removed.resourceId);
+/** Verwijdert een bestaande toewijzing (spec §5 rij 5: momentopname MÉT de toewijzing). */
+export function removeAssignment(s: AssignmentState, removed: ResourceAssignment): AssignmentChangeOutcome {
   const task = s.tasks.find(t => t.id === removed.taskId);
-  return task ? invalidateForAssignmentChange(task) : false;
+  const capture = task ? captureAssignmentTask(s, task) : null;
+  s.assignments = s.assignments.filter(a => a.id !== removed.id);
+  const out = new OutcomeBuilder();
+  if (capture) out.settled(s, capture, settleAssignmentRemoved(capture.task, s.assignments, capture.triangle, removed.id).durationChanged);
+  pruneTaskResourceRef(s, removed.taskId, removed.resourceId);
+  if (task) out.invalidate(task);
+  return out.build();
 }
 
 /** Verplaatst `assignment` naar `newTask` (eenheden/curve blijven staan) en werkt `resourceIds` op
- *  oude én nieuwe taak bij. De trigger raakt BEIDE taken; geeft de ids terug die sturing verloren
- *  (oude taak eerst). */
-export function relocateAssignment(s: AssignmentState, assignment: ResourceAssignment, newTask: Task): string[] {
+ *  oude én nieuwe taak bij. Werkregel (spec §5 rij 4/5, reviewbevinding B4): eraf bij de oude taak
+ *  én erbij bij de nieuwe, beide momentopnamen vóór de wissel. De trigger raakt BEIDE taken; de
+ *  verlieslijst noemt de oude taak eerst. */
+export function relocateAssignment(s: AssignmentState, assignment: ResourceAssignment, newTask: Task): AssignmentChangeOutcome {
   const oldTaskId = assignment.taskId;
+  const oldTask = s.tasks.find(t => t.id === oldTaskId);
+  const oldCapture = oldTask ? captureAssignmentTask(s, oldTask) : null;
+  const newCapture = captureAssignmentTask(s, newTask);
   assignment.taskId = newTask.id;
+  const out = new OutcomeBuilder();
+  if (oldCapture) out.settled(s, oldCapture, settleAssignmentRemoved(oldCapture.task, s.assignments, oldCapture.triangle, assignment.id).durationChanged);
+  out.settled(s, newCapture, settleAssignmentAdded(newTask, s.assignments, newCapture.triangle, assignment).durationChanged);
   pruneTaskResourceRef(s, oldTaskId, assignment.resourceId);
   if (!newTask.resourceIds.includes(assignment.resourceId)) newTask.resourceIds.push(assignment.resourceId);
-  const lost: string[] = [];
-  const oldTask = s.tasks.find(t => t.id === oldTaskId);
-  if (oldTask && invalidateForAssignmentChange(oldTask)) lost.push(oldTaskId);
-  if (invalidateForAssignmentChange(newTask)) lost.push(newTask.id);
-  return lost;
+  if (oldTask) out.invalidate(oldTask);
+  out.invalidate(newTask);
+  return out.build();
 }
 
 /** Weigeren-met-behoud (bevinding 1): een ongeldige eenheden/dag valt uit de patch, een
@@ -118,12 +213,24 @@ export function acceptedAssignmentPatch(updates: AssignmentPatch): AssignmentPat
   return Object.keys(patch).length === 0 ? null : patch;
 }
 
-export function applyAssignmentPatch(assignment: ResourceAssignment, patch: AssignmentPatch): void {
+/** Schrijft een geaccepteerde patch. Een inzetwijziging laat werk en/of restduur de werkregel van
+ *  de taak volgen (spec §5 rij 2: momentopname VÓÓR, de exacte invoer eerst geschreven). Geen
+ *  toewijzingen-trigger: de toewijzingenset blijft gelijk. */
+export function applyAssignmentPatch(s: AssignmentState, assignment: ResourceAssignment, patch: AssignmentPatch): AssignmentChangeOutcome {
+  const task = s.tasks.find(t => t.id === assignment.taskId);
+  const capture = task && typeof patch.unitsPerDay === 'number' && patch.unitsPerDay !== assignment.unitsPerDay
+    ? captureAssignmentTask(s, task)
+    : null;
   Object.assign(assignment, patch);
   // Contour-engine (2026-09): een bewuste curvekeuze van de gebruiker vervangt de exacte
   // geïmporteerde 21-punts curve (`curveValues`, P6/MSPDI) — anders zou het histogram de oude
   // P6-vorm blijven tonen terwijl de dropdown de nieuwe keuze laat zien.
   if ('curve' in patch) delete assignment.curveValues;
+  const out = new OutcomeBuilder();
+  if (capture) {
+    out.settled(s, capture, settleUnitsEdit(capture.task, s.assignments, capture.triangle, assignment.id, assignment.unitsPerDay).durationChanged);
+  }
+  return out.build();
 }
 
 /** De `timephasedContours` van `task` nadat de contour van `assignment` gezet (`periods`) of

@@ -7,6 +7,8 @@ import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { startAnchorAfterEdit } from '@/utils/taskDates';
 import { getPersonalTaskTypes } from '@/services/taskTypes/personalTaskTypes';
 import type { Task } from '@/types/task';
+import { isSummaryTask } from '@/utils/taskHierarchy';
+import type { HistorySessionMark } from '@/state/slices/historySlice';
 
 /**
  * "Taak bewerken" (`TaskDialog.tsx`): de voortgangsbewerkingen op de concepttaak en het Opslaan.
@@ -32,8 +34,21 @@ import type { Task } from '@/types/task';
  *    naam wijzigen laat bv. een geïmporteerde resterende duur ongemoeid.
  *
  *  - ÉÉN UNDO-STAP. Opslaan kan tot drie storeacties doen (persoonlijk taaktype materialiseren, de
- *    taak bijwerken, de ouder wijzigen via `moveTask`); samen zijn ze één handeling, dus één
- *    `withTransaction` — dezelfde batchsemantiek als de contextmenu-bulkacties.
+ *    taak bijwerken, de ouder wijzigen via `moveTask`); samen zijn ze één handeling. Zonder
+ *    bewerksessie is dat één `withTransaction` — dezelfde batchsemantiek als de contextmenu-bulkacties.
+ *    MET een bewerksessie (#170, G5: de dialoog op een bestaande taak opent er een via
+ *    `historyMark`) is de sessie de undo-grens: de relationele secties (werkregel, toewijzingen,
+ *    werk, relaties) committen al tijdens het bewerken op de store, en Opslaan maakt van die stappen
+ *    plus de acties hieronder met `squashHistorySince` één stap "Taak bewerken". Een batch zou hier
+ *    een eigen, sessieloze stap vormen die de squash in tweeën breekt (integratie groep B × #170,
+ *    besluit 3).
+ *
+ *  - "OK ZONDER WIJZIGING DOET NIETS" (#186): de patch gaat altijd naar `updateTask`, en die weigert
+ *    per saldo gelijke waarden zonder snapshot of `isDirty` (`sameValue`).
+ *
+ *  - DUUR ALLEEN BIJ EEN ECHTE DUURBEWERKING (#170, review B4): de duur komt alleen uit de concept als
+ *    de gebruiker hem in deze sessie wijzigde (`initialDuration`) — anders zou Opslaan een duur die de
+ *    werkdriehoek intussen via de toewijzingssectie veranderde stil terugdraaien.
  */
 
 const clampCompletion = (raw: number) => Math.max(0, Math.min(1, raw));
@@ -69,12 +84,23 @@ export function draftWithActualFinish(draft: Task, date: string | undefined, sta
   return draftWithActualDate(draft, 'actualFinish', date, statusDate);
 }
 
+/** De duur van de taak bij het openen van de dialoog (review B4, #170). */
+export interface TaskDialogInitialDuration {
+  unit: 'days' | 'hours';
+  scheduleDuration: number;
+  durationMinutes?: number;
+}
+
 export interface TaskDialogSaveInput {
   /** De bewerkte taak; `null` (of een inmiddels verdwenen id) ⇒ de "nieuwe taak"-tak. */
   editingTaskId: string | null;
   draft: Task;
   /** De in de dialoog getoonde startdatum. */
   startDate: string;
+  /** De duur bij het openen; afwezig ⇒ de duur uit de concept telt altijd als bewerkt. */
+  initialDuration?: TaskDialogInitialDuration | null;
+  /** De open bewerksessie van de dialoog (`historyMark`); afwezig ⇒ één `withTransaction`. */
+  session?: HistorySessionMark | null;
 }
 
 const PROGRESS_KEYS = ['completion', 'actualStart', 'actualFinish'] as const;
@@ -84,7 +110,7 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
   const batch = createBatchTransactions(context);
   const S = () => context.store.getState();
 
-  return ({ editingTaskId, draft, startDate }) => batch.withTransaction(() => {
+  const save = ({ editingTaskId, draft, startDate, initialDuration }: TaskDialogSaveInput): void => {
     if (draft.customTaskTypeId) {
       const definition = S().customTaskTypes.find(type => type.id === draft.customTaskTypeId)
         ?? getPersonalTaskTypes().find(type => type.id === draft.customTaskTypeId);
@@ -97,11 +123,20 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
       // dialoog mag niet worden teruggedraaid. Voortgangsvelden (completion/actualStart/actualFinish)
       // komen WEL uit de draft — dat zijn de enige `time`-subvelden die deze sessie zelf muteert
       // buiten de hieronder berekende schedule-ankervelden.
+      // Review B4 (taaktypes, #170): de duur ALLEEN uit de concept wanneer de gebruiker hem in deze
+      // sessie wijzigde — anders zou Opslaan een duur die de werkdriehoek intussen via de
+      // toewijzingssectie veranderde stil terugdraaien.
+      const durationTouched = !initialDuration
+        || draft.time.durationUnit !== initialDuration.unit
+        || draft.time.scheduleDuration !== initialDuration.scheduleDuration
+        || draft.time.durationMinutes !== initialDuration.durationMinutes;
       const time = {
         ...editingTask.time,
-        durationUnit: draft.time.durationUnit,
-        scheduleDuration: draft.time.scheduleDuration,
-        durationMinutes: draft.time.durationUnit === 'hours' ? draft.time.durationMinutes : undefined,
+        ...(durationTouched ? {
+          durationUnit: draft.time.durationUnit,
+          scheduleDuration: draft.time.scheduleDuration,
+          durationMinutes: draft.time.durationUnit === 'hours' ? draft.time.durationMinutes : undefined,
+        } : {}),
       };
       // De mijlpaaltransitie levert een VOLLEDIGE tijd (`...editingTask.time` uit de store) met duur
       // 0. Daarom eerst: de duur uit de transitie wint van de draftduur, maar de sessiebewerkingen
@@ -112,7 +147,7 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
       // Een verzameltaak draagt geen eigen voortgang (#203): haar waarden komen uit de rollup en de
       // velden zijn in de dialoog uitgeschakeld. De draft is een momentopname van bij het openen;
       // een herberekening tussendoor mag Opslaan niet met die verouderde waarde overschrijven.
-      if (editingTask.childIds.length === 0) {
+      if (!isSummaryTask(editingTask)) {
         time.completion = draft.time.completion;
         time.actualStart = draft.time.actualStart;
         time.actualFinish = draft.time.actualFinish;
@@ -165,6 +200,9 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
       wbsCode: draft.wbsCode,
       taskType: draft.taskType,
       customTaskTypeId: draft.customTaskTypeId,
+      // Taaktypes-etappe: een nieuwe taak houdt haar werkregel in de concept tot Opslaan (op een
+      // bestaande taak commit de dialoog hem direct via `setTaskWorkRule`, binnen de sessie).
+      workRule: draft.workRule,
       isMilestone: draft.isMilestone,
       parentId: draft.parentId || null,
       calendarId: draft.calendarId,
@@ -185,7 +223,16 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
         completion: 0,
       },
     });
-  });
+  };
+
+  return (input) => {
+    if (input.session) {
+      save(input);
+      S().squashHistorySince(input.session, 'Taak bewerken');
+      return;
+    }
+    batch.withTransaction(() => save(input));
+  };
 }
 
 /** Expliciete compatibiliteitsadapter voor de ene gemounte productinterface. */

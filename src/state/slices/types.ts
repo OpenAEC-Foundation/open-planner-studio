@@ -195,17 +195,107 @@ export type NotificationMessageKey =
   | 'notifications.relationsSkippedOnInsert'
   | 'notifications.mppLegacy'
   | 'notifications.mppEncrypted'
+  | 'notifications.xerInvalidInput'
+  | 'notifications.xerInvalidFile'
+  | 'notifications.xerInvalidEncoding'
+  | 'notifications.xerDuplicateTable'
+  | 'notifications.xerMissingRequiredColumns'
+  | 'notifications.xerMissingRequiredValue'
+  | 'notifications.xerAmbiguousDecimal'
+  | 'notifications.xerInvalidNumberFormat'
+  | 'notifications.xerInvalidNumber'
+  | 'notifications.xerSingleProjectRequired'
+  | 'notifications.xerEmptyProject'
+  | 'notifications.xerDuplicateId'
+  | 'notifications.xerAmbiguousLocalRelation'
+  | 'notifications.xerDanglingLocalRelation'
+  | 'notifications.xerEnumFallback'
+  | 'notifications.xerImportOpened'
+  | 'notifications.xerImportProjectsSeen'
+  | 'notifications.xerImportEmptyProjectsSkipped'
+  | 'notifications.xerImportBaselineProjectsExcluded'
+  | 'notifications.xerImportBaselinesMaterialized'
+  | 'notifications.xerImportDanglingBaselineReferences'
+  | 'notifications.xerImportBaselineFallback'
+  | 'notifications.xerImportExternalLinks'
+  | 'notifications.xerImportEncoding'
+  | 'notifications.xerImportParserIssues'
+  | 'notifications.xerImportCalendarIssues'
+  | 'notifications.xerImportNumberIssues'
+  | 'notifications.xerImportEnumFallbacks'
+  | 'notifications.xerImportUnsupportedSemantics'
+  // XER-etappeplan §3.7 (taak T4, X-O7 laag 3): "datums zoals opgeslagen" staat standaard aan zodra
+  // een geopend XER-document restverschillen heeft. Meervoud, `count` = som van
+  // `recordedDates.shifted` over alle documenten van dit bestand (één regel, ook bij twaalf
+  // projecten — zie `xerImportNotice`/`applyOpenedImport`).
+  | 'notifications.xerImportDatesAsRecorded'
+  | 'notifications.xerImportDatesAsRecordedOffer'
+  // Eigenaarsbesluit 2026-09-09 ("elk formaat zoals XER"): dezelfde twee regels, formaatneutraal,
+  // voor P6 XML/MSPDI/.mpp/CSV/IFC — één melding per geopend bestand (`applyOpenedImport`).
+  | 'notifications.importDatesAsRecorded'
+  | 'notifications.importDatesAsRecordedOffer'
+  | 'notifications.xerExportLoss'
   | 'notifications.mppSourceScheduleNotes'
   | 'notifications.projectStartAnchorsClamped'
+  | 'notifications.taskEditRevertBlocked'
   | 'notifications.mppTimephasedSteeringLost'
   | 'notifications.pasteSkippedReadOnly'
   // B1c-plan-2 taak 1 (M10, eigenaarsbesluit 2026-08-31): nivelleren/wissen overschrijft de
   // `.mpp`-eigen sub-dag-nivelleervertraging (`levelingDelayMinutes`/`levelingDelayElapsed`) met
   // hele werkdagen — zie `src/state/timephasedLossNotice.ts`s `notifyLevelingDelayRounded`.
   | 'notifications.levelingDelayRoundedToWorkdays'
+  // Rekenprofielen (spec v3.1 §6): "dit project rekent als …" bij openen (param `profile`, een
+  // merknaam) en — voor baan D — de telling "N taken verschoven" na een profielwissel (`count`).
+  | 'notifications.schedulingProfileApplied'
+  | 'notifications.schedulingProfileShifted'
+  // Taaktypes-etappe (spec §7): het geladen bestand draagt taaktypedata terwijl "Toon taaktypes"
+  // uit staat — de werkregel-UI is voor dit document ontsloten; zie `src/state/taskTypesNotice.ts`.
+  | 'notifications.taskTypesUnlocked'
+  | 'notifications.taskTypesUnlockedDetail'
+  | 'notifications.workRulesReadMore'
+  // Eigenaarsbesluit 2026-09-05 (K2): een kalenderwissel loopt door de werkregel; wanneer dat de
+  // duur van taken verandert (Vast werk/Vaste inzet), meldt de app hoeveel — zie `taskTypesNotice.ts`.
+  | 'notifications.workRuleDurationsChanged'
   // Issue #146: onderbroken taken zonder urenverdeling verliezen hun onderbrekingen bij een
   // MSPDI-/P6-export — zie `fileSlice.ts`s `exportSplitsLostNotice`. Meervoud, `count`.
-  | 'notifications.exportSplitsLost';
+  | 'notifications.exportSplitsLost'
+  // Eigenaarsbesluit 2026-09-24 ("openen met melding"): een onbruikbaar XER-bronarchief is bij het
+  // openen weggelaten — zie `src/state/xerArchiveIssueNotice.ts`. Bewust geen meervoud (ook bij
+  // crashherstel van meerdere documenten één zin); `xerArchiveUnusableLine` is de kopregel wanneer
+  // de melding als detail in een bestaande bestandsmelding landt.
+  | 'notifications.xerArchiveUnusable'
+  | 'notifications.xerArchiveUnusableLine'
+  | 'notifications.xerArchiveUnusableConsequence'
+  | 'notifications.xerArchiveReasonSchemaVersion'
+  | 'notifications.xerArchiveReasonHashMismatch'
+  | 'notifications.xerArchiveReasonTruncated'
+  | 'notifications.xerArchiveReasonBytesMissing'
+  | 'notifications.xerArchiveReasonMetadataInvalid'
+  | 'notifications.xerArchiveReasonStructure';
+
+/** Rekenprofielen (spec v3.1 §6): het actielabel is een i18n-sleutel in `common`. */
+export type NotificationActionLabelKey = 'notifications.actions.openProjectInfo';
+
+/** Een SERIALISEERBARE vervolgactie op een melding (geen functies in de store). `NotificationHost`
+ *  voert hem uit; nieuwe soorten krijgen een eigen `kind`. */
+export interface NotificationAction {
+  kind: 'openBackstageSection';
+  section: BackstageSection;
+  labelKey: NotificationActionLabelKey;
+}
+
+/** Een vertaalde detailregel onder een toast. Anders dan `detail` is deze tekst altijd
+ * gebruikerszichtbaar en dus via dezelfde gesloten sleutelunie en i18n-keten getypeerd. */
+export interface NotificationDetailLine {
+  messageKey: NotificationMessageKey;
+  params?: Record<string, string | number>;
+  /** Optioneel een EIGEN gidslink voor deze regel (gebruikstest #170, G3): de melding zelf linkt
+   *  naar het artikel van het bestand/profiel; een samengevoegde regel over een ander onderwerp
+   *  (werkregels) krijgt zo een eigen, aanklikbare link in plaats van een gidsnaam in de tekst.
+   *  Label = `linkKey` (standaard `notifications.readMore`). */
+  helpArticleId?: string;
+  linkKey?: NotificationMessageKey;
+}
 
 export interface AppNotification {
   /** Stabiele id — uitsluitend voor de React-key en voor `dismissNotification`. */
@@ -217,6 +307,8 @@ export interface AppNotification {
   params?: Record<string, string | number>;
   /** Rauwe technische tekst (`err.message`) — BEWUST onvertaald. */
   detail?: string;
+  /** Optionele, vertaalde feiten onder de hoofdboodschap (X10: één XER-bestandsverslag). */
+  detailLines?: NotificationDetailLine[];
   /** Samenvouw-sleutel: een tweede melding met dezelfde sleutel wordt één regel met een teller. */
   dedupeKey?: string;
   /** Aantal samengevouwen voorkomens; 1 bij de eerste. */
@@ -227,6 +319,8 @@ export interface AppNotification {
    *  artikel). Geen manifest-validatie hier — zelfde vrijheid als een `docs://`-link in een
    *  gids-artikel zelf (`miniMarkdown.tsx`); `verify:docs` bewaakt dat het artikel-id bestaat. */
   helpArticleId?: string;
+  /** Optionele vervolgknop; zie `NotificationAction` (serialiseerbaar, nooit een functie). */
+  action?: NotificationAction;
 }
 
 /** Wat een aanroeper meegeeft; `id` en `count` vult de store. */
@@ -359,6 +453,10 @@ export interface UIState {
   dateNotation: DateNotation;                // persisted — weergavenotatie voor datums (taak #53); opslag blijft ISO
   // --- Fase 2.8b: urenplanning-instellingen (§6.8); ontbrekende sleutel ⇒ default (geen reset) ---
   enableHourPlanning: boolean;               // persisted — hoofdschakelaar Urenplanning (default UIT)
+  /** persisted (`ops-showTaskTypes`, taaktypes-etappe spec §7) — toon de werkregel (taaktype) en het
+   *  resterende werk per toewijzing in paneel, dialoog en raster. Default UIT; een document dat al
+   *  taaktypedata draagt ontsluit de weergave voor zichzelf (`taskTypesVisible`, DOCUMENT_FIELDS). */
+  showTaskTypes: boolean;
   allowMixedDayHour: boolean;                // persisted — Gemengde dag/uur-planning toestaan (default AAN); UI-poort
   durationDisplay: DurationDisplay;          // persisted — Duurweergave (default 'auto')
   barSplitMode: BarSplitMode;                // persisted — Taakbalken bij onderbrekingen (default 'selection')

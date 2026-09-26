@@ -1,3 +1,5 @@
+import { WORK_RULES } from '@/types/workRule';
+import { remainingMinutesOf, workRuleApplies } from '@/engine/work/workRuleApply';
 import type { Baseline, BaselineTask } from '@/types/baseline';
 import { RESOURCE_CURVES, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types/structure';
@@ -8,6 +10,7 @@ import type {
   CellEditRoute,
   GridResult,
   GridWriteIntent,
+  RecordedTaskAxis,
   TaskAssignmentToken,
   TaskColumnCategory,
   TaskColumnContext,
@@ -128,11 +131,65 @@ function formatScalar(value: unknown): string {
   return String(value);
 }
 
+/** Celtekst van de kolom `recorded.source` — gedeeld door `format` en `copy`, zodat het klembord
+ *  nooit uit elkaar kan lopen met wat er op het scherm staat. */
+function recordedSourceText(value: unknown, ctx: TaskColumnContext): string {
+  if (value === 'deviates') return ctx.labelForText?.('recordedDates.markDeviates') ?? 'deviates';
+  if (value === 'partly-unrecorded') return ctx.labelForText?.('recordedDates.markPartlyUnrecorded') ?? 'partly-unrecorded';
+  return '—';
+}
+
 function copyScalar(value: unknown): string {
   if (value === undefined || value === null) return '';
   if (typeof value === 'boolean') return value ? 'true' : 'false';
   if (typeof value === 'object') return canonicalGridJson(value);
   return String(value);
+}
+
+/**
+ * "Datums zoals opgeslagen" (issue #63, XER-etappeplan laag 3, T6) — `format`-tak voor de vier
+ * optionele late-/floatkolommen (`task.time.lateStart`/`lateFinish`/`totalFloat`/`freeFloat`).
+ * `applyRecordedTimesToTasks` (`recordedDates.ts` §3.4) laat de bestaande `?? rec.start`/`?? 0`-
+ * terugvallen bewust als VELDWAARDE staan — "niet vastgelegd" leeft uitsluitend in
+ * `recordedDates.times[id]` en wordt hier, als WEERGAVE, afgedwongen: zonder deze tak zou een as
+ * die het bestand nooit gaf gewoon als een echt getal (vaak een verzonnen `0`) op het scherm staan.
+ * `ctx.recordedUnrecordedAxes` is `undefined` zonder vastlegging (niet-XER-documenten, of geen
+ * restverschillen) — dan valt dit terug op de gewone `formatScalar`, byte-identiek aan vóór T6.
+ */
+function recordedAxisFormat(axis: RecordedTaskAxis, inner?: Formatter): Formatter {
+  return (value, task, ctx) => ctx.recordedUnrecordedAxes?.(task).includes(axis)
+    ? (ctx.labelForText?.('recordedDates.notRecorded') ?? '—')
+    : inner ? inner(value, task, ctx) : formatScalar(value);
+}
+
+/**
+ * Her-check laag 3, bevindingen 1 en 2: de `format`-tak alleen was NIET genoeg. `taskGridAdapter.
+ * getCell` slaat `descriptor.format` over zodra `domain.dateNotation` gezet is (dat is in het
+ * product ALTIJD zo — `UIState.dateNotation` heeft een default) en de waarde een datumstring is:
+ * dan gaat de cel via `copyGridEditorValue` en toonde `task.time.lateStart` — de `?? rec.start`-
+ * terugval — als een echte, verzonnen late datum. En `copyScalar(read(...))` zette diezelfde
+ * terugval (of een verzonnen `0` speling) in het klembord terwijl de cel "Niet vastgelegd" toonde.
+ *
+ * Daarom is "niet vastgelegd" nu een eigenschap van de LEESWAARDE zelf: `read` levert `undefined`
+ * voor een as die het bestand niet gaf, zodat élke afnemer van de descriptor (celtekst, klembord,
+ * titel, sortering) hetzelfde ziet — er bestaat dan geen string meer die de adapter per ongeluk als
+ * datum kan opmaken. `format` blijft de tekst "Niet vastgelegd" leveren en `copy` een lege
+ * klembordcel (zelfde regel als `recorded.source` hieronder: klembord = wat de cel zegt, en een
+ * spreadsheet-plakactie verwacht leeg, geen em-dash). Buiten de modus (`recordedUnrecordedAxes`
+ * ontbreekt) is dit byte-identiek aan de kale `read`.
+ */
+function recordedAxisRead<T>(
+  axis: RecordedTaskAxis,
+  read: (task: Task) => T,
+): (task: Task, ctx: TaskColumnContext) => T | undefined {
+  return (task, ctx) => ctx.recordedUnrecordedAxes?.(task).includes(axis) ? undefined : read(task);
+}
+
+function recordedAxisCopy<T>(
+  axis: RecordedTaskAxis,
+  read: (task: Task) => T,
+): (task: Task, ctx: TaskColumnContext) => string {
+  return (task, ctx) => ctx.recordedUnrecordedAxes?.(task).includes(axis) ? '' : copyScalar(read(task));
 }
 
 function readonlyColumn(config: ReadonlyColumnConfig): TaskColumnDescriptor {
@@ -422,6 +479,26 @@ function assignmentWindowText(
   return values.length > 0 ? values.join('; ') : '—';
 }
 
+type AssignmentWorkField = 'plannedWorkMinutes' | 'actualWorkMinutes' | 'remainingWorkMinutes';
+
+/** Taaktypes-etappe (spec §4.3): de drie werkvelden zijn minuten in de state, uren in beeld
+ *  (twee decimalen, zoals de contour-dialoog). Afwezig veld ⇒ niet getoond (afgeleid). */
+function assignmentWorkText(task: Task, ctx: TaskColumnContext, field: AssignmentWorkField): string {
+  const values = assignments(task, ctx).flatMap(assignment => assignment[field] !== undefined
+    ? [`${assignmentLabel(assignment, ctx)}: ${formatScalar(Math.round((assignment[field] / 60) * 100) / 100)}`]
+    : []);
+  return values.length > 0 ? values.join('; ') : '—';
+}
+
+function assignmentWorkColumn(id: string, labelKey: string, field: AssignmentWorkField): TaskColumnDescriptor {
+  return readonlyColumn({
+    id, labelKey, category: 'resources', valueKind: 'technical',
+    read: (task, ctx) => assignments(task, ctx).map(item => ({ assignmentId: item.id, value: item[field] })),
+    format: (_value, task, ctx) => assignmentWorkText(task, ctx, field),
+    copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => ({ assignmentId: item.id, [field]: item[field] }))),
+  });
+}
+
 const STRUCTURED_CLIPBOARD_SEPARATOR = '\u2063';
 const ASSIGNMENT_CLIPBOARD_MARKER = `${STRUCTURED_CLIPBOARD_SEPARATOR}ops-assignment:`;
 const ACTIVITY_CODE_CLIPBOARD_MARKER = `${STRUCTURED_CLIPBOARD_SEPARATOR}ops-activity-code:`;
@@ -524,6 +601,8 @@ function validateAssignmentTokens(
       resourceId: token.resourceId,
       unitsPerDay: token.unitsPerDay,
       ...(token.curve ? { curve: token.curve } : {}),
+      // Taaktypes-etappe (review B1): het werk reist mee bij plakken naar een andere taak.
+      ...(token.remainingWorkMinutes !== undefined ? { remainingWorkMinutes: token.remainingWorkMinutes } : {}),
     });
   }
   // Zelfde taak: behoud exact de bestaande payload, inclusief sleutelvolgorde voor canonieke
@@ -578,6 +657,61 @@ const parseAssignmentUnits: Parser = (text, task, ctx) => {
   }
   return success(result);
 };
+
+/** Taaktypes-etappe: tokens mét resterend werk (opgeslagen, anders afgeleid als restduur × inzet). */
+function assignmentWorkTokens(task: Task, ctx: TaskColumnContext): TaskAssignmentToken[] {
+  const hoursPerDay = ctx.effectiveHoursPerDay?.(task) ?? 8;
+  const remaining = remainingMinutesOf(task, { hoursPerDay });
+  return assignments(task, ctx).map(assignment => ({
+    assignmentId: assignment.id,
+    resourceId: assignment.resourceId,
+    unitsPerDay: assignment.unitsPerDay,
+    curve: assignment.curve,
+    remainingWorkMinutes: assignment.remainingWorkMinutes ?? remaining * assignment.unitsPerDay,
+  }));
+}
+
+function assignmentById(task: Task, ctx: TaskColumnContext, token: TaskAssignmentToken): ResourceAssignment {
+  return assignments(task, ctx).find(item => item.id === token.assignmentId)
+    ?? { id: token.assignmentId ?? '', taskId: task.id, resourceId: token.resourceId, unitsPerDay: token.unitsPerDay };
+}
+
+function workHoursText(minutes: number | undefined): string {
+  if (minutes === undefined || !Number.isFinite(minutes)) return '—';
+  return String(Math.round((minutes / 60) * 100) / 100);
+}
+
+const parseAssignmentWork: Parser = (text, task, ctx) => {
+  const structured = structuredClipboardPayload(text, ASSIGNMENT_CLIPBOARD_MARKER);
+  if (!structured.ok || structured.value !== undefined) return structured;
+  const pairs = assignmentPairs(text);
+  if (pairs.length === 0) return failure('assignmentWork', text);
+  const result = assignmentWorkTokens(task, ctx);
+  const tokenByAssignmentId = new Map(result.map(token => [token.assignmentId, token] as const));
+  const seen = new Set<string>();
+  for (const pair of pairs) {
+    const separator = pair.lastIndexOf(':');
+    if (separator <= 0) return failure('assignmentWork', pair);
+    const resolved = resolveAssignment(pair.slice(0, separator).trim(), task, ctx);
+    const hours = Number(pair.slice(separator + 1).trim().replace(',', '.'));
+    if (!resolved.ok) return resolved;
+    if (!Number.isFinite(hours) || hours <= 0) return failure('assignmentWork', pair);
+    if (seen.has(resolved.value.id)) return failure('assignmentDuplicateId', resolved.value.id);
+    seen.add(resolved.value.id);
+    tokenByAssignmentId.get(resolved.value.id)!.remainingWorkMinutes = Math.round(hours * 60);
+  }
+  return success(result);
+};
+
+function validateAssignmentWorkTokens(value: unknown, task: Task, ctx: TaskColumnContext): GridResult<unknown, readonly CellValidationError[]> {
+  const base = validateAssignmentTokens(value, task, ctx, 'assignmentWork');
+  if (!base.ok) return base;
+  for (const raw of value as readonly Partial<TaskAssignmentToken>[]) {
+    const w = raw.remainingWorkMinutes;
+    if (w !== undefined && (typeof w !== 'number' || !Number.isFinite(w) || w <= 0)) return failure('assignmentWork', raw);
+  }
+  return base;
+}
 
 const parseAssignmentCurves: Parser = (text, task, ctx) => {
   const structured = structuredClipboardPayload(text, ASSIGNMENT_CLIPBOARD_MARKER);
@@ -656,6 +790,30 @@ function fixedTaskColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[
     readonlyColumn({ id: 'task.manuallyScheduled', labelKey: 'taskGrid.columns.manuallyScheduled', category: 'technical', valueKind: 'boolean', read: task => task.manuallyScheduled }),
     readonlyColumn({ id: 'task.mspTaskType', labelKey: 'taskGrid.columns.mspTaskType', category: 'technical', valueKind: 'enum', read: task => task.mspTaskType }),
     readonlyColumn({ id: 'task.effortDriven', labelKey: 'taskGrid.columns.effortDriven', category: 'technical', valueKind: 'boolean', read: task => task.effortDriven }),
+    // Taaktypes-etappe (ontwerp 2026-09-04 §7): alleen-lezen tot de UI-stap 'm bewerkbaar maakt.
+    // Taaktypes-etappe (spec §7): bewerkbare werkregel — alleen zichtbaar wanneer ontsloten; `''` = terug
+    // naar de projectstandaard. De driehoekstap zit in `gridTransaction.ts` (na het plan). `readOnly`
+    // leest UITSLUITEND de gecertificeerde controllers (isMilestone/isHammock) + childIds — zie
+    // `check-grid-transaction.ts` "Aanbeveling 4"; een ELAPSEDTIME-taak mag de regel dragen, de
+    // driehoek negeert 'm daar (`workRuleApplies`). Gebruikstest #170 (G8): op mijlpaal/verzameltaak/
+    // hangmat blijft de cel LEEG — een import (deriveImportedWorkRules) zet daar wel een regel, maar
+    // die werkt er niet (gids: "hebben geen werkregel").
+    editableColumn({ id: 'task.workRule', labelKey: 'taskGrid.columns.workRule', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('workRule', WORK_RULES, true), route: 'task-field', available: ctx => ctx.taskTypesUnlocked === true, read: task => (task.isMilestone || task.childIds.length > 0 || task.isHammock === true ? undefined : task.workRule), readOnly: task => task.isMilestone || task.childIds.length > 0 || task.isHammock === true, parse: enumParser(WORK_RULES, true), validate: enumValidator(WORK_RULES, true) }),
+    // XER/Primavera-herkomst: acht bronvelden die de XER-lezer op de taak zet en die door IFC
+    // round-trippen. Ze zijn puur provenance (geen solverinvoer deze etappe), dus één readonly
+    // technische kolom bundelt ze — zoals `task.activityCodes.technical` dat voor codes doet.
+    readonlyColumn({
+      id: 'task.p6Provenance', labelKey: 'taskGrid.columns.p6Provenance', category: 'technical', valueKind: 'technical',
+      read: task => p6ProvenanceOf(task),
+      format: value => {
+        const entries = value && typeof value === 'object' ? Object.entries(value as Record<string, unknown>) : [];
+        return entries.length ? entries.map(([key, item]) => `${key}: ${String(item)}`).join(', ') : '—';
+      },
+      copy: task => canonicalGridJson(p6ProvenanceOf(task)),
+    }),
+    // Expliciete, kinderloze WBS-samenvatting (P6 PROJWBS). Alleen-lezen: de marker komt uit de
+    // import en de hiërarchie zelf blijft via parentId/childIds bewerkbaar.
+    readonlyColumn({ id: 'task.isSummary', labelKey: 'taskGrid.columns.explicitSummary', category: 'technical', valueKind: 'boolean', read: task => task.isSummary }),
     readonlyColumn({ id: 'task.parentId', labelKey: 'taskGrid.columns.parentId', category: 'technical', valueKind: 'text', read: task => task.parentId }),
     readonlyColumn({ id: 'task.childIds', labelKey: 'taskGrid.columns.childIds', category: 'technical', valueKind: 'technical', read: task => task.childIds, format: value => Array.isArray(value) && value.length ? value.join(', ') : '—', copy: task => canonicalGridJson(task.childIds) }),
     readonlyColumn({ id: 'task.resourceIds', labelKey: 'taskGrid.columns.resourceIds', category: 'technical', valueKind: 'technical', read: task => task.resourceIds, format: value => Array.isArray(value) && value.length ? value.join(', ') : '—', copy: task => canonicalGridJson(task.resourceIds) }),
@@ -722,14 +880,33 @@ function fixedTimeColumns(): TaskColumnDescriptor[] {
     readonlyColumn({ id: 'task.time.stop', labelKey: 'taskGrid.columns.stop', category: 'progress', valueKind: 'datetime', read: task => task.time.stop }),
     readonlyColumn({ id: 'task.time.earlyStart', labelKey: 'taskGrid.columns.earlyStart', category: 'computed', valueKind: 'datetime', read: task => task.time.earlyStart }),
     readonlyColumn({ id: 'task.time.earlyFinish', labelKey: 'taskGrid.columns.earlyFinish', category: 'computed', valueKind: 'datetime', read: task => task.time.earlyFinish }),
-    readonlyColumn({ id: 'task.time.lateStart', labelKey: 'taskGrid.columns.lateStart', category: 'computed', valueKind: 'datetime', read: task => task.time.lateStart }),
-    readonlyColumn({ id: 'task.time.lateFinish', labelKey: 'taskGrid.columns.lateFinish', category: 'computed', valueKind: 'datetime', read: task => task.time.lateFinish }),
-    readonlyColumn({ id: 'task.time.freeFloat', labelKey: 'taskGrid.columns.freeFloat', category: 'computed', valueKind: 'duration', read: task => task.time.freeFloat, format: (value, _task, ctx) => workDaysCellText(value, ctx) }),
-    readonlyColumn({ id: 'task.time.totalFloat', labelKey: 'taskGrid.columns.totalFloat', category: 'computed', valueKind: 'duration', read: task => task.time.totalFloat, format: (value, _task, ctx) => workDaysCellText(value, ctx) }),
+    readonlyColumn({ id: 'task.time.lateStart', labelKey: 'taskGrid.columns.lateStart', category: 'computed', valueKind: 'datetime', read: recordedAxisRead('ls', task => task.time.lateStart), format: recordedAxisFormat('ls'), copy: recordedAxisCopy('ls', task => task.time.lateStart) }),
+    readonlyColumn({ id: 'task.time.lateFinish', labelKey: 'taskGrid.columns.lateFinish', category: 'computed', valueKind: 'datetime', read: recordedAxisRead('lf', task => task.time.lateFinish), format: recordedAxisFormat('lf'), copy: recordedAxisCopy('lf', task => task.time.lateFinish) }),
+    readonlyColumn({ id: 'task.time.freeFloat', labelKey: 'taskGrid.columns.freeFloat', category: 'computed', valueKind: 'duration', read: recordedAxisRead('ff', task => task.time.freeFloat), format: recordedAxisFormat('ff', (value, _task, ctx) => workDaysCellText(value, ctx)), copy: recordedAxisCopy('ff', task => task.time.freeFloat) }),
+    readonlyColumn({ id: 'task.time.totalFloat', labelKey: 'taskGrid.columns.totalFloat', category: 'computed', valueKind: 'duration', read: recordedAxisRead('tf', task => task.time.totalFloat), format: recordedAxisFormat('tf', (value, _task, ctx) => workDaysCellText(value, ctx)), copy: recordedAxisCopy('tf', task => task.time.totalFloat) }),
     readonlyColumn({ id: 'task.time.isCritical', labelKey: 'taskGrid.columns.critical', category: 'computed', valueKind: 'boolean', read: task => task.time.isCritical }),
     readonlyColumn({ id: 'task.time.interferingFloat', labelKey: 'taskGrid.columns.interferingFloat', category: 'computed', valueKind: 'duration', read: task => task.time.interferingFloat, format: (value, _task, ctx) => workDaysCellText(value, ctx) }),
     readonlyColumn({ id: 'task.time.isNearCritical', labelKey: 'taskGrid.columns.nearCritical', category: 'computed', valueKind: 'boolean', read: task => task.time.isNearCritical }),
     readonlyColumn({ id: 'task.time.floatPath', labelKey: 'taskGrid.columns.floatPath', category: 'computed', valueKind: 'number', read: task => task.time.floatPath }),
+    // "Datums zoals opgeslagen" (issue #63, XER-etappeplan laag 3, T6) — badge die toont of DEZE
+    // taak een vastlegging heeft die afwijkt van de herberekening, of onvolledig is. Bestaat
+    // uitsluitend op documenten met een vastlegging (`ctx.recordedMark !== undefined` ⇒
+    // `recordedDates !== null`, zie `FullTaskGrid.tsx`) — op elk ander document is deze kolom
+    // onzichtbaar, dus geen ruis op IFC/CSV/MSPDI/MPP-documenten zonder issue-#63-vastlegging.
+    readonlyColumn({
+      id: 'recorded.source', labelKey: 'taskGrid.columns.recordedSource', category: 'computed', valueKind: 'text',
+      available: ctx => ctx.recordedMark !== undefined,
+      read: (task, ctx) => ctx.recordedMark?.(task),
+      format: (value, _task, ctx) => recordedSourceText(value, ctx),
+      // Zonder eigen `copy` levert `copyScalar` het RAUWE token (`deviates`) in het klembord
+      // terwijl de cel "Wijkt af" toont (critreview laag 3, bevinding 11). Dezelfde tekst als de
+      // cel dus — en de lege markering blijft een lege klembordcel in plaats van een em-dash, want
+      // dat is wat een plakactie in een spreadsheet verwacht.
+      copy: (task, ctx) => {
+        const value = ctx.recordedMark?.(task);
+        return value === undefined ? '' : recordedSourceText(value, ctx);
+      },
+    }),
     editableColumn({ id: 'task.time.actualStart', labelKey: 'taskGrid.columns.actualStart', category: 'progress', valueKind: 'datetime', editorKind: 'datetime', route: 'task-progress', ...SUMMARY_PROGRESS_READ_ONLY, read: task => task.time.actualStart, parse: parseDate, validate: validateDate }),
     editableColumn({ id: 'task.time.actualFinish', labelKey: 'taskGrid.columns.actualFinish', category: 'progress', valueKind: 'datetime', editorKind: 'datetime', route: 'task-progress', ...SUMMARY_PROGRESS_READ_ONLY, read: task => task.time.actualFinish, parse: parseDate, validate: validateDate }),
     editableColumn({ id: 'task.time.actualDuration', labelKey: 'taskGrid.columns.actualDuration', category: 'progress', valueKind: 'duration', editorKind: 'duration', route: 'task-progress', ...SUMMARY_PROGRESS_READ_ONLY, read: task => task.time.actualDuration, parse: parseTaskDuration, validate: validateOptionalDuration }),
@@ -886,6 +1063,36 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
       }]),
     }),
     readonlyColumn({ id: 'assignment.workWindowStart', labelKey: 'taskGrid.columns.workWindowStart', category: 'resources', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => ({ assignmentId: item.id, value: item.workWindowStart })), format: (_value, task, ctx) => assignmentWindowText(task, ctx, 'workWindowStart'), copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => ({ assignmentId: item.id, workWindowStart: item.workWindowStart }))) }),
+    // Taaktypes-etappe (spec §4.3/§7): alleen-lezen tot de UI-stap; minuten in de state, uren in beeld.
+    assignmentWorkColumn('assignment.plannedWork', 'taskGrid.columns.assignmentPlannedWork', 'plannedWorkMinutes'),
+    assignmentWorkColumn('assignment.actualWork', 'taskGrid.columns.assignmentActualWork', 'actualWorkMinutes'),
+    // Taaktypes-etappe (spec §7): resterend werk per toewijzing, bewerkbaar als "naam: uren; …" met
+    // dezelfde assignment-set-transactie als de inzet; alleen zichtbaar wanneer ontsloten. Getoond
+    // wordt het opgeslagen werk, anders het afgeleide (restduur × inzet).
+    editableColumn({
+      id: 'assignment.remainingWork', labelKey: 'taskGrid.columns.assignmentRemainingWork', category: 'resources', valueKind: 'tokens', editorKind: 'custom', defaultWidth: 200,
+      available: ctx => ctx.taskTypesUnlocked === true,
+      read: assignmentWorkTokens,
+      // Review K4: alleen waar de regel werkt (geen hangmat/ELAPSEDTIME) — anders weigert de kern stil.
+      readOnly: (task, ctx) => !workRuleApplies(task) || assignments(task, ctx).length === 0,
+      format: (value, _task, ctx) => Array.isArray(value) && value.length ? value.map(raw => {
+        const item = raw as { resourceId: string; remainingWorkMinutes?: number };
+        return `${ctx.resourcesById.get(item.resourceId)?.name ?? item.resourceId}: ${workHoursText(item.remainingWorkMinutes)}`;
+      }).join('; ') : '—',
+      copy: (task, ctx) => structuredClipboardText(
+        assignmentWorkTokens(task, ctx).map(item => `${assignmentLabel(assignmentById(task, ctx, item), ctx)}: ${workHoursText(item.remainingWorkMinutes)}`).join('; '),
+        ASSIGNMENT_CLIPBOARD_MARKER,
+        assignmentWorkTokens(task, ctx),
+      ),
+      editText: (task, ctx) => assignmentWorkTokens(task, ctx)
+        .map(item => `${assignmentLabel(assignmentById(task, ctx, item), ctx)}: ${workHoursText(item.remainingWorkMinutes)}`).join('; '),
+      parse: parseAssignmentWork,
+      validate: (value, task, ctx) => validateAssignmentWorkTokens(value, task, ctx),
+      planWrite: (value, task) => success([{
+        kind: 'assignment-set', taskId: task.id, columnId: taskColumnId('assignment.remainingWork'),
+        tokens: value as readonly TaskAssignmentToken[],
+      }]),
+    }),
     readonlyColumn({ id: 'assignment.workWindowFinish', labelKey: 'taskGrid.columns.workWindowFinish', category: 'resources', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => ({ assignmentId: item.id, value: item.workWindowFinish })), format: (_value, task, ctx) => assignmentWindowText(task, ctx, 'workWindowFinish'), copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => ({ assignmentId: item.id, workWindowFinish: item.workWindowFinish }))) }),
     readonlyColumn({ id: 'assignment.id', labelKey: 'taskGrid.columns.assignmentId', category: 'technical', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => item.id), format: value => Array.isArray(value) && value.length ? value.join(', ') : '—', copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => item.id)) }),
     readonlyColumn({ id: 'assignment.taskId', labelKey: 'taskGrid.columns.assignmentTaskId', category: 'technical', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => item.taskId), format: value => Array.isArray(value) && value.length ? value.join(', ') : '—', copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => item.taskId)) }),
@@ -1062,6 +1269,20 @@ function baselineColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[]
     }
   }
   return result;
+}
+
+/** De acht XER/Primavera-bronvelden van een taak, zonder de afwezige. */
+function p6ProvenanceOf(task: Task): Record<string, string | boolean> {
+  const out: Record<string, string | boolean> = {};
+  if (task.p6ProjectId !== undefined) out.p6ProjectId = task.p6ProjectId;
+  if (task.p6TaskId !== undefined) out.p6TaskId = task.p6TaskId;
+  if (task.p6ActivityType !== undefined) out.p6ActivityType = task.p6ActivityType;
+  if (task.p6DurationType !== undefined) out.p6DurationType = task.p6DurationType;
+  if (task.p6CompletePctType !== undefined) out.p6CompletePctType = task.p6CompletePctType;
+  if (task.p6ExpectedFinish !== undefined) out.p6ExpectedFinish = task.p6ExpectedFinish;
+  if (task.p6ExplicitTargetWindow !== undefined) out.p6ExplicitTargetWindow = task.p6ExplicitTargetWindow;
+  if (task.p6SuspendResume !== undefined) out.p6SuspendResume = task.p6SuspendResume;
+  return out;
 }
 
 /** Bouwt de volledige headless registry. De categorie-sortering is stabiel; binnen een categorie

@@ -82,7 +82,8 @@ export interface DistributionDocInput extends OccupancyDocInput {
   ceilingWorkdays: number | null;
   /** Planningsinvoer voor de motor-run van dít document: de VOLLEDIGE takenlijst, relaties en
    *  CPM-opties — zelfde eis en zelfde reden als `OccupancySolveInput` (een gesnoeide lijst geeft
-   *  een andere planning dan `runCPM`). */
+   *  een andere planning dan `runCPM`). Een productiebouwer (straks de verdeeldialoog) bouwt hem met
+   *  `occupancySolveInputFor(payload)`, zodat de opties die van F5 zijn. */
   levelInput: OccupancySolveInput;
 }
 
@@ -168,12 +169,10 @@ export type DistributionLevelRun = (doc: DistributionDocInput, options: Leveling
 
 const defaultLevelRun: DistributionLevelRun = (doc, options) => {
   const { tasks, result: cpmResult } = solveClone(doc.levelInput, doc.calendar, doc.calendars);
-  // Dezelfde CPM-opties als de solve hierboven (en als `scheduleSlice.levelResources`), inclusief
-  // de projectstart-vloer.
-  const { tasks: _tasks, sequences: _sequences, ...cpmOptions } = doc.levelInput;
   return levelResources(
     tasks, doc.levelInput.sequences, doc.resources, doc.assignments,
-    doc.calendar, doc.calendars, cpmResult, options, cpmOptions,
+    doc.calendar, doc.calendars, cpmResult, options,
+    doc.levelInput.options,
   );
 };
 

@@ -1,3 +1,5 @@
+import { WORK_RULES, type WorkRule } from '@/types/workRule';
+import { carryRemainingThroughDurationEdit } from '@/engine/work/workRuleApply';
 import { validateConstraintPair } from '@/engine/scheduler/constraintValidation';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { decodeDynamicTaskColumnId } from '@/engine/taskGrid/fieldIds';
@@ -37,6 +39,8 @@ import {
   taskTriggerChanges,
   timephasedDurationWalksHaveFrozenWork,
   type TaskTriggerFields,
+  hourInputFinishBasis,
+  reconcileHourInputFinish,
 } from '@/utils/taskDefaults';
 import { sameValue } from '@/utils/sameValue';
 import { taskWorkMinutes } from '@/engine/contour/contourEngine';
@@ -64,10 +68,16 @@ export interface TaskEditPlanEnvironment {
   effectiveHoursPerDay: number;
   hourMode: boolean;
   effectiveCalendar?: WorkCalendar;
+  /** De kalender waarin een taak met dit `calendarId` rekent (leeg ⇒ projectkalender). */
+  calendarFor?: (calendarId: string | undefined) => WorkCalendar;
   enableHourPlanning?: boolean;
   customTaskTypeIds?: ReadonlySet<string>;
   activityCodeTypes: readonly ActivityCodeType[];
   customFieldDefs: readonly CustomFieldDef[];
+  /** Taaktypes-etappe (2026-09): werkbehoud bij het herschalen van een contour, afgeleid van de
+   *  effectieve werkregel (`utils/taskDefaults.ts`'s `contourKeepsWork`). Afwezig ⇒ de oude
+   *  MSP-afleiding in `rescaleTaskContours`. */
+  contourKeepsWork?: boolean;
 }
 
 export interface PlannedTaskEdit {
@@ -131,22 +141,28 @@ function expectedRoute(columnId: string): CellEditIntent['route'] | null {
   if (columnId === 'task.name' || columnId === 'task.description' || columnId === 'task.wbsCode'
     || columnId === 'task.taskType' || columnId === 'task.customTaskTypeId'
     || columnId === 'task.priority' || columnId === 'task.color'
-    || columnId === 'task.notes') {
+    || columnId === 'task.notes' || columnId === 'task.workRule') {
     return 'task-field';
   }
   return null;
 }
 
-/** Een duurwijziging in het raster (duur-, eenheid- en mijlpaalcel): dezelfde gevolgregels als
- *  `taskSlice.updateTask` en de MCP-draft, zie `applyDurationChangeRules` in taskDefaults.ts.
- *  `oldWorkMinutes` legt de aanroeper vóór de mutatie vast, met dezelfde `hoursPerDay`. Het raster
- *  meet met `environment.effectiveHoursPerDay` (bij een urenkalender de afgeleide bandsom), store en
- *  MCP met de scalar `hoursPerDay` van de taakkalender. */
-function finishDurationEdit(task: Task, oldWorkMinutes: number, hoursPerDay: number): boolean {
+/** Een duurwijziging in het raster (duur-, eenheid-, mijlpaal- en Eindecel): dezelfde gevolgregels
+ *  als `taskSlice.updateTask` en de MCP-draft, zie `applyDurationChangeRules` in taskDefaults.ts
+ *  (de kern van `settleDurationAftermath`, workRuleApply.ts). `oldWorkMinutes` legt de aanroeper
+ *  vóór de mutatie vast, met dezelfde uren-per-dag. Het raster meet met
+ *  `environment.effectiveHoursPerDay` (bij een urenkalender de afgeleide bandsom); het ingevoerde
+ *  einde van een urentaak herleidt `applyOneCellEdit` aan het eind (`reconcileGridInputFinish`). */
+function finishDurationEdit(task: Task, oldWorkMinutes: number, environment: TaskEditPlanEnvironment): boolean {
+  const hoursPerDay = environment.effectiveHoursPerDay;
+  const usableHours = Number.isFinite(hoursPerDay) && hoursPerDay > 0;
+  // Eigenaarsbesluit 2026-09-05: een expliciete restduur schuift mee met de duurwijziging.
+  if (usableHours) carryRemainingThroughDurationEdit(task, oldWorkMinutes, hoursPerDay);
   return applyDurationChangeRules(task, oldWorkMinutes, hoursPerDay, {
     // Eigen afwijking van het raster: de contour alleen herschalen bij een bruikbare uren-per-dag
     // (store en MCP roepen de herschaling onvoorwaardelijk aan).
-    rescaleContours: Number.isFinite(hoursPerDay) && hoursPerDay > 0,
+    rescaleContours: usableHours,
+    keepWork: environment.contourKeepsWork,
   });
 }
 
@@ -164,6 +180,16 @@ function finishDurationEdit(task: Task, oldWorkMinutes: number, hoursPerDay: num
 const LEVELING_GAP_ROUTES: ReadonlySet<CellEditIntent['route']> = new Set([
   'task-schedule', 'task-progress', 'task-milestone', 'task-constraint', 'task-hammock',
 ]);
+
+/** B1-vervolg (critreview 24-09): de solve schrijft `scheduleFinish` niet meer terug, dus de
+ *  gridbewerking houdt het ingevoerde einde van een niet-gestarte urentaak zelf coherent — dezelfde
+ *  regel als `taskSlice.updateTask`, zie `reconcileHourInputFinish` (taskDefaults.ts). `calendarFor`
+ *  levert de kalender NA de bewerking (een kalenderkolom-edit verandert die); zonder valt hij terug op
+ *  de effectieve kalender van vóór de bewerking. */
+function reconcileGridInputFinish(before: Task, next: Task, environment: TaskEditPlanEnvironment): void {
+  const calendar = environment.calendarFor?.(next.calendarId) ?? environment.effectiveCalendar;
+  if (calendar) reconcileHourInputFinish(next, hourInputFinishBasis(before), calendar);
+}
 
 function clearScheduleGuidance(task: Task, clearFrozenWalks: boolean): boolean {
   const clearedWindow = clearTimephasedWindow(task);
@@ -210,6 +236,12 @@ function applyTaskField(
   } else if (id === 'task.color') {
     if (!optionalString(edit.value)) return failure('color', edit);
     task.color = edit.value;
+  } else if (id === 'task.workRule') {
+    // Taaktypes-etappe (spec §7): het VELD; de driehoekstap (restwerk vastleggen onder een
+    // werkbeschermende regel) doet `gridTransaction.ts` ná het plan, met de toewijzingen erbij.
+    if (edit.value === undefined || edit.value === '') delete task.workRule;
+    else if (typeof edit.value === 'string' && (WORK_RULES as readonly string[]).includes(edit.value)) task.workRule = edit.value as WorkRule;
+    else return failure('enum', edit);
   } else if (id === 'task.notes') {
     if (typeof edit.value !== 'string') return failure('text', edit);
     if ((task.notes?.length ?? 0) > 1) return failure('readOnly', edit);
@@ -252,7 +284,7 @@ function applyParsedDuration(
     task.time.durationMinutes = undefined;
   }
   if (!taskTriggerChanges(before, task).timeBase) return { ok: true, value: false };
-  return { ok: true, value: finishDurationEdit(task, oldWorkMinutes, environment.effectiveHoursPerDay) };
+  return { ok: true, value: finishDurationEdit(task, oldWorkMinutes, environment) };
 }
 
 /**
@@ -318,7 +350,7 @@ function applyScheduleEdit(
       task.time.durationMinutes = minutes;
       task.time.scheduleDuration = minutes / (environment.effectiveHoursPerDay * 60);
     }
-    lost = finishDurationEdit(task, oldWorkMinutes, environment.effectiveHoursPerDay);
+    lost = finishDurationEdit(task, oldWorkMinutes, environment);
   } else if (id === 'task.time.scheduleDuration') {
     if (edit.value && typeof edit.value === 'object' && 'unit' in edit.value) {
       return applyParsedDuration(task, edit.value as ParsedTaskDuration, edit, environment, oldWorkMinutes);
@@ -333,7 +365,7 @@ function applyScheduleEdit(
       task.time.scheduleDuration = days;
       if (environment.hourMode) task.time.durationMinutes = edit.value;
       else delete task.time.durationMinutes;
-      lost = finishDurationEdit(task, oldWorkMinutes, hoursPerDay);
+      lost = finishDurationEdit(task, oldWorkMinutes, environment);
     }
   } else if (id === 'task.time.start') {
     // De GETOONDE start (Tabel-kolom Start): dezelfde regel als paneel en Taak bewerken — het anker
@@ -429,7 +461,7 @@ function applyMilestoneEdit(
   // verzint geen duur, zie `taskMilestoneTransition`, en raakt de tijdbasis dan niet.)
   return {
     ok: true,
-    value: scheduleChanged ? finishDurationEdit(task, oldWorkMinutes, environment.effectiveHoursPerDay) : false,
+    value: scheduleChanged ? finishDurationEdit(task, oldWorkMinutes, environment) : false,
   };
 }
 
@@ -778,6 +810,8 @@ function applyOneCellEdit(
   task: Task,
   edit: CellEditIntent,
   environment: TaskEditPlanEnvironment,
+  /** `false` in `planTaskCellEdits`: die houdt het einde één keer voor de hele groep coherent. */
+  reconcileFinish = true,
 ): GridResult<Omit<PlannedTaskEdit, 'changed'>, readonly CellValidationError[]> {
   if (task.id !== edit.taskId) return failure('taskMismatch', edit);
   const id = String(edit.columnId);
@@ -814,6 +848,7 @@ function applyOneCellEdit(
   // structurele vergelijking als store en MCP (`sameValue`): een celwrite die de taak niet veranderde
   // — dezelfde waarde teruggeschreven — laat een nivelleergat staan.
   if (LEVELING_GAP_ROUTES.has(edit.route) && !sameValue(task, next)) clearLevelingGaps(next);
+  if (reconcileFinish) reconcileGridInputFinish(task, next, environment);
   const scheduleStale = edit.route === 'task-schedule'
     || edit.route === 'task-progress'
     || edit.route === 'task-milestone'
@@ -872,7 +907,7 @@ export function planTaskCellEdits(
     if (edit.route === 'task-constraint' || edit.route === 'task-progress') continue;
     // applyOneCellEdit, niet planTaskCellEdit: deze lus keek nooit naar `.changed` van een
     // tussenstap, dus de dure JSON.stringify-vergelijking hierboven was hier pure verspilling.
-    const planned = applyOneCellEdit(next, edit, environment);
+    const planned = applyOneCellEdit(next, edit, environment, false);
     if (!planned.ok) return planned;
     next = planned.value.task;
     timephasedGuidanceLost ||= planned.value.timephasedGuidanceLost;
@@ -919,6 +954,10 @@ export function planTaskCellEdits(
     if (!sameValue(beforeGroup, next)) clearLevelingGaps(next); // B7 — zie de constraintgroep hierboven.
     scheduleStale = true;
   }
+  // B1-vervolg — één keer voor de hele groep, tegen de taak van vóór de groep: zo wint een in dezelfde
+  // plak meegegeven "Gepland einde" ongeacht de kolomvolgorde, en telt voortgang (gestart ⇒ niet meer
+  // meebewegen) mee.
+  reconcileGridInputFinish(task, next, environment);
   return {
     ok: true,
     value: {

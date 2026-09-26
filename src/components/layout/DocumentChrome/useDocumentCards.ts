@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { basename } from '@/utils/filePath';
+import { xerProjectCode } from '@/utils/xerDocumentName';
 import {
   documentTitle, documentColor, documentCode, buildStats, buildThumbnail,
   untitledOrdinals, displayDocumentTitle,
@@ -38,6 +39,7 @@ export function useDocumentCards(): DocumentCard[] {
   const cpmResult = useAppStore((s) => s.cpmResult);
   const filePath = useAppStore((s) => s.filePath);
   const isDirty = useAppStore((s) => s.isDirty);
+  const activeXerCode = useAppStore((s) => xerProjectCode(s.xerImportMetadata));
 
   return useMemo(() => {
     const untitled = t('project.untitled');
@@ -50,7 +52,8 @@ export function useDocumentCards(): DocumentCard[] {
       const active = entry.id === activeId;
       const p = active ? project : entry.payload!.project;
       const fp = active ? filePath : entry.payload!.filePath;
-      return documentTitle(fp, p.name);
+      const code = active ? activeXerCode : xerProjectCode(entry.payload!.xerImportMetadata);
+      return documentTitle(fp, p.name, code);
     });
     const ordinals = untitledOrdinals(rawTitles);
 
@@ -81,7 +84,7 @@ export function useDocumentCards(): DocumentCard[] {
         thumb: buildThumbnail(tl, color),
       };
     });
-  }, [documents, activeId, project, tasks, cpmResult, filePath, isDirty, t]);
+  }, [documents, activeId, project, tasks, cpmResult, filePath, isDirty, activeXerCode, t]);
 }
 
 /** Gedeelde acties voor alle drie de chrome-stijlen + het overzicht. */

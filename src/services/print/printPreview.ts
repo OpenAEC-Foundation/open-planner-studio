@@ -13,6 +13,7 @@ import { PRINT_PALETTE as PRINT_COLORS } from '@/engine/renderer/themePalette';
 import { isCompressedEffective, resolveGanttAxis } from '@/engine/renderer/workdayAxis';
 import { computeSplitSegments } from '@/engine/renderer/splitBarGeometry';
 import { snapToChoice } from '@/utils/numberChoice';
+import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 // Balkkleurmodi (#21 punt 1-nieuw): pure adviesmodule — de printlaag vertaalt alleen naar
 // fill/segmenten/outline-aanroepen en houdt zelf geen kleurlogica.
 import {
@@ -1211,7 +1212,7 @@ export function renderReport(
             const rowMid = rowTop + m.rowHeight / 2;
             let px = statusLineX!;
             const row = printRows[i];
-            if (row.kind === 'task' && row.task && !row.task.isMilestone && row.task.childIds.length === 0) {
+            if (row.kind === 'task' && row.task && !row.task.isMilestone && isLeafTask(row.task)) {
               const s = parseDate(shownStart(row.task));
               const f = parseDate(shownFinish(row.task));
               const bx1 = dateToX(s);
@@ -1339,7 +1340,7 @@ export function renderReport(
           barLabelJobs.push({ name: task.name, barRightX: cx + size, barLeftX: cx - size, y: cy + m.s(3), bold: false });
         }
       }
-    } else if (task.childIds.length > 0) {
+    } else if (isSummaryTask(task)) {
       // Summary bracket bar
       const start = parseDate(shownStart(task));
       const end = parseDate(shownFinish(task));
@@ -2287,7 +2288,7 @@ function drawTaskTable(
     // Inspringing per hiërarchieniveau schaalt mee: de naamkolom is breder geworden, dus een vaste
     // 12 px zou de boomstructuur bij een grote letter optisch platslaan.
     const indent = depth * m.s(NAME_INDENT_PER_LEVEL);
-    const isSummary = task.childIds.length > 0;
+    const isSummary = isSummaryTask(task);
 
     // WBS
     d2d.fillStyle = PRINT_COLORS.textSecondary;

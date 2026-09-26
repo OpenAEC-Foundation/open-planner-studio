@@ -11,7 +11,7 @@ Every schedule has a longest chain of tasks that together determine when the pro
 - Hammocks (Level of Effort): what they do and don't do.
 - External links between projects: the frozen anchor, refreshing, and the "source missing" status.
 - Tracing a path via the context menu or the ribbon.
-- The **Calculation** section in the project settings.
+- The **Calculation profile and options** section in the project settings.
 
 Follow along with [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc) — the large, "kitchen sink" showcase with three parallel towers that shows almost every topic in this guide: multiple critical paths, near-critical work, a hammock, a hard pin and an external link to a separate source file.
 
@@ -31,13 +31,13 @@ In the Gantt chart, the total float of a non-critical task is drawn as a light g
 
 ## Near-critical work
 
-A task with a small, non-zero total float is vulnerable: a small setback makes it critical after all. Turn this on via **Project info → Calculation → Mark near-critical**, with a **Threshold** in work days (or hours, depending on your duration display). Every task with total float greater than zero and less than or equal to that threshold gets an amber bar color in the Gantt — between the red of critical and the green of ample float.
+A task with a small, non-zero total float is vulnerable: a small setback makes it critical after all. Turn this on via **Project info → Calculation profile and options → Mark near-critical**, with a **Threshold** in work days (or hours, depending on your duration display). Every task with total float greater than zero and less than or equal to that threshold gets an amber bar color in the Gantt — between the red of critical and the green of ample float.
 
 The large showcase sets the threshold to 3 work days. The final inspection of **Tower C** therefore has exactly 3 work days of total float — just inside the threshold — while the identical final inspections of **Tower A** and **Tower B** sit at zero float and are genuinely critical. Tower C is identical to the other two in tasks and durations except for one slightly shorter finishing task; that small difference is exactly enough to move it from critical to near-critical.
 
 ## Multiple critical paths
 
-Normally there is exactly one longest chain, but it can happen that two or more chains are exactly the same length — then they're both (or all) equally critical. Turn on **Multiple float paths** (**Project info → Calculation**) to have this computed: choose the **Method** (**Free float (peeling)** or **Total float (ranking)**) and a **Max. paths**. Every task then gets a **Float path** number (1 = most critical); a task with no float path isn't on any of the computed paths.
+Normally there is exactly one longest chain, but it can happen that two or more chains are exactly the same length — then they're both (or all) equally critical. Turn on **Multiple float paths** (**Project info → Calculation profile and options**) to have this computed: choose the **Method** (**Free float (peeling)** or **Total float (ranking)**) and a **Max. paths**. Every task then gets a **Float path** number (1 = most critical); a task with no float path isn't on any of the computed paths.
 
 In the large showcase, Tower A and Tower B are fully symmetrical in tasks and durations — they finish at exactly the same time. As soon as you turn on **Multiple float paths**, you'll see more than one path in the results (`criticalPaths.length` greater than 1 in the calculation): not a single longest chain, but several equally critical chains running through the project. That's a different signal from "one critical path with some near-critical work next to it" — it means a delay in *any* of those paths hits the end date equally, so you can't focus your attention on a single chain.
 
@@ -69,12 +69,12 @@ The large showcase deliberately demonstrates exactly that last path: the task "B
 
 Want to see exactly which tasks affect a given task upstream and downstream? Right-click the task and choose **Trace path** (or **Stop tracing** to turn it off again) — that highlights the entire chain of predecessors and successors in one go. For more targeted work, the ribbon (**Planning** or **Table** tab, **Path tracing** ribbon group) has a separate pair of buttons **Predecessors**/**Successors**: both off shows nothing, one on shows that one direction, both on is the same as the context-menu command. The trace also distinguishes between all logically connected tasks and the tasks that are actually **driving** the date (the same driving marker shown in the predecessor/successor cells) — so you see not just what's connected, but what's actually steering.
 
-## Calculation settings
+## Calculation options
 
-The **Calculation** section in **Project info** (Backstage → Project info, or the **Project info** window) collects the calculation options that belong to this particular project — they belong to the file, not the app, so a colleague opening the same file gets the same outcome:
+The **Calculation profile and options** section in **Project info** (Backstage → Project info, or the **Project Information** window) collects the calculation profile and the calculation options that belong to this particular project — they belong to the file, not the app, so a colleague opening the same file gets the same outcome:
 
 - **Critical definition** — **Total float ≤ threshold** (default threshold 0) or **Longest path**, which marks tasks critical based on the longest chain through the network, independent of their float number.
-- **Float calculation** — how total float is determined for a task with both a start and a finish side: **Smallest (start/finish)** (default), **Start float** or **Finish float**.
+- **Float calculation** — how total float is determined for a task with both a start and a finish side: **Automatic (default)**, **Smallest (start/finish)**, **Start float** or **Finish float**.
 - **Open-ended tasks critical** — automatically treat tasks with no successor as critical.
 - **Mark near-critical** with **Threshold** (see above).
 - **Multiple float paths** with **Method** and **Max. paths** (see above).

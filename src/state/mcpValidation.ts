@@ -23,10 +23,12 @@ import type { Task } from '@/types/task';
 import {
   applyProgressInvariants, fillMissingActualStart, isActualFinishBeforeStart, isActualPastStatusDate,
 } from '@/engine/taskMutationRules';
+import { captureProgressWork, settleProgressWork } from '@/engine/work/workRuleApply';
 import { clearLevelingGaps } from '@/utils/taskDefaults';
 import { sameValue } from '@/utils/sameValue';
 import { detectCycleInEdges } from '@/engine/scheduler/graphWalk';
 import { isValidUnits } from '@/types/resource';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 
 /** Per-item-fout: het aangesproken id + een leesbare reden (voor de per-item-rapportage van de
  *  tool-laag). */
@@ -45,6 +47,8 @@ export type ProgressResult = { applied: true } | { applied: false; reason: strin
 /** Minimale vorm die de validatiehelpers uit de (draft-)state lezen. `AppState` voldoet hieraan; een
  *  Immer-draft van `AppState` structureel ook. */
 type ReadableState = Pick<AppState, 'tasks' | 'sequences' | 'assignments'>;
+/** Wat `applyProgressUpdate` extra leest: slot (kalenders) en de regelcontext voor `captureProgressWork`. */
+type ProgressState = ReadableState & Pick<AppState, 'calendars' | 'calendar' | 'project' | 'resources'>;
 
 export const validate = {
   /**
@@ -102,7 +106,7 @@ export const validate = {
     const task = state.tasks.find((t) => t.id === taskId);
     if (!task) return { ok: false, reason: `taak '${taskId}' bestaat niet` };
     if (task.isMilestone) return { ok: false, reason: `taak '${taskId}' is een mijlpaal; een mijlpaal draagt geen resources` };
-    if (task.childIds.length > 0) return { ok: false, reason: `taak '${taskId}' is een verzameltaak (summary); wijs resources toe aan de bladtaken` };
+    if (isSummaryTask(task)) return { ok: false, reason: `taak '${taskId}' is een verzameltaak (summary); wijs resources toe aan de bladtaken` };
     if (!isValidUnits(units)) return { ok: false, reason: `ongeldige eenheden/dag ${String(units)} (strikt positief vereist)` };
     if (state.assignments.some((a) => a.taskId === taskId && a.resourceId === resourceId)) {
       return { ok: false, reason: `resource '${resourceId}' is al toegewezen aan taak '${taskId}' (een tweede toewijzing zou de last dubbel tellen)` };
@@ -138,7 +142,7 @@ export const progress = {
    *      40%-taak als NOT_STARTED zonder gepinde `actualStart` achterlaten) en COMMIT naar de draft.
    */
   applyProgressUpdate(
-    draftState: ReadableState,
+    draftState: ProgressState,
     taskId: string,
     update: { completion?: number; actualStart?: string; actualFinish?: string },
     statusDate: string | undefined,
@@ -209,7 +213,7 @@ export const progress = {
     }
 
     // (9) voortgang op een verzameltaak (heeft kinderen) ⇒ weigering.
-    if (task.childIds.length > 0) {
+    if (isSummaryTask(task)) {
       return { applied: false, reason: `taak '${taskId}' is een verzameltaak (heeft kinderen); voortgang wordt afgeleid uit de kinderen, niet direct gezet` };
     }
 
@@ -219,8 +223,13 @@ export const progress = {
     // nivelleergaten NIET wissen — dezelfde no-op-regel als taskSlice.ts's voortgangssetters
     // (`commitProgressEdit`). Het item is wél verwerkt: het staat al zoals gevraagd.
     if (sameValue(task, scratch)) return { applied: true };
+    // Fable-critreview #170, bevinding 1: de voortgang verplaatst opgeslagen werk van rest naar
+    // verricht — momentopname op de ONGEWIJZIGDE taak, settle ná de commit (zelfde als de store).
+    // Integratie groep B (besluit 5): ná de no-op-check, zodat een no-op ook het werk niet raakt.
+    const progressWork = captureProgressWork(task, draftState);
     Object.assign(task.time, scratch.time);
     task.status = scratch.status;
+    settleProgressWork(task, draftState.assignments, progressWork);
     // B1c-plan-2 spec §4 "Invalidatie", vierde klasse (voortgang) — bedraad in de fixronde op
     // etappe 3, bevinding B7. Dit is het MCP-equivalent van `taskSlice`'s `setTaskProgress`/
     // `setActualStart`/`setActualFinish`: voortgang verzet de werkminuten-as waarop een

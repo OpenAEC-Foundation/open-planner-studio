@@ -1,0 +1,260 @@
+{
+  "files": {
+    "68ce5f0bb2b534d5": {
+      "label": "crawl-xer-extra/ashspace-primeveraxereditor/sample.xer",
+      "tasks": 52,
+      "projects": 1,
+      "counters": {
+        "es": {
+          "deviations": 0,
+          "measurable": 52
+        },
+        "ef": {
+          "deviations": 0,
+          "measurable": 52
+        },
+        "ls": {
+          "deviations": 0,
+          "measurable": 52
+        },
+        "lf": {
+          "deviations": 0,
+          "measurable": 52
+        },
+        "tf": {
+          "deviations": 0,
+          "measurable": 52
+        },
+        "ff": {
+          "deviations": 0,
+          "measurable": 52
+        }
+      },
+      "schemaFingerprint": "97fa9ea1f533ca60"
+    },
+    "4d8bce790a93b9bc": {
+      "label": "crawl-xer-extra/xernative/sample.xer",
+      "tasks": 25,
+      "projects": 1,
+      "counters": {
+        "es": {
+          "deviations": 0,
+          "measurable": 25
+        },
+        "ef": {
+          "deviations": 0,
+          "measurable": 25
+        },
+        "ls": {
+          "deviations": 0,
+          "measurable": 25
+        },
+        "lf": {
+          "deviations": 0,
+          "measurable": 25
+        },
+        "tf": {
+          "deviations": 0,
+          "measurable": 25
+        },
+        "ff": {
+          "deviations": 0,
+          "measurable": 25
+        }
+      },
+      "schemaFingerprint": "80fd54b21f2afc76"
+    },
+    "2bc12241c3f8ee5b": {
+      "label": "crawl-xer/eh_P6Workshops/OZB-Start-09Dec24.xer",
+      "tasks": 155,
+      "projects": 11,
+      "counters": {
+        "es": {
+          "deviations": 0,
+          "measurable": 152
+        },
+        "ef": {
+          "deviations": 0,
+          "measurable": 152
+        },
+        "ls": {
+          "deviations": 0,
+          "measurable": 152
+        },
+        "lf": {
+          "deviations": 0,
+          "measurable": 152
+        },
+        "tf": {
+          "deviations": 0,
+          "measurable": 138
+        },
+        "ff": {
+          "deviations": 0,
+          "measurable": 138
+        }
+      },
+      "schemaFingerprint": "ec668c11ba3d5921"
+    },
+    "b9547eb91c30af17": {
+      "label": "crawl-xer/HarbourPointe_AssistedLiving.xer",
+      "tasks": 122,
+      "projects": 1,
+      "counters": {
+        "es": {
+          "deviations": 0,
+          "measurable": 122
+        },
+        "ef": {
+          "deviations": 0,
+          "measurable": 122
+        },
+        "ls": {
+          "deviations": 0,
+          "measurable": 122
+        },
+        "lf": {
+          "deviations": 0,
+          "measurable": 122
+        },
+        "tf": {
+          "deviations": 0,
+          "measurable": 104
+        },
+        "ff": {
+          "deviations": 0,
+          "measurable": 104
+        }
+      },
+      "schemaFingerprint": "a81fedfd4aaa73d8"
+    },
+    "9679599df9108bd3": {
+      "label": "crawl-xer/Hotel_Construction_TEC.xer",
+      "tasks": 4217,
+      "projects": 1,
+      "counters": {
+        "es": {
+          "deviations": 0,
+          "measurable": 4217
+        },
+        "ef": {
+          "deviations": 0,
+          "measurable": 4217
+        },
+        "ls": {
+          "deviations": 0,
+          "measurable": 4217
+        },
+        "lf": {
+          "deviations": 0,
+          "measurable": 4217
+        },
+        "tf": {
+          "deviations": 0,
+          "measurable": 4217
+        },
+        "ff": {
+          "deviations": 0,
+          "measurable": 4217
+        }
+      },
+      "schemaFingerprint": "f1e5f479674e3ce4"
+    },
+    "a2ef7b35c00d8cf8": {
+      "label": "crawl-xer/Roads_Project_TEC.xer",
+      "tasks": 1193,
+      "projects": 1,
+      "counters": {
+        "es": {
+          "deviations": 0,
+          "measurable": 1193
+        },
+        "ef": {
+          "deviations": 0,
+          "measurable": 1193
+        },
+        "ls": {
+          "deviations": 0,
+          "measurable": 1193
+        },
+        "lf": {
+          "deviations": 0,
+          "measurable": 1193
+        },
+        "tf": {
+          "deviations": 0,
+          "measurable": 1036
+        },
+        "ff": {
+          "deviations": 0,
+          "measurable": 1036
+        }
+      },
+      "schemaFingerprint": "c860b3291dba9ee1"
+    },
+    "55b7e4463dcd36ba": {
+      "label": "crawl-xer/Sample_Construction_TEC.xer",
+      "tasks": 51,
+      "projects": 1,
+      "counters": {
+        "es": {
+          "deviations": 0,
+          "measurable": 51
+        },
+        "ef": {
+          "deviations": 0,
+          "measurable": 51
+        },
+        "ls": {
+          "deviations": 0,
+          "measurable": 51
+        },
+        "lf": {
+          "deviations": 0,
+          "measurable": 51
+        },
+        "tf": {
+          "deviations": 0,
+          "measurable": 51
+        },
+        "ff": {
+          "deviations": 0,
+          "measurable": 51
+        }
+      },
+      "schemaFingerprint": "96a23d026fc67de2"
+    },
+    "a2f3b2469e26f199": {
+      "label": "P6-Viewer/XER Files/TERMINAL BUILDING-AIRPORT.xer",
+      "tasks": 66,
+      "projects": 1,
+      "counters": {
+        "es": {
+          "deviations": 0,
+          "measurable": 66
+        },
+        "ef": {
+          "deviations": 0,
+          "measurable": 66
+        },
+        "ls": {
+          "deviations": 0,
+          "measurable": 66
+        },
+        "lf": {
+          "deviations": 0,
+          "measurable": 66
+        },
+        "tf": {
+          "deviations": 0,
+          "measurable": 66
+        },
+        "ff": {
+          "deviations": 0,
+          "measurable": 66
+        }
+      },
+      "schemaFingerprint": "926a3b9c4a643cea"
+    }
+  }
+}

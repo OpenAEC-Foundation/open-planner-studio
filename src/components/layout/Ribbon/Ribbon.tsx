@@ -1,5 +1,6 @@
 import { useCallback, useLayoutEffect, useRef, type RefObject } from 'react';
 import { useAppStore } from '@/state/appStore';
+import { leaveBackstageGuarded } from '@/components/backstage/backstageLeaveGuard';
 import { useTranslation } from 'react-i18next';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import { saveRibbonCompact } from '@/utils/settingsStore';
@@ -243,8 +244,11 @@ export function Ribbon() {
   // Puur afgeleid uit bestaande state — geen eigen setState, dus geen renderlus mogelijk.
   const density: RibbonDensity = ribbonCompact ? 'compact' : 'full';
 
+  // Vanuit Backstage via de wegnavigeerbewaking (B2): een niet-toegepaste Projectinfo-draft gaat
+  // dan niet stil verloren. Buiten Backstage is er geen bewaker geregistreerd en is dit een no-op.
   const setActiveTab = useCallback((tab: RibbonTab) => {
-    setUI({ activeRibbonTab: tab });
+    if (tab === useAppStore.getState().ui.activeRibbonTab) return;
+    leaveBackstageGuarded(() => setUI({ activeRibbonTab: tab }));
   }, [setUI]);
 
   const tabs: RibbonTab[] = [

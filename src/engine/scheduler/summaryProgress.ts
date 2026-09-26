@@ -1,6 +1,7 @@
 import type { Task, TaskStatus } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { effHoursPerDay, effectiveCalendarOf, taskDurationMinutes } from '@/utils/taskDuration';
+import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 
 /**
  * Voortgang en status van een VERZAMELTAAK (fase), afgeleid uit haar bladtaken — één definitie.
@@ -59,7 +60,7 @@ export function descendantLeaves(
   const cached = cache?.get(root.id);
   if (cached) return cached;
   let out: Task[];
-  if (root.childIds.length === 0) {
+  if (isLeafTask(root)) {
     out = root.isHammock ? [] : [root];
   } else {
     out = [];
@@ -71,7 +72,7 @@ export function descendantLeaves(
         const c = byId.get(t.childIds[i]);
         if (!c || seen.has(c.id)) continue;
         seen.add(c.id);
-        if (c.childIds.length === 0) { if (!c.isHammock) out.push(c); } else stack.push(c);
+        if (isLeafTask(c)) { if (!c.isHammock) out.push(c); } else stack.push(c);
       }
     }
   }
@@ -116,5 +117,5 @@ export function summaryProgressOf(leaves: readonly Task[], workDaysOf: (t: Task)
  * taakeigenschap; die regelen `showRecordedDates` (herstel) en het WBS-rapport (`datesAsRecorded`).
  */
 export function isSummaryProgressDerived(task: Task): boolean {
-  return task.childIds.length > 0 && !task.manuallyScheduled;
+  return isSummaryTask(task) && !task.manuallyScheduled;
 }

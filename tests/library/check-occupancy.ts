@@ -11,7 +11,7 @@
 // tests/planning/check-move-assignment.ts): het TERUGSCHRIJFBESLUIT van §4.3b woont in een
 // store-actie (`recalculateStaleSleepingDocuments` in `documentSlice`) en die is alleen zinvol te
 // testen tegen echte payloads in de documentregistry. Cases 1–16 blijven puur.
-import { computeLibraryOccupancy, ephemeralSolve, occupancySolveInputOf } from '@/services/library/occupancy';
+import { computeLibraryOccupancy, ephemeralSolve, occupancySolveInputFor } from '@/services/library/occupancy';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -29,6 +29,7 @@ import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resour
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
+import { neutralSolveOptions } from './neutralSolveOptions';
 
 declare const process: { exit(code: number): never };
 
@@ -115,7 +116,7 @@ function doc(docId: string, opts: DocOpts = {}): OccupancyDocInput {
     calendars: [],
     ...(opts.skipSolve === true ? { skipEphemeralSolve: true } : {}),
     ...(opts.solveTasks !== undefined
-      ? { solveInput: { tasks: opts.solveTasks, sequences: opts.solveSequences ?? [] } }
+      ? { solveInput: { tasks: opts.solveTasks, sequences: opts.solveSequences ?? [], options: neutralSolveOptions() } }
       : {}),
   };
 }
@@ -513,7 +514,7 @@ function pool(resources: Resource[]): CompanyPool {
   // Referentie: dezelfde invoer vers doorgerekend (solveProject == de kern van runCPM) en dan door
   // computeResourceLoad — precies wat F5-in-het-document + het projecthistogram zouden opleveren.
   const refTasks = cloneTasksForSolve(staleTasks);
-  const refResult = solveProject({ tasks: refTasks, sequences: [], calendar: cal(), calendars: [] });
+  const refResult = solveProject({ tasks: refTasks, sequences: [], calendar: cal(), calendars: [], ...neutralSolveOptions() });
   const refLoad = computeResourceLoad(d1.resources, d1.assignments, refTasks, cal(), []);
   const refDaily = refLoad.load['d1-r1'];
   const refDays = Object.keys(refDaily).filter(iso => refDaily[iso] > 0).sort();
@@ -795,7 +796,7 @@ let afterPayload: DocumentPayload | null = null;
   // opleveren (addSequence weigert dat via relationRules): precies het crashherstel-geval, waar elke
   // niet-actieve payload per definitie `scheduleStale: true` draagt.
   const recoveryDoc = (id: string, tasks: Task[], sequences: Sequence[]): RecoveryDocInput => ({
-    id, filePath: null, isDirty: false,
+    id, filePath: null, isDirty: false, datesAsRecorded: false,
     project: { ...createDefaultProject(), name: id },
     calendar: createDefaultCalendar(),
     tasks, sequences, resources: [], assignments: [],
@@ -942,7 +943,7 @@ let afterPayload: DocumentPayload | null = null;
   const lead: Sequence = { id: 'ps-s', predecessorId: 'ps-a', successorId: 'ps-b', type: 'FINISH_START', lagDays: -3 };
   const d: OccupancyDocInput = {
     ...doc('ps-doc', { scheduleStale: true, tasks: [a, b, c] }),
-    solveInput: { tasks: [a, b, c], sequences: [lead], projectStartDate: start },
+    solveInput: { tasks: [a, b, c], sequences: [lead], options: { ...neutralSolveOptions(), projectStartDate: start } },
   };
   const solved = ephemeralSolve(d);
   const bStart = solved?.find(t => t.id === 'ps-b')?.time.earlyStart;
@@ -971,20 +972,20 @@ let afterPayload: DocumentPayload | null = null;
 
   // 24c/d: het bezettingsoverzicht bouwt de efemere invoer uit de payload. Die liet
   // `projectStartDate` weg (alleen statusDate/progressMode/schedulingOptions), waardoor 24a in de
-  // echte weergave nooit gold. De invoer komt nu uit `occupancySolveInputOf`, en de weergave moet
+  // echte weergave nooit gold. De invoer komt nu uit `occupancySolveInputFor`, en de weergave moet
   // die ook gebruiken.
   const project = { ...createDefaultProject(), startDate: start };
   const viaPayload: OccupancyDocInput = {
     ...doc('ps-doc2', { scheduleStale: true, tasks: [a, b, c] }),
-    solveInput: occupancySolveInputOf({ tasks: [a, b, c], sequences: [lead], project }),
+    solveInput: occupancySolveInputFor({ tasks: [a, b, c], sequences: [lead], project }),
   };
   const bViaPayload = ephemeralSolve(viaPayload)?.find(t => t.id === 'ps-b')?.time.earlyStart;
   assert(bViaPayload === start,
     `case 24c: invoer uit een payload draagt de projectstart-vloer mee (kreeg ${bViaPayload})`);
   const viewSrc = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', '..',
     'src', 'components', 'panels', 'ResourceOccupancyView.tsx'), 'utf8');
-  assert(viewSrc.includes('solveInput: occupancySolveInputOf(payload)'),
-    'case 24d: ResourceOccupancyView bouwt solveInput via occupancySolveInputOf');
+  assert(viewSrc.includes('solveInput: occupancySolveInputFor(payload)'),
+    'case 24d: ResourceOccupancyView bouwt solveInput via occupancySolveInputFor');
 }
 
 console.log(`occupancy: ${checks - fails}/${checks} groen`);

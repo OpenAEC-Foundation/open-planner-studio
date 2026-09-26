@@ -1,13 +1,42 @@
-import { parseDate, formatDate, addBusinessDays } from '@/utils/dateUtils';
-import type { Task, TaskDurationUnit, TaskTime } from '@/types/task';
+import { parseDate, formatDate, addBusinessDays, parseInstant, formatInstant } from '@/utils/dateUtils';
+import type { Task, TaskDurationUnit, TaskSplitGap, TaskTime } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { sameValue } from '@/utils/sameValue';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { addElapsedMinutes, splitTotalSpanMinutes } from '@/engine/scheduler/duration';
+import { calendarForEngine } from '@/utils/effectiveWorkTime';
+import { effHoursPerDay } from '@/utils/taskDuration';
 import { clipUserGapsToWork, splitUnitMinutes } from '@/engine/scheduler/splitEdit';
 import {
   rescaleContourForDuration, rescaleFactor, rescaleSplitGaps, taskWorkMinutes,
 } from '@/engine/contour/contourEngine';
+import { DEFAULT_WORK_RULE, type WorkRule } from '@/types/workRule';
+import { ruleProtectsWork } from '@/engine/work/workTriangle';
+
+// ── Bewerkregels die per-taak-herkomst lezen (E6, PR #101 baan 1) ───────────────────────────────
+// Deze twee lezen `mspTaskType` — bewaarde bronherkomst van één taak — om te bepalen hoe een
+// BEWERKING uitpakt (contour herschalen, 8-B-effort-driven). Dat is geen solverinvoer en geen
+// conventie (regel B): de motor (`src/engine/`) mag geen bronformaat lezen, dus ze wonen hier, naast
+// `rescaleTaskContours`, dat de uitkomst van `contourKeepsWork` als `keepWork` krijgt.
+
+/** Bewaard MSP-vinkje voor beslispunt 8-B: alleen betekenisvol op een taak met MSP-herkomst
+ *  (`mspTaskType`); daar is "afwezig" letterlijk "niet effort-driven". Zonder herkomst ⇒ zuiver P6.
+ *  Formaatafhankelijke BEWERKREGEL (driehoek, paneel), niet iets wat de solver leest. */
+export function effectiveEffortDriven(task: Pick<Task, 'mspTaskType' | 'effortDriven'>): boolean | undefined {
+  return task.mspTaskType ? (task.effortDriven ?? false) : undefined;
+}
+
+/**
+ * Herschaalt een contour met werkbehoud onder de werkbeschermende regels (spec §6.3). Zonder eigen
+ * `workRule` geldt de oude MSP-afleiding (`mspTaskType === 'FIXED_WORK'`) náást de projectstandaard,
+ * zodat een vóór deze etappe opgeslagen MSP-import byte-identiek blijft herschalen.
+ */
+export function contourKeepsWork(task: Pick<Task, 'workRule' | 'mspTaskType'>, defaultWorkRule?: WorkRule): boolean {
+  if (task.workRule !== undefined) return ruleProtectsWork(task.workRule);
+  return task.mspTaskType === 'FIXED_WORK' || ruleProtectsWork(defaultWorkRule ?? DEFAULT_WORK_RULE);
+}
 
 /**
  * Fabrieksfunctie voor een verse {@link TaskTime}. Leeft in de utils-laag (niet in `src/types/`)
@@ -17,6 +46,11 @@ export function createDefaultTaskTime(
   start: string,
   durationDays: number,
   durationUnit: TaskDurationUnit = 'days',
+  /** De effectieve taakkalender. Alleen gebruikt voor een urentaak: dan is het einde start + duur in
+   *  WERKMINUTEN op deze kalender (met tijd), zie {@link hourTaskInputFinish}. Zonder kalender blijft
+   *  het oude werkdagen-einde staan — alleen lezers laten hem weg, en die overschrijven het einde
+   *  direct met de bronwaarde (xerReader). Elke app-ingang (nieuwe taak, MCP, wizard) geeft hem mee. */
+  calendar?: WorkCalendar,
 ): TaskTime {
   // Derive a finish consistent with the duration so the Gantt bar spans the
   // right number of days before CPM runs. Matches CalendarEngine.addWorkDays
@@ -24,11 +58,19 @@ export function createDefaultTaskTime(
   // Bij een onparseerbare start (bv. corrupte import) NIET formatteren — formatDate
   // (toISOString) gooit dan. Val terug op `start`; de CPM-solver vangt de ongeldige
   // datum verderop af met een nette foutmelding i.p.v. een crash.
+  //
+  // UURTAAK (B1-vervolg, critreview 24-09): de solve schrijft `scheduleFinish` sinds B1 niet meer
+  // terug, dus dit einde BLIJFT staan als ingevoerd einde ("Gepland einde", IfcTaskTime.ScheduleFinish,
+  // het IFC-werkplan-einde). Het oude werkdagen-einde las het tweede argument (hier UREN) als
+  // werkdagen: een nieuwe taak van 5 u eindigde zo 5 werkdagen later, zonder tijd.
   const startDate = parseDate(start);
-  const finish =
-    durationDays > 0 && !isNaN(startDate.getTime())
+  const hourFinish = durationUnit === 'hours' && calendar
+    ? hourTaskInputFinish({ scheduleStart: start, durationMinutes: durationDays * 60, durationType: 'WORKTIME' }, calendar)
+    : undefined;
+  const finish = hourFinish
+    ?? (durationDays > 0 && !isNaN(startDate.getTime())
       ? formatDate(addBusinessDays(startDate, durationDays))
-      : start;
+      : start);
   return {
     durationType: 'WORKTIME',
     durationUnit,
@@ -45,6 +87,138 @@ export function createDefaultTaskTime(
     isCritical: false,
     completion: 0,
   };
+}
+
+// ── Ingevoerd einde van een urentaak (B1-vervolg, critreview 24-09) ─────────────────────────────
+//
+// `scheduleFinish` is INVOER: de solve schrijft hem sinds gebruikstest 24-09 (B1) niet meer terug,
+// want de P6-conventies lezen hem als het geplande bronvenster (`target_end_date`) — de uitvoer van de
+// ene berekening werd zo invoer voor de volgende. Tot B1 hield juist die terugschrijving het einde van
+// een urentaak actueel (d67b26a7, juli: "scheduleFinish liep stale na een duur-wijziging"). Zonder haar
+// moet de INVOERKANT het einde coherent houden: bij aanmaken en bij elke duur-, start-, eenheids-,
+// duurtype- of kalenderwijziging leidt de bewerking het einde af uit start + duur op de kalender van
+// de taak zelf. Nooit vanuit de solve, en alleen voor een urentaak — een dagtaak blijft byte-identiek
+// (daar volgde het einde ook vóór B1 de solve niet).
+//
+// Paden die het einde WEL herleiden: `taskSlice.updateTask`/`setTaskCalendar`, de MCP-tweelingen
+// `updateTaskFields`/`patchTaskFields`, het taakraster (`taskEditPlan.ts`, ook de gesplitste
+// kalenderroute in `gridTransaction.ts`), en — sinds baan 2 van de overname van PR #101 — elke duur
+// die uit de WERKDRIEHOEK komt: inzet, werk of resource erbij/eraf onder Vast werk/Vaste inzet
+// (`resourceSlice` `updateAssignment`/`setAssignmentWork`/`assignResource`/`unassignResource`/
+// `moveAssignment`/`removeResource`, het assignment-set-pad van het raster, en de MCP-toewijzingen
+// achter `planner_manage_assignments`/`planner_manage_resources`). Die komen allemaal samen in
+// `workRuleApply.ts`'s `settleDurationAftermath`, die de basis van VÓÓR de bewerking als verplichte
+// parameter krijgt en in dezelfde volgorde als `updateTask` eerst `clearLevelingGaps` en dan
+// `reconcileHourInputFinish` draait. Laden (`applyOpenedImport`) loopt daar nooit doorheen.
+//
+// Wat NIET meebeweegt (zie `hourInputFinishFollowsEdits`): een gestarte of voltooide taak (het geplande
+// einde is dan geschiedenis, zoals in P6), een taak met een expliciet P6-targetvenster uit de XER
+// (`p6ExplicitTargetWindow`: dat venster mag planningsruimte bevatten en is bronwaarde), een handmatig
+// geplande taak (daar IS `scheduleFinish` het einde), een hammock (afgeleide span) en een samenvattende
+// taak. Een lezer loopt hier nooit doorheen: het einde uit het bestand blijft dus staan tot de gebruiker
+// de taak bewerkt.
+//
+// Wat het einde bewust NIET herleidt (orkestratorbesluit fixronde 2: niet herleiden, wél documenteren;
+// het einde volgt bij de volgende invoerbewerking van de taak): wijzigingen aan de project- of een
+// gedeelde kalender of haar uitzonderingen (`setCalendar`, `updateCalendar`, `setProjectCalendar`),
+// het verwijderen van een taakkalender (`resourceSlice.removeCalendar`: de taak valt terug op de
+// projectkalender, haar einde blijft staan — Fable-critreview PR #169, bevinding 10), splits zonder
+// duurwijziging, de uitvoer van de nivelleerder, `moveProject`, en de resourcekalender
+// van een `.mpp`-taak (de afleiding rekent op de taakkalender). Nieuwe taken: store-`addTask`,
+// MCP-`draft.addTask` en de extensie-API `api.data.addTask` (via `fromExtTaskAddInput`) leiden het
+// einde af met `seedNewHourTaskFinish`; `sdk.factory.createTask` is een DTO-bouwer zonder document of
+// kalender en leidt niets af (een importresultaat is bronwaarde, zoals bij een lezer). De reconcile draait ná
+// `clearLevelingGaps`, zodat nivelleergaten die dezelfde bewerking wist niet meetellen.
+
+/** De invoervelden waaruit het einde van een urentaak volgt. */
+type HourInputFinishTime = Pick<TaskTime, 'scheduleStart' | 'durationType'> & { durationMinutes?: number };
+
+/**
+ * Het ingevoerde einde van een urentaak: `scheduleStart` + `durationMinutes` op de (effectieve)
+ * taakkalender, in de datetime-vorm (`YYYY-MM-DDTHH:MM`). WORKTIME wandelt werkminuten
+ * (`CalendarEngine.addWorkMinutes`, dezelfde wandeling als de solver voor een taak zonder voorganger,
+ * inclusief importsplits via `splitTotalSpanMinutes`); ELAPSEDTIME telt klokminuten. Duur 0 ⇒ de
+ * start zelf. `undefined` bij een onleesbare start of een kalender zonder werkbare uurbanden — dan
+ * raakt de aanroeper het einde niet aan.
+ */
+export function hourTaskInputFinish(
+  time: HourInputFinishTime,
+  calendar: WorkCalendar,
+  splitGaps?: readonly TaskSplitGap[],
+): string | undefined {
+  const start = parseInstant(time.scheduleStart);
+  if (Number.isNaN(start.getTime())) return undefined;
+  const minutes = Math.max(0, time.durationMinutes ?? 0);
+  if (time.durationType === 'ELAPSEDTIME') return formatInstant(addElapsedMinutes(start, minutes), 'hour');
+  const engine = new CalendarEngine(calendarForEngine(calendar));
+  if (!engine.isHourMode) return undefined;
+  const total = splitTotalSpanMinutes(splitGaps, minutes);
+  return formatInstant(total > 0 ? engine.addWorkMinutes(start, total) : start, 'hour');
+}
+
+/** `true` als het ingevoerde einde van deze taak met haar invoer mee hoort te bewegen — zie het
+ *  sectieblok hierboven voor de uitzonderingen en waarom. */
+export function hourInputFinishFollowsEdits(task: Task): boolean {
+  const legacy = task.time as TaskTime & { durationUnit?: TaskDurationUnit };
+  const unit = legacy.durationUnit ?? (legacy.durationMinutes != null ? 'hours' : 'days');
+  if (unit !== 'hours') return false;
+  if (task.isSummary || task.childIds.length > 0 || task.isHammock) return false;
+  if (task.manuallyScheduled || task.p6ExplicitTargetWindow === true) return false;
+  if (task.status !== 'NOT_STARTED') return false;
+  const time = task.time;
+  return !time.actualStart && !time.actualFinish && !(time.completion > 0);
+}
+
+/** Momentopname van de invoer waar het einde van afhangt, vóór een bewerking vastgelegd. */
+export interface HourInputFinishBasis {
+  readonly key: string;
+  readonly scheduleFinish: string;
+}
+
+export function hourInputFinishBasis(task: Task): HourInputFinishBasis {
+  const t = task.time;
+  return {
+    key: JSON.stringify([
+      t.scheduleStart, t.durationUnit, t.durationMinutes, t.scheduleDuration, t.durationType,
+      task.calendarId, task.isMilestone,
+    ]),
+    scheduleFinish: t.scheduleFinish,
+  };
+}
+
+/**
+ * Houdt het ingevoerde einde van `task` na een invoerbewerking coherent (muteert in-place,
+ * Immer-draft-stijl). Doet alleen iets als (a) de taak meebeweegt (`hourInputFinishFollowsEdits`),
+ * (b) de bewerking de invoer echt veranderde (`before` ≠ nu), en (c) de bewerking het einde zelf NIET
+ * wijzigde (detectie `!==` t.o.v. vóór; een einde dat gelijk aan het oude wordt meegegeven telt dus
+ * niet als gezet) — een in dezelfde bewerking gewijzigd einde (grid-kolom "Gepland einde", uursleep, extensie) wint.
+ * `calendar` is de kalender waar de taak NA de bewerking in rekent (projectkalender als `calendarId`
+ * leeg is). Geeft `true` als het einde veranderde.
+ */
+export function reconcileHourInputFinish(task: Task, before: HourInputFinishBasis, calendar: WorkCalendar): boolean {
+  if (task.time.scheduleFinish !== before.scheduleFinish) return false;
+  if (hourInputFinishBasis(task).key === before.key) return false;
+  if (!hourInputFinishFollowsEdits(task)) return false;
+  const finish = hourTaskInputFinish(task.time, calendar, task.splitGaps);
+  if (!finish || finish === task.time.scheduleFinish) return false;
+  task.time.scheduleFinish = finish;
+  return true;
+}
+
+/**
+ * Nieuwe taak (store-`addTask` en MCP-`draft.addTask`): leid het einde van een urentaak af uit de
+ * DEFINITIEVE invoer (na de merge met `partialTime`), tenzij de aanroeper zelf een `scheduleFinish`
+ * meegaf. De vroege/late finish volgen mee zolang de aanroeper die niet noemde, zodat de balk vóór de
+ * eerste berekening al klopt. Muteert `task` in-place.
+ */
+export function seedNewHourTaskFinish(task: Task, partialTime: Partial<TaskTime> | undefined, calendar: WorkCalendar): void {
+  if (partialTime?.scheduleFinish !== undefined) return;
+  if (!hourInputFinishFollowsEdits(task)) return;
+  const finish = hourTaskInputFinish(task.time, calendar, task.splitGaps);
+  if (!finish) return;
+  task.time.scheduleFinish = finish;
+  if (partialTime?.earlyFinish === undefined) task.time.earlyFinish = finish;
+  if (partialTime?.lateFinish === undefined) task.time.lateFinish = finish;
 }
 
 /**
@@ -583,7 +757,9 @@ export function timephasedDurationWalksHaveFrozenWork(task: Task): boolean {
  *  de projectkalender). Voor de HERSCHALINGSFACTOR is de exacte waarde alleen relevant bij een
  *  eenheidswissel dagen↔uren (bij dagen↔dagen en uren↔uren valt hij tegen elkaar weg). */
 export function taskCalendarHoursPerDay(task: Task, calendars: WorkCalendar[], projectCalendar: WorkCalendar): number {
-  return resolveCalendar(task.calendarId, calendars, projectCalendar).hoursPerDay;
+  // Reviewronde G5 (2026-09-05): de EFFECTIEVE uren per dag — op een uurkalender uit de banden
+  // afgeleid — zodat contourreferentie, werkdriehoek en raster dezelfde slot zien.
+  return effHoursPerDay(resolveCalendar(task.calendarId, calendars, projectCalendar));
 }
 
 /** Werkduur van de taak in werkminuten (zie `contourEngine.ts`'s `taskWorkMinutes`) — aan te
@@ -602,9 +778,11 @@ export function taskWorkMinutesOf(task: Task, hoursPerDay: number): number {
  * Muteert `task` in-place (Immer-draft-stijl, zoals `clearTimephasedWindow`). Retourneert `true`
  * als er ECHT iets herschaald is.
  *
- * Bewust GEEN aanroep bij een kalender- of datumverschuiving: de as is offset-gebaseerd
- * (shift-invariant, zie `TaskSplitGap`'s docblok), dus een verplaatsing kost geen herschaling, en
- * een taakkalenderwissel verandert de werkminuten-duur van de taak niet.
+ * Bewust GEEN aanroep bij een datumverschuiving: de as is offset-gebaseerd (shift-invariant, zie
+ * `TaskSplitGap`'s docblok), dus een verplaatsing kost geen herschaling. Een kalenderwissel die de
+ * SLOT verandert (uren per dag) is sinds K2 (2026-09-05) wél een aanroeper — via
+ * `workRuleApply.ts`'s `settleCalendarChange`: dezelfde dagen zijn dan een andere hoeveelheid
+ * werkminuten, en de as leeft op werkminuten.
  *
  * `opts.keepGaps` (issue #146): sla de `rescaleSplitGaps`-stap over. `taskSlice.setTaskSplits`
  * schrijft de gatenlijst in dezelfde bewerking ZELF — die komt rechtstreeks uit het stukkenmodel en
@@ -615,6 +793,10 @@ export function rescaleTaskContours(
   task: Task,
   oldWorkMinutes: number,
   hoursPerDay: number,
+  // Taaktypes-etappe (2026-09, bouwstap 4): werkbehoud is een REGELkeuze (`workRuleApply.ts`'s
+  // `contourKeepsWork`), niet langer alleen een MSP-herkomstvinkje. Zonder argument geldt de oude
+  // afleiding, zodat elke bestaande aanroeper byte-identiek blijft.
+  keepWork: boolean = task.mspTaskType === 'FIXED_WORK',
   opts?: { keepGaps?: boolean },
 ): boolean {
   const contours = task.timephasedContours;
@@ -630,7 +812,7 @@ export function rescaleTaskContours(
   if (!rescaleFactor(reference.periods, oldWorkMinutes, newWorkMinutes)) return false;
   task.timephasedContours = contours.map((c) => ({
     ...c,
-    periods: rescaleContourForDuration(c.periods, oldWorkMinutes, newWorkMinutes, task.mspTaskType),
+    periods: rescaleContourForDuration(c.periods, oldWorkMinutes, newWorkMinutes, keepWork ? 'FIXED_WORK' : undefined),
   }));
   if (!opts?.keepGaps) {
     const gaps = rescaleSplitGaps(
@@ -673,14 +855,23 @@ export function rescaleTaskContours(
  *
  * `opts.rescaleContours: false` slaat stap 1 over (het raster doet dat bij een onbruikbare
  * uren-per-dag, zie `finishDurationEdit` in taskEditPlan.ts); stap 2 geldt dan zoals zonder contour.
+ * `opts.keepWork` is het werkbehoud van de herschaling (`contourKeepsWork`, taaktypes-etappe);
+ * afwezig ⇒ de oude afleiding van `rescaleTaskContours`.
+ *
+ * Integratie groep B × #170 (besluit 1): dit is de KERN van `settleDurationAftermath`
+ * (workRuleApply.ts) — die voegt er het werkbehoud uit de regel en de herleiding van het ingevoerde
+ * uur-einde (`reconcileHourInputFinish`) aan toe. Store en MCP roepen `settleDurationAftermath`
+ * aan; het raster (geen project/kalenders in zijn omgeving) roept deze kern rechtstreeks aan en
+ * herleidt het einde zelf (`reconcileGridInputFinish`).
  */
 export function applyDurationChangeRules(
   task: Task,
   oldWorkMinutes: number,
   hoursPerDay: number,
-  opts?: { rescaleContours?: boolean },
+  opts?: { rescaleContours?: boolean; keepWork?: boolean },
 ): boolean {
-  const rescaled = opts?.rescaleContours !== false && rescaleTaskContours(task, oldWorkMinutes, hoursPerDay);
+  const rescaled = opts?.rescaleContours !== false
+    && rescaleTaskContours(task, oldWorkMinutes, hoursPerDay, opts?.keepWork);
   if (!rescaled && task.splitGaps !== undefined) {
     const newWorkMinutes = taskWorkMinutes(task.time, hoursPerDay);
     if (newWorkMinutes < oldWorkMinutes - 1e-6) {

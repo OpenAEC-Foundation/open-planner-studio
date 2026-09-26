@@ -15,6 +15,8 @@
 // SCHRIJFKANT SPREEKT DE LEESKANT (harde eis): de veldnamen zijn identiek aan de T18-leestools —
 // `assignmentId`, `unitsPerDay`, `curve`. Een AI die `get_task` leest kan die id's/velden dus
 // rechtstreeks in `manage_assignments` terugstoppen.
+import { WORK_RULES, type WorkRule } from '@/types/workRule';
+import { workRuleApplies } from '@/engine/work/workRuleApply';
 import type { McpContext, McpToolDef, McpToolOk } from '../contracts';
 import {
   guardNonTransactional,
@@ -45,6 +47,8 @@ import type { Project } from '@/types/project';
 import type { LevelingOptions, LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { isFiniteNumber } from '@/utils/guards';
 import { hasLevelingOutput } from '@/utils/taskDefaults';
+import { isSummaryTask } from '@/utils/taskHierarchy';
+import { markDocumentEdited } from '@/state/documentEdited';
 
 /**
  * Curve-toets (`isResourceCurve`, `types/resource.ts`) — exact het `isSeqType`-patroon uit T19
@@ -718,7 +722,7 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
           // `draft.updateCalendar` synct zelf, maar deze extra producer maakt een nieuw
           // entry-object en zou de cache anders op het oude object laten wijzen.
           syncProjectCalendar(s);
-          s.isDirty = true;
+          markDocumentEdited(s);
         });
       }
 
@@ -999,8 +1003,8 @@ const updateCalendar: BatchStepTool = {
 // =================================================================================================
 
 type AssignmentAction =
-  | { action: 'add'; taskId: string; resourceId: string; unitsPerDay: number; curve?: ResourceCurve }
-  | { action: 'update'; assignmentId: string; unitsPerDay?: number; curve?: ResourceCurve }
+  | { action: 'add'; taskId: string; resourceId: string; unitsPerDay: number; curve?: ResourceCurve; remainingWorkMinutes?: number }
+  | { action: 'update'; assignmentId: string; unitsPerDay?: number; curve?: ResourceCurve; remainingWorkMinutes?: number }
   | { action: 'move'; assignmentId: string; taskId: string }
   | { action: 'remove'; assignmentId: string };
 
@@ -1044,6 +1048,19 @@ function classifyAssignments(
           rejections.push({ id: label, reason: guard.reason });
           return;
         }
+        // Taaktypes-etappe (review): werk direct bij `add` — nodig binnen planner_batch, want een
+        // nieuwe toewijzing heeft daar nog geen tempId-resolveerbaar `assignmentId`.
+        if (act.remainingWorkMinutes !== undefined) {
+          if (!(typeof act.remainingWorkMinutes === 'number' && Number.isFinite(act.remainingWorkMinutes) && act.remainingWorkMinutes > 0)) {
+            rejections.push({ id: label, reason: `ongeldige remainingWorkMinutes ${String(act.remainingWorkMinutes)} (werkminuten, strikt positief vereist)` });
+            return;
+          }
+          const owner = s.tasks.find((t) => t.id === act.taskId);
+          if (!owner || !workRuleApplies(owner)) {
+            rejections.push({ id: label, reason: 'resterend werk is alleen zetbaar op een gewone bladtaak op werktijd (niet op een mijlpaal, verzameltaak, hangmat of ELAPSEDTIME-taak)' });
+            return;
+          }
+        }
         // Simulatie bijwerken: een volgende identieke `add` botst nu op de dubbeltelling-guard.
         sim = [...sim, { id: `sim-${index}`, taskId: act.taskId, resourceId: act.resourceId, unitsPerDay: act.unitsPerDay }];
         plans.push({ index, action: act });
@@ -1057,9 +1074,22 @@ function classifyAssignments(
         }
         const hasUnits = act.unitsPerDay !== undefined;
         const hasCurve = act.curve !== undefined;
-        if (!hasUnits && !hasCurve) {
-          rejections.push({ id: act.assignmentId, reason: 'geen `unitsPerDay` of `curve` opgegeven' });
+        const hasWork = act.remainingWorkMinutes !== undefined;
+        if (!hasUnits && !hasCurve && !hasWork) {
+          rejections.push({ id: act.assignmentId, reason: 'geen `unitsPerDay`, `curve` of `remainingWorkMinutes` opgegeven' });
           return;
+        }
+        // Taaktypes-etappe (bouwstap 7): resterend werk loopt via de werkdriehoek (`draft.setAssignmentWork`).
+        if (hasWork && !(typeof act.remainingWorkMinutes === 'number' && Number.isFinite(act.remainingWorkMinutes) && act.remainingWorkMinutes > 0)) {
+          rejections.push({ id: act.assignmentId, reason: `ongeldige remainingWorkMinutes ${String(act.remainingWorkMinutes)} (werkminuten, strikt positief vereist)` });
+          return;
+        }
+        if (hasWork) {
+          const owner = s.tasks.find((t) => t.id === cur.taskId);
+          if (!owner || !workRuleApplies(owner)) {
+            rejections.push({ id: act.assignmentId, reason: 'resterend werk is alleen zetbaar op een gewone bladtaak op werktijd (niet op een mijlpaal, verzameltaak, hangmat of ELAPSEDTIME-taak)' });
+            return;
+          }
         }
         if (hasUnits && !isValidUnits(act.unitsPerDay)) {
           rejections.push({ id: act.assignmentId, reason: `ongeldige unitsPerDay ${String(act.unitsPerDay)} (eenheden/dag, strikt positief vereist)` });
@@ -1084,7 +1114,7 @@ function classifyAssignments(
           rejections.push({ id: act.assignmentId, reason: `doeltaak '${act.taskId}' bestaat niet` });
           return;
         }
-        if (target.isMilestone || target.childIds.length > 0) {
+        if (target.isMilestone || isSummaryTask(target)) {
           rejections.push({ id: act.assignmentId, reason: `doeltaak '${act.taskId}' is een mijlpaal/verzameltaak; die dragen geen resources` });
           return;
         }
@@ -1139,6 +1169,7 @@ function manageAssignmentsCore(ctx: McpContext, actions: AssignmentAction[]): Mu
       switch (action.action) {
         case 'add': {
           const id = ctx.transactions.draft.assignResource(action.taskId, action.resourceId, action.unitsPerDay, action.curve);
+          if (action.remainingWorkMinutes !== undefined) ctx.transactions.draft.setAssignmentWork(id, action.remainingWorkMinutes);
           added.push({
             assignmentId: id,
             taskId: action.taskId,
@@ -1152,7 +1183,11 @@ function manageAssignmentsCore(ctx: McpContext, actions: AssignmentAction[]): Mu
           const patch: { unitsPerDay?: number; curve?: ResourceCurve } = {};
           if (action.unitsPerDay !== undefined) patch.unitsPerDay = action.unitsPerDay;
           if (action.curve !== undefined) patch.curve = action.curve;
-          ctx.transactions.draft.updateAssignment(action.assignmentId, patch);
+          if (Object.keys(patch).length > 0) ctx.transactions.draft.updateAssignment(action.assignmentId, patch);
+          // Ná de inzet: een gelijktijdige `unitsPerDay` + `remainingWorkMinutes` betekent "deze inzet,
+          // dít werk" — de duur volgt dan uit beide (FIXED_WORK/FIXED_RATE) of de inzet wordt door
+          // het werk overschreven (duurbeschermende regels: I = W / R).
+          if (action.remainingWorkMinutes !== undefined) ctx.transactions.draft.setAssignmentWork(action.assignmentId, action.remainingWorkMinutes);
           updated.push(action.assignmentId);
           break;
         }
@@ -1176,9 +1211,17 @@ const manageAssignments: BatchStepTool = {
   description:
     'Beheer resource-toewijzingen in bulk (één call = één ongedaan-maak-stap). Per item één `action`: ' +
     '`add` (`taskId`, `resourceId`, `unitsPerDay` = eenheden per WERKDAG waarbij 1 = 100% / één ' +
-    'persoon, optioneel `curve`), `update` (`assignmentId` + `unitsPerDay` en/of `curve`), `move` ' +
-    '(`assignmentId` naar een andere `taskId`) of `remove` (`assignmentId`). De id\'s en veldnamen zijn ' +
-    'exact die van de leestools (get_task/list_resources), dus je kunt ze rechtstreeks terugstoppen. ' +
+    'persoon, optioneel `curve` en `remainingWorkMinutes`), `update` (`assignmentId` + `unitsPerDay`, ' +
+    '`curve` en/of `remainingWorkMinutes`), `move` (`assignmentId` naar een andere `taskId`) of `remove` ' +
+    '(`assignmentId`). De id\'s en veldnamen zijn exact die van de leestools (get_task/list_resources), ' +
+    'dus je kunt ze rechtstreeks terugstoppen. WERKREGEL (taaktype, `workRule` op de taak — zie ' +
+    'planner_update_tasks): werk = restduur × inzet, en de regel bepaalt welke hoek meebeweegt. Onder ' +
+    'FIXED_WORK/FIXED_RATE verandert een `unitsPerDay`-wijziging of een resource erbij/eraf dus de ' +
+    'TAAKDUUR; `remainingWorkMinutes` (resterend werk in werkminuten, > 0) verlengt/verkort de taak ' +
+    '(inzet beschermd) of verandert de inzet (duur beschermd). Onder de standaardregel ' +
+    'FIXED_DURATION_RATE laat een inzetwijziging de duur ongemoeid en herschrijft `remainingWorkMinutes` ' +
+    'alleen de inzet (I = W / R). De respons meldt het projecteinde; lees de taak opnieuw voor de ' +
+    'nieuwe duur. ' +
     'Toewijzen kan alleen op een BLADTAAK (geen mijlpaal, geen verzameltaak) en dezelfde resource mag ' +
     'maar één keer op dezelfde taak staan — een tweede toewijzing zou de last dubbel tellen en wordt ' +
     'zacht geweigerd, óók als het duplicaat binnen deze ene call zit. Geweigerde items komen terug in ' +
@@ -1206,6 +1249,14 @@ const manageAssignments: BatchStepTool = {
               type: 'string',
               enum: [...RESOURCE_CURVES],
               description: 'Verdeelcurve over de duur (de acht MS Project-/P6-vormen); weglaten = UNIFORM.',
+            },
+            remainingWorkMinutes: {
+              type: 'number',
+              exclusiveMinimum: 0,
+              description:
+                'Bij `add` of `update`: RESTEREND werk van deze toewijzing in WERKminuten (8 uur = 480). De ' +
+                'werkregel van de taak bepaalt wat meebeweegt: de duur (FIXED_WORK/FIXED_RATE) of de inzet ' +
+                '(FIXED_DURATION_*). Alleen op een gewone bladtaak op werktijd; materiaal telt niet mee voor de duur.',
             },
           },
         },
@@ -1500,19 +1551,29 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}/;
 /** Elke sleutel die `update_project` KENT — de allowlist waartegen onbekende sleutels afketsen. */
 const PROJECT_KEYS = [
   'name', 'description', 'author', 'company', 'startDate', 'endDate', 'statusDate', 'progressMode',
+  'defaultWorkRule',
 ] as const;
 
 /** Projectvelden die de bridge BEWUST niet schrijft, mét een reden. Een expliciete weigering is
  *  oneindig veel bruikbaarder dan de stilte van vroeger. */
 const PROJECT_REFUSED: Record<string, string> = {
   schedulingOptions:
-    'de reken-opties (`schedulingOptions`, waaronder `floatPaths`, `criticalDefinition`, `lagCalendar`) ' +
-    'zijn NIET via de bridge instelbaar: het is een samenhangend blok dat de solver-semantiek van het ' +
-    'hele document verandert, en half blootstellen zou stille gedragsverschillen opleveren. Zet ze in ' +
-    'de app onder Planning → opties; `planner_get_critical_path` meldt met `pathsMode` welke stand geldt.',
+    'de reken-opties (`schedulingOptions`, waaronder `floatPaths`, `criticalDefinition`, `lagCalendar`, `startToStartLagFrom`) ' +
+    'zijn NIET via de bridge instelbaar: samen met het rekenprofiel bepalen ze de solver-semantiek van het ' +
+    'hele document. Zet ze in de app onder Bestand → Projectinfo → Rekenprofiel en reken-opties; ' +
+    '`planner_get_project_info` toont het actieve profiel en de projectopties, `planner_get_critical_path` meldt met `pathsMode` welke stand geldt.',
+  schedulingProfile:
+    'het rekenprofiel (P6 / MS Project / OPS / eigen) is NIET via de bridge instelbaar: een wissel verschuift ' +
+    'datums van het hele document. Kies het in de app onder Bestand → Projectinfo → Rekenprofiel; ' +
+    '`planner_get_project_info` toont het actieve profiel met zijn zevenentwintig opgeloste conventies.',
+  leveling:
+    '`leveling` hoort in `project.schedulingOptions`: de nivelleerinstellingen uit het bronbestand (P6 ' +
+    'SCHEDOPTIONS/RSRCLEVELLIST) worden gelezen en bewaard, maar nog NIET toegepast en zijn niet via de ' +
+    'bridge instelbaar. `planner_get_project_info` toont ze alleen-lezen; handmatig nivelleren gaat met ' +
+    '`planner_level_resources`.',
   floatPaths:
-    '`floatPaths` hoort in `project.schedulingOptions` en is NIET via de bridge instelbaar (zie de ' +
-    'app onder Planning → opties). `planner_get_critical_path` meldt met `pathsMode` welke stand geldt.',
+    '`floatPaths` hoort in `project.schedulingOptions` en is NIET via de bridge instelbaar (zie de app onder ' +
+    'Bestand → Projectinfo → Rekenprofiel en reken-opties). `planner_get_critical_path` meldt met `pathsMode` welke stand geldt.',
   calendarId:
     'WELKE kalender de projectdefault is, kan de bridge niet wisselen — dat doe je in de app ' +
     '(kalenderbibliotheek → als projectkalender instellen). Wil je de INHOUD van de projectkalender ' +
@@ -1535,7 +1596,7 @@ const PROJECT_REFUSED: Record<string, string> = {
  */
 function parseUpdateProject(
   args: unknown,
-): { updates: Partial<Project>; clearStatusDate: boolean; clearProgressMode: boolean; touched: string[] } | string {
+): { updates: Partial<Project>; clearStatusDate: boolean; clearProgressMode: boolean; clearDefaultWorkRule: boolean; touched: string[] } | string {
   const a = (args ?? {}) as Record<string, unknown>;
   for (const key of Object.keys(a)) {
     if ((PROJECT_KEYS as readonly string[]).includes(key)) continue;
@@ -1579,6 +1640,18 @@ function parseUpdateProject(
       updates.progressMode = a.progressMode;
     }
   }
+  // Taaktypes-etappe (bouwstap 7): de projectstandaard-werkregel; wissen = terug naar
+  // FIXED_DURATION_RATE (het gedrag van vandaag). Raakt geen enkel getal op bestaande taken.
+  let clearDefaultWorkRule = false;
+  if (a.defaultWorkRule !== undefined) {
+    if (a.defaultWorkRule === null || a.defaultWorkRule === '') {
+      clearDefaultWorkRule = true;
+    } else if (typeof a.defaultWorkRule !== 'string' || !(WORK_RULES as readonly string[]).includes(a.defaultWorkRule)) {
+      return `\`defaultWorkRule\` moet één van ${WORK_RULES.join(' | ')} zijn (of null voor de standaard FIXED_DURATION_RATE)`;
+    } else {
+      updates.defaultWorkRule = a.defaultWorkRule as WorkRule;
+    }
+  }
   // Wissen loopt NIET via de veld-merge: `Object.assign({ statusDate: undefined })` laat de sleutel
   // met waarde `undefined` achter, terwijl de store-actie `setStatusDate` hem echt `delete`t. Die
   // vorm houden we aan (IFC-serialisatie en de statusdatum-guards lezen op sleutel-aanwezigheid).
@@ -1596,11 +1669,12 @@ function parseUpdateProject(
     ...Object.keys(updates),
     ...(clearStatusDate ? ['statusDate'] : []),
     ...(clearProgressMode ? ['progressMode'] : []),
+    ...(clearDefaultWorkRule ? ['defaultWorkRule'] : []),
   ];
   if (touched.length === 0) {
     return `update_project vereist minstens één veld (${PROJECT_KEYS.join('/')})`;
   }
-  return { updates, clearStatusDate, clearProgressMode, touched };
+  return { updates, clearStatusDate, clearProgressMode, clearDefaultWorkRule, touched };
 }
 
 /** De mechanisme-uitleg die MEE MOET zodra er een statusdatum wordt GEZET. Staat bewust in de
@@ -1616,20 +1690,21 @@ const STATUS_DATE_NOTE =
 /** Synchrone, transactie-vrije kern van `update_project`. */
 function updateProjectCore(
   ctx: McpContext,
-  p: { updates: Partial<Project>; clearStatusDate: boolean; clearProgressMode: boolean; touched: string[] },
+  p: { updates: Partial<Project>; clearStatusDate: boolean; clearProgressMode: boolean; clearDefaultWorkRule: boolean; touched: string[] },
 ): MutationOutcome {
   // T7-review H1: `draft.setProject` levert nu het aantal wortel-ankers dat het klemde (zelfde
   // bewerkbescherming als de UI, `projectSlice.setProject`) — meegeven in `data` zodat óók het
   // `planner_batch`-pad (dat rechtstreeks `updateProjectCore` gebruikt, zonder `enrichOk`) dit ziet.
   const anchorsClamped = ctx.transactions.draft.setProject(p.updates);
-  if (p.clearStatusDate || p.clearProgressMode) {
+  if (p.clearStatusDate || p.clearProgressMode || p.clearDefaultWorkRule) {
     ctx.app.store.setState((s) => {
       // `delete` i.p.v. `= undefined`: de IFC-serialisatie en de solver-defaults lezen op
       // sleutel-AANWEZIGHEID (zelfde conventie als de store-actie `setStatusDate`).
       if (p.clearStatusDate) delete s.project.statusDate;
       if (p.clearProgressMode) delete s.project.progressMode;
+      if (p.clearDefaultWorkRule) delete s.project.defaultWorkRule;
       s.project.modifiedAt = new Date().toISOString();
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   }
   return {
@@ -1647,7 +1722,8 @@ const updateProject: BatchStepTool = {
     'Wijzig projectgegevens: `name`, `description`, `author`, `company`, `statusDate` (de peildatum ' +
     'waarop voortgang wordt geregistreerd — zónder deze datum weigert het voortgangspad van ' +
     'update_tasks), `endDate` (de contractuele/gewenste einddatum — puur metadata, hij dwingt NIETS ' +
-    'af in de planning; lege string wist hem), `progressMode` (RETAINED_LOGIC of PROGRESS_OVERRIDE — ' +
+    'af in de planning; lege string wist hem), `defaultWorkRule` (projectstandaard-taaktype voor taken ' +
+    'zonder eigen `workRule`; null = FIXED_DURATION_RATE), `progressMode` (RETAINED_LOGIC of PROGRESS_OVERRIDE — ' +
     'hoe de solver werk buiten de volgorde afhandelt; null = terug naar de default RETAINED_LOGIC) en ' +
     '`startDate`. Een ONBEKEND veld wordt geweigerd met de toegestane lijst erbij — er wordt nooit ' +
     'stil iets weggegooid. BELANGRIJK over `startDate`: het is het anker voor NIEUW aan te maken ' +
@@ -1694,6 +1770,13 @@ const updateProject: BatchStepTool = {
         enum: ['RETAINED_LOGIC', 'PROGRESS_OVERRIDE', null],
         description: 'Voortgangs-scheduling-modus; null = terug naar de default RETAINED_LOGIC.',
       },
+      defaultWorkRule: {
+        type: ['string', 'null'],
+        enum: [...WORK_RULES, null],
+        description:
+          'Projectstandaard-werkregel (taaktype) voor taken zonder eigen `workRule` — zie planner_update_tasks ' +
+          '`fields.workRule` voor de vier waarden. null = de standaard FIXED_DURATION_RATE. Wisselen verandert geen getal.',
+      },
     },
     additionalProperties: false,
   },
@@ -1731,6 +1814,7 @@ const updateProject: BatchStepTool = {
         project: {
           name: p.name, startDate: p.startDate, endDate: p.endDate,
           statusDate: p.statusDate ?? null, progressMode: p.progressMode ?? null,
+          defaultWorkRule: p.defaultWorkRule ?? null,
         },
         // Herinnering in de payload zelf: de AI leest data vaak eerder dan de beschrijving.
         // T7-review H1: dit beloofde tot nu toe onvoorwaardelijk dat GEEN enkele bestaande taak

@@ -26,6 +26,7 @@
 import { recoveryNames, type RecoveryManifest } from '@/hooks/recoveryPaths';
 import {
   manifestOwnership, planRecoveryCleanup, planRecoveryClear, parseRecoveryManifest,
+  planTauriV3RecoverySave,
   RECOVERY_MANIFEST_VERSION,
 } from '@/services/recovery/recoveryStore';
 
@@ -97,6 +98,10 @@ eq('1r isOwnFile: DEV-manifest hoort NIET bij productie',
 eq('1s isOwnFile: productiebestand hoort NIET bij dev', DEV.isOwnFile('recovery.doc-1.ifc'), false);
 eq('1t isOwnFile: vreemd bestand', PROD.isOwnFile('ops-extensions.json'), false);
 eq('1u ifcName rondt met snapshotDocId', DEV.snapshotDocId(DEV.ifcName('doc-xyz')), 'doc-xyz');
+const generationName = PROD.generationIfcName('doc-xyz', 'g-test');
+eq('1v v3-generatie rondt met algemene snapshotDocId', PROD.snapshotDocId(generationName), 'doc-xyz');
+eq('1w v3-generatie telt NIET als manifestloze v1/v2-terugval', PROD.stableSnapshotDocId(generationName), null);
+eq('1x v3-generatie is wel een eigen recoverybestand', PROD.isOwnFile(generationName), true);
 
 // ── 2. Een productiebuild ruimt NOOIT dev-bestanden op ────────────────────────────────────────
 // De gemengde listing die deze batterij bestaat om te dekken: productie + twee worktrees + rommel.
@@ -259,12 +264,64 @@ eq('5d … en activeDocumentId', v1?.activeDocumentId, 'doc-1');
 eq('5e … zonder ownerId', v1?.ownerId, undefined);
 eq('5f … zonder heartbeatAt', v1?.heartbeatAt, undefined);
 
-const V2_RAW = JSON.stringify(manifest(OTHER, [{ id: 'doc-1', ifc: 'recovery.doc-1.ifc' }]));
+const V2_RAW = JSON.stringify({
+  ...manifest(OTHER, [{ id: 'doc-1', ifc: 'recovery.doc-1.ifc' }]),
+  version: 2,
+});
 const v2 = parseRecoveryManifest(V2_RAW);
-eq('5g v2-manifest parst', v2?.version, RECOVERY_MANIFEST_VERSION);
+eq('5g v2-manifest parst na v3-upgrade', v2?.version, 2);
 eq('5h … mét ownerId', v2?.ownerId, OTHER);
 eq('5i … mét heartbeatAt', typeof v2?.heartbeatAt, 'number');
 eq('5j v2-versienummer is opgehoogd t.o.v. v1', RECOVERY_MANIFEST_VERSION > 1, true);
+
+const v3Plan = planTauriV3RecoverySave(v2, {
+  activeDocumentId: 'doc-2',
+  documents: [
+    { id: 'doc-1', filePath: '/tmp/a.ifc', isDirty: true, datesAsRecorded: false },
+    { id: 'doc-2', filePath: '/tmp/b.ifc', isDirty: false, datesAsRecorded: false },
+  ],
+  upserts: [
+    { id: 'doc-2', ifc: 'nieuwe B-inhoud', filePath: '/tmp/b.ifc', isDirty: false, datesAsRecorded: false },
+  ],
+}, 'g-42', PROD);
+eq('5k v3-plan behoudt een v2-snapshot zonder nieuwe inhoud', v3Plan.documents[0]?.ifc, 'recovery.doc-1.ifc');
+eq('5l v3-plan maakt precies één immutable generatie voor de upsert', v3Plan.writes,
+  [{ name: 'recovery.snapshot.doc-2.g-42.ifc', ifc: 'nieuwe B-inhoud' }]);
+eq('5m v3-manifestregel wijst naar die generatie', v3Plan.documents[1]?.ifc, 'recovery.snapshot.doc-2.g-42.ifc');
+eq('5n v4 is de actuele manifestversie (v3 + de modusvlag per document)', RECOVERY_MANIFEST_VERSION, 4);
+
+// 5o–5r — "datums zoals opgeslagen" reist als manifestmetadata mee (critreview laag 3,
+// bevindingen 2/3), en een OUDER manifest zonder dat veld MOET leesbaar blijven: het staat op de
+// schijf van iedereen die de vorige versie draaide. Ontbreekt het veld, dan geldt `false` — het
+// gewone #63-aanbod, nooit stilzwijgend de modus.
+const V3_ZONDER_VLAG = parseRecoveryManifest(JSON.stringify({
+  version: 3,
+  activeDocumentId: 'doc-1',
+  documents: [{ id: 'doc-1', ifc: 'recovery.doc-1.ifc', filePath: '/tmp/p.ifc', isDirty: true }],
+  ownerId: OTHER,
+  heartbeatAt: Date.now(),
+}));
+eq('5o een v3-manifest zonder de modusvlag parst gewoon', V3_ZONDER_VLAG !== null, true);
+eq('5p … en levert het veld als undefined (geen verzonnen true)',
+  V3_ZONDER_VLAG?.documents[0]?.datesAsRecorded, undefined);
+const carryZonderVlag = planRecoveryCleanup({
+  listing: ['recovery.doc-1.ifc'],
+  prev: V3_ZONDER_VLAG,
+  self: SELF,
+  keep: [],
+  ownWritten: [],
+  adopted: [],
+  names: PROD,
+});
+eq('5q overname van een vreemd v3-manifest zet de modusvlag op false, niet undefined',
+  carryZonderVlag.carryOver[0]?.datesAsRecorded, false);
+
+const v4Plan = planTauriV3RecoverySave(null, {
+  activeDocumentId: 'doc-9',
+  documents: [{ id: 'doc-9', filePath: null, isDirty: true, datesAsRecorded: true }],
+  upserts: [{ id: 'doc-9', ifc: 'inhoud', filePath: null, isDirty: true, datesAsRecorded: true }],
+}, 'g-9', PROD);
+eq('5r een nieuw manifest schrijft de modusvlag mee', v4Plan.documents[0]?.datesAsRecorded, true);
 
 // ── 6. Halffabricaten (.tmp) op exacte naam, niet met een sweep ───────────────────────────────
 const tmpPlan = plan({
@@ -292,6 +349,18 @@ const tmpGesloten = plan({
 });
 eqSet('6b gesloten eigen document: bestand + halffabricaat',
   tmpGesloten.remove, ['recovery.doc-2.ifc', 'recovery.doc-2.ifc.tmp']);
+
+const oudeGeneratie = PROD.generationIfcName('doc-1', 'g-oud');
+const nieuweGeneratie = PROD.generationIfcName('doc-1', 'g-nieuw');
+const generatieCleanup = plan({
+  listing: [oudeGeneratie, nieuweGeneratie, PROD.manifest],
+  prev: manifest(SELF, [{ id: 'doc-1', ifc: oudeGeneratie }]),
+  keep: [nieuweGeneratie],
+  ownWritten: [oudeGeneratie, nieuweGeneratie],
+  names: PROD,
+});
+eqSet('6c oude generatie verdwijnt pas ná een manifestcommit naar de nieuwe generatie',
+  generatieCleanup.remove, [oudeGeneratie]);
 
 // ── 7. clearRecovery: wissen betekent wissen — maar alleen binnen de eigen base ────────────────
 // K4 eist dat óók een snapshot die het manifest niet noemt weggaat (anders duikt hij bij de

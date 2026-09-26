@@ -15,6 +15,11 @@ bridge and automatic updates.
 - **Constraints** — start/finish constraints (such as Start No Earlier Than) for permits, deliveries and fixed dates.
 - **Milestones** — start, finish and mandatory inspection milestones.
 - **Baselines & progress** — capture baselines and track progress against them.
+- **Calculation profiles** — one scheduling engine, three schools: Primavera P6, Microsoft Project and
+  Open Planner Studio. A profile is a named set of conventions (per project, switchable, with custom
+  profiles as templates); the file's own calculation options stay per project.
+- **Dates as recorded** — when the app's own calculation differs from what a P6 or Microsoft Project file
+  recorded, you can show the recorded dates instead and compare.
 
 ## Calendars
 
@@ -29,6 +34,11 @@ bridge and automatic updates.
   (from the library, project-only, or orphaned) and a library/project view toggle. See
   [Resource libraries](docs://gids-resourcebibliotheken) in the manual.
 - **Assignments** — assign resources to tasks, with time-phased max-units availability.
+- **Task types and work** — a work rule per task (fixed duration and units, fixed duration and
+  work, fixed work, fixed units — the MS Project task types and P6 duration types) decides which
+  corner of work = remaining duration × units moves when you edit another; remaining work per
+  assignment is editable in hours. Hidden by default; a file that already carries task types shows
+  them. See [Task types and work](docs://gids-taaktypes) in the manual.
 - **Histogram & leveling** — a resource histogram plus automatic leveling options, including
   leveling priority per task and leveling within slack only.
 - **Occupancy overview** — for multiple open projects drawing from the same library, a
@@ -54,7 +64,8 @@ bridge and automatic updates.
 - **IFC 4.3 native** — projects are saved and opened as IFC (buildingSMART); there is no separate project format.
 - **4D BIM ready** — link the schedule to an IFC building model.
 - **Import/export** — CSV, Microsoft Project XML and Primavera P6 XML adapters, plus read-only
-  opening of native Microsoft Project `.mpp` files (save the result as IFC).
+  opening of native Microsoft Project `.mpp` and Primavera P6 `.xer` files (save the result as IFC;
+  the original `.xer` travels inside the IFC as a source archive).
 
 ## AI assistant (MCP)
 

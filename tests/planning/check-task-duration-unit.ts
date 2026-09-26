@@ -19,6 +19,7 @@ import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import type { Project } from '@/types/project';
 import type { WorkCalendar, WorkTimeBands } from '@/types/calendar';
 import type { Task } from '@/types/task';
+import { opsSolveInput } from './legacySolveOptions';
 
 const failures: string[] = [];
 let checks = 0;
@@ -98,13 +99,13 @@ eq('urentaak is op H10 1,2 werkdag', durationDaysOf(hour12, new CalendarEngine(h
 
 function finishOn(t: Task, cal: WorkCalendar): string {
   const copy = { ...t, time: { ...t.time } };
-  solveProject({ tasks: [copy], sequences: [], calendar: cal, calendars: [], projectStartDate: '2026-07-06' });
+  solveProject(opsSolveInput({ tasks: [copy], sequences: [], calendar: cal, calendars: [], projectStartDate: '2026-07-06' }));
   return copy.time.earlyFinish;
 }
 
 function solveError(t: Task, cal: WorkCalendar): string | undefined {
   const copy = { ...t, time: { ...t.time } };
-  return solveProject({ tasks: [copy], sequences: [], calendar: cal, calendars: [], projectStartDate: '2026-07-06' }).error;
+  return solveProject(opsSolveInput({ tasks: [copy], sequences: [], calendar: cal, calendars: [], projectStartDate: '2026-07-06' })).error;
 }
 
 eq('2d eindigt op H8 na twee volledige werkdagen', finishOn(day2, h8), '2026-07-07T16:00');
@@ -200,10 +201,10 @@ deepEq('2d op scalaire 07-16/8u-kalender krijgt exact 16h als voorstel',
   proposeTaskDurationConversion(day2, 'hours', scalarH8), { unit: 'hours', durationMinutes: 960, explicitUnit: true });
 const scalarBeforeSolve = JSON.stringify(scalarH8);
 const hourOnScalar = { ...hour12, time: { ...hour12.time } };
-const hourOnScalarResult = solveProject({
+const hourOnScalarResult = solveProject(opsSolveInput({
   tasks: [hourOnScalar], sequences: [], calendar: scalarH8, calendars: [],
   projectStartDate: '2026-07-06',
-});
+}));
 eq('bestaande urentaak op scalaire kalender plant zonder waarschuwing', hourOnScalarResult.error, undefined);
 eq('scalar-oplossing muteert de opgeslagen kalender niet', JSON.stringify(scalarH8), scalarBeforeSolve);
 eq('scalar-oplossing bewaart uur-unit', hourOnScalar.time.durationUnit, 'hours');

@@ -1,4 +1,4 @@
-import type { Project, ProgressMode } from '@/types/project';
+import type { Project, ProgressMode, ProjectSchedulingOptions, SchedulingProfile } from '@/types/project';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Task } from '@/types/task';
@@ -13,6 +13,7 @@ import { sameValue } from '@/utils/sameValue';
 import { diffDays } from '@/utils/dateUtils';
 import { applyWbsNumbering } from '@/utils/wbs';
 import { CPMSolver, type CPMResult } from '@/engine/scheduler/CPMSolver';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { applyProjectPatch } from '../projectPatch';
 import {
@@ -24,12 +25,20 @@ import { syncProjectCalendar, promoteProjectCalendarToLibrary } from '../syncPro
 import { freshPayload, hydratePayload } from '../documentContract';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import { clearTimephasedLossNoticeForDoc } from '../timephasedLossNotice';
+import { clearTaskTypesNoticeForDoc, notifyWorkRuleDurationsChanged } from '../taskTypesNotice';
+import { captureCalendarChange, settleCalendarChange } from '@/engine/work/workRuleApply';
+import { tasksFollowingProjectCalendar } from '../calendarTasks';
+import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import type { AppSliceFactory } from './types';
 import { effHoursPerDay } from '@/utils/taskDuration';
+import { isLeafTask } from '@/utils/taskHierarchy';
+import type { XerArchiveIssue, XerImportMetadata } from '@/services/importTypes';
+import type { XerSourceArchive } from '@/services/xerSourceArchive';
 // K-item 27: de fabriek woont in de bladmodule `../defaults` (breekt de import-cyclus met
 // documentContract/snapshot). Hier alleen doorgegeven, zodat bestaande importers ongemoeid blijven.
 import { createDefaultProject } from '../defaults';
 import { removeSessionHistoryForDocumentFromState } from '../sessionHistory';
+import { copyProfile, normalizeOptions, normalizeProfile } from '../schedulingProfileDraft';
 export { createDefaultProject };
 
 /** Opties voor de nieuw-project-wizard. */
@@ -43,6 +52,12 @@ export interface NewProjectOptions {
   calendar: WorkCalendar;
   phaseNames: string[];
   defaultTaskDurationUnit?: 'days' | 'hours';
+  /** Rekenprofiel uit de wizard-keuzelijst (rekenprofielen, spec v3.1 §6). Hoort bij de aanmaak zelf,
+   *  niet bij een losse undo-stap erna: het nieuwe project begint zonder historie, dus Ctrl+Z kan niet
+   *  terugvallen naar OPS. Afwezig of standaardprofiel ⇒ afwezig (≡ ops). */
+  schedulingProfile?: SchedulingProfile;
+  /** De standaard-reken-opties van dat profiel (`defaultOptionsFor`); leeg ⇒ afwezig. */
+  schedulingOptions?: ProjectSchedulingOptions;
 }
 
 /** Uitkomst van een `moveProject`-commit. */
@@ -85,6 +100,17 @@ export interface ProjectSlice {
   fileHandle: FileSystemFileHandle | null;
   /** Persoonlijke sessiekeuze voor echte bestands-AutoSave; per document via DOCUMENT_FIELDS. */
   autoSaveToFile: boolean;
+  /** XER-herkomst van het actieve document; externe relaties blijven solverloze brondata. */
+  xerImportMetadata: XerImportMetadata | null;
+  xerSourceArchive: XerSourceArchive | null;
+  xerSourceProjectId: string | null;
+  /** Taaktypes-etappe (spec §7): werkregel-UI ontsloten voor dit document; zie DOCUMENT_FIELDS. */
+  taskTypesVisible: boolean;
+  /** Zie `DocumentPayload.importPristine` (heropen-beleid optie B). */
+  importPristine: boolean;
+  /** Sessie-only: waarom het XER-bronarchief bij het openen onbruikbaar was (per document via
+   *  DOCUMENT_FIELDS; nooit IFC). `null` = er was geen archief óf het was bruikbaar. */
+  xerArchiveIssue: XerArchiveIssue | null;
   setProject: (project: Partial<Project>) => void;
   /** Zet WBS-autonummering aan/uit; bij aanzetten wordt de hele boom direct hernummerd. */
   setWbsAutoNumber: (on: boolean) => void;
@@ -160,6 +186,12 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
   filePath: null,
   fileHandle: null,
   autoSaveToFile: false,
+  xerImportMetadata: null,
+  xerSourceArchive: null,
+  xerSourceProjectId: null,
+  taskTypesVisible: false,
+  importPristine: false,
+  xerArchiveIssue: null,
 
   setProject: (updates) => {
     // T7b (plan-§9/O2-vervolg, orkestratorbesluit 2026-08-15 — optie B, ná escalatie T7 + de
@@ -218,15 +250,29 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       runtime.finishMutation(s, { stale: true }); // projectkalender-wijziging (A6): planning verouderd tot F5.
     }),
 
-  setProjectCalendar: (id) =>
+  setProjectCalendar: (id) => {
+    let changed = 0;
+    let lost = 0;
     set((s) => {
       if (!s.calendars.some((c) => c.id === id)) return; // alleen bestaande bibliotheek-entries
       if (s.project.calendarId === id) return; // no-op-guard: al de projectdefault (geen lege undo-stap).
       runtime.beginUndoable(s);
+      // K2 (eigenaarsbesluit 2026-09-05): alle taken die de projectkalender VOLGEN (geen eigen
+      // kalender, of een bungelende verwijzing — reviewbevinding F9) gaan mee; momentopnamen vóór
+      // de wissel, daarna beslist de werkregel per taak.
+      const affected = tasksFollowingProjectCalendar(s).map((task) => ({ task, before: captureCalendarChange(task, s.assignments, s) }));
       s.project.calendarId = id;
+      syncProjectCalendar(s); // §9.1: cache gelijkzetten (vóór de settle: die leest `s.calendar`).
+      for (const { task, before } of affected) {
+        const settled = settleCalendarChange(task, s.assignments, before, s);
+        if (settled.durationChanged) changed++;
+        if (settled.timephasedLost) lost++; // reviewronde G4
+      }
       runtime.finishMutation(s, { stale: true }); // projectdefault-wissel is datum-beïnvloedend (§5.4).
-      syncProjectCalendar(s); // §9.1: cache gelijkzetten.
-    }),
+    });
+    if (changed > 0) notifyWorkRuleDurationsChanged(get().notify, changed);
+    if (lost > 0) notifyTimephasedLoss(get().notify, get().activeDocumentId, lost);
+  },
 
   ensureProjectCalendarInLibrary: () =>
     set((s) => {
@@ -330,16 +376,18 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
     // wijzigt niet tussen de "voor"- en "na"-solve hieronder (alleen datums schuiven), dus één
     // expansie op `s.tasks` volstaat voor beide takken.
     const { sequences: expandedSequences } = expandSummaryRelations(s.tasks, s.sequences);
-    const solve = (tasks: Task[], dataDate: string | undefined, projectStartDate: string): CPMResult => {
-      const leaf = tasks.filter((t) => t.childIds.length === 0);
+    const solve = (
+      tasks: Task[], dataDate: string | undefined, projectStartDate: string, projectEndDate: string,
+    ): CPMResult => {
+      const leaf = tasks.filter(isLeafTask);
       return new CPMSolver(leaf, expandedSequences, s.calendar, s.calendars, {
+        ...solveOptionsFor(s.project),
         dataDate,
-        progressMode: s.project.progressMode,
-        schedulingOptions: s.project.schedulingOptions,
         // Gebruikstest-bevinding 2026-08 (zie `scheduleSlice.runCPM`): de "voor"-solve rekent tegen
         // de HUIDIGE projectstart, de "na"-solve tegen de NIEUWE — anders zou deze preview een
         // wortel-taak vóór zijn eigen projectbegin kunnen tonen.
         projectStartDate,
+        projectEndDate,
       }).solve();
     };
 
@@ -367,11 +415,14 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
     }
 
     const fresh = s.cpmResult && !s.cpmResult.error && !s.scheduleStale ? s.cpmResult : null;
-    const before = fresh ?? solve(s.tasks.map((t) => shiftTask(t, 0)), s.project.statusDate, s.project.startDate);
+    const before = fresh ?? solve(
+      s.tasks.map((t) => shiftTask(t, 0)), s.project.statusDate, s.project.startDate, s.project.endDate,
+    );
     const after = solve(
       s.tasks.map((t) => shiftTask(t, delta)),
       shiftIso(s.project.statusDate, delta),
       newStartDate,
+      shiftIso(s.project.endDate, delta) || s.project.endDate,
     );
 
     if (after.error) return { ...empty, error: after.error };
@@ -419,6 +470,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       // `clearTimephasedLossNoticeForDoc` voor de volledige toelichting (incl. waarom dit NIET ook
       // vanuit `newDocument()`/een echte bestandsopen hoort te gebeuren).
       clearTimephasedLossNoticeForDoc(s.activeDocumentId);
+      clearTaskTypesNoticeForDoc(s.activeDocumentId); // taaktypes-etappe, review K1
     });
     runtime.emitHostEvent(HOST_EVENTS.projectNew);
   },
@@ -442,6 +494,9 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       proj.endDate = opts.endDate ?? '';
       proj.calendarId = opts.calendar.id;
       proj.defaultTaskDurationUnit = opts.defaultTaskDurationUnit ?? 'days';
+      const profile = normalizeProfile(opts.schedulingProfile);
+      proj.schedulingProfile = profile ? copyProfile(profile) : undefined;
+      proj.schedulingOptions = normalizeOptions(opts.schedulingOptions);
 
       // Reset-pad (audit P10): start van een verse payload en override alleen de wizard-velden.
       // hydratePayload vult §4.4 de bibliotheek met de wizard-kalender (promote) en synct de cache.
@@ -450,7 +505,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       payload.calendar = opts.calendar;
       const phaseHoursPerDay = effHoursPerDay(opts.calendar);
       payload.tasks = opts.phaseNames.map((name, i) => {
-        const time = createDefaultTaskTime(proj.startDate, 5, proj.defaultTaskDurationUnit);
+        const time = createDefaultTaskTime(proj.startDate, 5, proj.defaultTaskDurationUnit, opts.calendar); // B1-vervolg: uur-einde op de echte kalender
         deriveScheduleDurationFromMinutes(time, phaseHoursPerDay);
         return {
           id: generateId('task'),
@@ -483,6 +538,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       // "al gemeld"-registratie van het vorige (lege) tabblad-verleden. Onvoorwaardelijk zetten is
       // een no-op op het niet-pristine pad (newDocument() gaf daar al een vers, ongeregistreerd docId).
       clearTimephasedLossNoticeForDoc(s.activeDocumentId);
+      clearTaskTypesNoticeForDoc(s.activeDocumentId); // taaktypes-etappe, review K1
     });
     runtime.emitHostEvent(HOST_EVENTS.projectNew);
   },

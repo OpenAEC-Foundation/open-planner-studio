@@ -11,6 +11,20 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 
 ## Openstaand
 
+- [ ] **Rekenprofielen / X12 (PR #169, stand 2026-09-24):** restant 76 zesassige afwijkingen op de
+  P6-doorgerekende orakels — HarbourPointe-opvolgers van verouderde P6-uitvoer (nieuw P6-bewijs nodig),
+  mijlpaalvloer (n=1), Sample SF-lag-0-minuut (n=1). Eigenaarsbesluiten 2026-09-24: A19 in P6 aan en
+  per-bestand vervallen ("a", branch `claude/x12-a19-basis`); C5 smal. Zie `docs/superpowers/plans/2026-09-22-rekenprofielen-overdracht.md` §1d.
+- [ ] **P6-nivellering (motoretappe):** fundament (data) ligt; vijf eigenaarsbesluiten in
+  `docs/superpowers/plans/2026-09-24-nivellering-etappe-onderzoek.md` §8.
+- [ ] **XER-lezer (PR #109) vervolg:** statisch anker bij `sched_use_project_end_date_for_float=Y` zonder
+  `plan_end_date` (37 corpusprojecten; eigen PR met herpin); corrupt bronarchief openen zónder archief met
+  melding (eigenaarsvraag); documentnaam = Project-ID i.p.v. projectnaam.
+- [ ] **Datums zoals opgeslagen (PR #167) vervolg:** een taak zonder enige vastlegging telt na opslaan-in-modus
+  bij heropenen als vastgelegd (geen vals aanbod, wel in de telling).
+- [ ] **Taaktypes (PR #101) overname:** dossier `docs/superpowers/plans/2026-09-24-verkenning-pr101-taaktypes.md`;
+  integratie op de #169-kop pas als #169 stabiel is; eigenaarsvragen E1–E5.
+
 ### Rapporten (tabelrapporten uit discussie #31, review 2026-09-08)
 - [ ] **Twaalf vertaalde gidsen beschrijven een niet-bestaande knop "Afdrukken…".** In
   `public/docs/{de,fr,es,it,pt,pl,tr,ar,fa,zh,ja,ko}/gids-rapporten-printen.md` staat nog dat het
@@ -382,9 +396,90 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 - [ ] **Bewerken-meetlat tegen MS Project.** De herschalingsregel (proportioneel, actuals blijven,
       FIXED_WORK houdt werk) volgt MSP's gedocumenteerde gedrag maar is niet tegen MSP zelf
       gemeten — de taaktypes-spec noemt die meetlat als de duurste post van de vervolgetappe.
+
+### Taaktypes / opgeslagen werk — in aanbouw (spec 2026-09-04, bouw 2026-09-05)
+
+> Ontwerp: `docs/superpowers/specs/2026-09-04-spec-taaktypes-opgeslagen-werk.md` (opvolger van de
+> spec van 2026-08-18). Bouwt op de branch `claude/contour-engine-planner-mnrsy3` (PR #101), die
+> gestapeld is op de XER-branch en pas ná die PR merget. Stappen 1–7 staan erin; 8 (afronding docs)
+> volgt — zie spec §10 voor de stand per stap. De gids `gids-taaktypes` bestaat in nl+en; de
+> twaalf vertalingen volgen in de maandelijkse ronde.
+> Eigenaarsbesluiten 1–7 (2026-09-04) en 8–10 (2026-09-05) staan daar in §3.
+
+- [x] **Duurbewerking op een taak met expliciete `remainingTime`/`remainingMinutes` — besloten
+      2026-09-05:** de rest schuift mee met Δ, geklemd op 0; `completion` volgt daaruit (besluit
+      2026-09-06, optie a — `syncCompletionToRemaining`; `carryRemainingThroughDurationEdit`,
+      store/raster/MCP). Bron: Microsoft [M5].
+- [x] **Kalenderwissel op een taak met vastgelegd werk (K2) — besloten 2026-09-05:** een kalenderwissel
+      verandert de slotgrootte en daarna beslist de werkregel (Vast werk/Vaste inzet ⇒ duur; Vaste
+      duur en werk ⇒ inzet; standaard ⇒ werk volgt, byte-identiek). Gebouwd (spec §6.4, meetlat
+      32–34, `settleCalendarChange`); melding bij een project-/kalenderwijziging die duren verandert.
+- [ ] **MS Project-meting van K2 en de Δ-regel (§6.4/§6.5):** beide zijn *documented* voor de richting
+      en *reasoned* voor de OPS-werkdagen; wie MS Project heeft, meet cases 32–36 plus "duur wijzigen
+      op een taak met ingevoerde resterende duur" en noteert de uren.
+- [ ] **K2 niet bedraad op drie randpaden (review G9, 2026-09-05):** `projectSlice.setCalendar`
+      (vervangt de hele projectkalender; geen UI-aanroeper meer, wel API-oppervlak),
+      `librarySlice.resolveDeviation(ref, 'company')` (neemt poolwaarden incl. `hoursPerDay` over) en
+      de `workTime`-verwijdering ná `draft.updateCalendar` in `calendarResourceTools.ts` wijzigen de
+      slot buiten `settleCalendarChange` om. Bedraden zodra een van die paden weer een UI-ingang
+      krijgt; tot dan volgt de werkregel daar niet. Daarnaast (G10): `updateCalendar`/
+      `setProjectCalendar` wissen het Z8-venster alleen wanneer de regel de duur wijzigt, terwijl
+      `setTaskCalendar` dat bij elke kalenderwissel doet — zelfde trigger, ander gedrag.
+- [x] **`completion` ↔ expliciete rest (review F4) — besloten 2026-09-06, optie a:** zodra de brug de
+      rest expliciet schrijft (Δ-regel én kalenderwissel) wordt `completion` herrekend als
+      1 − rest ÷ duur, dezelfde formule als een restbewerking in het raster; Gantt-balk, solver en
+      rapportage delen daarmee één waarheid (spec §6.5, laatste punt; `syncCompletionToRemaining`).
+- [ ] **Crashherstel ontsluit zonder melding (review K2, 2026-09-05).** `restoreDocuments` leidt
+      `taskTypesVisible` correct af (`payloadFromImport`) maar loopt niet langs `applyLoadedProject`,
+      waar de eenmalige melding zit — na herstel verschijnen de bedieningselementen zonder uitleg.
+      Bewust gelaten: herstel is dezelfde gebruiker in (meestal) dezelfde sessie. Meenemen zodra
+      `restoreDocuments` andere laadmeldingen krijgt.
+- [ ] **Werkinvoer ≤ 0 in het paneel weigert stil** (review K6a): rode rand via `aria-invalid`, geen
+      melding — zelfde conventie als de inzetinvoer (`isValidUnits`).
+- [x] **B1c-koppelpunt — gedaan 2026-09-24 (baan 2 van de overname van PR #101).** Een duur uit de
+      werkdriehoek (inzet/werk/resource erbij-eraf onder Vast werk/Vaste inzet — store, raster, MCP)
+      loopt door `workRuleApply.ts`'s `settleDurationAftermath`, en die wist nu ook de nivelleergaten
+      (`clearLevelingGaps`) en herleidt daarna het ingevoerde einde van een niet-gestarte urentaak
+      (`reconcileHourInputFinish`, B1) — met de basis van vóór de bewerking als verplichte parameter.
+      Regressie: `check-hour-input-finish.ts` §17 en `check-work-rule-store.ts` (s).
+
+- [x] **Beslispunten 8–10 genomen (2026-09-05)**, vastgelegd in spec §3.3: 8 = optie B (vier types in
+      het menu, bewaard `effortDriven` stuurt alleen de twee MSP-afwijkende cellen); 9 = drie optionele
+      werkvelden per toewijzing; 10 = de vereenvoudiging "elke toewijzing loopt over de hele restduur"
+      is voor deze etappe geaccepteerd — zie het vervolgpunt hieronder.
+- [ ] **Per-toewijzing-spanne (vervolg op beslispunt 10).** MS Project en P6 laten de ene resource op
+      een taak eerder klaar zijn dan de andere; OPS laat elke toewijzing over de hele restduur lopen
+      (spec §6.2: verhoog je op een vast-werk-taak de inzet van één resource, dan wordt de taak korter
+      en gaat de ándere resource dunner over die kortere duur in plaats van eerder klaar te zijn).
+      `ResourceAssignment.workWindowStart/Finish` bestaat al, round-tript door IFC
+      (`OPS_TimephasedWindow`) en het extensiecontract, maar geen lezer vult het en geen solverstap
+      leest het. Activeren raakt `assignmentDayUnits` (histogram/nivelleerder/bezetting), de
+      renderer (balk per toewijzing?) en de MSPDI-/P6-exports (per-assignment start/finish).
+      Zichtbaar gevolg sinds E9 (25-09): onder *Vaste inzet* komt inzet heen en terug op één
+      toewijzing weer op de oude duur uit, maar met twee of meer toewijzingen niet — de andere volgt
+      de langere duur met afgeleid werk (MSP houdt haar werk en geeft haar een kortere spanne).
+      Gepind in `check-work-triangle.ts` (b); spec §3.4.
+- [ ] **MSP-meetlat: 36 bewerkingen** (spec §9) meten in MS Project (en P6) zodra iemand het heeft;
+      tot dan draagt elke case `evidence: 'documented' | 'reasoned' | 'decided'` in `work-triangle-cases.json`.
+- [ ] **Telling `mspTaskType × effortDriven` over de `OPS_MPP_CRAWL`-set** (216 bestanden): bepaalt
+      hoe vaak beslispunt 8 in de praktijk speelt. Het corpus is niet in de repo.
+- [ ] **Nivelleerder-optie "inzet verlagen bij vast werk"** (eigenaarsbesluit 7-B, 2026-09-04) als
+      geavanceerde optie naast het verschuiven; de verdeler raakt nu nooit inzet of werk.
+- [ ] **% werk gereed** (MSP % Work Complete) naast de duurgebaseerde `completion`.
+- [ ] **Projectstandaard-werkregel in de UI** (projectwizard/projectinfo); het veld bestaat sinds
+      bouwstap 1 en is via `planner_update_project` (`defaultWorkRule`) zetbaar; de gids noemt dat.
+- [ ] **P6-optie "preserve existing assignments"** bij resource erbij: OPS volgt altijd de
+      synchronisatietabel ("recalculate"); de preserve-variant is een instelling voor later.
 - [ ] **Uur-modus-dagslot is een benadering.** De engine deelt de as in slots van `hoursPerDay × 60`;
       een werkdag met afwijkende bandlengte (korte vrijdag) telt daardoor als een deel-slot — dezelfde
       benadering als `enumerateTaskWorkDays`, dus consistent, maar geen echte per-dag-bandtelling.
+- [ ] **XER-opgeslagen werk (`target_qty`/`remain_qty`/`act_reg_qty`) blijft bewust in het
+      bronarchief.** Geen nieuw modelveld vanuit XER deze etappe — de taaktypes-etappe definieert het
+      eersteklasveld op `ResourceAssignment`; XER zet het pas dán over, en uitsluitend wanneer
+      `target_qty` afwijkt van `target_drtn_hr_cnt × target_qty_per_hr` (anders blijft het veld
+      afwezig, byte-identiek). Meetlatbestanden: `HarbourPointe_AssistedLiving` (98 afwijkende rijen,
+      factor 3), `Harbour Point DCP-03` (factor 4; `remain_qty` zonder resttarief), `p6_torture_test_v1`
+      (duur 0 met werk); resttarief wijkt in `rehab-2` in 27,5% van de rijen af.
 
 ### Resourcekalender-semantiek — taak volgt resourcekalender als keuze (besluit eigenaar 2026-09-04)
 - [ ] **Overallocatie op een vrije dag van de resource is bewust gedrag, geen bug** (`ResourceLoad.ts`
@@ -798,6 +893,62 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 ### Distributie & Release — release notes in de in-app updater
 
 ### Kwaliteit & verificatie
+
+- [x] **De per-cel-poort `cellTransitions.previouslyExact` meet sinds de X12-v2-meetlat niets meer**
+  — HERSTELD 2026-09-07 (etappe X12, herpin): v1 heeft zijn eigen bestand terug
+  (`xer-product-fidelity-baseline.json`, twee openbare corpusbestanden), de harness geeft
+  `progressMode`/`schedulingOptions` weer door en de overgangshistorie is herstart vanaf de huidige
+  exacte set (44+16 cellen, 0 verbeteringen; zie de `reason`-velden). De poort meet weer: een cel
+  die exact was en fout wordt, is op die twee bestanden mechanisch rood. Voor de overige 32 entries
+  blijft de v2-karakterisering (`check-xer-corpusless-fidelity-gate.ts`, in-bron pin per as) de
+  enige bewaking — per as, niet per cel.
+- [x] **XER: projecteinde valt terug op de projectSTART bij `sched_use_project_end_date_for_float=Y`
+  zonder `plan_end_date`** — in twee stappen opgelost. (1) X12-brok 1 (2026-09-23, branch
+  `claude/x12-brok1-projecteinde`): zonder bruikbaar einde (`plan_end_date` leeg én geen enkele
+  `target_end_date`) zet `deriveXerScheduleOptions` de optie gerapporteerd uit (`hasUsableProjectEnd`,
+  terugvalmelding); `cases-import.xer` 77/160 → 156/160 (sectie 7 van `check-p6-verified-cases-engine.ts`).
+  (2) Eigenaarsbesluit 2026-09-24 "eigen PR" (Fable-critreview PR #109 bevinding 2), gemerged in de
+  rekenprofielen-etappe 2026-09-25: bij `Y` zonder `plan_end_date` laat de lezer `project.endDate` leeg in
+  plaats van het taak-afgeleide einde te verzinnen, de optie blijft aan, en `withEffectiveProjectEndAnchor`
+  (CPMSolver) laat de solver exact op het netwerkeinde rekenen; corpusloos bewaakt in `check-xer-reader.ts`
+  13c–13g. Meting: op de #169-kop 0 cellen verschil (76/0/0/0); op de oude #109-basis 149 cellen slechter
+  omdat het verzonnen anker daar een fout aan de vroege kant maskeerde — daarom niet los op #109 geland.
+  Oorspronkelijke registratie: her-review 7a, 2026-09-07.
+- [ ] **Meetlat per formaat (nul afwijkingen zoals XER §1), als aparte etappe ná de
+  etappe "datums zoals opgeslagen voor alle formaten"** (eigenaarsbesluit 2026-09-09, optie 3;
+  die etappe zelf wordt gebouwd en staat daarom niet hier maar in plan §10.f). Nu: alleen XER (93 bestanden,
+  zes assen) en `.mpp` (216 bestanden, alleen start/einde) hebben een corpus + gepinde baseline;
+  MSPDI en P6 XML zijn nooit gemeten. Materiaal: `ops-xer-corpus/pmxml-samples/` (9 P6 XML) en
+  de publieke MPXJ-junit-data (148 XML, deels MSPDI, deels P6 XML). Per formaat: corpus,
+  zesassige meting, gepinde baseline, suite rood zolang niet nul. Beginnen met P6 XML (meeste
+  materiaal, grootste overlap met XER); `.mpp` uitbreiden van twee naar zes assen. CSV krijgt
+  geen meetlat (geen bronpakket dat het antwoord geeft).
+- [ ] **XER: het bronarchief heeft geen bytegrens en gaat mee in élke auto-save-serialisatie**
+  (eindreview 2026-09-07, bevinding 1). Gemeten op `rehab-2.xer` (17,7 MB): IFC 50 MB, volledige
+  herstelronde 73 s / 3,1 GB piek-RSS, ±3,6 s hoofdthread per 10-secondentick; bij twaalf documenten
+  uit één bestand 26× amplificatie (OZB). Geen cap, geen opt-out, geen worker. Eigenaarsbesluit
+  (plan §10.f): bytegrens waarboven het archief niet in de recovery-snapshot meegaat, óf het
+  immutabele archief één keer apart schrijven, plus een budgetpoort in
+  `check-xer-archive-recovery-corpus.ts`. De gids benoemt de prijs nu wel.
+- [ ] **XER: "niet vastgelegd" bestaat in tabel, CSV en MCP, maar niet in de rapporten, de PDF, het
+  printvoorbeeld en de renderer** (eindreview bevinding 6). In de modus schrijft
+  `applyRecordedTimesToTasks` `totalFloat ?? 0`/`isCritical ?? false` in `task.time`; de rapporten
+  presenteren dat als cijfer (corpus: 122 taken zonder volledig late-paar, 290 zonder
+  `total_float_hr_cnt`). Nu: één melding bovenaan elk rapport (`tableReports.recordedDatesNote`).
+  Volledig: `unrecordedExportGate` door `ReportContext` en de kolomspecs heen.
+- [ ] **XER: de exportverliesmelding komt ná het schrijven** (eindreview bevinding 12) —
+  `detectXerExportLoss` draait vóór de dialoog, de `info`-melding pas ná `saveFileDialog`. Overweeg
+  de waarschuwing vóór de dialoog wanneer de categorieën het exact-source-bytes-verlies bevatten.
+- [ ] **XER: geen bovengrens op het aantal documenten uit één bestand** (eindreview bevinding 13,
+  VERMOED): elk document draagt zijn eigen archiefkopie; het corpus haalt maximaal 15 projecten. Te
+  bevestigen met een synthetisch bestand van ~100 projecten door `readXER` + auto-save.
+- [ ] **`lagCalendar` is sinds X5 effectief voor élk formaat** (eindreview bevinding 5): een
+  bestaand document waarin ooit 'successor'/'24hour'/'projectDefault' is gekozen plant na de
+  volgende release anders. Regel in de releasenotities van die versie; eventueel migratienoot.
+- [ ] **XER: A19 (P6-basis) geeft de reststart waar de verified cases 08 A / 10 B de werkelijke
+  start tonen** ('A'-datum = Start-kolom; ES én LS, vier cellen). Nog te checken: welk veld de
+  vergelijking eigenlijk hoort te gebruiken (werkelijke start versus reststart) vóór er een oorzaak
+  wordt aangewezen. Zie plan §9.
 
 - [ ] **Geen enkele poort raakt het Tauri-asset-protocol — een hele klasse desktopbugs is
   structureel onzichtbaar.** Aangetoond 2026-07-28: in de uitgeleverde `.deb` v2026.7.13 toonde

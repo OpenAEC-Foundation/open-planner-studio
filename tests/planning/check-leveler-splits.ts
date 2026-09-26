@@ -23,6 +23,7 @@ import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { Task } from '@/types/task';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
+import { legacyCpmOptions, opsSolveInput } from './legacySolveOptions';
 
 let checks = 0;
 const diffs: string[] = [];
@@ -114,7 +115,7 @@ console.log('-- leveler-splits: gesplitste taak boekt alleen haar echte werkdage
 
   const cpmResult = stubCpmResult('2026-06-05');
   const r1 = levelResources(
-    [taskA, taskB], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, LEVEL_OPTS,
+    [taskA, taskB], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, LEVEL_OPTS, legacyCpmOptions(),
   );
 
   eq('taak B hoeft niet te wijken: het gat van A is echt vrij', r1.delays['b'], undefined);
@@ -149,7 +150,7 @@ console.log('-- leveler-splits: delay op de taakkalender, met capaciteitsdruk (g
 
   const cpmResult = stubCpmResult('2026-06-05');
   const r2 = levelResources(
-    [taskD, taskC], [], [resourceR], assignments, PROJECT_CAL, [SIX_DAY_CAL], cpmResult, LEVEL_OPTS,
+    [taskD, taskC], [], [resourceR], assignments, PROJECT_CAL, [SIX_DAY_CAL], cpmResult, LEVEL_OPTS, legacyCpmOptions(),
   );
 
   eq('D (hoogste prioriteit) plaatst op haar eigen PF, geen delay', r2.delays['d'], undefined);
@@ -164,9 +165,9 @@ console.log('-- leveler-splits: delay op de taakkalender, met capaciteitsdruk (g
     { ...taskD, time: { ...taskD.time }, levelingDelay: r2.delays['d'] },
     { ...taskC, time: { ...taskC.time }, levelingDelay: r2.delays['c'] },
   ];
-  const solved = solveProject({
+  const solved = solveProject(opsSolveInput({
     tasks: solvedTasks, sequences: [], calendar: PROJECT_CAL, calendars: [SIX_DAY_CAL],
-  });
+  }));
   ok('solveProject rekent zonder fout door', !solved.error);
   const cResult = solvedTasks.find(t => t.id === 'c')!;
   eq("C's earlyStart landt op zaterdag 2026-06-06 — de dag die de preview-boeking beloofde",
@@ -202,7 +203,7 @@ console.log('-- leveler-splits: ELAPSEDTIME-taak boekt spanne-geklemd, niet als 
 
   const cpmResult = stubCpmResult('2026-06-08');
   const r3 = levelResources(
-    [taskE, taskF], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, LEVEL_OPTS,
+    [taskE, taskF], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, LEVEL_OPTS, legacyCpmOptions(),
   );
 
   eq('E plaatst op haar eigen PF, geen delay (hoogste prioriteit, geen concurrent)', r3.delays['e'], undefined);
@@ -247,7 +248,7 @@ console.log('-- leveler-splits: ELAPSEDTIME-delay in kalenderdagen + waarneembar
 
   const cpmResult = stubCpmResult('2026-06-09');
   const r4 = levelResources(
-    [taskD, taskE, taskG], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, LEVEL_OPTS,
+    [taskD, taskE, taskG], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, LEVEL_OPTS, legacyCpmOptions(),
   );
 
   eq('D (hoogste prioriteit) plaatst op haar eigen PF, geen delay', r4.delays['d4'], undefined);
@@ -264,9 +265,9 @@ console.log('-- leveler-splits: ELAPSEDTIME-delay in kalenderdagen + waarneembar
     { ...taskD, time: { ...taskD.time }, levelingDelay: r4.delays['d4'] },
     { ...taskE, time: { ...taskE.time }, levelingDelay: r4.delays['e4'] },
   ];
-  const solved = solveProject({
+  const solved = solveProject(opsSolveInput({
     tasks: solvedTasks, sequences: [], calendar: PROJECT_CAL, calendars: [],
-  });
+  }));
   ok('solveProject rekent zonder fout door', !solved.error);
   const eResult = solvedTasks.find(t => t.id === 'e4')!;
   eq("E's earlyStart landt op zaterdag 2026-06-06 — de dag waarop bookDemandAt haar al boekte",
@@ -296,7 +297,7 @@ console.log('-- leveler-splits: 6-daagse taak zonder capaciteitsdruk ⇒ geen sp
 
   const cpmResult = stubCpmResult('2026-06-06');
   const r5 = levelResources(
-    [taskH], [], [resourceR], assignments, PROJECT_CAL, [SIX_DAY_CAL], cpmResult, LEVEL_OPTS,
+    [taskH], [], [resourceR], assignments, PROJECT_CAL, [SIX_DAY_CAL], cpmResult, LEVEL_OPTS, legacyCpmOptions(),
   );
 
   eq('geen enkele taak krijgt een delay — de taak plaatst meteen op haar eigen (weekend-)PF', r5.delays, {});
@@ -322,7 +323,7 @@ console.log('-- leveler-splits: vastgepinde 6-daagse taak, PF in het weekend ⇒
 
   const cpmResult = stubCpmResult('2026-06-06');
   const r6 = levelResources(
-    [taskP], [], [resourceR], assignments, PROJECT_CAL, [SIX_DAY_CAL], cpmResult, LEVEL_OPTS,
+    [taskP], [], [resourceR], assignments, PROJECT_CAL, [SIX_DAY_CAL], cpmResult, LEVEL_OPTS, legacyCpmOptions(),
   );
 
   eq('vastgepinde taak krijgt geen delay — snapt op haar EIGEN kalender-as, niet de projectkalender', r6.delays, {});
@@ -371,7 +372,7 @@ console.log('-- leveler-splits: gesplitste taak op een afwijkende (zesdaagse) ka
   const cpmResult = stubCpmResult('2026-06-08');
   const r7 = levelResources(
     [taskS, taskConflictMonday, taskFreeSaturday], [], [resourceR], assignments,
-    PROJECT_CAL, [SIX_DAY_CAL], cpmResult, LEVEL_OPTS,
+    PROJECT_CAL, [SIX_DAY_CAL], cpmResult, LEVEL_OPTS, legacyCpmOptions(),
   );
 
   eq('S plaatst op haar eigen PF, geen delay (hoogste prioriteit)', r7.delays['s7'], undefined);
@@ -404,7 +405,7 @@ console.log('-- leveler-splits: verse baseline-spanne wint van een stale opgesla
 
   const cpmResult = stubCpmResult('2026-06-06');
   const r8 = levelResources(
-    [taskG, taskConflict], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, LEVEL_OPTS,
+    [taskG, taskConflict], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, LEVEL_OPTS, legacyCpmOptions(),
   );
 
   eq('de concurrent (hoogste prioriteit) plaatst op haar eigen PF, geen delay', r8.delays['t8-conflict'], undefined);
@@ -448,7 +449,7 @@ console.log('-- leveler-splits: lege earlyStart/earlyFinish crashen niet (geval 
   let threw: unknown;
   let r9: ReturnType<typeof levelResources> | undefined;
   try {
-    r9 = levelResources([taskK], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, LEVEL_OPTS);
+    r9 = levelResources([taskK], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, LEVEL_OPTS, legacyCpmOptions());
   } catch (e) {
     threw = e;
   }
@@ -493,7 +494,7 @@ console.log('-- leveler-splits: leeg kandidaatvenster telt niet als passend (gev
 
   const cpmResult = stubCpmResult('2026-06-08');
   const r10 = levelResources(
-    [taskD, taskE, taskF], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, LEVEL_OPTS,
+    [taskD, taskE, taskF], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, LEVEL_OPTS, legacyCpmOptions(),
   );
 
   eq('D plaatst op haar eigen PF, geen delay', r10.delays['d10'], undefined);
@@ -529,7 +530,7 @@ console.log('-- leveler-splits: taak op ruimere kalender dan haar resource krijg
 
   const cpmResult = stubCpmResult('2026-06-06');
   const r11 = levelResources(
-    [taskMov], [], [resourceR], assignments, PROJECT_CAL, [SIX_DAY_CAL], cpmResult, LEVEL_OPTS,
+    [taskMov], [], [resourceR], assignments, PROJECT_CAL, [SIX_DAY_CAL], cpmResult, LEVEL_OPTS, legacyCpmOptions(),
   );
 
   eq('MOV wijkt met delay 1 — echte capaciteitsdruk (resource kan zaterdag niet werken), geen axis-spook',
@@ -579,7 +580,7 @@ console.log('-- leveler-splits: voltooide taak is onverplaatsbaar, boekt als vas
 
   const cpmResultA = stubCpmResult('2026-06-01');
   const r12a = levelResources(
-    [h1a, h2a], [], [resourceRA], assignmentsA, PROJECT_CAL, [], cpmResultA, LEVEL_OPTS,
+    [h1a, h2a], [], [resourceRA], assignmentsA, PROJECT_CAL, [], cpmResultA, LEVEL_OPTS, legacyCpmOptions(),
   );
 
   eq('H1 (voltooid, LAGE prioriteit) krijgt NOOIT een levelingDelay — negeert de prioriteitsstrijd volledig',
@@ -604,7 +605,7 @@ console.log('-- leveler-splits: voltooide taak is onverplaatsbaar, boekt als vas
   const cpmResultB = stubCpmResult('2026-06-01');
   const SMOOTH_OPTS: LevelingOptions = { constrainToFloat: true };
   const r12b = levelResources(
-    [h1b, h3], [], [resourceRB], assignmentsB, PROJECT_CAL, [], cpmResultB, SMOOTH_OPTS,
+    [h1b, h3], [], [resourceRB], assignmentsB, PROJECT_CAL, [], cpmResultB, SMOOTH_OPTS, legacyCpmOptions(),
   );
 
   eq('H1b (voltooid) krijgt NOOIT een levelingDelay, ook niet in smoothing-modus', r12b.delays['h1b'], undefined);
@@ -645,7 +646,7 @@ console.log('-- leveler-splits: taak IN UITVOERING is onverplaatsbaar, boekt als
 
   const cpmResultA = stubCpmResult('2026-06-01');
   const r13a = levelResources(
-    [b13a, z13a], [], [resourceRA], assignmentsA, PROJECT_CAL, [], cpmResultA, LEVEL_OPTS,
+    [b13a, z13a], [], [resourceRA], assignmentsA, PROJECT_CAL, [], cpmResultA, LEVEL_OPTS, legacyCpmOptions(),
   );
 
   eq('B (in uitvoering, LAGE prioriteit) krijgt NOOIT een levelingDelay', r13a.delays['b13a'], undefined);
@@ -667,7 +668,7 @@ console.log('-- leveler-splits: taak IN UITVOERING is onverplaatsbaar, boekt als
   const cpmResultB = stubCpmResult('2026-06-01');
   const SMOOTH_OPTS13: LevelingOptions = { constrainToFloat: true };
   const r13b = levelResources(
-    [b13b, z13b], [], [resourceRB], assignmentsB, PROJECT_CAL, [], cpmResultB, SMOOTH_OPTS13,
+    [b13b, z13b], [], [resourceRB], assignmentsB, PROJECT_CAL, [], cpmResultB, SMOOTH_OPTS13, legacyCpmOptions(),
   );
 
   eq('B (in uitvoering) krijgt NOOIT een levelingDelay, ook niet in smoothing-modus', r13b.delays['b13b'], undefined);
@@ -718,7 +719,7 @@ console.log('-- leveler-splits: meerdaagse voltooide taak over een feestdagenblo
 
   const cpmResult = stubCpmResult('2026-05-07');
   const r14 = levelResources(
-    [h1n2, tPhantom, tReal], [], [resourceR], assignments, HOLIDAY_CAL, [], cpmResult, LEVEL_OPTS,
+    [h1n2, tPhantom, tReal], [], [resourceR], assignments, HOLIDAY_CAL, [], cpmResult, LEVEL_OPTS, legacyCpmOptions(),
   );
 
   eq('H1 (voltooid, meerdaags) krijgt NOOIT een levelingDelay', r14.delays['h1-n2'], undefined);
@@ -763,7 +764,7 @@ console.log('-- leveler-splits: memoisatie van occurrenceFor sleutelt op (taak, 
   const tasksList: Task[] = [taskX, taskY, taskZ];
   const resourcesList: Resource[] = [resourceRX, resourceRY];
   const run = levelResources(
-    tasksList, [], resourcesList, assignments, PROJECT_CAL, [], cpmResult, LEVEL_OPTS,
+    tasksList, [], resourcesList, assignments, PROJECT_CAL, [], cpmResult, LEVEL_OPTS, legacyCpmOptions(),
   );
 
   eq('memo-zuiverheid: Z wijkt 2 dagen om Y se ECHTE (3-daagse) bezetting van ry heen',

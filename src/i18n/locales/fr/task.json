@@ -50,7 +50,7 @@
       "start": "Début",
       "finish": "Fin",
       "customTaskType": "Type de tâche personnalisé",
-      "activityCodeData":"Données des codes d’activité","actualDuration":"Durée réelle","actualFinish":"Fin réelle","actualStart":"Début réel","assignedResources":"Ressources affectées","assignmentCurve":"Courbe d’affectation","assignmentId":"ID d’affectation","assignmentResourceId":"ID de ressource de l’affectation","assignmentTaskId":"ID de tâche de l’affectation","assignmentUnits":"Unités d’affectation par jour","calendar":"Calendrier","childIds":"ID des tâches enfants","color":"Couleur","completion":"Avancement","constraint2Date":"Date de contrainte secondaire","constraint2Type":"Type de contrainte secondaire","constraintDate":"Date de contrainte","constraintHard":"Contrainte stricte","constraintType":"Type de contrainte","critical":"Critique","customFieldData":"Données des champs personnalisés","deadline":"Échéance","description":"Description","duration":"Durée","durationMinutes":"Durée (minutes)","durationType":"Type de durée","earlyFinish":"Fin au plus tôt","earlyStart":"Début au plus tôt","effortDriven":"Piloté par l’effort","externalRelationData":"Données des relations externes","floatPath":"Chemin de marge","freeFloat":"Marge libre","hammock":"Hamac (durée dérivée)","interferingFloat":"Marge d’interférence","internalRelationData":"Données des relations internes","lateFinish":"Fin au plus tard","lateStart":"Début au plus tard","levelingDelay":"Retard de nivellement","levelingDelayElapsed":"Retard de nivellement écoulé","levelingDelayMinutes":"Retard de nivellement (minutes)","mandatoryMilestone":"Jalon obligatoire","manuallyScheduled":"Planifiée manuellement","milestone":"Jalon","milestoneKind":"Type de jalon","mspTaskType":"Type de tâche Microsoft Project","name":"Nom de tâche","nearCritical":"Presque critique","noteData":"Données des notes","notes":"Notes","parentId":"ID de la tâche parente","priority":"Priorité de nivellement","remainingMinutes":"Restant (minutes)","remainingTime":"Restant","resourceIds":"ID des ressources","resume":"Date de reprise","scheduleFinish":"Fin planifiée","scheduleStart":"Début planifié","splitGaps":"Interruptions","status":"État","stop":"Date d’arrêt","taskId":"ID de tâche","taskType":"Type de tâche","timephasedContours":"Profils chronologiques","timephasedDurationWalks":"Segments de durée chronologiques","timephasedFinishFloor":"Plancher de fin chronologique","timephasedStartAnchor":"Ancrage de début chronologique","totalFloat":"Marge totale","wbs":"Structure de découpage du projet (SDP)","workWindowFinish":"Fin de fenêtre de travail","workWindowStart":"Début de fenêtre de travail"
+      "activityCodeData":"Données des codes d’activité","actualDuration":"Durée réelle","actualFinish":"Fin réelle","actualStart":"Début réel","assignedResources":"Ressources affectées","assignmentActualWork":"Travail réel (heures)","assignmentCurve":"Courbe d’affectation","assignmentId":"ID d’affectation","assignmentPlannedWork":"Travail prévu (heures)","assignmentRemainingWork":"Travail restant (heures)","assignmentResourceId":"ID de ressource de l’affectation","assignmentTaskId":"ID de tâche de l’affectation","assignmentUnits":"Unités d’affectation par jour","calendar":"Calendrier","childIds":"ID des tâches enfants","color":"Couleur","completion":"Avancement","constraint2Date":"Date de contrainte secondaire","constraint2Type":"Type de contrainte secondaire","constraintDate":"Date de contrainte","constraintHard":"Contrainte stricte","constraintType":"Type de contrainte","critical":"Critique","customFieldData":"Données des champs personnalisés","deadline":"Échéance","description":"Description","duration":"Durée","durationMinutes":"Durée (minutes)","durationType":"Type de durée","earlyFinish":"Fin au plus tôt","earlyStart":"Début au plus tôt","effortDriven":"Piloté par l’effort","explicitSummary":"Tâche récapitulative explicite","externalRelationData":"Données des relations externes","floatPath":"Chemin de marge","freeFloat":"Marge libre","hammock":"Hamac (durée dérivée)","interferingFloat":"Marge d’interférence","internalRelationData":"Données des relations internes","lateFinish":"Fin au plus tard","lateStart":"Début au plus tard","levelingDelay":"Retard de nivellement","levelingDelayElapsed":"Retard de nivellement écoulé","levelingDelayMinutes":"Retard de nivellement (minutes)","mandatoryMilestone":"Jalon obligatoire","manuallyScheduled":"Planifiée manuellement","milestone":"Jalon","milestoneKind":"Type de jalon","mspTaskType":"Type de tâche MS Project (import)","name":"Nom de tâche","nearCritical":"Presque critique","noteData":"Données des notes","notes":"Notes","p6Provenance":"Provenance Primavera P6","parentId":"ID de la tâche parente","priority":"Priorité de nivellement","recordedSource":"Origine (dates enregistrées)","remainingMinutes":"Restant (minutes)","remainingTime":"Restant","resourceIds":"ID des ressources","resume":"Date de reprise","scheduleFinish":"Fin planifiée","scheduleStart":"Début planifié","splitGaps":"Interruptions","status":"État","stop":"Date d’arrêt","taskId":"ID de tâche","taskType":"Type de tâche","timephasedContours":"Profils chronologiques","timephasedDurationWalks":"Segments de durée chronologiques","timephasedFinishFloor":"Plancher de fin chronologique","timephasedStartAnchor":"Ancrage de début chronologique","totalFloat":"Marge totale","wbs":"Structure de découpage du projet (SDP)","workRule":"Règle de travail","workWindowFinish":"Fin de fenêtre de travail","workWindowStart":"Début de fenêtre de travail"
     },
     "category": {
       "task": "Tâche", "planning": "Planification", "constraints": "Contraintes", "relations": "Relations", "resources": "Ressources",
@@ -58,6 +58,7 @@
     },
     "status": { "stale": "obsolète" },
     "validation": {
+      "assignmentWork": "Saisissez le travail restant en heures sous forme de nombre supérieur à 0 (nom : heures ; …).",
       "readOnly": "Cette colonne calculée ne peut pas être modifiée.",
       "scheduleFinishNotManual": "La fin planifiée ne s’applique qu’à une tâche planifiée manuellement. Modifiez la fin via la colonne Fin ou via la durée.",
       "finishFromDuration": "Pour cette tâche, la fin découle du début et de la durée. Modifiez le début ou la durée.",
@@ -239,6 +240,22 @@
     "durationTotalHours": "Heures totales",
     "hourCalendarHint": "La saisie en heures nécessite un calendrier horaire (horaires de travail)."
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "Durée et unités fixes",
+    "FIXED_DURATION_WORK": "Durée et travail fixes",
+    "FIXED_WORK": "Travail fixe",
+    "FIXED_RATE": "Unités fixes",
+    "label": "Règle de travail",
+    "projectDefault": "Valeur par défaut du projet ({{rule}})",
+    "protects": "Protégé : {{what}}",
+    "protectsFIXED_DURATION_RATE": "durée et unités (le travail suit)",
+    "protectsFIXED_DURATION_WORK": "durée et travail (les unités suivent)",
+    "protectsFIXED_WORK": "travail (la durée suit les unités)",
+    "protectsFIXED_RATE": "unités (la durée suit le travail)",
+    "mspEffortDriven": "Depuis MS Project : piloté par l'effort",
+    "mspNotEffortDriven": "Depuis MS Project : non piloté par l'effort",
+    "none": "Valeur par défaut du projet"
+  },
   "properties": {
     "task": "Tâche",
     "deleteTask": "Supprimer la tâche",
@@ -266,6 +283,10 @@
     "timephasedActive": "Suit la répartition horaire de MS Project",
     "timephasedLost": "Répartition horaire de MS Project non appliquée après modification — la répartition d'origine reste conservée dans le fichier",
     "timephasedContoured": "Répartition des heures propre",
+    "recordedDatesActive": "Affiche les dates propres enregistrées par Primavera pour cette tâche",
+    "recordedDatesActiveNeutral": "Affiche les dates telles qu’enregistrées dans le fichier pour cette tâche",
+    "recordedDatesDeviates": "Diverge des dates enregistrées",
+    "recordedDatesPartlyUnrecorded": "Enregistrement partiellement incomplet — voir les colonnes fin au plus tard/marge",
     "completion": "Avancement (%)",
     "progress": {
       "actualStart": "Début réel",
@@ -309,7 +330,12 @@
       "contour": "Répartition des heures…",
       "contoured": "Contour",
       "contouredHint": "Cette affectation a sa propre répartition des heures ; modifiez-la ou libérez-la via le bouton Répartition des heures.",
-      "importedCurve": "Courbe importée"
+      "importedCurve": "Courbe importée",
+      "work": "Travail (rest.)",
+      "workHint": "Travail restant en heures ; la règle de travail décide si la durée ou les unités bougent.",
+      "workDeviates": "Diffère de unités × durée",
+      "workDeviatesHint": "Le travail enregistré {{stored}} h diffère de unités × durée restante ({{derived}} h). L’histogramme suit le travail enregistré sur toute la durée de la tâche ; les unités restent celles du fichier.",
+      "locked": "Protégé par la règle de travail {{rule}}"
     },
     "calendar": "Calendrier",
     "calendarProject": "Calendrier du projet",

@@ -39,6 +39,7 @@ import {
 } from './taskFields';
 import type { SequenceType } from '@/types/sequence';
 import type { Task } from '@/types/task';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 import { isAncestorRelation, relationKey } from '@/state/relationRules';
 // De relatie-NOTATIE (type-aliassen, lag-vormen, schema-fragmenten) woont in de gedeelde veldlaag
 // `sequenceFields.ts` — één implementatie voor `add_dependencies` hier, `update_dependencies` in
@@ -56,12 +57,13 @@ import {
   type ParsedLag,
 } from './sequenceFields';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { formatDate } from '@/utils/dateUtils';
 import { ancestorIds } from '@/utils/wbs';
 import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 import { hasConcreteWorkBlocks } from '@/services/subdayIo';
 import { effHoursPerDay } from '@/utils/taskDuration';
-import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import { markDocumentEdited } from '@/state/documentEdited';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import type { SplitPiece } from '@/engine/scheduler/splitEdit';
 import { interruptionsOf, planTaskSplits } from './splitFields';
@@ -97,7 +99,7 @@ function fieldContext(
 ): TaskFieldContext {
   return {
     currentIsMilestone: task?.isMilestone ?? false,
-    hasChildren: (task?.childIds.length ?? 0) > 0,
+    hasChildren: isSummaryTask(task),
     hasAssignments: task ? s.assignments.some((a) => a.taskId === task.id) : false,
     // De projectkalender-id telt mee: op een vers document staat die alleen als cache in `s.calendar`
     // (`calendars` is dan leeg), maar hij is wel degelijk een geldige taak-kalender.
@@ -185,13 +187,17 @@ function addTasksCore(ctx: McpContext, items: ParsedAddItem[]): MutationOutcome 
       const nativeAmount = unit === 'hours'
         ? (tp.durationMinutes ?? 0) / 60
         : (tp.scheduleDuration ?? (top.isMilestone ? 0 : 5));
-      time = createDefaultTaskTime(anchor, nativeAmount, unit);
+      // B1-vervolg: een urentaak krijgt haar ingevoerde einde op de echte taakkalender (start + duur).
+      time = createDefaultTaskTime(anchor, nativeAmount, unit,
+        resolveCalendar(typeof top.calendarId === 'string' ? top.calendarId : undefined, st.calendars, st.calendar));
       if (tp.scheduleDuration !== undefined) time.scheduleDuration = tp.scheduleDuration;
       if (tp.durationMinutes !== undefined) time.durationMinutes = tp.durationMinutes;
       if (tp.durationType !== undefined) time.durationType = tp.durationType;
     }
     return {
       ...top,
+      // Een nieuwe taak heeft nog geen toewijzingen, dus de werkregel is hier een kaal veld.
+      ...(it.patch.workRule ? { workRule: it.patch.workRule } : {}),
       name: top.name as string,
       tempId: it.tempId,
       ...(it.parentId !== undefined ? { parentId: it.parentId } : {}),
@@ -350,6 +356,10 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
       else {
         if (res.patch.customTaskType) ctx.transactions.draft.ensureCustomTaskType(res.patch.customTaskType);
         ctx.transactions.draft.patchTaskFields(id, res.patch.top, res.patch.time);
+        // Taaktypes-etappe (bouwstap 7): de werkregel via de driehoek-bewuste draft-actie, ná de
+        // duurpatch (zodat een gelijktijdige `duration` onder de OUDE regel wordt verwerkt en de
+        // nieuwe regel het restwerk van dát moment vastlegt — spec §5 rij 6, besluit 2).
+        if (res.patch.workRule !== undefined) ctx.transactions.draft.setTaskWorkRule(id, res.patch.workRule ?? undefined);
         touched = true;
       }
     }
@@ -850,7 +860,7 @@ function removeDependenciesCore(ctx: McpContext, ids: string[]): MutationOutcome
   if (toRemove.size > 0) {
     ctx.app.store.setState((s) => {
       s.sequences = s.sequences.filter((x) => !toRemove.has(x.id));
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   }
   return { data: { removed }, itemRejections: rejections };

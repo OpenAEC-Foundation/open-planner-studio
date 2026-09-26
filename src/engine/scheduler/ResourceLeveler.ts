@@ -51,6 +51,7 @@ import { createTaskEngineCache } from './taskEngineCache';
 import { isPinnedComplete, isPinnedInProgress } from './duration';
 import { parseDate, formatDate, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
+import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 
 /**
  * Het GEDEELDE poolitem-grootboek (spec §4, "twee grootboeken"). De motor toetst per `resourceId`
@@ -199,9 +200,14 @@ export function levelResources(
   // proef-solve voor de preview weken af van de werkelijke (actual-gepinde) datums, waardoor de
   // plaatsingslus conflicten miste die `computeResourceLoad` (WEL op de echte datums) wél zag —
   // zichtbaar als "0 taken verschoven, 0 onopgelost" terwijl er gewoon overallocatie bleef staan.
-  // Optioneel + default `{}` ⇒ byte-identiek voor elke aanroeper die niets doorgeeft.
-  cpmOptions: CPMOptions = {},
+  // Rekenprofielen C1: verplicht (`solveOptionsFor(project)`), want `CPMOptions.schedulingOptions`
+  // eist de opgeloste conventies.
+  cpmOptions: CPMOptions,
 ): LevelingResult {
+  // Defensief dezelfde semantische bladgrens als scheduleSlice: directe aanroepers mogen een lege,
+  // expliciete WBS-samenvatting nooit als nivelleer-/interne CPM-taak laten binnenglippen.
+  tasks = tasks.filter(isLeafTask);
+
   // Geselecteerde renewables: default alle non-material, anders de opgegeven ids ∩ non-material.
   const renewable = resources.filter(r => r.type !== 'MATERIAL');
   const selectedResources = options.resourceIds
@@ -457,7 +463,7 @@ export function levelResources(
   for (const a of assignments) {
     if (!selectedIds.has(a.resourceId)) continue;
     const task = taskById.get(a.taskId);
-    if (!task || task.isMilestone || task.childIds.length > 0) continue;
+    if (!task || task.isMilestone || isSummaryTask(task)) continue;
     const dur = task.time.scheduleDuration;
     if (dur <= 0) continue;
     const arr = assignmentDayUnits(task, a, engineForTask(task).hoursPerDay * 60, contourOf(task, a));

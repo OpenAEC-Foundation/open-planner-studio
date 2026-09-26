@@ -1,4 +1,5 @@
 import type { Project } from '@/types/project';
+import { castDraft } from 'immer';
 import type { AppState } from '../appStore';
 import type { AppSliceFactory } from './types';
 import { generateId } from '@/utils/id';
@@ -12,18 +13,29 @@ import {
 } from '../documentContract';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import { documentTitle, untitledOrdinals } from '@/utils/documents';
-import { solveProject, cloneTasksForSolve, solveInputOf } from '@/engine/scheduler/solveProject';
+import { xerProjectCode } from '@/utils/xerDocumentName';
+import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
+import { solveInputFor } from '@/engine/scheduler/solveInput';
+import type { XerImportMetadata, XerResourceMetadata } from '@/services/importTypes';
+import {
+  bindXerImportMetadataToArchive,
+  XerSourceArchiveValidationError,
+  type XerSourceArchive,
+} from '@/services/xerSourceArchive';
 import {
   invalidateDocumentRedo,
   removeSessionHistoryForDocumentFromState,
   replaceSessionHistoryState,
 } from '../sessionHistory';
 import {
+  applyRecordedDatesOnLoad,
+  applyRestoredRecordedMode,
   materializeLibraryBoundary,
   prepareLoadedPayload,
   type DocumentActivationMaterialization,
 } from '../documentActivation';
 import { sameIFCSource, type IFCSaveSource } from '../ifcSaveInput';
+import { withXerArchiveIssueNotice } from '../xerArchiveIssueNotice';
 
 // Het documentcontract (payload-vorm + capture/hydrate/fresh) woont nu in `../documentContract`
 // (audit P10). Hier blijft alleen de multi-document back-end (registry, switchen, sluiten,
@@ -104,7 +116,7 @@ export interface DocumentSlice {
   newDocument: () => string;
   /** Dupliceer het actieve document naar een nieuwe, actieve kopie (wat-als/variant, MCP-WP4). De
    *  kopie krijgt genulde `filePath`/`fileHandle` (zodat Ctrl+S het bronbestand niet overschrijft),
-   *  `isDirty = true`, lege selectie en diep gekloonde muteerbare payloadvelden. De sessiehistorie
+   *  `isDirty: true`, lege selectie en diep gekloonde muteerbare payloadvelden. De sessiehistorie
    *  blijft app-globaal en wordt niet met de documentpayload gekopieerd.
    *  worden diep gekloond (geen enkele array/object gedeeld met de bron). Naam: `name` indien
    *  meegegeven, anders `"<projectnaam> (variant N)"`. Geeft het nieuwe document-id terug. */
@@ -162,13 +174,109 @@ export interface DocumentSlice {
  * en hier stond eerder een hardgecodeerd Nederlands 'Naamloos'. De weergaveplekken vullen de
  * vertaalde `common:project.untitled` in.
  */
-function docTitle(filePath: string | null, project: Project): string {
-  return documentTitle(filePath, project.name);
+function docTitle(filePath: string | null, project: Project, xerCode?: string | null): string {
+  return documentTitle(filePath, project.name, xerCode);
 }
 
 /** Diepe JSON-kloon — zelfde precedent als `snapshot.ts` (de projectdata is JSON-veilig). */
 function deepClone<T>(v: T): T {
   return JSON.parse(JSON.stringify(v)) as T;
+}
+
+/**
+ * X6 bewaart een bestandsbrede, immutable resourcecatalogus met de oorspronkelijke TASKRSRC-
+ * rijen. Een documentkopie krijgt een nieuwe, mutable projectview, maar mag die catalogus nooit
+ * JSON-klonen: rehab-2 alleen al bevat 52.640 retained rijen.
+ */
+function cloneXerResourceMetadata(source: XerResourceMetadata): XerResourceMetadata {
+  return {
+    catalog: source.catalog,
+    assignments: source.assignments.map(assignment => ({
+      ...assignment,
+      entity: { ...assignment.entity },
+      ...(assignment.assignedRole ? { assignedRole: { ...assignment.assignedRole } } : {}),
+      quantities: { ...assignment.quantities },
+      rawCurves: { ...assignment.rawCurves },
+      costs: { ...assignment.costs },
+    })),
+    issues: source.issues.map(issue => ({ ...issue })),
+  };
+}
+
+function cloneXerImportMetadata(
+  source: XerImportMetadata,
+  archive: XerSourceArchive | null,
+): XerImportMetadata {
+  if (archive && source.sourceProjectId) {
+    return bindXerImportMetadataToArchive(archive, source.sourceProjectId);
+  }
+  const { resources, metadata, ...withoutCatalogs } = source;
+  const clone = deepClone(withoutCatalogs);
+  // X6/X8-catalogi zijn bestandsbreed, readonly brondata. Een documentduplicaat krijgt zijn eigen
+  // mutable projectmetadata maar nooit een tweede kopie van grote TASKRSRC/TASKACTV-catalogi.
+  return {
+    ...clone,
+    ...(resources ? { resources: cloneXerResourceMetadata(resources) } : {}),
+    ...(metadata ? { metadata } : {}),
+  };
+}
+
+/** Herstel leest zelfstandige IFC's; identieke gevalideerde bronarchieven worden daarna één ref. */
+function shareRecoveredXerArchives(docs: readonly RecoveryDocInput[]): RecoveryDocInput[] {
+  const canonicalByDigest = new Map<string, XerSourceArchive[]>();
+  const metadataCache = new WeakMap<XerSourceArchive, string>();
+  const canonicalMetadata = (archive: XerSourceArchive): string => {
+    const cached = metadataCache.get(archive);
+    if (cached !== undefined) return cached;
+    const stable = (value: unknown): string => {
+      if (value === null || typeof value !== 'object') return JSON.stringify(value);
+      if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`;
+      return `{${Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
+        .map(([key, child]) => `${JSON.stringify(key)}:${stable(child)}`).join(',')}}`;
+    };
+    const result = stable({ diagnostics: archive.diagnostics, readModel: archive.readModel });
+    metadataCache.set(archive, result);
+    return result;
+  };
+  const sameArchive = (left: XerSourceArchive, right: XerSourceArchive): boolean =>
+    left.schemaVersion === right.schemaVersion
+    && left.format === right.format
+    && left.byteLength === right.byteLength
+    && left.sha256 === right.sha256
+    && left.encoding === right.encoding
+    && left.bom === right.bom
+    && left.newline === right.newline
+    && left.byteChunks.length === right.byteChunks.length
+    && left.byteChunks.every((chunk, index) => chunk === right.byteChunks[index])
+    && canonicalMetadata(left) === canonicalMetadata(right);
+  const bindDocumentToArchive = (
+    doc: RecoveryDocInput,
+    archive: XerSourceArchive,
+  ): RecoveryDocInput => {
+    const selector = doc.xerSourceProjectId ?? doc.xer?.sourceProjectId;
+    if (!selector) {
+      throw new XerSourceArchiveValidationError('XER-recovery mist een documentselector');
+    }
+    const metadata = bindXerImportMetadataToArchive(archive, selector);
+    return {
+      ...doc,
+      xerSourceArchive: archive,
+      xerSourceProjectId: selector,
+      xer: metadata,
+    };
+  };
+  return docs.map(doc => {
+    const archive = doc.xerSourceArchive;
+    if (!archive) return doc;
+    const key = `${archive.byteLength}:${archive.sha256}`;
+    const candidates = canonicalByDigest.get(key) ?? [];
+    const canonical = candidates.find(candidate => sameArchive(candidate, archive));
+    if (canonical) return bindDocumentToArchive(doc, canonical);
+    candidates.push(archive);
+    canonicalByDigest.set(key, candidates);
+    return bindDocumentToArchive(doc, archive);
+  });
 }
 
 /** `"Basis (variant 3)"` → `"Basis"`; een naam zonder variant-suffix blijft ongewijzigd. Zo blijft de
@@ -229,7 +337,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     });
     set((s) => {
       const cur = s.documents.find((d) => d.id === s.activeDocumentId);
-      if (cur) cur.payload = outgoing;
+      if (cur) cur.payload = castDraft(outgoing);
       s.documents.push({ id: newId, payload: null });
       s.activeDocumentId = newId;
       // Een vers leeg document heeft geen open-boundary (er is niets aan gekoppeld), dus zonder
@@ -288,6 +396,19 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       fileHandle: null,
       autoSaveToFile: false,
       isDirty: true,
+      xerImportMetadata: src.xerImportMetadata
+        ? cloneXerImportMetadata(src.xerImportMetadata, src.xerSourceArchive)
+        : null,
+      // De originele XER-bytes zijn immutable en worden doelbewust NIET gekloond: één runtimeobject
+      // voor bron, twaalf tabs en varianten; elke IFC-save embedt later wél een eigen container.
+      xerSourceArchive: src.xerSourceArchive,
+      xerSourceProjectId: src.xerSourceProjectId,
+      taskTypesVisible: src.taskTypesVisible,
+      // Een kopie is per definitie geen ongewijzigde import meer (heropen-beleid optie B).
+      importPristine: false,
+      // Een variant van een document waarvan het archief onbruikbaar was, mist het archief óók —
+      // de reden reist dus mee, anders zegt MCP/de extensie-API voor de kopie "nooit een XER-bron".
+      xerArchiveIssue: src.xerArchiveIssue,
     };
     const activation = materializeLibraryBoundary({
       payload: copy, companies: source.companies, pools: source.pools, mode: 'silent-switch',
@@ -295,7 +416,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
 
     set((s) => {
       const cur = s.documents.find((d) => d.id === s.activeDocumentId);
-      if (cur) cur.payload = src; // bron parkeren (per referentie, net als newDocument/switchDocument)
+      if (cur) cur.payload = castDraft(src); // bron parkeren (per referentie, net als newDocument/switchDocument)
       s.documents.push({ id: newId, payload: null });
       s.activeDocumentId = newId;
       resetDocumentScopedUI(s);
@@ -324,7 +445,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     });
     set((s) => {
       const cur = s.documents.find((d) => d.id === s.activeDocumentId);
-      if (cur) cur.payload = outgoing;
+      if (cur) cur.payload = castDraft(outgoing);
       const inc = s.documents.find((d) => d.id === id);
       if (inc) inc.payload = null;
       s.activeDocumentId = id;
@@ -401,7 +522,8 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       const filePath = active ? s.filePath : d.payload!.filePath;
       const project = active ? s.project : d.payload!.project;
       const isDirty = active ? s.isDirty : d.payload!.isDirty;
-      return { id: d.id, title: docTitle(filePath, project), isDirty, isActive: active };
+      const xerMeta = active ? s.xerImportMetadata : d.payload!.xerImportMetadata;
+      return { id: d.id, title: docTitle(filePath, project, xerProjectCode(xerMeta)), isDirty, isActive: active };
     });
     // Naamloze documenten krijgen een volgnummer mee, zodat twee lege tabbladen (bv. na
     // `duplicateDocument` van een naamloos project) onderscheidbaar blijven zónder dat er een
@@ -440,6 +562,15 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
 
   restoreDocuments: (docs, activeId) => {
     if (docs.length === 0) return { skippedIds: [] };
+    // X6/X8-herstel leest per document een ZELFSTANDIG IFC; identieke gevalideerde XER-bron-
+    // archieven worden hier weer één gedeelde referentie vóór er payloads van gemaakt worden
+    // (rehab-2 alleen al draagt 52.640 retained TASKRSRC-rijen). Deze stap GOOIT bewust bij een
+    // ongeldig archief (`XerSourceArchiveValidationError`) en wordt NIET afgevangen: een
+    // bronarchief zonder vindbare documentselector is geen "één kapot document" maar een kapot
+    // leesmodel, en check 10b van `check-xer-archive-readmodel.ts` pint die harde, getypeerde
+    // weigering vast. De per-document `try/catch` hieronder dekt het andere geval — een geldig
+    // gelezen document dat pas op de solve/rollup stukloopt.
+    const sharedDocs = shareRecoveredXerArchives(docs);
     const state = get();
     const skippedIds: string[] = [];
 
@@ -452,15 +583,24 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     //    document niet de rest van het herstel blokkeert. De oorspronkelijk actieve kandidaat gaat
     //    als eerste, zodat een geslaagd herstel dezelfde `activeDocumentId` behoudt als voorheen.
     const tryOrder = [
-      ...docs.filter((d) => d.id === activeId),
-      ...docs.filter((d) => d.id !== activeId),
+      ...sharedDocs.filter((d) => d.id === activeId),
+      ...sharedDocs.filter((d) => d.id !== activeId),
     ];
     let active: RecoveryDocInput | null = null;
     let prepared: DocumentPayload | null = null;
     let activation: DocumentActivationMaterialization | null = null;
     for (const candidate of tryOrder) {
       try {
-        const p = prepareLoadedPayload(payloadFromInput(candidate), { recompute: true });
+        const rawPayload = payloadFromInput(candidate);
+        const p = prepareLoadedPayload(rawPayload, { recompute: true });
+        // XER-etappeplan §3.5/§4-T4, risico §5.4, heropen-beleid (T8) + critreview laag 3
+        // (bevinding 2): crashherstel herstelt het bestaande #63-aanbod (`recordedFields`, elk
+        // formaat) dat het tot nu toe stilzwijgend wegliet, EN de modusvlag van vóór de crash —
+        // uit de recovery-metadata (`candidate.datesAsRecorded`), dus een OPGESCHREVEN feit en
+        // geen heuristiek: crashherstel is het hervatten van een sessie, geen heropening, en mag
+        // dus niet opnieuw beslissen. `rawPayload.tasks` is bewust de PRE-solve array —
+        // `prepareLoadedPayload` muteert zijn `input`-argument niet.
+        applyRecordedDatesOnLoad(rawPayload.tasks, p, candidate, candidate.datesAsRecorded);
         const a = materializeLibraryBoundary({
           payload: p, companies: state.companies, pools: state.pools, mode: 'open-boundary',
         });
@@ -478,11 +618,18 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     //    garantie geldt: één document dat zich niet naar een payload laat vormen mag de rest niet
     //    meeslepen.
     const sleepingById = new Map<string, DocumentPayload>();
-    for (const d of docs) {
+    for (const d of sharedDocs) {
       if (active && d.id === active.id) continue;
       if (skippedIds.includes(d.id)) continue;
       try {
-        sleepingById.set(d.id, payloadFromInput(d));
+        const sleeping = payloadFromInput(d);
+        // Critreview laag 3, bevinding 3: ook een SLAPEND document moet zijn weergavestand
+        // terugkrijgen. Zonder dit kwam het terug met P6's datums in `task.time`, zonder modus en
+        // mét `scheduleStale` — waarna automatisch berekenen (of de eerste F5) ze stil wegrekende.
+        // Geen solve hier (dat is de hele reden dat slapende documenten stale zijn), dus ook geen
+        // `shifted`-teller; zie `applyRestoredRecordedMode`.
+        if (d.datesAsRecorded) applyRestoredRecordedMode(sleeping, d);
+        sleepingById.set(d.id, sleeping);
       } catch (err) {
         console.error('Recovery: hersteld document kon niet worden voorbereid — overgeslagen:', d.id, err);
         skippedIds.push(d.id);
@@ -511,12 +658,14 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
 
     set((s) => {
       replaceSessionHistoryState(s, [], 1);
-      s.documents = docs
+      // `castDraft`: een payload kan een readonly XER-bronarchief/-catalogus dragen, die Immer's
+      // `Draft<>` anders afwijst (X6).
+      s.documents = castDraft(sharedDocs
         .filter((d) => !skippedIds.includes(d.id))
         .map((d) => ({
           id: d.id,
           payload: d.id === activeDoc.id ? null : (sleepingById.get(d.id) ?? null),
-        }));
+        })));
       s.activeDocumentId = activeDoc.id;
       resetDocumentScopedUI(s);
       if (activation2.invalidateRedoScope) invalidateDocumentRedo(s, activeDoc.id);
@@ -533,6 +682,13 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
         dedupeKey: 'cpm-error',
       });
     }
+    // Eigenaarsbesluit 2026-09-24 ("openen met melding"): ook een herstelsnapshot waarvan het
+    // XER-bronarchief onbruikbaar was, komt terug zónder archief — met één melding voor de hele
+    // herstelbatch (alleen de daadwerkelijk herstelde documenten).
+    const archiveNotice = withXerArchiveIssueNotice(undefined, sharedDocs
+      .filter(d => !skippedIds.includes(d.id))
+      .map(d => d.xerArchiveIssue));
+    if (archiveNotice) get().notify(archiveNotice);
     runtime.emitHostEvent(HOST_EVENTS.scheduleCalculated, {
       hasError: !!cpm?.error,
       error: cpm?.error ?? null,
@@ -562,10 +718,10 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       let next: DocumentPayload;
       try {
         const tasks = cloneTasksForSolve(payload.tasks);
-        // Exact dezelfde reken-kern (en via `solveInputOf` dezelfde opties, inclusief de
-        // projectstart-vloer) die `runCPM` op het actieve document draait — pariteit by
-        // construction, geen tweede implementatie (A3/M3).
-        const result = solveProject(solveInputOf(payload, tasks));
+        // Exact dezelfde reken-kern (en dezelfde opties) die `runCPM` op het actieve document
+        // draait — pariteit by construction, geen tweede implementatie (A3/M3).
+        const result = solveProject(
+          solveInputFor(payload.project, tasks, payload.sequences, payload.calendar, payload.calendars));
         // Cyclus/solverfout: dit document volledig ONAANGERAAKT laten (het vangnet van §4.3 blijft
         // dan gelden — het overzicht toont zijn boeking ongeteld met de ⚠) en doorgaan met de rest.
         if (result.error) continue;
@@ -606,7 +762,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       for (const u of updates) {
         const entry = s.documents.find((d) => d.id === u.id);
         if (!entry || entry.payload === null) continue; // tussentijds gesloten/geactiveerd.
-        entry.payload = u.payload;
+        entry.payload = castDraft(u.payload);
       }
     });
     return updates.length;

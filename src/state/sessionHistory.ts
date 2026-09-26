@@ -17,7 +17,16 @@ export type ViewLayoutHistoryState = Pick<
 >;
 
 export type SessionHistoryDelta =
-  | { kind: 'document-data'; documentId: string; before: Snapshot; after: Snapshot }
+  | {
+      kind: 'document-data';
+      documentId: string;
+      before: Snapshot;
+      after: Snapshot;
+      /** Het event was GEEN bewerking (F5 of "toon opgeslagen datums" in de modus): undo/redo ervan
+       *  laat `isDirty` en `importPristine` staan (critreview op ded4d8c3, bevinding 3). Afwezig ⇒
+       *  een gewone bewerking, en undo/redo markeert het document als bewerkt. */
+      nonEdit?: true;
+    }
   | {
       kind: 'document-view';
       documentId: string;
@@ -39,6 +48,13 @@ export interface SessionHistoryEvent {
   label: string;
   state: 'applied' | 'undone';
   deltas: readonly [SessionHistoryDelta, ...SessionHistoryDelta[]];
+  /**
+   * PR #170-hercheck: herkomst binnen een BEWERKSESSIE (de taakdialoog, `historyMark`). Alleen de
+   * interactieve UI-route (`finishUndoable` buiten batch en MCP-lease) stempelt hem; een MCP-,
+   * batch- of extensie-event dat tijdens de open dialoog landt blijft ongestempeld, zodat
+   * `revertHistorySince`/`squashHistorySince` het nooit meenemen.
+   */
+  sessionKey?: string;
 }
 
 export type HistoryTargetSide = 'before' | 'after';
@@ -56,6 +72,8 @@ export type MaterializedHistoryTarget =
       viewRows: ViewRow[];
       resourceLoadResult: ResourceLoadResult | null;
       isDirty: true;
+      /** `false` alleen voor een `nonEdit`-delta: dan wist het toepassen "ongewijzigd sinds import" niet. */
+      clearImportPristine: boolean;
     }
   | {
       kind: 'document-view';
@@ -116,6 +134,7 @@ export function materializeHistoryTarget(
         isolated.calendars,
       ),
       isDirty: true,
+      clearImportPristine: delta.nonEdit !== true,
     };
   }
 
@@ -344,6 +363,7 @@ export function recordSessionHistoryDeltas(
   state: AppState,
   label: string,
   deltas: readonly SessionHistoryDelta[],
+  sessionKey?: string,
 ): SessionHistoryEvent | null {
   if (deltas.length === 0) return null;
   const sequence = state.nextHistorySequence;
@@ -356,6 +376,7 @@ export function recordSessionHistoryDeltas(
     label: label.trim() || 'Wijziging',
     state: 'applied',
     deltas: deltas as [SessionHistoryDelta, ...SessionHistoryDelta[]],
+    ...(sessionKey ? { sessionKey } : {}),
   };
   state.historyEvents = appendSessionHistoryEvent(state.historyEvents, event);
   state.nextHistorySequence = sequence + 1;

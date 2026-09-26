@@ -17,8 +17,10 @@
  */
 import { formatDate } from '@/utils/dateUtils';
 import type { Project } from '@/types/project';
+import { resolveConventions } from '@/engine/scheduler/conventions/registry';
 import type { WorkCalendar, Holiday, WorkTimeBands, WorkingException } from '@/types/calendar';
 import type { Task, TaskTime, TaskConstraint, ExternalLink } from '@/types/task';
+import { hourInputFinishFollowsEdits } from '@/utils/taskDefaults';
 import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment, AvailabilityStep } from '@/types/resource';
 import type { ImportResult } from '@/services/importTypes';
@@ -47,14 +49,20 @@ import type {
 
 // ── Kleine helpers (diepe kopie van geneste, mogelijk bevroren, waarden) ──
 
-/** `SchedulingOptions`/`ExtSchedulingOptions` zijn structureel gelijk; één helper dekt beide
- *  richtingen. De geneste `criticalDefinition`/`floatPaths` MOETEN mee-gekopieerd worden —
- *  een kale spread zou daar bevroren store-referenties doorgeven (reviewbevinding pakket N). */
-function copySchedulingOptions<T extends ExtSchedulingOptions>(o: T): T {
-  const copy = { ...o };
-  if (copy.criticalDefinition) copy.criticalDefinition = { ...copy.criticalDefinition };
-  if (copy.floatPaths) copy.floatPaths = { ...copy.floatPaths };
-  return copy;
+/** Publieke scheduling-options worden veld-voor-veld gereconstrueerd. Dit is tegelijk een
+ *  mutabiliteitsgrens en een beveiligingsgrens: runtime-objecten van JS-extensies kunnen extra
+ *  interne `p6*`-sleutels dragen die niet in `ExtSchedulingOptions` staan. Een spread zou die
+ *  ongemerkt als solverinvoer activeren. De native XER-lezer zet zulke bronopties rechtstreeks op
+ *  het interne model en loopt dus niet door deze generieke extensie-invoer. */
+function publicSchedulingOptions(o: ExtSchedulingOptions): ExtSchedulingOptions {
+  return {
+    lagCalendar: o.lagCalendar,
+    criticalDefinition: o.criticalDefinition ? { ...o.criticalDefinition } : undefined,
+    totalFloatMode: o.totalFloatMode,
+    makeOpenEndedCritical: o.makeOpenEndedCritical,
+    nearCriticalThreshold: o.nearCriticalThreshold,
+    floatPaths: o.floatPaths ? { ...o.floatPaths } : undefined,
+  };
 }
 
 function copyConstraint(c: TaskConstraint): ExtTaskConstraint {
@@ -163,7 +171,15 @@ export function toExtProject(p: Project): ExtProject {
     statusDate: p.statusDate,
     progressMode: p.progressMode,
     defaultTaskDurationUnit: p.defaultTaskDurationUnit,
-    schedulingOptions: p.schedulingOptions ? copySchedulingOptions(p.schedulingOptions) : undefined,
+    defaultWorkRule: p.defaultWorkRule,
+    schedulingOptions: p.schedulingOptions ? publicSchedulingOptions(p.schedulingOptions) : undefined,
+    // Rekenprofielen C8 (contract 1.2.0): het opgeloste profiel, alleen-lezen.
+    schedulingProfile: {
+      id: p.schedulingProfile?.id ?? 'ops',
+      baseId: p.schedulingProfile?.baseId ?? 'ops',
+      name: p.schedulingProfile?.name ?? '',
+      conventions: { ...resolveConventions(p.schedulingProfile) },
+    },
   };
 }
 
@@ -183,7 +199,9 @@ export function fromExtProject(p: ExtProject): Project {
     statusDate: p.statusDate,
     progressMode: p.progressMode,
     defaultTaskDurationUnit: p.defaultTaskDurationUnit,
-    schedulingOptions: p.schedulingOptions ? copySchedulingOptions(p.schedulingOptions) : undefined,
+    defaultWorkRule: p.defaultWorkRule,
+    schedulingOptions: p.schedulingOptions ? publicSchedulingOptions(p.schedulingOptions) : undefined,
+    // Bewust géén `schedulingProfile`: een extensie-import rekent als OPS (spec v3.1 §7).
   };
 }
 
@@ -204,6 +222,8 @@ export function toExtCalendar(c: WorkCalendar): ExtCalendar {
     workTime: c.workTime ? copyWorkTime(c.workTime) : undefined,
     shift: c.shift,
     workingExceptions: c.workingExceptions ? c.workingExceptions.map(copyWorkingException) : undefined,
+    p6Source: c.p6Source,
+    p6NonWorkPenaltyDates: c.p6NonWorkPenaltyDates ? [...c.p6NonWorkPenaltyDates] : undefined,
   };
 }
 
@@ -333,12 +353,24 @@ export function toExtTask(t: Task, customTaskType?: { id: string; name: string }
     // create-/update-paden (`fromExtTaskInput`) en de MCP-zetbaarheid (`taskFields.ts` REJECT_HINTS).
     mspTaskType: t.mspTaskType,
     effortDriven: t.effortDriven,
+    workRule: t.workRule,
+    // X0/X12: P6/XER-herkomst is READ-ONLY voor extensies. `toExtTask` toont de bronvelden voor
+    // analyse; `fromExtTask` hieronder accepteert ze bewust niet als generieke invoer.
+    p6DurationType: t.p6DurationType,
+    p6ActivityType: t.p6ActivityType,
+    p6ProjectId: t.p6ProjectId,
+    p6TaskId: t.p6TaskId,
+    p6ExplicitTargetWindow: t.p6ExplicitTargetWindow,
+    p6CompletePctType: t.p6CompletePctType,
+    p6ExpectedFinish: t.p6ExpectedFinish,
+    p6SuspendResume: t.p6SuspendResume,
     timephasedContours: t.timephasedContours ? t.timephasedContours.map(c => ({ resourceUid: c.resourceUid, ...(c.resourceId !== undefined ? { resourceId: c.resourceId } : {}), periods: c.periods.map(p => ({ ...p })) })) : undefined,
     timephasedFinishFloor: t.timephasedFinishFloor,
     timephasedStartAnchor: t.timephasedStartAnchor,
     timephasedDurationWalks: t.timephasedDurationWalks ? t.timephasedDurationWalks.map(w => ({ ...w })) : undefined,
     parentId: t.parentId,
     childIds: [...t.childIds],
+    isSummary: t.isSummary,
     time: toExtTaskTime(t.time),
     resourceIds: [...t.resourceIds],
     color: t.color,
@@ -379,12 +411,17 @@ export function fromExtTask(t: ExtTask): Task {
     // (`fromExtTaskInput`, extensie-API) blijven hier bewust buiten (leeskant-alleen-besluit F5).
     mspTaskType: t.mspTaskType,
     effortDriven: t.effortDriven,
+    workRule: t.workRule,
+    // X12-herreview: de zeven P6/XER-velden zijn bronprovenance, geen publieke generieke invoer.
+    // De native XER-reader en het IFC-round-trippad materialiseren ze rechtstreeks op `Task`;
+    // een ongetypeerde extensiepayload mag via deze mapper geen P6-solverroute activeren.
     timephasedContours: t.timephasedContours ? t.timephasedContours.map(c => ({ resourceUid: c.resourceUid, ...(c.resourceId !== undefined ? { resourceId: c.resourceId } : {}), periods: c.periods.map(p => ({ ...p })) })) : undefined,
     timephasedFinishFloor: t.timephasedFinishFloor,
     timephasedStartAnchor: t.timephasedStartAnchor,
     timephasedDurationWalks: t.timephasedDurationWalks ? t.timephasedDurationWalks.map(w => ({ ...w })) : undefined,
     parentId: t.parentId,
     childIds: [...t.childIds],
+    isSummary: t.isSummary,
     time: fromExtTaskTime(t.time),
     resourceIds: [...t.resourceIds],
     color: t.color,
@@ -433,6 +470,7 @@ export function fromExtTaskInput(
   if (input.manuallyScheduled !== undefined) out.manuallyScheduled = input.manuallyScheduled;
   if (input.parentId !== undefined) out.parentId = input.parentId;
   if (input.childIds !== undefined) out.childIds = [...input.childIds];
+  if (input.isSummary !== undefined) out.isSummary = input.isSummary;
   if (input.time !== undefined) out.time = fromExtTaskTime(input.time);
   if (input.resourceIds !== undefined) out.resourceIds = [...input.resourceIds];
   if (input.color !== undefined) out.color = input.color;
@@ -445,6 +483,37 @@ export function fromExtTaskInput(
   if (input.deadline !== undefined) out.deadline = input.deadline;
   if (input.calendarId !== undefined) out.calendarId = input.calendarId;
   if (input.notes !== undefined) out.notes = input.notes.map(copyNote);
+  return out;
+}
+
+/**
+ * `api.data.addTask`-invoer (Fable-critreview PR #169, bevinding 10): als `fromExtTaskInput`, maar een
+ * URENtaak waarvoor de extensie GEEN `scheduleFinish` meegaf krijgt ook geen einde uit de grensterugval
+ * (`fromExtTaskTime` vult `scheduleFinish`/`earlyFinish`/`lateFinish` anders met de start). Zo ziet de
+ * store-`addTask` geen "meegegeven einde" en leidt `seedNewHourTaskFinish` het einde af uit start + duur
+ * op de taakkalender — dezelfde regel als elke andere nieuwe urentaak. Een meegegeven einde wint; een
+ * dagtaak blijft byte-identiek. Niet voor `sdk.factory.createTask`: die bouwt een volledig DTO zonder
+ * document of kalender en kan dus niets afleiden.
+ *
+ * Alleen voor een taak die meebeweegt (`hourInputFinishFollowsEdits`: niet gestart, niet handmatig,
+ * geen samenvatting/hammock/P6-targetvenster) — anders zou de store het einde niet afleiden en viel het
+ * op de verse default terug. Ook een meegegeven `earlyFinish`/`lateFinish` zonder `scheduleFinish` wordt
+ * genegeerd (critreview 2e ronde): dat is rekenuitvoer die de eerstvolgende berekening toch overschrijft,
+ * en zo zijn gepland en vroegst einde vóór die berekening coherent.
+ */
+export function fromExtTaskAddInput(
+  input: Partial<ExtTask> & { name: string },
+): Partial<Task> & { name: string } {
+  const out = fromExtTaskInput(input);
+  if (!input.time || !out.time || input.time.scheduleFinish !== undefined || out.time.durationUnit !== 'hours') return out;
+  const probe = { childIds: [], status: 'NOT_STARTED', ...out, time: out.time } as Task;
+  if (!hourInputFinishFollowsEdits(probe)) return out;
+  const time: Partial<TaskTime> = { ...out.time };
+  delete time.scheduleFinish;
+  delete time.earlyFinish;
+  delete time.lateFinish;
+  // Runtime-partieel: `taskSlice.addTask` merget `partial.time` veld-voor-veld met de verse default.
+  out.time = time as TaskTime;
   return out;
 }
 
@@ -542,6 +611,7 @@ export function fromExtTaskUpdates(updates: Partial<ExtTask>): Partial<Task> {
   if (updates.manuallyScheduled !== undefined) out.manuallyScheduled = updates.manuallyScheduled;
   if (updates.parentId !== undefined) out.parentId = updates.parentId;
   if (updates.childIds !== undefined) out.childIds = [...updates.childIds];
+  if (updates.isSummary !== undefined) out.isSummary = updates.isSummary;
   // T14b-vervolg: `fromExtTaskTimePatch`, NIET `fromExtTaskTime` — zie de docstring daarboven. `out.time`
   // is hier op TS-niveau een volledige `TaskTime`, maar dat is dezelfde bewuste afwijking als
   // `addTask`'s `partial.time`: de echte volledigheid wordt pas door `taskSlice.updateTask`'s
@@ -573,6 +643,7 @@ export function toExtSequence(s: Sequence): ExtSequence {
     lagMinutes: s.lagMinutes,
     lagUnit: s.lagUnit,
     lagPercent: s.lagPercent,
+    p6StartAtPredecessorFinishBoundary: s.p6StartAtPredecessorFinishBoundary,
   };
 }
 
@@ -646,6 +717,9 @@ export function toExtAssignment(a: ResourceAssignment): ExtAssignment {
     workWindowStart: a.workWindowStart,
     workWindowFinish: a.workWindowFinish,
     curveValues: a.curveValues ? [...a.curveValues] : undefined,
+    plannedWorkMinutes: a.plannedWorkMinutes,
+    actualWorkMinutes: a.actualWorkMinutes,
+    remainingWorkMinutes: a.remainingWorkMinutes,
   };
 }
 
@@ -659,6 +733,9 @@ export function fromExtAssignment(a: ExtAssignment): ResourceAssignment {
     workWindowStart: a.workWindowStart,
     workWindowFinish: a.workWindowFinish,
     curveValues: a.curveValues ? [...a.curveValues] : undefined,
+    plannedWorkMinutes: a.plannedWorkMinutes,
+    actualWorkMinutes: a.actualWorkMinutes,
+    remainingWorkMinutes: a.remainingWorkMinutes,
   };
 }
 

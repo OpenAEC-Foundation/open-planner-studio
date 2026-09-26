@@ -1,0 +1,19 @@
+{
+  "p6ProjectId": 13,
+  "p6TaskId": 8,
+  "p6ActivityType": 9,
+  "p6ExplicitTargetWindow": 7,
+  "p6CompletePctType": 6,
+  "p6DurationType": 6,
+  "p6SuspendResume": 9,
+  "p6ExpectedFinish": 9,
+  "manuallyScheduled": 8,
+  "levelingDelayMinutes": 6,
+  "levelingDelayElapsed": 3,
+  "timephasedStartAnchor": 6,
+  "timephasedFinishFloor": 7,
+  "timephasedDurationWalks": 11,
+  "resume": 9,
+  "mspTaskType": 1,
+  "p6StartAtPredecessorFinishBoundary": 5
+}

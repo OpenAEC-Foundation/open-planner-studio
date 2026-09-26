@@ -24,6 +24,7 @@ import { documentTools } from './tools/documentTools';
 import { fileTools } from './tools/fileTools';
 import { guideTools } from './tools/guideTools';
 import { batchTools } from './tools/batchTool';
+import { xerProvenanceTools } from './tools/xerProvenanceTools';
 
 export { TOOL_PREFIX, registerToolModules, getTool, getTools } from './toolIndex';
 
@@ -31,6 +32,7 @@ export { TOOL_PREFIX, registerToolModules, getTool, getTools } from './toolIndex
 // Batch staat bewust achteraan: hij dispatcht de andere tools, dus lezen we hem als sluitstuk.
 const MODULES: McpToolDef[][] = [
   readTools,
+  xerProvenanceTools,
   taskTools,
   // Direct ná taskTools: samen vormen add_/update_/remove_dependencies de volledige levensloop van
   // een relatie, en zo staan ze ook naast elkaar in `tools/list` (waar de AI ze leest).
