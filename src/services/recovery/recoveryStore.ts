@@ -804,8 +804,19 @@ async function clearWeb(): Promise<void> {
 // Publieke API — backend-keuze bij runtime.
 // ---------------------------------------------------------------------------
 
+// Schrijf- en wisacties lopen strikt ná elkaar: `clearRecovery()` bij een schone exit
+// (`useAppCloseGuard`) mag nooit ingehaald worden door een crashherstel-save die op dat moment nog
+// halverwege was — die zou de net opgeruimde snapshots terugzetten en de volgende start zou alsnog
+// "niet normaal afgesloten" melden. Een mislukte actie breekt de keten niet.
+let recoveryWriteTail: Promise<unknown> = Promise.resolve();
+function serializeRecoveryWrite(action: () => Promise<void>): Promise<void> {
+  const run = recoveryWriteTail.then(action, action);
+  recoveryWriteTail = run.catch(() => undefined);
+  return run;
+}
+
 export function saveRecovery(input: RecoverySaveInput): Promise<void> {
-  return isTauri() ? saveTauri(input) : saveWeb(input);
+  return serializeRecoveryWrite(() => (isTauri() ? saveTauri(input) : saveWeb(input)));
 }
 
 export function loadRecovery(): Promise<LoadedRecovery> {
@@ -813,5 +824,5 @@ export function loadRecovery(): Promise<LoadedRecovery> {
 }
 
 export function clearRecovery(): Promise<void> {
-  return isTauri() ? clearTauri() : clearWeb();
+  return serializeRecoveryWrite(() => (isTauri() ? clearTauri() : clearWeb()));
 }

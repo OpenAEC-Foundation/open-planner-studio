@@ -12,6 +12,12 @@ De desktop-app bewaart automatisch herstel-snapshots van je werk. Sluit de app o
 - In een browser moet het bestaande bestand al schrijfrecht hebben. Geef dat recht bewust via een gewone handmatige opslag; automatisch opslaan vraagt nooit zelf om een permissie.
 - De snapshots worden opgeruimd zodra je in het herstel-venster een keuze maakt (**Herstellen** of **Niet herstellen**).
 
+## De app afsluiten
+
+- Sluit je de desktop-app (sluitknop, Alt+F4 of het menu van je besturingssysteem) terwijl er documenten met niet-opgeslagen wijzigingen open staan, dan vraagt hij per document wat je wilt: **Opslaan**, **Niet opslaan** of **Annuleren**.
+- **Annuleren** (of een opslag die mislukt) breekt het afsluiten af; de app blijft open en er gaat niets verloren.
+- Na een gewone, schone afsluiting ruimt de app de herstel-snapshots zelf op. Het herstel-venster verschijnt dus alleen nog na een echte crash of stroomuitval.
+
 ## Het venster "Niet-opgeslagen werk herstellen"
 
 Verschijnt bij het opstarten als er snapshots zijn gevonden: "Open Planner Studio is niet normaal afgesloten. De volgende documenten hadden niet-opgeslagen wijzigingen die hersteld kunnen worden." Per document staat er:

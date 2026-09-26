@@ -157,7 +157,7 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
 
   // Web-only sluitwaarschuwing: een browsertab kan zomaar gesloten/herladen worden terwijl er
   // niet-opgeslagen wijzigingen zijn. Tauri heeft daarvoor zijn eigen sluitflow
-  // (CloseDocumentDialog), dus daar geen native prompt bovenop.
+  // (`useAppCloseGuard` → CloseDocumentDialog per document), dus daar geen native prompt bovenop.
   useEffect(() => {
     if (isTauri()) return;
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
