@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
@@ -6,6 +6,7 @@ import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { distributeUnits } from '@/engine/scheduler/ResourceLoad';
 import { parseDate } from '@/utils/dateUtils';
 import { LEVELING_REASON_KEY } from '@/utils/levelingReasonKey';
+import { levelInBackground, LevelingCancelledError, type BackgroundLeveling } from '@/services/leveling/backgroundLeveling';
 
 function fmt(iso: string): string {
   if (!iso) return '—';
@@ -28,7 +29,7 @@ export function LevelingDialog() {
   const assignments = useAppStore(s => s.assignments);
   const tasks = useAppStore(s => s.tasks);
   const cpmResult = useAppStore(s => s.cpmResult);
-  const levelResources = useAppStore(s => s.levelResources);
+  const levelingInput = useAppStore(s => s.levelingInput);
   const applyLeveling = useAppStore(s => s.applyLeveling);
   const setUI = useAppStore(s => s.setUI);
 
@@ -37,6 +38,19 @@ export function LevelingDialog() {
   const [constrainToFloat, setConstrainToFloat] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set(renewables.map(r => r.id)));
   const [result, setResult] = useState<LevelingResult | null>(null);
+  // Berekening op de achtergrond (Web Worker): de app blijft bruikbaar en "Stoppen" breekt hem af.
+  const [running, setRunning] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const runRef = useRef<BackgroundLeveling | null>(null);
+  useEffect(() => () => { runRef.current?.cancel(); }, []);
+  /** Opties gewijzigd: een lopende berekening hoort bij de oude opties — stoppen en het voorstel wissen. */
+  const resetResult = () => {
+    runRef.current?.cancel();
+    runRef.current = null;
+    setRunning(false);
+    setProblem(null);
+    setResult(null);
+  };
 
   const close = () => setUI({ showLevelingDialog: false });
 
@@ -48,12 +62,47 @@ export function LevelingDialog() {
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
-    setResult(null);
+    resetResult();
   };
 
   const calculate = () => {
-    if (needsCPM) return;
-    setResult(levelResources({ constrainToFloat, resourceIds: [...selectedIds] }));
+    if (needsCPM || running) return;
+    const input = levelingInput({ constrainToFloat, resourceIds: [...selectedIds] });
+    if (!input) return;
+    // Wat de berekening zag: wijzigt een van deze bronnen intussen, dan hoort het voorstel niet meer
+    // bij de planning (Immer levert bij elke wijziging een nieuwe referentie).
+    const seen = useAppStore.getState();
+    const unchanged = () => {
+      const now = useAppStore.getState();
+      return now.tasks === seen.tasks && now.sequences === seen.sequences && now.resources === seen.resources
+        && now.assignments === seen.assignments && now.calendar === seen.calendar
+        && now.calendars === seen.calendars && now.cpmResult === seen.cpmResult;
+    };
+    const run = levelInBackground(input);
+    runRef.current = run;
+    setRunning(true);
+    setProblem(null);
+    setResult(null);
+    run.result
+      .then((levelled) => {
+        if (runRef.current !== run) return;
+        if (unchanged()) setResult(levelled);
+        else setProblem(t('resource.leveling.staleResult'));
+      })
+      .catch((error: unknown) => {
+        if (runRef.current !== run || error instanceof LevelingCancelledError) return;
+        setProblem(t('resource.leveling.failed', { message: error instanceof Error ? error.message : String(error) }));
+      })
+      .finally(() => {
+        if (runRef.current === run) { runRef.current = null; setRunning(false); }
+      });
+  };
+
+  const stop = () => {
+    const run = runRef.current;
+    runRef.current = null;
+    run?.cancel();
+    setRunning(false);
   };
 
   const apply = () => {
@@ -121,7 +170,7 @@ export function LevelingDialog() {
             <input
               type="checkbox"
               checked={constrainToFloat}
-              onChange={e => { setConstrainToFloat(e.target.checked); setResult(null); }}
+              onChange={e => { setConstrainToFloat(e.target.checked); resetResult(); }}
               className="mt-0.5 accent-accent"
             />
             <span>{t('resource.leveling.constrainToFloat')}</span>
@@ -156,15 +205,27 @@ export function LevelingDialog() {
             </div>
           )}
 
-          <div>
-            <button
-              onClick={calculate}
-              disabled={needsCPM || selectedIds.size === 0}
-              className="btn btn--sm btn--secondary disabled:opacity-40"
-            >
-              {t('resource.leveling.calculate')}
-            </button>
+          <div className="flex items-center gap-3">
+            {running ? (
+              <>
+                <button onClick={stop} className="btn btn--sm btn--secondary">
+                  {t('resource.leveling.stop')}
+                </button>
+                <span className="text-text-secondary" role="status">{t('resource.leveling.calculating')}</span>
+              </>
+            ) : (
+              <button
+                onClick={calculate}
+                disabled={needsCPM || selectedIds.size === 0}
+                className="btn btn--sm btn--secondary disabled:opacity-40"
+              >
+                {t('resource.leveling.calculate')}
+              </button>
+            )}
           </div>
+          {problem && (
+            <div className="!text-body" role="alert" style={{ color: 'var(--error)' }}>{problem}</div>
+          )}
 
           {/* Preview */}
           {result && (
@@ -256,7 +317,7 @@ export function LevelingDialog() {
           </button>
           <button
             onClick={apply}
-            disabled={!result}
+            disabled={!result || running}
             className="btn btn--sm btn--primary shadow-[var(--shadow-glow)] disabled:opacity-40"
           >
             {t('resource.leveling.apply')}

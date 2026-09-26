@@ -6,6 +6,7 @@ import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelation
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import {
   levelResources as computeLeveling,
+  type LevelingInput,
   type LevelingOptions,
   type LevelingResult,
 } from '@/engine/scheduler/ResourceLeveler';
@@ -50,6 +51,10 @@ export interface ScheduleSlice {
    *  CPM-run en geeft het resultaat terug ZONDER de store te muteren (UI toont eerst een diff,
    *  commit gaat via `applyLeveling`). Vereist een geldige `cpmResult`. */
   levelResources: (options: LevelingOptions) => LevelingResult;
+  /** De volledige, plain-data invoer van `levelResources` (bladtaken, uitgeklapte relaties, …), of
+   *  null zonder geldige CPM-run. Dezelfde invoer voor de synchrone route (MCP, `planner_batch` moet
+   *  synchroon blijven) en de achtergrondberekening van de nivelleer-dialoog (Web Worker). */
+  levelingInput: (options: LevelingOptions) => LevelingInput | null;
   /** Commit een nivelleerresultaat: één undo-snapshot, schrijf `levelingDelay`s + `splitGaps`
    *  (idempotent — reset eerst álles binnen de scope, dan de nieuwe waarden) en her-draai CPM (§5.6).
    *  `write` is precies wat de verdeler levert (`Pick<LevelingResult, 'delays' | 'gaps'>`) — een
@@ -213,14 +218,10 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     set((s) => { s.recordedDates = null; });
   },
 
-  levelResources: (options) => {
+  levelingInput: (options) => {
     const s = get();
     const cpm = s.cpmResult;
-    if (!cpm || cpm.error) {
-      // Geen (geldige) CPM-run: niets te nivelleren — lege, veilige uitkomst.
-      const end = cpm?.projectEnd ?? '';
-      return { delays: {}, unresolved: {}, unresolvedReasons: {}, shifts: {}, projectEndBefore: end, projectEndAfter: end, gaps: {} };
-    }
+    if (!cpm || cpm.error) return null;
     // De leveler werkt op leaf-taken (net als de CPM-pass in runCPM).
     const leafTasks = s.tasks.filter(isLeafTask);
     // Zelfde samenvattingsrelatie-propagatie als runCPM (zie daar): `ResourceLeveler` krijgt hier
@@ -233,12 +234,22 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     // die van de echte (actual-gepinde) planning kan afwijken zodra er voortgang+statusdatum is
     // (zie de parameter-toelichting in `ResourceLeveler.ts:levelResources`); zonder de
     // projectstart-vloer kon hij een wortel-taak vóór het projectbegin laten staan.
-    return computeLeveling(
+    // Zelfde invoer als runCPM hierboven (incl. projectstart-vloer, gebruikstest-bevinding 2026-08) —
+    // anders zou de nivelleerder een wortel-taak vóór het projectbegin kunnen laten staan.
+    return [
       leafTasks, expandedSequences, s.resources, s.assignments, s.calendar, s.calendars, cpm, options,
-      // Zelfde invoer als runCPM hierboven (incl. projectstart-vloer, gebruikstest-bevinding 2026-08) —
-      // anders zou de nivelleerder een wortel-taak vóór het projectbegin kunnen laten staan.
       solveOptionsFor(s.project),
-    );
+    ];
+  },
+
+  levelResources: (options) => {
+    const input = get().levelingInput(options);
+    if (!input) {
+      // Geen (geldige) CPM-run: niets te nivelleren — lege, veilige uitkomst.
+      const end = get().cpmResult?.projectEnd ?? '';
+      return { delays: {}, unresolved: {}, unresolvedReasons: {}, shifts: {}, projectEndBefore: end, projectEndAfter: end, gaps: {} };
+    }
+    return computeLeveling(...input);
   },
 
   applyLeveling: (write, opts) => {

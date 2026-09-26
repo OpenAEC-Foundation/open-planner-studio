@@ -42,6 +42,9 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  // Web Workers (nivelleren op de achtergrond, `services/leveling/`): ES-modules, zodat een worker
+  // die engine-code met dynamische imports meeneemt ook in de productiebuild bundelt.
+  worker: { format: 'es' },
   server: {
     // Port comes from scripts/tauri-dev.mjs (OPS_DEV_PORT) so the desktop
     // window's devUrl always matches. strictPort makes a clash fail loudly
