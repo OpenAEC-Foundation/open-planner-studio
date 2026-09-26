@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Terminal, Circle } from 'lucide-react';
@@ -15,7 +16,9 @@ export function StatusBar() {
   const scheduleStale = useAppStore(s => s.scheduleStale);
   const autoCalcCPM = useAppStore(s => s.ui.autoCalcCPM);
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
-  const view = useAppStore(s => s.view);
+  // Alleen de zoom: een abonnement op de hele `view` renderde de balk (en de tellers hieronder over
+  // alle taken) opnieuw bij elke scroll.
+  const zoom = useAppStore(s => s.view.zoom);
   const isDirty = useAppStore(s => s.isDirty);
   const debugTerminalEnabled = useAppStore(s => s.ui.debugTerminalEnabled);
   const debugTerminalOpen = useAppStore(s => s.ui.debugTerminalOpen);
@@ -26,8 +29,8 @@ export function StatusBar() {
   const setUI = useAppStore(s => s.setUI);
   const dd = useDisplayDate();
 
-  const leafTasks = tasks.filter(isLeafTask);
-  const milestones = tasks.filter(t => t.isMilestone);
+  const leafCount = useMemo(() => tasks.filter(isLeafTask).length, [tasks]);
+  const milestoneCount = useMemo(() => tasks.filter(t => t.isMilestone).length, [tasks]);
   const criticalCount = cpmResult?.criticalPath.length || 0;
   // Issue #53: elke teller is een ingang naar het Waarschuwingenpaneel met de details.
   const overallocatedCount = resourceLoadResult
@@ -57,8 +60,8 @@ export function StatusBar() {
       className="flex items-center bg-surface-alt border-t border-border px-3 !text-body text-text-secondary select-none gap-4"
       style={{ height: 'var(--statusbar-height)' }}
     >
-      <span>{t('status.tasks')} {leafTasks.length}</span>
-      <span>{t('status.milestones')} {milestones.length}</span>
+      <span>{t('status.tasks')} {leafCount}</span>
+      <span>{t('status.milestones')} {milestoneCount}</span>
       {cpmResult && (
         <>
           <span style={{ color: 'var(--theme-critical-text)' }}>{t('status.criticalPath', { count: criticalCount, duration: cpmResult.projectDuration })}</span>
@@ -95,8 +98,8 @@ export function StatusBar() {
       )}
       <div className="flex-1" />
       {/* Afgeleid uit zoom (fase 2.7, §3.5) — kan niet desyncen van de getekende as. */}
-      <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.scale')} {t(`ribbon.${scaleFromZoom(view.zoom, enableHourPlanning)}`)}</span>
-      <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.zoom', { level: Math.round(view.zoom) })}</span>
+      <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.scale')} {t(`ribbon.${scaleFromZoom(zoom, enableHourPlanning)}`)}</span>
+      <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.zoom', { level: Math.round(zoom) })}</span>
       {isDirty && <span style={{ color: 'var(--theme-warning-text)' }}>{t('status.unsaved')}</span>}
       {aiMode && (
         <button

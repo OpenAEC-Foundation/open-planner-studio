@@ -92,15 +92,29 @@ export function useGanttViewportCoordinator(
     }),
     [input.calendar, input.compressNonWorkdays, effectiveView, input.histogramPickerWidth, input.histogramPickerSide],
   );
+  // De contentspan gebruikt alleen `daySpan`, en die hangt niet af van zoom of scroll. Met de
+  // gedeelde (scroll-afhankelijke) as als dependency liep hij bij elke scroll opnieuw over alle
+  // taken (8000 taken: het grootste deel van een scrollframe). Eigen as zonder scroll/zoom.
+  const spanAxis = useMemo(
+    () => buildSharedAxis({
+      calendar: input.calendar,
+      compressNonWorkdays: input.compressNonWorkdays,
+      viewStartDate: effectiveViewStart,
+      chartOriginX: 0,
+      zoom: 1,
+      scrollX: 0,
+    }),
+    [input.calendar, input.compressNonWorkdays, effectiveViewStart],
+  );
   const contentSpanDays = useMemo(
     () => computeContentSpanDays(
       input.tasks,
       effectiveViewStart,
       input.compressNonWorkdays,
-      sharedAxis,
+      spanAxis,
       calendarNavigationDates.ends,
     ),
-    [input.tasks, effectiveViewStart, input.compressNonWorkdays, sharedAxis, calendarNavigationDates.ends],
+    [input.tasks, effectiveViewStart, input.compressNonWorkdays, spanAxis, calendarNavigationDates.ends],
   );
   const contentWidthFor = useCallback(
     (zoom: number) => computeContentWidth(contentSpanDays, zoom),

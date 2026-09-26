@@ -12,7 +12,7 @@ import { isZeroDurationMilestone, taskDurationUnit } from '@/engine/scheduler/du
 import { firstRowIndexByTask, uniqueTaskIds, type ViewRow } from '@/engine/view/visibleRows';
 // #21: resource-accent — dezelfde pure toewijzings-module als de printlaag (één definitie van
 // "welke resources kleuren welke taak"), geen tweede implementatie in de renderer.
-import { assignmentsFor, computeBarColors, type BarPalette } from '@/services/print/barColors';
+import { assignmentsForTask, computeBarColors, type BarPalette } from '@/services/print/barColors';
 import type { BarColorContext } from '@/services/print/barColorCategories';
 import type { BarColorSelection } from '@/types/barColor';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
@@ -26,6 +26,51 @@ import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { classifyTraceTask, isRelationOutsideTrace, type TaskTrace } from '@/engine/taskGrid/trace';
 import { ellipsize } from './textFit';
 import { shownStart, shownFinish, floatBandEnd, finishInstant } from '@/utils/taskDates';
+
+/** `firstRowIndexByTask` per rijenlijst (die komt bevroren uit de store): de renderer wordt per
+ *  scrollframe opnieuw gebouwd en bouwde de map dan telkens over alle rijen. */
+const rowIndexCache = new WeakMap<ViewRow[], Map<string, number>>();
+function cachedRowIndexByTask(rows: ViewRow[]): Map<string, number> {
+  // Alleen een BEVROREN lijst kan niet na het cachen nog in-place wijzigen (store-data is bevroren;
+  // een losse testlijst of printopbouw niet — die krijgt de map gewoon vers, zoals vroeger).
+  if (!Object.isFrozen(rows)) return firstRowIndexByTask(rows);
+  let map = rowIndexCache.get(rows);
+  if (!map) { map = firstRowIndexByTask(rows); rowIndexCache.set(rows, map); }
+  return map;
+}
+
+interface ArrowEntry {
+  seq: Sequence;
+  predIdx: number;
+  succIdx: number;
+  loIdx: number;
+  hiIdx: number;
+  pred: Task;
+  succ: Task;
+}
+/** De tekenbare relaties (beide eindpunten een taakrij, eerste occurrence) in relatievolgorde, per
+ *  (relaties, rijen) één keer opgebouwd. */
+const arrowEntryCache = new WeakMap<Sequence[], { rows: ViewRow[]; entries: ArrowEntry[] }>();
+function cachedArrowEntries(sequences: Sequence[], rows: ViewRow[], rowIndexByTask: Map<string, number>): ArrowEntry[] {
+  const cacheable = Object.isFrozen(sequences) && Object.isFrozen(rows);
+  const cached = cacheable ? arrowEntryCache.get(sequences) : undefined;
+  if (cached && cached.rows === rows) return cached.entries;
+  const entries: ArrowEntry[] = [];
+  for (const seq of sequences) {
+    const predIdx = rowIndexByTask.get(seq.predecessorId) ?? -1;
+    const succIdx = rowIndexByTask.get(seq.successorId) ?? -1;
+    if (predIdx < 0 || succIdx < 0) continue;
+    const predRow = rows[predIdx];
+    const succRow = rows[succIdx];
+    if (predRow?.kind !== 'task' || succRow?.kind !== 'task') continue;
+    entries.push({
+      seq, predIdx, succIdx, loIdx: Math.min(predIdx, succIdx), hiIdx: Math.max(predIdx, succIdx),
+      pred: predRow.task, succ: succRow.task,
+    });
+  }
+  if (cacheable) arrowEntryCache.set(sequences, { rows, entries });
+  return entries;
+}
 
 export interface GanttRenderOptions {
   /** DE gedeelde zichtbare-rijenlijst (fase 2.7, §4): de renderer flattent NIET meer zelf —
@@ -251,7 +296,7 @@ export class GanttRenderer {
     this.viewStart = parseDate(opts.view.viewStartDate);
     this.rows = opts.rows;
     // "Eerste index wint" (§7.1): bij multi-band-duplicaten verbinden pijlen de eerste occurrence.
-    this.rowIndexByTask = firstRowIndexByTask(opts.rows);
+    this.rowIndexByTask = cachedRowIndexByTask(opts.rows);
     // Eén engine per render voor de grid-arcering; ook in de engineCache gezet zodat een
     // uur-modus-projectkalender in `engineFor` dezelfde instantie hergebruikt (geen dubbele
     // holiday-expansie binnen één render).
@@ -1424,7 +1469,7 @@ export class GanttRenderer {
     // genoeg om het kritiek-pad-beeld niet te verdringen, duidelijk genoeg om "wie doet dit" te lezen.
     let resourceAccentHeight = 0;
     if (this.opts.showResourceAccent) {
-      const rows = assignmentsFor(task.id, this.opts.resources ?? [], this.opts.assignments ?? []);
+      const rows = assignmentsForTask(task.id, this.opts.resources ?? [], this.opts.assignments ?? []);
       if (rows.length > 0) {
         const total = rows.reduce((a, r) => a + r.unitsPerDay, 0) || 1;
         const accentH = 3;
@@ -2061,18 +2106,23 @@ export class GanttRenderer {
     // in lijn met de gedimde balken.
     const trace = this.opts.trace;
 
-    for (const seq of this.opts.sequences) {
-      // §7.1: taskId→rij-index-map is "eerste occurrence wint" — bij multi-band-duplicaten
-      // verbindt de pijl één keer, latere occurrences krijgen geen pijlen.
-      const predIdx = this.rowIndexByTask.get(seq.predecessorId) ?? -1;
-      const succIdx = this.rowIndexByTask.get(seq.successorId) ?? -1;
-      if (predIdx < 0 || succIdx < 0) continue;
-
-      const predRow = this.rows[predIdx];
-      const succRow = this.rows[succIdx];
-      if (predRow?.kind !== 'task' || succRow?.kind !== 'task') continue;
-      const pred = predRow.task;
-      const succ = succRow.task;
+    // §7.1: taskId→rij-index-map is "eerste occurrence wint" — bij multi-band-duplicaten verbindt de
+    // pijl één keer, latere occurrences krijgen geen pijlen. De lijst met rij-indices wordt per
+    // (relaties, rijen) één keer gebouwd i.p.v. per frame twee map-lookups per relatie
+    // (`cachedArrowEntries`); volgorde en filter zijn die van de oude lus.
+    const rowH = this.opts.rowHeight;
+    const canvasH = this.opts.canvasHeight;
+    const cullMargin = rowH / 2 + 8;
+    const rightCull = this.opts.canvasWidth + GanttRenderer.ARROW_STUB + 8;
+    for (const { seq, predIdx, succIdx, loIdx, hiIdx, pred, succ } of cachedArrowEntries(this.opts.sequences, this.rows, this.rowIndexByTask)) {
+      // Verticale offscreen-cull vóór alles (prestatie). Issue #41: het pad is niet langer één
+      // elleboog, dus de marge is opnieuw afgeleid. Alle y-waarden van de route liggen in {predY,
+      // succY, laneP, laneS}; de goten `laneP`/`laneS` liggen op een rijgrens op ±rowHeight/2 van hun
+      // eigen endpoint en dus (bij verschillende rijen) TUSSEN predY en succY. Alleen in het
+      // degeneratieve geval predIdx === succIdx kan een goot rowHeight/2 buiten het paar vallen.
+      // Marge = rowHeight/2 + 8 dekt dat plus pijlkop (±3) en lijnbreedte — een net-zichtbare pijl
+      // wordt dus NOOIT overgeslagen. `rowToY` is monotoon, dus max/min over het paar = hi/lo.
+      if (this.rowToY(hiIdx) + rowH / 2 < -cullMargin || this.rowToY(loIdx) + rowH / 2 > canvasH + cullMargin) continue;
 
       const isDriving = drivingSet ? drivingSet.has(seq.id) : true;
       const isCriticalLink = drivingSet !== null && isDriving
@@ -2086,20 +2136,8 @@ export class GanttRenderer {
       ctx.setLineDash(outsideTrace ? [1, 4] : isDriving ? [] : [4, 3]);
       ctx.globalAlpha = outsideTrace ? 0.15 : 1;
 
-      const rowH = this.opts.rowHeight;
       const predY = this.rowToY(predIdx) + rowH / 2;
       const succY = this.rowToY(succIdx) + rowH / 2;
-
-      // Verticale offscreen-cull (prestatie). Issue #41: het pad is niet langer één elleboog, dus
-      // de marge is opnieuw afgeleid. Alle y-waarden van de route liggen in {predY, succY, laneP,
-      // laneS}; de goten `laneP`/`laneS` liggen op een rijgrens op ±rowHeight/2 van hun eigen
-      // endpoint en dus (bij verschillende rijen) TUSSEN predY en succY. Alleen in het degeneratieve
-      // geval predIdx === succIdx kan een goot rowHeight/2 buiten het paar vallen. Marge =
-      // rowHeight/2 + 8 dekt dat plus pijlkop (±3) en lijnbreedte — een net-zichtbare pijl wordt
-      // dus NOOIT overgeslagen. Bespaart de dure parseDate/dateToX hieronder voor de rest.
-      const canvasH = this.opts.canvasHeight;
-      const cullMargin = rowH / 2 + 8;
-      if (Math.max(predY, succY) < -cullMargin || Math.min(predY, succY) > canvasH + cullMargin) continue;
 
       // Ankerpunten + looprichtingen per relatietype (issue #59: de oude `default`-tak tekende
       // FF en SF als FS, dus landden ze altijd op de opvolger-START i.p.v. de FINISH).
@@ -2116,6 +2154,9 @@ export class GanttRenderer {
       dirIn = succFinish ? 1 : -1;
 
       if (fromX < 0 && toX < 0) continue;
+      // Rechts van het beeld: elk x van de route ligt binnen ARROW_STUB van `fromX`/`toX` (de kolom
+      // van `pickColumn` ligt tussen `enter` en `xa`), de pijlkop binnen 5 px — dus niets zichtbaars.
+      if (Math.min(fromX, toX) > rightCull) continue;
 
       // ── Routing (issue #41, uitbreiding #59 voor FF/SF) ───────────────────
       // `dirOut`/`dirIn` zijn hierboven berekend. `xa` ligt naast de voorgangerbalk (aan de

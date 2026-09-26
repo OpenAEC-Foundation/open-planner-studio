@@ -36,6 +36,43 @@ function criticalFill(task: Task, palette: BarPalette): string {
 }
 
 /** Bestaande hulpfunctie voor Resource accent en categorie-resolutie. */
+type AssignmentRow = { color: string; unitsPerDay: number; resourceId: string; name: string };
+
+/**
+ * {@link assignmentsFor} voor veel taken over dezelfde lijsten: de Gantt vraagt dit per zichtbare
+ * balk per frame op, en elke aanroep bouwde een resourcemap en liep alle toewijzingen door. Per
+ * (toewijzingen, resources) — beide bevroren store-lijsten — één groepering; een niet-bevroren lijst
+ * (kan nog wijzigen) krijgt geen cache. Zelfde rijen, zelfde volgorde, zelfde resourcekeuze.
+ */
+const assignmentRowCache = new WeakMap<ReadonlyArray<ResourceAssignment>, { resources: ReadonlyArray<Resource>; byTask: Map<string, AssignmentRow[]> }>();
+export function assignmentsForTask(
+  taskId: string,
+  resources: ReadonlyArray<Resource>,
+  assignments: ReadonlyArray<ResourceAssignment>,
+): AssignmentRow[] {
+  if (!Object.isFrozen(assignments) || !Object.isFrozen(resources)) return assignmentsFor(taskId, resources, assignments);
+  let cached = assignmentRowCache.get(assignments);
+  if (!cached || cached.resources !== resources) {
+    const byId = new Map(resources.map(resource => [resource.id, resource]));
+    const byTask = new Map<string, AssignmentRow[]>();
+    for (const assignment of assignments) {
+      const resource = byId.get(assignment.resourceId);
+      if (!resource) continue;
+      let rows = byTask.get(assignment.taskId);
+      if (!rows) { rows = []; byTask.set(assignment.taskId, rows); }
+      rows.push({
+        color: resourceDisplayColor(resource),
+        unitsPerDay: assignment.unitsPerDay,
+        resourceId: resource.id,
+        name: resource.name,
+      });
+    }
+    cached = { resources, byTask };
+    assignmentRowCache.set(assignments, cached);
+  }
+  return cached.byTask.get(taskId) ?? [];
+}
+
 export function assignmentsFor(
   taskId: string,
   resources: ReadonlyArray<Resource>,
