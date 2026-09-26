@@ -53,7 +53,11 @@ test('automatisch berekenen verbergt alleen de tijdelijke stale-indicator', asyn
     const store = window.__OPS__!.store.getState();
     store.setUI({ autoCalcCPM: true });
     store.addSequence({ predecessorId: taskIds[0], successorId: taskIds[1], type: 'FINISH_START', lagDays: 0 });
-    store.addSequence({ predecessorId: taskIds[1], successorId: taskIds[0], type: 'FINISH_START', lagDays: 0 });
+    // De store-route weigert een kring vooraf; een kring komt nog wel binnen zoals een importer hem
+    // schrijft: rechtstreeks in `sequences`, binnen hetzelfde debouncevenster als de relatie hierboven.
+    window.__OPS__!.store.setState((s) => {
+      s.sequences.push({ id: 'seq-kring', predecessorId: taskIds[1], successorId: taskIds[0], type: 'FINISH_START', lagDays: 0 });
+    });
   }, [first, second]);
   await expect.poll(() => page.evaluate(() => {
     const s = window.__OPS__!.store.getState();

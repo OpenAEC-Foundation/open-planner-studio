@@ -1,5 +1,8 @@
 import type { Task } from '@/types/task';
 import { isSummaryTask as taskIsSummary } from '@/utils/taskHierarchy';
+import type { Sequence } from '@/types/sequence';
+import { expandSummaryRelations } from './expandSummaryRelations';
+import { detectIntroducedCycle } from './graphWalk';
 
 export interface RelationEndpoints {
   predecessorId: string;
@@ -50,4 +53,32 @@ export function relationStructureVerdict(
     return { ok: false, reason: 'unknown-task' };
   }
   return isAncestorRelation(lookup, relation) ? { ok: false, reason: 'ancestor' } : { ok: true };
+}
+
+/**
+ * Zou één NIEUWE relatie een kring sluiten? Getoetst zoals de solver rekent: over de bladgraaf na
+ * `expandSummaryRelations`, dus een samenvattingseindpunt telt mee (een relatie naar een fase kan
+ * via een van haar kinderen rondlopen). Alleen de kring door de nieuwe relatie telt
+ * (`detectIntroducedCycle`): een al bestaande kring elders — bv. uit een import — blokkeert geen
+ * onschuldige relatie.
+ *
+ * @returns de kring (bladtaak-ids, begint bij de nieuwe relatie, begin = eind) of `null`.
+ */
+export function relationCycle(
+  tasks: readonly Task[],
+  sequences: readonly Sequence[],
+  relation: RelationEndpoints,
+): string[] | null {
+  const before = expandSummaryRelations(tasks, sequences).sequences;
+  // Expansie is per relatie onafhankelijk (op de MAX_EXPANDED_RELATIONS-klem na): alleen de
+  // kandidaat apart uitvouwen volstaat.
+  const candidate = expandSummaryRelations(tasks, [{
+    id: '__candidate-relation',
+    predecessorId: relation.predecessorId,
+    successorId: relation.successorId,
+    type: 'FINISH_START',
+    lagDays: 0,
+  }]).sequences;
+  if (candidate.length === 0) return null;
+  return detectIntroducedCycle(before, [...before, ...candidate]);
 }

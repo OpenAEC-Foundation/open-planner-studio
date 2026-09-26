@@ -39,6 +39,12 @@ bestand toch zo'n relatie — bijvoorbeeld uit Primavera P6 of MS Project, die d
 blijft hij bewaard en gaat hij bij het opslaan gewoon weer mee, maar hij telt niet mee in de
 berekening: de relatiewaarschuwingenkolom in de taakgrid markeert hem als *niet meegerekend*.
 
+Zo'n relatie kan ook ontstaan als je een taak verhangt: spring je een taak in onder zijn eigen
+voorganger of opvolger, sleep je hem daaronder, of kies je die taak als bovenliggende taak, dan gaat
+dat gewoon door. De bestaande relatie blijft bewaard, maar telt vanaf dan niet meer mee; een melding
+vertelt hoeveel relaties dat zijn. Zo'n bewaarde relatie houdt de taakgrid niet tegen: je kunt de
+andere relaties gewoon blijven bewerken, en ook type en lag van de bewaarde relatie zelf.
+
 ## Lag en lead
 
 Een relatie hoeft niet op nul te staan: een **lag** (positief) voegt wachttijd toe tussen voorganger en opvolger, een **lead** (negatief, uitgedrukt als een negatief getal) laat de opvolger juist eerder beginnen — een bewuste overlap. Het lag-veld (**Lag**, in het eigenschappenpaneel en in de editor van een voorganger-/opvolgercel) accepteert een korte notatie:
@@ -58,7 +64,9 @@ Er zijn vier manieren om een relatie aan te maken, afhankelijk van waar je toch 
 2. **Selectie + knop**: selecteer eerst de voorganger, houd Ctrl/Cmd ingedrukt en selecteer daarna de opvolger (in die volgorde). Zijn er zo precies twee taken geselecteerd, kies dan **Relatie → Geselecteerde taken koppelen** op het tabblad **Start**, **Planning** of **Tabel**. Er wordt meteen een FS-relatie met vertraging 0 aangemaakt. Open het relatietoken daarna in de taakgrid als je type of lag wilt wijzigen.
 3. **Rechtstreeks in de taakgrid**: voeg via het plusje de kolom **Voorgangers** of **Opvolgers** toe. Open een cel, zoek op WBS/taaknaam en stel FS/SS/FF/SF plus lag in. Bestaande relatietokens kun je openen om ze te wijzigen of verwijderen; vrije speling, bepalende status en waarschuwingen zijn als aparte kolommen beschikbaar. Voorgangers en opvolgers hebben elk hun eigen kleur in deze kolommen; een bepalende (driving) relatie krijgt een sterkere tint van diezelfde kleur, plus vet.
 
-4. **In het eigenschappenpaneel**: onder **Afhankelijkheden** staat de knop **Relatie toevoegen**. Die opent een conceptregel in dezelfde lijst — geen apart venster. Kies eerst de richting (**Voorganger** of **Opvolger**, gezien vanuit de geselecteerde taak), typ daarna een deel van het WBS-nummer of de taaknaam in het zoekveld en kies een taak met de muis of met de pijltoetsen plus **Enter**. Stel vervolgens nog het type en de lag in en bevestig met het vinkje (of nogmaals **Enter**). **Esc** gooit de conceptregel weg zonder iets te wijzigen. Weigert de planning de relatie — bijvoorbeeld omdat hij al bestaat, of omdat beide eindpunten in dezelfde ouder-kindketen liggen — dan verschijnt daarover een melding en blijft de conceptregel staan zodat je de keuze kunt corrigeren.
+4. **In het eigenschappenpaneel**: onder **Afhankelijkheden** staat de knop **Relatie toevoegen**. Die opent een conceptregel in dezelfde lijst — geen apart venster. Kies eerst de richting (**Voorganger** of **Opvolger**, gezien vanuit de geselecteerde taak), typ daarna een deel van het WBS-nummer of de taaknaam in het zoekveld en kies een taak met de muis of met de pijltoetsen plus **Enter**. Stel vervolgens nog het type en de lag in en bevestig met het vinkje (of nogmaals **Enter**). **Esc** gooit de conceptregel weg zonder iets te wijzigen. Weigert de planning de relatie — bijvoorbeeld omdat hij al bestaat, omdat beide eindpunten in dezelfde ouder-kindketen liggen, of omdat hij een kring zou sluiten — dan verschijnt daarover een melding en blijft de conceptregel staan zodat je de keuze kunt corrigeren.
+
+Welke manier je ook kiest: een relatie die een **kring** zou sluiten, wordt niet aangemaakt. Dat is het geval als de opvolger via andere relaties al aan de voorganger voorafgaat, ook als dat via een taak binnen een samenvattingstaak loopt. Zo'n kring laat de hele berekening vastlopen. Bij slepen, de knop en het eigenschappenpaneel noemt de melding de taken van de kring, zodat je ziet welke bestaande relatie je eerst moet omdraaien of verwijderen.
 
 De kolom **Bepalend** (driving) laat na een berekening zien welke relatie daadwerkelijk de start- of einddatum van de opvolger bepaalt — bij een taak met meerdere voorgangers is dat niet per se de relatie die je het laatst hebt aangemaakt, maar degene met de laatste (bepalende) datum.
 

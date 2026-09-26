@@ -161,6 +161,43 @@ S().updateSequence(seqId, { lagMinutes: undefined });
 eq('42 directe patch lagMinutes:undefined wist het veld', S().sequences.find(s => s.id === seqId)?.lagMinutes, undefined);
 
 // ═══════════════════════════════════════════════════════════════════════════
+// 3b) updateSequence zonder werkelijke wijziging is een no-op (audit taakmutaties, bevinding 9).
+//     Het lag-veld in het eigenschappenpaneel (SequenceLagInput) commit bij elke blur. Alleen in-
+//     en uitklikken maakte het document gewijzigd, zette "Herbereken" aan en gaf een loze undo-stap
+//     (de eerste Ctrl+Z deed zichtbaar niets). Raster en MCP zagen "niets gewijzigd" al; nu ook de
+//     store-actie — zelfde semantiek als de no-op-guard van `updateTask` (`sameValue`).
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  S().newProject();
+  const a = S().addTask({ name: 'Grondwerk' });
+  const b = S().addTask({ name: 'Fundering' });
+  const id = S().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 2 })!;
+  S().runCPM();
+  useAppStore.setState(s => { s.isDirty = false; });
+  const depth = () => S().historyEvents.filter(event => event.state === 'applied').length;
+  const before = { depth: depth(), sequences: S().sequences };
+  const snap = () => ({ isDirty: S().isDirty, stale: S().scheduleStale, depth: depth() });
+
+  // Precies wat het lag-veld bij een blur zonder typen doet: de getoonde tekst opnieuw parsen.
+  const shown = formatLagShort(S().sequences.find(q => q.id === id)!);
+  eq('42a het lag-veld toont "+2d"', shown, '+2d');
+  eq('42b blur zonder wijziging: updateSequence meldt "in orde"', S().updateSequence(id, parseLagInput(shown)!), true);
+  eq('42c … geen dirty, geen stale, geen undo-stap', snap(), { isDirty: false, stale: false, depth: before.depth });
+  eq('42d … en de relatie is referentieel ongewijzigd', S().sequences === before.sequences, true);
+  eq('42e zelfde type opnieuw kiezen is ook een no-op', (S().updateSequence(id, { type: 'FINISH_START' }), snap()),
+    { isDirty: false, stale: false, depth: before.depth });
+  eq('42f een expliciete undefined op een afwezig lagveld is geen wijziging', (S().updateSequence(id, {
+    lagUnit: undefined, lagPercent: undefined, lagMinutes: undefined,
+  }), snap()), { isDirty: false, stale: false, depth: before.depth });
+
+  // Een echte wijziging blijft gewoon één undo-stap.
+  eq('42g echte lagwijziging slaagt', S().updateSequence(id, parseLagInput('3d')!), true);
+  eq('42h … en is dirty, stale en één undo-stap', snap(), { isDirty: true, stale: true, depth: before.depth + 1 });
+  eq('42i … met de nieuwe lag', S().sequences.find(q => q.id === id)?.lagDays, 3);
+  eq('42j onbekend relatie-id blijft een stille weigering', S().updateSequence('bestaat-niet', { lagDays: 1 }), false);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // 4) Ploeg-preset "3 ploegen" (F2) — bandenstructuur, afgeleide uren, middernacht-wrap,
 //    en aanwezigheid in zowel CALENDAR_PRESETS (kalenderdialoog) als WIZARD_PRESETS.
 // ═══════════════════════════════════════════════════════════════════════════
