@@ -14,6 +14,7 @@ import {
   type ProgressSheet,
   type RawDateCell,
 } from './types';
+import { shownStart, shownFinish } from '@/utils/taskDates';
 
 type DateValue = { kind: 'value'; iso: string } | { kind: 'unreadable'; raw: string };
 type PercentValue = { kind: 'value'; value: number } | { kind: 'unreadable'; raw: string }
@@ -249,8 +250,8 @@ export function detectDateOrder(
     const task = taskById.get(cell.taskId);
     if (!task) continue;
     const plannedIso = cell.field === 'start'
-      ? (task.time.earlyStart || task.time.scheduleStart)
-      : (task.time.earlyFinish || task.time.scheduleFinish);
+      ? shownStart(task)
+      : shownFinish(task);
     const plannedDatePart = plannedIso.slice(0, 10);
 
     if (isValidCalendarDate(triple.year, triple.b, triple.a)) {

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { X, Download, RefreshCw, AlertTriangle, CheckCircle2, RotateCw, Copy, Check, ExternalLink, PackageOpen } from 'lucide-react';
+import { Download, RefreshCw, AlertTriangle, CheckCircle2, RotateCw, Copy, Check, ExternalLink, PackageOpen } from 'lucide-react';
 import { isTauri } from '@/utils/platform';
-import { Dialog } from '@/components/common/Dialog';
+import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import {
   checkForUpdates,
   downloadAndInstall,
@@ -12,6 +12,7 @@ import {
   type InstallKind,
   type UpdateStatus,
 } from '@/services/updater/updaterService';
+import { useCopyFeedback } from '@/hooks/useCopyFeedback';
 
 // Copy-paste-commando voor handmatige .deb-installatie — alléén nog een
 // FALLBACK wanneer de in-app installatie op een .deb-systeem faalt (bijv.
@@ -44,7 +45,8 @@ export function UpdateDialog() {
   const [busy, setBusy] = useState(false);
   // Install-type bepaalt of/hoe we de update installeren (snap/deb/appimage/native).
   const [installKind, setInstallKind] = useState<InstallKind>('native');
-  const [copied, setCopied] = useState(false);
+  const { copiedKey, copy } = useCopyFeedback(2000);
+  const copied = copiedKey !== null;
 
   const close = () => setUI({ showUpdateDialog: false });
 
@@ -97,14 +99,8 @@ export function UpdateDialog() {
   };
 
   // Het .deb-installeer-commando naar het klembord kopiëren (+ korte "gekopieerd").
-  const handleCopyCommand = () => {
-    void navigator.clipboard.writeText(DEB_INSTALL_COMMAND)
-      .then(() => {
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 2000);
-      })
-      .catch(() => { /* klembord niet beschikbaar — stil negeren */ });
-  };
+  // Klembord niet beschikbaar ⇒ stil negeren.
+  const handleCopyCommand = () => { void copy(DEB_INSTALL_COMMAND); };
 
   // De GitHub-release-pagina openen in de standaardbrowser.
   // KRITIEK: `@tauri-apps/plugin-shell` dynamisch + `isTauri()`-guarded.
@@ -146,19 +142,7 @@ export function UpdateDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[520px] max-h-[90vh] flex flex-col overflow-hidden"
     >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
-            {t('updates.dialogTitle')}
-          </span>
-          <button
-            onClick={close}
-            disabled={isDownloading}
-            className="p-1 hover:bg-surface-hover rounded-[8px] disabled:opacity-40 disabled:cursor-not-allowed"
-            title={t('close')}
-          >
-            <X size={16} />
-          </button>
-        </div>
+        <DialogHeader title={t('updates.dialogTitle')} onClose={close} closeDisabled={isDownloading} />
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">

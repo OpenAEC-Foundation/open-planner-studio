@@ -53,7 +53,7 @@ Alleen op een taak zonder subtaken die geen mijlpaal is. Aanvinken maakt de duur
 
 - **Voortgang (%)** — schuifregelaar 0–100%.
 - **Werkelijke start** / **Werkelijke einde** — vastgelegde feiten; bij een mijlpaal één veld **Werkelijke datum**. Datums ná de statusdatum worden geweigerd.
-- **Resterend (werkdagen)** — read-only, afgeleid van duur × (1 − voortgang). Zie [Baselines & voortgang](docs://gids-baselines-voortgang).
+- **Resterend** — read-only, afgeleid van duur × (1 − voortgang): een dagtaak in werkdagen, een urentaak in uren en minuten. Zie [Baselines & voortgang](docs://gids-baselines-voortgang).
 
 ## CPM Resultaat (read-only)
 

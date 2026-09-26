@@ -12,6 +12,7 @@ import { useClickOutside } from '@/hooks/useClickOutside';
 import { TASK_COLUMN_CATEGORY_ORDER } from '@/engine/taskGrid/taskColumnRegistry';
 import { recentAvailableTaskColumnIds } from '@/engine/taskGrid/preferences';
 import type { TaskColumnCategory, TaskColumnId } from '@/types/taskGrid';
+import { nextFrame } from '@/utils/nextFrame';
 
 export interface TaskGridColumnOption {
   id: TaskColumnId;
@@ -90,11 +91,6 @@ export interface ColumnChooserProps {
   onChoose: (option: TaskGridColumnOption) => boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-}
-
-function nextFrame(callback: () => void): void {
-  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(callback);
-  else setTimeout(callback, 0);
 }
 
 /**

@@ -19,11 +19,12 @@
 // periodelengte: 2 = dagen; `Value` = ISO-8601-duur `PT{H}H{M}M{S}S`). Bron voor de P6-vorm: MPXJ
 // `TimephasedHelper` — `"werkuren:periode-uren;…"`, aaneengesloten vanaf een anker (`PlannedStartDate`
 // resp. `ActualStartDate`/`RemainingStartDate`), elke periode gemeten in WERKuren van de kalender.
-import type { Task, TaskSplitGap, TimephasedContourPeriod } from '@/types/task';
+import type { Task, TaskSplitGap, TaskTimephasedContour, TimephasedContourPeriod } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import type { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { periodsToSlotWork } from '@/engine/contour/contourEngine';
-import { addCalendarDays, formatDate, parseDate } from '@/utils/dateUtils';
+import { addCalendarDays, formatDate, utcDayStart } from '@/utils/dateUtils';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 
 export type ContourKind = TimephasedContourPeriod['kind'];
 
@@ -51,12 +52,8 @@ export function slotMinutesOf(engine: CalendarEngine): number {
   return Math.max(1, engine.hoursPerDay * 60);
 }
 
-function dayStart(d: Date): Date {
-  return parseDate(formatDate(d));
-}
-
 function hasTimeOfDay(d: Date): boolean {
-  return d.getTime() !== dayStart(d).getTime();
+  return d.getTime() !== utcDayStart(d).getTime();
 }
 
 /**
@@ -68,8 +65,8 @@ function hasTimeOfDay(d: Date): boolean {
 export function axisOffsetMinutes(engine: CalendarEngine, taskStart: Date, at: Date, inclusiveDay = false): number {
   if (engine.isHourMode) return Math.max(0, engine.workMinutesBetween(taskStart, at));
   const mpd = slotMinutesOf(engine);
-  const startDay = dayStart(taskStart);
-  const atDay = dayStart(at);
+  const startDay = utcDayStart(taskStart);
+  const atDay = utcDayStart(at);
   if (atDay.getTime() < startDay.getTime()) return 0;
   const before = engine.workDaysBetween(startDay, addCalendarDays(atDay, -1));
   const own = inclusiveDay && hasTimeOfDay(at) && engine.isWorkDay(atDay) ? 1 : 0;
@@ -100,38 +97,78 @@ export function absoluteItemsToContourPeriods(
 }
 
 /**
- * `TaskSplitGap[]` uit de contourperiodes van ÁLLE toewijzingen van een taak — DEZELFDE afleiding
- * als de .mpp-lezer (`mppTimephased.ts`'s `deriveSplitGapsFromPeriods` per toewijzing +
- * `deriveTaskSplitGaps` over de taak: alleen periodes MET werk tellen, strikte discontinuïteit `>`
- * is een gat, en over meerdere toewijzingen geldt de DOORSNEDE van de gaten — de taak pauzeert
- * alleen waar géén enkele toewijzing werkt), zodat een MSPDI-/P6-contour dezelfde CPM-gaten
- * oplevert als een .mpp-contour. Bewust een eigen (pure) port en geen import uit de
- * mpp-servicesmap: die module hoort buiten de hoofdbundel te blijven
- * (`check-mpp-chunk-boundary.ts`), terwijl deze adapterlaag ook door de MSPDI-/P6-lezers wordt
- * geladen. De .mpp-kant blijft de referentie; `check-contour-engine.ts` toetst dat beide dezelfde
- * gaten geven.
+ * `TaskSplitGap[]` uit de contourperiodes van ÁLLE toewijzingen van een taak: per toewijzing de gaten
+ * tussen de gewerkte periodes ({@link gapsBetweenWorkedSpans}), over de taak de DOORSNEDE
+ * ({@link intersectAssignmentGaps}) — de taak pauzeert alleen waar géén enkele toewijzing werkt.
+ * De .mpp-lezer (`mppTimephased.ts`) gebruikt dezelfde twee functies, zodat een MSPDI-/P6-contour
+ * dezelfde CPM-gaten oplevert als een .mpp-contour. De importrichting is bewust mpp → hier: deze
+ * adapterlaag zit in de hoofdbundel, de mpp-servicesmap juist niet (`check-mpp-chunk-boundary.ts`).
  */
 export function splitGapsFromContours(contours: readonly (readonly TimephasedContourPeriod[])[]): TaskSplitGap[] {
-  const perAssignment = contours.map(gapsFromPeriods);
-  if (perAssignment.length === 0) return [];
-  return perAssignment.slice(1).reduce<TaskSplitGap[]>(
-    (acc, gaps) => intersectGapIntervals(acc, gaps),
-    [...perAssignment[0]],
-  );
+  return intersectAssignmentGaps(contours.map((periods) => gapsBetweenWorkedSpans(
+    periods
+      .filter((p) => p.workMinutes !== 0 && Number.isFinite(p.afterMinutes) && Number.isFinite(p.minutes))
+      .map((p) => ({ start: p.afterMinutes, end: p.afterMinutes + p.minutes })),
+  )));
 }
 
-function gapsFromPeriods(periods: readonly TimephasedContourPeriod[]): TaskSplitGap[] {
-  const worked = periods
-    .filter((p) => p.workMinutes !== 0 && Number.isFinite(p.afterMinutes) && Number.isFinite(p.minutes))
-    .slice()
-    .sort((a, b) => a.afterMinutes - b.afterMinutes);
+/** Verzamel één toewijzingscontour per taak (de lezers bouwen zo `contoursByTaskId` op). */
+export function collectContour(
+  contoursByTaskId: Map<string, TaskTimephasedContour[]>, taskId: string, contour: TaskTimephasedContour,
+): void {
+  const list = contoursByTaskId.get(taskId);
+  if (list) list.push(contour);
+  else contoursByTaskId.set(taskId, [contour]);
+}
+
+/**
+ * Zet de verzamelde contouren op hun bladtaken en leid daaruit de werkonderbrekingen af
+ * ({@link splitGapsFromContours}) — alleen voor taken die nog geen gaten dragen, want een andere
+ * split-bron van het bestand wint. Samenvattingstaken dragen nooit een contour.
+ */
+export function attachContours(
+  taskById: ReadonlyMap<string, Task>, contoursByTaskId: ReadonlyMap<string, TaskTimephasedContour[]>,
+): void {
+  for (const [taskId, contours] of contoursByTaskId) {
+    const task = taskById.get(taskId);
+    if (!task || isSummaryTask(task)) continue;
+    task.timephasedContours = contours;
+    if (!task.splitGaps || task.splitGaps.length === 0) {
+      const gaps = splitGapsFromContours(contours.map(c => c.periods));
+      if (gaps.length > 0) task.splitGaps = gaps;
+    }
+  }
+}
+
+/**
+ * De gaten tussen GEWERKTE spans op de werkminuten-as van één toewijzing. De aanroeper laat periodes
+ * zonder werk vooraf weg: zo'n periode overbrugt juist de discontinuïteit die anders zichtbaar zou
+ * zijn (mutatiebewijs `check-mpp-import.ts`, Z4 punt 3). STRIKT `>`: twee AANGRENZENDE werkperiodes
+ * (bv. de naad tussen een "actual"- en een "remaining"-record) leveren geen fantoomgat van 0 minuten
+ * (Z4 punt 4).
+ */
+export function gapsBetweenWorkedSpans(spans: readonly { start: number; end: number }[]): TaskSplitGap[] {
+  const worked = spans.slice().sort((a, b) => a.start - b.start);
   const gaps: TaskSplitGap[] = [];
   for (let i = 1; i < worked.length; i++) {
-    const prevEnd = worked[i - 1].afterMinutes + worked[i - 1].minutes;
-    const nextStart = worked[i].afterMinutes;
+    const prevEnd = worked[i - 1].end;
+    const nextStart = worked[i].start;
     if (nextStart > prevEnd) gaps.push({ afterMinutes: prevEnd, gapMinutes: nextStart - prevEnd });
   }
   return gaps;
+}
+
+/**
+ * Taakniveau over meerdere toewijzingen: de DOORSNEDE van de per-toewijzing gat-intervallen (MSP's
+ * Gantt-balk toont "bezig" zodra één toewijzing werkt). Eén lijst per toewijzing MET data; een lege
+ * lijst betekent "wel data, nul gaten" en drukt de doorsnede terecht naar leeg.
+ */
+export function intersectAssignmentGaps(gapsByAssignment: readonly (readonly TaskSplitGap[])[]): TaskSplitGap[] {
+  if (gapsByAssignment.length === 0) return [];
+  return gapsByAssignment.slice(1).reduce<TaskSplitGap[]>(
+    (acc, gaps) => intersectGapIntervals(acc, gaps),
+    [...gapsByAssignment[0]],
+  );
 }
 
 function intersectGapIntervals(a: readonly TaskSplitGap[], b: readonly TaskSplitGap[]): TaskSplitGap[] {
@@ -187,7 +224,7 @@ export function contourPeriodsToDayItems(
       if (slots[k] > 0) { if (first < 0) first = k; last = k; }
     }
     if (first < 0) continue;
-    let day = dayStart(taskStart);
+    let day = utcDayStart(taskStart);
     let k = 0;
     let guard = 0;
     while (k <= last && guard++ < 200_000) {
@@ -205,7 +242,7 @@ export function contourPeriodsToDayItems(
 }
 
 function dayInstants(engine: CalendarEngine, calendar: WorkCalendar, day: Date): { start: Date; finish: Date } {
-  const base = dayStart(day).getTime();
+  const base = utcDayStart(day).getTime();
   if (engine.isHourMode) {
     const bands = engine.effectiveBandsOn(day);
     if (bands.length > 0) {

@@ -4,7 +4,7 @@ import { normalizeCurveValues } from '@/engine/contour/contourEngine';
 import type { CustomTaskType } from '@/types/taskType';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { Sequence, SequenceType } from '@/types/sequence';
-import { Resource, ResourceAssignment, AvailabilityStep, ResourceCurve } from '@/types/resource';
+import { Resource, ResourceAssignment, AvailabilityStep, ResourceCurve, isResourceCurve } from '@/types/resource';
 import { Project, ProjectSchedulingOptions, SchedulingOptions, SchedulingProfile } from '@/types/project';
 import { WorkCalendar, Holiday, CalendarGeneration, WorkingException } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
@@ -25,7 +25,7 @@ import {
   IFC_TASKTIME_SLOTS, ALL_RECORDED_SLOT_KEYS, TASK_SLOT, TASKTIME_SLOT,
   type RecordedFieldKey, type TaskTimeReadHelpers,
 } from './ifcTaskSlots';
-import { normalizeImportedProgress } from '@/services/importNormalize';
+import { normalizeImportedProgress, reconstructResourceIds } from '@/services/importNormalize';
 import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 import type { XerImportMetadata } from '@/services/importTypes';
 import {
@@ -45,14 +45,12 @@ import { emptyMissingScheduleDates, resolveMissingScheduleDates } from '@/servic
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import {
   canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isoDurationToMinutes,
-  isSubDayMinutes, promoteHourCalendar, registerCalendarBands,
+  isSubDayMinutes, promoteHourCalendar, promoteHourCalendars, registerCalendarBands,
 } from '@/services/subdayIo';
 
 // IFC_TIME_ANCHOR (§7.1, discriminator c) en DEFAULT_PRIORITY (fase 2.5) wonen nu in ./ifcConstants
 // zodat reader en writer gegarandeerd hetzelfde anker/dezelfde default gebruiken. De rauwe-banden-
 // registry (voorheen een lokale WeakMap) en `synthBandsFromScalar` wonen nu gedeeld in subdayIo (F5).
-
-const VALID_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE'];
 
 /**
  * Expliciete injectienaad: de compacte schema-2-envelope bewaart alleen bronbytes; de zware,
@@ -1175,9 +1173,7 @@ function applyHourModeIFC(
   // 2. Promoveer kalenders die afwijken (a/b uit de banden) of een (c)-signaal droegen. IFC kiest
   //    altijd de geregistreerde canonical zodra er info is (preferCanonicalWhenEmpty = true) — zie
   //    de F5-noot bij `promoteHourCalendar`.
-  for (const cal of [projectCal, ...resourceCalendars]) {
-    promoteHourCalendar(cal, getCalendarBands(cal), subDayCals.has(cal), true);
-  }
+  promoteHourCalendars([projectCal, ...resourceCalendars].map(cal => [cal, cal] as const), cal => subDayCals.has(cal), true);
 
   // 3. Herstel de echte tijden op taken met een uurkalender. De ISO-duurvorm die parseTaskTime al
   //    las bepaalt onafhankelijk daarvan de taakidentiteit (P…D = dagen, PT… = uren).
@@ -2050,6 +2046,28 @@ function parseIntList(s: string): number[] {
 }
 
 /**
+ * De `IFCPROPERTYSINGLEVALUE`s van elk `OPS_Calendar`-pset dat de kalender met STEP-id `calStepId`
+ * target (`IFCRELDEFINESBYPROPERTIES` → `IFCPROPERTYSET`), één lijst per pset in bestandsvolgorde.
+ * Gedeeld door de kalender-psetlezers hieronder; elk leest zijn eigen property's en houdt zijn eigen
+ * terugval.
+ */
+function* opsCalendarPsetProps(
+  calStepId: string,
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+): Generator<StepEntity[]> {
+  for (const rel of entities) {
+    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
+    if (!parseRefs(rel.args[4] || '').includes(calStepId)) continue;
+    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
+    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
+    yield parseRefs(pset.args[4] || '')
+      .map(r => entityMap.get(r))
+      .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
+  }
+}
+
+/**
  * Fase 2.8a (§8.2) — `calendar.generation`-herkomst teruglezen uit het `OPS_Calendar`-pset
  * (spiegel van `writeCalendarGenerationMeta`): zoekt de `IFCRELDEFINESBYPROPERTIES` die het
  * `IFCWORKCALENDAR` met STEP-id `calStepId` target. Golden rule/legacy (§4.3/§8.2): geen pset
@@ -2061,17 +2079,7 @@ function extractCalendarGeneration(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
 ): CalendarGeneration | undefined {
-  for (const rel of entities) {
-    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
-    const objectRefs = parseRefs(rel.args[4] || '');
-    if (!objectRefs.includes(calStepId)) continue;
-    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
-    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
-
-    const props = parseRefs(pset.args[4] || '')
-      .map(r => entityMap.get(r))
-      .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
-
+  for (const props of opsCalendarPsetProps(calStepId, entities, entityMap)) {
     let ruleSetId: HolidayCountry | undefined;
     let region: string | undefined;
     let breakChoice: CalendarGeneration['breakChoice'];
@@ -2113,17 +2121,7 @@ function extractCalendarLibraryOrigin(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
 ): LibraryOrigin | undefined {
-  for (const rel of entities) {
-    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
-    const objectRefs = parseRefs(rel.args[4] || '');
-    if (!objectRefs.includes(calStepId)) continue;
-    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
-    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
-
-    const props = parseRefs(pset.args[4] || '')
-      .map(r => entityMap.get(r))
-      .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
-
+  for (const props of opsCalendarPsetProps(calStepId, entities, entityMap)) {
     for (const prop of props) {
       if (stripQuotes(prop.args[0] || '') !== 'LibraryOrigin') continue;
       const value = parseTypedValue(prop.args[2] || '');
@@ -2157,17 +2155,7 @@ function extractCalendarHoursPerDay(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
 ): number | undefined {
-  for (const rel of entities) {
-    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
-    const objectRefs = parseRefs(rel.args[4] || '');
-    if (!objectRefs.includes(calStepId)) continue;
-    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
-    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
-
-    const props = parseRefs(pset.args[4] || '')
-      .map(r => entityMap.get(r))
-      .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
-
+  for (const props of opsCalendarPsetProps(calStepId, entities, entityMap)) {
     for (const prop of props) {
       if (stripQuotes(prop.args[0] || '') !== 'HoursPerDay') continue;
       const value = parseTypedValue(prop.args[2] || '');
@@ -2184,14 +2172,7 @@ function extractCalendarSimpleBreak(
   entityMap: Map<string, StepEntity>,
 ): Pick<WorkCalendar, 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'> {
   const result: Pick<WorkCalendar, 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'> = {};
-  for (const rel of entities) {
-    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
-    if (!parseRefs(rel.args[4] || '').includes(calStepId)) continue;
-    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
-    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
-    const props = parseRefs(pset.args[4] || '')
-      .map(r => entityMap.get(r))
-      .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
+  for (const props of opsCalendarPsetProps(calStepId, entities, entityMap)) {
     for (const prop of props) {
       const value = parseTypedValue(prop.args[2] || '');
       if (typeof value !== 'number' || !Number.isInteger(value)) continue;
@@ -2210,14 +2191,8 @@ function extractCalendarHourMode(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
 ): boolean {
-  for (const rel of entities) {
-    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
-    if (!parseRefs(rel.args[4] || '').includes(calStepId)) continue;
-    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
-    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
-    for (const propRef of parseRefs(pset.args[4] || '')) {
-      const prop = entityMap.get(propRef);
-      if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+  for (const props of opsCalendarPsetProps(calStepId, entities, entityMap)) {
+    for (const prop of props) {
       if (stripQuotes(prop.args[0] || '') !== 'IsHourCalendar') continue;
       if (parseTypedValue(prop.args[2] || '') === true) return true;
     }
@@ -2247,17 +2222,7 @@ function extractCalendarExceptionMetadata(
   p6NonWorkPenaltyDates?: string[];
   p6NonWorkPenaltyDatesState?: import('@/types/calendar').P6NonWorkPenaltyDatesState;
 } {
-  for (const rel of entities) {
-    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
-    const objectRefs = parseRefs(rel.args[4] || '');
-    if (!objectRefs.includes(calStepId)) continue;
-    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
-    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
-
-    const props = parseRefs(pset.args[4] || '')
-      .map(r => entityMap.get(r))
-      .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
-
+  for (const props of opsCalendarPsetProps(calStepId, entities, entityMap)) {
     const result: {
       workingExceptionIds?: Set<string>;
       p6Source?: 'XER';
@@ -2721,7 +2686,7 @@ function extractAssignments(
         if (typeof value !== 'string') continue;
         const [unitsRaw, curveRaw] = value.split('|');
         const unitsPerDay = parseFloat(unitsRaw);
-        const curve = VALID_CURVES.includes(curveRaw as ResourceCurve) ? (curveRaw as ResourceCurve) : undefined;
+        const curve = isResourceCurve(curveRaw) ? curveRaw : undefined;
         const meta: AssignmentMeta = { unitsPerDay: Number.isFinite(unitsPerDay) ? unitsPerDay : 1, curve };
         // `#` komt nooit voor in een IFC-GlobalId (charset [0-9A-Za-z_$]), dus een
         // `GUID#N`-match is eenduidig nieuw formaat; al het andere is legacy kale-GUID.
@@ -2811,26 +2776,6 @@ function remapLevelingResourceIds(options: ProjectSchedulingOptions, resourceGui
   for (const entry of options.leveling?.resources ?? []) {
     const mapped = resourceGuidMap.get(ifcGuid(entry.resourceId));
     if (mapped) entry.resourceId = mapped;
-  }
-}
-
-/**
- * Fase 3 (H2) — `task.resourceIds` reconstrueren uit de assignments. Het IFC-bestand slaat de
- * taak↔resource-koppeling uitsluitend op via de `ResourceAssignment`s (IFCRELASSIGNSTOPROCESS +
- * OPS_Assignments); `resourceIds` is een afgeleide projectie daarvan en wordt NIET los in het
- * bestand bewaard (geen dubbele opslag/waarheid). Volgorde is deterministisch: eerste-zien in de
- * assignments-volgorde, met deduplicatie (één resource kan meerdere assignments op één taak hebben).
- */
-function reconstructResourceIds(tasks: Task[], assignments: ResourceAssignment[]): void {
-  const byTask = new Map<string, string[]>();
-  for (const a of assignments) {
-    let list = byTask.get(a.taskId);
-    if (!list) { list = []; byTask.set(a.taskId, list); }
-    if (!list.includes(a.resourceId)) list.push(a.resourceId);
-  }
-  for (const t of tasks) {
-    const ids = byTask.get(t.id);
-    if (ids) t.resourceIds = ids;
   }
 }
 

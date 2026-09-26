@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { X, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { displayDate } from '@/utils/displayDate';
-import { Dialog } from '@/components/common/Dialog';
+import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { ConfirmDialog } from './ConfirmDialog';
 
 /**
@@ -58,14 +58,7 @@ export function BaselineDialog() {
       onCancel={close}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
     >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
-            {t('baseline.dialog.title')}
-          </span>
-          <button onClick={close} className="p-1 hover:bg-surface-hover rounded-[8px]">
-            <X size={16} />
-          </button>
-        </div>
+        <DialogHeader title={t('baseline.dialog.title')} onClose={close} />
 
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
           {/* Lijst van baselines */}

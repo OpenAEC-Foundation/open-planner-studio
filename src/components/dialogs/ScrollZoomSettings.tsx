@@ -8,6 +8,7 @@ import type {
   ModifierMap,
   WheelFunction,
 } from '@/state/slices/types';
+import { applySetting } from '@/components/settings/applySetting';
 
 // The three assignable controls (keys of ModifierMap).
 type ControlKey = keyof ModifierMap; // 'plain' | 'ctrl' | 'shift'
@@ -33,20 +34,14 @@ function controlForFunction(map: ModifierMap, fn: WheelFunction): ControlKey {
 
 export function ScrollZoomSettings() {
   const { t } = useTranslation('common');
-  const setUI = useAppStore(s => s.setUI);
   const scrollMode = useAppStore(s => s.ui.scrollMode);
   const positionDivision = useAppStore(s => s.ui.positionDivision);
   const modifierMap = useAppStore(s => s.ui.modifierMap);
 
-  const setMode = (mode: ScrollMode) => {
-    setUI({ scrollMode: mode });
-    void saveZoomSettings({ scrollMode: mode });
-  };
+  const setMode = (mode: ScrollMode) => applySetting('scrollMode', mode, v => saveZoomSettings({ scrollMode: v }));
 
-  const setDivision = (division: PositionDivision) => {
-    setUI({ positionDivision: division });
-    void saveZoomSettings({ positionDivision: division });
-  };
+  const setDivision = (division: PositionDivision) =>
+    applySetting('positionDivision', division, v => saveZoomSettings({ positionDivision: v }));
 
   // Assign `control` to `targetFn`, swapping with whatever control currently
   // owns `targetFn` so the map stays a strict bijection. Because each function
@@ -59,8 +54,7 @@ export function ScrollZoomSettings() {
     const next: ModifierMap = { ...modifierMap };
     next[control] = targetFn;
     next[displaced] = currentFn; // swap
-    setUI({ modifierMap: next });
-    void saveZoomSettings({ modifierMap: next });
+    applySetting('modifierMap', next, v => saveZoomSettings({ modifierMap: v }));
   };
 
   return (

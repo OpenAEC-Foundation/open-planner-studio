@@ -16,6 +16,7 @@ import { documentTitle, untitledOrdinals, displayDocumentTitle, DOC_PALETTE } fr
 import { xerProjectCode } from '@/utils/xerDocumentName';
 import { maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
 import { parseDate, formatDate, addCalendarDays, diffDays } from '@/utils/dateUtils';
+import { StatusBanner } from './StatusBanner';
 
 /** Maximaal getoonde conflictdatums in de badge-tooltip/subregel (§5: "max. ~5, dan …"). */
 const MAX_CONFLICT_DATES_SHOWN = 5;
@@ -361,54 +362,23 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
   return (
     <div className="flex-1 overflow-auto" data-ops-occupancy-view>
       {anyUncountedStale ? (
-        // Vangnetpad (§4.3): minstens één booking telt niet mee — een echte waarschuwing. Zelfde
-        // vorm als de Bibliotheekweergave-hint: semantische --warning-token + per-thema
-        // --theme-warning-text, leesbaar in alle drie de thema's.
-        <div
-          className="flex items-center gap-2 mx-2 mt-2 px-2.5 py-1.5 rounded-[8px] border font-medium"
-          style={{
-            background: 'color-mix(in srgb, var(--warning) 14%, transparent)',
-            borderColor: 'var(--warning)',
-            color: 'var(--theme-warning-text)',
-          }}
-          role="alert"
-          data-ops-occupancy-stale-banner
-        >
-          <AlertTriangle size={14} className="shrink-0" aria-hidden />
-          <span>{t('resource.occupancy.staleBanner')}</span>
-        </div>
+        // Vangnetpad (§4.3): minstens één booking telt niet mee — een echte waarschuwing, zelfde
+        // vorm als de Bibliotheekweergave-hint.
+        <StatusBanner tone="warning" bannerProps={{ 'data-ops-occupancy-stale-banner': true }}>
+          {t('resource.occupancy.staleBanner')}
+        </StatusBanner>
       ) : anyStaleAsShown ? (
         // Perf-poort: minstens één document telt mee met zijn LAATST BEREKENDE cijfers (het actieve
-        // document, dat hier bewust niet efemeer wordt doorgerekend). Informatief, dim-stijl —
-        // dezelfde vorm als de "alvast doorgerekend"-banner hieronder.
-        <div
-          className="flex items-center gap-2 mx-2 mt-2 px-2.5 py-1.5 rounded-[8px] border font-medium text-text-secondary"
-          style={{
-            background: 'color-mix(in srgb, var(--theme-text-dim) 12%, transparent)',
-            borderColor: 'var(--theme-text-dim)',
-          }}
-          role="status"
-          data-ops-occupancy-stale-as-shown-banner
-        >
-          <AlertTriangle size={14} className="shrink-0" aria-hidden />
-          <span>{t('resource.occupancy.staleAsShownBanner')}</span>
-        </div>
+        // document, dat hier bewust niet efemeer wordt doorgerekend). Informatief.
+        <StatusBanner tone="dim" bannerProps={{ 'data-ops-occupancy-stale-as-shown-banner': true }}>
+          {t('resource.occupancy.staleAsShownBanner')}
+        </StatusBanner>
       ) : anyCountedStale && (
         // §4.3b: alle stale documenten in dit overzicht zijn efemeer doorgerekend en tellen gewoon
-        // mee — informatief, geen fout. Zelfde vorm als hierboven, maar met de bestaande "dim"-stijl
-        // (--theme-text-dim / text-text-secondary) in plaats van de waarschuwingskleur.
-        <div
-          className="flex items-center gap-2 mx-2 mt-2 px-2.5 py-1.5 rounded-[8px] border font-medium text-text-secondary"
-          style={{
-            background: 'color-mix(in srgb, var(--theme-text-dim) 12%, transparent)',
-            borderColor: 'var(--theme-text-dim)',
-          }}
-          role="status"
-          data-ops-occupancy-stale-computed-banner
-        >
-          <AlertTriangle size={14} className="shrink-0" aria-hidden />
-          <span>{t('resource.occupancy.staleComputedBanner')}</span>
-        </div>
+        // mee — informatief, geen fout.
+        <StatusBanner tone="dim" bannerProps={{ 'data-ops-occupancy-stale-computed-banner': true }}>
+          {t('resource.occupancy.staleComputedBanner')}
+        </StatusBanner>
       )}
 
       {rows.length === 0 ? (

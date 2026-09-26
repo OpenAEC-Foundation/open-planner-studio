@@ -38,6 +38,8 @@ import type {
 } from '@/types/task';
 import { TASK_TYPES } from '@/types/task';
 import type { CustomTaskType } from '@/types/taskType';
+import { isRecord } from '@/utils/guards';
+import { customTaskTypeClashes } from '@/services/taskTypes/customTaskTypeRules';
 import { WORK_RULES, type WorkRule } from '@/types/workRule';
 
 // --- Patch-vorm ----------------------------------------------------------------------------------
@@ -197,13 +199,9 @@ function isIsoDate(v: unknown): v is string {
   return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}([T ].*)?$/.test(v) && !Number.isNaN(new Date(v).getTime());
 }
 
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
-
 /** Validatie van één `constraint`-object (fase 2.3/2.9-semantiek). */
 function parseConstraint(raw: unknown): { ok: true; value: TaskConstraint } | { ok: false; reason: string } {
-  if (!isPlainObject(raw)) return { ok: false, reason: '`constraint` moet een object zijn ({ type, date?, hard? }) of null om te wissen' };
+  if (!isRecord(raw)) return { ok: false, reason: '`constraint` moet een object zijn ({ type, date?, hard? }) of null om te wissen' };
   const type = raw.type;
   if (typeof type !== 'string' || !(CONSTRAINT_TYPES as string[]).includes(type)) {
     return { ok: false, reason: `\`constraint.type\` moet één van ${CONSTRAINT_TYPES.join(' | ')} zijn` };
@@ -245,7 +243,7 @@ function parseConstraint(raw: unknown): { ok: true; value: TaskConstraint } | { 
  * achterlaat.
  */
 export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldResult {
-  if (!isPlainObject(raw)) return { ok: false, reason: '`fields` moet een object zijn' };
+  if (!isRecord(raw)) return { ok: false, reason: '`fields` moet een object zijn' };
   const keys = Object.keys(raw);
   if (keys.length === 0) return { ok: false, reason: '`fields` is leeg' };
 
@@ -314,7 +312,7 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
   }
   if ('customTaskType' in raw) {
     const value = raw.customTaskType;
-    if (!isPlainObject(value) || typeof value.id !== 'string' || typeof value.name !== 'string'
+    if (!isRecord(value) || typeof value.id !== 'string' || typeof value.name !== 'string'
       || value.id.trim() === '' || value.name.trim() === '') {
       return { ok: false, reason: '`customTaskType` moet { id, name } met niet-lege strings zijn' };
     }
@@ -322,14 +320,12 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
       return { ok: false, reason: '`customTaskType` vereist taskType USERDEFINED (of laat taskType weg)' };
     }
     const candidate = { id: value.id.trim(), name: value.name.trim() };
-    const existing = ctx.customTaskTypes.find(type => type.id === candidate.id);
-    if (existing && existing.name !== candidate.name) {
-      return { ok: false, reason: `customTaskType-id '${candidate.id}' bestaat al met projectsnapshot '${existing.name}'` };
+    const { sameId, sameNameOtherId } = customTaskTypeClashes(ctx.customTaskTypes, candidate);
+    if (sameId && sameId.name !== candidate.name) {
+      return { ok: false, reason: `customTaskType-id '${candidate.id}' bestaat al met projectsnapshot '${sameId.name}'` };
     }
-    const sameName = ctx.customTaskTypes.find(type => type.id !== candidate.id
-      && type.name.localeCompare(candidate.name, undefined, { sensitivity: 'accent' }) === 0);
-    if (sameName) {
-      return { ok: false, reason: `customTaskType-naam '${candidate.name}' bestaat al met id '${sameName.id}'` };
+    if (sameNameOtherId) {
+      return { ok: false, reason: `customTaskType-naam '${candidate.name}' bestaat al met id '${sameNameOtherId.id}'` };
     }
     customTaskType = candidate;
     top.taskType = 'USERDEFINED';
@@ -454,7 +450,7 @@ export type ProgressParseResult =
  * Die vorm wordt hier naar een expliciete `undefined` genormaliseerd, zodat de sleutel aanwezig blijft.
  */
 export function parseProgress(raw: unknown): ProgressParseResult {
-  if (!isPlainObject(raw)) return { ok: false, reason: '`progress` moet een object zijn ({ completion?, actualStart?, actualFinish? })' };
+  if (!isRecord(raw)) return { ok: false, reason: '`progress` moet een object zijn ({ completion?, actualStart?, actualFinish? })' };
   const keys = Object.keys(raw);
   const allowed = PROGRESS_FIELD_NAMES.join(', ');
   if (keys.length === 0) {

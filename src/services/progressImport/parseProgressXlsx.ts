@@ -32,23 +32,13 @@ import {
   type XlsxRow,
 } from '@/services/xlsx/readXlsxSheet';
 import { serialToIso } from '@/services/xlsx/serialDate';
-import { boundedCell, hasControlChar, mapColumnIndex } from './sheetColumns';
+import { collectProgressRows, mapColumnIndex, progressHeaderIssue, refuseSheet } from './sheetColumns';
 import {
   PROGRESS_IMPORT_LIMITS,
   type ProgressFileIssue,
+  type ProgressImportLimits,
   type ProgressSheet,
-  type RawDateCell,
-  type RawProgressRow,
 } from './types';
-import type { ProgressImportLimits } from './parseProgressCsv';
-
-/** Spiegelt `parseProgressCsv`'s `boundedTaskId`: een te lang id of een id met een stuurteken telt
- *  als AFWEZIG — nooit afgekapt, want een afgekapt id kan een andere taak matchen dan bedoeld. */
-function boundedTaskId(raw: string | undefined, maxChars: number): string | undefined {
-  const trimmed = boundedCell(raw, maxChars);
-  if (trimmed === undefined) return undefined;
-  return hasControlChar(trimmed) ? undefined : trimmed;
-}
 
 /** Elke leesfout van de generieke lezer krijgt de voortgangs-eigen naam. */
 function fileIssueFor(issue: XlsxReadIssue): ProgressFileIssue {
@@ -61,10 +51,6 @@ function fileIssueFor(issue: XlsxReadIssue): ProgressFileIssue {
     // aan doen (K8: geen nutteloze melding op een bestand dat gewoon een wachtwoord heeft).
     default: return 'unreadable';
   }
-}
-
-function refuse(fileIssue: ProgressFileIssue): ProgressSheet {
-  return { fileIssue, rawRows: [], detectionCells: [] };
 }
 
 /**
@@ -109,7 +95,7 @@ export async function parseProgressXlsx(
   limits: ProgressImportLimits = PROGRESS_IMPORT_LIMITS,
 ): Promise<ProgressSheet> {
   // Grens vóór allocatie (hardening-checklist).
-  if (bytes.byteLength > limits.maxBytes) return refuse('tooLarge');
+  if (bytes.byteLength > limits.maxBytes) return refuseSheet('tooLarge');
 
   let sheet;
   try {
@@ -120,73 +106,20 @@ export async function parseProgressXlsx(
       maxRows: limits.maxRows + 1,
     });
   } catch (err) {
-    return refuse(err instanceof XlsxReadError ? fileIssueFor(err.issue) : 'unreadable');
+    return refuseSheet(err instanceof XlsxReadError ? fileIssueFor(err.issue) : 'unreadable');
   }
 
   const nonEmpty = sheet.rows.filter(row => row.cells.length > 0);
-  if (nonEmpty.length === 0) return refuse('noKeyColumn');
+  if (nonEmpty.length === 0) return refuseSheet('noKeyColumn');
 
-  const headerRow = nonEmpty[0]!;
-  const colMap = mapColumnIndex(rowTexts(headerRow, sheet.epoch1904));
-
-  const hasKeyColumn = colMap.taskId !== undefined || colMap.wbs !== undefined;
-  if (!hasKeyColumn) return refuse('noKeyColumn');
-
-  const hasProgressColumn = colMap.completion !== undefined
-    || colMap.actualStart !== undefined || colMap.actualFinish !== undefined;
-  if (!hasProgressColumn) return refuse('noProgressColumns');
-
+  const colMap = mapColumnIndex(rowTexts(nonEmpty[0]!, sheet.epoch1904));
   const dataRows = nonEmpty.slice(1);
-  // Rij-aantal getoetst vóórdat er ook maar één datarij geparsed wordt.
-  if (dataRows.length > limits.maxRows) return refuse('tooManyRows');
+  const headerIssue = progressHeaderIssue(colMap, dataRows.length, limits);
+  if (headerIssue) return refuseSheet(headerIssue);
 
-  const rawRows: RawProgressRow[] = [];
-  const detectionCells: RawDateCell[] = [];
-
-  for (const row of dataRows) {
-    const rowNumber = row.rowNumber;
-    const texts = rowTexts(row, sheet.epoch1904);
-    const at = (key: string): string | undefined => {
-      const idx = colMap[key];
-      return idx === undefined ? undefined : texts[idx];
-    };
-
-    const taskId = boundedTaskId(at('taskId'), limits.maxIdChars);
-    const wbsCode = boundedCell(at('wbs'), limits.maxWbsChars);
-    const name = boundedCell(at('name'), limits.maxCellChars);
-    const rawCompletion = boundedCell(at('completion'), limits.maxCellChars);
-    const rawActualStart = boundedCell(at('actualStart'), limits.maxCellChars);
-    const rawActualFinish = boundedCell(at('actualFinish'), limits.maxCellChars);
-    const startCell = boundedCell(at('start'), limits.maxCellChars);
-    const finishCell = boundedCell(at('finish'), limits.maxCellChars);
-
-    rawRows.push({
-      rowNumber,
-      ...(taskId !== undefined ? { taskId } : {}),
-      ...(wbsCode !== undefined ? { wbsCode } : {}),
-      ...(name !== undefined ? { name } : {}),
-      ...(rawCompletion !== undefined ? { rawCompletion } : {}),
-      ...(rawActualStart !== undefined ? { rawActualStart } : {}),
-      ...(rawActualFinish !== undefined ? { rawActualFinish } : {}),
-    });
-
-    // A5.2/A5.4: `taskId` op een detectiecel alleen bij een harde id-treffer van DEZE rij.
-    // `start`/`finish` landen UITSLUITEND hier — er bestaat geen veld in `RawProgressRow` dat ze
-    // zou kunnen dragen, en dat is de structurele garantie dat ze nooit geschreven worden.
-    const detectionTaskId = taskId !== undefined ? { taskId } : {};
-    if (rawActualStart !== undefined) {
-      detectionCells.push({ rowNumber, field: 'actualStart', raw: rawActualStart, ...detectionTaskId });
-    }
-    if (rawActualFinish !== undefined) {
-      detectionCells.push({ rowNumber, field: 'actualFinish', raw: rawActualFinish, ...detectionTaskId });
-    }
-    if (startCell !== undefined) {
-      detectionCells.push({ rowNumber, field: 'start', raw: startCell, ...detectionTaskId });
-    }
-    if (finishCell !== undefined) {
-      detectionCells.push({ rowNumber, field: 'finish', raw: finishCell, ...detectionTaskId });
-    }
-  }
-
-  return { rawRows, detectionCells };
+  return collectProgressRows(
+    dataRows.map(row => ({ rowNumber: row.rowNumber, texts: rowTexts(row, sheet.epoch1904) })),
+    colMap,
+    limits,
+  );
 }

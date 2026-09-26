@@ -1,4 +1,4 @@
-import { Task, TaskConstraint, ConstraintType, MilestoneKind } from '@/types/task';
+import { Task, TaskConstraint, ConstraintType, type MilestoneKind } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment } from '@/types/resource';
 import { Project } from '@/types/project';
@@ -6,14 +6,16 @@ import { WorkCalendar } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
-import { formatDate, formatInstant, parseInstant, parseDate, isoDayOfWeek } from '@/utils/dateUtils';
-import { normalizeImportedProgress, deriveImportedWorkRules, rebuildImportedHierarchy } from '@/services/importNormalize';
-import { emptyMissingScheduleDates, isoDatePrefixOrToday, resolveMissingScheduleDates } from '@/services/importDates';
+import { parseInstant, parseDate } from '@/utils/dateUtils';
+import { normalizeImportedProgress, deriveImportedWorkRules, rebuildImportedHierarchy, reconstructResourceIds } from '@/services/importNormalize';
+import { emptyMissingScheduleDates, importDateTime, isoDatePrefixOrToday, resolveMissingScheduleDates } from '@/services/importDates';
 import { tenthsOfMinutesToDays } from '@/services/importDurations';
 import { descendantText, toInt, toFloat } from '@/services/xmlDom';
 import type { ImportResult } from '@/services/importTypes';
 import type { CustomTaskType } from '@/types/taskType';
 import {
+  MSP_LINK_TYPE_CODE,
+  OPS_CUSTOM_TASK_TYPE_FIELD_ID,
   OPS_DURATION_UNIT_FIELD_ID,
   OPS_DURATION_UNIT_LEGACY_FIELD_ID,
   OPS_DURATION_UNIT_FIELD_NAME,
@@ -21,13 +23,15 @@ import {
   OPS_MILESTONE_KIND_FIELD_NAME,
   WORKCONTOUR_TO_CURVE,
 } from './mspdiWriter';
+import { invertRecord } from '@/utils/collections';
 import {
-  canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isSubDayMinutes,
-  promoteHourCalendar, registerCalendarBands,
+  DAY_TIME_ANCHOR, decodeCustomTaskType,
+} from '@/services/xmlInterchange';
+import {
+  canonicalizeBands, clockToMinutes, hasNonAnchorTime, isSubDayMinutes,
+  milestoneKindAt, promoteHourCalendars, registerCalendarBands,
 } from '@/services/subdayIo';
 
-const OPS_CUSTOM_TASK_TYPE_FIELD_ID = '188743731';
-const OPS_CUSTOM_TASK_TYPE_MARKER = 'OpenPlannerStudio.CustomTaskType.v1';
 // T4 (MSPDI-uitzonderingssemantiek, spiegel van T3) — hergebruikt T3's `buildContributions`
 // (record-opbouw MET budget-klem TIJDENS de opbouw, niet pas erna) en `resolveContributions`
 // (precedentie-/invariant-motor) rechtstreeks i.p.v. een tweede expansie te bouwen (plan-§T4).
@@ -63,15 +67,12 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { MSPDI_WORKCONTOUR_CONTOURED } from '@/engine/contour/contourEngine';
 import {
-  absoluteItemsToContourPeriods, mspdiValueToMinutes, splitGapsFromContours, type AbsoluteWorkItem,
+  absoluteItemsToContourPeriods, attachContours, collectContour, mspdiValueToMinutes, type AbsoluteWorkItem,
 } from '@/services/contourIo';
 import type { TaskTimephasedContour } from '@/types/task';
 import { importedWorkFields, mspTaskTypeFromCode } from '@/engine/work/workRuleMapping';
 import { taskWorkMinutes } from '@/engine/contour/contourEngine';
 import { buildRecordedTime, leafRecordedTimes, recordedFloatDays, type RecordedTime } from '@/engine/scheduler/recordedDates';
-
-/** Synthetisch anker dat de DAG-schrijver op date-only datetimes plakt (§7.3). */
-const MSP_TIME_ANCHOR = '08:00:00';
 
 function taskDurationType(te: Element): 'WORKTIME' | 'ELAPSEDTIME' {
   const format = Number.parseInt(getElementText(te, 'DurationFormat'), 10);
@@ -178,65 +179,18 @@ function getElementFloat(parent: Element, tagName: string, fallback = 0): number
   return toFloat(getElementText(parent, tagName), fallback);
 }
 
-/** T4 (§9/O6-vervolg) — MSPDI-spiegel van mppReader.ts's `deriveMilestoneKind` (T11, `fb385191`,
- *  vervolgens `c0c2cd27` — beide niet geëxporteerd daar; dit bestand zit buiten T4's exclusieve
- *  scope om te wijzigen, dus hier lokaal herhaald): een UUR-modus-mijlpaal krijgt `milestoneKind`
- *  wanneer het opgeslagen anker exact op een bandgrens van de EFFECTIEVE (gepromoveerde) kalender
- *  ligt — bandbegin ⇒ `'START'`, bandeinde (vandaag, of gisteren over middernacht) ⇒ `'FINISH'`.
- *  Kijkt uitsluitend naar de kalender-eigen weekdagbanden (`cal.workTime.byWeekday`), geen holiday-/
- *  werkuitzondering-materialisatie (dat is `CalendarEngine`'s taak in de solver, buiten deze lezer
- *  se scope).
- *
- *  SPEC-REVIEW-FIX (should-fix, op 3dd6c3ba) — deze spiegel citeerde `fb385191` maar miste
- *  `c0c2cd27` (6 minuten later gecommit, dus vóór 3dd6c3ba al bestaand): de GISTEREN-tak gebruikte
- *  hier nog de VERVANGEN, STRIKTE `b.end > 1440` i.p.v. mppReader.ts's gecorrigeerde `b.end >= 1440`
- *  — een band die EXACT om middernacht eindigt (`end === 1440`, bv. een ploegendienst 20:00–24:00;
- *  `resolveOneDay`/`applyCalendarBody` bouwen zo'n band zonder clamp, dus een normale vorm, geen
- *  theoretisch randgeval) gaf hier `undefined` waar MPP al `'FINISH'` gaf sinds `c0c2cd27` — een
- *  pariteitsregressie tussen de twee MS-Project-lezers. Fix: `>=`; `b.end - 1440` blijft dan `0` en
- *  matcht correct met `minuteOfDay` van een 00:00-anker de dag erna. Twee aangrenzende banden zonder
- *  pauze ertussen (bandeinde van de ene band == bandbegin van de andere, op dezelfde dag) zijn een
- *  gedegenereerd geval dat hier als `'START'` uitvalt (de bandbegin-check loopt eerst) — onschadelijk:
- *  bij een pauzeloze aaneensluiting is het gat tussen de banden nul, dus of het anker als START van
- *  de tweede band of als FINISH van de eerste wordt geclassificeerd maakt voor de datumberekening
- *  niets uit. */
-function deriveMspdiMilestoneKind(cal: WorkCalendar, anchor: Date): MilestoneKind | undefined {
-  const bands = cal.workTime;
-  if (!bands) return undefined;
-  const wd = isoDayOfWeek(anchor) as 1 | 2 | 3 | 4 | 5 | 6 | 7;
-  const prevWd = (((wd + 5) % 7) + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7; // wd - 1, gewrapt naar 1..7
-  const minuteOfDay = anchor.getUTCHours() * 60 + anchor.getUTCMinutes();
-  const todays = bands.byWeekday[wd] ?? [];
-  for (const b of todays) {
-    if (b.start === minuteOfDay) return 'START';
-  }
-  for (const b of todays) {
-    if (b.end === minuteOfDay) return 'FINISH';
-  }
-  const yesterdays = bands.byWeekday[prevWd] ?? [];
-  for (const b of yesterdays) {
-    if (b.end >= 1440 && b.end - 1440 === minuteOfDay) return 'FINISH';
-  }
-  return undefined;
-}
-
 /** MS Project-datum in DAG-modus (`2026-03-09T08:00:00` → `2026-03-09`); gedeeld met P6 (F5-a). */
 function parseMSPDate(s: string): string {
   return isoDatePrefixOrToday(s);
 }
 
-/** Datum uit MSPDI in UUR-modus: echte tijd-van-de-dag behouden (`parseInstant`+`formatInstant`, §7.3). */
-function parseMSPInstant(s: string): string {
-  if (!s) return formatDate(new Date());
-  return formatInstant(parseInstant(s), 'hour');
-}
-
-/** ISO-8601-duur met tijdcomponent (`PT{H}H{M}M{S}S`) → minuten; `null` als er geen tijdcomponent is. */
+/** ISO-8601-duur met tijdcomponent (`PT{H}H{M}M{S}S`) → minuten; `null` als er geen tijdcomponent is.
+ *  Decimalen (`PT22.5H`) zijn toegestaan: ISO 8601 staat ze toe en oudere OPS-exports schreven ze. */
 function mspDurationMinutes(s: string): number | null {
   if (!s) return null;
-  const m = s.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  const m = s.match(/PT(?:(\d+(?:\.\d+)?)H)?(?:(\d+(?:\.\d+)?)M)?(?:(\d+(?:\.\d+)?)S)?/);
   if (!m || (!m[1] && !m[2] && !m[3])) return null;
-  return (parseInt(m[1] || '0', 10)) * 60 + parseInt(m[2] || '0', 10) + Math.round(parseInt(m[3] || '0', 10) / 60);
+  return Math.round(parseFloat(m[1] || '0') * 60 + parseFloat(m[2] || '0') + parseFloat(m[3] || '0') / 60);
 }
 
 /**
@@ -261,34 +215,21 @@ function readOpsCustomTaskType(task: Element): { id: string; name?: string } | u
   const attrs = task.getElementsByTagName('ExtendedAttribute');
   for (const attr of attrs) {
     if (attr.parentElement !== task || getElementText(attr, 'FieldID') !== OPS_CUSTOM_TASK_TYPE_FIELD_ID) continue;
-    try {
-      const raw: unknown = JSON.parse(getElementText(attr, 'Value'));
-      if (raw && typeof raw === 'object'
-        && (raw as { ops?: unknown }).ops === OPS_CUSTOM_TASK_TYPE_MARKER
-        && typeof (raw as { id?: unknown }).id === 'string') {
-        const id = (raw as { id: string }).id.trim();
-        const name = typeof (raw as { name?: unknown }).name === 'string'
-          ? (raw as { name: string }).name.trim()
-          : '';
-        if (id) return { id, ...(name ? { name } : {}) };
-      }
-    } catch { /* vreemde vrije attributen zijn geen taaktype */ }
+    // Vreemde vrije attributen zijn geen taaktype; zoek dan door naar een volgende.
+    const decoded = decodeCustomTaskType(getElementText(attr, 'Value'));
+    if (decoded) return decoded;
   }
   return undefined;
 }
+
+const SEQUENCE_TYPE_BY_MSP_CODE: Partial<Record<number, SequenceType>> = invertRecord(MSP_LINK_TYPE_CODE);
 
 /** Geëxporteerd (fase 3.8 e1, T7) zodat `mppReader.ts`'s TBkndCons-relatielezer exact dezelfde
  *  code-tabel gebruikt i.p.v. een eigen kopie — MPXJ's `RelationType.getInstance` (ConstraintFactory
  *  .java) gebruikt letterlijk dezelfde 0=FF/1=FS/2=SF/3=SS-codering met dezelfde FS-terugval voor
  *  een onbekende/buiten-bereik-waarde, dus hergebruik i.p.v. spiegelen is hier de correcte poort. */
 export function mspTypeToSequenceType(type: number): SequenceType {
-  switch (type) {
-    case 0: return 'FINISH_FINISH';
-    case 1: return 'FINISH_START';
-    case 2: return 'START_FINISH';
-    case 3: return 'START_START';
-    default: return 'FINISH_START';
-  }
+  return SEQUENCE_TYPE_BY_MSP_CODE[type] ?? 'FINISH_START';
 }
 
 /**
@@ -417,9 +358,7 @@ export function readMSPDI(content: string): ImportResult {
   // Fase 2.8b (§7.3): uur-modus-beslissing per kalender (discriminator a/b/c) vóór het bouwen van de
   // taken. `effCalIdOfUid` geeft per taak de effectieve kalender-id (CalendarUID 1/ontbrekend =
   // projectkalender). `taskHourById` voedt de lag-eenheid-keuze verderop.
-  const calById = new Map<string, WorkCalendar>();
-  calById.set(calendar.id, calendar);
-  for (const c of resourceCalendars) calById.set(c.id, c);
+  const calById = new Map<string, WorkCalendar>([calendar, ...resourceCalendars].map(c => [c.id, c]));
   const effCalIdOfUid = (calUid: number): string => (calUid > 1 && calUidToId.get(calUid)) || calendar.id;
   const taskHourById = new Map<string, boolean>();
 
@@ -432,18 +371,13 @@ export function readMSPDI(content: string): ImportResult {
     if (!cal) continue;
     const durMin = mspDurationMinutes(getElementText(te, 'Duration'));
     const durSignal = durMin != null && isSubDayMinutes(durMin, cal.hoursPerDay);
-    const dateSignal = hasNonAnchorTime(getElementText(te, 'Start'), MSP_TIME_ANCHOR)
-      || hasNonAnchorTime(getElementText(te, 'Finish'), MSP_TIME_ANCHOR);
+    const dateSignal = hasNonAnchorTime(getElementText(te, 'Start'), DAY_TIME_ANCHOR)
+      || hasNonAnchorTime(getElementText(te, 'Finish'), DAY_TIME_ANCHOR);
     if (durSignal || dateSignal) cSignalCalIds.add(calId);
   }
   // MSPDI valt terug op de scalar-synth zodra de geregistreerde canonical geen werkdag draagt
   // (preferCanonicalWhenEmpty = false) — zie de F5-noot bij `promoteHourCalendar`.
-  const hourModeCalIds = new Set<string>();
-  for (const [id, cal] of calById) {
-    if (promoteHourCalendar(cal, getCalendarBands(cal), cSignalCalIds.has(id), false)) {
-      hourModeCalIds.add(id);
-    }
-  }
+  const hourModeCalIds = promoteHourCalendars(calById, id => cSignalCalIds.has(id), false);
 
   for (let i = 0; i < taskElements.length; i++) {
     const te = taskElements[i];
@@ -488,8 +422,8 @@ export function readMSPDI(content: string): ImportResult {
       : parseMSPDuration(durationStr, effHpd);
     const startRaw = getElementText(te, 'Start');
     const finishRaw = getElementText(te, 'Finish');
-    const start = isHour ? parseMSPInstant(startRaw) : parseMSPDate(startRaw);
-    const finish = isHour ? parseMSPInstant(finishRaw) : parseMSPDate(finishRaw);
+    const start = importDateTime(startRaw, isHour);
+    const finish = importDateTime(finishRaw, isHour);
     // Ontbrekende Start/Finish: plaatshouder hierboven, vervangen door `resolveMissingScheduleDates`.
     if (!startRaw) missingDates.start.add(id);
     if (!finishRaw) missingDates.finish.add(id);
@@ -501,7 +435,7 @@ export function readMSPDI(content: string): ImportResult {
     // byte-identiek. Ontbrekende assen ontbreken.
     {
       const recordedDate = (raw: string): string | undefined =>
-        raw ? (isHour ? parseMSPInstant(raw) : parseMSPDate(raw)) : undefined;
+        raw ? importDateTime(raw, isHour) : undefined;
       const slackDays = (raw: string): number | undefined => {
         if (!raw) return undefined;
         const tenths = Number.parseFloat(raw);
@@ -524,7 +458,7 @@ export function readMSPDI(content: string): ImportResult {
     const isMilestone = getElementInt(te, 'Milestone') === 1;
     // T4 (§9/O6-vervolg) — MSPDI-spiegel van mppReader.ts's T11-afleiding (`fb385191` + de
     // her-reviewfix `c0c2cd27`, niet geëxporteerd daar, dus hier lokaal herhaald in
-    // `deriveMspdiMilestoneKind`, zie die functie se docblock voor de exacte-middernacht-nuance):
+    // `milestoneKindAt`, zie die functie se docblock voor de exacte-middernacht-nuance):
     // een UUR-modus-mijlpaal krijgt `milestoneKind` wanneer het opgeslagen anker (finish, of start als
     // finish ontbreekt, exact op een bandgrens van de EFFECTIEVE (gepromoveerde) kalender ligt.
     // `finish`/`start` zijn al de juiste, per-taakmodus geparste waarden (isHour ⇒
@@ -548,7 +482,7 @@ export function readMSPDI(content: string): ImportResult {
     const milestoneKind = opsMilestoneKind !== undefined
       ? (opsMilestoneKind === 'AUTO' ? undefined : opsMilestoneKind)
       : isMilestone && isHour && durationMinutes === 0 && effCalForMilestone
-        ? deriveMspdiMilestoneKind(effCalForMilestone, parseInstant(finish || start))
+        ? milestoneKindAt(effCalForMilestone, parseInstant(finish || start))
         : undefined;
     const percentComplete = getElementInt(te, 'PercentComplete');
     const priority = getElementInt(te, 'Priority', 500);
@@ -562,19 +496,15 @@ export function readMSPDI(content: string): ImportResult {
     const actualStartRaw = getElementText(te, 'ActualStart');
     const actualFinishRaw = getElementText(te, 'ActualFinish');
     const remainingRaw = getElementText(te, 'RemainingDuration');
-    const actualStart = actualStartRaw ? (isHour ? parseMSPInstant(actualStartRaw) : parseMSPDate(actualStartRaw)) : undefined;
-    const actualFinish = actualFinishRaw ? (isHour ? parseMSPInstant(actualFinishRaw) : parseMSPDate(actualFinishRaw)) : undefined;
+    const actualStart = actualStartRaw ? importDateTime(actualStartRaw, isHour) : undefined;
+    const actualFinish = actualFinishRaw ? importDateTime(actualFinishRaw, isHour) : undefined;
     // RemainingDuration: uur ⇒ minuten; dag ⇒ het bestaande dag-pad.
     const remainingMinutes = durationUnit === 'hours' && remainingRaw ? (mspDurationMinutes(remainingRaw) ?? undefined) : undefined;
     const remainingTime = durationUnit === 'days' && remainingRaw ? parseMSPDuration(remainingRaw, effHpd) : undefined;
 
-    let status: 'NOT_STARTED' | 'STARTED' | 'COMPLETED' = 'NOT_STARTED';
-    if (percentComplete >= 100) status = 'COMPLETED';
-    else if (percentComplete > 0) status = 'STARTED';
-
     // Datum-constraint (fase 2.9, §6): ConstraintType/ConstraintDate. 0/ontbrekend ⇒ geen constraint
     // (default-inert). MSPDI kent geen secundaire constraint. Datum: uur ⇒ echte tijd, dag ⇒ strip.
-    const parseCstrDate = (raw: string): string => isHour ? parseMSPInstant(raw) : parseMSPDate(raw);
+    const parseCstrDate = (raw: string): string => importDateTime(raw, isHour);
     let constraint: TaskConstraint | undefined;
     const cTypeRaw = getElementText(te, 'ConstraintType');
     if (cTypeRaw) {
@@ -617,7 +547,7 @@ export function readMSPDI(content: string): ImportResult {
       wbsCode: wbs,
       taskType: customTaskType ? 'USERDEFINED' : 'CONSTRUCTION',
       ...(customTaskType ? { customTaskTypeId: customTaskType.id } : {}),
-      status,
+      status: 'NOT_STARTED', // afgeleid door normalizeImportedProgress uit completion/actuals
       isMilestone,
       ...(milestoneKind ? { milestoneKind } : {}),
       priority,
@@ -807,27 +737,15 @@ export function readMSPDI(content: string): ImportResult {
           );
           const hasWork = periods.some(p => p.workMinutes > 0);
           const informative = periods.length > 1 || contour === MSPDI_WORKCONTOUR_CONTOURED;
-          if (hasWork && informative) {
-            const list = contoursByTaskId.get(taskId) ?? [];
-            list.push({ resourceUid, resourceId, periods });
-            contoursByTaskId.set(taskId, list);
-          }
+          if (hasWork && informative) collectContour(contoursByTaskId, taskId, { resourceUid, resourceId, periods });
         }
       }
     }
   }
   // Contour-engine: contouren én de daaruit afgeleide werkonderbrekingen op de taken zetten —
-  // dezelfde afleiding als de .mpp-lezer (`splitGapsFromContours`), alleen voor taken die nog geen
-  // gaten dragen (MSPDI kent geen andere split-bron, dus dat is per constructie elke taak).
-  for (const [taskId, contours] of contoursByTaskId) {
-    const task = taskById.get(taskId);
-    if (!task || task.childIds.length > 0) continue;
-    task.timephasedContours = contours;
-    if (!task.splitGaps || task.splitGaps.length === 0) {
-      const gaps = splitGapsFromContours(contours.map(c => c.periods));
-      if (gaps.length > 0) task.splitGaps = gaps;
-    }
-  }
+  // dezelfde afleiding als de .mpp-lezer (MSPDI kent geen andere split-bron).
+  attachContours(taskById, contoursByTaskId);
+  reconstructResourceIds(tasks, assignments);
 
   // Baseline 0 → één actieve OPS-baseline "Baseline (MSPDI)" (fase 2.6, §9.1).
   const baselines: Baseline[] = [];
@@ -878,12 +796,15 @@ export function readMSPDI(content: string): ImportResult {
 }
 
 function parseProject(root: Element): Project {
+  // Een ontbrekende FinishDate blijft leeg (de writer laat hem weg voor een project zonder
+  // einddatum); `parseMSPDate` zou er de datum van vandaag van maken.
+  const finishRaw = getElementText(root, 'FinishDate');
   const project: Project = {
     id: generateId('proj'),
     name: getElementText(root, 'Name') || getElementText(root, 'Title') || 'MS Project Import',
     description: '',
     startDate: parseMSPDate(getElementText(root, 'StartDate')),
-    endDate: parseMSPDate(getElementText(root, 'FinishDate')),
+    endDate: finishRaw ? parseMSPDate(finishRaw) : '',
     calendarId: 'cal-default',
     createdAt: new Date().toISOString(),
     modifiedAt: new Date().toISOString(),

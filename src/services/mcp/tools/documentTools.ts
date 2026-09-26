@@ -30,7 +30,8 @@
 
 import type { AppState } from '@/state/appStore';
 import { bindExpectedDoc, buildEnvelope, guardNonTransactional, mcpDocumentTitle, preBackupGuards, runReadTool, toolError } from './runtime';
-import type { McpContext, McpToolAnnotations, McpToolDef, McpToolErr, McpToolResult } from '../contracts';
+import type { McpContext, McpToolDef, McpToolErr, McpToolResult } from '../contracts';
+import { READ_ANNOTATIONS, WRITE_ANNOTATIONS } from './helpers';
 
 // --- Gedeelde veiligheidsvlag-guard --------------------------------------------------------------
 
@@ -124,16 +125,8 @@ function listDocuments(s: AppState): { activeDocumentId: string; documents: Docu
 
 // --- Annotaties ----------------------------------------------------------------------------------
 
-/** Leestool-annotatie (spec regel 65). `openWorldHint:false`: blijft binnen de app. */
-const DOC_READ_ANNOTATIONS: McpToolAnnotations = {
-  readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: false,
-};
-
-/** Schrijvende document-tool: niet destructief (er gaat geen planningsdata verloren), niet
- *  idempotent (elke aanroep maakt een NIEUW document), binnen de app. */
-const DOC_WRITE_ANNOTATIONS: McpToolAnnotations = {
-  readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false,
-};
+// Schrijvende document-tools gebruiken `WRITE_ANNOTATIONS` ongewijzigd: niet destructief (er gaat
+// geen planningsdata verloren), niet idempotent (elke aanroep maakt een NIEUW document), binnen de app.
 
 // --- Tooldefinities ------------------------------------------------------------------------------
 
@@ -155,7 +148,7 @@ export const documentTools: McpToolDef[] = [
     kind: 'document',
     batchable: false, // spec regel 100: document-tools zijn uitgesloten van batch
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-    annotations: DOC_READ_ANNOTATIONS,
+    annotations: READ_ANNOTATIONS,
     handler: (_args, ctx) => runReadTool(ctx, (s) => listDocuments(s)),
   },
   {
@@ -170,7 +163,7 @@ export const documentTools: McpToolDef[] = [
     kind: 'document',
     batchable: false,
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-    annotations: DOC_WRITE_ANNOTATIONS,
+    annotations: WRITE_ANNOTATIONS,
     handler: (_args, ctx): McpToolResult => {
       // Geen drift-check: een leeg document is onafhankelijk van welk tabblad nu actief is (zie kop).
       const blocked = guardBridgeFlags(ctx);
@@ -209,7 +202,7 @@ export const documentTools: McpToolDef[] = [
       },
       additionalProperties: false,
     },
-    annotations: DOC_WRITE_ANNOTATIONS,
+    annotations: WRITE_ANNOTATIONS,
     handler: (args, ctx): McpToolResult => {
       // VOLLE guard incl. drift: deze tool kopieert de INHOUD van het actieve document — na een
       // tabwissel van de user zou dat stilzwijgend de verkeerde planning zijn.
@@ -261,11 +254,8 @@ export const documentTools: McpToolDef[] = [
       required: ['documentId'],
       additionalProperties: false,
     },
-    annotations: {
-      readOnlyHint: false, destructiveHint: false,
-      idempotentHint: true, // spec regel 65: idempotentHint op o.a. switch_document
-      openWorldHint: false,
-    },
+    // spec regel 65: idempotentHint op o.a. switch_document
+    annotations: { ...WRITE_ANNOTATIONS, idempotentHint: true },
     handler: (args, ctx): McpToolResult => {
       // BEWUST geen drift-check: deze tool ÍS de drift-bevestiging (spec regel 116).
       const blocked = guardBridgeFlags(ctx);

@@ -1,19 +1,21 @@
 /**
- * Toetsenbordnavigatie in tabelvormige editors — de PURE kern, gedeeld door de twee rasters die de
- * app kent (issue #48).
+ * Toetsenbordnavigatie in tabelvormige editors — de PURE kern voor de LIVE rasters (issue #48): de
+ * resourcetabel (`ResourcePanel`) en de fasentabel van `ContourDialog`, allebei via `useLiveGridNav`.
  *
  * De app heeft bewust twee verschillende raster-*mechanieken*, en die zijn niet samen te voegen:
  *
- * - De **takentabel** (`TableEditor`) is een spreadsheet: er is precies ÉÉN bewerk-input tegelijk,
- *   de cursor is React-state (`activeCell`/`editCell`) en de rest van de cellen zijn `<span>`s.
+ * - Het **taakraster** (`FullTaskGrid`/`GanttTaskGrid`, kern in `src/engine/taskGrid/`) is een
+ *   spreadsheet: er is precies ÉÉN editor tegelijk, de cursor is React-state (`selection`/`editing`
+ *   in `TaskGridSurface`) en de overige cellen zijn platte `GridCell`s.
  * - De **resourcetabel** (`ResourcePanel`) is een formulierraster: ELKE cel is altijd een echt
  *   invoerveld/`<select>`. De cursor is daar dus geen state maar de DOM-focus.
  *
- * Wat ze wél delen is de rekensom "welke cel ligt in richting X" en het beleid "welke toets is een
- * navigatie". Precies dat staat hier — headless, zonder React en zonder DOM, zodat
- * `tests/planning/check-grid-nav.ts` het kan afdwingen. De cursor-mechaniek blijft per tabel:
- * `TableEditor` gebruikt `neighbourGridCell` in zijn state-machine, de resourcetabel via
- * `useLiveGridNav` (`components/panels/hooks/`) om de DOM-focus te verzetten.
+ * Het taakraster heeft een eigen puur toetsbeleid (`resolveTaskGridCommand` in
+ * `engine/taskGrid/navigation.ts`, aangeroepen vanuit `DataGridCore`) en deelt met dit bestand
+ * alleen het type `GridKeyEventLike`. Wat hier staat — de rekensom "welke cel ligt in richting X"
+ * en het beleid "welke toets is een navigatie" in een live raster — is headless, zonder React en
+ * zonder DOM, zodat `tests/planning/check-grid-nav.ts` het kan afdwingen. `useLiveGridNav`
+ * (`components/panels/hooks/`) gebruikt het om de DOM-focus te verzetten.
  */
 
 export type GridDirection = 'up' | 'down' | 'left' | 'right';
@@ -25,8 +27,8 @@ export interface GridCellRef<F extends string = string> {
 
 /**
  * Buurcel over (rijen × velden). `null` = geen buur: je staat aan de rand, of de rij/het veld komt
- * niet (meer) in de lijst voor. De aanroeper beslist wat "geen buur" betekent — de takentabel én de
- * resourcetabel maken er allebei "Enter/↓ op de laatste rij ⇒ nieuwe rij" van.
+ * niet (meer) in de lijst voor. De aanroeper beslist wat "geen buur" betekent — `useLiveGridNav`
+ * maakt er met een `onAppendRow` (de resourcetabel) "Enter/↓ op de laatste rij ⇒ nieuwe rij" van.
  */
 export function neighbourGridCell<F extends string>(
   rowIds: readonly string[],
@@ -123,8 +125,8 @@ export interface GridKeyEventLike {
  *   versturen), dus die toets is vrij. Dit is ook precies wat de melder van #48 vroeg.
  * - **↑/↓** navigeren ALLEEN in een tekstveld. In een `<select>` kiezen ze de volgende optie en in
  *   een `<input type=number>` stappen ze de waarde — dat native gedrag afpakken zou de kalender-,
- *   type- en ploegkolom en de max.eenheden-spinner onbruikbaar maken. In de takentabel speelt dat
- *   niet, want daar is de cel in bewerking altijd een gewoon tekstveld.
+ *   type- en ploegkolom en de max.eenheden-spinner onbruikbaar maken. Het taakraster gebruikt dit
+ *   beleid niet; zijn toetsbeleid is `resolveTaskGridCommand`.
  * - Alt/Ctrl/⌘ erbij ⇒ nooit: dat zijn de globale sneltoetsen (in-/uitspringen, zoom).
  */
 export function liveGridNavDirection(e: GridKeyEventLike, control: GridControlKind): 'up' | 'down' | null {

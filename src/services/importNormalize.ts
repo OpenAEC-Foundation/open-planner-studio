@@ -1,4 +1,5 @@
 import type { Task } from '@/types/task';
+import type { ResourceAssignment } from '@/types/resource';
 import { defaultActualFinish, defaultActualStart } from '@/engine/taskMutationRules';
 import { orderActualsAfterDerivedFinish } from '@/engine/actualDatesOrder';
 import { workRuleFromMsp, workRuleFromXerDurationType } from '@/engine/work/workRuleMapping';
@@ -207,4 +208,24 @@ export function rebuildImportedHierarchy(tasks: Task[], levels: readonly (number
   }
   rebuildWbsHierarchy(tasks);
   return 'wbs';
+}
+
+/**
+ * Fase 3 (H2) — `task.resourceIds` reconstrueren uit de assignments. De bestanden slaan de
+ * taak↔resource-koppeling uitsluitend op via de toewijzingen (IFC: IFCRELASSIGNSTOPROCESS +
+ * OPS_Assignments); `resourceIds` is een afgeleide projectie daarvan en wordt NIET los bewaard (geen
+ * dubbele opslag/waarheid). Gedeeld door de lezers die toewijzingen kennen. Volgorde is deterministisch: eerste-zien in de
+ * assignments-volgorde, met deduplicatie (één resource kan meerdere assignments op één taak hebben).
+ */
+export function reconstructResourceIds(tasks: Task[], assignments: ResourceAssignment[]): void {
+  const byTask = new Map<string, string[]>();
+  for (const a of assignments) {
+    let list = byTask.get(a.taskId);
+    if (!list) { list = []; byTask.set(a.taskId, list); }
+    if (!list.includes(a.resourceId)) list.push(a.resourceId);
+  }
+  for (const t of tasks) {
+    const ids = byTask.get(t.id);
+    if (ids) t.resourceIds = ids;
+  }
 }

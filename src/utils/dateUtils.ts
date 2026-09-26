@@ -22,6 +22,19 @@ export function parseDate(iso: string): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
 
+/** Milliseconden per kalenderdag op de UTC-instant-as (de engine kent geen DST, zie `parseInstant`). */
+export const MS_PER_DAY = 86_400_000;
+
+/** UTC-middernacht van de dag waarin `d` valt. Tijdzone-onafhankelijk; een Invalid Date blijft invalid. */
+export function utcDayStart(d: Date): Date {
+  return new Date(utcDayIndex(d.getTime()) * MS_PER_DAY);
+}
+
+/** Dagnummer op de UTC-as (dagen sinds 1970-01-01) van een instant in milliseconden. */
+export function utcDayIndex(ms: number): number {
+  return Math.floor(ms / MS_PER_DAY);
+}
+
 /** Twee cijfers zonder `padStart` — deze helper draait per dag per taak per toewijzing. */
 const pad2 = (n: number) => (n < 10 ? '0' + n : String(n));
 
@@ -48,11 +61,6 @@ export function formatDate(d: Date): string {
     return `${String(y).padStart(4, '0')}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
   }
   return d.toISOString().split('T')[0];
-}
-
-/** Format a Date as ISO datetime string */
-export function formatDateTime(d: Date): string {
-  return d.toISOString().replace('Z', '');
 }
 
 /**
@@ -147,14 +155,40 @@ export function addCalendarMonths(d: Date, months: number): Date {
   return new Date(Date.UTC(y, m, Math.min(d.getUTCDate(), lastDayOfTarget)));
 }
 
-/** Format a date for display (e.g., "2 Mar 2026") using Intl */
-export function formatDisplayDate(d: Date, locale = 'en'): string {
-  return new Intl.DateTimeFormat(locale, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(d);
+/**
+ * Bestaat deze dag in de (proleptische) Gregoriaanse kalender? Puur rekenkundig, dus onafhankelijk
+ * van hoe de JS-engine datums parseert: V8 rolt `2026-02-31` stil door naar 3 maart, WebKit weigert.
+ * Het jaarbereik bepaalt de aanroeper.
+ */
+export function isExistingYmd(year: number, month: number, day: number): boolean {
+  if (month < 1 || month > 12 || day < 1) return false;
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  return day <= [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+}
+
+const ISO_DATE_TIME = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?(?:Z|[+-](\d{2})(:?)(\d{2}))?)?$/;
+
+/**
+ * Strikte ISO-datum of -datumtijd `YYYY-MM-DD[THH:mm[:ss[.f]]][Z|±HH:mm]`: een bestaande dag
+ * ({@link isExistingYmd}), uren 00–23, minuten en seconden 00–59 en een offset tot ±14:00. Hoeveel
+ * fractiecijfers en of de offset zonder dubbele punt mag, volgt het invoerformaat van de aanroeper.
+ */
+export function isStrictIsoDateTime(
+  value: string,
+  format: { maxFractionDigits: number; offsetColonOptional?: boolean },
+): boolean {
+  const m = ISO_DATE_TIME.exec(value);
+  if (!m || !isExistingYmd(Number(m[1]), Number(m[2]), Number(m[3]))) return false;
+  if (m[4] === undefined) return true;
+  if (Number(m[4]) > 23 || Number(m[5]) > 59 || (m[6] !== undefined && Number(m[6]) > 59)) return false;
+  if (m[7] !== undefined && m[7].length > format.maxFractionDigits) return false;
+  if (m[8] !== undefined) {
+    if (m[9] === '' && !format.offsetColonOptional) return false;
+    const offsetHour = Number(m[8]);
+    const offsetMinute = Number(m[10]);
+    if (offsetHour > 14 || offsetMinute > 59 || (offsetHour === 14 && offsetMinute !== 0)) return false;
+  }
+  return true;
 }
 
 /** Difference in calendar days between two ISO date strings */

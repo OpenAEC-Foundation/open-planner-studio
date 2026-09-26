@@ -12,6 +12,7 @@ import { CONTEXT_MENU_CONTAINER_CLASS, CONTEXT_MENU_ITEM_CLASS } from '@/compone
 import { useClickOutside } from '@/hooks/useClickOutside';
 import type { TaskColumnId } from '@/types/taskGrid';
 import type { DataGridColumnModel, DataGridLabels } from './taskGridContext';
+import { nextFrame } from '@/utils/nextFrame';
 
 export const DATA_GRID_COLUMN_MIN_WIDTH = 40;
 export const DATA_GRID_COLUMN_MAX_WIDTH = 480;
@@ -192,9 +193,7 @@ export function DataGridHeader({
   const closeContextMenu = (restoreFocus: boolean) => {
     setContextMenu(null);
     if (!restoreFocus) return;
-    const restore = () => contextTriggerRef.current?.focus();
-    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(restore);
-    else setTimeout(restore, 0);
+    nextFrame(() => contextTriggerRef.current?.focus());
   };
 
   const openContextMenu = (

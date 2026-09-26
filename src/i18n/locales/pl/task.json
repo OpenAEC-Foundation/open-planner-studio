@@ -106,10 +106,12 @@
       "priority": "Priorytet bilansowania",
       "recordedSource": "Źródło (zapisane daty)",
       "remainingMinutes": "Pozostało (minuty)",
-      "remainingTime": "Pozostało (dni robocze)",
+      "remainingTime": "Pozostało",
       "resourceIds": "Identyfikatory zasobów",
       "resume": "Data wznowienia",
       "scheduleFinish": "Planowane zakończenie",
+      "start": "Początek",
+      "finish": "Koniec",
       "scheduleStart": "Planowane rozpoczęcie",
       "splitGaps": "Przerwy",
       "status": "Stan",
@@ -146,6 +148,10 @@
     },
     "validation": {
       "readOnly": "Tej kolumny obliczeniowej nie można edytować.",
+      "scheduleFinishNotManual": "Planowane zakończenie dotyczy tylko zadania planowanego ręcznie. Zmień koniec w kolumnie Koniec lub przez czas trwania.",
+      "finishFromDuration": "W tym zadaniu koniec wynika z początku i czasu trwania. Zmień początek lub czas trwania.",
+      "finishBeforeStart": "Koniec przypada przed początkiem.",
+      "finishIsActual": "To zadanie jest ukończone; jego koniec to rzeczywiste zakończenie. Zmień je przez postęp.",
       "invalid": "Wprowadzona wartość jest nieprawidłowa.",
       "relationToken": "Użyj na przykład 1.2 FS+2d.",
       "externalRelationRequiresDialog": "Dodaj zadanie zewnętrzne przez Relacja → Dodaj relację zewnętrzną…",
@@ -237,7 +243,8 @@
       "unknownTask": "Zadanie, do którego się odwołano, nie istnieje.",
       "unrepresentableSummaryRelation": "Relacji z zadaniem sumarycznym nie można tutaj edytować.",
       "self": "Zadanie nie może zależeć od samego siebie.",
-      "ancestor": "Zadanie nie może mieć relacji z własnym zadaniem sumarycznym."
+      "ancestor": "Zadanie nie może mieć relacji z własnym zadaniem sumarycznym.",
+      "summaryProgress": "Postęp zadania sumarycznego jest wyliczany z jego podzadań i nie można go tutaj zmienić."
     },
     "controls": {
       "collapse": "Zwiń",
@@ -419,7 +426,8 @@
       "actualStart": "Rzeczywisty początek",
       "actualFinish": "Rzeczywisty koniec",
       "actualDate": "Rzeczywista data",
-      "remaining": "Pozostało (dni robocze)"
+      "remaining": "Pozostało",
+      "summaryDerived": "Wyliczane z podzadań: zmień postęp tam. Zadanie sumaryczne zaktualizuje się po przeliczeniu (F5)."
     },
     "cpmResult": "Wynik CPM",
     "earlyStart": "Wczesny początek:",

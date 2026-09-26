@@ -25,7 +25,11 @@
 //  15. planner_batch: dezelfde per-item-weigeringen gelden ook via een draaiboek
 //  16. schemapoort (dispatcher): onbekende TOP-LEVEL sleutel ⇒ VALIDATION vóór enige mutatie
 //  17. IFC-round-trip: elk schrijfbaar veld overleeft opslaan + herladen
+//  17b. create krijgt dezelfde automatische paletkleur als de store-actie
 //  18. tooldefinitie-vorm: prefix, description, vier annotaties, batchable + batchStep
+//  19. waarschuwing "TOEGEPASTE nivellering" na een capaciteitswijziging ziet dezelfde nivelleeruitvoer
+//      als "Nivellering wissen" (`hasLevelingOutput`): ook alleen nivelleergaten of alleen sub-dag-
+//      vertraging; een gebruikersgat of een planning zonder nivelleeruitvoer geeft géén waarschuwing
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { resourceTools } from '@/services/mcp/tools/resourceTools';
 import { calendarResourceTools } from '@/services/mcp/tools/calendarResourceTools';
@@ -37,6 +41,8 @@ import type { McpContext, McpToolResult, McpToolOk } from '@/services/mcp/contra
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { nextFreePaletteColor } from '@/engine/renderer/resourcePalette';
+import type { Task } from '@/types/task';
 
 const store = useAppStore;
 
@@ -503,6 +509,23 @@ test('IFC-round-trip: elk schrijfbaar resourceveld overleeft opslaan + herladen'
 });
 
 // =================================================================================================
+// 17b) kleur-default — dezelfde automatische paletkleur als de store-actie (resourceSlice.addResource)
+// =================================================================================================
+test('create: een via MCP aangemaakte resource krijgt dezelfde paletkleur als via de UI', async () => {
+  reset();
+  // Referentie: de store-actie kent de eerste vrije paletkleur toe.
+  const viaStore = store.getState().addResource({ name: 'UI', type: 'LABOR', description: '', maxUnits: 1 });
+  const storeColor = store.getState().resources.find((r) => r.id === viaStore)!.color;
+  assertEq(storeColor, nextFreePaletteColor([]), 'de store geeft de eerste vrije paletkleur');
+
+  const id = await makeResource({ name: 'MCP', type: 'LABOR' });
+  const color = store.getState().resources.find((r) => r.id === id)!.color;
+  assert(typeof color === 'string', 'de MCP-resource draagt een kleur (vóór de fix: undefined)');
+  assertEq(color, nextFreePaletteColor([{ id: viaStore, color: storeColor }]),
+    'de volgende vrije paletkleur, net als een tweede resource via de UI');
+});
+
+// =================================================================================================
 // 18) tooldefinitie-vorm
 // =================================================================================================
 test('registratie: één tool met prefix, description, vier annotaties, batchable + synchrone kern', () => {
@@ -521,6 +544,62 @@ test('registratie: één tool met prefix, description, vier annotaties, batchabl
   registerAllTools();
   assert(def.description.includes('planner_manage_assignments'),
     'de beschrijving wijst naar de zustertool, zodat de AI de twee niet verwart');
+});
+
+// =================================================================================================
+// 19) nivelleerwaarschuwing na een capaciteitswijziging — dezelfde definitie als "Nivellering wissen"
+// =================================================================================================
+// De waarschuwing keek eerst alleen naar `levelingDelay`. Een planning met UITSLUITEND nivelleergaten
+// (`splitGaps` met `source: 'leveling'`) of UITSLUITEND sub-dag-vertraging uit een `.mpp`
+// (`levelingDelayMinutes`) kreeg daardoor stil géén waarschuwing, terwijl de ribbonknop, de
+// store-actie `clearLeveling` en `planner_clear_leveling` daar wél nivelleeruitvoer zien.
+const LEVELING_WARNING = 'TOEGEPASTE nivellering';
+const LEVELING_GAP = { afterMinutes: 1440, gapMinutes: 480, source: 'leveling' as const };
+const USER_GAP = { afterMinutes: 1440, gapMinutes: 480, source: 'user' as const };
+
+/** Eén taak met `seed` erop (rechtstreeks gezet, zoals een `.mpp`-import of een eerdere nivellering
+ *  dat achterlaat), dan een CAPACITEITSwijziging (`maxUnits`) via de tool. Geeft de waarschuwingen
+ *  en de verse taak ná de call terug. */
+async function capacityChange(seed: (t: Task) => void): Promise<{ warnings: string[]; task: Task }> {
+  reset();
+  const taskId = addTask('Metselwerk');
+  store.setState((s) => { seed(s.tasks.find((t) => t.id === taskId)!); });
+  const id = await makeResource({ name: 'Kraan', type: 'EQUIPMENT', maxUnits: 1 });
+  const data = okData(await call('planner_manage_resources', { actions: [{ action: 'update', id, maxUnits: 2 }] }));
+  assertEq(data.updated[0].changedFields, ['maxUnits'], 'voorwaarde: de capaciteit is echt gewijzigd');
+  return { warnings: data.warnings as string[], task: store.getState().tasks.find((t) => t.id === taskId)! };
+}
+const hasLevelingWarning = (warnings: string[]) => warnings.some((w) => w.includes(LEVELING_WARNING));
+
+test('19a: capaciteitswijziging + ALLEEN een nivelleergat ⇒ waarschuwing over de toegepaste nivellering', async () => {
+  const { warnings, task } = await capacityChange((t) => { t.splitGaps = [{ ...LEVELING_GAP }]; });
+  assertEq(task.levelingDelay, undefined, 'voorwaarde: geen hele-dag-levelingDelay');
+  assertEq(task.splitGaps, [LEVELING_GAP], 'voorwaarde: het nivelleergat staat er ná de call nog');
+  assert(hasLevelingWarning(warnings), `een nivelleergat is nivelleeruitvoer ⇒ waarschuwing: ${JSON.stringify(warnings)}`);
+});
+
+test('19b: capaciteitswijziging + ALLEEN sub-dag-vertraging (levelingDelayMinutes) ⇒ waarschuwing', async () => {
+  const { warnings, task } = await capacityChange((t) => { t.levelingDelayMinutes = 90; });
+  assertEq(task.levelingDelay, undefined, 'voorwaarde: geen hele-dag-levelingDelay');
+  assertEq(task.levelingDelayMinutes, 90, 'voorwaarde: de sub-dag-vertraging staat er ná de call nog');
+  assert(hasLevelingWarning(warnings), `sub-dag-vertraging is nivelleeruitvoer ⇒ waarschuwing: ${JSON.stringify(warnings)}`);
+});
+
+test('19c: capaciteitswijziging + ALLEEN levelingDelay ⇒ waarschuwing (bestaand gedrag)', async () => {
+  const { warnings, task } = await capacityChange((t) => { t.levelingDelay = 2; });
+  assertEq(task.levelingDelay, 2, 'voorwaarde: de levelingDelay staat er ná de call nog');
+  assert(hasLevelingWarning(warnings), `levelingDelay ⇒ waarschuwing: ${JSON.stringify(warnings)}`);
+});
+
+test('19d: capaciteitswijziging zonder enige nivelleeruitvoer ⇒ GEEN nivelleerwaarschuwing', async () => {
+  const { warnings } = await capacityChange(() => {});
+  assert(!hasLevelingWarning(warnings), `geen nivellering ⇒ geen waarschuwing: ${JSON.stringify(warnings)}`);
+});
+
+test('19e: capaciteitswijziging + ALLEEN een gebruikersgat (source: user) ⇒ GEEN nivelleerwaarschuwing', async () => {
+  const { warnings, task } = await capacityChange((t) => { t.splitGaps = [{ ...USER_GAP }]; });
+  assertEq(task.splitGaps, [USER_GAP], 'voorwaarde: het gebruikersgat staat er ná de call nog');
+  assert(!hasLevelingWarning(warnings), `een gebruikersgat is brondata, geen nivellering: ${JSON.stringify(warnings)}`);
 });
 
 await run();

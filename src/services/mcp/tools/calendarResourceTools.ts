@@ -27,7 +27,9 @@ import {
 } from './runtime';
 // Alleen als TYPE (SYNC-2): wordt weggestreept bij compileren, dus géén runtime-import naar batchTool.
 import type { BatchStepTool } from './batchTool';
-import { enrichOk, okDirect, projectEndInfo } from './helpers';
+import {
+  booleanArgReason, enrichOk, okDirect, okDirectGuarded, parsedBatchStep, projectEndInfo, WRITE_ANNOTATIONS,
+} from './helpers';
 import type { AppState } from '@/state/appStore';
 import { syncProjectCalendar } from '@/state/syncProjectCalendar';
 import { validate } from '@/state/mcpValidation';
@@ -37,30 +39,28 @@ import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { computeMoveDelta } from '@/engine/moveProject';
 import { diffDays } from '@/utils/dateUtils';
 import { deriveHoursPerDay, workDaysFromBands } from '@/services/subdayIo';
+import { effHoursPerDay } from '@/utils/taskDuration';
 import type { GeneratorCountry, HolidayGenParams } from '@/engine/calendar/generateCalendarHolidays';
 import type { CalendarGeneration, Holiday, WorkCalendar, WorkTimeBands } from '@/types/calendar';
-import type { ResourceCurve } from '@/types/resource';
+import { isResourceCurve, isValidUnits, RESOURCE_CURVES, type ResourceCurve } from '@/types/resource';
 import type { Project } from '@/types/project';
 import type { LevelingOptions, LevelingResult } from '@/engine/scheduler/ResourceLeveler';
+import { isFiniteNumber } from '@/utils/guards';
+import { hasLevelingOutput } from '@/utils/taskDefaults';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { markDocumentEdited } from '@/state/documentEdited';
 
-const STD_ANNOT = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
-
 /**
- * Toegestane verdeelcurves + de bijbehorende typewachter — exact het `isSeqType`-patroon uit T19
+ * Curve-toets (`isResourceCurve`, `types/resource.ts`) — exact het `isSeqType`-patroon uit T19
  * (`taskTools.ts`). DIT IS EEN VEILIGHEIDSGUARD, GEEN COMFORT: de dispatcher valideert `inputSchema`
  * NIET, dus de tool-laag is de enige verdediging. Een onbekende curve (een LLM die `"bell"` i.p.v.
  * `"BELL"` schrijft) belandt anders ongefilterd in de store, waarna `ResourceLoad.CURVE_POINTS[curve]`
  * `undefined` oplevert en klapt in `recomputeResourceLoad()` — en dát draait in
  * `runInMcpTransaction` BUITEN de try/catch (stap 5), dus voorbij het rollback-pad: uncaught
  * TypeError, géén McpToolResult, corrupte waarde gecommit én een undo-stap erbij. Vandaar: filteren
- * vóór de mutatie, als ZACHTE per-item-weigering.
+ * vóór de mutatie, als ZACHTE per-item-weigering — met een leesbare reden die de geldige waarden
+ * noemt (de AI kan zich direct corrigeren).
  */
-const RESOURCE_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE'];
-const isCurve = (v: unknown): v is ResourceCurve =>
-  typeof v === 'string' && (RESOURCE_CURVES as string[]).includes(v);
-/** Leesbare weigeringsreden die de geldige waarden noemt (de AI kan zich direct corrigeren). */
 const curveReason = (v: unknown): string =>
   `onbekende curve '${String(v)}'; geldige waarden zijn ${RESOURCE_CURVES.join(', ')} (hoofdlettergevoelig)`;
 
@@ -146,8 +146,6 @@ const CAL_READONLY_KEYS: string[] = ['isProjectDefault', 'usedByTasks', 'usedByR
 const GEN_COUNTRIES: GeneratorCountry[] = ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH', 'none'];
 const BOUWVAK_CHOICES = ['geen', 'noord', 'midden', 'zuid'];
 const ISO_DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
-
-const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
 // ── H5 — DE KALENDER MOET ÉCHT OVERZETBAAR ZIJN ──────────────────────────────────────────────────
 //
@@ -644,9 +642,7 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
           holidayCount: cal.holidays.length,
           holidaysFrom,
           mode: createdMode,
-          hoursPerDayEffective: created.workTime
-            ? deriveHoursPerDay(created.workTime, created.hoursPerDay)
-            : created.hoursPerDay,
+          hoursPerDayEffective: effHoursPerDay(created),
           ...(created.shift ? { shift: created.shift } : {}),
           ...(ignoredFields.length > 0 ? { ignoredFields } : {}),
         });
@@ -740,9 +736,7 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
         ...(beforeMode !== afterMode
           ? { modeChangedFrom: beforeMode, taskDurationsPreserved: true }
           : {}),
-        hoursPerDayEffective: updated.workTime
-          ? deriveHoursPerDay(updated.workTime, updated.hoursPerDay)
-          : updated.hoursPerDay,
+        hoursPerDayEffective: effHoursPerDay(updated),
         ...(updated.shift ? { shift: updated.shift } : {}),
         ...(ignoredFields.length > 0 ? { ignoredFields } : {}),
       });
@@ -839,7 +833,7 @@ const updateCalendar: BatchStepTool = {
   kind: 'mutate',
   batchable: true,
   // Een kalenderwijziging kan bestaande feestdagen/werkdagen (en daarmee de planning) overschrijven.
-  annotations: { ...STD_ANNOT, destructiveHint: true },
+  annotations: { ...WRITE_ANNOTATIONS, destructiveHint: true },
   inputSchema: {
     type: 'object',
     properties: {
@@ -934,11 +928,7 @@ const updateCalendar: BatchStepTool = {
     },
     required: ['calendars'],
   },
-  batchStep(args, ctx) {
-    const parsed = parseUpdateCalendar(args);
-    if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return updateCalendarCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseUpdateCalendar, updateCalendarCore),
   async handler(args, ctx) {
     const parsed = parseUpdateCalendar(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -950,9 +940,7 @@ const updateCalendar: BatchStepTool = {
       const state = ctx.app.store.getState();
       const pre = classifyCalendars(state, items);
       if (pre.plans.length === 0) {
-        const g = guardNonTransactional(ctx);
-        if (g) return g;
-        return okDirect(ctx, { calendars: [], warnings: [], projectEnd: projectEndInfo(state).projectEnd }, pre.rejections);
+        return okDirectGuarded(ctx, { calendars: [], warnings: [], projectEnd: projectEndInfo(state).projectEnd }, pre.rejections);
       }
     }
 
@@ -1051,7 +1039,7 @@ function classifyAssignments(
           rejections.push({ id: label, reason: `resource '${act.resourceId}' bestaat niet` });
           return;
         }
-        if (act.curve !== undefined && !isCurve(act.curve)) {
+        if (act.curve !== undefined && !isResourceCurve(act.curve)) {
           rejections.push({ id: label, reason: curveReason(act.curve) });
           return;
         }
@@ -1103,11 +1091,11 @@ function classifyAssignments(
             return;
           }
         }
-        if (hasUnits && !(typeof act.unitsPerDay === 'number' && Number.isFinite(act.unitsPerDay) && act.unitsPerDay > 0)) {
+        if (hasUnits && !isValidUnits(act.unitsPerDay)) {
           rejections.push({ id: act.assignmentId, reason: `ongeldige unitsPerDay ${String(act.unitsPerDay)} (eenheden/dag, strikt positief vereist)` });
           return;
         }
-        if (hasCurve && !isCurve(act.curve)) {
+        if (hasCurve && !isResourceCurve(act.curve)) {
           rejections.push({ id: act.assignmentId, reason: curveReason(act.curve) });
           return;
         }
@@ -1128,6 +1116,13 @@ function classifyAssignments(
         }
         if (target.isMilestone || isSummaryTask(target)) {
           rejections.push({ id: act.assignmentId, reason: `doeltaak '${act.taskId}' is een mijlpaal/verzameltaak; die dragen geen resources` });
+          return;
+        }
+        // Move naar de taak waar hij (gesimuleerd) al staat: de dubbelcheck hieronder sluit `cur`
+        // zelf uit en zou dit doorlaten, waarna `draft.moveAssignment` gooit en de HELE call
+        // terugrolt. Net als een dubbele `add` dus zacht weigeren — alleen dit item vervalt.
+        if (cur.taskId === act.taskId) {
+          rejections.push({ id: act.assignmentId, reason: `toewijzing '${act.assignmentId}' staat al op taak '${act.taskId}' (resource '${cur.resourceId}'); verplaatsen naar dezelfde taak verandert niets` });
           return;
         }
         if (sim.some((x) => x.id !== cur.id && x.taskId === act.taskId && x.resourceId === cur.resourceId)) {
@@ -1233,7 +1228,7 @@ const manageAssignments: BatchStepTool = {
     '`itemRejections`; de geldige items blijven gewoon staan.',
   kind: 'mutate',
   batchable: true,
-  annotations: { ...STD_ANNOT },
+  annotations: { ...WRITE_ANNOTATIONS },
   inputSchema: {
     type: 'object',
     properties: {
@@ -1252,7 +1247,7 @@ const manageAssignments: BatchStepTool = {
             unitsPerDay: { type: 'number', exclusiveMinimum: 0, description: 'Eenheden per WERKDAG (1 = 100% = één persoon/stuk; 0,5 = halve dag).' },
             curve: {
               type: 'string',
-              enum: ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE'],
+              enum: [...RESOURCE_CURVES],
               description: 'Verdeelcurve over de duur (de acht MS Project-/P6-vormen); weglaten = UNIFORM.',
             },
             remainingWorkMinutes: {
@@ -1271,11 +1266,7 @@ const manageAssignments: BatchStepTool = {
   },
   // Zie de batchStep-noot in taskTools.ts: het lege-batch-snelpad is puur transactie-vermijding en
   // dus overbodig binnen een batch (die bezit de transactie al).
-  batchStep(args, ctx) {
-    const parsed = parseAssignments(args);
-    if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return manageAssignmentsCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseAssignments, manageAssignmentsCore),
   async handler(args, ctx) {
     const parsedActions = parseAssignments(args);
     if (typeof parsedActions === 'string') return toolError(ctx, 'VALIDATION', parsedActions);
@@ -1286,9 +1277,7 @@ const manageAssignments: BatchStepTool = {
       const state = ctx.app.store.getState();
       const pre = classifyAssignments(state, actions);
       if (pre.plans.length === 0) {
-        const g = guardNonTransactional(ctx);
-        if (g) return g;
-        return okDirect(
+        return okDirectGuarded(
           ctx,
           { added: [], updated: [], moved: [], removed: [], projectEnd: projectEndInfo(state).projectEnd },
           pre.rejections,
@@ -1386,7 +1375,7 @@ function parseLeveling(
   // terwijl de aanroeper dacht te previewen. Juist die parameter wordt in de beschrijving verkocht
   // als de veilige manier om eerst te kijken ⇒ hard weigeren.
   if (a.dryRun !== undefined && typeof a.dryRun !== 'boolean') {
-    return `\`dryRun\` moet een boolean zijn (true/false), kreeg ${typeof a.dryRun} '${String(a.dryRun)}' — ` +
+    return `${booleanArgReason(a.dryRun, 'dryRun')} — ` +
       'een niet-boolean zou stil als `false` gelden en dus een ECHTE nivellering uitvoeren';
   }
   if (a.resourceIds !== undefined) {
@@ -1450,7 +1439,7 @@ const levelResources: BatchStepTool = {
     'De nivellering reset zichzelf eerst volledig, dus opnieuw draaien stapelt niet.',
   kind: 'mutate',
   batchable: true,
-  annotations: { ...STD_ANNOT },
+  annotations: { ...WRITE_ANNOTATIONS },
   inputSchema: {
     type: 'object',
     properties: {
@@ -1472,11 +1461,7 @@ const levelResources: BatchStepTool = {
       },
     },
   },
-  batchStep(args, ctx) {
-    const parsed = parseLeveling(args, ctx.app.store.getState());
-    if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return levelResourcesCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseLeveling, levelResourcesCore),
   async handler(args, ctx) {
     const parsed = parseLeveling(args, ctx.app.store.getState());
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -1514,9 +1499,15 @@ const levelResources: BatchStepTool = {
 // =================================================================================================
 // planner_clear_leveling
 // =================================================================================================
+/** Hoeveel taken nivelleeruitvoer dragen — dezelfde `hasLevelingOutput` als de no-op-guard van de
+ *  store-`clearLeveling` en de ribbonknop, dus ook uitsluitend sub-dag-precisie of pauzedagen. */
+function levelingOutputCount(state: Pick<AppState, 'tasks'>): number {
+  return state.tasks.filter(hasLevelingOutput).length;
+}
+
 /** Synchrone, transactie-vrije kern van `clear_leveling`; niets te wissen ⇒ geen mutatie. */
 function clearLevelingCore(ctx: McpContext): MutationOutcome {
-  const count = ctx.app.store.getState().tasks.filter((t) => t.levelingDelay !== undefined).length;
+  const count = levelingOutputCount(ctx.app.store.getState());
   if (count === 0) return { data: { cleared: 0 } };
   ctx.transactions.draft.clearLeveling();
   return { data: { cleared: count } };
@@ -1534,20 +1525,18 @@ const clearLeveling: BatchStepTool = {
   // GEEN destructiveHint: spec r65 zet die annotatie op een GESLOTEN lijst (delete_tasks,
   // remove_dependencies, import_schedule, update_calendar). Nivellerings-vertragingen zijn afgeleide,
   // herberekenbare waarden — ze wissen vernietigt geen ingevoerde data.
-  annotations: { ...STD_ANNOT, idempotentHint: true },
+  annotations: { ...WRITE_ANNOTATIONS, idempotentHint: true },
   inputSchema: { type: 'object', properties: {} },
   batchStep(_args, ctx) {
     return clearLevelingCore(ctx);
   },
   async handler(_args, ctx) {
     const state = ctx.app.store.getState();
-    const count = state.tasks.filter((t) => t.levelingDelay !== undefined).length;
+    const count = levelingOutputCount(state);
     // No-op-snelpad (spiegelt de store-`clearLeveling`-guard): niets te wissen ⇒ geen transactie,
     // geen undo-snapshot, geen redo-wipe.
     if (count === 0) {
-      const g = guardNonTransactional(ctx);
-      if (g) return g;
-      return okDirect(ctx, { cleared: 0, projectEnd: projectEndInfo(state).projectEnd }, []);
+      return okDirectGuarded(ctx, { cleared: 0, projectEnd: projectEndInfo(state).projectEnd }, []);
     }
     const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => clearLevelingCore(ctx));
     return enrichOk(res, () => ({ cleared: count, projectEnd: projectEndInfo(ctx.app.store.getState()).projectEnd }));
@@ -1759,7 +1748,7 @@ const updateProject: BatchStepTool = {
     'berekende datums bij de eerstvolgende herberekening verschuiven.',
   kind: 'mutate',
   batchable: true,
-  annotations: { ...STD_ANNOT },
+  annotations: { ...WRITE_ANNOTATIONS },
   inputSchema: {
     type: 'object',
     properties: {
@@ -1791,11 +1780,7 @@ const updateProject: BatchStepTool = {
     },
     additionalProperties: false,
   },
-  batchStep(args, ctx) {
-    const parsed = parseUpdateProject(args);
-    if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return updateProjectCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseUpdateProject, updateProjectCore),
   async handler(args, ctx) {
     const parsed = parseUpdateProject(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -1884,7 +1869,7 @@ function parseMoveProject(args: unknown): { newStartDate: string; shiftBaselines
   // Zelfde patroon als `dryRun` (H8), lagere inzet: een niet-boolean gold stil als `false`, dus
   // baselines bleven staan terwijl de aanroeper dacht ze mee te verschuiven.
   if (a.shiftBaselines !== undefined && typeof a.shiftBaselines !== 'boolean') {
-    return `\`shiftBaselines\` moet een boolean zijn (true/false), kreeg ${typeof a.shiftBaselines} '${String(a.shiftBaselines)}'`;
+    return booleanArgReason(a.shiftBaselines, 'shiftBaselines');
   }
   return { newStartDate: a.newStartDate, shiftBaselines: a.shiftBaselines === true };
 }
@@ -1919,7 +1904,7 @@ const moveProject: BatchStepTool = {
     '(een baseline bestaat om afwijking te meten); met `shiftBaselines: true` schuiven ze mee.',
   kind: 'mutate',
   batchable: true,
-  annotations: { ...STD_ANNOT },
+  annotations: { ...WRITE_ANNOTATIONS },
   inputSchema: {
     type: 'object',
     properties: {
@@ -1928,11 +1913,7 @@ const moveProject: BatchStepTool = {
     },
     required: ['newStartDate'],
   },
-  batchStep(args, ctx) {
-    const parsed = parseMoveProject(args);
-    if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return moveProjectCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseMoveProject, moveProjectCore),
   async handler(args, ctx) {
     const parsed = parseMoveProject(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -1945,9 +1926,7 @@ const moveProject: BatchStepTool = {
     }
     // No-op-snelpad: Δ=0 ⇒ `moveProject` muteert niets; dan ook geen transactie/undo-stap.
     if (delta === 0) {
-      const g = guardNonTransactional(ctx);
-      if (g) return g;
-      return okDirect(
+      return okDirectGuarded(
         ctx,
         { moved: false, deltaDays: 0, taskCount: s0.tasks.length, reason: 'de projectstart is al deze datum', projectEnd: projectEndInfo(s0).projectEnd },
         [],
@@ -1999,7 +1978,7 @@ const saveBaseline: McpToolDef = {
     'bewuste nulmeting te zijn. Zonder `name` krijgt de baseline een oplopende standaardnaam.',
   kind: 'mutate',
   batchable: false,
-  annotations: { ...STD_ANNOT },
+  annotations: { ...WRITE_ANNOTATIONS },
   inputSchema: {
     type: 'object',
     properties: { name: { type: 'string', description: 'Naam van de baseline; weglaten = "Baseline N".' } },

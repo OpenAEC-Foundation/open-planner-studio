@@ -39,6 +39,7 @@ import type { OpenedImport } from '@/services/importTypes';
 import { bindExpectedDoc, buildEnvelope, guardNonTransactional, toolError } from './runtime';
 import { guardBridgeFlags } from './documentTools';
 import type { McpToolAnnotations, McpToolDef, McpToolResult } from '../contracts';
+import { writeUserTextFileTauri } from '@/services/fileAccess/atomicWrite';
 
 // --- fs-naad -------------------------------------------------------------------------------------
 
@@ -61,7 +62,7 @@ async function realFs(): Promise<McpFileFs> {
       'directe bestandssysteem-toegang. Gebruik daar Bestand → Openen/Exporteren.',
     );
   }
-  const { exists, readTextFile, readFile, writeTextFile, mkdir } = await import('@tauri-apps/plugin-fs');
+  const { exists, readTextFile, readFile, mkdir } = await import('@tauri-apps/plugin-fs');
   const { homeDir } = await import('@tauri-apps/api/path');
   return {
     homeDir: () => homeDir(),
@@ -71,7 +72,7 @@ async function realFs(): Promise<McpFileFs> {
     writeTextFile: async (p, content) => {
       const dir = p.replace(/\\/g, '/').replace(/\/[^/]*$/, '');
       if (dir) await mkdir(dir, { recursive: true }); // no-op wanneer de map al bestaat
-      await writeTextFile(p, content);
+      await writeUserTextFileTauri(p, content); // `overwrite: true` mag een bestaand IFC nooit afkappen
     },
   };
 }

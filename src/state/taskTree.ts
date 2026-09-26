@@ -15,8 +15,9 @@
 //
 // STAND VAN DE CONSOLIDATIE (een eerdere versie van deze kop beweerde "maakt er één definitie
 // van"; dat was toen niet waar en twee reviews wezen het aan). Aangesloten: `taskSlice`
-// (`applyTaskPlacement`, `moveTask`, `deleteTask`, `copyTasks`, de bulk-move), `mcpTransaction`
-// (aanmaken + verwijderen) en `wbsTemplates`. NIET aangesloten, bewust: de detach/attach in
+// (`applyTaskPlacement`, `moveTask`, `deleteTask`, `deleteTasksBulk`, `copyTasks`, de bulk-move),
+// `mcpTransaction` (aanmaken + verwijderen) en `wbsTemplates`. De drie verwijderpaden delen
+// bovendien `removeTaskSubtrees`, zodat ze niet opnieuw uit elkaar lopen in wat ze opruimen. NIET aangesloten, bewust: de detach/attach in
 // `mcpTransaction.ts` rond regel 320 en de sibling-hulpjes `siblingIdsOf` (`taskSlice.ts`) en de
 // variant in `dropTarget.ts` — die laatste twee werken op andere invoer dan `siblingIds` hier.
 // `tests/planning/check-task-tree.ts` bewaakt met een bron-assert dat de aangesloten plekken
@@ -32,6 +33,8 @@
 // een anker, op een expliciete positie) en zit in `applyTaskPlacement`; hem hierheen halen zou een
 // functie met vier vlaggen opleveren in plaats van een primitieve.
 import type { Task } from '@/types/task';
+import type { Sequence } from '@/types/sequence';
+import type { ResourceAssignment } from '@/types/resource';
 
 /**
  * Haalt `id` uit de `childIds` van zijn HUIDIGE ouder. Laat `task.parentId` met rust — de
@@ -108,6 +111,36 @@ export function collectSubtreeIds(tasks: Task[], rootId: string): string[] {
   };
   walk(rootId);
   return out;
+}
+
+/** Minimale state-vorm voor {@link removeTaskSubtrees} (subset van AppState). */
+interface TaskRemovalState {
+  tasks: Task[];
+  sequences: Sequence[];
+  assignments: ResourceAssignment[];
+  selectedTaskIds: string[];
+  activeTaskId: string | null;
+}
+
+/**
+ * Verwijdert de deelbomen onder (en inclusief) `rootIds`: haalt elke wortel bij zijn ouder weg en
+ * ruimt taken, relaties met een verwijderd eindpunt, toewijzingen en de selectie op; wees de actieve
+ * taak naar een verwijderde taak, dan wordt de eerste resterende selectie actief. Retourneert
+ * alle verwijderde ids. `rootIds` moeten bestaan (de aanroeper guardt, vóór zijn snapshot); een
+ * wortel die zelf in de deelboom van een andere zit, is geen probleem.
+ */
+export function removeTaskSubtrees(s: TaskRemovalState, rootIds: readonly string[]): Set<string> {
+  const removeIds = new Set<string>();
+  for (const id of rootIds) {
+    detachFromParent(s.tasks, id);
+    for (const subtreeId of collectSubtreeIds(s.tasks, id)) removeIds.add(subtreeId);
+  }
+  s.tasks = s.tasks.filter(t => !removeIds.has(t.id));
+  s.sequences = s.sequences.filter(seq => !removeIds.has(seq.predecessorId) && !removeIds.has(seq.successorId));
+  s.assignments = s.assignments.filter(a => !removeIds.has(a.taskId));
+  s.selectedTaskIds = s.selectedTaskIds.filter(sid => !removeIds.has(sid));
+  if (s.activeTaskId && removeIds.has(s.activeTaskId)) s.activeTaskId = s.selectedTaskIds[0] ?? null;
+  return removeIds;
 }
 
 /**

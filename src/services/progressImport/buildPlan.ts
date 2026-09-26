@@ -81,8 +81,9 @@ function isCompletionUnchanged(before: number, incoming: number): boolean {
  *   1. geen taskId uit de match ⇒ refused (unmatched/ambiguousWbs/duplicateRow)
  *   2. geen enkele voortgangswaarde ⇒ noop (niets ingevuld = niets te beoordelen)
  *   3. een onleesbaar veld ⇒ refused/unreadableDate resp. unreadableNumber/percentOutOfRange
- *   4. verzameltaak (`childIds.length > 0`) ⇒ refused/summaryTask — `planTaskCellEdits` bewaakt dit
- *      zelf niet (alleen `mcpValidation` doet dat elders), dus dat hoort hier.
+ *   4. verzameltaak (`childIds.length > 0`) ⇒ refused/summaryTask — `planTaskCellEdits` weigert dit
+ *      inmiddels zelf ook (code `summaryProgress`), maar hier vroeg afvangen levert de eigen,
+ *      importspecifieke uitkomst op in plaats van een generieke celweigering.
  *   5. no-op-filter (A6, `isCompletionUnchanged` + datum-only-degradatie) — alleen ECHT veranderende
  *      velden worden een `CellEditIntent`; niets over ⇒ noop.
  *   6. `deps.planEdits(task, edits)` — `ok: false` ⇒ refused met `plannerCode`.

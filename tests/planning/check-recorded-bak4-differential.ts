@@ -46,11 +46,11 @@ if (!ROOT) {
 /** De UIT-mutaties: [bestand (relatief aan src/), zoektekst, vervanging]. Elk moet exact 1× raken. */
 const OFF_MUTATIONS: Array<[string, string, string]> = [
   ['services/msproject/mspdiReader.ts',
-    '    {\n      const recordedDate = (raw: string): string | undefined =>\n        raw ? (isHour ? parseMSPInstant',
-    '    if (false) {\n      const recordedDate = (raw: string): string | undefined =>\n        raw ? (isHour ? parseMSPInstant'],
+    '    {\n      const recordedDate = (raw: string): string | undefined =>\n        raw ? importDateTime(raw, isHour)',
+    '    if (false) {\n      const recordedDate = (raw: string): string | undefined =>\n        raw ? importDateTime(raw, isHour)'],
   ['services/p6/p6xmlReader.ts',
-    '    {\n      const recordedDate = (raw: string): string | undefined =>\n        raw ? (isHour ? parseP6Instant',
-    '    if (false) {\n      const recordedDate = (raw: string): string | undefined =>\n        raw ? (isHour ? parseP6Instant'],
+    '    {\n      const recordedDate = (raw: string): string | undefined =>\n        raw ? importDateTime(raw, isHour)',
+    '    if (false) {\n      const recordedDate = (raw: string): string | undefined =>\n        raw ? importDateTime(raw, isHour)'],
   ['services/mpp/mppReader.ts',
     '    {\n      const slackDays = (tenths: number | null): number | undefined => {',
     '    if (false) {\n      const slackDays = (tenths: number | null): number | undefined => {'],

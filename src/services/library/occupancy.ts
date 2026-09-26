@@ -58,6 +58,7 @@ import type { CompanyPool } from '@/types/library';
 import { computeResourceLoad, maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
 import { solveOptionsFor, type ProjectSolveOptions, type SolveProjectFields } from '@/engine/scheduler/solveInput';
+import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 
 /**
  * De planningsinvoer die een efemere doorrekening nodig heeft (§4.3b), bovenop wat de aggregatie
@@ -145,13 +146,22 @@ export type OccupancyEphemeralSolve = (doc: OccupancyDocInput) => Task[] | null;
 export const ephemeralSolve: OccupancyEphemeralSolve = (doc) => {
   const input = doc.solveInput;
   if (!input) return null;
-  const tasks = cloneTasksForSolve(input.tasks);
-  const result = solveProject({
-    tasks, sequences: input.sequences, calendar: doc.calendar, calendars: doc.calendars, ...input.options,
-  });
+  const { tasks, result } = solveClone(input, doc.calendar, doc.calendars);
   if (result.error) return null;
   return tasks;
 };
+
+/** Reken een KLOON van `input.tasks` door met alle opties uit `input` — de ene efemere solve die
+ *  het bezettingsoverzicht en de verdeler (`distribute.ts`) delen. De invoer blijft onaangeraakt. */
+export function solveClone(
+  input: OccupancySolveInput,
+  calendar: WorkCalendar,
+  calendars: WorkCalendar[],
+): { tasks: Task[]; result: CPMResult } {
+  const tasks = cloneTasksForSolve(input.tasks);
+  const result = solveProject({ tasks, sequences: input.sequences, calendar, calendars, ...input.options });
+  return { tasks, result };
+}
 
 /** De boeking van één document op één poolitem. */
 export interface OccupancyDocBooking {

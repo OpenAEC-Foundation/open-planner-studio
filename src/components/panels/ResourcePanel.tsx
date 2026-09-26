@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, type KeyboardEvent } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, X, Check, Unlink2, Library, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, X, Check, Unlink2, Library } from 'lucide-react';
 import type { Resource, ResourceType, AvailabilityStep } from '@/types/resource';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { formatDate } from '@/utils/dateUtils';
@@ -13,6 +13,7 @@ import { ResourceOccupancyView } from './ResourceOccupancyView';
 import { resourceDisplayColor, nextFreePaletteColor } from '@/engine/renderer/resourcePalette';
 import { useLiveGridNav } from './hooks/useLiveGridNav';
 import { controlKindOf, liveGridNavDirection } from '@/utils/gridNavigation';
+import { StatusBanner } from './StatusBanner';
 
 const RESOURCE_TYPES: ResourceType[] = ['LABOR', 'EQUIPMENT', 'MATERIAL', 'SUBCONTRACTOR', 'CREW'];
 
@@ -99,6 +100,35 @@ const cellInput = 'input !text-body !px-1.5 !py-1 w-full';
 // bewerkbare rijen), maar zonder de `.input`-rand/achtergrond en in de secundaire tekstkleur — zodat
 // "dit reageert niet op een klik" al zichtbaar is vóórdat de gebruiker het probeert.
 const cellStatic = 'block !text-body !px-1.5 !py-1 w-full truncate text-text-secondary';
+
+const TH = 'text-left px-2 py-1.5 font-semibold border-b border-border';
+const TH_RIGHT = 'text-right px-2 py-1.5 font-semibold border-b border-border';
+
+/** Kop van de pool- en de projecttabel. Het project toont "Totaal" (kosten) en altijd de
+ *  ploegkolom; de pool heeft geen totaal en toont de ploegkolom pas zodra hij resources heeft. */
+function ResourceTableHead({ showTotal, showParent }: { showTotal: boolean; showParent: boolean }) {
+  const { t } = useTranslation('common');
+  return (
+    <thead>
+      <tr className="sticky top-0 z-10" style={{ background: 'var(--theme-surface-alt)' }}>
+        <th className="border-b border-border px-1 py-1.5" style={{ width: 44 }} title={t('resource.color')} aria-label={t('resource.color')}>
+          <span className="block h-2.5 w-full rounded-sm" style={{ background: 'var(--theme-border)' }} />
+        </th>
+        <th className={TH} style={{ minWidth: 160 }}>{t('resource.name')}</th>
+        <th className={TH} style={{ width: 130 }}>{t('resource.typeLabel')}</th>
+        <th className={TH_RIGHT} style={{ width: 110 }}>{t('resource.maxUnits')}</th>
+        <th className={TH} style={{ width: 160 }}>{t('resource.calendarId')}</th>
+        <th className={TH_RIGHT} style={{ width: 90 }}>{t('resource.costPerHour')}</th>
+        {showTotal && <th className={TH_RIGHT} style={{ width: 100 }} title={t('resource.totalHint')}>{t('resource.total')}</th>}
+        <th className={TH} style={{ width: 90 }}>{t('resource.unitOfMeasure')}</th>
+        {showParent && <th className={TH} style={{ width: 120 }}>{t('resource.parent')}</th>}
+        {/* F10 (critreview op 352bb94): in beide tabellen dezelfde breedte — er kan een "Naar de
+            bibliotheek"-tekstknop in staan, niet alleen het losmaak-/verwijder-icoon. */}
+        <th className="border-b border-border" style={{ width: 190 }} />
+      </tr>
+    </thead>
+  );
+}
 
 /**
  * Resource-beheerpaneel (fase 2.5, §6.2; herzien issue #19 — bibliotheek = bron, project = inzet).
@@ -250,8 +280,8 @@ export function ResourcePanel() {
 
   // Rasternavigatie (#48, tweede verzoek van de melder): Enter/Shift+Enter en ↑/↓ tussen de rijen,
   // en Enter op de LAATSTE rij opent een nieuwe (concept-)rij. De rekensom en het toetsbeleid komen
-  // uit `@/utils/gridNavigation` — dezelfde definitie die de takentabel gebruikt; alleen de
-  // cursor-mechaniek verschilt (DOM-focus hier, React-state daar). Geldt in BEIDE weergaven: de
+  // uit `@/utils/gridNavigation`, de pure kern voor live rasters; het taakraster heeft een eigen
+  // toetsbeleid (`resolveTaskGridCommand`) met React-state als cursor. Geldt in BEIDE weergaven: de
   // rij-id's hieronder volgen de tabel die daadwerkelijk gerenderd wordt.
   const gridRowIds = useMemo(() => {
     const base = (inPoolView && pool ? pool.resources : resources).map(r => r.id);
@@ -418,11 +448,16 @@ export function ResourcePanel() {
     if (project.companyId) updatePoolResource(project.companyId, id, updates);
   };
 
-  // "+ nieuwe kalender": maak direct een lege resource-kalender aan, koppel 'm en open de editor.
-  const createAndEditCalendar = (resourceId: string) => {
+  // Een lege resource-kalender (zonder id — die kent de bibliotheek toe) voor "+ nieuwe kalender".
+  const newResourceCalendar = () => {
     const { id: _drop, ...base } = createDefaultCalendar();
     void _drop;
-    const id = addCalendar({ ...base, name: t('resource.calendarDialog.title') });
+    return { ...base, name: t('resource.calendarDialog.title') };
+  };
+
+  // "+ nieuwe kalender": maak direct een lege resource-kalender aan, koppel 'm en open de editor.
+  const createAndEditCalendar = (resourceId: string) => {
+    const id = addCalendar(newResourceCalendar());
     updateResource(resourceId, { calendarId: id });
     setCalDialog({ id });
   };
@@ -430,9 +465,7 @@ export function ResourcePanel() {
   // Poolvariant: dezelfde flow, maar tegen de pool-kalenderbibliotheek van het gekoppelde bedrijf.
   const createAndEditPoolCalendar = (resourceId: string) => {
     if (!project.companyId) return;
-    const { id: _drop, ...base } = createDefaultCalendar();
-    void _drop;
-    const id = addPoolCalendar(project.companyId, { ...base, name: t('resource.calendarDialog.title') });
+    const id = addPoolCalendar(project.companyId, newResourceCalendar());
     if (!id) return;
     updatePoolResource(project.companyId, resourceId, { calendarId: id });
     setCalDialog({ id, poolCompanyId: project.companyId });
@@ -487,21 +520,20 @@ export function ResourcePanel() {
         <div className="flex items-center gap-2">
           {linked && (
             <div className="flex items-center rounded-[8px] border border-border overflow-hidden" data-ops-resources-view-toggle>
-              <button
-                className={`px-2 py-1 ${resourcesView === 'company' ? 'bg-surface-hover font-semibold' : ''}`}
-                onClick={() => setUI({ resourcesView: 'company' })}
-              >{t('companyLibrary.companyView')}</button>
-              <button
-                className={`px-2 py-1 ${resourcesView === 'project' ? 'bg-surface-hover font-semibold' : ''}`}
-                onClick={() => setUI({ resourcesView: 'project' })}
-              >{t('companyLibrary.projectView')}</button>
               {/* B1b (spec §3): derde stand — bezetting van de bibliotheek over alle open documenten.
                   Zelfde zichtbaarheidsconditie als de hele schakelaar (`linked`). */}
-              <button
-                className={`px-2 py-1 ${resourcesView === 'occupancy' ? 'bg-surface-hover font-semibold' : ''}`}
-                onClick={() => setUI({ resourcesView: 'occupancy' })}
-                data-ops-occupancy-view-button
-              >{t('resource.occupancyView')}</button>
+              {([
+                ['company', t('companyLibrary.companyView')],
+                ['project', t('companyLibrary.projectView')],
+                ['occupancy', t('resource.occupancyView')],
+              ] as const).map(([view, label]) => (
+                <button
+                  key={view}
+                  className={`px-2 py-1 ${resourcesView === view ? 'bg-surface-hover font-semibold' : ''}`}
+                  onClick={() => setUI({ resourcesView: view })}
+                  data-ops-occupancy-view-button={view === 'occupancy' ? true : undefined}
+                >{label}</button>
+              ))}
             </div>
           )}
           {/* B1b: de Bezettingsweergave is een leesvenster — geen "+ Nieuwe resource" daar. */}
@@ -526,22 +558,10 @@ export function ResourcePanel() {
         <div className="flex-1 overflow-auto" ref={grid.gridRef}>
           {/* Waarschuwingsbanner (issue #64c): dit was platte cursieve tekst, maar "bewerkt de
               bibliotheek, geldt voor alle projecten, valt buiten undo" is precies het soort
-              waarschuwing dat je niet mag kunnen missen — dus een contrasterend vlak + icoon.
-              Kleuren via de semantische --warning-token + per-thema --theme-warning-text, zodat de
-              banner in alle drie de thema's leesbaar blijft. */}
-          <div
-            className="flex items-center gap-2 mx-2 mt-2 px-2.5 py-1.5 rounded-[8px] border font-medium"
-            style={{
-              background: 'color-mix(in srgb, var(--warning) 14%, transparent)',
-              borderColor: 'var(--warning)',
-              color: 'var(--theme-warning-text)',
-            }}
-            role="alert"
-            data-ops-company-view-hint
-          >
-            <AlertTriangle size={14} className="shrink-0" aria-hidden />
-            <span>{t('companyLibrary.companyViewHint')}</span>
-          </div>
+              waarschuwing dat je niet mag kunnen missen — dus een contrasterend vlak + icoon. */}
+          <StatusBanner tone="warning" bannerProps={{ 'data-ops-company-view-hint': true }}>
+            {t('companyLibrary.companyViewHint')}
+          </StatusBanner>
           {poolNotice && (
             <p className="flex items-center gap-1.5 px-2" style={{ color: 'var(--success)' }} data-ops-pool-assign-notice>
               <Check size={13} /> {poolNotice}
@@ -551,23 +571,7 @@ export function ResourcePanel() {
             <div className="p-4 text-text-secondary">{t('companyLibrary.noResources')}</div>
           ) : (
             <table className="w-full border-collapse">
-              <thead>
-                <tr className="sticky top-0 z-10" style={{ background: 'var(--theme-surface-alt)' }}>
-                  <th className="border-b border-border px-1 py-1.5" style={{ width: 44 }} title={t('resource.color')} aria-label={t('resource.color')}>
-                  <span className="block h-2.5 w-full rounded-sm" style={{ background: 'var(--theme-border)' }} />
-                </th>
-                <th className="text-left px-2 py-1.5 font-semibold border-b border-border" style={{ minWidth: 160 }}>{t('resource.name')}</th>
-                  <th className="text-left px-2 py-1.5 font-semibold border-b border-border" style={{ width: 130 }}>{t('resource.typeLabel')}</th>
-                  <th className="text-right px-2 py-1.5 font-semibold border-b border-border" style={{ width: 110 }}>{t('resource.maxUnits')}</th>
-                  <th className="text-left px-2 py-1.5 font-semibold border-b border-border" style={{ width: 160 }}>{t('resource.calendarId')}</th>
-                  <th className="text-right px-2 py-1.5 font-semibold border-b border-border" style={{ width: 90 }}>{t('resource.costPerHour')}</th>
-                  <th className="text-left px-2 py-1.5 font-semibold border-b border-border" style={{ width: 90 }}>{t('resource.unitOfMeasure')}</th>
-                  {poolShowParentColumn && (
-                    <th className="text-left px-2 py-1.5 font-semibold border-b border-border" style={{ width: 120 }}>{t('resource.parent')}</th>
-                  )}
-                  <th className="border-b border-border" style={{ width: 190 }} />
-                </tr>
-              </thead>
+              <ResourceTableHead showTotal={false} showParent={poolShowParentColumn} />
               <tbody>
                 {pool.resources.map(r => {
                   const stepsOpen = expandedSteps === r.id;
@@ -624,24 +628,7 @@ export function ResourcePanel() {
           )
         ) : (
           <table className="w-full border-collapse">
-            <thead>
-              <tr className="sticky top-0 z-10" style={{ background: 'var(--theme-surface-alt)' }}>
-                <th className="border-b border-border px-1 py-1.5" style={{ width: 44 }} title={t('resource.color')} aria-label={t('resource.color')}>
-                  <span className="block h-2.5 w-full rounded-sm" style={{ background: 'var(--theme-border)' }} />
-                </th>
-                <th className="text-left px-2 py-1.5 font-semibold border-b border-border" style={{ minWidth: 160 }}>{t('resource.name')}</th>
-                <th className="text-left px-2 py-1.5 font-semibold border-b border-border" style={{ width: 130 }}>{t('resource.typeLabel')}</th>
-                <th className="text-right px-2 py-1.5 font-semibold border-b border-border" style={{ width: 110 }}>{t('resource.maxUnits')}</th>
-                <th className="text-left px-2 py-1.5 font-semibold border-b border-border" style={{ width: 160 }}>{t('resource.calendarId')}</th>
-                <th className="text-right px-2 py-1.5 font-semibold border-b border-border" style={{ width: 90 }}>{t('resource.costPerHour')}</th>
-                <th className="text-right px-2 py-1.5 font-semibold border-b border-border" style={{ width: 100 }} title={t('resource.totalHint')}>{t('resource.total')}</th>
-                <th className="text-left px-2 py-1.5 font-semibold border-b border-border" style={{ width: 90 }}>{t('resource.unitOfMeasure')}</th>
-                <th className="text-left px-2 py-1.5 font-semibold border-b border-border" style={{ width: 120 }}>{t('resource.parent')}</th>
-                {/* F10 (critreview op 352bb94): zelfde breedte als de pooltabel — er kan nu een
-                    "Naar de bibliotheek"-tekstknop in staan, niet alleen het losmaak-/verwijder-icoon. */}
-                <th className="border-b border-border" style={{ width: 190 }} />
-              </tr>
-            </thead>
+            <ResourceTableHead showTotal showParent />
             <tbody>
               {resources.map(r => {
                 const stepsOpen = expandedSteps === r.id;

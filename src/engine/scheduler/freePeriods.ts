@@ -1,6 +1,6 @@
 import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { CalendarEngine } from './CalendarEngine';
-import { parseDate, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
+import { parseDate, addCalendarDays, diffCalendarDays, formatDate, utcDayIndex } from '@/utils/dateUtils';
 
 /**
  * Lange-vrije-periode-detectie voor het eigenschappenpaneel (issue #21, user-wens): waarschuw
@@ -83,7 +83,7 @@ export function findLongFreePeriods(
 
   let cursor = new Date(start.getTime());
   for (let i = 0; i < totalTaskDays; i++) {
-    const dayIdx = Math.floor(cursor.getTime() / 86_400_000);
+    const dayIdx = utcDayIndex(cursor.getTime());
     if (dayIdx <= lastPeriodEndIdx) {
       cursor = addCalendarDays(cursor, 1);
       continue;
@@ -110,21 +110,15 @@ export function findLongFreePeriods(
         // (c) hierboven: zonder minstens één echte holiday-dag ⇒ louter weekpatroon ⇒ geen
         // waarschuwing, ook al is de periode lang genoeg (bv. 6+ dagen bij 1 werkdag/week).
         if (hasHolidayException) {
-          results.push({ start: isoDate(periodStart), end: isoDate(periodEnd), days, name });
+          results.push({ start: formatDate(periodStart), end: formatDate(periodEnd), days, name });
         }
       }
-      lastPeriodEndIdx = Math.floor(periodEnd.getTime() / 86_400_000);
+      lastPeriodEndIdx = utcDayIndex(periodEnd.getTime());
     }
     cursor = addCalendarDays(cursor, 1);
   }
 
   return results;
-}
-
-/** YYYY-MM-DD zonder de tijdcomponent-aannames van `formatDate` (die is identiek, maar lokaal
- *  gehouden zodat deze module geen extra afhankelijkheid nodig heeft dan wat hij al importeert). */
-function isoDate(d: Date): string {
-  return d.toISOString().split('T')[0];
 }
 
 /**

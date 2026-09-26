@@ -21,14 +21,12 @@ import { appStoreContext, useAppStore, type AppStoreContext } from '@/state/appS
 import { mcpTransactions } from '@/state/mcpTransaction';
 import { createMcpTransactions, type McpTransactions } from '@/state/runtime/createMcpTransactions';
 import { loadMcpPort, loadMcpToken, saveMcpToken, saveAiMode } from '@/utils/settingsStore';
+import { isTauri } from '@/utils/platform';
 import { handleMcpMessage } from './dispatcher';
 import { record as recordActivity, capField } from './activityLog';
 import { createAppBackupService, ensureBackup, resetBackupSession, markDuplicateBorn } from './backup';
 import { registerAllTools } from './toolRegistry';
 import type { McpBackupBinding, McpContext, McpServerStatus, ActivityEntry } from './contracts';
-
-/** Draaien we in de Tauri-shell? (zelfde runtime-poort als de rest van de app-code). */
-const isTauri = (): boolean => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
 // --- Runtime-init (SYNC-2: de integratiedraden tussen de tool-banen) ------------------------------
 

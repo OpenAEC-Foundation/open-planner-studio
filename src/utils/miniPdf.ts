@@ -13,22 +13,6 @@
  * UTF-8 zouden encoden) en tellen byte-offsets voor de xref-tabel exact bij.
  */
 
-export interface MiniPdfImage {
-  /** Ruwe JPEG-bytes (zonder data-URL-prefix). */
-  jpegBytes: Uint8Array;
-  /** Rasterpixel-afmetingen van de JPEG zelf (voor het /Image XObject-dict). */
-  imageWidthPx: number;
-  imageHeightPx: number;
-  /**
-   * Fysieke paginamaat in PDF-punten (1/72 inch). Losstaand van de rasterresolutie —
-   * `printPreview` tekent op high-DPI-canvassen (`canvas.width = logicalWidth * devicePixelRatio`),
-   * dus de puntmaat moet uit de *logische* (CSS-px, 96 DPI) afmeting komen, niet uit de rasterpixels,
-   * anders wordt de pagina op een retina-scherm 2-3x te groot.
-   */
-  pageWidthPt: number;
-  pageHeightPt: number;
-}
-
 /** Zet een ASCII/latin1-string om in bytes (géén UTF-8 — PDF-syntaxtokens zijn altijd ASCII). */
 function asciiBytes(s: string): Uint8Array<ArrayBuffer> {
   const out = new Uint8Array(s.length);
@@ -194,59 +178,8 @@ export function buildImagePdf(pages: PdfImagePage[]): Uint8Array<ArrayBuffer> {
   return concatBytes(parts);
 }
 
-/**
- * Bouw een geldige PDF 1.4 rond één pagina-vullende JPEG. Dunne wrapper over
- * {@link buildImagePdf} zodat er maar één PDF-structuur/xref-implementatie bestaat.
- */
-export function buildSinglePageImagePdf(image: MiniPdfImage): Uint8Array<ArrayBuffer> {
-  return buildImagePdf([{
-    jpegBytes: image.jpegBytes,
-    widthPt: image.pageWidthPt,
-    heightPt: image.pageHeightPt,
-    imageWidthPx: image.imageWidthPx,
-    imageHeightPx: image.imageHeightPx,
-  }]);
-}
-
-/** Haal de ruwe JPEG-bytes uit een `data:image/jpeg;base64,...`-URL. */
-export function jpegDataUrlToBytes(dataUrl: string): Uint8Array<ArrayBuffer> {
-  const marker = ';base64,';
-  const idx = dataUrl.indexOf(marker);
-  if (idx === -1) throw new Error('Onverwacht data-URL-formaat (geen base64-JPEG)');
-  const base64 = dataUrl.slice(idx + marker.length);
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
-/** 1 punt = 1/72 inch; de logische (CSS-px) canvasmaat is getekend op 96 DPI (zie `printPreview`). */
+/** De logische (CSS-px) canvasmaat is getekend op 96 DPI (zie `printPreview`). */
 const DPI = 96;
-const POINTS_PER_INCH = 72;
-
-/**
- * Genereer PDF-bytes rechtstreeks vanaf een canvas (JPEG-encodering, paginavullend).
- *
- * `printPreview.renderPrintCanvas` tekent op een high-DPI-canvas: `canvas.width/height` zijn
- * rasterpixels (`logische maat * devicePixelRatio`), terwijl `canvas.style.width/height` de
- * logische CSS-pixelmaat op 96 DPI is — dezelfde maat waarop de paginaformaten (A4/A3/A2/A1) in
- * `PAPER_SIZES` zijn gebaseerd. De paginamaat in punten moet dus uit de logische maat komen
- * (anders wordt de PDF-pagina 2-3x te groot op een retina-scherm); de rasterpixels blijven
- * gewoon de JPEG-resolutie.
- */
-export function canvasToPdfBytes(canvas: HTMLCanvasElement, quality = 0.92): Uint8Array<ArrayBuffer> {
-  const dataUrl = canvas.toDataURL('image/jpeg', quality);
-  const jpegBytes = jpegDataUrlToBytes(dataUrl);
-  const logicalWidthPx = parseFloat(canvas.style.width) || canvas.width;
-  const logicalHeightPx = parseFloat(canvas.style.height) || canvas.height;
-  return buildSinglePageImagePdf({
-    jpegBytes,
-    imageWidthPx: canvas.width,
-    imageHeightPx: canvas.height,
-    pageWidthPt: (logicalWidthPx / DPI) * POINTS_PER_INCH,
-    pageHeightPt: (logicalHeightPx / DPI) * POINTS_PER_INCH,
-  });
-}
 
 /**
  * Bepaal de raster-schaal (t.o.v. de logische 96-DPI-maat) voor een hoge-resolutie PDF-export,

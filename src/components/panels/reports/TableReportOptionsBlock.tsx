@@ -7,6 +7,7 @@ import {
 } from '@/utils/reportSettings';
 import type { ResourceLoadingBucket } from '@/engine/reports';
 import { ReportingPeriodField } from './ReportingPeriodField';
+import { OrientationSelect, PaperSizeSelect, ReportCheckRow, ReportFieldRow, ReportOptionsCard } from './reportFormPrimitives';
 
 /**
  * Optieblok van de tabelrapporten (discussie #31): per rapporttype alleen de knoppen die dat
@@ -76,10 +77,9 @@ export function TableReportOptionsBlock({ reportType, options, onChange, paperSi
     min: number,
     max: number,
   ) => (
-    <div className="flex items-center gap-2 min-w-0">
-      <label className="text-text-secondary w-32 flex-shrink-0" htmlFor={`report-opt-${key}`}>{label}</label>
+    <ReportFieldRow label={label} labelWidth="w-32" htmlFor={`report-opt-${key}`}>
       <NumberField id={`report-opt-${key}`} value={options[key]} min={min} max={max} onCommit={n => onChange({ [key]: n })} dataKey={key} />
-    </div>
+    </ReportFieldRow>
   );
 
   // Het gedeelde rapportageperiode-control (issue #120) — per rapport een eigen opgeslagen keuze.
@@ -106,16 +106,12 @@ export function TableReportOptionsBlock({ reportType, options, onChange, paperSi
   );
 
   const checkRow = (key: 'resourceLoadOnlyOverloaded' | 'resourceAssignmentIncludeCompleted' | 'wbsSummaryIncludeActivities', label: string) => (
-    <label className="flex items-center gap-2 min-w-0">
-      <input
-        type="checkbox"
-        checked={options[key]}
-        onChange={e => onChange({ [key]: e.target.checked })}
-        className="accent-accent flex-shrink-0"
-        data-ops-report-option={key}
-      />
-      <span className="min-w-0">{label}</span>
-    </label>
+    <ReportCheckRow
+      checked={options[key]}
+      onChange={checked => onChange({ [key]: checked })}
+      label={label}
+      inputProps={{ 'data-ops-report-option': key }}
+    />
   );
 
   let body: React.ReactNode = null;
@@ -148,8 +144,7 @@ export function TableReportOptionsBlock({ reportType, options, onChange, paperSi
     case 'wbsSummary':
       body = (
         <>
-          <div className="flex items-center gap-2 min-w-0">
-            <label className="text-text-secondary w-32 flex-shrink-0">{t('tableReports.options.wbsLevel')}</label>
+          <ReportFieldRow label={t('tableReports.options.wbsLevel')} labelWidth="w-32">
             <Select
               className="flex-1 min-w-0"
               aria-label={t('tableReports.options.wbsLevel')}
@@ -160,7 +155,7 @@ export function TableReportOptionsBlock({ reportType, options, onChange, paperSi
                 ...range(1, L.wbsLevel.max).map(n => ({ value: String(n), label: String(n) })),
               ]}
             />
-          </div>
+          </ReportFieldRow>
           {checkRow('wbsSummaryIncludeActivities', t('tableReports.options.includeActivities'))}
         </>
       );
@@ -170,8 +165,7 @@ export function TableReportOptionsBlock({ reportType, options, onChange, paperSi
   }
 
   return (
-    <div className="bg-surface-alt rounded-lg p-3" style={{ border: '1px solid var(--theme-border)' }} data-ops-report-options>
-      <h3 className="ui-card-header !text-small !leading-4 mb-2">{t('tableReports.options.sectionTitle')}</h3>
+    <ReportOptionsCard title={t('tableReports.options.sectionTitle')} cardProps={{ 'data-ops-report-options': true }}>
       <div className="flex flex-col gap-2 text-small leading-4">
         {/* Papier en oriëntatie elk op een eigen rij met het label erboven: naast een `w-32`-label
             (en ook in twee kolommen) bleef bij de standaardkolom ~53 px over en las "Landscape"
@@ -179,32 +173,15 @@ export function TableReportOptionsBlock({ reportType, options, onChange, paperSi
         <div className="flex flex-col gap-2 min-w-0">
           <div className="flex flex-col gap-1 min-w-0">
             <label className="text-text-secondary" htmlFor="report-opt-paper">{t('paper')}</label>
-            <Select
-              id="report-opt-paper"
-              className="w-full min-w-0"
-              aria-label={t('paper')}
-              value={paperSize}
-              onChange={v => onPaperSize(v as ReportPaperSize)}
-              options={(['A4', 'A3', 'A2', 'A1'] as const).map(p => ({ value: p, label: p }))}
-            />
+            <PaperSizeSelect id="report-opt-paper" className="w-full min-w-0" value={paperSize} onChange={onPaperSize} />
           </div>
           <div className="flex flex-col gap-1 min-w-0">
             <label className="text-text-secondary" htmlFor="report-opt-orientation">{t('orientation')}</label>
-            <Select
-              id="report-opt-orientation"
-              className="w-full min-w-0"
-              aria-label={t('orientation')}
-              value={orientation}
-              onChange={v => onOrientation(v as ReportOrientation)}
-              options={[
-                { value: 'landscape', label: t('landscape') },
-                { value: 'portrait', label: t('portrait') },
-              ]}
-            />
+            <OrientationSelect id="report-opt-orientation" className="w-full min-w-0" value={orientation} onChange={onOrientation} />
           </div>
         </div>
         {body}
       </div>
-    </div>
+    </ReportOptionsCard>
   );
 }

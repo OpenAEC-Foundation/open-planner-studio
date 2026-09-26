@@ -64,6 +64,12 @@ export function unknownTypeReason(raw: unknown): string {
 export const ANCESTOR_RELATION_REJECTION =
   'een relatie tussen een taak en zijn eigen voorouder-samenvattingstaak (directe ouder of hoger) is niet toegestaan (in beide richtingen)';
 
+/** Weigertekst voor een relatie van een taak met zichzelf — gedeeld door `add_dependencies` en
+ *  `update_dependencies`, net als `ANCESTOR_RELATION_REJECTION` hierboven. */
+export function selfRelationReason(taskId: string): string {
+  return `een relatie kan taak '${taskId}' niet met zichzelf verbinden`;
+}
+
 /** FS/SS/FF/SF-afkorting voor de compacte relatienotatie (leeskant). */
 export function seqAbbrev(type: SequenceType): string {
   switch (type) {

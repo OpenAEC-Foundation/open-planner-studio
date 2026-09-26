@@ -121,6 +121,20 @@ export interface ProgressImportPlan {
 }
 
 /** Harde grenzen op ONGEVALIDEERDE bestandsinvoer (hardening — zie de checklist). */
+/**
+ * Widened vorm van `PROGRESS_IMPORT_LIMITS` (die `as const` is — sommige velden dragen daardoor
+ * een literal-type, bv. `256` i.p.v. `number`). Losse limieten (tests, een toekomstige instelling)
+ * moeten een AFWIJKENDE waarde kunnen meegeven; `typeof PROGRESS_IMPORT_LIMITS` zou dat afdwingen
+ * tot exact de standaardwaarde.
+ */
+export interface ProgressImportLimits {
+  readonly maxBytes: number;
+  readonly maxRows: number;
+  readonly maxCellChars: number;
+  readonly maxIdChars: number;
+  readonly maxWbsChars: number;
+}
+
 export const PROGRESS_IMPORT_LIMITS = {
   maxBytes: 16 * 1024 * 1024,
   maxRows: 50_000,

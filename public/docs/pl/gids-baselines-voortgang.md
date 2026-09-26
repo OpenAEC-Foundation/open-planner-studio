@@ -41,6 +41,14 @@ Postęp ustawiasz w trzech miejscach, wszystkie z tym samym efektem:
 
 Rzeczywiste daty nigdy nie mogą wypadać później niż data statusu — spróbuj wprowadzić późniejszą, a aplikacja odrzuci ją z błędem. To celowa granica: „fakt" (coś, co faktycznie się wydarzyło) z definicji nie może leżeć w przyszłości względem momentu, w którym rejestrujesz postęp.
 
+### Postęp fazy
+
+Faza — zadanie z zadaniami pod nim — nie ma własnego postępu. Jej **procent ukończenia** i **status** są przy każdym przeliczeniu (**F5** lub **Oblicz**) wyliczane z zadań pod nią. Procent jest ważony czasem trwania: zadanie na dziesięć dni roboczych liczy się dwa razy mocniej niż zadanie na pięć. To dokładnie ta liczba, którą pokazuje **Podsumowanie WBS** na karcie **Raport**, i którą widzą Tabela, podpowiedź, PDF i asystent AI. Status podąża za tym: **Ukończone**, gdy wszystkie zadania pod fazą są gotowe, **W toku**, gdy jedno się rozpoczęło, w przeciwnym razie **Nierozpoczęte**.
+
+Dlatego nie możesz samodzielnie wpisać postępu fazy. W panelu właściwości i oknie dialogowym zadania suwak i rzeczywiste daty fazy są wyłączone, a w **Tabeli** kolumny postępu wiersza fazy są tylko do odczytu. Wybierz **Postęp** w menu kontekstowym na fazie, a wszystkie zadania pod nią otrzymają ten procent; po następnym przeliczeniu faza podąży sama.
+
+Dwa wyjątki podlegają tej samej regule co daty fazy. Faza planowana ręcznie z pliku MS Project (`.mpp`) zachowuje postęp zapisany w pliku. A dopóki oglądasz [daty w zapisanej postaci](docs://datums-zoals-opgeslagen), faza pokazuje postęp z pliku; gdy tylko przeliczysz ponownie, jest znowu wyliczany.
+
 ## Data statusu
 
 **Data statusu** (grupa wstążki **Baseline i postęp** na karcie Planowanie, pole **Data statusu**) oznacza „dzisiaj" w ramach harmonogramu — moment, na który zarejestrowano postęp. Gdy jest ustawiona, robi jednocześnie dwie rzeczy:

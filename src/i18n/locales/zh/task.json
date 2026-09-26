@@ -106,10 +106,12 @@
       "priority": "资源调配优先级",
       "recordedSource": "来源（记录的日期）",
       "remainingMinutes": "剩余（分钟）",
-      "remainingTime": "剩余（工作日）",
+      "remainingTime": "剩余",
       "resourceIds": "资源 ID",
       "resume": "恢复日期",
       "scheduleFinish": "计划完成日期",
+      "start": "开始",
+      "finish": "完成",
       "scheduleStart": "计划开始日期",
       "splitGaps": "中断间隔",
       "status": "状态",
@@ -146,6 +148,10 @@
     },
     "validation": {
       "readOnly": "无法编辑此计算列。",
+      "scheduleFinishNotManual": "计划完成日期仅适用于手动计划的任务。请通过“完成”列或工期更改完成日期。",
+      "finishFromDuration": "此任务的完成日期由开始日期和工期决定。请更改开始日期或工期。",
+      "finishBeforeStart": "完成早于开始。",
+      "finishIsActual": "此任务已完成；其完成日期为实际完成日期。请通过进度进行更改。",
       "invalid": "输入的值无效。",
       "relationToken": "请使用类似 1.2 FS+2d 的格式。",
       "externalRelationRequiresDialog": "请通过关系 → 添加外部关系…添加外部任务。",
@@ -237,7 +243,8 @@
       "unknownTask": "引用的任务不存在。",
       "unrepresentableSummaryRelation": "与摘要任务的关系无法在此编辑。",
       "self": "任务不能依赖自身。",
-      "ancestor": "任务不能与其自身的摘要任务建立关系。"
+      "ancestor": "任务不能与其自身的摘要任务建立关系。",
+      "summaryProgress": "摘要任务的进度由其子任务推导得出，无法在此处修改。"
     },
     "controls": {
       "collapse": "折叠",
@@ -407,7 +414,8 @@
       "actualStart": "实际开始",
       "actualFinish": "实际完成",
       "actualDate": "实际日期",
-      "remaining": "剩余（工作日）"
+      "remaining": "剩余",
+      "summaryDerived": "由子任务推导得出：请在子任务中修改进度。计算（F5）后摘要任务随之更新。"
     },
     "cpmResult": "CPM 结果",
     "earlyStart": "最早开始：",

@@ -1,6 +1,7 @@
 import { detectCycleInEdges } from '@/engine/scheduler/graphWalk';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import {
+  exclusiveExternalLag,
   externalAnchorSideIsCompatible,
   sourceProjectKeyFor,
   type ExternalDirection,
@@ -17,6 +18,7 @@ import {
   taskRelations,
   type TaskRelationIndex,
 } from '@/engine/taskGrid/relationIndex';
+import { hasOwn, isRecord } from '@/utils/guards';
 
 export interface RelationTokenSource {
   index: number;
@@ -46,14 +48,6 @@ export interface ParsedExternalRelationToken extends ParsedRelationTokenBase {
 }
 
 export type ParsedRelationToken = ParsedInternalRelationToken | ParsedExternalRelationToken;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function hasOwn(value: Record<string, unknown>, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(value, key);
-}
 
 function isExternalLag(value: unknown): boolean {
   if (!isRecord(value)) return false;
@@ -236,7 +230,7 @@ function canonicalExternal(link: ExternalLink): string {
     id: link.id,
     direction: link.direction,
     relType: link.relType,
-    ...(link.lagMinutes !== undefined ? { lagMinutes: link.lagMinutes } : { lagDays: link.lagDays ?? 0 }),
+    ...exclusiveExternalLag(link),
     anchorDate: link.anchorDate,
     sourceRef: link.sourceRef,
     sourceMissing: link.sourceMissing,
@@ -481,9 +475,7 @@ function planRelationSetCore(
       link: {
         direction: input.direction,
         relType: external.relType,
-        ...(external.lag.lagMinutes !== undefined
-          ? { lagMinutes: external.lag.lagMinutes }
-          : { lagDays: external.lag.lagDays }),
+        ...exclusiveExternalLag(external.lag),
         anchorDate: external.anchorDate,
         sourceRef: external.sourceRef,
         sourceMissing: external.sourceMissing,

@@ -1,4 +1,4 @@
-import { addCalendarDays, addCalendarMonths, formatDate, parseDate } from '@/utils/dateUtils';
+import { addCalendarDays, addCalendarMonths, diffDays, formatDate, parseDate } from '@/utils/dateUtils';
 
 /**
  * De rapportageperiode (issue #120, manuvarkey): één gedeeld periodemodel voor alle rapporten die
@@ -73,14 +73,13 @@ export function weeksToPreset(weeks: number, direction: 'next' | 'last'): Report
  * referentiedag zelf — een leeg rapport, geen exception.
  */
 export function resolveReportingPeriod(period: ReportingPeriod, refDay: string, projectSpan?: ResolvedPeriod): ResolvedPeriod {
-  const ref = parseDate(refDay);
   const weeks = presetWeeks(period.preset);
   if (weeks !== undefined) {
-    const days = weeks * 7;
     return period.preset.startsWith('next')
-      ? { from: refDay, to: formatDate(addCalendarDays(ref, days - 1)) }
-      : { from: formatDate(addCalendarDays(ref, -(days - 1))), to: refDay };
+      ? { from: refDay, to: windowEnd(refDay, weeks * 7) }
+      : { from: windowStart(refDay, weeks * 7), to: refDay };
   }
+  const ref = parseDate(refDay);
   switch (period.preset) {
     case 'nextMonth':
       return { from: refDay, to: formatDate(addCalendarDays(addCalendarMonths(ref, 1), -1)) };
@@ -97,7 +96,15 @@ export function resolveReportingPeriod(period: ReportingPeriod, refDay: string, 
 
 /** Lengte van een venster in kalenderdagen (inclusief), minimaal 1. */
 export function periodDays(p: ResolvedPeriod): number {
-  const a = parseDate(p.from);
-  const b = parseDate(p.to);
-  return Math.max(1, Math.round((b.getTime() - a.getTime()) / 86400000) + 1);
+  return Math.max(1, diffDays(p.from, p.to) + 1);
+}
+
+/** Vensterrand: `days − 1` kalenderdagen ná `fromDay` (inclusief venster van precies `days` dagen). */
+export function windowEnd(fromDay: string, days: number): string {
+  return formatDate(addCalendarDays(parseDate(fromDay), Math.max(0, days - 1)));
+}
+
+/** Vensterstart: `days − 1` kalenderdagen vóór `toDay` (inclusief). */
+export function windowStart(toDay: string, days: number): string {
+  return formatDate(addCalendarDays(parseDate(toDay), -Math.max(0, days - 1)));
 }

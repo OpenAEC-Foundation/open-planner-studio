@@ -89,15 +89,21 @@ eq('06 fieldKind interferingFloat = number', fieldKind(bk('interferingFloat'), d
 eq('07 fieldKind isNearCritical = boolean', fieldKind(bk('isNearCritical'), dummyCtx), 'boolean');
 eq('08 fieldKind floatPath = number', fieldKind(bk('floatPath'), dummyCtx), 'number');
 
-// ── 1b) Issue #80: CPM-resultaten zijn hele weergegeven dagen ─────────────────────────────────
+// ── 1b) Issue #80: geen rekenartefacten in de CPM-resultaten van het paneel ───────────────────
 // Het paneel heeft geen React-rendertestharnas. Deze lichte bronguard fixeert daarom de concrete
-// gebruikersweergave: vrije en interfererende speling mogen geen rekenartefacten met lange
-// decimalen tonen (zoals 2.2916666666666665), maar worden op de dichtstbijzijnde dag afgerond.
+// gebruikersweergave: speling mag geen rekenartefacten met lange decimalen tonen (zoals
+// 2.2916666666666665). Eerst werden vrije en interfererende speling daarvoor op hele dagen
+// afgerond en de totale speling niet — in urenmodus stond dan "1.6666666666666667 dagen" boven
+// "2 dagen" voor dezelfde waarde, en een afronding op hele dagen verzweeg uren speling (audit
+// weergaven, bevinding 8). Nu gaan alle drie door de gedeelde `formatWorkDaysText` (twee decimalen,
+// decimaalteken van de taal — dezelfde opmaak als raster en tooltip; gedrag getoetst in
+// check-float-remaining-text.ts).
 const cpmResultSection = readFileSync(join(ROOT, 'src/components/task-sections/TaskCpmResultSection.tsx'), 'utf8');
-eq('08a CPM-paneel rondt vrije speling af op hele dagen',
-  /\{Math\.round\(task\.time\.freeFloat\)\} \{tCommon\('daysLong'\)\}/.test(cpmResultSection), true);
-eq('08b CPM-paneel rondt interfererende speling af op hele dagen',
-  /\{Math\.round\(task\.time\.interferingFloat\)\} \{tCommon\('daysLong'\)\}/.test(cpmResultSection), true);
+eq('08a CPM-paneel toont totale, vrije en interfererende speling via de gedeelde opmaak',
+  ['totalFloat', 'freeFloat', 'interferingFloat'].every(f => cpmResultSection.includes(`{days(task.time.${f})}`))
+    && /formatWorkDaysText\(/.test(cpmResultSection), true);
+eq('08b CPM-paneel toont geen ruwe of eigen afgeronde speling meer',
+  /\{(Math\.round\()?task\.time\.(totalFloat|freeFloat|interferingFloat)\)?\}/.test(cpmResultSection), false);
 
 // ── 2) CPMResult-vormcontract: criticalPaths ALTIJD [criticalPath] (§3.5/§4.6) ─
 eq('09 criticalPaths lengte precies 1 (floatPaths uit)', rA.criticalPaths.length, 1);

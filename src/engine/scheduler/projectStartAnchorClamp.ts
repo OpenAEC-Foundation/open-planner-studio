@@ -11,19 +11,28 @@
 // SEMANTIEK (ongewijzigd t.o.v. het orkestratorbesluit): uitsluitend bij een ECHTE verzetting naar
 // een LATERE `startDate` klemmen wortel-taken (geen voorganger, geen forward-constraint, geen
 // hammock) die vóór de nieuwe datum staan vooruit naar de eerstvolgende werk-instant OP/NÁ die
-// datum, IN DE TAAK-EIGEN KALENDER — exact `CPMSolver.ownAnchor`/`rootFloor`'s eigen snap
-// (`snapWorkInstantOnOrAfter`, hergebruikt, geen tweede implementatie — dat was de bron van de
-// H3a-middernacht-bug: een kale datumstring zonder kalender-snap landde ná de eerstvolgende
-// `runCPM` op middernacht i.p.v. de eerste werkband). `scheduleFinish` schuift consistent mee
-// (duurbehoudend, klokbehoudend: `shiftIso` met het kalenderdag-verschil tussen oude en nieuwe
-// start — zelfde mechaniek als `moveProject`/`shiftTask`, H3b).
+// datum, IN DE ENGINE WAARIN DE SOLVER DIE TAAK REKENT. Beide stappen zijn de solver-functies zelf,
+// geen kopie:
+//   - de engine-keuze is `engineForTaskCalendar` (CPMSolver.ts), dezelfde functie achter
+//     `CPMSolver.calendarFor`: taak-eigen kalender via `resolveCalendar`, en voor een URENtaak de
+//     effectieve uurbanden van die kalender. Op een scalaire kalender zonder `workTime` (zoals de
+//     standaardprojectkalender) staat de engine voor een urentaak dus in uurmodus en landt het
+//     anker op het eerste werkmoment (bv. 07:00); een dagtaak op diezelfde kalender krijgt een kale
+//     datum. Tot deze fix bouwde de klem zijn engine op de ruwe kalender, waardoor een urentaak op
+//     zo'n kalender op middernacht (`T00:00`) belandde terwijl de solver 07:00 koos;
+//   - de snap is `snapWorkInstantOnOrAfter`, dezelfde als `CPMSolver.ownAnchor`/`rootFloor` (de
+//     H3a-middernacht-bug: een kale datumstring zonder kalender-snap landde ná de eerstvolgende
+//     `runCPM` op middernacht i.p.v. de eerste werkband).
+// `scheduleFinish` schuift consistent mee (duurbehoudend, klokbehoudend: `shiftIso` met het
+// kalenderdag-verschil tussen oude en nieuwe start — zelfde mechaniek als
+// `moveProject`/`shiftTask`, H3b).
 import type { Task, TaskConstraint } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import { isSummaryTask } from '@/utils/taskHierarchy';
-import { CalendarEngine } from './CalendarEngine';
+import type { CalendarEngine } from './CalendarEngine';
 import { resolveCalendar } from './resolveCalendar';
-import { snapWorkInstantOnOrAfter } from './CPMSolver';
+import { engineForTaskCalendar, snapWorkInstantOnOrAfter } from './CPMSolver';
 import { shiftIso } from '../moveProject';
 import { parseDate, parseInstant, formatInstant, diffDays, type DateMode } from '@/utils/dateUtils';
 
@@ -58,16 +67,9 @@ export function clampProjectStartAnchors(input: ClampProjectStartAnchorsInput): 
   if (nextRaw.getTime() <= prevRaw.getTime()) return 0; // M4: dag-granulaire vergelijking, geen rauwe string
 
   const hasPredecessor = new Set(input.sequences.map((seq) => seq.successorId));
+  // Eén cache per klem-aanroep; de sleutel (kalender-id + uur-/dagonderscheid) komt uit
+  // `engineForTaskCalendar`, dus een uur- en een dagtaak op dezelfde kalender delen geen engine.
   const engineCache = new Map<string, CalendarEngine>();
-  const engineFor = (calId: string | undefined): CalendarEngine => {
-    const key = calId ?? '';
-    let eng = engineCache.get(key);
-    if (!eng) {
-      eng = new CalendarEngine(resolveCalendar(calId, input.calendars, input.calendar));
-      engineCache.set(key, eng);
-    }
-    return eng;
-  };
 
   let clamped = 0;
   for (const t of input.tasks) {
@@ -77,7 +79,7 @@ export function clampProjectStartAnchors(input: ClampProjectStartAnchorsInput): 
     if (hasForwardConstraint(t.constraint)) continue;  // L1: expliciete forward-constraint wint
     if (hasForwardConstraint(t.constraint2)) continue;
 
-    const eng = engineFor(t.calendarId);
+    const eng = engineForTaskCalendar(engineCache, resolveCalendar(t.calendarId, input.calendars, input.calendar), t);
     const mode: DateMode = eng.isHourMode ? 'hour' : 'day';
     // M4: vergelijk GEPARSEERDE instants, niet rauwe strings — een datetime-anker op de
     // projectstartdag zelf ("2026-08-15T08:00") is lexicografisch "groter" dan het rauwe

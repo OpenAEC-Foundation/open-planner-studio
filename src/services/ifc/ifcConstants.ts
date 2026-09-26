@@ -1,11 +1,13 @@
 import type { CustomFieldType } from '@/types/structure';
 import type { ResourceType } from '@/types/resource';
+import { invertRecord } from '@/utils/collections';
 
 /**
  * Gedeelde IFC-constanten (audit-thema "reader↔writer-consts"). Deze paren waren voorheen aan
  * beide kanten los gedefinieerd en konden stil divergeren. Hier is telkens één kant autoritair;
  * de andere richting leiden we programmatisch af (of houden we expliciet waar dat echt niet kan).
- * Dit bestand importeert alleen uit `@/types` ⇒ geen import-cyclus met reader/writer.
+ * Dit bestand importeert alleen uit `@/types` en de bladmodule `@/utils/collections` ⇒ geen
+ * import-cyclus met reader/writer.
  */
 
 /** Fase 2.5-default voor `Task.priority` (0-1000, default 500). Reader leest 'm terug, writer
@@ -51,10 +53,7 @@ export const RESOURCE_TYPE_TO_IFC: Record<ResourceType, string> = {
  *  programmatisch afgeleid. Asymmetrie: `IFCCONSTRUCTIONPRODUCTRESOURCE` is een inkomende-alleen
  *  alias (herbruikbaar bekisting e.d., domeinrapport §8.A) — OPS schrijft die entiteit nooit
  *  zelf, maar accepteert 'm als `EQUIPMENT`. */
-export const IFC_TO_RESOURCE_TYPE: Record<string, ResourceType> = (() => {
-  const inv: Record<string, ResourceType> = { IFCCONSTRUCTIONPRODUCTRESOURCE: 'EQUIPMENT' };
-  for (const [type, entity] of Object.entries(RESOURCE_TYPE_TO_IFC) as [ResourceType, string][]) {
-    inv[entity] = type;
-  }
-  return inv;
-})();
+export const IFC_TO_RESOURCE_TYPE: Partial<Record<string, ResourceType>> = Object.assign(
+  invertRecord(RESOURCE_TYPE_TO_IFC),
+  { IFCCONSTRUCTIONPRODUCTRESOURCE: 'EQUIPMENT' as const },
+);
