@@ -465,6 +465,11 @@ met `effectiveSchedulingOptions({})`; verify EXIT 0 browser 203, measure 76/0/0/
 (#170 erin) vóór de merge. CI-runs van main (na #169) en #170 werden om 08:28/08:29 met 'cancelled' op de test-job
 afgebroken ⇒ om 09:00 opnieuw gestart, wéér 'cancelled' na exact 20 min: **oorzaak = `timeout-minutes: 20` op de test-job** (de verify-keten duurt op de runner nu >20 min; de builds hebben 45). Fix: **PR #229** (`claude/ci-test-timeout`, 20 → 45, gelinkt); daarna `main` in #170 mergen zodat de PR-run de nieuwe timeout krijgt. #180 (in #226) maakt dit later overbodig. **26-09 10:16: #229 GEMERGED (`7ab930f3`)**; main in #170 gemerged (1fe1e869), PR-CI met 45 min gestart.
 
+**26-09 10:48 — #170 GEMERGED naar `main` (`90271f55`, `--admin` na groene CI met de 45-min-timeout). Daarmee
+staat de hele etappestapel op `main`: #109 (1d8f2df6), #167 (e9631cfe), #169 (6160b477), #229 (7ab930f3), #170
+(90271f55). Main-CI/deploy loopt.** Nu: groep A stap 2 (`opus-midden-groep-a-main`: main met #170 in #226) en
+groep B (`opus-midden-groep-b-main`: main in `claude/integratie-groep-b` met de zes overlap-besluiten, groeps-PR).
+
 ## 2. Waar het werk staat (bijwerken bij elke mijlpaal)
 
 | wat | branch | stand |
