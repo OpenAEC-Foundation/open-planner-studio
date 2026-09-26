@@ -1,7 +1,7 @@
 // Layoutknoppen (issue #144, gfayat): één klik zet het resourcediagram aan, nogmaals klikken brengt
 // het beeld van vóór de klik terug, zonder dat zoom of filter meeverhuizen. De pure kern en de migratie worden
 // headless bewaakt (tests/planning/check-layout-presets.ts); hier de echte gebruikersflow.
-import { expect, seedProject, test } from './fixtures/ops';
+import { expect, seedProject, test, waitForWelcomeDialog } from './fixtures/ops';
 
 const SHOTS = process.env.OPS_LAYOUT_SHOTS;
 
@@ -95,7 +95,7 @@ test('layoutknop: een opgeslagen filter van vóór #144 staat onder de filterkno
     localStorage.removeItem('ops-taskGridLayouts');
   });
   await page.reload();
-  await page.locator('[data-ops-welcome-dialog]').waitFor({ state: 'attached', timeout: 15_000 });
+  await waitForWelcomeDialog(page);
   await page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
     s.newProject();

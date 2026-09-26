@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, seedProject, test, waitForOps } from './fixtures/ops';
+import { expect, seedProject, test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';
 
 async function showProperties(page: Page, taskId: string): Promise<void> {
   await page.evaluate((id) => {
@@ -164,6 +164,7 @@ test('taaktypen blijven bruikbaar in RTL en corrupte app-opslag wordt veilig gen
   });
   await page.reload();
   await waitForOps(page);
+  await waitForWelcomeDialog(page);
   await page.evaluate(() => {
     const state = window.__OPS__!.store.getState();
     state.newProject();

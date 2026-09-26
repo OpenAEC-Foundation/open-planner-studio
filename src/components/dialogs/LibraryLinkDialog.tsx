@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
-import { X, Link2, AlertCircle, ArrowRight } from 'lucide-react';
+import { Link2, AlertCircle, ArrowRight } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
-import { Dialog } from '@/components/common/Dialog';
+import { Dialog, DialogHeader } from '@/components/common/Dialog';
 
 /**
  * Het gedeelde koppel-/afwijkingenscherm (spec §5/§3, plan-eis 7). Vervangt AddFromLibraryDialog én
@@ -64,10 +64,7 @@ export function LibraryLinkDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[640px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-library-link-dialog': true }}
     >
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-        <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>{t('companyLibrary.linkTitle')}</span>
-        <button onClick={close} className="p-1 hover:bg-surface-hover rounded-[8px]"><X size={16} /></button>
-      </div>
+      <DialogHeader title={t('companyLibrary.linkTitle')} onClose={close} />
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
         {/* ── Herkennen ── */}

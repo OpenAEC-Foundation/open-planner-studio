@@ -119,8 +119,12 @@ export function resetWebReadRefusalForTests(): void {
 
 // ---- Fallback (Firefox/Safari): <input type=file> + blob-download ----
 
-function isBinaryName(name: string, opts?: OpenDialogOpts): boolean {
-  return (opts?.binaryExtensions ?? []).includes(extensionOf(name));
+/** Een gekozen bestand als tekst, of als bytes voor een binair formaat (`opts.binaryExtensions`). */
+async function openedFromFile(file: File, ref: FileRef | null, opts?: OpenDialogOpts): Promise<OpenedFile> {
+  if ((opts?.binaryExtensions ?? []).includes(extensionOf(file.name))) {
+    return { name: file.name, content: '', bytes: new Uint8Array(await file.arrayBuffer()), ref };
+  }
+  return { name: file.name, content: await file.text(), ref };
 }
 
 function openViaInput(filters: FileFilter[], opts?: OpenDialogOpts): Promise<OpenedFile | null> {
@@ -131,14 +135,7 @@ function openViaInput(filters: FileFilter[], opts?: OpenDialogOpts): Promise<Ope
     input.addEventListener('cancel', () => resolve(null));
     input.onchange = async () => {
       const file = input.files?.[0];
-      if (!file) { resolve(null); return; }
-      if (isBinaryName(file.name, opts)) {
-        const bytes = new Uint8Array(await file.arrayBuffer());
-        resolve({ name: file.name, content: '', bytes, ref: null });
-        return;
-      }
-      const content = await file.text();
-      resolve({ name: file.name, content, ref: null });
+      resolve(file ? await openedFromFile(file, null, opts) : null);
     };
     input.click();
   });
@@ -163,13 +160,8 @@ export async function openFileDialogWeb(filters: FileFilter[], opts?: OpenDialog
   if (hasFSA() && !platformRefusesReads && !featurePolicyBlocksFSA()) {
     try {
       const [handle] = await window.showOpenFilePicker!({ multiple: false, types: toAcceptTypes(filters) });
-      const file = await handle.getFile();
-      if (isBinaryName(file.name, opts)) {
-        const bytes = new Uint8Array(await file.arrayBuffer());
-        return { name: file.name, content: '', bytes, ref: { kind: 'handle', handle } };
-      }
-      const content = await file.text();
-      return { name: file.name, content, ref: { kind: 'handle', handle } };
+      // `await` binnen de try: een weigering tijdens het lezen moet de catch hieronder bereiken.
+      return await openedFromFile(await handle.getFile(), { kind: 'handle', handle }, opts);
     } catch (err) {
       // Annuleren blijft `null` — geen tweede picker via de input-terugval.
       if (isAbort(err)) return null;

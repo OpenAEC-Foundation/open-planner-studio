@@ -3,7 +3,7 @@ import type { Resource, ResourceAssignment, ResourceType } from '@/types/resourc
 import { encodeBandKey, encodeGroupedTaskRowKey, NONE_RAWKEY, type ViewRow } from '@/engine/view/visibleRows';
 import { RESOURCE_TYPE_BAND_ORDER, resourceTypeRank } from '@/engine/view/filterEval';
 import { type AssignmentCurveState, assignmentCurveState, contouredAssignmentIds } from '@/engine/contour/curveState';
-import { dayOf, taskFinish, taskStart } from './reportCommon';
+import { overlapsWindow, taskFinish, taskStart } from './reportCommon';
 import type { ResolvedPeriod } from './reportingPeriod';
 
 /**
@@ -176,9 +176,7 @@ export function computeResourceGanttRows(
   const allLeaves = ctx.tasks.filter(t => t.childIds.length === 0);
   const inWindow = (t: Task): boolean => {
     if (!opts.window) return true;
-    const s = dayOf(taskStart(t));
-    const f = dayOf(taskFinish(t));
-    return s !== '' && f !== '' && s <= opts.window.to && f >= opts.window.from;
+    return taskStart(t) !== '' && taskFinish(t) !== '' && overlapsWindow(t, opts.window.from, opts.window.to);
   };
   const leaves = allLeaves.filter(inWindow);
   const leafById = new Map(leaves.map(t => [t.id, t]));

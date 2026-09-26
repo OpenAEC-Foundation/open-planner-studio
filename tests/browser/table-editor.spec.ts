@@ -103,6 +103,67 @@ test('table surface: TableEditor navigeert, commit en Ctrl+Z via echte toetsen',
   expect(restored.redoDepth).toBe(before.redoDepth + 1);
 });
 
+/**
+ * Houdt browserframes vast tot de teruggegeven `release`: het volgende frame komt dan aantoonbaar ná
+ * de toetsen daartussen, zoals op een belaste runner. De toetsen zelf blijven echte browser-events.
+ */
+async function holdAnimationFrames(page: Page): Promise<() => Promise<void>> {
+  await page.evaluate(() => {
+    const held = new Map<number, FrameRequestCallback>();
+    let nextId = 1;
+    const originalRequest = window.requestAnimationFrame;
+    const originalCancel = window.cancelAnimationFrame;
+    window.requestAnimationFrame = (callback) => {
+      const id = nextId++;
+      held.set(id, callback);
+      return id;
+    };
+    window.cancelAnimationFrame = (id) => { held.delete(id); };
+    (window as unknown as { __opsReleaseFrames?: () => void }).__opsReleaseFrames = () => {
+      window.requestAnimationFrame = originalRequest;
+      window.cancelAnimationFrame = originalCancel;
+      const callbacks = [...held.values()];
+      held.clear();
+      const now = performance.now();
+      for (const callback of callbacks) callback(now);
+    };
+  });
+  return () => page.evaluate(() => {
+    (window as unknown as { __opsReleaseFrames?: () => void }).__opsReleaseFrames?.();
+  });
+}
+
+// Rode fase (CI, PR #200): de pijltoets plande de focus van de nieuwe actieve cel voor het volgende
+// frame; kwam dat frame pas ná de Enter, dan pakte die cel de focus terug van het invoerveld dat de
+// editor net had gefocust. De editor stond open, maar getypte tekst kwam er niet in.
+test('table surface: een celfocus uit het vorige frame berooft de net geopende editor niet', async ({ page, ops: _ops }) => {
+  const [firstId, secondId] = await seedProject(page, [
+    { name: 'Oorspronkelijke naam', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+    { name: 'Volgende rij', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+  ]);
+  await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
+  const nameCell = taskCell(page, firstId, 'task.name');
+  const secondCell = taskCell(page, secondId, 'task.name');
+  await nameCell.click();
+  await page.keyboard.press('ArrowDown');
+  await expect(secondCell).toBeFocused();
+
+  const releaseFrames = await holdAnimationFrames(page);
+  await page.keyboard.press('ArrowUp');
+  await expect(nameCell).toHaveAttribute('data-grid-active', 'true');
+  await page.keyboard.press('Enter');
+  const input = nameCell.locator('input');
+  await expect(input).toBeFocused();
+  await releaseFrames();
+
+  await expect(input).toBeFocused();
+  await page.keyboard.type('Naam na traag frame');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => state(page).then(snapshot => (
+    snapshot.tasks.find(task => task.id === firstId)?.name
+  ))).toBe('Naam na traag frame');
+});
+
 // Rode fase vóór de refactor: de nieuwe DOM-rij bestond zichtbaar, maar de listener hield de oude
 // rows/tasksById vast en kon er geen droptarget voor tekenen. De drag zelf gebruikt echte muisevents.
 test('table surface: rowdrag gebruikt actuele DOM-rijen en commit eenmaal', async ({ page, ops: _ops }) => {

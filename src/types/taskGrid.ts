@@ -1,6 +1,7 @@
 import type { Baseline } from '@/types/baseline';
 import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import type { Task } from '@/types/task';
+import type { DurationDisplay } from '@/types/view';
 import type { TaskRelationIndex } from '@/engine/taskGrid/relationIndex';
 
 export type TaskGridSurfaceId = 'gantt-task-grid' | 'full-task-grid';
@@ -140,7 +141,13 @@ export interface TaskColumnContext {
   /** Projectinstellingen die alleen de descriptorbewerkbaarheid/-parser sturen. */
   wbsAutoNumber?: boolean;
   effectiveHoursPerDay?: (task: Task) => number;
-  /** De adapter levert hier de echte projectkalenderberekening voor baselineafwijkingen. */
+  /** Instelling Duurweergave voor de weergavetekst van de Duur-kolom (edit- en kopieertekst blijven
+   *  de eigen, parsebare eenheid); ontbreekt ⇒ `'auto'`. */
+  durationDisplay?: DurationDisplay;
+  /** App-taal voor het decimaalteken van duren en speling; ontbreekt ⇒ punt. */
+  numberLocale?: string;
+  /** De echte projectkalenderberekening voor baselineafwijkingen (`variance.signedWorkDaysBetween`).
+   *  Ontbreekt hij, dan blijft de afwijking leeg — er is bewust geen kalenderloze terugval. */
   signedWorkDaysBetween?: (fromIso: string, toIso: string) => number;
   /** "Datums zoals opgeslagen" (XER-etappeplan laag 3, T6) — badge voor de kolom `recorded.source`.
    *  `undefined` op documenten zonder vastlegging (`recordedDates === null`), dus de kolom bestaat
@@ -168,6 +175,9 @@ export interface TaskColumnDescriptor {
   scheduleDerived?: boolean;
   available(ctx: TaskColumnContext): boolean;
   readOnly: boolean | ((task: Task, ctx: TaskColumnContext) => boolean);
+  /** Waarom deze cel alleen-lezen is, als validatiecode (`taskGrid.validation.<code>`). Ontbreekt hij
+   *  of geeft hij `undefined`, dan geldt de algemene code `readOnly` ("berekende kolom"). */
+  readOnlyReason?: (task: Task, ctx: TaskColumnContext) => string | undefined;
   read(task: Task, ctx: TaskColumnContext): unknown;
   format(value: unknown, task: Task, ctx: TaskColumnContext): string;
   copy(task: Task, ctx: TaskColumnContext): string;

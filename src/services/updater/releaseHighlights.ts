@@ -1,3 +1,5 @@
+import { isRecord } from '@/utils/guards';
+
 /** Lokale, versiegebonden gegevens voor de visuele update-dialoog.
  *
  * Dit is nadrukkelijk geen tweede changelog. Elke release krijgt één nieuw blok
@@ -168,10 +170,6 @@ export function isSafeHighlightIcon(icon: string): icon is HighlightIcon {
 /** Alleen volledige CalVer-tags tellen mee als voorganger van een stabiele release. */
 export function isStableReleaseTag(tag: string): boolean {
   return /^v\d+\.\d+\.\d+$/.test(tag);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function unexpectedFields(value: unknown, allowed: readonly string[]): string[] {

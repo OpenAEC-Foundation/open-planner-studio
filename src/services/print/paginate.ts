@@ -21,6 +21,7 @@
 
 import { buildImagePdf, type PdfImagePage } from '@/utils/miniPdf';
 import { computeTileLayout, type PaperSize, type Orientation, type PaginateMode } from './tileLayout';
+import { dataUrlToBytes } from '@/utils/dataUrl';
 
 export interface PaginateOptions {
   paperSize: PaperSize;
@@ -213,15 +214,4 @@ function drawTile(
 ): void {
   if (sw <= 0 || sh <= 0 || dw <= 0 || dh <= 0) return;
   ctx.drawImage(src, sx * srcScale, sy * srcScale, sw * srcScale, sh * srcScale, dx, dy, dw, dh);
-}
-
-/** Ruwe JPEG-bytes uit een `data:image/jpeg;base64,...`-URL. */
-function dataUrlToBytes(dataUrl: string): Uint8Array {
-  const marker = ';base64,';
-  const idx = dataUrl.indexOf(marker);
-  if (idx === -1) throw new Error('Onverwacht data-URL-formaat (geen base64-JPEG)');
-  const binary = atob(dataUrl.slice(idx + marker.length));
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
 }

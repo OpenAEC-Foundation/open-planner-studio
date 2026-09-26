@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, ListTree } from 'lucide-react';
+import { ListTree } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { isTreeMode } from '@/engine/view/visibleRows';
+import { NoticeStrip } from './NoticeStrip';
 
 /**
  * Niet-blokkerende melding (issue #26): een structuurmutatie (in-/uitspringen, doorlopend invoeren)
@@ -59,23 +60,14 @@ export function StructureLockedNotice() {
   };
 
   return (
-    <div
-      className="flex items-center gap-3 px-4 py-2 text-small leading-4 border-b border-border"
-      style={{ background: 'var(--theme-accent-soft, rgba(217,119,6,0.12))', color: 'var(--theme-text)' }}
-      data-ops-structure-locked
-    >
-      <ListTree size={14} className="shrink-0 text-accent" />
-      <span className="flex-1">{t('view.structureLockedHint')}</span>
-      <button onClick={clearView} className="btn btn--sm btn--primary" data-ops-structure-locked-clear>
-        {t('view.filter.clear')}
-      </button>
-      <button
-        onClick={() => setVisible(false)}
-        className="p-1 hover:bg-surface-hover rounded-[8px] text-text-secondary"
-        title={t('close')}
-      >
-        <X size={14} />
-      </button>
-    </div>
+    <NoticeStrip
+      icon={ListTree}
+      text={t('view.structureLockedHint')}
+      actionLabel={t('view.filter.clear')}
+      onAction={clearView}
+      onDismiss={() => setVisible(false)}
+      stripProps={{ 'data-ops-structure-locked': true }}
+      actionProps={{ 'data-ops-structure-locked-clear': true }}
+    />
   );
 }

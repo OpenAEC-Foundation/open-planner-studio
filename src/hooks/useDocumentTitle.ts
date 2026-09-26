@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
+import { basename } from '@/utils/filePath';
 
 // Documenttitel-sync: houdt de venster-/tabtitel gelijk aan het actieve document
 // (dirty-markering, projectnaam, bestandsnaam).
@@ -15,7 +16,7 @@ export function useDocumentTitle(): void {
   const filePath = useAppStore(s => s.filePath);
   useEffect(() => {
     const dirtyMark = isDirty ? '* ' : '';
-    const fileInfo = filePath ? ` — ${filePath.split(/[/\\]/).pop()}` : '';
+    const fileInfo = filePath ? ` — ${basename(filePath)}` : '';
     const shownName = projectName || t('project.untitled');
     document.title = `${dirtyMark}${shownName}${fileInfo} — Open Planner Studio`;
   }, [projectName, isDirty, filePath, t]);

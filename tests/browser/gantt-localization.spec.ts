@@ -49,7 +49,9 @@ test('Gantt vertaalt weekdagen en duursuffix na een echte taalkeuze', async ({ p
   await page.getByRole('button', { name: /^(Language|Taal)$/, exact: true }).click();
   await page.getByRole('option', { name: /Deutsch/ }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-  await page.getByRole('dialog').getByRole('button', { name: /^(Close|Sluiten|Schließen)$/ }).click();
+  // De tekstknop in de voet; het kopkruisje heet hetzelfde maar heeft geen tekstinhoud.
+  const closeName = /^(Close|Sluiten|Schließen)$/;
+  await page.getByRole('dialog').getByRole('button', { name: closeName }).filter({ hasText: closeName }).click();
 
   await expect.poll(() => paintCount(page)).toBeGreaterThan(beforePaint);
   await waitForFontsAndTwoQuietWindows(page);

@@ -106,10 +106,12 @@
       "priority": "Prioridad de redistribución",
       "recordedSource": "Origen (fechas registradas)",
       "remainingMinutes": "Restante (minutos)",
-      "remainingTime": "Restante (días laborables)",
+      "remainingTime": "Restante",
       "resourceIds": "Id. de recursos",
       "resume": "Fecha de reanudación",
       "scheduleFinish": "Fin programado",
+      "start": "Inicio",
+      "finish": "Fin",
       "scheduleStart": "Inicio programado",
       "splitGaps": "Interrupciones",
       "status": "Estado",
@@ -146,6 +148,10 @@
     },
     "validation": {
       "readOnly": "Esta columna calculada no se puede editar.",
+      "scheduleFinishNotManual": "El fin programado solo se aplica a una tarea programada manualmente. Cambie el fin mediante la columna Fin o la duración.",
+      "finishFromDuration": "En esta tarea, el fin se deriva del inicio y la duración. Cambie el inicio o la duración.",
+      "finishBeforeStart": "El fin es anterior al inicio.",
+      "finishIsActual": "Esta tarea está completada; su fin es el fin real. Cámbielo mediante el progreso.",
       "invalid": "El valor introducido no es válido.",
       "relationToken": "Use, por ejemplo, 1.2 FS+2d.",
       "externalRelationRequiresDialog": "Añada una tarea externa mediante Relación → Añadir relación externa…",
@@ -237,7 +243,8 @@
       "unknownTask": "La tarea referenciada no existe.",
       "unrepresentableSummaryRelation": "Una relación con una tarea de resumen no se puede editar aquí.",
       "self": "Una tarea no puede depender de sí misma.",
-      "ancestor": "Una tarea no puede tener una relación con su propia tarea de resumen."
+      "ancestor": "Una tarea no puede tener una relación con su propia tarea de resumen.",
+      "summaryProgress": "El progreso de una tarea de resumen se deriva de sus subtareas y no se puede cambiar aquí."
     },
     "controls": {
       "collapse": "Contraer",
@@ -415,7 +422,8 @@
       "actualStart": "Inicio real",
       "actualFinish": "Fin real",
       "actualDate": "Fecha real",
-      "remaining": "Restante (días laborables)"
+      "remaining": "Restante",
+      "summaryDerived": "Derivado de las subtareas: cambie el progreso allí. La tarea de resumen se actualiza tras calcular (F5)."
     },
     "cpmResult": "Resultado CPM",
     "earlyStart": "Inicio temprano:",

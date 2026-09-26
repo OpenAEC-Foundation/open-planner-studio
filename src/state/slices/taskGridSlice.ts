@@ -44,7 +44,11 @@ export interface TaskGridSlice {
   peekPendingLegacyTaskGridColumns: () => PendingLegacyTaskGridColumns | null;
 }
 
-function payloadFromState(state: Pick<TaskGridSlice, 'taskGridSurfaces' | 'recentTaskColumns'>): PersistedTaskGridPreferencesV1 {
+/** De te persisteren taakgridvoorkeuren (beide surfaces + recente kolommen) — ook gebruikt door
+ *  `historySlice` wanneer een undo/redo een gridvoorkeur terugzet. */
+export function persistedTaskGridPreferences(
+  state: Pick<TaskGridSlice, 'taskGridSurfaces' | 'recentTaskColumns'>,
+): PersistedTaskGridPreferencesV1 {
   return {
     version: 1,
     surfaces: {
@@ -93,7 +97,7 @@ export const createTaskGridSlice: AppSlice<TaskGridSlice> = (set, get) => {
     cancelScheduledScrollPersistence();
     scrollPersistenceTimer = setTimeout(() => {
       scrollPersistenceTimer = null;
-      void saveTaskGridPreferences(payloadFromState(get()));
+      void saveTaskGridPreferences(persistedTaskGridPreferences(get()));
     }, TASK_GRID_SCROLL_PERSIST_DELAY_MS);
   };
 
@@ -125,7 +129,7 @@ export const createTaskGridSlice: AppSlice<TaskGridSlice> = (set, get) => {
       let persisted: PersistedTaskGridPreferencesV1 | null = null;
       set((state) => {
         state.taskGridSurfaces[surface].columns = normalized;
-        persisted = payloadFromState(state);
+        persisted = persistedTaskGridPreferences(state);
       });
       if (persisted) persistImmediately(persisted);
     },
@@ -144,7 +148,7 @@ export const createTaskGridSlice: AppSlice<TaskGridSlice> = (set, get) => {
         recorded = recordGridPreferenceHistoryDelta(state, label, surface, before, after) !== null;
         if (!recorded) return;
         state.taskGridSurfaces[surface] = after;
-        persisted = payloadFromState(state);
+        persisted = persistedTaskGridPreferences(state);
       });
       if (!recorded) return;
       markPreferencesReady();
@@ -166,7 +170,7 @@ export const createTaskGridSlice: AppSlice<TaskGridSlice> = (set, get) => {
       let persisted: PersistedTaskGridPreferencesV1 | null = null;
       set((state) => {
         state.recentTaskColumns = recordRecentTaskColumnId(state.recentTaskColumns, id);
-        persisted = payloadFromState(state);
+        persisted = persistedTaskGridPreferences(state);
       });
       if (persisted) persistImmediately(persisted);
     },

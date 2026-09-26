@@ -18,8 +18,9 @@ import { COMMANDS } from '@/state/commands';
 import { useCommandBinding } from './useCommandBinding';
 import { addTaskNearSelection } from '@/state/taskInsertActions';
 import { isTreeMode } from '@/engine/view/visibleRows';
+import { hasLevelingOutput } from '@/utils/taskDefaults';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
-import type { RibbonTab } from '@/state/slices/types';
+import type { RibbonTab, UIState } from '@/state/slices/types';
 import {
   BaselinesProgressGroupContent, MilestoneDropdown, RelationDropdown, TemplatesDropdown, RecentFilesDropdown,
   ScreenColorsPopoverButton,
@@ -102,6 +103,18 @@ export type RibbonTabConfig = RibbonGroupSpec[];
 
 // ── Gedeelde item-definities (dedup: één bron i.p.v. 4-5 kopieën) ────────────────────────────
 
+/**
+ * `use`-hook van een knop die alleen UI-state zet — meestal: een dialoog openen. Per klik een
+ * kopie van de patch: `setUI` vult zijn argument aan (de rail-invarianten), en die aanvulling mag
+ * niet in de gedeelde patch blijven hangen.
+ */
+function uiAction(patch: Partial<UIState>): () => RibbonButtonBinding {
+  return function useUiAction() {
+    const setUI = useAppStore(s => s.setUI);
+    return { onClick: () => setUI({ ...patch }) };
+  };
+}
+
 /** Bereken/CPM-knop — voorheen 4× letterlijk gekopieerd (start/planning/relations/table). */
 const calcButton: RibbonButtonSpec = {
   kind: 'button', id: 'calc', icon: <Play size={20} />, labelKey: 'menu:ribbon.calculate', primary: true,
@@ -160,19 +173,13 @@ const splitTaskButton: RibbonButtonSpec = {
 /** Kalender-knop (planning + instellingen). */
 const calendarButton: RibbonButtonSpec = {
   kind: 'button', id: 'calendar', icon: <Calendar size={20} />, labelKey: 'menu:ribbon.calendar',
-  use: () => {
-    const setUI = useAppStore(s => s.setUI);
-    return { onClick: () => setUI({ showCalendarDialog: true }) };
-  },
+  use: uiAction({ showCalendarDialog: true }),
 };
 
 /** Afdrukvoorbeeld-knop (beeld + report) — opent de Rapport-tab. */
 const printPreviewButton: RibbonButtonSpec = {
   kind: 'button', id: 'printPreview', icon: <Printer size={20} />, labelKey: 'menu:ribbon.printPreview',
-  use: () => {
-    const setUI = useAppStore(s => s.setUI);
-    return { onClick: () => setUI({ activeRibbonTab: 'report' }) };
-  },
+  use: uiAction({ activeRibbonTab: 'report' }),
 };
 
 /**
@@ -246,7 +253,7 @@ const fileGroup: RibbonGroupSpec = {
       kind: 'stack', id: 'fileStack1', items: [
         {
           kind: 'small', id: 'new', icon: <FileText size={14} />, labelKey: 'menu:ribbon.new',
-          use: () => { const setUI = useAppStore(s => s.setUI); return { onClick: () => setUI({ showNewProjectDialog: true }) }; },
+          use: uiAction({ showNewProjectDialog: true }),
         },
         {
           kind: 'small', id: 'save', icon: <Save size={14} />, labelKey: 'menu:ribbon.save',
@@ -432,7 +439,7 @@ const planningTab: RibbonTabConfig = [
       calendarButton,
       {
         kind: 'button', id: 'holidays', icon: <Clock size={20} />, labelKey: 'menu:ribbon.holidays',
-        use: () => { const setUI = useAppStore(s => s.setUI); return { onClick: () => setUI({ showCalendarDialog: true }) }; },
+        use: uiAction({ showCalendarDialog: true }),
       },
     ],
   },
@@ -441,7 +448,7 @@ const planningTab: RibbonTabConfig = [
     items: [
       {
         kind: 'button', id: 'codesFields', icon: <Tags size={20} />, labelKey: 'menu:ribbon.codesFields',
-        use: () => { const setUI = useAppStore(s => s.setUI); return { onClick: () => setUI({ showStructureDialog: true }) }; },
+        use: uiAction({ showStructureDialog: true }),
       },
       {
         kind: 'stack', id: 'structureStack1', items: [
@@ -564,6 +571,22 @@ const dockResourcePanelButton: RibbonButtonSpec = {
   },
 };
 
+/** `use`-hook van vorige/volgende resource in het histogram; "alle resources" telt mee in de ronde. */
+function histogramResourceStep(step: -1 | 1): () => RibbonButtonBinding {
+  return function useHistogramResourceStep() {
+    const resources = useAppStore(s => s.resources);
+    const showHistogram = useAppStore(s => s.ui.showHistogram);
+    const histogramResourceId = useAppStore(s => s.view.histogramResourceId);
+    const setHistogramResource = useAppStore(s => s.setHistogramResource);
+    const cycle = () => {
+      const ids: (string | undefined)[] = [undefined, ...resources.map(r => r.id)];
+      const cur = ids.findIndex(id => id === histogramResourceId);
+      setHistogramResource(ids[(cur + step + ids.length) % ids.length]);
+    };
+    return { onClick: cycle, disabled: !showHistogram || resources.length === 0 };
+  };
+}
+
 const toggleHistogramButton: RibbonButtonSpec = {
   kind: 'button', id: 'toggleHistogram', icon: <BarChart3 size={20} />, labelKey: 'menu:ribbon.toggleHistogram',
   // Aanvulling op de gedeelde binding: een schakelaar toont zijn STAND. Het omzetten zelf
@@ -591,12 +614,7 @@ const resourcesTab: RibbonTabConfig = [
         // afhankelijk van de actieve weergave. Daarom ook expliciet `resourcePanelDocked: false`
         // (zoals `openResourcePanel` hierboven): in de gedockte rail bestaat het paneel niet en is de
         // naam readonly, dus daar zou de zojuist aangevraagde resource onbenoembaar zijn.
-        use: () => {
-          const setUI = useAppStore(s => s.setUI);
-          return {
-            onClick: () => setUI({ showResourcePanel: true, resourcePanelDocked: false, pendingNewResource: true }),
-          };
-        },
+        use: uiAction({ showResourcePanel: true, resourcePanelDocked: false, pendingNewResource: true }),
       },
     ],
   },
@@ -612,33 +630,11 @@ const resourcesTab: RibbonTabConfig = [
         kind: 'stack', id: 'histogramStack', items: [
           {
             kind: 'small', id: 'prevResource', icon: <ChevronLeft size={14} />, labelKey: 'menu:ribbon.prevResource',
-            use: () => {
-              const resources = useAppStore(s => s.resources);
-              const showHistogram = useAppStore(s => s.ui.showHistogram);
-              const histogramResourceId = useAppStore(s => s.view.histogramResourceId);
-              const setHistogramResource = useAppStore(s => s.setHistogramResource);
-              const cycle = () => {
-                const ids: (string | undefined)[] = [undefined, ...resources.map(r => r.id)];
-                const cur = ids.findIndex(id => id === histogramResourceId);
-                setHistogramResource(ids[(cur - 1 + ids.length) % ids.length]);
-              };
-              return { onClick: cycle, disabled: !showHistogram || resources.length === 0 };
-            },
+            use: histogramResourceStep(-1),
           },
           {
             kind: 'small', id: 'nextResource', icon: <ChevronRight size={14} />, labelKey: 'menu:ribbon.nextResource',
-            use: () => {
-              const resources = useAppStore(s => s.resources);
-              const showHistogram = useAppStore(s => s.ui.showHistogram);
-              const histogramResourceId = useAppStore(s => s.view.histogramResourceId);
-              const setHistogramResource = useAppStore(s => s.setHistogramResource);
-              const cycle = () => {
-                const ids: (string | undefined)[] = [undefined, ...resources.map(r => r.id)];
-                const cur = ids.findIndex(id => id === histogramResourceId);
-                setHistogramResource(ids[(cur + 1 + ids.length) % ids.length]);
-              };
-              return { onClick: cycle, disabled: !showHistogram || resources.length === 0 };
-            },
+            use: histogramResourceStep(1),
           },
         ],
       },
@@ -649,7 +645,7 @@ const resourcesTab: RibbonTabConfig = [
     items: [
       {
         kind: 'button', id: 'levelResources', icon: <Scale size={20} />, labelKey: 'menu:ribbon.levelResourcesDialog',
-        use: () => { const setUI = useAppStore(s => s.setUI); return { onClick: () => setUI({ showLevelingDialog: true }) }; },
+        use: uiAction({ showLevelingDialog: true }),
       },
       {
         kind: 'button', id: 'clearLeveling', icon: <Eraser size={20} />, labelKey: 'menu:ribbon.clearLeveling',
@@ -661,11 +657,7 @@ const resourcesTab: RibbonTabConfig = [
           // wissen" grijs op een `.mpp`-project met uitsluitend sub-dag-precisie (`levelingDelayMinutes`/
           // `levelingDelayElapsed`) én op een project dat alleen ingevoegde pauzedagen draagt
           // (`splitGaps` met `source: 'leveling'`, geen enkele `levelingDelay`).
-          const hasLeveling = useAppStore(s => s.tasks.some(t =>
-            t.levelingDelay !== undefined
-            || t.levelingDelayMinutes !== undefined
-            || t.levelingDelayElapsed !== undefined
-            || (t.splitGaps ?? []).some(g => g.source === 'leveling')));
+          const hasLeveling = useAppStore(s => s.tasks.some(hasLevelingOutput));
           return { onClick: () => clearLeveling(), disabled: !hasLeveling };
         },
       },
@@ -865,11 +857,11 @@ const instellingenTab: RibbonTabConfig = [
     items: [
       {
         kind: 'button', id: 'projectInfo', icon: <Info size={20} />, labelKey: 'menu:ribbon.projectInfo',
-        use: () => { const setUI = useAppStore(s => s.setUI); return { onClick: () => setUI({ showProjectInfoDialog: true }) }; },
+        use: uiAction({ showProjectInfoDialog: true }),
       },
       {
         kind: 'button', id: 'projectSettings', icon: <Settings size={20} />, labelKey: 'menu:ribbon.projectSettings',
-        use: () => { const setUI = useAppStore(s => s.setUI); return { onClick: () => setUI({ showSettingsDialog: true }) }; },
+        use: uiAction({ showSettingsDialog: true }),
       },
     ],
   },
@@ -878,7 +870,7 @@ const instellingenTab: RibbonTabConfig = [
     id: 'shortcuts', labelKey: 'common:shortcuts.title',
     items: [{
       kind: 'small', id: 'shortcuts', icon: <Keyboard size={14} />, labelKey: 'common:shortcuts.title',
-      use: () => { const setUI = useAppStore(s => s.setUI); return { onClick: () => setUI({ showShortcutsDialog: true }) }; },
+      use: uiAction({ showShortcutsDialog: true }),
     }],
   },
 ];

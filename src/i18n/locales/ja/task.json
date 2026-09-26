@@ -106,10 +106,12 @@
       "priority": "平準化優先度",
       "recordedSource": "出所（記録済みの日付）",
       "remainingMinutes": "残り（分）",
-      "remainingTime": "残り（稼働日）",
+      "remainingTime": "残り",
       "resourceIds": "リソース ID",
       "resume": "再開日",
       "scheduleFinish": "予定終了日",
+      "start": "開始",
+      "finish": "終了",
       "scheduleStart": "予定開始日",
       "splitGaps": "中断期間",
       "status": "状態",
@@ -146,6 +148,10 @@
     },
     "validation": {
       "readOnly": "この計算列は編集できません。",
+      "scheduleFinishNotManual": "予定終了日は手動スケジュールのタスクにのみ適用されます。終了は「終了」列または期間で変更してください。",
+      "finishFromDuration": "このタスクの終了は開始と期間から決まります。開始または期間を変更してください。",
+      "finishBeforeStart": "終了が開始より前です。",
+      "finishIsActual": "このタスクは完了しています。終了は実績終了です。進捗から変更してください。",
       "invalid": "入力した値は無効です。",
       "relationToken": "例: 1.2 FS+2d のように入力してください。",
       "externalRelationRequiresDialog": "依存関係 → 外部依存関係を追加…から外部タスクを追加してください。",
@@ -237,7 +243,8 @@
       "unknownTask": "参照先のタスクは存在しません。",
       "unrepresentableSummaryRelation": "サマリータスクとの関係はここでは編集できません。",
       "self": "タスクは自分自身に依存できません。",
-      "ancestor": "タスクは自身のサマリータスクと関係を持てません。"
+      "ancestor": "タスクは自身のサマリータスクと関係を持てません。",
+      "summaryProgress": "サマリータスクの進捗はサブタスクから算出されるため、ここでは変更できません。"
     },
     "controls": {
       "collapse": "折りたたむ",
@@ -407,7 +414,8 @@
       "actualStart": "実績開始",
       "actualFinish": "実績終了",
       "actualDate": "実績日",
-      "remaining": "残り（稼働日）"
+      "remaining": "残り",
+      "summaryDerived": "サブタスクから算出されます。進捗はサブタスクで変更してください。計算（F5）後にサマリータスクへ反映されます。"
     },
     "cpmResult": "CPM 結果",
     "earlyStart": "最早開始：",

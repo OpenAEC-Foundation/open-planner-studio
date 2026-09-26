@@ -50,7 +50,7 @@ export type FieldRef =
   // het scherm de tweelaagse indeling van het rapport Resourcediagram kan nabouwen.
   | { src: 'resourceType' };
 
-/** Kolomconfiguratie op de HTML-TableEditor (§2.2). Volgorde = arrayvolgorde. */
+/** Kolomconfiguratie op de Tabel-weergave (FullTaskGrid, §2.2). Volgorde = arrayvolgorde. */
 export interface ColumnConfig {
   field: FieldRef;
   visible: boolean;

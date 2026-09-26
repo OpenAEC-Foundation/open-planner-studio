@@ -1,7 +1,7 @@
 import { WORK_RULES } from '@/types/workRule';
 import { remainingMinutesOf, workRuleApplies } from '@/engine/work/workRuleApply';
 import type { Baseline, BaselineTask } from '@/types/baseline';
-import type { ResourceAssignment, ResourceCurve } from '@/types/resource';
+import { RESOURCE_CURVES, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types/structure';
 import type { ConstraintType, MilestoneKind, Task, TaskStatus, TaskType } from '@/types/task';
 import type { CustomTaskType } from '@/types/taskType';
@@ -44,6 +44,13 @@ import {
   parseTaskDurationInput,
   type ParsedTaskDuration,
 } from '@/utils/taskDurationInput';
+import { shownStart, shownFinish } from '@/utils/taskDates';
+import {
+  formatRemainingDurationText, formatTaskDurationText, formatWorkDaysText, type DurationTextFormat,
+} from '@/utils/taskDuration';
+import { isStrictIsoDateTime } from '@/utils/dateUtils';
+import { isFiniteNumber } from '@/utils/guards';
+import { isManuallyScheduled } from '@/utils/manualScheduling';
 
 export const TASK_COLUMN_CATEGORY_ORDER: readonly TaskColumnCategory[] = [
   'task', 'planning', 'constraints', 'relations', 'resources',
@@ -84,6 +91,7 @@ interface EditableColumnConfig extends Omit<ReadonlyColumnConfig, 'copy'> {
   editorKind: Exclude<EditorKind, 'none'>;
   editorOptions?: readonly { value: string; labelKey?: string; label?: string }[];
   readOnly?: (task: Task, ctx: TaskColumnContext) => boolean;
+  readOnlyReason?: (task: Task, ctx: TaskColumnContext) => string | undefined;
   route?: CellEditRoute;
   parse: Parser;
   validate: Validator;
@@ -149,10 +157,10 @@ function copyScalar(value: unknown): string {
  * `ctx.recordedUnrecordedAxes` is `undefined` zonder vastlegging (niet-XER-documenten, of geen
  * restverschillen) — dan valt dit terug op de gewone `formatScalar`, byte-identiek aan vóór T6.
  */
-function recordedAxisFormat(axis: RecordedTaskAxis): Formatter {
+function recordedAxisFormat(axis: RecordedTaskAxis, inner?: Formatter): Formatter {
   return (value, task, ctx) => ctx.recordedUnrecordedAxes?.(task).includes(axis)
     ? (ctx.labelForText?.('recordedDates.notRecorded') ?? '—')
-    : formatScalar(value);
+    : inner ? inner(value, task, ctx) : formatScalar(value);
 }
 
 /**
@@ -207,6 +215,16 @@ function readonlyColumn(config: ReadonlyColumnConfig): TaskColumnDescriptor {
   };
 }
 
+/** De validatiecode voor een weigering van een alleen-lezen cel: de kolomeigen reden, anders de
+ *  algemene `readOnly`. Eén bron voor de adapter, de transactielaag en de celeditor. */
+export function readOnlyValidationCode(
+  descriptor: Pick<TaskColumnDescriptor, 'readOnlyReason'>,
+  task: Task,
+  ctx: TaskColumnContext,
+): string {
+  return descriptor.readOnlyReason?.(task, ctx) ?? 'readOnly';
+}
+
 function editableColumn(config: EditableColumnConfig): TaskColumnDescriptor {
   const id = typeof config.id === 'string' ? taskColumnId(config.id) : config.id;
   const format = config.format ?? ((value: unknown) => formatScalar(value));
@@ -215,7 +233,7 @@ function editableColumn(config: EditableColumnConfig): TaskColumnDescriptor {
     kind: 'cell-edit', taskId: task.id, columnId: id, route: config.route ?? 'task-field', value,
   }]));
   const planWrite: Writer = (value, task, ctx) => config.readOnly?.(task, ctx)
-    ? failure('readOnly', value)
+    ? failure(readOnlyValidationCode(config, task, ctx), value)
     : rawPlanWrite(value, task, ctx);
   return {
     id,
@@ -225,8 +243,10 @@ function editableColumn(config: EditableColumnConfig): TaskColumnDescriptor {
     editorKind: config.editorKind,
     editorOptions: config.editorOptions,
     defaultWidth: config.defaultWidth ?? 140,
+    scheduleDerived: config.scheduleDerived,
     available: config.available ?? (() => true),
     readOnly: config.readOnly ?? false,
+    readOnlyReason: config.readOnlyReason,
     read: config.read,
     format,
     copy,
@@ -239,6 +259,18 @@ function editableColumn(config: EditableColumnConfig): TaskColumnDescriptor {
     autoFitText: (task, ctx) => format(config.read(task, ctx), task, ctx),
   };
 }
+
+/**
+ * Voortgang op een VERZAMELTAAK is alleen-lezen: de rollup in `applyCpmResult` leidt completion en
+ * status af uit de bladen, en MCP, voortgangsimport en `setTaskProgress` weigeren eigen voortgang
+ * op een fase al. Geldt voor alle zes voortgangskolommen (route `task-progress`); `taskEditPlan`
+ * weigert dezelfde route op een verzameltaak nog eens, voor plakken en import. Conditioneel (per
+ * taak), dus plakken over een blok mét faserijen slaat die cellen netjes over (`gridTransaction`).
+ */
+const SUMMARY_PROGRESS_READ_ONLY = {
+  readOnly: (task: Task) => task.childIds.length > 0,
+  readOnlyReason: (task: Task) => (task.childIds.length > 0 ? 'summaryProgress' : undefined),
+} as const;
 
 const parseText: Parser = text => success(text);
 const parseOptionalText: Parser = text => success(text.trim() === '' ? undefined : text);
@@ -289,9 +321,9 @@ function enumValidator(values: readonly string[], optional = false): Validator {
   };
 }
 
+/** Strikt en engine-onafhankelijk: `Date.parse` accepteerde in V8 ook 2026-02-31 en T24:00. */
 function isValidIso(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/.test(value)) return false;
-  return Number.isFinite(Date.parse(value.length === 10 ? `${value}T00:00:00Z` : value));
+  return isStrictIsoDateTime(value, { maxFractionDigits: 3, offsetColonOptional: true });
 }
 
 const parseDate: Parser = text => {
@@ -311,13 +343,13 @@ const parsePercentage: Parser = text => {
   return Number.isFinite(value) ? success(value / 100) : failure('percentage', text);
 };
 const validatePercentage: Validator = value =>
-  typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1
+  isFiniteNumber(value) && value >= 0 && value <= 1
     ? success(value)
     : failure('percentage', value);
 
 function effectiveHoursPerDay(task: Task, ctx: TaskColumnContext): number {
   const supplied = ctx.effectiveHoursPerDay?.(task);
-  if (typeof supplied === 'number' && Number.isFinite(supplied) && supplied > 0) return supplied;
+  if (isFiniteNumber(supplied) && supplied > 0) return supplied;
   const minutes = task.time.durationMinutes;
   if (minutes !== undefined && task.time.scheduleDuration > 0) {
     const derived = minutes / task.time.scheduleDuration / 60;
@@ -362,15 +394,39 @@ const parseScheduledTaskDuration: Parser = (text, task, ctx) => {
 };
 const validateScheduledTaskDuration: Validator = value =>
   isParsedTaskDuration(value)
-    || (typeof value === 'number' && Number.isFinite(value) && value >= 0)
+    || (isFiniteNumber(value) && value >= 0)
     ? success(value)
     : failure('duration', value);
 
-function scheduledTaskDurationText(task: Task, ctx?: TaskColumnContext): string {
-  const suffixKey = task.time.durationUnit === 'hours' ? 'duration.suffixHour' : 'duration.suffixDay';
-  const fallback = task.time.durationUnit === 'hours' ? 'h' : 'd';
-  const suffix = ctx?.labelForText?.(suffixKey) ?? fallback;
-  return `${formatTaskDurationInput(task)}${suffix}`;
+/** Kopieertekst van de Duur-kolom: de eigen taakeenheid in parsebare vorm ("2d", "1.5h"), zodat
+ *  plakken terug hetzelfde oplevert. De WEERGAVE loopt via {@link durationCellText}. */
+function scheduledTaskDurationText(task: Task): string {
+  return `${formatTaskDurationInput(task)}${task.time.durationUnit === 'hours' ? 'h' : 'd'}`;
+}
+
+/** De vertaalde duur-afkortingen en weergave-instellingen van het raster, voor de gedeelde formatter. */
+function gridDurationFormat(ctx: TaskColumnContext): DurationTextFormat {
+  const label = (key: string, fallback: string) => ctx.labelForText?.(key) ?? fallback;
+  return {
+    display: ctx.durationDisplay,
+    suffixes: {
+      day: label('duration.suffixDay', 'd'),
+      hour: label('duration.suffixHour', 'h'),
+      minute: label('duration.suffixMinute', 'm'),
+    },
+    locale: ctx.numberLocale,
+  };
+}
+
+/** Weergavetekst van de Duur-kolom: dezelfde formatter als tooltip en Gantt-afdruk (audit weergaven 7). */
+function durationCellText(task: Task, ctx: TaskColumnContext): string {
+  return formatTaskDurationText(task, effectiveHoursPerDay(task, ctx), gridDurationFormat(ctx));
+}
+
+/** Een aantal werkdagen (speling, baselineduur): dezelfde opmaak als paneel en tooltip — twee
+ *  decimalen, het decimaalteken van de taal en de dag-eenheid (audit weergaven, bevinding 8). */
+function workDaysCellText(value: unknown, ctx: TaskColumnContext): string {
+  return isFiniteNumber(value) ? formatWorkDaysText(value, gridDurationFormat(ctx)) : '—';
 }
 
 const TASK_TYPES: readonly TaskType[] = [
@@ -380,7 +436,6 @@ const TASK_TYPES: readonly TaskType[] = [
 const TASK_STATUSES: readonly TaskStatus[] = ['NOT_STARTED', 'STARTED', 'COMPLETED'];
 const MILESTONE_KINDS: readonly MilestoneKind[] = ['START', 'FINISH'];
 const CONSTRAINT_TYPES: readonly ConstraintType[] = ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'];
-const RESOURCE_CURVES: readonly ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE'];
 const RESOURCE_CURVE_LABEL_KEYS: Readonly<Record<ResourceCurve, string>> = {
   UNIFORM: 'resource.curve.uniform',
   FRONT_LOADED: 'resource.curve.frontLoaded',
@@ -705,7 +760,7 @@ function fixedTaskColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[
       parse: enumParser(customTaskTypeIds, true),
       validate: enumValidator(customTaskTypeIds, true),
     }),
-    editableColumn({ id: 'task.status', labelKey: 'taskGrid.columns.status', category: 'progress', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('taskStatus', TASK_STATUSES), route: 'task-progress', read: task => task.status, parse: enumParser(TASK_STATUSES), validate: enumValidator(TASK_STATUSES) }),
+    editableColumn({ id: 'task.status', labelKey: 'taskGrid.columns.status', category: 'progress', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('taskStatus', TASK_STATUSES), route: 'task-progress', ...SUMMARY_PROGRESS_READ_ONLY, read: task => task.status, parse: enumParser(TASK_STATUSES), validate: enumValidator(TASK_STATUSES) }),
     editableColumn({ id: 'task.isMilestone', labelKey: 'taskGrid.columns.milestone', category: 'planning', valueKind: 'boolean', editorKind: 'boolean', route: 'task-milestone', read: task => task.isMilestone, parse: parseBoolean, validate: validateBoolean }),
     editableColumn({ id: 'task.milestoneKind', labelKey: 'taskGrid.columns.milestoneKind', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('milestoneKind', MILESTONE_KINDS, true), route: 'task-milestone', read: task => task.milestoneKind, readOnly: task => !task.isMilestone, parse: enumParser(MILESTONE_KINDS, true), validate: enumValidator(MILESTONE_KINDS, true) }),
     editableColumn({ id: 'task.mandatory', labelKey: 'taskGrid.columns.mandatoryMilestone', category: 'planning', valueKind: 'boolean', editorKind: 'boolean', route: 'task-milestone', read: task => task.mandatory, readOnly: task => !task.isMilestone, parse: parseBoolean, validate: validateBoolean }),
@@ -799,24 +854,39 @@ function fixedTaskColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[
   return columns;
 }
 
+/** Datums die uit andere taken volgen: een automatisch geplande verzameltaak of hangmat. */
+function derivedDatesTask(task: Task): boolean {
+  return !isManuallyScheduled(task) && (task.childIds.length > 0 || task.isHammock === true);
+}
+
 function fixedTimeColumns(): TaskColumnDescriptor[] {
   return [
     editableColumn({ id: 'task.time.durationType', labelKey: 'taskGrid.columns.durationType', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('durationType', ['WORKTIME', 'ELAPSEDTIME']), route: 'task-schedule', read: task => task.time.durationType, parse: enumParser(['WORKTIME', 'ELAPSEDTIME']), validate: enumValidator(['WORKTIME', 'ELAPSEDTIME']) }),
     editableColumn({ id: 'task.time.durationUnit', labelKey: 'duration.unit', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: [{ value: 'days', labelKey: 'duration.days' }, { value: 'hours', labelKey: 'duration.hours' }], route: 'task-schedule', read: task => task.time.durationUnit, readOnly: task => task.isHammock === true || task.childIds.length > 0 || task.isMilestone, parse: enumParser(['days', 'hours']), validate: enumValidator(['days', 'hours']) }),
-    editableColumn({ id: 'task.time.scheduleDuration', labelKey: 'taskGrid.columns.duration', category: 'planning', valueKind: 'duration', editorKind: 'duration', route: 'task-schedule', read: task => task.time.durationUnit === 'hours' ? task.time.durationMinutes : task.time.scheduleDuration, readOnly: task => task.isHammock === true || task.childIds.length > 0 || (task.isMilestone && task.time.scheduleDuration === 0), format: (_value, task, ctx) => scheduledTaskDurationText(task, ctx), copy: task => scheduledTaskDurationText(task), editText: task => formatTaskDurationInput(task), parse: parseScheduledTaskDuration, validate: validateScheduledTaskDuration }),
+    editableColumn({ id: 'task.time.scheduleDuration', labelKey: 'taskGrid.columns.duration', category: 'planning', valueKind: 'duration', editorKind: 'duration', route: 'task-schedule', read: task => task.time.durationUnit === 'hours' ? task.time.durationMinutes : task.time.scheduleDuration, readOnly: task => task.isHammock === true || task.childIds.length > 0 || (task.isMilestone && task.time.scheduleDuration === 0), format: (_value, task, ctx) => durationCellText(task, ctx), copy: task => scheduledTaskDurationText(task), editText: task => formatTaskDurationInput(task), parse: parseScheduledTaskDuration, validate: validateScheduledTaskDuration }),
     readonlyColumn({ id: 'task.time.durationMinutes', labelKey: 'taskGrid.columns.durationMinutes', category: 'technical', valueKind: 'number', read: task => task.time.durationMinutes }),
+    // Start/Einde: de GETOONDE datums, dezelfde bron als Gantt-balk, tooltip, paneel, afdruk en MCP
+    // (`shownStart`/`shownFinish`). Het zijn berekende waarden (`scheduleDerived`: verouderd-
+    // markering tot F5); bewerken verzet alleen iets bij een echte wijziging, zie
+    // `applyScheduleEdit`. De datums van een automatisch geplande verzameltaak of hangmat volgen uit
+    // andere taken — een invoer daar zou na F5 niets doen, dus alleen-lezen.
+    editableColumn({ id: 'task.time.start', labelKey: 'taskGrid.columns.start', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', scheduleDerived: true, read: task => shownStart(task), readOnly: derivedDatesTask, parse: parseDate, validate: validateDate }),
+    editableColumn({ id: 'task.time.finish', labelKey: 'taskGrid.columns.finish', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', scheduleDerived: true, read: task => shownFinish(task), readOnly: derivedDatesTask, parse: parseDate, validate: validateDate }),
+    // Geplande start/einde: de invoerankers zelf, kiesbaar voor wie ze wil zien. De solver leest
+    // `scheduleFinish` alleen bij een handmatig geplande taak (`CPMSolver.forwardPass`); bij elke
+    // andere taak zou een bewerking stil niets doen, dus daar alleen-lezen mét reden.
     editableColumn({ id: 'task.time.scheduleStart', labelKey: 'taskGrid.columns.scheduleStart', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', read: task => task.time.scheduleStart, parse: parseDate, validate: validateDate }),
-    editableColumn({ id: 'task.time.scheduleFinish', labelKey: 'taskGrid.columns.scheduleFinish', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', read: task => task.time.scheduleFinish, parse: parseDate, validate: validateDate }),
+    editableColumn({ id: 'task.time.scheduleFinish', labelKey: 'taskGrid.columns.scheduleFinish', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', read: task => task.time.scheduleFinish, readOnly: task => !isManuallyScheduled(task), readOnlyReason: task => !isManuallyScheduled(task) ? 'scheduleFinishNotManual' : undefined, parse: parseDate, validate: validateDate }),
     readonlyColumn({ id: 'task.time.resume', labelKey: 'taskGrid.columns.resume', category: 'progress', valueKind: 'datetime', read: task => task.time.resume }),
     readonlyColumn({ id: 'task.time.stop', labelKey: 'taskGrid.columns.stop', category: 'progress', valueKind: 'datetime', read: task => task.time.stop }),
     readonlyColumn({ id: 'task.time.earlyStart', labelKey: 'taskGrid.columns.earlyStart', category: 'computed', valueKind: 'datetime', read: task => task.time.earlyStart }),
     readonlyColumn({ id: 'task.time.earlyFinish', labelKey: 'taskGrid.columns.earlyFinish', category: 'computed', valueKind: 'datetime', read: task => task.time.earlyFinish }),
     readonlyColumn({ id: 'task.time.lateStart', labelKey: 'taskGrid.columns.lateStart', category: 'computed', valueKind: 'datetime', read: recordedAxisRead('ls', task => task.time.lateStart), format: recordedAxisFormat('ls'), copy: recordedAxisCopy('ls', task => task.time.lateStart) }),
     readonlyColumn({ id: 'task.time.lateFinish', labelKey: 'taskGrid.columns.lateFinish', category: 'computed', valueKind: 'datetime', read: recordedAxisRead('lf', task => task.time.lateFinish), format: recordedAxisFormat('lf'), copy: recordedAxisCopy('lf', task => task.time.lateFinish) }),
-    readonlyColumn({ id: 'task.time.freeFloat', labelKey: 'taskGrid.columns.freeFloat', category: 'computed', valueKind: 'duration', read: recordedAxisRead('ff', task => task.time.freeFloat), format: recordedAxisFormat('ff'), copy: recordedAxisCopy('ff', task => task.time.freeFloat) }),
-    readonlyColumn({ id: 'task.time.totalFloat', labelKey: 'taskGrid.columns.totalFloat', category: 'computed', valueKind: 'duration', read: recordedAxisRead('tf', task => task.time.totalFloat), format: recordedAxisFormat('tf'), copy: recordedAxisCopy('tf', task => task.time.totalFloat) }),
+    readonlyColumn({ id: 'task.time.freeFloat', labelKey: 'taskGrid.columns.freeFloat', category: 'computed', valueKind: 'duration', read: recordedAxisRead('ff', task => task.time.freeFloat), format: recordedAxisFormat('ff', (value, _task, ctx) => workDaysCellText(value, ctx)), copy: recordedAxisCopy('ff', task => task.time.freeFloat) }),
+    readonlyColumn({ id: 'task.time.totalFloat', labelKey: 'taskGrid.columns.totalFloat', category: 'computed', valueKind: 'duration', read: recordedAxisRead('tf', task => task.time.totalFloat), format: recordedAxisFormat('tf', (value, _task, ctx) => workDaysCellText(value, ctx)), copy: recordedAxisCopy('tf', task => task.time.totalFloat) }),
     readonlyColumn({ id: 'task.time.isCritical', labelKey: 'taskGrid.columns.critical', category: 'computed', valueKind: 'boolean', read: task => task.time.isCritical }),
-    readonlyColumn({ id: 'task.time.interferingFloat', labelKey: 'taskGrid.columns.interferingFloat', category: 'computed', valueKind: 'duration', read: task => task.time.interferingFloat }),
+    readonlyColumn({ id: 'task.time.interferingFloat', labelKey: 'taskGrid.columns.interferingFloat', category: 'computed', valueKind: 'duration', read: task => task.time.interferingFloat, format: (value, _task, ctx) => workDaysCellText(value, ctx) }),
     readonlyColumn({ id: 'task.time.isNearCritical', labelKey: 'taskGrid.columns.nearCritical', category: 'computed', valueKind: 'boolean', read: task => task.time.isNearCritical }),
     readonlyColumn({ id: 'task.time.floatPath', labelKey: 'taskGrid.columns.floatPath', category: 'computed', valueKind: 'number', read: task => task.time.floatPath }),
     // "Datums zoals opgeslagen" (issue #63, XER-etappeplan laag 3, T6) — badge die toont of DEZE
@@ -838,12 +908,12 @@ function fixedTimeColumns(): TaskColumnDescriptor[] {
         return value === undefined ? '' : recordedSourceText(value, ctx);
       },
     }),
-    editableColumn({ id: 'task.time.actualStart', labelKey: 'taskGrid.columns.actualStart', category: 'progress', valueKind: 'datetime', editorKind: 'datetime', route: 'task-progress', read: task => task.time.actualStart, parse: parseDate, validate: validateDate }),
-    editableColumn({ id: 'task.time.actualFinish', labelKey: 'taskGrid.columns.actualFinish', category: 'progress', valueKind: 'datetime', editorKind: 'datetime', route: 'task-progress', read: task => task.time.actualFinish, parse: parseDate, validate: validateDate }),
-    editableColumn({ id: 'task.time.actualDuration', labelKey: 'taskGrid.columns.actualDuration', category: 'progress', valueKind: 'duration', editorKind: 'duration', route: 'task-progress', read: task => task.time.actualDuration, parse: parseTaskDuration, validate: validateOptionalDuration }),
-    editableColumn({ id: 'task.time.remainingTime', labelKey: 'taskGrid.columns.remainingTime', category: 'progress', valueKind: 'duration', editorKind: 'duration', route: 'task-progress', read: task => task.time.remainingTime, parse: parseTaskDuration, validate: validateOptionalDuration }),
+    editableColumn({ id: 'task.time.actualStart', labelKey: 'taskGrid.columns.actualStart', category: 'progress', valueKind: 'datetime', editorKind: 'datetime', route: 'task-progress', ...SUMMARY_PROGRESS_READ_ONLY, read: task => task.time.actualStart, parse: parseDate, validate: validateDate }),
+    editableColumn({ id: 'task.time.actualFinish', labelKey: 'taskGrid.columns.actualFinish', category: 'progress', valueKind: 'datetime', editorKind: 'datetime', route: 'task-progress', ...SUMMARY_PROGRESS_READ_ONLY, read: task => task.time.actualFinish, parse: parseDate, validate: validateDate }),
+    editableColumn({ id: 'task.time.actualDuration', labelKey: 'taskGrid.columns.actualDuration', category: 'progress', valueKind: 'duration', editorKind: 'duration', route: 'task-progress', ...SUMMARY_PROGRESS_READ_ONLY, read: task => task.time.actualDuration, parse: parseTaskDuration, validate: validateOptionalDuration }),
+    editableColumn({ id: 'task.time.remainingTime', labelKey: 'taskGrid.columns.remainingTime', category: 'progress', valueKind: 'duration', editorKind: 'duration', route: 'task-progress', ...SUMMARY_PROGRESS_READ_ONLY, read: task => task.time.remainingTime, format: (_value, task, ctx) => formatRemainingDurationText(task, gridDurationFormat(ctx)), parse: parseTaskDuration, validate: validateOptionalDuration }),
     readonlyColumn({ id: 'task.time.remainingMinutes', labelKey: 'taskGrid.columns.remainingMinutes', category: 'technical', valueKind: 'number', read: task => task.time.remainingMinutes }),
-    editableColumn({ id: 'task.time.completion', labelKey: 'taskGrid.columns.completion', category: 'progress', valueKind: 'number', editorKind: 'percentage', route: 'task-progress', read: task => task.time.completion, format: value => typeof value === 'number' ? `${Math.round(value * 10000) / 100}%` : '—', copy: task => `${Math.round(task.time.completion * 10000) / 100}%`, parse: parsePercentage, validate: validatePercentage }),
+    editableColumn({ id: 'task.time.completion', labelKey: 'taskGrid.columns.completion', category: 'progress', valueKind: 'number', editorKind: 'percentage', route: 'task-progress', ...SUMMARY_PROGRESS_READ_ONLY, read: task => task.time.completion, format: value => typeof value === 'number' ? `${Math.round(value * 10000) / 100}%` : '—', copy: task => `${Math.round(task.time.completion * 10000) / 100}%`, parse: parsePercentage, validate: validatePercentage }),
   ];
 }
 
@@ -1129,28 +1199,6 @@ function customFieldColumns(input: TaskColumnRegistryInput): TaskColumnDescripto
 
 const BASELINE_MISSING = Symbol('baseline-missing');
 
-function defaultSignedWeekdaysBetween(fromIso: string, toIso: string): number {
-  const from = new Date(`${fromIso.slice(0, 10)}T00:00:00Z`);
-  const to = new Date(`${toIso.slice(0, 10)}T00:00:00Z`);
-  if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime())) return 0;
-  const sign = from <= to ? 1 : -1;
-  let cursor = new Date(sign === 1 ? from : to);
-  const end = sign === 1 ? to : from;
-  let workdays = 0;
-  while (cursor < end) {
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-    const day = cursor.getUTCDay();
-    if (day !== 0 && day !== 6) workdays++;
-  }
-  return sign * workdays;
-}
-
-function currentTaskDate(task: Task, field: 'start' | 'finish'): string {
-  return field === 'start'
-    ? task.time.earlyStart || task.time.scheduleStart
-    : task.time.earlyFinish || task.time.scheduleFinish;
-}
-
 function baselineValue(
   field: BaselineTaskColumnField,
   baselineTask: BaselineTask,
@@ -1165,8 +1213,10 @@ function baselineValue(
   if (field === 'varianceDuration') return task.time.scheduleDuration - baselineTask.duration;
   const dateField = field === 'varianceStart' ? 'start' : 'finish';
   const from = dateField === 'start' ? baselineTask.start : baselineTask.finish;
-  const to = currentTaskDate(task, dateField);
-  return (ctx.signedWorkDaysBetween ?? defaultSignedWeekdaysBetween)(from, to);
+  const to = dateField === 'start' ? shownStart(task) : shownFinish(task);
+  // Zonder kalenderroute geen eigen telling: een kale ma–vr-terugval negeerde feestdagen en de
+  // werkweek, en telde vanaf een weekenddag één werkdag te veel.
+  return ctx.signedWorkDaysBetween?.(from, to);
 }
 
 function baselineColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[] {
@@ -1204,7 +1254,11 @@ function baselineColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[]
           const snapshot = taskIndex.get(task.id);
           return snapshot ? baselineValue(fieldName, snapshot, task, ctx) : BASELINE_MISSING;
         },
-        format: value => value === BASELINE_MISSING ? '—' : formatScalar(value),
+        // Baselineduur en -duurafwijking zijn werkdagen (fractioneel bij urentaken): dezelfde
+        // opmaak als speling en restduur. De overige baselinevelden houden hun eigen weergave.
+        format: (value, _task, ctx) => value === BASELINE_MISSING ? '—'
+          : fieldName === 'duration' || fieldName === 'varianceDuration' ? workDaysCellText(value, ctx)
+            : formatScalar(value),
         tooltip: (value, _task, ctx) => value === BASELINE_MISSING
           ? ctx.labelForText?.('taskGrid.summary.baselineMissing') ?? null
           : null,

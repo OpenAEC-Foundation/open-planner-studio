@@ -11,7 +11,10 @@
 // tests/planning/check-move-assignment.ts): het TERUGSCHRIJFBESLUIT van §4.3b woont in een
 // store-actie (`recalculateStaleSleepingDocuments` in `documentSlice`) en die is alleen zinvol te
 // testen tegen echte payloads in de documentregistry. Cases 1–16 blijven puur.
-import { computeLibraryOccupancy, ephemeralSolve } from '@/services/library/occupancy';
+import { computeLibraryOccupancy, ephemeralSolve, occupancySolveInputFor } from '@/services/library/occupancy';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { OccupancyDocInput, OccupancyEphemeralSolve } from '@/services/library/occupancy';
 import { computeResourceLoad, maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
@@ -924,6 +927,65 @@ let afterPayload: DocumentPayload | null = null;
     booking !== undefined && booking.dailyLoad['2026-08-03'] === 1 && booking.dailyLoad['2026-08-05'] === 1 && booking.dailyLoad['2026-08-07'] === 1,
     'case 22: elke werkdag draagt de volle 1 eenheid (UNIFORM-curve)',
   );
+}
+
+// ── Case 24: de projectstart-vloer geldt óók in de efemere en de slapende doorrekening ──────────
+// `runCPM` geeft de solver `projectStartDate` mee; de slapende-documentsolve en de bibliotheek-solves
+// lieten hem weg, zodat een taak die via een lead vóór het projectbegin uitkomt daar een ándere
+// planning kreeg dan F5 in dat document.
+// Opzet: A (anker = projectstart 08-03, 1 dag) → B met FS-lag −3 dagen, plus een losse wortel C met
+// een verouderd anker (07-20) vóór de projectstart. Zonder vloer start B op 07-30, mét op 08-03.
+{
+  const start = '2026-08-03';
+  const a = task('ps-a', start, start, 1);
+  const b = task('ps-b', '2026-07-20', '2026-07-21', 2);
+  const c = task('ps-c', '2026-07-20', '2026-07-21', 2);
+  const lead: Sequence = { id: 'ps-s', predecessorId: 'ps-a', successorId: 'ps-b', type: 'FINISH_START', lagDays: -3 };
+  const d: OccupancyDocInput = {
+    ...doc('ps-doc', { scheduleStale: true, tasks: [a, b, c] }),
+    solveInput: { tasks: [a, b, c], sequences: [lead], options: { ...neutralSolveOptions(), projectStartDate: start } },
+  };
+  const solved = ephemeralSolve(d);
+  const bStart = solved?.find(t => t.id === 'ps-b')?.time.earlyStart;
+  assert(bStart === start, `case 24a: de efemere solve respecteert de projectstart-vloer (kreeg ${bStart})`);
+
+  // Dezelfde planning als slapend document in de echte store.
+  S().newProject();
+  S().setProject({ startDate: start });
+  const sa = S().addTask({ name: 'A' });
+  const sb = S().addTask({ name: 'B' });
+  const sc = S().addTask({ name: 'C' });
+  const timeOf = (id: string) => S().tasks.find(t => t.id === id)!.time;
+  S().updateTask(sa, { time: { ...timeOf(sa), scheduleDuration: 1 } });
+  S().updateTask(sb, { time: { ...timeOf(sb), scheduleStart: '2026-07-20', scheduleDuration: 2 } });
+  S().updateTask(sc, { time: { ...timeOf(sc), scheduleStart: '2026-07-20', scheduleDuration: 2 } });
+  S().addSequence({ predecessorId: sa, successorId: sb, type: 'FINISH_START', lagDays: -3 });
+  S().runCPM();
+  assert(timeOf(sb).earlyStart === start, `case 24b setup: runCPM zet B op de projectstart (kreeg ${timeOf(sb).earlyStart})`);
+  S().updateTask(sb, { name: 'B (stale)' }); // weer stale, zonder de planning inhoudelijk te wijzigen
+  const slaperId = S().activeDocumentId;
+  S().newDocument();
+  S().recalculateStaleSleepingDocuments();
+  const herrekend = sleeping(slaperId)?.tasks.find(t => t.id === sb)?.time.earlyStart;
+  assert(herrekend === start,
+    `case 24b: de slapende doorrekening geeft dezelfde B-start als runCPM (kreeg ${herrekend}, verwacht ${start})`);
+
+  // 24c/d: het bezettingsoverzicht bouwt de efemere invoer uit de payload. Die liet
+  // `projectStartDate` weg (alleen statusDate/progressMode/schedulingOptions), waardoor 24a in de
+  // echte weergave nooit gold. De invoer komt nu uit `occupancySolveInputFor`, en de weergave moet
+  // die ook gebruiken.
+  const project = { ...createDefaultProject(), startDate: start };
+  const viaPayload: OccupancyDocInput = {
+    ...doc('ps-doc2', { scheduleStale: true, tasks: [a, b, c] }),
+    solveInput: occupancySolveInputFor({ tasks: [a, b, c], sequences: [lead], project }),
+  };
+  const bViaPayload = ephemeralSolve(viaPayload)?.find(t => t.id === 'ps-b')?.time.earlyStart;
+  assert(bViaPayload === start,
+    `case 24c: invoer uit een payload draagt de projectstart-vloer mee (kreeg ${bViaPayload})`);
+  const viewSrc = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', '..',
+    'src', 'components', 'panels', 'ResourceOccupancyView.tsx'), 'utf8');
+  assert(viewSrc.includes('solveInput: occupancySolveInputFor(payload)'),
+    'case 24d: ResourceOccupancyView bouwt solveInput via occupancySolveInputFor');
 }
 
 console.log(`occupancy: ${checks - fails}/${checks} groen`);

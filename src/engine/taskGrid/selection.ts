@@ -46,7 +46,7 @@ function sameOrderedIds(left: readonly string[], right: readonly string[]): bool
   return left.length === right.length && left.every((id, index) => id === right[index]);
 }
 
-function sameCellAddress(left: GridCellAddress | null, right: GridCellAddress | null): boolean {
+export function sameCellAddress(left: GridCellAddress | null, right: GridCellAddress | null): boolean {
   return left?.rowKey === right?.rowKey && left?.columnId === right?.columnId;
 }
 

@@ -15,6 +15,15 @@ import { canWriteToRefWithoutPrompt, type FileRef } from '@/services/fileAccess'
 const FEEDBACK_LABEL_KEYS = ['feedback.rotateFeedback', 'feedback.rotateBug', 'feedback.rotateFeature'] as const;
 const FEEDBACK_ROTATE_MS = 10 * 60 * 1000;
 
+type AppWindow = import('@tauri-apps/api/window').Window;
+
+/** Voer `fn` uit op het Tauri-venster; in de browser een no-op. De Tauri-API alleen dynamisch. */
+async function withAppWindow(fn: (appWindow: AppWindow) => unknown): Promise<void> {
+  if (!isTauri()) return;
+  const { getCurrentWindow } = await import('@tauri-apps/api/window');
+  await fn(getCurrentWindow());
+}
+
 export function TitleBar() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
@@ -72,39 +81,34 @@ export function TitleBar() {
     return () => clearInterval(id);
   }, []);
 
+  // De opruimfunctie moet uit het effect zélf komen: een `return` binnen de async IIFE bereikte
+  // React nooit, waardoor de onResized-listener bleef hangen. `disposed` vangt een unmount op die
+  // valt vóórdat de dynamische import of de listen-registratie klaar is.
   useEffect(() => {
     if (!isTauri()) return;
-    void (async () => {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      const appWindow = getCurrentWindow();
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void withAppWindow(async appWindow => {
+      if (disposed) return;
       void appWindow.isMaximized().then(setMaximized);
-      const unlisten = appWindow.onResized(() => {
+      const stop = await appWindow.onResized(() => {
         void appWindow.isMaximized().then(setMaximized);
       });
-      return () => { void unlisten.then(fn => fn()); };
-    })();
+      if (disposed) stop();
+      else unlisten = stop;
+    });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
   }, []);
 
-  const handleMinimize = useCallback(async () => {
-    if (!isTauri()) return;
-    const { getCurrentWindow } = await import('@tauri-apps/api/window');
-    void getCurrentWindow().minimize();
-  }, []);
-  const handleMaximize = useCallback(async () => {
-    if (!isTauri()) return;
-    const { getCurrentWindow } = await import('@tauri-apps/api/window');
-    const appWindow = getCurrentWindow();
-    if (await appWindow.isMaximized()) {
-      void appWindow.unmaximize();
-    } else {
-      void appWindow.maximize();
-    }
-  }, []);
-  const handleClose = useCallback(async () => {
-    if (!isTauri()) return;
-    const { getCurrentWindow } = await import('@tauri-apps/api/window');
-    void getCurrentWindow().close();
-  }, []);
+  const handleMinimize = useCallback(() => withAppWindow(w => { void w.minimize(); }), []);
+  const handleMaximize = useCallback(() => withAppWindow(async w => {
+    if (await w.isMaximized()) void w.unmaximize();
+    else void w.maximize();
+  }), []);
+  const handleClose = useCallback(() => withAppWindow(w => { void w.close(); }), []);
 
   // Een naamloos document heeft geen bestaand doel dat veilig overschreven mag worden. Recovery
   // draait onafhankelijk hiervan door; de schakelaar belooft uitsluitend échte bestandsopslag.

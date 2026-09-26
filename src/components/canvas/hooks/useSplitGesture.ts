@@ -5,7 +5,6 @@ import type { GanttRenderer } from '@/engine/renderer/GanttRenderer';
 import type { GanttAxis } from '@/engine/renderer/timeAxis';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { formatDate, formatInstant, parseDate, parseInstant } from '@/utils/dateUtils';
-import { pickTiers, TIER_CONFIG } from '@/engine/renderer/timelineTiers';
 import { durationMinutesOf, taskDurationUnit } from '@/engine/scheduler/duration';
 import {
   completedWorkMinutes, splitAt, splitUnitMinutes, toSplitPieces, workAxisMinutesBetween,
@@ -13,6 +12,9 @@ import {
 } from '@/engine/scheduler/splitEdit';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
+import { readAccentColor, sizeCanvasToContainer } from './useCanvasLayer';
+import { hourSnapMinutesFor, snapTimelineDate } from './timelineSnap';
+import { listenWindowDrag } from '@/hooks/listenWindowDrag';
 
 // Monotone teller, exact als `dragSeq` in `useBarDrag`: élk splitsgebaar krijgt een UNIEKE
 // coalesce-key, zodat de reeks per-mousemove-commits één undo-stap is en twee opeenvolgende
@@ -91,10 +93,7 @@ export function useSplitGesture({
 
   /** De uur-snap van de sleep is dezelfde als die van `useBarDrag`: de actieve minor-tier, met
    *  een kwartier alleen wanneer die zoom is aangezet. In dag-modus doet dit niets. */
-  const hourSnapMinutes = Math.max(
-    enableQuarterHourZoom ? 15 : 60,
-    Math.round(TIER_CONFIG[pickTiers(zoom, enableQuarterHourZoom, enableHourPlanning).minor].stepDays * 1440),
-  );
+  const hourSnapMinutes = hourSnapMinutesFor(zoom, enableQuarterHourZoom, enableHourPlanning);
 
   /** Kalender, modus en werkduur van een taak — één bron voor start, move en hover. */
   const contextFor = useCallback((task: Task) => {
@@ -109,16 +108,10 @@ export function useSplitGesture({
     };
   }, [calendar, effectiveCalById, hourSnapMinutes]);
 
-  /** De gesnapte datum onder een canvas-x. Dag-modus: het begin van de aangeklikte dag; uur-modus:
-   *  het snap-quantum van de tijdkop. De x komt van `axis.xToDate` via de renderer, dus de
-   *  werkdagencompressie zit er al in. */
-  const snapAt = useCallback((x: number, hourMode: boolean): Date | null => {
-    const raw = axis.xToDate(x);
-    if (Number.isNaN(raw.getTime())) return null;
-    if (!hourMode) return parseDate(formatDate(raw));
-    const q = Math.max(1, hourSnapMinutes) * 60_000;
-    return new Date(Math.round(raw.getTime() / q) * q);
-  }, [axis, hourSnapMinutes]);
+  const snapAt = useCallback(
+    (x: number, hourMode: boolean) => snapTimelineDate(axis, x, hourMode, hourSnapMinutes),
+    [axis, hourSnapMinutes],
+  );
 
   const stop = useCallback(() => {
     frozenRef.current = null;
@@ -247,14 +240,7 @@ export function useSplitGesture({
       stop();
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
+    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown });
   }, [state?.dragging, canvasRef, axis, snapAt, setTaskSplits, undo, stop]);
 
   // Geleidelijn op het gedeelde overlay-canvas — dezelfde laag waarop `useDependencyDraw` zijn
@@ -265,19 +251,13 @@ export function useSplitGesture({
     const overlay = overlayCanvasRef.current;
     const container = containerRef.current;
     if (!overlay || !container) return;
-    const rect = container.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    overlay.width = rect.width * dpr;
-    overlay.height = rect.height * dpr;
-    overlay.style.width = `${rect.width}px`;
-    overlay.style.height = `${rect.height}px`;
-    const ctx = overlay.getContext('2d');
-    if (!ctx) return;
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, rect.width, rect.height);
+    const layer = sizeCanvasToContainer(overlay, container);
+    if (!layer) return;
+    const { ctx } = layer;
+    ctx.clearRect(0, 0, layer.width, layer.height);
     if (!state) return;
 
-    const accent = getComputedStyle(document.documentElement).getPropertyValue('--theme-accent').trim() || '#F59E0B';
+    const accent = readAccentColor();
     const top = state.top - 4;
     const bottom = state.bottom + 4;
     if (state.dragging && state.currentX > state.anchorX) {

@@ -97,7 +97,7 @@ GitHub Releases-API; de workflow publiceert de JSON wekelijks naar de `stats`-da
 - **Meldingen lopen via één kanaal** uit de store — geen `alert()` of losse toasts.
 - **Tekst:** altijd via `t(...)`, nooit hardgecodeerd. Tekstgroottes alleen via de zes rollen
   (`text-caption`…`text-title`); `text-xs`/`text-sm` bestaan niet meer en doen stil niets.
-- **Instellingen:** `localStorage` onder `ops-`-sleutels (`@tauri-apps/plugin-store` is ongebruikt); declaratief
+- **Instellingen:** `localStorage` onder `ops-`-sleutels (geen store-plugin: de npm-dependency `@tauri-apps/plugin-store` is weg, de Rust-kant registreert `tauri-plugin-store` nog ongebruikt); declaratief
   via `settingsRegistry.ts`. Een instelling in `SettingsPanelContent` staat vanzelf op alle drie de plekken
   (⚙, Instellingen-tab, Backstage); een onthouden weergavekeuze via een lintknop of slepen hoort daar niet.
 - **Auto-save** (crashherstel) is gethrottled op 10 s — bewust throttle, geen debounce.

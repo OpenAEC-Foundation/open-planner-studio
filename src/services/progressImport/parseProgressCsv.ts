@@ -4,22 +4,10 @@
 // `parseProgressXlsx.ts` (A9) levert hetzelfde returntype en raakt hen niet. Komt er ook maar één
 // csv-woord, één delimiter of één `\r\n` voorbij de grens van dit bestand, dan is die naad kapot.
 
-import { PROGRESS_IMPORT_LIMITS, type ProgressSheet, type RawDateCell, type RawProgressRow } from './types';
-import { boundedCell, hasControlChar, mapColumnIndex } from './sheetColumns';
+import { PROGRESS_IMPORT_LIMITS, type ProgressImportLimits, type ProgressSheet } from './types';
+import { collectProgressRows, mapColumnIndex, progressHeaderIssue, refuseSheet } from './sheetColumns';
 
-/**
- * Widened vorm van `PROGRESS_IMPORT_LIMITS` (die `as const` is — sommige velden dragen daardoor
- * een literal-type, bv. `256` i.p.v. `number`). Losse limieten (tests, een toekomstige instelling)
- * moeten een AFWIJKENDE waarde kunnen meegeven; `typeof PROGRESS_IMPORT_LIMITS` zou dat afdwingen
- * tot exact de standaardwaarde.
- */
-export interface ProgressImportLimits {
-  readonly maxBytes: number;
-  readonly maxRows: number;
-  readonly maxCellChars: number;
-  readonly maxIdChars: number;
-  readonly maxWbsChars: number;
-}
+export type { ProgressImportLimits } from './types';
 
 // Bewust een EIGEN kopie van csvReader.ts's detectDelimiter/parseCSVLine (zelfde vorm: simpele
 // ;-vs-,-heuristiek op de kopregel, RFC4180-achtige quote-/verdubbelde-quote-afhandeling) —
@@ -123,14 +111,6 @@ function parseCSVLine(line: string, delimiter: string): string[] {
   return fields;
 }
 
-/** Spiegelt `isValidPersistedIfcId` (ifcReader.ts): een id met een stuurteken telt als afwezig,
- *  net als een te lang id — geen van beide wordt afgekapt, ze verdwijnen gewoon uit de rij. */
-function boundedTaskId(raw: string | undefined, maxChars: number): string | undefined {
-  const trimmed = boundedCell(raw, maxChars);
-  if (trimmed === undefined) return undefined;
-  return hasControlChar(trimmed) ? undefined : trimmed;
-}
-
 /**
  * Leest een voortgangsblad (CSV) rauw in: sleutels genormaliseerd, waarden nog ONGEPARSED (de
  * datumvolgorde is op dit moment nog niet bekend — dat doet `sheetValues.ts`). Weigeringen zijn
@@ -142,101 +122,34 @@ export function parseProgressCsv(
 ): ProgressSheet {
   // Limieten VÓÓR allocaties (hardening-checklist): de bytegrens wordt getoetst vóórdat er ook
   // maar één string bewerkt wordt.
-  if (text.length > limits.maxBytes) {
-    return { fileIssue: 'tooLarge', rawRows: [], detectionCells: [] };
-  }
+  if (text.length > limits.maxBytes) return refuseSheet('tooLarge');
 
   // Regeleinde normaliseren VÓÓR de quote-bewuste splitsing: CRLF/lone-CR worden allemaal LF, dus
   // `splitLogicalRecords` hoeft maar één scheidingsteken te kennen. Dit raakt geen betekenis — het
   // enige wat telt is "zit deze regelovergang in een open aanhalingsteken of niet" (bevinding 3).
-  const clean = text.replace(/^﻿/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const clean = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const delimiter = detectDelimiter(clean);
   const records = splitLogicalRecords(clean);
-  if (records === undefined) {
-    // Bevinding 3b: een niet-gesloten aanhalingsteken maakt GEEN kolomgrens in het bestand nog
-    // betrouwbaar — weiger het complete blad, nooit een halfgelezen resultaat.
-    return { fileIssue: 'unreadable', rawRows: [], detectionCells: [] };
-  }
+  // Bevinding 3b: een niet-gesloten aanhalingsteken maakt GEEN kolomgrens in het bestand nog
+  // betrouwbaar — weiger het complete blad, nooit een halfgelezen resultaat.
+  if (records === undefined) return refuseSheet('unreadable');
 
   // Lege regels tellen niet als kop/datarij, maar hun regelnummer is al vastgelegd in de
   // ONGEFILTERDE `records`-lijst — filteren ná het splitsen behoudt dus de echte regelnummers
   // (fixronde-bevinding 9), i.p.v. ze te herberekenen op een positie in een al-gefilterde lijst.
   const nonBlankRecords = records.filter(record => record.text.trim().length > 0);
+  if (nonBlankRecords.length === 0) return refuseSheet('noKeyColumn');
 
-  if (nonBlankRecords.length === 0) {
-    return { fileIssue: 'noKeyColumn', rawRows: [], detectionCells: [] };
-  }
-
-  const headerFields = parseCSVLine(nonBlankRecords[0].text, delimiter);
-  const colMap = mapColumnIndex(headerFields);
-
-  const hasKeyColumn = colMap.taskId !== undefined || colMap.wbs !== undefined;
-  if (!hasKeyColumn) {
-    return { fileIssue: 'noKeyColumn', rawRows: [], detectionCells: [] };
-  }
-
-  const hasProgressColumn =
-    colMap.completion !== undefined || colMap.actualStart !== undefined || colMap.actualFinish !== undefined;
-  if (!hasProgressColumn) {
-    return { fileIssue: 'noProgressColumns', rawRows: [], detectionCells: [] };
-  }
-
+  const colMap = mapColumnIndex(parseCSVLine(nonBlankRecords[0].text, delimiter));
   const dataRecords = nonBlankRecords.slice(1);
+  const headerIssue = progressHeaderIssue(colMap, dataRecords.length, limits);
+  if (headerIssue) return refuseSheet(headerIssue);
 
-  // Rij-aantal getoetst vóórdat er ook maar één datarij geparsed wordt — een te groot blad wordt
-  // geweigerd, nooit stil afgeknipt (hardening-checklist).
-  if (dataRecords.length > limits.maxRows) {
-    return { fileIssue: 'tooManyRows', rawRows: [], detectionCells: [] };
-  }
-
-  const rawRows: RawProgressRow[] = [];
-  const detectionCells: RawDateCell[] = [];
-
-  for (const record of dataRecords) {
-    // Het ECHTE fysieke regelnummer waarop dit record begint, inclusief overgeslagen lege regels
-    // en meegerekende vervolgregels van een gequote meerregelig veld (bevinding 3/9).
-    const rowNumber = record.startLine;
-    const fields = parseCSVLine(record.text, delimiter);
-    const cell = (key: string): string | undefined => {
-      const idx = colMap[key];
-      return idx === undefined ? undefined : fields[idx];
-    };
-
-    const taskId = boundedTaskId(cell('taskId'), limits.maxIdChars);
-    const wbsCode = boundedCell(cell('wbs'), limits.maxWbsChars);
-    const name = boundedCell(cell('name'), limits.maxCellChars);
-    const rawCompletion = boundedCell(cell('completion'), limits.maxCellChars);
-    const rawActualStart = boundedCell(cell('actualStart'), limits.maxCellChars);
-    const rawActualFinish = boundedCell(cell('actualFinish'), limits.maxCellChars);
-    const startCell = boundedCell(cell('start'), limits.maxCellChars);
-    const finishCell = boundedCell(cell('finish'), limits.maxCellChars);
-
-    rawRows.push({
-      rowNumber,
-      ...(taskId !== undefined ? { taskId } : {}),
-      ...(wbsCode !== undefined ? { wbsCode } : {}),
-      ...(name !== undefined ? { name } : {}),
-      ...(rawCompletion !== undefined ? { rawCompletion } : {}),
-      ...(rawActualStart !== undefined ? { rawActualStart } : {}),
-      ...(rawActualFinish !== undefined ? { rawActualFinish } : {}),
-    });
-
-    // A5.2/A5.4: `taskId` op een detectiecel alleen gezet bij een harde id-treffer VAN DEZE RIJ —
-    // de ijkpuntregel (kalibratie) gebruikt niets zwakkers dan dat.
-    const detectionTaskId = taskId !== undefined ? { taskId } : {};
-    if (rawActualStart !== undefined) {
-      detectionCells.push({ rowNumber, field: 'actualStart', raw: rawActualStart, ...detectionTaskId });
-    }
-    if (rawActualFinish !== undefined) {
-      detectionCells.push({ rowNumber, field: 'actualFinish', raw: rawActualFinish, ...detectionTaskId });
-    }
-    if (startCell !== undefined) {
-      detectionCells.push({ rowNumber, field: 'start', raw: startCell, ...detectionTaskId });
-    }
-    if (finishCell !== undefined) {
-      detectionCells.push({ rowNumber, field: 'finish', raw: finishCell, ...detectionTaskId });
-    }
-  }
-
-  return { rawRows, detectionCells };
+  // Het ECHTE fysieke regelnummer waarop elk record begint, inclusief overgeslagen lege regels
+  // en meegerekende vervolgregels van een gequote meerregelig veld (bevinding 3/9).
+  return collectProgressRows(
+    dataRecords.map(record => ({ rowNumber: record.startLine, texts: parseCSVLine(record.text, delimiter) })),
+    colMap,
+    limits,
+  );
 }

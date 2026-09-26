@@ -63,7 +63,10 @@ export function TaskTypeField({ task, onChange, materializeProjectType = true }:
     ...(selectedProject && !personal.some(type => type.id === selectedProject.id) && !projectOnly.some(type => type.id === selectedProject.id)
       ? [{ value: selected, label: selectedProject.name }]
       : []),
-    ...(task.customTaskTypeId && !selectedProject
+    // Terugval voor een typereferentie die nergens (meer) bestaat. Een persoonlijk type dat nog niet
+    // in het project staat (de TaskDialog-draft materialiseert pas bij Opslaan) staat hierboven al
+    // in de lijst — nogmaals toevoegen gaf dezelfde optiewaarde twee keer (dubbele React-key).
+    ...(task.customTaskTypeId && !selectedProject && !personal.some(type => type.id === task.customTaskTypeId)
       ? [{ value: selected, label: t('taskType.USERDEFINED') }]
       : []),
     { value: SEPARATOR, label: '────────────', disabled: true },

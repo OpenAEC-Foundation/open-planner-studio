@@ -9,11 +9,11 @@ import type {
 import {
   activityCodeColumnId,
   customFieldColumnId,
-  decodeDynamicTaskColumnId,
   decodeTaskColumnIdSegment,
   encodeTaskColumnIdSegment,
   taskColumnId,
 } from '@/engine/taskGrid/fieldIds';
+import { isFiniteNumber } from '@/utils/guards';
 
 export const TASK_GRID_COLUMN_MIN_WIDTH = 40;
 /** Alleen een corruptiegrens. Auto-fit heeft later zijn eigen UX-grens van 480 px. */
@@ -37,8 +37,11 @@ const BUILTIN_TO_COLUMN_ID = {
   wbsCode: 'task.wbsCode',
   name: 'task.name',
   duration: 'task.time.scheduleDuration',
-  start: 'task.time.scheduleStart',
-  finish: 'task.time.scheduleFinish',
+  // De oude builtin-velden `start`/`finish` betekenden de GETOONDE datums (`resolveField` in
+  // `engine/view/filterEval.ts`: `shownStart`/`shownFinish`), dus migreren ze naar Start/Einde en
+  // niet naar de invoerankers Geplande start/einde.
+  start: 'task.time.start',
+  finish: 'task.time.finish',
   totalFloat: 'task.time.totalFloat',
   isCritical: 'task.time.isCritical',
   completion: 'task.time.completion',
@@ -49,10 +52,6 @@ const BUILTIN_TO_COLUMN_ID = {
   isNearCritical: 'task.time.isNearCritical',
   floatPath: 'task.time.floatPath',
 } as const;
-
-const COLUMN_ID_TO_BUILTIN = new Map<string, keyof typeof BUILTIN_TO_COLUMN_ID>(
-  Object.entries(BUILTIN_TO_COLUMN_ID).map(([key, id]) => [id, key as keyof typeof BUILTIN_TO_COLUMN_ID]),
-);
 
 function column(id: string, width: number): TaskGridColumnPreference {
   return { id: taskColumnId(id), width, pinned: false };
@@ -82,8 +81,10 @@ export function createDefaultTaskGridPreferences(
     column('task.wbsCode', 60),
     column('task.name', 240),
     column('task.time.scheduleDuration', 60),
-    column('task.time.scheduleStart', 100),
-    column('task.time.scheduleFinish', 100),
+    // De getoonde datums (zelfde bron als de Gantt-balk), niet de invoerankers "Geplande
+    // start/einde" — die blijven kiesbaar. Audit "weergaven" bevinding 2.
+    column('task.time.start', 100),
+    column('task.time.finish', 100),
     column('task.taskType', 80),
     column('task.time.isCritical', 50),
     column('task.time.totalFloat', 50),
@@ -155,7 +156,7 @@ export function normalizeTaskGridColumnPreferences(
   ];
 }
 
-function cloneColumns(columns: readonly TaskGridColumnPreference[]): TaskGridColumnPreference[] {
+export function cloneColumns(columns: readonly TaskGridColumnPreference[]): TaskGridColumnPreference[] {
   return columns.map(columnPreference => ({ ...columnPreference }));
 }
 
@@ -301,7 +302,7 @@ export async function computeTaskGridAutoFitWidth(
 }
 
 export function normalizeTaskGridScrollX(raw: unknown): number | null {
-  return typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.round(raw)) : null;
+  return isFiniteNumber(raw) ? Math.max(0, Math.round(raw)) : null;
 }
 
 function normalizeSurface(raw: unknown, fallback: TaskGridSurfacePreferences): TaskGridSurfacePreferences {
@@ -535,27 +536,6 @@ export function resolveLayoutColumnsForProject(
     }
     return { ...columnPreference };
   });
-}
-
-export function taskColumnIdToLegacyFieldRef(
-  id: TaskColumnId,
-  fields: TaskGridProjectFields,
-): FieldRef | null {
-  const builtin = COLUMN_ID_TO_BUILTIN.get(id);
-  if (builtin) return { src: 'builtin', key: builtin };
-  if (id === 'assignment.resources') return { src: 'resource' };
-  const dynamic = decodeDynamicTaskColumnId(id);
-  if (dynamic?.kind === 'activity-code'
-    && dynamic.projectId === fields.projectId
-    && fields.activityCodeTypeIds.includes(dynamic.typeId)) {
-    return { src: 'activityCode', typeId: dynamic.typeId };
-  }
-  if (dynamic?.kind === 'custom-field'
-    && dynamic.projectId === fields.projectId
-    && fields.customFieldDefIds.includes(dynamic.defId)) {
-    return { src: 'customField', defId: dynamic.defId };
-  }
-  return null;
 }
 
 export function taskGridSurfaceForRibbonTab(activeRibbonTab: string): TaskGridSurfaceId {

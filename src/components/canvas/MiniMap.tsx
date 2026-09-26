@@ -9,6 +9,7 @@ import { useAppStore } from '@/state/appStore';
 import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
 import { MiniMapRenderer } from '@/engine/renderer/MiniMapRenderer';
 import { useCanvasLayer } from './hooks/useCanvasLayer';
+import { listenWindowDrag } from '@/hooks/listenWindowDrag';
 
 const MINIMAP_HEIGHT = 48;
 
@@ -131,12 +132,7 @@ export function MiniMap({
       if (next !== null) applyScrollX(next);
     };
     const handleUp = () => setDragOffsetDays(null);
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
-    };
+    return listenWindowDrag({ onMove: handleMove, onUp: handleUp });
   }, [dragOffsetDays, scrollXForMiniX, applyScrollX]);
 
   return (

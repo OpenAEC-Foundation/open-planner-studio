@@ -22,7 +22,8 @@
 
 import { fetchTextAsset, type TextAssetFetch } from '@/utils/textAsset';
 import { buildEnvelope, toolError } from './runtime';
-import type { McpContext, McpToolDef, McpToolResult, McpToolAnnotations } from '../contracts';
+import type { McpContext, McpToolDef, McpToolResult } from '../contracts';
+import { READ_ANNOTATIONS } from './helpers';
 
 /** Publieke basis-URL van de webbuild — de plek waar een agent gids en skill zelf kan downloaden. */
 export const GUIDE_PUBLIC_BASE = 'https://open-planner-studio.open-aec.com';
@@ -95,14 +96,6 @@ export async function loadPlanningGuide(
   }
   return payload;
 }
-
-/** Leestool-annotaties, gelijk aan `READ_ANNOTATIONS` in `readTools.ts`. */
-const READ_ANNOTATIONS: McpToolAnnotations = {
-  readOnlyHint: true,
-  destructiveHint: false,
-  idempotentHint: false,
-  openWorldHint: false,
-};
 
 export const guideTools: McpToolDef[] = [
   {

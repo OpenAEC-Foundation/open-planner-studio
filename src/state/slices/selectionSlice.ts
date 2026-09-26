@@ -16,9 +16,8 @@ import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { ResourceAssignment } from '@/types/resource';
 import { collectSubtreeIds } from '@/state/taskTree';
-import { deriveWbsCodes, applyWbsNumbering } from '@/utils/wbs';
 import { generateId } from '@/utils/id';
-import { relationVerdict } from '@/state/relationRules';
+import { assignInsertedWbsCodes, insertRemappedRelations, notifyRelationsSkipped } from '@/state/insertedBranch';
 import {
   normalizeTaskRowCursor,
   uniqueTaskIds,
@@ -229,28 +228,10 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
         if (parent) parent.childIds.push(...newRootIds);
       }
 
-      // Interne relaties opnieuw aanmaken met de nieuwe ids. Spread behoudt óók de
-      // optionele lag-velden (lagUnit/lagPercent) — die vielen hier eerder stil weg.
-      //
-      // `relationVerdict.ts` is de bron van de regel, niet alleen de reguliere add-route
-      // (`addSequence`): een gekopieerde tak kan een relatie dragen die nooit via die route
-      // is aangemaakt (bv. een IFC-import las hem in zonder validatie — de reader schrijft
-      // rechtstreeks naar `s.sequences`). Zonder deze toets zou plakken zo'n spookrelatie
-      // eeuwig laten voortleven. De lookup wijst al naar `s.tasks` MÉT de zojuist geplakte
-      // taken (nieuwe ids, ouderrelaties uit de lus hierboven), dus de toets ziet exact de
-      // boom zoals hij na het plakken is — inclusief een eventuele ancestor-conflict door de
-      // plakplek zelf. De duplicaatcheck loopt tegen `s.sequences` zoals die tot nu toe in
-      // déze plakactie is opgebouwd, identiek aan hoe `addSequence` dat per aanroep doet.
-      const lookup = (tid: string) => s.tasks.find((t) => t.id === tid);
-      for (const seq of clip.sequences) {
-        const candidate = {
-          ...seq,
-          predecessorId: idMap.get(seq.predecessorId)!,
-          successorId: idMap.get(seq.successorId)!,
-        };
-        if (!relationVerdict(lookup, s.sequences, candidate).ok) { skippedRelations++; continue; }
-        s.sequences.push({ ...candidate, id: generateId('seq') });
-      }
+      // Interne relaties opnieuw aanmaken met de nieuwe ids, getoetst aan de relatieregels —
+      // zonder die toets zou plakken een spookrelatie (bv. uit een IFC-import) eeuwig laten
+      // voortleven. Zie `insertRemappedRelations`.
+      skippedRelations = insertRemappedRelations(s, clip.sequences, idMap);
 
       // Resource-toewijzingen opnieuw aanmaken (resources die niet meer bestaan overslaan).
       // Spread behoudt óók het optionele curve-veld — net als bij sequences hierboven.
@@ -264,33 +245,15 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
       }
 
       // WBS: geplakte takken zouden anders de codes van hun bron letterlijk dupliceren.
-      // Auto-nummering ⇒ hele boom; anders alleen de geplakte tak een afgeleide code geven.
-      if (s.project.wbsAutoNumber) {
-        applyWbsNumbering(s.tasks);
-      } else {
-        const codes = deriveWbsCodes(s.tasks);
-        for (const newId of idMap.values()) {
-          const t = s.tasks.find(x => x.id === newId);
-          const code = codes.get(newId);
-          if (t && code !== undefined) t.wbsCode = code;
-        }
-      }
+      assignInsertedWbsCodes(s, idMap.values());
 
       s.selectedTaskIds = newRootIds;
       s.activeTaskId = newRootIds[0] ?? null;
       runtime.finishMutation(s, { stale: true }); // geplakte taken (A6): planning verouderd tot F5.
     });
     get().recomputeViewRows();
-    if (skippedRelations > 0) {
-      // Ná `set()`: `get().notify(...)` binnen een actieve producer aanroepen kan niet
-      // (zelfde precedent als `setProject` in projectSlice.ts).
-      get().notify({
-        severity: 'info',
-        messageKey: 'notifications.relationsSkippedOnInsert',
-        params: { count: skippedRelations },
-        dedupeKey: 'relations-skipped-on-paste',
-      });
-    }
+    // Ná `set()`: `get().notify(...)` binnen een actieve producer aanroepen kan niet.
+    notifyRelationsSkipped(get().notify, skippedRelations, 'relations-skipped-on-paste');
     return newRootIds;
   },
 });

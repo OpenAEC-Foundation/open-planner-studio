@@ -756,6 +756,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   MACHECK="$DIR/.move-assignment-check.mjs"
   if bundle_check "$DIR/check-move-assignment.ts" "$MACHECK"; then node "$MACHECK" || STATUS=1; fi
 
+  # Toewijzingswijziging: één set gevolgregels (`invalidateForAssignmentChange`) over alle routes —
+  # store, taakraster (gridtransactie) en `removeResource`; nivelleerpauzes + laag 3/4 weg,
+  # importsplits blijven, bystanders ongemoeid.
+  AICHECK="$DIR/.assignment-invalidation-check.mjs"
+  if bundle_check "$DIR/check-assignment-invalidation.ts" "$AICHECK"; then node "$AICHECK" || STATUS=1; fi
+
   # assignResource-guard-checks (M6-conventie: onbekend/null resourceId stil weigeren; plus
   # defensieve writeIFC tegen reeds vergiftigde toewijzingen — de auto-save-crash-regressie).
   ARGCHECK="$DIR/.assign-resource-guard-check.mjs"
@@ -786,6 +792,18 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   TSCHECK="$DIR/.task-slice-check.mjs"
   if bundle_check "$DIR/check-task-slice.ts" "$TSCHECK"; then node "$TSCHECK" || STATUS=1; fi
 
+  # Een automatisch ingevulde werkelijke start valt nooit ná het werkelijke einde (critreview
+  # claim 9): taakraster enkel/meer, store `setTaskProgress` en de dialoog-draft, dag- én uurtaak,
+  # plus het blok van 3 rijen × (naam, 100%) dat vóór de fix als geheel werd geweigerd. Het
+  # MCP-pad staat in tests/mcp/cases-auto-actual-start.ts.
+  AUTOASCHECK="$DIR/.auto-actual-start-check.mjs"
+  if bundle_check "$DIR/check-auto-actual-start.ts" "$AUTOASCHECK"; then node "$AUTOASCHECK" || STATUS=1; fi
+
+  # "Taak bewerken" → Opslaan (taakmutaties-audit, bevindingen 4 en 10): dezelfde voortgangsregels
+  # als het paneel (status, werkelijk einde bij 100%, resterende duur) en één undo-stap per Opslaan,
+  # via exact de draft- en opslagfuncties van de dialoog. Browserkant: tests/browser/task-dialog-save.spec.ts.
+  TDSCHECK="$DIR/.task-dialog-save.mjs"
+  if bundle_check "$DIR/check-task-dialog-save.ts" "$TDSCHECK"; then node "$TDSCHECK" || STATUS=1; fi
   # Import/export-audit bevinding 6: dezelfde AF-default ("100 % zonder werkelijk einde" ⇒
   # statusdatum, anders de eigen geplande finish — nooit vandaag) in de store én in elke lezer
   # (`normalizeImportedProgress`), via de echte CSV-/IFC-/MSPDI-lezer en de store-open-actie.
@@ -890,6 +908,10 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-task-cell-editor.ts" "$TGCELLEDITORCHECK"; then node "$TGCELLEDITORCHECK" || STATUS=1; fi
   TGEDITORSCHECK="$DIR/.task-grid-editors.mjs"
   if bundle_check "$DIR/check-task-grid-editors.ts" "$TGEDITORSCHECK"; then node "$TGEDITORSCHECK" || STATUS=1; fi
+  # Audit "weergaven" bevinding 2: Tabel-kolommen Start/Einde tonen de datums van de Gantt-balk en
+  # bewerken verzet alleen iets bij een echte wijziging; "Gepland einde" is geen dode invoer meer.
+  TGSHOWNDATESCHECK="$DIR/.table-shown-dates.mjs"
+  if bundle_check "$DIR/check-table-shown-dates.ts" "$TGSHOWNDATESCHECK"; then node "$TGSHOWNDATESCHECK" || STATUS=1; fi
   # Backdrop-klik op dialogen met invoer (issue #158): de nieuw-project-wizard sloot bij een klik
   # naast het paneel en gooide getypte tekst weg — en vijftien andere dialogen deden hetzelfde.
   # Broncodepoort met allowlist: `onBackdropClick` alleen op dialogen zonder invoerelement.
@@ -921,6 +943,36 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # opnemende 2D-context-stub (aantoonbaar rood tegen de oude cull).
   GFCHECK="$DIR/.gantt-float-cull.mjs"
   if bundle_check "$DIR/check-gantt-float-cull.ts" "$GFCHECK"; then node "$GFCHECK" || STATUS=1; fi
+
+  # Spelingsband = "Laatste einde" (audit weergaven, bevinding 4): de band was totalFloat
+  # (werkdagen) × px per kalenderdag en stopte over een weekend dagen te vroeg (in urenmodus schoot
+  # hij door). Scherm, afdruk en het afdrukbereik lezen de rand nu uit één helper (`floatBandEnd`);
+  # deze batterij meet de echte renderer en de echte afdruk tegen `lateFinish`.
+  FBECHECK="$DIR/.float-band-end.mjs"
+  if bundle_check "$DIR/check-float-band-end.ts" "$FBECHECK"; then node "$FBECHECK" || STATUS=1; fi
+
+  # Mijlpalen-overzicht: "Kritiek" = de solverdefinitie `isCritical` (drempel, langste pad, voltooid
+  # nooit kritiek), niet een eigen `tf <= 0` (audit weergaven, bevinding 9). De te-laat-regel blijft.
+  MRSCHECK="$DIR/.milestone-report-status.mjs"
+  if bundle_check "$DIR/check-milestone-report-status.ts" "$MRSCHECK"; then node "$MRSCHECK" || STATUS=1; fi
+
+  # Fase met een dag- en een urenkind (audit weergaven, bevinding 10): het fase-einde werd als
+  # STRING-max opgerold ("…T13:00" > "…"), dus korter dan het dagkind. Nu als tijdstip met de
+  # balkregel (`finishInstant`), in de rollup, de Gantt-balk en de afgeleide faseduur.
+  SMFCHECK="$DIR/.summary-mixed-finish.mjs"
+  if bundle_check "$DIR/check-summary-mixed-finish.ts" "$SMFCHECK"; then node "$SMFCHECK" || STATUS=1; fi
+
+  # Eén duur-celtekst (audit weergaven, bevinding 7): taakraster, Gantt-afdruk en tooltip toonden
+  # "Duur" elk anders (afdruk altijd dagen: 5h → "0,56d"; raster negeerde Duurweergave). Nu één
+  # formatter met taakeenheid, Duurweergave en decimaalteken; de afdrukkolom meet dezelfde tekst.
+  DCTCHECK="$DIR/.duration-cell-text.mjs"
+  if bundle_check "$DIR/check-duration-cell-text.ts" "$DCTCHECK"; then node "$DCTCHECK" || STATUS=1; fi
+
+  # Speling, restduur en baselineduur (audit weergaven, bevinding 8): ruwe floats met een punt
+  # ("1.6666666666666667"), TS en VS verschillend afgerond, en de restduur van een urentaak als "0".
+  # Nu één opmaak (twee decimalen, decimaalteken van de taal, eenheid); restduur van urentaken in uren.
+  FRTCHECK="$DIR/.float-remaining-text.mjs"
+  if bundle_check "$DIR/check-float-remaining-text.ts" "$FRTCHECK"; then node "$FRTCHECK" || STATUS=1; fi
 
   # Gantt-renderopties (K-item 33): de pure afleidingen die BEPALEN wat er in `GanttRenderOptions`
   # komt (tijdas-oorsprong, contentspan, baseline-overlay, trace, histogramreeks). De andere
@@ -1069,6 +1121,17 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   MDCHECK="$DIR/.milestone-duration-render.mjs"
   if bundle_check "$DIR/check-milestone-duration-render.ts" "$MDCHECK"; then node "$MDCHECK" || STATUS=1; fi
 
+  # Voortgangslijn: de dagvergelijking tegen de statusdatum rekent op de UTC-as. Met lokale getters
+  # stulpte een uurtaak die pas op de statusdag start uit in zones vóór UTC — de tijdzone-matrix
+  # onderaan dit script (Pacific/Auckland) bewaakt dat.
+  GPLCHECK="$DIR/.gantt-progress-line.mjs"
+  if bundle_check "$DIR/check-gantt-progress-line.ts" "$GPLCHECK"; then node "$GPLCHECK" || STATUS=1; fi
+
+  # Datums uit de app zijn UTC-instants: de feestdagen-generatiespanne en de documentminiatuur
+  # lazen ze met lokale tijd (New York: 2026-01-01 werd 2025). Betekenis zit in de tijdzone-matrix.
+  LTPCHECK="$DIR/.local-time-parsing.mjs"
+  if bundle_check "$DIR/check-local-time-parsing.ts" "$LTPCHECK"; then node "$LTPCHECK" || STATUS=1; fi
+
   # U2: rasterdichtheid per zoom. De dagraster-lus tekende op elk zoomniveau een lijn per kalender-
   # dag; op jaarzoom werd het canvas daardoor een streeppatroon. Telt met de echte renderer de
   # verticale rasterlijnen bij dag-/week-/maandzoom (dagzoom moet ONGEWIJZIGD blijven).
@@ -1119,6 +1182,23 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # bandenkalender en `setTaskSplits` als tijdbasis-bewerking (undo/coalescing, contour, Z8, klip).
   SPLITEDITSTORECHECK="$DIR/.check-split-edit-store.mjs"
   if bundle_check "$DIR/check-split-edit-store.ts" "$SPLITEDITSTORECHECK"; then node "$SPLITEDITSTORECHECK" || STATUS=1; fi
+
+  # Issue #146-vervolg: een duurwijziging heeft langs store (`updateTask`) en taakraster (echte
+  # gridtransactie: duurcel in beide invoervormen, mijlpaalcel) dezelfde gevolgen — gebruikersgaten
+  # voorbij het nieuwe werktotaal vervallen, de taak blijft splitsbaar. MCP: tests/mcp/cases-splits.ts.
+  DURATIONROUTESCHECK="$DIR/.check-duration-change-routes.mjs"
+  if bundle_check "$DIR/check-duration-change-routes.ts" "$DURATIONROUTESCHECK"; then node "$DURATIONROUTESCHECK" || STATUS=1; fi
+
+  # WANNEER een gevolgregel vuurt: `sameValue` + `taskTriggerChanges` (taskDefaults.ts), de ENE
+  # wijzigingsdetectie op waarde (niet op sleutel-aanwezigheid) achter elke schrijfroute.
+  TRIGGERCHANGESCHECK="$DIR/.check-task-trigger-changes.mjs"
+  if bundle_check "$DIR/check-task-trigger-changes.ts" "$TRIGGERCHANGESCHECK"; then node "$TRIGGERCHANGESCHECK" || STATUS=1; fi
+
+  # …en dat de routes er echt op leunen: "Taak bewerken" → OK zonder wijziging (exact de payload van
+  # TaskDialog.handleSave) laat MSP-sturing, nivelleergaten, undo en isDirty ongemoeid; het taakraster
+  # wist bij een ongewijzigde celwaarde niets. MCP: tests/mcp/cases-waarde-triggers.ts.
+  VALUETRIGGERSCHECK="$DIR/.check-value-based-triggers.mjs"
+  if bundle_check "$DIR/check-value-based-triggers.ts" "$VALUETRIGGERSCHECK"; then node "$VALUETRIGGERSCHECK" || STATUS=1; fi
 
   # Issue #146 etappe 5: rooktests voor de oppervlakken die de splits-critreview niet naliep —
   # print/PDF, WBS-/voortgangsrapport, verzameltaak-rollup en baseline/variance met een gebruikerssplit.
@@ -1423,6 +1503,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   EXTVALIDATIONCHECK="$DIR/.extvalidation.mjs"
   if bundle_check "$DIR/check-extension-validation.ts" "$EXTVALIDATIONCHECK"; then node "$EXTVALIDATIONCHECK" || STATUS=1; fi
 
+  # Ouderwijziging via de extensie-API. `api.data.updateTask(id, { parentId })` zette de ouder
+  # voorheen rauw: `kind.parentId` wees naar de ouder, maar diens `childIds` bleef leeg (na runCPM
+  # geen samenvattingstaak), en een onbekende ouder of een kring werd aangenomen. Nu een
+  # verplaatsing via `moveTaskTo` en een fout bij een onbekende ouder of kring.
+  EXTPARENTCHECK="$DIR/.extparent.mjs"
+  if bundle_check "$DIR/check-ext-parent.ts" "$EXTPARENTCHECK"; then node "$EXTPARENTCHECK" || STATUS=1; fi
+
   # Scherm <-> print (K-item 39). De afdruk beantwoordde drie vragen zelf die de renderer al
   # beantwoordt — weeknummer, weekgrens en welke dagen vrij zijn — en was op alle drie afgedreven.
   # Een project met zaterdag als werkdag of "week begint op zondag" kreeg op papier iets anders dan
@@ -1470,6 +1557,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # voorstel om snapshots op taakaantal te filteren.
   RECCHECK="$DIR/.recovery-integrity.mjs"
   if bundle_check "$DIR/check-recovery-integrity.ts" "$RECCHECK"; then node "$RECCHECK" || STATUS=1; fi
+
+  # Opslaan over een projectbestand van de gebruiker (Tauri): plugin-fs truncate't eerst, dus een
+  # volle schijf of crash midden in de write kapte het bestand af. Deze batterij bewijst de
+  # schrijf-en-vervang-route tegen een nep-fs met exact die semantiek, plus de terugvallen (scope,
+  # geweigerde rename, links) en dat elke Tauri-schrijfroute naar een gebruikersbestand erdoor loopt.
+  UFWCHECK="$DIR/.user-file-write.mjs"
+  if bundle_check "$DIR/check-user-file-write.ts" "$UFWCHECK"; then node "$UFWCHECK" || STATUS=1; fi
 
   # X9 recoverydelta: inhoud volgt uitsluitend IFCSaveSource/sameIFCSource. Eén wijziging geeft
   # één upsert; actieve-tab-, pad- en dirtymetadata schrijven alleen het manifest.
@@ -1597,6 +1691,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # de afleiding telt werkdagen, dus TZ-onafhankelijkheid moet bewezen worden.
   SUMDUR="$DIR/.summary-duration.mjs"
   if bundle_check "$DIR/check-summary-duration.ts" "$SUMDUR"; then node "$SUMDUR" || STATUS=1; fi
+
+  # Voortgang en status van een verzameltaak: altijd afgeleid uit de bladen (gewogen, gelijk aan het
+  # WBS-rapport), met de uitzonderingen van de datum-rollup, en alleen-lezen in paneel/raster/setters.
+  SUMPROG="$DIR/.summary-progress.mjs"
+  if bundle_check "$DIR/check-summary-progress.ts" "$SUMPROG"; then node "$SUMPROG" || STATUS=1; fi
 
   # Datums zoals opgeslagen (issue #63) — de pure laag: aanwezigheidsregistratie, verschiltelling,
   # reconstructie. Betreden/verlaten en de undo-keten volgen later (aparte taak, hangt de store/UI

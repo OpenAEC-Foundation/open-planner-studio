@@ -284,6 +284,24 @@
   gap: var(--sp-3);
 }
 
+/* Zoekveld van de backstage-panelen (Extensies, Help). Padding en breedte staan per paneel; hier
+   staat bewust geen padding, zodat de laadvolgorde van de paneel-CSS niet uitmaakt. */
+.ext-search,
+.help-search {
+  background: var(--theme-input-bg);
+  border: 1px solid var(--theme-control-border);
+  border-radius: var(--radius-md);
+  color: var(--theme-text);
+  font-size: var(--text-large);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.ext-search:focus,
+.help-search:focus {
+  border-color: var(--theme-accent);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.20);
+}
+
 /* B2 (gebruikstest rekenprofielen 24-09): de Projectinfo-actiebalk plakt onderaan het zichtbare deel
    van `.backstage-main` (de scrollcontainer), zodat Toepassen niet ±900 px onder de conventies ligt.
    Eigen achtergrond + bovenrand zodat de doorscrollende velden er zichtbaar onderdoor lopen.
