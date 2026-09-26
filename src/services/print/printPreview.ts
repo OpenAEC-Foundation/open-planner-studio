@@ -383,7 +383,11 @@ interface TaskTableCellTexts extends Record<AutoColumnKey, string> {
   curve: string;
 }
 
-type CellTextOptions = Pick<PrintOptions, 'dateNotation' | 'numberLocale' | 'curveLabels'>;
+/** Wat de celteksten nodig hebben. `labels.daySuffix` is dezelfde dag-afkorting als in de projectkop;
+ *  de render geeft gewoon zijn `PrintOptions` door, de kolommeting alleen dit ene label. */
+type CellTextOptions = Pick<PrintOptions, 'dateNotation' | 'numberLocale' | 'curveLabels'> & {
+  labels?: Pick<NonNullable<PrintOptions['labels']>, 'daySuffix'>;
+};
 
 function taskTableCellTexts(row: PrintRow, options: CellTextOptions): TaskTableCellTexts {
   const task = row.kind === 'task' ? row.task : undefined;
@@ -392,7 +396,7 @@ function taskTableCellTexts(row: PrintRow, options: CellTextOptions): TaskTableC
   const assignment = row.assignment;
   return {
     wbs: task?.wbsCode || '',
-    duration: task ? formatDuration(task.time.scheduleDuration, options.numberLocale) : '',
+    duration: task ? formatDuration(task.time.scheduleDuration, options.numberLocale, options.labels?.daySuffix) : '',
     start: startStr ? formatDutchDate(parseDate(startStr), options.dateNotation) : '',
     end: endStr ? formatDutchDate(parseDate(endStr), options.dateNotation) : '',
     complete: task ? formatCompletion(task.time.completion) : '',
@@ -578,6 +582,13 @@ export interface PrintOptions {
     statusDate: string;
     /** Eigen label voor de voortgangslijn; dezelfde datum krijgt daarmee geen onjuiste statusnaam. */
     progressDate?: string;
+    /** Labels van de derde projectkopregel (`report:projectStart`/`projectEnd`/`projectDuration`),
+     *  inclusief dubbele punt — net als `printed`, zodat elke taal haar eigen interpunctie kiest. */
+    projectStart: string;
+    projectEnd: string;
+    projectDuration: string;
+    /** Dag-afkorting achter de projectduur; dezelfde als overal in de app (`common:duration.suffixDay`). */
+    daySuffix: string;
   };
   localizedMonths?: string[];
   localizedMonthsShort?: string[];
@@ -731,11 +742,12 @@ function formatDutchDate(d: Date, notation: DateNotation = 'dmy'): string {
 /**
  * Duur-cel: "15d", "1,5d" in nl — hetzelfde getal en decimaalteken als de Eenh./d-cel en de
  * tabelrapporten (`formatReportNumber`; review #139 bevinding 5: één tabel, één notatie). Zonder
- * `numberLocale` de neutrale punt, op twee decimalen afgerond.
+ * `numberLocale` de neutrale punt, op twee decimalen afgerond. De dag-afkorting is dezelfde als in
+ * de projectkop (`labels.daySuffix`, bv. "15j" in fr); zonder labels 'd'.
  */
-function formatDuration(days: number, locale: string | undefined): string {
+function formatDuration(days: number, locale: string | undefined, daySuffix = 'd'): string {
   const text = formatReportNumber(days, locale);
-  return text ? `${text}d` : '—'; // niet-eindig: een streepje, geen losse eenheid
+  return text ? `${text}${daySuffix}` : '—'; // niet-eindig: een streepje, geen losse eenheid
 }
 
 /**
@@ -1884,22 +1896,24 @@ function drawProjectHeader(
 
   d2d.fillText(fitText(d2d, row2Text, rowMaxW), pad, row2Y);
 
-  // Row 3: Project dates and duration
+  // Row 3: Project dates and duration — labels vertaald via `options.labels`, zonder labels Engels
+  // (zelfde terugval als `printed` hierboven).
   const row3Y = m.s(48);
+  const labels = options.labels;
   let row3Text = '';
   if (options.projectStartDate) {
     const sd = parseDate(options.projectStartDate);
-    row3Text += `Start: ${formatDutchDate(sd, options.dateNotation)}`;
+    row3Text += `${labels?.projectStart ?? 'Start:'} ${formatDutchDate(sd, options.dateNotation)}`;
   }
   if (options.projectEndDate) {
     const ed = parseDate(options.projectEndDate);
-    row3Text += (row3Text ? '  |  ' : '') + `Eind: ${formatDutchDate(ed, options.dateNotation)}`;
+    row3Text += (row3Text ? '  |  ' : '') + `${labels?.projectEnd ?? 'End:'} ${formatDutchDate(ed, options.dateNotation)}`;
   }
   if (options.projectStartDate && options.projectEndDate) {
     const sd = parseDate(options.projectStartDate);
     const ed = parseDate(options.projectEndDate);
     const dur = diffCalendarDays(sd, ed);
-    row3Text += `  |  Duur: ${dur}d`;
+    row3Text += `  |  ${labels?.projectDuration ?? 'Duration:'} ${dur}${labels?.daySuffix ?? 'd'}`;
   }
 
   d2d.fillText(fitText(d2d, row3Text, rowMaxW), pad, row3Y);

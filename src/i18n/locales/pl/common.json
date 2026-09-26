@@ -150,9 +150,9 @@
     "levelingDelayRoundedToWorkdays_many": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych.",
     "levelingDelayRoundedToWorkdays_other": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych.",
     "schedulingProfileApplied": "Ten projekt liczy się jako {{profile}}. Zmień to w Plik → Info o projekcie → Profil obliczeń i opcje.",
+    "schedulingProfileShifted_one": "Po zastosowaniu przesunięto {{count}} zadanie.",
     "schedulingProfileShifted_few": "Po zastosowaniu przesunięto {{count}} zadania.",
     "schedulingProfileShifted_many": "Po zastosowaniu przesunięto {{count}} zadań.",
-    "schedulingProfileShifted_one": "Po zastosowaniu przesunięto {{count}} zadanie.",
     "schedulingProfileShifted_other": "Po zastosowaniu przesunięto {{count}} zadania.",
     "actions": {
       "openProjectInfo": "Otwórz profil obliczeń"
@@ -409,7 +409,10 @@
     "dialogTitle": "Przywróć niezapisaną pracę",
     "explanation": "Open Planner Studio nie zostało zamknięte poprawnie. Poniższe dokumenty miały niezapisane zmiany, które można przywrócić:",
     "timeLabel": "Zapisano",
-    "taskCount": "Zadania: {{count}}",
+    "taskCount_one": "{{count}} zadanie",
+    "taskCount_few": "{{count}} zadania",
+    "taskCount_many": "{{count}} zadań",
+    "taskCount_other": "{{count}} zadania",
     "restore": "Przywróć",
     "dontRestore": "Nie przywracaj"
   },
@@ -716,7 +719,10 @@
     },
     "histogram": {
       "allResources": "Wszystkie zasoby",
-      "overallocatedTooltip": "{{count}} zadań ma udział w dniu {{date}}",
+      "overallocatedTooltip_one": "{{count}} zadanie ma udział w dniu {{date}}",
+      "overallocatedTooltip_few": "{{count}} zadania mają udział w dniu {{date}}",
+      "overallocatedTooltip_many": "{{count}} zadań ma udział w dniu {{date}}",
+      "overallocatedTooltip_other": "{{count}} zadania ma udział w dniu {{date}}",
       "overallocatedNonWorkingDay": "Nie pracuje w tym dniu według kalendarza „{{calendar}}”",
       "noData": "Przelicz (F5), aby pokazać obciążenie",
       "noResources": "Brak zasobów",
@@ -966,7 +972,11 @@
       "applyOnly": "Zastosuj bez zapisywania",
       "infoApplyOnly": "Stosuje zaznaczone elementy na ekranie bez tworzenia przycisku układu. Przydatne do szybkiego, tymczasowego filtra.",
       "columnsNote": "Przejmuje kolumny w takiej postaci, w jakiej są teraz w tabeli. Kolumny wybiera się plusem w nagłówku tabeli.",
-      "relationsShow": "Pokaż linie relacji"
+      "relationsShow": "Pokaż linie relacji",
+      "partOverlays": "Nakładka",
+      "infoOverlays": "Linie powiązań, plan bazowy, linia postępu, linia daty stanu, akcent zasobu, pasmo zapasu i kolory pasków. Bez zaznaczenia: pozostają bez zmian.",
+      "overlaysNotStored": "Ten układ zapisuje tylko linie powiązań. Jeśli zmienisz poniżej nakładkę, zapisze też wszystkie nakładki.",
+      "missingColorField": "Kategoria: pole nie istnieje w tym projekcie"
     },
     "presentation": {
       "hint": "Naciśnij Esc lub F11, aby wyjść z trybu pełnoekranowego."

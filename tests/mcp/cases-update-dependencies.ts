@@ -26,6 +26,7 @@ import { handleMcpMessage } from '@/services/mcp/dispatcher';
 import { createSnapshot } from '@/state/snapshot';
 import type { McpContext, McpToolOk, McpToolResult } from '@/services/mcp/contracts';
 import type { Sequence } from '@/types/sequence';
+import { LAG_SCHEMA, parseLag } from '@/services/mcp/tools/sequenceFields';
 
 const store = useAppStore;
 registerAllTools();
@@ -163,6 +164,30 @@ test('een achtergebleven lagMinutes wordt gewist EN gemeld (anders is de dag-lag
   assertEq(seqById(s).lagDays, 2, 'de dag-lag staat op 2');
   assert(seqById(s).lagMinutes === undefined, 'de minuut-lag is gewist — anders won die van lagDays');
   assertEq(data.updated[0].changes.lag.clearedLagMinutes, 240, 'de gewiste minuut-lag wordt EXPLICIET gemeld');
+});
+
+// Audit import/export nr. 1 (vervolg): `lag` accepteert bewust een FRACTIE in dagen (0.5, "+0.5d") en
+// rondt die niet af — de IFC-laag round-tript hem sinds die fix ook — maar schema, fouttekst en de
+// `lagMinutes`-hint beloofden "HELE WERKDAGEN". Tekst en gedrag moeten hetzelfde zeggen.
+test('lag in dagen: een fractie wordt geaccepteerd en niet afgerond, en de teksten zeggen dat ook', async () => {
+  for (const [input, expect] of [[0.5, 0.5], ['+0.5d', 0.5], ['-1.5d', -1.5]] as [unknown, number][]) {
+    const { s1 } = threeChain();
+    okData(await call('planner_update_dependencies', { updates: [{ seqId: s1, lag: input }] }));
+    assertEq(seqById(s1).lagDays, expect, `${JSON.stringify(input)} ⇒ lagDays ${expect} (niet afgerond)`);
+  }
+  const { s1 } = threeChain();
+  const texts: [string, string][] = [
+    ['LAG_SCHEMA', String((LAG_SCHEMA as { description?: unknown }).description ?? '')],
+    ['parseLag(onzin)', (() => { const r = parseLag('morgen'); return r.ok ? '' : r.reason; })()],
+    ['parseLag(NaN)', (() => { const r = parseLag(Number.NaN); return r.ok ? '' : r.reason; })()],
+    ['hint lagMinutes', rejections(await call('planner_update_dependencies', { updates: [{ seqId: s1, lagMinutes: 60 }] }))[0]?.reason ?? ''],
+  ];
+  for (const [label, text] of texts) {
+    assert(text !== '' && !/hele werkdagen/i.test(text), `${label} belooft geen "hele werkdagen": ${text}`);
+  }
+  for (const [label, text] of texts.slice(0, 2)) {
+    assert(/fractie/i.test(text), `${label} zegt dat een fractie mag: ${text}`);
+  }
 });
 
 test('onzin-lag ("morgen", true) ⇒ zachte weigering per item, relatie ongewijzigd', async () => {

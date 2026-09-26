@@ -17,11 +17,12 @@ import {
   hourInputFinishBasis, reconcileHourInputFinish, seedNewHourTaskFinish,
 } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
-import { formatDate } from '@/utils/dateUtils';
+import { formatDate, parseDate } from '@/utils/dateUtils';
 import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 import { deriveWbsCodes, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
 import {
   applyProgressInvariants,
+  defaultActualStart,
   isActualPastStatusDate,
 } from '@/engine/taskMutationRules';
 import type { WbsTemplate } from '@/utils/wbsTemplates';
@@ -453,6 +454,20 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     set((s) => {
       const idx = s.tasks.findIndex(t => t.id === id);
       if (idx < 0) return; // onbekend id: geen snapshot, geen loze undo-stap (R3).
+      // Start is verplicht (vangnet onder paneel, dialoog en extensie-API): een onleesbare
+      // `scheduleStart` (bv. `''` uit een leeggemaakt datumveld) maakt het HELE project onberekenbaar
+      // ("Ongeldige startdatum") en wordt bij heropenen stil "vandaag". Het raster weigert dit al met
+      // `required`; hier blijft het bestaande anker staan en gaat de rest van de patch gewoon door.
+      // Bleef er daarna niets te wijzigen over, dan ook geen snapshot (R3).
+      let time = updates.time;
+      if (time && 'scheduleStart' in time && isNaN(parseDate(time.scheduleStart ?? '').getTime())) {
+        const current = s.tasks[idx].time;
+        const kept = { ...time, scheduleStart: current.scheduleStart };
+        const onlyStart = Object.keys(updates).length === 1
+          && (Object.keys(kept) as (keyof typeof kept)[]).every(k => kept[k] === current[k]);
+        if (onlyStart) return;
+        time = kept;
+      }
       runtime.beginUndoable(s, opts); // snapshot pas ná de guard, vóór de mutatie; `opts` = coalesceKey (bv. balk-sleep = 1 stap).
       // T14b-vervolg (gebruikstestbevinding): `updates.time` (indien meegegeven) apart mergen tegen
       // de BESTAANDE tijd van de taak i.p.v. 'm via Object.assign in zijn geheel te laten vervangen —
@@ -464,7 +479,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // `settleRuleChange` (legt onder een werkbeschermende regel het restwerk vast — besluit 2),
       // zodat `updateTask(id, { workRule })` (extensie-`data.updateTask`, dialogen) hetzelfde doet
       // als `setTaskWorkRule`.
-      const { time, workRule, calendarId, ...rest } = updates;
+      // `time` = de start-gecontroleerde variant hierboven (#199), niet `updates.time`.
+      const { time: _unguardedTime, workRule, calendarId, ...rest } = updates;
       // B1-vervolg — de basis van het ingevoerde einde VÓÓR elke mutatie, dus ook vóór de K2-
       // kalenderstap hieronder (integratie #101, valkuil b): anders zit de kalenderwissel al in de
       // sleutel van de basis, ziet `reconcileHourInputFinish` "geen invoerwijziging" en blijft het
@@ -646,9 +662,9 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       const engine = new CalendarEngine(calendarForEngine(
         resolveCalendar(task.calendarId, s.calendars, s.calendar),
       ));
-      const finish = splitScheduleFinish(task, engine);
-      task.time.scheduleFinish = finish;
-      task.time.earlyFinish = finish;
+      task.time.scheduleFinish = splitScheduleFinish(task, engine);
+      // Issue #171: het balkeinde vanaf waar de balk staat, niet vanaf het anker.
+      task.time.earlyFinish = splitScheduleFinish(task, engine, task.time.earlyStart || task.time.scheduleStart);
 
       // (8) `markScheduleStale` via `finishMutation` — nooit de vlag rechtstreeks (issue #63).
       runtime.finishMutation(s, { stale: true });
@@ -1248,7 +1264,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       task.time.completion = completion;
       // §3.2: completion>0 zonder actualStart ⇒ auto actualStart (MSP-conventie: % ⇒ gestart).
       if (completion > 0 && !task.time.actualStart) {
-        task.time.actualStart = task.time.earlyStart || task.time.scheduleStart;
+        task.time.actualStart = defaultActualStart(task.time);
       }
       // Voortgang teruggedraaid onder 100% ⇒ een verouderd actualFinish laten vallen.
       if (completion < 1) task.time.actualFinish = undefined;

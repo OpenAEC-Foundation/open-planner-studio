@@ -283,6 +283,32 @@ console.log('-- split-edit-store: updateTask klipt een gebruikersgat bij duurkri
     S().tasks.find(x => x.id === id)!.splitGaps, undefined);
 }
 
+console.log('-- split-edit-store: opgeschoven opvolger houdt zijn balk op earlyStart (#171) --');
+{
+  // Een opvolger houdt zijn `scheduleStart`-anker op de projectstart; alleen `earlyStart` schuift
+  // mee met de voorganger. Het voorlopige balkeinde na een split rekende vanaf dat anker, waardoor
+  // het einde terugsprong naar de projectstart.
+  const { S } = freshStore();
+  const pred = S().addTask({ name: 'Voorganger', time: createDefaultTaskTime('2026-06-01', 10) });
+  const succ = S().addTask({ name: 'Opvolger', time: createDefaultTaskTime('2026-06-01', 10) });
+  S().addSequence({ predecessorId: pred, successorId: succ, type: 'FINISH_START', lagDays: 0 });
+  S().runCPM();
+  const before = S().tasks.find(x => x.id === succ)!;
+  eq('#171 het anker blijft op de projectstart', before.time.scheduleStart, '2026-06-01');
+  eq('#171 de balk begint na de voorganger', before.time.earlyStart, '2026-06-15');
+  // 5 werkdagen werk, 1 werkdag pauze, 5 werkdagen werk ⇒ spanne 11 werkdagen vanaf 15 juni.
+  const refusal = S().setTaskSplits(succ, [
+    { kind: 'work', minutes: 2400 }, { kind: 'gap', minutes: 480, source: 'user' }, { kind: 'work', minutes: 2400 },
+  ] as SplitPiece[]);
+  eq('#171 split geaccepteerd', refusal, null);
+  const after = S().tasks.find(x => x.id === succ)!;
+  eq('#171 voorlopig einde telt vanaf de balkstart', after.time.earlyFinish, '2026-06-29');
+  // Het invoerpaar scheduleStart/scheduleFinish blijft een consistent anker (11 werkdagen vanaf 1 juni).
+  eq('#171 het ankereinde blijft bij het anker', after.time.scheduleFinish, '2026-06-15');
+  S().runCPM();
+  eq('#171 de herberekening bevestigt hetzelfde einde', S().tasks.find(x => x.id === succ)!.time.earlyFinish, '2026-06-29');
+}
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) { console.log(`OK  split-edit-store: alle checks groen (${checks})`); process.exit(0); }
 console.log(`XX  split-edit-store: ${diffs.length} afwijking(en) van ${checks}`);

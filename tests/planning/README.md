@@ -13,8 +13,14 @@ bash tests/planning/run.sh check-document-contract.ts              # één losse
 bash tests/planning/run.sh cases-relations.json check-document-contract.ts   # door elkaar
 ```
 
-Exit 0 = alles groen, exit 1 = afwijking (toont per geval het verschil verwacht↔actueel).
+Exit 0 = alles groen, exit 1 = afwijking (toont per geval het verschil verwacht↔actueel). De laatste
+regel, `EINDOORDEEL planningssuite: GROEN/ROOD`, volgt altijd de exitcode; tussenregels als
+"(alles groen)" gaan alleen over hun eigen deel.
 `run.sh` bundelt `harness.ts` met esbuild (komt met Vite mee) en draait het op Node — geen extra deps.
+
+De tijdzone-matrix aan het eind (alle bundels opnieuw onder vijf tijdzones) draait de zones
+tegelijk, hoogstens zoveel als er processorkernen zijn; `OPS_TZ_JOBS=1 bash tests/planning/run.sh`
+draait ze één voor één, zoals vroeger. De uitvoer staat altijd in vaste zonevolgorde.
 
 ### Gerichte runs
 
@@ -26,10 +32,12 @@ mogelijk was. Sinds deze paragraaf print `run.sh` daarom aan het eind van een ge
 zichtbare waarschuwing met het aantal overgeslagen checks, dynamisch geteld uit het script zelf —
 er staat bewust geen getal in deze README, want dat veroudert bij elke nieuwe of verwijderde check;
 laat `bash tests/planning/run.sh <iets ongeldigs>` of een gerichte run het actuele aantal tonen.
-Een `check-*.ts` dat op schijf staat maar door geen enkele `bundle_check`-regel wordt aangeroepen telt
-niet mee als "aangesloten": `run.sh` bewaakt dat zelf met een check-scriptinventaris (zelfde model als
-de `EXPECTED_BATTERIES`-inventaris voor `cases-*.json` bovenin `run.sh`) en faalt rood als een bestand
-noch aangesloten noch expliciet op de allowlist staat.
+Een nieuwe `check-*.ts` hoef je **niet** in `run.sh` te bedraden: de volledige run bundelt en draait
+elke `check-*.ts` zonder eigen `bundle_check`-regel automatisch, inclusief de tijdzone-matrix (de
+check-scriptinventaris bovenin `run.sh` somt ze op). Een eigen regel is alleen nodig voor een check
+die iets bijzonders vraagt — een omgevingsvariabele, een vaste plek, of juist niet in de
+tijdzone-matrix (zie de twee performance-checks). Een check die bewust níét mag meedraaien, zet je
+met een reden op `CHECK_SCRIPT_ALLOWLIST`.
 Vertrouw pas op een gerichte run voor snel itereren; draai vóór een commit/PR altijd `run.sh` zonder
 argumenten. Een onbekende bestandsnaam (geen bestaand `cases-*.json`/`check-*.ts` in deze map) geeft
 een `XX`-foutregel en exitcode ≠ 0, zonder de rest van de gevraagde bestanden te blokkeren.

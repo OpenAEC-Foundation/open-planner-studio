@@ -1,3 +1,4 @@
+import { useTextEntryAutoCalcHold } from '@/hooks/useTextEntryAutoCalcHold';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
@@ -46,6 +47,8 @@ export function TaskPropertiesPanel() {
   const setTaskProgress = useAppStore(s => s.setTaskProgress);
   const setActualStart = useAppStore(s => s.setActualStart);
   const setActualFinish = useAppStore(s => s.setActualFinish);
+  // Automatisch berekenen pas als een veld af is, niet halverwege het typen.
+  const textEntryHold = useTextEntryAutoCalcHold();
 
   if (!activeTaskId) {
     return (
@@ -79,7 +82,7 @@ export function TaskPropertiesPanel() {
   };
 
   return (
-    <div className="flex flex-col gap-3 p-3 text-small leading-4 overflow-y-auto">
+    <div className="flex flex-col gap-3 p-3 text-small leading-4 overflow-y-auto" {...textEntryHold}>
       <div className="flex items-center justify-between">
         <span className="ui-card-header !text-small !leading-4">{t('properties.task')}</span>
         <button

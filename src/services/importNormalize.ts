@@ -1,5 +1,6 @@
 import type { Task } from '@/types/task';
-import { formatDate } from '@/utils/dateUtils';
+import { defaultActualFinish, defaultActualStart } from '@/engine/taskMutationRules';
+import { orderActualsAfterDerivedFinish } from '@/engine/actualDatesOrder';
 import { workRuleFromMsp, workRuleFromXerDurationType } from '@/engine/work/workRuleMapping';
 
 /**
@@ -54,15 +55,21 @@ export function normalizeImportedProgress(tasks: Task[], statusDate?: string): v
       continue;
     }
 
-    // §3.2-invarianten (spiegel van applyProgressInvariants in taskSlice).
+    // §3.2-invarianten (spiegel van applyProgressInvariants, engine/taskMutationRules.ts). De
+    // AF-default is niet gespiegeld maar GEDEELD (`defaultActualFinish`): statusdatum, anders de
+    // eigen geplande finish — nooit de leesdatum (import/export-audit, bevinding 6).
     if (t.actualFinish) {
       t.completion = 1;
       if (!t.actualStart) t.actualStart = t.actualFinish;
       task.status = 'COMPLETED';
     } else if (t.completion >= 1) {
       t.completion = 1;
-      t.actualFinish = statusDate || formatDate(new Date());
-      if (!t.actualStart) t.actualStart = t.actualFinish;
+      // Zelfde volgorde en regels als de store (`setTaskProgress`): eerst de impliciete start (de
+      // eigen geplande start, niet AS = AF — anders krimpt de voltooide balk), dan de AF-default.
+      if (!t.actualStart) t.actualStart = defaultActualStart(t);
+      t.actualFinish = defaultActualFinish(t, statusDate);
+      // Geplande start ná de statusdatum ⇒ AS lag ná het afgeleide einde; zelfde regel als de store.
+      orderActualsAfterDerivedFinish(t, statusDate);
       task.status = 'COMPLETED';
     } else {
       // In progress: actualStart gezet óf completion > 0 (impliciete start dekt het

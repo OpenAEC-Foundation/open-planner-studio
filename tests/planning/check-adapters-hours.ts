@@ -230,6 +230,22 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   const pureDayBack = readIFC(ifc.replace(needle, "IFCDURATION('P3D')")).sequences[0];
   eq('bestaande vorm ongewijzigd: P3D ⇒ lagDays 3', pureDayBack?.lagDays, 3);
   eq('bestaande vorm ongewijzigd: P3D ⇒ lagMinutes undefined', pureDayBack?.lagMinutes, undefined);
+
+  // (d) Audit import/export nr. 1 (vervolg): het dag-deel van de gemengde vorm mag een decimale
+  //     fractie hebben (ISO 8601), net als in `parseDurationDays`. Vóór de fix las `(\d+)D` alleen de
+  //     cijfers ná de punt (1.5 → 5 dagen). Het resultaat blijft een hele minuut.
+  const mixedCases: [string, number, string][] = [
+    ['P1.5DT2H0M0S', 2280, '1,5D (2160) + 2H (120); was 5D + 2H = 7320'],
+    ['P2DT2H0M0S', 3000, 'hele dag (controle, ongewijzigd)'],
+    ['-P1.5DT2H0M0S', -2280, 'negatief met ISO-voorloopteken; was −7320'],
+    ['-P1DT2H0M0S', -1560, 'negatief, hele dag (controle, ongewijzigd)'],
+    ['P0.3333DT0H0M0S', 480, '0,3333D = 479,95 min ⇒ afgerond op een hele minuut; was 3333D'],
+  ];
+  for (const [iso, want, why] of mixedCases) {
+    const back = readIFC(ifc.replace(needle, `IFCDURATION('${iso}')`)).sequences[0];
+    eq(`gemengd ${iso}: lagMinutes ${want} (${why})`, back?.lagMinutes, want);
+    eq(`gemengd ${iso}: lagDays blijft 0`, back?.lagDays, 0);
+  }
 }
 
 // ── Dag-bestand-discriminator (geen uur-lek + identieke leaf-schedule) ──────

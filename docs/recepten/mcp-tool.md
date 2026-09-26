@@ -24,9 +24,9 @@ document ooit achter, dan heeft de code gelijk.
 
 ## De stappen
 
-1. **Kies of dit een bestaande module uitbreidt of een nieuwe nodig heeft.** De negen
-   `tools/*.ts`-modules zijn onderwerp-gegroepeerd (taken, relaties, resources+kalender, resources,
-   baselines, documenten, bestanden, lezen, batch — zie de `MODULES`-lijst in `toolRegistry.ts`). Een
+1. **Kies of dit een bestaande module uitbreidt of een nieuwe nodig heeft.** De
+   `tools/*.ts`-modules zijn onderwerp-gegroepeerd (taken, relaties, resources, kalender, baselines,
+   documenten, bestanden, lezen, gids, batch — de `MODULES`-lijst in `toolRegistry.ts` is de bron). Een
    nieuwe tool hoort meestal in een bestaande module; alleen een heel nieuw onderwerp krijgt een
    nieuw bestand.
 2. **Schrijf de `McpToolDef`** (contract uit `contracts.ts`): `name` (verplicht met

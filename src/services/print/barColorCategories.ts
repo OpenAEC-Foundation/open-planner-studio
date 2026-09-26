@@ -40,6 +40,7 @@ function fieldIdentity(field: FieldRef): string {
     case 'activityCode': return `activityCode:${field.typeId}`;
     case 'customField': return `customField:${field.defId}`;
     case 'resource': return 'resource';
+    case 'resourceType': return 'resourceType';
   }
 }
 
@@ -52,9 +53,17 @@ function noneValue(field: FieldRef, noneLabel: string): BarCategoryValue {
   };
 }
 
+/**
+ * Een groepeerveld dat (nog) geen balkkleur kan dragen: Resourcetype (issue #173) is een indeling,
+ * geen kleurbron — resources hebben een eigen kleur, typen niet.
+ */
+export function isBarColorCandidate(field: FieldRef): boolean {
+  return field.src !== 'resourceType';
+}
+
 /** De toegestane categorievelden komen bewust rechtstreeks uit de Group-catalogus. */
 export function isBarColorFieldAvailable(field: FieldRef, ctx: BarColorFieldContext): boolean {
-  return groupFieldList(ctx).some(candidate => fieldsEqual(candidate, field));
+  return isBarColorCandidate(field) && groupFieldList(ctx).some(candidate => fieldsEqual(candidate, field));
 }
 
 /**
@@ -116,6 +125,9 @@ export function resolveBarCategoryValues(
       isNone: false,
     }];
   }
+
+  // Geen kleurbron (zie `isBarColorCandidate`); `effectiveBarColorSelection` laat het nooit zover komen.
+  if (field.src === 'resourceType') return [noneValue(field, ctx.noneLabel)];
 
   if (field.src === 'customField') {
     const value = task.customFields?.[field.defId];

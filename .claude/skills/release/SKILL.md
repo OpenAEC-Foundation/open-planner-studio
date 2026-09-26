@@ -154,8 +154,8 @@ npm run build
 npm run verify:examples
 npm run verify:docs
 ```
-De suite print "alles groen" **óók bij exit 1** — vertrouw op **exitcode + `grep ^XX`**, nooit
-alleen de tail. Bij een rode poort: niet verder.
+Tussenregels als "alles groen" gaan alleen over hun eigen deel; de laatste regel
+`EINDOORDEEL planningssuite: GROEN/ROOD` volgt de exitcode. Vertrouw op **exitcode + `grep ^XX`**. Bij een rode poort: niet verder.
 
 ### 8. Oude worktrees opruimen (eis 5)
 ```bash

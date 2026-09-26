@@ -39,27 +39,12 @@ function makeCtx(over: McpContextOverrides = {}): McpContext {
 // =================================================================================================
 
 /**
- * De VERWACHTE toolstelling, per baan uitgesplitst. Dit getal is met opzet hard: raakt een baan een
- * tool kwijt (of registreert iemand een module dubbel), dan valt deze test om in plaats van dat
- * `tools/list` stilletjes verschuift.
+ * Wat de AI via de dispatcher te zien krijgt, moet exact de registry zijn. Bewust zonder vast aantal
+ * (dat moest bij elke nieuwe tool mee omhoog): dat de registry compleet is — elke `planner_*`-tool uit
+ * de broncode geregistreerd, niets extra — bewaakt `cases-toolregistry.ts`, en dubbele registratie
+ * vangt de test "geen dubbele toolnamen" hieronder.
  */
-const EXPECTED_TOOLS = {
-  read: 11,          // T18/T18b + retained XER-provenance — leestools
-  taskMutate: 7,     // T19 — add/update/delete_tasks, move_task, add/remove_dependencies; #146 set_task_splits
-  dependency: 1,     // dependencyTools — update_dependencies (bestaande relatie wijzigen)
-  taskOther: 3,      // T19 — undo, redo, run_cpm
-  calResMutate: 7,   // T20 — update_calendar, manage_assignments, level_resources, clear_leveling,
-                     //        update_project, move_project, save_baseline
-  resource: 1,       // resourcebeheer — manage_resources
-  baseline: 4,       // baselineTools — list/activate/rename/delete_baseline (beheer náást save_baseline)
-  document: 4,       // T21 — list/new/switch/duplicate_document
-  file: 2,           // T21 — export_ifc, import_schedule
-  guide: 1,          // D2b — get_planning_guide (gids + agent-skill, geen projectdata)
-  batch: 1,          // T22 — planner_batch
-};
-const EXPECTED_TOTAL = Object.values(EXPECTED_TOOLS).reduce((a, b) => a + b, 0); // = 42
-
-test('tools/list levert exact de verwachte toolstelling (42) via de dispatcher', async () => {
+test('tools/list levert via de dispatcher exact de geregistreerde toolstelling', async () => {
   const raw = await handleMcpMessage(
     JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
     makeCtx(),
@@ -67,9 +52,13 @@ test('tools/list levert exact de verwachte toolstelling (42) via de dispatcher',
   const resp = JSON.parse(raw);
   assert(resp.result !== undefined, `tools/list gaf een fout terug: ${raw.slice(0, 300)}`);
   const tools = resp.result.tools as { name: string; description?: string; annotations?: unknown }[];
-  assertEq(tools.length, EXPECTED_TOTAL, `tools/list moet ${EXPECTED_TOTAL} tools tellen`);
+  assert(tools.length > 0, 'tools/list is leeg');
   // De dispatcher put uit dezelfde registry; als die twee uiteenlopen klopt er iets fundamenteels niet.
-  assertEq(getTools().length, EXPECTED_TOTAL, 'de registry telt hetzelfde aantal als tools/list');
+  assertEq(
+    tools.map((t) => t.name).sort(),
+    getTools().map((t) => t.name).sort(),
+    'tools/list toont precies de tools uit de registry',
+  );
 });
 
 test('élke tool draagt planner_-prefix, een niet-lege description en alle VIER de annotaties', async () => {
