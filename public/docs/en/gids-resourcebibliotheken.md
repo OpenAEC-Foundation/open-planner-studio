@@ -89,6 +89,7 @@ The app checks whether your copies still match the library at four fixed moments
 
 - If a copy has simply fallen behind (you haven't changed it yourself, but the library has moved on since), it's **refreshed silently** — you'll just see a brief notice, no question.
 - If a copy has been changed locally (or by someone else), the **differs — decide** marker appears, and the app asks per item what should happen: **Use library values**, **Adopt file values into the library**, or **Decide later**.
+- If a calendar gets different hours per day this way, the work rule of every task on that calendar decides what moves along, exactly as in the calendar dialog: under *Fixed work* a 32-hour task at 6 hours per day becomes 6 days. The app tells you how many tasks were adjusted; for a document you are not working in at that moment, the notice appears as soon as you switch to it. A silent refresh does not mark a document as changed: if you reopen the file without saving, the app refreshes it again and you end up with the same duration.
 
 These choices can't be undone with Ctrl+Z — the second option changes the library itself, which sits outside the project's undo history altogether.
 

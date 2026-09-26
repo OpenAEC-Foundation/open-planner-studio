@@ -214,6 +214,30 @@ De resourcebibliotheek ververst nooit doorlopend of "live" — alleen op vier va
 Op elke grens blijven `deviated`-items ongemoeid — die wachten op een expliciete keuze in het
 afwijkingenscherm.
 
+### Werkregel bij een kalenderverversing
+
+Eigenaarsbesluit 2026-09-26 ("zelfde regel als de dialoog"): krijgt een kalender via de bibliotheek
+andere waarden, dan volgen de taken erop hun werkregel, precies zoals na de kalenderdialoog
+(`commitCalendarLibrary`): Vast werk 32 u op 8 → 6 u/d wordt 6 d. Eén gedeelde weg in
+`state/calendarTasks.ts` — `applyCalendarLibraryChange` (capture → kalenders vervangen → settle, op een
+Immer-draft) en `settleCalendarLibraryChangeOnPayload` (dezelfde settle op een plain payload, voor de
+activatiegrens) — gebruikt door alle vier de grenzen (`refreshAllDocumentsFromPool`, ook op elke
+slapende payload; `materializeBehindOnlyRefresh` bij openen, wisselen, herstel en bibliotheekimport) en
+door `updateProjectCalendarFromLibrary`, `linkRecognizedItems` en `resolveDeviation('company')`.
+
+- **Undo:** de settle zit in dezelfde stap als de kalenderwijziging. De expliciete gebaren
+  (`updateProjectCalendarFromLibrary`, koppelen) zijn dus één undo-stap samen met de nieuwe duren; de
+  verversingen en "bibliotheekwaarden gebruiken" blijven niet-undoable en zetten geen `isDirty`, alleen
+  `scheduleStale`.
+- **Idempotent:** een stil ververst document heropenen zonder opslaan ververst en settelt opnieuw vanaf
+  dezelfde bestandswaarden en komt op dezelfde duren uit (`tests/planning/check-work-rule-library.ts` §g).
+- **Melding:** "N taken aangepast" (en het verlies van tijdgefaseerde sturing), dezelfde als de
+  kalenderdialoog, één per document. Een slapend document bewaart zijn telling op
+  `DocumentEntry.pendingWorkRuleSettle` (sessie-UI, geen documentdata) en meldt bij activering.
+- **Regressie:** `tests/planning/check-work-rule-library.ts` (elke route), het H6-blok in
+  `tests/library/check-library-slice.ts` (actief + slapend document, de pure grens) en
+  `tests/browser/library-calendar-work-rule.spec.ts` (afwijkingenscherm en bibliotheekkalenderdialoog).
+
 ## Ctrl+Z/verversing-eigenaardigheid
 
 Een verversing (elke van de vier grenzen, en "bibliotheekwaarden gebruiken" in het afwijkingenscherm)

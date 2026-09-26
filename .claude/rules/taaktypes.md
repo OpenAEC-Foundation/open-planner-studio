@@ -49,8 +49,16 @@ de paste —, MCP-tweeling, projectkalender, kalenderinhoud, en de hele biblioth
 `captureCalendarLibraryChange`/`settleCalendarLibraryChange` in `state/calendarTasks.ts`:
 `commitCalendarLibrary` — de kalenderdialoog, dé UI-route voor uren per dag — en `removeCalendar`); de
 contourhoogte wordt daarin tegen het werkelijke werk per toewijzing verzoend, niet tegen een regelvlag.
-Drie randpaden die de slot óók kunnen wijzigen (`setCalendar`, `resolveDeviation`, de `workTime`-
-verwijdering in de MCP-kalendertool) zijn bewust NIET bedraad — zie `docs/TODO.md`.
+Ook elke **bibliotheekverversing** van een kalender (H6, eigenaarsbesluit 2026-09-26 "zelfde regel als de
+dialoog") loopt zo, via `applyCalendarLibraryChange` (draft) of `settleCalendarLibraryChangeOnPayload`
+(plain payload, activatiegrens): `refreshAllDocumentsFromPool` (actief én elke slapende payload),
+`materializeBehindOnlyRefresh` (openen/wisselen/herstel/bibliotheekimport),
+`updateProjectCalendarFromLibrary`, `linkRecognizedItems` en `resolveDeviation('company')`. De settle erft
+de undo-aard van zijn route (verversingen niet-undoable, geen `isDirty`; expliciete gebaren in dezelfde
+stap) en meldt per document (`notifyCalendarLibrarySettle`; slapend: `DocumentEntry.pendingWorkRuleSettle`,
+gemeld bij activering) — zie `docs/library.md`. Twee randpaden die de slot óók kunnen wijzigen
+(`setCalendar` en de `workTime`-verwijdering in de MCP-kalendertool) zijn bewust NIET bedraad — zie
+`docs/TODO.md`.
 
 Een duurbewerking op een LOPENDE taak (gestart, niet voltooid; ook 0 % met werkelijke start) houdt het
 gedane werk (% × duur) gelijk: de rest schuift exact mee met Δ in de eigen eenheid en `completion` wordt

@@ -20,6 +20,7 @@ import { stripLibraryOrigins } from '@/services/library/libraryOps';
 import { activeImportResult, isMultiDocumentImport, type ImportLabels, type ImportResult, type OpenedImport } from '@/services/importTypes';
 import { hydratePayload, isFreshImportOrigin, payloadFromImport, type DocumentPayload } from '../documentContract';
 import { applyRecordedDatesOnLoad, materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
+import { notifyCalendarLibrarySettle } from '../calendarTasks';
 import { unrecordedExportGate } from '../recordedDatesSelectors';
 import { buildWriteIFCInput, sameIFCSource } from '../ifcSaveInput';
 import { fileHasHourData } from '@/services/subdayIo';
@@ -480,6 +481,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           s.ui.hourDataNotice = !s.ui.enableHourPlanning && fileHasHourData(s.tasks, [s.calendar, ...s.calendars]);
         }
       });
+      // H6: de open-grens ververste een achterlopende bibliotheekkalender en de werkregel paste taken
+      // aan — dezelfde melding als de kalenderdialoog.
+      notifyCalendarLibrarySettle(get().notify, get().activeDocumentId, activation.workRuleSettle);
       // Taaktypes-etappe (spec §7): het bestand draagt taaktypedata terwijl de instelling uit staat
       // ⇒ de werkregel-UI is voor dit document ontsloten; meld dat één keer (met gids-link).
       {
