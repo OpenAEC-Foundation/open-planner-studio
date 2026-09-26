@@ -8,6 +8,7 @@ import {
   computeContentWidth,
 } from '../ganttRenderOptions';
 import {
+  axisDayDistance,
   computeTimelineZoom,
   computeEffectiveViewStart,
   computeFitToProject,
@@ -135,6 +136,33 @@ export function useGanttViewportCoordinator(
     setSecondaryChartWidth(previous => Math.abs(previous - width) > 1 ? width : previous);
   }, []);
 
+  /** De Gantt-as-afstand (werkdagen-as indien actief) voor de Ctrl+0-fit, zie `axisDayDistance`. */
+  const dayDistance = useMemo(
+    () => axisDayDistance(input.calendar, input.compressNonWorkdays),
+    [input.calendar, input.compressNonWorkdays],
+  );
+
+  /**
+   * Registreer de scrollgrenzen voor een NIEUWE zoom vóór de bijbehorende `setScroll` — dezelfde
+   * vooruitrekening als "spring naar taak" (issue #65). Anders klemt `setScroll` tegen de grens van
+   * de vorige render (de oude zoom): na uitzoomen-en-weer-inzoomen of Ctrl+0 vanaf een lage zoom
+   * sprong het beeld dan weg van het anker.
+   */
+  const registerBoundsForZoom = useCallback((zoom: number) => {
+    const current = latest.current;
+    const container = primaryContainerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    setGanttScrollBounds(computeGanttScrollBounds(
+      contentWidthFor(zoom),
+      current.rows.length,
+      current.rowHeight,
+      current.headerHeight,
+      rect.width,
+      rect.height,
+    ));
+  }, [contentWidthFor]);
+
   const resetZoom = useCallback(() => {
     const current = latest.current;
     current.setZoom(DEFAULT_ZOOM);
@@ -156,12 +184,15 @@ export function useGanttViewportCoordinator(
       rect.width,
       current.enableQuarterHourZoom,
       current.enableHourPlanning,
+      [],
+      dayDistance,
     );
     if (!fit) return;
+    registerBoundsForZoom(fit.zoom);
     current.setZoom(fit.zoom);
     current.setViewStartDate(fit.viewStartDate);
     current.setScroll(fit.scrollX, 0);
-  }, []);
+  }, [dayDistance, registerBoundsForZoom]);
 
   const { zoomAt } = useGanttZoom({
     containerRef: primaryContainerRef,
@@ -173,6 +204,7 @@ export function useGanttViewportCoordinator(
     modifierMap: input.modifierMap,
     setZoom: input.setZoom,
     setScroll: input.setScroll,
+    prepareScrollBounds: registerBoundsForZoom,
   });
   useZoomShortcuts({
     zoomAt,
@@ -199,13 +231,15 @@ export function useGanttViewportCoordinator(
       current.enableQuarterHourZoom,
       current.enableHourPlanning,
       calendarNavigationDates.starts,
+      dayDistance,
     );
     current.clearPendingFit();
     if (!fit) return;
+    registerBoundsForZoom(fit.zoom);
     current.setZoom(fit.zoom);
     current.setViewStartDate(fit.viewStartDate);
     current.setScroll(fit.scrollX, 0);
-  }, [input.view.pendingFit, input.tasks, input.enableQuarterHourZoom, input.enableHourPlanning, input.clearPendingFit, input.setZoom, input.setViewStartDate, input.setScroll, calendarNavigationDates.starts]);
+  }, [input.view.pendingFit, input.tasks, input.enableQuarterHourZoom, input.enableHourPlanning, input.clearPendingFit, input.setZoom, input.setViewStartDate, input.setScroll, calendarNavigationDates.starts, dayDistance, registerBoundsForZoom]);
 
   useEffect(() => {
     const current = latest.current;

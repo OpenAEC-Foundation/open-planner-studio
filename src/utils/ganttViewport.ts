@@ -222,6 +222,8 @@ export function computeFitToProject(
   enableQuarterHourZoom: boolean,
   enableHourPlanning = false,
   navigationStartDates: string[] = [],
+  /** As-afstand (`axisDayDistance`); afwezig ⇒ kalenderdagen, ongewijzigd. */
+  dayDistance: (from: Date, to: Date) => number = diffCalendarDays,
 ): FitToProject | null {
   if (tasks.length === 0 || timelineWidth <= 0) return null;
   let minStart: string | null = null;
@@ -235,7 +237,7 @@ export function computeFitToProject(
     if (f && (!maxFinish || f > maxFinish)) maxFinish = f;
   }
   if (!minStart || !maxFinish) return null;
-  const span = Math.max(1, diffCalendarDays(parseDate(minStart), parseDate(maxFinish)) + 1);
+  const span = Math.max(1, dayDistance(parseDate(minStart), parseDate(maxFinish)) + 1);
   const max = maxGanttZoom(enableQuarterHourZoom, enableHourPlanning);
   const zoom = Math.max(0.5, Math.min(max, timelineWidth / span));
   // De renderer kan zijn oorsprong verder naar links trekken voor kalenderuitzonderingen. Een fit
@@ -243,7 +245,7 @@ export function computeFitToProject(
   // project te ver naar rechts staan. Gebruik exact zijn effectieve oorsprong en pan van daaruit
   // naar de eerste taak; zonder zulke uitzonderingen blijft dit 14 × zoom en dus byte-identiek.
   const effectiveStart = computeEffectiveViewStart(tasks, minStart, navigationStartDates);
-  const scrollX = Math.max(0, diffCalendarDays(parseDate(effectiveStart), parseDate(minStart)) * zoom);
+  const scrollX = Math.max(0, dayDistance(parseDate(effectiveStart), parseDate(minStart)) * zoom);
   return { zoom, viewStartDate: minStart, scrollX };
 }
 
@@ -277,21 +279,27 @@ export function computeScrollToDate(date: string | undefined, state: ScrollToDat
   const target = date || state.project.statusDate || localTodayIso();
   const effectiveViewStart = parseDate(computeEffectiveViewStart(state.tasks, state.view.viewStartDate));
 
-  const days = state.calendar && state.ui?.compressNonWorkdays
-    ? axisDaysBetween(state.calendar, effectiveViewStart, parseDate(target))
-    : diffCalendarDays(effectiveViewStart, parseDate(target));
+  const days = axisDayDistance(state.calendar, state.ui?.compressNonWorkdays)(effectiveViewStart, parseDate(target));
   return Math.max(0, (days - SCROLL_TO_DATE_MARGIN_DAYS) * state.view.zoom);
 }
 
-/** Afstand in AS-dagen tussen twee datums op de werkdagen-as (dezelfde `resolveGanttAxis` als de
- *  renderer; een kalender zonder werkdagen valt daar terug op de kalender-as). Vroeger telde
- *  Ctrl+Home altijd kalenderdagen, zodat hij met "alleen werkdagen tonen" ver voorbij de datum
- *  sprong (elk weekend telt dan twee dagen te veel). */
-function axisDaysBetween(calendar: WorkCalendar, from: Date, to: Date): number {
-  const axis = resolveGanttAxis({
-    calendar: new CalendarEngine(calendar), compressNonWorkdays: true, origin: from, chartOriginX: 0, zoom: 1, scrollX: 0,
-  });
-  return axis.dayIndexOf(to) - axis.dayIndexOf(from);
+/**
+ * Afstand in AS-dagen (`to − from`) zoals de Gantt hem tekent: op de werkdagen-as ("alleen
+ * werkdagen tonen") in werkdagen — dezelfde `resolveGanttAxis` als de renderer, die bij een kalender
+ * zonder werkdagen zelf terugvalt op de kalender-as — anders in kalenderdagen. Ctrl+Home en de
+ * Ctrl+0-fit telden vroeger altijd kalenderdagen, zodat ze op de werkdagen-as per weekend twee dagen
+ * misten (Ctrl+0 schoof het project zo deels uit beeld).
+ */
+export function axisDayDistance(
+  calendar: WorkCalendar | undefined,
+  compressNonWorkdays: boolean | undefined,
+): (from: Date, to: Date) => number {
+  if (!calendar || !compressNonWorkdays) return (from, to) => diffCalendarDays(from, to);
+  const engine = new CalendarEngine(calendar);
+  return (from, to) => {
+    const axis = resolveGanttAxis({ calendar: engine, compressNonWorkdays: true, origin: from, chartOriginX: 0, zoom: 1, scrollX: 0 });
+    return axis.dayIndexOf(to) - axis.dayIndexOf(from);
+  };
 }
 
 let chartWidth: number | null = null;

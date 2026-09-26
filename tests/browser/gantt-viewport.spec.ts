@@ -136,6 +136,38 @@ test('Gantt viewport: Ctrl+0 past de hele projectspan en reset Y', async ({ page
   expect(last.x).toBeLessThanOrEqual(bounds.x + bounds.width);
 });
 
+test('Gantt viewport: inzoomen tegen de rechtergrens houdt het punt onder de cursor vast', async ({ page, ops: _ops }) => {
+  // Staat de tijdlijn tegen haar rechtergrens, dan ligt de cursorverankerde scroll van de nieuwe
+  // zoom altijd voorbij de grens van de OUDE zoom. Klemde `setScroll` daar nog tegen (de grens
+  // van de laatste render), dan schoof het beeld bij inzoomen weg van de cursor.
+  const inputs = manyTasks('Zoomanker', 30);
+  inputs[1] = { name: 'Laat anker', start: '2027-08-02', finish: '2027-08-13', durationDays: 10 };
+  const ids = await seedProject(page, inputs);
+  await barPoint(page, ids[0]);
+  const paints = await page.evaluate(() => window.__OPS__!.gantt.paintCount('primary'));
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.setUI({ scrollMode: 'drag' });
+    s.setZoom(6);
+  });
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.gantt.paintCount('primary'))).toBeGreaterThan(paints);
+  // Naar de rechtergrens (setScroll klemt op de geregistreerde grens van deze zoom).
+  await page.evaluate(() => window.__OPS__!.store.getState().setScroll(1e9, 0));
+  const bounds = await primaryCanvasBounds(page);
+  const anchorX = bounds.width * 0.8;
+  await page.mouse.move(bounds.x + anchorX, bounds.y + bounds.height * 0.5);
+  const before = await state(page);
+  expect(before.view.scrollX).toBeGreaterThan(0);
+  expect(before.view.scrollX).toBeLessThan(1e9);
+  await page.mouse.wheel(0, -100);
+  await expect.poll(() => state(page).then(s => s.view.zoom)).toBeGreaterThan(before.view.zoom);
+  const after = await state(page);
+  // Cursorverankerd: de as-dag onder de cursor blijft dezelfde.
+  const dayBefore = (before.view.scrollX + anchorX) / before.view.zoom;
+  const dayAfter = (after.view.scrollX + anchorX) / after.view.zoom;
+  expect(Math.abs(dayAfter - dayBefore)).toBeLessThan(0.5);
+});
+
 test('Gantt viewport: een gewone klik in de takenlijst onthult alleen een verborgen balk', async ({ page, ops: _ops }) => {
   const [nearId, farId] = await seedProject(page, [
     { name: 'Nabije balk', start: '2026-01-05', finish: '2026-01-09', durationDays: 5 },

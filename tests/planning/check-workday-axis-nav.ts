@@ -4,7 +4,7 @@
 // minimapkader (uit `scrollX / zoom`, werkdagen) stond naast de balken (kalenderdagen).
 //
 // Draait via run.sh. Exit 0 = alles groen.
-import { computeScrollToDate, computeEffectiveViewStart } from '@/utils/ganttViewport';
+import { computeScrollToDate, computeEffectiveViewStart, computeFitToProject, axisDayDistance } from '@/utils/ganttViewport';
 import { MiniMapRenderer } from '@/engine/renderer/MiniMapRenderer';
 import { resolveGanttAxis } from '@/engine/renderer/workdayAxis';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
@@ -41,6 +41,24 @@ ok('opzet: er ligt minstens één weekend tussen oorsprong en doel', calDays - w
 ok('Ctrl+Home kalender-as: (kalenderdagen − 3) × zoom', off === (calDays - 3) * zoom, `${off} vs ${(calDays - 3) * zoom}`);
 ok('Ctrl+Home zonder kalender/ui-velden: ongewijzigd kalenderdagen', legacy === off, String(legacy));
 ok('Ctrl+Home werkdagen-as: (werkdagen − 3) × zoom', on === (workDays - 3) * zoom, `${on} vs ${(workDays - 3) * zoom}`);
+
+// ── Ctrl+0 (fit) ──
+// Project 2026-03-02 .. 2026-03-27: 26 kalenderdagen, 20 werkdagen. Oorsprong 14 kalenderdagen
+// (10 werkdagen) vóór de start. Op de werkdagen-as moet de fit in werkdagen rekenen, anders zet hij
+// een te lage zoom én een scroll die de eerste dagen van het project uit beeld schuift.
+{
+  const width = 400;
+  const fitCal = computeFitToProject([t1, t2], width, false, false, [], axisDayDistance(calendar, false))!;
+  const fitWork = computeFitToProject([t1, t2], width, false, false, [], axisDayDistance(calendar, true))!;
+  const fitLegacy = computeFitToProject([t1, t2], width, false, false)!;
+  ok('fit kalender-as ongewijzigd t.o.v. de oude aanroep', JSON.stringify(fitCal) === JSON.stringify(fitLegacy));
+  ok('fit kalender-as: zoom = breedte / 26 dagen', Math.abs(fitCal.zoom - width / 26) < 1e-9, String(fitCal.zoom));
+  ok('fit werkdagen-as: zoom = breedte / 20 werkdagen', Math.abs(fitWork.zoom - width / 20) < 1e-9, String(fitWork.zoom));
+  const effStart = parseDate(computeEffectiveViewStart([t1, t2], '2026-03-02'));
+  const padWork = axisDayDistance(calendar, true)(effStart, parseDate('2026-03-02'));
+  ok('fit werkdagen-as: scroll = oorsprongsmarge in werkdagen × zoom', Math.abs(fitWork.scrollX - padWork * fitWork.zoom) < 1e-9 && padWork === 10,
+    `${fitWork.scrollX} / ${padWork}`);
+}
 
 // ── Minimap ──
 const rows = [t1, t2].map((t) => ({ kind: 'task', rowKey: t.id, task: t, depth: 0, dimmed: false })) as unknown as ViewRow[];
