@@ -470,6 +470,18 @@ staat de hele etappestapel op `main`: #109 (1d8f2df6), #167 (e9631cfe), #169 (61
 (90271f55). Main-CI én Deploy site groen (11:05).** Groep A stap 2 klaar: `claude/integratie-groep-a` 099de67e (main met #170/#229 erin; `updateTask`-volgorde van #170 + startdatum-bescherming #199; ci.yml = #180's parallelle matrix met 45 min per deel; README 38; verify EXIT 0 browser 214, measure 76/0/0/0); PR #226 CI loopt ⇒ merge `--admin` zodra groen. Nu ook: groep A stap 2 (`opus-midden-groep-a-main`: main met #170 in #226) en
 groep B (`opus-midden-groep-b-main`: main in `claude/integratie-groep-b` met de zes overlap-besluiten, groeps-PR).
 
+**26-09 12:15 — GROEP A GEMERGED naar `main` (#226 → `ac945cd6`, `--admin` na groene parallelle CI).** Automatisch als
+merged: #177, #180, #182, #189, #190, #191, #192, #193, #195, #204. Handmatig gesloten met verwijzing: #194 en #199 (hun
+enige extra commit was een merge van main). **#200** kreeg na de integratie twee eigen commits (c09674ba taakgrid-celfocus,
+afaf33f7 browsertest) en is CONFLICTING ⇒ die twee gaan via cherry-pick mee in groep B (#233); #200 daarna sluiten met
+verwijzing. **Groep B: PR #233** (`claude/integratie-groep-b` c65a59e9: main met #170 erin, zes overlap-besluiten
+uitgevoerd — `applyDurationChangeRules` als kern onder `settleDurationAftermath`, `assignmentMutations.ts` als route,
+`taskDialogSave.ts` + bewerksessie, `commitProgressEdit` met werknazorg erbinnen, `manualScheduling.ts` zodat de datagate
+op 8 blijft; verify EXIT 0 browser 224, measure 76/0/0/0, mcp 49; gelinkt) — stap 2 (main met #226 + de twee
+#200-commits) loopt (`af52e8c9d32c26f64`). Vier kleine gedragswijzigingen uit groep B genoteerd (nazorg alleen bij
+echte waardewijziging; verliesmelding ook via `settleDurationAftermath`; kritieke telling op bladgrens; fasevoortgang
+niet opgerold in "datums zoals opgeslagen").
+
 ## 2. Waar het werk staat (bijwerken bij elke mijlpaal)
 
 | wat | branch | stand |
