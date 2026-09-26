@@ -42,6 +42,16 @@ export function minutesToClock(min: number): string {
   return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00`;
 }
 
+/**
+ * Het scalar UUR dat de IFC-lezer uit een `IFCTIMEPERIOD`-klokstring haalt: het deel vóór de eerste
+ * `:` via `parseInt` (een minuutdeel valt dus weg; onparseerbaar ⇒ `NaN`). Gedeeld door lezer én
+ * schrijver: de schrijver bepaalt hiermee of de scalar werktijd apart in `OPS_Calendar` moet — alleen
+ * wanneer deze afleiding uit de eerste geschreven periode hem niet teruggeeft (H7).
+ */
+export function scalarHourFromClock(clock: string): number {
+  return parseInt(clock.split(':')[0], 10);
+}
+
 /** `'HH:MM[:SS]'` → minuten-vanaf-middernacht, of `null` bij een onparseerbare klokstring. */
 export function clockToMinutes(clock: string): number | null {
   const m = clock.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);

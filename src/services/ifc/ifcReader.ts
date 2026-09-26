@@ -43,7 +43,7 @@ import {
 import { optionKeysOnly } from '@/services/ifc/schedulingProfileMigration';
 import {
   canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isoDurationToMinutes,
-  isSubDayMinutes, promoteHourCalendar, registerCalendarBands,
+  isSubDayMinutes, promoteHourCalendar, registerCalendarBands, scalarHourFromClock,
 } from '@/services/subdayIo';
 
 // IFC_TIME_ANCHOR (§7.1, discriminator c) en DEFAULT_PRIORITY (fase 2.5) wonen nu in ./ifcConstants
@@ -1151,6 +1151,8 @@ function applyHourModeIFC(
   //    altijd de geregistreerde canonical zodra er info is (preferCanonicalWhenEmpty = true) — zie
   //    de F5-noot bij `promoteHourCalendar`.
   for (const cal of [projectCal, ...resourceCalendars]) {
+    // H7: door OPS als scalair gemarkeerd ⇒ blijft scalair, ook met meer banden of urentaken erop.
+    if (declaredScalarCalendars.has(cal)) continue;
     promoteHourCalendar(cal, getCalendarBands(cal), subDayCals.has(cal), true);
   }
 
@@ -1158,7 +1160,11 @@ function applyHourModeIFC(
   //    las bepaalt onafhankelijk daarvan de taakidentiteit (P…D = dagen, PT… = uren).
   for (const t of tasks) {
     const effCal = effCalOf(t);
-    if (!effCal.workTime) {
+    // H7: een urentaak op een gemarkeerd-scalaire kalender draagt in het geheugen óók echte tijden en
+    // minuten — lees hem dus zoals op een uurkalender. Dagtaken daarop blijven dag-precies.
+    const minutePrecise = !!effCal.workTime
+      || (declaredScalarCalendars.has(effCal) && t.time.durationUnit === 'hours');
+    if (!minutePrecise) {
       // Dag-kalender, uur-taak (kale `PT{n}H` uit andermans bestand): de compatibiliteitsafgeleide
       // `scheduleDuration` kwam uit `parseDurationDays`' vaste `/8`. Zelfde afleiding als de
       // uurkalender-tak hieronder, met de hpd van de EFFECTIEVE kalender (issue #159, vervolg).
@@ -2143,14 +2149,20 @@ function extractCalendarSimpleBreak(
   return result;
 }
 
-/** OPS-eigen aanvulling op IFC's ambigue standaardwerkweek: bewaart dat een kalender met precies
- * één gewone band toch uur-modus was. Zonder de markering blijft de conservatieve externe fallback
- * dag-modus; alleen bestanden die OPS zelf schreef krijgen dit expliciete vertrouwen. */
-function extractCalendarHourMode(
+/** OPS-eigen aanvulling op IFC's ambigue standaardwerkweek (`OPS_Calendar`, spiegel van
+ * `writeCalendarGenerationMeta`):
+ *  - `IsHourCalendar = .T.` bewaart dat een kalender met precies één gewone band toch uur-modus was;
+ *  - `IsHourCalendar = .F.` (H7) zegt dat de `IFCTIMEPERIOD`s de effectieve banden van een SCALAIRE
+ *    kalender zijn (een urentaak gebruikte hem) — die mag dan niet naar uur-modus promoveren;
+ *  - `WorkStartHour`/`WorkEndHour` (H7) dragen de scalar werktijd waar de eerste periode hem niet geeft.
+ * Zonder markering blijft de conservatieve externe fallback (de discriminator a/b/c) staan; alleen
+ * bestanden die OPS zelf schreef krijgen dit expliciete vertrouwen. */
+function extractCalendarHourMeta(
   calStepId: string,
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
-): boolean {
+): { hourMode?: boolean } & Partial<Pick<WorkCalendar, 'workStartHour' | 'workEndHour'>> {
+  const result: { hourMode?: boolean } & Partial<Pick<WorkCalendar, 'workStartHour' | 'workEndHour'>> = {};
   for (const rel of entities) {
     if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
     if (!parseRefs(rel.args[4] || '').includes(calStepId)) continue;
@@ -2159,12 +2171,24 @@ function extractCalendarHourMode(
     for (const propRef of parseRefs(pset.args[4] || '')) {
       const prop = entityMap.get(propRef);
       if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
-      if (stripQuotes(prop.args[0] || '') !== 'IsHourCalendar') continue;
-      if (parseTypedValue(prop.args[2] || '') === true) return true;
+      const name = stripQuotes(prop.args[0] || '');
+      const value = parseTypedValue(prop.args[2] || '');
+      if (name === 'IsHourCalendar' && typeof value === 'boolean') result.hourMode = value;
+      else if (name === 'WorkStartHour' && typeof value === 'number' && value >= 0 && value <= 24) {
+        result.workStartHour = value;
+      } else if (name === 'WorkEndHour' && typeof value === 'number' && value >= 0 && value <= 24) {
+        result.workEndHour = value;
+      }
     }
   }
-  return false;
+  return result;
 }
+
+/** H7 — kalenders die het bestand expliciet als SCALAIR markeert (`IsHourCalendar = .F.`). Per parse
+ * aangemaakte objecten als sleutel (zelfde patroon als het bandregister in `subdayIo`), dus niets lekt
+ * tussen twee `readIFC`-aanroepen. `applyHourModeIFC` promoveert deze kalenders nooit, en leest de
+ * urentaken erop toch minuut-precies. */
+const declaredScalarCalendars = new WeakSet<WorkCalendar>();
 
 /**
  * T5-HERZIENING (2026-08-15, spec-reviewbevinding: zie het plandocument §T5) — het STEP-id-signaal
@@ -2282,6 +2306,7 @@ function buildCalendarFromEntity(
   // `$`-conventie die elders al via `ifcSlotText` wordt toegepast (bv. project-omschrijving).
   calendar.description = ifcSlotText(cal.args[3]) || calendar.description;
   Object.assign(calendar, extractCalendarSimpleBreak(cal.id, entities, entityMap));
+  const hourMeta = extractCalendarHourMeta(cal.id, entities, entityMap);
 
   // Werkweek + uren (§8.1). WorkingTimes (args[5]) is een lijst met precies één ref (zo schrijft
   // de writer 'm) naar het "hoofd"-IFCWORKTIME; de holiday-IFCWORKTIME's zitten in ExceptionTimes
@@ -2314,8 +2339,8 @@ function buildCalendarFromEntity(
     if (timePeriodRefs.length > 0) {
       const tp = entityMap.get(timePeriodRefs[0]);
       if (tp && tp.type === 'IFCTIMEPERIOD') {
-        const startHour = parseInt(stripQuotes(tp.args[0] || '').split(':')[0], 10);
-        const endHour = parseInt(stripQuotes(tp.args[1] || '').split(':')[0], 10);
+        const startHour = scalarHourFromClock(stripQuotes(tp.args[0] || ''));
+        const endHour = scalarHourFromClock(stripQuotes(tp.args[1] || ''));
         if (Number.isFinite(startHour)) calendar.workStartHour = startHour;
         if (Number.isFinite(endHour)) calendar.workEndHour = endHour;
         if (Number.isFinite(startHour) && Number.isFinite(endHour) && endHour > startHour) {
@@ -2324,6 +2349,16 @@ function buildCalendarFromEntity(
       }
     }
     break; // writer schrijft precies één werktijdslot in WorkingTimes
+  }
+  // H7: expliciete scalar werktijd (alleen geschreven waar de eerste periode hem niet teruggeeft). De
+  // afgeleide hpd volgt dan de echte scalar — precies de `workEndHour − workStartHour` waartegen de
+  // writer `needsHoursPerDayOverride` toetst; een expliciete `HoursPerDay` wint hieronder nog steeds.
+  if (hourMeta.workStartHour !== undefined || hourMeta.workEndHour !== undefined) {
+    if (hourMeta.workStartHour !== undefined) calendar.workStartHour = hourMeta.workStartHour;
+    if (hourMeta.workEndHour !== undefined) calendar.workEndHour = hourMeta.workEndHour;
+    if (calendar.workEndHour > calendar.workStartHour) {
+      calendar.hoursPerDay = calendar.workEndHour - calendar.workStartHour;
+    }
   }
 
   // Rauwe banden registreren (dezelfde periodes op elke werkdag — IFC's enkele recurrence-conventie)
@@ -2432,8 +2467,10 @@ function buildCalendarFromEntity(
   // (`deriveHoursPerDay`), dus deze override raakt alleen dag-kalenders — precies de bedoeling.
   const hpdOverride = extractCalendarHoursPerDay(cal.id, entities, entityMap);
   if (hpdOverride != null) calendar.hoursPerDay = hpdOverride;
-  if (extractCalendarHourMode(cal.id, entities, entityMap)) {
+  if (hourMeta.hourMode === true) {
     promoteHourCalendar(calendar, getCalendarBands(calendar), true, true);
+  } else if (hourMeta.hourMode === false) {
+    declaredScalarCalendars.add(calendar);
   }
 
   return calendar;
