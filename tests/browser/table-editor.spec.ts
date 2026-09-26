@@ -164,6 +164,110 @@ test('table surface: een celfocus uit het vorige frame berooft de net geopende e
   ))).toBe('Naam na traag frame');
 });
 
+const THREE_ROWS = [
+  { name: 'Eerste rij', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+  { name: 'Tweede rij', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+  { name: 'Derde rij', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+];
+
+/** Klik de naamcel, open de editor met Enter en geef het (gefocuste) invoerveld terug. */
+async function openNameEditor(page: Page, taskId: string): Promise<Locator> {
+  const cell = taskCell(page, taskId, 'task.name');
+  await cell.click();
+  await expect(cell).toBeFocused();
+  await page.keyboard.press('Enter');
+  const input = cell.locator('input');
+  await expect(input).toBeFocused();
+  return input;
+}
+
+// Rode fase (r.88-race, H3): na een Enter-commit of een Escape-annuleren verdween het invoerveld
+// meteen, maar verhuisde de grid de DOM-focus pas in het volgende animatieframe. Een Escape daartussen
+// landde op <body>: 'exit-to-container' draaide niet en het late frame focuste alsnog de cel. De
+// frames blijven vastgehouden tot na de Escape, zoals op een belaste machine; de toetsen zijn echt.
+test('table surface: Escape vlak na commit of annuleren gaat niet verloren vóór het focusframe', async ({ page, ops: _ops }) => {
+  const [firstId, secondId] = await seedProject(page, THREE_ROWS);
+  await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
+  const table = page.locator('[data-task-grid-surface-id="full-task-grid"] [role="grid"]');
+  const secondCell = taskCell(page, secondId, 'task.name');
+
+  const input = await openNameEditor(page, firstId);
+  await input.fill('Naam vóór Escape');
+  let releaseFrames = await holdAnimationFrames(page);
+  await page.keyboard.press('Enter');
+  await expect.poll(() => state(page).then(snapshot => (
+    snapshot.tasks.find(task => task.id === firstId)?.name
+  ))).toBe('Naam vóór Escape');
+  await expect(secondCell).toHaveAttribute('data-grid-active', 'true');
+  await page.keyboard.press('Escape');
+  await releaseFrames();
+  await expect(table).toBeFocused();
+
+  // Annuleren: de eerste Escape sluit de editor, de tweede valt nog vóór het focusframe.
+  const secondInput = await openNameEditor(page, secondId);
+  releaseFrames = await holdAnimationFrames(page);
+  await page.keyboard.press('Escape');
+  await expect(secondInput).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await releaseFrames();
+  await expect(table).toBeFocused();
+  expect((await state(page)).tasks.find(task => task.id === secondId)?.name).toBe('Tweede rij');
+});
+
+// Rode fase (H3, zelfde venster): een pijltoets of Enter vlak na de commit landde ook op <body> en
+// ging verloren; daarna focuste het late frame de volgende cel alsof er niets was ingetoetst.
+test('table surface: pijltoets en Enter vlak na een commit werken op de volgende cel', async ({ page, ops: _ops }) => {
+  const [firstId, secondId, thirdId] = await seedProject(page, THREE_ROWS);
+  await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
+  const secondCell = taskCell(page, secondId, 'task.name');
+  const thirdCell = taskCell(page, thirdId, 'task.name');
+
+  const input = await openNameEditor(page, firstId);
+  await input.fill('Eerste commit');
+  let releaseFrames = await holdAnimationFrames(page);
+  await page.keyboard.press('Enter');
+  await expect(secondCell).toHaveAttribute('data-grid-active', 'true');
+  await page.keyboard.press('ArrowDown');
+  await expect(thirdCell).toHaveAttribute('data-grid-active', 'true');
+  await releaseFrames();
+  await expect(thirdCell).toBeFocused();
+
+  const again = await openNameEditor(page, firstId);
+  await again.fill('Tweede commit');
+  releaseFrames = await holdAnimationFrames(page);
+  await page.keyboard.press('Enter');
+  await expect(secondCell).toHaveAttribute('data-grid-active', 'true');
+  await page.keyboard.press('Enter');
+  const secondInput = secondCell.locator('input');
+  await expect(secondInput).toBeFocused();
+  await releaseFrames();
+  await expect(secondInput).toBeFocused();
+  await secondInput.fill('Via Enter vóór het frame');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => state(page).then(snapshot => (
+    snapshot.tasks.find(task => task.id === secondId)?.name
+  ))).toBe('Via Enter vóór het frame');
+});
+
+// Rode fase (H3, selectiemodus): na een pijltoets stond de focus van de nieuwe cel nog open voor het
+// volgende frame. Een Escape daartussen zette de focus wel op de gridcontainer, maar het late frame
+// pakte hem terug voor de cel.
+test('table surface: Escape vlak na een pijltoets houdt de focus op de gridcontainer', async ({ page, ops: _ops }) => {
+  const [firstId, secondId] = await seedProject(page, THREE_ROWS);
+  await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
+  const table = page.locator('[data-task-grid-surface-id="full-task-grid"] [role="grid"]');
+  const firstCell = taskCell(page, firstId, 'task.name');
+  await firstCell.click();
+  await expect(firstCell).toBeFocused();
+
+  const releaseFrames = await holdAnimationFrames(page);
+  await page.keyboard.press('ArrowDown');
+  await expect(taskCell(page, secondId, 'task.name')).toHaveAttribute('data-grid-active', 'true');
+  await page.keyboard.press('Escape');
+  await releaseFrames();
+  await expect(table).toBeFocused();
+});
+
 // Rode fase vóór de refactor: de nieuwe DOM-rij bestond zichtbaar, maar de listener hield de oude
 // rows/tasksById vast en kon er geen droptarget voor tekenen. De drag zelf gebruikt echte muisevents.
 test('table surface: rowdrag gebruikt actuele DOM-rijen en commit eenmaal', async ({ page, ops: _ops }) => {
