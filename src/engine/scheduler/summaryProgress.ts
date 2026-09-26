@@ -2,6 +2,7 @@ import type { Task, TaskStatus } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { effHoursPerDay, effectiveCalendarOf, taskDurationMinutes } from '@/utils/taskDuration';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
+import { isManuallyScheduled } from '@/utils/manualScheduling';
 
 /**
  * Voortgang en status van een VERZAMELTAAK (fase), afgeleid uit haar bladtaken — één definitie.
@@ -117,5 +118,5 @@ export function summaryProgressOf(leaves: readonly Task[], workDaysOf: (t: Task)
  * taakeigenschap; die regelen `showRecordedDates` (herstel) en het WBS-rapport (`datesAsRecorded`).
  */
 export function isSummaryProgressDerived(task: Task): boolean {
-  return isSummaryTask(task) && !task.manuallyScheduled;
+  return isSummaryTask(task) && !isManuallyScheduled(task);
 }

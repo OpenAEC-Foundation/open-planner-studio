@@ -4,6 +4,7 @@ import { addTaskNearSelection, insertTaskRelativeToScope } from '@/state/taskIns
 import type { Task } from '@/types/task';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { descendantLeaves } from '@/engine/scheduler/summaryProgress';
+import { isLeafTask } from '@/utils/taskHierarchy';
 
 /**
  * Reikwijdte en uitvoering van de taak-contextmenu-acties (issue #42, issue #45).
@@ -119,7 +120,7 @@ export const contextMenuBulk = {
     for (const id of contextMenuOutlineScope(taskId)) {
       const task = byId.get(id);
       if (!task) continue;
-      if (task.childIds.length === 0) ids.add(task.id);
+      if (isLeafTask(task)) ids.add(task.id);
       else for (const leaf of descendantLeaves(task, byId)) ids.add(leaf.id);
     }
     appTaskBulkActions.applyToTaskIds(

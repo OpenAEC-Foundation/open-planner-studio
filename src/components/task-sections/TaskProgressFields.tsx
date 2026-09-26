@@ -4,6 +4,7 @@ import { Task } from '@/types/task';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { Field } from './shared';
 import { durationSuffixesFrom, formatRemainingDurationText } from '@/utils/taskDuration';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 
 // Uniek per slider-gebaar: coalesceKey per pointer-sleep ⇒ één undo-stap i.p.v. één per stap.
 let progressSeq = 0;
@@ -39,7 +40,7 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
   const { t: tCommon } = useTranslation('common');
   const [actualError, setActualError] = useState(false);
   const dragKey = useRef<string | undefined>(undefined);
-  const derived = task.childIds.length > 0;
+  const derived = isSummaryTask(task);
 
   return (
     <>

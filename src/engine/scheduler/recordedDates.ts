@@ -1,6 +1,6 @@
 import type { Task, TaskStatus, TaskTimeComputed, TaskTimeInput } from '@/types/task';
 import { rollupSummaryTasks } from './applyCpmResult';
-import { isLeafTask } from '@/utils/taskHierarchy';
+import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import type { WorkCalendar } from '@/types/calendar';
 import type { CPMResult, CPMTaskResult } from './CPMSolver';
 import { CalendarEngine } from './CalendarEngine';
@@ -242,7 +242,7 @@ export function captureRecordedDates(
       totalFloat: has.has('totalFloat') ? t.totalFloat : undefined,
       freeFloat: has.has('freeFloat') ? t.freeFloat : undefined,
       isCritical: has.has('isCritical') ? t.isCritical : undefined,
-      ...(task.childIds.length > 0
+      ...(isSummaryTask(task)
         ? { summaryProgress: { completion: t.completion, status: task.status } }
         : {}),
     };

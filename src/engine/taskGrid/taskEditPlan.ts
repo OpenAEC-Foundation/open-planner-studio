@@ -49,6 +49,7 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { isPinnedComplete, isZeroDurationMilestone } from '@/engine/scheduler/duration';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { isFiniteNumber } from '@/utils/guards';
+import { isManuallyScheduled } from '@/utils/manualScheduling';
 
 const TASK_TYPES: readonly TaskType[] = [
   'CONSTRUCTION', 'INSTALLATION', 'DEMOLITION', 'LOGISTIC', 'ATTENDANCE',
@@ -383,7 +384,7 @@ function applyScheduleEdit(
     // Ongewijzigd teruggetypt: niets verzetten (geen duur afronden, geen tijdfasering wissen).
     if (edit.value === shownFinish(task)) return { ok: true, value: false };
     if (edit.value.slice(0, 10) < shownStart(task).slice(0, 10)) return failure('finishBeforeStart', edit);
-    if (task.manuallyScheduled === true) {
+    if (isManuallyScheduled(task)) {
       // Een handmatig geplande taak eindigt op haar ingevoerde einde (`CPMSolver.forwardPass`).
       if (task.time.scheduleFinish !== edit.value) {
         task.time.scheduleFinish = edit.value;

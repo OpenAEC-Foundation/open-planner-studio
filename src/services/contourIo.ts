@@ -24,6 +24,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import type { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { periodsToSlotWork } from '@/engine/contour/contourEngine';
 import { addCalendarDays, formatDate, utcDayStart } from '@/utils/dateUtils';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 
 export type ContourKind = TimephasedContourPeriod['kind'];
 
@@ -130,7 +131,7 @@ export function attachContours(
 ): void {
   for (const [taskId, contours] of contoursByTaskId) {
     const task = taskById.get(taskId);
-    if (!task || task.childIds.length > 0) continue;
+    if (!task || isSummaryTask(task)) continue;
     task.timephasedContours = contours;
     if (!task.splitGaps || task.splitGaps.length === 0) {
       const gaps = splitGapsFromContours(contours.map(c => c.periods));

@@ -50,6 +50,7 @@ import {
 } from '@/utils/taskDuration';
 import { isStrictIsoDateTime } from '@/utils/dateUtils';
 import { isFiniteNumber } from '@/utils/guards';
+import { isManuallyScheduled } from '@/utils/manualScheduling';
 
 export const TASK_COLUMN_CATEGORY_ORDER: readonly TaskColumnCategory[] = [
   'task', 'planning', 'constraints', 'relations', 'resources',
@@ -855,7 +856,7 @@ function fixedTaskColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[
 
 /** Datums die uit andere taken volgen: een automatisch geplande verzameltaak of hangmat. */
 function derivedDatesTask(task: Task): boolean {
-  return task.manuallyScheduled !== true && (task.childIds.length > 0 || task.isHammock === true);
+  return !isManuallyScheduled(task) && (task.childIds.length > 0 || task.isHammock === true);
 }
 
 function fixedTimeColumns(): TaskColumnDescriptor[] {
@@ -875,7 +876,7 @@ function fixedTimeColumns(): TaskColumnDescriptor[] {
     // `scheduleFinish` alleen bij een handmatig geplande taak (`CPMSolver.forwardPass`); bij elke
     // andere taak zou een bewerking stil niets doen, dus daar alleen-lezen mét reden.
     editableColumn({ id: 'task.time.scheduleStart', labelKey: 'taskGrid.columns.scheduleStart', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', read: task => task.time.scheduleStart, parse: parseDate, validate: validateDate }),
-    editableColumn({ id: 'task.time.scheduleFinish', labelKey: 'taskGrid.columns.scheduleFinish', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', read: task => task.time.scheduleFinish, readOnly: task => task.manuallyScheduled !== true, readOnlyReason: task => task.manuallyScheduled !== true ? 'scheduleFinishNotManual' : undefined, parse: parseDate, validate: validateDate }),
+    editableColumn({ id: 'task.time.scheduleFinish', labelKey: 'taskGrid.columns.scheduleFinish', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', read: task => task.time.scheduleFinish, readOnly: task => !isManuallyScheduled(task), readOnlyReason: task => !isManuallyScheduled(task) ? 'scheduleFinishNotManual' : undefined, parse: parseDate, validate: validateDate }),
     readonlyColumn({ id: 'task.time.resume', labelKey: 'taskGrid.columns.resume', category: 'progress', valueKind: 'datetime', read: task => task.time.resume }),
     readonlyColumn({ id: 'task.time.stop', labelKey: 'taskGrid.columns.stop', category: 'progress', valueKind: 'datetime', read: task => task.time.stop }),
     readonlyColumn({ id: 'task.time.earlyStart', labelKey: 'taskGrid.columns.earlyStart', category: 'computed', valueKind: 'datetime', read: task => task.time.earlyStart }),

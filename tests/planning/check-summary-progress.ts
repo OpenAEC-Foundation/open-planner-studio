@@ -207,7 +207,13 @@ function reset() {
   const rawOld = readIFC(oldFile).tasks.find(t => t.name === 'Fase')!;
   eq('Fixture: het bestand draagt de bevroren fasewaarde', [rawOld.time.completion, rawOld.status], [0.62, 'STARTED']);
 
-  S().applyLoadedProject(readIFC(oldFile), { filePath: null, recompute: true });
+  // Integratie groep B × main (heropen-beleid, eigenaarsbesluit 2026-09-24 "beperken"): een eigen
+  // IFC biedt "datums zoals opgeslagen" alleen nog aan als het bestand zijn oorspronkelijke bron
+  // noemt (`recordedSourceFormat`, geschreven in de modus). Het "oude" bestand hier stamt dus uit
+  // een MSPDI-import; de fasevoortgang-regel die deze sectie bewaakt, verandert daar niet door.
+  const parsedOld = readIFC(oldFile);
+  parsedOld.recordedSourceFormat = 'mspdi';
+  S().applyLoadedProject(parsedOld, { filePath: null, recompute: true });
   eq('Openen: de fase krijgt de afgeleide voortgang, niet de bevroren bestandswaarde',
     { completion: byName('Fase').time.completion, status: byName('Fase').status }, { completion: 1, status: 'COMPLETED' });
   const resaved = readIFC(writeIFC(buildWriteIFCInput(S()))).tasks.find(t => t.name === 'Fase')!;

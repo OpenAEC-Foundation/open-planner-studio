@@ -259,6 +259,7 @@ export function buildNewTask(
     priority: partial.priority ?? 500,
     parentId: opts.parentId,
     childIds: [],
+    isSummary: partial.isSummary,
     time: opts.time,
     resourceIds: partial.resourceIds || [],
     color: partial.color,
@@ -273,6 +274,9 @@ export function buildNewTask(
     manuallyScheduled: partial.manuallyScheduled,
     levelingDelayMinutes: partial.levelingDelayMinutes,
     levelingDelayElapsed: partial.levelingDelayElapsed,
+    // Taaktypes-etappe (bouwstap 7): de werkregel bij aanmaak (planner_add_tasks `workRule`); een
+    // nieuwe taak heeft nog geen toewijzingen, dus dit is een kaal veld zonder driehoekstap.
+    workRule: partial.workRule,
   };
 }
 
