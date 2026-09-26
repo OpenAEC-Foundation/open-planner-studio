@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -126,17 +127,21 @@ function selectedCell(
 }
 
 /**
- * Plan een celfocus voor het volgende frame. Alleen de laatst geplande mag nog focussen: een latere
- * aanvraag, of `ledger.current++` bij het openen van een editor, maakt een openstaand frame ongeldig.
+ * Plan een celfocus voor het volgende frame. `ledger.current` is de nog openstaande focus en alleen
+ * die mag nog focussen, één keer: een latere aanvraag vervangt hem, `ledger.current = null` (editor
+ * opent, Escape naar de container) laat hem vervallen en `ledger.current?.()` voert hem meteen uit.
  * Zonder die vervaldatum won een celfocus die vóór een snelle Enter was gepland (pijltoets en Enter
  * binnen één frame, of een traag frame op een belaste machine) het van het invoerveld dat de editor
  * intussen zelf had gefocust: de editor stond open, maar typen kwam er niet meer in.
  */
-function deferCellFocus(ledger: { current: number }, focus: () => void): void {
-  const request = ++ledger.current;
-  nextFrame(() => {
-    if (ledger.current === request) focus();
-  });
+function deferCellFocus(ledger: { current: (() => void) | null }, focus: () => void): void {
+  const run = () => {
+    if (ledger.current !== run) return;
+    ledger.current = null;
+    focus();
+  };
+  ledger.current = run;
+  nextFrame(run);
 }
 
 interface DataGridScrollTarget {
@@ -194,9 +199,8 @@ export function DataGridCore({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cellsRef = useRef(new Map<string, HTMLDivElement>());
   const pendingFocusKeyRef = useRef<string | null>(null);
-  // Volgnummer van de laatst geplande celfocus (`deferCellFocus`); ophogen maakt elk openstaand
-  // focusframe ongeldig.
-  const cellFocusRequestRef = useRef(0);
+  // De nog openstaande uitgestelde celfocus (`deferCellFocus`); `null` laat hem vervallen.
+  const pendingCellFocusRef = useRef<(() => void) | null>(null);
   const lastRequestedActiveKeyRef = useRef<string | null>(null);
   const [announcedMessage, setAnnouncedMessage] = useState('');
   useEffect(() => {
@@ -242,7 +246,7 @@ export function DataGridCore({
     const mounted = cellsRef.current.get(key);
     if (mounted) {
       pendingFocusKeyRef.current = null;
-      deferCellFocus(cellFocusRequestRef, () => cellsRef.current.get(key)?.focus());
+      deferCellFocus(pendingCellFocusRef, () => cellsRef.current.get(key)?.focus());
       return;
     }
     pendingFocusKeyRef.current = key;
@@ -254,7 +258,7 @@ export function DataGridCore({
       if (containerRef.current) containerRef.current.scrollTop = nextScrollTop;
       onScrollTopChange?.(nextScrollTop);
     }
-    deferCellFocus(cellFocusRequestRef, () => {
+    deferCellFocus(pendingCellFocusRef, () => {
       const node = cellsRef.current.get(key);
       if (!node) return;
       pendingFocusKeyRef.current = null;
@@ -269,11 +273,18 @@ export function DataGridCore({
     && rows[activeRowIndex]?.kind === 'data';
 
   const activeKey = selection.active ? gridCellKey(selection.active) : null;
+  useLayoutEffect(() => {
+    // Sluit de editor (commit of annuleren), dan is zijn invoerveld in déze commit al uit de DOM en
+    // staat de focus op <body>. Wachtte de celfocus die de editor net aanvroeg op het volgende frame,
+    // dan viel een toets daartussen (Escape, pijl, Enter) naast de grid en focuste het late frame de
+    // cel alsnog (r.88-race). Voer hem daarom nu uit, voordat de browser een volgende toets aflevert.
+    if (mode !== 'edit') pendingCellFocusRef.current?.();
+  }, [mode]);
   useEffect(() => {
     // Een geopende editor neemt de focus zelf (TaskCellEditor) en zet hem bij commit of annuleren
     // terug op een cel. Een celfocus die nog uit de selectiemodus openstaat, vervalt hier: anders
     // berooft hij het zojuist gefocuste invoerveld wanneer het frame pas ná de Enter komt.
-    if (mode === 'edit') cellFocusRequestRef.current++;
+    if (mode === 'edit') pendingCellFocusRef.current = null;
     const shouldRequestFocus = shouldRequestTaskGridCellFocus({
       mode,
       activeKey,
@@ -306,7 +317,7 @@ export function DataGridCore({
     const node = cellsRef.current.get(key);
     if (!node) return;
     pendingFocusKeyRef.current = null;
-    deferCellFocus(cellFocusRequestRef, () => node.focus());
+    deferCellFocus(pendingCellFocusRef, () => node.focus());
   }, [virtual.startIndex, virtual.endIndexExclusive]);
 
   useEffect(() => {
@@ -347,8 +358,13 @@ export function DataGridCore({
     // WCAG 2.1.2: Escape in selectmodus geeft een expliciete uitgang. De logische selectie
     // (`selection.active`) blijft ongewijzigd, maar de DOM-focus verhuist naar de gridcontainer,
     // die zelf geen taborde-stop is (`tabIndex={activeMounted ? -1 : 0}`) — een daaropvolgende Tab
-    // verlaat het grid dus meteen, zonder eerst weer een cel te bezoeken.
-    if (command.kind === 'exit-to-container') containerRef.current?.focus();
+    // verlaat het grid dus meteen, zonder eerst weer een cel te bezoeken. Een celfocus die nog voor
+    // het volgende frame openstaat (pijltoets of commit vlak ervoor) vervalt, anders pakt de cel de
+    // focus alsnog terug.
+    if (command.kind === 'exit-to-container') {
+      pendingCellFocusRef.current = null;
+      containerRef.current?.focus();
+    }
   };
 
   const handleScroll = (event: UIEvent<HTMLDivElement>) => {
