@@ -12,17 +12,17 @@ import { calendarHasHolidayIssue, withCanonicalHolidayEnds } from '@/utils/holid
 import { withTransaction } from '@/state/batchTransaction';
 
 /**
- * Resource-kalender-editor (fase 2.5, §3.4) — hergebruikt `CalendarForm`, net als de
+ * Resource-kalender-editor — hergebruikt `CalendarForm`, net als de
  * projectkalender-`CalendarDialog`, maar schrijft naar `s.calendars` via `addCalendar`/
  * `updateCalendar` i.p.v. `s.calendar`/`setCalendar`.
  *
  * Bewust GEEN `runCPM()`-aanroep na Apply ("plannen is handmatig"). In zijn rol als resource-
- * kalender raakt een kalender de CPM-datums niet (§3.2) — alleen belasting/nivellering lezen hem.
- * Maar de bibliotheek is gedeeld (fase 2.8a): de keuzelijst in de resourcerij biedt ook de
+ * kalender raakt een kalender de CPM-datums niet — alleen belasting/nivellering lezen hem.
+ * Maar de bibliotheek is gedeeld: de keuzelijst in de resourcerij biedt ook de
  * projectkalender en taakkalenders aan. Bewerk je zo'n gedeelde kalender hier, dan verandert de
  * planning wél; `updateCalendar` markeert hem dan als verouderd (stale) en F5 rekent hem door.
  *
- * `poolCompanyId` (issue #19, Bibliotheekweergave-editor): aanwezig ⇒ POOL-modus — lees/schrijf
+ * `poolCompanyId` (Bibliotheekweergave-editor): aanwezig ⇒ POOL-modus — lees/schrijf
  * `pools[poolCompanyId].calendars` via `addPoolCalendar`/`updatePoolCalendar` in plaats van de
  * projectkalender-bibliotheek. Zelfde `CalendarForm`, alleen de opslagbestemming wisselt.
  *
@@ -99,7 +99,7 @@ export function ResourceCalendarDialog({
   };
 
   return (
-    // Esc sluit dialog (LAYOUTS.md §3.3) — via de standaard-toetsafhandeling van `Dialog`.
+    // Esc sluit dialog — via de standaard-toetsafhandeling van `Dialog`.
     <Dialog
       onCancel={onClose}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[600px] max-h-[90vh] flex flex-col overflow-hidden"

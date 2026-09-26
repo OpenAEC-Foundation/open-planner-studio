@@ -14,8 +14,8 @@ import { ruleProtectsWork } from '@/engine/work/workTriangle';
 import { taskTypesUnlocked } from '@/state/taskTypesVisibility';
 import { taskCalendarHoursPerDay } from '@/utils/taskDefaults';
 
-/** Pseudowaarden van de curve-dropdown voor de twee data-toestanden van de contour-engine
- *  (2026-09): een opgeslagen contour (de dropdown is dan uitgeschakeld — loslaten gaat via het
+/** Pseudowaarden van de curve-dropdown voor de twee data-toestanden van de contour-engine:
+ *  een opgeslagen contour (de dropdown is dan uitgeschakeld — loslaten gaat via het
  *  contourvenster, expliciet en niet als bijeffect van een curvekeuze) en een geïmporteerde exacte
  *  curve zonder OPS-vorm (kiesbaar: een nieuwe curvekeuze vervangt de importcurve, zie
  *  `resourceSlice.updateAssignment`). */
@@ -23,7 +23,7 @@ const CONTOURED = '__contoured';
 const IMPORTED_CURVE = '__importedCurve';
 
 /**
- * Taaktypes-etappe (review K5): werkinvoer in uren die pas op Enter/blur commit — anders zou elke
+ * Werkinvoer in uren die pas op Enter/blur commit — anders zou elke
  * toetsaanslag ("6" op weg naar "64") een eigen driehoekstap, undo-stap en contour-/venster-nazorg
  * afvuren. Ongeldig (≤ 0 of geen getal) ⇒ rode rand, geen commit, terug naar de getoonde waarde.
  */
@@ -60,10 +60,10 @@ function WorkHoursInput({ value, onCommit, ariaLabel, title, className }: {
 }
 
 /**
- * Toewijzingen (fase 2.5, §6.3 + fase 2.10 item 4 "verplaats naar…") — sectie 10 uit
- * `TaskPropertiesPanel` (fase 2.10, item 2). RELATIONEEL/storeful: roept `assignResource`/
+ * Toewijzingen (incl. "verplaats naar…") — sectie van
+ * `TaskPropertiesPanel`. RELATIONEEL/storeful: roept `assignResource`/
  * `updateAssignment`/`unassignResource`/`moveAssignment` rechtstreeks aan, identiek in paneel
- * én dialoog. Contour-UI (2026-09): per toewijzing een knop naar `ContourDialog` (urenverdeling
+ * én dialoog. Contour-UI: per toewijzing een knop naar `ContourDialog` (urenverdeling
  * per werkdag); een toewijzing mét opgeslagen contour toont dat in de curve-dropdown.
  */
 export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
@@ -76,7 +76,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
   const updateAssignment = useAppStore(s => s.updateAssignment);
   const unassignResource = useAppStore(s => s.unassignResource);
   const moveAssignment = useAppStore(s => s.moveAssignment);
-  // Taaktypes-etappe (spec §7): kolom "Werk (rest)" + slotjes op de beschermde hoek(en).
+  // Kolom "Werk (rest)" + slotjes op de beschermde hoek(en).
   const setAssignmentWork = useAppStore(s => s.setAssignmentWork);
   const unlocked = useAppStore(s => taskTypesUnlocked(s));
   const defaultWorkRule = useAppStore(s => s.project.defaultWorkRule);
@@ -87,11 +87,11 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
   const task = tasks.find(t => t.id === taskId);
   if (!task) return null;
 
-  // Toewijzingen (fase 2.5, §6.3) — leaf-only, geen mijlpalen/samenvattingstaken.
+  // Toewijzingen — leaf-only, geen mijlpalen/samenvattingstaken.
   const taskAssignments = assignments.filter(a => a.taskId === taskId);
   // Dezelfde weergaveregel als het resourcediagram (`curveState.ts`): contour > geïmporteerde curve > vorm.
   const contouredIds = contouredAssignmentIds(task, taskAssignments);
-  // Taaktypes (#101): de gekoppelde contour zelf, voor het restwerk uit de `remaining`-periodes.
+  // De gekoppelde contour zelf, voor het restwerk uit de `remaining`-periodes.
   const contourOf = matchContoursToAssignments(task.timephasedContours, taskAssignments);
   const assignmentsDisabled = task.isMilestone || isSummaryTask(task);
   const assignedResourceIds = new Set(taskAssignments.map(a => a.resourceId));
@@ -99,11 +99,11 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
   const rule = effectiveWorkRule(task, defaultWorkRule);
   const unitsProtected = rule === 'FIXED_DURATION_RATE' || rule === 'FIXED_RATE';
   const workProtected = ruleProtectsWork(rule);
-  // Review K4: de werkkolom alleen waar de regel werkt (geen hangmat/ELAPSEDTIME — de kern zou stil weigeren).
+  // De werkkolom alleen waar de regel werkt (geen hangmat/ELAPSEDTIME — de kern zou stil weigeren).
   const showWork = unlocked && workRuleApplies(task);
   const hoursPerDay = taskCalendarHoursPerDay(task, calendars, projectCalendar);
-  /** Resterend werk in uren: opgeslagen, anders de som van de `remaining`-periodes van een contour
-   *  (spec §4.3, review K6b), anders afgeleid als restduur × inzet. */
+  /** Resterend werk in uren: opgeslagen, anders de som van de `remaining`-periodes van een contour,
+   *  anders afgeleid als restduur × inzet. */
   const remainingHoursOf = (assignmentId: string, unitsPerDay: number, stored: number | undefined): number => {
     const contour = contourOf.get(assignmentId);
     const contourRemaining = contour
@@ -113,7 +113,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
     return Math.round((minutes / 60) * 100) / 100;
   };
   const lockTitle = t('properties.assignments.locked', { rule: t(`workRule.${rule}`) });
-  /** E7 (orkestratorbesluit 25-09, "uitsmeren nu, spanne later"): opgeslagen werk dat afwijkt van
+  /** Opgeslagen werk dat afwijkt van
    *  inzet × restduur (bv. een P6-toewijzing met een eigen spanne binnen de taak) krijgt een
    *  markering — géén stille aanpassing van de inzet (brondata). Niet bij een contour: die
    *  vormt de inzet per dag zelf. Tolerantie 1 % (en minstens een minuut) tegen afronding. */
@@ -148,7 +148,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
             <span className="!text-small text-text-secondary">{t('properties.assignments.empty')}</span>
           )}
           {showWork && taskAssignments.length > 0 && (
-            // Gebruikstest #170, G1: de kop hoort bij de TWEEDE regel van elke toewijzing (inzet,
+            // De kop hoort bij de TWEEDE regel van elke toewijzing (inzet,
             // werk, curve, acties); het slotje is een eigen `shrink-0`-icoon naast een kop die mag
             // afbreken, zodat "EENH./DAG" het nooit tot 0 px wegdrukt.
             <div className="flex items-end gap-1 text-caption leading-3 uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }} data-ops-assignment-header>
@@ -169,7 +169,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
             const importedCurve = curveState === 'imported';
             const curveValue = contoured ? CONTOURED : importedCurve ? IMPORTED_CURVE : curveState;
             return (
-              // G1 (gebruikstest #170): twee regels — de naam op volle breedte (afkappen met title,
+              // Twee regels — de naam op volle breedte (afkappen met title,
               // nooit 0 px) met de verwijderknop, daaronder inzet, werk, curve en acties.
               <div key={a.id} className="flex flex-col gap-0.5 !text-small" data-ops-assignment-row={a.id}>
                 <div className="flex items-center gap-1 min-w-0">

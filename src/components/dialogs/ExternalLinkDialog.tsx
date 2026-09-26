@@ -76,7 +76,7 @@ export function buildManualExternalLinkSubmission({
 }
 
 /**
- * Externe (cross-project) koppeling toevoegen (fase 2.9, §5.5). Twee routes in één dialoog:
+ * Externe (cross-project) koppeling toevoegen. Twee routes in één dialoog:
  *  1. Kies een RECENT bestand → we lezen het ALLEEN-LEZEN in (parseExternalSource, geen document-open)
  *     en tonen de taaklijst → kies taak + relType + lag; het anker leest automatisch de juiste
  *     brontaak-datum (start/finish per richting+relType).

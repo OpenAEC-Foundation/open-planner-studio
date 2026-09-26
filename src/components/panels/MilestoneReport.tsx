@@ -6,11 +6,11 @@ import type { Task } from '@/types/task';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 
 /**
- * Mijlpalen-overzicht (fase 2.4): tabelrapport over alle mijlpalen — soort,
+ * Mijlpalen-overzicht: tabelrapport over alle mijlpalen — soort,
  * datum, bewaakte datum (constraint/deadline), float, verplicht en status.
  * Statusafleiding: te laat = geschonden constraint/gemiste deadline of tf < 0;
- * kritiek = `isCritical` van de solver (de kritiek-definitie uit de rekenopties); anders op schema. Baseline-/variance-kolommen en MTA
- * vereisen snapshots en volgen met fase 2.6 (baselines).
+ * kritiek = `isCritical` van de solver (de kritiek-definitie uit de rekenopties); anders op schema.
+ * Afwijkingen t.o.v. de baseline staan in het afwijkingenrapport (`VarianceReport`).
  */
 
 export interface MilestoneRow {
@@ -35,7 +35,7 @@ export function computeMilestoneRows(tasks: readonly Task[], cpmResult: CPMResul
       const tf = t.time.totalFloat;
       const late = violated.has(t.id) || missed.has(t.id) || (tf !== undefined && tf < 0);
       // "Kritiek" is de solverdefinitie (`isCritical`: drempel, langste pad, voltooid nooit kritiek),
-      // net als Gantt, raster, kritiek-rapport en MCP — geen eigen `tf <= 0` (audit weergaven 9).
+      // net als Gantt, raster, kritiek-rapport en MCP — geen eigen `tf <= 0`.
       const status: MilestoneRow['status'] = late ? 'late' : t.time.isCritical ? 'critical' : 'onSchedule';
       return {
         id: t.id,
@@ -57,7 +57,7 @@ export function useMilestoneRows(): MilestoneRow[] {
   return useMemo(() => computeMilestoneRows(tasks, cpmResult), [tasks, cpmResult]);
 }
 
-/** Geëxporteerd (fase 3) zodat de vector-PDF-tabel-export exact dezelfde statuskleuren gebruikt. */
+/** Geëxporteerd zodat de vector-PDF-tabel-export exact dezelfde statuskleuren gebruikt. */
 export const STATUS_COLOR: Record<MilestoneRow['status'], string> = {
   late: '#DC2626',
   critical: '#D97706',

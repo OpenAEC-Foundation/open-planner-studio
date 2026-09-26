@@ -4,10 +4,9 @@ import { useAppStore } from '@/state/appStore';
 import { NoticeStrip } from './NoticeStrip';
 
 /**
- * Modus-strook voor de relatiemodus (issue #40).
+ * Modus-strook voor de relatiemodus.
  *
- * De gemelde bug was niet alleen dat de Relatie-knop niets déed — hij gaf ook geen enkel signaal
- * terug. Deze strook is de zichtbare kant van `ui.showDependencyMode`: zolang de modus aan staat,
+ * Deze strook is de zichtbare kant van `ui.showDependencyMode`: zolang de modus aan staat,
  * staat er onder het lint wat de modus doet en hoe je hem stopt. Bewust een blijvende strook en
  * geen toast: het is een MODUS (hij verandert wat slepen doet), en die mag niet onzichtbaar worden
  * terwijl hij nog aan staat.

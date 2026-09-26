@@ -6,8 +6,8 @@ import { useAppStore } from '@/state/appStore';
 import { milestoneRefusalNotices } from '@/state/structuralTransition';
 
 /**
- * Mijlpaal-checkbox + mijlpaal-soort (2.4) + verplicht-vlag (2.4) — sectie 3 uit
- * `TaskPropertiesPanel` (fase 2.10, item 2). `{ task, onChange }`; alleen de "wordt mijlpaal"-regel
+ * Mijlpaal-checkbox + mijlpaal-soort + verplicht-vlag — sectie van
+ * `TaskPropertiesPanel`. `{ task, onChange }`; alleen de "wordt mijlpaal"-regel
  * leest de toewijzingen uit de store en meldt een weigering via het ene meldingskanaal — zo weigeren
  * paneel én dialoog (die hier een concept doorgeeft) vóór er iets in de patch of het concept landt.
  */
@@ -27,7 +27,7 @@ export function TaskMilestoneFields({ task, onChange }: {
             type="checkbox"
             checked={task.isMilestone}
             onChange={e => {
-              // Wordt mijlpaal (audit §6): een fase of een taak met toewijzingen weigert, net als
+              // Wordt mijlpaal: een fase of een taak met toewijzingen weigert, net als
               // raster, MCP en store. Het vinkje is gecontroleerd en blijft dus gewoon uit.
               if (e.target.checked && !task.isMilestone) {
                 const refusal = milestoneRefusal({ hasChildren: task.childIds.length > 0, hasAssignments });

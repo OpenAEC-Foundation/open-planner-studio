@@ -1,4 +1,4 @@
-// Issue #26 punt 6: verticaal rijen slepen in het DOM-taakraster. Aangeroepen door
+// Verticaal rijen slepen in het DOM-taakraster. Aangeroepen door
 // `TaskGridSurface` in `task-grid/FullTaskGrid.tsx`, dus zowel op de Tabel-tab (`FullTaskGrid`) als
 // in de takenlijst links van de Gantt (`GanttTaskGrid`). Het canvas heeft geen eigen rijsleep: een
 // verticale balkbody-sleep draagt zijn kandidaat via `ganttRowDragBridge` aan déze hook over.
@@ -43,7 +43,7 @@ export interface UseTableRowDragOptions {
   rows: readonly ViewRow[];
   tasksById: Map<string, Task>;
   moveTaskTo: (id: string, target: DropTarget) => void;
-  /** Issue #26 (vervolgmelding): de huidige selectie. Sleep je een rij die daar deel van uitmaakt
+  /** De huidige selectie. Sleep je een rij die daar deel van uitmaakt
    *  én telt de selectie meer dan één taak, dan verhuist de HELE groep (`moveTasksTo`). Sleep je
    *  een niet-geselecteerde rij, dan verhuist alleen die rij en blijft de selectie elders met rust
    *  — het gedrag dat men uit MS Project en de bestandsverkenner kent. */
@@ -67,12 +67,10 @@ export interface UseTableRowDragOptions {
 /** Terugval voor een pointer die niet boven een rij staat: zoek binnen `root` de rij die deze
  *  hoogte beslaat.
  *
- *  Uitsluitend op Y, en zonder `elementFromPoint`. Een eerdere versie prikte op een vaste
- *  X (`rect.left + 8`) en was daarmee afhankelijk van wat er toevallig op die X lag: in RTL
- *  (`ar`/`fa`) staat de takenlijst rechts en landde die prik midden op `.gantt-workspace-splitter`,
- *  waardoor het hele balkgebaar in twee van de veertien talen niets deed (review 2026-09-15). De
- *  rijen dragen hun index al als attribuut, dus er valt niets te raden — dit is ook immuun voor
- *  overlays en portals boven het grid.
+ *  Uitsluitend op Y, en zonder `elementFromPoint`: een prik op een vaste X hangt af van wat daar
+ *  toevallig ligt (in RTL landt hij op `.gantt-workspace-splitter`). De rijen dragen hun index al
+ *  als attribuut, dus er valt niets te raden — dit is ook immuun voor overlays en portals boven
+ *  het grid.
  *
  *  Buiten de verticale band van het grid, boven de kop of onder de laatste rij beslaat geen enkele
  *  rij deze hoogte, dus blijft het antwoord "geen rij". */
@@ -131,9 +129,9 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
     // draggedTaskId gaat mee zodat de resolver compenseert voor de remove-dan-insert-verschuiving
     // bij herordenen binnen dezelfde ouder.
     let target = resolveDropTarget(current.rows, rowIndex, zone, current.tasksById, draggedTaskId);
-    // Nestelen kan alleen op een summary; op een gewone taak gaf de middelste 50% van de rij dus
-    // GEEN doel, waardoor de indicator over de halve rijhoogte wegviel en de oranje balk in twee
-    // stappen leek te springen. Val in dat geval terug op de dichtstbijzijnde rand-zone, en geef
+    // Nestelen kan alleen op een summary; op een gewone taak geeft de middelste 50% van de rij dus
+    // GEEN doel (de indicator zou over de halve rijhoogte wegvallen). Val in dat geval terug op de
+    // dichtstbijzijnde rand-zone, en geef
     // die zone óók terug — zone en doel komen zo uit dezelfde berekening en de indicator kan niet
     // iets anders tonen dan waar de taak landt. `resolveDropTarget` blijft de enige autoriteit.
     if (zone === 'nest' && target === null) {
@@ -146,8 +144,8 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
   // Kandidaatfase: pas bij |dy| >= drempel ÉN een overwegend verticale beweging promoveren tot een
   // echte sleep. De canvas-kant mag zuiver op |dy| gaan (mousedown begint daar in de rijgutter, niet
   // op selecteerbare tekst); hier begint mousedown middenin een celwaarde, dus zonder de
-  // asintentie-check van `shouldPromoteToRowDrag` promoveerde een horizontale tekstselectie met wat
-  // verticale muisruis onterecht tot een rijsleep (browserreview, observatie 2).
+  // asintentie-check van `shouldPromoteToRowDrag` promoveert een horizontale tekstselectie met wat
+  // verticale muisruis onterecht tot een rijsleep.
   useEffect(() => {
     if (!candidateActive) return;
 
@@ -186,7 +184,7 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
   // hebben: een canvas is één blijvend element, dus daar volgt na de mouseup altijd een click.
   // In de DOM-tabel niet — begon de sleep op rij A en eindigt hij op rij B, dan herrendert de drop
   // de rijen en is het mouseup-doel losgekoppeld, waardoor Chromium HELEMAAL geen click meer
-  // stuurt (zelf gemeten). De vlag zou dan blijven staan en de eerstvolgende echte klik
+  // stuurt. De vlag zou dan blijven staan en de eerstvolgende echte klik
   // inslikken. Daarom wissen we óók bij de eerstvolgende mousedown:
   // die markeert onmiskenbaar een nieuwe interactie, en komt altijd vóór de bijbehorende click.
   // De click-listener blijft in de BUBBLE-fase, zodat de rij-onClick de vlag nog ziet en de
@@ -235,8 +233,8 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
       const current = dragStateRef.current;
       const options = optionsRef.current;
       if (current?.dropTarget) {
-        // Onderdeel van een meervoudige selectie ⇒ de hele groep mee (issue #26-vervolgmelding);
-        // anders exact het oude pad. `moveTasksTo` doet de groep in één undo-stap.
+        // Onderdeel van een meervoudige selectie ⇒ de hele groep mee; anders alleen deze rij.
+        // `moveTasksTo` doet de groep in één undo-stap.
         const groepssleep = options.selectedTaskIds.length > 1
           && options.selectedTaskIds.includes(current.taskId);
         if (groepssleep) options.moveTasksTo(options.selectedTaskIds, current.dropTarget);

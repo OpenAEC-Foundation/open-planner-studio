@@ -4,14 +4,14 @@ import { taskHasActiveTimephasedSteering, taskHasTimephasedContours } from '@/ut
 import { MPP_TIMEPHASED_HELP_ARTICLE_ID } from '@/state/timephasedLossNotice';
 
 /**
- * mpp-nul-data-etappe, DEEL 2 — MSP-herkomstmarkering op het eigenschappenpaneel. Twee toestanden,
+ * MSP-herkomstmarkering op het eigenschappenpaneel. Twee toestanden,
  * op dezelfde velden als `taskDefaults.ts`'s `clearTimephasedWindow`/`clearTimephasedDurationWalks`
- * (DEEL 1) leunen:
+ * leunen:
  *  - ACTIEVE sturing (laag 3 en/of laag 4 nog gezet) — "volgt de urenverdeling uit MS Project".
  *  - LOSGELATEN sturing: de rauwe `timephasedContours` staan er nog (het bronbestand verliest nooit
- *    iets, eigenaarsprincipe 2026-08-18), maar de AFGELEIDE sturing is ná een bewerking gewist —
+ *    iets), maar de AFGELEIDE sturing is ná een bewerking gewist —
  *    "niet meer toegepast".
- * Geen van beide ⇒ geen MSP-herkomst op deze taak, niets renderen (byte-identiek stil).
+ * Geen van beide ⇒ geen MSP-herkomst op deze taak, niets renderen.
  *
  * Stijlprecedent: de bibliotheek-afwijkingsbadges in `ResourcePanel.tsx`
  * (`badge badge--red`/`companyLibrary.deviates`/`notInCompany`) — zelfde `badge`-klasse, hier
@@ -32,7 +32,7 @@ export function TaskTimephasedNotice({ taskId }: { taskId: string }) {
   const hasContours = taskHasTimephasedContours(task);
   if (!active && !hasContours) return null;
 
-  // Contour-UI (2026-09) — derde toestand: contouren zónder MS Project-herkomst (geen enkele
+  // Derde toestand: contouren zónder MS Project-herkomst (geen enkele
   // contour draagt een `resourceUid`: een eigen verdeling uit het contourvenster, of een
   // P6-import). Daar is niets "losgelaten"; het is gewoon een taak met eigen urenverdelingen.
   // Heuristiek op `resourceUid` (alleen de .mpp-/MSPDI-lezers zetten die) — geen apart veld, dus

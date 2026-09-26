@@ -12,7 +12,7 @@ import { useRibbonDensity } from '@/components/layout/Ribbon/ribbonDensity';
 import { useCopyFeedback } from '@/hooks/useCopyFeedback';
 
 /**
- * AI-ribbontab — groep **Verbinding** (T14, spec §UI):
+ * AI-ribbontab — groep **Verbinding**:
  *  - poortveld (`loadMcpPort`/`saveMcpPort`), alleen wijzigbaar wanneer de server gestopt is;
  *  - tokenveld (verborgen; toon/verberg, kopieerknop, regenereerknop mét bevestigingswaarschuwing
  *    dat bestaande koppelingen breken);
@@ -22,14 +22,14 @@ import { useCopyFeedback } from '@/hooks/useCopyFeedback';
  *    tooltip (`ai.connectHint`).
  *
  * De koppelgegevens staan bewust in een dialoog en niet in de ribbon zelf: een ribbongroep is maar
- * 66 px hoog (`.ribbon-group-content`), dus een volledige URL/header-regel werd afgekapt. De groep
+ * 66 px hoog (`.ribbon-group-content`), dus een volledige URL/header-regel wordt afgekapt. De groep
  * blijft daarom op twéé veldrijen naast één grote knop — dat past ruim binnen de ribbonhoogte.
  *
  * Poort/token leven in localStorage (settingsStore), niet in de store — vandaar lokale React-state
  * die op mount uit de persistente laag wordt geïnitialiseerd. `ensureMcpToken` garandeert dat er een
  * token bestaat zodra de gebruiker dit tabblad opent.
  *
- * Compacte dichtheid (issue #38 punt 4): de twee veldrijen + grote knop zijn samen ~58-66 px hoog,
+ * Compacte dichtheid: de twee veldrijen + grote knop zijn samen ~58-66 px hoog,
  * ruim boven de 40px-strip van de compacte lint-modus (`.ribbon-container.compact .ribbon-content`).
  * Daarom klapt de hele groep — net als "Baselines & voortgang" op de Planning-tab — samen tot één
  * kleine knop met popover die poort, token en de "Verbinden"-actie ongewijzigd bevat.
@@ -164,7 +164,7 @@ export function AiConnectionGroup() {
   );
 
   if (compact) {
-    // Compacte modus (issue #38 punt 4): hele groep achter één knop + popover — zelfde patroon als
+    // Compacte modus: hele groep achter één knop + popover — zelfde patroon als
     // BaselinesProgressGroupContent. Poort/token blijven functioneel identiek, alleen de trigger
     // vervangt de brede tweeledige lay-out.
     return (

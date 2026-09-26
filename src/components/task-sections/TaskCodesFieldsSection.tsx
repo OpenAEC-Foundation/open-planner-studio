@@ -3,8 +3,8 @@ import { useAppStore } from '@/state/appStore';
 import { Field, CustomFieldInput } from './shared';
 
 /**
- * Activity codes / custom fields (structuur) — sectie 11 uit `TaskPropertiesPanel` (fase 2.10,
- * item 2). RELATIONEEL/storeful: roept `setTaskActivityCode`/`setTaskCustomField` rechtstreeks
+ * Activity codes / custom fields (structuur) — sectie van `TaskPropertiesPanel`.
+ * RELATIONEEL/storeful: roept `setTaskActivityCode`/`setTaskCustomField` rechtstreeks
  * aan, identiek in paneel én dialoog.
  */
 export function TaskCodesFieldsSection({ taskId }: { taskId: string }) {

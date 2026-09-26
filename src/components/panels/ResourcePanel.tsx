@@ -18,8 +18,8 @@ import { CommitColorInput } from '@/components/common/CommitInput';
 const RESOURCE_TYPES: ResourceType[] = ['LABOR', 'EQUIPMENT', 'MATERIAL', 'SUBCONTRACTOR', 'CREW'];
 
 /**
- * Kolomsleutels van de resourcetabel, in weergavevolgorde — de "velden"-as van de rasternavigatie
- * (issue #48). De "Totaal"-kolom staat er bewust NIET in: die is een berekening, geen invoerveld.
+ * Kolomsleutels van de resourcetabel, in weergavevolgorde — de "velden"-as van de rasternavigatie.
+ * De "Totaal"-kolom staat er bewust NIET in: die is een berekening, geen invoerveld.
  */
 const GRID_FIELDS = ['name', 'type', 'maxUnits', 'calendar', 'cost', 'unit', 'parent'] as const;
 type GridField = typeof GRID_FIELDS[number];
@@ -27,7 +27,7 @@ type GridField = typeof GRID_FIELDS[number];
 const DRAFT_ROW_ID = '__draft';
 
 /**
- * De concept-rij houdt een VOLLEDIGE resource vast, niet alleen een naam (#48, tweede ronde).
+ * De concept-rij houdt een VOLLEDIGE resource vast, niet alleen een naam.
  * Puur lokale component-state: er staat pas iets in de store zodra er een naam is (zie
  * `commitPendingNew`). Bewust géén `id`/`libraryOrigin` — die ontstaan pas bij het committeren.
  */
@@ -39,7 +39,7 @@ type ResourceDraft = {
   costPerHour?: number;
   unitOfMeasure?: string;
   parentId?: string;
-  /** #21: bewust gekozen kleur uit de concept-rij. Ontbreekt ⇒ de store wijst automatisch de
+  /** Bewust gekozen kleur uit de concept-rij. Ontbreekt ⇒ de store wijst automatisch de
    *  eerste vrije paletkleur toe (addResource/addPoolResource). */
   color?: string;
 };
@@ -95,7 +95,7 @@ function usePendingResourceDraft({
 }
 
 const cellInput = 'input !text-body !px-1.5 !py-1 w-full';
-// Geërfd/read-only-velden (issue #19, punt D1 — user-feedback): platte tekst, GEEN uitgegrijsd
+// Geërfd/read-only-velden: platte tekst, GEEN uitgegrijsd
 // invoerveld. Zelfde padding/tekstgrootte als `cellInput` (kolommen blijven uitgelijnd met de
 // bewerkbare rijen), maar zonder de `.input`-rand/achtergrond en in de secundaire tekstkleur — zodat
 // "dit reageert niet op een klik" al zichtbaar is vóórdat de gebruiker het probeert.
@@ -122,7 +122,7 @@ function ResourceTableHead({ showTotal, showParent }: { showTotal: boolean; show
         {showTotal && <th className={TH_RIGHT} style={{ width: 100 }} title={t('resource.totalHint')}>{t('resource.total')}</th>}
         <th className={TH} style={{ width: 90 }}>{t('resource.unitOfMeasure')}</th>
         {showParent && <th className={TH} style={{ width: 120 }}>{t('resource.parent')}</th>}
-        {/* F10 (critreview op 352bb94): in beide tabellen dezelfde breedte — er kan een "Naar de
+        {/* In beide tabellen dezelfde breedte — er kan een "Naar de
             bibliotheek"-tekstknop in staan, niet alleen het losmaak-/verwijder-icoon. */}
         <th className="border-b border-border" style={{ width: 190 }} />
       </tr>
@@ -131,9 +131,9 @@ function ResourceTableHead({ showTotal, showParent }: { showTotal: boolean; show
 }
 
 /**
- * Resource-beheerpaneel (fase 2.5, §6.2; herzien issue #19 — bibliotheek = bron, project = inzet).
+ * Resource-beheerpaneel (bibliotheek = bron, project = inzet).
  * Drie weergaven; de eerste twee BEIDE met de volledige inline-tabel-editor (`ResourceRow`,
- * gedeeld), de derde (B1b, `resourcesView === 'occupancy'`) is een leesvenster in een eigen
+ * gedeeld), de derde (`resourcesView === 'occupancy'`) is een leesvenster in een eigen
  * component (`ResourceOccupancyView`): de bezetting van de gekoppelde bibliotheek over álle open
  * documenten, alleen zichtbaar onder dezelfde `linked`-conditie als de Bibliotheekweergave.
  *
@@ -147,12 +147,12 @@ function ResourceTableHead({ showTotal, showParent }: { showTotal: boolean; show
  *   bedrijf, status ≠ 'removed' — zie `onOpenStatusForResource`/`isResourceFieldLocked`) toont
  *   naam/type/tarief/eenheid READ-ONLY (identiteitsvelden/bibliotheekafspraken: de bibliotheek
  *   bepaalt WAT de resource IS — zie `RESOURCE_DIFF_FIELDS`) — max.eenheden, de tijd-gefaseerde
- *   `availabilitySteps` ÉN de kalenderKEUZE blijven bewerkbaar (F2-correctie: dat is projectinzet/
+ *   `availabilitySteps` ÉN de kalenderKEUZE blijven bewerkbaar (dat is projectinzet/
  *   -keuze, geen bibliotheekafspraak; zie de uitgebreide toelichting bij `ResourceRow`). Zo'n geërfde
  *   rij draagt een subtiel bibliotheek-icoontje; projecteigen rijen (los project, of een nieuwe
  *   resource via de "+ Nieuwe resource"-knop terwijl het project wél gekoppeld is) krijgen geen
  *   markering en blijven volledig bewerkbaar. "Losmaken van de bibliotheek" strip de stempel van
- *   precies dat ene item (én, F4, de meegereisde kalenderstempel als geen andere resource 'm nog
+ *   precies dat ene item (én de meegereisde kalenderstempel als geen andere resource 'm nog
  *   volgt), waarna alle velden weer vrijstaan van de bibliotheek.
  *
  * De kalender-dropdown verwijst naar `s.calendars` (project) resp. `pools[cid].calendars` (bibliotheek);
@@ -183,7 +183,7 @@ export function ResourcePanel() {
   const linked = !!project.companyId && companies.some(c => c.id === project.companyId);
   const pool = project.companyId ? pools[project.companyId] : undefined;
   const inPoolView = linked && resourcesView === 'company' && !!pool;
-  // B1b (spec §3): derde stand — bezettingsoverzicht van de bibliotheek over alle open documenten.
+  // Derde stand — bezettingsoverzicht van de bibliotheek over alle open documenten.
   // Zelfde vangnet als de Bibliotheekweergave: valt de koppeling weg terwijl deze weergave openstaat,
   // dan is `inOccupancyView` false en rendert de else-tak (Projectweergave) — het effect op
   // [project.companyId, linked] hieronder zet `ui.resourcesView` daarna ook echt terug.
@@ -196,29 +196,27 @@ export function ResourcePanel() {
   // Uitgeklapte availabilitySteps-subrij (één tegelijk) — gedeeld tussen beide weergaven; nooit
   // gelijktijdig zichtbaar omdat er maar één tabel tegelijk gerenderd wordt.
   const [expandedSteps, setExpandedSteps] = useState<string | null>(null);
-  // Resource die op verwijder-bevestiging wacht (bevinding 6, cascade-waarschuwing) — Projectweergave.
+  // Resource die op verwijder-bevestiging wacht (cascade-waarschuwing) — Projectweergave.
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  // Poolresource die op verwijder-bevestiging wacht (critreview 51ad2ec, fix 1): bedrijfsbrede
+  // Poolresource die op verwijder-bevestiging wacht: bedrijfsbrede
   // delete buiten undo krijgt dezelfde bevestigingsrem als de projectgrid-delete hierboven.
   const [confirmPoolDelete, setConfirmPoolDelete] = useState<string | null>(null);
-  // Feedback op "Toewijzen aan project" (critreview 51ad2ec, fix 2): hergebruikt het
-  // added/alreadyInProject-notice-patroon van de oude AddFromLibraryDialog.
+  // Feedback op "Toewijzen aan project" (added/alreadyInProject).
   const [poolNotice, setPoolNotice] = useState<string | null>(null);
-  // Feedback op "Naar de bibliotheek" (issue #19, punt D5) — Projectweergave-tegenhanger van
+  // Feedback op "Naar de bibliotheek" — Projectweergave-tegenhanger van
   // `poolNotice`; apart gehouden omdat `poolNotice` bewust reset bij het verlaten van de
   // Bibliotheekweergave (zie de eerste useEffect hieronder) en deze notice juist in de
   // Projectweergave hoort te verschijnen.
   const [projectNotice, setProjectNotice] = useState<string | null>(null);
-  // F10 (critreview op 352bb94): "+ Nieuwe resource" persisteert NIET meteen een lege rij (dat gaf een
-  // ongewenste undo-stap + een blijvend leeg poolitem/projectresource als je niets typte en wegklikte).
-  // In plaats daarvan een lokale PENDING-draft (geen store-mutatie, geen id) die pas bij een
-  // niet-lege naam (op blur/Enter) écht wordt aangemaakt (`addResource`/`addPoolResource`); leeg
-  // wegklikken laat helemaal geen spoor na. Vervangt de eerdere `newRowId`-autofocus-aanpak (punt 3) —
-  // de pending-rij bestaat sowieso maar heel even en mag altijd focus krijgen.
+  // "+ Nieuwe resource" persisteert NIET meteen een lege rij (dat zou een ongewenste undo-stap + een
+  // blijvend leeg poolitem/projectresource geven). In plaats daarvan een lokale PENDING-draft (geen
+  // store-mutatie, geen id) die pas bij een niet-lege naam (op blur/Enter) écht wordt aangemaakt
+  // (`addResource`/`addPoolResource`); leeg wegklikken laat helemaal geen spoor na. De pending-rij
+  // mag altijd focus krijgen.
   const [pendingNew, setPendingNew] = useState<PendingResourceDraft | null>(null);
   /** Welke draft-variant hoort bij een gegeven weergave — één definitie, gebruikt door de knop, de
-   *  weergave-wissel-reset hieronder en de lintknop-route (#48-1). Spiegelt `inPoolView`. De
-   *  Bezettingsweergave (B1b) is een leesvenster zonder tabel — daar hoort geen draft; aanroepers
+   *  weergave-wissel-reset hieronder en de lintknop-route. Spiegelt `inPoolView`. De
+   *  Bezettingsweergave is een leesvenster zonder tabel — daar hoort geen draft; aanroepers
    *  schakelen eerst naar de Projectweergave (zie de lintknop-route hieronder). */
   const hasLinkedPool = linked && !!pool;
   const variantForView = useCallback((view: ResourceView): 'project' | 'pool' => (
@@ -228,20 +226,15 @@ export function ResourcePanel() {
     setPendingNew({ variant: variantForView(view), draft: freshDraft() });
   }, [variantForView]);
 
-  // #48 (vervolgmelding van de melder): "Is it the intended behavior for the concept row to have
-  // only the Name field editable?" — nee. De concept-rij bestaat om ÉÉN reden: voorkomen dat een
-  // knopdruk zonder invoer een lege resource achterlaat (F10). Ze is nooit bedoeld geweest om
-  // invoer te beperken, en zolang de overige cellen platte grijze tekst waren LAS ze wel zo — ook
-  // nadat het commit-moment vervroegd was, want de aanblik bleef "vergrendeld".
-  //
-  // Daarom houdt de draft nu de HELE resource vast (`ResourceDraft`) en rendert de rij overal een
-  // écht besturingselement. Je kunt dus eerst het type kiezen en dan pas de naam typen; bij het
-  // committeren gaat alles in één keer mee, in één undo-stap. De F10-regel is ongewijzigd en geldt
-  // nu ook voor de nieuwe velden: ZONDER NAAM WORDT ER NIETS GESCHREVEN — een dropdown verzetten en
-  // wegklikken laat evengoed geen resource, geen undo-stap en geen `isDirty` achter.
+  // De concept-rij bestaat om ÉÉN reden: voorkomen dat een knopdruk zonder invoer een lege resource
+  // achterlaat. Ze beperkt geen invoer: de draft houdt de HELE resource vast (`ResourceDraft`) en
+  // de rij rendert overal een écht besturingselement. Je kunt dus eerst het type kiezen en dan pas
+  // de naam typen; bij het committeren gaat alles in één keer mee, in één undo-stap. ZONDER NAAM
+  // WORDT ER NIETS GESCHREVEN — een dropdown verzetten en wegklikken laat geen resource, geen
+  // undo-stap en geen `isDirty` achter.
   //
   // De rij staat ONDERAAN, precies waar de resource ook landt, zodat het commit-moment de cursor
-  // niet verplaatst (de screencast van de melder liet zien hoe de hele tabel een rij opschoof).
+  // niet verplaatst.
   /** Commit de concept-rij. `null` = er is niets aangemaakt (geen draft, of een lege naam). */
   const commitPendingNew = (): string | null => {
     if (!pendingNew) return null;
@@ -264,8 +257,7 @@ export function ResourcePanel() {
       newId = addPoolResource(project.companyId, base);
       // `addPoolResource` strip `calendarId`/`parentId` (pool-lokale verwijzingen worden daar
       // bewust niet uit een payload overgenomen). Zonder deze naslag zou een kalender- of
-      // ploegkeuze uit de concept-rij stil verdwijnen — precies het soort "ik vulde het in en het
-      // was weg" dat dit issue al aankaartte.
+      // ploegkeuze uit de concept-rij stil verdwijnen.
       if (newId && (draft.calendarId || draft.parentId)) {
         updatePoolResource(project.companyId, newId, { calendarId: draft.calendarId, parentId: draft.parentId });
       }
@@ -276,7 +268,7 @@ export function ResourcePanel() {
     return newId;
   };
 
-  // Rasternavigatie (#48, tweede verzoek van de melder): Enter/Shift+Enter en ↑/↓ tussen de rijen,
+  // Rasternavigatie: Enter/Shift+Enter en ↑/↓ tussen de rijen,
   // en Enter op de LAATSTE rij opent een nieuwe (concept-)rij. De rekensom en het toetsbeleid komen
   // uit `@/utils/gridNavigation`, de pure kern voor live rasters; het taakraster heeft een eigen
   // toetsbeleid (`resolveTaskGridCommand`) met React-state als cursor. Geldt in BEIDE weergaven: de
@@ -326,9 +318,9 @@ export function ResourcePanel() {
 
   // Bevestiging + notice horen bij de Bibliotheekweergave; reset zodra je 'm verlaat, zodat er geen
   // stale confirm-stap of melding terugkomt bij een latere terugkeer naar deze weergave. Spiegel voor
-  // `projectNotice` (Projectweergave — punt D5). Een pending-draft die nog niet gecommit is vervalt
+  // `projectNotice` (Projectweergave). Een pending-draft die nog niet gecommit is vervalt
   // ook bij het wisselen van weergave (bewust: hij hoorde bij de weergave die je verlaat).
-  // Uitzondering (#48-1): een draft die BIJ de nieuwe weergave hoort blijft staan. Dat is precies de
+  // Uitzondering: een draft die BIJ de nieuwe weergave hoort blijft staan. Dat is precies de
   // lintknop-route — bij een verse mount kan de default-weergave-normalisatie hieronder de weergave
   // nog omklappen nádat de draft is aangemaakt; zonder deze uitzondering zou de knop dan niets doen.
   // Een echte gebruikers-wissel gooit de draft nog steeds weg (die draagt altijd de variant van de
@@ -336,7 +328,7 @@ export function ResourcePanel() {
   useEffect(() => {
     if (resourcesView !== 'company') { setConfirmPoolDelete(null); setPoolNotice(null); }
     if (resourcesView !== 'project') { setConfirmDelete(null); setProjectNotice(null); }
-    // De Bezettingsweergave (B1b) rendert geen tabel — een meereizende draft zou er onzichtbaar
+    // De Bezettingsweergave rendert geen tabel — een meereizende draft zou er onzichtbaar
     // (en oncommitbaar) in blijven hangen, dus die vervalt daar altijd.
     setPendingNew(p => (p && resourcesView !== 'occupancy' && p.variant === variantForView(resourcesView) ? p : null));
   }, [resourcesView, variantForView]);
@@ -346,11 +338,11 @@ export function ResourcePanel() {
     setPoolNotice(result.added ? t('companyLibrary.added') : t('companyLibrary.alreadyInProject'));
   };
 
-  // "Naar de bibliotheek" (issue #19, punt D5): tegenhanger van onAssignFromCompany. Dedup op naam
+  // "Naar de bibliotheek": tegenhanger van onAssignFromCompany. Dedup op naam
   // gebeurt in de store (`promoteResourceToPool` → `matchByName`) — hier wordt vooraf dezelfde matcher
   // geraadpleegd om de juiste melding te kiezen, zonder de bestaande `string | null`-return van
   // `promoteResourceToPool` te hoeven verbouwen (die wordt elders/in tests al als kale pool-id gebruikt).
-  // F8 (critreview op 352bb94): "bestond al — gekoppeld" mag alleen een succesmelding zijn als het
+  // "Bestond al — gekoppeld" mag alleen een succesmelding zijn als het
   // bestaande poolitem INHOUDELIJK gelijk is (zelfde `computeResourceHash`, dus dezelfde
   // RESOURCE_DIFF_FIELDS-waarden) — anders koppelt het item wél, maar wijkt het meteen af (rode
   // "wijkt af"-badge op een bevroren rij), en moet de melding dat eerlijk zeggen i.p.v. te suggereren
@@ -367,17 +359,15 @@ export function ResourcePanel() {
     );
   };
 
-  // Default-weergave (issue #64, vervangt spec §4): ALTIJD de Projectweergave bij het openen — óók
-  // met een gekoppelde, gevulde bibliotheek. De oude regel ("Bibliotheek zodra de pool inhoud
-  // heeft") liet gebruikers ongemerkt in de gedeelde, app-globale bibliotheek landen, waar elke
-  // bewerking buiten undo valt en alle projecten raakt. Bewust een RESET bij elke mount (en bij
+  // Default-weergave: ALTIJD de Projectweergave bij het openen — óók met een gekoppelde, gevulde
+  // bibliotheek. Anders landen gebruikers ongemerkt in de gedeelde, app-globale bibliotheek, waar
+  // elke bewerking buiten undo valt en alle projecten raakt. Bewust een RESET bij elke mount (en bij
   // koppeling-wissel), geen persistente voorkeur: de Bibliotheekweergave is een bewuste tabkeuze
   // per bezoek, geen toestand waar je een sessie later stil in terugvalt. Binnen één open paneel
   // blijft de gekozen weergave gewoon staan (dit effect draait niet per render/edit).
   useResourceViewReset(project.companyId, linked, setUI);
 
-  // Lintknop "Nieuwe resource" (#48-1): die persisteerde vroeger meteen een naamloze resource (echte
-  // store-mutatie + undo-stap). Nu zet hij alleen `ui.pendingNewResource` en opent dit effect
+  // Lintknop "Nieuwe resource": zet alleen `ui.pendingNewResource`; dit effect opent dan
   // dezelfde concept-rij als de "+ Nieuwe resource"-knop in het paneel — één route, één gedrag.
   // BEWUST ná het default-weergave-effect hierboven: dat kan bij een verse mount de weergave nog
   // omklappen, dus lezen we de weergave hier vers uit de store i.p.v. uit de render-waarde, zodat de
@@ -385,9 +375,9 @@ export function ResourcePanel() {
   usePendingResourceDraft({ pendingNewResource, openDraft, requestFocus, setUI });
 
   const crews = resources.filter(r => r.type === 'CREW');
-  // Ploeg-kolom in de pool (issue #19, punt 1) — parentId is een geldig pool-lokaal veld (zie
+  // Ploeg-kolom in de pool — parentId is een geldig pool-lokaal veld (zie
   // copyResourceToProject: het wordt bewust NIET meegekopieerd naar het project, precies omdát het
-  // een pool-lokale verwijzing is). F7 (critreview op 352bb94): de KOLOM zelf tonen zodra de pool niet
+  // een pool-lokale verwijzing is). De KOLOM zelf tonen zodra de pool niet
   // leeg is (niet pas als er al een CREW bestaat) — anders verdwijnt de kolom zodra de laatste ploeg
   // wordt verwijderd, waardoor je 'm niet meer kunt herstellen, en springt de tabel bij elke
   // eerste/laatste-CREW-mutatie. De SELECT-opties (`poolCrews`) blijven wél op echte CREW-resources.
@@ -399,11 +389,10 @@ export function ResourcePanel() {
     [i18n.language],
   );
 
-  // Kosten-totaal per resource (bevinding 8): belaste uren × tarief. De uren komen uit de belasting
-  // zelf (`resourceLoadResult.hours`: per toewijzing de eenheden × uren/dag van de TAAKkalender),
-  // dezelfde bron als de contourdialoog en `<Work>` in de MSPDI-export. Vroeger rekende deze kolom
-  // met de uren/dag van de projectkalender en gaf zo bij een taak op een 10-uurskalender 40 u i.p.v.
-  // 50 u (audit resources-kalenders R6). undefined = "—" (geen tarief of belasting).
+  // Kosten-totaal per resource: belaste uren × tarief. De uren komen uit de belasting
+  // zelf (`resourceLoadResult.hours`: per toewijzing de eenheden × uren/dag van de TAAKkalender,
+  // niet de projectkalender), dezelfde bron als de contourdialoog en `<Work>` in de MSPDI-export.
+  // undefined = "—" (geen tarief of belasting).
   // Puur een PROJECT-grootheid (leunt op resourceLoadResult van dit project) — de pool heeft hier
   // bewust geen equivalent (zie "Totaal" hieronder).
   const costByResource = useMemo(() => {
@@ -431,10 +420,9 @@ export function ResourcePanel() {
     }
   };
 
-  // Contextgevoelige "+ Nieuwe resource" (issue #19, punt 2): opent een POOL-pending-draft in de
-  // Bibliotheekweergave, een PROJECT-pending-draft in de Projectweergave (F10: geen store-mutatie
-  // vóór een niet-lege naam, zie `pendingNew`/`commitPendingNew` hierboven) — vervangt de oude aparte
-  // "Nieuw in de bibliotheek"-knop (dubbelop geworden).
+  // Contextgevoelige "+ Nieuwe resource": opent een POOL-pending-draft in de
+  // Bibliotheekweergave, een PROJECT-pending-draft in de Projectweergave (geen store-mutatie
+  // vóór een niet-lege naam, zie `pendingNew`/`commitPendingNew` hierboven).
   const onAddClick = () => {
     openDraft(resourcesView);
     // Stond er al een concept-rij, dan is `autoFocus` al verbruikt — deze aanvraag zet de cursor
@@ -455,8 +443,7 @@ export function ResourcePanel() {
   };
 
   // "+ nieuwe kalender": open de editor in AANMAAKMODUS. De kalender bestaat pas na Toepassen en
-  // wordt dán aan de resource gekoppeld (`linkNewCalendar`); Annuleren laat niets achter. Voorheen
-  // werd hij vóór het openen al aangemaakt en gekoppeld, zodat Annuleren beide liet staan.
+  // wordt dán aan de resource gekoppeld (`linkNewCalendar`); Annuleren laat niets achter.
   const onCalendarChange = (resource: Resource, value: string) => {
     if (value === NEW_CAL) {
       setCalDialog({ linkResourceId: resource.id });
@@ -507,7 +494,7 @@ export function ResourcePanel() {
         <div className="flex items-center gap-2">
           {linked && (
             <div className="flex items-center rounded-[8px] border border-border overflow-hidden" data-ops-resources-view-toggle>
-              {/* B1b (spec §3): derde stand — bezetting van de bibliotheek over alle open documenten.
+              {/* Derde stand — bezetting van de bibliotheek over alle open documenten.
                   Zelfde zichtbaarheidsconditie als de hele schakelaar (`linked`). */}
               {([
                 ['company', t('companyLibrary.companyView')],
@@ -523,7 +510,7 @@ export function ResourcePanel() {
               ))}
             </div>
           )}
-          {/* B1b: de Bezettingsweergave is een leesvenster — geen "+ Nieuwe resource" daar. */}
+          {/* De Bezettingsweergave is een leesvenster — geen "+ Nieuwe resource" daar. */}
           {!inOccupancyView && (
             <button onClick={onAddClick} className="btn btn--sm btn--primary flex items-center gap-1" data-ops-resource-add>
               <Plus size={13} /> {inPoolView ? t('resource.panel.addRowLibrary') : t('resource.panel.addRow')}
@@ -543,9 +530,8 @@ export function ResourcePanel() {
         <ResourceOccupancyView companyId={project.companyId} pool={pool} />
       ) : inPoolView && pool ? (
         <div className="flex-1 overflow-auto" ref={grid.gridRef}>
-          {/* Waarschuwingsbanner (issue #64c): dit was platte cursieve tekst, maar "bewerkt de
-              bibliotheek, geldt voor alle projecten, valt buiten undo" is precies het soort
-              waarschuwing dat je niet mag kunnen missen — dus een contrasterend vlak + icoon. */}
+          {/* Waarschuwingsbanner: "bewerkt de bibliotheek, geldt voor alle projecten, valt buiten
+              undo" mag je niet kunnen missen — dus een contrasterend vlak + icoon. */}
           <StatusBanner tone="warning" bannerProps={{ 'data-ops-company-view-hint': true }}>
             {t('companyLibrary.companyViewHint')}
           </StatusBanner>
@@ -603,7 +589,7 @@ export function ResourcePanel() {
         )}
         {resources.length === 0 && pendingNew?.variant !== 'project' ? (
           linked ? (
-            // D4 (issue #19, user-feedback): een leeg Projectweergave — precies de instap-showcase-
+            // Een leeg Projectweergave — precies de instap-showcase-
             // situatie (project WEL gekoppeld, nog niets gematerialiseerd) — legt de tweedeling meteen
             // uit i.p.v. een kale lege tabel te tonen.
             <div className="p-4 text-text-secondary" data-ops-resource-empty-linked>
@@ -680,9 +666,7 @@ export function ResourcePanel() {
 
 /**
  * Gedeelde inline-tabelrij voor ZOWEL de Bibliotheekweergave (`variant="pool"`) als de
- * Projectweergave (`variant="project"`) — issue #19: de rolverdeling was omgekeerd (de bibliotheek,
- * de BRON, had alleen een `window.prompt()`-editor; het project had de volledige tabel). Nu delen
- * beide weergaven precies deze rij; alleen kolomkeuze, bestemming van de mutaties en de
+ * Projectweergave (`variant="project"`). Alleen kolomkeuze, bestemming van de mutaties en de
  * read-only-gating verschillen per variant.
  */
 function ResourceRow({
@@ -714,20 +698,20 @@ function ResourceRow({
   onCancelRemove: () => void;
   onCalendarChange: (value: string) => void;
   onEditCalendar: () => void;
-  /** Pool-only: "Toewijzen aan project" (behouden op de bestaande plek, expliciete user-wens). */
+  /** Pool-only: "Toewijzen aan project". */
   onAssignToProject?: () => void;
   /** Project-only: "Losmaken van de bibliotheek" — alleen zichtbaar/zinvol op een geërfde (locked) rij. */
   onUnlink?: () => void;
-  /** Project-only, tegenhanger van `onAssignToProject` (issue #19, punt D5): "naar de bibliotheek"
+  /** Project-only, tegenhanger van `onAssignToProject`: "naar de bibliotheek"
    *  op een ONGESTEMPELDE rij — alleen aanwezig (van de aanroeper) als het project aan een bedrijf
    *  gekoppeld is; de rij zelf toont 'm alleen als `!resource.libraryOrigin`. */
   onPromoteToLibrary?: () => void;
-  /** Rasternavigatie (#48): adres + toetsafhandeling per cel, uit `useLiveGridNav`. */
+  /** Rasternavigatie: adres + toetsafhandeling per cel, uit `useLiveGridNav`. */
   cellProps: (rowId: string, field: GridField) => { 'data-ops-grid-cell': string; onKeyDown: (e: KeyboardEvent) => void };
   rowProps: (rowId: string) => { 'data-ops-grid-row': string };
 }) {
   const { t, i18n } = useTranslation('common');
-  // F10 (critreview op 352bb94): geërfd tarief door dezelfde Intl-opmaak als de Totaal-kolom
+  // Geërfd tarief door dezelfde Intl-opmaak als de Totaal-kolom
   // (`numberFmt` in `ResourcePanel`) — anders toont dit veld de rauwe `number`-waarde terwijl de rest
   // van de tabel gelokaliseerd (2 decimalen) opmaakt.
   const numberFmt = useMemo(
@@ -736,21 +720,20 @@ function ResourceRow({
   );
   const isMaterial = resource.type === 'MATERIAL';
   const isPool = variant === 'pool';
-  // Projectweergave-markeringen (spec §3/§4, taak 18): 'deviated'/'removed' komen uit de
-  // grens-1/4-classificatie (onOpenStatusForResource, taak 7) — null/'in-sync'/'behind'/'unbound'
-  // tonen bewust niets ('behind' is na een grens al stil ververst; zie taakbrief). Pool-rijen hebben
+  // Projectweergave-markeringen: 'deviated'/'removed' komen uit de
+  // openingsclassificatie (onOpenStatusForResource) — null/'in-sync'/'behind'/'unbound'
+  // tonen bewust niets ('behind' is bij openen al stil ververst). Pool-rijen hebben
   // geen "openings-status" — ze ZIJN de bron.
   const onOpenStatusForResource = useAppStore(s => s.onOpenStatusForResource);
   const setUI = useAppStore(s => s.setUI);
   const openStatus = isPool ? null : onOpenStatusForResource(resource.id);
 
-  // Geërfd-gating (issue #19, punt 4 — F2-correctie ná critreview op 352bb94: kalender is GEEN
-  // bibliotheekafspraak, dat was een ontwerpfout in de vorige ronde). Rationale voor de user: DE
+  // Geërfd-gating (kalender is GEEN bibliotheekafspraak). DE
   // BIBLIOTHEEK BEPAALT WAT EEN RESOURCE IS (naam, type, tarief/uur, eenheid — identiteitsvelden,
   // vastgelegd door het bedrijf, gelden voor elk project dat deze resource gebruikt, horen dus alleen
   // in de Bibliotheekweergave gewijzigd te worden — zie `RESOURCE_DIFF_FIELDS`); HET PROJECT BEPAALT
   // HOEVEEL en WANNEER: max.eenheden + de tijd-gefaseerde `availabilitySteps` (de allocatiegrootheden
-  // waar een later bezettingsoverzicht op leunt) ÉN welke kalender aan deze resource hangt (F2: dat is
+  // waar het bezettingsoverzicht op leunt) ÉN welke kalender aan deze resource hangt (dat is
   // een projectkeuze — wat er IN die kalender staat komt uit de bibliotheek via de meegereisde,
   // gestempelde kalenderkopie, niet via dit veld). `isResourceFieldLocked` (services/library/
   // libraryOps.ts) is de gedeelde, headless-testbare pure functie achter dit besluit — ze leunt op
@@ -759,12 +742,12 @@ function ResourceRow({
   // bestaat niet meer) telt bewust NIET als "geldige herkomst": de stempel wijst dan nergens meer naar,
   // dus zo'n rij is feitelijk een wees en blijft volledig bewerkbaar (met de bestaande expliciete
   // "Verwijder uit project"-actie hieronder) in plaats van muurvast te zitten op een dode referentie.
-  // D1 (user-feedback): een geërfd/locked veld rendert als PLATTE TEKST (`cellStatic`), niet als een
+  // Een geërfd/locked veld rendert als PLATTE TEKST (`cellStatic`), niet als een
   // uitgegrijsd invoerveld — "waarom reageert dit niet op een klik" is zichtbaar vóórdat de gebruiker
   // het probeert. Elke gegate cel hieronder vertakt zelf op `locked` (static <span> vs. echt invoerveld).
   const locked = !isPool && isResourceFieldLocked(openStatus);
 
-  // F6 (critreview op 352bb94): in de POOL-variant committeert `onPatch` naar `updatePoolResource`,
+  // In de POOL-variant committeert `onPatch` naar `updatePoolResource`,
   // die per aanroep bumpPool + persist + refreshAllDocumentsFromPool doet (dat laatste wist de
   // redoStack van elk gekoppeld document) — per-toetsaanslag-onChange zou tien poolversies + tien
   // volledige bibliotheekschrijfacties opleveren voor het typen van tien letters. Tekstvelden
@@ -773,10 +756,9 @@ function ResourceRow({
   // een echt verschil). Max.eenheden (`UnitsInput`), type en kalender blijven bewust WEL direct: korte,
   // atomaire wijzigingen (een paar cijfers, of één discrete keuze).
   //
-  // Audit resources-kalenders R9: de Projectweergave schreef naam, tarief en eenheid wél per
-  // toetsaanslag (`updateResource` → één undo-stap per letter; Ctrl+Z haalde één teken weg, en
-  // alles-selecteren + Backspace zette een lege naam in de store en de undo-geschiedenis). Beide
-  // weergaven lopen nu door dezelfde drafts hieronder: één commit bij het verlaten van het veld, dus
+  // Ook in de Projectweergave: per toetsaanslag schrijven gaf één undo-stap per letter (en
+  // alles-selecteren + Backspace een lege naam in store en undo-geschiedenis). Beide
+  // weergaven lopen daarom door dezelfde drafts hieronder: één commit bij het verlaten van het veld, dus
   // één undo-stap. Een lege naam wordt nooit gecommit — het veld valt terug op de huidige naam (de
   // AI-route weigert een lege naam ook). Het tarief volgt hetzelfde pad: leeg = geen tarief, een
   // ongeldig getal valt terug.
@@ -812,7 +794,7 @@ function ResourceRow({
         {...rowProps(resource.id)}
       >
         <td className="px-1 py-1">
-          {/* #21: kleurkolom — toont de EFFECTIEVE kleur (eigen keuze of hash-fallback), zodat de
+          {/* Kleurkolom — toont de EFFECTIEVE kleur (eigen keuze of hash-fallback), zodat de
               cel nooit "leeg" oogt terwijl balken wél gekleurd zijn. Bewust zonder geërfd-gating:
               kleur is geen bibliotheekafspraak (RESOURCE_DIFF_FIELDS) en mag overal gekozen worden.
               Commit pas bij het kiezen (native `change`), niet per sleepstap: zie `CommitColorInput`. */}
@@ -834,15 +816,15 @@ function ResourceRow({
                 value={nameDraft}
                 onChange={e => setNameDraft(e.target.value)}
                 onBlur={commitNameDraft}
-                // Enter/↑/↓ verplaatsen de cursor (#48); de focuswissel blurt dit veld en dat is
-                // precies wat de draft committeert — daarom hier geen eigen Enter-blur meer.
+                // Enter/↑/↓ verplaatsen de cursor; de focuswissel blurt dit veld en dat is
+                // precies wat de draft committeert — daarom hier geen eigen Enter-blur.
                 {...cellProps(resource.id, 'name')}
                 className={cellInput}
                 placeholder={t('resource.name')}
               />
             )}
             {locked && (
-              // Rustige, subtiele herkomstmarkering (user-wens B): een klein bibliotheek-icoontje
+              // Rustige, subtiele herkomstmarkering: een klein bibliotheek-icoontje
               // i.p.v. een tekstbadge — de rode "wijkt af"/"niet meer in de bibliotheek"-badges
               // hierboven blijven de aandachttrekkers; dit is puur een oogopslag-signaal. `title` op
               // de omringende span (niet rechtstreeks op het SVG-icoon) voor betrouwbare tooltips.
@@ -870,7 +852,7 @@ function ResourceRow({
                 <span className="badge badge--red shrink-0" title={t('companyLibrary.notInCompany')} data-ops-resource-removed>
                   {t('companyLibrary.notInCompany')}
                 </span>
-                {/* Wees-actie bedraden (spec §4, eindreview-bevinding 1): expliciete, gelabelde
+                {/* Wees-actie: expliciete, gelabelde
                     verwijderknop voor een 'removed'-materialisatie — hergebruikt hetzelfde
                     verwijderpad (onRequestRemove/cascade-confirm) als de rij-Trash2, geen nieuw
                     verwijdermechanisme. */}
@@ -906,7 +888,7 @@ function ResourceRow({
           )}
         </td>
         <td className="px-2 py-1">
-          {/* F2 (critreview op 352bb94): max.eenheden (+ de tijd-gefaseerde stappen hieronder) en de
+          {/* Max.eenheden (+ de tijd-gefaseerde stappen hieronder) en de
               kalenderkeuze (verderop) zijn projectinzet, GEEN bibliotheekafspraak — dus ALTIJD een
               echt invoerveld, nooit `cellStatic`, ook niet op een geërfde/locked resource. */}
           <div className="flex items-center gap-1 justify-end">
@@ -930,7 +912,7 @@ function ResourceRow({
         </td>
         <td className="px-2 py-1">
           <div className="flex items-center gap-1 min-w-0">
-            {/* F2 (critreview op 352bb94, issue #19): kalenderKEUZE is PROJECTINZET, geen
+            {/* KalenderKEUZE is PROJECTINZET, geen
                 bibliotheekafspraak — welke kalender aan deze resource hangt is een keuze van dit ene
                 project (net als max.eenheden); WAT in die kalender staat (werkdagen/-uren) komt uit de
                 bibliotheek via de meegereisde, gestempelde kalenderkopie (zie `addLibraryResourceToProject`
@@ -949,7 +931,7 @@ function ResourceRow({
               ))}
               <option value={NEW_CAL}>+ {t('resource.calendarDialog.title')}</option>
             </select>
-            {/* F3 (critreview op 352bb94): dit potlood bewerkt de MEEGEREISDE PROJECTKOPIE van de
+            {/* Dit potlood bewerkt de MEEGEREISDE PROJECTKOPIE van de
                 kalender (`s.calendars`/`updateCalendar`, project-only hier — pool-variant heeft z'n
                 eigen `poolCompanyId`-pad). Dat kan de kopie 'deviated' maken t.o.v. de bibliotheek — dat
                 is correct en bedoeld gedrag (de bestaande badge/afwijkingenscherm pakt het op); de
@@ -1029,9 +1011,9 @@ function ResourceRow({
                 {t('companyLibrary.assignFromCompany')}
               </button>
             )}
-            {/* Tegenhanger van "Toewijzen aan project" (issue #19, punt D5): alleen op een
+            {/* Tegenhanger van "Toewijzen aan project": alleen op een
                 ONGESTEMPELDE Projectweergave-rij, en alleen als de aanroeper 'm meegeeft (project aan
-                een bedrijf gekoppeld — zie ResourcePanel). F10 (critreview op 352bb94): ook gate'n op
+                een bedrijf gekoppeld — zie ResourcePanel). Ook gate'n op
                 een niet-lege GENORMALISEERDE naam — een naamloze resource naar de bibliotheek tillen
                 levert een zinloos poolitem op (`matchByName` negeert een lege genormaliseerde naam
                 sowieso al, zie libraryOps.ts, maar zonder deze gate zou de knop wél zichtbaar zijn). */}
@@ -1045,10 +1027,10 @@ function ResourceRow({
                 {t('resource.promoteToLibrary')}
               </button>
             )}
-            {/* F5 (critreview op 352bb94): gate op `!!resource.libraryOrigin`, NIET op `locked` — een
+            {/* Gate op `!!resource.libraryOrigin`, NIET op `locked` — een
                 'removed'-wees (dode stempel, altijd `!locked`) en een stempel van een ANDER bedrijf
-                (rij bewerkbaar dus ook `!locked`, stempel onzichtbaar) waren met `locked` doodlopende
-                straten: geen enkele knop kon dat stempel meer wegnemen. Met deze gate kan elk item met
+                (rij bewerkbaar dus ook `!locked`, stempel onzichtbaar) zouden met `locked` doodlopende
+                straten zijn: geen enkele knop kan dat stempel dan wegnemen. Met deze gate kan elk item met
                 ÍÉTS in `libraryOrigin` losgemaakt worden, ongeacht welk bedrijf/status. */}
             {!isPool && !!resource.libraryOrigin && onUnlink && !confirmingDelete && (
               <button
@@ -1113,13 +1095,12 @@ function ResourceRow({
 }
 
 /**
- * F10 (critreview op 352bb94): de "nieuwe rij"-draft VÓÓR de eerste niet-lege naam — puur lokale
+ * De "nieuwe rij"-draft VÓÓR de eerste niet-lege naam — puur lokale
  * component-state in `ResourcePanel`, GEEN store-mutatie. Escape gooit de draft weg zonder spoor,
  * en wie niets invult en wegklikt laat evenmin iets achter: geen resource, geen undo-stap, document
  * niet als gewijzigd gemarkeerd. Dát is de reden dat deze rij bestaat.
  *
- * #48 (vervolgmelding van de melder — "only the Name field editable? Remaining fields are locked"):
- * hij bestaat NIET om invoer te beperken, dus is élke cel hier een ECHT besturingselement op de
+ * Hij bestaat NIET om invoer te beperken, dus is élke cel hier een ECHT besturingselement op de
  * lokale draft. Vul in welke volgorde je wilt; er belandt pas iets in de store zodra er een naam
  * staat én je de rij verlaat (klik elders, Tab voorbij de laatste cel) of Enter drukt — dan gaat
  * alles in één keer mee, in één undo-stap. Een dropdown verzetten zónder naam blijft spoorloos.
@@ -1136,7 +1117,7 @@ function PendingNewRow({
   draft, isPool, showTotalColumn, showParentColumn, calendarOptions, crews, autoColor,
   onChange, onCommit, onCancel, onMove, onReveal,
 }: {
-  /** #21: preview-kleur voor de concept-rij — wat de store bij commit zal toewijzen als de
+  /** Preview-kleur voor de concept-rij — wat de store bij commit zal toewijzen als de
    *  gebruiker zelf niets kiest (eerste vrije paletkleur op de betreffende verzameling). */
   autoColor: string;
   draft: ResourceDraft;

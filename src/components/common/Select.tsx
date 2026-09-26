@@ -21,10 +21,10 @@ interface SelectProps {
   id?: string;
   'aria-label'?: string;
   className?: string;
-  /** Browserreview, observatie 5: begin al UITGEKLAPT (met de volledige lijst zichtbaar) i.p.v. pas
+  /** Begin al UITGEKLAPT (met de volledige lijst zichtbaar) i.p.v. pas
    *  na een tweede interactie te openen — nodig voor gridcel-editors, waar "de cel in gaan" zélf al
    *  de keuzemoment is. Focust bij mount ook meteen de trigger, zodat pijltjes/Enter direct werken.
-   *  Bestaande (niet-grid) aanroepers laten dit weg en houden hun huidige, gesloten startgedrag. */
+   *  Niet-grid-aanroepers laten dit weg en starten gesloten. */
   autoOpen?: boolean;
   'aria-invalid'?: true;
   'aria-describedby'?: string;
@@ -115,7 +115,7 @@ export function Select({
     };
   }, [open, computeRect]);
 
-  // Browserreview, observatie 5: bij autoOpen begint de trigger nooit gefocust vanuit de gewone
+  // Bij autoOpen begint de trigger nooit gefocust vanuit de gewone
   // klik-/tabvolgorde (de gridcel-editor mount 'm rechtstreeks) — zonder deze focus werken
   // pijltjes/Enter/Escape pas na een extra klik.
   useEffect(() => {
@@ -232,7 +232,7 @@ export function Select({
       case 'Enter':
       case ' ':
         e.preventDefault();
-        // Browserreview, observatie 5: stopPropagation zodra dit ECHT een keuze maakt — anders zou
+        // StopPropagation zodra dit ECHT een keuze maakt — anders zou
         // dezelfde Enter ook nog doorbubbelen naar een omringende "Enter commit"-handler (zoals de
         // gridcel-editor), die de keuze dan een TWEEDE keer zou verwerken. Grid-integratie roept de
         // commit zelf al aan vanuit onChange (zie TaskCellEditor); dit voorkomt dat dubbel gebeurt.
@@ -255,12 +255,10 @@ export function Select({
     }
   };
 
-  // Browserreview, observatie 5: `autoOpen` maakt `open` al bij de EERSTE render `true` — vóór
-  // deze fix riep dat createPortal(..., document.body) al tijdens `renderToStaticMarkup` aan (dit
-  // project heeft géén jsdom), wat crasht op een ontbrekend `document`. De niet-grid-aanroepers van
-  // `Select` liepen dit nooit tegen het lijf, want die starten altijd gesloten (`open` pas `true` ná
-  // een klik, ruim ná de eerste render). `typeof document !== 'undefined'` maakt de portal SSR-veilig
-  // sowieso: de menu-portal bestaat toch pas zinvol zodra de component in een echte browser draait.
+  // `autoOpen` maakt `open` al bij de EERSTE render `true`, dus ook tijdens `renderToStaticMarkup`
+  // (dit project heeft géén jsdom) — createPortal(..., document.body) crasht dan op een ontbrekend
+  // `document`. `typeof document !== 'undefined'` maakt de portal SSR-veilig: de menu-portal
+  // bestaat pas zinvol zodra de component in een echte browser draait.
   const menu =
     open && rect && typeof document !== 'undefined'
       ? createPortal(

@@ -14,7 +14,7 @@ import './Tooltip.css';
  * geklemd.
  */
 const DELAY_MS = 400;
-/** `data-tooltip-instant`: geen vertraging — voor info-iconen waar de tooltip dé inhoud is (issue #144). */
+/** `data-tooltip-instant`: geen vertraging — voor info-iconen waar de tooltip dé inhoud is. */
 const instantDelay = (el: HTMLElement): number => (el.hasAttribute('data-tooltip-instant') ? 0 : DELAY_MS);
 
 interface TipState { text: string; x: number; y: number; }
@@ -51,7 +51,7 @@ export function TooltipHost() {
       return null;
     };
     // Een `title` die pas bij binnenkomst van de muis wordt gezet (de taakgrid meet dan pas of een
-    // cel afknipt, issue #89) bestaat nog niet op het moment dat deze capture-listener loopt: React
+    // cel afknipt) bestaat nog niet op het moment dat deze capture-listener loopt: React
     // verwerkt zijn mouseenter-state ná ons. Kijk daarom bij een leeg resultaat één keer opnieuw
     // zodra die update is doorgevoerd; blijft het leeg, dan is er gewoon niets te tonen.
     let retryTarget: EventTarget | null = null;

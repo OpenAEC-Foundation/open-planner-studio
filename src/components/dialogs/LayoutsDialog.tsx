@@ -20,7 +20,7 @@ import { decodeFieldRef, encodeFieldRef } from '@/components/layout/Ribbon/ribbo
 import type { LayoutOverlays } from '@/types/view';
 import type { BarColorSelection } from '@/types/barColor';
 
-/** Label- en tooltipsleutel per layoutdeel; de vijf bestaande delen hergebruiken hun eigen titel. */
+/** Label- en tooltipsleutel per layoutdeel; de vijf klassieke delen hergebruiken hun eigen titel. */
 type LayoutKey = ParseKeys<['common', 'menu']>;
 
 const PART_KEYS: Record<LayoutPart, { label: LayoutKey; info: LayoutKey }> = {
@@ -33,8 +33,8 @@ const PART_KEYS: Record<LayoutPart, { label: LayoutKey; info: LayoutKey }> = {
   overlays: { label: 'common:view.layout.partOverlays', info: 'common:view.layout.infoOverlays' },
 };
 
-/** De rijen van de dialoog. De relatielijnen staan sinds issue #173 onder de kop Overlay: in de data
- *  blijven ze een eigen deel (bestaande layouts), in de dialoog legt het vinkje Overlay beide vast. */
+/** De rijen van de dialoog. De relatielijnen staan onder de kop Overlay: in de data
+ *  zijn ze een eigen deel, in de dialoog legt het vinkje Overlay beide vast. */
 const DIALOG_ROWS = LAYOUT_PARTS.filter(part => part !== 'showRelations');
 const partsOfRow = (row: LayoutPart): LayoutPart[] => (row === 'overlays' ? ['showRelations', 'overlays'] : [row]);
 
@@ -57,11 +57,11 @@ function decodeBarColors(value: string): BarColorSelection {
 }
 
 /**
- * Layoutdialoog (issue #144): maakt een nieuwe layoutknop of bewerkt een bestaande
+ * Layoutdialoog: maakt een nieuwe layoutknop of bewerkt een bestaande
  * (`ui.layoutDialogTargetId`). De dialoog werkt op een CONCEPT: filter, groepering, sortering,
  * tijdschaal en relatielijnen stel je hier zelf in (dezelfde editors als de klassieke lintknoppen),
  * en alleen de AANGEVINKTE delen worden vastgelegd. "Toepassen zonder opslaan" zet het concept op
- * het scherm zonder er een knop van te maken — de opvolger van het snelle, tijdelijke filter.
+ * het scherm zonder er een knop van te maken (een snel, tijdelijk filter).
  * Opslag app-globaal via `settingsStore`.
  */
 export function LayoutsDialog() {
@@ -90,7 +90,7 @@ export function LayoutsDialog() {
   const [icon, setIcon] = useState<string>('layout');
   const [parts, setParts] = useState<LayoutPart[]>([...LAYOUT_PARTS]);
   const [draft, setDraft] = useState<Layout>(fromScreen);
-  // Legt de layout de overlays vast? Een layout van vóór #173 droeg alleen de relatielijnen; bewerken
+  // Legt de layout de overlays vast? Een oudere layout draagt alleen de relatielijnen; bewerken
   // (zelfs alleen hernoemen) mag er niet stil de overlays van het scherm van nu bij stoppen. Pas als
   // de gebruiker hier een overlay omzet, gaan ze mee.
   const [overlaysStored, setOverlaysStored] = useState(true);
@@ -224,8 +224,8 @@ export function LayoutsDialog() {
                 {t('common:view.layout.overlaysNotStored')}
               </div>
             )}
-            {/* Eén vinkje per overlay, en dat is meteen de waarde — het model dat #144 voor de
-                relatielijnen koos, nu voor de hele groep. */}
+            {/* Eén vinkje per overlay, en dat is meteen de waarde — hetzelfde model als voor de
+                relatielijnen. */}
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"

@@ -10,7 +10,7 @@ import {
 
 const COUNTRIES: HolidayCountry[] = ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH'];
 const BOUWVAK_CHOICES: BouwvakChoice[] = ['geen', 'noord', 'midden', 'zuid'];
-/** i18n-sleutels (§11) gebruiken `none` voor de "geen bouwvak"-keuze; de interne `BouwvakChoice`
+/** i18n-sleutels gebruiken `none` voor de "geen bouwvak"-keuze; de interne `BouwvakChoice`
  *  gebruikt `'geen'` (matcht `generateRegionalBreak`/`CalendarGeneration.breakChoice`). */
 const BOUWVAK_I18N_KEY: Record<BouwvakChoice, 'none' | 'noord' | 'midden' | 'zuid'> = {
   geen: 'none', noord: 'noord', midden: 'midden', zuid: 'zuid',
@@ -24,8 +24,8 @@ export function accentChipClass(active: boolean): string {
 }
 
 /**
- * Gedeelde feestdagen-generator-velden (ontwerp §7.1/§7.2): land/regio, NL-bouwvak
- * (default GEEN — harde eis TODO.md r192-194) en een compacte preview met uitklapbare
+ * Gedeelde feestdagen-generator-velden: land/regio, NL-bouwvak
+ * (default GEEN — bewust) en een compacte preview met uitklapbare
  * lijst. Hergebruikt door de wizard (`ProjectInfoDialog`) en `CalendarForm`
  * ("Feestdagen genereren…"). Store-loos, puur presentational.
  */
@@ -53,7 +53,7 @@ export function CalendarGeneratorFields({
 }) {
   const { t: tCommon } = useTranslation('common');
   const [expanded, setExpanded] = useState(false);
-  // Bouwmodus (2026-07-13): het NL-bouwvak is bouwjargon → in bouw-agnostische modus (bouwmodus UIT)
+  // Bouwmodus: het NL-bouwvak is bouwjargon → in bouw-agnostische modus (bouwmodus UIT)
   // verbergen we de bouwvak-rij én forceren we de param terug naar 'geen', zodat een gegenereerde
   // kalender in die modus nooit stilzwijgend een bouwvak bevat.
   const constructionMode = useAppStore(s => s.ui.constructionMode);
@@ -137,7 +137,7 @@ export function CalendarGeneratorFields({
         </div>
       )}
 
-      {/* Compacte preview (§7.2): samenvattingsregel + uitklapbare lijst i.p.v. een volle tabel.
+      {/* Compacte preview: samenvattingsregel + uitklapbare lijst i.p.v. een volle tabel.
           Onbekende/ondoorzichtige landkeuzes ("Aangepast…") hebben geen zinvolle preview. */}
       {isKnownCountry && (
       <div className="flex flex-col gap-1 border-t border-border pt-2">

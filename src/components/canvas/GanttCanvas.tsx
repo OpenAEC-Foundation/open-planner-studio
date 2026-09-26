@@ -32,19 +32,19 @@ import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import { isTreeMode } from '@/engine/view/visibleRows';
 import { ContextMenu } from './ContextMenu';
-// Issue #42/#45: reikwijdte (aangeklikte taak = handgreep, selectie = bereik) + de bulk-uitvoering
+// Reikwijdte (aangeklikte taak = handgreep, selectie = bereik) + de bulk-uitvoering
 // als ÉÉN undo-stap. DOM-vrij afgezonderd zodat de regressiebatterij dezelfde functies draait.
 import { contextMenuOutlineScope, contextMenuBulk } from './contextMenuScope';
 import { RelationTypePopover } from './RelationTypePopover';
 import { createRelationDraftWithFeedback } from '@/state/relationActions';
-// Issue #58: hover-tooltip die zichzelf binnen het venster houdt (nodig zodra de titel wrapt).
+// Hover-tooltip die zichzelf binnen het venster houdt (nodig zodra de titel wrapt).
 import { HoverTooltip } from './HoverTooltip';
 import { TaskTooltipContent } from './TaskTooltipContent';
 import { getLocalizedMonths } from '@/i18n/dateFormat';
 import { useTaskTypeLabels } from '@/i18n/taskTypes';
 import { saveHistogramHeight } from '@/utils/settingsStore';
-// K-item 33: de pure afleidingen achter de weergave + de opbouw van `GanttRenderOptions`. Ze zijn
-// hierheen verhuisd zodat ze headless te controleren zijn; de `useMemo`-aanroepen hieronder blijven
+// De pure afleidingen achter de weergave + de opbouw van `GanttRenderOptions`. Ze staan apart
+// zodat ze headless te controleren zijn; de `useMemo`-aanroepen hieronder blijven
 // bewust in dit component staan (zie de kop van dat bestand voor waarom).
 import {
   buildBaselineOverlay,
@@ -63,16 +63,15 @@ import { removeGap } from '@/engine/scheduler/splitEdit';
 import { useGanttRowDragBridge } from './ganttRowDragBridge';
 import type { HistogramRenderInput } from './hooks/ganttCoordinatorTypes';
 
-// Basisgeometrie op Tekengrootte 100% (issue #60): de component leidt hieruit de EFFECTIEVE
+// Basisgeometrie op Tekengrootte 100%: de component leidt hieruit de EFFECTIEVE
 // `rowHeight`/`headerHeight` af (× ui.uiFontScale/100) — gebruik binnen de component die geschaalde
 // waarden, nooit deze constanten direct, anders lopen tekenen en hit-testen uit de pas.
 const ROW_HEIGHT = 28;
 const HEADER_HEIGHT = 50;
-// Dikte van de ZWEVENDE scrollbalken over de panes (issue #22 horizontaal, #35 verticaal).
-// Exact de `::-webkit-scrollbar`-maat uit globals.css (8px) — NIET ruimer. Stond eerst op 14 met
-// als gedachte "dan plakt de balk niet tegen de canvasrand", maar dat leverde 6px dode strook op
-// die als een veel te brede balk las (user-feedback bij #35). Sinds de balken overlays zijn is
-// gelijkheid met globals.css bovendien functioneel: de strook is dan precies één scrollbalk dik,
+// Dikte van de ZWEVENDE scrollbalken over de panes (horizontaal en verticaal).
+// Exact de `::-webkit-scrollbar`-maat uit globals.css (8px) — NIET ruimer: meer levert een dode
+// strook op die als een te brede balk leest. Omdat de balken overlays zijn is gelijkheid met
+// globals.css bovendien functioneel: de strook is dan precies één scrollbalk dik,
 // dus er ontstaat geen dode klikzone náást de balk die de kaart eronder afdekt.
 const SCROLLBAR_GUTTER = 8;
 // Breedte van de sleepbare ratio-balk tussen de twee panes — de mini-map-strook eronder laat
@@ -110,14 +109,14 @@ export function GanttCanvas({
 
   const tasks = useAppStore(s => s.tasks);
   const allSequences = useAppStore(s => s.sequences);
-  // Issue #144: relatielijnen uit (o.a. het resourcediagram, waar een taak onder meerdere banden
+  // Relatielijnen uit (o.a. het resourcediagram, waar een taak onder meerdere banden
   // staat) = de renderer krijgt geen relaties; tekenen én hit-testen vallen dan samen weg.
   const showRelations = useAppStore(s => s.view.showRelations ?? true);
   const sequences = useMemo(() => (showRelations ? allSequences : NO_SEQUENCES), [showRelations, allSequences]);
   const calendar = useAppStore(s => s.calendar);
   const calendars = useAppStore(s => s.calendars);
   const barSplitMode = useAppStore(s => s.ui.barSplitMode);
-  // Issue #21 punt 5 (fase 2): «alleen werkbare dagen tonen» — globale weergavevoorkeur.
+  // «Alleen werkbare dagen tonen» — globale weergavevoorkeur.
   const compressNonWorkdays = useAppStore(s => s.ui.compressNonWorkdays);
   const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
   const durationDisplay = useAppStore(s => s.ui.durationDisplay);
@@ -128,7 +127,7 @@ export function GanttCanvas({
   const deselectAll = useAppStore(s => s.deselectAll);
   const addTask = useAppStore(s => s.addTask);
   const updateTask = useAppStore(s => s.updateTask);
-  // W2-vervolg: een gesleepte start volgt dezelfde startregel als een getypte. De voorgangervraag
+  // Een gesleepte start volgt dezelfde startregel als een getypte. De voorgangervraag
   // gebruikt ALLE relaties (ook als de relatielijnen verborgen zijn) en wordt pas bij het begin van
   // een sleepgebaar gesteld.
   const notify = useAppStore(s => s.notify);
@@ -137,31 +136,29 @@ export function GanttCanvas({
     (taskId: string) => predecessorDrivenTaskIds(tasks, allSequences).has(taskId),
     [tasks, allSequences],
   );
-  // Issue #40: de relatiemodus is een "plakkende Shift" — staat hij aan, dan armt een mousedown op
+  // De relatiemodus is een "plakkende Shift" — staat hij aan, dan armt een mousedown op
   // een balk hetzelfde dependency-tekenen als shift+slepen. Dit is de ENIGE lezer die gedrag
-  // stuurt; vóór deze fix werd de vlag alleen geschreven (dode modus, knop deed niets zichtbaars).
+  // stuurt.
   const dependencyMode = useAppStore(s => s.ui.showDependencyMode);
-  // Issue #146: de splits-modus werkt precies zo — staat hij aan, dan knipt een mousedown op een
+  // De splits-modus werkt precies zo — staat hij aan, dan knipt een mousedown op een
   // balk de taak op de aangeklikte dag. Wederzijds uitsluitend met de relatiemodus (zie `setUI`).
   const splitMode = useAppStore(s => s.ui.showSplitMode);
   const setTaskSplits = useAppStore(s => s.setTaskSplits);
   const undo = useAppStore(s => s.undo);
   const setScroll = useAppStore(s => s.setScroll);
   const setUI = useAppStore(s => s.setUI);
-  // Fase 2.10 golf 2 (contextmenu's): golf-1-helpers + bestaande taak-acties die het contextmenu
-  // nu ook ontsluit. De muterende taak-acties (in-/uitspringen, mijlpaal, kalender, voortgang,
-  // prioriteit, verwijderen) lopen sinds issue #45 via `contextMenuBulk` en worden hier daarom niet
-  // meer los uit de store getrokken.
+  // Store-acties die het contextmenu ontsluit. De muterende taak-acties (in-/uitspringen,
+  // mijlpaal, kalender, voortgang, prioriteit, verwijderen) lopen via `contextMenuBulk` en worden
+  // hier daarom niet los uit de store getrokken.
   const pasteTasks = useAppStore(s => s.pasteTasks);
   const taskClipboard = useAppStore(s => s.taskClipboard);
-  // Issue #35b: het bandkop-contextmenu bestaat alléén in gegroepeerde weergave, en daar neemt
-  // `computeViewRows` de taak-collapse volledig over door de groepsbanden. De oude
-  // `expandAll`/`collapseAll` werken op summary-taken en zijn daar dus inert — vandaar dat
-  // "Alles uit-/inklappen" in het bandkop-menu niets deed. Die items gebruiken nu de groepsacties
-  // (zelfde als de Beeld-tab in gegroepeerde weergave).
+  // Het bandkop-contextmenu bestaat alléén in gegroepeerde weergave, en daar neemt
+  // `computeViewRows` de taak-collapse volledig over door de groepsbanden. `expandAll`/`collapseAll`
+  // werken op summary-taken en zijn daar dus inert; "Alles uit-/inklappen" in het bandkop-menu
+  // gebruikt daarom de groepsacties (zelfde als de Beeld-tab in gegroepeerde weergave).
   const expandAllGroups = useAppStore(s => s.expandAllGroups);
   const collapseAllGroups = useAppStore(s => s.collapseAllGroups);
-  // Issue #42: het taakcontextmenu klapt APART in/uit (net als de Beeld-tab) en gebruikt daarom
+  // Het taakcontextmenu klapt APART in/uit (net als de Beeld-tab) en gebruikt daarom
   // dezelfde gerichte acties als `outlineGroup` — niet de toggle.
   const collapseTasks = useAppStore(s => s.collapseTasks);
   const expandTasks = useAppStore(s => s.expandTasks);
@@ -173,14 +170,14 @@ export function GanttCanvas({
   // Primitive invalidatiesleutel voor Canvas-2D: CSS-variabelen veranderen buiten de teken-
   // callbackidentiteit om, dus elke canvaslaag krijgt dit expliciete thema-contract mee.
   const canvasThemeRevision = uiTheme;
-  // Interface-lettertypefamilie (issue #25 punt 4) → concrete CSS font-stack voor de Canvas-2D-
+  // Interface-lettertypefamilie → concrete CSS font-stack voor de Canvas-2D-
   // renderers. De DOM krijgt de familie via CSS-variabelen, maar een canvas leest die niet, dus
   // resolven we hem hier één keer en geven we de string mee aan beide renderers. De waarde staat
   // ook in de deps van de teken-callbacks: zonder dat hertekent het canvas niet bij een wijziging
   // en lijkt de instelling stuk (de chrome schakelt wél om, de planning niet).
   const uiFontFamily = useAppStore(s => s.ui.uiFontFamily);
   const canvasFontFamily = resolveUIFontStack(uiFontFamily);
-  // Issue #60: de Tekengrootte-instelling (ui.uiFontScale). De DOM-chrome schaalt via de rem-basis
+  // De Tekengrootte-instelling (ui.uiFontScale). De DOM-chrome schaalt via de rem-basis
   // (`--ui-font-scale` in App.tsx), maar een canvas leest geen CSS — de factor gaat daarom als
   // `fontScale` mee naar de renderer, en schaalt hier óók de rij-/headerhoogte: zonder dat zou
   // grotere tekst in de vaste 28px-rij clippen. Alle hit-tests, overlays en scrollgrenzen hieronder
@@ -196,7 +193,7 @@ export function GanttCanvas({
   const modifierMap = useAppStore(s => s.ui.modifierMap);
   const traceMode = useAppStore(s => s.ui.traceMode);
   const cpmResult = useAppStore(s => s.cpmResult);
-  // DE gedeelde zichtbare-rijenlijst (fase 2.7, §4.3): zelfde store-veld als FullTaskGrid.
+  // DE gedeelde zichtbare-rijenlijst: zelfde store-veld als FullTaskGrid.
   const viewRows = useAppStore(s => s.viewRows);
   const setCollapsedGroupKey = useAppStore(s => s.setCollapsedGroupKey);
   const splitView = useAppStore(s => s.view.splitView);
@@ -209,11 +206,11 @@ export function GanttCanvas({
   const histogramResourceId = useAppStore(s => s.view.histogramResourceId);
   const resourceLoadResult = useAppStore(s => s.resourceLoadResult);
   const scheduleStale = useAppStore(s => s.scheduleStale);
-  // Voortgang & baselines (fase 2.6, §6)
+  // Voortgang & baselines
   const statusDate = useAppStore(s => s.project.statusDate);
   const showBaselineOverlay = useAppStore(s => s.ui.showBaselineOverlay);
   const showProgressLine = useAppStore(s => s.ui.showProgressLine);
-  // #21: resource-accent + de bijbehorende resources/toewijzingen (zelfde bron als de histogram/
+  // Resource-accent + de bijbehorende resources/toewijzingen (zelfde bron als de histogram/
   // tabelweergave — de renderer krijgt alles doorgegeven en leeft buiten de store).
   const showResourceAccent = useAppStore(s => s.ui.showResourceAccent);
   const showFloatBand = useAppStore(s => s.ui.showFloatBand);
@@ -284,13 +281,13 @@ export function GanttCanvas({
     primaryHScrollRef: hScrollRef,
     secondaryHScrollRef: hScrollSecondaryRef,
   } = viewport.refs;
-  // R2a-fixronde punt 1: `histogramContainerRef` is een stabiel `RefObject` — bij een remount van de
+  // `histogramContainerRef` is een stabiel `RefObject` — bij een remount van de
   // strook (portal-doel `histogramHost` bestaat pas ná de eerste render, of de hele Gantt wordt
   // ver- en hermount bij een tabwissel naar Tabel/Backstage) wijzigt `.current` zonder dat React dat
   // als een echte waardewissel ziet. `useGanttHistogramPickerScroll` moet de node zelf als afhankelijk-
   // heid krijgen om zijn wheel-listener opnieuw te hechten, dus spiegelen we `.current` hier naar
-  // React-state via een callback-ref (die overige consumenten van `histogramContainerRef`, zoals
-  // `useGanttRendererHost`, blijven ongewijzigd via het ref-object lezen).
+  // React-state via een callback-ref (overige consumenten van `histogramContainerRef`, zoals
+  // `useGanttRendererHost`, lezen via het ref-object).
   const [histogramContainerEl, setHistogramContainerEl] = useState<HTMLDivElement | null>(null);
   const setHistogramContainerNode = useCallback((node: HTMLDivElement | null) => {
     histogramContainerRef.current = node;
@@ -319,7 +316,7 @@ export function GanttCanvas({
   } = rendererHost;
 
   const localizedMonths = useMemo(() => getLocalizedMonths(i18n.language), [i18n.language]);
-  // issue #21 punt 2 (vervolg: dagnamen): 7 weekdag-afkortingen in getUTCDay()-volgorde
+  // 7 weekdag-afkortingen in getUTCDay()-volgorde
   // (0=zondag … 6=zaterdag). Hergebruikt de bestaande kalender-vertalingen uit het menu-
   // namespace (ribbon.calendarDialog.days, ISO 1=ma … 7=zo) en remapt die naar Sun-first.
   // Gememoized op de gebonden vertaalfunctie, zodat een taalwissel de labels vernieuwt en de
@@ -336,11 +333,11 @@ export function GanttCanvas({
     ],
     [tMenu],
   );
-  // Vertaalde duur-eenheid-suffixen voor de duurkolom-weergave (§6.4/§11). De gebonden
+  // Vertaalde duur-eenheid-suffixen voor de duurkolom-weergave. De gebonden
   // vertaalfunctie wisselt mee met de taal; daarbuiten blijft de rendereroptie stabiel.
   const durationSuffixes = useMemo(() => durationSuffixesFrom(tCommon), [tCommon]);
 
-  // Fase 2.8b (§6.1/§6.9): effectieve kalender per taak (task.calendarId → bibliotheek, anders de
+  // Effectieve kalender per taak (task.calendarId → bibliotheek, anders de
   // projectkalender). De renderer leest hieruit per taak uur- vs dag-modus en de banden voor de
   // balk-opsplitsing. Gememoized zodat er niet per frame een map gebouwd wordt.
   const effectiveCalById = useMemo(
@@ -355,7 +352,7 @@ export function GanttCanvas({
     }),
     [tCommon],
   );
-  // R1: reden achter een overbezette dag zichtbaar maken in de bestaande tooltip — géén nieuwe
+  // Reden achter een overbezette dag zichtbaar maken in de bestaande tooltip — géén nieuwe
   // UI-laag. `non-working-day` (resourcekalender kent die dag geen werkdag) krijgt de kalendernaam
   // erbij; `over-capacity` laat de tooltip ongewijzigd (de bestaande taaklijst zegt daar al genoeg).
   const describeHistogramNonWorkingDay = useCallback((resourceId: string, isoDate: string): string | null => {
@@ -407,10 +404,10 @@ export function GanttCanvas({
     state.setScroll(Math.max(0, startX - 40), currentView.scrollY);
   }, [canvasRef, sharedAxis]);
 
-  // Issue #118: een onthulverzoek is eenmalig. `revealTaskIfOffscreen` hangt aan `sharedAxis`,
-  // die bij iedere scrollX-wijziging opnieuw gebouwd wordt; zonder deze poort vuurde het effect
-  // daardoor bij élke scroll opnieuw voor hetzelfde verzoek en trok het de balk telkens terug in
-  // beeld — de Gantt zat "vast" aan de laatst in de tabel aangeklikte taak, ook na deselectie.
+  // Een onthulverzoek is eenmalig. `revealTaskIfOffscreen` hangt aan `sharedAxis`,
+  // die bij iedere scrollX-wijziging opnieuw gebouwd wordt; zonder deze poort vuurt het effect
+  // daardoor bij élke scroll opnieuw voor hetzelfde verzoek en trekt het de balk telkens terug in
+  // beeld — de Gantt zit dan "vast" aan de laatst in de tabel aangeklikte taak.
   const handledRevealNonceRef = useRef<number | null>(null);
   useEffect(() => {
     if (!revealRequest) return;
@@ -427,9 +424,9 @@ export function GanttCanvas({
   // Verticale balkbody-sleep ⇒ de rijsleep van de taakgrid links (zie `ganttRowDragBridge`).
   // BEWUST geen `isTreeMode`-poort hier: die hoort bij de ontvanger. `useTableRowDrag` kent hem al
   // als `enabled`, en koppelt er `onBlocked` aan — de melding die uitlegt dat de structuur op slot
-  // zit zolang er gesorteerd of gegroepeerd wordt. Zeefde het canvas de kandidaat er zelf uit, dan
-  // kreeg de balk-gebruiker die uitleg niet terwijl de rij-gebruiker hem wél kreeg, en werd het
-  // gebaar bovendien stil afgebroken (review 2026-09-15). Eén poort, bij de eigenaar van de sleep.
+  // zit zolang er gesorteerd of gegroepeerd wordt. Zeeft het canvas de kandidaat er zelf uit, dan
+  // krijgt de balk-gebruiker die uitleg niet en wordt het gebaar stil afgebroken. Eén poort, bij de
+  // eigenaar van de sleep.
   // De starter wordt via de ref op het gebaar zelf gelezen, zodat een (her)registratie van de
   // grid geen rerender van de coördinator uitlokt.
   const rowDragBridge = useGanttRowDragBridge();
@@ -484,12 +481,12 @@ export function GanttCanvas({
     focusCanvas(event);
     histogramInteraction.onClick(event);
   }, [focusCanvas, histogramInteraction]);
-  // Eigenaarscorrectie op R1: de tooltip is een echte hover-tooltip (zie de hook), dus deze twee
+  // De tooltip is een echte hover-tooltip (zie de hook), dus deze twee
   // routes hoeven geen focus te claimen — alleen de klik (resourceselectie) doet dat. Geen eigen
   // wrapper nodig: `histogramInteraction.onMouseMove`/`.onMouseLeave` zijn zelf al gememoiseerd in
-  // de hook, dus rechtstreeks doorgeven zoals `onKeyDown` hieronder al deed.
+  // de hook, dus rechtstreeks doorgeven zoals `onKeyDown` hieronder.
 
-  // Issue #51: alleen een actieve RAND-sleep voedt de bestaande duurpil in de renderer.
+  // Alleen een actieve RAND-sleep voedt de duurpil in de renderer.
   const durationDrag = useMemo(
     () => (pointer.overlays.barDrag && pointer.overlays.barDrag.edge !== 'body'
       ? { taskId: pointer.overlays.barDrag.taskId, edge: pointer.overlays.barDrag.edge }
@@ -497,7 +494,7 @@ export function GanttCanvas({
     [pointer.overlays.barDrag],
   );
 
-  // Baseline-overlay-Map uit de actieve baseline (fase 2.6, §6.2): keyed op Task.id (leaf-taken).
+  // Baseline-overlay-Map uit de actieve baseline: keyed op Task.id (leaf-taken).
   const baselineOverlay = useMemo(
     () => buildBaselineOverlay(baselines, activeBaselineId),
     [baselines, activeBaselineId],
@@ -510,7 +507,7 @@ export function GanttCanvas({
     [traceMode, selectedTaskIds, allSequences, cpmResult],
   );
 
-  // --- Histogram (fase 2.5, §6.4) ---
+  // --- Histogram ---
   const histogramPicker = useMemo<HistogramPickerItem[]>(
     () => buildHistogramPicker(scopedTaskResources.resources, scopedResourceLoadResult, tCommon('resource.histogram.allResources')),
     [scopedTaskResources.resources, scopedResourceLoadResult, tCommon],
@@ -521,8 +518,8 @@ export function GanttCanvas({
     [scopedResourceLoadResult, effectiveHistogramResourceId, scopedTaskResources.resources],
   );
 
-  // R2a: scrollpositie van de kiezerlijst — sessiestate, buiten de store (zie de hook-kop). De
-  // id-lijst is nodig voor de reveal-logica (punt 4: een van buiten gekozen resource die buiten
+  // Scrollpositie van de kiezerlijst — sessiestate, buiten de store (zie de hook-kop). De
+  // id-lijst is nodig voor de reveal-logica (een van buiten gekozen resource die buiten
   // beeld ligt) en volgt bewust dezelfde volgorde als `buildHistogramPicker`.
   const histogramPickerIds = useMemo(
     () => histogramPicker.map(item => item.id),
@@ -549,9 +546,9 @@ export function GanttCanvas({
       pickerSide: histogramPickerSide,
       pickerScrollY: histogramPickerScrollY,
       axis: histogramAxis,
-      // Issue #25 punt 4: zelfde lettertypefamilie als de Gantt erboven en de DOM-chrome.
+      // Zelfde lettertypefamilie als de Gantt erboven en de DOM-chrome.
       fontFamily: canvasFontFamily,
-      // Issue #60 (nazit uit de PR-review): zelfde tekstschaal als de Gantt erboven, anders staan
+      // Zelfde tekstschaal als de Gantt erboven, anders staan
       // de strooklabels zichtbaar uit de pas op de gedeelde as.
       fontScale,
       labels: { unitsSuffix: tCommon('resource.histogram.units') },
@@ -787,16 +784,14 @@ export function GanttCanvas({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Pane-rij (§10). De scrollbalken zijn ZWEVENDE overlays binnen deze rij en binnen de panes
-          zelf (issue #35): ze staan niet meer als eigen kolom/rij in de layout. Dat was geen
-          cosmetiek — een echte 8px-goot/-rij snoept die 8px van de kaart af en laat onder de
-          takenlijst een strook achter die daar niets te zoeken heeft (de user: "het onderliggende
-          paneel moet daar gewoon in doorlopen"). Als overlay houdt het canvas de volle hoogte en
-          breedte en loopt het paneel eronder door tot de rand.
+      {/* Pane-rij. De scrollbalken zijn ZWEVENDE overlays binnen deze rij en binnen de panes
+          zelf, geen eigen kolom/rij in de layout: een echte 8px-goot/-rij snoept die 8px van de
+          kaart af en laat onder de takenlijst een lege strook achter. Als overlay houdt het canvas
+          de volle hoogte en breedte en loopt het paneel eronder door tot de rand.
           `dir="ltr"` op de pane-rij is FUNCTIONEEL: liet je deze rij mirroren, dan wisselen
           primair en secundair pane visueel van
-          plek terwijl de mini-map-strook hieronder wél LTR gepind is — die kwam dan onder het
-          VERKEERDE pane te liggen (gemeten in ar). Dezelfde pin houdt bovendien de ratio-sleep
+          plek terwijl de mini-map-strook hieronder wél LTR gepind is — die komt dan onder het
+          VERKEERDE pane te liggen. Dezelfde pin houdt bovendien de ratio-sleep
           kloppend, die `clientX - rect.left` tegen `paneRowRef` rekent en dus een niet-gespiegelde
           rij veronderstelt, én zet de overlay-balken hieronder aan de kant waar ze horen. */}
       <div ref={paneRowRef} className="flex-1 min-w-0 flex overflow-hidden relative" dir="ltr">
@@ -830,8 +825,8 @@ export function GanttCanvas({
           style={{ pointerEvents: 'none' }}
         />
 
-        {/* Box-selection kader (fase 2.10 golf 4): half-transparant rechthoekje tijdens de sleep,
-            in viewport-coördinaten — hoeft niet mee te scrollen (§spec), de rij-intersectie zelf
+        {/* Box-selection kader: half-transparant rechthoekje tijdens de sleep,
+            in viewport-coördinaten — hoeft niet mee te scrollen, de rij-intersectie zelf
             wordt op het actuele moment berekend (getTaskIdsInYRange). */}
         {boxSelectState && (() => {
           const containerRect = containerRef.current?.getBoundingClientRect();
@@ -861,7 +856,7 @@ export function GanttCanvas({
           );
         })()}
 
-        {/* Splits-modus (issue #146): het LABEL bij de geleidelijn staat bewust in de DOM en niet op
+        {/* Splits-modus: het LABEL bij de geleidelijn staat bewust in de DOM en niet op
             het canvas — zo volgt het de zes tekstrollen en de tekengrootte-instelling vanzelf. De
             lijn zelf tekent `useSplitGesture` op de overlaylaag. Zolang er niet gesleept is toont
             het de gesnapte datum; tijdens het gebaar de lengte van de pauze. */}
@@ -883,7 +878,7 @@ export function GanttCanvas({
           </div>
         )}
 
-        {/* Issue #146 etappe 3: hetzelfde DOM-label tijdens het verslepen van een stuk (de pauze
+        {/* Hetzelfde DOM-label tijdens het verslepen van een stuk (de pauze
             ervóór) of een stukrand (de lengte van dat stuk) op een gesplitste balk. */}
         {splitDragLabel && (
           <div
@@ -905,9 +900,8 @@ export function GanttCanvas({
           </div>
         )}
 
-        {/* Tooltip — issue #58: HoverTooltip houdt de doos binnen het venster. Issue #65: de
-            content zit sinds de extractie in TaskTooltipContent, gedeeld met de WBS-sprongknop
-            in het eigenschappenpaneel. */}
+        {/* Tooltip — HoverTooltip houdt de doos binnen het venster. De content zit in
+            TaskTooltipContent, gedeeld met de WBS-sprongknop in het eigenschappenpaneel. */}
         {tooltip && (
           <HoverTooltip left={tooltip.x + 16} top={tooltip.y - 10}>
             <TaskTooltipContent task={tooltip.task} />
@@ -925,7 +919,7 @@ export function GanttCanvas({
           <div style={{ width: Math.max(1, totalContentWidth), height: 1 }} />
         </div>
       </div>
-      {/* Secundair pane (§10): eigen tijdvenster, gedeelde rijen + verticale scroll */}
+      {/* Secundair pane: eigen tijdvenster, gedeelde rijen + verticale scroll */}
       {splitView && (
         <>
           <div
@@ -994,9 +988,8 @@ export function GanttCanvas({
             });
           }}
           onAddRelation={() => {
-            // Issue #40: zette vroeger dezelfde dode vlag als de lint-knop (plus een nooit gelezen
-            // `dependencySourceId`) en was dus óók een no-op. Nu armt het de echte relatiemodus.
-            // De aangeklikte taak wordt geselecteerd zodat zichtbaar is vanaf welke balk je sleept.
+            // Armt de relatiemodus. De aangeklikte taak wordt geselecteerd zodat zichtbaar is
+            // vanaf welke balk je sleept.
             if (contextMenu.task) {
               selectTask(contextMenu.task.id, false);
               setUI({ showDependencyMode: true });
@@ -1006,8 +999,8 @@ export function GanttCanvas({
             if (!contextMenu.task) return;
             const st = useAppStore.getState();
             const tpl = saveBranchAsWbsTemplate(contextMenu.task.name, contextMenu.task.id, st.tasks, st.sequences);
-            // Bevinding K8: lokale toast-state is opgeheven; de sjabloonmelding gaat door het
-            // gecentraliseerde kanaal (zichtbaar óók buiten de Gantt).
+            // De sjabloonmelding gaat door het gecentraliseerde meldingskanaal (zichtbaar óók
+            // buiten de Gantt).
             st.notify({
               severity: 'info',
               messageKey: 'notifications.templateSaved',
@@ -1056,7 +1049,7 @@ export function GanttCanvas({
           }}
           splitGapIndex={contextMenu.splitGapIndex}
           onRemoveSplitGap={(gapIndex) => {
-            // Issue #146 etappe 3: rekenen via `splitEdit.ts` op de ACTUELE taak, schrijven via de
+            // Rekenen via `splitEdit.ts` op de ACTUELE taak, schrijven via de
             // ene schrijfweg. Een weigering (taak intussen gewijzigd) doet niets.
             const task = contextMenu.task && useAppStore.getState().tasks.find(t => t.id === contextMenu.task!.id);
             if (!task?.splitGaps) return;

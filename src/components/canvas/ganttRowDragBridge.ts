@@ -7,10 +7,6 @@
 // Waarom een brug: `GanttTaskGrid` en `GanttCanvas` zijn broers in `GanttWorkspace` en delen geen
 // hook-instantie. De grid registreert zijn `startRowDrag` hier; het canvas leest de registratie
 // pas op het moment van het gebaar (ref, geen state — er mag geen rerender van afhangen).
-//
-// Historie: dit gebaar bestond sinds 2026-08-27 (f4390a0, toen nog via `useRowDrag` in de
-// coördinator zelf) en verdween ongemerkt in de tabel-overhaul-merge van 2026-08-31, toen de
-// rijsleep naar de DOM-grid verhuisde. Hersteld op eigenaarsverzoek (2026-09-15).
 import { createContext, useContext, type RefObject } from 'react';
 import type { TableRowDragCandidate } from '@/components/panels/hooks/useTableRowDrag';
 

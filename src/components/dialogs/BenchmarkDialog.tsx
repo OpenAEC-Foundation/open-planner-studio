@@ -12,11 +12,11 @@ import {
 import { formatBytes } from '@/utils/formatBytes';
 import { useCopyFeedback } from '@/hooks/useCopyFeedback';
 
-/** Grootte waarboven de "kan lang duren"-waarschuwing verschijnt (audit-punt 2). */
+/** Grootte waarboven de "kan lang duren"-waarschuwing verschijnt. */
 const LARGE_SIZE_THRESHOLD = 2500;
 
 /** Gelokaliseerde Detail-kolomtekst per fase, opgebouwd uit de gestructureerde resultaatvelden
- *  (audit-punt 1) — geen hardgecodeerde strings uit de runner meer. */
+ *  — geen hardgecodeerde strings uit de runner. */
 function phaseDetail(phase: PhaseId, r: BenchmarkResult, t: TFunction): string {
   switch (phase) {
     case 'generate': return t('benchmark.detailGenerate', { tasks: r.tasks, sequences: r.sequences });
@@ -33,7 +33,7 @@ function phaseDetail(phase: PhaseId, r: BenchmarkResult, t: TFunction): string {
 }
 
 /**
- * Ingebouwde benchmark-tool (pakket S). Kiest een planningsgrootte, draait een meetreeks over vijf
+ * Ingebouwde benchmark-tool. Kiest een planningsgrootte, draait een meetreeks over vijf
  * fasen (genereren, CPM-kern, IFC-schrijven, IFC-lezen, Gantt-render) en toont mediaan/min/max per
  * fase. ISOLATIE: alles draait op lokaal gegenereerde data via direct geïnstantieerde engine-
  * klassen — de store en het open project blijven ongemoeid (geen mutaties, geen undo, geen dirty).

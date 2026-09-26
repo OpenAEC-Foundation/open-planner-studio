@@ -7,7 +7,7 @@ import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { ConfirmDialog } from './ConfirmDialog';
 
 /**
- * Baseline-dialoog (fase 2.6, §11.2). Lijst met inline-hernoemen, actief-radio en verwijderen
+ * Baseline-dialoog. Lijst met inline-hernoemen, actief-radio en verwijderen
  * (bevestiging als het de actieve is); "nieuwe baseline opslaan" met default-naam en een
  * scheduleStale-hint ("herbereken eerst") — een hint, geen harde blokkade.
  */
@@ -31,8 +31,7 @@ export function BaselineDialog() {
   }, [baselines.length, t, notation]);
 
   const [newName, setNewName] = useState(defaultName);
-  // Fase 2.10 (item 5): lokale bevestigings-state i.p.v. `window.confirm()` (architect-besluit 4,
-  // geen globale singleton).
+  // Lokale bevestigings-state i.p.v. `window.confirm()` (geen globale singleton).
   const [pendingConfirm, setPendingConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
   // Nieuwe default-naam wanneer het aantal baselines wijzigt (bv. na opslaan/verwijderen).

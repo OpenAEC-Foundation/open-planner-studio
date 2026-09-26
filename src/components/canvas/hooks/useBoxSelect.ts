@@ -3,7 +3,7 @@ import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
 import { BOX_SELECT_THRESHOLD } from './constants';
 import { listenWindowDrag } from '@/hooks/listenWindowDrag';
 
-/** Fase 2.10 golf 4: sleep vanaf lege achtergrond, nog ONDER de drempel — nog geen kader, alleen
+/** Sleep vanaf lege achtergrond, nog ONDER de drempel — nog geen kader, alleen
  *  bijhouden vanaf waar we moeten meten. Wordt bij overschrijding gepromoveerd tot BoxSelectState;
  *  blijft de sleep onder de drempel tot mouseup, dan gebeurt er niets (de normale click volgt). */
 export interface BoxSelectCandidate {
@@ -11,7 +11,7 @@ export interface BoxSelectCandidate {
   startClientY: number;
 }
 
-/** Fase 2.10 golf 4: actief selectie-kader (na de drempel). Client-coördinaten, net als
+/** Actief selectie-kader (na de drempel). Client-coördinaten, net als
  *  DependencyDragState — omgerekend naar canvas-relatief op het moment van tekenen/meten. */
 export interface BoxSelectState {
   startClientX: number;
@@ -33,11 +33,11 @@ interface UseBoxSelectOptions {
 // kandidaat (onder drempel) en gepromoveerd kader — met elk hun eigen window-listeners. Het
 // centrale mousedown-hittest roept `startBoxSelect(...)` aan (zet de kandidaat).
 export function useBoxSelect({ canvasRef, rendererRef, selectTasks, deselectAll, justBoxSelectedRef }: UseBoxSelectOptions) {
-  // Fase 2.10 golf 4 (box-selection): kandidaat (onder drempel) en gepromoveerd kader (boven drempel).
+  // Box-selection: kandidaat (onder drempel) en gepromoveerd kader (boven drempel).
   const [boxSelectCandidate, setBoxSelectCandidate] = useState<BoxSelectCandidate | null>(null);
   const [boxSelectState, setBoxSelectState] = useState<BoxSelectState | null>(null);
 
-  // Box-selection golf 4a: kandidaatfase (nog onder de drempel). Bij overschrijding promoveren
+  // Kandidaatfase (nog onder de drempel). Bij overschrijding promoveren
   // we tot een echt kader; onder de drempel bij mouseup gebeurt niets (de gewone click-afhandeling
   // doet dan gewoon zijn normale werk, want justBoxSelectedRef staat niet).
   useEffect(() => {
@@ -61,7 +61,7 @@ export function useBoxSelect({ canvasRef, rendererRef, selectTasks, deselectAll,
     return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp });
   }, [boxSelectCandidate]);
 
-  // Box-selection golf 4b: het gepromoveerde kader. Rij-intersectie via de gedeelde hit-test
+  // Het gepromoveerde kader. Rij-intersectie via de gedeelde hit-test
   // (GanttRenderer.getTaskIdsInYRange) — alléén de Y-band telt, de X-as (tijd-as) doet niet mee,
   // dus takentabel en chart gedragen zich identiek. Ctrl/Cmd bij mouseup = toevoegen, anders
   // vervangen. Escape annuleert zonder selectie-wijziging.
@@ -108,7 +108,7 @@ export function useBoxSelect({ canvasRef, rendererRef, selectTasks, deselectAll,
       setBoxSelectState(null);
     };
 
-    // Issue #21 punt 1 (dode-klik-fix, zelfde latente gat als useRowDrag): eindigt de sleep buiten
+    // Dode-klik-vangnet (zelfde gat als bij de rijsleep): eindigt de sleep buiten
     // het canvas, dan bereikt geen canvas-click de handler die de vlag normaal consumeert — hij
     // zou blijven staan en de eerstvolgende echte canvas-klik inslikken. Eenmalige window-listener
     // in de BUBBLE-fase wist 'm alsnog (idempotent als een canvas-click 'm al had gewist).

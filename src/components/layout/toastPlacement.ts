@@ -1,8 +1,8 @@
 /**
- * Plaatsing van de meldingenstapel naast open dialogen en plakkende actiebalken (B5, gebruikstest
- * rekenprofielen 24-09). De stapel staat standaard onderaan in het midden, en lag daardoor over de
- * voetknoppen (Annuleren/Toepassen) van de Projectinfo-dialoog en de nieuw-projectwizard: een modale
- * dialoog staat ook gecentreerd en reikt tot 5 vh van de onderrand.
+ * Plaatsing van de meldingenstapel naast open dialogen en plakkende actiebalken. De stapel staat
+ * standaard onderaan in het midden en zou zo over de voetknoppen (Annuleren/Toepassen) van bv. de
+ * Projectinfo-dialoog vallen: een modale dialoog staat ook gecentreerd en reikt tot 5 vh van de
+ * onderrand.
  *
  * Regel: een melding bedekt nooit een knop van een open dialoog of van een `[data-ops-toast-avoid]`-balk.
  *  1. Staat er een modale dialoog open (`[role="dialog"][aria-modal="true"]`), dan gaat de stapel

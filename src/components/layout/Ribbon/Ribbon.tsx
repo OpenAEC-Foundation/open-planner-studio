@@ -15,8 +15,8 @@ import { applySetting } from '@/components/settings/applySetting';
  * Automatische inpassing (Office-lintpatroon): zoveel mogelijk labels, per knop degraderen
  * ------------------------------------------------------------------------------------------------
  * De lint-HOOGTE ligt vast (94px). Past de inhoud van de actieve tab niet op die ene rij, dan
- * degradeert niet de hele balk (dat was de oude vol → compact → icoon-ladder, die álle labels
- * tegelijk weggooide en zichtbaar knipperde), maar knop-vóór-knop van rechts naar links: een grote
+ * degradeert niet de hele balk (dat gooit álle labels tegelijk weg en knippert zichtbaar), maar
+ * knop-vóór-knop van rechts naar links: een grote
  * knop (icoon boven, label eronder, 66px hoog) wordt een kleine icoon-only knop van 20px, en drie
  * van die kleintjes stapelen zich binnen dezelfde lint-hoogte in één kolom. Knoppen die nog passen
  * houden gewoon hun label.
@@ -34,9 +34,8 @@ import { applySetting } from '@/components/settings/applySetting';
  * React niet beheert, dus een herberekening kan nooit een re-render of een lus veroorzaken.
  *
  * De handmatige inklap-knop (`ui.ribbonCompact`) blijft daarbuiten: die maakt van het lint een
- * platte 40px-strip via de bestaande `.ribbon-container.compact`-CSS. In die stand degradeert de
- * automaat niets (alle markeringen worden gewist) en blijft horizontale scroll het vangnet — precies
- * zoals vóór deze wijziging.
+ * platte 40px-strip via de `.ribbon-container.compact`-CSS. In die stand degradeert de
+ * automaat niets (alle markeringen worden gewist) en blijft horizontale scroll het vangnet.
  */
 
 const MINI_ATTR = 'data-ribbon-mini';
@@ -227,7 +226,7 @@ export function Ribbon() {
   const activeTab = useAppStore(s => s.ui.activeRibbonTab);
   const ribbonCompact = useAppStore(s => s.ui.ribbonCompact);
   const uiFontScale = useAppStore(s => s.ui.uiFontScale);
-  // T14: het AI-tabblad verschijnt alleen bij ingeschakelde AI-modus (conditioneel, net als de
+  // Het AI-tabblad verschijnt alleen bij ingeschakelde AI-modus (conditioneel, net als de
   // debug-terminal een paneel toont). Uitzetten verwijdert de tab; de reducer valt dan terug op
   // 'start' als dit tabblad actief was.
   const aiMode = useAppStore(s => s.ui.aiMode);
@@ -235,16 +234,16 @@ export function Ribbon() {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   useRibbonAutoFit(containerRef, scrollRef, activeTab, ribbonCompact, i18n.language, uiFontScale);
-  // De dichtheid is nu puur de handmatige keuze: 'compact' is de platte 40px-strip die de gebruiker
-  // zelf aanzet. De automaat werkt niet meer met een globale dichtheidsladder (die gooide álle
-  // labels tegelijk weg), maar degradeert per knop van rechts naar links binnen dezelfde
+  // De dichtheid is puur de handmatige keuze: 'compact' is de platte 40px-strip die de gebruiker
+  // zelf aanzet. De automaat werkt niet met een globale dichtheidsladder, maar degradeert per knop
+  // van rechts naar links binnen dezelfde
   // lint-hoogte — zie {@link useRibbonAutoFit}. De groep-componenten die zelf een compacte vorm
   // renderen (TimeScale/Layout/Baselines/AI) lezen deze waarde via {@link RibbonDensityContext} en
   // blijven dus exact op de handmatige knop reageren.
   // Puur afgeleid uit bestaande state — geen eigen setState, dus geen renderlus mogelijk.
   const density: RibbonDensity = ribbonCompact ? 'compact' : 'full';
 
-  // Vanuit Backstage via de wegnavigeerbewaking (B2): een niet-toegepaste Projectinfo-draft gaat
+  // Vanuit Backstage via de wegnavigeerbewaking: een niet-toegepaste Projectinfo-draft gaat
   // dan niet stil verloren. Buiten Backstage is er geen bewaker geregistreerd en is dit een no-op.
   const setActiveTab = useCallback((tab: RibbonTab) => {
     if (tab === useAppStore.getState().ui.activeRibbonTab) return;

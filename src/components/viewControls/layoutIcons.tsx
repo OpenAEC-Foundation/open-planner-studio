@@ -5,7 +5,7 @@ import {
 import type { ReactNode } from 'react';
 
 /**
- * De vaste icoonset van de layoutknoppen (issue #144). Een layout bewaart alleen de SLEUTEL, zodat
+ * De vaste icoonset van de layoutknoppen. Een layout bewaart alleen de SLEUTEL, zodat
  * een opgeslagen layout een icoonwissel in de app overleeft; een onbekende sleutel valt terug op
  * het standaardicoon in plaats van een lege knop.
  */

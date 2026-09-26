@@ -50,9 +50,9 @@ function relationLabelParts(label: string): { reference: string; detail: string 
   return match ? { reference: match[1], detail: match[2] } : { reference: label, detail: '' };
 }
 
-/** Issue #89: de relatiedetails (type/lag, vrije speling, sturend, waarschuwingen) stonden als
- * aparte native `title` op de chip en botsten met de taakkaart van de referentie. Ze staan nu als
- * extra regels ONDER die kaart, zodat een link precies één tooltip heeft. */
+/** De relatiedetails (type/lag, vrije speling, sturend, waarschuwingen) staan als extra regels
+ * ONDER de taakkaart van de referentie (geen aparte native `title` op de chip, die daarmee zou
+ * botsen), zodat een link precies één tooltip heeft. */
 /** Vertaalde waarschuwingsteksten van een relatie-item, inclusief de stale-markering. */
 function relationWarningTexts(item: RelationCellItem, t: TFunction<'task'>): string[] {
   return [
@@ -104,7 +104,7 @@ export interface RelationCellContentProps {
 }
 
 /** Compacte celweergave; alleen de taakreferentie is interactief, type en lag blijven gewone tekst.
- * Tooltips (issue #89): boven de link staat uitsluitend de taakkaart van de referentie mét de
+ * Tooltips: boven de link staat uitsluitend de taakkaart van de referentie mét de
  * relatiedetails; elders in de cel geldt de gewone celregel (volledige waarde alleen bij afknippen,
  * zie GridCell). De link draagt daarom een lege `title`, wat de native celtooltip erboven onderdrukt. */
 export function RelationCellContent({ items, onFocusTask, onExternalContextMenu }: RelationCellContentProps) {

@@ -16,10 +16,10 @@ export interface ContextMenuProps {
   /** Taak-rij-context (ook gezet bij een balk-klik — zie `barHit`). Uitsluitend `null` als de
    *  rechtsklik een bandkop (`group`) of leeg canvas raakte. */
   task: Task | null;
-  /** Fase 2.10 golf 2: rechtsklik landde op de Gantt-BALK zelf (niet alleen de rij) — toont het
+  /** Rechtsklik landde op de Gantt-BALK zelf (niet alleen de rij) — toont het
    *  balk-specifieke item (relatie leggen vanaf hier) bovenaan het taakmenu. */
   barHit: boolean;
-  /** Fase 2.10 golf 2: rechtsklik op een bandkop-rij (gegroepeerde weergave) — apart, klein menu. */
+  /** Rechtsklik op een bandkop-rij (gegroepeerde weergave) — apart, klein menu. */
   group: ContextMenuGroupInfo | null;
   traceActive: boolean;
   /** Pure boommodus (zelfde conditie als de indent/outdent-sneltoets) — bepaalt of indent/outdent
@@ -34,12 +34,12 @@ export interface ContextMenuProps {
   onAddSubtask: () => void;
   onAddMilestone: () => void;
   onAddRelation: () => void;
-  /** Issue #174: "Relatie toevoegen" zet de tekenmodus aan en die werkt alleen in de Gantt. Het
+  /** "Relatie toevoegen" zet de tekenmodus aan en die werkt alleen in de Gantt. Het
    *  taakraster zonder Gantt in beeld geeft hier de uitleg mee; aanwezig = item uitgeschakeld. */
   addRelationDisabledReason?: string;
   onTracePath: () => void;
   onSaveTemplate: () => void;
-  /** Issue #42: APARTE in-/uitklap-acties (geen toggle) — zie het commentaar bij het menu-item. */
+  /** APARTE in-/uitklap-acties (geen toggle) — zie het commentaar bij het menu-item. */
   onCollapse: () => void;
   onExpand: () => void;
   onDelete: () => void;
@@ -55,11 +55,11 @@ export interface ContextMenuProps {
   onSetPriority: (priority: number) => void;
   // Golf 2 — balk
   onStartRelationFromBar: () => void;
-  /** Issue #146 etappe 3: pauze-index voor "Onderbreking opheffen" (alleen bij een balk-klik op een
+  /** Pauze-index voor "Onderbreking opheffen" (alleen bij een balk-klik op een
    *  bewerkbare split, niet op stuk 0). Ontbreekt of `null` ⇒ dat item staat er niet. */
   splitGapIndex?: number | null;
   onRemoveSplitGap?: (gapIndex: number) => void;
-  /** "Alle onderbrekingen opheffen" — ook op een alleen-lezen importsplit (spec §1). */
+  /** "Alle onderbrekingen opheffen" — ook op een alleen-lezen importsplit. */
   onRemoveAllSplitGaps?: () => void;
   // Golf 2 — leeg canvas
   onPaste: () => void;
@@ -75,13 +75,10 @@ const PRIORITY_LOW = 100;
 const PRIORITY_NORMAL = 500;
 const PRIORITY_HIGH = 900;
 
-// Browserreview, observatie 6: de kolomkop-contextmenu (DataGridHeader.tsx) had zijn EIGEN, losse
-// maatvoering (globals.css .task-grid-header-context-menu) — `font: inherit` op de knoppen, in een
-// createPortal(..., document.body), erft daardoor de `body`-rol `--text-large` (12px × --ui-font-scale)
-// (issue #25.4) i.p.v. de `text-small leading-4` (10px) van dít menu. Op elke schaal is dat zichtbaar te groot
-// t.o.v. het taakmenu — bij een verhoogde --ui-font-scale precies zo groot als de gebruiker meldde
-// ("wat je bij 150% zou zien"). Eén bron voor beide menu's i.p.v. twee losse maatvoeringen die
-// opnieuw uit elkaar kunnen groeien: exporteer de klassen hier, laat DataGridHeader ze hergebruiken
+// Het kolomkop-contextmenu (DataGridHeader.tsx) rendert in een createPortal(..., document.body); met
+// `font: inherit` zou het de `body`-rol `--text-large` (12px × --ui-font-scale) erven i.p.v. de
+// `text-small leading-4` (10px) van dít menu — zichtbaar te groot. Eén bron voor beide menu's i.p.v.
+// twee losse maatvoeringen die uit elkaar kunnen groeien: exporteer de klassen hier, laat DataGridHeader ze hergebruiken
 // op zijn EIGEN role="menu"/role="menuitem"-opbouw (dat menu is al toegankelijker dan dít — dit
 // exporteert dus alleen het VISUELE token, niet de semantiek).
 export const CONTEXT_MENU_CONTAINER_CLASS =
@@ -104,7 +101,7 @@ export function ContextMenu({
   onToggleGroupCollapse, onExpandAll, onCollapseAll,
 }: ContextMenuProps) {
   // `common` blijft de standaard-namespace; `menu` staat erbij zodat het in-/uitklap-item exact
-  // dezelfde labels draagt als de Beeld-tab (issue #42) in plaats van een tweede, eigen vertaling
+  // dezelfde labels draagt als de Beeld-tab in plaats van een tweede, eigen vertaling
   // die daar stilletjes van weg kan lopen.
   const { t } = useTranslation(['common', 'menu']);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -115,14 +112,14 @@ export function ContextMenu({
   // Sluit bij klik-buiten, rechtsklik-buiten of Escape. `defer` zorgt dat de openende
   // rechtsklik-event-reeks het menu niet meteen weer sluit; de hook houdt `onClose` via een
   // interne ref actueel zodat parent-renders (muisbeweging/hover op het canvas) de defer-timer
-  // niet resetten — precies het gedrag dat hier voorheen handmatig stond.
+  // niet resetten.
   // Escape sluit ALTIJD het hele menu (incl. een eventueel open submenu) — geen aparte
   // "sluit alleen het submenu"-stap, consistent met de rest van de app (zie shortcutRegistry).
   useClickOutside(menuRef, onClose, true, { escape: true, contextmenu: true, defer: true });
 
   // Positie binnen het venster houden. Het menu's hoogte varieert sterk met de context (rij-menu
   // met indent/outdent/samenvatting-items kan 400+ px worden) — een vaste aanname (bv. "-300")
-  // klopt dan niet meer en laat het menu (vooral bij een klik onderin lange taaklijsten, zoals een
+  // klopt dan niet en laat het menu (vooral bij een klik onderin lange taaklijsten, zoals een
   // afsluitende mijlpaal) voorbij de vensterrand vallen. Meet daarom de ECHTE afmeting na mount en
   // klem daarop; `useLayoutEffect` draait vóór de browser schildert, dus geen zichtbare sprong.
   const [pos, setPos] = useState({ left: x, top: y });
@@ -257,7 +254,7 @@ export function ContextMenu({
           {isSummary && (
             <>
               <Separator />
-              {/* Issue #42: TWEE aparte items i.p.v. één "In-/uitklappen"-toggle, gelijk aan de
+              {/* TWEE aparte items i.p.v. één "In-/uitklappen"-toggle, gelijk aan de
                   Beeld-tab (zie `outlineGroup` in ribbonConfig.tsx). Reden om apart te zijn: de
                   actie werkt op de hele selectie zodra de aangeklikte taak daarin zit, en een
                   toggle kan een gemengde selectie nooit in één keer dezelfde kant op zetten.
@@ -326,7 +323,7 @@ function MenuItem({
   );
 }
 
-/** Klein, generiek submenu-mechanisme (fase 2.10 golf 2): hover opent een flyout naast het item.
+/** Klein, generiek submenu-mechanisme: hover opent een flyout naast het item.
  *  Blijft binnen dezelfde buitenste menu-container (geen eigen mousedown/Escape-afhandeling nodig —
  *  die van het bovenliggende menu dekt ook de flyout, want de flyout is een kind-element ervan). */
 function SubMenuTrigger({

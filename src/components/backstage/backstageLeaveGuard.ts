@@ -1,9 +1,9 @@
 /**
- * Wegnavigeerbewaking voor Backstage (B2, gebruikstest rekenprofielen 24-09).
+ * Wegnavigeerbewaking voor Backstage.
  *
  * Backstage → Projectinfo werkt met een lokale draft die pas op **Toepassen** in de store landt.
- * Wie iets wijzigde en dan naar een andere Backstage-sectie ging, op **Terug** klikte, Escape drukte
- * of een linttabblad koos, verloor die wijziging stil (de sectie unmount en de draft is weg).
+ * Wie iets wijzigt en dan naar een andere Backstage-sectie gaat, op **Terug** klikt, Escape drukt
+ * of een linttabblad kiest, verliest die wijziging anders stil (de sectie unmount en de draft is weg).
  *
  * Eén module-globale haak, geen store-state: de bewaking is puur UI-coördinatie tussen de Backstage-
  * zijbalk en het lint (dat buiten Backstage gemount is). Backstage registreert een bewaker zolang de

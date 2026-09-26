@@ -182,7 +182,7 @@ export function useGanttViewportCoordinator(
     fitToProject,
   });
 
-  // Open-fit wist het signaal één keer. Een leeg project behoudt het bestaande viewportgedrag.
+  // Open-fit wist het signaal één keer. Een leeg project houdt de huidige viewport.
   useEffect(() => {
     const current = latest.current;
     if (!current.view.pendingFit) return;

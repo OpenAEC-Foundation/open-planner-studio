@@ -5,14 +5,14 @@ import { useDialogKeys } from '@/hooks/useDialogKeys';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 
 /**
- * Gedeelde dialoog-primitive (audit UI-F4): de overlay-JSX die ~16 dialogs letterlijk kopieerden
+ * Gedeelde dialoog-primitive: de overlay-JSX van de dialogs
  * (`fixed inset-0 bg-black/60 flex items-center justify-center z-50` + backdrop-klik-sluiten +
  * `stopPropagation` op het paneel), gebundeld met de standaard-toetsafhandeling uit
  * {@link useDialogKeys} (Escape = annuleren, Enter = primaire actie).
  *
- * Gedrag is per dialoog instelbaar zodat de migratie het bestaande gedrag exact behoudt:
+ * Gedrag is per dialoog instelbaar:
  *  - géén `onBackdropClick` ⇒ backdrop-klik doet niets (WelcomeDialog);
- *    **Regel sinds issue #158:** `onBackdropClick` alleen op dialogen ZONDER bewerkbare invoer
+ *    **Regel:** `onBackdropClick` alleen op dialogen ZONDER bewerkbare invoer
  *    (informatie- en keuzedialogen zoals Confirm/Update/Recovery/Shortcuts). Een dialoog met
  *    invoervelden of een lokale bewerkbuffer (wizard, taak, kalender, filter, …) sluit uitsluitend
  *    via Annuleren/X/Escape — een klik naast het paneel gooit anders stil getypt werk weg.
@@ -25,11 +25,11 @@ import { useFocusTrap } from '@/hooks/useFocusTrap';
  *    dialoog-backdrop (ConfirmDialog-stapeling — zie de toelichting daar).
  */
 export interface DialogProps {
-  /** Paneel-klassen — exact de bestaande klassen per dialoog (incl. breedte/max-hoogte). */
+  /** Paneel-klassen per dialoog (incl. breedte/max-hoogte). */
   panelClassName: string;
   /**
    * Backdrop-klik sluit de dialoog; weglaten = backdrop-klik doet niets. Alleen zetten op een
-   * dialoog zonder bewerkbare invoer (zie de regel hierboven, issue #158).
+   * dialoog zonder bewerkbare invoer (zie de regel hierboven).
    */
   onBackdropClick?: () => void;
   /** Escape-afhandeling (via `useDialogKeys`); weglaten = Escape doet niets. */
@@ -99,8 +99,8 @@ export interface DialogHeaderProps {
 }
 
 /**
- * De kopbalk (titel + sluitkruisje) die de meeste dialogen letterlijk kopieerden. Het kruisje
- * draagt altijd dezelfde toegankelijke naam én tooltip — voorheen had de helft geen van beide.
+ * De gedeelde kopbalk (titel + sluitkruisje) van de dialogen. Het kruisje
+ * draagt altijd dezelfde toegankelijke naam én tooltip.
  */
 export function DialogHeader({ title, icon, onClose, closeDisabled, closeIconSize = 16 }: DialogHeaderProps) {
   const { t } = useTranslation('common');

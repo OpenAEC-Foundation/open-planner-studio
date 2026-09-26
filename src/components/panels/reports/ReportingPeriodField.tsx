@@ -10,11 +10,11 @@ import {
 } from '@/engine/reports';
 
 /**
- * Het gedeelde rapportageperiode-control (issue #120): één preset-keuzelijst (volgende/afgelopen
+ * Het gedeelde rapportageperiode-control: één preset-keuzelijst (volgende/afgelopen
  * N weken of maand, hele project, aangepast) plus twee datumvelden. Bij een preset tonen de velden
  * de berekende datums alleen-lezen als tekst in de datumnotatie van de app (`useDisplayDate`, net
  * als de rapportondertitel); bij *Aangepast* worden het bewerkbare `<input type="date">`-velden —
- * bewust de native invoer en niet `DateTextInput`, omdat het issue een kalenderkiezer vraagt; de
+ * bewust de native invoer en niet `DateTextInput`, omdat hier een kalenderkiezer gewenst is; de
  * browser toont daarin zijn eigen locale-notatie. Een omgekeerd bereik (tot < van) of een leeg/
  * onvolledig veld wordt niet doorgegeven maar rood gemarkeerd met een melding — het rapport blijft
  * op de laatste geldige periode staan. Wisselen van *Aangepast* terug naar een preset laat de eigen
@@ -23,9 +23,8 @@ import {
  * LAYOUT: de datumvelden staan op een eigen rij die bij de standaardbreedte van de instellingen-
  * kolom (256 px) omslaat naar twee volle regels — een `<input type="date">` heeft ~120 px nodig om
  * een datum plus kalenderknop te tonen (de app staat op 13 px root-fontsize, dus 8.5rem ≈ 110 px
- * als ondergrens); onder het `w-32`-label ingesprongen bleef er 18 px over (reviewbevinding op de
- * eerste versie). Het Van/Tot-label heeft bewust géén vaste breedte: "Başlangıç" (tr) is breder
- * dan "Van" en werd met `w-8` afgekapt (reviewbevinding op de tweede versie).
+ * als ondergrens); onder een `w-32`-label ingesprongen blijft er 18 px over. Het Van/Tot-label
+ * heeft bewust géén vaste breedte: "Başlangıç" (tr) is breder dan "Van" en wordt met `w-8` afgekapt.
  *
  * De opgeloste datums komen uit dezelfde pure functie als de engine (`resolveReportingPeriod`,
  * tegen dezelfde referentiedag en projectspanne), zodat wat hier staat exact het venster is dat het
@@ -118,8 +117,8 @@ export function ReportingPeriodField({ id, value, onChange, dataKey }: Props) {
 
   return (
     <div className="flex flex-col gap-1 min-w-0" data-ops-report-period={dataKey}>
-      {/* Label bóven de keuzelijst: naast een `w-32`-label bleven bij de standaardkolom 53 px over
-          en las élke preset als "Hele pr…" (reviewbevinding ronde 3). */}
+      {/* Label bóven de keuzelijst: naast een `w-32`-label blijven bij de standaardkolom 53 px over
+          en leest élke preset als "Hele pr…". */}
       <div className="flex flex-col gap-1 min-w-0">
         <label className="text-text-secondary" htmlFor={id}>{t('tableReports.options.reportingPeriod')}</label>
         <Select

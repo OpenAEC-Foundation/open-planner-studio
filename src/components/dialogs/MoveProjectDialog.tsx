@@ -8,7 +8,7 @@ import { formatDate } from '@/utils/dateUtils';
 import type { MoveProjectPreview } from '@/state/slices/projectSlice';
 
 /**
- * "Project verplaatsen…" (pakket D1) — verschuif de HELE planning naar een nieuwe startdatum.
+ * "Project verplaatsen…" — verschuif de HELE planning naar een nieuwe startdatum.
  *
  * Vorm gemodelleerd op `LevelingDialog`: opties → expliciet Berekenen → preview van een PUUR
  * (niet-muterend) rekenresultaat → Toepassen/Annuleren. Elke optiewijziging wist de preview, zodat
@@ -58,7 +58,7 @@ export function MoveProjectDialog() {
   const isPast = validNewStart && newStart < formatDate(new Date());
   const fmt = (iso: string) => displayDate(iso, notation) || '—';
 
-  // R2/ontwerpbesluit 2: schuift het EINDE met een ander aantal dagen op dan de verschuiving zelf,
+  // Schuift het EINDE met een ander aantal dagen op dan de verschuiving zelf,
   // of verandert de duur in werkdagen, dan heeft de kalender ingegrepen.
   //
   // Het zijn twee ONAFHANKELIJKE symptomen en ze treden los van elkaar op: verplaats je een planning
@@ -98,7 +98,7 @@ export function MoveProjectDialog() {
       <DialogHeader title={t('moveProject.title')} onClose={close} />
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-small leading-4">
-        {/* R9 — zonder geldige huidige startdatum valt er niets te berekenen. */}
+        {/* Zonder geldige huidige startdatum valt er niets te berekenen. */}
         {!hasCurrentStart ? (
           <div className="!text-body" style={{ color: 'var(--error)' }}>
             {t('moveProject.invalidCurrentStart')}
@@ -132,7 +132,7 @@ export function MoveProjectDialog() {
               </div>
             )}
 
-            {/* §1.6 — default UIT; alleen tonen als er baselines zijn. */}
+            {/* Default UIT; alleen tonen als er baselines zijn. */}
             {baselines.length > 0 && (
               <label className="flex items-start gap-2">
                 <input
@@ -179,7 +179,7 @@ export function MoveProjectDialog() {
                     </div>
                     <div>{t('moveProject.startRow', { before: fmt(preview.startBefore), after: fmt(preview.startAfter) })}</div>
 
-                    {/* R3 — een project zonder taken heeft geen projecteinde om te tonen. */}
+                    {/* Een project zonder taken heeft geen projecteinde om te tonen. */}
                     {preview.impact.taskCount === 0 ? (
                       <div style={{ color: 'var(--theme-text-dim)' }}>{t('moveProject.noTasks')}</div>
                     ) : (
@@ -218,7 +218,7 @@ export function MoveProjectDialog() {
                       </>
                     )}
 
-                    {/* Overige waarschuwingen (§7.4) — allemaal informatief, geen blokkade. */}
+                    {/* Overige waarschuwingen — allemaal informatief, geen blokkade. */}
                     {(preview.impact.actualCount > 0 || preview.impact.hardPinCount > 0 ||
                       preview.impact.externalLinkCount > 0 || preview.holidayGapCalendars.length > 0 ||
                       preview.impact.dateCustomFieldCount > 0) && (

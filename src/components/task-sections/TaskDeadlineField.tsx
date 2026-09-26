@@ -3,7 +3,7 @@ import { Task } from '@/types/task';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { Field } from './shared';
 
-/** Deadline — sectie 6 uit `TaskPropertiesPanel` (fase 2.10, item 2). Pure `{ task, onChange }`. */
+/** Deadline — sectie van `TaskPropertiesPanel`. Pure `{ task, onChange }`. */
 export function TaskDeadlineField({ task, onChange }: {
   task: Task;
   onChange: (patch: Partial<Task>) => void;

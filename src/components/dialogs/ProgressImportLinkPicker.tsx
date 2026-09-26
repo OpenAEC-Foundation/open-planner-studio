@@ -3,19 +3,19 @@ import { useTranslation } from 'react-i18next';
 import { Select, type SelectOption } from '@/components/common/Select';
 import type { Task } from '@/types/task';
 
-/** Hardening (plan T7): een `Select` met tienduizenden opties bevriest de dialoog, en het aantal
+/** Hardening: een `Select` met tienduizenden opties bevriest de dialoog, en het aantal
  *  taken is gebruikersinvoer — dus een harde grens, geen "best effort". */
 const MAX_PICKER_OPTIONS = 200;
 
 export interface ProgressImportLinkPickerProps {
   tasks: readonly Task[];
-  /** Taken die al door een ANDERE rij geclaimd zijn — worden `disabled` getoond (A11 regel 3: UI-
-   *  comfort, de kern weigert een dubbele koppeling sowieso zelf nog een keer). */
+  /** Taken die al door een ANDERE rij geclaimd zijn — worden `disabled` getoond (UI-comfort, de
+   *  kern weigert een dubbele koppeling sowieso zelf nog een keer). */
   takenTaskIds: ReadonlySet<string>;
   value: string | undefined;
   onChange: (taskId: string) => void;
   id?: string;
-  /** Fixronde bevinding 4: de taak die DEZE rij zelf al claimt — automatisch (WBS-terugval, nog geen
+  /** De taak die DEZE rij zelf al claimt — automatisch (WBS-terugval, nog geen
    *  override) of via een bestaande override. Die mag in de kiezer van DEZE rij nooit `disabled` zijn,
    *  ook al staat hij (terecht) in `takenTaskIds`: anders kan een gebruiker die op "Wijzigen" klikt
    *  zijn eigen, reeds gematchte taak niet meer terugkiezen. */
@@ -23,7 +23,7 @@ export interface ProgressImportLinkPickerProps {
 }
 
 /**
- * Koppelkiezer voor de voortgangsimportdialoog (E3/A11, T7): een tekstveld dat op WBS-code en naam
+ * Koppelkiezer voor de voortgangsimportdialoog: een tekstveld dat op WBS-code en naam
  * filtert, plus de gedeelde `Select`. Verzameltaken worden BEWUST getoond (niet verstopt) — de kern
  * weigert de rij daarna zelf met `summaryTask`, en de gebruiker ziet zo waaróm dat gebeurt in plaats
  * van zich af te vragen waarom een taak nergens in de lijst staat.
@@ -41,9 +41,8 @@ export function ProgressImportLinkPicker({ tasks, takenTaskIds, value, onChange,
 
   const truncated = filtered.length > MAX_PICKER_OPTIONS;
 
-  // Fixronde bevinding 1: bouwde eerder buiten een memo, op elke render van deze kiezer opnieuw.
-  // Fixronde N-H: de 200-cap zit NU binnen de memo. `filtered.slice(...)` bouwt bij elke render een
-  // NIEUW array — als `limited` (dat resultaat) zelf in de deps stond, miste de memo dus altijd
+  // De 200-cap zit binnen de memo. `filtered.slice(...)` bouwt bij elke render een
+  // NIEUW array — als `limited` (dat resultaat) zelf in de deps stond, mist de memo dus altijd
   // precies wanneer er veel taken zijn (het scenario dat de cap juist moet afvangen). `filtered` is
   // wél stabiel (zijn eigen memo hierboven) en `truncated` is een primitieve boolean, dus samen zijn
   // dat de juiste, stabiele deps.
@@ -51,7 +50,7 @@ export function ProgressImportLinkPicker({ tasks, takenTaskIds, value, onChange,
     const limited = truncated ? filtered.slice(0, MAX_PICKER_OPTIONS) : filtered;
     return limited.map(task => {
       const label = `${task.wbsCode} — ${task.name}`;
-      // Fixronde bevinding 4: `currentTaskId` (deze rij ZELF) is nooit "taken", ook al staat hij in
+      // `currentTaskId` (deze rij ZELF) is nooit "taken", ook al staat hij in
       // `takenTaskIds` — anders is de eigen, al gematchte taak niet meer terug te kiezen na "Wijzigen".
       const isTaken = takenTaskIds.has(task.id) && task.id !== value && task.id !== currentTaskId;
       return {

@@ -1,8 +1,7 @@
-// UI-laag-helper (T11, T8-kwaliteitsreview-agenda stap 0-ter c): 15 call-sites bouwden hun
-// `ImportLabels` (`{ importedProject, unassignedResource }`, doorgegeven aan `openFile`/
-// `openRecentFile`/`parseExternalSource`/`refreshAllExternalAnchors`/`refreshExternalAnchorsFrom`
-// en enkele losse `readIFC`/`openExampleFromString`-aanroepen) met de hand op, elke keer dezelfde
-// twee sleutels. Eén plek — en de enige die een toekomstig DERDE label ooit hoeft bij te werken.
+// UI-laag-helper: bouwt `ImportLabels` (`{ importedProject, unassignedResource }`, doorgegeven aan
+// `openFile`/`openRecentFile`/`parseExternalSource`/`refreshAllExternalAnchors`/
+// `refreshExternalAnchorsFrom` en enkele losse `readIFC`/`openExampleFromString`-aanroepen). Eén
+// plek — en de enige die een toekomstig DERDE label ooit hoeft bij te werken.
 //
 // `import type` (bewust, geen waarde-import): `ImportLabels` is puur een type uit `services/`, dus
 // dit blijft na type-erasure een bladmodule zonder runtime-afhankelijkheid op `services/`/`state/`
@@ -25,8 +24,7 @@ import type { ImportLabels } from '@/services/importTypes';
 export type ImportLabelT = (key: any) => string;
 
 /** Bouwt `ImportLabels` uit de `project.imported`/`project.unassignedResource`-sleutels van de
- *  `common`-namespace — spiegelt de 15 bestaande call-sites exact (zelfde sleutels, zelfde
- *  velden), puur een verhuizing van de letterlijke object-literal naar één functie. */
+ *  `common`-namespace. */
 export function buildImportLabels(t: ImportLabelT): ImportLabels {
   return {
     importedProject: t('project.imported'),

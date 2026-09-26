@@ -5,7 +5,7 @@ import { listenWindowDrag } from '@/hooks/listenWindowDrag';
 // Map-style drag-to-pan (Optie 3 / 'drag' scroll mode). Captures the pointer
 // origin and the scroll offsets at grab time; movement is applied as a delta.
 export interface PanState {
-  /** Muisknop die de pan startte (0 = links in 'drag'-modus, 1 = middelklik, issue #52 punt 2).
+  /** Muisknop die de pan startte (0 = links in 'drag'-modus, 1 = middelklik).
    *  De window-mouseup beëindigt de pan alléén op déze knop — anders kapt het loslaten van een
    *  toevallig meegedrukte andere knop het gebaar halverwege af. */
   button: number;
@@ -45,11 +45,11 @@ export function usePan({ setScroll, justBoxSelectedRef }: UsePanOptions) {
       // Alleen de knop die de pan startte beëindigt hem — het loslaten van een andere,
       // toevallig meegedrukte knop mag het gebaar niet halverwege afkappen.
       if (e.button !== panState.button) return;
-      // Fase 2.10 fix-golf 1: de browser vuurt na een mouseup nog een native click op het canvas.
+      // De browser vuurt na een mouseup nog een native click op het canvas.
       // Zonder onderdrukking zou die click de zojuist gepande selectie overschrijven/wissen (net als
       // bij box-select hierboven). Alleen onderdrukken als er ook echt gepand is — een klik zonder
       // beweging in 'drag'-modus moet gewoon als normale selectie-klik blijven werken.
-      // Issue #52 punt 2: alléén bij de linkerknop (button 0) — een middelklik-pan vuurt geen
+      // Alléén bij de linkerknop (button 0) — een middelklik-pan vuurt geen
       // native click af, dus de vlag zou blijven staan en de eerstvolgende gewone linksklik opeten.
       if (panned && e.button === 0) justBoxSelectedRef.current = true;
       setPanState(null);

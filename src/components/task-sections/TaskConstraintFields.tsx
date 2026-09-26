@@ -6,8 +6,8 @@ import { DateTextInput } from '@/components/common/DateTextInput';
 import { Field } from './shared';
 
 /**
- * Constraint (2.3) + hard-pin (2.9) + secundaire constraint (2.9) + validatie — sectie 5 uit
- * `TaskPropertiesPanel` (fase 2.10, item 2). Pure `{ task, onChange }`. `pinHint`-state is puur
+ * Constraint + hard-pin + secundaire constraint + validatie — sectie van
+ * `TaskPropertiesPanel`. Pure `{ task, onChange }`. `pinHint`-state is puur
  * lokale UI-feedback (localStorage-gegate eenmalige hint), geen store-koppeling nodig.
  */
 export function TaskConstraintFields({ task, onChange }: {
@@ -15,7 +15,7 @@ export function TaskConstraintFields({ task, onChange }: {
   onChange: (patch: Partial<Task>) => void;
 }) {
   const { t } = useTranslation('task');
-  // Eenmalige, niet-blokkerende hint bij het AANZETTEN van een harde pin (besluit B2): "pin
+  // Eenmalige, niet-blokkerende hint bij het AANZETTEN van een harde pin: "pin
   // overschrijft relaties". Geen bevestigingsdialoog — gegate op een localStorage-vlag zodat hij
   // maar één keer ooit verschijnt.
   const [pinHint, setPinHint] = useState(false);
@@ -25,11 +25,11 @@ export function TaskConstraintFields({ task, onChange }: {
 
   return (
     <>
-      {/* Constraint & deadline (fase 2.3) — P6-soft: schendingen worden negatieve float.
-          Fase 2.9 §5.1/§5.2: harde Mandatory-pin + secundaire constraint.
-          Volle paneelbreedte i.p.v. een 2-koloms grid (issue #21 pt. verbetering): de vertaalde
+      {/* Constraint & deadline — P6-soft: schendingen worden negatieve float.
+          Plus harde Mandatory-pin + secundaire constraint.
+          Volle paneelbreedte i.p.v. een 2-koloms grid: de vertaalde
           constraint-labels zijn lange volzinnen + afkorting ("As soon as possible (ASAP)") — in een
-          halve kolom (het paneel is standaard 280px) klipte de select vóór de sluit-haakjes, met het
+          halve kolom (het paneel is standaard 280px) klipt de select vóór de sluit-haakjes, met het
           native pijltje er half doorheen. De datum staat eronder i.p.v. ernaast, zoals `TaskDeadlineField`
           al doet voor een los datumveld. */}
       <Field label={t('properties.constraint')}>
@@ -66,7 +66,7 @@ export function TaskConstraintFields({ task, onChange }: {
         </Field>
       )}
 
-      {/* Harde Mandatory-pin (fase 2.9 §5.1, besluit B2): alleen bij MSO/MFO. Aanzetten ⇒ eenmalige
+      {/* Harde Mandatory-pin: alleen bij MSO/MFO. Aanzetten ⇒ eenmalige
           niet-blokkerende hint "pin overschrijft relaties" (geen bevestigingsdialoog). */}
       {isPinnable && (
         <>
@@ -100,7 +100,7 @@ export function TaskConstraintFields({ task, onChange }: {
         </>
       )}
 
-      {/* Secundaire constraint (fase 2.9 §5.2): een tweede grens (SNET/FNET/SNLT/FNLT); altijd soft.
+      {/* Secundaire constraint: een tweede grens (SNET/FNET/SNLT/FNLT); altijd soft.
           Live validatie via validateConstraintPair — verboden combinaties rood + reden.
           Zelfde volle-breedte-fix als de primaire constraint hierboven (zelfde lange labels,
           zelfde 2-koloms-klip). */}

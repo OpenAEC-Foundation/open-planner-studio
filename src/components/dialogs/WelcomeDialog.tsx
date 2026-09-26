@@ -6,21 +6,21 @@ import { UITheme, UI_THEMES } from '@/state/slices/types';
 import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
 import { saveWelcomeSeen } from '@/utils/settingsStore';
 import { Select } from '@/components/common/Select';
-// Het architect-besluit (§2 van het ontwerpdocument) is een EIGEN curated mini-laag, geen
-// hergebruik van de volledige SettingsPanelContent-component — wel dezelfde losse bouwstenen.
+// Bewust een EIGEN curated mini-laag, geen hergebruik van de volledige
+// SettingsPanelContent-component — wel dezelfde losse bouwstenen.
 import { applyAutoCalcCPM, applyTheme } from '@/components/settings/applySetting';
 import { LanguageSelect, THEME_LABEL_KEYS } from '@/components/settings/settingControls';
 
 /**
- * Welkomstdialoog (fase 2.10, onderdeel 3, §6) — 2 stappen:
+ * Welkomstdialoog — 2 stappen:
  *  1. Korte begroeting + curated mini-laag (taal/thema/auto-bereken) die RECHTSTREEKS dezelfde
  *     `applyTheme`/`applyLocale`/`applyAutoCalcCPM` (settingControls) aanroept als `SettingsPanelContent`
- *     (architect-besluit 1: geen embedded component, geen eigen opslagsleutel — wijzigingen zijn
+ *     (geen embedded component, geen eigen opslagsleutel — wijzigingen zijn
  *     dus meteen zichtbaar/identiek in tandwiel/ribbon/backstage-settings).
  *  2. "Rondleiding starten?" met Start/Overslaan.
  *
  * ELKE sluitroute (X, Escape, Overslaan op stap 1 of 2, Start) zet `saveWelcomeSeen(true)` —
- * de vlag betekent "gezien", niet "tour afgerond" (architect-besluit 4).
+ * de vlag betekent "gezien", niet "tour afgerond".
  */
 export function WelcomeDialog() {
   const { t } = useTranslation('common');

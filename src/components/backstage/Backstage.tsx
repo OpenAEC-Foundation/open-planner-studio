@@ -35,8 +35,7 @@ export function Backstage() {
   const setUI = useAppStore(s => s.setUI);
   const section = useAppStore(s => s.ui.backstageSection);
 
-  // Issue #37: "Sluit project" sloot niets — het riep `handleNewProject()` aan (copy-paste van de
-  // New-knop) en toonde dus de projectwizard. Het sluiten loopt nu via exact dezelfde route als de
+  // "Sluit project" loopt via exact dezelfde route als de
   // document-chrome (tabstrip/projectbalk/overzicht): `closeWithGuard` → dirty toont de 3-weg
   // sluit-bevestiging, schoon sluit meteen.
   const { closeWithGuard } = useDocumentActions();
@@ -48,7 +47,7 @@ export function Backstage() {
     setUI({ activeRibbonTab: 'start' });
   }, [setUI]);
 
-  // B2 (gebruikstest rekenprofielen 24-09): Projectinfo werkt met een lokale draft. Zolang die
+  // Projectinfo werkt met een lokale draft. Zolang die
   // afwijkt, loopt elke wegnavigatie (zijbalk, Terug, Escape, een linttabblad) via de bewaker, die de
   // keuzedialoog Toepassen / Verwerpen / Annuleren toont in plaats van de wijziging stil weg te gooien.
   const projectInfoRef = useRef<ProjectInfoPanelContentHandle>(null);
@@ -114,7 +113,7 @@ export function Backstage() {
         <ActionItem icon={<FileText size={14} />} label={tMenu('ribbon.new')} onClick={() => leave(() => { handleNewProject(); closeBackstage(); })} />
         <ActionItem icon={<FolderOpen size={14} />} label={tMenu('ribbon.open')} onClick={() => leave(() => { handleOpen(buildImportLabels(tCommon)); closeBackstage(); })} />
         <NavItem icon={<Clock size={14} />} label={tMenu('backstage.recent')} active={section === 'recent'} onClick={() => goTo('recent')} />
-        {/* data-tour-anchor (fase 2.10, onderdeel 3, tourstap 6): voorbeelden-navitem. */}
+        {/* data-tour-anchor (tourstap 6): voorbeelden-navitem. */}
         <NavItem icon={<BookOpen size={14} />} label={tMenu('backstage.examples')} active={section === 'examples'} onClick={() => goTo('examples')} tourAnchor="backstage-examples" />
         <ActionItem icon={<Save size={14} />} label={tMenu('ribbon.save')} onClick={() => leave(() => { handleSave(); closeBackstage(); })} />
         <ActionItem icon={<SaveAll size={14} />} label={tMenu('backstage.saveAs')} onClick={() => leave(() => { handleSaveAs(); closeBackstage(); })} />
@@ -134,15 +133,13 @@ export function Backstage() {
 
         <div className="backstage-nav-divider" />
 
-        {/* Fase 2.10, onderdeel 5 (golf 1): help/documentatie-viewer — architect-besluit 5
-            (bindend ontwerp §2.1): Backstage-NavItem als primaire ingang, in het "leer de app
+        {/* Help/documentatie-viewer: Backstage-NavItem als primaire ingang, in het "leer de app
             kennen"-rijtje naast de rondleiding-herstart hieronder. */}
         <NavItem icon={<LifeBuoy size={14} />} label={tMenu('backstage.help')} active={section === 'help'} onClick={() => goTo('help')} />
 
         <div className="backstage-nav-divider" />
 
-        {/* [Rondleiding] (fase 2.10, onderdeel 3, herstart-ingang §5/§6 — architect-besluit 3:
-            BEIDE ingangen, ribbon + Backstage). Actie-item (geen `section`): sluit Backstage en
+        {/* [Rondleiding] — herstart-ingang (naast die in het lint). Actie-item (geen `section`): sluit Backstage en
             start de TourOverlay direct, zonder de WelcomeDialog ertussen. */}
         <ActionItem
           icon={<Compass size={14} />}
@@ -195,7 +192,7 @@ export function Backstage() {
 
 function NavItem({ icon, label, active, onClick, tourAnchor }: {
   icon: React.ReactNode; label: string; active?: boolean; onClick: () => void;
-  /** Fase 2.10, onderdeel 3: optioneel `data-tour-anchor`-attribuut voor de TourOverlay. */
+  /** Optioneel `data-tour-anchor`-attribuut voor de TourOverlay. */
   tourAnchor?: string;
 }) {
   return (
@@ -254,7 +251,7 @@ function RecentSection() {
   const openRecentFile = useAppStore(s => s.openRecentFile);
   const setUI = useAppStore(s => s.setUI);
 
-  if (!supportsHandles()) return null; // fallback-web: recents verbergen (spec §6)
+  if (!supportsHandles()) return null; // fallback-web: recents verbergen
 
   return (
     <>
@@ -329,7 +326,7 @@ function ExamplesSection() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const content = await res.text();
       await openExampleFromString(content, ex.name, buildImportLabels(tCommon));
-      // Showcase-voorbeelden delen één demo-resourcebibliotheek (issue #19, user-verzoek). De
+      // Showcase-voorbeelden delen één demo-resourcebibliotheek. De
       // laadgrens heeft al gerekend; het linken herleidt zelf de resourcebelasting opnieuw.
       if (ex.category === 'showcase') applyDemoLibraryToShowcaseProject();
       setUI({ activeRibbonTab: 'start' });
@@ -430,16 +427,16 @@ function ExportSection() {
     (f) => ({ format: f.format, label: tMenu(f.labelKey), desc: tMenu(f.descKey), icon: f.icon }),
   );
 
-  // K7: bij een cyclische planning geeft exportAs { ok: false } met cpmResult.error terug.
+  // Bij een cyclische planning geeft exportAs { ok: false } met cpmResult.error terug.
   // Backstage vervangt de hele body, dus GanttCanvas is hier niet gemonteerd en de cyclus-toast
-  // (die in GanttCanvas leeft) vuurt niet — toon de fout daarom zelf in de bestaande
-  // backstage-stijl. Tussenstand: K8 trekt dit foutkanaal samen tot één toast in uiSlice.
+  // (die in GanttCanvas leeft) vuurt niet — toon de fout daarom zelf in de
+  // backstage-stijl.
   const [exportError, setExportError] = useState<Pick<CPMResult, 'error' | 'errorInfo'> | null>(null);
 
   const handleExport = async (format: ExportFormat) => {
-    // Pool-ernaast geldt alleen voor de IFC-kaart (spec §4: het is een IFC-tweede-bestand, geen
-    // embed in CSV/MSPDI/P6). Bij een ander formaat blijft het bestaande pad ongemoeid. Beide
-    // paden geven hetzelfde ExportResult terug, dus de K7-foutafhandeling geldt voor allebei.
+    // Pool-ernaast geldt alleen voor de IFC-kaart (het is een IFC-tweede-bestand, geen
+    // embed in CSV/MSPDI/P6). Beide paden geven hetzelfde ExportResult terug, dus de
+    // cyclus-foutafhandeling geldt voor allebei.
     const result = format === 'ifc' && alsoPool
       ? await exportProjectWithPool()
       : await exportAs(format);
@@ -521,7 +518,7 @@ interface ProjectInfoSectionProps {
 function ProjectInfoSection({ panelRef, onApply, dirty, onDirtyChange, canSubmit, onValidityChange }: ProjectInfoSectionProps) {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
-  // B5: de plakkende actiebalk is een toast-mijdbalk — meld mount/unmount aan de meldingenplaatsing.
+  // De plakkende actiebalk is een toast-mijdbalk — meld mount/unmount aan de meldingenplaatsing.
   useLayoutEffect(() => {
     notifyToastLayoutChange();
     return notifyToastLayoutChange;
@@ -535,10 +532,10 @@ function ProjectInfoSection({ panelRef, onApply, dirty, onDirtyChange, canSubmit
       <div className="backstage-form">
         <ProjectInfoPanelContent ref={panelRef} mode="edit" onDone={onApply} onValidityChange={onValidityChange} onDirtyChange={onDirtyChange} />
 
-        {/* B2 (gebruikstest 24-09): de actiebalk plakt onderaan het zichtbare deel van de sectie —
-            Toepassen stond anders ±900 px onder de eerste conventie. Wijkt de draft af, dan staat er
+        {/* De actiebalk plakt onderaan het zichtbare deel van de sectie —
+            Toepassen staat anders ver onder de eerste conventie. Wijkt de draft af, dan staat er
             een gekleurd blok "niet toegepast" met Verwerpen naast Toepassen. `data-ops-toast-avoid`:
-            de meldingenstapel schuift boven deze balk (B5). */}
+            de meldingenstapel schuift boven deze balk. */}
         <div
           className={`backstage-actions backstage-actions--sticky${dirty ? ' is-dirty' : ''}`}
           data-ops-project-info-actions
@@ -588,8 +585,8 @@ function ImportSection() {
   const setUI = useAppStore(s => s.setUI);
   const hasTasks = useAppStore(s => s.tasks.length > 0);
 
-  // Issue #27 etappe 2 (E2/A10): "Voortgang bijwerken uit een blad" krijgt een EIGEN kaart bovenaan,
-  // boven de extensie-importerlijst — die lijst en zijn `loadState`-gedrag blijven ongewijzigd. Sluit
+  // "Voortgang bijwerken uit een blad" krijgt een EIGEN kaart bovenaan,
+  // boven de extensie-importerlijst (los van diens `loadState`-gedrag). Sluit
   // Backstage mee (`activeRibbonTab: 'start'`), naar hetzelfde patroon als `ExportSection` na een
   // geslaagde export, zodat het resultaat meteen tegen de planning zichtbaar is.
   const openProgressImport = () => setUI({ activeRibbonTab: 'start', showProgressImportDialog: true });
@@ -642,7 +639,7 @@ function ImportSection() {
         <div className="backstage-export-grid">
           {importers.map(imp => (
             <button key={`${imp.extensionId}:${imp.id}`} className="backstage-export-card" onClick={() => handleImport(imp)}>
-              {/* K6a: importer-iconen komen uit draaiende extensiecode — hygiëne, maar loopt
+              {/* Importer-iconen komen uit draaiende extensiecode — hygiëne, maar loopt
                   langs dezelfde sanitizer als de manifest-iconen. */}
               <span className="backstage-export-icon"><ExtensionIcon raw={imp.icon} fallback={<Upload size={20} />} /></span>
               <span className="backstage-export-info">
@@ -673,7 +670,7 @@ function ExtensionsSection() {
 }
 
 // ---------------------------------------------------------------------------
-// Help/documentatie section (fase 2.10, onderdeel 5, golf 1)
+// Help/documentatie section
 // ---------------------------------------------------------------------------
 
 function HelpSection() {
