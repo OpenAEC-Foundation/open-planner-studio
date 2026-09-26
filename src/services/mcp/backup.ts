@@ -43,8 +43,9 @@ export interface BackupFs {
 export interface BackupDeps {
   /** Levert de fs lui op (Tauri: dynamische import binnen `isTauri()`). */
   getFs: () => Promise<BackupFs>;
-  /** Serialiseer document `docId` naar IFC + lever de projectnaam; null = document niet gevonden. */
-  getDoc: (docId: string) => { ifc: string; projectName: string } | null;
+  /** Serialiseer document `docId` naar IFC + lever de projectnaam en (indien opgeslagen) het
+   *  bestandspad; null = document niet gevonden. */
+  getDoc: (docId: string) => { ifc: string; projectName: string; filePath?: string | null } | null;
   /** Staat de auto-backup-toggle aan? (spec: default aan; uit ⇒ altijd null). */
   autoBackupEnabled: () => Promise<boolean>;
   /** Tijdstempel-bron (testbaar); moet monotoon oplopen voor sorteerbare bestandsnamen. */
@@ -89,6 +90,26 @@ export function backupFileName(projectName: string, ts: number): string {
   return `${sanitizeProjectName(projectName)}-${stamp(ts)}.ifc`;
 }
 
+/**
+ * De backup-submap van een document. Document-id's zijn per sessie nieuw (tijd + toeval), dus een
+ * submap per id liet het opruimbeleid ("laatste 10") nooit over sessies heen werken: elke
+ * app-start opende voor hetzelfde projectbestand een nieuwe map met een volle IFC, en de map groeide
+ * onbegrensd (audit 2026-09-26). Een opgeslagen document krijgt daarom een VASTE submap op zijn
+ * bestandspad (leesbare bestandsnaam + hash van het volledige pad, zodat twee gelijknamige
+ * bestanden in verschillende mappen niet in één emmer vallen). Een nooit opgeslagen document houdt
+ * zijn doc-id: er is geen stabielere identiteit, en projectnamen botsen (spec §AI-backup).
+ */
+export function backupBucket(docId: string, filePath: string | null | undefined): string {
+  if (!filePath) return docId;
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < filePath.length; i++) {
+    hash ^= filePath.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  const base = filePath.split(/[\\/]/).pop()?.replace(/\.[^.]*$/, '') ?? '';
+  return `file-${sanitizeProjectName(base).slice(0, 40)}-${hash.toString(16).padStart(8, '0')}`;
+}
+
 /** Trekt het tijdstempel-achtervoegsel uit een backup-bestandsnaam (voor chronologisch opruimen). */
 const TS_SUFFIX = /-(\d{4}-\d\d-\d\dT\d\d-\d\d-\d\d-\d{3}Z)\.ifc$/;
 function stampOf(fileName: string): string {
@@ -109,7 +130,7 @@ export function createBackupService(deps: BackupDeps): BackupService {
     if (!doc) throw new Error(`AI-backup: document '${docId}' niet gevonden`);
     const fs = await deps.getFs();
     const base = await fs.appDataDir();
-    const docDir = await fs.join(base, BACKUP_ROOT, docId);
+    const docDir = await fs.join(base, BACKUP_ROOT, backupBucket(docId, doc.filePath));
     await fs.mkdir(docDir);
     const path = await fs.join(docDir, backupFileName(doc.projectName, deps.now()));
     await fs.writeTextFile(path, doc.ifc); // een fout hier propageert → runtime vertaalt naar BACKUP_FAILED
@@ -176,7 +197,11 @@ function realDeps(app: AppStoreContext): BackupDeps {
       const state = app.store.getState();
       const found = state.getOpenDocumentPayloads().find((d) => d.id === docId);
       if (!found) return null;
-      return { ifc: writeIFC(buildWriteIFCInput(found.payload)), projectName: found.payload.project.name };
+      return {
+        ifc: writeIFC(buildWriteIFCInput(found.payload)),
+        projectName: found.payload.project.name,
+        filePath: found.payload.filePath,
+      };
     },
     autoBackupEnabled: () => import('@/utils/settingsStore').then((m) => m.loadAiAutoBackup()),
     now: () => Date.now(),

@@ -29,7 +29,7 @@ Het tabblad bestaat uit vier groepen.
 
 **Server** — de knop **Bridge starten** (of **Bridge stoppen**) met daarnaast de status: *Uit*, *Actief op poort 3877*, *Poort … bezet* of *Fout*. Dezelfde status staat als gekleurd stipje rechtsonder in de statusbalk, zodat je ook vanaf een ander tabblad ziet of de bridge leeft.
 
-**Verbinding** — het poortnummer (alleen te wijzigen als de server gestopt is; een draaiende server houdt zijn poort vast), het token, en de knop **Verbinden**. Het token staat standaard verborgen; met de oogknop maak je het zichtbaar, met de kopieerknop neem je het over, en met **Nieuw token** maak je een vers token aan. Let op: dat laatste verbreekt élke bestaande koppeling, want die dragen allemaal het oude token — de app vraagt daarom eerst om bevestiging.
+**Verbinding** — het poortnummer (alleen te wijzigen als de server gestopt is; een draaiende server houdt zijn poort vast), het token, en de knop **Verbinden**. Het token staat standaard verborgen; met de oogknop maak je het zichtbaar, met de kopieerknop neem je het over, en met **Nieuw token** maak je een vers token aan. Let op: dat laatste verbreekt élke bestaande koppeling, want die dragen allemaal het oude token — de app vraagt daarom eerst om bevestiging. Draait de server, dan start hij meteen opnieuw met het nieuwe token; het oude werkt vanaf dat moment niet meer.
 
 **Veiligheid** — **Pauzeren**, **Alleen lezen**, de schakelaar **Auto-backup**, en de knoppen **Nu backup maken** en **Backup-map openen**. Wat ze precies doen, staat verderop bij *De veiligheidsknoppen*.
 
@@ -89,7 +89,7 @@ Bij het opvragen van de resourcelijst ziet een assistent meteen welke resources 
 
 **Alleen lezen** doet hetzelfde, maar als houding in plaats van als pauze: laat een assistent je planning analyseren, rapporteren of vergelijken, zonder dat hij er iets aan kan veranderen.
 
-**Auto-backup** maakt vóór de eerste wijziging in een document automatisch een IFC-kopie. Dat gebeurt één keer per document per sessie, dus je krijgt geen stapel bestanden bij elke aanroep. **Nu backup maken** doet het direct, bijvoorbeeld vlak voordat je een assistent iets ingrijpends laat doen. **Backup-map openen** brengt je naar de map waar ze staan; de app bewaart de laatste tien per document.
+**Auto-backup** maakt vóór de eerste wijziging in een document automatisch een IFC-kopie. Dat gebeurt één keer per document per sessie, dus je krijgt geen stapel bestanden bij elke aanroep. **Nu backup maken** doet het direct, bijvoorbeeld vlak voordat je een assistent iets ingrijpends laat doen. **Backup-map openen** brengt je naar de map waar ze staan; de app bewaart de laatste tien per document. Een opgeslagen projectbestand houdt over alle sessies heen één map, dus ook daar blijven het er tien.
 
 Daarbovenop komt de gewone ongedaan-maak-geschiedenis: een assistent deelt die met jou. Alles wat hij doet, kun jij terugdraaien — en de assistent kan dat zelf ook, want undo en redo zitten in zijn gereedschapskist.
 

@@ -20,6 +20,7 @@ import {
   createBackupService,
   ensureBackup as exportedEnsureBackup,
   sanitizeProjectName,
+  backupBucket,
   type BackupFs,
   type BackupDeps,
 } from '@/services/mcp/backup';
@@ -191,6 +192,30 @@ test('opruimbeleid houdt exact 10 backups per document; de 11e schrijf verwijder
   assert(!files.has(paths[0]), 'de oudste (eerst geschreven) backup is verwijderd');
   assert(files.has(paths[10]), 'de nieuwste backup staat er nog');
   for (let i = 1; i <= 10; i++) assert(files.has(paths[i]), `backup #${i} (van de 10 nieuwste) staat er nog`);
+});
+
+test('een opgeslagen document deelt zijn backupmap over sessies heen: de limiet van 10 geldt echt (audit 2026-09-26)', async () => {
+  const { fs, files } = makeFakeFs();
+  const filePath = '/home/jan/projecten/Kantoor Zuidas.ifc';
+  // Elke "sessie" geeft hetzelfde bestand een nieuw document-id; vroeger elk een eigen map.
+  for (let session = 0; session < 12; session++) {
+    const docId = `doc-sessie-${session}`;
+    const deps: BackupDeps = {
+      getFs: async () => fs,
+      getDoc: () => ({ ifc: `IFC:${session}`, projectName: 'Kantoor', filePath }),
+      autoBackupEnabled: async () => true,
+      now: (() => { let t = 2_000_000 + session * 1000; return () => t++; })(),
+      activeDocId: () => docId,
+    };
+    await createBackupService(deps).ensureBackup(docId, 'mutate');
+  }
+  const dirs = new Set([...files.keys()].map((p) => p.split('/').slice(0, -1).join('/')));
+  assertEq(dirs.size, 1, `één map voor het bestand, kreeg ${[...dirs].join(', ')}`);
+  assertEq(files.size, 10, 'over de sessies heen blijven er 10 over');
+  const dir = [...dirs][0];
+  assert(dir.includes('file-Kantoor Zuidas-'), `leesbare mapnaam, kreeg ${dir}`);
+  assert(backupBucket('a', '/x/Plan.ifc') !== backupBucket('a', '/y/Plan.ifc'), 'gelijke naam, andere map ⇒ andere emmer');
+  assertEq(backupBucket('doc-9', null), 'doc-9', 'nooit opgeslagen ⇒ doc-id');
 });
 
 // --- (8) fail-safe: een schrijffout propageert als reject (NIET null) -----------------------------

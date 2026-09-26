@@ -29,7 +29,7 @@ The tab has four groups.
 
 **Server** — the **Start bridge** (or **Stop bridge**) button with the status next to it: *Off*, *Live on port 3877*, *Port … busy* or *Error*. The same status appears as a coloured dot at the bottom right of the status bar, so you can see whether the bridge is alive from any other tab.
 
-**Connection** — the port number (only editable while the server is stopped; a running server holds its port), the token, and the **Connect** button. The token is hidden by default; the eye button reveals it, the copy button takes it, and **New token** generates a fresh one. Note that the last one breaks *every* existing connection, since they all carry the old token — which is why the app asks for confirmation first.
+**Connection** — the port number (only editable while the server is stopped; a running server holds its port), the token, and the **Connect** button. The token is hidden by default; the eye button reveals it, the copy button takes it, and **New token** generates a fresh one. Note that the last one breaks *every* existing connection, since they all carry the old token — which is why the app asks for confirmation first. If the server is running, it restarts straight away with the new token; the old one stops working at that moment.
 
 **Safety** — **Pause**, **Read-only**, the **Auto-backup** switch, and the **Back up now** and **Open backup folder** buttons. What they do is described below under *The safety controls*.
 
@@ -89,7 +89,7 @@ When it asks for the resource list, an assistant immediately sees which resource
 
 **Read-only** does the same, but as a stance rather than a pause: let an assistant analyse, report on or compare your schedule without being able to change anything.
 
-**Auto-backup** automatically writes an IFC copy before the first change to a document. That happens once per document per session, so you don't collect a pile of files with every call. **Back up now** does it immediately — handy just before you let an assistant do something drastic. **Open backup folder** takes you to where they live; the app keeps the last ten per document.
+**Auto-backup** automatically writes an IFC copy before the first change to a document. That happens once per document per session, so you don't collect a pile of files with every call. **Back up now** does it immediately — handy just before you let an assistant do something drastic. **Open backup folder** takes you to where they live; the app keeps the last ten per document. A saved project file keeps a single folder across all sessions, so it stays at ten there too.
 
 On top of that there is the ordinary undo history, which an assistant shares with you. Anything it does, you can undo — and so can the assistant, since undo and redo are in its toolbox too.
 
