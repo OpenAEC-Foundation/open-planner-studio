@@ -7,7 +7,7 @@ import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import {
   buildNewTask, createDefaultTaskTime, mergeTaskTime, mergeTaskUpdate, taskTriggerChanges,
-  taskCalendarHoursPerDay, taskWorkMinutesOf, invalidateForTimeBaseChange, clearLevelingGaps,
+  taskCalendarHoursPerDay, invalidateForTimeBaseChange, clearLevelingGaps,
   writeLevelingResult, clearLevelingOutput, applyDurationChangeRules,
 } from '@/utils/taskDefaults';
 import { sameValue } from '@/utils/sameValue';
@@ -16,6 +16,7 @@ import { assignInsertedWbsCodes } from '../insertedBranch';
 import { syncProjectCalendar } from '../syncProjectCalendar';
 import { notifyTimephasedLoss, notifyLevelingDelayRounded } from '../timephasedLossNotice';
 import type { McpTransactionLease } from './storeRuntime';
+import { runningDurationChange, type RunningDurationChange } from '@/engine/taskMutationRules';
 import type { DurationType, Task, TimephasedContourPeriod } from '@/types/task';
 import {
   acceptedAssignmentPatch, applyAssignmentPatch, contoursAfterEdit, insertAssignment, insertResource,
@@ -79,6 +80,17 @@ export type BulkTaskItem = Partial<Task> & {
   tempId: string;
   position?: number;
 };
+
+/**
+ * Wat een veldpatch met de voortgang van een LOPENDE taak deed (besluit eigenaar, restduur bij een
+ * duurwijziging — `runningDurationChange` in engine/taskMutationRules.ts): de nieuwe duur is korter
+ * dan het gedane werk en dus geweigerd (de taak is ONGEWIJZIGD), of het percentage en de restduur
+ * zijn aangepast. `null` = geen lopende taak of geen duurwijziging.
+ */
+export type McpDurationProgressOutcome =
+  | { refused: Extract<RunningDurationChange, { refused: true }> }
+  | { progress: Extract<RunningDurationChange, { refused: false }> }
+  | null;
 
 function createMcpDraft(
   context: AppStoreContext,
@@ -303,7 +315,8 @@ function createMcpDraft(
    * `Object.assign` — die liet een expliciet-`undefined`-sleutel (bv. van een ongetypeerde aanroeper)
    * nog steeds een verplicht veld overschrijven; `mergeTaskTime` beschermt die klasse expliciet.
    */
-  updateTaskFields(id: string, updates: Partial<Task>): void {
+  updateTaskFields(id: string, updates: Partial<Task>): McpDurationProgressOutcome {
+    let outcome: McpDurationProgressOutcome = null;
     store.setState((s) => {
       const idx = s.tasks.findIndex((t) => t.id === id);
       if (idx < 0) return;
@@ -317,14 +330,22 @@ function createMcpDraft(
       // sleutel — dezelfde poort als taskSlice.ts's `updateTask`, zie `taskTriggerChanges`.
       const changes = taskTriggerChanges(task, next);
       const contourHpd = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
-      const oldWorkMinutes = taskWorkMinutesOf(task, contourHpd);
+      // Besluit eigenaar (restduur): korter dan het gedane werk van een lopende taak ⇒ geweigerd,
+      // vóór enige mutatie (zie `McpDurationProgressOutcome`).
+      const check = changes.timeBase ? runningDurationChange(task.time, next.time, contourHpd) : null;
+      if (check?.refused) { outcome = { refused: check }; return; }
+      const before = { ...task.time };
       Object.assign(task, rest);
       if (time) task.time = next.time;
       // Duur-/datumwijziging: dezelfde gevolgregels als taskSlice.ts's `updateTask` en het taakraster,
       // zie `applyDurationChangeRules` in taskDefaults.ts. Een kalenderwissel ontkoppelt daarnaast
       // het Z8-venster (Z14b, zelfde triggerset/uitleg in `taskDefaults.ts`).
       let lost = false;
-      if (changes.timeBase) lost = applyDurationChangeRules(task, oldWorkMinutes, contourHpd);
+      if (changes.timeBase) {
+        const applied = applyDurationChangeRules(task, before, contourHpd, { statusDate: s.project.statusDate });
+        lost = applied.lost;
+        if (applied.progress) outcome = { progress: applied.progress };
+      }
       if (changes.calendar) lost = invalidateForTimeBaseChange(task) || lost;
       // mpp-nul-data-etappe, DEEL 1 — meld alleen bij een ECHT verlies via de actieve runtimelease.
       if (lost) recordTimephasedLoss(id);
@@ -339,6 +360,7 @@ function createMcpDraft(
       if (changes.levelingGaps) clearLevelingGaps(task);
       s.isDirty = true;
     });
+    return outcome;
   },
 
   /**
@@ -353,18 +375,21 @@ function createMcpDraft(
    * VAN WAARHEID is (`durationDaysOf`): een achtergebleven minutenwaarde zou een zojuist gezette
    * dag-duur stil overrulen. `delete` (niet `= undefined`) houdt het Task-object schoon voor de
    * IFC-round-trip. Onbekend id ⇒ stille no-op (zoals `updateTaskFields`).
+   * Een lopende taak houdt bij een duurwijziging haar gedane werk; korter dan dat werk ⇒ de patch
+   * wordt NIET toegepast en de uitkomst zegt waarom (`McpDurationProgressOutcome`, zoals
+   * `updateTaskFields`) — de toollaag maakt er een zachte weigering per item van.
    */
   patchTaskFields(
     id: string,
     top: Partial<Task>,
     timePatch?: { scheduleDuration?: number; durationUnit?: 'days' | 'hours'; durationMinutes?: number; durationType?: DurationType; clearDurationMinutes?: boolean },
-  ): void {
+  ): McpDurationProgressOutcome {
+    let outcome: McpDurationProgressOutcome = null;
     store.setState((s) => {
       const idx = s.tasks.findIndex((t) => t.id === id);
       if (idx < 0) return;
       const task = s.tasks[idx];
       const contourHpd = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
-      const oldWorkMinutes = taskWorkMinutesOf(task, contourHpd);
       // De taak zoals de patch haar achterlaat, eerst op een kopie (muteert niets): `top` overschrijft
       // top-level waarden, `timePatch` zet losse `time`-sleutels (`clearDurationMinutes` verwijdert
       // de sleutel — `delete`, niet `= undefined`, voor de IFC-round-trip).
@@ -385,12 +410,20 @@ function createMcpDraft(
       // `taskTriggerChanges`. `planner_update_tasks` met exact de huidige duur laat de MSP-sturing
       // dus staan.
       const changes = taskTriggerChanges(task, next);
+      // Besluit eigenaar (restduur), zie `updateTaskFields` hierboven.
+      const check = changes.timeBase ? runningDurationChange(task.time, next.time, contourHpd) : null;
+      if (check?.refused) { outcome = { refused: check }; return; }
+      const before = { ...task.time };
       Object.assign(task, top);
       if (timePatch) task.time = time;
       // Duurwijziging: dezelfde gevolgregels als `updateTaskFields` hierboven, zie
       // `applyDurationChangeRules` in taskDefaults.ts (inclusief het wissen van de nivelleergaten, B7).
       let lost = false;
-      if (changes.timeBase) lost = applyDurationChangeRules(task, oldWorkMinutes, contourHpd);
+      if (changes.timeBase) {
+        const applied = applyDurationChangeRules(task, before, contourHpd, { statusDate: s.project.statusDate });
+        lost = applied.lost;
+        if (applied.progress) outcome = { progress: applied.progress };
+      }
       // Z14b — een kalenderwissel ontkoppelt het Z8-venster, zie `updateTaskFields` hierboven.
       if (changes.calendar) lost = invalidateForTimeBaseChange(task) || lost;
       if (lost) recordTimephasedLoss(id); // zie `updateTaskFields` hierboven.
@@ -401,6 +434,7 @@ function createMcpDraft(
       if (changes.levelingGaps) clearLevelingGaps(task);
       s.isDirty = true;
     });
+    return outcome;
   },
 
   /** Materialiseer de snapshot tegelijk met de taakmutatie; bestaande ids zijn onveranderlijk. */

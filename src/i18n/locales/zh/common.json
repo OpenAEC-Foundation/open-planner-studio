@@ -35,7 +35,8 @@
     "pasteSkippedReadOnly_other": "已跳过 {{count}} 个只读单元格（例如自动编号的 WBS 代码或计算列）。",
     "librarySaveFailed": "无法保存库",
     "levelingDelayRoundedToWorkdays_other": "资源平衡会将 MS Project 精确到分钟的平衡延迟（{{count}} 项任务）四舍五入为整个工作日。",
-    "statusDateSetToday": "此前没有状态日期：现已设为今天（{{date}}），因为进度按状态日期计量。可在“计划 → 状态日期”中修改。"
+    "statusDateSetToday": "此前没有状态日期：现已设为今天（{{date}}），因为进度按状态日期计量。可在“计划 → 状态日期”中修改。",
+    "durationBelowDoneWork": "“{{name}}”已完成 {{percent}}%：工期不能短于已完成的工作。工期未更改。"
   },
   "yes": "是",
   "no": "否",

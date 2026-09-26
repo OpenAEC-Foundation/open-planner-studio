@@ -208,7 +208,10 @@ export type NotificationMessageKey =
   | 'notifications.exportSplitsLost'
   // Z1 (besluit eigenaar): voortgang ingevuld zonder statusdatum ⇒ de app zette hem op vandaag —
   // zie `engine/progressEntry.ts` en `state/progressEntryNotice.ts`. Parameter `date`.
-  | 'notifications.statusDateSetToday';
+  | 'notifications.statusDateSetToday'
+  // Besluit eigenaar (restduur): een nieuwe duur korter dan het gedane werk van een lopende taak is
+  // geweigerd — zie `runningDurationChange` in engine/taskMutationRules.ts. Parameters `name`, `percent`.
+  | 'notifications.durationBelowDoneWork';
 
 export interface AppNotification {
   /** Stabiele id — uitsluitend voor de React-key en voor `dismissNotification`. */

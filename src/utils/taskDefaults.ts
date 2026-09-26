@@ -5,6 +5,7 @@ import { sameValue } from '@/utils/sameValue';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { clipUserGapsToWork, splitUnitMinutes } from '@/engine/scheduler/splitEdit';
+import { applyRunningDurationChange } from '@/engine/taskMutationRules';
 import {
   rescaleContourForDuration, rescaleFactor, rescaleSplitGaps, taskWorkMinutes,
 } from '@/engine/contour/contourEngine';
@@ -652,8 +653,8 @@ export function rescaleTaskContours(
  * GEVOLGEN staan alleen hier. Ze stonden eerder drie keer uitgeschreven ("tweelingen"), en toen de
  * splits-functie erbij kwam kreeg alleen `updateTask` de afknipregel — zie stap 2.
  *
- * Aan te roepen NÁ de duurmutatie, met de werkduur van VÓÓR de mutatie (`taskWorkMinutesOf`) en de
- * uren-per-dag waarmee die werd gemeten. De volgorde is betekenisvol:
+ * Aan te roepen NÁ de duurmutatie, met de tijd van VÓÓR de mutatie (`before`, een kopie) en de
+ * uren-per-dag waarmee de werkduur gemeten wordt (`taskWorkMinutes`). De volgorde is betekenisvol:
  *  1. contour én importsplits proportioneel meeschalen (`rescaleTaskContours`);
  *  2. is er niets herschaald en KRIMPT het werk, dan vervallen gebruikersgaten op of voorbij het
  *     nieuwe werktotaal (`clipUserGapsToWork`, issue #146). Zonder contour schaalt niets de gaten
@@ -662,11 +663,18 @@ export function rescaleTaskContours(
  *     volgen hun eigen levenscyclus. Staat vóór stap 4: de aspositie van een gebruikersgat telt de
  *     nivelleergaten ervóór mee (H1-as, `splitWalk.ts`);
  *  3. laag 3 (en laag 4 met bevroren werk) ontkoppelen (`invalidateForTimeBaseChange`, Z14b/N2);
- *  4. nivelleergaten wissen (`clearLevelingGaps`, B1c-plan3 taak 3) — importsplits blijven brondata.
- * Bij een gelijke werkduur doen stap 1 en 2 niets; stap 3 en 4 zijn idempotent.
+ *  4. nivelleergaten wissen (`clearLevelingGaps`, B1c-plan3 taak 3) — importsplits blijven brondata;
+ *  5. een LOPENDE taak houdt haar gedane werk: restduur = nieuwe duur − gedane werk, het percentage
+ *     past zich aan (besluit eigenaar, zoals MS Project — `applyRunningDurationChange` in
+ *     engine/taskMutationRules.ts). Een nieuwe duur korter dan het gedane werk hoort de aanroeper
+ *     vóór de mutatie te weigeren met `runningDurationChange` (store: melding, raster: celfout,
+ *     AI-koppeling: weigering per item); bereikt het gedane werk precies de nieuwe duur, dan is de
+ *     taak voltooid (`opts.statusDate` voor het afgeleide werkelijke einde).
+ * Bij een gelijke werkduur doen stap 1, 2 en 5 niets; stap 3 en 4 zijn idempotent.
  *
- * Retourneert `true` als er MSP-sturing verloren ging (voor de eenmalige melding, zie
- * `invalidateForTimeBaseChange`). WANNEER iets als duurwijziging telt, is een echte waardewijziging
+ * Retourneert `lost: true` als er MSP-sturing verloren ging (voor de eenmalige melding, zie
+ * `invalidateForTimeBaseChange`) en in `progress` de door stap 5 gezette voortgang (de AI-koppeling
+ * meldt die terug). WANNEER iets als duurwijziging telt, is een echte waardewijziging
  * (`taskTriggerChanges(...).timeBase`, nooit een alleen meegestuurde sleutel); wat een kalender-,
  * datum-, constraint- of voortgangswijziging daarnaast doet, beslist de aanroeper.
  *
@@ -675,10 +683,11 @@ export function rescaleTaskContours(
  */
 export function applyDurationChangeRules(
   task: Task,
-  oldWorkMinutes: number,
+  before: TaskTime,
   hoursPerDay: number,
-  opts?: { rescaleContours?: boolean },
-): boolean {
+  opts?: { rescaleContours?: boolean; statusDate?: string },
+): { lost: boolean; progress: ReturnType<typeof applyRunningDurationChange> } {
+  const oldWorkMinutes = taskWorkMinutes(before, hoursPerDay);
   const rescaled = opts?.rescaleContours !== false && rescaleTaskContours(task, oldWorkMinutes, hoursPerDay);
   if (!rescaled && task.splitGaps !== undefined) {
     const newWorkMinutes = taskWorkMinutes(task.time, hoursPerDay);
@@ -689,5 +698,6 @@ export function applyDurationChangeRules(
   }
   const lost = invalidateForTimeBaseChange(task);
   clearLevelingGaps(task);
-  return lost;
+  const progress = applyRunningDurationChange(task, before, hoursPerDay, opts?.statusDate);
+  return { lost, progress };
 }

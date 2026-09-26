@@ -35,7 +35,8 @@
     "pasteSkippedReadOnly_other": "{{count}} 件の読み取り専用セルをスキップしました（例：自動採番の WBS コードや計算列など）。",
     "librarySaveFailed": "ライブラリを保存できませんでした",
     "levelingDelayRoundedToWorkdays_other": "山崩しは、MS Project の分単位の山崩し遅延（タスク {{count}} 件分）を整数の稼働日に丸めます。",
-    "statusDateSetToday": "状態日がまだありませんでした。進捗は状態日までで測るため、今日（{{date}}）に設定しました。計画 → 状態日で変更できます。"
+    "statusDateSetToday": "状態日がまだありませんでした。進捗は状態日までで測るため、今日（{{date}}）に設定しました。計画 → 状態日で変更できます。",
+    "durationBelowDoneWork": "「{{name}}」はすでに {{percent}}% 完了しています。完了済みの作業より短い期間にはできません。期間は変更されていません。"
   },
   "yes": "はい",
   "no": "いいえ",

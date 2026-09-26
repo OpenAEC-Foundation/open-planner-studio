@@ -51,7 +51,8 @@
     "levelingDelayRoundedToWorkdays_one": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâche à des journées de travail entières.",
     "levelingDelayRoundedToWorkdays_many": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâches à des journées de travail entières.",
     "levelingDelayRoundedToWorkdays_other": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâches à des journées de travail entières.",
-    "statusDateSetToday": "Il n’y avait pas encore de date de statut : elle est maintenant fixée à aujourd’hui ({{date}}), car l’avancement est mesuré jusqu’à la date de statut. Vous pouvez la modifier sous Planification → Date de statut."
+    "statusDateSetToday": "Il n’y avait pas encore de date de statut : elle est maintenant fixée à aujourd’hui ({{date}}), car l’avancement est mesuré jusqu’à la date de statut. Vous pouvez la modifier sous Planification → Date de statut.",
+    "durationBelowDoneWork": "« {{name}} » est déjà réalisée à {{percent}} % : une durée plus courte que le travail déjà effectué est impossible. La durée n’a pas été modifiée."
   },
   "yes": "Oui",
   "no": "Non",

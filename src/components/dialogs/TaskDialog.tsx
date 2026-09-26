@@ -133,7 +133,9 @@ export function TaskDialog() {
     // Opslaan = één undo-stap met dezelfde voortgangsregels als het paneel; de details (vers uit de
     // store vs uit de draft, het scheduleStart-anker, `moveTask` voor de ouder) staan in
     // state/taskDialogSave.ts.
-    saveTaskDialog({ editingTaskId: editingTask ? editingTask.id : null, draft, startDate, today: localTodayIso() });
+    // Geweigerd (een duur korter dan het gedane werk van een lopende taak, met een melding): er is
+    // niets opgeslagen en de dialoog blijft open, zodat de gebruiker de duur kan corrigeren.
+    if (!saveTaskDialog({ editingTaskId: editingTask ? editingTask.id : null, draft, startDate, today: localTodayIso() })) return;
     setUI({ showTaskDialog: false, editingTaskId: null });
   };
 

@@ -2,10 +2,12 @@ import { appStoreContext, type AppStoreContext } from '@/state/appStore';
 import { createBatchTransactions } from '@/state/runtime/createBatchTransactions';
 import {
   applyActualDateEdit, applyCompletionEdit, applyProgressInvariants, isActualPastStatusDate,
+  runningDurationChange,
 } from '@/engine/taskMutationRules';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { hasRecordedProgress } from '@/engine/progressEntry';
-import { statusDateSetTodayNotice } from '@/state/progressEntryNotice';
+import { durationBelowDoneWorkNotice, statusDateSetTodayNotice } from '@/state/progressEntryNotice';
+import { taskCalendarHoursPerDay } from '@/utils/taskDefaults';
 import { getPersonalTaskTypes } from '@/services/taskTypes/personalTaskTypes';
 import type { Task } from '@/types/task';
 
@@ -83,12 +85,60 @@ export interface TaskDialogSaveInput {
 
 const PROGRESS_KEYS = ['completion', 'actualStart', 'actualFinish'] as const;
 
-/** Bind het Opslaan van de dialoog aan precies één storecontext. */
-export function createTaskDialogSave(context: AppStoreContext): (input: TaskDialogSaveInput) => void {
+/**
+ * De tijd die Opslaan op een bestaande taak schrijft. Vers uit de store (niet de draft!): een
+ * CPM-herberekening tijdens het open staan van de dialoog mag niet worden teruggedraaid.
+ * Voortgangsvelden (completion/actualStart/actualFinish) komen WEL uit de draft — dat zijn de enige
+ * `time`-subvelden die deze sessie zelf muteert buiten de hieronder berekende schedule-ankervelden.
+ */
+function savedTime(editingTask: Task, draft: Task, startDate: string): Task['time'] {
+  const time = {
+    ...editingTask.time,
+    durationUnit: draft.time.durationUnit,
+    scheduleDuration: draft.time.scheduleDuration,
+    durationMinutes: draft.time.durationUnit === 'hours' ? draft.time.durationMinutes : undefined,
+  };
+  // De mijlpaaltransitie levert een VOLLEDIGE tijd (`...editingTask.time` uit de store) met duur
+  // 0. Daarom eerst: de duur uit de transitie wint van de draftduur, maar de sessiebewerkingen
+  // hieronder (voortgang, startdatum) mogen niet door de storewaarden worden overschreven —
+  // anders verdween "mijlpaal aan + voortgang/nieuwe start" in één sessie stil.
+  const milestoneTransition = taskMilestoneTransition(editingTask, draft.isMilestone);
+  if (milestoneTransition.time) Object.assign(time, milestoneTransition.time);
+  time.completion = draft.time.completion;
+  time.actualStart = draft.time.actualStart;
+  time.actualFinish = draft.time.actualFinish;
+  // scheduleStart (het geplande anker) alléén bijwerken als de gebruiker de startdatum
+  // daadwerkelijk wijzigde — anders zou opslaan de berekende start als nieuw anker vastleggen
+  // en de drift na herberekenen herintroduceren.
+  const shownStart = editingTask.time.earlyStart || editingTask.time.scheduleStart;
+  if (startDate !== shownStart) time.scheduleStart = startDate;
+  return time;
+}
+
+/** Bind het Opslaan van de dialoog aan precies één storecontext. Retourneert `false` als Opslaan
+ *  geweigerd is — dan is er niets veranderd en blijft de dialoog open. */
+export function createTaskDialogSave(context: AppStoreContext): (input: TaskDialogSaveInput) => boolean {
   const batch = createBatchTransactions(context);
   const S = () => context.store.getState();
 
-  return ({ editingTaskId, draft, startDate, today }) => batch.withTransaction(() => {
+  return ({ editingTaskId, draft, startDate, today }) => {
+    // Besluit eigenaar (restduur): een lopende taak houdt bij een duurwijziging haar gedane werk; een
+    // duur korter dan dat werk wordt geweigerd. Vóór de transactie, zodat ook de naam, de ouder en
+    // een nieuw taaktype uit deze sessie niet half worden opgeslagen (`updateTask` zou alleen zijn
+    // eigen deel weigeren).
+    const current = editingTaskId ? S().tasks.find(task => task.id === editingTaskId) : undefined;
+    if (current) {
+      const hoursPerDay = taskCalendarHoursPerDay(current, S().calendars, S().calendar);
+      if (runningDurationChange(current.time, savedTime(current, draft, startDate), hoursPerDay)?.refused) {
+        S().notify(durationBelowDoneWorkNotice(current));
+        return false;
+      }
+    }
+    batch.withTransaction(() => save({ editingTaskId, draft, startDate, today }));
+    return true;
+  };
+
+  function save({ editingTaskId, draft, startDate, today }: TaskDialogSaveInput): void {
     if (draft.customTaskTypeId) {
       const definition = S().customTaskTypes.find(type => type.id === draft.customTaskTypeId)
         ?? getPersonalTaskTypes().find(type => type.id === draft.customTaskTypeId);
@@ -97,30 +147,7 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
 
     const editingTask = editingTaskId ? S().tasks.find(task => task.id === editingTaskId) : undefined;
     if (editingTask) {
-      // Vers uit de store (niet de draft!): een CPM-herberekening tijdens het open staan van de
-      // dialoog mag niet worden teruggedraaid. Voortgangsvelden (completion/actualStart/actualFinish)
-      // komen WEL uit de draft — dat zijn de enige `time`-subvelden die deze sessie zelf muteert
-      // buiten de hieronder berekende schedule-ankervelden.
-      const time = {
-        ...editingTask.time,
-        durationUnit: draft.time.durationUnit,
-        scheduleDuration: draft.time.scheduleDuration,
-        durationMinutes: draft.time.durationUnit === 'hours' ? draft.time.durationMinutes : undefined,
-      };
-      // De mijlpaaltransitie levert een VOLLEDIGE tijd (`...editingTask.time` uit de store) met duur
-      // 0. Daarom eerst: de duur uit de transitie wint van de draftduur, maar de sessiebewerkingen
-      // hieronder (voortgang, startdatum) mogen niet door de storewaarden worden overschreven —
-      // anders verdween "mijlpaal aan + voortgang/nieuwe start" in één sessie stil.
-      const milestoneTransition = taskMilestoneTransition(editingTask, draft.isMilestone);
-      if (milestoneTransition.time) Object.assign(time, milestoneTransition.time);
-      time.completion = draft.time.completion;
-      time.actualStart = draft.time.actualStart;
-      time.actualFinish = draft.time.actualFinish;
-      // scheduleStart (het geplande anker) alléén bijwerken als de gebruiker de startdatum
-      // daadwerkelijk wijzigde — anders zou opslaan de berekende start als nieuw anker vastleggen
-      // en de drift na herberekenen herintroduceren.
-      const shownStart = editingTask.time.earlyStart || editingTask.time.scheduleStart;
-      if (startDate !== shownStart) time.scheduleStart = startDate;
+      const time = savedTime(editingTask, draft, startDate);
       const patch: Partial<Task> = {
         name: draft.name,
         description: draft.description,
@@ -189,7 +216,7 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
         completion: 0,
       },
     });
-  });
+  }
 }
 
 /** Expliciete compatibiliteitsadapter voor de ene gemounte productinterface. */

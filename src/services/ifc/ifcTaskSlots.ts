@@ -181,10 +181,28 @@ export const IFC_TASKTIME_SLOTS: TaskTimeSlot[] = [
     // raken. Backward-compatibel: `parseFloat` bij het lezen is formaat-onafhankelijk (elk aantal
     // decimalen), dus bestaande IFC-bestanden met 1-decimaal-completion blijven exact zo inlezen
     // als voorheen — alleen NIEUW geschreven bestanden winnen de extra precisie.
-    write: (w) => (w.task.time.completion ?? 0).toFixed(2),
+    // Restduurregel (besluit eigenaar, `runningDurationChange`): een duurwijziging van een lopende
+    // taak houdt het gedane werk gelijk en maakt het percentage bv. 4/12. Met twee decimalen kwam dat
+    // als 0,33 terug en verschoof het gedane werk na opslaan + openen. Daarom verliesvrij, zie
+    // `ifcCompletionReal`; hele procenten blijven byte-identiek.
+    write: (w) => ifcCompletionReal(w.task.time.completion ?? 0),
     read: (t, arg) => { t.completion = parseFloat(arg || '0') || 0; },
   },
 ];
+
+/**
+ * `completion` als IFC-REAL: twee decimalen zoals altijd — byte-identiek voor elke waarde die daarmee
+ * exact terugleest (hele procenten, alle bestaande bestanden) — en anders de kortste decimale vorm
+ * die exact terugleest (`String`), zodat opslaan + openen het percentage niet afrondt. Een STEP-REAL
+ * vraagt een decimale punt zonder exponent; voor de (theoretische) waarden waar `String` een exponent
+ * geeft, volstaat een vaste notatie met 20 decimalen.
+ */
+export function ifcCompletionReal(value: number): string {
+  const fixed = value.toFixed(2);
+  if (Number(fixed) === value) return fixed;
+  const shortest = String(value);
+  return /e/i.test(shortest) ? value.toFixed(20) : shortest;
+}
 
 // ── Aanwezigheidsregistratie ────────────────────────────────────────────────────────────────────
 

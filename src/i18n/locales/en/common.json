@@ -43,7 +43,8 @@
     "librarySaveFailed": "Library could not be saved",
     "levelingDelayRoundedToWorkdays_one": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} task to whole workdays.",
     "levelingDelayRoundedToWorkdays_other": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} tasks to whole workdays.",
-    "statusDateSetToday": "There was no status date yet: it is now set to today ({{date}}), because progress is measured up to the status date. You can change it under Planning → Status date."
+    "statusDateSetToday": "There was no status date yet: it is now set to today ({{date}}), because progress is measured up to the status date. You can change it under Planning → Status date.",
+    "durationBelowDoneWork": "‘{{name}}’ is already {{percent}}% done: a duration shorter than the work already done isn't possible. The duration was not changed."
   },
   "yes": "Yes",
   "no": "No",

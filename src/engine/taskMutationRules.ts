@@ -3,6 +3,7 @@ import type { Task, TaskTime } from '@/types/task';
 import { parseDate, parseInstant } from '@/utils/dateUtils';
 import { orderActualsAfterDerivedFinish } from '@/engine/actualDatesOrder';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
+import { taskWorkMinutes } from '@/engine/contour/contourEngine';
 
 /**
  * Vergelijkt een actual met de statusdatum op dezelfde precisie als de bestaande taaksetters.
@@ -138,6 +139,111 @@ export function applyRemainingDuration(task: Task, keepRecordedMinutes = false):
 export function hourRemainingDays(time: Pick<TaskTime, 'scheduleDuration' | 'durationMinutes'>, minutes: number): number {
   const totalMinutes = time.durationMinutes ?? 0;
   return totalMinutes > 0 ? (time.scheduleDuration * minutes) / totalMinutes : 0;
+}
+
+/**
+ * Wat een DUURWIJZIGING met de voortgang van een lopende taak doet — besluit eigenaar, "zoals MS
+ * Project": het gedane werk (de werkelijke duur) blijft gelijk, de restduur wordt nieuwe duur − gedane
+ * werk en het percentage past zich aan (10 d op 40 % → 12 d ⇒ nog 8 d, 33 %). Vóór dit besluit lag de
+ * restduur sinds G4 vast bij de voortgangsinvoer, zodat een duurwijziging het einde van een lopende
+ * taak niet verschoof.
+ *
+ * - LOPEND: gestart (werkelijke start of voortgang > 0 %) en nog niet voltooid. Ook een gestarte taak
+ *   op 0 % telt mee: haar gedane werk is 0, dus haar restduur volgt gewoon de nieuwe duur.
+ * - Alleen als de bewerking de voortgang zelf NIET wijzigt: geeft dezelfde bewerking ook een nieuw
+ *   percentage of een nieuwe restduur op ("Taak bewerken" met duur én voortgang, een geplakte rij),
+ *   dan wint die opgave.
+ * - EXACT, zonder afrondingsdrift: de restduur wordt in de eigen eenheid van de taak verschoven met
+ *   precies het duurverschil (dagtaak: `remainingTime` in werkdagen; urentaak: `remainingMinutes` in
+ *   minuten, met de werkdagfractie van `hourRemainingDays`). Voor een restduur die volgens de gewone
+ *   regel (`applyRemainingDuration`) uit het percentage kwam, is dat hetzelfde als die regel toepassen
+ *   op het nieuwe percentage; een uit een bestand gelezen restduur (T9) blijft zo ook exact.
+ *   Het percentage wordt NIET afgerond: `completion` = oud percentage × oude duur ÷ nieuwe duur, zodat
+ *   percentage × duur (het gedane werk) gelijk blijft; de weergave rondt pas af. (De IFC-schrijver
+ *   bewaart het percentage daarom verliesvrij, zie `ifcTaskSlots.ts`.)
+ * - Een eenheidswissel (dagen ↔ uren) rekent via de werkminuten: het gedane werk blijft gelijk en de
+ *   restduur volgt de gewone regel in de nieuwe eenheid.
+ * - Nieuwe duur KORTER dan het gedane werk: geweigerd (`refused`), niets geraden. Precies gelijk ⇒
+ *   100 %: de aanroeper laat de voortgangsinvarianten dan het werkelijke einde afleiden.
+ *
+ * `null` = de regel is niet van toepassing (geen lopende taak, geen duurwijziging, of de bewerking
+ * gaf zelf voortgang op). `hoursPerDay` zoals de aanroeper de werkduur meet (`taskWorkMinutes`).
+ */
+export type RunningDurationChange =
+  | { refused: true; done: number; unit: 'days' | 'hours' }
+  | { refused: false; completion: number; remainingTime: number; remainingMinutes?: number };
+
+export function runningDurationChange(before: TaskTime, after: TaskTime, hoursPerDay: number): RunningDurationChange | null {
+  const running = (before.completion > 0 || !!before.actualStart) && before.completion < 1 && !before.actualFinish;
+  if (!running) return null;
+  const progressTouched = after.completion !== before.completion
+    || after.remainingTime !== before.remainingTime || after.remainingMinutes !== before.remainingMinutes
+    || after.actualStart !== before.actualStart || after.actualFinish !== before.actualFinish;
+  if (progressTouched) return null;
+  const unitBefore = timeDurationUnit(before);
+  const unitAfter = timeDurationUnit(after);
+  const oldWork = taskWorkMinutes(before, hoursPerDay);
+  const newWork = taskWorkMinutes(after, hoursPerDay);
+  if (unitBefore === unitAfter && Math.abs(newWork - oldWork) < 1e-9) return null;
+  const c = before.completion;
+  const doneDays = c * before.scheduleDuration;
+  const doneMinutes = c * (before.durationMinutes ?? 0);
+  const refusal: RunningDurationChange = unitBefore === 'hours'
+    ? { refused: true, done: doneMinutes / 60, unit: 'hours' }
+    : { refused: true, done: doneDays, unit: 'days' };
+  if (newWork < c * oldWork - 1e-6) return refusal;
+  const cap = (value: number) => (value >= 1 - 1e-12 ? 1 : value);
+
+  if (unitBefore === 'days' && unitAfter === 'days') {
+    const remaining = (before.remainingTime ?? Math.round(before.scheduleDuration * (1 - c)))
+      + (after.scheduleDuration - before.scheduleDuration);
+    if (remaining < 0) return refusal;
+    const completion = after.scheduleDuration > 0 ? cap(doneDays / after.scheduleDuration) : c;
+    return { refused: false, completion, remainingTime: remaining };
+  }
+  if (unitBefore === 'hours' && unitAfter === 'hours') {
+    const oldMinutes = before.durationMinutes ?? 0;
+    const newMinutes = after.durationMinutes ?? 0;
+    const remainingMinutes = (before.remainingMinutes ?? Math.round(oldMinutes * (1 - c))) + (newMinutes - oldMinutes);
+    if (remainingMinutes < 0) return refusal;
+    const completion = newMinutes > 0 ? cap(doneMinutes / newMinutes) : c;
+    return { refused: false, completion, remainingMinutes, remainingTime: hourRemainingDays(after, remainingMinutes) };
+  }
+  // Eenheidswissel: via de werkminuten; de restduur volgt de gewone regel in de nieuwe eenheid.
+  const completion = newWork > 0 ? cap((c * oldWork) / newWork) : c;
+  if (unitAfter === 'hours') {
+    const remainingMinutes = Math.round((after.durationMinutes ?? 0) * (1 - completion));
+    return { refused: false, completion, remainingMinutes, remainingTime: hourRemainingDays(after, remainingMinutes) };
+  }
+  return { refused: false, completion, remainingTime: Math.round(after.scheduleDuration * (1 - completion)) };
+}
+
+/**
+ * Past {@link runningDurationChange} toe op `task` (muteert), ná de duurmutatie, met de tijd van
+ * vóór de bewerking. Bereikt het gedane werk precies de nieuwe duur, dan is de taak voltooid en
+ * leiden de voortgangsinvarianten het werkelijke einde af (`statusDate`). De weigering hoort de
+ * aanroeper vóór de mutatie al te hebben afgehandeld; hier doet `refused` niets.
+ * Retourneert de toegepaste uitkomst (voor de AI-koppeling, die de nieuwe restduur en het nieuwe
+ * percentage terugmeldt), of `null`.
+ */
+export function applyRunningDurationChange(
+  task: Task,
+  before: TaskTime,
+  hoursPerDay: number,
+  statusDate: string | undefined,
+): Extract<RunningDurationChange, { refused: false }> | null {
+  const change = runningDurationChange(before, task.time, hoursPerDay);
+  if (!change || change.refused) return null;
+  task.time.completion = change.completion;
+  task.time.remainingTime = change.remainingTime;
+  if (change.remainingMinutes !== undefined) task.time.remainingMinutes = change.remainingMinutes;
+  else delete task.time.remainingMinutes;
+  if (change.completion >= 1) applyProgressInvariants(task, statusDate);
+  return change;
+}
+
+function timeDurationUnit(time: TaskTime): 'days' | 'hours' {
+  return taskDurationUnit({ time } as Task);
 }
 
 /** Verliesloze toewijzing op een taak of geïsoleerde taakdraft. */

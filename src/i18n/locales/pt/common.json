@@ -51,7 +51,8 @@
     "levelingDelayRoundedToWorkdays_one": "O nivelamento arredonda o atraso de nivelamento do MS Project, com precisão de minutos, de {{count}} tarefa para dias úteis inteiros.",
     "levelingDelayRoundedToWorkdays_many": "O nivelamento arredonda o atraso de nivelamento do MS Project, com precisão de minutos, de {{count}} tarefas para dias úteis inteiros.",
     "levelingDelayRoundedToWorkdays_other": "O nivelamento arredonda o atraso de nivelamento do MS Project, com precisão de minutos, de {{count}} tarefas para dias úteis inteiros.",
-    "statusDateSetToday": "Ainda não havia data de estado: foi definida para hoje ({{date}}), porque o progresso é medido até à data de estado. Pode alterá-la em Planeamento → Data de estado."
+    "statusDateSetToday": "Ainda não havia data de estado: foi definida para hoje ({{date}}), porque o progresso é medido até à data de estado. Pode alterá-la em Planeamento → Data de estado.",
+    "durationBelowDoneWork": "«{{name}}» já está {{percent}}% feita: uma duração inferior ao trabalho já realizado não é possível. A duração não foi alterada."
   },
   "yes": "Sim",
   "no": "Não",

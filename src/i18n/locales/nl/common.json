@@ -43,7 +43,8 @@
     "librarySaveFailed": "Bibliotheek kon niet worden opgeslagen",
     "levelingDelayRoundedToWorkdays_one": "Nivelleren rondt de minuutprecieze nivelleervertraging van MS Project van {{count}} taak af op hele werkdagen.",
     "levelingDelayRoundedToWorkdays_other": "Nivelleren rondt de minuutprecieze nivelleervertraging van MS Project van {{count}} taken af op hele werkdagen.",
-    "statusDateSetToday": "Er stond nog geen statusdatum: die staat nu op vandaag ({{date}}), want voortgang wordt tot de statusdatum gemeten. Aanpassen kan via Planning → Statusdatum."
+    "statusDateSetToday": "Er stond nog geen statusdatum: die staat nu op vandaag ({{date}}), want voortgang wordt tot de statusdatum gemeten. Aanpassen kan via Planning → Statusdatum.",
+    "durationBelowDoneWork": "‘{{name}}’ is al voor {{percent}}% gedaan: een duur korter dan het gedane werk kan niet. De duur is niet gewijzigd."
   },
   "yes": "Ja",
   "no": "Nee",

@@ -88,6 +88,7 @@
       "actualAfterStatusDate": "Gerçek tarih, durum tarihinden sonra.",
       "actualFinishBeforeStart": "Gerçek bitiş, gerçek başlangıçtan önce.",
       "actualStartRequired": "Bu görev ancak durum tarihinden sonra başlayacaktı: önce gerçekleşen başlangıcı girin.",
+      "durationBelowDoneWork": "Bu süre, yapılmış işten daha kısa.",
       "conflictingProgressInputs": "Bu ilerleme değerleri birbiriyle çelişiyor.",
       "constraintDateUnavailable": "Kısıt tarihi girmeden önce bir kısıt türü belirleyin.",
       "constraintHardUnavailable": "Sert bir kısıt, tarihli bir kısıt türü gerektirir.",

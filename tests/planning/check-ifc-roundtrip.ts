@@ -1326,8 +1326,11 @@ const rt2 = readIFC(writeIFC(rt1));
     time: { scheduleStart: '2026-09-01', scheduleDuration: 4, durationType: 'WORKTIME' } as TaskTime,
   });
 
+  // Niet gewist: de waarde volgt sinds de restduurregel (besluit eigenaar) de duurwijziging van deze
+  // lopende taak — het gedane werk (40% van de oude duur) blijft gelijk, het percentage past zich aan.
+  const expected9a = 0.4 * full.scheduleDuration / 4;
   const afterPartial = S().tasks.find(t => t.id === id)!.time;
-  assert(afterPartial.completion === 0.4, `(9a) een partiële time-update mag completion niet wissen — kreeg ${afterPartial.completion}`);
+  assert(afterPartial.completion === expected9a, `(9a) een partiële time-update mag completion niet wissen (gedane werk blijft) — kreeg ${afterPartial.completion}, verwacht ${expected9a}`);
   assert(afterPartial.scheduleStart === '2026-09-01', `(9a) de daadwerkelijk opgegeven scheduleStart moet wél doorkomen — kreeg ${afterPartial.scheduleStart}`);
 
   let threw: unknown;
@@ -1340,7 +1343,7 @@ const rt2 = readIFC(writeIFC(rt1));
   assert(!threw, `(9a) writeIFC mag niet crashen na een partiële time-update — kreeg: ${threw instanceof Error ? threw.message : String(threw)}`);
   if (!threw) {
     const out = readIFC(ifcOut).tasks.find(t => t.name === 'T14b-update-store');
-    assert(out?.time.completion === 0.4, `(9a) completion moet 0.4 blijven ná writeIFC/readIFC — kreeg ${out?.time.completion}`);
+    assert(out?.time.completion === expected9a, `(9a) completion moet ${expected9a} blijven ná writeIFC/readIFC — kreeg ${out?.time.completion}`);
   }
   // Mutatiebewijs (uitgevoerd): `mergeTaskTime(s.tasks[idx].time, time)` in taskSlice.ts `updateTask`
   // teruggezet naar de kale `Object.assign(s.tasks[idx], updates)` (`time` dus wholesale vervangen)
@@ -1356,9 +1359,12 @@ const rt2 = readIFC(writeIFC(rt1));
   const S = () => useAppStore.getState();
   S().newProject();
   let id = '';
+  let expected9b = NaN;
   const tx = runInMcpTransaction(() => {
     id = draft.addTask({ name: 'T14b-update-mcp' });
     const full = S().tasks.find(t => t.id === id)!.time;
+    // Zie (9a): de duurwijziging van deze lopende taak houdt het gedane werk gelijk.
+    expected9b = 0.4 * full.scheduleDuration / 3;
     draft.updateTaskFields(id, { time: { ...full, completion: 0.4 } });
 
     // `completion` hier bewust als EXPLICIETE `undefined`-sleutel (niet gewoon weggelaten): dat is
@@ -1373,7 +1379,7 @@ const rt2 = readIFC(writeIFC(rt1));
   assert(tx.ok, `(9b) beide draftupdates horen binnen hun MCP-transactie te slagen`);
 
   const afterPartial = S().tasks.find(t => t.id === id)!.time;
-  assert(afterPartial.completion === 0.4, `(9b) draft.updateTaskFields mag completion niet wissen bij een partiële time-update — kreeg ${afterPartial.completion}`);
+  assert(afterPartial.completion === expected9b, `(9b) draft.updateTaskFields mag completion niet wissen bij een partiële time-update (gedane werk blijft) — kreeg ${afterPartial.completion}, verwacht ${expected9b}`);
 
   let threw: unknown;
   let ifcOut = '';
@@ -1385,7 +1391,7 @@ const rt2 = readIFC(writeIFC(rt1));
   assert(!threw, `(9b) writeIFC mag niet crashen na een partiële time-update via draft.updateTaskFields — kreeg: ${threw instanceof Error ? threw.message : String(threw)}`);
   if (!threw) {
     const out = readIFC(ifcOut).tasks.find(t => t.name === 'T14b-update-mcp');
-    assert(out?.time.completion === 0.4, `(9b) completion moet 0.4 blijven ná writeIFC/readIFC — kreeg ${out?.time.completion}`);
+    assert(out?.time.completion === expected9b, `(9b) completion moet ${expected9b} blijven ná writeIFC/readIFC — kreeg ${out?.time.completion}`);
   }
   // Mutatiebewijs (uitgevoerd): `mergeTaskTime(s.tasks[idx].time, time)` in mcpTransaction.ts' `draft.
   // updateTaskFields` teruggezet naar de kale `Object.assign(s.tasks[idx].time, time)` maakt de
@@ -1736,10 +1742,10 @@ const rt2 = readIFC(writeIFC(rt1));
   const back38 = back.tasks.find((t) => t.name === 'M3-m3-38pct');
   const back9955 = back.tasks.find((t) => t.name === 'M3-m3-9955pct');
   assert(back38?.time.completion === 0.38, `(11a) M3-precisie: 38% blijft 0,38 (niet 0,4 — de oude 10%-afrondbug), kreeg ${back38?.time.completion}`);
-  // (`(0.955).toFixed(2)` geeft "0.95", niet "0.96" — 0.955 heeft in IEEE-754-double geen exacte
-  // representatie en ligt in werkelijkheid net ónder 0,955, dus `toFixed` rondt naar beneden af.
-  // Dat is voor dit bewijs irrelevant: de kern is dat het NIET meer naar 1,0/100% afrondt.)
-  assert(back9955?.time.completion === 0.95, `(11b) M3-precisie: 95,5% wordt 0,95 op 2 decimalen (niet 1,0/100% — de VOLTOOID-gedragswisseling), kreeg ${back9955?.time.completion}`);
+  // Sinds de restduurregel (besluit eigenaar) schrijft de writer een percentage dat niet exact op
+  // twee decimalen past verliesvrij (`ifcCompletionReal`): 95,5% komt als 0,955 terug. Vroeger werd
+  // dat 0,95 (`toFixed(2)`); de kern van M3 blijft: NOOIT naar 1,0/100% afronden.
+  assert(back9955?.time.completion === 0.955, `(11b) M3-precisie: 95,5% blijft 0,955 (niet 1,0/100% — de VOLTOOID-gedragswisseling), kreeg ${back9955?.time.completion}`);
   assert((back9955?.time.completion ?? 0) < 1, '(11c) M3-precisie: 95,5% mag NIET als 100% (completion===1, VOLTOOID-tak) terugkomen');
 
   // Backward-compatibiliteit: een bestand geschreven met de OUDE 1-decimaal-precisie (bv. door een
@@ -1755,6 +1761,15 @@ const rt2 = readIFC(writeIFC(rt1));
 
   // Mutatiebewijs (uitgevoerd): `.toFixed(2)` in ifcTaskSlots.ts teruggezet naar `.toFixed(1)` maakt
   // (11a) en (11b)/(11c) ROOD — 0,38 wordt dan 0,4 en 0,955 wordt 1,0 (completion===1).
+
+  // (11e) Restduurregel: 10 d op 40% → 12 d geeft 4/12. Dat percentage en de restduur (8 d) komen
+  // exact terug, dus ook het gedane werk (percentage × duur = 4 d). Hele procenten blijven op twee
+  // decimalen, zie (11d).
+  const t13 = { ...mkCompl('rule3', 0.4 * 10 / 12), time: { ...mkCompl('rule3', 0).time, scheduleDuration: 12, remainingTime: 8, completion: 0.4 * 10 / 12, actualStart: '2026-08-15' } };
+  const out13 = writeIFC({ ...fixture, tasks: [...fixture.tasks, t13, t38] });
+  const back13 = readIFC(out13).tasks.find((t) => t.name === 'M3-rule3');
+  assert(back13?.time.completion === 0.4 * 10 / 12, `(11e) restduurregel: 4/12 komt exact terug, kreeg ${back13?.time.completion}`);
+  assert(back13?.time.remainingTime === 8, `(11e) restduurregel: restduur 8 d komt exact terug, kreeg ${back13?.time.remainingTime}`);
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════

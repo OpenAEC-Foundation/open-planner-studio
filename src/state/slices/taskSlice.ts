@@ -18,11 +18,11 @@ import { sameValue } from '@/utils/sameValue';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import { ancestorIds, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
-import { applyProgressInvariants } from '@/engine/taskMutationRules';
+import { applyProgressInvariants, runningDurationChange } from '@/engine/taskMutationRules';
 import {
   planProgressEntry, type ProgressEdit, type ProgressEntryContext, type ProgressEntryResult,
 } from '@/engine/progressEntry';
-import { statusDateSetTodayNotice } from '@/state/progressEntryNotice';
+import { durationBelowDoneWorkNotice, statusDateSetTodayNotice } from '@/state/progressEntryNotice';
 import type { WbsTemplate } from '@/utils/wbsTemplates';
 import { detachFromParent, attachToParent, isSelfOrDescendant, removeTaskSubtrees, siblingIds } from '@/state/taskTree';
 import { assignInsertedWbsCodes, insertRemappedRelations, notifyRelationsSkipped } from '@/state/insertedBranch';
@@ -446,6 +446,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     // `fileSlice.ts`'s `applyLoadedProject`: `notify` doet zelf een `set()`, dus nooit ván bínnen
     // een lopende producer aanroepen). `true` alleen bij een ECHT verlies, zie taskDefaults.ts.
     let lostTimephasedGuidance = false;
+    let refusedDuration: Task | null = null;
     set((s) => {
       const idx = s.tasks.findIndex(t => t.id === id);
       if (idx < 0) return; // onbekend id: geen snapshot, geen loze undo-stap (R3).
@@ -465,10 +466,18 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // omdat de sleutel is meegestuurd — de ene definitie die dit pad deelt met het taakraster en de
       // MCP-draft, zie `taskTriggerChanges` in taskDefaults.ts. Vóór de mutatie vastgelegd.
       const changes = taskTriggerChanges(task, next);
-      runtime.beginUndoable(s, opts); // snapshot pas ná de guards, vóór de mutatie; `opts` = coalesceKey (bv. balk-sleep = 1 stap).
-      // Contour-engine (2026-09): de oude werkduur vóór de merge, voor de herschaling hieronder.
       const contourHpd = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
-      const oldWorkMinutes = taskWorkMinutesOf(task, contourHpd);
+      // Besluit eigenaar (restduur): een lopende taak houdt haar gedane werk; een nieuwe duur die
+      // korter is dan dat werk wordt geweigerd — vóór de snapshot, dus niets veranderd, met een
+      // melding. Zie `runningDurationChange` in engine/taskMutationRules.ts.
+      if (changes.timeBase && runningDurationChange(task.time, next.time, contourHpd)?.refused) {
+        refusedDuration = { ...task, time: { ...task.time } };
+        return;
+      }
+      runtime.beginUndoable(s, opts); // snapshot pas ná de guards, vóór de mutatie; `opts` = coalesceKey (bv. balk-sleep = 1 stap).
+      // De tijd van vóór de merge (kopie): de gevolgregels meten daaraan de oude werkduur (contour-
+      // engine) en het gedane werk van een lopende taak.
+      const beforeTime = { ...task.time };
       const { time, ...rest } = updates;
       Object.assign(task, rest);
       if (time) task.time = next.time;
@@ -477,7 +486,9 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // de MCP-draft, zie `applyDurationChangeRules` in taskDefaults.ts. Een kale datumwijziging telt
       // hier mee; de werkduur blijft dan gelijk, dus meeschalen en afknippen doen niets.
       if (changes.timeBase) {
-        lostTimephasedGuidance = applyDurationChangeRules(task, oldWorkMinutes, contourHpd);
+        lostTimephasedGuidance = applyDurationChangeRules(
+          task, beforeTime, contourHpd, { statusDate: s.project.statusDate },
+        ).lost;
       }
       // Z14b (eigenaarsprincipe 2026-08-18) — ook een kalenderwissel ontkoppelt het GELEZEN Z8-venster
       // van de motor; de rauwe bron (`timephasedContours`) blijft staan. Zie `taskDefaults.ts`'s
@@ -502,6 +513,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       runtime.finishMutation(s, { stale: true });
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
+    const refused = refusedDuration as Task | null;
+    if (refused) get().notify(durationBelowDoneWorkNotice(refused));
     get().recomputeViewRows();
   },
 

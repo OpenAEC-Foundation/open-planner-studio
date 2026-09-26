@@ -101,6 +101,7 @@
       "actualAfterStatusDate": "Das Ist-Datum liegt nach dem Statusdatum.",
       "actualFinishBeforeStart": "Das Ist-Ende liegt vor dem Ist-Beginn.",
       "actualStartRequired": "Dieser Vorgang würde erst nach dem Statusdatum beginnen: Geben Sie zuerst den tatsächlichen Anfang ein.",
+      "durationBelowDoneWork": "Diese Dauer ist kürzer als die bereits geleistete Arbeit.",
       "conflictingProgressInputs": "Diese Fortschrittswerte widersprechen sich.",
       "constraintDateUnavailable": "Legen Sie zuerst einen Einschränkungstyp fest, bevor Sie ein Einschränkungsdatum eingeben.",
       "constraintHardUnavailable": "Eine harte Einschränkung erfordert einen Einschränkungstyp mit Datum.",

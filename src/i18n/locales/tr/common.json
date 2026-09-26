@@ -43,7 +43,8 @@
     "librarySaveFailed": "Kitaplık kaydedilemedi",
     "levelingDelayRoundedToWorkdays_one": "Kaynak dengeleme, MS Project'ten gelen dakika hassasiyetindeki dengeleme gecikmesini {{count}} görev için tam iş gününe yuvarlar.",
     "levelingDelayRoundedToWorkdays_other": "Kaynak dengeleme, MS Project'ten gelen dakika hassasiyetindeki dengeleme gecikmesini {{count}} görev için tam iş gününe yuvarlar.",
-    "statusDateSetToday": "Henüz durum tarihi yoktu: ilerleme durum tarihine kadar ölçüldüğü için bugüne ({{date}}) ayarlandı. Planlama → Durum tarihi altından değiştirebilirsiniz."
+    "statusDateSetToday": "Henüz durum tarihi yoktu: ilerleme durum tarihine kadar ölçüldüğü için bugüne ({{date}}) ayarlandı. Planlama → Durum tarihi altından değiştirebilirsiniz.",
+    "durationBelowDoneWork": "“{{name}}” zaten %{{percent}} tamamlandı: yapılmış işten kısa bir süre olamaz. Süre değiştirilmedi."
   },
   "yes": "Evet",
   "no": "Hayır",

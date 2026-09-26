@@ -88,6 +88,7 @@
       "actualAfterStatusDate": "La data effettiva è successiva alla data di stato.",
       "actualFinishBeforeStart": "La fine effettiva è precedente all'inizio effettivo.",
       "actualStartRequired": "Questa attività inizierebbe solo dopo la data di stato: inserisci prima l’inizio effettivo.",
+      "durationBelowDoneWork": "Questa durata è inferiore al lavoro già svolto.",
       "conflictingProgressInputs": "Questi valori di avanzamento si contraddicono.",
       "constraintDateUnavailable": "Imposta un tipo di vincolo prima di inserire una data di vincolo.",
       "constraintHardUnavailable": "Un vincolo rigido richiede un tipo di vincolo con una data.",

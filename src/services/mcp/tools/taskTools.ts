@@ -333,11 +333,33 @@ function parseUpdateTasks(args: unknown): { id: string; fields?: any; progress?:
   return a.updates as { id: string; fields?: any; progress?: any }[];
 }
 
+/** Een duurwijziging van een lopende taak paste het percentage en de restduur aan (besluit
+ *  eigenaar, `runningDurationChange`): wat `update_tasks` daarover terugmeldt. */
+interface ProgressAdjusted {
+  id: string;
+  /** Nieuw percentage voltooid (0–100, op twee decimalen; intern onafgerond). */
+  completion: number;
+  /** Nieuwe restduur in de eigen eenheid van de taak (`durationUnit`). */
+  remaining: number;
+  durationUnit: 'days' | 'hours';
+}
+
+const round2 = (value: number) => Math.round(value * 100) / 100;
+
+/** Weigeringsreden bij een duur korter dan het gedane werk van een lopende taak. */
+function durationBelowDoneWorkReason(refused: { done: number; unit: 'days' | 'hours' }, completion: number): string {
+  const unit = refused.unit === 'hours' ? 'uur' : 'werkdagen';
+  return `de taak is al voor ${Math.round(completion * 100)}% gedaan (${round2(refused.done)} ${unit} gedaan werk): `
+    + `een nieuwe duur korter dan het gedane werk kan niet — het gedane werk blijft gelijk bij een `
+    + `duurwijziging. Kies een duur van minstens ${round2(refused.done)} ${unit}, of pas eerst de voortgang aan (\`progress\`)`;
+}
+
 /** Synchrone, transactie-vrije kern van `update_tasks`. */
 function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; progress?: any }[]): MutationOutcome {
   const statusDate = ctx.app.store.getState().project.statusDate;
   const rejections: { id: string; reason: string }[] = [];
   const applied: string[] = [];
+  const progressAdjusted: ProgressAdjusted[] = [];
   for (const u of updates) {
     const id = u.id;
     const exists = validate.taskExists(ctx.app.store.getState(), id);
@@ -348,9 +370,26 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
       const res = resolveFieldsPatch(ctx.app.store.getState(), id, u.fields);
       if (!res.ok) { rejections.push({ id, reason: res.reason }); rejectedHere = true; }
       else {
-        if (res.patch.customTaskType) ctx.transactions.draft.ensureCustomTaskType(res.patch.customTaskType);
-        ctx.transactions.draft.patchTaskFields(id, res.patch.top, res.patch.time);
-        touched = true;
+        // Eerst de patch: weigert die (duur korter dan het gedane werk van een lopende taak), dan blijft
+        // ook het persoonlijke taaktype weg — geen halve merge.
+        const completionBefore = ctx.app.store.getState().tasks.find(t => t.id === id)?.time.completion ?? 0;
+        const outcome = ctx.transactions.draft.patchTaskFields(id, res.patch.top, res.patch.time);
+        if (outcome && 'refused' in outcome) {
+          rejections.push({ id, reason: durationBelowDoneWorkReason(outcome.refused, completionBefore) });
+          rejectedHere = true;
+        } else {
+          if (res.patch.customTaskType) ctx.transactions.draft.ensureCustomTaskType(res.patch.customTaskType);
+          if (outcome && 'progress' in outcome) {
+            const hours = outcome.progress.remainingMinutes !== undefined;
+            progressAdjusted.push({
+              id,
+              completion: round2(outcome.progress.completion * 100),
+              remaining: hours ? round2(outcome.progress.remainingMinutes! / 60) : round2(outcome.progress.remainingTime),
+              durationUnit: hours ? 'hours' : 'days',
+            });
+          }
+          touched = true;
+        }
       }
     }
     if (u.progress !== undefined) {
@@ -371,7 +410,10 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
     if (touched) applied.push(id);
     else if (!rejectedHere) rejections.push({ id, reason: 'geen `fields` of `progress` opgegeven' });
   }
-  return { data: { updated: applied }, itemRejections: rejections };
+  return {
+    data: { updated: applied, ...(progressAdjusted.length > 0 ? { progressAdjusted } : {}) },
+    itemRejections: rejections,
+  };
 }
 
 const updateTasks: BatchStepTool = {
@@ -384,6 +426,10 @@ const updateTasks: BatchStepTool = {
     'geweigerd `fields`-blok laat de taak volledig ONGEWIJZIGD (nooit een halve merge). ' +
     'Voortgang > 0 leidt de actualStart af; actuals ná de ' +
     'projectstatusdatum of buiten 0–100 worden per item zacht geweigerd — geldige items blijven staan. ' +
+    'Een DUURWIJZIGING op een lopende taak (gestart, nog niet voltooid) houdt het gedane werk gelijk, zoals ' +
+    'MS Project: restduur = nieuwe duur − gedane werk en het percentage past zich aan (10 d op 40% → 12 d ⇒ ' +
+    'nog 8 d, 33%); het resultaat meldt die taken in `progressAdjusted` (completion in procenten, remaining in ' +
+    'de eigen eenheid). Een duur korter dan het gedane werk wordt per item zacht geweigerd. ' +
     'Hefboom-tip: hypothetische uitloop = duur of SNET-constraint (via `fields`); geregistreerde voortgang ' +
     '= actuals mét statusdatum (via `progress`). Merk op: één taak-id kan tegelijk in `updated` én in de ' +
     'weigeringen verschijnen (bijv. `fields` geweigerd maar `progress` toegepast) — bewuste granulariteit.',
@@ -459,9 +505,12 @@ const updateTasks: BatchStepTool = {
     }
     const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => updateTasksCore(ctx, updates));
     return enrichOk(res, () => {
-      const updated = ((res as McpToolOk).data as { updated: string[] }).updated;
+      const { updated, progressAdjusted } = (res as McpToolOk).data as { updated: string[]; progressAdjusted?: ProgressAdjusted[] };
       const state = ctx.app.store.getState();
-      return { updated, tasks: freshDates(state, updated), projectEnd: projectEndInfo(state).projectEnd };
+      return {
+        updated, tasks: freshDates(state, updated), projectEnd: projectEndInfo(state).projectEnd,
+        ...(progressAdjusted ? { progressAdjusted } : {}),
+      };
     });
   },
 };

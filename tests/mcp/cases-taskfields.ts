@@ -154,7 +154,10 @@ test('update_tasks: fields.duration wijzigt de duur ECHT (regressie: stille no-o
   assertEq(t.time.scheduleDuration, 12, 'de duur is ECHT gewijzigd (time.scheduleDuration)');
   assert(!('duration' in (t as unknown as Record<string, unknown>)), 'er staat geen rommelveld `duration` op de taak');
   // De time-tak is veld-voor-veld gepatcht, niet vervangen.
-  assertEq(t.time.completion, 0.4, 'completion overleefde de duur-wijziging');
+  // Niet gewist, en sinds de restduurregel (besluit eigenaar) past het percentage zich aan: het
+  // gedane werk (40% van 5 d = 2 d) blijft gelijk, dus 2/12 van de nieuwe duur.
+  assertEq(t.time.completion, 0.4 * 5 / 12, 'completion overleefde de duur-wijziging (gedane werk gelijk)');
+  assertEq(t.time.remainingTime, 10, 'restduur = nieuwe duur − gedane werk');
   assert(t.time.actualStart !== undefined, 'actualStart (uit het voortgangspad) overleefde');
   assert(t.time.earlyStart !== '' && t.time.lateFinish !== '', 'CPM-datums zijn gevuld gebleven');
   assertEq(t.time.earlyStart, beforeEarlyStart, 'de vroege start bleef gelijk (alleen de duur wijzigde)');
