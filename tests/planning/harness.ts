@@ -638,8 +638,9 @@ function buildAndSolve(c: Case): {
     if (t.actualStart !== undefined) S().setActualStart(id, t.actualStart);
     if (t.actualFinish !== undefined) S().setActualFinish(id, t.actualFinish);
     if (t.completion !== undefined) S().setTaskProgress(id, t.completion);
-    // remainingMinutes RAUW ná completion (uur-voortgang, §5.3): `applyProgressInvariants` raakt alleen
-    // `remainingTime` (dagen), niet `remainingMinutes`, dus deze override overleeft `setTaskProgress`.
+    // remainingMinutes RAUW ná completion (uur-voortgang, §5.3): `setTaskProgress` leidt de restduur
+    // van een urentaak af uit de voortgang (`applyRemainingDuration`); deze override komt daarna, via
+    // `updateTask` (dat geen invarianten draait), en simuleert zo een geïmporteerde restduur.
     if (t.remainingMinutes !== undefined) {
       const task = S().tasks.find((x) => x.id === id)!;
       S().updateTask(id, { time: { ...task.time, remainingMinutes: t.remainingMinutes } });

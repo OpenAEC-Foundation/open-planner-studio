@@ -817,6 +817,10 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # duur waar eenduidig — één gedeelde regel (`resolveMissingScheduleDates`), per lezer getoetst.
   IMSDCHECK="$DIR/.import-missing-schedule-dates.mjs"
   if bundle_check "$DIR/check-import-missing-schedule-dates.ts" "$IMSDCHECK"; then node "$IMSDCHECK" || STATUS=1; fi
+  # Restduur in de eigen eenheid van de taak (G4): een urentaak houdt haar restduur in minuten plus
+  # een onafgeronde werkdagfractie, via één regel voor paneel, raster, MCP en de lezers.
+  RDCHECK="$DIR/.remaining-duration-check.mjs"
+  if bundle_check "$DIR/check-remaining-duration.ts" "$RDCHECK"; then node "$RDCHECK" || STATUS=1; fi
   EXTEDITCHECK="$DIR/.external-link-edit.mjs"
   if bundle_check "$DIR/check-external-link-edit.ts" "$EXTEDITCHECK"; then node "$EXTEDITCHECK" || STATUS=1; fi
 
