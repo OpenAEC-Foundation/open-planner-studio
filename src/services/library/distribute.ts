@@ -62,6 +62,8 @@ import {
   type LevelingResult,
 } from '@/engine/scheduler/ResourceLeveler';
 import { maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
+import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
+import { isLeafTask } from '@/utils/taskHierarchy';
 import { computeLibraryOccupancy, solveClone, type OccupancyDocInput, type OccupancySolveInput } from './occupancy';
 import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
 
@@ -169,8 +171,14 @@ export type DistributionLevelRun = (doc: DistributionDocInput, options: Leveling
 
 const defaultLevelRun: DistributionLevelRun = (doc, options) => {
   const { tasks, result: cpmResult } = solveClone(doc.levelInput, doc.calendar, doc.calendars);
+  // Zelfde invoer als het store-pad (`scheduleSlice.levelResources`): alleen bladtaken, met de
+  // samenvattingsrelaties uitgeklapt tegen de VOLLEDIGE boom. Vroeger kreeg de leveler hier de
+  // ruwe relaties; die op een samenvatting liet de solver (met een waarschuwing) vallen in zijn
+  // basis-, PF- en proefsolves, terwijl `cpmResult` wél uit de uitgeklapte `solveProject` kwam —
+  // met onterechte vertragingen als gevolg (audit 2026-09-26).
+  const { sequences } = expandSummaryRelations(tasks, doc.levelInput.sequences);
   return levelResources(
-    tasks, doc.levelInput.sequences, doc.resources, doc.assignments,
+    tasks.filter(isLeafTask), sequences, doc.resources, doc.assignments,
     doc.calendar, doc.calendars, cpmResult, options,
     doc.levelInput.options,
   );
