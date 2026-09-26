@@ -365,10 +365,24 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # "vandaag" — en dat scheduleStale altijd gezet wordt, ook zonder statusdatum.
   TSCHECK="$DIR/.task-slice-check.mjs"
   if bundle_check "$DIR/check-task-slice.ts" "$TSCHECK"; then node "$TSCHECK" || STATUS=1; fi
+
   # Restduur in de eigen eenheid van de taak (G4): een urentaak houdt haar restduur in minuten plus
   # een onafgeronde werkdagfractie, via één regel voor paneel, raster, MCP en de lezers.
   RDCHECK="$DIR/.remaining-duration-check.mjs"
   if bundle_check "$DIR/check-remaining-duration.ts" "$RDCHECK"; then node "$RDCHECK" || STATUS=1; fi
+
+  # Een automatisch ingevulde werkelijke start valt nooit ná het werkelijke einde (critreview
+  # claim 9): taakraster enkel/meer, store `setTaskProgress` en de dialoog-draft, dag- én uurtaak,
+  # plus het blok van 3 rijen × (naam, 100%) dat vóór de fix als geheel werd geweigerd. Het
+  # MCP-pad staat in tests/mcp/cases-auto-actual-start.ts.
+  AUTOASCHECK="$DIR/.auto-actual-start-check.mjs"
+  if bundle_check "$DIR/check-auto-actual-start.ts" "$AUTOASCHECK"; then node "$AUTOASCHECK" || STATUS=1; fi
+
+  # "Taak bewerken" → Opslaan (taakmutaties-audit, bevindingen 4 en 10): dezelfde voortgangsregels
+  # als het paneel (status, werkelijk einde bij 100%, resterende duur) en één undo-stap per Opslaan,
+  # via exact de draft- en opslagfuncties van de dialoog. Browserkant: tests/browser/task-dialog-save.spec.ts.
+  TDSCHECK="$DIR/.task-dialog-save.mjs"
+  if bundle_check "$DIR/check-task-dialog-save.ts" "$TDSCHECK"; then node "$TDSCHECK" || STATUS=1; fi
   EXTEDITCHECK="$DIR/.external-link-edit.mjs"
   if bundle_check "$DIR/check-external-link-edit.ts" "$EXTEDITCHECK"; then node "$EXTEDITCHECK" || STATUS=1; fi
 

@@ -34,7 +34,7 @@ export function TaskTimeFields({ task, onChange }: {
   // (`earlyStart || scheduleStart`). `scheduleStart` blijft de GEPLANDE anker — zie
   // scheduleSlice.ts:96-100 ("BEWUST GEEN scheduleStart-ANKER-drift"). Commit schrijft daarom alleen
   // naar scheduleStart als de gebruiker de waarde daadwerkelijk wijzigde t.o.v. wat getoond werd
-  // (zelfde patroon als TaskDialog.tsx:145-146) — anders zou elke render/commit-cyclus het anker naar
+  // (zelfde patroon als het Opslaan in state/taskDialogSave.ts) — anders zou elke render/commit-cyclus het anker naar
   // de berekende datum laten meeschuiven en precies de drift veroorzaken die dat commentaar beschrijft.
   const shownStart = task.time.earlyStart || task.time.scheduleStart;
 

@@ -146,7 +146,7 @@ export function deriveScheduleDurationFromMinutes(time: TaskTime, hoursPerDay: n
  *     NIET ⇒ behoud `base.veld` (de bestaande waarde bij UPDATE; bij ADD toch altijd `undefined`, want
  *     de verse default zet deze velden nooit).
  *   - `'veld' in partial` **true**, ook als de waarde `undefined` is ⇒ BEWUSTE CLEAR ⇒ neem
- *     `partial.veld` over (dus `undefined`). Dit is de vorm die `TaskDialog.tsx` nu gebruikt
+ *     `partial.veld` over (dus `undefined`). Dit is de vorm die het dialoog-Opslaan (`state/taskDialogSave.ts`) nu gebruikt
  *     Voor `durationMinutes` geldt sinds de expliciete taakeenheid een strengere invariant: bij een
  *     urentaak is dat veld de verplichte bron van waarheid en kan een losse `undefined` de bron dus
  *     niet wissen. Wisselen naar `durationUnit: 'days'` wist hem wel atomair.

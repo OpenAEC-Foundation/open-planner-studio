@@ -1,4 +1,4 @@
-import { Task, type ExternalLink, type TaskSplitGap, type TaskTime } from '@/types/task';
+import { Task, type ExternalLink, type TaskSplitGap } from '@/types/task';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import {
   adoptLevelingGaps, canSplitTask, fromSplitPieces, splitScheduleFinish,
@@ -19,6 +19,7 @@ import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import { ancestorIds, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
 import {
+  applyActualDateEdit,
   applyCompletionEdit,
   applyProgressInvariants,
   isActualPastStatusDate,
@@ -296,7 +297,8 @@ export { applyProgressInvariants };
 /**
  * De ene commit van de drie voortgangssetters (`setTaskProgress`/`setActualStart`/`setActualFinish`,
  * fase 2.6), binnen hun producer en ná hun eigen guards. `edit` is de setter-specifieke bewerking op
- * `time`; daarna volgen altijd de §3.2-invarianten (`applyProgressInvariants`).
+ * de taak, INCLUSIEF de §3.2-invarianten (`applyProgressInvariants`): de gedeelde functies uit
+ * taskMutationRules.ts die ook de concept in "Taak bewerken" gebruikt (`state/taskDialogSave.ts`).
  *
  * Verandert de bewerking per saldo niets aan de taak, dan is ze een no-op — dezelfde regel als
  * `updateTask`: geen snapshot, geen gevolgregel (`clearLevelingGaps`), geen `isDirty`, geen stale
@@ -314,19 +316,15 @@ function commitProgressEdit(
   runtime: StoreRuntime,
   s: AppState,
   task: Task,
-  edit: (time: TaskTime) => void,
+  edit: (target: Task, statusDate: string | undefined) => void,
   opts: { coalesceKey?: string } | undefined,
 ): void {
   const statusDate = s.project.statusDate;
-  const apply = (target: Task): void => {
-    edit(target.time);
-    applyProgressInvariants(target, statusDate);
-  };
   const probe: Task = { ...task, time: { ...task.time } };
-  apply(probe);
+  edit(probe, statusDate);
   if (sameValue(task, probe)) return;
   runtime.beginUndoable(s, opts); // `opts` = coalesceKey (slider-sleep / per-toetsaanslag-commits = 1 stap).
-  apply(task);
+  edit(task, statusDate);
   // B1c-plan-2 spec §4 "Invalidatie", vierde klasse — bedraad in de fixronde op etappe 3
   // (bevinding B7). Voortgang loopt buiten `updateTask` om, dus deze setters hebben hun eigen
   // aanroep; zie `LEVELING_GAP_TIME_TRIGGERS` in taskDefaults.ts voor het waarom.
@@ -357,12 +355,9 @@ function applyActualDate(
   const task = s.tasks.find((t) => t.id === taskId);
   if (!task) return true;
   if (date && s.project.statusDate && isActualPastStatusDate(date, s.project.statusDate)) return false;
-  commitProgressEdit(runtime, s, task, (time) => {
-    time[field] = date || undefined;
-    // Finish wissen terwijl de taak op 100% stond ⇒ terug naar in-uitvoering (anders re-default de
-    // invariant meteen een nieuw actualFinish en is wissen onmogelijk).
-    if (field === 'actualFinish' && !date && time.completion >= 1) time.completion = 0;
-  }, opts);
+  // Zetten/wissen + invarianten: gedeeld met de velden in "Taak bewerken" (state/taskDialogSave.ts).
+  // Snapshot, nivelleergaten, stale en de no-op-regel: zie `commitProgressEdit`.
+  commitProgressEdit(runtime, s, task, (target, statusDate) => applyActualDateEdit(target, field, date, statusDate), opts);
   return true;
 }
 
@@ -690,8 +685,9 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // Cykel-preventie (QA-fix P1, fase 2.10 onderdeel 2): newParentId mag niet id zelf zijn,
       // en niet een afstammeling van id — anders ontstaat een lus in de boom (oneindige loops in
       // flattenOrder/viewRows). Geweigerd ⇒ GEEN snapshot, GEEN mutatie: geen halftoegepaste
-      // state. Dit is de enige plek die parentId/childIds mag muteren (zie TaskDialog.handleSave —
-      // die haalt parentId daarom uit de kale `updateTask`-patch en roept in plaats daarvan dit aan).
+      // state. Dit is de enige plek die parentId/childIds mag muteren (zie state/taskDialogSave.ts —
+      // het Opslaan van "Taak bewerken" haalt parentId daarom uit de kale `updateTask`-patch en
+      // roept in plaats daarvan dit aan).
       // `position` verandert deze guards NIET: een geweigerde move blijft ook mét positie geweigerd.
       if (newParentId != null) {
         // Cyklusguard (review issue #21 pt. 1): de nieuwe ouder mag de taak zelf of een
@@ -1088,9 +1084,13 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     set((s) => {
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) return;
-      // §3.2: % > 0 ⇒ gestart (auto actualStart), teruggedraaid onder 100% ⇒ actualFinish vervalt.
-      // Snapshot, nivelleergaten, stale en de no-op-regel: zie `commitProgressEdit`.
-      commitProgressEdit(runtime, s, task, (time) => applyCompletionEdit(time, Math.max(0, Math.min(1, raw))), opts);
+      // §3.2: % > 0 ⇒ gestart (auto actualStart, nooit ná het werkelijke einde), teruggedraaid
+      // onder 100% ⇒ actualFinish vervalt. Dezelfde regel als de concept in "Taak bewerken"
+      // (`draftWithProgress`). Snapshot, nivelleergaten, stale en de no-op-regel: zie `commitProgressEdit`.
+      commitProgressEdit(runtime, s, task, (target, statusDate) => {
+        applyCompletionEdit(target.time, Math.max(0, Math.min(1, raw)), statusDate);
+        applyProgressInvariants(target, statusDate);
+      }, opts);
     });
     get().recomputeViewRows();
   },

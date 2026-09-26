@@ -21,7 +21,7 @@
 import type { AppState } from './appStore';
 import type { Task } from '@/types/task';
 import {
-  applyProgressInvariants, isActualFinishBeforeStart, isActualPastStatusDate,
+  applyProgressInvariants, fillMissingActualStart, isActualFinishBeforeStart, isActualPastStatusDate,
 } from '@/engine/taskMutationRules';
 import { clearLevelingGaps } from '@/utils/taskDefaults';
 import { sameValue } from '@/utils/sameValue';
@@ -123,8 +123,9 @@ export const progress = {
    *   1. range-validatie `completion` 0–100 — buiten bereik ⇒ weigering, GEEN klem (i.t.t. de
    *      store-`setTaskProgress`, die naar [0,1] klemt);
    *   2. conversie 0–100 ⇒ 0–1;
-   *   3. `completion > 0` zonder `actualStart` ⇒ `actualStart` afleiden (`earlyStart || scheduleStart`);
-   *   4. `completion < 1` ⇒ een verouderd `actualFinish` wissen;
+   *   3. `completion < 1` ⇒ een verouderd `actualFinish` wissen;
+   *   4. `completion > 0` zonder `actualStart` ⇒ `actualStart` afleiden (`earlyStart || scheduleStart`,
+   *      maar nooit ná het werkelijke einde — `fillMissingActualStart`, dezelfde regel als grid en store);
    *   5. een OPGEGEVEN `actualStart`/`actualFinish` ná de statusdatum ⇒ weigering (spiegel van het
    *      bestaande `accepted=false`-gedrag van de setters);
    *   6. `actualFinish` wissen op een 100%-taak reset óók `completion` (anders re-defaultt de invariant
@@ -162,17 +163,18 @@ export const progress = {
     if ('actualStart' in update) time.actualStart = update.actualStart || undefined;
     if ('actualFinish' in update) time.actualFinish = update.actualFinish || undefined;
 
-    // (3) completion > 0 zonder actualStart ⇒ actualStart afleiden (MSP-conventie: % ⇒ gestart).
-    if (time.completion > 0 && !time.actualStart) {
-      time.actualStart = time.earlyStart || time.scheduleStart;
-    }
-
-    // (4) completion < 1 ⇒ een verouderd actualFinish wissen — maar ALLEEN wanneer completion
+    // (3) completion < 1 ⇒ een verouderd actualFinish wissen — maar ALLEEN wanneer completion
     //     expliciet in DEZE update meekomt (spiegelt setTaskProgress, waar deze clausule bij de
     //     NIEUW gezette completion hoort). Anders zou het zetten van alléén een actualFinish (op een
     //     taak die nog op 0% staat) die finish meteen weer wissen — terwijl een opgegeven finish juist
     //     completion=1 hoort af te dwingen via de invarianten.
     if (update.completion !== undefined && time.completion < 1) time.actualFinish = undefined;
+
+    // (4) completion > 0 zonder actualStart ⇒ actualStart afleiden (MSP-conventie: % ⇒ gestart).
+    //     Ná (3), zodat de klem het einde ziet dat overblijft: een afgeleide start valt nooit ná het
+    //     (opgegeven of door de invarianten afgeleide) werkelijke einde. Een OPGEGEVEN actualStart
+    //     staat er dan al en blijft ongemoeid — die toetst (7) gewoon.
+    if (time.completion > 0) fillMissingActualStart(time, statusDate);
 
     // (5) OPGEGEVEN actual ná de statusdatum ⇒ weigering (spiegel van setActualStart/Finish accepted=false),
     //     met dezelfde vergelijking als store en grid: een date-only statusdatum laat de hele dag toe.
