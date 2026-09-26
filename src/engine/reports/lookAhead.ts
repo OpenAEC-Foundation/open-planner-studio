@@ -1,7 +1,7 @@
 import type { Task } from '@/types/task';
 import {
-  type ReportContext, assignedResourceNamesIndex, dayOf, isNearCritical, activityTasks, overlapsWindow,
-  progressState, remainingDays, resolvePeriodFor, taskFinish, taskStart,
+  type ReportContext, assignedResourceNamesIndex, isNearCritical, activityTasks, overlapsWindow,
+  progressState, remainingDays, resolvePeriodFor, scheduleSlip, taskFinish, taskStart,
 } from './reportCommon';
 import type { ReportingPeriod } from './reportingPeriod';
 
@@ -61,10 +61,10 @@ export interface LookAheadResult {
 function statusOf(t: Task, refDay: string): LookAheadStatus | null {
   const state = progressState(t);
   if (state === 'complete') return null;
-  if (dayOf(taskFinish(t)) < refDay) return 'overdue';
+  const slip = scheduleSlip(t, state, refDay);
+  if (slip === 'finish') return 'overdue';
   if (state === 'inProgress') return 'inProgress';
-  if (dayOf(taskStart(t)) < refDay) return 'lateStart';
-  return 'starting';
+  return slip === 'start' ? 'lateStart' : 'starting';
 }
 
 export function computeLookAhead(ctx: ReportContext, opts: LookAheadOptions): LookAheadResult {

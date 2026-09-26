@@ -14,7 +14,7 @@
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import {
-  detachFromParent, attachToParent, isSelfOrDescendant, collectSubtreeIds, siblingIds,
+  detachFromParent, attachToParent, isSelfOrDescendant, collectSubtreeIds, siblingIds, removeTaskSubtrees,
 } from '@/state/taskTree';
 import { useAppStore } from '@/state/appStore';
 import type { Task } from '@/types/task';
@@ -165,6 +165,30 @@ const tree = (): Task[] => [
   S().moveTask(p2, kind);
   eq('32 store: een cyklische move wordt geweigerd, zonder halve mutatie',
     JSON.stringify(S().tasks.map(x => [x.id, x.parentId, x.childIds])), before);
+}
+
+// ── removeTaskSubtrees: de actieve taak mag niet naar een verwijderde taak blijven wijzen ─────
+// Vóór de fix deed alleen `taskSlice.deleteTask` deze reset; `deleteTasksBulk` en de MCP-draft niet,
+// zodat het eigenschappenpaneel een taak kon blijven "vasthouden" die niet meer bestond.
+{
+  const staat = {
+    tasks: tree(), sequences: [], assignments: [],
+    selectedTaskIds: ['a1', 'b'], activeTaskId: 'a1' as string | null,
+  };
+  const weg = removeTaskSubtrees(staat, ['a']);
+  eq('38 removeTaskSubtrees: de hele deelboom weg', [...weg].sort(), ['a', 'a1', 'a2']);
+  eq('38a de selectie verliest de verwijderde taak', staat.selectedTaskIds, ['b']);
+  eq('38b de actieve taak valt terug op de eerste resterende selectie', staat.activeTaskId, 'b');
+
+  const S = () => useAppStore.getState();
+  S().newProject();
+  const x = S().addTask({ name: 'X' });
+  const y = S().addTask({ name: 'Y' });
+  S().addTask({ name: 'Z' });
+  S().selectTasks([x, y], false);
+  useAppStore.setState({ activeTaskId: x });
+  S().deleteTasksBulk([x, y]);
+  eq('39 store: deleteTasksBulk laat geen actieve taak achter die niet meer bestaat', S().activeTaskId, null);
 }
 
 // ── Bron-assert: de aangesloten plekken blijven aangesloten. ───────────────

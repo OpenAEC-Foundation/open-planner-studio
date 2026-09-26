@@ -7,6 +7,7 @@ import type { ViewState } from '@/types/view';
 import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
 import { readHistogramPalette, type HistogramPalette } from './themePalette';
 import { dateToX as axisDateToX, type GanttAxis } from './timeAxis';
+import { ellipsize } from './textFit';
 
 export interface HistogramSeries {
   /** iso-datum → belaste eenheden voor de getoonde resource (of som over alle renewables). */
@@ -251,7 +252,7 @@ export class HistogramRenderer {
     // R2a-fixronde punt 7: label niet onder de scroll-indicator laten doorlopen zodra die getekend
     // wordt — de gepinde somrij (nooit `reserveScrollbar`) blijft de volle breedte gebruiken.
     const maxW = pickerWidth - textX - 4 - (reserveScrollbar ? PICKER_SCROLLBAR_W + 2 : 0);
-    ctx.fillText(this.truncate(item.label, maxW), textX, y + this.rowH / 2);
+    ctx.fillText(ellipsize(ctx, item.label, maxW), textX, y + this.rowH / 2);
   }
 
   /** R2a: de gepinde "alle resources"-rij (index 0) blijft altijd op `TOP_PAD` staan; de overige
@@ -307,14 +308,6 @@ export class HistogramRenderer {
     ctx.globalAlpha = PICKER_SCROLLBAR_ALPHA;
     ctx.fillRect(pickerWidth - PICKER_SCROLLBAR_W - 1, thumbY, PICKER_SCROLLBAR_W, thumbHeight);
     ctx.restore();
-  }
-
-  private truncate(text: string, maxWidth: number): string {
-    const ctx = this.ctx;
-    if (ctx.measureText(text).width <= maxWidth) return text;
-    let t = text;
-    while (t.length > 1 && ctx.measureText(t + '…').width > maxWidth) t = t.slice(0, -1);
-    return t + '…';
   }
 
   private drawBars(): void {

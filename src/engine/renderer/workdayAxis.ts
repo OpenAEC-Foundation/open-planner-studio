@@ -13,7 +13,8 @@
 // Fase 2 hoeft dan alleen nog één van de twee te kiezen (`opts.compressNonWorkdays`).
 
 import type { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import { MS_PER_DAY, dateToX as calendarDateToX, xToDate as calendarXToDate, GanttAxis } from './timeAxis';
+import { MS_PER_DAY, utcDayIndex } from '@/utils/dateUtils';
+import { dateToX as calendarDateToX, xToDate as calendarXToDate, GanttAxis } from './timeAxis';
 
 // ── Kalender-as (variant A van §2.1): dunne wrapper om de fase-0-functies ────────────────────
 
@@ -45,13 +46,9 @@ export function buildCalendarAxis(options: CalendarAxisOptions): GanttAxis {
 
 // ── Werkdagen-as (§2.2-§2.4) ─────────────────────────────────────────────────────────────────
 
-/** UTC-dagindex — `floor(ms/MS_PER_DAY)`. Bewust IDENTIEK aan `CalendarEngine.isWorkDay`'s eigen
- *  dagindexering (epoch op UTC-middernacht, geen DST-drift), zodat de twee lagen nooit uiteenlopen
- *  over "welke dag hoort bij welke ms". */
-function utcDayIndex(date: Date): number {
-  return Math.floor(date.getTime() / MS_PER_DAY);
-}
-
+// De dagindex is `utcDayIndex` uit dateUtils — dezelfde als `CalendarEngine.isWorkDay` gebruikt
+// (epoch op UTC-middernacht, geen DST-drift), zodat de twee lagen nooit uiteenlopen over "welke dag
+// hoort bij welke ms".
 function dateFromUtcDayIndex(dayIdx: number): Date {
   return new Date(dayIdx * MS_PER_DAY);
 }
@@ -150,7 +147,7 @@ export function buildWorkdayAxis(options: WorkdayAxisOptions): GanttAxis {
     preWindowCount = start > 0 ? calendar.workDaysBetween(EPOCH, dateFromUtcDayIndex(start - 1)) : 0;
   }
 
-  buildWindow(utcDayIndex(origin) - initialPadding, utcDayIndex(origin) + initialPadding);
+  buildWindow(utcDayIndex(origin.getTime()) - initialPadding, utcDayIndex(origin.getTime()) + initialPadding);
 
   /** Breidt het venster uit zodat `dayIdx` erin valt, MITS dat binnen `MAX_WINDOW_DAYS` blijft.
    *  Geeft terug of `dayIdx` na deze aanroep in het venster valt (false ⇒ caller valt terug op
@@ -196,7 +193,7 @@ export function buildWorkdayAxis(options: WorkdayAxisOptions): GanttAxis {
 
   /** Fractionele werkdag-index (as-eenheden) van een datum, MET sub-dag-interpolatie. */
   function fractionalIndexOf(date: Date): number {
-    const dIdx = utcDayIndex(date);
+    const dIdx = utcDayIndex(date.getTime());
     return workdayIndexOfDay(dIdx) + intraDayFraction(date, dIdx);
   }
 
@@ -219,7 +216,7 @@ export function buildWorkdayAxis(options: WorkdayAxisOptions): GanttAxis {
       const newStart = needForward ? windowStart : windowStart - GROWTH_CHUNK_DAYS;
       const newEnd = needForward ? windowEnd + GROWTH_CHUNK_DAYS : windowEnd;
       if (newEnd - newStart + 1 > MAX_WINDOW_DAYS) {
-        return utcDayIndex(calendar.addWorkDays(EPOCH, index + 1));
+        return utcDayIndex(calendar.addWorkDays(EPOCH, index + 1).getTime());
       }
       buildWindow(newStart, newEnd);
     }

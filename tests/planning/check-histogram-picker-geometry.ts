@@ -126,6 +126,36 @@ function makeRenderer(opts: Partial<HistogramRenderOptions> & { canvasHeight: nu
   ok('volle scroll: de gepinde somrij (index 0) blijft bereikbaar op zijn vaste positie', pinned?.id === undefined);
 }
 
+// ── 5. Kiezerlabels afkappen: dezelfde `ellipsize` als de Gantt ─────────────────────────────
+// De eigen afkapfunctie tekende altijd minstens één teken + "…", ook als er geen ruimte was, en
+// knipte op UTF-16-code-units (een half surrogaatpaar vóór de ellips).
+{
+  const texts: string[] = [];
+  const noop = () => undefined;
+  const ctx = new Proxy({}, {
+    get: (_target, prop) => {
+      if (prop === 'measureText') return (text: string) => ({ width: text.length * 6 });
+      if (prop === 'fillText') return (text: string) => { texts.push(text); };
+      return noop;
+    },
+    set: () => true,
+  }) as unknown as CanvasRenderingContext2D;
+  const labelsFor = (pickerWidth: number, label: string): string[] => {
+    texts.length = 0;
+    new HistogramRenderer(ctx, {
+      series: { load: {}, capacity: {}, overSet: new Set() },
+      picker: [{ id: 'r', label, overallocated: false }],
+      view: FAKE_VIEW, canvasWidth: 800, canvasHeight: 160, pickerWidth,
+      labels: { unitsSuffix: 'u' }, palette: FAKE_PALETTE,
+    }).render();
+    return texts.filter(text => text === '' || text.includes('…') || text === label);
+  };
+  // pickerWidth 60: tekst op x = 20, maxW = 60 − 20 − 4 = 36 px = 6 tekens (inclusief "…").
+  eq('label: past niet ⇒ afgekapt met ellips', labelsFor(60, 'Grondwerkers ploeg').join('|'), 'Grond…');
+  eq('label: knipt niet midden in een surrogaatpaar', labelsFor(60, '𝒜𝒜𝒜𝒜𝒜𝒜𝒜').join('|'), '𝒜𝒜…');
+  eq('label: geen ruimte ⇒ niets, geen losse letter + ellips', labelsFor(20, 'Grondwerkers').join('|'), '');
+}
+
 console.log(`histogram-picker-geometry: ${checks} checks, ${diffs.length} afwijkingen`);
 if (diffs.length > 0) {
   for (const d of diffs) console.log(`XX ${d}`);

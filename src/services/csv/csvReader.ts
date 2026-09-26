@@ -1,4 +1,4 @@
-import { Task, TaskType, TaskStatus, TASK_TYPES } from '@/types/task';
+import { Task, TaskType, TASK_TYPES } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Project } from '@/types/project';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
@@ -27,7 +27,6 @@ interface ParsedRow {
   predecessors: string;
   taskType: string;
   customTaskTypeId: string;
-  status: string;
   completion: number;
   actualStart?: string;
   actualFinish?: string;
@@ -83,13 +82,6 @@ function parseTaskType(s: string): TaskType {
   // CSV-specifieke normalisatie: hoofdletters + trim (`construction` → `CONSTRUCTION`).
   const upper = s.toUpperCase().trim();
   return TASK_TYPES.includes(upper as TaskType) ? (upper as TaskType) : 'CONSTRUCTION';
-}
-
-function parseStatus(s: string): TaskStatus {
-  const upper = s.toUpperCase().trim();
-  if (upper === 'STARTED' || upper === 'IN_PROGRESS') return 'STARTED';
-  if (upper === 'COMPLETED' || upper === 'COMPLETE') return 'COMPLETED';
-  return 'NOT_STARTED';
 }
 
 /** CSV-datum: ISO of `DD-MM-YYYY`/`DD/MM/YYYY`; gedeeld met de import-datumhelper (F5-a). */
@@ -200,7 +192,6 @@ function mapColumnIndex(headers: string[]): Record<string, number> {
     predecessors: ['predecessors', 'predecessor', 'voorgangers', 'depends on', 'links'],
     taskType: ['task type', 'type', 'tasktype', 'taaktype'],
     customTaskTypeId: ['ops custom task type id'],
-    status: ['status'],
     completion: ['completion', 'completion (%)', '% complete', 'percent', 'voltooiing'],
     actualStart: ['actual start', 'actualstart', 'werkelijke start'],
     actualFinish: ['actual finish', 'actualfinish', 'werkelijke einde', 'werkelijk einde'],
@@ -296,7 +287,6 @@ export function readCSV(content: string): ImportResult {
       predecessors: get('predecessors'),
       taskType: get('taskType', 'CONSTRUCTION'),
       customTaskTypeId: get('customTaskTypeId').trim(),
-      status: get('status', 'NOT_STARTED'),
       completion,
       actualStart: actualStartRaw ? parseDate(actualStartRaw) : undefined,
       actualFinish: actualFinishRaw ? parseDate(actualFinishRaw) : undefined,
@@ -372,7 +362,7 @@ export function readCSV(content: string): ImportResult {
       wbsCode: row.wbs,
       taskType: customTaskTypeId ? 'USERDEFINED' : parsedType,
       ...(customTaskTypeId ? { customTaskTypeId } : {}),
-      status: parseStatus(row.status),
+      status: 'NOT_STARTED', // afgeleid door normalizeImportedProgress uit completion/actuals
       isMilestone: row.duration === 0,
       // De gedeelde default (500, zoals addTask en de IFC-/MSPDI-/P6-/MPP-lezers) — CSV draagt geen
       // prioriteit. De oude 0 ("laagste, levelt als eerste weg") was een overblijfsel van vóór

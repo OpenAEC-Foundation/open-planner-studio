@@ -1,7 +1,6 @@
 import type { FileFilter, FileRef, OpenDialogOpts, OpenedFile, SaveDialogOpts, SaveOutcome } from './index';
-import { ensureExtension, extensionOf } from '@/utils/filePath';
-
-const basename = (p: string): string => p.split(/[\\/]/).pop() || p;
+import { basename, ensureExtension, extensionOf } from '@/utils/filePath';
+import { writeUserBytesTauri, writeUserTextFileTauri } from '@/services/fileAccess/atomicWrite';
 
 export interface TauriOpenIO {
   readTextFile(path: string): Promise<string>;
@@ -64,8 +63,7 @@ export async function saveFileDialogTauri(
 ): Promise<SaveOutcome | null> {
   const savedPath = await pickSavePathTauri(defaultName, filters, opts);
   if (!savedPath) return null;
-  const { writeTextFile } = await import('@tauri-apps/plugin-fs');
-  await writeTextFile(savedPath, content);
+  await writeUserTextFileTauri(savedPath, content);
   return { ref: { kind: 'path', path: savedPath }, name: basename(savedPath) };
 }
 
@@ -76,15 +74,13 @@ export async function saveBytesDialogTauri(
 ): Promise<SaveOutcome | null> {
   const savedPath = await pickSavePathTauri(defaultName, filters, opts);
   if (!savedPath) return null;
-  const { writeFile } = await import('@tauri-apps/plugin-fs');
-  await writeFile(savedPath, bytes);
+  await writeUserBytesTauri(savedPath, bytes);
   return { ref: { kind: 'path', path: savedPath }, name: basename(savedPath) };
 }
 
 export async function saveToRefTauri(ref: FileRef, content: string): Promise<boolean> {
   if (ref.kind !== 'path') return false;
-  const { writeTextFile } = await import('@tauri-apps/plugin-fs');
-  await writeTextFile(ref.path, content);
+  await writeUserTextFileTauri(ref.path, content);
   return true;
 }
 

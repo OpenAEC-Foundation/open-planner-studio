@@ -2,7 +2,7 @@ import { produce } from 'immer';
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import { deriveViewRows } from './slices/viewSlice';
 import { buildTaskRelationIndex, type TaskRelationIndex } from '@/engine/taskGrid/relationIndex';
-import { buildTaskColumnRegistry, canonicalGridJson } from '@/engine/taskGrid/taskColumnRegistry';
+import { buildTaskColumnRegistry, canonicalGridJson, readOnlyValidationCode } from '@/engine/taskGrid/taskColumnRegistry';
 import {
   planTaskCellEdits,
   type TaskEditPlanEnvironment,
@@ -13,13 +13,15 @@ import {
   type TaskAssignmentApplyIndexes,
 } from '@/engine/taskGrid/assignmentPlan';
 import { isHourCalendar } from '@/services/subdayIo';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { signedWorkDaysBetween } from '@/engine/variance';
 import { effectiveCalendarOf, effHoursPerDay } from '@/utils/taskDuration';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { recordedGridBinding } from './recordedDatesSelectors';
 import { createSnapshot, restoreSnapshot, type Snapshot } from './snapshot';
 import { recordDocumentDataHistoryDelta } from './sessionHistory';
 import { notifyTimephasedLoss } from './timephasedLossNotice';
-import { markScheduleStale } from './transaction';
+import { markDateMutation, snapshotsEqual } from './transaction';
 import {
   captureCalendarChange, captureTriangle, remainingMinutesOf, settleAssignmentPlan, settleCalendarChange,
   settleDurationAftermath, settleDurationEdit, settleRuleChange, settleWorkEdit, type AssignmentSettleOp,
@@ -33,6 +35,7 @@ import {
   planRelationSet,
   planRelationSetInBatch,
   validateFinalRelationGraph,
+  type RelationTokenError,
 } from '@/engine/taskGrid/relationPlan';
 import type { AppState } from './appStore';
 import type { AppSlice, DeferredNotification } from './slices/types';
@@ -131,6 +134,7 @@ function buildGridColumnRuntime(state: Readonly<AppState>): GridColumnRuntime {
     if (values) values.push(assignment);
     else assignmentsByTaskId.set(assignment.taskId, [assignment]);
   }
+  let projectEngine: CalendarEngine | undefined;
   const context: TaskColumnContext = {
     projectId: state.project.id,
     tasksById: new Map(state.tasks.map(task => [task.id, task])),
@@ -146,6 +150,10 @@ function buildGridColumnRuntime(state: Readonly<AppState>): GridColumnRuntime {
     effectiveHoursPerDay: task => effHoursPerDay(effectiveCalendarOf(
       task, state.calendar, state.calendars,
     )),
+    // Zelfde projectkalenderroute als het UI-raster (FullTaskGrid); de engine pas bij gebruik.
+    signedWorkDaysBetween: (fromIso, toIso) => signedWorkDaysBetween(
+      projectEngine ??= new CalendarEngine(state.calendar), fromIso, toIso,
+    ),
     // Alleen `recordedMark` — die stuurt de `available()`-gate van de kolom `recorded.source`
     // (taskColumnRegistry.ts). Zonder deze naad zou een paste die toevallig over die kolom heen
     // strijkt hard falen (`plannerNotAvailable`) in plaats van de bestaande skip-readonly-route
@@ -419,14 +427,25 @@ function applyAssignmentSet(
       // venster én bevroren duur-walks — reviewbevinding K5).
       const lost = settleDurationAftermath(task, state, oldWorkMinutes, triangle.finishBasis);
       if (lost && !lostTaskIds.includes(task.id)) lostTaskIds = [...lostTaskIds, task.id];
-      if (state.datesAsRecorded) {
-        state.datesAsRecorded = false;
-        state.recordedDates = null;
-      }
-      markScheduleStale(state);
+      markDateMutation(state);
     }
   }
   return { ok: true, value: { timephasedGuidanceLostTaskIds: lostTaskIds } };
+}
+
+/** Relatieplanner-fouten als celvalidatiefouten; `taskId` alleen wanneer de fout bij één eigenaar
+ *  hoort (de eindgraafcontrole is taakoverstijgend en draagt er bewust geen). */
+function relationCellErrors(errors: readonly RelationTokenError[], taskId?: string): CellValidationError[] {
+  return errors.map(error => ({
+    code: error.code,
+    messageKey: error.messageKey,
+    ...(taskId !== undefined ? { taskId } : {}),
+    tokenIndex: error.tokenIndex,
+    start: error.start,
+    end: error.end,
+    cycle: error.cycle,
+    value: error.value,
+  }));
 }
 
 function applyRelationSet(
@@ -446,32 +465,12 @@ function applyRelationSet(
     tokens: intent.value,
     relationIndex,
   });
-  if (!planned.ok) {
-    return {
-      ok: false,
-      errors: planned.errors.map(error => ({
-        code: error.code,
-        messageKey: error.messageKey,
-        taskId: intent.taskId,
-        tokenIndex: error.tokenIndex,
-        start: error.start,
-        end: error.end,
-        cycle: error.cycle,
-        value: error.value,
-      })),
-    };
-  }
+  if (!planned.ok) return { ok: false, errors: relationCellErrors(planned.errors, intent.taskId) };
   applyRelationMutationPlan(state, planned.value, {
     sequenceId: () => generateId('seq'),
     externalLinkId: () => generateId('extlink'),
   });
-  if (planned.value.changed) {
-    if (state.datesAsRecorded) {
-      state.datesAsRecorded = false;
-      state.recordedDates = null;
-    }
-    markScheduleStale(state);
-  }
+  if (planned.value.changed) markDateMutation(state);
   return { ok: true, value: { changed: planned.value.changed } };
 }
 
@@ -602,8 +601,8 @@ function applyCellEdits(
   // Aanbeveling 4 (onafhankelijke eindreview): deze set is met de hand onderhouden, niet uit de
   // registry afgeleid (`readOnly` is een ondoorzichtige `(task, ctx) => boolean`, geen
   // gestructureerde afhankelijkheidslijst). Twee stilzwijgende aannames die daarbij horen:
-  // (1) `task.childIds` staat hier bewust NIET in, ook al lezen isHammock, durationUnit en
-  //     scheduleDuration childIds.length —
+  // (1) `task.childIds` staat hier bewust NIET in, ook al lezen isHammock, durationUnit,
+  //     scheduleDuration en de zes voortgangskolommen (verzameltaak ⇒ alleen-lezen) childIds.length —
   //     childIds is nooit los via een cel-paste schrijfbaar (readonlyColumn, geen parse/planWrite),
   //     dus er is structureel geen CellEditIntent-route die childIds binnen dezelfde transactie
   //     kan veranderen; (2) `ctx.assignmentsByTaskId` staat hier ook NIET in, ook al zijn
@@ -675,7 +674,7 @@ function applyCellEdits(
         }
         if (!jointlyWritable) {
           if (skipReadOnlyCells) { skippedConditionalEdits.add(edit); passFoundNewSkip = true; continue; }
-          return { ok: false, errors: [validationError('readOnly', edit, edit.value)] };
+          return { ok: false, errors: [validationError(readOnlyValidationCode(descriptor, task, runtime.context), edit, edit.value)] };
         }
         continue;
       }
@@ -696,7 +695,7 @@ function applyCellEdits(
       }
       if (!jointlyWritable) {
         if (skipReadOnlyCells) { skippedConditionalEdits.add(edit); passFoundNewSkip = true; continue; }
-        return { ok: false, errors: [validationError('readOnly', edit, edit.value)] };
+        return { ok: false, errors: [validationError(readOnlyValidationCode(descriptor, task, runtime.context), edit, edit.value)] };
       }
     }
   }
@@ -755,24 +754,11 @@ function applyCellEdits(
       state.taskTypesVisible = true;
     }
   }
-  if (changed && scheduleStale) {
-    if (state.datesAsRecorded) {
-      state.datesAsRecorded = false;
-      state.recordedDates = null;
-    }
-    markScheduleStale(state);
-  }
+  if (changed && scheduleStale) markDateMutation(state);
   return {
     ok: true,
     value: { timephasedGuidanceLost, skippedReadOnlyCount },
   };
-}
-
-function snapshotsShareAllFields(left: Snapshot, right: Snapshot): boolean {
-  for (const key of Object.keys(left) as (keyof Snapshot)[]) {
-    if (left[key] !== right[key]) return false;
-  }
-  return true;
 }
 
 export function prepareGridMutation(
@@ -877,17 +863,7 @@ export function prepareGridMutation(
     }
     if (errors.length === 0 && appliedRelationWrites.length > 0) {
       const finalGraph = validateFinalRelationGraph({ tasks: draft.tasks, sequences: draft.sequences });
-      if (!finalGraph.ok) {
-        errors.push(...finalGraph.errors.map(error => ({
-          code: error.code,
-          messageKey: error.messageKey,
-          tokenIndex: error.tokenIndex,
-          start: error.start,
-          end: error.end,
-          cycle: error.cycle,
-          value: error.value,
-        })));
-      }
+      if (!finalGraph.ok) errors.push(...relationCellErrors(finalGraph.errors));
     }
     if (errors.length === 0 && appliedRelationWrites.length > 1) {
       const finalRelationIndex = buildTaskRelationIndex(draft.tasks, draft.sequences, draft.cpmResult);
@@ -902,16 +878,7 @@ export function prepareGridMutation(
           relationIndex: finalRelationIndex,
         });
         if (!replay.ok) {
-          errors.push(...replay.errors.map(error => ({
-            code: error.code,
-            messageKey: error.messageKey,
-            taskId: write.taskId,
-            tokenIndex: error.tokenIndex,
-            start: error.start,
-            end: error.end,
-            cycle: error.cycle,
-            value: error.value,
-          })));
+          errors.push(...relationCellErrors(replay.errors, write.taskId));
         } else if (replay.value.changed) {
           errors.push(validationError('relationSetConflict', { taskId: write.taskId }, {
             direction: write.direction,
@@ -985,10 +952,10 @@ function commitPreparedAgainstStore(
   }
   // Alleen de rechtstreeks geëxporteerde test-/diagnosenaad kan tussen prepare en commit worden
   // vastgehouden. De normale wrapper is synchroon en slaat deze onnodige hotpathcheck over.
-  if (requireFreshBefore && !snapshotsShareAllFields(createSnapshot(get()), prepared.before)) {
+  if (requireFreshBefore && !snapshotsEqual(createSnapshot(get()), prepared.before)) {
     return { ok: false, errors: [{ code: 'stateChanged', message: 'De documentdata is na prepare gewijzigd' }] };
   }
-  const changed = !snapshotsShareAllFields(prepared.before, prepared.after);
+  const changed = !snapshotsEqual(prepared.before, prepared.after);
   if (changed) {
     try {
       set(state => {

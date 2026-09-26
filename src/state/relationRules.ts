@@ -18,6 +18,12 @@ export {
   type TaskLookup,
 } from '@/engine/scheduler/relationRules';
 
+/** Dedup-sleutel van een relatie: één relatie per (voorganger, opvolger, type) — dezelfde regel als
+ *  de duplicaatcheck van `relationVerdict` hieronder. Meerdere typen tussen hetzelfde paar mogen. */
+export function relationKey(relation: RelationEndpoints & { type: string }): string {
+  return `${relation.predecessorId}|${relation.successorId}|${relation.type}`;
+}
+
 /** Lokale add-check: structurele regels eerst, daarna alleen een exact typed duplicaat. */
 export function relationVerdict(
   lookup: TaskLookup,

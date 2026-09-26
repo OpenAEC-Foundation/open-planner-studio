@@ -1,11 +1,8 @@
-import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
+import { isValidUnits, RESOURCE_CURVES, type Resource, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
 import type { Task } from '@/types/task';
+import { groupBy } from '@/utils/collections';
 import type { CellValidationError, GridResult, TaskAssignmentToken } from '@/types/taskGrid';
-import { clearTimephasedDurationWalks, clearTimephasedWindow } from '@/utils/taskDefaults';
-
-const RESOURCE_CURVES: readonly ResourceCurve[] = [
-  'UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE',
-];
+import { invalidateForAssignmentChange } from '@/utils/taskDefaults';
 
 export type AssignmentPlanOperation =
   | {
@@ -74,10 +71,6 @@ function failure(
   };
 }
 
-function validUnits(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value) && value > 0;
-}
-
 /**
  * Vergelijkt één volledige gewenste tokenverzameling met de bestaande assignments van de taak.
  * De planner muteert niets en genereert geen ids; de geïsoleerde gridtransactie doet dat pas bij
@@ -125,7 +118,7 @@ export function planTaskAssignmentSet({
     if (typeof token.resourceId !== 'string' || !resourceIndex.has(token.resourceId)) {
       return failure('assignmentResourceNotFound', taskId, token);
     }
-    if (!validUnits(token.unitsPerDay)) return failure('assignmentUnits', taskId, token);
+    if (!isValidUnits(token.unitsPerDay)) return failure('assignmentUnits', taskId, token);
     if (token.curve !== undefined && !RESOURCE_CURVES.includes(token.curve)) {
       return failure('assignmentCurve', taskId, token);
     }
@@ -195,15 +188,12 @@ export function applyTaskAssignmentPlan(
 ): AppliedTaskAssignmentPlan {
   let applyIndexes = indexes;
   if (!applyIndexes) {
-    const assignmentsByTaskId = new Map<string, ResourceAssignment[]>();
+    const assignmentsByTaskId = groupBy(state.assignments, assignment => assignment.taskId);
     const assignmentsById = new Map<string, ResourceAssignment>();
     const usedAssignmentIds = new Set<string>();
     for (const assignment of state.assignments) {
       assignmentsById.set(assignment.id, assignment);
       usedAssignmentIds.add(assignment.id);
-      const current = assignmentsByTaskId.get(assignment.taskId);
-      if (current) current.push(assignment);
-      else assignmentsByTaskId.set(assignment.taskId, [assignment]);
     }
     applyIndexes = {
       assignmentsByTaskId,
@@ -273,13 +263,14 @@ export function applyTaskAssignmentPlan(
     task.resourceIds = [...resourceIds];
   }
 
+  // Dezelfde "toewijzingen"-trigger als de store en de MCP-draft (`assignmentMutations.ts`): één
+  // helper voor laag 3/4 én de nivelleergaten. Alleen bij een lidmaatschapswijziging (add/remove);
+  // een units/curve-update is — net als `updateAssignment` — geen trigger.
   const timephasedGuidanceLostTaskIds: string[] = [];
   for (const taskId of plan.membershipChangedTaskIds) {
     const task = tasksById.get(taskId);
     if (!task) continue;
-    const clearedWindow = clearTimephasedWindow(task);
-    const clearedWalks = clearTimephasedDurationWalks(task);
-    if (clearedWindow || clearedWalks) timephasedGuidanceLostTaskIds.push(taskId);
+    if (invalidateForAssignmentChange(task)) timephasedGuidanceLostTaskIds.push(taskId);
   }
   return { timephasedGuidanceLostTaskIds };
 }

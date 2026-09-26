@@ -12,6 +12,7 @@ import { GanttTaskGrid } from '@/components/task-grid/GanttTaskGrid';
 import { GanttCanvas, type GanttGridRevealRequest } from './GanttCanvas';
 import { clampTaskGridWidth, effectiveTaskGridMax } from './ganttSplitter';
 import { GanttRowDragBridgeContext, type GanttRowDragBridge, type GanttRowDragStarter } from './ganttRowDragBridge';
+import { applySetting } from '@/components/settings/applySetting';
 
 export function GanttWorkspace() {
   const { t } = useTranslation('task');
@@ -84,8 +85,7 @@ export function GanttWorkspace() {
             renderedLeftPanelWidth + direction * (event.shiftKey ? 40 : 10),
             workspaceWidth,
           );
-          setUI({ leftPanelWidth: next });
-          void saveLeftPanelWidth(next);
+          applySetting('leftPanelWidth', next, saveLeftPanelWidth);
         }}
       />
       <div className="gantt-workspace-timeline">

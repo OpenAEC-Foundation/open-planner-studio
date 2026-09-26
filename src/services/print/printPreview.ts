@@ -1,9 +1,9 @@
 import { Task } from '@/types/task';
 import { Sequence } from '@/types/sequence';
 import { WorkCalendar } from '@/types/calendar';
-import { parseDate, formatDate, addCalendarDays, getWeekNumberFor, diffCalendarDays, isoDayOfWeek } from '@/utils/dateUtils';
+import { parseDate, formatDate, addCalendarDays, getWeekNumberFor, diffCalendarDays, isoDayOfWeek, utcDayStart } from '@/utils/dateUtils';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import type { DateNotation } from '@/types/view';
+import type { DateNotation, DurationDisplay } from '@/types/view';
 import type { Draw2D } from '@/services/pdf/draw2d';
 import { CanvasDraw2D } from '@/services/pdf/canvasDraw2d';
 import { printableWidthLogicalPx, type TileLayout } from '@/services/print/tileLayout';
@@ -34,6 +34,11 @@ import type { ViewRow } from '@/engine/view/visibleRows';
 import type { RowAssignment, RowCurve } from '@/engine/reports/resourceGantt';
 import { formatReportNumber } from '@/utils/reportNumber';
 import type { BaselineOverlay } from '@/types/baseline';
+import { ellipsize } from '@/engine/renderer/textFit';
+import { displayDate } from '@/utils/displayDate';
+import { shownStart, shownFinish, floatBandEnd } from '@/utils/taskDates';
+import { effectiveCalendarOf, effHoursPerDay, formatTaskDurationText } from '@/utils/taskDuration';
+import type { DurationSuffixes } from '@/utils/durationFormat';
 
 // BASISmaten bij rapport-lettergrootte 100%. Niets tekent hier nog rechtstreeks mee: alle
 // tekenhelpers rekenen met de geschaalde varianten uit {@link ReportMetrics}/{@link makeMetrics}.
@@ -93,7 +98,7 @@ const BAR_LABEL_PAD_LEFT = 4;
 // zes kolommen nu op de inhoud die dít rapport toont ({@link measureTableColumnWidths}) —
 // dezelfde route als de naam- en de curvekolom al liepen — en is `w` alleen nog de terugval.
 // `max` = tweemaal de terugval: genoeg voor elke vertaalde kop en een diepe WBS-code, en nog
-// steeds een harde grens zodat één absurde waarde de tijdlijn niet opeet (daar kapt `fitText` af).
+// steeds een harde grens zodat één absurde waarde de tijdlijn niet opeet (daar kapt `ellipsize` af).
 // De naamkolom staat hier bewust NIET: die breedte is instelbaar (zie `PrintOptions.taskNameColumnWidth`).
 const COL = {
   wbs:       { w: 50, max: 100 },
@@ -383,22 +388,41 @@ interface TaskTableCellTexts extends Record<AutoColumnKey, string> {
   curve: string;
 }
 
-/** Wat de celteksten nodig hebben. `labels.daySuffix` is dezelfde dag-afkorting als in de projectkop;
- *  de render geeft gewoon zijn `PrintOptions` door, de kolommeting alleen dit ene label. */
-type CellTextOptions = Pick<PrintOptions, 'dateNotation' | 'numberLocale' | 'curveLabels'> & {
+type CellTextOptions = Pick<PrintOptions,
+  'dateNotation' | 'numberLocale' | 'curveLabels' | 'durationDisplay' | 'durationSuffixes' | 'calendars'> & {
+  /** De projectkalender: terugval voor de effectieve taakkalender van de Duur-kolom. Afwezig ⇒ 8 u/dag
+   *  (dan zijn alleen de omrekeningen tussen dagen en uren een schatting; de eigen eenheid niet). */
+  calendar?: WorkCalendar;
+  /** `labels.daySuffix` is dezelfde dag-afkorting als in de projectkop (main, #190); de Duur-cel
+   *  gebruikt zelf `durationSuffixes` (groep B), de kolommeting geeft dit ene label door. */
   labels?: Pick<NonNullable<PrintOptions['labels']>, 'daySuffix'>;
 };
 
+/** De Duur-cel: dezelfde tekst als taakraster en tooltip (`formatTaskDurationText`). */
+function durationCellText(task: Task, options: CellTextOptions): string {
+  const hoursPerDay = options.calendar
+    ? effHoursPerDay(effectiveCalendarOf(task, options.calendar, options.calendars ?? []))
+    : 8;
+  return formatTaskDurationText(task, hoursPerDay, {
+    display: options.durationDisplay,
+    // Groep B's volledige suffixset wint; anders de dag-afkorting van de projectkop (main, #190).
+    suffixes: options.durationSuffixes
+      ?? (options.labels?.daySuffix ? { day: options.labels.daySuffix, hour: 'h', minute: 'm' } : undefined),
+    locale: options.numberLocale,
+  });
+}
+
 function taskTableCellTexts(row: PrintRow, options: CellTextOptions): TaskTableCellTexts {
   const task = row.kind === 'task' ? row.task : undefined;
-  const startStr = task?.time.earlyStart || task?.time.scheduleStart;
-  const endStr = task?.time.earlyFinish || task?.time.scheduleFinish;
+  const startStr = task && shownStart(task);
+  const endStr = task && shownFinish(task);
   const assignment = row.assignment;
   return {
     wbs: task?.wbsCode || '',
-    duration: task ? formatDuration(task.time.scheduleDuration, options.numberLocale, options.labels?.daySuffix) : '',
-    start: startStr ? formatDutchDate(parseDate(startStr), options.dateNotation) : '',
-    end: endStr ? formatDutchDate(parseDate(endStr), options.dateNotation) : '',
+    duration: task ? durationCellText(task, options) : '',
+    // Ontbreekt de datumnotatie ⇒ dd-mm-jjjj (ongewijzigd oud gedrag).
+    start: displayDate(startStr, options.dateNotation ?? 'dmy'),
+    end: displayDate(endStr, options.dateNotation ?? 'dmy'),
     complete: task ? formatCompletion(task.time.completion) : '',
     units: assignment ? formatReportNumber(assignment.unitsPerDay, options.numberLocale) : '',
     curve: assignment ? (assignment.curve === null ? '—' : (options.curveLabels?.[assignment.curve] ?? assignment.curve)) : '',
@@ -656,6 +680,16 @@ export interface PrintOptions {
   /** BCP-47-taal voor getallen in de tabel (decimaalteken van de eenheden per dag); afwezig ⇒ punt. */
   numberLocale?: string;
   /**
+   * De instelling Duurweergave voor de Duur-kolom — dezelfde tekst als taakraster en tooltip
+   * (`formatTaskDurationText`, audit weergaven 7). Afwezig ⇒ `'auto'`: de eigen taakeenheid, dus een
+   * urentaak van 5h staat als "5h" en niet meer als "0,56d".
+   */
+  durationDisplay?: DurationDisplay;
+  /** Vertaalde duur-afkortingen (`durationSuffixesFrom`) — print heeft geen `t()`; afwezig ⇒ d/h/m. */
+  durationSuffixes?: DurationSuffixes;
+  /** De kalenderbibliotheek, voor de uren per dag van de effectieve taakkalender in de Duur-kolom. */
+  calendars?: WorkCalendar[];
+  /**
    * Lettergrootte van het GEGENEREERDE RAPPORT als percentage (issue #25 punt 4). 100 (of
    * ontbrekend) = het oude gedrag, byte-identiek. Werkt bewust RELATIEF: tekst, rijhoogtes,
    * kopstroken en tabelbreedte schalen mee, de tijdlijn-zoom niet — zie de uitgebreide afleiding
@@ -723,34 +757,6 @@ interface PrintTask extends Task {
 }
 
 /**
- * Format een datum volgens de datumnotatie-instelling (taak #53). Zelfde reorder-semantiek als
- * `displayDate` in @/utils/displayDate, maar bewust een kleine lokale kopie zodat deze pure
- * print-service niet de React/zustand-store-hook hoeft te importeren. Ontbreekt de notatie ⇒
- * dd-mm-jjjj (ongewijzigd oud gedrag).
- */
-function formatDutchDate(d: Date, notation: DateNotation = 'dmy'): string {
-  const day = String(d.getUTCDate()).padStart(2, '0');
-  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const year = String(d.getUTCFullYear());
-  switch (notation) {
-    case 'mdy': return `${month}-${day}-${year}`;
-    case 'ymd': return `${year}-${month}-${day}`;
-    default:    return `${day}-${month}-${year}`;
-  }
-}
-
-/**
- * Duur-cel: "15d", "1,5d" in nl — hetzelfde getal en decimaalteken als de Eenh./d-cel en de
- * tabelrapporten (`formatReportNumber`; review #139 bevinding 5: één tabel, één notatie). Zonder
- * `numberLocale` de neutrale punt, op twee decimalen afgerond. De dag-afkorting is dezelfde als in
- * de projectkop (`labels.daySuffix`, bv. "15j" in fr); zonder labels 'd'.
- */
-function formatDuration(days: number, locale: string | undefined, daySuffix = 'd'): string {
-  const text = formatReportNumber(days, locale);
-  return text ? `${text}${daySuffix}` : '—'; // niet-eindig: een streepje, geen losse eenheid
-}
-
-/**
  * Breek `text` op woordgrenzen in regels die binnen `maxWidth` passen (dezelfde px-eenheid als
  * `d2d.measureText`). Eén woord dat alleen al te breed is wordt met een ellipsis afgekort.
  */
@@ -761,7 +767,7 @@ function wrapWords(d2d: Draw2D, text: string, maxWidth: number): string[] {
     const candidate = line ? `${line} ${word}` : word;
     if (d2d.measureText(candidate).width <= maxWidth) { line = candidate; continue; }
     if (line) lines.push(line);
-    line = d2d.measureText(word).width <= maxWidth ? word : fitText(d2d, word, maxWidth);
+    line = d2d.measureText(word).width <= maxWidth ? word : ellipsize(d2d, word, maxWidth);
   }
   if (line) lines.push(line);
   return lines.length > 0 ? lines : [''];
@@ -770,28 +776,6 @@ function wrapWords(d2d: Draw2D, text: string, maxWidth: number): string[] {
 /** Format completion as "75%" */
 function formatCompletion(completion: number): string {
   return `${Math.round(completion * 100)}%`;
-}
-
-/**
- * Kort `text` in met een ellipsis ('…') zodat het binnen `maxWidth` (in dezelfde px-eenheid als
- * `d2d.measureText`, d.w.z. de logische/CSS-px van de huidige transform) past. Verwacht dat
- * `d2d.font` al is ingesteld. Geeft '' terug als er geen ruimte is. Wordt gebruikt om tekst nooit
- * over een kolomrand/canvasrand te laten lopen (klachten 4 en 7).
- */
-function fitText(d2d: Draw2D, text: string, maxWidth: number): string {
-  if (maxWidth <= 0) return '';
-  if (d2d.measureText(text).width <= maxWidth) return text;
-  const ellipsis = '…';
-  // Binaire zoektocht naar de langste prefix die met ellipsis nog past.
-  let lo = 0;
-  let hi = text.length;
-  while (lo < hi) {
-    const mid = Math.ceil((lo + hi) / 2);
-    if (d2d.measureText(text.slice(0, mid) + ellipsis).width <= maxWidth) lo = mid;
-    else hi = mid - 1;
-  }
-  if (lo === 0) return d2d.measureText(ellipsis).width <= maxWidth ? ellipsis : '';
-  return text.slice(0, lo) + ellipsis;
 }
 
 /**
@@ -871,9 +855,9 @@ function drawBarLabel(
   } else if (textWidth <= leftAvail) {
     fillLabelText(d2d, name, leftEnd, y, 'right', color);
   } else if (rightAvail >= leftAvail) {
-    fillLabelText(d2d, fitText(d2d, name, rightAvail), rightStart, y, 'left', color);
+    fillLabelText(d2d, ellipsize(d2d, name, rightAvail), rightStart, y, 'left', color);
   } else {
-    fillLabelText(d2d, fitText(d2d, name, leftAvail), leftEnd, y, 'right', color);
+    fillLabelText(d2d, ellipsize(d2d, name, leftAvail), leftEnd, y, 'right', color);
   }
 }
 
@@ -886,7 +870,7 @@ export interface RenderReportResult {
   /**
    * Breedte van de linker taaktabel-zone (de "frozen" naam-/info-kolommen links van het
    * Gantt-gebied), in LOGISCHE/CSS-px — dezelfde eenheid als `width`/`height` hierboven en als de
-   * paginamaat die de PDF-laag (`miniPdf.canvasToPdfBytes`) uit `canvas.style.width` afleidt. Bewust
+   * maat die de pagineerlaag naar punten omrekent (`tileLayout.ts`, `LOGICAL_PX_TO_PT`). Bewust
    * NIET in raster/device-px (`canvas.width` = logisch × devicePixelRatio): een andere golf gebruikt
    * dit om de tabelkolom per pagina te herhalen en werkt daarbij in hetzelfde logische coördinaten-
    * stelsel als de rest van het return-object; de raster-schaal komt daar apart bij.
@@ -992,15 +976,18 @@ export function renderReport(
   let minDate = new Date(8640000000000000);
   let maxDate = new Date(0);
   for (const t of flatTasks) {
-    const s = parseDate(t.time.earlyStart || t.time.scheduleStart);
-    const f = parseDate(t.time.earlyFinish || t.time.scheduleFinish);
+    const s = parseDate(shownStart(t));
+    const f = parseDate(shownFinish(t));
     if (s < minDate) minDate = s;
     if (f > maxDate) maxDate = f;
 
-    // Include float in date range
-    if (options.showFloat && t.time.totalFloat > 0) {
-      const floatEnd = addCalendarDays(f, t.time.totalFloat);
-      if (floatEnd > maxDate) maxDate = floatEnd;
+    // Include float in date range: de laatste dag van de spelingsband (= "Laatste einde"), met
+    // dezelfde helper als de tekening hieronder — `f` is net als `maxDate` de BEGINdag van de
+    // laatste getekende dag, de helper geeft het exclusieve einde.
+    const bandEnd = options.showFloat ? floatBandEnd(t, true) : null;
+    if (bandEnd) {
+      const lastBandDay = addCalendarDays(bandEnd, -1);
+      if (lastBandDay > maxDate) maxDate = lastBandDay;
     }
   }
 
@@ -1238,14 +1225,14 @@ export function renderReport(
             let px = statusLineX!;
             const row = printRows[i];
             if (row.kind === 'task' && row.task && !row.task.isMilestone && isLeafTask(row.task)) {
-              const s = parseDate(row.task.time.earlyStart || row.task.time.scheduleStart);
-              const f = parseDate(row.task.time.earlyFinish || row.task.time.scheduleFinish);
+              const s = parseDate(shownStart(row.task));
+              const f = parseDate(shownFinish(row.task));
               const bx1 = dateToX(s);
               const bx2 = dateToX(f) + zoom;
               const c = Math.max(0, Math.min(1, row.task.time.completion || 0));
-              const finishDay = Date.UTC(f.getUTCFullYear(), f.getUTCMonth(), f.getUTCDate());
-              const startDay = Date.UTC(s.getUTCFullYear(), s.getUTCMonth(), s.getUTCDate());
-              const statusUtc = Date.UTC(statusDay.getUTCFullYear(), statusDay.getUTCMonth(), statusDay.getUTCDate());
+              const finishDay = utcDayStart(f).getTime();
+              const startDay = utcDayStart(s).getTime();
+              const statusUtc = utcDayStart(statusDay).getTime();
               const fullyDone = c >= 1 && finishDay <= statusUtc;
               const notStarted = c === 0 && startDay >= statusUtc;
               if (!fullyDone && !notStarted) px = clampX(bx1 + (bx2 - bx1) * c);
@@ -1331,7 +1318,7 @@ export function renderReport(
 
     if (task.isMilestone) {
       // Milestone diamond
-      const date = parseDate(task.time.earlyStart || task.time.scheduleStart);
+      const date = parseDate(shownStart(task));
       const x = dateToX(date) + zoom / 2;
       const cy = y + barHeight / 2;
       const size = barHeight * 0.45;
@@ -1367,8 +1354,8 @@ export function renderReport(
       }
     } else if (isSummaryTask(task)) {
       // Summary bracket bar
-      const start = parseDate(task.time.earlyStart || task.time.scheduleStart);
-      const end = parseDate(task.time.earlyFinish || task.time.scheduleFinish);
+      const start = parseDate(shownStart(task));
+      const end = parseDate(shownFinish(task));
       const rawX1 = dateToX(start);
       const rawX2 = dateToX(end) + zoom;
       // Tijdvenster: geklemd op het chartgebied; een afgekapt uiteinde krijgt geen haakje (dat zou
@@ -1409,8 +1396,8 @@ export function renderReport(
       }
     } else {
       // Normal task bar
-      const start = parseDate(task.time.earlyStart || task.time.scheduleStart);
-      const end = parseDate(task.time.earlyFinish || task.time.scheduleFinish);
+      const start = parseDate(shownStart(task));
+      const end = parseDate(shownFinish(task));
       const rawX1 = dateToX(start);
       const rawX2 = dateToX(end) + zoom;
       const width = Math.max(rawX2 - rawX1, 3);
@@ -1505,9 +1492,11 @@ export function renderReport(
         }
       }
 
-      // Float indicator
-      const floatEndX = clampX(rawX2 + task.time.totalFloat * zoom);
-      if (options.showFloat && task.time.totalFloat > 0 && !task.time.isCritical && floatEndX > x2) {
+      // Float indicator — tot het einde van "Laatste einde" (`floatBandEnd`, dezelfde helper als
+      // het scherm en het datumbereik hierboven), op dagniveau zoals de balk zelf.
+      const bandEnd = options.showFloat ? floatBandEnd(task, true) : null;
+      const floatEndX = bandEnd ? clampX(dateToX(bandEnd)) : x2;
+      if (bandEnd && floatEndX > x2) {
         d2d.fillStyle = PRINT_COLORS.float + '40';
         d2d.roundRect(x2, y + barHeight * 0.2, floatEndX - x2, barHeight * 0.6, 2);
         d2d.fill();
@@ -1515,8 +1504,7 @@ export function renderReport(
 
       // Task name label (rechts van de balk + eventuele speling; valt terug naar links/ellipsis bij de rand)
       if (options.showTaskNames) {
-        const hasFloat = options.showFloat && task.time.totalFloat > 0 && !task.time.isCritical;
-        const barRightX = hasFloat ? Math.max(x2, floatEndX) : x2;
+        const barRightX = bandEnd ? Math.max(x2, floatEndX) : x2;
         barLabelJobs.push({ name: task.name, barRightX, barLeftX: x1, y: y + barHeight / 2 + m.s(3), bold: false });
       }
     }
@@ -1602,7 +1590,7 @@ export function renderReport(
   );
 
   // ---- TASK TABLE ----
-  drawTaskTable(d2d, m, printRows, canvasHeight, cols, options);
+  drawTaskTable(d2d, m, printRows, canvasHeight, cols, { ...options, calendar });
 
   // ---- FOOTER ----
   drawFooter(d2d, m, canvasWidth, canvasHeight, projectName, options, printRows);
@@ -1876,7 +1864,7 @@ function drawProjectHeader(
   d2d.textBaseline = 'middle';
   d2d.textAlign = 'left';
   const nameMaxW = (canvasWidth - pad - brandWidth - m.s(12)) - pad;
-  d2d.fillText(fitText(d2d, projectName, nameMaxW), pad, m.s(16));
+  d2d.fillText(ellipsize(d2d, projectName, nameMaxW), pad, m.s(16));
 
   // Row 2: Company | Author | Print date | Version
   d2d.font = m.font(9);
@@ -1894,7 +1882,7 @@ function drawProjectHeader(
   if (authorLabel) row2Text += (row2Text ? '  |  ' : '') + authorLabel;
   row2Text += (row2Text ? '  |  ' : '') + `${options.labels?.printed ?? 'Printed:'} ${printDate}`;
 
-  d2d.fillText(fitText(d2d, row2Text, rowMaxW), pad, row2Y);
+  d2d.fillText(ellipsize(d2d, row2Text, rowMaxW), pad, row2Y);
 
   // Row 3: Project dates and duration — labels vertaald via `options.labels`, zonder labels Engels
   // (zelfde terugval als `printed` hierboven).
@@ -1902,12 +1890,10 @@ function drawProjectHeader(
   const labels = options.labels;
   let row3Text = '';
   if (options.projectStartDate) {
-    const sd = parseDate(options.projectStartDate);
-    row3Text += `${labels?.projectStart ?? 'Start:'} ${formatDutchDate(sd, options.dateNotation)}`;
+    row3Text += `${labels?.projectStart ?? 'Start:'} ${displayDate(options.projectStartDate, options.dateNotation ?? 'dmy')}`;
   }
   if (options.projectEndDate) {
-    const ed = parseDate(options.projectEndDate);
-    row3Text += (row3Text ? '  |  ' : '') + `${labels?.projectEnd ?? 'End:'} ${formatDutchDate(ed, options.dateNotation)}`;
+    row3Text += (row3Text ? '  |  ' : '') + `${labels?.projectEnd ?? 'End:'} ${displayDate(options.projectEndDate, options.dateNotation ?? 'dmy')}`;
   }
   if (options.projectStartDate && options.projectEndDate) {
     const sd = parseDate(options.projectStartDate);
@@ -1916,7 +1902,7 @@ function drawProjectHeader(
     row3Text += `  |  ${labels?.projectDuration ?? 'Duration:'} ${dur}${labels?.daySuffix ?? 'd'}`;
   }
 
-  d2d.fillText(fitText(d2d, row3Text, rowMaxW), pad, row3Y);
+  d2d.fillText(ellipsize(d2d, row3Text, rowMaxW), pad, row3Y);
 
   d2d.textAlign = 'left';
   d2d.textBaseline = 'alphabetic';
@@ -2211,7 +2197,7 @@ function drawTimelineHeader(
   // binnen zijn kolom en raakt de scheidingslijn niet. Datacellen houden hun marge wél: daar staan
   // rechts uitgelijnde getallen die anders tegen de lijn aan plakken.
   const headerText = (key: keyof TableHeaderLabels, col: { w: number }, pad = 0) =>
-    fitText(d2d, headerLabel(th, key), col.w - pad);
+    ellipsize(d2d, headerLabel(th, key), col.w - pad);
   d2d.fillText(headerText('wbs', cols.wbs), cols.wbs.x + cols.wbs.w / 2, headerY);
 
   d2d.textAlign = 'left';
@@ -2260,7 +2246,7 @@ function drawTaskTable(
   printRows: PrintRow[],
   canvasHeight: number,
   cols: ColPositions,
-  options: PrintOptions,
+  options: PrintOptions & CellTextOptions,
 ) {
   const chartBottom = canvasHeight - m.footerHeight;
   // Cel-padding: schaalt mee met de kolombreedtes, anders vreet een grotere letter de padding op.
@@ -2300,7 +2286,7 @@ function drawTaskTable(
       d2d.textBaseline = 'middle';
       const nameX = cols.name.x + cellPad + indent;
       const nameAvail = cols.name.x + cols.name.w - m.s(NAME_RIGHT_PAD) - nameX;
-      d2d.fillText(fitText(d2d, groupBandLabel(row), nameAvail), nameX, textY);
+      d2d.fillText(ellipsize(d2d, groupBandLabel(row), nameAvail), nameX, textY);
       // Een band groepeert alleen: geen WBS/duur/datums.
       d2d.textAlign = 'left';
       d2d.textBaseline = 'alphabetic';
@@ -2311,7 +2297,7 @@ function drawTaskTable(
     const cells = taskTableCellTexts(row, options);
     // Elke datacel krijgt de kolombreedte minus de marge aan beide zijden; wat daar niet in past
     // wordt afgekapt in plaats van over de buurkolom te lopen (de naam- en curvecel deden dat al).
-    const cellText = (text: string, col: { w: number }) => fitText(d2d, text, col.w - 2 * cellPad);
+    const cellText = (text: string, col: { w: number }) => ellipsize(d2d, text, col.w - 2 * cellPad);
     const depth = row.depth;
     // Inspringing per hiërarchieniveau schaalt mee: de naamkolom is breder geworden, dus een vaste
     // 12 px zou de boomstructuur bij een grote letter optisch platslaan.
@@ -2332,7 +2318,7 @@ function drawTaskTable(
     // Spiegelbeeld van `measureTaskNameColumnWidth`: wijzig je deze som, wijzig dan ook die.
     const nameX = cols.name.x + cellPad + indent;
     const nameAvail = cols.name.x + cols.name.w - m.s(NAME_RIGHT_PAD) - nameX;
-    d2d.fillText(fitText(d2d, task.name, nameAvail), nameX, textY);
+    d2d.fillText(ellipsize(d2d, task.name, nameAvail), nameX, textY);
 
     // Toewijzingskolommen (resourcediagram): eenheden rechts uitgelijnd, de curve links en afgekort.
     if (cols.units && cols.curve && row.assignment) {
@@ -2485,14 +2471,14 @@ function drawDependencies(
     const predStart = seq.type === 'START_START' || seq.type === 'START_FINISH';
     const succFinish = seq.type === 'FINISH_FINISH' || seq.type === 'START_FINISH';
     if (predStart) {
-      fromX = dateToX(parseDate(pred.time.earlyStart || pred.time.scheduleStart));
+      fromX = dateToX(parseDate(shownStart(pred)));
     } else {
-      fromX = dateToX(parseDate(pred.time.earlyFinish || pred.time.scheduleFinish)) + zoom;
+      fromX = dateToX(parseDate(shownFinish(pred))) + zoom;
     }
     if (succFinish) {
-      toX = dateToX(parseDate(succ.time.earlyFinish || succ.time.scheduleFinish)) + zoom;
+      toX = dateToX(parseDate(shownFinish(succ))) + zoom;
     } else {
-      toX = dateToX(parseDate(succ.time.earlyStart || succ.time.scheduleStart));
+      toX = dateToX(parseDate(shownStart(succ)));
     }
     // dirOut = uitlooprichting bij de voorganger (weg van de balk); dirIn = aankomstkant bij de
     // opvolger: start-anker (FS/SS) komt van LINKS (−1, kop wijst naar rechts); finish-anker

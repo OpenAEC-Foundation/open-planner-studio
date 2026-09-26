@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
-import { Locale, LANGUAGE_LABELS, supportedLanguages, setLocale } from '@/i18n/config';
-import { UITheme, ResolvedUITheme, UI_THEMES, DocumentChromeStyle, DateNotation, DurationDisplay, BarSplitMode, UIFontFamily, UI_FONT_FAMILIES, UI_FONT_SCALES } from '@/state/slices/types';
-import { saveLocale, saveTheme, saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveAutoCalcCPM, saveShowClassicViewControls, saveConstructionMode, saveDateNotation, saveEnableHourPlanning, saveShowTaskTypes, saveAllowMixedDayHour, saveDurationDisplay, saveBarSplitMode, saveCompressNonWorkdays, saveUIFontFamily, saveUIFontScale, saveAiAutostart } from '@/utils/settingsStore';
+import { ResolvedUITheme, UI_THEMES, DocumentChromeStyle, DateNotation, DurationDisplay, BarSplitMode, UIFontFamily, UI_FONT_FAMILIES, UI_FONT_SCALES, type UIState } from '@/state/slices/types';
+import { saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveShowClassicViewControls, saveConstructionMode, saveDateNotation, saveEnableHourPlanning, saveShowTaskTypes, saveAllowMixedDayHour, saveDurationDisplay, saveBarSplitMode, saveCompressNonWorkdays, saveUIFontFamily, saveUIFontScale, saveAiAutostart } from '@/utils/settingsStore';
 import { applyAiModeLive } from '@/services/mcp/server';
 import { isTauri } from '@/utils/platform';
 import { Select } from '@/components/common/Select';
@@ -12,6 +11,8 @@ import { Info } from 'lucide-react';
 import { ScrollZoomSettings } from '@/components/dialogs/ScrollZoomSettings';
 import '@/components/dialogs/SettingsDialog.css';
 import './SettingsPanelContent.css';
+import { applyAutoCalcCPM, applySetting, applyTheme } from './applySetting';
+import { LanguageSelect, SettingToggle, THEME_LABEL_KEYS } from './settingControls';
 
 // U1: drie tabs — Weergave (uiterlijk + Gantt-weergave), Planning (project-brede
 // planningsopties) en Geavanceerd (AI, debug, benchmark, rondleiding, versie).
@@ -25,13 +26,6 @@ const THEME_SWATCHES: Record<ResolvedUITheme, string[]> = {
   'light':         ['#FAFAF9', '#F5F5F4', '#D97706', '#36363E'],
   'high-contrast': ['#000000', '#0a0a0a', '#FFFF00', '#FFFFFF'],
 };
-
-// i18n-sleutels voor de thema-namen (UI_THEMES.label is alleen een Engelse fallback).
-const THEME_LABEL_KEYS = {
-  'dark':          'settings.themeDark',
-  'light':         'settings.themeLight',
-  'high-contrast': 'settings.themeHighContrast',
-} as const satisfies Record<ResolvedUITheme, string>;
 
 // i18n-sleutels voor de lettertype-familie-opties (issue #25.4) — zelfde patroon als THEME_LABEL_KEYS.
 // `as const satisfies` i.p.v. een `Record<UIFontFamily, string>`-annotatie: die annotatie zou de
@@ -51,7 +45,7 @@ const FONT_FAMILY_LABEL_KEYS = {
  * Alle wijzigingen worden LIVE toegepast en gepersisteerd — geen pending/OK.
  */
 export function SettingsPanelContent() {
-  const { t, i18n } = useTranslation('common');
+  const { t } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
   const currentTheme = useAppStore(s => s.ui.uiTheme);
   // Zolang de systeemschakelaar aanstaat is er geen eigen keuze om te tonen: de kaarten staan uit
@@ -95,82 +89,15 @@ export function SettingsPanelContent() {
     setUI({ justUpdated: { from: null, to: version }, showSettingsDialog: false });
   };
 
-  // --- Live appliers (geen pending state) -------------------------------
-  const applyTheme = (theme: UITheme) => {
-    setUI({ uiTheme: theme });
-    void saveTheme(theme);
-  };
-
+  // --- Live appliers (geen pending state): elke wijziging meteen setUI + persisteren --------
   // Uitzetten landt op het thema dat op dát moment op het scherm staat, niet op een vaste waarde:
   // zo springt er niets bij het omzetten en kies je daarna verder vanaf wat je ziet.
   const applyFollowSystem = (checked: boolean) => applyTheme(checked ? 'system' : resolvedTheme);
 
-  const applyLocale = (locale: Locale) => {
-    void setLocale(locale);
-    void saveLocale(locale);
-  };
-
-  const applyDocumentChrome = (style: DocumentChromeStyle) => {
-    setUI({ documentChromeStyle: style });
-    void saveDocumentChromeStyle(style);
-  };
-
-  const applyDateNotation = (notation: DateNotation) => {
-    setUI({ dateNotation: notation });
-    void saveDateNotation(notation);
-  };
-
-  // Lettertype interface (issue #25.4): live toepassen + persisteren, zelfde patroon als boven.
-  // Het effect dat de CSS-variabelen/rem-basis daadwerkelijk schrijft zit in App.tsx (één plek).
-  const applyUIFontFamily = (value: UIFontFamily) => {
-    setUI({ uiFontFamily: value });
-    void saveUIFontFamily(value);
-  };
-
-  const applyUIFontScale = (value: number) => {
-    setUI({ uiFontScale: value });
-    void saveUIFontScale(value);
-  };
-
-  // Bouwmodus (2026-07-13): live toepassen + persisteren (localStorage). De synchrone
-  // kalenderfabriek leest de vlag rechtstreeks uit localStorage, dus de save moet vóór een
-  // eventuele nieuw-project-actie geschreven zijn — vandaar direct (niet gedebounced).
-  const applyConstructionMode = (value: boolean) => {
-    setUI({ constructionMode: value });
-    void saveConstructionMode(value);
-  };
-
-  // Fase 2.8b (§6.8): urenplanning-appliers — live toepassen + persisteren, zelfde patroon als boven.
-  const applyEnableHourPlanning = (value: boolean) => {
-    setUI({ enableHourPlanning: value });
-    void saveEnableHourPlanning(value);
-  };
-  // Taaktypes-etappe (spec §7): "Toon taaktypes" — zichtbaarheid van werkregel en resterend werk.
-  const applyShowTaskTypes = (value: boolean) => {
-    setUI({ showTaskTypes: value });
-    void saveShowTaskTypes(value);
-  };
-
-  const applyAllowMixedDayHour = (value: boolean) => {
-    setUI({ allowMixedDayHour: value });
-    void saveAllowMixedDayHour(value);
-  };
-
-  const applyDurationDisplay = (value: DurationDisplay) => {
-    setUI({ durationDisplay: value });
-    void saveDurationDisplay(value);
-  };
-
-  const applyBarSplitMode = (value: BarSplitMode) => {
-    setUI({ barSplitMode: value });
-    void saveBarSplitMode(value);
-  };
-
-  // Issue #21 punt 5 (fase 2): «alleen werkbare dagen tonen».
-  const applyCompressNonWorkdays = (checked: boolean) => {
-    setUI({ compressNonWorkdays: checked });
-    void saveCompressNonWorkdays(checked);
-  };
+  // Knoppen die een andere dialoog openen sluiten eerst de Instellingen-dialoog (tandwiel/ribbon)
+  // én Backstage (activeRibbonTab terug naar 'start'), zodat die dialoog vrij opent.
+  const openFromSettings = (patch: Partial<UIState>) =>
+    setUI({ showSettingsDialog: false, activeRibbonTab: 'start', ...patch });
 
   return (
     <div className="settings-content">
@@ -223,15 +150,13 @@ export function SettingsPanelContent() {
                   </button>
                 ))}
               </div>
-              <label className="settings-checkbox-row" style={{ marginTop: 8 }}>
-                <input
-                  type="checkbox"
-                  data-ops-follow-system-theme
-                  checked={followSystem}
-                  onChange={e => applyFollowSystem(e.target.checked)}
-                />
-                <span>{t('settings.themeFollowSystem')}</span>
-              </label>
+              <SettingToggle
+                label={t('settings.themeFollowSystem')}
+                checked={followSystem}
+                onChange={applyFollowSystem}
+                style={{ marginTop: 8 }}
+                inputProps={{ 'data-ops-follow-system-theme': true }}
+              />
               {followSystem && (
                 <p className="scrollzoom-hint">
                   {t('settings.themeSystemHint', { theme: t(THEME_LABEL_KEYS[resolvedTheme]) })}
@@ -241,17 +166,7 @@ export function SettingsPanelContent() {
 
             <div className="settings-section">
               <h3>{t('settings.language')}</h3>
-              <Select
-                aria-label={t('settings.language')}
-                value={i18n.language}
-                onChange={v => applyLocale(v as Locale)}
-                options={[...supportedLanguages]
-                  .sort((a, b) => LANGUAGE_LABELS[a][0].localeCompare(LANGUAGE_LABELS[b][0]))
-                  .map(code => {
-                    const [short, label] = LANGUAGE_LABELS[code];
-                    return { value: code, label: `${short} — ${label}` };
-                  })}
-              />
+              <LanguageSelect />
               <p className="scrollzoom-hint">{t('settings.languageHint')}</p>
             </div>
 
@@ -259,13 +174,14 @@ export function SettingsPanelContent() {
                 native apps — niet automatisch de systeemlettertype-instelling, wat leesbaarheid/
                 toegankelijkheid kan beïnvloeden; hier kiest de gebruiker beide. Familie overschrijft
                 via App.tsx de --font-heading/--font-body-variabelen (of herstelt ze bij 'default');
-                de schaal stuurt de rem-basis + de calc-px-sizes in de chrome-css. */}
+                de schaal stuurt de rem-basis + de calc-px-sizes in de chrome-css. Het effect dat de
+                CSS-variabelen/rem-basis daadwerkelijk schrijft zit in App.tsx (één plek). */}
             <div className="settings-section">
               <h3>{t('settings.fontFamilyLabel')}</h3>
               <Select
                 aria-label={t('settings.fontFamilyLabel')}
                 value={uiFontFamily}
-                onChange={v => applyUIFontFamily(v as UIFontFamily)}
+                onChange={v => applySetting('uiFontFamily', v as UIFontFamily, saveUIFontFamily)}
                 options={UI_FONT_FAMILIES.map(f => ({ value: f, label: t(FONT_FAMILY_LABEL_KEYS[f]) }))}
               />
               <p className="scrollzoom-hint">{t('settings.fontHint')}</p>
@@ -276,7 +192,7 @@ export function SettingsPanelContent() {
               <Select
                 aria-label={t('settings.fontScaleLabel')}
                 value={String(uiFontScale)}
-                onChange={v => applyUIFontScale(Number(v))}
+                onChange={v => applySetting('uiFontScale', Number(v), saveUIFontScale)}
                 options={UI_FONT_SCALES.map(s => ({ value: String(s), label: `${s}%` }))}
               />
               <p className="scrollzoom-hint">{t('settings.fontScaleHint')}</p>
@@ -287,7 +203,7 @@ export function SettingsPanelContent() {
               <Select
                 aria-label={t('settings.dateNotation')}
                 value={dateNotation}
-                onChange={v => applyDateNotation(v as DateNotation)}
+                onChange={v => applySetting('dateNotation', v as DateNotation, saveDateNotation)}
                 // De patroonletters zijn taalgebonden (nl jjjj, en yyyy, de JJJJ, fr aaaa, …),
                 // dus door t() en niet hardgecodeerd — ze stonden hier in het Nederlands en
                 // bleven daardoor in alle 14 locales onvertaald.
@@ -305,7 +221,7 @@ export function SettingsPanelContent() {
               <Select
                 aria-label={t('settings.durationDisplay')}
                 value={durationDisplay}
-                onChange={v => applyDurationDisplay(v as DurationDisplay)}
+                onChange={v => applySetting('durationDisplay', v as DurationDisplay, saveDurationDisplay)}
                 options={[
                   { value: 'auto', label: t('settings.durationDisplayAuto') },
                   { value: 'days', label: t('settings.durationDisplayDays') },
@@ -320,7 +236,7 @@ export function SettingsPanelContent() {
               <Select
                 aria-label={t('settings.documentChrome')}
                 value={documentChromeStyle}
-                onChange={v => applyDocumentChrome(v as DocumentChromeStyle)}
+                onChange={v => applySetting('documentChromeStyle', v as DocumentChromeStyle, saveDocumentChromeStyle)}
                 options={[
                   { value: 'tabs', label: t('settings.documentChromeTabs') },
                   { value: 'rail', label: t('settings.documentChromeRail') },
@@ -337,32 +253,23 @@ export function SettingsPanelContent() {
 
             <div className="settings-section">
               <h3>{t('settings.compressNonWorkdaysSection')}</h3>
-              <label className="settings-checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={compressNonWorkdays}
-                  onChange={e => applyCompressNonWorkdays(e.target.checked)}
-                />
-                <span>{t('settings.compressNonWorkdays')}</span>
-              </label>
-              <p className="scrollzoom-hint">{t('settings.compressNonWorkdaysHint')}</p>
+              {/* Issue #21 punt 5 (fase 2): «alleen werkbare dagen tonen». */}
+              <SettingToggle
+                label={t('settings.compressNonWorkdays')}
+                hint={t('settings.compressNonWorkdaysHint')}
+                checked={compressNonWorkdays}
+                onChange={checked => applySetting('compressNonWorkdays', checked, saveCompressNonWorkdays)}
+              />
             </div>
 
             <div className="settings-section">
               <h3>{t('settings.quarterHourSection')}</h3>
-              <label className="settings-checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={enableQuarterHourZoom}
-                  onChange={e => {
-                    const checked = e.target.checked;
-                    setUI({ enableQuarterHourZoom: checked });
-                    void saveZoomSettings({ enableQuarterHourZoom: checked });
-                  }}
-                />
-                <span>{t('settings.enableQuarterHourZoom')}</span>
-              </label>
-              <p className="scrollzoom-hint">{t('settings.enableQuarterHourZoomHint')}</p>
+              <SettingToggle
+                label={t('settings.enableQuarterHourZoom')}
+                hint={t('settings.enableQuarterHourZoomHint')}
+                checked={enableQuarterHourZoom}
+                onChange={checked => applySetting('enableQuarterHourZoom', checked, v => saveZoomSettings({ enableQuarterHourZoom: v }))}
+              />
             </div>
 
             <div className="settings-section">
@@ -370,7 +277,7 @@ export function SettingsPanelContent() {
               <Select
                 aria-label={t('settings.barSplitMode')}
                 value={barSplitMode}
-                onChange={v => applyBarSplitMode(v as BarSplitMode)}
+                onChange={v => applySetting('barSplitMode', v as BarSplitMode, saveBarSplitMode)}
                 options={[
                   { value: 'never', label: t('settings.barSplitNever') },
                   { value: 'selection', label: t('settings.barSplitSelection') },
@@ -391,15 +298,15 @@ export function SettingsPanelContent() {
                 de ingangen (gear/ribbontab/backstage). */}
             <div className="settings-section">
               <h3>{t('settings.constructionModeSection')}</h3>
-              <label className="settings-checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={constructionMode}
-                  onChange={e => applyConstructionMode(e.target.checked)}
-                />
-                <span>{t('settings.constructionMode')}</span>
-              </label>
-              <p className="scrollzoom-hint">{t('settings.constructionModeHint')}</p>
+              {/* De synchrone kalenderfabriek leest de vlag rechtstreeks uit localStorage, dus de save
+                  moet vóór een eventuele nieuw-project-actie geschreven zijn — vandaar direct (niet
+                  gedebounced). */}
+              <SettingToggle
+                label={t('settings.constructionMode')}
+                hint={t('settings.constructionModeHint')}
+                checked={constructionMode}
+                onChange={checked => applySetting('constructionMode', checked, saveConstructionMode)}
+              />
             </div>
 
             {/* Fase 2.8b (§6.8): Urenplanning — hoofdschakelaar + 3 sub-instellingen. Alle vier
@@ -407,24 +314,19 @@ export function SettingsPanelContent() {
                 "Gemengd toestaan" is alleen actief als de hoofdschakelaar aan staat. */}
             <div className="settings-section">
               <h3>{t('settings.hourPlanningSection')}</h3>
-              <label className="settings-checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={enableHourPlanning}
-                  onChange={e => applyEnableHourPlanning(e.target.checked)}
-                />
-                <span>{t('settings.enableHourPlanning')}</span>
-              </label>
-              <p className="scrollzoom-hint">{t('settings.enableHourPlanningHint')}</p>
+              <SettingToggle
+                label={t('settings.enableHourPlanning')}
+                hint={t('settings.enableHourPlanningHint')}
+                checked={enableHourPlanning}
+                onChange={checked => applySetting('enableHourPlanning', checked, saveEnableHourPlanning)}
+              />
               {enableHourPlanning && (
-                <label className="settings-checkbox-row" style={{ marginTop: 8 }}>
-                  <input
-                    type="checkbox"
-                    checked={allowMixedDayHour}
-                    onChange={e => applyAllowMixedDayHour(e.target.checked)}
-                  />
-                  <span>{t('settings.allowMixedDayHour')}</span>
-                </label>
+                <SettingToggle
+                  label={t('settings.allowMixedDayHour')}
+                  checked={allowMixedDayHour}
+                  onChange={checked => applySetting('allowMixedDayHour', checked, saveAllowMixedDayHour)}
+                  style={{ marginTop: 8 }}
+                />
               )}
             </div>
 
@@ -433,11 +335,7 @@ export function SettingsPanelContent() {
               <Select
                 aria-label={t('settings.weekStartDay')}
                 value={weekStartDay}
-                onChange={v => {
-                  const value = v as 'monday' | 'sunday';
-                  setUI({ weekStartDay: value });
-                  void saveZoomSettings({ weekStartDay: value });
-                }}
+                onChange={v => applySetting('weekStartDay', v as 'monday' | 'sunday', value => saveZoomSettings({ weekStartDay: value }))}
                 options={[
                   { value: 'monday', label: t('settings.weekStartMonday') },
                   { value: 'sunday', label: t('settings.weekStartSunday') },
@@ -448,19 +346,12 @@ export function SettingsPanelContent() {
 
             <div className="settings-section">
               <h3>{t('settings.calculationSection')}</h3>
-              <label className="settings-checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={autoCalcCPM}
-                  onChange={e => {
-                    const checked = e.target.checked;
-                    setUI({ autoCalcCPM: checked });
-                    void saveAutoCalcCPM(checked);
-                  }}
-                />
-                <span>{t('settings.autoCalcCPM')}</span>
-              </label>
-              <p className="scrollzoom-hint">{t('settings.autoCalcCPMHint')}</p>
+              <SettingToggle
+                label={t('settings.autoCalcCPM')}
+                hint={t('settings.autoCalcCPMHint')}
+                checked={autoCalcCPM}
+                onChange={applyAutoCalcCPM}
+              />
               {/* #101 + gebruikstest #170 (G6/E5): werkregels en werk tonen — onder Berekenen (het
                   werkt ook op dagtaken, niet alleen bij urenplanning), zonder eigen sectiekop; de
                   toelichting is één zin in een gekleurd blok i.p.v. een los formulebijschrift. */}
@@ -468,7 +359,7 @@ export function SettingsPanelContent() {
                 <input
                   type="checkbox"
                   checked={showTaskTypes}
-                  onChange={e => applyShowTaskTypes(e.target.checked)}
+                  onChange={e => applySetting('showTaskTypes', e.target.checked, saveShowTaskTypes)}
                   data-ops-setting-show-task-types
                 />
                 <span>{t('settings.showTaskTypes')}</span>
@@ -491,76 +382,49 @@ export function SettingsPanelContent() {
                 starten, dus die schakelaar staat dan uit-gegrijsd i.p.v. dat hij stil niets doet. */}
             <div className="settings-section">
               <h3>{t('settings.aiModeSection')}</h3>
-              <label className="settings-checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={aiMode}
-                  onChange={e => { void applyAiModeLive(e.target.checked); }}
-                />
-                <span>{t('settings.aiMode')}</span>
-              </label>
-              <p className="scrollzoom-hint">{t('settings.aiModeHint')}</p>
-              <label className="settings-checkbox-row" style={{ opacity: aiMode ? 1 : 0.5 }}>
-                <input
-                  type="checkbox"
-                  checked={aiAutostart}
-                  disabled={!aiMode}
-                  onChange={e => {
-                    setUI({ aiAutostart: e.target.checked });
-                    void saveAiAutostart(e.target.checked);
-                  }}
-                />
-                <span>{t('settings.aiAutostart')}</span>
-              </label>
-              <p className="scrollzoom-hint">{t('settings.aiAutostartHint')}</p>
+              <SettingToggle
+                label={t('settings.aiMode')}
+                hint={t('settings.aiModeHint')}
+                checked={aiMode}
+                onChange={checked => { void applyAiModeLive(checked); }}
+              />
+              <SettingToggle
+                label={t('settings.aiAutostart')}
+                hint={t('settings.aiAutostartHint')}
+                checked={aiAutostart}
+                disabled={!aiMode}
+                onChange={checked => applySetting('aiAutostart', checked, saveAiAutostart)}
+                style={{ opacity: aiMode ? 1 : 0.5 }}
+              />
             </div>
 
             <div className="settings-section">
               <h3>{t('settings.debugTerminal')}</h3>
-              <label className="settings-checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={debugTerminalEnabled}
-                  onChange={e => {
-                    const checked = e.target.checked;
-                    setUI({ debugTerminalEnabled: checked });
-                    void saveDebugTerminalEnabled(checked);
-                  }}
-                />
-                <span>{t('settings.debugTerminalEnable')}</span>
-              </label>
-              <p className="scrollzoom-hint">{t('settings.debugTerminalHint')}</p>
+              <SettingToggle
+                label={t('settings.debugTerminalEnable')}
+                hint={t('settings.debugTerminalHint')}
+                checked={debugTerminalEnabled}
+                onChange={checked => applySetting('debugTerminalEnabled', checked, saveDebugTerminalEnabled)}
+              />
             </div>
 
             {/* Benchmark-tool (pakket S): via deze gedeelde component zichtbaar op alle 3 de
-                ingangen (gear/Instellingen-ribbontab/Backstage). Sluit eerst de Instellingen-dialoog
-                én Backstage (activeRibbonTab → 'start') zodat de benchmark-dialoog vrij opent. */}
+                ingangen (gear/Instellingen-ribbontab/Backstage). */}
             <div className="settings-section">
               <h3>{t('benchmark.section')}</h3>
               <p className="scrollzoom-hint">{t('benchmark.sectionHint')}</p>
-              <button
-                className="settings-link"
-                onClick={() => {
-                  setUI({ showSettingsDialog: false, activeRibbonTab: 'start', showBenchmarkDialog: true });
-                }}
-              >
+              <button className="settings-link" onClick={() => openFromSettings({ showBenchmarkDialog: true })}>
                 {t('benchmark.open')}
               </button>
             </div>
 
             {/* Statistieken: hoe vaak de app gedownload is, per OS en per release (publieke cijfers
                 van de stats-branch). Bewust een KNOP naast Benchmark in Geavanceerd en geen eigen
-                tabblad — de gemiddelde gebruiker heeft er niets aan. Sluit net als Benchmark eerst
-                de Instellingen-dialoog én Backstage zodat de dialoog vrij opent. */}
+                tabblad — de gemiddelde gebruiker heeft er niets aan. */}
             <div className="settings-section">
               <h3>{t('settings.statsSection')}</h3>
               <p className="scrollzoom-hint">{t('settings.statsSectionHint')}</p>
-              <button
-                className="settings-link"
-                onClick={() => {
-                  setUI({ showSettingsDialog: false, activeRibbonTab: 'start', showStatsDialog: true });
-                }}
-              >
+              <button className="settings-link" onClick={() => openFromSettings({ showStatsDialog: true })}>
                 {t('settings.statsOpen')}
               </button>
             </div>
@@ -568,22 +432,14 @@ export function SettingsPanelContent() {
             {/* [Rondleiding] (fase 2.10, bugfix — user-melding: de herstart-ingang ontbrak in de
                 Instellingen). Derde ingang naast de Ribbon Weergave-knop en de Backstage-NavItem;
                 zelfde actie, hergebruikt de bestaande tour-labels (geen nieuwe knoptekst-key nodig).
-                Sluit eerst de Instellingen-dialoog (gear/Instellingen-ribbontab) én Backstage
-                (activeRibbonTab terug naar 'start', zoals Backstage's eigen closeBackstage()) zodat
-                de tour altijd vanaf een schone body start, ongeacht welke van de 3 ingangen. */}
+                Via openFromSettings start de tour altijd vanaf een schone body (zoals Backstage's
+                eigen closeBackstage()), ongeacht welke van de 3 ingangen. */}
             <div className="settings-section">
               <h3>{t('tour.restartButton')}</h3>
               <p className="scrollzoom-hint">{t('settings.tourHint')}</p>
               <button
                 className="settings-link"
-                onClick={() => {
-                  setUI({
-                    showSettingsDialog: false,
-                    activeRibbonTab: 'start',
-                    showTourOverlay: true,
-                    tourStepIndex: 0,
-                  });
-                }}
+                onClick={() => openFromSettings({ showTourOverlay: true, tourStepIndex: 0 })}
               >
                 {t('tour.backstageRestart')}
               </button>
@@ -614,19 +470,12 @@ export function SettingsPanelContent() {
             {/* Legacy-functies (issue #144): vervangen functies, duidelijk als zodanig gemarkeerd. */}
             <div className="settings-section" data-ops-legacy-settings="true">
               <h3>{t('settings.legacySection')}</h3>
-              <label className="settings-checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={showClassicViewControls}
-                  onChange={e => {
-                    const checked = e.target.checked;
-                    setUI({ showClassicViewControls: checked });
-                    void saveShowClassicViewControls(checked);
-                  }}
-                />
-                <span>{t('settings.classicViewControls')}</span>
-              </label>
-              <p className="scrollzoom-hint">{t('settings.classicViewControlsHint')}</p>
+              <SettingToggle
+                label={t('settings.classicViewControls')}
+                hint={t('settings.classicViewControlsHint')}
+                checked={showClassicViewControls}
+                onChange={checked => applySetting('showClassicViewControls', checked, saveShowClassicViewControls)}
+              />
             </div>
           </div>
         )}

@@ -2,12 +2,14 @@ import { useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { useDisplayDate } from '@/hooks/displayDate';
+import type { Task } from '@/types/task';
+import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 
 /**
  * Mijlpalen-overzicht (fase 2.4): tabelrapport over alle mijlpalen — soort,
  * datum, bewaakte datum (constraint/deadline), float, verplicht en status.
  * Statusafleiding: te laat = geschonden constraint/gemiste deadline of tf < 0;
- * kritiek = tf ≤ 0; anders op schema. Baseline-/variance-kolommen en MTA
+ * kritiek = `isCritical` van de solver (de kritiek-definitie uit de rekenopties); anders op schema. Baseline-/variance-kolommen en MTA
  * vereisen snapshots en volgen met fase 2.6 (baselines).
  */
 
@@ -23,32 +25,36 @@ export interface MilestoneRow {
   status: 'late' | 'critical' | 'onSchedule';
 }
 
+/** De rijen van het overzicht, puur uit taken + CPM-resultaat (scherm én vector-PDF lezen deze). */
+export function computeMilestoneRows(tasks: readonly Task[], cpmResult: CPMResult | null): MilestoneRow[] {
+  const violated = new Set(cpmResult && !cpmResult.error ? cpmResult.violatedConstraintTaskIds : []);
+  const missed = new Set(cpmResult && !cpmResult.error ? cpmResult.missedDeadlineTaskIds : []);
+  return tasks
+    .filter(t => t.isMilestone)
+    .map(t => {
+      const tf = t.time.totalFloat;
+      const late = violated.has(t.id) || missed.has(t.id) || (tf !== undefined && tf < 0);
+      // "Kritiek" is de solverdefinitie (`isCritical`: drempel, langste pad, voltooid nooit kritiek),
+      // net als Gantt, raster, kritiek-rapport en MCP — geen eigen `tf <= 0` (audit weergaven 9).
+      const status: MilestoneRow['status'] = late ? 'late' : t.time.isCritical ? 'critical' : 'onSchedule';
+      return {
+        id: t.id,
+        wbs: t.wbsCode,
+        name: t.name,
+        kind: (t.milestoneKind ?? 'AUTO') as MilestoneRow['kind'],
+        date: t.time.earlyStart || t.time.scheduleStart,
+        guardDate: t.constraint?.date ?? t.deadline ?? '',
+        float: tf,
+        mandatory: !!t.mandatory,
+        status,
+      };
+    });
+}
+
 export function useMilestoneRows(): MilestoneRow[] {
   const tasks = useAppStore(s => s.tasks);
   const cpmResult = useAppStore(s => s.cpmResult);
-
-  return useMemo(() => {
-    const violated = new Set(cpmResult && !cpmResult.error ? cpmResult.violatedConstraintTaskIds : []);
-    const missed = new Set(cpmResult && !cpmResult.error ? cpmResult.missedDeadlineTaskIds : []);
-    return tasks
-      .filter(t => t.isMilestone)
-      .map(t => {
-        const tf = t.time.totalFloat;
-        const late = violated.has(t.id) || missed.has(t.id) || (tf !== undefined && tf < 0);
-        const status: MilestoneRow['status'] = late ? 'late' : tf !== undefined && tf <= 0 ? 'critical' : 'onSchedule';
-        return {
-          id: t.id,
-          wbs: t.wbsCode,
-          name: t.name,
-          kind: (t.milestoneKind ?? 'AUTO') as MilestoneRow['kind'],
-          date: t.time.earlyStart || t.time.scheduleStart,
-          guardDate: t.constraint?.date ?? t.deadline ?? '',
-          float: tf,
-          mandatory: !!t.mandatory,
-          status,
-        };
-      });
-  }, [tasks, cpmResult]);
+  return useMemo(() => computeMilestoneRows(tasks, cpmResult), [tasks, cpmResult]);
 }
 
 /** Geëxporteerd (fase 3) zodat de vector-PDF-tabel-export exact dezelfde statuskleuren gebruikt. */

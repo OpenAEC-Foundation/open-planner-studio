@@ -1,8 +1,8 @@
 import type { Task } from '@/types/task';
 import type { Sequence, LagUnit } from '@/types/sequence';
 import type { CalendarEngine } from './CalendarEngine';
-import { addCalendarDays } from '@/utils/dateUtils';
-import { isZeroDurationMilestone } from './duration';
+import { addCalendarDays, MS_PER_DAY } from '@/utils/dateUtils';
+import { isElapsedTask, isZeroDurationMilestone } from './duration';
 
 /**
  * Relatie-wiskunde (FS/SS/FF/SF) — audit-pakket P15 (RelationResolver).
@@ -32,7 +32,6 @@ import { isZeroDurationMilestone } from './duration';
 
 // Milliseconde-constanten (uur-pad); HOUR_SCAN = veiligheidsplafond voor de dag→uur-backward-scan.
 export const MS_PER_MIN = 60_000;
-export const MS_PER_DAY = 86_400_000;
 export const HOUR_SCAN = 400;
 
 /** De grensvlaggen die de mijlpaal-grens-semantiek (fase 2.4/§4.4) beschrijven voor één relatie.
@@ -368,7 +367,7 @@ function forwardDay(
   // mijlpaal-met-duur (T15) die zelf ELAPSEDTIME is, is voor de PLANNING geen mijlpaal en moet dus
   // wél de elapsed-tak volgen (msp-30-mutatiebewijs: zonder deze conversie bleef de kale vlag de
   // elapsed-bypass stil uitsluiten, met een dag-verschoven resultaat als gevolg).
-  const succElapsed = !isZeroDurationMilestone(successor) && successor.time.durationType === 'ELAPSEDTIME';
+  const succElapsed = isElapsedTask(successor);
   const { predEndsBeginOfDay, predStartsNextDay, succIsFinishMs, succIsStartMs } = flags;
 
   switch (seq.type) {
@@ -481,7 +480,7 @@ function sfReqFinishDay(
   const lagEng = deps.lagEngine(pe, se);
   const { days: lag, unit } = deps.resolveLag(seq, predTask, lagEng);
   const elapsed = unit === 'ELAPSEDTIME';
-  const succElapsed = !isZeroDurationMilestone(successor) && successor.time.durationType === 'ELAPSEDTIME';
+  const succElapsed = isElapsedTask(successor);
   const { predStartsNextDay } = flags;
   return elapsed
     ? (succElapsed
@@ -531,7 +530,7 @@ function backwardDay(
   // (dezelfde `isZeroDurationMilestone`-definitie hoort logisch op beide zijden van een relatie te
   // gelden), gedekt via de CPMSolver-kant (`subDuration`/`finishFromStart` gebruiken de helper al
   // wél mutatiebewezen) totdat een eigen backward-case dit rechtstreeks aantoont.
-  const predElapsed = !isZeroDurationMilestone(predTask) && predTask.time.durationType === 'ELAPSEDTIME';
+  const predElapsed = isElapsedTask(predTask);
   const { predEndsBeginOfDay, predStartsNextDay, succIsFinishMs, succIsStartMs } = flags;
 
   switch (seq.type) {
@@ -596,6 +595,25 @@ function backwardDay(
 //  lag-engine uit `deps.lagEngine` (`schedulingOptions.lagCalendar`, default de voorganger).
 // ═══════════════════════════════════════════════════════════════════════════
 
+/**
+ * Landing van een rauwe voorganger-instant op de opvolger, gedeeld door `forwardHour` en
+ * `sfReqFinishHour` (H1, Opus-review): de rauwe instant is een uur-precisie `Date` uit de
+ * VOORGANGER-kalender. Is de opvolger zelf ook uur-modus, dan is dat instant al geldig — gewoon
+ * teruggeven. Is de opvolger DAG-modus, dan mag de tijd-component niet blijven hangen: `nextWorkDay`
+ * behoudt "tijd-van-de-dag" op een niet-middernacht-`Date` (het is een dag-primitief, geen
+ * instant-primitief), dus zonder eerst naar `startOfDay` te normaliseren rapporteert de taak een
+ * correct ogende dag met een spook-tijdscomponent erin — onzichtbaar in dag-geformatteerde
+ * datums, maar `workDaysBetween`/`workMinutesBetween` tellen 'm wél mee, met een speling die één
+ * werkdag te laag uitvalt (vóór deze fix gemeten: tf=2 waar de dag-referentie tf=3 geeft).
+ * T8-review H1 (cross-modus-uitbreiding): voor een ELAPSEDTIME-opvolger op een DAG-kalender mag
+ * ook déze landing niet naar de eerstvolgende WERKdag schuiven (`se.nextWorkDay`) — een 24/7-
+ * opvolger accepteert elke kalenderdag. `elapsedLanding` selecteert per aanroep-site welke variant
+ * geldt (de kortsluitingen gebruiken 'm alleen wanneer `succElapsed` al vaststaat).
+ */
+function landRawInstant(deps: RelationDeps, se: CalendarEngine, raw: Date, elapsedLanding = false): Date {
+  return se.isHourMode ? raw : elapsedLanding ? deps.startOfDay(raw) : se.nextWorkDay(deps.startOfDay(raw));
+}
+
 function forwardHour(
   deps: RelationDeps,
   predResult: { es: Date; ef: Date },
@@ -619,7 +637,7 @@ function forwardHour(
   // mijlpaal-met-duur (T15) die zelf ELAPSEDTIME is, is voor de PLANNING geen mijlpaal en moet dus
   // wél de elapsed-tak volgen (msp-30-mutatiebewijs: zonder deze conversie bleef de kale vlag de
   // elapsed-bypass stil uitsluiten, met een dag-verschoven resultaat als gevolg).
-  const succElapsed = !isZeroDurationMilestone(successor) && successor.time.durationType === 'ELAPSEDTIME';
+  const succElapsed = isElapsedTask(successor);
 
   // MSP-pariteit (T6, §9/O6; her-herzien op Opus-review H1/L1/L2). Een EINDmijlpaal-opvolger
   // zonder échte lag landt op de RAUWE voorganger-instant (bv. di 17:00) i.p.v. de eerstvolgende
@@ -627,23 +645,8 @@ function forwardHour(
   // `[start,end)`, die een instant exact op een band-EIND per definitie uitsluit (precies de rand
   // waarop een finish legitiem landt: `finishFromStart` bouwt `ef` met `(start,end]`). Geldt voor
   // alle vier relatietypes (FS/FF/SF hebben elk hun eigen "rauwe kandidaat-instant"; SS eindigt
-  // nooit op de opvolger-FINISH, dus buiten scope) — vandaar één gedeelde landings-helper i.p.v.
-  // een aparte kortsluiting per arm.
-  //
-  // `landRawInstant` (H1, Opus-review): de rauwe instant is een uur-precisie `Date` uit de
-  // VOORGANGER-kalender. Is de opvolger zelf ook uur-modus, dan is dat instant al geldig — gewoon
-  // teruggeven. Is de opvolger DAG-modus, dan mag de tijd-component niet blijven hangen: `nextWorkDay`
-  // behoudt "tijd-van-de-dag" op een niet-middernacht-`Date` (het is een dag-primitief, geen
-  // instant-primitief), dus zonder eerst naar `startOfDay` te normaliseren rapporteert de taak een
-  // correct ogende dag met een spook-tijdscomponent erin — onzichtbaar in dag-geformatteerde
-  // datums, maar `workDaysBetween`/`workMinutesBetween` tellen 'm wél mee, met een speling die één
-  // werkdag te laag uitvalt (vóór deze fix gemeten: tf=2 waar de dag-referentie tf=3 geeft).
-  // T8-review H1 (cross-modus-uitbreiding): voor een ELAPSEDTIME-opvolger op een DAG-kalender mag
-  // ook déze landing niet naar de eerstvolgende WERKdag schuiven (`se.nextWorkDay`) — een 24/7-
-  // opvolger accepteert elke kalenderdag. `elapsedLanding` selecteert per aanroep-site welke variant
-  // geldt (de kortsluitingen hieronder gebruiken 'm alleen wanneer `succElapsed` al vaststaat).
-  const landRawInstant = (raw: Date, elapsedLanding = false): Date =>
-    se.isHourMode ? raw : elapsedLanding ? deps.startOfDay(raw) : se.nextWorkDay(deps.startOfDay(raw));
+  // nooit op de opvolger-FINISH, dus buiten scope) — vandaar één gedeelde landings-helper
+  // (`landRawInstant`) i.p.v. een aparte kortsluiting per arm.
 
   switch (seq.type) {
     case 'START_START': {
@@ -689,7 +692,7 @@ function forwardHour(
         const lagged = deps.shiftLagPred(lagEng, predResult.ef, seq, predTask, 1);
         if ((succIsFinishMs || succElapsed) && pe.isHourMode
           && lagged.getTime() === deps.snapOnOrAfter(lagEng, predResult.ef).getTime()) {
-          reqFinish = landRawInstant(predResult.ef, succElapsed);
+          reqFinish = landRawInstant(deps, se, predResult.ef, succElapsed);
         } else {
           reqFinish = lagged;
         }
@@ -724,7 +727,7 @@ function forwardHour(
         // hele dag op — gevangen door `elapsed-day-to-hour` in cases-hours.json).
         const target = new Date(predResult.ef.getTime() + elapsedMin());
         if (succIsFinishMs && pe.isHourMode && elapsedMin() === 0) {
-          return landRawInstant(target);
+          return landRawInstant(deps, se, target);
         }
         return se.availableStart(target);
       }
@@ -805,7 +808,7 @@ function forwardHour(
       // guard) — bij een DAG-voorganger (cross-modus, bv. `rr-fs-crossmode-daypred-hourfinishms`)
       // zou de aanroep crashen op de non-null assertion. Die combinatie werkt al correct via de
       // bestaande dag-lag-tak van `shiftLagPred` + `availableStart` en blijft dus ongemoeid.
-      if (succIsFinishMs && lagIsZero) return landRawInstant(predDone);
+      if (succIsFinishMs && lagIsZero) return landRawInstant(deps, se, predDone);
       return se.availableStart(lagged);
     }
   }
@@ -829,9 +832,7 @@ function sfReqFinishHour(
   const lagEng = deps.lagEngine(pe, se);
   const { predStartsNextDay, succIsFinishMs } = flags;
   const elapsedMin = () => deps.resolveElapsedMinutes(seq, predTask) * MS_PER_MIN;
-  const succElapsed = !isZeroDurationMilestone(successor) && successor.time.durationType === 'ELAPSEDTIME';
-  const landRawInstant = (raw: Date, elapsedLanding = false): Date =>
-    se.isHourMode ? raw : elapsedLanding ? deps.startOfDay(raw) : se.nextWorkDay(deps.startOfDay(raw));
+  const succElapsed = isElapsedTask(successor);
 
   const startMoment = predStartsNextDay ? deps.snapStrictAfter(pe, predResult.es) : predResult.es;
   if (elapsed) {
@@ -842,7 +843,7 @@ function sfReqFinishHour(
   const lagged = deps.shiftLagPred(lagEng, startMoment, seq, predTask, 1);
   if ((succIsFinishMs || succElapsed) && pe.isHourMode
     && lagged.getTime() === deps.snapOnOrAfter(lagEng, startMoment).getTime()) {
-    return landRawInstant(startMoment, succElapsed);
+    return landRawInstant(deps, se, startMoment, succElapsed);
   }
   return lagged;
 }
@@ -866,7 +867,7 @@ function backwardHour(
   // H3 (Opus-review T15-iteratie-2) — zelfde reden als `succElapsed` hierboven, nu voor de
   // VOORGANGER-zijde van de relatie. B2-BEVINDING: zelfde ONGEPINDE status als backwardDay se
   // `predElapsed` hierboven — corpus- en case-neutraal, meegeconverteerd voor consistentie.
-  const predElapsed = !isZeroDurationMilestone(predTask) && predTask.time.durationType === 'ELAPSEDTIME';
+  const predElapsed = isElapsedTask(predTask);
 
   switch (seq.type) {
     case 'START_START': {

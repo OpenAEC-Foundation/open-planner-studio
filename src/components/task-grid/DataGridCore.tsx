@@ -23,8 +23,9 @@ import {
   type DataGridLabels,
   type DataGridRowModel,
 } from './taskGridContext';
-import type { GridCellAddress, GridSelectionState } from '@/engine/taskGrid/selection';
+import { sameCellAddress, type GridCellAddress, type GridSelectionState } from '@/engine/taskGrid/selection';
 import type { TaskColumnId } from '@/types/taskGrid';
+import { nextFrame } from '@/utils/nextFrame';
 
 export interface DataGridCoreProps {
   rows: readonly DataGridRowModel[];
@@ -105,10 +106,6 @@ export function shouldHandleDataGridClipboardEvent(event: {
     ?.closest?.('input, textarea, select, [contenteditable="true"]');
 }
 
-function sameCell(left: GridCellAddress | null, right: GridCellAddress | null): boolean {
-  return left?.rowKey === right?.rowKey && left?.columnId === right?.columnId;
-}
-
 function selectedCell(
   cell: GridCellAddress,
   selection: Readonly<GridSelectionState>,
@@ -127,11 +124,6 @@ function selectedCell(
     || column === undefined || fromColumn === undefined || toColumn === undefined) return false;
   return row >= Math.min(fromRow, toRow) && row <= Math.max(fromRow, toRow)
     && column >= Math.min(fromColumn, toColumn) && column <= Math.max(fromColumn, toColumn);
-}
-
-function nextFrame(callback: () => void): void {
-  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(callback);
-  else setTimeout(callback, 0);
 }
 
 /**
@@ -495,7 +487,7 @@ export function DataGridCore({
                       columnIndex={columnIndex}
                       model={getCell(row, column)}
                       selected={selectedCell(cell, selection, rowIndexByKey, columnIndexById)}
-                      active={sameCell(cell, selection.active)}
+                      active={sameCellAddress(cell, selection.active)}
                       rowHeight={rowHeight}
                       textDirection={textDirection}
                       stickyEnabled={pinned.stickyEnabled}

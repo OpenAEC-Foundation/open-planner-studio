@@ -20,6 +20,8 @@ import { useAppStore } from '@/state/appStore';
 import { runGridMutation } from '@/state/gridTransaction';
 import { buildTaskColumnRegistry } from '@/engine/taskGrid/taskColumnRegistry';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
+import { applyCpmResult } from '@/engine/scheduler/applyCpmResult';
+import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { CellEditIntent, TaskColumnContext } from '@/types/taskGrid';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
@@ -247,6 +249,32 @@ function parentWithChild(days: number): { parent: string; child: string } {
   eq('Efemere solve leidt af op de kloon en laat het origineel met rust',
     [clone.find(t => t.id === parent)!.time.scheduleDuration, task(parent).time.scheduleDuration],
     [10, 5]);
+}
+
+// Een corrupte `childIds`-kring (R → A → R) mag de rollup niet in een eindeloze recursie sturen:
+// vóór de cyclusbewaking eindigde dit in "Maximum call stack size exceeded".
+{
+  const base = S().tasks[0];
+  const node = (id: string, parentId: string | null, childIds: string[]): Task => ({
+    ...base, id, parentId, childIds, isHammock: undefined, manuallyScheduled: undefined,
+    time: { ...base.time, earlyStart: '2026-03-02', earlyFinish: '2026-03-02' },
+  });
+  const cyclic = [node('R', null, ['A']), node('A', 'R', ['R', 'L']), node('L', 'A', [])];
+  const result = {
+    tasks: new Map([['L', {
+      earlyStart: '2026-03-02', earlyFinish: '2026-03-06', lateStart: '2026-03-02', lateFinish: '2026-03-06',
+      totalFloat: 0, freeFloat: 0, isCritical: true, interferingFloat: 0,
+    }]]),
+  } as unknown as CPMResult;
+  let error: unknown = null;
+  try {
+    applyCpmResult(cyclic, result, { projectCalendar: S().calendar, calendars: [] });
+  } catch (err) {
+    error = err;
+  }
+  eq('Rollup over een childIds-kring eindigt zonder fout', error === null ? null : String(error), null);
+  eq('Het blad krijgt zijn CPM-datums ondanks de kring', cyclic[2].time.earlyFinish, '2026-03-06');
+  eq('De tussenlaag rolt het blad op', cyclic[1].time.earlyFinish, '2026-03-06');
 }
 
 if (diffs.length === 0) {

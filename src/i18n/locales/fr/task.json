@@ -106,10 +106,12 @@
       "priority": "Priorité de nivellement",
       "recordedSource": "Origine (dates enregistrées)",
       "remainingMinutes": "Restant (minutes)",
-      "remainingTime": "Restant (jours ouvrés)",
+      "remainingTime": "Restant",
       "resourceIds": "ID des ressources",
       "resume": "Date de reprise",
       "scheduleFinish": "Fin planifiée",
+      "start": "Début",
+      "finish": "Fin",
       "scheduleStart": "Début planifié",
       "splitGaps": "Interruptions",
       "status": "État",
@@ -146,6 +148,10 @@
     },
     "validation": {
       "readOnly": "Cette colonne calculée ne peut pas être modifiée.",
+      "scheduleFinishNotManual": "La fin planifiée ne s’applique qu’à une tâche planifiée manuellement. Modifiez la fin via la colonne Fin ou via la durée.",
+      "finishFromDuration": "Pour cette tâche, la fin découle du début et de la durée. Modifiez le début ou la durée.",
+      "finishBeforeStart": "La fin est antérieure au début.",
+      "finishIsActual": "Cette tâche est terminée ; sa fin est la fin réelle. Modifiez-la via l’avancement.",
       "invalid": "La valeur saisie n’est pas valide.",
       "relationToken": "Utilisez par exemple 1.2 FS+2d.",
       "externalRelationRequiresDialog": "Ajoutez une tâche externe via Relation → Ajouter une relation externe…",
@@ -237,7 +243,8 @@
       "unknownTask": "La tâche référencée n'existe pas.",
       "unrepresentableSummaryRelation": "Un lien avec une tâche récapitulative ne peut pas être modifié ici.",
       "self": "Une tâche ne peut pas dépendre d'elle-même.",
-      "ancestor": "Une tâche ne peut pas avoir de lien avec sa propre tâche récapitulative."
+      "ancestor": "Une tâche ne peut pas avoir de lien avec sa propre tâche récapitulative.",
+      "summaryProgress": "L'avancement d'une tâche récapitulative est dérivé de ses sous-tâches et ne peut pas être modifié ici."
     },
     "controls": {
       "collapse": "Réduire",
@@ -415,7 +422,8 @@
       "actualStart": "Début réel",
       "actualFinish": "Fin réelle",
       "actualDate": "Date réelle",
-      "remaining": "Restant (jours ouvrés)"
+      "remaining": "Restant",
+      "summaryDerived": "Dérivé des sous-tâches : modifiez l'avancement à ce niveau. La tâche récapitulative suit après le calcul (F5)."
     },
     "cpmResult": "Résultat CPM",
     "earlyStart": "Début au plus tôt :",

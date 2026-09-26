@@ -26,6 +26,15 @@ export function syncProjectCalendar(s: CalendarCacheState): void {
 }
 
 /**
+ * Zet de projectkalender-cache opnieuw gelijk aan zijn bibliotheek-entry nadat die entry vervangen is
+ * (bv. een gestript of bijgewerkt kalenderobject). Anders dan `syncProjectCalendar` ZONDER
+ * promotie-terugval: ontbreekt de entry, dan blijft de cache staan zoals hij is.
+ */
+export function refreshProjectCalendarCache(s: CalendarCacheState): void {
+  s.calendar = s.calendars.find((c) => c.id === s.project.calendarId) ?? s.calendar;
+}
+
+/**
  * §4.3-migratie: promoveer de geladen/actieve projectkalender-cache (`s.calendar`) tot een
  * bibliotheek-entry als er nog geen entry met `project.calendarId` bestaat — zo wordt de tot nu
  * toe inline projectkalender van een pre-2.8a-document de eerste zichtbare bibliotheek-entry.

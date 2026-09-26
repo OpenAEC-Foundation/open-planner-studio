@@ -1,5 +1,12 @@
 import type { LibraryOrigin } from '@/types/library';
 
+/** Geldige capaciteit/eenheden (fase 2.5 UX-fix, bevinding 1): strikt positief en eindig. 0 is
+ *  nooit zinvol (een resource die 0 eenheden kan leveren, of een toewijzing van 0/dag). Fracties
+ *  blijven toegestaan (materiaal-max.eenheden, halve-dag-toewijzingen). */
+export function isValidUnits(n: unknown): n is number {
+  return typeof n === 'number' && Number.isFinite(n) && n > 0;
+}
+
 export type ResourceType = 'LABOR' | 'EQUIPMENT' | 'MATERIAL' | 'SUBCONTRACTOR' | 'CREW';
 
 export interface AvailabilityStep {
@@ -41,6 +48,16 @@ export interface Resource {
 }
 
 export type ResourceCurve = 'UNIFORM' | 'FRONT_LOADED' | 'BACK_LOADED' | 'BELL' | 'EARLY_PEAK' | 'LATE_PEAK' | 'DOUBLE_PEAK' | 'TURTLE';
+
+/** Alle `ResourceCurve`-waarden, in de vaste weergavevolgorde (keuzelijsten, schema-enum, meldingen). */
+export const RESOURCE_CURVES: readonly ResourceCurve[] = [
+  'UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE',
+];
+
+/** Is `v` een geldige `ResourceCurve` (hoofdlettergevoelig)? */
+export function isResourceCurve(v: unknown): v is ResourceCurve {
+  return typeof v === 'string' && (RESOURCE_CURVES as readonly string[]).includes(v);
+}
 
 export interface ResourceAssignment {
   id: string;

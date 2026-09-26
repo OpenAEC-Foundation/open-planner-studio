@@ -41,6 +41,14 @@ Vous définissez l'avancement à trois endroits, tous avec le même effet :
 
 Les dates réelles ne peuvent jamais être postérieures à la date de statut — essayez d'en saisir une plus tardive et l'application la rejette avec une erreur. Il s'agit d'une limite délibérée : un « fait » (quelque chose qui s'est réellement produit) ne peut, par définition, pas se situer dans le futur par rapport au moment où vous enregistrez l'avancement.
 
+### Avancement d'une phase
+
+Une phase — une tâche avec des tâches en dessous — n'a pas d'avancement propre. Son **pourcentage d'achèvement** et son **statut** sont dérivés des tâches en dessous à chaque calcul (**F5** ou **Calculer**). Le pourcentage est pondéré par la durée : une tâche de dix jours ouvrés compte deux fois plus qu'une tâche de cinq. C'est exactement le chiffre qu'affiche la **Synthèse WBS** dans l'onglet **Rapport**, et celui que voient le Tableau, l'infobulle, le PDF et l'assistant IA. Le statut suit : **Terminée** dès que toutes les tâches en dessous sont finies, **En cours** dès que l'une a commencé, sinon **Non démarrée**.
+
+C'est pourquoi vous ne pouvez pas saisir vous-même l'avancement d'une phase. Dans le panneau des propriétés et la boîte de dialogue de tâche, le curseur et les dates réelles d'une phase sont désactivés, et dans le **Tableau** les colonnes d'avancement d'une ligne de phase sont en lecture seule. Choisissez **Avancement** dans le menu contextuel sur une phase et toutes les tâches en dessous reçoivent ce pourcentage ; après le calcul suivant, la phase suit d'elle-même.
+
+Deux exceptions suivent la même règle que les dates d'une phase. Une phase planifiée manuellement provenant d'un fichier MS Project (`.mpp`) conserve l'avancement enregistré dans le fichier. Et tant que vous consultez les [dates telles qu'enregistrées](docs://datums-zoals-opgeslagen), une phase affiche l'avancement du fichier ; dès que vous recalculez, il est de nouveau dérivé.
+
 ## La date de statut
 
 La **date de statut** (groupe de ruban **Baselines et avancement** de l'onglet Planification, champ **Date de statut**) marque « aujourd'hui » au sein du planning — le moment auquel vous avez enregistré l'avancement. Une fois définie, elle fait deux choses à la fois :

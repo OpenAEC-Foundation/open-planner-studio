@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
+import { X } from 'lucide-react';
 import { SettingsPanelContent } from '@/components/settings/SettingsPanelContent';
 import { useDialogKeys } from '@/hooks/useDialogKeys';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
@@ -63,7 +64,12 @@ export function SettingsDialog() {
         {/* Header */}
         <div ref={headerRef} className="settings-header" onMouseDown={onHeaderMouseDown}>
           <span>{t('settings.title')}</span>
-          <button className="modal-close-btn" onClick={close}>&times;</button>
+          {/* Zelfde naam + tooltip als DialogHeader; X-icoon zoals FeedbackDialog in dezelfde
+              .modal-close-btn-chrome. De sleep-uitsluiting hierboven werkt via closest() ook
+              vanaf het svg-icoon. */}
+          <button className="modal-close-btn" onClick={close} aria-label={t('close')} title={t('close')}>
+            <X size={16} />
+          </button>
         </div>
 
         {/* Body — shared settings panel */}

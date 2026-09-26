@@ -21,6 +21,8 @@
  * speculatieve extra's.
  */
 
+import { MS_PER_DAY } from '@/utils/dateUtils';
+
 // ── Laagste-niveau byte-lezers (ByteArrayHelper-equivalent; LE) ─────────────────────────────
 //
 // C2-achtige discipline (net als cfb.ts): elke read is vooraf grensgecontroleerd en gooit een
@@ -511,7 +513,6 @@ export class Var2Data {
  *  `src/utils/dateUtils.ts`'s `parseDate`) om tijdzone-afhankelijke dagverschuivingen te
  *  vermijden. */
 const MPP_EPOCH_UTC_MS = Date.UTC(1983, 11, 31);
-const MS_PER_DAY = 86_400_000;
 
 /** LE 64-bit float (MPPUtility.getDouble — `Double.longBitsToDouble`, NaN → 0). T7: nodig voor
  *  `DataType.UNITS`-velden (resource MAX_UNITS, assignment ASSIGNMENT_UNITS — FieldMap.java's

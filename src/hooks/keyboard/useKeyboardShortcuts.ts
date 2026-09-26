@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { isTauri } from '@/utils/platform';
 import { SHORTCUTS, isDocumentLeaveBlocked, matchesCombo } from './shortcutRegistry';
+import { isTypingTarget } from './isTypingTarget';
 // Zelfde bron als `shortcutRegistry` (dat al `i18n.t` gebruikt voor default-taaknamen): deze
 // voorpoort spiegelt de `file.open`-entry daar, dus spiegelt hij ook hóé het label wordt opgehaald.
 import i18n from '@/i18n/config';
@@ -92,7 +93,7 @@ export function useKeyboardShortcuts() {
       }
 
       const target = e.target as HTMLElement;
-      const isTypingTarget = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
+      const typing = isTypingTarget(target);
       if (shouldYieldClipboardShortcutToTaskGrid(e)) return;
 
       // Sneltoets-register (fase 2.10): matcht in volgorde, stopt bij de EERSTE hit — exact het
@@ -104,10 +105,10 @@ export function useKeyboardShortcuts() {
         // Invoerveld-guard (QA-bevinding 2.6b, ongewijzigd): normaal negeren we ALLE sneltoetsen in
         // een invoerveld zodat tekstbewerking niet wordt gekaapt. `allowInInput` whitelist't de
         // vier toetsen die dat al deden (F5/Ctrl+S/F11/Escape-in-presentatie).
-        if (isTypingTarget && !entry.allowInInput) continue;
+        if (typing && !entry.allowInInput) continue;
         if (entry.when && !entry.when()) continue;
 
-        if (entry.allowInInput && isTypingTarget) {
+        if (entry.allowInInput && typing) {
           // Forceer een eventuele hangende onBlur-commit vóórdat we herberekenen/opslaan/etc.
           target.blur();
         }

@@ -175,6 +175,26 @@ export function makeOrigin(pool: CompanyPool, libraryItemId: string, syncedHash?
 }
 
 /** Zoek een bestaande projectkopie met dezelfde herkomst (dedup, spec §3). */
+/**
+ * Strip de herkomststempels (`libraryOrigin`) van de resources en kalenders van een document — alle
+ * stempels, of met `companyId` alleen die van dat bedrijf (ontkoppelen/omkoppelen/verwijderen van een
+ * bibliotheek). Nieuwe arrays; een gestript item wordt een nieuw object zonder de sleutel (golden rule
+ * IFC: afwezig ⇒ niets geschreven). Zonder `companyId` wordt élk item vervangen, ook zonder stempel.
+ * De projectkalender-cache resync't de aanroeper zelf (`refreshProjectCalendarCache`).
+ */
+export function stripLibraryOrigins(
+  target: { resources: Resource[]; calendars: WorkCalendar[] },
+  companyId?: string,
+): void {
+  const strip = <T extends { libraryOrigin?: LibraryOrigin }>(item: T): T => {
+    if (companyId !== undefined && item.libraryOrigin?.companyId !== companyId) return item;
+    const { libraryOrigin: _drop, ...rest } = item;
+    return rest as T;
+  };
+  target.resources = target.resources.map(strip);
+  target.calendars = target.calendars.map(strip);
+}
+
 export function findCopyByOrigin<T extends { libraryOrigin?: LibraryOrigin }>(
   items: T[], companyId: string, libraryItemId: string,
 ): T | undefined {

@@ -5,7 +5,8 @@ import { expandSummaryRelations, originalSequenceId } from '@/engine/scheduler/e
 import { resolveEffectiveLagDays } from '@/engine/scheduler/CPMSolver';
 import { effHoursPerDay, effectiveCalendarOf } from '@/utils/taskDuration';
 import type { WorkCalendar } from '@/types/calendar';
-import { type ReportContext, dayOf, durationDays, isNearCritical, activityTasks, progressState } from './reportCommon';
+import { isActualPastStatusDate } from '@/engine/taskMutationRules';
+import { type ReportContext, durationDays, isNearCritical, activityTasks, progressState } from './reportCommon';
 
 /**
  * Planningsgezondheid (discussie #31, rapport 7): de geautomatiseerde planningsreview, in de
@@ -116,7 +117,7 @@ export function computeScheduleHealth(ctx: ReportContext, opts: HealthOptions): 
   const leafIds = new Set(leaves.map(t => t.id));
   const byId = new Map(ctx.tasks.map(t => [t.id, t]));
   const cpm = ctx.cpmResult && !ctx.cpmResult.error ? ctx.cpmResult : null;
-  const statusDay = ctx.statusDate ? dayOf(ctx.statusDate) : undefined;
+  const { statusDate } = ctx;
 
   const items = new Map<HealthCheckId, HealthItem[]>();
   const add = (id: HealthCheckId, item: HealthItem) => {
@@ -164,12 +165,13 @@ export function computeScheduleHealth(ctx: ReportContext, opts: HealthOptions): 
         add('hardConstraint', taskItem(t, { constraintType: c.type, date: c.date }));
       }
     }
-    // Voortgangsuitzonderingen: inconsistente actuals.
+    // Voortgangsuitzonderingen: inconsistente actuals. "Ná de statusdatum" met dezelfde precisie
+    // als het raster en de store-setters (`isActualPastStatusDate`).
     const { actualStart, actualFinish, completion } = t.time;
-    if (statusDay && actualStart && dayOf(actualStart) > statusDay) {
+    if (statusDate && actualStart && isActualPastStatusDate(actualStart, statusDate)) {
       add('progressException', taskItem(t, { reason: 'actualStartAfterStatusDate', date: actualStart }));
     }
-    if (statusDay && actualFinish && dayOf(actualFinish) > statusDay) {
+    if (statusDate && actualFinish && isActualPastStatusDate(actualFinish, statusDate)) {
       add('progressException', taskItem(t, { reason: 'actualFinishAfterStatusDate', date: actualFinish }));
     }
     if (completion >= 1 && !actualFinish) add('progressException', taskItem(t, { reason: 'completeWithoutActualFinish' }));

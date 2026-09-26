@@ -7,21 +7,24 @@ import {
 import { contourPeriodsToP6Spread, countSplitTasksWithoutContour } from '@/services/contourIo';
 import { Project } from '@/types/project';
 import { holidayEndDate, WorkCalendar } from '@/types/calendar';
-import { effectiveCalendarByTask, minutesToClock, taskMinutesForWrite } from '@/services/subdayIo';
+import { exportCalendarLayout, minutesToClock, taskMinutesForWrite } from '@/services/subdayIo';
 import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import { projectFileBase } from '@/utils/documents';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { flattenOrder } from '@/utils/wbs';
 import type { CustomTaskType } from '@/types/taskType';
+import { encodeCustomTaskType, escapeXml, OPS_DURATION_UNIT_NAME, toXmlDateTime } from '@/services/xmlInterchange';
+import { taskDurationUnit } from '@/engine/scheduler/duration';
+import { shownStart, shownFinish } from '@/utils/taskDates';
 import { P6_DURATION_TYPE_NAME, XER_DURATION_TYPE_TOKEN } from '@/engine/work/workRuleMapping';
 
-const OPS_CUSTOM_TASK_TYPE_UDF_TITLE = 'OPS Custom Task Type';
-const OPS_CUSTOM_TASK_TYPE_MARKER = 'OpenPlannerStudio.CustomTaskType.v1';
+/** P6-UDF die de OPS-taaktypemarker draagt; geëxporteerd voor de reader. */
+export const OPS_CUSTOM_TASK_TYPE_UDF_TITLE = 'OPS Custom Task Type';
 const OPS_CUSTOM_TASK_TYPE_UDF_OBJECT_ID = 900000001;
 
-/** OPS-eigen, schema-native P6-UDF waarmee gemengde dag-/urentaken exact terugkomen. */
-export const OPS_P6_DURATION_UNIT_UDF_TITLE = 'OPS_TaskDurationUnit';
-export const OPS_P6_DURATION_UNIT_UDF_OBJECT_ID = 1;
+/** OPS-eigen, schema-native P6-UDF (titel `OPS_DURATION_UNIT_NAME`) waarmee gemengde
+ *  dag-/urentaken exact terugkomen. */
+const OPS_P6_DURATION_UNIT_UDF_OBJECT_ID = 1;
 
 // Curve-/contour-naammapping (fase 2.5, §8.3). Contour-engine (2026-09): de curve wordt sinds
 // deze etappe SCHEMA-NATIEF geschreven — als `<ResourceCurve>`-object (21 waarden, MPXJ
@@ -74,32 +77,13 @@ function resourceTypeToP6(type: ResourceType): 'Labor' | 'Nonlabor' | 'Material'
   }
 }
 
-function escapeXML(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
-
-function formatP6DateTime(iso: string): string {
-  if (!iso) return '';
-  // P6 expects: 2026-03-09T08:00:00
-  if (iso.length === 10) return `${iso}T08:00:00`;
-  // Fase 2.8b (§7.3): uur-instant `YYYY-MM-DDTHH:mm` (16 tekens) → vul aan tot seconden.
-  if (iso.length === 16) return `${iso}:00`;
-  return iso;
-}
-
-function sequenceTypeToP6(type: SequenceType): string {
-  switch (type) {
-    case 'FINISH_START': return 'PR_FS';
-    case 'FINISH_FINISH': return 'PR_FF';
-    case 'START_START': return 'PR_SS';
-    case 'START_FINISH': return 'PR_SF';
-  }
-}
+/** P6-relatietype per OPS-relatietype; de reader leest de inverse. */
+export const P6_LINK_TYPE: Record<SequenceType, string> = {
+  FINISH_START: 'PR_FS',
+  FINISH_FINISH: 'PR_FF',
+  START_START: 'PR_SS',
+  START_FINISH: 'PR_SF',
+};
 
 /**
  * Fase 2.9 (§6) — OPS-constraint → P6 `CS_*`-code (Rapport B §1/§8.3). Soft-typen mappen
@@ -208,9 +192,9 @@ function writeHolidayOrExceptions(lines: string[], indent: (level: number) => st
   lines.push(`${indent(2)}<HolidayOrExceptions>`);
   for (const h of cal.holidays) {
     lines.push(`${indent(3)}<HolidayOrException>`);
-    lines.push(`${indent(4)}<Name>${escapeXML(h.name)}</Name>`);
-    lines.push(`${indent(4)}<Date>${formatP6DateTime(h.startDate)}</Date>`);
-    lines.push(`${indent(4)}<FinishDate>${formatP6DateTime(holidayEndDate(h))}</FinishDate>`);
+    lines.push(`${indent(4)}<Name>${escapeXml(h.name)}</Name>`);
+    lines.push(`${indent(4)}<Date>${toXmlDateTime(h.startDate)}</Date>`);
+    lines.push(`${indent(4)}<FinishDate>${toXmlDateTime(holidayEndDate(h))}</FinishDate>`);
     lines.push(`${indent(3)}</HolidayOrException>`);
   }
   lines.push(`${indent(2)}</HolidayOrExceptions>`);
@@ -325,22 +309,10 @@ export function writeP6XML(
   for (const res of resources) {
     resObjMap.set(res.id, nextResObjId++);
   }
-  // `resourceCalendars` is sinds 2.8a de VOLLE bibliotheek (incl. de §4.3-gemigreerde
-  // projectkalender-entry) — die entry uitsluiten voorkomt een dubbele ObjectId-1-kalender.
-  const libraryCalendars = resourceCalendars.filter(c => c.id !== calendar.id);
-  const calObjMap = new Map<string, number>();
-  calObjMap.set(calendar.id, 1); // projectkalender, zie hieronder <Calendar><ObjectId>1</ObjectId>
-  let nextCalObjId = 2;
-  for (const cal of libraryCalendars) {
-    calObjMap.set(cal.id, nextCalObjId++);
-  }
-
-  // Fase 2.8b (§7.2): effectieve kalender per taak → uur- vs dag-modus.
-  const effCalByTask = effectiveCalendarByTask(tasks, calendar, libraryCalendars);
-  const hourTaskCalendarIds = new Set(tasks.flatMap((task) => {
-    const calendarId = task.time.durationUnit === 'hours' ? effCalByTask.get(task.id)?.id : undefined;
-    return calendarId ? [calendarId] : [];
-  }));
+  // Kalender-ObjectIds: 1 = projectkalender (zie hieronder <Calendar><ObjectId>1</ObjectId>).
+  const {
+    libraryCalendars, calendarNumber: calObjMap, effCalByTask, hourTaskCalendarIds,
+  } = exportCalendarLayout(tasks, calendar, resourceCalendars);
 
   // WBS elements (parent tasks). Diepte-eerst (issue #159, vervolg): een ouder staat vóór zijn
   // kinderen en broers/zussen staan in weergavevolgorde — P6 sorteert WBS-broers op
@@ -355,20 +327,20 @@ export function writeP6XML(
   // Project
   lines.push(`${indent(1)}<Project>`);
   lines.push(`${indent(2)}<ObjectId>1</ObjectId>`);
-  lines.push(`${indent(2)}<Id>${escapeXML(project.id)}</Id>`);
+  lines.push(`${indent(2)}<Id>${escapeXml(project.id)}</Id>`);
   // Zelfde afweging als in mspdiWriter: een leeg <Name> gaf P6 een naamloos project, terwijl de
   // projectnaam in P6 juist een dragend, verplicht ingevuld veld is. Dezelfde neutrale,
   // taalonafhankelijke terugval als de bestandsnaam en de STEP-header.
-  lines.push(`${indent(2)}<Name>${escapeXML(projectFileBase(project.name))}</Name>`);
-  lines.push(`${indent(2)}<Description>${escapeXML(project.description)}</Description>`);
-  lines.push(`${indent(2)}<PlannedStartDate>${formatP6DateTime(project.startDate)}</PlannedStartDate>`);
+  lines.push(`${indent(2)}<Name>${escapeXml(projectFileBase(project.name))}</Name>`);
+  lines.push(`${indent(2)}<Description>${escapeXml(project.description)}</Description>`);
+  lines.push(`${indent(2)}<PlannedStartDate>${toXmlDateTime(project.startDate)}</PlannedStartDate>`);
   if (project.endDate) {
-    lines.push(`${indent(2)}<MustFinishByDate>${formatP6DateTime(project.endDate)}</MustFinishByDate>`);
+    lines.push(`${indent(2)}<MustFinishByDate>${toXmlDateTime(project.endDate)}</MustFinishByDate>`);
   }
   lines.push(`${indent(2)}<Status>${project.endDate ? 'Active' : 'Planned'}</Status>`);
   // Data date (fase 2.6, §9.2) — P6's peildatum. Alleen wanneer gezet (golden rule).
   if (project.statusDate) {
-    lines.push(`${indent(2)}<DataDate>${formatP6DateTime(project.statusDate)}</DataDate>`);
+    lines.push(`${indent(2)}<DataDate>${toXmlDateTime(project.statusDate)}</DataDate>`);
   }
   lines.push(`${indent(1)}</Project>`);
 
@@ -379,31 +351,18 @@ export function writeP6XML(
   lines.push(`${indent(1)}<UDFType>`);
   lines.push(`${indent(2)}<ObjectId>${OPS_P6_DURATION_UNIT_UDF_OBJECT_ID}</ObjectId>`);
   lines.push(`${indent(2)}<SubjectArea>Activity</SubjectArea>`);
-  lines.push(`${indent(2)}<Title>${OPS_P6_DURATION_UNIT_UDF_TITLE}</Title>`);
+  lines.push(`${indent(2)}<Title>${OPS_DURATION_UNIT_NAME}</Title>`);
   lines.push(`${indent(2)}<DataType>Text</DataType>`);
   lines.push(`${indent(1)}</UDFType>`);
 
-  // Calendar
-  lines.push(`${indent(1)}<Calendar>`);
-  lines.push(`${indent(2)}<ObjectId>1</ObjectId>`);
-  lines.push(`${indent(2)}<Name>${escapeXML(calendar.name)}</Name>`);
-  lines.push(`${indent(2)}<Type>Global</Type>`);
-  lines.push(`${indent(2)}<HoursPerDay>${calendar.hoursPerDay}</HoursPerDay>`);
-  lines.push(`${indent(2)}<HoursPerWeek>${calendar.hoursPerDay * calendar.workDays.length}</HoursPerWeek>`);
-  lines.push(`${indent(2)}<HoursPerMonth>${calendar.hoursPerDay * 20}</HoursPerMonth>`);
-  writeStandardWorkWeek(lines, indent, calendar, hourTaskCalendarIds.has(calendar.id));
-  writeHolidayOrExceptions(lines, indent, calendar);
-  lines.push(`${indent(1)}</Calendar>`);
-
-  // Bibliotheek-kalenders (fase 2.5/2.8a, §8.1/§8.3) — zelfde element als de projectkalender maar
-  // met Type="Resource" en een eigen ObjectId; komen ná de projectkalender zodat de eerste
-  // <Calendar> in het bestand altijd de projectkalender blijft (bestaande reader-aanname).
-  for (const cal of libraryCalendars) {
-    const objId = calObjMap.get(cal.id)!;
+  // Calendar. Bibliotheek-kalenders (fase 2.5/2.8a, §8.1/§8.3) — zelfde element als de
+  // projectkalender maar met Type="Resource" en een eigen ObjectId; komen ná de projectkalender zodat
+  // de eerste <Calendar> in het bestand altijd de projectkalender blijft (bestaande reader-aanname).
+  for (const cal of [calendar, ...libraryCalendars]) {
     lines.push(`${indent(1)}<Calendar>`);
-    lines.push(`${indent(2)}<ObjectId>${objId}</ObjectId>`);
-    lines.push(`${indent(2)}<Name>${escapeXML(cal.name)}</Name>`);
-    lines.push(`${indent(2)}<Type>Resource</Type>`);
+    lines.push(`${indent(2)}<ObjectId>${calObjMap.get(cal.id)!}</ObjectId>`);
+    lines.push(`${indent(2)}<Name>${escapeXml(cal.name)}</Name>`);
+    lines.push(`${indent(2)}<Type>${cal === calendar ? 'Global' : 'Resource'}</Type>`);
     lines.push(`${indent(2)}<HoursPerDay>${cal.hoursPerDay}</HoursPerDay>`);
     lines.push(`${indent(2)}<HoursPerWeek>${cal.hoursPerDay * cal.workDays.length}</HoursPerWeek>`);
     lines.push(`${indent(2)}<HoursPerMonth>${cal.hoursPerDay * 20}</HoursPerMonth>`);
@@ -437,7 +396,7 @@ export function writeP6XML(
   }
   for (const def of curveDefs) {
     lines.push(`${indent(1)}<ResourceCurve>`);
-    lines.push(`${indent(2)}<Name>${escapeXML(def.name)}</Name>`);
+    lines.push(`${indent(2)}<Name>${escapeXml(def.name)}</Name>`);
     lines.push(`${indent(2)}<ObjectId>${def.objId}</ObjectId>`);
     lines.push(`${indent(2)}<Values>`);
     def.values.forEach((v, i) => {
@@ -452,8 +411,8 @@ export function writeP6XML(
     const objId = resObjMap.get(res.id)!;
     lines.push(`${indent(1)}<Resource>`);
     lines.push(`${indent(2)}<ObjectId>${objId}</ObjectId>`);
-    lines.push(`${indent(2)}<Id>${escapeXML(res.id)}</Id>`);
-    lines.push(`${indent(2)}<Name>${escapeXML(res.name)}</Name>`);
+    lines.push(`${indent(2)}<Id>${escapeXml(res.id)}</Id>`);
+    lines.push(`${indent(2)}<Name>${escapeXml(res.name)}</Name>`);
     lines.push(`${indent(2)}<ResourceType>${resourceTypeToP6(res.type)}</ResourceType>`);
     const calObjId = (res.calendarId && calObjMap.get(res.calendarId)) || 1;
     lines.push(`${indent(2)}<CalendarObjectId>${calObjId}</CalendarObjectId>`);
@@ -465,7 +424,7 @@ export function writeP6XML(
     // fractie (1 = één persoon/stuk), dus 1:1 wegschrijven.
     lines.push(`${indent(2)}<MaxUnitsPerTime>${res.maxUnits}</MaxUnitsPerTime>`);
     if (res.type === 'MATERIAL' && res.unitOfMeasure) {
-      lines.push(`${indent(2)}<UnitOfMeasureAbbreviation>${escapeXML(res.unitOfMeasure)}</UnitOfMeasureAbbreviation>`);
+      lines.push(`${indent(2)}<UnitOfMeasureAbbreviation>${escapeXml(res.unitOfMeasure)}</UnitOfMeasureAbbreviation>`);
     }
     if (res.parentId && resObjMap.has(res.parentId)) {
       lines.push(`${indent(2)}<ParentObjectId>${resObjMap.get(res.parentId)}</ParentObjectId>`);
@@ -487,7 +446,7 @@ export function writeP6XML(
     lines.push(`${indent(1)}<ResourceRate>`);
     lines.push(`${indent(2)}<ObjectId>${rateObjId++}</ObjectId>`);
     lines.push(`${indent(2)}<ResourceObjectId>${rateResObjId}</ResourceObjectId>`);
-    lines.push(`${indent(2)}<EffectiveDate>${formatP6DateTime(project.startDate)}</EffectiveDate>`);
+    lines.push(`${indent(2)}<EffectiveDate>${toXmlDateTime(project.startDate)}</EffectiveDate>`);
     lines.push(`${indent(2)}<PricePerUnit>${res.costPerHour}</PricePerUnit>`);
     lines.push(`${indent(1)}</ResourceRate>`);
   }
@@ -499,8 +458,8 @@ export function writeP6XML(
 
     lines.push(`${indent(1)}<WBS>`);
     lines.push(`${indent(2)}<ObjectId>${objId}</ObjectId>`);
-    lines.push(`${indent(2)}<Code>${escapeXML(wbsTask.wbsCode)}</Code>`);
-    lines.push(`${indent(2)}<Name>${escapeXML(wbsTask.name)}</Name>`);
+    lines.push(`${indent(2)}<Code>${escapeXml(wbsTask.wbsCode)}</Code>`);
+    lines.push(`${indent(2)}<Name>${escapeXml(wbsTask.name)}</Name>`);
     lines.push(`${indent(2)}<ProjectObjectId>1</ProjectObjectId>`);
     lines.push(`${indent(2)}<SequenceNumber>${sequenceNumberByTask.get(wbsTask.id)}</SequenceNumber>`);
     if (parentObjId !== undefined) {
@@ -516,8 +475,8 @@ export function writeP6XML(
 
     lines.push(`${indent(1)}<Activity>`);
     lines.push(`${indent(2)}<ObjectId>${objId}</ObjectId>`);
-    lines.push(`${indent(2)}<Id>${escapeXML(task.wbsCode || task.id)}</Id>`);
-    lines.push(`${indent(2)}<Name>${escapeXML(task.name)}</Name>`);
+    lines.push(`${indent(2)}<Id>${escapeXml(task.wbsCode || task.id)}</Id>`);
+    lines.push(`${indent(2)}<Name>${escapeXml(task.name)}</Name>`);
     lines.push(`${indent(2)}<ProjectObjectId>1</ProjectObjectId>`);
     if (wbsObjId !== undefined) {
       lines.push(`${indent(2)}<WBSObjectId>${wbsObjId}</WBSObjectId>`);
@@ -535,21 +494,21 @@ export function writeP6XML(
     // Fase 2.8b (§7.2): uur-taak ⇒ PlannedDuration in fractionele uren uit de minuten (geen
     // dag-afronding); dag-taak ⇒ het bestaande `dagen × hpd`-pad (byte-identiek).
     const effCal = effCalByTask.get(task.id);
-    const isHour = task.time.durationUnit === 'hours';
+    const isHour = taskDurationUnit(task) === 'hours';
     const effHpd = effCal?.hoursPerDay ?? calendar.hoursPerDay;
     const plannedDur = isHour ? taskMinutesForWrite(task, effHpd) / 60 : durationToP6Hours(task.time.scheduleDuration, effHpd);
     lines.push(`${indent(2)}<PlannedDuration>${plannedDur}</PlannedDuration>`);
-    lines.push(`${indent(2)}<PlannedStartDate>${formatP6DateTime(task.time.earlyStart || task.time.scheduleStart)}</PlannedStartDate>`);
-    lines.push(`${indent(2)}<PlannedFinishDate>${formatP6DateTime(task.time.earlyFinish || task.time.scheduleFinish)}</PlannedFinishDate>`);
+    lines.push(`${indent(2)}<PlannedStartDate>${toXmlDateTime(shownStart(task))}</PlannedStartDate>`);
+    lines.push(`${indent(2)}<PlannedFinishDate>${toXmlDateTime(shownFinish(task))}</PlannedFinishDate>`);
     if (task.time.completion > 0) {
       lines.push(`${indent(2)}<PhysicalPercentComplete>${Math.round(task.time.completion * 100)}</PhysicalPercentComplete>`);
     }
     // Actuals (fase 2.6, §9.2) — alleen wanneer gezet (golden rule). RemainingDuration in uren.
     if (task.time.actualStart) {
-      lines.push(`${indent(2)}<ActualStartDate>${formatP6DateTime(task.time.actualStart)}</ActualStartDate>`);
+      lines.push(`${indent(2)}<ActualStartDate>${toXmlDateTime(task.time.actualStart)}</ActualStartDate>`);
     }
     if (task.time.actualFinish) {
-      lines.push(`${indent(2)}<ActualFinishDate>${formatP6DateTime(task.time.actualFinish)}</ActualFinishDate>`);
+      lines.push(`${indent(2)}<ActualFinishDate>${toXmlDateTime(task.time.actualFinish)}</ActualFinishDate>`);
     }
     if (isHour && task.time.remainingMinutes != null) {
       lines.push(`${indent(2)}<RemainingDuration>${task.time.remainingMinutes / 60}</RemainingDuration>`);
@@ -559,7 +518,7 @@ export function writeP6XML(
       lines.push(`${indent(2)}<RemainingDuration>${durationToP6Hours(task.time.remainingTime, effHpd)}</RemainingDuration>`);
     }
     if (task.description) {
-      lines.push(`${indent(2)}<Description>${escapeXML(task.description)}</Description>`);
+      lines.push(`${indent(2)}<Description>${escapeXml(task.description)}</Description>`);
     }
     // Datum-constraints (fase 2.9, §6): primair + secundair als P6 `CS_*`-codes. ASAP ⇒ leeg (geen
     // element, golden rule). Secundair is altijd soft (P6 native `SecondaryConstraintType`).
@@ -568,7 +527,7 @@ export function writeP6XML(
       if (code) {
         lines.push(`${indent(2)}<PrimaryConstraintType>${code}</PrimaryConstraintType>`);
         if (task.constraint.date) {
-          lines.push(`${indent(2)}<PrimaryConstraintDate>${formatP6DateTime(task.constraint.date)}</PrimaryConstraintDate>`);
+          lines.push(`${indent(2)}<PrimaryConstraintDate>${toXmlDateTime(task.constraint.date)}</PrimaryConstraintDate>`);
         }
       }
     }
@@ -577,7 +536,7 @@ export function writeP6XML(
       if (code2) {
         lines.push(`${indent(2)}<SecondaryConstraintType>${code2}</SecondaryConstraintType>`);
         if (task.constraint2.date) {
-          lines.push(`${indent(2)}<SecondaryConstraintDate>${formatP6DateTime(task.constraint2.date)}</SecondaryConstraintDate>`);
+          lines.push(`${indent(2)}<SecondaryConstraintDate>${toXmlDateTime(task.constraint2.date)}</SecondaryConstraintDate>`);
         }
       }
     }
@@ -600,12 +559,11 @@ export function writeP6XML(
     lines.push(`${indent(2)}<DataType>Text</DataType>`);
     lines.push(`${indent(1)}</UDFType>`);
     for (const task of customTasks) {
-      const type = customTaskTypes.find(candidate => candidate.id === task.customTaskTypeId);
-      const value = JSON.stringify({ ops: OPS_CUSTOM_TASK_TYPE_MARKER, id: task.customTaskTypeId, ...(type ? { name: type.name } : {}) });
+      const value = encodeCustomTaskType(task.customTaskTypeId!, customTaskTypes);
       lines.push(`${indent(1)}<UDFValue>`);
       lines.push(`${indent(2)}<ForeignObjectId>${taskObjMap.get(task.id)}</ForeignObjectId>`);
       lines.push(`${indent(2)}<UDFTypeObjectId>${OPS_CUSTOM_TASK_TYPE_UDF_OBJECT_ID}</UDFTypeObjectId>`);
-      lines.push(`${indent(2)}<Text>${escapeXML(value)}</Text>`);
+      lines.push(`${indent(2)}<Text>${escapeXml(value)}</Text>`);
       lines.push(`${indent(1)}</UDFValue>`);
     }
   }
@@ -618,7 +576,7 @@ export function writeP6XML(
     lines.push(`${indent(2)}<ProjectObjectId>1</ProjectObjectId>`);
     lines.push(`${indent(2)}<ForeignObjectId>${foreignObjectId}</ForeignObjectId>`);
     lines.push(`${indent(2)}<UDFTypeObjectId>${OPS_P6_DURATION_UNIT_UDF_OBJECT_ID}</UDFTypeObjectId>`);
-    lines.push(`${indent(2)}<Text>${task.time.durationUnit}</Text>`);
+    lines.push(`${indent(2)}<Text>${taskDurationUnit(task)}</Text>`);
     lines.push(`${indent(1)}</UDFValue>`);
   }
 
@@ -654,7 +612,7 @@ export function writeP6XML(
     lines.push(`${indent(2)}<ObjectId>${relObjId++}</ObjectId>`);
     lines.push(`${indent(2)}<PredecessorActivityObjectId>${predObjId}</PredecessorActivityObjectId>`);
     lines.push(`${indent(2)}<SuccessorActivityObjectId>${succObjId}</SuccessorActivityObjectId>`);
-    lines.push(`${indent(2)}<Type>${sequenceTypeToP6(seq.type)}</Type>`);
+    lines.push(`${indent(2)}<Type>${P6_LINK_TYPE[seq.type]}</Type>`);
     lines.push(`${indent(2)}<Lag>${lagHours}</Lag>`);
     lines.push(`${indent(2)}<ProjectObjectId>1</ProjectObjectId>`);
     lines.push(`${indent(1)}</Relationship>`);
@@ -688,8 +646,8 @@ export function writeP6XML(
     if (actObjId === undefined || resObjId === undefined) continue;
     const task = taskById.get(a.taskId);
     const contour = task ? contourOf(task, a) : undefined;
-    const taskStartIso = task ? (task.time.earlyStart || task.time.scheduleStart) : '';
-    const taskFinishIso = task ? (task.time.earlyFinish || task.time.scheduleFinish) : '';
+    const taskStartIso = task ? shownStart(task) : '';
+    const taskFinishIso = task ? shownFinish(task) : '';
     // Spreidingsstrings (MPXJ `TimephasedHelper.write`): actual/remaining apart, en `PlannedCurve`
     // als de volledige as. Alle drie ankeren op de TAAKSTART, en de bijbehorende ankervelden
     // (`PlannedStartDate`/`RemainingStartDate`/`ActualStartDate`) worden meegeschreven — zonder
@@ -699,14 +657,14 @@ export function writeP6XML(
     const actualSpread = actualPeriods.length > 0 ? contourPeriodsToP6Spread(actualPeriods) : null;
     const remainingSpread = remainingPeriods.length > 0 ? contourPeriodsToP6Spread(remainingPeriods) : null;
     const plannedSpread = contour ? contourPeriodsToP6Spread(contour.periods) : null;
-    const anchorIso = taskStartIso ? formatP6DateTime(taskStartIso) : '';
+    const anchorIso = taskStartIso ? toXmlDateTime(taskStartIso) : '';
     const curveObjId = curveObjIdByAssignment.get(a.id);
 
     // Elementvolgorde volgt het PMXML-schema (MPXJ `ResourceAssignmentType` propOrder).
     lines.push(`${indent(1)}<ResourceAssignment>`);
     lines.push(`${indent(2)}<ActivityObjectId>${actObjId}</ActivityObjectId>`);
     if (actualSpread && anchorIso) {
-      lines.push(`${indent(2)}<ActualCurve>${escapeXML(actualSpread)}</ActualCurve>`);
+      lines.push(`${indent(2)}<ActualCurve>${escapeXml(actualSpread)}</ActualCurve>`);
       lines.push(`${indent(2)}<ActualStartDate>${anchorIso}</ActualStartDate>`);
     }
     // Taaktypes-etappe (spec §4.3/§4.4): de drie werkvelden in UREN, alleen wanneer gezet; op hun
@@ -714,8 +672,8 @@ export function writeP6XML(
     if (a.actualWorkMinutes !== undefined) lines.push(`${indent(2)}<ActualUnits>${a.actualWorkMinutes / 60}</ActualUnits>`);
     lines.push(`${indent(2)}<ObjectId>${asgnObjId++}</ObjectId>`);
     if (plannedSpread && anchorIso) {
-      lines.push(`${indent(2)}<PlannedCurve>${escapeXML(plannedSpread)}</PlannedCurve>`);
-      if (taskFinishIso) lines.push(`${indent(2)}<PlannedFinishDate>${formatP6DateTime(taskFinishIso)}</PlannedFinishDate>`);
+      lines.push(`${indent(2)}<PlannedCurve>${escapeXml(plannedSpread)}</PlannedCurve>`);
+      if (taskFinishIso) lines.push(`${indent(2)}<PlannedFinishDate>${toXmlDateTime(taskFinishIso)}</PlannedFinishDate>`);
       lines.push(`${indent(2)}<PlannedStartDate>${anchorIso}</PlannedStartDate>`);
     }
     // PlannedUnitsPerTime: fractie, 1.0 = 100% (L2-fix — zelfde semantiek en MPXJ-bron als
@@ -724,7 +682,7 @@ export function writeP6XML(
     if (a.plannedWorkMinutes !== undefined) lines.push(`${indent(2)}<PlannedUnits>${a.plannedWorkMinutes / 60}</PlannedUnits>`);
     lines.push(`${indent(2)}<PlannedUnitsPerTime>${a.unitsPerDay}</PlannedUnitsPerTime>`);
     if (remainingSpread && anchorIso) {
-      lines.push(`${indent(2)}<RemainingCurve>${escapeXML(remainingSpread)}</RemainingCurve>`);
+      lines.push(`${indent(2)}<RemainingCurve>${escapeXml(remainingSpread)}</RemainingCurve>`);
       lines.push(`${indent(2)}<RemainingStartDate>${anchorIso}</RemainingStartDate>`);
     }
     if (a.remainingWorkMinutes !== undefined) lines.push(`${indent(2)}<RemainingUnits>${a.remainingWorkMinutes / 60}</RemainingUnits>`);

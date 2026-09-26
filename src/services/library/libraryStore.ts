@@ -7,31 +7,13 @@
 import { isTauri } from '@/utils/platform';
 import type { CompanyLibrary } from '@/types/library';
 import { createDefaultLibrary } from '@/types/library';
+import { writeTextFileAtomic } from '@/services/fileAccess/atomicWrite';
+import { openDb } from '@/utils/idb';
 
 const LIBRARY_FILE = 'ops-library.json';
 
 // ── IndexedDB (browser) ───────────────────────────────────────────────────────────────────────
-let dbPromise: Promise<IDBDatabase> | null = null;
-
-function openLibraryDb(): Promise<IDBDatabase> {
-  if (dbPromise) return dbPromise;
-  dbPromise = new Promise((resolve, reject) => {
-    const req = indexedDB.open('ops-library', 1);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains('library')) {
-        db.createObjectStore('library', { keyPath: 'key' });
-      }
-    };
-    req.onsuccess = () => {
-      const db = req.result;
-      db.onversionchange = () => { db.close(); dbPromise = null; };
-      resolve(db);
-    };
-    req.onerror = () => { dbPromise = null; reject(req.error); };
-  });
-  return dbPromise;
-}
+const openLibraryDb = (): Promise<IDBDatabase> => openDb('ops-library', 'library', 'key');
 
 async function loadWeb(): Promise<CompanyLibrary | null> {
   if (typeof indexedDB === 'undefined') return null; // headless Node (testbatterij) = no-op.
@@ -69,12 +51,13 @@ async function loadTauri(): Promise<CompanyLibrary | null> {
 }
 
 async function saveTauri(lib: CompanyLibrary): Promise<void> {
-  const { writeTextFile, mkdir } = await import('@tauri-apps/plugin-fs');
-  const { appDataDir, join } = await import('@tauri-apps/api/path');
+  const { mkdir } = await import('@tauri-apps/plugin-fs');
+  const { appDataDir } = await import('@tauri-apps/api/path');
   const dir = await appDataDir();
   await mkdir(dir, { recursive: true }); // op een verse installatie bestaat de map nog niet (issue #72)
-  const path = await join(dir, LIBRARY_FILE);
-  await writeTextFile(path, JSON.stringify(lib));
+  // Schrijf-en-vervang: een afgekapt bestand na een crash leest `loadTauri` als corrupt, valt terug
+  // op een VERSE bibliotheek, en de eerstvolgende save overschrijft dan de hele bibliotheek.
+  await writeTextFileAtomic(dir, LIBRARY_FILE, JSON.stringify(lib));
 }
 
 // ── Publieke API ──────────────────────────────────────────────────────────────────────────────

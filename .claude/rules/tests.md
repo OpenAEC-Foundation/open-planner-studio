@@ -19,7 +19,7 @@ Er is geen vitest/jest; `tsc` is de statische hoofdcheck — draai `npm run type
 | `tests/library/` | bibliotheek, pool-IFC, vijandige IFC-invoer, i18n-meervouden | `run.sh` |
 | `tests/mcp/` | de MCP-tools headless tegen de echte store | `run.sh` |
 | `tests/dev-server/` | poortallocatie en flock-races van de dev-server | `node:test` + `integration.sh` |
-| `tests/browser/` | echte muis-, toets-, wheel- en DOM-handelingen voor Gantt, documenten, TableEditor, dialogen en panelen; state-/paintasserties via de dev-only brug | Playwright Chromium headless shell |
+| `tests/browser/` | echte muis-, toets-, wheel- en DOM-handelingen voor Gantt, documenten, de Tabel-weergave, dialogen en panelen; state-/paintasserties via de dev-only brug | Playwright Chromium headless shell |
 
 Installeer de browser en Linux-systeemafhankelijkheden eenmalig met
 `npx playwright install --with-deps --only-shell chromium`. `npm run test:browser` reserveert daarna

@@ -3,6 +3,7 @@ import {
   HOLIDAY_SETS, generateHolidays, generateRegionalBreak,
   type HolidayCountry,
 } from './holidays';
+import { parseDate } from '@/utils/dateUtils';
 
 /** NL-bouwvak-keuze; `'geen'` (default, harde eis TODO.md r192-194) genereert geen bouwvak. */
 export type BouwvakChoice = 'geen' | 'noord' | 'midden' | 'zuid';
@@ -59,9 +60,11 @@ export function materializeHolidays(
  * `startjaar−1 t/m startjaar+3`; bij een bekend projecteinde `projectstart−1 t/m projecteinde+1`.
  */
 export function computeGenerateSpan(startDate: string, endDate: string | undefined): { from: number; to: number } {
-  const startYear = startDate ? new Date(startDate).getFullYear() : new Date().getFullYear();
+  // Projectdatums zijn UTC-dagen (`parseDate`); met lokale getters werd 1 januari in Amerika het
+  // vorige jaar. "Nu" blijft het lokale kalenderjaar van de gebruiker.
+  const startYear = startDate ? parseDate(startDate).getUTCFullYear() : new Date().getFullYear();
   if (endDate) {
-    const endYear = new Date(endDate).getFullYear();
+    const endYear = parseDate(endDate).getUTCFullYear();
     return { from: startYear - 1, to: Math.max(endYear + 1, startYear - 1) };
   }
   return { from: startYear - 1, to: startYear + 3 };

@@ -3,55 +3,16 @@
 // De parser kijkt naar echte importdeclaraties en AST-aanroepen; woorden in commentaar of strings
 // veroorzaken dus geen vals alarm. Met `--root <pad>` kan de planningstest geïsoleerde bronfixtures
 // aanbieden zonder een productiefile tijdelijk te vergiftigen.
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { dirname, join, relative, resolve, sep } from 'node:path';
+import { existsSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import ts from 'typescript';
+import {
+  location, parse, pathsFor, repositoryRoot, slash, sourceFiles, ts, valueBindings,
+} from './lib/ts-imports.mjs';
 
-const here = dirname(fileURLToPath(import.meta.url));
-const defaultRoot = resolve(here, '..');
-const rootFlag = process.argv.indexOf('--root');
-if (rootFlag >= 0 && !process.argv[rootFlag + 1]) {
-  console.error('Gebruik: node scripts/verify-store-boundaries.mjs [--root <repositorypad>]');
-  process.exit(2);
-}
-const root = resolve(rootFlag >= 0 ? process.argv[rootFlag + 1] : defaultRoot);
+const root = repositoryRoot('verify-store-boundaries.mjs', resolve(dirname(fileURLToPath(import.meta.url)), '..'));
+const { ownPath, normalizedModule } = pathsFor(root);
 const violations = [];
-
-const slash = (value) => value.split(sep).join('/');
-const ownPath = (file) => slash(relative(root, file));
-
-function sourceFiles(directory) {
-  if (!existsSync(directory)) return [];
-  const found = [];
-  const stack = [directory];
-  while (stack.length > 0) {
-    const current = stack.pop();
-    for (const entry of readdirSync(current, { withFileTypes: true })) {
-      const target = join(current, entry.name);
-      if (entry.isDirectory()) stack.push(target);
-      else if (/\.(?:ts|tsx|mts)$/.test(entry.name)) found.push(target);
-    }
-  }
-  return found.sort();
-}
-
-function parse(file) {
-  const source = readFileSync(file, 'utf8');
-  const kind = file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
-  return ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, kind);
-}
-
-function importTarget(file, specifier) {
-  if (specifier.startsWith('@/')) return resolve(root, 'src', specifier.slice(2));
-  if (specifier.startsWith('.')) return resolve(dirname(file), specifier);
-  return null;
-}
-
-function normalizedModule(file, specifier) {
-  const target = importTarget(file, specifier);
-  return target ? slash(target).replace(/\.(?:ts|tsx|mts|js|mjs)$/, '') : specifier;
-}
 
 function appStoreModule(file, specifier) {
   return normalizedModule(file, specifier) === slash(resolve(root, 'src/state/appStore'));
@@ -61,26 +22,6 @@ function compatibilityModule(file, specifier) {
   const normalized = normalizedModule(file, specifier);
   return normalized === slash(resolve(root, 'src/state/batchTransaction'))
     || normalized === slash(resolve(root, 'src/state/mcpTransaction'));
-}
-
-/** Runtimebindings uit één importclause; `import type` en `import { type X }` tellen niet mee. */
-function valueBindings(clause) {
-  if (!clause || clause.isTypeOnly) return [];
-  const bindings = [];
-  if (clause.name) bindings.push({ imported: 'default', local: clause.name.text });
-  const named = clause.namedBindings;
-  if (named && ts.isNamespaceImport(named)) {
-    bindings.push({ imported: '*', local: named.name.text });
-  } else if (named && ts.isNamedImports(named)) {
-    for (const element of named.elements) {
-      if (element.isTypeOnly) continue;
-      bindings.push({
-        imported: (element.propertyName ?? element.name).text,
-        local: element.name.text,
-      });
-    }
-  }
-  return bindings;
 }
 
 function importsOf(sourceFile, predicate) {
@@ -127,10 +68,6 @@ function identifierUses(sourceFile, local) {
   }
   ts.forEachChild(sourceFile, visit);
   return uses;
-}
-
-function location(sourceFile, node) {
-  return sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
 }
 
 function report(file, sourceFile, node, message) {

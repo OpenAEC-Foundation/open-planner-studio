@@ -1,16 +1,16 @@
-// Issue #26 punt 6: verticaal rijen slepen in de TABEL (TableEditor). Dit is de DOM-tegenhanger
-// van `src/components/canvas/hooks/useRowDrag.ts` — zelfde twee fasen (kandidaat → gepromoveerde
-// sleep), zelfde drempel (`ROW_DRAG_THRESHOLD`, geïmporteerd, niet gedupliceerd), zelfde
-// zone-verdeling (25 / 50 / 25) en zelfde regel: muteren gebeurt UITSLUITEND op mouseup, dus één
+// Issue #26 punt 6: verticaal rijen slepen in het DOM-taakraster. Aangeroepen door
+// `TaskGridSurface` in `task-grid/FullTaskGrid.tsx`, dus zowel op de Tabel-tab (`FullTaskGrid`) als
+// in de takenlijst links van de Gantt (`GanttTaskGrid`). Het canvas heeft geen eigen rijsleep: een
+// verticale balkbody-sleep draagt zijn kandidaat via `ganttRowDragBridge` aan déze hook over.
+// Twee fasen (kandidaat → gepromoveerde sleep), drempel `ROW_DRAG_THRESHOLD` (geïmporteerd, niet
+// gedupliceerd), zone-verdeling 25 / 50 / 25, en muteren gebeurt UITSLUITEND op mouseup, dus één
 // sleep = één undo-stap.
 //
-// Bewust gedeeld: de droplogica zelf zit in `resolveDropTarget` (`@/engine/view/dropTarget`) en
-// wordt hier alleen aangeroepen. Zou de tabel zijn eigen doelberekening krijgen, dan zouden tabel
-// en Gantt uiteenlopen in waar een gesleepte taak landt.
+// De droplogica zelf zit in `resolveDropTarget` (`@/engine/view/dropTarget`) en wordt hier alleen
+// aangeroepen; die blijft de enige autoriteit over waar een gesleepte taak landt.
 //
-// Het enige echt nieuwe stuk is de rij-MEETING: het canvas rekent met scrollY/rowHeight, de tabel
-// is DOM en meet dus met `document.elementFromPoint` + `getBoundingClientRect` op de rij-elementen
-// (die daarvoor een `data-ops-row-index`-attribuut dragen).
+// De rij-MEETING gaat via het DOM: `document.elementFromPoint` + `getBoundingClientRect` op de
+// rij-elementen (die daarvoor een `data-ops-row-index`-attribuut dragen, gezet in `DataGridCore`).
 
 import { RefObject, useCallback, useEffect, useRef, useState } from 'react';
 import type { ViewRow } from '@/engine/view/visibleRows';
@@ -19,6 +19,7 @@ import { resolveDropTarget, type DropTarget } from '@/engine/view/dropTarget';
 import { shouldPromoteToRowDrag } from '@/engine/taskGrid/rowDragIntent';
 import { ROW_DRAG_THRESHOLD } from '@/components/canvas/hooks/constants';
 import { useLatestRef } from '@/hooks/useLatestRef';
+import { listenWindowDrag } from '@/hooks/listenWindowDrag';
 
 /** Nog ONDER de drempel: alleen onthouden vanaf waar we meten. Blijft de sleep onder de drempel
  *  tot mouseup, dan gebeurt er niets en volgt de gewone klik/selectie. */
@@ -48,7 +49,7 @@ export interface UseTableRowDragOptions {
    *  — het gedrag dat men uit MS Project en de bestandsverkenner kent. */
   selectedTaskIds: string[];
   moveTasksTo: (ids: string[], target: DropTarget) => void;
-  /** = `isTreeMode(view)`. Net als op het canvas wordt dit door de AANROEPER bepaald. */
+  /** = `isTreeMode(view)`. Wordt door de AANROEPER bepaald (`TaskGridSurface`), niet door deze hook. */
   enabled: boolean;
   /** Aangeroepen wanneer er écht gesleept wordt (drempel gehaald) terwijl `enabled` false is —
    *  zo krijgt de gebruiker de uitleg te zien bij een echte poging, niet bij elke klik. */
@@ -123,8 +124,8 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
     const rowIndex = Number(el.getAttribute('data-ops-row-index'));
     if (!Number.isFinite(rowIndex)) return null; // kapot/afwezig attribuut ⇒ als "niet gevonden"
     const rect = el.getBoundingClientRect();
-    // Zelfde 25/50/25-verdeling als `GanttRenderer.getRowZone`, zodat tabel en canvas identiek
-    // reageren op dezelfde verticale positie binnen een rij.
+    // 25/50/25-verdeling. Een overgedragen balkbody-sleep (`ganttRowDragBridge`) loopt ook hierdoor,
+    // dus tabel en canvas reageren identiek op dezelfde verticale positie binnen een rij.
     const frac = rect.height > 0 ? (clientY - rect.top) / rect.height : 0.5;
     let zone: 'before' | 'after' | 'nest' = frac < 0.25 ? 'before' : frac > 0.75 ? 'after' : 'nest';
     // draggedTaskId gaat mee zodat de resolver compenseert voor de remove-dan-insert-verschuiving
@@ -178,20 +179,15 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
 
     const handleMouseUp = () => setCandidate(null);
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
+    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp });
   }, [candidateActive, candidateRef, optionsRef, computeHover]);
 
-  // Opruimen van de "net-gesleept"-vlag. Zelfde idee als in `useRowDrag`, maar met een EXTRA
-  // vangnet dat het canvas niet nodig heeft: het canvas is één blijvend element, dus daar volgt
-  // na de mouseup altijd een click. In de DOM-tabel niet — begon de sleep op rij A en eindigt
-  // hij op rij B, dan herrendert de drop de rijen en is het mouseup-doel losgekoppeld, waardoor
-  // Chromium HELEMAAL geen click meer stuurt (zelf gemeten). De vlag zou dan blijven staan en de
-  // eerstvolgende echte klik inslikken. Daarom wissen we óók bij de eerstvolgende mousedown:
+  // Opruimen van de "net-gesleept"-vlag, met een EXTRA vangnet dat een canvas niet nodig zou
+  // hebben: een canvas is één blijvend element, dus daar volgt na de mouseup altijd een click.
+  // In de DOM-tabel niet — begon de sleep op rij A en eindigt hij op rij B, dan herrendert de drop
+  // de rijen en is het mouseup-doel losgekoppeld, waardoor Chromium HELEMAAL geen click meer
+  // stuurt (zelf gemeten). De vlag zou dan blijven staan en de eerstvolgende echte klik
+  // inslikken. Daarom wissen we óók bij de eerstvolgende mousedown:
   // die markeert onmiskenbaar een nieuwe interactie, en komt altijd vóór de bijbehorende click.
   // De click-listener blijft in de BUBBLE-fase, zodat de rij-onClick de vlag nog ziet en de
   // sleep-afsluitende klik wél onderdrukt wordt.
@@ -262,14 +258,7 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
       setDragState(null);
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    window.addEventListener('keydown', handleKeyDown, true);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-      window.removeEventListener('keydown', handleKeyDown, true);
-    };
+    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown, keyCapture: true });
   }, [dragActive, dragStateRef, optionsRef, computeHover, armJustDraggedClear]);
 
   return {

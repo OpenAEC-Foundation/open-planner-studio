@@ -5,6 +5,8 @@ import type { CPMResult } from './CPMSolver';
 import { parseInstant, formatInstant } from '@/utils/dateUtils';
 import { taskDurationUnit, writeDerivedSpan, isZeroDurationMilestone } from './duration';
 import { CalendarEngine } from './CalendarEngine';
+import { descendantLeaves, summaryProgressOf, taskWorkDays } from './summaryProgress';
+import { finishInstant, latestFinish } from '@/utils/taskDates';
 
 /**
  * Schrijf een CPM-resultaat terug op de taken: per blad de berekende velden, daarna de
@@ -66,7 +68,10 @@ function applyDerivedSummaryDuration(task: Task, engine: CalendarEngine): void {
   // levert `workDaysBetween` 0 op, en duur 0 maakt van de rij visueel een mijlpaal.
   if (!task.time.earlyStart || !task.time.earlyFinish) return;
   const es = parseInstant(task.time.earlyStart);
-  const ef = parseInstant(task.time.earlyFinish);
+  // Een einde zonder tijd (een dagkind wint de rollup) loopt in een UUR-projectkalender tot het
+  // einde van die dag (`finishInstant`), niet tot middernacht aan het begin ervan. In dagmodus telt
+  // `workDaysBetween` beide kalenderdagen inclusief, dus daar blijft het de dagstart.
+  const ef = engine.isHourMode ? finishInstant(task.time.earlyFinish) : parseInstant(task.time.earlyFinish);
   if (Number.isNaN(es.getTime()) || Number.isNaN(ef.getTime())) return;
   writeDerivedSpan(task, es, ef, engine);
 }
@@ -119,7 +124,7 @@ export function applyCpmResult(tasks: Task[], result: CPMResult, cals: ApplyCpmC
     }
   }
 
-  rollupSummaryTasks(tasks, { projectCalendar: cals.projectCalendar });
+  rollupSummaryTasks(tasks, { projectCalendar: cals.projectCalendar, progressCalendars: cals.calendars });
 }
 
 /**
@@ -144,6 +149,10 @@ export function rollupSummaryTasks(
      *  gerekend (`applyDerivedSummaryDuration`). Afwezig ⇒ alleen de datum-/spelingrollup, de duur
      *  blijft onaangeraakt. */
     projectCalendar?: WorkCalendar;
+    /** Integratie groep B: de kalenderbibliotheek voor de voortgangsrollup van verzameltaken
+     *  (`summaryProgressOf`, gewogen naar werkdagen). Alleen samen met `projectCalendar`; afwezig ⇒
+     *  voortgang en status van de samenvatting blijven onaangeroerd. */
+    progressCalendars?: WorkCalendar[];
   },
 ): void {
   // A4 (prestatie): één vooraf gebouwde id→taak-Map i.p.v. `find` per taak én per kind (recursief) —
@@ -152,9 +161,30 @@ export function rollupSummaryTasks(
   // Eén engine voor alle verzameltaken: de afleiding rekent per definitie in de projectkalender,
   // dus is er niets per taak te resolven en niets te cachen.
   const summaryEngine = options?.projectCalendar ? new CalendarEngine(options.projectCalendar) : null;
+  // Elke verzameltaak wordt één keer opgerold (kinderen vóór ouders). Dat is ook de cyclusbewaking:
+  // een corrupte `childIds`-kring liep hier anders eindeloos rond tot de stack overliep. Een taak die
+  // (corrupt) onder twee ouders hangt, levert bij een tweede bezoek toch hetzelfde resultaat op.
+  const visited = new Set<string>();
+  // Voortgangsrollup: bladnakomelingen en hun gewicht (werkdagen) één keer per taak, want een blad
+  // telt mee in álle verzameltaken boven hem. Alleen met `progressCalendars` (de `applyCpmResult`-
+  // route); "datums zoals opgeslagen" laat de voortgang zoals hij was (integratie groep B × main).
+  const progressCals = options?.projectCalendar && options.progressCalendars
+    ? { projectCalendar: options.projectCalendar, calendars: options.progressCalendars }
+    : null;
+  const leafCache = new Map<string, Task[]>();
+  const workDaysCache = new Map<string, number>();
+  const workDaysOf = (leaf: Task): number => {
+    let d = workDaysCache.get(leaf.id);
+    if (d === undefined) {
+      d = progressCals ? taskWorkDays(leaf, progressCals.projectCalendar, progressCals.calendars) : 0;
+      workDaysCache.set(leaf.id, d);
+    }
+    return d;
+  };
   const updateSummary = (taskId: string): void => {
     const task = byId.get(taskId);
-    if (!task || isLeafTask(task)) return;
+    if (!task || isLeafTask(task) || visited.has(taskId)) return;
+    visited.add(taskId);
 
     for (const childId of task.childIds) updateSummary(childId);
     if (options?.skip?.(task)) return;
@@ -208,19 +238,21 @@ export function rollupSummaryTasks(
     }
 
     if (children.length > 0) {
+      // Starts mogen als tekst: een datum zonder tijd (middernacht) sorteert vóór dezelfde dag mét
+      // tijd, en dat klopt ook als tijdstip. Einden NIET: "…-05T13:00" sorteert ná "…-05", terwijl
+      // een dagkind pas aan het einde van die dag klaar is — dus als tijdstip (`latestFinish`, de
+      // balkregel van `finishInstant`; audit weergaven, bevinding 10). Zelfde voor de late einden.
       const starts = children.map(c => c.time.earlyStart).sort();
-      const finishes = children.map(c => c.time.earlyFinish).sort();
       task.time.earlyStart = starts[0];
-      task.time.earlyFinish = finishes[finishes.length - 1];
+      task.time.earlyFinish = latestFinish(children.map(c => c.time.earlyFinish));
       task.time.isCritical = children.some(c => c.time.isCritical);
 
       // Ook de LATE datums en speling oprollen — anders bleven die op de
       // createDefaultTaskTime-defaults staan (lf=es, tf=0) en schreef o.a. ifcWriter misleidende
       // fase-speling weg (een niet-kritieke fase met "tf=0").
       const lateStarts = children.map(c => c.time.lateStart).sort();
-      const lateFinishes = children.map(c => c.time.lateFinish).sort();
       task.time.lateStart = lateStarts[0];
-      task.time.lateFinish = lateFinishes[lateFinishes.length - 1];
+      task.time.lateFinish = latestFinish(children.map(c => c.time.lateFinish));
       // Een verzameltaak kan maar zo veel opschuiven als zijn krapste kind: min over de kinderen.
       task.time.totalFloat = Math.min(...children.map(c => c.time.totalFloat));
       task.time.freeFloat = Math.min(...children.map(c => c.time.freeFloat));
@@ -234,6 +266,22 @@ export function rollupSummaryTasks(
       // manual-fase mag haar bestandswaarde niet kwijtraken aan een afleiding die de
       // fidelity-poort (die alleen start/finish meet) niet zou zien.
       if (summaryEngine) applyDerivedSummaryDuration(task, summaryEngine);
+
+      // Voortgang en status: afgeleid uit de bladen, met de gewogen formule die het WBS-rapport
+      // altijd al gebruikte (`summaryProgressOf`, één definitie voor beide). Zonder dit lazen Tabel,
+      // Gantt-tooltip, PDF en MCP de opgeslagen fasewaarde — 0% "Niet gestart", of een bevroren
+      // MSP-importwaarde — terwijl het WBS-rapport 100% zei. Eigen voortgang op een fase bestaat niet
+      // (MCP, voortgangsimport, paneel en raster weigeren hem), dus hier gaat niets verloren.
+      // Dezelfde uitzonderingen als de datums: de `manuallyScheduled`-tak hierboven keert eerder
+      // terug (de fase houdt haar opgeslagen voortgang), en "datums zoals opgeslagen" zet de
+      // bestandswaarde terug via `showRecordedDates` (`RecordedTime.summaryProgress`).
+      // Werkelijke datums en restduur van de fase worden bewust NIET opgerold: die velden zijn in
+      // paneel en raster alleen-lezen, maar een rollup ervan raakt exports en de verplaats-telling.
+      if (progressCals) {
+        const progress = summaryProgressOf(descendantLeaves(task, byId, leafCache), workDaysOf);
+        task.time.completion = progress.completion;
+        task.status = progress.status;
+      }
     }
   };
 

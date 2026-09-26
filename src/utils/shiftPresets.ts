@@ -1,6 +1,7 @@
 import type { ParseKeys } from 'i18next';
 import type { WorkCalendar, WorkTimeBands } from '@/types/calendar';
 import { workDaysFromBands } from '@/services/subdayIo';
+import { makeBands } from '@/utils/effectiveWorkTime';
 export { seedScalarBands, seedScalarWorkTime } from '@/utils/effectiveWorkTime';
 
 /**
@@ -29,13 +30,6 @@ export interface WorkTimePatch {
 }
 
 const WEEKDAYS = [1, 2, 3, 4, 5];
-
-/** Bouw een `WorkTimeBands` met dezelfde banden op elke opgegeven weekdag. */
-export function makeBands(days: number[], bands: { start: number; end: number }[]): WorkTimeBands {
-  const byWeekday = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] } as WorkTimeBands['byWeekday'];
-  for (const d of days) byWeekday[d as 1] = bands.map((b) => ({ ...b }));
-  return { byWeekday };
-}
 
 /**
  * Banden voor ÉÉN werkdag afgeleid uit het scalar-model (`workStartHour`/`workEndHour`/`hoursPerDay`),

@@ -7,8 +7,7 @@
 // finish) op de stripbreedte (`dayToMiniX`), een andere transform dan deze scroll-/zoom-gebonden
 // dag-as.
 
-/** Milliseconden per kalenderdag — de tijd-as rekent in hele dagen sinds `viewStart`. */
-export const MS_PER_DAY = 86400000;
+import { MS_PER_DAY } from '@/utils/dateUtils';
 
 /**
  * Datum (met optionele sub-dag-precisie) → X-pixel op het chart-canvas. Identiek aan de vroegere

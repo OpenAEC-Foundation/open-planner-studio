@@ -12,8 +12,8 @@
 
 import { isTauri } from '@/utils/platform';
 import i18n from '@/i18n/config';
-
-export const FEEDBACK_REPO = 'OpenAEC-Foundation/open-planner-studio';
+import { dataUrlToBytes } from '@/utils/dataUrl';
+import { GITHUB_REPO } from '@/services/githubRepo';
 
 export type FeedbackType = 'bug' | 'feature';
 
@@ -57,7 +57,7 @@ function buildGitHubUrl(payload: FeedbackPayload, os: string): string {
   }
 
   const enc = encodeURIComponent;
-  return `https://github.com/${FEEDBACK_REPO}/issues/new?title=${enc(payload.title)}&labels=${enc(label)}&body=${enc(body)}`;
+  return `https://github.com/${GITHUB_REPO}/issues/new?title=${enc(payload.title)}&labels=${enc(label)}&body=${enc(body)}`;
 }
 
 /**
@@ -81,14 +81,8 @@ async function getPlatform(): Promise<string> {
  * Maak een PNG Blob van een dataURL.
  */
 function dataUrlToBlob(dataUrl: string): Blob {
-  const [header, b64] = dataUrl.split(',');
-  const mime = header.match(/:(.*?);/)?.[1] ?? 'image/png';
-  const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return new Blob([bytes], { type: mime });
+  const mime = dataUrl.match(/^data:(.*?);/)?.[1] ?? 'image/png';
+  return new Blob([dataUrlToBytes(dataUrl)], { type: mime });
 }
 
 /**
@@ -175,14 +169,7 @@ async function saveScreenshot(dataUrl: string): Promise<string | null> {
       const filename = `feedback-${Date.now()}.png`;
       const filepath = await join(feedbackDir, filename);
 
-      // Converteer dataURL naar Uint8Array voor binair schrijven.
-      const [, b64] = dataUrl.split(',');
-      const binary = atob(b64);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
-      }
-      await writeFile(filepath, bytes);
+      await writeFile(filepath, dataUrlToBytes(dataUrl));
       return filepath;
     } catch (err) {
       console.warn('Screenshot opslaan mislukt:', err);

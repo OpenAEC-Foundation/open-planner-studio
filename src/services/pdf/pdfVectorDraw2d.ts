@@ -68,6 +68,9 @@ export interface PdfTextPlacement {
 /** Per-gewicht font-metrics (em-fracties) voor baseline-omrekening. */
 interface FontMetrics { ascentEm: number; descentEm: number }
 
+/** Linker-x en alfabetische baseline (report-px, y-omlaag) van één tekstplaatsing, plus de glyf-extent. */
+interface TextPlacement { tx: number; baselineY: number; ascentPx: number; descentPx: number }
+
 /**
  * De subset van de fontkit-font-API die deze backend gebruikt (metrics + glyph-dekking + shaping).
  * `layout` maakt 'm ook bruikbaar als {@link ShapingFonts}-lid voor het complexe (RTL/gemengde) pad.
@@ -512,51 +515,56 @@ export class PdfVectorDraw2D implements Draw2D {
     }
 
     const width = pdfFont.widthOfTextAtSize(text, size);
+    const place = this.placeText(x, y, width, size, metrics);
+    this.pushText(place, width, [
+      beginText(),
+      setFontAndSize(bold ? 'F1' : 'F0', size),
+      setTextMatrix(1, 0, 0, 1, place.tx, this.flipY(place.baselineY)),
+      showText(pdfFont.encodeText(text)),
+      endText(),
+    ]);
+  }
 
-    // Horizontale uitlijning via x-offset op de gemeten breedte.
+  /**
+   * Canvas-plaatsing → PDF-plaatsing, gedeeld door alle tekstpaden: horizontale uitlijning als
+   * x-offset op de gemeten breedte, en de canvas-y (afhankelijk van `textBaseline` een andere lijn)
+   * omgerekend naar de alfabetische baseline via de (Latijnse) font-metrics — zo lijnen rijen met
+   * gemengde scripts consistent uit.
+   */
+  private placeText(x: number, y: number, width: number, size: number, metrics: FontMetrics): TextPlacement {
     let tx = x;
     if (this.textAlign === 'center') tx = x - width / 2;
     else if (this.textAlign === 'right') tx = x - width;
-
-    // Verticale baseline. Canvas-y betekent, afhankelijk van textBaseline, een andere lijn; reken om
-    // naar de alfabetische baseline (B, canvas-y) via de font-metrics.
     const ascentPx = metrics.ascentEm * size;
     const descentPx = metrics.descentEm * size; // negatief
     let baselineY = y; // 'alphabetic'
     if (this.textBaseline === 'middle') baselineY = y + (ascentPx + descentPx) / 2;
     else if (this.textBaseline === 'bottom') baselineY = y + descentPx;
+    return { tx, baselineY, ascentPx, descentPx };
+  }
 
+  /**
+   * Registreer een tekst-op-blok. Self-contained: kleur (+ evt. alpha via q/gs…Q) rond BT…ET. De
+   * pagineerder emit dit ONVERANDERD onder de tegel-`cm`+clip, zodat de tekst pixel-identiek landt als
+   * toen hij in het XObject zat (setTextMatrix staat in absolute XObject-coördinaten). De bron-bbox in
+   * report-px (canvas, y-omlaag) is horizontaal [tx, tx+width] en verticaal de glyf-extent rond de
+   * baseline (ascenders omhoog = kleinere y), zodat de tekst precies op de tegels landt waar hij
+   * zichtbaar is.
+   */
+  private pushText(place: TextPlacement, width: number, textOps: PDFOperator[]): void {
     const c = parseColor(this.fillStyle);
-    const textOps: PDFOperator[] = [
-      beginText(),
-      setFontAndSize(bold ? 'F1' : 'F0', size),
-      setTextMatrix(1, 0, 0, 1, tx, this.flipY(baselineY)),
-      showText(pdfFont.encodeText(text)),
-      endText(),
-    ];
-    // Self-contained op-blok: kleur (+ evt. alpha via q/gs…Q) rond BT…ET. De pagineerder emit dit
-    // ONVERANDERD onder de tegel-`cm`+clip, zodat de tekst pixel-identiek landt als toen hij in het
-    // XObject zat (setTextMatrix staat in absolute XObject-coördinaten).
-    let ops: PDFOperator[];
-    if (c.a < 1) {
-      const gs = this.pool.registerAlpha(c.a);
-      ops = [
-        pushGraphicsState(), setGraphicsState(gs),
+    const ops: PDFOperator[] = c.a < 1
+      ? [
+        pushGraphicsState(), setGraphicsState(this.pool.registerAlpha(c.a)),
         setFillingRgbColor(c.r, c.g, c.b), ...textOps,
         popGraphicsState(),
-      ];
-    } else {
-      ops = [setFillingRgbColor(c.r, c.g, c.b), ...textOps];
-    }
-
-    // Bron-bbox in report-px (canvas, y-omlaag) voor de tegel-toewijzing: horizontaal [tx, tx+width];
-    // verticaal de glyf-extent rond de baseline (ascenders omhoog = kleinere y, descenders omlaag =
-    // grotere y). Zo emit de pagineerder de tekst op precies die tegels waar z'n glyphs zichtbaar zijn.
+      ]
+      : [setFillingRgbColor(c.r, c.g, c.b), ...textOps];
     this.texts.push({
-      x0: tx,
-      x1: tx + width,
-      y0: baselineY - ascentPx,
-      y1: baselineY - descentPx,
+      x0: place.tx,
+      x1: place.tx + width,
+      y0: place.baselineY - place.ascentPx,
+      y1: place.baselineY - place.descentPx,
       ops,
     });
   }
@@ -575,17 +583,8 @@ export class PdfVectorDraw2D implements Draw2D {
     if (runs.length === 0) return;
 
     // Uitlijning op de totale (multi-font) breedte — zo landt rechts-uitgelijnde RTL-tekst correct.
-    let tx = x;
-    if (this.textAlign === 'center') tx = x - width / 2;
-    else if (this.textAlign === 'right') tx = x - width;
-
-    // Baseline-omrekening identiek aan het snelpad (Latijnse metrics → consistente rij-uitlijning).
-    const ascentPx = metrics.ascentEm * size;
-    const descentPx = metrics.descentEm * size; // negatief
-    let baselineY = y; // 'alphabetic'
-    if (this.textBaseline === 'middle') baselineY = y + (ascentPx + descentPx) / 2;
-    else if (this.textBaseline === 'bottom') baselineY = y + descentPx;
-    const pdfBaselineY = this.flipY(baselineY); // PDF y-omhoog
+    const place = this.placeText(x, y, width, size, metrics);
+    const pdfBaselineY = this.flipY(place.baselineY); // PDF y-omhoog
 
     // Per-glyph emissie binnen één BT…ET. `glyph.x` = tekst-lokale x vanaf de plaatsings-oorsprong;
     // `glyph.y` = baseline-relatieve GPOS-offset (positief = omhoog → in PDF y-omhoog optellen).
@@ -595,34 +594,13 @@ export class PdfVectorDraw2D implements Draw2D {
       textOps.push(setFontAndSize(run.fontKey as FontKey, size));
       for (const g of run.glyphs) {
         textOps.push(
-          setTextMatrix(1, 0, 0, 1, tx + g.x, pdfBaselineY + g.y),
+          setTextMatrix(1, 0, 0, 1, place.tx + g.x, pdfBaselineY + g.y),
           showText(PDFHexString.of(g.hex)),
         );
       }
     }
     textOps.push(endText());
-
-    const c = parseColor(this.fillStyle);
-    let ops: PDFOperator[];
-    if (c.a < 1) {
-      const gs = this.pool.registerAlpha(c.a);
-      ops = [
-        pushGraphicsState(), setGraphicsState(gs),
-        setFillingRgbColor(c.r, c.g, c.b), ...textOps,
-        popGraphicsState(),
-      ];
-    } else {
-      ops = [setFillingRgbColor(c.r, c.g, c.b), ...textOps];
-    }
-
-    // Bron-bbox (report-px, y-omlaag) over de hele tekstplaatsing — voor de per-tegel-emissie.
-    this.texts.push({
-      x0: tx,
-      x1: tx + width,
-      y0: baselineY - ascentPx,
-      y1: baselineY - descentPx,
-      ops,
-    });
+    this.pushText(place, width, textOps);
   }
 
   /**
@@ -644,19 +622,11 @@ export class PdfVectorDraw2D implements Draw2D {
     let total = 0;
     for (const w of widths) total += w;
 
-    let tx = x;
-    if (this.textAlign === 'center') tx = x - total / 2;
-    else if (this.textAlign === 'right') tx = x - total;
-
-    const ascentPx = metrics.ascentEm * size;
-    const descentPx = metrics.descentEm * size; // negatief
-    let baselineY = y; // 'alphabetic'
-    if (this.textBaseline === 'middle') baselineY = y + (ascentPx + descentPx) / 2;
-    else if (this.textBaseline === 'bottom') baselineY = y + descentPx;
-    const pdfBaselineY = this.flipY(baselineY);
+    const place = this.placeText(x, y, total, size, metrics);
+    const pdfBaselineY = this.flipY(place.baselineY);
 
     const textOps: PDFOperator[] = [beginText()];
-    let cursor = tx;
+    let cursor = place.tx;
     for (let i = 0; i < runs.length; i++) {
       const r = runs[i];
       const { fontKey, pdfFont } = this.cjkRunFont(r, bold);
@@ -668,27 +638,7 @@ export class PdfVectorDraw2D implements Draw2D {
       cursor += widths[i];
     }
     textOps.push(endText());
-
-    const c = parseColor(this.fillStyle);
-    let ops: PDFOperator[];
-    if (c.a < 1) {
-      const gs = this.pool.registerAlpha(c.a);
-      ops = [
-        pushGraphicsState(), setGraphicsState(gs),
-        setFillingRgbColor(c.r, c.g, c.b), ...textOps,
-        popGraphicsState(),
-      ];
-    } else {
-      ops = [setFillingRgbColor(c.r, c.g, c.b), ...textOps];
-    }
-
-    this.texts.push({
-      x0: tx,
-      x1: tx + total,
-      y0: baselineY - ascentPx,
-      y1: baselineY - descentPx,
-      ops,
-    });
+    this.pushText(place, total, textOps);
   }
 
   /** Eén run in het CJK-pad: een span tekst die door één font (Inter of provider-`idx`) getekend wordt. */
@@ -740,7 +690,7 @@ export class PdfVectorDraw2D implements Draw2D {
   measureText(text: string): { width: number } {
     const { bold, size } = parseFont(this.font);
     // Complex pad: dezelfde shaping-pijplijn als `fillText` → som van de run-breedtes (multi-font),
-    // zodat `fitText`-afkapping/`drawBarLabel`/paginering exact op de emissie aansluiten.
+    // zodat `ellipsize`-afkapping/`drawBarLabel`/paginering exact op de emissie aansluiten.
     if (this.shapingFonts && this.hasRtlText(text)) {
       return { width: this.shapeComplex(text, bold, size).width };
     }

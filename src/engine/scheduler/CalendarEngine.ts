@@ -1,5 +1,5 @@
-import { holidayEndDate, WorkCalendar } from '@/types/calendar';
-import { parseDate, isoDayOfWeek, addCalendarDays, formatDate, diffCalendarDays } from '@/utils/dateUtils';
+import { holidayEndDate, WorkCalendar, type WorkTimeBands } from '@/types/calendar';
+import { parseDate, isoDayOfWeek, addCalendarDays, formatDate, diffCalendarDays, MS_PER_DAY, utcDayIndex } from '@/utils/dateUtils';
 
 /** Eén gematerialiseerd werk-interval, absolute UTC-ms, half-open `[start, end)` (fase 2.8b, §4.2). */
 interface BandInterval {
@@ -19,6 +19,34 @@ interface BandCache {
 /** WeakMap kalender-object → gedeelde band-cache. Bewust op het OBJECT (identiteit), niet per
  *  engine-instantie, zodat parallelle engines op dezelfde kalender de uitrol delen (§5.6). */
 const bandCacheRegistry = new WeakMap<WorkCalendar, BandCache>();
+
+/** De meest voorkomende waarde van een niet-lege lijst, bij gelijkspel de HOOGSTE — de "modale
+ *  dagsom" waarmee zowel `hoursPerDay` als de standaardwerkdag van een uur-kalender gekozen worden. */
+function modalHighest(values: readonly number[]): number {
+  const freq = new Map<number, number>();
+  for (const v of values) freq.set(v, (freq.get(v) ?? 0) + 1);
+  let best = values[0];
+  let bestCount = 0;
+  for (const [v, count] of freq) {
+    if (count > bestCount || (count === bestCount && v > best)) {
+      best = v;
+      bestCount = count;
+    }
+  }
+  return best;
+}
+
+/** Afgeleide `hoursPerDay` uit banden (§3.2, Bevinding 8): de MODALE dagsom in uren over de
+ *  weekdagen die banden dragen, bij gelijkspel de HOOGSTE; zonder banden `fallback`. */
+export function modalBandHoursPerDay(bands: WorkTimeBands, fallback: number): number {
+  const sums: number[] = [];
+  for (let wd = 1 as 1 | 2 | 3 | 4 | 5 | 6 | 7; wd <= 7; wd = (wd + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7) {
+    const list = bands.byWeekday[wd] ?? [];
+    if (list.length === 0) continue; // niet-werkdag telt niet mee
+    sums.push(list.reduce((s, b) => s + (b.end - b.start), 0) / 60);
+  }
+  return sums.length === 0 ? fallback : modalHighest(sums);
+}
 
 export class CalendarEngine {
   private calendar: WorkCalendar;
@@ -50,7 +78,6 @@ export class CalendarEngine {
   // dan dit wordt niet uitgeteld (een kapotte/sentinel-invoer mag de banden-lus niet laten hangen).
   private static readonly MAX_MINUTES = CalendarEngine.MAX_DAYS * 24 * 60;
   private static readonly MS_PER_MIN = 60_000;
-  private static readonly MS_PER_DAY = 86_400_000;
 
   // ── Fase 2.8b: uur-modus-state (dood in dag-modus) ─────────────────────────
   private mode: 'day' | 'hour' = 'day';
@@ -89,11 +116,11 @@ export class CalendarEngine {
     // terwijl `isWorkDay`/`isHoliday` voor diezelfde dag al `true`/`false` (werkend) teruggeven. Dat gat
     // trad letterlijk op bij `HolOverridden` (zie check-calendar-hours.ts, M13-M16) vóór deze fix.
     this.holidayWorkdayIdxSorted = [...this.holidayDaySet]
-      .filter((idx) => this.workDayMask[isoDayOfWeek(new Date(idx * CalendarEngine.MS_PER_DAY))]
+      .filter((idx) => this.workDayMask[isoDayOfWeek(new Date(idx * MS_PER_DAY))]
         && !this.workingExceptionDaySet.has(idx))
       .sort((a, b) => a - b);
     this.workingExceptionOnNonWorkWeekdayIdxSorted = [...this.workingExceptionDaySet]
-      .filter((idx) => !this.workDayMask[isoDayOfWeek(new Date(idx * CalendarEngine.MS_PER_DAY))])
+      .filter((idx) => !this.workDayMask[isoDayOfWeek(new Date(idx * MS_PER_DAY))])
       .sort((a, b) => a - b);
     // ── Fase 2.8b: modus-detectie + uur-setup (§4.1). Afwezige `workTime` ⇒ dag-modus:
     //    dan wordt niets hieronder geraakt en draaien de bevroren dag-lussen ongewijzigd.
@@ -118,7 +145,7 @@ export class CalendarEngine {
       for (let i = 0; i <= days; i++) {
         const d = addCalendarDays(start, i);
         this.holidaySet.add(formatDate(d));
-        this.holidayDaySet.add(Math.floor(d.getTime() / CalendarEngine.MS_PER_DAY));
+        this.holidayDaySet.add(utcDayIndex(d.getTime()));
       }
     }
   }
@@ -146,7 +173,7 @@ export class CalendarEngine {
       const days = diffCalendarDays(start, end);
       for (let i = 0; i <= days; i++) {
         const d = addCalendarDays(start, i);
-        const dayIdx = Math.floor(d.getTime() / CalendarEngine.MS_PER_DAY);
+        const dayIdx = utcDayIndex(d.getTime());
         this.workingExceptionDaySet.add(dayIdx);
         this.workingExceptionSet.add(formatDate(d));
         if (exc.bands && exc.bands.length > 0) {
@@ -181,7 +208,7 @@ export class CalendarEngine {
     const dow = isoDayOfWeek(date);
     const hasExc = this.workingExceptionDaySet.size > 0;
     if (!hasExc && !this.workDayMask[dow]) return false;
-    const dayIdx = Math.floor(date.getTime() / CalendarEngine.MS_PER_DAY);
+    const dayIdx = utcDayIndex(date.getTime());
     // Fase 3.8 (T2): een werkende uitzondering wint altijd — ook op een niet-werk-weekdag (zaterdag) en
     // ook boven een holiday op diezelfde datum (precedentie; zie de HOOG-1-fix bij `holidayWorkdayIdxSorted`
     // voor de bijbehorende `workDaysBetween`-consistentie). Een holiday op een ANDERE datum (elders in de
@@ -259,13 +286,20 @@ export class CalendarEngine {
     const startMs = start.getTime();
     const endMs = end.getTime();
     if (!(endMs >= startMs)) return 0; // dekt endMs<startMs én NaN (NaN>=x is false) — 0-iteratie-lus
-    const totalDays = Math.floor((endMs - startMs) / CalendarEngine.MS_PER_DAY) + 1;
+    const totalDays = Math.floor((endMs - startMs) / MS_PER_DAY) + 1;
     const cappedDays = Math.min(totalDays, CalendarEngine.MAX_DAYS + 1);
-    const startIdx = Math.floor(startMs / CalendarEngine.MS_PER_DAY);
+    const startIdx = utcDayIndex(startMs);
     const lastIdx = startIdx + cappedDays - 1;
     return this.countWorkWeekdays(startIdx, lastIdx)
       - this.countHolidayWorkdaysInRange(startIdx, lastIdx)
       + this.countWorkingExceptionsAddedInRange(startIdx, lastIdx);
+  }
+
+  /** Getekend werkdag-verschil van `a` naar `b`: a≤b ⇒ +stappen (`workDaysBetween − 1`), a>b ⇒
+   *  −stappen. De ene definitie achter de CPM-vrije speling, de variance- en rapportdeltas, de
+   *  baselinekolommen van het taakraster en de nivelleervoorvertoning. */
+  signedWorkDaysBetween(a: Date, b: Date): number {
+    return a <= b ? this.workDaysBetween(a, b) - 1 : -(this.workDaysBetween(b, a) - 1);
   }
 
   /** #werk-weekdagen in het INCLUSIEVE dagindex-bereik [startIdx, lastIdx]. Volledige weken dragen
@@ -278,7 +312,7 @@ export class CalendarEngine {
     let count = fullWeeks * this.workDaysPerWeek;
     const rem = L - fullWeeks * 7;
     if (rem > 0) {
-      let wd = isoDayOfWeek(new Date(startIdx * CalendarEngine.MS_PER_DAY)); // 1..7
+      let wd = isoDayOfWeek(new Date(startIdx * MS_PER_DAY)); // 1..7
       for (let i = 0; i < rem; i++) {
         if (this.workDayMask[wd]) count++;
         wd = wd === 7 ? 1 : wd + 1;
@@ -488,26 +522,7 @@ export class CalendarEngine {
    *  `hoursPerDay` teruggeven die niet bij `standardWorkdayBands`'s minutensom past. Geen corpus-
    *  of synthetische case raakt dit (de parsers garanderen de consistentie), dus bewust ongefixt. */
   private computeDerivedHoursPerDay(): number {
-    const byWeekday = this.calendar.workTime!.byWeekday;
-    const sums: number[] = [];
-    for (let wd = 1 as 1 | 2 | 3 | 4 | 5 | 6 | 7; wd <= 7; wd = (wd + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7) {
-      const bands = byWeekday[wd] ?? [];
-      if (bands.length === 0) continue; // niet-werkdag telt niet mee
-      const minutes = bands.reduce((s, b) => s + (b.end - b.start), 0);
-      sums.push(minutes / 60);
-    }
-    if (sums.length === 0) return this.calendar.hoursPerDay; // fallback: geen banden
-    const freq = new Map<number, number>();
-    for (const h of sums) freq.set(h, (freq.get(h) ?? 0) + 1);
-    let best = sums[0];
-    let bestCount = 0;
-    for (const [h, c] of freq) {
-      if (c > bestCount || (c === bestCount && h > best)) {
-        best = h;
-        bestCount = c;
-      }
-    }
-    return best;
+    return modalBandHoursPerDay(this.calendar.workTime!, this.calendar.hoursPerDay);
   }
 
   /** Fase 3.8 (T2-review MIDDEN-2, orkestratorbesluit; her-review LAAG-9): de banden van een "normale
@@ -544,16 +559,7 @@ export class CalendarEngine {
       sums.push({ wd, minutes: bands.reduce((s, b) => s + (b.end - b.start), 0) });
     }
     if (sums.length > 0) {
-      const freq = new Map<number, number>();
-      for (const { minutes } of sums) freq.set(minutes, (freq.get(minutes) ?? 0) + 1);
-      let bestMinutes = sums[0].minutes;
-      let bestCount = 0;
-      for (const [minutes, count] of freq) {
-        if (count > bestCount || (count === bestCount && minutes > bestMinutes)) {
-          bestMinutes = minutes;
-          bestCount = count;
-        }
-      }
+      const bestMinutes = modalHighest(sums.map((s) => s.minutes));
       const match = sums.find((s) => s.minutes === bestMinutes)!; // eerste (laagste wd) met de modale som
       return byWeekday[match.wd]!;
     }
@@ -568,7 +574,7 @@ export class CalendarEngine {
 
   /** UTC-middernacht-ms van de dag die `ms` bevat (epoch is op UTC-middernacht uitgelijnd). */
   private dayStartMsOf(ms: number): number {
-    return Math.floor(ms / CalendarEngine.MS_PER_DAY) * CalendarEngine.MS_PER_DAY;
+    return utcDayIndex(ms) * MS_PER_DAY;
   }
 
   /** Absolute werk-intervallen voor de banden die op de dag `dayMs` STARTEN (§4.2). Een holiday op
@@ -589,7 +595,7 @@ export class CalendarEngine {
     if (hit) return hit;
     cache.fills++;
     const d = new Date(dayMs);
-    const dayIdx = Math.floor(dayMs / CalendarEngine.MS_PER_DAY); // dayMs is altijd dag-uitgelijnd (aanroepers)
+    const dayIdx = utcDayIndex(dayMs); // dayMs is altijd dag-uitgelijnd (aanroepers)
     const wd = isoDayOfWeek(d) as 1 | 2 | 3 | 4 | 5 | 6 | 7;
     let bands: { start: number; end: number }[];
     if (this.workingExceptionDaySet.has(dayIdx)) {
@@ -615,7 +621,7 @@ export class CalendarEngine {
   private findContaining(tMs: number, leftOpen: boolean): BandInterval | null {
     const day0 = this.dayStartMsOf(tMs);
     for (let k = -2; k <= 0; k++) {
-      const dayMs = day0 + k * CalendarEngine.MS_PER_DAY;
+      const dayMs = day0 + k * MS_PER_DAY;
       for (const band of this.bandsStartingOn(dayMs)) {
         const inside = leftOpen
           ? band.start < tMs && tMs <= band.end
@@ -635,7 +641,7 @@ export class CalendarEngine {
       for (const band of this.bandsStartingOn(dayMs)) {
         if (band.start > tMs) return band.start;
       }
-      dayMs += CalendarEngine.MS_PER_DAY;
+      dayMs += MS_PER_DAY;
       scan++;
     }
     return tMs; // geen werkdagen — best effort (kapotte kalender)
@@ -654,7 +660,7 @@ export class CalendarEngine {
         const ok = strict ? band.end < tMs : band.end <= tMs;
         if (ok && band.end > best) best = band.end;
       }
-      dayMs -= CalendarEngine.MS_PER_DAY;
+      dayMs -= MS_PER_DAY;
       scan++;
     }
     return best === Number.NEGATIVE_INFINITY ? null : best;
@@ -808,7 +814,7 @@ export class CalendarEngine {
     const hi = Math.max(aMs, bMs);
     let total = 0;
     // Begin twee dagen vóór `lo`: een wrap-band (end ≤ +2880m) van een eerdere dag kan in [lo,hi) reiken.
-    let dayMs = this.dayStartMsOf(lo) - 2 * CalendarEngine.MS_PER_DAY;
+    let dayMs = this.dayStartMsOf(lo) - 2 * MS_PER_DAY;
     let steps = 0;
     while (dayMs < hi) {
       for (const band of this.bandsStartingOn(dayMs)) {
@@ -816,7 +822,7 @@ export class CalendarEngine {
         const e = Math.min(band.end, hi);
         if (e > s) total += (e - s) / CalendarEngine.MS_PER_MIN;
       }
-      dayMs += CalendarEngine.MS_PER_DAY;
+      dayMs += MS_PER_DAY;
       if (++steps > CalendarEngine.MAX_DAYS) break;
     }
     return sign * total;
@@ -837,7 +843,7 @@ export class CalendarEngine {
   ceilToWorkDay(t: Date): Date {
     const tMs = t.getTime();
     const dayMs = this.dayStartMsOf(tMs);
-    return new Date(tMs === dayMs ? dayMs : dayMs + CalendarEngine.MS_PER_DAY);
+    return new Date(tMs === dayMs ? dayMs : dayMs + MS_PER_DAY);
   }
 
   /** De exclusieve "beschikbaar-vanaf"-instant die een taak op DEZE engine als VOORGANGER levert
@@ -846,7 +852,7 @@ export class CalendarEngine {
    *  `availableStart` exact `nextWorkDayAfter(ef)` — bit-identiek met het huidige gedrag. */
   predDoneAt(ef: Date): Date {
     if (this.mode === 'hour') return new Date(ef.getTime());
-    return new Date(this.dayStartMsOf(ef.getTime()) + CalendarEngine.MS_PER_DAY);
+    return new Date(this.dayStartMsOf(ef.getTime()) + MS_PER_DAY);
   }
 
   /** De ES die een taak op DEZE engine als OPVOLGER consumeert uit een `predDoneAt`-instant (§4.3).
@@ -871,7 +877,7 @@ export class CalendarEngine {
     if (!(toMs > fromMs)) return [];
     const out: { start: Date; end: Date }[] = [];
     const lastDay = this.dayStartMsOf(toMs);
-    let dayMs = this.dayStartMsOf(fromMs) - CalendarEngine.MS_PER_DAY; // vang wrap-staart vorige dag
+    let dayMs = this.dayStartMsOf(fromMs) - MS_PER_DAY; // vang wrap-staart vorige dag
     let scan = 0;
     while (dayMs <= lastDay && scan <= CalendarEngine.MAX_SCAN + 2) {
       for (const band of this.bandsStartingOn(dayMs)) {
@@ -879,7 +885,7 @@ export class CalendarEngine {
         const e = Math.min(band.end, toMs);
         if (e > s) out.push({ start: new Date(s), end: new Date(e) });
       }
-      dayMs += CalendarEngine.MS_PER_DAY;
+      dayMs += MS_PER_DAY;
       scan++;
     }
     out.sort((a, b) => a.start.getTime() - b.start.getTime());

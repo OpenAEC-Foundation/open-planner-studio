@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import type { WorkCalendar } from '@/types/calendar';
 import { effectiveCalendarOf } from '@/utils/taskDuration';
+import { shownStart, startAnchorAfterEdit } from '@/utils/taskDates';
 import { Task } from '@/types/task';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { Field } from './shared';
@@ -10,9 +11,10 @@ import { TaskDurationField } from './TaskDurationField';
 /**
  * Start + gedeelde taakduur — sectie 4 uit `TaskPropertiesPanel`. Dialoog en paneel monteren
  * allebei `TaskDurationField`, zodat parser, validatie, omzetvoorstel en toegankelijkheid identiek
- * blijven. Pakket G (bugfix, zie scheduleSlice.ts:96-100) wijzigde
- * het Start-veld nadien: het toonde vroeger de rauwe `scheduleStart`-anker terwijl elk ander oppervlak
- * (Gantt/tabel/tooltip/TaskDialog) `earlyStart || scheduleStart` toont — nu getrokken gelijk.
+ * blijven. Pakket G (bugfix) wijzigde het Start-veld nadien: het toonde vroeger het rauwe
+ * `scheduleStart`-anker, terwijl Gantt, tooltip en TaskDialog de getoonde start (`shownStart`,
+ * `utils/taskDates.ts`) tonen — nu gelijkgetrokken. De Tabel-kolom **Start** toont en schrijft via
+ * dezelfde twee helpers; de kiesbare kolom **Geplande start** toont bewust het rauwe anker.
  *
  * Het startveld blijft paneel-instant-apply; `TaskDialog` bewaart zijn bestaande Save-commitgrens.
  * Alleen de duurbediening is gedeeld. Hammock-toggle/-info staat apart in `TaskHammockFields`.
@@ -30,15 +32,15 @@ export function TaskTimeFields({ task, onChange }: {
   };
 
   const cal: WorkCalendar = effectiveCalendarOf(task, projectCal, calendars);
-  // Getoonde start = berekende start, consistent met Gantt/tabel/tooltip/TaskDialog
-  // (`earlyStart || scheduleStart`). `scheduleStart` blijft de GEPLANDE anker — zie
-  // scheduleSlice.ts:96-100 ("BEWUST GEEN scheduleStart-ANKER-drift"). Commit schrijft daarom alleen
-  // naar scheduleStart als de gebruiker de waarde daadwerkelijk wijzigde t.o.v. wat getoond werd
-  // (zelfde patroon als TaskDialog.tsx:145-146) — anders zou elke render/commit-cyclus het anker naar
-  // de berekende datum laten meeschuiven en precies de drift veroorzaken die dat commentaar beschrijft.
+  // Getoonde start = berekende start (`shownStart`), dezelfde datum als de Gantt-balk, de tooltip,
+  // TaskDialog en de Tabel-kolom Start. `scheduleStart` blijft het GEPLANDE anker — zie
+  // `applyCpmResult` ("BEWUST GEEN scheduleStart-ANKER-drift"). Commit schrijft daarom alleen naar
+  // scheduleStart als de gebruiker de waarde daadwerkelijk wijzigde t.o.v. wat getoond werd
+  // (`startAnchorAfterEdit`, gedeeld met het Opslaan van TaskDialog in state/taskDialogSave.ts en de Tabel) — anders zou elke render/commit-
+  // cyclus het anker naar de berekende datum laten meeschuiven.
+  const shown = shownStart(task);
   // Start is verplicht (`required`): een leeggemaakt veld valt terug i.p.v. `''` als anker te
   // schrijven — een lege start maakt het hele project onberekenbaar ("Ongeldige startdatum").
-  const shownStart = task.time.earlyStart || task.time.scheduleStart;
 
   return (
     <>
@@ -54,9 +56,13 @@ export function TaskTimeFields({ task, onChange }: {
             className="input !text-small !leading-4 !px-2.5 !py-1.5"
             ariaLabel={t('properties.start')}
             title={t('properties.scheduleStartHint')}
-            value={shownStart}
+            value={shown}
             required
-            onCommit={v => { if (v && v !== shownStart) updateTime('scheduleStart', v); }}
+            onCommit={v => {
+              if (!v) return;
+              const anchor = startAnchorAfterEdit(task, v);
+              if (anchor !== undefined) updateTime('scheduleStart', anchor);
+            }}
           />
         </Field>
         <Field label={t('duration.label')}>
