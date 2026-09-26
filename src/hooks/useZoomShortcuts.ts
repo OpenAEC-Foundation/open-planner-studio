@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { ViewState } from '@/types/view';
+import { isTypingTarget } from './keyboard/isTypingTarget';
 
 interface UseZoomShortcutsOpts {
   zoomAt: (newZoom: number, anchorX: number) => void;
@@ -23,9 +24,8 @@ export function useZoomShortcuts({
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Don't intercept while typing in an input/textarea
-      const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      // Niet onderscheppen terwijl de gebruiker in een veld typt of kiest.
+      if (isTypingTarget(e.target)) return;
 
       const container = containerRef.current;
       if (!container) return;

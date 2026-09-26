@@ -20,6 +20,7 @@
 // serialisatieformaat) blijven ongemoeid.
 
 import { snapToChoice } from '@/utils/numberChoice';
+import { parseBoolean, parseClampedInt as clampedInt, parseEnum as parseEnumValue } from '@/utils/settingParsers';
 import { loadBarColorSelection } from '@/utils/barColorSettings';
 import type { UIState } from '@/state/slices/types';
 import type { PersistedTaskGridPreferencesV1 } from '@/types/taskGrid';
@@ -56,24 +57,17 @@ import type { TaskGridPreferencesLoadResult } from '@/utils/settingsStore';
 
 // --- Parse-/validatiehelpers (byte-identiek aan de oude `loadX`-validators) ---------------------
 
-/** Boolean-instelling: alleen een echte boolean wordt overgenomen; al het andere ⇒ default behouden. */
-function parseBoolean(raw: unknown): boolean | undefined {
-  return typeof raw === 'boolean' ? raw : undefined;
-}
+// De registry-descriptors willen een parser per instelling; deze fabrieken binden de gedeelde
+// validators uit `settingParsers.ts` aan hun keuzelijst/bereik.
 
 /** Enum-instelling: alleen een waarde uit `allowed` wordt overgenomen. */
 function parseEnum<T extends string>(allowed: readonly T[]) {
-  return (raw: unknown): T | undefined =>
-    typeof raw === 'string' && (allowed as readonly string[]).includes(raw) ? (raw as T) : undefined;
+  return (raw: unknown): T | undefined => parseEnumValue(allowed, raw);
 }
 
-/** Geklemde integer: niet-eindig/geen getal ⇒ default behouden; anders afronden + klemmen op [min,max]
- *  — identiek aan de oude `loadLeftPanelWidth`/`loadRightPanelWidth`/`loadHistogramHeight`. */
+/** Geklemde integer: niet-eindig/geen getal ⇒ default behouden; anders afronden + klemmen op [min,max]. */
 function parseClampedInt(min: number, max: number) {
-  return (raw: unknown): number | undefined => {
-    if (typeof raw !== 'number' || !Number.isFinite(raw)) return undefined;
-    return Math.min(max, Math.max(min, Math.round(raw)));
-  };
+  return (raw: unknown): number | undefined => clampedInt(raw, min, max);
 }
 
 /** Numerieke keuze uit een vaste lijst. Bewust geen `parseClampedInt(min, max)`: klemmen op het

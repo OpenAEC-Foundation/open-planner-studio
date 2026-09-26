@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronUp, Plus, Trash2, X } from 'lucide-react';
 import type { WorkCalendar, Holiday, WorkTimeBands } from '@/types/calendar';
-import { CalendarGeneratorFields } from './CalendarGeneratorFields';
+import { accentChipClass, CalendarGeneratorFields } from './CalendarGeneratorFields';
 import { WorkTimeEditor } from './WorkTimeEditor';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { useAppStore } from '@/state/appStore';
@@ -18,7 +18,7 @@ import {
   materializeHolidays, computeGenerateSpan, DEFAULT_GEN_PARAMS, type HolidayGenParams,
 } from '@/engine/calendar/generateCalendarHolidays';
 import { orderedWeekDays } from '@/utils/weekDays';
-import { scalarBreakIssue, simpleBreakNetHours } from '@/utils/effectiveWorkTime';
+import { calendarScalarBreakIssue, scalarBreakIssue, simpleBreakNetHours } from '@/utils/effectiveWorkTime';
 
 function minutesToTime(value: number): string {
   const totalMinutes = Math.round(value);
@@ -156,12 +156,7 @@ export function CalendarForm({
   const [savingPreset, setSavingPreset] = useState(false);
   const [presetName, setPresetName] = useState('');
   const hourMode = isHourCalendar(draft);
-  const scalarBreakError = scalarBreakIssue(
-    draft.workStartHour * 60,
-    draft.workEndHour * 60,
-    draft.simpleBreakStartMinute,
-    draft.simpleBreakDurationMinutes,
-  );
+  const scalarBreakError = calendarScalarBreakIssue(draft);
   // Oude scalar-kalenders hebben nog geen velden, maar hun zichtbare waarden moeten het bestaande
   // gedrag verklaren: 07:00–16:00 / 8 uur toont daarom de afgeleide 12:00 / 60 min, terwijl
   // 08:00–16:00 / 8 uur terecht 0 minuten toont.
@@ -602,12 +597,7 @@ export function CalendarForm({
               <button
                 key={day}
                 onClick={() => toggleWorkDay(day)}
-                className={
-                  'px-2.5 py-1.5 rounded-[8px] border-[1.5px] transition-colors ' +
-                  (active
-                    ? 'bg-accent text-white border-accent shadow-[var(--shadow-glow)]'
-                    : 'bg-surface border-[var(--theme-control-border)] text-text-secondary hover:bg-surface-hover')
-                }
+                className={accentChipClass(active)}
               >
                 {tMenu(`ribbon.calendarDialog.days.${day}`)}
               </button>

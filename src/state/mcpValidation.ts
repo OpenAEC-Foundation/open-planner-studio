@@ -20,11 +20,14 @@
 
 import type { AppState } from './appStore';
 import type { Task } from '@/types/task';
-import { applyProgressInvariants } from './slices/taskSlice';
+import {
+  applyProgressInvariants, fillMissingActualStart, isActualFinishBeforeStart, isActualPastStatusDate,
+} from '@/engine/taskMutationRules';
 import { captureProgressWork, settleProgressWork } from '@/engine/work/workRuleApply';
 import { clearLevelingGaps } from '@/utils/taskDefaults';
-import { defaultActualStart } from '@/engine/taskMutationRules';
+import { sameValue } from '@/utils/sameValue';
 import { detectCycleInEdges } from '@/engine/scheduler/graphWalk';
+import { isValidUnits } from '@/types/resource';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 
 /** Per-item-fout: het aangesproken id + een leesbare reden (voor de per-item-rapportage van de
@@ -46,12 +49,6 @@ export type ProgressResult = { applied: true } | { applied: false; reason: strin
 type ReadableState = Pick<AppState, 'tasks' | 'sequences' | 'assignments'>;
 /** Wat `applyProgressUpdate` extra leest: slot (kalenders) en de regelcontext voor `captureProgressWork`. */
 type ProgressState = ReadableState & Pick<AppState, 'calendars' | 'calendar' | 'project' | 'resources'>;
-
-/** Geldige capaciteit/eenheden (spiegelt `isValidUnits` in resourceSlice + mcpTransaction): strikt
- *  positief en eindig. 0/negatief/NaN is nooit een geldige toewijzing. */
-function isValidUnits(n: unknown): n is number {
-  return typeof n === 'number' && Number.isFinite(n) && n > 0;
-}
 
 export const validate = {
   /**
@@ -116,22 +113,6 @@ export const validate = {
     }
     return { ok: true };
   },
-
-  /**
-   * Mijlpaal-duurregel (spec §Werkpakket 7): een mijlpaal is per definitie duur 0; een expliciete
-   * `time.scheduleDuration > 0` op een mijlpaal is een fout. Retourneert de reden of `null`.
-   *
-   * Dit is de CANONIEKE predicaat-vorm van de check die `draft.addTasks` (T3) bij aanmaak al inline
-   * afdwingt (mcpTransaction.ts, pre-validatie stap 3). De tool-laag (WP7 `update_tasks`) gebruikt
-   * deze helper bij WIJZIGINGEN die een taak tot mijlpaal maken of de duur zetten, zodat de regel op
-   * één plek geformuleerd staat; de inline T3-aanmaakcheck blijft bestaan (goedkope vroege fout).
-   */
-  milestoneDuration(item: { isMilestone?: boolean; time?: { scheduleDuration?: number } }): string | null {
-    if (item.isMilestone && item.time && (item.time.scheduleDuration ?? 0) > 0) {
-      return `een mijlpaal mag geen duur > 0 hebben (scheduleDuration=${item.time.scheduleDuration})`;
-    }
-    return null;
-  },
 };
 
 export const progress = {
@@ -146,8 +127,9 @@ export const progress = {
    *   1. range-validatie `completion` 0–100 — buiten bereik ⇒ weigering, GEEN klem (i.t.t. de
    *      store-`setTaskProgress`, die naar [0,1] klemt);
    *   2. conversie 0–100 ⇒ 0–1;
-   *   3. `completion > 0` zonder `actualStart` ⇒ `actualStart` afleiden (`defaultActualStart`);
-   *   4. `completion < 1` ⇒ een verouderd `actualFinish` wissen;
+   *   3. `completion < 1` ⇒ een verouderd `actualFinish` wissen;
+   *   4. `completion > 0` zonder `actualStart` ⇒ `actualStart` afleiden (`earlyStart || scheduleStart`,
+   *      maar nooit ná het werkelijke einde — `fillMissingActualStart`, dezelfde regel als grid en store);
    *   5. een OPGEGEVEN `actualStart`/`actualFinish` ná de statusdatum ⇒ weigering (spiegel van het
    *      bestaande `accepted=false`-gedrag van de setters);
    *   6. `actualFinish` wissen op een 100%-taak reset óók `completion` (anders re-defaultt de invariant
@@ -185,24 +167,26 @@ export const progress = {
     if ('actualStart' in update) time.actualStart = update.actualStart || undefined;
     if ('actualFinish' in update) time.actualFinish = update.actualFinish || undefined;
 
-    // (3) completion > 0 zonder actualStart ⇒ actualStart afleiden (MSP-conventie: % ⇒ gestart).
-    if (time.completion > 0 && !time.actualStart) {
-      time.actualStart = defaultActualStart(time);
-    }
-
-    // (4) completion < 1 ⇒ een verouderd actualFinish wissen — maar ALLEEN wanneer completion
+    // (3) completion < 1 ⇒ een verouderd actualFinish wissen — maar ALLEEN wanneer completion
     //     expliciet in DEZE update meekomt (spiegelt setTaskProgress, waar deze clausule bij de
     //     NIEUW gezette completion hoort). Anders zou het zetten van alléén een actualFinish (op een
     //     taak die nog op 0% staat) die finish meteen weer wissen — terwijl een opgegeven finish juist
     //     completion=1 hoort af te dwingen via de invarianten.
     if (update.completion !== undefined && time.completion < 1) time.actualFinish = undefined;
 
-    // (5) OPGEGEVEN actual ná de statusdatum ⇒ weigering (spiegel van setActualStart/Finish accepted=false).
+    // (4) completion > 0 zonder actualStart ⇒ actualStart afleiden (MSP-conventie: % ⇒ gestart).
+    //     Ná (3), zodat de klem het einde ziet dat overblijft: een afgeleide start valt nooit ná het
+    //     (opgegeven of door de invarianten afgeleide) werkelijke einde. Een OPGEGEVEN actualStart
+    //     staat er dan al en blijft ongemoeid — die toetst (7) gewoon.
+    if (time.completion > 0) fillMissingActualStart(time, statusDate);
+
+    // (5) OPGEGEVEN actual ná de statusdatum ⇒ weigering (spiegel van setActualStart/Finish accepted=false),
+    //     met dezelfde vergelijking als store en grid: een date-only statusdatum laat de hele dag toe.
     if (statusDate) {
-      if (update.actualStart && update.actualStart > statusDate) {
+      if (update.actualStart && isActualPastStatusDate(update.actualStart, statusDate)) {
         return { applied: false, reason: `actualStart ${update.actualStart} ligt ná de statusdatum ${statusDate}` };
       }
-      if (update.actualFinish && update.actualFinish > statusDate) {
+      if (update.actualFinish && isActualPastStatusDate(update.actualFinish, statusDate)) {
         return { applied: false, reason: `actualFinish ${update.actualFinish} ligt ná de statusdatum ${statusDate}` };
       }
     }
@@ -213,8 +197,8 @@ export const progress = {
       time.completion = 0;
     }
 
-    // (7) actualFinish >= actualStart.
-    if (time.actualStart && time.actualFinish && time.actualFinish < time.actualStart) {
+    // (7) actualFinish >= actualStart (op instantprecisie, zoals het grid).
+    if (isActualFinishBeforeStart(time)) {
       return { applied: false, reason: `actualFinish ${time.actualFinish} ligt vóór actualStart ${time.actualStart}` };
     }
 
@@ -235,8 +219,13 @@ export const progress = {
 
     // (10) invarianten + COMMIT naar de draft.
     applyProgressInvariants(scratch, statusDate);
+    // Per saldo niets gewijzigd (bv. dezelfde completion nog eens) ⇒ niets committen en vooral de
+    // nivelleergaten NIET wissen — dezelfde no-op-regel als taskSlice.ts's voortgangssetters
+    // (`commitProgressEdit`). Het item is wél verwerkt: het staat al zoals gevraagd.
+    if (sameValue(task, scratch)) return { applied: true };
     // Fable-critreview #170, bevinding 1: de voortgang verplaatst opgeslagen werk van rest naar
     // verricht — momentopname op de ONGEWIJZIGDE taak, settle ná de commit (zelfde als de store).
+    // Integratie groep B (besluit 5): ná de no-op-check, zodat een no-op ook het werk niet raakt.
     const progressWork = captureProgressWork(task, draftState);
     Object.assign(task.time, scratch.time);
     task.status = scratch.status;

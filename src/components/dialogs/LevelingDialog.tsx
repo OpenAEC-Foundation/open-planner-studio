@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
-import { Dialog } from '@/components/common/Dialog';
+import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { distributeUnits } from '@/engine/scheduler/ResourceLoad';
 import { parseDate } from '@/utils/dateUtils';
@@ -114,14 +113,7 @@ export function LevelingDialog() {
       onCancel={close}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[720px] max-h-[88vh] flex flex-col overflow-hidden"
     >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
-            {t('resource.leveling.dialogTitle')}
-          </span>
-          <button onClick={close} className="p-1 hover:bg-surface-hover rounded-[8px]">
-            <X size={16} />
-          </button>
-        </div>
+        <DialogHeader title={t('resource.leveling.dialogTitle')} onClose={close} />
 
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
           {/* Opties */}

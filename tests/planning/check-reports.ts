@@ -305,6 +305,20 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   ok('health: 100% zonder werkelijk einde gemeld', pe.some(i => i.taskId === C && i.detail.reason === 'completeWithoutActualFinish'));
   ok('health: negatieve speling gemeld met de waarde', r2.checks.find(x => x.id === 'negativeFloat')!.items.some(i => i.taskId === G && i.detail.float === -2));
   ok('health: fouten geteld', r2.totals.errors >= 3);
+
+  // Dezelfde precisie als het raster (`isActualPastStatusDate`): een statusdatum mét tijd geldt op
+  // het moment zelf — een actual later op diezelfde dag is een uitzondering; zonder tijd telt de
+  // hele dag. Voorheen vergeleek het gezondheidsrapport altijd alleen de dagen.
+  const laterSameDay = ctx.tasks.map(t => ({ ...t, time: { ...t.time } }));
+  laterSameDay.find(t => t.id === B)!.time.actualStart = '2026-09-18T15:00';
+  const reasonsFor = (statusDate: string) => computeScheduleHealth({ ...ctx, tasks: laterSameDay, statusDate },
+    { highFloatDays: 44, longDurationDays: 44, lagDays: 10, nearCriticalDays: 5 })
+    .checks.find(x => x.id === 'progressException')!.items
+    .filter(i => i.taskId === B).map(i => i.detail.reason);
+  ok('health: actual later op de dag van een statusdatum-met-tijd gemeld',
+    reasonsFor('2026-09-18T12:00').includes('actualStartAfterStatusDate'));
+  ok('health: actual op de dag van een statusdatum zonder tijd niet gemeld',
+    !reasonsFor('2026-09-18').includes('actualStartAfterStatusDate'));
 }
 
 // ── Resourcebelasting ────────────────────────────────────────────────────────────────────────────

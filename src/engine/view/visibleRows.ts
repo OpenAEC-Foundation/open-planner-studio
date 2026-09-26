@@ -8,7 +8,7 @@ import type {
   FieldRef, FilterNode, GroupLevel, SortLevel, ViewState,
 } from '@/state/slices/types';
 import {
-  assignedResources, evaluate, resolveField, resourceNames, resourceTypeRank, resourceTypes,
+  asNum, assignedResources, evaluate, resolveField, resourceNames, resourceTypeRank, resourceTypes,
   type FieldValue, type ViewContext,
 } from './filterEval';
 import { isLeafTask } from '@/utils/taskHierarchy';
@@ -62,12 +62,6 @@ export function isTreeMode(view: Pick<ViewState, 'filter' | 'group' | 'sort'>): 
 }
 
 // --- Vergelijken (sort + bandvolgorde) ---
-
-function asNum(v: unknown): number | undefined {
-  if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
-  if (typeof v === 'string' && v.trim() !== '' && !isNaN(Number(v))) return Number(v);
-  return undefined;
-}
 
 /** Getallen numeriek, datums/strings lexicografisch, undefined/leeg altijd laatst. */
 function cmpValues(a: FieldValue, b: FieldValue): number {
@@ -212,10 +206,12 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
       if (!evaluate(filter, leaf, ctx)) continue;
       visible.add(leaf.id);
       dimmed.set(leaf.id, false);
-      let p = leaf.parentId;
-      while (p) {
-        if (!visible.has(p)) { visible.add(p); dimmed.set(p, true); }
-        p = byId.get(p)?.parentId ?? null;
+      // Stoppen bij de eerste al zichtbare ouder: die kreeg zijn hele keten al eerder mee. Dat is
+      // ook de cyclusbewaking (zoals `ancestorIds` in utils/wbs, maar zonder per blad een generator
+      // en Set — dit draait na elke mutatie): een `parentId`-kring liep hier anders eindeloos rond.
+      for (let p = leaf.parentId; p && !visible.has(p); p = byId.get(p)?.parentId ?? null) {
+        visible.add(p);
+        dimmed.set(p, true);
       }
     }
   }
@@ -257,8 +253,8 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
   }
 
   // Stap 2' — boommodus (§4.2 stap 2, else-tak): behoud de WBS-boom. Ingeklapte nakomelingen tellen
-  // als "gezien" (recursie gaat door, maar emit niet), zodat het wees-vangnet ze niet oppikt — exact
-  // het `hidden`-vlag-patroon van de bestaande flatTasks (TableEditor.tsx:73-90).
+  // als "gezien" (recursie gaat door, maar emit niet: de `hidden`-vlag), zodat het wees-vangnet ze
+  // niet oppikt.
   const rows: ViewRow[] = [];
   const seen = new Set<string>();
   const emit = (task: Task, depth: number, hidden: boolean) => {

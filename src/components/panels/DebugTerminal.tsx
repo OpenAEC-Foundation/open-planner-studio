@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Pause, Play, Trash2, X } from 'lucide-react';
 import { appLog, LogEntry, LogLevel } from '@/services/debug/appLog';
 import { useAppStore } from '@/state/appStore';
+import { createSnapshotStore, DashboardIconButton, DashboardPanel, formatClockTime } from './DashboardPanel';
 
 const ALL_LEVELS: LogLevel[] = ['log', 'info', 'warn', 'error', 'event'];
 
@@ -17,28 +18,12 @@ const LEVEL_COLOR: Record<LogLevel, string> = {
   event: '#22d3ee',               // cyan-400, no stylebook equivalent
 };
 
-function formatTime(ts: number): string {
-  const d = new Date(ts);
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
-
-// useSyncExternalStore wants a stable getSnapshot that returns the same
-// reference until something changes. We cache the latest array.
-let cachedSnapshot: LogEntry[] = appLog.snapshot();
-appLog.subscribe((entries) => { cachedSnapshot = entries; });
-
-function subscribe(onChange: () => void): () => void {
-  return appLog.subscribe(() => onChange());
-}
-function getSnapshot(): LogEntry[] {
-  return cachedSnapshot;
-}
+const logStore = createSnapshotStore<LogEntry[]>(appLog.snapshot(), listener => appLog.subscribe(listener));
 
 export function DebugTerminal() {
   const { t } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
-  const entries = useSyncExternalStore(subscribe, getSnapshot);
+  const entries = useSyncExternalStore(logStore.subscribe, logStore.getSnapshot);
 
   const [enabledLevels, setEnabledLevels] = useState<Set<LogLevel>>(() => new Set(ALL_LEVELS));
   const [paused, setPaused] = useState(false);
@@ -100,42 +85,10 @@ export function DebugTerminal() {
     setStickyBottom(true);
   };
 
-  // Shared chrome for the toolbar icon buttons (pause/clear/close):
-  // rounded, transparent, with a cool hover lift toward dashboard-surface-hover.
-  const iconBtnStyle: React.CSSProperties = {
-    display: 'inline-flex',
-    background: 'transparent',
-    border: 'none',
-    borderRadius: 'var(--radius-sm)',
-    color: 'var(--dashboard-text-muted)',
-    cursor: 'pointer',
-    padding: 2,
-    transition: 'background 0.12s ease, color 0.12s ease',
-  };
-  const onIconEnter = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.currentTarget.style.background = 'var(--dashboard-surface-hover)';
-    e.currentTarget.style.color = 'var(--dashboard-text)';
-  };
-  const onIconLeave = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.currentTarget.style.background = 'transparent';
-    e.currentTarget.style.color = 'var(--dashboard-text-muted)';
-  };
-
   return (
-    <div
-      className="flex-shrink-0 flex flex-col border-t border-border !text-body"
-      style={{
-        height: 200,
-        background: 'var(--dashboard-bg)',
-        color: 'var(--dashboard-text)',
-        fontFamily: 'var(--font-code)',
-      }}
-    >
-      {/* Toolbar */}
-      <div
-        className="flex items-center gap-1 px-2 h-6 border-b"
-        style={{ borderColor: 'var(--dashboard-border-light)', background: 'var(--dashboard-surface)' }}
-      >
+    <DashboardPanel
+      height={200}
+      toolbar={<>
         {ALL_LEVELS.map(lvl => {
           const on = enabledLevels.has(lvl);
           return (
@@ -160,35 +113,20 @@ export function DebugTerminal() {
           );
         })}
         <div className="flex-1" />
-        <button
+        <DashboardIconButton
           onClick={() => setPaused(p => !p)}
           title={paused ? t('debugTerminal.resume') : t('debugTerminal.pause')}
-          style={iconBtnStyle}
-          onMouseEnter={onIconEnter}
-          onMouseLeave={onIconLeave}
         >
           {paused ? <Play size={12} /> : <Pause size={12} />}
-        </button>
-        <button
-          onClick={() => appLog.clear()}
-          title={t('debugTerminal.clear')}
-          style={iconBtnStyle}
-          onMouseEnter={onIconEnter}
-          onMouseLeave={onIconLeave}
-        >
+        </DashboardIconButton>
+        <DashboardIconButton onClick={() => appLog.clear()} title={t('debugTerminal.clear')}>
           <Trash2 size={12} />
-        </button>
-        <button
-          onClick={() => setUI({ debugTerminalOpen: false })}
-          title={t('close')}
-          style={iconBtnStyle}
-          onMouseEnter={onIconEnter}
-          onMouseLeave={onIconLeave}
-        >
+        </DashboardIconButton>
+        <DashboardIconButton onClick={() => setUI({ debugTerminalOpen: false })} title={t('close')}>
           <X size={12} />
-        </button>
-      </div>
-
+        </DashboardIconButton>
+      </>}
+    >
       {/* Feed */}
       <div
         ref={listRef}
@@ -218,7 +156,7 @@ export function DebugTerminal() {
         )}
         {visibleEntries.map(e => (
           <div key={e.id} style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.4 }}>
-            <span style={{ color: 'var(--dashboard-text-dim)' }}>{formatTime(e.ts)}</span>{' '}
+            <span style={{ color: 'var(--dashboard-text-dim)' }}>{formatClockTime(e.ts)}</span>{' '}
             <span style={{ color: LEVEL_COLOR[e.level] }}>
               [{e.level}{e.channel ? `/${e.channel}` : ''}]
             </span>{' '}
@@ -226,6 +164,6 @@ export function DebugTerminal() {
           </div>
         ))}
       </div>
-    </div>
+    </DashboardPanel>
   );
 }

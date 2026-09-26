@@ -1,7 +1,7 @@
 import type { Resource } from '@/types/resource';
 import {
-  type ReportContext, type ProgressState, activityTasks, dayOf, overlapsWindow, progressState,
-  remainingDays, resolvePeriodFor, taskFinish, taskStart,
+  type ReportContext, type ProgressState, activityTasks, overlapsWindow, progressState,
+  remainingDays, resolvePeriodFor, scheduleSlip, taskFinish, taskStart,
 } from './reportCommon';
 import type { ReportingPeriod } from './reportingPeriod';
 
@@ -63,7 +63,7 @@ export function computeResourceAssignments(ctx: ReportContext, opts: ResourceAss
     // Venster: overlap, plus achterstallig werk van vóór de referentiedag (net als het look-ahead-
     // rapport) — maar niet bij een venster dat helemaal in het verleden ligt (zie `lookAhead.ts`).
     // `project` is bewust geen venster: dan telt élke toewijzing, ook buiten de taakdatums.
-    const backlog = to >= refDay && state !== 'complete' && dayOf(taskFinish(t)) < refDay;
+    const backlog = to >= refDay && scheduleSlip(t, state, refDay) === 'finish';
     if (windowed && !overlapsWindow(t, from, to) && !backlog) continue;
     rows.push({
       assignmentId: a.id,

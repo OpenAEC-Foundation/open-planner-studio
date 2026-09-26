@@ -21,9 +21,10 @@
 // project (verse wizard, kalender en resources ingericht) is legitiem en moet gewoon herstellen —
 // zie assertie 6.
 //
-// Wat hier niet kan: de Tauri-kant (temp+rename in `saveTauri`, de directory-scan-terugval) draait
-// alleen in een echte Tauri-runtime. Wat wél headless te bewijzen valt is de manifest-poort, want
-// die is een pure functie — zie assertie 7.
+// Wat hier niet kan: de Tauri-kant (`saveTauri`, de directory-scan-terugval) draait alleen in een
+// echte Tauri-runtime. Wat wél headless te bewijzen valt is de manifest-poort, want die is een pure
+// functie — zie assertie 7 — en de schrijf-en-vervang-primitief zelf tegen een nep-fs, plus dat
+// recovery én bibliotheek er doorheen schrijven — zie assertie 9.
 //
 // Draaien: bundel met esbuild zoals run.sh dat doet en start met node. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
@@ -36,6 +37,10 @@ import type { RecoveryDocInput } from '@/state/documentContract';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { Task } from '@/types/task';
+import { writeViaTemp, type AtomicWriteFs } from '@/services/fileAccess/atomicWrite';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // Minimale, botsingvrije `process`-declaratie (zelfde truc als check-ifc-roundtrip.ts), zodat dit
 // bestand óók typecheckt onder een config zonder Node-typen (`types: []`).
@@ -171,11 +176,10 @@ eq('7f null-literal → null', parseRecoveryManifest('null'), null);
 // ── 8. restoreDocuments: één logisch corrupt document mag het herstel van de rest niet blokkeren ──
 // Recovery-robuustheid (docs/TODO.md): een snapshot kan `readIFC` overleven — geen truncated STEP,
 // geen structurele fout — en toch inhoudelijk corrupt zijn. Deze fixture bouwt zo'n geval RECHT-
-// STREEKS als `RecoveryDocInput` (net als check-document-contract.ts §d): een taak met een
-// zelfverwijzende `childIds` (WBS-kind = zichzelf). `applyCpmResult`'s samenvattingsrollup
-// (`updateSummary`) heeft geen cyclusbewaking — in tegenstelling tot de CPM-solver zelf, die een
-// relatiecyclus netjes als `result.error` teruggeeft — en loopt hierop vast in een onbegrensde
-// recursie (`RangeError: Maximum call stack size exceeded`). Vóór deze fix liet dat de HELE
+// STREEKS als `RecoveryDocInput` (net als check-document-contract.ts §d): een taak zonder
+// `childIds`-lijst, waarop de solve met een TypeError stukloopt. (Tot de cyclusbewaking in
+// `applyCpmResult`'s `updateSummary` was de fixture een zelfverwijzende `childIds`, die daar in een
+// onbegrensde recursie liep; die kring herstelt nu gewoon.) Vóór deze fix liet zo'n fout de HELE
 // `restoreDocuments`-aanroep gooien: ook de gezonde buurdocumenten kwamen dan niet terug.
 {
   const cal = { ...createDefaultCalendar(), id: 'cal-corrupt', name: 'Corrupt-kalender' };
@@ -200,10 +204,10 @@ eq('7f null-literal → null', parseRecoveryManifest('null'), null);
     id: 'rec-corrupt',
     project: mkProject('rec-corrupt', 'Corrupt document'),
     calendar: cal,
-    // Zelfverwijzende childIds: geen enkele lezer (IFC/MSPDI/P6/mpp) produceert dit, maar een
+    // Ontbrekende childIds: geen enkele lezer (IFC/MSPDI/P6/mpp) produceert dit, maar een
     // logisch beschadigde snapshot (bitrot, een handmatig geknutseld bestand) kan het wél dragen.
     tasks: [{
-      id: 'task-corrupt', name: 'Cyclische verzameltaak', parentId: null, childIds: ['task-corrupt'],
+      id: 'task-corrupt', name: 'Taak zonder kinderlijst', parentId: null, childIds: null,
       time: createDefaultTaskTime('2031-01-01', 1),
     } as unknown as Task],
     sequences: [], resources: [], assignments: [],
@@ -233,7 +237,6 @@ eq('7f null-literal → null', parseRecoveryManifest('null'), null);
   S().newProject();
   const alleCorrupt: RecoveryDocInput = { ...corrupt, id: 'rec-corrupt-2', filePath: '/tmp/rec-corrupt-2.ifc' };
   (alleCorrupt.tasks[0] as unknown as Task).id = 'task-corrupt-2';
-  (alleCorrupt.tasks[0] as unknown as Task).childIds = ['task-corrupt-2'];
   const activeIdVoor = S().activeDocumentId;
   const resultAlles = S().restoreDocuments([corrupt, alleCorrupt], 'rec-corrupt');
   eq('8h beide corrupte documenten komen terug als overgeslagen',
@@ -262,6 +265,55 @@ eq('7f null-literal → null', parseRecoveryManifest('null'), null);
   eq('8o de gevraagde activeId is gehonoreerd', S().activeDocumentId, 'rec-gezond');
   eq('8p beide documenten staan in de registry', S().documents.map(d => d.id).sort(),
     ['rec-corrupt', 'rec-gezond']);
+}
+
+// ── 9. Schrijf-en-vervang (K4, en de bibliotheek) ───────────────────────────────
+// Een nep-fs die een crash midden in `writeTextFile` nabootst: het doel wordt eerst getrunceerd
+// (zoals de echte schrijfactie doet) en daarna gooit hij. Via `writeViaTemp` raakt dat alleen het
+// halffabricaat; het doelbestand houdt zijn complete oude inhoud.
+{
+  const files = new Map<string, string>([['doel.json', 'OUD-COMPLEET']]);
+  let crashOn: string | null = null;
+  let renameFails = false;
+  const fs: AtomicWriteFs = {
+    writeTextFile: async (path, text) => {
+      if (path === crashOn) { files.set(path, text.slice(0, 3)); throw new Error('crash'); }
+      files.set(path, text);
+    },
+    rename: async (from, to) => {
+      if (renameFails) throw new Error('rename mislukt');
+      files.set(to, files.get(from)!);
+      files.delete(from);
+    },
+    remove: async (path) => { files.delete(path); },
+  };
+
+  crashOn = 'doel.json.tmp';
+  const crash = await writeViaTemp(fs, 'doel.json', 'doel.json.tmp', 'NIEUW-COMPLEET').then(() => false, () => true);
+  truthy('9a een crash tijdens het schrijven komt als fout terug', crash);
+  eq('9b het doelbestand is na die crash nog het complete oude bestand', files.get('doel.json'), 'OUD-COMPLEET');
+
+  crashOn = null;
+  renameFails = true;
+  const renameErr = await writeViaTemp(fs, 'doel.json', 'doel.json.tmp', 'NIEUW-COMPLEET').then(() => false, () => true);
+  truthy('9c een mislukte rename komt als fout terug', renameErr);
+  truthy('9d en ruimt het halffabricaat op', !files.has('doel.json.tmp'));
+  eq('9e het doelbestand bleef ook dan onaangeroerd', files.get('doel.json'), 'OUD-COMPLEET');
+
+  renameFails = false;
+  await writeViaTemp(fs, 'doel.json', 'doel.json.tmp', 'NIEUW-COMPLEET');
+  eq('9f een geslaagde schrijfactie vervangt het doel', files.get('doel.json'), 'NIEUW-COMPLEET');
+  eq('9g en laat geen halffabricaat achter', [...files.keys()], ['doel.json']);
+
+  // Een getrunceerd `ops-library.json` leest `loadTauri` als corrupt ⇒ verse bibliotheek ⇒ de
+  // eerstvolgende save overschrijft de hele bibliotheek. Beide appDataDir-schrijvers moeten dus via
+  // de primitief lopen, niet via een kale `writeTextFile(`.
+  const here = dirname(fileURLToPath(import.meta.url));
+  for (const rel of ['services/library/libraryStore.ts', 'services/recovery/recoveryStore.ts']) {
+    const src = readFileSync(join(here, '..', '..', 'src', rel), 'utf8');
+    truthy(`9h ${rel} schrijft via writeTextFileAtomic, niet via een kale writeTextFile(`,
+      src.includes('writeTextFileAtomic(') && !/\bwriteTextFile\(/.test(src));
+  }
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────

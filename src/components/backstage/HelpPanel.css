@@ -31,20 +31,10 @@
   color: var(--theme-text-dim);
   pointer-events: none;
 }
+/* Uiterlijk gedeeld met `.ext-search` — zie Backstage.css; hier alleen breedte en icoonruimte. */
 .help-search {
   width: 100%;
   padding: 6px 10px 6px 28px;
-  background: var(--theme-input-bg);
-  border: 1px solid var(--theme-control-border);
-  border-radius: var(--radius-md);
-  color: var(--theme-text);
-  font-size: var(--text-large);
-  outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-.help-search:focus {
-  border-color: var(--theme-accent);
-  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.20);
 }
 
 .help-toc-layer {

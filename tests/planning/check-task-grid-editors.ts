@@ -1,4 +1,4 @@
-import { planTaskCellEdit } from '@/engine/taskGrid/taskEditPlan';
+import { planTaskCellEdit, planTaskCellEdits } from '@/engine/taskGrid/taskEditPlan';
 import {
   shouldCancelTaskGridEdit,
   shouldRequestTaskGridCellFocus,
@@ -253,6 +253,40 @@ eq('Status voltooid en completion 100 % geven dezelfde actuals',
   completedViaCompletion.ok
     ? [completedViaCompletion.value.task.time.actualStart, completedViaCompletion.value.task.time.actualFinish]
     : null);
+
+// Actual Finish wissen op een voltooide taak: een rij-plak met meerdere cellen (meer-cellenpad,
+// `planTaskCellEdits`) heropent de taak net als de enkele celwrite. Voorheen bleef completion daar
+// op 1 en zette `applyProgressInvariants` de einddatum meteen terug.
+const doneTask = {
+  ...baseTask,
+  status: 'COMPLETED',
+  time: { ...baseTask.time, actualStart: '2026-01-05', actualFinish: '2026-01-06', completion: 1 },
+} as Task;
+const progressShape = (result: ReturnType<typeof planTaskCellEdit>) => result.ok ? {
+  status: result.value.task.status,
+  completion: result.value.task.time.completion,
+  actualStart: result.value.task.time.actualStart,
+  actualFinish: result.value.task.time.actualFinish,
+  remaining: result.value.task.time.remainingTime,
+} : result;
+const clearedSingle = plan('task.time.actualFinish', 'task-progress', undefined, doneTask);
+eq('Actual Finish wissen (enkele cel) heropent de taak', progressShape(clearedSingle),
+  { status: 'STARTED', completion: 0, actualStart: '2026-01-05', remaining: 5 });
+for (const cleared of [undefined, '']) {
+  const clearedRow = planTaskCellEdits(doneTask, [
+    intent('task.name', 'task-field', 'Taak'),
+    intent('task.time.actualFinish', 'task-progress', cleared),
+  ], environment);
+  eq(`Actual Finish wissen (${JSON.stringify(cleared)}) in een rij-plak gedraagt zich als de enkele cel`,
+    progressShape(clearedRow), progressShape(clearedSingle));
+}
+const clearedWithCompletion = planTaskCellEdits(doneTask, [
+  intent('task.time.actualFinish', 'task-progress', undefined),
+  intent('task.time.completion', 'task-progress', 1),
+], environment);
+eq('Actual Finish wissen naast een expliciete completion 1 leidt de einddatum opnieuw af',
+  progressShape(clearedWithCompletion),
+  { status: 'COMPLETED', completion: 1, actualStart: '2026-01-05', actualFinish: '2026-01-07', remaining: 0 });
 
 const primary = plan('task.constraint.type', 'task-constraint', 'SNET');
 eq('Constrainttype krijgt een bruikbare datum', primary.ok ? primary.value.task.constraint : primary,

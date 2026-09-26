@@ -4,10 +4,12 @@ import { validateConstraintPair } from '@/engine/scheduler/constraintValidation'
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { decodeDynamicTaskColumnId } from '@/engine/taskGrid/fieldIds';
 import {
+  applyCompletionEdit,
   applyProgressInvariants,
   defaultActualStart,
   assignTaskActivityCode,
   assignTaskCustomField,
+  fillMissingActualStart,
   isActualPastStatusDate,
 } from '@/engine/taskMutationRules';
 import type { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types/structure';
@@ -25,21 +27,30 @@ import type {
   CellValidationError,
   GridResult,
 } from '@/types/taskGrid';
-import { parseInstant } from '@/utils/dateUtils';
+import { parseDate, parseInstant } from '@/utils/dateUtils';
 import {
   proposeTaskDurationConversion,
   type ParsedTaskDuration,
 } from '@/utils/taskDurationInput';
 import {
+  applyDurationChangeRules,
   clearTimephasedDurationWalks,
   clearTimephasedWindow,
   clearLevelingGaps,
+  taskTriggerChanges,
   timephasedDurationWalksHaveFrozenWork,
-  rescaleTaskContours,
+  type TaskTriggerFields,
   hourInputFinishBasis,
   reconcileHourInputFinish,
 } from '@/utils/taskDefaults';
+import { sameValue } from '@/utils/sameValue';
 import { taskWorkMinutes } from '@/engine/contour/contourEngine';
+import { shownFinish, shownStart, startAnchorAfterEdit } from '@/utils/taskDates';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { isPinnedComplete, isZeroDurationMilestone } from '@/engine/scheduler/duration';
+import { calendarForEngine } from '@/utils/effectiveWorkTime';
+import { isFiniteNumber } from '@/utils/guards';
+import { isManuallyScheduled } from '@/utils/manualScheduling';
 
 const TASK_TYPES: readonly TaskType[] = [
   'CONSTRUCTION', 'INSTALLATION', 'DEMOLITION', 'LOGISTIC', 'ATTENDANCE',
@@ -107,10 +118,6 @@ function cloneTaskForEdit(task: Task): Task {
   };
 }
 
-function finite(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
-}
-
 function optionalString(value: unknown): value is string | undefined {
   return value === undefined || typeof value === 'string';
 }
@@ -131,6 +138,7 @@ function expectedRoute(columnId: string): CellEditIntent['route'] | null {
   if (columnId.startsWith('task.constraint') || columnId === 'task.deadline') return 'task-constraint';
   if (columnId === 'task.isHammock') return 'task-hammock';
   if (columnId === 'task.calendarId' || columnId.startsWith('task.time.schedule')
+    || columnId === 'task.time.start' || columnId === 'task.time.finish'
     || columnId === 'task.time.durationType' || columnId === 'task.time.durationUnit') return 'task-schedule';
   if (columnId === 'task.name' || columnId === 'task.description' || columnId === 'task.wbsCode'
     || columnId === 'task.taskType' || columnId === 'task.customTaskTypeId'
@@ -141,24 +149,31 @@ function expectedRoute(columnId: string): CellEditIntent['route'] | null {
   return null;
 }
 
-/** Contour-engine (2026-09): duurwijziging in het grid herschaalt de contour — tweeling van
- *  `taskSlice.updateTask`/`createMcpTransactions.updateTaskFields`, zie `taskDefaults.ts`'s
- *  `rescaleTaskContours`. `oldWorkMinutes` is vóór de mutatie vastgelegd door `applyScheduleEdit`. */
+/** Een duurwijziging in het raster (duur-, eenheid-, mijlpaal- en Eindecel): dezelfde gevolgregels
+ *  als `taskSlice.updateTask` en de MCP-draft, zie `applyDurationChangeRules` in taskDefaults.ts
+ *  (de kern van `settleDurationAftermath`, workRuleApply.ts). `oldWorkMinutes` legt de aanroeper
+ *  vóór de mutatie vast, met dezelfde uren-per-dag. Het raster meet met
+ *  `environment.effectiveHoursPerDay` (bij een urenkalender de afgeleide bandsom); het ingevoerde
+ *  einde van een urentaak herleidt `applyOneCellEdit` aan het eind (`reconcileGridInputFinish`). */
 function finishDurationEdit(task: Task, oldWorkMinutes: number, environment: TaskEditPlanEnvironment): boolean {
   const hoursPerDay = environment.effectiveHoursPerDay;
-  if (Number.isFinite(hoursPerDay) && hoursPerDay > 0) {
-    // Eigenaarsbesluit 2026-09-05: een expliciete restduur schuift mee met de duurwijziging.
-    carryRemainingThroughDurationEdit(task, oldWorkMinutes, hoursPerDay);
-    rescaleTaskContours(task, oldWorkMinutes, hoursPerDay, environment.contourKeepsWork);
-  }
-  return clearScheduleGuidance(task, true);
+  const usableHours = Number.isFinite(hoursPerDay) && hoursPerDay > 0;
+  // Eigenaarsbesluit 2026-09-05: een expliciete restduur schuift mee met de duurwijziging.
+  if (usableHours) carryRemainingThroughDurationEdit(task, oldWorkMinutes, hoursPerDay);
+  return applyDurationChangeRules(task, oldWorkMinutes, hoursPerDay, {
+    // Eigen afwijking van het raster: de contour alleen herschalen bij een bruikbare uren-per-dag
+    // (store en MCP roepen de herschaling onvoorwaardelijk aan).
+    rescaleContours: usableHours,
+    keepWork: environment.contourKeepsWork,
+  });
 }
 
 /**
  * B1c-plan-2 spec §4 "Invalidatie", bedraad in de fixronde op etappe 3 (bevinding B7). De ROUTES
  * waarvan een celwrite de tijdbasis van de taak verzet — en dus een door de nivelleerder ingevoegde
- * pauzedag ongeldig maakt. Dit is de gridtegenhanger van `taskUpdateInvalidatesLevelingGaps`
+ * pauzedag ongeldig maakt. Dit is de gridtegenhanger van `taskTriggerChanges(...).levelingGaps`
  * (taskDefaults.ts); het grid schrijft niet via `updateTask`, dus het heeft een eigen poort nodig.
+ * Net als daar vuurt hij alleen bij een echte waardewijziging (zie `applyOneCellEdit`).
  *
  * Bewust NIET compleet gelijk aan de `scheduleStale`-lijst in `applyOneCellEdit`: `task.priority` zit
  * daar wél in (nivelleren gebruikt prioriteit als invoer) maar verzet geen enkele datum van de taak
@@ -216,7 +231,7 @@ function applyTaskField(
     task.customTaskTypeId = edit.value;
     if (edit.value !== undefined) task.taskType = 'USERDEFINED';
   } else if (id === 'task.priority') {
-    if (!finite(edit.value) || !Number.isInteger(edit.value) || edit.value < 0 || edit.value > 1000) {
+    if (!isFiniteNumber(edit.value) || !Number.isInteger(edit.value) || edit.value < 0 || edit.value > 1000) {
       return failure('range', edit);
     }
     task.priority = edit.value;
@@ -240,6 +255,65 @@ function applyTaskField(
     return failure('plannerNotAvailable', edit);
   }
   return { ok: true, value: undefined };
+}
+
+/** Zet een expliciete duur (dagen of werkminuten) met alle bijeffecten van een duurwijziging —
+ *  de ene weg voor de Duur-kolom en voor een nieuw Einde van een automatisch geplande taak. */
+function applyParsedDuration(
+  task: Task,
+  parsed: ParsedTaskDuration,
+  edit: CellEditIntent,
+  environment: TaskEditPlanEnvironment,
+  oldWorkMinutes: number,
+): GridResult<boolean, readonly CellValidationError[]> {
+  // Deze functie schrijft de drie duurvelden altijd; of dat een duurWIJZIGING is, beslist dezelfde
+  // waardevergelijking als store en MCP (`taskTriggerChanges`, #186).
+  const before: TaskTriggerFields = { ...task, time: { ...task.time } };
+  if (parsed.unit === 'hours') {
+    if (environment.enableHourPlanning !== true) return failure('hourPlanningDisabled', edit);
+    if (!isFiniteNumber(parsed.durationMinutes) || parsed.durationMinutes < 0) return failure('duration', edit);
+    if (!Number.isFinite(environment.effectiveHoursPerDay) || environment.effectiveHoursPerDay <= 0) {
+      return failure('calendarHours', edit);
+    }
+    task.time.durationUnit = 'hours';
+    task.time.durationMinutes = parsed.durationMinutes;
+    task.time.scheduleDuration = parsed.durationMinutes / (environment.effectiveHoursPerDay * 60);
+  } else {
+    if (!isFiniteNumber(parsed.scheduleDuration) || !Number.isInteger(parsed.scheduleDuration)
+      || parsed.scheduleDuration < 0) return failure('duration', edit);
+    task.time.durationUnit = 'days';
+    task.time.scheduleDuration = parsed.scheduleDuration;
+    task.time.durationMinutes = undefined;
+  }
+  if (!taskTriggerChanges(before, task).timeBase) return { ok: true, value: false };
+  return { ok: true, value: finishDurationEdit(task, oldWorkMinutes, environment) };
+}
+
+/**
+ * De duur waarmee een automatisch geplande taak op `finish` eindigt, gerekend vanaf de GETOONDE
+ * start: de omkering van `CPMSolver.addDuration`, dezelfde telling als de rechterrand-sleep in de
+ * Gantt (`useBarDrag`). Dagtaak: inclusieve werkdagen (`workDaysBetween`, minimaal één). Urentaak:
+ * werkminuten in de effectieve uurbanden van de taakkalender (`calendarForEngine`, zoals de solver).
+ * De eenheid van de taak blijft wat hij was.
+ */
+function durationForShownFinish(
+  task: Task,
+  finish: string,
+  calendar: WorkCalendar,
+): { ok: true; value: ParsedTaskDuration } | { ok: false; code: string } {
+  if (task.time.durationUnit === 'hours') {
+    const engine = new CalendarEngine(calendarForEngine(calendar));
+    if (!engine.isHourMode) return { ok: false, code: 'calendarHours' };
+    const start = parseInstant(shownStart(task));
+    const end = parseInstant(finish);
+    if (!(end.getTime() > start.getTime())) return { ok: false, code: 'finishBeforeStart' };
+    return { ok: true, value: { unit: 'hours', durationMinutes: engine.workMinutesBetween(start, end), explicitUnit: true } };
+  }
+  const start = parseDate(shownStart(task).slice(0, 10));
+  const end = parseDate(finish.slice(0, 10));
+  if (!(end.getTime() >= start.getTime())) return { ok: false, code: 'finishBeforeStart' };
+  const days = new CalendarEngine(calendar).workDaysBetween(start, end);
+  return { ok: true, value: { unit: 'days', scheduleDuration: Math.max(1, days), explicitUnit: true } };
 }
 
 function applyScheduleEdit(
@@ -281,27 +355,9 @@ function applyScheduleEdit(
     lost = finishDurationEdit(task, oldWorkMinutes, environment);
   } else if (id === 'task.time.scheduleDuration') {
     if (edit.value && typeof edit.value === 'object' && 'unit' in edit.value) {
-      const parsed = edit.value as ParsedTaskDuration;
-      if (parsed.unit === 'hours') {
-        if (environment.enableHourPlanning !== true) return failure('hourPlanningDisabled', edit);
-        if (!finite(parsed.durationMinutes) || parsed.durationMinutes < 0) return failure('duration', edit);
-        if (!Number.isFinite(environment.effectiveHoursPerDay) || environment.effectiveHoursPerDay <= 0) {
-          return failure('calendarHours', edit);
-        }
-        task.time.durationUnit = 'hours';
-        task.time.durationMinutes = parsed.durationMinutes;
-        task.time.scheduleDuration = parsed.durationMinutes / (environment.effectiveHoursPerDay * 60);
-      } else {
-        if (!finite(parsed.scheduleDuration) || !Number.isInteger(parsed.scheduleDuration)
-          || parsed.scheduleDuration < 0) return failure('duration', edit);
-        task.time.durationUnit = 'days';
-        task.time.scheduleDuration = parsed.scheduleDuration;
-        task.time.durationMinutes = undefined;
-      }
-      lost = finishDurationEdit(task, oldWorkMinutes, environment);
-      return { ok: true, value: lost };
+      return applyParsedDuration(task, edit.value as ParsedTaskDuration, edit, environment, oldWorkMinutes);
     }
-    if (!finite(edit.value) || edit.value < 0) return failure('duration', edit);
+    if (!isFiniteNumber(edit.value) || edit.value < 0) return failure('duration', edit);
     if (task.isHammock) return failure('readOnly', edit);
     const hoursPerDay = environment.effectiveHoursPerDay;
     if (!Number.isFinite(hoursPerDay) || hoursPerDay <= 0) return failure('calendarHours', edit);
@@ -313,6 +369,40 @@ function applyScheduleEdit(
       else delete task.time.durationMinutes;
       lost = finishDurationEdit(task, oldWorkMinutes, environment);
     }
+  } else if (id === 'task.time.start') {
+    // De GETOONDE start (Tabel-kolom Start): dezelfde regel als paneel en Taak bewerken — het anker
+    // verschuift alleen bij een echte wijziging (`startAnchorAfterEdit`).
+    if (!optionalString(edit.value)) return failure('date', edit);
+    if (edit.value === undefined) return failure('required', edit);
+    const anchor = startAnchorAfterEdit(task, edit.value);
+    if (anchor !== undefined && task.time.scheduleStart !== anchor) {
+      task.time.scheduleStart = anchor;
+      lost = clearScheduleGuidance(task, true);
+    }
+  } else if (id === 'task.time.finish') {
+    if (!optionalString(edit.value)) return failure('date', edit);
+    if (edit.value === undefined) return failure('required', edit);
+    // Ongewijzigd teruggetypt: niets verzetten (geen duur afronden, geen tijdfasering wissen).
+    if (edit.value === shownFinish(task)) return { ok: true, value: false };
+    if (edit.value.slice(0, 10) < shownStart(task).slice(0, 10)) return failure('finishBeforeStart', edit);
+    if (isManuallyScheduled(task)) {
+      // Een handmatig geplande taak eindigt op haar ingevoerde einde (`CPMSolver.forwardPass`).
+      if (task.time.scheduleFinish !== edit.value) {
+        task.time.scheduleFinish = edit.value;
+        lost = clearScheduleGuidance(task, true);
+      }
+      return { ok: true, value: lost };
+    }
+    // Automatisch gepland: het einde volgt uit start + duur, dus een nieuw einde is een nieuwe duur.
+    // Het ingevoerde einde (`scheduleFinish`) blijft bewust ongemoeid: dat is invoer, geen afgeleide
+    // van de berekende planning.
+    if (isPinnedComplete(task.time)) return failure('finishIsActual', edit);
+    if (isZeroDurationMilestone(task) || task.time.durationType === 'ELAPSEDTIME'
+      || (task.splitGaps?.length ?? 0) > 0) return failure('finishFromDuration', edit);
+    if (!environment.effectiveCalendar) return failure('calendarNotFound', edit);
+    const duration = durationForShownFinish(task, edit.value, environment.effectiveCalendar);
+    if (!duration.ok) return failure(duration.code, edit);
+    return applyParsedDuration(task, duration.value, edit, environment, oldWorkMinutes);
   } else if (id === 'task.time.scheduleStart' || id === 'task.time.scheduleFinish') {
     if (!optionalString(edit.value)) return failure('date', edit);
     const key = id === 'task.time.scheduleStart' ? 'scheduleStart' : 'scheduleFinish';
@@ -339,9 +429,11 @@ function applyScheduleEdit(
 function applyMilestoneEdit(
   task: Task,
   edit: CellEditIntent,
+  environment: TaskEditPlanEnvironment,
 ): GridResult<boolean, readonly CellValidationError[]> {
   const id = String(edit.columnId);
   let scheduleChanged = false;
+  const oldWorkMinutes = taskWorkMinutes(task.time, environment.effectiveHoursPerDay);
   if (id === 'task.isMilestone') {
     if (typeof edit.value !== 'boolean') return failure('boolean', edit);
     if (task.isMilestone !== edit.value) {
@@ -367,7 +459,12 @@ function applyMilestoneEdit(
   } else {
     return failure('plannerNotAvailable', edit);
   }
-  return { ok: true, value: scheduleChanged ? clearScheduleGuidance(task, true) : false };
+  // Mijlpaal aan ⇒ duur 0: een duurwijziging, dus dezelfde gevolgregels als de duurcel. (Uitzetten
+  // verzint geen duur, zie `taskMilestoneTransition`, en raakt de tijdbasis dan niet.)
+  return {
+    ok: true,
+    value: scheduleChanged ? finishDurationEdit(task, oldWorkMinutes, environment) : false,
+  };
 }
 
 function applyStatus(task: Task, status: TaskStatus, statusDate: string | undefined): void {
@@ -378,7 +475,7 @@ function applyStatus(task: Task, status: TaskStatus, statusDate: string | undefi
   } else if (status === 'STARTED') {
     if (task.time.completion >= 1) task.time.completion = 0;
     task.time.actualFinish = undefined;
-    task.time.actualStart ||= defaultActualStart(task.time);
+    fillMissingActualStart(task.time, statusDate);
   } else {
     task.time.completion = 1;
     // Zelfde regel als setTaskProgress en de completion-cel: zonder actualStart geldt de eigen
@@ -386,6 +483,30 @@ function applyStatus(task: Task, status: TaskStatus, statusDate: string | undefi
     task.time.actualStart ||= defaultActualStart(task.time);
   }
   applyProgressInvariants(task, statusDate);
+}
+
+/** Voortgang die een ingevoerde actuele (`remaining` onwaar) of resterende duur in minuten
+ *  impliceert, op de as van de taak: minuten in uurmodus, werkdagen anders. Zonder duur (of met een
+ *  onbruikbaar totaal) telt de taak als voltooid. */
+function completionFromDuration(
+  task: Task,
+  minutes: number,
+  remaining: boolean,
+  environment: TaskEditPlanEnvironment,
+): number {
+  const hoursPerDay = environment.effectiveHoursPerDay;
+  const total = environment.hourMode
+    ? task.time.durationMinutes ?? task.time.scheduleDuration * hoursPerDay * 60
+    : task.time.scheduleDuration;
+  if (!(total > 0)) return 1;
+  const own = (environment.hourMode ? minutes : minutes / (hoursPerDay * 60)) / total;
+  return Math.max(0, Math.min(1, remaining ? 1 - own : own));
+}
+
+/** Een ingevoerde resterende duur (minuten, of gewist) in dagen; `remainingMinutes` alleen in uurmodus. */
+function writeRemaining(task: Task, minutes: number | undefined, environment: TaskEditPlanEnvironment): void {
+  task.time.remainingTime = minutes === undefined ? undefined : minutes / (environment.effectiveHoursPerDay * 60);
+  task.time.remainingMinutes = environment.hourMode && minutes !== undefined ? minutes : undefined;
 }
 
 function applyProgressEdit(
@@ -400,12 +521,10 @@ function applyProgressEdit(
     }
     applyStatus(task, edit.value as TaskStatus, environment.statusDate);
   } else if (id === 'task.time.completion') {
-    if (!finite(edit.value) || edit.value < 0 || edit.value > 1) return failure('percentage', edit);
-    task.time.completion = edit.value;
-    if (edit.value > 0 && !task.time.actualStart) {
-      task.time.actualStart = defaultActualStart(task.time);
-    }
-    if (edit.value < 1) task.time.actualFinish = undefined;
+    if (!isFiniteNumber(edit.value) || edit.value < 0 || edit.value > 1) return failure('percentage', edit);
+    // Zelfde regel als store (`setTaskProgress`) en MCP: een afgeleide werkelijke start valt
+    // nooit ná het werkelijke einde (100% met een statusdatum vóór de geplande start).
+    applyCompletionEdit(task.time, edit.value, environment.statusDate);
     applyProgressInvariants(task, environment.statusDate);
   } else if (id === 'task.time.actualStart' || id === 'task.time.actualFinish') {
     if (!optionalString(edit.value)) return failure('date', edit);
@@ -424,43 +543,27 @@ function applyProgressEdit(
     }
     applyProgressInvariants(task, environment.statusDate);
   } else if (id === 'task.time.actualDuration' || id === 'task.time.remainingTime') {
-    if (edit.value !== undefined && (!finite(edit.value) || edit.value < 0)) {
+    if (edit.value !== undefined && (!isFiniteNumber(edit.value) || edit.value < 0)) {
       return failure('duration', edit);
     }
     const hoursPerDay = environment.effectiveHoursPerDay;
     if (!Number.isFinite(hoursPerDay) || hoursPerDay <= 0) return failure('calendarHours', edit);
+    const remaining = id === 'task.time.remainingTime';
     if (edit.value === undefined) {
-      if (id === 'task.time.actualDuration') task.time.actualDuration = undefined;
-      else {
-        task.time.remainingTime = undefined;
-        task.time.remainingMinutes = undefined;
-      }
+      if (remaining) writeRemaining(task, undefined, environment);
+      else task.time.actualDuration = undefined;
       applyProgressInvariants(task, environment.statusDate);
       return { ok: true, value: undefined };
     }
-    const days = edit.value / (hoursPerDay * 60);
-    const total = environment.hourMode
-      ? task.time.durationMinutes ?? task.time.scheduleDuration * hoursPerDay * 60
-      : task.time.scheduleDuration;
-    const ownValue = environment.hourMode ? edit.value : days;
-    if (id === 'task.time.actualDuration') {
-      task.time.actualDuration = days;
-      task.time.completion = total > 0 ? Math.max(0, Math.min(1, ownValue / total)) : 1;
-    } else {
-      task.time.remainingTime = days;
-      if (environment.hourMode) task.time.remainingMinutes = edit.value;
-      else task.time.remainingMinutes = undefined;
-      task.time.completion = total > 0 ? Math.max(0, Math.min(1, 1 - ownValue / total)) : 1;
-    }
-    if (task.time.completion > 0 && !task.time.actualStart) {
-      task.time.actualStart = defaultActualStart(task.time);
-    }
-    if (task.time.completion < 1) task.time.actualFinish = undefined;
+    if (remaining) writeRemaining(task, edit.value, environment);
+    else task.time.actualDuration = edit.value / (hoursPerDay * 60);
+    applyCompletionEdit(
+      task.time,
+      completionFromDuration(task, edit.value, remaining, environment),
+      environment.statusDate,
+    );
     applyProgressInvariants(task, environment.statusDate);
-    if (id === 'task.time.remainingTime') {
-      task.time.remainingTime = days;
-      if (environment.hourMode) task.time.remainingMinutes = edit.value;
-    }
+    if (remaining) writeRemaining(task, edit.value, environment);
   } else {
     return failure('plannerNotAvailable', edit);
   }
@@ -547,7 +650,7 @@ function applyProgressEdits(
 
   if (statusEdit && (typeof statusEdit.value !== 'string'
     || !TASK_STATUSES.includes(statusEdit.value as TaskStatus))) return failure('enum', statusEdit);
-  if (completionEdit && (!finite(completionEdit.value)
+  if (completionEdit && (!isFiniteNumber(completionEdit.value)
     || completionEdit.value < 0 || completionEdit.value > 1)) return failure('percentage', completionEdit);
   for (const edit of [actualStartEdit, actualFinishEdit]) {
     if (!edit) continue;
@@ -557,7 +660,7 @@ function applyProgressEdits(
     }
   }
   for (const edit of [actualDurationEdit, remainingEdit]) {
-    if (edit && edit.value !== undefined && (!finite(edit.value) || edit.value < 0)) {
+    if (edit && edit.value !== undefined && (!isFiniteNumber(edit.value) || edit.value < 0)) {
       return failure('duration', edit);
     }
   }
@@ -566,20 +669,13 @@ function applyProgressEdits(
     return failure('calendarHours', actualDurationEdit ?? remainingEdit ?? first);
   }
 
-  const hoursPerDay = environment.effectiveHoursPerDay;
-  const total = environment.hourMode
-    ? task.time.durationMinutes ?? task.time.scheduleDuration * hoursPerDay * 60
-    : task.time.scheduleDuration;
-  const toDays = (value: number): number => value / (hoursPerDay * 60);
   let desiredCompletion = completionEdit ? completionEdit.value as number : undefined;
   const derivedCompletions: number[] = [];
   if (actualDurationEdit?.value !== undefined) {
-    const own = environment.hourMode ? actualDurationEdit.value as number : toDays(actualDurationEdit.value as number);
-    derivedCompletions.push(total > 0 ? Math.max(0, Math.min(1, own / total)) : 1);
+    derivedCompletions.push(completionFromDuration(task, actualDurationEdit.value as number, false, environment));
   }
   if (remainingEdit?.value !== undefined) {
-    const own = environment.hourMode ? remainingEdit.value as number : toDays(remainingEdit.value as number);
-    derivedCompletions.push(total > 0 ? Math.max(0, Math.min(1, 1 - own / total)) : 1);
+    derivedCompletions.push(completionFromDuration(task, remainingEdit.value as number, true, environment));
   }
   if (derivedCompletions.some(value => Math.abs(value - derivedCompletions[0]!) > 1e-9)
     || (desiredCompletion !== undefined
@@ -591,6 +687,13 @@ function applyProgressEdits(
   const desiredStatus = statusEdit?.value as TaskStatus | undefined;
   let desiredActualStart = actualStartEdit ? (actualStartEdit.value as string | undefined) || undefined : task.time.actualStart;
   let desiredActualFinish = actualFinishEdit ? (actualFinishEdit.value as string | undefined) || undefined : task.time.actualFinish;
+  // Een gewiste Actual Finish heropent een voltooide taak, net als bij een enkele celwrite — tenzij
+  // dezelfde rij zelf een voortgang of status opgeeft. Anders zette `applyProgressInvariants` de
+  // einddatum bij completion 1 meteen terug en deed het wissen niets.
+  if (actualFinishEdit && !desiredActualFinish && desiredCompletion === undefined
+    && desiredStatus === undefined && task.time.completion >= 1) {
+    desiredCompletion = 0;
+  }
   // Niet meegeschreven actuals zijn geen expliciete gewenste invoer. Een completion/status-write
   // moet ze in een brede paste precies zo kunnen canonicaliseren als bij een enkelvoudige edit.
   if (!actualFinishEdit && ((desiredCompletion !== undefined && desiredCompletion < 1)
@@ -631,41 +734,28 @@ function applyProgressEdits(
   if (actualDurationEdit) {
     task.time.actualDuration = actualDurationEdit.value === undefined
       ? undefined
-      : toDays(actualDurationEdit.value as number);
+      : (actualDurationEdit.value as number) / (environment.effectiveHoursPerDay * 60);
   }
-  if (remainingEdit) {
-    task.time.remainingTime = remainingEdit.value === undefined
-      ? undefined
-      : toDays(remainingEdit.value as number);
-    task.time.remainingMinutes = environment.hourMode && remainingEdit.value !== undefined
-      ? remainingEdit.value as number
-      : undefined;
-  }
+  if (remainingEdit) writeRemaining(task, remainingEdit.value as number | undefined, environment);
   if (actualStartEdit) task.time.actualStart = desiredActualStart;
   if (actualFinishEdit) task.time.actualFinish = desiredActualFinish;
   if (desiredCompletion !== undefined) {
     task.time.completion = desiredCompletion;
-    if (desiredCompletion > 0 && !task.time.actualStart) {
-      task.time.actualStart = defaultActualStart(task.time);
-    }
     if (desiredCompletion < 1 && !actualFinishEdit) task.time.actualFinish = undefined;
+    // Pas ná het vastleggen van het einde: een afgeleide werkelijke start valt nooit ná het
+    // (opgegeven of straks afgeleide) werkelijke einde — zelfde uitkomst als het enkele-celpad.
+    // Een in deze rij opgegeven Actual Start staat er dan al en blijft ongemoeid.
+    if (desiredCompletion > 0) fillMissingActualStart(task.time, environment.statusDate);
   }
   if (desiredStatus === 'NOT_STARTED') {
     task.time.actualStart = undefined;
     task.time.actualFinish = undefined;
   } else if (desiredStatus === 'STARTED') {
     task.time.actualFinish = undefined;
-    task.time.actualStart ||= defaultActualStart(task.time);
+    fillMissingActualStart(task.time, environment.statusDate);
   }
   applyProgressInvariants(task, environment.statusDate);
-  if (remainingEdit) {
-    task.time.remainingTime = remainingEdit.value === undefined
-      ? undefined
-      : toDays(remainingEdit.value as number);
-    task.time.remainingMinutes = environment.hourMode && remainingEdit.value !== undefined
-      ? remainingEdit.value as number
-      : undefined;
-  }
+  if (remainingEdit) writeRemaining(task, remainingEdit.value as number | undefined, environment);
   if (desiredStatus !== undefined && task.status !== desiredStatus) {
     return failure('conflictingProgressInputs', statusEdit!);
   }
@@ -705,8 +795,8 @@ function validCustomFieldValue(def: CustomFieldDef, value: unknown): boolean {
   if (value === undefined) return true;
   if (def.type === 'text' || def.type === 'date') return typeof value === 'string';
   if (def.type === 'boolean') return typeof value === 'boolean';
-  if (def.type === 'integer') return finite(value) && Number.isInteger(value);
-  return finite(value);
+  if (def.type === 'integer') return isFiniteNumber(value) && Number.isInteger(value);
+  return isFiniteNumber(value);
 }
 
 /**
@@ -733,6 +823,7 @@ function applyOneCellEdit(
   const expected = expectedRoute(id);
   if (!expected) return failure('plannerNotAvailable', edit);
   if (expected !== edit.route) return failure('routeMismatch', edit);
+  if (edit.route === 'task-progress' && task.childIds.length > 0) return failure('summaryProgress', edit);
   const next = cloneTaskForEdit(task);
   let result: GridResult<unknown, readonly CellValidationError[]>;
   let timephasedGuidanceLost = false;
@@ -742,7 +833,7 @@ function applyOneCellEdit(
     result = scheduleResult;
     if (scheduleResult.ok) timephasedGuidanceLost = scheduleResult.value;
   } else if (edit.route === 'task-milestone') {
-    const milestoneResult = applyMilestoneEdit(next, edit);
+    const milestoneResult = applyMilestoneEdit(next, edit, environment);
     result = milestoneResult;
     if (milestoneResult.ok) timephasedGuidanceLost = milestoneResult.value;
   } else if (edit.route === 'task-progress') result = applyProgressEdit(next, edit, environment);
@@ -757,8 +848,11 @@ function applyOneCellEdit(
     }
   } else result = applyDynamicEdit(next, edit, environment);
   if (!result.ok) return result;
-  // B7 — zie `LEVELING_GAP_ROUTES`. Ná de faalpoort: een geweigerde write laat `next` weg.
-  if (LEVELING_GAP_ROUTES.has(edit.route)) clearLevelingGaps(next);
+  // B7 — zie `LEVELING_GAP_ROUTES`. Ná de faalpoort: een geweigerde write laat `next` weg. De ROUTE
+  // bepaalt welke velden meetellen (ongewijzigd); WANNEER is een echte waardewijziging, met dezelfde
+  // structurele vergelijking als store en MCP (`sameValue`): een celwrite die de taak niet veranderde
+  // — dezelfde waarde teruggeschreven — laat een nivelleergat staan.
+  if (LEVELING_GAP_ROUTES.has(edit.route) && !sameValue(task, next)) clearLevelingGaps(next);
   if (reconcileFinish) reconcileGridInputFinish(task, next, environment);
   const scheduleStale = edit.route === 'task-schedule'
     || edit.route === 'task-progress'
@@ -825,6 +919,8 @@ export function planTaskCellEdits(
     scheduleStale ||= planned.value.scheduleStale;
   }
   if (constraintEdits.length > 0) {
+    // Voor de nivelleergat-poort hieronder: de taak vóór deze groep (die muteert `next` in-place).
+    const beforeGroup = cloneTaskForEdit(next);
     const constraintRank = (edit: CellEditIntent): number => {
       const id = String(edit.columnId);
       if (id === 'task.constraint.type') return 0;
@@ -848,14 +944,19 @@ export function planTaskCellEdits(
     }
     // B7 — deze twee groepen omzeilen `applyOneCellEdit` (ze worden pas ná de volledige groep
     // gecanonicaliseerd), dus de poort staat hier apart. Pas ná de validatie: een geweigerde groep
-    // laat de taak ongemoeid.
-    clearLevelingGaps(next);
+    // laat de taak ongemoeid. En net als daar alleen bij een echte waardewijziging (`sameValue`).
+    if (!sameValue(beforeGroup, next)) clearLevelingGaps(next);
     scheduleStale = true;
   }
   if (progressEdits.length > 0) {
+    // Een verzameltaak draagt geen eigen voortgang: de rollup in `applyCpmResult` leidt die af uit de
+    // bladen. Deze poort geldt voor élke route die hier langs komt (raster, plakken, voortgangsimport),
+    // net als de weigering in MCP (`mcpValidation`) en in `setTaskProgress`.
+    if (task.childIds.length > 0) return failure('summaryProgress', progressEdits[0]);
+    const beforeGroup = cloneTaskForEdit(next);
     const applied = applyProgressEdits(next, progressEdits, environment);
     if (!applied.ok) return applied;
-    clearLevelingGaps(next); // B7 — zie de constraintgroep hierboven.
+    if (!sameValue(beforeGroup, next)) clearLevelingGaps(next); // B7 — zie de constraintgroep hierboven.
     scheduleStale = true;
   }
   // B1-vervolg — één keer voor de hele groep, tegen de taak van vóór de groep: zo wint een in dezelfde

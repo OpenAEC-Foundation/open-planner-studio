@@ -1,11 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import type { FieldRef, GroupLevel } from '@/types/view';
-
-// Zelfde codering als de lintprimitieven (`ribbonPrimitives.encodeFieldRef`); hier lokaal, zodat
-// viewControls niet van de lintlaag afhangt.
-const encodeFieldRef = (f: FieldRef): string => JSON.stringify(f);
-const decodeFieldRef = (s: string): FieldRef => JSON.parse(s) as FieldRef;
+import { decodeFieldRef, encodeFieldRef } from './fieldRefCodec';
 
 /**
  * Herhaalbare rijen {veld ▾, richting} voor groeperen en sorteren (fase 2.7, §7). Controlled, zodat

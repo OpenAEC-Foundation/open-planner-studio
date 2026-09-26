@@ -74,7 +74,9 @@ test('tour layout: Nederlandse inhoud en een volgende stap worden hermeet zonder
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
   await page.getByRole('button', { name: /^(Language|Taal)$/, exact: true }).click();
   await page.getByRole('option', { name: /Nederlands/ }).click();
-  await page.getByRole('dialog').getByRole('button', { name: /^(Close|Sluiten)$/ }).click();
+  // De tekstknop in de voet; het kopkruisje heet hetzelfde maar heeft geen tekstinhoud.
+  const closeName = /^(Close|Sluiten)$/;
+  await page.getByRole('dialog').getByRole('button', { name: closeName }).filter({ hasText: closeName }).click();
 
   await page.evaluate(() => {
     const NativeResizeObserver = window.ResizeObserver;

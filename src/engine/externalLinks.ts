@@ -1,5 +1,6 @@
 import type { Task, ExternalLink } from '@/types/task';
 import { externalSourceSide, normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
+import { shownStart, shownFinish } from '@/utils/taskDates';
 
 export { externalSourceSide };
 
@@ -44,8 +45,8 @@ export type ExternalSourceMatchScope = 'project-or-path' | 'file-path';
 export function sourceAnchorDate(link: ExternalLink, srcTask: Task): string {
   const side = externalSourceSide(link.direction, link.relType);
   return side === 'finish'
-    ? srcTask.time.earlyFinish || srcTask.time.scheduleFinish
-    : srcTask.time.earlyStart || srcTask.time.scheduleStart;
+    ? shownFinish(srcTask)
+    : shownStart(srcTask);
 }
 
 /** Matcht een link met `source`: normaal primair op project-id en secundair op genormaliseerd pad.

@@ -1,5 +1,6 @@
 import type { CustomTaskType } from '@/types/taskType';
 import { generateId } from '@/utils/id';
+import { sameTaskTypeName } from './customTaskTypeRules';
 
 const KEY = 'ops-personalTaskTypes';
 let cached: CustomTaskType[] | null = null;
@@ -58,8 +59,8 @@ export function addPersonalTaskType(name: string, preferredId?: string): CustomT
   if (!clean) return null;
   const all = load();
   const existingById = preferredId ? all.find(t => t.id === preferredId) : undefined;
-  if (existingById) return existingById.name.localeCompare(clean, undefined, { sensitivity: 'accent' }) === 0 ? existingById : null;
-  const existing = all.find(t => t.name.localeCompare(clean, undefined, { sensitivity: 'accent' }) === 0);
+  if (existingById) return sameTaskTypeName(existingById.name, clean) ? existingById : null;
+  const existing = all.find(t => sameTaskTypeName(t.name, clean));
   if (existing) return preferredId && existing.id !== preferredId ? null : existing;
   const type = { id: preferredId ?? generateId('tasktype'), name: clean };
   save([...all, type]);
@@ -69,7 +70,7 @@ export function renamePersonalTaskType(id: string, name: string): CustomTaskType
   const clean = name.trim();
   if (!clean) return null;
   const all = load();
-  const duplicate = all.find(t => t.id !== id && t.name.localeCompare(clean, undefined, { sensitivity: 'accent' }) === 0);
+  const duplicate = all.find(t => t.id !== id && sameTaskTypeName(t.name, clean));
   if (duplicate) return null;
   const old = all.find(t => t.id === id);
   if (!old) return null;

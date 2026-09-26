@@ -1,3 +1,8 @@
+/** Laatste padsegment (`/` én `\\`); een pad dat op een scheidingsteken eindigt blijft heel. */
+export function basename(path: string): string {
+  return path.split(/[\\/]/).pop() || path;
+}
+
 /**
  * Zorg dat een bestandspad op de gewenste extensie eindigt.
  *

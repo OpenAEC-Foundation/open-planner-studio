@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pause, Play, Lock, Unlock, DatabaseBackup, Save, FolderOpen, Check, AlertTriangle } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
+import { isTauri } from '@/utils/platform';
+import { basename } from '@/utils/filePath';
 import { loadAiAutoBackup, saveAiAutoBackup } from '@/utils/settingsStore';
 import { makeManualBackup, openBackupFolder } from '@/services/mcp/backup';
 import { record as recordActivity } from '@/services/mcp/activityLog';
@@ -21,8 +23,6 @@ import { RibbonButton } from '@/components/layout/Ribbon/ribbonPrimitives';
  * uitgeschakeld met een "alleen desktop"-tooltip (net als de Server-groep). Pauze/alleen-lezen en de
  * backup-toggle zijn platform-agnostisch (ui-vlaggen + persistente setting).
  */
-
-const isTauri = (): boolean => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
 type Feedback = { kind: 'ok' | 'err'; text: string } | null;
 
@@ -58,7 +58,7 @@ export function AiSafetyGroup() {
     const started = Date.now();
     try {
       const path = await makeManualBackup();
-      const fileName = path.split(/[\\/]/).pop() ?? path;
+      const fileName = basename(path);
       flash({ kind: 'ok', text: t('aiSafety.backupOk', { name: fileName }) });
       recordActivity({
         ts: started, tool: 'manual_backup', summary: fileName,

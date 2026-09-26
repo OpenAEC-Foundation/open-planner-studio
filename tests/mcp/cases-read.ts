@@ -11,6 +11,7 @@ import type { McpContext, McpToolResult, McpToolOk } from '@/services/mcp/contra
 import { generateBenchmarkProject } from '@/services/benchmark/generateProject';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { WorkCalendar } from '@/types/calendar';
+import { countCriticalActivities } from '@/engine/scheduler/scheduleAnalysis';
 
 const S = () => useAppStore.getState();
 
@@ -97,6 +98,34 @@ test('get_project_info: aantallen kloppen exact met de store', () => {
   assertEq(data.project.name, s.project.name, 'projectnaam');
 });
 
+test('get_project_info: criticalTasks telt alleen bladtaken, zoals statusbalk en Rapportpaneel (audit weergaven 5)', () => {
+  // Fase F met A → B (beide kritiek) en C (speling). Een verzameltaak rolt `isCritical` op van
+  // haar kinderen: F is dus ook "kritiek", maar is geen activiteit. De statusbalk
+  // (`cpmResult.criticalPath`) en het Rapportpaneel tellen 2; project_info telde 3.
+  cleanProject();
+  const f = S().addTask({ name: 'Fase ruwbouw', isMilestone: false, parentId: null, time: createDefaultTaskTime('2026-06-01', 1) });
+  const a = S().addTask({ name: 'A fundering', isMilestone: false, parentId: f, time: createDefaultTaskTime('2026-06-01', 5) });
+  const b = S().addTask({ name: 'B wanden', isMilestone: false, parentId: f, time: createDefaultTaskTime('2026-06-01', 3) });
+  S().addTask({ name: 'C bestelling', isMilestone: false, parentId: f, time: createDefaultTaskTime('2026-06-01', 2) });
+  S().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
+  S().runCPM();
+  const fase = S().tasks.find((t) => t.id === f)!;
+  assertEq(fase.time.isCritical, true, 'opzet: de fase draagt de opgerolde kritiek-vlag');
+  assertEq(S().cpmResult!.criticalPath.length, 2, 'opzet: statusbalk telt 2 kritieke taken');
+
+  const info = callOk('planner_get_project_info');
+  assertEq(info.statistics.criticalTasks, S().cpmResult!.criticalPath.length, 'criticalTasks == statusbalk (cpmResult.criticalPath)');
+  assertEq(info.statistics.criticalTasks, countCriticalActivities(S().tasks), 'criticalTasks == Rapportpaneel-teller');
+
+  // Het list_tasks-filter blijft bewust ALLE `isCritical`-taken geven (vastgepind hierboven), maar
+  // de verzameltaak is als zodanig herkenbaar en de beschrijving zegt dat fasen meetellen.
+  const lt = callOk('planner_list_tasks', { kritiek: true });
+  assertEq(lt.total, 3, 'list_tasks({kritiek:true}) telt de fase mee');
+  assertEq(lt.tasks.find((r: any) => r.id === f)?.summary, true, 'de fase-rij draagt summary:true');
+  assert(/verzameltaken|fasen/i.test(getTool('planner_list_tasks')!.description), 'beschrijving noemt dat verzameltaken meetellen in `kritiek`');
+  assert(/bladtaken|activiteiten/i.test(getTool('planner_get_project_info')!.description), 'beschrijving noemt dat criticalTasks alleen bladtaken telt');
+});
+
 // =================================================================================================
 // 2) planner_get_project_overview — volledige relatiegraaf, verkorte notatie
 // =================================================================================================
@@ -168,6 +197,31 @@ test('list_tasks: kritiek-filter levert alleen kritieke taken', () => {
   const crit = S().tasks.filter((t) => t.time.isCritical).length;
   assertEq(data.total, crit, 'total == aantal kritieke taken');
   assert(data.tasks.every((t: any) => t.crit === true), 'elke rij is kritiek');
+});
+
+test('list_tasks van/tot: een urentaak die op de tot-dag begint telt mee (audit weergaven 6)', () => {
+  // Zelfde overlaptest als het filter "Actief tussen" en de rapportvensters (`shownSpanOverlapsDays`):
+  // als tekst is "2026-06-03T08:00" groter dan "2026-06-03", maar de taak loopt op de tot-dag.
+  cleanProject();
+  S().setUI({ enableHourPlanning: true });
+  const band = [{ start: 8 * 60, end: 16 * 60 }];
+  S().setCalendar({
+    ...S().calendar, hoursPerDay: 8, workStartHour: 8, workEndHour: 16,
+    workTime: { byWeekday: { 1: band, 2: band, 3: band, 4: band, 5: band, 6: [], 7: [] } },
+  } as WorkCalendar);
+  const hours = (min: number) => ({ ...createDefaultTaskTime('2026-06-01', 1), durationUnit: 'hours' as const, durationMinutes: min });
+  const a = S().addTask({ name: 'A voorbereiden', isMilestone: false, parentId: null, time: hours(16 * 60) });
+  const b = S().addTask({ name: 'B uitvoeren', isMilestone: false, parentId: null, time: hours(8 * 60) });
+  S().addTask({ name: 'D later', isMilestone: false, parentId: null, time: createDefaultTaskTime('2026-06-08', 1) });
+  S().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
+  S().runCPM();
+  const bt = S().tasks.find((t) => t.id === b)!;
+  assertEq([bt.time.earlyStart, bt.time.earlyFinish], ['2026-06-03T08:00', '2026-06-03T16:00'], 'opzet: B loopt op wo 03-06');
+
+  const names = (args: object) => callOk('planner_list_tasks', args).tasks.map((r: any) => r.name).sort();
+  assertEq(names({ van: '2026-06-02', tot: '2026-06-03' }), ['A voorbereiden', 'B uitvoeren'], 'B begint op de tot-dag en telt mee');
+  assertEq(names({ van: '2026-06-03', tot: '2026-06-03' }), ['B uitvoeren'], 'venster van één dag: alleen B');
+  assertEq(names({ van: '2026-06-04', tot: '2026-06-05' }), [], 'na B: niets (D begint pas 08-06)');
 });
 
 // =================================================================================================
@@ -509,8 +563,8 @@ test('analyze_delay: baseline zonder projecteinde ⇒ expliciete melding i.p.v. 
 // =================================================================================================
 // DIALOOG-GUARD op de T18-leestools — GEDEELDE implementatie (eindintegratie)
 //
-// De `readTool`-wikkel had een eigen, derde kopie van de dialoog-guard die de blokkerende vlag NIET
-// benoemde. Sinds de eindintegratie delegeert hij naar `runReadTool` in runtime.ts. Deze case pint
+// De (inmiddels verdwenen) `readTool`-wikkel had een eigen, derde kopie van de dialoog-guard die de
+// blokkerende vlag NIET benoemde. De leestools lopen nu rechtstreeks via `runReadTool`. Deze case pint
 // dat vast: een leestool weigert mét de VLAGNAAM in de fout — precies zoals de document-/bestands-
 // tools (cases-doc-file.ts §10) en de runtime-wikkels (cases-runtime.ts §2) dat al deden.
 // =================================================================================================

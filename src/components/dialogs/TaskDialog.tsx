@@ -4,7 +4,10 @@ import type { HistorySessionMark } from '@/state/slices/historySlice';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
-import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
+import {
+  draftWithActualFinish, draftWithActualStart, draftWithProgress, saveTaskDialog,
+} from '@/state/taskDialogSave';
+import { shownStart } from '@/utils/taskDates';
 import { Select } from '@/components/common/Select';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { X } from 'lucide-react';
@@ -22,8 +25,6 @@ import { TaskDependenciesSection } from '@/components/task-sections/TaskDependen
 import { TaskAssignmentsSection } from '@/components/task-sections/TaskAssignmentsSection';
 import { TaskWorkRuleField } from '@/components/task-sections/TaskWorkRuleField';
 import { TaskCodesFieldsSection } from '@/components/task-sections/TaskCodesFieldsSection';
-import { getPersonalTaskTypes } from '@/services/taskTypes/personalTaskTypes';
-import { isActualPastStatusDate } from '@/engine/taskMutationRules';
 import { TaskDurationField } from '@/components/task-sections/TaskDurationField';
 
 /** Lege draft voor de (in de praktijk onbereikbare — zie ontwerp-doc item 2) "nieuwe taak"-tak:
@@ -38,21 +39,6 @@ function blankDraft(startDate: string, constructionMode: boolean, durationUnit: 
   };
 }
 
-/** G7: verschilt de patch van de taak? `time` veld voor veld (een nieuw object met dezelfde waarden
- *  is geen wijziging); de rest per referentie — de draft deelt ongewijzigde objecten met de taak. */
-function taskPatchChanges(task: Task, patch: Partial<Task>): boolean {
-  for (const key of Object.keys(patch) as (keyof Task)[]) {
-    if (key === 'time') {
-      const next = patch.time!;
-      const keys = new Set([...Object.keys(task.time), ...Object.keys(next)]) as Set<keyof Task['time']>;
-      for (const k of keys) if (!Object.is(task.time[k], next[k])) return true;
-      continue;
-    }
-    if (!Object.is(task[key], patch[key])) return true;
-  }
-  return false;
-}
-
 export function TaskDialog() {
   const { t } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
@@ -61,14 +47,9 @@ export function TaskDialog() {
   const editingTaskId = useAppStore(s => s.ui.editingTaskId);
   const tasks = useAppStore(s => s.tasks);
   const setUI = useAppStore(s => s.setUI);
-  const addTask = useAppStore(s => s.addTask);
-  const updateTask = useAppStore(s => s.updateTask);
   const setTaskWorkRule = useAppStore(s => s.setTaskWorkRule);
-  const moveTask = useAppStore(s => s.moveTask);
   const project = useAppStore(s => s.project);
   const constructionMode = useAppStore(s => s.ui.constructionMode);
-  const customTaskTypes = useAppStore(s => s.customTaskTypes);
-  const ensureProjectTaskType = useAppStore(s => s.ensureProjectTaskType);
   const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
 
   const editingTask = editingTaskId ? tasks.find(t => t.id === editingTaskId) : null;
@@ -82,8 +63,8 @@ export function TaskDialog() {
   const [draft, setDraft] = useState<Task>(() => blankDraft(project.startDate, constructionMode, newTaskUnit));
   const onChange = (patch: Partial<Task>) => setDraft(d => ({ ...d, ...patch }));
 
-  // `startDate` toont bewust de berekende `earlyStart` (consistent met tabel/Gantt), niet
-  // de ruwe `scheduleStart` — de subtiele "alleen scheduleStart aanpassen als de gebruiker die
+  // `startDate` toont bewust de berekende `earlyStart` (consistent met de Tabel-kolom Start en de
+  // Gantt), niet de ruwe `scheduleStart` — de subtiele "alleen scheduleStart aanpassen als de gebruiker die
   // daadwerkelijk wijzigde"-commit-regel in `handleSave` leest daarom `editingTask.time` (vers uit de
   // store) i.p.v. `draft.time`, zodat een eventuele CPM-herberekening tijdens het open staan van de
   // dialoog niet wordt teruggedraaid door een verouderde draft-snapshot.
@@ -101,7 +82,6 @@ export function TaskDialog() {
   const historyMark = useAppStore(s => s.historyMark);
   const endHistorySession = useAppStore(s => s.endHistorySession);
   const revertHistorySince = useAppStore(s => s.revertHistorySince);
-  const squashHistorySince = useAppStore(s => s.squashHistorySince);
 
   // Effectieve kalender volgt de kalender-dropdown live; de gedeelde duurbediening gebruikt hem
   // alleen voor plaatsing en exacte conversievoorstellen, nooit om de taakeenheid af te leiden.
@@ -127,8 +107,9 @@ export function TaskDialog() {
       initialDurationRef.current = {
         unit: editingTask.time.durationUnit, scheduleDuration: editingTask.time.scheduleDuration, durationMinutes: editingTask.time.durationMinutes,
       };
-      // Toon de berekende start (consistent met tabel/Gantt); scheduleStart is de geplande anker.
-      setStartDate(editingTask.time.earlyStart || editingTask.time.scheduleStart);
+      // Toon de berekende start (consistent met de Tabel-kolom Start en de Gantt); scheduleStart
+      // is de geplande anker.
+      setStartDate(shownStart(editingTask));
     } else {
       setDraft(blankDraft(project.startDate, constructionMode, newTaskUnit));
       setStartDate(project.startDate);
@@ -149,109 +130,18 @@ export function TaskDialog() {
 
   const handleSave = () => {
     if (!draft.name.trim()) return;
-    if (draft.customTaskTypeId) {
-      const definition = customTaskTypes.find(type => type.id === draft.customTaskTypeId)
-        ?? getPersonalTaskTypes().find(type => type.id === draft.customTaskTypeId);
-      if (definition) ensureProjectTaskType(definition);
-    }
-
-    if (editingTask) {
-      // Vers uit de store (niet de draft!) — zie de docstring bij de duur-state hierboven: een
-      // eventuele CPM-herberekening tijdens het open staan van de dialoog mag niet worden
-      // teruggedraaid. Voortgangs-velden (completion/actualStart/actualFinish) komen WEL uit de
-      // draft — dat zijn de enige `time`-subvelden die deze dialoog-sessie zelf muteert buiten de
-      // hieronder-berekende schedule-ankervelden.
-      // Review B4 (taaktypes): de duur ALLEEN uit de draft wanneer de gebruiker hem in deze sessie
-      // wijzigde — anders zou Opslaan een duur die de werkdriehoek intussen via de toewijzingssectie
-      // veranderde stil terugdraaien.
-      const initial = initialDurationRef.current;
-      const durationTouched = !initial
-        || draft.time.durationUnit !== initial.unit
-        || draft.time.scheduleDuration !== initial.scheduleDuration
-        || draft.time.durationMinutes !== initial.durationMinutes;
-      const time = {
-        ...editingTask.time,
-        ...(durationTouched ? {
-          durationUnit: draft.time.durationUnit,
-          scheduleDuration: draft.time.scheduleDuration,
-          durationMinutes: draft.time.durationUnit === 'hours' ? draft.time.durationMinutes : undefined,
-        } : {}),
-        completion: draft.time.completion,
-        actualStart: draft.time.actualStart,
-        actualFinish: draft.time.actualFinish,
-      };
-      // scheduleStart (de geplande anker) alléén bijwerken als de gebruiker de startdatum
-      // daadwerkelijk wijzigde — anders zou opslaan de berekende start als nieuw anker vastleggen
-      // en de drift na herberekenen herintroduceren.
-      const shownStart = editingTask.time.earlyStart || editingTask.time.scheduleStart;
-      // Start is verplicht: het veld weigert leeg al (`required`), dit is het vangnet.
-      if (startDate && startDate !== shownStart) time.scheduleStart = startDate;
-      const milestoneTransition = taskMilestoneTransition(editingTask, draft.isMilestone);
-      if (milestoneTransition.time) {
-        Object.assign(time, milestoneTransition.time);
-      }
-      const patch: Partial<Task> = {
-        name: draft.name,
-        description: draft.description,
-        wbsCode: draft.wbsCode,
-        taskType: draft.taskType,
-        customTaskTypeId: draft.customTaskTypeId,
-        calendarId: draft.calendarId,
-        isMilestone: draft.isMilestone,
-        milestoneKind: draft.milestoneKind,
-        mandatory: draft.mandatory,
-        isHammock: draft.isHammock,
-        constraint: draft.constraint,
-        constraint2: draft.constraint2,
-        deadline: draft.deadline,
-        notes: draft.notes,
-        time,
-      };
-      // Gebruikstest #170, G7: Opslaan zonder échte wijziging schreef toch een (lege) undo-stap,
-      // want een nieuw `time`-object is voor de snapshot een wijziging. Alleen patchen wat verschilt.
-      if (taskPatchChanges(editingTask, patch)) updateTask(editingTask.id, patch);
-      // QA-fix P1 (fase 2.10, onderdeel 2): een gewijzigde ouder gaat via `moveTask` — die
-      // synchroniseert childIds op ZOWEL de oude als de nieuwe ouder en weigert cykels (een
-      // summary onder zijn eigen kind hangen). `updateTask` is een kale Object.assign zonder die
-      // sync — parentId hierboven meepatchen zou de boom stil corrumperen (parentId wijst naar de
-      // nieuwe ouder, maar diens childIds weet van niets). Bij een geweigerde move (cykel) doet
-      // `moveTask` niets: parentId blijft dan ook ongewijzigd — geen halftoegepaste state.
-      if (draft.parentId !== editingTask.parentId) {
-        moveTask(editingTask.id, draft.parentId);
-      }
-    } else {
-      addTask({
-        name: draft.name,
-        description: draft.description,
-        wbsCode: draft.wbsCode,
-        taskType: draft.taskType,
-        customTaskTypeId: draft.customTaskTypeId,
-        workRule: draft.workRule,
-        isMilestone: draft.isMilestone,
-        parentId: draft.parentId || null,
-        calendarId: draft.calendarId,
-        time: {
-          ...draft.time,
-          durationUnit: draft.isMilestone ? 'days' : draft.time.durationUnit,
-          scheduleDuration: draft.isMilestone ? 0 : draft.time.scheduleDuration,
-          durationMinutes: draft.isMilestone || draft.time.durationUnit === 'days' ? undefined : draft.time.durationMinutes,
-          scheduleStart: startDate,
-          scheduleFinish: startDate,
-          earlyStart: startDate,
-          earlyFinish: startDate,
-          lateStart: startDate,
-          lateFinish: startDate,
-          freeFloat: 0,
-          totalFloat: 0,
-          isCritical: false,
-          completion: 0,
-        },
-      });
-    }
-
-    // G5: alles wat deze sessie direct op de store deed (werkregel, toewijzingen, werk, relaties)
-    // plus de patch hierboven is één undo-stap.
-    if (historyMarkRef.current !== null) squashHistorySince(historyMarkRef.current, 'Taak bewerken');
+    // Opslaan = één undo-stap met dezelfde voortgangsregels als het paneel; de details (vers uit de
+    // store vs uit de draft, het scheduleStart-anker, `moveTask` voor de ouder, de duur alleen bij
+    // een echte duurbewerking) staan in state/taskDialogSave.ts. G5 (#170): met een open
+    // bewerksessie maakt die van alles wat deze sessie op de store deed (werkregel, toewijzingen,
+    // werk, relaties) plus het Opslaan zelf één undo-stap (`squashHistorySince`).
+    saveTaskDialog({
+      editingTaskId: editingTask ? editingTask.id : null,
+      draft,
+      startDate,
+      initialDuration: initialDurationRef.current,
+      session: historyMarkRef.current,
+    });
     setUI({ showTaskDialog: false, editingTaskId: null });
   };
 
@@ -280,11 +170,19 @@ export function TaskDialog() {
       overlayProps={{ 'data-ops-task-dialog': true }}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[620px] max-h-[85vh] overflow-hidden flex flex-col"
     >
+        {/* Eigen kop i.p.v. DialogHeader: die rendert de titel als <span> (en krapper/lichter), dit
+            is een <h2> — overstappen kost de kopsemantiek. Het kruisje draagt wél dezelfde naam +
+            tooltip als DialogHeader (net als ContourDialog). */}
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h2 className="text-body leading-5 font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
             {editingTask ? t('dialog.editTitle') : t('dialog.newTitle')}
           </h2>
-          <button onClick={handleClose} className="p-1 hover:bg-surface-hover rounded-[8px]">
+          <button
+            onClick={handleClose}
+            className="p-1 hover:bg-surface-hover rounded-[8px]"
+            aria-label={tCommon('close')}
+            title={tCommon('close')}
+          >
             <X size={16} />
           </button>
         </div>
@@ -296,6 +194,7 @@ export function TaskDialog() {
             <label className="text-text-secondary">{t('dialog.nameRequired')}</label>
             <input
               ref={nameInputRef}
+              data-ops-task-name
               value={draft.name}
               onChange={e => onChange({ name: e.target.value })}
               className={inputCls}
@@ -373,29 +272,18 @@ export function TaskDialog() {
 
           <TaskProgressFields
             task={draft}
-            onSetProgress={raw => setDraft(d => {
-              const completion = Math.max(0, Math.min(1, raw));
-              const time = { ...d.time, completion };
-              // Spiegelt taskSlice.setTaskProgress (§3.2), maar op de draft — commit pas op Save.
-              if (completion > 0 && !time.actualStart) time.actualStart = time.earlyStart || time.scheduleStart;
-              if (completion < 1) time.actualFinish = undefined;
-              return { ...d, time };
-            })}
+            // Dezelfde regels als de paneelsetters (§3.2), maar op de draft — commit pas op Opslaan.
+            // `null` = geweigerd (actual ná de statusdatum), net als de boolean van de store-setters.
+            onSetProgress={raw => setDraft(d => draftWithProgress(d, raw, project.statusDate))}
+            // De weigering hangt alleen van datum en statusdatum af, dus synchroon te beantwoorden.
             onSetActualStart={date => {
-              // Spiegelt taskSlice.setActualStart (§3.2): actuals nooit ná de statusdatum. Zelfde
-              // vergelijking als de store: het datumveld zet het tijddeel van een urentaak terug
-              // (`2027-05-14T07:00`), en een rauwe stringvergelijking met `2027-05-14` zou dat weigeren.
-              if (date && project.statusDate && isActualPastStatusDate(date, project.statusDate)) return false;
-              setDraft(d => ({ ...d, time: { ...d.time, actualStart: date } }));
+              if (!draftWithActualStart(draft, date, project.statusDate)) return false;
+              setDraft(d => draftWithActualStart(d, date, project.statusDate) ?? d);
               return true;
             }}
             onSetActualFinish={date => {
-              if (date && project.statusDate && isActualPastStatusDate(date, project.statusDate)) return false;
-              setDraft(d => {
-                const time = { ...d.time, actualFinish: date };
-                if (!date && time.completion >= 1) time.completion = 0;
-                return { ...d, time };
-              });
+              if (!draftWithActualFinish(draft, date, project.statusDate)) return false;
+              setDraft(d => draftWithActualFinish(d, date, project.statusDate) ?? d);
               return true;
             }}
           />

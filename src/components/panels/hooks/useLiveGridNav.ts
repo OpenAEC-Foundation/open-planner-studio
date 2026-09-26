@@ -8,10 +8,10 @@ import {
  * invoerveld/`<select>` is (de resourcetabel, issue #48). De cursor is daar de DOM-focus, niet
  * React-state — verzetten betekent dus `focus()` op het besturingselement van de buurcel.
  *
- * Waarom niet de takentabel-hook hergebruiken: die kent maar één bewerk-input tegelijk en verzet
- * zijn cursor via `setActiveCell`/`startEdit`. Het enige dat écht gedeeld kan worden is de
- * rekensom en het toetsbeleid — dat staat in `@/utils/gridNavigation` en wordt door BEIDE tabellen
- * gebruikt. Zie de kop van dat bestand.
+ * Waarom niet de navigatie van het taakraster hergebruiken: dat kent maar één editor tegelijk,
+ * houdt zijn cursor als React-state bij en heeft een eigen toetsbeleid (`resolveTaskGridCommand` in
+ * `engine/taskGrid/navigation.ts`). De rekensom en het toetsbeleid voor live rasters staan in
+ * `@/utils/gridNavigation`. Zie de kop van dat bestand.
  *
  * Bedrading in de tabel:
  * - de scroll-container krijgt `ref={gridRef}`;
@@ -20,8 +20,7 @@ import {
  *
  * Cellen zonder (bruikbaar) besturingselement — geërfde/bibliotheek-velden renderen als platte
  * tekst, de eenheid-kolom is `disabled` op niet-materiaal — worden bij het navigeren OVERGESLAGEN,
- * in dezelfde richting doorlopend. Dat spiegelt de takentabel, die ook alleen langs bewerkbare
- * kolommen loopt.
+ * in dezelfde richting doorlopend.
  */
 export function useLiveGridNav<F extends string>({ rowIds, fields, onAppendRow }: {
   /** Rij-id's in weergavevolgorde. Een concept-rij hoort hier gewoon in (als laatste). */

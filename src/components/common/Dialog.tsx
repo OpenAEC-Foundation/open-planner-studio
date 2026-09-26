@@ -1,4 +1,6 @@
 import { useRef, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import { X } from 'lucide-react';
 import { useDialogKeys } from '@/hooks/useDialogKeys';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 
@@ -81,6 +83,46 @@ export function Dialog({
       >
         {children}
       </div>
+    </div>
+  );
+}
+
+export interface DialogHeaderProps {
+  title: ReactNode;
+  /** Icoon vóór de titel (Stats/Shortcuts/Benchmark). */
+  icon?: ReactNode;
+  onClose: () => void;
+  /** Sluitknop tijdelijk uit (Update tijdens een download, Benchmark tijdens een run). */
+  closeDisabled?: boolean;
+  /** StructureDialog tekent een kleiner kruisje (14 i.p.v. 16). */
+  closeIconSize?: number;
+}
+
+/**
+ * De kopbalk (titel + sluitkruisje) die de meeste dialogen letterlijk kopieerden. Het kruisje
+ * draagt altijd dezelfde toegankelijke naam én tooltip — voorheen had de helft geen van beide.
+ */
+export function DialogHeader({ title, icon, onClose, closeDisabled, closeIconSize = 16 }: DialogHeaderProps) {
+  const { t } = useTranslation('common');
+  const closeLabel = t('close');
+  return (
+    <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
+      <span
+        className={icon ? 'text-body leading-5 font-semibold flex items-center gap-2' : 'text-body leading-5 font-semibold'}
+        style={{ fontFamily: 'var(--font-heading)' }}
+      >
+        {icon}
+        {title}
+      </span>
+      <button
+        onClick={onClose}
+        disabled={closeDisabled}
+        className="p-1 hover:bg-surface-hover rounded-[8px] disabled:opacity-40 disabled:cursor-not-allowed"
+        aria-label={closeLabel}
+        title={closeLabel}
+      >
+        <X size={closeIconSize} />
+      </button>
     </div>
   );
 }

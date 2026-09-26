@@ -1,5 +1,4 @@
 import { useTranslation } from 'react-i18next';
-import { TFunction } from 'i18next';
 import { TaskType } from '@/types/task';
 
 const TASK_TYPE_KEYS: TaskType[] = [
@@ -13,10 +12,6 @@ const TASK_TYPE_KEYS: TaskType[] = [
   'MAINTENANCE',
   'USERDEFINED',
 ];
-
-export function getTaskTypeLabel(t: TFunction, type: TaskType): string {
-  return t(`taskType.${type}`, { ns: 'task' });
-}
 
 export function useTaskTypeLabels() {
   const { t } = useTranslation('task');

@@ -441,6 +441,16 @@ export function recordDocumentDataHistoryDelta(
   }])!;
 }
 
+/** Wis de redo-historie van één document: een niet-undoable wijziging aan dat document maakt zijn
+ *  ongedaan gemaakte events onherstelbaar (ze zouden op een andere toestand terugvallen). */
+export function invalidateDocumentRedo(
+  state: { historyEvents: SessionHistoryEvent[] },
+  documentId: string,
+): void {
+  const scope: HistoryScopeKey = `document:${documentId}`;
+  state.historyEvents = invalidateUndoneHistoryForScopes(state.historyEvents, new Set([scope]));
+}
+
 /** Verwijder undone events die één van de opgegeven scopes raken; compounds verdwijnen geheel. */
 export function invalidateUndoneHistoryForScopes(
   events: readonly SessionHistoryEvent[],

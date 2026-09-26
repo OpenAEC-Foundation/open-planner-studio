@@ -272,6 +272,21 @@ if (typeof occurrenceApi.normalizeTaskRowCursor !== 'function') {
   }
 }
 
+// Een corrupte `parentId`-kring (A ↔ B) boven een matchend blad liet de ouderwandeling van het filter
+// eindeloos rondlopen. De ouders komen nog steeds gedimd mee, precies één keer.
+{
+  const leaf = { ...task('blad'), parentId: 'kring-a' } as Task;
+  const a = { ...task('kring-a'), parentId: 'kring-b', childIds: ['blad', 'kring-b'] } as Task;
+  const b = { ...task('kring-b'), parentId: 'kring-a', childIds: ['kring-a'] } as Task;
+  const nameFilter: FilterNode = {
+    kind: 'rule', field: { src: 'builtin', key: 'name' }, operator: 'eq', value: 'blad',
+  };
+  const rows = visibleRows.computeViewRows([a, b, leaf], opts([], nameFilter), ctx);
+  const shown = rows.flatMap(row => row.kind === 'task' ? [[row.task.id, row.dimmed]] : []);
+  eq('18 filter boven een parentId-kring eindigt en dimt beide ouders', [...shown].sort(),
+    [['blad', false], ['kring-a', true], ['kring-b', true]]);
+}
+
 if (diffs.length === 0) {
   console.log(`OK  view-row-key: alle checks groen (${checks})`);
   process.exit(0);

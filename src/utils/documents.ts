@@ -1,5 +1,8 @@
 import type { Task } from '@/types/task';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
+import { basename } from '@/utils/filePath';
+import { shownStart, shownFinish } from '@/utils/taskDates';
+import { parseInstant } from '@/utils/dateUtils';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { xerDocumentName } from '@/utils/xerDocumentName';
 
@@ -44,8 +47,7 @@ export function documentTitle(
   xerProjectCode?: string | null,
 ): string {
   if (filePath) {
-    const base = filePath.split(/[\\/]/).pop() || filePath;
-    return base.replace(/\.[^.]+$/, '');
+    return basename(filePath).replace(/\.[^.]+$/, '');
   }
   // XER-import zonder opslagdoel: "Projectnaam (P6 Project-ID)" — zie `xerDocumentName`.
   if (xerProjectCode) return xerDocumentName(projectName, xerProjectCode);
@@ -146,12 +148,14 @@ export function buildThumbnail(tasks: Task[], identityColor: string, maxBars = 9
   const points: { start: number; end: number; ms: boolean; crit: boolean }[] = [];
   for (const t of tasks) {
     if (isSummaryTask(t)) continue; // alleen bladtaken/mijlpalen
-    const startStr = t.time.earlyStart || t.time.scheduleStart;
+    const startStr = shownStart(t);
     if (!startStr) continue;
-    const start = Date.parse(startStr);
+    // `parseInstant`, niet `Date.parse`: die leest een datetime zonder offset als LOKALE tijd,
+    // terwijl de app (en `Date.parse` zelf voor een date-only string) in UTC rekent.
+    const start = parseInstant(startStr).getTime();
     if (Number.isNaN(start)) continue;
-    const finStr = t.time.earlyFinish || t.time.scheduleFinish;
-    const endRaw = finStr ? Date.parse(finStr) : start;
+    const finStr = shownFinish(t);
+    const endRaw = finStr ? parseInstant(finStr).getTime() : start;
     const end = Number.isNaN(endRaw) ? start : Math.max(endRaw, start);
     points.push({ start, end, ms: t.isMilestone, crit: t.time.isCritical });
   }

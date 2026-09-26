@@ -199,6 +199,12 @@ eq('recorded.source kopieert dezelfde tekst als de cel toont, niet het rauwe tok
 eq('recorded.source kopieert een LEGE cel zonder markering (geen em-dash in een plakactie)',
   recordedSourceColumn.copy(task, { ...copyCtx, recordedMark: () => undefined }), '');
 
+// Integratie groep B (audit "weergaven"): speling toont sindsdien in werkdagen met eenheid
+// (`workDaysCellText`, bv. "0 d" — in deze headless context zonder vertalingen de ruwe sleutel).
+// Waar het hier om gaat is "het getal, geen niet-vastgelegd": de tekst begint met het getal.
+const showsNumber = (text: string | undefined, n: number): boolean =>
+  text !== undefined && text !== 'Niet vastgelegd' && text.startsWith(String(n));
+
 // De vier late-/floatkolommen: alleen de assen die `recordedUnrecordedAxes` noemt tonen "niet
 // vastgelegd"; de rest blijft de gewone geformatteerde waarde (byte-identiek aan vóór T6).
 const lateStartCol = registryPlain.find(c => c.id === 'task.time.lateStart')!;
@@ -219,13 +225,13 @@ eq('lateFinish IS in de onvastgelegde-assenlijst ⇒ "niet vastgelegd" i.p.v. de
 eq('totalFloat IS in de onvastgelegde-assenlijst ⇒ "niet vastgelegd" i.p.v. een verzonnen 0',
   totalFloatCol.format(totalFloatCol.read(task, axisCtx), task, axisCtx), 'Niet vastgelegd');
 eq('freeFloat is NIET in de onvastgelegde-assenlijst ⇒ gewoon het getal 0, geen "niet vastgelegd"',
-  freeFloatCol.format(freeFloatCol.read(task, axisCtx), task, axisCtx), '0');
+  showsNumber(freeFloatCol.format(freeFloatCol.read(task, axisCtx), task, axisCtx), 0), true);
 
 // Zonder de naad (ctx.recordedUnrecordedAxes ontbreekt, zoals op elk niet-XER-document) blijft
 // het gedrag van vóór T6 volledig intact — dit is de "geen regressie op bestaande documenten"-poort.
 const noAxisCtx = baseContext();
 eq('zonder recordedUnrecordedAxes: totalFloat toont gewoon het getal, geen "niet vastgelegd"',
-  totalFloatCol.format(totalFloatCol.read(task, noAxisCtx), task, noAxisCtx), '0');
+  showsNumber(totalFloatCol.format(totalFloatCol.read(task, noAxisCtx), task, noAxisCtx), 0), true);
 eq('zonder recordedUnrecordedAxes: lateFinish toont gewoon de datum',
   lateFinishCol.format(lateFinishCol.read(task, noAxisCtx), task, noAxisCtx), task.time.lateFinish);
 
@@ -309,8 +315,7 @@ eq('zonder recordedUnrecordedAxes: lateFinish toont gewoon de datum',
   eq('aanbodstand door de echte store: lateStart toont de BEREKENDE datum, niet "Niet vastgelegd"',
     lateStartCol.format(lateStartCol.read(storeTask, ctx), storeTask, ctx), storeTask.time.lateStart);
   eq('aanbodstand door de echte store: totalFloat toont de BEREKENDE speling, niet "Niet vastgelegd"',
-    totalFloatCol.format(totalFloatCol.read(storeTask, ctx), storeTask, ctx),
-    String(storeTask.time.totalFloat));
+    showsNumber(totalFloatCol.format(totalFloatCol.read(storeTask, ctx), storeTask, ctx), storeTask.time.totalFloat), true);
 
   // Tegenproef op hetzelfde document: zodra de gebruiker "Opgeslagen datums tonen" kiest, IS de
   // "niet vastgelegd"-tekst juist het eerlijke antwoord — het bestand zei daar niets.
@@ -358,14 +363,14 @@ eq('zonder recordedUnrecordedAxes: lateFinish toont gewoon de datum',
   eq('adapter+dateNotation: lateFinish (wél vastgelegd) toont gewoon de datum in dmy-notatie',
     cell(inMode, 'task.time.lateFinish')?.text, '02-01-2026');
   eq('adapter+dateNotation: freeFloat (wél vastgelegd) toont en kopieert het getal',
-    [cell(inMode, 'task.time.freeFloat')?.text, cell(inMode, 'task.time.freeFloat')?.copyText], ['0', '0']);
+    [showsNumber(cell(inMode, 'task.time.freeFloat')?.text, 0), cell(inMode, 'task.time.freeFloat')?.copyText], [true, '0']);
   eq('adapter+dateNotation: de celtitel verraadt de verzonnen datum evenmin',
     cell(inMode, 'task.time.lateStart')?.title, 'Niet vastgelegd');
   const noMode = makeAdapter(undefined);
   eq('adapter+dateNotation zónder modus: byte-identiek — lateStart toont de datum en kopieert die ook',
     [cell(noMode, 'task.time.lateStart')?.text, cell(noMode, 'task.time.lateStart')?.copyText], ['01-01-2026', '01-01-2026']);
   eq('adapter+dateNotation zónder modus: totalFloat toont het getal',
-    [cell(noMode, 'task.time.totalFloat')?.text, cell(noMode, 'task.time.totalFloat')?.copyText], ['0', '0']);
+    [showsNumber(cell(noMode, 'task.time.totalFloat')?.text, 0), cell(noMode, 'task.time.totalFloat')?.copyText], [true, '0']);
 }
 
 if (diffs.length > 0) {

@@ -15,6 +15,8 @@ import type { AppSliceFactory, NotifyInput, NotificationDetailLine } from './typ
 import type { AppState } from '../appStore';
 import { isTauri } from '@/utils/platform';
 import type { Task } from '@/types/task';
+import { refreshProjectCalendarCache } from '../syncProjectCalendar';
+import { stripLibraryOrigins } from '@/services/library/libraryOps';
 import { activeImportResult, isMultiDocumentImport, type ImportLabels, type ImportResult, type OpenedImport } from '@/services/importTypes';
 import { hydratePayload, isFreshImportOrigin, payloadFromImport, type DocumentPayload } from '../documentContract';
 import { applyRecordedDatesOnLoad, materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
@@ -30,19 +32,7 @@ import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerEx
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
 import type { ImportLabelT } from '@/i18n/importLabels';
-import {
-  invalidateUndoneHistoryForScopes,
-  removeSessionHistoryForDocumentFromState,
-  type HistoryScopeKey, type SessionHistoryEvent,
-} from '../sessionHistory';
-
-function invalidateDocumentRedo(
-  state: { historyEvents: SessionHistoryEvent[] },
-  documentId: string,
-): void {
-  const scope: HistoryScopeKey = `document:${documentId}`;
-  state.historyEvents = invalidateUndoneHistoryForScopes(state.historyEvents, new Set([scope]));
-}
+import { invalidateDocumentRedo, removeSessionHistoryForDocumentFromState } from '../sessionHistory';
 
 /**
  * Voorgestelde bestandsnaambasis voor opslaan/exporteren: bij een XER-document "Projectnaam
@@ -455,16 +445,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       payload.fileHandle = opts.fileHandle !== undefined ? opts.fileHandle : current.fileHandle;
       if (!opts.linkedOpen) {
         payload.project = { ...payload.project, companyId: undefined, companyName: undefined };
-        payload.resources = payload.resources.map((resource) => {
-          const { libraryOrigin: _discarded, ...rest } = resource;
-          return rest;
-        });
-        payload.calendars = payload.calendars.map((calendar) => {
-          const { libraryOrigin: _discarded, ...rest } = calendar;
-          return rest;
-        });
-        payload.calendar = payload.calendars.find(calendar =>
-          calendar.id === payload.project.calendarId) ?? payload.calendar;
+        stripLibraryOrigins(payload);
+        refreshProjectCalendarCache(payload);
       }
       const prepared = prepareLoadedPayload(payload, { recompute: !!opts.recompute });
       if (opts.recompute) {

@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
 import type { WorkCalendar } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
 import { computeGenerateSpan } from '@/engine/calendar/generateCalendarHolidays';
 import { CalendarForm } from './CalendarForm';
-import { Dialog } from '@/components/common/Dialog';
-import { scalarBreakIssue } from '@/utils/effectiveWorkTime';
+import { Dialog, DialogHeader } from '@/components/common/Dialog';
+import { calendarScalarBreakIssue } from '@/utils/effectiveWorkTime';
 
 /**
  * Resource-kalender-editor (fase 2.5, §3.4) — hergebruikt `CalendarForm`, net als de
@@ -56,28 +55,19 @@ export function ResourceCalendarDialog({
   );
   const [scalarTimeTextInvalid, setScalarTimeTextInvalid] = useState(false);
 
-  const simpleBreakInvalid = scalarTimeTextInvalid || scalarBreakIssue(
-    draft.workStartHour * 60,
-    draft.workEndHour * 60,
-    draft.simpleBreakStartMinute,
-    draft.simpleBreakDurationMinutes,
-  ) !== undefined;
+  const simpleBreakInvalid = scalarTimeTextInvalid || calendarScalarBreakIssue(draft) !== undefined;
 
   const handleApply = () => {
     if (simpleBreakInvalid) return;
+    // Een nieuwe kalender gaat zonder id de bibliotheek in; die kent zelf een id toe.
+    const { id: _unused, ...rest } = draft;
+    void _unused;
     if (poolCompanyId) {
-      if (existing) {
-        updatePoolCalendar(poolCompanyId, existing.id, draft);
-      } else {
-        const { id: _unused, ...rest } = draft;
-        void _unused;
-        addPoolCalendar(poolCompanyId, rest);
-      }
+      if (existing) updatePoolCalendar(poolCompanyId, existing.id, draft);
+      else addPoolCalendar(poolCompanyId, rest);
     } else if (existing) {
       updateCalendar(existing.id, draft);
     } else {
-      const { id: _unused, ...rest } = draft;
-      void _unused;
       addCalendar(rest);
     }
     onClose();
@@ -89,14 +79,7 @@ export function ResourceCalendarDialog({
       onCancel={onClose}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[600px] max-h-[90vh] flex flex-col overflow-hidden"
     >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
-            {tCommon('resource.calendarDialog.title')}
-          </span>
-          <button onClick={onClose} className="p-1 hover:bg-surface-hover rounded-[8px]">
-            <X size={16} />
-          </button>
-        </div>
+        <DialogHeader title={tCommon('resource.calendarDialog.title')} onClose={onClose} />
 
         <CalendarForm
           draft={draft}

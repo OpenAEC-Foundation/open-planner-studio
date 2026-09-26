@@ -140,8 +140,9 @@ const isTauri = () => '__TAURI_INTERNALS__' in window;
   the caret, nothing without. Bumping it is a deliberate, separately reviewed
   change — read the changelog for draft/freeze/structural-sharing behaviour first.
 - Settings persist to **`localStorage` under `ops-`-prefixed keys**
-  (`src/utils/settingsStore.ts`). `@tauri-apps/plugin-store` is a dependency
-  but **unused** — do not reach for it for settings.
+  (`src/utils/settingsStore.ts`). The Rust side still registers
+  `tauri-plugin-store`, but it is **unused** (no npm package, no JS caller) —
+  do not reach for it for settings.
 - Project auto-save runs in **both** Tauri and browser: **throttled to 10 s** in
   `src/hooks/useAutoSave.ts` (a throttle, not a debounce — a debounce would only
   write 10 s after the *last* edit and so widen the data-loss window during a long

@@ -106,10 +106,12 @@
       "priority": "Priorità di livellamento",
       "recordedSource": "Origine (date registrate)",
       "remainingMinutes": "Rimanente (minuti)",
-      "remainingTime": "Rimanente (giorni lavorativi)",
+      "remainingTime": "Rimanente",
       "resourceIds": "ID risorse",
       "resume": "Data di ripresa",
       "scheduleFinish": "Fine pianificata",
+      "start": "Inizio",
+      "finish": "Fine",
       "scheduleStart": "Inizio pianificato",
       "splitGaps": "Interruzioni",
       "status": "Stato",
@@ -146,6 +148,10 @@
     },
     "validation": {
       "readOnly": "Questa colonna calcolata non può essere modificata.",
+      "scheduleFinishNotManual": "La fine pianificata vale solo per un’attività pianificata manualmente. Modifica la fine tramite la colonna Fine o la durata.",
+      "finishFromDuration": "Per questa attività la fine deriva dall’inizio e dalla durata. Modifica l’inizio o la durata.",
+      "finishBeforeStart": "La fine è precedente all’inizio.",
+      "finishIsActual": "Questa attività è completata; la sua fine è la fine effettiva. Modificala tramite l’avanzamento.",
       "invalid": "Il valore inserito non è valido.",
       "relationToken": "Usa, ad esempio, 1.2 FS+2d.",
       "externalRelationRequiresDialog": "Aggiungi un’attività esterna tramite Relazione → Aggiungi relazione esterna…",
@@ -237,7 +243,8 @@
       "unknownTask": "L'attività a cui si fa riferimento non esiste.",
       "unrepresentableSummaryRelation": "Una relazione con un'attività di riepilogo non può essere modificata qui.",
       "self": "Un'attività non può dipendere da se stessa.",
-      "ancestor": "Un'attività non può avere una relazione con la propria attività di riepilogo."
+      "ancestor": "Un'attività non può avere una relazione con la propria attività di riepilogo.",
+      "summaryProgress": "L'avanzamento di un'attività di riepilogo è derivato dalle sue sottoattività e non può essere modificato qui."
     },
     "controls": {
       "collapse": "Comprimi",
@@ -415,7 +422,8 @@
       "actualStart": "Inizio effettivo",
       "actualFinish": "Fine effettiva",
       "actualDate": "Data effettiva",
-      "remaining": "Rimanente (giorni lavorativi)"
+      "remaining": "Rimanente",
+      "summaryDerived": "Derivato dalle sottoattività: modifica l'avanzamento lì. L'attività di riepilogo si aggiorna dopo il calcolo (F5)."
     },
     "cpmResult": "Risultato CPM",
     "earlyStart": "Inizio anticipato:",

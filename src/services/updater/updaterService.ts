@@ -9,6 +9,7 @@
  */
 
 import { isTauri } from '@/utils/platform';
+import { GITHUB_REPO } from '@/services/githubRepo';
 
 export interface UpdateInfo {
   version: string;
@@ -28,8 +29,7 @@ export interface UpdateInfo {
 export type InstallKind = 'appimage' | 'snap' | 'deb' | 'native';
 
 /** GitHub-release-pagina (laatste release) voor handmatige .deb-installatie. */
-export const RELEASES_PAGE_URL =
-  'https://github.com/OpenAEC-Foundation/open-planner-studio/releases/latest';
+export const RELEASES_PAGE_URL = `https://github.com/${GITHUB_REPO}/releases/latest`;
 
 /**
  * Detecteer het install-type via de dunne Rust-command `install_kind`.

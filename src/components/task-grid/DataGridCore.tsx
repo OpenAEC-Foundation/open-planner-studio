@@ -22,8 +22,9 @@ import {
   type DataGridLabels,
   type DataGridRowModel,
 } from './taskGridContext';
-import type { GridCellAddress, GridSelectionState } from '@/engine/taskGrid/selection';
+import { sameCellAddress, type GridCellAddress, type GridSelectionState } from '@/engine/taskGrid/selection';
 import type { TaskColumnId } from '@/types/taskGrid';
+import { nextFrame } from '@/utils/nextFrame';
 
 export interface DataGridCoreProps {
   rows: readonly DataGridRowModel[];
@@ -104,10 +105,6 @@ export function shouldHandleDataGridClipboardEvent(event: {
     ?.closest?.('input, textarea, select, [contenteditable="true"]');
 }
 
-function sameCell(left: GridCellAddress | null, right: GridCellAddress | null): boolean {
-  return left?.rowKey === right?.rowKey && left?.columnId === right?.columnId;
-}
-
 function selectedCell(
   cell: GridCellAddress,
   selection: Readonly<GridSelectionState>,
@@ -128,9 +125,18 @@ function selectedCell(
     && column >= Math.min(fromColumn, toColumn) && column <= Math.max(fromColumn, toColumn);
 }
 
-function nextFrame(callback: () => void): void {
-  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(callback);
-  else setTimeout(callback, 0);
+/**
+ * Plan een celfocus voor het volgende frame. Alleen de laatst geplande mag nog focussen: een latere
+ * aanvraag, of `ledger.current++` bij het openen van een editor, maakt een openstaand frame ongeldig.
+ * Zonder die vervaldatum won een celfocus die vóór een snelle Enter was gepland (pijltoets en Enter
+ * binnen één frame, of een traag frame op een belaste machine) het van het invoerveld dat de editor
+ * intussen zelf had gefocust: de editor stond open, maar typen kwam er niet meer in.
+ */
+function deferCellFocus(ledger: { current: number }, focus: () => void): void {
+  const request = ++ledger.current;
+  nextFrame(() => {
+    if (ledger.current === request) focus();
+  });
 }
 
 interface DataGridScrollTarget {
@@ -188,6 +194,9 @@ export function DataGridCore({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cellsRef = useRef(new Map<string, HTMLDivElement>());
   const pendingFocusKeyRef = useRef<string | null>(null);
+  // Volgnummer van de laatst geplande celfocus (`deferCellFocus`); ophogen maakt elk openstaand
+  // focusframe ongeldig.
+  const cellFocusRequestRef = useRef(0);
   const lastRequestedActiveKeyRef = useRef<string | null>(null);
   const [announcedMessage, setAnnouncedMessage] = useState('');
   useEffect(() => {
@@ -233,7 +242,7 @@ export function DataGridCore({
     const mounted = cellsRef.current.get(key);
     if (mounted) {
       pendingFocusKeyRef.current = null;
-      nextFrame(() => cellsRef.current.get(key)?.focus());
+      deferCellFocus(cellFocusRequestRef, () => cellsRef.current.get(key)?.focus());
       return;
     }
     pendingFocusKeyRef.current = key;
@@ -245,7 +254,7 @@ export function DataGridCore({
       if (containerRef.current) containerRef.current.scrollTop = nextScrollTop;
       onScrollTopChange?.(nextScrollTop);
     }
-    nextFrame(() => {
+    deferCellFocus(cellFocusRequestRef, () => {
       const node = cellsRef.current.get(key);
       if (!node) return;
       pendingFocusKeyRef.current = null;
@@ -261,6 +270,10 @@ export function DataGridCore({
 
   const activeKey = selection.active ? gridCellKey(selection.active) : null;
   useEffect(() => {
+    // Een geopende editor neemt de focus zelf (TaskCellEditor) en zet hem bij commit of annuleren
+    // terug op een cel. Een celfocus die nog uit de selectiemodus openstaat, vervalt hier: anders
+    // berooft hij het zojuist gefocuste invoerveld wanneer het frame pas ná de Enter komt.
+    if (mode === 'edit') cellFocusRequestRef.current++;
     const shouldRequestFocus = shouldRequestTaskGridCellFocus({
       mode,
       activeKey,
@@ -293,7 +306,7 @@ export function DataGridCore({
     const node = cellsRef.current.get(key);
     if (!node) return;
     pendingFocusKeyRef.current = null;
-    nextFrame(() => node.focus());
+    deferCellFocus(cellFocusRequestRef, () => node.focus());
   }, [virtual.startIndex, virtual.endIndexExclusive]);
 
   useEffect(() => {
@@ -458,7 +471,7 @@ export function DataGridCore({
                       columnIndex={columnIndex}
                       model={getCell(row, column)}
                       selected={selectedCell(cell, selection, rowIndexByKey, columnIndexById)}
-                      active={sameCell(cell, selection.active)}
+                      active={sameCellAddress(cell, selection.active)}
                       rowHeight={rowHeight}
                       textDirection={textDirection}
                       stickyEnabled={pinned.stickyEnabled}

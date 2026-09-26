@@ -22,6 +22,7 @@
 
 import { getSetting, setSetting } from '@/utils/settingsStore';
 import { snapToChoice } from '@/utils/numberChoice';
+import { parseBoolean, parseClampedInt, parseEnum } from '@/utils/settingParsers';
 import { NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM } from '@/services/print/printPreview';
 import {
   REPORTING_PERIOD_PRESETS, type ReportingPeriod, isIsoDay, weeksToPreset,
@@ -258,30 +259,9 @@ const TIMELINE_COLUMNS_MIN = 1;
 const TIMELINE_COLUMNS_MAX = 8;
 
 // --- Parsers -----------------------------------------------------------------------------------
-// Alle parsers geven `undefined` terug bij een waarde die ze niet vertrouwen; de aanroeper valt dan
-// PER VELD terug op de default. Dat is bewust: een handmatig geprutste of half-gemigreerde sleutel
-// mag hooguit dát ene veld resetten, nooit de rest van de voorkeuren wegvagen.
-
-function parseBoolean(raw: unknown): boolean | undefined {
-  return typeof raw === 'boolean' ? raw : undefined;
-}
-
-function parseEnum<T extends string>(allowed: readonly T[], raw: unknown): T | undefined {
-  return typeof raw === 'string' && (allowed as readonly string[]).includes(raw) ? (raw as T) : undefined;
-}
-
-// Zie `snapToChoice`: één gedeelde semantiek voor "getal buiten de keuzelijst" (snappen naar de
-// dichtstbijzijnde), zodat deze loader, de settings-loader en de render-engine niet elk hun eigen
-// antwoord geven op dezelfde vraag.
-function parseNumberChoice(allowed: readonly number[], raw: unknown): number | undefined {
-  return snapToChoice(allowed, raw);
-}
-
-/** Vrij instelbaar getal: afronden + klemmen, zodat een rare waarde de UI niet onbruikbaar maakt. */
-function parseClampedInt(raw: unknown, min: number, max: number): number | undefined {
-  if (typeof raw !== 'number' || !Number.isFinite(raw)) return undefined;
-  return Math.min(max, Math.max(min, Math.round(raw)));
-}
+// De veldparsers (`settingParsers.ts`) geven `undefined` terug bij een waarde die ze niet vertrouwen;
+// de aanroeper valt dan PER VELD terug op de default. Dat is bewust: een handmatig geprutste of
+// half-gemigreerde sleutel mag hooguit dát ene veld resetten, nooit de rest van de voorkeuren wegvagen.
 
 /**
  * Een opgeslagen rapportageperiode: een geldige preset, bij `custom` met twee geordende ISO-dagen.
@@ -378,7 +358,8 @@ export async function loadReportSettings(): Promise<ReportSettings> {
     repeatHeader: parseBoolean(s.repeatHeader) ?? d.repeatHeader,
     repeatFooter: parseBoolean(s.repeatFooter) ?? d.repeatFooter,
     timelineColumns: parseClampedInt(s.timelineColumns, TIMELINE_COLUMNS_MIN, TIMELINE_COLUMNS_MAX) ?? d.timelineColumns,
-    reportFontScale: parseNumberChoice(FONT_SCALES, s.reportFontScale) ?? d.reportFontScale,
+    // `snapToChoice`: dezelfde "getal buiten de keuzelijst"-semantiek als de settings-loader.
+    reportFontScale: snapToChoice(FONT_SCALES, s.reportFontScale) ?? d.reportFontScale,
     statusLine: parseEnum(STATUS_LINES, s.statusLine) ?? d.statusLine,
     followView: parseBoolean(s.followView) ?? d.followView,
     // `previewZoom` uit de kortstondige 69ad-versie wordt bewust genegeerd: de preview verandert

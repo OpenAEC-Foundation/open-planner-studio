@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import { dateToX, MS_PER_DAY, xToDate, xToDayOffset } from '@/engine/renderer/timeAxis';
+import { dateToX, xToDate, xToDayOffset } from '@/engine/renderer/timeAxis';
+import { MS_PER_DAY } from '@/utils/dateUtils';
 import { buildCalendarAxis, buildWorkdayAxis, resolveGanttAxis } from '@/engine/renderer/workdayAxis';
 import { buildSharedAxis } from '@/components/canvas/ganttRenderOptions';
 import { isTimelineCanvasX } from '@/components/canvas/hooks/useCanvasLayer';

@@ -82,7 +82,7 @@
 import type { WorkCalendar } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
-import { canonicalizeBands, getCalendarBands, promoteHourCalendar, registerCalendarBands } from '@/services/subdayIo';
+import { canonicalizeBands, promoteHourCalendars, registerCalendarBands } from '@/services/subdayIo';
 import type { CfbFile } from './cfb';
 import type { Props } from './mppContainer';
 import { FixedData, FixedMeta, Var2Data, VarMeta12, getDate, getInt, getShort, getUnicodeString } from './mppPrimitives';
@@ -840,11 +840,7 @@ export function promoteCalendarsForHourMode(
   calendarByUniqueId: ReadonlyMap<number, WorkCalendar>,
   signaledCalendars: ReadonlySet<WorkCalendar>,
 ): Set<WorkCalendar> {
-  const hourModeCals = new Set<WorkCalendar>();
-  for (const cal of calendarByUniqueId.values()) {
-    if (promoteHourCalendar(cal, getCalendarBands(cal), signaledCalendars.has(cal), false)) {
-      hourModeCals.add(cal);
-    }
-  }
-  return hourModeCals;
+  return promoteHourCalendars(
+    [...calendarByUniqueId.values()].map(cal => [cal, cal] as const), cal => signaledCalendars.has(cal), false,
+  );
 }

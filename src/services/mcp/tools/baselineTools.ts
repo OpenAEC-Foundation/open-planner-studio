@@ -32,7 +32,7 @@ import type { AppState } from '@/state/appStore';
 import type { Baseline } from '@/types/baseline';
 import type { McpContext, McpToolDef } from '../contracts';
 import type { BatchStepTool } from './batchTool';
-import { okDirect } from './helpers';
+import { okDirect, parsedBatchStep, READ_ANNOTATIONS, unknownArgsReason, WRITE_ANNOTATIONS } from './helpers';
 import {
   guardNonTransactional,
   McpStepError,
@@ -42,35 +42,14 @@ import {
   type MutationOutcome,
 } from './runtime';
 
-const STD_ANNOT = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
-
-/** Leestool-annotaties, gelijk aan die van `readTools.ts`. */
-const READ_ANNOT = { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: false };
-
 /** Standaardverwijzing in elke weigering: waar haalt de agent geldige id's vandaan? */
 const LIST_HINT = "haal geldige id's op met planner_list_baselines";
 
 // ── Gedeelde vormcontrole ────────────────────────────────────────────────────────────────────────
-
-/**
- * Weiger onbekende argumentsleutels ZELF (dus niet alleen via de schemapoort in de dispatcher):
- * dezelfde reden als bij de leestools — een tool hoort correct te zijn ongeacht welk pad hem
- * aanroept, en een genegeerde sleutel is een antwoord dat plausibel lijkt maar iets anders deed dan
- * gevraagd. Retourneert een foutboodschap, of null wanneer de sleutels kloppen.
- */
-function rejectUnknownKeys(args: unknown, allowed: readonly string[], toolName: string): string | null {
-  if (args === undefined || args === null) return null;
-  if (typeof args !== 'object' || Array.isArray(args)) {
-    return `${toolName} verwacht een object met argumenten`;
-  }
-  for (const key of Object.keys(args as Record<string, unknown>)) {
-    if (allowed.includes(key)) continue;
-    return allowed.length === 0
-      ? `${toolName} neemt geen argumenten, maar kreeg \`${key}\``
-      : `onbekend argument \`${key}\` voor ${toolName}; toegestaan: ${allowed.join(', ')}`;
-  }
-  return null;
-}
+//
+// Onbekende argumentsleutels weigert elke tool ZELF (`unknownArgsReason`), niet alleen via de
+// schemapoort in de dispatcher: een genegeerde sleutel is een antwoord dat plausibel lijkt maar iets
+// anders deed dan gevraagd.
 
 /** Compacte, leesbare regel per baseline voor in een foutmelding (max 5, daarna "…"). */
 function knownBaselinesHint(s: AppState): string {
@@ -78,6 +57,16 @@ function knownBaselinesHint(s: AppState): string {
   const shown = s.baselines.slice(0, 5).map((b) => `${b.id} ('${b.name}')`);
   const rest = s.baselines.length - shown.length;
   return `bekende baselines: ${shown.join(', ')}${rest > 0 ? ` (+${rest} meer)` : ''}`;
+}
+
+/** Weigering voor een onbekend baseline-id, met de verwijzing naar de geldige id's. */
+function unknownBaselineReason(s: AppState, baselineId: string): string {
+  return `onbekende baseline-id '${baselineId}' — ${LIST_HINT} (${knownBaselinesHint(s)})`;
+}
+
+/** Weigering voor een `baselineId` die geen niet-lege string is. */
+function baselineIdShapeReason(value: unknown): string {
+  return `\`baselineId\` moet een niet-lege string zijn (${LIST_HINT}), kreeg ${value === undefined ? 'niets' : `${typeof value} '${String(value)}'`}`;
 }
 
 /** Zoek een baseline; `null` wanneer onbekend. */
@@ -133,10 +122,10 @@ const listBaselines: McpToolDef = {
     'dan zegt `hint` welke tool dat verhelpt.',
   kind: 'read',
   batchable: true,
-  annotations: { ...READ_ANNOT },
+  annotations: READ_ANNOTATIONS,
   inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   handler(args, ctx) {
-    const bad = rejectUnknownKeys(args, [], 'planner_list_baselines');
+    const bad = unknownArgsReason(args, [], 'planner_list_baselines');
     if (bad) return toolError(ctx, 'VALIDATION', bad);
     return runReadTool(ctx, (s) => listBaselinesCore(s));
   },
@@ -153,7 +142,7 @@ const listBaselines: McpToolDef = {
 interface ActivateArgs { baselineId: string | null }
 
 function parseActivate(args: unknown): ActivateArgs | string {
-  const bad = rejectUnknownKeys(args, ['baselineId'], 'planner_activate_baseline');
+  const bad = unknownArgsReason(args, ['baselineId'], 'planner_activate_baseline');
   if (bad) return bad;
   const a = (args ?? {}) as { baselineId?: unknown };
   if (!('baselineId' in a) || a.baselineId === undefined) {
@@ -169,7 +158,7 @@ function parseActivate(args: unknown): ActivateArgs | string {
 /** Beschrijft wat een activatie zou doen — gedeeld door de handler (no-op-snelpad) en de kern. */
 function activatePlan(s: AppState, p: ActivateArgs): { error: string } | { changed: boolean; data: unknown } {
   if (p.baselineId !== null && !findBaseline(s, p.baselineId)) {
-    return { error: `onbekende baseline-id '${p.baselineId}' — ${LIST_HINT} (${knownBaselinesHint(s)})` };
+    return { error: unknownBaselineReason(s, p.baselineId) };
   }
   const previousActiveBaselineId = s.activeBaselineId;
   const changed = previousActiveBaselineId !== p.baselineId;
@@ -216,7 +205,7 @@ const activateBaseline: BatchStepTool = {
   kind: 'mutate',
   batchable: true,
   // Idempotent: dezelfde baseline nogmaals activeren levert dezelfde toestand op.
-  annotations: { ...STD_ANNOT, idempotentHint: true },
+  annotations: { ...WRITE_ANNOTATIONS, idempotentHint: true },
   inputSchema: {
     type: 'object',
     properties: {
@@ -228,11 +217,7 @@ const activateBaseline: BatchStepTool = {
     required: ['baselineId'],
     additionalProperties: false,
   },
-  batchStep(args, ctx) {
-    const parsed = parseActivate(args);
-    if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return activateCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseActivate, activateCore),
   async handler(args, ctx) {
     const parsed = parseActivate(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -257,11 +242,11 @@ const activateBaseline: BatchStepTool = {
 interface RenameArgs { baselineId: string; name: string }
 
 function parseRename(args: unknown): RenameArgs | string {
-  const bad = rejectUnknownKeys(args, ['baselineId', 'name'], 'planner_rename_baseline');
+  const bad = unknownArgsReason(args, ['baselineId', 'name'], 'planner_rename_baseline');
   if (bad) return bad;
   const a = (args ?? {}) as { baselineId?: unknown; name?: unknown };
   if (typeof a.baselineId !== 'string' || a.baselineId === '') {
-    return `\`baselineId\` moet een niet-lege string zijn (${LIST_HINT}), kreeg ${a.baselineId === undefined ? 'niets' : `${typeof a.baselineId} '${String(a.baselineId)}'`}`;
+    return baselineIdShapeReason(a.baselineId);
   }
   if (typeof a.name !== 'string') {
     return `\`name\` moet een string zijn, kreeg ${a.name === undefined ? 'niets' : `${typeof a.name} '${String(a.name)}'`}`;
@@ -275,7 +260,7 @@ function parseRename(args: unknown): RenameArgs | string {
 function renamePlan(s: AppState, p: RenameArgs): { error: string } | { changed: boolean; data: unknown } {
   const b = findBaseline(s, p.baselineId);
   if (!b) {
-    return { error: `onbekende baseline-id '${p.baselineId}' — ${LIST_HINT} (${knownBaselinesHint(s)})` };
+    return { error: unknownBaselineReason(s, p.baselineId) };
   }
   const changed = b.name !== p.name;
   const duplicate = s.baselines.some((x) => x.id !== p.baselineId && x.name === p.name);
@@ -310,7 +295,7 @@ const renameBaseline: BatchStepTool = {
     'als `warning` gemeld.',
   kind: 'mutate',
   batchable: true,
-  annotations: { ...STD_ANNOT, idempotentHint: true },
+  annotations: { ...WRITE_ANNOTATIONS, idempotentHint: true },
   inputSchema: {
     type: 'object',
     properties: {
@@ -320,11 +305,7 @@ const renameBaseline: BatchStepTool = {
     required: ['baselineId', 'name'],
     additionalProperties: false,
   },
-  batchStep(args, ctx) {
-    const parsed = parseRename(args);
-    if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return renameCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseRename, renameCore),
   async handler(args, ctx) {
     const parsed = parseRename(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -361,11 +342,11 @@ const renameBaseline: BatchStepTool = {
 interface DeleteArgs { baselineId: string }
 
 function parseDelete(args: unknown): DeleteArgs | string {
-  const bad = rejectUnknownKeys(args, ['baselineId'], 'planner_delete_baseline');
+  const bad = unknownArgsReason(args, ['baselineId'], 'planner_delete_baseline');
   if (bad) return bad;
   const a = (args ?? {}) as { baselineId?: unknown };
   if (typeof a.baselineId !== 'string' || a.baselineId === '') {
-    return `\`baselineId\` moet een niet-lege string zijn (${LIST_HINT}), kreeg ${a.baselineId === undefined ? 'niets' : `${typeof a.baselineId} '${String(a.baselineId)}'`}`;
+    return baselineIdShapeReason(a.baselineId);
   }
   return { baselineId: a.baselineId };
 }
@@ -374,10 +355,7 @@ function deleteCore(ctx: McpContext, p: DeleteArgs): MutationOutcome {
   const before = ctx.app.store.getState();
   const target = findBaseline(before, p.baselineId);
   if (!target) {
-    throw new McpStepError(
-      'VALIDATION',
-      `onbekende baseline-id '${p.baselineId}' — ${LIST_HINT} (${knownBaselinesHint(before)})`,
-    );
+    throw new McpStepError('VALIDATION', unknownBaselineReason(before, p.baselineId));
   }
   const wasActive = before.activeBaselineId === p.baselineId;
   const previousActiveBaselineId = before.activeBaselineId;
@@ -432,7 +410,7 @@ const deleteBaseline: BatchStepTool = {
     'van planner_compare_baseline en planner_analyze_delay.',
   kind: 'mutate',
   batchable: true,
-  annotations: { ...STD_ANNOT, destructiveHint: true },
+  annotations: { ...WRITE_ANNOTATIONS, destructiveHint: true },
   inputSchema: {
     type: 'object',
     properties: {
@@ -441,11 +419,7 @@ const deleteBaseline: BatchStepTool = {
     required: ['baselineId'],
     additionalProperties: false,
   },
-  batchStep(args, ctx) {
-    const parsed = parseDelete(args);
-    if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return deleteCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseDelete, deleteCore),
   async handler(args, ctx) {
     const parsed = parseDelete(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);

@@ -41,6 +41,14 @@ El progreso se establece en tres sitios, todos con el mismo efecto:
 
 Las fechas reales nunca pueden ser posteriores a la fecha de estado — intente introducir una posterior y la aplicación la rechaza con un error. Ese es un límite deliberado: un "hecho" (algo que realmente ocurrió) no puede, por definición, situarse en el futuro respecto al momento en que está registrando el progreso.
 
+### Progreso de una fase
+
+Una fase — una tarea con tareas debajo — no tiene progreso propio. Su **porcentaje completado** y su **estado** se derivan de las tareas que tiene debajo en cada cálculo (**F5** o **Calcular**). El porcentaje se pondera por duración: una tarea de diez días laborables cuenta el doble que una de cinco. Es exactamente la cifra que muestra el **Resumen EDT** en la pestaña **Informe**, y la que ven la Tabla, la información emergente, el PDF y el asistente de IA. El estado acompaña: **Completada** en cuanto todas las tareas de debajo han terminado, **En curso** en cuanto una ha empezado, y si no **No iniciada**.
+
+Por eso no puede introducir usted mismo el progreso de una fase. En el panel de propiedades y en el diálogo de tarea, el control deslizante y las fechas reales de una fase están desactivados, y en la **Tabla** las columnas de progreso de una fila de fase son de solo lectura. Si elige **Progreso** en el menú contextual sobre una fase, todas las tareas de debajo reciben ese porcentaje; tras el siguiente cálculo, la fase lo sigue por sí sola.
+
+Dos excepciones siguen la misma regla que las fechas de una fase. Una fase programada manualmente de un archivo de MS Project (`.mpp`) conserva el progreso guardado en el archivo. Y mientras consulta las [fechas tal como se guardaron](docs://datums-zoals-opgeslagen), una fase muestra el progreso del archivo; en cuanto vuelve a calcular, vuelve a ser derivado.
+
 ## La fecha de estado
 
 La **fecha de estado** (grupo de la cinta **Baselines y progreso** en la pestaña Planificación, campo **Fecha de estado**) marca "hoy" dentro de la planificación — el momento a partir del cual registró el progreso. Una vez establecida, hace dos cosas a la vez:

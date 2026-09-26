@@ -3,7 +3,7 @@
 // echte browser-events waarmee een gebruiker deze oppervlakken bedient.
 import type { Locator, Page } from '@playwright/test';
 import { Buffer } from 'node:buffer';
-import { expect, seedProject, test, waitForOps } from './fixtures/ops';
+import { expect, seedProject, test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';
 
 async function openTaskDialog(page: Page, taskId: string): Promise<void> {
   await page.evaluate((id) => {
@@ -306,6 +306,7 @@ test('hook synchronization: een taalwissel start de recoverycontrole niet opnieu
   });
   await page.reload();
   await waitForOps(page);
+  await waitForWelcomeDialog(page);
   await page.evaluate(() => {
     const store = window.__OPS__!.store.getState();
     store.setUI({ showWelcomeDialog: false, showTourOverlay: false, showSettingsDialog: true });

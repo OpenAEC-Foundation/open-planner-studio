@@ -66,8 +66,8 @@ eq('Gantt-default is exact WBS, Naam, Duur',
 eq('Tabel-default bevat de negen vaste brede velden',
   defaults.surfaces['full-task-grid'].columns.slice(0, 9).map(column => column.id),
   [
-    'task.wbsCode', 'task.name', 'task.time.scheduleDuration', 'task.time.scheduleStart',
-    'task.time.scheduleFinish', 'task.taskType', 'task.time.isCritical',
+    'task.wbsCode', 'task.name', 'task.time.scheduleDuration', 'task.time.start',
+    'task.time.finish', 'task.taskType', 'task.time.isCritical',
     'task.time.totalFloat', 'task.time.completion',
   ]);
 eq('Tabel-default voegt projectgebonden dynamische defaults toe',
@@ -140,6 +140,14 @@ const legacyDocumentColumns: ColumnConfig[] = [
 eq('Documentmigratie neemt alleen zichtbare velden en bindt dynamiek aan het bekende project',
   legacyDocumentColumnsToTaskGridPreferences(legacyDocumentColumns, 'project:1').map(column => column.id),
   ['task.name', activityCodeColumnId('project:1', 'fase:1')]);
+// De oude builtin-velden start/finish waren de GETOONDE datums (`resolveField`: shownStart/
+// shownFinish); ze migreren naar Start/Einde, niet naar de invoerankers Geplande start/einde.
+eq('Legacy start/finish migreren naar de getoonde datums Start/Einde',
+  legacyDocumentColumnsToTaskGridPreferences([
+    { field: { src: 'builtin', key: 'start' }, visible: true, width: 101 },
+    { field: { src: 'builtin', key: 'finish' }, visible: true, width: 102 },
+  ], 'project:1').map(column => column.id),
+  ['task.time.start', 'task.time.finish']);
 const legacyGlobal = legacyLayoutColumnsToTaskGridPreferences(legacyDocumentColumns);
 eq('Globale layoutmigratie raadt geen project voor dynamische refs', legacyGlobal.map(column => column.id),
   ['task.name', 'legacy-activity-code:fase%3A1']);

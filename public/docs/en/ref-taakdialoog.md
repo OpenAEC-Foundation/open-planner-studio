@@ -53,7 +53,7 @@ Only on a task without subtasks that is not a milestone. Ticking it makes the du
 
 - **Progress (%)** — slider 0–100%.
 - **Actual start** / **Actual finish** — recorded facts; for a milestone a single **Actual date** field. Dates after the status date are rejected.
-- **Remaining (work days)** — read-only, derived from duration × (1 − progress). See [Baselines & progress](docs://gids-baselines-voortgang).
+- **Remaining** — read-only, derived from duration × (1 − progress): a day task in work days, an hour task in hours and minutes. See [Baselines & progress](docs://gids-baselines-voortgang).
 
 ## CPM Result (read-only)
 

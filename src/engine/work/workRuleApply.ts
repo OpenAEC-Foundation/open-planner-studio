@@ -21,14 +21,13 @@ import type { Task } from '@/types/task';
 import { DEFAULT_WORK_RULE, type WorkRule } from '@/types/workRule';
 import { contourIndexForAssignment, taskWorkMinutes } from '@/engine/contour/contourEngine';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
-import { clipUserGapsToWork } from '@/engine/scheduler/splitEdit';
 import { effHoursPerDay } from '@/utils/taskDuration';
 // E6 (PR #101 baan 1, orkestratorbesluit onder regel B): `contourKeepsWork` en `effectiveEffortDriven`
 // lezen per-taak-herkomst (`mspTaskType`) van bewaarde data — bewerksemantiek, geen solverinvoer en
 // geen conventie. Ze wonen daarom in `utils/taskDefaults.ts`, buiten `src/engine/` (verify:conventions).
 import {
-  clearLevelingGaps, clearTimephasedDurationWalks, clearTimephasedWindow, contourKeepsWork, effectiveEffortDriven,
-  hourInputFinishBasis, reconcileHourInputFinish, rescaleTaskContours, timephasedDurationWalksHaveFrozenWork,
+  applyDurationChangeRules, contourKeepsWork, effectiveEffortDriven,
+  hourInputFinishBasis, reconcileHourInputFinish, rescaleTaskContours,
   type HourInputFinishBasis,
 } from '@/utils/taskDefaults';
 import {
@@ -446,22 +445,16 @@ export function settleDurationAftermath(
   finishBasis: HourInputFinishBasis,
 ): boolean {
   const hpd = workRuleContextOf(task, deps).hoursPerDay;
-  const rescaled = rescaleTaskContours(task, oldWorkMinutes, hpd, contourKeepsWork(task, deps.project.defaultWorkRule));
-  // Issue #146 (tweeling van `taskSlice.updateTask`): zonder contour schaalt niets de gaten mee, dus
-  // een duurKRIMP uit de driehoek mag geen gebruikersgat op of voorbij het nieuwe werktotaal laten
-  // liggen — anders is de taak voor splits stil alleen-lezen.
-  if (!rescaled) {
-    const newWorkMinutes = taskWorkMinutes(task.time, hpd);
-    if (newWorkMinutes < oldWorkMinutes - 1e-6) {
-      const clipped = clipUserGapsToWork(task.splitGaps, newWorkMinutes);
-      task.splitGaps = clipped && clipped.length > 0 ? clipped : undefined;
-    }
-  }
-  const clearedWindow = clearTimephasedWindow(task);
-  const clearedWalks = timephasedDurationWalksHaveFrozenWork(task) && clearTimephasedDurationWalks(task);
-  clearLevelingGaps(task);
+  // Integratie groep B × #170 (besluit 1): de regels zelf staan in ÉÉN kern,
+  // `applyDurationChangeRules` (taskDefaults.ts) — contour/importsplits herschalen (werkbehoud
+  // volgens de regel), bij een duurKRIMP zonder herschaling de gebruikersgaten afknippen (issue #146),
+  // laag 3 en bevroren laag 4 ontkoppelen, nivelleergaten wissen. Hier komt alleen het ingevoerde
+  // uur-einde erbij, ná het wissen van de nivelleergaten.
+  const lost = applyDurationChangeRules(task, oldWorkMinutes, hpd, {
+    keepWork: contourKeepsWork(task, deps.project.defaultWorkRule),
+  });
   reconcileHourInputFinish(task, finishBasis, resolveCalendar(task.calendarId, deps.calendars as WorkCalendar[], deps.calendar));
-  return clearedWindow || clearedWalks;
+  return lost;
 }
 
 /**

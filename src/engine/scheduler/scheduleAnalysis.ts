@@ -7,6 +7,7 @@ import { parseDate, formatInstant, type DateMode } from '@/utils/dateUtils';
 import { traceFrom } from './graphWalk';
 import { projectDurationOf } from './projectDuration';
 import { isZeroDurationMilestone } from './duration';
+import { isLeafTask } from '@/utils/taskHierarchy';
 import { explainP6CompletedDataDateWindowResolved } from '@/engine/scheduler/p6CompletedTargetWindow';
 import {
   explainDisplayActualLateEligibility,
@@ -627,4 +628,17 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     projectEnd: hasSchedule ? formatInstant(projectEnd, modeOf(projectEngine)) : '',
     projectDuration,
   };
+}
+
+/**
+ * Het aantal kritieke ACTIVITEITEN: bladtaken met `isCritical`. Een verzameltaak krijgt haar
+ * kritiek-vlag opgerold van haar kinderen (`applyCpmResult`) en is zelf geen activiteit — telt je
+ * haar mee, dan telt één kritieke keten in drie fasen drie keer extra. Dit is dezelfde telling als
+ * de statusbalk (`cpmResult.criticalPath`, dat de solver alleen uit bladtaken opbouwt), en de ene
+ * teller voor het Rapportpaneel en MCP `planner_get_project_info` (audit weergaven, bevinding 5).
+ */
+export function countCriticalActivities(tasks: readonly Task[]): number {
+  let n = 0;
+  for (const t of tasks) if (t.time.isCritical && isLeafTask(t)) n++;
+  return n;
 }
