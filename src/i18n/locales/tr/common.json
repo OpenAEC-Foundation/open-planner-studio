@@ -822,11 +822,7 @@
     "structureLockedHint": "Filtreleme/gruplama/sıralama sırasında kullanılamaz",
     "columns": {
       "title": "Sütunlar",
-      "visible": "Görünür",
-      "width": "Genişlik",
-      "resetDefault": "Varsayılana sıfırla",
-      "available": "Kullanılabilir alanlar",
-      "scopeHint": "Bu sütunlar Tablo görünümü için geçerlidir. Gantt’ın yanındaki görev listesi her zaman WBS, ad ve süre gösterir."
+      "resetDefault": "Varsayılana sıfırla"
     },
     "filter": {
       "title": "Filtre",

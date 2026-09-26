@@ -789,11 +789,7 @@
     "structureLockedHint": "필터링/그룹화/정렬 중에는 사용할 수 없습니다",
     "columns": {
       "title": "열",
-      "visible": "표시",
-      "width": "너비",
-      "resetDefault": "기본값으로 재설정",
-      "available": "사용 가능한 필드",
-      "scopeHint": "이 열은 테이블 보기에 적용됩니다. 간트 옆의 작업 목록은 항상 WBS, 작업 이름, 기간을 표시합니다."
+      "resetDefault": "기본값으로 재설정"
     },
     "filter": {
       "title": "필터",

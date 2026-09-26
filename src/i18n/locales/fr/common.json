@@ -855,11 +855,7 @@
     "structureLockedHint": "Non disponible pendant le filtrage/regroupement/tri",
     "columns": {
       "title": "Colonnes",
-      "visible": "Visible",
-      "width": "Largeur",
-      "resetDefault": "Réinitialiser par défaut",
-      "available": "Champs disponibles",
-      "scopeHint": "Ces colonnes s’appliquent à la vue Tableau. La liste des tâches à côté du Gantt affiche toujours WBS, nom et durée."
+      "resetDefault": "Réinitialiser par défaut"
     },
     "filter": {
       "title": "Filtre",

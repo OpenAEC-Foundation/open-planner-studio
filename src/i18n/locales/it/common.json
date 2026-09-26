@@ -855,11 +855,7 @@
     "structureLockedHint": "Non disponibile durante filtro/raggruppamento/ordinamento",
     "columns": {
       "title": "Colonne",
-      "visible": "Visibile",
-      "width": "Larghezza",
-      "resetDefault": "Ripristina predefiniti",
-      "available": "Campi disponibili",
-      "scopeHint": "Queste colonne valgono per la vista Tabella. L’elenco attività accanto al Gantt mostra sempre WBS, nome e durata."
+      "resetDefault": "Ripristina predefiniti"
     },
     "filter": {
       "title": "Filtro",

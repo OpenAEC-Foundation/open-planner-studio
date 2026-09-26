@@ -822,11 +822,7 @@
     "structureLockedHint": "Nicht verfügbar während des Filterns/Gruppierens/Sortierens",
     "columns": {
       "title": "Spalten",
-      "visible": "Sichtbar",
-      "width": "Breite",
-      "resetDefault": "Auf Standard zurücksetzen",
-      "available": "Verfügbare Felder",
-      "scopeHint": "Diese Spalten gelten für die Tabellenansicht. Die Vorgangsliste neben dem Gantt zeigt immer PSP, Name und Dauer."
+      "resetDefault": "Auf Standard zurücksetzen"
     },
     "filter": {
       "title": "Filter",

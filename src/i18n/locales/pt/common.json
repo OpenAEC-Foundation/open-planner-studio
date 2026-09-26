@@ -855,11 +855,7 @@
     "structureLockedHint": "Não disponível durante a filtragem/agrupamento/ordenação",
     "columns": {
       "title": "Colunas",
-      "visible": "Visível",
-      "width": "Largura",
-      "resetDefault": "Repor predefinição",
-      "available": "Campos disponíveis",
-      "scopeHint": "Estas colunas aplicam-se à vista Tabela. A lista de tarefas junto ao Gantt mostra sempre WBS, nome e duração."
+      "resetDefault": "Repor predefinição"
     },
     "filter": {
       "title": "Filtro",
