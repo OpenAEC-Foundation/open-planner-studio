@@ -392,20 +392,31 @@ function taskDurationUnitOfTime(time: TaskTime): TaskDurationUnit {
 
 /** Deterministische leesmigratie voor documentpayloads en recoverydata van vóór de eenheidskeuze. */
 export function normalizeTaskDurationUnits(tasks: Task[]): Task[] {
-  return tasks.map((task) => {
-    // Het documentcontract wordt ook met bewust onvolledige poison-fixtures getest. Laat zulke
-    // bestaande invaliditeit aan de contracttest over; de leesmigratie heeft uitsluitend iets te
-    // normaliseren wanneer er daadwerkelijk een TaskTime-tak aanwezig is.
-    if (!task?.time) return task;
-    const legacy = task.time as TaskTime & { durationUnit?: TaskDurationUnit };
-    const durationUnit = legacy.durationUnit ?? (legacy.durationMinutes != null ? 'hours' : 'days');
-    if (legacy.durationUnit === durationUnit && !(durationUnit === 'days' && legacy.durationMinutes != null)) {
-      return task;
-    }
-    const time: TaskTime = { ...legacy, durationUnit };
-    if (durationUnit === 'days') time.durationMinutes = undefined;
-    return { ...task, time };
+  // Niets te normaliseren ⇒ DEZELFDE array: de crashherstel-delta en de 'stale'-toets van automatisch
+  // opslaan vergelijken bronnen op referentie (`sameIFCSource`), dus een nieuwe array bij elke
+  // documentactivatie liet elke wissel het hele document opnieuw naar IFC serialiseren.
+  let changed = false;
+  const out = tasks.map((task) => {
+    const next = normalizeTaskDurationUnit(task);
+    if (next !== task) changed = true;
+    return next;
   });
+  return changed ? out : tasks;
+}
+
+function normalizeTaskDurationUnit(task: Task): Task {
+  // Het documentcontract wordt ook met bewust onvolledige poison-fixtures getest. Laat zulke
+  // bestaande invaliditeit aan de contracttest over; de leesmigratie heeft uitsluitend iets te
+  // normaliseren wanneer er daadwerkelijk een TaskTime-tak aanwezig is.
+  if (!task?.time) return task;
+  const legacy = task.time as TaskTime & { durationUnit?: TaskDurationUnit };
+  const durationUnit = legacy.durationUnit ?? (legacy.durationMinutes != null ? 'hours' : 'days');
+  if (legacy.durationUnit === durationUnit && !(durationUnit === 'days' && legacy.durationMinutes != null)) {
+    return task;
+  }
+  const time: TaskTime = { ...legacy, durationUnit };
+  if (durationUnit === 'days') time.durationMinutes = undefined;
+  return { ...task, time };
 }
 
 /**
