@@ -10,7 +10,7 @@ import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } f
 import { Baseline } from '@/types/baseline';
 import type { CustomTaskType } from '@/types/taskType';
 import {
-  effectiveCalendarByTask, minutesToClock, minutesToIsoDuration, taskMinutesForWrite,
+  effectiveCalendarByTask, minutesToClock, minutesToIsoDuration, scalarHourFromClock, taskMinutesForWrite,
 } from '@/services/subdayIo';
 import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import type { ImportResult, RecordedSourceFormat } from '@/services/importTypes';
@@ -255,9 +255,8 @@ export function writeIFC(input: WriteIFCInput): string {
     const calendarId = taskDurationUnit(task) === 'hours' ? effCalByTask.get(task.id)?.id : undefined;
     return calendarId ? [calendarId] : [];
   }));
-  const { calStepId: projectCalStepId, workingExceptionStepIds: projectWorkingExceptionStepIds }
-    = writeCalendar(ctx, calendar, ownerHistId, '_calendar', hourTaskCalendarIds.has(calendar.id));
-  writeCalendarGenerationMeta(ctx, projectCalStepId, calendar, ownerHistId, projectWorkingExceptionStepIds);
+  const projectCalWritten = writeCalendar(ctx, calendar, ownerHistId, '_calendar', hourTaskCalendarIds.has(calendar.id));
+  writeCalendarGenerationMeta(ctx, calendar, ownerHistId, projectCalWritten);
 
   // Work plan & schedule
   const startDates = tasks.map(t => t.time.scheduleStart).filter(Boolean).sort();
@@ -840,6 +839,12 @@ function shiftToPredefinedType(shift: WorkCalendar['shift']): string {
 interface WriteCalendarResult {
   calStepId: number;
   workingExceptionStepIds: number[];
+  /** H7 — het scalar begin-/einduur zoals de lezer het uit de EERSTE geschreven `IFCTIMEPERIOD`
+   *  afleidt (`scalarHourFromClock`); `undefined` ⇒ er is geen periode geschreven. */
+  readerScalarHours: { start: number; end: number } | undefined;
+  /** H7 — de `IFCTIMEPERIOD`s zijn de EFFECTIEVE banden van een SCALAIRE kalender (een urentaak
+   *  gebruikt hem), niet de expliciete `workTime` van een uurkalender. */
+  materializedScalarBands: boolean;
 }
 
 function writeCalendar(
@@ -852,6 +857,7 @@ function writeCalendar(
   // Work time recurrence (weekdays)
   const dayNums = cal.workDays.join(',');
   let timePeriodRefs: string;
+  let firstPeriod: [string, string] | undefined;
   const workTime = cal.workTime ?? (includeEffectiveScalarBands ? effectiveWorkTimeBands(cal) : undefined);
   if (workTime) {
     // Fase 2.8b (§7.1): UUR-kalender ⇒ `TimePeriods` als LIJST van per-dag-banden
@@ -859,18 +865,23 @@ function writeCalendar(
     // (byte-identiek). IFC's enkele recurrence draagt één set periodes voor alle DayComponent-dagen;
     // we schrijven de banden van de eerste werkdag (uniform-over-de-week-conventie, §3.2). Een
     // wrap-band (`end > 1440`) emitteert het eind als tijd-van-de-dag (`end % 1440`), waaruit de
-    // reader de wrap herkent (`end ≤ start`).
+    // reader de wrap herkent (`end ≤ start`). Een band tot precies middernacht eindigt op '24:00:00'
+    // (einde van de dag, begin vóór eind); oudere bestanden met '00:00:00' leest de wrapregel nog.
     const firstDay = cal.workDays[0] as 1 | 2 | 3 | 4 | 5 | 6 | 7 | undefined;
     const bands = (firstDay && workTime.byWeekday[firstDay]) || [];
     const ids = bands.map((b) =>
-      addLine(ctx, '_timeperiod', `IFCTIMEPERIOD('${minutesToClock(b.start)}','${minutesToClock(b.end)}')`),
+      addLine(ctx, '_timeperiod', `IFCTIMEPERIOD('${minutesToClock(b.start)}','${minutesToClock(b.end, true)}')`),
     );
     timePeriodRefs = ids.map((i) => `#${i}`).join(',');
+    if (bands[0]) firstPeriod = [minutesToClock(bands[0].start), minutesToClock(bands[0].end, true)];
   } else {
-    const startTime = `${String(cal.workStartHour).padStart(2, '0')}:00:00`;
-    const endTime = `${String(cal.workEndHour).padStart(2, '0')}:00:00`;
+    // Geldige IfcTime `hh:mm:ss` (07:30 ⇒ '07:30:00', niet '7.5:00:00'); 24 ⇒ '24:00:00' (einde dag).
+    // Hele uren blijven byte-identiek.
+    const startTime = minutesToClock(Math.round(cal.workStartHour * 60));
+    const endTime = minutesToClock(Math.round(cal.workEndHour * 60), true);
     const timePeriodId = addLine(ctx, '_timeperiod', `IFCTIMEPERIOD('${startTime}','${endTime}')`);
     timePeriodRefs = `#${timePeriodId}`;
+    firstPeriod = [startTime, endTime];
   }
   const recurrenceId = addLine(ctx, '_recurrence', `IFCRECURRENCEPATTERN(.WEEKLY.,$,(${dayNums}),$,$,$,$,(${timePeriodRefs}))`);
   // Engelstalig label (#39): dit belandt in ELK opgeslagen IFC-bestand, ook bij een gebruiker die
@@ -907,7 +918,7 @@ function writeCalendar(
   const workingExceptionStepIds: number[] = [];
   for (const exc of cal.workingExceptions ?? []) {
     const bandIds = (exc.bands ?? []).map((b) =>
-      addLine(ctx, '_excband', `IFCTIMEPERIOD('${minutesToClock(b.start)}','${minutesToClock(b.end)}')`));
+      addLine(ctx, '_excband', `IFCTIMEPERIOD('${minutesToClock(b.start)}','${minutesToClock(b.end, true)}')`));
     const bandRefs = bandIds.length > 0 ? `(${bandIds.map((i) => `#${i}`).join(',')})` : '$';
     const excRecId = addLine(ctx, '_excrecurrence', `IFCRECURRENCEPATTERN(.DAILY.,$,$,$,$,$,$,${bandRefs})`);
     const wId = addLine(ctx, `_workexc_${exc.name}`,
@@ -922,7 +933,14 @@ function writeCalendar(
   const objectType = cal.shift === 'USERDEFINED' ? ifcStr('USERDEFINED') : '$';
   const calStepId = addLine(ctx, key,
     `IFCWORKCALENDAR(${ifcStr(guidOf(ctx, cal.id))},#${ownerHistId},${ifcStr(cal.name)},${ifcStr(cal.description)},${objectType},(#${workTimeId}),${exceptStr},${shiftToPredefinedType(cal.shift)})`);
-  return { calStepId, workingExceptionStepIds };
+  return {
+    calStepId,
+    workingExceptionStepIds,
+    readerScalarHours: firstPeriod
+      ? { start: scalarHourFromClock(firstPeriod[0]), end: scalarHourFromClock(firstPeriod[1]) }
+      : undefined,
+    materializedScalarBands: !cal.workTime && workTime !== undefined,
+  };
 }
 
 /**
@@ -950,14 +968,24 @@ function writeCalendar(
  * property, dus deze tak alleen actief bij `workingExceptionStepIds.length > 0` — een kalender
  * mét generation/libraryOrigin/hoursPerDayOverride maar ZONDER werkende uitzonderingen schrijft
  * exact dezelfde pset-inhoud als vóór deze herziening.
+ *
+ * H7 (kalenderidentiteit door de round-trip) — twee aanvullingen, allebei gulden regel:
+ *  - `WorkStartHour`/`WorkEndHour`: de lezer haalt de scalar werktijd uit de EERSTE `IFCTIMEPERIOD`
+ *    (`scalarHourFromClock`). Bij meer banden — een uurkalender, of een scalaire kalender waarvoor
+ *    `writeCalendar` de effectieve banden materialiseert — is dat niet de scalar (07:00–16:00 werd
+ *    07:00–12:00). Per veld alleen geschreven wanneer die afleiding hem niet teruggeeft, dus een
+ *    dagkalender met hele uren blijft byte-identiek.
+ *  - `IsHourCalendar = .F.`: alleen wanneer de `IFCTIMEPERIOD`s gematerialiseerde effectieve banden van
+ *    een SCALAIRE kalender zijn (een urentaak gebruikt hem). IFC zelf ziet daar gewoon de lunchpauze
+ *    (interop); de OPS-lezer weet zo dat de kalender scalair was en promoveert hem niet naar uur-modus.
  */
 function writeCalendarGenerationMeta(
   ctx: WriteContext,
-  calStepId: number,
   cal: WorkCalendar,
   ownerHistId: number,
-  workingExceptionStepIds: number[],
+  written: WriteCalendarResult,
 ): void {
+  const { calStepId, workingExceptionStepIds, readerScalarHours, materializedScalarBands } = written;
   const gen = cal.generation;
   const derivedHoursPerDay = cal.workEndHour - cal.workStartHour;
   const needsHoursPerDayOverride = !cal.workTime && cal.hoursPerDay !== derivedHoursPerDay;
@@ -969,8 +997,11 @@ function writeCalendarGenerationMeta(
   // Een enkele 08:00–16:00-band is aan de IFC-kant niet te onderscheiden van een dagkalender met
   // dezelfde scalar-uren. De OPS-markering bewaart daarom de kalenderidentiteit ook zonder urentaak.
   const isHourCalendar = cal.workTime !== undefined;
+  const needsWorkStartHour = Number.isFinite(cal.workStartHour) && readerScalarHours?.start !== cal.workStartHour;
+  const needsWorkEndHour = Number.isFinite(cal.workEndHour) && readerScalarHours?.end !== cal.workEndHour;
   if (!gen && !cal.libraryOrigin && !needsHoursPerDayOverride && !hasWorkingExceptions
-    && !hasSimpleBreak && !isHourCalendar && !hasP6Source && !hasRejectedPenaltyDiagnostic) return;
+    && !hasSimpleBreak && !isHourCalendar && !materializedScalarBands && !needsWorkStartHour && !needsWorkEndHour
+    && !hasP6Source && !hasRejectedPenaltyDiagnostic) return;
   const props: number[] = [];
   if (gen) {
     props.push(addLine(ctx, `_opscal_ruleset_${cal.id}`,
@@ -996,6 +1027,14 @@ function writeCalendarGenerationMeta(
     props.push(addLine(ctx, `_opscal_hpd_${cal.id}`,
       `IFCPROPERTYSINGLEVALUE('HoursPerDay',$,IFCREAL(${cal.hoursPerDay}),$)`));
   }
+  if (needsWorkStartHour) {
+    props.push(addLine(ctx, `_opscal_workstart_${cal.id}`,
+      `IFCPROPERTYSINGLEVALUE('WorkStartHour',$,IFCREAL(${cal.workStartHour}),$)`));
+  }
+  if (needsWorkEndHour) {
+    props.push(addLine(ctx, `_opscal_workend_${cal.id}`,
+      `IFCPROPERTYSINGLEVALUE('WorkEndHour',$,IFCREAL(${cal.workEndHour}),$)`));
+  }
   // IFC kent geen semantisch "eenvoudig pauzepatroon". Bewaar het daarom als OPS-metadata,
   // uitsluitend wanneer de gebruiker de nieuwe velden werkelijk heeft gezet.
   if (hasSimpleBreak) {
@@ -1011,6 +1050,9 @@ function writeCalendarGenerationMeta(
   if (isHourCalendar) {
     props.push(addLine(ctx, `_opscal_hourmode_${cal.id}`,
       `IFCPROPERTYSINGLEVALUE('IsHourCalendar',$,IFCBOOLEAN(.T.),$)`));
+  } else if (materializedScalarBands) {
+    props.push(addLine(ctx, `_opscal_hourmode_${cal.id}`,
+      `IFCPROPERTYSINGLEVALUE('IsHourCalendar',$,IFCBOOLEAN(.F.),$)`));
   }
   if (hasWorkingExceptions) {
     const idJson = JSON.stringify(workingExceptionStepIds.map(String));
@@ -1056,10 +1098,9 @@ function writeCalendarLibrary(
   hourTaskCalendarIds: Set<string>,
 ): void {
   for (const cal of calendars) {
-    const { calStepId, workingExceptionStepIds } = writeCalendar(
-      ctx, cal, ownerHistId, `calendar_${cal.id}`, hourTaskCalendarIds.has(cal.id),
-    );
-    writeCalendarGenerationMeta(ctx, calStepId, cal, ownerHistId, workingExceptionStepIds);
+    const written = writeCalendar(ctx, cal, ownerHistId, `calendar_${cal.id}`, hourTaskCalendarIds.has(cal.id));
+    const { calStepId } = written;
+    writeCalendarGenerationMeta(ctx, cal, ownerHistId, written);
 
     const resRefs = resources
       .filter(r => r.calendarId === cal.id)

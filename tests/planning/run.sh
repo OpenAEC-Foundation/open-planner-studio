@@ -1676,6 +1676,10 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   BREAKCHECK="$DIR/.calendar-breaks.mjs"
   if bundle_check "$DIR/check-calendar-breaks.ts" "$BREAKCHECK"; then node "$BREAKCHECK" || STATUS=1; fi
 
+  # H7: kalenderidentiteit door de IFC-round-trip — scalar werktijd bij meer banden, en een scalaire
+  # kalender met urentaak blijft scalair (bibliotheekkopie direct na heropenen niet meer "wijkt af").
+  CALIDCHECK="$DIR/.ifc-calendar-identity.mjs"
+  if bundle_check "$DIR/check-ifc-calendar-identity.ts" "$CALIDCHECK"; then node "$CALIDCHECK" || STATUS=1; fi
   # Kalenderdialogen (audit resources-kalenders 4/5/7): Toepassen/Enter zonder wijziging is een
   # no-op (ook in de modus "datums zoals opgeslagen"), feestdagvalidatie gedeeld met MCP, en één
   # fabriek voor een nieuwe kalender.

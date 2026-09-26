@@ -1,0 +1,428 @@
+{
+  "_toelichting": "H7-legacyfixture: in het geheugen vóór opslaan (writer origin/main 531940ac), plus de bibliotheekpool op dat moment.",
+  "writerCommit": "531940ac",
+  "projectCalendar": {
+    "workDays": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "workStartHour": 7,
+    "workEndHour": 16,
+    "hoursPerDay": 8,
+    "workTime": null,
+    "shift": null,
+    "simpleBreakStartMinute": null,
+    "simpleBreakDurationMinutes": null
+  },
+  "libraryCalendars": {
+    "Vroege ploeg": {
+      "workDays": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "workStartHour": 6,
+      "workEndHour": 15,
+      "hoursPerDay": 8,
+      "workTime": null,
+      "shift": null,
+      "simpleBreakStartMinute": null,
+      "simpleBreakDurationMinutes": null
+    },
+    "Pauzekalender": {
+      "workDays": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "workStartHour": 7,
+      "workEndHour": 16,
+      "hoursPerDay": 8,
+      "workTime": null,
+      "shift": null,
+      "simpleBreakStartMinute": 720,
+      "simpleBreakDurationMinutes": 60
+    },
+    "Tweeploegen": {
+      "workDays": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "workStartHour": 6,
+      "workEndHour": 22,
+      "hoursPerDay": 16,
+      "workTime": {
+        "byWeekday": {
+          "1": [
+            {
+              "start": 360,
+              "end": 840
+            },
+            {
+              "start": 840,
+              "end": 1320
+            }
+          ],
+          "2": [
+            {
+              "start": 360,
+              "end": 840
+            },
+            {
+              "start": 840,
+              "end": 1320
+            }
+          ],
+          "3": [
+            {
+              "start": 360,
+              "end": 840
+            },
+            {
+              "start": 840,
+              "end": 1320
+            }
+          ],
+          "4": [
+            {
+              "start": 360,
+              "end": 840
+            },
+            {
+              "start": 840,
+              "end": 1320
+            }
+          ],
+          "5": [
+            {
+              "start": 360,
+              "end": 840
+            },
+            {
+              "start": 840,
+              "end": 1320
+            }
+          ],
+          "6": [],
+          "7": []
+        }
+      },
+      "shift": "SECOND",
+      "simpleBreakStartMinute": null,
+      "simpleBreakDurationMinutes": null
+    },
+    "Bandeditor": {
+      "workDays": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "workStartHour": 7,
+      "workEndHour": 16,
+      "hoursPerDay": 8,
+      "workTime": {
+        "byWeekday": {
+          "1": [
+            {
+              "start": 420,
+              "end": 720
+            },
+            {
+              "start": 780,
+              "end": 960
+            }
+          ],
+          "2": [
+            {
+              "start": 420,
+              "end": 720
+            },
+            {
+              "start": 780,
+              "end": 960
+            }
+          ],
+          "3": [
+            {
+              "start": 420,
+              "end": 720
+            },
+            {
+              "start": 780,
+              "end": 960
+            }
+          ],
+          "4": [
+            {
+              "start": 420,
+              "end": 720
+            },
+            {
+              "start": 780,
+              "end": 960
+            }
+          ],
+          "5": [
+            {
+              "start": 420,
+              "end": 720
+            },
+            {
+              "start": 780,
+              "end": 960
+            }
+          ],
+          "6": [],
+          "7": []
+        }
+      },
+      "shift": null,
+      "simpleBreakStartMinute": null,
+      "simpleBreakDurationMinutes": null
+    }
+  },
+  "tasks": {
+    "Dagtaak": {
+      "unit": "days",
+      "min": null,
+      "dur": 2,
+      "ss": "2026-06-01",
+      "sf": "2026-06-02",
+      "es": "2026-06-01",
+      "ef": "2026-06-02"
+    },
+    "Urentaak": {
+      "unit": "hours",
+      "min": 600,
+      "dur": 1.25,
+      "ss": "2026-06-01T00:00",
+      "sf": "2026-06-02T09:00",
+      "es": "2026-06-01T07:00",
+      "ef": "2026-06-02T09:00"
+    },
+    "Urentaak vroeg": {
+      "unit": "hours",
+      "min": 600,
+      "dur": 1.25,
+      "ss": "2026-06-01T00:00",
+      "sf": "2026-06-02T08:00",
+      "es": "2026-06-01T06:00",
+      "ef": "2026-06-02T08:00"
+    },
+    "Urentaak pauze": {
+      "unit": "hours",
+      "min": 600,
+      "dur": 1.25,
+      "ss": "2026-06-01T00:00",
+      "sf": "2026-06-02T09:00",
+      "es": "2026-06-01T07:00",
+      "ef": "2026-06-02T09:00"
+    },
+    "Dagtaak tweeploegen": {
+      "unit": "days",
+      "min": null,
+      "dur": 2,
+      "ss": "2026-06-01",
+      "sf": "2026-06-02",
+      "es": "2026-06-01T06:00",
+      "ef": "2026-06-02T22:00"
+    },
+    "Urentaak bandeditor": {
+      "unit": "hours",
+      "min": 600,
+      "dur": 1.25,
+      "ss": "2026-06-01T00:00",
+      "sf": "2026-06-02T09:00",
+      "es": "2026-06-01T07:00",
+      "ef": "2026-06-02T09:00"
+    }
+  },
+  "pool": {
+    "companyId": "company-muic9xmbg2oy15",
+    "companyName": "Bouwbedrijf",
+    "poolVersion": 1,
+    "modifiedAt": "2026-09-26T12:01:30.228Z",
+    "calendars": [
+      {
+        "id": "cal-muic9xmc759h16",
+        "name": "Bouwkalender NL",
+        "description": "Standaard bouwkalender: ma-vr 07:00-16:00",
+        "workDays": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "workStartHour": 7,
+        "workEndHour": 16,
+        "hoursPerDay": 8,
+        "holidays": [
+          {
+            "name": "Nieuwjaar",
+            "startDate": "2025-01-01",
+            "endDate": "2025-01-01"
+          },
+          {
+            "name": "Goede Vrijdag",
+            "startDate": "2025-04-18",
+            "endDate": "2025-04-18"
+          },
+          {
+            "name": "Pasen",
+            "startDate": "2025-04-20",
+            "endDate": "2025-04-21"
+          },
+          {
+            "name": "Koningsdag",
+            "startDate": "2025-04-26",
+            "endDate": "2025-04-26"
+          },
+          {
+            "name": "Bevrijdingsdag",
+            "startDate": "2025-05-05",
+            "endDate": "2025-05-05"
+          },
+          {
+            "name": "Hemelvaart",
+            "startDate": "2025-05-29",
+            "endDate": "2025-05-29"
+          },
+          {
+            "name": "Pinksteren",
+            "startDate": "2025-06-08",
+            "endDate": "2025-06-09"
+          },
+          {
+            "name": "Kerst",
+            "startDate": "2025-12-25",
+            "endDate": "2025-12-26"
+          },
+          {
+            "name": "Nieuwjaar",
+            "startDate": "2026-01-01",
+            "endDate": "2026-01-01"
+          },
+          {
+            "name": "Goede Vrijdag",
+            "startDate": "2026-04-03",
+            "endDate": "2026-04-03"
+          },
+          {
+            "name": "Pasen",
+            "startDate": "2026-04-05",
+            "endDate": "2026-04-06"
+          },
+          {
+            "name": "Koningsdag",
+            "startDate": "2026-04-27",
+            "endDate": "2026-04-27"
+          },
+          {
+            "name": "Hemelvaart",
+            "startDate": "2026-05-14",
+            "endDate": "2026-05-14"
+          },
+          {
+            "name": "Pinksteren",
+            "startDate": "2026-05-24",
+            "endDate": "2026-05-25"
+          },
+          {
+            "name": "Kerst",
+            "startDate": "2026-12-25",
+            "endDate": "2026-12-26"
+          },
+          {
+            "name": "Nieuwjaar",
+            "startDate": "2027-01-01",
+            "endDate": "2027-01-01"
+          },
+          {
+            "name": "Goede Vrijdag",
+            "startDate": "2027-03-26",
+            "endDate": "2027-03-26"
+          },
+          {
+            "name": "Pasen",
+            "startDate": "2027-03-28",
+            "endDate": "2027-03-29"
+          },
+          {
+            "name": "Koningsdag",
+            "startDate": "2027-04-27",
+            "endDate": "2027-04-27"
+          },
+          {
+            "name": "Hemelvaart",
+            "startDate": "2027-05-06",
+            "endDate": "2027-05-06"
+          },
+          {
+            "name": "Pinksteren",
+            "startDate": "2027-05-16",
+            "endDate": "2027-05-17"
+          },
+          {
+            "name": "Kerst",
+            "startDate": "2027-12-25",
+            "endDate": "2027-12-26"
+          },
+          {
+            "name": "Nieuwjaar",
+            "startDate": "2028-01-01",
+            "endDate": "2028-01-01"
+          },
+          {
+            "name": "Goede Vrijdag",
+            "startDate": "2028-04-14",
+            "endDate": "2028-04-14"
+          },
+          {
+            "name": "Pasen",
+            "startDate": "2028-04-16",
+            "endDate": "2028-04-17"
+          },
+          {
+            "name": "Koningsdag",
+            "startDate": "2028-04-27",
+            "endDate": "2028-04-27"
+          },
+          {
+            "name": "Hemelvaart",
+            "startDate": "2028-05-25",
+            "endDate": "2028-05-25"
+          },
+          {
+            "name": "Pinksteren",
+            "startDate": "2028-06-04",
+            "endDate": "2028-06-05"
+          },
+          {
+            "name": "Kerst",
+            "startDate": "2028-12-25",
+            "endDate": "2028-12-26"
+          }
+        ],
+        "generation": {
+          "ruleSetId": "NL",
+          "generatedFromYear": 2025,
+          "generatedToYear": 2028
+        }
+      }
+    ],
+    "resources": []
+  }
+}
