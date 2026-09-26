@@ -146,16 +146,15 @@ vorige release. Kan gecombineerd worden met de doc-subagent uit stap 5 (zelfde s
 zelfde soort dubbelcheck-tegen-de-commits), of los.
 
 ### 7. Kwaliteitspoorten (eind-poort — zelf draaien, alles groen)
+Reproduceer vooraf precies wat de release-gate in `.github/workflows/release.yml` draait:
 ```bash
-npx tsc --noEmit
-bash tests/planning/run.sh | tee /tmp/suite.log; echo "exit=${PIPESTATUS[0]}"
-grep "^XX" /tmp/suite.log || echo "geen XX-falers"
-npm run build
-npm run verify:examples
-npm run verify:docs
+npm run verify; echo "exit=$?"                     # typecheck (npm run typecheck), lint, alle vijf suites, verify:*-poorten
+npm run verify:release-highlights -- X.Y.Z; echo "exit=$?"   # = node scripts/release-highlights.mjs X.Y.Z
+npm run build                                      # beforeBuildCommand van tauri-action
 ```
-Tussenregels als "alles groen" gaan alleen over hun eigen deel; de laatste regel
-`EINDOORDEEL planningssuite: GROEN/ROOD` volgt de exitcode. Vertrouw op **exitcode + `grep ^XX`**. Bij een rode poort: niet verder.
+Beoordeel elke stap op de **exitcode**; tussenregels als "alles groen" gaan alleen over hun eigen
+deel (de planningssuite sluit af met `EINDOORDEEL planningssuite: GROEN/ROOD`, gelijk aan de
+exitcode). Typecheck is `npm run typecheck` (zit in `verify`), niet `npx tsc --noEmit`. Bij een rode poort: niet verder.
 
 ### 8. Oude worktrees opruimen (eis 5)
 ```bash

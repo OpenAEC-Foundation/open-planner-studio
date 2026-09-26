@@ -81,7 +81,8 @@ GitHub Releases-API; de workflow publiceert de JSON wekelijks naar de `stats`-da
   UI-/dialoogvlaggen: type in `UIState` (`slices/types.ts`), actie in `uiSlice.ts`; blijvende instellingen in
   `src/utils/settingsRegistry.ts`.
 - **Plannen is handmatig, niet reactief.** `runCPM` → `solveProject()`; roep het aan na het muteren van taken,
-  relaties of kalender. Zet `scheduleStale` altijd via `markScheduleStale` (`state/transaction.ts`), nooit direct.
+  relaties of kalender (store-acties doen dat niet zelf; alleen de opt-in instelling Automatisch berekenen,
+  `ui.autoCalcCPM`, draait hem via `useAutoCalcCPM`). Zet `scheduleStale` altijd via `markScheduleStale` (`state/transaction.ts`), nooit direct.
   `CPMSolver.ts` (~4k regels): grep de methode, niet heel lezen. Terugschrijven: `applyCpmResult.ts`;
   relaties/lag: `relationMath.ts`.
 - **Rekenprofielen, geen formaatvlag.** P6-/MSP-/OPS-gedrag loopt via benoemde conventies in

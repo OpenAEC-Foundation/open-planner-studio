@@ -75,8 +75,10 @@ Four pitfalls that go wrong more often than the rest. The background is in
 1. **IFC is the file format, not an export.** New project data must round-trip
    through `src/services/ifc/` — otherwise it is gone after saving and reopening.
    There is no separate JSON project format.
-2. **Scheduling is manual, not reactive.** `runCPM` does not run on its own after
-   a change. Call it after mutating tasks, relations or the calendar.
+2. **Scheduling is manual, not reactive.** Store actions do not call `runCPM`
+   themselves after a change (only the opt-in setting *Automatisch berekenen*,
+   off by default, runs it automatically). Call it after mutating tasks,
+   relations or the calendar.
 3. **The Gantt is a `<canvas>`.** Visual behavior lives in
    `src/engine/renderer/`, not in React components.
 4. **The web build is production.** Anything that touches `@tauri-apps/*` must be
