@@ -39,6 +39,7 @@ Gebruik `currentColor` voor `fill`/`stroke` zodat het icoon met het thema meekle
 | `backstage` | **warn** (overgangsregime) — ontbreekt ⇒ `api.importers.*` werkt nog, maar logt een waarschuwing | Een importer registreren (verschijnt in Bestand → Importeren). |
 | `pdf-fonts` | **hard** — ontbreekt ⇒ `api.pdfFonts.register` gooit | Een font-provider registreren voor de vector-PDF-export (bv. CJK-glyf-bytes). |
 | `importSource` | **hard, default-deny** — ontbreekt ⇒ `api.data.getImportSourceInfo`/`getImportSourceIssue`/`getImportSourceChunk`/`getImportSourceCatalogPage` gooien vóórdat er ook maar één byte gelezen wordt | De **volledige oorspronkelijke bronbytes** van een geïmporteerd bestand (vandaag: XER) lezen, inclusief velden die de importlaag bewust niet in het projectmodel materialiseert. Zie de aparte paragraaf verderop. |
+| `help` | **hard** — ontbreekt ⇒ elke `api.help.*`-methode gooit (synchroon, ook `openBundledProject`) | Help-artikelen (tutorials) registreren, een meegeleverd projectbestand als nieuw document openen en het begeleidingspaneel aansturen. Sinds contractversie `1.4.0`; zie *Help & begeleiding* hieronder. |
 | `filesystem` | informatief | Geen API-oppervlak; puur getoonde intentie bij installatie — **geen** sandbox-garantie (extensie-code heeft technisch gewoon toegang). |
 | `network` | informatief | Idem — getoonde intentie, geen technische grens. |
 
@@ -116,7 +117,9 @@ Historie van de contractversie: `1.1.0` — read-only XER-bronroute (`data.getIm
 rekenprofiel (#169, `ExtProject.schedulingProfile`) + `getImportSourceIssue()` (#109). Beide
 toevoegingen vallen onder dezelfde minor `1.2`. `1.3.0` — taaktypes (#170): `ExtTask.workRule`,
 `ExtProject.defaultWorkRule` en de drie optionele werkvelden op de toewijzing
-(`plannedWorkMinutes`/`actualWorkMinutes`/`remainingWorkMinutes`).
+(`plannedWorkMinutes`/`actualWorkMinutes`/`remainingWorkMinutes`). `1.4.0` — Help & begeleiding: de
+permissie `help` en `api.help.*` (Help-artikelen registreren, meegeleverd projectbestand openen,
+begeleidingspaneel), plus de generieke ankers in het lint (zie *Help & begeleiding*).
 
 > **Migratie (audit P16):**
 > - De permissie `commands` is verwijderd — die had nooit een API-oppervlak. Een nieuwe installatie met een manifest dat haar (of een andere onbekende waarde) noemt, wordt geweigerd. Alleen al opgeslagen legacy-installaties blijven werken: daar worden onbekende permissies weggefilterd met een waarschuwing.
@@ -231,6 +234,7 @@ module.exports = {
 | `api.settings` | `get(key, default)`, `set(key, value)` — per extensie geprefixt in localStorage |
 | `api.assets` | `get(name)` — rauwe bytes van een mee-verpakt (niet-`main`/`manifest`) ZIP-bestand, of `undefined` (kern-API) |
 | `api.pdfFonts` | `register(provider)` (permissie `pdf-fonts`) — font-provider voor de vector-PDF-export; automatisch uitgeschreven bij disable |
+| `api.help` | `registerArticles(articles)`, `unregisterArticles()`, `openBundledProject(assetName)`, `startGuide(guide)`, `stopGuide()` (permissie `help`, sinds `1.4.0`) — alles automatisch opgeruimd bij disable/verwijderen |
 
 `addSequence` retourneert `string | null`: het nieuwe relatie-id, of **`null`** wanneer de relatie
 geweigerd is — een duplicaat (zelfde voorganger + opvolger + type), een zelfrelatie, een onbekende
@@ -301,6 +305,142 @@ module.exports = {
   },
 };
 ````
+
+### Help & begeleiding (permissie `help`, sinds 1.4.0)
+
+Hiermee levert een extensie **tutorials**: artikelen die in Help onder *Tutorials* verschijnen, met
+screenshots en projectbestanden uit de eigen assets, en een **begeleidingspaneel** waarin de gebruiker
+de tutorial stap voor stap in de app zelf doorloopt. Declareer `"permissions": ["help"]` en
+`"apiVersion": "1.4"`. De vorm staat in `src/extensions/types.ts` (`ExtHelpArticle`, `ExtGuide`,
+`ExtGuideStep`); de validatie in `src/utils/helpArticleRegistry.ts` en `src/extensions/guideModel.ts`.
+
+```ts
+api.help.registerArticles(articles: ExtHelpArticle[]): void;   // gooit bij ongeldige invoer
+api.help.unregisterArticles(): void;
+api.help.openBundledProject(assetName: string): Promise<void>;
+api.help.startGuide(guide: ExtGuide): void;                     // gooit bij ongeldige invoer
+api.help.stopGuide(): void;
+
+interface ExtHelpArticle { id: string; kind: 'tutorial'; order: number;
+  title: { nl: string; en: string }; body: { nl: string; en: string } }
+interface ExtGuide { id: string; title: { nl: string; en: string }; steps: ExtGuideStep[] }
+interface ExtGuideStep {
+  id: string;
+  body: { nl: string; en: string };            // opdracht, dan een regel '---', dan de uitleg
+  anchor?: string;                             // data-tour-anchor, zie hieronder
+  check?: (api) => boolean | Promise<boolean>; // is de stap gedaan?
+  prepare?: (api) => void | Promise<void>;     // "Toon mij"
+  resetAsset?: string;                         // "Opnieuw": .ifc met de beginstand van de stap
+}
+```
+
+**Artikelen.** `registerArticles` is een dunne laag op het Help-register, met het extensie-id als bron.
+Regels: `id` in kleine letters, cijfers en streepjes en uniek over alle bronnen; `kind` is
+`'tutorial'`; `order` is een positief geheel getal (de leerroute); titel en tekst in `nl` én `en`,
+niet leeg. Ongeldige invoer registreert **niets** en gooit met alle problemen in één melding; opnieuw
+aanroepen vervangt de vorige set. Talen: de Help-viewer toont `nl` bij een Nederlandse docstaal en
+anders `en`. De tekst gebruikt dezelfde Markdown-subset als de ingebouwde gidsen, met twee
+extensie-specifieke aanvullingen:
+
+- `![alt](img/{lang}/stap-1.webp)` — de afbeelding komt uit je **eigen assets** (het ZIP-pad), met
+  `{lang}` vervangen door `nl` of `en`. De app maakt er een blob-URL van en trekt die in bij het
+  uitschakelen. Ontbreekt de asset, dan toont de viewer de alt-tekst in een placeholder.
+- `[Open het startproject](project://start.ifc)` — opent die meegeleverde `.ifc` als nieuw document
+  (zelfde route als `openBundledProject`).
+
+**Meegeleverd project.** `openBundledProject('start.ifc')` opent een `.ifc` uit je assets als
+**nieuw document**, precies zoals een voorbeeld uit Bestand → Voorbeelden: zonder opslagdoel of
+bestandshandle (opslaan wordt Opslaan als), en het actieve document wordt nooit overschreven — alleen
+een leeg, ongewijzigd tabblad wordt hergebruikt. Vanuit Backstage springt de app daarna naar Start.
+De belofte wordt afgewezen als de asset ontbreekt, geen `.ifc` is of niet te lezen is (in dat laatste
+geval heeft de app zelf al "Bestand openen mislukt" gemeld).
+
+**Begeleiding.** `startGuide` valideert eerst de hele begeleiding (id's, teksten in `nl` en `en`, hooguit
+één `---` per tekst en een opdracht ervóór, geldige ankernaam, `check`/`prepare` zijn functies,
+`resetAsset` is een `.ifc` die in je assets zit) en start bij de eerste fout niets. Er loopt hooguit
+één begeleiding tegelijk; een nieuwe vervangt de vorige. Het paneel wordt door de **app** getekend
+(thema, tekstrollen, RTL en vertaalde knoppen) en toont titel, "Stap n van N", de opdracht, en —
+zodra de stap gedaan is — de uitleg ná `---`. Afbeeldingen en `project://`-links in een stap werken
+zoals in een artikel. Knoppen: **Terug**, **Toon mij** (alleen met `prepare`), **Opnieuw** (alleen met
+`resetAsset`), **Volgende** / **Klaar** op de laatste stap, en Sluiten.
+
+- `check(api)` roept de host aan bij het openen van de stap en daarna, gebundeld (hooguit eens per
+  150 ms), na elke wijziging in de app — je hoeft zelf geen events te beluisteren. Alleen `true`
+  telt; dan is de stap gedaan en blijft hij dat tot de stap opnieuw begint (Terug, Volgende,
+  Opnieuw). Een asynchrone uitkomst die binnenkomt nadat de gebruiker al verder is, telt niet.
+  Lees de toestand via `api.data.*`.
+- **Zonder `check`** toont het paneel direct de uitleg en de knop **Klaar, volgende**.
+- **Toon mij** roept `prepare(api)` aan en controleert daarna meteen. **Opnieuw** opent
+  `resetAsset` als nieuw document en begint de stap opnieuw.
+- **Fouten** in `check`/`prepare` (gooien of een afgewezen belofte) vangt de app op en meldt ze via het
+  meldingenkanaal ("Een stap van de extensie … gaf een fout"); een gooiende `check` wordt daarna niet
+  meer aangeroepen en de stap valt terug op **Klaar, volgende**. De gebruiker komt nooit vast te zitten.
+- `stopGuide()` sluit alleen een begeleiding van je eigen extensie. Uitschakelen of verwijderen van
+  de extensie sluit het paneel en haalt de artikelen uit Help.
+
+Het paneel zweeft rechtsonder (in `ar`/`fa` linksonder) boven de statusbalk, en niet in de
+rechterrail: die bestaat niet in de volledige weergaven (Tabel, IFC, Rapport, Resources) en in
+Backstage, terwijl een tutorial daar juist doorheen loopt. Ligt het gemarkeerde element onder het
+paneel en is de andere kant vrij, dan wijkt het paneel daarheen uit. Het ligt boven dialogen en onder
+de meldingen.
+
+**Ankers.** `anchor` is de waarde van een `data-tour-anchor`-attribuut; de app markeert dat element
+met dezelfde rand als de rondleiding, maar **niet modaal**: de gebruiker kan het gewoon aanklikken. Een
+element dat uit meerdere delen bestaat, krijgt één markering om alle zichtbare delen. De markering
+verdwijnt zodra de stap gedaan is. Beschikbare ankers:
+
+- `ribbon-tab:<tab>` — elk linttabblad, ook `ribbon-tab:file`;
+- `ribbon-group:<tab>:<groupId>` — elke lintgroep;
+- `ribbon:<tab>:<itemId>` — elke lintknop en elk lintwidget (dropdown, invoerveld). Deze drie komen
+  automatisch uit het lint; de id's zijn die uit `src/components/layout/Ribbon/ribbonConfig.tsx`,
+  bijvoorbeeld `ribbon:start:addTask` (Taak), `ribbon:start:milestone`, `ribbon:planning:calendar`.
+  Staat de knop op een ander tabblad dan het actieve, dan markeert de app `ribbon-tab:<tab>`, zodat
+  de gebruiker ziet welke tab hij moet openen. Knoppen die een extensie zelf aan het lint toevoegt,
+  hebben (nog) geen anker;
+- vaste ankers voor de hoofdpanelen: `ribbon-tabs`, `gantt-panel`, `properties-panel` (de
+  rechterrail), `rail:properties`, `rail:resources`, `rail:warnings`, `histogram-strip`,
+  `report-panel`, `status-bar`, `backstage-examples`, `feedback-button`.
+
+Ankernamen bestaan uit letters, cijfers en `: . _ -`. Een anker dat (nog) niet in beeld is, geeft
+geen markering en geen fout.
+
+```js
+// manifest.json → "permissions": ["help", "ribbon"], "apiVersion": "1.4";
+// in de ZIP: start.ifc, img/nl/taak.webp, img/en/taak.webp
+module.exports = {
+  onLoad(api) {
+    api.help.registerArticles([{
+      id: 'tut-1-eerste-planning', kind: 'tutorial', order: 1,
+      title: { nl: 'Je eerste planning', en: 'Your first schedule' },
+      body: {
+        nl: '# Je eerste planning\n\n[Open het startproject](project://start.ifc)\n\n![Taak](img/{lang}/taak.webp)',
+        en: '# Your first schedule\n\n[Open the starting project](project://start.ifc)\n\n![Task](img/{lang}/taak.webp)',
+      },
+    }]);
+    api.ui.addRibbonButton({
+      tab: 'start', group: 'Tutorials', label: 'Tutorial 1',
+      onClick: async () => {
+        await api.help.openBundledProject('start.ifc');
+        const start = api.data.getTasks().length;
+        api.help.startGuide({
+          id: 'tut-1', title: { nl: 'Je eerste planning', en: 'Your first schedule' },
+          steps: [{
+            id: 'taak-toevoegen',
+            body: {
+              nl: 'Klik op **Taak** in het lint.\n\n---\n\nDe nieuwe taak staat onderaan en is geselecteerd.',
+              en: 'Click **Task** on the ribbon.\n\n---\n\nThe new task is at the bottom and selected.',
+            },
+            anchor: 'ribbon:start:addTask',
+            check: (a) => a.data.getTasks().length > start,
+            prepare: (a) => { a.data.addTask({ name: 'Nieuwe taak' }); },
+            resetAsset: 'start.ifc',
+          }],
+        });
+      },
+    });
+  },
+};
+```
 
 ### Rekenprofiel (sinds 1.2.0)
 
@@ -475,6 +615,6 @@ Bij een los `.js`-bestand mag het manifest als commentaarblok bovenaan:
 
 ## Beperkingen
 
-- Er is geen JavaScript-sandbox: extensie-code draait via `new Function(...)` en heeft toegang tot `window`, `document` en `fetch`. Permissies worden hard afgedwongen (default-deny) voor `ribbon`/`events`/`pdf-fonts`/`importSource`, in warn-modus voor `backstage`, en zijn voor `filesystem`/`network` puur informatief (geen technische grens). Installeer alleen extensies die je vertrouwt.
+- Er is geen JavaScript-sandbox: extensie-code draait via `new Function(...)` en heeft toegang tot `window`, `document` en `fetch`. Permissies worden hard afgedwongen (default-deny) voor `ribbon`/`events`/`pdf-fonts`/`importSource`/`help`, in warn-modus voor `backstage`, en zijn voor `filesystem`/`network` puur informatief (geen technische grens). Installeer alleen extensies die je vertrouwt.
 - Objecten uit `api.data.get*()` zijn **verse, muteerbare `Ext*`-kopieën** — muteren raakt de store niet; schrijf terug via de muterende API-functies.
 - Het `@manifest`-commentaarblok in een los .js-bestand moet een plat JSON-object zijn (geen geneste objecten).
