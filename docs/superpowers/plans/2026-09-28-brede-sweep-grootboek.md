@@ -16,7 +16,11 @@ statuswissel; de wachtkamer-check (§4.1) leest hieruit.
 | V1 | 2026-09-28 16:40 | A | onbekend | onbekend (gemeld door een reviewer van #241, niet nagemeten) | nog te bepalen | open — eerst reproduceren: FF-relatie van een dagtaak naar een uurtaak lijkt de relatie te schenden |
 | V2 | 2026-09-28 16:40 | A | onbekend | onbekend (idem) | nog te bepalen | open — eerst reproduceren: FS met een lag in kalendertijd (ELAPSEDTIME) naar een uurtaak start op dezelfde dag |
 | V3 | 2026-09-28 16:40 | A/O | laag | zeker (staat als bekende beperking in het solvercommentaar) | `CPMSolver.ts` (grep ALAP/C14) | open — ALAP-C14 met uur→dag kan één dag te kort uitvallen; onderzoeken of het met bron op te lossen is |
-| V4 | 2026-09-28 16:40 | O | onbekend | afgeleid (#241 kon het niet meten) | ALAP-ketenfix `d82c95ab`, dag→uur-lagfix `b8db26aa` | open — eerste meting na de start: beide fixes tegen het nu volledige P6-corpus en de `.mpp`-crawl (regel A) |
+| V4 | 2026-09-28 16:40 | O | — | zeker (twee audits spoor O onafhankelijk, blind geverifieerd) | ALAP-ketenfix `d82c95ab`, dag→uur-lagfix `b8db26aa` | **gesloten 21:15** — op `main` tegen alle 9 orakels: 221 gepinde cellen exact terug, CELLDELTA 0; `.mpp`-crawl 213/213. Zie `2026-09-28-modelbenchmark/spoor-o-verificatie.md` |
+| V5 | 2026-09-28 21:15 | E | hoog | zeker (Sonnet spoor O O-03 en Opus meetlat #1, blind bevestigd) | `src/services/p6/p6xmlReader.ts:192` | open — `readP6XML` zoekt Activity/WBS/Relationship alleen onder de root; echte P6-exports nesten ze in `<Project>`, dus 0 taken zonder melding (9/9 corpusbestanden). Stond al in `docs/superpowers/specs/2026-08-14-rapport-critreview-f0.md` |
+| V6 | 2026-09-28 21:15 | E/F/D | per item | zeker op `8e3bcf4c` | `2026-09-28-modelbenchmark/meetlat-nakijken.md` §5 | open — de bevestigde import/export-bevindingen uit de meetlat die #241 niet raakte (Sonnet 37, Opus 24, deels overlappend); in golf 1 per item op `main` opnieuw aantonen vóór ze bevinding worden |
+| V7 | 2026-09-28 21:15 | T/O | hoog (blokkeert poort 3) | zeker (beide spoor-O-audits, bevestigd) | `scripts/measure-profiles*.mjs` | open — P6-deel van `measure:profiles` stopt op de cloudclone (41 niet-orakelbestanden ontbreken); golf 1 spoor T: modus alleen-orakels. Draaiboek §4 poort 3 bijgewerkt |
+| V8 | 2026-09-28 21:15 | O/E/F/J/T | per item | bevestigd | `2026-09-28-modelbenchmark/spoor-o-verificatie.md` §6 | open — 17 actiepunten uit spoor O (docblokken, kleine fixes, zes eigenaarsvragen); golf 2 |
 
 ## Merge-batches
 
@@ -77,9 +81,11 @@ In spoor O vond alleen Sonnet de oorzaak van de P6-XML-lezer die 0 taken leest (
 Opus vond de onjuiste A17-registertekst, de Standaardopties-inconsistentie, het manifestduplicaat en de
 A19-achterdeur. n = 1 per model per onderdeel: een aanwijzing, geen statistiek.
 
-Verificatie- en nakijkverslagen (buiten de repo): `/home/user/audit/vo/verificatie/eigen/VERIFICATIE.md`
-(17 actiepunten, sporen E/F/J/O/T) en `/home/user/audit/w3/nakijken/eigen/NAKIJKEN.md`.
+Alle rapporten, de sleutel en de twee verificatieverslagen staan in `2026-09-28-modelbenchmark/`.
+Beperkingen van de meting: n = 1; de vier agents deelden 4 cores, dus de looptijden zijn geen zuivere
+snelheidsvergelijking; beide riepen de advisor (Fable 5.1) aan, dus geen van beide cijfers is "het model
+alleen".
 
-Gevolgen voor het draaiboek (nog te verwerken): `OPS_MPP_CRAWL` wijst naar de corpuswortel, niet naar
-`crawl-mpp`; poort 3 (`measure:profiles`) stopt op de shallow corpusclone omdat 41
-niet-orakelbestanden ontbreken, dus regel A is in de cloud nu niet als poort te draaien.
+Gevolgen: V4 gesloten, V5–V8 geopend (tabel *Bevindingen*). Draaiboek §4 poort 3 en §5 punt 4
+bijgewerkt. De fout rond `OPS_MPP_CRAWL` zat in de benchmarkopdracht (`…/crawl-mpp`), niet in het
+draaiboek: dat noemde al de corpuswortel.

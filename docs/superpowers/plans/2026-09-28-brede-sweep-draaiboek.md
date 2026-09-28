@@ -276,7 +276,7 @@ spoor dat die zone bezit.
     `OPS_SchedulingOptions`, MCP en extensie-API (`ExtProject.schedulingProfile`).
   - Worden alle conventies echt gelezen, en alleen via `EffectiveSchedulingOptions`?
     `verify:conventions` ziet sommige omwegen niet (zie `.claude/rules/rekenprofielen.md`): zoek ze.
-  - `npm run measure:profiles` met het corpus (7 van 9 orakels, E4) en de 76 restafwijkingen uit
+  - `npm run measure:profiles` met het corpus (alle 9 orakels, E4) en de 76 restafwijkingen uit
     `docs/TODO.md` opnieuw bekijken: welke zijn te verklaren, met welke bron?
   - `suggestedProfileId` per formaat (MSPDI/P6-XML/CSV ⇒ ops "deze etappe"): klopt dat nog?
 
@@ -332,6 +332,12 @@ spoor dat die zone bezit.
    `main` tegen dat van de branch. Geen exacte cel mag inexact worden (regel A); elke veranderde cel
    staat met reden in de PR. Voor de MS Project-kant hetzelfde met de `.mpp`-meting
    (`OPS_MPP_CRAWL`); het bedrijfscorpus (`OPS_MPP_CORPUS`) ontbreekt, en dat staat in de PR.
+   **Bekend probleem (gemeten 2026-09-28):** op de corpusclone in de cloud stopt het P6-deel van
+   `measure:profiles` met een fout, omdat 41 niet-orakelbestanden uit het manifest ontbreken (alle 9
+   orakels zijn er). Alleen orakels tellen als bewijs (§2.3), dus een meting over alleen de orakels is
+   voor regel A voldoende. Spoor T bouwt die modus in golf 1 in `measure:profiles` in: een ontbrekend
+   niet-orakelbestand wordt een melding, een ontbrekend orakel blijft rood. Tot die modus er is, landt
+   er geen wijziging onder `src/engine/`.
 4. Een verificatie-agent, die de fix niet schreef, heeft de diff adversarieel gelezen en akkoord
    gegeven; zijn bevindingen zijn opgelost of met reden weerlegd.
 5. Geen open eigenaarsbesluit dat deze PR raakt.
@@ -402,13 +408,14 @@ niet aan, dan meldt de orkestrator dat aan de eigenaar in plaats van stil door t
 4. `OPS_XER_CORPUS` en `OPS_MPP_CRAWL` zetten. **Eerst controleren** hoe de scripts de paden verwachten
    (manifestsleutels zijn relatief, bv. `crawl-xer/...`) en hoe `measure:profiles` reageert op de twee
    ontbrekende orakels: stopt het, of meet het stil minder? Dat gedrag staat in de PR van elk
-   motorspoor.
+   motorspoor. **Gemeten 2026-09-28:** beide variabelen wijzen naar de corpuswortel
+   (`/home/user/ops-xer-corpus`, niet naar `crawl-mpp/`: de manifestsleutels beginnen zelf met
+   `crawl-mpp/`); dan is de `.mpp`-meting groen (213/213 gepind). Het P6-deel stopt, zie §4, poort 3.
 5. Nulmeting op `main`: `npm run verify`, en het per-cel-detailrapport van de XER- en
    `.mpp`-meting. Dat detailrapport is de referentie voor de differentiële poort (§4, poort 3).
 6. Grootboek aanmaken (§7.1).
-7. Workflowgrootte: de richtlijn staat op "medium" (< 10 agents per workflow). Meer tegelijk kan pas
-   als de eigenaar dat ophoogt met `/config workflowSizeGuideline=large` (of `unrestricted`); anders draaien de golven in
-   delen na elkaar.
+7. Workflowgrootte: de eigenaar heeft de richtlijn op 2026-09-28 op "large" gezet (< 50 agents per
+   workflow).
 
 ---
 
