@@ -19,7 +19,7 @@ opdracht voor zijn spoor krijgt, moet zijn werk kunnen doen zonder terug te vrag
 | E1 | **Branch per spoor**, één PR per spoor. Naam: `claude/sweep-<spoorletter>-<onderwerp>`. |
 | E2 | **De orkestrator merget zelf** naar `main`, maar pas na de poorten van §4 **én** de merge-wachtkamer van §4.1. Een PR die klaar is, wacht op de synchronisatie. Tussendoor kan een andere agent iets vinden waardoor hij niet mag landen. Nooit een tag of release (dat blijft de `release`-skill, op expliciet verzoek). `main` deployt via `live.yml` naar productie, achter een `npm run verify`-poort. |
 | E3 | **De eigenaar reviewt niet.** Elk stuk werk wordt daarom gereviewd door een agent die het niet schreef: elke bevinding, elke fix en elk bevindingenrapport. De orkestrator raadpleegt daarnaast regelmatig de advisor (§4.2). |
-| E4 | **Motorwerk op een onvolledig corpus.** De twee orakels in `P6-Viewer/XER Files/` ontbreken in `ops-xer-corpus`. Van de 8 geselecteerde entries in `tests/planning/xer-fidelity-baseline.json` zijn er daardoor 7 aanwezig; de ontbrekende is `TERMINAL BUILDING-AIRPORT.xer`. `Hotel Project.xer` is wel `oracle`/`included`, maar staat niet in die baselineselectie (waarom: niet onderzocht). Een wijziging die het rekengedrag verandert, landt **niet**; ze wordt een voorstel met meting in het bevindingenrapport. Exacte, differentieel gepinde motorwijzigingen mogen wel (zie §4, poort 3). |
+| E4 | **Motorwerk op het volledige P6-corpus.** De twee ontbrekende orakels (`P6-Viewer/XER Files/Hotel Project.xer` en `TERMINAL BUILDING-AIRPORT.xer`) zijn op 2026-09-28 met toestemming van de eigenaar uit de openbare bron (`CodeVision3000/P6-Viewer` @ `c32dc4c`, MIT) aan `ops-xer-corpus` toegevoegd, sha256 gecontroleerd tegen het manifest. Daarmee geldt regel A gewoon: een wijziging aan het rekengedrag landt alleen als geen exacte cel inexact wordt (§4, poort 3). De MS Project-kant blijft beperkt: het bedrijfscorpus (`OPS_MPP_CORPUS`, 3 bestanden) staat alleen lokaal bij de eigenaar. |
 | E5 | **Vraagpoort:** vóór een vraag de eigenaar bereikt, doet de agent eerst onderzoek (code, corpus, internet: documentatie van Oracle P6 en Microsoft Project, MPXJ, vakliteratuur). Een vraag met één logisch of duidelijk eleganter antwoord wordt niet gesteld maar beslist, met bron en reden in de PR. Alleen een echte smaak-/strategiekeuze gaat naar de eigenaar, altijd met bronnen, opties en advies. |
 | E6 | **Profielgebonden gedrag buiten de solver** krijgt een plek als tweede laag in het rekenprofiel (reist mee in het bestand en wisselt mee met het profiel), niet als losse app-instelling. Zie spoor P. |
 | E7 | **"Imports/exports" betekent beide:** bestandsformaten (sporen E/F) én module-imports/-exports in de code (spoor K). |
@@ -283,12 +283,11 @@ spoor dat die zone bezit.
 1. `npm run verify` lokaal groen (exitcode 0) op de head van de spoorbranch, ná een merge met de
    actuele `main`.
 2. CI groen op de laatste commit van de PR.
-3. Bij elke wijziging onder `src/engine/`: een **differentiële** meting, geen absolute. Omdat een
-   orakel ontbreekt, is de absolute pin waarschijnlijk al rood op `main`. De poort is daarom: het
-   per-cel-detailrapport (`OPS_XER_FIDELITY_REPORT=detail`) op dezelfde aanwezige subset, `main`
-   tegen de branch, moet cel voor cel identiek zijn. Voor de MS Project-kant hetzelfde met de
-   `.mpp`-meting (`OPS_MPP_CRAWL`; het bedrijfscorpus `OPS_MPP_CORPUS` ontbreekt). De uitslag staat in
-   de PR, met de vermelding van de ontbrekende entry (E4).
+3. Bij elke wijziging onder `src/engine/`: `npm run measure:profiles` met het corpus, plus een
+   **differentiële** vergelijking: het per-cel-detailrapport (`OPS_XER_FIDELITY_REPORT=detail`) van
+   `main` tegen dat van de branch. Geen exacte cel mag inexact worden (regel A); elke veranderde cel
+   staat met reden in de PR. Voor de MS Project-kant hetzelfde met de `.mpp`-meting
+   (`OPS_MPP_CRAWL`); het bedrijfscorpus (`OPS_MPP_CORPUS`) ontbreekt, en dat staat in de PR.
 4. Een verificatie-agent, die de fix niet schreef, heeft de diff adversarieel gelezen en akkoord
    gegeven; zijn bevindingen zijn opgelost of met reden weerlegd.
 5. Geen open eigenaarsbesluit dat deze PR raakt.
@@ -296,11 +295,13 @@ spoor dat die zone bezit.
 
 Een PR die deze zes poorten haalt, is **klaar**, niet gemerged. Hij gaat de wachtkamer in (§4.1).
 
-### 4.0 Poortwachtrij: zware runs één tegelijk
+### 4.0 Poortwachtrij: zware runs begrensd
 
-De repo zegt zelf dat er machinebreed maar één zware run tegelijk hoort te lopen
-(`scripts/measure-profiles.mjs`). Met veel worktrees in één container geeft parallel draaien
-CPU-gedrang, poortconflicten en onbetrouwbare tijdmetingen.
+De regel "machinebreed één zware run tegelijk" (`scripts/measure-profiles.mjs`) is bedoeld voor de
+laptop van de eigenaar, die er anders onder bezwijkt terwijl hij erop werkt (eigenaar, 2026-09-28).
+In de cloudcontainer geldt die reden niet. Wel heeft de container 4 kernen (gemeten met `nproc`) en
+bevat de suite tijdgevoelige checks (100-ms-grenzen, tijdslimieten van de `.mpp`-lezer), die bij
+overbelasting vals rood worden. Daarom: hoogstens **twee** volledige `verify`- of corpusruns tegelijk.
 - **Subagents** draaien alleen gerichte checks: `npm run typecheck`, `npm run lint:fast`, hun eigen
   batterijen (`bash tests/planning/run.sh check-<x>.ts` / `cases-<x>.json`) en losse browserspecs.
 - **De orkestrator** draait de volledige `npm run verify` en de corpusmetingen, **serieel**, één spoor
