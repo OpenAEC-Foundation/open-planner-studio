@@ -23,10 +23,13 @@ export type IFCSaveSource = Pick<
   | 'calendars'
   | 'baselines'
   | 'activeBaselineId'
+  // Verplicht (review 2026-09-28): als optioneel veld liet een aanroeper met een eigen veldlijst
+  // (het IFC-paneel) het stil weg, en verloren alle bewaarde GlobalIds bij Toepassen.
+  | 'ifcGlobalIds'
 >
   & Partial<Pick<DocumentPayload,
     | 'xerImportMetadata' | 'xerSourceArchive' | 'xerSourceProjectId' | 'importPristine'
-    | 'recordedDates' | 'datesAsRecorded' | 'ifcGlobalIds'>>;
+    | 'recordedDates' | 'datesAsRecorded'>>;
 
 /**
  * "Datums zoals opgeslagen": in de modus draagt `task.time` op de
