@@ -426,7 +426,9 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
       parentId,
       isMilestone: !!t.milestone,
       time: createDefaultTaskTime(PROJECT_START, t.milestone ? 0 : (t.days ?? 5)),
-      ...(t.milestone ? { milestoneKind: t.milestone } : {}),
+      // Mijlpalen zoals de lezer ze maakt: Start › Taken › Mijlpaal (`MilestoneDropdown`) geeft een
+      // Start-/Eindmijlpaal het taaktype Overig en een Inspectiemoment het type Aanwezigheid.
+      ...(t.milestone ? { milestoneKind: t.milestone, taskType: t.mandatory ? 'ATTENDANCE' as const : 'USERDEFINED' as const } : {}),
       ...(t.mandatory ? { mandatory: true } : {}),
     });
     if (!id) fail(lang, `taak ${t.key} geweigerd`);
