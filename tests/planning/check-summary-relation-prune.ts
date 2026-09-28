@@ -8,8 +8,11 @@
 //
 // Deze check dwingt de snoeitak af met een laag budget en vergelijkt de volledige solve met de
 // gesnoeide, op willekeurige takken (alle relatietypen, ook negatieve lag, mijlpalen, handmatige
-// taken, constraints, dag- en uurkalender): elke taakdatum, elke speling, de drijvende relaties en
-// de relatie-vrije-speling moeten gelijk zijn.
+// taken, constraints, dag- en uurkalender), in de profielen ops, p6 en msproject. Een derde van de
+// gevallen mengt ook dag- en uurtaken, ELAPSEDTIME-duren en minuten- of ELAPSEDTIME-lags (review
+// 2026-09-28: daar was de snoei een dag mis; nu stapt hij daar terug). Elke taakdatum, elke speling,
+// de drijvende relaties, alle relatie-vrije-spelingen, de kritieke paden en de float-paden moeten
+// gelijk zijn.
 //
 // Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
@@ -42,7 +45,10 @@ const rnd = () => {
 };
 const pick = <T,>(a: readonly T[]) => a[Math.floor(rnd() * a.length)];
 
-function mk(id: string, dur: number, parentId: string | null, hours: boolean): Task {
+let mixed = false;      // gevallen met ELAPSEDTIME, minuten-lags en (soms) gemengde eenheden
+let mixedUnits = false; // binnen `mixed`: dag- en uurbladen door elkaar (⇒ snoei moet terugstappen)
+function mk(id: string, dur: number, parentId: string | null, hoursIn: boolean): Task {
+  const hours = mixed && mixedUnits ? rnd() < 0.3 : hoursIn;
   const time = createDefaultTaskTime('2026-06-01', hours ? dur * 8 : dur, hours ? 'hours' as never : undefined) as Task['time'];
   const t = {
     id, name: id, description: '', wbsCode: '', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
@@ -53,7 +59,16 @@ function mk(id: string, dur: number, parentId: string | null, hours: boolean): T
   else if (r < 0.12) t.constraint = { type: 'SNET', date: '2026-06-08' };
   else if (r < 0.16) t.constraint = { type: 'MSO', date: '2026-06-03' };
   else if (r < 0.2) t.constraint = { type: 'ALAP' };
+  // ELAPSEDTIME-duur: in een fase (⇒ terugstappen) of alleen erbuiten (⇒ snoeibaar, maar wel in het project).
+  if (mixed && (parentId === null || mixedUnits) && rnd() < 0.3) t.time.durationType = 'ELAPSEDTIME';
   return t;
+}
+
+function mixLag(seq: Sequence): Sequence {
+  if (!mixed) return seq;
+  if (rnd() < 0.15) seq.lagMinutes = pick([60, 120, 600, 1200]);
+  if (rnd() < 0.1) seq.lagUnit = 'ELAPSEDTIME';
+  return seq;
 }
 
 function project(hours: boolean) {
@@ -71,20 +86,31 @@ function project(hours: boolean) {
       // Interne logica: vooral ketens, soms dwars, soms negatieve lag.
       if (i > 0 && rnd() < 0.8) {
         const from = `${prefix}${Math.floor(rnd() * i)}`;
-        seqs.push({ id: `${from}-${t.id}`, predecessorId: from, successorId: t.id, type: pick(TYPES), lagDays: rnd() < 0.2 ? -1 : Math.floor(rnd() * 3) });
+        seqs.push(mixLag({ id: `${from}-${t.id}`, predecessorId: from, successorId: t.id, type: pick(TYPES), lagDays: rnd() < 0.2 ? -1 : Math.floor(rnd() * 3) }));
       }
     }
   }
   seqs.push({ id: 'pre', predecessorId: 'PRE', successorId: 'P1', type: 'FINISH_START', lagDays: 1 });
   tasks.push(mk('END', 1, null, hours));
   seqs.push({ id: 'end', predecessorId: 'Q0', successorId: 'END', type: 'FINISH_START', lagDays: 0 });
-  const rel: Sequence = { id: 'R', predecessorId: 'S1', successorId: 'S2', type: pick(TYPES), lagDays: pick([0, 2, -1]) };
+  const rel: Sequence = mixLag({ id: 'R', predecessorId: 'S1', successorId: 'S2', type: pick(TYPES), lagDays: pick([0, 2, -1]) });
   return { tasks, seqs: [...seqs, rel] };
 }
 
-const opts = { schedulingOptions: effectiveSchedulingOptions({}), projectStartDate: '2026-06-01' };
+const PROFILES = ['ops', 'p6', 'msproject'] as const;
+const optsFor = (base: typeof PROFILES[number]) => ({
+  schedulingOptions: effectiveSchedulingOptions({ schedulingProfile: { baseId: base, id: base, name: '', overrides: {} } }),
+  projectStartDate: '2026-06-01',
+});
+let opts = optsFor('ops');
 function solveWith(tasks: Task[], expanded: Sequence[], cal: WorkCalendar) {
-  const r = new CPMSolver(structuredClone(tasks.filter(isLeafTask)), expanded, cal, [cal], opts).solve();
+  let r;
+  try {
+    r = new CPMSolver(structuredClone(tasks.filter(isLeafTask)), expanded, cal, [DAY, HOUR], opts).solve();
+  } catch (err) {
+    // Een fout in de motor zelf (bestaat los van de snoei) moet dan in beide routes gelijk zijn.
+    return { thrown: String(err) };
+  }
   foldSyntheticSequenceIds(r);
   const rows = [...r.tasks.entries()].sort(([a], [b]) => a.localeCompare(b))
     .map(([id, t]) => `${id}:${t.earlyStart}|${t.earlyFinish}|${t.lateStart}|${t.lateFinish}|${t.totalFloat}|${t.freeFloat}`);
@@ -93,13 +119,20 @@ function solveWith(tasks: Task[], expanded: Sequence[], cal: WorkCalendar) {
     rows,
     driving: [...new Set(r.drivingSequenceIds)].sort(),
     relFloat: r.sequenceFreeFloat?.R ?? null,
+    seqFloat: Object.entries(r.sequenceFreeFloat ?? {}).sort(([a], [b]) => a.localeCompare(b)),
+    critical: r.criticalPaths,
+    floatPaths: Object.entries(r.floatPathByTask ?? {}).sort(([a], [b]) => a.localeCompare(b)),
+    truncated: [...(r.truncatedLeadSequenceIds ?? [])].sort(),
   };
 }
 
-let pruned = 0, skipped = 0;
-for (let rep = 0; rep < 400; rep++) {
-  const hours = rep % 2 === 1;
+let pruned = 0, skipped = 0, prunedMixed = 0;
+for (let rep = 0; rep < 900; rep++) {
+  mixed = rep % 3 === 2;
+  mixedUnits = mixed && rnd() < 0.3;
+  const hours = rep % 3 === 1 || (mixed && rnd() < 0.5);
   const cal = hours ? HOUR : DAY;
+  opts = optsFor(PROFILES[Math.floor(rep / 3) % 3]);
   const { tasks, seqs } = project(hours);
   const full = expandSummaryRelations(tasks, seqs);
   const nP = tasks.filter(t => t.parentId === 'S1').length;
@@ -108,19 +141,70 @@ for (let rep = 0; rep < 400; rep++) {
   const small = expandSummaryRelations(tasks, seqs, budget);
   if (small.droppedSequenceIds.includes('R')) { skipped++; continue; }   // niets te snoeien ⇒ als vanouds gedropt
   pruned++;
+  if (mixed) prunedMixed++;
   const a = solveWith(tasks, full.sequences, cal);
   const b = solveWith(tasks, small.sequences, cal);
   checks++;
   if (JSON.stringify(a) !== JSON.stringify(b)) {
+    if ('thrown' in a || 'thrown' in b) { diffs.push(`rep ${rep}: fout in één route: ${JSON.stringify(a).slice(0, 120)} / ${JSON.stringify(b).slice(0, 120)}`); continue; }
     const bad = a.rows.filter((row, i) => row !== b.rows[i]);
-    diffs.push(`rep ${rep} (${hours ? "uur" : "dag"}): ${bad.slice(0, 3).map(row => row + " ≠ " + b.rows[a.rows.indexOf(row)]).join(" ; ")} ${a.error ?? ''}/${b.error ?? ''} driving ${JSON.stringify(a.driving) === JSON.stringify(b.driving)} relFloat ${a.relFloat}/${b.relFloat}`);
+    diffs.push(`rep ${rep} (${mixed ? 'gemengd' : hours ? "uur" : "dag"}, ${PROFILES[Math.floor(rep / 3) % 3]}): ${bad.slice(0, 3).map(row => row + " ≠ " + b.rows[a.rows.indexOf(row)]).join(" ; ")} ${a.error ?? ''}/${b.error ?? ''} driving ${JSON.stringify(a.driving) === JSON.stringify(b.driving)} relFloat ${a.relFloat}/${b.relFloat}`);
   }
 }
 checks++;
-if (pruned < 100) diffs.push(`te weinig snoeigevallen om iets te bewijzen: ${pruned} (overgeslagen ${skipped})`);
+if (pruned < 200) diffs.push(`te weinig snoeigevallen om iets te bewijzen: ${pruned} (overgeslagen ${skipped})`);
+checks++;
+if (prunedMixed < 20) diffs.push(`te weinig gemengde snoeigevallen: ${prunedMixed}`);
+
+// Vaste gevallen uit de review van 2026-09-28: hier week de gesnoeide uitkomst een dag af. De snoei
+// moet nu terugstappen (R valt dan als vanouds weg) of exact gelijk zijn.
+{
+  const leaf = (id: string, parentId: string, dur: number, unit: 'days' | 'hours', durationType?: 'ELAPSEDTIME') => {
+    const time = createDefaultTaskTime('2026-06-01', dur, unit as never, DAY) as Task['time'];
+    if (durationType) time.durationType = durationType;
+    return { id, name: id, description: '', wbsCode: '', taskType: 'CONSTRUCTION', status: 'NOT_STARTED', isMilestone: false,
+      priority: 500, parentId, childIds: [], time, resourceIds: [] } as Task;
+  };
+  const summary = (id: string, childIds: string[]) => ({ ...leaf(id, '', 1, 'days'), parentId: null, childIds });
+  const cases: { name: string; tasks: Task[]; seqs: Sequence[] }[] = [
+    {
+      name: 'dag- en uurblad met ELAPSEDTIME-lag, R met minuten-lag',
+      tasks: [summary('S1', ['P0', 'P1']), summary('S2', ['Q6']), leaf('P0', 'S1', 1, 'days'), leaf('P1', 'S1', 8, 'hours'), leaf('Q6', 'S2', 2, 'days')],
+      seqs: [
+        { id: 'p', predecessorId: 'P0', successorId: 'P1', type: 'FINISH_START', lagDays: 0, lagUnit: 'ELAPSEDTIME' },
+        { id: 'R', predecessorId: 'S1', successorId: 'S2', type: 'START_START', lagDays: 0, lagMinutes: 1200 },
+      ],
+    },
+    {
+      name: 'minuten-lag intern, ELAPSEDTIME-opvolger, R ELAPSEDTIME-SF',
+      tasks: [summary('S1', ['P0', 'P3']), summary('S2', ['Q0', 'Q1']), leaf('P0', 'S1', 2, 'days'), leaf('P3', 'S1', 3, 'days'),
+        leaf('Q0', 'S2', 2, 'days'), leaf('Q1', 'S2', 3, 'days', 'ELAPSEDTIME'), { ...leaf('END', '', 1, 'days', 'ELAPSEDTIME'), parentId: null }],
+      seqs: [
+        { id: 'p', predecessorId: 'P0', successorId: 'P3', type: 'FINISH_START', lagDays: 0, lagMinutes: 120 },
+        { id: 'q', predecessorId: 'Q0', successorId: 'Q1', type: 'FINISH_START', lagDays: 0 },
+        { id: 'R', predecessorId: 'S1', successorId: 'S2', type: 'START_FINISH', lagDays: 0, lagMinutes: 1200, lagUnit: 'ELAPSEDTIME' },
+      ],
+    },
+  ];
+  for (const base of PROFILES) {
+    opts = optsFor(base);
+    for (const c of cases) {
+      const nP = c.tasks.filter(t => t.parentId === 'S1').length;
+      const nQ = c.tasks.filter(t => t.parentId === 'S2').length;
+      const small = expandSummaryRelations(c.tasks, c.seqs, nP * nQ - 1);
+      checks++;
+      if (small.droppedSequenceIds.includes('R')) continue;   // teruggestapt: als vanouds gedropt
+      const a = solveWith(c.tasks, expandSummaryRelations(c.tasks, c.seqs).sequences, DAY);
+      const b = solveWith(c.tasks, small.sequences, DAY);
+      if (JSON.stringify(a) !== JSON.stringify(b)) diffs.push(`vast geval (${base}) "${c.name}": gesnoeid ≠ volledig`);
+    }
+  }
+}
 
 // Schaalgeval: twee fasen van 300 bladen (elk een keten) — vroeger 90.000 combinaties ⇒ gedropt.
 {
+  mixed = false;
+  opts = optsFor('ops');
   const tasks: Task[] = [];
   const seqs: Sequence[] = [];
   const S1 = mk('F1', 1, null, false); const S2 = mk('F2', 1, null, false);
@@ -146,7 +230,7 @@ if (pruned < 100) diffs.push(`te weinig snoeigevallen om iets te bewijzen: ${pru
 }
 
 if (diffs.length === 0) {
-  console.log(`OK  summary-relation-prune: alle checks groen (${checks}; ${pruned} gesnoeid vergeleken, ${skipped} niet snoeibaar)`);
+  console.log(`OK  summary-relation-prune: alle checks groen (${checks}; ${pruned} gesnoeid vergeleken waarvan ${prunedMixed} gemengd, ${skipped} niet snoeibaar)`);
   process.exit(0);
 } else {
   console.log(`XX  summary-relation-prune: ${diffs.length} afwijking(en) van ${checks}`);

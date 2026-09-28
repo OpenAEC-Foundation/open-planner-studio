@@ -2,6 +2,7 @@ import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { CPMResult } from './CPMSolver';
 import { isLeafTask } from '@/utils/taskHierarchy';
+import { taskDurationUnit } from './duration';
 
 /**
  * Volledige samenvattingsrelatie-propagatie. `CPMSolver` kent alleen semantische bladtaken als
@@ -301,6 +302,13 @@ function nonNegativeLag(e: Sequence): boolean {
   return e.lagDays >= 0 && (e.lagMinutes ?? 0) >= 0 && (e.lagPercent ?? 0) >= 0;
 }
 
+/** Een lag in hele werkdagen: geen minuten-lag en geen ELAPSEDTIME. Een minuten-lag wordt voor een
+ *  dag-voorganger op dagen afgerond en voor een uur-voorganger exact geteld, en een ELAPSEDTIME-lag
+ *  telt 24/7; dan houdt de dominantie (p2.start ≥ p.finish) niet altijd stand. */
+function wholeDayLag(e: Sequence): boolean {
+  return !e.lagMinutes && e.lagUnit !== 'ELAPSEDTIME';
+}
+
 /**
  * Snoei bladen die het maximum aan hun kant nooit kunnen bepalen. Alleen een interne
  * EIND-START-relatie (lag ≥ 0) telt als dominantie: `p → p2` betekent p2.start ≥ p.finish, dus zowel
@@ -312,10 +320,14 @@ function nonNegativeLag(e: Sequence): boolean {
  *    q erft de grens van R dan via q2.
  * Waarom alleen FS: met SS/FF als dominantie waren de uitkomsten in uur-modus op dezelfde
  * werktijdpositie wel gelijk, maar kozen ze bij een bandgrens een andere weergave (16:00 van de ene
- * werkdag i.p.v. 08:00 van de volgende) — zichtbaar anders. FS-dominantie is in de toets
- * (`check-summary-relation-prune.ts`) byte-identiek met de volledige uitklapping, dag- én uur-modus.
- * Alleen tussen taken op dezelfde kalender die de logica volgen (`followsLogic`), en niet als R een
- * procentuele lag heeft (die rekent per voorgangerblad, M5). `null` = niet snoeibaar.
+ * werkdag i.p.v. 08:00 van de volgende) — zichtbaar anders.
+ * Alleen tussen taken op dezelfde kalender die de logica volgen (`followsLogic`). Niet snoeibaar
+ * (`null`, dus terug naar het oude droppen met melding) als R een procentuele lag heeft (die rekent
+ * per voorgangerblad, M5), als R of een dominantierelatie geen lag in hele werkdagen heeft
+ * (`wholeDayLag`), of als de bladen niet allemaal dezelfde duureenheid hebben of er een
+ * ELAPSEDTIME-duur tussen zit: daar vond de review van 2026-09-28 gevallen waarin de gesnoeide
+ * uitkomst een dag afweek. Binnen die grenzen is de snoei in de toets
+ * (`check-summary-relation-prune.ts`, drie profielen) gelijk aan de volledige uitklapping.
  */
 function pruneDominated(
   rel: Sequence,
@@ -325,13 +337,22 @@ function pruneDominated(
   edges: { out: ReadonlyMap<string, Sequence[]>; inc: ReadonlyMap<string, Sequence[]> },
 ): { predIds: string[]; succIds: string[] } | null {
   if (rel.lagPercent !== undefined && rel.lagPercent !== 0) return null;
+  if (!wholeDayLag(rel)) return null;
+  let unit: 'days' | 'hours' | null = null;
+  for (const id of [...predIds, ...succIds]) {
+    const t = byId.get(id)!;
+    if (t.time.durationType === 'ELAPSEDTIME') return null;
+    const u = taskDurationUnit(t);
+    if (unit !== null && u !== unit) return null;
+    unit = u;
+  }
   const eligible = (a: Task, b: Task) => followsLogic(a) && followsLogic(b) && (a.calendarId ?? '') === (b.calendarId ?? '');
 
   const predSet = new Set(predIds);
   const keepPred = predIds.filter((id) => {
     const p = byId.get(id)!;
     return !(edges.out.get(id) ?? []).some((e) => {
-      if (!predSet.has(e.successorId) || !nonNegativeLag(e)) return false;
+      if (!predSet.has(e.successorId) || !nonNegativeLag(e) || !wholeDayLag(e)) return false;
       return e.type === 'FINISH_START' && eligible(p, byId.get(e.successorId)!);
     });
   });
@@ -339,7 +360,7 @@ function pruneDominated(
   const keepSucc = succIds.filter((id) => {
     const q = byId.get(id)!;
     return !(edges.inc.get(id) ?? []).some((e) => {
-      if (!succSet.has(e.predecessorId) || !nonNegativeLag(e)) return false;
+      if (!succSet.has(e.predecessorId) || !nonNegativeLag(e) || !wholeDayLag(e)) return false;
       return e.type === 'FINISH_START' && eligible(byId.get(e.predecessorId)!, q);
     });
   });
