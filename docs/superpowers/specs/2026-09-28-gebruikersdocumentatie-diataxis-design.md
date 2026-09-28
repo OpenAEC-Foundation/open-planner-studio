@@ -1,6 +1,6 @@
 # Gebruikersdocumentatie — opnieuw, volgens Diátaxis
 
-*Ontwerp, 2026-09-28, versie 1.2 (open punten §10 beantwoord; tutorials als extensie, §11). Status: **ter review bij de eigenaar**. Basis: interview met de eigenaar
+*Ontwerp, 2026-09-28, versie 1.3 (open punten §10 beantwoord; tutorials als interactieve extensie, §11). Status: **ter review bij de eigenaar**. Basis: interview met de eigenaar
 (2026-09-28), de documentatie-audit van 2026-09-26 (PR #242), en drie read-only onderzoeken op `main`
 `9ab90cfd`: functie-inventaris uit de code (bijlage: `2026-09-28-gebruikersdocumentatie-functie-inventaris.md`),
 analyse van de docs-infrastructuur, en een haalbaarheidsmeting van app-gegenereerde screenshots.*
@@ -365,7 +365,28 @@ How-to, uitleg en referentie blijven in `public/docs`.
   registry die de extensie vult; screenshots zitten in de extensie, niet in de bundel (§7-omvang geldt
   voor de ZIP, binnen de bestaande limieten van 24/48 MiB); de wiki publiceert de tutorials niet
   (open punt voor later: eigen wiki-pagina's vanuit de extensie-repo).
-- **Fasering:** fase 1 (pilot) krijgt erbij: extensie-API 1.4.0 en een eerste extensieversie met tut-1.
+- **Interactief (besluit eigenaar):** de tutorial wordt in de app zelf doorlopen, niet alleen gelezen.
+  1. De gebruiker start een tutorial; de extensie opent het startbestand als nieuw document.
+  2. Een smal **begeleidingspaneel** toont de huidige stap (dezelfde tekst als de leesversie).
+  3. Het element waar de stap over gaat licht op (overlay van de bestaande rondleiding).
+  4. Zodra de stap in het document gedaan is (controle op de documenttoestand), toont het paneel
+     "wat je nu ziet, en waarom" en gaat verder.
+  5. **Toon mij** zet de stap klaar; **Opnieuw** laadt de tussenstand van het begin van de stap.
+  De leesversie van dezelfde artikelen staat ook in Help (tutorials-sectie).
+- **Techniek interactief:**
+  - Het paneel wordt door de **app** getekend (tekstrollen, thema, RTL, i18n van de knoppen); de extensie
+    levert alleen stappen aan: `{ id, body: {nl,en} (markdown), image?, anchor?, check(api) → boolean,
+    prepare?(api), resetFile? }`.
+  - **Ankers generiek:** elke lintknop, lintgroep en de hoofdpanelen krijgen automatisch een stabiel anker
+    (bijv. `ribbon:planning:calendar`), zodat een tutorial elke knop kan aanwijzen zonder handwerk per knop.
+  - Stapherkenning via `api.data` (bestaat) en `api.events` (bestaat); per stap een eigen controle. Hoe
+    goed elke stap automatisch te herkennen is, is **onbekend** tot het gebouwd is — een stap zonder
+    betrouwbare controle krijgt een knop "Klaar, volgende".
+- **Extensie-API 1.4.0 (permissie `help`):** Help-artikelen registreren · begeleidingspaneel starten met
+  stappen · meegeleverd projectbestand openen als nieuw document · anker-overlay aansturen.
+- **Fasering:** fase 1 (pilot) wordt **direct interactief**: extensie-API 1.4.0, generieke ankers,
+  begeleidingspaneel, en tut-1 als interactieve tutorial in de extensie (plus de leesversie in Help).
+  Publicatie in de catalogus pas na een app-release met API 1.4.0.
 
 ## 12. Buiten scope
 
