@@ -56,6 +56,7 @@ export function StatusBar() {
     <div
       className="flex items-center bg-surface-alt border-t border-border px-3 !text-body text-text-secondary select-none gap-4"
       style={{ height: 'var(--statusbar-height)' }}
+      data-tour-anchor="status-bar"
     >
       <span>{t('status.tasks')} {leafTasks.length}</span>
       <span>{t('status.milestones')} {milestones.length}</span>

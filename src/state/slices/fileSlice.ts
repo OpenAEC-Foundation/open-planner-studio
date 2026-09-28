@@ -313,7 +313,8 @@ export interface FileSlice {
   /** Open een meegeleverd voorbeeldproject uit een IFC-string als NIEUW document
    *  (geen filePath — opslaan wordt opslaan-als; isDirty=false). Werkt in web én
    *  Tauri; het bestand wordt door de aanroeper via fetch('/examples/…') geladen. */
-  openExampleFromString: (content: string, name: string, labels?: ImportLabels) => Promise<void>;
+  /** `true` als het project geopend is; `false` na een fout (die is dan al gemeld). */
+  openExampleFromString: (content: string, name: string, labels?: ImportLabels) => Promise<boolean>;
   /** Eén gedeelde load-implementatie: vul de ACTIEVE document-state met een geparsed
    *  project en voer de opt-afhankelijke nastappen uit (runCPM/fit/uur-melding/extensie-event).
    *  Neemt géén besluit over een nieuw tabblad — dat blijft bij de aanroeper vóór de load.
@@ -1114,12 +1115,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         });
         const archiveNotice = withXerArchiveIssueNotice(undefined, [parsed.xerArchiveIssue]);
         if (archiveNotice) get().notify(archiveNotice);
+        return true;
       } catch (err) {
         console.error(`Failed to open example "${name}":`, err);
         // `params: { name }` achterwege gelaten: de bestaande `notifications.openFailed`-string
         // bevat geen {{name}}-placeholder, en i18n niet aanraken is een harde grens. De naam staat
         // wel in de debug-terminal (console.error hierboven).
         get().notify({ severity: 'error', messageKey: 'notifications.openFailed', detail: (err as Error).message });
+        return false;
       }
     },
   };

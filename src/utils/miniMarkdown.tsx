@@ -13,8 +13,10 @@
 //   - links: alléén `docs://<article-id>` of `docs://<article-id>#<anker>` (interne viewer-navigatie,
 //     het anker is de GitHub-vorm van een kop, zie `headingSlug` in helpManifest.ts) en
 //     `examples://<file>` (opent hetzelfde voorbeeld-openpad als Backstage → Voorbeelden) —
-//     dit zijn bewust de ENIGE toegestane linkvormen; alles anders wordt als
-//     platte tekst getoond (geen externe netwerkaanroepen vanuit help-content).
+//     en — alleen waar de aanroeper `onOpenProject` meegeeft (een artikel of begeleidingsstap van
+//     een extensie) — `project://<asset>` (opent een meegeleverd projectbestand als nieuw document).
+//     Dit zijn bewust de ENIGE toegestane linkvormen; alles anders, en een schema zonder handler,
+//     wordt als platte tekst getoond (geen externe netwerkaanroepen vanuit help-content).
 //   - afbeeldingen ![alt](pad) — het pad gaat door `handlers.resolveImage` (per bron: een
 //     manifestartikel lost op tegen `${BASE_URL}docs/<pad>` met `{lang}` = de docstaal, een
 //     geregistreerd extensieartikel via de resolver van zijn extensie); zonder resolver geldt
@@ -37,7 +39,10 @@ function defaultResolveImage(src: string): string {
 export interface MiniMarkdownHandlers {
   /** `target` is het deel na `docs://`: een artikel-id, eventueel met `#anker`. */
   onNavigate: (target: string) => void;
-  onOpenExample: (file: string) => void;
+  /** Weglaten = een `examples://`-link is gewone tekst. */
+  onOpenExample?: (file: string) => void;
+  /** `project://<asset>`-link (extensie-inhoud). Weglaten = gewone tekst. */
+  onOpenProject?: (assetName: string) => void;
   /** Afbeeldingspad (zoals in de Markdown) → URL. Weglaten = `public/docs`-pad met `{lang}` = en. */
   resolveImage?: (src: string) => string;
 }
@@ -62,9 +67,10 @@ export function extractHeadings(source: string): string[] {
 
 function MiniMarkdownImage({ alt, src, resolveImage }: { alt: string; src: string; resolveImage?: (src: string) => string }) {
   const [failed, setFailed] = useState(false);
+  // Een resolver mag `''` teruggeven voor "bestaat niet" (bv. een ontbrekende extensie-asset).
   const resolved = (resolveImage ?? defaultResolveImage)(src);
 
-  if (failed) {
+  if (failed || !resolved) {
     return (
       <span className="help-image-placeholder" role="img" aria-label={alt}>
         {alt}
@@ -84,10 +90,19 @@ function renderLink(label: ReactNode, href: string, handlers: MiniMarkdownHandle
       </button>
     );
   }
-  if (href.startsWith('examples://')) {
+  const { onOpenExample, onOpenProject } = handlers;
+  if (href.startsWith('examples://') && onOpenExample) {
     const file = href.slice('examples://'.length);
     return (
-      <button key={key} type="button" className="help-link help-link-example" onClick={() => handlers.onOpenExample(file)}>
+      <button key={key} type="button" className="help-link help-link-example" onClick={() => onOpenExample(file)}>
+        {label}
+      </button>
+    );
+  }
+  if (href.startsWith('project://') && onOpenProject) {
+    const asset = href.slice('project://'.length);
+    return (
+      <button key={key} type="button" className="help-link help-link-project" data-help-project={asset} onClick={() => onOpenProject(asset)}>
         {label}
       </button>
     );

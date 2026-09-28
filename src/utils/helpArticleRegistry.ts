@@ -4,7 +4,8 @@
 // Tutorials naast de artikelen uit het manifest; hij weet niet (en hoeft niet te weten) welke bron ze
 // aanleverde.
 //
-// Dit is de interne naad; de extensie-API die hem aanroept volgt in een volgende stap. Eén
+// Dit is de interne naad; de extensie-API (`api.help.registerArticles`, contract 1.4.0,
+// `src/extensions/helpApi.ts`) roept hem aan met het extensie-id als bron. Eén
 // module-globale lijst met abonnees (zelfde soort UI-coördinatie als `backstageLeaveGuard.ts`), geen
 // store-state: het is geen documentdata, gaat niet mee in undo of opslaan, en een bron registreert
 // en deregistreert zelf.
@@ -34,6 +35,11 @@ export interface RegisterHelpArticlesOptions {
    * wordt als `public/docs`-pad opgelost (zoals een manifestartikel).
    */
   resolveImage?: (path: string) => string;
+  /**
+   * Opent een meegeleverd projectbestand (`project://<naam>`-link in de tekst) als nieuw document.
+   * Weglaten = zo'n link is gewone tekst.
+   */
+  openProject?: (assetName: string) => void;
 }
 
 /** Een geregistreerd artikel zoals de viewer het ziet. */
@@ -45,6 +51,7 @@ export interface RegisteredHelpArticle extends HelpArticleMeta {
   /** De bron die het aanleverde (bijv. het extensie-id). */
   source: string;
   resolveImage?: (path: string) => string;
+  openProject?: (assetName: string) => void;
 }
 
 export type RegisterHelpArticlesResult =
@@ -109,6 +116,7 @@ export function registerHelpArticles(
     body: { nl: a.body.nl, en: a.body.en },
     source,
     ...(options.resolveImage ? { resolveImage: options.resolveImage } : {}),
+    ...(options.openProject ? { openProject: options.openProject } : {}),
   }));
   bySource = new Map(bySource);
   bySource.set(source, registered);

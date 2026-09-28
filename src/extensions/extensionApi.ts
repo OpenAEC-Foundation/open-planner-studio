@@ -13,6 +13,7 @@ import type {
 } from './types';
 import type { ExtImportResult, ExtFontProvider } from './extTypes';
 import type { AppStoreContext } from '@/state/appStore';
+import type { ImportLabels } from '@/services/importTypes';
 import { createBatchTransactions } from '@/state/runtime/createBatchTransactions';
 import { isSelfOrDescendant } from '@/state/taskTree';
 import { registerCjkFontProvider } from '@/services/pdf/fontRegistry';
@@ -23,6 +24,7 @@ import {
   type ExtEventListener,
 } from '@/services/extensionEvents';
 import { applyPermissionGuards } from './permissions';
+import { createHelpApi } from './helpApi';
 import {
   assertNoImportSourceDrift,
   getExtImportSourceCatalogPage,
@@ -55,6 +57,11 @@ export interface ExtensionHostBinding {
     message: string,
     type: 'info' | 'warning' | 'error',
   ): void;
+  /**
+   * Vertaalde importlabels (UI-taal) voor een project dat `api.help.openBundledProject` opent.
+   * Optioneel: een headless host laat hem weg en krijgt de standaardlabels van de lezer.
+   */
+  importLabels?(): ImportLabels;
 }
 
 export function createExtensionApi(
@@ -365,6 +372,17 @@ export function createExtensionApi(
       },
     },
 
+    // Help & begeleiding (permissie 'help'): zie helpApi.ts. Registreert zijn eigen opruiming in
+    // cleanupFns (artikelen uit Help, blob-URL's intrekken, eigen begeleiding stoppen).
+    help: createHelpApi({
+      extensionId,
+      assets,
+      document,
+      host,
+      getApi: () => api,
+      cleanupFns,
+    }),
+
     _cleanup() {
       cleanupFns.forEach((fn) => fn());
       cleanupFns.length = 0;
@@ -373,7 +391,7 @@ export function createExtensionApi(
   };
 
   // Centrale permissie-afdwinging: wikkel de guarded methodes (events.*, ui.addRibbonButton,
-  // importers.*, pdfFonts.register, data.getImportSource*) in checks volgens de tabel in
+  // importers.*, pdfFonts.register, data.getImportSource*, help.*) in checks volgens de tabel in
   // permissions.ts. De rest van data.*, settings.*, assets.get en ui.showNotification blijven
   // ongewijzigd kern-API.
   applyPermissionGuards(api as unknown as Record<string, unknown>, extensionId, permissions);
