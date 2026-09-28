@@ -15,8 +15,8 @@ opdracht voor zijn spoor krijgt, moet zijn werk kunnen doen zonder terug te vrag
 | # | Besluit |
 |---|---|
 | E1 | **Branch per spoor**, één PR per spoor. Naam: `claude/sweep-<spoorletter>-<onderwerp>`. |
-| E2 | **De orkestrator merget zelf** naar `main` zodra alle poorten van §4 gehaald zijn. Nooit een tag of release (dat blijft de `release`-skill, op expliciet verzoek). `main` deployt via `live.yml` naar productie, achter een `npm run verify`-poort. |
-| E3 | **De eigenaar reviewt niet.** De poorten van §4 en een onafhankelijke verificatie-agent vervangen de menselijke review. |
+| E2 | **De orkestrator merget zelf** naar `main`, maar pas na de poorten van §4 **én** de merge-wachtkamer van §4.1. Een PR die klaar is, wacht op de synchronisatie. Tussendoor kan een andere agent iets vinden waardoor hij niet mag landen. Nooit een tag of release (dat blijft de `release`-skill, op expliciet verzoek). `main` deployt via `live.yml` naar productie, achter een `npm run verify`-poort. |
+| E3 | **De eigenaar reviewt niet.** Elk stuk werk wordt daarom gereviewd door een agent die het niet schreef: elke bevinding, elke fix en elk bevindingenrapport. De orkestrator raadpleegt daarnaast regelmatig de advisor (§4.2). |
 | E4 | **Motorwerk op 7 van 9 orakels.** De twee orakels in `P6-Viewer/XER Files/` (`Hotel Project.xer`, `TERMINAL BUILDING-AIRPORT.xer`) ontbreken in `ops-xer-corpus`. Een wijziging die het rekengedrag verandert, landt dus **niet**; ze wordt een voorstel met meting in het bevindingenrapport. Exacte (differentieel gepinde) motorwijzigingen mogen wel. |
 | E5 | **Vraagpoort:** vóór een vraag de eigenaar bereikt, doet de agent eerst onderzoek (code, corpus, internet: documentatie van Oracle P6 en Microsoft Project, MPXJ, vakliteratuur). Een vraag met één logisch of duidelijk eleganter antwoord wordt niet gesteld maar beslist, met bron en reden in de PR. Alleen een echte smaak-/strategiekeuze gaat naar de eigenaar, altijd met bronnen, opties en advies. |
 | E6 | **Profielgebonden gedrag buiten de solver** krijgt een plek als tweede laag in het rekenprofiel (reist mee in het bestand en wisselt mee met het profiel), niet als losse app-instelling. Zie spoor P. |
@@ -87,7 +87,8 @@ opdracht voor zijn spoor krijgt, moet zijn werk kunnen doen zonder terug te vrag
    (zie de skill `hyperkritische-review`). Wat niet reproduceert of al opgelost is, valt af.
 3. **Fix.** Test eerst rood, dan de fix, dan groen. Kleinste fix die het probleem oplost; geen
    verbreding buiten het spoor.
-4. **Poorten** (§4), dan PR, dan merge door de orkestrator.
+4. **Review en poorten** (§4): een agent die de fix niet schreef reviewt de diff. Dan PR, dan de
+   merge-wachtkamer (§4.1). De orkestrator merget pas na de kruiscontrole.
 5. **Bevindingenrapport** in de PR: `docs/superpowers/plans/2026-09-XX-sweep-<spoor>-bevindingen.md`
    met alle bevindingen (ook de niet-gefixte, met reden), de meetuitslagen, de beslissingen onder E5
    met bron, en *Gevolgen voor de gidsen* (E8).
@@ -282,9 +283,37 @@ spoor dat die zone bezit.
 5. Geen open eigenaarsbesluit dat deze PR raakt.
 6. De PR-tekst volgt `.github/pull_request_template.md` en bevat de sectie *Gevolgen voor de gidsen*.
 
-Pas dan merget de orkestrator. Volgorde van mergen: kleine, geïsoleerde sporen eerst; daarna de
-volgende PR's opnieuw op `main` zetten (merge, geen rebase van gedeelde geschiedenis) en de poorten
-opnieuw draaien.
+Een PR die deze zes poorten haalt, is **klaar**, niet gemerged. Hij gaat de wachtkamer in (§4.1).
+
+### 4.1 Merge-wachtkamer
+
+1. **Niet direct mergen.** Een klare PR wacht tot het eerstvolgende synchronisatiemoment. Dat valt na
+   het afronden van de verificatie van een golf, of na een batch fixes; in elk geval niet midden in
+   lopend werk dat dezelfde zone raakt.
+2. **Kruiscontrole op dat moment.** De orkestrator legt de diff van elke klare PR naast alle
+   bevindingen die sinds de PR klaar werd zijn binnengekomen, ook die van andere sporen, en naast de
+   andere klare PR's. Vragen: raakt een nieuwe bevinding code die deze PR wijzigt? Maakt een andere
+   PR deze overbodig of tegenstrijdig? Verandert de volgorde van landen de uitkomst?
+3. **Een verificatie-agent kijkt mee** met die kruiscontrole, met de lijst klare PR's en de nieuwe
+   bevindingen als invoer. Hij gaat na of er een reden is om iets tegen te houden.
+4. **Advisor** (§4.2) vóór elke merge-batch.
+5. Alleen wat de kruiscontrole doorstaat, landt. Twijfel betekent wachten, niet mergen. Een PR die
+   wordt tegengehouden, krijgt de reden in een PR-reactie.
+6. Volgorde: kleine, geïsoleerde sporen eerst. Daarna de volgende PR's opnieuw op `main` zetten
+   (merge, geen rebase van gedeelde geschiedenis), de poorten van §4 opnieuw draaien en weer de
+   wachtkamer in.
+
+### 4.2 Advisor
+
+De orkestrator raadpleegt de advisor, als die in de sessie aanstaat, op vaste momenten:
+- vóór de start van elke golf (klopt de opzet?);
+- na de verificatie van golf 1 (kloppen de bevindingen en de prioriteiten, en is de besluitenlijst
+  voor de eigenaar echt nodig?);
+- vóór elke merge-batch (§4.1);
+- als een spoor vastloopt of een fix groter wordt dan gepland.
+
+Het advies en wat ermee gedaan is, komt kort in het bevindingenrapport van het spoor. Staat de advisor
+niet aan, dan meldt de orkestrator dat aan de eigenaar in plaats van stil door te gaan.
 
 ---
 
