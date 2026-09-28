@@ -249,6 +249,10 @@ test('een opgeslagen document deelt zijn backupmap over sessies heen; eerdere se
   assertEq(files.size, 20, 'binnen een week blijven er over de sessies heen 20 over');
   assert([...files.values()].includes('IFC:24'), 'de nieuwste sessie staat er nog');
   assert(![...files.values()].includes('IFC:0'), 'de oudste sessie is weg');
+  const dir = [...dirs][0];
+  assert(dir.includes('file-Kantoor Zuidas-'), `leesbare mapnaam, kreeg ${dir}`);
+  assert(backupBucket('a', '/x/Plan.ifc') !== backupBucket('a', '/y/Plan.ifc'), 'gelijke naam, andere map ⇒ andere emmer');
+  assertEq(backupBucket('doc-9', null), 'doc-9', 'nooit opgeslagen ⇒ doc-id');
 });
 
 test('opruimen loopt ook de andere mappen na: een oude map van een nooit opgeslagen document verdwijnt', async () => {
@@ -293,6 +297,48 @@ test('een fout bij het opruimen laat de backup zelf niet falen', async () => {
     console.warn = warn;
   }
 });
+
+// --- (8) fail-safe: een schrijffout propageert als reject (NIET null) -----------------------------
+
+test('een schrijffout propageert als reject — de service slikt niets stil', async () => {
+  const { fs } = makeFakeFs({ failWrite: true });
+  const { deps } = makeDeps(fs);
+  const svc = createBackupService(deps);
+
+  let threw = false;
+  try { await svc.ensureBackup('doc-1', 'mutate'); }
+  catch { threw = true; }
+  assert(threw, 'een schrijffout MOET rejecten, niet stil null teruggeven');
+});
+
+// --- (9) padvorm: docId-submap + gesaneerde projectnaam ------------------------------------------
+
+test('het backup-pad bevat de ai-backups-map, de docId-submap en de gesaneerde projectnaam', async () => {
+  const { fs } = makeFakeFs();
+  const { deps } = makeDeps(fs, { projectName: 'Woontoren A/B: fase 2*' });
+  const svc = createBackupService(deps);
+  const path = (await svc.ensureBackup('doc-xyz', 'mutate'))!;
+
+  assert(path.includes('/ai-backups/'), `pad mist de ai-backups-map: ${path}`);
+  assert(path.includes('/ai-backups/doc-xyz/'), `pad mist de docId-submap: ${path}`);
+  assert(path.endsWith('.ifc'), `pad eindigt niet op .ifc: ${path}`);
+  // De gesaneerde naam mag geen padscheiders of verboden tekens meer bevatten.
+  const fileName = path.split('/').pop()!;
+  assert(!/[\/:*?"<>|]/.test(fileName.replace('.ifc', '')), `bestandsnaam bevat verboden tekens: ${fileName}`);
+});
+
+test('sanitizeProjectName vervangt verboden tekens en valt terug op een default bij leeg', () => {
+  assertEq(sanitizeProjectName('A/B:c'), 'A_B_c', 'padscheiders/dubbelepunt → _');
+  assert(sanitizeProjectName('   ').length > 0, 'een lege/whitespace naam valt terug op een niet-lege default');
+});
+
+// --- (10) integratie: buildMcpContext levert nu de ECHTE service (geen inline null-stub) ----------
+
+test('buildMcpContext bekabelt de echte backup-service (referentie-identiteit met de export)', () => {
+  const ctx = buildMcpContext();
+  assert(ctx.ensureBackup === exportedEnsureBackup, 'buildMcpContext moet de echte ensureBackup-export leveren, niet de oude inline stub');
+});
+
 
 test('createAppBackupService(B) serialiseert B en gebruikt B\'s actieve document voor handmatige backup', async () => {
   const A = appStoreContext;
