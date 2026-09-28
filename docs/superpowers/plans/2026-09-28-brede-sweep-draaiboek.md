@@ -330,7 +330,7 @@ niet aan, dan meldt de orkestrator dat aan de eigenaar in plaats van stil door t
    motorspoor.
 5. Nulmeting: `npm run verify` en `npm run measure:profiles` op `main`, uitslag bewaren als referentie.
 6. Workflowgrootte: de richtlijn staat op "medium" (< 10 agents per workflow). Meer tegelijk kan pas
-   als de eigenaar dat in `/config` ("Dynamic workflow size") ophoogt; anders draaien de golven in
+   als de eigenaar dat ophoogt met `/config workflowSizeGuideline=large` (of `unrestricted`); anders draaien de golven in
    delen na elkaar.
 
 ---
