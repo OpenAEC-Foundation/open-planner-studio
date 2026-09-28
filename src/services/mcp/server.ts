@@ -93,8 +93,14 @@ export function regenerateMcpToken(): string {
 export async function regenerateAndApplyMcpToken(isRunning: () => boolean): Promise<string> {
   const token = regenerateMcpToken();
   if (isTauri() && isRunning()) {
-    const controller = await getLiveController();
-    await controller.restart();
+    // Het nieuwe token staat al opgeslagen: ook als de herstart faalt (bv. `listen` of de dynamische
+    // import werpt) moet het veld het tonen, anders liet de UI het oude, niet meer geldige token zien.
+    try {
+      const controller = await getLiveController();
+      await controller.restart();
+    } catch (error) {
+      console.error('MCP: herstart na nieuw token mislukt:', error);
+    }
   }
   return token;
 }
@@ -191,7 +197,18 @@ export interface RequestHandlerDeps {
   buildContext: () => McpContext;
   /** Verwerkt de rauwe JSON-RPC-body (echt: `handleMcpMessage`). */
   handleMessage: (body: string, ctx: McpContext) => Promise<string>;
+  /** Klok in ms (test-injectie; echt: `Date.now`). */
+  now?: () => number;
 }
+
+/**
+ * Hoe lang een request in de wachtrij mag staan voordat het NIET meer wordt uitgevoerd. Rust geeft
+ * na `RESPONSE_TIMEOUT` (120 s, `mcp_bridge.rs`) de client al een 504; een daarna alsnog uitgevoerde
+ * mutatie zou de client als mislukt zien en bij een retry dubbel landen. De marge (10 s) dekt de
+ * tijd tussen Rusts klok-start en de aankomst van het event hier: liever een request te veel
+ * weigeren (niet uitgevoerd + fout = consistent) dan er een te veel uitvoeren.
+ */
+export const MCP_QUEUE_DEADLINE_MS = 110_000;
 
 // --- Activiteits-samenvatting --------------------------------------------------------------------
 
@@ -314,13 +331,19 @@ export function createRequestHandler(
   // zonder deze keten liep het volgende request (vaak een retry van dezelfde import) bij elke await
   // door het oude heen en opende bv. hetzelfde bestand twee keer.
   let tail: Promise<void> = Promise.resolve();
-  const handleOne = async (payload: { id: number; body: string }): Promise<void> => {
+  const now = deps.now ?? Date.now;
+  const handleOne = async (payload: { id: number; body: string }, arrivedAt: number): Promise<void> => {
+    // Een nieuwe MCP-sessie (`initialize`) begint zonder anker: anders erfde een herstarte client
+    // de documentbinding van de vorige en kreeg hij DOC_DRIFT op een tabblad dat hij nooit zag.
+    if (requestMethod(payload.body) === 'initialize') expectedDocId = null;
     const ctx = deps.buildContext();
     if (ctx.expectedDocId === null) ctx.expectedDocId = expectedDocId;
     const start = performance.now();
     let body: string;
     try {
-      body = await deps.handleMessage(payload.body, ctx);
+      body = now() - arrivedAt >= MCP_QUEUE_DEADLINE_MS
+        ? queueTimeoutResponse(payload.body)
+        : await deps.handleMessage(payload.body, ctx);
     } catch (error) {
       // Vangnet buiten de dispatcher-crashbarrière (bv. een niet-serialiseerbaar resultaat): altijd
       // een JSON-RPC-fout terugsturen, anders wacht de client tot de Rust-time-out.
@@ -333,10 +356,31 @@ export function createRequestHandler(
     await deps.emit('mcp://response', { id: payload.id, body });
   };
   return (payload) => {
-    const run = tail.then(() => handleOne(payload));
+    const arrivedAt = now();
+    const run = tail.then(() => handleOne(payload, arrivedAt));
     tail = run.catch((error) => { console.error('MCP: antwoord versturen mislukt:', error); });
     return run;
   };
+}
+
+/** De `method` van een enkel JSON-RPC-request, of null (batch-array, onparseerbaar). */
+function requestMethod(rawBody: string): string | null {
+  try {
+    const parsed = JSON.parse(rawBody) as { method?: unknown };
+    return parsed && typeof parsed === 'object' && typeof parsed.method === 'string' ? parsed.method : null;
+  } catch { return null; }
+}
+
+/** Antwoord voor een request dat te lang in de wachtrij stond en daarom niet is uitgevoerd: dezelfde
+ *  `-32001 timeout` als Rust geeft. Een notificatie krijgt een lege body. */
+function queueTimeoutResponse(rawBody: string): string {
+  let id: unknown = null;
+  try {
+    const parsed = JSON.parse(rawBody) as { id?: unknown };
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && !('id' in parsed)) return '';
+    id = (parsed as { id?: unknown })?.id ?? null;
+  } catch { /* onparseerbaar ⇒ id null */ }
+  return JSON.stringify({ jsonrpc: '2.0', id, error: { code: -32001, message: 'timeout: niet uitgevoerd, te lang in de wachtrij' } });
 }
 
 /** JSON-RPC `-32603 Internal error` voor een request waarvan de verwerking zelf wierp. Een

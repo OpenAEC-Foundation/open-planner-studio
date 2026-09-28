@@ -28,6 +28,7 @@ import {
   ensureMcpToken,
   generateToken,
   createRequestHandler,
+  MCP_QUEUE_DEADLINE_MS,
   createStatusHandler,
   attemptBridgeStart,
   buildMcpContext,
@@ -478,6 +479,57 @@ test('createRequestHandler: requests lopen na elkaar; een werpende verwerking ge
   assertEq(emitted.map((e) => e.id), [11, 12], 'beide krijgen een antwoord, in volgorde');
   const err = JSON.parse(emitted[1].body);
   assertEq([err.id, err.error?.code], [2, -32603], 'werpende verwerking ⇒ -32603 met het JSON-RPC-id');
+});
+
+test('createRequestHandler: een request dat langer dan de deadline in de wachtrij stond wordt NIET uitgevoerd (review 2026-09-28)', async () => {
+  let clock = 0;
+  let releaseFirst: () => void = () => {};
+  const firstGate = new Promise<void>((r) => { releaseFirst = r; });
+  const executed: number[] = [];
+  const emitted: any[] = [];
+  const handler = createRequestHandler({
+    emit: (_e, payload) => { emitted.push(payload); },
+    buildContext: buildMcpContext,
+    now: () => clock,
+    handleMessage: async (body) => {
+      const { id } = JSON.parse(body);
+      executed.push(id);
+      if (id === 1) await firstGate;
+      return JSON.stringify({ jsonrpc: '2.0', id, result: {} });
+    },
+  });
+  const p1 = handler({ id: 21, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'x' }) });
+  const p2 = handler({ id: 22, body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'x' }) });
+  await Promise.resolve(); await Promise.resolve();
+  assertEq(executed, [1], 'request 1 loopt (binnen de deadline gestart)');
+  clock = 60_000;
+  const p3 = handler({ id: 23, body: JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'x' }) });
+  clock = MCP_QUEUE_DEADLINE_MS + 1; // request 2 is verlopen, request 3 (aangekomen op 60 s) nog niet
+  releaseFirst();
+  await p1; await p2; await p3;
+  assertEq(executed, [1, 3], 'het verlopen request 2 wordt overgeslagen, 3 loopt wel');
+  assertEq(emitted.map((e) => e.id), [21, 22, 23], 'ook het overgeslagen request krijgt een antwoord');
+  const err = JSON.parse(emitted[1].body);
+  assertEq([err.id, err.error?.code], [2, -32001], 'overgeslagen ⇒ -32001 timeout met het JSON-RPC-id');
+});
+
+test('createRequestHandler: initialize (nieuwe MCP-sessie) wist het drift-anker (review 2026-09-28)', async () => {
+  const seen: (string | null)[] = [];
+  let bindTo: string | null = 'doc-A';
+  const handler = createRequestHandler({
+    emit: () => {},
+    buildContext: buildMcpContext,
+    handleMessage: async (body, ctx) => {
+      seen.push(ctx.expectedDocId);
+      if (bindTo) ctx.expectedDocId = bindTo;
+      bindTo = null;
+      return JSON.stringify({ jsonrpc: '2.0', id: JSON.parse(body).id, result: {} });
+    },
+  });
+  await handler({ id: 31, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call' }) });
+  await handler({ id: 32, body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call' }) });
+  await handler({ id: 33, body: JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'initialize' }) });
+  assertEq(seen, [null, 'doc-A', null], 'binnen een sessie blijft het anker; initialize begint zonder');
 });
 
 const REQ_BODY = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' });

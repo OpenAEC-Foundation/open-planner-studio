@@ -32,7 +32,10 @@ temp-id-resolutie).
 Veiligheid is state, geen conventie: `ui.aiMode` (de hele AI-tab en bridge verschijnen pas hierdoor),
 `ui.aiPaused`, `ui.aiReadOnly` en `ui.aiServerStatus` leven in `uiSlice`; de per-request `McpContext`
 leest ze live, plus een drift-anker (`expectedDocId`) zodat een tool nooit op het verkeerde document
-landt. Instellingen staan onder de bekende `ops-`-prefix (`ops-aiMode`, `ops-aiAutostart` — default
+landt; het anker leeft per verbinding en een `initialize` (nieuwe MCP-sessie) wist het.
+`createRequestHandler` (`server.ts`) verwerkt requests strikt na elkaar en voert een request dat langer
+dan `MCP_QUEUE_DEADLINE_MS` (110 s, net onder Rusts 120 s-time-out) in de wachtrij stond niet meer uit
+(`-32001`): de client had er al een 504 voor, dus uitvoeren zou bij een retry dubbel muteren. Instellingen staan onder de bekende `ops-`-prefix (`ops-aiMode`, `ops-aiAutostart` — default
 **uit**, want een luisterende poort openen is een bewuste keuze —, `ops-aiAutoBackup`, `ops-mcpPort`,
 `ops-mcpToken`); `src/hooks/useAiAutostart.ts` start de bridge desgewenst mee met de app, eenmalig
 per app-sessie zodat een handmatige stop niet stil ongedaan wordt gemaakt.
