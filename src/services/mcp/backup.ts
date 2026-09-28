@@ -21,8 +21,24 @@ import { DEFAULT_PROJECT_FILE_BASE } from '@/utils/documents';
 
 /** Submap-wortel onder `appDataDir` waarin per document een backup-submap komt. */
 export const BACKUP_ROOT = 'ai-backups';
-/** Opruimbeleid: hoogstens dit aantal backups per document-id-submap; oudere worden verwijderd. */
-export const MAX_PER_DOC = 10;
+
+/**
+ * Opruimbeleid per map: uitdunnen (eigenaarsbesluit 2026-09-28). Hoe ouder, hoe minder er blijven:
+ *  - jonger dan `recentDays`: alles, met een veiligheidsgrens van `recentMax` stuks;
+ *  - tot `weeklyUntilDays`: de nieuwste per kalenderweek (UTC, maandag als begin);
+ *  - tot `monthlyUntilDays`: de nieuwste per kalendermaand;
+ *  - ouder: de nieuwste per kalenderjaar, maar ALLEEN in de vaste map van een opgeslagen bestand.
+ *    De map van een nooit opgeslagen document is per sessie nieuw; bleef daar één per jaar staan,
+ *    dan groeide het aantal mappen onbegrensd door.
+ * Wat deze service in de lopende sessie schreef, blijft altijd staan. Een bestand zonder ons
+ * tijdstempel in de naam is niet van ons en wordt nooit aangeraakt.
+ */
+export const BACKUP_RETENTION = {
+  recentDays: 7,
+  recentMax: 20,
+  weeklyUntilDays: 30,
+  monthlyUntilDays: 365,
+} as const;
 
 /** Alleen deze tool-`kind`s triggeren een auto-backup. `batch` telt als ÉÉN. */
 const MUTATING_KINDS: ReadonlySet<McpToolDef['kind']> = new Set<McpToolDef['kind']>(['mutate', 'batch']);
@@ -36,7 +52,8 @@ export interface BackupFs {
   /** Maakt de submap aan (recursief); no-op wanneer hij al bestaat. */
   mkdir(dir: string): Promise<void>;
   writeTextFile(path: string, content: string): Promise<void>;
-  readDir(dir: string): Promise<{ name: string }[]>;
+  readDir(dir: string): Promise<{ name: string; isDirectory?: boolean }[]>;
+  /** Verwijdert een bestand of een LEGE map (niet recursief). */
   remove(path: string): Promise<void>;
 }
 
@@ -110,11 +127,62 @@ export function backupBucket(docId: string, filePath: string | null | undefined)
   return `file-${sanitizeProjectName(base).slice(0, 40)}-${hash.toString(16).padStart(8, '0')}`;
 }
 
-/** Trekt het tijdstempel-achtervoegsel uit een backup-bestandsnaam (voor chronologisch opruimen). */
-const TS_SUFFIX = /-(\d{4}-\d\d-\d\dT\d\d-\d\d-\d\d-\d{3}Z)\.ifc$/;
-function stampOf(fileName: string): string {
+/** Trekt het tijdstempel-achtervoegsel uit een backup-bestandsnaam (spiegel van `stamp`). */
+const TS_SUFFIX = /-(\d{4}-\d\d-\d\d)T(\d\d)-(\d\d)-(\d\d)-(\d{3})Z\.ifc$/;
+/** Tijdstip van een backup uit zijn bestandsnaam, of null als het niet onze naam is. Bewust niet de
+ *  wijzigingstijd van het bestand: kopiëren en synchroniseren zetten die opnieuw. */
+export function backupTimeOf(fileName: string): number | null {
   const m = fileName.match(TS_SUFFIX);
-  return m ? m[1] : ''; // geen match ⇒ sorteert als oudste
+  if (!m) return null;
+  const t = Date.parse(`${m[1]}T${m[2]}:${m[3]}:${m[4]}.${m[5]}Z`);
+  return Number.isFinite(t) ? t : null;
+}
+
+const DAY_MS = 86_400_000;
+
+/**
+ * Welke backups in één map weg mogen volgens `BACKUP_RETENTION`. Puur: `names` zijn de namen in de
+ * map, `keepYearly` is waar voor de vaste map van een opgeslagen bestand, `protectedNames` zijn de
+ * in deze sessie geschreven backups. Namen zonder ons tijdstempel komen nooit in de uitvoer.
+ */
+export function backupsToRemove(
+  names: readonly string[],
+  now: number,
+  keepYearly: boolean,
+  protectedNames: ReadonlySet<string> = new Set(),
+): string[] {
+  const ours = names
+    .map((name) => ({ name, t: backupTimeOf(name) }))
+    .filter((e): e is { name: string; t: number } => e.t !== null)
+    .sort((a, b) => b.t - a.t || (a.name < b.name ? 1 : a.name > b.name ? -1 : 0)); // nieuwste eerst
+  const R = BACKUP_RETENTION;
+  const seen = new Set<string>();
+  const remove: string[] = [];
+  let recent = 0;
+  for (const { name, t } of ours) {
+    const age = now - t;
+    let keep: boolean;
+    if (age < R.recentDays * DAY_MS) {
+      keep = protectedNames.has(name) || recent < R.recentMax;
+      if (keep) recent++;
+    } else {
+      const d = new Date(t);
+      // 1970-01-01 was een donderdag: +3 dagen legt de weekgrens op maandag.
+      const key = age < R.weeklyUntilDays * DAY_MS ? `w${Math.floor((t + 3 * DAY_MS) / (7 * DAY_MS))}`
+        : age < R.monthlyUntilDays * DAY_MS ? `m${d.getUTCFullYear()}-${d.getUTCMonth()}`
+        : keepYearly ? `y${d.getUTCFullYear()}`
+        : null;
+      keep = protectedNames.has(name) || (key !== null && !seen.has(key));
+      if (key !== null) seen.add(key);
+    }
+    if (!keep) remove.push(name);
+  }
+  return remove;
+}
+
+/** Is dit de vaste map van een opgeslagen bestand (zie `backupBucket`)? */
+function isFileBucket(bucket: string): boolean {
+  return bucket.startsWith('file-');
 }
 
 // --- Pure kern -----------------------------------------------------------------------------------
@@ -123,6 +191,8 @@ export function createBackupService(deps: BackupDeps): BackupService {
   // In-memory tellers, één instantie per server-sessie (reset via `resetSession`).
   const autoBackedUp = new Set<string>(); // docId's die deze sessie al een auto-backup kregen
   const duplicateBorn = new Set<string>(); // docId's geboren via duplicate_document (auto overslaan)
+  const writtenThisSession = new Set<string>(); // bestandsnamen die deze instantie schreef: nooit opruimen
+  let sweptOtherBuckets = false;              // de andere mappen één keer per sessie nalopen
 
   /** Schrijf één snapshot voor `docId`, ruim daarna op, en geef het pad terug. Rejec­t bij fs-fout. */
   async function writeSnapshot(docId: string): Promise<string> {
@@ -130,21 +200,44 @@ export function createBackupService(deps: BackupDeps): BackupService {
     if (!doc) throw new Error(`AI-backup: document '${docId}' niet gevonden`);
     const fs = await deps.getFs();
     const base = await fs.appDataDir();
-    const docDir = await fs.join(base, BACKUP_ROOT, backupBucket(docId, doc.filePath));
+    const bucket = backupBucket(docId, doc.filePath);
+    const docDir = await fs.join(base, BACKUP_ROOT, bucket);
     await fs.mkdir(docDir);
-    const path = await fs.join(docDir, backupFileName(doc.projectName, deps.now()));
+    const now = deps.now();
+    const name = backupFileName(doc.projectName, now);
+    const path = await fs.join(docDir, name);
     await fs.writeTextFile(path, doc.ifc); // een fout hier propageert → runtime vertaalt naar BACKUP_FAILED
-    await prune(fs, docDir);
+    writtenThisSession.add(name);
+    // Opruimen is bijzaak: een fout daarin mag de geschreven backup (en de tool-aanroep) niet laten falen.
+    try {
+      await prune(fs, docDir, isFileBucket(bucket), now);
+      if (!sweptOtherBuckets) {
+        sweptOtherBuckets = true;
+        await sweepOtherBuckets(fs, await fs.join(base, BACKUP_ROOT), bucket, now);
+      }
+    } catch (err) {
+      console.warn('AI-backup: opruimen mislukt', err);
+    }
     return path;
   }
 
-  /** Houd hoogstens `MAX_PER_DOC` .ifc-backups in de submap; verwijder de oudste (op tijdstempel). */
-  async function prune(fs: BackupFs, docDir: string): Promise<void> {
-    const names = (await fs.readDir(docDir)).map((e) => e.name).filter((n) => n.endsWith('.ifc'));
-    if (names.length <= MAX_PER_DOC) return;
-    names.sort((a, b) => (stampOf(a) < stampOf(b) ? -1 : stampOf(a) > stampOf(b) ? 1 : 0)); // oudste eerst
-    for (const name of names.slice(0, names.length - MAX_PER_DOC)) {
-      await fs.remove(await fs.join(docDir, name));
+  /** Dun één map uit volgens `BACKUP_RETENTION`; geeft terug of er nog iets in de map staat. */
+  async function prune(fs: BackupFs, dir: string, keepYearly: boolean, now: number): Promise<boolean> {
+    const entries = await fs.readDir(dir);
+    const doomed = backupsToRemove(entries.map((e) => e.name), now, keepYearly, writtenThisSession);
+    for (const name of doomed) await fs.remove(await fs.join(dir, name));
+    return entries.length > doomed.length;
+  }
+
+  /** De mappen die niet meer beschreven worden (vorige sessies, nooit opgeslagen documenten) ook
+   *  uitdunnen, en een map van een nooit opgeslagen document weghalen zodra hij leeg is. */
+  async function sweepOtherBuckets(fs: BackupFs, root: string, current: string, now: number): Promise<void> {
+    for (const entry of await fs.readDir(root)) {
+      if (!entry.isDirectory || entry.name === current) continue;
+      const dir = await fs.join(root, entry.name);
+      const keepYearly = isFileBucket(entry.name);
+      const nonEmpty = await prune(fs, dir, keepYearly, now);
+      if (!nonEmpty && !keepYearly) await fs.remove(dir);
     }
   }
 
@@ -185,7 +278,7 @@ async function realFs(): Promise<BackupFs> {
     join: (...parts: string[]) => join(...parts),
     mkdir: async (dir: string) => { await mkdir(dir, { recursive: true }); },
     writeTextFile: (p: string, c: string) => writeTextFile(p, c),
-    readDir: async (dir: string) => (await readDir(dir)).map((e) => ({ name: e.name })),
+    readDir: async (dir: string) => (await readDir(dir)).map((e) => ({ name: e.name, isDirectory: e.isDirectory })),
     remove: (p: string) => remove(p),
   };
 }

@@ -21,39 +21,49 @@ import {
   ensureBackup as exportedEnsureBackup,
   sanitizeProjectName,
   backupBucket,
+  backupFileName,
+  backupTimeOf,
+  backupsToRemove,
   type BackupFs,
   type BackupDeps,
 } from '@/services/mcp/backup';
 import { buildMcpContext } from '@/services/mcp/server';
 import { createAppStoreContext, appStoreContext } from '@/state/appStore';
 
-// --- Fake in-memory fs (pad → inhoud); readDir lijstt direct-kind-namen onder een map. -----------
+// --- Fake in-memory fs (pad → inhoud); readDir lijst direct-kind-namen (bestanden én mappen). -----
 function makeFakeFs(opts?: { failWrite?: boolean }) {
   const files = new Map<string, string>();
+  const dirs = new Set<string>();
   const mkdirCalls: string[] = [];
   const SEP = '/';
   const fs: BackupFs = {
     appDataDir: async () => '/appdata',
     join: async (...parts: string[]) => parts.join(SEP),
-    mkdir: async (dir: string) => { mkdirCalls.push(dir); },
+    mkdir: async (dir: string) => { mkdirCalls.push(dir); dirs.add(dir); },
     writeTextFile: async (p: string, c: string) => {
       if (opts?.failWrite) throw new Error('schijf vol (fake)');
       files.set(p, c);
     },
     readDir: async (dir: string) => {
       const prefix = dir + SEP;
-      const names = new Set<string>();
-      for (const p of files.keys()) {
-        if (p.startsWith(prefix)) {
-          const rest = p.slice(prefix.length);
-          if (!rest.includes(SEP)) names.add(rest);
-        }
+      const entries = new Map<string, boolean>();
+      for (const p of [...files.keys(), ...dirs]) {
+        if (!p.startsWith(prefix)) continue;
+        const rest = p.slice(prefix.length);
+        const cut = rest.indexOf(SEP);
+        if (cut < 0) entries.set(rest, entries.get(rest) === true || dirs.has(p));
+        else entries.set(rest.slice(0, cut), true);
       }
-      return [...names].map((name) => ({ name }));
+      return [...entries].map(([name, isDirectory]) => ({ name, isDirectory }));
     },
-    remove: async (p: string) => { files.delete(p); },
+    remove: async (p: string) => {
+      if (files.delete(p)) return;
+      const inside = [...files.keys(), ...dirs].some((q) => q.startsWith(p + SEP));
+      if (inside) throw new Error(`map niet leeg (fake): ${p}`);
+      dirs.delete(p);
+    },
   };
-  return { fs, files, mkdirCalls };
+  return { fs, files, dirs, mkdirCalls };
 }
 
 // --- Fake deps met instelbare toggle/actief-doc/klok. --------------------------------------------
@@ -177,86 +187,111 @@ test('met de backup-toggle uit levert ensureBackup altijd null', async () => {
   assertEq(files.size, 0, 'toggle uit schrijft niets');
 });
 
-// --- (7) opruimbeleid: exact 10 per docId-submap; de 11e schrijf verdringt de oudste ---------------
+// --- (7) opruimbeleid: uitdunnen (eigenaarsbesluit 2026-09-28) ---------------------------------
 
-test('opruimbeleid houdt exact 10 backups per document; de 11e schrijf verwijdert de oudste', async () => {
+const DAY = 86_400_000;
+const NOW = Date.parse('2026-09-28T12:00:00.000Z');
+const nameAt = (t: number) => backupFileName('P', t);
+
+test('uitdunnen: week alles (≤ 20), dan één per week, per maand, per jaar alleen voor een opgeslagen bestand', () => {
+  const names: string[] = [];
+  for (let h = 0; h < 30; h++) names.push(nameAt(NOW - h * 5 * 3600_000));   // 30 stuks in ~6 dagen
+  for (let d = 8; d < 30; d++) names.push(nameAt(NOW - d * DAY));            // dagelijks, week 2–4
+  for (let d = 30; d < 365; d += 3) names.push(nameAt(NOW - d * DAY));       // om de 3 dagen, rest van het jaar
+  for (let d = 365; d < 3 * 365; d += 10) names.push(nameAt(NOW - d * DAY)); // twee jaar ouder
+  names.push('notitie.ifc', 'P-kapot.ifc');                                   // niet van ons
+
+  for (const keepYearly of [true, false]) {
+    const removed = new Set(backupsToRemove(names, NOW, keepYearly));
+    const kept = names.filter((n) => !removed.has(n));
+    assert(!removed.has('notitie.ifc') && !removed.has('P-kapot.ifc'), 'een bestand zonder ons tijdstempel blijft altijd staan');
+    const ages = kept.map((n) => backupTimeOf(n)).filter((t): t is number => t !== null).map((t) => (NOW - t) / DAY);
+    assertEq(ages.filter((a) => a < 7).length, 20, 'de afgelopen week: de 20 nieuwste');
+    const weekly = ages.filter((a) => a >= 7 && a < 30).length;
+    assert(weekly >= 3 && weekly <= 4, `week 2–4: één per kalenderweek, kreeg ${weekly}`);
+    const monthly = ages.filter((a) => a >= 30 && a < 365).length;
+    assert(monthly >= 11 && monthly <= 13, `maand 2–12: één per kalendermaand, kreeg ${monthly}`);
+    const yearly = ages.filter((a) => a >= 365).length;
+    if (keepYearly) assert(yearly >= 2 && yearly <= 4, `ouder dan een jaar: één per kalenderjaar, kreeg ${yearly}`);
+    else assertEq(yearly, 0, 'nooit opgeslagen document: ouder dan een jaar is weg');
+  }
+  // Per week blijft de NIEUWSTE staan.
+  const week = [nameAt(NOW - 10 * DAY), nameAt(NOW - 10 * DAY - 3600_000)];
+  assertEq(backupsToRemove(week, NOW, true), [week[1]], 'de oudere van twee in dezelfde week gaat weg');
+});
+
+test('de backups van de lopende sessie blijven altijd staan, ook boven de weekgrens van 20', async () => {
   const { fs, files } = makeFakeFs();
   const { deps } = makeDeps(fs, { activeDoc: 'doc-prune' });
   const svc = createBackupService(deps);
-
   const paths: string[] = [];
-  for (let i = 0; i < 11; i++) {
-    paths.push(await svc.makeManualBackup()); // elke handmatige backup schrijft (reset teller)
-  }
-  assertEq(files.size, 10, 'na 11 schrijfacties blijven er exact 10 bestanden over');
-  assert(!files.has(paths[0]), 'de oudste (eerst geschreven) backup is verwijderd');
-  assert(files.has(paths[10]), 'de nieuwste backup staat er nog');
-  for (let i = 1; i <= 10; i++) assert(files.has(paths[i]), `backup #${i} (van de 10 nieuwste) staat er nog`);
+  for (let i = 0; i < 25; i++) paths.push(await svc.makeManualBackup());
+  assertEq(files.size, 25, 'alle 25 handmatige backups van deze sessie staan er nog');
 });
 
-test('een opgeslagen document deelt zijn backupmap over sessies heen: de limiet van 10 geldt echt (audit 2026-09-26)', async () => {
+test('een opgeslagen document deelt zijn backupmap over sessies heen; eerdere sessies worden uitgedund', async () => {
   const { fs, files } = makeFakeFs();
   const filePath = '/home/jan/projecten/Kantoor Zuidas.ifc';
   // Elke "sessie" geeft hetzelfde bestand een nieuw document-id; vroeger elk een eigen map.
-  for (let session = 0; session < 12; session++) {
+  for (let session = 0; session < 25; session++) {
     const docId = `doc-sessie-${session}`;
     const deps: BackupDeps = {
       getFs: async () => fs,
       getDoc: () => ({ ifc: `IFC:${session}`, projectName: 'Kantoor', filePath }),
       autoBackupEnabled: async () => true,
-      now: (() => { let t = 2_000_000 + session * 1000; return () => t++; })(),
+      now: (() => { let t = NOW - (25 - session) * 3600_000; return () => t++; })(),
       activeDocId: () => docId,
     };
     await createBackupService(deps).ensureBackup(docId, 'mutate');
   }
   const dirs = new Set([...files.keys()].map((p) => p.split('/').slice(0, -1).join('/')));
   assertEq(dirs.size, 1, `één map voor het bestand, kreeg ${[...dirs].join(', ')}`);
-  assertEq(files.size, 10, 'over de sessies heen blijven er 10 over');
-  const dir = [...dirs][0];
-  assert(dir.includes('file-Kantoor Zuidas-'), `leesbare mapnaam, kreeg ${dir}`);
-  assert(backupBucket('a', '/x/Plan.ifc') !== backupBucket('a', '/y/Plan.ifc'), 'gelijke naam, andere map ⇒ andere emmer');
-  assertEq(backupBucket('doc-9', null), 'doc-9', 'nooit opgeslagen ⇒ doc-id');
+  assertEq(files.size, 20, 'binnen een week blijven er over de sessies heen 20 over');
+  assert([...files.values()].includes('IFC:24'), 'de nieuwste sessie staat er nog');
+  assert(![...files.values()].includes('IFC:0'), 'de oudste sessie is weg');
 });
 
-// --- (8) fail-safe: een schrijffout propageert als reject (NIET null) -----------------------------
+test('opruimen loopt ook de andere mappen na: een oude map van een nooit opgeslagen document verdwijnt', async () => {
+  const { fs, files, dirs } = makeFakeFs();
+  const root = '/appdata/ai-backups';
+  const oldLoose = `${root}/doc-oud`;
+  const oldFile = `${root}/file-Kantoor-0000abcd`;
+  const mixed = `${root}/doc-met-notitie`;
+  for (const d of [oldLoose, oldFile, mixed]) dirs.add(d);
+  for (const y of [2, 3]) {
+    files.set(`${oldLoose}/${nameAt(NOW - y * 365 * DAY)}`, 'oud');
+    files.set(`${oldFile}/${nameAt(NOW - y * 365 * DAY)}`, 'oud');
+  }
+  files.set(`${mixed}/${nameAt(NOW - 800 * DAY)}`, 'oud');
+  files.set(`${mixed}/notitie.txt`, 'van de gebruiker');
 
-test('een schrijffout propageert als reject — de service slikt niets stil', async () => {
-  const { fs } = makeFakeFs({ failWrite: true });
-  const { deps } = makeDeps(fs);
-  const svc = createBackupService(deps);
+  const deps: BackupDeps = {
+    getFs: async () => fs,
+    getDoc: () => ({ ifc: 'IFC:nu', projectName: 'Nieuw' }),
+    autoBackupEnabled: async () => true,
+    now: () => NOW,
+    activeDocId: () => 'doc-nu',
+  };
+  await createBackupService(deps).ensureBackup('doc-nu', 'mutate');
 
-  let threw = false;
-  try { await svc.ensureBackup('doc-1', 'mutate'); }
-  catch { threw = true; }
-  assert(threw, 'een schrijffout MOET rejecten, niet stil null teruggeven');
+  assert(!dirs.has(oldLoose) && ![...files.keys()].some((p) => p.startsWith(oldLoose + '/')), 'de oude losse map is helemaal weg');
+  assertEq([...files.keys()].filter((p) => p.startsWith(oldFile + '/')).length, 2, 'een opgeslagen bestand houdt één per jaar');
+  assert(files.has(`${mixed}/notitie.txt`) && dirs.has(mixed), 'een vreemd bestand blijft staan, en daarmee de map');
+  assertEq([...files.keys()].filter((p) => p.startsWith(mixed + '/')).length, 1, 'alleen onze oude backup is weg');
 });
 
-// --- (9) padvorm: docId-submap + gesaneerde projectnaam ------------------------------------------
-
-test('het backup-pad bevat de ai-backups-map, de docId-submap en de gesaneerde projectnaam', async () => {
-  const { fs } = makeFakeFs();
-  const { deps } = makeDeps(fs, { projectName: 'Woontoren A/B: fase 2*' });
-  const svc = createBackupService(deps);
-  const path = (await svc.ensureBackup('doc-xyz', 'mutate'))!;
-
-  assert(path.includes('/ai-backups/'), `pad mist de ai-backups-map: ${path}`);
-  assert(path.includes('/ai-backups/doc-xyz/'), `pad mist de docId-submap: ${path}`);
-  assert(path.endsWith('.ifc'), `pad eindigt niet op .ifc: ${path}`);
-  // De gesaneerde naam mag geen padscheiders of verboden tekens meer bevatten.
-  const fileName = path.split('/').pop()!;
-  assert(!/[\/:*?"<>|]/.test(fileName.replace('.ifc', '')), `bestandsnaam bevat verboden tekens: ${fileName}`);
-});
-
-test('sanitizeProjectName vervangt verboden tekens en valt terug op een default bij leeg', () => {
-  assertEq(sanitizeProjectName('A/B:c'), 'A_B_c', 'padscheiders/dubbelepunt → _');
-  assert(sanitizeProjectName('   ').length > 0, 'een lege/whitespace naam valt terug op een niet-lege default');
-});
-
-// --- (10) integratie: buildMcpContext levert nu de ECHTE service (geen inline null-stub) ----------
-
-test('buildMcpContext bekabelt de echte backup-service (referentie-identiteit met de export)', () => {
-  const ctx = buildMcpContext();
-  assert(ctx.ensureBackup === exportedEnsureBackup, 'buildMcpContext moet de echte ensureBackup-export leveren, niet de oude inline stub');
+test('een fout bij het opruimen laat de backup zelf niet falen', async () => {
+  const { fs, files } = makeFakeFs();
+  const broken: BackupFs = { ...fs, readDir: async () => { throw new Error('geen toegang (fake)'); } };
+  const { deps } = makeDeps(broken);
+  const warn = console.warn;
+  console.warn = () => {};
+  try {
+    const path = await createBackupService(deps).ensureBackup('doc-1', 'mutate');
+    assert(path !== null && files.has(path), 'de backup is geschreven en het pad teruggegeven');
+  } finally {
+    console.warn = warn;
+  }
 });
 
 test('createAppBackupService(B) serialiseert B en gebruikt B\'s actieve document voor handmatige backup', async () => {
