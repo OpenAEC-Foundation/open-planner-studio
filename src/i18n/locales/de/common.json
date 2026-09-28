@@ -132,7 +132,8 @@
     "schedulingProfileShifted_one": "Nach dem Anwenden wurde {{count}} Vorgang verschoben.",
     "schedulingProfileShifted_other": "Nach dem Anwenden wurden {{count}} Vorgänge verschoben.",
     "actions": {
-      "openProjectInfo": "Berechnungsprofil öffnen"
+      "openProjectInfo": "Berechnungsprofil öffnen",
+      "openHelp": "Hilfe öffnen"
     },
     "xerArchiveUnusable": "Das XER-Quellarchiv in dieser Datei ist unbrauchbar und wurde weggelassen; das Projekt selbst wurde vollständig geöffnet.",
     "xerArchiveUnusableLine": "Das XER-Quellarchiv in dieser Datei war unbrauchbar und wurde weggelassen.",
@@ -144,7 +145,9 @@
     "xerArchiveReasonMetadataInvalid": "Grund: Die Quellbytes sind intakt, aber die daraus abgeleiteten Daten sind unbrauchbar.",
     "xerArchiveReasonStructure": "Grund: Der Aufbau des Archivs in der IFC stimmt nicht (doppelt, umsortiert oder falsch verknüpft).",
     "statusDateSetToday": "Es gab noch kein Statusdatum: Es ist jetzt auf heute ({{date}}) gesetzt, weil der Fortschritt bis zum Statusdatum gemessen wird. Ändern können Sie es unter Planung → Statusdatum.",
-    "durationBelowDoneWork": "„{{name}}“ ist bereits zu {{percent}} % erledigt: Eine Dauer, die kürzer ist als die bereits geleistete Arbeit, ist nicht möglich. Die Dauer wurde nicht geändert."
+    "durationBelowDoneWork": "„{{name}}“ ist bereits zu {{percent}} % erledigt: Eine Dauer, die kürzer ist als die bereits geleistete Arbeit, ist nicht möglich. Die Dauer wurde nicht geändert.",
+    "tutorialOfferLater": "Du findest die Tutorials jederzeit unter Hilfe › Tutorials.",
+    "tutorialOfferUnavailable": "Die Tutorials konnten gerade nicht installiert oder gestartet werden. Unter Hilfe › Tutorials kannst du es später erneut versuchen."
   },
   "scheduleErrors": {
     "cycle": "Zirkelbezug zwischen Aufgaben: {{path}}",
@@ -1427,5 +1430,13 @@
     "close": "Anleitung schließen",
     "stepDone": "Erledigt",
     "waiting": "Führe die Aufgabe in der App aus; danach geht es weiter."
+  },
+  "tutorialOffer": {
+    "title": "Tutorials",
+    "question": "Möchtest du jetzt mit einem Tutorial deinen ersten Terminplan erstellen?",
+    "body": "Die Tour ist fertig. In Tutorial 1 erstellst du Schritt für Schritt einen Terminplan für einen Hausanbau; ein Bereich gibt dir jeweils eine Anweisung und erkennt, wann du sie erledigt hast. Die Tutorials sind eine Erweiterung: Ist sie noch nicht installiert, lädt die App sie herunter und fragt zuerst, ob du ihr vertraust.",
+    "yes": "Ja",
+    "no": "Nein",
+    "busy": "Tutorials werden vorbereitet…"
   }
 }

@@ -167,7 +167,8 @@
     "schedulingProfileShifted_many": "Após aplicar, {{count}} tarefas foram deslocadas.",
     "schedulingProfileShifted_other": "Após aplicar, {{count}} tarefas foram deslocadas.",
     "actions": {
-      "openProjectInfo": "Abrir perfil de cálculo"
+      "openProjectInfo": "Abrir perfil de cálculo",
+      "openHelp": "Abrir ajuda"
     },
     "xerArchiveUnusable": "O arquivo de origem XER deste ficheiro é inutilizável e foi omitido; o projeto em si foi aberto por completo.",
     "xerArchiveUnusableLine": "O arquivo de origem XER deste ficheiro era inutilizável e foi omitido.",
@@ -179,7 +180,9 @@
     "xerArchiveReasonMetadataInvalid": "Motivo: os bytes de origem estão intactos, mas os dados derivados deles são inutilizáveis.",
     "xerArchiveReasonStructure": "Motivo: a estrutura do arquivo no IFC está incorreta (duplicada, reordenada ou mal associada).",
     "statusDateSetToday": "Ainda não havia data de estado: foi definida para hoje ({{date}}), porque o progresso é medido até à data de estado. Pode alterá-la em Planeamento → Data de estado.",
-    "durationBelowDoneWork": "«{{name}}» já está {{percent}}% feita: uma duração inferior ao trabalho já realizado não é possível. A duração não foi alterada."
+    "durationBelowDoneWork": "«{{name}}» já está {{percent}}% feita: uma duração inferior ao trabalho já realizado não é possível. A duração não foi alterada.",
+    "tutorialOfferLater": "Encontra sempre os tutoriais em Ajuda › Tutoriais.",
+    "tutorialOfferUnavailable": "Não foi possível instalar ou iniciar os tutoriais agora. Pode tentar novamente mais tarde em Ajuda › Tutoriais."
   },
   "scheduleErrors": {
     "cycle": "Dependência circular entre tarefas: {{path}}",
@@ -1477,5 +1480,13 @@
     "close": "Fechar o guia",
     "stepDone": "Feito",
     "waiting": "Execute a tarefa na aplicação; depois pode continuar."
+  },
+  "tutorialOffer": {
+    "title": "Tutoriais",
+    "question": "Quer criar agora o seu primeiro planeamento com um tutorial?",
+    "body": "O tour terminou. No tutorial 1 constrói passo a passo o planeamento de uma ampliação de uma habitação; um painel dá-lhe uma instrução de cada vez e percebe quando a concluiu. Os tutoriais são uma extensão: se ainda não estiver instalada, a aplicação descarrega-a e pergunta primeiro se confia nela.",
+    "yes": "Sim",
+    "no": "Não",
+    "busy": "A preparar os tutoriais…"
   }
 }

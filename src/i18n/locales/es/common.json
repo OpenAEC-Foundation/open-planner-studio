@@ -167,7 +167,8 @@
     "schedulingProfileShifted_many": "Tras aplicar, se movieron {{count}} tareas.",
     "schedulingProfileShifted_other": "Tras aplicar, se movieron {{count}} tareas.",
     "actions": {
-      "openProjectInfo": "Abrir perfil de cálculo"
+      "openProjectInfo": "Abrir perfil de cálculo",
+      "openHelp": "Abrir ayuda"
     },
     "xerArchiveUnusable": "El archivo de origen XER de este fichero no se puede usar y se ha omitido; el proyecto en sí se ha abierto por completo.",
     "xerArchiveUnusableLine": "El archivo de origen XER de este fichero no se podía usar y se ha omitido.",
@@ -179,7 +180,9 @@
     "xerArchiveReasonMetadataInvalid": "Motivo: los bytes de origen están intactos, pero los datos derivados de ellos no se pueden usar.",
     "xerArchiveReasonStructure": "Motivo: la estructura del archivo en el IFC no es correcta (duplicada, reordenada o mal vinculada).",
     "statusDateSetToday": "Aún no había fecha de estado: ahora es hoy ({{date}}), porque el avance se mide hasta la fecha de estado. Puede cambiarla en Planificación → Fecha de estado.",
-    "durationBelowDoneWork": "«{{name}}» ya está hecha en un {{percent}} %: una duración menor que el trabajo ya realizado no es posible. La duración no se ha cambiado."
+    "durationBelowDoneWork": "«{{name}}» ya está hecha en un {{percent}} %: una duración menor que el trabajo ya realizado no es posible. La duración no se ha cambiado.",
+    "tutorialOfferLater": "Siempre encontrarás los tutoriales en Ayuda › Tutoriales.",
+    "tutorialOfferUnavailable": "Ahora no se han podido instalar ni iniciar los tutoriales. Puedes volver a intentarlo más tarde en Ayuda › Tutoriales."
   },
   "scheduleErrors": {
     "cycle": "Dependencia circular entre tareas: {{path}}",
@@ -1477,5 +1480,13 @@
     "close": "Cerrar la guía",
     "stepDone": "Hecho",
     "waiting": "Realiza la tarea en la aplicación; después podrás continuar."
+  },
+  "tutorialOffer": {
+    "title": "Tutoriales",
+    "question": "¿Quieres crear ahora tu primera planificación con un tutorial?",
+    "body": "El recorrido ha terminado. En el tutorial 1 construyes paso a paso la planificación de una ampliación de una vivienda; un panel te da una instrucción cada vez y detecta cuándo la has completado. Los tutoriales son una extensión: si aún no está instalada, la aplicación la descarga y primero te pregunta si confías en ella.",
+    "yes": "Sí",
+    "no": "No",
+    "busy": "Preparando los tutoriales…"
   }
 }

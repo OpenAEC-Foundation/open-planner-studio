@@ -132,7 +132,8 @@
     "schedulingProfileShifted_one": "Uygulamadan sonra {{count}} görev kaydı.",
     "schedulingProfileShifted_other": "Uygulamadan sonra {{count}} görev kaydı.",
     "actions": {
-      "openProjectInfo": "Hesaplama profilini aç"
+      "openProjectInfo": "Hesaplama profilini aç",
+      "openHelp": "Yardımı aç"
     },
     "xerArchiveUnusable": "Bu dosyadaki XER kaynak arşivi kullanılamaz durumda ve dışarıda bırakıldı; projenin kendisi eksiksiz açıldı.",
     "xerArchiveUnusableLine": "Bu dosyadaki XER kaynak arşivi kullanılamaz durumdaydı ve dışarıda bırakıldı.",
@@ -144,7 +145,9 @@
     "xerArchiveReasonMetadataInvalid": "Neden: kaynak baytları sağlam, ancak bunlardan türetilen veriler kullanılamaz.",
     "xerArchiveReasonStructure": "Neden: arşivin IFC içindeki yapısı hatalı (yinelenmiş, yeniden sıralanmış veya yanlış bağlanmış).",
     "statusDateSetToday": "Henüz durum tarihi yoktu: ilerleme durum tarihine kadar ölçüldüğü için bugüne ({{date}}) ayarlandı. Planlama → Durum tarihi altından değiştirebilirsiniz.",
-    "durationBelowDoneWork": "“{{name}}” zaten %{{percent}} tamamlandı: yapılmış işten kısa bir süre olamaz. Süre değiştirilmedi."
+    "durationBelowDoneWork": "“{{name}}” zaten %{{percent}} tamamlandı: yapılmış işten kısa bir süre olamaz. Süre değiştirilmedi.",
+    "tutorialOfferLater": "Eğitimleri her zaman Yardım › Eğitimler bölümünde bulabilirsiniz.",
+    "tutorialOfferUnavailable": "Eğitimler şu anda yüklenemedi veya başlatılamadı. Daha sonra Yardım › Eğitimler bölümünden yeniden deneyebilirsiniz."
   },
   "scheduleErrors": {
     "cycle": "Görevler arasında döngüsel bağımlılık: {{path}}",
@@ -1427,5 +1430,13 @@
     "close": "Rehberi kapat",
     "stepDone": "Tamamlandı",
     "waiting": "Görevi uygulamada yap; ardından devam edebilirsin."
+  },
+  "tutorialOffer": {
+    "title": "Eğitimler",
+    "question": "İlk planınızı şimdi bir eğitimle oluşturmak ister misiniz?",
+    "body": "Tur tamamlandı. Eğitim 1'de bir ev eklentisi için adım adım bir plan oluşturursunuz; bir panel size her seferinde bir talimat verir ve bunu ne zaman yaptığınızı fark eder. Eğitimler bir uzantıdır: henüz yüklü değilse uygulama onu indirir ve önce ona güvenip güvenmediğinizi sorar.",
+    "yes": "Evet",
+    "no": "Hayır",
+    "busy": "Eğitimler hazırlanıyor…"
   }
 }

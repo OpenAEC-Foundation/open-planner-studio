@@ -191,6 +191,11 @@ export const SETTINGS: SettingDescriptor[] = [
   // «alleen werkbare dagen tonen» — globale weergavevoorkeur, exact
   // het barSplitMode-patroon (1 sleutel → 1 UIState-veld).
   setting({ key: 'compressNonWorkdays', field: 'compressNonWorkdays', parse: parseBoolean }),
+
+  // Eerste-startervaring: de tutorialvraag na een voltooide rondleiding is beantwoord. Geen
+  // paneelinstelling (er valt niets te kiezen), wél in de store: het einde van de rondleiding
+  // beslist synchroon of de vraag komt (`tourFinishPatch` in `state/onboarding.ts`).
+  setting({ key: 'tutorialOfferAnswered', field: 'tutorialOfferAnswered', parse: parseBoolean }),
 ];
 
 /** Hydrateert álle opstart-instellingen uit localStorage tot één `setUI`-patch voor

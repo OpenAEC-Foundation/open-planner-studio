@@ -350,6 +350,15 @@ eq('X12 extensie leest de P6-relatievlag uit maar voert haar niet generiek terug
   // Help & begeleiding (`api.help.*`, permissie `help`) is de volgende MINOR ⇒ 1.4.0
   // (tests/planning/check-ext-help.ts).
   eq('C8-04 contractversie 1.4.0 (1.2.0 profiel + 1.3.0 taaktypes + 1.4.0 help)', EXTENSION_API_VERSION, '1.4.0');
+  // Host-events horen bij het contract (namen via `sdk.hostEvents`). `tutorialRequested` kwam erbij
+  // in 1.4.0, dat nog niet was uitgebracht — dus geen nieuwe contractversie. Een naam wijzigen of
+  // weghalen breekt extensies: dan hoort hier (en in apiVersion.ts) een MAJOR bij.
+  eq('C8-04a host-events: vaste namen', getExtensionSdk().hostEvents, {
+    projectLoaded: 'host:project-loaded',
+    projectNew: 'host:project-new',
+    scheduleCalculated: 'host:schedule-calculated',
+    tutorialRequested: 'host:tutorial-requested',
+  });
   const custom = toExtProject(VOL_PROJECT).schedulingProfile;
   eq('C8-05 eigen profiel: id, basis, naam en de zevenentwintig opgeloste conventies',
     [custom?.id, custom?.baseId, custom?.name, Object.keys(custom?.conventions ?? {}).length, custom?.conventions.clampNegativeFreeFloat],

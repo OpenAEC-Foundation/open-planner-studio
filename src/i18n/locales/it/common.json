@@ -167,7 +167,8 @@
     "schedulingProfileShifted_many": "Dopo l’applicazione sono state spostate {{count}} attività.",
     "schedulingProfileShifted_other": "Dopo l’applicazione sono state spostate {{count}} attività.",
     "actions": {
-      "openProjectInfo": "Apri profilo di calcolo"
+      "openProjectInfo": "Apri profilo di calcolo",
+      "openHelp": "Apri la guida"
     },
     "xerArchiveUnusable": "L'archivio sorgente XER di questo file è inutilizzabile ed è stato omesso; il progetto stesso è stato aperto per intero.",
     "xerArchiveUnusableLine": "L'archivio sorgente XER di questo file era inutilizzabile ed è stato omesso.",
@@ -179,7 +180,9 @@
     "xerArchiveReasonMetadataInvalid": "Motivo: i byte sorgente sono intatti, ma i dati derivati sono inutilizzabili.",
     "xerArchiveReasonStructure": "Motivo: la struttura dell'archivio nell'IFC non è corretta (duplicata, riordinata o collegata in modo errato).",
     "statusDateSetToday": "Non c’era ancora una data di stato: ora è impostata a oggi ({{date}}), perché l’avanzamento si misura fino alla data di stato. Puoi modificarla in Pianificazione → Data di stato.",
-    "durationBelowDoneWork": "«{{name}}» è già completata al {{percent}}%: una durata inferiore al lavoro già svolto non è possibile. La durata non è stata modificata."
+    "durationBelowDoneWork": "«{{name}}» è già completata al {{percent}}%: una durata inferiore al lavoro già svolto non è possibile. La durata non è stata modificata.",
+    "tutorialOfferLater": "Trovi sempre i tutorial in Guida › Tutorial.",
+    "tutorialOfferUnavailable": "Al momento non è stato possibile installare o avviare i tutorial. Puoi riprovare più tardi in Guida › Tutorial."
   },
   "scheduleErrors": {
     "cycle": "Dipendenza circolare tra attività: {{path}}",
@@ -1477,5 +1480,13 @@
     "close": "Chiudi la guida",
     "stepDone": "Fatto",
     "waiting": "Esegui l’attività nell’app; poi potrai continuare."
+  },
+  "tutorialOffer": {
+    "title": "Tutorial",
+    "question": "Vuoi creare adesso la tua prima pianificazione con un tutorial?",
+    "body": "Il tour è finito. Nel tutorial 1 costruisci passo dopo passo la pianificazione di un ampliamento di un'abitazione; un pannello ti dà un'istruzione alla volta e riconosce quando l'hai eseguita. I tutorial sono un'estensione: se non è ancora installata, l'app la scarica e prima ti chiede se ti fidi.",
+    "yes": "Sì",
+    "no": "No",
+    "busy": "Preparazione dei tutorial…"
   }
 }

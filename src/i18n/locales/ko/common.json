@@ -97,7 +97,8 @@
     "schedulingProfileApplied": "이 프로젝트는 {{profile}}(으)로 계산됩니다. 파일 → 프로젝트 정보 → 계산 프로필 및 옵션에서 변경하세요.",
     "schedulingProfileShifted_other": "적용 후 작업 {{count}}개가 이동했습니다.",
     "actions": {
-      "openProjectInfo": "계산 프로필 열기"
+      "openProjectInfo": "계산 프로필 열기",
+      "openHelp": "도움말 열기"
     },
     "xerArchiveUnusable": "이 파일의 XER 원본 아카이브는 사용할 수 없어 제외했습니다. 프로젝트 자체는 모두 열렸습니다.",
     "xerArchiveUnusableLine": "이 파일의 XER 원본 아카이브는 사용할 수 없어 제외했습니다.",
@@ -109,7 +110,9 @@
     "xerArchiveReasonMetadataInvalid": "이유: 원본 바이트는 온전하지만 그로부터 파생된 데이터를 사용할 수 없습니다.",
     "xerArchiveReasonStructure": "이유: IFC 안의 아카이브 구조가 올바르지 않습니다(중복, 순서 변경 또는 잘못된 연결).",
     "statusDateSetToday": "상태 날짜가 아직 없었습니다. 진행률은 상태 날짜까지 측정되므로 오늘({{date}})로 설정했습니다. 계획 → 상태 날짜에서 바꿀 수 있습니다.",
-    "durationBelowDoneWork": "‘{{name}}’은(는) 이미 {{percent}}% 완료되었습니다. 이미 수행한 작업보다 짧은 기간은 불가능합니다. 기간을 변경하지 않았습니다."
+    "durationBelowDoneWork": "‘{{name}}’은(는) 이미 {{percent}}% 완료되었습니다. 이미 수행한 작업보다 짧은 기간은 불가능합니다. 기간을 변경하지 않았습니다.",
+    "tutorialOfferLater": "튜토리얼은 언제든지 도움말 › 튜토리얼에서 찾을 수 있습니다.",
+    "tutorialOfferUnavailable": "지금은 튜토리얼을 설치하거나 시작할 수 없습니다. 나중에 도움말 › 튜토리얼에서 다시 시도할 수 있습니다."
   },
   "scheduleErrors": {
     "cycle": "작업 간 순환 종속성: {{path}}",
@@ -1377,5 +1380,13 @@
     "close": "안내 닫기",
     "stepDone": "완료",
     "waiting": "앱에서 작업을 수행하면 계속할 수 있습니다."
+  },
+  "tutorialOffer": {
+    "title": "튜토리얼",
+    "question": "지금 튜토리얼로 첫 일정을 만들어 보시겠습니까?",
+    "body": "투어가 끝났습니다. 튜토리얼 1에서는 주택 증축 일정을 단계별로 만듭니다. 패널이 한 번에 하나씩 지시를 주고 완료했는지 알아챕니다. 튜토리얼은 확장 기능입니다. 아직 설치되지 않았다면 앱이 내려받고 먼저 신뢰하는지 묻습니다.",
+    "yes": "예",
+    "no": "아니요",
+    "busy": "튜토리얼을 준비하는 중…"
   }
 }

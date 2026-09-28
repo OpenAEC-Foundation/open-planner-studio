@@ -76,6 +76,7 @@ const LibraryLinkDialog = lazy(() => import('@/components/dialogs/LibraryLinkDia
 const RecoveryDialog = lazy(() => import('@/components/dialogs/RecoveryDialog').then(m => ({ default: m.RecoveryDialog })));
 const WelcomeDialog = lazy(() => import('@/components/dialogs/WelcomeDialog').then(m => ({ default: m.WelcomeDialog })));
 const TourOverlay = lazy(() => import('@/components/tour/TourOverlay').then(m => ({ default: m.TourOverlay })));
+const TutorialOfferDialog = lazy(() => import('@/components/dialogs/TutorialOfferDialog').then(m => ({ default: m.TutorialOfferDialog })));
 const Backstage = lazy(() => import('@/components/backstage/Backstage').then(m => ({ default: m.Backstage })));
 const GuidePanel = lazy(() => import('@/components/guide/GuidePanel').then(m => ({ default: m.GuidePanel })));
 
@@ -111,6 +112,7 @@ function AppContent() {
   const showStatsDialog = useAppStore(s => s.ui.showStatsDialog);
   const showWelcomeDialog = useAppStore(s => s.ui.showWelcomeDialog);
   const showTourOverlay = useAppStore(s => s.ui.showTourOverlay);
+  const showTutorialOffer = useAppStore(s => s.ui.showTutorialOffer);
   const justUpdated = useAppStore(s => s.ui.justUpdated);
   const showUpdateDialog = useAppStore(s => s.ui.showUpdateDialog);
   const presentationMode = useAppStore(s => s.ui.presentationMode);
@@ -384,6 +386,9 @@ function AppContent() {
         {showStatsDialog && <StatsDialog />}
         {showWelcomeDialog && <WelcomeDialog />}
         {showTourOverlay && <TourOverlay />}
+        {/* Tutorialvraag na een voltooide rondleiding (eenmalig, `state/onboarding.ts`). Vóór de
+            toestemmingsdialoog gemount: die stapelt er bij "Ja" bovenop. */}
+        {showTutorialOffer && <TutorialOfferDialog />}
         <UpdateDialog />
         <PoolImportDialog />
         {/* Voorwaardelijk gemount — anders dan PoolImportDialog, die permanent
@@ -409,7 +414,9 @@ function AppContent() {
             onClose={recovery.onClose}
           />
         )}
-        {justUpdated && recoveryResolved && recovery === null && !showUpdateDialog && !showWelcomeDialog && <JustUpdatedDialog />}
+        {/* Niet onder de rondleiding (z 9997, zou de dialoog onklikbaar maken) of de tutorialvraag. */}
+        {justUpdated && recoveryResolved && recovery === null && !showUpdateDialog && !showWelcomeDialog
+          && !showTourOverlay && !showTutorialOffer && <JustUpdatedDialog />}
       </Suspense>
 
       {/* Verversingssignaal: discreet, verdwijnt na 4s (zie effect hierboven). */}
