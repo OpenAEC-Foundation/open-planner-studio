@@ -76,7 +76,7 @@ function revokeApi(api: Record<string, unknown>, extensionId: string): void {
     for (const [name, value] of Object.entries(group as Record<string, unknown>)) {
       if (typeof value !== 'function') continue;
       (group as Record<string, unknown>)[name] = () => {
-        throw new Error(`Extensie "${extensionId}" is gedeactiveerd; ${groupName}.${name} is niet meer beschikbaar`);
+        throw new Error(`Extensie "${extensionId}" is gedeactiveerd; ${groupName}.${name} is na uitschakelen of verwijderen niet meer beschikbaar`);
       };
     }
   }
