@@ -189,8 +189,10 @@ function issueGuid(ctx: WriteContext, key: string, hashSeed: string): string {
 
 /** Soort van een object met een eigen id. De seed krijgt de soort als voorvoegsel: uit XER kunnen
  *  taak, relatie en kalender hetzelfde kale getal als id dragen (task_id, task_pred_id, clndr_id), en
- *  zonder voorvoegsel kregen ze via de cache van `guidOf` hetzelfde GlobalId (audit 2026-09-26). */
-export type IfcObjectKind = 'task' | 'res' | 'cal' | 'seq' | 'proj';
+ *  zonder voorvoegsel kregen ze via de cache van `guidOf` hetzelfde GlobalId (audit 2026-09-26).
+ *  `wp`/`ws`: het werkplan en het (niet-baseline) werkschema van het project, sleutel = project-id;
+ *  het werkschema is het anker voor 4D-koppelingen in andere pakketten (review 2026-09-28). */
+export type IfcObjectKind = 'task' | 'res' | 'cal' | 'seq' | 'proj' | 'wp' | 'ws';
 
 /** De seed (en sleutel in `ImportResult.ifcGlobalIds`) van een object. */
 export function ifcObjectSeed(kind: IfcObjectKind, id: string): string {
@@ -333,10 +335,10 @@ export function writeIFC(input: WriteIFCInput): string {
   const planEnd = endDates[endDates.length - 1] || project.endDate;
 
   const workPlanId = addLine(ctx, '_workplan',
-    `IFCWORKPLAN(${ifcStr(guidOf(ctx, project.id + '_wp'))},#${ownerHistId},${ifcStr(project.name)},${ifcStr(project.description)},$,$,${ifcDateTime(now)},$,$,$,$,$,${ifcDateTime(planStart)},${ifcDateTime(planEnd)},.PLANNED.)`);
+    `IFCWORKPLAN(${ifcStr(objectGuid(ctx, 'wp', project.id))},#${ownerHistId},${ifcStr(project.name)},${ifcStr(project.description)},$,$,${ifcDateTime(now)},$,$,$,$,$,${ifcDateTime(planStart)},${ifcDateTime(planEnd)},.PLANNED.)`);
 
   const workSchedId = addLine(ctx, '_worksched',
-    `IFCWORKSCHEDULE(${ifcStr(guidOf(ctx, project.id + '_ws'))},#${ownerHistId},${ifcStr('Construction schedule v1.0')},$,$,$,${ifcDateTime(now)},$,$,$,$,$,${ifcDateTime(planStart)},${ifcDateTime(planEnd)},.PLANNED.)`);
+    `IFCWORKSCHEDULE(${ifcStr(objectGuid(ctx, 'ws', project.id))},#${ownerHistId},${ifcStr('Construction schedule v1.0')},$,$,$,${ifcDateTime(now)},$,$,$,$,$,${ifcDateTime(planStart)},${ifcDateTime(planEnd)},.PLANNED.)`);
 
   // Baselines — per baseline één `.BASELINE.`-IfcWorkSchedule-header (Name +
   // CreationDate, ZONDER taak-duplicatie: de datums leven verliesloos in het OPS_Baselines-JSON

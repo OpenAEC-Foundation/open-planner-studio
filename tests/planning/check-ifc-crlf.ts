@@ -32,6 +32,15 @@ const crlfFile = S().tasks.length > 0 ? writeIFC(buildWriteIFCInput(S())).replac
 const back2 = readIFC(crlfFile);
 eq('CRLF-bestand: alle taken gelezen', back2.tasks.map((x) => x.name.replace(/\r/g, '')).sort(), ['Gewoon', 'Regel 1\nRegel 2']);
 
+// Review 2026-09-28: sinds de STEP-codering bevat een nieuw bestand geen rauwe regeleindes meer in
+// strings, dus bovenstaande raakt de fix in `parseSTEP` niet. Een eigen bestand van vóór de codering
+// ('0.1', letterlijk geschreven) had ze wél rauw; dat pad hier expliciet.
+const legacy = text
+  .replace("'0.2','Open Planner Studio','OPS'", "'0.1','Open Planner Studio','OPS'")
+  .split('\\X2\\000D000A\\X0\\').join('\r\n');
+eq('oud bestand bevat een rauwe CRLF in een string', legacy.includes('Regel 1\r\nRegel 2'), true);
+eq('oud bestand: taaknaam met CRLF ongewijzigd', readIFC(legacy).tasks.find((x) => x.name.startsWith('Regel 1'))?.name, 'Regel 1\r\nRegel 2');
+
 if (fails.length) {
   for (const f of fails) console.log(`XX ${f}`);
   console.log(`check-ifc-crlf: ${fails.length}/${checks} ROOD`);

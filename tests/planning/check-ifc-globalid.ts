@@ -183,6 +183,21 @@ function fixture() {
   eq('heropend: projectkalender houdt zijn GlobalId', projectCal(writeIFC(readIFC(a1))), projectCal(a1));
 }
 
+// 11. Werkplan en werkschema van een bestand houden hun GlobalId (anker voor 4D-koppelingen).
+{
+  S().newProject();
+  S().addTask({ name: 'Eén' });
+  const text = writeIFC(buildWriteIFCInput(S()));
+  const wp = guidsOfType(text, /^IFCWORKPLAN$/)[0];
+  const ws = guidsOfType(text, /^IFCWORKSCHEDULE$/)[0];
+  const foreignWp = '3' + wp.slice(1);
+  const foreignWs = '3' + ws.slice(1);
+  const foreign = text.split(`'${wp}'`).join(`'${foreignWp}'`).split(`'${ws}'`).join(`'${foreignWs}'`);
+  const again = writeIFC(readIFC(foreign));
+  eq('werkplan houdt zijn GlobalId', guidsOfType(again, /^IFCWORKPLAN$/), [foreignWp]);
+  eq('werkschema houdt zijn GlobalId', guidsOfType(again, /^IFCWORKSCHEDULE$/), [foreignWs]);
+}
+
 if (fails.length) {
   for (const f of fails) console.log(`XX ${f}`);
   console.log(`XX  ifc-globalid: ${fails.length}/${checks} ROOD`);

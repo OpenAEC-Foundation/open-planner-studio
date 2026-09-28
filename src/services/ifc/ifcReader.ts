@@ -339,7 +339,8 @@ export function readIFC(
 
 /**
  * De GlobalIds die bij opslaan terug moeten komen (audit 2026-09-26), gesleuteld op
- * `ifcObjectSeed(soort, id)`: per ingelezen taak, resource, kalender en relatie, en het project.
+ * `ifcObjectSeed(soort, id)`: per ingelezen taak, resource, kalender en relatie, en het project met zijn
+ * werkplan en werkschema.
  * Taken houden hun id (OPS_TaskIdentity of het GlobalId), resources, kalenders en relaties krijgen
  * een id afgeleid uit hun GlobalId (`stableIdFromGuid`), het project via zijn GlobalId. Met deze
  * kaart geeft de writer elk bestaand object zijn GlobalId terug, ook een oud of vreemd GlobalId dat
@@ -361,6 +362,13 @@ function collectIfcGlobalIds(
   const proj = entities.find(e => e.type === 'IFCPROJECT');
   const projectGuid = proj ? ifcSlotText(proj.args[0]) : '';
   if (projectGuid) out[ifcObjectSeed('proj', projectId)] = projectGuid;
+  // Werkplan en het eerste niet-baseline-werkschema (de writer schrijft er van elk één per project).
+  const plan = entities.find(e => e.type === 'IFCWORKPLAN');
+  const planGuid = plan ? ifcSlotText(plan.args[0]) : '';
+  if (planGuid) out[ifcObjectSeed('wp', projectId)] = planGuid;
+  const schedule = entities.find(e => e.type === 'IFCWORKSCHEDULE' && !(e.args[14] || '').includes('BASELINE'));
+  const scheduleGuid = schedule ? ifcSlotText(schedule.args[0]) : '';
+  if (scheduleGuid) out[ifcObjectSeed('ws', projectId)] = scheduleGuid;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
