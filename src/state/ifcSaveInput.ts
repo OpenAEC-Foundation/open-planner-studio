@@ -26,7 +26,7 @@ export type IFCSaveSource = Pick<
 >
   & Partial<Pick<DocumentPayload,
     | 'xerImportMetadata' | 'xerSourceArchive' | 'xerSourceProjectId' | 'importPristine'
-    | 'recordedDates' | 'datesAsRecorded'>>;
+    | 'recordedDates' | 'datesAsRecorded' | 'ifcGlobalIds'>>;
 
 /**
  * "Datums zoals opgeslagen": in de modus draagt `task.time` op de
@@ -84,6 +84,8 @@ export function buildWriteIFCInput(src: IFCSaveSource): WriteIFCInput {
     // Alleen `true` wordt geschreven (`writeImportProvenanceMeta`).
     ...(src.importPristine ? { importPristine: true } : {}),
     ...(withheld ? { withheldTaskTimeFields: withheld } : {}),
+    // Bestaande taken en het project houden hun GlobalId uit het ingelezen bestand.
+    ...(src.ifcGlobalIds ? { ifcGlobalIds: src.ifcGlobalIds } : {}),
     // De oorspronkelijke bron reist mee in OPS_ImportProvenance, zodat een heropening op de BRON
     // poort en niet op "het is nu een IFC". ALLEEN in de modus: buiten de modus (aanbodstand) staat
     // onze eigen solve in het bestand; een bron noemen zou bij heropenen onze oude solve met de
@@ -99,7 +101,7 @@ const IFC_SAVE_KEYS = [
   'project', 'calendar', 'tasks', 'sequences', 'resources', 'assignments',
   'activityCodeTypes', 'customFieldDefs', 'customTaskTypes', 'calendars', 'baselines', 'activeBaselineId',
   'xerImportMetadata', 'xerSourceArchive', 'xerSourceProjectId', 'importPristine',
-  'recordedDates', 'datesAsRecorded',
+  'recordedDates', 'datesAsRecorded', 'ifcGlobalIds',
 ] as const;
 
 type MissingSaveKey = Exclude<keyof IFCSaveSource, typeof IFC_SAVE_KEYS[number]>;

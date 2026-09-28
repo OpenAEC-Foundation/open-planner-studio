@@ -264,8 +264,8 @@ export const ALL_RECORDED_SLOT_KEYS: readonly RecordedFieldKey[] = [...RECORDED_
 
 // ── IFCTASK ─────────────────────────────────────────────────────────────────────────────────────
 
-/** Vooraf-berekende invoer voor de IFCTASK-write-slots. `guidArg` (ifcStr(ifcGuid(task.id))) en de
- *  IFCTASKTIME-ref-id worden vooraf berekend in `writeTask` (ifcGuid woont in ifcWriter). */
+/** Vooraf-berekende invoer voor de IFCTASK-write-slots. `guidArg` (het GlobalId via `guidOf`) en de
+ *  IFCTASKTIME-ref-id worden vooraf berekend in `writeTask` (`guidOf` woont in ifcWriter). */
 export interface TaskWriteCtx {
   task: Task;
   ownerHistId: number;

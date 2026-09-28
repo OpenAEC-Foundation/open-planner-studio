@@ -111,6 +111,8 @@ export interface ProjectSlice {
   /** Sessie-only: waarom het XER-bronarchief bij het openen onbruikbaar was (per document via
    *  DOCUMENT_FIELDS; nooit IFC). `null` = er was geen archief óf het was bruikbaar. */
   xerArchiveIssue: XerArchiveIssue | null;
+  /** Zie `DocumentPayload.ifcGlobalIds`. */
+  ifcGlobalIds: Readonly<Record<string, string>> | null;
   setProject: (project: Partial<Project>) => void;
   /** Zet WBS-autonummering aan/uit; bij aanzetten wordt de hele boom direct hernummerd. */
   setWbsAutoNumber: (on: boolean) => void;
@@ -192,6 +194,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
   taskTypesVisible: false,
   importPristine: false,
   xerArchiveIssue: null,
+  ifcGlobalIds: null,
 
   setProject: (updates) => {
     // Telt de wortel-ankers die deze aanroep klemt, buiten de

@@ -1,7 +1,7 @@
 import type { MilestoneKind } from './task';
 
-/** Eén taak zoals hij in de baseline vastligt. Keyed op de stabiele Task.id (tevens de basis van
- *  de IFC-GUID via ifcGuid(task.id)) zodat matching over hernoemingen heen werkt. */
+/** Eén taak zoals hij in de baseline vastligt. Keyed op de stabiele Task.id zodat matching over
+ *  hernoemingen heen werkt; in IFC reist per taak het gebruikte GlobalId mee (`writeBaselineMeta`). */
 export interface BaselineTask {
   taskId: string;
   /** Oorspronkelijke bronidentiteit als deze baseline uit een extern bronproject is opgebouwd.

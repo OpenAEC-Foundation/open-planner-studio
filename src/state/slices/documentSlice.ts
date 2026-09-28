@@ -433,6 +433,9 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       // Een variant van een document waarvan het archief onbruikbaar was, mist het archief óók —
       // de reden reist dus mee, anders zegt MCP/de extensie-API voor de kopie "nooit een XER-bron".
       xerArchiveIssue: src.xerArchiveIssue,
+      // Zelfde taak-id's als de bron, dus zelfde GlobalIds — zoals vóór audit 2026-09-26, toen ze
+      // uit het id werden afgeleid.
+      ifcGlobalIds: src.ifcGlobalIds,
     };
     const activation = materializeLibraryBoundary({
       payload: copy, companies: source.companies, pools: source.pools, mode: 'silent-switch',

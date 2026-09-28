@@ -14,7 +14,7 @@ import { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types/stru
 import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
 import { formatInstant, localTodayIso } from '@/utils/dateUtils';
-import { ifcGuid } from './ifcWriter';
+import { ifcGuid, ifcGuid128 } from './ifcWriter';
 import { IfcParseError } from './ifcErrors';
 import type { ImportLabels, ImportResult, RecordedSourceFormat, XerArchiveIssue, XerArchiveIssueCode } from '@/services/importTypes';
 import {
@@ -254,7 +254,7 @@ export function readIFC(
   extractTimephasedDurationWalksMeta(entities, entityMap, tasks, taskStepIdMap, calendarIdByGuid);
   // `TaskTimephasedContour.resourceId` verwijst naar een resource-id uit
   // het SCHRIJVENDE document; deze lezer regenereert resource-ids (`extractResources`), dus de
-  // verwijzing moet mee — via dezelfde deterministische GUID-hash (`ifcGuid(oudeId)` = de GlobalId
+  // verwijzing moet mee — via dezelfde deterministische GUID-hash (`mappedResourceId`: de GlobalId
   // die de writer voor die resource gebruikte, zie `extractBaselines`' taak-remap-precedent). Ná
   // `extractStructure`, want dáár landen de `OPS_TimephasedContours`-psets op de taken. Een
   // verwijzing die niet terug te vinden is (GUID-botsing met `#dup`-suffix, of een extern bestand)
@@ -303,6 +303,8 @@ export function readIFC(
   // project.statusDate (uit OPS_ProjectSettings) beschikbaar is als default-actualFinish.
   normalizeImportedProgress(tasks, project.statusDate);
 
+  const ifcGlobalIds = collectIfcGlobalIds(entities, entityMap, taskStepIdMap, project.id);
+
   return {
     project, calendar, tasks, sequences, resources, assignments,
     activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars,
@@ -325,7 +327,39 @@ export function readIFC(
     // `xerOrigin` — er is geen archief om naar te verwijzen.
     ...(xer ? { xer, xerOrigin: 'xer-archive' as const } : {}),
     ...(xerArchiveIssue ? { xerArchiveIssue } : {}),
+    ...(ifcGlobalIds ? { ifcGlobalIds } : {}),
   };
+}
+
+/**
+ * De GlobalIds die bij opslaan terug moeten komen (audit 2026-09-26): per ingelezen taak het
+ * GlobalId van haar IFCTASK, en dat van het IFCPROJECT. Alleen die twee houden hun identiteit over
+ * opslaan en openen heen (taak-id's via OPS_TaskIdentity of het GlobalId, het project via zijn
+ * GlobalId); resources, kalenders en relaties krijgen bij elk openen een nieuw id en daarmee al
+ * een nieuw GlobalId. Zonder deze kaart zou de writer ook bestaande taken een nieuw GlobalId geven.
+ */
+function collectIfcGlobalIds(
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+  taskStepIdMap: Map<string, string>,
+  projectId: string,
+): Record<string, string> | undefined {
+  const out: Record<string, string> = {};
+  let any = false;
+  for (const [stepId, taskId] of taskStepIdMap) {
+    const guid = ifcSlotText(entityMap.get(stepId)?.args[TASK_SLOT.globalId]);
+    if (guid) { out[taskId] = guid; any = true; }
+  }
+  const proj = entities.find(e => e.type === 'IFCPROJECT');
+  const projectGuid = proj ? ifcSlotText(proj.args[0]) : '';
+  if (projectGuid) { out[projectId] = projectGuid; any = true; }
+  return any ? out : undefined;
+}
+
+/** Resource-id uit het schrijvende document → ons nieuwe id, via het GlobalId dat de writer uit dat
+ *  id afleidde: eerst de huidige afleiding (`ifcGuid128`), dan die van oudere bestanden (`ifcGuid`). */
+function mappedResourceId(resourceGuidMap: Map<string, string>, writtenId: string): string | undefined {
+  return resourceGuidMap.get(ifcGuid128(writtenId)) ?? resourceGuidMap.get(ifcGuid(writtenId));
 }
 
 /**
@@ -2941,7 +2975,7 @@ function remapContourResourceIds(tasks: Task[], resourceGuidMap: Map<string, str
     if (!task.timephasedContours) continue;
     for (const contour of task.timephasedContours) {
       if (contour.resourceId === undefined) continue;
-      const mapped = resourceGuidMap.get(ifcGuid(contour.resourceId));
+      const mapped = mappedResourceId(resourceGuidMap, contour.resourceId);
       if (mapped) contour.resourceId = mapped;
     }
   }
@@ -2955,7 +2989,7 @@ function remapContourResourceIds(tasks: Task[], resourceGuidMap: Map<string, str
  */
 function remapLevelingResourceIds(options: ProjectSchedulingOptions, resourceGuidMap: Map<string, string>): void {
   for (const entry of options.leveling?.resources ?? []) {
-    const mapped = resourceGuidMap.get(ifcGuid(entry.resourceId));
+    const mapped = mappedResourceId(resourceGuidMap, entry.resourceId);
     if (mapped) entry.resourceId = mapped;
   }
 }

@@ -30,9 +30,9 @@ import {
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { groupBy } from '@/utils/collections';
 
-/** Generate a 22-character IFC GlobalId (simplified). Geëxporteerd zodat de reader
- *  (`extractBaselines`) baseline-taskId's — die als interne id in de OPS_Baselines-JSON staan —
- *  deterministisch kan terugmappen op de her-gegenereerde taak-id's via de IFCTASK-GlobalId. */
+/** De OUDE GlobalId-afleiding: een 32-bits hash, geen conforme IFC-GUID. De writer gebruikt hem niet
+ *  meer (zie `ifcGuid128`); de lezer herberekent hem nog voor bestanden van vóór audit 2026-09-26,
+ *  waarin een resource- of baseline-verwijzing alleen via deze hash terug te vinden is. */
 export function ifcGuid(seed: string): string {
   const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_$';
   let hash = 0;
@@ -46,6 +46,43 @@ export function ifcGuid(seed: string): string {
     hash = ((hash << 3) ^ (hash >> 2) + i) | 0;
   }
   return result;
+}
+
+const IFC_GUID_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_$';
+
+/**
+ * GlobalId voor een object zonder bewaarde GlobalId (audit 2026-09-26, eigenaarsbesluit 2026-09-28):
+ * een 128-bits hash van de seed (cyrb128), in de IFC-vorm: 22 tekens uit `IFC_GUID_CHARS`, het
+ * eerste teken draagt de hoogste twee bits en is dus `0`–`3`. Deterministisch en niet willekeurig:
+ * dezelfde nieuwe taak krijgt bij elk opslaan hetzelfde GlobalId, ook zonder heropenen. De uniciteit
+ * komt uit de seed (het interne id draagt al tijd en toeval).
+ */
+export function ifcGuid128(seed: string): string {
+  let h1 = 1779033703, h2 = 3144134277, h3 = 1013904242, h4 = 2773480762;
+  for (let i = 0; i < seed.length; i++) {
+    const k = seed.charCodeAt(i);
+    h1 = h2 ^ Math.imul(h1 ^ k, 597399067);
+    h2 = h3 ^ Math.imul(h2 ^ k, 2869860233);
+    h3 = h4 ^ Math.imul(h3 ^ k, 951274213);
+    h4 = h1 ^ Math.imul(h4 ^ k, 2716044179);
+  }
+  h1 = Math.imul(h3 ^ (h1 >>> 18), 597399067);
+  h2 = Math.imul(h4 ^ (h2 >>> 22), 2869860233);
+  h3 = Math.imul(h1 ^ (h3 >>> 17), 951274213);
+  h4 = Math.imul(h2 ^ (h4 >>> 19), 2716044179);
+  h1 ^= h2 ^ h3 ^ h4;
+  h2 ^= h1;
+  h3 ^= h1;
+  h4 ^= h1;
+  const words = [h1 >>> 0, h2 >>> 0, h3 >>> 0, h4 >>> 0];
+  const bit = (k: number) => (words[k >>> 5] >>> (31 - (k & 31))) & 1;
+  let out = IFC_GUID_CHARS[(bit(0) << 1) | bit(1)];
+  for (let c = 0; c < 21; c++) {
+    let v = 0;
+    for (let b = 0; b < 6; b++) v = (v << 1) | bit(2 + c * 6 + b);
+    out += IFC_GUID_CHARS[v];
+  }
+  return out;
 }
 
 // ifcStr/ifcBool komen uit ./ifcPsets (gedeeld met de per-taak-pset-registry).
@@ -105,18 +142,20 @@ export interface WriteContext {
   guids: Map<string, string>;
   /** Alle uitgegeven GlobalIds, om botsingen te detecteren. */
   usedGuids: Set<string>;
+  /** seed → GlobalId uit het ingelezen bestand (`ImportResult.ifcGlobalIds`): wint van de hash. */
+  preservedGuids: ReadonlyMap<string, string>;
+  /** De waarden van `preservedGuids`: een nieuw object mag die nooit krijgen, ook niet als zijn
+   *  eigenaar pas later in het bestand aan de beurt is. */
+  reservedGuids: ReadonlySet<string>;
 }
 
 /**
  * Geef het GlobalId uit voor `seed` — en garandeer dat het uniek is binnen dit bestand.
  *
- * `ifcGuid` is een 32-bits hash, geen UUID en geen conforme IFC-GUID: een verjaardagsbotsing bij
- * tienduizenden id's is niet uit te sluiten, en een botsing geeft stille kruisbesmetting van
- * baselines of toewijzingen.
- *
- * Dit is de enige plek die GlobalIds uitgeeft. Botst een hash met een eerder uitgegeven GlobalId,
- * dan wordt er deterministisch doorgezocht met een gesuffixte seed; zonder botsing is de uitkomst
- * gewoon de hash.
+ * Dit is de enige plek die GlobalIds uitgeeft. Eerst het GlobalId dat het object in het ingelezen
+ * bestand al had (`preservedGuids`: taken en het project, zodat externe koppelingen niet breken);
+ * anders `ifcGuid128(seed)`. Botst dat met een eerder uitgegeven of gereserveerd GlobalId, dan
+ * wordt er deterministisch doorgezocht met een gesuffixte seed.
  *
  * Een gesuffixt GlobalId is alleen terug te vinden omdat de writer expliciet wegschrijft wélk
  * GlobalId hij per taak gebruikte (zie `writeBaselineMeta`); de reader herberekent de hash niet.
@@ -124,8 +163,14 @@ export interface WriteContext {
 function guidOf(ctx: WriteContext, seed: string): string {
   const cached = ctx.guids.get(seed);
   if (cached !== undefined) return cached;
-  let guid = ifcGuid(seed);
-  for (let n = 1; ctx.usedGuids.has(guid); n++) guid = ifcGuid(`${seed}#dup${n}`);
+  const kept = ctx.preservedGuids.get(seed);
+  let guid: string;
+  if (kept !== undefined && !ctx.usedGuids.has(kept)) {
+    guid = kept;
+  } else {
+    guid = ifcGuid128(seed);
+    for (let n = 1; ctx.usedGuids.has(guid) || ctx.reservedGuids.has(guid); n++) guid = ifcGuid128(`${seed}#dup${n}`);
+  }
   ctx.guids.set(seed, guid);
   ctx.usedGuids.add(guid);
   return guid;
@@ -176,8 +221,13 @@ export function writeIFC(input: WriteIFCInput): string {
     importPristine = undefined,
     withheldTaskTimeFields = undefined,
     recordedSourceFormat = undefined,
+    ifcGlobalIds = undefined,
   } = input;
-  const ctx: WriteContext = { lines: [], nextId: 1, idMap: new Map(), guids: new Map(), usedGuids: new Set() };
+  const preservedGuids = new Map(Object.entries(ifcGlobalIds ?? {}));
+  const ctx: WriteContext = {
+    lines: [], nextId: 1, idMap: new Map(), guids: new Map(), usedGuids: new Set(),
+    preservedGuids, reservedGuids: new Set(preservedGuids.values()),
+  };
   const now = new Date().toISOString().split('.')[0];
 
   // Header. Naam/auteur/bedrijf MOETEN door `ifcStr`: rauw geïnterpoleerd levert een gewone
