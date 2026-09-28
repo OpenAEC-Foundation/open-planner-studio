@@ -12,6 +12,7 @@
     "dismiss": "Bildirimi kapat",
     "taskEditRevertBlocked": "Bu arada yapay zekâ asistanından veya bir uzantıdan bir değişiklik geldi. Ondan önceki görev düzenlemeleri geri alınmadı ve Geri Al altında normal adımlar olarak kalıyor.",
     "openFailed": "Dosya açılamadı",
+    "extGuideCallbackFailed": "{{name}} uzantısının bir adımı başarısız oldu. Rehber devam ediyor.",
     "xerInvalidInput": "XER içe aktarma işlemi özgün dosya baytlarını gerektirir.",
     "xerInvalidFile": "Bu, geçerli veya desteklenen bir XER dosyası değil.",
     "xerInvalidEncoding": "Bu XER dosyasının metin kodlaması geçersiz veya eksik.",
@@ -1182,6 +1183,7 @@
     "declaredNote": "Bu, yazarın beyanıdır, bir kısıtlama değil — kod yine de fazlasını yapabilir.",
     "declaredNone": "Hiçbir şey belirtilmemiş.",
     "permImportSource": "importSource — içe aktarılan her dosyanın eksiksiz özgün kaynak baytları (örneğin ham bir Primavera dosyası), projeye hiç ulaşmayan alanlar dahil.",
+    "permHelp": "help — Yardım makaleleri ekleyebilir, birlikte gelen projeleri yeni belge olarak açabilir ve uygulamanın bölümlerini gösteren bir rehber görüntüleyebilir.",
     "cancel": "Kurma",
     "confirm": "Kur"
   },
@@ -1404,5 +1406,20 @@
     "leaveTitle": "Kaydedilmemiş değişiklikler",
     "leaveBody": "Yardımı açmak için bu iletişim kutusu kapanır. Kaydet değişikliklerinizi korur, İptal bunları atar; Geri ile burada kalırsınız.",
     "back": "Geri"
+  },
+  "extGuide": {
+    "region": "Rehber",
+    "stepOf": "Adım {{current}} / {{total}}",
+    "back": "Geri",
+    "showMe": "Bana göster",
+    "showMeHint": "Bu adımı senin için hazırlar",
+    "reset": "Yeniden başla",
+    "resetHint": "Bu adımın başlangıç durumunu yeni belge olarak aç",
+    "next": "İleri",
+    "doneNext": "Tamam, ileri",
+    "finish": "Bitir",
+    "close": "Rehberi kapat",
+    "stepDone": "Tamamlandı",
+    "waiting": "Görevi uygulamada yap; ardından devam edebilirsin."
   }
 }

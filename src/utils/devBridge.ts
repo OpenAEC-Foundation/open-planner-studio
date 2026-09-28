@@ -111,10 +111,12 @@ async function openFromPath(path: string) {
   return openFromPathWithIO(path, { readTextFile, readFile });
 }
 
-/** Dev-only: installeer een extensie direct vanuit een code-string (voor zelftests). */
+/** Dev-only: installeer een extensie direct vanuit een code-string (voor zelftests). `assets`
+ *  (optioneel) zijn de mee-verpakte bestanden, zoals het ZIP-pad ze zou bewaren (naam → bytes). */
 async function installExtensionFromCode(
   manifest: ExtensionManifest,
   mainCode: string,
+  assets?: Record<string, Uint8Array>,
 ): Promise<ReadyExtension | undefined> {
   const parsed = parseExtensionManifest(manifest, 'fresh');
   if (!parsed.ok) throw new Error(parsed.error);
@@ -124,6 +126,7 @@ async function installExtensionFromCode(
     manifest: validatedManifest,
     mainCode,
     enabled: true,
+    ...(assets && Object.keys(assets).length > 0 ? { assets } : {}),
   });
   useAppStore.getState().registerReadyExtension({
     kind: 'ready',
@@ -311,8 +314,8 @@ export interface OpsDevBridge {
     addCompany: (name: string) => string;
     addResource: (companyId: string, poolResourceId: string) => { added: boolean; resourceId: string | null };
   };
-  /** Dev-only Help-haken: fixture-tutorials registreren zoals een tutorialextensie dat straks doet
-   *  (de extensie-API zelf bestaat nog niet), en het register weer leegmaken. */
+  /** Dev-only Help-haken: fixture-tutorials rechtstreeks in het register zetten (zonder extensie; de
+   *  extensieroute is `api.help.registerArticles`, contract 1.4.0), en het register weer leegmaken. */
   help: {
     registerArticles: typeof registerHelpArticles;
     resetArticles: typeof resetRegisteredHelpArticles;

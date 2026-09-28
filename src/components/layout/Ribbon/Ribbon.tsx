@@ -220,6 +220,45 @@ function useRibbonAutoFit(
   });
 }
 
+/* ------------------------------------------------------------------------------------------------
+ * Generieke ankers voor component-items
+ * ------------------------------------------------------------------------------------------------
+ * Knoppen en groepen krijgen hun `data-tour-anchor` rechtstreeks van het render-pad
+ * (RibbonTabContent). Een component-item (popover, invoerveld, samengestelde widget) rendert zijn
+ * eigen DOM; daarvoor zet het render-pad een onzichtbare `<template data-ribbon-anchor="…">` vóór het
+ * component. Deze hook zet dat anker op elk element ná de markering, tot de volgende markering of het
+ * einde van de ouder — dus op precies de elementen van dat ene component, hoeveel het er ook zijn.
+ *
+ * Een component kan zijn eigen wortel opnieuw renderen zonder dat het lint rendert (eigen
+ * store-selectors); een MutationObserver op `childList` vangt dat op. Het zetten van een attribuut
+ * is geen `childList`-mutatie, dus er ontstaat geen lus.
+ */
+const ANCHOR_MARKER_ATTR = 'data-ribbon-anchor';
+
+function applyRibbonAnchorMarkers(root: HTMLElement): void {
+  root.querySelectorAll<HTMLTemplateElement>(`template[${ANCHOR_MARKER_ATTR}]`).forEach(marker => {
+    const anchor = marker.getAttribute(ANCHOR_MARKER_ATTR);
+    if (!anchor) return;
+    for (let el = marker.nextElementSibling; el && !el.hasAttribute(ANCHOR_MARKER_ATTR); el = el.nextElementSibling) {
+      if (el.getAttribute('data-tour-anchor') !== anchor) el.setAttribute('data-tour-anchor', anchor);
+    }
+  });
+}
+
+function useRibbonAnchorMarkers(scrollRef: RefObject<HTMLElement | null>): void {
+  useLayoutEffect(() => {
+    const root = scrollRef.current;
+    if (root) applyRibbonAnchorMarkers(root);
+  });
+  useLayoutEffect(() => {
+    const root = scrollRef.current;
+    if (!root || typeof MutationObserver === 'undefined') return;
+    const observer = new MutationObserver(() => applyRibbonAnchorMarkers(root));
+    observer.observe(root, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [scrollRef]);
+}
+
 export function Ribbon() {
   const { t: tMenu, i18n } = useTranslation('menu');
   const setUI = useAppStore(s => s.setUI);
@@ -234,6 +273,7 @@ export function Ribbon() {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   useRibbonAutoFit(containerRef, scrollRef, activeTab, ribbonCompact, i18n.language, uiFontScale);
+  useRibbonAnchorMarkers(scrollRef);
   // De dichtheid is puur de handmatige keuze: 'compact' is de platte 40px-strip die de gebruiker
   // zelf aanzet. De automaat werkt niet met een globale dichtheidsladder, maar degradeert per knop
   // van rechts naar links binnen dezelfde
@@ -265,6 +305,7 @@ export function Ribbon() {
           key="file"
           className={`ribbon-tab ribbon-tab--file ${activeTab === 'file' ? 'active' : ''}`}
           onClick={() => setActiveTab('file')}
+          data-tour-anchor="ribbon-tab:file"
         >
           {tMenu('ribbon.file')}
         </button>
@@ -274,6 +315,7 @@ export function Ribbon() {
             className={`ribbon-tab ${activeTab === tab ? 'active' : ''}`}
             onClick={() => setActiveTab(tab)}
             data-ops-ribbon-tab={tab}
+            data-tour-anchor={`ribbon-tab:${tab}`}
           >
             {tMenu(`ribbon.${tab === 'beeld' ? 'view' : tab === 'instellingen' ? 'settings' : tab}`)}
           </button>

@@ -254,14 +254,19 @@ export function HelpPanel() {
     };
   }, [selectedMeta, lang]);
 
+  // `project://`-links bestaan alleen in geregistreerde artikelen: hun bron (de extensie) opent het
+  // meegeleverde projectbestand als nieuw document.
+  const openProject = selectedMeta && isRegistered(selectedMeta) ? selectedMeta.openProject : undefined;
+
   const renderedContent = useMemo(() => {
     if (!selectedContent) return null;
     return renderMiniMarkdown(selectedContent, {
       onNavigate: navigate,
       onOpenExample: (f) => { void handleOpenExample(f); },
+      ...(openProject ? { onOpenProject: openProject } : {}),
       resolveImage,
     });
-  }, [selectedContent, navigate, handleOpenExample, resolveImage]);
+  }, [selectedContent, navigate, handleOpenExample, resolveImage, openProject]);
 
   // Na een artikelwissel: naar het anker scrollen als de link er een had, anders naar boven. De
   // scrollcontainer is `.backstage-main` (de omringende Backstage-sectie), niet het paneel zelf.

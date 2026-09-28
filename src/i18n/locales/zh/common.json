@@ -12,6 +12,7 @@
     "dismiss": "关闭通知",
     "taskEditRevertBlocked": "AI 助手或扩展在此期间进行了更改。此前的任务修改未被还原，仍作为普通步骤保留在“撤销”中。",
     "openFailed": "打开文件失败",
+    "extGuideCallbackFailed": "扩展 {{name}} 的一个步骤出错。引导将继续。",
     "xerInvalidInput": "导入 XER 需要原始文件字节。",
     "xerInvalidFile": "这不是有效或受支持的 XER 文件。",
     "xerInvalidEncoding": "此 XER 文件的文本编码无效或已截断。",
@@ -1132,6 +1133,7 @@
     "declaredNote": "这是作者的声明，而非限制——代码无论如何都能做得更多。",
     "declaredNone": "未声明任何内容。",
     "permImportSource": "importSource — 每个导入文件的完整原始源字节（例如原始 Primavera 文件），包括从未进入项目的字段。",
+    "permHelp": "help — 可以添加帮助文章、将附带的项目作为新文档打开，并显示指向应用各部分的引导。",
     "cancel": "不安装",
     "confirm": "安装"
   },
@@ -1354,5 +1356,20 @@
     "leaveTitle": "更改尚未保存",
     "leaveBody": "打开帮助时会关闭此对话框。“保存”保留你的更改，“取消”放弃更改；“返回”则留在此处。",
     "back": "返回"
+  },
+  "extGuide": {
+    "region": "引导",
+    "stepOf": "第 {{current}} 步，共 {{total}} 步",
+    "back": "上一步",
+    "showMe": "演示给我看",
+    "showMeHint": "为你完成此步骤的准备",
+    "reset": "重新开始",
+    "resetHint": "将此步骤的初始状态作为新文档打开",
+    "next": "下一步",
+    "doneNext": "完成，下一步",
+    "finish": "完成",
+    "close": "关闭引导",
+    "stepDone": "已完成",
+    "waiting": "在应用中完成此任务，然后即可继续。"
   }
 }

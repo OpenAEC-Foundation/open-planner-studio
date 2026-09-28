@@ -12,6 +12,7 @@
     "dismiss": "Close notification",
     "taskEditRevertBlocked": "A change by the AI assistant or an extension came in between. The task edits made before it were not reverted and remain as ordinary steps under Undo.",
     "openFailed": "Failed to open file",
+    "extGuideCallbackFailed": "A step from the extension {{name}} failed. The guide continues.",
     "xerInvalidInput": "XER import requires the original file bytes.",
     "xerInvalidFile": "This is not a valid or supported XER file.",
     "xerInvalidEncoding": "This XER file has invalid or truncated text encoding.",
@@ -1182,6 +1183,7 @@
     "declaredNote": "This is the author's declaration, not a restriction — the code can do more regardless.",
     "declaredNone": "Nothing declared.",
     "permImportSource": "importSource — the complete original source bytes of every imported file (for example a raw Primavera file), including fields that never reach the project.",
+    "permHelp": "help — may add Help articles, open bundled projects as a new document and show a guide that points at parts of the app.",
     "cancel": "Don't install",
     "confirm": "Install"
   },
@@ -1404,5 +1406,20 @@
     "leaveTitle": "Unsaved changes",
     "leaveBody": "To open the help, this dialog closes. Save keeps your changes, Cancel discards them; Back keeps you here.",
     "back": "Back"
+  },
+  "extGuide": {
+    "region": "Guide",
+    "stepOf": "Step {{current}} of {{total}}",
+    "back": "Back",
+    "showMe": "Show me",
+    "showMeHint": "Set this step up for you",
+    "reset": "Start over",
+    "resetHint": "Open the starting point of this step as a new document",
+    "next": "Next",
+    "doneNext": "Done, next",
+    "finish": "Finish",
+    "close": "Close guide",
+    "stepDone": "Done",
+    "waiting": "Carry out the task in the app; then you can continue."
   }
 }

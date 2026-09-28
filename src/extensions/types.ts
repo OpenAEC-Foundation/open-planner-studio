@@ -47,6 +47,8 @@ export type ExtensionCategory =
  *     in het projectmodel materialiseert (audit-/herkomstvelden, kosten, review-/locatievelden, …).
  *     Dat is wezenlijk breder dan de rest van `data.*` en dus expliciet GEEN kern-API — zie de
  *     privacyparagraaf in docs/extensions.md.
+ *   • 'help'        → api.help.* (hard afgedwongen, sinds contract 1.4.0) — Help-artikelen registreren,
+ *     een meegeleverd projectbestand als nieuw document openen en het begeleidingspaneel aansturen.
  *
  * Manifesten die een onbekende waarde noemen (bv. het vervallen 'commands'), worden bij het activeren
  * gefilterd met een appLog-warn (`sanitizeManifestPermissions`) — installatie blijft slagen.
@@ -58,7 +60,8 @@ export type ExtensionPermission =
   | 'filesystem'
   | 'network'
   | 'pdf-fonts'
-  | 'importSource';
+  | 'importSource'
+  | 'help';
 
 export type ExtensionStatus = 'enabled' | 'disabled' | 'error' | 'loading';
 
@@ -157,6 +160,64 @@ export interface RibbonButtonRegistration {
   icon?: string;              // inline SVG-string
   onClick: () => void;
   tooltip?: string;
+}
+
+// ── Help & begeleiding (permissie 'help', sinds contract 1.4.0) ──
+
+/** Tekst in de twee docstalen. Elke andere UI-taal toont `en` (zoals de Help-viewer). */
+export interface ExtHelpText {
+  nl: string;
+  en: string;
+}
+
+/**
+ * Eén Help-artikel dat een extensie aanlevert. Verschijnt in Backstage → Help onder *Tutorials*,
+ * genummerd volgens `order`. De tekst is de Markdown-subset van de Help-viewer; afbeeldingen
+ * (`![alt](img/{lang}/x.webp)`) komen uit de eigen assets van de extensie (`{lang}` = `nl`/`en`),
+ * en een link `[tekst](project://start.ifc)` opent dat meegeleverde projectbestand als nieuw document.
+ */
+export interface ExtHelpArticle {
+  /** Kleine letters, cijfers en streepjes; uniek over alle bronnen. */
+  id: string;
+  kind: 'tutorial';
+  /** Positie in de leerroute (positief geheel getal). */
+  order: number;
+  title: ExtHelpText;
+  body: ExtHelpText;
+}
+
+/**
+ * Eén stap van een begeleiding. De `body` (Markdown-subset) mag één regel `---` bevatten: wat
+ * ervóór staat is de opdracht, wat erna staat de uitleg ("wat je nu ziet, en waarom"), die pas
+ * verschijnt zodra de stap gedaan is.
+ */
+export interface ExtGuideStep {
+  /** Kleine letters, cijfers en streepjes; uniek binnen de begeleiding. */
+  id: string;
+  body: ExtHelpText;
+  /**
+   * Waarde van een `data-tour-anchor` in de app (bv. `ribbon:start:addTask`, zie
+   * docs/extensions.md). Het element wordt gemarkeerd zolang de stap openstaat.
+   */
+  anchor?: string;
+  /**
+   * Is de stap gedaan? De host roept dit aan bij het openen van de stap en daarna (gebundeld) na
+   * elke wijziging in de app. Alleen `true` telt; gedaan blijft gedaan tot de stap opnieuw begint.
+   * Zonder `check` toont het paneel de knop "Klaar, volgende". Gooit hij, dan meldt de app dat en
+   * valt de stap terug op "Klaar, volgende".
+   */
+  check?: (api: ExtensionApi) => boolean | Promise<boolean>;
+  /** "Toon mij": zet de stap klaar (bv. via `api.data.*`). */
+  prepare?: (api: ExtensionApi) => void | Promise<void>;
+  /** "Opnieuw": naam van een meegeleverd `.ifc` (asset) dat de beginstand van deze stap bevat. */
+  resetAsset?: string;
+}
+
+/** Een interactieve begeleiding, getekend door de app in het begeleidingspaneel. */
+export interface ExtGuide {
+  id: string;
+  title: ExtHelpText;
+  steps: ExtGuideStep[];
 }
 
 // ── Extension API (meegegeven aan onLoad) ──
@@ -283,6 +344,33 @@ export interface ExtensionApi {
    */
   assets: {
     get(name: string): Uint8Array | undefined;
+  };
+
+  /**
+   * Help & begeleiding (permissie `help`, sinds contract 1.4.0). Alles wat hier geregistreerd of
+   * gestart wordt, ruimt de app op bij uitschakelen/verwijderen van de extensie.
+   */
+  help: {
+    /**
+     * Registreer (of vervang) de Help-artikelen van deze extensie. Ongeldige invoer registreert
+     * niets en gooit een fout met alle gevonden problemen.
+     */
+    registerArticles(articles: ExtHelpArticle[]): void;
+    /** Haal de artikelen van deze extensie weer uit Help. */
+    unregisterArticles(): void;
+    /**
+     * Open een meegeleverd `.ifc` (asset) als NIEUW document — zoals een voorbeeld: zonder
+     * opslagdoel, het actieve document blijft ongemoeid (alleen een leeg, ongewijzigd tabblad wordt
+     * hergebruikt). Wordt afgewezen als de asset ontbreekt, geen `.ifc` is of niet te openen is.
+     */
+    openBundledProject(assetName: string): Promise<void>;
+    /**
+     * Start het begeleidingspaneel. Er loopt er hooguit één tegelijk; een nieuwe vervangt de vorige.
+     * Een ongeldige begeleiding gooit een fout en start niets.
+     */
+    startGuide(guide: ExtGuide): void;
+    /** Sluit het begeleidingspaneel, als het een begeleiding van deze extensie toont. */
+    stopGuide(): void;
   };
 
   /** Intern — draait alle registraties terug bij disable. */

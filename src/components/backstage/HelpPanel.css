@@ -144,7 +144,7 @@
   color: var(--theme-accent);
   text-decoration: underline;
 }
-.help-link-internal:hover, .help-link-example:hover { color: var(--theme-accent-hover, var(--theme-accent)); }
+.help-link-internal:hover, .help-link-example:hover, .help-link-project:hover { color: var(--theme-accent-hover, var(--theme-accent)); }
 .help-link-unknown {
   color: var(--theme-text-dim);
   text-decoration: none;

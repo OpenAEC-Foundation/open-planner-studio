@@ -12,6 +12,7 @@
     "dismiss": "Benachrichtigung schließen",
     "taskEditRevertBlocked": "Eine Änderung des KI-Assistenten oder einer Erweiterung kam dazwischen. Die vorher vorgenommenen Aufgabenänderungen wurden nicht zurückgesetzt und bleiben als normale Schritte unter Rückgängig.",
     "openFailed": "Datei konnte nicht geöffnet werden",
+    "extGuideCallbackFailed": "Ein Schritt der Erweiterung {{name}} ist fehlgeschlagen. Die Anleitung läuft weiter.",
     "xerInvalidInput": "Der XER-Import benötigt die ursprünglichen Dateibytes.",
     "xerInvalidFile": "Dies ist keine gültige oder unterstützte XER-Datei.",
     "xerInvalidEncoding": "Die Textkodierung dieser XER-Datei ist ungültig oder abgeschnitten.",
@@ -1182,6 +1183,7 @@
     "declaredNote": "Das ist die Angabe des Autors, keine Beschränkung — der Code kann ohnehin mehr.",
     "declaredNone": "Nichts angegeben.",
     "permImportSource": "importSource — die vollständigen ursprünglichen Quellbytes jeder importierten Datei (z. B. eine rohe Primavera-Datei), auch Felder, die nie ins Projekt gelangen.",
+    "permHelp": "help — darf Hilfeartikel hinzufügen, mitgelieferte Projekte als neues Dokument öffnen und eine Anleitung zeigen, die auf Teile der App verweist.",
     "cancel": "Nicht installieren",
     "confirm": "Installieren"
   },
@@ -1404,5 +1406,20 @@
     "leaveTitle": "Nicht gespeicherte Änderungen",
     "leaveBody": "Um die Hilfe zu öffnen, wird dieser Dialog geschlossen. Speichern behält Ihre Änderungen, Abbrechen verwirft sie; mit Zurück bleiben Sie hier.",
     "back": "Zurück"
+  },
+  "extGuide": {
+    "region": "Anleitung",
+    "stepOf": "Schritt {{current}} von {{total}}",
+    "back": "Zurück",
+    "showMe": "Zeig es mir",
+    "showMeHint": "Diesen Schritt für dich vorbereiten",
+    "reset": "Neu beginnen",
+    "resetHint": "Den Ausgangsstand dieses Schritts als neues Dokument öffnen",
+    "next": "Weiter",
+    "doneNext": "Erledigt, weiter",
+    "finish": "Fertig",
+    "close": "Anleitung schließen",
+    "stepDone": "Erledigt",
+    "waiting": "Führe die Aufgabe in der App aus; danach geht es weiter."
   }
 }
