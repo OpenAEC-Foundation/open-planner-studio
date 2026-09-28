@@ -412,6 +412,19 @@ niet aan, dan meldt de orkestrator dat aan de eigenaar in plaats van stil door t
 
 ---
 
+### 5.1 Modelkeuze (overleg met de eigenaar bij het startsein)
+
+Welk model welk werk doet (Opus, de nieuwe Sonnet, eventueel andere) wordt bij het startsein samen met
+de eigenaar besloten, niet vooraf. Grondslag is een korte proefmeting op dit project in plaats van
+geruchten of benchmarks van derden:
+- dezelfde twee of drie afgebakende opdrachten per kandidaat-model, bijvoorbeeld het reproduceren van
+  V1/V2 uit het grootboek, en een auditopdracht op een gebied met een bekende, al opgeloste bug uit #241
+  (vindt het model hem terug?);
+- beoordeeld op: juist gevonden bevindingen, valse bevindingen, of de bewijsregels van §2.2 gevolgd
+  zijn, en de kosten (tokens, tijd);
+- de orkestrator zet de uitslag met een voorstel voor de verdeling (audit, verificatie, fixes,
+  review) voor de eigenaar klaar.
+
 ## 6. Golven
 
 | golf | sporen | aard |
