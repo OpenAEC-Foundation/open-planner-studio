@@ -366,7 +366,8 @@ export function invalidateUndoneHistoryForEvent(
  *
  * Daarbovenop het geheugenplafond: van nieuw naar oud opgeteld, valt alles vanaf het eerste event
  * dat `maxBytes` zou overschrijden weg (één snede in de tijd, zodat geen scope een gat krijgt),
- * behalve de nieuwste `MIN_SESSION_HISTORY_EVENTS_PER_SCOPE` van elke scope.
+ * behalve de nieuwste `MIN_SESSION_HISTORY_EVENTS_PER_SCOPE` van elke scope en alles vanaf het eerste
+ * event van een open bewerkingssessie.
  * De geretourneerde array behoudt de oorspronkelijke opslagvolgorde.
  */
 export function pruneSessionHistory(
@@ -380,6 +381,13 @@ export function pruneSessionHistory(
   const keep = new Set<number>();
   let bytes = 0;
   let overBudget = false;
+  // Een open bewerkingssessie (de taakdialoog, `historyMark`) moet bij Annuleren volledig terug
+  // kunnen: alles vanaf haar eerste event blijft buiten de geheugensnede. Alleen een open sessie
+  // draagt `sessionKey` op haar events.
+  let sessionFloor = Infinity;
+  for (const event of events) {
+    if (event.sessionKey !== undefined && event.sequence < sessionFloor) sessionFloor = event.sequence;
+  }
 
   for (const { event, index } of ranked) {
     const scopes = scopeKeysOf(event);
@@ -387,7 +395,7 @@ export function pruneSessionHistory(
     if (within(MAX_SESSION_HISTORY_EVENTS_PER_SCOPE)) {
       const eventBytes = estimateSessionHistoryEventBytes(event);
       if (!overBudget && bytes + eventBytes > maxBytes) overBudget = true;
-      if (!overBudget || within(MIN_SESSION_HISTORY_EVENTS_PER_SCOPE)) {
+      if (!overBudget || within(MIN_SESSION_HISTORY_EVENTS_PER_SCOPE) || event.sequence >= sessionFloor) {
         keep.add(index);
         bytes += eventBytes;
       }

@@ -83,6 +83,22 @@ const newestFirst = (events: readonly SessionHistoryEvent[]) => [...events].sort
   ok('opslagvolgorde blijft behouden', keptMin.every((e, i, a) => i === 0 || events.indexOf(a[i - 1]) < events.indexOf(e)));
 }
 
+// 4. Een open bewerkingssessie (taakdialoog) blijft volledig: Annuleren moet alles terug kunnen
+//    draaien. Ook het vreemde event dat midden in de sessie landde blijft (geen gat).
+{
+  const heavy = { tasks: [], cpmResult: { tasks: { size: 4000 } } };
+  const light = { tasks: [], cpmResult: null };
+  const mk = (seq: number, sessionKey?: string): SessionHistoryEvent => ({
+    id: `s${seq}`, sequence: seq, label: 'x', state: 'applied',
+    deltas: [{ kind: 'document-data', documentId: 'doc', before: light as never, after: heavy as never }],
+    ...(sessionKey ? { sessionKey } : {}),
+  });
+  const events = Array.from({ length: 30 }, (_, i) => mk(i + 1, i + 1 >= 8 && i + 1 !== 12 ? 'dialoog' : undefined));
+  const kept = pruneSessionHistory(events, 1);
+  ok('open sessie: alles vanaf haar eerste event blijft', kept.length === 23 && kept[0].sequence === 8,
+    `kreeg ${kept.length} vanaf ${kept[0]?.sequence}`);
+}
+
 if (diffs.length === 0) {
   console.log(`OK  undo-memory-cap: alle checks groen (${checks})`);
   process.exit(0);

@@ -25,7 +25,11 @@ into a new kind of project data in the app, you can assume it round-trips throug
 does *not* round-trip, that's called out explicitly below.
 
 IFC is also how this app connects to the rest of the OpenAEC toolkit: the same file can be read by
-BIM software for the 4D link (schedule alongside the building model).
+BIM software for the 4D link (schedule alongside the building model). For that, the app writes text
+the way the IFC standard prescribes: accented letters, the euro sign, Chinese characters and emoji are
+encoded in the file, so other software displays them correctly. A task keeps the same IFC identity
+(GlobalId) every time you save, even if the file came from another package, so a link to that task in
+your BIM model keeps working.
 
 ## Exporting to other formats
 
