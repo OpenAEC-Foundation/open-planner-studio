@@ -95,4 +95,3 @@ A new relation does not move any bars yet; the status bar says *Out of date — 
 ## See also
 
 - [Critical path and float](docs://uitleg-kritiek-pad): what the app calculates from your relations, and why a task becomes critical.
-- [Planning well](docs://gids-goed-plannen): why every task should have a predecessor and a successor.

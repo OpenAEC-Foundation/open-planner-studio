@@ -95,4 +95,3 @@ Een nieuwe relatie verschuift nog geen balken; de statusbalk meldt *Verouderd â€
 ## Zie ook
 
 - [Kritiek pad en speling](docs://uitleg-kritiek-pad): wat de app met je relaties uitrekent, en waarom een taak kritiek wordt.
-- [Goed plannen](docs://gids-goed-plannen): waarom elke taak een voorganger en een opvolger hoort te hebben.
