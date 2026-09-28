@@ -163,6 +163,14 @@ export function useRecoveryRestore(): RecoveryRestore {
                   messageKey: 'notifications.recoveryRestoreFailed',
                   detail: (err as Error).message,
                 });
+                // "Blijven staan" vraagt op het web een expliciete hold: anders ruimt de eerste
+                // crashherstel-ronde onder hetzelfde sessie-id deze generatie op (review 2026-09-28).
+                // Op Tauri een no-op (carry-over).
+                try {
+                  await holdRecoveryForLater();
+                } catch (holdErr) {
+                  console.error('Recovery: snapshots vasthouden na mislukt herstel mislukt:', holdErr);
+                }
               } finally {
                 setRecovery(null);
                 finish();

@@ -288,6 +288,38 @@ test('opruimen loopt ook de andere mappen na: een oude map van een nooit opgesla
   assertEq([...files.keys()].filter((p) => p.startsWith(mixed + '/')).length, 1, 'alleen onze oude backup is weg');
 });
 
+test('één onleesbare map breekt de sweep niet af: de andere mappen worden toch opgeruimd (review 2026-09-28)', async () => {
+  const { fs, files, dirs } = makeFakeFs();
+  const root = '/appdata/ai-backups';
+  const locked = `${root}/aaa-vergrendeld`;
+  const oldLoose = `${root}/unsaved-zzz-oud`;
+  dirs.add(locked); dirs.add(oldLoose);
+  files.set(`${locked}/${nameAt(NOW - DAY)}`, 'vast'); // eerst in de listing: vóór de oude map
+  files.set(`${oldLoose}/${nameAt(NOW - 2 * 365 * DAY)}`, 'oud');
+  const partlyBroken: BackupFs = {
+    ...fs,
+    readDir: async (dir: string) => {
+      if (dir === locked) throw new Error('geen toegang (fake)');
+      return fs.readDir(dir);
+    },
+  };
+  const deps: BackupDeps = {
+    getFs: async () => partlyBroken,
+    getDoc: () => ({ ifc: 'IFC:nu', projectName: 'Nieuw' }),
+    autoBackupEnabled: async () => true,
+    now: () => NOW,
+    activeDocId: () => 'doc-nu',
+  };
+  const warn = console.warn;
+  console.warn = () => {};
+  try {
+    await createBackupService(deps).ensureBackup('doc-nu', 'mutate');
+  } finally {
+    console.warn = warn;
+  }
+  assert(!dirs.has(oldLoose), 'de oude losse map ná de vergrendelde map is toch opgeruimd');
+});
+
 test('een fout bij het opruimen laat de backup zelf niet falen', async () => {
   const { fs, files } = makeFakeFs();
   const broken: BackupFs = { ...fs, readDir: async () => { throw new Error('geen toegang (fake)'); } };

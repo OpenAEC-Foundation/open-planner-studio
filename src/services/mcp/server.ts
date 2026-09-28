@@ -329,7 +329,9 @@ export function createRequestHandler(
   // Requests strikt NA elkaar (audit 2026-09-26). Rust houdt één request tegelijk in de lucht, maar
   // geeft dat slot na zijn time-out (120 s) vrij terwijl de webview nog aan het oude request werkt;
   // zonder deze keten liep het volgende request (vaak een retry van dezelfde import) bij elke await
-  // door het oude heen en opende bv. hetzelfde bestand twee keer.
+  // door het oude heen. De keten voorkomt dat verweven; een request dat al door Rust is opgegeven
+  // slaat hij over (`MCP_QUEUE_DEADLINE_MS`). Een retry die pas NA die grens binnenkomt is voor ons
+  // een nieuw request: een import opent dan wel een tweede tabblad (geen ontdubbeling op pad).
   let tail: Promise<void> = Promise.resolve();
   const now = deps.now ?? Date.now;
   const handleOne = async (payload: { id: number; body: string }, arrivedAt: number): Promise<void> => {

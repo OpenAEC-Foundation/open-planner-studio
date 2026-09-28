@@ -243,10 +243,16 @@ export function createBackupService(deps: BackupDeps): BackupService {
   async function sweepOtherBuckets(fs: BackupFs, root: string, current: string, now: number): Promise<void> {
     for (const entry of await fs.readDir(root)) {
       if (!entry.isDirectory || entry.name === current) continue;
-      const dir = await fs.join(root, entry.name);
-      const keepYearly = bucketKeepsYearly(entry.name);
-      const nonEmpty = await prune(fs, dir, keepYearly, now);
-      if (!nonEmpty && !keepYearly) await fs.remove(dir);
+      // Per map afgeschermd: één onleesbare of vergrendelde map mag de rest niet overslaan (de sweep
+      // draait maar één keer per sessie).
+      try {
+        const dir = await fs.join(root, entry.name);
+        const keepYearly = bucketKeepsYearly(entry.name);
+        const nonEmpty = await prune(fs, dir, keepYearly, now);
+        if (!nonEmpty && !keepYearly) await fs.remove(dir);
+      } catch (err) {
+        console.warn(`AI-backup: map '${entry.name}' opruimen mislukt`, err);
+      }
     }
   }
 

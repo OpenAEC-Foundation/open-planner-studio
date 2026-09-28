@@ -3,6 +3,7 @@
 //     het record wordt niet teruggeschreven (anders herleeft de extensie bij de volgende start).
 //  2. Een `onLoad` die nooit afloopt ⇒ time-out, status `error`, en de volgende extensie laadt wél.
 //  3. Een api na `_cleanup` is ingetrokken: een late registratie gooit in plaats van te lekken.
+//  4. Verwijderen tijdens laden en direct opnieuw installeren ⇒ de nieuwe installatie wordt actief.
 //
 // Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import { enableExtension, getActivePlugins, loadAllExtensions, type ExtensionStorage } from '@/extensions/extensionLoader';
@@ -91,6 +92,27 @@ const register = (id: string) => {
   } catch (e) { late = String(e); }
   eq('3 late addRibbonButton na verwijderen gooit (ingetrokken api)', late.includes('gedeactiveerd'), true);
   eq('3 geen lintknop van de verwijderde extensie', useAppStore.getState().extensionRibbonButtons.some((b: { extensionId?: string }) => b.extensionId === 'traag.verwijderd'), false);
+}
+
+// 4. Verwijderen tijdens onLoad en meteen opnieuw installeren ⇒ de nieuwe installatie wordt actief
+//    zodra de oude (geannuleerde) lading klaar is (review 2026-09-28).
+{
+  const id = 'traag.herinstalleerd';
+  g.__releaseHer = undefined;
+  const slow = `module.exports = { onLoad() { return new Promise((r) => { globalThis.__releaseHer = r; }); } };`;
+  const mem = memoryStorage({ [id]: record(id, slow) });
+  register(id);
+  const first = enableExtension(id, mem.storage);
+  for (let i = 0; i < 20 && !g.__releaseHer; i++) await new Promise((r) => setTimeout(r, 0));
+  await removeExtension(id, mem.storage);
+  // Herinstallatie (zelfde id, nieuwe code die direct laadt), zoals installFromZip dat doet.
+  mem.records[id] = record(id, 'module.exports = { onLoad() {} };');
+  register(id);
+  const second = enableExtension(id, mem.storage);
+  (g.__releaseHer as () => void)();
+  await first; await second;
+  eq('4 nieuwe installatie is actief', getActivePlugins().has(id), true);
+  eq('4 status enabled', useAppStore.getState().installedExtensions[id]?.status, 'enabled');
 }
 
 if (diffs.length === 0) {

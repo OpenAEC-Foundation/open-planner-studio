@@ -55,6 +55,8 @@ const enablingExtensions = new Set<string>();
  * extensie draaide door zonder kaart om haar uit te zetten en kwam bij de volgende start terug.
  */
 const cancelledEnables = new Set<string>();
+/** Loopt af zodra de lopende activatie van dit id klaar is (ook geannuleerd of mislukt). */
+const enablingDone = new Map<string, Promise<void>>();
 
 /** Markeer een lopende activatie als geannuleerd (verwijderen tijdens laden). */
 export function cancelPendingEnable(id: string): boolean {
@@ -299,9 +301,18 @@ export async function enableExtension(
   const store = useAppStore.getState();
 
   if (activePlugins.has(id)) return;
-  if (enablingExtensions.has(id)) return;
+  if (enablingExtensions.has(id)) {
+    if (!cancelledEnables.has(id)) return;
+    // Opnieuw geïnstalleerd terwijl de geannuleerde lading nog loopt (review 2026-09-28): die
+    // lading ruimt bij afloop op, dus stil terugkeren liet de nieuwe installatie inactief. Wacht
+    // haar af en activeer dan alsnog.
+    await enablingDone.get(id);
+    return enableExtension(id, storage, onLoadTimeoutMs);
+  }
   enablingExtensions.add(id);
   cancelledEnables.delete(id);
+  let markDone: () => void = () => {};
+  enablingDone.set(id, new Promise<void>((resolve) => { markDone = resolve; }));
 
   let api: ReturnType<typeof createExtensionApi> | undefined;
 
@@ -393,6 +404,8 @@ export async function enableExtension(
   } finally {
     enablingExtensions.delete(id);
     cancelledEnables.delete(id);
+    enablingDone.delete(id);
+    markDone();
   }
 }
 
