@@ -17,7 +17,7 @@ import type { ImportResult, RecordedSourceFormat } from '@/services/importTypes'
 import {
   IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC,
 } from './ifcConstants';
-import { PSET, PER_TASK_PSETS, ifcStr } from './ifcPsets';
+import { PSET, PER_TASK_PSETS, OPS_APP_VERSION, ifcStr } from './ifcPsets';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { projectFileBase } from '@/utils/documents';
 import {
@@ -219,7 +219,8 @@ export function writeIFC(input: WriteIFCInput): string {
   const orgId = addLine(ctx, '_org', `IFCORGANIZATION($,${ifcStr(project.company)},$,$,$)`);
   const personOrgId = addLine(ctx, '_personorg', `IFCPERSONANDORGANIZATION(#${personId},#${orgId},$)`);
   const appOrgId = addLine(ctx, '_apporg', `IFCORGANIZATION($,'OpenAEC Foundation',$,$,$)`);
-  const appId = addLine(ctx, '_app', `IFCAPPLICATION(#${appOrgId},'0.1','Open Planner Studio','OPS')`);
+  // Version is een formaatteken (zie `OPS_APP_VERSION`): de lezer decodeert STEP-tekst pas vanaf '0.2'.
+  const appId = addLine(ctx, '_app', `IFCAPPLICATION(#${appOrgId},${ifcStr(OPS_APP_VERSION)},'Open Planner Studio','OPS')`);
   const ownerHistId = addLine(ctx, '_owner', `IFCOWNERHISTORY(#${personOrgId},#${appId},$,.NOCHANGE.,$,$,$,${Math.floor(Date.now() / 1000)})`);
 
   // Units

@@ -20,7 +20,7 @@ import type { ImportLabels, ImportResult, RecordedSourceFormat, XerArchiveIssue,
 import {
   DEFAULT_PRIORITY, IFC_TIME_ANCHOR, MEASURE_TO_FIELD, IFC_TO_RESOURCE_TYPE,
 } from './ifcConstants';
-import { PSET, PER_TASK_PSET_BY_NAME } from './ifcPsets';
+import { OPS_LEGACY_LITERAL_APP_VERSION, PSET, PER_TASK_PSET_BY_NAME } from './ifcPsets';
 import {
   IFC_TASKTIME_SLOTS, ALL_RECORDED_SLOT_KEYS, TASK_SLOT, TASKTIME_SLOT,
   type RecordedFieldKey, type TaskTimeReadHelpers,
@@ -153,6 +153,9 @@ export function readIFC(
   // Eerst de integriteitspoort: liever een expliciete fout dan een stil half project.
   assertIfcIntegrity(content);
   const entities = parseSTEP(content);
+  // Vóór elke lezing van een string: STEP-codering (`\X2\…\X0\`, `\\` e.d.) terug naar tekst. Oude
+  // eigen bestanden schreven letterlijk en blijven byte-voor-byte gelezen zoals voorheen.
+  if (stringsAreStepEncoded(entities)) decodeEntityStrings(entities);
   const entityMap = new Map<string, StepEntity>();
   for (const e of entities) {
     entityMap.set(e.id, e);
@@ -909,6 +912,113 @@ function splitArgs(argsStr: string): string[] {
   const tail = argsStr.slice(segStart).trim();
   if (tail) args.push(tail);
   return args;
+}
+
+/**
+ * Zijn de stringliterals in dit bestand volgens ISO 10303-21 gecodeerd? Alleen onze eigen writer
+ * schreef vroeger letterlijk (een `\` of `é` stond er rauw in); die bestanden dragen
+ * IFCAPPLICATION.Version '0.1', of hebben alleen `OPS_`-psets zonder IFCAPPLICATION. Hen decoderen
+ * zou een letterlijke `\\` in bv. een JSON-pset halveren en die JSON breken. Elk ander bestand, ook
+ * dat van een ander pakket, volgt de norm.
+ */
+function stringsAreStepEncoded(entities: StepEntity[]): boolean {
+  for (const e of entities) {
+    if (e.type === 'IFCAPPLICATION' && stripQuotes(e.args[3] || '') === 'OPS') {
+      return stripQuotes(e.args[1] || '') !== OPS_LEGACY_LITERAL_APP_VERSION;
+    }
+  }
+  return !isOpsAuthoredIfc(entities);
+}
+
+/** Decodeer in place elke stringliteral in de argumenten; de apostrof blijft `''`-verdubbeld, zodat
+ *  alle bestaande lezers (`stripQuotes`, `splitArgs`) ongewijzigd werken. Alleen argumenten met een
+ *  backslash kunnen iets gecodeerd bevatten. */
+function decodeEntityStrings(entities: StepEntity[]): void {
+  for (const e of entities) {
+    const args = e.args;
+    for (let k = 0; k < args.length; k++) {
+      if (args[k].indexOf('\\') >= 0) args[k] = decodeQuotedSegments(args[k]);
+    }
+  }
+}
+
+function decodeQuotedSegments(arg: string): string {
+  let out = '';
+  let i = 0;
+  while (i < arg.length) {
+    const open = arg.indexOf("'", i);
+    if (open < 0) { out += arg.slice(i); break; }
+    out += arg.slice(i, open + 1);
+    let j = open + 1;
+    for (;;) {
+      const q = arg.indexOf("'", j);
+      if (q < 0) { j = arg.length; break; }
+      if (arg.charCodeAt(q + 1) === CH_QUOTE) { j = q + 2; continue; }
+      j = q;
+      break;
+    }
+    const body = arg.slice(open + 1, j);
+    out += body.indexOf('\\') >= 0
+      ? decodeStepText(body.replace(/''/g, "'")).replace(/'/g, "''")
+      : body;
+    if (j < arg.length) out += "'";
+    i = j + 1;
+  }
+  return out;
+}
+
+const HEX4 = /^[0-9A-Fa-f]{4}$/;
+const HEX8 = /^[0-9A-Fa-f]{8}$/;
+
+/**
+ * STEP-stringinhoud (zonder de omsluitende quotes, `''` al samengevoegd) terug naar tekst:
+ * `\\` → `\`, `\X2\hhhh…\X0\` (UTF-16), `\X4\hhhhhhhh…\X0\` (codepunten), `\X\hh` (ISO 8859-1)
+ * en `\S\c` (teken + 128). `\Px\` (codetabelkeuze) wordt weggelaten; de lezer neemt voor `\S\`
+ * altijd ISO 8859-1 aan. Een onbekende reeks blijft letterlijk staan. Tegenhanger van
+ * `encodeStepText` (ifcPsets).
+ */
+export function decodeStepText(s: string): string {
+  if (s.indexOf('\\') < 0) return s;
+  let out = '';
+  let i = 0;
+  const n = s.length;
+  while (i < n) {
+    const b = s.indexOf('\\', i);
+    if (b < 0) { out += s.slice(i); break; }
+    out += s.slice(i, b);
+    i = b;
+    if (s.startsWith('\\\\', i)) { out += '\\'; i += 2; continue; }
+    if (s.startsWith('\\X2\\', i) || s.startsWith('\\X4\\', i)) {
+      const width = s[i + 2] === '2' ? 4 : 8;
+      const end = s.indexOf('\\X0\\', i + 4);
+      const hexRun = end >= 0 ? s.slice(i + 4, end) : '';
+      const pattern = width === 4 ? HEX4 : HEX8;
+      let decoded = '';
+      let valid = end >= 0 && hexRun.length % width === 0;
+      for (let k = 0; valid && k < hexRun.length; k += width) {
+        const h = hexRun.slice(k, k + width);
+        if (!pattern.test(h)) { valid = false; break; }
+        const v = parseInt(h, 16);
+        if (width === 8 && v > 0x10FFFF) { valid = false; break; }
+        decoded += width === 4 ? String.fromCharCode(v) : String.fromCodePoint(v);
+      }
+      if (valid) { out += decoded; i = end + 4; continue; }
+    } else if (s.startsWith('\\X\\', i) && /^[0-9A-Fa-f]{2}$/.test(s.slice(i + 3, i + 5))) {
+      out += String.fromCharCode(parseInt(s.slice(i + 3, i + 5), 16));
+      i += 5;
+      continue;
+    } else if (s.startsWith('\\S\\', i) && i + 3 < n) {
+      out += String.fromCharCode(s.charCodeAt(i + 3) + 128);
+      i += 4;
+      continue;
+    } else if (s[i + 1] === 'P' && s[i + 3] === '\\' && /[A-I]/.test(s[i + 2] ?? '')) {
+      i += 4;
+      continue;
+    }
+    out += '\\';
+    i++;
+  }
+  return out;
 }
 
 function stripQuotes(s: string): string {

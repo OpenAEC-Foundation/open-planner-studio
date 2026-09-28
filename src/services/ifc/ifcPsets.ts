@@ -112,7 +112,76 @@ export const PSET = {
  */
 export function ifcStr(s: string): string {
   if (!s) return '$';
-  return `'${s.replace(/'/g, "''")}'`;
+  return `'${encodeStepText(s)}'`;
+}
+
+/**
+ * IFCAPPLICATION.Version van onze writer. Het is geen appversie maar een formaatteken: vanaf
+ * '0.2' zijn stringliterals volgens ISO 10303-21 gecodeerd (`encodeStepText`). Bestanden van
+ * vóór audit 2026-09-26 dragen '0.1' en schreven tekst letterlijk; de lezer decodeert die niet.
+ */
+export const OPS_APP_VERSION = '0.2';
+export const OPS_LEGACY_LITERAL_APP_VERSION = '0.1';
+
+// Letterlijk toegestaan: afdrukbaar ASCII (0x20–0x7E) behalve de apostrof en de backslash.
+const STEP_PLAIN = /^[\x20-\x26\x28-\x5B\x5D-\x7E]*$/;
+const hex = (n: number, width: number) => n.toString(16).toUpperCase().padStart(width, '0');
+
+/**
+ * Tekst als inhoud van een STEP-stringliteral (ISO 10303-21 §6.4.3, "Unicode-string"): `'` wordt
+ * `''`, `\` wordt `\\`, en elk teken buiten afdrukbaar ASCII (ook regeleindes en tabs) wordt
+ * `\X2\hhhh…\X0\` (UTF-16-eenheden binnen het BMP) of `\X4\hhhhhhhh…\X0\` (tekens daarbuiten, bv.
+ * emoji). Zonder die codering tonen andere IFC-pakketten namen verminkt, en kan een backslash in
+ * een naam het bestand voor hen onleesbaar maken (audit 2026-09-26). De tegenhanger is
+ * `decodeStepText` in de lezer.
+ */
+export function encodeStepText(s: string): string {
+  if (STEP_PLAIN.test(s)) return s;
+  const parts: string[] = [];
+  let i = 0;
+  const n = s.length;
+  while (i < n) {
+    const c = s.charCodeAt(i);
+    if (c >= 0x20 && c <= 0x7E) {
+      if (c === 0x27) { parts.push("''"); i++; continue; }
+      if (c === 0x5C) { parts.push('\\\\'); i++; continue; }
+      let j = i + 1;
+      while (j < n) {
+        const d = s.charCodeAt(j);
+        if (d < 0x20 || d > 0x7E || d === 0x27 || d === 0x5C) break;
+        j++;
+      }
+      parts.push(s.slice(i, j));
+      i = j;
+      continue;
+    }
+    const cp = s.codePointAt(i)!;
+    if (cp > 0xFFFF) {
+      let run = '\\X4\\';
+      while (i < n) {
+        const q = s.codePointAt(i)!;
+        if (q <= 0xFFFF) break;
+        run += hex(q, 8);
+        i += 2;
+      }
+      parts.push(run + '\\X0\\');
+    } else {
+      // Een losse surrogaathelft komt hier ook terecht: als UTF-16-eenheid, dus verliesvrij.
+      let run = '\\X2\\';
+      while (i < n) {
+        const q = s.charCodeAt(i);
+        if (q >= 0x20 && q <= 0x7E) break;
+        if (q >= 0xD800 && q <= 0xDBFF && i + 1 < n) {
+          const lo = s.charCodeAt(i + 1);
+          if (lo >= 0xDC00 && lo <= 0xDFFF) break; // echt astraal teken: eigen \X4\-reeks
+        }
+        run += hex(q, 4);
+        i++;
+      }
+      parts.push(run + '\\X0\\');
+    }
+  }
+  return parts.join('');
 }
 export function ifcBool(b: boolean): string {
   return b ? '.T.' : '.F.';
