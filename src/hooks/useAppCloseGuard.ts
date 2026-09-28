@@ -1,14 +1,14 @@
 import { useEffect, type MutableRefObject } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { isTauri } from '@/utils/platform';
-import { clearRecovery } from '@/services/recovery/recoveryStore';
+import { clearOwnRecovery } from '@/services/recovery/recoveryStore';
 import { createAppQuitController } from '@/services/appQuit/appQuitController';
 
 /**
  * Desktop-sluitbeveiliging (Tauri-only; de webbuild heeft `beforeunload` in `useAutoSave`).
  * Onderschept `CloseRequested` (titelbalkknop, Alt+F4, OS-menu) en laat `createAppQuitController`
  * de documenten met niet-opgeslagen wijzigingen langs de bestaande sluit-bevestiging lopen. Pas als
- * er niets meer openstaat worden de herstelsnapshots opgeruimd en gaat het venster echt dicht.
+ * er niets meer openstaat worden de eigen herstelsnapshots opgeruimd en gaat het venster echt dicht.
  * `autoSaveEnabled` is dezelfde poort als die van `useRecoveryRestore`/`useAutoSave`: dichtzetten
  * vóór het opruimen voorkomt dat een late crashherstel-schrijfactie de schone exit weer vervuilt.
  */
@@ -30,7 +30,9 @@ export function useAppCloseGuard(autoSaveEnabled: MutableRefObject<boolean>): vo
         setPendingCloseDocId: (id) => useAppStore.getState().setUI({ pendingCloseDocId: id }),
         setQuitPending: (pending) => useAppStore.getState().setUI({ appQuitPending: pending }),
         stopRecovery: () => { autoSaveEnabled.current = false; },
-        clearRecovery,
+        // Alleen de eigen snapshots: wat de gebruiker in het herstelvenster uitstelde, of dat nog
+        // niet eens is aangeboden, blijft voor de volgende start staan.
+        clearRecovery: clearOwnRecovery,
         destroyWindow: () => appWindow.destroy(),
       });
       unsubscribe = useAppStore.subscribe(() => { if (controller.active) controller.step(); });

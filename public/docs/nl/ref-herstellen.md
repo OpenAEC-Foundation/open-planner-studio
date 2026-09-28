@@ -16,7 +16,7 @@ De desktop-app bewaart automatisch herstel-snapshots van je werk. Sluit de app o
 
 - Sluit je de desktop-app (sluitknop, Alt+F4 of het menu van je besturingssysteem) terwijl er documenten met niet-opgeslagen wijzigingen open staan, dan vraagt hij per document wat je wilt: **Opslaan**, **Niet opslaan** of **Annuleren**.
 - **Annuleren** (of een opslag die mislukt) breekt het afsluiten af; de app blijft open en er gaat niets verloren.
-- Na een gewone, schone afsluiting ruimt de app de herstel-snapshots zelf op. Het herstel-venster verschijnt dus alleen nog na een echte crash of stroomuitval.
+- Na een gewone, schone afsluiting ruimt de app de herstel-snapshots van die sessie zelf op. Het herstel-venster verschijnt dus alleen nog na een echte crash of stroomuitval. Snapshots die je in het herstel-venster hebt uitgesteld, blijven staan tot je er een keuze voor maakt.
 
 ## Het venster "Niet-opgeslagen werk herstellen"
 

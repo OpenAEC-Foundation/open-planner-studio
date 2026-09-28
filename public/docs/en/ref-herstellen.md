@@ -16,7 +16,7 @@ The desktop app automatically keeps recovery snapshots of your work. If the app 
 
 - When you close the desktop app (close button, Alt+F4 or your operating system's menu) while documents with unsaved changes are open, it asks per document what you want: **Save**, **Don't save** or **Cancel**.
 - **Cancel** (or a save that fails) stops closing; the app stays open and nothing is lost.
-- After a normal, clean exit the app cleans up the recovery snapshots itself. The recovery window therefore only appears after a real crash or power failure.
+- After a normal, clean exit the app cleans up the recovery snapshots of that session itself. The recovery window therefore only appears after a real crash or power failure. Snapshots you postponed in the recovery window stay until you make a choice for them.
 
 ## The "Restore unsaved work" window
 

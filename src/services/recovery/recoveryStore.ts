@@ -253,6 +253,40 @@ export function planRecoveryClear(
   return [...out];
 }
 
+/**
+ * Wat een SCHONE AFSLUITING weghaalt (review 2026-09-28): alleen wat deze instantie zelf schreef.
+ * `planRecoveryClear` wist alles van deze base en is alleen goed na een keuze in het herstelvenster;
+ * bij afsluiten zou hij ook de snapshots wissen die de gebruiker daar heeft uitgesteld (door ons
+ * manifest meegedragen, `adopted`) of die nog niet eens zijn aangeboden (het venster stond open en
+ * het manifest is nog van de vorige start). Daarom:
+ *   - verwijderen: de eigen snapshots (`ownWritten`) en hun halffabricaten, nooit `adopted`;
+ *   - manifest van onszelf: herschrijven met de meegedragen regels die nog op schijf staan, of weg
+ *     als er niets overblijft;
+ *   - manifest van een ander (vorige start, legacy) of geen manifest: niet aanraken.
+ */
+export function planRecoveryExitClear(input: {
+  listing: string[];
+  manifest: RecoveryManifest | null;
+  self: string;
+  ownWritten: string[];
+  adopted: string[];
+  names: RecoveryNames;
+}): { remove: string[]; manifest: 'keep' | 'remove' | RecoveryManifestDoc[] } {
+  const present = new Set(input.listing);
+  const adopted = new Set(input.adopted);
+  const remove: string[] = [];
+  for (const name of input.ownWritten) {
+    if (adopted.has(name) || input.names.snapshotDocId(name) === null) continue;
+    if (present.has(name)) remove.push(name);
+    if (present.has(name + recoveryTmpSuffix)) remove.push(name + recoveryTmpSuffix);
+  }
+  if (manifestOwnership(input.manifest, input.self) !== 'own') return { remove, manifest: 'keep' };
+  const removed = new Set(remove);
+  const kept = (input.manifest?.documents ?? []).filter((d) =>
+    d && typeof d.ifc === 'string' && adopted.has(d.ifc) && !removed.has(d.ifc) && present.has(d.ifc));
+  return { remove, manifest: kept.length > 0 ? kept : 'remove' };
+}
+
 /** Tekst plus wijzigingstijd van één snapshot; faalt `stat`, dan blijft de mtime `null`. */
 async function readSnapshotTauri(path: string): Promise<{ ifc: string; mtime: Date | null }> {
   const { readTextFile, stat } = await import('@tauri-apps/plugin-fs');
@@ -547,6 +581,34 @@ async function clearTauri(): Promise<void> {
   const legacyPath = await join(dir, legacyFile);
   if (await exists(legacyPath)) {
     try { await remove(legacyPath); } catch { /* al weg */ }
+  }
+}
+
+/** Zie `planRecoveryExitClear`. */
+async function clearOwnTauri(): Promise<void> {
+  const { exists, readTextFile, remove } = await import('@tauri-apps/plugin-fs');
+  const { appDataDir, join } = await import('@tauri-apps/api/path');
+  const dir = await appDataDir();
+  const manifestPath = await join(dir, manifestName);
+  let manifest: RecoveryManifest | null = null;
+  if (await exists(manifestPath)) {
+    try { manifest = parseRecoveryManifest(await readTextFile(manifestPath)); } catch { /* onleesbaar: niet aanraken */ }
+  }
+  const plan = planRecoveryExitClear({
+    listing: await listAppDataTauri(dir), manifest, self: instanceId,
+    ownWritten: [...ownWritten], adopted: [...adoptedIfc], names,
+  });
+  if (plan.manifest === 'remove') {
+    try { await remove(manifestPath); } catch { /* al weg */ }
+  } else if (plan.manifest !== 'keep' && manifest) {
+    // Eerst het manifest herschrijven (commitpoint), dan pas de eigen snapshots weghalen.
+    const next: RecoveryManifest = { ...manifest, documents: plan.manifest, heartbeatAt: Date.now() };
+    if (!plan.manifest.some((d) => d.id === next.activeDocumentId)) next.activeDocumentId = plan.manifest[0].id;
+    await writeTextFileAtomic(dir, manifestName, JSON.stringify(next), TMP_SUFFIX);
+  }
+  for (const name of plan.remove) {
+    try { await remove(await join(dir, name)); } catch { /* al weg */ }
+    ownWritten.delete(name);
   }
 }
 
@@ -897,6 +959,15 @@ export function loadRecovery(): Promise<LoadedRecovery> {
 
 export function clearRecovery(): Promise<void> {
   return serializeRecoveryWrite(() => (isTauri() ? clearTauri() : clearWeb()));
+}
+
+/**
+ * Schone afsluiting van de desktopapp: alleen de eigen snapshots van deze start weghalen; uitgestelde
+ * of nog niet aangeboden snapshots blijven voor de volgende start (zie `planRecoveryExitClear`).
+ * Web: no-op (daar is geen afsluitmoment; `beforeunload` in `useAutoSave`).
+ */
+export function clearOwnRecovery(): Promise<void> {
+  return serializeRecoveryWrite(() => (isTauri() ? clearOwnTauri() : Promise.resolve()));
 }
 
 /**
