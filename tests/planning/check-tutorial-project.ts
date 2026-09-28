@@ -349,6 +349,16 @@ async function main(): Promise<void> {
     eq('en-projectnaam', p.project.name, 'House extension');
     eq('en-kalendernaam', p.calendar.name, 'Construction calendar NL');
   }
+  // Tutorial 1 maakt de mijlpalen met Start › Taken › Mijlpaal; het bestand moet hetzelfde taaktype
+  // dragen als die knop (Start-/Eindmijlpaal = Overig, Inspectiemoment = Aanwezigheid), ook na IFC.
+  {
+    const p = readIFC(nl.stages.find(s => s.id === 'na-tut-1')!.ifc);
+    const typeOf = (key: TaskKey) => p.tasks.find(t => t.name === TASKS.find(d => d.key === key)!.name.nl)?.taskType;
+    eq('na-tut-1 taaktype Start bouw', typeOf('msStart'), 'USERDEFINED');
+    eq('na-tut-1 taaktype Inspectie wapening', typeOf('inspection'), 'ATTENDANCE');
+    eq('na-tut-1 taaktype Oplevering', typeOf('msHandover'), 'USERDEFINED');
+    eq('na-tut-1 taaktype gewone taak', typeOf('site'), 'CONSTRUCTION');
+  }
 
   // ── 4. openen zoals de app en opnieuw rekenen ──
   console.log('-- tutorial-project: openen via de voorbeeldroute en herberekenen --');
