@@ -4,7 +4,7 @@ The **Baselines** window manages the saved snapshots of the schedule: saving, re
 
 ## Opening
 
-**Planning** → ribbon group **Baselines & progress** → **Save baseline…** or **Manage baselines…** (both open the same window). **Esc**, **Close**, the close cross or a click outside the window closes; all changes in this window take effect immediately.
+**Planning** → ribbon group **Baselines & progress** → **Manage baselines…**. **Esc**, **Close**, the close cross or a click outside the window closes; all changes in this window take effect immediately.
 
 ## The baseline table
 

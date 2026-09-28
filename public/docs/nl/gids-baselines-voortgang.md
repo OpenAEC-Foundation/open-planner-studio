@@ -16,7 +16,7 @@ Volg mee met [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen
 
 ## Een baseline vastleggen en beheren
 
-Open het venster **Baselines** via de lintgroep **Baselines & voortgang** op het tabblad **Planning**: de knop **Baseline opslaan…** slaat direct een nieuwe baseline op met een voorgestelde naam ("Baseline 1 — [datum]"), **Baselines beheren…** opent hetzelfde venster om te bekijken, hernoemen of verwijderen.
+Open het venster **Baselines** via **Baselines beheren…** in de lintgroep **Baselines & voortgang** op het tabblad **Planning**. Onder **Nieuwe baseline opslaan** staat een voorgestelde naam ("Baseline 1 — [datum]"); pas die eventueel aan en klik **Opslaan**. In hetzelfde venster bekijk, hernoem of verwijder je bestaande baselines.
 
 In het venster zie je een tabel met elke opgeslagen baseline: een **Actief**-keuzerondje, de **Naam** (direct te bewerken), de datum van **Aangemaakt**, en een verwijderknop. Precies één baseline kan actief zijn — dat is de baseline waartegen de Gantt-overlay en het variantierapport vergelijken. Verwijder je de actieve baseline, dan vraagt het venster om bevestiging (er blijft dan geen actieve baseline over totdat je er zelf een andere kiest of een nieuwe opslaat). Is de planning verouderd sinds de laatste berekening, dan toont het venster bij "Nieuwe baseline opslaan" een hint om eerst te herberekenen (F5) — een baseline die je vastlegt op een verouderde planning zou immers de verkeerde datums bevriezen.
 

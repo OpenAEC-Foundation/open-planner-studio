@@ -77,7 +77,6 @@ export function BaselinesProgressGroupContent() {
   const setStatusDate = useAppStore(s => s.setStatusDate);
   const setProgressMode = useAppStore(s => s.setProgressMode);
 
-  const onSaveBaseline = () => setUI({ showBaselineDialog: true });
   const onManageBaselines = () => setUI({ showBaselineDialog: true });
 
   const statusDateControl = (
@@ -128,7 +127,6 @@ export function BaselinesProgressGroupContent() {
   if (!compact) {
     return (
       <>
-        <RibbonButton icon={<Flag size={20} />} label={tMenu('ribbon.saveBaseline')} onClick={onSaveBaseline} />
         <RibbonButton icon={<GitCompareArrows size={20} />} label={tMenu('ribbon.manageBaselines')} onClick={onManageBaselines} />
         {statusDateControl}
         {progressModeControl}
@@ -154,14 +152,6 @@ export function BaselinesProgressGroupContent() {
         />
       }
     >
-      <button
-        className="ribbon-btn small"
-        style={{ width: '100%' }}
-        onClick={() => { onSaveBaseline(); setOpen(false); }}
-      >
-        <span className="ribbon-btn-icon"><Flag size={14} /></span>
-        <span className="ribbon-btn-label">{tMenu('ribbon.saveBaseline')}</span>
-      </button>
       <button
         className="ribbon-btn small"
         style={{ width: '100%' }}

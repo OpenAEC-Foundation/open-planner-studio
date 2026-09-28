@@ -4,7 +4,7 @@ Het venster **Baselines** beheert de vastgelegde momentopnames van de planning: 
 
 ## Openen
 
-**Planning** → lintgroep **Baselines & voortgang** → **Baseline opslaan…** of **Baselines beheren…** (beide openen hetzelfde venster). **Esc**, **Sluiten**, het kruisje of een klik buiten het venster sluit; alle wijzigingen in dit venster zijn direct van kracht.
+**Planning** → lintgroep **Baselines & voortgang** → **Baselines beheren…**. **Esc**, **Sluiten**, het kruisje of een klik buiten het venster sluit; alle wijzigingen in dit venster zijn direct van kracht.
 
 ## De baselinetabel
 

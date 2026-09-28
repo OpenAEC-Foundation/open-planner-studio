@@ -54,7 +54,6 @@
     "relations": "Relations",
     "calendar": "Calendrier",
     "calendarTitle": "Modifier le calendrier de travail",
-    "holidays": "Congés",
     "holidaysTitle": "Congés",
     "calendarDialog": {
       "name": "Nom",
@@ -152,7 +151,6 @@
     "overallocationCount_other": "{{count}} ressources",
     "overallocationNone": "Aucune",
     "baselines": "Baselines et avancement",
-    "saveBaseline": "Enregistrer une baseline…",
     "manageBaselines": "Gérer les baselines…",
     "statusDate": "Date de statut",
     "statusDateClear": "Effacer la date de statut",
