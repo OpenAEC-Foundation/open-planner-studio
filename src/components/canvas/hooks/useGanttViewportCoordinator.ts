@@ -10,6 +10,7 @@ import {
 import {
   axisDayDistance,
   scrollbarScale,
+  scrollbarRangeRatio,
   computeTimelineZoom,
   computeEffectiveViewStart,
   computeFitToProject,
@@ -318,40 +319,46 @@ export function useGanttViewportCoordinator(
     current.setScroll(horizontal.scrollX, scrollY);
   }, [input.view.pendingFocusTaskId, input.view.scrollY, input.tasks, input.rows, input.rowHeight, input.headerHeight, input.clearPendingFocusTask, input.setZoom, input.setScroll, sharedAxis, contentWidthFor]);
 
-  // Scrollbalk ↔ scrollX via `scrollbarScale` (1 zolang de inhoud onder de elementgrens blijft).
+  // Scrollbalk ↔ scrollX via `scrollbarRangeRatio` (1 zolang de inhoud onder de elementgrens blijft):
+  // de spacer is `inhoud × scrollbarScale` breed, de omrekening beeldt de scrollbare bereiken op
+  // elkaar af zodat de duim precies tot het einde loopt.
   const primaryScrollbarScale = scrollbarScale(primaryContentWidth);
   const secondaryScrollbarScale = scrollbarScale(secondaryContentWidth);
-  const scrollbarScalesRef = useRef({ primary: primaryScrollbarScale, secondary: secondaryScrollbarScale });
-  scrollbarScalesRef.current = { primary: primaryScrollbarScale, secondary: secondaryScrollbarScale };
+  const contentWidthsRef = useRef({ primary: primaryContentWidth, secondary: secondaryContentWidth });
+  contentWidthsRef.current = { primary: primaryContentWidth, secondary: secondaryContentWidth };
   useEffect(() => {
     const element = primaryHScrollRef.current;
-    const target = input.view.scrollX * primaryScrollbarScale;
-    if (element && Math.abs(element.scrollLeft - target) > 1) {
+    if (!element) return;
+    const target = input.view.scrollX * scrollbarRangeRatio(primaryContentWidth, element.clientWidth);
+    if (Math.abs(element.scrollLeft - target) > 1) {
       element.scrollLeft = target;
     }
-  }, [input.view.scrollX, input.view.zoom, primaryScrollbarScale]);
+  }, [input.view.scrollX, input.view.zoom, primaryContentWidth]);
   useEffect(() => {
     const element = secondaryHScrollRef.current;
-    const target = splitView ? splitView.secondaryScrollX * secondaryScrollbarScale : 0;
-    if (element && splitView && Math.abs(element.scrollLeft - target) > 1) {
+    if (!element || !splitView) return;
+    const target = splitView.secondaryScrollX * scrollbarRangeRatio(secondaryContentWidth, element.clientWidth);
+    if (Math.abs(element.scrollLeft - target) > 1) {
       element.scrollLeft = target;
     }
-  }, [splitView, secondaryContentWidth, secondaryScrollbarScale]);
+  }, [splitView, secondaryContentWidth]);
   const onPrimaryHorizontalScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     const current = latest.current;
-    const scale = scrollbarScalesRef.current.primary;
-    const scrollX = event.currentTarget.scrollLeft / scale;
+    const el = event.currentTarget;
+    const ratio = scrollbarRangeRatio(contentWidthsRef.current.primary, el.clientWidth);
+    const scrollX = el.scrollLeft / ratio;
     // Geschaald: een scroll-event dat alleen onze eigen (afgeronde) terugschrijving weerkaatst, mag
     // de exacte scrollX niet overschrijven.
-    if (scale !== 1 && Math.abs(scrollX - current.view.scrollX) * scale <= 1) return;
+    if (ratio !== 1 && Math.abs(scrollX - current.view.scrollX) * ratio <= 1) return;
     current.setScroll(scrollX, current.view.scrollY);
   }, []);
   const onSecondaryHorizontalScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     const current = latest.current;
     const currentSplit = current.view.splitView;
-    const scale = scrollbarScalesRef.current.secondary;
-    const scrollX = event.currentTarget.scrollLeft / scale;
-    if (!currentSplit || Math.abs(currentSplit.secondaryScrollX - scrollX) * scale <= 1) return;
+    const el = event.currentTarget;
+    const ratio = scrollbarRangeRatio(contentWidthsRef.current.secondary, el.clientWidth);
+    const scrollX = el.scrollLeft / ratio;
+    if (!currentSplit || Math.abs(currentSplit.secondaryScrollX - scrollX) * ratio <= 1) return;
     current.setSplitView({ ...currentSplit, secondaryScrollX: Math.max(0, scrollX) });
   }, []);
   // Secondary gebruikt dezelfde wheelbeslissing en dezelfde ankerformule als primary, maar schrijft

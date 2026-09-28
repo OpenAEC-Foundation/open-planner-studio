@@ -304,6 +304,22 @@ export function scrollbarScale(contentWidth: number): number {
   return contentWidth > MAX_SCROLL_SPACER_PX ? MAX_SCROLL_SPACER_PX / contentWidth : 1;
 }
 
+/**
+ * Omrekenfactor `scrollLeft = scrollX × factor` voor een geschaalde spacer. Niet de spacerschaal
+ * zelf: de scrollbalk loopt maar tot `spacer − breedte`, de inhoud tot `inhoud − breedte`. Met de
+ * kale schaal haalde de duim het einde niet (tekort breedte × (1/schaal − 1), bij kwartierzoom
+ * honderden px) en sprong een wiel- of Ctrl+End-scroll naar het einde terug zodra de browser de te
+ * grote `scrollLeft` afkapte (review 2026-09-28). Deze factor beeldt de twee bereiken exact op
+ * elkaar af. Onder de elementgrens precies 1.
+ */
+export function scrollbarRangeRatio(contentWidth: number, viewportWidth: number): number {
+  const scale = scrollbarScale(contentWidth);
+  if (scale === 1) return 1;
+  const range = contentWidth - viewportWidth;
+  const spacerRange = contentWidth * scale - viewportWidth;
+  return range > 0 && spacerRange > 0 ? spacerRange / range : scale;
+}
+
 let chartWidth: number | null = null;
 
 export function setGanttChartWidth(width: number): void {

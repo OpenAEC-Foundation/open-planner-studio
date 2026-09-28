@@ -185,10 +185,17 @@ test('Gantt viewport: een tijdlijn breder dan de browser toestaat blijft via de 
   });
   await expect.poll(() => page.evaluate(() => window.__OPS__!.gantt.paintCount('primary'))).toBeGreaterThan(paints);
   await expect.poll(() => state(page).then(s => s.view.zoom)).toBe(4000);
-  // De echte inhoudsgrens: setScroll klemt daarop.
-  await page.evaluate(() => window.__OPS__!.store.getState().setScroll(1e12, 0));
-  const atEnd = (await state(page)).view.scrollX;
+  // De echte inhoudsgrens: setScroll klemt daarop. Synchroon gelezen, vóór een scroll-event van de
+  // scrollbalk hem kan terugzetten (dat terugspringen was precies de fout, review 2026-09-28).
+  const atEnd = await page.evaluate(() => {
+    const store = window.__OPS__!.store;
+    store.getState().setScroll(1e12, 0);
+    return store.getState().view.scrollX;
+  });
   expect(atEnd).toBeGreaterThan(34_000_000);
+  // Het einde blijft staan: de scrollbalk mag de positie niet terugduwen.
+  await page.waitForTimeout(300);
+  expect(Math.abs((await state(page)).view.scrollX - atEnd)).toBeLessThanOrEqual(1);
   await page.evaluate(() => window.__OPS__!.store.getState().setScroll(0, 0));
   await expect.poll(() => state(page).then(s => s.view.scrollX)).toBe(0);
   // De scrollbalk helemaal naar rechts (wat slepen van de duim tot het einde doet).
