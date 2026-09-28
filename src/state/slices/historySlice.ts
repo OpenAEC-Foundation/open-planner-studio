@@ -67,6 +67,15 @@ function withoutSessionKey(event: SessionHistoryEvent): SessionHistoryEvent {
   return rest;
 }
 
+/** Haal de sessiesleutel van events af: alleen die met `key`, of (zonder `key`) van alle events.
+ *  Een achtergebleven sleutel pint de ondergrens van het geheugenplafond (`pruneSessionHistory`,
+ *  `sessionFloor`) en zet dat zo stil uit (review 2026-09-28). Zelfde array als er niets verandert. */
+function endSessionKeys(events: readonly SessionHistoryEvent[], key?: string): SessionHistoryEvent[] | null {
+  if (!events.some(event => event.sessionKey !== undefined && (key === undefined || event.sessionKey === key))) return null;
+  return events.map(event => (event.sessionKey !== undefined && (key === undefined || event.sessionKey === key)
+    ? withoutSessionKey(event) : event));
+}
+
 function persistGridWhenNeeded(state: Readonly<AppState>, event: SessionHistoryEvent): void {
   if (event.deltas.some(delta => delta.kind === 'grid-preference')) {
     void saveTaskGridPreferences(persistedTaskGridPreferences(state));
@@ -133,10 +142,18 @@ export const createHistorySlice: AppSliceFactory<HistorySlice> = (runtime) => (s
 
   historyMark: () => {
     runtime.resetUndoCoalescing();
+    // Er is hoogstens één bewerkingssessie tegelijk: een nieuwe mark betekent dat een eventuele vorige
+    // (die op een andere manier dichtging) voorbij is.
+    const stripped = endSessionKeys(get().historyEvents);
+    if (stripped) set({ historyEvents: stripped });
     return { sequence: get().nextHistorySequence, sessionKey: runtime.openHistorySession() };
   },
 
-  endHistorySession: (mark) => runtime.endHistorySession(mark.sessionKey),
+  endHistorySession: (mark) => {
+    runtime.endHistorySession(mark.sessionKey);
+    const stripped = endSessionKeys(get().historyEvents, mark.sessionKey);
+    if (stripped) set({ historyEvents: stripped });
+  },
 
   revertHistorySince: (mark) => {
     runtime.endHistorySession(mark.sessionKey);

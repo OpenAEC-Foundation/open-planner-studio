@@ -99,6 +99,35 @@ const newestFirst = (events: readonly SessionHistoryEvent[]) => [...events].sort
     `kreeg ${kept.length} vanaf ${kept[0]?.sequence}`);
 }
 
+// 5. Een op een andere manier gesloten sessie (`endHistorySession`) laat geen sleutel achter die de
+//    ondergrens pint (review 2026-09-28: 61 stappen bleven staan in plaats van 10).
+{
+  const { S, setDuration } = chain(20);
+  const mark = S().historyMark();
+  setDuration(3);
+  S().endHistorySession(mark);
+  for (let k = 0; k < 30; k++) setDuration(k + 4);
+  ok('afgesloten sessie: geen sleutel meer', S().historyEvents.every((e) => e.sessionKey === undefined));
+  ok('afgesloten sessie: snoei houdt de ondergrens aan', pruneSessionHistory(S().historyEvents, 1).length === MIN_SESSION_HISTORY_EVENTS_PER_SCOPE,
+    `kreeg ${pruneSessionHistory(S().historyEvents, 1).length}`);
+  // Een nieuwe mark ruimt ook een vergeten sleutel op.
+  const m2 = S().historyMark();
+  setDuration(40);
+  void m2;
+  const m3 = S().historyMark();
+  void m3;
+  ok('nieuwe mark: vorige sleutel weg', S().historyEvents.every((e) => e.sessionKey === undefined));
+}
+
+// 6. Baselines tellen mee in de schatting (review 2026-09-28: ~175× te laag).
+{
+  const { S } = chain(2000);
+  const before = S().historyEvents.length;
+  S().saveBaseline('B');
+  const ev = S().historyEvents.slice(before).at(-1)!;
+  ok('baseline van 2000 taken ≥ 300 kB geschat', estimateSessionHistoryEventBytes(ev) >= 300_000, `${estimateSessionHistoryEventBytes(ev)} B`);
+}
+
 if (diffs.length === 0) {
   console.log(`OK  undo-memory-cap: alle checks groen (${checks})`);
   process.exit(0);
