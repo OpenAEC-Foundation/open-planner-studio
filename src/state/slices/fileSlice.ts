@@ -7,7 +7,8 @@ import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
 import { openFileDialog, saveFileDialog, saveBytesDialog, saveToRef, readFromRef, readBytesFromRef, type FileRef, type SaveOutcome } from '@/services/fileAccess';
-import { XER_IMPORT_HELP_ARTICLE_ID, withXerArchiveIssueNotice } from '@/state/xerArchiveIssueNotice';
+import { withXerArchiveIssueNotice } from '@/state/xerArchiveIssueNotice';
+import { RECORDED_DATES_HELP_ARTICLE_ID, XER_IMPORT_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import { openDialogFilters, binaryExtensions, readFormatForFile, parseOpenedFile, importErrorMessageKey, saveTargetFor, readFormatInput, readIFCWithXerReconstruction, type ExportFormat } from '@/services/formatRegistry';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { HOST_EVENTS } from '@/services/extensionEvents';
@@ -59,12 +60,6 @@ export function isActivePristine(s: AppState): boolean {
     !s.isDirty
   );
 }
-
-// De in-app gids achter de XER-meldingen woont in de bladmodule `xerArchiveIssueNotice.ts`; hier
-// her-exporteren voor bestaande importeurs.
-export { XER_IMPORT_HELP_ARTICLE_ID };
-/** Gids achter de formaatneutrale "datums zoals opgeslagen"-melding (zie `applyOpenedImport`). */
-export const RECORDED_DATES_HELP_ARTICLE_ID = 'datums-zoals-opgeslagen';
 
 /**
  * De formaatneutrale "datums zoals opgeslagen"-regel voor één geopend bestand, samengevoegd met de
@@ -319,7 +314,8 @@ export interface FileSlice {
   /** Open een meegeleverd voorbeeldproject uit een IFC-string als NIEUW document
    *  (geen filePath — opslaan wordt opslaan-als; isDirty=false). Werkt in web én
    *  Tauri; het bestand wordt door de aanroeper via fetch('/examples/…') geladen. */
-  openExampleFromString: (content: string, name: string, labels?: ImportLabels) => Promise<void>;
+  /** `true` als het project geopend is; `false` na een fout (die is dan al gemeld). */
+  openExampleFromString: (content: string, name: string, labels?: ImportLabels) => Promise<boolean>;
   /** Eén gedeelde load-implementatie: vul de ACTIEVE document-state met een geparsed
    *  project en voer de opt-afhankelijke nastappen uit (runCPM/fit/uur-melding/extensie-event).
    *  Neemt géén besluit over een nieuw tabblad — dat blijft bij de aanroeper vóór de load.
@@ -1130,12 +1126,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         });
         const archiveNotice = withXerArchiveIssueNotice(undefined, [parsed.xerArchiveIssue]);
         if (archiveNotice) get().notify(archiveNotice);
+        return true;
       } catch (err) {
         console.error(`Failed to open example "${name}":`, err);
         // `params: { name }` achterwege gelaten: de bestaande `notifications.openFailed`-string
         // bevat geen {{name}}-placeholder, en i18n niet aanraken is een harde grens. De naam staat
         // wel in de debug-terminal (console.error hierboven).
         get().notify({ severity: 'error', messageKey: 'notifications.openFailed', detail: (err as Error).message });
+        return false;
       }
     },
   };

@@ -54,7 +54,6 @@
     "relations": "İlişkiler",
     "calendar": "Takvim",
     "calendarTitle": "İş takvimini düzenle",
-    "holidays": "Tatiller",
     "holidaysTitle": "Tatiller",
     "calendarDialog": {
       "name": "Ad",
@@ -151,7 +150,6 @@
     "overallocationCount_other": "{{count}} kaynak",
     "overallocationNone": "Yok",
     "baselines": "Baseline ve ilerleme",
-    "saveBaseline": "Baseline kaydet…",
     "manageBaselines": "Baseline'ları yönet…",
     "statusDate": "Durum tarihi",
     "statusDateClear": "Durum tarihini temizle",
@@ -331,7 +329,19 @@
       "marker": "Değişiklikler uygulanmadı — korumak için {{apply}}'ya tıklayın.",
       "discard": "Vazgeç",
       "invalid": "Özel hesaplama profilinin henüz bir adı yok. Ona bir ad verin veya değişikliklerden vazgeçin."
-    }
+    },
+    "helpKind": {
+      "tutorial": "Eğitimler",
+      "howto": "Nasıl yapılır",
+      "uitleg": "Açıklamalar",
+      "referentie": "Referans"
+    },
+    "helpTutorialPrev": "Önceki eğitim",
+    "helpTutorialNext": "Sonraki eğitim",
+    "helpTutorialStep": "Eğitim {{number}} / {{total}}",
+    "helpTutorialsEmpty": "Henüz hiç eğitim yüklenmedi. Eğitimleri katalogdan uzantı olarak yüklersiniz.",
+    "helpTutorialsInstall": "Eğitimleri yükle",
+    "helpDraft": "taslak"
   },
   "export": {
     "progressXlsxLabel": "İlerleme sayfası (Excel)",

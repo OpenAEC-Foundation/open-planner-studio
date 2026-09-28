@@ -7,8 +7,7 @@ import type { BuiltInProfileId, SchedulingProfile } from '@/types/project';
 import type { ImportResult } from '@/services/importTypes';
 import type { NotificationAction, NotifyInput } from '@/state/slices/types';
 import { builtInProfile, isBuiltInProfileId } from '@/engine/scheduler/conventions/registry';
-
-export const SCHEDULING_PROFILE_HELP_ARTICLE_ID = 'gids-rekenprofielen';
+import { SCHEDULING_PROFILE_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
 /** Merknamen — bewust onvertaald (ook `profiles.builtIn.*` in de locales zijn deze merknamen). De
  *  store heeft geen `t()`, en een merknaam hoort niet per taal te verschillen. */

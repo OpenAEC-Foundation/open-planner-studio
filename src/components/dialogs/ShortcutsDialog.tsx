@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Keyboard } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
+import { SHORTCUTS_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import { SHORTCUTS, type ShortcutCategory, type ShortcutCombo, type ShortcutDef } from '@/hooks/keyboard/shortcutRegistry';
 import { isMacPlatform, formatComboGroup } from '@/hooks/keyboard/shortcutFormat';
 
@@ -62,7 +63,14 @@ export function ShortcutsDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-shortcuts-dialog': true }}
     >
-        <DialogHeader title={t('shortcuts.title')} icon={<Keyboard size={16} />} onClose={close} />
+        {/* Proefplek van de ?-knop (contextuele hulp): een leesdialoog zonder invoer, dus Help opent
+            direct na het sluiten — geen Opslaan/Annuleren/Terug-vraag nodig. */}
+        <DialogHeader
+          title={t('shortcuts.title')}
+          icon={<Keyboard size={16} />}
+          onClose={close}
+          help={{ articleId: SHORTCUTS_HELP_ARTICLE_ID }}
+        />
 
         <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-4 text-small leading-4">
           {CATEGORY_ORDER.map(category => {

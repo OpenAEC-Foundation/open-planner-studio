@@ -6,7 +6,14 @@
 //   npm run publish:wiki -- --push  # clone the wiki, apply the generated pages, commit + push
 //
 // Sources:
-//   public/docs/manifest.json + public/docs/en/*.md   → the 25 manual pages (also power the in-app F1/Help)
+//   public/docs/manifest.json + public/docs/en/*.md   → the manual pages (also power the in-app F1/Help)
+//
+// Manifest v2 (docs/superpowers/specs/2026-09-28-gebruikersdocumentatie-diataxis-design.md): `draft`
+// articles are never published (they are hidden in the production app too). Articles with the new
+// `kind` (howto/uitleg/referentie) get their sidebar sections only in phase 4; until then a
+// non-draft `kind` article is published as a page without a sidebar entry (with a warning).
+// Tutorials are not in the manifest at all (they ship as an extension). `aliases` are resolved in
+// docs:// links; a link to an unpublished (draft) article becomes plain text.
 //   docs/wiki/*.md                                     → wiki-only pages (Home, Features, Installation, …)
 //   docs/CHANGELOG.md                                  → the Changelog page (as-is; authored in English)
 //   screenshot*.png                                    → image assets for the Home page
@@ -40,22 +47,36 @@ function slugify(title) {
 }
 
 const manifest = JSON.parse(readFileSync(join(ROOT, 'public/docs/manifest.json'), 'utf8'));
-const idToSlug = new Map(manifest.articles.map((a) => [a.id, slugify(a.title.en)]));
+const aliases = manifest.aliases && typeof manifest.aliases === 'object' ? manifest.aliases : {};
+// Only what the production app shows is published: drafts stay out of the wiki.
+const published = manifest.articles.filter((a) => a.draft !== true);
+const draftIds = new Set(manifest.articles.filter((a) => a.draft === true).map((a) => a.id));
+const idToSlug = new Map(published.map((a) => [a.id, slugify(a.title.en)]));
 
 // Rewrite the two in-app link schemes used by the source docs into wiki-friendly links.
 function rewriteLinks(md, sourceLabel) {
   // examples://foo.ifc opens a bundled example project in the app — meaningless on a web page.
   // Drop the link, keep the visible text.
   md = md.replace(/\[([^\]]+)\]\(examples:\/\/[^)]+\)/g, '$1');
-  // docs://<id>[#anchor] cross-links another help article → the matching wiki page slug.
-  md = md.replace(/\]\(docs:\/\/([^)#]+)(#[^)]*)?\)/g, (_m, id, hash) => {
+  // docs://<id>[#anchor] cross-links another help article → the matching wiki page slug. An old id
+  // follows its alias; the anchor is the GitHub heading slug, so it keeps working on the wiki page.
+  // A link to a draft (not published) keeps its visible text only.
+  md = md.replace(/\[([^\]]+)\]\(docs:\/\/([^)#]+)(#[^)]*)?\)/g, (_m, label, rawId, hash) => {
+    const id = idToSlug.has(rawId) ? rawId : (aliases[rawId] ?? rawId);
     const slug = idToSlug.get(id);
     if (!slug) {
-      warnings.push(`Unknown docs:// link "${id}" in ${sourceLabel}`);
-      return `](${id}${hash || ''})`;
+      if (draftIds.has(id)) {
+        warnings.push(`docs:// link to draft "${id}" in ${sourceLabel} — published as plain text`);
+        return label;
+      }
+      warnings.push(`Unknown docs:// link "${rawId}" in ${sourceLabel}`);
+      return `[${label}](${rawId}${hash || ''})`;
     }
-    return `](${slug}${hash || ''})`;
+    return `[${label}](${slug}${hash || ''})`;
   });
+  // Image paths may carry the {lang} placeholder; the wiki uses the English variant. Copying the
+  // images themselves follows in phase 4 (there are none in public/docs yet).
+  md = md.replace(/(!\[[^\]]*\]\([^)]*)\{lang\}/g, '$1en');
   return md;
 }
 
@@ -68,8 +89,8 @@ function writePage(name, content) {
   pages.push(name);
 }
 
-// 1. Manual pages from the manifest.
-for (const a of manifest.articles) {
+// 1. Manual pages from the manifest (drafts excluded).
+for (const a of published) {
   const src = join(ROOT, 'public/docs/en', `${a.id}.md`);
   if (!existsSync(src)) { warnings.push(`Missing source public/docs/en/${a.id}.md`); continue; }
   writePage(idToSlug.get(a.id), rewriteLinks(readFileSync(src, 'utf8'), `${a.id}.md`));
@@ -98,11 +119,16 @@ const LAYERS = [
 ];
 let sidebar = '**Open Planner Studio**\n\n- [Home](Home)\n- [Features](Features)\n- [Installation](Installation)\n\n';
 for (const [layer, heading] of LAYERS) {
-  const arts = manifest.articles.filter((a) => a.layer === layer);
+  const arts = published.filter((a) => a.layer === layer);
   if (!arts.length) continue;
   sidebar += `**${heading}**\n\n`;
   for (const a of arts) sidebar += `- [${a.title.en}](${idToSlug.get(a.id)})\n`;
   sidebar += '\n';
+}
+// Phase 4 adds the four Diátaxis sections to the sidebar; until then a published `kind` article has
+// no sidebar entry.
+for (const a of published.filter((x) => x.layer === undefined)) {
+  warnings.push(`"${a.id}" (kind ${a.kind}) is published without a sidebar entry — sidebar sections for kinds follow in phase 4`);
 }
 sidebar += '**Project**\n\n- [Changelog](Changelog)\n- [Contributing](Contributing)\n- [Extensions Authoring](Extensions-Authoring)\n';
 writeFileSync(join(OUT, '_Sidebar.md'), sidebar);

@@ -47,7 +47,8 @@ Vertalingen: `npm run i18n:add` zet één tekst in alle 14 locales tegelijk (rec
 `npm run i18n:fmt` zet de locale-bestanden in de vaste opmaak (één sleutel per regel, volgorde van `nl`),
 `npm run i18n:resolve` voegt ze na een `git merge` per sleutel samen — draai het óók als git geen conflict meldt.
 
-Generatoren/hulpjes: `npm run gen:examples` (`public/examples` opnieuw), `npm run gen:release-highlights-json`,
+Generatoren/hulpjes: `npm run gen:examples` (`public/examples` opnieuw), `npm run gen:tutorial-project`
+(tutorialproject nl/en naar `build/tutorial-project/`, zie `scripts/README.md`), `npm run gen:release-highlights-json`,
 `npm run publish:wiki` (dry-run; `-- --push` publiceert), `npm run stats:downloads` (downloads per OS uit de
 GitHub Releases-API; de workflow publiceert de JSON wekelijks naar de `stats`-databranch).
 

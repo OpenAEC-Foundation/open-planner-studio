@@ -18,6 +18,7 @@
 import type { RelationTree } from '@/engine/scheduler/relationRules';
 import type { Task } from '@/types/task';
 import { cycleLabel } from './notificationLabels';
+import { RELATIONS_CONSTRAINTS_HELP_ARTICLE_ID } from './helpArticles';
 import { isAncestorRelation } from './relationRules';
 import type { NotifyInput } from './slices/types';
 
@@ -48,7 +49,7 @@ export function watchAncestorRelations(
       messageKey: 'notifications.relationsExcludedByHierarchy',
       params: { count },
       dedupeKey: 'relations-excluded-by-hierarchy',
-      helpArticleId: 'gids-relaties-constraints',
+      helpArticleId: RELATIONS_CONSTRAINTS_HELP_ARTICLE_ID,
     });
   };
 }
@@ -68,6 +69,6 @@ export function notifyHierarchyCycle(
     params: { cycle: cycleLabel(state.tasks, cycle) },
     // Samenvouwen: herhaald op Alt+Shift+→ drukken levert één regel met een teller op.
     dedupeKey: 'hierarchy-cycle',
-    helpArticleId: 'gids-relaties-constraints',
+    helpArticleId: RELATIONS_CONSTRAINTS_HELP_ARTICLE_ID,
   });
 }

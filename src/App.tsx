@@ -1,9 +1,10 @@
-import { lazy, Suspense, useEffect, useMemo } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { setNoneLabelValue, setResourceTypeLabelsValue } from '@/utils/noneLabel';
 import { useResolvedUITheme, useSystemColorSchemeSync } from '@/hooks/useResolvedUITheme';
 import { appLog } from '@/services/debug/appLog';
 import { installConsentDialogAsker } from '@/extensions/consentBridge';
+import { getGuideView, subscribeGuideView } from '@/extensions/guideRuntime';
 import { TitleBar } from '@/components/layout/TitleBar/TitleBar';
 import '@/components/layout/TitleBar/TitleBar.css';
 import { Ribbon } from '@/components/layout/Ribbon/Ribbon';
@@ -76,6 +77,11 @@ const RecoveryDialog = lazy(() => import('@/components/dialogs/RecoveryDialog').
 const WelcomeDialog = lazy(() => import('@/components/dialogs/WelcomeDialog').then(m => ({ default: m.WelcomeDialog })));
 const TourOverlay = lazy(() => import('@/components/tour/TourOverlay').then(m => ({ default: m.TourOverlay })));
 const Backstage = lazy(() => import('@/components/backstage/Backstage').then(m => ({ default: m.Backstage })));
+const GuidePanel = lazy(() => import('@/components/guide/GuidePanel').then(m => ({ default: m.GuidePanel })));
+
+/** Loopt er een begeleiding van een extensie (`api.help.startGuide`)? Module-state, geen store-vlag:
+ *  zie `extensions/guideRuntime.ts`. */
+const guideActiveSnapshot = () => getGuideView() !== null;
 
 function AppContent() {
   useKeyboardShortcuts();
@@ -114,6 +120,7 @@ function AppContent() {
   const uiFontScale = useAppStore(s => s.ui.uiFontScale);
   const documentChromeStyle = useAppStore(s => s.ui.documentChromeStyle);
   const activeDocumentId = useAppStore(s => s.activeDocumentId);
+  const guideActive = useSyncExternalStore(subscribeGuideView, guideActiveSnapshot);
 
 
   // Recovery-restore bij opstarten (Tauri én web): detectie + RecoveryDialog-callbacks; levert ook
@@ -416,6 +423,10 @@ function AppContent() {
           {t('companyLibrary.refreshNotice', { count: libraryRefreshNotice })}
         </div>
       )}
+
+      {/* Begeleidingspaneel van een extensie (contract 1.4.0) — net als de meldingen buiten de
+          Backstage-vertakking, zodat een tutorial door alle weergaven heen zichtbaar blijft. */}
+      {guideActive && <Suspense fallback={null}><GuidePanel /></Suspense>}
 
       {/* Gebruikersmeldingen — buiten de Backstage-vertakking gemount (ná het
           Suspense-dialogenblok, als laatste kind van de buitenste div), zodat een opslaafout óók

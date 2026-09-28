@@ -4,7 +4,7 @@ The **Calendars** window manages the project's calendar library: the list of all
 
 ## Opening
 
-- **Planning** → ribbon group **Calendar** → the **Calendar** or **Holidays** button.
+- **Planning** → ribbon group **Calendar** → the **Calendar** button.
 - **Settings** (ribbon tab) → ribbon group **Calendar** → **Calendar**.
 - From the project wizard: choosing **Custom…** as the calendar opens this window after creation.
 

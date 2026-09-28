@@ -12,6 +12,8 @@
     "dismiss": "Fechar notificação",
     "taskEditRevertBlocked": "Uma alteração do assistente de IA ou de uma extensão ocorreu entretanto. As alterações da tarefa anteriores não foram revertidas e permanecem como passos normais em Desfazer.",
     "openFailed": "Falha ao abrir o arquivo",
+    "extGuideCallbackFailed": "Um passo da extensão {{name}} falhou. O guia continua.",
+    "extHelpProjectOpenFailed": "Não foi possível abrir o ficheiro de projeto {{file}} da extensão {{name}}.",
     "xerInvalidInput": "A importação XER requer os bytes originais do arquivo.",
     "xerInvalidFile": "Este não é um arquivo XER válido ou compatível.",
     "xerInvalidEncoding": "A codificação de texto deste arquivo XER é inválida ou está truncada.",
@@ -1237,6 +1239,7 @@
     "declaredNote": "É a declaração do autor, não uma restrição — o código pode fazer mais de qualquer forma.",
     "declaredNone": "Nada declarado.",
     "permImportSource": "importSource — os bytes de origem completos de cada ficheiro importado (por exemplo um ficheiro Primavera em bruto), incluindo campos que nunca chegam ao projeto.",
+    "permHelp": "help — pode adicionar artigos de ajuda, abrir projetos incluídos como novo documento e mostrar um guia que aponta para partes da aplicação.",
     "cancel": "Não instalar",
     "confirm": "Instalar"
   },
@@ -1453,5 +1456,26 @@
       "p6CompletedLateFromRemainingWindow": "Tarefa concluída: datas mais tardias a partir da data de status",
       "needsConvention": "Só funciona em conjunto com a convenção «{{convention}}», que está desativada."
     }
+  },
+  "dialogHelp": {
+    "button": "Ajuda sobre este tema",
+    "leaveTitle": "Alterações não guardadas",
+    "leaveBody": "Para abrir a ajuda, esta caixa de diálogo fecha. Guardar mantém as suas alterações, Cancelar descarta-as; Voltar mantém-no aqui.",
+    "back": "Voltar"
+  },
+  "extGuide": {
+    "region": "Guia",
+    "stepOf": "Passo {{current}} de {{total}}",
+    "back": "Voltar",
+    "showMe": "Mostre-me",
+    "showMeHint": "Prepara este passo por si",
+    "reset": "Recomeçar",
+    "resetHint": "Abrir o estado inicial deste passo como novo documento",
+    "next": "Seguinte",
+    "doneNext": "Feito, seguinte",
+    "finish": "Concluir",
+    "close": "Fechar o guia",
+    "stepDone": "Feito",
+    "waiting": "Execute a tarefa na aplicação; depois pode continuar."
   }
 }

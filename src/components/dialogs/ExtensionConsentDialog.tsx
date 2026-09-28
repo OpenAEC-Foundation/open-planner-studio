@@ -18,7 +18,8 @@ import { resolveExtensionConsent } from '@/extensions/consentBridge';
  * een echte privacybetekenis — hij geeft de rauwe bronbytes van elk geïmporteerd bestand vrij en is
  * op de ondersteunde API wél hard afgedwongen (default-deny, `permissions.ts`). Dat maakt hem geen
  * sandbox-grens (dezelfde realm blijft), maar het is wel het enige chipje dat een gebruiker moet
- * kunnen lezen zonder de broncode te kennen; daarom krijgt het als enige een vertaalde toelichting.
+ * kunnen lezen zonder de broncode te kennen; daarom krijgt het een vertaalde toelichting (net als
+ * `help`, zie onder).
  *
  * De vraag gaat over één ding: dit is code van iemand anders, met dezelfde rechten als de app.
  * Daarom staan er drie dingen die je nodig hebt om te beslissen — wie het schreef, waar het vandaan
@@ -115,6 +116,13 @@ export function ExtensionConsentDialog() {
           {pending.declared.includes('importSource') && (
             <p className="text-text-secondary mt-1" data-ops-ext-consent-import-source>
               {t('extConsent.permImportSource')}
+            </p>
+          )}
+          {/* `help` (contract 1.4.0) grijpt zichtbaar in de app in — een nieuw document, een paneel
+              dat knoppen aanwijst — dus ook die krijgt een leesbare toelichting. */}
+          {pending.declared.includes('help') && (
+            <p className="text-text-secondary mt-1" data-ops-ext-consent-help>
+              {t('extConsent.permHelp')}
             </p>
           )}
         </div>

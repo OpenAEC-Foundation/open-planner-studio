@@ -6,19 +6,36 @@
 // Checks:
 //   1. Elk manifest-artikel-id heeft public/docs/nl/<id>.md EN public/docs/en/<id>.md (brontalen,
 //      hard vereist); de overige 12 talen worden gevalideerd wanneer aanwezig maar mogen ontbreken
-//      (maandelijkse vertaalronde). Geen wees-bestanden (md zonder manifest-entry); geen dubbele ids.
-//   2. Elke docs://<id>-link wijst naar een bestaand manifest-id.
+//      (maandelijkse vertaalronde; voor nieuwe `kind`-artikelen zijn ze helemaal niet vereist).
+//      Geen wees-bestanden (md zonder manifest-entry); geen dubbele ids.
+//   2. Elke docs://<id>-link wijst naar een bestaand manifest-id of een alias; een `#anker` erachter
+//      moet een kop in dat artikel zijn (zelfde taal, anders en; ankers volgen `headingSlug` in
+//      src/utils/helpManifest.ts). Een niet-draft artikel linkt niet naar een draft (in productie
+//      zou dat "artikel niet gevonden" geven).
 //   3. Elke examples://<file>-link wijst naar een bestand in public/examples/manifest.json.
-//   4. title.nl/title.en niet leeg (overige talen: niet leeg indien aanwezig); layer ∈ {quickstart, gidsen, referentie}.
+//   4. Manifest v2 (ontwerp gebruikersdocumentatie §6.1, bijgesteld 2026-09-28):
+//      - `version` is 2; title.nl/title.en niet leeg (overige talen: niet leeg indien aanwezig);
+//      - elk artikel heeft óf `layer` ∈ {quickstart, gidsen, referentie} (oud, tot fase 4) óf
+//        `kind` ∈ {howto, uitleg, referentie} (nieuw), nooit beide. `kind: tutorial` en `order` horen
+//        niet in het manifest: tutorials levert een extensie via src/utils/helpArticleRegistry.ts;
+//      - `draft` is, als hij er staat, een boolean;
+//      - `aliases` (oud id → nieuw id): het oude id is geen bestaand artikel-id (geen overschaduwing),
+//        het nieuwe id bestaat en is geen draft.
 //   5. Parser-compatibiliteit tegen de subset die src/utils/miniMarkdown.tsx ondersteunt (koppen
 //      #/##/### zonder nesting, paragrafen, single-level ongeordende/geordende lijsten, **vet**/
 //      *cursief*/`code`, ```-codeblokken, alleen docs://- en examples://-links, ![alt](pad)):
 //      waarschuwt op h4+, tabellen, blockquotes, horizontale lijnen, genest/ingesprongen
 //      lijst-items, voetnoten, reference-style links, raw HTML-tags (buiten inline-code) en
-//      linkschema's anders dan docs:///examples://.
+//      linkschema's anders dan docs:///examples://. Afbeeldingen: niet-lege alt-tekst en een
+//      niet-leeg pad; de placeholder `{lang}` in het pad mag (de viewer vult nl of en in) en het
+//      bestand moet onder public/docs bestaan (voor een draft een waarschuwing).
 //   7/8. Machinaal controleerbare beweringen in CLAUDE.md (+ .claude/rules/)/AGENTS.md/README.md/CONTRIBUTING.md.
 //   9. De agent-skill `goed-plannen` staat byte-identiek in `public/skills/` (bron, uitgeleverd)
 //      en `.claude/skills/` (waar Claude Code hem leest) — geen symlink, want Windows-CI.
+//   10. Elk artikel-id dat de app gebruikt — elke stringexport van src/state/helpArticles.ts en elke
+//      `docsId` in src/services/updater/releaseHighlights.ts — bestaat in het manifest (als artikel
+//      of alias) en is in productie zichtbaar (geen draft). Een `#anker` erin moet in nl én en
+//      bestaan. Zo breekt een hernoemd artikel niet meer stil een "Lees meer" of een ?-knop.
 //   6. Basishygiëne: geen dubbele koppen binnen één artikel, geen lege bestanden, NL≉EN
 //      (>60% identieke niet-lege regels tussen de twee taalversies = verdachte niet-vertaling), en
 //      geen achtergebleven nl/en-titel als h1, manifest-titel of docs://-linktekst in een vertaling.
@@ -26,6 +43,11 @@
 //   npm run verify:docs          # exit 0 = alles groen, 1 = minstens één afwijking
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import {
+  HELP_IMAGE_LANG_PLACEHOLDER, MANIFEST_HELP_KINDS, extractHeadingSlugs, resolveHelpImagePath, splitHelpTarget,
+} from '@/utils/helpManifest';
+import * as APP_HELP_ARTICLES from '@/state/helpArticles';
+import { RELEASE_HIGHLIGHT_CATALOG } from '@/services/updater/releaseHighlights';
 
 const ROOT = process.cwd();
 const DOCS_DIR = join(ROOT, 'public', 'docs');
@@ -36,12 +58,18 @@ interface ManifestArticle {
   id: string;
   title?: Record<string, string>;
   layer?: string;
+  kind?: string;
+  order?: unknown;
+  draft?: unknown;
   cluster?: string;
 }
 interface Manifest {
   version: number;
   articles: ManifestArticle[];
+  aliases?: unknown;
 }
+
+const MANIFEST_VERSION = 2;
 
 const VALID_LAYERS = new Set(['quickstart', 'gidsen', 'referentie']);
 // Alle 14 UI-locales met een eigen vertaalde docs-map (moet gelijk lopen met DOC_LANGS in
@@ -108,14 +136,14 @@ function extractHeadingLevels(source: string): number[] {
  *  een vertaling mag geen link laten vallen, toevoegen of het target wijzigen (labels mogen wél
  *  vertaald zijn; die staan hier niet in). */
 function extractLinkTargets(source: string): string[] {
-  return [...source.matchAll(/(docs|examples):\/\/([^\s)\]]+)/g)]
+  // Het `#anker` telt niet mee: dat volgt de koptekst en verschilt dus per taal.
+  return [...source.matchAll(/(docs|examples):\/\/([^\s)\]#]+)/g)]
     .map((m) => `${m[1]}://${m[2]}`)
     .sort();
 }
 
 /** Check 5: markdown-constructies buiten de subset die src/utils/miniMarkdown.tsx ondersteunt. */
-function checkParserCompat(id: string, lang: string, source: string, diffs: string[]) {
-  const lines = source.replace(/\r\n/g, '\n').split('\n');
+function checkParserCompat(id: string, lang: string, source: string, diffs: string[], draftNotes: string[], isDraft: boolean) {
   const scanLines = stripCode(source).replace(/\r\n/g, '\n').split('\n');
   const label = `${id}/${lang}`;
 
@@ -154,7 +182,8 @@ function checkParserCompat(id: string, lang: string, source: string, diffs: stri
     }
     // Linkschema's anders dan docs://, examples:// (echte tekst — inline code is al gestript,
     // dus dit ziet ook markdown-links binnen backticks niet als fout-positief).
-    const linkRe = /\[[^\]]+\]\(([^)]+)\)/g;
+    // `(?<!!)`: een afbeelding `![alt](pad)` is geen link (die toetst het afbeeldingsblok hieronder).
+    const linkRe = /(?<!!)\[[^\]]+\]\(([^)]+)\)/g;
     let lm: RegExpExecArray | null;
     while ((lm = linkRe.exec(line)) !== null) {
       const href = lm[1];
@@ -164,15 +193,27 @@ function checkParserCompat(id: string, lang: string, source: string, diffs: stri
     }
   });
 
-  // Afbeeldingen: pad moet niet-leeg zijn (parser lost het altijd op tegen BASE_URL/docs/<pad>,
-  // dus een lege/ontbrekende alt of pad is een content-fout, geen parser-fout — toch signaleren).
+  // Afbeeldingen (codeblokken en inline code gestript: een voorbeeld-syntax telt niet). Het pad
+  // wordt door de viewer opgelost tegen BASE_URL/docs/<pad>, met `{lang}` = nl of en; alt-tekst is
+  // verplicht (schermlezers, en de placeholder als het beeld ontbreekt toont juist die tekst).
   const imgRe = /!\[([^\]]*)\]\(([^)]*)\)/g;
   let im: RegExpExecArray | null;
-  const rawLines = lines;
-  rawLines.forEach((line, idx) => {
+  scanLines.forEach((line, idx) => {
     imgRe.lastIndex = 0;
     while ((im = imgRe.exec(line)) !== null) {
-      if (!im[2].trim()) diffs.push(`${label}:${idx + 1} afbeelding zonder pad: ![${im[1]}]()`);
+      const [, alt, rawPath] = im;
+      const where = `${label}:${idx + 1}`;
+      if (!alt.trim()) diffs.push(`${where} afbeelding zonder alt-tekst: ![](${rawPath}) — beschrijf wat het beeld toont`);
+      const path = rawPath.trim();
+      if (!path) { diffs.push(`${where} afbeelding zonder pad: ![${alt}]()`); continue; }
+      const leftover = path.split(HELP_IMAGE_LANG_PLACEHOLDER).join('').match(/\{[^}]*\}/);
+      if (leftover) diffs.push(`${where} onbekende placeholder ${leftover[0]} in afbeeldingspad (alleen ${HELP_IMAGE_LANG_PLACEHOLDER})`);
+      const resolved = resolveHelpImagePath(path, lang);
+      if (/^[a-z]+:/i.test(resolved) || resolved.startsWith('/') || resolved.split('/').includes('..')) {
+        diffs.push(`${where} afbeeldingspad moet relatief binnen public/docs blijven: ${path}`);
+      } else if (!existsSync(join(DOCS_DIR, resolved))) {
+        (isDraft ? draftNotes : diffs).push(`${where} afbeelding bestaat niet: public/docs/${resolved}`);
+      }
     }
   });
 }
@@ -577,6 +618,99 @@ function checkSkillCopy(diffs: string[]): void {
   }
 }
 
+/** Het alias-object van het manifest (leeg als het ontbreekt of geen object is; dat meldt poort 4). */
+function manifestAliases(manifest: Manifest): Record<string, string> {
+  const raw = manifest.aliases;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  return Object.fromEntries(Object.entries(raw).filter((e): e is [string, string] => typeof e[1] === 'string'));
+}
+
+/** Een docs://-doel (id of alias) → het manifestartikel, of undefined. */
+function resolveTarget(manifest: Manifest, id: string): ManifestArticle | undefined {
+  return manifest.articles.find((a) => a.id === id)
+    ?? manifest.articles.find((a) => a.id === manifestAliases(manifest)[id]);
+}
+
+/** De kopankers van een artikel in een taal (terugval en, zoals de viewer). */
+function anchorsOf(id: string, lang: string): Set<string> | undefined {
+  for (const l of [lang, 'en']) {
+    const p = join(DOCS_DIR, l, `${id}.md`);
+    if (existsSync(p)) return new Set(extractHeadingSlugs(readFileSync(p, 'utf8')));
+  }
+  return undefined;
+}
+
+/** Poort 4 (manifestniveau): versie en aliassen (zie de kop van dit bestand). */
+function checkManifestV2(manifest: Manifest, diffs: string[]): void {
+  if (manifest.version !== MANIFEST_VERSION) {
+    diffs.push(`manifest: version is ${JSON.stringify(manifest.version)}, verwacht ${MANIFEST_VERSION}`);
+  }
+  const raw = manifest.aliases;
+  if (raw === undefined) return;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    diffs.push('manifest: aliases moet een object zijn (oud id → nieuw id)');
+    return;
+  }
+  const byId = new Map(manifest.articles.map((a) => [a.id, a] as const));
+  for (const [from, to] of Object.entries(raw)) {
+    if (typeof to !== 'string' || !to) { diffs.push(`alias "${from}": doel is geen artikel-id`); continue; }
+    if (byId.has(from)) diffs.push(`alias "${from}" overschaduwt een bestaand artikel-id — een alias is alleen voor een id dat niet meer bestaat`);
+    const target = byId.get(to);
+    if (!target) diffs.push(`alias "${from}" → "${to}": dat artikel-id bestaat niet in het manifest`);
+    else if (target.draft === true) diffs.push(`alias "${from}" → "${to}": het doel is een draft en bestaat in productie niet`);
+  }
+}
+
+/** Poort 4 (per artikel): layer óf kind, geen tutorial/order in het manifest, draft is boolean. */
+function checkArticleKind(article: ManifestArticle, diffs: string[]): void {
+  const hasLayer = article.layer !== undefined;
+  const hasKind = article.kind !== undefined;
+  if (hasLayer && hasKind) diffs.push('heeft zowel layer als kind — een artikel is óf oud (layer) óf nieuw (kind)');
+  else if (!hasLayer && !hasKind) diffs.push('heeft geen layer en geen kind');
+  if (hasLayer && !VALID_LAYERS.has(article.layer!)) {
+    diffs.push(`ongeldige layer "${article.layer}" (verwacht quickstart/gidsen/referentie)`);
+  }
+  if (hasKind && article.kind === 'tutorial') {
+    diffs.push('kind "tutorial" hoort niet in het manifest — tutorials levert een extensie via het Help-register (src/utils/helpArticleRegistry.ts)');
+  } else if (hasKind && !(MANIFEST_HELP_KINDS as readonly string[]).includes(article.kind!)) {
+    diffs.push(`ongeldige kind "${article.kind}" (verwacht ${MANIFEST_HELP_KINDS.join('/')})`);
+  }
+  if (article.order !== undefined) diffs.push('order hoort niet in het manifest (alleen geregistreerde tutorials hebben een leerroute)');
+  if (article.draft !== undefined && typeof article.draft !== 'boolean') diffs.push(`draft moet true of false zijn, niet ${JSON.stringify(article.draft)}`);
+}
+
+/**
+ * Poort 10 — elk artikel-id dat de app zelf gebruikt, bestaat en is in productie zichtbaar.
+ *
+ * Voorheen stonden die id's verspreid als losse strings en brak een hernoemd artikel stil een
+ * "Lees meer"-link (ontwerp gebruikersdocumentatie §8.2). Nu staan ze in src/state/helpArticles.ts
+ * (elke stringexport daar telt) plus de `docsId` van de release-hoogtepunten (historische data van
+ * uitgebrachte versies, die bewust letterlijk blijft staan). Een id mag een alias zijn; het doel mag
+ * geen draft zijn. Een `#anker` moet in nl én en bestaan, want de app kent de docstaal van de lezer niet.
+ */
+function checkAppHelpArticles(manifest: Manifest, diffs: string[]): void {
+  const used: Array<[string, string]> = [];
+  for (const [name, value] of Object.entries(APP_HELP_ARTICLES)) {
+    if (typeof value !== 'string') { diffs.push(`src/state/helpArticles.ts: export ${name} is geen artikel-id-string`); continue; }
+    used.push([`helpArticles.${name}`, value]);
+  }
+  if (used.length === 0) diffs.push('src/state/helpArticles.ts exporteert geen artikel-ids (is het bestand verplaatst?)');
+  for (const [version, entry] of Object.entries(RELEASE_HIGHLIGHT_CATALOG)) {
+    if (entry.primary.docsId !== undefined) used.push([`releaseHighlights ${version}`, entry.primary.docsId]);
+  }
+  for (const [where, value] of used) {
+    const { id, anchor } = splitHelpTarget(value);
+    const target = resolveTarget(manifest, id);
+    if (!target) { diffs.push(`${where}: "${id}" is geen artikel of alias in public/docs/manifest.json`); continue; }
+    if (target.draft === true) { diffs.push(`${where}: "${id}" wijst naar een draft — in productie "artikel niet gevonden"`); continue; }
+    if (anchor) {
+      for (const lang of SOURCE_LANGS) {
+        if (!anchorsOf(target.id, lang)?.has(anchor)) diffs.push(`${where}: anker "#${anchor}" bestaat niet in public/docs/${lang}/${target.id}.md`);
+      }
+    }
+  }
+}
+
 function main() {
   let anyFail = false;
   let laggingTranslations = 0;
@@ -590,9 +724,14 @@ function main() {
   // 7. Machinaal controleerbare beweringen in CLAUDE.md (zie checkAgentDocs).
   checkAgentDocs(globalDiffs);
   // 8. Machinaal controleerbare beweringen in AGENTS.md/README.md/CONTRIBUTING.md (zie checkSupportingDocs).
-  checkSupportingDocs(globalDiffs, manifest.articles.length);
+  // Het README-aantal telt wat een gebruiker ziet: drafts niet.
+  checkSupportingDocs(globalDiffs, manifest.articles.filter((a) => a.draft !== true).length);
   // 9. De agent-skill heeft één bron (zie checkSkillCopy).
   checkSkillCopy(globalDiffs);
+  // 4 (manifestniveau). Versie en aliassen.
+  checkManifestV2(manifest, globalDiffs);
+  // 10. Artikel-id's die de app gebruikt (zie checkAppHelpArticles).
+  checkAppHelpArticles(manifest, globalDiffs);
 
   // 1a. Dubbele ids in het manifest.
   const seen = new Set<string>();
@@ -615,7 +754,7 @@ function main() {
   }
 
   console.log('── Manifest-hygiëne + CLAUDE.md/AGENTS.md/README.md/CONTRIBUTING.md-beweringen ──');
-  if (globalDiffs.length === 0) console.log('  OK  geen dubbele ids, geen wees-bestanden, de vier onboardingdocumenten lopen gelijk met de code');
+  if (globalDiffs.length === 0) console.log('  OK  manifest v2 en aliassen geldig, geen dubbele ids, geen wees-bestanden, app-artikel-id\'s bestaan, de vier onboardingdocumenten lopen gelijk met de code');
   else { anyFail = true; for (const d of globalDiffs) console.log(`  XX  ${d}`); }
 
   // 6e heeft de bronnamen van ÁLLE artikelen nodig: een linktekst noemt een ander artikel.
@@ -625,6 +764,9 @@ function main() {
   for (const article of manifest.articles) {
     const diffs: string[] = [];
     const warnings: string[] = [];
+    // Nog niet af in een draft (bijv. een screenshot dat nog gegenereerd moet worden): geen fout zolang
+    // het artikel in productie verborgen is, wel zichtbaar in de uitvoer.
+    const draftNotes: string[] = [];
 
     // 1c. Bestaan van de taalbestanden. Brontalen (nl/en) zijn hard vereist; de overige talen worden
     //     alleen getoetst als het bestand er is — een nog niet vertaald nieuw artikel blokkeert de
@@ -638,7 +780,7 @@ function main() {
       }
     }
 
-    // 4. Titels + layer. Brontalen (nl/en) zijn verplicht; een titel in een andere taal wordt alleen
+    // 4. Titels + layer/kind. Brontalen (nl/en) zijn verplicht; een titel in een andere taal wordt alleen
     //    afgekeurd als hij bestaat maar leeg is (ontbreken mag — volgt in de maandelijkse vertaalronde).
     for (const lang of LANGS) {
       const hasTitle = article.title?.[lang] !== undefined;
@@ -646,7 +788,8 @@ function main() {
         expect(diffs, !!article.title?.[lang]?.trim(), `title.${lang} ontbreekt of is leeg`);
       }
     }
-    expect(diffs, !!article.layer && VALID_LAYERS.has(article.layer), `ongeldige layer "${article.layer}" (verwacht quickstart/gidsen/referentie)`);
+    checkArticleKind(article, diffs);
+    const isDraft = article.draft === true;
 
     const sources: Record<string, string> = {};
     for (const lang of LANGS) {
@@ -657,10 +800,19 @@ function main() {
       // 6b. Lege bestanden.
       expect(diffs, source.trim().length > 0, `${lang}: bestand is leeg`);
 
-      // 2. docs://-links.
-      const docsLinks = [...source.matchAll(/docs:\/\/([a-zA-Z0-9_-]+)/g)].map((m) => m[1]);
-      for (const target of docsLinks) {
-        expect(diffs, idSet.has(target), `${lang}: docs://${target} wijst naar een onbekend artikel-id`);
+      // 2. docs://-links (id of alias, eventueel met #anker; code gestript zodat een voorbeeld-syntax
+      //    in backticks niet meetelt — die rendert de viewer als platte tekst).
+      const docsLinks = [...stripCode(source).matchAll(/docs:\/\/([a-zA-Z0-9_-]+)(?:#([^\s)\]]*))?/g)];
+      for (const [, target, anchor] of docsLinks) {
+        const resolved = resolveTarget(manifest, target);
+        if (!resolved) { diffs.push(`${lang}: docs://${target} wijst naar een onbekend artikel-id`); continue; }
+        if (!isDraft && resolved.draft === true) {
+          diffs.push(`${lang}: docs://${target} wijst naar een draft — in productie "artikel niet gevonden"`);
+        }
+        if (anchor !== undefined) {
+          const anchors = anchorsOf(resolved.id, lang);
+          expect(diffs, !!anchor && !!anchors?.has(anchor), `${lang}: docs://${target}#${anchor} — geen kop met dat anker in ${resolved.id} (${lang}, anders en)`);
+        }
       }
 
       // 3. examples://-links.
@@ -670,7 +822,7 @@ function main() {
       }
 
       // 5. Parser-compatibiliteit.
-      checkParserCompat(article.id, lang, source, diffs);
+      checkParserCompat(article.id, lang, source, diffs, draftNotes, isDraft);
 
       // 6a. Dubbele koppen binnen één artikel.
       const headings = extractHeadings(source);
@@ -725,6 +877,7 @@ function main() {
     console.log(`${ok ? 'OK ' : 'XX '} ${article.id}`);
     for (const d of diffs) console.log(`     - ${d}`);
     for (const w of warnings) console.log(`     ! ${w} — loopt achter op EN, bijwerken in de vertaalronde`);
+    for (const n of draftNotes) console.log(`     ! ${n} — draft, vóór het publiceren oplossen`);
   }
 
   if (laggingTranslations > 0) {

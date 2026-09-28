@@ -7,7 +7,7 @@ import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { TASK_TYPES_HELP_ARTICLE_ID } from '@/state/taskTypesNotice';
+import { TASK_TYPES_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
 const diffs: string[] = [];
 let checks = 0;

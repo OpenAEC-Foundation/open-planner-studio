@@ -1,4 +1,7 @@
 import type { NotifyInput } from './slices/types';
+// Het artikel-id waar de melding en de paneelmarkering naar doorlinken ("lees meer") — sectie
+// "Gecontoureerde toewijzingen" in de gids.
+import { MPP_TIMEPHASED_HELP_ARTICLE_ID } from './helpArticles';
 
 /**
  * De eenmalige melding (via het meldingenkanaal) wanneer een gebruikersbewerking aantoonbaar
@@ -75,10 +78,6 @@ export function clearTimephasedLossNoticeForDoc(docId: string): void {
   notifiedDocIds.delete(docId);
   notifiedLevelingDelayDocIds.delete(docId);
 }
-
-/** Het artikel-id waar de melding en de paneelmarkering naar doorlinken ("lees meer") — sectie
- *  "Gecontoureerde toewijzingen" in de gids. */
-export const MPP_TIMEPHASED_HELP_ARTICLE_ID = 'gids-msproject-import';
 
 /**
  * Gedeelde notify-aanroep voor alle aanroepplekken (de slices, `calendarTasks.ts`,

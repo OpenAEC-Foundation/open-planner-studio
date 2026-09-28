@@ -12,6 +12,8 @@
     "dismiss": "Zamknij powiadomienie",
     "taskEditRevertBlocked": "W międzyczasie pojawiła się zmiana asystenta AI lub rozszerzenia. Wcześniejsze zmiany zadania nie zostały cofnięte i pozostają jako zwykłe kroki w Cofnij.",
     "openFailed": "Nie udało się otworzyć pliku",
+    "extGuideCallbackFailed": "Krok rozszerzenia {{name}} zakończył się błędem. Przewodnik działa dalej.",
+    "extHelpProjectOpenFailed": "Nie udało się otworzyć pliku projektu {{file}} z rozszerzenia {{name}}.",
     "xerInvalidInput": "Import XER wymaga oryginalnych bajtów pliku.",
     "xerInvalidFile": "Ten plik XER jest nieprawidłowy lub nieobsługiwany.",
     "xerInvalidEncoding": "Kodowanie tekstu w tym pliku XER jest nieprawidłowe lub ucięte.",
@@ -1287,6 +1289,7 @@
     "declaredNote": "To deklaracja autora, a nie ograniczenie — kod i tak może więcej.",
     "declaredNone": "Nic nie zadeklarowano.",
     "permImportSource": "importSource — pełne oryginalne bajty źródłowe każdego zaimportowanego pliku (np. surowy plik Primavera), łącznie z polami, które nigdy nie trafiają do projektu.",
+    "permHelp": "help — może dodawać artykuły pomocy, otwierać dołączone projekty jako nowy dokument i wyświetlać przewodnik wskazujący elementy aplikacji.",
     "cancel": "Nie instaluj",
     "confirm": "Zainstaluj"
   },
@@ -1503,5 +1506,26 @@
       "p6CompletedLateFromRemainingWindow": "Ukończone zadanie: późne terminy od daty stanu",
       "needsConvention": "Działa tylko razem z konwencją „{{convention}}”, która jest teraz wyłączona."
     }
+  },
+  "dialogHelp": {
+    "button": "Pomoc do tego tematu",
+    "leaveTitle": "Niezapisane zmiany",
+    "leaveBody": "Aby otworzyć pomoc, to okno zostanie zamknięte. Zapisz zachowuje zmiany, Anuluj je odrzuca; Wstecz pozostawia cię tutaj.",
+    "back": "Wstecz"
+  },
+  "extGuide": {
+    "region": "Przewodnik",
+    "stepOf": "Krok {{current}} z {{total}}",
+    "back": "Wstecz",
+    "showMe": "Pokaż mi",
+    "showMeHint": "Przygotuj ten krok za mnie",
+    "reset": "Od nowa",
+    "resetHint": "Otwórz stan początkowy tego kroku jako nowy dokument",
+    "next": "Dalej",
+    "doneNext": "Gotowe, dalej",
+    "finish": "Zakończ",
+    "close": "Zamknij przewodnik",
+    "stepDone": "Zrobione",
+    "waiting": "Wykonaj zadanie w aplikacji; potem możesz przejść dalej."
   }
 }

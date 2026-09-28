@@ -1,6 +1,7 @@
 import type { DateNotation } from '@/types/view';
 import { displayDate } from '@/utils/displayDate';
 import type { NotifyInput } from './slices/types';
+import { BASELINES_PROGRESS_HELP_ARTICLE_ID } from './helpArticles';
 
 /**
  * De melding bij voortgang zonder statusdatum (`engine/progressEntry.ts`): er was geen statusdatum,
@@ -15,7 +16,7 @@ export function statusDateSetTodayNotice(date: string, notation: DateNotation): 
     messageKey: 'notifications.statusDateSetToday',
     params: { date: displayDate(date, notation) },
     dedupeKey: 'status-date-set-today',
-    helpArticleId: 'gids-baselines-voortgang',
+    helpArticleId: BASELINES_PROGRESS_HELP_ARTICLE_ID,
   };
 }
 
@@ -31,6 +32,6 @@ export function durationBelowDoneWorkNotice(task: { id: string; name: string; ti
     messageKey: 'notifications.durationBelowDoneWork',
     params: { name: task.name, percent: Math.round(task.time.completion * 100) },
     dedupeKey: `duration-below-done-work:${task.id}`,
-    helpArticleId: 'gids-baselines-voortgang',
+    helpArticleId: BASELINES_PROGRESS_HELP_ARTICLE_ID,
   };
 }

@@ -54,7 +54,6 @@
     "relations": "Relaties",
     "calendar": "Kalender",
     "calendarTitle": "Werkkalender bewerken",
-    "holidays": "Vrije dagen",
     "holidaysTitle": "Feestdagen",
     "calendarDialog": {
       "name": "Naam",
@@ -151,7 +150,6 @@
     "overallocationCount_other": "{{count}} resources",
     "overallocationNone": "Geen",
     "baselines": "Baselines & voortgang",
-    "saveBaseline": "Baseline opslaan…",
     "manageBaselines": "Baselines beheren…",
     "statusDate": "Statusdatum",
     "statusDateClear": "Statusdatum leegmaken",
@@ -331,7 +329,19 @@
       "marker": "Wijzigingen niet toegepast — klik op {{apply}} om ze te bewaren.",
       "discard": "Verwerpen",
       "invalid": "Het eigen rekenprofiel heeft nog geen naam. Geef het een naam of verwerp de wijzigingen."
-    }
+    },
+    "helpKind": {
+      "tutorial": "Tutorials",
+      "howto": "How-to",
+      "uitleg": "Uitleg",
+      "referentie": "Referentie"
+    },
+    "helpTutorialPrev": "Vorige tutorial",
+    "helpTutorialNext": "Volgende tutorial",
+    "helpTutorialStep": "Tutorial {{number}} van {{total}}",
+    "helpTutorialsEmpty": "Er zijn nog geen tutorials geïnstalleerd. Je installeert ze als extensie uit de catalogus.",
+    "helpTutorialsInstall": "Tutorials installeren",
+    "helpDraft": "concept"
   },
   "export": {
     "progressXlsxLabel": "Voortgangsblad (Excel)",

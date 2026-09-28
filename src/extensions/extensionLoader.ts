@@ -19,6 +19,10 @@ import { appStoreContext, useAppStore } from '@/state/appStore';
 import { appLog } from '@/services/debug/appLog';
 import { parseStoredExtension } from './validation';
 import { openDb } from '@/utils/idb';
+// De kale i18next-instantie (dezelfde die `@/i18n/config` initialiseert), niet de config-module zelf:
+// die raakt bij het laden de DOM (leesrichting) en deze loader wordt ook headless geïmporteerd.
+import i18next from 'i18next';
+import { buildImportLabels } from '@/i18n/importLabels';
 
 const APP_VERSION = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0';
 
@@ -29,6 +33,8 @@ const appExtensionHost: ExtensionHostBinding = {
     const level = type === 'error' ? 'error' : type === 'warning' ? 'warn' : 'info';
     appLog.emit(level, `ext:${extensionId}`, message);
   },
+  // Zelfde labels als een voorbeeld uit Backstage (`buildImportLabels(tCommon)`), in de UI-taal.
+  importLabels: () => buildImportLabels((key) => i18next.t(key, { ns: 'common' })),
 };
 
 /** Vergelijk twee puntgescheiden versies numeriek. <0 als a ouder is dan b. */

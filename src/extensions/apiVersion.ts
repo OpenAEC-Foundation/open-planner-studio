@@ -28,8 +28,10 @@
  * declareert `"apiVersion": "1.2"`.
  * 1.3.0 — taaktypes: `ExtTask.workRule`, `ExtProject.defaultWorkRule` en de drie optionele
  * werkvelden op de toewijzing (`plannedWorkMinutes`/`actualWorkMinutes`/`remainingWorkMinutes`).
+ * 1.4.0 — Help & begeleiding: permissie `help` en `api.help.*` (Help-artikelen registreren,
+ * meegeleverd projectbestand openen als nieuw document, begeleidingspaneel met stappen en ankers).
  */
-export const EXTENSION_API_VERSION = '1.3.0';
+export const EXTENSION_API_VERSION = '1.4.0';
 
 export interface ApiCompatibility {
   ok: boolean;

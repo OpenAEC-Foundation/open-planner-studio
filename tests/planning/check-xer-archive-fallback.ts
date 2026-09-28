@@ -20,9 +20,8 @@ import { readIFC } from '@/services/ifc/ifcReader';
 import { useAppStore } from '@/state/appStore';
 import { recoveryInputFromParsed } from '@/state/documentContract';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
-import {
-  XER_ARCHIVE_REASON_KEYS, XER_IMPORT_HELP_ARTICLE_ID, withXerArchiveIssueNotice,
-} from '@/state/xerArchiveIssueNotice';
+import { XER_ARCHIVE_REASON_KEYS, withXerArchiveIssueNotice } from '@/state/xerArchiveIssueNotice';
+import { XER_IMPORT_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import { XER_ARCHIVE_ISSUE_CODES } from '@/services/importTypes';
 import type { AppNotification } from '@/state/slices/types';
 import { archiveDropped } from './xerArchiveFallbackAssert';

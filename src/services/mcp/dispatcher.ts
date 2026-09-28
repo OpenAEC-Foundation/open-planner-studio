@@ -9,6 +9,8 @@
 import type { McpContext, McpToolResult, McpToolDef } from './contracts';
 import { getTools, getTool } from './toolRegistry';
 import { ATOMIC_ITEM_TOOLS, validateToolArgs } from './schemaValidate';
+import { GUIDE_PUBLIC_BASE } from './tools/guideTools';
+import { PLANNING_GUIDE_ARTICLE_ID } from '@/state/helpArticles';
 
 /** serverInfo.name in de initialize-respons. */
 export const MCP_SERVER_NAME = 'open-planner-studio';
@@ -52,7 +54,7 @@ export const MCP_INSTRUCTIONS = [
   '- Use planner_batch for a coherent series of steps: one undo step, one recalculation, one backup.',
   '- Finish by telling the user what you assumed: estimated durations, the chosen granularity, relationships you added on your own, resource capacities, calendar assumptions, and every constraint you set and why. Also say what you deliberately did not do.',
   '',
-  'For the full guide call `planner_get_planning_guide`, or read https://open-planner-studio.open-aec.com/docs/en/gids-goed-plannen.md',
+  `For the full guide call \`planner_get_planning_guide\`, or read ${GUIDE_PUBLIC_BASE}/docs/en/${PLANNING_GUIDE_ARTICLE_ID}.md`,
 ].join('\n');
 
 /** Protocolversies die we herkennen en dus mogen echoën (nieuwste eerst). */

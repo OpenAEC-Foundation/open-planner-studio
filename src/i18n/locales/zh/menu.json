@@ -54,7 +54,6 @@
     "relations": "关系",
     "calendar": "日历",
     "calendarTitle": "编辑工作日历",
-    "holidays": "假日",
     "holidaysTitle": "假日",
     "calendarDialog": {
       "name": "名称",
@@ -150,7 +149,6 @@
     "overallocationCount_other": "{{count}} 个资源",
     "overallocationNone": "无",
     "baselines": "基线与进度",
-    "saveBaseline": "保存基线…",
     "manageBaselines": "管理基线…",
     "statusDate": "状态日期",
     "statusDateClear": "清除状态日期",
@@ -329,7 +327,19 @@
       "marker": "更改尚未应用——点击“{{apply}}”以保留。",
       "discard": "放弃",
       "invalid": "自定义计算配置文件尚无名称。请为其命名或放弃更改。"
-    }
+    },
+    "helpKind": {
+      "tutorial": "教程",
+      "howto": "操作指南",
+      "uitleg": "原理说明",
+      "referentie": "参考"
+    },
+    "helpTutorialPrev": "上一个教程",
+    "helpTutorialNext": "下一个教程",
+    "helpTutorialStep": "教程 {{number}}/{{total}}",
+    "helpTutorialsEmpty": "尚未安装任何教程。你可以从目录中以扩展的形式安装它们。",
+    "helpTutorialsInstall": "安装教程",
+    "helpDraft": "草稿"
   },
   "export": {
     "progressXlsxLabel": "进度表（Excel）",

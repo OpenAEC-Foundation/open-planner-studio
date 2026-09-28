@@ -54,7 +54,6 @@
     "relations": "Relazioni",
     "calendar": "Calendario",
     "calendarTitle": "Modifica calendario lavorativo",
-    "holidays": "Festività",
     "holidaysTitle": "Festività",
     "calendarDialog": {
       "name": "Nome",
@@ -152,7 +151,6 @@
     "overallocationCount_other": "{{count}} risorse",
     "overallocationNone": "Nessuna",
     "baselines": "Baseline e progresso",
-    "saveBaseline": "Salva baseline…",
     "manageBaselines": "Gestisci baseline…",
     "statusDate": "Data di stato",
     "statusDateClear": "Cancella data di stato",
@@ -333,7 +331,19 @@
       "marker": "Modifiche non applicate: fai clic su {{apply}} per conservarle.",
       "discard": "Scarta",
       "invalid": "Il profilo di calcolo personalizzato non ha ancora un nome. Assegnagli un nome o scarta le modifiche."
-    }
+    },
+    "helpKind": {
+      "tutorial": "Tutorial",
+      "howto": "Guide pratiche",
+      "uitleg": "Spiegazioni",
+      "referentie": "Riferimento"
+    },
+    "helpTutorialPrev": "Tutorial precedente",
+    "helpTutorialNext": "Tutorial successivo",
+    "helpTutorialStep": "Tutorial {{number}} di {{total}}",
+    "helpTutorialsEmpty": "Non è ancora installato alcun tutorial. Li installi come estensione dal catalogo.",
+    "helpTutorialsInstall": "Installa i tutorial",
+    "helpDraft": "bozza"
   },
   "export": {
     "progressXlsxLabel": "Foglio di avanzamento (Excel)",

@@ -53,7 +53,11 @@ if (!existsSync(manifestPath)) usage(`manifest ontbreekt: ${manifestPath}`);
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 if (!Array.isArray(manifest.articles)) usage(`manifest bevat geen articles-array: ${manifestPath}`);
 
-const localeDirs = Object.keys(manifest.articles[0]?.title ?? {}).sort();
+// Talen = de vereniging van alle titeltalen (niet alleen die van het eerste artikel): nieuwe
+// manifest-v2-artikelen hebben alleen nl + en, dus het eerste artikel is geen maat voor de rest.
+// Per taal tellen alleen de artikelen die in de bron ook echt bestaan (drafts incluis: die zitten in
+// public/docs en dus ook in het package, de viewer verbergt ze).
+const localeDirs = [...new Set(manifest.articles.flatMap(article => Object.keys(article.title ?? {})))].sort();
 if (localeDirs.length === 0) usage('manifest bevat geen taalset in article-titels');
 const expected = ['/docs/manifest.json'];
 const perLocale = new Map();

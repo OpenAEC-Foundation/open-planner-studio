@@ -23,11 +23,13 @@ block. Extensions are entirely frontend; there is no Rust involved.
 Categories: `Import/Export`, `Planning`, `Reporting`, `Utility`, `Fonts`, `Other`.
 
 The optional `apiVersion` field names the extension contract version the extension was built against
-(current: `1.3.0`, readable via `require('open-planner-studio').apiVersion`). History: `1.1.0` —
+(current: `1.4.0`, readable via `require('open-planner-studio').apiVersion`). History: `1.1.0` —
 read-only XER source route (`data.getImportSource*`); `1.2.0` — calculation profile
 (`ExtProject.schedulingProfile`) + `getImportSourceIssue()`; `1.3.0` — task types (`ExtTask.workRule`,
 `ExtProject.defaultWorkRule` and the optional work fields `plannedWorkMinutes`/`actualWorkMinutes`/
-`remainingWorkMinutes` on an assignment).
+`remainingWorkMinutes` on an assignment); `1.4.0` — Help & guidance: the `help` permission and
+`api.help.*` (register Help articles, open a bundled project file, guide panel) plus the generic
+ribbon anchors.
 
 ### Permissions
 
@@ -38,6 +40,7 @@ read-only XER source route (`data.getImportSource*`); `1.2.0` — calculation pr
 | `backstage` | **warn** — missing ⇒ `api.importers.*` still works, but logs a warning | Register an importer (appears under File → Import). |
 | `pdf-fonts` | **hard** — missing ⇒ `api.pdfFonts.register` throws | Register a font provider for the vector PDF export (e.g. CJK glyph bytes). |
 | `importSource` | **hard, default-deny** — missing ⇒ `api.data.getImportSourceInfo`/`getImportSourceIssue`/`getImportSourceChunk`/`getImportSourceCatalogPage` throw before a single byte is read | Read the **full original source bytes** of an imported file (today: XER), including fields the import layer deliberately never materializes into the project model. See the section below. |
+| `help` | **hard** — missing ⇒ every `api.help.*` method throws (synchronously, `openBundledProject` too) | Register Help articles (tutorials), open a bundled project file as a new document and drive the guide panel. Since contract `1.4.0`; see *Help & guidance* below. |
 | `filesystem` | informational | No API surface; a declared intent shown at install time — **no** sandbox guarantee. |
 | `network` | informational | Likewise — declared intent, not a technical boundary. |
 
@@ -91,6 +94,7 @@ module.exports = {
 | `api.settings` | `get(key, default)`, `set(key, value)` — prefixed per extension in localStorage |
 | `api.assets` | `get(name)` — raw bytes of a bundled (non-`main`/`manifest`) ZIP file, or `undefined` |
 | `api.pdfFonts` | `register(provider)` (permission `pdf-fonts`) — a font provider for the vector PDF export |
+| `api.help` | `registerArticles(articles)`, `unregisterArticles()`, `openBundledProject(assetName)`, `startGuide(guide)`, `stopGuide()` (permission `help`, since `1.4.0`) — all cleaned up automatically on disable/remove |
 
 Important: after mutating tasks or relations yourself, call `api.data.recalculate()` — the schedule is
 not recalculated reactively. `loadProject()` does this automatically.
@@ -119,6 +123,91 @@ module.exports = {
   },
 };
 ```
+
+### Help & guidance (permission `help`, since 1.4.0)
+
+This is how an extension ships **tutorials**: articles that appear in Help under *Tutorials*, with
+screenshots and project files from its own assets, and a **guide panel** in which the user works
+through the tutorial step by step inside the app. Declare `"permissions": ["help"]` and
+`"apiVersion": "1.4"`. The shapes live in `src/extensions/types.ts` (`ExtHelpArticle`, `ExtGuide`,
+`ExtGuideStep`).
+
+```ts
+api.help.registerArticles(articles: ExtHelpArticle[]): void;   // throws on invalid input
+api.help.unregisterArticles(): void;
+api.help.openBundledProject(assetName: string): Promise<void>;
+api.help.startGuide(guide: ExtGuide): void;                     // throws on invalid input
+api.help.stopGuide(): void;
+
+interface ExtHelpArticle { id: string; kind: 'tutorial'; order: number;
+  title: { nl: string; en: string }; body: { nl: string; en: string } }
+interface ExtGuide { id: string; title: { nl: string; en: string }; steps: ExtGuideStep[] }
+interface ExtGuideStep {
+  id: string;
+  body: { nl: string; en: string };            // the task, then a '---' line, then the explanation
+  anchor?: string;                             // data-tour-anchor, see below
+  check?: (api) => boolean | Promise<boolean>; // is the step done?
+  prepare?: (api) => void | Promise<void>;     // "Show me"
+  resetAsset?: string;                         // "Start over": .ifc with the step's starting point
+}
+```
+
+**Articles.** `registerArticles` is a thin layer over the Help registry, with the extension id as the
+source. Rules: `id` in lowercase letters, digits and dashes, unique across all sources; `kind` is
+`'tutorial'`; `order` is a positive integer (the learning path); title and body in both `nl` and `en`,
+non-empty. Invalid input registers **nothing** and throws with every problem in one message; calling
+again replaces the previous set. The text uses the same Markdown subset as the built-in guides, plus:
+
+- `![alt](img/{lang}/step-1.webp)` — the image comes from your **own assets** (the ZIP path), with
+  `{lang}` replaced by `nl` or `en`, served as a blob URL that is revoked on disable. A missing asset
+  shows the alt text in a placeholder.
+- `[Open the starting project](project://start.ifc)` — opens that bundled `.ifc` as a new document. If
+  that fails, the app reports that the extension's project file could not be opened; a double click
+  opens one document.
+
+**Bundled project.** `openBundledProject('start.ifc')` opens an `.ifc` from your assets as a **new
+document**, exactly like an example from File → Examples: no save target or file handle, and the
+active document is never overwritten — only an empty, unchanged tab is reused. The promise rejects
+when the asset is missing, is not an `.ifc`, or cannot be read.
+
+**Guide.** `startGuide` validates the whole guide first and starts nothing on any error. At most one
+guide runs at a time. A new `startGuide` from your own extension replaces your previous guide; while a
+guide of **another** extension runs, `startGuide` throws and that guide stays — only the user (Close)
+or its owner (`stopGuide`) makes room. The panel is drawn by the **app** (theme, text
+roles, RTL, translated buttons): title, "Step n of N", the task, and — once the step is done — the
+explanation after `---`. Buttons: **Back**, **Show me** (with `prepare`), **Start over** (with
+`resetAsset`), **Next** / **Finish** on the last step, and Close.
+
+- The host calls `check(api)` when the step opens and then, batched (at most once per 150 ms), after
+  every change in the app. Only `true` counts; the step then stays done until it starts again.
+  A late async result from an earlier pass through the step is ignored — also for the same step after
+  Start over or Back→Next. While Show me, Start over or a `project://` link is running, the buttons
+  are disabled.
+- **Without `check`** the panel shows the explanation straight away and a **Done, next** button.
+- **Errors** in `check`/`prepare` are caught and reported through the app's notification channel; a
+  throwing `check` is not called again and the step falls back to **Done, next**.
+- `stopGuide()` only closes a guide of your own extension. Disabling or removing the extension closes
+  the panel and removes the articles from Help; after that every `api.help.*` method throws
+  (`openBundledProject` rejects), so a leftover timer cannot put anything back.
+
+The panel floats bottom-right (bottom-left in `ar`/`fa`) above the status bar rather than in the right
+rail, which does not exist in the full views (Table, IFC, Report, Resources) or in Backstage. If the
+highlighted element lies under the panel and the other side is free, the panel moves there.
+
+**Anchors.** `anchor` is the value of a `data-tour-anchor` attribute; the app outlines that element in
+the tour style, but **non-modally** — the user can click it. Available anchors:
+
+- `ribbon-tab:<tab>` — every ribbon tab, including `ribbon-tab:file`;
+- `ribbon-group:<tab>:<groupId>` — every ribbon group;
+- `ribbon:<tab>:<itemId>` — every ribbon button and widget, with the ids from
+  `src/components/layout/Ribbon/ribbonConfig.tsx` (e.g. `ribbon:start:addTask`,
+  `ribbon:planning:calendar`). When the button is on another tab, the app outlines
+  `ribbon-tab:<tab>` instead. Buttons added by extensions have no anchor (yet);
+- fixed anchors for the main panels: `ribbon-tabs`, `gantt-panel`, `properties-panel`,
+  `rail:properties`, `rail:resources`, `rail:warnings`, `histogram-strip`, `report-panel`,
+  `status-bar`, `backstage-examples`, `feedback-button`.
+
+See `docs/extensions.md` in the repository for a complete example.
 
 ### Read-only XER source route (permission `importSource`, `apiVersion` ≥ 1.1)
 
@@ -256,7 +345,7 @@ For a standalone `.js` file the manifest may be a comment block at the top:
 
 - The sandbox is light: extension code runs via `new Function(...)` and has access to `window`,
   `document` and `fetch`. Permissions are enforced hard (default-deny) for `ribbon`/`events`/
-  `pdf-fonts`/`importSource`, in warn mode for `backstage`, and are purely informational for
+  `pdf-fonts`/`importSource`/`help`, in warn mode for `backstage`, and are purely informational for
   `filesystem`/`network`. Only install extensions you trust.
 - Objects from `api.data.get*()` are fresh, mutable `Ext*` copies — mutating them does not touch the
   store; write back via the mutating API functions.

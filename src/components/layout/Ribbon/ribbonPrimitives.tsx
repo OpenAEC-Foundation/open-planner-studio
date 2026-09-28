@@ -115,12 +115,15 @@ interface RibbonButtonProps {
    *  browsertests: de toegankelijke naam is de (taalafhankelijke) tooltip, en het zichtbare label
    *  verdwijnt in de icoon-only-standen. */
   itemId?: string;
+  /** Generiek anker `ribbon:<tab>:<itemId>` (`data-tour-anchor`) voor rondleiding en extensie-
+   *  begeleiding; gezet door het generieke render-pad (RibbonTabContent), niet per knop. */
+  anchor?: string;
 }
 
 /** Grote en kleine lintknop delen alles behalve de `small`-klasse (en `primary` bestaat alleen groot). */
 function ribbonButton(
   small: boolean,
-  { icon, label, onClick, active, disabled, primary, danger, title, itemId }: RibbonButtonProps,
+  { icon, label, onClick, active, disabled, primary, danger, title, itemId, anchor }: RibbonButtonProps,
 ) {
   const cls = small ? ['ribbon-btn', 'small'] : ['ribbon-btn'];
   if (active) cls.push('active');
@@ -139,6 +142,7 @@ function ribbonButton(
       aria-label={tip}
       aria-disabled={disabled || undefined}
       data-ops-ribbon-item={itemId}
+      data-tour-anchor={anchor}
     >
       <span className="ribbon-btn-icon">{icon}</span>
       <span className="ribbon-btn-label">{label}</span>
@@ -211,15 +215,20 @@ export function RibbonMenuItem({ onClick, title, overflow = 'nowrap', fill = fal
   );
 }
 
-export function RibbonGroup({ label, children }: { label: string; children: React.ReactNode }) {
+export function RibbonGroup({ label, anchor, children }: {
+  label: string;
+  /** Generiek anker `ribbon-group:<tab>:<groupId>` (zie `RibbonButtonProps.anchor`). */
+  anchor?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="ribbon-group">
+    <div className="ribbon-group" data-tour-anchor={anchor}>
       <div className="ribbon-group-content">{children}</div>
       <div className="ribbon-group-label">{label}</div>
     </div>
   );
 }
 
-export function RibbonButtonStack({ children }: { children: React.ReactNode }) {
-  return <div className="ribbon-btn-stack">{children}</div>;
+export function RibbonButtonStack({ anchor, children }: { anchor?: string; children: React.ReactNode }) {
+  return <div className="ribbon-btn-stack" data-tour-anchor={anchor}>{children}</div>;
 }

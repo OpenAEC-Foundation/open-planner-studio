@@ -175,6 +175,8 @@ export type NotificationSeverity = 'error' | 'info';
  */
 export type NotificationMessageKey =
   | 'notifications.openFailed'
+  | 'notifications.extGuideCallbackFailed'
+  | 'notifications.extHelpProjectOpenFailed'
   | 'notifications.saveFailed'
   | 'notifications.librarySaveFailed'
   | 'notifications.savedViaDownload'
@@ -627,6 +629,11 @@ export interface UIState {
    *  eenmalig-verzoek-patroon als `pendingNewResource` hierboven. App-globale UI-state, geen
    *  documentdata. */
   pendingHelpArticleId: string | null;
+  /** session — eenmalig verzoek om Backstage → Extensies op een bepaald tabblad te openen (Help →
+   *  Tutorials → "Tutorials installeren" wil naar Bladeren). Geconsumeerd (en direct weer op `null`
+   *  gezet) door `ExtensionManagerPanel` — zelfde eenmalig-verzoek-patroon als
+   *  `pendingHelpArticleId`. */
+  pendingExtensionsTab: 'browse' | null;
 }
 
 // Path tracing (MSP "Task Path" / P6 "Trace Logic"): welke kant van het netwerk

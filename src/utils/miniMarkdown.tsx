@@ -10,26 +10,49 @@
 //   - **vet**, *cursief*, inline `code`
 //   - codeblokken (```)
 //   - ongeordende (- / *) en geordende (1.) lijsten
-//   - links: alléén `docs://<article-id>` (interne viewer-navigatie) en
+//   - links: alléén `docs://<article-id>` of `docs://<article-id>#<anker>` (interne viewer-navigatie,
+//     het anker is de GitHub-vorm van een kop, zie `headingSlug` in helpManifest.ts) en
 //     `examples://<file>` (opent hetzelfde voorbeeld-openpad als Backstage → Voorbeelden) —
-//     dit zijn bewust de ENIGE toegestane linkvormen; alles anders wordt als
-//     platte tekst getoond (geen externe netwerkaanroepen vanuit help-content).
-//   - afbeeldingen ![alt](pad) — pad wordt opgelost tegen `${BASE_URL}docs/<pad>`; ontbreekt het
-//     bestand, dan valt de afbeelding terug op een
-//     zichtbare placeholder-box met de alt-tekst.
+//     en — alleen waar de aanroeper `onOpenProject` meegeeft (een artikel of begeleidingsstap van
+//     een extensie) — `project://<asset>` (opent een meegeleverd projectbestand als nieuw document).
+//     Dit zijn bewust de ENIGE toegestane linkvormen; alles anders, en een schema zonder handler,
+//     wordt als platte tekst getoond (geen externe netwerkaanroepen vanuit help-content).
+//   - afbeeldingen ![alt](pad) — het pad gaat door `handlers.resolveImage` (per bron: een
+//     manifestartikel lost op tegen `${BASE_URL}docs/<pad>` met `{lang}` = de docstaal, een
+//     geregistreerd extensieartikel via de resolver van zijn extensie); zonder resolver geldt
+//     `${BASE_URL}docs/<pad>` met `{lang}` = en. Ontbreekt het bestand, dan valt de afbeelding terug
+//     op een zichtbare placeholder-box met de alt-tekst. Een afbeelding die alléén op een eigen regel
+//     staat wordt een blok (`<figure>`), anders staat hij inline in de tekst.
+//
+// Elke kop krijgt een stabiel anker (`data-help-anchor` + `id="help-<anker>"`), zodat de viewer een
+// `docs://id#anker`-link naar die sectie kan laten scrollen.
 
 import { useState } from 'react';
 import type { ReactNode } from 'react';
+import { createHeadingSlugger, resolveHelpImagePath } from '@/utils/helpManifest';
+
+/** Standaard: een `public/docs`-pad, `{lang}` = en. */
+function defaultResolveImage(src: string): string {
+  return `${import.meta.env.BASE_URL}docs/${resolveHelpImagePath(src, 'en')}`;
+}
 
 export interface MiniMarkdownHandlers {
-  onNavigate: (articleId: string) => void;
-  onOpenExample: (file: string) => void;
+  /** `target` is het deel na `docs://`: een artikel-id, eventueel met `#anker`. */
+  onNavigate: (target: string) => void;
+  /** Weglaten = een `examples://`-link is gewone tekst. */
+  onOpenExample?: (file: string) => void;
+  /** `project://<asset>`-link (extensie-inhoud). Weglaten = gewone tekst. */
+  onOpenProject?: (assetName: string) => void;
+  /** Afbeeldingspad (zoals in de Markdown) → URL. Weglaten = `public/docs`-pad met `{lang}` = en. */
+  resolveImage?: (src: string) => string;
 }
 
 const HEADER_RE = /^(#{1,3})\s+(.*)$/;
 const UL_RE = /^[-*]\s+(.*)$/;
 const OL_RE = /^\d+\.\s+(.*)$/;
 const FENCE_RE = /^```/;
+/** Een regel met niets dan één afbeelding ⇒ blokafbeelding. */
+const IMAGE_LINE_RE = /^!\[([^\]]*)\]\(([^)]+)\)$/;
 
 /** Licht, regex-gebaseerd: alleen koppen extraheren voor de titel+koppen-zoekindex.
  *  Geen volledige parse nodig — de index heeft alleen de kop-tekst nodig, niet de opmaak erin. */
@@ -42,11 +65,12 @@ export function extractHeadings(source: string): string[] {
   return headings;
 }
 
-function MiniMarkdownImage({ alt, src }: { alt: string; src: string }) {
+function MiniMarkdownImage({ alt, src, resolveImage }: { alt: string; src: string; resolveImage?: (src: string) => string }) {
   const [failed, setFailed] = useState(false);
-  const resolved = `${import.meta.env.BASE_URL}docs/${src}`;
+  // Een resolver mag `''` teruggeven voor "bestaat niet" (bv. een ontbrekende extensie-asset).
+  const resolved = (resolveImage ?? defaultResolveImage)(src);
 
-  if (failed) {
+  if (failed || !resolved) {
     return (
       <span className="help-image-placeholder" role="img" aria-label={alt}>
         {alt}
@@ -66,10 +90,19 @@ function renderLink(label: ReactNode, href: string, handlers: MiniMarkdownHandle
       </button>
     );
   }
-  if (href.startsWith('examples://')) {
+  const { onOpenExample, onOpenProject } = handlers;
+  if (href.startsWith('examples://') && onOpenExample) {
     const file = href.slice('examples://'.length);
     return (
-      <button key={key} type="button" className="help-link help-link-example" onClick={() => handlers.onOpenExample(file)}>
+      <button key={key} type="button" className="help-link help-link-example" onClick={() => onOpenExample(file)}>
+        {label}
+      </button>
+    );
+  }
+  if (href.startsWith('project://') && onOpenProject) {
+    const asset = href.slice('project://'.length);
+    return (
+      <button key={key} type="button" className="help-link help-link-project" data-help-project={asset} onClick={() => onOpenProject(asset)}>
         {label}
       </button>
     );
@@ -99,7 +132,7 @@ function parseInline(text: string, handlers: MiniMarkdownHandlers, keyPrefix: st
     }
     const key = `${keyPrefix}-${idx++}`;
     if (match[1] !== undefined) {
-      nodes.push(<MiniMarkdownImage key={key} alt={match[1]} src={match[2]} />);
+      nodes.push(<MiniMarkdownImage key={key} alt={match[1]} src={match[2]} resolveImage={handlers.resolveImage} />);
     } else if (match[3] !== undefined) {
       nodes.push(renderLink(match[3], match[4], handlers, key));
     } else if (match[5] !== undefined) {
@@ -119,6 +152,7 @@ function parseInline(text: string, handlers: MiniMarkdownHandlers, keyPrefix: st
 export function renderMiniMarkdown(source: string, handlers: MiniMarkdownHandlers): ReactNode[] {
   const lines = source.replace(/\r\n/g, '\n').split('\n');
   const blocks: ReactNode[] = [];
+  const slug = createHeadingSlugger();
   let i = 0;
   let key = 0;
 
@@ -150,9 +184,23 @@ export function renderMiniMarkdown(source: string, handlers: MiniMarkdownHandler
       const level = headerMatch[1].length;
       const content = parseInline(headerMatch[2], handlers, `h${key}`);
       const k = `b${key++}`;
-      if (level === 1) blocks.push(<h1 className="help-h1" key={k}>{content}</h1>);
-      else if (level === 2) blocks.push(<h2 className="help-h2" key={k}>{content}</h2>);
-      else blocks.push(<h3 className="help-h3" key={k}>{content}</h3>);
+      const anchor = slug(headerMatch[2]);
+      const anchorProps = { id: `help-${anchor}`, 'data-help-anchor': anchor };
+      if (level === 1) blocks.push(<h1 className="help-h1" key={k} {...anchorProps}>{content}</h1>);
+      else if (level === 2) blocks.push(<h2 className="help-h2" key={k} {...anchorProps}>{content}</h2>);
+      else blocks.push(<h3 className="help-h3" key={k} {...anchorProps}>{content}</h3>);
+      i++;
+      continue;
+    }
+
+    // Blokafbeelding: een regel met alleen een afbeelding.
+    const imageLine = IMAGE_LINE_RE.exec(line.trim());
+    if (imageLine) {
+      blocks.push(
+        <figure className="help-figure" key={`b${key++}`}>
+          <MiniMarkdownImage alt={imageLine[1]} src={imageLine[2]} resolveImage={handlers.resolveImage} />
+        </figure>
+      );
       i++;
       continue;
     }
@@ -194,7 +242,8 @@ export function renderMiniMarkdown(source: string, handlers: MiniMarkdownHandler
     while (
       i < lines.length && lines[i].trim() !== '' &&
       !HEADER_RE.test(lines[i]) && !FENCE_RE.test(lines[i].trim()) &&
-      !UL_RE.test(lines[i]) && !OL_RE.test(lines[i])
+      !UL_RE.test(lines[i]) && !OL_RE.test(lines[i]) &&
+      !IMAGE_LINE_RE.test(lines[i].trim())
     ) {
       paraLines.push(lines[i]);
       i++;

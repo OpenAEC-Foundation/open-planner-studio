@@ -3,6 +3,7 @@ import type { TaskConstraint } from '@/types/task';
 import type { DateNotation } from '@/types/view';
 import { displayDateTime } from '@/utils/displayDate';
 import type { NotifyInput } from './slices/types';
+import { RELATIONS_CONSTRAINTS_HELP_ARTICLE_ID } from './helpArticles';
 
 /**
  * Eén taak waarvan een nieuwe start (getypt of gesleept) iets met de constraint deed:
@@ -14,7 +15,7 @@ export type StartEditNotice =
   | { kind: 'blocked'; name: string; constraint: TaskConstraint };
 
 /** De gids die uitlegt hoe een nieuwe start op een taak met voorganger met constraints samenhangt. */
-const HELP_ARTICLE_ID = 'gids-relaties-constraints';
+const HELP_ARTICLE_ID = RELATIONS_CONSTRAINTS_HELP_ARTICLE_ID;
 
 /**
  * De meldingen voor alle startroutes (Tabel, eigenschappenpaneel, Taak bewerken, Gantt-sleep) via
