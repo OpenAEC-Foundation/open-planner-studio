@@ -14,6 +14,7 @@
     "openFailed": "파일을 열 수 없습니다",
     "extGuideCallbackFailed": "확장 프로그램 {{name}}의 단계에서 오류가 발생했습니다. 안내는 계속됩니다.",
     "extHelpProjectOpenFailed": "확장 프로그램 {{name}}의 프로젝트 파일 {{file}}을(를) 열 수 없습니다.",
+    "extensionMessage": "확장 프로그램 {{name}}: {{message}}",
     "xerInvalidInput": "XER 가져오기는 원본 파일 바이트가 필요합니다.",
     "xerInvalidFile": "유효하거나 지원되는 XER 파일이 아닙니다.",
     "xerInvalidEncoding": "이 XER 파일의 문자 인코딩이 잘못되었거나 잘렸습니다.",

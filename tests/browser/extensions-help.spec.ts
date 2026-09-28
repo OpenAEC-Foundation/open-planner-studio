@@ -53,6 +53,10 @@ module.exports = {
         });
       },
     });
+    api.ui.addRibbonButton({
+      tab: 'start', group: 'Tutorials', label: 'Say done',
+      onClick: () => api.ui.showNotification('<b>Done!</b>'),
+    });
   },
 };
 `;
@@ -202,6 +206,14 @@ test('help-API: tutorial in Help, meegeleverd project openen, begeleiding met co
   await expect(page.locator('[data-help-article="tut-test-eerste"]')).toHaveCount(0);
   await page.locator('[data-tour-anchor="ribbon-tab:start"]').click();
   await expect(page.getByRole('button', { name: 'Start guide', exact: true })).toHaveCount(0);
+});
+
+test('ui.showNotification: de melding van een extensie is zichtbaar, met naam en als platte tekst', async ({ page, ops: _ops }) => {
+  await installTestExtension(page);
+  await page.getByRole('button', { name: 'Say done', exact: true }).click();
+  const toast = page.locator('.ops-toast .ops-toast-message');
+  await expect(toast).toHaveText('Extension Testtutorials: <b>Done!</b>');
+  await expect(toast.locator('b')).toHaveCount(0);
 });
 
 test('generieke lintankers: tab, groep, knop en component-item', async ({ page, ops: _ops }) => {

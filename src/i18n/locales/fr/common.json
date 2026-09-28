@@ -14,6 +14,7 @@
     "openFailed": "Échec de l'ouverture du fichier",
     "extGuideCallbackFailed": "Une étape de l’extension {{name}} a échoué. Le guide continue.",
     "extHelpProjectOpenFailed": "Le fichier de projet {{file}} de l’extension {{name}} n’a pas pu être ouvert.",
+    "extensionMessage": "Extension {{name}} : {{message}}",
     "xerInvalidInput": "L’import XER nécessite les octets d’origine du fichier.",
     "xerInvalidFile": "Ce fichier XER n’est pas valide ou pris en charge.",
     "xerInvalidEncoding": "L’encodage de ce fichier XER est invalide ou tronqué.",

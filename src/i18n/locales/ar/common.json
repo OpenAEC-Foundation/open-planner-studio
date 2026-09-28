@@ -14,6 +14,7 @@
     "openFailed": "تعذّر فتح الملف",
     "extGuideCallbackFailed": "فشلت خطوة من الإضافة {{name}}. يستمر الدليل.",
     "extHelpProjectOpenFailed": "تعذّر فتح ملف المشروع {{file}} من الإضافة {{name}}.",
+    "extensionMessage": "الإضافة {{name}}: {{message}}",
     "xerInvalidInput": "يتطلب استيراد XER وحدات البايت الأصلية للملف.",
     "xerInvalidFile": "هذا ليس ملف XER صالحًا أو مدعومًا.",
     "xerInvalidEncoding": "ترميز النص في ملف XER هذا غير صالح أو مبتور.",

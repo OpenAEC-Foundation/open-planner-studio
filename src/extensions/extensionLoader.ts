@@ -12,6 +12,7 @@ import type {
   ReadyStoredExtension,
 } from './types';
 import { createExtensionApi, type ExtensionHostBinding } from './extensionApi';
+import { createExtensionNotifier } from './extensionNotifications';
 import { getExtensionSdk, installExtensionSdk } from './sdk';
 import { sanitizeManifestPermissions } from './permissions';
 import { checkApiCompatibility, EXTENSION_API_VERSION } from './apiVersion';
@@ -29,10 +30,8 @@ const APP_VERSION = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0
 /** Productie-compositie: documentdata en appchrome delen in de gemounte app dezelfde singleton. */
 const appExtensionHost: ExtensionHostBinding = {
   app: appStoreContext,
-  showNotification(extensionId, message, type) {
-    const level = type === 'error' ? 'error' : type === 'warning' ? 'warn' : 'info';
-    appLog.emit(level, `ext:${extensionId}`, message);
-  },
+  // Zichtbaar via het meldingenkanaal van de store (met extensienaam en overspoel-bescherming) én in de debuglog.
+  showNotification: createExtensionNotifier(appStoreContext),
   // Zelfde labels als een voorbeeld uit Backstage (`buildImportLabels(tCommon)`), in de UI-taal.
   importLabels: () => buildImportLabels((key) => i18next.t(key, { ns: 'common' })),
 };

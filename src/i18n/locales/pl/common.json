@@ -14,6 +14,7 @@
     "openFailed": "Nie udało się otworzyć pliku",
     "extGuideCallbackFailed": "Krok rozszerzenia {{name}} zakończył się błędem. Przewodnik działa dalej.",
     "extHelpProjectOpenFailed": "Nie udało się otworzyć pliku projektu {{file}} z rozszerzenia {{name}}.",
+    "extensionMessage": "Rozszerzenie {{name}}: {{message}}",
     "xerInvalidInput": "Import XER wymaga oryginalnych bajtów pliku.",
     "xerInvalidFile": "Ten plik XER jest nieprawidłowy lub nieobsługiwany.",
     "xerInvalidEncoding": "Kodowanie tekstu w tym pliku XER jest nieprawidłowe lub ucięte.",
