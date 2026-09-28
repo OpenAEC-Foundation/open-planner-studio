@@ -116,6 +116,27 @@ export function ifcStr(s: string): string {
 }
 
 /**
+ * JSON-tekst met elk niet-ASCII-teken als JSON-escape (`é` → `\u00e9`). Voor een JSON-pset
+ * (notities, baselines, …): de STEP-codering heeft er dan niets meer aan behalve de backslash.
+ * Reden (eigenaarsbesluit 2026-09-28, "beperken"): een app van vóór het formaatteken '0.2' leest
+ * STEP-tekst letterlijk, en een `\X2\…\X0\` midden in JSON is voor JSON.parse een ongeldige
+ * escape — die versie gooide dan het HELE blok weg (alle baselines, alle notities van een taak).
+ * Met deze schrijfwijze blijft het blok daar geldig en ziet de gebruiker alleen `\u00e9`-tekst.
+ * Een `"` of `\` in de JSON-waarden breekt daar nog wel: daarvoor bestaat geen schrijfwijze die
+ * zowel correcte STEP is als door die oude lezer begrepen wordt. Onze lezer: JSON.parse decodeert
+ * de escapes, verliesvrij (ook losse surrogaten).
+ */
+export function asciiJson(json: string): string {
+  return json.replace(/[\u007f-\uffff]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
+}
+
+/** Een waarde als JSON-IFCTEXT-inhoud (`asciiJson`, dan STEP-gecodeerd). */
+export function ifcJson(value: unknown): string {
+  const json: string | undefined = JSON.stringify(value); // undefined bij een undefined waarde ⇒ `$`
+  return ifcStr(json === undefined ? '' : asciiJson(json));
+}
+
+/**
  * IFCAPPLICATION.Version van onze writer. Het is geen appversie maar een formaatteken: vanaf
  * '0.2' zijn stringliterals volgens ISO 10303-21 gecodeerd (`encodeStepText`). Bestanden van
  * vóór audit 2026-09-26 dragen '0.1' en schreven tekst letterlijk; de lezer decodeert die niet.
@@ -285,7 +306,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
     write(task) {
       const links = task.externalLinks;
       if (!links || links.length === 0) return null;
-      return [{ name: 'Links', value: `IFCTEXT(${ifcStr(JSON.stringify(links))})` }];
+      return [{ name: 'Links', value: `IFCTEXT(${ifcJson(links)})` }];
     },
     apply(task, props) {
       for (const { name, value } of props) {
@@ -361,7 +382,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
     write(task) {
       const notes = task.notes;
       if (!notes || notes.length === 0) return null;
-      return [{ name: 'Notes', value: `IFCTEXT(${ifcStr(JSON.stringify(notes))})` }];
+      return [{ name: 'Notes', value: `IFCTEXT(${ifcJson(notes)})` }];
     },
     apply(task, props) {
       for (const { name, value } of props) {
@@ -410,7 +431,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
     write(task) {
       const gaps = task.splitGaps;
       if (!gaps || gaps.length === 0) return null;
-      return [{ name: 'Splits', value: `IFCTEXT(${ifcStr(JSON.stringify(gaps))})` }];
+      return [{ name: 'Splits', value: `IFCTEXT(${ifcJson(gaps)})` }];
     },
     apply(task, props) {
       for (const { name, value } of props) {
@@ -503,7 +524,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
     write(task) {
       const contours = task.timephasedContours;
       if (!contours || contours.length === 0) return null;
-      return [{ name: 'Contours', value: `IFCTEXT(${ifcStr(JSON.stringify(contours))})` }];
+      return [{ name: 'Contours', value: `IFCTEXT(${ifcJson(contours)})` }];
     },
     apply(task, props) {
       const isValidPeriod = (p: unknown): p is TimephasedContourPeriod =>

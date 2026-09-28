@@ -18,7 +18,7 @@ import type { ImportResult, RecordedSourceFormat } from '@/services/importTypes'
 import {
   IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC,
 } from './ifcConstants';
-import { PSET, PER_TASK_PSETS, OPS_APP_VERSION, ifcStr } from './ifcPsets';
+import { PSET, PER_TASK_PSETS, OPS_APP_VERSION, ifcStr, ifcJson, asciiJson } from './ifcPsets';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { projectFileBase } from '@/utils/documents';
 import {
@@ -486,7 +486,7 @@ function writeTaskTypeMeta(
   for (const task of tasks) if (task.customTaskTypeId) taskTypeIds[objectGuid(ctx, 'task', task.id)] = task.customTaskTypeId;
   const value = JSON.stringify({ definitions, taskTypeIds });
   const propId = addLine(ctx, '_ps_tasktypes_json',
-    `IFCPROPERTYSINGLEVALUE('TaskTypes',$,IFCTEXT(${ifcStr(value)}),$)`);
+    `IFCPROPERTYSINGLEVALUE('TaskTypes',$,IFCTEXT(${ifcStr(asciiJson(value))}),$)`);
   const setId = addLine(ctx, '_pset_tasktypes',
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_tasktypes'))},#${ownerHistId},${ifcStr(PSET.TaskTypes)},$,(#${propId}))`);
   addLine(ctx, '_rel_tasktypes',
@@ -623,7 +623,7 @@ function writeStructure(
   // Autoritaire meta-JSON (verliesloos: ids, kleuren, omschrijvingen).
   const metaJson = JSON.stringify({ activityCodeTypes, customFieldDefs });
   const metaPropId = addLine(ctx, '_ps_structmeta',
-    `IFCPROPERTYSINGLEVALUE('structure',$,IFCTEXT(${ifcStr(metaJson)}),$)`);
+    `IFCPROPERTYSINGLEVALUE('structure',$,IFCTEXT(${ifcStr(asciiJson(metaJson))}),$)`);
   const metaSetId = addLine(ctx, '_pset_structmeta',
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_structmeta'))},#${ownerHistId},${ifcStr(PSET.StructureMeta)},$,(#${metaPropId}))`);
   relDefines('_rel_structmeta', projRef, metaSetId);
@@ -708,7 +708,7 @@ function writeLibraryPool(
   const projRef = ref(ctx, '_project');
   const json = JSON.stringify(pool);
   const propId = addLine(ctx, '_ps_library',
-    `IFCPROPERTYSINGLEVALUE('pool',$,IFCTEXT(${ifcStr(json)}),$)`);
+    `IFCPROPERTYSINGLEVALUE('pool',$,IFCTEXT(${ifcStr(asciiJson(json))}),$)`);
   const setId = addLine(ctx, '_pset_library',
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_library'))},#${ownerHistId},${ifcStr(PSET.Library)},$,(#${propId}))`);
   addLine(ctx, '_rel_library',
@@ -769,7 +769,7 @@ function writeBaselineMeta(
   const json = JSON.stringify(baselines);
   const props: number[] = [];
   props.push(addLine(ctx, '_ps_baselines_json',
-    `IFCPROPERTYSINGLEVALUE('Baselines',$,IFCTEXT(${ifcStr(json)}),$)`));
+    `IFCPROPERTYSINGLEVALUE('Baselines',$,IFCTEXT(${ifcStr(asciiJson(json))}),$)`));
   // De baseline-JSON draagt INTERNE taak-id's. Zou de reader die terugmappen door zelf
   // `ifcGuid(taskId)` te herberekenen, dan gaf een hashbotsing stille kruisbesmetting tussen
   // baselines en vond hij een gesuffixt GlobalId (wat `guidOf` bij een botsing uitgeeft) nooit terug.
@@ -786,7 +786,7 @@ function writeBaselineMeta(
   }
   if (Object.keys(baselineTaskGuids).length > 0) {
     props.push(addLine(ctx, '_ps_baselines_guids',
-      `IFCPROPERTYSINGLEVALUE('TaskGuids',$,IFCTEXT(${ifcStr(JSON.stringify(baselineTaskGuids))}),$)`));
+      `IFCPROPERTYSINGLEVALUE('TaskGuids',$,IFCTEXT(${ifcJson(baselineTaskGuids)}),$)`));
   }
   if (activeBaselineId) {
     props.push(addLine(ctx, '_ps_baselines_active',
@@ -813,7 +813,7 @@ function writeSchedulingOptionsMeta(
   if (!options || Object.keys(options).length === 0) return;
   const json = JSON.stringify(options);
   const propId = addLine(ctx, '_ps_schedopts',
-    `IFCPROPERTYSINGLEVALUE('SchedulingOptions',$,IFCTEXT(${ifcStr(json)}),$)`);
+    `IFCPROPERTYSINGLEVALUE('SchedulingOptions',$,IFCTEXT(${ifcStr(asciiJson(json))}),$)`);
   const setId = addLine(ctx, '_pset_schedopts',
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_schedopts'))},#${ownerHistId},${ifcStr(PSET.SchedulingOptions)},$,(#${propId}))`);
   addLine(ctx, '_rel_schedopts',
@@ -835,7 +835,7 @@ export function writeSchedulingProfileMeta(
   if (!carriesProfile(profile)) return;
   const json = JSON.stringify(schedulingProfileToJson(profile));
   const propId = addLine(ctx, '_ps_schedprofile',
-    `IFCPROPERTYSINGLEVALUE('SchedulingProfile',$,IFCTEXT(${ifcStr(json)}),$)`);
+    `IFCPROPERTYSINGLEVALUE('SchedulingProfile',$,IFCTEXT(${ifcStr(asciiJson(json))}),$)`);
   const setId = addLine(ctx, '_pset_schedprofile',
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_schedprofile'))},#${ownerHistId},${ifcStr(PSET.SchedulingProfile)},$,(#${propId}))`);
   addLine(ctx, '_rel_schedprofile',
@@ -1055,7 +1055,7 @@ function writeCalendarGenerationMeta(
   }
   if (cal.libraryOrigin) {
     props.push(addLine(ctx, `_opscal_lo_${cal.id}`,
-      `IFCPROPERTYSINGLEVALUE('LibraryOrigin',$,IFCTEXT(${ifcStr(JSON.stringify(cal.libraryOrigin))}),$)`));
+      `IFCPROPERTYSINGLEVALUE('LibraryOrigin',$,IFCTEXT(${ifcJson(cal.libraryOrigin)}),$)`));
   }
   if (needsHoursPerDayOverride) {
     props.push(addLine(ctx, `_opscal_hpd_${cal.id}`,
@@ -1091,7 +1091,7 @@ function writeCalendarGenerationMeta(
   if (hasWorkingExceptions) {
     const idJson = JSON.stringify(workingExceptionStepIds.map(String));
     props.push(addLine(ctx, `_opscal_wexc_${cal.id}`,
-      `IFCPROPERTYSINGLEVALUE('WorkingExceptionIds',$,IFCTEXT(${ifcStr(idJson)}),$)`));
+      `IFCPROPERTYSINGLEVALUE('WorkingExceptionIds',$,IFCTEXT(${ifcStr(asciiJson(idJson))}),$)`));
   }
   if (hasP6Source) {
     props.push(addLine(ctx, `_opscal_p6source_${cal.id}`,
@@ -1099,7 +1099,7 @@ function writeCalendarGenerationMeta(
   }
   if (hasP6Source) {
     props.push(addLine(ctx, `_opscal_p6penalty_${cal.id}`,
-      `IFCPROPERTYSINGLEVALUE('P6NonWorkPenaltyDates',$,IFCTEXT(${ifcStr(JSON.stringify(cal.p6NonWorkPenaltyDates ?? []))}),$)`));
+      `IFCPROPERTYSINGLEVALUE('P6NonWorkPenaltyDates',$,IFCTEXT(${ifcJson(cal.p6NonWorkPenaltyDates ?? [])}),$)`));
   }
   if (hasRejectedPenaltyDiagnostic) {
     props.push(addLine(ctx, `_opscal_p6penaltystate_${cal.id}`,
@@ -1271,7 +1271,7 @@ function writeSequenceMeta(
     .map(sequence => objectGuid(ctx, 'seq', sequence.id));
   if (boundarySequenceGuids.length === 0) return;
   const propId = addLine(ctx, '_ps_seq_boundary',
-    `IFCPROPERTYSINGLEVALUE('P6StartAtPredecessorFinishBoundarySequenceGuids',$,IFCTEXT(${ifcStr(JSON.stringify(boundarySequenceGuids))}),$)`);
+    `IFCPROPERTYSINGLEVALUE('P6StartAtPredecessorFinishBoundarySequenceGuids',$,IFCTEXT(${ifcJson(boundarySequenceGuids)}),$)`);
   const setId = addLine(ctx, '_pset_sequences',
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_sequences'))},#${ownerHistId},${ifcStr(PSET.Sequences)},$,(#${propId}))`);
   addLine(ctx, '_rel_sequences',
@@ -1335,7 +1335,7 @@ function writeResourceMeta(ctx: WriteContext, resources: Resource[], ownerHistId
     }
     if (res.libraryOrigin) {
       const id = addLine(ctx, `_reslo_${res.id}`,
-        `IFCPROPERTYSINGLEVALUE('LibraryOrigin',$,IFCTEXT(${ifcStr(JSON.stringify(res.libraryOrigin))}),$)`);
+        `IFCPROPERTYSINGLEVALUE('LibraryOrigin',$,IFCTEXT(${ifcJson(res.libraryOrigin)}),$)`);
       props.push(`#${id}`);
     }
     if (props.length === 0) continue;
@@ -1471,7 +1471,7 @@ function writeTimephasedMeta(
     });
     if (Object.keys(windows).length === 0) continue;
     const propId = addLine(ctx, `_ps_tp_${task.id}`,
-      `IFCPROPERTYSINGLEVALUE('Windows',$,IFCTEXT(${ifcStr(JSON.stringify(windows))}),$)`);
+      `IFCPROPERTYSINGLEVALUE('Windows',$,IFCTEXT(${ifcJson(windows)}),$)`);
     const setId = addLine(ctx, `_pset_tp_${task.id}`,
       `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_tp_' + task.id))},#${ownerHistId},${ifcStr(PSET.Timephased)},$,(#${propId}))`);
     addLine(ctx, `_rel_tp_${task.id}`,
@@ -1507,7 +1507,7 @@ function writeTimephasedDurationWalksMeta(
       ...(w.workMinutes !== undefined ? { workMinutes: w.workMinutes } : {}),
     }));
     const propId = addLine(ctx, `_ps_tpdw_${task.id}`,
-      `IFCPROPERTYSINGLEVALUE('DurationWalks',$,IFCTEXT(${ifcStr(JSON.stringify(json))}),$)`);
+      `IFCPROPERTYSINGLEVALUE('DurationWalks',$,IFCTEXT(${ifcJson(json)}),$)`);
     const setId = addLine(ctx, `_pset_tpdw_${task.id}`,
       `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_tpdw_' + task.id))},#${ownerHistId},${ifcStr(PSET.DurationWalks)},$,(#${propId}))`);
     addLine(ctx, `_rel_tpdw_${task.id}`,

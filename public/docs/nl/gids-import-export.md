@@ -31,6 +31,12 @@ Chinese tekens en emoji staan gecodeerd in het bestand, zodat andere software ze
 resources, kalenders en relaties houden bij elk opslaan dezelfde IFC-identiteit (GlobalId), ook als het
 bestand uit een ander pakket komt; zo blijft een koppeling in je BIM-model ernaar werken.
 
+Let op bij oudere versies van deze app, van vóór deze codering. Die tonen zulke tekens als codes
+(bijvoorbeeld `\u00e9` of `\X2\00E9\X0\` in plaats van é), en kunnen een notitie of baseline met een
+aanhalingsteken of backslash kwijtraken. Sla je zo'n bestand daar op, dan is dat blijvend. Werk dus
+eerst bij naar de nieuwste versie voordat je een nieuw opgeslagen bestand opent, ook op de computer van
+een collega.
+
 ## Exporteren naar andere formaten
 
 Open **Backstage → Exporteren** voor vier formaten:

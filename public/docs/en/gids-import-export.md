@@ -31,6 +31,11 @@ encoded in the file, so other software displays them correctly. Tasks, resources
 relations keep the same IFC identity (GlobalId) every time you save, even if the file came from another
 package, so a link to them in your BIM model keeps working.
 
+Be careful with older versions of this app, from before this encoding. They show such characters as
+codes (for example `\u00e9` or `\X2\00E9\X0\` instead of é), and can lose a note or baseline that
+contains a quotation mark or backslash. If you save the file there, that loss is permanent. So update to
+the latest version before opening a newly saved file, on a colleague's computer too.
+
 ## Exporting to other formats
 
 Open **Backstage → Export** for four formats:

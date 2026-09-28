@@ -11,7 +11,7 @@
 import { useAppStore } from '@/state/appStore';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC, decodeStepText } from '@/services/ifc/ifcReader';
-import { encodeStepText } from '@/services/ifc/ifcPsets';
+import { encodeStepText, asciiJson } from '@/services/ifc/ifcPsets';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 
 const S = () => useAppStore.getState();
@@ -72,6 +72,26 @@ const foreign = text
 const foreignBack = readIFC(foreign);
 eq('ander pakket: taaknaam gedecodeerd', foreignBack.tasks.some((t) => t.name === taskName), true);
 eq('ander pakket: projectnaam gedecodeerd', foreignBack.project.name, 'Café Zuidas €');
+
+// 5. JSON-psets als ASCII-JSON (eigenaarsbesluit 2026-09-28, "beperken"): geen `\X2\` binnen JSON,
+//    zodat een app van vóór '0.2' (die letterlijk leest) het blok niet als ongeldige JSON weggooit.
+//    Onze lezer krijgt alles verliesvrij terug, ook emoji en een los surrogaat.
+{
+  eq('asciiJson: accent en emoji', asciiJson(JSON.stringify('é😀')), '"\\u00e9\\ud83d\\ude00"');
+  S().newProject();
+  const jid = S().addTask({ name: 'JSON-taak' });
+  const noteText = 'één café 😀 \uD800 los';
+  S().updateTask(jid, { notes: [{ id: 'n1', text: noteText, done: false }] });
+  S().saveBaseline('Basis één');
+  const jsonText = writeIFC(buildWriteIFCInput(S()));
+  const jsonLines = jsonText.split('\n').filter((l) => /IFCPROPERTYSINGLEVALUE\('(Notes|Baselines)'/.test(l));
+  eq('Notes- en Baselines-pset gevonden', jsonLines.length, 2);
+  eq('geen \\X2\\/\\X4\\ binnen een JSON-pset', jsonLines.some((l) => /\\X[24]\\/.test(l)), false);
+  eq('accent als \\u-escape (backslash STEP-verdubbeld)', jsonLines.every((l) => l.includes('\\\\u00e9')), true);
+  const jsonBack = readIFC(jsonText);
+  eq('notitie verliesvrij terug', jsonBack.tasks.find((t) => t.id === jid)?.notes?.[0]?.text, noteText);
+  eq('baselinenaam verliesvrij terug', jsonBack.baselines?.map((b) => b.name), ['Basis één']);
+}
 
 if (fails.length) {
   for (const f of fails) console.log(`XX ${f}`);
