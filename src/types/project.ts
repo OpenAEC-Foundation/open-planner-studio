@@ -403,7 +403,7 @@ export interface SchedulingOptions {
    *  volgorde), zodat een ALAP-keten aaneensluit; de opvolgers zelf bewegen niet. Ondergrens: de
    *  relatiegrenzen van haar voorgangers en de statusdatum. Haar eigen geplande venster telt niet (een
    *  ALAP-wortel start voorwaarts op de statusdatum) en de A16-vloer geldt niet (`CPMSolver.forwardPass`,
-   *  `applyAlapFromSuccessors`). Een `constraint2` blijft gelden: SNLT/FNLT begrenzen de vroege finish
+   *  `positionAlapFromSuccessors`). Een `constraint2` blijft gelden: SNLT/FNLT begrenzen de vroege finish
    *  van boven, SNET/FNET de start van onder (`backwardBoundOf`/`forwardBoundOf`); bij een botsing wint
    *  de ondergrens (eigen keuze, niet tegen P6 geijkt).
    *  Bewuste beperkingen (geen P6-bron, geijkt op het corpus): alleen een UURkalender — een ALAP-taak op

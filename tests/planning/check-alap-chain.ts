@@ -8,7 +8,6 @@
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
-import type { Project } from '@/types/project';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
@@ -34,7 +33,12 @@ const fs = (p: string, s: string): Sequence => ({ id: `${p}-${s}`, predecessorId
 const day = (v: unknown) => String(v).slice(0, 10);
 
 for (const base of ['ops', 'p6', 'msproject'] as const) {
-  const opts = { schedulingOptions: effectiveSchedulingOptions({ schedulingProfile: { base } } as unknown as Project) };
+  // Het profiel sleutelt op `baseId` (review 2026-09-28: met `base` draaiden alle drie de rondes als ops).
+  const opts = { schedulingOptions: effectiveSchedulingOptions({ schedulingProfile: { baseId: base, id: base, name: '', overrides: {} } }) };
+
+  checks++;
+  if (base === 'p6' && opts.schedulingOptions.p6AlapPositionedFromSuccessors !== true) diffs.push('p6-profiel niet actief (C14 uit)');
+  if (base !== 'p6' && opts.schedulingOptions.p6AlapPositionedFromSuccessors === true) diffs.push(`${base}-profiel heeft C14 aan`);
 
   // Keten van twee: X (10 dagen, 1–12 juni) drijft EINDE; A→B→EINDE zijn beide ALAP.
   {
@@ -69,6 +73,23 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
     const t = (id: string) => r.tasks.get(id)!;
     eq(`${base} vaste opvolger: S, D, C`, ['S', 'D', 'C'].map((id) => day(t(id).earlyStart)), ['2026-06-03', '2026-06-02', '2026-06-01']);
   }
+}
+
+// Gemengd (review 2026-09-28): een gewone ALAP-voorganger (dagkalender) vóór een ALAP-taak op een
+// uurkalender. Onder P6 valt die tweede onder C14 (`positionAlapFromSuccessors`); in één
+// achterwaartse doorloop meet de voorganger al tegen de verschoven C14-taak.
+{
+  const BAND = [{ start: 480, end: 960 }];
+  const HOURS = { ...CAL, id: 'uren', workTime: { byWeekday: { 1: BAND, 2: BAND, 3: BAND, 4: BAND, 5: BAND, 6: [], 7: [] } } } as WorkCalendar;
+  const p6 = { schedulingOptions: effectiveSchedulingOptions({ schedulingProfile: { baseId: 'p6', id: 'p6', name: '', overrides: {} } }) };
+  const b = { ...mk('B', 2, true), calendarId: 'uren' };
+  const r = new CPMSolver([mk('A', 2, true), b, mk('X', 10), mk('END', 1)], [fs('A', 'B'), fs('B', 'END'), fs('X', 'END')], CAL, [CAL, HOURS], p6).solve();
+  const t = (id: string) => r.tasks.get(id)!;
+  checks++;
+  if (!(new Date(t('A').earlyFinish) < new Date(t('B').earlyStart))) diffs.push('gemengd: A eindigt niet vóór B');
+  const bStart = day(t('B').earlyStart);
+  eq('gemengd p6: B (C14) komt laat', bStart >= '2026-06-11', true);
+  eq('gemengd p6: A schuift mee (niet meer vooraan)', day(t('A').earlyStart) > '2026-06-05', true);
 }
 
 if (diffs.length === 0) {

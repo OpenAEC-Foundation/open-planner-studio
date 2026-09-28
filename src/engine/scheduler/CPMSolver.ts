@@ -831,6 +831,10 @@ export class CPMSolver {
       if (!predTask || !rawPredResult || predTask.isHammock) continue;
       const predResult = this.completedPredecessorRelationWindow(predTask, rawPredResult);
       const lagEng = this.relDeps.lagEngine(this.relationEngineFor(predTask), cal);
+      // Een dag-voorganger levert een lag-engine zonder urenbanden; `prevWorkInstant` hieronder kan
+      // daar niet op rekenen en gooide (review 2026-09-28: de hele berekening stopte). De conventie
+      // is voor zo'n relatie niet gedefinieerd; het gewone pad (zonder deze grens) rekent door.
+      if (!lagEng.isHourMode) continue;
       let bound = this.shiftLagPred(lagEng, predResult.ef, seq, predTask, 1);
       const predIsStartMilestone = isZeroDurationMilestone(predTask) && predTask.milestoneKind !== 'FINISH'
         && predTask.time.completion < 1;
@@ -2000,7 +2004,7 @@ export class CPMSolver {
             ? parseInstant(timephasedAnchor)
             : this.ownAnchor(cal, task.time.scheduleStart, task);
         // Conventie C14 `p6AlapPositionedFromSuccessors`: een niet-gestarte ALAP-wortel heeft geen
-        // eigen anker; haar vroege start is de statusdatum, en `applyAlapFromSuccessors` legt haar
+        // eigen anker; haar vroege start is de statusdatum, en `positionAlapFromSuccessors` legt haar
         // daarna zo laat als haar opvolgers toestaan.
         if (this.dataDate && this.isUnstartedAlapPositionedFromSuccessors(task, cal)) {
           earlyStart = this.snapOnOrAfter(cal, this.dataDate);
@@ -2100,7 +2104,7 @@ export class CPMSolver {
           const startedTaskSkipsFloor = this.options.schedulingOptions?.p6StartedTaskIgnoresPlannedStartFloor === true
             && !!task.time.actualStart && task.time.completion < 1;
           // Conventie C14 `p6AlapPositionedFromSuccessors`: voor een niet-gestarte ALAP-taak telt het
-          // eigen geplande venster niet (`applyAlapFromSuccessors` positioneert haar vanuit de opvolgers).
+          // eigen geplande venster niet (`positionAlapFromSuccessors` positioneert haar vanuit de opvolgers).
           const alapSkipsFloor = this.isUnstartedAlapPositionedFromSuccessors(task, cal);
           if (
             task.p6ActivityType !== undefined
@@ -3023,7 +3027,10 @@ export class CPMSolver {
   /**
    * ALAP (P6-semantiek, zero free float): schuif de vroege datums van ALAP-taken op met
    * hun eigen vrije speling. Opvolgers eerst: een niet-ALAP-opvolger beweegt niet, een ALAP-opvolger
-   * is dan al verschoven, zodat een ALAP-keten schakel voor schakel aansluit. Draait ná de backward
+   * is dan al verschoven, zodat een ALAP-keten schakel voor schakel aansluit (ook over een C14-taak
+   * heen). Bekende grens: de vrije speling wordt hier in hele dagen van de opvolgerkalender gemeten;
+   * bij een uur-voorganger vóór een dag-opvolger kan dat een dag te weinig zijn (formule van vóór de
+   * audit, review 2026-09-28; niet omgebouwd zonder corpusmeting). Draait ná de backward
    * pass; de constraint-cache van uitgaande relaties wordt geactualiseerd zodat de
    * relatie-floats en driving-markering daarna kloppen (de relatie wordt precies bindend).
    *
@@ -3056,10 +3063,9 @@ export class CPMSolver {
     lateDates: Map<string, { ls: Date; lf: Date }>,
   ): void {
     // Conventie C14 `p6AlapPositionedFromSuccessors`: dezelfde ALAP-selectie (incl. uitsluiting (1));
-    // een niet-gestarte ALAP-taak op een uurkalender wordt daarna in `applyAlapFromSuccessors`
-    // gepositioneerd, opvolgers eerst. Alle andere ALAP-taken volgen de stap hieronder.
+    // een niet-gestarte ALAP-taak op een uurkalender wordt in dezelfde doorloop via
+    // `positionAlapFromSuccessors` gepositioneerd. Alle andere ALAP-taken volgen de stap hieronder.
     const fromSuccessors = this.options.schedulingOptions?.p6AlapPositionedFromSuccessors === true;
-    const alapTaskIds: string[] = [];
     // Opvolgers eerst (audit 2026-09-26, eigenaarsbesluit: alle profielen). In voorwaartse volgorde
     // mat een ALAP-voorganger haar vrije speling tegen een nog niet verschoven ALAP-opvolger, zodat
     // van een keten A→B→einde alleen B laat kwam; MS Project en P6 zetten de hele keten laat.
@@ -3069,7 +3075,7 @@ export class CPMSolver {
       if (task?.constraint?.type !== 'ALAP') continue;
       if (task.manuallyScheduled) continue;   // uitsluiting (1) — zie docblok hierboven.
       if (fromSuccessors && this.isUnstartedAlapPositionedFromSuccessors(task, this.calendarFor(task))) {
-        alapTaskIds.push(taskId);
+        this.positionAlapFromSuccessors(taskId, earlyDates, lateDates);
         continue;
       }
       const early = earlyDates.get(taskId);
@@ -3109,9 +3115,6 @@ export class CPMSolver {
         );
       }
     }
-    // `applyAlapFromSuccessors` verwacht voorwaartse volgorde (hij loopt de lijst zelf achterstevoren).
-    alapTaskIds.reverse();
-    if (fromSuccessors) this.applyAlapFromSuccessors(alapTaskIds, earlyDates, lateDates);
   }
 
   /** Conventie C14: valt deze taak onder de ALAP-positionering vanuit de opvolgers? Niet-gestart,
@@ -3132,21 +3135,22 @@ export class CPMSolver {
    * relatiegrenzen van haar voorgangers en de statusdatum — haar eigen geplande start (A16) of
    * eigen anker telt niet. Een secundaire constraint (`constraint2`) blijft gelden: SNLT/FNLT als
    * bovengrens, SNET/FNET als ondergrens; de ondergrens wint (bron en corpusstand in `types/project.ts`).
-   * Opvolgers bewegen niet. `alapTaskIds` staat in topologische volgorde.
+   * Opvolgers bewegen niet. `applyAlap` roept dit per taak aan in dezelfde omgekeerde doorloop als de
+   * gewone ALAP-stap, zodat een gewone ALAP-voorganger al tegen de verschoven C14-taak meet
+   * (review 2026-09-28; voorheen liep C14 als aparte lus ná de gewone stap).
    */
-  private applyAlapFromSuccessors(
-    alapTaskIds: string[],
+  private positionAlapFromSuccessors(
+    taskId: string,
     earlyDates: Map<string, { es: Date; ef: Date }>,
     lateDates: Map<string, { ls: Date; lf: Date }>,
   ): void {
-    for (let i = alapTaskIds.length - 1; i >= 0; i--) {
-      const taskId = alapTaskIds[i];
+    {
       const task = this.tasks.get(taskId);
-      if (!task) continue;
+      if (!task) return;
       const cal = this.calendarFor(task);
       const early = earlyDates.get(taskId);
       const late = lateDates.get(taskId);
-      if (!early || !late) continue;
+      if (!early || !late) return;
       const succs = this.successors.get(taskId) || [];
       let finish: Date | null = succs.length === 0 ? late.lf : null;
       for (const seq of succs) {
@@ -3163,7 +3167,7 @@ export class CPMSolver {
         );
         if (!finish || bound < finish) finish = bound;
       }
-      if (!finish) continue;
+      if (!finish) return;
       // Secundaire constraint (`constraint2`; de primaire ís ALAP). Bovengrens: SNLT/FNLT (en een
       // zachte MSO/MFO) via dezelfde `backwardBoundOf` als `applyBackwardBound` — de ALAP-taak schuift
       // nooit over haar eigen FNLT heen. Ondergrens hieronder: SNET/FNET via `forwardBoundOf`, net als
@@ -3185,7 +3189,7 @@ export class CPMSolver {
         start = this.snapOnOrAfter(cal, floor);
         finish = this.finishFromStart(cal, start, task);
       }
-      if (start.getTime() === early.es.getTime() && finish.getTime() === early.ef.getTime()) continue;
+      if (start.getTime() === early.es.getTime() && finish.getTime() === early.ef.getTime()) return;
       early.es = start;
       early.ef = finish;
       for (const seq of succs) {
