@@ -187,6 +187,7 @@ export function createDefaultUI(): UIState {
     aiActivityOpen: false,
     notifications: [],
     pendingHelpArticleId: null,
+    pendingExtensionsTab: null,
   };
 }
 

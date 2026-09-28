@@ -21,6 +21,7 @@
 // mutaties, dus deze tool blijft daar gewoon werken.
 
 import { fetchTextAsset, type TextAssetFetch } from '@/utils/textAsset';
+import { PLANNING_GUIDE_ARTICLE_ID } from '@/state/helpArticles';
 import { buildEnvelope, toolError } from './runtime';
 import type { McpContext, McpToolDef, McpToolResult } from '../contracts';
 import { READ_ANNOTATIONS } from './helpers';
@@ -31,8 +32,8 @@ export const GUIDE_PUBLIC_BASE = 'https://open-planner-studio.open-aec.com';
 /** De twee brontalen van de gids (zoals `SOURCE_LANGS` in `scripts/verify-docs.ts`). */
 export type GuideLanguage = 'nl' | 'en';
 
-/** Artikel-id in `public/docs/manifest.json`; ook de bestandsnaam. */
-const GUIDE_ARTICLE_ID = 'gids-goed-plannen';
+/** Artikel-id in `public/docs/manifest.json`; ook de bestandsnaam (publiek, zie `helpArticles.ts`). */
+const GUIDE_ARTICLE_ID = PLANNING_GUIDE_ARTICLE_ID;
 /** Pad van de skill binnen `public/` (bron; `.claude/skills/...` is de byte-identieke kopie). */
 const SKILL_PATH = 'skills/goed-plannen/SKILL.md';
 

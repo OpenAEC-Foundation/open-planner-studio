@@ -1498,5 +1498,11 @@
       "p6CompletedLateFromRemainingWindow": "Ukończone zadanie: późne terminy od daty stanu",
       "needsConvention": "Działa tylko razem z konwencją „{{convention}}”, która jest teraz wyłączona."
     }
+  },
+  "dialogHelp": {
+    "button": "Pomoc do tego tematu",
+    "leaveTitle": "Niezapisane zmiany",
+    "leaveBody": "Aby otworzyć pomoc, to okno zostanie zamknięte. Zapisz zachowuje zmiany, Anuluj je odrzuca; Wstecz pozostawia cię tutaj.",
+    "back": "Wstecz"
   }
 }

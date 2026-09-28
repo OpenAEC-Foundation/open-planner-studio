@@ -1448,5 +1448,11 @@
       "p6CompletedLateFromRemainingWindow": "Tarea completada: fechas tardías desde la fecha de estado",
       "needsConvention": "Solo funciona junto con la convención «{{convention}}», que ahora está desactivada."
     }
+  },
+  "dialogHelp": {
+    "button": "Ayuda sobre este tema",
+    "leaveTitle": "Cambios sin guardar",
+    "leaveBody": "Para abrir la ayuda, este cuadro de diálogo se cierra. Guardar conserva sus cambios, Cancelar los descarta; Volver le mantiene aquí.",
+    "back": "Volver"
   }
 }

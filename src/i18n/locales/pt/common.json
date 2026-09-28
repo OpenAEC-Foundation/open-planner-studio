@@ -1448,5 +1448,11 @@
       "p6CompletedLateFromRemainingWindow": "Tarefa concluída: datas mais tardias a partir da data de status",
       "needsConvention": "Só funciona em conjunto com a convenção «{{convention}}», que está desativada."
     }
+  },
+  "dialogHelp": {
+    "button": "Ajuda sobre este tema",
+    "leaveTitle": "Alterações não guardadas",
+    "leaveBody": "Para abrir a ajuda, esta caixa de diálogo fecha. Guardar mantém as suas alterações, Cancelar descarta-as; Voltar mantém-no aqui.",
+    "back": "Voltar"
   }
 }

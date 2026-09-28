@@ -1398,5 +1398,11 @@
       "p6CompletedLateFromRemainingWindow": "Voltooide taak: late datums vanaf de statusdatum",
       "needsConvention": "Werkt alleen samen met de conventie „{{convention}}”, die nu uit staat."
     }
+  },
+  "dialogHelp": {
+    "button": "Help bij dit onderdeel",
+    "leaveTitle": "Wijzigingen niet opgeslagen",
+    "leaveBody": "Om de help te openen sluit deze dialoog. Opslaan bewaart je wijzigingen, Annuleren gooit ze weg; met Terug blijf je hier.",
+    "back": "Terug"
   }
 }

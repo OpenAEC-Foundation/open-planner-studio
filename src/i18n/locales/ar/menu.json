@@ -337,7 +337,19 @@
       "marker": "لم يتم تطبيق التغييرات — انقر على {{apply}} للاحتفاظ بها.",
       "discard": "تجاهل",
       "invalid": "ملف الحساب المخصص ليس له اسم بعد. أعطه اسمًا أو تجاهل التغييرات."
-    }
+    },
+    "helpKind": {
+      "tutorial": "الدروس التعليمية",
+      "howto": "أدلة إرشادية",
+      "uitleg": "شروحات",
+      "referentie": "المرجع"
+    },
+    "helpTutorialPrev": "الدرس السابق",
+    "helpTutorialNext": "الدرس التالي",
+    "helpTutorialStep": "الدرس {{number}} من {{total}}",
+    "helpTutorialsEmpty": "لم تُثبَّت أي دروس تعليمية بعد. تُثبِّتها كإضافة من الكتالوج.",
+    "helpTutorialsInstall": "تثبيت الدروس التعليمية",
+    "helpDraft": "مسودة"
   },
   "export": {
     "progressXlsxLabel": "ورقة التقدّم (Excel)",

@@ -329,7 +329,19 @@
       "marker": "تغییرات اعمال نشده است — برای نگه‌داشتن آن‌ها روی {{apply}} کلیک کنید.",
       "discard": "کنار گذاشتن",
       "invalid": "نمایه محاسبه سفارشی هنوز نامی ندارد. به آن نامی بدهید یا تغییرات را کنار بگذارید."
-    }
+    },
+    "helpKind": {
+      "tutorial": "آموزش‌ها",
+      "howto": "راهنماهای کاربردی",
+      "uitleg": "توضیحات",
+      "referentie": "مرجع"
+    },
+    "helpTutorialPrev": "آموزش قبلی",
+    "helpTutorialNext": "آموزش بعدی",
+    "helpTutorialStep": "آموزش {{number}} از {{total}}",
+    "helpTutorialsEmpty": "هنوز هیچ آموزشی نصب نشده است. آموزش‌ها را به‌صورت افزونه از کاتالوگ نصب می‌کنید.",
+    "helpTutorialsInstall": "نصب آموزش‌ها",
+    "helpDraft": "پیش‌نویس"
   },
   "export": {
     "progressXlsxLabel": "صفحهٔ پیشرفت (Excel)",

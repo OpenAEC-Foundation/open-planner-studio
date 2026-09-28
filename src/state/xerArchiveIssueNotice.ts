@@ -8,9 +8,8 @@
  */
 import type { XerArchiveIssue, XerArchiveIssueCode } from '@/services/importTypes';
 import type { NotificationDetailLine, NotificationMessageKey, NotifyInput } from './slices/types';
-
-/** De in-app gids achter de XER-meldingen (openen, exportverlies, onbruikbaar archief). */
-export const XER_IMPORT_HELP_ARTICLE_ID = 'gids-xer-import';
+// De in-app gids achter de XER-meldingen (openen, exportverlies, onbruikbaar archief).
+import { XER_IMPORT_HELP_ARTICLE_ID } from './helpArticles';
 
 /** Eén vertaalde reden per code. `Record` over de gesloten unie ⇒ een nieuwe code zonder tekst is
  *  een compile-fout. */

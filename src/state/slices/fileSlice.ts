@@ -7,7 +7,8 @@ import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
 import { openFileDialog, saveFileDialog, saveBytesDialog, saveToRef, readFromRef, readBytesFromRef, type FileRef, type SaveOutcome } from '@/services/fileAccess';
-import { XER_IMPORT_HELP_ARTICLE_ID, withXerArchiveIssueNotice } from '@/state/xerArchiveIssueNotice';
+import { withXerArchiveIssueNotice } from '@/state/xerArchiveIssueNotice';
+import { RECORDED_DATES_HELP_ARTICLE_ID, XER_IMPORT_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import { openDialogFilters, binaryExtensions, readFormatForFile, parseOpenedFile, importErrorMessageKey, saveTargetFor, readFormatInput, readIFCWithXerReconstruction, type ExportFormat } from '@/services/formatRegistry';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { HOST_EVENTS } from '@/services/extensionEvents';
@@ -58,12 +59,6 @@ export function isActivePristine(s: AppState): boolean {
     !s.isDirty
   );
 }
-
-// De in-app gids achter de XER-meldingen woont in de bladmodule `xerArchiveIssueNotice.ts`; hier
-// her-exporteren voor bestaande importeurs.
-export { XER_IMPORT_HELP_ARTICLE_ID };
-/** Gids achter de formaatneutrale "datums zoals opgeslagen"-melding (zie `applyOpenedImport`). */
-export const RECORDED_DATES_HELP_ARTICLE_ID = 'datums-zoals-opgeslagen';
 
 /**
  * De formaatneutrale "datums zoals opgeslagen"-regel voor één geopend bestand, samengevoegd met de

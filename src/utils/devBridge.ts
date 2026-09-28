@@ -21,6 +21,7 @@ import {
 import { setConsentAsker, resetConsentAsker, type ConsentAsker } from '@/extensions';
 import { copyScreenshotToClipboard } from '@/services/feedback/feedbackService';
 import { isTauri } from '@/utils/platform';
+import { registerHelpArticles, resetRegisteredHelpArticles } from '@/utils/helpArticleRegistry';
 import { lastSize, paintCount, taskBarPoint, taskSegmentCount } from '@/utils/ganttTestDriver';
 
 /**
@@ -310,6 +311,12 @@ export interface OpsDevBridge {
     addCompany: (name: string) => string;
     addResource: (companyId: string, poolResourceId: string) => { added: boolean; resourceId: string | null };
   };
+  /** Dev-only Help-haken: fixture-tutorials registreren zoals een tutorialextensie dat straks doet
+   *  (de extensie-API zelf bestaat nog niet), en het register weer leegmaken. */
+  help: {
+    registerArticles: typeof registerHelpArticles;
+    resetArticles: typeof resetRegisteredHelpArticles;
+  };
 }
 
 declare global {
@@ -352,6 +359,10 @@ export function installDevBridge(): void {
       },
       addCompany: (name: string) => useAppStore.getState().addCompany(name),
       addResource: (companyId: string, poolResourceId: string) => useAppStore.getState().addLibraryResourceToProject(companyId, poolResourceId),
+    },
+    help: {
+      registerArticles: registerHelpArticles,
+      resetArticles: resetRegisteredHelpArticles,
     },
   };
   appLog.emit('event', 'devBridge', 'window.__OPS__ klaar (dev-only self-test haak)');

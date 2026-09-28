@@ -1448,5 +1448,11 @@
       "p6CompletedLateFromRemainingWindow": "Tâche terminée : dates au plus tard à partir de la date d’état",
       "needsConvention": "Ne fonctionne qu’avec la convention « {{convention}} », actuellement désactivée."
     }
+  },
+  "dialogHelp": {
+    "button": "Aide sur ce sujet",
+    "leaveTitle": "Modifications non enregistrées",
+    "leaveBody": "Pour ouvrir l’aide, cette boîte de dialogue se ferme. Enregistrer conserve vos modifications, Annuler les abandonne ; Retour vous garde ici.",
+    "back": "Retour"
   }
 }

@@ -2,9 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { recordedNoticeState } from '@/state/recordedDatesSelectors';
 import { recordedDatesTaskActiveKey } from '@/components/layout/recordedDatesNoticeText';
-
-/** Gidsartikel: `public/docs/{nl,en}/datums-zoals-opgeslagen.md`. */
-const RECORDED_DATES_HELP_ARTICLE_ID = 'datums-zoals-opgeslagen';
+import { RECORDED_DATES_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
 /**
  * "Datums zoals opgeslagen" — herkomstmarkering op het

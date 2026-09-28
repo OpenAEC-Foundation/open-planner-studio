@@ -1448,5 +1448,11 @@
       "p6CompletedLateFromRemainingWindow": "Attività completata: date più tarde dalla data di stato",
       "needsConvention": "Funziona solo insieme alla convenzione «{{convention}}», ora disattivata."
     }
+  },
+  "dialogHelp": {
+    "button": "Guida su questo argomento",
+    "leaveTitle": "Modifiche non salvate",
+    "leaveBody": "Per aprire la guida, questa finestra si chiude. Salva conserva le modifiche, Annulla le scarta; Indietro ti lascia qui.",
+    "back": "Indietro"
   }
 }
