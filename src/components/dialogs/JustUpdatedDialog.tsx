@@ -8,6 +8,7 @@ import { fetchReleaseComparison, type ReleaseComparison } from '@/services/updat
 import { formatBytes } from '@/utils/formatBytes';
 import { getReleaseHighlights, type HighlightIcon, type ReleaseHighlight } from '@/services/updater/releaseHighlights';
 import { isTauri } from '@/utils/platform';
+import { openHelpArticleGuarded } from '@/components/common/HelpButton';
 
 const CHANGELOG_URL = 'https://github.com/OpenAEC-Foundation/open-planner-studio/wiki/Changelog';
 const ICONS: Record<HighlightIcon, typeof Download> = { import: Download, library: Library, relations: GitBranch, tasks: ListTree, examples: Boxes };
@@ -69,11 +70,13 @@ export function JustUpdatedDialog() {
   const stats = release?.stats;
   const shownDays = stats?.daysSincePrevious ?? days;
   const openLink = (url: string) => { setOpenError(false); void openExternal(url).then(ok => setOpenError(!ok)); };
+  // Eerst deze dialoog sluiten, dan Help openen — anders opende Help áchter de dialoog.
+  const openGuide = (docsId: string) => { close(); openHelpArticleGuarded(docsId); };
   const Highlight = ({ item, primary = false }: { item: ReleaseHighlight; primary?: boolean }) => {
     const Icon = ICONS[item.icon];
     return <article className={primary ? 'border border-border bg-surface-hover rounded-[12px] p-5 flex gap-4 items-start' : 'border border-border rounded-[10px] p-3 flex gap-3 items-start'}>
       <Icon aria-hidden="true" size={primary ? 30 : 18} className="text-accent shrink-0 mt-0.5" />
-      <div className="min-w-0 flex-1"><p className="!text-small tracking-[0.12em] font-semibold text-text-secondary">{item.category}</p><h2 className={primary ? 'text-large leading-6 font-semibold mt-1' : 'text-body leading-5 font-semibold'}>{item.title}</h2><p className="text-small leading-5 text-text-secondary mt-1">{item.description}</p>{primary && item.docsId && <button onClick={() => useAppStore.getState().openHelpArticle(item.docsId!)} className="mt-2 inline-flex items-center gap-1 text-small leading-4 text-accent hover:underline"><BookOpen size={13} />{t('updates.justUpdated.readGuide')}</button>}</div>
+      <div className="min-w-0 flex-1"><p className="!text-small tracking-[0.12em] font-semibold text-text-secondary">{item.category}</p><h2 className={primary ? 'text-large leading-6 font-semibold mt-1' : 'text-body leading-5 font-semibold'}>{item.title}</h2><p className="text-small leading-5 text-text-secondary mt-1">{item.description}</p>{primary && item.docsId && <button onClick={() => openGuide(item.docsId!)} className="mt-2 inline-flex items-center gap-1 text-small leading-4 text-accent hover:underline"><BookOpen size={13} />{t('updates.justUpdated.readGuide')}</button>}</div>
     </article>;
   };
 

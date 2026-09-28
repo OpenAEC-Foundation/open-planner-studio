@@ -1348,5 +1348,11 @@
       "p6CompletedLateFromRemainingWindow": "完了タスク：データ日付からの遅い日付",
       "needsConvention": "現在オフの規則「{{convention}}」と組み合わせたときのみ有効です。"
     }
+  },
+  "dialogHelp": {
+    "button": "このトピックのヘルプ",
+    "leaveTitle": "未保存の変更",
+    "leaveBody": "ヘルプを開くと、このダイアログは閉じます。「保存」で変更を保持し、「キャンセル」で破棄します。「戻る」ならこのままです。",
+    "back": "戻る"
   }
 }

@@ -1348,5 +1348,11 @@
       "p6CompletedLateFromRemainingWindow": "완료된 작업: 데이터 날짜부터 늦은 날짜",
       "needsConvention": "현재 꺼져 있는 규칙 “{{convention}}”과 함께일 때만 작동합니다."
     }
+  },
+  "dialogHelp": {
+    "button": "이 항목 도움말",
+    "leaveTitle": "저장되지 않은 변경 사항",
+    "leaveBody": "도움말을 열면 이 대화 상자가 닫힙니다. 저장은 변경 사항을 유지하고, 취소는 버리며, 뒤로는 여기에 머뭅니다.",
+    "back": "뒤로"
   }
 }

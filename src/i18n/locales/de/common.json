@@ -1398,5 +1398,11 @@
       "p6CompletedLateFromRemainingWindow": "Abgeschlossener Vorgang: späte Termine ab dem Statusdatum",
       "needsConvention": "Wirkt nur zusammen mit der Konvention „{{convention}}“, die derzeit aus ist."
     }
+  },
+  "dialogHelp": {
+    "button": "Hilfe zu diesem Thema",
+    "leaveTitle": "Nicht gespeicherte Änderungen",
+    "leaveBody": "Um die Hilfe zu öffnen, wird dieser Dialog geschlossen. Speichern behält Ihre Änderungen, Abbrechen verwirft sie; mit Zurück bleiben Sie hier.",
+    "back": "Zurück"
   }
 }

@@ -1348,5 +1348,11 @@
       "p6CompletedLateFromRemainingWindow": "已完成任务：最晚日期从数据日期起算",
       "needsConvention": "仅与规则“{{convention}}”一起生效，该规则当前已关闭。"
     }
+  },
+  "dialogHelp": {
+    "button": "此处的帮助",
+    "leaveTitle": "更改尚未保存",
+    "leaveBody": "打开帮助时会关闭此对话框。“保存”保留你的更改，“取消”放弃更改；“返回”则留在此处。",
+    "back": "返回"
   }
 }
