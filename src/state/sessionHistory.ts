@@ -1,3 +1,4 @@
+import { isDraft, original } from 'immer';
 import { createSnapshot, restoreSnapshot, type Snapshot } from './snapshot';
 import type { TaskGridSurfaceId, TaskGridSurfacePreferences } from '@/types/taskGrid';
 import type { LayoutOverlays, ViewState } from '@/types/view';
@@ -7,6 +8,62 @@ import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/s
 import type { ViewRow } from '@/engine/view/visibleRows';
 
 export const MAX_SESSION_HISTORY_EVENTS_PER_SCOPE = 100;
+
+/**
+ * Geheugenplafond voor de hele sessiehistorie (eigenaarsbesluit 2026-09-28): boven deze GESCHATTE
+ * omvang vallen de oudste stappen weg, ook binnen de honderd per scope. De nieuwste
+ * `MIN_SESSION_HISTORY_EVENTS_PER_SCOPE` van elke scope blijven altijd staan, zodat een grote
+ * bewerking nooit de laatste stappen onbereikbaar maakt.
+ */
+export const MAX_SESSION_HISTORY_BYTES = 200 * 1024 * 1024;
+export const MIN_SESSION_HISTORY_EVENTS_PER_SCOPE = 10;
+
+/**
+ * Schatting per gewijzigd element, gemeten (Node, 2000 taken, 20 stappen): een naam op alle taken
+ * ≈ 280 B per taak; een bewerking met herberekening ≈ 1550 B per taak (nieuwe taakobjecten plus een
+ * nieuw `cpmResult`). Overige elementen zijn niet gemeten en krijgen de taakschatting.
+ */
+const BYTES_PER_CHANGED_ITEM = 300;
+const BYTES_PER_CPM_TASK = 1250;
+const BYTES_PER_ARRAY_SLOT = 8;
+const BYTES_PER_OTHER_CHANGE = 1024;
+
+function snapshotChangeBytes(before: Snapshot, after: Snapshot): number {
+  let bytes = 0;
+  for (const key of Object.keys(after) as (keyof Snapshot)[]) {
+    const a = after[key];
+    const b = before[key];
+    if (a === b) continue;
+    if (Array.isArray(a)) {
+      // Structureel gedeeld: alleen elementen die niet al in de vorige versie zaten zijn nieuw.
+      const old = new Set<unknown>(Array.isArray(b) ? b : []);
+      let changed = 0;
+      for (const item of a) if (!old.has(item)) changed++;
+      bytes += a.length * BYTES_PER_ARRAY_SLOT + changed * BYTES_PER_CHANGED_ITEM;
+    } else if (key === 'cpmResult' && a) {
+      bytes += ((a as NonNullable<Snapshot['cpmResult']>).tasks?.size ?? 0) * BYTES_PER_CPM_TASK;
+    } else {
+      bytes += BYTES_PER_OTHER_CHANGE;
+    }
+  }
+  return bytes;
+}
+
+const eventBytesCache = new WeakMap<SessionHistoryEvent, number>();
+/** Geschatte geheugenomvang die dit event vasthoudt bovenop zijn buren (events zijn onveranderlijk). */
+export function estimateSessionHistoryEventBytes(draftOrEvent: SessionHistoryEvent): number {
+  // Binnen een producer is het event een Immer-proxy: elke producer een nieuwe (de cache mist dan
+  // altijd) en elke lezing een trap. Events zelf veranderen nooit, dus het origineel volstaat.
+  const event = isDraft(draftOrEvent) ? (original(draftOrEvent) as SessionHistoryEvent) : draftOrEvent;
+  const cached = eventBytesCache.get(event);
+  if (cached !== undefined) return cached;
+  let bytes = 0;
+  for (const delta of event.deltas) {
+    bytes += delta.kind === 'document-data' ? snapshotChangeBytes(delta.before, delta.after) : BYTES_PER_OTHER_CHANGE;
+  }
+  eventBytesCache.set(event, bytes);
+  return bytes;
+}
 
 export type HistoryScopeKey = `document:${string}` | `grid:${TaskGridSurfaceId}`;
 
@@ -306,21 +363,34 @@ export function invalidateUndoneHistoryForEvent(
 /**
  * Behoud de nieuwste honderd events per scope. Een compound blijft staan zolang het nog tot de
  * nieuwste honderd van minimaal één eigen scope behoort; pas buiten al zijn scopes valt het weg.
+ *
+ * Daarbovenop het geheugenplafond: van nieuw naar oud opgeteld, valt alles vanaf het eerste event
+ * dat `maxBytes` zou overschrijden weg (één snede in de tijd, zodat geen scope een gat krijgt),
+ * behalve de nieuwste `MIN_SESSION_HISTORY_EVENTS_PER_SCOPE` van elke scope.
  * De geretourneerde array behoudt de oorspronkelijke opslagvolgorde.
  */
 export function pruneSessionHistory(
   events: readonly SessionHistoryEvent[],
+  maxBytes: number = MAX_SESSION_HISTORY_BYTES,
 ): SessionHistoryEvent[] {
   const ranked = events
     .map((event, index) => ({ event, index }))
     .sort((left, right) => right.event.sequence - left.event.sequence || right.index - left.index);
   const seenPerScope = new Map<HistoryScopeKey, number>();
   const keep = new Set<number>();
+  let bytes = 0;
+  let overBudget = false;
 
   for (const { event, index } of ranked) {
     const scopes = scopeKeysOf(event);
-    if (scopes.some(scope => (seenPerScope.get(scope) ?? 0) < MAX_SESSION_HISTORY_EVENTS_PER_SCOPE)) {
-      keep.add(index);
+    const within = (limit: number) => scopes.some(scope => (seenPerScope.get(scope) ?? 0) < limit);
+    if (within(MAX_SESSION_HISTORY_EVENTS_PER_SCOPE)) {
+      const eventBytes = estimateSessionHistoryEventBytes(event);
+      if (!overBudget && bytes + eventBytes > maxBytes) overBudget = true;
+      if (!overBudget || within(MIN_SESSION_HISTORY_EVENTS_PER_SCOPE)) {
+        keep.add(index);
+        bytes += eventBytes;
+      }
     }
     for (const scope of scopes) seenPerScope.set(scope, (seenPerScope.get(scope) ?? 0) + 1);
   }
