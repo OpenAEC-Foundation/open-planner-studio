@@ -230,11 +230,20 @@ module.exports = {
 | `api.importers` | `register(def)`, `unregister(id)` |
 | `api.data` | `getProject/getCalendar/getTasks/getSequences/getResources/getAssignments`, `getImportSourceInfo/getImportSourceIssue/getImportSourceChunk/getImportSourceCatalogPage` (permissie `importSource`, zie hieronder), `addTask`, `updateTask`, `addSequence`, `loadProject(result)`, `recalculate()`, `batch(fn)` |
 | `api.events` | `on/off/emit` (permissie `events`) |
-| `api.ui` | `addRibbonButton(reg)` (permissie `ribbon`), `showNotification(msg, type?)` |
+| `api.ui` | `addRibbonButton(reg)` (permissie `ribbon`), `showNotification(msg, type?)` — zichtbare melding voor de gebruiker, zie hieronder |
 | `api.settings` | `get(key, default)`, `set(key, value)` — per extensie geprefixt in localStorage |
 | `api.assets` | `get(name)` — rauwe bytes van een mee-verpakt (niet-`main`/`manifest`) ZIP-bestand, of `undefined` (kern-API) |
 | `api.pdfFonts` | `register(provider)` (permissie `pdf-fonts`) — font-provider voor de vector-PDF-export; automatisch uitgeschreven bij disable |
 | `api.help` | `registerArticles(articles)`, `unregisterArticles()`, `openBundledProject(assetName)`, `startGuide(guide)`, `stopGuide()` (permissie `help`, sinds `1.4.0`) — alles automatisch opgeruimd bij disable/verwijderen |
+
+`showNotification(msg, type?)` toont de tekst als melding onderaan het scherm, via hetzelfde
+meldingenkanaal als de app zelf, voorafgegaan door de naam van de extensie ("Extensie Rapportmaker:
+Gedaan!"). De tekst wordt niet vertaald en altijd als platte tekst getoond: HTML of Markdown verschijnt
+letterlijk. `type` is `'info'` (standaard), `'warning'` of `'error'`; `'error'` blijft staan tot de
+gebruiker hem wegklikt, `'info'` en `'warning'` verdwijnen na enkele seconden. Tegen overspoelen:
+dezelfde tekst herhalen vouwt samen tot één melding met een teller, en een extensie toont hooguit drie
+nieuwe meldingen per tien seconden — de rest gaat alleen naar de debuglog. Elke aanroep komt ook in de
+debuglog (kanaal `ext:<id>`). Teksten langer dan 500 tekens worden in de melding afgekapt.
 
 `addSequence` retourneert `string | null`: het nieuwe relatie-id, of **`null`** wanneer de relatie
 geweigerd is — een duplicaat (zelfde voorganger + opvolger + type), een zelfrelatie, een onbekende

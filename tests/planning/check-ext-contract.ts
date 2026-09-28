@@ -1122,10 +1122,13 @@ for (const [naam, ext, bron, sleutels] of [
     verbodenImports, []);
 
   const loaderSource = readFileSync(join(process.cwd(), 'src/extensions/extensionLoader.ts'), 'utf8');
-  eq('39 productiehost bindt warning exact aan warn',
-    /type === 'warning' \? 'warn' : 'info'/.test(loaderSource), true);
-  eq('39a productiehost behoudt source ext:extensionId en ongewijzigde message',
-    /appLog\.emit\(level, `ext:\$\{extensionId\}`, message\)/.test(loaderSource), true);
+  // Het gedrag zelf (kanaal, niveaus, debuglog met `ext:<id>` en ongewijzigde tekst,
+  // overspoel-bescherming) staat in check-ext-notify.ts; hier alleen dat de productiehost het bindt.
+  eq('39 productiehost bindt de meldingen aan het kanaal van de app-context',
+    /showNotification: createExtensionNotifier\(appStoreContext\)/.test(loaderSource), true);
+  const notifierSource = readFileSync(join(process.cwd(), 'src/extensions/extensionNotifications.ts'), 'utf8');
+  eq('39a de notifier importeert geen app-singleton',
+    /^import[^;]*\b(useAppStore|appStoreContext)\b[^;]*from/m.test(notifierSource), false);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────

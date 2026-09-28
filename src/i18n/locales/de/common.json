@@ -14,6 +14,7 @@
     "openFailed": "Datei konnte nicht geöffnet werden",
     "extGuideCallbackFailed": "Ein Schritt der Erweiterung {{name}} ist fehlgeschlagen. Die Anleitung läuft weiter.",
     "extHelpProjectOpenFailed": "Die Projektdatei {{file}} der Erweiterung {{name}} konnte nicht geöffnet werden.",
+    "extensionMessage": "Erweiterung {{name}}: {{message}}",
     "xerInvalidInput": "Der XER-Import benötigt die ursprünglichen Dateibytes.",
     "xerInvalidFile": "Dies ist keine gültige oder unterstützte XER-Datei.",
     "xerInvalidEncoding": "Die Textkodierung dieser XER-Datei ist ungültig oder abgeschnitten.",

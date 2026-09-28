@@ -90,11 +90,20 @@ module.exports = {
 | `api.importers` | `register(def)`, `unregister(id)` |
 | `api.data` | `getProject/getCalendar/getTasks/getSequences/getResources/getAssignments`, `getImportSourceInfo/getImportSourceIssue/getImportSourceChunk/getImportSourceCatalogPage` (permission `importSource`, see below), `addTask`, `updateTask`, `addSequence`, `loadProject(result)`, `recalculate()`, `batch(fn)` |
 | `api.events` | `on/off/emit` (permission `events`) |
-| `api.ui` | `addRibbonButton(reg)` (permission `ribbon`), `showNotification(msg, type?)` |
+| `api.ui` | `addRibbonButton(reg)` (permission `ribbon`), `showNotification(msg, type?)` — a notification the user sees, see below |
 | `api.settings` | `get(key, default)`, `set(key, value)` — prefixed per extension in localStorage |
 | `api.assets` | `get(name)` — raw bytes of a bundled (non-`main`/`manifest`) ZIP file, or `undefined` |
 | `api.pdfFonts` | `register(provider)` (permission `pdf-fonts`) — a font provider for the vector PDF export |
 | `api.help` | `registerArticles(articles)`, `unregisterArticles()`, `openBundledProject(assetName)`, `startGuide(guide)`, `stopGuide()` (permission `help`, since `1.4.0`) — all cleaned up automatically on disable/remove |
+
+`showNotification(msg, type?)` shows the text as a notification at the bottom of the screen, through the
+same notification channel the app itself uses, prefixed with the extension's name ("Extension Report
+maker: Done!"). The text is not translated and is always shown as plain text: HTML or Markdown appears
+literally. `type` is `'info'` (default), `'warning'` or `'error'`; `'error'` stays until the user
+dismisses it, `'info'` and `'warning'` disappear after a few seconds. Flood protection: repeating the same
+text folds into one notification with a counter, and an extension shows at most three new notifications
+per ten seconds — the rest only goes to the debug log. Every call is also written to the debug log
+(channel `ext:<id>`). Texts longer than 500 characters are truncated in the notification.
 
 Important: after mutating tasks or relations yourself, call `api.data.recalculate()` — the schedule is
 not recalculated reactively. `loadProject()` does this automatically.
