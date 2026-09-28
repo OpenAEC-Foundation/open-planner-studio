@@ -331,7 +331,19 @@
       "marker": "Änderungen nicht angewendet — klicken Sie auf {{apply}}, um sie zu behalten.",
       "discard": "Verwerfen",
       "invalid": "Das eigene Berechnungsprofil hat noch keinen Namen. Geben Sie ihm einen Namen oder verwerfen Sie die Änderungen."
-    }
+    },
+    "helpKind": {
+      "tutorial": "Tutorials",
+      "howto": "Anleitungen",
+      "uitleg": "Erklärungen",
+      "referentie": "Referenz"
+    },
+    "helpTutorialPrev": "Vorheriges Tutorial",
+    "helpTutorialNext": "Nächstes Tutorial",
+    "helpTutorialStep": "Tutorial {{number}} von {{total}}",
+    "helpTutorialsEmpty": "Es sind noch keine Tutorials installiert. Sie installieren sie als Erweiterung aus dem Katalog.",
+    "helpTutorialsInstall": "Tutorials installieren",
+    "helpDraft": "Entwurf"
   },
   "export": {
     "progressXlsxLabel": "Fortschrittsblatt (Excel)",

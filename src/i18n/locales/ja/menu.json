@@ -329,7 +329,19 @@
       "marker": "変更が適用されていません。保持するには［{{apply}}］をクリックしてください。",
       "discard": "破棄",
       "invalid": "カスタム計算プロファイルにまだ名前がありません。名前を付けるか、変更を破棄してください。"
-    }
+    },
+    "helpKind": {
+      "tutorial": "チュートリアル",
+      "howto": "ハウツー",
+      "uitleg": "解説",
+      "referentie": "リファレンス"
+    },
+    "helpTutorialPrev": "前のチュートリアル",
+    "helpTutorialNext": "次のチュートリアル",
+    "helpTutorialStep": "チュートリアル {{number}}/{{total}}",
+    "helpTutorialsEmpty": "チュートリアルはまだインストールされていません。カタログから拡張機能としてインストールします。",
+    "helpTutorialsInstall": "チュートリアルをインストール",
+    "helpDraft": "下書き"
   },
   "export": {
     "progressXlsxLabel": "進捗シート（Excel）",

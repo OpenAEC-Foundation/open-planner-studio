@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "articles": [
     {
       "id": "quick-start",
@@ -755,5 +755,6 @@
       "layer": "referentie",
       "cluster": "relaties-constraints"
     }
-  ]
+  ],
+  "aliases": {}
 }

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import {
@@ -36,6 +36,16 @@ export function ExtensionManagerPanel() {
   const { t } = useTranslation('menu');
   const [activeTab, setActiveTab] = useState<TabId>('installed');
   const [search, setSearch] = useState('');
+  // Eenmalig verzoek van buitenaf (Help → Tutorials installeren): open op Bladeren en haal de
+  // catalogus op, net als een klik op dat tabblad.
+  const pendingTab = useAppStore(s => s.ui.pendingExtensionsTab);
+  const setUI = useAppStore(s => s.setUI);
+  useEffect(() => {
+    if (!pendingTab) return;
+    setActiveTab(pendingTab);
+    if (pendingTab === 'browse') void fetchCatalog();
+    setUI({ pendingExtensionsTab: null });
+  }, [pendingTab, setUI]);
 
   return (
     <div className="ext-manager">

@@ -331,7 +331,19 @@
       "marker": "Changes not applied — click {{apply}} to keep them.",
       "discard": "Discard",
       "invalid": "The custom scheduling profile has no name yet. Give it a name or discard the changes."
-    }
+    },
+    "helpKind": {
+      "tutorial": "Tutorials",
+      "howto": "How-to guides",
+      "uitleg": "Explanation",
+      "referentie": "Reference"
+    },
+    "helpTutorialPrev": "Previous tutorial",
+    "helpTutorialNext": "Next tutorial",
+    "helpTutorialStep": "Tutorial {{number}} of {{total}}",
+    "helpTutorialsEmpty": "No tutorials are installed yet. You install them as an extension from the catalogue.",
+    "helpTutorialsInstall": "Install tutorials",
+    "helpDraft": "draft"
   },
   "export": {
     "progressXlsxLabel": "Progress sheet (Excel)",

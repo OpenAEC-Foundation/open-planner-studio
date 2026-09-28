@@ -333,7 +333,19 @@
       "marker": "Modifiche non applicate: fai clic su {{apply}} per conservarle.",
       "discard": "Scarta",
       "invalid": "Il profilo di calcolo personalizzato non ha ancora un nome. Assegnagli un nome o scarta le modifiche."
-    }
+    },
+    "helpKind": {
+      "tutorial": "Tutorial",
+      "howto": "Guide pratiche",
+      "uitleg": "Spiegazioni",
+      "referentie": "Riferimento"
+    },
+    "helpTutorialPrev": "Tutorial precedente",
+    "helpTutorialNext": "Tutorial successivo",
+    "helpTutorialStep": "Tutorial {{number}} di {{total}}",
+    "helpTutorialsEmpty": "Non è ancora installato alcun tutorial. Li installi come estensione dal catalogo.",
+    "helpTutorialsInstall": "Installa i tutorial",
+    "helpDraft": "bozza"
   },
   "export": {
     "progressXlsxLabel": "Foglio di avanzamento (Excel)",

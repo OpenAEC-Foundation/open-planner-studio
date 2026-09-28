@@ -335,7 +335,19 @@
       "marker": "Zmiany nie zostały zastosowane — kliknij {{apply}}, aby je zachować.",
       "discard": "Odrzuć",
       "invalid": "Własny profil obliczeń nie ma jeszcze nazwy. Nadaj mu nazwę lub odrzuć zmiany."
-    }
+    },
+    "helpKind": {
+      "tutorial": "Samouczki",
+      "howto": "Poradniki",
+      "uitleg": "Wyjaśnienia",
+      "referentie": "Materiały referencyjne"
+    },
+    "helpTutorialPrev": "Poprzedni samouczek",
+    "helpTutorialNext": "Następny samouczek",
+    "helpTutorialStep": "Samouczek {{number}} z {{total}}",
+    "helpTutorialsEmpty": "Nie zainstalowano jeszcze żadnych samouczków. Instalujesz je jako rozszerzenie z katalogu.",
+    "helpTutorialsInstall": "Zainstaluj samouczki",
+    "helpDraft": "szkic"
   },
   "export": {
     "progressXlsxLabel": "Arkusz postępu (Excel)",

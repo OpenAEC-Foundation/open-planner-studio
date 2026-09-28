@@ -227,3 +227,92 @@
   border-radius: var(--radius-md);
 }
 .help-stale-btn:hover { opacity: 0.9; }
+
+/* Blokafbeelding: een afbeelding die alleen op een eigen regel staat (miniMarkdown). */
+.help-figure {
+  margin: var(--sp-3, 10px) 0;
+}
+.help-figure .help-image { margin: 0; }
+
+/* Manifest v2: leerroutenummer, draft-label (alleen in dev zichtbaar) en de lege Tutorials-sectie. */
+.help-toc-order {
+  display: inline-block;
+  min-width: 1.4em;
+  color: var(--theme-text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.help-toc-item.active .help-toc-order { color: inherit; }
+.help-toc-draft {
+  margin-inline-start: 6px;
+  padding: 0 5px;
+  border: 1px dashed var(--theme-border);
+  border-radius: 4px;
+  font-size: var(--text-caption);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--theme-text-dim);
+}
+.help-toc-empty {
+  margin: 0 0 6px 0;
+  padding: 0 var(--sp-2, 6px);
+  font-size: var(--text-body);
+  line-height: 1.45;
+  color: var(--theme-text-dim);
+}
+.help-toc-install {
+  align-self: flex-start;
+  margin: 0 var(--sp-2, 6px);
+  padding: 3px 10px;
+  font-size: var(--text-body);
+  cursor: pointer;
+  color: var(--theme-accent-on);
+  background: var(--theme-accent);
+  border: none;
+  border-radius: var(--radius-md);
+}
+.help-toc-install:hover { opacity: 0.9; }
+
+/* Tutorial: stapaanduiding boven en Vorige/Volgende onder het artikel. */
+.help-tutorial-step {
+  margin: 0 0 var(--sp-2, 6px) 0;
+  font-size: var(--text-small);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--theme-text-dim);
+}
+.help-tutorial-nav {
+  max-width: 760px;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3, 10px);
+  margin-top: var(--sp-6, 20px);
+  padding-top: var(--sp-3, 10px);
+  border-top: 1px solid var(--theme-border);
+}
+.help-tutorial-nav-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 48%;
+  padding: 6px 10px;
+  text-align: start;
+  background: transparent;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--theme-text);
+}
+.help-tutorial-nav-btn:hover { background: var(--theme-hover); }
+.help-tutorial-nav-next { text-align: end; margin-inline-start: auto; }
+.help-tutorial-nav-label {
+  font-size: var(--text-small);
+  color: var(--theme-text-dim);
+}
+.help-tutorial-nav-title {
+  font-size: var(--text-body);
+  font-weight: 600;
+  color: var(--theme-accent);
+}
