@@ -14,6 +14,7 @@
     "openFailed": "ファイルを開けませんでした",
     "extGuideCallbackFailed": "拡張機能 {{name}} のステップでエラーが発生しました。ガイドは続行します。",
     "extHelpProjectOpenFailed": "拡張機能 {{name}} のプロジェクトファイル {{file}} を開けませんでした。",
+    "extensionMessage": "拡張機能 {{name}}: {{message}}",
     "xerInvalidInput": "XER のインポートには元のファイルバイトが必要です。",
     "xerInvalidFile": "これは有効または対応済みの XER ファイルではありません。",
     "xerInvalidEncoding": "この XER ファイルの文字エンコーディングは無効または途中で切れています。",

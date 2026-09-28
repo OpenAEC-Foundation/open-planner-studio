@@ -177,6 +177,9 @@ export type NotificationMessageKey =
   | 'notifications.openFailed'
   | 'notifications.extGuideCallbackFailed'
   | 'notifications.extHelpProjectOpenFailed'
+  // `api.ui.showNotification` van een extensie — zie `src/extensions/extensionNotifications.ts`.
+  // Parameters `name` (extensienaam) en `message` (onvertaalde extensietekst, als platte tekst).
+  | 'notifications.extensionMessage'
   | 'notifications.saveFailed'
   | 'notifications.librarySaveFailed'
   | 'notifications.savedViaDownload'
