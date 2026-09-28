@@ -45,6 +45,24 @@ eq('kalender botst niet met de projectkalender', fixed.result.resourceCalendars?
 eq('aantal hernoemd', fixed.renamed, 3);
 eq('invoer niet gemuteerd', broken.tasks.map((t) => t.id), [dupId, dupId, dupId]);
 
+// 2b. Een hernoemde taak blijft kind van haar ouder: de ouder noemt beide exemplaren, elk één keer.
+{
+  const parentId = clean.tasks[0].id;
+  const kid = clean.tasks[1].id;
+  const tree = {
+    ...clean,
+    tasks: [
+      { ...clean.tasks[0], childIds: [kid, kid] },
+      { ...clean.tasks[1], parentId },
+      { ...clean.tasks[2], id: kid, parentId },
+    ],
+  };
+  const t = ensureUniqueImportIds(tree).result.tasks;
+  const ids = t.map((x) => x.id);
+  eq('boom: ouder noemt beide kinderen', [...t[0].childIds].sort(), [ids[1], ids[2]].sort());
+  eq('boom: beide kinderen wijzen naar de ouder', [t[1].parentId, t[2].parentId], [parentId, parentId]);
+}
+
 // 3. Via de echte openroute: de store krijgt unieke taken en één melding.
 S().applyLoadedProject(broken, { filePath: null });
 eq('store: drie taken met unieke id\'s', new Set(S().tasks.map((t) => t.id)).size, 3);

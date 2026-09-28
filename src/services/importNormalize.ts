@@ -254,7 +254,9 @@ export function reconstructResourceIds(tasks: Task[], assignments: ResourceAssig
  */
 export function ensureUniqueImportIds(result: ImportResult): { result: ImportResult; renamed: number } {
   let renamed = 0;
-  const unique = <T extends { id: string }>(items: readonly T[], used: Set<string>): T[] => {
+  const unique = <T extends { id: string }>(
+    items: readonly T[], used: Set<string>, onRename?: (from: string, to: string, item: T) => void,
+  ): T[] => {
     let out: T[] | null = null;
     items.forEach((item, index) => {
       if (!used.has(item.id)) { used.add(item.id); return; }
@@ -264,10 +266,31 @@ export function ensureUniqueImportIds(result: ImportResult): { result: ImportRes
       renamed++;
       out ??= items.slice();
       out[index] = { ...item, id };
+      onRename?.(item.id, id, item);
     });
     return out ?? (items as T[]);
   };
-  const tasks = unique(result.tasks, new Set());
+  const taskRenames: { from: string; to: string; parentId: string | null }[] = [];
+  let tasks = unique(result.tasks, new Set(), (from, to, t) => taskRenames.push({ from, to, parentId: t.parentId }));
+  // Een hernoemde taak blijft kind van haar ouder: in de kindlijst van die ouder vervangt haar nieuwe id
+  // het tweede (derde, …) voorkomen van het oude id; staat het er maar één keer, dan erbij (review
+  // 2026-09-28: anders verscheen het eerste exemplaar dubbel en het hernoemde niet).
+  if (taskRenames.length > 0) {
+    const parentIndex = new Map<string, number>();
+    tasks.forEach((t, i) => { if (!parentIndex.has(t.id)) parentIndex.set(t.id, i); });
+    for (const r of taskRenames) {
+      const pi = r.parentId === null ? undefined : parentIndex.get(r.parentId);
+      if (pi === undefined) continue;
+      const parent = tasks[pi];
+      const childIds = [...parent.childIds];
+      const first = childIds.indexOf(r.from);
+      const second = first < 0 ? -1 : childIds.indexOf(r.from, first + 1);
+      if (second >= 0) childIds[second] = r.to;
+      else childIds.push(r.to);
+      if (tasks === result.tasks) tasks = tasks.slice();
+      tasks[pi] = { ...parent, childIds };
+    }
+  }
   const sequences = unique(result.sequences, new Set());
   const resources = unique(result.resources, new Set());
   const assignments = unique(result.assignments, new Set());

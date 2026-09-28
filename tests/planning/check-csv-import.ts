@@ -253,6 +253,11 @@ const lagsByLink = (r: ImportResult) => {
   const fl = readCSV(csvOf(['WBS', 'Name', 'Start', 'Finish', 'Total Float'], [['1', 'A', '2026-03-02', '2026-03-06', '2,5']]));
   const flId = fl.tasks[0]?.id ?? '';
   eq('5e vastgelegde speling "2,5" ⇒ 2.5 (niet 2)', fl.recordedTimes?.[flId]?.totalFloat, 2.5);
+
+  // Review 2026-09-28: witruimte vóór een quote-veld (handgeschreven CSV `a, "b,c"`).
+  const sp = readCSV('WBS,Name,Duration\n1, "Fundering, noord",5\n2, "Regel 1\nRegel 2",3\n');
+  eq('5f spatie vóór een quote-veld: komma blijft in de naam', sp.tasks.map(t => t.name.trim()), ['Fundering, noord', 'Regel 1\nRegel 2']);
+  eq('5g spatie vóór een quote-veld: duur daarna klopt', sp.tasks.map(t => t.time.scheduleDuration), [5, 3]);
 }
 
 if (diffs.length === 0) {

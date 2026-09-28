@@ -75,7 +75,8 @@ function splitCSVRecords(content: string, delimiter: string): string[] {
       start = i + 1;
       fieldStart = true;
     } else {
-      fieldStart = ch === delimiter;
+      // Witruimte na het scheidingsteken (`a, "b,c"`) houdt het veldbegin open (review 2026-09-28).
+      fieldStart = ch === delimiter || (fieldStart && (ch === ' ' || ch === '\t'));
     }
   }
   records.push(content.slice(start));
@@ -114,6 +115,8 @@ function parseCSVLine(line: string, delimiter: string): string[] {
         fieldStart = true;
       } else {
         current += ch;
+        // Witruimte vóór een openende quote (`a, "b,c"`) houdt het veldbegin open, zoals vroeger.
+        if (atFieldStart && (ch === ' ' || ch === '\t')) fieldStart = true;
       }
     }
   }
