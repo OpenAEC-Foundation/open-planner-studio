@@ -201,6 +201,7 @@ export type NotificationMessageKey =
   // geweigerd — zie `hierarchyChange.ts`. Parameter `cycle`: de taaknamen, "A → B → A".
   | 'notifications.hierarchyCycle'
   | 'notifications.summaryRelationsDropped'
+  | 'notifications.duplicateIdsRenamed'
   | 'notifications.relationsSkippedOnInsert'
   // Plakken uit een ander document: kalender-/taaktype-/code-/veldverwijzingen die hier niet
   // bestaan zijn leeggemaakt (`insertedBranch.ts`s `normalizeInsertedBranch`). Meervoud, `count`.

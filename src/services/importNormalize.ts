@@ -1,5 +1,6 @@
 import type { Task } from '@/types/task';
 import type { ResourceAssignment } from '@/types/resource';
+import type { ImportResult } from '@/services/importTypes';
 import { applyRemainingDuration, defaultActualFinish, defaultActualStart } from '@/engine/taskMutationRules';
 import { orderActualsAfterDerivedFinish } from '@/engine/actualDatesOrder';
 import { workRuleFromMsp, workRuleFromXerDurationType } from '@/engine/work/workRuleMapping';
@@ -241,4 +242,39 @@ export function reconstructResourceIds(tasks: Task[], assignments: ResourceAssig
     const ids = byTask.get(t.id);
     if (ids) t.resourceIds = ids;
   }
+}
+
+/**
+ * Maak dubbele id's in een ingelezen project uniek (audit 2026-09-26). Een kapot of vreemd bestand
+ * kan twee taken, relaties, resources, kalenders of toewijzingen met hetzelfde id bevatten; de store
+ * sleutelt overal op id en zou ze door elkaar halen. Het tweede en volgende exemplaar krijgt
+ * `-dup-N`. Verwijzingen naar zo'n id zijn dubbelzinnig en blijven bij het eerste exemplaar (dat is
+ * wat de store er tot nu toe ook van maakte). Kopieert alleen wat verandert; geen dubbelen ⇒
+ * hetzelfde object terug en `renamed` 0.
+ */
+export function ensureUniqueImportIds(result: ImportResult): { result: ImportResult; renamed: number } {
+  let renamed = 0;
+  const unique = <T extends { id: string }>(items: readonly T[], used: Set<string>): T[] => {
+    let out: T[] | null = null;
+    items.forEach((item, index) => {
+      if (!used.has(item.id)) { used.add(item.id); return; }
+      let id = item.id;
+      for (let n = 2; used.has(id); n++) id = `${item.id}-dup-${n}`;
+      used.add(id);
+      renamed++;
+      out ??= items.slice();
+      out[index] = { ...item, id };
+    });
+    return out ?? (items as T[]);
+  };
+  const tasks = unique(result.tasks, new Set());
+  const sequences = unique(result.sequences, new Set());
+  const resources = unique(result.resources, new Set());
+  const assignments = unique(result.assignments, new Set());
+  // De projectkalender en de bibliotheekkalenders delen één id-ruimte (`task.calendarId`).
+  const resourceCalendars = result.resourceCalendars
+    ? unique(result.resourceCalendars, new Set([result.calendar.id]))
+    : result.resourceCalendars;
+  if (renamed === 0) return { result, renamed };
+  return { result: { ...result, tasks, sequences, resources, assignments, resourceCalendars }, renamed };
 }

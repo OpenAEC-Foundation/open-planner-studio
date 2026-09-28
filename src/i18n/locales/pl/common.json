@@ -118,6 +118,7 @@
     "relationsExcludedByHierarchy_many": "Po przeniesieniu {{count}} relacji łączy zadanie z jego własnym nadrzędnym zadaniem sumarycznym; nie są one już uwzględniane w obliczeniach.",
     "relationsExcludedByHierarchy_other": "Po przeniesieniu {{count}} relacji łączy zadanie z jego własnym nadrzędnym zadaniem sumarycznym; nie są one już uwzględniane w obliczeniach.",
     "summaryRelationsDropped": "Nie udało się uwzględnić {{total}} relacji. Sprawdź kolumny Poprzedniki i Następniki.",
+    "duplicateIdsRenamed": "Obiekty ze zdublowanym identyfikatorem w tym pliku: {{total}}. Otrzymały własny identyfikator; odwołania do nich pozostają przy pierwszym wystąpieniu. Sprawdź relacje i przypisania.",
     "relationsSkippedOnInsert_one": "Nie utworzono {{count}} relacji: nieprawidłowe powiązanie (np. zadanie połączone z własnym zadaniem nadrzędnym lub duplikat).",
     "relationsSkippedOnInsert_few": "Nie utworzono {{count}} relacji: nieprawidłowe powiązanie (np. zadanie połączone z własnym zadaniem nadrzędnym lub duplikat).",
     "relationsSkippedOnInsert_many": "Nie utworzono {{count}} relacji: nieprawidłowe powiązanie (np. zadanie połączone z własnym zadaniem nadrzędnym lub duplikat).",

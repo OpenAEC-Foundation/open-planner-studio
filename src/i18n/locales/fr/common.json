@@ -100,6 +100,7 @@
     "relationsExcludedByHierarchy_many": "Après le déplacement, {{count}} relations relient une tâche à sa propre tâche récapitulative parente ; elles ne sont plus prises en compte dans le calcul.",
     "relationsExcludedByHierarchy_other": "Après le déplacement, {{count}} relations relient une tâche à sa propre tâche récapitulative parente ; elles ne sont plus prises en compte dans le calcul.",
     "summaryRelationsDropped": "{{total}} relation(s) n'ont pas pu être prises en compte. Vérifiez les colonnes Prédécesseurs et Successeurs.",
+    "duplicateIdsRenamed": "Objets avec un identifiant en double dans ce fichier : {{total}}. Ils ont reçu leur propre identifiant ; les références restent liées à la première occurrence. Vérifiez les relations et les affectations.",
     "relationsSkippedOnInsert_one": "{{count}} relation n'a pas été créée : lien invalide (par exemple une tâche liée à sa propre tâche récapitulative parente, ou un doublon).",
     "relationsSkippedOnInsert_many": "{{count}} relations n'ont pas été créées : lien invalide (par exemple une tâche liée à sa propre tâche récapitulative parente, ou un doublon).",
     "relationsSkippedOnInsert_other": "{{count}} relations n'ont pas été créées : lien invalide (par exemple une tâche liée à sa propre tâche récapitulative parente, ou un doublon).",
