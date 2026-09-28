@@ -76,7 +76,9 @@ export function LevelingDialog() {
       const now = useAppStore.getState();
       return now.tasks === seen.tasks && now.sequences === seen.sequences && now.resources === seen.resources
         && now.assignments === seen.assignments && now.calendar === seen.calendar
-        && now.calendars === seen.calendars && now.cpmResult === seen.cpmResult;
+        && now.calendars === seen.calendars && now.cpmResult === seen.cpmResult
+        // Profiel, statusdatum en projectstart (`solveOptionsFor(project)`) sturen de berekening ook.
+        && now.project === seen.project;
     };
     const run = levelInBackground(input);
     runRef.current = run;

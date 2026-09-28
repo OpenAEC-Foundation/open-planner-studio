@@ -24,7 +24,8 @@ import { isElapsedTask, isZeroDurationMilestone } from './duration';
 // Milliseconde-constanten (uur-pad); HOUR_SCAN = veiligheidsplafond voor de dag→uur-backward-scan.
 export const MS_PER_MIN = 60_000;
 export const HOUR_SCAN = 400;
-/** Plafond voor de galopperende dag→uur-lagzoektocht (backward): ruim boven elke echte lag. */
+/** Plafond voor de galopperende dag→uur-lagzoektocht (backward): ruim boven elke echte lag. De galop
+ *  verdubbelt, dus het effectieve plafond is de grootste macht van twee eronder (32 768 dagen). */
 export const MAX_LAG_SEARCH_DAYS = 100 * 366;
 
 /** De grensvlaggen die de mijlpaal-grens-semantiek beschrijven voor één relatie. */
