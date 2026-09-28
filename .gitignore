@@ -15,6 +15,9 @@ dist/
 !.claude/skills/goed-plannen/
 temp/
 
+# Build-uitvoer van `npm run gen:tutorial-project` (de extensie-build haalt hem hier op)
+/build/tutorial-project/
+
 # Tauri
 src-tauri/target/
 src-tauri/gen/
