@@ -53,3 +53,33 @@ Elk onderdeel krijgt voor beide modellen een woordelijk identieke opdracht, en z
 Beoordeling per model: gevonden sleutelbugs, aandeel bevindingen dat de verificatie overleeft, valse
 meldingen, bronkwaliteit, tokens en looptijd. Zelfrapportage over verboden tools is aangevuld met een
 grep door de transcripties.
+
+### Uitslag (2026-09-28, 21:50 UTC)
+
+Nakijkers: Fable 5.1, blind (rapporten als A/B, koppeling pas na het oordeel). Beide auditors riepen zelf
+1–2 keer de advisor aan. Een grep door de transcripties vond geen web-, GitHub- of subagentgebruik in de
+meetlat en geen leesactie buiten de eigen werkmap.
+
+| | Sonnet 5.5 | Opus 5.5 |
+|---|---|---|
+| Meetlat: sleutelbugs gevonden (van 23) | 12 (strikt 10) | 8 (7 met repro) |
+| Meetlat: overige bevindingen bevestigd | 37 van 38 (1 deels) | 24 van 24 |
+| Meetlat: onterecht "zeker" | 0 | 0 |
+| Meetlat: tijd / tokens / toolaanroepen | 51 min / 760k / 207 | 35 min / 441k / 120 |
+| Spoor O: bevindingen bevestigd / deels / weerlegd | 14 / 2 / 0 (van 16) | 18 / 4 / 0 (van 22) |
+| Spoor O: overige claims weerlegd | 1 (rekenfout Sample-afronding) | 0 |
+| Spoor O: onterecht "zeker" / onjuiste bronclaim | 2 / 1 | 1 / 1 |
+| Spoor O: tijd / tokens / toolaanroepen | 34 min / 556k / 177 | 31 min / 424k / 145 |
+
+Samen vonden ze 14 van de 23 sleutelbugs. Door beide gemist: G3, G4, G8, G9, G15, G17, G18, G19, G23.
+De twee vullen elkaar aan: van de sleutelbugs vond Sonnet er 6 die Opus miste, Opus 2 die Sonnet miste.
+In spoor O vond alleen Sonnet de oorzaak van de P6-XML-lezer die 0 taken leest (hoog, spoor E); alleen
+Opus vond de onjuiste A17-registertekst, de Standaardopties-inconsistentie, het manifestduplicaat en de
+A19-achterdeur. n = 1 per model per onderdeel: een aanwijzing, geen statistiek.
+
+Verificatie- en nakijkverslagen (buiten de repo): `/home/user/audit/vo/verificatie/eigen/VERIFICATIE.md`
+(17 actiepunten, sporen E/F/J/O/T) en `/home/user/audit/w3/nakijken/eigen/NAKIJKEN.md`.
+
+Gevolgen voor het draaiboek (nog te verwerken): `OPS_MPP_CRAWL` wijst naar de corpuswortel, niet naar
+`crawl-mpp`; poort 3 (`measure:profiles`) stopt op de shallow corpusclone omdat 41
+niet-orakelbestanden ontbreken, dus regel A is in de cloud nu niet als poort te draaien.
