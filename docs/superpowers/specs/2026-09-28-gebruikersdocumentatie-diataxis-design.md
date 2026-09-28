@@ -1,6 +1,6 @@
 # Gebruikersdocumentatie — opnieuw, volgens Diátaxis
 
-*Ontwerp, 2026-09-28, versie 1.1 (open punten §10 beantwoord). Status: **ter review bij de eigenaar**. Basis: interview met de eigenaar
+*Ontwerp, 2026-09-28, versie 1.2 (open punten §10 beantwoord; tutorials als extensie, §12). Status: **ter review bij de eigenaar**. Basis: interview met de eigenaar
 (2026-09-28), de documentatie-audit van 2026-09-26 (PR #242), en drie read-only onderzoeken op `main`
 `9ab90cfd`: functie-inventaris uit de code (bijlage: `2026-09-28-gebruikersdocumentatie-functie-inventaris.md`),
 analyse van de docs-infrastructuur, en een haalbaarheidsmeting van app-gegenereerde screenshots.*
@@ -338,6 +338,34 @@ Na fase 4 volgen de 12 vertalingen in een apart traject.
 4. **Dubbele knoppen eerst in de app oplossen door de dubbele weg te halen:** "Vrije dagen" en
    "Baseline opslaan…" verdwijnen; "Kalender" en "Baselines beheren…" blijven. Dit is een aparte,
    kleine PR vóór de pilot, zodat de docs meteen de nieuwe situatie beschrijven.
+
+## 12. Tutorials als extensie (besluit eigenaar, 2026-09-28)
+
+De tutorials worden **geen onderdeel van de app-bundel** maar een installeerbare extensie.
+How-to, uitleg en referentie blijven in `public/docs`.
+
+- **Inhoud van de extensie:** de zeven tutorialartikelen (nl + en), de screenshots en de
+  start-/tussenstanden van *Aanbouw woning* als `.ifc`.
+- **Distributie:** in de officiële catalogus (`OpenAEC-Foundation/open-planner-studio-extensions`,
+  Backstage › Extensies › Bladeren). De Help toont onder *Tutorials*, zolang de extensie niet
+  geïnstalleerd is, een korte uitleg en een knop **Tutorials installeren** die naar die extensie leidt.
+- **Verdeling van de bron:**
+  - *App-repo:* de generator van het tutorialproject (`gen:tutorial-project -- --out <dir>`) en het
+    screenshotscript, omdat ze de echte store, rekenmotor en UI gebruiken; plus een planning-check die de
+    beoogde effecten per stand bewaakt (einddatum, kritiek pad, overbezetting vóór/na nivelleren), zodat
+    een motorwijziging die de tutorialgetallen verandert in de app-CI rood wordt.
+  - *Extensie-repo:* de tutorialartikelen, de gegenereerde screenshots en projectbestanden, en de ZIP-build.
+- **Extensie-API, contract 1.4.0** (app-repo, eigen permissie, bijv. `help`):
+  - Help-artikelen registreren (id, `kind: 'tutorial'`, `order`, titel en tekst nl/en); afbeeldingen komen
+    uit de extensie-assets (`api.assets`, bestaat al) via een eigen image-resolver.
+  - Een meegeleverd projectbestand openen als nieuw document (vanuit een link in de tutorial).
+  - Documentatie in `docs/extensions.md` en de wiki-pagina, zoals bij 1.3.0.
+- **Gevolgen voor de rest van dit ontwerp:** het manifest in `public/docs` kent geen tutorials meer
+  (`kind` = howto|uitleg|referentie; `order` vervalt daar); de viewer toont tutorials uit een interne
+  registry die de extensie vult; screenshots zitten in de extensie, niet in de bundel (§7-omvang geldt
+  voor de ZIP, binnen de bestaande limieten van 24/48 MiB); de wiki publiceert de tutorials niet
+  (open punt voor later: eigen wiki-pagina's vanuit de extensie-repo).
+- **Fasering:** fase 1 (pilot) krijgt erbij: extensie-API 1.4.0 en een eerste extensieversie met tut-1.
 
 ## 11. Buiten scope
 
