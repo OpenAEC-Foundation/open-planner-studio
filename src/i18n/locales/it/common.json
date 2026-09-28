@@ -12,6 +12,8 @@
     "dismiss": "Chiudi notifica",
     "taskEditRevertBlocked": "Una modifica dell'assistente IA o di un'estensione è intervenuta nel frattempo. Le modifiche all'attività precedenti non sono state annullate e restano come passaggi normali in Annulla.",
     "openFailed": "Apertura del file non riuscita",
+    "extGuideCallbackFailed": "Un passaggio dell’estensione {{name}} non è riuscito. La guida continua.",
+    "extHelpProjectOpenFailed": "Impossibile aprire il file di progetto {{file}} dell’estensione {{name}}.",
     "xerInvalidInput": "L’importazione XER richiede i byte originali del file.",
     "xerInvalidFile": "Questo file XER non è valido o supportato.",
     "xerInvalidEncoding": "La codifica di testo di questo file XER non è valida o è troncata.",
@@ -1232,6 +1234,7 @@
     "declaredNote": "È la dichiarazione dell'autore, non una restrizione: il codice può comunque fare di più.",
     "declaredNone": "Nulla di dichiarato.",
     "permImportSource": "importSource — i byte di origine completi di ogni file importato (ad esempio un file Primavera grezzo), compresi i campi che non arrivano mai nel progetto.",
+    "permHelp": "help — può aggiungere articoli della Guida, aprire progetti inclusi come nuovo documento e mostrare una guida che indica parti dell’app.",
     "cancel": "Non installare",
     "confirm": "Installa"
   },
@@ -1454,5 +1457,20 @@
     "leaveTitle": "Modifiche non salvate",
     "leaveBody": "Per aprire la guida, questa finestra si chiude. Salva conserva le modifiche, Annulla le scarta; Indietro ti lascia qui.",
     "back": "Indietro"
+  },
+  "extGuide": {
+    "region": "Guida",
+    "stepOf": "Passaggio {{current}} di {{total}}",
+    "back": "Indietro",
+    "showMe": "Mostrami",
+    "showMeHint": "Prepara questo passaggio per te",
+    "reset": "Ricomincia",
+    "resetHint": "Apri lo stato iniziale di questo passaggio come nuovo documento",
+    "next": "Avanti",
+    "doneNext": "Fatto, avanti",
+    "finish": "Fine",
+    "close": "Chiudi la guida",
+    "stepDone": "Fatto",
+    "waiting": "Esegui l’attività nell’app; poi potrai continuare."
   }
 }

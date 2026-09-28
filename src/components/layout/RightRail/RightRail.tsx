@@ -345,6 +345,8 @@ function RailPanel({
       className={`flex flex-col overflow-hidden${withTopBorder ? ' border-t border-border' : ''}`}
       style={style}
       data-ops-rail-panel={id}
+      // Vast anker voor rondleiding en extensie-begeleiding: `rail:properties|resources|warnings`.
+      data-tour-anchor={`rail:${id}`}
     >
       <div className="flex items-center h-8 px-3 border-b border-border flex-shrink-0">
         <span className="flex-1 min-w-0 !text-small font-bold uppercase tracking-wider text-text-secondary truncate">

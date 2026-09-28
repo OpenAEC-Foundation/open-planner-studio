@@ -175,6 +175,8 @@ export type NotificationSeverity = 'error' | 'info';
  */
 export type NotificationMessageKey =
   | 'notifications.openFailed'
+  | 'notifications.extGuideCallbackFailed'
+  | 'notifications.extHelpProjectOpenFailed'
   | 'notifications.saveFailed'
   | 'notifications.librarySaveFailed'
   | 'notifications.savedViaDownload'

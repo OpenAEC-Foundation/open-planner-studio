@@ -1,0 +1,91 @@
+/* Begeleidingspaneel (extensie-API 1.4.0) — zwevend boven de statusbalk, aan de eindkant van het
+   venster (rechts; in ar/fa links via `inset-inline-*`). Waarom zwevend en niet in de rail: zie de
+   kop van GuidePanel.tsx. Boven dialogen (z 60), onder de meldingen (z 70). */
+
+.guide-panel {
+  position: fixed;
+  bottom: calc(var(--statusbar-height) + 12px);
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  max-height: min(70vh, 560px);
+  display: flex;
+  flex-direction: column;
+  background: var(--theme-surface);
+  color: var(--theme-text);
+  border: 1px solid var(--theme-border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-pop);
+  z-index: 66;
+}
+.guide-panel--end { inset-inline-end: 12px; }
+.guide-panel--start { inset-inline-start: 12px; }
+
+.guide-panel-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2, 8px);
+  padding: 10px 12px 6px;
+  border-bottom: 1px solid var(--theme-border);
+}
+.guide-panel-close {
+  flex-shrink: 0;
+  padding: 2px;
+  border-radius: 4px;
+  color: var(--theme-text-dim);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.guide-panel-close:hover { background: var(--theme-hover); color: var(--theme-text); }
+
+.guide-panel-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2, 8px);
+  padding: 6px 12px 0;
+}
+.guide-panel-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--theme-accent);
+  font-weight: 600;
+}
+
+/* De stap-tekst: dezelfde Markdown-klassen als de Help-viewer, compacter geschaald. */
+.guide-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 12px;
+  max-width: none;
+}
+.guide-panel-body .help-h1,
+.guide-panel-body .help-h2 {
+  font-size: var(--text-heading);
+  margin: 0 0 var(--sp-2, 8px) 0;
+}
+.guide-panel-body .help-h3 {
+  font-size: var(--text-large);
+  margin: var(--sp-2, 8px) 0 var(--sp-1, 4px) 0;
+}
+.guide-panel-body .help-p:last-child { margin-bottom: 0; }
+.guide-panel-explanation {
+  margin-top: var(--sp-3, 10px);
+  padding-top: var(--sp-3, 10px);
+  border-top: 1px solid var(--theme-border);
+}
+
+.guide-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px 10px;
+  border-top: 1px solid var(--theme-border);
+}
+.guide-panel-actions .btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

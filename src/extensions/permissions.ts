@@ -35,6 +35,10 @@ export interface PermissionCheck {
  *       wezenlijk breder dan de rest van `data.*` en dus expliciet GEEN kern-API — zie de
  *       privacyparagraaf in docs/extensions.md. Zonder de permissie gooit de guard vóórdat de
  *       onderliggende functie ooit wordt aangeroepen: er wordt geen enkele byte gelezen.
+ *   • help.*              → 'help' (throw, sinds contract 1.4.0) — Help-artikelen registreren, een
+ *       meegeleverd projectbestand openen en het begeleidingspaneel aansturen. Geen privacyrisico
+ *       zoals `importSource`, maar wel een zichtbare ingreep in de app (een nieuw document, een
+ *       paneel dat knoppen aanwijst): daarom een gedeclareerde, hard afgedwongen permissie.
  *   • overige data.*, settings.*, ui.showNotification → null (kern-API, gedocumenteerd).
  *
  * 'filesystem'/'network' staan bewust NIET in deze tabel: ze hebben geen API-oppervlak en zijn in
@@ -81,6 +85,13 @@ export const API_PERMISSIONS: Record<string, PermissionCheck | null> = {
   'data.getImportSourceChunk': { perm: 'importSource', mode: 'throw' },
   'data.getImportSourceCatalogPage': { perm: 'importSource', mode: 'throw' },
 
+  // Help & begeleiding — hard (contract 1.4.0).
+  'help.registerArticles': { perm: 'help', mode: 'throw' },
+  'help.unregisterArticles': { perm: 'help', mode: 'throw' },
+  'help.openBundledProject': { perm: 'help', mode: 'throw' },
+  'help.startGuide': { perm: 'help', mode: 'throw' },
+  'help.stopGuide': { perm: 'help', mode: 'throw' },
+
   // Settings — kern-API.
   'settings.get': null,
   'settings.set': null,
@@ -95,6 +106,7 @@ export const KNOWN_PERMISSIONS: readonly ExtensionPermission[] = [
   'network',
   'pdf-fonts',
   'importSource',
+  'help',
 ];
 
 /**

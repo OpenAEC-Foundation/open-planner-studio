@@ -346,8 +346,10 @@ eq('X12 extensie leest de P6-relatievlag uit maar voert haar niet generiek terug
     [exposed.schedulingProfile?.id, exposed.schedulingProfile?.conventions.p6RelationFinishBoundary], ['p6', true]);
   eq('C8-02 OPS-project toont het ops-profiel', toExtProject({ ...VOL_PROJECT, schedulingProfile: undefined }).schedulingProfile?.id, 'ops');
   eq('C8-03 fromExtProject neemt NOOIT een profiel over (extensie-import ⇒ OPS)', fromExtProject(exposed).schedulingProfile, undefined);
-  // Taaktypes (PR #101): workRule/defaultWorkRule/werkvelden zijn een MINOR-toevoeging ⇒ 1.3.0.
-  eq('C8-04 contractversie 1.3.0 (1.2.0 profiel + 1.3.0 taaktypes)', EXTENSION_API_VERSION, '1.3.0');
+  // Taaktypes (PR #101): workRule/defaultWorkRule/werkvelden zijn een MINOR-toevoeging ⇒ 1.3.0;
+  // Help & begeleiding (`api.help.*`, permissie `help`) is de volgende MINOR ⇒ 1.4.0
+  // (tests/planning/check-ext-help.ts).
+  eq('C8-04 contractversie 1.4.0 (1.2.0 profiel + 1.3.0 taaktypes + 1.4.0 help)', EXTENSION_API_VERSION, '1.4.0');
   const custom = toExtProject(VOL_PROJECT).schedulingProfile;
   eq('C8-05 eigen profiel: id, basis, naam en de zevenentwintig opgeloste conventies',
     [custom?.id, custom?.baseId, custom?.name, Object.keys(custom?.conventions ?? {}).length, custom?.conventions.clampNegativeFreeFloat],

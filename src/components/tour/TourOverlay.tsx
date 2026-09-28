@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { useDialogKeys } from '@/hooks/useDialogKeys';
 import { TOUR_STEPS } from './tourSteps';
+import { TourSpotlight } from './TourSpotlight';
+import { tourAnchorSelector } from './tourAnchor';
 
 const CARD_WIDTH = 300;
 const CARD_MARGIN = 12;
@@ -158,7 +160,7 @@ export function TourOverlay() {
     const raf1 = requestAnimationFrame(() => {
       raf2 = requestAnimationFrame(() => {
         if (cancelled) return;
-        const el = document.querySelector(`[data-tour-anchor="${step.anchor}"]`);
+        const el = document.querySelector(tourAnchorSelector(step.anchor));
         if (!el) {
           const dir = directionRef.current;
           if (dir === 'forward' && stepIndex < TOUR_STEPS.length - 1) goTo(stepIndex + 1, 'forward');
@@ -181,7 +183,7 @@ export function TourOverlay() {
   useEffect(() => {
     if (!step) return;
     const reposition = () => {
-      const el = document.querySelector(`[data-tour-anchor="${step.anchor}"]`);
+      const el = document.querySelector(tourAnchorSelector(step.anchor));
       if (el) setRect(el.getBoundingClientRect());
       setViewport({ w: window.innerWidth, h: window.innerHeight });
     };
@@ -239,21 +241,7 @@ export function TourOverlay() {
       {/* Highlight-ring (spotlight-box-shadow-truc) — puur visueel, `pointer-events: none`: de
           laag hierboven regelt de klik-blokkering (box-shadow buiten de elementgrenzen telt sowieso
           niet mee voor hit-testing, zie de bestandskop). */}
-      <div
-        aria-hidden
-        style={{
-          position: 'fixed',
-          left: rect.left - 6,
-          top: rect.top - 6,
-          width: rect.width + 12,
-          height: rect.height + 12,
-          borderRadius: 10,
-          boxShadow: '0 0 0 9999px rgba(0,0,0,0.55), 0 0 0 2px var(--accent, #D97706)',
-          pointerEvents: 'none',
-          zIndex: 9998,
-          transition: 'left 0.15s ease, top 0.15s ease, width 0.15s ease, height 0.15s ease',
-        }}
-      />
+      <TourSpotlight rect={rect} dimOpacity={0.55} zIndex={9998} />
 
       {/* Tooltip-kaart — enige interactieve deel van de overlay. Positie volledig geklemd op de
           viewport door `computeCardPosition` (zie bestandskop) — top/left zijn hier altijd al

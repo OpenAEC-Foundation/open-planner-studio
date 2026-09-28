@@ -12,6 +12,8 @@
     "dismiss": "Fermer la notification",
     "taskEditRevertBlocked": "Une modification de l'assistant IA ou d'une extension est intervenue entre-temps. Les modifications de tâche antérieures n'ont pas été annulées et restent des étapes ordinaires sous Annuler.",
     "openFailed": "Échec de l'ouverture du fichier",
+    "extGuideCallbackFailed": "Une étape de l’extension {{name}} a échoué. Le guide continue.",
+    "extHelpProjectOpenFailed": "Le fichier de projet {{file}} de l’extension {{name}} n’a pas pu être ouvert.",
     "xerInvalidInput": "L’import XER nécessite les octets d’origine du fichier.",
     "xerInvalidFile": "Ce fichier XER n’est pas valide ou pris en charge.",
     "xerInvalidEncoding": "L’encodage de ce fichier XER est invalide ou tronqué.",
@@ -1232,6 +1234,7 @@
     "declaredNote": "C'est la déclaration de l'auteur, pas une restriction — le code peut faire davantage.",
     "declaredNone": "Rien de déclaré.",
     "permImportSource": "importSource — les octets source complets de chaque fichier importé (par exemple un fichier Primavera brut), y compris les champs qui n'atteignent jamais le projet.",
+    "permHelp": "help — peut ajouter des articles d’aide, ouvrir des projets fournis comme nouveau document et afficher un guide qui désigne des éléments de l’application.",
     "cancel": "Ne pas installer",
     "confirm": "Installer"
   },
@@ -1454,5 +1457,20 @@
     "leaveTitle": "Modifications non enregistrées",
     "leaveBody": "Pour ouvrir l’aide, cette boîte de dialogue se ferme. Enregistrer conserve vos modifications, Annuler les abandonne ; Retour vous garde ici.",
     "back": "Retour"
+  },
+  "extGuide": {
+    "region": "Guide",
+    "stepOf": "Étape {{current}} sur {{total}}",
+    "back": "Retour",
+    "showMe": "Montrez-moi",
+    "showMeHint": "Prépare cette étape pour vous",
+    "reset": "Recommencer",
+    "resetHint": "Ouvrir l’état de départ de cette étape comme nouveau document",
+    "next": "Suivant",
+    "doneNext": "Terminé, suivant",
+    "finish": "Terminer",
+    "close": "Fermer le guide",
+    "stepDone": "Fait",
+    "waiting": "Effectuez la tâche dans l’application ; vous pourrez ensuite continuer."
   }
 }

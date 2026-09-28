@@ -12,6 +12,8 @@
     "dismiss": "Melding sluiten",
     "taskEditRevertBlocked": "Een wijziging van de AI-assistent of een extensie kwam tussendoor. De taakwijzigingen van daarvóór zijn niet teruggedraaid en staan als gewone stappen onder Ongedaan maken.",
     "openFailed": "Bestand openen mislukt",
+    "extGuideCallbackFailed": "Een stap van de extensie {{name}} gaf een fout. De begeleiding gaat door.",
+    "extHelpProjectOpenFailed": "Het projectbestand {{file}} van de extensie {{name}} kon niet worden geopend.",
     "xerInvalidInput": "XER-import vereist de oorspronkelijke bestandsbytes.",
     "xerInvalidFile": "Dit bestand is geen geldig of ondersteund XER-bestand.",
     "xerInvalidEncoding": "De tekencodering van dit XER-bestand is ongeldig of afgekapt.",
@@ -1182,6 +1184,7 @@
     "declaredNote": "Dit is de opgave van de maker, geen beperking — de code kan hoe dan ook meer.",
     "declaredNone": "Niets opgegeven.",
     "permImportSource": "importSource — de volledige oorspronkelijke bronbytes van elk geïmporteerd bestand (bijvoorbeeld een rauw Primavera-bestand), ook velden die niet in het project terechtkomen.",
+    "permHelp": "help — mag Help-artikelen toevoegen, meegeleverde projecten als nieuw document openen en een begeleiding tonen die onderdelen van de app aanwijst.",
     "cancel": "Niet installeren",
     "confirm": "Installeren"
   },
@@ -1404,5 +1407,20 @@
     "leaveTitle": "Wijzigingen niet opgeslagen",
     "leaveBody": "Om de help te openen sluit deze dialoog. Opslaan bewaart je wijzigingen, Annuleren gooit ze weg; met Terug blijf je hier.",
     "back": "Terug"
+  },
+  "extGuide": {
+    "region": "Begeleiding",
+    "stepOf": "Stap {{current}} van {{total}}",
+    "back": "Terug",
+    "showMe": "Toon mij",
+    "showMeHint": "Zet deze stap voor je klaar",
+    "reset": "Opnieuw",
+    "resetHint": "Open de beginstand van deze stap als nieuw document",
+    "next": "Volgende",
+    "doneNext": "Klaar, volgende",
+    "finish": "Klaar",
+    "close": "Begeleiding sluiten",
+    "stepDone": "Gedaan",
+    "waiting": "Voer de opdracht uit in de app; daarna kun je verder."
   }
 }
