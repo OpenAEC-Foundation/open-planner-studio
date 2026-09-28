@@ -1,4 +1,5 @@
 import type { NotificationDetailLine, NotifyInput } from './slices/types';
+import { TASK_TYPES_HELP_ARTICLE_ID } from './helpArticles';
 
 /**
  * Automatische ontsluiting van taaktypes: één informatieve melding per document
@@ -9,8 +10,6 @@ import type { NotificationDetailLine, NotifyInput } from './slices/types';
  * gids.
  */
 const notifiedDocIds = new Set<string>();
-
-export const TASK_TYPES_HELP_ARTICLE_ID = 'gids-taaktypes';
 
 export function claimTaskTypesNotice(docId: string): boolean {
   if (notifiedDocIds.has(docId)) return false;

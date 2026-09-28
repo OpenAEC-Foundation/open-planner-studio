@@ -22,7 +22,7 @@ import { sameIFCSource } from '@/state/ifcSaveInput';
 import { createRelationWithFeedback } from '@/state/relationActions';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
-import { MPP_TIMEPHASED_HELP_ARTICLE_ID } from '@/state/timephasedLossNotice';
+import { MPP_TIMEPHASED_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import { commitPreparedGridMutation, prepareGridMutation } from '@/state/gridTransaction';
 import type { CellEditIntent } from '@/types/taskGrid';
 import type { PreparedGridMutation } from '@/state/gridTransaction';

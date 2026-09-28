@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { taskHasActiveTimephasedSteering, taskHasTimephasedContours } from '@/utils/taskDefaults';
-import { MPP_TIMEPHASED_HELP_ARTICLE_ID } from '@/state/timephasedLossNotice';
+import { MPP_TIMEPHASED_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
 /**
  * MSP-herkomstmarkering op het eigenschappenpaneel. Twee toestanden,
