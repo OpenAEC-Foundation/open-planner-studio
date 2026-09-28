@@ -125,8 +125,10 @@ meegaat); waarschuwingen en meldingen; rekenopties en conventies; extensiepermis
    hebt. "Veld Naam: de naam" is verboden; zo'n veld laat je weg of je zegt waar hij doorwerkt.
 3. **Oorzaak en gevolg.** Beschrijf wat er verandert en waarom: "Je legt een relatie Eind-Start; daardoor
    begint het metselwerk pas als de fundering klaar is, en schuift de einddatum drie werkdagen op."
-4. **Rekenen met getallen.** Uitleg en tutorials tonen een concreet voorbeeld met datums of uren, zodat de
-   lezer de rekenregel kan nachecken in de app.
+4. **Rekenen met getallen.** Uitleg en tutorials tonen een concreet voorbeeld met datums of uren. In een
+   tutorial bouwt de lezer het zelf op en rekent hij het na in de app; in een uitleg is het voorbeeld om
+   te lezen (netwerk, uitkomst, wat-als), zonder bouw-mee-stappen, en verwijst de uitleg naar de tutorial
+   waarin je het zelf doet (besluit eigenaar, 2026-09-28).
 5. **Alleen wat de app echt doet.** Elke bewering is getoetst aan de code of in de draaiende app. De
    oude gidsen zijn geen bron. Twijfel = navragen of weglaten, nooit gokken.
 6. **Knopnamen letterlijk** zoals de app ze toont (uit `src/i18n/locales/{nl,en}`), met het pad:
@@ -137,6 +139,9 @@ meegaat); waarschuwingen en meldingen; rekenopties en conventies; extensiepermis
    geeft geen klik-voor-klik (verwijs naar de how-to).
 9. **Markdown-subset** van de viewer (`src/utils/miniMarkdown.tsx`): geen tabellen, blockquotes, h4 of
    HTML.
+10. **Links alleen naar artikelen in de nieuwe vorm.** Geen links naar de oude gidsen; een link waarvan het
+    doelartikel nog niet bestaat, laat je weg en wordt toegevoegd zodra dat artikel er is (besluit
+    eigenaar, 2026-09-28).
 
 ### 4.2 Vaste opbouw per soort
 
@@ -157,7 +162,8 @@ meegaat); waarschuwingen en meldingen; rekenopties en conventies; extensiepermis
 **Uitleg**
 1. Het begrip, in gewone taal.
 2. Hoe de app ermee rekent (de regel, met verwijzing naar de instelling of conventie die hem stuurt).
-3. Een uitgewerkt voorbeeld met getallen.
+3. Een uitgewerkt voorbeeld met getallen, om te lezen: het netwerk, de uitkomst en de wat-als-varianten.
+   Zelf opbouwen en naspelen hoort in de tutorial; de uitleg noemt die tutorial.
 4. Gevolgen voor je planning en veelgemaakte misverstanden.
 
 **Referentie**
@@ -170,10 +176,12 @@ te vinden is.** Een regel zonder effect is geen referentie en wordt weggelaten o
 - [ ] Begint elke functie met het waarom? Is er geen kale opsomming?
 - [ ] Is elke bewering getoetst aan code of app (reviewer kiest minstens 5 beweringen en controleert ze)?
 - [ ] Bestaat elke genoemde knop/veldnaam letterlijk als label in `src/i18n/locales/{nl,en}`?
-- [ ] Bevat uitleg/tutorial een rekenvoorbeeld dat in de app na te spelen is?
+- [ ] Rekenvoorbeeld: in een tutorial na te spelen in de app; in een uitleg om te lezen, zonder
+      bouw-mee-stappen, en kloppen alle getallen met de app (ook de wat-als-varianten)?
 - [ ] Je-vorm, korte zinnen, vaktermen uitgelegd?
 - [ ] nl en en inhoudelijk gelijk (zelfde koppen, zelfde voorbeelden)?
-- [ ] Links naar de andere soorten (how-to ↔ uitleg ↔ referentie) aanwezig?
+- [ ] Links naar de andere soorten (how-to ↔ uitleg ↔ referentie) aanwezig, voor zover die al in de
+      nieuwe vorm bestaan? Geen links naar oude gidsen.
 
 Uitvoering van de review: per artikel een kritische review-agent tegen deze checklist, daarna de
 eigenaar voor de pilotartikelen.
@@ -321,7 +329,7 @@ waaronder een dubbele constante voor `datums-zoals-opgeslagen`, Z). Poort 10 lee
 | 1 — pilot | Manifest v2 + viewer (4 soorten, `draft`), tutorialproject (nl/en) + generator, **tut-1**, één how-to, `uitleg-kritiek-pad` | PR('s); review tegen §4.3, daarna eigenaar |
 | 2 | Tutorials 2–7 + screenshots | PR per 1–2 tutorials |
 | 3 | How-to's, uitleg, referentie | PR per domein |
-| 4 — omschakelen | `draft` eraf, oude artikelen en 12 vertaalmappen weg, aliassen, ?-knoppen, poort 10, wiki, recepten/rules/skills bijwerken | PR |
+| 4 — omschakelen | `draft` eraf, oude artikelen en 12 vertaalmappen weg, aliassen, ?-knoppen, poort 10, wiki, recepten/rules/skills bijwerken; 'Zie ook'-links aanvullen die zijn weggelaten omdat het doelartikel nog niet in de nieuwe vorm bestond (§4.1 punt 10) | PR |
 
 **Overgang:** tot fase 4 blijven de oude artikelen de productie-Help; nieuwe artikelen zijn `draft` en
 alleen in dev zichtbaar. Zo ziet een gebruiker nooit een halve mix.
@@ -366,13 +374,18 @@ How-to, uitleg en referentie blijven in `public/docs`.
   voor de ZIP, binnen de bestaande limieten van 24/48 MiB); de wiki publiceert de tutorials niet
   (open punt voor later: eigen wiki-pagina's vanuit de extensie-repo).
 - **Interactief (besluit eigenaar):** de tutorial wordt in de app zelf doorlopen, niet alleen gelezen.
-  1. De gebruiker start een tutorial; de extensie opent het startbestand als nieuw document.
+  1. De gebruiker start een tutorial; de extensie opent het startbestand als nieuw document (tutorial 1
+     uitgezonderd, zie hieronder).
   2. Een smal **begeleidingspaneel** toont de huidige stap (dezelfde tekst als de leesversie).
   3. Het element waar de stap over gaat licht op (overlay van de bestaande rondleiding).
   4. Zodra de stap in het document gedaan is (controle op de documenttoestand), toont het paneel
      "wat je nu ziet, en waarom" en gaat verder.
   5. **Toon mij** zet de stap klaar; **Opnieuw** laadt de tussenstand van het begin van de stap.
+     *Opnieuw* bestaat alleen voor stappen waarvoor de generator een tussenstand levert (akkoord
+     eigenaar, 2026-09-28).
   De leesversie van dezelfde artikelen staat ook in Help (tutorials-sectie).
+- **Tutorial 1 begint in de app (akkoord eigenaar, 2026-09-28):** stap 1 doet de lezer zelf via het
+  venster *Nieuw project*; het startbestand is alleen een overslaan-link voor wie die stap wil overslaan.
 - **Techniek interactief:**
   - Het paneel wordt door de **app** getekend (tekstrollen, thema, RTL, i18n van de knoppen); de extensie
     levert alleen stappen aan: `{ id, body: {nl,en} (markdown), image?, anchor?, check(api) → boolean,

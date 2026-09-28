@@ -754,6 +754,24 @@
       },
       "layer": "referentie",
       "cluster": "relaties-constraints"
+    },
+    {
+      "id": "howto-relaties-leggen",
+      "title": {
+        "nl": "Relaties leggen",
+        "en": "Adding relations"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "uitleg-kritiek-pad",
+      "title": {
+        "nl": "Kritiek pad en speling",
+        "en": "Critical path and float"
+      },
+      "kind": "uitleg",
+      "draft": true
     }
   ],
   "aliases": {}
