@@ -15,8 +15,8 @@ import {
  * hier vandaan, nooit per knop met de hand: `ribbon-group:<tab>:<groupId>` op elke groep en
  * `ribbon:<tab>:<itemId>` op elk item. Een knop-item draagt het anker zelf; een component-item
  * (popover, invoerveld, samengestelde widget) rendert zijn eigen DOM, dus daar zet het render-pad een
- * onzichtbare `<template data-ribbon-anchor>` vóór, waarna `useRibbonAnchorMarkers` (Ribbon.tsx) het
- * anker op de element(en) van dat component zet.
+ * onzichtbare `<template data-ribbon-anchor>` vóór en een `<template data-ribbon-anchor-end>` ná,
+ * waarna `useRibbonAnchorMarkers` (Ribbon.tsx) het anker op precies de elementen daartussen zet.
  *
  * Rules-of-hooks: elke knop met een `use`-binding wordt in zijn EIGEN component-instantie
  * gerenderd (RibbonButtonView) en met een tab-uniek key gemount, zodat een tab-wissel remount
@@ -73,12 +73,13 @@ function RibbonButtonView({ spec, anchor }: { spec: RibbonButtonSpec; anchor: st
 
 function RibbonComponentView({ spec, anchor }: { spec: RibbonComponentSpec; anchor: string }) {
   const C = spec.Component;
-  // `<template>` rendert niets en neemt geen plek in (ook niet in het mini-grid van het lint); hij
-  // markeert alleen waar de elementen van dit component beginnen.
+  // `<template>` rendert niets en neemt geen plek in (ook niet in het mini-grid van het lint); de twee
+  // markeren alleen waar de elementen van dit component beginnen en eindigen.
   return (
     <>
       <template data-ribbon-anchor={anchor} />
       <C />
+      <template data-ribbon-anchor-end="" />
     </>
   );
 }

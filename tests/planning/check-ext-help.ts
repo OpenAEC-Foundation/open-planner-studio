@@ -25,7 +25,8 @@ import { parseExtensionManifest } from '@/extensions/validation';
 import { EXTENSION_API_VERSION } from '@/extensions/apiVersion';
 import { splitGuideBody, validateGuide } from '@/extensions/guideModel';
 import {
-  GUIDE_CHECK_DEBOUNCE_MS, getGuideView, guideNext, guidePrevious, guideReset, guideShowMe, stopGuideSession,
+  GUIDE_CHECK_DEBOUNCE_MS, getGuideView, guideNext, guideOpenProject, guidePrevious, guideReset, guideShowMe,
+  stopGuideSession,
 } from '@/extensions/guideRuntime';
 import { getRegisteredHelpArticles, resetRegisteredHelpArticles } from '@/utils/helpArticleRegistry';
 import type { ExtGuide, ExtHelpArticle, ExtensionApi, ExtensionPermission } from '@/extensions/types';
@@ -332,11 +333,113 @@ for (const method of HELP_METHODS) {
 
   api.help.startGuide(guide([step('a', { check: () => false })]));
   const { api: second } = setup('tweede-bron', ['help']);
+  throwsWith('31b een andere extensie kan een lopende begeleiding niet vervangen',
+    () => second.help.startGuide({ ...guide([step('b')]), id: 'tut-2' }), /er loopt al een begeleiding van extensie "tutorials-async"/);
+  eq('31c de lopende begeleiding blijft staan', [getGuideView()?.extensionId, getGuideView()?.guideId], ['tutorials-async', 'tut-1']);
+  api.help.startGuide({ ...guide([step('c')]), id: 'tut-eigen' });
+  eq('31d de eigenaar mag zijn begeleiding wel vervangen', getGuideView()?.guideId, 'tut-eigen');
+  stopGuideSession(); // de gebruiker klikt Sluiten
   second.help.startGuide({ ...guide([step('b')]), id: 'tut-2' });
-  eq('31b een nieuwe begeleiding vervangt de vorige', getGuideView()?.guideId, 'tut-2');
+  eq('31e na Sluiten kan de andere extensie starten', getGuideView()?.guideId, 'tut-2');
   second._cleanup();
-  eq('31c _cleanup (uitschakelen/verwijderen) stopt de eigen begeleiding', getGuideView(), null);
+  eq('31f _cleanup (uitschakelen/verwijderen) stopt de eigen begeleiding', getGuideView(), null);
   stopGuideSession();
+}
+
+// ── 7. Late uitkomsten van dezelfde stap (Opnieuw, Terug→Volgende) en busy ─────────────────
+{
+  const { api } = setup('tutorials-epoch', ['help']);
+  const releases: Array<(v: boolean) => void> = [];
+  api.help.startGuide(guide([
+    step('eerste'),
+    step('traag', {
+      check: () => new Promise<boolean>(resolve => { releases.push(resolve); }),
+      resetAsset: 'start.ifc',
+    }),
+  ]));
+  guideNext();
+  eq('32a stap 2 controleert (traag)', releases.length, 1);
+  guidePrevious();
+  guideNext(); // zelfde index, nieuwe stapsessie ⇒ nieuwe controle
+  eq('32b opnieuw binnen: nieuwe controle', releases.length, 2);
+  releases[0](true); // uitkomst van de VORIGE sessie van deze stap
+  await flush();
+  eq('32c een late uitkomst van een eerdere sessie van dezelfde stap telt niet', getGuideView()?.done, false);
+  await guideReset();
+  await flush();
+  releases[1](true); // uitkomst van vóór Opnieuw
+  await flush();
+  eq('32d ook niet na Opnieuw', getGuideView()?.done, false);
+  releases[releases.length - 1](true);
+  await flush();
+  eq('32e de uitkomst van de huidige sessie telt wel', getGuideView()?.done, true);
+  stopGuideSession();
+
+  // Toon mij loopt ⇒ Terug/Volgende/nog een Toon mij doen niets (geen tweede prepare).
+  let finishPrepare: () => void = () => {};
+  let prepares = 0;
+  api.help.startGuide(guide([
+    step('a'),
+    step('b', { prepare: () => { prepares++; return new Promise<void>(resolve => { finishPrepare = resolve; }); } }),
+  ]));
+  guideNext();
+  const running = guideShowMe();
+  eq('33a busy tijdens Toon mij', getGuideView()?.busy, true);
+  guidePrevious();
+  guideNext();
+  void guideShowMe();
+  eq('33b Terug/Volgende/Toon mij doen niets zolang Toon mij loopt', [getGuideView()?.stepIndex, prepares], [1, 1]);
+  finishPrepare();
+  await running;
+  eq('33c daarna weer vrij', getGuideView()?.busy, false);
+  stopGuideSession();
+}
+
+// ── 8. Na uitschakelen is de help-groep dood; project://-links ──────────────────────────
+{
+  resetRegisteredHelpArticles();
+  const { ctx, api } = setup('tutorials-dispose', ['help']);
+  api.help.registerArticles([article('tut-x', 1)]);
+  const reg = getRegisteredHelpArticles()[0];
+  const S = ctx.store.getState;
+
+  // Een project://-link in een artikel: eigen melding bij een fout (geen begeleidingstekst).
+  const before = S().ui.notifications.length;
+  reg.openProject!('weg.ifc');
+  await flush();
+  const note = S().ui.notifications.at(-1);
+  eq('34a mislukte project://-link ⇒ eigen melding', [S().ui.notifications.length, note?.messageKey, note?.params], [
+    before + 1, 'notifications.extHelpProjectOpenFailed', { name: 'tutorials-dispose', file: 'weg.ifc' },
+  ]);
+  // Dubbelklik op de link: één document.
+  const docs = S().documents.length;
+  S().addTask({ name: 'eigen werk' });
+  reg.openProject!('start.ifc');
+  reg.openProject!('start.ifc');
+  await sleep(50);
+  await flush();
+  eq('34b dubbelklik op een project://-link opent één document', S().documents.length, docs + 1);
+
+  // Een project://-link in een begeleidingsstap: zelfde bescherming.
+  api.help.startGuide(guide([step('a')]));
+  S().addTask({ name: 'nog meer eigen werk' });
+  const docs2 = S().documents.length;
+  const first = guideOpenProject('start.ifc');
+  void guideOpenProject('start.ifc');
+  await first;
+  eq('34c dubbelklik in het paneel opent één document', S().documents.length, docs2 + 1);
+
+  const img = reg.resolveImage!('img/nl/stap.webp');
+  api._cleanup();
+  eq('35a opruimen stopt de begeleiding', getGuideView(), null);
+  throwsWith('35b registerArticles na uitschakelen gooit', () => api.help.registerArticles([article('tut-y', 1)]), /na uitschakelen/);
+  throwsWith('35c startGuide na uitschakelen gooit', () => api.help.startGuide(guide([step('a')])), /na uitschakelen/);
+  throwsWith('35d stopGuide na uitschakelen gooit', () => api.help.stopGuide(), /na uitschakelen/);
+  throwsWith('35e unregisterArticles na uitschakelen gooit', () => api.help.unregisterArticles(), /na uitschakelen/);
+  await rejectsWith('35f openBundledProject na uitschakelen wordt afgewezen', () => api.help.openBundledProject('start.ifc'), /na uitschakelen/);
+  eq('35g niets achtergebleven in Help of het paneel', [getRegisteredHelpArticles().length, getGuideView()], [0, null]);
+  eq('35h de afbeeldingsresolver geeft niets meer', reg.resolveImage!('img/nl/stap.webp'), '');
+  eq('35i de eerder uitgegeven blob-URL is ingetrokken', resolveObjectURL(img), undefined);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────

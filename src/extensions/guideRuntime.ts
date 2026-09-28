@@ -13,11 +13,14 @@
  * nooit zelf.
  *
  * HET GEDRAG, IN VIJF REGELS.
- *  1. Er loopt hooguit één begeleiding; een nieuwe `start` vervangt de vorige.
+ *  1. Er loopt hooguit één begeleiding. Een nieuwe `start` van DEZELFDE extensie vervangt de vorige;
+ *     loopt er een begeleiding van een ANDERE extensie, dan wordt de start geweigerd (gooit) — alleen
+ *     de gebruiker (Sluiten) of de eigenaar (`stopGuide`) maakt plaats.
  *  2. Bij het openen van een stap, en daarna gebundeld (hooguit eens per 150 ms) na wijzigingen in de app, roept de
  *     host `check(api)` aan. Alleen `true` telt; dan is de stap GEDAAN en blijft hij dat tot de stap
- *     opnieuw begint (Terug/Volgende/Opnieuw). Een uitkomst die binnenkomt nadat de gebruiker al een
- *     andere stap opende, wordt genegeerd.
+ *     opnieuw begint (Terug/Volgende/Opnieuw). Elke keer dat een stap (opnieuw) begint, krijgt hij een
+ *     nieuw volgnummer (`epoch`); een uitkomst die binnenkomt voor een eerder volgnummer — ook van
+ *     dezelfde stap, na Opnieuw of Terug→Volgende — wordt genegeerd.
  *  3. Gooit `check` (of wijst hij af), dan meldt de host dat via het meldingenkanaal en valt de stap
  *     terug op "Klaar, volgende": de gebruiker komt nooit vast te zitten door een fout in de extensie.
  *  4. "Toon mij" = `prepare(api)`, daarna meteen een controle. "Opnieuw" = het `resetAsset` openen als
@@ -77,6 +80,8 @@ interface ActiveGuide {
   view: GuideView;
   unsubscribe: () => void;
   timer: ReturnType<typeof setTimeout> | null;
+  /** Volgnummer van de huidige stapsessie; opgehoogd bij elk (her)begin van een stap. */
+  epoch: number;
 }
 
 /** Bundelvenster voor controles na wijzigingen in de app. */
@@ -108,15 +113,15 @@ function update(guide: ActiveGuide, patch: Partial<GuideView>): void {
   emit();
 }
 
-/** Is `guide` nog steeds actief én staat hij nog op `stepIndex`? */
-function current(guide: ActiveGuide, stepIndex: number): boolean {
-  return active === guide && guide.view.stepIndex === stepIndex;
+/** Is `guide` nog steeds actief én loopt nog dezelfde stapsessie (`epoch`)? */
+function current(guide: ActiveGuide, epoch: number): boolean {
+  return active === guide && guide.epoch === epoch;
 }
 
-function fail(guide: ActiveGuide, stepIndex: number, error: unknown, disableCheck: boolean): void {
+function fail(guide: ActiveGuide, stepIndex: number, epoch: number, error: unknown, disableCheck: boolean): void {
   if (active !== guide) return;
   guide.binding.reportError(guide.steps[stepIndex]?.id ?? '', error);
-  if (disableCheck && current(guide, stepIndex)) update(guide, { checkFailed: true });
+  if (disableCheck && current(guide, epoch)) update(guide, { checkFailed: true });
 }
 
 /** Roep `check` van de huidige stap aan (als die er is en de stap nog niet gedaan is). */
@@ -125,19 +130,20 @@ function runCheck(guide: ActiveGuide): void {
   const { stepIndex, done, checkFailed } = guide.view;
   const check = guide.steps[stepIndex]?.check;
   if (done || checkFailed || typeof check !== 'function') return;
+  const epoch = guide.epoch;
   let result: boolean | Promise<boolean>;
   try {
     result = check(guide.binding.api);
   } catch (error) {
-    fail(guide, stepIndex, error, true);
+    fail(guide, stepIndex, epoch, error, true);
     return;
   }
   void Promise.resolve(result).then(
     (value) => {
-      if (value === true && current(guide, stepIndex) && !guide.view.done) update(guide, { done: true });
+      if (value === true && current(guide, epoch) && !guide.view.done) update(guide, { done: true });
     },
     (error: unknown) => {
-      if (current(guide, stepIndex)) fail(guide, stepIndex, error, true);
+      if (current(guide, epoch)) fail(guide, stepIndex, epoch, error, true);
     },
   );
 }
@@ -157,6 +163,7 @@ function scheduleCheck(guide: ActiveGuide): void {
 
 function enterStep(guide: ActiveGuide, stepIndex: number): void {
   if (guide.timer !== null) { clearTimeout(guide.timer); guide.timer = null; }
+  guide.epoch++;
   update(guide, {
     stepIndex,
     step: stepView(guide.steps[stepIndex]),
@@ -169,12 +176,18 @@ function enterStep(guide: ActiveGuide, stepIndex: number): void {
 
 /**
  * Start een (al gevalideerde) begeleiding. De stappen worden gekopieerd: een extensie die haar
- * object later muteert, verandert de lopende begeleiding niet.
+ * object later muteert, verandert de lopende begeleiding niet. Gooit als er een begeleiding van een
+ * ándere extensie loopt: een extensie mag de tutorial van een andere niet wegpoetsen.
  */
 export function startGuideSession(
   binding: GuideBinding,
   guide: { id: string; title: ExtHelpText; steps: readonly ExtGuideStep[] },
 ): void {
+  if (active && active.binding.extensionId !== binding.extensionId) {
+    throw new Error(
+      `Extensie "${binding.extensionId}": er loopt al een begeleiding van extensie "${active.binding.extensionId}"`,
+    );
+  }
   stopGuideSession();
   const steps: ExtGuideStep[] = guide.steps.map(step => ({
     id: step.id,
@@ -204,6 +217,7 @@ export function startGuideSession(
     },
     unsubscribe: () => {},
     timer: null,
+    epoch: 0,
   };
   active = next;
   next.unsubscribe = binding.subscribe(() => scheduleCheck(next));
@@ -228,7 +242,7 @@ export function stopGuideSession(extensionId?: string): void {
 /** Volgende stap; op de laatste stap sluit dit de begeleiding ("Klaar"). */
 export function guideNext(): void {
   const guide = active;
-  if (!guide) return;
+  if (!guide || guide.view.busy) return;
   const { stepIndex, stepCount } = guide.view;
   if (stepIndex >= stepCount - 1) { stopGuideSession(); return; }
   enterStep(guide, stepIndex + 1);
@@ -236,7 +250,7 @@ export function guideNext(): void {
 
 export function guidePrevious(): void {
   const guide = active;
-  if (!guide || guide.view.stepIndex === 0) return;
+  if (!guide || guide.view.busy || guide.view.stepIndex === 0) return;
   enterStep(guide, guide.view.stepIndex - 1);
 }
 
@@ -247,13 +261,14 @@ export async function guideShowMe(): Promise<void> {
   const stepIndex = guide.view.stepIndex;
   const prepare = guide.steps[stepIndex]?.prepare;
   if (typeof prepare !== 'function' || guide.view.busy) return;
+  const epoch = guide.epoch;
   update(guide, { busy: true });
   try {
     await prepare(guide.binding.api);
   } catch (error) {
-    fail(guide, stepIndex, error, false);
+    fail(guide, stepIndex, epoch, error, false);
   }
-  if (current(guide, stepIndex)) {
+  if (current(guide, epoch)) {
     update(guide, { busy: false });
     runCheck(guide);
   }
@@ -266,13 +281,14 @@ export async function guideReset(): Promise<void> {
   const stepIndex = guide.view.stepIndex;
   const asset = guide.steps[stepIndex]?.resetAsset;
   if (typeof asset !== 'string' || guide.view.busy) return;
+  const epoch = guide.epoch;
   update(guide, { busy: true });
   try {
     await guide.binding.openBundledProject(asset);
   } catch (error) {
-    fail(guide, stepIndex, error, false);
+    fail(guide, stepIndex, epoch, error, false);
   }
-  if (current(guide, stepIndex)) enterStep(guide, stepIndex);
+  if (current(guide, epoch)) enterStep(guide, stepIndex);
 }
 
 /** Afbeeldingspad in de tekst van de lopende begeleiding → URL. */
@@ -280,12 +296,23 @@ export function guideResolveImage(path: string): string {
   return active ? active.binding.resolveImage(path) : '';
 }
 
-/** Een `project://`-link in de stap-tekst: meegeleverd project openen (fout ⇒ melding). */
-export function guideOpenProject(assetName: string): void {
+/**
+ * Een `project://`-link in de stap-tekst: meegeleverd project openen (fout ⇒ melding). Loopt er al
+ * iets (Toon mij, Opnieuw, of deze link zelf: dubbelklik), dan doet een klik niets — anders opent
+ * een dubbelklik twee documenten.
+ */
+export async function guideOpenProject(assetName: string): Promise<void> {
   const guide = active;
-  if (!guide) return;
-  const stepIndex = guide.view.stepIndex;
-  guide.binding.openBundledProject(assetName).catch((error: unknown) => fail(guide, stepIndex, error, false));
+  if (!guide || guide.view.busy) return;
+  const { stepIndex } = guide.view;
+  const epoch = guide.epoch;
+  update(guide, { busy: true });
+  try {
+    await guide.binding.openBundledProject(assetName);
+  } catch (error) {
+    fail(guide, stepIndex, epoch, error, false);
+  }
+  if (current(guide, epoch)) update(guide, { busy: false });
 }
 
 /** Huidige momentopname, of `null` als er geen begeleiding loopt. */

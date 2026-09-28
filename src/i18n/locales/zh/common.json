@@ -13,6 +13,7 @@
     "taskEditRevertBlocked": "AI 助手或扩展在此期间进行了更改。此前的任务修改未被还原，仍作为普通步骤保留在“撤销”中。",
     "openFailed": "打开文件失败",
     "extGuideCallbackFailed": "扩展 {{name}} 的一个步骤出错。引导将继续。",
+    "extHelpProjectOpenFailed": "无法打开扩展 {{name}} 的项目文件 {{file}}。",
     "xerInvalidInput": "导入 XER 需要原始文件字节。",
     "xerInvalidFile": "这不是有效或受支持的 XER 文件。",
     "xerInvalidEncoding": "此 XER 文件的文本编码无效或已截断。",

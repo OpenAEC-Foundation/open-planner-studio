@@ -13,6 +13,7 @@
     "taskEditRevertBlocked": "Uma alteração do assistente de IA ou de uma extensão ocorreu entretanto. As alterações da tarefa anteriores não foram revertidas e permanecem como passos normais em Desfazer.",
     "openFailed": "Falha ao abrir o arquivo",
     "extGuideCallbackFailed": "Um passo da extensão {{name}} falhou. O guia continua.",
+    "extHelpProjectOpenFailed": "Não foi possível abrir o ficheiro de projeto {{file}} da extensão {{name}}.",
     "xerInvalidInput": "A importação XER requer os bytes originais do arquivo.",
     "xerInvalidFile": "Este não é um arquivo XER válido ou compatível.",
     "xerInvalidEncoding": "A codificação de texto deste arquivo XER é inválida ou está truncada.",

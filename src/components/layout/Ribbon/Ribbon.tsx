@@ -225,21 +225,29 @@ function useRibbonAutoFit(
  * ------------------------------------------------------------------------------------------------
  * Knoppen en groepen krijgen hun `data-tour-anchor` rechtstreeks van het render-pad
  * (RibbonTabContent). Een component-item (popover, invoerveld, samengestelde widget) rendert zijn
- * eigen DOM; daarvoor zet het render-pad een onzichtbare `<template data-ribbon-anchor="…">` vóór het
- * component. Deze hook zet dat anker op elk element ná de markering, tot de volgende markering of het
- * einde van de ouder — dus op precies de elementen van dat ene component, hoeveel het er ook zijn.
+ * eigen DOM; daarvoor zet het render-pad een onzichtbare `<template data-ribbon-anchor="…">` vóór en
+ * een `<template data-ribbon-anchor-end>` ná het component. Deze hook zet dat anker op elk element
+ * tussen die twee — dus op precies de elementen van dat ene component, hoeveel het er ook zijn, en
+ * nooit op een knop die erna komt.
  *
  * Een component kan zijn eigen wortel opnieuw renderen zonder dat het lint rendert (eigen
  * store-selectors); een MutationObserver op `childList` vangt dat op. Het zetten van een attribuut
  * is geen `childList`-mutatie, dus er ontstaat geen lus.
  */
 const ANCHOR_MARKER_ATTR = 'data-ribbon-anchor';
+/** Sluitmarkering direct ná het component: wat daarna komt (bv. een gewone knop met een eigen,
+ *  door React gezet anker) hoort niet meer bij dit component. */
+const ANCHOR_END_ATTR = 'data-ribbon-anchor-end';
 
 function applyRibbonAnchorMarkers(root: HTMLElement): void {
   root.querySelectorAll<HTMLTemplateElement>(`template[${ANCHOR_MARKER_ATTR}]`).forEach(marker => {
     const anchor = marker.getAttribute(ANCHOR_MARKER_ATTR);
     if (!anchor) return;
-    for (let el = marker.nextElementSibling; el && !el.hasAttribute(ANCHOR_MARKER_ATTR); el = el.nextElementSibling) {
+    for (
+      let el = marker.nextElementSibling;
+      el && !el.hasAttribute(ANCHOR_END_ATTR) && !el.hasAttribute(ANCHOR_MARKER_ATTR);
+      el = el.nextElementSibling
+    ) {
       if (el.getAttribute('data-tour-anchor') !== anchor) el.setAttribute('data-tour-anchor', anchor);
     }
   });

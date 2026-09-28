@@ -97,7 +97,7 @@ export function GuidePanel() {
   );
   const handlers = useMemo(() => ({
     onNavigate: (target: string) => openHelpArticle(target),
-    onOpenProject: (asset: string) => guideOpenProject(asset),
+    onOpenProject: (asset: string) => { void guideOpenProject(asset); },
     resolveImage,
   }), [openHelpArticle, resolveImage]);
 
@@ -171,7 +171,7 @@ export function GuidePanel() {
             type="button"
             className="btn btn--sm btn--ghost"
             onClick={guidePrevious}
-            disabled={isFirst}
+            disabled={isFirst || view.busy}
             data-ops-guide-action="back"
           >
             {t('extGuide.back')}

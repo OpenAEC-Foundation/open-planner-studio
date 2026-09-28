@@ -161,7 +161,9 @@ again replaces the previous set. The text uses the same Markdown subset as the b
 - `![alt](img/{lang}/step-1.webp)` — the image comes from your **own assets** (the ZIP path), with
   `{lang}` replaced by `nl` or `en`, served as a blob URL that is revoked on disable. A missing asset
   shows the alt text in a placeholder.
-- `[Open the starting project](project://start.ifc)` — opens that bundled `.ifc` as a new document.
+- `[Open the starting project](project://start.ifc)` — opens that bundled `.ifc` as a new document. If
+  that fails, the app reports that the extension's project file could not be opened; a double click
+  opens one document.
 
 **Bundled project.** `openBundledProject('start.ifc')` opens an `.ifc` from your assets as a **new
 document**, exactly like an example from File → Examples: no save target or file handle, and the
@@ -169,19 +171,24 @@ active document is never overwritten — only an empty, unchanged tab is reused.
 when the asset is missing, is not an `.ifc`, or cannot be read.
 
 **Guide.** `startGuide` validates the whole guide first and starts nothing on any error. At most one
-guide runs at a time; a new one replaces the previous. The panel is drawn by the **app** (theme, text
+guide runs at a time. A new `startGuide` from your own extension replaces your previous guide; while a
+guide of **another** extension runs, `startGuide` throws and that guide stays — only the user (Close)
+or its owner (`stopGuide`) makes room. The panel is drawn by the **app** (theme, text
 roles, RTL, translated buttons): title, "Step n of N", the task, and — once the step is done — the
 explanation after `---`. Buttons: **Back**, **Show me** (with `prepare`), **Start over** (with
 `resetAsset`), **Next** / **Finish** on the last step, and Close.
 
 - The host calls `check(api)` when the step opens and then, batched (at most once per 150 ms), after
   every change in the app. Only `true` counts; the step then stays done until it starts again.
-  A late async result for a step the user already left is ignored.
+  A late async result from an earlier pass through the step is ignored — also for the same step after
+  Start over or Back→Next. While Show me, Start over or a `project://` link is running, the buttons
+  are disabled.
 - **Without `check`** the panel shows the explanation straight away and a **Done, next** button.
 - **Errors** in `check`/`prepare` are caught and reported through the app's notification channel; a
   throwing `check` is not called again and the step falls back to **Done, next**.
 - `stopGuide()` only closes a guide of your own extension. Disabling or removing the extension closes
-  the panel and removes the articles from Help.
+  the panel and removes the articles from Help; after that every `api.help.*` method throws
+  (`openBundledProject` rejects), so a leftover timer cannot put anything back.
 
 The panel floats bottom-right (bottom-left in `ar`/`fa`) above the status bar rather than in the right
 rail, which does not exist in the full views (Table, IFC, Report, Resources) or in Backstage. If the

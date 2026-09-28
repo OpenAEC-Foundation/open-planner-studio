@@ -11,7 +11,10 @@
  *  - het openen van een meegeleverd `.ifc`: dezelfde route als een voorbeeld (`openExampleFromString`):
  *    nieuw document zonder opslagdoel of bestandshandle, en alleen een leeg, ongewijzigd tabblad wordt
  *    hergebruikt — het actieve document wordt nooit overschreven;
- *  - het opruimen: artikelen uit het register, blob-URL's ingetrokken, eigen begeleiding gestopt.
+ *  - het opruimen: artikelen uit het register, blob-URL's ingetrokken, eigen begeleiding gestopt. Daarna
+ *    is deze groep DOOD (`disposed`): een achtergebleven timer of async-vervolg van een uitgeschakelde
+ *    extensie kan geen artikelen of begeleiding meer neerzetten die niemand nog opruimt — elke methode
+ *    gooit, en de afbeeldingsresolver geeft `''`.
  *
  * De permissiecontrole zit niet hier maar centraal in `permissions.ts` (`help.*` → `help`, hard).
  */
@@ -62,11 +65,19 @@ export interface HelpApiContext {
 export function createHelpApi(ctx: HelpApiContext): ExtensionApi['help'] {
   const { extensionId, assets, document, host, getApi, cleanupFns } = ctx;
 
+  let disposed = false;
+  const assertAlive = (method: string): void => {
+    if (disposed) {
+      throw new Error(`Extensie "${extensionId}": help.${method} na uitschakelen of verwijderen van de extensie`);
+    }
+  };
+
   const assetBytes = (name: string): Uint8Array | undefined =>
     assets && Object.prototype.hasOwnProperty.call(assets, name) ? assets[name] : undefined;
 
   const blobUrls = new Map<string, string>();
   const resolveImage = (path: string): string => {
+    if (disposed) return '';
     const cached = blobUrls.get(path);
     if (cached) return cached;
     const bytes = assetBytes(path);
@@ -77,6 +88,7 @@ export function createHelpApi(ctx: HelpApiContext): ExtensionApi['help'] {
   };
 
   const openBundledProject = async (assetName: string): Promise<void> => {
+    assertAlive('openBundledProject');
     if (typeof assetName !== 'string' || !/\.ifc$/i.test(assetName)) {
       throw new Error(`Extensie "${extensionId}": openBundledProject verwacht de naam van een .ifc-asset`);
     }
@@ -101,12 +113,27 @@ export function createHelpApi(ctx: HelpApiContext): ExtensionApi['help'] {
     }
   };
 
-  const openProjectFromLink = (assetName: string): void => {
-    openBundledProject(assetName).catch((error: unknown) => reportError('', error));
-  };
-
   const extensionName = (): string =>
     host.app.store.getState().installedExtensions[extensionId]?.manifest.name ?? extensionId;
+
+  // Een `project://`-link in een Help-artikel. Eigen melding (er loopt dan niet per se een
+  // begeleiding), en een dubbelklik opent niet twee documenten.
+  let linkOpening = false;
+  const openProjectFromLink = (assetName: string): void => {
+    if (linkOpening) return;
+    linkOpening = true;
+    openBundledProject(assetName)
+      .catch((error: unknown) => {
+        if (isAlreadyNotified(error)) return;
+        host.app.store.getState().notify({
+          severity: 'error',
+          messageKey: 'notifications.extHelpProjectOpenFailed',
+          params: { name: extensionName(), file: String(assetName) },
+          detail: error instanceof Error ? error.message : String(error),
+        });
+      })
+      .finally(() => { linkOpening = false; });
+  };
 
   function reportError(stepId: string, error: unknown): void {
     if (isAlreadyNotified(error)) return;
@@ -128,6 +155,7 @@ export function createHelpApi(ctx: HelpApiContext): ExtensionApi['help'] {
   };
 
   cleanupFns.push(() => {
+    disposed = true;
     dropArticles();
     stopGuideSession(extensionId);
     for (const url of blobUrls.values()) URL.revokeObjectURL(url);
@@ -136,6 +164,7 @@ export function createHelpApi(ctx: HelpApiContext): ExtensionApi['help'] {
 
   return {
     registerArticles(articles: ExtHelpArticle[]) {
+      assertAlive('registerArticles');
       if (!Array.isArray(articles)) {
         throw new Error(`Extensie "${extensionId}": registerArticles verwacht een lijst artikelen`);
       }
@@ -159,12 +188,14 @@ export function createHelpApi(ctx: HelpApiContext): ExtensionApi['help'] {
     },
 
     unregisterArticles() {
+      assertAlive('unregisterArticles');
       dropArticles();
     },
 
     openBundledProject,
 
     startGuide(guide: ExtGuide) {
+      assertAlive('startGuide');
       const errors = validateGuide(guide, name => assetBytes(name) !== undefined);
       if (errors.length > 0) {
         throw new Error(`Extensie "${extensionId}": ongeldige begeleiding — ${errors.join('; ')}`);
@@ -180,6 +211,7 @@ export function createHelpApi(ctx: HelpApiContext): ExtensionApi['help'] {
     },
 
     stopGuide() {
+      assertAlive('stopGuide');
       stopGuideSession(extensionId);
     },
   };

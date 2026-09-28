@@ -13,6 +13,7 @@
     "taskEditRevertBlocked": "Bu arada yapay zekâ asistanından veya bir uzantıdan bir değişiklik geldi. Ondan önceki görev düzenlemeleri geri alınmadı ve Geri Al altında normal adımlar olarak kalıyor.",
     "openFailed": "Dosya açılamadı",
     "extGuideCallbackFailed": "{{name}} uzantısının bir adımı başarısız oldu. Rehber devam ediyor.",
+    "extHelpProjectOpenFailed": "{{name}} uzantısının {{file}} proje dosyası açılamadı.",
     "xerInvalidInput": "XER içe aktarma işlemi özgün dosya baytlarını gerektirir.",
     "xerInvalidFile": "Bu, geçerli veya desteklenen bir XER dosyası değil.",
     "xerInvalidEncoding": "Bu XER dosyasının metin kodlaması geçersiz veya eksik.",

@@ -211,6 +211,14 @@ test('generieke lintankers: tab, groep, knop en component-item', async ({ page, 
   await expect(page.locator('button[data-tour-anchor="ribbon:start:addTask"]')).toBeVisible();
   // Component-item (dropdown met eigen DOM): het anker staat op de elementen van het component.
   await expect(page.locator('[data-tour-anchor="ribbon:start:milestone"]').first()).toBeVisible();
+  // Een gewone knop ná een component-item houdt zijn eigen anker (erft niet dat van het component).
+  await expect(page.locator('button[data-tour-anchor="ribbon:start:splitTask"]')).toHaveCount(1);
+  await expect(page.locator('[data-tour-anchor="ribbon:start:relation"]')).not.toHaveCount(0);
+  await expect(page.locator('[data-tour-anchor="ribbon:start:relation"] [data-ops-ribbon-item="splitTask"], [data-tour-anchor="ribbon:start:relation"][data-ops-ribbon-item="splitTask"]')).toHaveCount(0);
+  await page.locator('[data-tour-anchor="ribbon-tab:beeld"]').click();
+  await expect(page.locator('button[data-tour-anchor="ribbon:beeld:toggleResourceAccent"]')).toHaveCount(1);
+  await expect(page.locator('[data-tour-anchor="ribbon:beeld:screenColors"]').first()).toBeAttached();
+  await page.locator('[data-tour-anchor="ribbon-tab:start"]').click();
   await page.locator('[data-tour-anchor="ribbon-tab:planning"]').click();
   await expect(page.locator('[data-tour-anchor="ribbon:start:addTask"]')).toHaveCount(0);
   await expect(page.locator('[data-tour-anchor="ribbon:planning:calendar"]')).toBeVisible();

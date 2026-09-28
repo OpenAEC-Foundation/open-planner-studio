@@ -346,7 +346,8 @@ extensie-specifieke aanvullingen:
   `{lang}` vervangen door `nl` of `en`. De app maakt er een blob-URL van en trekt die in bij het
   uitschakelen. Ontbreekt de asset, dan toont de viewer de alt-tekst in een placeholder.
 - `[Open het startproject](project://start.ifc)` — opent die meegeleverde `.ifc` als nieuw document
-  (zelfde route als `openBundledProject`).
+  (zelfde route als `openBundledProject`). Lukt dat niet, dan meldt de app "Het projectbestand … van
+  de extensie … kon niet worden geopend"; een dubbelklik opent één document.
 
 **Meegeleverd project.** `openBundledProject('start.ifc')` opent een `.ifc` uit je assets als
 **nieuw document**, precies zoals een voorbeeld uit Bestand → Voorbeelden: zonder opslagdoel of
@@ -358,7 +359,9 @@ geval heeft de app zelf al "Bestand openen mislukt" gemeld).
 **Begeleiding.** `startGuide` valideert eerst de hele begeleiding (id's, teksten in `nl` en `en`, hooguit
 één `---` per tekst en een opdracht ervóór, geldige ankernaam, `check`/`prepare` zijn functies,
 `resetAsset` is een `.ifc` die in je assets zit) en start bij de eerste fout niets. Er loopt hooguit
-één begeleiding tegelijk; een nieuwe vervangt de vorige. Het paneel wordt door de **app** getekend
+één begeleiding tegelijk. Een nieuwe `startGuide` van je eigen extensie vervangt je vorige; loopt er
+een begeleiding van een **andere** extensie, dan gooit `startGuide` en blijft die staan — alleen de
+gebruiker (Sluiten) of de eigenaar (`stopGuide`) maakt plaats. Het paneel wordt door de **app** getekend
 (thema, tekstrollen, RTL en vertaalde knoppen) en toont titel, "Stap n van N", de opdracht, en —
 zodra de stap gedaan is — de uitleg ná `---`. Afbeeldingen en `project://`-links in een stap werken
 zoals in een artikel. Knoppen: **Terug**, **Toon mij** (alleen met `prepare`), **Opnieuw** (alleen met
@@ -367,16 +370,20 @@ zoals in een artikel. Knoppen: **Terug**, **Toon mij** (alleen met `prepare`), *
 - `check(api)` roept de host aan bij het openen van de stap en daarna, gebundeld (hooguit eens per
   150 ms), na elke wijziging in de app — je hoeft zelf geen events te beluisteren. Alleen `true`
   telt; dan is de stap gedaan en blijft hij dat tot de stap opnieuw begint (Terug, Volgende,
-  Opnieuw). Een asynchrone uitkomst die binnenkomt nadat de gebruiker al verder is, telt niet.
+  Opnieuw). Een asynchrone uitkomst van een eerdere doorgang van de stap telt niet — ook niet van
+  dezelfde stap na Opnieuw of Terug→Volgende.
   Lees de toestand via `api.data.*`.
 - **Zonder `check`** toont het paneel direct de uitleg en de knop **Klaar, volgende**.
 - **Toon mij** roept `prepare(api)` aan en controleert daarna meteen. **Opnieuw** opent
-  `resetAsset` als nieuw document en begint de stap opnieuw.
+  `resetAsset` als nieuw document en begint de stap opnieuw. Zolang een van beide (of een
+  `project://`-link in de stap) nog loopt, zijn de knoppen uitgeschakeld.
 - **Fouten** in `check`/`prepare` (gooien of een afgewezen belofte) vangt de app op en meldt ze via het
   meldingenkanaal ("Een stap van de extensie … gaf een fout"); een gooiende `check` wordt daarna niet
   meer aangeroepen en de stap valt terug op **Klaar, volgende**. De gebruiker komt nooit vast te zitten.
 - `stopGuide()` sluit alleen een begeleiding van je eigen extensie. Uitschakelen of verwijderen van
-  de extensie sluit het paneel en haalt de artikelen uit Help.
+  de extensie sluit het paneel en haalt de artikelen uit Help. Daarna gooit elke `api.help.*`-methode
+  (`openBundledProject` wordt afgewezen): een achtergebleven timer van een uitgeschakelde extensie kan
+  niets meer neerzetten.
 
 Het paneel zweeft rechtsonder (in `ar`/`fa` linksonder) boven de statusbalk, en niet in de
 rechterrail: die bestaat niet in de volledige weergaven (Tabel, IFC, Rapport, Resources) en in
