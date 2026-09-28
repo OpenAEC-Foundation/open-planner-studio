@@ -3022,7 +3022,8 @@ export class CPMSolver {
 
   /**
    * ALAP (P6-semantiek, zero free float): schuif de vroege datums van ALAP-taken op met
-   * hun eigen vrije speling — opvolgers bewegen per definitie niet. Draait ná de backward
+   * hun eigen vrije speling. Opvolgers eerst: een niet-ALAP-opvolger beweegt niet, een ALAP-opvolger
+   * is dan al verschoven, zodat een ALAP-keten schakel voor schakel aansluit. Draait ná de backward
    * pass; de constraint-cache van uitgaande relaties wordt geactualiseerd zodat de
    * relatie-floats en driving-markering daarna kloppen (de relatie wordt precies bindend).
    *
@@ -3059,7 +3060,11 @@ export class CPMSolver {
     // gepositioneerd, opvolgers eerst. Alle andere ALAP-taken volgen de stap hieronder.
     const fromSuccessors = this.options.schedulingOptions?.p6AlapPositionedFromSuccessors === true;
     const alapTaskIds: string[] = [];
-    for (const taskId of order) {
+    // Opvolgers eerst (audit 2026-09-26, eigenaarsbesluit: alle profielen). In voorwaartse volgorde
+    // mat een ALAP-voorganger haar vrije speling tegen een nog niet verschoven ALAP-opvolger, zodat
+    // van een keten A→B→einde alleen B laat kwam; MS Project en P6 zetten de hele keten laat.
+    for (let i = order.length - 1; i >= 0; i--) {
+      const taskId = order[i];
       const task = this.tasks.get(taskId);
       if (task?.constraint?.type !== 'ALAP') continue;
       if (task.manuallyScheduled) continue;   // uitsluiting (1) — zie docblok hierboven.
@@ -3104,6 +3109,8 @@ export class CPMSolver {
         );
       }
     }
+    // `applyAlapFromSuccessors` verwacht voorwaartse volgorde (hij loopt de lijst zelf achterstevoren).
+    alapTaskIds.reverse();
     if (fromSuccessors) this.applyAlapFromSuccessors(alapTaskIds, earlyDates, lateDates);
   }
 
