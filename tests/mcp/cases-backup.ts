@@ -252,19 +252,22 @@ test('een opgeslagen document deelt zijn backupmap over sessies heen; eerdere se
   const dir = [...dirs][0];
   assert(dir.includes('file-Kantoor Zuidas-'), `leesbare mapnaam, kreeg ${dir}`);
   assert(backupBucket('a', '/x/Plan.ifc') !== backupBucket('a', '/y/Plan.ifc'), 'gelijke naam, andere map ⇒ andere emmer');
-  assertEq(backupBucket('doc-9', null), 'doc-9', 'nooit opgeslagen ⇒ doc-id');
+  assertEq(backupBucket('doc-9', null), 'unsaved-doc-9', 'nooit opgeslagen ⇒ unsaved-<doc-id>');
 });
 
 test('opruimen loopt ook de andere mappen na: een oude map van een nooit opgeslagen document verdwijnt', async () => {
   const { fs, files, dirs } = makeFakeFs();
   const root = '/appdata/ai-backups';
-  const oldLoose = `${root}/doc-oud`;
+  const oldLoose = `${root}/unsaved-doc-oud`;
   const oldFile = `${root}/file-Kantoor-0000abcd`;
-  const mixed = `${root}/doc-met-notitie`;
-  for (const d of [oldLoose, oldFile, mixed]) dirs.add(d);
+  // Map van vóór 2026-09-28 (kale doc-id): kan bij een opgeslagen bestand horen ⇒ één per jaar.
+  const legacy = `${root}/doc-van-voor-de-wijziging`;
+  const mixed = `${root}/unsaved-doc-met-notitie`;
+  for (const d of [oldLoose, oldFile, legacy, mixed]) dirs.add(d);
   for (const y of [2, 3]) {
     files.set(`${oldLoose}/${nameAt(NOW - y * 365 * DAY)}`, 'oud');
     files.set(`${oldFile}/${nameAt(NOW - y * 365 * DAY)}`, 'oud');
+    files.set(`${legacy}/${nameAt(NOW - y * 365 * DAY)}`, 'oud');
   }
   files.set(`${mixed}/${nameAt(NOW - 800 * DAY)}`, 'oud');
   files.set(`${mixed}/notitie.txt`, 'van de gebruiker');
@@ -280,6 +283,7 @@ test('opruimen loopt ook de andere mappen na: een oude map van een nooit opgesla
 
   assert(!dirs.has(oldLoose) && ![...files.keys()].some((p) => p.startsWith(oldLoose + '/')), 'de oude losse map is helemaal weg');
   assertEq([...files.keys()].filter((p) => p.startsWith(oldFile + '/')).length, 2, 'een opgeslagen bestand houdt één per jaar');
+  assertEq([...files.keys()].filter((p) => p.startsWith(legacy + '/')).length, 2, 'een map van vóór de wijziging houdt ook één per jaar');
   assert(files.has(`${mixed}/notitie.txt`) && dirs.has(mixed), 'een vreemd bestand blijft staan, en daarmee de map');
   assertEq([...files.keys()].filter((p) => p.startsWith(mixed + '/')).length, 1, 'alleen onze oude backup is weg');
 });
@@ -320,7 +324,7 @@ test('het backup-pad bevat de ai-backups-map, de docId-submap en de gesaneerde p
   const path = (await svc.ensureBackup('doc-xyz', 'mutate'))!;
 
   assert(path.includes('/ai-backups/'), `pad mist de ai-backups-map: ${path}`);
-  assert(path.includes('/ai-backups/doc-xyz/'), `pad mist de docId-submap: ${path}`);
+  assert(path.includes('/ai-backups/unsaved-doc-xyz/'), `pad mist de docId-submap: ${path}`);
   assert(path.endsWith('.ifc'), `pad eindigt niet op .ifc: ${path}`);
   // De gesaneerde naam mag geen padscheiders of verboden tekens meer bevatten.
   const fileName = path.split('/').pop()!;
@@ -367,7 +371,7 @@ test('createAppBackupService(B) serialiseert B en gebruikt B\'s actieve document
     'de automatische B-backup mag geen singletondata uit A bevatten');
 
   const manualPath = await service.makeManualBackup();
-  assert(manualPath.includes(`/ai-backups/${bDocumentId}/`),
+  assert(manualPath.includes(`/ai-backups/unsaved-${bDocumentId}/`),
     'de handmatige backup hoort B\'s actieve document-id als submap te gebruiken');
   assert(files.get(manualPath)?.includes('Backup context B') === true,
     'de handmatige backup hoort eveneens uit B te komen');

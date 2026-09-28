@@ -27,8 +27,8 @@ export const BACKUP_ROOT = 'ai-backups';
  *  - jonger dan `recentDays`: alles, met een veiligheidsgrens van `recentMax` stuks;
  *  - tot `weeklyUntilDays`: de nieuwste per kalenderweek (UTC, maandag als begin);
  *  - tot `monthlyUntilDays`: de nieuwste per kalendermaand;
- *  - ouder: de nieuwste per kalenderjaar, maar ALLEEN in de vaste map van een opgeslagen bestand.
- *    De map van een nooit opgeslagen document is per sessie nieuw; bleef daar één per jaar staan,
+ *  - ouder: de nieuwste per kalenderjaar, behalve in de map van een nooit opgeslagen document
+ *    (`unsaved-`, zie `bucketKeepsYearly`): die is per sessie nieuw; bleef daar één per jaar staan,
  *    dan groeide het aantal mappen onbegrensd door.
  * Wat deze service in de lopende sessie schreef, blijft altijd staan. Een bestand zonder ons
  * tijdstempel in de naam is niet van ons en wordt nooit aangeraakt.
@@ -117,7 +117,10 @@ export function backupFileName(projectName: string, ts: number): string {
  * zijn doc-id: er is geen stabielere identiteit, en projectnamen botsen (spec §AI-backup).
  */
 export function backupBucket(docId: string, filePath: string | null | undefined): string {
-  if (!filePath) return docId;
+  // Voorvoegsel sinds de review van 2026-09-28: zo is een map van een nooit opgeslagen document te
+  // onderscheiden van een map van vóór deze wijziging (kale doc-id; kan bij een opgeslagen bestand
+  // horen). Alleen `unsaved-` valt onder het strengste opruimregime (zie `bucketKeepsYearly`).
+  if (!filePath) return `unsaved-${docId}`;
   let hash = 0x811c9dc5;
   for (let i = 0; i < filePath.length; i++) {
     hash ^= filePath.charCodeAt(i);
@@ -142,7 +145,7 @@ const DAY_MS = 86_400_000;
 
 /**
  * Welke backups in één map weg mogen volgens `BACKUP_RETENTION`. Puur: `names` zijn de namen in de
- * map, `keepYearly` is waar voor de vaste map van een opgeslagen bestand, `protectedNames` zijn de
+ * map, `keepYearly` is onwaar alleen voor de map van een nooit opgeslagen document, `protectedNames` zijn de
  * in deze sessie geschreven backups. Namen zonder ons tijdstempel komen nooit in de uitvoer.
  */
 export function backupsToRemove(
@@ -180,9 +183,15 @@ export function backupsToRemove(
   return remove;
 }
 
-/** Is dit de vaste map van een opgeslagen bestand (zie `backupBucket`)? */
-function isFileBucket(bucket: string): boolean {
-  return bucket.startsWith('file-');
+/**
+ * Blijft er in deze map na een jaar één backup per jaar staan? Nee alleen voor de map van een
+ * nooit opgeslagen document (`unsaved-`): die is per sessie nieuw, dus anders groeit het aantal mappen
+ * onbegrensd. Wel voor de vaste map van een opgeslagen bestand (`file-`), en ook voor een map van
+ * vóór 2026-09-28 (kale doc-id): die kan bij een opgeslagen bestand horen, en het oude beleid hield
+ * de laatste tien er voor altijd. Het zijn er een eindig aantal.
+ */
+function bucketKeepsYearly(bucket: string): boolean {
+  return !bucket.startsWith('unsaved-');
 }
 
 // --- Pure kern -----------------------------------------------------------------------------------
@@ -210,7 +219,7 @@ export function createBackupService(deps: BackupDeps): BackupService {
     writtenThisSession.add(name);
     // Opruimen is bijzaak: een fout daarin mag de geschreven backup (en de tool-aanroep) niet laten falen.
     try {
-      await prune(fs, docDir, isFileBucket(bucket), now);
+      await prune(fs, docDir, bucketKeepsYearly(bucket), now);
       if (!sweptOtherBuckets) {
         sweptOtherBuckets = true;
         await sweepOtherBuckets(fs, await fs.join(base, BACKUP_ROOT), bucket, now);
@@ -235,7 +244,7 @@ export function createBackupService(deps: BackupDeps): BackupService {
     for (const entry of await fs.readDir(root)) {
       if (!entry.isDirectory || entry.name === current) continue;
       const dir = await fs.join(root, entry.name);
-      const keepYearly = isFileBucket(entry.name);
+      const keepYearly = bucketKeepsYearly(entry.name);
       const nonEmpty = await prune(fs, dir, keepYearly, now);
       if (!nonEmpty && !keepYearly) await fs.remove(dir);
     }
