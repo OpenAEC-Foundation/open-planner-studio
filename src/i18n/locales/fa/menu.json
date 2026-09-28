@@ -54,7 +54,6 @@
     "relations": "روابط",
     "calendar": "تقویم",
     "calendarTitle": "ویرایش تقویم کاری",
-    "holidays": "تعطیلات",
     "holidaysTitle": "تعطیلات",
     "calendarDialog": {
       "name": "نام",
@@ -151,7 +150,6 @@
     "overallocationCount_other": "{{count}} منبع",
     "overallocationNone": "هیچ",
     "baselines": "خطوط مبنا و پیشرفت",
-    "saveBaseline": "ذخیره خط مبنا…",
     "manageBaselines": "مدیریت خطوط مبنا…",
     "statusDate": "تاریخ وضعیت",
     "statusDateClear": "پاک کردن تاریخ وضعیت",

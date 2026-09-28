@@ -4,7 +4,7 @@ Het venster **Kalenders** beheert de kalenderbibliotheek van het project: links 
 
 ## Openen
 
-- **Planning** → lintgroep **Kalender** → knop **Kalender** of **Vrije dagen**.
+- **Planning** → lintgroep **Kalender** → knop **Kalender**.
 - **Instellingen** (ribbontab) → lintgroep **Kalender** → **Kalender**.
 - Vanuit de projectwizard: de kalenderkeuze **Aangepast…** opent na het aanmaken dit venster.
 

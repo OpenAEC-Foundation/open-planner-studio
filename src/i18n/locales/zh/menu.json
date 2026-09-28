@@ -54,7 +54,6 @@
     "relations": "关系",
     "calendar": "日历",
     "calendarTitle": "编辑工作日历",
-    "holidays": "假日",
     "holidaysTitle": "假日",
     "calendarDialog": {
       "name": "名称",
@@ -150,7 +149,6 @@
     "overallocationCount_other": "{{count}} 个资源",
     "overallocationNone": "无",
     "baselines": "基线与进度",
-    "saveBaseline": "保存基线…",
     "manageBaselines": "管理基线…",
     "statusDate": "状态日期",
     "statusDateClear": "清除状态日期",

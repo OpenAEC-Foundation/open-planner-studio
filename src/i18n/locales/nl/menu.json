@@ -54,7 +54,6 @@
     "relations": "Relaties",
     "calendar": "Kalender",
     "calendarTitle": "Werkkalender bewerken",
-    "holidays": "Vrije dagen",
     "holidaysTitle": "Feestdagen",
     "calendarDialog": {
       "name": "Naam",
@@ -151,7 +150,6 @@
     "overallocationCount_other": "{{count}} resources",
     "overallocationNone": "Geen",
     "baselines": "Baselines & voortgang",
-    "saveBaseline": "Baseline opslaan…",
     "manageBaselines": "Baselines beheren…",
     "statusDate": "Statusdatum",
     "statusDateClear": "Statusdatum leegmaken",
