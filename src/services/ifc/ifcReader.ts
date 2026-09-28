@@ -7,7 +7,7 @@ import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, AvailabilityStep, ResourceCurve, isResourceCurve } from '@/types/resource';
 import { Project, ProjectSchedulingOptions, SchedulingOptions, SchedulingProfile } from '@/types/project';
 import { WorkCalendar, Holiday, CalendarGeneration, WorkingException } from '@/types/calendar';
-import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
+import { DEFAULT_CALENDAR_ID, createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import type { HolidayCountry } from '@/engine/calendar/holidays';
 import type { LibraryOrigin } from '@/types/library';
 import { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types/structure';
@@ -2751,7 +2751,7 @@ function extractCalendarLibrary(
   const projectCalendarEntity = entities.find(e => e.type === 'IFCWORKCALENDAR');
   // De projectkalender heet altijd 'cal-default' (`extractCalendar`); een bibliotheekkalender kan
   // die naam nooit krijgen, ook niet via een afgeleid id.
-  const usedIds = new Set<string>(['cal-default']);
+  const usedIds = new Set<string>([DEFAULT_CALENDAR_ID]);
   const resourceById = new Map(resources.map(r => [r.id, r]));
   const taskById = new Map(tasks.map(t => [t.id, t]));
   const calendars: WorkCalendar[] = [];

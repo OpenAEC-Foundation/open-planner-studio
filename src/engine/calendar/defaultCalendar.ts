@@ -16,12 +16,15 @@ import { loadConstructionMode } from '@/utils/settingsStore';
  * Deze fabrieksfunctie leeft in de engine-laag (niet in `src/types/`) omdat ze `generateHolidays`
  * als WAARDE nodig heeft; anders ontstaat er een runtime-module-cyclus met `holidays.ts`.
  */
+/** Id van de projectkalender van elk nieuw of ingelezen document; in elk project dezelfde. */
+export const DEFAULT_CALENDAR_ID = 'cal-default';
+
 export function createDefaultCalendar(anchorYear: number = new Date().getFullYear()): WorkCalendar {
   const from = anchorYear - 1;
   const to = anchorYear + 2;
   const construction = loadConstructionMode();
   return {
-    id: 'cal-default',
+    id: DEFAULT_CALENDAR_ID,
     name: construction ? 'Bouwkalender NL' : 'Standaardkalender',
     description: construction
       ? 'Standaard bouwkalender: ma-vr 07:00-16:00'

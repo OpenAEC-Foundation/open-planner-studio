@@ -165,6 +165,24 @@ function fixture() {
   eq('dubbel GlobalId: bij opslaan twee verschillende GlobalIds', new Set(out).size, 2);
 }
 
+// 10. Twee verschillende projecten delen geen enkel GlobalId: ook de projectkalender (`cal-default`
+//     in elk project) en de hulpentiteiten (`agg_ps`, `ctrl`, psets) krijgen er een per project.
+//     Hetzelfde project twee keer opgeslagen: identiek; heropend: projectkalender houdt zijn GlobalId.
+{
+  S().newProject();
+  S().addTask({ name: 'Eén' });
+  const a1 = writeIFC(buildWriteIFCInput(S()));
+  const a2 = writeIFC(buildWriteIFCInput(S()));
+  S().newProject();
+  S().addTask({ name: 'Eén' });
+  const b = writeIFC(buildWriteIFCInput(S()));
+  const shared = allGuids(a1).filter((g) => new Set(allGuids(b)).has(g));
+  eq('twee projecten: geen gedeelde GlobalIds', shared.length, 0);
+  eq('zelfde project twee keer opgeslagen: identieke GlobalIds', allGuids(a2), allGuids(a1));
+  const projectCal = (text: string) => guidsOfType(text, /^IFCWORKCALENDAR$/)[0];
+  eq('heropend: projectkalender houdt zijn GlobalId', projectCal(writeIFC(readIFC(a1))), projectCal(a1));
+}
+
 if (fails.length) {
   for (const f of fails) console.log(`XX ${f}`);
   console.log(`XX  ifc-globalid: ${fails.length}/${checks} ROOD`);

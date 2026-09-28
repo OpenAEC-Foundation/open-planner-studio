@@ -6,6 +6,7 @@ import { Project, SchedulingOptions, SchedulingProfile } from '@/types/project';
 import { carriesProfile, schedulingProfileToJson } from '@/services/ifc/schedulingOptionsRead';
 import { legacyOptionsBlobFor } from '@/services/ifc/schedulingProfileMigration';
 import { holidayEndDate, WorkCalendar } from '@/types/calendar';
+import { DEFAULT_CALENDAR_ID } from '@/engine/calendar/defaultCalendar';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { Baseline } from '@/types/baseline';
 import type { CustomTaskType } from '@/types/taskType';
@@ -147,31 +148,41 @@ export interface WriteContext {
   /** De waarden van `preservedGuids`: een nieuw object mag die nooit krijgen, ook niet als zijn
    *  eigenaar pas later in het bestand aan de beurt is. */
   reservedGuids: ReadonlySet<string>;
+  /** Project-id: zout voor de GlobalIds van hulpentiteiten en de projectkalender (zie `guidOf`). */
+  auxSalt: string;
 }
 
 /**
- * Geef het GlobalId uit voor `seed` — en garandeer dat het uniek is binnen dit bestand.
- *
- * Dit is de enige plek die GlobalIds uitgeeft. Eerst het GlobalId dat het object in het ingelezen
- * bestand al had (`preservedGuids`: taken en het project, zodat externe koppelingen niet breken);
- * anders `ifcGuid128(seed)`. Botst dat met een eerder uitgegeven of gereserveerd GlobalId, dan
- * wordt er deterministisch doorgezocht met een gesuffixte seed.
+ * Geef het GlobalId uit voor een hulpentiteit (pset, rel, werkschema) met een vaste of afgeleide
+ * `seed`. De hash krijgt het project-id mee (`auxSalt`): zonder dat hadden `agg_ps`, `ctrl`,
+ * `pset_sequences` e.d. in élk OPS-bestand hetzelfde GlobalId (audit 2026-09-26). Geen lezer rekent
+ * deze GlobalIds na, dus het zout mag hier.
+ */
+function guidOf(ctx: WriteContext, seed: string): string {
+  return issueGuid(ctx, seed, `${ctx.auxSalt}/${seed}`);
+}
+
+/**
+ * De enige plek die GlobalIds uitgeeft, en garandeert dat ze uniek zijn binnen dit bestand. Eerst het
+ * GlobalId dat het object in het ingelezen bestand al had (`preservedGuids`, op `key`), anders
+ * `ifcGuid128(hashSeed)`. Botst dat met een eerder uitgegeven of gereserveerd GlobalId, dan wordt er
+ * deterministisch doorgezocht met een gesuffixte seed.
  *
  * Een gesuffixt GlobalId is alleen terug te vinden omdat de writer expliciet wegschrijft wélk
  * GlobalId hij per taak gebruikte (zie `writeBaselineMeta`); de reader herberekent de hash niet.
  */
-function guidOf(ctx: WriteContext, seed: string): string {
-  const cached = ctx.guids.get(seed);
+function issueGuid(ctx: WriteContext, key: string, hashSeed: string): string {
+  const cached = ctx.guids.get(key);
   if (cached !== undefined) return cached;
-  const kept = ctx.preservedGuids.get(seed);
+  const kept = ctx.preservedGuids.get(key);
   let guid: string;
   if (kept !== undefined && !ctx.usedGuids.has(kept)) {
     guid = kept;
   } else {
-    guid = ifcGuid128(seed);
-    for (let n = 1; ctx.usedGuids.has(guid) || ctx.reservedGuids.has(guid); n++) guid = ifcGuid128(`${seed}#dup${n}`);
+    guid = ifcGuid128(hashSeed);
+    for (let n = 1; ctx.usedGuids.has(guid) || ctx.reservedGuids.has(guid); n++) guid = ifcGuid128(`${hashSeed}#dup${n}`);
   }
-  ctx.guids.set(seed, guid);
+  ctx.guids.set(key, guid);
   ctx.usedGuids.add(guid);
   return guid;
 }
@@ -187,7 +198,10 @@ export function ifcObjectSeed(kind: IfcObjectKind, id: string): string {
 }
 
 function objectGuid(ctx: WriteContext, kind: IfcObjectKind, id: string): string {
-  return guidOf(ctx, ifcObjectSeed(kind, id));
+  const key = ifcObjectSeed(kind, id);
+  // De projectkalender heet in elk project `cal-default`: zonder zout had hij in elk nieuw bestand
+  // hetzelfde GlobalId. Geen lezer rekent zijn GlobalId na (DurationWalks schrijft het uit).
+  return issueGuid(ctx, key, kind === 'cal' && id === DEFAULT_CALENDAR_ID ? `${key}@${ctx.auxSalt}` : key);
 }
 
 function ref(ctx: WriteContext, key: string): string {
@@ -240,7 +254,7 @@ export function writeIFC(input: WriteIFCInput): string {
   const preservedGuids = new Map(Object.entries(ifcGlobalIds ?? {}));
   const ctx: WriteContext = {
     lines: [], nextId: 1, idMap: new Map(), guids: new Map(), usedGuids: new Set(),
-    preservedGuids, reservedGuids: new Set(preservedGuids.values()),
+    preservedGuids, reservedGuids: new Set(preservedGuids.values()), auxSalt: project.id,
   };
   const now = new Date().toISOString().split('.')[0];
 
