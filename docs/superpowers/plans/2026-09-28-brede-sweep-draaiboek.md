@@ -1,6 +1,8 @@
 # Brede sweep — draaiboek (bugs, logica, rekenprofielen, bibliotheken, import/export, code-opbouw)
 
 **Status:** klaargezet op 2026-09-28, nog niet gestart. Start op het teken van de eigenaar.
+Getoetst door de advisor op 2026-09-28 (poortwachtrij, grootboek, differentiële motorpoort, worktree-basis,
+P-compatibiliteit, E8 tegen `verify:docs`).
 **Orkestratie:** één Claude-sessie orkestreert met subagents (Agent-tool met `isolation: "worktree"` en de
 Workflow-tool). Geen losse cloud-sessies per spoor.
 **Basis:** `main` ná de merge van PR #241 (audit bottlenecks/bugs). Elke spoorbranch start vanaf die `main`.
@@ -17,11 +19,11 @@ opdracht voor zijn spoor krijgt, moet zijn werk kunnen doen zonder terug te vrag
 | E1 | **Branch per spoor**, één PR per spoor. Naam: `claude/sweep-<spoorletter>-<onderwerp>`. |
 | E2 | **De orkestrator merget zelf** naar `main`, maar pas na de poorten van §4 **én** de merge-wachtkamer van §4.1. Een PR die klaar is, wacht op de synchronisatie. Tussendoor kan een andere agent iets vinden waardoor hij niet mag landen. Nooit een tag of release (dat blijft de `release`-skill, op expliciet verzoek). `main` deployt via `live.yml` naar productie, achter een `npm run verify`-poort. |
 | E3 | **De eigenaar reviewt niet.** Elk stuk werk wordt daarom gereviewd door een agent die het niet schreef: elke bevinding, elke fix en elk bevindingenrapport. De orkestrator raadpleegt daarnaast regelmatig de advisor (§4.2). |
-| E4 | **Motorwerk op 7 van 9 orakels.** De twee orakels in `P6-Viewer/XER Files/` (`Hotel Project.xer`, `TERMINAL BUILDING-AIRPORT.xer`) ontbreken in `ops-xer-corpus`. Een wijziging die het rekengedrag verandert, landt dus **niet**; ze wordt een voorstel met meting in het bevindingenrapport. Exacte (differentieel gepinde) motorwijzigingen mogen wel. |
+| E4 | **Motorwerk op een onvolledig corpus.** De twee orakels in `P6-Viewer/XER Files/` ontbreken in `ops-xer-corpus`. Van de 8 geselecteerde entries in `tests/planning/xer-fidelity-baseline.json` zijn er daardoor 7 aanwezig; de ontbrekende is `TERMINAL BUILDING-AIRPORT.xer`. `Hotel Project.xer` is wel `oracle`/`included`, maar staat niet in die baselineselectie (waarom: niet onderzocht). Een wijziging die het rekengedrag verandert, landt **niet**; ze wordt een voorstel met meting in het bevindingenrapport. Exacte, differentieel gepinde motorwijzigingen mogen wel (zie §4, poort 3). |
 | E5 | **Vraagpoort:** vóór een vraag de eigenaar bereikt, doet de agent eerst onderzoek (code, corpus, internet: documentatie van Oracle P6 en Microsoft Project, MPXJ, vakliteratuur). Een vraag met één logisch of duidelijk eleganter antwoord wordt niet gesteld maar beslist, met bron en reden in de PR. Alleen een echte smaak-/strategiekeuze gaat naar de eigenaar, altijd met bronnen, opties en advies. |
 | E6 | **Profielgebonden gedrag buiten de solver** krijgt een plek als tweede laag in het rekenprofiel (reist mee in het bestand en wisselt mee met het profiel), niet als losse app-instelling. Zie spoor P. |
 | E7 | **"Imports/exports" betekent beide:** bestandsformaten (sporen E/F) én module-imports/-exports in de code (spoor K). |
-| E8 | **Niet aan `public/docs/` komen.** De eigenaar herbouwt de documentatie. De gidsen zijn geen specificatie van hoe iets hoort te werken. Elke PR krijgt in plaats van gidswijzigingen een sectie *Gevolgen voor de gidsen* (per wijziging: welke gids iets moet zeggen en wat). `npm run verify:docs` moet wel groen blijven. |
+| E8 | **Niet aan `public/docs/` komen**, en ook geen nieuwe verwijzingen naar help-artikelen in `src/state/helpArticles.ts` (poort 10 van `verify:docs` eist dat elk gebruikt artikel-id in het manifest staat; zie `docs/superpowers/specs/2026-09-28-gebruikersdocumentatie-diataxis-design.md` §6.3). Een functie die een eigen artikel nodig heeft, komt op de lijst *Gevolgen voor de gidsen*. De eigenaar herbouwt de documentatie. De gidsen zijn geen specificatie van hoe iets hoort te werken. Elke PR krijgt in plaats van gidswijzigingen een sectie *Gevolgen voor de gidsen* (per wijziging: welke gids iets moet zeggen en wat). `npm run verify:docs` moet wel groen blijven. |
 | E9 | Spoor R (gidsen tegen gedrag) vervalt; spoor M is alleen i18n en toegankelijkheid. |
 
 ---
@@ -87,8 +89,9 @@ opdracht voor zijn spoor krijgt, moet zijn werk kunnen doen zonder terug te vrag
    (zie de skill `hyperkritische-review`). Wat niet reproduceert of al opgelost is, valt af.
 3. **Fix.** Test eerst rood, dan de fix, dan groen. Kleinste fix die het probleem oplost; geen
    verbreding buiten het spoor.
-4. **Review en poorten** (§4): een agent die de fix niet schreef reviewt de diff. Dan PR, dan de
-   merge-wachtkamer (§4.1). De orkestrator merget pas na de kruiscontrole.
+4. **Review en poorten** (§4): een agent die de fix niet schreef reviewt de diff. De subagent draait
+   alleen gerichte checks; de volledige poorten draait de orkestrator in de wachtrij (§4.0). Dan PR,
+   dan de merge-wachtkamer (§4.1). De orkestrator merget pas na de kruiscontrole.
 5. **Bevindingenrapport** in de PR: `docs/superpowers/plans/2026-09-XX-sweep-<spoor>-bevindingen.md`
    met alle bevindingen (ook de niet-gefixte, met reden), de meetuitslagen, de beslissingen onder E5
    met bron, en *Gevolgen voor de gidsen* (E8).
@@ -252,6 +255,10 @@ spoor dat die zone bezit.
     (263 MSP- en 411 P6-treffers op 2026-09-28; alleen een wegwijzer, geen bewijs).
 - **Per item één regel:** wat de app nu doet, waar het vandaan komt (commit/spec), wat MSP doet, wat P6
   doet (elk met bron), en het advies: globaal laten, motorconventie (O-route), of tweede profiellaag.
+- **Compatibiliteit:** bestanden die al met een P6- of MSP-profiel zijn opgeslagen, mogen bij het
+  openen niet stil van gedrag veranderen zodra de tweede laag bestaat. Volg het bestaande precedent:
+  `legacyValue` per conventie plus de migratie in `src/services/ifc/schedulingProfileMigration.ts`.
+  Een P-item dat in `src/engine/` landt, valt onder E4.
 - **Golf 3, bouwen:** de tweede profiellaag volgens de bestaande conventiesystematiek (register met
   per profiel een waarde, IFC-round-trip, UI in het profielblok, `verify:conventions`-achtige poort).
   **Het OPS-profiel houdt exact het huidige gedrag.** Het MSP- en P6-profiel wijken alleen af waar de
@@ -276,14 +283,30 @@ spoor dat die zone bezit.
 1. `npm run verify` lokaal groen (exitcode 0) op de head van de spoorbranch, ná een merge met de
    actuele `main`.
 2. CI groen op de laatste commit van de PR.
-3. Bij elke wijziging onder `src/engine/`: `npm run measure:profiles` met het corpus, geen exacte cel
-   inexact, en de uitslag in de PR (met de vermelding "7 van 9 orakels", E4).
+3. Bij elke wijziging onder `src/engine/`: een **differentiële** meting, geen absolute. Omdat een
+   orakel ontbreekt, is de absolute pin waarschijnlijk al rood op `main`. De poort is daarom: het
+   per-cel-detailrapport (`OPS_XER_FIDELITY_REPORT=detail`) op dezelfde aanwezige subset, `main`
+   tegen de branch, moet cel voor cel identiek zijn. Voor de MS Project-kant hetzelfde met de
+   `.mpp`-meting (`OPS_MPP_CRAWL`; het bedrijfscorpus `OPS_MPP_CORPUS` ontbreekt). De uitslag staat in
+   de PR, met de vermelding van de ontbrekende entry (E4).
 4. Een verificatie-agent, die de fix niet schreef, heeft de diff adversarieel gelezen en akkoord
    gegeven; zijn bevindingen zijn opgelost of met reden weerlegd.
 5. Geen open eigenaarsbesluit dat deze PR raakt.
 6. De PR-tekst volgt `.github/pull_request_template.md` en bevat de sectie *Gevolgen voor de gidsen*.
 
 Een PR die deze zes poorten haalt, is **klaar**, niet gemerged. Hij gaat de wachtkamer in (§4.1).
+
+### 4.0 Poortwachtrij: zware runs één tegelijk
+
+De repo zegt zelf dat er machinebreed maar één zware run tegelijk hoort te lopen
+(`scripts/measure-profiles.mjs`). Met veel worktrees in één container geeft parallel draaien
+CPU-gedrang, poortconflicten en onbetrouwbare tijdmetingen.
+- **Subagents** draaien alleen gerichte checks: `npm run typecheck`, `npm run lint:fast`, hun eigen
+  batterijen (`bash tests/planning/run.sh check-<x>.ts` / `cases-<x>.json`) en losse browserspecs.
+- **De orkestrator** draait de volledige `npm run verify` en de corpusmetingen, **serieel**, één spoor
+  tegelijk, in een vaste wachtrij.
+- **Git-verkeer** (push, fetch) loopt via de orkestrator, niet vanuit veel subagents tegelijk: de
+  git-proxy van de sessie begrenst gelijktijdige operaties.
 
 ### 4.1 Merge-wachtkamer
 
@@ -303,6 +326,9 @@ Een PR die deze zes poorten haalt, is **klaar**, niet gemerged. Hij gaat de wach
    (merge, geen rebase van gedeelde geschiedenis), de poorten van §4 opnieuw draaien en weer de
    wachtkamer in.
 
+7. **Overleg:** vóór elke merge-batch meldt de orkestrator de eigenaar in één regel welke PR's
+   landen en waarom. Dat is een aankondiging, geen vraag.
+
 ### 4.2 Advisor
 
 De orkestrator raadpleegt de advisor, als die in de sessie aanstaat, op vaste momenten:
@@ -319,8 +345,12 @@ niet aan, dan meldt de orkestrator dat aan de eigenaar in plaats van stil door t
 
 ## 5. Startchecklist (orkestrator, vóór golf 1)
 
-1. PR #241 is gemerged; `git fetch origin main`.
-2. `npm ci`; Playwright: de voorgeïnstalleerde Chromium gebruiken (`/opt/pw-browsers`), nooit
+1. PR #241 is gemerged; `git fetch origin main`, en de checkout van de orkestrator staat op die verse
+   `main` vóór er één subagent wordt gestart. Controleer waar `isolation: "worktree"` van aftakt
+   (`/config worktreeBaseRef=fresh|head`). Spoorbranches mogen niet de commits van deze
+   voorbereidingsbranch of code van vóór #241 meedragen.
+2. `npm ci`; meet daarna de grootte van `node_modules`. Zolang een spoor `package-lock.json` niet
+   wijzigt, delen de worktrees één `node_modules` via een symlink. Playwright: de voorgeïnstalleerde Chromium gebruiken (`/opt/pw-browsers`), nooit
    `playwright install`. Als de vastgezette revisie niet klopt: symlink-map zoals in #241.
 3. Corpus aanwezig (`git -C /home/user/ops-xer-corpus rev-parse HEAD`), anders opnieuw clonen (zie de
    `add_repo`-instructie; één clone, ruime time-out).
@@ -328,8 +358,10 @@ niet aan, dan meldt de orkestrator dat aan de eigenaar in plaats van stil door t
    (manifestsleutels zijn relatief, bv. `crawl-xer/...`) en hoe `measure:profiles` reageert op de twee
    ontbrekende orakels: stopt het, of meet het stil minder? Dat gedrag staat in de PR van elk
    motorspoor.
-5. Nulmeting: `npm run verify` en `npm run measure:profiles` op `main`, uitslag bewaren als referentie.
-6. Workflowgrootte: de richtlijn staat op "medium" (< 10 agents per workflow). Meer tegelijk kan pas
+5. Nulmeting op `main`: `npm run verify`, en het per-cel-detailrapport van de XER- en
+   `.mpp`-meting. Dat detailrapport is de referentie voor de differentiële poort (§4, poort 3).
+6. Grootboek aanmaken (§7.1).
+7. Workflowgrootte: de richtlijn staat op "medium" (< 10 agents per workflow). Meer tegelijk kan pas
    als de eigenaar dat ophoogt met `/config workflowSizeGuideline=large` (of `unrestricted`); anders draaien de golven in
    delen na elkaar.
 
@@ -348,6 +380,22 @@ met per punt bronnen, opties en advies. Alles wat niet op die lijst wacht, gaat 
 
 ---
 
-## 7. Eigenaarsbesluiten tijdens de sweep
+## 7. Grootboek en eigenaarsbesluiten
+
+### 7.1 Grootboek
+
+De kruiscontrole van de wachtkamer (§4.1) werkt alleen als de bevindingen buiten het geheugen van de
+orkestrator staan: zijn context wordt onderweg samengevat en de container kan worden opgeruimd.
+Daarom houdt de orkestrator één gecommit grootboek bij:
+`docs/superpowers/plans/2026-09-28-brede-sweep-grootboek.md` op de voorbereidingsbranch
+(`claude/sonnet-5-5-prep-laovq5`, PR #255). Die PR blijft open tot het einde van de sweep en landt
+dan als verslag.
+
+Per spoor staat erin: status, branch, PR-nummer en de SHA van de klare head, en de zones (paden) die de
+PR wijzigt. Per bevinding: id, tijdstip, spoor, ernst, label (zeker/afgeleid/onbekend), `pad:regel`
+en status (open, geverifieerd, weerlegd, gefixt in PR #…). De wachtkamer-check is dan een mechanische
+vergelijking: welke bevindingen van na de klare SHA raken paden in de diff van die PR?
+
+### 7.2 Eigenaarsbesluiten tijdens de sweep
 
 *(leeg bij de start; de orkestrator vult dit aan, met datum en bron per punt)*
