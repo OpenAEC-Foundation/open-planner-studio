@@ -54,7 +54,6 @@
     "relations": "İlişkiler",
     "calendar": "Takvim",
     "calendarTitle": "İş takvimini düzenle",
-    "holidays": "Tatiller",
     "holidaysTitle": "Tatiller",
     "calendarDialog": {
       "name": "Ad",
@@ -151,7 +150,6 @@
     "overallocationCount_other": "{{count}} kaynak",
     "overallocationNone": "Yok",
     "baselines": "Baseline ve ilerleme",
-    "saveBaseline": "Baseline kaydet…",
     "manageBaselines": "Baseline'ları yönet…",
     "statusDate": "Durum tarihi",
     "statusDateClear": "Durum tarihini temizle",

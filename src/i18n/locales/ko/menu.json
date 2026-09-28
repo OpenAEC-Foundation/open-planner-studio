@@ -54,7 +54,6 @@
     "relations": "관계",
     "calendar": "달력",
     "calendarTitle": "작업 달력 편집",
-    "holidays": "공휴일",
     "holidaysTitle": "공휴일",
     "calendarDialog": {
       "name": "이름",
@@ -150,7 +149,6 @@
     "overallocationCount_other": "자원 {{count}}개",
     "overallocationNone": "없음",
     "baselines": "기준선 및 진행",
-    "saveBaseline": "기준선 저장…",
     "manageBaselines": "기준선 관리…",
     "statusDate": "상태 날짜",
     "statusDateClear": "상태 날짜 지우기",

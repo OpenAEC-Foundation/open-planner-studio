@@ -54,7 +54,6 @@
     "relations": "Relazioni",
     "calendar": "Calendario",
     "calendarTitle": "Modifica calendario lavorativo",
-    "holidays": "Festività",
     "holidaysTitle": "Festività",
     "calendarDialog": {
       "name": "Nome",
@@ -152,7 +151,6 @@
     "overallocationCount_other": "{{count}} risorse",
     "overallocationNone": "Nessuna",
     "baselines": "Baseline e progresso",
-    "saveBaseline": "Salva baseline…",
     "manageBaselines": "Gestisci baseline…",
     "statusDate": "Data di stato",
     "statusDateClear": "Cancella data di stato",

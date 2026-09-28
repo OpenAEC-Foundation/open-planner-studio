@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Plus, Play, Undo2, Redo2, ZoomIn, ZoomOut,
   FileText, FolderOpen, Save, Printer, Trash2,
-  Calendar, Settings, Info, Clock,
+  Calendar, Settings, Info,
   Eye, EyeOff, SaveAll,
   Tags, ListOrdered, Hash,
   IndentIncrease, IndentDecrease,
@@ -426,13 +426,7 @@ const planningTab: RibbonTabConfig = [
   traceGroup,
   {
     id: 'calendar', labelKey: 'menu:ribbon.calendar',
-    items: [
-      calendarButton,
-      {
-        kind: 'button', id: 'holidays', icon: <Clock size={20} />, labelKey: 'menu:ribbon.holidays',
-        use: uiAction({ showCalendarDialog: true }),
-      },
-    ],
+    items: [calendarButton],
   },
   {
     id: 'structure', labelKey: 'menu:ribbon.structure',

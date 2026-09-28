@@ -231,6 +231,8 @@ telt mee).
 | `plans/2026-09-24-e2-p6xml-durationtype.md` | naslag — afgesloten onderzoek (E2): de `<DurationType>`-mapping in `p6xmlReader.ts` klopt, geen fix nodig | 1 |
 | `plans/2026-09-24-gebruikstest-taaktypes-170.md` | naslag — gebruikstest #170; de bevindingen zijn in de UI-fixronde van 25-09 verwerkt en met #170 gemerged | 0 |
 | `plans/2026-09-24-fable-critreview-pr170.md` | naslag — Fable-critreview #170, LANDEN-MET-FIXES; #170 is daarna gemerged | 0 |
+| `specs/2026-09-28-gebruikersdocumentatie-diataxis-design.md` | actief — ontwerp ter review: gebruikersdocumentatie opnieuw volgens Diátaxis (tutorials, how-to, uitleg, referentie), schrijfgids, build-time screenshots | 0 |
+| `specs/2026-09-28-gebruikersdocumentatie-functie-inventaris.md` | actief — bijlage: functie-inventaris uit de code (stand `9ab90cfd`), dekkingschecklist voor de nieuwe docs | 0 |
 | `evidence/` | naslag/bewijs van de tabel-overhaul (baseline, eindmeting, benchmarks, Tauri-refresh-IFC's); aangehaald door `tests/planning/check-tauri-refresh-evidence.ts`, `check-relations-panel-parity.ts`, `taskGridPerformanceHarness.ts` en `run.sh` — dus niet verplaatsen zonder die mee te nemen | 5 |
 
 Betekenis van de standen: **actief** = er wordt nu aan gewerkt of het is het geldende programma;

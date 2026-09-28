@@ -54,7 +54,6 @@
     "relations": "Relacje",
     "calendar": "Kalendarz",
     "calendarTitle": "Edytuj kalendarz pracy",
-    "holidays": "Dni wolne",
     "holidaysTitle": "Dni wolne",
     "calendarDialog": {
       "name": "Nazwa",
@@ -153,7 +152,6 @@
     "overallocationCount_other": "{{count}} zasobu",
     "overallocationNone": "Brak",
     "baselines": "Baseline i postęp",
-    "saveBaseline": "Zapisz baseline…",
     "manageBaselines": "Zarządzaj baseline…",
     "statusDate": "Data statusu",
     "statusDateClear": "Wyczyść datę statusu",

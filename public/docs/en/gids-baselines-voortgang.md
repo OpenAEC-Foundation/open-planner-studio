@@ -16,7 +16,7 @@ Follow along with [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwon
 
 ## Saving and managing a baseline
 
-Open the **Baselines** window via the **Baselines & progress** ribbon group on the **Planning** tab: **Save baseline…** immediately saves a new baseline with a suggested name ("Baseline 1 — [date]"), **Manage baselines…** opens the same window to review, rename or delete.
+Open the **Baselines** window via **Manage baselines…** in the **Baselines & progress** ribbon group on the **Planning** tab. Under **Save new baseline** there is a suggested name ("Baseline 1 — [date]"); change it if you like and click **Save**. The same window lets you review, rename or delete existing baselines.
 
 The window shows a table with every saved baseline: an **Active** radio button, the **Name** (editable directly), the **Created** date, and a delete button. Exactly one baseline can be active at a time — that's the baseline the Gantt overlay and the variance report compare against. Deleting the active baseline asks for confirmation (no baseline stays active afterward until you pick another one or save a new one). If the schedule is out of date since the last calculation, the window shows a hint next to "Save new baseline" to recalculate first — a baseline saved against an out-of-date schedule would freeze the wrong dates.
 
