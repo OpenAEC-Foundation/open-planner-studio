@@ -1,6 +1,6 @@
 # Gebruikersdocumentatie — opnieuw, volgens Diátaxis
 
-*Ontwerp, 2026-09-28, versie 1.2 (open punten §10 beantwoord; tutorials als extensie, §12). Status: **ter review bij de eigenaar**. Basis: interview met de eigenaar
+*Ontwerp, 2026-09-28, versie 1.2 (open punten §10 beantwoord; tutorials als extensie, §11). Status: **ter review bij de eigenaar**. Basis: interview met de eigenaar
 (2026-09-28), de documentatie-audit van 2026-09-26 (PR #242), en drie read-only onderzoeken op `main`
 `9ab90cfd`: functie-inventaris uit de code (bijlage: `2026-09-28-gebruikersdocumentatie-functie-inventaris.md`),
 analyse van de docs-infrastructuur, en een haalbaarheidsmeting van app-gegenereerde screenshots.*
@@ -339,7 +339,7 @@ Na fase 4 volgen de 12 vertalingen in een apart traject.
    "Baseline opslaan…" verdwijnen; "Kalender" en "Baselines beheren…" blijven. Dit is een aparte,
    kleine PR vóór de pilot, zodat de docs meteen de nieuwe situatie beschrijven.
 
-## 12. Tutorials als extensie (besluit eigenaar, 2026-09-28)
+## 11. Tutorials als extensie (besluit eigenaar, 2026-09-28)
 
 De tutorials worden **geen onderdeel van de app-bundel** maar een installeerbare extensie.
 How-to, uitleg en referentie blijven in `public/docs`.
@@ -367,7 +367,7 @@ How-to, uitleg en referentie blijven in `public/docs`.
   (open punt voor later: eigen wiki-pagina's vanuit de extensie-repo).
 - **Fasering:** fase 1 (pilot) krijgt erbij: extensie-API 1.4.0 en een eerste extensieversie met tut-1.
 
-## 11. Buiten scope
+## 12. Buiten scope
 
 - De 12 vertalingen (apart traject na fase 4).
 - Een docs-website naast app en wiki.
