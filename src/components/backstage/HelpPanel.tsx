@@ -13,6 +13,7 @@ import { fetchTextAsset } from '@/utils/textAsset';
 import { applyDemoLibraryToShowcaseProject } from '@/state/demoLibraryShowcase';
 import { buildImportLabels } from '@/i18n/importLabels';
 import './HelpPanel.css';
+import { readLocal, removeLocal, writeLocal } from '@/utils/settingsStore';
 
 // De documentatietaal wordt persistent los van de UI-taal bewaard, zodat een gebruiker de docs in
 // bv. Engels kan lezen terwijl de rest van de app in zijn eigen taal blijft.
@@ -62,7 +63,7 @@ export function HelpPanel() {
   // hieronder). De override is persistent in localStorage.
   const uiDocsLang: HelpLang = resolveDocLang(i18n.language);
   const [docsLangOverride, setDocsLangOverride] = useState<HelpLang | null>(() => {
-    const saved = localStorage.getItem(DOCS_LANG_KEY);
+    const saved = readLocal(DOCS_LANG_KEY);
     return saved && (DOC_LANGS as readonly string[]).includes(saved) ? (saved as HelpLang) : null;
   });
   const lang: HelpLang = docsLangOverride ?? uiDocsLang;
@@ -73,10 +74,10 @@ export function HelpPanel() {
   const changeDocsLang = (value: string) => {
     if (value === '__auto__') {
       setDocsLangOverride(null);
-      localStorage.removeItem(DOCS_LANG_KEY);
+      removeLocal(DOCS_LANG_KEY);
     } else if ((DOC_LANGS as readonly string[]).includes(value)) {
       setDocsLangOverride(value as HelpLang);
-      localStorage.setItem(DOCS_LANG_KEY, value);
+      writeLocal(DOCS_LANG_KEY, value);
     }
   };
 

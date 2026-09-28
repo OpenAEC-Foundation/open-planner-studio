@@ -26,16 +26,26 @@ const ok = (label: string, cond: boolean, detail = '') => {
   checks++;
   if (!cond) fails.push(`${label}${detail ? `: ${detail}` : ''}`);
 };
-const load = (size: number, seed: number) =>
-  S().applyLoadedProject(generateBenchmarkProject(size, { seed }), { filePath: null, recompute: false });
+// Met een echte tweede kalender van zes uur per dag en werk op de toewijzingen, zodat een
+// kalenderwissel via de werkregel ook de toewijzingen raakt (review 2026-09-28: met een niet-bestaande
+// kalender en toewijzingen zonder werk toetste de 'kalender'-op dat pad niet).
+const load = (size: number, seed: number) => {
+  const project = generateBenchmarkProject(size, { seed });
+  const zes = { ...project.calendar, id: 'cal-zes', name: 'Zes uur', workEndHour: project.calendar.workStartHour + 6, hoursPerDay: 6 };
+  S().applyLoadedProject({
+    ...project,
+    resourceCalendars: [...(project.resourceCalendars ?? []), zes],
+    assignments: project.assignments.map((a) => ({ ...a, plannedWorkMinutes: 2400, remainingWorkMinutes: 2400 })),
+  }, { filePath: null, recompute: false });
+};
 const leafIds = () => S().tasks.filter((t) => t.childIds.length === 0).map((t) => t.id);
-const view = () => JSON.stringify({ tasks: S().tasks, rows: S().viewRows.map((r) => (r.kind === 'task' ? `${r.rowKey}:${r.depth}` : r.rowKey)) });
+const view = () => JSON.stringify({ tasks: S().tasks, assignments: S().assignments, rows: S().viewRows.map((r) => (r.kind === 'task' ? `${r.rowKey}:${r.depth}` : r.rowKey)) });
 
 // ── A. bulk = los na elkaar (taken + rijen), undo/redo ────────────────────────────────────────────
 type Op = { label: string; run: (s: ReturnType<typeof S>, id: string) => void };
 const ops: Op[] = [
   { label: 'prioriteit', run: (s, id) => s.updateTask(id, { priority: 42 }) },
-  { label: 'kalender', run: (s, id) => s.setTaskCalendar(id, 'cal-elders') },
+  { label: 'kalender', run: (s, id) => s.setTaskCalendar(id, 'cal-zes') },
   { label: 'voortgang', run: (s, id) => { s.enterTaskProgress(id, { field: 'completion', value: 0.25 }, { today: '2026-03-02' }); } },
   { label: 'naam (sorteersleutel)', run: (s, id) => s.updateTask(id, { name: `Z ${id}` }) },
 ];

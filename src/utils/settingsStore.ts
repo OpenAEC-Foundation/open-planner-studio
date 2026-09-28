@@ -29,7 +29,7 @@ import {
  * vielen dan terug op de standaard — of werd een opslagactie een onafgehandelde rejection. Lezen
  * geeft dan `null` (= "niet ingesteld"), schrijven waarschuwt één keer en gaat door.
  */
-function readLocal(key: string): string | null {
+export function readLocal(key: string): string | null {
   try {
     return localStorage.getItem(key);
   } catch {
@@ -38,7 +38,7 @@ function readLocal(key: string): string | null {
 }
 
 let warnedSettingsWrite = false;
-function writeLocal(key: string, value: string): void {
+export function writeLocal(key: string, value: string): void {
   try {
     localStorage.setItem(key, value);
   } catch (error) {
@@ -47,6 +47,10 @@ function writeLocal(key: string, value: string): void {
       console.warn('Instelling kon niet worden bewaard (opslag geblokkeerd of vol):', key, error);
     }
   }
+}
+
+export function removeLocal(key: string): void {
+  try { localStorage.removeItem(key); } catch { /* opslag geblokkeerd: niets te verwijderen */ }
 }
 
 export async function getSetting<T>(key: string): Promise<T | undefined> {
