@@ -25,6 +25,7 @@ opdracht voor zijn spoor krijgt, moet zijn werk kunnen doen zonder terug te vrag
 | E7 | **"Imports/exports" betekent beide:** bestandsformaten (sporen E/F) én module-imports/-exports in de code (spoor K). |
 | E8 | **Niet aan `public/docs/` komen**, en ook geen nieuwe verwijzingen naar help-artikelen in `src/state/helpArticles.ts` (poort 10 van `verify:docs` eist dat elk gebruikt artikel-id in het manifest staat; zie `docs/superpowers/specs/2026-09-28-gebruikersdocumentatie-diataxis-design.md` §6.3). Een functie die een eigen artikel nodig heeft, komt op de lijst *Gevolgen voor de gidsen*. De eigenaar herbouwt de documentatie. De gidsen zijn geen specificatie van hoe iets hoort te werken. Elke PR krijgt in plaats van gidswijzigingen een sectie *Gevolgen voor de gidsen* (per wijziging: welke gids iets moet zeggen en wat). `npm run verify:docs` moet wel groen blijven. |
 | E9 | Spoor R (gidsen tegen gedrag) vervalt; spoor M is alleen i18n en toegankelijkheid. |
+| E10 | **Geen testgroei zonder reden** (eigenaar, 2026-09-28: CI te traag, agents schrijven voor elk klein ding een test). Een nieuwe test moet de vier vragen van §2.2 doorstaan; liever een bestaande `cases-*.json` of check uitbreiden dan een nieuw bestand. Spoor T maakt CI sneller en ruimt de suite op. |
 
 ---
 
@@ -45,8 +46,16 @@ opdracht voor zijn spoor krijgt, moet zijn werk kunnen doen zonder terug te vrag
   (redenering uit code, met `pad:regel`) of **onbekend**. Het label staat erbij.
 - Uitspraken over wat P6 of MS Project doet, hebben een bron: een door P6 doorgerekend orakel uit het
   corpus, een `.mpp`-orakel, of documentatie van Oracle/Microsoft (URL + citaat). Anders: *onbekend*.
-- Een correctheidsfix heeft een test die **op de oude code faalt**. Controleer dat door alleen het
-  bronbestand terug te zetten en de test te draaien.
+- Een correctheidsfix wordt **bewezen** met een test die op de oude code faalt (alleen het bronbestand
+  terugzetten en draaien). Die test **blijft alleen** als hij deze vier vragen doorstaat (naar de
+  test-audit van OpenClaw, `.agents/skills/test-audit/SKILL.md`):
+  1. Welk waarneembaar gedrag, welke invariant of welk contract beschermt hij?
+  2. Welke geloofwaardige regressie maakt hem rood?
+  3. Waarom vangt de bestaande suite die regressie nog niet?
+  4. Heeft hij een testnaad nodig die geen enkele productieaanroeper nodig heeft? (Dan niet.)
+  Voorkeur: een bestaande `cases-*.json` of `check-*.ts` uitbreiden, geen nieuw bestand. Geen tests die
+  broncode als tekst doorzoeken (behalve de bestaande AST-poorten), geen verwachte waarden die uit de
+  geteste code zelf komen, geen tweede test voor hetzelfde contract.
 - Een prestatiefix is **differentieel gepind** (zelfde uitkomst als de oude route) en gemeten (vóór → na).
 - Een "flake" is geen oorzaak. Een rode test is rood tot de oorzaak bekend is.
 
@@ -219,6 +228,41 @@ spoor dat die zone bezit.
   twee gelijknamige bedrijven niet te onderscheiden; dode `companyId` toont "geen bedrijf"; een taak
   zonder vastlegging telt na opslaan-in-modus als vastgelegd (PR #167-vervolg).
 
+### T — Tests en CI-snelheid (golf 1 voor de versnellingen, golf 3 voor het opruimen)
+
+- **Zone:** `.github/workflows/`, `playwright.config.ts`, `scripts/run-browser-tests.mjs`,
+  `scripts/browser-test-server.mjs`, `scripts/verify-parts.mjs`, `tests/planning/run.sh` (alleen de
+  indeling), `CLAUDE.md` (alleen de testregels). Bij het opruimen: `tests/`.
+- **Nulmeting (2026-09-28, gemeten):** CI parallel ~8,5 min (langste job planning 8:16); dezelfde
+  stappen serieel ~28 min, en dat is wat `live.yml` na elke merge nog eens draait (20–47 min gemeten)
+  en wat `npm run verify` lokaal doet. Browsersuite lokaal 20,1 min: 354 tests, 1 worker, mediaan
+  3,1 s per test, 353 van 354 duren ≥ 2 s. Planningssuite lokaal 7,5 min: 305 checks, 275 onder
+  0,5 s, samen 142 s looptijd in één doorgang; de tijdzonematrix herdraait ook tijdzone-onafhankelijke
+  checks (o.a. `check-conventions-boundary`, 30 s).
+- **Golf 1, versnellen (vóór de andere sporen gaan pushen):**
+  1. `live.yml` draait `verify` niet opnieuw maar start via `workflow_run` na een geslaagde CI-run op
+     `main`. Voorwaarden: `workflow_run.event == 'push'`, `head_repository.full_name ==
+     github.repository`, `conclusion == 'success'`; check `workflow_run.head_sha` uit; houd
+     `cancel-in-progress: false`. De K9-eis blijft gehaald: deploy alleen na groene CI op precies die
+     commit. Gevolg: bij twee snelle merges vervalt de eerste deploy (CI annuleert hem); melden in de PR.
+  2. Playwright parallel: meerdere workers per shard (en `fullyParallel` waar tests geen state delen).
+     Eerst meten of tests elkaar raken.
+  3. Onderzoeken waar de vaste ~2–3 s per browsertest zit (Vite-devserver die modules op aanvraag
+     vertaalt, verse paginalading) en of tests tegen een gebouwde app kunnen draaien terwijl de
+     dev-brug `window.__OPS__` beschikbaar blijft.
+  4. Tijdzone-onafhankelijke checks (AST-poorten, i18n, performancepoorten) uit de tijdzonematrix.
+  5. De planningssuite in CI over twee jobs verdelen als hij daarna nog de langste job is.
+  6. Lokaal beleid in `CLAUDE.md`: agents draaien gerichte checks; CI is de volledige poort. De
+     laptop van de eigenaar draait geen volledige `verify` meer als routine.
+- **Golf 3, opruimen (naast K, beide raken de hele repo):** per subsysteem elke testdeclaratie
+  markeren als behouden / repareren / samenvoegen / verwijderen (methode uit OpenClaw
+  `CAMPAIGN.md`). Bewaking: per behouden contract één opzettelijke bug in de productiecode inbouwen en
+  zien dat precies die test rood wordt; een onafhankelijke agent reviewt elke batch. Kandidaten om mee
+  te beginnen: de ~40 checks die broncode als tekst doorzoeken (classificeren, niet blind weggooien:
+  `check-ifc-roundtrip` zit ertussen en is grotendeels gedragstest), en groepen voorbeeldcases die
+  samen één regel uitdrukken (kandidaat voor een property-test). Traag is geen reden om te verwijderen.
+  De vier vragen van §2.2 komen in `CLAUDE.md`.
+
 ### O — Rekenprofielen, kritisch
 
 - **Zone:** `src/engine/scheduler/conventions/`, `solveInput.ts`, `src/services/schedulingProfiles/`,
@@ -372,9 +416,9 @@ niet aan, dan meldt de orkestrator dat aan de eigenaar in plaats van stil door t
 
 | golf | sporen | aard |
 |---|---|---|
-| 1 | A, B, C, D, E, F, G, H, I, J, M, N, O, Q en P-inventaris; L meet vanaf het begin mee | audit + verificatie (alleen lezen) |
+| 1 | T-versnellingen eerst (bouwen, landt als eerste); daarnaast A, B, C, D, E, F, G, H, I, J, M, N, O, Q en P-inventaris; L meet vanaf het begin mee | audit + verificatie (alleen lezen), behalve T |
 | 2 | A, B, C, D, E, F, G, H, I, J, M, N, O, Q | fixes per spoor, elk in een eigen worktree en branch, mergen volgens §4 |
-| 3 | P (tweede profiellaag), daarna K (code-opbouw) | bouwen, daarna mechanisch opruimen |
+| 3 | P (tweede profiellaag), daarna K (code-opbouw) en T-opruimen | bouwen, daarna mechanisch opruimen |
 
 Na golf 1 bundelt de orkestrator wat na onderzoek (E5) nog echt een eigenaarsbesluit is in één lijst,
 met per punt bronnen, opties en advies. Alles wat niet op die lijst wacht, gaat door.
