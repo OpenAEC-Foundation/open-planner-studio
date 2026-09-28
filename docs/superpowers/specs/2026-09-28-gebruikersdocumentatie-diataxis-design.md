@@ -1,6 +1,6 @@
 # Gebruikersdocumentatie — opnieuw, volgens Diátaxis
 
-*Ontwerp, 2026-09-28, versie 1. Status: **ter review bij de eigenaar**. Basis: interview met de eigenaar
+*Ontwerp, 2026-09-28, versie 1.1 (open punten §10 beantwoord). Status: **ter review bij de eigenaar**. Basis: interview met de eigenaar
 (2026-09-28), de documentatie-audit van 2026-09-26 (PR #242), en drie read-only onderzoeken op `main`
 `9ab90cfd`: functie-inventaris uit de code (bijlage: `2026-09-28-gebruikersdocumentatie-functie-inventaris.md`),
 analyse van de docs-infrastructuur, en een haalbaarheidsmeting van app-gegenereerde screenshots.*
@@ -223,7 +223,7 @@ de hand, zodat het project reproduceerbaar blijft.
 - Vier secties in vaste volgorde; tutorials genummerd met "Vorige / Volgende".
 - Talen: `nl`, `en`; andere UI-talen tonen Engels met een korte melding ("nog niet beschikbaar in jouw
   taal"). Taalkiezer: Auto / NL / EN; een bewaarde oude keuze (bijv. `de`) valt terug op Auto.
-- Afbeeldingen: een afbeelding op een eigen regel wordt een blok (`<figure>`), met thema-variant
+- Afbeeldingen: een afbeelding op een eigen regel wordt een blok (`<figure>`), met taalvariant
   (§7.3). Alt-tekst verplicht.
 - `docs://id#anker`: werkt nu niet (Z: `miniMarkdown.tsx:61-67`); koppen krijgen een id zodat ?-knoppen
   naar een sectie kunnen springen.
@@ -273,16 +273,16 @@ De eigenaar koos daarop voor build-time (2026-09-28).
   via echte UI-events, welk element of welke uitsnede, en een controle van de toestand na elke stap.
   Dezelfde stappen als in de tekst — het script is het bewijs dat de tutorial werkt in de echte app.
 - `npm run gen:docs-screenshots` start de browserbuild via de bestaande browsertest-infrastructuur
-  (Playwright, `scripts/browser-test-server.mjs`) en schrijft per taal en thema:
-  `public/docs/img/<lang>/<theme>/<shot>.webp`.
+  (Playwright, `scripts/browser-test-server.mjs`) en schrijft per taal:
+  `public/docs/img/<lang>/<shot>.webp` (alleen licht thema, §10).
 - De beelden worden **gecommit**: de bouwketens (`live.yml`, Tauri-builds) hebben geen Playwright (A).
-- **Omvang:** ~100 beelden × 2 talen × 2 thema's, WebP-uitsneden ~15–35 KB → ongeveer 6–14 MB
-  (gemeten groottes, schatting van het aantal). Keuze thema's: zie open punt §10.
+- **Omvang:** ~100 beelden × 2 talen, alleen licht thema, WebP-uitsneden ~15–35 KB → ongeveer 3–7 MB
+  (gemeten groottes, schatting van het aantal).
 
 ### 7.3 Viewer
 
-`![Alt](img/{lang}/{theme}/tut-3-kalender-bouwvak.webp)` — de viewer vult taal en actief thema in.
-De wiki gebruikt de Engelse lichte variant.
+`![Alt](img/{lang}/tut-3-kalender-bouwvak.webp)` — de viewer vult de docstaal in. De wiki gebruikt de
+Engelse variant.
 
 ### 7.4 Blijven kloppen
 
@@ -298,8 +298,7 @@ De wiki gebruikt de Engelse lichte variant.
 - `DialogHeader` (`src/components/common/Dialog.tsx`) krijgt een optionele `help`-prop: een ?-knop naast
   het kruisje. Voor panelen een kleine `HelpButton`.
 - Mechanisme bestaat al: `openHelpArticle(id)` (`uiSlice.ts:364-369`, Z); geen nieuwe UI-vlag nodig.
-- Bij een dialoog met invoer (bijv. de taakdialoog met annuleer-/terugdraaisemantiek) mag de ?-knop geen
-  niet-opgeslagen invoer weggooien — open punt §10.
+- Bij een dialoog met onopgeslagen invoer vraagt de ?-knop eerst: opslaan / annuleren / terug (§10).
 - Bestaand bugje meegenomen: "Lees de gids" in *Net bijgewerkt* opent Help achter de dialoog (Z).
 
 ### 8.2 Id's op één plek
@@ -318,6 +317,7 @@ waaronder een dubbele constante voor `datums-zoals-opgeslagen`, Z). Poort 10 lee
 | Fase | Inhoud | Oplevering |
 |---|---|---|
 | 0 | Dit ontwerp | PR, review eigenaar |
+| 0b | Dubbele knoppen weghalen ("Vrije dagen", "Baseline opslaan…") | kleine app-PR |
 | 1 — pilot | Manifest v2 + viewer (4 soorten, `draft`), tutorialproject (nl/en) + generator, **tut-1**, één how-to, `uitleg-kritiek-pad` | PR('s); review tegen §4.3, daarna eigenaar |
 | 2 | Tutorials 2–7 + screenshots | PR per 1–2 tutorials |
 | 3 | How-to's, uitleg, referentie | PR per domein |
@@ -328,16 +328,16 @@ alleen in dev zichtbaar. Zo ziet een gebruiker nooit een halve mix.
 
 Na fase 4 volgen de 12 vertalingen in een apart traject.
 
-## 10. Open punten voor de eigenaar
+## 10. Besluiten op de open punten (eigenaar, 2026-09-28)
 
-1. **Thema's in screenshots:** licht én donker (dubbele omvang, beeld volgt het thema van de gebruiker),
-   of alleen licht?
-2. **?-knop in een dialoog met invoer:** Help openen zonder de dialoog te sluiten (dialoog blijft
-   staan, Help ernaast/erachter), of eerst vragen om op te slaan/annuleren?
-3. **Naam en inhoud van het tutorialproject** (§5): akkoord met *Aanbouw woning*?
-4. **Dubbele knoppen** gevonden bij de inventaris — documenteren zoals ze zijn, of eerst in de app
-   oplossen? "Vrije dagen" opent dezelfde dialoog als "Kalender"; "Baseline opslaan…" dezelfde als
-   "Baselines beheren…".
+1. **Screenshots: alleen licht thema.** Geen thema-variant in het pad; §7.2/§7.3 lezen
+   `public/docs/img/<lang>/<shot>.webp`. Omvang ≈ 3–7 MB.
+2. **?-knop in een dialoog met onopgeslagen invoer: eerst vragen** (opslaan / annuleren / terug).
+   Daarna sluit de dialoog en opent Help op het artikel. Dialogen zonder invoer openen Help direct.
+3. **Tutorialproject *Aanbouw woning*: akkoord** zoals in §5.
+4. **Dubbele knoppen eerst in de app oplossen door de dubbele weg te halen:** "Vrije dagen" en
+   "Baseline opslaan…" verdwijnen; "Kalender" en "Baselines beheren…" blijven. Dit is een aparte,
+   kleine PR vóór de pilot, zodat de docs meteen de nieuwe situatie beschrijven.
 
 ## 11. Buiten scope
 
