@@ -2,7 +2,7 @@ import { Task } from '@/types/task';
 import type { BaselineOverlay } from '@/types/baseline';
 import { Sequence } from '@/types/sequence';
 import type { ViewState, BarSplitMode, DurationDisplay } from '@/types/view';
-import { parseDate, parseInstant, addCalendarDays, diffCalendarDays, isoDayOfWeek, getWeekNumberFor, utcDayStart } from '@/utils/dateUtils';
+import { parseDate, parseInstant, addCalendarDays, diffCalendarDays, isoDayOfWeek, getWeekNumberFor, utcDayStart, localNowOnDayAxis, MS_PER_DAY } from '@/utils/dateUtils';
 import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { calendarWithEffectiveWorkTime } from '@/utils/effectiveWorkTime';
 import { effHoursPerDay, formatTaskDurationDisplay, taskDurationMinutes } from '@/utils/taskDuration';
@@ -12,7 +12,7 @@ import { isZeroDurationMilestone, taskDurationUnit } from '@/engine/scheduler/du
 import { firstRowIndexByTask, uniqueTaskIds, type ViewRow } from '@/engine/view/visibleRows';
 // Resource-accent: dezelfde pure toewijzings-module als de printlaag (één definitie van
 // "welke resources kleuren welke taak"), geen tweede implementatie in de renderer.
-import { assignmentsFor, computeBarColors, type BarPalette } from '@/services/print/barColors';
+import { assignmentsForTask, computeBarColors, type BarPalette } from '@/services/print/barColors';
 import type { BarColorContext } from '@/services/print/barColorCategories';
 import type { BarColorSelection } from '@/types/barColor';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
@@ -26,6 +26,51 @@ import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { classifyTraceTask, isRelationOutsideTrace, type TaskTrace } from '@/engine/taskGrid/trace';
 import { ellipsize } from './textFit';
 import { shownStart, shownFinish, floatBandEnd, finishInstant } from '@/utils/taskDates';
+
+/** `firstRowIndexByTask` per rijenlijst (die komt bevroren uit de store): de renderer wordt per
+ *  scrollframe opnieuw gebouwd en bouwde de map dan telkens over alle rijen. */
+const rowIndexCache = new WeakMap<ViewRow[], Map<string, number>>();
+function cachedRowIndexByTask(rows: ViewRow[]): Map<string, number> {
+  // Alleen een BEVROREN lijst kan niet na het cachen nog in-place wijzigen (store-data is bevroren;
+  // een losse testlijst of printopbouw niet — die krijgt de map gewoon vers, zoals vroeger).
+  if (!Object.isFrozen(rows)) return firstRowIndexByTask(rows);
+  let map = rowIndexCache.get(rows);
+  if (!map) { map = firstRowIndexByTask(rows); rowIndexCache.set(rows, map); }
+  return map;
+}
+
+interface ArrowEntry {
+  seq: Sequence;
+  predIdx: number;
+  succIdx: number;
+  loIdx: number;
+  hiIdx: number;
+  pred: Task;
+  succ: Task;
+}
+/** De tekenbare relaties (beide eindpunten een taakrij, eerste occurrence) in relatievolgorde, per
+ *  (relaties, rijen) één keer opgebouwd. */
+const arrowEntryCache = new WeakMap<Sequence[], { rows: ViewRow[]; entries: ArrowEntry[] }>();
+function cachedArrowEntries(sequences: Sequence[], rows: ViewRow[], rowIndexByTask: Map<string, number>): ArrowEntry[] {
+  const cacheable = Object.isFrozen(sequences) && Object.isFrozen(rows);
+  const cached = cacheable ? arrowEntryCache.get(sequences) : undefined;
+  if (cached && cached.rows === rows) return cached.entries;
+  const entries: ArrowEntry[] = [];
+  for (const seq of sequences) {
+    const predIdx = rowIndexByTask.get(seq.predecessorId) ?? -1;
+    const succIdx = rowIndexByTask.get(seq.successorId) ?? -1;
+    if (predIdx < 0 || succIdx < 0) continue;
+    const predRow = rows[predIdx];
+    const succRow = rows[succIdx];
+    if (predRow?.kind !== 'task' || succRow?.kind !== 'task') continue;
+    entries.push({
+      seq, predIdx, succIdx, loIdx: Math.min(predIdx, succIdx), hiIdx: Math.max(predIdx, succIdx),
+      pred: predRow.task, succ: succRow.task,
+    });
+  }
+  if (cacheable) arrowEntryCache.set(sequences, { rows, entries });
+  return entries;
+}
 
 export interface GanttRenderOptions {
   /** DE gedeelde zichtbare-rijenlijst: de renderer flattent NIET zelf — tabel en Gantt consumeren
@@ -243,7 +288,7 @@ export class GanttRenderer {
     this.viewStart = parseDate(opts.view.viewStartDate);
     this.rows = opts.rows;
     // "Eerste index wint": bij multi-band-duplicaten verbinden pijlen de eerste occurrence.
-    this.rowIndexByTask = firstRowIndexByTask(opts.rows);
+    this.rowIndexByTask = cachedRowIndexByTask(opts.rows);
     // Eén engine per render voor de grid-arcering; ook in de engineCache gezet zodat een
     // uur-modus-projectkalender in `engineFor` dezelfde instantie hergebruikt (geen dubbele
     // holiday-expansie binnen één render).
@@ -649,8 +694,7 @@ export class GanttRenderer {
 
   private drawTodayLine(): void {
     const ctx = this.ctx;
-    const today = new Date();
-    const x = this.dateToX(today);
+    const x = this.dateToX(localNowOnDayAxis());
 
     if (x >= 0 && x < this.opts.canvasWidth) {
       ctx.strokeStyle = this.colors.today;
@@ -1247,9 +1291,26 @@ export class GanttRenderer {
       }
     } else if (geo.hourMode && this.shouldSplit(isSelected)) {
       const eng = this.engineFor(task);
-      const intervals = eng ? eng.workIntervalsBetween(geo.start, geo.end) : [];
+      // Alleen het ZICHTBARE stuk van de balk opsplitsen (plus een dag marge): een lange uur-taak
+      // (> ~1 jaar) werd anders na de scanlimiet van `workIntervalsBetween` afgekapt getekend, en
+      // elke frame materialiseerde alle banden van de hele looptijd (audit 2026-09-26).
+      const visFrom = Math.max(geo.start.getTime(), this.axis.xToDate(-this.opts.view.zoom).getTime() - MS_PER_DAY);
+      const visTo = Math.min(geo.end.getTime(), this.axis.xToDate(this.opts.canvasWidth + this.opts.view.zoom).getTime() + MS_PER_DAY);
+      const clipped = visFrom > geo.start.getTime() || visTo < geo.end.getTime();
+      const intervals = eng && visTo > visFrom ? eng.workIntervalsBetween(new Date(visFrom), new Date(visTo)) : [];
       if (intervals.length > 0) {
         segs = intervals.map(iv => ({ x1: this.dateToX(iv.start), x2: this.dateToX(iv.end) }));
+        // Een segment dat tegen de knip aanligt loopt in werkelijkheid door: teken het tot de
+        // volle balkrand (die buiten beeld ligt), niet tot de knipgrens.
+        if (intervals[0].start.getTime() <= visFrom && visFrom > geo.start.getTime()) segs[0].x1 = x1;
+        const last = segs.length - 1;
+        if (intervals[last].end.getTime() >= visTo && visTo < geo.end.getTime()) segs[last].x2 = x2;
+        split = true;
+      } else if (eng && clipped && visTo > visFrom) {
+        // Het zichtbare stuk valt helemaal in een werkgat: alleen de necking-lijn erdoorheen.
+        const lx = this.dateToX(new Date(visFrom));
+        const rx = this.dateToX(new Date(visTo));
+        segs = [{ x1: lx, x2: lx }, { x1: rx, x2: rx }];
         split = true;
       }
     }
@@ -1376,7 +1437,7 @@ export class GanttRenderer {
     // genoeg om het kritiek-pad-beeld niet te verdringen, duidelijk genoeg om "wie doet dit" te lezen.
     let resourceAccentHeight = 0;
     if (this.opts.showResourceAccent) {
-      const rows = assignmentsFor(task.id, this.opts.resources ?? [], this.opts.assignments ?? []);
+      const rows = assignmentsForTask(task.id, this.opts.resources ?? [], this.opts.assignments ?? []);
       if (rows.length > 0) {
         const total = rows.reduce((a, r) => a + r.unitsPerDay, 0) || 1;
         const accentH = 3;
@@ -1974,6 +2035,25 @@ export class GanttRenderer {
     ctx.stroke();
   }
 
+  /**
+   * X van het relatie-anker op de balkrand: `atStart` = linkerrand, anders rechterrand. Dagtaken
+   * (datums zonder tijd): de dagcelranden zoals altijd — begin van de startdag, einde van de
+   * einddag. Uurtaken: dezelfde randen als de balk (`barGeometry`: het tijdstip zelf, het einde via
+   * de rollupregel). Vroeger rekende de pijl ook bij een uurtaak met `parseDate` + één dag, zodat
+   * hij tot een dag naast een uurbalk begon of eindigde.
+   */
+  private relationAnchorX(task: Task, atStart: boolean): number {
+    const start = shownStart(task);
+    const finish = shownFinish(task);
+    if ((start ?? '').includes('T') || (finish ?? '').includes('T')) {
+      const geo = this.barGeometry(task);
+      return atStart ? geo.x1 : geo.x2;
+    }
+    return atStart
+      ? this.dateToX(parseDate(start))
+      : this.dateToX(parseDate(finish)) + this.opts.view.zoom;
+  }
+
   private drawDependencyArrows(): void {
     const ctx = this.ctx;
     // `lineWidth` blijft VÓÓR de vroege uitstap staan: de today-/statusdatumlijn hierboven laat 'm op
@@ -1992,18 +2072,23 @@ export class GanttRenderer {
     // in lijn met de gedimde balken.
     const trace = this.opts.trace;
 
-    for (const seq of this.opts.sequences) {
-      // taskId→rij-index-map is "eerste occurrence wint" — bij multi-band-duplicaten
-      // verbindt de pijl één keer, latere occurrences krijgen geen pijlen.
-      const predIdx = this.rowIndexByTask.get(seq.predecessorId) ?? -1;
-      const succIdx = this.rowIndexByTask.get(seq.successorId) ?? -1;
-      if (predIdx < 0 || succIdx < 0) continue;
-
-      const predRow = this.rows[predIdx];
-      const succRow = this.rows[succIdx];
-      if (predRow?.kind !== 'task' || succRow?.kind !== 'task') continue;
-      const pred = predRow.task;
-      const succ = succRow.task;
+    // taskId→rij-index-map is "eerste occurrence wint" — bij multi-band-duplicaten verbindt de
+    // pijl één keer, latere occurrences krijgen geen pijlen. De lijst met rij-indices wordt per
+    // (relaties, rijen) één keer gebouwd i.p.v. per frame twee map-lookups per relatie
+    // (`cachedArrowEntries`); volgorde en filter zijn die van de oude lus.
+    const rowH = this.opts.rowHeight;
+    const canvasH = this.opts.canvasHeight;
+    const cullMargin = rowH / 2 + 8;
+    const rightCull = this.opts.canvasWidth + GanttRenderer.ARROW_STUB + 8;
+    for (const { seq, predIdx, succIdx, loIdx, hiIdx, pred, succ } of cachedArrowEntries(this.opts.sequences, this.rows, this.rowIndexByTask)) {
+      // Verticale offscreen-cull vóór alles (prestatie). Het pad is niet één elleboog, dus de marge
+      // is hieruit afgeleid: alle y-waarden van de route liggen in {predY,
+      // succY, laneP, laneS}; de goten `laneP`/`laneS` liggen op een rijgrens op ±rowHeight/2 van hun
+      // eigen endpoint en dus (bij verschillende rijen) TUSSEN predY en succY. Alleen in het
+      // degeneratieve geval predIdx === succIdx kan een goot rowHeight/2 buiten het paar vallen.
+      // Marge = rowHeight/2 + 8 dekt dat plus pijlkop (±3) en lijnbreedte — een net-zichtbare pijl
+      // wordt dus NOOIT overgeslagen. `rowToY` is monotoon, dus max/min over het paar = hi/lo.
+      if (this.rowToY(hiIdx) + rowH / 2 < -cullMargin || this.rowToY(loIdx) + rowH / 2 > canvasH + cullMargin) continue;
 
       const isDriving = drivingSet ? drivingSet.has(seq.id) : true;
       const isCriticalLink = drivingSet !== null && isDriving
@@ -2017,20 +2102,8 @@ export class GanttRenderer {
       ctx.setLineDash(outsideTrace ? [1, 4] : isDriving ? [] : [4, 3]);
       ctx.globalAlpha = outsideTrace ? 0.15 : 1;
 
-      const rowH = this.opts.rowHeight;
       const predY = this.rowToY(predIdx) + rowH / 2;
       const succY = this.rowToY(succIdx) + rowH / 2;
-
-      // Verticale offscreen-cull (prestatie). Het pad is niet één elleboog, dus de marge is
-      // hieruit afgeleid: alle y-waarden van de route liggen in {predY, succY, laneP,
-      // laneS}; de goten `laneP`/`laneS` liggen op een rijgrens op ±rowHeight/2 van hun eigen
-      // endpoint en dus (bij verschillende rijen) TUSSEN predY en succY. Alleen in het degeneratieve
-      // geval predIdx === succIdx kan een goot rowHeight/2 buiten het paar vallen. Marge =
-      // rowHeight/2 + 8 dekt dat plus pijlkop (±3) en lijnbreedte — een net-zichtbare pijl wordt
-      // dus NOOIT overgeslagen. Bespaart de dure parseDate/dateToX hieronder voor de rest.
-      const canvasH = this.opts.canvasHeight;
-      const cullMargin = rowH / 2 + 8;
-      if (Math.max(predY, succY) < -cullMargin || Math.min(predY, succY) > canvasH + cullMargin) continue;
 
       // Ankerpunten + looprichtingen per relatietype (FF en SF landen op de opvolger-FINISH).
       //   predStart  — voorganger-anker = start/linkerrand  (SS, SF)
@@ -2038,22 +2111,17 @@ export class GanttRenderer {
       let fromX: number, toX: number, dirOut: number, dirIn: number;
       const predStart = seq.type === 'START_START' || seq.type === 'START_FINISH';
       const succFinish = seq.type === 'FINISH_FINISH' || seq.type === 'START_FINISH';
-      if (predStart) {
-        fromX = this.dateToX(parseDate(shownStart(pred)));
-      } else {
-        fromX = this.dateToX(parseDate(shownFinish(pred))) + this.opts.view.zoom;
-      }
-      if (succFinish) {
-        toX = this.dateToX(parseDate(shownFinish(succ))) + this.opts.view.zoom;
-      } else {
-        toX = this.dateToX(parseDate(shownStart(succ)));
-      }
+      fromX = this.relationAnchorX(pred, predStart);
+      toX = this.relationAnchorX(succ, !succFinish);
       // dirOut = uitloop WEG van de voorgangerbalk; dirIn = aankomstkant bij de opvolger:
       // start-anker (FS/SS) komt van links (kop wijst naar rechts); finish-anker (FF/SF) van rechts.
       dirOut = predStart ? -1 : 1;
       dirIn = succFinish ? 1 : -1;
 
       if (fromX < 0 && toX < 0) continue;
+      // Rechts van het beeld: elk x van de route ligt binnen ARROW_STUB van `fromX`/`toX` (de kolom
+      // van `pickColumn` ligt tussen `enter` en `xa`), de pijlkop binnen 5 px — dus niets zichtbaars.
+      if (Math.min(fromX, toX) > rightCull) continue;
 
       // ── Routing ───────────────────────────────────────────────────────────
       // `dirOut`/`dirIn` zijn hierboven berekend. `xa` ligt naast de voorgangerbalk (aan de

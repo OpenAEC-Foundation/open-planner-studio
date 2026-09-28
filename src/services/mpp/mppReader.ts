@@ -64,7 +64,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import type { Resource, ResourceType } from '@/types/resource';
 import type { ImportLabels, ImportResult } from '@/services/importTypes';
 import { generateId } from '@/utils/id';
-import { formatDate, formatInstant, parseInstant } from '@/utils/dateUtils';
+import { formatDate, formatInstant, parseInstant, localTodayIso } from '@/utils/dateUtils';
 import { normalizeImportedProgress, deriveImportedWorkRules, reconstructResourceIds } from '@/services/importNormalize';
 import { emptyMissingScheduleDates, resolveMissingScheduleDates } from '@/services/importDates';
 import { tenthsOfMinutesToDays } from '@/services/importDurations';
@@ -94,6 +94,7 @@ import {
   deriveSplitGapsFromPeriods, deriveTaskSplitGaps, shiftPeriods, hasAnyTimephasedData,
   type AssignmentTimephasedRaw, type TimephasedWorkPeriod,
 } from './mppTimephased';
+import { maxOf, minOf } from '@/utils/collections';
 
 // ── PropsKey-sleutels voor projecteigenschappen (PropsKey.java; gelezen uit `"   114"/Props`,
 // NIET uit de root-`Props14`-stream — die draagt alleen de wachtwoordvlag, zie mppContainer.ts). ──
@@ -794,7 +795,7 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
     const isManual = raw.taskMode === 'MANUALLY_SCHEDULED';
     const resolvedStartTs = resolveScheduleField(raw.manualStartTs, raw.startTs, isManual);
     const resolvedFinishTs = resolveScheduleField(raw.manualFinishTs, raw.finishTs, isManual);
-    const start = formatField(resolvedStartTs) ?? formatDate(new Date());
+    const start = formatField(resolvedStartTs) ?? localTodayIso();
     const finish = formatField(resolvedFinishTs) ?? start;
     const actualStart = formatField(raw.actualStartTs);
     const actualFinish = formatField(raw.actualFinishTs);
@@ -972,7 +973,7 @@ export function parseProjectProperties(
     id: generateId('proj'),
     name,
     description: '',
-    startDate: startDate ? formatDate(startDate) : formatDate(new Date()),
+    startDate: startDate ? formatDate(startDate) : localTodayIso(),
     endDate: finishDate ? formatDate(finishDate) : '',
     calendarId: 'cal-default',
     createdAt: new Date().toISOString(),
@@ -1195,7 +1196,7 @@ function computeShiftedAssignmentPeriods(
   if (actualPeriods.length > 0) {
     remainingShift = engine.isHourMode && link.assignmentResume
       ? Math.max(0, engine.workMinutesBetween(taskStart, link.assignmentResume))
-      : Math.max(...actualPeriods.map((p) => p.elapsedWorkMinutesEnd));
+      : maxOf(actualPeriods.map((p) => p.elapsedWorkMinutesEnd));
   }
   const remainingPeriods = shiftPeriods(remainingPeriodsRaw, remainingShift);
 
@@ -1519,9 +1520,9 @@ export function deriveTimephasedWindowsForTasks(
 
   const result = new Map<string, TimephasedWindowResult>();
   for (const [taskId, finishes] of finishesByTask) {
-    const finishFloor = new Date(Math.max(...finishes.map((d) => d.getTime())));
+    const finishFloor = new Date(maxOf(finishes.map((d) => d.getTime())));
     const starts = startsByTask.get(taskId);
-    const startAnchor = starts ? new Date(Math.min(...starts.map((d) => d.getTime()))) : null;
+    const startAnchor = starts ? new Date(minOf(starts.map((d) => d.getTime()))) : null;
     result.set(taskId, { finishFloor, startAnchor, durationWalks: [] });
   }
   // Laag 4 (`durationWalksByTask`) is hier de enige bron. Twee takken:
@@ -1538,7 +1539,7 @@ export function deriveTimephasedWindowsForTasks(
     if (walks.length === 1 && layer4ActivatedTasks.has(taskId)) {
       // Precies 1 toewijzing: geen MATERIAL-filter (er valt niets te kiezen) en de volle taakduur
       // is het wandelgetal, ongeacht het toewijzingstype.
-      const startAnchor = new Date(Math.min(...walks.map((w) => w.anchor.getTime())));
+      const startAnchor = new Date(minOf(walks.map((w) => w.anchor.getTime())));
       result.set(taskId, {
         finishFloor: null, startAnchor,
         durationWalks: walks.map((w) => ({ anchor: w.anchor, resourceCalendarId: w.resourceCalendarId })),
@@ -1555,7 +1556,7 @@ export function deriveTimephasedWindowsForTasks(
         // `startAnchor` gaat over ALLE toewijzingen, ook MATERIAL: het is het vroegste ankerpunt voor
         // een taak zonder voorganger, geen wandelinvoer. In "Task A" dragen juist de MATERIAL-
         // toewijzingen het vroegste anker (08:00); zonder hen landt de start op 23:00.
-        const startAnchor = new Date(Math.min(...walks.map((w) => w.anchor.getTime())));
+        const startAnchor = new Date(minOf(walks.map((w) => w.anchor.getTime())));
         result.set(taskId, {
           finishFloor: null, startAnchor,
           durationWalks: laborWalks.map((w) => ({ anchor: w.anchor, resourceCalendarId: w.resourceCalendarId, workMinutes: w.workMinutes! })),

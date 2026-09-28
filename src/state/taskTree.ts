@@ -130,17 +130,37 @@ export function reparentTask(tasks: Task[], id: string, newParentId: string | nu
  * voorouder terugwijst zou anders oneindig doorlopen.
  */
 export function collectSubtreeIds(tasks: Task[], rootId: string): string[] {
-  const out: string[] = [];
-  const bezocht = new Set<string>();
-  const walk = (id: string) => {
-    if (bezocht.has(id)) return;
-    bezocht.add(id);
-    out.push(id);
-    const t = tasks.find(x => x.id === id);
-    if (t) for (const cid of t.childIds) walk(cid);
+  return subtreeCollector(tasks)(rootId);
+}
+
+/** Eerste taak per id (dezelfde keuze als `tasks.find`), één keer opgebouwd. */
+function firstById(tasks: readonly Task[]): Map<string, Task> {
+  const byId = new Map<string, Task>();
+  for (const t of tasks) if (!byId.has(t.id)) byId.set(t.id, t);
+  return byId;
+}
+
+/**
+ * {@link collectSubtreeIds} voor meerdere wortels over dezelfde takenlijst: de id-index wordt één
+ * keer gebouwd, zodat k wortels O(taken + deelbomen) kosten in plaats van O(deelboom × taken) per
+ * wortel. De index houdt de taakobjecten vast en leest `childIds` pas bij het doorlopen, dus een
+ * tussentijds gewijzigde `childIds` (zoals `removeTaskSubtrees` doet) telt mee zoals voorheen.
+ */
+export function subtreeCollector(tasks: readonly Task[]): (rootId: string) => string[] {
+  const byId = firstById(tasks);
+  return (rootId) => {
+    const out: string[] = [];
+    const bezocht = new Set<string>();
+    const walk = (id: string) => {
+      if (bezocht.has(id)) return;
+      bezocht.add(id);
+      out.push(id);
+      const t = byId.get(id);
+      if (t) for (const cid of t.childIds) walk(cid);
+    };
+    walk(rootId);
+    return out;
   };
-  walk(rootId);
-  return out;
 }
 
 /** Minimale state-vorm voor {@link removeTaskSubtrees} (subset van AppState). */
@@ -161,9 +181,14 @@ interface TaskRemovalState {
  */
 export function removeTaskSubtrees(s: TaskRemovalState, rootIds: readonly string[]): Set<string> {
   const removeIds = new Set<string>();
+  // Eén index voor alle wortels (bulkverwijderen van duizenden taken was O(wortels × taken)).
+  const byId = firstById(s.tasks);
+  const collect = subtreeCollector(s.tasks);
   for (const id of rootIds) {
-    detachFromParent(s.tasks, id);
-    for (const subtreeId of collectSubtreeIds(s.tasks, id)) removeIds.add(subtreeId);
+    const task = byId.get(id); // = detachFromParent, met de index
+    const parent = task?.parentId ? byId.get(task.parentId) : undefined;
+    if (parent) parent.childIds = parent.childIds.filter(cid => cid !== id);
+    for (const subtreeId of collect(id)) removeIds.add(subtreeId);
   }
   s.tasks = s.tasks.filter(t => !removeIds.has(t.id));
   s.sequences = s.sequences.filter(seq => !removeIds.has(seq.predecessorId) && !removeIds.has(seq.successorId));

@@ -4,6 +4,7 @@ import { Task, ConstraintType } from '@/types/task';
 import { validateConstraintPair, withPrimaryConstraint } from '@/engine/scheduler/constraintValidation';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { Field } from './shared';
+import { readLocal, writeLocal } from '@/utils/settingsStore';
 
 /**
  * Constraint + hard-pin + secundaire constraint + validatie — sectie van
@@ -77,8 +78,8 @@ export function TaskConstraintFields({ task, onChange }: {
               onChange={e => {
                 const on = e.target.checked;
                 onChange({ constraint: { ...task.constraint!, hard: on || undefined } });
-                if (on && !localStorage.getItem('ops-hardPinHintSeen')) {
-                  localStorage.setItem('ops-hardPinHintSeen', '1');
+                if (on && !readLocal('ops-hardPinHintSeen')) {
+                  writeLocal('ops-hardPinHintSeen', '1');
                   setPinHint(true);
                 }
               }}

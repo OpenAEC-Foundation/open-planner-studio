@@ -225,6 +225,41 @@ const lagsByLink = (r: ImportResult) => {
   eq('4e ";": "Completion" = "0,5" ⇒ fractie 50 %', readCSV(csvOf(['WBS', 'Name', 'Completion'], [['1', 'A', '0,5']])).tasks[0].time.completion, 0.5);
 }
 
+// 5. (audit 2026-09-26) Meerregelige cel, taaktype-naam met scheidingsteken, decimale komma in de
+//    vastgelegde speling — alle drie via de ECHTE writer ⇒ reader.
+{
+  const multi = task('t1', '1', 'Fundering');
+  multi.description = 'Regel 1\nRegel 2; met "quote"';
+  const csv = writeCSV(noProject, noCalendar, [multi, task('t2', '2', 'Kelder')], [], [], []);
+  const back = readCSV(csv);
+  eq('5a meerregelige omschrijving ⇒ nog steeds 2 taken', back.tasks.length, 2);
+  eq('5a omschrijving komt heel terug', back.tasks[0]?.description, 'Regel 1\nRegel 2; met "quote"');
+  eq('5a de volgende rij blijft intact', back.tasks[1]?.name, 'Kelder');
+
+  const typed = task('t1', '1', 'Prefab');
+  typed.customTaskTypeId = 'ct-1';
+  typed.description = 'omschrijving';
+  const typedCsv = writeCSV(noProject, noCalendar, [typed], [], [], [], [{ id: 'ct-1', name: 'Beton; prefab' } as never]);
+  const { out: typedBack } = withWarnings(() => readCSV(typedCsv));
+  eq('5b taaktype-naam met ";" schuift de kolommen niet: type-id', typedBack.tasks[0]?.customTaskTypeId, 'ct-1');
+  eq('5b …en de omschrijving blijft op haar plek', typedBack.tasks[0]?.description, 'omschrijving');
+
+  const stray = readCSV(csvOf(['WBS', 'Name', 'Duration'], [['1', 'Pijp 5"', '3'], ['2', 'Bocht', '4']]));
+  eq('5c losse inch-quote midden in een ongequote cel slokt de volgende rij niet op', stray.tasks.map(t => t.name), ['Pijp 5"', 'Bocht']);
+
+  const lf = readCSV('WBS;Name;Description\n1;A;"x\r\ny"\n2;B;z\n');
+  eq('5d LF-bestand met CRLF binnen een quote-cel', lf.tasks.map(t => [t.name, t.description]), [['A', 'x\r\ny'], ['B', 'z']]);
+
+  const fl = readCSV(csvOf(['WBS', 'Name', 'Start', 'Finish', 'Total Float'], [['1', 'A', '2026-03-02', '2026-03-06', '2,5']]));
+  const flId = fl.tasks[0]?.id ?? '';
+  eq('5e vastgelegde speling "2,5" ⇒ 2.5 (niet 2)', fl.recordedTimes?.[flId]?.totalFloat, 2.5);
+
+  // Review 2026-09-28: witruimte vóór een quote-veld (handgeschreven CSV `a, "b,c"`).
+  const sp = readCSV('WBS,Name,Duration\n1, "Fundering, noord",5\n2, "Regel 1\nRegel 2",3\n');
+  eq('5f spatie vóór een quote-veld: komma blijft in de naam', sp.tasks.map(t => t.name.trim()), ['Fundering, noord', 'Regel 1\nRegel 2']);
+  eq('5g spatie vóór een quote-veld: duur daarna klopt', sp.tasks.map(t => t.time.scheduleDuration), [5, 3]);
+}
+
 if (diffs.length === 0) {
   console.log(`OK  csv-import-check: alle checks groen (${checks})`);
   process.exit(0);

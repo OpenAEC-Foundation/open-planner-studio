@@ -21,6 +21,7 @@ import {
   type SessionHistoryDelta,
 } from '../sessionHistory';
 import { deriveViewRows, viewRowInputs } from '../viewRows';
+import type { StoreRuntime } from '../runtime/storeRuntime';
 export { deriveViewRows } from '../viewRows';
 
 /**
@@ -107,7 +108,7 @@ export interface ViewSlice {
 }
 
 
-export const createViewSlice: AppSlice<ViewSlice> = (set, get) => {
+export const createViewSlice = (runtime: StoreRuntime): AppSlice<ViewSlice> => (set, get) => {
   /** Schrijf de gedragen delen van `parts` naar het scherm als ÉÉN undo-stap, met de nieuwe sessie. */
   const writeLayoutParts = (
     parts: Layout, session: LayoutSession | undefined, label: string, opts: { record?: boolean } = {},
@@ -316,6 +317,7 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => {
   },
 
   recomputeViewRows: () => {
+    if (runtime.deferViewRows()) return; // bulk: één keer aan het einde van de batch
     const s = get();
     const rows = deriveViewRows(s);
     set((st) => { st.viewRows = rows; });

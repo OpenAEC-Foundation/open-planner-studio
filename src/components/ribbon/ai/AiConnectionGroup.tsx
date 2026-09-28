@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Copy, Check, RefreshCw, Eye, EyeOff, Plug } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { loadMcpPort, saveMcpPort } from '@/utils/settingsStore';
-import { ensureMcpToken, regenerateMcpToken } from '@/services/mcp/server';
+import { ensureMcpToken, regenerateAndApplyMcpToken } from '@/services/mcp/server';
 import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog';
 import { AiConnectionDetailsDialog } from '@/components/dialogs/AiConnectionDetailsDialog';
 import { RibbonButton, RibbonCompactTrigger } from '@/components/layout/Ribbon/ribbonPrimitives';
@@ -82,10 +82,12 @@ export function AiConnectionGroup() {
   };
 
   const onRegenerate = () => {
-    const fresh = regenerateMcpToken();
-    setToken(fresh);
-    setShowToken(true);
     setConfirming(false);
+    // Draait de bridge, dan herstart hij met het nieuwe token: het oude werkt daarna echt niet meer.
+    void regenerateAndApplyMcpToken(() => useAppStore.getState().ui.aiServerStatus.state === 'live').then((fresh) => {
+      setToken(fresh);
+      setShowToken(true);
+    });
   };
 
   // Poort- en tokenveld zijn geëxtraheerd omdat ze ONgewijzigd in zowel de volle als de

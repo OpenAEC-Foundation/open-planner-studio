@@ -31,6 +31,8 @@ export function createBatchTransactions(context: AppStoreContext): BatchTransact
         // Een callbackthrow behoudt de gedeeltelijke mutaties en de ene undo-stap, maar mag de
         // suppressie nooit laten hangen.
         runtime.exitBatch();
+        // Eén rijenberekening voor de hele batch, vóór de undo-stap (die legt `viewRows` vast).
+        if (runtime.takeDeferredViewRows()) store.getState().recomputeViewRows();
         store.setState((state) => {
           runtime.recordDocumentDataHistory(state, before, documentId, 'Bulkbewerking');
         });

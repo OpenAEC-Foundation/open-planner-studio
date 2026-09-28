@@ -1,4 +1,4 @@
-import { formatDate, formatInstant, parseDate, parseInstant } from '@/utils/dateUtils';
+import { formatDate, formatInstant, parseDate, parseInstant, localTodayIso } from '@/utils/dateUtils';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
@@ -18,17 +18,28 @@ import { calendarForEngine } from '@/utils/effectiveWorkTime';
  * (`importStatusDate`) deelt de IFC-reader wél: die krijgt de waarde al ontdaan van de STEP-typering.
  */
 
+/**
+ * Een datum-tijd uit een BESTAND als wandklok: het model rekent in lokale wandkloktijd (naïef, als
+ * UTC opgeslagen), dus een tijdzone-aanduiding (`Z`, `+01:00`, `-0500`) wordt genegeerd — dezelfde
+ * regel als `hasNonAnchorTime` (subdayIo) die over de uur-/dagmodus beslist. `parseInstant` paste de
+ * offset wél toe: `2026-03-09T09:30:00+01:00` werd als uurtaak herkend (09:30) maar om 08:30
+ * ingelezen, en een tijd kort na middernacht belandde op de vorige dag.
+ */
+export function parseImportedInstant(raw: string): Date {
+  return parseInstant(raw.includes('T') ? raw.replace(/(?:[Zz]|[+-]\d{2}:?\d{2})$/, '') : raw);
+}
+
 /** ISO-datum-prefix (`YYYY-MM-DD`) uit een datetime-string; lege invoer ⇒ vandaag. */
 export function isoDatePrefixOrToday(s: string): string {
-  if (!s) return formatDate(new Date());
+  if (!s) return localTodayIso();
   return s.substring(0, 10);
 }
 
 /** Een datetime uit MSPDI/P6 in de modus van de taak: UUR ⇒ de echte tijd-van-de-dag
  *  (`YYYY-MM-DDTHH:mm`), DAG ⇒ de datum-prefix. Lege invoer ⇒ vandaag, zoals hierboven. */
 export function importDateTime(s: string, hour: boolean): string {
-  if (!s) return formatDate(new Date());
-  return hour ? formatInstant(parseInstant(s), 'hour') : s.substring(0, 10);
+  if (!s) return localTodayIso();
+  return hour ? formatInstant(parseImportedInstant(s), 'hour') : s.substring(0, 10);
 }
 
 /** Statusdatum uit een bestand → `project.statusDate`, voor élke lezer die hem kent (IFC, MSPDI, P6,
@@ -40,7 +51,7 @@ export function importDateTime(s: string, hour: boolean): string {
 export function importStatusDate(v: string): string {
   const day = v.substring(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)) return day;
-  const instant = parseInstant(v);
+  const instant = parseImportedInstant(v);
   return Number.isNaN(instant.getTime()) ? day : formatInstant(instant, 'hour');
 }
 
@@ -59,7 +70,7 @@ export function csvDate(s: string): string | undefined {
 
 /** `csvDate` met de bestaande vandaag-terugval (actuals/kalender-datums gebruiken hem niet). */
 export function csvDateOrToday(s: string): string {
-  return csvDate(s) ?? formatDate(new Date());
+  return csvDate(s) ?? localTodayIso();
 }
 
 // ── Ontbrekende geplande start/finish van ingelezen taken ───────────────────────────────────────
@@ -131,7 +142,7 @@ export function resolveMissingScheduleDates(
   }
   const anchor = fileProjectStart
     ? fileProjectStart.substring(0, 10)
-    : (earliest ? earliest.substring(0, 10) : formatDate(new Date()));
+    : (earliest ? earliest.substring(0, 10) : localTodayIso());
   for (const t of tasks) {
     const time = t.time;
     if (missing.start.has(t.id)) {

@@ -1502,7 +1502,7 @@ const offerOnly = (ifcText: string): ImportResult => ({
         reden: 'crashherstelmanifest; een hersteld document is te bewaren, de importvlag komt uit het IFC zelf' },
       { file: 'services/recovery/recoveryStore.ts', fragment: "docs: [{ id: 'legacy', ifc, filePath: null, isDirty: true",
         reden: 'idem, legacy-manifest' },
-      { file: 'services/recovery/recoveryStore.ts', fragment: 'id, ifc: docKey(sid, id), filePath: null, isDirty: true',
+      { file: 'services/recovery/recoveryStore.ts', fragment: 'id, ifc: docKey(generation, id), filePath: null, isDirty: true',
         reden: 'idem, manifestregel per document' },
       { file: 'state/sessionHistory.ts', fragment: '      isDirty: true;',
         reden: 'typebeschrijving van een gematerialiseerd history-doel (geen state); het toepassen loopt via restoreSnapshot' },

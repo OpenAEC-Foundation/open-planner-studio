@@ -1,6 +1,6 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import { syncSettingToLocalStorage } from '@/utils/settingsStore';
+import { readLocal, syncSettingToLocalStorage } from '@/utils/settingsStore';
 
 // --- Alleen de fallback-taal (en) wordt eager geïmporteerd. De overige 13 talen
 // laden lazy via loadLocale() (Vite splitst per taal een eigen async chunk). ---
@@ -103,7 +103,7 @@ export async function setLocale(lng: Locale): Promise<void> {
 export async function initLocale(): Promise<void> {
   // Try saved preference first
   await syncSettingToLocalStorage('locale', 'ops-locale');
-  const saved = localStorage.getItem('ops-locale');
+  const saved = readLocal('ops-locale');
   if (saved && supportedLanguages.includes(saved as Locale)) {
     if (saved !== i18n.language) {
       await loadLocale(saved as Locale);

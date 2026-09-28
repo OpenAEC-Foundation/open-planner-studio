@@ -65,6 +65,20 @@ function activationPayload(payload: Readonly<DocumentPayload>): DocumentPayload 
   };
 }
 
+const sameItems = <T>(a: readonly T[], b: readonly T[]) => a.length === b.length && a.every((x, i) => x === b[i]);
+
+/**
+ * Een activatie zonder inhoudelijke wijziging geeft de ORIGINELE arrays terug: `activationPayload`
+ * kopieert `calendars`/`resources` als werkkopie, maar de crashherstel-delta en de 'stale'-toets van
+ * automatisch opslaan vergelijken bronnen op referentie (`sameIFCSource`). Met een nieuwe array bij
+ * elke wissel serialiseerde de auto-save na iedere documentwissel het hele document opnieuw naar IFC.
+ */
+function keepUnchangedIdentity(payload: DocumentPayload, input: Readonly<DocumentPayload>): DocumentPayload {
+  if (payload.calendars !== input.calendars && sameItems(payload.calendars, input.calendars)) payload.calendars = input.calendars;
+  if (payload.resources !== input.resources && sameItems(payload.resources, input.resources)) payload.resources = input.resources;
+  return payload;
+}
+
 function localPool(
   payload: Readonly<DocumentPayload>,
   companies: readonly Company[],
@@ -85,7 +99,10 @@ export function materializeBehindOnlyRefresh(input: {
   syncProjectCalendar(payload);
   const pool = localPool(payload, input.companies, input.pools);
   if (!pool) {
-    return { payload, calendarsChanged: 0, resourcesChanged: 0, workRuleSettle: NO_CALENDAR_LIBRARY_SETTLE, invalidateRedoScope: false };
+    return {
+      payload: keepUnchangedIdentity(payload, input.payload),
+      calendarsChanged: 0, resourcesChanged: 0, workRuleSettle: NO_CALENDAR_LIBRARY_SETTLE, invalidateRedoScope: false,
+    };
   }
 
   let resourcesChanged = 0;
@@ -118,7 +135,7 @@ export function materializeBehindOnlyRefresh(input: {
   }
 
   return {
-    payload,
+    payload: keepUnchangedIdentity(payload, input.payload),
     calendarsChanged,
     resourcesChanged,
     workRuleSettle,

@@ -27,7 +27,7 @@ import { HOST_EVENTS } from '@/services/extensionEvents';
 import { clearTimephasedLossNoticeForDoc } from '../timephasedLossNotice';
 import { clearTaskTypesNoticeForDoc, notifyWorkRuleDurationsChanged } from '../taskTypesNotice';
 import { captureCalendarChange, settleCalendarChange } from '@/engine/work/workRuleApply';
-import { tasksFollowingProjectCalendar } from '../calendarTasks';
+import { assignmentsByTask, tasksFollowingProjectCalendar } from '../calendarTasks';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import type { AppSliceFactory } from './types';
 import { effHoursPerDay } from '@/utils/taskDuration';
@@ -111,6 +111,8 @@ export interface ProjectSlice {
   /** Sessie-only: waarom het XER-bronarchief bij het openen onbruikbaar was (per document via
    *  DOCUMENT_FIELDS; nooit IFC). `null` = er was geen archief óf het was bruikbaar. */
   xerArchiveIssue: XerArchiveIssue | null;
+  /** Zie `DocumentPayload.ifcGlobalIds`. */
+  ifcGlobalIds: Readonly<Record<string, string>> | null;
   setProject: (project: Partial<Project>) => void;
   /** Zet WBS-autonummering aan/uit; bij aanzetten wordt de hele boom direct hernummerd. */
   setWbsAutoNumber: (on: boolean) => void;
@@ -192,6 +194,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
   taskTypesVisible: false,
   importPristine: false,
   xerArchiveIssue: null,
+  ifcGlobalIds: null,
 
   setProject: (updates) => {
     // Telt de wortel-ankers die deze aanroep klemt, buiten de
@@ -259,11 +262,12 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       // Alle taken die de projectkalender VOLGEN (geen eigen kalender, of een bungelende
       // verwijzing) gaan mee; momentopnamen vóór
       // de wissel, daarna beslist de werkregel per taak.
-      const affected = tasksFollowingProjectCalendar(s).map((task) => ({ task, before: captureCalendarChange(task, s.assignments, s) }));
+      const byTask = assignmentsByTask(s.assignments); // O(taken + toewijzingen), zie de helper
+      const affected = tasksFollowingProjectCalendar(s).map((task) => ({ task, before: captureCalendarChange(task, byTask.get(task.id) ?? [], s) }));
       s.project.calendarId = id;
       syncProjectCalendar(s); // Cache gelijkzetten (vóór de settle: die leest `s.calendar`).
       for (const { task, before } of affected) {
-        const settled = settleCalendarChange(task, s.assignments, before, s);
+        const settled = settleCalendarChange(task, byTask.get(task.id) ?? [], before, s);
         if (settled.durationChanged) changed++;
         if (settled.timephasedLost) lost++;
       }

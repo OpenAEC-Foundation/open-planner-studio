@@ -7,20 +7,20 @@ import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, AvailabilityStep, ResourceCurve, isResourceCurve } from '@/types/resource';
 import { Project, ProjectSchedulingOptions, SchedulingOptions, SchedulingProfile } from '@/types/project';
 import { WorkCalendar, Holiday, CalendarGeneration, WorkingException } from '@/types/calendar';
-import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
+import { DEFAULT_CALENDAR_ID, createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import type { HolidayCountry } from '@/engine/calendar/holidays';
 import type { LibraryOrigin } from '@/types/library';
 import { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types/structure';
 import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
-import { formatDate, formatInstant, parseInstant } from '@/utils/dateUtils';
-import { ifcGuid } from './ifcWriter';
+import { formatInstant, localTodayIso } from '@/utils/dateUtils';
+import { ifcGuid, ifcGuid128, ifcObjectSeed } from './ifcWriter';
 import { IfcParseError } from './ifcErrors';
 import type { ImportLabels, ImportResult, RecordedSourceFormat, XerArchiveIssue, XerArchiveIssueCode } from '@/services/importTypes';
 import {
   DEFAULT_PRIORITY, IFC_TIME_ANCHOR, MEASURE_TO_FIELD, IFC_TO_RESOURCE_TYPE,
 } from './ifcConstants';
-import { PSET, PER_TASK_PSET_BY_NAME } from './ifcPsets';
+import { OPS_LEGACY_LITERAL_APP_VERSION, PSET, PER_TASK_PSET_BY_NAME } from './ifcPsets';
 import {
   IFC_TASKTIME_SLOTS, ALL_RECORDED_SLOT_KEYS, TASK_SLOT, TASKTIME_SLOT,
   type RecordedFieldKey, type TaskTimeReadHelpers,
@@ -41,7 +41,7 @@ import {
   MAX_PROFILE_JSON_LENGTH, profileAfterRead, sanitizeSchedulingOptions, sanitizeSchedulingProfile,
 } from '@/services/ifc/schedulingOptionsRead';
 import { optionKeysOnly } from '@/services/ifc/schedulingProfileMigration';
-import { emptyMissingScheduleDates, importStatusDate, resolveMissingScheduleDates } from '@/services/importDates';
+import { emptyMissingScheduleDates, importStatusDate, parseImportedInstant, resolveMissingScheduleDates } from '@/services/importDates';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { seedScalarBands } from '@/utils/effectiveWorkTime';
 import { hourRemainingDays } from '@/engine/taskMutationRules';
@@ -153,6 +153,9 @@ export function readIFC(
   // Eerst de integriteitspoort: liever een expliciete fout dan een stil half project.
   assertIfcIntegrity(content);
   const entities = parseSTEP(content);
+  // Vóór elke lezing van een string: STEP-codering (`\X2\…\X0\`, `\\` e.d.) terug naar tekst. Oude
+  // eigen bestanden schreven letterlijk en blijven byte-voor-byte gelezen zoals voorheen.
+  if (stringsAreStepEncoded(entities)) decodeEntityStrings(entities);
   const entityMap = new Map<string, StepEntity>();
   for (const e of entities) {
     entityMap.set(e.id, e);
@@ -204,8 +207,11 @@ export function readIFC(
   const p6BoundarySequenceGuids = extractP6BoundarySequenceGuids(
     entities, entityMap, new Set(taskStepIdMap.keys()),
   );
+  // Intern id → GlobalId per object uit dit bestand (zie `collectIfcGlobalIds`); de extractors
+  // hieronder vullen hem terwijl ze id's uit GlobalIds afleiden.
+  const guidLog: Record<string, string> = {};
   const sequences = extractSequences(
-    entities, entityMap, taskStepIdMap, p6BoundarySequenceGuids, calendar.hoursPerDay,
+    entities, entityMap, taskStepIdMap, p6BoundarySequenceGuids, calendar.hoursPerDay, guidLog,
   );
   extractNesting(entities, entityMap, tasks, taskStepIdMap);
   // BEWUST GEEN normalisatie van `isMilestone` op taken met kinderen: de app zelf laat een mijlpaal
@@ -213,11 +219,11 @@ export function readIFC(
   // een lezer-reset maakt schrijven≠lezen en laat de vlag stil verdwijnen bij opslaan/openen én
   // crashherstel. De guard "samenvatting is nooit mijlpaal" hoort bij de EXPORTgrenzen
   // (MSPDI-writer), niet in het native formaat.
-  const { resources, resourceStepIdMap, resourceGuidMap } = extractResources(entities, entityMap);
+  const { resources, resourceStepIdMap, resourceGuidMap } = extractResources(entities, entityMap, guidLog);
   extractResourceMeta(entities, entityMap, resources, resourceStepIdMap, resourceGuidMap);
   extractCrewNesting(entities, resources, resourceStepIdMap);
   const { calendars: resourceCalendars, idByGuid: calendarIdByGuid } = extractCalendarLibrary(
-    entities, entityMap, resources, resourceStepIdMap, tasks, taskStepIdMap,
+    entities, entityMap, resources, resourceStepIdMap, tasks, taskStepIdMap, guidLog,
   );
   // De PROJECTkalender zit niet in `extractCalendarLibrary`'s bibliotheek-lus (die sluit
   // 'm expliciet uit); haar GUID→id hoort wel in dezelfde vertaaltabel. Zelfde "eerste IFCWORKCALENDAR
@@ -225,6 +231,8 @@ export function readIFC(
   const projectCalendarEntityForGuid = entities.find(e => e.type === 'IFCWORKCALENDAR');
   if (projectCalendarEntityForGuid) {
     calendarIdByGuid.set(stripQuotes(projectCalendarEntityForGuid.args[0] || ''), calendar.id);
+    const projectCalendarGuid = ifcSlotText(projectCalendarEntityForGuid.args[0]);
+    if (projectCalendarGuid) guidLog[ifcObjectSeed('cal', calendar.id)] = projectCalendarGuid;
   }
   // Uur-modus-post-pass. Ná extractCalendarLibrary zodat elke
   // `task.calendarId` (en dus de effectieve kalender) is geresolved. Zet `workTime` op kalenders
@@ -250,13 +258,14 @@ export function readIFC(
   // pas NA extractCalendarLibrary hierboven (die tabel levert `calendarIdByGuid`).
   extractTimephasedDurationWalksMeta(entities, entityMap, tasks, taskStepIdMap, calendarIdByGuid);
   // `TaskTimephasedContour.resourceId` verwijst naar een resource-id uit
-  // het SCHRIJVENDE document; deze lezer regenereert resource-ids (`extractResources`), dus de
-  // verwijzing moet mee — via dezelfde deterministische GUID-hash (`ifcGuid(oudeId)` = de GlobalId
-  // die de writer voor die resource gebruikte, zie `extractBaselines`' taak-remap-precedent). Ná
+  // het SCHRIJVENDE document; deze lezer leidt resource-ids af uit het GlobalId (`extractResources`),
+  // en dat is voor een in de app gemaakte resource bij het eerste openen een ander id. De verwijzing
+  // moet dus mee (`mappedResourceId`: hetzelfde id, of via de GlobalId die de writer voor die
+  // resource gebruikte, zie `extractBaselines`' taak-remap-precedent). Ná
   // `extractStructure`, want dáár landen de `OPS_TimephasedContours`-psets op de taken. Een
   // verwijzing die niet terug te vinden is (GUID-botsing met `#dup`-suffix, of een extern bestand)
   // blijft ongewijzigd staan — de koppeling valt dan terug op de 1-op-1-regel van de engine.
-  remapContourResourceIds(tasks, resourceGuidMap);
+  remapContourResourceIds(tasks, resourceGuidMap, new Set(resources.map(r => r.id)));
 
   // Baselines: autoritatieve OPS_Baselines-JSON, met taskId-remap via GlobalId.
   const { baselines, activeBaselineId } = extractBaselines(entities, entityMap, taskStepIdMap);
@@ -269,7 +278,7 @@ export function readIFC(
   if (schedulingProfile) project.schedulingProfile = schedulingProfile;
   const projectOptions = optionKeysOnly(schedulingOptions);
   if (projectOptions) {
-    remapLevelingResourceIds(projectOptions, resourceGuidMap);
+    remapLevelingResourceIds(projectOptions, resourceGuidMap, new Set(resources.map(r => r.id)));
     project.schedulingOptions = projectOptions;
   }
 
@@ -300,6 +309,8 @@ export function readIFC(
   // project.statusDate (uit OPS_ProjectSettings) beschikbaar is als default-actualFinish.
   normalizeImportedProgress(tasks, project.statusDate);
 
+  const ifcGlobalIds = collectIfcGlobalIds(entities, entityMap, taskStepIdMap, project.id, guidLog);
+
   return {
     project, calendar, tasks, sequences, resources, assignments,
     activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars,
@@ -322,7 +333,76 @@ export function readIFC(
     // `xerOrigin` — er is geen archief om naar te verwijzen.
     ...(xer ? { xer, xerOrigin: 'xer-archive' as const } : {}),
     ...(xerArchiveIssue ? { xerArchiveIssue } : {}),
+    ...(ifcGlobalIds ? { ifcGlobalIds } : {}),
   };
+}
+
+/**
+ * De GlobalIds die bij opslaan terug moeten komen (audit 2026-09-26), gesleuteld op
+ * `ifcObjectSeed(soort, id)`: per ingelezen taak, resource, kalender en relatie, en het project met zijn
+ * werkplan en werkschema.
+ * Taken houden hun id (OPS_TaskIdentity of het GlobalId), resources, kalenders en relaties krijgen
+ * een id afgeleid uit hun GlobalId (`stableIdFromGuid`), het project via zijn GlobalId. Met deze
+ * kaart geeft de writer elk bestaand object zijn GlobalId terug, ook een oud of vreemd GlobalId dat
+ * niet uit het id af te leiden is. De soort in de sleutel voorkomt dat een taak en het project (of
+ * een relatie) met hetzelfde kale id uit XER elkaars GlobalId overschrijven.
+ */
+function collectIfcGlobalIds(
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+  taskStepIdMap: Map<string, string>,
+  projectId: string,
+  guidLog: Record<string, string>,
+): Record<string, string> | undefined {
+  const out: Record<string, string> = { ...guidLog };
+  for (const [stepId, taskId] of taskStepIdMap) {
+    const guid = ifcSlotText(entityMap.get(stepId)?.args[TASK_SLOT.globalId]);
+    if (guid) out[ifcObjectSeed('task', taskId)] = guid;
+  }
+  const proj = entities.find(e => e.type === 'IFCPROJECT');
+  const projectGuid = proj ? ifcSlotText(proj.args[0]) : '';
+  if (projectGuid) out[ifcObjectSeed('proj', projectId)] = projectGuid;
+  // Werkplan en het eerste niet-baseline-werkschema (de writer schrijft er van elk één per project).
+  const plan = entities.find(e => e.type === 'IFCWORKPLAN');
+  const planGuid = plan ? ifcSlotText(plan.args[0]) : '';
+  if (planGuid) out[ifcObjectSeed('wp', projectId)] = planGuid;
+  const schedule = entities.find(e => e.type === 'IFCWORKSCHEDULE' && !(e.args[14] || '').includes('BASELINE'));
+  const scheduleGuid = schedule ? ifcSlotText(schedule.args[0]) : '';
+  if (scheduleGuid) out[ifcObjectSeed('ws', projectId)] = scheduleGuid;
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/**
+ * Stabiel id voor een resource, kalender of relatie: afgeleid uit het GlobalId van de entiteit, zodat
+ * hetzelfde bestand bij elk openen dezelfde id's geeft (audit 2026-09-26; voorheen `generateId`, bij
+ * elk openen nieuw). Zonder GlobalId de STEP-id; een dubbel id binnen het bestand krijgt `-dup-N`,
+ * net als `stableIfcTaskId`. Legt het GlobalId vast in `guidLog` voor de writer.
+ */
+function stableIdFromGuid(
+  kind: 'res' | 'cal' | 'seq',
+  prefix: string,
+  entity: StepEntity,
+  usedIds: Set<string>,
+  guidLog: Record<string, string>,
+): string {
+  const guid = ifcSlotText(entity.args[0]);
+  const base = guid ? `${prefix}-ifc-${guid}` : `${prefix}-ifc-step-${entity.id}`;
+  let id = base;
+  for (let duplicate = 2; usedIds.has(id); duplicate++) id = `${base}-dup-${duplicate}`;
+  usedIds.add(id);
+  if (guid) guidLog[ifcObjectSeed(kind, id)] = guid;
+  return id;
+}
+
+/** Resource-id uit het schrijvende document → ons id. Bestaat een resource met dat id al (een
+ *  resource die bij het vorige openen haar id uit haar GlobalId kreeg), dan is het dezelfde; anders
+ *  via het GlobalId dat de writer uit dat id afleidde: eerst de huidige afleiding
+ *  (`ifcGuid128(ifcObjectSeed('res', id))`), dan die van oudere bestanden (`ifcGuid(id)`). */
+function mappedResourceId(
+  resourceGuidMap: Map<string, string>, resourceIds: ReadonlySet<string>, writtenId: string,
+): string | undefined {
+  if (resourceIds.has(writtenId)) return writtenId;
+  return resourceGuidMap.get(ifcGuid128(ifcObjectSeed('res', writtenId))) ?? resourceGuidMap.get(ifcGuid(writtenId));
 }
 
 /**
@@ -856,8 +936,10 @@ function parseSTEP(content: string): StepEntity[] {
     );
   }
 
-  // 2. Commentaar strippen (buiten strings) + regeleindes normaliseren.
-  const clean = stripStepComments(content.slice(dataAt + 'DATA;'.length)).replace(/\r\n/g, '\n');
+  // 2. Commentaar strippen (buiten strings). Regeleindes NIET normaliseren: de tokenizer behandelt \r al
+  //    als witruimte, en een globale \r\n → \n-vervanging veranderde ook de tekst BINNEN strings (een
+  //    notitie of naam met Windows-regeleinden kwam na opslaan en openen anders terug).
+  const clean = stripStepComments(content.slice(dataAt + 'DATA;'.length));
 
   // 3. Entiteiten (`#123=IFCTYPE(...);`, ook `#300T=IFCTASKTIME(...);`). Het afsluitende `ENDSEC;`
   //    van de datasectie wordt hier op CODE-niveau herkend — ongevoelig voor `ENDSEC;` in een
@@ -879,8 +961,10 @@ function parseSTEP(content: string): StepEntity[] {
 
 /** Split IFC arguments respecting nested parentheses and quotes */
 function splitArgs(argsStr: string): string[] {
+  // Elk argument is een aaneengesloten deel van `argsStr` (tekens worden nooit omgezet, ook `''` niet),
+  // dus snijden i.p.v. teken voor teken een string opbouwen.
   const args: string[] = [];
-  let current = '';
+  let segStart = 0;
   let depth = 0;
   let inString = false;
 
@@ -888,32 +972,130 @@ function splitArgs(argsStr: string): string[] {
     const ch = argsStr[i];
     if (ch === "'" && !inString) {
       inString = true;
-      current += ch;
     } else if (ch === "'" && inString) {
-      if (i + 1 < argsStr.length && argsStr[i + 1] === "'") {
-        current += "''";
-        i++;
-      } else {
-        inString = false;
-        current += ch;
-      }
+      if (i + 1 < argsStr.length && argsStr[i + 1] === "'") i++;
+      else inString = false;
     } else if (inString) {
-      current += ch;
+      // teken binnen een string
     } else if (ch === '(') {
       depth++;
-      current += ch;
     } else if (ch === ')') {
       depth--;
-      current += ch;
     } else if (ch === ',' && depth === 0) {
-      args.push(current.trim());
-      current = '';
-    } else {
-      current += ch;
+      args.push(argsStr.slice(segStart, i).trim());
+      segStart = i + 1;
     }
   }
-  if (current.trim()) args.push(current.trim());
+  const tail = argsStr.slice(segStart).trim();
+  if (tail) args.push(tail);
   return args;
+}
+
+/**
+ * Zijn de stringliterals in dit bestand volgens ISO 10303-21 gecodeerd? Alleen onze eigen writer
+ * schreef vroeger letterlijk (een `\` of `é` stond er rauw in); die bestanden dragen
+ * IFCAPPLICATION.Version '0.1', of hebben alleen `OPS_`-psets zonder IFCAPPLICATION. Hen decoderen
+ * zou een letterlijke `\\` in bv. een JSON-pset halveren en die JSON breken. Elk ander bestand, ook
+ * dat van een ander pakket, volgt de norm.
+ */
+function stringsAreStepEncoded(entities: StepEntity[]): boolean {
+  for (const e of entities) {
+    if (e.type === 'IFCAPPLICATION' && stripQuotes(e.args[3] || '') === 'OPS') {
+      return stripQuotes(e.args[1] || '') !== OPS_LEGACY_LITERAL_APP_VERSION;
+    }
+  }
+  return !isOpsAuthoredIfc(entities);
+}
+
+/** Decodeer in place elke stringliteral in de argumenten; de apostrof blijft `''`-verdubbeld, zodat
+ *  alle bestaande lezers (`stripQuotes`, `splitArgs`) ongewijzigd werken. Alleen argumenten met een
+ *  backslash kunnen iets gecodeerd bevatten. */
+function decodeEntityStrings(entities: StepEntity[]): void {
+  for (const e of entities) {
+    const args = e.args;
+    for (let k = 0; k < args.length; k++) {
+      if (args[k].indexOf('\\') >= 0) args[k] = decodeQuotedSegments(args[k]);
+    }
+  }
+}
+
+function decodeQuotedSegments(arg: string): string {
+  let out = '';
+  let i = 0;
+  while (i < arg.length) {
+    const open = arg.indexOf("'", i);
+    if (open < 0) { out += arg.slice(i); break; }
+    out += arg.slice(i, open + 1);
+    let j = open + 1;
+    for (;;) {
+      const q = arg.indexOf("'", j);
+      if (q < 0) { j = arg.length; break; }
+      if (arg.charCodeAt(q + 1) === CH_QUOTE) { j = q + 2; continue; }
+      j = q;
+      break;
+    }
+    const body = arg.slice(open + 1, j);
+    out += body.indexOf('\\') >= 0
+      ? decodeStepText(body.replace(/''/g, "'")).replace(/'/g, "''")
+      : body;
+    if (j < arg.length) out += "'";
+    i = j + 1;
+  }
+  return out;
+}
+
+const HEX4 = /^[0-9A-Fa-f]{4}$/;
+const HEX8 = /^[0-9A-Fa-f]{8}$/;
+
+/**
+ * STEP-stringinhoud (zonder de omsluitende quotes, `''` al samengevoegd) terug naar tekst:
+ * `\\` → `\`, `\X2\hhhh…\X0\` (UTF-16), `\X4\hhhhhhhh…\X0\` (codepunten), `\X\hh` (ISO 8859-1)
+ * en `\S\c` (teken + 128). `\Px\` (codetabelkeuze) wordt weggelaten; de lezer neemt voor `\S\`
+ * altijd ISO 8859-1 aan. Een onbekende reeks blijft letterlijk staan. Tegenhanger van
+ * `encodeStepText` (ifcPsets).
+ */
+export function decodeStepText(s: string): string {
+  if (s.indexOf('\\') < 0) return s;
+  let out = '';
+  let i = 0;
+  const n = s.length;
+  while (i < n) {
+    const b = s.indexOf('\\', i);
+    if (b < 0) { out += s.slice(i); break; }
+    out += s.slice(i, b);
+    i = b;
+    if (s.startsWith('\\\\', i)) { out += '\\'; i += 2; continue; }
+    if (s.startsWith('\\X2\\', i) || s.startsWith('\\X4\\', i)) {
+      const width = s[i + 2] === '2' ? 4 : 8;
+      const end = s.indexOf('\\X0\\', i + 4);
+      const hexRun = end >= 0 ? s.slice(i + 4, end) : '';
+      const pattern = width === 4 ? HEX4 : HEX8;
+      let decoded = '';
+      let valid = end >= 0 && hexRun.length % width === 0;
+      for (let k = 0; valid && k < hexRun.length; k += width) {
+        const h = hexRun.slice(k, k + width);
+        if (!pattern.test(h)) { valid = false; break; }
+        const v = parseInt(h, 16);
+        if (width === 8 && v > 0x10FFFF) { valid = false; break; }
+        decoded += width === 4 ? String.fromCharCode(v) : String.fromCodePoint(v);
+      }
+      if (valid) { out += decoded; i = end + 4; continue; }
+    } else if (s.startsWith('\\X\\', i) && /^[0-9A-Fa-f]{2}$/.test(s.slice(i + 3, i + 5))) {
+      out += String.fromCharCode(parseInt(s.slice(i + 3, i + 5), 16));
+      i += 5;
+      continue;
+    } else if (s.startsWith('\\S\\', i) && i + 3 < n) {
+      out += String.fromCharCode(s.charCodeAt(i + 3) + 128);
+      i += 4;
+      continue;
+    } else if (s[i + 1] === 'P' && s[i + 3] === '\\' && /[A-I]/.test(s[i + 2] ?? '')) {
+      i += 4;
+      continue;
+    }
+    out += '\\';
+    i++;
+  }
+  return out;
 }
 
 function stripQuotes(s: string): string {
@@ -949,7 +1131,7 @@ function parseRefs(s: string): string[] {
 // STEP-quoting (`stripQuotes`) en de `$`-null-conventie af en houdt de exacte lege-tail-semantiek
 // (een quoted-lege slot geeft '' terug, niet vandaag) — dat is STEP-specifiek en mag niet verschuiven.
 function parseDateFromIFC(s: string): string {
-  if (!s || s === '$') return formatDate(new Date());
+  if (!s || s === '$') return localTodayIso();
   const clean = stripQuotes(s);
   // Extract just the date part
   return clean.substring(0, 10);
@@ -1184,7 +1366,7 @@ function applyHourModeIFC(
     }
     const toHour = (raw: string | undefined): string | undefined => {
       const q = stripQuotes(raw || '');
-      return q && q !== '$' ? formatInstant(parseInstant(q), 'hour') : undefined;
+      return q && q !== '$' ? formatInstant(parseImportedInstant(q), 'hour') : undefined;
     };
     const ss = toHour(e.args[TASKTIME_SLOT.scheduleStart]); if (ss) t.time.scheduleStart = ss;
     const sf = toHour(e.args[TASKTIME_SLOT.scheduleFinish]); if (sf) t.time.scheduleFinish = sf;
@@ -1327,7 +1509,7 @@ function extractTasks(
     // Parse IfcTaskTime reference
     const taskTimeRef = parseRef(te.args[taskTimeIdx] || '');
     const ttEntity = taskTimeRef ? entityMap.get(taskTimeRef) : undefined;
-    const time = ttEntity ? parseTaskTime(ttEntity, hoursPerDay) : createDefaultTaskTime(formatDate(new Date()), 5);
+    const time = ttEntity ? parseTaskTime(ttEntity, hoursPerDay) : createDefaultTaskTime(localTodayIso(), 5);
     if (ttEntity) taskTimeEntities.set(id, ttEntity);
     recordedFields[id] = ttEntity ? recordedSlotsOf(ttEntity) : [];
 
@@ -1345,7 +1527,7 @@ function extractTasks(
 
     tasks.push({
       id,
-      name: stripQuotes(te.args[TASK_SLOT.name] || '') || 'Naamloze taak',
+      name: ifcSlotText(te.args[TASK_SLOT.name]) || 'Naamloze taak',
       // `$`/leeg/afwezig ⇒ '' (niet de letterlijke '$' — zelfde regel als IFCPROJECT.Description
       // hierboven; de writer schrijft description/identification bewust als bare `$` via `ifcStr`
       // wanneer leeg, zie ifcTaskSlots.ts).
@@ -1501,9 +1683,11 @@ function extractSequences(
   taskStepIdMap: Map<string, string>,
   p6BoundarySequenceGuids: ReadonlySet<string>,
   hoursPerDay: number,
+  guidLog: Record<string, string>,
 ): Sequence[] {
   const seqEntities = entities.filter(e => e.type === 'IFCRELSEQUENCE');
   const sequences: Sequence[] = [];
+  const usedIds = new Set<string>();
 
   for (const se of seqEntities) {
     const predRef = parseRef(se.args[4] || '');
@@ -1577,7 +1761,7 @@ function extractSequences(
     }
 
     const seq: Sequence = {
-      id: generateId('seq'),
+      id: stableIdFromGuid('seq', 'seq', se, usedIds, guidLog),
       predecessorId: predId,
       successorId: succId,
       type: parseSequenceType(se.args[7] || ''),
@@ -1891,8 +2075,10 @@ function extractNesting(
 function extractResources(
   entities: StepEntity[],
   _entityMap: Map<string, StepEntity>,
+  guidLog: Record<string, string>,
 ): { resources: Resource[]; resourceStepIdMap: Map<string, string>; resourceGuidMap: Map<string, string> } {
   const resources: Resource[] = [];
+  const usedIds = new Set<string>();
   const resourceStepIdMap = new Map<string, string>();
   const resourceGuidMap = new Map<string, string>(); // IFC GlobalId-string -> ons resource-id
 
@@ -1902,13 +2088,13 @@ function extractResources(
     const resType = IFC_TO_RESOURCE_TYPE[e.type];
     if (!resType) continue;
 
-    const id = generateId('res');
+    const id = stableIdFromGuid('res', 'res', e, usedIds, guidLog);
     resourceStepIdMap.set(e.id, id);
     resourceGuidMap.set(stripQuotes(e.args[0] || ''), id);
 
     resources.push({
       id,
-      name: stripQuotes(e.args[2] || '') || 'Resource',
+      name: ifcSlotText(e.args[2]) || 'Resource',
       type: resType,
       // `$`/leeg/afwezig ⇒ '' (zelfde regel als IfcTask.Description hierboven).
       description: ifcSlotText(e.args[3]),
@@ -2036,6 +2222,30 @@ function parseIntList(s: string): number[] {
 }
 
 /**
+ * `IFCRELDEFINESBYPROPERTIES` per doel-STEP-id, in bestandsvolgorde; één keer per entiteitenlijst
+ * opgebouwd. De kalender-psetlezers liepen per kalender (en per lezer, zes keer) álle entiteiten door
+ * en parseerden daarbij elke relatie opnieuw: O(kalenders × entiteiten × 6) — met 13 kalenders op een
+ * project van 8000 taken een derde van de leestijd. Een relatie die hetzelfde doel twee keer noemt,
+ * staat er één keer in (zoals de oude `includes`-toets).
+ */
+const relDefinesIndex = new WeakMap<StepEntity[], Map<string, StepEntity[]>>();
+function relDefinesByTarget(entities: StepEntity[]): Map<string, StepEntity[]> {
+  let index = relDefinesIndex.get(entities);
+  if (index) return index;
+  index = new Map();
+  for (const rel of entities) {
+    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
+    for (const target of new Set(parseRefs(rel.args[4] || ''))) {
+      let list = index.get(target);
+      if (!list) { list = []; index.set(target, list); }
+      list.push(rel);
+    }
+  }
+  relDefinesIndex.set(entities, index);
+  return index;
+}
+
+/**
  * De `IFCPROPERTYSINGLEVALUE`s van elk `OPS_Calendar`-pset dat de kalender met STEP-id `calStepId`
  * target (`IFCRELDEFINESBYPROPERTIES` → `IFCPROPERTYSET`), één lijst per pset in bestandsvolgorde.
  * Gedeeld door de kalender-psetlezers hieronder; elk leest zijn eigen property's en houdt zijn eigen
@@ -2046,9 +2256,7 @@ function* opsCalendarPsetProps(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
 ): Generator<StepEntity[]> {
-  for (const rel of entities) {
-    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
-    if (!parseRefs(rel.args[4] || '').includes(calStepId)) continue;
+  for (const rel of relDefinesByTarget(entities).get(calStepId) ?? []) {
     const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
     if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
     yield parseRefs(pset.args[4] || '')
@@ -2341,7 +2549,7 @@ function buildCalendarFromEntity(
   entities: StepEntity[],
 ): WorkCalendar {
   const calendar = createDefaultCalendar();
-  calendar.name = stripQuotes(cal.args[2] || '') || calendar.name;
+  calendar.name = ifcSlotText(cal.args[2]) || calendar.name;
   // `ifcSlotText` i.p.v. kale `stripQuotes` — een lege omschrijving schrijft de writer als
   // STEP-null (`$`), en `stripQuotes('$')` geeft het letterlijke tweetekentje `'$'` terug (het start/
   // eindigt niet met een quote, dus de functie laat de string ongewijzigd) i.p.v. '' — dezelfde
@@ -2443,7 +2651,7 @@ function buildCalendarFromEntity(
     if (!range) continue;
     if (!workingExceptionIds?.has(ref)) {
       holidays.push({
-        name: stripQuotes(wt.args[0] || '') || 'Feestdag',
+        name: ifcSlotText(wt.args[0]) || 'Feestdag',
         ...range,
       });
       continue;
@@ -2471,7 +2679,7 @@ function buildCalendarFromEntity(
       }
     }
     workingExceptions.push({
-      name: stripQuotes(wt.args[0] || '') || 'Werkende uitzondering',
+      name: ifcSlotText(wt.args[0]) || 'Werkende uitzondering',
       ...range,
       ...(bands.length > 0 ? { bands } : {}),
     });
@@ -2546,8 +2754,12 @@ function extractCalendarLibrary(
   resourceStepIdMap: Map<string, string>,
   tasks: Task[],
   taskStepIdMap: Map<string, string>,
+  guidLog: Record<string, string>,
 ): { calendars: WorkCalendar[]; idByGuid: Map<string, string> } {
   const projectCalendarEntity = entities.find(e => e.type === 'IFCWORKCALENDAR');
+  // De projectkalender heet altijd 'cal-default' (`extractCalendar`); een bibliotheekkalender kan
+  // die naam nooit krijgen, ook niet via een afgeleid id.
+  const usedIds = new Set<string>([DEFAULT_CALENDAR_ID]);
   const resourceById = new Map(resources.map(r => [r.id, r]));
   const taskById = new Map(tasks.map(t => [t.id, t]));
   const calendars: WorkCalendar[] = [];
@@ -2565,7 +2777,7 @@ function extractCalendarLibrary(
     let cal = calByStepId.get(controlRef);
     if (!cal) {
       cal = buildCalendarFromEntity(controlEntity, entityMap, entities);
-      cal.id = generateId('rescal');
+      cal.id = stableIdFromGuid('cal', 'rescal', controlEntity, usedIds, guidLog);
       calByStepId.set(controlRef, cal);
       calendars.push(cal);
       idByGuid.set(stripQuotes(controlEntity.args[0] || ''), cal.id);
@@ -2599,7 +2811,7 @@ function extractCalendarLibrary(
     if (projectCalendarEntity && ce.id === projectCalendarEntity.id) continue;
     if (calByStepId.has(ce.id)) continue;
     const cal = buildCalendarFromEntity(ce, entityMap, entities);
-    cal.id = generateId('rescal');
+    cal.id = stableIdFromGuid('cal', 'rescal', ce, usedIds, guidLog);
     calByStepId.set(ce.id, cal);
     calendars.push(cal);
     idByGuid.set(stripQuotes(ce.args[0] || ''), cal.id);
@@ -2809,12 +3021,14 @@ function extractAssignments(
 }
 
 /** Zie de aanroepplek in `readIFC`. Muteert de contouren in-place. */
-function remapContourResourceIds(tasks: Task[], resourceGuidMap: Map<string, string>): void {
+function remapContourResourceIds(
+  tasks: Task[], resourceGuidMap: Map<string, string>, resourceIds: ReadonlySet<string>,
+): void {
   for (const task of tasks) {
     if (!task.timephasedContours) continue;
     for (const contour of task.timephasedContours) {
       if (contour.resourceId === undefined) continue;
-      const mapped = resourceGuidMap.get(ifcGuid(contour.resourceId));
+      const mapped = mappedResourceId(resourceGuidMap, resourceIds, contour.resourceId);
       if (mapped) contour.resourceId = mapped;
     }
   }
@@ -2822,13 +3036,15 @@ function remapContourResourceIds(tasks: Task[], resourceGuidMap: Map<string, str
 
 /**
  * Nivellering (fundament): `schedulingOptions.leveling.resources[].resourceId` draagt de resource-id
- * van het geschreven document; de lezer regenereert resource-ids, dus terugmappen via dezelfde
- * GlobalId die `writeResource` uit de id afleidde (spiegel van `remapContourResourceIds`). Een id
+ * van het geschreven document; de lezer leidt resource-ids af uit het GlobalId, dus terugmappen via
+ * dezelfde GlobalId die `writeResource` voor dat id gebruikte (spiegel van `remapContourResourceIds`). Een id
  * zonder resource in dit bestand blijft letterlijk staan (data, geen rekeninvoer).
  */
-function remapLevelingResourceIds(options: ProjectSchedulingOptions, resourceGuidMap: Map<string, string>): void {
+function remapLevelingResourceIds(
+  options: ProjectSchedulingOptions, resourceGuidMap: Map<string, string>, resourceIds: ReadonlySet<string>,
+): void {
   for (const entry of options.leveling?.resources ?? []) {
-    const mapped = resourceGuidMap.get(ifcGuid(entry.resourceId));
+    const mapped = mappedResourceId(resourceGuidMap, resourceIds, entry.resourceId);
     if (mapped) entry.resourceId = mapped;
   }
 }

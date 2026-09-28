@@ -15,6 +15,8 @@ interface UseGanttZoomOpts {
   modifierMap: ModifierMap;
   setZoom: (zoom: number) => void;
   setScroll: (x: number, y: number) => void;
+  /** Registreert de scrollgrenzen voor een nieuwe zoom vóór `setScroll` (optioneel). */
+  prepareScrollBounds?: (zoom: number) => void;
 }
 
 const ZOOM_FACTOR_PER_TICK = 1.1;
@@ -29,6 +31,7 @@ export function useGanttZoom({
   modifierMap,
   setZoom,
   setScroll,
+  prepareScrollBounds,
 }: UseGanttZoomOpts) {
   // Latest values in a ref so the wheel handler doesn't re-attach every render
   const latest = useRef({ view, enableQuarterHourZoom, enableHourPlanning, scrollMode, positionDivision, modifierMap });
@@ -45,9 +48,11 @@ export function useGanttZoom({
       maxGanttZoom(enableQH, enableHours),
     );
     if (next.zoom === v.zoom) return;
+    // Grenzen voor de nieuwe zoom vóór de scroll, anders klemt die op de grens van de oude zoom.
+    prepareScrollBounds?.(next.zoom);
     setZoom(next.zoom);
     setScroll(next.scrollX, v.scrollY);
-  }, [setZoom, setScroll]);
+  }, [setZoom, setScroll, prepareScrollBounds]);
 
   // Wheel handler
   useEffect(() => {

@@ -6,6 +6,7 @@ import { Project, SchedulingOptions, SchedulingProfile } from '@/types/project';
 import { carriesProfile, schedulingProfileToJson } from '@/services/ifc/schedulingOptionsRead';
 import { legacyOptionsBlobFor } from '@/services/ifc/schedulingProfileMigration';
 import { holidayEndDate, WorkCalendar } from '@/types/calendar';
+import { DEFAULT_CALENDAR_ID } from '@/engine/calendar/defaultCalendar';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { Baseline } from '@/types/baseline';
 import type { CustomTaskType } from '@/types/taskType';
@@ -17,7 +18,7 @@ import type { ImportResult, RecordedSourceFormat } from '@/services/importTypes'
 import {
   IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC,
 } from './ifcConstants';
-import { PSET, PER_TASK_PSETS, ifcStr } from './ifcPsets';
+import { PSET, PER_TASK_PSETS, OPS_APP_VERSION, ifcStr, ifcJson, asciiJson } from './ifcPsets';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { projectFileBase } from '@/utils/documents';
 import {
@@ -30,9 +31,9 @@ import {
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { groupBy } from '@/utils/collections';
 
-/** Generate a 22-character IFC GlobalId (simplified). Geëxporteerd zodat de reader
- *  (`extractBaselines`) baseline-taskId's — die als interne id in de OPS_Baselines-JSON staan —
- *  deterministisch kan terugmappen op de her-gegenereerde taak-id's via de IFCTASK-GlobalId. */
+/** De OUDE GlobalId-afleiding: een 32-bits hash, geen conforme IFC-GUID. De writer gebruikt hem niet
+ *  meer (zie `ifcGuid128`); de lezer herberekent hem nog voor bestanden van vóór audit 2026-09-26,
+ *  waarin een resource- of baseline-verwijzing alleen via deze hash terug te vinden is. */
 export function ifcGuid(seed: string): string {
   const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_$';
   let hash = 0;
@@ -46,6 +47,43 @@ export function ifcGuid(seed: string): string {
     hash = ((hash << 3) ^ (hash >> 2) + i) | 0;
   }
   return result;
+}
+
+const IFC_GUID_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_$';
+
+/**
+ * GlobalId voor een object zonder bewaarde GlobalId (audit 2026-09-26, eigenaarsbesluit 2026-09-28):
+ * een 128-bits hash van de seed (cyrb128), in de IFC-vorm: 22 tekens uit `IFC_GUID_CHARS`, het
+ * eerste teken draagt de hoogste twee bits en is dus `0`–`3`. Deterministisch en niet willekeurig:
+ * dezelfde nieuwe taak krijgt bij elk opslaan hetzelfde GlobalId, ook zonder heropenen. De uniciteit
+ * komt uit de seed (het interne id draagt al tijd en toeval).
+ */
+export function ifcGuid128(seed: string): string {
+  let h1 = 1779033703, h2 = 3144134277, h3 = 1013904242, h4 = 2773480762;
+  for (let i = 0; i < seed.length; i++) {
+    const k = seed.charCodeAt(i);
+    h1 = h2 ^ Math.imul(h1 ^ k, 597399067);
+    h2 = h3 ^ Math.imul(h2 ^ k, 2869860233);
+    h3 = h4 ^ Math.imul(h3 ^ k, 951274213);
+    h4 = h1 ^ Math.imul(h4 ^ k, 2716044179);
+  }
+  h1 = Math.imul(h3 ^ (h1 >>> 18), 597399067);
+  h2 = Math.imul(h4 ^ (h2 >>> 22), 2869860233);
+  h3 = Math.imul(h1 ^ (h3 >>> 17), 951274213);
+  h4 = Math.imul(h2 ^ (h4 >>> 19), 2716044179);
+  h1 ^= h2 ^ h3 ^ h4;
+  h2 ^= h1;
+  h3 ^= h1;
+  h4 ^= h1;
+  const words = [h1 >>> 0, h2 >>> 0, h3 >>> 0, h4 >>> 0];
+  const bit = (k: number) => (words[k >>> 5] >>> (31 - (k & 31))) & 1;
+  let out = IFC_GUID_CHARS[(bit(0) << 1) | bit(1)];
+  for (let c = 0; c < 21; c++) {
+    let v = 0;
+    for (let b = 0; b < 6; b++) v = (v << 1) | bit(2 + c * 6 + b);
+    out += IFC_GUID_CHARS[v];
+  }
+  return out;
 }
 
 // ifcStr/ifcBool komen uit ./ifcPsets (gedeeld met de per-taak-pset-registry).
@@ -105,30 +143,67 @@ export interface WriteContext {
   guids: Map<string, string>;
   /** Alle uitgegeven GlobalIds, om botsingen te detecteren. */
   usedGuids: Set<string>;
+  /** seed → GlobalId uit het ingelezen bestand (`ImportResult.ifcGlobalIds`): wint van de hash. */
+  preservedGuids: ReadonlyMap<string, string>;
+  /** De waarden van `preservedGuids`: een nieuw object mag die nooit krijgen, ook niet als zijn
+   *  eigenaar pas later in het bestand aan de beurt is. */
+  reservedGuids: ReadonlySet<string>;
+  /** Project-id: zout voor de GlobalIds van hulpentiteiten en de projectkalender (zie `guidOf`). */
+  auxSalt: string;
 }
 
 /**
- * Geef het GlobalId uit voor `seed` — en garandeer dat het uniek is binnen dit bestand.
- *
- * `ifcGuid` is een 32-bits hash, geen UUID en geen conforme IFC-GUID: een verjaardagsbotsing bij
- * tienduizenden id's is niet uit te sluiten, en een botsing geeft stille kruisbesmetting van
- * baselines of toewijzingen.
- *
- * Dit is de enige plek die GlobalIds uitgeeft. Botst een hash met een eerder uitgegeven GlobalId,
- * dan wordt er deterministisch doorgezocht met een gesuffixte seed; zonder botsing is de uitkomst
- * gewoon de hash.
+ * Geef het GlobalId uit voor een hulpentiteit (pset, rel, werkschema) met een vaste of afgeleide
+ * `seed`. De hash krijgt het project-id mee (`auxSalt`): zonder dat hadden `agg_ps`, `ctrl`,
+ * `pset_sequences` e.d. in élk OPS-bestand hetzelfde GlobalId (audit 2026-09-26). Geen lezer rekent
+ * deze GlobalIds na, dus het zout mag hier.
+ */
+function guidOf(ctx: WriteContext, seed: string): string {
+  return issueGuid(ctx, seed, `${ctx.auxSalt}/${seed}`);
+}
+
+/**
+ * De enige plek die GlobalIds uitgeeft, en garandeert dat ze uniek zijn binnen dit bestand. Eerst het
+ * GlobalId dat het object in het ingelezen bestand al had (`preservedGuids`, op `key`), anders
+ * `ifcGuid128(hashSeed)`. Botst dat met een eerder uitgegeven of gereserveerd GlobalId, dan wordt er
+ * deterministisch doorgezocht met een gesuffixte seed.
  *
  * Een gesuffixt GlobalId is alleen terug te vinden omdat de writer expliciet wegschrijft wélk
  * GlobalId hij per taak gebruikte (zie `writeBaselineMeta`); de reader herberekent de hash niet.
  */
-function guidOf(ctx: WriteContext, seed: string): string {
-  const cached = ctx.guids.get(seed);
+function issueGuid(ctx: WriteContext, key: string, hashSeed: string): string {
+  const cached = ctx.guids.get(key);
   if (cached !== undefined) return cached;
-  let guid = ifcGuid(seed);
-  for (let n = 1; ctx.usedGuids.has(guid); n++) guid = ifcGuid(`${seed}#dup${n}`);
-  ctx.guids.set(seed, guid);
+  const kept = ctx.preservedGuids.get(key);
+  let guid: string;
+  if (kept !== undefined && !ctx.usedGuids.has(kept)) {
+    guid = kept;
+  } else {
+    guid = ifcGuid128(hashSeed);
+    for (let n = 1; ctx.usedGuids.has(guid) || ctx.reservedGuids.has(guid); n++) guid = ifcGuid128(`${hashSeed}#dup${n}`);
+  }
+  ctx.guids.set(key, guid);
   ctx.usedGuids.add(guid);
   return guid;
+}
+
+/** Soort van een object met een eigen id. De seed krijgt de soort als voorvoegsel: uit XER kunnen
+ *  taak, relatie en kalender hetzelfde kale getal als id dragen (task_id, task_pred_id, clndr_id), en
+ *  zonder voorvoegsel kregen ze via de cache van `guidOf` hetzelfde GlobalId (audit 2026-09-26).
+ *  `wp`/`ws`: het werkplan en het (niet-baseline) werkschema van het project, sleutel = project-id;
+ *  het werkschema is het anker voor 4D-koppelingen in andere pakketten (review 2026-09-28). */
+export type IfcObjectKind = 'task' | 'res' | 'cal' | 'seq' | 'proj' | 'wp' | 'ws';
+
+/** De seed (en sleutel in `ImportResult.ifcGlobalIds`) van een object. */
+export function ifcObjectSeed(kind: IfcObjectKind, id: string): string {
+  return `${kind}:${id}`;
+}
+
+function objectGuid(ctx: WriteContext, kind: IfcObjectKind, id: string): string {
+  const key = ifcObjectSeed(kind, id);
+  // De projectkalender heet in elk project `cal-default`: zonder zout had hij in elk nieuw bestand
+  // hetzelfde GlobalId. Geen lezer rekent zijn GlobalId na (DurationWalks schrijft het uit).
+  return issueGuid(ctx, key, kind === 'cal' && id === DEFAULT_CALENDAR_ID ? `${key}@${ctx.auxSalt}` : key);
 }
 
 function ref(ctx: WriteContext, key: string): string {
@@ -176,8 +251,13 @@ export function writeIFC(input: WriteIFCInput): string {
     importPristine = undefined,
     withheldTaskTimeFields = undefined,
     recordedSourceFormat = undefined,
+    ifcGlobalIds = undefined,
   } = input;
-  const ctx: WriteContext = { lines: [], nextId: 1, idMap: new Map(), guids: new Map(), usedGuids: new Set() };
+  const preservedGuids = new Map(Object.entries(ifcGlobalIds ?? {}));
+  const ctx: WriteContext = {
+    lines: [], nextId: 1, idMap: new Map(), guids: new Map(), usedGuids: new Set(),
+    preservedGuids, reservedGuids: new Set(preservedGuids.values()), auxSalt: project.id,
+  };
   const now = new Date().toISOString().split('.')[0];
 
   // Header. Naam/auteur/bedrijf MOETEN door `ifcStr`: rauw geïnterpoleerd levert een gewone
@@ -219,7 +299,8 @@ export function writeIFC(input: WriteIFCInput): string {
   const orgId = addLine(ctx, '_org', `IFCORGANIZATION($,${ifcStr(project.company)},$,$,$)`);
   const personOrgId = addLine(ctx, '_personorg', `IFCPERSONANDORGANIZATION(#${personId},#${orgId},$)`);
   const appOrgId = addLine(ctx, '_apporg', `IFCORGANIZATION($,'OpenAEC Foundation',$,$,$)`);
-  const appId = addLine(ctx, '_app', `IFCAPPLICATION(#${appOrgId},'0.1','Open Planner Studio','OPS')`);
+  // Version is een formaatteken (zie `OPS_APP_VERSION`): de lezer decodeert STEP-tekst pas vanaf '0.2'.
+  const appId = addLine(ctx, '_app', `IFCAPPLICATION(#${appOrgId},${ifcStr(OPS_APP_VERSION)},'Open Planner Studio','OPS')`);
   const ownerHistId = addLine(ctx, '_owner', `IFCOWNERHISTORY(#${personOrgId},#${appId},$,.NOCHANGE.,$,$,$,${Math.floor(Date.now() / 1000)})`);
 
   // Units
@@ -234,7 +315,7 @@ export function writeIFC(input: WriteIFCInput): string {
 
   // Project. Description (arg 3) draagt project.description — de reader leest 'm terug
   // uit de IFCWORKPLAN.Description-slot, met terugval op deze.
-  addLine(ctx, '_project', `IFCPROJECT(${ifcStr(guidOf(ctx, project.id))},#${ownerHistId},${ifcStr(project.name)},${ifcStr(project.description)},$,$,$,(#${ctxId}),#${unitAssId})`);
+  addLine(ctx, '_project', `IFCPROJECT(${ifcStr(objectGuid(ctx, 'proj', project.id))},#${ownerHistId},${ifcStr(project.name)},${ifcStr(project.description)},$,$,$,(#${ctxId}),#${unitAssId})`);
   writeXerSourceArchive(ctx, ownerHistId, xerSourceArchive, xer?.sourceProjectId ?? xerSourceProjectId);
 
   // Calendar (projectkalender — altijd de EERSTE IFCWORKCALENDAR in het bestand; vaste conventie
@@ -254,10 +335,10 @@ export function writeIFC(input: WriteIFCInput): string {
   const planEnd = endDates[endDates.length - 1] || project.endDate;
 
   const workPlanId = addLine(ctx, '_workplan',
-    `IFCWORKPLAN(${ifcStr(guidOf(ctx, project.id + '_wp'))},#${ownerHistId},${ifcStr(project.name)},${ifcStr(project.description)},$,$,${ifcDateTime(now)},$,$,$,$,$,${ifcDateTime(planStart)},${ifcDateTime(planEnd)},.PLANNED.)`);
+    `IFCWORKPLAN(${ifcStr(objectGuid(ctx, 'wp', project.id))},#${ownerHistId},${ifcStr(project.name)},${ifcStr(project.description)},$,$,${ifcDateTime(now)},$,$,$,$,$,${ifcDateTime(planStart)},${ifcDateTime(planEnd)},.PLANNED.)`);
 
   const workSchedId = addLine(ctx, '_worksched',
-    `IFCWORKSCHEDULE(${ifcStr(guidOf(ctx, project.id + '_ws'))},#${ownerHistId},${ifcStr('Construction schedule v1.0')},$,$,$,${ifcDateTime(now)},$,$,$,$,$,${ifcDateTime(planStart)},${ifcDateTime(planEnd)},.PLANNED.)`);
+    `IFCWORKSCHEDULE(${ifcStr(objectGuid(ctx, 'ws', project.id))},#${ownerHistId},${ifcStr('Construction schedule v1.0')},$,$,$,${ifcDateTime(now)},$,$,$,$,$,${ifcDateTime(planStart)},${ifcDateTime(planEnd)},.PLANNED.)`);
 
   // Baselines — per baseline één `.BASELINE.`-IfcWorkSchedule-header (Name +
   // CreationDate, ZONDER taak-duplicatie: de datums leven verliesloos in het OPS_Baselines-JSON
@@ -402,10 +483,10 @@ function writeTaskTypeMeta(
   if (used.size === 0) return;
   const definitions = customTaskTypes.filter(t => used.has(t.id));
   const taskTypeIds: Record<string, string> = {};
-  for (const task of tasks) if (task.customTaskTypeId) taskTypeIds[guidOf(ctx, task.id)] = task.customTaskTypeId;
+  for (const task of tasks) if (task.customTaskTypeId) taskTypeIds[objectGuid(ctx, 'task', task.id)] = task.customTaskTypeId;
   const value = JSON.stringify({ definitions, taskTypeIds });
   const propId = addLine(ctx, '_ps_tasktypes_json',
-    `IFCPROPERTYSINGLEVALUE('TaskTypes',$,IFCTEXT(${ifcStr(value)}),$)`);
+    `IFCPROPERTYSINGLEVALUE('TaskTypes',$,IFCTEXT(${ifcStr(asciiJson(value))}),$)`);
   const setId = addLine(ctx, '_pset_tasktypes',
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_tasktypes'))},#${ownerHistId},${ifcStr(PSET.TaskTypes)},$,(#${propId}))`);
   addLine(ctx, '_rel_tasktypes',
@@ -542,7 +623,7 @@ function writeStructure(
   // Autoritaire meta-JSON (verliesloos: ids, kleuren, omschrijvingen).
   const metaJson = JSON.stringify({ activityCodeTypes, customFieldDefs });
   const metaPropId = addLine(ctx, '_ps_structmeta',
-    `IFCPROPERTYSINGLEVALUE('structure',$,IFCTEXT(${ifcStr(metaJson)}),$)`);
+    `IFCPROPERTYSINGLEVALUE('structure',$,IFCTEXT(${ifcStr(asciiJson(metaJson))}),$)`);
   const metaSetId = addLine(ctx, '_pset_structmeta',
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_structmeta'))},#${ownerHistId},${ifcStr(PSET.StructureMeta)},$,(#${metaPropId}))`);
   relDefines('_rel_structmeta', projRef, metaSetId);
@@ -627,7 +708,7 @@ function writeLibraryPool(
   const projRef = ref(ctx, '_project');
   const json = JSON.stringify(pool);
   const propId = addLine(ctx, '_ps_library',
-    `IFCPROPERTYSINGLEVALUE('pool',$,IFCTEXT(${ifcStr(json)}),$)`);
+    `IFCPROPERTYSINGLEVALUE('pool',$,IFCTEXT(${ifcStr(asciiJson(json))}),$)`);
   const setId = addLine(ctx, '_pset_library',
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_library'))},#${ownerHistId},${ifcStr(PSET.Library)},$,(#${propId}))`);
   addLine(ctx, '_rel_library',
@@ -688,7 +769,7 @@ function writeBaselineMeta(
   const json = JSON.stringify(baselines);
   const props: number[] = [];
   props.push(addLine(ctx, '_ps_baselines_json',
-    `IFCPROPERTYSINGLEVALUE('Baselines',$,IFCTEXT(${ifcStr(json)}),$)`));
+    `IFCPROPERTYSINGLEVALUE('Baselines',$,IFCTEXT(${ifcStr(asciiJson(json))}),$)`));
   // De baseline-JSON draagt INTERNE taak-id's. Zou de reader die terugmappen door zelf
   // `ifcGuid(taskId)` te herberekenen, dan gaf een hashbotsing stille kruisbesmetting tussen
   // baselines en vond hij een gesuffixt GlobalId (wat `guidOf` bij een botsing uitgeeft) nooit terug.
@@ -700,12 +781,12 @@ function writeBaselineMeta(
   const baselineTaskGuids: Record<string, string> = {};
   for (const b of baselines) {
     for (const bt of b.tasks ?? []) {
-      if (bt.taskId) baselineTaskGuids[bt.taskId] = guidOf(ctx, bt.taskId);
+      if (bt.taskId) baselineTaskGuids[bt.taskId] = objectGuid(ctx, 'task', bt.taskId);
     }
   }
   if (Object.keys(baselineTaskGuids).length > 0) {
     props.push(addLine(ctx, '_ps_baselines_guids',
-      `IFCPROPERTYSINGLEVALUE('TaskGuids',$,IFCTEXT(${ifcStr(JSON.stringify(baselineTaskGuids))}),$)`));
+      `IFCPROPERTYSINGLEVALUE('TaskGuids',$,IFCTEXT(${ifcJson(baselineTaskGuids)}),$)`));
   }
   if (activeBaselineId) {
     props.push(addLine(ctx, '_ps_baselines_active',
@@ -732,7 +813,7 @@ function writeSchedulingOptionsMeta(
   if (!options || Object.keys(options).length === 0) return;
   const json = JSON.stringify(options);
   const propId = addLine(ctx, '_ps_schedopts',
-    `IFCPROPERTYSINGLEVALUE('SchedulingOptions',$,IFCTEXT(${ifcStr(json)}),$)`);
+    `IFCPROPERTYSINGLEVALUE('SchedulingOptions',$,IFCTEXT(${ifcStr(asciiJson(json))}),$)`);
   const setId = addLine(ctx, '_pset_schedopts',
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_schedopts'))},#${ownerHistId},${ifcStr(PSET.SchedulingOptions)},$,(#${propId}))`);
   addLine(ctx, '_rel_schedopts',
@@ -754,7 +835,7 @@ export function writeSchedulingProfileMeta(
   if (!carriesProfile(profile)) return;
   const json = JSON.stringify(schedulingProfileToJson(profile));
   const propId = addLine(ctx, '_ps_schedprofile',
-    `IFCPROPERTYSINGLEVALUE('SchedulingProfile',$,IFCTEXT(${ifcStr(json)}),$)`);
+    `IFCPROPERTYSINGLEVALUE('SchedulingProfile',$,IFCTEXT(${ifcStr(asciiJson(json))}),$)`);
   const setId = addLine(ctx, '_pset_schedprofile',
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_schedprofile'))},#${ownerHistId},${ifcStr(PSET.SchedulingProfile)},$,(#${propId}))`);
   addLine(ctx, '_rel_schedprofile',
@@ -899,7 +980,7 @@ function writeCalendar(
   // ObjectType (arg 4): alleen een label bij USERDEFINED-ploeg; anders `$`.
   const objectType = cal.shift === 'USERDEFINED' ? ifcStr('USERDEFINED') : '$';
   const calStepId = addLine(ctx, key,
-    `IFCWORKCALENDAR(${ifcStr(guidOf(ctx, cal.id))},#${ownerHistId},${ifcStr(cal.name)},${ifcStr(cal.description)},${objectType},(#${workTimeId}),${exceptStr},${shiftToPredefinedType(cal.shift)})`);
+    `IFCWORKCALENDAR(${ifcStr(objectGuid(ctx, 'cal', cal.id))},#${ownerHistId},${ifcStr(cal.name)},${ifcStr(cal.description)},${objectType},(#${workTimeId}),${exceptStr},${shiftToPredefinedType(cal.shift)})`);
   return {
     calStepId,
     workingExceptionStepIds,
@@ -974,7 +1055,7 @@ function writeCalendarGenerationMeta(
   }
   if (cal.libraryOrigin) {
     props.push(addLine(ctx, `_opscal_lo_${cal.id}`,
-      `IFCPROPERTYSINGLEVALUE('LibraryOrigin',$,IFCTEXT(${ifcStr(JSON.stringify(cal.libraryOrigin))}),$)`));
+      `IFCPROPERTYSINGLEVALUE('LibraryOrigin',$,IFCTEXT(${ifcJson(cal.libraryOrigin)}),$)`));
   }
   if (needsHoursPerDayOverride) {
     props.push(addLine(ctx, `_opscal_hpd_${cal.id}`,
@@ -1010,7 +1091,7 @@ function writeCalendarGenerationMeta(
   if (hasWorkingExceptions) {
     const idJson = JSON.stringify(workingExceptionStepIds.map(String));
     props.push(addLine(ctx, `_opscal_wexc_${cal.id}`,
-      `IFCPROPERTYSINGLEVALUE('WorkingExceptionIds',$,IFCTEXT(${ifcStr(idJson)}),$)`));
+      `IFCPROPERTYSINGLEVALUE('WorkingExceptionIds',$,IFCTEXT(${ifcStr(asciiJson(idJson))}),$)`));
   }
   if (hasP6Source) {
     props.push(addLine(ctx, `_opscal_p6source_${cal.id}`,
@@ -1018,7 +1099,7 @@ function writeCalendarGenerationMeta(
   }
   if (hasP6Source) {
     props.push(addLine(ctx, `_opscal_p6penalty_${cal.id}`,
-      `IFCPROPERTYSINGLEVALUE('P6NonWorkPenaltyDates',$,IFCTEXT(${ifcStr(JSON.stringify(cal.p6NonWorkPenaltyDates ?? []))}),$)`));
+      `IFCPROPERTYSINGLEVALUE('P6NonWorkPenaltyDates',$,IFCTEXT(${ifcJson(cal.p6NonWorkPenaltyDates ?? [])}),$)`));
   }
   if (hasRejectedPenaltyDiagnostic) {
     props.push(addLine(ctx, `_opscal_p6penaltystate_${cal.id}`,
@@ -1118,7 +1199,7 @@ function writeTask(
     `IFCTASKTIME(${IFC_TASKTIME_SLOTS.map(s => s.write(ttCtx)).join(',')})`);
 
   const taskCtx: TaskWriteCtx = {
-    task, ownerHistId, guidArg: ifcStr(guidOf(ctx, task.id)), taskTimeId, customTaskTypeLabel,
+    task, ownerHistId, guidArg: ifcStr(objectGuid(ctx, 'task', task.id)), taskTimeId, customTaskTypeLabel,
   };
   addLine(ctx, `task_${task.id}`,
     `IFCTASK(${IFC_TASK_SLOTS.map(s => s.write(taskCtx)).join(',')})`);
@@ -1170,7 +1251,7 @@ function writeSequence(ctx: WriteContext, seq: Sequence, ownerHistId: number): v
   }
 
   addLine(ctx, `seq_${seq.id}`,
-    `IFCRELSEQUENCE(${ifcStr(guidOf(ctx, seq.id))},#${ownerHistId},$,$,${ref(ctx, `task_${seq.predecessorId}`)},${ref(ctx, `task_${seq.successorId}`)},${lagRef},.${seq.type}.,$)`);
+    `IFCRELSEQUENCE(${ifcStr(objectGuid(ctx, 'seq', seq.id))},#${ownerHistId},$,$,${ref(ctx, `task_${seq.predecessorId}`)},${ref(ctx, `task_${seq.successorId}`)},${lagRef},.${seq.type}.,$)`);
 }
 
 /**
@@ -1187,10 +1268,10 @@ function writeSequenceMeta(
 ): void {
   const boundarySequenceGuids = sequences
     .filter(sequence => sequence.p6StartAtPredecessorFinishBoundary === true)
-    .map(sequence => guidOf(ctx, sequence.id));
+    .map(sequence => objectGuid(ctx, 'seq', sequence.id));
   if (boundarySequenceGuids.length === 0) return;
   const propId = addLine(ctx, '_ps_seq_boundary',
-    `IFCPROPERTYSINGLEVALUE('P6StartAtPredecessorFinishBoundarySequenceGuids',$,IFCTEXT(${ifcStr(JSON.stringify(boundarySequenceGuids))}),$)`);
+    `IFCPROPERTYSINGLEVALUE('P6StartAtPredecessorFinishBoundarySequenceGuids',$,IFCTEXT(${ifcJson(boundarySequenceGuids)}),$)`);
   const setId = addLine(ctx, '_pset_sequences',
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_sequences'))},#${ownerHistId},${ifcStr(PSET.Sequences)},$,(#${propId}))`);
   addLine(ctx, '_rel_sequences',
@@ -1201,7 +1282,7 @@ function writeResource(ctx: WriteContext, res: Resource, ownerHistId: number): v
   // Entiteitnaam uit de gedeelde RESOURCE_TYPE_TO_IFC-map (reader leidt de inverse eruit af);
   // onbekend type ⇒ MATERIAL.
   const entityName = RESOURCE_TYPE_TO_IFC[res.type] ?? 'IFCCONSTRUCTIONMATERIALRESOURCE';
-  const entity = `${entityName}(${ifcStr(guidOf(ctx, res.id))},#${ownerHistId},${ifcStr(res.name)},${ifcStr(res.description)},$,$,$,$,.USERDEFINED.)`;
+  const entity = `${entityName}(${ifcStr(objectGuid(ctx, 'res', res.id))},#${ownerHistId},${ifcStr(res.name)},${ifcStr(res.description)},$,$,$,$,.USERDEFINED.)`;
   addLine(ctx, `res_${res.id}`, entity);
 }
 
@@ -1249,12 +1330,12 @@ function writeResourceMeta(ctx: WriteContext, resources: Resource[], ownerHistId
       // Vangnet naast IFCRELNESTS (writeCrewNesting): de eigen reader hoeft nooit
       // afhankelijk te zijn van relatie-richting-interpretatie door andere IFC-tools.
       const id = addLine(ctx, `_respg_${res.id}`,
-        `IFCPROPERTYSINGLEVALUE('ParentGuid',$,IFCTEXT(${ifcStr(guidOf(ctx, res.parentId))}),$)`);
+        `IFCPROPERTYSINGLEVALUE('ParentGuid',$,IFCTEXT(${ifcStr(objectGuid(ctx, 'res', res.parentId))}),$)`);
       props.push(`#${id}`);
     }
     if (res.libraryOrigin) {
       const id = addLine(ctx, `_reslo_${res.id}`,
-        `IFCPROPERTYSINGLEVALUE('LibraryOrigin',$,IFCTEXT(${ifcStr(JSON.stringify(res.libraryOrigin))}),$)`);
+        `IFCPROPERTYSINGLEVALUE('LibraryOrigin',$,IFCTEXT(${ifcJson(res.libraryOrigin)}),$)`);
       props.push(`#${id}`);
     }
     if (props.length === 0) continue;
@@ -1332,7 +1413,7 @@ function writeAssignmentMeta(
     const list = byTask.get(task.id);
     if (!list) continue;
     const props = list.map((a, index) => {
-      const resGuid = guidOf(ctx, a.resourceId); // zelfde GUID als writeResource gebruikte
+      const resGuid = objectGuid(ctx, 'res', a.resourceId); // zelfde GUID als writeResource gebruikte
       const propName = `${resGuid}#${index}`; // uniek per assignment
       const val = `${a.unitsPerDay}|${a.curve ?? 'UNIFORM'}`;
       const propId = addLine(ctx, `_asgn_${task.id}_${a.id}`,
@@ -1377,7 +1458,7 @@ function writeTimephasedMeta(
       // (begroot/verricht/resterend, minuten) idem — zelfde blob, zelfde `GUID#N`-sleutel.
       if (a.workWindowStart === undefined && a.workWindowFinish === undefined && a.curveValues === undefined
         && a.plannedWorkMinutes === undefined && a.actualWorkMinutes === undefined && a.remainingWorkMinutes === undefined) return;
-      const resGuid = guidOf(ctx, a.resourceId);
+      const resGuid = objectGuid(ctx, 'res', a.resourceId);
       const propName = `${resGuid}#${index}`;
       windows[propName] = {
         ...(a.workWindowStart !== undefined ? { workWindowStart: a.workWindowStart } : {}),
@@ -1390,7 +1471,7 @@ function writeTimephasedMeta(
     });
     if (Object.keys(windows).length === 0) continue;
     const propId = addLine(ctx, `_ps_tp_${task.id}`,
-      `IFCPROPERTYSINGLEVALUE('Windows',$,IFCTEXT(${ifcStr(JSON.stringify(windows))}),$)`);
+      `IFCPROPERTYSINGLEVALUE('Windows',$,IFCTEXT(${ifcJson(windows)}),$)`);
     const setId = addLine(ctx, `_pset_tp_${task.id}`,
       `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_tp_' + task.id))},#${ownerHistId},${ifcStr(PSET.Timephased)},$,(#${propId}))`);
     addLine(ctx, `_rel_tp_${task.id}`,
@@ -1401,10 +1482,10 @@ function writeTimephasedMeta(
 /**
  * `Task.timephasedDurationWalks` als eigen `OPS_TimephasedDurationWalks`-JSON-pset, NIET via
  * `ifcPsets.PER_TASK_PSETS`: `resourceCalendarId` is een app-interne kalenderverwijzing die bij
- * inlezen een NIEUW id krijgt.
+ * inlezen een ander id kan krijgen (de lezer leidt het af uit het GlobalId).
  *
  * Vertaling via `resourceCalendarGuid`, niet via de kalenderNAAM (die is niet uniek ⇒ stille
- * datacorruptie). `guidOf(ctx, cal.id)` is per `ctx` gememoïseerd en élke kalender is vóór deze
+ * datacorruptie). `objectGuid(ctx, 'cal', cal.id)` is per `ctx` gememoïseerd en élke kalender is vóór deze
  * aanroep geschreven (zie `writeIFC`), dus dit levert exact de GlobalId van de bijbehorende
  * `IFCWORKCALENDAR` — hetzelfde remap-patroon als `writeBaselineMeta` voor taken. Golden rule: geen
  * taak met `timephasedDurationWalks` ⇒ geen pset.
@@ -1422,11 +1503,11 @@ function writeTimephasedDurationWalksMeta(
     if (!walks || walks.length === 0) continue;
     const json = walks.map(w => ({
       anchor: w.anchor,
-      resourceCalendarGuid: guidOf(ctx, w.resourceCalendarId),
+      resourceCalendarGuid: objectGuid(ctx, 'cal', w.resourceCalendarId),
       ...(w.workMinutes !== undefined ? { workMinutes: w.workMinutes } : {}),
     }));
     const propId = addLine(ctx, `_ps_tpdw_${task.id}`,
-      `IFCPROPERTYSINGLEVALUE('DurationWalks',$,IFCTEXT(${ifcStr(JSON.stringify(json))}),$)`);
+      `IFCPROPERTYSINGLEVALUE('DurationWalks',$,IFCTEXT(${ifcJson(json)}),$)`);
     const setId = addLine(ctx, `_pset_tpdw_${task.id}`,
       `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_tpdw_' + task.id))},#${ownerHistId},${ifcStr(PSET.DurationWalks)},$,(#${propId}))`);
     addLine(ctx, `_rel_tpdw_${task.id}`,

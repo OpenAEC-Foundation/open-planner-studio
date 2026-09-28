@@ -18,8 +18,12 @@ export function useSettingsBootstrap(recoveryResolved: boolean, recovery: Recove
     // Eén registergedreven hydratatie: `loadAllSettings` itereert het `SETTINGS`-register + de drie
     // afwijkers (thema-migratie, synchrone bouwmodus, balkkleurkeuze) en levert één `setUI`-patch
     // (geen veld overlapt).
-    void loadAllSettings().then(patch => setUI(patch));
-    void loadAllExtensions();
+    void loadAllSettings().then(patch => setUI(patch)).catch(error => {
+      console.error('Instellingen laden mislukt; de app draait op de standaardwaarden:', error);
+    });
+    void loadAllExtensions().catch(error => {
+      console.error('Extensies laden mislukt:', error);
+    });
     // Recente bestanden leven in IndexedDB (async, met eenmalige localStorage-migratie) —
     // één keer bij opstart in de store hydrateren.
     void useAppStore.getState().hydrateRecentFiles();

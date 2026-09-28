@@ -25,7 +25,7 @@
 // getest kunnen worden.
 import { recoveryNames, type RecoveryManifest } from '@/hooks/recoveryPaths';
 import {
-  manifestOwnership, planRecoveryCleanup, planRecoveryClear, parseRecoveryManifest,
+  manifestOwnership, planRecoveryCleanup, planRecoveryClear, planRecoveryExitClear, parseRecoveryManifest,
   planTauriV3RecoverySave,
   RECOVERY_MANIFEST_VERSION,
 } from '@/services/recovery/recoveryStore';
@@ -407,6 +407,39 @@ const clearZonderListing = planRecoveryClear(
 eqSet('7g manifestregels zonder listing', clearZonderListing, ['recovery.doc-1.ifc']);
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
+// ── 8. Schone afsluiting (review 2026-09-28): alleen de eigen generatie ──────────────────────
+// A: na een crash koos de gebruiker in het herstelvenster "later"; ons manifest draagt die snapshot
+//    mee (`adopted`). Afsluiten wist onze eigen snapshot, houdt de uitgestelde en het manifest.
+{
+  const plan = planRecoveryExitClear({
+    listing: ['recovery.documents.json', 'recovery.doc-eigen.ifc', 'recovery.doc-gecrasht.ifc'],
+    manifest: manifest(SELF, [{ id: 'doc-eigen', ifc: 'recovery.doc-eigen.ifc' }, { id: 'doc-gecrasht', ifc: 'recovery.doc-gecrasht.ifc' }]),
+    self: SELF, ownWritten: ['recovery.doc-eigen.ifc'], adopted: ['recovery.doc-gecrasht.ifc'], names: PROD,
+  });
+  eqSet('8a uitgesteld: alleen de eigen snapshot weg', plan.remove, ['recovery.doc-eigen.ifc']);
+  eq('8b uitgesteld: manifest houdt de uitgestelde regel', J(plan.manifest === 'keep' || plan.manifest === 'remove' ? plan.manifest : plan.manifest.map((d) => d.id)), J(['doc-gecrasht']));
+}
+// B: het herstelvenster staat nog open (manifest van de vorige start, niets zelf geschreven).
+{
+  const plan = planRecoveryExitClear({
+    listing: ['recovery.documents.json', 'recovery.doc-gecrasht.ifc'],
+    manifest: manifest(OTHER, [{ id: 'doc-gecrasht', ifc: 'recovery.doc-gecrasht.ifc' }]),
+    self: SELF, ownWritten: [], adopted: [], names: PROD,
+  });
+  eqSet('8c venster open: niets weg', plan.remove, []);
+  eq('8d venster open: manifest van de vorige start blijft', plan.manifest, 'keep');
+}
+// C: alleen eigen werk: alles weg, manifest ook.
+{
+  const plan = planRecoveryExitClear({
+    listing: ['recovery.documents.json', 'recovery.doc-eigen.ifc', 'recovery.doc-eigen.ifc.tmp', 'recovery.wt-a.doc-9.ifc'],
+    manifest: manifest(SELF, [{ id: 'doc-eigen', ifc: 'recovery.doc-eigen.ifc' }]),
+    self: SELF, ownWritten: ['recovery.doc-eigen.ifc'], adopted: [], names: PROD,
+  });
+  eqSet('8e alleen eigen werk: snapshot en halffabricaat weg', plan.remove, ['recovery.doc-eigen.ifc', 'recovery.doc-eigen.ifc.tmp']);
+  eq('8f alleen eigen werk: manifest weg', plan.manifest, 'remove');
+}
+
 if (diffs.length === 0) {
   console.log(`OK  recovery-isolation-check: alle checks groen (${checks})`);
   process.exit(0);

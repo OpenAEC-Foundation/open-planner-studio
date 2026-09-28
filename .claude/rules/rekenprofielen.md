@@ -74,3 +74,12 @@ hem niet. De motoretappe leest hem straks uitsluitend via `src/services/leveling
 opgeslagen P6-uitvoer). Het manifestveld `leveledProjects` (`tests/planning/xerManifestLeveling.ts`) is het
 bijbehorende meetmechanisme, zonder data en zonder invloed op de telling (eigenaarsbeslissing 2). Plan en
 open besluiten: `docs/superpowers/plans/2026-09-24-nivellering-etappe-onderzoek.md`.
+
+**De nivelleerder zelf (`ResourceLeveler.ts`, 2026-09):** kiest de volgende taak via een heap op rang en
+herrekent de PF-voorwaartse pass (`CPMSolver.solveEarlyStarts`) alleen stroomafwaarts van een wijziging
+(globaal bij ALAP of hammock). Die cache is pure prestatie: `LEVELER_TEST_HOOKS.incremental = false` geeft
+het oude pad, en `tests/planning/check-leveler-differential.ts` pint beide paden byte-gelijk. De
+nivelleerdialoog rekent in een Web Worker (`src/engine/scheduler/levelingWorker.ts` via
+`src/services/leveling/backgroundLeveling.ts`, met `setTimeout`-terugval zonder Worker) op de invoer van
+`scheduleSlice.levelingInput`, met Stoppen; een uitkomst op verouderde store-invoer wordt niet toegepast.
+De MCP-tool en de store-actie blijven synchroon (planner_batch rekent op een synchrone bridge).

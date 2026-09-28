@@ -22,3 +22,28 @@ export function invertRecord<K extends PropertyKey, V extends PropertyKey>(recor
   for (const key of Object.keys(record) as K[]) inverse[record[key]] = key;
   return inverse;
 }
+
+/**
+ * `Math.min(...values)` zonder spread: een spread zet elk element als losse functieparameter op de
+ * stack en gooit vanaf ~125k elementen `RangeError: Maximum call stack size exceeded` (bv. de kinderen
+ * van één samenvatting of de outline-niveaus van een grote import — audit 2026-09-26). Zelfde
+ * uitkomst als `Math.min`: leeg ⇒ `Infinity`, een `NaN` ⇒ `NaN`.
+ */
+export function minOf(values: Iterable<number>): number {
+  let min = Infinity;
+  for (const value of values) {
+    if (Number.isNaN(value)) return NaN;
+    if (value < min || (value === 0 && min === 0 && Object.is(value, -0))) min = value;
+  }
+  return min;
+}
+
+/** `Math.max(...values)` zonder spread (zie `minOf`): leeg ⇒ `-Infinity`, een `NaN` ⇒ `NaN`. */
+export function maxOf(values: Iterable<number>): number {
+  let max = -Infinity;
+  for (const value of values) {
+    if (Number.isNaN(value)) return NaN;
+    if (value > max || (value === 0 && max === 0 && Object.is(max, -0))) max = value;
+  }
+  return max;
+}

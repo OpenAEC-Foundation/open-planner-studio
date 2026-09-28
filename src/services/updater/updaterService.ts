@@ -10,6 +10,7 @@
 
 import { isTauri } from '@/utils/platform';
 import { GITHUB_REPO } from '@/services/githubRepo';
+import { flushRecoveryNow } from '@/services/recovery/recoveryFlush';
 
 export interface UpdateInfo {
   version: string;
@@ -130,7 +131,10 @@ export async function downloadAndInstall(
     let totalLength = 0;
     let downloaded = 0;
 
-    await update.downloadAndInstall((event) => {
+    // Eerst alleen downloaden: op Windows sluit de app zichzelf af tijdens `install()` (beperking van
+    // Windows-installers, Tauri-updaterdocs), dus alles wat ná de installatie staat komt daar nooit
+    // aan de beurt (review 2026-09-28).
+    await update.download((event) => {
       switch (event.event) {
         case 'Started':
           totalLength = event.data.contentLength ?? 0;
@@ -150,6 +154,15 @@ export async function downloadAndInstall(
       }
     });
 
+    // Geen normale afsluiting (geen sluitvraag): leg vóór de installatie nog één herstelsnapshot
+    // vast, zodat bewerkingen van de laatste seconden na de update via het herstel-venster
+    // terugkomen.
+    try {
+      await flushRecoveryNow();
+    } catch (flushErr) {
+      console.error('Herstelsnapshot vóór de update-herstart mislukt:', flushErr);
+    }
+    await update.install();
     await relaunch();
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

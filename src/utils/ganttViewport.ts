@@ -5,8 +5,11 @@
 // recenter-ankerformule (viewportmidden vasthouden) kunnen toepassen zonder dat de
 // store aan React/DOM hangt. Headless (tests) blijft de breedte null → geen recenter.
 
-import { parseDate, diffCalendarDays, addCalendarDays, formatDate } from '@/utils/dateUtils';
+import { parseDate, diffCalendarDays, addCalendarDays, formatDate, localTodayIso } from '@/utils/dateUtils';
 import type { Task, TaskTime } from '@/types/task';
+import type { WorkCalendar } from '@/types/calendar';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { resolveGanttAxis } from '@/engine/renderer/workdayAxis';
 import { maxGanttZoom, TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
 
 /** Start-keten: early → schedule (opgeslagen) → late. Gedeeld door {@link resolveTaskFinish},
@@ -209,6 +212,8 @@ export function computeFitToProject(
   enableQuarterHourZoom: boolean,
   enableHourPlanning = false,
   navigationStartDates: string[] = [],
+  /** As-afstand (`axisDayDistance`); afwezig ⇒ kalenderdagen, ongewijzigd. */
+  dayDistance: (from: Date, to: Date) => number = diffCalendarDays,
 ): FitToProject | null {
   if (tasks.length === 0 || timelineWidth <= 0) return null;
   let minStart: string | null = null;
@@ -222,7 +227,7 @@ export function computeFitToProject(
     if (f && (!maxFinish || f > maxFinish)) maxFinish = f;
   }
   if (!minStart || !maxFinish) return null;
-  const span = Math.max(1, diffCalendarDays(parseDate(minStart), parseDate(maxFinish)) + 1);
+  const span = Math.max(1, dayDistance(parseDate(minStart), parseDate(maxFinish)) + 1);
   const max = maxGanttZoom(enableQuarterHourZoom, enableHourPlanning);
   const zoom = Math.max(0.5, Math.min(max, timelineWidth / span));
   // De renderer kan zijn oorsprong verder naar links trekken voor kalenderuitzonderingen. Een fit
@@ -230,7 +235,7 @@ export function computeFitToProject(
   // project te ver naar rechts staan. Gebruik exact zijn effectieve oorsprong en pan van daaruit
   // naar de eerste taak; zonder zulke uitzonderingen is dit 14 × zoom.
   const effectiveStart = computeEffectiveViewStart(tasks, minStart, navigationStartDates);
-  const scrollX = Math.max(0, diffCalendarDays(parseDate(effectiveStart), parseDate(minStart)) * zoom);
+  const scrollX = Math.max(0, dayDistance(parseDate(effectiveStart), parseDate(minStart)) * zoom);
   return { zoom, viewStartDate: minStart, scrollX };
 }
 
@@ -246,6 +251,10 @@ export interface ScrollToDateState {
   tasks: Task[];
   view: { viewStartDate: string; zoom: number };
   project: { statusDate?: string };
+  /** Projectkalender + de werkdagen-as-instelling: staat die (effectief) aan, dan telt de afstand
+   *  in WERKdagen, zoals de renderer de as tekent. Afwezig ⇒ kalenderdagen. */
+  calendar?: WorkCalendar;
+  ui?: { compressNonWorkdays?: boolean };
 }
 
 /**
@@ -256,11 +265,59 @@ export interface ScrollToDateState {
  * Gebruikt door `Ctrl/Cmd+Home` (sneltoets-register).
  */
 export function computeScrollToDate(date: string | undefined, state: ScrollToDateState): number {
-  const target = date || state.project.statusDate || formatDate(new Date());
+  const target = date || state.project.statusDate || localTodayIso();
   const effectiveViewStart = parseDate(computeEffectiveViewStart(state.tasks, state.view.viewStartDate));
 
-  const days = diffCalendarDays(effectiveViewStart, parseDate(target));
+  const days = axisDayDistance(state.calendar, state.ui?.compressNonWorkdays)(effectiveViewStart, parseDate(target));
   return Math.max(0, (days - SCROLL_TO_DATE_MARGIN_DAYS) * state.view.zoom);
+}
+
+/**
+ * Afstand in AS-dagen (`to − from`) zoals de Gantt hem tekent: op de werkdagen-as ("alleen
+ * werkdagen tonen") in werkdagen — dezelfde `resolveGanttAxis` als de renderer, die bij een kalender
+ * zonder werkdagen zelf terugvalt op de kalender-as — anders in kalenderdagen. Ctrl+Home en de
+ * Ctrl+0-fit telden vroeger altijd kalenderdagen, zodat ze op de werkdagen-as per weekend twee dagen
+ * misten (Ctrl+0 schoof het project zo deels uit beeld).
+ */
+export function axisDayDistance(
+  calendar: WorkCalendar | undefined,
+  compressNonWorkdays: boolean | undefined,
+): (from: Date, to: Date) => number {
+  if (!calendar || !compressNonWorkdays) return (from, to) => diffCalendarDays(from, to);
+  const engine = new CalendarEngine(calendar);
+  return (from, to) => {
+    const axis = resolveGanttAxis({ calendar: engine, compressNonWorkdays: true, origin: from, chartOriginX: 0, zoom: 1, scrollX: 0 });
+    return axis.dayIndexOf(to) - axis.dayIndexOf(from);
+  };
+}
+
+/**
+ * Browsers begrenzen de breedte van een element (Firefox ~17,9M px, Chromium/WebKit ~33,5M px). De
+ * horizontale scrollbalk hangt aan een spacer ter breedte van de inhoud; op kwartierzoom (4000 px/dag)
+ * gaat een project van een paar jaar daar overheen, waarna de browser `scrollLeft` afkapt en de
+ * scroll-handler die afgekapte waarde terugschreef — het einde van het project was onbereikbaar.
+ * Boven deze grens wordt de spacer geschaald: `scrollLeft = scrollX × schaal`. Daaronder is de
+ * schaal precies 1 (ongewijzigd gedrag).
+ */
+export const MAX_SCROLL_SPACER_PX = 15_000_000;
+export function scrollbarScale(contentWidth: number): number {
+  return contentWidth > MAX_SCROLL_SPACER_PX ? MAX_SCROLL_SPACER_PX / contentWidth : 1;
+}
+
+/**
+ * Omrekenfactor `scrollLeft = scrollX × factor` voor een geschaalde spacer. Niet de spacerschaal
+ * zelf: de scrollbalk loopt maar tot `spacer − breedte`, de inhoud tot `inhoud − breedte`. Met de
+ * kale schaal haalde de duim het einde niet (tekort breedte × (1/schaal − 1), bij kwartierzoom
+ * honderden px) en sprong een wiel- of Ctrl+End-scroll naar het einde terug zodra de browser de te
+ * grote `scrollLeft` afkapte (review 2026-09-28). Deze factor beeldt de twee bereiken exact op
+ * elkaar af. Onder de elementgrens precies 1.
+ */
+export function scrollbarRangeRatio(contentWidth: number, viewportWidth: number): number {
+  const scale = scrollbarScale(contentWidth);
+  if (scale === 1) return 1;
+  const range = contentWidth - viewportWidth;
+  const spacerRange = contentWidth * scale - viewportWidth;
+  return range > 0 && spacerRange > 0 ? spacerRange / range : scale;
 }
 
 let chartWidth: number | null = null;

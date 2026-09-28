@@ -203,6 +203,7 @@ export type NotificationMessageKey =
   // geweigerd — zie `hierarchyChange.ts`. Parameter `cycle`: de taaknamen, "A → B → A".
   | 'notifications.hierarchyCycle'
   | 'notifications.summaryRelationsDropped'
+  | 'notifications.duplicateIdsRenamed'
   | 'notifications.relationsSkippedOnInsert'
   // Plakken uit een ander document: kalender-/taaktype-/code-/veldverwijzingen die hier niet
   // bestaan zijn leeggemaakt (`insertedBranch.ts`s `normalizeInsertedBranch`). Meervoud, `count`.
@@ -442,6 +443,9 @@ export interface UIState {
   ribbonCompact: boolean; // persisted — compacte ribbon voor kleine schermen
   showProjectOverview: boolean;             // session — projectoverzicht-overlay open
   pendingCloseDocId: string | null;         // session — document met openstaande sluit-bevestiging
+  /** Session — de gebruiker sluit de hele app: `useAppCloseGuard` loopt de documenten met
+   *  niet-opgeslagen wijzigingen één voor één langs via de sluit-bevestiging (`pendingCloseDocId`). */
+  appQuitPending: boolean;
   showNewProjectDialog: boolean;            // session — nieuw-project-wizard open
   /** Compacte keuze na een plusknop in de projectkiezer; maakt pas na een keuze iets aan/open. */
   showNewOrOpenProjectDialog: boolean;

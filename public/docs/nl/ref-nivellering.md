@@ -15,6 +15,8 @@ Het venster **Resources nivelleren** lost overbelasting op door taken te verschu
 
 Vereist een actuele berekening; anders toont het venster "Bereken eerst de planning (F5) voordat je nivelleert." De knop is ook uitgeschakeld zolang geen enkele resource is aangevinkt. Elke optie-wijziging maakt een eerder voorstel ongeldig — bereken dan opnieuw.
 
+Het berekenen gebeurt op de achtergrond: de app bevriest niet en het venster blijft bedienbaar, ook bij grote projecten. Zolang de berekening loopt staat er **Bezig met berekenen…** met een knop **Stoppen**; stoppen levert geen voorstel op. Verander je intussen een optie, dan stopt de lopende berekening vanzelf. Is de planning tijdens het rekenen gewijzigd, dan meldt het venster dat en klik je opnieuw op **Berekenen**.
+
 ## Voorstel (preview)
 
 - **Projecteinddatum-regel** — "ongewijzigd (datum)" of "oude datum → nieuwe datum" (rood) als het project uitloopt.

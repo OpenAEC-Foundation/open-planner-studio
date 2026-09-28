@@ -48,6 +48,7 @@ import { saveHistogramHeight } from '@/utils/settingsStore';
 // bewust in dit component staan (zie de kop van dat bestand voor waarom).
 import {
   buildBaselineOverlay,
+  buildSharedAxis,
   buildHistogramPicker, buildHistogramSeries,
   type GanttRenderOptionsSourceInput,
 } from './ganttRenderOptions';
@@ -297,8 +298,18 @@ export function GanttCanvas({
   const effectiveView = viewport.effectiveView;
   const sharedAxis = viewport.sharedAxis;
   const histogramAxis = viewport.histogramAxis;
-  const totalContentWidth = viewport.primary.contentWidth;
-  const secondaryContentWidth = viewport.secondary?.contentWidth ?? 0;
+  // Minimap op dezelfde as als de Gantt: op de werkdagen-as telt `scrollX / zoom` in werkdagen,
+  // dus de strip moet de balken ook zo plaatsen (anders lopen kader en balken uiteen).
+  // Eigen as zonder zoom/scroll (`dayIndexOf` hangt daar niet van af): zo blijft de functie over
+  // scrollframes heen dezelfde en kan de strip zijn dagindeling cachen.
+  const minimapAxisDayOf = useMemo(() => {
+    if (!compressNonWorkdays) return undefined;
+    const axis = buildSharedAxis({
+      calendar, compressNonWorkdays, viewStartDate: effectiveViewStart, chartOriginX: 0, zoom: 1, scrollX: 0,
+    });
+    const originIndex = axis.dayIndexOf(parseDate(effectiveViewStart));
+    return (date: Date) => axis.dayIndexOf(date) - originIndex;
+  }, [calendar, compressNonWorkdays, effectiveViewStart]);
   const primaryChartWidth = viewport.primary.chartWidth;
   const secondaryChartWidth = viewport.secondary?.chartWidth ?? 0;
   const histogramSplitter = viewport.splitters.histogram;
@@ -757,6 +768,7 @@ export function GanttCanvas({
           >
             <MiniMap
               originDate={effectiveViewStart}
+              axisDayOf={minimapAxisDayOf}
               timelineWidth={primaryChartWidth}
               scrollX={viewport.primary.scrollX}
               zoom={viewport.primary.zoom}
@@ -769,6 +781,7 @@ export function GanttCanvas({
               <div className="flex-1 min-w-0">
                 <MiniMap
                   originDate={effectiveViewStart}
+                  axisDayOf={minimapAxisDayOf}
                   timelineWidth={secondaryChartWidth}
                   scrollX={splitView.secondaryScrollX}
                   zoom={splitView.secondaryZoom}
@@ -916,7 +929,7 @@ export function GanttCanvas({
           style={{ left: 0, right: 0, bottom: 0, height: SCROLLBAR_GUTTER, zIndex: 4 }}
           onScroll={viewport.scrollHandlers.onPrimaryHorizontalScroll}
         >
-          <div style={{ width: Math.max(1, totalContentWidth), height: 1 }} />
+          <div style={{ width: Math.max(1, viewport.primary.scrollbarWidth), height: 1 }} />
         </div>
       </div>
       {/* Secundair pane: eigen tijdvenster, gedeelde rijen + verticale scroll */}
@@ -947,7 +960,7 @@ export function GanttCanvas({
               style={{ left: 0, right: 0, bottom: 0, height: SCROLLBAR_GUTTER, zIndex: 4 }}
               onScroll={viewport.scrollHandlers.onSecondaryHorizontalScroll}
             >
-              <div style={{ width: Math.max(1, secondaryContentWidth), height: 1 }} />
+              <div style={{ width: Math.max(1, viewport.secondary?.scrollbarWidth ?? 0), height: 1 }} />
             </div>
           </div>
         </>

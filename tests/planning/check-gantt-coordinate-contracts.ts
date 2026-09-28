@@ -209,8 +209,12 @@ equal('fitpaden geven de werkelijk gemeten paneelbreedte door',
 equal('splitlayout trekt de splitter vóór de ratioverdeling af',
   (ganttCanvasSource.match(/splitPanePrimaryWidthCss\(splitView\.ratio, SPLIT_RATIO_BAR_WIDTH\)/g) ?? []).length, 2);
 equal('primaire scrollbar begint lokaal op nul', /data-testid="gantt-hscroll"[\s\S]*?style=\{\{\s*left:\s*0\b/.test(ganttCanvasSource), true);
+// De spacer is de volledige tijdlijn-contentbreedte, alleen boven de browser-elementgrens geschaald
+// (`scrollbarScale`, 1 daaronder) — nooit een paneelaftrek.
 equal('primaire scrollbar gebruikt de volledige timeline-contentbreedte',
-  /data-testid="gantt-hscroll"[\s\S]*?width:\s*Math\.max\(1,\s*totalContentWidth\)/.test(ganttCanvasSource), true);
+  /data-testid="gantt-hscroll"[\s\S]*?width:\s*Math\.max\(1,\s*viewport\.primary\.scrollbarWidth\)/.test(ganttCanvasSource)
+    && /scrollbarWidth:\s*primaryContentWidth\s*\*\s*primaryScrollbarScale/.test(ganttViewportCoordinatorSource)
+    && /const primaryScrollbarScale = scrollbarScale\(primaryContentWidth\)/.test(ganttViewportCoordinatorSource), true);
 
 // Task 16D: het histogram is een full-width workspacebaan. Alleen zijn resourcekiezer heeft een
 // semantische linkerbreedte; de datumplot begint exact op die breedte en deelt de primaire view.

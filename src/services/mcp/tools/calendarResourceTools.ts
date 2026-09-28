@@ -1789,8 +1789,6 @@ const clearLeveling: BatchStepTool = {
 // =================================================================================================
 // planner_update_project
 // =================================================================================================
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}/;
-
 /** Datumvorm van `update_project`: `JJJJ-MM-DD`, en met `allowTime` ook `JJJJ-MM-DDTHH:mm` (de
  *  store-vorm van een uur-instant; alleen de statusdatum mag een tijd dragen, uurplanning). De datum
  *  moet bestaan (geen 31 februari); een willekeurige staart na de datum wordt geweigerd. */
@@ -2113,8 +2111,11 @@ const updateProject: BatchStepTool = {
 /** Vormvalidatie van `move_project`; string = foutboodschap. */
 function parseMoveProject(args: unknown): { newStartDate: string; shiftBaselines: boolean } | string {
   const a = (args ?? {}) as { newStartDate?: unknown; shiftBaselines?: unknown };
-  if (typeof a.newStartDate !== 'string' || !ISO_DATE.test(a.newStartDate)) {
-    return '`newStartDate` moet een ISO-datum zijn (JJJJ-MM-DD)';
+  // Strikt, net als `update_project`: de prefix-regex liet `2026-02-30`/`2026-13-45`/`2026-03-01xyz`
+  // door; `parseDate` rolde die stil door (Δ klopt niet) en de ruwe string belandde in
+  // `project.startDate` en dus in het IFC-bestand.
+  if (!isProjectDateValue(a.newStartDate, false)) {
+    return '`newStartDate` moet een bestaande ISO-datum zijn (JJJJ-MM-DD)';
   }
   // Zelfde patroon als `dryRun`, lagere inzet: een niet-boolean zou stil als `false` gelden, dus
   // baselines blijven staan terwijl de aanroeper denkt ze mee te verschuiven.

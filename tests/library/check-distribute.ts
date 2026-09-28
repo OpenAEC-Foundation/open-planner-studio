@@ -827,6 +827,44 @@ for (const manual of [true, false]) {
   assert(docB.delays['B-t1'] === 10, `${label}: de boeking schuift wél tien werkdagen (kreeg ${JSON.stringify(docB.delays)})`);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Audit 2026-09-26: een relatie op een SAMENVATTING (S{A} →FS→ B) moet de verdeler net zo zien als
+// het store-pad: uitgeklapt naar A →FS→ B. Vroeger kreeg de leveler de ruwe relatie; de solver liet
+// die in de basis-/PF-/proefsolves vallen en de verdeler bedacht een onterechte vertraging.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- distribute: samenvattingsrelatie wordt uitgeklapt (audit 2026-09-26) --');
+{
+  const p = pool([poolRes('lib-1', 'Kraan', 1)]);
+  const summary = task('s', '2026-08-03', '2026-08-07', 5, { childIds: ['a'] });
+  // B heeft een HOGERE prioriteit dan A: zonder de (weggevallen) relatie plaatst de leveler B eerst
+  // op de vroegste dag en duwt hij A opzij — precies de onterechte vertraging.
+  const taskA = task('a', '2026-08-03', '2026-08-07', 5, { parentId: 's', priority: 400 });
+  const taskB = task('b', '2026-08-10', '2026-08-10', 1, { priority: 600 });
+  const d1 = distDoc('d1', {
+    resources: [stamped('d1-r1', 'lib-1')],
+    tasks: [summary, taskA, taskB],
+    sequences: [{ id: 'sb', predecessorId: 's', successorId: 'b', type: 'FINISH_START', lagDays: 0 }],
+    assignments: [assign('d1-a1', 'a', 'd1-r1', 1), assign('d1-a2', 'b', 'd1-r1', 1)],
+  });
+  // Het directe symptoom: de solver in de leveler meldt dat hij een relatie NEGEERT omdat een
+  // uiteinde geen bladtaak is. Met uitgeklapte relaties mag dat niet meer gebeuren.
+  const warnings: string[] = [];
+  const origWarn = console.warn;
+  console.warn = (...a: unknown[]) => { warnings.push(a.map(String).join(' ')); };
+  let result: ReturnType<typeof computeDistribution>;
+  try {
+    result = computeDistribution('c1', p, 'lib-1', [d1], OPTS_OFF);
+  } finally {
+    console.warn = origWarn;
+  }
+  const dropped = warnings.filter(w => w.includes('genegeerd'));
+  assert(dropped.length === 0, `samenvattingsrelatie: de leveler negeert geen relatie (kreeg ${dropped.join(' | ')})`);
+  const doc = result.docs.find(d => d.docId === 'd1');
+  assert(doc !== undefined, 'samenvattingsrelatie: d1 in het voorstel');
+  assert(JSON.stringify(doc?.delays) === '{}', `samenvattingsrelatie: geen onterechte vertraging (kreeg ${JSON.stringify(doc?.delays)})`);
+  assert(!result.hasShortfall, 'samenvattingsrelatie: geen tekort');
+}
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (fails === 0) {
   console.log(`OK  distribute: alle checks groen (${checks})`);

@@ -20,6 +20,11 @@ export interface MiniMapOptions {
   zoom: number;
   /** Breedte van het zichtbare chart-gedeelte van het hoofdvenster (px). */
   chartWidth: number;
+  /** As-dag van een datum t.o.v. `originDate`, zoals de hoofd-Gantt hem tekent. Op de werkdagen-as
+   *  ("alleen werkdagen tonen") telt die in WERKdagen — en `scrollX / zoom` dus ook; zonder deze
+   *  functie rekende de strip taken in kalenderdagen en het kader in werkdagen, zodat kader en
+   *  balken uiteenliepen. Afwezig ⇒ kalenderdagen (`diffCalendarDays`), ongewijzigd. */
+  axisDayOf?: (date: Date) => number;
   /** Geïnjecteerd mini-map-palet. Afwezig ⇒ zelf gelezen via `readMiniMapPalette()`
    *  op render-moment; meegeven maakt de renderer headless-testbaar. */
   palette?: MiniMapPalette;
@@ -29,23 +34,24 @@ interface Span { startDay: number; endDay: number; span: number }
 
 /** Startdag en (exclusieve) einddag van een taak t.o.v. `origin`; null zonder start. Een taak
  *  zonder einde beslaat zijn startdag. */
-function taskDays(task: Task, origin: Date): { startDay: number; endDay: number } | null {
+type DayOf = (date: Date) => number;
+
+function taskDays(task: Task, dayOf: DayOf): { startDay: number; endDay: number } | null {
   const s = shownStart(task);
   if (!s) return null;
   const f = shownFinish(task) || s;
   return {
-    startDay: diffCalendarDays(origin, parseDate(s)),
-    endDay: diffCalendarDays(origin, parseDate(f)) + 1,
+    startDay: dayOf(parseDate(s)),
+    endDay: dayOf(parseDate(f)) + 1,
   };
 }
 
 /** Projectperiode (min start .. max finish) in dagen t.o.v. originDate. */
-function projectSpan(rows: ViewRow[], originDate: string): Span | null {
+function projectSpan(rows: ViewRow[], dayOf: DayOf): Span | null {
   let min = Infinity;
   let max = -Infinity;
-  const origin = parseDate(originDate);
   for (const row of rows) {
-    const days = row.kind === 'task' ? taskDays(row.task, origin) : null;
+    const days = row.kind === 'task' ? taskDays(row.task, dayOf) : null;
     if (!days) continue;
     if (days.startDay < min) min = days.startDay;
     if (days.endDay > max) max = days.endDay;
@@ -54,15 +60,40 @@ function projectSpan(rows: ViewRow[], originDate: string): Span | null {
   return { startDay: min, endDay: max, span: max - min };
 }
 
+/**
+ * Dagindeling per rij + projectspanne, per (rijenlijst, oorsprong, as) één keer berekend. De strip
+ * wordt bij élke scroll opnieuw getekend en parseerde dan voor alle rijen twee keer beide datums
+ * (8000 taken: de helft van een scrollframe). Alleen voor een bevroren (store-)lijst; de as-functie
+ * telt mee als sleutel (identiteit), de kalender-as via de oorsprong.
+ */
+interface Layout { days: Array<{ startDay: number; endDay: number } | null>; span: Span | null }
+const layoutCache = new WeakMap<ViewRow[], { originDate: string; axisDayOf: DayOf | undefined; layout: Layout }>();
+function layoutFor(rows: ViewRow[], originDate: string, axisDayOf: DayOf | undefined): Layout {
+  const cacheable = Object.isFrozen(rows);
+  const hit = cacheable ? layoutCache.get(rows) : undefined;
+  if (hit && hit.originDate === originDate && hit.axisDayOf === axisDayOf) return hit.layout;
+  const origin = parseDate(originDate);
+  const dayOf: DayOf = axisDayOf ?? ((date) => diffCalendarDays(origin, date));
+  const layout: Layout = {
+    days: rows.map((row) => (row.kind === 'task' ? taskDays(row.task, dayOf) : null)),
+    span: projectSpan(rows, dayOf),
+  };
+  if (cacheable) layoutCache.set(rows, { originDate, axisDayOf, layout });
+  return layout;
+}
+
 export class MiniMapRenderer {
   private ctx: CanvasRenderingContext2D;
   private opts: MiniMapOptions;
   private span: Span | null;
+  private days: Layout['days'];
 
   constructor(ctx: CanvasRenderingContext2D, opts: MiniMapOptions) {
     this.ctx = ctx;
     this.opts = opts;
-    this.span = projectSpan(opts.rows, opts.originDate);
+    const layout = layoutFor(opts.rows, opts.originDate, opts.axisDayOf);
+    this.span = layout.span;
+    this.days = layout.days;
   }
 
   /** Dag (t.o.v. originDate) → x op de strip. */
@@ -89,11 +120,10 @@ export class MiniMapRenderer {
       // Alle rijen gecomprimeerd op de striphoogte; 1 fillRect per taakrij.
       const taskRowCount = rows.length;
       const miniRowH = taskRowCount > 0 ? canvasHeight / taskRowCount : canvasHeight;
-      const origin = parseDate(this.opts.originDate);
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
         if (row.kind !== 'task') continue;
-        const days = taskDays(row.task, origin);
+        const days = this.days[i];
         if (!days) continue;
         const x0 = this.dayToMiniX(days.startDay);
         const x1 = this.dayToMiniX(days.endDay);

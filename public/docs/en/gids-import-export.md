@@ -25,7 +25,16 @@ into a new kind of project data in the app, you can assume it round-trips throug
 does *not* round-trip, that's called out explicitly below.
 
 IFC is also how this app connects to the rest of the OpenAEC toolkit: the same file can be read by
-BIM software for the 4D link (schedule alongside the building model).
+BIM software for the 4D link (schedule alongside the building model). For that, the app writes text
+the way the IFC standard prescribes: accented letters, the euro sign, Chinese characters and emoji are
+encoded in the file, so other software displays them correctly. Tasks, resources, calendars and
+relations keep the same IFC identity (GlobalId) every time you save, even if the file came from another
+package, so a link to them in your BIM model keeps working.
+
+Be careful with older versions of this app, from before this encoding. They show such characters as
+codes (for example `\u00e9` or `\X2\00E9\X0\` instead of é), and can lose a note or baseline that
+contains a quotation mark or backslash. If you save the file there, that loss is permanent. So update to
+the latest version before opening a newly saved file, on a colleague's computer too.
 
 ## Exporting to other formats
 

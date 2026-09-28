@@ -1,3 +1,4 @@
+import { isDraft, original } from 'immer';
 import { createSnapshot, restoreSnapshot, type Snapshot } from './snapshot';
 import type { TaskGridSurfaceId, TaskGridSurfacePreferences } from '@/types/taskGrid';
 import type { LayoutOverlays, ViewState } from '@/types/view';
@@ -7,6 +8,74 @@ import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/s
 import type { ViewRow } from '@/engine/view/visibleRows';
 
 export const MAX_SESSION_HISTORY_EVENTS_PER_SCOPE = 100;
+
+/**
+ * Geheugenplafond voor de hele sessiehistorie (eigenaarsbesluit 2026-09-28): boven deze GESCHATTE
+ * omvang vallen de oudste stappen weg, ook binnen de honderd per scope. De nieuwste
+ * `MIN_SESSION_HISTORY_EVENTS_PER_SCOPE` van elke scope blijven altijd staan, zodat een grote
+ * bewerking nooit de laatste stappen onbereikbaar maakt. Daardoor is het GEEN harde bovengrens: met
+ * veel open documenten of één stap groter dan het plafond blijft er meer staan; en één zware stap in
+ * het ene document knipt de historie van de andere documenten terug tot hun nieuwste tien.
+ */
+export const MAX_SESSION_HISTORY_BYTES = 200 * 1024 * 1024;
+export const MIN_SESSION_HISTORY_EVENTS_PER_SCOPE = 10;
+
+/**
+ * Schatting per gewijzigd element, gemeten (Node, 2000 taken, 20 stappen): een naam op alle taken
+ * ≈ 280 B per taak; een bewerking met herberekening ≈ 1550 B per taak (nieuwe taakobjecten plus een
+ * nieuw `cpmResult`); een baseline ≈ 176 B per vastgelegde taak (review 2026-09-28). Overige
+ * elementen zijn niet gemeten en krijgen de taakschatting; `recordedDates` en de contourperiodes op
+ * een taak tellen niet apart mee en worden dus onderschat.
+ */
+const BYTES_PER_CHANGED_ITEM = 300;
+const BYTES_PER_CPM_TASK = 1250;
+const BYTES_PER_BASELINE_TASK = 176;
+const BYTES_PER_ARRAY_SLOT = 8;
+const BYTES_PER_OTHER_CHANGE = 1024;
+
+function snapshotChangeBytes(before: Snapshot, after: Snapshot): number {
+  let bytes = 0;
+  for (const key of Object.keys(after) as (keyof Snapshot)[]) {
+    const a = after[key];
+    const b = before[key];
+    if (a === b) continue;
+    if (Array.isArray(a)) {
+      // Alleen elementen die niet al (als hetzelfde object) in de vorige versie zaten tellen als nieuw.
+      // (Het echte vasthouden is ruimer: `after` komt uit `current()` en deelt voor gewijzigde objecten
+      // niets met de volgende `before`; de geijkte constanten hierboven vangen dat op.)
+      const old = new Set<unknown>(Array.isArray(b) ? b : []);
+      let changed = 0;
+      let baselineTasks = 0;
+      for (const item of a) {
+        if (old.has(item)) continue;
+        changed++;
+        if (key === 'baselines') baselineTasks += (item as { tasks?: unknown[] }).tasks?.length ?? 0;
+      }
+      bytes += a.length * BYTES_PER_ARRAY_SLOT + changed * BYTES_PER_CHANGED_ITEM + baselineTasks * BYTES_PER_BASELINE_TASK;
+    } else if (key === 'cpmResult' && a) {
+      bytes += ((a as NonNullable<Snapshot['cpmResult']>).tasks?.size ?? 0) * BYTES_PER_CPM_TASK;
+    } else {
+      bytes += BYTES_PER_OTHER_CHANGE;
+    }
+  }
+  return bytes;
+}
+
+const eventBytesCache = new WeakMap<SessionHistoryEvent, number>();
+/** Geschatte geheugenomvang die dit event vasthoudt bovenop zijn buren (events zijn onveranderlijk). */
+export function estimateSessionHistoryEventBytes(draftOrEvent: SessionHistoryEvent): number {
+  // Binnen een producer is het event een Immer-proxy: elke producer een nieuwe (de cache mist dan
+  // altijd) en elke lezing een trap. Events zelf veranderen nooit, dus het origineel volstaat.
+  const event = isDraft(draftOrEvent) ? (original(draftOrEvent) as SessionHistoryEvent) : draftOrEvent;
+  const cached = eventBytesCache.get(event);
+  if (cached !== undefined) return cached;
+  let bytes = 0;
+  for (const delta of event.deltas) {
+    bytes += delta.kind === 'document-data' ? snapshotChangeBytes(delta.before, delta.after) : BYTES_PER_OTHER_CHANGE;
+  }
+  eventBytesCache.set(event, bytes);
+  return bytes;
+}
 
 export type HistoryScopeKey = `document:${string}` | `grid:${TaskGridSurfaceId}`;
 
@@ -306,21 +375,45 @@ export function invalidateUndoneHistoryForEvent(
 /**
  * Behoud de nieuwste honderd events per scope. Een compound blijft staan zolang het nog tot de
  * nieuwste honderd van minimaal één eigen scope behoort; pas buiten al zijn scopes valt het weg.
+ *
+ * Daarbovenop het geheugenplafond: van nieuw naar oud opgeteld, valt alles vanaf het eerste event
+ * dat `maxBytes` zou overschrijden weg (één snede in de tijd, zodat binnen een scope geen gat ontstaat;
+ * een compound-event over meerdere scopes kan, net als bij de honderd-regel, blijven staan terwijl
+ * oudere events van een andere scope wegvallen: dan ontbreken tussentoestanden, geen foute toestand),
+ * behalve de nieuwste `MIN_SESSION_HISTORY_EVENTS_PER_SCOPE` van elke scope en alles vanaf het eerste
+ * event van een open bewerkingssessie.
  * De geretourneerde array behoudt de oorspronkelijke opslagvolgorde.
  */
 export function pruneSessionHistory(
   events: readonly SessionHistoryEvent[],
+  maxBytes: number = MAX_SESSION_HISTORY_BYTES,
 ): SessionHistoryEvent[] {
   const ranked = events
     .map((event, index) => ({ event, index }))
     .sort((left, right) => right.event.sequence - left.event.sequence || right.index - left.index);
   const seenPerScope = new Map<HistoryScopeKey, number>();
   const keep = new Set<number>();
+  let bytes = 0;
+  let overBudget = false;
+  // Een open bewerkingssessie (de taakdialoog, `historyMark`) moet bij Annuleren terug kunnen: alles
+  // vanaf haar eerste event blijft buiten de geheugensnede (de honderd-per-scope-regel hierboven geldt
+  // wel). Alleen een open sessie draagt `sessionKey`: afsluiten, annuleren, opslaan en een nieuwe mark
+  // halen hem weg (`historySlice`).
+  let sessionFloor = Infinity;
+  for (const event of events) {
+    if (event.sessionKey !== undefined && event.sequence < sessionFloor) sessionFloor = event.sequence;
+  }
 
   for (const { event, index } of ranked) {
     const scopes = scopeKeysOf(event);
-    if (scopes.some(scope => (seenPerScope.get(scope) ?? 0) < MAX_SESSION_HISTORY_EVENTS_PER_SCOPE)) {
-      keep.add(index);
+    const within = (limit: number) => scopes.some(scope => (seenPerScope.get(scope) ?? 0) < limit);
+    if (within(MAX_SESSION_HISTORY_EVENTS_PER_SCOPE)) {
+      const eventBytes = estimateSessionHistoryEventBytes(event);
+      if (!overBudget && bytes + eventBytes > maxBytes) overBudget = true;
+      if (!overBudget || within(MIN_SESSION_HISTORY_EVENTS_PER_SCOPE) || event.sequence >= sessionFloor) {
+        keep.add(index);
+        bytes += eventBytes;
+      }
     }
     for (const scope of scopes) seenPerScope.set(scope, (seenPerScope.get(scope) ?? 0) + 1);
   }

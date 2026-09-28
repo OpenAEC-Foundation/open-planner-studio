@@ -23,7 +23,7 @@ import type { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { createDefaultProject } from '@/state/slices/projectSlice';
 import { generateId } from '@/utils/id';
-import { formatDate, parseDate, addBusinessDays } from '@/utils/dateUtils';
+import { formatDate, parseDate, addBusinessDays, localTodayIso } from '@/utils/dateUtils';
 import { toExtProject, toExtCalendar, toExtTask, toExtTaskTime, fromExtTaskInput } from './extMappers';
 import { EXTENSION_API_VERSION } from './apiVersion';
 
@@ -78,7 +78,7 @@ export interface PlannerStudioSdk {
  *  daar leidt de store het einde af (`fromExtTaskAddInput`); in een importresultaat is het einde
  *  bronwaarde, net als bij een lezer. */
 function buildInternalTask(partial: Partial<Task> & { name: string }): Task {
-  const start = partial.time?.scheduleStart ?? formatDate(new Date());
+  const start = partial.time?.scheduleStart ?? localTodayIso();
   return {
     id: partial.id ?? generateId('task'),
     name: partial.name,

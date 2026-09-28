@@ -43,6 +43,9 @@ interface CoalesceMarker {
   key: string;
   eventId: string;
   documentId: string;
+  /** `sequence` van het gecoalesceerde event: alleen zolang dat nog het LAATST opgenomen event is
+   *  (`nextHistorySequence === sequence + 1`) mag een volgende mutatie erin opgaan. */
+  sequence: number;
 }
 
 export interface StoreRuntime {
@@ -70,6 +73,14 @@ export interface StoreRuntime {
   isBatchActive(): boolean;
   enterBatch(): void;
   exitBatch(): void;
+  /**
+   * Binnen een batch wordt `recomputeViewRows` uitgesteld tot het einde (`withTransaction`): per
+   * bewerkte taak de hele rijenlijst afleiden maakte een bulkbewerking O(taken × selectie) — gemeten
+   * 7,5 s voor 500 taken in een project van 8000. `true` = uitgesteld (de aanroeper rekent niet).
+   */
+  deferViewRows(): boolean;
+  /** Was er in deze batch een uitgestelde rijenberekening? Leest en wist de vlag. */
+  takeDeferredViewRows(): boolean;
   enterMcpTransaction(): McpTransactionLease;
   recordMcpTimephasedLoss(lease: McpTransactionLease, taskId: string): void;
   countMcpTimephasedLoss(lease: McpTransactionLease): number;
@@ -122,6 +133,7 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
   const pendingByDraft = new WeakMap<object, PendingDocumentMutation>();
   let coalesce: CoalesceMarker | null = null;
   let batchDepth = 0;
+  let viewRowsDeferred = false;
   let activeMcpLease: ActiveMcpLease | null = null;
   let activeHistorySession: string | null = null;
   let historySessionCounter = 0;
@@ -196,9 +208,15 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
       const after = snapshotOfCurrentState(state);
       if (snapshotsEqual(pending.before, after)) return null;
 
+      // Alleen coalescen als er sinds het marker-event NIETS anders in de geschiedenis is opgenomen.
+      // Paden die buiten deze runtime om een event opnemen (de taakraster-commit via
+      // `recordDocumentDataHistoryDelta`) resetten de marker niet; zonder deze check schreef een
+      // tweede statusdatumwijziging ná een celbewerking de `after` van het OUDERE event over met een
+      // toestand mét die celbewerking — undo draaide dan beide terug en redo verloor de tweede datum.
       const compatible = pending.coalesceKey !== null
         && coalesce?.key === pending.coalesceKey
         && coalesce.documentId === pending.documentId
+        && state.nextHistorySequence === coalesce.sequence + 1
         && replaceCoalescedAfter(state, coalesce, after);
       if (compatible) {
         return state.historyEvents.find(event => event.id === coalesce?.eventId) ?? null;
@@ -212,7 +230,7 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
         ...(nonEdit ? { nonEdit: true as const } : {}),
       }], activeHistorySession ?? undefined);
       coalesce = pending.coalesceKey && event
-        ? { key: pending.coalesceKey, eventId: event.id, documentId: pending.documentId }
+        ? { key: pending.coalesceKey, eventId: event.id, documentId: pending.documentId, sequence: event.sequence }
         : null;
       return event;
     },
@@ -279,6 +297,18 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
 
     exitBatch() {
       if (batchDepth > 0) batchDepth--;
+    },
+
+    deferViewRows() {
+      if (batchDepth === 0) return false;
+      viewRowsDeferred = true;
+      return true;
+    },
+
+    takeDeferredViewRows() {
+      const deferred = viewRowsDeferred;
+      viewRowsDeferred = false;
+      return deferred;
     },
 
     enterMcpTransaction() {

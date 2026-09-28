@@ -6,7 +6,7 @@ import { documentTitle } from '@/utils/documents';
 import { xerProjectCode } from '@/utils/xerDocumentName';
 import type { RecoveryEntry } from '@/components/dialogs/RecoveryDialog';
 import { recoveryInputFromParsed, type RecoveryDocInput } from '@/state/documentContract';
-import { loadRecovery, clearRecovery } from '@/services/recovery/recoveryStore';
+import { loadRecovery, clearRecovery, holdRecoveryForLater } from '@/services/recovery/recoveryStore';
 import { buildImportLabels } from '@/i18n/importLabels';
 
 // In-app herstel-dialoog (vervangt de native OS-`ask()`): de gedetecteerde
@@ -113,6 +113,7 @@ export function useRecoveryRestore(): RecoveryRestore {
         // een handmatige reparatie) er alsnog bij kan.
         if (entries.length === 0) {
           if (failed === 0) await clearRecovery();
+          else await holdRecoveryForLater();
           finish();
           return;
         }
@@ -149,6 +150,7 @@ export function useRecoveryRestore(): RecoveryRestore {
                 // vers weg; de overgeslagen snapshot blijft ernaast bestaan via de carry-over in
                 // `planRecoveryCleanup` (een manifest van een vorige sessie is `foreign`).
                 if (skipped.length === 0) await clearRecovery();
+                else await holdRecoveryForLater();
               } catch (err) {
                 // Snapshots blijven staan. `finish()` gaat bewust wél door: de auto-save-poort
                 // dichthouden zou betekenen dat vanaf nu NIETS meer wordt weggeschreven — een
@@ -161,6 +163,14 @@ export function useRecoveryRestore(): RecoveryRestore {
                   messageKey: 'notifications.recoveryRestoreFailed',
                   detail: (err as Error).message,
                 });
+                // "Blijven staan" vraagt op het web een expliciete hold: anders ruimt de eerste
+                // crashherstel-ronde onder hetzelfde sessie-id deze generatie op (review 2026-09-28).
+                // Op Tauri een no-op (carry-over).
+                try {
+                  await holdRecoveryForLater();
+                } catch (holdErr) {
+                  console.error('Recovery: snapshots vasthouden na mislukt herstel mislukt:', holdErr);
+                }
               } finally {
                 setRecovery(null);
                 finish();
@@ -168,8 +178,15 @@ export function useRecoveryRestore(): RecoveryRestore {
             })();
           },
           onDiscard: () => { void clearRecovery(); setRecovery(null); finish(); },
-          // Uitstellen: snapshots laten staan, niet herstellen (zie RecoveryDialog).
-          onClose: () => { setRecovery(null); finish(); },
+          // Uitstellen: snapshots laten staan, niet herstellen (zie RecoveryDialog). Eerst
+          // vasthouden, dan pas de auto-save aan: anders overschrijft de eerste crashherstel-ronde
+          // op het web de uitgestelde generatie (zelfde sessie-id na een herlaad).
+          onClose: () => {
+            setRecovery(null);
+            void holdRecoveryForLater()
+              .catch((err) => { console.error('Recovery: uitstellen kon de snapshots niet vasthouden:', err); })
+              .finally(finish);
+          },
         });
       } catch (err) {
         console.error('Recovery check failed:', err);

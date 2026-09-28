@@ -4,7 +4,7 @@ import type { Sequence } from '@/types/sequence';
 import type { CalendarEngine } from './CalendarEngine';
 import type { CpmBackwardFloatTrace, CpmFreeFloatSource, CPMResult, CPMTaskResult } from './CPMSolver';
 import { parseDate, formatInstant, type DateMode } from '@/utils/dateUtils';
-import { traceFrom } from './graphWalk';
+import { drivingPredecessorWalker } from './graphWalk';
 import { projectDurationOf } from './projectDuration';
 import { isZeroDurationMilestone } from './duration';
 import { isLeafTask } from '@/utils/taskHierarchy';
@@ -136,7 +136,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
   // keten-EINDPUNT gelden, want zijn EF is zelf al een AFGELEIDE van zijn eigen finish-drivers. Een
   // manual taak is het omgekeerde: haar EF is een ECHT, rechtstreeks anker (geen afleiding) — als
   // dat toevallig de grootste EF van het project is, IS ze legitiem het eindpunt van het langste
-  // pad. `drivingSet`/`traceFrom` blijven hier vanzelf correct: `seqConstraint` wordt voor een
+  // pad. `drivingSet`/de driving-walk blijven hier vanzelf correct: `seqConstraint` wordt voor een
   // relatie die een manual taak als OPVOLGER heeft nooit gezet (`CPMSolver.forwardPass`s manual-tak
   // slaat de voorganger-lus over; `applyAlap` sluit haar expliciet uit) — zo'n relatie kan dus nooit in `drivingSequenceIds` belanden en `traceFrom`
   // kan nooit "doorheen" een manual taak terugtracen via een relatie die ze feitelijk negeert.
@@ -153,12 +153,13 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     for (const { ef } of earlyDates.values()) {
       if (ef.getTime() > maxEf) maxEf = ef.getTime();
     }
-    const drivingSet = new Set(drivingSequenceIds);
+    // Eén walker voor alle eindtaken (bij veel gelijke EF's bouwde `traceFrom` het net per taak opnieuw).
+    const drivingPredecessorsOf = drivingPredecessorWalker(sequences, new Set(drivingSequenceIds));
     for (const [id, { ef }] of earlyDates) {
       if (ef.getTime() !== maxEf) continue;
       if (tasks.get(id)?.isHammock === true) continue;   // hammock nooit kritiek
       longestPathCritical.add(id);
-      for (const p of traceFrom(id, sequences, drivingSet).drivingPredecessors) {
+      for (const p of drivingPredecessorsOf(id)) {
         longestPathCritical.add(p);
       }
     }
@@ -534,6 +535,13 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
       //       voorganger houdt zo het nummer van de EERSTE peel waarin hij voorkomt).
       //   (4) verwijder de héle keten uit de kandidaten; herhaal tot `maxPaths` of leeg.
       const drivingSet = new Set(drivingSequenceIds);
+      // Eén keer opgebouwd i.p.v. per peel (`traceFrom` bouwde het hele net en deed vier walks) en
+      // een positie-index i.p.v. `order.indexOf` in de sortering: een lange keten was zo
+      // O(keten · log · taken) per peel.
+      const drivingPredecessorsOf = drivingPredecessorWalker(sequences, drivingSet);
+      const orderIndex = new Map<string, number>();
+      order.forEach((id, i) => { if (!orderIndex.has(id)) orderIndex.set(id, i); });
+      const indexInOrder = (id: string) => orderIndex.get(id) ?? -1;
       const efMs = (id: string) => earlyDates.get(id)!.ef.getTime();
       // Elke gepeelde keten + of hij (volledig) kritiek is — voor de `criticalPaths`-opbouw.
       const peeled: { ids: string[]; critical: boolean }[] = [];
@@ -549,14 +557,14 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
         if (end === null) break;
         p += 1;
         const chain = new Set<string>([end]);
-        for (const q of traceFrom(end, sequences, drivingSet).drivingPredecessors) {
+        for (const q of drivingPredecessorsOf(end)) {
           if (!isHammock(q)) chain.add(q);
         }
         for (const id of chain) {
           if (floatPathByTask[id] === undefined && candidates.has(id)) floatPathByTask[id] = p;
         }
         for (const id of chain) candidates.delete(id);
-        const ids = [...chain].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+        const ids = [...chain].sort((a, b) => indexInOrder(a) - indexInOrder(b));
         peeled.push({ ids, critical: ids.every((id) => taskResults.get(id)?.isCritical === true) });
       }
       // criticalPaths = alle gepeelde ketens die kritiek zijn. Pad 1 is (indien kritiek) al door

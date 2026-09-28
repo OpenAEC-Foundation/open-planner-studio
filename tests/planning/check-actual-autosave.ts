@@ -129,6 +129,36 @@ await automatic;
 eq('16 de timer loopt pas na de handmatige write', writeOrder, ['manual-start', 'manual-eind', 'auto']);
 eq('17 de coordinator geeft de write-poort daarna weer vrij', isProjectFileWriteBusy(), false);
 
+// 18. (audit 2026-09-26) Inhoud gewijzigd tijdens het wachten ⇒ geen valse "niet schrijfbaar",
+//     maar een tweede ronde met de actuele inhoud. Blijft hij stale, dan begrensd (geen lus).
+{
+  let version = 1;
+  const staleWrites: string[] = [];
+  const staleFailures: string[] = [];
+  const staleMarked: string[] = [];
+  let staleAnswers = 1;
+  const staleController = createActualAutoSaveController({
+    listCandidates: () => [{ id: 'd', enabled: true, dirty: true, ref: { kind: 'path', path: '/d.ifc' }, source: source(version) }],
+    serialize: candidate => `ifc-${(candidate.source as unknown as { project: { version: number } }).project.version}`,
+    canWrite: async () => true,
+    write: async (_candidate, content) => {
+      staleWrites.push(content);
+      if (staleAnswers > 0) { staleAnswers--; version++; return 'stale'; }
+      return true;
+    },
+    markSavedIfUnchanged: (candidate) => { staleMarked.push(candidate.id); },
+    onFailure: (candidate, error) => { staleFailures.push(`${candidate.id}:${String(error)}`); },
+  });
+  await staleController.flush();
+  eq('18a stale ⇒ geen foutmelding', staleFailures, []);
+  eq('18b stale ⇒ tweede ronde schrijft de nieuwe inhoud', staleWrites, ['ifc-1', 'ifc-2']);
+  eq('18c daarna schoon gemarkeerd', staleMarked, ['d']);
+  staleWrites.length = 0; staleAnswers = 99;
+  await staleController.flush();
+  eq('18d aanhoudend stale is begrensd (1 + 3 rondes), geen eindeloze lus', staleWrites.length, 4);
+  eq('18e ook dan geen valse foutmelding', staleFailures, []);
+}
+
 if (diffs.length === 0) {
   console.log(`OK  actual-autosave-check: alle checks groen (${checks})`);
   process.exit(0);

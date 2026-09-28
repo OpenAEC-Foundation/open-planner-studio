@@ -99,6 +99,10 @@ export interface DocumentPayload {
    *  weer "nooit een XER-bron" zeggen), maar staat bewust NIET in `IFC_SAVE_KEYS` en niet in undo —
    *  er is niets om terug te schrijven, het archief is weg. */
   xerArchiveIssue: XerArchiveIssue | null;
+  /** Seed (`ifcObjectSeed(soort, id)`) → GlobalId uit het ingelezen IFC (`ImportResult.ifcGlobalIds`):
+   *  de writer geeft bestaande objecten hun GlobalId terug. Alleen `readIFC` vult hem; niet in undo
+   *  (geen projectdata die de gebruiker zet), wel door documentwissel en opslaan. */
+  ifcGlobalIds: Readonly<Record<string, string>> | null;
 }
 
 /** Per-document projectdata + metadata om bij crash-recovery te herstellen.
@@ -263,6 +267,7 @@ export const DOCUMENT_FIELDS = [
   field({ key: 'taskTypesVisible', get: (s) => s.taskTypesVisible, set: (s, v) => { s.taskTypesVisible = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.taskTypesVisible ?? false }),
   field({ key: 'importPristine', get: (s) => s.importPristine, set: (s, v) => { s.importPristine = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.importPristine ?? false }),
   field({ key: 'xerArchiveIssue', get: (s) => s.xerArchiveIssue, set: (s, v) => { s.xerArchiveIssue = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerArchiveIssue ?? null }),
+  field({ key: 'ifcGlobalIds', get: (s) => s.ifcGlobalIds, set: (s, v) => { s.ifcGlobalIds = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.ifcGlobalIds ?? null }),
 ];
 
 // Compile-time volledigheidscheck: elke DocumentPayload-key MOET in DOCUMENT_FIELDS staan. Voeg je
@@ -446,6 +451,7 @@ export function payloadFromImport(parsed: ImportResult, filePath: string | null)
     // herkomst (extensie-importer) `false`: nooit een gok richting automatisch aan.
     importPristine: parsed.importPristine ?? isFreshImportOrigin(parsed.recordedTimesOrigin),
     xerArchiveIssue: parsed.xerArchiveIssue ?? null,
+    ifcGlobalIds: parsed.ifcGlobalIds ?? null,
     filePath,
     isDirty: false,
   };

@@ -7,10 +7,10 @@ import { Project } from '@/types/project';
 import { WorkCalendar, Holiday } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
-import { formatDate, parseInstant } from '@/utils/dateUtils';
+import { parseInstant, localTodayIso } from '@/utils/dateUtils';
 import { normalizeImportedProgress, deriveImportedWorkRules, reconstructResourceIds } from '@/services/importNormalize';
 import { flattenOrder } from '@/utils/wbs';
-import { emptyMissingScheduleDates, importDateTime, isoDatePrefixOrToday, resolveMissingScheduleDates } from '@/services/importDates';
+import { emptyMissingScheduleDates, importDateTime, isoDatePrefixOrToday, parseImportedInstant, resolveMissingScheduleDates } from '@/services/importDates';
 import { directChildText, toInt, toFloat } from '@/services/xmlDom';
 import type { ImportResult } from '@/services/importTypes';
 import type { CustomTaskType } from '@/types/taskType';
@@ -764,7 +764,7 @@ export function readP6XML(content: string): ImportResult {
       const taskStart = parseInstant(task.time.scheduleStart);
       const anchorOffset = (tag: string): number => {
         const raw = getElementText(asgnEl, tag);
-        return raw ? axisOffsetMinutes(engine, taskStart, parseInstant(raw), false) : 0;
+        return raw ? axisOffsetMinutes(engine, taskStart, parseImportedInstant(raw), false) : 0;
       };
       const actualSpread = getElementText(asgnEl, 'ActualCurve');
       const remainingSpread = getElementText(asgnEl, 'RemainingCurve');
@@ -809,7 +809,7 @@ function parseProject(doc: Document): Project {
       id: generateId('proj'),
       name: 'P6 Import',
       description: '',
-      startDate: formatDate(new Date()),
+      startDate: localTodayIso(),
       endDate: '',
       calendarId: 'cal-default',
       createdAt: new Date().toISOString(),

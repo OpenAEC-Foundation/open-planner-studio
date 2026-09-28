@@ -2,8 +2,8 @@
 //  1. parse zonder fouten;
 //  2. taak/relatie/resource/toewijzing/code/veld-tellingen conform de declaratieve spec;
 //  3. round-trip write→read→write stabiel (data-fixpunt: readIFC → writeIFC → readIFC geeft
-//     identieke inhoud — GUIDs zijn per lees-run nieuw, dus we vergelijken structureel, niet als
-//     string). Fase 2.10: het digest omvat nu ook notes, voortgang/actuals en baselines, zodat de
+//     identieke inhoud — het schrijfmoment en een eerste id-afleiding verschillen, dus we
+//     vergelijken structureel, niet als string). Fase 2.10: het digest omvat nu ook notes, voortgang/actuals en baselines, zodat de
 //     nieuwe schema-uitbreidingen ook echt round-trip-getoetst worden;
 //  4. per showcase dat de beloofde functies aantoonbaar aanwezig zijn (constraints, START/FINISH-
 //     + verplichte mijlpaal, baseline). Ploeg-hiërarchie geldt voor elke showcase die zelf

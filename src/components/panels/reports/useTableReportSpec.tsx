@@ -4,7 +4,7 @@ import type { TFunction } from 'i18next';
 import { useAppStore } from '@/state/appStore';
 import { useDisplayDate } from '@/hooks/displayDate';
 import type { ResourceType } from '@/types/resource';
-import { formatDate } from '@/utils/dateUtils';
+import { localTodayIso } from '@/utils/dateUtils';
 import { makeMonthLabeler } from '@/utils/monthLabel';
 import { formatReportNumber, formatSignedReportNumber, localizeDecimalPoint } from '@/utils/reportNumber';
 import type { ReportType, TableReportOptions } from '@/utils/reportSettings';
@@ -56,7 +56,7 @@ function useReportContext(): { ctx: ReportContext; stale: boolean } {
   const stale = useAppStore(s => s.scheduleStale);
   const datesAsRecorded = useAppStore(s => s.datesAsRecorded);
   // "Vandaag" één keer per dag stabiel: een nieuwe dag geeft een nieuwe waarde, binnen de dag niet.
-  const today = formatDate(new Date());
+  const today = localTodayIso();
   const ctx = useMemo<ReportContext>(() => ({
     tasks, sequences, resources, assignments, calendar, calendars, cpmResult,
     baseline: activeBaselineId ? baselines.find(b => b.id === activeBaselineId) ?? null : null,

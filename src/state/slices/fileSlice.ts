@@ -19,6 +19,7 @@ import type { Task } from '@/types/task';
 import { refreshProjectCalendarCache } from '../syncProjectCalendar';
 import { stripLibraryOrigins } from '@/services/library/libraryOps';
 import { activeImportResult, isMultiDocumentImport, type ImportLabels, type ImportResult, type OpenedImport } from '@/services/importTypes';
+import { ensureUniqueImportIds } from '@/services/importNormalize';
 import { hydratePayload, isFreshImportOrigin, payloadFromImport, type DocumentPayload } from '../documentContract';
 import { applyRecordedDatesOnLoad, materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
 import { notifyCalendarLibrarySettle } from '../calendarTasks';
@@ -436,7 +437,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     applyLoadedProject: (parsed, opts) => {
       const current = get();
       const filePath = opts.filePath !== undefined ? opts.filePath : current.filePath;
-      const payload = payloadFromImport(parsed, filePath);
+      // Dubbele id's uit een kapot of vreemd bestand eerst uniek maken; de store sleutelt op id.
+      const { result: uniqueParsed, renamed: duplicateIds } = ensureUniqueImportIds(parsed);
+      const payload = payloadFromImport(uniqueParsed, filePath);
       payload.view = opts.viewStartDate === undefined
         ? { ...current.view }
         : { ...current.view, viewStartDate: opts.viewStartDate };
@@ -510,6 +513,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // `cpmResult`. Bewust NIET gefilterd uit het document — dat zou logica uit het bronbestand
       // vernietigen bij open + opslaan — maar wel één keer gemeld, want anders merkt niemand die
       // een P6/MSP-plan importeert dat er logica stilvalt.
+      if (duplicateIds > 0) {
+        get().notify({
+          severity: 'info',
+          messageKey: 'notifications.duplicateIdsRenamed',
+          params: { total: duplicateIds },
+          dedupeKey: 'duplicate-ids-renamed',
+        });
+      }
       const dropped = expandSummaryRelations(parsed.tasks, parsed.sequences).droppedSequenceIds.length;
       if (dropped > 0) {
         get().notify({

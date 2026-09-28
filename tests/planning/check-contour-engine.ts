@@ -385,10 +385,15 @@ console.log('-- (e) IFC: contour-koppeling overleeft de resource-id-regeneratie 
   const bt = back.tasks[0];
   const contour = bt.timephasedContours?.[0];
   const toR1 = back.assignments.find((a) => back.resources.find((r) => r.id === a.resourceId)?.name === 'r1');
-  ok('e22 resource-ids zijn geregenereerd (de test toetst iets echts)', toR1 !== undefined && toR1.resourceId !== 'r1');
+  ok('e22 resource-id wijkt na het eerste inlezen af (uit het GlobalId; de test toetst iets echts)', toR1 !== undefined && toR1.resourceId !== 'r1');
   eq('e23 contour.resourceId wijst na herladen naar de NIEUWE id van r1', contour?.resourceId, toR1?.resourceId);
   const m = matchContoursToAssignments(bt.timephasedContours, back.assignments.filter((a) => a.taskId === bt.id));
   eq('e24 koppeling landt op de r1-toewijzing, niet op de eerste', m.get(toR1!.id)?.periods.length, 2);
+  // Tweede ronde: het id blijft nu gelijk, en de contour wijst er nog steeds naar.
+  const back2 = readIFC(writeIFC(back));
+  const toR1b = back2.assignments.find((a) => back2.resources.find((r) => r.id === a.resourceId)?.name === 'r1');
+  eq('e25 tweede ronde: zelfde resource-id als na de eerste', toR1b?.resourceId, toR1?.resourceId);
+  eq('e26 tweede ronde: contour wijst nog naar r1', back2.tasks[0].timephasedContours?.[0]?.resourceId, toR1b?.resourceId);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

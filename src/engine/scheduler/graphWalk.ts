@@ -232,6 +232,23 @@ function walk(startId: string, edges: Map<string, Edge[]>, allowedSeqIds?: Set<s
   return reached;
 }
 
+/**
+ * `traceFrom(id, sequences, drivingSeqIds).drivingPredecessors` voor veel taken over hetzelfde net:
+ * de voorgangers-adjacentie wordt één keer gebouwd en alleen de driving-walk gedaan (`traceFrom`
+ * bouwt beide richtingen en doet vier walks per aanroep). Zelfde uitkomst per taak.
+ */
+export function drivingPredecessorWalker(
+  sequences: Sequence[],
+  drivingSeqIds: Set<string>,
+): (taskId: string) => Set<string> {
+  const up = new Map<string, Edge[]>();
+  for (const q of sequences) {
+    if (!up.has(q.successorId)) up.set(q.successorId, []);
+    up.get(q.successorId)!.push({ other: q.predecessorId, seqId: q.id });
+  }
+  return (taskId) => walk(taskId, up, drivingSeqIds);
+}
+
 export function traceFrom(
   taskId: string,
   sequences: Sequence[],

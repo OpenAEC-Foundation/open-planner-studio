@@ -134,8 +134,9 @@ De test doet daarnaast twee dingen die makkelijk te vergeten zijn:
 
 - **Idempotentie.** Een tweede round-trip (write→read→write→read) moet identiek zijn aan de eerste.
   Een normalisatie die per ronde iets verschuift, valt hier om.
-- **Ids worden op natuurlijke sleutels vergeleken** (wbsCode, naam), niet letterlijk — taak-,
-  resource-, relatie- en kalender-ids worden bij het inlezen opnieuw gegenereerd. Alle
+- **Ids worden op natuurlijke sleutels vergeleken** (wbsCode, naam), niet letterlijk — bij het
+  eerste inlezen krijgen resources, relaties en kalenders een id afgeleid uit hun GlobalId, dus
+  anders dan in het schrijvende document (daarna blijft het gelijk; `check-ifc-globalid`). Alle
   kruisverwijzingen worden vóór de vergelijking naar die sleutels herschreven.
 
 ## Als een veld bewust níét round-trippt

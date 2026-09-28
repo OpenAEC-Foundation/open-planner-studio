@@ -7,7 +7,7 @@
   "p6DurationType": 6,
   "p6SuspendResume": 9,
   "p6ExpectedFinish": 9,
-  "manuallyScheduled": 8,
+  "manuallyScheduled": 9,
   "levelingDelayMinutes": 6,
   "levelingDelayElapsed": 3,
   "timephasedStartAnchor": 6,

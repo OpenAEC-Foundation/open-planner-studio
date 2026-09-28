@@ -28,6 +28,8 @@ export function IFCPanel() {
   // de niet-vastgelegde assen — ook hier, anders toont/kopieert dit paneel de terugvallen als waarden.
   const recordedDates = useAppStore(s => s.recordedDates);
   const datesAsRecorded = useAppStore(s => s.datesAsRecorded);
+  // Bewaarde GlobalIds uit het ingelezen bestand; zonder deze kreeg Toepassen overal hash-GlobalIds.
+  const ifcGlobalIds = useAppStore(s => s.ifcGlobalIds);
   const loadState = useAppStore(s => s.loadState);
   const notify = useAppStore(s => s.notify);  // het ene meldingenkanaal, geen alert()
 
@@ -35,9 +37,9 @@ export function IFCPanel() {
     return writeIFC(buildWriteIFCInput({
       project, calendar, tasks, sequences, resources, assignments,
       activityCodeTypes, customFieldDefs, customTaskTypes, calendars: resourceCalendars, baselines, activeBaselineId,
-      recordedDates, datesAsRecorded,
+      recordedDates, datesAsRecorded, ifcGlobalIds,
     }));
-  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId, recordedDates, datesAsRecorded]);
+  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId, recordedDates, datesAsRecorded, ifcGlobalIds]);
 
   const [content, setContent] = useState(generated);
   const [dirty, setDirty] = useState(false);
@@ -46,11 +48,11 @@ export function IFCPanel() {
     const ifc = writeIFC(buildWriteIFCInput({
       project, calendar, tasks, sequences, resources, assignments,
       activityCodeTypes, customFieldDefs, customTaskTypes, calendars: resourceCalendars, baselines, activeBaselineId,
-      recordedDates, datesAsRecorded,
+      recordedDates, datesAsRecorded, ifcGlobalIds,
     }));
     setContent(ifc);
     setDirty(false);
-  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId, recordedDates, datesAsRecorded]);
+  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId, recordedDates, datesAsRecorded, ifcGlobalIds]);
 
   const handleApply = useCallback(() => {
     void (async () => {

@@ -12,10 +12,10 @@
 // als injecteerbare functies, zodat ze headless — zonder Tauri — te testen zijn (`tests/mcp/`).
 //
 // De per-request `ctx`: `paused`/`readOnly` komen live uit de ui-state, `expectedDocId`
-// (drift-anker) en `tempIdMap` (batch-executor) zijn per verbinding meegroeiende velden, en
-// `ensureBackup` wijst naar de AI-backup uit `backup.ts`. `initMcpRuntime()` hieronder registreert
-// de tool-modules; de backupfuncties reizen als één contextbinding met ieder request mee. Zie de
-// tool-contracten in `contracts.ts` (`McpContext`).
+// (drift-anker) leeft per verbinding (de request-handler draagt hem van request naar request over),
+// `tempIdMap` (batch-executor) is per request, en `ensureBackup` wijst naar de AI-backup uit
+// `backup.ts`. `initMcpRuntime()` hieronder registreert de tool-modules; de backupfuncties reizen als
+// één contextbinding met ieder request mee. Zie de tool-contracten in `contracts.ts` (`McpContext`).
 
 import { appStoreContext, useAppStore, type AppStoreContext } from '@/state/appStore';
 import { mcpTransactions } from '@/state/mcpTransaction';
@@ -83,6 +83,28 @@ export function regenerateMcpToken(): string {
   return token;
 }
 
+/**
+ * Regenereer het token én trek het oude echt in (audit 2026-09-26). De Rust-bridge kopieert het
+ * token bij `mcp_bridge_start`; alleen de opgeslagen waarde vervangen liet een uitgelekt token
+ * gewoon werken tot de volgende herstart, terwijl de bevestigingstekst belooft dat bestaande
+ * koppelingen verbroken worden. Draait de bridge, dan herstarten we hem met het nieuwe token (via
+ * de bestaande commands — geen nieuw Rust-oppervlak).
+ */
+export async function regenerateAndApplyMcpToken(isRunning: () => boolean): Promise<string> {
+  const token = regenerateMcpToken();
+  if (isTauri() && isRunning()) {
+    // Het nieuwe token staat al opgeslagen: ook als de herstart faalt (bv. `listen` of de dynamische
+    // import werpt) moet het veld het tonen, anders liet de UI het oude, niet meer geldige token zien.
+    try {
+      const controller = await getLiveController();
+      await controller.restart();
+    } catch (error) {
+      console.error('MCP: herstart na nieuw token mislukt:', error);
+    }
+  }
+  return token;
+}
+
 // --- AI-modus-toggle (injecteerbaar → headless testbaar) -----------------------------------------
 
 export interface ApplyAiModeDeps {
@@ -131,7 +153,8 @@ export function applyAiModeLive(value: boolean): Promise<void> {
  * Bouw de `McpContext` voor één request. Store en transacties worden samen gebonden: de app-singleton
  * hergebruikt zijn compatibiliteitsfactory, een geïnjecteerde context krijgt standaard een verse
  * factory rond diezelfde runtime. `paused`/`readOnly` worden LIVE uit die ui-state gelezen (de user
- * kan ze tussen requests door omzetten). `expectedDocId` begint op null en `tempIdMap` is leeg.
+ * kan ze tussen requests door omzetten). `expectedDocId` begint op null (de request-handler zet het
+ * anker van de verbinding erin) en `tempIdMap` is leeg.
  * De backup-hook hoort bij dezelfde storecontext. De app-singleton behoudt de publieke, Tauri-gated
  * wrapper; een custom context krijgt zijn eigen per-context service. Tests en andere composition
  * roots mogen die hook expliciet injecteren.
@@ -174,7 +197,18 @@ export interface RequestHandlerDeps {
   buildContext: () => McpContext;
   /** Verwerkt de rauwe JSON-RPC-body (echt: `handleMcpMessage`). */
   handleMessage: (body: string, ctx: McpContext) => Promise<string>;
+  /** Klok in ms (test-injectie; echt: `Date.now`). */
+  now?: () => number;
 }
+
+/**
+ * Hoe lang een request in de wachtrij mag staan voordat het NIET meer wordt uitgevoerd. Rust geeft
+ * na `RESPONSE_TIMEOUT` (120 s, `mcp_bridge.rs`) de client al een 504; een daarna alsnog uitgevoerde
+ * mutatie zou de client als mislukt zien en bij een retry dubbel landen. De marge (10 s) dekt de
+ * tijd tussen Rusts klok-start en de aankomst van het event hier: liever een request te veel
+ * weigeren (niet uitgevoerd + fout = consistent) dan er een te veel uitvoeren.
+ */
+export const MCP_QUEUE_DEADLINE_MS = 110_000;
 
 // --- Activiteits-samenvatting --------------------------------------------------------------------
 
@@ -284,14 +318,84 @@ function recordRequestActivity(reqBody: string, respBody: string, durationMs: nu
 export function createRequestHandler(
   deps: RequestHandlerDeps,
 ): (payload: { id: number; body: string }) => Promise<void> {
-  return async (payload) => {
+  // Het drift-anker leeft per VERBINDING (= per handler, dus per bridge-start), niet per request:
+  // `buildContext` levert elk request een verse ctx met `expectedDocId: null`. Zonder deze overdracht
+  // bond elke eerste mutatie van ieder request opnieuw aan het dán actieve document, zodat een
+  // user-tabwissel tussen twee AI-calls nooit `DOC_DRIFT` gaf en de mutatie stil op het andere
+  // tabblad landde; ook het verzetten door `switch_document`/`new_document`/`duplicate_document`/
+  // `import_schedule` ging met de weggegooide ctx verloren. `tempIdMap` blijft bewust per request
+  // (batch-only, de batch-executor bezit hem).
+  let expectedDocId: string | null = null;
+  // Requests strikt NA elkaar (audit 2026-09-26). Rust houdt één request tegelijk in de lucht, maar
+  // geeft dat slot na zijn time-out (120 s) vrij terwijl de webview nog aan het oude request werkt;
+  // zonder deze keten liep het volgende request (vaak een retry van dezelfde import) bij elke await
+  // door het oude heen. De keten voorkomt dat verweven; een request dat al door Rust is opgegeven
+  // slaat hij over (`MCP_QUEUE_DEADLINE_MS`). Een retry die pas NA die grens binnenkomt is voor ons
+  // een nieuw request: een import opent dan wel een tweede tabblad (geen ontdubbeling op pad).
+  let tail: Promise<void> = Promise.resolve();
+  const now = deps.now ?? Date.now;
+  const handleOne = async (payload: { id: number; body: string }, arrivedAt: number): Promise<void> => {
+    // Een nieuwe MCP-sessie (`initialize`) begint zonder anker: anders erfde een herstarte client
+    // de documentbinding van de vorige en kreeg hij DOC_DRIFT op een tabblad dat hij nooit zag.
+    if (requestMethod(payload.body) === 'initialize') expectedDocId = null;
     const ctx = deps.buildContext();
+    if (ctx.expectedDocId === null) ctx.expectedDocId = expectedDocId;
     const start = performance.now();
-    const body = await deps.handleMessage(payload.body, ctx);
+    let body: string;
+    try {
+      body = now() - arrivedAt >= MCP_QUEUE_DEADLINE_MS
+        ? queueTimeoutResponse(payload.body)
+        : await deps.handleMessage(payload.body, ctx);
+    } catch (error) {
+      // Vangnet buiten de dispatcher-crashbarrière (bv. een niet-serialiseerbaar resultaat): altijd
+      // een JSON-RPC-fout terugsturen, anders wacht de client tot de Rust-time-out.
+      body = internalErrorResponse(payload.body, error);
+    } finally {
+      expectedDocId = ctx.expectedDocId;
+    }
     // Leg de aanroep vast in het activiteitenlog (notificaties = lege body worden overgeslagen).
     recordRequestActivity(payload.body, body, performance.now() - start);
     await deps.emit('mcp://response', { id: payload.id, body });
   };
+  return (payload) => {
+    const arrivedAt = now();
+    const run = tail.then(() => handleOne(payload, arrivedAt));
+    tail = run.catch((error) => { console.error('MCP: antwoord versturen mislukt:', error); });
+    return run;
+  };
+}
+
+/** De `method` van een enkel JSON-RPC-request, of null (batch-array, onparseerbaar). */
+function requestMethod(rawBody: string): string | null {
+  try {
+    const parsed = JSON.parse(rawBody) as { method?: unknown };
+    return parsed && typeof parsed === 'object' && typeof parsed.method === 'string' ? parsed.method : null;
+  } catch { return null; }
+}
+
+/** Antwoord voor een request dat te lang in de wachtrij stond en daarom niet is uitgevoerd: dezelfde
+ *  `-32001 timeout` als Rust geeft. Een notificatie krijgt een lege body. */
+function queueTimeoutResponse(rawBody: string): string {
+  let id: unknown = null;
+  try {
+    const parsed = JSON.parse(rawBody) as { id?: unknown };
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && !('id' in parsed)) return '';
+    id = (parsed as { id?: unknown })?.id ?? null;
+  } catch { /* onparseerbaar ⇒ id null */ }
+  return JSON.stringify({ jsonrpc: '2.0', id, error: { code: -32001, message: 'timeout: niet uitgevoerd, te lang in de wachtrij' } });
+}
+
+/** JSON-RPC `-32603 Internal error` voor een request waarvan de verwerking zelf wierp. Een
+ *  notificatie (geen `id`) krijgt, zoals altijd, een lege body. */
+function internalErrorResponse(rawBody: string, error: unknown): string {
+  let id: unknown = null;
+  try {
+    const parsed = JSON.parse(rawBody) as { id?: unknown };
+    if (parsed && typeof parsed === 'object' && !('id' in parsed)) return '';
+    id = parsed?.id ?? null;
+  } catch { /* onparseerbaar ⇒ id null */ }
+  const message = error instanceof Error ? error.message : String(error);
+  return JSON.stringify({ jsonrpc: '2.0', id, error: { code: -32603, message: `Interne fout: ${message}` } });
 }
 
 // --- Status-handler (injecteerbaar) --------------------------------------------------------------
@@ -376,6 +480,8 @@ export interface BridgeDeps {
 export interface BridgeController {
   start: () => Promise<void>;
   stop: () => Promise<void>;
+  /** Stop + start: pikt een gewijzigd token (of poort) op zonder dat de gebruiker het doet. */
+  restart: () => Promise<void>;
   /** Aantal op dit moment gekoppelde listeners (test-inspectie). */
   activeListenerCount: () => number;
 }
@@ -423,7 +529,17 @@ export function createBridgeController(deps: BridgeDeps): BridgeController {
       const unStatus = await deps.listen<{ state: string; port: number; message?: string }>('mcp://status', (p) => { onStatus(p); });
       unlisteners = [unReq, unStatus];
 
-      const started = await attemptBridgeStart({ invoke: deps.invoke, setStatus: deps.setStatus, port, token });
+      // Eerste poging stil: mislukt hij, dan kan het zijn dat de Rust-bridge van een eerdere
+      // webview-sessie nog draait (herlaad van de webview: JS-status is weer "uit", Rust luistert
+      // nog) — `mcp_bridge_start` zegt dan "draait al", en zonder herstel bleef de status op
+      // port-busy hangen terwijl requests naar een listener gingen die er niet meer was. Daarom één
+      // keer stoppen (onschadelijk als er niets draait) en opnieuw; pas die tweede mislukking is
+      // echt port-busy.
+      let started = await attemptBridgeStart({ invoke: deps.invoke, setStatus: () => {}, port, token });
+      if (!started) {
+        try { await deps.invoke('mcp_bridge_stop', {}); } catch { /* er draaide niets — prima */ }
+        started = await attemptBridgeStart({ invoke: deps.invoke, setStatus: deps.setStatus, port, token });
+      }
       if (!started) {
         // Bind mislukt: `attemptBridgeStart` heeft net (synchroon, in de invoke-reject-catch)
         // `setStatus(port-busy)` gezet; hier ruimen we — óók synchroon, zonder tussenliggende
@@ -446,7 +562,12 @@ export function createBridgeController(deps: BridgeDeps): BridgeController {
     deps.setStatus({ state: 'off', port: deps.getPort() });
   }
 
-  return { start, stop, activeListenerCount: () => unlisteners.length };
+  async function restart(): Promise<void> {
+    await stop();
+    await start();
+  }
+
+  return { start, stop, restart, activeListenerCount: () => unlisteners.length };
 }
 
 // --- Live wiring (Tauri-only; achter isTauri(), niet headless getest) ----------------------------

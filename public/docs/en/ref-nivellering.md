@@ -15,6 +15,8 @@ The **Level resources** window resolves overallocation by shifting tasks. It wor
 
 Requires an up-to-date calculation; otherwise the window shows "Calculate the schedule (F5) before leveling." The button is also disabled while no resource is ticked. Any option change invalidates an earlier proposal — calculate again.
 
+The calculation runs in the background: the app does not freeze and the window stays usable, even for large projects. While it runs, the window shows **Calculating…** with a **Stop** button; stopping produces no proposal. Changing an option in the meantime stops the running calculation by itself. If the schedule changed during the calculation, the window says so and you click **Calculate** again.
+
 ## Proposal (preview)
 
 - **Project end date line** — "unchanged (date)" or "old date → new date" (red) if the project extends.

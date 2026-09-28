@@ -271,6 +271,27 @@ test('runMutateTool: user-switch ⇒ DOC_DRIFT met was-X-nu-Y', async () => {
 });
 
 // =================================================================================================
+// 13b) Pauze / alleen-lezen / dialoog TIJDENS de backup-await ⇒ geweigerd, niets gemuteerd
+//      (audit 2026-09-26: de guards draaiden alleen vóór de await, op een ctx-snapshot).
+// =================================================================================================
+for (const [label, flip, code] of [
+  ['pauze', () => store.setState((s) => { s.ui.aiPaused = true; }), 'PAUSED'],
+  ['alleen-lezen', () => store.setState((s) => { s.ui.aiReadOnly = true; }), 'READ_ONLY'],
+  ['dialoog', () => store.setState((s) => { s.ui.showNewProjectDialog = true; }), 'DIALOG_OPEN'],
+] as const) {
+  test(`runMutateTool: ${label} aangezet tijdens backup-await ⇒ ${code}, geen mutatie`, async () => {
+    resetFlags();
+    const before = store.getState().tasks.length;
+    const ctx = makeCtx({ ensureBackup: async () => { flip(); return null; } });
+    const res = await runMutateTool(ctx, 'mutate', addTaskOutcome);
+    assert(!res.ok, `${label} tijdens de await hoort de mutatie te weigeren`);
+    if (!res.ok) assertEq(res.code, code, 'code');
+    assertEq(store.getState().tasks.length, before, 'geen taak toegevoegd');
+    resetFlags();
+  });
+}
+
+// =================================================================================================
 // 14) Tabwissel TIJDENS de backup-await ⇒ DOC_DRIFT; brondocument byte-identiek (spec-volgorde:
 //     backup-await → drift-check). De fake-backup wisselt midden in zijn await van tabblad — precies
 //     het venster waarin een user-klik `switchDocument`/`newDocument` synchroon kan afvuren.

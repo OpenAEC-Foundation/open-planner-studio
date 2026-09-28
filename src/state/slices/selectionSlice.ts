@@ -15,7 +15,7 @@ import type { AppSliceFactory } from './types';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { ResourceAssignment } from '@/types/resource';
-import { collectSubtreeIds } from '@/state/taskTree';
+import { subtreeCollector } from '@/state/taskTree';
 import { generateId } from '@/utils/id';
 import {
   assignInsertedWbsCodes, insertRemappedRelations, normalizeInsertedBranch, notifyReferencesCleared,
@@ -171,7 +171,8 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
       if (sourceIds.length === 0) return;
 
       // Selectie uitbreiden met alle (klein)kinderen, net als bij verwijderen.
-      const idSet = new Set<string>(sourceIds.flatMap(sid => collectSubtreeIds(s.tasks, sid)));
+      const collect = subtreeCollector(s.tasks); // één index voor alle bronnen
+      const idSet = new Set<string>(sourceIds.flatMap(sid => collect(sid)));
 
       const tasks = s.tasks.filter(t => idSet.has(t.id));
       if (tasks.length === 0) return;

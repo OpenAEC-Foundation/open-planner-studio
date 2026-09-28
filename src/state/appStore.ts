@@ -87,7 +87,7 @@ export function createAppStoreContext(opts?: StoreRuntimeOptions): AppStoreConte
       ...createResourceSlice(runtime)(...a),
       ...createScheduleSlice(runtime)(...a),
       ...createHistorySlice(runtime)(...a),
-      ...createViewSlice(...a),
+      ...createViewSlice(runtime)(...a),
       ...createUiSlice(...a),
       ...createFileSlice(runtime)(...a),
       ...createExtensionSlice(...a),
