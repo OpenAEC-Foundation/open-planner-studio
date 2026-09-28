@@ -39,8 +39,9 @@ MSPDI `<TimephasedData>` (Type 1/2, per werkdag) en P6 `<ResourceCurve>` + `<Res
 + de `PlannedCurve`/`RemainingCurve`/`ActualCurve`-spreidingsstrings (`"werkuren:periodeuren;…"`,
 MPXJ `TimephasedHelper`) round-trippen daar doorheen — let op: P6's `<PlannedCurve>` is dus GEEN
 curvenaam (dat was een fout van de vroegere writer; de lezer accepteert die naamvorm nog als compat).
-De IFC-lezer regenereert resource-ids en mapt `contour.resourceId` daarom via `ifcGuid(oudeId)` terug
-(`remapContourResourceIds`). Bewerken in de UI (etappe contour-UI + fasen-editor): `ContourDialog.tsx`
+De IFC-lezer leidt resource-ids af uit het GlobalId (`res-ifc-<GlobalId>`) en mapt `contour.resourceId`
+daarom terug (`remapContourResourceIds` → `mappedResourceId`: zelfde id, anders
+`ifcGuid128(ifcObjectSeed('res', id))`, anders de oude `ifcGuid(id)`). Bewerken in de UI (etappe contour-UI + fasen-editor): `ContourDialog.tsx`
 achter de knop **Urenverdeling…** per toewijzing in `TaskAssignmentsSection` — in FASEN (aaneengesloten
 werkdagen met één inzet, `src/engine/contour/contourPhases.ts`: run-length over de werkdagslots,
 splitsen/samenvoegen/grens/inzet), als sleepbare SVG-strook (`ContourPhaseStrip.tsx`, in het venster,

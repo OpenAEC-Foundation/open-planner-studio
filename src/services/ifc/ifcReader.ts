@@ -14,7 +14,7 @@ import { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types/stru
 import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
 import { formatInstant, localTodayIso } from '@/utils/dateUtils';
-import { ifcGuid, ifcGuid128 } from './ifcWriter';
+import { ifcGuid, ifcGuid128, ifcObjectSeed } from './ifcWriter';
 import { IfcParseError } from './ifcErrors';
 import type { ImportLabels, ImportResult, RecordedSourceFormat, XerArchiveIssue, XerArchiveIssueCode } from '@/services/importTypes';
 import {
@@ -207,8 +207,11 @@ export function readIFC(
   const p6BoundarySequenceGuids = extractP6BoundarySequenceGuids(
     entities, entityMap, new Set(taskStepIdMap.keys()),
   );
+  // Intern id → GlobalId per object uit dit bestand (zie `collectIfcGlobalIds`); de extractors
+  // hieronder vullen hem terwijl ze id's uit GlobalIds afleiden.
+  const guidLog: Record<string, string> = {};
   const sequences = extractSequences(
-    entities, entityMap, taskStepIdMap, p6BoundarySequenceGuids, calendar.hoursPerDay,
+    entities, entityMap, taskStepIdMap, p6BoundarySequenceGuids, calendar.hoursPerDay, guidLog,
   );
   extractNesting(entities, entityMap, tasks, taskStepIdMap);
   // BEWUST GEEN normalisatie van `isMilestone` op taken met kinderen: de app zelf laat een mijlpaal
@@ -216,11 +219,11 @@ export function readIFC(
   // een lezer-reset maakt schrijven≠lezen en laat de vlag stil verdwijnen bij opslaan/openen én
   // crashherstel. De guard "samenvatting is nooit mijlpaal" hoort bij de EXPORTgrenzen
   // (MSPDI-writer), niet in het native formaat.
-  const { resources, resourceStepIdMap, resourceGuidMap } = extractResources(entities, entityMap);
+  const { resources, resourceStepIdMap, resourceGuidMap } = extractResources(entities, entityMap, guidLog);
   extractResourceMeta(entities, entityMap, resources, resourceStepIdMap, resourceGuidMap);
   extractCrewNesting(entities, resources, resourceStepIdMap);
   const { calendars: resourceCalendars, idByGuid: calendarIdByGuid } = extractCalendarLibrary(
-    entities, entityMap, resources, resourceStepIdMap, tasks, taskStepIdMap,
+    entities, entityMap, resources, resourceStepIdMap, tasks, taskStepIdMap, guidLog,
   );
   // De PROJECTkalender zit niet in `extractCalendarLibrary`'s bibliotheek-lus (die sluit
   // 'm expliciet uit); haar GUID→id hoort wel in dezelfde vertaaltabel. Zelfde "eerste IFCWORKCALENDAR
@@ -228,6 +231,8 @@ export function readIFC(
   const projectCalendarEntityForGuid = entities.find(e => e.type === 'IFCWORKCALENDAR');
   if (projectCalendarEntityForGuid) {
     calendarIdByGuid.set(stripQuotes(projectCalendarEntityForGuid.args[0] || ''), calendar.id);
+    const projectCalendarGuid = ifcSlotText(projectCalendarEntityForGuid.args[0]);
+    if (projectCalendarGuid) guidLog[ifcObjectSeed('cal', calendar.id)] = projectCalendarGuid;
   }
   // Uur-modus-post-pass. Ná extractCalendarLibrary zodat elke
   // `task.calendarId` (en dus de effectieve kalender) is geresolved. Zet `workTime` op kalenders
@@ -253,13 +258,14 @@ export function readIFC(
   // pas NA extractCalendarLibrary hierboven (die tabel levert `calendarIdByGuid`).
   extractTimephasedDurationWalksMeta(entities, entityMap, tasks, taskStepIdMap, calendarIdByGuid);
   // `TaskTimephasedContour.resourceId` verwijst naar een resource-id uit
-  // het SCHRIJVENDE document; deze lezer regenereert resource-ids (`extractResources`), dus de
-  // verwijzing moet mee — via dezelfde deterministische GUID-hash (`mappedResourceId`: de GlobalId
-  // die de writer voor die resource gebruikte, zie `extractBaselines`' taak-remap-precedent). Ná
+  // het SCHRIJVENDE document; deze lezer leidt resource-ids af uit het GlobalId (`extractResources`),
+  // en dat is voor een in de app gemaakte resource bij het eerste openen een ander id. De verwijzing
+  // moet dus mee (`mappedResourceId`: hetzelfde id, of via de GlobalId die de writer voor die
+  // resource gebruikte, zie `extractBaselines`' taak-remap-precedent). Ná
   // `extractStructure`, want dáár landen de `OPS_TimephasedContours`-psets op de taken. Een
   // verwijzing die niet terug te vinden is (GUID-botsing met `#dup`-suffix, of een extern bestand)
   // blijft ongewijzigd staan — de koppeling valt dan terug op de 1-op-1-regel van de engine.
-  remapContourResourceIds(tasks, resourceGuidMap);
+  remapContourResourceIds(tasks, resourceGuidMap, new Set(resources.map(r => r.id)));
 
   // Baselines: autoritatieve OPS_Baselines-JSON, met taskId-remap via GlobalId.
   const { baselines, activeBaselineId } = extractBaselines(entities, entityMap, taskStepIdMap);
@@ -272,7 +278,7 @@ export function readIFC(
   if (schedulingProfile) project.schedulingProfile = schedulingProfile;
   const projectOptions = optionKeysOnly(schedulingOptions);
   if (projectOptions) {
-    remapLevelingResourceIds(projectOptions, resourceGuidMap);
+    remapLevelingResourceIds(projectOptions, resourceGuidMap, new Set(resources.map(r => r.id)));
     project.schedulingOptions = projectOptions;
   }
 
@@ -303,7 +309,7 @@ export function readIFC(
   // project.statusDate (uit OPS_ProjectSettings) beschikbaar is als default-actualFinish.
   normalizeImportedProgress(tasks, project.statusDate);
 
-  const ifcGlobalIds = collectIfcGlobalIds(entities, entityMap, taskStepIdMap, project.id);
+  const ifcGlobalIds = collectIfcGlobalIds(entities, entityMap, taskStepIdMap, project.id, guidLog);
 
   return {
     project, calendar, tasks, sequences, resources, assignments,
@@ -332,34 +338,63 @@ export function readIFC(
 }
 
 /**
- * De GlobalIds die bij opslaan terug moeten komen (audit 2026-09-26): per ingelezen taak het
- * GlobalId van haar IFCTASK, en dat van het IFCPROJECT. Alleen die twee houden hun identiteit over
- * opslaan en openen heen (taak-id's via OPS_TaskIdentity of het GlobalId, het project via zijn
- * GlobalId); resources, kalenders en relaties krijgen bij elk openen een nieuw id en daarmee al
- * een nieuw GlobalId. Zonder deze kaart zou de writer ook bestaande taken een nieuw GlobalId geven.
+ * De GlobalIds die bij opslaan terug moeten komen (audit 2026-09-26), gesleuteld op
+ * `ifcObjectSeed(soort, id)`: per ingelezen taak, resource, kalender en relatie, en het project.
+ * Taken houden hun id (OPS_TaskIdentity of het GlobalId), resources, kalenders en relaties krijgen
+ * een id afgeleid uit hun GlobalId (`stableIdFromGuid`), het project via zijn GlobalId. Met deze
+ * kaart geeft de writer elk bestaand object zijn GlobalId terug, ook een oud of vreemd GlobalId dat
+ * niet uit het id af te leiden is. De soort in de sleutel voorkomt dat een taak en het project (of
+ * een relatie) met hetzelfde kale id uit XER elkaars GlobalId overschrijven.
  */
 function collectIfcGlobalIds(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
   taskStepIdMap: Map<string, string>,
   projectId: string,
+  guidLog: Record<string, string>,
 ): Record<string, string> | undefined {
-  const out: Record<string, string> = {};
-  let any = false;
+  const out: Record<string, string> = { ...guidLog };
   for (const [stepId, taskId] of taskStepIdMap) {
     const guid = ifcSlotText(entityMap.get(stepId)?.args[TASK_SLOT.globalId]);
-    if (guid) { out[taskId] = guid; any = true; }
+    if (guid) out[ifcObjectSeed('task', taskId)] = guid;
   }
   const proj = entities.find(e => e.type === 'IFCPROJECT');
   const projectGuid = proj ? ifcSlotText(proj.args[0]) : '';
-  if (projectGuid) { out[projectId] = projectGuid; any = true; }
-  return any ? out : undefined;
+  if (projectGuid) out[ifcObjectSeed('proj', projectId)] = projectGuid;
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
-/** Resource-id uit het schrijvende document → ons nieuwe id, via het GlobalId dat de writer uit dat
- *  id afleidde: eerst de huidige afleiding (`ifcGuid128`), dan die van oudere bestanden (`ifcGuid`). */
-function mappedResourceId(resourceGuidMap: Map<string, string>, writtenId: string): string | undefined {
-  return resourceGuidMap.get(ifcGuid128(writtenId)) ?? resourceGuidMap.get(ifcGuid(writtenId));
+/**
+ * Stabiel id voor een resource, kalender of relatie: afgeleid uit het GlobalId van de entiteit, zodat
+ * hetzelfde bestand bij elk openen dezelfde id's geeft (audit 2026-09-26; voorheen `generateId`, bij
+ * elk openen nieuw). Zonder GlobalId de STEP-id; een dubbel id binnen het bestand krijgt `-dup-N`,
+ * net als `stableIfcTaskId`. Legt het GlobalId vast in `guidLog` voor de writer.
+ */
+function stableIdFromGuid(
+  kind: 'res' | 'cal' | 'seq',
+  prefix: string,
+  entity: StepEntity,
+  usedIds: Set<string>,
+  guidLog: Record<string, string>,
+): string {
+  const guid = ifcSlotText(entity.args[0]);
+  const base = guid ? `${prefix}-ifc-${guid}` : `${prefix}-ifc-step-${entity.id}`;
+  let id = base;
+  for (let duplicate = 2; usedIds.has(id); duplicate++) id = `${base}-dup-${duplicate}`;
+  usedIds.add(id);
+  if (guid) guidLog[ifcObjectSeed(kind, id)] = guid;
+  return id;
+}
+
+/** Resource-id uit het schrijvende document → ons id. Bestaat een resource met dat id al (een
+ *  resource die bij het vorige openen haar id uit haar GlobalId kreeg), dan is het dezelfde; anders
+ *  via het GlobalId dat de writer uit dat id afleidde: eerst de huidige afleiding
+ *  (`ifcGuid128(ifcObjectSeed('res', id))`), dan die van oudere bestanden (`ifcGuid(id)`). */
+function mappedResourceId(
+  resourceGuidMap: Map<string, string>, resourceIds: ReadonlySet<string>, writtenId: string,
+): string | undefined {
+  if (resourceIds.has(writtenId)) return writtenId;
+  return resourceGuidMap.get(ifcGuid128(ifcObjectSeed('res', writtenId))) ?? resourceGuidMap.get(ifcGuid(writtenId));
 }
 
 /**
@@ -1640,9 +1675,11 @@ function extractSequences(
   taskStepIdMap: Map<string, string>,
   p6BoundarySequenceGuids: ReadonlySet<string>,
   hoursPerDay: number,
+  guidLog: Record<string, string>,
 ): Sequence[] {
   const seqEntities = entities.filter(e => e.type === 'IFCRELSEQUENCE');
   const sequences: Sequence[] = [];
+  const usedIds = new Set<string>();
 
   for (const se of seqEntities) {
     const predRef = parseRef(se.args[4] || '');
@@ -1716,7 +1753,7 @@ function extractSequences(
     }
 
     const seq: Sequence = {
-      id: generateId('seq'),
+      id: stableIdFromGuid('seq', 'seq', se, usedIds, guidLog),
       predecessorId: predId,
       successorId: succId,
       type: parseSequenceType(se.args[7] || ''),
@@ -2030,8 +2067,10 @@ function extractNesting(
 function extractResources(
   entities: StepEntity[],
   _entityMap: Map<string, StepEntity>,
+  guidLog: Record<string, string>,
 ): { resources: Resource[]; resourceStepIdMap: Map<string, string>; resourceGuidMap: Map<string, string> } {
   const resources: Resource[] = [];
+  const usedIds = new Set<string>();
   const resourceStepIdMap = new Map<string, string>();
   const resourceGuidMap = new Map<string, string>(); // IFC GlobalId-string -> ons resource-id
 
@@ -2041,7 +2080,7 @@ function extractResources(
     const resType = IFC_TO_RESOURCE_TYPE[e.type];
     if (!resType) continue;
 
-    const id = generateId('res');
+    const id = stableIdFromGuid('res', 'res', e, usedIds, guidLog);
     resourceStepIdMap.set(e.id, id);
     resourceGuidMap.set(stripQuotes(e.args[0] || ''), id);
 
@@ -2707,8 +2746,12 @@ function extractCalendarLibrary(
   resourceStepIdMap: Map<string, string>,
   tasks: Task[],
   taskStepIdMap: Map<string, string>,
+  guidLog: Record<string, string>,
 ): { calendars: WorkCalendar[]; idByGuid: Map<string, string> } {
   const projectCalendarEntity = entities.find(e => e.type === 'IFCWORKCALENDAR');
+  // De projectkalender heet altijd 'cal-default' (`extractCalendar`); een bibliotheekkalender kan
+  // die naam nooit krijgen, ook niet via een afgeleid id.
+  const usedIds = new Set<string>(['cal-default']);
   const resourceById = new Map(resources.map(r => [r.id, r]));
   const taskById = new Map(tasks.map(t => [t.id, t]));
   const calendars: WorkCalendar[] = [];
@@ -2726,7 +2769,7 @@ function extractCalendarLibrary(
     let cal = calByStepId.get(controlRef);
     if (!cal) {
       cal = buildCalendarFromEntity(controlEntity, entityMap, entities);
-      cal.id = generateId('rescal');
+      cal.id = stableIdFromGuid('cal', 'rescal', controlEntity, usedIds, guidLog);
       calByStepId.set(controlRef, cal);
       calendars.push(cal);
       idByGuid.set(stripQuotes(controlEntity.args[0] || ''), cal.id);
@@ -2760,7 +2803,7 @@ function extractCalendarLibrary(
     if (projectCalendarEntity && ce.id === projectCalendarEntity.id) continue;
     if (calByStepId.has(ce.id)) continue;
     const cal = buildCalendarFromEntity(ce, entityMap, entities);
-    cal.id = generateId('rescal');
+    cal.id = stableIdFromGuid('cal', 'rescal', ce, usedIds, guidLog);
     calByStepId.set(ce.id, cal);
     calendars.push(cal);
     idByGuid.set(stripQuotes(ce.args[0] || ''), cal.id);
@@ -2970,12 +3013,14 @@ function extractAssignments(
 }
 
 /** Zie de aanroepplek in `readIFC`. Muteert de contouren in-place. */
-function remapContourResourceIds(tasks: Task[], resourceGuidMap: Map<string, string>): void {
+function remapContourResourceIds(
+  tasks: Task[], resourceGuidMap: Map<string, string>, resourceIds: ReadonlySet<string>,
+): void {
   for (const task of tasks) {
     if (!task.timephasedContours) continue;
     for (const contour of task.timephasedContours) {
       if (contour.resourceId === undefined) continue;
-      const mapped = mappedResourceId(resourceGuidMap, contour.resourceId);
+      const mapped = mappedResourceId(resourceGuidMap, resourceIds, contour.resourceId);
       if (mapped) contour.resourceId = mapped;
     }
   }
@@ -2983,13 +3028,15 @@ function remapContourResourceIds(tasks: Task[], resourceGuidMap: Map<string, str
 
 /**
  * Nivellering (fundament): `schedulingOptions.leveling.resources[].resourceId` draagt de resource-id
- * van het geschreven document; de lezer regenereert resource-ids, dus terugmappen via dezelfde
- * GlobalId die `writeResource` uit de id afleidde (spiegel van `remapContourResourceIds`). Een id
+ * van het geschreven document; de lezer leidt resource-ids af uit het GlobalId, dus terugmappen via
+ * dezelfde GlobalId die `writeResource` voor dat id gebruikte (spiegel van `remapContourResourceIds`). Een id
  * zonder resource in dit bestand blijft letterlijk staan (data, geen rekeninvoer).
  */
-function remapLevelingResourceIds(options: ProjectSchedulingOptions, resourceGuidMap: Map<string, string>): void {
+function remapLevelingResourceIds(
+  options: ProjectSchedulingOptions, resourceGuidMap: Map<string, string>, resourceIds: ReadonlySet<string>,
+): void {
   for (const entry of options.leveling?.resources ?? []) {
-    const mapped = mappedResourceId(resourceGuidMap, entry.resourceId);
+    const mapped = mappedResourceId(resourceGuidMap, resourceIds, entry.resourceId);
     if (mapped) entry.resourceId = mapped;
   }
 }

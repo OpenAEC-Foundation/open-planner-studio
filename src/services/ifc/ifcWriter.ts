@@ -176,6 +176,20 @@ function guidOf(ctx: WriteContext, seed: string): string {
   return guid;
 }
 
+/** Soort van een object met een eigen id. De seed krijgt de soort als voorvoegsel: uit XER kunnen
+ *  taak, relatie en kalender hetzelfde kale getal als id dragen (task_id, task_pred_id, clndr_id), en
+ *  zonder voorvoegsel kregen ze via de cache van `guidOf` hetzelfde GlobalId (audit 2026-09-26). */
+export type IfcObjectKind = 'task' | 'res' | 'cal' | 'seq' | 'proj';
+
+/** De seed (en sleutel in `ImportResult.ifcGlobalIds`) van een object. */
+export function ifcObjectSeed(kind: IfcObjectKind, id: string): string {
+  return `${kind}:${id}`;
+}
+
+function objectGuid(ctx: WriteContext, kind: IfcObjectKind, id: string): string {
+  return guidOf(ctx, ifcObjectSeed(kind, id));
+}
+
 function ref(ctx: WriteContext, key: string): string {
   return `#${ctx.idMap.get(key) || 0}`;
 }
@@ -285,7 +299,7 @@ export function writeIFC(input: WriteIFCInput): string {
 
   // Project. Description (arg 3) draagt project.description — de reader leest 'm terug
   // uit de IFCWORKPLAN.Description-slot, met terugval op deze.
-  addLine(ctx, '_project', `IFCPROJECT(${ifcStr(guidOf(ctx, project.id))},#${ownerHistId},${ifcStr(project.name)},${ifcStr(project.description)},$,$,$,(#${ctxId}),#${unitAssId})`);
+  addLine(ctx, '_project', `IFCPROJECT(${ifcStr(objectGuid(ctx, 'proj', project.id))},#${ownerHistId},${ifcStr(project.name)},${ifcStr(project.description)},$,$,$,(#${ctxId}),#${unitAssId})`);
   writeXerSourceArchive(ctx, ownerHistId, xerSourceArchive, xer?.sourceProjectId ?? xerSourceProjectId);
 
   // Calendar (projectkalender — altijd de EERSTE IFCWORKCALENDAR in het bestand; vaste conventie
@@ -453,7 +467,7 @@ function writeTaskTypeMeta(
   if (used.size === 0) return;
   const definitions = customTaskTypes.filter(t => used.has(t.id));
   const taskTypeIds: Record<string, string> = {};
-  for (const task of tasks) if (task.customTaskTypeId) taskTypeIds[guidOf(ctx, task.id)] = task.customTaskTypeId;
+  for (const task of tasks) if (task.customTaskTypeId) taskTypeIds[objectGuid(ctx, 'task', task.id)] = task.customTaskTypeId;
   const value = JSON.stringify({ definitions, taskTypeIds });
   const propId = addLine(ctx, '_ps_tasktypes_json',
     `IFCPROPERTYSINGLEVALUE('TaskTypes',$,IFCTEXT(${ifcStr(value)}),$)`);
@@ -751,7 +765,7 @@ function writeBaselineMeta(
   const baselineTaskGuids: Record<string, string> = {};
   for (const b of baselines) {
     for (const bt of b.tasks ?? []) {
-      if (bt.taskId) baselineTaskGuids[bt.taskId] = guidOf(ctx, bt.taskId);
+      if (bt.taskId) baselineTaskGuids[bt.taskId] = objectGuid(ctx, 'task', bt.taskId);
     }
   }
   if (Object.keys(baselineTaskGuids).length > 0) {
@@ -950,7 +964,7 @@ function writeCalendar(
   // ObjectType (arg 4): alleen een label bij USERDEFINED-ploeg; anders `$`.
   const objectType = cal.shift === 'USERDEFINED' ? ifcStr('USERDEFINED') : '$';
   const calStepId = addLine(ctx, key,
-    `IFCWORKCALENDAR(${ifcStr(guidOf(ctx, cal.id))},#${ownerHistId},${ifcStr(cal.name)},${ifcStr(cal.description)},${objectType},(#${workTimeId}),${exceptStr},${shiftToPredefinedType(cal.shift)})`);
+    `IFCWORKCALENDAR(${ifcStr(objectGuid(ctx, 'cal', cal.id))},#${ownerHistId},${ifcStr(cal.name)},${ifcStr(cal.description)},${objectType},(#${workTimeId}),${exceptStr},${shiftToPredefinedType(cal.shift)})`);
   return {
     calStepId,
     workingExceptionStepIds,
@@ -1169,7 +1183,7 @@ function writeTask(
     `IFCTASKTIME(${IFC_TASKTIME_SLOTS.map(s => s.write(ttCtx)).join(',')})`);
 
   const taskCtx: TaskWriteCtx = {
-    task, ownerHistId, guidArg: ifcStr(guidOf(ctx, task.id)), taskTimeId, customTaskTypeLabel,
+    task, ownerHistId, guidArg: ifcStr(objectGuid(ctx, 'task', task.id)), taskTimeId, customTaskTypeLabel,
   };
   addLine(ctx, `task_${task.id}`,
     `IFCTASK(${IFC_TASK_SLOTS.map(s => s.write(taskCtx)).join(',')})`);
@@ -1221,7 +1235,7 @@ function writeSequence(ctx: WriteContext, seq: Sequence, ownerHistId: number): v
   }
 
   addLine(ctx, `seq_${seq.id}`,
-    `IFCRELSEQUENCE(${ifcStr(guidOf(ctx, seq.id))},#${ownerHistId},$,$,${ref(ctx, `task_${seq.predecessorId}`)},${ref(ctx, `task_${seq.successorId}`)},${lagRef},.${seq.type}.,$)`);
+    `IFCRELSEQUENCE(${ifcStr(objectGuid(ctx, 'seq', seq.id))},#${ownerHistId},$,$,${ref(ctx, `task_${seq.predecessorId}`)},${ref(ctx, `task_${seq.successorId}`)},${lagRef},.${seq.type}.,$)`);
 }
 
 /**
@@ -1238,7 +1252,7 @@ function writeSequenceMeta(
 ): void {
   const boundarySequenceGuids = sequences
     .filter(sequence => sequence.p6StartAtPredecessorFinishBoundary === true)
-    .map(sequence => guidOf(ctx, sequence.id));
+    .map(sequence => objectGuid(ctx, 'seq', sequence.id));
   if (boundarySequenceGuids.length === 0) return;
   const propId = addLine(ctx, '_ps_seq_boundary',
     `IFCPROPERTYSINGLEVALUE('P6StartAtPredecessorFinishBoundarySequenceGuids',$,IFCTEXT(${ifcStr(JSON.stringify(boundarySequenceGuids))}),$)`);
@@ -1252,7 +1266,7 @@ function writeResource(ctx: WriteContext, res: Resource, ownerHistId: number): v
   // Entiteitnaam uit de gedeelde RESOURCE_TYPE_TO_IFC-map (reader leidt de inverse eruit af);
   // onbekend type ⇒ MATERIAL.
   const entityName = RESOURCE_TYPE_TO_IFC[res.type] ?? 'IFCCONSTRUCTIONMATERIALRESOURCE';
-  const entity = `${entityName}(${ifcStr(guidOf(ctx, res.id))},#${ownerHistId},${ifcStr(res.name)},${ifcStr(res.description)},$,$,$,$,.USERDEFINED.)`;
+  const entity = `${entityName}(${ifcStr(objectGuid(ctx, 'res', res.id))},#${ownerHistId},${ifcStr(res.name)},${ifcStr(res.description)},$,$,$,$,.USERDEFINED.)`;
   addLine(ctx, `res_${res.id}`, entity);
 }
 
@@ -1300,7 +1314,7 @@ function writeResourceMeta(ctx: WriteContext, resources: Resource[], ownerHistId
       // Vangnet naast IFCRELNESTS (writeCrewNesting): de eigen reader hoeft nooit
       // afhankelijk te zijn van relatie-richting-interpretatie door andere IFC-tools.
       const id = addLine(ctx, `_respg_${res.id}`,
-        `IFCPROPERTYSINGLEVALUE('ParentGuid',$,IFCTEXT(${ifcStr(guidOf(ctx, res.parentId))}),$)`);
+        `IFCPROPERTYSINGLEVALUE('ParentGuid',$,IFCTEXT(${ifcStr(objectGuid(ctx, 'res', res.parentId))}),$)`);
       props.push(`#${id}`);
     }
     if (res.libraryOrigin) {
@@ -1383,7 +1397,7 @@ function writeAssignmentMeta(
     const list = byTask.get(task.id);
     if (!list) continue;
     const props = list.map((a, index) => {
-      const resGuid = guidOf(ctx, a.resourceId); // zelfde GUID als writeResource gebruikte
+      const resGuid = objectGuid(ctx, 'res', a.resourceId); // zelfde GUID als writeResource gebruikte
       const propName = `${resGuid}#${index}`; // uniek per assignment
       const val = `${a.unitsPerDay}|${a.curve ?? 'UNIFORM'}`;
       const propId = addLine(ctx, `_asgn_${task.id}_${a.id}`,
@@ -1428,7 +1442,7 @@ function writeTimephasedMeta(
       // (begroot/verricht/resterend, minuten) idem — zelfde blob, zelfde `GUID#N`-sleutel.
       if (a.workWindowStart === undefined && a.workWindowFinish === undefined && a.curveValues === undefined
         && a.plannedWorkMinutes === undefined && a.actualWorkMinutes === undefined && a.remainingWorkMinutes === undefined) return;
-      const resGuid = guidOf(ctx, a.resourceId);
+      const resGuid = objectGuid(ctx, 'res', a.resourceId);
       const propName = `${resGuid}#${index}`;
       windows[propName] = {
         ...(a.workWindowStart !== undefined ? { workWindowStart: a.workWindowStart } : {}),
@@ -1452,10 +1466,10 @@ function writeTimephasedMeta(
 /**
  * `Task.timephasedDurationWalks` als eigen `OPS_TimephasedDurationWalks`-JSON-pset, NIET via
  * `ifcPsets.PER_TASK_PSETS`: `resourceCalendarId` is een app-interne kalenderverwijzing die bij
- * inlezen een NIEUW id krijgt.
+ * inlezen een ander id kan krijgen (de lezer leidt het af uit het GlobalId).
  *
  * Vertaling via `resourceCalendarGuid`, niet via de kalenderNAAM (die is niet uniek ⇒ stille
- * datacorruptie). `guidOf(ctx, cal.id)` is per `ctx` gememoïseerd en élke kalender is vóór deze
+ * datacorruptie). `objectGuid(ctx, 'cal', cal.id)` is per `ctx` gememoïseerd en élke kalender is vóór deze
  * aanroep geschreven (zie `writeIFC`), dus dit levert exact de GlobalId van de bijbehorende
  * `IFCWORKCALENDAR` — hetzelfde remap-patroon als `writeBaselineMeta` voor taken. Golden rule: geen
  * taak met `timephasedDurationWalks` ⇒ geen pset.
@@ -1473,7 +1487,7 @@ function writeTimephasedDurationWalksMeta(
     if (!walks || walks.length === 0) continue;
     const json = walks.map(w => ({
       anchor: w.anchor,
-      resourceCalendarGuid: guidOf(ctx, w.resourceCalendarId),
+      resourceCalendarGuid: objectGuid(ctx, 'cal', w.resourceCalendarId),
       ...(w.workMinutes !== undefined ? { workMinutes: w.workMinutes } : {}),
     }));
     const propId = addLine(ctx, `_ps_tpdw_${task.id}`,

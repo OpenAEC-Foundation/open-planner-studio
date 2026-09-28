@@ -24,7 +24,7 @@
 //           `canon` voor de meting.
 //      Beide leunen op tests/planning/tsconfig.check.json, want de hoofd-tsconfig sluit tests/ uit.
 //   3. writeIFC(fixture) → readIFC → diepe, veld-voor-veld-vergelijking van de HELE ImportResult.
-//      Gegenereerde ids (project/resource/sequence/kalender regenereren bij inlezen) worden
+//      Gegenereerde ids (resource/sequence/kalender worden bij inlezen uit het GlobalId afgeleid) worden
 //      genormaliseerd via NATUURLIJKE SLEUTELS (wbsCode/naam) i.p.v. letterlijk vergeleken; taak-id's
 //      hebben daarnaast een expliciet stabiliteitscontract voor externe bronverversing; alle
 //      kruisverwijzingen (parentId/childIds/pred/succ/calendarId/taskId/resourceId/activityCodes)
@@ -57,7 +57,7 @@
 //   vergelijking het verschil ook echt kan zien. IFCWORKPLAN.StartTime/FinishTime blijft de
 //   AFGELEIDE plan-omvang dragen. Zie blok (4) onderaan voor leeg-geval en legacy-terugval.
 //   Overige bewuste (b)-normalisaties die de fixture al in genormaliseerde vorm kiest (dus GEEN
-//   afwijking geven): niet-taak-id's regenereren (→ natuurlijke sleutels), project.calendarId→'cal-default',
+//   afwijking geven): niet-taak-id's wijken na het eerste inlezen af (→ natuurlijke sleutels), project.calendarId→'cal-default',
 //   ASAP-constraint niet geschreven, shift FIRST→undefined,
 //   lagUnit WORKTIME→undefined, curve UNIFORM→undefined, progressMode RETAINED_LOGIC→undefined,
 //   priority 500 niet geschreven. (Dag-duren zijn in deze fixture heel; fractionele dag-duren
@@ -399,7 +399,7 @@ const SCHED_OPTS = {
   // Niet-default (P6 "Calculate Start-to-Start lag from: Actual Start"), zodat de round-trip iets bewijst.
   startToStartLagFrom: 'actualStart',
   // Nivelleerfundament: alleen data, zonder aan/uit-veld (eigenaarsbeslissing 1 open). Resource-ids worden bij het lezen
-  // geregenereerd en via de GlobalId teruggemapt (canon hieronder vergelijkt op naam); een id zonder
+  // uit het GlobalId afgeleid en via de GlobalId teruggemapt (canon hieronder vergelijkt op naam); een id zonder
   // resource ('r-verwijderd') blijft letterlijk staan.
   leveling: {
     preserveScheduledDates: false, levelAllResources: false,
@@ -474,7 +474,7 @@ export const fixture: ImportResult = {
 type Any = Record<string, unknown>;
 const def = <T>(v: T | undefined): v is T => v !== undefined;
 
-/** Volatiele id → leesbare, stabiele sleutel. Ids regenereren bij het inlezen, dus élke verwijzing
+/** Volatiele id → leesbare, stabiele sleutel. Ids wijken na het eerste inlezen af, dus élke verwijzing
  *  naar een ander object wordt via deze kaarten naar een natuurlijke sleutel herschreven. */
 interface Keys {
   /** kalender-id → kalendernaam (undefined blijft undefined: "projectkalender"). */
@@ -530,7 +530,7 @@ const WORKING_EXCEPTION_CANON = {
 } satisfies CanonSpec<WorkingException>;
 
 const CALENDAR_CANON = {
-  id: { skip: 'regenereert bij inlezen; de NAAM is de natuurlijke sleutel (Keys.cal)' },
+  id: { skip: 'wijkt na het eerste inlezen af (uit het GlobalId); de NAAM is de natuurlijke sleutel (Keys.cal)' },
   name: KEEP, description: KEEP,
   workDays: { get: (c: WorkCalendar) => [...c.workDays] },
   workStartHour: KEEP, workEndHour: KEEP, hoursPerDay: KEEP,
@@ -579,7 +579,7 @@ const TIME_CANON = {
 } satisfies CanonSpec<TaskTime>;
 
 const TASK_CANON = {
-  id: { skip: 'regenereert bij inlezen; wbsCode is de natuurlijke sleutel (Keys.task)' },
+  id: { skip: 'wijkt na het eerste inlezen af (uit het GlobalId); wbsCode is de natuurlijke sleutel (Keys.task)' },
   name: KEEP, description: KEEP, wbsCode: KEEP, taskType: KEEP,
   customTaskTypeId: { skip: 'lege optionele fixturewaarde normaliseert naar undefined; echte custom-id wordt gedekt door check-custom-task-types.ts' },
   status: KEEP,
@@ -591,7 +591,7 @@ const TASK_CANON = {
   // Z14b — het Z8-venster round-trippt nu écht via `OPS_TimephasedWindow` (ifcPsets.ts): echte
   // KEEP/get-vergelijking i.p.v. de vroegere skip-cellen (Z8-nataak, plan-Z14 regel ~464).
   timephasedFinishFloor: KEEP, timephasedStartAnchor: KEEP,
-  // `resourceCalendarId` is een KALENDER-VERWIJZING (regenereert bij inlezen) — spiegelt
+  // `resourceCalendarId` is een KALENDER-VERWIJZING (ander id na het eerste inlezen) — spiegelt
   // `calendarId` hieronder: via `k.cal(...)` naar de natuurlijke sleutel (kalendernaam) herschreven,
   // net als elke andere cross-object-verwijzing in dit bestand.
   // Z19-reviewbevinding M1: `workMinutes` MOET meevergelijken — vóór deze correctie ontbrak het
@@ -647,7 +647,7 @@ const TASK_CANON = {
 } satisfies CanonSpec<Task>;
 
 const SEQUENCE_CANON = {
-  id: { skip: 'regenereert bij inlezen; de relatie is identificeerbaar via pred/succ/type' },
+  id: { skip: 'wijkt na het eerste inlezen af (uit het GlobalId); de relatie is identificeerbaar via pred/succ/type' },
   predecessorId: { as: 'pred', get: (s: Sequence, k: Keys) => k.task(s.predecessorId) },
   successorId: { as: 'succ', get: (s: Sequence, k: Keys) => k.task(s.successorId) },
   type: KEEP, lagDays: KEEP, lagMinutes: KEEP, lagUnit: KEEP, lagPercent: KEEP,
@@ -655,7 +655,7 @@ const SEQUENCE_CANON = {
 } satisfies CanonSpec<Sequence>;
 
 const RESOURCE_CANON = {
-  id: { skip: 'regenereert bij inlezen; de NAAM is de natuurlijke sleutel (Keys.res)' },
+  id: { skip: 'wijkt na het eerste inlezen af (uit het GlobalId); de NAAM is de natuurlijke sleutel (Keys.res)' },
   name: KEEP, type: KEEP, description: KEEP, costPerHour: KEEP,
   availability: { skip: '(b) @deprecated migratieveld; de writer schrijft het bewust niet (KNOWN_GAPS)' },
   maxUnits: KEEP,
@@ -667,7 +667,7 @@ const RESOURCE_CANON = {
 } satisfies CanonSpec<Resource>;
 
 const ASSIGNMENT_CANON = {
-  id: { skip: 'regenereert bij inlezen; taak+resource+units identificeren de toewijzing' },
+  id: { skip: 'wijkt na het eerste inlezen af (uit het GlobalId); taak+resource+units identificeren de toewijzing' },
   taskId: { as: 'task', get: (a: ResourceAssignment, k: Keys) => k.task(a.taskId) },
   resourceId: { as: 'resource', get: (a: ResourceAssignment, k: Keys) => k.res(a.resourceId) },
   unitsPerDay: KEEP, curve: KEEP,
@@ -689,7 +689,7 @@ const PROJECT_CANON = {
   calendarId: { as: 'calendar', get: (p: Project, k: Keys) => k.cal(p.calendarId) },
   createdAt: KEEP, modifiedAt: KEEP, author: KEEP, company: KEEP,
   wbsAutoNumber: KEEP, statusDate: KEEP, progressMode: KEEP,
-  // Letterlijk, behalve de resource-ids in het nivelleerblok: die regenereren bij het lezen (op naam).
+  // Letterlijk, behalve de resource-ids in het nivelleerblok: die wijken na het eerste lezen af (op naam).
   schedulingOptions: {
     get: (p: Project, k: Keys) => (p.schedulingOptions?.leveling?.resources
       ? {

@@ -296,9 +296,10 @@ export interface ImportResult {
    *  een gok), en irrelevant voor een verse import (die is per definitie ongewijzigd — zie
    *  `payloadFromImport`). Elke mutator wist de vlag via `markDocumentEdited`. */
   importPristine?: boolean;
-  /** Intern id → GlobalId zoals het in het ingelezen IFC stond. Alleen gevuld door `readIFC`, voor
-   *  taken en het project: de writer geeft ze dat GlobalId terug, zodat externe koppelingen niet
-   *  breken. Objecten zonder vermelding (nieuw, of uit een ander formaat) krijgen `ifcGuid128`.
+  /** `ifcObjectSeed(soort, id)` → GlobalId zoals het in het ingelezen IFC stond. Alleen gevuld door
+   *  `readIFC`, voor taken, resources, kalenders, relaties en het project: de writer geeft ze dat
+   *  GlobalId terug, zodat externe koppelingen niet breken. Objecten zonder vermelding (nieuw, of uit
+   *  een ander formaat) krijgen `ifcGuid128`.
    *  Audit 2026-09-26. */
   ifcGlobalIds?: Readonly<Record<string, string>>;
   /** De OORSPRONKELIJKE bron van de vastlegging in een

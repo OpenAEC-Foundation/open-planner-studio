@@ -84,7 +84,7 @@ export function buildWriteIFCInput(src: IFCSaveSource): WriteIFCInput {
     // Alleen `true` wordt geschreven (`writeImportProvenanceMeta`).
     ...(src.importPristine ? { importPristine: true } : {}),
     ...(withheld ? { withheldTaskTimeFields: withheld } : {}),
-    // Bestaande taken en het project houden hun GlobalId uit het ingelezen bestand.
+    // Bestaande objecten houden hun GlobalId uit het ingelezen bestand.
     ...(src.ifcGlobalIds ? { ifcGlobalIds: src.ifcGlobalIds } : {}),
     // De oorspronkelijke bron reist mee in OPS_ImportProvenance, zodat een heropening op de BRON
     // poort en niet op "het is nu een IFC". ALLEEN in de modus: buiten de modus (aanbodstand) staat

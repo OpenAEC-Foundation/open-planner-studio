@@ -12,8 +12,8 @@ export interface LevelingPriorityKey {
 
 /** Eén resource uit de nivelleerlijst (P6 RSRCLEVELLIST, "Select resources"). */
 export interface LevelingResourceSetting {
-  /** Interne resource-id van dit document (XER: `xer-resource:<rsrc_id>`). De IFC-lezer regenereert
-   *  resource-ids en mapt deze via de GlobalId terug (`ifcReader.remapLevelingResourceIds`), net als
+  /** Interne resource-id van dit document (XER: `xer-resource:<rsrc_id>`). De IFC-lezer leidt
+   *  resource-ids af uit de GlobalId en mapt deze via de GlobalId terug (`ifcReader.remapLevelingResourceIds`), net als
    *  `TaskTimephasedContour.resourceId`. Een id zonder resource (bv. na verwijderen) blijft staan. */
   resourceId: string;
   /** P6 Max Units/Time (`RSRCRATE.max_qty_per_hr`), alleen als alle tariefrijen van deze resource

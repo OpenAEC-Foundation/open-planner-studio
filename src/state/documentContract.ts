@@ -99,8 +99,8 @@ export interface DocumentPayload {
    *  weer "nooit een XER-bron" zeggen), maar staat bewust NIET in `IFC_SAVE_KEYS` en niet in undo —
    *  er is niets om terug te schrijven, het archief is weg. */
   xerArchiveIssue: XerArchiveIssue | null;
-  /** Intern id → GlobalId uit het ingelezen IFC (`ImportResult.ifcGlobalIds`): de writer geeft
-   *  bestaande taken en het project hun GlobalId terug. Alleen `readIFC` vult hem; niet in undo
+  /** Seed (`ifcObjectSeed(soort, id)`) → GlobalId uit het ingelezen IFC (`ImportResult.ifcGlobalIds`):
+   *  de writer geeft bestaande objecten hun GlobalId terug. Alleen `readIFC` vult hem; niet in undo
    *  (geen projectdata die de gebruiker zet), wel door documentwissel en opslaan. */
   ifcGlobalIds: Readonly<Record<string, string>> | null;
 }

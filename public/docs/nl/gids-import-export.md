@@ -27,9 +27,9 @@ door IFC round-trippt; als iets níet round-trippt, staat dat hieronder explicie
 IFC is ook de manier waarop deze app aansluit bij de rest van de OpenAEC-gereedschapskist: hetzelfde
 bestand kan door BIM-software gelezen worden voor de 4D-koppeling (planning naast het bouwmodel).
 Daarvoor schrijft de app tekst zoals de IFC-norm het voorschrijft: letters met accenten, het euroteken,
-Chinese tekens en emoji staan gecodeerd in het bestand, zodat andere software ze goed toont. Een taak
-houdt bij elk opslaan dezelfde IFC-identiteit (GlobalId), ook als het bestand uit een ander pakket komt;
-zo blijft een koppeling in je BIM-model naar die taak werken.
+Chinese tekens en emoji staan gecodeerd in het bestand, zodat andere software ze goed toont. Taken,
+resources, kalenders en relaties houden bij elk opslaan dezelfde IFC-identiteit (GlobalId), ook als het
+bestand uit een ander pakket komt; zo blijft een koppeling in je BIM-model ernaar werken.
 
 ## Exporteren naar andere formaten
 

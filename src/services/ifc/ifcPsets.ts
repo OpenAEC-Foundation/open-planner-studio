@@ -52,7 +52,7 @@ export const PSET = {
   Window: 'OPS_TimephasedWindow',
   /** `Task.timephasedDurationWalks` — AFWIJKENDE vorm (alleen naam gedeeld, geen
    *  `PerTaskPset`-descriptor): `resourceCalendarId` is een kalender-verwijzing die bij inlezen een
-   *  NIEUW id krijgt, dus write/read hebben allebei toegang tot de kalender-bibliotheek nodig — die
+   *  ander id kan krijgen (afgeleid uit het GlobalId), dus write/read hebben allebei toegang tot de kalender-bibliotheek nodig — die
    *  heeft de generieke `PerTaskPset`-vorm niet. Zie `ifcWriter.writeTimephasedDurationWalksMeta`/
    *  `ifcReader.extractTimephasedDurationWalksMeta`. */
   DurationWalks: 'OPS_TimephasedDurationWalks',
@@ -474,8 +474,8 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //     `taskDefaults.ts`'s `clearTimephasedWindow` wist ze bij een inhoudelijke bewerking, dus een
   //     bewerkt-en-opnieuw-opgeslagen taak schrijft dan geen (of minder) props hier — dat is het
   //     bedoelde gedrag, niet een gat. `timephasedDurationWalks` NIET hier: dat veld draagt
-  //     `resourceCalendarId`, een APP-INTERNE kalender-verwijzing die bij inlezen een NIEUW,
-  //     regenererend id krijgt — een generieke `PerTaskPset` heeft geen toegang tot de kalender-
+  //     `resourceCalendarId`, een APP-INTERNE kalender-verwijzing die bij inlezen een ander id
+  //     kan krijgen (afgeleid uit het GlobalId) — een generieke `PerTaskPset` heeft geen toegang tot de kalender-
   //     bibliotheek om die verwijzing (via de kalendernaam, de natuurlijke sleutel) te vertalen.
   //     Zie `writeTimephasedDurationWalksMeta`/`extractTimephasedDurationWalksMeta` (eigen, kleine
   //     JSON-pset `OPS_TimephasedDurationWalks`, spiegelt `OPS_Baselines`' taskId-GUID-remap-precedent).
