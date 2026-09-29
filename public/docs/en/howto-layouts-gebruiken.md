@@ -62,7 +62,7 @@ Layouts that do not store the same parts can be on together. If you have a layou
 
 **An incomplete rule shows nothing.** If you choose no value for a yes/no field (it still says *—*) or leave the dates of *In progress* empty, no task matches and the list stays empty. Complete the rule.
 
-**A manual change turns the layout off.** If you yourself change a part the layout stores, for example *Relationship lines* while *Resource diagram* is on, that layout drops out and the other parts go back to the view from before the layout. Zooming does not do that, because the Resource diagram does not store the time scale.
+**A manual change turns the layout off.** If you yourself change a part the layout stores, for example *Relationship lines* while *Resource diagram* is on, that layout drops out and the other parts go back to the view from before the layout. Zooming turns off a layout that stores the time scale, and making a column wider turns off a layout that stores the columns. The rest of the view then stays as it is. The Resource diagram does not store the time scale, so zooming does not affect it.
 
 **Columns apply to the task table next to the Gantt.** The *Columns* part stores the columns of the table to the left of the timeline. The table on the *Table* tab keeps its own columns. How you choose columns is in [Adjusting table columns](docs://howto-tabelkolommen-aanpassen).
 
@@ -70,7 +70,7 @@ Layouts that do not store the same parts can be on together. If you have a layou
 
 **The status bar does not follow.** *Tasks:* in the status bar shows the number of tasks of the whole project, even if a filter shows only part of them.
 
-**Layouts are on your device, not in the project.** The app keeps your layouts and the columns for all your projects on this device. The filter, grouping and sorting that are on right now belong to the open project, but do not go into the project file: after saving and reopening the view is clean again. They also do not make the project "modified".
+**Layouts are on your device, not in the project.** The app keeps your layouts and the columns for all your projects on this device. The overlays from a layout (baseline, progress line and the rest) apply to all your projects. The filter, grouping and sorting that are on right now belong to the open project, but do not go into the project file: after saving and reopening the view is clean again. They also do not make the project "modified".
 
 **The separate buttons are hidden.** *Columns…*, *Filter…*, *Group…* and *Sort…* as separate buttons on the *View* tab are an old view. You bring them back with *Show classic view buttons* under *Legacy features* on the *Advanced* tab of the settings window (⚙ in the title bar). Prefer layouts.
 

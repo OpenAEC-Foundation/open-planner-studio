@@ -32,6 +32,8 @@ Klik op het kruisje naast de naam op het tabblad (*Sluiten*), of op het kruisje 
 - *Niet opslaan* sluit het project en gooit de wijzigingen weg.
 - *Annuleren* laat het project open.
 
+Breek je het opslaan af, bijvoorbeeld door de opslagdialoog te sluiten, dan blijft het project open.
+
 Sluit je het laatste project, dan blijft er een lege planning met de naam *Nieuwe planning* over.
 
 ### De wisselstijl kiezen
@@ -46,9 +48,9 @@ Alle drie de stijlen openen hetzelfde overzicht, en Ctrl+1 tot en met Ctrl+9 wer
 
 ## Valkuilen en wat de app dan doet
 
-**Wat bij het project hoort en wat gedeeld is.** Bij elk project hoort zijn eigen beeld: zoom en positie, een actieve layout met filter, groepering of sortering, en split view. Wissel je naar een ander project, dan zie je daar zijn eigen beeld. Gedeeld voor alle projecten zijn het geselecteerde tabblad in het lint, de mini-map, je kolomkeuze, je layouts en de rapportkeuzes.
+**Wat bij het project hoort en wat gedeeld is.** Bij elk project hoort zijn eigen beeld: zoom en positie, een actieve layout met filter, groepering of sortering, split view, de relatielijnen en de ingeklapte fasen. Wissel je naar een ander project, dan zie je daar zijn eigen beeld. Gedeeld voor alle projecten zijn het geselecteerde tabblad in het lint, de mini-map, de overlays (baseline-overlay, voortgangslijn en de rest), je kolomkeuze, je layouts en de rapportkeuzes.
 
-**Wisselen kan niet met een dialoog open.** Zolang er een dialoog openstaat, bijvoorbeeld het instellingenvenster of een taakvenster, doen Ctrl+1 tot en met Ctrl+9 niets. Sluit eerst de dialoog. Een niet-toegepaste wijziging in *Projectinfo* in Backstage blokkeert wisselen ook.
+**Wisselen kan niet met een dialoog open.** Zolang er een dialoog openstaat, bijvoorbeeld het instellingenvenster of een taakvenster, doen Ctrl+1 tot en met Ctrl+9 niets in de app. In de browser wissel je dan van browsertabblad. Sluit eerst de dialoog. Een niet-toegepaste wijziging in *Projectinfo* in Backstage blokkeert wisselen ook.
 
 **Ctrl+1 tot en met Ctrl+9 tellen op volgorde.** De sneltoets gaat naar het project op die plek in de rij. Sluit je een project, dan schuiven de andere plaatsen op. Heb je meer dan negen projecten open, dan bereik je de rest alleen via de tabbladen of het overzicht.
 

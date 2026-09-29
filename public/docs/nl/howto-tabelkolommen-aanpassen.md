@@ -41,7 +41,7 @@ Sleep een kolomkop naar een andere plek. Een vastgezette kolom verplaats je binn
 
 ### Terug naar de standaard
 
-Open het venster *Kolom kiezen* en klik onderaan op *Herstel standaard*. De knop is grijs als de kolommen al de standaard zijn. Bij de tabel op het tabblad *Tabel* komt er ook een kolom bij voor elke activiteitscode en elk eigen veld van het project, ook als je die eerder had weggehaald. Over die codes en velden lees je in [Codes en eigen velden](docs://howto-codes-en-velden).
+Open het venster *Kolom kiezen* en klik onderaan op *Herstel standaard*. De knop is grijs als de kolommen al de standaard zijn. Bij de tabel op het tabblad *Tabel* komt er ook een kolom bij voor elke activiteitscode en elk eigen veld van het project, ook als je die eerder had weggehaald. Die kolommen horen bij het project waar de code of het veld in staat. Over die codes en velden lees je in [Codes en eigen velden](docs://howto-codes-en-velden).
 
 ## Valkuilen en wat de app dan doet
 

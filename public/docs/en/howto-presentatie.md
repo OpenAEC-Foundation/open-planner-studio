@@ -19,7 +19,7 @@ In presentation mode the ribbon is gone, so set up what you want to show beforeh
 
 ### Start the presentation
 
-Choose *View › Presentation › Presentation*, or press F11. The ribbon, the tabs, the status bar and the right-hand panel disappear. You see the task table, the Gantt and, if you turned it on, the mini-map. For a few seconds at the bottom it says *Press Esc or F11 to exit full screen.*
+Choose *View › Presentation › Presentation*, or press F11. The ribbon, the tabs, the status bar and the right-hand panel disappear. You see the task table, the Gantt and, if you turned them on, the histogram and the mini-map. For a few seconds at the bottom it says *Press Esc or F11 to exit full screen.*
 
 You can start the presentation from any tab, also from *Table* or *Report*. You always see the Gantt of the open project, and when you stop you are back on the tab where you began.
 
@@ -29,11 +29,11 @@ Press Esc or F11. The ribbon and panels come back on the tab where you began.
 
 ## Pitfalls and what the app does
 
-**A presentation is not a read-only mode.** Clicking and dragging still work. If you drag a bar by accident, it moves and the schedule becomes out of date. Ctrl+Z reverses it, also in presentation mode. So click carefully when you are working with a group.
+**You can still edit in presentation mode.** Clicking, dragging, editing cells and Delete still work. If you drag a bar by accident, it moves and the schedule becomes out of date. A task you delete by accident you bring back with Ctrl+Z, also in presentation mode. So click carefully when you are working with a group.
 
 **Notifications stay visible.** A message from the app, for example a save error, also appears in presentation mode. There is no ribbon or status bar otherwise, so such a message is the only sign that something is wrong.
 
-**You cannot turn anything on or off.** The buttons for split view, mini-map, layouts and time scale are in the ribbon, and that is gone in this mode. Set them up beforehand.
+**Set up split view, mini-map and layouts beforehand.** You need the ribbon for them, and that is gone in this mode. Zooming does work, with the mouse wheel or with Ctrl+= and Ctrl+-. + and - work too, but only when the focus is in the Gantt. After F11 the focus is often in the task table, so click in the Gantt first.
 
 **Full screen does not work.** Besides hiding the ribbon, the app also really requests full screen. If your browser or window refuses that, only the ribbon and the panels disappear. The presentation still works. If you leave full screen in another way than with Esc or F11, for example with a key of your operating system, presentation mode stops as well.
 

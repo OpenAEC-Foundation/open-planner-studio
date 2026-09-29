@@ -29,7 +29,7 @@ Klik nogmaals op *Split view*. Er blijft één venster over, met het beeld van h
 ### De mini-map aanzetten
 
 1. Klik in de groep *Presentatie* op *Mini-map*.
-2. Onder de tijdlijn verschijnt een strook van de hele projectperiode, met alle taken als dunne streepjes en een kader om het stuk dat je nu ziet.
+2. Onder de tijdlijn verschijnt een strook van de hele projectperiode, met de taken van je huidige weergave als dunne streepjes (dus na een filter alleen de taken die dat filter toont) en een kader om het stuk dat je nu ziet.
 3. Klik ergens op de strook om het kader daarheen te zetten. Het venster centreert op die plek. Of pak het kader en sleep het.
 
 De mini-map verschuift alleen het tijdvenster. De rijen blijven zoals ze zijn.
@@ -40,7 +40,7 @@ Staat split view aan, dan krijgt elk venster zijn eigen strook, onder zijn eigen
 
 **De mini-map verzet niets als het hele project al in beeld is.** Zoom je zo ver uit dat de hele planning past, dan is er niets om naartoe te schuiven en heeft klikken geen effect. Zoom eerst in.
 
-**De mini-map staat alleen bij de Gantt.** Op de tabbladen *Tabel* en *Rapport* is er geen tijdlijn, dus ook geen mini-map en geen split view. Ze zijn er weer zodra je terugkeert naar een tabblad met de Gantt.
+**De mini-map staat alleen bij de Gantt.** Op de tabbladen *Tabel*, *IFC* en *Rapport* en in het volledige resourcepaneel (*Resources*, niet *Resourcedock*) is er geen tijdlijn, dus ook geen mini-map en geen split view. Ze zijn er weer zodra je terugkeert naar een weergave met de Gantt.
 
 **Split view hoort bij het project, de mini-map niet.** Split view geldt voor het geopende project: wissel je van tabblad naar een ander project en terug, dan staat hij er nog. De mini-map is één keuze voor alle projecten en blijft aan of uit na een herstart. Beide zijn schermkeuzes: ze komen niet in het projectbestand, maken het project niet "gewijzigd" en staan niet in *Ongedaan*.
 

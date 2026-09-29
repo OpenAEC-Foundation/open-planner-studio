@@ -62,7 +62,7 @@ Layouts die niet dezelfde onderdelen vastleggen kunnen samen aan staan. Heb je e
 
 **Een onvolledige regel toont niets.** Kies je bij een ja/nee-veld geen waarde (er staat nog *—*) of laat je de datums bij *In uitvoering* leeg, dan voldoet geen enkele taak en blijft de lijst leeg. Vul de regel af.
 
-**Een handmatige wijziging zet de layout uit.** Verander je zelf een onderdeel dat de layout vastlegt, bijvoorbeeld *Relatielijnen* terwijl *Resourcediagram* aan staat, dan valt die layout af en gaan de andere delen terug naar het beeld van vóór de layout. Zoomen doet dat niet, want het Resourcediagram legt de tijdschaal niet vast.
+**Een handmatige wijziging zet de layout uit.** Verander je zelf een onderdeel dat de layout vastlegt, bijvoorbeeld *Relatielijnen* terwijl *Resourcediagram* aan staat, dan valt die layout af en gaan de andere delen terug naar het beeld van vóór de layout. Zoomen zet een layout uit die de tijdschaal vastlegt, en een kolom breder maken een layout die de kolommen vastlegt. De rest van het beeld blijft dan staan. Het Resourcediagram legt de tijdschaal niet vast, dus daar valt zoomen buiten.
 
 **Kolommen gelden voor de taaktabel naast de Gantt.** Het onderdeel *Kolommen* legt de kolommen vast van de tabel links van de tijdlijn. De tabel op het tabblad *Tabel* houdt zijn eigen kolommen. Hoe je kolommen kiest, lees je in [Tabelkolommen aanpassen](docs://howto-tabelkolommen-aanpassen).
 
@@ -70,7 +70,7 @@ Layouts die niet dezelfde onderdelen vastleggen kunnen samen aan staan. Heb je e
 
 **De statusbalk telt niet mee.** Bij *Taken:* in de statusbalk staat het aantal taken van het hele project, ook als een filter er maar een deel van toont.
 
-**Layouts staan op je apparaat, niet in het project.** Je layouts en de kolommen bewaart de app voor al je projecten op dit apparaat. Het filter, de groepering en de sortering die op dit moment aan staan, horen bij het geopende project, maar komen niet in het projectbestand: na opslaan en heropenen is het beeld weer schoon. Ze maken het project ook niet "gewijzigd".
+**Layouts staan op je apparaat, niet in het project.** Je layouts en de kolommen bewaart de app voor al je projecten op dit apparaat. De overlays uit een layout (baseline, voortgangslijn en de rest) gelden voor al je projecten. Het filter, de groepering en de sortering die op dit moment aan staan, horen bij het geopende project, maar komen niet in het projectbestand: na opslaan en heropenen is het beeld weer schoon. Ze maken het project ook niet "gewijzigd".
 
 **De losse knoppen zijn verborgen.** *Kolommen…*, *Filteren…*, *Groeperen…* en *Sorteren…* als losse knoppen op het tabblad *Beeld* zijn een oude weergave. Je zet ze terug met *Klassieke weergaveknoppen tonen* onder *Legacy-functies* op het tabblad *Geavanceerd* van het instellingenvenster (⚙ in de titelbalk). Gebruik liever layouts.
 

@@ -29,7 +29,7 @@ Click *Split view* again. One window remains, with the view of the left window. 
 ### Turning on the mini-map
 
 1. In the *Presentation* group, click *Mini-map*.
-2. Below the timeline a strip appears of the whole project period, with all tasks as thin dashes and a frame around the part you see now.
+2. Below the timeline a strip appears of the whole project period, with the tasks of your current view as thin dashes (so after a filter only the tasks that filter shows) and a frame around the part you see now.
 3. Click anywhere on the strip to put the frame there. The window centers on that spot. Or grab the frame and drag it.
 
 The mini-map only moves the time window. The rows stay as they are.
@@ -40,7 +40,7 @@ If split view is on, each window gets its own strip, under its own part of the t
 
 **The mini-map does nothing if the whole project is already in view.** If you zoom out so far that the whole schedule fits, there is nothing to move to and clicking has no effect. Zoom in first.
 
-**The mini-map is only on the Gantt.** On the *Table* and *Report* tabs there is no timeline, so no mini-map and no split view either. They are back as soon as you return to a tab with the Gantt.
+**The mini-map is only on the Gantt.** On the *Table*, *IFC* and *Report* tabs and in the full resource panel (*Resources*, not *Resource dock*) there is no timeline, so no mini-map and no split view either. They are back as soon as you return to a view with the Gantt.
 
 **Split view belongs to the project, the mini-map does not.** Split view applies to the open project: if you switch to another project and back, it is still there. The mini-map is one choice for all projects and stays on or off after a restart. Both are screen choices: they do not go into the project file, do not make the project "modified" and are not in *Undo*.
 

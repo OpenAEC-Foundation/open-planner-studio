@@ -6,7 +6,7 @@ Doel: bepalen over welk stuk van de tijd een rapport gaat, bijvoorbeeld de komen
 
 Het weekoverleg wil weten wat er de komende vier weken gebeurt. De maandrapportage gaat over juni. Zonder periode krijg je de hele planning op papier. Vijf rapporten werken daarom met een *Rapportageperiode:*: *Look-ahead*, *Voortgangsrapport*, *Resourcebelasting*, *Resourcetoewijzingen* en het *Resourcediagram*. De andere rapporten hebben geen periode.
 
-De periode hangt niet aan een kalendermaand, maar aan een **referentiedag**: de statusdatum van je project, of vandaag als het project geen statusdatum heeft. *Volgende 4 weken* telt vanaf die dag. Schuif je de statusdatum op, dan schuift het venster mee.
+De periode hangt niet aan een kalendermaand, maar aan een **referentiedag**: de statusdatum van je project (de dag waarop je de voortgang peilt, zie [Voortgang, statusdatum en baseline](docs://uitleg-voortgang)), of vandaag als het project geen statusdatum heeft. *Volgende 4 weken* telt vanaf die dag. Schuif je de statusdatum op, dan schuift het venster mee.
 
 ## Stappen
 
@@ -55,15 +55,18 @@ De periode werkt niet in elk rapport hetzelfde.
 
 ## Valkuilen en wat de app dan doet
 
-**Er is geen statusdatum.** De app rekent dan met vandaag. Bij de tabelrapporten staat bovenaan *Geen statusdatum ingesteld — het rapport rekent met vandaag (29-09-2026).*, met je eigen datum van vandaag. Kijk dus naar *Van* en *Tot*: die staan dan rond vandaag, niet rond je planning.
+**Er is geen statusdatum.** De app rekent dan met vandaag. Bij de vier tabelrapporten met een periode (*Look-ahead*, *Voortgangsrapport*, *Resourcebelasting* en *Resourcetoewijzingen*) staat bij een relatieve periode bovenaan *Geen statusdatum ingesteld — het rapport rekent met vandaag (29-09-2026).*, met je eigen datum van vandaag. Het Resourcediagram meldt dit niet. Kijk dus naar *Van* en *Tot*: die staan dan rond vandaag, niet rond je planning.
 
 **De periode ligt buiten je planning.** Dan is het rapport leeg. Het Resourcediagram zegt dat met *Geen taken in de rapportageperiode — kies een andere periode of Hele project.* Bij de andere rapporten zie je nul activiteiten of geen regels.
 
 **De datums staan in je eigen notatie.** *Van* en *Tot* volgen de datumnotatie uit je instellingen, behalve in de datumvelden van *Aangepast*: die tonen de notatie van je browser.
 
-**Je wisselt van referentiedag en het venster verspringt.** Een relatieve keuze zoals *Volgende maand* wordt bij elke berekening opnieuw opgelost. Verandert de statusdatum, dan verandert de periode mee. Wil je een vaste periode, kies dan *Aangepast*.
+**De periode schuift mee.** Een relatieve keuze zoals *Volgende maand* wordt telkens opnieuw bepaald: verandert de statusdatum, of is het zonder statusdatum een dag later, dan schuift de periode direct mee. Wil je een vaste periode, kies dan *Aangepast*.
+
+**De keuze geldt voor al je projecten.** Ook een aangepaste periode geldt voor al je projecten op dit apparaat, niet alleen voor het geopende project.
 
 ## Zie ook
 
 - [Een rapport maken en afdrukken](docs://howto-rapport-maken-en-afdrukken): het hele traject van rapporttype tot PDF.
+- [Voortgang, statusdatum en baseline](docs://uitleg-voortgang): wat de statusdatum is en waarom de app ermee rekent.
 - [Overbezetting oplossen](docs://howto-overbezetting-oplossen): wat je doet met de overbelaste weken uit de Resourcebelasting.

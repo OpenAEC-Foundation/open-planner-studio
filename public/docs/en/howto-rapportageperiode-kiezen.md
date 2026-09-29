@@ -6,7 +6,7 @@ Goal: decide which stretch of time a report covers, for example the coming four 
 
 The weekly meeting wants to know what happens in the coming four weeks. The monthly report covers June. Without a period you get the whole schedule on paper. Five reports therefore work with a *Reporting period:*: *Look-ahead*, *Progress report*, *Resource loading*, *Resource assignments* and the *Resource diagram*. The other reports have no period.
 
-The period is not tied to a calendar month, but to a **reference day**: the status date of your project, or today if the project has no status date. *Next 4 weeks* counts from that day. If you move the status date, the window moves with it.
+The period is not tied to a calendar month, but to a **reference day**: the status date of your project (the day on which you measure progress, see [Progress, status date and baseline](docs://uitleg-voortgang)), or today if the project has no status date. *Next 4 weeks* counts from that day. If you move the status date, the window moves with it.
 
 ## Steps
 
@@ -55,15 +55,18 @@ The period does not work the same in every report.
 
 ## Pitfalls and what the app does
 
-**There is no status date.** The app then uses today. For the table reports it says at the top *No status date set — the report uses today (29-09-2026).*, with your own date of today. So look at *From* and *To*: they are then around today, not around your schedule.
+**There is no status date.** The app then uses today. For the four table reports with a period (*Look-ahead*, *Progress report*, *Resource loading* and *Resource assignments*) it says at the top, with a relative period, *No status date set — the report uses today (29-09-2026).*, with your own date of today. The Resource diagram does not report this. So look at *From* and *To*: they are then around today, not around your schedule.
 
 **The period lies outside your schedule.** Then the report is empty. The Resource diagram says so with *No tasks in the reporting period — choose another period or Whole project.* (in the list that choice is called *Project duration*). In the other reports you see zero activities or no rows.
 
 **The dates are in your own notation.** *From* and *To* follow the date notation from your settings, except in the date fields of *Custom*: those show the notation of your browser.
 
-**You change the reference day and the window jumps.** A relative choice such as *Next month* is resolved again at every calculation. If the status date changes, the period changes with it. If you want a fixed period, choose *Custom*.
+**The period moves along.** A relative choice such as *Next month* is determined anew each time: if the status date changes, or without a status date it is a day later, the period moves along at once. If you want a fixed period, choose *Custom*.
+
+**The choice applies to all your projects.** A custom period also applies to all your projects on this device, not only to the open project.
 
 ## See also
 
 - [Making and printing a report](docs://howto-rapport-maken-en-afdrukken): the whole route from report type to PDF.
+- [Progress, status date and baseline](docs://uitleg-voortgang): what the status date is and why the app calculates with it.
 - [Resolving overallocation](docs://howto-overbezetting-oplossen): what to do with the overloaded weeks from Resource loading.

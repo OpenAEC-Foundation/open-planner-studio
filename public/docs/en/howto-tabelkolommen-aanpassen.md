@@ -41,7 +41,7 @@ Drag a column header to another place. A pinned column you move among the pinned
 
 ### Back to the default
 
-Open the *Choose column* window and click *Reset to default* at the bottom. The button is grey if the columns already are the default. For the table on the *Table* tab, a column for every activity code and custom field of the project is added as well, even if you had removed those earlier. You can read about those codes and fields in [Codes and custom fields](docs://howto-codes-en-velden).
+Open the *Choose column* window and click *Reset to default* at the bottom. The button is grey if the columns already are the default. For the table on the *Table* tab, a column for every activity code and custom field of the project is added as well, even if you had removed those earlier. Those columns belong to the project the code or field is in. You can read about those codes and fields in [Codes and custom fields](docs://howto-codes-en-velden).
 
 ## Pitfalls and what the app does
 
