@@ -26,6 +26,7 @@ opdracht voor zijn spoor krijgt, moet zijn werk kunnen doen zonder terug te vrag
 | E8 | **Niet aan `public/docs/` komen**, en ook geen nieuwe verwijzingen naar help-artikelen in `src/state/helpArticles.ts` (poort 10 van `verify:docs` eist dat elk gebruikt artikel-id in het manifest staat; zie `docs/superpowers/specs/2026-09-28-gebruikersdocumentatie-diataxis-design.md` §6.3). Een functie die een eigen artikel nodig heeft, komt op de lijst *Gevolgen voor de gidsen*. De eigenaar herbouwt de documentatie. De gidsen zijn geen specificatie van hoe iets hoort te werken. Elke PR krijgt in plaats van gidswijzigingen een sectie *Gevolgen voor de gidsen* (per wijziging: welke gids iets moet zeggen en wat). `npm run verify:docs` moet wel groen blijven. |
 | E9 | Spoor R (gidsen tegen gedrag) vervalt; spoor M is alleen i18n en toegankelijkheid. |
 | E10 | **Geen testgroei zonder reden** (eigenaar, 2026-09-28: CI te traag, agents schrijven voor elk klein ding een test). Een nieuwe test moet de vier vragen van §2.2 doorstaan; liever een bestaande `cases-*.json` of check uitbreiden dan een nieuw bestand. Spoor T maakt CI sneller en ruimt de suite op. |
+| E11 | **Modelverdeling** (eigenaar, 2026-09-29, na de modelbenchmark van §5.1): audits (§2.5 stap 1) doet Sonnet 5.5; fixes (stap 3) doet alleen Opus 5.5. Verificatie en review (stap 2 en 4) doet een ander model dan de auteur (Opus of Fable 5.1). De orkestrator controleert vóór elke golf met een identiteitsprobe welk model achter de alias `sonnet` zit. |
 
 ---
 
@@ -431,6 +432,9 @@ geruchten of benchmarks van derden:
   zijn, en de kosten (tokens, tijd);
 - de orkestrator zet de uitslag met een voorstel voor de verdeling (audit, verificatie, fixes,
   review) voor de eigenaar klaar.
+
+**Uitgevoerd op 2026-09-28** (grootboek, sectie *Modelbenchmark*; rapporten in
+`2026-09-28-modelbenchmark/`). Besluit van de eigenaar: E11.
 
 ## 6. Golven
 
