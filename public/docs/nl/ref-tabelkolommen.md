@@ -4,13 +4,13 @@ De takentabel heeft 86 vaste kolommen, plus een kolom per activity code en eigen
 
 ## Waar je kolommen kiest
 
-De takentabel naast de Gantt en de tabel op het tabblad *Tabel* hebben elk hun eigen kolomkeuze. Het plusje rechts in de kop opent de kolomkiezer; op *Tabel* kan het ook met *Tabel › Kolommen › Kolommen…*. In de kiezer staan de kolommen per categorie: *Taak*, *Planning*, *Beperkingen*, *Relaties*, *Resources*, *Voortgang*, *Berekend*, *Baseline*, *Aangepast* en *Technisch*. Je zoekt op naam, en bovenaan staat *Laatst gebruikt*. *Herstel standaard* zet de standaardkolommen terug.
+De takentabel naast de Gantt en de tabel op het tabblad *Tabel* hebben elk hun eigen kolomkeuze. Het plusje rechts in de kop opent de kolomkiezer (venstertitel *Kolom kiezen*); op *Tabel* kan het ook met *Tabel › Kolommen › Kolommen…*. In de kiezer staan de kolommen per categorie: *Taak*, *Planning*, *Beperkingen*, *Relaties*, *Resources*, *Voortgang*, *Berekend*, *Baseline*, *Aangepast* en *Technisch*. Je zoekt op naam, en bovenaan staat *Laatst gebruikt*. *Herstel standaard* zet de standaardkolommen terug.
 
 Standaard toont de tabel naast de Gantt *WBS*, *Taaknaam* en *Duur*. De tabel op het tabblad *Tabel* toont *WBS*, *Taaknaam*, *Duur*, *Start*, *Einde*, *Taaktype*, *Kritiek*, *Totale speling* en *Voortgang*, plus een kolom per activity code en eigen veld van het project.
 
 ## Hoe je waarden leest en bewerkt
 
-- **Berekende kolommen** — de kolommen in de categorie *Berekend* en een aantal andere zijn alleen-lezen: ze komen uit de berekening. Probeer je er een te bewerken, dan zegt de app *Deze berekende kolom kan niet worden bewerkt.* Zijn ze verouderd omdat je iets wijzigde, dan staat er *verouderd* bij tot je *Bereken* drukt.
+- **Berekende kolommen** — de kolommen in de categorie *Berekend* en een aantal andere zijn alleen-lezen: ze komen uit de berekening. Probeer je een alleen-lezen cel te bewerken, dan zegt de app *Deze berekende kolom kan niet worden bewerkt.* Die tekst is de algemene melding voor elke alleen-lezen cel, ook als de kolom niet berekend is. Zijn ze verouderd omdat je iets wijzigde, dan staat er *verouderd* bij tot je *Bereken* drukt.
 - **Datums** — staan in de notatie die je koos onder *Instellingen*, tabblad *Weergave*, kop *Datumnotatie*.
 - **Duren en speling** — een duur staat in de eenheid van de taak (`5d`, `12h`), of volgens *Duurweergave* op hetzelfde tabblad (*Automatisch (eigen eenheid per taak)*, *Altijd dagen* of *Altijd uren*). Speling staat in werkdagen met twee decimalen en het decimaalteken van je taal.
 - **Ja/Nee** — een ja/nee-waarde staat als *Ja* of *Nee*; een lege waarde als een streepje (—).
@@ -23,7 +23,7 @@ Standaard toont de tabel naast de Gantt *WBS*, *Taaknaam* en *Duur*. De tabel op
 - **WBS** — de WBS-code. Bewerkbaar en verplicht, maar alleen-lezen zolang *WBS auto* aan staat.
 - **Taaktype** — het taaktype (*Bouw*, *Installatie*, *Sloop*, *Logistiek*, *Keuring/Inspectie*, *Verplaatsing*, *Renovatie*, *Onderhoud* of *Overig*). Bewerkbaar met een keuzelijst.
 - **Eigen taaktype** — het eigen taaktype uit het project, of een streepje. Bewerkbaar met een keuzelijst van de eigen typen van het project.
-- **Kleur** — de bewaarde kleur van de taak, als kleurcode zoals `#1a73e8`. Bewerkbaar met een kleurkiezer. De Gantt-balken gebruiken hem niet; balkkleuren stel je in bij *Beeld › Baselines & voortgang › Balkkleuren*.
+- **Kleur** — de bewaarde kleur van de taak, als kleurcode zoals `#1a73e8`. Bewerkbaar met een kleurkiezer. Hij wordt in het IFC-bestand bewaard, maar geen balk of rapport gebruikt hem; balkkleuren stel je in bij *Beeld › Baselines & voortgang › Balkkleuren*.
 - **Aantekeningen** — de aantekeningen als `✓ tekst; ○ tekst`. Bewerkbaar zolang er hoogstens één aantekening is (je bewerkt dan de tekst ervan); bij meer aantekeningen alleen-lezen.
 
 ## Planning
@@ -35,12 +35,12 @@ Standaard toont de tabel naast de Gantt *WBS*, *Taaknaam* en *Duur*. De tabel op
 - **Onderbrekingen** — het aantal onderbrekingen, als `Onderbrekingen: 2`, of een streepje. Alleen-lezen; bewerken doe je in het paneel *Eigenschappen*.
 - **Werkregel** — de werkregel van de taak; leeg is de projectstandaard. Bewerkbaar met een keuzelijst, maar leeg en alleen-lezen bij een mijlpaal, samenvattingstaak of hammock. Alleen zichtbaar in de kiezer als de werkregels zichtbaar zijn (*Toon werkregels en werk*, of het bestand draagt werkregels).
 - **Hammock (afgeleide duur)** — of de taak een hammock is. Bewerkbaar, behalve bij een mijlpaal of samenvattingstaak.
-- **Kalender** — de kalender van de taak; leeg is de projectkalender. Bewerkbaar met een keuzelijst van de kalenders van het project. De cel toont de interne id van de kalender, niet zijn naam.
+- **Kalender** — de id van de eigen kalender van de taak; leeg (—) is de projectkalender. Je typt of kiest een id uit de suggesties; een onbekende id wordt geweigerd. Let op: de cel toont nu de interne id in plaats van de naam; kies een kalender liever in het paneel *Eigenschappen*.
 - **Duurtype** — *Werktijd* (de duur telt in werkdagen of werkuren van de kalender) of *Verstreken tijd* (de duur telt in doorlopende kloktijd, zonder kalender). Bewerkbaar.
 - **Duureenheid** — *Dagen* of *Uren*. Bewerkbaar behalve bij een samenvattingstaak, hammock of mijlpaal; wisselen kan alleen als de omrekening exact klopt en *Urenplanning inschakelen* aan staat.
 - **Duur** — de duur van de taak, in de eenheid van de taak of volgens *Duurweergave*. Bewerkbaar: typ `5d`, `12h` of `1h 30m`; ook een getal in de eenheid van de taak. Alleen-lezen bij een samenvattingstaak, hammock en mijlpaal met duur 0.
 - **Start** — de getoonde start, dezelfde datum als de Gantt-balk. Bewerkbaar. Een taak met voorganger die je een nieuwe start geeft, krijgt de constraint *Start niet eerder dan (SNET)* op die datum. Alleen-lezen bij een samenvattingstaak of hammock, tenzij handmatig gepland.
-- **Einde** — het getoonde einde. Bewerkbaar: een nieuw einde wordt een nieuwe duur. De app weigert het bij een voltooide taak, een mijlpaal, een taak in verstreken tijd en een taak met onderbrekingen. Alleen-lezen bij een samenvattingstaak of hammock, tenzij handmatig gepland.
+- **Einde** — het getoonde einde. Bewerkbaar: een nieuw einde wordt een nieuwe duur. De app weigert het bij een voltooide taak, een mijlpaal, een taak in verstreken tijd en een taak met onderbrekingen, en een einde vóór de start (*Het einde ligt vóór de start.*). Alleen-lezen bij een samenvattingstaak of hammock, tenzij handmatig gepland.
 - **Geplande start** — het planningsanker waar de berekening van uitgaat (niet noodzakelijk de getoonde start). Bewerkbaar; hetzelfde effect als typen in *Start*.
 - **Gepland einde** — het ingevoerde einde. Alleen bewerkbaar bij een handmatig geplande taak; anders zegt de app *Gepland einde telt alleen bij een handmatig geplande taak. Wijzig het einde via de kolom Einde of via de duur.*
 
@@ -49,13 +49,13 @@ Standaard toont de tabel naast de Gantt *WBS*, *Taaknaam* en *Duur*. De tabel op
 - **Constrainttype** — het type van de constraint, van *Zo vroeg mogelijk (ASAP)* tot *Moet eindigen op (MFO)*. Bewerkbaar; een taak zonder constraint toont *ASAP*.
 - **Constraintdatum** — de datum bij de constraint. Bewerkbaar.
 - **Harde constraint** — de vlag *Verplicht (pin logica)*. Alleen bij *MSO* en *MFO* te bewerken.
-- **Type secundaire constraint** — het type van de tweede grens (*SNET*, *FNET*, *SNLT* of *FNLT*), of een streepje. Bewerkbaar.
+- **Type secundaire constraint** — het type van de tweede grens, of een streepje. Bewerkbaar; de tabel biedt alle typen aan, maar een niet-toegestane combinatie wordt geweigerd: het moet *SNET*, *FNET*, *SNLT* of *FNLT* zijn, de primaire constraint moet een grens zijn (geen *ASAP*, *ALAP*, *MSO*, *MFO* of harde constraint) en de twee moeten aan verschillende kanten begrenzen (een ondergrens *SNET*/*FNET* met een bovengrens *SNLT*/*FNLT*, of omgekeerd).
 - **Datum secundaire constraint** — de datum bij de tweede grens. Bewerkbaar.
 - **Deadline** — de streefdatum voor het einde. Bewerkbaar.
 
 ## Relaties
 
-- **Voorgangers** — de voorgangers, als `WBS type±lag`, gescheiden door `; `, bijvoorbeeld `1.2 FS+2d`. Bewerkbaar door dezelfde vorm te typen. Een externe relatie voeg je niet hier toe maar met *Relatie › Externe relatie toevoegen…*.
+- **Voorgangers** — de voorgangers, als `WBS type±lag`, gescheiden door `; `, bijvoorbeeld `1.2 FS+2d`. Bewerkbaar door dezelfde vorm te typen. Een externe relatie voeg je niet hier toe maar met *Planning › Relaties › Relatie › Externe relatie toevoegen…*.
 - **Opvolgers** — de opvolgers, in dezelfde vorm. Bewerkbaar.
 - **Bepalend** — de relaties die de datum van deze taak bepalen, als `← 1.2` (voorganger) of `→ 1.4` (opvolger). Alleen-lezen; verouderd tot *Bereken*.
 - **Vrije speling** (in de categorie *Relaties*) — de vrije speling per relatie, als `← 1.2: 3d`. Niet dezelfde kolom als *Vrije speling* onder *Berekend*, die de speling van de taak zelf toont. Alleen-lezen.
@@ -109,7 +109,7 @@ Per baseline van het project komen er kolommen bij, met de naam van de baseline 
 
 ## Aangepast
 
-- **Activity code** — een kolom per activity code, met de naam van de code. Toont de code van de gekozen waarde. Bewerkbaar met een keuzelijst; een onbekende waarde wordt geweigerd.
+- **Activity code** — een kolom per activity code, met de naam van de code. Toont de code van de gekozen waarde. Bewerkbaar: je typt de code of kiest hem uit de suggesties; een onbekende code wordt geweigerd, en komt een code meer dan eens voor, dan vraagt de app hem uit de lijst te kiezen.
 - **Eigen veld** — een kolom per eigen veld, met zijn naam. De invoer past bij het type: tekst, getal, geheel getal, kosten, datum of ja/nee. Bewerkbaar.
 
 Deze kolommen horen bij het project waar de code of het veld in staat. Zie [Codes en eigen velden](docs://howto-codes-en-velden).

@@ -4,13 +4,13 @@ The task table has 86 fixed columns, plus one column per activity code and custo
 
 ## Where you choose columns
 
-The task table next to the Gantt and the table on the *Table* tab each have their own column choice. The plus at the right of the header opens the column picker; on *Table* you can also use *Table › Columns › Columns…*. The picker lists the columns per category: *Task*, *Planning*, *Constraints*, *Relations*, *Resources*, *Progress*, *Calculated*, *Baseline*, *Custom* and *Technical*. You search by name, and *Recently used* is at the top. *Reset to default* restores the default columns.
+The task table next to the Gantt and the table on the *Table* tab each have their own column choice. The plus at the right of the header opens the column picker (window title *Choose column*); on *Table* you can also use *Table › Columns › Columns…*. The picker lists the columns per category: *Task*, *Planning*, *Constraints*, *Relations*, *Resources*, *Progress*, *Calculated*, *Baseline*, *Custom* and *Technical*. You search by name, and *Recently used* is at the top. *Reset to default* restores the default columns.
 
 By default the table next to the Gantt shows *WBS*, *Task name* and *Duration*. The table on the *Table* tab shows *WBS*, *Task name*, *Duration*, *Start*, *Finish*, *Task type*, *Critical*, *Total float* and *Progress*, plus a column per activity code and custom field of the project.
 
 ## How values are read and edited
 
-- **Calculated columns** — the columns in the category *Calculated* and a number of others are read-only: they come from the calculation. If you try to edit one, the app says *This calculated column cannot be edited.* If they are out of date because you changed something, *outdated* appears next to them until you press *Calculate*.
+- **Calculated columns** — the columns in the category *Calculated* and a number of others are read-only: they come from the calculation. If you try to edit a read-only cell, the app says *This calculated column cannot be edited.* That text is the general message for every read-only cell, also when the column is not calculated. If they are out of date because you changed something, *outdated* appears next to them until you press *Calculate*.
 - **Dates** — appear in the notation you chose under *Settings*, tab *View*, heading *Date format*.
 - **Durations and float** — a duration appears in the unit of the task (`5d`, `12h`), or according to *Duration display* on the same tab (*Automatic (native unit per task)*, *Always days* or *Always hours*). Float appears in working days with two decimals and the decimal separator of your language.
 - **Yes/No** — a yes/no value appears as *Yes* or *No*; an empty value as a dash (—).
@@ -23,7 +23,7 @@ By default the table next to the Gantt shows *WBS*, *Task name* and *Duration*. 
 - **WBS** — the WBS code. Editable and required, but read-only while *WBS auto* is on.
 - **Task type** — the task type (*Construction*, *Installation*, *Demolition*, *Logistics*, *Inspection*, *Relocation*, *Renovation*, *Maintenance* or *Other*). Editable with a list.
 - **Custom task type** — the custom task type from the project, or a dash. Editable with a list of the project's custom types.
-- **Colour** — the stored colour of the task, as a colour code such as `#1a73e8`. Editable with a colour picker. The Gantt bars do not use it; you set bar colours under *View › Baselines & progress › Bar colors*.
+- **Colour** — the stored colour of the task, as a colour code such as `#1a73e8`. Editable with a colour picker. It is stored in the IFC file, but no bar or report uses it; you set bar colours under *View › Baselines & progress › Bar colors*.
 - **Notes** — the notes as `✓ text; ○ text`. Editable as long as there is at most one note (you then edit its text); with more notes read-only.
 
 ## Planning
@@ -35,12 +35,12 @@ By default the table next to the Gantt shows *WBS*, *Task name* and *Duration*. 
 - **Split gaps** — the number of breaks, as `Split gaps: 2`, or a dash. Read-only; you edit them in the *Properties* panel.
 - **Work rule** — the work rule of the task; empty is the project default. Editable with a list, but empty and read-only on a milestone, summary task or hammock. Only visible in the picker when the work rules are visible (*Show work rules and work*, or the file carries work rules).
 - **Hammock (derived duration)** — whether the task is a hammock. Editable, except on a milestone or summary task.
-- **Calendar** — the calendar of the task; empty is the project calendar. Editable with a list of the project's calendars. The cell shows the internal id of the calendar, not its name.
+- **Calendar** — the id of the task's own calendar; empty (—) is the project calendar. You type or pick an id from the suggestions; an unknown id is refused. Note: the cell currently shows the internal id instead of the name; better pick a calendar in the *Properties* panel.
 - **Duration type** — *Work time* (the duration counts in working days or working hours of the calendar) or *Elapsed time* (the duration counts in continuous clock time, without a calendar). Editable.
 - **Duration unit** — *Days* or *Hours*. Editable except on a summary task, hammock or milestone; switching only works if the conversion is exact and *Enable hour planning* is on.
 - **Duration** — the duration of the task, in the unit of the task or according to *Duration display*. Editable: type `5d`, `12h` or `1h 30m`; also a number in the unit of the task. Read-only on a summary task, a hammock and a milestone with duration 0.
 - **Start** — the displayed start, the same date as the Gantt bar. Editable. A task with a predecessor that you give a new start gets the constraint *Start no earlier than (SNET)* on that date. Read-only on a summary task or hammock, unless manually scheduled.
-- **Finish** — the displayed finish. Editable: a new finish becomes a new duration. The app refuses it for a completed task, a milestone, a task in elapsed time and a task with breaks. Read-only on a summary task or hammock, unless manually scheduled.
+- **Finish** — the displayed finish. Editable: a new finish becomes a new duration. The app refuses it for a completed task, a milestone, a task in elapsed time and a task with breaks, and for a finish before the start (*The finish lies before the start.*). Read-only on a summary task or hammock, unless manually scheduled.
 - **Scheduled start** — the scheduling anchor the calculation starts from (not necessarily the displayed start). Editable; same effect as typing in *Start*.
 - **Scheduled finish** — the entered finish. Only editable on a manually scheduled task; otherwise the app says *Scheduled finish only applies to a manually scheduled task. Change the finish through the Finish column or the duration.*
 
@@ -49,13 +49,13 @@ By default the table next to the Gantt shows *WBS*, *Task name* and *Duration*. 
 - **Constraint type** — the type of the constraint, from *As soon as possible (ASAP)* to *Must finish on (MFO)*. Editable; a task without a constraint shows *ASAP*.
 - **Constraint date** — the date of the constraint. Editable.
 - **Hard constraint** — the flag *Mandatory (pin logic)*. Only editable on *MSO* and *MFO*.
-- **Secondary constraint type** — the type of the second bound (*SNET*, *FNET*, *SNLT* or *FNLT*), or a dash. Editable.
+- **Secondary constraint type** — the type of the second bound, or a dash. Editable; the table offers all types, but a combination that is not allowed is refused: it must be *SNET*, *FNET*, *SNLT* or *FNLT*, the primary constraint must be a bound (not *ASAP*, *ALAP*, *MSO*, *MFO* or a hard constraint) and the two must bound opposite sides (a lower bound *SNET*/*FNET* with an upper bound *SNLT*/*FNLT*, or the other way round).
 - **Secondary constraint date** — the date of the second bound. Editable.
 - **Deadline** — the target date for the finish. Editable.
 
 ## Relations
 
-- **Predecessors** — the predecessors, as `WBS type±lag`, separated by `; `, for example `1.2 FS+2d`. Editable by typing the same form. You do not add an external relation here but with *Relation › Add external relation…*.
+- **Predecessors** — the predecessors, as `WBS type±lag`, separated by `; `, for example `1.2 FS+2d`. Editable by typing the same form. You do not add an external relation here but with *Planning › Relations › Link › Add external relation…*.
 - **Successors** — the successors, in the same form. Editable.
 - **Driving** — the relations that determine the date of this task, as `← 1.2` (predecessor) or `→ 1.4` (successor). Read-only; outdated until *Calculate*.
 - **Free float** (in the category *Relations*) — the free float per relation, as `← 1.2: 3d`. Not the same column as *Free float* under *Calculated*, which shows the float of the task itself. Read-only.
@@ -109,7 +109,7 @@ For each baseline of the project, columns are added, with the name of the baseli
 
 ## Custom
 
-- **Activity code** — one column per activity code, with the name of the code. Shows the code of the chosen value. Editable with a list; an unknown value is refused.
+- **Activity code** — one column per activity code, with the name of the code. Shows the code of the chosen value. Editable: you type the code or pick it from the suggestions; an unknown code is refused, and if a code occurs more than once the app asks you to choose it from the list.
 - **Custom field** — one column per custom field, with its name. The input fits the type: text, number, integer, cost, date or yes/no. Editable.
 
 These columns belong to the project the code or field is in. See [Codes and custom fields](docs://howto-codes-en-velden).

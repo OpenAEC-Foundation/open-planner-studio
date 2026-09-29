@@ -4,8 +4,7 @@ The ribbon at the top of the screen has tabs, and each tab has groups of buttons
 
 ## How the ribbon behaves
 
-- **Tabs** — *File* is on the left, then *Home*, *Planning*, *Resources*, *View*, *Settings*, *Table*, *IFC*, *Report* and, only with AI mode on, *AI*. In Dutch, *Home* is called *Start*, *View* is *Beeld* and *Settings* is *Instellingen*.
-- **Disabled buttons** — a greyed-out button does nothing. The condition is given with the button below.
+- **Tabs** — *File* is on the left, then *Home*, *Planning*, *Resources*, *View*, *Settings*, *Table*, *IFC*, *Report* and, only with AI mode on, *AI*.
 - **Narrow window** — when the ribbon does not fit, buttons shrink to an icon from right to left. The name is then the tooltip on the button. Every button without its own tooltip shows its name.
 - **Collapse the ribbon** — the small arrow at the bottom right of the ribbon turns it into a flat strip with icons only. The *Baselines & progress* group and the *Connection* group on the AI tab then disappear behind a single button with a pop-up. Default: expanded. Your choice is remembered.
 - **Extension buttons** — an extension can add its own group at the end of a tab. Such a button does what the extension gave it.
@@ -16,17 +15,17 @@ Clicking *File* makes a screen of its own (the Backstage) take over the workspac
 
 - **New** — opens the *New project* window and closes the Backstage.
 - **Open** — picks a file and opens it as a document. Closes the Backstage.
-- **Recent** — a list of recently opened projects; a click opens one. Only visible when the environment can reopen files: in the desktop app and in browsers that offer file access, such as Chrome and Edge. In other browsers the list is missing.
+- **Recent** — a list of recently opened projects; a click opens one. Only visible when the environment can reopen files: in the desktop app and in browsers that offer file access, such as Chrome and Edge. In other browsers the button is there, but the page stays empty.
 - **Examples** — bundled example schedules, split into *Full showcase schedules* (badge *All features*) and *Simple examples*. A click opens one in a new tab.
 - **Save** — writes the project to the file of this document. If the document has no file yet, you first choose a name and place. A file you opened in a format other than IFC is never overwritten; then *Save* asks for a name and place for an IFC file.
 - **Save As** — picks a new name or place and saves there as IFC.
 - **Export** — cards per export format, with a description. A click converts the project and saves it, and takes you back to *Home*. If the schedule has a cycle, the error appears in the Backstage and you stay there. If the project is linked to a resource library, the checkbox *Save library file alongside* appears below; it only works for the IFC card.
 - **Import** — at the top the card *Update progress from a spreadsheet* (disabled without tasks), below it the importers that extensions add.
 - **Print** — the button *Open print preview* takes you to the *Report* tab.
-- **Project info** — the metadata and calculation profile of this project. Changes only take effect after *Apply*.
+- **Project info** — the metadata and calculation profile of this project. Changes only take effect after *Apply*. See [Calculation profiles and conventions](docs://uitleg-rekenprofielen).
 - **Settings** — the same settings as the *Settings* window.
-- **Extensions** — manage and install extensions.
-- **Library** — manage resource libraries.
+- **Extensions** — management and installation of extensions; see [Installing and managing an extension](docs://howto-extensie-installeren).
+- **Library** — management of resource libraries; see [Managing and sharing resource libraries](docs://howto-bibliotheken-beheren).
 - **Help** — the built-in documentation, with search and a documentation language.
 - **Start tour** — closes the Backstage and starts the tour at step 1.
 - **Close project** — closes the active document. If it has unsaved changes, the app asks for confirmation.
@@ -35,10 +34,7 @@ Clicking *File* makes a screen of its own (the Backstage) take over the workspac
 
 ### Home › File
 
-- **New** — opens the *New project* window.
-- **Save** — same action as *File › Save*.
-- **Open** — same action as *File › Open*.
-- **Save As** — same action as *File › Save As*.
+- **New**, **Save**, **Open** and **Save As** — the same actions as in *File*.
 - **Recent** — drop-down with the recent projects; a click opens one. Only visible under the same condition as *File › Recent*. Without recent files it says *No recent files*.
 - **Export** — drop-down with the export formats (short names). A click converts the project and saves it.
 
@@ -50,9 +46,9 @@ Clicking *File* makes a screen of its own (the Backstage) take over the workspac
 
 ### Home › Tasks
 
-- **Task** — adds a task named *New task*, with a duration of 5 working days, starting on the project start. (If *Enable hour planning* is on and the *Default unit for new tasks* in *Project info* is hours, the duration is 5 hours.) If a task is selected and the view is the plain tree, it lands directly below the lowest selected task (tooltip *New task directly below the selection*). Otherwise it goes at the bottom (tooltip *New task at the bottom of the list*). When you are filtering, grouping or sorting, it goes at the bottom and a strip says *Not available while filtering/grouping/sorting*. The new task becomes the only selection, the Gantt jumps to it and its name is ready to overwrite in the *Properties* panel.
-- **Milestone ▾** — a drop-down that puts a milestone (duration 0) in the same place as *Task*. *Start milestone* and *Finish milestone* set the kind of milestone. *Inspection point (mandatory)* makes a finish milestone with task type *Inspection* and the flag *Mandatory (contractual)*, named *New inspection point*.
-- **Link ▾** — a drop-down with four fixed actions; the main button never changes meaning. In Dutch the button is called *Relatie*. See *Planning › Relations* for the four actions.
+- **Task** — adds a task named *New task*, with a duration of 5 working days, starting on the project start. (If *Enable hour planning* is on and the *Default unit for new tasks* in *Project info* is hours, the duration is 5 hours.) If a task is selected and the view is the plain tree, it lands directly below the lowest selected task (tooltip *New task directly below the selection*). With no selection it goes at the bottom (tooltip *New task at the bottom of the list*). With a selection but while filtering, grouping or sorting, it also goes at the bottom and a strip says *Not available while filtering/grouping/sorting*. The new task becomes the only selection, the Gantt jumps to it and its name is ready to overwrite in the *Properties* panel.
+- **Milestone ▾** — a drop-down that puts a milestone (duration 0) in the same place as *Task*. *Start milestone* and *Finish milestone* set the kind of milestone; the new milestone is named *New milestone* and gets task type *Other*. *Inspection point (mandatory)* makes a finish milestone with task type *Inspection* and the flag *Mandatory (contractual)*, named *New inspection point*.
+- **Link ▾** — a drop-down with four fixed actions; the main button never changes meaning. See *Planning › Relations* for the four actions.
 - **Split task** — turns split mode on or off. On: a strip under the ribbon explains that you click on a bar where the break starts and drag right for its length. Disabled when the Gantt is not in view (on the *Table*, *IFC* and *Report* tabs and under the full resource panel); the tooltip then says *Only available when the Gantt chart is visible*. See [Splitting a task](docs://howto-taak-splitsen).
 
 ### Home › Schedule
@@ -68,18 +64,19 @@ Clicking *File* makes a screen of its own (the Backstage) take over the workspac
 
 ### Planning › Schedule
 
-- **Calculate** — same as on *Home*.
+The *Calculate* button is the same as on *Home*.
+
 - **Move project…** — opens the *Move project* window. Disabled without a project start date. See [Moving a project](docs://howto-project-verplaatsen).
 - **Warnings** — shows or hides the *Warnings* panel in the right-hand column. The button lights up while you can see the panel. Turning it on expands a collapsed column. What is in it is described in [Notifications and warnings](docs://ref-meldingen).
 
 ### Planning › Relations
 
-- **Link ▾** — a drop-down with four actions:
+The group has the *Link ▾* button with four actions and the *Split task* button (same as on *Home*). The four actions:
+
 - **Draw relation** — turns link mode on or off; a check mark appears when it is on, and the main button lights up. On: you drag from one bar to another in the Gantt to create a relation, and a strip under the ribbon says how to stop (*Stop* or Esc). Disabled when the Gantt is not in view.
 - **Link selected tasks** — creates a Finish-Start relation without lag between two tasks; the one selected first becomes the predecessor. Only available with exactly two tasks selected (otherwise *Select exactly two tasks*). A duplicate relation or a cycle is refused with a message.
 - **Add external relation…** — opens a window to add an external predecessor or successor to the selected task. Only available with exactly one task selected (otherwise *Select exactly one task*).
 - **Refresh all external relations** — refreshes the anchors of all external relations and reports in the menu how many were updated or are missing. Only available when the project has external relations (otherwise *This project has no external relations*).
-- **Split task** — same as on *Home*.
 
 For the why of relations see [Creating relations](docs://howto-relaties-leggen) and [Relations and lag](docs://uitleg-relaties).
 
@@ -92,7 +89,7 @@ You can have both on at once; a second click on a button turns that side off aga
 
 ### Planning › Calendar
 
-- **Calendar** — opens the *Calendars* window with the project's calendar library. See [Calendar dialog](docs://ref-kalenders).
+- **Calendar** — opens the *Calendars* window with the project's calendar library. See [Calendar windows](docs://ref-kalenders).
 
 ### Planning › Structure
 
@@ -176,8 +173,8 @@ This group is also on *Table* and *Report*.
 ### View › Panels
 
 - **Properties** — shows or hides the *Properties* panel in the right-hand column. Default: on. See [Task dialog and properties panel](docs://ref-taak-eigenschappen).
-- **Resources**, **Resource dock** and **Histogram** — the same buttons as on *Resources*.
-- **Warnings** — the same button as on *Planning*.
+
+The *Resources*, *Resource dock* and *Histogram* buttons are the same as on *Resources*, and *Warnings* is the same as on *Planning*.
 
 ### View › Baselines & progress
 
@@ -200,7 +197,7 @@ This group has the same name as the one on *Planning*, but holds the drawing opt
 
 ### Settings › Calendar
 
-- **Calendar** — the same button as on *Planning*.
+The *Calendar* button is the same as on *Planning*.
 
 ### Settings › Keyboard Shortcuts
 
@@ -214,27 +211,19 @@ The *Table* tab shows the tasks as a full table instead of the Gantt. The groups
 
 - **Columns…** — opens the column picker of this table. The same picker opens with the plus in the table header. The tooltip says *Choose the columns of the Table view*. See [Adjusting table columns](docs://howto-tabelkolommen-aanpassen) and [Table columns](docs://ref-tabelkolommen).
 
-### Table › Progress
-
-- **Export progress sheet** and **Update progress from a spreadsheet** — same as on *Planning*.
-
 ## IFC
 
-- **IFC 4x3 - Industry Foundation Classes** — a line of text without a button; the ribbon itself has nothing to operate here. The tab shows the IFC panel in the workspace.
+The tab shows the IFC panel in the workspace. The ribbon has no buttons here, only the line of text *IFC 4x3 - Industry Foundation Classes*.
 
 ## Report
 
 ### Report › Report
 
-- **Print** — takes you to the *Report* tab. If that is already open, nothing visible happens. The report choices are in the report screen itself.
-
-### Report › Progress
-
-- **Export progress sheet** and **Update progress from a spreadsheet** — same as on *Planning*.
+- **Print** — only on this tab, where it does nothing because *Report* is already open; the report choices are in the report screen.
 
 ## AI
 
-The *AI* tab only exists when *Enable AI mode* is on (*Settings*, tab *Advanced*, heading *AI mode*). Default: off. Turning it off removes the tab and stops the bridge. An AI assistant works with your schedule through an MCP bridge that you start here.
+The *AI* tab only exists when *Enable AI mode* is on (*Settings*, tab *Advanced*, heading *AI mode*). Default: off. Turning it off removes the tab and stops the bridge. An AI assistant works with your schedule through an MCP bridge that you start here. See [Connecting an AI assistant (MCP)](docs://howto-ai-assistent-koppelen).
 
 ### AI › Server
 

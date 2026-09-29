@@ -27,7 +27,7 @@ Veranderde je iets dat de datums raakt, druk dan op *Bereken*. Berekenen gebeurt
 ## Mijlpaal
 
 - **Mijlpaal** — maakt van de taak een mijlpaal. Standaard: uit. Effect: de duur wordt 0. De app weigert het bij een samenvattingstaak (een taak met subtaken) en bij een taak met resource-toewijzingen, met een melding; verwijder eerst de toewijzingen. Zet je het vinkje weer uit, dan verdwijnen *Soort mijlpaal* en *Verplicht (contractueel)*.
-- **Soort mijlpaal** (alleen bij een mijlpaal) — *Automatisch*, *Startmijlpaal* of *Eindmijlpaal*. Standaard: *Automatisch*. Effect: een startmijlpaal staat aan het begin van een dag, een eindmijlpaal aan het einde. Bij *Automatisch* volgt het anker de bepalende relatiezijde: Eind-Start en Start-Start geven een start, Eind-Eind en Start-Eind een einde.
+- **Soort mijlpaal** (alleen bij een mijlpaal) — *Automatisch*, *Startmijlpaal* of *Eindmijlpaal*. Standaard: *Automatisch*. Effect: een startmijlpaal staat aan het begin van een dag, een eindmijlpaal aan het einde. Bij *Automatisch* geldt de mijlpaal als voorganger als een startmijlpaal, aan het begin van de dag.
 - **Verplicht (contractueel)** (alleen bij een mijlpaal) — markeert een contractuele mijlpaal, zoals een inspectie of oplevering. Standaard: uit. Effect: een markering voor Gantt en rapporten; het bewaakt geen datum. Dat doe je met een constraint of deadline.
 
 ## Tijd
@@ -43,6 +43,8 @@ Veranderde je iets dat de datums raakt, druk dan op *Bereken*. Berekenen gebeurt
 
 ## Constraint en deadline
 
+Op een samenvattingstaak heeft een constraint of deadline geen effect: de berekening rekent alleen bladtaken door en leidt de datums van een samenvattingstaak af uit haar subtaken.
+
 - **Constraint** — een datumgrens voor de taak. Keuzes: *Zo vroeg mogelijk (ASAP)*, *Zo laat mogelijk (ALAP)*, *Start niet eerder dan (SNET)*, *Start niet later dan (SNLT)*, *Eindig niet eerder dan (FNET)*, *Eindig niet later dan (FNLT)*, *Moet starten op (MSO)* en *Moet eindigen op (MFO)*. Standaard: *ASAP*, dat is geen constraint. Kies je ASAP, dan verdwijnen alle constraints van de taak; kies je ALAP, dan verdwijnt de secundaire. Effect na *Bereken*: een grens verschuift de taak of laat de speling negatief worden. Zie [Constraints en deadlines](docs://uitleg-constraints).
 - **Constraint-datum** — de datum bij de constraint. Zichtbaar bij elke constraint behalve *ALAP*. Verplicht; een nieuwe constraint krijgt de geplande start als datum.
 - **Verplicht (pin logica)** — alleen bij *MSO* en *MFO*. Standaard: uit. Aan: de datum is hard, overschrijft de relaties en zet de balk ook vóór zijn voorgangers vast. Een overtreding wordt negatieve speling stroomopwaarts. De eerste keer dat je hem aanzet, verschijnt eenmalig een toelichting.
@@ -51,10 +53,9 @@ Veranderde je iets dat de datums raakt, druk dan op *Bereken*. Berekenen gebeurt
 
 ## Voortgang
 
-- **Voortgang (%)** — een schuif van 0 tot 100. Standaard: 0. Effect: boven 0 vult de app een ontbrekende *Werkelijke start* in, en 100 vult het *Werkelijke einde* in. De status volgt: *Niet gestart* zonder werkelijke start, *Bezig* met een werkelijke start en *Voltooid* bij een werkelijk einde. De rest-duur (*Resterend*) is de duur × (1 − voortgang), bij een taak in dagen afgerond op hele dagen. Gedaan werk wordt gemeten tot de statusdatum; is er nog geen statusdatum, dan zet de app hem op vandaag en meldt dat. Bij een samenvattingstaak is het veld uitgeschakeld: haar voortgang volgt na *Bereken* uit haar subtaken (*Afgeleid uit de onderliggende taken: wijzig de voortgang daar. De samenvattende taak volgt na berekenen (F5).*).
-- **Werkelijke start** — de datum waarop de taak echt begon. Een datum na het werkelijke einde of na de statusdatum wordt geweigerd. Begint de taak volgens de planning pas na de statusdatum en krijgt hij nu voortgang, dan vraagt het venster *Werkelijke start opgeven*.
+- **Voortgang (%)** — een schuif van 0 tot 100. Standaard: 0. Effect: boven 0 vult de app een ontbrekende *Werkelijke start* in, en 100 vult het *Werkelijke einde* in. De status volgt: *Niet gestart* zonder werkelijke start, *Bezig* met een werkelijke start en *Voltooid* bij een werkelijk einde. De rest-duur (*Resterend*) is de duur × (1 − voortgang), bij een taak in dagen afgerond op hele dagen, bij een taak in uren op hele minuten. Gedaan werk wordt gemeten tot de statusdatum; is er nog geen statusdatum, dan zet de app hem op vandaag en meldt dat. Bij een samenvattingstaak is het veld uitgeschakeld: haar voortgang volgt na *Bereken* uit haar subtaken (*Afgeleid uit de onderliggende taken: wijzig de voortgang daar. De samenvattende taak volgt na berekenen (F5).*).
+- **Werkelijke start** — de datum waarop de taak echt begon. Een datum na het werkelijke einde of na de statusdatum wordt geweigerd. Begint de taak volgens de planning pas na de statusdatum en krijgt hij nu voortgang, dan vraagt het venster *Werkelijke start opgeven*. Bij een mijlpaal staat er één veld *Werkelijke datum* in plaats van *Werkelijke start* en *Werkelijke einde*.
 - **Werkelijke einde** — de datum waarop de taak echt klaar was. Invullen zet de voortgang op 100 en de status op *Voltooid*; wissen zet de voortgang terug op 0 en de status op *Bezig*. Zelfde weigeringen als *Werkelijke start*.
-- **Werkelijke datum** — bij een mijlpaal staat hier één datum in plaats van start en einde.
 - **Resterend** — alleen-lezen (niet bij een mijlpaal): wat er aan duur over is, in de eenheid van de taak.
 
 Het venster past deze regels op het concept toe; ze gelden pas na *Opslaan*. Zie [Voortgang, statusdatum en baseline](docs://uitleg-voortgang).
@@ -73,9 +74,8 @@ Het venster past deze regels op het concept toe; ze gelden pas na *Opslaan*. Zie
 
 Alleen in het paneel, en niet bij een mijlpaal, samenvattingstaak, hammock, taak in verstreken tijd, handmatig geplande taak of een taak die te kort is voor een pauze.
 
-- **Onderbrekingen** — pauzes in het werk van de taak. Per pauze één regel: *na* (hoeveel werk vóór de pauze), *pauze* (de lengte) en de eenheid (*werkdagen*, bij een taak in uren *uren*), met eronder van–tot van het stuk erna. Een pauze die nivelleren maakte, draagt de badge *nivellering*. Een pauze met lengte 0 heft hem op. Effect: de balk wordt onderbroken getekend en het einde schuift na *Bereken* op met de pauze.
+- **Onderbrekingen** — pauzes in het werk van de taak. Per pauze één regel: *na* (hoeveel werk vóór de pauze), *pauze* (de lengte) en de eenheid (*werkdagen*, bij een taak in uren *uren*), met eronder van–tot van het stuk erna. Een pauze die nivelleren maakte, draagt de badge *nivellering*. Een pauze met lengte 0 heft hem op; het prullenbakje per regel (*Onderbreking verwijderen*) haalt hem ook weg. Effect: de balk wordt onderbroken getekend en het einde schuift na *Bereken* op met de pauze.
 - **Onderbreking toevoegen** — voegt een pauze van één eenheid toe in het midden van het langste stuk. Uitgeschakeld als er geen ruimte voor een pauze is.
-- **Onderbreking verwijderen** — het prullenbakje per regel.
 - **Alle onderbrekingen opheffen** — verschijnt als de onderbrekingen uit een bronbestand komen in een vorm die hier niet te bewerken is (*Deze onderbrekingen komen uit het bronbestand in een vorm die hier niet bewerkt kan worden.*). Dan zie je alleen de datums.
 
 Zie [Een taak splitsen](docs://howto-taak-splitsen).
@@ -103,7 +103,7 @@ Alleen in het paneel, en alleen als ze van toepassing zijn.
 
 ## Kop en voet van het paneel
 
-- **Verwijder taak** — het prullenbakje naast de kop *Taak*; verwijdert deze taak.
+- **Verwijder taak** — het prullenbakje naast de kop *Taak*; verwijdert deze taak samen met haar subtaken, als één stap onder *Ongedaan*. De planning is daarna verouderd tot je *Bereken* drukt.
 - **Bereken** — de knop onderaan; dezelfde berekening als *Start › Planning › Bereken*.
 
 ## Wat je hier niet vindt

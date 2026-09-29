@@ -27,7 +27,7 @@ If you changed something that touches the dates, press *Calculate*. Calculating 
 ## Milestone
 
 - **Milestone** — makes the task a milestone. Default: off. Effect: the duration becomes 0. The app refuses it for a summary task (a task with subtasks) and for a task with resource assignments, with a message; remove the assignments first. If you untick it again, *Milestone kind* and *Mandatory (contractual)* disappear.
-- **Milestone kind** (only for a milestone) — *Automatic*, *Start milestone* or *Finish milestone*. Default: *Automatic*. Effect: a start milestone sits at the beginning of a day, a finish milestone at the end. With *Automatic* the anchor follows the driving side of the relation: Finish-Start and Start-Start give a start, Finish-Finish and Start-Finish an end.
+- **Milestone kind** (only for a milestone) — *Automatic*, *Start milestone* or *Finish milestone*. Default: *Automatic*. Effect: a start milestone sits at the beginning of a day, a finish milestone at the end. With *Automatic* the milestone counts as a start milestone when it is a predecessor, at the beginning of the day.
 - **Mandatory (contractual)** (only for a milestone) — marks a contractual milestone, such as an inspection or handover. Default: off. Effect: a marker for the Gantt and reports; it does not guard a date. You do that with a constraint or deadline.
 
 ## Time
@@ -43,6 +43,8 @@ If you changed something that touches the dates, press *Calculate*. Calculating 
 
 ## Constraint and deadline
 
+On a summary task a constraint or deadline has no effect: the calculation only calculates leaf tasks and derives the dates of a summary task from its subtasks.
+
 - **Constraint** — a date limit for the task. Choices: *As soon as possible (ASAP)*, *As late as possible (ALAP)*, *Start no earlier than (SNET)*, *Start no later than (SNLT)*, *Finish no earlier than (FNET)*, *Finish no later than (FNLT)*, *Must start on (MSO)* and *Must finish on (MFO)*. Default: *ASAP*, which is no constraint. Choose ASAP and all constraints of the task disappear; choose ALAP and the secondary one disappears. Effect after *Calculate*: a limit moves the task or makes the float negative. See [Constraints and deadlines](docs://uitleg-constraints).
 - **Constraint date** — the date belonging to the constraint. Visible for every constraint except *ALAP*. Required; a new constraint gets the planned start as its date.
 - **Mandatory (pin logic)** — only for *MSO* and *MFO*. Default: off. On: the date is hard, overrides the relations and pins the bar even before its predecessors. A violation becomes negative float upstream. The first time you turn it on, an explanation appears once.
@@ -51,10 +53,9 @@ If you changed something that touches the dates, press *Calculate*. Calculating 
 
 ## Progress
 
-- **Progress (%)** — a slider from 0 to 100. Default: 0. Effect: above 0 the app fills in a missing *Actual start*, and 100 fills in the *Actual finish*. The status follows: *Not started* without an actual start, *In progress* with an actual start and *Completed* with an actual finish. The remaining duration (*Remaining*) is the duration × (1 − progress), rounded to whole days for a task in days. Work done is measured up to the status date; if there is no status date yet, the app sets it to today and says so. For a summary task the field is disabled: its progress follows from its subtasks after *Calculate* (*Derived from the subtasks: change progress there. The summary task follows after calculating (F5).*).
-- **Actual start** — the date the task really began. A date after the actual finish or after the status date is refused. If the task is planned to start only after the status date and now gets progress, the window asks *Enter the actual start*.
+- **Progress (%)** — a slider from 0 to 100. Default: 0. Effect: above 0 the app fills in a missing *Actual start*, and 100 fills in the *Actual finish*. The status follows: *Not started* without an actual start, *In progress* with an actual start and *Completed* with an actual finish. The remaining duration (*Remaining*) is the duration × (1 − progress), rounded to whole days for a task in days and to whole minutes for a task in hours. Work done is measured up to the status date; if there is no status date yet, the app sets it to today and says so. For a summary task the field is disabled: its progress follows from its subtasks after *Calculate* (*Derived from the subtasks: change progress there. The summary task follows after calculating (F5).*).
+- **Actual start** — the date the task really began. A date after the actual finish or after the status date is refused. If the task is planned to start only after the status date and now gets progress, the window asks *Enter the actual start*. For a milestone there is one field *Actual date* instead of *Actual start* and *Actual finish*.
 - **Actual finish** — the date the task was really done. Filling it in sets progress to 100 and the status to *Completed*; clearing it sets progress back to 0 and the status to *In progress*. Same refusals as *Actual start*.
-- **Actual date** — for a milestone there is one date here instead of start and finish.
 - **Remaining** — read-only (not for a milestone): how much duration is left, in the unit of the task.
 
 The window applies these rules to the draft; they only count after *Save*. See [Progress, status date and baseline](docs://uitleg-voortgang).
@@ -73,9 +74,8 @@ The window applies these rules to the draft; they only count after *Save*. See [
 
 Only in the panel, and not for a milestone, summary task, hammock, task in elapsed time, manually scheduled task or a task that is too short for a break.
 
-- **Breaks** — pauses in the work of the task. One line per pause: *after* (how much work before the pause), *pause* (the length) and the unit (*work days*, for a task in hours *hours*), with from–to of the piece after it below. A pause made by leveling carries the badge *leveling*. A pause of length 0 removes it. Effect: the bar is drawn interrupted and after *Calculate* the finish moves by the pause.
+- **Breaks** — pauses in the work of the task. One line per pause: *after* (how much work before the pause), *pause* (the length) and the unit (*work days*, for a task in hours *hours*), with from–to of the piece after it below. A pause made by leveling carries the badge *leveling*. A pause of length 0 removes it; the bin per line (*Remove break*) removes it too. Effect: the bar is drawn interrupted and after *Calculate* the finish moves by the pause.
 - **Add break** — adds a pause of one unit in the middle of the longest piece. Disabled when there is no room for a pause.
-- **Remove break** — the bin per line.
 - **Remove all breaks** — appears when the breaks come from a source file in a form that cannot be edited here (*These breaks come from the source file in a form that cannot be edited here.*). Then you only see the dates.
 
 See [Splitting a task](docs://howto-taak-splitsen).
@@ -103,7 +103,7 @@ Only in the panel, and only when they apply.
 
 ## Head and foot of the panel
 
-- **Delete task** — the bin next to the heading *Task*; deletes this task.
+- **Delete task** — the bin next to the heading *Task*; deletes this task together with its subtasks, as one step under *Undo*. The schedule is out of date afterwards until you press *Calculate*.
 - **Calculate** — the button at the bottom; the same calculation as *Home › Schedule › Calculate*.
 
 ## What you do not find here

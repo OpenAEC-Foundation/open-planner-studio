@@ -16,10 +16,10 @@ De balk onderaan toont van links naar rechts:
 - **Mijlpalen:** — het aantal mijlpalen.
 - **Kritiek pad: N taken, N werkdagen** — het aantal kritieke taken en de projectduur. Pas zichtbaar na een berekening.
 - **Einde:** — het projecteinde uit de berekening. Pas zichtbaar na een berekening; een leeg project heeft er geen.
-- **N deadline(s) overschreden**, **N constraint(s) geschonden**, **N out-of-sequence-relatie(s)** en **N resource(s) overbezet** — elk een knop met een waarschuwingsteken, alleen zichtbaar als de teller boven 0 staat en er een berekening is. Een klik opent het paneel *Waarschuwingen* (tooltip: *Waarschuwingenpaneel openen (details en navigatie)*). Sta je op het tabblad *IFC* of *Rapport*, dan springt de app daarbij naar *Start*, omdat de rechterkolom daar niet bestaat. De vier tellers zijn een selectie: wat het paneel meer toont (afgekapte lead, genegeerde relatie, hammock zonder eind-driver, afgekapte einddatum, planningsfout) staat niet in de statusbalk.
+- **N deadline(s) overschreden**, **N constraint(s) geschonden**, **N out-of-sequence-relatie(s)** en **N resource(s) overbezet** — elk een knop met een waarschuwingsteken, alleen zichtbaar als de teller boven 0 staat en er een berekening is. Een klik opent het paneel *Waarschuwingen* (tooltip: *Waarschuwingenpaneel openen (details en navigatie)*). Sta je op het tabblad *IFC* of *Rapport*, dan springt de app daarbij naar *Start*, omdat de rechterkolom daar niet bestaat. De teller *resource(s) overbezet* ververst ook na wijzigingen aan resources en toewijzingen; de andere tellers veranderen pas na *Bereken*. De vier tellers zijn een selectie: wat het paneel meer toont (afgekapte lead, genegeerde relatie, hammock zonder eind-driver, afgekapte einddatum, planningsfout) staat niet in de statusbalk.
 - **Verouderd — herbereken (F5)** — met een waarschuwingsteken (tooltip: *Planning verouderd — herbereken (F5)*). Zichtbaar zodra je iets wijzigde wat de planning raakt en je nog niet hebt herberekend. Staat *Automatisch berekenen* aan, dan blijft het weg, behalve als de berekening een fout gaf: dan blijft hij staan.
 - **Selectie: N taak/taken** — het aantal geselecteerde taken; alleen zichtbaar bij een selectie.
-- **Schaal:** en **Zoom: N px/dag** — de tijdschaal van de tijdlijn en het zoomniveau. De schaal volgt uit de zoom.
+- **Schaal:** en **Zoom: Npx/dag** — de tijdschaal van de tijdlijn en het zoomniveau. De schaal volgt uit de zoom.
 - **Niet opgeslagen** — zolang het document wijzigingen heeft die niet in het bestand staan.
 - **AI** — een gekleurde stip met het woord AI, alleen als de AI-modus aan staat. De tooltip zegt *AI-bridge:* met *Uit*, *Actief op poort N*, *Poort N bezet* of *Fout*. Een klik opent het tabblad *AI*.
 - **Debugterminal** — een terminalknop, alleen als de debugterminal is ingeschakeld; hij toont of verbergt de terminal (*Debug-terminal tonen* / *Debug-terminal verbergen*).
@@ -49,22 +49,18 @@ De balk onderaan toont van links naar rechts:
 ### Redenen van een planningsfout
 
 - *Kringverwijzing tussen taken: {pad}* — de relaties vormen een kring. De taken staan in het pad; draai of verwijder één relatie.
-- *De kalender heeft geen werkdagen ingesteld* — geef de kalender minstens één werkdag, zie [Kalenderdialoog](docs://ref-kalenders).
+- *De kalender heeft geen werkdagen ingesteld* — geef de kalender minstens één werkdag, zie [Kalendervensters](docs://ref-kalenders).
 - *Ongeldige duur in dagen voor taak '{taak}'* en *Ongeldige duur in uren voor taak '{taak}'* — de duur van de taak is geen geldig getal.
 - *Urentaak '{taak}' heeft geen geldige werktijden in zijn kalender* — een taak in uren op een kalender zonder werkuren.
 - *Ongeldige startdatum voor taak '{taak}'* — de startdatum van de taak is niet geldig.
 
 ## Meldingen
 
-De meldingen verschijnen onderin het scherm, ook in de tabel, in Backstage en in de presentatiemodus.
+De meldingen verschijnen onderin het scherm, ook in de tabel, in Backstage en in de presentatiemodus. Een melding is een *fout* of *info*. Een fout blijft staan tot je hem wegklikt; een info verdwijnt na 5 seconden, en die timers beginnen opnieuw zodra de stapel verandert. Een klik op een melding sluit hem (tooltip *Melding sluiten*). Er staan er hooguit drie tegelijk: komt er een vierde, dan verdwijnt eerst de oudste info, en is er geen info, dan de oudste melding, zodat een fout nooit door een info wordt verdrongen. De stapel schuift weg van de knoppen van een open dialoog en van plakkende actiebalken.
 
-- **Fout of info** — een melding is een *fout* of *info*. Een fout blijft staan tot je hem wegklikt; een info verdwijnt na 5 seconden.
-- **Wegklikken** — een klik op de melding sluit hem (tooltip *Melding sluiten*).
-- **Maximaal 3** — er staan er hooguit drie tegelijk. Komt er een vierde, dan verdwijnt eerst de oudste info; is er geen info, dan de oudste melding. Een fout wordt dus nooit door een info verdrongen.
-- **Teller ×N** — sommige meldingen vouwen een herhaling samen tot één regel met een teller, bijvoorbeeld een opslagfout die steeds terugkomt. Niet elke melding doet dat.
+- **Teller ×N** — een melding met een vaste sleutel vouwt een herhaling samen tot één regel met een teller, bijvoorbeeld een opslagfout die steeds terugkomt of een geweigerde relatie die je herhaalt. Niet elke melding doet dat.
 - **Lees meer** — sommige meldingen hebben een link *Lees meer* of een eigen onderwerp (bijvoorbeeld *Werkregels uitgelegd*) naar de gids in Backstage › Help.
 - **Actieknop** — de melding over het rekenprofiel heeft een knop *Rekenprofiel openen* naar Projectinfo.
-- **Plaatsing** — de stapel schuift weg van de knoppen van een open dialoog en van plakkende actiebalken.
 
 De lijst hieronder is een keuze, gegroepeerd naar onderwerp. Waar het niet staat, is het een fout of info.
 
@@ -72,27 +68,27 @@ De lijst hieronder is een keuze, gegroepeerd naar onderwerp. Waar het niet staat
 
 - **Opslaan mislukt** (fout) — *Opslaan mislukt* met de reden eronder. Bij opslaan, opslaan als en het exporteren van een rapport.
 - **Opgeslagen als download** (info) — *Opgeslagen als download: '{naam}' staat nu in je downloadmap. …* Als de omgeving de app niet rechtstreeks naar de gekozen plek laat schrijven. Twee downloads vlak na elkaar vouwen samen.
-- **Automatisch opslaan mislukt** (fout, met teller) — *Automatisch opslaan mislukt* met de reden. Geldt voor het automatisch opslaan naar het bestand en voor het crashherstel.
-- **Bibliotheek kon niet worden opgeslagen** (fout, met teller) — *Bibliotheek kon niet worden opgeslagen*, bij het opslaan van de resourcebibliotheek.
+- **Automatisch opslaan mislukt** (fout) — *Automatisch opslaan mislukt* met de reden. Geldt voor het automatisch opslaan naar het bestand en voor het crashherstel.
+- **Bibliotheek kon niet worden opgeslagen** (fout) — *Bibliotheek kon niet worden opgeslagen*, bij het opslaan van de resourcebibliotheek.
 - **Bestand openen mislukt** (fout) — *Bestand openen mislukt* met de reden. Bij een voorbeeld, een recent bestand of een importbestand.
 - **Oud of beveiligd .mpp** (fout) — *Dit .mpp-bestand gebruikt een oud formaat (Project 2007 of ouder)…* of *Dit .mpp-bestand is met een wachtwoord beveiligd…*, allebei met het advies te exporteren als XML in MS Project en dat bestand te openen.
 - **Ongeldig XER-bestand** (fout) — een van de *xer…*-teksten, bijvoorbeeld *Dit bestand is geen geldig of ondersteund XER-bestand.* of *Het XER-bestand bevat een dubbele tabel.*, met de reden erbij.
 - **IFC kon niet worden gelezen** (fout) — *IFC kon niet worden gelezen* met de reden, in de IFC-weergave.
 - **Herstel** (fout) — *Hersteld bestand kon niet worden gelezen*, *Herstellen mislukt* en *N herstelbestanden konden niet worden geladen en zijn overgeslagen.* Bij het herstellen na een onverwachte afsluiting.
 - **Tak bewaard als sjabloon** (info) — *Tak bewaard als sjabloon '{naam}'*.
-- **Melding van een extensie** (info, of fout als de extensie een fout meldt) — *Extensie {naam}: {bericht}*. Een extensie mag er hoogstens drie nieuwe per 10 seconden tonen, zodat ze de stapel niet vult.
+- **Melding van een extensie** (info, of fout als de extensie een fout meldt) — *Extensie {naam}: {bericht}*. Een extensie mag er hoogstens drie nieuwe per 10 seconden tonen, zodat ze de stapel niet vult. Faalt een stap van de begeleiding van een extensie, dan staat er *Een stap van de extensie {naam} gaf een fout. De begeleiding gaat door.*, en kan een projectbestand van een extensie niet worden geopend, dan *Het projectbestand {bestand} van de extensie {naam} kon niet worden geopend.* Beide zijn fouten.
 - **Een wijziging kwam tussendoor** (info) — *Een wijziging van de AI-assistent of een extensie kwam tussendoor. …* Als je de taakdialoog annuleert terwijl de AI of een extensie intussen iets wijzigde: de taakwijzigingen van vóór die wijziging worden dan niet teruggedraaid en staan als gewone stappen onder *Ongedaan maken*.
 
 ### Berekenen
 
-- **Planning kon niet worden berekend** (fout, met teller) — *Planning kon niet worden berekend* met de reden eronder (zie *Redenen van een planningsfout*). Bij *Bereken*, bij het wisselen van document en bij het openen van een bestand.
+- **Planning kon niet worden berekend** (fout) — *Planning kon niet worden berekend* met de reden eronder (zie *Redenen van een planningsfout*). Bij *Bereken*, bij het wisselen van document en bij het openen van een bestand.
 - **Statusdatum op vandaag gezet** (info) — *Er stond nog geen statusdatum: die staat nu op vandaag ({datum}), want voortgang wordt tot de statusdatum gemeten. Aanpassen kan via Planning → Statusdatum.* Bij het invoeren van voortgang in een project zonder statusdatum.
 - **Duur korter dan het gedane werk** (info) — *‘{naam}’ is al voor {N}% gedaan: een duur korter dan het gedane werk kan niet. De duur is niet gewijzigd.*
 
 ### Relaties en hiërarchie
 
 - **Relatie aangemaakt** (info) — *Relatie aangemaakt: {voorganger} → {opvolger}*.
-- **Relatie geweigerd** (info, met teller) — *Deze relatie bestaat al*, *Een relatie tussen een taak en zijn eigen (voor)ouder-samenvattingstaak is niet toegestaan.* of *Deze relatie zou een kring in de planning maken ({kring}) en is niet aangemaakt.* De kring noemt de taken, zodat je weet welke relatie je eerst moet weghalen of omdraaien.
+- **Relatie geweigerd** (info) — *Deze relatie bestaat al*, *Een relatie tussen een taak en zijn eigen (voor)ouder-samenvattingstaak is niet toegestaan.* of *Deze relatie zou een kring in de planning maken ({kring}) en is niet aangemaakt.* De kring noemt de taken, zodat je weet welke relatie je eerst moet weghalen of omdraaien.
 - **Verplaatsing geweigerd** (info) — *Deze verplaatsing zou een kring in de planning maken ({kring}): de relaties van een samenvattingstaak gelden ook voor haar subtaken. Er is niets verplaatst.*
 - **Relaties vallen weg na verplaatsen** (info) — *Na het verplaatsen verbinden N relaties een taak met zijn eigen samenvattingstaak; die tellen niet meer mee in de berekening.*
 - **Relaties overgeslagen bij invoegen** (info) — *N relaties zijn niet aangemaakt: ongeldige koppeling…*, bij het plakken of invoegen van een tak.
@@ -103,13 +99,20 @@ De lijst hieronder is een keuze, gegroepeerd naar onderwerp. Waar het niet staat
 
 - **Start vastgelegd als constraint** (info) — *'{naam}' heeft een voorganger: de nieuwe start is vastgelegd als constraint Start niet eerder dan (SNET) {datum}. Na herberekenen (F5) begint de taak niet vóór die datum.* Als je de start van een taak met voorganger verandert. Had de taak al zo'n constraint, dan zegt de melding dat hij is verzet; bij meer taken tegelijk staat er een aantal.
 - **Start niet toegepast** (info) — *De nieuwe start van '{naam}' is niet toegepast: de taak heeft een voorganger en de constraint {type} {datum}, en die bepalen de start. Pas die constraint aan om de start te verplaatsen.*
-- **Mijlpaal geweigerd** (info, met teller) — *'{taak}' heeft resource-toewijzingen en kan geen mijlpaal worden. Verwijder eerst de toewijzingen.* of *'{taak}' is een samenvattingstaak met subtaken en kan geen mijlpaal worden.* Bij het omzetten in de taakdialoog, het eigenschappenpaneel, het contextmenu en de tabel.
+- **Mijlpaal geweigerd** (info) — *'{taak}' heeft resource-toewijzingen en kan geen mijlpaal worden. Verwijder eerst de toewijzingen.* of *'{taak}' is een samenvattingstaak met subtaken en kan geen mijlpaal worden.* Bij het omzetten in de taakdialoog, het eigenschappenpaneel, het contextmenu en de tabel.
 - **Toewijzingen verplaatst naar subtaak** (info) — *De toewijzing van {resources} is verplaatst van '{fase}' naar de nieuwe subtaak '{kind}': een samenvattingstaak draagt zelf geen toewijzingen.* Als een taak met toewijzingen subtaken krijgt.
 - **Mijlpaalmarkering verwijderd** (info) — *Mijlpaal '{fase}' heeft nu subtaken en is een samenvattingstaak geworden; de mijlpaalmarkering is eraf gehaald.*
-- **Samenvattingstaak geweigerd** (info, met teller) — *'{fase}' kan geen samenvattingstaak worden: …* met de reden, en *Er is niets gewijzigd.*
+- **Samenvattingstaak geweigerd** (info) — *'{fase}' kan geen samenvattingstaak worden: …* met de reden, en *Er is niets gewijzigd.*
 - **Cellen overgeslagen bij plakken** (info) — *N cellen overgeslagen: ze zijn read-only (bijvoorbeeld een automatisch genummerde WBS-code of een berekende kolom).*
 - **Verwijzingen leeggemaakt bij plakken** (info) — *N verwijzingen bestonden niet in dit document en zijn leeggemaakt (taakkalenders, eigen taaktypes, activity codes of gebruikersvelden uit het brondocument).*
 - **Werkregel paste duren aan** (info) — *De werkregel heeft na de kalenderwijziging de duur van N taken aangepast (werk blijft, uren per dag veranderden).* Met een link *Werkregels uitgelegd*.
+
+### Primavera (XER)
+
+- **XER-bestand geopend** (info) — *XER-bestand geopend: N projectdocumenten.* Eén melding per bestand, ook als het bestand meer projecten opent, met een link *Lees meer* en detailregels eronder. Altijd *N projecten gezien.* Alleen als het aantal boven 0 is: *N lege projecten overgeslagen.*, *N baselineprojecten uitgesloten.*, *N baselines gematerialiseerd.*, *N losse baselineverwijzingen genegeerd.*, *Beschermende baseline-terugval gebruikt.* en *N externe koppelingen bewaard.* Alleen bij een andere codering dan UTF-8: *Tekstcodering vastgesteld als {codering}.* Verder, als het aantal boven 0 is: *N parserbevindingen.*, *N kalenderbevindingen.*, *N getalnotatieproblemen.*, *N enum-terugvallen.* en *N P6-planningsinstellingen met veilige terugval.*
+- **Datums zoals Primavera ze opsloeg** (detailregel in dezelfde melding) — *N taken tonen de datums zoals Primavera ze opsloeg (niet herberekend).*, of, als de modus niet aanging, *N taken wijken af van de datums in het bestand — je kunt ze tonen.*
+- **XER-bronarchief onbruikbaar** (info) — *Het XER-bronarchief in dit bestand is onbruikbaar en weggelaten; het project zelf is volledig geopend.* met de reden (bijvoorbeeld *Reden: de controlesom past niet bij de bronbytes — het archief is beschadigd.*) en het gevolg (*De planning, het rekenprofiel en alle projectdata uit het IFC zijn compleet. …*). Bij het openen van een IFC-bestand waarin een eerder bewaard XER-bronarchief niet te gebruiken is.
+- **Export verliest XER-informatie** (info) — *Bij export naar {formaat} gaat XER-broninformatie verloren.* Na een geslaagde export naar een ander formaat dan IFC van een project met gegevens die alleen in een XER-bestand bestaan. Met een link *Lees meer*.
 
 ### Importeren, exporteren en rekenprofiel
 

@@ -4,8 +4,7 @@ Het lint bovenin het scherm heeft tabbladen, en elk tabblad heeft groepen met kn
 
 ## Hoe het lint zich gedraagt
 
-- **Tabbladen** — links staat *Bestand*, daarna *Start*, *Planning*, *Resources*, *Beeld*, *Instellingen*, *Tabel*, *IFC*, *Rapport* en, alleen met AI-modus, *AI*. In het Engels heet *Start* *Home*, *Beeld* *View* en *Instellingen* *Settings*.
-- **Uitgeschakelde knoppen** — een grijze knop doet niets. De voorwaarde staat hieronder bij de knop.
+- **Tabbladen** — links staat *Bestand*, daarna *Start*, *Planning*, *Resources*, *Beeld*, *Instellingen*, *Tabel*, *IFC*, *Rapport* en, alleen met AI-modus, *AI*.
 - **Smal venster** — past het lint niet, dan krimpen knoppen van rechts naar links tot een icoon. De naam staat dan als tooltip op de knop. Elke knop zonder eigen tooltip toont zijn naam.
 - **Lint inklappen** — het pijltje rechtsonder in het lint maakt er een platte strip van, met alleen iconen. De groep *Baselines & voortgang* en de groep *Verbinding* op het AI-tabblad verdwijnen dan achter één knop met een uitklapvenster. Standaard: uitgeklapt. De keuze blijft bewaard.
 - **Extensieknoppen** — een extensie kan achteraan een tabblad een eigen groep zetten. Zo'n knop doet wat de extensie hem meegeeft.
@@ -16,17 +15,17 @@ Klik je op *Bestand*, dan neemt een eigen scherm (de Backstage) de werkruimte ov
 
 - **Nieuw** — opent het venster *Nieuw project* en sluit de Backstage.
 - **Openen** — kiest een bestand en opent het als document. Sluit de Backstage.
-- **Recent** — lijst met recent geopende projecten; een klik opent het. Alleen zichtbaar als de omgeving bestanden kan heropenen: in de desktop-app en in browsers die bestandstoegang bieden, zoals Chrome en Edge. In andere browsers ontbreekt de lijst.
+- **Recent** — lijst met recent geopende projecten; een klik opent het. Alleen zichtbaar als de omgeving bestanden kan heropenen: in de desktop-app en in browsers die bestandstoegang bieden, zoals Chrome en Edge. In andere browsers staat de knop er wel, maar blijft de pagina leeg.
 - **Voorbeelden** — meegeleverde voorbeeldplanningen, verdeeld in *Volledige showcase-planningen* (badge *Alle functies*) en *Eenvoudige voorbeelden*. Een klik opent er een in een nieuw tabblad.
 - **Opslaan** — schrijft het project naar het bestand van dit document. Heeft het document nog geen bestand, dan kies je eerst naam en plek. Een geopend bestand in een ander formaat dan IFC wordt nooit overschreven; dan vraagt *Opslaan* om een naam en plek voor een IFC-bestand.
 - **Opslaan als** — kiest een nieuwe naam of plek en slaat daar als IFC op.
 - **Exporteren** — kaarten per exportformaat, met een omschrijving. Een klik zet het project om en slaat het op, en brengt je terug naar *Start*. Heeft de planning een kring, dan staat de fout in de Backstage en blijf je daar. Is het project aan een resourcebibliotheek gekoppeld, dan staat eronder het vinkje *Bibliotheekbestand ernaast opslaan*; dat werkt alleen bij de IFC-kaart.
 - **Importeren** — bovenaan de kaart *Voortgang bijwerken uit een blad* (uitgeschakeld zonder taken), daaronder de importers die extensies toevoegen.
 - **Afdruk** — de knop *Open afdrukvoorbeeld* brengt je naar het tabblad *Rapport*.
-- **Projectinfo** — metadata en rekenprofiel van dit project. Wijzigingen werken pas na *Toepassen*.
+- **Projectinfo** — de metadata en het rekenprofiel van dit project. Wijzigingen werken pas na *Toepassen*. Zie [Rekenprofielen en conventies](docs://uitleg-rekenprofielen).
 - **Instellingen** — dezelfde instellingen als het venster *Instellingen*.
-- **Extensies** — extensies beheren en installeren.
-- **Bibliotheek** — resourcebibliotheken beheren.
+- **Extensies** — beheer en installatie van extensies; zie [Een extensie installeren en beheren](docs://howto-extensie-installeren).
+- **Bibliotheek** — beheer van resourcebibliotheken; zie [Resourcebibliotheken beheren en delen](docs://howto-bibliotheken-beheren).
 - **Help** — de ingebouwde documentatie, met zoeken en een documentatietaal.
 - **Rondleiding starten** — sluit de Backstage en start de rondleiding bij stap 1.
 - **Sluit project** — sluit het actieve document. Heeft het niet-opgeslagen wijzigingen, dan vraagt de app om bevestiging.
@@ -35,10 +34,7 @@ Klik je op *Bestand*, dan neemt een eigen scherm (de Backstage) de werkruimte ov
 
 ### Start › Bestand
 
-- **Nieuw** — opent het venster *Nieuw project*.
-- **Opslaan** — zelfde actie als *Bestand › Opslaan*.
-- **Openen** — zelfde actie als *Bestand › Openen*.
-- **Opslaan als** — zelfde actie als *Bestand › Opslaan als*.
+- **Nieuw**, **Opslaan**, **Openen** en **Opslaan als** — dezelfde acties als in *Bestand*.
 - **Recent** — uitklapmenu met de recente projecten; een klik opent het. Alleen zichtbaar onder dezelfde voorwaarde als *Bestand › Recent*. Zonder recente bestanden staat er *Geen recente bestanden*.
 - **Exporteren** — uitklapmenu met de exportformaten (korte namen). Een klik zet het project om en slaat het op.
 
@@ -50,9 +46,9 @@ Klik je op *Bestand*, dan neemt een eigen scherm (de Backstage) de werkruimte ov
 
 ### Start › Taken
 
-- **Taak** — voegt een taak toe met de naam *Nieuwe taak*, met een duur van 5 werkdagen en beginnend op de projectstart. (Staat *Urenplanning inschakelen* aan en is de *Standaardeenheid voor nieuwe taken* in *Projectinfo* uren, dan is de duur 5 uur.) Is er een taak geselecteerd en staat de weergave in de gewone boom, dan komt hij direct onder de onderste geselecteerde taak (tooltip *Nieuwe taak direct onder de selectie*). Anders komt hij onderaan (tooltip *Nieuwe taak onderaan de lijst*). Wordt er gefilterd, gegroepeerd of gesorteerd, dan komt hij onderaan en meldt een strook *Niet beschikbaar tijdens filteren/groeperen/sorteren*. De nieuwe taak wordt de enige selectie, de Gantt springt ernaartoe en de naam staat klaar om te overschrijven in het paneel *Eigenschappen*.
-- **Mijlpaal ▾** — keuzemenu dat een mijlpaal (duur 0) op dezelfde plek zet als *Taak*. *Startmijlpaal* en *Eindmijlpaal* zetten de soort mijlpaal. *Inspectiemoment (verplicht)* maakt een eindmijlpaal met taaktype *Keuring/Inspectie* en de vlag *Verplicht (contractueel)*, met de naam *Nieuw inspectiemoment*.
-- **Relatie ▾** — keuzemenu met vier vaste acties; de hoofdknop verandert nooit van betekenis. In het Engels heet de knop *Link*. Zie *Planning › Relaties* voor de vier acties.
+- **Taak** — voegt een taak toe met de naam *Nieuwe taak*, met een duur van 5 werkdagen en beginnend op de projectstart. (Staat *Urenplanning inschakelen* aan en is de *Standaardeenheid voor nieuwe taken* in *Projectinfo* uren, dan is de duur 5 uur.) Is er een taak geselecteerd en staat de weergave in de gewone boom, dan komt hij direct onder de onderste geselecteerde taak (tooltip *Nieuwe taak direct onder de selectie*). Is er geen selectie, dan komt hij onderaan (tooltip *Nieuwe taak onderaan de lijst*). Is er wel een selectie maar wordt er gefilterd, gegroepeerd of gesorteerd, dan komt hij ook onderaan en meldt een strook *Niet beschikbaar tijdens filteren/groeperen/sorteren*. De nieuwe taak wordt de enige selectie, de Gantt springt ernaartoe en de naam staat klaar om te overschrijven in het paneel *Eigenschappen*.
+- **Mijlpaal ▾** — keuzemenu dat een mijlpaal (duur 0) op dezelfde plek zet als *Taak*. *Startmijlpaal* en *Eindmijlpaal* zetten de soort mijlpaal; de nieuwe mijlpaal heet *Nieuwe mijlpaal* en krijgt taaktype *Overig*. *Inspectiemoment (verplicht)* maakt een eindmijlpaal met taaktype *Keuring/Inspectie* en de vlag *Verplicht (contractueel)*, met de naam *Nieuw inspectiemoment*.
+- **Relatie ▾** — keuzemenu met vier vaste acties; de hoofdknop verandert nooit van betekenis. Zie *Planning › Relaties* voor de vier acties.
 - **Taak splitsen** — zet de splits-modus aan of uit. Aan: een strook onder het lint legt uit dat je op een balk klikt waar de onderbreking begint en naar rechts sleept voor de lengte. Uitgeschakeld als de Gantt niet in beeld is (op de tabbladen *Tabel*, *IFC*, *Rapport* en onder het volledige resourcepaneel); de tooltip zegt dan *Alleen beschikbaar als de Gantt in beeld is*. Zie [Een taak splitsen](docs://howto-taak-splitsen).
 
 ### Start › Planning
@@ -68,18 +64,19 @@ Klik je op *Bestand*, dan neemt een eigen scherm (de Backstage) de werkruimte ov
 
 ### Planning › Planning
 
-- **Bereken** — zelfde als op *Start*.
+De knop *Bereken* is dezelfde als op *Start*.
+
 - **Project verplaatsen…** — opent het venster *Project verplaatsen*. Uitgeschakeld zonder projectstartdatum. Zie [Project verplaatsen](docs://howto-project-verplaatsen).
 - **Waarschuwingen** — toont of verbergt het paneel *Waarschuwingen* in de rechterkolom. De knop licht op zolang je het paneel ziet. Aanzetten klapt een ingeklapte kolom uit. Wat erin staat, lees je in [Meldingen en waarschuwingen](docs://ref-meldingen).
 
 ### Planning › Relaties
 
-- **Relatie ▾** — keuzemenu met vier acties:
+De groep heeft de knop *Relatie ▾* met vier acties en de knop *Taak splitsen* (zelfde als op *Start*). De vier acties:
+
 - **Relatie tekenen** — zet de relatiemodus aan of uit; een vinkje staat erbij als hij aan is, en de hoofdknop licht op. Aan: je sleept in de Gantt van de ene balk naar de andere om een relatie te leggen, en een strook onder het lint zegt hoe je stopt (*Stoppen* of Esc). Uitgeschakeld als de Gantt niet in beeld is.
 - **Geselecteerde taken koppelen** — legt een relatie Eind-Start zonder lag tussen twee taken; de eerst geselecteerde wordt voorganger. Alleen beschikbaar bij precies twee geselecteerde taken (anders *Selecteer precies twee taken*). Een dubbele relatie of een kring wordt geweigerd met een melding.
 - **Externe relatie toevoegen…** — opent een venster om een externe voorganger of opvolger aan de geselecteerde taak toe te voegen. Alleen beschikbaar bij precies één geselecteerde taak (anders *Selecteer precies één taak*).
 - **Alle externe relaties vernieuwen** — ververst de ankers van alle externe relaties en meldt in het menu hoeveel er zijn bijgewerkt of ontbreken. Alleen beschikbaar als het project externe relaties heeft (anders *Dit project bevat geen externe relaties*).
-- **Taak splitsen** — zelfde als op *Start*.
 
 Voor het waarom van relaties zie [Relaties leggen](docs://howto-relaties-leggen) en [Relaties en lag](docs://uitleg-relaties).
 
@@ -92,7 +89,7 @@ Je kunt beide tegelijk aan hebben; een tweede klik op een knop zet die kant weer
 
 ### Planning › Kalender
 
-- **Kalender** — opent het venster *Kalenders* met de kalenderbibliotheek van het project. Zie [Kalenderdialoog](docs://ref-kalenders).
+- **Kalender** — opent het venster *Kalenders* met de kalenderbibliotheek van het project. Zie [Kalendervensters](docs://ref-kalenders).
 
 ### Planning › Structuur
 
@@ -175,9 +172,9 @@ Deze groep staat ook op *Tabel* en *Rapport*.
 
 ### Beeld › Panelen
 
-- **Eigensch.** (in het Engels *Properties*) — toont of verbergt het paneel *Eigenschappen* in de rechterkolom. Standaard: aan. Zie [Taakdialoog en eigenschappenpaneel](docs://ref-taak-eigenschappen).
-- **Resources**, **Resourcedock** en **Histogram** — dezelfde knoppen als op *Resources*.
-- **Waarschuwingen** — zelfde knop als op *Planning*.
+- **Eigensch.** — toont of verbergt het paneel *Eigenschappen* in de rechterkolom. Standaard: aan. Zie [Taakdialoog en eigenschappenpaneel](docs://ref-taak-eigenschappen).
+
+De knoppen *Resources*, *Resourcedock* en *Histogram* zijn dezelfde als op *Resources*, en *Waarschuwingen* is dezelfde als op *Planning*.
 
 ### Beeld › Baselines & voortgang
 
@@ -200,7 +197,7 @@ Deze groep heeft dezelfde naam als die op *Planning*, maar bevat de tekenopties 
 
 ### Instellingen › Kalender
 
-- **Kalender** — zelfde knop als op *Planning*.
+De knop *Kalender* is dezelfde als op *Planning*.
 
 ### Instellingen › Sneltoetsen
 
@@ -214,27 +211,19 @@ Het tabblad *Tabel* toont de taken als volledige tabel in plaats van de Gantt. D
 
 - **Kolommen…** — opent de kolomkiezer van deze tabel. Dezelfde kolomkiezer opent met het plusje in de tabelkop. De tooltip zegt *Kolommen van de Tabel-weergave kiezen*. Zie [Tabelkolommen aanpassen](docs://howto-tabelkolommen-aanpassen) en [Tabelkolommen](docs://ref-tabelkolommen).
 
-### Tabel › Voortgang
-
-- **Voortgangsblad exporteren** en **Voortgang bijwerken uit een blad** — zelfde als op *Planning*.
-
 ## IFC
 
-- **IFC 4x3 - Industry Foundation Classes** — een tekstregel zonder knop; het lint zelf heeft hier niets om te bedienen. Het tabblad toont in de werkruimte het IFC-paneel.
+Het tabblad toont in de werkruimte het IFC-paneel. Het lint heeft hier geen knoppen, alleen de tekstregel *IFC 4x3 - Industry Foundation Classes*.
 
 ## Rapport
 
 ### Rapport › Rapportage
 
-- **Afdruk** — brengt je naar het tabblad *Rapport*. Staat dat al open, dan gebeurt er niets zichtbaars. De rapportkeuzes staan in het rapportscherm zelf.
-
-### Rapport › Voortgang
-
-- **Voortgangsblad exporteren** en **Voortgang bijwerken uit een blad** — zelfde als op *Planning*.
+- **Afdruk** — staat alleen op dit tabblad en doet hier niets, omdat *Rapport* al open is; de rapportkeuzes staan in het rapportscherm.
 
 ## AI
 
-Het tabblad *AI* bestaat alleen als *AI-modus inschakelen* aan staat (*Instellingen*, tabblad *Geavanceerd*, kop *AI-modus*). Standaard: uit. Uitzetten haalt het tabblad weg en stopt de bridge. Een AI-assistent werkt met je planning via een MCP-bridge die je hier start.
+Het tabblad *AI* bestaat alleen als *AI-modus inschakelen* aan staat (*Instellingen*, tabblad *Geavanceerd*, kop *AI-modus*). Standaard: uit. Uitzetten haalt het tabblad weg en stopt de bridge. Een AI-assistent werkt met je planning via een MCP-bridge die je hier start. Zie [Een AI-assistent koppelen (MCP)](docs://howto-ai-assistent-koppelen).
 
 ### AI › Server
 
