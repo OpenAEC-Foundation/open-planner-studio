@@ -1015,6 +1015,69 @@
       },
       "kind": "uitleg",
       "draft": true
+    },
+    {
+      "id": "howto-rapport-maken-en-afdrukken",
+      "title": {
+        "nl": "Een rapport maken en afdrukken",
+        "en": "Making and printing a report"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-rapportageperiode-kiezen",
+      "title": {
+        "nl": "De rapportageperiode kiezen",
+        "en": "Choosing the reporting period"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-layouts-gebruiken",
+      "title": {
+        "nl": "Een layout maken en gebruiken",
+        "en": "Creating and using a layout"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-tabelkolommen-aanpassen",
+      "title": {
+        "nl": "Tabelkolommen aanpassen",
+        "en": "Adjusting table columns"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-split-view-en-mini-map",
+      "title": {
+        "nl": "Split view en mini-map gebruiken",
+        "en": "Using split view and the mini-map"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-presentatie",
+      "title": {
+        "nl": "Presenteren op een groot scherm",
+        "en": "Presenting on a large screen"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-meerdere-projecten",
+      "title": {
+        "nl": "Met meerdere projecten tegelijk werken",
+        "en": "Working with several projects at once"
+      },
+      "kind": "howto",
+      "draft": true
     }
   ],
   "aliases": {}
