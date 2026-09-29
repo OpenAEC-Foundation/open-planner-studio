@@ -81,7 +81,8 @@ export type TutorialLang = 'nl' | 'en';
 export const TUTORIAL_LANGS: readonly TutorialLang[] = ['nl', 'en'];
 
 export const STAGE_IDS = [
-  'start-tut-1', 'na-tut-1', 'na-tut-2', 'na-tut-3', 'na-tut-4', 'na-tut-5', 'na-tut-6', 'na-tut-7',
+  'start-tut-1', 'na-tut-1', 'na-tut-2', 'tussen-tut-3-bouwvak', 'na-tut-3', 'na-tut-4', 'na-tut-5', 'na-tut-6',
+  'na-tut-7',
 ] as const;
 export type StageId = typeof STAGE_IDS[number];
 
@@ -474,6 +475,10 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
   if (!bouwvak) fail(lang, 'tut-3: geen bouwvak 2027 in de projectkalender');
   const f3cal = b.facts();
   if (f3cal.finish <= f2.finish) fail(lang, 'tut-3: de bouwvak verschuift de einddatum niet');
+  // Tussenstand voor tutorial 3: bouwvak in de kalender en berekend, nog zonder constraint en
+  // deadline. "Toon mij"/"Opnieuw" van de kalenderstap openen deze stand, omdat een extensie de
+  // kalender niet zelf kan wijzigen.
+  stages.push(b.snapshot('tussen-tut-3-bouwvak'));
 
   S().updateTask(b.id(CONSTRAINT.task), { constraint: { type: CONSTRAINT.type, date: CONSTRAINT.date } });
   b.calculate('tut-3 constraint');

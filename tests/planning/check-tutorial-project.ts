@@ -15,6 +15,8 @@
 //  4. Elk .ifc opent via dezelfde route als Voorbeelden/examples:// (`openExampleFromString`:
 //     lezen → laden → herberekenen) en levert daarna exact dezelfde feiten, zonder dat de
 //     herberekening datums verschuift (geen "datums zoals opgeslagen"-aanbod).
+//  5. De wat-als-stappen uit de tekst die geen eigen stand zijn (tutorial 2: buitenspouwblad 9
+//     werkdagen; tutorial 3: deadline 27 augustus), plus het werkdagengetal op de statusbalk.
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
@@ -124,6 +126,38 @@ const PINNED: Record<Exclude<StageId, 'na-tut-7'>, Pinned> = {
       painting: '2027-07-26 2027-07-28 6',
       cleaning: '2027-08-06 2027-08-06 0',
       msHandover: '2027-08-06 2027-08-06 0',
+    },
+  },
+  'tussen-tut-3-bouwvak': {
+    finish: '2027-08-27', projectFinish: '2027-08-27',
+    statusDate: null, baselineFinish: null,
+    overallocated: {},
+    counts: { tasks: 27, milestones: 3, sequences: 24, resources: 0, assignments: 0, baselines: 0 },
+    critical: ['msStart', 'site', 'garden', 'setout', 'excavate', 'rebar', 'inspection', 'pour', 'foundBrick', 'floor', 'innerLeaf', 'roofElements', 'roofing', 'frames', 'breakThrough', 'services', 'plaster', 'screed', 'tiling', 'cleaning', 'msHandover'],
+    table: {
+      msStart: '2027-06-07 2027-06-07 0',
+      site: '2027-06-07 2027-06-08 0',
+      garden: '2027-06-09 2027-06-09 0',
+      setout: '2027-06-10 2027-06-10 0',
+      excavate: '2027-06-11 2027-06-14 0',
+      rebar: '2027-06-15 2027-06-17 0',
+      inspection: '2027-06-17 2027-06-17 0',
+      pour: '2027-06-18 2027-06-18 0',
+      foundBrick: '2027-06-24 2027-06-25 0',
+      floor: '2027-06-28 2027-06-28 0',
+      innerLeaf: '2027-06-29 2027-07-05 0',
+      outerLeaf: '2027-06-29 2027-07-06 2',
+      roofElements: '2027-07-06 2027-07-06 0',
+      roofing: '2027-07-07 2027-07-08 0',
+      frames: '2027-07-09 2027-07-12 0',
+      breakThrough: '2027-07-13 2027-07-14 0',
+      services: '2027-07-15 2027-07-19 0',
+      plaster: '2027-07-20 2027-07-23 0',
+      screed: '2027-07-26 2027-07-26 0',
+      tiling: '2027-08-24 2027-08-26 0',
+      painting: '2027-07-26 2027-07-28 6',
+      cleaning: '2027-08-27 2027-08-27 0',
+      msHandover: '2027-08-27 2027-08-27 0',
     },
   },
   'na-tut-3': {
@@ -370,6 +404,63 @@ async function main(): Promise<void> {
       ok(`${label}: berekening zonder fout`, !S().cpmResult?.error);
       eq(`${label}: feiten`, collectStageFacts(build.lang), stage.facts);
     }
+  }
+
+  await whatIfs(nl);
+}
+
+/** Taak-id in het geopende document op naam (nl). */
+function taskIdOf(key: TaskKey): string {
+  const name = TASKS.find(d => d.key === key)!.name.nl;
+  const t = S().tasks.find(x => x.name === name);
+  if (!t) throw new Error(`check-tutorial-project: taak ${key} niet gevonden`);
+  return t.id;
+}
+
+/**
+ * 5. De wat-als-stappen die de tutorialtekst doorrekent maar die geen eigen stand zijn: open de
+ *    stand zoals de lezer hem heeft, doe de wijziging, bereken, en vergelijk met de tekst.
+ */
+async function whatIfs(nl: TutorialBuild): Promise<void> {
+  console.log('-- tutorial-project: wat-als-stappen uit de tutorialtekst --');
+  const ifcOf = (id: StageId) => nl.stages.find(s => s.id === id)!.ifc;
+
+  // Statusbalk "Kritiek pad: N taken, M werkdagen" = aantal kritieke taken + projectDuration.
+  await S().openExampleFromString(ifcOf('na-tut-2'), 'na-tut-2.ifc');
+  eq('tut-2 statusbalk: werkdagen', S().cpmResult?.projectDuration, 45);
+  eq('tut-2 statusbalk: kritieke taken', collectStageFacts('nl').critical.length, 21);
+
+  // Tutorial 2, uitloop: Buitenspouwblad metselen 9 i.p.v. 6 werkdagen.
+  {
+    const id = taskIdOf('outerLeaf');
+    const t = S().tasks.find(x => x.id === id)!;
+    S().updateTask(id, { time: { ...t.time, scheduleDuration: 9 } });
+    S().runCPM();
+    const f = collectStageFacts('nl');
+    eq('tut-2 uitloop: einde oplevering', f.finish, '2027-08-09');
+    eq('tut-2 uitloop: buitenspouwblad klaar', f.early.outerLeaf?.finish, '2027-07-09');
+    eq('tut-2 uitloop: speling binnenspouwblad', f.totalFloat.innerLeaf, 1);
+    eq('tut-2 uitloop: speling dakbedekking', f.totalFloat.roofing, 1);
+    eq('tut-2 uitloop: statusbalk werkdagen', S().cpmResult?.projectDuration, 46);
+    eq('tut-2 uitloop: kritieke taken', f.critical.length, 19);
+  }
+
+  await S().openExampleFromString(ifcOf('tussen-tut-3-bouwvak'), 'tussen-tut-3-bouwvak.ifc');
+  eq('tut-3 na bouwvak: statusbalk werkdagen', S().cpmResult?.projectDuration, 45);
+
+  await S().openExampleFromString(ifcOf('na-tut-3'), 'na-tut-3.ifc');
+  eq('tut-3 na constraint: statusbalk werkdagen', S().cpmResult?.projectDuration, 48);
+  eq('tut-3 na constraint: kritieke taken', collectStageFacts('nl').critical.length, 8);
+
+  // Tutorial 3, een deadline die je niet haalt: 27 augustus op de oplevering.
+  {
+    S().updateTask(taskIdOf('msHandover'), { deadline: '2027-08-27' });
+    S().runCPM();
+    const f = collectStageFacts('nl');
+    eq('tut-3 deadline 27-08: gemiste deadlines', (S().cpmResult?.missedDeadlineTaskIds ?? []).length, 1);
+    eq('tut-3 deadline 27-08: speling oplevering', f.totalFloat.msHandover, -3);
+    eq('tut-3 deadline 27-08: kritieke taken', f.critical.length, 21);
+    eq('tut-3 deadline 27-08: einde oplevering', f.finish, '2027-09-01');
   }
 }
 
