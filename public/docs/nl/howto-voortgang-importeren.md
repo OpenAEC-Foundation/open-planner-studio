@@ -51,13 +51,13 @@ Het inlezen rekent zelf niet door. Druk op **Bereken** (F5), bijvoorbeeld via *P
 
 De app koppelt elke rij aan een taak, eerst op *OPS Task ID* en anders op het WBS-nummer.
 
-**Koppeling betwijfeld.** Vond de app de taak alleen op WBS-nummer, dan staat de rij onder *Koppeling betwijfeld*, met *Bevestigen* en *Wijzigen*. De rij wordt ook toegepast als je niets doet; controleer dus of de taak klopt. *Bevestigen* legt de koppeling vast. *Wijzigen* laat je een andere taak kiezen.
+**Koppeling betwijfeld.** Vond de app de taak alleen op WBS-nummer, dan staat de rij onder *Koppeling betwijfeld*, met *Bevestigen* en *Wijzigen*. De rij wordt ook toegepast als je niets doet; controleer dus of de taak klopt. *Bevestigen* haalt de rij uit deze lijst; aan wat er wordt toegepast verandert het niets. *Wijzigen* laat je een andere taak kiezen. Met *Koppeling wissen* haal je een koppeling die je zelf legde weer weg. Let op: een blad van een ander project met dezelfde WBS-nummers wordt wél gekoppeld, onder *Koppeling betwijfeld*, en bij *Toepassen* doorgevoerd.
 
 **Wacht op koppeling.** Vond de app geen taak, of meerdere met hetzelfde WBS-nummer, dan staat de rij onder *Wacht op koppeling*. Kies bij *Kies een taak…* de juiste taak; je zoekt op WBS-nummer of naam. Koppel je hem niet, dan wordt de rij geweigerd.
 
 ## Valkuilen en wat de app dan doet
 
-Een rij die niet past, wordt geweigerd met een reden. De rest van het blad gaat gewoon door. Dit zijn de meldingen:
+Een rij die niet past, wordt geweigerd met een reden. De rest van het blad gaat gewoon door. Dit zijn de belangrijkste meldingen:
 
 - *De werkelijke datum ligt na de peildatum.* De peildatum is je statusdatum. Zet de statusdatum later of corrigeer het blad.
 - *Deze taak begint volgens de planning pas na de peildatum: vul in het blad eerst de werkelijke start in.* De app verzint geen start; geef hem in het blad mee.
@@ -66,10 +66,12 @@ Een rij die niet past, wordt geweigerd met een reden. De rest van het blad gaat 
 - *Werkelijk einde ligt vóór werkelijke start.*
 - *Onleesbare datum.* en *Onleesbaar percentage.*
 - *De ingevulde waarden spreken elkaar tegen.* Bijvoorbeeld een werkelijk einde bij een percentage onder 100.
-- *Geen taak gevonden voor deze rij.* Bijvoorbeeld bij een blad van een ander project.
+- *Geen taak gevonden voor deze rij.* Het blad noemt een taak-ID en WBS-nummer die in dit project niet voorkomen.
+- *Deze WBS-code komt bij meerdere taken voor — koppel de rij met de hand.*
 - *Een andere rij claimde deze taak al.* Twee rijen wijzen naar dezelfde taak.
+- *Geweigerd door de planner.* Een andere weigering van de planning zelf, zonder eigen melding.
 
-Wordt het hele bestand geweigerd, dan staat er een van deze meldingen in het venster: *Dit bestand heeft geen kolom “OPS Task ID” of “WBS” om rijen aan taken te koppelen.*, *Dit bestand heeft geen van de kolommen Voltooiing, Werkelijke start of Werkelijk einde.*, *Dit bestand is te groot om als voortgangsblad te lezen.* (meer dan 16 MB), *Dit bestand heeft te veel rijen om als voortgangsblad te lezen.* (meer dan 50.000 rijen) of *Dit bestand is met een wachtwoord beveiligd en kan niet worden gelezen.*
+Wordt het hele bestand geweigerd, dan staat er een van deze meldingen in het venster: *Dit bestand heeft geen kolom “OPS Task ID” of “WBS” om rijen aan taken te koppelen.*, *Dit bestand heeft geen van de kolommen Voltooiing, Werkelijke start of Werkelijk einde.*, *Dit bestand is te groot om als voortgangsblad te lezen.* (meer dan 16 MB), *Dit bestand heeft te veel rijen om als voortgangsblad te lezen.* (meer dan 50.000 rijen) of *Dit bestand is met een wachtwoord beveiligd en kan niet worden gelezen.* of *Dit bestand kon niet als voortgangsblad worden gelezen.*
 
 **Geen statusdatum.** Is er nog geen statusdatum en past de import voortgang toe, dan zet de app hem op vandaag en meldt dat. Zet hem dus eerst zelf.
 

@@ -55,18 +55,18 @@ Wat doet de app als een taak al begonnen is terwijl zijn voorganger nog loopt? Z
 
 Twee voortgangsmodi bepalen hoe de app daarmee rekent:
 
-- **Retained Logic** (de standaard): de relatie blijft gelden. Het restwerk van de opvolger begint pas als de voorganger klaar is, en nooit vóór de statusdatum.
+- **Retained Logic** (de standaard): de relatie blijft gelden. Het restwerk van de opvolger volgt de relatie: bij Eind-Start begint het pas als de voorganger klaar is, en nooit vóór de statusdatum.
 - **Progress Override**: de werkelijkheid wint. Het restwerk van de opvolger begint op de statusdatum, zonder te wachten op de voorganger.
 
 In dit profiel zit het verschil alleen in het restwerk van taken die al begonnen zijn terwijl hun voorganger nog niet klaar is. Andere taken rekenen in beide modi hetzelfde. De app meldt zo'n relatie in beide modi: in de statusbalk als *1 out-of-sequence-relatie(s)* en in het paneel *Waarschuwingen*.
 
 ### Baselines en afwijking
 
-Bij het opslaan legt de app van elke taak zonder onderliggende taken de vroegste start, het vroegste einde, de duur en het mijlpaalsoort vast. Fasen staan er niet in. Wat je daarna wijzigt, raakt de baseline niet. Je kunt meer baselines bewaren; precies één is **actief**. De actieve baseline gebruiken de Gantt, het Variance-rapport en het Voortgangsrapport.
+Bij het opslaan legt de app van elke taak zonder onderliggende taken de vroegste start, het vroegste einde, de duur en de mijlpaalsoort vast. Fasen staan er niet in. Wat je daarna wijzigt, raakt de baseline niet. Je kunt meer baselines bewaren; precies één is **actief**. De actieve baseline gebruiken de Gantt, het Variance-rapport en het Voortgangsrapport.
 
 De **afwijking** is het verschil in werkdagen tussen de baseline en de huidige planning. Een plus betekent later, een min eerder. De app telt in de kalender van het project. Het Variance-rapport geeft per taak de afwijking van start en einde. De status volgt alleen uit het einde: *Later* bij een plus, *Eerder* bij een min, anders *Op schema*. Een taak die na de baseline is toegevoegd, heet *Nieuw*; een taak die er niet meer is, *Vervallen*.
 
-Twee kanttekeningen. De duurafwijking vergelijkt de geplande duur van de taak nu met die in de baseline. Voortgang verandert die geplande duur niet: een taak die twee dagen gepland stond en drie dagen duurde, heeft dus een eindafwijking van +1 maar een duurafwijking van 0. En als je een baseline opslaat nadat er voortgang is ingevuld, legt hij de stand met die werkelijke datums vast; de afwijking is dan nul.
+Twee kanttekeningen. De duurafwijking staat in de takentabel (kolom *Duurafwijking*), niet in het Variance-rapport. Ze vergelijkt de geplande duur van de taak nu met die in de baseline. Voortgang verandert die geplande duur niet: een taak die twee dagen gepland stond en drie dagen duurde, heeft dus een eindafwijking van +1 maar een duurafwijking van 0. En als je een baseline opslaat nadat er voortgang is ingevuld, legt hij de stand met die werkelijke datums vast; de afwijking is dan nul.
 
 Het Voortgangsrapport zet de geplande voortgang naast de werkelijke. Beide zijn gewogen naar werkdagen. Gepland is het deel van elke taak dat volgens de baseline op de statusdatum klaar had moeten zijn; werkelijk is het ingevulde percentage.
 
@@ -140,24 +140,26 @@ De oplevering blijft in beide gevallen vrijdag 6 augustus: het schilderwerk had 
 In de profielen Primavera P6 en Microsoft Project eindigt het schilderwerk in dit voorbeeld op dezelfde data (27 en 22 juli). Ze verschillen op deze punten. Het zijn conventies van het profiel; je vindt ze bij *Instellingen › Project › Projectinfo*, in het blok *Rekenprofiel en reken-opties*.
 
 - In het profiel Microsoft Project schuift werk dat niet begonnen is niet naar de statusdatum (conventie *Niet-gestarte taken niet naar de statusdatum*). Zet je in het voorbeeld hierboven alleen een statusdatum en vul je niets in, dan blijft de oplevering in dat profiel vrijdag 6 augustus.
-- Microsoft Project hervat het restwerk niet op de statusdatum, maar op de werkelijke start plus de al verstreken duur (conventie *Restwerk hervat na de al verstreken duur*). Neem *Binnenspouwblad metselen* (5 werkdagen), begonnen op dinsdag 29 juni en op woensdag 30 juni, de statusdatum, op 40 % (twee ploegen). Alles ervoor is klaar volgens planning. Open Planner Studio en Primavera P6 laten de taak eindigen op vrijdag 2 juli; Microsoft Project op maandag 5 juli.
-- Primavera P6 toont als vroegste start van een lopende taak het begin van het restwerk, niet de werkelijke start (in het voorbeeld met het binnenspouwblad woensdag 30 juni). Progress Override werkt daar bovendien achterwaarts (conventie *Progress Override negeert een gestarte opvolger ook achterwaarts*). Bij het openen van een .xer-bestand neemt de app de voortgangsmodus uit het bestand over. Actual Dates, de derde P6-modus, kent de app niet; zo'n bestand rekent als Retained Logic.
+- Microsoft Project hervat het restwerk niet op de statusdatum, maar op de werkelijke start plus de al verstreken duur (conventie *Restwerk hervat na de al verstreken duur*). Neem *Binnenspouwblad metselen* (5 werkdagen), begonnen op dinsdag 29 juni en op woensdag 30 juni, de statusdatum, op 40 % (twee ploegen metselen tegelijk, dus na één dag is al 40 % klaar). Alles ervoor is klaar volgens planning. Open Planner Studio en Primavera P6 laten de taak eindigen op vrijdag 2 juli; Microsoft Project op maandag 5 juli.
+- Primavera P6 toont als vroegste start van een lopende taak het begin van het restwerk, niet de werkelijke start (in het voorbeeld met het binnenspouwblad woensdag 30 juni).
+- In het profiel Primavera P6 telt de relatie naar een opvolger die al gestart is onder Progress Override ook niet mee voor de voorganger: ze legt geen grens meer aan zijn laatste datums en zijn vrije speling (conventie *Progress Override negeert een gestarte opvolger ook achterwaarts*). In het voorbeeld met stucwerk en schilder zie je dat niet, omdat het stucwerk via de dekvloer toch al kritiek is: zijn laatste datums en vrije speling zijn onder Retained Logic en Progress Override gelijk.
+- Bij het openen van een .xer-bestand neemt de app de voortgangsmodus uit het bestand over. Actual Dates, de derde P6-modus, kent de app niet; zo'n bestand rekent als Retained Logic.
 
 ## Gevolgen en misverstanden
 
 **"Ik zet de statusdatum even door."** Verzet je hem, dan begint het restwerk van lopende taken op de nieuwe datum, en werk dat nog niet begonnen is kan nooit voor die datum liggen. Verzet de statusdatum daarom alleen samen met een update van de voortgang.
 
-**"Een taak op 100 % is altijd op tijd klaar."** Zet je een taak op 100 % zonder werkelijk einde, dan wordt dat de statusdatum. Was hij in werkelijkheid eerder klaar, vul dan het werkelijke einde in.
+**"100 % invullen legt het echte einde vast."** Alleen als je ook het werkelijke einde invult. Zet je een taak op 100 % zonder werkelijk einde, dan wordt dat de statusdatum. Was hij in werkelijkheid eerder klaar, vul dan het werkelijke einde in.
 
 **"0 % betekent niet begonnen."** Heeft een taak een werkelijke start, dan telt hij als begonnen, ook op 0 %. Het restwerk is dan de volle duur en begint op de statusdatum. Wis de werkelijke start om hem weer als niet begonnen te laten tellen.
 
 **"Progress Override lost de waarschuwing op."** De melding over out-of-sequence blijft staan. De modus bepaalt alleen hoe de app rekent. Klopt de relatie niet meer, pas dan de relatie aan.
 
-**"Een gesplitste taak rekent gewoon door."** Een pauze in het nog te doen deel blijft in het restwerk zitten. Neem een taak van 5 werkdagen met na 2 dagen werk 1 dag pauze, begonnen op dinsdag 29 juni en met de statusdatum op woensdag 30 juni op 40 %. Het restwerk van 3 werkdagen begint op de statusdatum en loopt door de pauze: het einde is maandag 5 juli. Zonder pauze was het vrijdag 2 juli.
+**"De pauze in een gesplitste taak valt weg."** Nee: een pauze in het nog te doen deel blijft in het restwerk zitten. Neem een taak van 5 werkdagen met na 2 dagen werk 1 dag pauze, begonnen op dinsdag 29 juni en met de statusdatum op woensdag 30 juni op 40 %. Het restwerk van 3 werkdagen begint op de statusdatum en loopt door de pauze: het einde is maandag 5 juli. Zonder pauze was het vrijdag 2 juli.
 
-**Uren en de statusdatum.** In het lint vul je de statusdatum als datum in, zonder tijd. Een urentaak rekent het restwerk vanaf het begin van die werkdag. Op de kalender van het oefenproject (werkdag vanaf 07:00) heeft een taak van 5 uur op 40 %, met de statusdatum op de dag zelf, 3 uur restwerk. Dat loopt van 07:00 tot 10:00, ook al is er die ochtend al gewerkt. Hoe de app uren telt, staat in [Dagen en uren](docs://uitleg-dagen-en-uren).
+**Uren en de statusdatum.** Een tijd kun je in het lint niet opgeven: je vult de statusdatum als datum in. Neem je de stand na werktijd op, zet de statusdatum dan op de volgende werkdag. Een urentaak rekent het restwerk vanaf het begin van de statusdatum. Neem *Kanaalplaatvloer leggen* in het oefenproject na tutorial 4: 5 uur, op maandag 28 juni, werkdag vanaf 07:00. Met de statusdatum op maandag 28 juni en de taak op 40 % heeft hij 3 uur restwerk, van 07:00 tot 10:00, ook al is er die ochtend al gewerkt. Hoe de app uren telt, staat in [Dagen en uren](docs://uitleg-dagen-en-uren).
 
-**Een baseline bijwerken.** Dat kan niet. Je slaat een nieuwe op en verwijdert de oude. Verplaats je het project, dan schuiven de werkelijke datums en de statusdatum mee, maar de baselines standaard niet: zo blijft de verschuiving als afwijking zichtbaar.
+**Een baseline bijwerken.** Dat kan niet. Je slaat een nieuwe op en verwijdert de oude. Verplaats je het project, dan schuiven de werkelijke datums en de statusdatum mee, maar de baselines standaard niet: zo blijft de verschuiving als afwijking zichtbaar. Zie [Project verplaatsen](docs://howto-project-verplaatsen).
 
 ## Zie ook
 
@@ -165,4 +167,5 @@ In de profielen Primavera P6 en Microsoft Project eindigt het schilderwerk in di
 - [Voortgang uit een spreadsheet importeren](docs://howto-voortgang-importeren): voortgang van uitvoerders in één keer inlezen.
 - [De voortgangsmodus kiezen](docs://howto-voortgangsmodus-kiezen): Retained Logic of Progress Override instellen.
 - [Een baseline opslaan en beheren](docs://howto-baseline-opslaan-en-beheren): een baseline vastleggen en gebruiken.
+- [Project verplaatsen](docs://howto-project-verplaatsen): wat er met werkelijke datums, statusdatum en baselines gebeurt.
 - [Kritiek pad en speling](docs://uitleg-kritiek-pad): waarom een taak kritiek is en wat speling betekent.

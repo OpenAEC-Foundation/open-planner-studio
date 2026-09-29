@@ -51,13 +51,13 @@ Reading in does not recalculate by itself. Press **Calculate** (F5), for example
 
 The app links every row to a task, first on *OPS Task ID* and otherwise on the WBS number.
 
-**Link is uncertain.** If the app found the task only by WBS number, the row is under *Link is uncertain*, with *Confirm* and *Change*. The row is applied too if you do nothing; so check that the task is right. *Confirm* fixes the link. *Change* lets you choose another task.
+**Link is uncertain.** If the app found the task only by WBS number, the row is under *Link is uncertain*, with *Confirm* and *Change*. The row is applied too if you do nothing; so check that the task is right. *Confirm* takes the row out of this list; it changes nothing about what is applied. *Change* lets you choose another task. With *Clear link* you remove a link you made yourself. Note: a sheet from another project with the same WBS numbers is linked after all, under *Link is uncertain*, and applied when you click *Apply*.
 
 **Waiting for a link.** If the app found no task, or several with the same WBS number, the row is under *Waiting for a link*. At *Choose a task…* choose the right task; you search by WBS number or name. If you do not link it, the row is refused.
 
 ## Pitfalls and what the app does
 
-A row that does not fit is refused with a reason. The rest of the sheet just carries on. These are the messages:
+A row that does not fit is refused with a reason. The rest of the sheet just carries on. These are the main messages:
 
 - *The actual date is after the status date.* Set the status date later or correct the sheet.
 - *This task is planned to start after the status date: fill in its actual start in the sheet first.* The app does not invent a start; supply it in the sheet.
@@ -66,10 +66,12 @@ A row that does not fit is refused with a reason. The rest of the sheet just car
 - *Actual finish is before actual start.*
 - *Unreadable date.* and *Unreadable percentage.*
 - *The entered values contradict each other.* For example an actual finish with a percentage below 100.
-- *No task found for this row.* For example with a sheet from another project.
+- *No task found for this row.* The sheet mentions a task ID and WBS number that do not occur in this project.
+- *This WBS code occurs on multiple tasks — link the row by hand.*
 - *Another row already claimed this task.* Two rows point to the same task.
+- *Refused by the planner.* Another refusal by the planning itself, without a message of its own.
 
-If the whole file is refused, one of these messages appears in the window: *This file has no “OPS Task ID” or “WBS” column to link rows to tasks.*, *This file has none of the Completion, Actual Start or Actual Finish columns.*, *This file is too large to read as a progress sheet.* (more than 16 MB), *This file has too many rows to read as a progress sheet.* (more than 50,000 rows) or *This file is password-protected and cannot be read.*
+If the whole file is refused, one of these messages appears in the window: *This file has no “OPS Task ID” or “WBS” column to link rows to tasks.*, *This file has none of the Completion, Actual Start or Actual Finish columns.*, *This file is too large to read as a progress sheet.* (more than 16 MB), *This file has too many rows to read as a progress sheet.* (more than 50,000 rows) or *This file is password-protected and cannot be read.* or *This file could not be read as a progress sheet.*
 
 **No status date.** If there is no status date yet and the import applies progress, the app sets it to today and tells you. So set it yourself first.
 

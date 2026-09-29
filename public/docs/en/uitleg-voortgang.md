@@ -55,7 +55,7 @@ What does the app do if a task has already started while its predecessor is stil
 
 Two progress modes decide how the app calculates that:
 
-- **Retained Logic** (the default): the relation stays in force. The remaining work of the successor only starts once the predecessor is finished, and never before the status date.
+- **Retained Logic** (the default): the relation stays in force. The remaining work of the successor follows the relation: with Finish-Start it only starts once the predecessor is finished, and never before the status date.
 - **Progress Override**: reality wins. The remaining work of the successor starts on the status date, without waiting for the predecessor.
 
 In this profile the difference lies only in the remaining work of tasks that have already started while their predecessor is not yet finished. Other tasks calculate the same in both modes. The app reports such a relation in both modes: in the status bar as *1 out-of-sequence relation(s)* and in the *Warnings* panel.
@@ -66,7 +66,7 @@ When you save, the app records for every task without subtasks the early start, 
 
 The **variance** is the difference in work days between the baseline and the current schedule. A plus means later, a minus earlier. The app counts in the project calendar. The Variance report gives the variance of start and finish per task. The status follows only from the finish: *Later* for a plus, *Earlier* for a minus, otherwise *On schedule*. A task added after the baseline is called *New*; a task that no longer exists is *Dropped*.
 
-Two remarks. The duration variance compares the planned duration of the task now with the one in the baseline. Progress does not change that planned duration: a task planned at two days that took three days therefore has a finish variance of +1 but a duration variance of 0. And if you save a baseline after progress has been entered, it records the state with those actual dates; the variance is then zero.
+Two remarks. The duration variance is in the task table (column *Duration variance*), not in the Variance report. It compares the planned duration of the task now with the one in the baseline. Progress does not change that planned duration: a task planned at two days that took three days therefore has a finish variance of +1 but a duration variance of 0. And if you save a baseline after progress has been entered, it records the state with those actual dates; the variance is then zero.
 
 The Progress report puts the planned progress next to the actual progress. Both are weighted by work days. Planned is the part of each task that should have been finished on the status date according to the baseline; actual is the percentage that was entered.
 
@@ -78,7 +78,7 @@ In the Gantt a dashed line marks the status date, with the date in the header. A
 
 The example is the practice project *House extension* from the tutorials, in the state after all relations have been added: without a construction holiday, resources or hours. In tutorial 6 you do this yourself in the practice project. That project has more in it by then, so the numbers there differ. Here you read why the numbers are what they are.
 
-The extension starts on Monday 7 June 2027. On the calculated schedule the app saves the baseline *Original plan*: handover Friday 6 August 2027, 45 work days.
+The extension starts on Monday 7 June 2027. On the calculated schedule the app saves a baseline named *Baseline*: handover Friday 6 August 2027, 45 work days.
 
 ### The state on Monday 28 June
 
@@ -140,24 +140,26 @@ The handover stays Friday 6 August in both cases: the painting had float anyway.
 In the Primavera P6 and Microsoft Project profiles the painting in this example finishes on the same dates (27 and 22 July). They differ on the following points. They are conventions of the profile; you find them under *Settings › Project › Project info*, in the block *Calculation profile and options*.
 
 - In the Microsoft Project profile, work that has not started does not move to the status date (convention *Don't move unstarted tasks to the status date*). If in the example above you only set a status date and enter nothing, the handover in that profile stays Friday 6 August.
-- Microsoft Project does not resume the remaining work on the status date, but at the actual start plus the duration already elapsed (convention *Remaining work resumes after the elapsed duration*). Take *Build inner cavity leaf* (5 work days), started on Tuesday 29 June and at 40% on Wednesday 30 June, the status date (two crews). Everything before it is finished according to plan. Open Planner Studio and Primavera P6 let the task finish on Friday 2 July; Microsoft Project on Monday 5 July.
-- Primavera P6 shows as the early start of a running task the start of the remaining work, not the actual start (in the inner-leaf example Wednesday 30 June). Progress Override there also works backward (convention *Progress Override ignores a started successor on the late side too*). When you open an .xer file, the app takes the progress mode from the file. Actual Dates, the third P6 mode, is not known to the app; such a file calculates as Retained Logic.
+- Microsoft Project does not resume the remaining work on the status date, but at the actual start plus the duration already elapsed (convention *Remaining work resumes after the elapsed duration*). Take *Build inner cavity leaf* (5 work days), started on Tuesday 29 June and at 40% on Wednesday 30 June, the status date (two crews are bricklaying at the same time, so 40% is already done after one day). Everything before it is finished according to plan. Open Planner Studio and Primavera P6 let the task finish on Friday 2 July; Microsoft Project on Monday 5 July.
+- Primavera P6 shows as the early start of a running task the start of the remaining work, not the actual start (in the inner-leaf example Wednesday 30 June).
+- In the Primavera P6 profile, under Progress Override the relation to a successor that has already started also does not count for the predecessor: it no longer limits its late dates and its free float (convention *Progress Override ignores a started successor on the late side too*). In the plasterer and painter example you do not see that, because the plastering is critical anyway through the floor screed: its late dates and free float are the same under Retained Logic and Progress Override.
+- When you open an .xer file, the app takes the progress mode from the file. Actual Dates, the third P6 mode, is not known to the app; such a file calculates as Retained Logic.
 
 ## Consequences and misunderstandings
 
 **"I'll just move the status date on."** If you move it, the remaining work of running tasks starts on the new date, and work that has not started yet can never lie before that date. So move the status date only together with an update of the progress.
 
-**"A task at 100% was always finished on time."** If you set a task to 100% without an actual finish, it becomes the status date. If it was in fact finished earlier, fill in the actual finish.
+**"Entering 100% records the real finish."** Only if you also enter the actual finish. If you set a task to 100% without an actual finish, it becomes the status date. If it was in fact finished earlier, fill in the actual finish.
 
 **"0% means not started."** If a task has an actual start, it counts as started, even at 0%. The remaining work is then the full duration and starts on the status date. Clear the actual start to make it count as not started again.
 
 **"Progress Override solves the warning."** The out-of-sequence message stays. The mode only decides how the app calculates. If the relation is no longer right, change the relation.
 
-**"A split task just calculates on."** A pause in the part still to do stays in the remaining work. Take a task of 5 work days with a 1-day pause after 2 days of work, started on Tuesday 29 June and, with the status date on Wednesday 30 June, at 40%. The remaining work of 3 work days starts on the status date and runs through the pause: the finish is Monday 5 July. Without the pause it was Friday 2 July.
+**"The pause in a split task drops out."** No: a pause in the part still to do stays in the remaining work. Take a task of 5 work days with a 1-day pause after 2 days of work, started on Tuesday 29 June and, with the status date on Wednesday 30 June, at 40%. The remaining work of 3 work days starts on the status date and runs through the pause: the finish is Monday 5 July. Without the pause it was Friday 2 July.
 
-**Hours and the status date.** In the ribbon you enter the status date as a date, without a time. A task in hours calculates the remaining work from the start of that working day. On the calendar of the practice project (working day from 07:00), a task of 5 hours at 40%, with the status date on the day itself, has 3 hours of remaining work. That runs from 07:00 to 10:00, even if work was already done that morning. How the app counts hours is explained in [Days and hours](docs://uitleg-dagen-en-uren).
+**Hours and the status date.** You cannot enter a time in the ribbon: you fill in the status date as a date. If you take stock after working hours, set the status date to the next working day. A task in hours calculates the remaining work from the start of the status date. Take *Lay hollow-core floor* in the practice project after tutorial 4: 5 hours, on Monday 28 June, working day from 07:00. With the status date on Monday 28 June and the task at 40%, it has 3 hours of remaining work, running from 07:00 to 10:00, even if work was already done that morning. How the app counts hours is explained in [Days and hours](docs://uitleg-dagen-en-uren).
 
-**Updating a baseline.** That is not possible. You save a new one and delete the old one. If you move the project, the actual dates and the status date move along, but the baselines by default do not: that way the shift stays visible as variance.
+**Updating a baseline.** That is not possible. You save a new one and delete the old one. If you move the project, the actual dates and the status date move along, but the baselines by default do not: that way the shift stays visible as variance. See [Moving a project](docs://howto-project-verplaatsen).
 
 ## See also
 
@@ -165,4 +167,5 @@ In the Primavera P6 and Microsoft Project profiles the painting in this example 
 - [Importing progress from a spreadsheet](docs://howto-voortgang-importeren): reading in progress from site staff in one go.
 - [Choosing the progress mode](docs://howto-voortgangsmodus-kiezen): setting Retained Logic or Progress Override.
 - [Saving and managing a baseline](docs://howto-baseline-opslaan-en-beheren): recording a baseline and using it.
+- [Moving a project](docs://howto-project-verplaatsen): what happens to actual dates, the status date and baselines.
 - [Critical path and float](docs://uitleg-kritiek-pad): why a task is critical and what float means.

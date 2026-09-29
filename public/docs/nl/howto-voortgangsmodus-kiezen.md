@@ -4,7 +4,7 @@ Doel: bepalen hoe de app het restwerk plant van een taak die al begonnen is terw
 
 ## Wanneer je dit nodig hebt
 
-Op de bouwplaats loopt werk vaak vooruit op de logica. De schilder begint al in de kamers die gestuukt zijn, terwijl de stukadoor elders nog bezig is. In de planning is dat een relatie Eind-Start waarvan de opvolger begint voordat de voorganger klaar is. De app noemt dat **out-of-sequence**. Zie je in de statusbalk *N out-of-sequence-relatie(s)*, dan heb je zo'n geval, en de voortgangsmodus bepaalt hoe de app het restwerk van de opvolger plant. Wat de twee modi doen, staat met een uitgewerkt voorbeeld in [Voortgang, statusdatum en baseline](docs://uitleg-voortgang).
+Op de bouwplaats loopt werk vaak vooruit op de logica. De schilder begint al in de kamers die gestuukt zijn, terwijl de stukadoor elders nog bezig is. In de planning is dat bijvoorbeeld een relatie Eind-Start waarvan de opvolger begint voordat de voorganger klaar is. De app noemt dat **out-of-sequence**. Zie je in de statusbalk *N out-of-sequence-relatie(s)*, dan heb je zo'n geval, en de voortgangsmodus bepaalt hoe de app het restwerk van de opvolger plant. Wat de twee modi doen, staat met een uitgewerkt voorbeeld in [Voortgang, statusdatum en baseline](docs://uitleg-voortgang).
 
 ## Stappen
 
@@ -31,9 +31,9 @@ Hoe kies je?
 
 **Hij hoort bij het project.** De keuze wordt met het projectbestand opgeslagen, geldt voor het hele project en is met Ctrl+Z terug te draaien. Een nieuw project staat op Retained Logic.
 
-**Een P6-bestand.** Open je een Primavera P6-bestand (.xer), dan neemt de app de modus uit het bestand over. P6 kent naast Retained Logic en Progress Override ook Actual Dates. Die derde modus kent de app niet; zo'n bestand rekent als Retained Logic.
+**Een P6-bestand.** Open je een Primavera P6-bestand (.xer), dan neemt de app de modus uit het bestand over. P6 kent naast Retained Logic en Progress Override ook Actual Dates. Die derde modus kent de app niet; zo'n bestand rekent als Retained Logic. De importmelding telt dat mee als *1 P6-planningsinstelling met veilige terugval.*
 
-**Het rekenprofiel.** In het profiel Primavera P6 werkt Progress Override ook achterwaarts, in de late datums en de vrije speling van de voorganger (conventie *Progress Override negeert een gestarte opvolger ook achterwaarts*). In de profielen Open Planner Studio en Microsoft Project is dat niet zo. Je vindt de conventies onder *Instellingen › Project › Projectinfo*, in het blok *Rekenprofiel en reken-opties*.
+**Het rekenprofiel.** In het profiel Primavera P6 werkt Progress Override ook achterwaarts, in de late datums en de vrije speling van de voorganger (conventie *Progress Override negeert een gestarte opvolger ook achterwaarts*). In de profielen Open Planner Studio en Microsoft Project is dat niet zo. Je vindt de conventies onder *Instellingen › Project › Projectinfo*, in het blok *Rekenprofiel en reken-opties*. In het voorbeeld van de uitleg is dat achterwaartse effect niet te zien.
 
 ## Zie ook
 

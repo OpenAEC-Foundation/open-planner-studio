@@ -13,7 +13,7 @@ You update progress at fixed moments, for example every Friday when the site man
 The status date is the day on which you take stock. Set it before you enter progress.
 
 1. Go to *Planning › Baselines & progress › Status date*.
-2. Type the date in the three boxes for day, month and year, for example 28, 06 and 2027, and press Enter. The app jumps to the next box by itself.
+2. Type the date in the three boxes for day, month and year (in the order of your date notation), for example 28, 06 and 2027, and press Enter. The app jumps to the next box by itself.
 3. With the small cross next to the field you empty the status date again.
 
 If you take stock on Friday after working hours, set the status date to the next working day, Monday. The app plans the remaining work from the start of the status date.
@@ -70,7 +70,7 @@ Every change to progress or the status date makes the schedule out of date: the 
 
 **A percentage below 100%.** If you set a completed task back below 100%, the actual finish is dropped. If you clear only the actual finish, the percentage goes to 0 and the task stays *In progress*. If you want the task to count as not started again, also clear the actual start, or choose *Not started* at *Status* in the table.
 
-**Changing the duration of a running task.** The work done stays done and the percentage adjusts. A task of 5 work days at 60% that you set to 10 work days ends up at 30%. The app refuses a duration shorter than the work already done: *‘Build inner cavity leaf’ is already 60% done: a duration shorter than the work already done isn't possible. The duration was not changed.*
+**Changing the duration of a running task.** The work done stays done and the percentage adjusts. A task of 5 work days at 60% that you set to 10 work days ends up at 30%. The app refuses a duration shorter than the work already done: *‘Build inner cavity leaf’ is already 60% done: a duration shorter than the work already done isn't possible. The duration was not changed.* In the table the cell reports *This duration is shorter than the work already done.*
 
 **The remaining duration is rounded.** The app rounds the remaining duration to whole work days. For a task of 2 work days, 50% and 75% both give a remainder of 1 work day.
 

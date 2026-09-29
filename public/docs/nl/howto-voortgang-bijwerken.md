@@ -13,7 +13,7 @@ Je werkt de voortgang bij op vaste momenten, bijvoorbeeld elke vrijdag als de ui
 De statusdatum is de dag waarop je de stand opneemt. Zet hem vóór je voortgang invult.
 
 1. Ga naar *Planning › Baselines & voortgang › Statusdatum*.
-2. Typ de datum in de drie vakjes voor dag, maand en jaar, bijvoorbeeld 28, 06 en 2027, en druk op Enter. De app springt zelf naar het volgende vakje.
+2. Typ de datum in de drie vakjes voor dag, maand en jaar (in de volgorde van je datumnotatie), bijvoorbeeld 28, 06 en 2027, en druk op Enter. De app springt zelf naar het volgende vakje.
 3. Met het kruisje naast het veld maak je de statusdatum weer leeg.
 
 Neem je de stand vrijdag na werktijd op, dan zet je de statusdatum op de eerstvolgende werkdag, maandag. De app plant het restwerk vanaf het begin van de statusdatum.
@@ -35,7 +35,7 @@ Bij een mijlpaal staat er één veld, *Werkelijke datum*.
 **Een percentage kiezen in het menu.** Handig voor een snelle stand.
 
 1. Klik met de rechtermuisknop op de taakbalk in de Gantt.
-2. Kies *Voortgang* en dan 0 %, 25 %, 50 %, 75 % of 100 %.
+2. Kies *Voortgang* en dan 0%, 25%, 50%, 75% of 100%.
 
 **Meerdere taken in de tabel.** Handig als je een hele lijst bijwerkt.
 
@@ -70,7 +70,7 @@ Elke wijziging in voortgang of statusdatum maakt de planning verouderd: de statu
 
 **Een percentage onder 100 %.** Zet je een voltooide taak terug onder de 100 %, dan vervalt het werkelijke einde. Wis je alleen het werkelijke einde, dan gaat het percentage naar 0 en blijft de taak *Bezig*. Wil je de taak weer als niet begonnen laten tellen, wis dan ook de werkelijke start, of kies in de tabel bij *Status* *Niet gestart*.
 
-**De duur van een lopende taak wijzigen.** Het gedane werk blijft gedaan en het percentage past zich aan. Een taak van 5 werkdagen op 60 % die je op 10 werkdagen zet, staat daarna op 30 %. Een duur die korter is dan het gedane werk weigert de app: *‘Binnenspouwblad metselen’ is al voor 60% gedaan: een duur korter dan het gedane werk kan niet. De duur is niet gewijzigd.*
+**De duur van een lopende taak wijzigen.** Het gedane werk blijft gedaan en het percentage past zich aan. Een taak van 5 werkdagen op 60 % die je op 10 werkdagen zet, staat daarna op 30 %. Een duur die korter is dan het gedane werk weigert de app: *‘Binnenspouwblad metselen’ is al voor 60% gedaan: een duur korter dan het gedane werk kan niet. De duur is niet gewijzigd.* In de tabel meldt de cel *Deze duur is korter dan het werk dat al gedaan is.*
 
 **De restduur is afgerond.** De app rondt de restduur af op hele werkdagen. Bij een taak van 2 werkdagen geven 50 % en 75 % allebei een rest van 1 werkdag.
 

@@ -20,7 +20,7 @@ Onder elke taakbalk in de Gantt staat nu een dunne balk met de baseline-datums; 
 
 ### De actieve baseline kiezen
 
-Open *Baselines beheren…* en kies in de kolom *Actief* de baseline waar je mee wilt vergelijken. Er is altijd één actieve baseline. De Gantt-overlay, het rapporttype *Variance* en het *Voortgangsrapport* gebruiken die.
+Open *Baselines beheren…* en kies in de kolom *Actief* de baseline waar je mee wilt vergelijken. Zolang er baselines zijn, is er precies één actief. De Gantt-overlay, het rapporttype *Variance* en het *Voortgangsrapport* gebruiken die.
 
 ### Een baseline hernoemen
 
@@ -46,11 +46,12 @@ Elke baseline heeft zes kolommen in de takentabel. Klik op de **+** rechts in de
 
 **Nieuwe en verwijderde taken.** Een taak die je na het opslaan toevoegt, heeft geen baseline-balk. In het Variance-rapport staat hij als *Nieuw*. Een taak die je verwijdert, staat er als *Vervallen*.
 
-**Project verplaatsen.** In het venster *Project verplaatsen…* staat, zodra er baselines zijn, het vinkje *Baselines mee verschuiven*. Het staat standaard uit: de baselines blijven staan, zodat de verschuiving als afwijking zichtbaar blijft.
+**Project verplaatsen.** In het venster *Project verplaatsen…* staat, zodra er baselines zijn, het vinkje *Baselines mee verschuiven*. Het staat standaard uit: de baselines blijven staan, zodat de verschuiving als afwijking zichtbaar blijft. Zie [Project verplaatsen](docs://howto-project-verplaatsen).
 
 **Bewaard in het projectbestand.** Baselines en de actieve keuze worden met het project opgeslagen en komen terug als je het bestand opent.
 
 ## Zie ook
 
 - [Voortgang, statusdatum en baseline](docs://uitleg-voortgang): wat een baseline vastlegt en hoe de afwijking wordt berekend.
+- [Project verplaatsen](docs://howto-project-verplaatsen): het vakje *Baselines mee verschuiven*.
 - [Voortgang bijwerken](docs://howto-voortgang-bijwerken): de werkelijke stand invullen die je met de baseline vergelijkt.

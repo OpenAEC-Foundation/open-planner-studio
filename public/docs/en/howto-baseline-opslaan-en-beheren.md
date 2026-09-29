@@ -12,7 +12,7 @@ You record a baseline when the schedule has been approved and the work still has
 
 1. Press **Calculate** (F5), for example through *Planning › Schedule › Calculate*. The baseline records the dates that are calculated at that moment.
 2. Choose *Planning › Baselines & progress › Manage baselines…*. The *Baselines* window opens.
-3. Under *Save new baseline* there is a suggested name, such as *Baseline 1 — (today's date)*. Type a name of your own that you will recognise later, for example *Original plan*.
+3. Under *Save new baseline* there is a suggested name, such as *Baseline 1 — (today's date)*. Type a name of your own that you will recognise later, for example *Baseline*.
 4. Click *Save*. The baseline is now in the list and is immediately the active baseline.
 5. Click *Close*.
 
@@ -20,7 +20,7 @@ Under every task bar in the Gantt there is now a thin bar with the baseline date
 
 ### Choosing the active baseline
 
-Open *Manage baselines…* and choose in the *Active* column the baseline you want to compare with. There is always one active baseline. The Gantt overlay, the report type *Variance* and the *Progress report* use it.
+Open *Manage baselines…* and choose in the *Active* column the baseline you want to compare with. As long as there are baselines, exactly one is active. The Gantt overlay, the report type *Variance* and the *Progress report* use it.
 
 ### Renaming a baseline
 
@@ -32,7 +32,7 @@ Click the small wastebasket next to the baseline in the list. If you delete the 
 
 ### Variances in the task table
 
-Every baseline has six columns in the task table. Click the **+** at the right of the task list header (*Add column*) and open the category *Baseline*. Per baseline there are *Scheduled start*, *Scheduled finish*, *Duration*, *Start variance*, *Finish variance* and *Duration variance*, with the name of the baseline in front, for example *Original plan — Finish variance*. The variances are in work days: a plus is later, a minus is earlier. A task that is not in the baseline shows a dash (—) in those columns.
+Every baseline has six columns in the task table. Click the **+** at the right of the task list header (*Add column*) and open the category *Baseline*. Per baseline there are *Scheduled start*, *Scheduled finish*, *Duration*, *Start variance*, *Finish variance* and *Duration variance*, with the name of the baseline in front, for example *Baseline — Finish variance*. The variances are in work days: a plus is later, a minus is earlier. A task that is not in the baseline shows a dash (—) in those columns.
 
 ## Pitfalls and what the app does
 
@@ -46,11 +46,12 @@ Every baseline has six columns in the task table. Click the **+** at the right o
 
 **New and deleted tasks.** A task you add after saving has no baseline bar. In the Variance report it appears as *New*. A task you delete appears as *Dropped*.
 
-**Move project.** In the *Move project…* window, as soon as there are baselines, there is the checkbox *Shift baselines too*. It is off by default: the baselines stay in place, so the shift shows up as variance.
+**Move project.** In the *Move project…* window, as soon as there are baselines, there is the checkbox *Shift baselines too*. It is off by default: the baselines stay in place, so the shift shows up as variance. See [Moving a project](docs://howto-project-verplaatsen).
 
 **Stored in the project file.** Baselines and the active choice are saved with the project and come back when you open the file.
 
 ## See also
 
 - [Progress, status date and baseline](docs://uitleg-voortgang): what a baseline records and how the variance is calculated.
+- [Moving a project](docs://howto-project-verplaatsen): the checkbox *Shift baselines too*.
 - [Updating progress](docs://howto-voortgang-bijwerken): entering the actual state that you compare with the baseline.
