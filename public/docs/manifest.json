@@ -826,6 +826,69 @@
       },
       "kind": "howto",
       "draft": true
+    },
+    {
+      "id": "uitleg-kalenders",
+      "title": {
+        "nl": "Kalenders en werkdagen",
+        "en": "Calendars and working days"
+      },
+      "kind": "uitleg",
+      "draft": true
+    },
+    {
+      "id": "uitleg-dagen-en-uren",
+      "title": {
+        "nl": "Dagen en uren",
+        "en": "Days and hours"
+      },
+      "kind": "uitleg",
+      "draft": true
+    },
+    {
+      "id": "howto-kalender-maken-en-toewijzen",
+      "title": {
+        "nl": "Een kalender maken en toewijzen",
+        "en": "Creating and assigning a calendar"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-feestdagen-genereren",
+      "title": {
+        "nl": "Feestdagen en bouwvak genereren",
+        "en": "Generating holidays and the construction holiday"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-resourcekalender-instellen",
+      "title": {
+        "nl": "Een resourcekalender instellen",
+        "en": "Setting up a resource calendar"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-urenplanning-aanzetten",
+      "title": {
+        "nl": "Urenplanning aanzetten",
+        "en": "Turning on hour planning"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-werktijden-instellen",
+      "title": {
+        "nl": "Werktijden instellen",
+        "en": "Setting working times"
+      },
+      "kind": "howto",
+      "draft": true
     }
   ],
   "aliases": {}
