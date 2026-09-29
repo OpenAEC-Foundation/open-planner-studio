@@ -27,7 +27,7 @@ An example of each. "A task is critical if its total float is 0 or less" is a ca
 
 The profile and the calculation options belong to the project file, not to the app. If you save the project, they travel with it. Two projects in the same app can therefore calculate with a different profile. A project without a profile calculates as Open Planner Studio.
 
-If the project comes from a .xer file, the block also shows *Settings from the source file* at the bottom. Those options are used in the calculation, but you cannot change them here.
+If there are calculation options that only Primavera knows, the block also shows *Settings from the source file* at the bottom: for a project from a .xer file, but also if you choose *Primavera P6* in *New project* or apply the default options of Primavera P6. You cannot change them here.
 
 ### Where you choose the profile
 
@@ -50,7 +50,7 @@ When you open a file, the app suggests a profile based on the format:
 
 For a .mpp or .xer file the app reports the profile: *This project calculates as Microsoft Project. Change it via File → Project info → Calculation profile and options.* The button *Open calculation profile* in the message takes you straight to Project info. For a .xer file this line is the first detail line of the file's opening message. More about the message is in [Opening a Primavera P6 file (.xer)](docs://howto-xer-openen) and [Opening an MS Project file (.mpp)](docs://howto-mpp-openen).
 
-For a .mpp file the app only sets the profile; the calculation options stay at their default value. If you want the default calculation options of Microsoft Project, choose *Apply this profile's default options*.
+For a .mpp file the app only sets the profile. The calculation options stay empty, as in a new project: *Float calculation* is *Automatic (default)*, not *Smallest (start/finish)*. If you want the default calculation options of Microsoft Project, choose *Apply this profile's default options*.
 
 ## Worked example: one network, three profiles
 
@@ -87,7 +87,7 @@ Here the dates differ. Two conventions in the group *Progress as in Microsoft Pr
 
 ### What if
 
-**The foundation is at 20 % instead of 60 %.** The remaining work is then 4 work days. Under all three profiles the foundation finishes on Monday 14 June and the handover is Wednesday 23 June. The Microsoft Project convention for the remaining work makes no difference here: Monday 7 June plus 1 elapsed work day is Tuesday 8 June, and that is before the status date. Such a convention is a lower limit that can only make the remaining work later. *Order window frames* and the early start under Primavera P6 still differ, as above.
+**The foundation is at 20 % instead of 60 %.** The remaining work is then 4 work days. Under all three profiles the foundation finishes on Monday 14 June and the handover is Wednesday 23 June. The Microsoft Project convention for the remaining work makes no difference here: Monday 7 June plus 1 elapsed work day is Tuesday 8 June, and that is before the status date. Such a convention is a lower limit that can only make the remaining work later. *Order window frames* and the early start under Primavera P6 still differ, as above. Under Microsoft Project, *Order window frames* then has 8 work days of total float.
 
 **You only set a status date and enter no progress.** Under Open Planner Studio and Primavera P6 the whole network moves to Wednesday 9 June. The foundation then runs from Wednesday 9 to Tuesday 15 June and the handover becomes Thursday 24 June: two work days later than without a status date. Under Microsoft Project everything stays where it was and the handover is Tuesday 22 June.
 
@@ -101,9 +101,9 @@ Here the dates differ. Two conventions in the group *Progress as in Microsoft Pr
 
 **"The profile is a setting of the app."** No. The profile and the calculation options belong to the project and travel in the file. Only the templates you keep belong to the app, and a project always keeps its own copy.
 
-**"If I export, my profile goes with it."** Only with your own project format (.ifc). If you export a project you made yourself to *MS Project XML*, *Primavera P6 XML* or *CSV (semicolon-separated)*, the profile is not in the file, and the app does not warn you about it. Of the calculation options, the MS Project XML export writes at most the critical threshold. The file then opens without a profile message as Open Planner Studio. Take the example with the profile Microsoft Project and 60 % progress. If you export it to *MS Project XML* and open it again as Open Planner Studio, recalculating gives a handover on Monday 21 June instead of Tuesday 22 June. What else an export loses is in [Files and formats](docs://uitleg-bestanden).
+**"If I export, my profile goes with it."** Only with your own project format (.ifc). If you export to *MS Project XML*, *Primavera P6 XML* or *CSV (semicolon-separated)*, the profile is not in the file. Of the calculation options, the MS Project XML export writes at most the critical threshold. The app only warns about this for a project that came from a .xer file. For a project you made yourself, you get no message. The file then opens as Open Planner Studio, without a profile message. Take the example with the profile Microsoft Project and 60 % progress. If you export it to *MS Project XML* and open it again, the app first shows the dates from the file, with the handover on Tuesday 22 June. If you let the app recalculate itself, that becomes Monday 21 June. What else an export loses is in [Files and formats](docs://uitleg-bestanden).
 
-**"The Primavera P6 profile gives the same result as P6."** The app cannot promise that. The profile switches on the conventions the app knows from P6, and those are not all the settings of P6. Besides Retained Logic and Progress Override, P6 has a third progress mode, Actual Dates. The app does not know it: such a .xer file calculates as Retained Logic, and the opening message reports that, for example as *1 P6 scheduling setting used a safe fallback.* Some conventions also only work on tasks that come from a .xer file. The explanation of such a convention says so, for example for *Completed task in the data-date window*: "only tasks with P6 provenance". On tasks you make yourself, those conventions do nothing.
+**"The Primavera P6 profile gives the same result as P6."** The app cannot promise that. The profile switches on the conventions the app knows from P6, and those are not all the settings of P6. Besides Retained Logic and Progress Override, P6 has a third progress mode, Actual Dates. The app does not know it: such a .xer file calculates as Retained Logic, and the opening message reports that, for example as *1 P6 scheduling setting used a safe fallback.* Some conventions of the Primavera P6 profile also only work on tasks that come from a .xer file, such as *Unstarted LOE uses the target window* and *Keep actual dates exact*. For some of them the explanation says so: "only tasks with P6 provenance". On tasks you make yourself, those conventions do nothing.
 
 **"The progress mode is part of the profile."** No. Retained Logic or Progress Override is a separate choice per project. You set it apart from the profile, see [Choosing the progress mode](docs://howto-voortgangsmodus-kiezen). One Primavera P6 convention, *Progress Override ignores a started successor on the late side too*, only does something under Progress Override.
 
@@ -118,4 +118,6 @@ Here the dates differ. Two conventions in the group *Progress as in Microsoft Pr
 - [Critical path and float](docs://uitleg-kritiek-pad): the calculation options for critical and float.
 - [Relations and lag](docs://uitleg-relaties): the calculation option *Lag calendar*.
 - [Files and formats](docs://uitleg-bestanden): what an export carries and what it does not.
+- [Exporting](docs://howto-exporteren): exporting a project.
+- [Updating progress](docs://howto-voortgang-bijwerken): entering percentage, actual start and status date.
 - [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen): why imported dates can differ from what the app calculates itself.

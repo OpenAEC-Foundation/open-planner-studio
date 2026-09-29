@@ -27,7 +27,7 @@ Een voorbeeld van elk. "Een taak is kritiek als de totale speling 0 of minder is
 
 Profiel en reken-opties horen bij het projectbestand, niet bij de app. Sla je het project op, dan gaan ze mee. Twee projecten in dezelfde app kunnen dus met een ander profiel rekenen. Een project zonder profiel rekent als Open Planner Studio.
 
-Komt het project uit een .xer-bestand, dan staat onderaan het blok ook *Instellingen uit het bronbestand*. Die opties rekenen mee, maar je kunt ze hier niet wijzigen.
+Staan er reken-opties die alleen Primavera kent, dan staat onderaan het blok ook *Instellingen uit het bronbestand*: bij een project uit een .xer-bestand, maar ook als je *Primavera P6* kiest in *Nieuw project* of de standaardopties van Primavera P6 toepast. Je kunt ze hier niet wijzigen.
 
 ### Waar je het profiel kiest
 
@@ -50,7 +50,7 @@ Bij het openen van een bestand stelt de app een profiel voor, op basis van het f
 
 Bij een .mpp- of .xer-bestand meldt de app het profiel: *Dit project rekent als Microsoft Project. Aanpassen via Bestand → Projectinfo → Rekenprofiel en reken-opties.* Met de knop *Rekenprofiel openen* in de melding ga je direct naar Projectinfo. Bij een .xer-bestand staat deze regel als eerste detailregel in de openingsmelding van het bestand. Meer over de melding staat bij [Een Primavera P6-bestand (.xer) openen](docs://howto-xer-openen) en [Een MS Project-bestand (.mpp) openen](docs://howto-mpp-openen).
 
-Bij een .mpp-bestand zet de app alleen het profiel; de reken-opties blijven op hun standaardwaarde. Wil je de standaard reken-opties van Microsoft Project, kies dan *Standaardopties van dit profiel toepassen*.
+Bij een .mpp-bestand zet de app alleen het profiel. De reken-opties blijven leeg, zoals bij een nieuw project: *Speling-berekening* staat op *Automatisch (standaard)*, niet op *Kleinste (start/finish)*. Wil je de standaard reken-opties van Microsoft Project, kies dan *Standaardopties van dit profiel toepassen*.
 
 ## Rekenvoorbeeld: één netwerk, drie profielen
 
@@ -87,7 +87,7 @@ Hier verschillen de datums. Twee conventies in de groep *Voortgang zoals Microso
 
 ### Wat-als
 
-**De fundering staat op 20 % in plaats van 60 %.** Het restwerk is dan 4 werkdagen. Onder alle drie de profielen eindigt de fundering op maandag 14 juni en is de oplevering woensdag 23 juni. De Microsoft Project-conventie voor het restwerk geeft hier geen verschil: maandag 7 juni plus 1 verstreken werkdag is dinsdag 8 juni, en dat ligt vóór de statusdatum. Zo'n conventie is een ondergrens die het restwerk alleen later kan maken. *Kozijnen bestellen* en de vroegste start onder Primavera P6 verschillen nog wel, zoals hierboven.
+**De fundering staat op 20 % in plaats van 60 %.** Het restwerk is dan 4 werkdagen. Onder alle drie de profielen eindigt de fundering op maandag 14 juni en is de oplevering woensdag 23 juni. De Microsoft Project-conventie voor het restwerk geeft hier geen verschil: maandag 7 juni plus 1 verstreken werkdag is dinsdag 8 juni, en dat ligt vóór de statusdatum. Zo'n conventie is een ondergrens die het restwerk alleen later kan maken. *Kozijnen bestellen* en de vroegste start onder Primavera P6 verschillen nog wel, zoals hierboven. Onder Microsoft Project heeft *Kozijnen bestellen* dan 8 werkdagen totale speling.
 
 **Je zet alleen een statusdatum en vult geen voortgang in.** Onder Open Planner Studio en Primavera P6 schuift het hele netwerk naar woensdag 9 juni. De fundering loopt dan van woensdag 9 tot en met dinsdag 15 juni en de oplevering wordt donderdag 24 juni: twee werkdagen later dan zonder statusdatum. Onder Microsoft Project blijft alles staan en is de oplevering dinsdag 22 juni.
 
@@ -101,9 +101,9 @@ Hier verschillen de datums. Twee conventies in de groep *Voortgang zoals Microso
 
 **"Het profiel is een instelling van de app."** Nee. Het profiel en de reken-opties horen bij het project en gaan mee in het bestand. Alleen de sjablonen die je bewaart zijn van de app, en een project houdt altijd zijn eigen kopie.
 
-**"Als ik exporteer, gaat mijn profiel mee."** Alleen bij je eigen projectformaat (.ifc). Exporteer je een project dat je zelf gemaakt hebt naar *MS Project XML*, *Primavera P6 XML* of *CSV (puntkomma-gescheiden)*, dan staat het profiel niet in het bestand, en de app waarschuwt daar niet voor. Van de reken-opties schrijft de MS Project XML-export hooguit de kritiek-drempel. Het bestand opent daarna zonder profielmelding als Open Planner Studio. Wat een export nog meer verliest, staat in [Bestanden en formaten](docs://uitleg-bestanden). Neem het voorbeeld met het profiel Microsoft Project en 60 % voortgang. Exporteer je het naar *MS Project XML* en open je het weer als Open Planner Studio, dan geeft opnieuw berekenen een oplevering op maandag 21 juni in plaats van dinsdag 22 juni.
+**"Als ik exporteer, gaat mijn profiel mee."** Alleen bij je eigen projectformaat (.ifc). Exporteer je naar *MS Project XML*, *Primavera P6 XML* of *CSV (puntkomma-gescheiden)*, dan staat het profiel niet in het bestand. Van de reken-opties schrijft de MS Project XML-export hooguit de kritiek-drempel. De app waarschuwt daar alleen voor bij een project dat uit een .xer-bestand kwam. Bij een project dat je zelf maakte, krijg je geen melding. Het bestand opent daarna als Open Planner Studio, zonder profielmelding. Neem het voorbeeld met het profiel Microsoft Project en 60 % voortgang. Exporteer je het naar *MS Project XML* en open je het weer, dan toont de app eerst de datums uit het bestand, met oplevering op dinsdag 22 juni. Laat je de app zelf opnieuw berekenen, dan wordt dat maandag 21 juni. Wat een export nog meer verliest, staat in [Bestanden en formaten](docs://uitleg-bestanden).
 
-**"Het profiel Primavera P6 geeft dezelfde uitkomst als P6."** Dat kan de app niet beloven. Het profiel zet de conventies aan die de app van P6 kent, en dat zijn niet alle instellingen van P6. P6 kent naast Retained Logic en Progress Override bijvoorbeeld een derde voortgangsmodus, Actual Dates. Die kent de app niet: zo'n .xer-bestand rekent als Retained Logic, en de openingsmelding meldt dat, bijvoorbeeld als *1 P6-planningsinstelling met veilige terugval.* Sommige conventies werken bovendien alleen op taken die uit een .xer-bestand komen. De uitleg bij zo'n conventie zegt dat, bijvoorbeeld bij *Voltooide taak in het statusdatumvenster*: "alleen taken met P6-herkomst". Op taken die je zelf maakt, doen die conventies niets.
+**"Het profiel Primavera P6 geeft dezelfde uitkomst als P6."** Dat kan de app niet beloven. Het profiel zet de conventies aan die de app van P6 kent, en dat zijn niet alle instellingen van P6. P6 kent naast Retained Logic en Progress Override bijvoorbeeld een derde voortgangsmodus, Actual Dates. Die kent de app niet: zo'n .xer-bestand rekent als Retained Logic, en de openingsmelding meldt dat, bijvoorbeeld als *1 P6-planningsinstelling met veilige terugval.* Sommige conventies van het profiel Primavera P6 werken bovendien alleen op taken die uit een .xer-bestand komen, zoals *Niet-gestarte LOE neemt het doelvenster* en *Werkelijke datums exact overnemen*. Bij een deel ervan staat dat in de uitleg: "alleen taken met P6-herkomst". Op taken die je zelf maakt, doen die conventies niets.
 
 **"De voortgangsmodus zit in het profiel."** Nee. Retained Logic of Progress Override is een eigen keuze per project. Je zet hem los van het profiel, zie [De voortgangsmodus kiezen](docs://howto-voortgangsmodus-kiezen). Eén Primavera P6-conventie, *Progress Override negeert een gestarte opvolger ook achterwaarts*, doet alleen iets onder Progress Override.
 
@@ -118,4 +118,6 @@ Hier verschillen de datums. Twee conventies in de groep *Voortgang zoals Microso
 - [Kritiek pad en speling](docs://uitleg-kritiek-pad): de reken-opties voor kritiek en speling.
 - [Relaties en lag](docs://uitleg-relaties): de reken-optie *Lag-kalender*.
 - [Bestanden en formaten](docs://uitleg-bestanden): wat een export meeneemt en wat niet.
+- [Exporteren](docs://howto-exporteren): een project exporteren.
+- [Voortgang bijwerken](docs://howto-voortgang-bijwerken): percentage, werkelijke start en statusdatum invullen.
 - [Datums zoals opgeslagen](docs://uitleg-datums-zoals-opgeslagen): waarom geïmporteerde datums kunnen afwijken van wat de app zelf berekent.
