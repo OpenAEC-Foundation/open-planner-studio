@@ -765,6 +765,60 @@
       "draft": true
     },
     {
+      "id": "howto-taken-en-mijlpalen-toevoegen",
+      "title": {
+        "nl": "Taken en mijlpalen toevoegen",
+        "en": "Adding tasks and milestones"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-structuur-aanpassen",
+      "title": {
+        "nl": "Structuur aanpassen",
+        "en": "Adjusting the structure"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-wbs-sjablonen",
+      "title": {
+        "nl": "WBS-sjablonen bewaren en invoegen",
+        "en": "Saving and inserting WBS templates"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-codes-en-velden",
+      "title": {
+        "nl": "Codes en eigen velden",
+        "en": "Codes and custom fields"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-taak-splitsen",
+      "title": {
+        "nl": "Een taak splitsen",
+        "en": "Splitting a task"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-project-verplaatsen",
+      "title": {
+        "nl": "Project verplaatsen",
+        "en": "Moving a project"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
       "id": "uitleg-kritiek-pad",
       "title": {
         "nl": "Kritiek pad en speling",
