@@ -57,8 +57,18 @@ test('de spelingsband eindigt op "Laatste einde", ook over een weekend', async (
     const green = (i: number) => data[i * 4 + 1] > data[i * 4] + 25 && data[i * 4 + 1] > data[i * 4 + 2] + 5;
     const start = Math.round((x0 - r.left) * sx) + 2;
     if (!green(start)) return null;
+    // De band is halfdoorzichtig en gearceerd: een dagrasterlijn schemert erdoorheen en is dan
+    // niet groen genoeg. Sla daarom korte niet-groene stukjes (<= 3 px) over; de band houdt pas
+    // op waar er daarna geen groen meer volgt.
+    const GAP = 3;
     let end = start;
-    while (end < canvas.width && green(end)) end++;
+    while (end < canvas.width) {
+      if (green(end)) { end++; continue; }
+      let k = 1;
+      while (k <= GAP && end + k < canvas.width && !green(end + k)) k++;
+      if (k > GAP || end + k >= canvas.width) break;
+      end += k;
+    }
     return end / sx + r.left;
   }, { x0: aRight.x, y: aRight.y });
 

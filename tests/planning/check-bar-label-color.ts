@@ -80,7 +80,7 @@ for (const [naam, hex] of BALKTINTEN) {
 }
 
 // ── De speling: zwart label ─────────────────────────────────────────────────
-// De spelingband draagt zelf GEEN label; hij wordt getekend als `colors.float + '99'` en er komt
+// De spelingband draagt zelf GEEN label; hij wordt getekend als `colors.float + '40'` plus arcering en er komt
 // nooit tekst overheen. Hij staat hier puur als functiedekking: het is wel een tint uit hetzelfde
 // palet, en de enige die per thema verschilt (`--theme-bar-float`). Beide waarden gepind, zodat een
 // toekomstige groentint die naar wit-label zou kantelen hier opvalt.

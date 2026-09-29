@@ -221,6 +221,41 @@ function getNearCriticalHatch(ctx: CanvasRenderingContext2D): CanvasPattern | nu
   return nearCriticalHatch;
 }
 
+// Kruisarcering voor de spelingsband: dunne diagonale lijnen in beide richtingen (45° en −45°)
+// in de float-kleur. Gememoized per kleur (de kleur is thema-afhankelijk), om dezelfde reden als
+// hierboven: nooit per frame een nieuwe bitmap of `CanvasPattern`. De tegel tekent per richting
+// de diagonaal plus de twee hoekstukjes, zodat de lijnen naadloos doorlopen over tegelgrenzen.
+const floatHatchByColor = new Map<string, CanvasPattern | null>();
+function getFloatHatch(ctx: CanvasRenderingContext2D, color: string): CanvasPattern | null {
+  const cached = floatHatchByColor.get(color);
+  if (cached !== undefined) return cached;
+  // Headless (planningssuite onder Node, soms met een kale `document`-stub): geen bruikbare DOM,
+  // dan alleen de lichte vulling.
+  if (typeof document === 'undefined' || typeof document.createElement !== 'function'
+    || typeof ctx.createPattern !== 'function') return null;
+  const size = 5;
+  const tile = document.createElement('canvas');
+  tile.width = size;
+  tile.height = size;
+  const p = tile.getContext('2d');
+  if (!p) return null;
+  p.strokeStyle = color + '40'; // 0.25 alpha
+  p.lineWidth = 1;
+  p.beginPath();
+  // Richting onder naar boven (45°).
+  p.moveTo(0, size); p.lineTo(size, 0);
+  p.moveTo(-1, 1); p.lineTo(1, -1);
+  p.moveTo(size - 1, size + 1); p.lineTo(size + 1, size - 1);
+  // Tegenrichting (boven naar onder) — maakt er een kruisarcering van.
+  p.moveTo(0, 0); p.lineTo(size, size);
+  p.moveTo(size - 1, -1); p.lineTo(size + 1, 1);
+  p.moveTo(-1, size - 1); p.lineTo(1, size + 1);
+  p.stroke();
+  const pattern = ctx.createPattern(tile, 'repeat');
+  floatHatchByColor.set(color, pattern);
+  return pattern;
+}
+
 /** Hoeveel verticale rasterlijnen het canvas op dit zoomniveau nog verdraagt.
  *
  * Waarom: een lijn per kalenderdag op jaarzoom (~1-2 px/dag) maakt van het canvas een egaal
@@ -1406,7 +1441,10 @@ export class GanttRenderer {
     // Float indicator (ná de exclusieve balk-finish x2) — breedte is hierboven al bepaald en
     // wordt daar ook in de zichtbaarheidstest gebruikt.
     if (floatWidth > 0) {
-      // Ingetogen speling: halve balkhoogte, verticaal gecentreerd, op 60% dekking. Veel hoger
+      // Ingetogen speling: halve balkhoogte, verticaal gecentreerd. Een lichte vulling (25%
+      // dekking) met daarover een kruisarcering in dezelfde kleur (`getFloatHatch`): de band
+      // leest zo als "ruimte", niet als tweede balk, en blijft ook zonder kleurwaarneming
+      // herkenbaar. Oorspronkelijke afweging (egale vulling op 60%) hieronder. Veel hoger
       // domineert de groene band het beeld: hij is vaak veel BREDER dan de balk zelf, dus een even
       // "harde" kleur trekt de blik weg van de planning. Wat telt is het GEBLENDE contrast van de
       // band tegen zijn
@@ -1419,8 +1457,13 @@ export class GanttRenderer {
       // Op 0.40 zakt dat naar ~1,6 — dan is de band op weekendarcering niet meer van een vrije
       // dag te onderscheiden. Op 0.60 leest hij als eigen band en blijft hij achtergrondinformatie.
       // De band is bewust geen tekstdrager, dus 3:1 is hier geen eis; 1,5:1 is wél te weinig.
-      ctx.fillStyle = this.colors.float + '99'; // 0.6 alpha
+      ctx.fillStyle = this.colors.float + '40'; // 0.25 alpha
       ctx.fillRect(x2, y + height / 4, floatWidth, height / 2);
+      const hatch = getFloatHatch(ctx, this.colors.float);
+      if (hatch) {
+        ctx.fillStyle = hatch;
+        ctx.fillRect(x2, y + height / 4, floatWidth, height / 2);
+      }
     }
 
     // Selection highlight — omvat de volle balk-extent [x1,x2], ook bij gesplitste segmenten.
