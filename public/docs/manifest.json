@@ -1026,6 +1026,15 @@
       "draft": true
     },
     {
+      "id": "uitleg-rekenprofielen",
+      "title": {
+        "nl": "Rekenprofielen en conventies",
+        "en": "Calculation profiles and conventions"
+      },
+      "kind": "uitleg",
+      "draft": true
+    },
+    {
       "id": "howto-baseline-opslaan-en-beheren",
       "title": {
         "nl": "Een baseline opslaan en beheren",
