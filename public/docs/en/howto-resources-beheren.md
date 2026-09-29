@@ -25,7 +25,7 @@ The row only becomes a resource once it has a name. With Esc, or by clicking awa
 Edit the fields in the row. The app stores the name, the rate and the unit when you leave the field, and the other fields straight away.
 
 - *Max units* is only accepted by the app if the value is greater than 0. With 0 or less the field gets a red border and jumps back to the previous value.
-- *Calendar* decides on which days the resource works. Choose *Project calendar* or a calendar of its own. With *+ Resource calendar* you create a new one, and the pencil (*Edit…*) opens the chosen calendar. If a task works on a day the resource is off according to its calendar, that day counts as overallocated.
+- *Calendar* decides on which days the resource works. Choose *Project calendar* or a calendar of its own. With *+ Resource calendar* you create a new one, and the pencil (*Edit…*) opens the chosen calendar. If a task works on a day the resource is off according to its calendar, that day counts as overallocated. How to create a resource calendar is described in [Setting up a resource calendar](docs://howto-resourcekalender-instellen).
 - *Rate/hour* and *Total*: *Total* is the loaded hours of that resource times the rate. A plasterer who is loaded for 32 hours with a rate of 50 per hour comes to 1,600.00. At the bottom of the table is the sum of all resources.
 - *Crew* groups a resource under a resource of the type *Crew*. It is only a grouping: the app does not add up the capacity or the load of the members into the crew.
 - The colored swatch on the left is the resource's color. It is display only and has no effect on the schedule.
@@ -62,4 +62,5 @@ You can undo creating, editing and deleting with *Undo* (Ctrl+Z).
 ## See also
 
 - [Assigning resources with a curve](docs://howto-resource-toewijzen): putting a resource on a task.
+- [Setting up a resource calendar](docs://howto-resourcekalender-instellen): fixing the work days of one resource.
 - [Resolving overallocation](docs://howto-overbezetting-oplossen): what to do when a resource has too much to do on a day.

@@ -63,15 +63,11 @@ Wil je zelf bepalen welke taak blijft staan, geef die dan een hogere prioriteit.
 - *De resource werkt niet op alle dagen die deze taak nodig heeft — verschuiven lost dit niet op.* De resource heeft in zijn eigen kalender vrije dagen midden in de taak. Pas de kalender of de taak aan.
 - *Metselaar vraagt op de piek 2 eenh./dag, capaciteit is 1 — niet oplosbaar door schuiven.* De taak vraagt door haar curve alleen al op één dag meer dan de resource kan leveren. Kies een andere curve of een lagere inzet.
 
-**Er staat ook *Geen taken hoeven te verschuiven — de planning is al conflictvrij.*** Staan die regel en de lijst *Resterende conflicten* allebei in het voorstel, geloof dan de lijst. De regel zegt alleen dat er niets te verschuiven valt.
-
-**Vastgepinde taken.** Staan alle taken die botsen op prioriteit 1000, dan meldt het venster geen conflicten, terwijl de overbezetting blijft bestaan. Kijk daarom na het toepassen altijd naar *Resources › Overallocatie*.
+**Er staat *Geen taken hoeven te verschuiven — de planning is al conflictvrij.*** Staat die regel samen met de lijst *Resterende conflicten* in het voorstel, geloof dan de lijst. De regel zegt alleen dat er niets te verschuiven valt. Staat de regel zonder lijst, terwijl *Resources › Overallocatie* nog een resource meldt, dan zijn alle taken die botsen vastgepind op prioriteit 1000 of al gestart. Die schuiven niet en het venster meldt ze niet als conflict. Kijk daarom na het toepassen altijd naar *Overallocatie*.
 
 **Taken die niet meeschuiven.** Een taak die al gestart of klaar is, schuift nooit. Haar belasting telt wel mee. Ook mijlpalen en fasen schuiven niet.
 
 **Materiaal wordt niet genivelleerd.** Vraagt een materiaalresource op een dag meer dan zijn *Max. eenheden*, dan telt hij in *Overallocatie* wel als overbezet, maar staat hij niet in het nivelleervenster.
-
-**Uren korter dan een werkdag.** Een taak die je in uren plant en die korter duurt dan één werkdag, zoals de kraaninzet van 5 uur, telt niet mee in het histogram, in de overbezetting en bij het nivelleren.
 
 **Nivelleren past zich niet aan.** De vertragingen blijven staan zoals ze berekend zijn. Wijzig je later de duur van een taak, dan blijft een genivelleerde taak op zijn plek, ook als die plek nu niet meer nodig is. Nivelleer dan opnieuw.
 

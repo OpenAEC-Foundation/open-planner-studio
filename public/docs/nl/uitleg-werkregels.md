@@ -14,7 +14,7 @@ De som is: werk = duur × inzet × uren per werkdag. De uren per werkdag komen u
 
 Verander je één van de drie, dan moet minstens één van de andere twee meebewegen, anders klopt de som niet meer. Welke dat is, bepaalt de werkregel. Je stelt hem per taak in, in het paneel *Eigenschappen*. De app toont de werkregel en het werk pas als je ze zichtbaar maakt; hoe dat gaat, staat in [Werkregel kiezen](docs://howto-werkregel-kiezen).
 
-Een werkregel werkt alleen op gewone taken. Op mijlpalen, fasen (samenvattingstaken) en hangmatten bestaat hij niet: daar staat het veld *Werkregel* niet. Materiaal, zoals beton of stucmortel, telt ook niet mee. De hoeveelheid materiaal stuurt de duur nooit en de app past haar bij een werkregel nooit aan.
+Een werkregel werkt alleen op gewone taken. Op mijlpalen, fasen (samenvattingstaken), hangmatten en taken waarvan het *Duurtype* *Verstreken tijd* is, bestaat hij niet: daar staat het veld *Werkregel* niet. Materiaal, zoals beton of stucmortel, telt ook niet mee. De hoeveelheid materiaal stuurt de duur nooit en de app past haar bij een werkregel nooit aan.
 
 ## Hoe de app rekent
 
@@ -33,7 +33,7 @@ In het paneel *Eigenschappen* staat onder de keuzelijst wat de gekozen regel bes
 - **Vast werk** (*Beschermd: werk (duur volgt de inzet)*). Het werk staat vast en de duur volgt uit werk en inzet.
 - **Vaste inzet** (*Beschermd: inzet (duur volgt het werk)*). De inzet staat vast en de duur volgt uit het werk.
 
-Twee regels laten de duur dus met rust. Bij de andere twee beweegt de duur mee als je de inzet, het werk of het aantal resources wijzigt. Vast werk en Vaste inzet doen daarbij precies hetzelfde. Ze verschillen alleen als je zelf de duur wijzigt: bij Vast werk blijft het werk staan en past de inzet zich aan, bij Vaste inzet blijft de inzet staan en groeit het werk mee.
+Twee regels laten de duur dus met rust. Bij de andere twee beweegt de duur mee als je de inzet, het werk of het aantal resources wijzigt. Bij één resource doen Vast werk en Vaste inzet daarbij precies hetzelfde. Ze verschillen als je zelf de duur wijzigt: bij Vast werk blijft het werk staan en past de inzet zich aan, bij Vaste inzet blijft de inzet staan en groeit het werk mee. Ze verschillen ook als er meer resources op de taak staan (zie hieronder).
 
 Bij de rekenvoorbeelden hieronder zie je wat elke regel doet.
 
@@ -45,13 +45,15 @@ De duur die uit de som volgt, rondt de app naar boven af. Voor een taak in dagen
 
 Staan er meer resources op de taak, dan gelden twee afspraken. Bij Vaste duur en werk, Vast werk en Vaste inzet blijft het totale werk staan als je een resource toevoegt of weghaalt. De app verdeelt het dan naar rato van de inzet. Bij Vaste duur en inzet brengt een nieuwe resource juist zijn eigen werk mee. Bij Vast werk en Vaste inzet bepaalt de langzaamste resource de duur: per resource is dat het werk gedeeld door de inzet, en de grootste uitkomst telt.
 
+Een voorbeeld: twee resources hebben elk 32 uur werk en inzet 1, samen 4 werkdagen. Je zet de inzet van de eerste op 0,5. De duur wordt dan 8 werkdagen. Onder Vast werk houdt de tweede resource zijn 32 uur werk en zakt zijn inzet naar 0,5. Onder Vaste inzet houdt de tweede zijn inzet van 1 en groeit zijn werk naar 64 uur.
+
 ### Voortgang
 
 Heeft de taak al voortgang, dan werkt de regel op het resterende deel: de restduur en het resterende werk. In de app heet dat werk *Werk (rest)*. Wat al gedaan is, blijft staan.
 
 ### Uurtaken
 
-Een taak die je in uren plant rekent hetzelfde, maar dan in minuten. De kanaalplaatvloer van 5 uur met één kraan is 5 uur werk. Onder Vast werk wordt de duur bij een inzet van 2 dan 2,5 uur.
+Een taak die je in uren plant rekent hetzelfde, maar dan in minuten. Staat alleen de kraan op een taak van 5 uur, dan is dat 5 uur werk. Onder Vast werk wordt de duur bij een inzet van 2 dan 2,5 uur. Op de kanaalplaatvloer uit het oefenproject staat ook de timmerploeg. Die houdt 5 uur werk nodig, is de langzaamste en de duur blijft dus 5 uur. Hoe uren en dagen samenhangen, staat in [Dagen en uren](docs://uitleg-dagen-en-uren).
 
 ## Rekenvoorbeeld: het stucwerk
 
@@ -64,38 +66,38 @@ Het stucwerk duurt 4 werkdagen. Eén stukadoor is er aan toegewezen, met een inz
 - Je maakt de duur 6 werkdagen: het werk groeit naar 48 uur, de inzet blijft 1.
 - Je zet de inzet op 2: de duur blijft 4 werkdagen, het werk wordt 64 uur.
 - Je typt bij *Werk (rest)* 48 uur: de duur blijft 4 werkdagen, de inzet wordt 1,5.
-- Je wijst een tweede stukadoor toe met inzet 1: de duur blijft 4 werkdagen en de tweede brengt 32 uur werk mee, samen 64 uur.
+- Je wijst een tweede resource toe, bijvoorbeeld *Stukadoor 2*, met inzet 1: de duur blijft 4 werkdagen en die tweede brengt 32 uur werk mee, samen 64 uur.
 
 ### Vaste duur en werk
 
 - Je maakt de duur 6 werkdagen: het werk blijft 32 uur, de inzet zakt naar 0,67.
 - Je zet de inzet op 2: de duur blijft 4 werkdagen. Omdat de duur vaststaat, groeit het werk mee naar 64 uur.
 - Je typt bij *Werk (rest)* 16 uur: de duur blijft 4 werkdagen, de inzet wordt 0,5.
-- Je wijst een tweede stukadoor toe met inzet 1: de 32 uur worden verdeeld, 16 uur voor elk, en de inzet wordt voor allebei 0,5. De duur blijft 4 werkdagen.
+- Je wijst een tweede resource toe, bijvoorbeeld *Stukadoor 2*, met inzet 1: de 32 uur worden verdeeld, 16 uur voor elk, en de inzet wordt voor allebei 0,5. De duur blijft 4 werkdagen.
 
 ### Vast werk
 
 - Je maakt de duur 6 werkdagen: het werk blijft 32 uur, de inzet zakt naar 0,67.
 - Je zet de inzet op 2: het werk blijft 32 uur en de duur wordt 2 werkdagen. Dit is de stap die je in tutorial 5 zet.
 - Je typt bij *Werk (rest)* 48 uur: de inzet blijft 1 en de duur wordt 6 werkdagen.
-- Je wijst een tweede stukadoor toe met inzet 1: de 32 uur worden verdeeld, 16 uur voor elk, en de duur wordt 2 werkdagen. Haal je die tweede weer weg, dan is de duur weer 4 werkdagen.
+- Je wijst een tweede resource toe, bijvoorbeeld *Stukadoor 2*, met inzet 1: de 32 uur worden verdeeld, 16 uur voor elk, en de duur wordt 2 werkdagen. Haal je die tweede resource weer weg, dan is de duur weer 4 werkdagen.
 
 ### Vaste inzet
 
 - Je maakt de duur 6 werkdagen: de inzet blijft 1, het werk groeit naar 48 uur.
 - Je zet de inzet op 2: het werk blijft 32 uur en de duur wordt 2 werkdagen.
 - Je typt bij *Werk (rest)* 48 uur: de inzet blijft 1 en de duur wordt 6 werkdagen.
-- Je wijst een tweede stukadoor toe met inzet 1: de 32 uur worden verdeeld, 16 uur voor elk, en de duur wordt 2 werkdagen.
+- Je wijst een tweede resource toe, bijvoorbeeld *Stukadoor 2*, met inzet 1: de 32 uur worden verdeeld, 16 uur voor elk, en de duur wordt 2 werkdagen.
 
 ### Wanneer de som niet uitkomt
 
 Onder Vast werk zet je de inzet op 3. Het werk is 32 uur, dus de duur wordt 32 ÷ (3 × 8) = 1,33 werkdagen. De app rondt dat naar boven af op 2 werkdagen. Werk (32 uur) en inzet (3) blijven staan, maar 2 × 3 × 8 is 48 uur. Het histogram verdeelt daarom de 32 uur over de 2 werkdagen: 2 eenheden per dag, niet 3. Naast *Werk (rest)* staat een waarschuwingsteken, *Wijkt af van inzet × duur*, om dat te laten zien.
 
-Met twee stukadoors met verschillende inzet werkt het net zo. Zet je onder Vast werk een tweede stukadoor met inzet 2 bij de eerste met inzet 1, dan verdeelt de app de 32 uur in de verhouding 1 : 2, dus 10,7 en 21,3 uur. Beide hebben dan 1,33 werkdagen nodig. De duur wordt 2 werkdagen.
+Met twee resources met verschillende inzet werkt het net zo. Zet je onder Vast werk een tweede resource, bijvoorbeeld *Stukadoor 2*, met inzet 2 bij de stukadoor met inzet 1, dan verdeelt de app de 32 uur in de verhouding 1 : 2, dus 10,7 en 21,3 uur. Beide hebben dan 1,33 werkdagen nodig. De duur wordt 2 werkdagen.
 
 ### Een andere kalender
 
-Onder Vast werk gaat de werkdag van de kalender van 8 naar 6 uur. Het werk blijft 32 uur, dus de duur wordt 32 ÷ 6 = 5,33, afgerond 6 werkdagen. De app meldt: *De werkregel heeft na de kalenderwijziging de duur van 1 taak aangepast (werk blijft, uren per dag veranderden).*
+Onder Vast werk gaat de werkdag van de kalender van 8 naar 6 uur. Het werk blijft 32 uur, dus de duur wordt 32 ÷ 6 = 5,33, afgerond 6 werkdagen. Hoe de app werkdagen en werkuren telt, staat in [Kalenders en werkdagen](docs://uitleg-kalenders). De app meldt: *De werkregel heeft na de kalenderwijziging de duur van 1 taak aangepast (werk blijft, uren per dag veranderden).*
 
 ### Een taak met voortgang
 
@@ -117,3 +119,5 @@ Het binnenspouwblad duurt 5 werkdagen en is voor 40% klaar: 2 werkdagen zijn ged
 
 - [Werkregel kiezen](docs://howto-werkregel-kiezen): de stappen om de werkregel van een taak in te stellen.
 - [Resources toewijzen met een curve](docs://howto-resource-toewijzen): een resource op een taak zetten, met inzet en verdeling.
+- [Dagen en uren](docs://uitleg-dagen-en-uren): hoe de app dagen en uren omrekent.
+- [Kalenders en werkdagen](docs://uitleg-kalenders): hoe de app werkdagen en werkuren telt.

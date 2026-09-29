@@ -50,9 +50,9 @@ With *smoothing* a task may not start later than its late start, which is the la
 
 ## Worked example: the bricklayer on two walls
 
-The example is the tutorials' practice project *House extension*, as it stands just before the leveling in tutorial 5. In tutorial 5 you do this yourself and check the numbers. In this example the plastering is on *Fixed work* with two plasterers, as in [Work rules: duration, units and work](docs://uitleg-werkregels).
+The example is the tutorials' practice project *House extension*, as it stands just before the leveling in tutorial 5. In tutorial 5 you do this yourself and check the numbers. In this example the plastering is on *Fixed work* and the plasterer works with units of 2, as in [Work rules: duration, units and work](docs://uitleg-werkregels).
 
-After the hollow-core floor, finished on Monday 28 June, the inner cavity leaf (5 work days) and the outer cavity leaf (6 work days) both start on Tuesday 29 June. They are both on the bricklayer, with units of 1 and a *Max units* of 1. The handover is on Monday 30 August.
+After the hollow-core floor, finished on Monday 28 June, the inner cavity leaf (5 work days) and the outer cavity leaf (6 work days) both start on Tuesday 29 June. They are both on the bricklayer, with units of 1 and a *Max units* of 1. After the inner leaf come the roof elements (a 6-hour crane job) and the roofing (2 work days). The frames wait for the roofing and for the outer leaf. The handover is on Monday 30 August.
 
 ### The overallocation
 
@@ -95,9 +95,7 @@ If you set the bricklayer's *Max units* to 2, there is no overallocation any mor
 
 **Material is not leveled.** If material asks more than its capacity on a day, the app reports that as overallocation, but leveling leaves it.
 
-**Tasks you plan in hours that are shorter than a work day do not count.** So does the 5-hour crane job from tutorial 4. They are not in the histogram, do not count towards overallocation and so the leveler does not see them either.
-
-**Pinned tasks.** If all tasks that clash are on priority 1000, the window does not say there is still an overallocation. So after applying, look at the *Overallocation* message in the ribbon.
+**Pinned tasks.** If all tasks that clash are on priority 1000, the window reports *No tasks need to move — the schedule is already conflict-free.*, while the overallocation stays. So after applying, look at the *Overallocation* message in the ribbon.
 
 ## See also
 

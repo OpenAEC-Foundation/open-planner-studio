@@ -25,7 +25,7 @@ De rij is pas een resource als er een naam in staat. Met Esc, of door weg te kli
 Pas de velden in de rij aan. De app legt de naam, het tarief en de eenheid vast als je het veld verlaat, de andere velden direct.
 
 - *Max. eenheden* neemt de app alleen over als de waarde groter is dan 0. Bij 0 of lager krijgt het veld een rode rand en springt het terug naar de vorige waarde.
-- *Kalender* bepaalt op welke dagen de resource werkt. Kies *Projectkalender* of een eigen kalender. Met *+ Resourcekalender* maak je een nieuwe en het potloodje (*Bewerken…*) opent de gekozen kalender. Werkt een taak op een dag dat de resource volgens zijn kalender vrij is, dan telt die dag als overbezet.
+- *Kalender* bepaalt op welke dagen de resource werkt. Kies *Projectkalender* of een eigen kalender. Met *+ Resourcekalender* maak je een nieuwe en het potloodje (*Bewerken…*) opent de gekozen kalender. Werkt een taak op een dag dat de resource volgens zijn kalender vrij is, dan telt die dag als overbezet. Hoe je een resourcekalender maakt, staat in [Een resourcekalender instellen](docs://howto-resourcekalender-instellen).
 - *Tarief/uur* en *Totaal*: *Totaal* is de belaste uren van die resource maal het tarief. Een stukadoor die 32 uur belast is met een tarief van 50 per uur staat op 1.600,00. Onderaan de tabel staat de som van alle resources.
 - *Ploeg* deelt een resource in onder een resource van het type *Ploeg*. Het is alleen een indeling: de app telt de capaciteit of de belasting van de leden niet bij de ploeg op.
 - Het gekleurde vlakje links is de kleur van de resource. Het is alleen weergave en heeft geen invloed op de planning.
@@ -62,4 +62,5 @@ Aanmaken, aanpassen en verwijderen kun je allemaal terugdraaien met *Ongedaan* (
 ## Zie ook
 
 - [Resources toewijzen met een curve](docs://howto-resource-toewijzen): een resource op een taak zetten.
+- [Een resourcekalender instellen](docs://howto-resourcekalender-instellen): de werkdagen van één resource vastleggen.
 - [Overbezetting oplossen](docs://howto-overbezetting-oplossen): wat je doet als een resource op een dag te veel moet doen.

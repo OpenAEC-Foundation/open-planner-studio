@@ -63,15 +63,11 @@ If you want to decide yourself which task stays, give it a higher priority. Righ
 - *The resource does not work on all days this task needs — shifting cannot resolve this.* The resource has days off in its own calendar in the middle of the task. Change the calendar or the task.
 - *Bricklayer peaks at 2 units/day, capacity is 1 — cannot be resolved by shifting.* Through its curve the task alone asks more on one day than the resource can supply. Choose another curve or lower units.
 
-**It also says *No tasks need to move — the schedule is already conflict-free.*** If that line and the list *Remaining conflicts* are both in the proposal, believe the list. The line only says that there is nothing to shift.
-
-**Pinned tasks.** If all tasks that clash are on priority 1000, the window reports no conflicts, while the overallocation stays. So after applying, always look at *Resources › Overallocation*.
+**It says *No tasks need to move — the schedule is already conflict-free.*** If that line appears together with the list *Remaining conflicts* in the proposal, believe the list. The line only says that there is nothing to shift. If the line appears without a list, while *Resources › Overallocation* still reports a resource, then all tasks that clash are pinned on priority 1000 or have already started. They do not move and the window does not report them as a conflict. So after applying, always look at *Overallocation*.
 
 **Tasks that do not shift.** A task that has already started or is finished never shifts. Its load does count. Milestones and phases do not shift either.
 
 **Material is not leveled.** If a material resource asks more than its *Max units* on a day, it does count as overallocated in *Overallocation*, but it is not in the leveling window.
-
-**Hours shorter than a work day.** A task you plan in hours and that lasts shorter than one work day, such as the 5-hour crane job, does not count in the histogram, in the overallocation or in leveling.
 
 **Leveling does not adapt.** The delays stay as they were calculated. If you change a task's duration later, a leveled task stays where it is, even if that place is no longer needed. Level again then.
 

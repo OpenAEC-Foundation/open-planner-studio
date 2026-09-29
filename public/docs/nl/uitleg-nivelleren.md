@@ -50,9 +50,9 @@ Met *smoothing* mag een taak niet later beginnen dan haar laatste start, dat is 
 
 ## Rekenvoorbeeld: de metselaar op twee muren
 
-Het voorbeeld is het oefenproject *Aanbouw woning* uit de tutorials, zoals het eruitziet vlak vóór het nivelleren in tutorial 5. In tutorial 5 doe je dit zelf en reken je het na. Het stucwerk staat in dit voorbeeld op *Vast werk* met twee stukadoors, zoals in [Werkregels: duur, inzet en werk](docs://uitleg-werkregels).
+Het voorbeeld is het oefenproject *Aanbouw woning* uit de tutorials, zoals het eruitziet vlak vóór het nivelleren in tutorial 5. In tutorial 5 doe je dit zelf en reken je het na. Het stucwerk staat in dit voorbeeld op *Vast werk* en de stukadoor werkt met inzet 2, zoals in [Werkregels: duur, inzet en werk](docs://uitleg-werkregels).
 
-Na de kanaalplaatvloer, klaar op maandag 28 juni, beginnen het binnenspouwblad (5 werkdagen) en het buitenspouwblad (6 werkdagen) allebei op dinsdag 29 juni. Ze staan beide op de metselaar, met een inzet van 1 en een *Max. eenheden* van 1. De oplevering staat op maandag 30 augustus.
+Na de kanaalplaatvloer, klaar op maandag 28 juni, beginnen het binnenspouwblad (5 werkdagen) en het buitenspouwblad (6 werkdagen) allebei op dinsdag 29 juni. Ze staan beide op de metselaar, met een inzet van 1 en een *Max. eenheden* van 1. Na het binnenspouwblad volgen de dakelementen (een kraaninzet van 6 uur) en de dakbedekking (2 werkdagen). De kozijnen wachten op de dakbedekking én op het buitenspouwblad. De oplevering staat op maandag 30 augustus.
 
 ### De overbezetting
 
@@ -95,9 +95,7 @@ Zet je *Max. eenheden* van de metselaar op 2, dan is er geen overbezetting meer.
 
 **Materiaal wordt niet genivelleerd.** Vraagt materiaal op een dag meer dan zijn capaciteit, dan meldt de app dat als overbezetting, maar nivelleren laat het staan.
 
-**Taken die je in uren plant en korter zijn dan een werkdag, tellen niet mee.** Zo ook de kraaninzet van 5 uur uit tutorial 4. Ze staan niet in het histogram, tellen niet mee voor de overbezetting en de nivelleerder ziet ze dus ook niet.
-
-**Vastgepinde taken.** Staan alle taken die botsen op prioriteit 1000, dan zegt het venster niet dat er nog een overbezetting is. Kijk na het toepassen dus naar de melding *Overallocatie* in het lint.
+**Vastgepinde taken.** Staan alle taken die botsen op prioriteit 1000, dan meldt het venster *Geen taken hoeven te verschuiven — de planning is al conflictvrij.*, terwijl de overbezetting blijft. Kijk na het toepassen dus naar de melding *Overallocatie* in het lint.
 
 ## Zie ook
 

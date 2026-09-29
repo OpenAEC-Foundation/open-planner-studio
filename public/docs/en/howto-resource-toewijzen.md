@@ -33,28 +33,26 @@ That is also how you change an existing assignment. With the bin (*Remove*) next
 
 ### The curves
 
-- *Uniform*: the same every day. This is the default.
-- *Front loaded*: the start is heavier than the end.
-- *Back loaded*: the end is heavier than the start.
-- *Bell shaped*: a peak in the middle, with a quiet start and end.
-- *Early peak*: a peak before the middle.
-- *Late peak*: a peak after the middle.
-- *Double peak*: two peaks.
-- *Turtle*: a quiet start and end with a broad peak in the middle.
+- *Uniform*: the same every day. This is the default and fits work that is equally heavy every day.
+- *Front loaded*: the start is heavier than the end. Fits work that begins with heavy effort, such as setting out.
+- *Back loaded*: the end is heavier than the start. Fits work that gets busier towards completion.
+- *Bell shaped*: a peak in the middle, with a quiet start and end. Fits a wall that starts quietly, is in full swing in the middle and tails off.
+- *Early peak*: a peak before the middle. Fits work that gets up to speed quickly.
+- *Late peak*: a peak after the middle. Fits work whose busy period only comes late.
+- *Double peak*: two peaks. Fits work with two busy moments.
+- *Turtle*: a quiet start and end with a broad peak in the middle. Fits long work that builds up and winds down gradually.
 
 The curve only changes the distribution. The duration, the dates and the total stay the same. You do not need to recalculate afterwards. The histogram adjusts straight away. Choose *Resources › Histogram › Histogram* to see it. If you select a task, the histogram shows only the load of that task.
 
 ## Pitfalls and what the app does then
 
-**A curve can push the peak above your units.** With a whole number as units, the app rounds the value per day to whole units, and the total stays the same. A bricklayer with units of 1 on the outer cavity leaf and the curve *Bell shaped* gives 0, 1, 2, 2, 1, 0. On the two middle days that is 2 units against *Max units* of 1. The histogram colors those days red and the resource counts as overallocated. Choose another curve, or spread the hours yourself (see [Adjusting the hour distribution](docs://howto-urenverdeling-aanpassen)). With units such as 0.5 the app rounds to hundredths.
+**A curve can push the peak above your units.** With a whole number as units, the app rounds the value per day to whole units, and the total stays the same. A bricklayer with units of 1 on the outer cavity leaf and the curve *Bell shaped* gives 0, 1, 2, 2, 1, 0. On the two middle days that is 2 units against *Max units* of 1. The histogram colors those days red and the resource counts as overallocated. Choose another curve, or spread the hours yourself (see [Adjusting the hour distribution](docs://howto-urenverdeling-aanpassen)). With units such as 0.5 the app rounds to hundredths. On a short task with whole units the shape therefore becomes coarse: over 10 days *Turtle* with units of 1 gives the distribution 0, 1, 1, 2, 2, 1, 1, 1, 1, 0, exactly the same as *Early peak*.
 
 **No milestone or phase.** The *Assign* button is then disabled, and *Properties* says *Assignments are not possible on milestones.* or *Assignments are not possible on summary tasks.*
 
 **A resource only once per task.** If the resource is already on the task, it is no longer in the list. If all resources are already on the task, the app says *All resources are already assigned.* If there is no resource yet, it says *Create resources first (Resources tab).*
 
 **The units must be greater than 0.** The app does not accept a value of 0 or less.
-
-**Hour tasks shorter than a work day.** If you put a resource on a task you plan in hours and that lasts shorter than one work day, such as the crane on the 5-hour hollow-core floor slabs, no load appears in the histogram. See [Resolving overallocation](docs://howto-overbezetting-oplossen).
 
 **Material.** For a material resource the units are the quantity per day, in the resource's unit, for example m³. Material does not count towards the task's duration.
 

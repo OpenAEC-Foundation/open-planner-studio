@@ -41,17 +41,15 @@ If the assignment has a distribution of its own, the window also has *Release di
 
 **The total changes with it.** You do not divide the hours, you decide them. If you set a phase to 0.5 instead of 0.18, the total gets bigger. The total in hours is at the bottom of the window, so check it before you click *Apply*.
 
-**Units/day no longer steers the distribution.** If you set the units to 2 later, your own distribution stays in force. The units only have an effect again once you release the distribution.
+**What the units do afterwards depends on the work rule.** With *Fixed duration and units*, other *Units/day* change nothing about the distribution. With *Fixed duration and work* the app scales the hours per day along with the new units: at units of 2 instead of 1 every day doubles and so does the total (from 32 to 64 hours), and the duration stays the same. With *Fixed work* the units change the task's duration: the distribution is then squeezed or stretched over the new duration, with the same total. With *Fixed units* the units change the duration as well; check the total at the bottom of the window afterwards.
 
-**If you change the task's duration, the distribution stretches with it.** With the default rule *Fixed duration and units* the shape then stays the same and the total grows in proportion to the duration. If the duration of a task with a distribution of its own doubles from 4 to 8 work days, the total doubles as well, from 32 to 64 hours.
+**If you change the task's duration, the distribution stretches with it.** The shape stays the same. With *Fixed duration and units* and with *Fixed units* the total grows in proportion to the duration: if the duration of a task with a distribution of its own doubles from 4 to 8 work days, the total doubles as well, from 32 to 64 hours. With *Fixed duration and work* and with *Fixed work* the total stays the same (32 hours stays 32 hours) and the units drop.
 
 **The work follows the distribution.** *Work (rem.)* becomes the sum of your phases, also under *Fixed work*. The task's duration does not change because of it.
 
 **Invalid units.** An empty or negative effort gets a red border and *Apply* is then disabled. A phase with effort 0 is allowed. Such a phase stays within the task's duration.
 
 **Everything applies to this one assignment.** The app says so itself: *The distribution only changes the hours per day of this assignment; task dates and splits stay as they are.* Other resources on the same task keep their own distribution.
-
-**Hour tasks shorter than a work day.** A task you plan in hours and that lasts shorter than one work day, such as the 5-hour crane job, does not count as load. The window shows one phase with effort 0 and 0 hours for it. See also [Resolving overallocation](docs://howto-overbezetting-oplossen).
 
 **Leveling follows the distribution.** The leveler counts the same hours per day as the histogram.
 

@@ -33,28 +33,26 @@ Zo wijzig je ook een bestaande toewijzing. Met de prullenbak (*Verwijderen*) naa
 
 ### De curves
 
-- *Uniform*: elke dag evenveel. Dit is de standaard.
-- *Vooraan belast*: het begin is zwaarder dan het einde.
-- *Achteraan belast*: het einde is zwaarder dan het begin.
-- *Klokvorm*: een piek in het midden, met een rustig begin en einde.
-- *Vroege piek*: een piek voor het midden.
-- *Late piek*: een piek na het midden.
-- *Dubbele piek*: twee pieken.
-- *Schildpad*: een rustig begin en einde met een brede piek in het midden.
+- *Uniform*: elke dag evenveel. Dit is de standaard en past bij werk dat elke dag even zwaar is.
+- *Vooraan belast*: het begin is zwaarder dan het einde. Past bij werk dat begint met een zware inzet, zoals het uitzetten.
+- *Achteraan belast*: het einde is zwaarder dan het begin. Past bij werk dat naar de afronding toe drukker wordt.
+- *Klokvorm*: een piek in het midden, met een rustig begin en einde. Past bij een muur die rustig begint, in het midden volop draait en uitloopt.
+- *Vroege piek*: een piek voor het midden. Past bij werk dat snel op stoom komt.
+- *Late piek*: een piek na het midden. Past bij werk waarvan de drukte pas laat komt.
+- *Dubbele piek*: twee pieken. Past bij werk met twee drukke momenten.
+- *Schildpad*: een rustig begin en einde met een brede piek in het midden. Past bij lang werk dat geleidelijk opbouwt en afbouwt.
 
 De curve verandert alleen de verdeling. De duur, de datums en het totaal blijven gelijk. Je hoeft daarna niet te herberekenen. Het histogram past zich direct aan. Kies *Resources › Histogram › Histogram* om het te zien. Selecteer je een taak, dan toont het histogram alleen de belasting van die taak.
 
 ## Valkuilen en wat de app dan doet
 
-**Een curve kan de piek boven je inzet uitduwen.** Bij een heel getal als inzet rondt de app de waarde per dag af op hele eenheden, en het totaal blijft gelijk. Metselaar met inzet 1 op het buitenspouwblad en de curve *Klokvorm* geeft 0, 1, 2, 2, 1, 0. Op de twee middelste dagen is dat 2 eenheden tegenover een *Max. eenheden* van 1. Het histogram kleurt die dagen rood en de resource telt als overbezet. Kies een andere curve, of verdeel de uren zelf (zie [Urenverdeling aanpassen](docs://howto-urenverdeling-aanpassen)). Bij een inzet als 0,5 rondt de app af op honderdsten.
+**Een curve kan de piek boven je inzet uitduwen.** Bij een heel getal als inzet rondt de app de waarde per dag af op hele eenheden, en het totaal blijft gelijk. Metselaar met inzet 1 op het buitenspouwblad en de curve *Klokvorm* geeft 0, 1, 2, 2, 1, 0. Op de twee middelste dagen is dat 2 eenheden tegenover een *Max. eenheden* van 1. Het histogram kleurt die dagen rood en de resource telt als overbezet. Kies een andere curve, of verdeel de uren zelf (zie [Urenverdeling aanpassen](docs://howto-urenverdeling-aanpassen)). Bij een inzet als 0,5 rondt de app af op honderdsten. Op een korte taak met een hele inzet wordt de vorm daardoor grof: over 10 dagen geeft *Schildpad* bij inzet 1 de verdeling 0, 1, 1, 2, 2, 1, 1, 1, 1, 0, precies dezelfde als *Vroege piek*.
 
 **Geen mijlpaal of fase.** De knop *Toewijzen* is dan uitgeschakeld, en in *Eigenschappen* staat *Toewijzingen zijn niet mogelijk op mijlpalen.* of *Toewijzingen zijn niet mogelijk op samenvattingstaken.*
 
 **Een resource maar één keer per taak.** Staat de resource al op de taak, dan staat hij niet meer in de lijst. Staan alle resources al op de taak, dan meldt de app *Alle resources zijn al toegewezen.* Bestaat er nog geen resource, dan meldt hij *Maak eerst resources aan (Resources-tab).*
 
 **De inzet moet groter zijn dan 0.** Een waarde van 0 of lager neemt de app niet over.
-
-**Uurtaken korter dan een werkdag.** Zet je een resource op een taak die je in uren plant en die korter duurt dan één werkdag, zoals de kraan op de kanaalplaten van 5 uur, dan komt er geen belasting in het histogram. Zie [Overbezetting oplossen](docs://howto-overbezetting-oplossen).
 
 **Materiaal.** Bij een materiaalresource is de inzet de hoeveelheid per dag, in de eenheid van de resource, bijvoorbeeld m³. Materiaal telt niet mee voor de duur van de taak.
 

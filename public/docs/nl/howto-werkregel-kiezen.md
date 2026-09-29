@@ -18,13 +18,15 @@ De werkregel staat standaard niet in beeld. Zet hem eenmalig aan:
 2. Vink onder het kopje *Berekenen* het vakje *Toon werkregels en werk* aan.
 3. Sluit het venster met *Sluiten*.
 
-Dit is een instelling van de app, niet van het projectbestand. Bevat een bestand al werkregels of opgeslagen werk, zoals een bestand uit MS Project of Primavera P6, dan toont de app de werkregel voor dat bestand ook zonder deze instelling. Hetzelfde geldt zodra je in een bestand zelf een werkregel kiest: de weergave blijft dan voor dat bestand aan, ook als je de instelling weer uitzet.
+Dit is een instelling van de app, niet van het projectbestand. Bevat een bestand al werkregels of opgeslagen werk, zoals een bestand uit MS Project of Primavera P6, dan toont de app de werkregel voor dat bestand ook zonder deze instelling. Hetzelfde geldt zodra je in een bestand zelf een werkregel kiest: de weergave blijft dan voor dat bestand aan, ook als je de instelling weer uitzet. Ze blijft aan zolang het bestand open is, en na opnieuw openen zolang er een werkregel of opgeslagen werk in staat.
 
 ### Een regel kiezen
 
 1. Selecteer de taak. Het paneel *Eigenschappen* staat rechts; zie je het niet, zet het dan aan met *Beeld › Panelen › Eigensch.*
-2. Kies bij *Werkregel* een van de vijf opties: *Vaste duur en inzet*, *Vaste duur en werk*, *Vast werk*, *Vaste inzet* of *Projectstandaard (Vaste duur en inzet)*. Bij die laatste volgt de taak de standaard van het project.
+2. Kies bij *Werkregel* een van de vijf opties: *Projectstandaard (Vaste duur en inzet)*, *Vaste duur en inzet*, *Vaste duur en werk*, *Vast werk* of *Vaste inzet*. Bij *Projectstandaard* volgt de taak de standaard van het project.
 3. Onder de keuzelijst staat wat de regel beschermt, bijvoorbeeld *Beschermd: werk (duur volgt de inzet)*.
+
+*Projectstandaard* is de eerste keuze en staat er standaard. Tussen de haakjes staat de regel die het project nu als standaard heeft. Er is in de app geen knop om die projectstandaard te wijzigen: hij komt uit een import (bijvoorbeeld uit MS Project of Primavera P6) of uit de MCP-koppeling. Wil je voor één taak een andere regel, kies die dan hier.
 
 Je kunt de regel ook in de tabel kiezen. Klik op de **+** rechts in de kop van de takenlijst (*Kolom toevoegen*) en kies onder *Planning* de kolom *Werkregel*.
 
@@ -44,14 +46,14 @@ Verandert daardoor de duur van de taak, dan meldt de statusbalk *Verouderd — h
 
 ## Welke regel past
 
-- **Vaste duur en inzet** past als de duur een afspraak is en de inzet jouw invoer. Het werk volgt uit die twee. Dit is de standaard.
+- **Vaste duur en inzet** past als de duur een afspraak is en de inzet jouw invoer. Het werk volgt uit die twee. Dit is de standaard. De kraan die voor één dag is gehuurd, hoort hier: de dag staat vast en jij bepaalt hoeveel kranen er staan.
 - **Vaste duur en werk** past als de taak in een vaste periode klaar moet zijn en je weet hoeveel werk erin zit. Verandert de duur, dan past de app de inzet aan.
-- **Vast werk** past als je weet hoeveel uur werk erin zit en wilt zien hoe de duur meebeweegt met het aantal mensen. Het stucwerk in het oefenproject krijgt deze regel.
+- **Vast werk** past als je weet hoeveel uur werk erin zit en wilt zien hoe de duur meebeweegt met het aantal mensen. De 160 uur metselwerk met drie man in plaats van twee hoort hier. Het stucwerk in het oefenproject krijgt deze regel.
 - **Vaste inzet** past als de inzet vaststaat, bijvoorbeeld één kraan, en het werk de duur bepaalt.
 
 ## Valkuilen en wat de app dan doet
 
-**Het veld *Werkregel* ontbreekt.** Dan staat de instelling *Toon werkregels en werk* uit en heeft het bestand nog geen werkregels, of je hebt een mijlpaal, een fase of een hangmat geselecteerd. Daar bestaat geen werkregel. Selecteer een gewone taak.
+**Het veld *Werkregel* ontbreekt.** Dan staat de instelling *Toon werkregels en werk* uit en heeft het bestand nog geen werkregels, of je hebt een mijlpaal, een fase, een hangmat of een taak met het duurtype *Verstreken tijd* geselecteerd. Daar bestaat geen werkregel. Selecteer een gewone taak.
 
 **De duur verandert zonder dat ik hem wijzig.** Onder *Vast werk* en *Vaste inzet* volgt de duur uit inzet en werk. Wijzig je een van die twee of het aantal resources, dan past de app de duur aan, afgerond op hele werkdagen. Bij een taak in uren rondt de app af op hele minuten.
 
@@ -61,7 +63,7 @@ Verandert daardoor de duur van de taak, dan meldt de statusbalk *Verouderd — h
 
 **Een taak met voortgang.** De regel werkt op het resterende deel. *Werk (rest)* toont dus alleen wat nog moet gebeuren.
 
-**Terugdraaien.** Een regel kiezen en elke wijziging die de regel doorrekent, is één stap voor *Ongedaan* (Ctrl+Z).
+**Terugdraaien.** Een regel kiezen en elke wijziging die de regel doorrekent, is één stap voor *Ongedaan* (Ctrl+Z). De regel verdwijnt dan weer, maar het veld *Werkregel* blijft in beeld.
 
 ## Zie ook
 

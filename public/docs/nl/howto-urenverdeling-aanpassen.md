@@ -41,17 +41,15 @@ Heeft de toewijzing een eigen verdeling, dan staat in het venster ook *Verdeling
 
 **Het totaal verandert mee.** Je verdeelt de uren niet, je bepaalt ze. Zet je een fase op 0,5 in plaats van 0,18, dan wordt het totaal groter. Onderaan het venster staat het totaal in uren, dus controleer dat vóór je op *Toepassen* klikt.
 
-**Eenh./dag stuurt de verdeling niet meer.** Zet je later de inzet op 2, dan blijft de eigen verdeling gelden. De inzet heeft er pas weer invloed op als je de verdeling loslaat.
+**Wat de inzet daarna doet, hangt van de werkregel af.** Bij *Vaste duur en inzet* verandert een andere *Eenh./dag* niets aan de verdeling. Bij *Vaste duur en werk* schaalt de app de uren per dag mee met de nieuwe inzet: bij inzet 2 in plaats van 1 verdubbelt elke dag en dus ook het totaal (van 32 naar 64 uur), en de duur blijft gelijk. Bij *Vast werk* verandert de inzet de duur van de taak: de verdeling wordt dan over de nieuwe duur samengedrukt of uitgerekt, met hetzelfde totaal. Bij *Vaste inzet* verandert de inzet ook de duur; controleer daarna het totaal onderaan het venster.
 
-**Verander je de duur van de taak, dan rekt de verdeling mee.** Bij de standaardregel *Vaste duur en inzet* blijft de vorm dan gelijk en groeit het totaal evenredig met de duur. Verdubbelt de duur van een taak met een eigen verdeling van 4 naar 8 werkdagen, dan verdubbelt ook het totaal, van 32 naar 64 uur.
+**Verander je de duur van de taak, dan rekt de verdeling mee.** De vorm blijft gelijk. Bij *Vaste duur en inzet* en bij *Vaste inzet* groeit het totaal evenredig met de duur: verdubbelt de duur van een taak met een eigen verdeling van 4 naar 8 werkdagen, dan verdubbelt ook het totaal, van 32 naar 64 uur. Bij *Vaste duur en werk* en bij *Vast werk* blijft het totaal gelijk (32 uur blijft 32 uur) en zakt de inzet.
 
 **Het werk volgt de verdeling.** *Werk (rest)* wordt de som van je fasen, ook onder *Vast werk*. De duur van de taak verandert daar niet door.
 
 **Ongeldige inzet.** Een lege of negatieve inzet krijgt een rode rand en dan is *Toepassen* uitgeschakeld. Een fase met inzet 0 mag wel. Zo'n fase blijft binnen de duur van de taak.
 
 **Alles geldt voor deze ene toewijzing.** De app noemt het zelf: *De verdeling verandert alleen de uren per dag van deze toewijzing; de taakdatums en onderbrekingen blijven zoals ze zijn.* Andere resources op dezelfde taak houden hun eigen verdeling.
-
-**Uurtaken korter dan een werkdag.** Een taak die je in uren plant en die korter duurt dan één werkdag, zoals de kraaninzet van 5 uur, telt niet mee als belasting. Het venster toont daarvoor één fase met inzet 0 en 0 uur. Zie ook [Overbezetting oplossen](docs://howto-overbezetting-oplossen).
 
 **Nivelleren volgt de verdeling.** De nivelleerder telt dezelfde uren per dag als het histogram.
 
