@@ -12,8 +12,8 @@ Almost every action in the schedule works on the tasks you have selected: deleti
 
 - **One task.** Click the row in the task list or the bar in the Gantt.
 - **More tasks.** Ctrl+click (⌘+click on a Mac) adds a task to the selection or removes it. In the task list, Shift+click selects all tasks from the active task to the one you clicked.
-- **All tasks.** Ctrl+A, with the focus in the task list or in the Gantt.
-- **A box in the Gantt.** Hold Ctrl and drag over the empty background: the bars in the box are selected. Without Ctrl that drag scrolls the timeline in the default setting.
+- **All visible tasks.** Ctrl+A, with the focus in the task list or in the Gantt. Tasks that a filter hides fall outside it, and so do subtasks in a collapsed phase.
+- **A box in the Gantt.** Hold Ctrl and drag over the empty background: all tasks in the rows the box touches are selected, even if their bar lies beside it: only the height of the box counts, not the time axis. If you release Ctrl only after the mouse button, they are added to the existing selection; otherwise they replace it. Without Ctrl that drag scrolls the timeline in the default setting.
 - **Nothing.** Esc, or a click on the empty background of the Gantt.
 
 If you select a summary task, its subtasks are not selected along. Deleting and copying do take them along.
@@ -29,7 +29,7 @@ Select the tasks and choose one of these routes:
 
 The app asks for no confirmation. If you delete several tasks at once, that is one step for *Undo*.
 
-What disappears with them: all subtasks of a deleted summary task, all relations from and to the deleted tasks, and their resource assignments. If you delete the last subtask of a summary task, it stays behind as an ordinary task. If *WBS auto* is on, the app renumbers the tree. The schedule is out of date afterwards: press **Calculate** (F5).
+What disappears with them: all subtasks of a deleted summary task, all relations from and to the deleted tasks, and their resource assignments. If you delete the last subtask of a summary task, it stays behind as an ordinary task. If *WBS auto* is on, the app renumbers the tree. The schedule is out of date afterwards: press **Calculate** (F5), unless *Calculate automatically* is on.
 
 ### Collapsing and expanding
 
@@ -42,17 +42,17 @@ The app keeps collapsing and expanding per open document. It is not part of *Und
 - *Home › Edit › Undo* and *Redo* (also on the *Table* tab), the arrows in the title bar, or Ctrl+Z for undo and Ctrl+Y or Ctrl+Shift+Z for redo.
 - If you do something new after an *Undo*, *Redo* is gone.
 
-*Undo* covers changes to your project data (tasks, relations, resources, calendars and the like), applying a layout, and adding or removing a column in the task list. The app keeps the last hundred steps per document, fewer for a very large project.
+*Undo* covers changes to your project data (tasks, relations, resources, calendars and the like), and applying a layout. Changes to the columns of the task list are steps too: adding, removing, moving, resizing, auto-fitting, pinning and resetting the column layout to the default. Those column steps belong to the task list itself and apply to the whole app, not to one document. The app keeps the last hundred steps per document, fewer for a very large project.
 
 ## Pitfalls and what the app does
 
-**Delete in the task list does not delete a task.** If the focus is in the task list, Delete (or Backspace) clears the contents of the selected cells. For required cells, such as the name and the duration, nothing happens. Click a bar in the Gantt or use *Delete*.
+**Delete in the task list does not delete a task.** If the focus is in the task list, Delete (or Backspace) clears the contents of the selected cells. For a required or calculated cell, such as the name or the duration, the app refuses and shows a message under the task list, for the name for example *This value is required and cannot be left empty.* Then nothing is cleared, not even in other selected cells. Click a bar in the Gantt or use *Delete* (on the *Table* tab, where there is no Gantt: *Table › Edit › Delete* or the right-click menu).
 
 **A whole phase goes at once.** If you delete a summary task, its subtasks, their relations and assignments go with it. *Undo* (Ctrl+Z) brings everything back, the relations and assignments too.
 
 **What does not come back.** The selection, collapsing and expanding, and the *Clear* button in the strip *Not available while filtering/grouping/sorting* are not part of *Undo*. If you press Ctrl+Z after *Clear*, you therefore reverse your previous step, not the clearing.
 
-**Removing a task that others depend on.** The relations from and to that task disappear too. Tasks that were only attached to it come loose and start on their own date again. Add new relations if needed, see [Adding relations](docs://howto-relaties-leggen).
+**Removing a task that others depend on.** The relations from and to that task disappear too. Tasks that were only attached to it come loose and start on their own planned start again after **Calculate**. Add new relations if needed, see [Adding relations](docs://howto-relaties-leggen).
 
 ## See also
 
