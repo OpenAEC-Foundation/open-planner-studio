@@ -1123,6 +1123,78 @@
       },
       "kind": "howto",
       "draft": true
+    },
+    {
+      "id": "uitleg-bestanden",
+      "title": {
+        "nl": "Bestanden en formaten",
+        "en": "Files and formats"
+      },
+      "kind": "uitleg",
+      "draft": true
+    },
+    {
+      "id": "uitleg-datums-zoals-opgeslagen",
+      "title": {
+        "nl": "Datums zoals opgeslagen",
+        "en": "Dates as recorded"
+      },
+      "kind": "uitleg",
+      "draft": true
+    },
+    {
+      "id": "howto-bestand-openen-en-opslaan",
+      "title": {
+        "nl": "Een bestand openen en opslaan",
+        "en": "Opening and saving a file"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-automatisch-opslaan",
+      "title": {
+        "nl": "Automatisch opslaan aanzetten",
+        "en": "Turning on AutoSave"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-mpp-openen",
+      "title": {
+        "nl": "Een MS Project-bestand (.mpp) openen",
+        "en": "Opening an MS Project file (.mpp)"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-xer-openen",
+      "title": {
+        "nl": "Een Primavera P6-bestand (.xer) openen",
+        "en": "Opening a Primavera P6 file (.xer)"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-exporteren",
+      "title": {
+        "nl": "Exporteren",
+        "en": "Exporting"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-herstellen-na-een-crash",
+      "title": {
+        "nl": "Herstellen na een crash",
+        "en": "Recovering after a crash"
+      },
+      "kind": "howto",
+      "draft": true
     }
   ],
   "aliases": {}
