@@ -1330,6 +1330,60 @@
       },
       "kind": "referentie",
       "draft": true
+    },
+    {
+      "id": "ref-sneltoetsen-lijst",
+      "title": {
+        "nl": "Sneltoetsen",
+        "en": "Keyboard shortcuts"
+      },
+      "kind": "referentie",
+      "draft": true
+    },
+    {
+      "id": "ref-instellingen-lijst",
+      "title": {
+        "nl": "Instellingen",
+        "en": "Settings"
+      },
+      "kind": "referentie",
+      "draft": true
+    },
+    {
+      "id": "ref-rekenopties-en-conventies",
+      "title": {
+        "nl": "Rekenopties en conventies",
+        "en": "Calculation options and conventions"
+      },
+      "kind": "referentie",
+      "draft": true
+    },
+    {
+      "id": "ref-import-exportformaten",
+      "title": {
+        "nl": "Import- en exportformaten",
+        "en": "Import and export formats"
+      },
+      "kind": "referentie",
+      "draft": true
+    },
+    {
+      "id": "ref-rapporttypes",
+      "title": {
+        "nl": "Rapporttypes",
+        "en": "Report types"
+      },
+      "kind": "referentie",
+      "draft": true
+    },
+    {
+      "id": "ref-extensiepermissies",
+      "title": {
+        "nl": "Extensiepermissies",
+        "en": "Extension permissions"
+      },
+      "kind": "referentie",
+      "draft": true
     }
   ],
   "aliases": {}
