@@ -772,6 +772,60 @@
       },
       "kind": "uitleg",
       "draft": true
+    },
+    {
+      "id": "uitleg-relaties",
+      "title": {
+        "nl": "Relaties en lag",
+        "en": "Relations and lag"
+      },
+      "kind": "uitleg",
+      "draft": true
+    },
+    {
+      "id": "uitleg-constraints",
+      "title": {
+        "nl": "Constraints en deadlines",
+        "en": "Constraints and deadlines"
+      },
+      "kind": "uitleg",
+      "draft": true
+    },
+    {
+      "id": "howto-pad-traceren",
+      "title": {
+        "nl": "Een pad traceren",
+        "en": "Tracing a path"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-externe-relaties",
+      "title": {
+        "nl": "Externe relaties naar een ander project",
+        "en": "External relations to another project"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-constraint-deadline-zetten",
+      "title": {
+        "nl": "Een constraint of deadline zetten",
+        "en": "Setting a constraint or deadline"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-hammock",
+      "title": {
+        "nl": "Een hammock maken",
+        "en": "Creating a hammock"
+      },
+      "kind": "howto",
+      "draft": true
     }
   ],
   "aliases": {}
