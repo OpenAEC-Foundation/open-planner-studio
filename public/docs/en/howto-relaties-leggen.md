@@ -67,7 +67,7 @@ You type a lag in the box next to the type, with each of the ways above. You cha
 - `3` or `3d`: 3 work days. A weekend does not count. The app shows `+3d`.
 - `3ed`: 3 calendar days. The weekend does count, as with concrete that also cures on Saturday and Sunday.
 - `-1`: a negative lag (lead). The successor may start a day earlier, so the tasks overlap.
-- `4h`: 4 working hours; the app shows it as `+4u`. Between two tasks scheduled in days, the app converts this to whole work days, rounded to the nearest whole day: `4h` then acts as 1 day, `2h` as 0.
+- `4h`: 4 working hours; the app shows it as `+4u`. If the predecessor is a day task on a calendar without working-time blocks of its own, such as the standard calendar, the app converts this to whole work days, rounded to the nearest whole day: `4h` then acts as 1 day, `2h` as 0. On a calendar with working-time blocks of its own, or after an hour task, the lag counts exactly in hours.
 - `50%`: half the predecessor's duration.
 
 Example: the foundation concrete has to cure before the bricklayer can work on it, so *Pour foundation → Foundation brickwork* gets an FS relation with lag `3`. If the pour is on Friday 18 June 2027, the brickwork starts after **Calculate** on Thursday 24 June: Monday to Wednesday is waiting time. With `3ed` the weekend counts and the brickwork starts on Tuesday 22 June.
@@ -90,7 +90,7 @@ A new relation does not move any bars yet; the status bar says *Out of date — 
 
 **Shorter messages in the column.** The *Predecessors* column gives the same refusals with a shorter text under the cell: *This change would create a cycle in the schedule.*, *This relationship already exists.* or *A task cannot have a relationship with its own summary task.* If you type only a WBS number, such as `3.1`, the type is missing and the cell says *Use a value such as 1.2 FS+2d.* The cell stays open; correct the input or press Esc to cancel.
 
-**No half days of lag.** A lag in days is always a whole number: `1.5` becomes `+2d`, and an hour lag between day tasks is rounded to whole work days. Unreadable input, such as a word, is not saved: the box jumps back to the previous value.
+**No half days of lag.** A lag in days is always a whole number: `1.5` becomes `+2d`, and an hour lag after a day task on a calendar without working-time blocks of its own is rounded to whole work days. Unreadable input, such as a word, is not saved: the box jumps back to the previous value.
 
 ## See also
 

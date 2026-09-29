@@ -67,7 +67,7 @@ Een lag typ je in het vak naast het type, bij elke manier hierboven. Een bestaan
 - `3` of `3d`: 3 werkdagen. Een weekend telt niet mee. De app toont `+3d`.
 - `3ed`: 3 kalenderdagen. Het weekend telt wel mee, zoals bij beton dat ook op zaterdag en zondag uithardt.
 - `-1`: een negatieve lag (lead). De opvolger mag een dag eerder beginnen, zodat de taken overlappen.
-- `4u`: 4 werkuren. Tussen twee taken die in dagen gepland zijn, rekent de app dit om naar hele werkdagen, afgerond op de dichtstbijzijnde hele dag: `4u` werkt dan als 1 dag, `2u` als 0.
+- `4u`: 4 werkuren. Is de voorganger een dagtaak op een kalender zonder eigen werktijdblokken, zoals de standaardkalender, dan rekent de app dit om naar hele werkdagen, afgerond op de dichtstbijzijnde hele dag: `4u` werkt dan als 1 dag, `2u` als 0. Op een kalender met eigen werktijdblokken, of na een urentaak, telt de lag exact in uren.
 - `50%`: de helft van de duur van de voorganger.
 
 Voorbeeld: het beton van de fundering moet uitharden voordat de metselaar erop kan, dus *Fundering storten â†’ Funderingsmetselwerk* krijgt een FS-relatie met lag `3`. Is het storten op vrijdag 18 juni 2027, dan begint het metselwerk na **Bereken** op donderdag 24 juni: maandag tot en met woensdag is wachttijd. Met `3ed` telt het weekend mee en begint het metselwerk op dinsdag 22 juni.
@@ -90,7 +90,7 @@ Een nieuwe relatie verschuift nog geen balken; de statusbalk meldt *Verouderd â€
 
 **In de kolom korter gemeld.** Dezelfde weigeringen geeft de kolom *Voorgangers* met een kortere tekst onder de cel: *Deze wijziging zou een kring in de planning maken.*, *Deze relatie bestaat al.* of *Een taak kan geen relatie hebben met zijn eigen samenvattende taak.* Typ je alleen een WBS-nummer, zoals `3.1`, dan mist het type en meldt de cel *Gebruik bijvoorbeeld 1.2 FS+2d.* De cel blijft open; verbeter de invoer of druk op Esc om te annuleren.
 
-**Geen halve dagen lag.** Een lag in dagen is altijd een heel getal: `1,5` wordt `+2d`, en een uren-lag tussen dagtaken wordt afgerond op hele werkdagen. Onleesbare invoer, zoals een woord, wordt niet opgeslagen: het vak springt terug naar de vorige waarde.
+**Geen halve dagen lag.** Een lag in dagen is altijd een heel getal: `1,5` wordt `+2d`, en een uren-lag na een dagtaak op een kalender zonder eigen werktijdblokken wordt afgerond op hele werkdagen. Onleesbare invoer, zoals een woord, wordt niet opgeslagen: het vak springt terug naar de vorige waarde.
 
 ## Zie ook
 

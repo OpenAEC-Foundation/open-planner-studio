@@ -37,7 +37,7 @@ Een lag kan op vier manieren worden uitgedrukt:
 - In **werkdagen** (`3` of `3d`): de app slaat vrije dagen en weekenden over. Dit is de standaard.
 - In **kalenderdagen** (`3ed`, de e staat voor *elapsed*, verstreken tijd): elke dag telt mee, ook zaterdag en zondag. Dit is de eenheid voor iets dat doorloopt zonder dat er gewerkt wordt, zoals uitharden.
 - Als **percentage** van de duur van de voorganger (`40%`): de app rekent dit bij elke berekening opnieuw uit en rondt af op hele dagen (2,5 dagen wordt 3).
-- In **werkuren** (`4u`): tussen taken die in dagen gepland zijn, rekent de app de uren om naar hele werkdagen van de lag-kalender, afgerond op de dichtstbijzijnde hele dag (een halve dag gaat naar boven). Bij een werkdag van 8 uur geven `2u` en `3u` dus 0 dagen, `4u` tot en met `11u` 1 dag en `12u` 2 dagen.
+- In **werkuren** (`4u`): de app telt de lag in de lag-kalender, standaard die van de voorganger. Is de voorganger een dagtaak op een kalender zonder eigen werktijdblokken, zoals de standaardkalender, dan rekent de app de uren om naar hele werkdagen, afgerond op de dichtstbijzijnde hele dag (een halve dag gaat naar boven). Bij een werkdag van 8 uur geven `2u` en `3u` dus 0 dagen, `4u` tot en met `11u` 1 dag en `12u` 2 dagen. Heeft die kalender eigen werktijdblokken, of is de voorganger een urentaak, dan telt de lag exact in werkuren.
 
 De regel voor een lag van N werkdagen bij FS: de N werkdagen na het einde van de voorganger zijn wachttijd, en de opvolger begint op de werkdag daarna. Bij SS en FF wordt de lag bij de start respectievelijk het einde van de voorganger opgeteld. Een negatieve lag telt terug: een lead van 1 werkdag bij FS laat de opvolger beginnen op de dag waarop de voorganger klaar is.
 

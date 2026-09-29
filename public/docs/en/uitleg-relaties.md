@@ -37,7 +37,7 @@ A lag can be expressed in four ways:
 - In **work days** (`3` or `3d`): the app skips days off and weekends. This is the default.
 - In **calendar days** (`3ed`, the e stands for *elapsed* time): every day counts, including Saturday and Sunday. This is the unit for something that carries on without work being done, such as curing.
 - As a **percentage** of the predecessor's duration (`40%`): the app works this out again at every calculation and rounds to whole days (2.5 days becomes 3).
-- In **working hours** (`4h`): between tasks scheduled in days, the app converts the hours to whole work days of the lag calendar, rounded to the nearest whole day (half a day goes up). With a work day of 8 hours, `2h` and `3h` therefore give 0 days, `4h` up to and including `11h` give 1 day and `12h` gives 2 days.
+- In **working hours** (`4h`): the app counts the lag in the lag calendar, by default that of the predecessor. If the predecessor is a day task on a calendar without working-time blocks of its own, such as the standard calendar, the app converts the hours to whole work days, rounded to the nearest whole day (half a day goes up). With a work day of 8 hours, `2h` and `3h` therefore give 0 days, `4h` up to and including `11h` give 1 day and `12h` gives 2 days. If that calendar has working-time blocks of its own, or the predecessor is an hour task, the lag counts exactly in working hours.
 
 The rule for a lag of N work days with FS: the N work days after the predecessor's finish are waiting time, and the successor starts on the work day after that. With SS and FF the lag is added to the predecessor's start and finish respectively. A negative lag counts back: a lead of 1 work day with FS lets the successor start on the day the predecessor finishes.
 
