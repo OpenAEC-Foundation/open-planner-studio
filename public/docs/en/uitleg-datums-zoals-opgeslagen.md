@@ -12,7 +12,7 @@ If its own calculation ends up on other dates than the file states, you do not k
 
 ### Which calculation profile the app uses
 
-The app calculates with a **calculation profile**: a fixed set of calculation rules that decides, for example, how it treats the planned start of a task and constraints. There are three built-in profiles: *Primavera P6*, *Microsoft Project* and *Open Planner Studio*. An `.xer` opens with *Primavera P6* and an `.mpp` with *Microsoft Project*. CSV, MS Project XML and Primavera P6 XML open with *Open Planner Studio*. The profile of a project is under *File › Project info*, at *Calculation profile and options*. An IFC file from the app keeps its profile.
+The app calculates with a **calculation profile**: a set of calculation rules (conventions) that decides, for example, how it treats the planned start of a task and constraints. See [Calculation profiles and conventions](docs://uitleg-rekenprofielen). There are three built-in profiles: *Primavera P6*, *Microsoft Project* and *Open Planner Studio*. An `.xer` opens with *Primavera P6* and an `.mpp` with *Microsoft Project*. CSV, MS Project XML and Primavera P6 XML open with *Open Planner Studio*. The profile of a project is under *File › Project info*, at *Calculation profile and options*. An IFC file from the app keeps its profile.
 
 ### When the app compares
 
