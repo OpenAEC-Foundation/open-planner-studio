@@ -38,8 +38,8 @@ const CURVE_POINTS: Partial<Record<ResourceCurve, [number, number][]>> = {
 /**
  * Verdeelt `unitsPerDay × durationDays` totale eenheden over `durationDays` werkdagen volgens
  * `curve`, met lineaire interpolatie tussen controlepunten en grootste-rest-afronding zodat de
- * som EXACT klopt (geen 0.1-drift door floating point of afronding per dag). D=1 → alles op
- * dag 0, voor elke curve (randgeval).
+ * som EXACT klopt (geen 0.1-drift door floating point of afronding per dag). 0 < D ≤ 1 → alles
+ * op dag 0 (`unitsPerDay × D`, dus een fractie bij een korte urentaak), voor elke curve; D = 0 → `[]`.
  *
  * Deze ENE functie voedt (via `assignmentDayUnits`) zowel het histogram (`computeResourceLoad`) als
  * de nivelleerder — nooit een tweede, "simpelere" verdeelfunctie voor de leveler.
@@ -53,7 +53,11 @@ const CURVE_POINTS: Partial<Record<ResourceCurve, [number, number][]>> = {
  */
 export function distributeUnits(unitsPerDay: number, durationDays: number, curve: ResourceCurve = 'UNIFORM'): number[] {
   const total = unitsPerDay * durationDays;
-  if (durationDays <= 1) return durationDays === 1 ? [total] : [];
+  // Korter dan één werkdag (een urentaak van bv. 5 u op een 8-urige dag ⇒ 0,625): het hele werk
+  // valt op die ene dag, als fractie van een dag — dezelfde uitkomst als de opgeslagen-werk-laag in
+  // `assignmentDayUnits`. Vroeger viel zo'n taak hier stil weg (`[]`) en telde hij in histogram,
+  // overbezetting en nivelleren niet mee, tenzij er toevallig opgeslagen werk of een contour was.
+  if (durationDays <= 1) return durationDays > 0 ? [total] : [];
 
   const points = CURVE_POINTS[curve];
   let weights: number[];
