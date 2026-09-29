@@ -1015,6 +1015,51 @@
       },
       "kind": "uitleg",
       "draft": true
+    },
+    {
+      "id": "uitleg-voortgang",
+      "title": {
+        "nl": "Voortgang, statusdatum en baseline",
+        "en": "Progress, status date and baseline"
+      },
+      "kind": "uitleg",
+      "draft": true
+    },
+    {
+      "id": "howto-baseline-opslaan-en-beheren",
+      "title": {
+        "nl": "Een baseline opslaan en beheren",
+        "en": "Saving and managing a baseline"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-voortgang-bijwerken",
+      "title": {
+        "nl": "Voortgang bijwerken",
+        "en": "Updating progress"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-voortgang-importeren",
+      "title": {
+        "nl": "Voortgang uit een spreadsheet importeren",
+        "en": "Importing progress from a spreadsheet"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-voortgangsmodus-kiezen",
+      "title": {
+        "nl": "De voortgangsmodus kiezen",
+        "en": "Choosing the progress mode"
+      },
+      "kind": "howto",
+      "draft": true
     }
   ],
   "aliases": {}
