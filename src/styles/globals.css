@@ -1315,13 +1315,14 @@ button.task-grid-relation-reference {
      #2E3239 / hoog-contrastkaart #0a0a0a / wit-label-op-balk:
        critical  #DC2626  4.63 / 2.67 / 4.10 / 4.83
        normal    #2563EB  4.95 / 2.49 / 3.83 / 5.17
-       complete  #1D4ED8  6.42 / 1.92 / 2.95 / 6.70
+       complete  #1E3A8A  9.92 / 1.24 / 1.91 / 10.36
        milestone #7C3AED  5.46 / 2.26 / 3.47 / 5.70
        baseline  #6B7280  4.63 / 2.66 / 4.10 / 4.83
      Die 3:1-eis is dus opgegeven, en niet alleen op de donkere kaart: in het HOOG-CONTRASTTHEMA
-     zakt `complete` naar 2.95. Formeel is dat non-conform met WCAG 1.4.11 — bewust aanvaard voor
+     zou `complete` (BRAND) naar 1.91 zakken; het thema zet daarom #BFDBFE. Formeel zijn de lage
+     waarden non-conform met WCAG 1.4.11 — bewust aanvaard voor
      licht en donker; voor hoog contrast staat het open (zie themePalette.ts). Wat de afruil draagt
-     is het LABEL (4.83-6.70), niet de vlakgrootte: de balk is ~14 px hoog en heeft in de
+     is het LABEL (4.83-10.36), niet de vlakgrootte: de balk is ~14 px hoog en heeft in de
      standaardmodus geen rand. De speling (`--theme-bar-float`) is als enige WEL per thema
      gescheiden: die band is halfdoorzichtig en draagt geen label, dus hij moet het puur van zijn
      ondergrond winnen (donker #10B981 op #2E3239 = 5.07; licht #059669 op #FAFAFA = 3.61;
@@ -1336,7 +1337,7 @@ button.task-grid-relation-reference {
   --color-task-milestone: #7C3AED;
   --color-task-float: #10B981;
   --color-task-baseline: #6B7280;
-  --color-task-complete: #1D4ED8;
+  --color-task-complete: #1E3A8A;
 }
 
 /* Dark theme — OpenAEC default

@@ -71,7 +71,7 @@ function expectLabel(label: string, vlak: string, verwacht: string, minRatio: nu
 const BALKTINTEN: [string, string][] = [
   ['kritiek', '#DC2626'],
   ['normaal', '#2563EB'],
-  ['voltooid/normalLight', '#1D4ED8'],
+  ['voltooid/normalLight', '#1E3A8A'],
   ['mijlpaal', '#7C3AED'],
   ['baseline', '#6B7280'],
 ];
@@ -117,7 +117,7 @@ expectLabel('balkvlak hammock', '#0E7490', BAR_LABEL_LIGHT, 4.5);
 expectLabel('balkvlak traceSuccDriving', '#7C3AED', BAR_LABEL_LIGHT, 4.5);
 
 // ── De donkere kritieke voortgangsvulling: wit label ────────────────────────
-expectLabel('voortgangsvulling kritiek', '#991B1B', BAR_LABEL_LIGHT, 4.5);
+expectLabel('voortgangsvulling kritiek', '#7F1D1D', BAR_LABEL_LIGHT, 4.5);
 
 // ── De 25%-zwart-overlay (modi/trace-tint): wit label op elke balktint ──────
 // In de kleurmodi en bij een trace-tint is de voortgangsvulling geen eigen hex maar

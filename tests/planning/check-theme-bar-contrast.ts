@@ -50,10 +50,10 @@ const dist = (a: string, b: string): number => {
 {
   const p = readGanttPalette();
   eq('fallback critical', p.critical, '#DC2626');
-  eq('fallback criticalLight', p.criticalLight, '#991B1B');
+  eq('fallback criticalLight', p.criticalLight, '#7F1D1D');
   eq('fallback normal', p.normal, '#2563EB');
-  eq('fallback normalLight', p.normalLight, '#1D4ED8');
-  eq('fallback complete', p.complete, '#1D4ED8');
+  eq('fallback normalLight', p.normalLight, '#1E3A8A');
+  eq('fallback complete', p.complete, '#1E3A8A');
   eq('fallback milestone', p.milestone, '#7C3AED');
   eq('fallback baseline', p.baseline, '#6B7280');
   eq('complete en normalLight delen één bron', p.complete, p.normalLight);
