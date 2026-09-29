@@ -8,7 +8,7 @@ Alle toetscombinaties van de app, gegroepeerd zoals in het venster *Sneltoetsen*
 
 **Exacte combinatie.** De app vergelijkt Ctrl, Shift en Alt exact. Ctrl+Alt+S doet dus niets: de toets moet precies overeenkomen met de lijst.
 
-**Het venster openen.** Druk op Ctrl+/ of kies *Instellingen › Sneltoetsen › Sneltoetsen*. Ctrl+/ sluit het venster ook weer. Het venster is alleen-lezen. Het toont niet alle toetsen die hier staan; de tabel- en dialoogtoetsen onderaan dit artikel staan er niet in.
+**Het venster openen.** Druk op Ctrl+/ of kies *Instellingen › Sneltoetsen › Sneltoetsen*. Ctrl+/ sluit het venster ook weer. Het venster is alleen-lezen. Het toont niet alle toetsen die hier staan: van de tabeltoetsen alleen de eerste zes regels, en de dialoogtoetsen onderaan dit artikel niet.
 
 **Wanneer een toets niet werkt.** Elke regel noemt zijn beperkingen. Drie regels gelden bijna overal:
 
@@ -54,9 +54,9 @@ De gebouwde app (desktop en de webversie op de site) blokkeert bovendien een aan
 
 **Alt+Shift+←** of **Alt+←** — *Uitspringen*: haalt de geselecteerde taken een niveau omhoog. Alleen met een selectie, niet in een dialoog.
 
-Inspringen, uitspringen en invoegen werken alleen in de pure boomweergave: zonder filter, groepering of sortering. In een andere weergave weigert de app ze met een melding, omdat de getoonde volgorde dan niet de volgorde van het project is.
+Inspringen, uitspringen en invoegen boven of onder een geselecteerde taak werken alleen in de pure boomweergave: zonder filter, groepering of sortering. In een andere weergave weigert de app ze met een melding, omdat de getoonde volgorde dan niet de volgorde van het project is. Invoegen zonder selectie werkt in elke weergave.
 
-**Insert** — *Invoegen boven*: voegt een nieuwe taak in boven de bovenste geselecteerde taak, op hetzelfde niveau. Zonder selectie komt de taak onderaan. Niet in een dialoog.
+**Insert** — *Invoegen boven*: voegt een nieuwe taak in boven de bovenste geselecteerde taak, op hetzelfde niveau. Zonder selectie komt de taak onderaan, in elke weergave. Niet in een dialoog.
 
 **Ctrl+I** — *Invoegen onder*: voegt een nieuwe taak in onder de onderste geselecteerde taak, op hetzelfde niveau. Zonder selectie komt de taak onderaan. Niet in een dialoog.
 
@@ -88,7 +88,7 @@ Inspringen, uitspringen en invoegen werken alleen in de pure boomweergave: zonde
 
 **Ctrl+Shift+H** — *Histogram*: zet het histogram aan of uit, net als de knop *Histogram* (*Resources › Histogram › Histogram* of *Beeld › Panelen › Histogram*). De app onthoudt je keuze.
 
-**Ctrl+Shift+L** — *Waarschuwingen*: zet het waarschuwingenpaneel aan of uit, net als de knop *Waarschuwingen* (*Beeld › Panelen › Waarschuwingen*).
+**Ctrl+Shift+L** — *Waarschuwingen*: zet het waarschuwingenpaneel aan of uit, net als de knop *Waarschuwingen* (*Beeld › Panelen › Waarschuwingen* of *Planning › Planning › Waarschuwingen*).
 
 ## Navigatie
 
@@ -118,9 +118,9 @@ Deze toetsen werken in het taakraster (op het tabblad *Tabel* en in de tabel lin
 
 **Pijltjes** — gaan naar de cel erboven, eronder, links of rechts. Met Shift erbij breid je de selectie uit.
 
-**Home** en **End** — naar de eerste of laatste kolom van de rij. Met Ctrl erbij naar de eerste cel van de eerste rij en de laatste cel van de laatste rij.
+**Home** en **End** — naar de eerste of laatste kolom van de rij. Met Ctrl erbij naar de eerste cel van de eerste rij en de laatste cel van de laatste rij. Met Shift erbij breid je de selectie uit.
 
-**Page Up** en **Page Down** — een schermhoogte omhoog of omlaag.
+**Page Up** en **Page Down** — een schermhoogte omhoog of omlaag. Met Shift erbij breid je de selectie uit.
 
 **Enter** (tijdens het bewerken) — legt de invoer vast en gaat naar dezelfde kolom in de volgende rij. Shift+Enter gaat naar de vorige rij.
 

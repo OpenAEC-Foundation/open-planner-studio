@@ -14,9 +14,9 @@ Per file format: whether you can open, save and export it, what does and does no
 
 **PDF** only comes from a report (see [Report types](docs://ref-rapporttypes)). The app does not read PDF.
 
-**Where.** Opening: *Home › File › Open*, *File › Open* or Ctrl+O. Exporting: *Home › File › Export* or *File › Export*. You read a filled-in progress sheet in via *File › Import*.
+**Where.** Opening: *Home › File › Open*, *File › Open* or Ctrl+O. Exporting: *Home › File › Export* or *File › Export*. You read a filled-in progress sheet in via *File › Import*, or with the button *Update progress from a spreadsheet* in the ribbon group *Progress* on the *Planning*, *Table* and *Report* tabs.
 
-**Calculation profile on opening.** Every format opens with a calculation profile; what that is, is in [Calculation options and conventions](docs://ref-rekenopties-en-conventies). `.xer` opens with *Primavera P6*, `.mpp` with *Microsoft Project*, and CSV, MS Project XML and P6 XML with *Open Planner Studio*. IFC keeps the profile stored in the file. For `.xer` and `.mpp` the app reports that the project calculates this way. Only IFC carries the calculation profile and the calculation options: a reopened export of another format calculates as *Open Planner Studio*.
+**Calculation profile on opening.** Every format opens with a calculation profile; what that is, is in [Calculation options and conventions](docs://ref-rekenopties-en-conventies). `.xer` opens with *Primavera P6*, `.mpp` with *Microsoft Project*, and CSV, MS Project XML and P6 XML with *Open Planner Studio*. IFC keeps the profile stored in the file. For `.xer` and `.mpp` the app reports that the project calculates this way. Only IFC carries the calculation profile and the calculation options; of the calculation options, MS Project XML writes at most the critical threshold. A reopened export of another format calculates as *Open Planner Studio*.
 
 ## IFC
 
@@ -38,7 +38,7 @@ Per file format: whether you can open, save and export it, what does and does no
 
 **Export** — yes, as *MS Project XML* (*Opens in Microsoft Project. Full WBS structure.*). Default name: the project name with `.xml`.
 
-**What goes along** — tasks with structure (level and WBS), duration, dates and progress; relations with lag, also in hours or percentages; constraints, including the deadline; calendars, including task and resource calendars; resources and assignments, including the curve or hour distribution; the status date; the description of a task (as a note); the work rule of a task (as the MS Project task type). Of your baselines only the active one goes along, as baseline 0. A task in hours keeps its unit, and a milestone its kind (start, finish or automatic).
+**What goes along** — tasks with structure (level and WBS), duration, dates and progress; relations with lag, also in hours or percentages; constraints, including the deadline; calendars, including task and resource calendars; resources and assignments, including the curve or hour distribution; the status date; the critical threshold, as a whole number of work days of 0 or more with *Total float ≤ threshold*; the description of a task (as a note); the work rule of a task (as the MS Project task type). Of your baselines only the active one goes along, as baseline 0. A task in hours keeps its unit, and a milestone its kind (start, finish or automatic).
 
 **What does not go along** — notes (the checklist on a task), external links to other projects, activity codes and custom fields, a second constraint, the marking *Manually scheduled*, the leveling delay, the resume and stop point of an out-of-sequence task, the conventions *Remaining work resumes after the elapsed duration* and *Don't move unstarted tasks to the status date* of an MS Project profile, and the other calculation options. Interrupted tasks without an hour distribution go along without their interruptions.
 
@@ -66,7 +66,7 @@ Per file format: whether you can open, save and export it, what does and does no
 
 **What goes along** — WBS structure and tasks with duration, dates and progress; relations with lag; constraints (also a second one, as a soft constraint); calendars; resources and assignments; the status date (as *DataDate*).
 
-**What does not go along** — baselines and deadlines; activity codes, custom fields, notes and external links; the calculation options; a working calendar exception (an exception that makes a day a working day). P6 has no lag in percentages: the app converts it to a fixed number of days. A lag in calendar days becomes an ordinary lag in hours. A hammock becomes an ordinary task, a manually scheduled task an ordinary task with calculated dates, and a leveling delay of less than a day is dropped.
+**What does not go along** — baselines and deadlines; activity codes, custom fields, notes and external links; the calculation options; a working calendar exception (an exception that makes a day a working day). P6 has no lag in percentages: the app converts it to a fixed number of days. A lag in calendar days becomes a lag in working time: 3 calendar days become 3 work days. A hammock becomes an ordinary task, a manually scheduled task an ordinary task with calculated dates, and a leveling delay of less than a day is dropped.
 
 ## Primavera file (`.xer`)
 
@@ -74,7 +74,7 @@ Per file format: whether you can open, save and export it, what does and does no
 
 **Save** — no, and there is no save target: *Save* writes a new IFC file, with the original `.xer` inside.
 
-**Export** — no. If you export a project from a `.xer` to CSV, MS Project XML or P6 XML, the app reports that XER source information is lost. To IFC nothing is lost.
+**Export** — no. If you export a project from a `.xer` to CSV, MS Project XML or P6 XML, the app reports that XER source information is lost, even if you saved the project as IFC in between. To IFC nothing is lost.
 
 **What goes along** — the WBS structure and activities with duration, dates, constraints and progress; relations with lag; calendars; resources with assignments; activity codes; custom fields (UDFs); notes; the scheduling settings of P6. An activity of the type *Level of Effort* becomes a hammock. A baseline project becomes the active baseline of the project that refers to it. A relation between two projects is kept by the app as source data.
 
@@ -94,11 +94,11 @@ Per file format: whether you can open, save and export it, what does and does no
 
 ## Progress sheet (Excel and CSV)
 
-**Open** — yes, via *File › Import* (*Update progress from a spreadsheet*). The app reads `.xlsx` and `.csv`, up to 16 MB and 50,000 rows. This does not open a project: it updates the progress of your open project. See [Importing progress from a spreadsheet](docs://howto-voortgang-importeren).
+**Open** — yes, via *File › Import* (*Update progress from a spreadsheet*) or via the button of that name in the ribbon group *Progress* on *Planning*, *Table* and *Report*. The app reads `.xlsx` and `.csv`, up to 16 MB and 50,000 rows. This does not open a project: it updates the progress of your open project. See [Importing progress from a spreadsheet](docs://howto-voortgang-importeren).
 
 **Save** — no.
 
-**Export** — yes, as *Progress sheet (Excel)* (*Progress (Excel)* in the list) and *Progress sheet (CSV)* (*Progress (CSV)*). Default name: *projectname-voortgang*. The Excel sheet has fixed column widths, locked fields and date checking; the CSV sheet is the same content as plain text.
+**Export** — yes, as *Progress sheet (Excel)* (*Progress (Excel)* in the list) and *Progress sheet (CSV)* (*Progress (CSV)*). Default name: *projectname-voortgang*. The button *Export progress sheet* in the same ribbon group makes the Excel sheet in one click. The Excel sheet has fixed column widths, locked fields and date checking; the CSV sheet is the same content as plain text.
 
 **What goes along** — the columns *OPS Task ID*, *WBS*, *Name*, *Start*, *Finish*, *Completion (%)*, *Actual Start* and *Actual Finish*. When reading it in, the app uses *Completion (%)*, *Actual Start* and *Actual Finish*; *Start* and *Finish* only serve to recognise the date notation and do not change your schedule. The app links rows to tasks by the *OPS Task ID*, or otherwise by a unique WBS code.
 

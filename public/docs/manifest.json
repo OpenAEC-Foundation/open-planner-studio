@@ -1321,6 +1321,15 @@
       },
       "kind": "howto",
       "draft": true
+    },
+    {
+      "id": "ref-extensiepermissies",
+      "title": {
+        "nl": "Extensiepermissies",
+        "en": "Extension permissions"
+      },
+      "kind": "referentie",
+      "draft": true
     }
   ],
   "aliases": {}

@@ -44,13 +44,13 @@ Een wijziging werkt direct. Er is geen knop *Toepassen* en geen *Annuleren*.
 
 ## Tabblad Planning
 
-**Bouwmodus inschakelen** — bouwgerichte beginwaarden voor nieuwe projecten. Standaard: aan. Effect: aan geeft een nieuw project de kalender *Bouwkalender NL* met de Nederlandse feestdagen, laat je bij het genereren van feestdagen een bouwvak kiezen, biedt de fasesjablonen *Woningbouw* en *Utiliteitsbouw / renovatie* aan en geeft nieuwe taken het taaktype *Bouw*. Uit geeft de kalender *Standaardkalender* zonder feestdagen, alleen het sjabloon *Leeg* en het taaktype *Overig*. Bestaande taken en kalenders veranderen niet. Waar: *Planning*.
+**Bouwmodus inschakelen** — bouwgerichte beginwaarden voor nieuwe projecten. Standaard: aan. Effect: aan geeft een nieuw project de kalender *Bouwkalender NL* met de Nederlandse feestdagen, laat je bij het genereren van feestdagen een bouwvak kiezen, biedt de fasesjablonen *Woningbouw* en *Utiliteitsbouw / renovatie* aan en geeft nieuwe taken het taaktype *Bouw*. Uit geeft de kalender *Standaardkalender* zonder feestdagen, alleen het sjabloon *Leeg* en het taaktype *Overig*. Een nieuwe taak onder een bovenliggende taak met een taaktype neemt eerst dat taaktype over; *Bouw* of *Overig* geldt daarna. Bestaande taken en kalenders veranderen niet. Waar: *Planning*.
 
 **Urenplanning inschakelen** — plannen in werkuren naast werkdagen. Standaard: uit. Effect: de tijdschaal *Uur* verschijnt onder *Beeld › Tijdschaal*, het venster *Kalenders* krijgt het blok *Werktijden*, en het venster *Nieuw project* krijgt de keuzes *Ploeg* en *Standaardeenheid voor nieuwe taken*. Ook *Projectinfo* krijgt de keuze *Standaardeenheid voor nieuwe taken*. Uit werkt de app dag-granulair. Taken die al in uren staan blijven bestaan en rekenen mee; hun duur bewerk je pas als je urenplanning aanzet. Waar: *Planning*, onder *Urenplanning*. Zie [Urenplanning aanzetten](docs://howto-urenplanning-aanzetten).
 
 **Gemengde dag/uur-planning toestaan** — of je per taak de eenheid kiest. Alleen zichtbaar als *Urenplanning inschakelen* aan staat. Standaard: aan. Effect: aan toont bij elke taak de keuzelijst *Duureenheid* naast de duur. Uit verbergt die keuzelijst. Waar: *Planning*, onder *Urenplanning*. Zie [Dagen en uren](docs://uitleg-dagen-en-uren).
 
-**Week begint op** — de eerste dag van de week. Keuze uit *Maandag* en *Zondag*. Standaard: *Maandag*. Effect: de weekindeling en weeknummers van de tijdschaal in de Gantt en in de afdruk, en de volgorde van de weekdagen in het venster *Kalenders*. Waar: *Planning*.
+**Week begint op** — de eerste dag van de week. Keuze uit *Maandag* en *Zondag*. Standaard: *Maandag*. Effect: de weekindeling en weeknummers van de tijdschaal in de Gantt en in de rapporten (de Gantt-afdruk), en de volgorde van de weekdagen in het venster *Kalenders*. Waar: *Planning*.
 
 **Automatisch berekenen** — rekent de planning door zodra ze verouderd is. Standaard: uit. Effect: uit betekent dat je zelf op *Bereken* drukt (F5). Aan laat de app na een wijziging van taken, relaties of kalender de planning binnen een fractie van een seconde herberekenen. Tijdens een sleepgebaar of terwijl je in een veld typt, wacht de app en rekent hij één keer als je klaar bent. Na een mislukte berekening rekent hij pas opnieuw nadat je iets hebt gewijzigd. Waar: *Planning*, onder *Berekenen*.
 
@@ -58,7 +58,7 @@ Een wijziging werkt direct. Er is geen knop *Toepassen* en geen *Annuleren*.
 
 ## Tabblad Geavanceerd
 
-**AI-modus inschakelen** — laat een AI-assistent met je planning werken. Standaard: uit. Effect: aan toont het tabblad *AI* met de MCP-bridge, zodat een AI-assistent via het Model Context Protocol met je planning kan werken. Uit verbergt het tabblad en stopt de bridge. Waar: *Geavanceerd*, onder *AI-modus*.
+**AI-modus inschakelen** — laat een AI-assistent met je planning werken. Standaard: uit. Effect: aan toont het tabblad *AI* met de MCP-bridge, zodat een AI-assistent via het Model Context Protocol met je planning kan werken. Uit verbergt het tabblad en stopt de bridge. Waar: *Geavanceerd*, onder *AI-modus*. Zie [Een AI-assistent koppelen (MCP)](docs://howto-ai-assistent-koppelen).
 
 **Bridge automatisch starten** — start de MCP-bridge bij het opstarten. Alleen aanzetbaar als *AI-modus inschakelen* aan staat. Standaard: uit. Effect: de bridge staat direct live, zodat een AI-client kan koppelen zonder dat je eerst het tabblad *AI* opent. Dit werkt alleen in de desktopapp, en eenmalig per start: zet je de bridge daarna zelf uit, dan start hij niet opnieuw. Waar: *Geavanceerd*, onder *AI-modus*.
 
@@ -102,7 +102,7 @@ Deze keuzes bewaart de app ook op dit apparaat, maar je stelt ze in bij het onde
 
 **Hoogte van *Eigenschappen* en *Waarschuwingen* in het rechterpaneel** — standaard 240 en 220 pixels, tussen 120 en 2000. *Eigenschappen* heeft die hoogte als ook de resourcelijst openstaat. Je stelt de hoogte in met de sleepgrens tussen de secties. Of de secties open of dicht staan, onthoudt de app niet.
 
-**Ook onthouden, elders beschreven** — de kolommen van de tabel ([Tabelkolommen aanpassen](docs://howto-tabelkolommen-aanpassen)), je layouts ([Een layout maken en gebruiken](docs://howto-layouts-gebruiken)) en de rapportopties ([Rapporttypes](docs://ref-rapporttypes)) bewaart de app ook op dit apparaat, niet in het projectbestand.
+**Ook onthouden, elders beschreven** — de kolommen van de tabel ([Tabelkolommen aanpassen](docs://howto-tabelkolommen-aanpassen)), je layouts ([Een layout maken en gebruiken](docs://howto-layouts-gebruiken)), de rapportopties ([Rapporttypes](docs://ref-rapporttypes)), je eigen rekenprofiel-sjablonen ([Rekenopties en conventies](docs://ref-rekenopties-en-conventies)) en de *Documentatietaal* van de Help (*Bestand › Help*) bewaart de app ook op dit apparaat, niet in het projectbestand.
 
 ## Zie ook
 

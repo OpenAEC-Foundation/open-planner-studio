@@ -70,7 +70,7 @@ Open de PDF in je PDF-lezer en druk hem daar af. Print je een A3-PDF op een A4-p
 
 **De knop Afdruk en Ctrl+P printen niet.** De knop *Afdruk* in de groep *Rapportage* staat op het tabblad Rapport zelf en doet niets extra's. Ctrl+P brengt je naar dit tabblad. Er is geen aparte printopdracht in de app: de weg naar papier loopt via de PDF. Werkt Ctrl+P niet (zie stap 1), dan opent in de browser het printvenster van de browser, en dat drukt het scherm af, niet het rapport.
 
-**Bedrijf: overtypen wordt niet bewaard.** Het veld *Bedrijf:* bij de Gantt-afdruk begint met het bedrijf uit de projectinformatie. Wat je hier overtypt, wordt niet bewaard. *Auteur:* kun je hier niet typen. Beide pas je aan met *Instellingen › Project › Projectinfo*, in de velden *Bedrijf* en *Auteur*, en bevestig je met *Toepassen*.
+**Bedrijf: overtypen wordt niet bewaard.** Het veld *Bedrijf:* bij de Gantt-afdruk begint met het bedrijf uit de projectinformatie. Wat je hier overtypt, wordt niet bewaard. *Auteur:* kun je hier niet typen. Beide pas je aan met *Instellingen › Project › Projectinfo*, in de velden *Opdrachtgever/organisatie* en *Auteur*, en bevestig je met *Toepassen*.
 
 **Balkkleuren: geldt ook voor je scherm.** De keuze *Balkkleuren:* in het rapport is dezelfde keuze als *Balkkleuren* op het tabblad Beeld. Verander je hem in het rapport, dan verandert je Gantt op het scherm mee.
 

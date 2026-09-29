@@ -8,7 +8,7 @@ Open the *Report* tab (or press Ctrl+P). On the left is the *Report* column with
 
 **Report type** — which report you see. Choose from eleven reports. Default: *Gantt chart*. Where: *Report*, at the top of the *Report* column.
 
-**Export PDF** — makes the PDF. Effect: the result is only a PDF; the app does not send anything to a printer. If the schedule is out of date, the app calculates first. If the schedule contains a loop, the button makes no file and shows the error. Where: *Report*, at the bottom of the *Report* column.
+**Export PDF** — makes the PDF. Effect: the result is only a PDF; the app does not send anything to a printer. If the schedule is out of date, the app calculates first. If the calculation gives an error, for example because of a loop in the relations, the button makes no file and shows the error. Where: *Report*, at the bottom of the *Report* column.
 
 **Remembered.** The app keeps all report options on this device, for all your projects. They do not belong to the project file. Only the *Company:* field of the Gantt chart is not kept.
 
@@ -26,7 +26,7 @@ Open the *Report* tab (or press Ctrl+P). On the left is the *Report* column with
 
 The schedule as a bar chart, with a table on the left and a timeline on the right, over several pages if needed. The preview shows the paper with page header, table, timeline and legend. The block *Summary* counts *Tasks:*, *Leaf tasks:*, *Critical:* and *Relations:*. All options are under *Settings*.
 
-**Company:** — the company in the page header. Default: the company from the project information. Effect: only the header of the report; what you type over here is not kept. Change the company in *Settings › Project › Project info*, in the field *Client/organization*.
+**Company:** — the company in the page header. Default: the company from the project information. Effect: only the header of the report; what you type over here is not kept. Change the company in *Settings › Project › Project info*, in the field *Client/organization*, and confirm with *Apply*.
 
 **Author:** — the author in the page header. Read-only: the app takes it from the project information.
 
@@ -88,11 +88,11 @@ The same bars as the Gantt chart, grouped per resource: who does what and when. 
 
 ## Milestone overview
 
-All milestones of the project in a table. No options of its own. The block *Summary* counts *Milestones*, *Mandatory* and *Late*. The columns are *WBS*, *Name*, *Kind* (*Automatic*, *Start* or *Finish*), *Date*, *Constraint/deadline*, *Float*, *Mandatory* and *Status*. The status is *Late* if the constraint is violated, the deadline is missed or the total float is negative; otherwise *Critical* if the milestone is critical according to the critical definition of the project; otherwise *On schedule*. Without milestones it says *No milestones in this project.*
+All milestones of the project in a table. No options of its own. The block *Summary* counts *Milestones*, *Mandatory* and *Late*. The columns are *WBS*, *Name*, *Kind* (*Automatic*, *Start* or *Finish*), *Date*, *Constraint/deadline*, *Float*, *Mandatory* and *Status*. The status is *Late* if the constraint is violated, the deadline is missed or the total float is negative; otherwise *Critical* if the milestone is critical according to the critical definition of the project; otherwise *On schedule*. Without milestones it says *No milestones in this project.* The PDF uses the paper and orientation you last chose for another report.
 
 ## Variance
 
-The current schedule next to the active baseline, for leaf tasks. No options of its own. The block *Summary* counts *Tasks*, *Later* and *Earlier* and shows *Project end: +3 work days* (the difference in work days between the baseline finish and the current finish). The columns are *WBS*, *Name*, *Baseline start*, *Baseline finish*, *Current start*, *Current finish*, *Δ start (wd)*, *Δ finish (wd)* and *Status*. The status follows the finish: *Later* if the finish is later than in the baseline, *Earlier* if it is earlier, otherwise *On schedule*. *New* is a task that is not in the baseline, *Dropped* a task that is in the baseline but no longer in the schedule. Without an active baseline it says *No active baseline — save a baseline or set one active.*
+The current schedule next to the active baseline, for leaf tasks. No options of its own. The block *Summary* counts *Tasks*, *Later* and *Earlier* and shows *Project end: +3 work days* (the difference in work days between the baseline finish and the current finish). The columns are *WBS*, *Name*, *Baseline start*, *Baseline finish*, *Current start*, *Current finish*, *Δ start (wd)*, *Δ finish (wd)* and *Status*. The status follows the finish: *Later* if the finish is later than in the baseline, *Earlier* if it is earlier, otherwise *On schedule*. *New* is a task that is not in the baseline, *Dropped* a task that is in the baseline but no longer in the schedule. Without an active baseline it says *No active baseline — save a baseline or set one active.* The PDF uses the paper and orientation you last chose for another report.
 
 ## Look-ahead
 
@@ -178,9 +178,9 @@ Four table reports and the Resource diagram work with a *Reporting period:*: *Lo
 
 **Last week, Last 2 weeks, Last 4 weeks, Last 6 weeks, Last 8 weeks, Last 12 weeks** — the same six, but counted back: 7 days per week long, through the reference day. *Last 2 weeks* runs from 7 through 20 May at 20 May.
 
-**Next month, Last month** — a calendar month forward or back, up to a day before the same date in the other month. *Next month* runs through 19 June at 20 May.
+**Next month, Last month** — a calendar month forward or back, up to a day before the same date in the other month. *Next month* runs through 19 June at 20 May; *Last month* runs from 21 April through 20 May.
 
-**Project duration** — from the first start to the last finish of the schedule. In Dutch this is called *Hele project*.
+**Project duration** — from the first start to the last finish of the schedule.
 
 **Custom** — your own period. Effect: *From* and *To* become two date fields. They start with the dates of the choice you just had. The end date may not be before the start date (*The end date is before the start date.*) and both fields must be filled in (*Fill in both dates.*). If the input is not right, the report stays on the last valid period.
 

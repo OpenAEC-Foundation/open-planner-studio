@@ -8,7 +8,7 @@ Open het tabblad *Rapport* (of druk op Ctrl+P). Links staat de kolom *Rapportage
 
 **Rapporttype** — welk rapport je ziet. Keuze uit elf rapporten. Standaard: *Gantt-afdruk*. Waar: *Rapport*, bovenaan de kolom *Rapportage*.
 
-**Exporteer PDF** — maakt de PDF. Effect: er komt alleen een PDF; de app stuurt niets naar een printer. Is de planning verouderd, dan rekent de app eerst door. Zit er een kring in de planning, dan maakt de knop geen bestand en toont hij de fout. Waar: *Rapport*, onderaan de kolom *Rapportage*.
+**Exporteer PDF** — maakt de PDF. Effect: er komt alleen een PDF; de app stuurt niets naar een printer. Is de planning verouderd, dan rekent de app eerst door. Geeft de berekening een fout, bijvoorbeeld door een kring in de relaties, dan maakt de knop geen bestand en toont hij de fout. Waar: *Rapport*, onderaan de kolom *Rapportage*.
 
 **Onthouden.** Alle rapportopties bewaart de app op dit apparaat, voor al je projecten. Ze horen niet bij het projectbestand. Alleen het veld *Bedrijf:* van de Gantt-afdruk wordt niet bewaard.
 
@@ -26,7 +26,7 @@ Open het tabblad *Rapport* (of druk op Ctrl+P). Links staat de kolom *Rapportage
 
 De planning als balkenplan, met een tabel links en een tijdlijn rechts, over meerdere pagina's als het moet. Het voorbeeld toont het papier met paginakop, tabel, tijdlijn en legenda. Het blok *Overzicht* telt *Taken:*, *Bladtaken:*, *Kritiek:* en *Relaties:*. Alle opties staan onder *Instellingen*.
 
-**Bedrijf:** — het bedrijf in de paginakop. Standaard: het bedrijf uit de projectinformatie. Effect: alleen de kop van het rapport; wat je hier overtypt, wordt niet bewaard. Verander het bedrijf in *Instellingen › Project › Projectinfo*, in het veld *Opdrachtgever/organisatie*.
+**Bedrijf:** — het bedrijf in de paginakop. Standaard: het bedrijf uit de projectinformatie. Effect: alleen de kop van het rapport; wat je hier overtypt, wordt niet bewaard. Verander het bedrijf in *Instellingen › Project › Projectinfo*, in het veld *Opdrachtgever/organisatie*, en bevestig met *Toepassen*.
 
 **Auteur:** — de auteur in de paginakop. Alleen lezen: de app neemt hem uit de projectinformatie.
 
@@ -88,11 +88,11 @@ Dezelfde balken als de Gantt-afdruk, gegroepeerd per resource: wie doet wat en w
 
 ## Mijlpalen-overzicht
 
-Alle mijlpalen van het project in een tabel. Geen eigen opties. Het blok *Overzicht* telt *Mijlpalen*, *Verplicht* en *Te laat*. De kolommen zijn *WBS*, *Naam*, *Soort* (*Automatisch*, *Start* of *Eind*), *Datum*, *Constraint/deadline*, *Speling*, *Verplicht* en *Status*. De status is *Te laat* als de constraint is geschonden, de deadline gemist is of de totale speling negatief is; anders *Kritiek* als de mijlpaal kritiek is volgens de kritiek-definitie van het project; anders *Op schema*. Zonder mijlpalen staat er *Geen mijlpalen in dit project.*
+Alle mijlpalen van het project in een tabel. Geen eigen opties. Het blok *Overzicht* telt *Mijlpalen*, *Verplicht* en *Te laat*. De kolommen zijn *WBS*, *Naam*, *Soort* (*Automatisch*, *Start* of *Eind*), *Datum*, *Constraint/deadline*, *Speling*, *Verplicht* en *Status*. De status is *Te laat* als de constraint is geschonden, de deadline gemist is of de totale speling negatief is; anders *Kritiek* als de mijlpaal kritiek is volgens de kritiek-definitie van het project; anders *Op schema*. Zonder mijlpalen staat er *Geen mijlpalen in dit project.* De PDF gebruikt het papier en de oriëntatie die je het laatst bij een ander rapport koos.
 
 ## Variance
 
-De huidige planning naast de actieve baseline, voor leaf-taken. Geen eigen opties. Het blok *Overzicht* telt *Taken*, *Later* en *Eerder* en toont *Projecteinde: +3 werkdagen* (het verschil in werkdagen tussen het baseline-einde en het huidige einde). De kolommen zijn *WBS*, *Naam*, *Baseline start*, *Baseline einde*, *Huidige start*, *Huidig einde*, *Δ start (wd)*, *Δ einde (wd)* en *Status*. De status volgt het einde: *Later* als het einde later ligt dan in de baseline, *Eerder* als het eerder ligt, anders *Op schema*. *Nieuw* is een taak die niet in de baseline staat, *Vervallen* een taak die in de baseline staat maar niet meer in de planning. Zonder actieve baseline staat er *Geen actieve baseline — sla een baseline op of kies er een als actief.*
+De huidige planning naast de actieve baseline, voor leaf-taken. Geen eigen opties. Het blok *Overzicht* telt *Taken*, *Later* en *Eerder* en toont *Projecteinde: +3 werkdagen* (het verschil in werkdagen tussen het baseline-einde en het huidige einde). De kolommen zijn *WBS*, *Naam*, *Baseline start*, *Baseline einde*, *Huidige start*, *Huidig einde*, *Δ start (wd)*, *Δ einde (wd)* en *Status*. De status volgt het einde: *Later* als het einde later ligt dan in de baseline, *Eerder* als het eerder ligt, anders *Op schema*. *Nieuw* is een taak die niet in de baseline staat, *Vervallen* een taak die in de baseline staat maar niet meer in de planning. Zonder actieve baseline staat er *Geen actieve baseline — sla een baseline op of kies er een als actief.* De PDF gebruikt het papier en de oriëntatie die je het laatst bij een ander rapport koos.
 
 ## Look-ahead
 
@@ -178,9 +178,9 @@ Vier tabelrapporten en het Resourcediagram werken met een *Rapportageperiode:*: 
 
 **Afgelopen week, Afgelopen 2 weken, Afgelopen 4 weken, Afgelopen 6 weken, Afgelopen 8 weken, Afgelopen 12 weken** — dezelfde zes, maar teruggerekend: 7 dagen per week lang, tot en met de referentiedag. *Afgelopen 2 weken* loopt bij 20 mei van 7 tot en met 20 mei.
 
-**Volgende maand, Afgelopen maand** — een kalendermaand vooruit of terug, tot een dag vóór dezelfde datum in de andere maand. *Volgende maand* loopt bij 20 mei tot en met 19 juni.
+**Volgende maand, Afgelopen maand** — een kalendermaand vooruit of terug, tot een dag vóór dezelfde datum in de andere maand. *Volgende maand* loopt bij 20 mei tot en met 19 juni; *Afgelopen maand* loopt van 21 april tot en met 20 mei.
 
-**Hele project** — van de eerste start tot het laatste einde van de planning. In het Engels heet dit *Project duration*.
+**Hele project** — van de eerste start tot het laatste einde van de planning.
 
 **Aangepast** — je eigen periode. Effect: *Van* en *Tot* worden twee datumvelden. Ze beginnen met de datums van de keuze die je net had. De einddatum mag niet vóór de begindatum liggen (*De einddatum ligt vóór de begindatum.*) en beide velden moeten gevuld zijn (*Vul beide datums in.*). Klopt de invoer niet, dan blijft het rapport op de laatste geldige periode staan.
 

@@ -14,9 +14,9 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 
 **PDF** komt alleen uit een rapport (zie [Rapporttypes](docs://ref-rapporttypes)). De app leest geen PDF.
 
-**Waar.** Openen: *Start › Bestand › Openen*, *Bestand › Openen* of Ctrl+O. Exporteren: *Start › Bestand › Exporteren* of *Bestand › Exporteren*. Een ingevuld voortgangsblad lees je in via *Bestand › Importeren*.
+**Waar.** Openen: *Start › Bestand › Openen*, *Bestand › Openen* of Ctrl+O. Exporteren: *Start › Bestand › Exporteren* of *Bestand › Exporteren*. Een ingevuld voortgangsblad lees je in via *Bestand › Importeren*, of met de knop *Voortgang bijwerken uit een blad* in de lintgroep *Voortgang* op de tabbladen *Planning*, *Tabel* en *Rapport*.
 
-**Rekenprofiel bij openen.** Elk formaat opent met een rekenprofiel; wat dat is, staat in [Rekenopties en conventies](docs://ref-rekenopties-en-conventies). `.xer` opent met *Primavera P6*, `.mpp` met *Microsoft Project*, en CSV, MS Project XML en P6 XML met *Open Planner Studio*. IFC houdt het profiel dat in het bestand staat. Bij `.xer` en `.mpp` meldt de app dat het project zo rekent. Alleen IFC neemt het rekenprofiel en de reken-opties mee: een heropende export van een ander formaat rekent als *Open Planner Studio*.
+**Rekenprofiel bij openen.** Elk formaat opent met een rekenprofiel; wat dat is, staat in [Rekenopties en conventies](docs://ref-rekenopties-en-conventies). `.xer` opent met *Primavera P6*, `.mpp` met *Microsoft Project*, en CSV, MS Project XML en P6 XML met *Open Planner Studio*. IFC houdt het profiel dat in het bestand staat. Bij `.xer` en `.mpp` meldt de app dat het project zo rekent. Alleen IFC neemt het rekenprofiel en de reken-opties mee; van de reken-opties schrijft MS Project XML hooguit de kritiek-drempel. Een heropende export van een ander formaat rekent als *Open Planner Studio*.
 
 ## IFC
 
@@ -38,7 +38,7 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 
 **Exporteren** — ja, als *MS Project XML* (*Te openen in Microsoft Project. Volledige WBS-structuur.*). Standaardnaam: de projectnaam met `.xml`.
 
-**Wat meegaat** — taken met structuur (niveau en WBS), duur, datums en voortgang; relaties met lag, ook in uren of procenten; constraints, ook de deadline; kalenders, ook taak- en resourcekalenders; resources en toewijzingen, ook de curve of urenverdeling; de statusdatum; de beschrijving van een taak (als notitie); de werkregel van een taak (als MS Project-taaktype). Van je baselines gaat alleen de actieve mee, als baseline 0. Een taak in uren behoudt haar eenheid, en een mijlpaal haar soort (start, einde of automatisch).
+**Wat meegaat** — taken met structuur (niveau en WBS), duur, datums en voortgang; relaties met lag, ook in uren of procenten; constraints, ook de deadline; kalenders, ook taak- en resourcekalenders; resources en toewijzingen, ook de curve of urenverdeling; de statusdatum; de kritiek-drempel, als een heel aantal werkdagen van 0 of meer bij *Totale speling ≤ drempel*; de beschrijving van een taak (als notitie); de werkregel van een taak (als MS Project-taaktype). Van je baselines gaat alleen de actieve mee, als baseline 0. Een taak in uren behoudt haar eenheid, en een mijlpaal haar soort (start, einde of automatisch).
 
 **Wat niet meegaat** — aantekeningen (de checklist bij een taak), externe koppelingen naar andere projecten, activiteitcodes en eigen velden, een tweede constraint, de markering *Handmatig gepland*, de nivelleervertraging, het hervat- en stoppunt bij een uit-volgorde-taak, de conventies *Restwerk hervat na de al verstreken duur* en *Niet-gestarte taken niet naar de statusdatum* van een MS Project-profiel, en de overige reken-opties. Onderbroken taken zonder urenverdeling gaan zonder hun onderbrekingen mee.
 
@@ -66,7 +66,7 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 
 **Wat meegaat** — WBS-structuur en taken met duur, datums en voortgang; relaties met lag; constraints (ook een tweede, als zachte constraint); kalenders; resources en toewijzingen; de statusdatum (als *DataDate*).
 
-**Wat niet meegaat** — baselines en deadlines; activiteitcodes, eigen velden, aantekeningen en externe koppelingen; de reken-opties; een werkende kalenderuitzondering (een uitzondering die van een dag een werkdag maakt). P6 kent geen lag in procenten: de app rekent die om naar een vast aantal dagen. Een lag in kalenderdagen wordt een gewone lag in uren. Een hammock wordt een gewone taak, een handmatig geplande taak een gewone taak met berekende datums en een nivelleervertraging van minder dan een dag valt weg.
+**Wat niet meegaat** — baselines en deadlines; activiteitcodes, eigen velden, aantekeningen en externe koppelingen; de reken-opties; een werkende kalenderuitzondering (een uitzondering die van een dag een werkdag maakt). P6 kent geen lag in procenten: de app rekent die om naar een vast aantal dagen. Een lag in kalenderdagen wordt een lag in werktijd: 3 kalenderdagen worden 3 werkdagen. Een hammock wordt een gewone taak, een handmatig geplande taak een gewone taak met berekende datums en een nivelleervertraging van minder dan een dag valt weg.
 
 ## Primavera-bestand (`.xer`)
 
@@ -74,7 +74,7 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 
 **Opslaan** — nee, en er is geen opslagdoel: *Opslaan* schrijft een nieuw IFC-bestand, met het oorspronkelijke `.xer` erin.
 
-**Exporteren** — nee. Exporteer je een project uit een `.xer` naar CSV, MS Project XML of P6 XML, dan meldt de app dat XER-broninformatie verloren gaat. Naar IFC gaat niets verloren.
+**Exporteren** — nee. Exporteer je een project uit een `.xer` naar CSV, MS Project XML of P6 XML, dan meldt de app dat XER-broninformatie verloren gaat, ook als je het project tussendoor als IFC hebt opgeslagen. Naar IFC gaat niets verloren.
 
 **Wat meegaat** — de WBS-structuur en activiteiten met duur, datums, constraints en voortgang; relaties met lag; kalenders; resources met toewijzingen; activiteitcodes; eigen velden (UDF's); aantekeningen; de planningsinstellingen van P6. Een activiteit van het type *Level of Effort* wordt een hammock. Een baselineproject wordt de actieve baseline van het project dat ernaar verwijst. Een relatie tussen twee projecten bewaart de app als brongegeven.
 
@@ -94,11 +94,11 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 
 ## Voortgangsblad (Excel en CSV)
 
-**Openen** — ja, via *Bestand › Importeren* (*Voortgang bijwerken uit een blad*). De app leest `.xlsx` en `.csv`, tot 16 MB en 50.000 rijen. Dit opent geen project: het werkt de voortgang van je geopende project bij. Zie [Voortgang uit een spreadsheet importeren](docs://howto-voortgang-importeren).
+**Openen** — ja, via *Bestand › Importeren* (*Voortgang bijwerken uit een blad*) of via de knop met die naam in de lintgroep *Voortgang* op *Planning*, *Tabel* en *Rapport*. De app leest `.xlsx` en `.csv`, tot 16 MB en 50.000 rijen. Dit opent geen project: het werkt de voortgang van je geopende project bij. Zie [Voortgang uit een spreadsheet importeren](docs://howto-voortgang-importeren).
 
 **Opslaan** — nee.
 
-**Exporteren** — ja, als *Voortgangsblad (Excel)* (*Voortgang (Excel)* in de lijst) en *Voortgangsblad (CSV)* (*Voortgang (CSV)*). Standaardnaam: *projectnaam-voortgang*. Het Excel-blad heeft vaste kolombreedtes, vergrendelde velden en een datumcontrole; het CSV-blad is dezelfde inhoud als platte tekst.
+**Exporteren** — ja, als *Voortgangsblad (Excel)* (*Voortgang (Excel)* in de lijst) en *Voortgangsblad (CSV)* (*Voortgang (CSV)*). Standaardnaam: *projectnaam-voortgang*. De knop *Voortgangsblad exporteren* in dezelfde lintgroep maakt het Excel-blad met één klik. Het Excel-blad heeft vaste kolombreedtes, vergrendelde velden en een datumcontrole; het CSV-blad is dezelfde inhoud als platte tekst.
 
 **Wat meegaat** — de kolommen *OPS Task ID*, *WBS*, *Name*, *Start*, *Finish*, *Completion (%)*, *Actual Start* en *Actual Finish*. Bij het inlezen gebruikt de app *Completion (%)*, *Actual Start* en *Actual Finish*; *Start* en *Finish* dienen alleen om de datumnotatie te herkennen en veranderen je planning niet. Rijen koppelt de app aan taken op het *OPS Task ID*, of anders op een unieke WBS-code.
 

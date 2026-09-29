@@ -8,7 +8,7 @@ All key combinations of the app, grouped as in the *Keyboard Shortcuts* window. 
 
 **Exact combination.** The app compares Ctrl, Shift and Alt exactly. Ctrl+Alt+S therefore does nothing: the keys must match the list precisely.
 
-**Opening the window.** Press Ctrl+/ or choose *Settings › Keyboard Shortcuts › Keyboard Shortcuts*. Ctrl+/ also closes the window again. The window is read-only. It does not show every key listed here; the table and dialog keys at the bottom of this article are not in it.
+**Opening the window.** Press Ctrl+/ or choose *Settings › Keyboard Shortcuts › Keyboard Shortcuts*. Ctrl+/ also closes the window again. The window is read-only. It does not show every key listed here: of the table keys only the first six entries, and not the dialog keys at the bottom of this article.
 
 **When a key does not work.** Every entry names its restrictions. Three rules apply almost everywhere:
 
@@ -54,9 +54,9 @@ The built app (desktop and the web version on the site) also blocks a number of 
 
 **Alt+Shift+←** or **Alt+←** — *Outdent*: takes the selected tasks up one level. Only with a selection, not in a dialog.
 
-Indent, outdent and insert only work in the plain tree view: without a filter, grouping or sorting. In any other view the app refuses them with a message, because the order shown is then not the order of the project.
+Indent, outdent and inserting above or below a selected task only work in the plain tree view: without a filter, grouping or sorting. In any other view the app refuses them with a message, because the order shown is then not the order of the project. Inserting with no selection works in every view.
 
-**Insert** — *Insert above*: inserts a new task above the topmost selected task, at the same level. With no selection the task goes at the bottom. Not in a dialog.
+**Insert** — *Insert above*: inserts a new task above the topmost selected task, at the same level. With no selection the task goes at the bottom, in every view. Not in a dialog.
 
 **Ctrl+I** — *Insert below*: inserts a new task below the bottom-most selected task, at the same level. With no selection the task goes at the bottom. Not in a dialog.
 
@@ -88,7 +88,7 @@ Indent, outdent and insert only work in the plain tree view: without a filter, g
 
 **Ctrl+Shift+H** — *Histogram*: switches the histogram on or off, like the *Histogram* button (*Resources › Histogram › Histogram* or *View › Panels › Histogram*). The app remembers your choice.
 
-**Ctrl+Shift+L** — *Warnings*: switches the warnings panel on or off, like the *Warnings* button (*View › Panels › Warnings*).
+**Ctrl+Shift+L** — *Warnings*: switches the warnings panel on or off, like the *Warnings* button (*View › Panels › Warnings* or *Planning › Schedule › Warnings*).
 
 ## Navigation
 
@@ -118,9 +118,9 @@ These keys work in the task grid (on the *Table* tab and in the table to the lef
 
 **Arrow keys** — go to the cell above, below, left or right. Add Shift to extend the selection.
 
-**Home** and **End** — to the first or last column of the row. With Ctrl added, to the first cell of the first row and the last cell of the last row.
+**Home** and **End** — to the first or last column of the row. With Ctrl added, to the first cell of the first row and the last cell of the last row. Add Shift to extend the selection.
 
-**Page Up** and **Page Down** — one screen height up or down.
+**Page Up** and **Page Down** — one screen height up or down. Add Shift to extend the selection.
 
 **Enter** (while editing) — commits the input and goes to the same column in the next row. Shift+Enter goes to the previous row.
 

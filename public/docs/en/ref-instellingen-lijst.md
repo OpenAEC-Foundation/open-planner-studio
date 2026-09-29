@@ -44,13 +44,13 @@ A change takes effect immediately. There is no *Apply* button and no *Cancel*.
 
 ## Planning tab
 
-**Enable construction mode** — construction-oriented starting values for new projects. Default: on. Effect: on gives a new project the calendar *Bouwkalender NL* with the Dutch public holidays, lets you choose a builders' holiday when generating holidays, offers the phasing templates *Residential construction* and *Commercial / renovation* and gives new tasks the task type *Construction*. Off gives the calendar *Standaardkalender* without holidays, only the template *Empty* and the task type *Other*. Existing tasks and calendars do not change. Where: *Planning*.
+**Enable construction mode** — construction-oriented starting values for new projects. Default: on. Effect: on gives a new project the calendar *Bouwkalender NL* with the Dutch public holidays, lets you choose a builders' holiday when generating holidays, offers the phasing templates *Residential construction* and *Commercial / renovation* and gives new tasks the task type *Construction*. Off gives the calendar *Standaardkalender* without holidays, only the template *Empty* and the task type *Other*. A new task under a parent task that has a task type takes over that task type first; *Construction* or *Other* applies after that. Existing tasks and calendars do not change. Where: *Planning*.
 
 **Enable hour planning** — planning in working hours next to working days. Default: off. Effect: the time scale *Hour* appears under *View › Time Scale*, the *Calendars* window gets the block *Working times*, and the *New project* window gets the choices *Shift* and *Default unit for new tasks*. *Project info* also gets the choice *Default unit for new tasks*. Off, the app works day-granular. Tasks that are already in hours stay and are included in the calculation; you can only edit their duration once you turn hour planning on. Where: *Planning*, under *Hour planning*. See [Turning on hour planning](docs://howto-urenplanning-aanzetten).
 
 **Allow mixed day/hour planning** — whether you choose the unit per task. Only visible when *Enable hour planning* is on. Default: on. Effect: on shows the *Duration unit* drop-down next to the duration of every task. Off hides that drop-down. Where: *Planning*, under *Hour planning*. See [Days and hours](docs://uitleg-dagen-en-uren).
 
-**Week starts on** — the first day of the week. Choose from *Monday* and *Sunday*. Default: *Monday*. Effect: the week layout and week numbers of the time scale in the Gantt and in the print, and the order of the weekdays in the *Calendars* window. Where: *Planning*.
+**Week starts on** — the first day of the week. Choose from *Monday* and *Sunday*. Default: *Monday*. Effect: the week layout and week numbers of the time scale in the Gantt and in the reports (the Gantt chart print), and the order of the weekdays in the *Calendars* window. Where: *Planning*.
 
 **Calculate automatically** — recalculates the schedule as soon as it is out of date. Default: off. Effect: off means you press *Calculate* (F5) yourself. On makes the app recalculate the schedule within a fraction of a second after a change to tasks, relations or calendar. During a drag gesture or while you type in a field, the app waits and calculates once when you are done. After a failed calculation it only calculates again once you have changed something. Where: *Planning*, under *Calculation*.
 
@@ -58,7 +58,7 @@ A change takes effect immediately. There is no *Apply* button and no *Cancel*.
 
 ## Advanced tab
 
-**Enable AI mode** — lets an AI assistant work with your schedule. Default: off. Effect: on shows the *AI* tab with the MCP bridge, so an AI assistant can work with your schedule over the Model Context Protocol. Off hides the tab and stops the bridge. Where: *Advanced*, under *AI mode*.
+**Enable AI mode** — lets an AI assistant work with your schedule. Default: off. Effect: on shows the *AI* tab with the MCP bridge, so an AI assistant can work with your schedule over the Model Context Protocol. Off hides the tab and stops the bridge. Where: *Advanced*, under *AI mode*. See [Connecting an AI assistant (MCP)](docs://howto-ai-assistent-koppelen).
 
 **Start bridge automatically** — starts the MCP bridge when the app starts. Can only be switched on when *Enable AI mode* is on. Default: off. Effect: the bridge is live straight away, so an AI client can connect without you first opening the *AI* tab. This only works in the desktop app, and once per start: if you switch the bridge off yourself afterwards, it does not start again. Where: *Advanced*, under *AI mode*.
 
@@ -102,7 +102,7 @@ The app also keeps these choices on this device, but you set them at the item it
 
 **Height of *Properties* and *Warnings* in the right panel** — default 240 and 220 pixels, between 120 and 2000. *Properties* has that height when the resource list is open too. You set the height with the drag handle between the sections. The app does not remember whether the sections are open or closed.
 
-**Also remembered, described elsewhere** — the columns of the table ([Adjusting table columns](docs://howto-tabelkolommen-aanpassen)), your layouts ([Creating and using a layout](docs://howto-layouts-gebruiken)) and the report options ([Report types](docs://ref-rapporttypes)) are also kept by the app on this device, not in the project file.
+**Also remembered, described elsewhere** — the columns of the table ([Adjusting table columns](docs://howto-tabelkolommen-aanpassen)), your layouts ([Creating and using a layout](docs://howto-layouts-gebruiken)), the report options ([Report types](docs://ref-rapporttypes)), your own calculation profile templates ([Calculation options and conventions](docs://ref-rekenopties-en-conventies)) and the *Documentation language* of Help (*File › Help*) are also kept by the app on this device, not in the project file.
 
 ## See also
 

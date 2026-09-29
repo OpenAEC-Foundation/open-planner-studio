@@ -70,7 +70,7 @@ Open the PDF in your PDF reader and print it there. If you print an A3 PDF on an
 
 **The Print button and Ctrl+P do not print.** The *Print* button in the *Report* group is on the Report tab itself and does nothing extra. Ctrl+P takes you to this tab. There is no separate print command in the app: the way to paper goes through the PDF. If Ctrl+P does not work (see step 1), the print dialog of the browser opens in the browser, and that prints the screen, not the report.
 
-**Company: overtyping is not kept.** The *Company:* field of the Gantt chart starts with the company from the project information. What you type over it is not kept. You cannot type in *Author:* here. You change both with *Settings › Project › Project info*, in the fields *Company* and *Author*, and confirm with *Apply*.
+**Company: overtyping is not kept.** The *Company:* field of the Gantt chart starts with the company from the project information. What you type over it is not kept. You cannot type in *Author:* here. You change both with *Settings › Project › Project info*, in the fields *Client/organization* and *Author*, and confirm with *Apply*.
 
 **Bar colors: also applies to your screen.** The *Bar colors:* choice in the report is the same choice as *Bar colors* on the View tab. If you change it in the report, your Gantt on screen changes with it.
 
