@@ -1276,6 +1276,60 @@
       },
       "kind": "howto",
       "draft": true
+    },
+    {
+      "id": "ref-lint",
+      "title": {
+        "nl": "Lint per tabblad",
+        "en": "The ribbon, tab by tab"
+      },
+      "kind": "referentie",
+      "draft": true
+    },
+    {
+      "id": "ref-taak-eigenschappen",
+      "title": {
+        "nl": "Taakdialoog en eigenschappenpaneel",
+        "en": "Task dialog and properties panel"
+      },
+      "kind": "referentie",
+      "draft": true
+    },
+    {
+      "id": "ref-kalenders",
+      "title": {
+        "nl": "Kalendervensters",
+        "en": "Calendar windows"
+      },
+      "kind": "referentie",
+      "draft": true
+    },
+    {
+      "id": "ref-resourcepaneel",
+      "title": {
+        "nl": "Resourcepaneel",
+        "en": "Resource panel"
+      },
+      "kind": "referentie",
+      "draft": true
+    },
+    {
+      "id": "ref-tabelkolommen",
+      "title": {
+        "nl": "Tabelkolommen",
+        "en": "Table columns"
+      },
+      "kind": "referentie",
+      "draft": true
+    },
+    {
+      "id": "ref-meldingen",
+      "title": {
+        "nl": "Meldingen en waarschuwingen",
+        "en": "Notifications and warnings"
+      },
+      "kind": "referentie",
+      "draft": true
     }
   ],
   "aliases": {}
