@@ -26,7 +26,7 @@ opdracht voor zijn spoor krijgt, moet zijn werk kunnen doen zonder terug te vrag
 | E8 | **Niet aan `public/docs/` komen**, en ook geen nieuwe verwijzingen naar help-artikelen in `src/state/helpArticles.ts` (poort 10 van `verify:docs` eist dat elk gebruikt artikel-id in het manifest staat; zie `docs/superpowers/specs/2026-09-28-gebruikersdocumentatie-diataxis-design.md` §6.3). Een functie die een eigen artikel nodig heeft, komt op de lijst *Gevolgen voor de gidsen*. De eigenaar herbouwt de documentatie. De gidsen zijn geen specificatie van hoe iets hoort te werken. Elke PR krijgt in plaats van gidswijzigingen een sectie *Gevolgen voor de gidsen* (per wijziging: welke gids iets moet zeggen en wat). `npm run verify:docs` moet wel groen blijven. |
 | E9 | Spoor R (gidsen tegen gedrag) vervalt; spoor M is alleen i18n en toegankelijkheid. |
 | E10 | **Geen testgroei zonder reden** (eigenaar, 2026-09-28: CI te traag, agents schrijven voor elk klein ding een test). Een nieuwe test moet de vier vragen van §2.2 doorstaan; liever een bestaande `cases-*.json` of check uitbreiden dan een nieuw bestand. Spoor T maakt CI sneller en ruimt de suite op. |
-| E11 | **Modelverdeling** (eigenaar, 2026-09-29, na de modelbenchmark van §5.1): audits (§2.5 stap 1) doet Sonnet 5.5; op de zware sporen A, O en P doen Sonnet 5.5 én Opus 5.5 elk dezelfde audit (ze vulden elkaar in de benchmark aan). Fixes (stap 3) doet alleen Opus 5.5. Verificatie en review (stap 2 en 4) doet een andere agent dan de auteur; dat mag hetzelfde model zijn (Opus mag Opus-werk controleren). **Fable 5.1 is geen vast onderdeel van de werkwijze** (kosten): alleen één eindcontrole per merge-batch, vlak vóór het mergen (§4.1). Subagents roepen de advisor niet aan. De orkestrator controleert vóór elke golf met een identiteitsprobe welk model achter de alias `sonnet` zit. |
+| E11 | **Modelverdeling** (eigenaar, 2026-09-29, na de modelbenchmark van §5.1): audits (§2.5 stap 1) doet Sonnet 5.5; op de zware sporen A, O en P doen Sonnet 5.5 én Opus 5.5 elk dezelfde audit (ze vulden elkaar in de benchmark aan). Fixes (stap 3) doet alleen Opus 5.5. Verificatie en review (stap 2 en 4) doet een andere agent dan de auteur; dat mag hetzelfde model zijn (Opus mag Opus-werk controleren). **Fable 5.1 is geen vast onderdeel van de werkwijze** (kosten): alleen één eindcontrole per merge-batch, vlak vóór het mergen (§4.1). De advisor valt daar niet onder (§4.2). De orkestrator controleert vóór elke golf met een identiteitsprobe welk model achter de alias `sonnet` zit. |
 
 ---
 
@@ -383,11 +383,13 @@ overbelasting vals rood worden. Daarom: hoogstens **twee** volledige `verify`- o
 
 ### 4.2 Advisor
 
-De advisor draait op Fable 5.1 en is daarom geen vast onderdeel van de werkwijze (E11). De
-orkestrator raadpleegt hem alleen:
-- vóór elke merge-batch (§4.1), als de eindcontrole van E11;
+De orkestrator raadpleegt de advisor, als die in de sessie aanstaat, op vaste momenten (de advisor
+kost relatief weinig en valt buiten de Fable-beperking van E11, eigenaar 2026-09-29):
+- vóór de start van elke golf (klopt de opzet?);
+- na de verificatie van golf 1 (kloppen de bevindingen en de prioriteiten, en is de besluitenlijst
+  voor de eigenaar echt nodig?);
+- vóór elke merge-batch (§4.1);
 - als een spoor vastloopt of een fix groter wordt dan gepland.
-Subagents krijgen in hun opdracht dat ze de advisor niet aanroepen.
 
 Het advies en wat ermee gedaan is, komt kort in het bevindingenrapport van het spoor. Staat de advisor
 niet aan, dan meldt de orkestrator dat aan de eigenaar in plaats van stil door te gaan.
