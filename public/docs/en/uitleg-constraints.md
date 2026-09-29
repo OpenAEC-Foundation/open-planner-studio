@@ -22,7 +22,7 @@ All constraints are **soft**: the calculation carries on even if a date is not m
 You choose the type at *Constraint* in the *Properties* panel. How each type calculates:
 
 - *As soon as possible (ASAP)*: no limit. This is the default: the task starts as soon as its relations allow.
-- *As late as possible (ALAP)*: the task moves to its latest moment within its float. After that it has no float left and counts as critical.
+- *As late as possible (ALAP)*: the task moves as late as it can without a successor having to start later. It therefore uses up its free float. If it still has total float after that, because its successors have room themselves, it stays non-critical; if that is used up too, it counts as critical.
 - *Start no earlier than (SNET)*: a lower limit for the start. If the task would start earlier, it moves to the date; if the date is earlier than what the relations allow, the constraint does nothing.
 - *Finish no earlier than (FNET)*: the same, but for the finish of the task.
 - *Start no later than (SNLT)* and *Finish no later than (FNLT)*: an upper limit for the start or the finish. They move nothing. If the limit is not met, the app reports a violated constraint and the float becomes negative.
@@ -48,7 +48,7 @@ The first time you turn the pin on, the app shows a short explanation: a hard pi
 
 ### The secondary constraint
 
-A task has one primary constraint. If you also want a second limit, for example a task that may not start before 14 June and has to be finished by 17 June, you add a **secondary constraint**. It has to be a real limit (SNET, FNET, SNLT or FNLT) and limit the other side of the task than the primary one: a lower limit with an upper limit. The app marks other combinations in red with the reason, for example *Primary and secondary may not bound the same side.* With ASAP, ALAP, MSO, MFO and a hard pin a secondary constraint is not allowed.
+A task has one primary constraint. If you also want a second limit, for example a task that may not start before 14 June and has to be finished by 17 June, you add a **secondary constraint**. It has to be a real limit (SNET, FNET, SNLT or FNLT) and limit in the other direction than the primary one: a lower limit (SNET or FNET) with an upper limit (SNLT or FNLT). SNET with SNLT is therefore allowed, SNET with FNET is not. The app marks other combinations in red with the reason, for example *Primary and secondary may not bound the same side.* With ASAP, ALAP, MSO, MFO and a hard pin a secondary constraint is not allowed.
 
 ### The deadline
 
@@ -86,7 +86,7 @@ The critical path is *Groundwork*, *Pour foundation*, *Brickwork* and *Roofing*.
 
 And with a constraint or deadline on another task:
 
-- **ALAP on *Scaffolding***: the task moves to Thursday 17 and Friday 18 June, the latest moment before *Roofing*. The 3 work days of float are used up; *Scaffolding* is now critical.
+- **ALAP on *Scaffolding***: the task moves to Thursday 17 and Friday 18 June, the latest moment before *Roofing*. *Roofing* is its only successor and had room for exactly its 3 work days of float; those are used up now and *Scaffolding* is critical.
 - **SNET Saturday 19 June on *Scaffolding***: the limit counts as Monday 21 June. *Scaffolding* runs on Monday 21 and Tuesday 22 June and *Roofing* moves along to Wednesday 23 to Friday 25 June.
 - **Deadline Friday 18 June on *Roofing***: nothing moves, *Roofing* stays on Monday 21 to Wednesday 23 June. *Groundwork*, *Pour foundation*, *Brickwork* and *Roofing* get −3 work days of float and the app reports *Deadline 18-06-2027 missed — early finish 23-06-2027*. *Scaffolding* keeps 0 work days of float and becomes critical too.
 - **SNET Monday 21 June on *Brickwork*, deadline Friday 25 June on *Roofing***: the constraint pushes the brickwork back a week, and the deadline reports that *Roofing* is late on Wednesday 30 June. *Brickwork* and *Roofing* get −3 work days of float; *Groundwork* and *Pour foundation* keep 2 work days.
@@ -95,7 +95,7 @@ In tutorial 3 you set a constraint and a deadline in the tutorial project yourse
 
 ## Consequences and misconceptions
 
-**"A constraint moves the task."** Only SNET, FNET, MSO and MFO can put a task later than its relations do. SNLT and FNLT never move anything: they only warn. Meeting the date then means shortening the chain before it.
+**"A constraint moves the task."** Only SNET, FNET, MSO and MFO can put a task later than its relations do, and ALAP can move it up within its free float. SNLT and FNLT never move anything: they only warn. Meeting the date then means shortening the chain before it.
 
 **"Negative float is a fault in the app."** It is the signal that the schedule conflicts with your date agreement. You solve it by shortening the chain, relaxing the agreement, or accepting the conflict on purpose.
 

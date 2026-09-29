@@ -12,9 +12,9 @@ An external relation does not calculate live with the other project. The app sto
 
 1. Select exactly one task in this project: the task that depends on the external task, or that the external task depends on.
 2. Choose *Home › Tasks › Link ▾ › Add external relation…*. The same menu is on *Planning › Relations* and on *Table › Tasks*. The item is only available if exactly one task is selected.
-3. In the window *External (cross-project) link* choose one of the two routes. With *Source file* you pick the project file under *Choose a recent file* and then the *Source task*; the app reads the file read-only, does not open it as a document, and takes over the anchor date itself. This route only works in the desktop app and only for a file in the list of recent files; otherwise the *Source file* button is disabled. With *Manual (fallback)* you fill in the *Project id* and *Task id* of the external task, optionally a *Task name*, and the *Anchor date*. In the browser version this is the only route.
+3. In the window *External (cross-project) link* choose one of the two routes. With *Source file* you pick the project file under *Choose a recent file* and then the *Source task*; the app reads the file read-only, does not open it as a document, and takes over the anchor date itself. This route only works in the desktop app and only for a file in the list of recent files; otherwise the *Source file* button is disabled. With *Manual (fallback)* you fill in the *Project id* and *Task id* of the external task, optionally a *Task name (optional)*, and the *Anchor date*. In the browser version this is the only route.
 4. Under *Direction* choose whether the external task is your predecessor or your successor: *Predecessor (external → me)* or *Successor (me → external)*.
-5. Choose the *Relationship type* (FS, SS, FF or SF) and fill in a *Lag (work days)* if needed, for example `0d`, `2d` or `2h`.
+5. Choose the *Relationship type* (FS, SS, FF or SF) and fill in a *Lag (work days)* if needed, for example `0d` or `2d`.
 6. Click *Add link* and press **Calculate** (F5).
 
 Which date you enter as the anchor for a manual link depends on the direction and the type:
@@ -28,11 +28,11 @@ Example: the site project finishes on Friday 18 June 2027. You link *Groundwork*
 
 ## What you see and how you manage it
 
-- External links appear as text in the *Predecessors* and *Successors* columns of the task list (add them with the **+** in the table header, under *Relations*), with the name of the project and the task, and the type. A small triangle with *Source missing* shows that the source has not been read; hold your mouse over the link for the Project id, Task id, the anchor date and the source status.
+- External links appear as text in the *Predecessors* and *Successors* columns of the task list (add them with the **+** in the table header, under *Relations*), with the name of the project and the task, and the type. A small triangle with *Source missing* shows that the source has not been read; hold your mouse over the link for the project (the *Project id* line shows the project name once it is known), the Task id, the anchor date and the source status.
 - In the Gantt there is a grey ghost bar at the task. With a predecessor it ends on the anchor, with a successor it starts on it. A dashed border with the red label *outdated* means the source has not been read. With a manual link that is always the case.
 - Right-click a link in the column for *Edit external relationship…* and *Delete relationship*. If the link has a source file, *Refresh source* is there as well.
 - Choose *Link ▾ › Refresh all external relations* to read the source files again and update the anchors. That only works in the desktop app. If you only have manual links, the app says *No refreshable external sources (file path missing).* Press **Calculate** after a refresh.
-- If you change the type or direction so that the anchor needs another side of the external task (start instead of finish, or the other way round), the app asks for a new anchor: *Choose a new anchor: the relationship type now uses the other side of the source task.*
+- If you change the type or direction so that the anchor needs another side of the external task (start instead of finish, or the other way round), the app asks for a new anchor with a manual link: *Choose a new anchor: the relationship type now uses the other side of the source task.* With a link that has a source file, the app reads the anchor again itself.
 
 ## Pitfalls and what the app does
 
@@ -42,9 +42,9 @@ Example: the site project finishes on Friday 18 June 2027. You link *Groundwork*
 
 **An external successor is an upper limit.** If the anchor is too tight, you see that as negative float on your task and the tasks before it. No separate warning appears with it, so keep an eye on the *Total float* column.
 
-**Only a lag in work days or hours.** For an external relation you cannot give a lag in calendar days or percentages; the app says *External relationships only support a fixed lag in working days or working time.* The work days count in the calendar of your own task.
+**Only a fixed lag.** For an external relation you cannot give a lag in calendar days or percentages; the app says *External relationships only support a fixed lag in working days or working time.* The work days count in the calendar of your own task. A lag in hours only counts for a task that is planned in hours; for a task in days the calculation ignores it. Use work days then.
 
-**The Project id of another file.** The app does not show the Project id of another file anywhere itself. If you do not have it at hand, you may fill in a recognisable name of your own with the manual route: the calculation only uses the anchor date. The id serves to recognise the link with the source file when refreshing. You find the *Task ID* of a task in the other project in that project's table, in the *Task ID* column under *Technical*.
+**The Project id of another file.** The Project id is not in a field or column, but is stored as `InternalProjectId` in the IFC of that project: open the project, go to the *IFC* tab and choose *Generate IFC*. The calculation only uses the anchor date; the id is not a mere label. When refreshing, the app first recognises a source file by its Project id (then by its file path). If you enter the same id with a manual link as that of a source file, the link is updated along when that file is refreshed. You find the *Task ID* of a task in the other project in that project's table, in the *Task ID* column under *Technical*.
 
 ## See also
 

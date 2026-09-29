@@ -8,7 +8,7 @@ Het dakwerk begint pas over drie weken en je wilt weten welke taak dat bepaalt. 
 
 ## Stappen
 
-1. Selecteer de taak waarvan je het pad wilt zien, in de takenlijst of op de balk in de Gantt. Selecteer je meer taken, dan traceert de app vanaf de eerste.
+1. Selecteer de taak waarvan je het pad wilt zien, in de takenlijst of op de balk in de Gantt. Selecteer je meer taken, dan traceert de app vanaf de taak die je als eerste hebt geselecteerd.
 2. Kies *Planning › Pad traceren › Voorgangers* voor alles wat vóór de taak komt, of *Planning › Pad traceren › Opvolgers* voor alles wat erna komt. Beide knoppen mogen tegelijk aan. Dezelfde twee knoppen staan op het tabblad *Tabel*, in de groep *Pad traceren*.
 3. Wil je beide richtingen in één keer, klik dan met de rechtermuisknop op de taak, in de Gantt of in de takenlijst, en kies *Pad traceren*.
 4. Bekijk het resultaat in de Gantt en in de takenlijst. Hoe je het leest, staat hieronder.

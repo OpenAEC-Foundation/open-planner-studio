@@ -8,7 +8,7 @@ The site cabin stands there for as long as the building goes on, from the first 
 
 ## Steps
 
-1. Create the task, for example *Site cabin*, or select an existing task. A milestone and a summary task (phase) cannot be a hammock; for such a task the tick box is missing.
+1. Create the task, for example *Site cabin*, or select an existing task. A milestone and a summary task (phase) cannot be a hammock; in the *Properties* panel and in *Edit task* the tick box is missing for such a task, and in the table column it cannot be changed.
 2. Tick *Hammock (derived duration)* in the *Properties* panel, in *Edit task* (right-click the task, *Edit...*) or in the table column *Hammock (derived duration)* under *Planning*. The *Duration* field can then no longer be edited.
 3. Add a relation from the task the hammock starts with to the hammock, of type **SS** (the hammock starts together with that task) or **FS** (the hammock starts after that task). To do so, select the hammock, click *Add relation* in *Dependencies*, leave the direction on *Predecessor*, choose the task and choose the type. The steps are in [Adding relations](docs://howto-relaties-leggen).
 4. Add a relation from the task the hammock ends with to the hammock, of type **FF** (the hammock finishes together with that task) or **SF**.
@@ -28,9 +28,9 @@ Example: *Site cabin* gets SS from *Groundwork* (Monday 7 June 2027) and FF from
 
 **No finish driver.** If the hammock has no FF or SF relation, the app cannot derive its finish. The *Properties* panel says *No finish driver (FF/SF) — the span falls back to zero length.* and the *Warnings* panel says *Hammock without a finish driver (no FF/SF predecessor): its duration falls back to zero*. The hammock then starts and finishes on the same day. Add an FF or SF relation.
 
-**A hammock that finishes after the last task.** If the hammock carries on until after the last task, for example with FF and a lag of 2 work days, the finish date of the project moves along. The tasks you really carry out then get float and are no longer critical.
+**A hammock that finishes after the last task.** If the hammock carries on until after the last task, for example with FF and a lag of 2 work days, the finish date of the project moves along. The tasks you really carry out then get float; none of them is critical any more.
 
-**Tasks that wait for a hammock.** If you add a relation from the hammock to another task, that task only starts after the end of the hammock. The tasks the hammock takes its start and finish from then get float and are no longer critical, because the hammock gives no pressure back to them. So do not let tasks wait for a hammock; rather hang such tasks on the hammock's finish driver.
+**Tasks that wait for a hammock.** If you add a relation from the hammock to another task, that task only starts after the end of the hammock. The whole chain before the hammock, including the tasks the hammock takes its start and finish from, then gets float and is no longer critical, because the hammock gives no pressure back. So do not let tasks wait for a hammock; rather hang such tasks on the hammock's finish driver.
 
 **Entering a duration.** The *Duration* field of a hammock is derived and cannot be edited. A duration you had entered before ticking the box no longer counts.
 

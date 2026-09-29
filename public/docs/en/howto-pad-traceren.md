@@ -8,7 +8,7 @@ The roofing only starts in three weeks and you want to know which task decides t
 
 ## Steps
 
-1. Select the task whose path you want to see, in the task list or on its bar in the Gantt. If you select several tasks, the app traces from the first one.
+1. Select the task whose path you want to see, in the task list or on its bar in the Gantt. If you select several tasks, the app traces from the task you selected first.
 2. Choose *Planning › Path tracing › Predecessors* for everything that comes before the task, or *Planning › Path tracing › Successors* for everything that comes after it. Both buttons can be on at the same time. The same two buttons are on the *Table* tab, in the *Path tracing* group.
 3. If you want both directions in one go, right-click the task, in the Gantt or in the task list, and choose *Trace path*.
 4. Look at the result in the Gantt and in the task list. How to read it is explained below.

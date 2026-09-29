@@ -32,11 +32,12 @@ These are lower limits. A successor starts later if another relation or a constr
 
 ### Lag and lead
 
-A lag can be expressed in three ways:
+A lag can be expressed in four ways:
 
 - In **work days** (`3` or `3d`): the app skips days off and weekends. This is the default.
 - In **calendar days** (`3ed`, the e stands for *elapsed* time): every day counts, including Saturday and Sunday. This is the unit for something that carries on without work being done, such as curing.
 - As a **percentage** of the predecessor's duration (`40%`): the app works this out again at every calculation and rounds to whole days (2.5 days becomes 3).
+- In **working hours** (`4h`): between tasks scheduled in days, the app converts the hours to whole work days of the lag calendar, rounded to the nearest whole day (half a day goes up). With a work day of 8 hours, `2h` and `3h` therefore give 0 days, `4h` up to and including `11h` give 1 day and `12h` gives 2 days.
 
 The rule for a lag of N work days with FS: the N work days after the predecessor's finish are waiting time, and the successor starts on the work day after that. With SS and FF the lag is added to the predecessor's start and finish respectively. A negative lag counts back: a lead of 1 work day with FS lets the successor start on the day the predecessor finishes.
 
@@ -44,7 +45,7 @@ A lead cannot put a task before the project start. If that would happen, the app
 
 ### In which calendar the lag counts
 
-Every task can have its own calendar. With a lag in work days it matters which calendar counts the work days. The setting *Lag calendar* decides that, with four choices: *Predecessor*, *Successor*, *24-hour* and *Project calendar*. By default the lag counts in the calendar of the **predecessor**. You find the setting under *Settings › Project › Project info*, in the block *Calculation profile and options*, at *Calculation options of this project*. The choice belongs to the project file.
+Every task can have its own calendar. With a lag in work days it matters which calendar counts the work days. The setting *Lag calendar* decides that, with four choices: *Predecessor*, *Successor*, *24-hour* and *Project calendar*. By default the lag counts in the calendar of the **predecessor**. You find the setting under *Settings › Project › Project info*, in the block *Calculation profile and options*, at *Calculation options of this project*. The choice belongs to the project file and only counts after you click *Apply*; the schedule is then recalculated.
 
 A lag in calendar days (`3ed`) always counts all days, whichever *Lag calendar* you choose.
 
@@ -137,4 +138,5 @@ With SS from a phase: the phase *Finishing* contains *Plastering* (2 work days, 
 - [Critical path and float](docs://uitleg-kritiek-pad): what the app calculates from your relations, and why a task becomes critical.
 - [Constraints and deadlines](docs://uitleg-constraints): date agreements alongside the relations.
 - [Tracing a path](docs://howto-pad-traceren): making the chain before or after a task visible.
+- [Creating a hammock](docs://howto-hammock): a task with a derived duration, hung on relations of type SS and FF.
 - [External relations to another project](docs://howto-externe-relaties): relations with a task in another project file.

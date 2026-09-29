@@ -8,7 +8,7 @@ De bouwkeet staat er zolang er gebouwd wordt, van het eerste grondwerk tot de op
 
 ## Stappen
 
-1. Maak de taak aan, bijvoorbeeld *Bouwplaats*, of selecteer een bestaande taak. Een mijlpaal en een samenvattingstaak (fase) kunnen geen hammock zijn; bij zo'n taak ontbreekt het vinkje.
+1. Maak de taak aan, bijvoorbeeld *Bouwplaats*, of selecteer een bestaande taak. Een mijlpaal en een samenvattingstaak (fase) kunnen geen hammock zijn; in het paneel *Eigenschappen* en in *Taak bewerken* ontbreekt bij zo'n taak het vinkje, en in de tabelkolom is het niet te wijzigen.
 2. Vink *Hammock (afgeleide duur)* aan in het paneel *Eigenschappen*, in *Taak bewerken* (rechtsklik op de taak, *Bewerken...*) of in de tabelkolom *Hammock (afgeleide duur)* onder *Planning*. Het veld *Duur* is dan niet meer te bewerken.
 3. Leg een relatie van de taak waarmee de hammock begint naar de hammock, met type **SS** (de hammock begint samen met die taak) of **FS** (de hammock begint na die taak). Selecteer daarvoor de hammock, klik in *Afhankelijkheden* op *Relatie toevoegen*, laat de richting op *Voorganger*, kies de taak en kies het type. De stappen staan in [Relaties leggen](docs://howto-relaties-leggen).
 4. Leg een relatie van de taak waarmee de hammock eindigt naar de hammock, met type **FF** (de hammock eindigt samen met die taak) of **SF**.
@@ -28,9 +28,9 @@ Voorbeeld: *Bouwplaats* krijgt SS vanaf *Grondwerk* (maandag 7 juni 2027) en FF 
 
 **Geen eind-driver.** Heeft de hammock geen FF- of SF-relatie, dan kan de app zijn einde niet afleiden. Het paneel *Eigenschappen* meldt *Geen finish-driver (FF/SF) — de span valt terug op nul-lengte.* en het paneel *Waarschuwingen* meldt *Hammock zonder eind-driver (geen FF/SF-voorganger): de duur valt terug op nul*. De hammock begint en eindigt dan op dezelfde dag. Leg een FF- of SF-relatie.
 
-**Een hammock die na de laatste taak eindigt.** Loopt de hammock door tot na de laatste taak, bijvoorbeeld met FF en een lag van 2 werkdagen, dan schuift de einddatum van het project mee. De taken die je echt uitvoert, krijgen daardoor speling en zijn niet meer kritiek.
+**Een hammock die na de laatste taak eindigt.** Loopt de hammock door tot na de laatste taak, bijvoorbeeld met FF en een lag van 2 werkdagen, dan schuift de einddatum van het project mee. De taken die je echt uitvoert, krijgen daardoor speling; geen van hen is dan nog kritiek.
 
-**Taken die op een hammock wachten.** Leg je een relatie van de hammock naar een andere taak, dan begint die taak pas na het einde van de hammock. De taken waaruit de hammock zijn begin en einde afleidt, krijgen daardoor speling en zijn niet meer kritiek, omdat de hammock geen druk terug naar hen geeft. Laat daarom geen taken op een hammock wachten; hang zulke taken liever aan de einddriver van de hammock.
+**Taken die op een hammock wachten.** Leg je een relatie van de hammock naar een andere taak, dan begint die taak pas na het einde van de hammock. De hele keten vóór de hammock, dus ook de taken waaruit hij zijn begin en einde afleidt, krijgt daardoor speling en is niet meer kritiek, omdat de hammock geen druk terug geeft. Laat daarom geen taken op een hammock wachten; hang zulke taken liever aan de einddriver van de hammock.
 
 **Een duur invullen.** Het veld *Duur* van een hammock is afgeleid en niet te bewerken. Een duur die je vóór het aanvinken had ingevuld, telt niet meer mee.
 

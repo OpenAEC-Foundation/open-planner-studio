@@ -22,7 +22,7 @@ Alle constraints zijn **zacht**: de berekening blijft doorlopen, ook als een dat
 Je kiest het type bij *Constraint* in het paneel *Eigenschappen*. Hoe elk type rekent:
 
 - *Zo vroeg mogelijk (ASAP)*: geen grens. Dit is de standaard: de taak begint zodra zijn relaties dat toelaten.
-- *Zo laat mogelijk (ALAP)*: de taak schuift naar zijn laatste moment binnen zijn speling. Daarna heeft hij geen speling meer en telt hij als kritiek.
+- *Zo laat mogelijk (ALAP)*: de taak schuift zo laat als kan zonder dat een opvolger later hoeft te beginnen. Hij gebruikt dus zijn vrije speling op. Heeft hij daarna nog totale speling, omdat zijn opvolgers zelf ruimte hebben, dan blijft hij niet-kritiek; is ook die op, dan telt hij als kritiek.
 - *Start niet eerder dan (SNET)*: een ondergrens voor de start. Zou de taak eerder beginnen, dan schuift hij naar de datum; ligt de datum eerder dan wat de relaties toelaten, dan doet de constraint niets.
 - *Eindig niet eerder dan (FNET)*: hetzelfde, maar voor het einde van de taak.
 - *Start niet later dan (SNLT)* en *Eindig niet later dan (FNLT)*: een bovengrens voor de start of het einde. Ze verschuiven niets. Wordt de grens niet gehaald, dan meldt de app een geschonden constraint en wordt de speling negatief.
@@ -48,7 +48,7 @@ De eerste keer dat je de pin aanzet, toont de app een korte toelichting: een har
 
 ### De secundaire constraint
 
-Een taak heeft één primaire constraint. Wil je ook een tweede grens, bijvoorbeeld een taak die niet vóór 14 juni mag beginnen en uiterlijk 17 juni klaar moet zijn, dan voeg je een **secundaire constraint** toe. Die moet een echte grens zijn (SNET, FNET, SNLT of FNLT) en de andere kant van de taak begrenzen dan de primaire: een ondergrens met een bovengrens. Andere combinaties markeert de app in rood met de reden, bijvoorbeeld *Primair en secundair mogen niet dezelfde zijde begrenzen.* Bij ASAP, ALAP, MSO, MFO en een harde pin is een secundaire constraint niet toegestaan.
+Een taak heeft één primaire constraint. Wil je ook een tweede grens, bijvoorbeeld een taak die niet vóór 14 juni mag beginnen en uiterlijk 17 juni klaar moet zijn, dan voeg je een **secundaire constraint** toe. Die moet een echte grens zijn (SNET, FNET, SNLT of FNLT) en in de andere richting begrenzen dan de primaire: een ondergrens (SNET of FNET) met een bovengrens (SNLT of FNLT). SNET met SNLT mag dus, SNET met FNET niet. Andere combinaties markeert de app in rood met de reden, bijvoorbeeld *Primair en secundair mogen niet dezelfde zijde begrenzen.* Bij ASAP, ALAP, MSO, MFO en een harde pin is een secundaire constraint niet toegestaan.
 
 ### De deadline
 
@@ -86,7 +86,7 @@ Het kritieke pad is *Grondwerk*, *Fundering storten*, *Metselen* en *Dakwerk*. H
 
 En met een constraint of deadline op een andere taak:
 
-- **ALAP op *Steigers***: de taak schuift naar donderdag 17 en vrijdag 18 juni, het laatste moment vóór *Dakwerk*. De 3 werkdagen speling zijn daarmee op; *Steigers* is nu kritiek.
+- **ALAP op *Steigers***: de taak schuift naar donderdag 17 en vrijdag 18 juni, het laatste moment vóór *Dakwerk*. *Dakwerk* is zijn enige opvolger en had ruimte voor precies zijn 3 werkdagen speling; die zijn nu op en *Steigers* is kritiek.
 - **SNET zaterdag 19 juni op *Steigers***: de grens telt als maandag 21 juni. *Steigers* loopt maandag 21 en dinsdag 22 juni en *Dakwerk* schuift mee naar woensdag 23 tot en met vrijdag 25 juni.
 - **Deadline vrijdag 18 juni op *Dakwerk***: er verschuift niets, *Dakwerk* blijft op maandag 21 tot en met woensdag 23 juni. *Grondwerk*, *Fundering storten*, *Metselen* en *Dakwerk* krijgen −3 werkdagen speling en de app meldt *Deadline 18-06-2027 overschreden — vroegste einde 23-06-2027*. *Steigers* houdt nog 0 werkdagen speling over en wordt ook kritiek.
 - **SNET maandag 21 juni op *Metselen*, deadline vrijdag 25 juni op *Dakwerk***: de constraint duwt het metselwerk een week op, en de deadline meldt dat *Dakwerk* op woensdag 30 juni te laat is. *Metselen* en *Dakwerk* krijgen −3 werkdagen speling; *Grondwerk* en *Fundering storten* houden 2 werkdagen.
@@ -95,7 +95,7 @@ In tutorial 3 zet je zelf een constraint en een deadline in het tutorialproject 
 
 ## Gevolgen en misverstanden
 
-**"Een constraint verplaatst de taak."** Alleen SNET, FNET, MSO en MFO kunnen een taak later zetten dan zijn relaties doen. SNLT en FNLT verplaatsen nooit iets: ze waarschuwen alleen. De datum halen betekent dan de keten ervoor korter maken.
+**"Een constraint verplaatst de taak."** Alleen SNET, FNET, MSO en MFO kunnen een taak later zetten dan zijn relaties doen, en ALAP kan hem opschuiven binnen zijn vrije speling. SNLT en FNLT verplaatsen nooit iets: ze waarschuwen alleen. De datum halen betekent dan de keten ervoor korter maken.
 
 **"Negatieve speling is een fout van de app."** Het is het signaal dat de planning conflicteert met je datumafspraak. Je lost het op door de keten korter te maken, de afspraak te versoepelen, of het conflict bewust te accepteren.
 

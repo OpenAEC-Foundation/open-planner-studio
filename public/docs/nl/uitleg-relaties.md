@@ -32,11 +32,12 @@ Dat zijn ondergrenzen. Een opvolger begint later als een andere relatie of een c
 
 ### Lag en lead
 
-Een lag kan op drie manieren worden uitgedrukt:
+Een lag kan op vier manieren worden uitgedrukt:
 
 - In **werkdagen** (`3` of `3d`): de app slaat vrije dagen en weekenden over. Dit is de standaard.
 - In **kalenderdagen** (`3ed`, de e staat voor *elapsed*, verstreken tijd): elke dag telt mee, ook zaterdag en zondag. Dit is de eenheid voor iets dat doorloopt zonder dat er gewerkt wordt, zoals uitharden.
 - Als **percentage** van de duur van de voorganger (`40%`): de app rekent dit bij elke berekening opnieuw uit en rondt af op hele dagen (2,5 dagen wordt 3).
+- In **werkuren** (`4u`): tussen taken die in dagen gepland zijn, rekent de app de uren om naar hele werkdagen van de lag-kalender, afgerond op de dichtstbijzijnde hele dag (een halve dag gaat naar boven). Bij een werkdag van 8 uur geven `2u` en `3u` dus 0 dagen, `4u` tot en met `11u` 1 dag en `12u` 2 dagen.
 
 De regel voor een lag van N werkdagen bij FS: de N werkdagen na het einde van de voorganger zijn wachttijd, en de opvolger begint op de werkdag daarna. Bij SS en FF wordt de lag bij de start respectievelijk het einde van de voorganger opgeteld. Een negatieve lag telt terug: een lead van 1 werkdag bij FS laat de opvolger beginnen op de dag waarop de voorganger klaar is.
 
@@ -44,7 +45,7 @@ Een lead kan een taak niet vóór de projectstart zetten. Zou dat gebeuren, dan 
 
 ### In welke kalender telt de lag
 
-Elke taak kan een eigen kalender hebben. Bij een lag in werkdagen maakt het uit welke kalender de werkdagen telt. De instelling *Lag-kalender* bepaalt dat, met vier keuzes: *Voorganger*, *Opvolger*, *24-uurs* en *Projectkalender*. Standaard telt de lag in de kalender van de **voorganger**. Je vindt de instelling onder *Instellingen › Project › Projectinfo*, in het blok *Rekenprofiel en reken-opties*, bij *Reken-opties van dit project*. De keuze hoort bij het projectbestand.
+Elke taak kan een eigen kalender hebben. Bij een lag in werkdagen maakt het uit welke kalender de werkdagen telt. De instelling *Lag-kalender* bepaalt dat, met vier keuzes: *Voorganger*, *Opvolger*, *24-uurs* en *Projectkalender*. Standaard telt de lag in de kalender van de **voorganger**. Je vindt de instelling onder *Instellingen › Project › Projectinfo*, in het blok *Rekenprofiel en reken-opties*, bij *Reken-opties van dit project*. De keuze hoort bij het projectbestand en telt pas nadat je op *Toepassen* hebt geklikt; de planning wordt dan opnieuw doorgerekend.
 
 Een lag in kalenderdagen (`3ed`) telt altijd alle dagen, welke *Lag-kalender* je ook kiest.
 
@@ -137,4 +138,5 @@ Bij SS vanaf een fase: de fase *Afbouw* bevat *Stucwerk* (2 werkdagen, 7 en 8 ju
 - [Kritiek pad en speling](docs://uitleg-kritiek-pad): wat de app met je relaties uitrekent, en waarom een taak kritiek wordt.
 - [Constraints en deadlines](docs://uitleg-constraints): datumafspraken naast de relaties.
 - [Een pad traceren](docs://howto-pad-traceren): de keten voor of na een taak zichtbaar maken.
+- [Een hammock maken](docs://howto-hammock): een taak met een afgeleide duur, aan relaties van type SS en FF opgehangen.
 - [Externe relaties naar een ander project](docs://howto-externe-relaties): relaties met een taak in een ander projectbestand.
