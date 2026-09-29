@@ -6,7 +6,7 @@ Goal: shift the whole schedule to a new start date, and see beforehand what that
 
 The start of the work moves: the permit comes later, or you reuse the schedule of an earlier house for the next one. Moving every task one by one is a lot of work. With **Move project** you enter one new start date and the app shifts everything along.
 
-The project finish does not always move by the same amount as the start. The **calendar** does not move along: holidays, construction break and winter stop sit on fixed dates. An example with the calendar *Bouwkalender NL*: a schedule of 30 work days starts on 29 September 2026 and finishes on 9 November 2026. If you move it to 14 December 2026, 76 calendar days later, it finishes on 26 January 2027. That is 78 days later, because 25 December and 1 January are now days off within your schedule. The duration stays 30 work days. The preview in the window shows this before you change anything.
+The project finish does not always move by the same amount as the start. The **calendar** does not move along: holidays, construction break and winter stop sit on fixed dates. An example: with *Home › File › New* you create a project with *Start Date* 29-09-2026, *Country* on *Netherlands* and *Construction holiday* on *None*, and put a schedule of 30 work days in it that finishes on 9 November 2026. If you move it to 14 December 2026, 76 calendar days later, it finishes on 26 January 2027. That is 78 days later, because 25 December and 1 January are now days off within your schedule. The duration stays 30 work days. The preview in the window shows this before you change anything.
 
 ## Steps
 
@@ -30,7 +30,7 @@ The *Move* button only works after a preview without an error, and if the new da
 
 ### What shifts along, and what does not
 
-What shifts: the start and finish of every task, the actual start and actual finish, the dates of constraints (also of a hard Mandatory pin), deadlines, the status date, the anchors of external relations and the availability steps of resources. The project start and, if you have filled it in, the project end date shift too.
+What shifts: the start and finish of every task, the actual start and actual finish, the dates of constraints (also of a hard Mandatory pin, see [Constraints and deadlines](docs://uitleg-constraints)), deadlines, the status date, the anchors of external relations and the availability steps of resources. The project start and, if you have filled it in, the project end date shift too.
 
 What does not shift:
 
@@ -46,9 +46,9 @@ What does not shift:
 
 **A running project.** Actual dates shift along. In a project where you have already entered progress, that is not always what you want. The app warns: *Check whether that is correct for a running project.*
 
-**External relations.** The anchor in your own project shifts along, the source project does not. Refresh the links after moving with *Home › Tasks › Link ▾ › Refresh all external relations*.
+**External relations.** The anchor in your own project shifts along, the source project does not. Refresh the links after moving with *Home › Tasks › Link ▾ › Refresh all external relations*. See [External relations to another project](docs://howto-externe-relaties).
 
-**Holidays that do not reach far enough.** A calendar with generated holidays covers a number of years. If the moved schedule runs past that, the app calculates that year without holidays. The preview warns about it, for example: *The generated holidays of calendar “Bouwkalender NL” cover 2025–2028; the shifted schedule runs to 2029. Regenerate the holidays.* Move the project first. Then open *Planning › Calendar › Calendar*: next to the holidays it now says *Regenerate*. Confirm with *Apply* and the app recalculates. The range of the new holidays follows the project start, so regenerating before the move does not help.
+**Holidays that do not reach far enough.** A calendar with generated holidays covers a number of years. If the moved schedule runs past that, the app calculates that year without holidays. The preview warns about it, for example: *The generated holidays of calendar “Bouwkalender NL” cover 2025–2029; the shifted schedule runs to 2030. Regenerate the holidays.* Move the project first. Then open *Planning › Calendar › Calendar*: next to the holidays it now says *Regenerate*. Confirm with *Apply* and the app recalculates. The range of the new holidays follows the project dates, so regenerating before the move does not help.
 
 **The date is in the past.** That is allowed, but the preview mentions it: *The new start date is in the past.*
 

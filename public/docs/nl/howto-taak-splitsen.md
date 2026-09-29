@@ -12,7 +12,7 @@ Het werk blijft even lang, maar de taak duurt nu langer op de kalender. Een voor
 
 ### Splitsen in de Gantt
 
-1. Kies *Start › Taken › Taak splitsen*. Boven de planning verschijnt de melding *Klik op een balk op de dag waar de onderbreking begint en sleep naar rechts voor de lengte. Esc stopt.* Dezelfde knop staat op *Planning* en op *Tabel*.
+1. Kies *Start › Taken › Taak splitsen* (of *Planning › Relaties › Taak splitsen*). Boven de planning verschijnt de melding *Klik op een balk op de dag waar de onderbreking begint en sleep naar rechts voor de lengte. Esc stopt.* Op het tabblad *Tabel* staat de knop ook (*Tabel › Taken › Taak splitsen*), maar die is daar uitgeschakeld.
 2. Beweeg de muis boven de balk. Een stippellijn en een label met de datum laten zien waar de onderbreking zou beginnen. Druk op de balk, op de dag waarop de onderbreking begint.
 3. Sleep naar rechts. Het label toont de lengte, bijvoorbeeld *2 werkdagen pauze*: de afstand in werkdagen tot de dag onder je muis. Laat los.
 
@@ -32,7 +32,7 @@ Dit werkt zonder splitsmodus, direct op een balk met een onderbreking.
 
 ### Splitsen en aanpassen in het paneel Eigenschappen
 
-Selecteer de taak. Onderaan het paneel *Eigenschappen* staat het blok *Onderbrekingen*.
+Selecteer de taak. In het paneel *Eigenschappen* staat het blok *Onderbrekingen* onder *Afhankelijkheden* en boven *Toewijzingen*. Scroll er zo nodig naartoe.
 
 - *Onderbreking toevoegen* zet een pauze van één werkdag halverwege het langste stuk.
 - Per pauze staan er twee vakken: *na* (hoeveel werkdagen werk er voor de pauze zit) en *pauze* (de lengte van de pauze). Erachter staan de datums van het stuk na de pauze. Bij een urentaak staan er uren.
@@ -46,11 +46,13 @@ Klik met de rechtermuisknop op de onderbreking in de Gantt, of op het stuk erna,
 
 ## Valkuilen en wat de app dan doet
 
-**Niet elke taak is te splitsen.** Een mijlpaal, een samenvattingstaak, een taak waarbij *Hammock (afgeleide duur)* aan staat, een taak met duurtype *Verstreken tijd*, een taak die *Handmatig gepland* is en een taak korter dan twee werkdagen kun je niet splitsen. In de splitsmodus toont de muis dan een verbodscursor en er gebeurt niets. Bij zo'n taak ontbreekt ook het blok *Onderbrekingen* in *Eigenschappen*.
+**Niet elke taak is te splitsen.** Een mijlpaal, een samenvattingstaak, een taak waarbij *Hammock (afgeleide duur)* aan staat (zie [Een hammock maken](docs://howto-hammock)), een taak met duurtype *Verstreken tijd*, een taak die *Handmatig gepland* is en een taak korter dan twee werkdagen kun je niet splitsen. In de splitsmodus toont de muis dan een verbodscursor en er gebeurt niets. Bij zo'n taak ontbreekt ook het blok *Onderbrekingen* in *Eigenschappen*.
 
 **Op de tab Tabel werkt de knop niet.** *Taak splitsen* is daar uitgeschakeld, met de tooltip *Alleen beschikbaar als de Gantt in beeld is*. Het gebaar heeft een balk nodig. De splitsmodus en de relatiemodus zetten elkaar uit.
 
 **Een klik zonder effect.** Een onderbreking kan niet op de eerste dag van de taak beginnen en niet binnen een bestaande pauze. Ook moet elk stuk werk minstens één werkdag lang blijven. Klik je op zo'n plek, dan gebeurt er niets, zonder melding.
+
+**Een taak met voortgang.** Heeft de taak voortgang, dan kan een onderbreking pas beginnen na het werk dat al gedaan is. Bij 50% van 8 werkdagen is dat op zijn vroegst de vijfde werkdag. Een klik in het gedane deel doet niets, en een taak die 100% klaar is kun je niet meer splitsen. In het paneel is *Onderbreking toevoegen* dan uitgeschakeld: dat geldt ook als het midden van het langste stuk in gedaan werk valt, bijvoorbeeld bij 75% van 8 werkdagen.
 
 **Nivelleren maakt ook onderbrekingen.** Die staan in het blok *Onderbrekingen* met het label *nivellering*. *Resources › Nivellering › Nivellering wissen* haalt ze weer weg. Bewerk je de onderbrekingen van zo'n taak zelf, dan worden al haar nivelleerpauzes van jou en haalt *Nivellering wissen* ze niet meer weg.
 

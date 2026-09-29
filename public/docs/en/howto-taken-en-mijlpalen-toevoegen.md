@@ -47,16 +47,16 @@ If you turn it off again, it stays an ordinary task with duration 0: enter a dur
 
 ### Other ways
 
-- Ctrl+M (⌘+M on a Mac) puts a milestone at the bottom of the list, even if a task is selected. That milestone gets the task type *Inspection* and *Automatic* under *Milestone kind*.
+- Ctrl+M (⌘+M on a Mac) puts a new milestone at the bottom of the list, even if a task is selected. The *Properties* panel does not open.
 - *Add milestone* in a task's right-click menu makes the milestone a subtask of that task, not a sibling.
 
 ### Copying a task or a whole branch
 
 1. In the Gantt, click the task's bar. Select more tasks with Ctrl+click.
 2. Press Ctrl+C (⌘+C on a Mac). The app copies the task with all its subtasks, the relations between the copied tasks and their resource assignments.
-3. Select a task if you like and press Ctrl+V (⌘+V).
+3. If you like, click the bar of the task next to which the copy should go, and press Ctrl+V (⌘+V).
 
-The copy has the same name, the same dates and the same progress. It goes in as a sibling of the selected task, at the bottom among those siblings. If nothing is selected, it goes at the bottom of the list. The copied tasks are selected afterwards, the WBS codes are determined again and the schedule is out of date.
+The copy has the same name, the same dates and the same progress. It goes in as a sibling of the selected task (with several: the one you clicked first), at the bottom among those siblings. If nothing is selected, it goes at the bottom of the list. The copied tasks are selected afterwards, the WBS codes (each task's number in the tree, such as 1.2; see [Adjusting the structure](docs://howto-structuur-aanpassen)) are determined again and the schedule is out of date.
 
 The clipboard is shared by the whole app, so you can also paste into another document. What does not exist there, such as a task calendar, a custom task type, an activity code or a custom field, the app clears and tells you.
 
@@ -74,14 +74,13 @@ A new task does not change the other dates yet. The status bar says *Out of date
 
 **A subtask under a milestone.** The milestone becomes a summary task and the app removes the milestone flag, with a message.
 
-**Milestone on for a summary task or a task with assignments.** The app refuses and says why: remove the assignments first.
+**Milestone on for a summary task or a task with assignments.** The app refuses and says why. With assignments: remove them first.
 
 **Copying in the task list.** In the task list (and on the *Table* tab) Ctrl+C copies only the values of the selected cells, as in a spreadsheet, and Ctrl+V pastes into cells. Copying tasks therefore only works if you use the Gantt: click a bar first.
-
-**Ribbon versus shortcut.** *Milestone ▾* in the ribbon puts the milestone below the selection and lets you choose the kind. Ctrl+M always puts it at the bottom.
 
 ## See also
 
 - [Adjusting the structure](docs://howto-structuur-aanpassen): indent and move tasks and keep the WBS numbers up to date.
 - [Adding relations](docs://howto-relaties-leggen): link tasks together.
+- [Selecting, deleting and undoing tasks](docs://howto-taken-selecteren-verwijderen): take a task away again.
 - [Critical path and float](docs://uitleg-kritiek-pad): what the app calculates once there are relations.

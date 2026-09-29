@@ -6,7 +6,7 @@ Doel: de hele planning naar een nieuwe startdatum schuiven, en vooraf zien wat d
 
 De start van het werk schuift op: de vergunning komt later, of je hergebruikt de planning van een eerdere woning voor de volgende. Alle taken één voor één verzetten is veel werk. Met **Project verplaatsen** geef je één nieuwe startdatum op en de app schuift alles mee.
 
-Het projecteinde schuift niet altijd evenveel op als de start. De **kalender** schuift namelijk niet mee: feestdagen, bouwvak en winterstop liggen op vaste datums. Een voorbeeld met de kalender *Bouwkalender NL*: een planning van 30 werkdagen begint op 29 september 2026 en eindigt op 9 november 2026. Verplaats je hem naar 14 december 2026, 76 kalenderdagen later, dan eindigt hij op 26 januari 2027. Dat is 78 dagen later, want 25 december en 1 januari zijn nu vrije dagen in je planning. De duur blijft 30 werkdagen. Het voorbeeld in het venster laat dit zien voordat je iets verandert.
+Het projecteinde schuift niet altijd evenveel op als de start. De **kalender** schuift namelijk niet mee: feestdagen, bouwvak en winterstop liggen op vaste datums. Een voorbeeld: je maakt met *Start › Bestand › Nieuw* een project met *Startdatum* 29-09-2026, *Land* op *Nederland* en *Bouwvak* op *Geen*, en zet er een planning van 30 werkdagen in die op 9 november 2026 eindigt. Verplaats je hem naar 14 december 2026, 76 kalenderdagen later, dan eindigt hij op 26 januari 2027. Dat is 78 dagen later, want 25 december en 1 januari zijn nu vrije dagen in je planning. De duur blijft 30 werkdagen. Het voorbeeld in het venster laat dit zien voordat je iets verandert.
 
 ## Stappen
 
@@ -30,7 +30,7 @@ De knop *Verplaatsen* is pas te gebruiken na een voorbeeld zonder fout, en als d
 
 ### Wat er meeschuift, en wat niet
 
-Meegeschoven wordt: de start en het einde van elke taak, de werkelijke start en het werkelijke einde, de datums van constraints (ook van een harde Mandatory-pin), deadlines, de statusdatum, de ankers van externe relaties en de capaciteitsstappen van resources. Ook de projectstart en, als je die hebt ingevuld, de projecteinddatum verschuiven.
+Meegeschoven wordt: de start en het einde van elke taak, de werkelijke start en het werkelijke einde, de datums van constraints (ook van een harde Mandatory-pin, zie [Constraints en deadlines](docs://uitleg-constraints)), deadlines, de statusdatum, de ankers van externe relaties en de capaciteitsstappen van resources. Ook de projectstart en, als je die hebt ingevuld, de projecteinddatum verschuiven.
 
 Niet mee schuift:
 
@@ -46,9 +46,9 @@ Niet mee schuift:
 
 **Een lopend project.** Werkelijke datums schuiven mee. Bij een project waarin je al voortgang hebt ingevoerd is dat niet altijd wat je wilt. De app waarschuwt: *Controleer of dat klopt voor een lopend project.*
 
-**Externe relaties.** Het anker in je eigen project schuift mee, het bronproject niet. Ververs de koppelingen na het verplaatsen met *Start › Taken › Relatie ▾ › Alle externe relaties vernieuwen*.
+**Externe relaties.** Het anker in je eigen project schuift mee, het bronproject niet. Ververs de koppelingen na het verplaatsen met *Start › Taken › Relatie ▾ › Alle externe relaties vernieuwen*. Zie [Externe relaties naar een ander project](docs://howto-externe-relaties).
 
-**Feestdagen die niet ver genoeg reiken.** Een kalender met gegenereerde feestdagen dekt een aantal jaren. Loopt de verplaatste planning daar voorbij, dan rekent de app in dat jaar zonder feestdagen. Het voorbeeld waarschuwt daarvoor, bijvoorbeeld: *De gegenereerde feestdagen van kalender “Bouwkalender NL” dekken 2025–2028; de verplaatste planning loopt tot 2029. Genereer de feestdagen opnieuw.* Verplaats eerst het project. Open daarna *Planning › Kalender › Kalender*: daar staat dan bij de feestdagen *Opnieuw genereren*. Bevestig met *Toepassen*, dan rekent de app opnieuw door. Het bereik van de nieuwe feestdagen volgt de projectstart, dus opnieuw genereren vóór het verplaatsen helpt niet.
+**Feestdagen die niet ver genoeg reiken.** Een kalender met gegenereerde feestdagen dekt een aantal jaren. Loopt de verplaatste planning daar voorbij, dan rekent de app in dat jaar zonder feestdagen. Het voorbeeld waarschuwt daarvoor, bijvoorbeeld: *De gegenereerde feestdagen van kalender “Bouwkalender NL” dekken 2025–2029; de verplaatste planning loopt tot 2030. Genereer de feestdagen opnieuw.* Verplaats eerst het project. Open daarna *Planning › Kalender › Kalender*: daar staat dan bij de feestdagen *Opnieuw genereren*. Bevestig met *Toepassen*, dan rekent de app opnieuw door. Het bereik van de nieuwe feestdagen volgt de projectdatums, dus opnieuw genereren vóór het verplaatsen helpt niet.
 
 **De datum ligt in het verleden.** Dat mag, maar het voorbeeld meldt het: *De nieuwe startdatum ligt in het verleden.*
 

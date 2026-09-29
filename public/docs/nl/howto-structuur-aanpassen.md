@@ -42,7 +42,9 @@ Zet je *WBS auto* aan, dan nummert de app de boom meteen. Zowel *WBS auto* als *
 
 ## Valkuilen en wat de app dan doet
 
-**Filteren, groeperen of sorteren staat aan.** De getoonde volgorde is dan niet de volgorde van de planning, dus de app zet de structuur vast. *Inspringen* en *Uitspringen* zijn uitgeschakeld, met de tooltip *Niet beschikbaar tijdens filteren/groeperen/sorteren*. Alt+→ en slepen tonen dezelfde tekst in een strook, met de knop *Wissen*. Die haalt filter, groepering en sortering in één keer weg, en Ctrl+Z brengt ze niet terug.
+**Filteren, groeperen of sorteren staat aan.** De getoonde volgorde is dan niet de volgorde van de planning, dus de app zet de structuur vast. *Inspringen* en *Uitspringen* zijn uitgeschakeld, met de tooltip *Niet beschikbaar tijdens filteren/groeperen/sorteren*. Alt+→ en slepen tonen dezelfde tekst in een strook, met de knop *Wissen*. Die haalt filter, groepering en sortering in één keer weg, en Ctrl+Z brengt ze niet terug. In het rechtermuismenu ontbreken *Inspringen* en *Uitspringen* dan.
+
+Alt+↑ en Alt+↓ werken in zo'n weergave wél, zonder melding. De volgorde in de planning verandert dan, maar je ziet het pas na *Wissen*.
 
 **WBS auto staat uit.** Een nieuwe taak krijgt de code die bij zijn plek in de boom past, ook als een andere taak die code al heeft. Zo kunnen er dubbele nummers ontstaan. Ook na inspringen kloppen de codes niet meer met de boom. *Hernummer WBS* lost beide op.
 
@@ -52,7 +54,7 @@ Zet je *WBS auto* aan, dan nummert de app de boom meteen. Zowel *WBS auto* als *
 
 **Een relatie zou een kring maken.** De relaties van een samenvattingstaak gelden ook voor haar subtaken. Zou een verplaatsing daardoor een kring maken, dan weigert de app hem, met de melding *Deze verplaatsing zou een kring in de planning maken (…)*. Er verandert dan niets.
 
-**Een relatie tussen een taak en zijn eigen fase.** Zet je een taak onder een fase waarmee hij al een relatie heeft, dan blijft die relatie bestaan, maar hij telt niet meer mee in de berekening. De app meldt het.
+**Een relatie tussen een taak en zijn eigen fase.** Zet je een taak onder een fase waarmee hij al een relatie heeft, dan blijft die relatie bestaan, maar hij telt niet meer mee in de berekening. De app meldt het. Over relaties op samenvattingstaken lees je meer in [Relaties en lag](docs://uitleg-relaties).
 
 **De planning is verouderd.** Een verplaatsing naar een andere fase kan datums veranderen. Druk op **Bereken** (F5). Puur van volgorde wisselen binnen dezelfde fase doet dat niet.
 
@@ -61,3 +63,4 @@ Zet je *WBS auto* aan, dan nummert de app de boom meteen. Zowel *WBS auto* als *
 - [Taken en mijlpalen toevoegen](docs://howto-taken-en-mijlpalen-toevoegen): nieuwe taken op de juiste plek zetten.
 - [WBS-sjablonen bewaren en invoegen](docs://howto-wbs-sjablonen): een hele fase hergebruiken.
 - [Relaties leggen](docs://howto-relaties-leggen): taken aan elkaar koppelen.
+- [Taken selecteren, verwijderen en ongedaan maken](docs://howto-taken-selecteren-verwijderen): een verplaatsing terugdraaien.

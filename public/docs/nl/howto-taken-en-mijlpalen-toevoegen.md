@@ -47,16 +47,16 @@ Zet je het weer uit, dan blijft het een gewone taak met duur 0: vul zelf een duu
 
 ### Andere manieren
 
-- Ctrl+M (op een Mac ⌘+M) zet een mijlpaal onderaan de lijst, ook als er een taak geselecteerd is. Die mijlpaal krijgt het taaktype *Keuring/Inspectie* en bij *Soort mijlpaal* de waarde *Automatisch*.
+- Ctrl+M (op een Mac ⌘+M) zet een nieuwe mijlpaal onderaan de lijst, ook als er een taak geselecteerd is. Het paneel *Eigenschappen* gaat daarbij niet open.
 - *Mijlpaal toevoegen* in het rechtermuismenu van een taak maakt de mijlpaal een subtaak van die taak, niet een zustertaak.
 
 ### Een taak of hele tak kopiëren
 
 1. Klik in de Gantt op de balk van de taak. Meer taken selecteer je met Ctrl+klik.
 2. Druk op Ctrl+C (op een Mac ⌘+C). De app kopieert de taak met al haar subtaken, de relaties tussen de gekopieerde taken en hun resource-toewijzingen.
-3. Selecteer eventueel een taak en druk op Ctrl+V (⌘+V).
+3. Klik eventueel op de balk van de taak waarnaast de kopie moet komen, en druk op Ctrl+V (⌘+V).
 
-De kopie heeft dezelfde naam, dezelfde datums en dezelfde voortgang. Hij komt als zustertaak van de geselecteerde taak, onderaan bij die zusters. Is er niets geselecteerd, dan komt hij onderaan de lijst. De gekopieerde taken zijn daarna geselecteerd, de WBS-codes worden opnieuw bepaald en de planning is verouderd.
+De kopie heeft dezelfde naam, dezelfde datums en dezelfde voortgang. Hij komt als zustertaak van de geselecteerde taak (bij meer taken: de eerst aangeklikte), onderaan bij die zusters. Is er niets geselecteerd, dan komt hij onderaan de lijst. De gekopieerde taken zijn daarna geselecteerd, de WBS-codes (het nummer van elke taak in de boom, zoals 1.2; zie [Structuur aanpassen](docs://howto-structuur-aanpassen)) worden opnieuw bepaald en de planning is verouderd.
 
 Het klembord geldt voor de hele app, dus je kunt ook in een ander document plakken. Wat daar niet bestaat, zoals een taakkalender, een eigen taaktype, een activity code of een eigen veld, maakt de app leeg en hij meldt dat.
 
@@ -74,14 +74,13 @@ Een nieuwe taak verandert nog niets aan de andere datums. De statusbalk meldt *V
 
 **Een subtaak onder een mijlpaal.** De mijlpaal wordt een samenvattingstaak en de app haalt de mijlpaalmarkering eraf, met een melding.
 
-**Mijlpaal aan bij een samenvattingstaak of een taak met toewijzingen.** De app weigert dat en meldt waarom: verwijder eerst de toewijzingen.
+**Mijlpaal aan bij een samenvattingstaak of een taak met toewijzingen.** De app weigert dat en zegt waarom. Bij toewijzingen: verwijder die eerst.
 
 **Kopiëren in de takenlijst.** In de takenlijst (en op het tabblad *Tabel*) kopieert Ctrl+C alleen de waarden van de geselecteerde cellen, zoals in een spreadsheet, en plakt Ctrl+V in cellen. Taken kopiëren werkt dus alleen als je de Gantt gebruikt: klik eerst op een balk.
-
-**Het verschil tussen lint en sneltoets.** *Mijlpaal ▾* in het lint zet de mijlpaal onder de selectie en laat je het soort kiezen. Ctrl+M zet hem altijd onderaan.
 
 ## Zie ook
 
 - [Structuur aanpassen](docs://howto-structuur-aanpassen): taken laten inspringen, verplaatsen en de WBS-nummers bijhouden.
 - [Relaties leggen](docs://howto-relaties-leggen): taken aan elkaar koppelen.
+- [Taken selecteren, verwijderen en ongedaan maken](docs://howto-taken-selecteren-verwijderen): een taak weer weghalen.
 - [Kritiek pad en speling](docs://uitleg-kritiek-pad): wat de app uitrekent zodra er relaties zijn.

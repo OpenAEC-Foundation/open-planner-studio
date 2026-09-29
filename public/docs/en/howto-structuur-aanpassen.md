@@ -42,7 +42,9 @@ If you turn *WBS auto* on, the app numbers the tree at once. Both *WBS auto* and
 
 ## Pitfalls and what the app does
 
-**Filtering, grouping or sorting is on.** The order you see is then not the order of the schedule, so the app locks the structure. *Indent* and *Outdent* are disabled, with the tooltip *Not available while filtering/grouping/sorting*. Alt+→ and dragging show the same text in a strip, with the *Clear* button. That removes filter, grouping and sorting in one go, and Ctrl+Z does not bring them back.
+**Filtering, grouping or sorting is on.** The order you see is then not the order of the schedule, so the app locks the structure. *Indent* and *Outdent* are disabled, with the tooltip *Not available while filtering/grouping/sorting*. Alt+→ and dragging show the same text in a strip, with the *Clear* button. That removes filter, grouping and sorting in one go, and Ctrl+Z does not bring them back. *Indent* and *Outdent* are then missing from the right-click menu.
+
+Alt+↑ and Alt+↓ do work in such a view, without a message. The order in the schedule changes, but you only see it after *Clear*.
 
 **WBS auto is off.** A new task gets the code that fits its place in the tree, even if another task already has that code. That way duplicate numbers can appear. After indenting, too, the codes no longer match the tree. *Renumber WBS* fixes both.
 
@@ -52,7 +54,7 @@ If you turn *WBS auto* on, the app numbers the tree at once. Both *WBS auto* and
 
 **A relation would create a cycle.** The relations of a summary task also apply to its subtasks. If a move would create a cycle because of that, the app refuses it, with the message *This move would create a cycle in the schedule (…)*. Nothing changes.
 
-**A relation between a task and its own phase.** If you put a task under a phase it already has a relation with, that relation stays, but no longer counts in the calculation. The app tells you.
+**A relation between a task and its own phase.** If you put a task under a phase it already has a relation with, that relation stays, but no longer counts in the calculation. The app tells you. You can read more about relations on summary tasks in [Relations and lag](docs://uitleg-relaties).
 
 **The schedule is out of date.** A move to another phase can change dates. Press **Calculate** (F5). Just swapping the order within the same phase does not.
 
@@ -61,3 +63,4 @@ If you turn *WBS auto* on, the app numbers the tree at once. Both *WBS auto* and
 - [Adding tasks and milestones](docs://howto-taken-en-mijlpalen-toevoegen): put new tasks in the right place.
 - [Saving and inserting WBS templates](docs://howto-wbs-sjablonen): reuse a whole phase.
 - [Adding relations](docs://howto-relaties-leggen): link tasks together.
+- [Selecting, deleting and undoing tasks](docs://howto-taken-selecteren-verwijderen): reverse a move.

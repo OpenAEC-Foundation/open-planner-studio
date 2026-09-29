@@ -819,6 +819,15 @@
       "draft": true
     },
     {
+      "id": "howto-taken-selecteren-verwijderen",
+      "title": {
+        "nl": "Taken selecteren, verwijderen en ongedaan maken",
+        "en": "Selecting, deleting and undoing tasks"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
       "id": "uitleg-kritiek-pad",
       "title": {
         "nl": "Kritiek pad en speling",

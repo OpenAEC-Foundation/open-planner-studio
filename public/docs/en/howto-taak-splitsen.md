@@ -12,7 +12,7 @@ The work stays the same length, but the task now lasts longer on the calendar. A
 
 ### Splitting in the Gantt
 
-1. Choose *Home › Tasks › Split task*. Above the schedule the notice *Click a bar on the day the break starts and drag right for its length. Press Esc to stop.* appears. The same button is on *Planning* and on *Table*.
+1. Choose *Home › Tasks › Split task* (or *Planning › Relations › Split task*). Above the schedule the notice *Click a bar on the day the break starts and drag right for its length. Press Esc to stop.* appears. The button is also on the *Table* tab (*Table › Tasks › Split task*), but it is disabled there.
 2. Move the mouse over the bar. A dashed line and a label with the date show where the break would start. Press on the bar, on the day the break starts.
 3. Drag to the right. The label shows the length, for example *2 workdays break*: the distance in work days to the day under your mouse. Release.
 
@@ -32,7 +32,7 @@ This works without split mode, directly on a bar that has a break.
 
 ### Splitting and adjusting in the Properties panel
 
-Select the task. At the bottom of the *Properties* panel is the *Breaks* block.
+Select the task. In the *Properties* panel the *Breaks* block is under *Dependencies* and above *Assignments*. Scroll to it if needed.
 
 - *Add break* puts a pause of one work day halfway through the longest piece.
 - Each pause has two boxes: *after* (how many work days of work come before the pause) and *pause* (the length of the pause). Next to them are the dates of the piece after the pause. For an hour task they show hours.
@@ -46,11 +46,13 @@ Right-click the break in the Gantt, or the piece after it, and choose *Remove br
 
 ## Pitfalls and what the app does
 
-**Not every task can be split.** You cannot split a milestone, a summary task, a task with *Hammock (derived duration)* on, a task with duration type *Elapsed time*, a task that is *Manually scheduled*, or a task shorter than two work days. In split mode the mouse shows a not-allowed cursor and nothing happens. For such a task the *Breaks* block is also missing in *Properties*.
+**Not every task can be split.** You cannot split a milestone, a summary task, a task with *Hammock (derived duration)* on (see [Creating a hammock](docs://howto-hammock)), a task with duration type *Elapsed time*, a task that is *Manually scheduled*, or a task shorter than two work days. In split mode the mouse shows a not-allowed cursor and nothing happens. For such a task the *Breaks* block is also missing in *Properties*.
 
 **On the Table tab the button does not work.** *Split task* is disabled there, with the tooltip *Only available when the Gantt chart is visible*. The gesture needs a bar. Split mode and link mode switch each other off.
 
 **A click with no effect.** A break cannot start on the first day of the task and not inside an existing pause. Each piece of work must also stay at least one work day long. If you click such a place, nothing happens, without a message.
+
+**A task with progress.** If the task has progress, a break can only start after the work that is already done. At 50% of 8 work days that is the fifth work day at the earliest. A click in the done part does nothing, and a task that is 100% complete can no longer be split. In the panel *Add break* is then disabled: that also applies if the middle of the longest piece falls in done work, for example at 75% of 8 work days.
 
 **Leveling also creates breaks.** They show in the *Breaks* block with the label *leveling*. *Resources › Leveling › Clear leveling* removes them again. If you edit the breaks of such a task yourself, all its leveling pauses become yours and *Clear leveling* no longer removes them.
 

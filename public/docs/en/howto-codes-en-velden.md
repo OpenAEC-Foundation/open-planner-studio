@@ -30,13 +30,13 @@ You have two places.
 
 ### Using them
 
-You can use a code type or custom field to filter, group and sort. You set that up with a layout: *View › Layout › New layout*. When grouping, tasks without a value go under *(none)*.
+You can use a code type or custom field to filter, group and sort. You set that up with a layout: *View › Layout › New layout*. In the window, tick the parts you want to capture. With *Save* you get a button in *View › Layout* that you can click again later; with *Apply without saving* you only put it on screen now. When grouping, tasks without a value go under *(none)*.
 
 For the bar colour choose *View › Baselines & progress › Bar colors*, then *By category* and the code type. Each bar then gets the *Colour* of its value.
 
 ## Pitfalls and what the app does
 
-**Deleting removes the values on the tasks.** If you delete a code type, a value or a field with the bin, the app does not ask for confirmation, and the assignments on all tasks disappear with it. A grouping or sorting on that code type or field lapses too. *Undo* (Ctrl+Z) brings everything back.
+**Deleting removes the values on the tasks.** If you delete a code type, a value or a field with the bin, the app does not ask for confirmation, and the assignments on all tasks disappear with it. A grouping or sorting on that code type or field lapses too. *Undo* (Ctrl+Z) brings back the code type, value or field and the filled-in values, but not the grouping or sorting: you set those up again.
 
 **Two values with the same code.** *Add value* numbers on from the number of values there are. If you delete one and add one, a code can therefore occur twice. If you type that code in a column cell, the app refuses with *This activity code value occurs more than once. Choose it from the list.* Give every value its own code.
 

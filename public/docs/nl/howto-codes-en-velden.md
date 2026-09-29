@@ -30,13 +30,13 @@ Je hebt twee plekken.
 
 ### Gebruiken
 
-Een codetype of eigen veld kun je gebruiken om te filteren, te groeperen en te sorteren. Dat stel je in met een layout: *Beeld › Layout › Nieuwe layout*. Bij groeperen komen taken zonder waarde onder *(geen)*.
+Een codetype of eigen veld kun je gebruiken om te filteren, te groeperen en te sorteren. Dat stel je in met een layout: *Beeld › Layout › Nieuwe layout*. Kies in het venster de onderdelen die je wilt vastleggen. Met *Opslaan* krijg je een knop in *Beeld › Layout* die je later weer aanklikt; met *Toepassen zonder opslaan* zet je het alleen nu op het scherm. Bij groeperen komen taken zonder waarde onder *(geen)*.
 
 Voor de balkkleur kies je *Beeld › Baselines & voortgang › Balkkleuren*, dan *Op categorie* en het codetype. Elke balk krijgt dan de *Kleur* van zijn waarde.
 
 ## Valkuilen en wat de app dan doet
 
-**Verwijderen haalt de waarden bij de taken weg.** Verwijder je een codetype, een waarde of een veld met het prullenbakje, dan vraagt de app niet om bevestiging, en de toewijzingen op alle taken verdwijnen mee. Een groepering of sortering op dat codetype of veld vervalt ook. *Ongedaan* (Ctrl+Z) brengt alles terug.
+**Verwijderen haalt de waarden bij de taken weg.** Verwijder je een codetype, een waarde of een veld met het prullenbakje, dan vraagt de app niet om bevestiging, en de toewijzingen op alle taken verdwijnen mee. Een groepering of sortering op dat codetype of veld vervalt ook. *Ongedaan* (Ctrl+Z) brengt het codetype, de waarde of het veld en de ingevulde waarden terug, maar niet de groepering of sortering: die stel je opnieuw in.
 
 **Twee waarden met dezelfde code.** *Waarde toevoegen* nummert door op het aantal waarden dat er is. Verwijder je er één en voeg je er een toe, dan kan er dus een code dubbel voorkomen. Typ je die code in een kolomcel, dan weigert de app dat met *Deze activiteitencodewaarde komt meerdere keren voor. Kies hem uit de lijst.* Geef elke waarde een eigen code.
 

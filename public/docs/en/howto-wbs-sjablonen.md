@@ -33,13 +33,9 @@ Open *Planning › Structure › Templates* and click the small bin to the right
 
 For each task, a template keeps the name, the description, the task type, whether it is a milestone, and the duration in days. Of the relations it keeps those between two tasks inside the branch, with type and lag.
 
-None of this is in it:
+Everything else stays behind: dates, progress and actual dates, resource assignments, codes and custom fields (see [Codes and custom fields](docs://howto-codes-en-velden)), the calendar, constraints and deadlines, the priority, a custom task type, for a milestone the kind and the tick *Mandatory (contractual)*, and relations with tasks outside the branch. After inserting you fill those in again: assignments, codes, calendar and constraints are empty, and all tasks start on the project start.
 
-- dates, progress and actual dates;
-- resource assignments;
-- codes and custom fields (see [Codes and custom fields](docs://howto-codes-en-velden));
-- calendar, constraints and deadlines, priority, and for a milestone the kind and the tick *Mandatory (contractual)*;
-- relations with tasks outside the branch.
+A task that was in hours comes back as a day task, with its duration converted to a fraction of a work day. A task of 5 hours with a work day of 8 hours becomes 0.625 day.
 
 ## Pitfalls and what the app does
 
