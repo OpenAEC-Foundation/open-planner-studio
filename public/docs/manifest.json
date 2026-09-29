@@ -952,6 +952,69 @@
       },
       "kind": "howto",
       "draft": true
+    },
+    {
+      "id": "howto-resources-beheren",
+      "title": {
+        "nl": "Resources beheren",
+        "en": "Managing resources"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-resource-toewijzen",
+      "title": {
+        "nl": "Resources toewijzen met een curve",
+        "en": "Assigning resources with a curve"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-urenverdeling-aanpassen",
+      "title": {
+        "nl": "Urenverdeling aanpassen",
+        "en": "Adjusting the hour distribution"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-werkregel-kiezen",
+      "title": {
+        "nl": "Werkregel kiezen",
+        "en": "Choosing a work rule"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-overbezetting-oplossen",
+      "title": {
+        "nl": "Overbezetting oplossen",
+        "en": "Resolving overallocation"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "uitleg-werkregels",
+      "title": {
+        "nl": "Werkregels: duur, inzet en werk",
+        "en": "Work rules: duration, units and work"
+      },
+      "kind": "uitleg",
+      "draft": true
+    },
+    {
+      "id": "uitleg-nivelleren",
+      "title": {
+        "nl": "Nivelleren",
+        "en": "Resource leveling"
+      },
+      "kind": "uitleg",
+      "draft": true
     }
   ],
   "aliases": {}
