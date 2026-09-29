@@ -47,7 +47,7 @@ Wat een lag precies is, staat in [Relaties leggen](docs://howto-relaties-leggen)
 
 ### In de Gantt
 
-De grijze achtergrond in de Gantt toont altijd de niet-werkdagen van de **projectkalender**. Een taak op een eigen kalender kan dus over een grijze dag lopen, zoals een zesdaagse taak over de zaterdag. Een feestdagblok van drie dagen of meer krijgt zijn naam bovenaan, bijvoorbeeld *Bouwvak (Noord)*. Wil je de grijze dagen helemaal niet zien, zet dan *Alleen werkbare dagen tonen* aan onder *Instellingen › Project › Instellingen*, tabblad *Weergave*, kopje *Tijd-as*.
+De grijze achtergrond in de Gantt toont altijd de niet-werkdagen van de **projectkalender**. Een taak op een eigen kalender kan dus over een grijze dag lopen, zoals een zesdaagse taak over de zaterdag. Een feestdagblok van drie dagen of meer krijgt zijn naam erbij, bijvoorbeeld *Bouwvak (Noord)*. Dat gebeurt niet als *Alleen werkbare dagen tonen* aan staat. Wil je de grijze dagen helemaal niet zien, zet dan *Alleen werkbare dagen tonen* aan onder *Instellingen › Project › Instellingen*, tabblad *Weergave*, kopje *Tijd-as*.
 
 ## Rekenvoorbeeld: de bouwplanning
 
@@ -69,10 +69,10 @@ Geef je *Storten fundering* de kalender *Zesdaagse werkweek* (maandag tot en met
 
 ### Een lag over twee kalenders
 
-*Storten fundering* (zesdaagse werkweek, 4 dagen) begint op maandag 31 mei en eindigt op donderdag 3 juni. *Metselwerk* (projectkalender, 3 dagen) volgt met een lag van 2 werkdagen. Zonder lag zou *Metselwerk* op vrijdag 4 juni beginnen.
+*Storten vloer* (zesdaagse werkweek, 4 dagen) begint op maandag 31 mei en eindigt op donderdag 3 juni. *Voegwerk* (projectkalender, 3 dagen) volgt met een lag van 2 werkdagen. Zonder lag zou *Voegwerk* op vrijdag 4 juni beginnen.
 
-- Standaard telt de lag in de kalender van de voorganger, de zesdaagse werkweek. Vanaf vrijdag 4 juni is zaterdag 5 juni de eerste werkdag en maandag 7 juni de tweede. *Metselwerk* begint op **maandag 7 juni** en eindigt op woensdag 9 juni.
-- Zet je *Lag-kalender* op *Opvolger*, dan telt de projectkalender. Zaterdag telt dan niet mee: maandag 7 juni is de eerste werkdag en dinsdag 8 juni de tweede. *Metselwerk* begint op **dinsdag 8 juni** en eindigt op donderdag 10 juni.
+- Standaard telt de lag in de kalender van de voorganger, de zesdaagse werkweek. Vanaf vrijdag 4 juni is zaterdag 5 juni de eerste werkdag en maandag 7 juni de tweede. *Voegwerk* begint op **maandag 7 juni** en eindigt op woensdag 9 juni.
+- Zet je *Lag-kalender* op *Opvolger*, dan telt de projectkalender. Zaterdag telt dan niet mee: maandag 7 juni is de eerste werkdag en dinsdag 8 juni de tweede. *Voegwerk* begint op **dinsdag 8 juni** en eindigt op donderdag 10 juni.
 
 ### Speling in de eigen kalender
 
@@ -82,7 +82,7 @@ Geef je *Storten fundering* de kalender *Zesdaagse werkweek* (maandag tot en met
 
 ### De kalender van een resource
 
-De resource *Metselploeg* heeft de kalender *Metselploeg ma-do* (maandag tot en met donderdag) en is voor 1 eenheid per dag toegewezen aan *Metselwerk* (5 dagen, projectkalender, van maandag 31 mei tot en met vrijdag 4 juni).
+In een ander voorbeeldproject heeft de resource *Metselploeg* de kalender *Metselploeg ma-do* (maandag tot en met donderdag). Zij is voor 1 eenheid per dag toegewezen aan *Metselwerk* (5 dagen, projectkalender, van maandag 31 mei tot en met vrijdag 4 juni).
 
 De datums van *Metselwerk* veranderen niet. Wel staat vrijdag 4 juni in het histogram rood, met de melding *Werkt volgens kalender "Metselploeg ma-do" niet op deze dag*, en meldt het lint bij *Overallocatie* één resource. Nivelleren lost dit niet op. Verschuiven helpt niet, want vijf werkdagen op rij bevatten altijd een vrijdag. In het venster *Resources nivelleren* staat de taak daarom onder *Resterende conflicten*, met de reden *De resource werkt niet op alle dagen die deze taak nodig heeft — verschuiven lost dit niet op.*
 

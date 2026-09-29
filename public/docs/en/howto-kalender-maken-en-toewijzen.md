@@ -11,7 +11,7 @@ A subcontractor also works on Saturdays. A crew works only Monday to Thursday. A
 ### Creating a calendar
 
 1. Choose *Planning › Calendar › Calendar*. The same button is on *Settings › Calendar › Calendar*. The *Calendars* window opens. On the left are the project's calendars; the project calendar has a star.
-2. Under the list, click the button with the plus sign (*New calendar*). The new calendar is a copy of the standard: Monday to Friday, 07:00 to 16:00 with an hour's break and, if *Construction mode* is on, the Dutch public holidays. If you want an existing calendar as a basis, pick it in the list and click *Duplicate*.
+2. Under the list, click the button with the plus sign (*New calendar*). The new calendar is a copy of the standard: Monday to Friday, 07:00 to 16:00 with an hour's break and, if *Construction mode* is on, the Dutch public holidays. If you want an existing calendar as a basis, pick it in the list and click the button with the two sheets under the list (*Duplicate*).
 3. Give the calendar a name under *Name* that says who uses it, for example *Six-day week*.
 4. Under *Work days*, click the weekdays on or off. *Mon–Fri* restores the standard week, with 07:00 to 16:00. *Continuous (24/7)* switches on all seven days, from 00:00 to 24:00.
 5. Adjust the working times if needed: *Start (hour)*, *End (hour)*, *Break starts* and *Break duration (minutes)*. You type times as HH:MM; with the arrows you raise or lower them by a quarter of an hour. If you set the break duration to 0, the calendar works without a break. *Net hours per day* is worked out by the app itself. If hour planning is on and the calendar has working-time blocks per weekday, you do not see these fields; see [Setting working times](docs://howto-werktijden-instellen).
@@ -33,7 +33,7 @@ A new calendar only does something once a task uses it. There are two ways.
 2. Choose *Assign calendar* and then the calendar, or *Project calendar* to remove the calendar of its own again. The calendar that applies now has a tick.
 3. If you want to give one calendar to several tasks at once, first select them with Ctrl (⌘ on a Mac) and right-click one of the selected tasks. The choice applies to all selected tasks. If you right-click a task that is not selected, it applies only to that task.
 
-A new calendar choice does not make the schedule current yet: the status bar reports *Out of date — recalculate (F5)*. Press **Calculate** (F5), for example via *Home › Schedule › Calculate*.
+A new calendar choice does not make the schedule current yet: the status bar reports *Out of date — recalculate (F5)*. Press **Calculate** (F5), for example via *Home › Schedule › Calculate*. If *Calculate automatically* is on (*Settings › Project › Settings*, tab *Planning*, heading *Calculation*), the app does this itself.
 
 ### Switching the project calendar
 
@@ -59,7 +59,7 @@ Only the tasks without a calendar of their own move along.
 
 **The same calendar, two choices.** In the list the project calendar appears twice: as *Project calendar: name* and as an ordinary calendar with that name. If you choose the second, that is a choice of its own for that task. The task then does not move along when you later choose a different project calendar.
 
-**Different hours per day.** If you change the *Net hours per day* of a calendar, a task in days still counts the same number of days. For a task with resources and the work rule *Fixed work* or *Fixed units*, the duration does change with it, because the work stays the same. Forty hours of work is 5 days at 8 hours per day and 7 days at 6 hours per day. The app reports how many tasks got a different duration.
+**Different hours per day.** If you change the working times or the break so that the *Net hours per day* of a calendar change, a task in days still counts the same number of days. For a task with resources and the work rule *Fixed work* or *Fixed units*, the duration does change with it, because the work stays the same. Forty hours of work is 5 days at 8 hours per day and 7 days at 6 hours per day. The app reports how many tasks got a different duration.
 
 ## See also
 

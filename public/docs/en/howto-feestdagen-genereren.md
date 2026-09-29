@@ -16,7 +16,7 @@ The **construction holiday** (*bouwvak*) is the collective holiday in the Dutch 
 2. Click *Generate holidays…*. Under the button a block with the choices opens.
 3. Choose the *Country*: Netherlands, Germany, Belgium, France, United Kingdom, Austria, Switzerland, or *No holidays*. For a number of countries a *Region* list appears as well, for example a federal state in Germany. *National* leaves only the holidays that apply everywhere.
 4. For the Netherlands, choose the *Construction holiday*: *None* (default), *North*, *Central* or *South*. The construction holiday appears as one period in the list, for example *Bouwvak (Noord)*, three weeks from Monday to Friday. You only see this choice if *Construction mode* is on.
-5. Under the choices is a summary, such as *24 holidays, 2026–2028*. Click it to see the dates.
+5. Under the choices is a summary, such as *21 holidays, 2026–2028*. Click it to see the dates.
 6. Click *Generate*. The *Holidays* list is now filled.
 7. Click *Apply*. The app recalculates the schedule right away.
 

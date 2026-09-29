@@ -38,7 +38,7 @@ A new task then starts with 5 hours instead of 5 days. Existing tasks do not cha
 
 **No decimals with days.** A duration in days is a whole number. `1.5d` gives the message *Enter a whole number of days or hours, for example 2d or 12h.* If you want a day and a half, calculate in hours.
 
-**A conversion that cannot be exact.** Twelve hours does not fit in whole days of 8 hours. The app then reports *This duration cannot be converted exactly to whole days on the current calendar.* and leaves the unit.
+**A conversion that cannot be exact.** Twelve hours does not fit in whole days of 8 hours. The app then reports *This duration cannot be converted exactly to whole days on the current calendar. The existing unit is retained; enter a new valid value yourself.* and leaves the unit.
 
 **The field is disabled.** For a phase, a hammock or a milestone with zero duration the duration follows from something else, and you cannot type it.
 

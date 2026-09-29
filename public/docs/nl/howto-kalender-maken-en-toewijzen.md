@@ -11,7 +11,7 @@ Een onderaannemer werkt ook op zaterdag. Een ploeg werkt alleen van maandag tot 
 ### Een kalender maken
 
 1. Kies *Planning › Kalender › Kalender*. Dezelfde knop staat op *Instellingen › Kalender › Kalender*. Het venster *Kalenders* opent. Links staan de kalenders van het project; de projectkalender heeft een ster.
-2. Klik onder de lijst op de knop met het plusteken (*Nieuwe kalender*). De nieuwe kalender is een kopie van de standaard: maandag tot en met vrijdag, 07:00 tot 16:00 met een uur pauze, en, als *Bouwmodus* aan staat, de Nederlandse feestdagen. Wil je een bestaande kalender als basis, kies die dan in de lijst en klik op *Dupliceren*.
+2. Klik onder de lijst op de knop met het plusteken (*Nieuwe kalender*). De nieuwe kalender is een kopie van de standaard: maandag tot en met vrijdag, 07:00 tot 16:00 met een uur pauze, en, als *Bouwmodus* aan staat, de Nederlandse feestdagen. Wil je een bestaande kalender als basis, kies die dan in de lijst en klik onder de lijst op de knop met de twee vellen (*Dupliceren*).
 3. Geef de kalender bij *Naam* een naam die zegt wie hem gebruikt, bijvoorbeeld *Zesdaagse werkweek*.
 4. Klik bij *Werkdagen* de weekdagen aan of uit. *Ma–vr* zet de standaardweek terug, met 07:00 tot 16:00. *Continu (24/7)* zet alle zeven dagen aan, van 00:00 tot 24:00.
 5. Pas zo nodig de werktijden aan: *Begin (uur)*, *Einde (uur)*, *Pauze begint* en *Pauzeduur (minuten)*. Je typt tijden als UU:MM; met de pijltjes verhoog of verlaag je ze met een kwartier. Zet je de pauzeduur op 0, dan werkt de kalender zonder pauze. *Netto-uren per dag* rekent de app zelf uit. Staat Urenplanning aan en heeft de kalender werktijdblokken per weekdag, dan zie je deze velden niet; zie [Werktijden instellen](docs://howto-werktijden-instellen).
@@ -33,7 +33,7 @@ Een nieuwe kalender doet pas iets als een taak hem gebruikt. Er zijn twee manier
 2. Kies *Kalender toewijzen* en dan de kalender, of *Projectkalender* om de eigen kalender weer weg te halen. De kalender die nu geldt, heeft een vinkje.
 3. Wil je één kalender aan meer taken tegelijk geven, selecteer ze dan eerst met Ctrl (op een Mac ⌘) en klik met rechts op één van de geselecteerde taken. De keuze geldt voor alle geselecteerde taken. Klik je met rechts op een taak die niet geselecteerd is, dan geldt hij alleen voor die taak.
 
-Een nieuwe kalenderkeuze maakt de planning nog niet nieuw: de statusbalk meldt *Verouderd — herbereken (F5)*. Druk op **Bereken** (F5), bijvoorbeeld via *Start › Planning › Bereken*.
+Een nieuwe kalenderkeuze maakt de planning nog niet nieuw: de statusbalk meldt *Verouderd — herbereken (F5)*. Druk op **Bereken** (F5), bijvoorbeeld via *Start › Planning › Bereken*. Staat *Automatisch berekenen* aan (*Instellingen › Project › Instellingen*, tabblad *Planning*, kopje *Berekenen*), dan doet de app dat zelf.
 
 ### De projectkalender wisselen
 
@@ -59,7 +59,7 @@ Alleen de taken zonder eigen kalender gaan mee.
 
 **Dezelfde kalender, twee keuzes.** In de keuzelijst staat de projectkalender twee keer: als *Projectkalender: naam* en als gewone kalender met die naam. Kies je de tweede, dan is dat een eigen keuze van die taak. De taak verhuist dan niet mee als je later een andere projectkalender kiest.
 
-**Andere uren per dag.** Verander je *Netto-uren per dag* van een kalender, dan telt een taak in dagen nog steeds hetzelfde aantal dagen. Bij een taak met resources en de werkregel *Vast werk* of *Vaste inzet* verandert de duur wel mee, omdat het werk gelijk blijft. Veertig uur werk is 5 dagen bij 8 uur per dag en 7 dagen bij 6 uur per dag. De app meldt hoeveel taken een andere duur kregen.
+**Andere uren per dag.** Verander je de werktijden of de pauze zo dat de *Netto-uren per dag* van een kalender veranderen, dan telt een taak in dagen nog steeds hetzelfde aantal dagen. Bij een taak met resources en de werkregel *Vast werk* of *Vaste inzet* verandert de duur wel mee, omdat het werk gelijk blijft. Veertig uur werk is 5 dagen bij 8 uur per dag en 7 dagen bij 6 uur per dag. De app meldt hoeveel taken een andere duur kregen.
 
 ## Zie ook
 

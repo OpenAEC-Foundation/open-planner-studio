@@ -35,7 +35,7 @@ The app counts whole work days. The hours per day play no part. A task of 5 days
 A day is the net hours per day of the task's calendar. The app uses that in three places:
 
 - For *Duration display*. Under *Settings › Project › Settings*, tab *Appearance*, you choose *Automatic (native unit per task)*, *Always days* or *Always hours*. A task of 18 hours shows under *Always days* as `2.25d(18h)`: the native unit stays in brackets.
-- For a lag in hours between day tasks (see *Rounding*).
+- For a lag in hours after a day task (see *Rounding*).
 - When you switch the unit of a task. The app then counts the days from the start of the task, each day with its own hours, and only makes a proposal if the outcome is exact. Two days become `16h`. On a calendar where Friday has 5 hours, 5 days from Monday become `37h`. Twelve hours cannot be turned into whole days on a calendar with days of 8 hours: the app then leaves the unit as it is.
 
 ### Day tasks and hour tasks together
@@ -51,7 +51,7 @@ The rules below apply to a Finish-Start relation on a calendar without working-t
 The app rounds, or refuses, in four places:
 
 - **A day task after an hour task** begins on the next work day. The hour task is, as it were, rounded up to whole days.
-- **A lag in hours between day tasks** is converted by the app to work days: the lag divided by the net hours per day, rounded to a whole number. Half a day rounds up. At 8 hours per day, 1 hour of lag counts as 0 days, 4 hours as 1 day and 12 hours as 2 days. A lag in hours between hour tasks counts exactly in working hours, and the break does not count then.
+- **A lag in hours** counts in the lag calendar, by default that of the predecessor. If the predecessor is a day task on a calendar without working-time blocks of its own, such as the standard calendar, the app converts the lag to whole work days: the lag divided by the net hours per day, rounded to a whole number; half a day rounds up. At 8 hours per day, 1 hour counts as 0 days, 4 hours as 1 day and 12 hours as 2 days. That also applies if the successor is an hour task. If the predecessor is an hour task, or its calendar has working-time blocks of its own, the lag counts exactly in working hours and the break does not count.
 - **A duration in days** is always a whole number. If you type `1.5d`, the app reports *Enter a whole number of days or hours, for example 2d or 12h.* A duration in hours may be `1.5h`, or `1h 30m`.
 - **Switching the unit** only happens if the outcome is exact (see above).
 
@@ -77,13 +77,15 @@ Reverse the order and it is simpler. *Pour foundation* lasts 2 days, from Monday
 
 Between *Place crane* (12 hours) and *Adjust elements* (8 hours) you put a lag of 2 hours. *Adjust elements* then does not begin at 11:00 but on Tuesday at **14:00**: 1 hour until the break, and 1 hour after it. The finish moves along to **Wednesday 9 June 14:00**.
 
-Between two day tasks a lag works differently. *Pour foundation* finishes on Tuesday 8 June. Without a lag *Finishing* begins on Wednesday 9 June. With a lag of 4 hours that is half a day, and the app rounds it up: *Finishing* begins on **Thursday 10 June**. With a lag of 1 hour the app rounds down, and *Finishing* simply begins on Wednesday.
+After a day task a lag works differently. *Pour foundation* finishes on Tuesday 8 June. Without a lag *Finishing* begins on Wednesday 9 June. With a lag of 4 hours that is half a day, and the app rounds it up: *Finishing* begins on **Thursday 10 June**. With a lag of 1 hour the app rounds down, and *Finishing* simply begins on Wednesday.
 
 ### A free Friday afternoon
 
 Now Friday has only one block, from 07:00 to 12:00: 5 hours. The other days stay at 8 hours. The net hours per day stay 8, because that is the most common daily total. A week now has 37 working hours.
 
 A task of 40 hours from Monday 7 June 07:00 uses Monday to Thursday (32 hours) and the Friday (5 hours). The last 3 hours fall on the Monday after, from 07:00 to 10:00. The finish is **Monday 14 June 10:00**. A task of 5 days would occupy 37 hours from Monday, and that is what the app proposes if you switch the unit of 5 days to hours.
+
+In tutorial 4, on hour planning, you plan a crane job in hours yourself.
 
 ## Consequences and misunderstandings
 
@@ -93,7 +95,7 @@ A task of 40 hours from Monday 7 June 07:00 uses Monday to Thursday (32 hours) a
 
 **"A task of 8 hours lasts one day."** Only if it starts at the beginning of the day. If it starts later, like *Adjust elements* on Tuesday at 11:00, it runs on into the next day.
 
-**A calendar with working-time blocks of its own** behaves differently from the standard calendar. You get such a calendar by setting working times per weekday or by choosing a shift preset (*2 shifts*, *3 shifts*, *Night shift* or *24/7*). On such a calendar a lag in hours between day tasks counts exactly, and a day task begins right after the end of an hour task: in the example Tuesday 8 June at 11:00.
+**A calendar with working-time blocks of its own** behaves differently from the standard calendar. You get such a calendar by setting working times per weekday or by choosing a shift preset (*2 shifts*, *3 shifts*, *Night shift* or *24/7*). On such a calendar a lag in hours counts exactly in working hours, also after a day task.
 
 **Turning hour planning off** removes nothing. Tasks in hours remain and are still calculated, but you cannot edit them until you turn hour planning on again.
 

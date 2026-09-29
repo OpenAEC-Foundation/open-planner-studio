@@ -16,7 +16,7 @@ De **bouwvak** is de collectieve vakantie in de bouw, drie weken in de zomer. In
 2. Klik op *Feestdagen genereren…*. Onder de knop opent een blok met de keuzes.
 3. Kies het *Land*: Nederland, Duitsland, België, Frankrijk, Verenigd Koninkrijk, Oostenrijk, Zwitserland, of *Geen feestdagen*. Bij een aantal landen komt er een keuzelijst *Regio* bij, bijvoorbeeld een deelstaat in Duitsland. *Landelijk* laat alleen de feestdagen over die overal gelden.
 4. Kies bij Nederland de *Bouwvak*: *Geen* (standaard), *Noord*, *Midden* of *Zuid*. De bouwvak komt als één periode in de lijst, bijvoorbeeld *Bouwvak (Noord)*, drie weken van maandag tot en met vrijdag. Deze keuze zie je alleen als *Bouwmodus* aan staat.
-5. Onder de keuzes staat een samenvatting, zoals *24 feestdagen, 2026–2028*. Klik erop om de datums te zien.
+5. Onder de keuzes staat een samenvatting, zoals *21 feestdagen, 2026–2028*. Klik erop om de datums te zien.
 6. Klik op *Genereren*. De lijst *Feestdagen* is nu gevuld.
 7. Klik op *Toepassen*. De app rekent de planning meteen opnieuw door.
 

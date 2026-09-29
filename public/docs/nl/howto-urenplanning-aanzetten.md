@@ -38,7 +38,7 @@ Een nieuwe taak begint dan met 5 uur in plaats van 5 dagen. Bestaande taken vera
 
 **Geen decimalen bij dagen.** Een duur in dagen is een geheel getal. `1.5d` geeft de melding *Voer een geheel aantal dagen of uren in, bijvoorbeeld 2d of 12h.* Wil je anderhalve dag, reken dan in uren.
 
-**Een omzetting die niet exact kan.** Twaalf uur past niet in hele dagen van 8 uur. De app meldt dan *Deze duur kan op de huidige kalender niet exact naar gehele dagen worden omgezet.* en laat de eenheid staan.
+**Een omzetting die niet exact kan.** Twaalf uur past niet in hele dagen van 8 uur. De app meldt dan *Deze duur kan op de huidige kalender niet exact naar gehele dagen worden omgezet. De bestaande eenheid blijft behouden; voer zelf een nieuwe geldige waarde in.* en laat de eenheid staan.
 
 **Het veld is uitgeschakeld.** Bij een fase, een hammock of een mijlpaal met nul duur volgt de duur uit iets anders, en kun je hem niet typen.
 

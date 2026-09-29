@@ -47,7 +47,7 @@ What a lag is exactly is covered in [Adding relations](docs://howto-relaties-leg
 
 ### In the Gantt
 
-The grey background in the Gantt always shows the non-working days of the **project calendar**. A task on a calendar of its own can therefore run across a grey day, such as a six-day task across the Saturday. A block of holidays three days wide or more gets its name at the top, for example *Bouwvak (Noord)*. If you do not want to see the grey days at all, turn on *Show only working days* under *Settings › Project › Settings*, tab *Appearance*, heading *Timeline axis*.
+The grey background in the Gantt always shows the non-working days of the **project calendar**. A task on a calendar of its own can therefore run across a grey day, such as a six-day task across the Saturday. A block of holidays three days wide or more gets its name shown, for example *Bouwvak (Noord)*. That does not happen when *Show only working days* is on. If you do not want to see the grey days at all, turn on *Show only working days* under *Settings › Project › Settings*, tab *Appearance*, heading *Timeline axis*.
 
 ## Worked example: the building schedule
 
@@ -69,10 +69,10 @@ Give *Pour foundation* the calendar *Six-day week* (Monday to Saturday) and the 
 
 ### A lag across two calendars
 
-*Pour foundation* (six-day week, 4 days) starts on Monday 31 May and finishes on Thursday 3 June. *Brickwork* (project calendar, 3 days) follows with a lag of 2 work days. Without the lag *Brickwork* would start on Friday 4 June.
+*Pour floor* (six-day week, 4 days) starts on Monday 31 May and finishes on Thursday 3 June. *Pointing* (project calendar, 3 days) follows with a lag of 2 work days. Without the lag *Pointing* would start on Friday 4 June.
 
-- By default the lag counts in the calendar of the predecessor, the six-day week. From Friday 4 June, Saturday 5 June is the first work day and Monday 7 June the second. *Brickwork* starts on **Monday 7 June** and finishes on Wednesday 9 June.
-- If you set *Lag calendar* to *Successor*, the project calendar counts. Saturday then does not count: Monday 7 June is the first work day and Tuesday 8 June the second. *Brickwork* starts on **Tuesday 8 June** and finishes on Thursday 10 June.
+- By default the lag counts in the calendar of the predecessor, the six-day week. From Friday 4 June, Saturday 5 June is the first work day and Monday 7 June the second. *Pointing* starts on **Monday 7 June** and finishes on Wednesday 9 June.
+- If you set *Lag calendar* to *Successor*, the project calendar counts. Saturday then does not count: Monday 7 June is the first work day and Tuesday 8 June the second. *Pointing* starts on **Tuesday 8 June** and finishes on Thursday 10 June.
 
 ### Float in its own calendar
 
@@ -82,7 +82,7 @@ Give *Pour foundation* the calendar *Six-day week* (Monday to Saturday) and the 
 
 ### The calendar of a resource
 
-The resource *Bricklaying crew* has the calendar *Crew Mon–Thu* (Monday to Thursday) and is assigned for 1 unit per day to *Brickwork* (5 days, project calendar, from Monday 31 May to Friday 4 June).
+In another example project the resource *Bricklaying crew* has the calendar *Crew Mon–Thu* (Monday to Thursday). It is assigned for 1 unit per day to *Brickwork* (5 days, project calendar, from Monday 31 May to Friday 4 June).
 
 The dates of *Brickwork* do not change. But Friday 4 June is red in the histogram, with the message *Does not work this day per calendar "Crew Mon–Thu"*, and the ribbon reports one resource under *Overallocation*. Leveling does not solve this. Shifting does not help, because five work days in a row always contain a Friday. In the *Level resources* window the task is therefore listed under *Remaining conflicts*, with the reason *The resource does not work on all days this task needs — shifting cannot resolve this.*
 

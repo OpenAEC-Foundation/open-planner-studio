@@ -35,7 +35,7 @@ De app telt hele werkdagen. De uren per dag doen daarbij niet mee. Een taak van 
 Een dag is de netto-uren per dag van de kalender van de taak. De app gebruikt dat op drie plekken:
 
 - Bij *Duurweergave*. Onder *Instellingen › Project › Instellingen*, tabblad *Weergave*, kies je *Automatisch (eigen eenheid per taak)*, *Altijd dagen* of *Altijd uren*. Een taak van 18 uur toont bij *Altijd dagen* als `2,25d(18h)`: de eigen eenheid blijft tussen haakjes staan.
-- Bij een lag in uren tussen dagtaken (zie *Afronden*).
+- Bij een lag in uren na een dagtaak (zie *Afronden*).
 - Als je de eenheid van een taak wisselt. De app telt dan de dagen vanaf de start van de taak, elke dag met zijn eigen uren, en doet alleen een voorstel als de uitkomst exact klopt. Twee dagen worden `16h`. Op een kalender waar de vrijdag 5 uur heeft, worden 5 dagen vanaf maandag `37h`. Twaalf uur kan op een kalender met dagen van 8 uur niet in hele dagen: de app houdt de eenheid dan zoals hij is.
 
 ### Dagtaken en urentaken door elkaar
@@ -51,7 +51,7 @@ De regels hieronder gelden voor een relatie Eind-Start op een kalender zonder ei
 De app rondt af, of wijst af, op vier plekken:
 
 - **Een dagtaak na een urentaak** begint op de eerstvolgende werkdag. De urentaak wordt zo als het ware naar boven afgerond op hele dagen.
-- **Een lag in uren tussen dagtaken** rekent de app om naar werkdagen: de lag gedeeld door de netto-uren per dag, afgerond op een heel getal. Een halve dag gaat omhoog. Bij 8 uur per dag telt 1 uur lag als 0 dagen, 4 uur als 1 dag en 12 uur als 2 dagen. Een lag in uren tussen urentaken telt exact in werkuren, en de pauze telt dan niet mee.
+- **Een lag in uren** telt in de lag-kalender, standaard die van de voorganger. Is de voorganger een dagtaak op een kalender zonder eigen werktijdblokken, zoals de standaardkalender, dan rekent de app de lag om naar hele werkdagen: de lag gedeeld door de netto-uren per dag, afgerond op een heel getal; een halve dag gaat omhoog. Bij 8 uur per dag telt 1 uur als 0 dagen, 4 uur als 1 dag en 12 uur als 2 dagen. Dat geldt ook als de opvolger een urentaak is. Is de voorganger een urentaak, of heeft zijn kalender eigen werktijdblokken, dan telt de lag exact in werkuren en telt de pauze niet mee.
 - **Een duur in dagen** is altijd een geheel getal. Typ je `1.5d`, dan meldt de app *Voer een geheel aantal dagen of uren in, bijvoorbeeld 2d of 12h.* Een duur in uren mag wel `1.5h` zijn, of `1h 30m`.
 - **Een eenheidswissel** gebeurt alleen als de uitkomst exact klopt (zie hierboven).
 
@@ -77,13 +77,15 @@ Draai je de volgorde om, dan is het eenvoudiger. *Storten fundering* duurt 2 dag
 
 Tussen *Kraan plaatsen* (12 uur) en *Stelwerk* (8 uur) zet je een lag van 2 uur. *Stelwerk* begint dan niet om 11:00 maar op dinsdag om **14:00**: 1 uur tot de pauze, en 1 uur erna. Het einde schuift mee naar **woensdag 9 juni 14:00**.
 
-Tussen twee dagtaken werkt een lag anders. *Storten fundering* eindigt op dinsdag 8 juni. Zonder lag begint *Afwerken* op woensdag 9 juni. Met een lag van 4 uur is dat een halve dag, en dat rondt de app omhoog: *Afwerken* begint op **donderdag 10 juni**. Met een lag van 1 uur rondt de app naar beneden af, en *Afwerken* begint gewoon op woensdag.
+Na een dagtaak werkt een lag anders. *Storten fundering* eindigt op dinsdag 8 juni. Zonder lag begint *Afwerken* op woensdag 9 juni. Met een lag van 4 uur is dat een halve dag, en dat rondt de app omhoog: *Afwerken* begint op **donderdag 10 juni**. Met een lag van 1 uur rondt de app naar beneden af, en *Afwerken* begint gewoon op woensdag.
 
 ### Een vrijdagmiddag vrij
 
 Nu heeft de vrijdag maar één blok, van 07:00 tot 12:00: 5 uur. De andere dagen blijven 8 uur. De netto-uren per dag blijven 8, want dat is de meest voorkomende dagsom. Een week heeft nu 37 werkuren.
 
 Een taak van 40 uur vanaf maandag 7 juni 07:00 gebruikt maandag tot en met donderdag (32 uur) en de vrijdag (5 uur). De laatste 3 uur vallen op de maandag erna, van 07:00 tot 10:00. Het einde is **maandag 14 juni 10:00**. Een taak van 5 dagen zou vanaf maandag 37 uur bezetten, en dat stelt de app voor als je de eenheid van 5 dagen naar uren wisselt.
+
+In tutorial 4, over urenplanning, plan je zelf een kraaninzet in uren.
 
 ## Gevolgen en misverstanden
 
@@ -93,7 +95,7 @@ Een taak van 40 uur vanaf maandag 7 juni 07:00 gebruikt maandag tot en met donde
 
 **"Een urentaak van 8 uur duurt één dag."** Alleen als hij aan het begin van de dag start. Begint hij later, zoals *Stelwerk* op dinsdag 11:00, dan loopt hij door in de volgende dag.
 
-**Een kalender met eigen werktijdblokken** gedraagt zich anders dan de standaardkalender. Zo'n kalender krijg je door per weekdag werktijden in te stellen of een ploegenpreset te kiezen (*2 ploegen*, *3 ploegen*, *Nachtploeg* of *24/7*). Op zo'n kalender telt een lag in uren tussen dagtaken exact, en begint een dagtaak direct na het einde van een urentaak: in het voorbeeld dinsdag 8 juni om 11:00.
+**Een kalender met eigen werktijdblokken** gedraagt zich anders dan de standaardkalender. Zo'n kalender krijg je door per weekdag werktijden in te stellen of een ploegenpreset te kiezen (*2 ploegen*, *3 ploegen*, *Nachtploeg* of *24/7*). Op zo'n kalender telt een lag in uren exact in werkuren, ook na een dagtaak.
 
 **Urenplanning uitzetten** verwijdert niets. Taken in uren blijven bestaan en rekenen mee, maar je kunt ze niet bewerken tot je urenplanning weer aanzet.
 
