@@ -1206,51 +1206,6 @@
       "draft": true
     },
     {
-      "id": "ref-sneltoetsen-lijst",
-      "title": {
-        "nl": "Sneltoetsen",
-        "en": "Keyboard shortcuts"
-      },
-      "kind": "referentie",
-      "draft": true
-    },
-    {
-      "id": "ref-instellingen-lijst",
-      "title": {
-        "nl": "Instellingen",
-        "en": "Settings"
-      },
-      "kind": "referentie",
-      "draft": true
-    },
-    {
-      "id": "ref-rekenopties-en-conventies",
-      "title": {
-        "nl": "Rekenopties en conventies",
-        "en": "Calculation options and conventions"
-      },
-      "kind": "referentie",
-      "draft": true
-    },
-    {
-      "id": "ref-import-exportformaten",
-      "title": {
-        "nl": "Import- en exportformaten",
-        "en": "Import and export formats"
-      },
-      "kind": "referentie",
-      "draft": true
-    },
-    {
-      "id": "ref-rapporttypes",
-      "title": {
-        "nl": "Rapporttypes",
-        "en": "Report types"
-      },
-      "kind": "referentie",
-      "draft": true
-    },
-    {
       "id": "uitleg-resourcebibliotheek",
       "title": {
         "nl": "De resourcebibliotheek",
@@ -1320,6 +1275,105 @@
         "en": "Updating the app"
       },
       "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "ref-lint",
+      "title": {
+        "nl": "Lint per tabblad",
+        "en": "The ribbon, tab by tab"
+      },
+      "kind": "referentie",
+      "draft": true
+    },
+    {
+      "id": "ref-taak-eigenschappen",
+      "title": {
+        "nl": "Taakdialoog en eigenschappenpaneel",
+        "en": "Task dialog and properties panel"
+      },
+      "kind": "referentie",
+      "draft": true
+    },
+    {
+      "id": "ref-kalenders",
+      "title": {
+        "nl": "Kalendervensters",
+        "en": "Calendar windows"
+      },
+      "kind": "referentie",
+      "draft": true
+    },
+    {
+      "id": "ref-resourcepaneel",
+      "title": {
+        "nl": "Resourcepaneel",
+        "en": "Resource panel"
+      },
+      "kind": "referentie",
+      "draft": true
+    },
+    {
+      "id": "ref-tabelkolommen",
+      "title": {
+        "nl": "Tabelkolommen",
+        "en": "Table columns"
+      },
+      "kind": "referentie",
+      "draft": true
+    },
+    {
+      "id": "ref-meldingen",
+      "title": {
+        "nl": "Meldingen en waarschuwingen",
+        "en": "Notifications and warnings"
+      },
+      "kind": "referentie",
+      "draft": true
+    },
+    {
+      "id": "ref-sneltoetsen-lijst",
+      "title": {
+        "nl": "Sneltoetsen",
+        "en": "Keyboard shortcuts"
+      },
+      "kind": "referentie",
+      "draft": true
+    },
+    {
+      "id": "ref-instellingen-lijst",
+      "title": {
+        "nl": "Instellingen",
+        "en": "Settings"
+      },
+      "kind": "referentie",
+      "draft": true
+    },
+    {
+      "id": "ref-rekenopties-en-conventies",
+      "title": {
+        "nl": "Rekenopties en conventies",
+        "en": "Calculation options and conventions"
+      },
+      "kind": "referentie",
+      "draft": true
+    },
+    {
+      "id": "ref-import-exportformaten",
+      "title": {
+        "nl": "Import- en exportformaten",
+        "en": "Import and export formats"
+      },
+      "kind": "referentie",
+      "draft": true
+    },
+    {
+      "id": "ref-rapporttypes",
+      "title": {
+        "nl": "Rapporttypes",
+        "en": "Report types"
+      },
+      "kind": "referentie",
       "draft": true
     },
     {
