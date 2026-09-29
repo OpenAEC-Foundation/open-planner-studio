@@ -12,7 +12,7 @@ Komt de eigen berekening op andere datums uit dan het bestand noemt, dan weet je
 
 ### Met welk rekenprofiel de app rekent
 
-De app rekent met een **rekenprofiel**: een vaste set rekenregels die bepaalt hoe ze bijvoorbeeld omgaat met de geplande start van een taak en met constraints. Er zijn drie ingebouwde profielen: *Primavera P6*, *Microsoft Project* en *Open Planner Studio*. Een `.xer` opent met *Primavera P6* en een `.mpp` met *Microsoft Project*. CSV, MS Project XML en Primavera P6 XML openen met *Open Planner Studio*. Het profiel van een project staat onder *Bestand › Projectinfo*, bij *Rekenprofiel en reken-opties*. Een IFC-bestand van de app bewaart zijn profiel.
+De app rekent met een **rekenprofiel**: een set rekenregels (conventies) die bepaalt hoe ze bijvoorbeeld omgaat met de geplande start van een taak en met constraints. Zie [Rekenprofielen en conventies](docs://uitleg-rekenprofielen). Er zijn drie ingebouwde profielen: *Primavera P6*, *Microsoft Project* en *Open Planner Studio*. Een `.xer` opent met *Primavera P6* en een `.mpp` met *Microsoft Project*. CSV, MS Project XML en Primavera P6 XML openen met *Open Planner Studio*. Het profiel van een project staat onder *Bestand › Projectinfo*, bij *Rekenprofiel en reken-opties*. Een IFC-bestand van de app bewaart zijn profiel.
 
 ### Wanneer de app vergelijkt
 
