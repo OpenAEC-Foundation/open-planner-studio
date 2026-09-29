@@ -26,7 +26,7 @@ For an existing project:
 2. Under *Resource library*, choose the library.
 3. Click *Apply*. Until then the bottom says *Changes not applied — click Apply to keep them.*
 
-If the project already has resources with the same name as a library item, the *Link resource library* window opens with the section *Recognized*. Each resource with a match says *Suggested: Bricklayer*. Click *Link* to link that one, or *Link all suggestions* if there is more than one suggestion. The app compares names without regard to capital letters or double spaces. When linking, the resource takes over name, type, rate and unit from the library item. *Max units* stays what you had in the project. With *Decide later* you close the window without linking.
+If the project already has resources with the same name as a library item, the *Link resource library* window opens with the section *Recognized*. Each resource with a match says *Suggested: Bricklayer*. Click *Link* to link that one, or *Link all suggestions* if there is more than one suggestion. The app compares names without regard to capital letters or double spaces. When linking, the resource takes over name, type, rate, unit and description from the library item. *Max units* stays what you had in the project. The window also shows calendars of the project that have the same name as a library calendar. With *Decide later* you close the window without linking.
 
 ### 2. Put a resource in the library
 
@@ -34,7 +34,7 @@ If the project already has resources with the same name as a library item, the *
 2. At the top right, choose *Library*. Above the table it says *This edits the library and applies to all projects — outside undo.*
 3. Click *New resource in library*. An empty row appears at the bottom of the table.
 4. Type the name, for example *Bricklayer*, and press Enter. The resource is now in the library and an empty row opens straight away for the next one. Press Esc when you are done. Without a name the app creates nothing.
-5. Fill in the rest of the row. *Type* is *Labor* by default. Under *Max units* you enter how many of this resource there are in total, for example 3 for three bricklayers. The occupancy overview uses this number as capacity. *Rate/hour* is optional. You can only fill in *Unit* for the type *Material*. Under *Calendar* you choose a calendar from the library, or *+ Resource calendar* to make one. The app stores name, rate and unit when you leave the field, and the other fields straight away.
+5. Fill in the rest of the row. *Type* is *Labor* by default. Under *Max units* you enter how many of this resource there are in total, for example 3 for three bricklayers. The occupancy overview uses this number as capacity. *Rate/hour* is optional. You can only fill in *Unit* for the type *Material*. Under *Calendar* you choose a calendar from the library, or *+ Resource calendar* to make one, see [Setting up a resource calendar](docs://howto-resourcekalender-instellen). The app stores name, rate and unit when you leave the field, and the other fields straight away.
 
 Every change in the library immediately works through into the unedited copies in your open projects.
 
@@ -92,7 +92,7 @@ For a deviation you have two choices:
 
 **Under Resource library you choose another library or *none (standalone project)*.** The origin stamps of the previous library disappear. The resources stay in the project as ordinary project resources. With another library, the app looks again for resources with the same name.
 
-**A resource has no suggestion in *Recognized*.** It says *No suggestion — choose manually*, but this window has no button for that. Put such a resource in the library with *To the library* (step 4).
+**A resource has no suggestion in *Recognized*.** It says *No suggestion — choose manually*, but this window has no button for that. That looks like a shortcoming. Put such a resource in the library with *To the library* (step 4).
 
 ## See also
 

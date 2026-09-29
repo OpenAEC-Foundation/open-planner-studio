@@ -29,7 +29,7 @@ If you received an extension as a file, install it like this.
 2. At the top right, click *ZIP* for a ZIP file, or *JS* for a separate JavaScript file.
 3. Choose the file. The window *Install extension?* opens, as above.
 
-A ZIP file must contain a `manifest.json` and the main file of the extension. If you install an extension that is already installed, the new version replaces the old one. If the app cannot install the file, for example because a ZIP file is damaged, nothing happens: the app shows no error message for ZIP and JS, and the extension does not appear in the list.
+A ZIP file must contain a `manifest.json` and the main file of the extension. If you install an extension that is already installed, the new version replaces the old one. If the app cannot install the file, for example because a ZIP file is damaged, nothing happens: the app shows no error message for ZIP and JS, and the extension does not appear in the list. The reason is in the debug terminal, though. Turn it on with *Settings › Project › Settings*, tab *Advanced*, *Enable debug terminal*, and open it with the button *Show debug terminal* in the status bar. There it says, for example, *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (the app words this technical text in Dutch).
 
 ### Read the permission question
 
@@ -38,7 +38,7 @@ The question shows what you need to decide.
 - *Author* and *Repository* say who made the extension and where the source code is.
 - *Origin* says where the file comes from: *From the online extension catalogue*, *From a ZIP file on this computer* or *From a JavaScript file on this computer*. Below it says whether the file has been checked. For the catalog it says *Download verified against the checksum from the catalogue.* If the catalog has no checksum, it says in red *The catalogue provides no checksum — this download has not been verified.* For a file of your own it says *You picked this file yourself; there is no external source to verify it against.*
 - *What you are agreeing to* says: *An extension is program code that runs with the same rights as Open Planner Studio itself. Nothing confines it. Only install extensions whose author you trust.* Below it says what that means on your platform. In the desktop app it says *In the desktop app that includes: reading and writing files anywhere in your user folder, plus access to your projects, settings and clipboard.* In the browser it says *In the browser that means: access to your stored projects and settings, to the files you granted access to, and to the network.*
-- *What this extension says it uses* shows the permissions that the author declared, as small labels. That is a declaration by the author and not a restriction: *This is the author's declaration, not a restriction — the code can do more regardless.* If there is no label, it says *Nothing declared.*
+- *What this extension says it uses* shows the permissions that the author declared, as small labels. That is a declaration by the author and not a restriction: *This is the author's declaration, not a restriction — the code can do more regardless.* If there is no label, it says *Nothing declared.* That does not mean the extension can do nothing: even without labels an extension can read and change the data of your schedule and show messages.
 
 The labels mean this:
 
@@ -64,11 +64,11 @@ The labels mean this:
 
 **It says *Skipped catalog entries: 1* above the list.** The catalog contained an item that the app cannot use. You can install the other extensions as usual.
 
-**An extension does not start.** The card then shows an error message, for example *Vereist Open Planner Studio ≥ 2099.1.0 (huidige versie: 2026.9.0)* if the extension asks for a newer app (the app words this message in Dutch in every language), or the error that the extension itself gave. The extension is not active then. Update the app, or remove the extension.
+**An extension does not start.** The card then shows an error message, for example that the extension needs a newer version of Open Planner Studio, with your current version shown, or the error that the extension itself gave. The extension is not active then. Update the app, or remove the extension.
 
 **A card with *Quarantine*.** The app could not use the stored extension. Under the name it says *Reason:* with the cause. With *Remove from storage* you clean it up.
 
-**An extension does not belong to a project.** Extensions are stored in the app on this computer and apply to all your projects. They are not part of your project file.
+**An extension does not belong to a project.** Extensions are stored in the app: in the desktop app on this computer, in the browser in that browser's storage. They apply to all your projects and are not part of your project file. If you clear the site data in the browser, the extensions are gone.
 
 ## See also
 

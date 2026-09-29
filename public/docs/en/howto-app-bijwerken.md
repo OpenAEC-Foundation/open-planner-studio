@@ -18,7 +18,7 @@ Updating only works in the desktop app. The browser version has no updater.
 4. Click *Download & install*. A progress bar shows *Downloading…*, and then the installation follows. You cannot close the window while it is downloading.
 5. Wait until the app restarts itself. That is the new version.
 
-Just before the update is installed, the app also takes a recovery snapshot of your open work.
+Just before the update is installed, the app also takes a recovery snapshot (for crash recovery) of your open work, see [Recovering after a crash](docs://howto-herstellen-na-een-crash).
 
 ### Check for a new version yourself
 

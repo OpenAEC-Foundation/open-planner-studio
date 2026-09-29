@@ -6,7 +6,7 @@ Your bricklaying crew does not work for one project only. Today it is on the hou
 
 There are two layers.
 
-The **resource library** is the list of resources and calendars that belong to your organization: a bricklayer, a crane, a plasterer, with their type, rate and how many of them you have. The list itself, which the app also calls the **pool**, lives in the app on this computer and not in your project files. There is always at least one library. The first one is called *Mijn resourcebibliotheek* (a Dutch name) and you can rename it.
+The **resource library** is the list of resources and calendars that belong to your organization: a bricklayer, a crane, a plasterer, with their type, rate and how many of them you have. The list itself, which the app also calls the **pool**, is not in your project files but in the app: in the desktop app in a file on this computer, in the browser in that browser's storage. If you clear the site data in the browser, the library is gone; so export it as a backup. There is always at least one library. The first one is called *Mijn resourcebibliotheek* (a Dutch name) and you can rename it.
 
 The **project** decides how much of a resource it uses and when. A project is linked to one library or stands alone. A standalone project works fine, just without a shared list.
 
@@ -43,7 +43,7 @@ The histogram and the overallocation in a project only look at that one project.
 
 Three rules decide what counts:
 
-- The capacity comes from the library (*Max units* of the library item), not from the *Max units* of the project copy. Two projects that each stay within their own allocation can therefore still ask for too much together.
+- The capacity comes from the library (*Max units* of the library item, or its *Time-phased capacity* on that day), not from the *Max units* of the project copy. Two projects that each stay within their own allocation can therefore still ask for too much together.
 - A sum that is exactly equal to the capacity is not a conflict. More than the capacity has to be asked for.
 - Only copies with an origin stamp count, and only in projects that are open in this app at that moment. An own resource of a single project is not in the library and therefore does not count. The overview does not see documents that are not opened in this app; that is also stated at the bottom of the overview itself.
 
@@ -54,7 +54,7 @@ The library contains the resource *Bricklayer* with *Max units* 3: three brickla
 - *Houses North* has the task *Bricklaying facades* of 5 working days from Monday 7 June 2027, with 2 units per day. The task runs from 7 to 11 June inclusive.
 - *Garages South* has the task *Bricklaying garages* of 4 working days from Wednesday 9 June 2027, with 2 units per day. The weekend does not count, so the task covers 9, 10, 11 and 14 June.
 
-Within each project the bricklayer is asked for 2 of his 2 units. Neither project reports overallocation: under *Overallocation* both say *None*. Yet together they exceed the 3 bricklayers. Per day the app counts:
+Within each project the bricklayer is asked for 2 of his 2 units. Neither project reports overallocation: under *Resources › Overallocation* both say *None*. Yet together they exceed the 3 bricklayers. Per day the app counts:
 
 - Monday 7 and Tuesday 8 June: 2 (only Houses North)
 - Wednesday 9, Thursday 10 and Friday 11 June: 2 + 2 = 4
@@ -73,13 +73,13 @@ The steps for looking at this in your own projects are in [Using the occupancy o
 
 ## Consequences and misconceptions
 
-**"The library is shared with my colleagues."** No. The library lives on this computer and is not synchronized. If two planners work with the same resource library, their libraries can diverge. You can share by exporting and importing, see [Managing and sharing resource libraries](docs://howto-bibliotheken-beheren). If your organization shares crews across operating companies, deliberately choose one shared library. The overview also only sees the projects that are open in this app.
+**"The library is shared with my colleagues."** No. The library lives in the app (in the desktop app in a file on this computer, in the browser in that browser's storage) and is not synchronized. If two planners work with the same resource library, their libraries can diverge. You can share by exporting and importing, see [Managing and sharing resource libraries](docs://howto-bibliotheken-beheren). If your organization shares crews across operating companies, deliberately choose one shared library. The overview also only sees the projects that are open in this app.
 
-**"If I change the library, everything in my projects changes."** Only the identity of the resource: name, type, rate, unit. *Max units*, the capacity over time and the calendar choice of a project stay as they are.
+**"If I change the library, everything in my projects changes."** Only the identity of the resource: name, type, rate, unit and description. *Max units*, the capacity over time and the calendar choice of a project stay as they are.
 
 **"I can undo a library change."** No. The library belongs to the app and not to a project, so changes to it fall outside *Undo* (Ctrl+Z). The *Library* view warns about this itself: *This edits the library and applies to all projects — outside undo.* Deleting from the library also asks for confirmation and cannot be undone.
 
-**"The occupancy overview resolves the double booking."** No, the overview is only a read-only window. It shows on which days two projects together ask for too much. Leveling (*Resources › Leveling › Level…*) looks at the resources of one project and does not take the other projects into account. Move a task in one of the projects yourself, or change the capacity in the library if someone really joins.
+**"The occupancy overview resolves the double booking."** No, the overview is only a read-only window. It shows on which days two projects together ask for too much. Leveling (*Resources › Leveling › Level…*, see [Resource leveling](docs://uitleg-nivelleren)) looks at the resources of one project and does not take the other projects into account. Move a task in one of the projects yourself, or change the capacity in the library if someone really joins.
 
 **"My own resource counts in the occupancy."** Only if it is in the library. A resource you only made in the project, such as a hired crane for a single job, has no origin stamp and is therefore not in the overview. With *To the library* you add it.
 

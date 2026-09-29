@@ -12,7 +12,7 @@ The overview only counts resources that come from the resource library, in proje
 
 ### 1. Get the projects ready
 
-1. Open the projects you want to compare, each in its own tab. The overview only sees projects that are open in this app.
+1. Open the projects you want to compare, each in its own tab, see [Working with several projects at once](docs://howto-meerdere-projecten). The overview only sees projects that are open in this app.
 2. Link every project to the same library, and use the resource from the library in every project. Without a library link the resource panel does not show the overview. See [Using the resource library](docs://howto-resourcebibliotheek-gebruiken).
 3. Calculate the projects with *Calculate* (F5), or turn on *Calculate automatically*. What the overview does with out-of-date projects is described under the pitfalls below.
 
@@ -27,7 +27,7 @@ Every resource from the library that is booked in at least one open project gets
 
 - *Documents* says in how many projects the resource is booked, for example *2 documents*.
 - *Period* runs from the first to the last day with load, written as yyyy-mm-dd, for example *2027-06-07 – 2027-06-14*.
-- *Peak / Capacity* sets the highest daily load of all projects together against the capacity of the resource in the library, for example *4.0 / 3.0*. If the peak is higher than the capacity, it is shown in red.
+- *Peak / Capacity* sets the highest daily load of all projects together against the capacity of the resource in the library, for example *4.0 / 3.0*. If there is at least one double-booked day, it is shown in red.
 - A red marker after the row, for example *3 days double-booked*, counts the days on which the sum is greater than the capacity. If you hold the mouse over it, you see the dates.
 
 ### 4. Look per project
@@ -43,7 +43,7 @@ The overview shows the problem, but does not resolve it. You have two options:
 - Move a task in one of the projects, or give it fewer units per day. Then recalculate that project with F5.
 - If someone really joins, raise *Max units* of the resource in the library. You do that in *Resources › Manage › Resources*, *Library* view.
 
-*Level…* in the ribbon does not help here: it looks at the resources of the one project you are in.
+*Level…* in the ribbon does not help here: it looks at the resources of the one project you are in, see [Resource leveling](docs://uitleg-nivelleren).
 
 ## Pitfalls and what the app does then
 
@@ -55,11 +55,11 @@ The overview shows the problem, but does not resolve it. You have two options:
 
 **A project is out of date.** A project is out of date if you changed something in the schedule without recalculating. The overview then handles that project as follows:
 
-- For a project that is not the active tab, the overview calculates in advance itself, without changing the project. Above the table it then says *Changed documents have been calculated in advance for this overview; press F5 in the document, or turn on “Calculate automatically” to do this permanently.* After the project it says *Calculated in advance for this overview — the document itself still shows older dates until you press F5 there or turn on “Calculate automatically”.* If *Calculate automatically* is on (*Settings › Project › Settings*, tab *Planning*), the app does really recalculate such projects as soon as you look at the overview, and the message disappears.
-- The overview does not calculate the project you are in yourself. If that project is out of date, it says *A changed document has not been recalculated yet; it is included here with its last calculated figures. Press F5 in that document, or turn on “Calculate automatically”.* and after the project *Out of date: these are the last calculated figures — press F5 in this document.* Only trust the figures of that project after F5.
+- For a project that is not the active tab, the overview calculates in advance itself, without changing the project. Above the table it then says *Changed documents have been calculated in advance for this overview; press F5 in the document, or turn on “Calculate automatically” to do this permanently.* After the project it says *Calculated in advance for this overview — the document itself still shows older dates until you press F5 there or turn on “Calculate automatically”.* If *Calculate automatically* is on (*Settings › Project › Settings*, tab *Planning*), the app does really recalculate such projects as soon as you look at the overview, and the message disappears. If the active project is out of date too, the message from the next point is shown above the table instead.
+- The overview does not calculate the project you are in yourself. If that project is out of date, it says *A changed document has not been recalculated yet; it is included here with its last calculated figures. Press F5 in that document, or turn on “Calculate automatically”.* and after the project *Out of date: these are the last calculated figures — press F5 in this document.* Watch out: *last calculated figures* is not quite right. The overview takes the old start dates, but already a changed duration or allocation. The figures can therefore differ from both the old and the new schedule, and from the bars in the Gantt. Only trust them after F5.
 - If the overview cannot calculate a project, for example because of a loop in its relations, that project does not count. It is still listed, with *Not counted: schedule not calculated — activate this document and press F5.* and above the table *At least one document has not been calculated and is not included in the occupancy.*
 
-**The overview does not match what you expect.** The capacity comes from the library, not from the *Max units* of the copy in the project. A sum equal to the capacity is not a conflict.
+**The overview does not match what you expect.** The capacity comes from the library (*Max units* of the library item, or its *Time-phased capacity* on that day), not from the *Max units* of the copy in the project. A sum equal to the capacity is not a conflict.
 
 ## See also
 

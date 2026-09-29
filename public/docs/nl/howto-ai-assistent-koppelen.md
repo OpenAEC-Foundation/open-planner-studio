@@ -4,9 +4,9 @@ Doel: een AI-assistent laten meelezen en meewerken aan je planning, met zicht op
 
 ## Wanneer je dit nodig hebt
 
-Je wilt dat een AI-assistent je planning leest, doorrekent of aanpast. Bijvoorbeeld een eerste opzet van een WBS laten maken, taken corrigeren of het kritieke pad laten uitleggen. Dat werkt via het **Model Context Protocol** (MCP): een standaard waarmee een AI-assistent gereedschappen van een programma kan gebruiken. Open Planner Studio draait daarvoor een kleine server op je eigen computer, de **bridge**. Die biedt 42 gereedschappen (tools) aan met de naam `planner_…`: taken lezen en wijzigen, relaties, resources, kalenders, baselines, documenten en bestanden.
+Je wilt dat een AI-assistent je planning leest, doorrekent of aanpast. Bijvoorbeeld een eerste opzet van een WBS laten maken, taken corrigeren of het kritieke pad laten uitleggen. Dat werkt via het **Model Context Protocol** (MCP): een standaard waarmee een AI-assistent gereedschappen van een programma kan gebruiken. Open Planner Studio draait daarvoor een kleine server op je eigen computer, de **bridge**. Die biedt een reeks gereedschappen (tools) aan, allemaal met een naam die begint met `planner_`: taken lezen en wijzigen, relaties, resources, kalenders, baselines, documenten en bestanden.
 
-De bridge werkt alleen in de desktop-app. Zet je AI-modus in de browser aan, dan zie je het tabblad *AI* wel, maar de knop *Bridge starten* is grijs met de tekst *De bridge werkt alleen in de desktop-app.*
+De bridge werkt alleen in de desktop-app. Zet je AI-modus in de browser aan, dan zie je het tabblad *AI* wel, maar de knop *Bridge starten* is grijs met de tekst *De bridge werkt alleen in de desktop-app.* De rest van dit artikel gaat over de desktop-app. In de browser zijn ook *Nu backup maken* en *Backup-map openen* grijs.
 
 ## Stappen
 
@@ -21,7 +21,7 @@ Zet je AI-modus uit, dan stopt de bridge en verdwijnt het tabblad *AI*.
 ### 2. De bridge starten
 
 1. Ga naar het tabblad *AI* en klik bij *Server* op *Bridge starten*.
-2. Kijk naar de status naast de knop. Die zegt *Uit*, *Actief op poort 3877*, *Poort 3877 bezet* of *Fout*. De knop heet nu *Bridge stoppen*.
+2. Kijk naar de status naast de knop. Die zegt *Uit*, *Actief op poort 3877*, *Poort 3877 bezet* of *Fout*. Lukt het starten, dan staat er *Actief op poort 3877* en heet de knop *Bridge stoppen*. Bij *Poort 3877 bezet* of *Fout* blijft de knop *Bridge starten*; zie de valkuilen.
 
 De bridge luistert alleen op je eigen computer, op één poort. Standaard is dat 3877. In de groep *Verbinding* kun je bij *Poort* een andere kiezen, maar alleen als de bridge gestopt is.
 
@@ -30,7 +30,7 @@ De bridge luistert alleen op je eigen computer, op één poort. Standaard is dat
 1. Klik bij *Verbinding* op *Verbinden*. Het venster *Verbindingsgegevens* opent.
 2. Kies wat je client nodig heeft, zie hieronder.
 3. Het token staat verborgen. Met het oog-pictogram toon je het. De kopieerknoppen kopiëren altijd de echte waarde, ook als het scherm het token verbergt.
-4. Laat de assistent de lijst met tools opvragen. Die controle staat ook in de koppelprompt: hij hoort ongeveer 42 tools te zien, met het voorvoegsel `planner_`.
+4. Laat de assistent de lijst met tools opvragen. Die controle staat ook in de koppelprompt: hij hoort de tools met het voorvoegsel `planner_` te zien; het verwachte aantal staat in de koppelprompt.
 
 Het venster biedt drie manieren om te koppelen:
 
@@ -70,7 +70,7 @@ De backups staan in de map `ai-backups` in de gegevensmap van de app. De app hou
 
 **De AI schrijft of opent een bestand.** De AI kan een planning als IFC-bestand wegschrijven en een planningsbestand openen als nieuw tabblad. Dat kan alleen binnen je gebruikersmap. Een bestaand bestand overschrijft hij alleen als hij daar uitdrukkelijk om vraagt.
 
-**De status is *Poort 3877 bezet*.** Een ander programma gebruikt de poort. De melding van de app staat eronder. Het poortveld is dan vergrendeld met *Alleen wijzigbaar wanneer de server gestopt is.* Zet *AI-modus inschakelen* uit en weer aan. Dan staat de status weer op *Uit* en kun je een andere poort kiezen. Kopieer daarna de verbindingsgegevens opnieuw, want het endpoint bevat de poort.
+**De status is *Poort 3877 bezet*.** Een ander programma gebruikt de poort. De melding van de app staat eronder. Het poortveld blijft dan op slot (*Alleen wijzigbaar wanneer de server gestopt is.*), ook al draait de bridge niet, en een stopknop is er niet. Dat is een bekende tekortkoming. Tot die is opgelost: zet *AI-modus inschakelen* uit en weer aan. Dan staat de status weer op *Uit* en kun je een andere poort kiezen. Kopieer daarna de verbindingsgegevens opnieuw, want het endpoint bevat de poort.
 
 **De client krijgt geen verbinding na een nieuw token.** Een nieuw token verbreekt alle bestaande koppelingen. Geef de client het nieuwe token, of plak het configuratiefragment opnieuw.
 

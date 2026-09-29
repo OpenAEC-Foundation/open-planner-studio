@@ -18,7 +18,7 @@ Bijwerken werkt alleen in de desktop-app. De browserversie kent geen updater.
 4. Klik op *Downloaden & installeren*. Een voortgangsbalk laat *Bezig met downloaden…* zien, en daarna volgt de installatie. Tijdens het downloaden kun je het venster niet sluiten.
 5. Wacht tot de app zichzelf herstart. Dat is de nieuwe versie.
 
-Vlak voordat de update wordt geïnstalleerd, legt de app nog een herstelmomentopname van je open werk vast.
+Vlak voordat de update wordt geïnstalleerd, legt de app nog een herstelsnapshot (voor crashherstel) van je open werk vast, zie [Herstellen na een crash](docs://howto-herstellen-na-een-crash).
 
 ### Zelf controleren op een nieuwe versie
 

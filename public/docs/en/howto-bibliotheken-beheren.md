@@ -4,7 +4,7 @@ Goal: create and delete resource libraries, put calendars in them, and export or
 
 ## When you need this
 
-The library lives in the app on one computer and is not synchronized. If you want a backup, or want a colleague to work with the same crews and rates, you hand the library over as a file. If your organization has several operating companies with their own crews, you make a separate library for each one. For a new project you choose which library it uses.
+The library is not in your project files but in the app: in the desktop app in a file on this computer, in the browser in that browser's storage. It is not synchronized. If you clear the site data in the browser, the library is gone; so export it as a backup. If a colleague wants to work with the same crews and rates, you also hand the library over as a file. If your organization has several operating companies with their own crews, you make a separate library for each one. For a new project you choose which library it uses.
 
 What a library is, you read in [The resource library](docs://uitleg-resourcebibliotheek). You do not edit the resources themselves here but in the resource panel, see [Using the resource library](docs://howto-resourcebibliotheek-gebruiken).
 
@@ -17,7 +17,7 @@ Choose *File › Library*. On the left is the list *Resource libraries*. On the 
 ### Create, rename and choose a default library
 
 1. Click the plus above the list (*Add resource library*). A library *New resource library* is added, and it is selected straight away.
-2. Type the name in the field *Library name* and press Enter, or click outside the field. The app does not accept an empty name.
+2. Type the new name in the name field at the top of the right-hand part and press Enter, or click outside the field. The app does not accept an empty name.
 3. Click *Set as default* to have this library preselected for new projects from now on. The default library has a star in the list.
 
 ### Put a calendar in the library
@@ -32,7 +32,7 @@ After *Calendars* there is a version number, for example *v2*. It goes up with e
 
 1. Choose the library in the list.
 2. Click *Export*.
-3. Choose where the file goes. It is called `bibliotheek-` followed by the name of the library, with the extension `.ifc`. If the app cannot write to the place you chose, the file goes to your downloads folder and the app tells you so.
+3. In the desktop app and in Chrome and Edge you choose where the file goes. In other browsers it goes straight to your downloads folder and the app tells you so. The file is called `bibliotheek-` followed by the name of the library, with the extension `.ifc`.
 
 Below the buttons it says *Exporting is also your backup: keep the file somewhere safe.*
 
@@ -40,7 +40,7 @@ Below the buttons it says *Exporting is also your backup: keep the file somewher
 
 1. Click *Import*. The window *Import library* opens for the library that you had selected in the list.
 2. Click *Choose file…* and pick the `.ifc` file of an export. If the file does not contain a library, it says *This IFC file does not contain a resource library.*
-3. The app shows what is in it, for example *1 calendars, 0 resources (version 2).*
+3. The app shows what is in it, for example *2 calendars, 5 resources (version 3).*
 4. Choose what you want to do with it, see below.
 5. Click *Add* or *Replace*, or *Cancel* to stop.
 
@@ -49,7 +49,7 @@ You have two choices:
 - *Add as new resource library*: the file becomes a separate library next to your existing ones. Below it says under which name, for example *Will be added as “Mijn resourcebibliotheek (2)”.* Nothing is lost and your active project stays linked to its own library.
 - *Replace an existing resource library*: the entire content of the chosen library is replaced by the one from the file. It also says so: *Importing replaces the ENTIRE pool of the selected resource library.* If you have two or more libraries, you choose which one under *Import into resource library*. If your library is newer than the file, the app warns: *Your local library is newer — importing may overwrite your changes.*
 
-The app proposes a choice itself. For a file that contained the default library, *Add as new resource library* is preselected. If in doubt, choose add: that overwrites nothing.
+The app proposes a choice itself. For a file that contained the default library, *Add as new resource library* is preselected. If the library from the file already exists on your computer and is not the default library, *Replace an existing resource library* is preselected, with exactly that library chosen. If in doubt, choose add: that overwrites nothing.
 
 ### Delete a library
 
@@ -60,7 +60,7 @@ The library is then gone, with all resources and calendars in it. The open proje
 
 ### Pass on a project together with its library
 
-A project file contains its own copies of the resources. If you also want to hand over the whole library, do the following.
+A project file contains its own copies of the resources. If you also want to hand over the whole library, do the following. The export itself is also described in [Exporting](docs://howto-exporteren).
 
 1. Open a project that is linked to a library and choose *File › Export*.
 2. Tick *Save library file alongside*. The checkbox is only there for a linked project.
@@ -74,9 +74,10 @@ The checkbox only works for the IFC export, not for the other export formats. Yo
 
 **Replacing overwrites everything.** Everything you had in the chosen library is gone, and a library change falls outside *Undo*. Export first if you are unsure.
 
-**Deleting a calendar from the list is immediate.** There is no confirmation, and library changes fall outside *Undo*.
+**Deleting a calendar from the list happens immediately.** The app does not ask for confirmation, whereas deleting a resource does. That looks like a shortcoming. Library changes fall outside *Undo*.
 
 ## See also
 
 - [The resource library](docs://uitleg-resourcebibliotheek): how library and project relate to each other.
 - [Using the resource library](docs://howto-resourcebibliotheek-gebruiken): linking resources, assigning them and resolving deviations.
+- [Exporting](docs://howto-exporteren): the export formats, including IFC with a library file.

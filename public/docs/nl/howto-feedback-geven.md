@@ -17,7 +17,7 @@ De planning rekent iets door dat je niet begrijpt, een knop doet niet wat hij zo
 7. Heb je wel een screenshot bijgevoegd? Dan zie je eerst *Bijna klaar — je screenshot staat op het klembord.* met vier stappen. Klik op *OK, ga naar GitHub*, klik op de issuepagina in het grote tekstvak en druk op Ctrl+V (Cmd+V op een Mac). De afbeelding wordt geüpload en verschijnt in de tekst.
 8. Klik onderaan de issuepagina op *Submit new issue*. Pas dan is je melding verstuurd. Log in bij GitHub als dat nog niet zo is.
 
-Op de issuepagina staan je titel en omschrijving al ingevuld. De app kiest het label *bug* of *enhancement* en zet onder je omschrijving een regel met het type, de versie van Open Planner Studio, je besturingssysteem en de taal van de app.
+Op de issuepagina staan je titel en omschrijving al ingevuld. De app stelt het label *bug* of *enhancement* voor en zet onder je omschrijving een regel met het type, de versie van Open Planner Studio, je besturingssysteem en de taal van de app.
 
 ## Valkuilen en wat de app dan doet
 

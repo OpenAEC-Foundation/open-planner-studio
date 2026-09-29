@@ -29,7 +29,7 @@ Heb je een extensie als bestand gekregen, dan installeer je die zo.
 2. Klik rechtsboven op *ZIP* voor een ZIP-bestand, of op *JS* voor een los JavaScript-bestand.
 3. Kies het bestand. Het venster *Extensie installeren?* opent, zoals hierboven.
 
-Een ZIP-bestand moet een `manifest.json` en het hoofdbestand van de extensie bevatten. Installeer je een extensie die al geïnstalleerd is, dan vervangt de nieuwe versie de oude. Kan de app het bestand niet installeren, bijvoorbeeld omdat een ZIP-bestand beschadigd is, dan gebeurt er niets: de app toont bij ZIP en JS geen foutmelding en de extensie komt niet in de lijst.
+Een ZIP-bestand moet een `manifest.json` en het hoofdbestand van de extensie bevatten. Installeer je een extensie die al geïnstalleerd is, dan vervangt de nieuwe versie de oude. Kan de app het bestand niet installeren, bijvoorbeeld omdat een ZIP-bestand beschadigd is, dan gebeurt er niets: de app toont bij ZIP en JS geen foutmelding en de extensie komt niet in de lijst. De reden staat wel in de debug-terminal. Zet die aan met *Instellingen › Project › Instellingen*, tabblad *Geavanceerd*, *Debug-terminal inschakelen*, en open hem met de knop *Debug-terminal tonen* in de statusbalk. Daar staat dan bijvoorbeeld *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP*.
 
 ### De toestemmingsvraag lezen
 
@@ -38,7 +38,7 @@ De vraag laat zien wat je nodig hebt om te beslissen.
 - *Auteur* en *Repository* zeggen wie de extensie maakte en waar de broncode staat.
 - *Herkomst* zegt waar het bestand vandaan komt: *Uit de online extensiecatalogus*, *Uit een ZIP-bestand op deze computer* of *Uit een JavaScript-bestand op deze computer*. Daaronder staat of het bestand gecontroleerd is. Bij de catalogus staat er *Download geverifieerd met de checksum uit de catalogus.* Heeft de catalogus geen checksum, dan staat er in het rood *De catalogus geeft geen checksum — deze download is niet geverifieerd.* Bij een bestand van jezelf staat er *Je koos dit bestand zelf; er is geen externe bron om tegen te verifiëren.*
 - *Waar je ja tegen zegt* zegt: *Een extensie is programmacode die draait met dezelfde rechten als Open Planner Studio zelf. Er is geen afscherming die dat inperkt. Installeer alleen extensies waarvan je de maker vertrouwt.* Daaronder staat wat dat op jouw platform betekent. In de desktop-app staat *In de desktop-app betekent dat onder meer: bestanden lezen en schrijven in je hele gebruikersmap, plus toegang tot je projecten, instellingen en klembord.* In de browser staat *In de browser betekent dat: toegang tot je opgeslagen projecten en instellingen, tot de bestanden waarvoor je toegang gaf, en tot het netwerk.*
-- *Wat deze extensie zegt te gebruiken* toont de toestemmingen die de maker opgaf, als kleine labels. Dat is een opgave van de maker en geen beperking: *Dit is de opgave van de maker, geen beperking — de code kan hoe dan ook meer.* Staat er geen label, dan staat er *Niets opgegeven.*
+- *Wat deze extensie zegt te gebruiken* toont de toestemmingen die de maker opgaf, als kleine labels. Dat is een opgave van de maker en geen beperking: *Dit is de opgave van de maker, geen beperking — de code kan hoe dan ook meer.* Staat er geen label, dan staat er *Niets opgegeven.* Dat betekent niet dat de extensie niets kan: ook zonder labels kan een extensie de gegevens van je planning lezen en wijzigen en meldingen tonen.
 
 De labels betekenen dit:
 
@@ -64,11 +64,11 @@ De labels betekenen dit:
 
 **Er staat *Overgeslagen catalogusitems: 1* boven de lijst.** De catalogus bevatte een item dat de app niet kan gebruiken. De andere extensies kun je gewoon installeren.
 
-**Een extensie start niet.** De kaart toont dan een foutmelding, bijvoorbeeld *Vereist Open Planner Studio ≥ 2099.1.0 (huidige versie: 2026.9.0)* als de extensie een nieuwere app vraagt, of de fout die de extensie zelf gaf. De extensie is dan niet actief. Werk de app bij, of verwijder de extensie.
+**Een extensie start niet.** De kaart toont dan een foutmelding, bijvoorbeeld dat de extensie een nieuwere versie van Open Planner Studio nodig heeft, met je huidige versie erbij, of de fout die de extensie zelf gaf. De extensie is dan niet actief. Werk de app bij, of verwijder de extensie.
 
 **Een kaart met *Quarantaine*.** De app kon de opgeslagen extensie niet gebruiken. Onder de naam staat *Reden:* met de oorzaak. Met *Uit opslag verwijderen* ruim je hem op.
 
-**Een extensie hoort niet bij een project.** Extensies staan in de app op deze computer en gelden voor al je projecten. Ze zijn geen onderdeel van je projectbestand.
+**Een extensie hoort niet bij een project.** Extensies staan in de app: in de desktop-app op deze computer, in de browser in de opslag van die browser. Ze gelden voor al je projecten en zijn geen onderdeel van je projectbestand. Wis je in de browser de sitegegevens, dan zijn de extensies weg.
 
 ## Zie ook
 

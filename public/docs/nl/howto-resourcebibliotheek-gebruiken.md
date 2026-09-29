@@ -26,7 +26,7 @@ Bij een bestaand project:
 2. Kies bij *Resourcebibliotheek* de bibliotheek.
 3. Klik op *Toepassen*. Tot dat moment staat onderaan *Wijzigingen niet toegepast — klik op Toepassen om ze te bewaren.*
 
-Heeft het project al resources met dezelfde naam als een bibliotheekitem, dan opent het venster *Resourcebibliotheek koppelen* met de sectie *Herkennen*. Bij elke resource met een treffer staat *Voorstel: Metselaar*. Klik op *Koppelen* om die ene te koppelen, of op *Alle voorstellen koppelen* als er meer dan één voorstel is. De app vergelijkt namen zonder op hoofdletters of dubbele spaties te letten. Bij het koppelen neemt de resource naam, type, tarief en eenheid van het bibliotheekitem over. *Max. eenheden* blijft wat je in het project had. Met *Later beslissen* sluit je het venster zonder te koppelen.
+Heeft het project al resources met dezelfde naam als een bibliotheekitem, dan opent het venster *Resourcebibliotheek koppelen* met de sectie *Herkennen*. Bij elke resource met een treffer staat *Voorstel: Metselaar*. Klik op *Koppelen* om die ene te koppelen, of op *Alle voorstellen koppelen* als er meer dan één voorstel is. De app vergelijkt namen zonder op hoofdletters of dubbele spaties te letten. Bij het koppelen neemt de resource naam, type, tarief, eenheid en omschrijving van het bibliotheekitem over. *Max. eenheden* blijft wat je in het project had. Het venster toont ook kalenders van het project die dezelfde naam hebben als een bibliotheekkalender. Met *Later beslissen* sluit je het venster zonder te koppelen.
 
 ### 2. Een resource in de bibliotheek zetten
 
@@ -34,7 +34,7 @@ Heeft het project al resources met dezelfde naam als een bibliotheekitem, dan op
 2. Kies rechtsboven *Bibliotheek*. Boven de tabel staat *Dit bewerkt de bibliotheek en geldt voor alle projecten — valt buiten ongedaan maken.*
 3. Klik op *Nieuwe resource in de bibliotheek*. Onderaan de tabel komt een lege rij.
 4. Typ de naam, bijvoorbeeld *Metselaar*, en druk op Enter. De resource staat nu in de bibliotheek en er opent meteen een lege rij voor de volgende. Druk op Esc als je klaar bent. Zonder naam maakt de app niets aan.
-5. Vul de rest van de rij in. *Type* is standaard *Arbeid*. Bij *Max. eenheden* zet je hoeveel er van deze resource in totaal is, bijvoorbeeld 3 bij drie metselaars. Het bezettingsoverzicht gebruikt dit getal als capaciteit. *Tarief/uur* is optioneel. *Eenheid* kun je alleen invullen bij het type *Materiaal*. Bij *Kalender* kies je een kalender uit de bibliotheek, of *+ Resourcekalender* om er een te maken. Naam, tarief en eenheid bewaart de app als je het veld verlaat, de andere velden meteen.
+5. Vul de rest van de rij in. *Type* is standaard *Arbeid*. Bij *Max. eenheden* zet je hoeveel er van deze resource in totaal is, bijvoorbeeld 3 bij drie metselaars. Het bezettingsoverzicht gebruikt dit getal als capaciteit. *Tarief/uur* is optioneel. *Eenheid* kun je alleen invullen bij het type *Materiaal*. Bij *Kalender* kies je een kalender uit de bibliotheek, of *+ Resourcekalender* om er een te maken, zie [Een resourcekalender instellen](docs://howto-resourcekalender-instellen). Naam, tarief en eenheid bewaart de app als je het veld verlaat, de andere velden meteen.
 
 Elke wijziging in de bibliotheek werkt direct door in de onbewerkte kopieën in je geopende projecten.
 
@@ -92,7 +92,7 @@ Je hebt bij een afwijking twee keuzes:
 
 **Je kiest bij Resourcebibliotheek een andere bibliotheek of *geen bibliotheek (los project)*.** De herkomststempels van de vorige bibliotheek verdwijnen. De resources blijven in het project staan als gewone projectresources. Bij een andere bibliotheek zoekt de app opnieuw naar resources met dezelfde naam.
 
-**Een resource heeft in *Herkennen* geen voorstel.** Er staat *Geen voorstel — kies handmatig*, maar dit venster heeft daarvoor geen knop. Zet zo'n resource met *Naar de bibliotheek* (stap 4) in de bibliotheek.
+**Een resource heeft in *Herkennen* geen voorstel.** Er staat *Geen voorstel — kies handmatig*, maar dit venster heeft daarvoor geen knop. Dat lijkt een tekortkoming. Zet zo'n resource met *Naar de bibliotheek* (stap 4) in de bibliotheek.
 
 ## Zie ook
 

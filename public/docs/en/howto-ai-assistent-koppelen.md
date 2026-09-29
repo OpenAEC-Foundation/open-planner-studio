@@ -4,9 +4,9 @@ Goal: let an AI assistant read along and work on your schedule, with insight int
 
 ## When you need this
 
-You want an AI assistant to read, recalculate or change your schedule. For example to have it draft a first WBS, correct tasks or explain the critical path. That works through the **Model Context Protocol** (MCP): a standard that lets an AI assistant use tools of a program. For this, Open Planner Studio runs a small server on your own computer, the **bridge**. It offers 42 tools named `planner_…`: reading and changing tasks, relations, resources, calendars, baselines, documents and files.
+You want an AI assistant to read, recalculate or change your schedule. For example to have it draft a first WBS, correct tasks or explain the critical path. That works through the **Model Context Protocol** (MCP): a standard that lets an AI assistant use tools of a program. For this, Open Planner Studio runs a small server on your own computer, the **bridge**. It offers a set of tools, all with a name that starts with `planner_`: reading and changing tasks, relations, resources, calendars, baselines, documents and files.
 
-The bridge only works in the desktop app. If you turn on AI mode in the browser, you do see the *AI* tab, but the button *Start bridge* is grey with the text *The bridge only works in the desktop app.*
+The bridge only works in the desktop app. If you turn on AI mode in the browser, you do see the *AI* tab, but the button *Start bridge* is grey with the text *The bridge only works in the desktop app.* The rest of this article is about the desktop app. In the browser, *Back up now* and *Open backup folder* are grey too.
 
 ## Steps
 
@@ -21,7 +21,7 @@ If you turn AI mode off, the bridge stops and the tab *AI* disappears.
 ### 2. Start the bridge
 
 1. Go to the tab *AI* and click *Start bridge* under *Server*.
-2. Look at the status next to the button. It says *Off*, *Live on port 3877*, *Port 3877 in use* or *Error*. The button is now called *Stop bridge*.
+2. Look at the status next to the button. It says *Off*, *Live on port 3877*, *Port 3877 in use* or *Error*. If starting succeeds, it says *Live on port 3877* and the button is called *Stop bridge*. With *Port 3877 in use* or *Error* the button stays *Start bridge*; see the pitfalls.
 
 The bridge only listens on your own computer, on one port. By default that is 3877. In the group *Connection* you can choose another one under *Port*, but only while the bridge is stopped.
 
@@ -30,7 +30,7 @@ The bridge only listens on your own computer, on one port. By default that is 38
 1. Click *Connect* under *Connection*. The window *Connection details* opens.
 2. Choose what your client needs, see below.
 3. The token is hidden. With the eye icon you show it. The copy buttons always copy the real value, even if the screen hides the token.
-4. Have the assistant request the list of tools. That check is also in the connection prompt: it should see about 42 tools, with the prefix `planner_`.
+4. Have the assistant request the list of tools. That check is also in the connection prompt: it should see the tools with the prefix `planner_`; the expected number is in the connection prompt.
 
 The window offers three ways to connect:
 
@@ -70,7 +70,7 @@ The backups are in the folder `ai-backups` in the data folder of the app. The ap
 
 **The AI writes or opens a file.** The AI can write a schedule as an IFC file and open a schedule file as a new tab. It can only do that within your user folder. It only overwrites an existing file if it explicitly asks to.
 
-**The status is *Port 3877 in use*.** Another program is using the port. The app's message is shown below it. The port field is then locked with *Only editable while the server is stopped.* Turn *Enable AI mode* off and on again. The status is then back to *Off* and you can choose another port. Then copy the connection details again, because the endpoint contains the port.
+**The status is *Port 3877 in use*.** Another program is using the port. The app's message is shown below it. The port field then stays locked (*Only editable while the server is stopped.*), even though the bridge is not running, and there is no stop button. That is a known shortcoming. Until it is fixed: turn *Enable AI mode* off and on again. The status is then back to *Off* and you can choose another port. Then copy the connection details again, because the endpoint contains the port.
 
 **The client cannot connect after a new token.** A new token breaks all existing connections. Give the client the new token, or paste the configuration snippet again.
 

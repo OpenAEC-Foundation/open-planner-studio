@@ -12,7 +12,7 @@ Het overzicht telt alleen resources die uit de resourcebibliotheek komen, in pro
 
 ### 1. Zet de projecten klaar
 
-1. Open de projecten die je wilt vergelijken, elk in een eigen tabblad. Het overzicht ziet alleen projecten die in deze app geopend zijn.
+1. Open de projecten die je wilt vergelijken, elk in een eigen tabblad, zie [Met meerdere projecten tegelijk werken](docs://howto-meerdere-projecten). Het overzicht ziet alleen projecten die in deze app geopend zijn.
 2. Koppel elk project aan dezelfde bibliotheek, en gebruik de resource uit de bibliotheek in elk project. Zonder bibliotheekkoppeling toont het resourcepaneel het overzicht niet. Zie [De resourcebibliotheek gebruiken](docs://howto-resourcebibliotheek-gebruiken).
 3. Reken de projecten door met *Bereken* (F5), of zet *Automatisch berekenen* aan. Wat het overzicht met verouderde projecten doet, staat bij de valkuilen hieronder.
 
@@ -27,7 +27,7 @@ Elke resource uit de bibliotheek die in minstens één geopend project geboekt i
 
 - *Documenten* zegt in hoeveel projecten de resource geboekt is, bijvoorbeeld *2 documenten*.
 - *Periode* loopt van de eerste tot en met de laatste dag met belasting, geschreven als jjjj-mm-dd, bijvoorbeeld *2027-06-07 – 2027-06-14*.
-- *Piek / Capaciteit* zet de hoogste dagbelasting van alle projecten samen tegenover de capaciteit van de resource in de bibliotheek, bijvoorbeeld *4,0 / 3,0*. Is de piek hoger dan de capaciteit, dan staat het in het rood.
+- *Piek / Capaciteit* zet de hoogste dagbelasting van alle projecten samen tegenover de capaciteit van de resource in de bibliotheek, bijvoorbeeld *4,0 / 3,0*. Is er minstens één dubbel geboekte dag, dan staat het in het rood.
 - Een rode markering achter de rij, bijvoorbeeld *3 dagen dubbel geboekt*, telt de dagen waarop de som groter is dan de capaciteit. Houd je de muis erboven, dan zie je de datums.
 
 ### 4. Kijk per project
@@ -43,7 +43,7 @@ Het overzicht laat het probleem zien, maar lost het niet op. Je hebt twee mogeli
 - Schuif een taak in een van de projecten, of geef haar minder eenheden per dag. Reken daarna dat project opnieuw door met F5.
 - Komt er echt een metselaar bij, zet dan *Max. eenheden* van de resource in de bibliotheek hoger. Dat doe je in *Resources › Beheer › Resources*, weergave *Bibliotheek*.
 
-*Nivelleren* in het lint helpt hier niet: dat kijkt naar de resources van het ene project waarin je staat.
+*Nivelleren* in het lint helpt hier niet: dat kijkt naar de resources van het ene project waarin je staat, zie [Nivelleren](docs://uitleg-nivelleren).
 
 ## Valkuilen en wat de app dan doet
 
@@ -55,11 +55,11 @@ Het overzicht laat het probleem zien, maar lost het niet op. Je hebt twee mogeli
 
 **Een project is verouderd.** Een project is verouderd als je iets aan de planning wijzigde zonder opnieuw te berekenen. Het overzicht gaat dan als volgt om met dat project:
 
-- Een project dat niet het actieve tabblad is, rekent het overzicht zelf alvast door, zonder het project te wijzigen. Boven de tabel staat dan *Gewijzigde documenten zijn voor dit overzicht alvast doorgerekend; druk F5 in het document, of zet 'Automatisch berekenen' aan om dit blijvend te doen.* Achter het project staat *Alvast doorgerekend voor dit overzicht — het document zelf toont oudere datums tot je daar F5 drukt of 'Automatisch berekenen' aanzet.* Staat *Automatisch berekenen* aan (*Instellingen › Project › Instellingen*, tabblad *Planning*), dan rekent de app zulke projecten wel echt door zodra je het overzicht bekijkt, en verdwijnt de melding.
-- Het project waarin je zelf staat rekent het overzicht niet door. Is dat project verouderd, dan staat er *Een gewijzigd document is nog niet doorgerekend; het telt hier mee met zijn laatst berekende cijfers. Druk F5 in dat document, of zet 'Automatisch berekenen' aan.* en achter het project *Verouderd: dit zijn de laatst berekende cijfers — druk F5 in dit document.* Vertrouw de cijfers van dat project pas na F5.
+- Een project dat niet het actieve tabblad is, rekent het overzicht zelf alvast door, zonder het project te wijzigen. Boven de tabel staat dan *Gewijzigde documenten zijn voor dit overzicht alvast doorgerekend; druk F5 in het document, of zet 'Automatisch berekenen' aan om dit blijvend te doen.* Achter het project staat *Alvast doorgerekend voor dit overzicht — het document zelf toont oudere datums tot je daar F5 drukt of 'Automatisch berekenen' aanzet.* Staat *Automatisch berekenen* aan (*Instellingen › Project › Instellingen*, tabblad *Planning*), dan rekent de app zulke projecten wel echt door zodra je het overzicht bekijkt, en verdwijnt de melding. Is ook het actieve project verouderd, dan staat boven de tabel in plaats daarvan de melding uit het volgende punt.
+- Het project waarin je zelf staat rekent het overzicht niet door. Is dat project verouderd, dan staat er *Een gewijzigd document is nog niet doorgerekend; het telt hier mee met zijn laatst berekende cijfers. Druk F5 in dat document, of zet 'Automatisch berekenen' aan.* en achter het project *Verouderd: dit zijn de laatst berekende cijfers — druk F5 in dit document.* Pas op: *laatst berekende cijfers* klopt niet helemaal. Het overzicht neemt de oude startdatums, maar al wel een gewijzigde duur of inzet. De cijfers kunnen dus afwijken van zowel de oude als de nieuwe planning, en van de balken in de Gantt. Vertrouw ze pas na F5.
 - Kan het overzicht een project niet doorrekenen, bijvoorbeeld door een kringverwijzing in zijn relaties, dan telt dat project niet mee. Het staat er wel, met *Telt niet mee: planning niet doorgerekend — activeer dit document en druk F5.* en boven de tabel *Minstens één document is niet doorgerekend en telt niet mee in de bezetting.*
 
-**Het overzicht klopt niet met wat je verwacht.** De capaciteit komt uit de bibliotheek, niet uit de *Max. eenheden* van de kopie in het project. Een som gelijk aan de capaciteit is geen conflict.
+**Het overzicht klopt niet met wat je verwacht.** De capaciteit komt uit de bibliotheek (*Max. eenheden* van het bibliotheekitem, of zijn *Tijd-gefaseerde capaciteit* op die dag), niet uit de *Max. eenheden* van de kopie in het project. Een som gelijk aan de capaciteit is geen conflict.
 
 ## Zie ook
 

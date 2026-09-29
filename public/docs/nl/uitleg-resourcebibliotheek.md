@@ -6,7 +6,7 @@ Je metselploeg werkt niet voor één project. Vandaag staat ze op de woningen in
 
 Er zijn twee lagen.
 
-De **resourcebibliotheek** is de lijst met resources en kalenders die bij je organisatie horen: een metselaar, een kraan, een stukadoor, met hun type, tarief en het aantal dat je ervan hebt. De lijst zelf, in de app ook wel de **pool** genoemd, staat in de app op deze computer en niet in je projectbestanden. Er is altijd minstens één bibliotheek. De eerste heet *Mijn resourcebibliotheek* en die naam kun je wijzigen.
+De **resourcebibliotheek** is de lijst met resources en kalenders die bij je organisatie horen: een metselaar, een kraan, een stukadoor, met hun type, tarief en het aantal dat je ervan hebt. De lijst zelf, in de app ook wel de **pool** genoemd, staat niet in je projectbestanden maar in de app: in de desktop-app in een bestand op deze computer, in de browser in de opslag van die browser. Wis je in de browser de sitegegevens, dan is de bibliotheek weg; exporteer hem dus als back-up. Er is altijd minstens één bibliotheek. De eerste heet *Mijn resourcebibliotheek* en die naam kun je wijzigen.
 
 Het **project** bepaalt hoeveel van een resource het gebruikt en wanneer. Een project is aan één bibliotheek gekoppeld of staat los. Een los project werkt gewoon, alleen zonder gedeelde lijst.
 
@@ -43,7 +43,7 @@ Het histogram en de overbezetting in een project kijken alleen naar dat ene proj
 
 Drie regels bepalen wat meetelt:
 
-- De capaciteit komt uit de bibliotheek (*Max. eenheden* van het bibliotheekitem), niet uit de *Max. eenheden* van de projectkopie. Twee projecten die elk binnen hun eigen inzet blijven, kunnen samen dus toch te veel vragen.
+- De capaciteit komt uit de bibliotheek (*Max. eenheden* van het bibliotheekitem, of zijn *Tijd-gefaseerde capaciteit* op die dag), niet uit de *Max. eenheden* van de projectkopie. Twee projecten die elk binnen hun eigen inzet blijven, kunnen samen dus toch te veel vragen.
 - Een som die precies gelijk is aan de capaciteit is geen conflict. Er moet meer dan de capaciteit gevraagd worden.
 - Alleen kopieën met een herkomststempel tellen mee, en alleen in projecten die op dat moment in deze app openstaan. Een eigen resource van één project zit niet in de bibliotheek en telt dus niet mee. Documenten die niet in deze app zijn geopend, ziet het overzicht niet; dat staat ook onderaan het overzicht zelf.
 
@@ -54,7 +54,7 @@ De bibliotheek bevat de resource *Metselaar* met *Max. eenheden* 3: drie metsela
 - *Woningen Noord* heeft de taak *Metselwerk gevels* van 5 werkdagen vanaf maandag 7 juni 2027, met 2 eenheden per dag. De taak loopt van 7 tot en met 11 juni.
 - *Garages Zuid* heeft de taak *Metselwerk garages* van 4 werkdagen vanaf woensdag 9 juni 2027, met 2 eenheden per dag. Het weekend telt niet mee, dus de taak beslaat 9, 10, 11 en 14 juni.
 
-Binnen elk project vraagt de metselaar 2 van zijn 2 eenheden. Geen van beide projecten meldt overbezetting: bij *Overallocatie* staat in beide *Geen*. Toch komen ze samen boven de 3 metselaars uit. Per dag telt de app:
+Binnen elk project vraagt de metselaar 2 van zijn 2 eenheden. Geen van beide projecten meldt overbezetting: bij *Resources › Overallocatie* staat in beide *Geen*. Toch komen ze samen boven de 3 metselaars uit. Per dag telt de app:
 
 - maandag 7 en dinsdag 8 juni: 2 (alleen Woningen Noord)
 - woensdag 9, donderdag 10 en vrijdag 11 juni: 2 + 2 = 4
@@ -73,13 +73,13 @@ De stappen om dit in je eigen projecten te bekijken staan in [Het bezettingsover
 
 ## Gevolgen en misverstanden
 
-**"De bibliotheek is gedeeld met mijn collega's."** Nee. De bibliotheek staat op deze computer en wordt niet gesynchroniseerd. Werken twee planners met dezelfde resourcebibliotheek, dan kunnen hun bibliotheken uiteenlopen. Delen kan met exporteren en importeren, zie [Resourcebibliotheken beheren en delen](docs://howto-bibliotheken-beheren). Deelt je organisatie ploegen over werkmaatschappijen heen, kies dan bewust één gezamenlijke bibliotheek. Het overzicht ziet ook alleen de projecten die in deze app openstaan.
+**"De bibliotheek is gedeeld met mijn collega's."** Nee. De bibliotheek staat in de app (in de desktop-app in een bestand op deze computer, in de browser in de opslag van die browser) en wordt niet gesynchroniseerd. Werken twee planners met dezelfde resourcebibliotheek, dan kunnen hun bibliotheken uiteenlopen. Delen kan met exporteren en importeren, zie [Resourcebibliotheken beheren en delen](docs://howto-bibliotheken-beheren). Deelt je organisatie ploegen over werkmaatschappijen heen, kies dan bewust één gezamenlijke bibliotheek. Het overzicht ziet ook alleen de projecten die in deze app openstaan.
 
-**"Als ik de bibliotheek wijzig, verandert alles in mijn projecten."** Alleen de identiteit van de resource: naam, type, tarief, eenheid. *Max. eenheden*, de capaciteit in de tijd en de kalenderkeuze van een project blijven zoals ze zijn.
+**"Als ik de bibliotheek wijzig, verandert alles in mijn projecten."** Alleen de identiteit van de resource: naam, type, tarief, eenheid en omschrijving. *Max. eenheden*, de capaciteit in de tijd en de kalenderkeuze van een project blijven zoals ze zijn.
 
 **"Ik kan een bibliotheekwijziging ongedaan maken."** Nee. De bibliotheek hoort bij de app en niet bij een project, dus wijzigingen erin vallen buiten *Ongedaan* (Ctrl+Z). De weergave *Bibliotheek* waarschuwt daar zelf voor: *Dit bewerkt de bibliotheek en geldt voor alle projecten — valt buiten ongedaan maken.* Ook verwijderen uit de bibliotheek vraagt om bevestiging en is niet terug te draaien.
 
-**"Het bezettingsoverzicht lost de dubbele boeking op."** Nee, het overzicht is alleen een leesvenster. Het laat zien op welke dagen twee projecten samen te veel vragen. Nivelleren (*Resources › Nivellering › Nivelleren…*) kijkt naar de resources van één project en houdt geen rekening met de andere projecten. Verschuif je zelf een taak in een van de projecten, of pas de capaciteit in de bibliotheek aan als er echt iemand bij komt.
+**"Het bezettingsoverzicht lost de dubbele boeking op."** Nee, het overzicht is alleen een leesvenster. Het laat zien op welke dagen twee projecten samen te veel vragen. Nivelleren (*Resources › Nivellering › Nivelleren…*, zie [Nivelleren](docs://uitleg-nivelleren)) kijkt naar de resources van één project en houdt geen rekening met de andere projecten. Verschuif je zelf een taak in een van de projecten, of pas de capaciteit in de bibliotheek aan als er echt iemand bij komt.
 
 **"Mijn eigen resource telt mee in de bezetting."** Alleen als hij in de bibliotheek staat. Een resource die je alleen in het project maakte, zoals een gehuurde kraan voor één klus, heeft geen herkomststempel en zit dus niet in het overzicht. Met *Naar de bibliotheek* neem je hem op.
 

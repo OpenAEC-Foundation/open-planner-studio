@@ -17,7 +17,7 @@ The schedule calculates something you do not understand, a button does not do wh
 7. Did you attach a screenshot? Then you first see *Almost done — your screenshot is on the clipboard.* with four steps. Click *OK, go to GitHub*, click inside the large text area of the issue page and press Ctrl+V (Cmd+V on a Mac). The picture is uploaded and appears in the text.
 8. At the bottom of the issue page, click *Submit new issue*. Only then is your report sent. Sign in to GitHub if you have not already.
 
-On the issue page your title and description are already filled in. The app chooses the label *bug* or *enhancement* and puts a line under your description with the type, the version of Open Planner Studio, your operating system and the language of the app.
+On the issue page your title and description are already filled in. The app suggests the label *bug* or *enhancement* and puts a line under your description with the type, the version of Open Planner Studio, your operating system and the language of the app.
 
 ## Pitfalls and what the app does then
 
