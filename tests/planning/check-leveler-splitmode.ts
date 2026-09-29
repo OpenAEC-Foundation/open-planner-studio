@@ -288,10 +288,12 @@ console.log('-- leveler-splitmode: eigen onderbreking ⇒ niet opknippen (geval 
 console.log('-- B1c-plan3 taak 1: scatter-randen --');
 
 // ── Bevinding 12: `scatterSlot` mag nooit een LEGE dagenset als "geplaatst" teruggeven ────────────
-// Een taak met een FRACTIONELE duur strikt tussen 0 en 1 (bv. 0,5) levert bij `distributeUnits` een
+// Een taak met een FRACTIONELE duur strikt tussen 0 en 1 (bv. 0,5) leverde bij `distributeUnits` een
 // LEGE vraagarray per resource (`durationDays <= 1 && durationDays !== 1` ⇒ `[]`), dus `need` (de
-// lengte van die array) wordt 0 — `scatterSlot` gaf dan `[]` terug, dat is truthy, en `findSlot` deed
+// lengte van die array) werd 0 — `scatterSlot` gaf dan `[]` terug, dat is truthy, en `findSlot` deed
 // `parseDate(scatterDays[0])` op `undefined` ⇒ een Invalid Date als starttijd.
+// Sinds `check-short-hour-task-load.ts` levert `distributeUnits` voor 0 < D < 1 één slot
+// (inzet × D); de vraag is dan niet meer leeg, maar de invariant hieronder blijft gepind.
 //
 // ONDERZOCHT (afwijking van het letterlijke voorschrift, zie ook het commitbericht): met de huidige
 // `fits()`/`occurrenceFor()`-implementatie is een lege vraagarray voor ELKE resource van de taak
