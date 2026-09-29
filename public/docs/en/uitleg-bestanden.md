@@ -42,11 +42,13 @@ An export to another format does not touch your project. After an export the pro
 
 Every adapter carries over what its format knows.
 
-**MS Project XML** carries over tasks, relations, calendars, resources, assignments, constraints, deadlines and the status date. Of your baselines only the active one goes along. Activity codes, custom fields, notes and external links do not go along. A second constraint on a task does not go along. A hammock becomes an ordinary task with calculated dates.
+**MS Project XML** carries over tasks, relations, calendars, resources, assignments, constraints, deadlines and the status date. Of your baselines only the active one goes along. Activity codes, custom fields, notes and external links do not go along. A second constraint on a task does not go along. A constraint *Must start on (MSO)* or *Must finish on (MFO)* without the choice *Mandatory (pin logic)* comes back as *Start no earlier than (SNET)* or *Finish no earlier than (FNET)*. *Manually scheduled* and the *Leveling delay* of a task do not come back. A hammock becomes an ordinary task with calculated dates.
 
-**Primavera P6 XML** carries over tasks, relations, calendars, resources, assignments, constraints and the status date. Baselines and deadlines do not go along, and neither do activity codes, custom fields, notes and external links. A hammock becomes an ordinary task here too. P6 has no lag in percentages: the app converts such a lag to a fixed number of days. A lag in calendar days it writes as an ordinary lag.
+**Primavera P6 XML** carries over tasks, relations, calendars, resources, assignments, constraints and the status date. Baselines and deadlines do not go along, and neither do activity codes, custom fields, notes and external links. A hammock becomes an ordinary task here too. P6 has no lag in percentages: the app converts such a lag to a fixed number of days. A lag in calendar days becomes a lag in working days.
 
-**CSV** is a task list. The file has these columns for each task: id, WBS, level, name, duration, start, finish, predecessors, type, status, completion, actual start and finish, critical, total float and description. Resources, assignments, calendars, constraints, deadlines, baselines and the status date are not in it. The column headings are always in English.
+**CSV** is a task list. The file has these columns for each task: task id, WBS, level, name, duration, start, finish, predecessors, type, the id of a custom task type (*OPS Custom Task Type ID*), status, completion, actual start and finish, critical, total float and description. Resources, assignments, calendars, constraints, deadlines, baselines and the status date are not in it. The column headings are always in English.
+
+**No export format carries the calculation profile and the calculation options.** A reopened CSV, MS Project XML or P6 XML calculates as *Open Planner Studio*. If your project came from an `.mpp` or `.xer`, the dates can shift because of that. What a calculation profile is, is explained in [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen).
 
 If your project comes from a Primavera file (`.xer`), even if you saved it as IFC in between, the app reports after an export to CSV, MS Project XML or P6 XML: *Exporting to CSV loses XER source information.* For MS Project XML it says *MSPDI* instead of *CSV*, for P6 XML it says *P6*. You do not get that message for IFC: the IFC file carries Primavera's source file along. See [Opening a Primavera P6 file (.xer)](docs://howto-xer-openen).
 
@@ -60,7 +62,7 @@ These are three different things. They look alike, but they write to a different
 
 **AutoSave** is off by default, and you turn it on yourself for each project. The app then writes, without a window, to the same file whenever there are changes, at most once every ten seconds. It only works if the project already has a file. See [Turning on AutoSave](docs://howto-automatisch-opslaan).
 
-**Crash recovery** is always on. The app keeps, also at most once every ten seconds, a recovery copy of every project with changes. That copy is not in your project file: on the desktop app it is in the app's data folder, in the browser it is in the browser's storage. At the next start the app offers that copy. You read about that in [Recovering after a crash](docs://howto-herstellen-na-een-crash). Crash recovery never writes to your project file.
+**Crash recovery** is always on. As soon as there is a change anywhere, the app keeps, also at most once every ten seconds, a recovery copy of all open projects, including projects you did not change yourself. That copy is not in your project file: on the desktop app it is in the app's data folder, in the browser it is in the browser's storage. At the next start the app offers that copy. You read about that in [Recovering after a crash](docs://howto-herstellen-na-een-crash). Crash recovery never writes to your project file.
 
 Because a copy is kept at most once every ten seconds, you can lose the last seconds of work in a crash.
 
@@ -72,26 +74,26 @@ On the desktop the app works with real paths. *Save* writes straight to your fil
 
 In a browser that can keep files wherever you want (such as Chrome and Edge) you get an ordinary open and save window. After that, *Save* writes straight to the file; for a file you opened, the browser asks for permission once. The *Recent* list works, with file names only.
 
-In a browser without that ability (such as Firefox) the app opens a file through the file picker and saves through a download. You then get the message *Saved as a download: 'name.ifc' is now in your downloads folder. This environment does not let the app write directly to the location you picked.* There is then no *Recent* list and no AutoSave. You get the same message in any environment that does not let the app write to the place you picked.
+In a browser without that ability (such as Firefox) the app opens a file through the file picker and saves through a download. You then get the message *Saved as a download: 'name.ifc' is now in your downloads folder. This environment does not let the app write directly to the location you picked.* *File › Recent* is there, but opens an empty page, and AutoSave is not available. You get the same message in any environment that does not let the app write to the place you picked.
 
 ## Example: exporting the example project
 
 Take the example *Refurbishment & Extension of a Family Home* (*File › Examples*). It has 20 tasks, of which 4 phases and 2 milestones, and 16 relations. There are 6 resources with 8 assignments, 1 baseline and a link to the *Demo resource library*. The task *Demolish existing extension* has the constraint *Start no earlier than (SNET)* on 14 May 2027, and *Handover inspection* has a deadline on 29 July 2027. The schedule ends on 7 July 2027.
 
-Export the project in each format and open the result again:
+This is how the project comes back from each format, measured after the export file is opened again:
 
 - The IFC file gives everything back: 20 tasks, 16 relations, 6 resources, 8 assignments, the baseline, the constraint, the deadline and the library link. The schedule ends on 7 July 2027 again.
 - The MS Project XML file also gives everything back, except the library link. The schedule ends on 7 July 2027.
 - The P6 XML file gives back the tasks, relations, resources, assignments and the constraint. The baseline and the deadline are missing. The schedule still ends on 7 July 2027, because the constraint is still in it.
 - The CSV file gives back 20 tasks and 16 relations. Resources, assignments, baseline, constraint and deadline are missing, and the project is called *CSV Import*. Without the constraint the work moves forward: the schedule ends on 2 July 2027, five calendar days earlier.
 
-If you remove the constraint in the example yourself and press *Calculate*, the schedule also ends on 2 July 2027. So the difference comes from the constraint that the CSV file does not carry.
+Without that constraint the example itself also ends on 2 July 2027. So the difference comes from the constraint that the CSV file does not carry.
 
 ## Consequences and misunderstandings
 
 **An export is not a back-up.** Only IFC keeps everything. If you want to keep your project, save it as IFC. Export only for someone who needs the other format.
 
-**Opening an export again does not always give the same schedule.** The app always recalculates on opening. If logic is missing, like the constraint in the CSV example, the outcome changes.
+**Opening an export again does not always give the same schedule.** The app always recalculates on opening, with the calculation profile that belongs to the format. If logic is missing, like the constraint in the CSV example, or the profile calculates differently, the outcome changes.
 
 **An export is also in Recent.** On the desktop and in browsers with file access, an export ends up in *Recent*, just like a saved project (the progress sheets do not). If you open it there, it opens as an import of that format.
 
@@ -103,3 +105,8 @@ If you remove the constraint in the example yourself and press *Calculate*, the 
 - [Exporting](docs://howto-exporteren): choosing a format and what you get.
 - [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen): why an imported schedule can show other dates.
 - [Constraints and deadlines](docs://uitleg-constraints): what a constraint does, and so what disappears if it is missing.
+- [Relations and lag](docs://uitleg-relaties): what a lag is and how the app calculates it.
+- [Creating a hammock](docs://howto-hammock): what a hammock is, which an export writes as an ordinary task.
+- [Codes and custom fields](docs://howto-codes-en-velden): activity codes and custom fields, which only IFC keeps.
+- [External relations to another project](docs://howto-externe-relaties): links that MS Project XML and P6 XML do not carry.
+- [Saving and managing a baseline](docs://howto-baseline-opslaan-en-beheren): baselines, of which MS Project XML only carries the active one.

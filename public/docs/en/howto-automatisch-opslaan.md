@@ -15,15 +15,13 @@ You work a long session on one schedule, or you keep forgetting to save, and you
 
 Chrome and Edge first let you only read a file that you opened. The switch does nothing there until you have saved once with *Save* (Ctrl+S) and the browser has given permission to write. After that you can turn it on. In Firefox the switch stays grey: the app cannot write into your file there.
 
-## What the app does
-
-The switch belongs to one project. Every tab has its own state. After opening a project it is always off, and the app does not remember it for a next time.
-
-AutoSave only writes to the file the project already has. If you choose *Save As*, it writes to the new file from then on. The app only writes if there are changes.
-
-If the writing itself fails, for example because the file has disappeared or is locked, the message *Auto-save failed* appears with the reason. In the browser that is often the text *Het bestaande projectbestand is niet schrijfbaar.* (this reason appears in Dutch: the existing project file is not writable). If the browser does not (or no longer) have permission to write, the app skips that round silently: it does not ask for it.
-
 ## Pitfalls and what the app does then
+
+**The switch belongs to one project.** Every tab has its own state. After opening a project it is always off, and the app does not remember it for a next time.
+
+**AutoSave only writes to the file the project already has.** If you choose *Save As*, it writes to the new file from then on. The app only writes if there are changes.
+
+**The writing can fail.** If the file has disappeared or is locked, for example, the message *Auto-save failed* appears with the reason. If the browser does not (or no longer) have permission to write, the app skips that round silently: it does not ask for it.
 
 **The file also gets changes you would rather not keep.** AutoSave writes the state of your project as it is at that moment. If you undo something with Ctrl+Z, the file gets that undone state within ten seconds too. If you want to keep an older version, first make a copy with *Save As*.
 

@@ -22,7 +22,7 @@ De app opent `.ifc`, `.csv`, `.xml` (MS Project XML of Primavera P6 XML), `.mpp`
 
 Kies *Start › Bestand › Recent* en klik op een bestand in de lijst, of kies *Bestand › Recent*. De lijst bewaart de laatste tien bestanden die je opende, opsloeg of exporteerde. De desktopapp toont bij elk bestand het pad, een browser alleen de naam.
 
-Kan de app een bestand uit de lijst niet meer lezen, bijvoorbeeld omdat je het verplaatste, dan verdwijnt het zonder melding uit de lijst. In browsers zonder bestandstoegang, zoals Firefox, is er geen lijst *Recent*.
+Kan de app een bestand uit de lijst niet meer lezen, bijvoorbeeld omdat je het verplaatste, dan verdwijnt het zonder melding uit de lijst. In browsers zonder bestandstoegang, zoals Firefox, blijft *Recent* leeg.
 
 ### Een voorbeeld openen
 
@@ -54,9 +54,9 @@ Klik op het kruisje van het tabblad, of kies *Bestand › Sluit project*. Heeft 
 
 **In Firefox maakt elke keer opslaan een nieuw bestand.** De app kan daar niet in je bestand schrijven. Ze downloadt telkens een nieuw bestand, met de projectnaam als bestandsnaam en niet met de naam van het bestand dat je opende.
 
-**Chrome en Edge vragen om toestemming.** Bij het eerste *Opslaan* van een bestand dat je opende, vraagt de browser of de app erin mag schrijven. Weiger je dat, dan opent de app een venster waarin je een nieuw bestand kiest.
+**Chrome en Edge vragen om toestemming.** Bij het eerste *Opslaan* van een bestand dat je opende, vraagt de browser of de app erin mag schrijven. Weiger je dat, dan opent de app een venster waarin je een nieuw bestand kiest. Dat venster krijg je in Chrome en Edge ook als schrijven naar het bestaande bestand niet lukt, bijvoorbeeld omdat het bestand verdween of vergrendeld is.
 
-**Opslaan kan mislukken.** De app meldt dan *Opslaan mislukt*, met de reden erbij. Je project blijft open en staat nog als *Niet opgeslagen* gemarkeerd.
+**Opslaan kan mislukken.** Geeft het opslaan zelf een fout, dan meldt de app *Opslaan mislukt*, met de reden erbij. Je project blijft open en staat nog als *Niet opgeslagen* gemarkeerd.
 
 ## Zie ook
 

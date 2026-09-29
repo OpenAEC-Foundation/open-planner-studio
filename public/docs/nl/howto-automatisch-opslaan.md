@@ -15,15 +15,13 @@ Je werkt een lange sessie aan één planning, of je vergeet steeds op te slaan, 
 
 Chrome en Edge laten een bestand dat je opende eerst alleen lezen. De schakelaar doet daar niets, tot je één keer met *Opslaan* (Ctrl+S) hebt opgeslagen en de browser toestemming gaf om te schrijven. Daarna kun je hem aanzetten. In Firefox blijft de schakelaar grijs: de app kan daar niet in je bestand schrijven.
 
-## Wat de app doet
-
-De schakelaar hoort bij één project. Elk tabblad heeft zijn eigen stand. Hij staat na het openen van een project altijd uit en de app onthoudt hem niet tot een volgende keer.
-
-Automatisch opslaan schrijft alleen naar het bestand dat het project al heeft. Kies je *Opslaan als*, dan schrijft het vanaf dan naar het nieuwe bestand. De app schrijft alleen als er wijzigingen zijn.
-
-Lukt het schrijven zelf niet, bijvoorbeeld omdat het bestand verdwenen of vergrendeld is, dan verschijnt de melding *Automatisch opslaan mislukt* met de reden erbij. In de browser is dat vaak *Het bestaande projectbestand is niet schrijfbaar.* Heeft de browser de toestemming om te schrijven niet (meer), dan slaat de app die ronde stil over: ze vraagt er niet om.
-
 ## Valkuilen en wat de app dan doet
+
+**De schakelaar hoort bij één project.** Elk tabblad heeft zijn eigen stand. Hij staat na het openen van een project altijd uit en de app onthoudt hem niet tot een volgende keer.
+
+**Automatisch opslaan schrijft alleen naar het bestand dat het project al heeft.** Kies je *Opslaan als*, dan schrijft het vanaf dan naar het nieuwe bestand. De app schrijft alleen als er wijzigingen zijn.
+
+**Het schrijven kan mislukken.** Is het bestand bijvoorbeeld verdwenen of vergrendeld, dan verschijnt de melding *Automatisch opslaan mislukt* met de reden erbij. Heeft de browser de toestemming om te schrijven niet (meer), dan slaat de app die ronde stil over: ze vraagt er niet om.
 
 **Het bestand krijgt ook wijzigingen die je liever niet bewaart.** Automatisch opslaan schrijft de stand van je project zoals hij op dat moment is. Draai je iets terug met Ctrl+Z, dan krijgt het bestand binnen tien seconden ook die teruggedraaide stand. Wil je een oudere versie houden, maak dan eerst een kopie met *Opslaan als*.
 

@@ -10,7 +10,7 @@ De adviseur werkt in MS Project, de opdrachtgever in Primavera, de onderaannemer
 
 1. Kies *Start › Bestand › Exporteren* en kies een formaat uit de lijst, of kies *Bestand › Exporteren*. Daar staat elk formaat als kaart met een korte toelichting.
 2. Kies in het venster een naam en een plek. De app stelt de projectnaam voor, met de extensie van het formaat. De voortgangsbladen heten *projectnaam-voortgang* en openen waar mogelijk in je downloadmap.
-3. Bevestig. Vanuit *Bestand › Exporteren* kom je terug op het tabblad *Start*. Er verschijnt geen melding als de export slaagt, behalve de meldingen hieronder. Annuleer je het venster, dan gebeurt er niets.
+3. Bevestig. Er verschijnt geen melding als de export slaagt, behalve de meldingen hieronder. Vanuit *Bestand › Exporteren* kom je daarna terug op het tabblad *Start*, ook als je het venster annuleert. Annuleer je het venster bij een export vanuit de lijst op het tabblad *Start*, dan gebeurt er niets.
 
 Bewaart je browser alleen via een download (zoals Firefox), dan staat het bestand na stap 1 direct in je downloadmap. Je ziet de melding *Opgeslagen als download: 'naam.xml' staat nu in je downloadmap. Deze omgeving staat de app niet toe rechtstreeks naar de gekozen locatie te schrijven.*
 
@@ -32,17 +32,15 @@ Is je project gekoppeld aan een resourcebibliotheek, dan staat onder de kaarten 
 
 Een ingevuld voortgangsblad lees je weer in via *Bestand › Importeren*. Zie [Voortgang uit een spreadsheet importeren](docs://howto-voortgang-importeren).
 
-## Wat de app bij een export doet
-
-Je project verandert niet. Het bestand van je project blijft hetzelfde, en de markering *Niet opgeslagen* blijft staan als die er stond.
-
-Was de planning verouderd, dan rekent de app eerst door. Je krijgt dus de actuele datums, ook als je vergat op *Bereken* te drukken.
-
-Een export komt, net als een opgeslagen project, in *Recent* te staan, behalve de voortgangsbladen. Open je hem daar, dan opent hij als import van dat formaat.
-
 ## Valkuilen en wat de app dan doet
 
-**Een export neemt niet alles mee.** Een CSV-bestand heeft geen resources of constraints, P6 XML heeft geen baselines en deadlines. Alleen IFC neemt alles mee. Een voorbeeld met getallen vind je in [Bestanden en formaten](docs://uitleg-bestanden).
+**Je project verandert niet.** Het bestand van je project blijft hetzelfde, en de markering *Niet opgeslagen* blijft staan als die er stond.
+
+**Een verouderde planning wordt eerst doorgerekend.** Je krijgt dus de actuele datums, ook als je vergat op *Bereken* te drukken.
+
+**Een export staat ook in Recent.** Dat geldt niet voor de voortgangsbladen. Open je een export daar, dan opent hij als import van dat formaat.
+
+**Een export neemt niet alles mee.** Een CSV-bestand heeft geen resources of constraints, P6 XML heeft geen baselines en deadlines. Ook het rekenprofiel gaat niet mee: een heropende export rekent als *Open Planner Studio*. Alleen IFC neemt alles mee. Een voorbeeld met getallen vind je in [Bestanden en formaten](docs://uitleg-bestanden).
 
 **Twee formaten met dezelfde extensie.** MS Project XML en Primavera P6 XML krijgen allebei de naam *projectnaam.xml*. Geef ze zelf een verschillende naam, anders weet je later niet welk bestand welk formaat is.
 

@@ -10,6 +10,10 @@ If its own calculation ends up on other dates than the file states, you do not k
 
 ## How the app deals with it
 
+### Which calculation profile the app uses
+
+The app calculates with a **calculation profile**: a fixed set of calculation rules that decides, for example, how it treats the planned start of a task and constraints. There are three built-in profiles: *Primavera P6*, *Microsoft Project* and *Open Planner Studio*. An `.xer` opens with *Primavera P6* and an `.mpp` with *Microsoft Project*. CSV, MS Project XML and Primavera P6 XML open with *Open Planner Studio*. The profile of a project is under *File › Project info*, at *Calculation profile and options*. An IFC file from the app keeps its profile.
+
 ### When the app compares
 
 On opening, the app records what the file said and compares that with its own outcome. It does that for:
@@ -23,11 +27,13 @@ The app never compares a CSV file: the start date in a CSV is input, not the out
 
 If no task differs, you notice nothing. If at least one task differs in a file you are importing right now, the app switches the view on immediately.
 
+With a Primavera file the app calculates with the calculation profile *Primavera P6*. That keeps the planned start from the file as the earliest start. A task that is later in the file than the relations require, but is also planned there, therefore stays where it is: then there is no difference.
+
 ### What you see
 
-Under the ribbon there is a bar: *You're viewing the dates as recorded in the file; recalculating would shift 4 tasks.* With a Primavera source it says *You're viewing the schedule as Primavera recorded it; recalculating would shift 1 task.* On the right of the bar is the button *Recalculate*. The bar has no cross.
+Under the ribbon there is a bar: *You're viewing the dates as recorded in the file; recalculating would shift 4 tasks.* With a Primavera source (an `.xer` or Primavera P6 XML) it says *You're viewing the schedule as Primavera recorded it; recalculating would shift 1 task.* On the right of the bar is the button *Recalculate*. The bar has no cross.
 
-There is also a message: *4 tasks show the dates as recorded in the file (not recalculated).* With a Primavera source it says *as Primavera recorded them*. In the *Properties* panel a task shows *Shows Primavera’s own recorded dates for this task*, or with another source *Shows the dates as recorded in the file for this task*. The Gantt, the task grid and the status bar show the dates from the file.
+There is also a message: *4 tasks show the dates as recorded in the file (not recalculated).* Only with an `.xer` it says *1 task shows the dates as Primavera recorded them (not recalculated).* Every task for which the file recorded dates shows a marker in the *Properties* panel: *Shows Primavera’s own recorded dates for this task* with a Primavera source, or *Shows the dates as recorded in the file for this task* with another source. The Gantt, the task grid and the status bar show the dates from the file.
 
 ### What stays empty in this view
 
@@ -37,13 +43,16 @@ If the file does not record everything for a task, you see the marker *Recorded 
 
 ### Leaving the view
 
-You leave the view in three ways:
+You leave the view in two ways:
 
 - Click *Recalculate* in the bar, or choose *Calculate* (F5). The app calculates with its own rules.
-- Change something in your schedule. The app leaves the view and recalculates straight away, even if *Calculate automatically* is off.
-- Press Ctrl+Z right after recalculating. That brings the view back.
+- Change something that can alter the dates, such as the duration of a task or a new task. The app leaves the view and recalculates straight away, even if *Calculate automatically* is off. Changing a name does not do that: the view stays on.
 
-After leaving there is no button to switch back to the view. You can only use Ctrl+Z, or open the source file again. One exception is below.
+After leaving there is no button to switch back to the view. Ctrl+Z does bring it back, right after recalculating or right after such an edit. Otherwise you can open the source file again. With an `.xer`, opening an IFC file that you saved after recalculating, but did not edit, also switches the view on again.
+
+### Crash recovery
+
+If you recover a project after a crash that was in the view, the view stays on. The project that was active shows the same bar as before. A project on another tab shows the bar without a number: *You're viewing the dates as recorded in the file. Nothing has been recalculated.* See [Recovering after a crash](docs://howto-herstellen-na-een-crash).
 
 ### Saving and reopening
 
@@ -55,21 +64,23 @@ With MS Project XML, `.mpp`, Primavera P6 XML or an IFC file from another progra
 
 ## Worked example: the extension
 
-You open a Primavera file *Uitbouw* with two tasks. *Fundering storten* (pour foundation) takes 5 working days, *Metselwerk* (brickwork) 10 working days, and Metselwerk follows Fundering with a Finish-Start relation. The file records that Fundering runs from Monday 3 May to Friday 7 May 2027 and Metselwerk from Monday 17 May to Friday 28 May 2027: a week after the earliest start the relation allows.
+Suppose you open a Primavera file *Uitbouw* (extension) with two tasks, on a calendar without holidays. In 2027, 6 May is Ascension Day and 17 May is Whit Monday: with holidays in the calendar the dates come out differently. *Fundering storten* (pour foundation) takes 5 working days, *Metselwerk* (brickwork) 10 working days, and Metselwerk follows Fundering with a Finish-Start relation. The file records that Fundering runs from Monday 3 May to Friday 7 May 2027 and Metselwerk from Monday 17 May to Friday 28 May 2027: a week after the earliest start the relation allows. The planned start of Metselwerk in the file is Monday 10 May 2027.
 
-Right after opening you see the dates from the file. The status bar says *End: 28-05-2027* and *Critical path: 2 tasks, 20 work days*. The bar reports that 1 task differs when recalculating, and Metselwerk shows *Shows Primavera’s own recorded dates for this task*.
+Right after opening you see the dates from the file. The status bar says *End: 28-05-2027* and *Critical path: 2 tasks, 20 work days*. The bar reports that 1 task differs when recalculating, and both tasks show *Shows Primavera’s own recorded dates for this task*.
 
-If you click *Recalculate*, Fundering stays on 3 to 7 May. Metselwerk now starts on Monday 10 May, the working day after Fundering ends, and finishes on Friday 21 May. The schedule ends on 21 May 2027 and spans 15 working days instead of 20. The critical path consists of the same 2 tasks.
+On *Recalculate*, Fundering stays on 3 to 7 May. Metselwerk now starts on Monday 10 May, the working day after Fundering ends, and finishes on Friday 21 May. The schedule ends on 21 May 2027 and spans 15 working days instead of 20. The critical path consists of the same 2 tasks.
 
-What if you do something else?
+What if it is different?
 
+- If Metselwerk is also planned on Monday 17 May in the file, the calculation profile *Primavera P6* keeps that start. The calculation ends on 17 through 28 May, there is no difference and the view does not switch on.
 - You add a task in the view: the same recalculation. Metselwerk moves to 10 through 21 May.
 - You save in the view and open the IFC file again, without editing: Metselwerk is back on 17 through 28 May.
+- You recalculate, save without editing further and open the IFC file again: the view is on again and Metselwerk is on 17 through 28 May.
 - You edit, save and open again: the app offers the view with *Recalculation moved 1 of 2 tasks away from the dates in the file.* Metselwerk shows *Deviates from the recorded dates*.
 
 ## Consequences and misunderstandings
 
-**A difference is not an import error.** The app calculates with its own rules: with a `.xer` with the calculation profile *Primavera P6*, with a `.mpp` with *Microsoft Project*, with the other formats with *Open Planner Studio*. Why the dates in the source package came out differently can lie with the file or with the package. The view shows you *that* they differ.
+**A difference is not an import error.** The app calculates with its own rules: with an `.xer` with the calculation profile *Primavera P6*, with an `.mpp` with *Microsoft Project*, with CSV, MS Project XML and Primavera P6 XML with *Open Planner Studio*. Why the dates in the source package came out differently can lie with the file or with the package. The view shows you *that* they differ.
 
 **The view is not a calculation result.** The app did not calculate the dates. Do not simply take them over as the outcome of your own schedule.
 
@@ -82,4 +93,5 @@ What if you do something else?
 - [Files and formats](docs://uitleg-bestanden): what the app keeps in a file and what an import or export carries.
 - [Opening a Primavera P6 file (.xer)](docs://howto-xer-openen): the steps and messages for a `.xer` file.
 - [Opening an MS Project file (.mpp)](docs://howto-mpp-openen): the steps and messages for a `.mpp` file.
+- [Recovering after a crash](docs://howto-herstellen-na-een-crash): what happens to this project after a crash.
 - [Critical path and float](docs://uitleg-kritiek-pad): how the app calculates float and criticality when it does calculate.

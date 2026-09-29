@@ -10,6 +10,10 @@ Komt de eigen berekening op andere datums uit dan het bestand noemt, dan weet je
 
 ## Hoe de app ermee omgaat
 
+### Met welk rekenprofiel de app rekent
+
+De app rekent met een **rekenprofiel**: een vaste set rekenregels die bepaalt hoe ze bijvoorbeeld omgaat met de geplande start van een taak en met constraints. Er zijn drie ingebouwde profielen: *Primavera P6*, *Microsoft Project* en *Open Planner Studio*. Een `.xer` opent met *Primavera P6* en een `.mpp` met *Microsoft Project*. CSV, MS Project XML en Primavera P6 XML openen met *Open Planner Studio*. Het profiel van een project staat onder *Bestand › Projectinfo*, bij *Rekenprofiel en reken-opties*. Een IFC-bestand van de app bewaart zijn profiel.
+
 ### Wanneer de app vergelijkt
 
 De app legt bij het openen vast wat het bestand zei en vergelijkt dat met haar eigen uitkomst. Dat doet ze bij:
@@ -23,11 +27,13 @@ Een CSV-bestand vergelijkt de app nooit: de startdatum in een CSV is invoer, gee
 
 Wijkt geen enkele taak af, dan merk je niets. Wijkt minstens één taak af bij een bestand dat je net importeert, dan zet de app de weergave meteen aan.
 
+Bij een Primavera-bestand rekent de app met het rekenprofiel *Primavera P6*. Dat houdt de geplande start uit het bestand aan als vroegste begin. Een taak die in het bestand later staat dan de relaties vereisen, maar daar ook gepland is, blijft daarom staan: dan is er geen verschil.
+
 ### Wat je ziet
 
-Onder het lint staat een strook: *Je ziet de datums zoals ze in het bestand staan; bij herberekenen wijken 4 taken af.* Bij een Primavera-bron staat er *Je ziet de planning zoals Primavera hem opsloeg; bij herberekenen wijkt 1 taak af.* Rechts in de strook staat de knop *Herberekenen*. Die strook heeft geen kruisje.
+Onder het lint staat een strook: *Je ziet de datums zoals ze in het bestand staan; bij herberekenen wijken 4 taken af.* Bij een Primavera-bron (een `.xer` of Primavera P6 XML) staat er *Je ziet de planning zoals Primavera hem opsloeg; bij herberekenen wijkt 1 taak af.* Rechts in de strook staat de knop *Herberekenen*. Die strook heeft geen kruisje.
 
-Daarnaast komt er een melding: *4 taken tonen de datums zoals ze in het bestand staan (niet herberekend).* Bij een Primavera-bron staat er *zoals Primavera ze opsloeg*. In het paneel *Eigenschappen* staat bij een taak *Toont Primavera’s eigen opgeslagen datums voor deze taak*, of bij een andere bron *Toont de datums zoals ze in het bestand staan voor deze taak*. De Gantt, het taakraster en de statusbalk tonen de datums uit het bestand.
+Daarnaast komt er een melding: *4 taken tonen de datums zoals ze in het bestand staan (niet herberekend).* Alleen bij een `.xer` staat er *1 taak toont de datums zoals Primavera ze opsloeg (niet herberekend).* Elke taak waarvan het bestand datums vastlegde, toont in het paneel *Eigenschappen* een markering: *Toont Primavera’s eigen opgeslagen datums voor deze taak* bij een Primavera-bron, of *Toont de datums zoals ze in het bestand staan voor deze taak* bij een andere bron. De Gantt, het taakraster en de statusbalk tonen de datums uit het bestand.
 
 ### Wat er in deze weergave leeg blijft
 
@@ -37,13 +43,16 @@ Legt het bestand van een taak niet alles vast, dan zie je in het paneel *Eigensc
 
 ### De weergave verlaten
 
-Je verlaat de weergave op drie manieren:
+Je verlaat de weergave op twee manieren:
 
 - Klik in de strook op *Herberekenen*, of kies *Bereken* (F5). De app rekent door met haar eigen regels.
-- Wijzig iets aan je planning. De app verlaat de weergave en rekent meteen door, ook als *Automatisch berekenen* uit staat.
-- Druk op Ctrl+Z direct na het herberekenen. Dat brengt de weergave terug.
+- Wijzig iets waardoor de datums kunnen veranderen, zoals de duur van een taak of een nieuwe taak. De app verlaat de weergave en rekent meteen door, ook als *Automatisch berekenen* uit staat. Een naam wijzigen doet dat niet: dan blijft de weergave aan.
 
-Na het verlaten is er geen knop meer om naar de weergave terug te schakelen. Je kunt alleen Ctrl+Z gebruiken, of het bronbestand opnieuw openen. Een uitzondering staat hieronder.
+Na het verlaten is er geen knop meer om naar de weergave terug te schakelen. Ctrl+Z brengt hem wel terug, direct na het herberekenen of direct na zo'n bewerking. Verder kun je het bronbestand opnieuw openen. Bij een `.xer` zet ook het heropenen van een IFC-bestand dat je na het herberekenen opsloeg, maar niet bewerkte, de weergave weer aan.
+
+### Crashherstel
+
+Herstel je na een crash een project dat in de weergave stond, dan blijft de weergave aan. Het project dat actief was, toont dezelfde strook als eerder. Een project op een ander tabblad toont de strook zonder aantal: *Je ziet de datums zoals ze in het bestand staan. Er is niet herberekend.* Zie [Herstellen na een crash](docs://howto-herstellen-na-een-crash).
 
 ### Opslaan en heropenen
 
@@ -55,21 +64,23 @@ Bij MS Project XML, `.mpp`, Primavera P6 XML of een IFC-bestand van een ander pr
 
 ## Rekenvoorbeeld: de uitbouw
 
-Je opent een Primavera-bestand *Uitbouw* met twee taken. *Fundering storten* duurt 5 werkdagen, *Metselwerk* 10 werkdagen, en Metselwerk volgt op Fundering met een Eind-Start-relatie. Het bestand legt vast dat Fundering loopt van maandag 3 mei tot en met vrijdag 7 mei 2027 en Metselwerk van maandag 17 mei tot en met vrijdag 28 mei 2027: een week later dan de vroegste start die de relatie toestaat.
+Stel, je opent een Primavera-bestand *Uitbouw* met twee taken, op een kalender zonder feestdagen. In 2027 is 6 mei Hemelvaartsdag en 17 mei Tweede Pinksterdag: met feestdagen in de kalender komen de datums anders uit. *Fundering storten* duurt 5 werkdagen, *Metselwerk* 10 werkdagen, en Metselwerk volgt op Fundering met een Eind-Start-relatie. Het bestand legt vast dat Fundering loopt van maandag 3 mei tot en met vrijdag 7 mei 2027 en Metselwerk van maandag 17 mei tot en met vrijdag 28 mei 2027: een week later dan de vroegste start die de relatie toestaat. De geplande start van Metselwerk in het bestand is maandag 10 mei 2027.
 
-Direct na het openen zie je de datums uit het bestand. De statusbalk zegt *Einde: 28-05-2027* en *Kritiek pad: 2 taken, 20 werkdagen*. De strook meldt dat bij herberekenen 1 taak afwijkt, en Metselwerk toont *Toont Primavera’s eigen opgeslagen datums voor deze taak*.
+Direct na het openen zie je de datums uit het bestand. De statusbalk zegt *Einde: 28-05-2027* en *Kritiek pad: 2 taken, 20 werkdagen*. De strook meldt dat bij herberekenen 1 taak afwijkt, en beide taken tonen *Toont Primavera’s eigen opgeslagen datums voor deze taak*.
 
-Klik je op *Herberekenen*, dan blijft Fundering op 3 tot en met 7 mei staan. Metselwerk begint nu op maandag 10 mei, de werkdag na het einde van Fundering, en eindigt op vrijdag 21 mei. De planning eindigt op 21 mei 2027 en beslaat 15 werkdagen in plaats van 20. Het kritieke pad bestaat uit dezelfde 2 taken.
+Bij *Herberekenen* blijft Fundering op 3 tot en met 7 mei staan. Metselwerk begint nu op maandag 10 mei, de werkdag na het einde van Fundering, en eindigt op vrijdag 21 mei. De planning eindigt op 21 mei 2027 en beslaat 15 werkdagen in plaats van 20. Het kritieke pad bestaat uit dezelfde 2 taken.
 
-Wat als je iets anders doet?
+Wat als het anders is?
 
+- Staat Metselwerk in het bestand ook gepland op maandag 17 mei, dan houdt het rekenprofiel *Primavera P6* die start aan. De berekening komt uit op 17 tot en met 28 mei, er is geen verschil en de weergave gaat niet aan.
 - Je voegt in de weergave een taak toe: dezelfde herberekening. Metselwerk gaat naar 10 tot en met 21 mei.
 - Je slaat op in de weergave en opent het IFC-bestand opnieuw, zonder bewerking: Metselwerk staat weer op 17 tot en met 28 mei.
+- Je herberekent, slaat op zonder verder te bewerken en opent het IFC-bestand opnieuw: de weergave staat weer aan en Metselwerk staat op 17 tot en met 28 mei.
 - Je bewerkt, slaat op en opent opnieuw: de app biedt de weergave aan met *Herberekening verschoof 1 van de 2 taken ten opzichte van de datums in het bestand.* Op Metselwerk staat *Wijkt af van de opgeslagen datums*.
 
 ## Gevolgen en misverstanden
 
-**Een verschil is geen importfout.** De app rekent met haar eigen regels: bij een `.xer` met het rekenprofiel *Primavera P6*, bij een `.mpp` met *Microsoft Project*, bij de andere formaten met *Open Planner Studio*. Waarom de datums in het bronpakket anders uitkwamen, kan aan het bestand liggen of aan het pakket. De weergave laat je zien dát ze afwijken.
+**Een verschil is geen importfout.** De app rekent met haar eigen regels: bij een `.xer` met het rekenprofiel *Primavera P6*, bij een `.mpp` met *Microsoft Project*, bij CSV, MS Project XML en Primavera P6 XML met *Open Planner Studio*. Waarom de datums in het bronpakket anders uitkwamen, kan aan het bestand liggen of aan het pakket. De weergave laat je zien dát ze afwijken.
 
 **De weergave is geen rekenuitkomst.** De app heeft de datums niet uitgerekend. Neem ze niet zonder meer over als uitkomst van je eigen planning.
 
@@ -82,4 +93,5 @@ Wat als je iets anders doet?
 - [Bestanden en formaten](docs://uitleg-bestanden): wat de app in een bestand bewaart en wat een import of export meeneemt.
 - [Een Primavera P6-bestand (.xer) openen](docs://howto-xer-openen): de stappen en meldingen bij een `.xer`-bestand.
 - [Een MS Project-bestand (.mpp) openen](docs://howto-mpp-openen): de stappen en meldingen bij een `.mpp`-bestand.
+- [Herstellen na een crash](docs://howto-herstellen-na-een-crash): wat er met dit project gebeurt na een crash.
 - [Kritiek pad en speling](docs://uitleg-kritiek-pad): hoe de app speling en kritiek rekent als ze wél rekent.

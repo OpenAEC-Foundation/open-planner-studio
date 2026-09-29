@@ -10,7 +10,7 @@ The consultant works in MS Project, the client in Primavera, the subcontractor w
 
 1. Choose *Home › File › Export* and pick a format from the list, or choose *File › Export*. There every format is a card with a short description.
 2. In the window choose a name and a place. The app suggests the project name, with the extension of the format. The progress sheets are called *projectname-voortgang* and open in your downloads folder where possible.
-3. Confirm. From *File › Export* you return to the *Home* tab. No message appears if the export succeeds, apart from the messages below. If you cancel the window, nothing happens.
+3. Confirm. No message appears if the export succeeds, apart from the messages below. From *File › Export* you afterwards return to the *Home* tab, even if you cancel the window. If you cancel the window for an export from the list on the *Home* tab, nothing happens.
 
 If your browser only saves through a download (such as Firefox), the file is in your downloads folder right after step 1. You see the message *Saved as a download: 'name.xml' is now in your downloads folder. This environment does not let the app write directly to the location you picked.*
 
@@ -32,17 +32,15 @@ If your project is linked to a resource library, the checkbox *Save library file
 
 You read a filled-in progress sheet back through *File › Import*. See [Importing progress from a spreadsheet](docs://howto-voortgang-importeren).
 
-## What the app does with an export
-
-Your project does not change. Your project's file stays the same, and the *Unsaved* marker stays if it was there.
-
-If the schedule was out of date, the app first recalculates. So you get the current dates, even if you forgot to press *Calculate*.
-
-An export ends up in *Recent*, just like a saved project, except the progress sheets. If you open it there, it opens as an import of that format.
-
 ## Pitfalls and what the app does then
 
-**An export does not carry everything.** A CSV file has no resources or constraints, P6 XML has no baselines and deadlines. Only IFC carries everything. You find an example with numbers in [Files and formats](docs://uitleg-bestanden).
+**Your project does not change.** Your project's file stays the same, and the *Unsaved* marker stays if it was there.
+
+**An out-of-date schedule is recalculated first.** So you get the current dates, even if you forgot to press *Calculate*.
+
+**An export is also in Recent.** That does not apply to the progress sheets. If you open an export there, it opens as an import of that format.
+
+**An export does not carry everything.** A CSV file has no resources or constraints, P6 XML has no baselines and deadlines. The calculation profile does not go along either: a reopened export calculates as *Open Planner Studio*. Only IFC carries everything. You find an example with numbers in [Files and formats](docs://uitleg-bestanden).
 
 **Two formats with the same extension.** MS Project XML and Primavera P6 XML both get the name *projectname.xml*. Give them different names yourself, otherwise you will not know later which file is which format.
 

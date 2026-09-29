@@ -22,7 +22,7 @@ The app opens `.ifc`, `.csv`, `.xml` (MS Project XML or Primavera P6 XML), `.mpp
 
 Choose *Home › File › Recent* and click a file in the list, or choose *File › Recent*. The list keeps the last ten files that you opened, saved or exported. The desktop app shows the path for each file, a browser only the name.
 
-If the app can no longer read a file in the list, for example because you moved it, it disappears from the list without a message. In browsers without file access, such as Firefox, there is no *Recent* list.
+If the app can no longer read a file in the list, for example because you moved it, it disappears from the list without a message. In browsers without file access, such as Firefox, *Recent* stays empty.
 
 ### Opening an example
 
@@ -54,9 +54,9 @@ Click the cross on the tab, or choose *File › Close project*. If the project h
 
 **In Firefox every save makes a new file.** The app cannot write into your file there. It downloads a new file each time, with the project name as file name and not the name of the file you opened.
 
-**Chrome and Edge ask for permission.** At the first *Save* of a file you opened, the browser asks whether the app may write to it. If you refuse, the app opens a window in which you choose a new file.
+**Chrome and Edge ask for permission.** At the first *Save* of a file you opened, the browser asks whether the app may write to it. If you refuse, the app opens a window in which you choose a new file. In Chrome and Edge you also get that window if writing to the existing file fails, for example because the file disappeared or is locked.
 
-**Saving can fail.** The app then reports *Failed to save*, with the reason. Your project stays open and is still marked *Unsaved*.
+**Saving can fail.** If the saving itself gives an error, the app reports *Failed to save*, with the reason. Your project stays open and is still marked *Unsaved*.
 
 ## See also
 
