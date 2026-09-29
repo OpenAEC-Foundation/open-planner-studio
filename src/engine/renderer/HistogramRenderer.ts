@@ -9,6 +9,7 @@ import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
 import { readHistogramPalette, type HistogramPalette } from './themePalette';
 import { dateToX as axisDateToX, type GanttAxis } from './timeAxis';
 import { ellipsize } from './textFit';
+import { canvasFont, type TextRole } from './textRoles';
 
 export interface HistogramSeries {
   /** iso-datum → belaste eenheden voor de getoonde resource (of som over alle renewables). */
@@ -57,7 +58,7 @@ export interface HistogramRenderOptions {
   axis?: GanttAxis;
   /** De CSS font-stack van de gekozen interface-lettertypefamilie
    *  (`resolveUIFontStack(ui.uiFontFamily)`). Een canvas leest géén CSS-variabelen, dus de stack
-   *  moet als string mee. Afwezig ⇒ `FALLBACK_FONT_STACK`. */
+   *  moet als string mee. Afwezig ⇒ `CANVAS_FALLBACK_FONT_STACK` (`textRoles.ts`). */
   fontFamily?: string;
   /** Schaalfactor van `ui.uiFontScale` (bv. 1.25), zelfde contract als
    *  `GanttRenderOptions.fontScale`. Schaalt de labelfonts én de kiezerrij-hoogte mee, zodat de
@@ -65,9 +66,6 @@ export interface HistogramRenderOptions {
    *  Afwezig ⇒ factor 1. */
   fontScale?: number;
 }
-
-/** Fallback-stack wanneer een aanroeper `fontFamily` niet meegeeft. */
-const FALLBACK_FONT_STACK = 'system-ui, sans-serif';
 
 const ROW_H = 18;          // hoogte van een resourcekiezer-rij
 const TOP_PAD = 8;         // ruimte boven de hoogste staaf
@@ -185,12 +183,12 @@ export class HistogramRenderer {
     this.pickerScrollY = Math.min(this.maxScroll, Math.max(0, opts.pickerScrollY ?? 0));
   }
 
-  /** Bouwt een `ctx.font`-string in de gekozen interface-lettertypefamilie,
-   *  met de grootte geschaald via `fontScale` — zelfde helper (en zelfde
+  /** Bouwt een `ctx.font`-string voor een tekstrol (`textRoles.ts`) in de gekozen
+   *  interface-lettertypefamilie, geschaald via `fontScale` — zelfde helper (en zelfde
    *  afweging) als in `GanttRenderer.font()`. De kiezerrij-hoogte (`rowH`) schaalt mee; de
    *  plotzone zelf rekent met de door de gebruiker instelbare canvashoogte en blijft dus goed. */
-  private font(sizePx: number, bold = false): string {
-    return `${bold ? 'bold ' : ''}${Math.round(sizePx * this.fontScale)}px ${this.opts.fontFamily ?? FALLBACK_FONT_STACK}`;
+  private font(role: TextRole, bold = false): string {
+    return canvasFont(role, this.fontScale, this.opts.fontFamily, bold);
   }
 
   /** Gedeelde X-as met GanttRenderer: `opts.axis` (meegegeven door `GanttCanvas`, de letterlijk
@@ -264,7 +262,7 @@ export class HistogramRenderer {
 
     if (this.opts.emptyHint) {
       ctx.fillStyle = c.textDim;
-      ctx.font = this.font(11);
+      ctx.font = this.font('body');
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(this.opts.emptyHint, (plot.left + plot.right) / 2, canvasHeight / 2);
@@ -327,7 +325,7 @@ export class HistogramRenderer {
 
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.font = this.font(11);
+    ctx.font = this.font('body');
 
     if (picker.length === 0) return;
 
@@ -442,7 +440,7 @@ export class HistogramRenderer {
 
     // Y-as-label (max) linksboven in de plotzone, aan het begin van de tijd (ook in ar/fa)
     ctx.fillStyle = c.textDim;
-    ctx.font = this.font(9);
+    ctx.font = this.font('caption');
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     ctx.fillText(`${this.formatUnits(yMaxData)} ${this.opts.labels.unitsSuffix}`, plot.left + 4, 2);

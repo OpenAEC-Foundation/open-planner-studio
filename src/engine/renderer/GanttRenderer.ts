@@ -26,6 +26,7 @@ import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { classifyTraceTask, isRelationOutsideTrace, type TaskTrace } from '@/engine/taskGrid/trace';
 import { ellipsize } from './textFit';
 import { barLayout, type BarLayout } from './rowGeometry';
+import { canvasFont, type TextRole } from './textRoles';
 import { shownStart, shownFinish, floatBandEnd, finishInstant } from '@/utils/taskDates';
 
 /** `firstRowIndexByTask` per rijenlijst (die komt bevroren uit de store): de renderer wordt per
@@ -168,7 +169,7 @@ export interface GanttRenderOptions {
   axis?: GanttAxis;
   /** De CSS font-stack van de gekozen interface-lettertypefamilie
    *  (`resolveUIFontStack(ui.uiFontFamily)`). Een canvas leest géén CSS-variabelen, dus de stack
-   *  moet als string mee. Afwezig ⇒ `FALLBACK_FONT_STACK`. */
+   *  moet als string mee. Afwezig ⇒ `CANVAS_FALLBACK_FONT_STACK` (`textRoles.ts`). */
   fontFamily?: string;
   /** De Tekengrootte-instelling (`ui.uiFontScale`) als factor (1 = 100%). Zelfde reden
    *  als `fontFamily`: een canvas leest geen CSS-variabelen, dus de schaal moet expliciet mee.
@@ -177,10 +178,6 @@ export interface GanttRenderOptions {
    *  van). Afwezig ⇒ 1 (headless tests en print-/exportpaden). */
   fontScale?: number;
 }
-
-/** Fallback-stack zodra een aanroeper `fontFamily` niet meegeeft (headless tests,
- *  print-/exportpaden). */
-const FALLBACK_FONT_STACK = '-apple-system, BlinkMacSystemFont, sans-serif';
 
 /**
  * Obstakel-index voor de relatie-routing: per ZICHTBARE rij het x-interval dat de balk
@@ -364,17 +361,16 @@ export class GanttRenderer {
     this.compressed = isCompressedEffective(this.projectEngine, !!opts.compressNonWorkdays);
   }
 
-  /** Bouwt een `ctx.font`-string in de gekozen interface-lettertypefamilie én -grootte:
-   *  `fontScale` (= `ui.uiFontScale`/100) schaalt elke fontgrootte mee. Enige plek waar deze
-   *  renderer een font-stack samenstelt.
+  /** Bouwt een `ctx.font`-string voor een tekstrol (`textRoles.ts`, gelijk aan `--text-<rol>` in
+   *  globals.css) in de gekozen interface-lettertypefamilie: `fontScale` (= `ui.uiFontScale`/100)
+   *  schaalt elke rol mee. Enige plek waar deze renderer een font samenstelt — geen losse px-maten.
    *
    *  De GEOMETRIE schaalt bij de aanroeper mee: GanttCanvas leidt `rowHeight`/`headerHeight` van
    *  dezelfde factor af, zodat grotere tekst niet clipt maar ruimte krijgt. Schaal hier dus nooit
    *  de grootte zonder dat de aanroeper de rijhoogte meegeeft — en andersom. Afronden houdt de
    *  tekst scherp (geen sub-pixel-fontgroottes). */
-  private font(sizePx: number, bold = false): string {
-    const size = Math.round(sizePx * (this.opts.fontScale ?? 1));
-    return `${bold ? 'bold ' : ''}${size}px ${this.opts.fontFamily ?? FALLBACK_FONT_STACK}`;
+  private font(role: TextRole, bold = false): string {
+    return canvasFont(role, this.opts.fontScale ?? 1, this.opts.fontFamily, bold);
   }
 
   /** Basis-balkkleur: kritiek-rood ≻ near-critical-amber ≻ float-path-tint ≻
@@ -695,7 +691,7 @@ export class GanttRenderer {
         // Ware grootte tekenen en CLIPPEN op het zichtbare
         // gebied i.p.v. samenknijpen via een fillText-maxWidth — een lang woord valt dan gewoon
         // gedeeltelijk buiten beeld i.p.v. onleesbaar verdrukt te worden.
-        ctx.font = this.font(11, true);
+        ctx.font = this.font('body', true);
         ctx.textBaseline = 'top';
         ctx.save();
         ctx.beginPath();
@@ -718,7 +714,7 @@ export class GanttRenderer {
         // maar dan in wereldcoördinaten VÓÓR de translate/rotate (clip-pad wordt vastgelegd in de
         // transform die op dat moment geldt), zodat de geroteerde tekst ook gewoon aan de onderkant
         // afgesneden wordt i.p.v. samengeperst.
-        ctx.font = this.font(10);
+        ctx.font = this.font('small');
         ctx.save();
         ctx.beginPath();
         ctx.rect(clipX1, headerHeight, visibleWidth, Math.max(0, canvasHeight - headerHeight));
@@ -817,7 +813,7 @@ export class GanttRenderer {
    *  pilletje rond `label`. De aanroeper heeft `ctx.save()` al gedaan. */
   private pillWidth(label: string): number {
     const ctx = this.ctx;
-    ctx.font = this.font(10, true);
+    ctx.font = this.font('small', true);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     return ctx.measureText(label).width + GanttRenderer.DRAG_BADGE_PAD_X * 2;
@@ -974,33 +970,33 @@ export class GanttRenderer {
     // hieronder.
     if (mid) {
       // --- Bovenste rij: major tier (maand) ---
-      ctx.font = this.font(11, true);
+      ctx.font = this.font('body', true);
       ctx.fillStyle = this.colors.text;
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'left';
       this.drawTierLabels(major, startDate, endDate, headerHeight / 6);
 
       // --- Middenrij: mid tier (weeknummers), zelfde stijl als de minor-rij ---
-      ctx.font = this.font(10);
+      ctx.font = this.font('small');
       ctx.fillStyle = this.colors.textSecondary;
       this.drawTierLabels(mid, startDate, endDate, headerHeight / 2);
 
       // --- Onderste rij: minor tier (dag) ---
-      ctx.font = this.font(10);
+      ctx.font = this.font('small');
       ctx.fillStyle = this.colors.textSecondary;
       this.drawTierLabels(minor, startDate, endDate, headerHeight * 5 / 6);
       return;
     }
 
     // --- Top row: major tier ---
-    ctx.font = this.font(11, true);
+    ctx.font = this.font('body', true);
     ctx.fillStyle = this.colors.text;
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'left';
     this.drawTierLabels(major, startDate, endDate, headerHeight / 4);
 
     // --- Bottom row: minor tier ---
-    ctx.font = this.font(10);
+    ctx.font = this.font('small');
     ctx.fillStyle = this.colors.textSecondary;
     this.drawTierLabels(minor, startDate, endDate, headerHeight * 3 / 4);
   }
@@ -1227,7 +1223,7 @@ export class GanttRenderer {
     const ctx = this.ctx;
     ctx.fillStyle = color;
     // Zelfde rol als de rastertekst links (`.task-grid-core`: `--text-body`).
-    ctx.font = this.font(11);
+    ctx.font = this.font('body');
     ctx.textBaseline = 'middle';
     ctx.save();
     ctx.beginPath();
@@ -1705,7 +1701,7 @@ export class GanttRenderer {
     // begint hij alleen nog te overlappen).
     const labelX = x + size + 6;
     ctx.fillStyle = this.colors.text;
-    ctx.font = this.font(11);
+    ctx.font = this.font('body');
     ctx.textBaseline = 'middle';
     const msLabel = this.ellipsize(task.name, Math.min(200, this.opts.canvasWidth - labelX - 4));
     if (msLabel) ctx.fillText(msLabel, labelX, cy);
@@ -1756,7 +1752,7 @@ export class GanttRenderer {
       // "verouderd"-badge bij sourceMissing.
       if (link.sourceMissing) {
         const label = this.opts.externalStaleLabel ?? 'verouderd';
-        ctx.font = this.font(9);
+        ctx.font = this.font('caption');
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
         const tw = ctx.measureText(label).width + 6;

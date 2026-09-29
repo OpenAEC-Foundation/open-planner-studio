@@ -17,7 +17,8 @@
 // niets doen) en een inline `fontSize` met een absolute maat.
 //
 // Buiten bereik: `src/engine/` en `src/services/` (Canvas-, PDF- en printtekst rekent in eigen
-// eenheden en krijgt de schaal als getal mee) en SVG-`fontSize={n}` (viewBox-eenheden, geen CSS-px).
+// eenheden en krijgt de schaal als getal mee; schermcanvas gebruikt wel de rolnamen via
+// `src/engine/renderer/textRoles.ts`, waarvan deze poort de getallen tegen het @theme-blok houdt) en SVG-`fontSize={n}` (viewBox-eenheden, geen CSS-px).
 // Een bewuste uitzondering krijgt op dezelfde regel de markering `text-roles: <reden>`.
 //
 //   node scripts/verify-text-roles.mjs     # exit 0 = schoon, 1 = minstens één overtreding
@@ -30,6 +31,7 @@ const root = resolve(here, '..');
 const srcDir = join(root, 'src');
 
 const ROLES = ['caption', 'small', 'body', 'large', 'heading', 'title'];
+const roleSet = new Set(ROLES);
 const OUT_OF_SCOPE = ['engine', 'services'].map(d => join(srcDir, d) + sep);
 const ESCAPE = /text-roles:\s*\S/;
 
@@ -212,12 +214,31 @@ for (const role of ROLES) {
     violations.push(`src/styles/globals.css  tekstrol --text-${role} ontbreekt in het @theme-blok`);
   }
 }
+// Canvastekst leest geen CSS: `src/engine/renderer/textRoles.ts` spiegelt de rollen als getal
+// (`TEXT_ROLE_PX`). Die spiegel moet exact dezelfde rollen en px-basismaten hebben als het @theme-blok,
+// anders tekent de Gantt naast het taakraster stil een andere maat.
+{
+  const cssPx = new Map();
+  for (const m of globals.matchAll(/--text-([a-z]+)\s*:\s*calc\(\s*([\d.]+)px\s*\*\s*var\(--ui-font-scale/g)) cssPx.set(m[1], Number(m[2]));
+  const mirrorFile = join(srcDir, 'engine', 'renderer', 'textRoles.ts');
+  const mirror = readFileSync(mirrorFile, 'utf8');
+  const block = /TEXT_ROLE_PX\s*=\s*\{([^}]*)\}/.exec(mirror);
+  const tsPx = new Map();
+  if (block) for (const m of block[1].matchAll(/([a-z]+)\s*:\s*([\d.]+)/g)) tsPx.set(m[1], Number(m[2]));
+  if (tsPx.size === 0) violations.push(`${relative(root, mirrorFile)}  TEXT_ROLE_PX niet gevonden of leeg`);
+  for (const role of ROLES) {
+    if (cssPx.get(role) === undefined) violations.push(`src/styles/globals.css  --text-${role} heeft geen herkenbare \`calc(Npx * var(--ui-font-scale…))\``);
+    else if (tsPx.get(role) !== cssPx.get(role)) {
+      violations.push(`${relative(root, mirrorFile)}  TEXT_ROLE_PX.${role} = ${tsPx.get(role)}, globals.css zegt ${cssPx.get(role)}px`);
+    }
+  }
+  for (const role of tsPx.keys()) if (!roleSet.has(role)) violations.push(`${relative(root, mirrorFile)}  onbekende rol ${role} in TEXT_ROLE_PX`);
+}
 if (!/--text-\*\s*:\s*initial/.test(globals)) {
   violations.push('src/styles/globals.css  `--text-*: initial` ontbreekt — Tailwinds eigen schaal lekt dan weer naar binnen');
 }
 
 // Omgekeerd: een `var(--text-<iets>)` dat géén rol is, levert stil een lege font-size op.
-const roleSet = new Set(ROLES);
 for (const file of walk(srcDir)) {
   readFileSync(file, 'utf8').split(/\r?\n/).forEach((raw, i) => {
     for (const m of raw.matchAll(/var\(--text-([a-z0-9-]+)\)/g)) {
