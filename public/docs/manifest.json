@@ -1204,6 +1204,78 @@
       },
       "kind": "howto",
       "draft": true
+    },
+    {
+      "id": "uitleg-resourcebibliotheek",
+      "title": {
+        "nl": "De resourcebibliotheek",
+        "en": "The resource library"
+      },
+      "kind": "uitleg",
+      "draft": true
+    },
+    {
+      "id": "howto-resourcebibliotheek-gebruiken",
+      "title": {
+        "nl": "De resourcebibliotheek gebruiken",
+        "en": "Using the resource library"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-bibliotheken-beheren",
+      "title": {
+        "nl": "Resourcebibliotheken beheren en delen",
+        "en": "Managing and sharing resource libraries"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-bezettingsoverzicht-gebruiken",
+      "title": {
+        "nl": "Het bezettingsoverzicht gebruiken",
+        "en": "Using the occupancy overview"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-extensie-installeren",
+      "title": {
+        "nl": "Een extensie installeren en beheren",
+        "en": "Installing and managing an extension"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-ai-assistent-koppelen",
+      "title": {
+        "nl": "Een AI-assistent koppelen (MCP)",
+        "en": "Connecting an AI assistant (MCP)"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-feedback-geven",
+      "title": {
+        "nl": "Feedback geven",
+        "en": "Giving feedback"
+      },
+      "kind": "howto",
+      "draft": true
+    },
+    {
+      "id": "howto-app-bijwerken",
+      "title": {
+        "nl": "De app bijwerken",
+        "en": "Updating the app"
+      },
+      "kind": "howto",
+      "draft": true
     }
   ],
   "aliases": {}
