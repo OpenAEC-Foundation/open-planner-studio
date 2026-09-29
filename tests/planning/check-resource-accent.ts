@@ -14,6 +14,7 @@ import { useAppStore } from '@/state/appStore';
 import { paletteColorForId } from '@/engine/renderer/resourcePalette';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
 import { barLayout } from '@/engine/renderer/rowGeometry';
+import { progressFill } from '@/engine/renderer/themePalette';
 import type { Task } from '@/types/task';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { BarColorSelection } from '@/types/barColor';
@@ -229,6 +230,20 @@ const barShapes = (shapes: RoundShape[]) => shapes.filter(sh => sh.h > 10 && sh.
   const { shapes } = render(false);
   const bars = barShapes(shapes);
   ok(!bars.some(b => b.fill === paletteColorForId(task.id) && b.stroke === ''), 'default: geen moduskleuren');
+}
+
+{
+  // Voortgang in resource-modus: elk kleursegment krijgt de vulling uit zijn EIGEN kleur
+  // (`progressFill`), niet één vaste laag over beide. Bij 60% voortgang overlapt de vulling beide
+  // segmenten (25/75), dus moeten beide afgeleide vullingen verschijnen.
+  const half: Task = { ...task, time: { ...task.time, completion: 0.6 } };
+  const { shapes } = render(false, { task: half, selection: { mode: 'category', field: { src: 'resource' } } });
+  const fills = new Set(barShapes(shapes).map(b => b.fill.toLowerCase()));
+  const p1 = progressFill('#111111').toLowerCase();
+  const p2 = progressFill('#222222').toLowerCase();
+  ok(fills.has(p1) && fills.has(p2),
+    `scherm resource-modus: voortgang per segment in eigen afgeleide kleur (${p1}, ${p2}; fills: ${[...fills].join(', ')})`);
+  ok(!fills.has('rgba(0, 0, 0, 0.25)'), 'scherm resource-modus: geen vaste 25%-zwartlaag meer');
 }
 
 // Resource accent is een onafhankelijke overlay: exact dezelfde twee strepen bij elke selectie.

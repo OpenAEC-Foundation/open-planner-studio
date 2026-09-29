@@ -182,6 +182,63 @@ export function barLabelColor(barColor: string): string {
   return dark >= light ? BAR_LABEL_DARK : BAR_LABEL_LIGHT;
 }
 
+/** Minimale WCAG-contrastverhouding tussen het voltooide en het resterende deel van één balk. */
+export const PROGRESS_MIN_CONTRAST = 2;
+
+/** Vulling als de balkkleur geen `#rrggbb` is (CSS-var, rgba): de vroegere vaste donkere laag. */
+export const PROGRESS_FALLBACK_OVERLAY = 'rgba(0, 0, 0, 0.25)';
+
+const progressFillCache = new Map<string, string>();
+
+/**
+ * Voortgangsvulling bij een willekeurige balkkleur: dezelfde tint, naar zwart (of wit) gemengd
+ * tot hij minstens `PROGRESS_MIN_CONTRAST` haalt tegen de balk zelf. Vervangt de vaste 25%-zwart-
+ * laag, die op donkere en eigen kleuren (resource, categorie, trace) wegviel — op slate #1E293B
+ * haalde die laag 1,13, op een bijna-zwarte eigen kleur ~1,0.
+ *
+ * `preferLighter`: eerst naar wit mengen (het hoog-contrastthema, waar de balken op een zwarte kaart
+ * staan en "donkerder" onzichtbaar is). Haalt de voorkeursrichting de drempel niet (een bijna-
+ * zwarte balk kan niet donkerder, een bijna-witte niet lichter), dan de andere richting; haalt geen
+ * van beide hem, dan de richting met het hoogste contrast. Deterministisch en gememoized per invoer.
+ */
+export function progressFill(barColor: string, preferLighter = false): string {
+  const key = `${barColor}|${preferLighter ? 1 : 0}`;
+  const cached = progressFillCache.get(key);
+  if (cached) return cached;
+  const rgb = hexToRgb(barColor);
+  if (!rgb) return PROGRESS_FALLBACK_OVERLAY;
+  const hx = (n: number): string => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+  const toward = (target: number): { hex: string; ratio: number } => {
+    let best = { hex: barColor, ratio: 1 };
+    for (let t = 0.05; t <= 1.0001; t += 0.05) {
+      const mixed: [number, number, number] = [0, 1, 2].map(i => rgb[i] + (target - rgb[i]) * t) as [number, number, number];
+      const rounded = mixed.map(Math.round) as [number, number, number];
+      const ratio = contrastRatio(rgb, rounded);
+      best = { hex: `#${hx(mixed[0])}${hx(mixed[1])}${hx(mixed[2])}`, ratio };
+      if (ratio >= PROGRESS_MIN_CONTRAST) break;
+    }
+    return best;
+  };
+  const first = toward(preferLighter ? 255 : 0);
+  let out = first;
+  if (first.ratio < PROGRESS_MIN_CONTRAST) {
+    const second = toward(preferLighter ? 0 : 255);
+    if (second.ratio >= PROGRESS_MIN_CONTRAST || second.ratio > first.ratio) out = second;
+  }
+  progressFillCache.set(key, out.hex);
+  return out.hex;
+}
+
+/** Of het palet zijn voortgangsvulling LICHTER dan de balk kiest (hoog contrast: `complete`
+ *  #DBEAFE boven `normal` #60A5FA) of donkerder (licht/donker thema). `progressFill` volgt die
+ *  richting, zodat afgeleide vullingen in hetzelfde thema dezelfde kant op gaan als de themavars. */
+export function progressPrefersLighter(palette: Pick<GanttPalette, 'normal' | 'normalLight'>): boolean {
+  const n = hexToRgb(palette.normal);
+  const l = hexToRgb(palette.normalLight);
+  if (!n || !l) return false;
+  return relativeLuminance(l) > relativeLuminance(n);
+}
+
 // ── GanttRenderer ────────────────────────────────────────────────────────────
 export interface GanttPalette {
   bg: string;

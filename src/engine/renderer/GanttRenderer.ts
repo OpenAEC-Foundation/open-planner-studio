@@ -18,7 +18,7 @@ import type { BarColorSelection } from '@/types/barColor';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import { ensureThemeVisible } from '@/engine/renderer/resourcePalette';
 import { TimelineTier, TierConfig, TIER_CONFIG, pickTiers, nextTickBoundary, snapToTickStart } from './timelineTiers';
-import { readGanttPalette, barLabelColor, compositeOver, type GanttPalette } from './themePalette';
+import { readGanttPalette, barLabelColor, compositeOver, progressFill, progressPrefersLighter, type GanttPalette } from './themePalette';
 import { xToDayOffset, type GanttAxis } from './timeAxis';
 import { resolveGanttAxis, isCompressedEffective } from './workdayAxis';
 import { computeSplitSegments } from './splitBarGeometry';
@@ -318,12 +318,16 @@ export class GanttRenderer {
   /** Balk-, accent- en baselinehoogte binnen één rij (`rowGeometry.ts`) — één bron voor tekenen,
    *  hit-testen en de sleep-duurbadge. */
   private readonly bar: BarLayout;
+  /** Voortgangsvulling lichter dan de balk (hoog contrast) of donkerder (licht/donker thema) —
+   *  afgeleid uit het palet zelf, zodat een thema zijn richting via zijn eigen vars kiest. */
+  private readonly progressLighter: boolean;
 
   constructor(ctx: CanvasRenderingContext2D, opts: GanttRenderOptions) {
     this.ctx = ctx;
     this.opts = opts;
     this.bar = barLayout(opts.rowHeight);
     this.colors = opts.palette ?? readGanttPalette();
+    this.progressLighter = progressPrefersLighter(this.colors);
 
     this.viewStart = parseDate(opts.view.viewStartDate);
     this.rows = opts.rows;
@@ -1291,14 +1295,21 @@ export class GanttRenderer {
     }
 
     const color = overrideColor ?? modeColor ?? this.barColor(task);
-    // Voortgangsvulling: in de modi ligt er geen bijpassende "licht"-variant van een willekeurige
-    // moduskleur — dan de vaste semi-transparante donkere laag (zelfde keuze als de printlaag).
-    // Óók bij een trace-tint (`overrideColor`): de blauwe/rode "licht"-variant hoort bij de
-    // standaardbalkkleur; op een goud/paarse voorganger-/opvolgerbalk zou hij die kleur vervangen en
-    // is een voltooide taak niet meer van een gedimde te onderscheiden.
-    const progressColor = selection.mode !== 'critical' || overrideColor
-      ? 'rgba(0, 0, 0, 0.25)'
-      : task.time.isCritical ? this.colors.criticalLight : this.colors.normalLight;
+    // Voortgangsvulling: dezelfde tint als het vlak eronder, gemengd tot minstens 2:1 contrast
+    // (`progressFill`). Alleen de twee standaardtinten van de kritiek-pad-modus houden hun
+    // themavar (`criticalLight`/`normalLight`); bijna-kritiek, float-paden, de kleurmodi en een
+    // trace-tint (`overrideColor`) krijgen een vulling uit hun EIGEN kleur. Vroeger kregen die de
+    // blauwe vulling (paars float-pad 1,82:1) of een vaste 25%-zwartlaag (slate 1,13:1, een
+    // eigen bijna-zwarte kleur ~1:1). Een trace-tint krijgt bewust nooit de blauwe/rode vulling:
+    // die zou de goud/paarse tint vervangen.
+    const progressFor = (base: string): string => {
+      if (selection.mode === 'critical' && !overrideColor) {
+        if (task.time.isCritical && base === this.colors.critical) return this.colors.criticalLight;
+        if (base === this.colors.normal) return this.colors.normalLight;
+      }
+      return progressFill(base, this.progressLighter);
+    };
+    const progressColor = progressFor(color);
 
     // Een uur-taak splitst in werkblok-segmenten (pauzes/nachten vallen als gaten
     // weg) volgens de instelling; dag-taken en niet-gesplitste uur-taken zijn één doorlopend segment.
@@ -1389,7 +1400,20 @@ export class GanttRenderer {
       // Voortgangsvulling: het deel van dit segment links van de globale voortgangsgrens.
       if (task.time.completion > 0 && progressEnd > s.x1) {
         const pw = Math.min(s.x1 + sw, progressEnd) - s.x1;
-        if (pw > 0) {
+        if (pw > 0 && modeSegments.length > 0) {
+          // Resource-modus: elk kleursegment krijgt de vulling uit zijn eigen kleur.
+          const px2 = s.x1 + pw;
+          for (let mi = 0; mi < modeSegments.length; mi++) {
+            const ms = modeSegments[mi];
+            const ox1 = Math.max(ms.cx1, s.x1);
+            const ox2 = Math.min(ms.cx2, px2);
+            if (ox2 - ox1 < 0.5) continue;
+            ctx.fillStyle = progressFor(ms.color);
+            ctx.beginPath();
+            ctx.roundRect(ox1, y, ox2 - ox1, height, mi === 0 ? 3 : 0);
+            ctx.fill();
+          }
+        } else if (pw > 0) {
           ctx.fillStyle = progressColor;
           ctx.beginPath();
           ctx.roundRect(s.x1, y, pw, height, 3);
@@ -1508,11 +1532,11 @@ export class GanttRenderer {
       // `barLabelColor` in themePalette.ts voor de gemeten verhoudingen). Kies de kleur daarom op
       // het vlak dat de gebruiker ONDER het label ziet:
       // dat is de voortgangsvulling zodra die tot voorbij de tekststart loopt, anders de
-      // (mogelijk moduseigen) balkkleur. `compositeOver` lost de half-transparante zwarte
-      // voortgangslaag van de kleurmodi op tot een echte hex.
+      // (mogelijk moduseigen) balkkleur. `compositeOver` lost de terugvallaag (rgba, bij een
+      // niet-hex balkkleur) op tot een echte hex; een hex-vulling komt ongewijzigd terug.
       const baseUnderLabel = modeSegments.length > 0 ? modeSegments[0].color : color;
       const underLabel = task.time.completion > 0 && progressEnd > x1 + 6
-        ? compositeOver(progressColor, baseUnderLabel)
+        ? compositeOver(progressFor(baseUnderLabel), baseUnderLabel)
         : baseUnderLabel;
       this.drawBarName(task.name, barLabelColor(underLabel), x1, y, width, height, y + height / 2);
     }
