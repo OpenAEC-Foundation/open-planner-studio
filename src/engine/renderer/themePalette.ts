@@ -42,7 +42,7 @@ export const GANTT_TRACE_COLORS = {
 // kent geen grootte-uitzondering voor grafische objecten), en in `mode: 'critical'` is de balkkleur
 // de enige drager van "kritiek ja/nee", wat ook 1.4.1 raakt. Die afwijking is aanvaard voor licht
 // en donker. Wat de afruil dráágt is niet de vlakgrootte — de balk is
-// `rowHeight * 0,5`, bij de standaard ROW_HEIGHT 28 dus ~14 px, en in `mode: 'critical'` tekent
+// `rowHeight * 0,6` (`barLayout`), bij de standaardrij van 35 px dus 21 px, en in `mode: 'critical'` tekent
 // GanttRenderer er GEEN rand omheen (`modeAdvies` is daar `null`) — maar het LABEL: dat haalt via
 // `barLabelColor` (hieronder) 4,83-10,36 op elke balktint, en dat is wel gemeten.
 // De speling (`float`) is als enige WEL per thema gescheiden gebleven (`--theme-bar-float`): die

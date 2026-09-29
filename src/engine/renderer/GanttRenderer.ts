@@ -25,6 +25,7 @@ import { computeSplitSegments } from './splitBarGeometry';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { classifyTraceTask, isRelationOutsideTrace, type TaskTrace } from '@/engine/taskGrid/trace';
 import { ellipsize } from './textFit';
+import { barLayout, type BarLayout } from './rowGeometry';
 import { shownStart, shownFinish, floatBandEnd, finishInstant } from '@/utils/taskDates';
 
 /** `firstRowIndexByTask` per rijenlijst (die komt bevroren uit de store): de renderer wordt per
@@ -314,10 +315,14 @@ export class GanttRenderer {
    *  stuk en een pauze op het scherm hetzelfde betekenen als onder de muis. Per `render()` geleegd;
    *  een balk die niet getekend is (buiten beeld) staat er niet in en valt terug op de volle extent. */
   private splitSegmentsByTask = new Map<string, { x1: number; x2: number }[]>();
+  /** Balk-, accent- en baselinehoogte binnen één rij (`rowGeometry.ts`) — één bron voor tekenen,
+   *  hit-testen en de sleep-duurbadge. */
+  private readonly bar: BarLayout;
 
   constructor(ctx: CanvasRenderingContext2D, opts: GanttRenderOptions) {
     this.ctx = ctx;
     this.opts = opts;
+    this.bar = barLayout(opts.rowHeight);
     this.colors = opts.palette ?? readGanttPalette();
 
     this.viewStart = parseDate(opts.view.viewStartDate);
@@ -897,15 +902,11 @@ export class GanttRenderer {
 
     const ctx = this.ctx;
     const zoom = this.opts.view.zoom;
-    const preferredBaseHeight = Math.max(2, height * 0.28);
+    // Resource-accent en baseline delen de vrije strook onder de hoofdbalk met VASTE hoogtes uit
+    // `barLayout`: de baseline is even dik met of zonder accent en past in beide gevallen binnen
+    // de rij. Staat er een accent, dan schuift de baseline eronder.
     const baseY = y + height + 1 + resourceAccentHeight;
-    // Resource-accent en baseline delen de vrije ruimte onder de hoofdbalk. Houd de baseline bij
-    // de combinatie binnen dezelfde rij; bij de kleinste ondersteunde tekengrootte resteert nog
-    // ruim 2 px en blijft de baseline dus zichtbaar zonder het accent te bedekken.
-    const rowBottom = y + height + (this.opts.rowHeight - height) / 2;
-    const baseHeight = resourceAccentHeight > 0
-      ? Math.min(preferredBaseHeight, Math.max(2, rowBottom - baseY))
-      : preferredBaseHeight;
+    const baseHeight = this.bar.baselineHeight;
     ctx.fillStyle = this.colors.baseline;
 
     if (entry.isMilestone) {
@@ -1147,9 +1148,7 @@ export class GanttRenderer {
   }
 
   private drawTaskBars(): void {
-    const { rowHeight } = this.opts;
-    const barHeight = rowHeight * 0.5;
-    const barOffset = (rowHeight - barHeight) / 2;
+    const { barHeight, barOffset } = this.bar;
 
     // Path tracing: betrokken taken krijgen de trace-tint (driving-keten sterker), de rest dimt.
     // De focus-taak behoudt z'n eigen kleur — de selectiering markeert hem al.
@@ -1223,7 +1222,8 @@ export class GanttRenderer {
   private drawBarName(name: string, color: string, x1: number, y: number, width: number, height: number, textY: number): void {
     const ctx = this.ctx;
     ctx.fillStyle = color;
-    ctx.font = this.font(10);
+    // Zelfde rol als de rastertekst links (`.task-grid-core`: `--text-body`).
+    ctx.font = this.font(11);
     ctx.textBaseline = 'middle';
     ctx.save();
     ctx.beginPath();
@@ -1476,14 +1476,15 @@ export class GanttRenderer {
     }
 
     // Resource-accent: dun streepje in de resourcekleur direct ónder de balk, gesegmenteerd
-    // naar rato van unitsPerDay bij meerdere resources. Eén vast hoogtemaatje van 3 px — subtiel
-    // genoeg om het kritiek-pad-beeld niet te verdringen, duidelijk genoeg om "wie doet dit" te lezen.
+    // naar rato van unitsPerDay bij meerdere resources. Vaste hoogte uit `barLayout` (bij de
+    // standaardrij 3 px) — subtiel genoeg om het kritiek-pad-beeld niet te verdringen, duidelijk
+    // genoeg om "wie doet dit" te lezen, en gelijk ongeacht of de baseline aan staat.
     let resourceAccentHeight = 0;
     if (this.opts.showResourceAccent) {
       const rows = assignmentsForTask(task.id, this.opts.resources ?? [], this.opts.assignments ?? []);
       if (rows.length > 0) {
         const total = rows.reduce((a, r) => a + r.unitsPerDay, 0) || 1;
-        const accentH = 3;
+        const accentH = this.bar.accentHeight;
         const accentY = y + height + 1;
         let ax = x1;
         rows.forEach((r, i) => {
@@ -1680,7 +1681,7 @@ export class GanttRenderer {
     // begint hij alleen nog te overlappen).
     const labelX = x + size + 6;
     ctx.fillStyle = this.colors.text;
-    ctx.font = this.font(10);
+    ctx.font = this.font(11);
     ctx.textBaseline = 'middle';
     const msLabel = this.ellipsize(task.name, Math.min(200, this.opts.canvasWidth - labelX - 4));
     if (msLabel) ctx.fillText(msLabel, labelX, cy);
@@ -1843,8 +1844,8 @@ export class GanttRenderer {
 
   /** Halve tekstmarge links/rechts binnen het pilletje. */
   private static readonly DRAG_BADGE_PAD_X = 5;
-  /** Hoogte van het pilletje — iets hoger dan de balk (rowHeight/2 = 14), zodat hij als los
-   *  chipje leest en niet als een stuk vulling van de balk zelf. */
+  /** Vaste hoogte van het pilletje (sleep-duur en statusdatum). Los van de balkhoogte: het
+   *  pilletje staat naast de balkrand en leest zo als chipje, niet als stuk balkvulling. */
   private static readonly DRAG_BADGE_H = 16;
   /** Afstand tussen het pilletje en de gesleepte balkrand. Klein genoeg dat het label duidelijk
    *  bij die rand hoort. */
@@ -1898,9 +1899,9 @@ export class GanttRenderer {
     if (row?.kind !== 'task') return;
     const task = row.task;
 
-    const { rowHeight, headerHeight, canvasHeight, canvasWidth } = this.opts;
-    const barHeight = rowHeight * 0.5;
-    const barY = this.rowToY(rowIndex) + (rowHeight - barHeight) / 2;
+    const { headerHeight, canvasHeight, canvasWidth } = this.opts;
+    const { barHeight, barOffset } = this.bar;
+    const barY = this.rowToY(rowIndex) + barOffset;
     // Rij weggescrold: niets tekenen (zelfde zichtbaarheidstest als drawTaskBars).
     if (barY + barHeight < headerHeight || barY > canvasHeight) return;
 
@@ -2275,8 +2276,8 @@ export class GanttRenderer {
     }
 
     const { x1, x2 } = this.barGeometry(task);
-    const barHeight = this.opts.rowHeight * 0.5;
-    const top = this.rowToY(rowIndex) + (this.opts.rowHeight - barHeight) / 2;
+    const { barHeight, barOffset } = this.bar;
+    const top = this.rowToY(rowIndex) + barOffset;
     return {
       left: x1,
       right: x1 + Math.max(x2 - x1, 4),

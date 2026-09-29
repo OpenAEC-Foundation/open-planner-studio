@@ -73,7 +73,7 @@
   white-space: nowrap;
 }
 
-/* Een editorpop-over is bewust breder/hoger dan zijn 28px-cel. De gewone celinhoud blijft
+/* Een editorpop-over is bewust breder/hoger dan zijn 35px-cel. De gewone celinhoud blijft
  * ellipsized, maar de actieve editor mag niet door die wrapper worden afgeknipt: anders zijn
  * dropdowns en chipknoppen wel in de DOM aanwezig maar fysiek niet aanklikbaar.
  * Issue #89: de contentspan is een flex-item van de cel en kromp zonder `flex: 1 1 auto` tot de
@@ -1322,7 +1322,7 @@ button.task-grid-relation-reference {
      zou `complete` (BRAND) naar 1.91 zakken; het thema zet daarom #BFDBFE. Formeel zijn de lage
      waarden non-conform met WCAG 1.4.11 — bewust aanvaard voor
      licht en donker; voor hoog contrast staat het open (zie themePalette.ts). Wat de afruil draagt
-     is het LABEL (4.83-10.36), niet de vlakgrootte: de balk is ~14 px hoog en heeft in de
+     is het LABEL (4.83-10.36), niet de vlakgrootte: de balk is ~21 px hoog en heeft in de
      standaardmodus geen rand. De speling (`--theme-bar-float`) is als enige WEL per thema
      gescheiden: die band is halfdoorzichtig en draagt geen label, dus hij moet het puur van zijn
      ondergrond winnen (donker #10B981 op #2E3239 = 5.07; licht #059669 op #FAFAFA = 3.61;

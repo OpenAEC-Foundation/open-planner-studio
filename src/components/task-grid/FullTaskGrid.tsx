@@ -68,6 +68,7 @@ import type {
   TaskGridSurfaceId,
 } from '@/types/taskGrid';
 import { askActualStart } from '@/state/actualStartQuestion';
+import { TASK_ROW_HEIGHT } from '@/engine/taskGrid/rowHeight';
 
 interface EditingCell {
   documentId: string;
@@ -921,7 +922,8 @@ export function TaskGridSurface({
     };
   }, [activeDocumentId, adapter, addTask, applySelection, collapsedTaskIds, editing, focusOnTask, nameIndentMode, rowIndex, selection, showSummaryAdd, tCommon, tTask, tasksById, toggleCollapse, validationMessage, visibleColumnIds]);
 
-  const rowHeight = Math.max(20, Math.round(28 * uiFontScale / 100));
+  // Zelfde basis als de Gantt-tijdlijn (`taskGrid/rowHeight.ts`), zodat raster en balken rij-op-rij lopen.
+  const rowHeight = Math.max(25, Math.round(TASK_ROW_HEIGHT * uiFontScale / 100));
   const headerHeight = Math.max(24, Math.round(baseHeaderHeight * uiFontScale / 100));
   const viewportHeight = Math.max(0, size.height - headerHeight);
   const handleExternalRelationMenuKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
