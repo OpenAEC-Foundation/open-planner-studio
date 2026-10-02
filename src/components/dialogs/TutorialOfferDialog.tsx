@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { GraduationCap } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
@@ -52,6 +52,11 @@ const LATER_NOTICE: NotifyInput = {
 export function TutorialOfferDialog() {
   const { t } = useTranslation('common');
   const [busy, setBusy] = useState(false);
+  // Beginfocus op Ja: de focus-trap van `Dialog` zet hem op het eerste focusbare element (het
+  // kruisje). Dit effect loopt ná dat van het kind `Dialog`, dus Ja wint. Enter activeert zo de
+  // gefocuste knop — standaard Ja; na Tab naar Nee of het kruisje díé knop (M1, review PR #261).
+  const yesRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => { yesRef.current?.focus(); }, []);
 
   const markAnswered = () => {
     void saveTutorialOfferAnswered(true);
@@ -100,27 +105,34 @@ export function TutorialOfferDialog() {
 
   return (
     // Bewust geen backdrop-close: een keuzevraag, geen melding. Tijdens "bezig" doen Escape, Enter
-    // en het kruisje niets — de installatie loopt dan al.
+    // en het kruisje niets — de installatie loopt dan al. Enter op een gefocuste knop activeert díé
+    // knop; alleen zonder knopfocus is Enter "Ja" (`focusedButtonOwnsEnter`).
     <Dialog
       onCancel={busy ? undefined : decline}
       onConfirm={busy ? undefined : () => { void accept(); }}
+      focusedButtonOwnsEnter
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[440px] max-h-[88vh] flex flex-col overflow-hidden"
-      panelProps={{ 'data-ops-tutorial-offer': true, 'aria-busy': busy }}
+      panelProps={{
+        'data-ops-tutorial-offer': true,
+        'aria-busy': busy,
+        'aria-labelledby': 'ops-tutorial-offer-title',
+        'aria-describedby': 'ops-tutorial-offer-question',
+      }}
     >
       <DialogHeader
-        title={t('tutorialOffer.title')}
+        title={<span id="ops-tutorial-offer-title">{t('tutorialOffer.title')}</span>}
         icon={<GraduationCap size={16} aria-hidden />}
         onClose={decline}
         closeDisabled={busy}
       />
       <div className="p-4 flex flex-col gap-3 text-body leading-5">
-        <p className="font-semibold">{t('tutorialOffer.question')}</p>
+        <p id="ops-tutorial-offer-question" className="font-semibold">{t('tutorialOffer.question')}</p>
         <p className="text-text-secondary">{t('tutorialOffer.body')}</p>
         {busy && <p className="text-small leading-4 text-text-secondary" role="status">{t('tutorialOffer.busy')}</p>}
       </div>
       <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-border">
         <button onClick={decline} disabled={busy} className="btn btn--sm">{t('tutorialOffer.no')}</button>
-        <button onClick={() => { void accept(); }} disabled={busy} className="btn btn--sm btn--primary">
+        <button ref={yesRef} onClick={() => { void accept(); }} disabled={busy} className="btn btn--sm btn--primary">
           {t('tutorialOffer.yes')}
         </button>
       </div>

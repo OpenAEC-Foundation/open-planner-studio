@@ -157,3 +157,108 @@ test('Nee → melding over Help › Tutorials, en de vraag komt niet opnieuw', a
   await waitForOps(page);
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.tutorialOfferAnswered)).toBe(true);
 });
+
+/** Verse start tot en met de tutorialvraag, via welkomst en een volledig doorlopen rondleiding. */
+async function reachOffer(page: Page): Promise<void> {
+  await freshStart(page);
+  await startTourFromWelcome(page);
+  await completeTour(page);
+  await expect(offer(page)).toBeVisible();
+}
+
+/** Telt catalogusverzoeken (404): zo is zichtbaar of "Ja" (installeren) toch is afgegaan. */
+async function countCatalogRequests(page: Page): Promise<() => number> {
+  let n = 0;
+  await page.route(CATALOG, route => { n++; return route.fulfill({ status: 404, contentType: 'text/plain', body: 'not found' }); });
+  return () => n;
+}
+
+// M1 (review PR #261): Enter activeert de GEFOCUSTE knop. De beginfocus staat op Ja; met Shift+Tab
+// naar Nee of het kruisje is Enter daar Nee — niet de standaardactie Ja.
+for (const target of ['Nee', 'kruisje'] as const) {
+  test(`Enter op ${target} → Nee, niet Ja`, async ({ page, ops: _ops }) => {
+    const catalogRequests = await countCatalogRequests(page);
+    await reachOffer(page);
+    const yes = offer(page).getByRole('button', { name: /^(Yes|Ja)$/ });
+    const no = offer(page).getByRole('button', { name: /^(No|Nee)$/ });
+    const close = offer(page).getByRole('button', { name: /^(Close|Sluiten)$/ });
+    await expect(yes).toBeFocused();
+
+    await page.keyboard.press('Shift+Tab');
+    await expect(no).toBeFocused();
+    if (target === 'kruisje') {
+      await page.keyboard.press('Shift+Tab');
+      await expect(close).toBeFocused();
+    }
+    await page.keyboard.press('Enter');
+
+    await expect(offer(page)).toHaveCount(0);
+    await expect(page.getByRole('status').filter({ hasText: /Help › Tutorials/ })
+      .locator('[data-ops-notification-action]')).toHaveText(/^(Open Help|Help openen)$/);
+    expect(catalogRequests()).toBe(0);
+    expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.backstageSection)).not.toBe('help');
+    expect(await answered(page)).toBe('true');
+  });
+}
+
+test('Enter zonder knopfocus = Ja (de standaardactie)', async ({ page, ops }) => {
+  ops.acceptError('Failed to load resource: the server responded with a status of 404');
+  const catalogRequests = await countCatalogRequests(page);
+  await reachOffer(page);
+  // Klik op de vraagtekst: daarna heeft geen knop de focus.
+  await offer(page).locator('#ops-tutorial-offer-question').click();
+  expect(await page.evaluate(() => document.activeElement?.tagName)).not.toBe('BUTTON');
+  await page.keyboard.press('Enter');
+  await expect(offer(page)).toHaveCount(0);
+  await expect(page.locator('[data-help-section="kind-tutorial"] [data-help-install-tutorials]')).toBeInViewport();
+  expect(catalogRequests()).toBe(1);
+});
+
+// M2 (review PR #261): een download die nooit antwoordt, laat Ja niet eeuwig "bezig". Na de
+// tijdslimiet volgt de gewone foutroute: Help › Tutorials met een melding. De klok van de pagina is
+// nep, zodat de test niet echt 20 of 60 seconden wacht; wat de gebruiker doet blijft een echte klik.
+test('catalogus antwoordt nooit → na de tijdslimiet Help › Tutorials met een melding', async ({ page, ops: _ops }) => {
+  let requested!: () => void;
+  const catalogRequested = new Promise<void>(r => { requested = r; });
+  await page.route(CATALOG, () => { requested(); /* nooit beantwoorden */ });
+  await reachOffer(page);
+
+  await page.clock.install();
+  await offer(page).getByRole('button', { name: /^(Yes|Ja)$/ }).click();
+  await catalogRequested;
+  await expect(offer(page).getByRole('status')).toBeVisible(); // bezig
+  await page.clock.runFor(20_000);
+
+  await expect(offer(page)).toHaveCount(0);
+  await expect(page.locator('[data-help-section="kind-tutorial"] [data-help-install-tutorials]')).toBeInViewport();
+  await expect(page.getByRole('status').filter({ hasText: /Help › Tutorials/ })).toBeVisible();
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().catalogError)).toMatch(/20 s/);
+  expect(await answered(page)).toBe('true');
+});
+
+test('extensie-ZIP antwoordt nooit → na de tijdslimiet Help › Tutorials met een melding', async ({ page, ops }) => {
+  ops.acceptError('Installeren vanuit catalogus mislukt');
+  let requested!: () => void;
+  const zipRequested = new Promise<void>(r => { requested = r; });
+  await page.route(CATALOG, route => {
+    if (route.request().url().endsWith('/tutorials.zip')) { requested(); return; /* nooit beantwoorden */ }
+    return route.fulfill({ status: 200, json: { version: '1', lastUpdated: '2026-09-28', extensions: [{
+      id: 'tutorials', name: 'Tutorials', version: '1.0.0', author: 'Browserfixture', description: 'Tutorials',
+      category: 'Other', tags: [], minAppVersion: '0.0.0', repository: 'https://example.invalid/tutorials',
+      downloadUrl: 'https://raw.githubusercontent.com/fixture/tutorials.zip',
+    }] } });
+  });
+  await reachOffer(page);
+
+  await page.clock.install();
+  await offer(page).getByRole('button', { name: /^(Yes|Ja)$/ }).click();
+  await zipRequested;
+  await expect(offer(page).getByRole('status')).toBeVisible(); // bezig
+  await page.clock.runFor(60_000);
+
+  await expect(offer(page)).toHaveCount(0);
+  await expect(page.locator('[data-help-section="kind-tutorial"] [data-help-install-tutorials]')).toBeInViewport();
+  await expect(page.getByRole('status').filter({ hasText: /Help › Tutorials/ })).toBeVisible();
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().installedExtensions.tutorials)).toBeUndefined();
+  expect(await answered(page)).toBe('true');
+});
