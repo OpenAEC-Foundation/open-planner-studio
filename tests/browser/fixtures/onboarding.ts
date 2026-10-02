@@ -40,6 +40,12 @@ export const tourStep = (page: Page) => page.evaluate(() => window.__OPS__!.stor
 export async function completeTour(page: Page, eachStep?: () => Promise<void>): Promise<void> {
   const card = page.locator('[data-ops-tour-card]');
   const primary = card.locator('.btn--primary');
+  // De titel van de kaart (elke stap heeft een eigen titel). Na een klik wachten we tot de KAART de
+  // nieuwe stap toont, niet alleen de store: het knoplabel ("Volgende" → "Sluiten") wordt in dezelfde
+  // render bijgewerkt. Wachten op `ui.tourStepIndex` alleen liet een trage CI het oude label
+  // lezen, op de laatste stap nog eens klikken (= afsluiten) en daarna eindeloos op een volgende
+  // stap wachten.
+  const title = card.locator('span.font-semibold').first();
   for (let i = 0; i < 12; i++) {
     await eachStep?.();
     const label = (await primary.textContent())?.trim() ?? '';
@@ -48,9 +54,11 @@ export async function completeTour(page: Page, eachStep?: () => Promise<void>): 
       await expect(card).toHaveCount(0);
       return;
     }
-    const before = await tourStep(page);
+    const before = (await title.textContent()) ?? '';
+    const stepBefore = await tourStep(page);
     await primary.click();
-    await expect.poll(() => tourStep(page)).not.toBe(before);
+    await expect(title).not.toHaveText(before);
+    await expect.poll(() => tourStep(page)).not.toBe(stepBefore);
   }
   throw new Error('de rondleiding bereikte geen laatste stap');
 }
