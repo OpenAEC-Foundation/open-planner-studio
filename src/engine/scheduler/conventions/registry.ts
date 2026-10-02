@@ -256,14 +256,16 @@ export function p6OptionDefaults(): {
 
 /** Standaard-PROJECTOPTIES voor een nieuw of bronloos project per basis. P6 = de optie-defaults
  *  van de XER-lezer (`XER_SCHEDULING_DEFAULTS` zonder bronmarkering en zonder conventies; die
- *  gelijkheid is gepind in `check-conventions-registry.ts`); MS Project = kleinste speling; OPS =
- *  niets (afwezig ≡ het huidige gedrag). Levert steeds een verse kopie. */
+ *  gelijkheid is gepind in `check-conventions-registry.ts`); MS Project en OPS = niets (afwezig ≡
+ *  het huidige gedrag). Voor MS Project bewust ook geen `totalFloatMode` (eigenaarsbesluit
+ *  2026-10-02, spec §3.1): afwezig = *Automatisch* = finish-speling bij statusdatum én gestarte taak,
+ *  anders de kleinste — precies MSP's eigen regel, en wat een geopend `.mpp` ook draagt (de
+ *  `.mpp`-lezer zet geen optie). *Kleinste* (altijd min) is de P6-modus. Levert steeds een verse kopie. */
 export function defaultOptionsFor(baseId: BuiltInProfileId): ProjectSchedulingOptions {
   switch (baseId) {
     case 'p6':
       return p6OptionDefaults();
     case 'msproject':
-      return { totalFloatMode: 'smallest' };
     case 'ops':
       return {};
   }

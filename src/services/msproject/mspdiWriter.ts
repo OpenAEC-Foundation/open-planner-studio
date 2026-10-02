@@ -385,7 +385,11 @@ export function writeMSPDI(
       console.warn(`MSPDI-export: kritiek-definitie (${cd.mode}${cd.threshold != null ? `, drempel ${cd.threshold}` : ''}) niet uitdrukbaar als CriticalSlackLimit — weggelaten (§6).`);
     }
     if (so.lagCalendar && so.lagCalendar !== 'predecessor') lost.push('lagCalendar');
-    if (so.totalFloatMode && so.totalFloatMode !== 'smallest') lost.push('totalFloatMode');
+    // Elke EXPLICIETE speling-modus gaat verloren: MSPDI kent er geen veld voor, en zowel MS Project
+    // als onze MSPDI-lezer rekenen dan *Automatisch* (afwezig: finish-speling bij statusdatum én
+    // gestarte taak, anders het minimum). Ook 'smallest' is dus verlies — dat is de P6-modus, niet
+    // MSP's regel (spec rekenprofielen §3.1, besluit 2026-10-02; zelfde oordeel als `xerExportLoss`).
+    if (so.totalFloatMode) lost.push('totalFloatMode');
     if (so.makeOpenEndedCritical) lost.push('makeOpenEndedCritical');
     if (so.nearCriticalThreshold != null) lost.push('nearCriticalThreshold');
     if (so.floatPaths?.enabled) lost.push('floatPaths');

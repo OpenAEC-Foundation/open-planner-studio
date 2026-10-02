@@ -122,10 +122,26 @@ project, (2) bij een import zonder eigen opties in het bestand — CSV en extens
 verzoek via de knop *Standaardopties van dit profiel toepassen* in Projectinfo. Een profielwissel
 raakt de opties nooit. Per basis: p6 = de optie-defaults uit
 `XER_SCHEDULING_DEFAULTS` (die constante verhuist naar het register; `xerScheduleOptions.ts` importeert
-hem daar); msproject = `{ totalFloatMode: 'smallest' }`; ops = `{}`. `totalFloatMode` krijgt GEEN nieuwe
+hem daar); msproject = `{}`; ops = `{}`. `totalFloatMode` krijgt GEEN nieuwe
 state-waarde: het huidige gedrag bij afwezig (finish-float bij statusdatum én gestarte taak, anders
 min) blijft `undefined` in de state, en alleen de UI toont dat als "automatisch" (nu ten onrechte als
 "smallest"). Zo lekt er niets naar de extensie-API of de writers.
+
+**Besluit eigenaar (2026-10-02): MS Project rekent de speling *Automatisch*, niet *Kleinste*.** Tot dan
+was msproject = `{ totalFloatMode: 'smallest' }`. Een nieuw MSP-project rekende de speling daardoor
+anders dan een geopend `.mpp`-bestand (de `.mpp`-lezer zet geen speling-modus, dus *Automatisch*).
+*Automatisch* ís MSP's regel: MS Project rekent voor een gestarte taak altijd de finish slack, anders
+het minimum van start- en finish slack (MPXJ `MicrosoftSlackCalculator.calculateTotalSlack`, bij ons
+`mppTotalSlackTenths`); *Kleinste* (altijd het minimum) is de P6-modus. Meting op 164 publieke
+`.mpp`-bestanden: zonder statusdatum geen verschil; met een kunstmatige statusdatum week *Kleinste* bij
+9 van de 78 gestarte taken af van MSP's opgeslagen speling, *Automatisch* nergens slechter. Datums
+verschuiven nooit (`totalFloatMode` wordt alleen in `scheduleAnalysis.ts` gelezen). Het besluit geldt
+voor de wizard *Nieuw project* en de knop *Standaardopties van dit profiel toepassen*; een bestaand
+project dat *Kleinste* al draagt houdt dat (projectdata) tot iemand de knop gebruikt. Gevolg voor
+MSPDI: elke expliciete speling-modus is daar verlies (MSPDI kent geen veld; de lezer en MS Project
+rekenen *Automatisch*), ook *Kleinste* — de MSPDI-writer meldt hem sindsdien. Gepind in
+`check-conventions-registry.ts` (#44) en `check-msproject-float-default.ts` (nieuw MSP-project ≡
+geopend `.mpp`, plus een rekenvoorbeeld waarin de twee modi verschillen).
 
 ### 3.2 Profiel en project
 
@@ -394,7 +410,7 @@ round-tript via `OPS_SchedulingOptions`; UI-CO = `CalcOptionsSection.tsx`.*
 | A4 | Kritiek: totale speling of longest path | SA | `criticalDefinition.mode` | P6 `critical_path_type` / MSP ONBEKEND / OPS totalFloat | RT, UI-CO |
 | A5 | Kritiek-drempel in dagen | SA | `criticalDefinition.threshold` | P6 n.v.t. / MSP `CriticalSlackLimit` (alleen MSPDI) / OPS 0 | RT, UI-CO |
 | A6 | Kritiek-drempel in uren, per taak op eigen kalender | SA | `criticalDefinition.thresholdHours` (wint) | P6 `critical_drtn_hr_cnt` / MSP n.v.t. / OPS afwezig | RT; **UI laat hem vallen** |
-| A7 | Formule totale speling | SA | `totalFloatMode` | P6 `sched_float_type` (XER-default finish) / MSP smallest / OPS **afwezig = hybride** | RT, UI-CO (toont ten onrechte smallest) |
+| A7 | Formule totale speling | SA | `totalFloatMode` | P6 `sched_float_type` (XER-default finish) / MSP **afwezig = hybride** (sinds 2026-10-02; was smallest) / OPS **afwezig = hybride** | RT, UI-CO (toont ten onrechte smallest) |
 | A8 | Open eindtaak kritiek | SA | `makeOpenEndedCritical` | P6 `sched_open_critical_flag` (N) / MSP ONBEKEND / OPS uit | RT, UI-CO |
 | A9 | Near-critical-drempel | SA | `nearCriticalThreshold` | P6 ONBEKEND / MSP ONBEKEND / OPS uit | RT, UI-CO |
 | A10 | Meerdere floatpaden | SA | `floatPaths` | P6 `enable_multiple_longest_path_calc` e.a. / MSP ONBEKEND / OPS uit | RT, UI-CO |

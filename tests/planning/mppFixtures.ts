@@ -732,3 +732,75 @@ export function concatBytes(...parts: Uint8Array[]): Uint8Array {
   }
   return out;
 }
+
+// ── Minimale, door `readMPP` leesbare MPP14-fixture ──────────────────────────────────────────────
+//
+// Eén taak 'B' (uniqueId 10, 3 werkdagen @ 480 min/dag) in een volledige MPP14-container. Zelfde
+// constructie als tests/mcp/cases-doc-file.ts (daar niet geëxporteerd, andere suite). Stond los in
+// check-import-missing-schedule-dates.ts; hierheen verhuisd toen check-msproject-float-default.ts
+// hem ook nodig had. Datums in MPP-dagen sinds 1984-01-01; 65535 = "NA" (getTimestamp ⇒ null).
+
+export const MPP_NA = 65535;
+
+export function mppTimestampBytes(time: number, days: number): Uint8Array {
+  const out = new Uint8Array(4);
+  const view = new DataView(out.buffer);
+  view.setUint16(0, time, true);
+  view.setUint16(2, days, true);
+  return out;
+}
+
+/** `statusDays` (optioneel): PropsKey STATUS_DATE (37748805) in MPP-dagen, tijd 0. */
+export function minimalMpp14Bytes(opts: {
+  startDays: number; finishDays: number; projectStartDays: number; statusDays?: number;
+}): Uint8Array {
+  const ascii = (s: string) => {
+    const out = new Uint8Array(s.length * 2);
+    const view = new DataView(out.buffer);
+    for (let i = 0; i < s.length; i++) view.setUint16(i * 2, s.charCodeAt(i), true);
+    return out;
+  };
+  const int32 = (v: number) => { const o = new Uint8Array(4); new DataView(o.buffer).setInt32(0, v, true); return o; };
+  const props = encodePropsEntries([
+    { key: 37748738, data: mppTimestampBytes(0, opts.projectStartDays) }, // project start
+    { key: 37748739, data: mppTimestampBytes(0, opts.projectStartDays + 30) }, // project finish
+    { key: 37748765, data: int32(480) }, // minutes per day
+    { key: 37748744, data: ascii('Fixture') },
+    ...(opts.statusDays !== undefined ? [{ key: 37748805, data: mppTimestampBytes(0, opts.statusDays) }] : []),
+  ]);
+  const record = new Uint8Array(130);
+  const rv = new DataView(record.buffer);
+  rv.setInt32(0, 10, true); rv.setInt32(4, 1, true); rv.setInt16(40, 1, true);
+  rv.setInt32(42, 3 * 4800, true); // 3 werkdagen @ 480 min/dag, in tienden van een minuut
+  rv.setInt16(56, 0, true);
+  rv.setUint16(64, 0, true); rv.setUint16(66, opts.startDays, true);
+  rv.setUint16(68, 0, true); rv.setUint16(70, opts.finishDays, true);
+  rv.setInt32(118, -1, true);
+  const itemSize = 47, items = 4;
+  const meta = new Uint8Array(16 + items * itemSize);
+  const mv = new DataView(meta.buffer);
+  mv.setUint32(0, 0xfadfadba, true); mv.setInt32(8, items, true);
+  mv.setInt32(16 + 3 * itemSize, 0, true); mv.setInt32(16 + 3 * itemSize + 4, 0, true);
+  const nameBytes = ascii('B');
+  const var2 = new Uint8Array(4 + nameBytes.length);
+  new DataView(var2.buffer).setInt32(0, nameBytes.length, true);
+  var2.set(nameBytes, 4);
+  const tree: Record<string, CfbTreeNode> = {
+    '\x01CompObj': { data: encodeCompObjFileFormat('MSProject.MPP14') },
+    Props14: { data: encodePropsSingleByteEntry(893386752, 0) },
+    '   114': {
+      children: {
+        Props: { data: props },
+        TBkndTask: {
+          children: {
+            FixedMeta: { data: meta },
+            FixedData: { data: record },
+            VarMeta: { data: buildVarMetaBytes([{ uniqueId: 10, offset: 0, type: 14 }]) },
+            Var2Data: { data: var2 },
+          },
+        },
+      },
+    },
+  };
+  return buildNestedCfb(tree);
+}
