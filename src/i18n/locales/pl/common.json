@@ -203,7 +203,8 @@
     "schedulingProfileShifted_many": "Po zastosowaniu przesunięto {{count}} zadań.",
     "schedulingProfileShifted_other": "Po zastosowaniu przesunięto {{count}} zadania.",
     "actions": {
-      "openProjectInfo": "Otwórz profil obliczeń"
+      "openProjectInfo": "Otwórz profil obliczeń",
+      "openHelp": "Otwórz pomoc"
     },
     "xerArchiveUnusable": "Archiwum źródłowe XER w tym pliku jest bezużyteczne i zostało pominięte; sam projekt otwarto w całości.",
     "xerArchiveUnusableLine": "Archiwum źródłowe XER w tym pliku było bezużyteczne i zostało pominięte.",
@@ -215,7 +216,9 @@
     "xerArchiveReasonMetadataInvalid": "Powód: bajty źródłowe są nienaruszone, ale dane z nich wyprowadzone są bezużyteczne.",
     "xerArchiveReasonStructure": "Powód: struktura archiwum w IFC jest nieprawidłowa (zdublowana, przestawiona lub błędnie powiązana).",
     "statusDateSetToday": "Nie było jeszcze daty statusu: ustawiono ją na dziś ({{date}}), ponieważ postęp jest mierzony do daty statusu. Możesz ją zmienić w Planowanie → Data statusu.",
-    "durationBelowDoneWork": "„{{name}}” jest już wykonane w {{percent}}%: czas trwania krótszy niż wykonana praca jest niemożliwy. Czas trwania nie został zmieniony."
+    "durationBelowDoneWork": "„{{name}}” jest już wykonane w {{percent}}%: czas trwania krótszy niż wykonana praca jest niemożliwy. Czas trwania nie został zmieniony.",
+    "tutorialOfferLater": "Samouczki zawsze znajdziesz w Pomoc › Samouczki.",
+    "tutorialOfferUnavailable": "Nie udało się teraz zainstalować ani uruchomić samouczków. Możesz spróbować ponownie później w Pomoc › Samouczki."
   },
   "scheduleErrors": {
     "cycle": "Zależność cykliczna między zadaniami: {{path}}",
@@ -1528,5 +1531,13 @@
     "close": "Zamknij przewodnik",
     "stepDone": "Zrobione",
     "waiting": "Wykonaj zadanie w aplikacji; potem możesz przejść dalej."
+  },
+  "tutorialOffer": {
+    "title": "Samouczki",
+    "question": "Chcesz teraz utworzyć swój pierwszy harmonogram z samouczkiem?",
+    "body": "Wycieczka zakończona. W samouczku 1 krok po kroku tworzysz harmonogram rozbudowy domu; panel podaje jedno polecenie naraz i rozpoznaje, kiedy je wykonasz. Samouczki są rozszerzeniem: jeśli nie jest jeszcze zainstalowane, aplikacja je pobierze i najpierw zapyta, czy mu ufasz.",
+    "yes": "Tak",
+    "no": "Nie",
+    "busy": "Przygotowywanie samouczków…"
   }
 }

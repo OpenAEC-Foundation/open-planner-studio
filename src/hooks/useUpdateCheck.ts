@@ -2,9 +2,25 @@ import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { isTauri } from '@/utils/platform';
 import { checkForUpdates, getInstallKind } from '@/services/updater/updaterService';
-import { loadLastVersion, saveLastVersion } from '@/utils/settingsStore';
+import { loadLastVersion, saveLastVersion, welcomeSeenAtStartup } from '@/utils/settingsStore';
 import { detectJustUpdated } from '@/services/updater/releaseInfo';
 import { appLog } from '@/services/debug/appLog';
+import { isOnboardingActive } from '@/state/onboarding';
+
+/**
+ * Open "Update beschikbaar" pas als de eerste-startervaring (welkomst, rondleiding, tutorialvraag)
+ * voorbij is — eigenaarsbesluit 2026-09-28: niets over elkaar heen. Loopt ze nog, dan één
+ * store-abonnement dat zichzelf opzegt zodra ze klaar is.
+ */
+function openUpdateDialogWhenIdle(): void {
+  const open = () => useAppStore.getState().setUI({ showUpdateDialog: true });
+  if (!isOnboardingActive(useAppStore.getState().ui)) { open(); return; }
+  const unsubscribe = useAppStore.subscribe(state => {
+    if (isOnboardingActive(state.ui)) return;
+    unsubscribe();
+    open();
+  });
+}
 
 // Stille opstart-update-check (Tauri-only) — spiegelt het auto-save-patroon:
 // dynamische import binnen de service, niet-blokkerend. Is er een update, dan
@@ -22,15 +38,16 @@ export function useUpdateCheck(): void {
       .then(kind => {
         if (kind === 'snap') return;
         return checkForUpdates(true).then(info => {
-          if (info) useAppStore.getState().setUI({ showUpdateDialog: true });
+          if (info) openUpdateDialogWhenIdle();
         });
       })
       .catch(() => { /* stille check — fouten negeren */ });
   }, []);
 
   // "Wat is er nieuw"-detectie (Tauri-only): vergelijk de opgeslagen laatst-gestarte versie met de
-  // huidige. Verschillen ze — of is er nog géén opgeslagen versie (verse installatie) — dan tonen
-  // we JustUpdatedDialog via `ui.justUpdated`. Daarna schrijven we de huidige versie weg.
+  // huidige. Verschillen ze, dan tonen we JustUpdatedDialog via `ui.justUpdated`. Ontbreekt de
+  // opgeslagen versie, dan alleen bij een bestaande gebruiker (welkomst al gezien bij het opstarten);
+  // een echte eerste start toont niets (`detectJustUpdated`). Daarna schrijven we de huidige versie weg.
   // Uitkomst én fouten gaan naar de app-log-bus zodat dit in de DebugTerminal te diagnosticeren is.
   const justUpdatedChecked = useRef(false);
   useEffect(() => {
@@ -42,11 +59,12 @@ export function useUpdateCheck(): void {
         const { getVersion } = await import('@tauri-apps/api/app');
         const current = await getVersion();
         const stored = await loadLastVersion();
-        const jump = detectJustUpdated(stored, current);
+        const firstStart = !welcomeSeenAtStartup();
+        const jump = detectJustUpdated(stored, current, !firstStart);
         appLog.emit(
           'event',
           'update',
-          `net-geüpdatet-check: opgeslagen=${stored ?? '(geen)'} huidig=${current} → ${jump ? 'tonen' : 'niet tonen'}`,
+          `net-geüpdatet-check: opgeslagen=${stored ?? '(geen)'} huidig=${current} eerste start=${firstStart} → ${jump ? 'tonen' : 'niet tonen'}`,
         );
         if (jump) useAppStore.getState().setUI({ justUpdated: jump });
         await saveLastVersion(current);

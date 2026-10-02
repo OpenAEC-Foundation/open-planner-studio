@@ -133,7 +133,8 @@
     "schedulingProfileShifted_one": "After applying, {{count}} task moved.",
     "schedulingProfileShifted_other": "After applying, {{count}} tasks moved.",
     "actions": {
-      "openProjectInfo": "Open calculation profile"
+      "openProjectInfo": "Open calculation profile",
+      "openHelp": "Open Help"
     },
     "xerArchiveUnusable": "The XER source archive in this file is unusable and was left out; the project itself opened in full.",
     "xerArchiveUnusableLine": "The XER source archive in this file was unusable and has been left out.",
@@ -145,7 +146,9 @@
     "xerArchiveReasonMetadataInvalid": "Reason: the source bytes are intact, but the data derived from them is unusable.",
     "xerArchiveReasonStructure": "Reason: the archive's structure in the IFC is wrong (duplicated, reordered or attached incorrectly).",
     "statusDateSetToday": "There was no status date yet: it is now set to today ({{date}}), because progress is measured up to the status date. You can change it under Planning → Status date.",
-    "durationBelowDoneWork": "‘{{name}}’ is already {{percent}}% done: a duration shorter than the work already done isn't possible. The duration was not changed."
+    "durationBelowDoneWork": "‘{{name}}’ is already {{percent}}% done: a duration shorter than the work already done isn't possible. The duration was not changed.",
+    "tutorialOfferLater": "You can always find the tutorials in Help › Tutorials.",
+    "tutorialOfferUnavailable": "The tutorials could not be installed or started right now. You can try again later in Help › Tutorials."
   },
   "scheduleErrors": {
     "cycle": "Circular dependency between tasks: {{path}}",
@@ -1428,5 +1431,13 @@
     "close": "Close guide",
     "stepDone": "Done",
     "waiting": "Carry out the task in the app; then you can continue."
+  },
+  "tutorialOffer": {
+    "title": "Tutorials",
+    "question": "Would you like to make your first schedule with a tutorial now?",
+    "body": "The tour is done. In tutorial 1 you build a schedule for a house extension step by step; a panel gives you one instruction at a time and notices when you have done it. The tutorials are an extension: if it is not installed yet, the app downloads it and first asks whether you trust it.",
+    "yes": "Yes",
+    "no": "No",
+    "busy": "Getting the tutorials ready…"
   }
 }

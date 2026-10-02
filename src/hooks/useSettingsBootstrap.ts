@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
-import { loadWelcomeSeen } from '@/utils/settingsStore';
+import { loadWelcomeSeen, welcomeSeenAtStartup } from '@/utils/settingsStore';
 import { loadAllSettings } from '@/utils/settingsRegistry';
 import { loadAllExtensions } from '@/extensions';
 import type { RecoveryState } from './useRecoveryRestore';
@@ -13,6 +13,10 @@ export function useSettingsBootstrap(recoveryResolved: boolean, recovery: Recove
   const setUI = useAppStore(s => s.setUI);
 
   useEffect(() => {
+    // Eerste start? Hier, bij mount, vastgelegd — vóórdat de welkomstdialoog `ops-welcomeSeen` kan
+    // zetten (zie `welcomeSeenAtStartup`). Komt de welkomst nog, dan wacht "Update beschikbaar"
+    // daarop (`welcomePending`, `isOnboardingActive`).
+    if (!welcomeSeenAtStartup()) setUI({ welcomePending: true });
     // initLocale() is naar main.tsx verhuisd (pré-render, zodat de actieve taal-chunk vóór
     // de eerste paint geladen is). Hier alleen nog de overige app-instellingen hydrateren.
     // Eén registergedreven hydratatie: `loadAllSettings` itereert het `SETTINGS`-register + de drie
@@ -59,8 +63,10 @@ export function useSettingsBootstrap(recoveryResolved: boolean, recovery: Recove
     if (recovery !== null) return; // RecoveryDialog is zichtbaar — welkomstdialoog wacht
     welcomeChecked.current = true;
 
+    // Eén patch: `welcomePending` gaat pas uit terwijl de dialoog tegelijk opengaat (regel 3 in
+    // `state/onboarding.ts`); was hij intussen toch gezien, dan alleen de wachtvlag uit.
     void loadWelcomeSeen().then(seen => {
-      if (!seen) setUI({ showWelcomeDialog: true });
+      setUI(seen ? { welcomePending: false } : { welcomePending: false, showWelcomeDialog: true });
     });
   }, [recoveryResolved, recovery, setUI]);
 }

@@ -397,6 +397,7 @@
     "confirmRemoveHint": "Klik nogmaals om definitief te verwijderen",
     "catalogLoading": "Catalogus laden...",
     "catalogError": "Catalogus kon niet geladen worden: {{error}}",
+    "networkTimeout": "geen antwoord binnen {{seconds}} s",
     "retry": "Opnieuw proberen",
     "noCatalogResults": "Geen extensies gevonden.",
     "install": "Installeren",

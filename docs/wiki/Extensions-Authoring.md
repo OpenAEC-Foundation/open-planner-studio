@@ -308,7 +308,7 @@ const sdk = require('open-planner-studio');
 sdk.version;            // app version, e.g. "2026.6.0"
 sdk.categories;         // valid manifest categories
 sdk.permissions;        // valid manifest permissions
-sdk.hostEvents;         // { projectLoaded, projectNew, scheduleCalculated }
+sdk.hostEvents;         // { projectLoaded, projectNew, scheduleCalculated, tutorialRequested }
 
 sdk.utils.generateId('seq');                 // id following the app convention
 sdk.utils.formatDate(new Date());            // "YYYY-MM-DD"
@@ -332,10 +332,32 @@ The app emits lifecycle events on the same bus as `api.events`. Subscribe with `
 | `projectLoaded` | `host:project-loaded` | `{ tasks, sequences, resources }` |
 | `projectNew` | `host:project-new` | — |
 | `scheduleCalculated` | `host:schedule-calculated` | `{ hasError, error, criticalTasks }` |
+| `tutorialRequested` (1.4) | `host:tutorial-requested` | `{ extensionId, tutorialId }` |
 
 ```js
 api.events.on(sdk.hostEvents.scheduleCalculated, (d) => {
   api.ui.showNotification(`Schedule calculated — critical: ${d.criticalTasks}`);
+});
+```
+
+**`host:tutorial-requested`** (contract 1.4) is a *request* to one extension: the user wants to start
+a tutorial. Currently the app emits it when someone answers "Yes" to the tutorial question after
+their first completed tour; the app then picks the extension with id `tutorials` and its first
+tutorial in the learning path. Rules:
+
+- `extensionId` is the id of the extension the request is meant for — only react to your own id.
+  `tutorialId` is the id of a tutorial article you registered yourself with
+  `api.help.registerArticles` (`kind: 'tutorial'`).
+- The app only emits once your extension is **active**: a freshly installed extension also gets the
+  request only after its `onLoad` (and therefore your `api.events.on`) has finished.
+- Call `api.help.startGuide(...)` **synchronously** in the listener. Right after emitting, the app
+  checks whether a guide of your extension is running; if not, it opens Help › Tutorials with a
+  notification.
+
+```js
+api.events.on(sdk.hostEvents.tutorialRequested, (d) => {
+  if (!d || d.extensionId !== 'tutorials' || d.tutorialId !== 'tut-1-eerste-planning') return;
+  api.help.startGuide(buildGuide());
 });
 ```
 

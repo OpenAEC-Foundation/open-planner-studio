@@ -38,9 +38,11 @@ export function WelcomeDialog() {
     setUI({ showWelcomeDialog: false });
   };
 
+  // Welkomst dicht en rondleiding open in ÉÉN patch: een store-abonnee (de wachtende
+  // "Update beschikbaar"-dialoog, `isOnboardingActive`) mag geen moment zien waarop alles dicht is.
   const startTour = () => {
-    markSeenAndClose();
-    setUI({ showTourOverlay: true, tourStepIndex: 0 });
+    void saveWelcomeSeen(true);
+    setUI({ showWelcomeDialog: false, showTourOverlay: true, tourStepIndex: 0 });
   };
 
   return (

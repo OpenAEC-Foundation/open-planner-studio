@@ -38,6 +38,7 @@ import { StructureLockedNotice } from '@/components/layout/StructureLockedNotice
 import { DependencyModeNotice } from '@/components/layout/DependencyModeNotice';
 import { SplitModeNotice } from '@/components/layout/SplitModeNotice';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
+import { isOnboardingActive } from '@/state/onboarding';
 import { RecordedDatesNotice } from '@/components/layout/RecordedDatesNotice';
 import { NotificationHost } from '@/components/layout/NotificationHost';
 import { DOCUMENT_TABPANEL_ID, documentTabId } from '@/components/layout/DocumentChrome/documentTabNavigation';
@@ -76,6 +77,7 @@ const LibraryLinkDialog = lazy(() => import('@/components/dialogs/LibraryLinkDia
 const RecoveryDialog = lazy(() => import('@/components/dialogs/RecoveryDialog').then(m => ({ default: m.RecoveryDialog })));
 const WelcomeDialog = lazy(() => import('@/components/dialogs/WelcomeDialog').then(m => ({ default: m.WelcomeDialog })));
 const TourOverlay = lazy(() => import('@/components/tour/TourOverlay').then(m => ({ default: m.TourOverlay })));
+const TutorialOfferDialog = lazy(() => import('@/components/dialogs/TutorialOfferDialog').then(m => ({ default: m.TutorialOfferDialog })));
 const Backstage = lazy(() => import('@/components/backstage/Backstage').then(m => ({ default: m.Backstage })));
 const GuidePanel = lazy(() => import('@/components/guide/GuidePanel').then(m => ({ default: m.GuidePanel })));
 
@@ -111,6 +113,9 @@ function AppContent() {
   const showStatsDialog = useAppStore(s => s.ui.showStatsDialog);
   const showWelcomeDialog = useAppStore(s => s.ui.showWelcomeDialog);
   const showTourOverlay = useAppStore(s => s.ui.showTourOverlay);
+  const showTutorialOffer = useAppStore(s => s.ui.showTutorialOffer);
+  // Welkomst (ook nog op komst), rondleiding of tutorialvraag: dezelfde regel als "Update beschikbaar".
+  const onboardingActive = useAppStore(s => isOnboardingActive(s.ui));
   const justUpdated = useAppStore(s => s.ui.justUpdated);
   const showUpdateDialog = useAppStore(s => s.ui.showUpdateDialog);
   const presentationMode = useAppStore(s => s.ui.presentationMode);
@@ -384,6 +389,9 @@ function AppContent() {
         {showStatsDialog && <StatsDialog />}
         {showWelcomeDialog && <WelcomeDialog />}
         {showTourOverlay && <TourOverlay />}
+        {/* Tutorialvraag na een voltooide rondleiding (eenmalig, `state/onboarding.ts`). Vóór de
+            toestemmingsdialoog gemount: die stapelt er bij "Ja" bovenop. */}
+        {showTutorialOffer && <TutorialOfferDialog />}
         <UpdateDialog />
         <PoolImportDialog />
         {/* Voorwaardelijk gemount — anders dan PoolImportDialog, die permanent
@@ -409,7 +417,11 @@ function AppContent() {
             onClose={recovery.onClose}
           />
         )}
-        {justUpdated && recoveryResolved && recovery === null && !showUpdateDialog && !showWelcomeDialog && <JustUpdatedDialog />}
+        {/* Pas na de hele eerste-startervaring (`isOnboardingActive`): niet in het venster waarin de
+            welkomst nog op komst is, niet onder de rondleiding (z 9997, zou de dialoog onklikbaar
+            maken) en niet onder de tutorialvraag. */}
+        {justUpdated && recoveryResolved && recovery === null && !showUpdateDialog && !onboardingActive
+          && <JustUpdatedDialog />}
       </Suspense>
 
       {/* Verversingssignaal: discreet, verdwijnt na 4s (zie effect hierboven). */}

@@ -397,6 +397,7 @@
     "confirmRemoveHint": "برای حذف دائمی دوباره کلیک کنید",
     "catalogLoading": "در حال بارگیری کاتالوگ...",
     "catalogError": "کاتالوگ بارگیری نشد: {{error}}",
+    "networkTimeout": "پاسخی در {{seconds}} ثانیه دریافت نشد",
     "retry": "تلاش دوباره",
     "noCatalogResults": "افزونه‌ای یافت نشد.",
     "install": "نصب",
