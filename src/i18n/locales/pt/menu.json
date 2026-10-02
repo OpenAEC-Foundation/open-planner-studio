@@ -399,6 +399,7 @@
     "confirmRemoveHint": "Clique novamente para remover definitivamente",
     "catalogLoading": "Carregando catálogo...",
     "catalogError": "Não foi possível carregar o catálogo: {{error}}",
+    "networkTimeout": "sem resposta em {{seconds}} s",
     "retry": "Tentar novamente",
     "noCatalogResults": "Nenhuma extensão encontrada.",
     "install": "Instalar",

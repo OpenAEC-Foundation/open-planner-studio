@@ -395,6 +395,7 @@
     "confirmRemoveHint": "再次点击以永久移除",
     "catalogLoading": "正在加载目录...",
     "catalogError": "无法加载目录：{{error}}",
+    "networkTimeout": "{{seconds}} 秒内无响应",
     "retry": "重试",
     "noCatalogResults": "未找到扩展。",
     "install": "安装",

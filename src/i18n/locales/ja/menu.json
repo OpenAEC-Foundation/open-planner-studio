@@ -395,6 +395,7 @@
     "confirmRemoveHint": "もう一度クリックすると完全に削除されます",
     "catalogLoading": "カタログを読み込み中...",
     "catalogError": "カタログを読み込めませんでした: {{error}}",
+    "networkTimeout": "{{seconds}} 秒以内に応答がありません",
     "retry": "再試行",
     "noCatalogResults": "拡張機能が見つかりません。",
     "install": "インストール",

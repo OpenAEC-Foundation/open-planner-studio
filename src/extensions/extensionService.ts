@@ -20,6 +20,8 @@ import { appLog } from '@/services/debug/appLog';
 import { askExtensionConsent, type ConsentSource, type ConsentVerification, type ExtensionConsentRequest } from './consent';
 import { isTauri } from '@/utils/platform';
 import { EXTENSION_ZIP_LIMITS, parseZipEntries, type ZipEntry } from '@/services/zip/zipReader';
+import { FetchTimeoutError, fetchWithTimeout } from '@/services/fetchWithTimeout';
+import i18next from 'i18next';
 
 // De ZIP-lezer woont in `src/services/zip/`, zodat de `.xlsx`-lezer hem kan delen zonder de hele
 // extensie-/store-laag mee de bundel in te trekken. Hier blijft hij heruitgevoerd omdat afnemers
@@ -33,6 +35,22 @@ const CATALOG_URL =
   'https://raw.githubusercontent.com/OpenAEC-Foundation/open-planner-studio-extensions/main/catalog.json';
 const CATALOG_CACHE_MS = 30 * 60 * 1000; // 30 min
 
+/**
+ * Tijdslimieten voor het netwerk (ophalen + body lezen, zie `fetchWithTimeout`). Zonder limiet bleef
+ * een hangende verbinding eeuwig "bezig" — o.a. de Ja-knop van de tutorialvraag. De catalogus is een
+ * klein JSON-bestand; een extensie-ZIP mag over een trage lijn wat langer duren.
+ */
+export const CATALOG_FETCH_TIMEOUT_MS = 20_000;
+export const EXTENSION_DOWNLOAD_TIMEOUT_MS = 60_000;
+
+/** Foutmelding voor de gebruiker/het log; een timeout krijgt een vertaalde tekst. */
+function networkErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof FetchTimeoutError) {
+    return i18next.t('extensions.networkTimeout', { ns: 'menu', seconds: Math.ceil(err.timeoutMs / 1000) });
+  }
+  return err instanceof Error ? err.message : fallback;
+}
+
 export async function fetchCatalog(): Promise<void> {
   const store = useAppStore.getState();
   const now = Date.now();
@@ -45,9 +63,11 @@ export async function fetchCatalog(): Promise<void> {
   try {
     // no-store: omzeil de browser/CDN-HTTP-cache zodat een net-bijgewerkte catalogus
     // niet stale wordt geserveerd (de store-cache hierboven beperkt de frequentie al).
-    const res = await fetch(CATALOG_URL, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const parsed = parseCatalog(await res.json());
+    const json = await fetchWithTimeout(CATALOG_URL, { cache: 'no-store' }, CATALOG_FETCH_TIMEOUT_MS, async (res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json() as Promise<unknown>;
+    });
+    const parsed = parseCatalog(json);
     if (!parsed.ok) throw new Error(parsed.error);
     store.setCatalog(parsed.value.catalog.extensions, parsed.value.issues, now);
     if (parsed.value.issues.length > 0) {
@@ -63,8 +83,7 @@ export async function fetchCatalog(): Promise<void> {
       );
     }
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Catalogus ophalen mislukt';
-    useAppStore.getState().setCatalogError(message);
+    useAppStore.getState().setCatalogError(networkErrorMessage(err, 'Catalogus ophalen mislukt'));
   } finally {
     useAppStore.getState().setCatalogLoading(false);
   }
@@ -143,10 +162,10 @@ async function gateConsent(
 
 export async function installFromCatalog(entry: CatalogEntry): Promise<InstallOutcome> {
   try {
-    const res = await fetch(entry.downloadUrl);
-    if (!res.ok) throw new Error(`Download mislukt: HTTP ${res.status}`);
-
-    const bytes = new Uint8Array(await res.arrayBuffer());
+    const bytes = await fetchWithTimeout(entry.downloadUrl, {}, EXTENSION_DOWNLOAD_TIMEOUT_MS, async (res) => {
+      if (!res.ok) throw new Error(`Download mislukt: HTTP ${res.status}`);
+      return new Uint8Array(await res.arrayBuffer());
+    });
 
     const oordeel = await verifyCatalogDownload(entry, bytes);
     if (!oordeel.ok) throw new Error(oordeel.reason);
@@ -165,7 +184,7 @@ export async function installFromCatalog(entry: CatalogEntry): Promise<InstallOu
     );
   } catch (err) {
     console.error('[Extensies] Installeren vanuit catalogus mislukt:', err);
-    appLog.emit('error', 'Extensies', err instanceof Error ? err.message : String(err));
+    appLog.emit('error', 'Extensies', networkErrorMessage(err, String(err)));
     return 'failed';
   }
 }

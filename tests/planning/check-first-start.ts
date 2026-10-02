@@ -31,6 +31,7 @@ import { tutorialsInOrder } from '@/utils/helpManifest';
 import type { CatalogEntry, ExtensionStatus } from '@/extensions/types';
 import type { InstallOutcome } from '@/extensions/extensionService';
 import type { TourUiSnapshot } from '@/state/slices/types';
+import { FetchTimeoutError, fetchWithTimeout } from '@/services/fetchWithTimeout';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -278,6 +279,40 @@ function mock(o: MockOpts) {
   eq('E2 na de installatie: gestart', outcome, { kind: 'started' });
   eq('E3 de begeleiding van de extensie loopt', [getGuideView()?.extensionId, getGuideView()?.guideId], ['tutorials', 'tut-1-eerste-planning']);
   stopGuideSession();
+}
+
+// ── F. Netwerk met tijdslimiet: de Ja-route kan niet eeuwig "bezig" blijven ─────────────────────
+//  (M2, review PR #261) Catalogus en ZIP lopen via `fetchWithTimeout`; een hangend verzoek eindigt in
+//  een fout, en die valt in de bestaande foutroute (catalog-error / install-failed → Help › Tutorials).
+{
+  const outcome = async <T,>(p: Promise<T>): Promise<string> =>
+    p.then(v => `ok:${String(v)}`, e => (e instanceof FetchTimeoutError ? `timeout:${e.timeoutMs}` : `fout:${(e as Error).message}`));
+  // Een server die nooit antwoordt, maar het abort-signaal volgt (zoals de echte fetch).
+  let seenSignal: AbortSignal | undefined;
+  const hangsHonoring: typeof fetch = (_url, init) => new Promise((_, reject) => {
+    seenSignal = init?.signal ?? undefined;
+    init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+  });
+  eq('F1 nooit antwoord → FetchTimeoutError', await outcome(fetchWithTimeout('u', {}, 20, async () => 1, hangsHonoring)), 'timeout:20');
+  eq('F1 …en het verzoek is echt afgebroken', seenSignal?.aborted, true);
+  const hangsIgnoring: typeof fetch = () => new Promise(() => {});
+  eq('F2 ook als fetch het signaal negeert', await outcome(fetchWithTimeout('u', {}, 20, async () => 1, hangsIgnoring)), 'timeout:20');
+  const answers: typeof fetch = async () => new Response('x');
+  eq('F3 de limiet dekt ook het lezen van de body', await outcome(fetchWithTimeout('u', {}, 20, () => new Promise<number>(() => {}), answers)), 'timeout:20');
+  let fastSignal: AbortSignal | undefined;
+  const fast: typeof fetch = async (_url, init) => { fastSignal = init?.signal ?? undefined; return new Response('{"a":1}'); };
+  eq('F4 op tijd → de waarde', await outcome(fetchWithTimeout('u', {}, 20, r => r.text(), fast)), 'ok:{"a":1}');
+  await new Promise(r => setTimeout(r, 40));
+  eq('F4 …en de timer is opgeruimd (geen late afbreking)', fastSignal?.aborted, false);
+  const offline: typeof fetch = async () => { throw new TypeError('Failed to fetch'); };
+  eq('F5 een gewone netwerkfout blijft zichzelf', await outcome(fetchWithTimeout('u', {}, 20, async () => 1, offline)), 'fout:Failed to fetch');
+
+  const service = readFileSync(join(process.cwd(), 'src/extensions/extensionService.ts'), 'utf8');
+  eq('F6 extensionService: geen kale fetch meer', /(^|[^.\w])fetch\(/m.test(service.replace(/\/\/.*$/gm, '')), false);
+  eq('F7 catalogus en ZIP met hun eigen limiet', [
+    /fetchWithTimeout\(CATALOG_URL,[^\n]*CATALOG_FETCH_TIMEOUT_MS/.test(service),
+    /fetchWithTimeout\(entry\.downloadUrl,[^\n]*EXTENSION_DOWNLOAD_TIMEOUT_MS/.test(service),
+  ], [true, true]);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────────────────────
