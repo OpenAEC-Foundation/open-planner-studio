@@ -31,7 +31,7 @@ import { tutorialsInOrder } from '@/utils/helpManifest';
 import type { CatalogEntry, ExtensionStatus } from '@/extensions/types';
 import type { InstallOutcome } from '@/extensions/extensionService';
 import type { TourUiSnapshot } from '@/state/slices/types';
-import { FetchTimeoutError, fetchWithTimeout } from '@/services/fetchWithTimeout';
+import { FetchTimeoutError, fetchWithIdleTimeout, fetchWithTimeout, readBodyBytes } from '@/services/fetchWithTimeout';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -321,12 +321,50 @@ function mock(o: MockOpts) {
   const offline: typeof fetch = async () => { throw new TypeError('Failed to fetch'); };
   eq('F5 een gewone netwerkfout blijft zichzelf', await outcome(fetchWithTimeout('u', {}, 20, async () => 1, offline)), 'fout:Failed to fetch');
 
+
+  // Stilte-limiet (de ZIP-download): een body die TRAAG MAAR GESTAAG binnenkomt — samen ruim langer
+  // dan de limiet, maar nooit langer stil dan de limiet — loopt af; een body die stilvalt, breekt af.
+  const trickle = (chunks: number, everyMs: number, stallAfter?: number): typeof fetch => async (_url, init) => {
+    let sent = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const body = new ReadableStream<Uint8Array>({
+      pull: controller => new Promise<void>(resolve => {
+        if (stallAfter !== undefined && sent >= stallAfter) return; // stilgevallen: nooit meer iets
+        timer = setTimeout(() => {
+          if (sent === chunks) controller.close(); else { controller.enqueue(new Uint8Array([sent])); sent++; }
+          resolve();
+        }, everyMs);
+      }),
+      cancel: () => clearTimeout(timer),
+    });
+    init?.signal?.addEventListener('abort', () => clearTimeout(timer));
+    return new Response(body);
+  };
+  const started = Date.now();
+  eq('F8 stilte-limiet: 8 stukken × 15 ms (≈ 120 ms) bij een limiet van 40 ms → afgerond',
+    await outcome(fetchWithIdleTimeout('u', {}, 40, (res, progress) => readBodyBytes(res, progress).then(b => b.join(',')), trickle(8, 15))),
+    'ok:0,1,2,3,4,5,6,7');
+  eq('F8 …en het duurde echt langer dan de limiet', Date.now() - started >= 40, true);
+  eq('F9 stilte-limiet: stilgevallen na 2 stukken → FetchTimeoutError',
+    await outcome(fetchWithIdleTimeout('u', {}, 40, (res, progress) => readBodyBytes(res, progress), trickle(8, 15, 2))), 'timeout:40');
+  eq('F10 totale limiet (catalogus) breekt dezelfde gestage body wél af',
+    await outcome(fetchWithTimeout('u', {}, 40, res => res.arrayBuffer(), trickle(8, 15))), 'timeout:40');
+  eq('F11 zonder stream leest readBodyBytes de body in één keer',
+    await outcome(readBodyBytes(new Response(null), () => {}).then(b => b.byteLength)), 'ok:0');
+  // Het signaal is van de helper: een eigen `signal` in `init` is een typefout, geen stille overschrijving.
+  // @ts-expect-error -- `signal` hoort niet in FetchInit
+  void fetchWithTimeout('u', { signal: new AbortController().signal }, 1, async () => 0, async () => new Response('')).catch(() => {});
+
   const service = readFileSync(join(process.cwd(), 'src/extensions/extensionService.ts'), 'utf8');
-  eq('F6 extensionService: geen kale fetch meer', /(^|[^.\w])fetch\(/m.test(service.replace(/\/\/.*$/gm, '')), false);
-  eq('F7 catalogus en ZIP met hun eigen limiet', [
+  // Elke fetch-aanroep, ook `window.fetch(`/`globalThis.fetch(`; alleen de eigen helpers mogen.
+  const bareFetch = service.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '')
+    .match(/\bfetch\w*\(/g)?.filter(call => call !== 'fetchWithTimeout(' && call !== 'fetchWithIdleTimeout(' && call !== 'fetchCatalog(') ?? [];
+  eq('F6 extensionService: geen fetch zonder tijdslimiet', bareFetch, []);
+  eq('F7 catalogus met een totale limiet, ZIP met een stiltelimiet en stuksgewijs lezen', [
     /fetchWithTimeout\(CATALOG_URL,[^\n]*CATALOG_FETCH_TIMEOUT_MS/.test(service),
-    /fetchWithTimeout\(entry\.downloadUrl,[^\n]*EXTENSION_DOWNLOAD_TIMEOUT_MS/.test(service),
-  ], [true, true]);
+    /fetchWithIdleTimeout\(entry\.downloadUrl,[^\n]*EXTENSION_DOWNLOAD_IDLE_TIMEOUT_MS/.test(service),
+    /return readBodyBytes\(res, progress\);/.test(service),
+  ], [true, true, true]);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────────────────────

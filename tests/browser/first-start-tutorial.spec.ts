@@ -1,5 +1,6 @@
 import { expect, test, waitForOps } from './fixtures/ops';
 import type { Page } from '@playwright/test';
+import { completeTour, freshStart, startTourFromWelcome, tourStep, tutorialOffer } from './fixtures/onboarding';
 
 // Eerste-startervaring, vervolg (eigenaarsbesluit 2026-09-28): na een VOLTOOIDE rondleiding vraagt de
 // app eenmalig of je met een tutorial je eerste planning wilt maken. Alles wat de gebruiker doet —
@@ -13,43 +14,7 @@ async function catalogUnavailable(page: Page): Promise<void> {
   await page.route(CATALOG, route => route.fulfill({ status: 404, contentType: 'text/plain', body: 'not found' }));
 }
 
-/** Lege instellingen en een echte herlaad: de welkomstdialoog komt vanzelf (eerste start). */
-async function freshStart(page: Page): Promise<void> {
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  await waitForOps(page);
-  await expect(page.locator('[data-ops-welcome-dialog]')).toBeVisible();
-}
-
-async function startTourFromWelcome(page: Page): Promise<void> {
-  const welcome = page.locator('[data-ops-welcome-dialog]');
-  await welcome.getByRole('button', { name: /^(Next|Volgende)$/ }).click();
-  await welcome.getByRole('button', { name: /^(Start tour|Rondleiding starten)$/ }).click();
-  await expect(welcome).toHaveCount(0);
-  await expect(page.locator('[data-ops-tour-card]')).toBeVisible();
-}
-
-const tourStep = (page: Page) => page.evaluate(() => window.__OPS__!.store.getState().ui.tourStepIndex);
-
-/** Volgende tot de laatste stap, en daar de afsluitknop — elke klik een echte klik. */
-async function completeTour(page: Page): Promise<void> {
-  const card = page.locator('[data-ops-tour-card]');
-  const primary = card.locator('.btn--primary');
-  for (let i = 0; i < 12; i++) {
-    const label = (await primary.textContent())?.trim() ?? '';
-    if (/^(Close|Sluiten)$/.test(label)) {
-      await primary.click();
-      await expect(card).toHaveCount(0);
-      return;
-    }
-    const before = await tourStep(page);
-    await primary.click();
-    await expect.poll(() => tourStep(page)).not.toBe(before);
-  }
-  throw new Error('de rondleiding bereikte geen laatste stap');
-}
-
-const offer = (page: Page) => page.locator('[data-ops-tutorial-offer]');
+const offer = tutorialOffer;
 const answered = (page: Page) => page.evaluate(() => localStorage.getItem('ops-tutorialOfferAnswered'));
 
 test('voltooide rondleiding → tutorialvraag; Ja met een geïnstalleerde tutorials-extensie start tutorial 1', async ({ page, ops: _ops }) => {
@@ -216,7 +181,7 @@ test('Enter zonder knopfocus = Ja (de standaardactie)', async ({ page, ops }) =>
 
 // M2 (review PR #261): een download die nooit antwoordt, laat Ja niet eeuwig "bezig". Na de
 // tijdslimiet volgt de gewone foutroute: Help › Tutorials met een melding. De klok van de pagina is
-// nep, zodat de test niet echt 20 of 60 seconden wacht; wat de gebruiker doet blijft een echte klik.
+// nep, zodat de test niet echt 20 of 30 seconden wacht; wat de gebruiker doet blijft een echte klik.
 test('catalogus antwoordt nooit → na de tijdslimiet Help › Tutorials met een melding', async ({ page, ops: _ops }) => {
   let requested!: () => void;
   const catalogRequested = new Promise<void>(r => { requested = r; });
@@ -236,7 +201,9 @@ test('catalogus antwoordt nooit → na de tijdslimiet Help › Tutorials met een
   expect(await answered(page)).toBe('true');
 });
 
-test('extensie-ZIP antwoordt nooit → na de tijdslimiet Help › Tutorials met een melding', async ({ page, ops }) => {
+// De ZIP heeft een STILTE-limiet (30 s zonder binnenkomend stuk); een trage maar gestage download is
+// headless getest in check-first-start.ts (F8–F10).
+test('extensie-ZIP antwoordt nooit → na de stiltelimiet Help › Tutorials met een melding', async ({ page, ops }) => {
   ops.acceptError('Installeren vanuit catalogus mislukt');
   let requested!: () => void;
   const zipRequested = new Promise<void>(r => { requested = r; });
@@ -254,7 +221,7 @@ test('extensie-ZIP antwoordt nooit → na de tijdslimiet Help › Tutorials met 
   await offer(page).getByRole('button', { name: /^(Yes|Ja)$/ }).click();
   await zipRequested;
   await expect(offer(page).getByRole('status')).toBeVisible(); // bezig
-  await page.clock.runFor(60_000);
+  await page.clock.runFor(30_000);
 
   await expect(offer(page)).toHaveCount(0);
   await expect(page.locator('[data-help-section="kind-tutorial"] [data-help-install-tutorials]')).toBeInViewport();

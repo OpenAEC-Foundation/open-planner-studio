@@ -20,7 +20,7 @@ import { appLog } from '@/services/debug/appLog';
 import { askExtensionConsent, type ConsentSource, type ConsentVerification, type ExtensionConsentRequest } from './consent';
 import { isTauri } from '@/utils/platform';
 import { EXTENSION_ZIP_LIMITS, parseZipEntries, type ZipEntry } from '@/services/zip/zipReader';
-import { FetchTimeoutError, fetchWithTimeout } from '@/services/fetchWithTimeout';
+import { FetchTimeoutError, fetchWithIdleTimeout, fetchWithTimeout, readBodyBytes } from '@/services/fetchWithTimeout';
 import i18next from 'i18next';
 
 // De ZIP-lezer woont in `src/services/zip/`, zodat de `.xlsx`-lezer hem kan delen zonder de hele
@@ -36,12 +36,15 @@ const CATALOG_URL =
 const CATALOG_CACHE_MS = 30 * 60 * 1000; // 30 min
 
 /**
- * Tijdslimieten voor het netwerk (ophalen + body lezen, zie `fetchWithTimeout`). Zonder limiet bleef
- * een hangende verbinding eeuwig "bezig" — o.a. de Ja-knop van de tutorialvraag. De catalogus is een
- * klein JSON-bestand; een extensie-ZIP mag over een trage lijn wat langer duren.
+ * Tijdslimieten voor het netwerk (zie `services/fetchWithTimeout.ts`). Zonder limiet bleef een
+ * hangende verbinding eeuwig "bezig" — o.a. de Ja-knop van de tutorialvraag.
+ *  - Catalogus: een klein JSON-bestand, dus een TOTALE limiet (verzoek + body).
+ *  - Extensie-ZIP: tot 48 MiB (`EXTENSION_ZIP_LIMITS`), dus een STILTE-limiet: de timer begint
+ *    opnieuw bij elk binnengekomen stuk. Een trage maar gestage download loopt af, hoe lang hij ook
+ *    duurt; alleen een download die zo lang niets binnenkrijgt, breekt af.
  */
 export const CATALOG_FETCH_TIMEOUT_MS = 20_000;
-export const EXTENSION_DOWNLOAD_TIMEOUT_MS = 60_000;
+export const EXTENSION_DOWNLOAD_IDLE_TIMEOUT_MS = 30_000;
 
 /** Foutmelding voor de gebruiker/het log; een timeout krijgt een vertaalde tekst. */
 function networkErrorMessage(err: unknown, fallback: string): string {
@@ -162,9 +165,9 @@ async function gateConsent(
 
 export async function installFromCatalog(entry: CatalogEntry): Promise<InstallOutcome> {
   try {
-    const bytes = await fetchWithTimeout(entry.downloadUrl, {}, EXTENSION_DOWNLOAD_TIMEOUT_MS, async (res) => {
+    const bytes = await fetchWithIdleTimeout(entry.downloadUrl, {}, EXTENSION_DOWNLOAD_IDLE_TIMEOUT_MS, async (res, progress) => {
       if (!res.ok) throw new Error(`Download mislukt: HTTP ${res.status}`);
-      return new Uint8Array(await res.arrayBuffer());
+      return readBodyBytes(res, progress);
     });
 
     const oordeel = await verifyCatalogDownload(entry, bytes);
