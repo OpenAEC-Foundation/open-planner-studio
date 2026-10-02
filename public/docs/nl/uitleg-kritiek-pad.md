@@ -47,7 +47,7 @@ Standaard is een taak kritiek als de totale speling 0 is of minder. Dat is aan t
 - **Kritiek-definitie** met *Totale speling ≤ drempel* en het veld *Drempel (werkdagen)*. Standaard is de drempel 0. Wie een buffer wil bewaken, zet de drempel bijvoorbeeld op 2: elke taak met 2 werkdagen speling of minder telt dan als kritiek en wordt rood.
 - **Bijna-kritiek markeren** met een eigen *Drempel*, standaard 2 werkdagen. Een taak met meer dan 0 maar hoogstens zoveel speling krijgt een amberkleurige balk. Zo zie je welke taken bijna geen marge meer hebben, zonder ze kritiek te noemen.
 - **Open-eind-taken kritiek**: een taak zonder opvolger die nog niet klaar is, telt als kritiek. Handig als vangnet tegen vergeten relaties (zie de misverstanden hieronder).
-- **Speling-berekening** bepaalt of de totale speling aan de startkant of de eindkant van de taak wordt gemeten, of de kleinste van beide. Nieuwe projecten staan op *Automatisch (standaard)*. Wie de rekenwijze van Primavera P6 volgt, zet deze keuze met *Standaardopties van dit profiel toepassen* op *Finishspeling*. MS Project rekent zelf al als *Automatisch (standaard)*: onder het profiel *Microsoft Project* blijft de keuze daarop staan.
+- **Speling-berekening** bepaalt of de totale speling aan de startkant of de eindkant van de taak wordt gemeten, of de kleinste van beide. Nieuwe projecten staan op *Automatisch (standaard)*. Wie de rekenwijze van Primavera P6 volgt, zet deze keuze met *Standaardopties van dit profiel toepassen* op *Finishspeling*. Voor MS Project zet dezelfde knop hem terug op *Automatisch (standaard)*: met een statusdatum rekent MS Project zelf zo.
 
 ### Waar je het ziet
 

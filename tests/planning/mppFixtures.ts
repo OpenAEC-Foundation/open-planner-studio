@@ -750,10 +750,7 @@ export function mppTimestampBytes(time: number, days: number): Uint8Array {
   return out;
 }
 
-/** `statusDays` (optioneel): PropsKey STATUS_DATE (37748805) in MPP-dagen, tijd 0. */
-export function minimalMpp14Bytes(opts: {
-  startDays: number; finishDays: number; projectStartDays: number; statusDays?: number;
-}): Uint8Array {
+export function minimalMpp14Bytes(opts: { startDays: number; finishDays: number; projectStartDays: number }): Uint8Array {
   const ascii = (s: string) => {
     const out = new Uint8Array(s.length * 2);
     const view = new DataView(out.buffer);
@@ -766,7 +763,6 @@ export function minimalMpp14Bytes(opts: {
     { key: 37748739, data: mppTimestampBytes(0, opts.projectStartDays + 30) }, // project finish
     { key: 37748765, data: int32(480) }, // minutes per day
     { key: 37748744, data: ascii('Fixture') },
-    ...(opts.statusDays !== undefined ? [{ key: 37748805, data: mppTimestampBytes(0, opts.statusDays) }] : []),
   ]);
   const record = new Uint8Array(130);
   const rv = new DataView(record.buffer);

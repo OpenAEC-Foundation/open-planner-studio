@@ -259,8 +259,10 @@ export function p6OptionDefaults(): {
  *  gelijkheid is gepind in `check-conventions-registry.ts`); MS Project en OPS = niets (afwezig ≡
  *  het huidige gedrag). Voor MS Project bewust ook geen `totalFloatMode` (eigenaarsbesluit
  *  2026-10-02, spec §3.1): afwezig = *Automatisch* = finish-speling bij statusdatum én gestarte taak,
- *  anders de kleinste — precies MSP's eigen regel, en wat een geopend `.mpp` ook draagt (de
- *  `.mpp`-lezer zet geen optie). *Kleinste* (altijd min) is de P6-modus. Levert steeds een verse kopie. */
+ *  anders de kleinste. Dat is MSP's regel (voor een gestarte taak de finish slack) zodra er een
+ *  statusdatum is; zonder statusdatum telt voortgang hier niet mee en krijgt ook een gestarte taak de
+ *  kleinste. Het is ook wat een geopend `.mpp` draagt (de `.mpp`-lezer zet geen optie). *Kleinste*
+ *  (altijd min) is de P6-modus. Levert steeds een verse kopie. */
 export function defaultOptionsFor(baseId: BuiltInProfileId): ProjectSchedulingOptions {
   switch (baseId) {
     case 'p6':

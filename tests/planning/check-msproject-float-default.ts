@@ -1,12 +1,13 @@
 // Speling-berekening onder het MS Project-profiel (eigenaarsbesluit 2026-10-02, spec rekenprofielen
 // §3.1): een NIEUW project met rekenprofiel MS Project rekent de totale speling zoals een GEOPEND
 // `.mpp`-bestand, dus *Automatisch* (`totalFloatMode` afwezig) en niet *Kleinste*. Automatisch =
-// finish-speling bij statusdatum én gestarte taak, anders het minimum: MSP's eigen regel (MPXJ
-// `MicrosoftSlackCalculator.calculateTotalSlack`, bij ons `mppTotalSlackTenths`). *Kleinste* (altijd
-// het minimum) is de P6-modus en week bij gestarte taken met een statusdatum af van MSP's opgeslagen
-// speling. Gepind langs beide routes naar een nieuw MSP-project — de wizard *Nieuw project* en de knop
-// *Standaardopties van dit profiel toepassen* (allebei `withDefaultOptions`) — tegen wat `readMPP`
-// oplevert, plus een rekenvoorbeeld waarin de twee modi werkelijk verschillen.
+// finish-speling bij statusdatum én gestarte taak, anders het minimum. Met een statusdatum is dat MSP's
+// regel (voor een gestarte taak de finish slack: MPXJ `MicrosoftSlackCalculator.calculateTotalSlack`,
+// bij ons `mppTotalSlackTenths`); zonder statusdatum telt voortgang niet mee. *Kleinste* (altijd het
+// minimum) is de P6-modus. Gepind langs beide routes naar een nieuw MSP-project — de profielkeuze in
+// de wizard *Nieuw project* en de knop *Standaardopties van dit profiel toepassen* — tegen wat
+// `readMPP` oplevert, plus een rekenvoorbeeld waarin de twee modi werkelijk verschillen. Of de app
+// daarmee MSP's OPGESLAGEN speling haalt, meet deze check niet (dat is de corpusmeting, spec §3.1).
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { createAppStoreContext } from '@/state/appStore';
@@ -14,8 +15,8 @@ import { builtInProfile, defaultOptionsFor } from '@/engine/scheduler/convention
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { readMPP } from '@/services/mpp/mppReader';
-import { totalFloatModeToUi, withDefaultOptions } from '@/state/schedulingProfileDraft';
-import type { ProjectSchedulingOptions } from '@/types/project';
+import { selectProfile, totalFloatModeToUi, withDefaultOptions, type ProfileChoice } from '@/state/schedulingProfileDraft';
+import type { ProjectSchedulingOptions, SchedulingProfile } from '@/types/project';
 import { minimalMpp14Bytes } from './mppFixtures';
 
 const diffs: string[] = [];
@@ -26,34 +27,49 @@ const eq = (label: string, got: unknown, want: unknown) => {
 };
 const msp = builtInProfile('msproject');
 
-// 1. Een geopend `.mpp` (mét statusdatum, het geval waarin de modi kunnen verschillen): profiel MS
-//    Project, geen speling-modus ⇒ Automatisch. 11328 = ma 5-1-2015 in MPP-dagen.
-const opened = readMPP(minimalMpp14Bytes({ startDays: 11328, finishDays: 11330, projectStartDays: 11328, statusDays: 11329 }));
+// 1. De `.mpp`-kant: de lezer zet het profiel en GEEN speling-modus. Alleen dat wordt hier vastgelegd
+//    (zet iemand later een modus in `readMPP`, dan moet deze kant mee); de fixture heeft geen gestarte
+//    taak en hier wordt geen speling gerekend. 11328 = ma 5-1-2015 in MPP-dagen.
+const opened = readMPP(minimalMpp14Bytes({ startDays: 11328, finishDays: 11330, projectStartDays: 11328 }));
 eq('01 .mpp: profiel MS Project', opened.project.schedulingProfile?.id, 'msproject');
-eq('02 .mpp: statusdatum gelezen', opened.project.statusDate?.slice(0, 10), '2015-01-06');
-eq('03 .mpp: geen speling-modus (Automatisch)', opened.project.schedulingOptions?.totalFloatMode, undefined);
+eq('02 .mpp: geen speling-modus (Automatisch)', opened.project.schedulingOptions?.totalFloatMode, undefined);
 
-// 2. De twee routes naar een nieuw MSP-project leveren dezelfde modus als het geopende `.mpp`.
-const wizard = withDefaultOptions(msp);
-eq('04 standaardopties MS Project: leeg (afwezig)', [defaultOptionsFor('msproject'), wizard], [{}, undefined]);
-// De knop overschrijft een eerder gezette *Kleinste* (een project uit de wizard van vóór dit besluit).
+// 2. De wizard *Nieuw project*: `SchedulingProfileSection.onChoose` in mode 'wizard' doet per keuze
+//    `{ profile: selectProfile(...), options: withDefaultOptions(nextProfile, value.options) }` en
+//    ProjectInfoPanelContent geeft dat resultaat ongewijzigd aan `createNewProject`. Hier hetzelfde
+//    pad, eerst Primavera P6 (zet *Finishspeling*) en daarna Microsoft Project: die keuze moet de
+//    P6-modus wissen en mag geen *Kleinste* zetten.
+interface WizardValue { profile: SchedulingProfile | undefined; options: ProjectSchedulingOptions | undefined }
+const choose = (value: WizardValue, choice: ProfileChoice): WizardValue => {
+  const profile = selectProfile(value.profile, choice, []);
+  return { profile, options: withDefaultOptions(profile, value.options) };
+};
+const afterP6 = choose({ profile: undefined, options: undefined }, 'builtin:p6');
+eq('04 wizard: eerst P6 ⇒ Finishspeling', afterP6.options?.totalFloatMode, 'finish');
+const wizard = choose(afterP6, 'builtin:msproject');
+eq('05 wizard: daarna MS Project ⇒ profiel msproject, geen opties', [wizard.profile?.id, wizard.options], ['msproject', undefined]);
+eq('05a standaardopties MS Project: leeg', defaultOptionsFor('msproject'), {});
+
+// 3. De knop *Standaardopties van dit profiel toepassen* (`withDefaultOptions(profile, value.options)`)
+//    zet een eerder gekozen *Kleinste* terug (ook een project uit de wizard van vóór dit besluit).
 const button = withDefaultOptions(msp, { totalFloatMode: 'smallest' });
-eq('05 knop Standaardopties: Kleinste wordt Automatisch', button?.totalFloatMode, undefined);
-eq('06 nieuw MSP-project ≡ geopend .mpp in de UI (Speling-berekening)',
-  [totalFloatModeToUi(wizard?.totalFloatMode), totalFloatModeToUi(button?.totalFloatMode)],
-  [totalFloatModeToUi(opened.project.schedulingOptions?.totalFloatMode), totalFloatModeToUi(opened.project.schedulingOptions?.totalFloatMode)]);
-eq('07 …en dat is Automatisch', totalFloatModeToUi(wizard?.totalFloatMode), 'auto');
+eq('06 knop Standaardopties: Kleinste wordt Automatisch', button?.totalFloatMode, undefined);
+eq('07 nieuw MSP-project (wizard, knop) ≡ geopend .mpp in de UI, en dat is Automatisch',
+  [totalFloatModeToUi(wizard.options?.totalFloatMode), totalFloatModeToUi(button?.totalFloatMode),
+    totalFloatModeToUi(opened.project.schedulingOptions?.totalFloatMode)],
+  ['auto', 'auto', 'auto']);
 
-// 3. Wizard via de store (`createNewProject`, zoals ProjectInfoPanelContent hem aanroept).
+// 4. Het wizardresultaat via de store (`createNewProject`, zoals ProjectInfoPanelContent hem aanroept).
 const ctx = createAppStoreContext();
 const S = () => ctx.store.getState();
 S().createNewProject({
   name: 'MSP nieuw', startDate: '2026-05-04', calendar: createDefaultCalendar(2026), phaseNames: [],
-  schedulingProfile: msp, schedulingOptions: wizard,
+  schedulingProfile: wizard.profile, schedulingOptions: wizard.options,
 });
-eq('08 wizard: MS Project-profiel, geen opties', [S().project.schedulingProfile?.id, S().project.schedulingOptions], ['msproject', undefined]);
+eq('08 nieuw project uit de wizard: MS Project-profiel, geen speling-modus',
+  [S().project.schedulingProfile?.id, S().project.schedulingOptions?.totalFloatMode], ['msproject', undefined]);
 
-// 4. Rekenvoorbeeld: een gestarte taak die vóórloopt. A (10 wd, gestart ma 4-5, 50%) hervat haar
+// 5. Rekenvoorbeeld: een gestarte taak die vóórloopt. A (10 wd, gestart ma 4-5, 50%) hervat haar
 //    restwerk al op 5-5 (`time.resume`, het MPP-veld), dus haar vroege einde ligt ruim vóór start + duur;
 //    C (20 wd) bepaalt het projecteinde. Dan is A's finish-speling groter dan haar start-speling.
 //    Bij Automatisch telt (met statusdatum) de finish-speling — MSP's regel —, bij Kleinste de
@@ -68,7 +84,7 @@ const tfOf = (options: ProjectSchedulingOptions | undefined): number | undefined
   S().runCPM();
   return S().tasks.find(t => t.id === a)?.time.totalFloat;
 };
-const tfAuto = tfOf(wizard);
+const tfAuto = tfOf(wizard.options);
 const tfFinish = tfOf({ totalFloatMode: 'finish' });
 const tfSmallest = tfOf({ totalFloatMode: 'smallest' });
 eq('09 MSP-standaard rekent voor een gestarte taak de finish-speling', tfAuto, tfFinish);

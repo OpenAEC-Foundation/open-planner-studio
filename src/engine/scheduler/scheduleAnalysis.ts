@@ -317,7 +317,9 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     // Een EXPLICIETE P6-modus geldt ook voor lopende taken: start = LS−ES, finish = LF−EF en
     // smallest = min(beide). Ontbreekt de bronoptie, dan blijft de oudere OPS-invariant behouden:
     // een lopende taak gebruikt finish-float en een overige taak de kleinste — voor verse, MSPDI-,
-    // MPP- en P6XML-projecten zonder deze bronwaarde.
+    // MPP- en P6XML-projecten zonder deze bronwaarde, en voor de standaard van het MS Project-profiel
+    // (`defaultOptionsFor('msproject')` zet geen `totalFloatMode`; spec rekenprofielen §3.1). Met een
+    // statusdatum is dit MSP's regel; zonder statusdatum telt voortgang hier niet mee.
     let tf = tfMode === 'finish'
       ? finishFloat
       : tfMode === 'start'
