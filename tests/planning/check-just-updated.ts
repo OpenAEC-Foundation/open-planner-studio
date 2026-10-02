@@ -35,12 +35,18 @@ function check(name: string, cond: boolean): void {
 }
 
 // ── detectJustUpdated ──────────────────────────────────────────────
-check('detect: verse install → from null, to huidig', JSON.stringify(detectJustUpdated(undefined, '2026.7.13')) === JSON.stringify({ from: null, to: '2026.7.13' }));
-check('detect: verse install is NIET null', detectJustUpdated(undefined, '2026.7.13') !== null);
-check('detect: lege opgeslagen versie → from null', JSON.stringify(detectJustUpdated('', '2026.7.13')) === JSON.stringify({ from: null, to: '2026.7.13' }));
-check('detect: gelijk → null', detectJustUpdated('2026.7.13', '2026.7.13') === null);
-check('detect: sprong → van/naar', JSON.stringify(detectJustUpdated('2026.7.12', '2026.7.13')) === JSON.stringify({ from: '2026.7.12', to: '2026.7.13' }));
-check('detect: downgrade telt ook', detectJustUpdated('2026.7.11', '2026.7.10') !== null);
+// Eigenaarsbesluit 2026-09-28: "Net bijgewerkt" alleen als de app écht geüpdatet is. Een echte eerste
+// start (geen `ops-lastVersion` én geen `ops-welcomeSeen` bij het opstarten) toont niets; een
+// bestaande gebruiker van vóór de `lastVersion`-sleutel (welkomst al gezien) krijgt de melding wél.
+check('detect: echte eerste start (geen versie, welkomst niet gezien) → null', detectJustUpdated(undefined, '2026.7.13', false) === null);
+check('detect: echte eerste start met lege opgeslagen versie → null', detectJustUpdated('', '2026.7.13', false) === null);
+check('detect: upgrade zonder lastVersion (welkomst al gezien) → from null, to huidig', JSON.stringify(detectJustUpdated(undefined, '2026.7.13', true)) === JSON.stringify({ from: null, to: '2026.7.13' }));
+check('detect: lege opgeslagen versie bij bestaande gebruiker → from null', JSON.stringify(detectJustUpdated('', '2026.7.13', true)) === JSON.stringify({ from: null, to: '2026.7.13' }));
+check('detect: gelijk → null', detectJustUpdated('2026.7.13', '2026.7.13', true) === null);
+check('detect: sprong → van/naar', JSON.stringify(detectJustUpdated('2026.7.12', '2026.7.13', true)) === JSON.stringify({ from: '2026.7.12', to: '2026.7.13' }));
+// Een opgeslagen versie bewijst een eerdere start: dan telt de welkomstvlag niet mee.
+check('detect: upgrade mét lastVersion toont ook zonder welkomstvlag', JSON.stringify(detectJustUpdated('2026.7.12', '2026.7.13', false)) === JSON.stringify({ from: '2026.7.12', to: '2026.7.13' }));
+check('detect: downgrade telt ook', detectJustUpdated('2026.7.11', '2026.7.10', true) !== null);
 
 // ── daysBetween ────────────────────────────────────────────────────
 check('days: 12 dagen', daysBetween('2026-07-01T00:00:00Z', '2026-07-13T00:00:00Z') === 12);

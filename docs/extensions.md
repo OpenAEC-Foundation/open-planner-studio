@@ -568,7 +568,7 @@ const sdk = require('open-planner-studio');
 sdk.version;            // app-versie, bv. "2026.6.0"
 sdk.categories;         // geldige manifest-categorieën
 sdk.permissions;        // geldige manifest-permissies
-sdk.hostEvents;         // { projectLoaded, projectNew, scheduleCalculated }
+sdk.hostEvents;         // { projectLoaded, projectNew, scheduleCalculated, tutorialRequested }
 
 sdk.utils.generateId('seq');                 // id volgens de app-conventie
 sdk.utils.formatDate(new Date());            // "YYYY-MM-DD"
@@ -606,10 +606,32 @@ De app zendt lifecycle-events op dezelfde bus als `api.events`. Abonneer met
 | `projectLoaded` | `host:project-loaded` | `{ tasks, sequences, resources }` |
 | `projectNew` | `host:project-new` | — |
 | `scheduleCalculated` | `host:schedule-calculated` | `{ hasError, error, criticalTasks }` |
+| `tutorialRequested` (1.4) | `host:tutorial-requested` | `{ extensionId, tutorialId }` |
 
 ````js
 api.events.on(sdk.hostEvents.scheduleCalculated, (d) => {
   api.ui.showNotification(`Schema berekend — kritiek: ${d.criticalTasks}`);
+});
+````
+
+**`host:tutorial-requested`** (contract 1.4) is een *verzoek* aan één extensie: de gebruiker wil een
+tutorial starten. Nu zendt de app hem uit wanneer iemand na de eerste voltooide rondleiding "Ja" zegt
+op de tutorialvraag; de app kiest dan de extensie met id `tutorials` en haar eerste tutorial in de
+leerroute. Regels:
+
+- `extensionId` is het id van de extensie waarvoor het verzoek bedoeld is — reageer alleen op je
+  eigen id. `tutorialId` is het id van een tutorialartikel dat jij zelf registreerde met
+  `api.help.registerArticles` (`kind: 'tutorial'`).
+- De app zendt pas uit als je extensie **actief** is: ook een net geïnstalleerde extensie krijgt het
+  verzoek pas nadat haar `onLoad` (en dus je `api.events.on`) klaar is.
+- Start in de listener **synchroon** `api.help.startGuide(...)`. Direct na het uitzenden kijkt de app
+  of er een begeleiding van jouw extensie loopt; zo niet, dan opent hij Help › Tutorials met een
+  melding.
+
+````js
+api.events.on(sdk.hostEvents.tutorialRequested, (d) => {
+  if (!d || d.extensionId !== 'tutorials' || d.tutorialId !== 'tut-1-eerste-planning') return;
+  api.help.startGuide(buildGuide());
 });
 ````
 

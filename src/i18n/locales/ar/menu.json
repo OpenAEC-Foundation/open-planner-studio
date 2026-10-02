@@ -405,6 +405,7 @@
     "confirmRemoveHint": "انقر مرة أخرى للإزالة نهائيًا",
     "catalogLoading": "جارٍ تحميل الكتالوج...",
     "catalogError": "تعذّر تحميل الكتالوج: {{error}}",
+    "networkTimeout": "لا استجابة خلال {{seconds}} ث",
     "retry": "إعادة المحاولة",
     "noCatalogResults": "لم يتم العثور على إضافات.",
     "install": "تثبيت",

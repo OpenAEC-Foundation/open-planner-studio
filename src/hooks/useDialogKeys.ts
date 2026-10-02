@@ -40,13 +40,20 @@ export function isAnyDialogOpen(): boolean {
  *    Enter opent/kiest daar),
  *  - tijdens IME-compositie (`isComposing` — CJK/complexe invoer),
  *  - of wanneer de toets al is afgehandeld (`defaultPrevented`, bv. door een open `Select`).
+ *
+ * Met `focusedButtonOwnsEnter` heeft ook een gefocuste `<button>` Enter zelf: de toets gaat dan niet
+ * naar `onConfirm` en wordt niet tegengehouden, zodat de browser die knop activeert (Enter op Nee of
+ * het kruisje = Nee/sluiten, niet de primaire actie). Opt-in, omdat bestaande dialogen hun eerste
+ * focus op het kruisje hebben en daar Enter als primaire actie verwachten.
  */
 export function useDialogKeys({
   onConfirm,
   onCancel,
+  focusedButtonOwnsEnter = false,
 }: {
   onConfirm?: () => void;
   onCancel?: () => void;
+  focusedButtonOwnsEnter?: boolean;
 }): void {
   const idRef = useRef<symbol | null>(null);
   if (idRef.current === null) idRef.current = Symbol('dialog');
@@ -64,8 +71,10 @@ export function useDialogKeys({
   // verse closure; alleen passive effects blijven achter. Eén Enter volstaat daardoor weer.
   const confirmRef = useRef(onConfirm);
   const cancelRef = useRef(onCancel);
+  const buttonOwnsEnterRef = useRef(focusedButtonOwnsEnter);
   confirmRef.current = onConfirm;
   cancelRef.current = onCancel;
+  buttonOwnsEnterRef.current = focusedButtonOwnsEnter;
 
   // Losse effect met lege deps: registratie op de stapel mag niet heropvoeren bij elke
   // onConfirm/onCancel-identiteitswissel (anders pop/push je jezelf tussentijds naar de top).
@@ -98,6 +107,7 @@ export function useDialogKeys({
         if (el?.tagName === 'TEXTAREA') return;
         if (el?.getAttribute('aria-expanded') === 'true') return;   // open dropdown
         if (el?.getAttribute('aria-haspopup') === 'listbox') return; // Select-trigger (open/dicht)
+        if (buttonOwnsEnterRef.current && el instanceof HTMLButtonElement) return; // native knopklik
         e.preventDefault();
         onConfirm();
       }

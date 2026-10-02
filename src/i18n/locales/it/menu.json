@@ -399,6 +399,7 @@
     "confirmRemoveHint": "Fai clic di nuovo per rimuovere definitivamente",
     "catalogLoading": "Caricamento catalogo...",
     "catalogError": "Impossibile caricare il catalogo: {{error}}",
+    "networkTimeout": "nessuna risposta entro {{seconds}} s",
     "retry": "Riprova",
     "noCatalogResults": "Nessuna estensione trovata.",
     "install": "Installa",

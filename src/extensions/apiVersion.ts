@@ -29,7 +29,8 @@
  * 1.3.0 — taaktypes: `ExtTask.workRule`, `ExtProject.defaultWorkRule` en de drie optionele
  * werkvelden op de toewijzing (`plannedWorkMinutes`/`actualWorkMinutes`/`remainingWorkMinutes`).
  * 1.4.0 — Help & begeleiding: permissie `help` en `api.help.*` (Help-artikelen registreren,
- * meegeleverd projectbestand openen als nieuw document, begeleidingspaneel met stappen en ankers).
+ * meegeleverd projectbestand openen als nieuw document, begeleidingspaneel met stappen en ankers) en
+ * het host-event `host:tutorial-requested` (de app vraagt een tutorialextensie een tutorial te starten).
  */
 export const EXTENSION_API_VERSION = '1.4.0';
 

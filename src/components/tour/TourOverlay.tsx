@@ -5,6 +5,7 @@ import { useDialogKeys } from '@/hooks/useDialogKeys';
 import { TOUR_STEPS } from './tourSteps';
 import { TourSpotlight } from './TourSpotlight';
 import { tourAnchorSelector } from './tourAnchor';
+import { tourFinishPatch, type TourEnd } from '@/state/onboarding';
 
 const CARD_WIDTH = 300;
 const CARD_MARGIN = 12;
@@ -132,27 +133,26 @@ export function TourOverlay() {
   // zet de door de tour aangeraakte UI-velden terug naar de stand van vóór tour-start (het
   // snapshot hierboven) i.p.v. altijd een vaste default — voorkomt dat de gebruiker een expliciet
   // ingeklapt paneel of uitgeschakeld histogram na de tour "aan" terugkrijgt.
-  const finish = useCallback(() => {
-    const snapshot = useAppStore.getState().ui.tourSnapshot;
-    setUI({
-      ...(snapshot ?? { activeRibbonTab: 'start' }),
-      tourSnapshot: null,
-      showTourOverlay: false,
-    });
+  // `end` onderscheidt VOLTOOID (Volgende/Klaar op de laatste stap) van AFGEBROKEN (Overslaan,
+  // Escape, ontbrekend anker, geen stap): alleen een voltooide rondleiding opent de tutorialvraag,
+  // in dezelfde patch als het sluiten (`tourFinishPatch`, `state/onboarding.ts`).
+  const finish = useCallback((end: TourEnd) => {
+    setUI(tourFinishPatch(useAppStore.getState().ui, end));
   }, [setUI]);
+  const abort = useCallback(() => finish('aborted'), [finish]);
 
   const goTo = useCallback((index: number, direction: 'forward' | 'backward') => {
     directionRef.current = direction;
     setUI({ tourStepIndex: index });
   }, [setUI]);
 
-  useDialogKeys({ onCancel: finish });
+  useDialogKeys({ onCancel: abort });
 
   // Voorbereiden + meten. Twee geneste rAF's: de eerste geeft React de kans de state-update uit
   // `prepare()` (tab-wissel, paneel uitklappen, …) te renderen; pas in de tweede meten we het
   // daadwerkelijke anker, anders vangen we een stale rect van vóór de layout-wijziging.
   useEffect(() => {
-    if (!step) { finish(); return; }
+    if (!step) { abort(); return; }
     step.prepare();
 
     let cancelled = false;
@@ -165,7 +165,7 @@ export function TourOverlay() {
           const dir = directionRef.current;
           if (dir === 'forward' && stepIndex < TOUR_STEPS.length - 1) goTo(stepIndex + 1, 'forward');
           else if (dir === 'backward' && stepIndex > 0) goTo(stepIndex - 1, 'backward');
-          else finish();
+          else abort();
           return;
         }
         setRect(el.getBoundingClientRect());
@@ -176,7 +176,7 @@ export function TourOverlay() {
       cancelAnimationFrame(raf1);
       cancelAnimationFrame(raf2);
     };
-  }, [step, stepIndex, finish, goTo]);
+  }, [step, stepIndex, abort, goTo]);
 
   // Herpositioneren bij window-resize (bv. presentatie-fullscreen togglen tijdens de tour), plus
   // de expliciete viewport-tracking hierboven (dekt ook resizes die het anker zelf niet raken).
@@ -220,7 +220,7 @@ export function TourOverlay() {
   );
 
   const handleNext = () => {
-    if (isLast) finish();
+    if (isLast) finish('completed');
     else goTo(stepIndex + 1, 'forward');
   };
   const handlePrevious = () => {
@@ -264,7 +264,7 @@ export function TourOverlay() {
         </span>
         <p className="text-text-secondary">{t(step.bodyKey)}</p>
         <div className="flex items-center justify-between gap-2 pt-1">
-          <button onClick={finish} className="btn btn--sm">{t('tour.skip')}</button>
+          <button onClick={abort} className="btn btn--sm">{t('tour.skip')}</button>
           <div className="flex items-center gap-2">
             {!isFirst && (
               <button onClick={handlePrevious} className="btn btn--sm">{t('tour.previous')}</button>

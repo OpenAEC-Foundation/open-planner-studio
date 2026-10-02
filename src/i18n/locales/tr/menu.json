@@ -397,6 +397,7 @@
     "confirmRemoveHint": "Kalıcı olarak kaldırmak için tekrar tıklayın",
     "catalogLoading": "Katalog yükleniyor...",
     "catalogError": "Katalog yüklenemedi: {{error}}",
+    "networkTimeout": "{{seconds}} sn içinde yanıt yok",
     "retry": "Tekrar dene",
     "noCatalogResults": "Uzantı bulunamadı.",
     "install": "Yükle",

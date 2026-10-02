@@ -70,6 +70,10 @@ export function HelpPanel() {
   // "Lees meer"-diepe-link vanuit een melding of het eigenschappenpaneel
   // (`openHelpArticle` in uiSlice.ts). Eenmalig-verzoek-patroon: lezen + direct weer op `null`.
   const pendingHelpArticleId = useAppStore(s => s.ui.pendingHelpArticleId);
+  // "Help › Tutorials" als terugval van de tutorialvraag: dezelfde eenmalig-verzoekvorm, maar voor
+  // een sectie van de inhoudsopgave in plaats van een artikel.
+  const pendingHelpSection = useAppStore(s => s.ui.pendingHelpSection);
+  const tocRef = useRef<HTMLElement>(null);
   const registered = useSyncExternalStore(subscribeRegisteredHelpArticles, getRegisteredHelpArticles);
 
   // Taal-koppeling: standaard volgt de docs-taal de UI-taal (met EN-fallback per
@@ -287,6 +291,21 @@ export function HelpPanel() {
   // De nieuwe indeling is "live" in dev, of in productie zodra er een niet-draft `kind`-artikel of
   // een geregistreerde tutorial is. Tot fase 4 ziet een gebruiker dus geen lege nieuwe secties.
   const newStructureLive = INCLUDE_DRAFTS || allArticles.some(a => a.kind !== undefined);
+  // Tutorials staan er ALTIJD: ook zonder geregistreerde tutorial wijst de sectie de weg naar de
+  // catalogus. De tutorialvraag na de eerste rondleiding verwijst naar "Help › Tutorials", dus die
+  // plek moet in productie ook bestaan als de extensie (nog) niet geïnstalleerd is.
+  const visibleKinds = newStructureLive ? HELP_KINDS : HELP_KINDS.filter(kind => kind === 'tutorial');
+
+  // Verzoek "breng Help › Tutorials in beeld". Pas als het eerste artikel getekend is: inhoudsopgave
+  // en artikel delen de scrollcontainer, en de layout-effect hierboven zet die bij een nieuw artikel
+  // terug naar boven. Een effect loopt ná de layout-effects van dezelfde commit, dus dit wint.
+  useEffect(() => {
+    if (pendingHelpSection !== 'tutorials' || !manifest || !renderedContent) return;
+    const section = tocRef.current?.querySelector<HTMLElement>('[data-help-section="kind-tutorial"]');
+    section?.scrollIntoView({ block: 'center' });
+    section?.querySelector<HTMLElement>('button')?.focus({ preventScroll: true });
+    setUI({ pendingHelpSection: null });
+  }, [pendingHelpSection, manifest, renderedContent, setUI]);
 
   const openTutorialCatalog = () => {
     setUI({ backstageSection: 'extensions', pendingExtensionsTab: 'browse' });
@@ -317,7 +336,7 @@ export function HelpPanel() {
 
   return (
     <div className="help-panel">
-      <aside className="help-toc" aria-label={tMenu('backstage.help')}>
+      <aside ref={tocRef} className="help-toc" aria-label={tMenu('backstage.help')}>
         <div className="help-search-wrap">
           <Search size={14} className="help-search-icon" aria-hidden />
           <input
@@ -360,7 +379,7 @@ export function HelpPanel() {
               return list.length === 0 ? null : renderTocSection(`layer-${layer}`, tMenu(`backstage.helpLayer.${layer}`), list, false);
             })}
             {/* Nieuwe indeling: Tutorials (leerroute, uit het register) · How-to · Uitleg · Referentie. */}
-            {newStructureLive && HELP_KINDS.map(kind => {
+            {visibleKinds.map(kind => {
               if (kind === 'tutorial') {
                 const list = tutorialRoute.filter(inSearch);
                 if (list.length > 0) return renderTocSection('kind-tutorial', tMenu('backstage.helpKind.tutorial'), list, true);

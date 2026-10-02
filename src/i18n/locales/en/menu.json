@@ -397,6 +397,7 @@
     "confirmRemoveHint": "Click again to remove permanently",
     "catalogLoading": "Loading catalog...",
     "catalogError": "Could not load catalog: {{error}}",
+    "networkTimeout": "no response within {{seconds}} s",
     "retry": "Retry",
     "noCatalogResults": "No extensions found.",
     "install": "Install",

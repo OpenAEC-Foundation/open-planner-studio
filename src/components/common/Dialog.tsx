@@ -37,6 +37,11 @@ export interface DialogProps {
   onCancel?: () => void;
   /** Enter = primaire actie (via `useDialogKeys`, met de textarea/dropdown/IME-uitzonderingen). */
   onConfirm?: () => void;
+  /**
+   * Enter op een gefocuste knop activeert díé knop in plaats van `onConfirm` (zie `useDialogKeys`).
+   * `onConfirm` blijft dan de actie voor Enter zonder knopfocus. Voor keuzedialogen (Ja/Nee).
+   */
+  focusedButtonOwnsEnter?: boolean;
   /** Overschrijft de standaard-overlaytint + z-laag (`bg-black/60 z-50`). */
   overlayClassName?: string;
   /** `stopPropagation` op de backdrop-klik (nodig bij stapeling boven een andere dialoog). */
@@ -49,11 +54,11 @@ export interface DialogProps {
 }
 
 export function Dialog({
-  panelClassName, onBackdropClick, onCancel, onConfirm,
+  panelClassName, onBackdropClick, onCancel, onConfirm, focusedButtonOwnsEnter,
   overlayClassName = 'bg-black/60 z-50', stopBackdropPropagation = false,
   overlayProps, panelProps, children,
 }: DialogProps) {
-  useDialogKeys({ onConfirm, onCancel });
+  useDialogKeys({ onConfirm, onCancel, focusedButtonOwnsEnter });
   // Focus-trap (a11y): Tab/Shift+Tab blijven binnen dit paneel; role/aria-modal maken het modaal.
   const panelRef = useRef<HTMLDivElement>(null);
   useFocusTrap(panelRef);
