@@ -113,6 +113,7 @@ function AppContent() {
   const showWelcomeDialog = useAppStore(s => s.ui.showWelcomeDialog);
   const showTourOverlay = useAppStore(s => s.ui.showTourOverlay);
   const showTutorialOffer = useAppStore(s => s.ui.showTutorialOffer);
+  const welcomePending = useAppStore(s => s.ui.welcomePending);
   const justUpdated = useAppStore(s => s.ui.justUpdated);
   const showUpdateDialog = useAppStore(s => s.ui.showUpdateDialog);
   const presentationMode = useAppStore(s => s.ui.presentationMode);
@@ -414,9 +415,10 @@ function AppContent() {
             onClose={recovery.onClose}
           />
         )}
-        {/* Niet onder de rondleiding (z 9997, zou de dialoog onklikbaar maken) of de tutorialvraag. */}
+        {/* Niet onder de rondleiding (z 9997, zou de dialoog onklikbaar maken) of de tutorialvraag, en
+            niet in het venster waarin de welkomst nog op komst is (anders schuift die er meteen overheen). */}
         {justUpdated && recoveryResolved && recovery === null && !showUpdateDialog && !showWelcomeDialog
-          && !showTourOverlay && !showTutorialOffer && <JustUpdatedDialog />}
+          && !welcomePending && !showTourOverlay && !showTutorialOffer && <JustUpdatedDialog />}
       </Suspense>
 
       {/* Verversingssignaal: discreet, verdwijnt na 4s (zie effect hierboven). */}
