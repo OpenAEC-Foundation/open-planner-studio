@@ -38,6 +38,7 @@ import { StructureLockedNotice } from '@/components/layout/StructureLockedNotice
 import { DependencyModeNotice } from '@/components/layout/DependencyModeNotice';
 import { SplitModeNotice } from '@/components/layout/SplitModeNotice';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
+import { isOnboardingActive } from '@/state/onboarding';
 import { RecordedDatesNotice } from '@/components/layout/RecordedDatesNotice';
 import { NotificationHost } from '@/components/layout/NotificationHost';
 import { DOCUMENT_TABPANEL_ID, documentTabId } from '@/components/layout/DocumentChrome/documentTabNavigation';
@@ -113,7 +114,8 @@ function AppContent() {
   const showWelcomeDialog = useAppStore(s => s.ui.showWelcomeDialog);
   const showTourOverlay = useAppStore(s => s.ui.showTourOverlay);
   const showTutorialOffer = useAppStore(s => s.ui.showTutorialOffer);
-  const welcomePending = useAppStore(s => s.ui.welcomePending);
+  // Welkomst (ook nog op komst), rondleiding of tutorialvraag: dezelfde regel als "Update beschikbaar".
+  const onboardingActive = useAppStore(s => isOnboardingActive(s.ui));
   const justUpdated = useAppStore(s => s.ui.justUpdated);
   const showUpdateDialog = useAppStore(s => s.ui.showUpdateDialog);
   const presentationMode = useAppStore(s => s.ui.presentationMode);
@@ -415,10 +417,11 @@ function AppContent() {
             onClose={recovery.onClose}
           />
         )}
-        {/* Niet onder de rondleiding (z 9997, zou de dialoog onklikbaar maken) of de tutorialvraag, en
-            niet in het venster waarin de welkomst nog op komst is (anders schuift die er meteen overheen). */}
-        {justUpdated && recoveryResolved && recovery === null && !showUpdateDialog && !showWelcomeDialog
-          && !welcomePending && !showTourOverlay && !showTutorialOffer && <JustUpdatedDialog />}
+        {/* Pas na de hele eerste-startervaring (`isOnboardingActive`): niet in het venster waarin de
+            welkomst nog op komst is, niet onder de rondleiding (z 9997, zou de dialoog onklikbaar
+            maken) en niet onder de tutorialvraag. */}
+        {justUpdated && recoveryResolved && recovery === null && !showUpdateDialog && !onboardingActive
+          && <JustUpdatedDialog />}
       </Suspense>
 
       {/* Verversingssignaal: discreet, verdwijnt na 4s (zie effect hierboven). */}
