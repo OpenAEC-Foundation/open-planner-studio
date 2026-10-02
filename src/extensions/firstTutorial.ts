@@ -81,6 +81,9 @@ export async function startFirstTutorial(
 
   if (status === 'disabled') {
     await deps.enable(extensionId);
+    // `enableExtension` keert meteen terug als er al een activatie van dit id loopt (bv. een
+    // gelijktijdige herlaadronde); wacht die af, anders lijkt de extensie ten onrechte niet actief.
+    await deps.whenSettled(extensionId);
     status = deps.extensionStatus(extensionId);
     if (status !== 'enabled') return { kind: 'unavailable', reason: 'not-active' };
   }
@@ -94,7 +97,9 @@ export async function startFirstTutorial(
     const installed = await deps.install(entry);
     if (installed === 'declined') return { kind: 'declined' };
     if (installed === 'failed') return { kind: 'unavailable', reason: 'install-failed' };
-    // `installed` zegt alleen dat de bytes er staan; of `onLoad` slaagde, staat in de status.
+    // `installed` zegt alleen dat de bytes er staan; of `onLoad` slaagde, staat in de status. Liep
+    // er al een activatie van dit id, dan keerde de installatie daar niet op wachtend terug: afwachten.
+    await deps.whenSettled(extensionId);
     if (deps.extensionStatus(extensionId) !== 'enabled') return { kind: 'unavailable', reason: 'not-active' };
   }
 

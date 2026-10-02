@@ -134,7 +134,8 @@ function mock(o: MockOpts) {
   let guideFor: string | null = null;
   const deps: FirstTutorialDeps = {
     extensionStatus: () => status,
-    whenSettled: async () => { log.push('settle'); status = o.statusAfterSettle ?? 'enabled'; },
+    // Afwachten verandert alleen iets als er een activatie liep (status `loading`).
+    whenSettled: async () => { log.push('settle'); if (status === 'loading') status = o.statusAfterSettle ?? 'enabled'; },
     enable: async () => { log.push('enable'); status = o.statusAfterEnable ?? 'enabled'; },
     fetchCatalog: async () => { log.push('fetch'); },
     catalog: () => ({ entries: o.entries ?? [], error: o.catalogError ?? null }),
@@ -167,7 +168,7 @@ function mock(o: MockOpts) {
 {
   const m = mock({ status: null, entries: [ENTRY] });
   eq('D2 niet geïnstalleerd → installeren en starten', await startFirstTutorial(m.deps), { kind: 'started' });
-  eq('D2 volgorde: ophalen → installeren → pas dan het event', m.log, ['fetch', 'install', 'emit']);
+  eq('D2 volgorde: ophalen → installeren → activatie afwachten → pas dan het event', m.log, ['fetch', 'install', 'settle', 'emit']);
 }
 {
   const m = mock({ status: null, entries: [ENTRY], installResult: 'declined' });
@@ -201,7 +202,7 @@ function mock(o: MockOpts) {
 {
   const m = mock({ status: 'disabled' });
   eq('D9 uitgeschakeld → aanzetten en starten', await startFirstTutorial(m.deps), { kind: 'started' });
-  eq('D9 geen catalogus nodig', m.log, ['enable', 'emit']);
+  eq('D9 geen catalogus nodig', m.log, ['enable', 'settle', 'emit']);
 }
 {
   const m = mock({ status: 'disabled', statusAfterEnable: 'error' });
@@ -210,7 +211,7 @@ function mock(o: MockOpts) {
 {
   const m = mock({ status: 'error', entries: [ENTRY] });
   eq('D11 foutstand → opnieuw uit de catalogus', await startFirstTutorial(m.deps), { kind: 'started' });
-  eq('D11 volgorde', m.log, ['fetch', 'install', 'emit']);
+  eq('D11 volgorde', m.log, ['fetch', 'install', 'settle', 'emit']);
 }
 {
   const m = mock({ status: 'enabled', listens: false });
@@ -220,6 +221,19 @@ function mock(o: MockOpts) {
   const m = mock({ status: 'enabled', tutorialId: null });
   eq('D13 geen geregistreerde tutorial → no-tutorial, geen event', [await startFirstTutorial(m.deps), m.emitted.length],
     [{ kind: 'unavailable', reason: 'no-tutorial' }, 0]);
+}
+
+{
+  // O1 (review PR #261): de installatie keert terug terwijl een al lopende activatie van hetzelfde id
+  // nog bezig is (`enableExtension` wacht daar niet op). Niet "niet actief" melden, maar afwachten.
+  const m = mock({ status: null, entries: [ENTRY], statusAfterInstall: 'loading' });
+  eq('D14 installatie terug tijdens een lopende activatie → afwachten, dan starten', await startFirstTutorial(m.deps), { kind: 'started' });
+  eq('D14 volgorde', m.log, ['fetch', 'install', 'settle', 'emit']);
+}
+{
+  const m = mock({ status: 'disabled', statusAfterEnable: 'loading' });
+  eq('D15 aanzetten tijdens een lopende activatie → afwachten, dan starten', await startFirstTutorial(m.deps), { kind: 'started' });
+  eq('D15 volgorde', m.log, ['enable', 'settle', 'emit']);
 }
 
 // ── E. Echte loader: het event komt pas na een trage onLoad ─────────────────────────────────────
