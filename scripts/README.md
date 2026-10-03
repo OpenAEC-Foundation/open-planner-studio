@@ -64,8 +64,11 @@ aangeroepen:
 `tutorial-project.ts`. Bouwt het doorlopende oefenproject van de tutorials (*Aanbouw woning* /
 *House extension*, ontwerp `docs/superpowers/specs/2026-09-28-gebruikersdocumentatie-diataxis-design.md`
 §5) stap voor stap via de echte store-acties en `runCPM`, in de volgorde van de tutorials, en schrijft
-per taal (`nl`, `en`) acht tussenstanden: `start-tut-1` (leeg project met projectinfo) en `na-tut-1`
-t/m `na-tut-7` (na tutorial N; `na-tut-7` is gelijk aan `na-tut-6`, want een rapport is geen projectdata).
+per taal (`nl`, `en`) achttien standen: `start-tut-1` (leeg project met projectinfo), `na-tut-1`
+t/m `na-tut-7` (na tutorial N; `na-tut-7` is gelijk aan `na-tut-6`, want een rapport is geen projectdata)
+en tussenstanden binnen een tutorial (`tussen-tut-3-*`, `tussen-tut-5-*`, `tussen-tut-6-*`) voor de stappen
+die de extensie niet zelf kan voordoen. De standen van tutorial 6 zijn vóór Bereken vastgelegd (niet
+gerekend); de app rekent ze bij het openen wel door.
 Taak-, fase-, resource-, kalender- en baselinenamen zijn vertaald; de data is verder identiek.
 
 - Uitvoer: `build/tutorial-project/<lang>/<stand>.ifc` (gitignored). `-- --out <map>` kiest een andere
