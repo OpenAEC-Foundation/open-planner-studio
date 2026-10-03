@@ -8,8 +8,13 @@
 //   start-tut-1    leeg project met alleen projectinfo (wizard "Nieuw project", standaardkalender)
 //   na-tut-1       WBS (4 fasen), 20 taken met duur, start- en opleveringsmijlpaal, inspectie
 //   na-tut-2       + relaties (FS, twee met lag), berekend
+//   tussen-tut-3-bouwvak  na-tut-2 + bouwvak in de projectkalender, berekend
 //   na-tut-3       + bouwvak in de projectkalender, één constraint (SNET), één deadline
 //   na-tut-4       + urenplanning aan; stort, kanaalplaatvloer en dakelementen in uren
+//   tussen-tut-5-resources   na-tut-4 + de vijf resources (nog niets toegewezen)
+//   tussen-tut-5-toegewezen  + alle toewijzingen, berekend
+//   tussen-tut-5-werkregel   + werkregel "Vast werk" op het stucwerk met 2 stukadoors, berekend
+//                            (overbezet, vóór het nivelleren)
 //   na-tut-5       + resources, toewijzingen, werkregel "Vast werk" op het stucwerk, genivelleerd
 //   na-tut-6       + basisplanning (baseline), statusdatum en voortgang
 //   na-tut-7       = na-tut-6 (tutorial 7 maakt een rapport; dat is geen projectdata)
@@ -50,7 +55,12 @@
 //                Kanaalplaatvloer ma 28 jun 07:00–12:00 (5 u), Dakelementen di 6 jul 07:00–14:00
 //                (6 u). Speling van stort/dakelementen 3,25 wd en vloer 3,375 wd: de werkdag loopt
 //                tot 16:00, de dagtaak-opvolger begint pas de volgende ochtend.
-//   na-tut-5     na toewijzen + werkregel (Stucwerk "Vast werk", stukadoor 1 → 2: 4 → 2 wd):
+//   tussen-tut-5-resources   planning = na-tut-4 (wo 1 sep, 48 wd); vijf resources, geen toewijzingen.
+//   tussen-tut-5-toegewezen  planning nog steeds wo 1 sep (48 wd, 8 kritieke taken); Metselaar al
+//                5 wd overbezet (29 jun – 5 jul); Stucwerk 4 wd (23–28 jul), 1 stukadoor.
+//   tussen-tut-5-werkregel   Stucwerk "Vast werk", 2 stukadoors: 2 wd (vr 23 – ma 26 jul);
+//                oplevering ma 30 aug, 46 wd, 8 kritieke taken; Metselaar nog 5 wd overbezet.
+//   na-tut-5    na toewijzen + werkregel (Stucwerk "Vast werk", stukadoor 1 → 2: 4 → 2 wd):
 //                oplevering ma 30 aug, Metselaar 5 wd overbezet (binnen- en buitenspouwblad tegelijk,
 //                29 jun – 5 jul). Nivelleren (dialoogstandaard) schuift Buitenspouwblad 5 wd op
 //                (di 6 – di 13 jul); geen overbezetting meer; oplevering blijft ma 30 aug (de
@@ -81,7 +91,8 @@ export type TutorialLang = 'nl' | 'en';
 export const TUTORIAL_LANGS: readonly TutorialLang[] = ['nl', 'en'];
 
 export const STAGE_IDS = [
-  'start-tut-1', 'na-tut-1', 'na-tut-2', 'tussen-tut-3-bouwvak', 'na-tut-3', 'na-tut-4', 'na-tut-5', 'na-tut-6',
+  'start-tut-1', 'na-tut-1', 'na-tut-2', 'tussen-tut-3-bouwvak', 'na-tut-3', 'na-tut-4',
+  'tussen-tut-5-resources', 'tussen-tut-5-toegewezen', 'tussen-tut-5-werkregel', 'na-tut-5', 'na-tut-6',
   'na-tut-7',
 ] as const;
 export type StageId = typeof STAGE_IDS[number];
@@ -511,15 +522,22 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
   stages.push(b.snapshot('na-tut-4'));
 
   // ── Tutorial 5: resources, toewijzen, werkregel, overbezetting, nivelleren ──
+  // Tussenstanden voor tutorial 5: een extensie kan geen resources, toewijzingen of werkregels
+  // schrijven, dus "Toon mij"/"Opnieuw" van die stappen openen deze standen. Een snapshot leest
+  // alleen de store; de stappen erna (en daarmee na-tut-5) blijven ongewijzigd.
   for (const r of RESOURCES) {
     b.resIds.set(r.key, S().addResource({
       name: r.name[lang], type: r.type, description: '', maxUnits: r.maxUnits,
       ...(r.unitOfMeasure ? { unitOfMeasure: r.unitOfMeasure } : {}),
     }));
   }
+  if (S().resources.length !== RESOURCES.length) fail(lang, 'tut-5: niet alle resources aangemaakt');
+  // Resources aanmaken verandert de planning niet: geen herberekening, zoals de lezer ook niet hoeft.
+  stages.push(b.snapshot('tussen-tut-5-resources'));
   for (const a of ASSIGNMENTS) S().assignResource(b.id(a.task), b.resIds.get(a.res)!, a.units);
   if (S().assignments.length !== ASSIGNMENTS.length) fail(lang, 'tut-5: niet alle toewijzingen gelukt');
   b.calculate('tut-5 toewijzen');
+  stages.push(b.snapshot('tussen-tut-5-toegewezen'));
   const plasterBefore = b.task(WORK_RULE.task).time.scheduleDuration;
   S().setTaskWorkRule(b.id(WORK_RULE.task), WORK_RULE.rule);
   const plasterAsg = S().assignments.find(a => a.taskId === b.id(WORK_RULE.task));
@@ -529,6 +547,7 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
   const plasterAfter = b.task(WORK_RULE.task).time.scheduleDuration;
   if (!(plasterAfter < plasterBefore)) fail(lang, `tut-5: werkregel verkort het stucwerk niet (${plasterBefore} → ${plasterAfter})`);
   const beforeLeveling = b.facts();
+  stages.push(b.snapshot('tussen-tut-5-werkregel'));
   const overBefore = Object.keys(beforeLeveling.overallocated);
   if (overBefore.length !== 1 || overBefore[0] !== 'bricklayer') {
     fail(lang, `tut-5: vóór nivelleren hoort alleen de metselaar overbezet te zijn (is: ${overBefore.join(', ') || 'niemand'})`);
