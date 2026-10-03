@@ -17,6 +17,8 @@
 //     herberekening datums verschuift (geen "datums zoals opgeslagen"-aanbod).
 //  5. De wat-als-stappen uit de tekst die geen eigen stand zijn (tutorial 2: buitenspouwblad 9
 //     werkdagen; tutorial 3: deadline 27 augustus), plus het werkdagengetal op de statusbalk.
+//  6. De tussenstanden van tutorial 5 (resources, toegewezen, werkregel) zoals de lezer ze opent:
+//     statusbalk, overbezette dagen van de metselaar, en werkregel/inzet/duur van het stucwerk.
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
@@ -222,6 +224,107 @@ const PINNED: Record<Exclude<StageId, 'na-tut-7'>, Pinned> = {
       painting: '2027-07-29 2027-08-23 6',
       cleaning: '2027-09-01 2027-09-01 0',
       msHandover: '2027-09-01 2027-09-01 0',
+    },
+  },
+  // Tutorial 5 stap 2: vijf resources, nog niets toegewezen — de planning is die van na-tut-4.
+  'tussen-tut-5-resources': {
+    finish: '2027-09-01', projectFinish: '2027-09-01',
+    statusDate: null, baselineFinish: null,
+    overallocated: {},
+    counts: { tasks: 27, milestones: 3, sequences: 24, resources: 5, assignments: 0, baselines: 0 },
+    critical: ['frames', 'breakThrough', 'services', 'plaster', 'screed', 'tiling', 'cleaning', 'msHandover'],
+    table: {
+      msStart: '2027-06-07 2027-06-07 3',
+      site: '2027-06-07 2027-06-08 3',
+      garden: '2027-06-09 2027-06-09 3',
+      setout: '2027-06-10 2027-06-10 3',
+      excavate: '2027-06-11 2027-06-14 3',
+      rebar: '2027-06-15 2027-06-17 3',
+      inspection: '2027-06-17 2027-06-17 3',
+      pour: '2027-06-18T07:00 2027-06-18T14:00 3.25',
+      foundBrick: '2027-06-24 2027-06-25 3',
+      floor: '2027-06-28T07:00 2027-06-28T12:00 3.375',
+      innerLeaf: '2027-06-29 2027-07-05 3',
+      outerLeaf: '2027-06-29 2027-07-06 5',
+      roofElements: '2027-07-06T07:00 2027-07-06T14:00 3.25',
+      roofing: '2027-07-07 2027-07-08 3',
+      frames: '2027-07-14 2027-07-15 0',
+      breakThrough: '2027-07-16 2027-07-19 0',
+      services: '2027-07-20 2027-07-22 0',
+      plaster: '2027-07-23 2027-07-28 0',
+      screed: '2027-07-29 2027-07-29 0',
+      tiling: '2027-08-27 2027-08-31 0',
+      painting: '2027-07-29 2027-08-23 6',
+      cleaning: '2027-09-01 2027-09-01 0',
+      msHandover: '2027-09-01 2027-09-01 0',
+    },
+  },
+  // Tutorial 5 stap 3–5: alle toewijzingen, berekend. De metselaar staat al dubbel (binnen- en
+  // buitenspouwblad); het stucwerk duurt nog 4 wd met 1 stukadoor.
+  'tussen-tut-5-toegewezen': {
+    finish: '2027-09-01', projectFinish: '2027-09-01',
+    statusDate: null, baselineFinish: null,
+    overallocated: { bricklayer: 5 },
+    counts: { tasks: 27, milestones: 3, sequences: 24, resources: 5, assignments: 12, baselines: 0 },
+    critical: ['frames', 'breakThrough', 'services', 'plaster', 'screed', 'tiling', 'cleaning', 'msHandover'],
+    table: {
+      msStart: '2027-06-07 2027-06-07 3',
+      site: '2027-06-07 2027-06-08 3',
+      garden: '2027-06-09 2027-06-09 3',
+      setout: '2027-06-10 2027-06-10 3',
+      excavate: '2027-06-11 2027-06-14 3',
+      rebar: '2027-06-15 2027-06-17 3',
+      inspection: '2027-06-17 2027-06-17 3',
+      pour: '2027-06-18T07:00 2027-06-18T14:00 3.25',
+      foundBrick: '2027-06-24 2027-06-25 3',
+      floor: '2027-06-28T07:00 2027-06-28T12:00 3.375',
+      innerLeaf: '2027-06-29 2027-07-05 3',
+      outerLeaf: '2027-06-29 2027-07-06 5',
+      roofElements: '2027-07-06T07:00 2027-07-06T14:00 3.25',
+      roofing: '2027-07-07 2027-07-08 3',
+      frames: '2027-07-14 2027-07-15 0',
+      breakThrough: '2027-07-16 2027-07-19 0',
+      services: '2027-07-20 2027-07-22 0',
+      plaster: '2027-07-23 2027-07-28 0',
+      screed: '2027-07-29 2027-07-29 0',
+      tiling: '2027-08-27 2027-08-31 0',
+      painting: '2027-07-29 2027-08-23 6',
+      cleaning: '2027-09-01 2027-09-01 0',
+      msHandover: '2027-09-01 2027-09-01 0',
+    },
+  },
+  // Tutorial 5 stap 6–8: Stucwerk "Vast werk" met 2 stukadoors (4 → 2 wd), berekend; nog
+  // overbezet, vóór het nivelleren. = `beforeLeveling`.
+  'tussen-tut-5-werkregel': {
+    finish: '2027-08-30', projectFinish: '2027-08-30',
+    statusDate: null, baselineFinish: null,
+    overallocated: { bricklayer: 5 },
+    counts: { tasks: 27, milestones: 3, sequences: 24, resources: 5, assignments: 12, baselines: 0 },
+    critical: ['frames', 'breakThrough', 'services', 'plaster', 'screed', 'tiling', 'cleaning', 'msHandover'],
+    table: {
+      msStart: '2027-06-07 2027-06-07 3',
+      site: '2027-06-07 2027-06-08 3',
+      garden: '2027-06-09 2027-06-09 3',
+      setout: '2027-06-10 2027-06-10 3',
+      excavate: '2027-06-11 2027-06-14 3',
+      rebar: '2027-06-15 2027-06-17 3',
+      inspection: '2027-06-17 2027-06-17 3',
+      pour: '2027-06-18T07:00 2027-06-18T14:00 3.25',
+      foundBrick: '2027-06-24 2027-06-25 3',
+      floor: '2027-06-28T07:00 2027-06-28T12:00 3.375',
+      innerLeaf: '2027-06-29 2027-07-05 3',
+      outerLeaf: '2027-06-29 2027-07-06 5',
+      roofElements: '2027-07-06T07:00 2027-07-06T14:00 3.25',
+      roofing: '2027-07-07 2027-07-08 3',
+      frames: '2027-07-14 2027-07-15 0',
+      breakThrough: '2027-07-16 2027-07-19 0',
+      services: '2027-07-20 2027-07-22 0',
+      plaster: '2027-07-23 2027-07-26 0',
+      screed: '2027-07-27 2027-07-27 0',
+      tiling: '2027-08-25 2027-08-27 0',
+      painting: '2027-07-27 2027-07-29 6',
+      cleaning: '2027-08-30 2027-08-30 0',
+      msHandover: '2027-08-30 2027-08-30 0',
     },
   },
   'na-tut-5': {
@@ -462,6 +565,58 @@ async function whatIfs(nl: TutorialBuild): Promise<void> {
     eq('tut-3 deadline 27-08: kritieke taken', f.critical.length, 21);
     eq('tut-3 deadline 27-08: einde oplevering', f.finish, '2027-09-01');
   }
+
+  await tut5Stages(nl);
+}
+
+/**
+ * 6. De tussenstanden van tutorial 5, geopend zoals "Toon mij"/"Opnieuw" van de extensie ze
+ *    opent: wat de lezer op de statusbalk, in het histogram en bij het stucwerk ziet. De
+ *    tutorialtekst na stap 7 + F5: Stucwerk 23–26 juli (2 wd), "Einde: 30-08-2027, Kritiek pad: 8
+ *    taken, 46 werkdagen", Metselaar overbezet 29-06-2027 – 05-07-2027.
+ */
+async function tut5Stages(nl: TutorialBuild): Promise<void> {
+  console.log('-- tutorial-project: tussenstanden tutorial 5 --');
+  const ifcOf = (id: StageId) => nl.stages.find(s => s.id === id)!.ifc;
+  const plaster = () => S().tasks.find(t => t.id === taskIdOf('plaster'))!;
+  const plasterUnits = () => S().assignments.filter(a => a.taskId === taskIdOf('plaster')).map(a => a.unitsPerDay);
+  const bricklayerDays = () => {
+    const res = S().resources.find(r => r.name === RESOURCES.find(x => x.key === 'bricklayer')!.name.nl);
+    return res ? (S().resourceLoadResult?.overallocatedDays[res.id] ?? []) : [];
+  };
+  const resourceNames = () => S().resources.map(r => `${r.name} ${r.type} ${r.maxUnits}${r.unitOfMeasure ? ` ${r.unitOfMeasure}` : ''}`);
+  const fiveResources = [
+    'Timmerploeg CREW 1', 'Metselaar LABOR 1', 'Mobiele kraan EQUIPMENT 1', 'Stukadoor SUBCONTRACTOR 2', 'Beton MATERIAL 50 m³',
+  ];
+  const metselaarOver = ['2027-06-29', '2027-06-30', '2027-07-01', '2027-07-02', '2027-07-05'];
+
+  await S().openExampleFromString(ifcOf('tussen-tut-5-resources'), 'tussen-tut-5-resources.ifc');
+  eq('tut-5 resources: de vijf resources', resourceNames(), fiveResources);
+  eq('tut-5 resources: statusbalk werkdagen', S().cpmResult?.projectDuration, 48);
+  eq('tut-5 resources: geen toewijzingen', S().assignments.length, 0);
+
+  await S().openExampleFromString(ifcOf('tussen-tut-5-toegewezen'), 'tussen-tut-5-toegewezen.ifc');
+  eq('tut-5 toegewezen: statusbalk werkdagen', S().cpmResult?.projectDuration, 48);
+  eq('tut-5 toegewezen: kritieke taken', collectStageFacts('nl').critical.length, 8);
+  eq('tut-5 toegewezen: metselaar overbezet', bricklayerDays(), metselaarOver);
+  eq('tut-5 toegewezen: stucwerk werkregel', plaster().workRule ?? null, null);
+  eq('tut-5 toegewezen: stucwerk eenh./dag', plasterUnits(), [1]);
+  eq('tut-5 toegewezen: stucwerk werkdagen', plaster().time.scheduleDuration, 4);
+  {
+    const concrete = S().resources.find(r => r.name === 'Beton')!;
+    eq('tut-5 toegewezen: beton 8 m³/dag op het storten',
+      S().assignments.filter(a => a.resourceId === concrete.id).map(a => [a.taskId === taskIdOf('pour'), a.unitsPerDay]), [[true, 8]]);
+  }
+
+  await S().openExampleFromString(ifcOf('tussen-tut-5-werkregel'), 'tussen-tut-5-werkregel.ifc');
+  eq('tut-5 werkregel: statusbalk werkdagen', S().cpmResult?.projectDuration, 46);
+  eq('tut-5 werkregel: kritieke taken', collectStageFacts('nl').critical.length, 8);
+  eq('tut-5 werkregel: einde oplevering', collectStageFacts('nl').finish, '2027-08-30');
+  eq('tut-5 werkregel: metselaar overbezet', bricklayerDays(), metselaarOver);
+  eq('tut-5 werkregel: stucwerk werkregel', plaster().workRule ?? null, 'FIXED_WORK');
+  eq('tut-5 werkregel: stucwerk eenh./dag', plasterUnits(), [2]);
+  eq('tut-5 werkregel: stucwerk werkdagen', plaster().time.scheduleDuration, 2);
+  eq('tut-5 werkregel: stucwerk datums', [plaster().time.earlyStart, plaster().time.earlyFinish], ['2027-07-23', '2027-07-26']);
 }
 
 main().then(() => {
