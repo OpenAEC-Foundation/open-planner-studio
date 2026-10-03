@@ -607,6 +607,17 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     eq('MSPDI CriticalSlackLimit → threshold', mspBack?.criticalDefinition, { mode: 'totalFloat', threshold: 2 });
     eq('MSPDI lagCalendar/floatPaths weg', [mspBack?.lagCalendar, mspBack?.floatPaths], [undefined, undefined]);
     assert(mw.some(w => w.includes('lagCalendar')), 'MSPDI schedulingOptions-verlies-warn');
+    // Speling-modus: MSPDI heeft er geen veld voor en heropent als *Automatisch* (afwezig). Ook
+    // 'smallest' (de P6-modus) is dus verlies en moet gemeld worden; afwezig is verliesvrij.
+    const tfOnly = (totalFloatMode?: 'smallest' | 'finish') => withWarns(() => readMSPDI(writeMSPDI(
+      { ...dayProj, schedulingOptions: totalFloatMode ? { totalFloatMode } : undefined }, dayCal, tk, [], [], [],
+    )).project.schedulingOptions?.totalFloatMode);
+    for (const mode of ['smallest', 'finish'] as const) {
+      const { out: tfBack, warns: tw } = tfOnly(mode);
+      eq(`MSPDI totalFloatMode ${mode} heropent als automatisch`, tfBack ?? null, null);
+      assert(tw.some(w => w.includes('totalFloatMode')), `MSPDI totalFloatMode ${mode} → verlies-warn`);
+    }
+    assert(!tfOnly().warns.some(w => w.includes('totalFloatMode')), 'MSPDI zonder totalFloatMode (automatisch) → geen warn');
     const { out: p6Back, warns: pw } = withWarns(() => readP6XML(writeP6XML(proj2, dayCal, tk, [], [], [])).project.schedulingOptions);
     eq('P6 schedulingOptions niet uitdrukbaar', p6Back ?? null, null);
     assert(pw.some(w => w.includes('scheduling-opties')), 'P6 schedulingOptions-verlies-warn');
