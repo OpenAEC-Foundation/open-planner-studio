@@ -126,9 +126,19 @@ const CUSTOM: SchedulingProfile = {
 
 // ── 2) Byte-identiteit zonder profiel ───────────────────────────────────────────────────────────
 {
+  // De schrijver zet de klok in de kop (FILE_NAME), in IFCWORKPLAN/IFCWORKSCHEDULE en in IFCOWNERHISTORY.
+  // Twee schrijfacties aan weerszijden van een secondegrens verschilden daardoor alleen daarin (CI faalde er
+  // zo op); vergelijk zonder klok. De fixturedatums liggen in 2026-06, dus de klok valt er niet mee samen.
+  const withoutClock = (ifc: string) => {
+    const stamp = /^FILE_NAME\('[^']*','([^']*)'/m.exec(ifc)?.[1];
+    return (stamp ? ifc.split(`'${stamp}'`).join("'<klok>'") : ifc)
+      .replace(/(IFCOWNERHISTORY\([^;]*,)\d+\);/, '$1<klok>);');
+  };
   const bare = writeWithProfile(fixture());
   ok('10 geen profiel ⇒ geen pset', !bare.includes('OPS_SchedulingProfile'));
-  eq('11 standaardprofiel schrijft byte-identiek aan geen profiel', writeWithProfile(fixture({ schedulingProfile: builtInProfile('ops') })), bare);
+  eq('11a alle vier klokplekken gevonden (anders vergelijkt 11 te veel weg of te weinig)', withoutClock(bare).split('<klok>').length - 1, 4);
+  eq('11 standaardprofiel schrijft byte-identiek aan geen profiel',
+    withoutClock(writeWithProfile(fixture({ schedulingProfile: builtInProfile('ops') }))), withoutClock(bare));
   // De gecommitte voorbeeldbestanden (gemaakt vóór de rekenprofielen): na lezen geen profiel.
   const dir = join(ROOT, 'public', 'examples');
   const files = readdirSync(dir).filter(f => f.endsWith('.ifc'));
