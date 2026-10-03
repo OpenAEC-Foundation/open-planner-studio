@@ -71,7 +71,7 @@ function expectLabel(label: string, vlak: string, verwacht: string, minRatio: nu
 const BALKTINTEN: [string, string][] = [
   ['kritiek', '#DC2626'],
   ['normaal', '#2563EB'],
-  ['voltooid/normalLight', '#1D4ED8'],
+  ['voltooid/normalLight', '#1E3A8A'],
   ['mijlpaal', '#7C3AED'],
   ['baseline', '#6B7280'],
 ];
@@ -80,7 +80,7 @@ for (const [naam, hex] of BALKTINTEN) {
 }
 
 // ── De speling: zwart label ─────────────────────────────────────────────────
-// De spelingband draagt zelf GEEN label; hij wordt getekend als `colors.float + '99'` en er komt
+// De spelingband draagt zelf GEEN label; hij wordt getekend als `colors.float + '40'` plus arcering en er komt
 // nooit tekst overheen. Hij staat hier puur als functiedekking: het is wel een tint uit hetzelfde
 // palet, en de enige die per thema verschilt (`--theme-bar-float`). Beide waarden gepind, zodat een
 // toekomstige groentint die naar wit-label zou kantelen hier opvalt.
@@ -117,11 +117,11 @@ expectLabel('balkvlak hammock', '#0E7490', BAR_LABEL_LIGHT, 4.5);
 expectLabel('balkvlak traceSuccDriving', '#7C3AED', BAR_LABEL_LIGHT, 4.5);
 
 // ── De donkere kritieke voortgangsvulling: wit label ────────────────────────
-expectLabel('voortgangsvulling kritiek', '#991B1B', BAR_LABEL_LIGHT, 4.5);
+expectLabel('voortgangsvulling kritiek', '#7F1D1D', BAR_LABEL_LIGHT, 4.5);
 
-// ── De 25%-zwart-overlay (modi/trace-tint): wit label op elke balktint ──────
-// In de kleurmodi en bij een trace-tint is de voortgangsvulling geen eigen hex maar
-// `rgba(0, 0, 0, 0.25)` over de balkkleur — precies de string die GanttRenderer gebruikt.
+// ── De 25%-zwart-overlay (terugval): wit label op elke balktint ─────────────
+// Sinds `progressFill` is deze laag alleen nog de terugval voor een niet-hex balkkleur
+// (`PROGRESS_FALLBACK_OVERLAY`); `compositeOver` moet hem nog steeds tot een echte hex oplossen.
 const OVERLAY = 'rgba(0, 0, 0, 0.25)';
 for (const [naam, hex] of [...BALKTINTEN, ...FLOATTINTEN]) {
   const vlak = compositeOver(OVERLAY, hex);

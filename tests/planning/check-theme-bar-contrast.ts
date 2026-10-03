@@ -11,7 +11,8 @@
 //   1. de tekenlaag valt zonder CSS terug op exact de BRAND-hexen (het licht/donker-pad);
 //   2. elk thema dat een balktint overschrijft, haalt op ZIJN EIGEN kaartkleur minstens 3:1 —
 //      voor hoog contrast met een strengere lat, want dat thema bestaat juist daarvoor;
-//   3. de balk en zijn voortgangsvulling blijven onderling te onderscheiden.
+//   3. de balk en zijn voortgangsvulling blijven onderling te onderscheiden (RGB-afstand én
+//      WCAG >= PROGRESS_MIN_CONTRAST, in elk thema).
 //
 // Draait via run.sh. Exit 0 = alles groen.
 
@@ -19,7 +20,7 @@ const g = globalThis as unknown as Record<string, unknown>;
 g.document = { documentElement: {} };
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
 
-import { readGanttPalette, contrastRatio } from '@/engine/renderer/themePalette';
+import { readGanttPalette, contrastRatio, PROGRESS_MIN_CONTRAST } from '@/engine/renderer/themePalette';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -50,13 +51,17 @@ const dist = (a: string, b: string): number => {
 {
   const p = readGanttPalette();
   eq('fallback critical', p.critical, '#DC2626');
-  eq('fallback criticalLight', p.criticalLight, '#991B1B');
+  eq('fallback criticalLight', p.criticalLight, '#7F1D1D');
   eq('fallback normal', p.normal, '#2563EB');
-  eq('fallback normalLight', p.normalLight, '#1D4ED8');
-  eq('fallback complete', p.complete, '#1D4ED8');
+  eq('fallback normalLight', p.normalLight, '#1E3A8A');
+  eq('fallback complete', p.complete, '#1E3A8A');
   eq('fallback milestone', p.milestone, '#7C3AED');
   eq('fallback baseline', p.baseline, '#6B7280');
   eq('complete en normalLight delen één bron', p.complete, p.normalLight);
+  const kr = contrastRatio(rgbOf(p.critical), rgbOf(p.criticalLight));
+  const nr = contrastRatio(rgbOf(p.normal), rgbOf(p.normalLight));
+  ok(`BRAND: kritiek vs voortgangsvulling ${kr.toFixed(2)} >= ${PROGRESS_MIN_CONTRAST}`, kr >= PROGRESS_MIN_CONTRAST);
+  ok(`BRAND: normaal vs voltooid ${nr.toFixed(2)} >= ${PROGRESS_MIN_CONTRAST}`, nr >= PROGRESS_MIN_CONTRAST);
 }
 
 // ── 2. De themablokken uit globals.css ──────────────────────────────────────
@@ -105,10 +110,14 @@ for (const { selector, kaart, lat, moetZetten } of THEMAS) {
   if (vars['--theme-bar-critical'] && vars['--theme-bar-critical-progress']) {
     const d = dist(vars['--theme-bar-critical'], vars['--theme-bar-critical-progress']);
     ok(`${selector}: kritiek vs zijn voortgangsvulling onderscheidbaar (RGB-afstand ${d} >= 60)`, d >= 60);
+    const c = contrastRatio(rgbOf(vars['--theme-bar-critical']), rgbOf(vars['--theme-bar-critical-progress']));
+    ok(`${selector}: kritiek vs zijn voortgangsvulling ${c.toFixed(2)} >= ${PROGRESS_MIN_CONTRAST}`, c >= PROGRESS_MIN_CONTRAST);
   }
   if (vars['--theme-bar-normal'] && vars['--theme-bar-complete']) {
     const d = dist(vars['--theme-bar-normal'], vars['--theme-bar-complete']);
     ok(`${selector}: normaal vs voltooid onderscheidbaar (RGB-afstand ${d} >= 60)`, d >= 60);
+    const c = contrastRatio(rgbOf(vars['--theme-bar-normal']), rgbOf(vars['--theme-bar-complete']));
+    ok(`${selector}: normaal vs voltooid ${c.toFixed(2)} >= ${PROGRESS_MIN_CONTRAST}`, c >= PROGRESS_MIN_CONTRAST);
   }
 }
 

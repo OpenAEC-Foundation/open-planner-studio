@@ -9,8 +9,8 @@
 // zelf de bijbehorende read*-functie aan. Zo is de renderer puur/headless-testbaar.
 //
 // LET OP: de exacte casing van elke hex is load-bearing — de teken-aanroepen geven de string
-// letterlijk aan `fillStyle`/`strokeStyle` door. Waarden in verschillende casing (bv. Gantt
-// `#991B1B` vs print `#991b1b`) blijven daarom apart en worden NIET samengevoegd.
+// letterlijk aan `fillStyle`/`strokeStyle` door. Waarden die alleen in casing verschillen
+// blijven daarom apart en worden NIET samengevoegd.
 
 /** Leest een CSS-custom-property van het document-element, met fallback als de var leeg is
  *  (`getComputedStyle(...).getPropertyValue(...).trim() || fallback`). */
@@ -33,18 +33,18 @@ export const GANTT_TRACE_COLORS = {
 // Gemeten (WCAG 2.x), lichte kaart #FAFAFA / donkere kaart #2E3239 / hoog-contrastkaart #0a0a0a:
 //   critical  #DC2626  4,63 / 2,67 / 4,10
 //   normal    #2563EB  4,95 / 2,49 / 3,83
-//   complete  #1D4ED8  6,42 / 1,92 / 2,95
+//   complete  #1E3A8A  9,92 / 1,24 / 1,91
 //   milestone #7C3AED  5,46 / 2,26 / 3,47
 //   baseline  #6B7280  4,63 / 2,66 / 4,10
 // Noem het bij de naam in plaats van het weg te redeneren: op de donkere kaart zakken ze naar
-// 1,92-2,67 en in het HOOG-CONTRASTTHEMA zakt `complete` naar 2,95 — dat is formeel non-conform met
+// 1,24-2,67 en in het HOOG-CONTRASTTHEMA zou `complete` naar 1,91 zakken — dat is formeel non-conform met
 // WCAG 1.4.11 (die
 // kent geen grootte-uitzondering voor grafische objecten), en in `mode: 'critical'` is de balkkleur
 // de enige drager van "kritiek ja/nee", wat ook 1.4.1 raakt. Die afwijking is aanvaard voor licht
 // en donker. Wat de afruil dráágt is niet de vlakgrootte — de balk is
-// `rowHeight * 0,5`, bij de standaard ROW_HEIGHT 28 dus ~14 px, en in `mode: 'critical'` tekent
+// `rowHeight * 0,6` (`barLayout`), bij de standaardrij van 35 px dus 21 px, en in `mode: 'critical'` tekent
 // GanttRenderer er GEEN rand omheen (`modeAdvies` is daar `null`) — maar het LABEL: dat haalt via
-// `barLabelColor` (hieronder) 4,83-6,70 op elke balktint, en dat is wel gemeten.
+// `barLabelColor` (hieronder) 4,83-10,36 op elke balktint, en dat is wel gemeten.
 // De speling (`float`) is als enige WEL per thema gescheiden gebleven (`--theme-bar-float`): die
 // band is halfdoorzichtig en draagt geen label, dus hij moet het puur van zijn ondergrond winnen.
 // LET OP 1: deze vijf waarden plus de spelinggroenen staan óók als CSS-var in
@@ -61,11 +61,11 @@ export const GANTT_TRACE_COLORS = {
 // documenten valt de mijlpaalmarkering daar samen met de identiteitskleur.
 const BRAND = {
   critical: '#DC2626',          // kritiek (rood)
-  criticalLight: '#991B1B',     // voortgangsvulling kritiek
+  criticalLight: '#7F1D1D',     // voortgangsvulling kritiek (2,07:1 tegen de kritieke balk)
   nearCritical: '#F59E0B',      // bijna-kritiek (amber)
   hammock: '#0E7490',           // hammock/LOE-balk (teal)
   normal: '#2563EB',            // normale taak (blauw)
-  normalLight: '#1D4ED8',       // voortgangsvulling / voltooid (blauw)
+  normalLight: '#1E3A8A',       // voortgangsvulling / voltooid (blauw; 2,00:1 tegen de normale balk)
   milestone: '#7C3AED',         // mijlpaal (paars, ruit)
   baseline: '#6B7280',          // baseline-onderbalk (grijs)
   dependency: '#6B7280',        // afhankelijkheidspijl (grijs)
@@ -96,11 +96,11 @@ const FLOAT_PATH_TINTS: string[] = [
 // Gemeten (WCAG 2.x), zwart-label / wit-label:
 //   critical   #DC2626  3,67 / 4,83  ⇒ wit
 //   normal     #2563EB  3,43 / 5,17  ⇒ wit
-//   complete   #1D4ED8  2,65 / 6,70  ⇒ wit
+//   complete   #1E3A8A  1,71 / 10,36 ⇒ wit
 //   milestone  #7C3AED  3,11 / 5,70  ⇒ wit
 //   baseline   #6B7280  3,67 / 4,83  ⇒ wit
 // Ook op de donkere voortgangsvullingen, waar het label vaak op begint, blijft het wit:
-//   criticalLight #991B1B  2,13 / 8,31                       ⇒ wit
+//   criticalLight #7F1D1D  1,77 / 10,02                      ⇒ wit
 //   moduskleur + 25% zwart (de rgba-overlay), bv. normal      1,84-2,40 / 7,39-9,63 ⇒ wit
 // "Alle balktinten" zou een overclaim zijn: er liggen meer vlakken onder een label, en die kiezen
 // juist ZWART — en dat hoort ook, want daar is zwart aantoonbaar leesbaarder:
@@ -180,6 +180,63 @@ export function barLabelColor(barColor: string): string {
   const dark = contrastRatio(rgb, [17, 24, 39]);
   const light = contrastRatio(rgb, [255, 255, 255]);
   return dark >= light ? BAR_LABEL_DARK : BAR_LABEL_LIGHT;
+}
+
+/** Minimale WCAG-contrastverhouding tussen het voltooide en het resterende deel van één balk. */
+export const PROGRESS_MIN_CONTRAST = 2;
+
+/** Vulling als de balkkleur geen `#rrggbb` is (CSS-var, rgba): de vroegere vaste donkere laag. */
+export const PROGRESS_FALLBACK_OVERLAY = 'rgba(0, 0, 0, 0.25)';
+
+const progressFillCache = new Map<string, string>();
+
+/**
+ * Voortgangsvulling bij een willekeurige balkkleur: dezelfde tint, naar zwart (of wit) gemengd
+ * tot hij minstens `PROGRESS_MIN_CONTRAST` haalt tegen de balk zelf. Vervangt de vaste 25%-zwart-
+ * laag, die op donkere en eigen kleuren (resource, categorie, trace) wegviel — op slate #1E293B
+ * haalde die laag 1,13, op een bijna-zwarte eigen kleur ~1,0.
+ *
+ * `preferLighter`: eerst naar wit mengen (het hoog-contrastthema, waar de balken op een zwarte kaart
+ * staan en "donkerder" onzichtbaar is). Haalt de voorkeursrichting de drempel niet (een bijna-
+ * zwarte balk kan niet donkerder, een bijna-witte niet lichter), dan de andere richting; haalt geen
+ * van beide hem, dan de richting met het hoogste contrast. Deterministisch en gememoized per invoer.
+ */
+export function progressFill(barColor: string, preferLighter = false): string {
+  const key = `${barColor}|${preferLighter ? 1 : 0}`;
+  const cached = progressFillCache.get(key);
+  if (cached) return cached;
+  const rgb = hexToRgb(barColor);
+  if (!rgb) return PROGRESS_FALLBACK_OVERLAY;
+  const hx = (n: number): string => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+  const toward = (target: number): { hex: string; ratio: number } => {
+    let best = { hex: barColor, ratio: 1 };
+    for (let t = 0.05; t <= 1.0001; t += 0.05) {
+      const mixed: [number, number, number] = [0, 1, 2].map(i => rgb[i] + (target - rgb[i]) * t) as [number, number, number];
+      const rounded = mixed.map(Math.round) as [number, number, number];
+      const ratio = contrastRatio(rgb, rounded);
+      best = { hex: `#${hx(mixed[0])}${hx(mixed[1])}${hx(mixed[2])}`, ratio };
+      if (ratio >= PROGRESS_MIN_CONTRAST) break;
+    }
+    return best;
+  };
+  const first = toward(preferLighter ? 255 : 0);
+  let out = first;
+  if (first.ratio < PROGRESS_MIN_CONTRAST) {
+    const second = toward(preferLighter ? 0 : 255);
+    if (second.ratio >= PROGRESS_MIN_CONTRAST || second.ratio > first.ratio) out = second;
+  }
+  progressFillCache.set(key, out.hex);
+  return out.hex;
+}
+
+/** Of het palet zijn voortgangsvulling LICHTER dan de balk kiest (hoog contrast: `complete`
+ *  #DBEAFE boven `normal` #60A5FA) of donkerder (licht/donker thema). `progressFill` volgt die
+ *  richting, zodat afgeleide vullingen in hetzelfde thema dezelfde kant op gaan als de themavars. */
+export function progressPrefersLighter(palette: Pick<GanttPalette, 'normal' | 'normalLight'>): boolean {
+  const n = hexToRgb(palette.normal);
+  const l = hexToRgb(palette.normalLight);
+  if (!n || !l) return false;
+  return relativeLuminance(l) > relativeLuminance(n);
 }
 
 // ── GanttRenderer ────────────────────────────────────────────────────────────

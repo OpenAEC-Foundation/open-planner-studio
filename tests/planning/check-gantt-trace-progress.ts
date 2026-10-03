@@ -17,7 +17,7 @@ g.getComputedStyle = () => ({ getPropertyValue: () => '' });
 
 import { useAppStore } from '@/state/appStore';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
-import { GANTT_TRACE_COLORS } from '@/engine/renderer/themePalette';
+import { GANTT_TRACE_COLORS, progressFill } from '@/engine/renderer/themePalette';
 import { buildTrace } from '@/engine/taskGrid/trace';
 import type { ViewRow } from '@/engine/view/visibleRows';
 
@@ -68,7 +68,7 @@ const st = S();
 const rows: ViewRow[] = st.tasks.map(task => ({ kind: 'task', rowKey: task.id, task, depth: 0, dimmed: false }));
 const ROWH = 28, HDRH = 60;
 const inRow = (f: Fill, i: number) => f.y >= HDRH + i * ROWH && f.y + f.h <= HDRH + (i + 1) * ROWH;
-const LIGHT = ['#1D4ED8', '#991B1B'].map(c => c.toLowerCase());
+const LIGHT = ['#1E3A8A', '#7F1D1D'].map(c => c.toLowerCase());
 
 function render(traceMode: 'off' | 'predecessors' | 'successors'): Fill[] {
   const { ctx, fills } = makeCtx();
@@ -102,7 +102,10 @@ ok(
   `predecessors: voltooide voorganger krijgt de blauwe/rode voortgangsvulling over de trace-tint (${pred.map(f => f.style).join(', ')})`,
   !pred.some(f => LIGHT.includes(f.style.toLowerCase())),
 );
-ok('predecessors: voortgang blijft zichtbaar als neutrale donkere laag', pred.some(f => f.style.startsWith('rgba(0, 0, 0')));
+// De voortgang komt uit de trace-tint zelf (`progressFill`), niet uit een vaste zwarte laag.
+const GOLD_PROGRESS = GOLD.map(c => progressFill(c).toLowerCase());
+ok(`predecessors: voortgang is de afgeleide goudvulling (${pred.map(f => f.style).join(', ')})`,
+  pred.some(f => GOLD_PROGRESS.includes(f.style.toLowerCase())));
 
 // Successors (focus = voorganger): rij 1 (de opvolger) idem in paars.
 const succ = render('successors').filter(f => inRow(f, 1));

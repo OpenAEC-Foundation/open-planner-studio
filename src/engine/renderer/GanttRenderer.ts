@@ -18,13 +18,15 @@ import type { BarColorSelection } from '@/types/barColor';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import { ensureThemeVisible } from '@/engine/renderer/resourcePalette';
 import { TimelineTier, TierConfig, TIER_CONFIG, pickTiers, nextTickBoundary, snapToTickStart } from './timelineTiers';
-import { readGanttPalette, barLabelColor, compositeOver, type GanttPalette } from './themePalette';
+import { readGanttPalette, barLabelColor, compositeOver, progressFill, progressPrefersLighter, type GanttPalette } from './themePalette';
 import { xToDayOffset, type GanttAxis } from './timeAxis';
 import { resolveGanttAxis, isCompressedEffective } from './workdayAxis';
 import { computeSplitSegments } from './splitBarGeometry';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { classifyTraceTask, isRelationOutsideTrace, type TaskTrace } from '@/engine/taskGrid/trace';
 import { ellipsize } from './textFit';
+import { barLayout, type BarLayout } from './rowGeometry';
+import { canvasFont, type TextRole } from './textRoles';
 import { shownStart, shownFinish, floatBandEnd, finishInstant } from '@/utils/taskDates';
 
 /** `firstRowIndexByTask` per rijenlijst (die komt bevroren uit de store): de renderer wordt per
@@ -167,7 +169,7 @@ export interface GanttRenderOptions {
   axis?: GanttAxis;
   /** De CSS font-stack van de gekozen interface-lettertypefamilie
    *  (`resolveUIFontStack(ui.uiFontFamily)`). Een canvas leest géén CSS-variabelen, dus de stack
-   *  moet als string mee. Afwezig ⇒ `FALLBACK_FONT_STACK`. */
+   *  moet als string mee. Afwezig ⇒ `CANVAS_FALLBACK_FONT_STACK` (`textRoles.ts`). */
   fontFamily?: string;
   /** De Tekengrootte-instelling (`ui.uiFontScale`) als factor (1 = 100%). Zelfde reden
    *  als `fontFamily`: een canvas leest geen CSS-variabelen, dus de schaal moet expliciet mee.
@@ -176,10 +178,6 @@ export interface GanttRenderOptions {
    *  van). Afwezig ⇒ 1 (headless tests en print-/exportpaden). */
   fontScale?: number;
 }
-
-/** Fallback-stack zodra een aanroeper `fontFamily` niet meegeeft (headless tests,
- *  print-/exportpaden). */
-const FALLBACK_FONT_STACK = '-apple-system, BlinkMacSystemFont, sans-serif';
 
 /**
  * Obstakel-index voor de relatie-routing: per ZICHTBARE rij het x-interval dat de balk
@@ -219,6 +217,41 @@ function getNearCriticalHatch(ctx: CanvasRenderingContext2D): CanvasPattern | nu
   p.fillRect(size / 2, size / 2, size / 2, size / 2);
   nearCriticalHatch = ctx.createPattern(tile, 'repeat');
   return nearCriticalHatch;
+}
+
+// Kruisarcering voor de spelingsband: dunne diagonale lijnen in beide richtingen (45° en −45°)
+// in de float-kleur. Gememoized per kleur (de kleur is thema-afhankelijk), om dezelfde reden als
+// hierboven: nooit per frame een nieuwe bitmap of `CanvasPattern`. De tegel tekent per richting
+// de diagonaal plus de twee hoekstukjes, zodat de lijnen naadloos doorlopen over tegelgrenzen.
+const floatHatchByColor = new Map<string, CanvasPattern | null>();
+function getFloatHatch(ctx: CanvasRenderingContext2D, color: string): CanvasPattern | null {
+  const cached = floatHatchByColor.get(color);
+  if (cached !== undefined) return cached;
+  // Headless (planningssuite onder Node, soms met een kale `document`-stub): geen bruikbare DOM,
+  // dan alleen de lichte vulling.
+  if (typeof document === 'undefined' || typeof document.createElement !== 'function'
+    || typeof ctx.createPattern !== 'function') return null;
+  const size = 5;
+  const tile = document.createElement('canvas');
+  tile.width = size;
+  tile.height = size;
+  const p = tile.getContext('2d');
+  if (!p) return null;
+  p.strokeStyle = color + '40'; // 0.25 alpha
+  p.lineWidth = 1;
+  p.beginPath();
+  // Richting onder naar boven (45°).
+  p.moveTo(0, size); p.lineTo(size, 0);
+  p.moveTo(-1, 1); p.lineTo(1, -1);
+  p.moveTo(size - 1, size + 1); p.lineTo(size + 1, size - 1);
+  // Tegenrichting (boven naar onder) — maakt er een kruisarcering van.
+  p.moveTo(0, 0); p.lineTo(size, size);
+  p.moveTo(size - 1, -1); p.lineTo(size + 1, 1);
+  p.moveTo(-1, size - 1); p.lineTo(1, size + 1);
+  p.stroke();
+  const pattern = ctx.createPattern(tile, 'repeat');
+  floatHatchByColor.set(color, pattern);
+  return pattern;
 }
 
 /** Hoeveel verticale rasterlijnen het canvas op dit zoomniveau nog verdraagt.
@@ -279,11 +312,19 @@ export class GanttRenderer {
    *  stuk en een pauze op het scherm hetzelfde betekenen als onder de muis. Per `render()` geleegd;
    *  een balk die niet getekend is (buiten beeld) staat er niet in en valt terug op de volle extent. */
   private splitSegmentsByTask = new Map<string, { x1: number; x2: number }[]>();
+  /** Balk-, accent- en baselinehoogte binnen één rij (`rowGeometry.ts`) — één bron voor tekenen,
+   *  hit-testen en de sleep-duurbadge. */
+  private readonly bar: BarLayout;
+  /** Voortgangsvulling lichter dan de balk (hoog contrast) of donkerder (licht/donker thema) —
+   *  afgeleid uit het palet zelf, zodat een thema zijn richting via zijn eigen vars kiest. */
+  private readonly progressLighter: boolean;
 
   constructor(ctx: CanvasRenderingContext2D, opts: GanttRenderOptions) {
     this.ctx = ctx;
     this.opts = opts;
+    this.bar = barLayout(opts.rowHeight);
     this.colors = opts.palette ?? readGanttPalette();
+    this.progressLighter = progressPrefersLighter(this.colors);
 
     this.viewStart = parseDate(opts.view.viewStartDate);
     this.rows = opts.rows;
@@ -320,17 +361,16 @@ export class GanttRenderer {
     this.compressed = isCompressedEffective(this.projectEngine, !!opts.compressNonWorkdays);
   }
 
-  /** Bouwt een `ctx.font`-string in de gekozen interface-lettertypefamilie én -grootte:
-   *  `fontScale` (= `ui.uiFontScale`/100) schaalt elke fontgrootte mee. Enige plek waar deze
-   *  renderer een font-stack samenstelt.
+  /** Bouwt een `ctx.font`-string voor een tekstrol (`textRoles.ts`, gelijk aan `--text-<rol>` in
+   *  globals.css) in de gekozen interface-lettertypefamilie: `fontScale` (= `ui.uiFontScale`/100)
+   *  schaalt elke rol mee. Enige plek waar deze renderer een font samenstelt — geen losse px-maten.
    *
    *  De GEOMETRIE schaalt bij de aanroeper mee: GanttCanvas leidt `rowHeight`/`headerHeight` van
    *  dezelfde factor af, zodat grotere tekst niet clipt maar ruimte krijgt. Schaal hier dus nooit
    *  de grootte zonder dat de aanroeper de rijhoogte meegeeft — en andersom. Afronden houdt de
    *  tekst scherp (geen sub-pixel-fontgroottes). */
-  private font(sizePx: number, bold = false): string {
-    const size = Math.round(sizePx * (this.opts.fontScale ?? 1));
-    return `${bold ? 'bold ' : ''}${size}px ${this.opts.fontFamily ?? FALLBACK_FONT_STACK}`;
+  private font(role: TextRole, bold = false): string {
+    return canvasFont(role, this.opts.fontScale ?? 1, this.opts.fontFamily, bold);
   }
 
   /** Basis-balkkleur: kritiek-rood ≻ near-critical-amber ≻ float-path-tint ≻
@@ -651,7 +691,7 @@ export class GanttRenderer {
         // Ware grootte tekenen en CLIPPEN op het zichtbare
         // gebied i.p.v. samenknijpen via een fillText-maxWidth — een lang woord valt dan gewoon
         // gedeeltelijk buiten beeld i.p.v. onleesbaar verdrukt te worden.
-        ctx.font = this.font(11, true);
+        ctx.font = this.font('body', true);
         ctx.textBaseline = 'top';
         ctx.save();
         ctx.beginPath();
@@ -674,7 +714,7 @@ export class GanttRenderer {
         // maar dan in wereldcoördinaten VÓÓR de translate/rotate (clip-pad wordt vastgelegd in de
         // transform die op dat moment geldt), zodat de geroteerde tekst ook gewoon aan de onderkant
         // afgesneden wordt i.p.v. samengeperst.
-        ctx.font = this.font(10);
+        ctx.font = this.font('small');
         ctx.save();
         ctx.beginPath();
         ctx.rect(clipX1, headerHeight, visibleWidth, Math.max(0, canvasHeight - headerHeight));
@@ -773,7 +813,7 @@ export class GanttRenderer {
    *  pilletje rond `label`. De aanroeper heeft `ctx.save()` al gedaan. */
   private pillWidth(label: string): number {
     const ctx = this.ctx;
-    ctx.font = this.font(10, true);
+    ctx.font = this.font('small', true);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     return ctx.measureText(label).width + GanttRenderer.DRAG_BADGE_PAD_X * 2;
@@ -862,15 +902,11 @@ export class GanttRenderer {
 
     const ctx = this.ctx;
     const zoom = this.opts.view.zoom;
-    const preferredBaseHeight = Math.max(2, height * 0.28);
+    // Resource-accent en baseline delen de vrije strook onder de hoofdbalk met VASTE hoogtes uit
+    // `barLayout`: de baseline is even dik met of zonder accent en past in beide gevallen binnen
+    // de rij. Staat er een accent, dan schuift de baseline eronder.
     const baseY = y + height + 1 + resourceAccentHeight;
-    // Resource-accent en baseline delen de vrije ruimte onder de hoofdbalk. Houd de baseline bij
-    // de combinatie binnen dezelfde rij; bij de kleinste ondersteunde tekengrootte resteert nog
-    // ruim 2 px en blijft de baseline dus zichtbaar zonder het accent te bedekken.
-    const rowBottom = y + height + (this.opts.rowHeight - height) / 2;
-    const baseHeight = resourceAccentHeight > 0
-      ? Math.min(preferredBaseHeight, Math.max(2, rowBottom - baseY))
-      : preferredBaseHeight;
+    const baseHeight = this.bar.baselineHeight;
     ctx.fillStyle = this.colors.baseline;
 
     if (entry.isMilestone) {
@@ -934,33 +970,33 @@ export class GanttRenderer {
     // hieronder.
     if (mid) {
       // --- Bovenste rij: major tier (maand) ---
-      ctx.font = this.font(11, true);
+      ctx.font = this.font('body', true);
       ctx.fillStyle = this.colors.text;
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'left';
       this.drawTierLabels(major, startDate, endDate, headerHeight / 6);
 
       // --- Middenrij: mid tier (weeknummers), zelfde stijl als de minor-rij ---
-      ctx.font = this.font(10);
+      ctx.font = this.font('small');
       ctx.fillStyle = this.colors.textSecondary;
       this.drawTierLabels(mid, startDate, endDate, headerHeight / 2);
 
       // --- Onderste rij: minor tier (dag) ---
-      ctx.font = this.font(10);
+      ctx.font = this.font('small');
       ctx.fillStyle = this.colors.textSecondary;
       this.drawTierLabels(minor, startDate, endDate, headerHeight * 5 / 6);
       return;
     }
 
     // --- Top row: major tier ---
-    ctx.font = this.font(11, true);
+    ctx.font = this.font('body', true);
     ctx.fillStyle = this.colors.text;
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'left';
     this.drawTierLabels(major, startDate, endDate, headerHeight / 4);
 
     // --- Bottom row: minor tier ---
-    ctx.font = this.font(10);
+    ctx.font = this.font('small');
     ctx.fillStyle = this.colors.textSecondary;
     this.drawTierLabels(minor, startDate, endDate, headerHeight * 3 / 4);
   }
@@ -1112,9 +1148,7 @@ export class GanttRenderer {
   }
 
   private drawTaskBars(): void {
-    const { rowHeight } = this.opts;
-    const barHeight = rowHeight * 0.5;
-    const barOffset = (rowHeight - barHeight) / 2;
+    const { barHeight, barOffset } = this.bar;
 
     // Path tracing: betrokken taken krijgen de trace-tint (driving-keten sterker), de rest dimt.
     // De focus-taak behoudt z'n eigen kleur — de selectiering markeert hem al.
@@ -1188,7 +1222,8 @@ export class GanttRenderer {
   private drawBarName(name: string, color: string, x1: number, y: number, width: number, height: number, textY: number): void {
     const ctx = this.ctx;
     ctx.fillStyle = color;
-    ctx.font = this.font(10);
+    // Zelfde rol als de rastertekst links (`.task-grid-core`: `--text-body`).
+    ctx.font = this.font('body');
     ctx.textBaseline = 'middle';
     ctx.save();
     ctx.beginPath();
@@ -1256,14 +1291,21 @@ export class GanttRenderer {
     }
 
     const color = overrideColor ?? modeColor ?? this.barColor(task);
-    // Voortgangsvulling: in de modi ligt er geen bijpassende "licht"-variant van een willekeurige
-    // moduskleur — dan de vaste semi-transparante donkere laag (zelfde keuze als de printlaag).
-    // Óók bij een trace-tint (`overrideColor`): de blauwe/rode "licht"-variant hoort bij de
-    // standaardbalkkleur; op een goud/paarse voorganger-/opvolgerbalk zou hij die kleur vervangen en
-    // is een voltooide taak niet meer van een gedimde te onderscheiden.
-    const progressColor = selection.mode !== 'critical' || overrideColor
-      ? 'rgba(0, 0, 0, 0.25)'
-      : task.time.isCritical ? this.colors.criticalLight : this.colors.normalLight;
+    // Voortgangsvulling: dezelfde tint als het vlak eronder, gemengd tot minstens 2:1 contrast
+    // (`progressFill`). Alleen de twee standaardtinten van de kritiek-pad-modus houden hun
+    // themavar (`criticalLight`/`normalLight`); bijna-kritiek, float-paden, de kleurmodi en een
+    // trace-tint (`overrideColor`) krijgen een vulling uit hun EIGEN kleur. Vroeger kregen die de
+    // blauwe vulling (paars float-pad 1,82:1) of een vaste 25%-zwartlaag (slate 1,13:1, een
+    // eigen bijna-zwarte kleur ~1:1). Een trace-tint krijgt bewust nooit de blauwe/rode vulling:
+    // die zou de goud/paarse tint vervangen.
+    const progressFor = (base: string): string => {
+      if (selection.mode === 'critical' && !overrideColor) {
+        if (task.time.isCritical && base === this.colors.critical) return this.colors.criticalLight;
+        if (base === this.colors.normal) return this.colors.normalLight;
+      }
+      return progressFill(base, this.progressLighter);
+    };
+    const progressColor = progressFor(color);
 
     // Een uur-taak splitst in werkblok-segmenten (pauzes/nachten vallen als gaten
     // weg) volgens de instelling; dag-taken en niet-gesplitste uur-taken zijn één doorlopend segment.
@@ -1354,7 +1396,20 @@ export class GanttRenderer {
       // Voortgangsvulling: het deel van dit segment links van de globale voortgangsgrens.
       if (task.time.completion > 0 && progressEnd > s.x1) {
         const pw = Math.min(s.x1 + sw, progressEnd) - s.x1;
-        if (pw > 0) {
+        if (pw > 0 && modeSegments.length > 0) {
+          // Resource-modus: elk kleursegment krijgt de vulling uit zijn eigen kleur.
+          const px2 = s.x1 + pw;
+          for (let mi = 0; mi < modeSegments.length; mi++) {
+            const ms = modeSegments[mi];
+            const ox1 = Math.max(ms.cx1, s.x1);
+            const ox2 = Math.min(ms.cx2, px2);
+            if (ox2 - ox1 < 0.5) continue;
+            ctx.fillStyle = progressFor(ms.color);
+            ctx.beginPath();
+            ctx.roundRect(ox1, y, ox2 - ox1, height, mi === 0 ? 3 : 0);
+            ctx.fill();
+          }
+        } else if (pw > 0) {
           ctx.fillStyle = progressColor;
           ctx.beginPath();
           ctx.roundRect(s.x1, y, pw, height, 3);
@@ -1406,7 +1461,10 @@ export class GanttRenderer {
     // Float indicator (ná de exclusieve balk-finish x2) — breedte is hierboven al bepaald en
     // wordt daar ook in de zichtbaarheidstest gebruikt.
     if (floatWidth > 0) {
-      // Ingetogen speling: halve balkhoogte, verticaal gecentreerd, op 60% dekking. Veel hoger
+      // Ingetogen speling: halve balkhoogte, verticaal gecentreerd. Een lichte vulling (25%
+      // dekking) met daarover een kruisarcering in dezelfde kleur (`getFloatHatch`): de band
+      // leest zo als "ruimte", niet als tweede balk, en blijft ook zonder kleurwaarneming
+      // herkenbaar. Oorspronkelijke afweging (egale vulling op 60%) hieronder. Veel hoger
       // domineert de groene band het beeld: hij is vaak veel BREDER dan de balk zelf, dus een even
       // "harde" kleur trekt de blik weg van de planning. Wat telt is het GEBLENDE contrast van de
       // band tegen zijn
@@ -1419,8 +1477,13 @@ export class GanttRenderer {
       // Op 0.40 zakt dat naar ~1,6 — dan is de band op weekendarcering niet meer van een vrije
       // dag te onderscheiden. Op 0.60 leest hij als eigen band en blijft hij achtergrondinformatie.
       // De band is bewust geen tekstdrager, dus 3:1 is hier geen eis; 1,5:1 is wél te weinig.
-      ctx.fillStyle = this.colors.float + '99'; // 0.6 alpha
+      ctx.fillStyle = this.colors.float + '40'; // 0.25 alpha
       ctx.fillRect(x2, y + height / 4, floatWidth, height / 2);
+      const hatch = getFloatHatch(ctx, this.colors.float);
+      if (hatch) {
+        ctx.fillStyle = hatch;
+        ctx.fillRect(x2, y + height / 4, floatWidth, height / 2);
+      }
     }
 
     // Selection highlight — omvat de volle balk-extent [x1,x2], ook bij gesplitste segmenten.
@@ -1433,14 +1496,15 @@ export class GanttRenderer {
     }
 
     // Resource-accent: dun streepje in de resourcekleur direct ónder de balk, gesegmenteerd
-    // naar rato van unitsPerDay bij meerdere resources. Eén vast hoogtemaatje van 3 px — subtiel
-    // genoeg om het kritiek-pad-beeld niet te verdringen, duidelijk genoeg om "wie doet dit" te lezen.
+    // naar rato van unitsPerDay bij meerdere resources. Vaste hoogte uit `barLayout` (bij de
+    // standaardrij 3 px) — subtiel genoeg om het kritiek-pad-beeld niet te verdringen, duidelijk
+    // genoeg om "wie doet dit" te lezen, en gelijk ongeacht of de baseline aan staat.
     let resourceAccentHeight = 0;
     if (this.opts.showResourceAccent) {
       const rows = assignmentsForTask(task.id, this.opts.resources ?? [], this.opts.assignments ?? []);
       if (rows.length > 0) {
         const total = rows.reduce((a, r) => a + r.unitsPerDay, 0) || 1;
-        const accentH = 3;
+        const accentH = this.bar.accentHeight;
         const accentY = y + height + 1;
         let ax = x1;
         rows.forEach((r, i) => {
@@ -1464,11 +1528,11 @@ export class GanttRenderer {
       // `barLabelColor` in themePalette.ts voor de gemeten verhoudingen). Kies de kleur daarom op
       // het vlak dat de gebruiker ONDER het label ziet:
       // dat is de voortgangsvulling zodra die tot voorbij de tekststart loopt, anders de
-      // (mogelijk moduseigen) balkkleur. `compositeOver` lost de half-transparante zwarte
-      // voortgangslaag van de kleurmodi op tot een echte hex.
+      // (mogelijk moduseigen) balkkleur. `compositeOver` lost de terugvallaag (rgba, bij een
+      // niet-hex balkkleur) op tot een echte hex; een hex-vulling komt ongewijzigd terug.
       const baseUnderLabel = modeSegments.length > 0 ? modeSegments[0].color : color;
       const underLabel = task.time.completion > 0 && progressEnd > x1 + 6
-        ? compositeOver(progressColor, baseUnderLabel)
+        ? compositeOver(progressFor(baseUnderLabel), baseUnderLabel)
         : baseUnderLabel;
       this.drawBarName(task.name, barLabelColor(underLabel), x1, y, width, height, y + height / 2);
     }
@@ -1637,7 +1701,7 @@ export class GanttRenderer {
     // begint hij alleen nog te overlappen).
     const labelX = x + size + 6;
     ctx.fillStyle = this.colors.text;
-    ctx.font = this.font(10);
+    ctx.font = this.font('body');
     ctx.textBaseline = 'middle';
     const msLabel = this.ellipsize(task.name, Math.min(200, this.opts.canvasWidth - labelX - 4));
     if (msLabel) ctx.fillText(msLabel, labelX, cy);
@@ -1688,7 +1752,7 @@ export class GanttRenderer {
       // "verouderd"-badge bij sourceMissing.
       if (link.sourceMissing) {
         const label = this.opts.externalStaleLabel ?? 'verouderd';
-        ctx.font = this.font(9);
+        ctx.font = this.font('caption');
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
         const tw = ctx.measureText(label).width + 6;
@@ -1800,8 +1864,8 @@ export class GanttRenderer {
 
   /** Halve tekstmarge links/rechts binnen het pilletje. */
   private static readonly DRAG_BADGE_PAD_X = 5;
-  /** Hoogte van het pilletje — iets hoger dan de balk (rowHeight/2 = 14), zodat hij als los
-   *  chipje leest en niet als een stuk vulling van de balk zelf. */
+  /** Vaste hoogte van het pilletje (sleep-duur en statusdatum). Los van de balkhoogte: het
+   *  pilletje staat naast de balkrand en leest zo als chipje, niet als stuk balkvulling. */
   private static readonly DRAG_BADGE_H = 16;
   /** Afstand tussen het pilletje en de gesleepte balkrand. Klein genoeg dat het label duidelijk
    *  bij die rand hoort. */
@@ -1855,9 +1919,9 @@ export class GanttRenderer {
     if (row?.kind !== 'task') return;
     const task = row.task;
 
-    const { rowHeight, headerHeight, canvasHeight, canvasWidth } = this.opts;
-    const barHeight = rowHeight * 0.5;
-    const barY = this.rowToY(rowIndex) + (rowHeight - barHeight) / 2;
+    const { headerHeight, canvasHeight, canvasWidth } = this.opts;
+    const { barHeight, barOffset } = this.bar;
+    const barY = this.rowToY(rowIndex) + barOffset;
     // Rij weggescrold: niets tekenen (zelfde zichtbaarheidstest als drawTaskBars).
     if (barY + barHeight < headerHeight || barY > canvasHeight) return;
 
@@ -2232,8 +2296,8 @@ export class GanttRenderer {
     }
 
     const { x1, x2 } = this.barGeometry(task);
-    const barHeight = this.opts.rowHeight * 0.5;
-    const top = this.rowToY(rowIndex) + (this.opts.rowHeight - barHeight) / 2;
+    const { barHeight, barOffset } = this.bar;
+    const top = this.rowToY(rowIndex) + barOffset;
     return {
       left: x1,
       right: x1 + Math.max(x2 - x1, 4),
