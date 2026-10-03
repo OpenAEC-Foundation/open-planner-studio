@@ -31,7 +31,7 @@ If there are calculation options that only Primavera knows, the block also shows
 
 ### Where you choose the profile
 
-For a new project the profile is in the *New project* window, which you open through *Home › File › New*. There, *Calculation profile* is a drop-down list. If you choose *Primavera P6* or *Microsoft Project*, the app also sets that profile's default calculation options straight away. So *Float calculation* is then *Finish float* (Primavera P6) or *Smallest (start/finish)* (Microsoft Project).
+For a new project the profile is in the *New project* window, which you open through *Home › File › New*. There, *Calculation profile* is a drop-down list. If you choose a profile there, the app replaces the calculation options you had already filled in with that profile's defaults; only settings from a source file stay. With *Primavera P6*, *Float calculation* is then *Finish float*. With *Microsoft Project* and *Open Planner Studio* every calculation option is at its default, so *Float calculation* is *Automatic (default)*. With a status date, that is also how MS Project itself calculates: a started task gets the finish float and every other task the smaller of start and finish float.
 
 For an existing project you choose the profile under *Settings › Project › Project info*, in the block *Calculation profile and options*, in the drop-down list *Calculation profile*. You can also reach the same place through *File › Project info*. Switching profile here only changes the conventions. Your calculation options stay as they are. If you also want the default calculation options of the new profile, choose *Apply this profile's default options*.
 
@@ -50,7 +50,7 @@ When you open a file, the app suggests a profile based on the format:
 
 For a .mpp or .xer file the app reports the profile: *This project calculates as Microsoft Project. Change it via File → Project info → Calculation profile and options.* The button *Open calculation profile* in the message takes you straight to Project info. For a .xer file this line is the first detail line of the file's opening message. More about the message is in [Opening a Primavera P6 file (.xer)](docs://howto-xer-openen) and [Opening an MS Project file (.mpp)](docs://howto-mpp-openen).
 
-For a .mpp file the app only sets the profile. The calculation options stay empty, as in a new project: *Float calculation* is *Automatic (default)*, not *Smallest (start/finish)*. If you want the default calculation options of Microsoft Project, choose *Apply this profile's default options*.
+For a .mpp file the app only sets the profile. The calculation options stay empty, just as in a new project with the profile *Microsoft Project*: *Float calculation* is *Automatic (default)*. An opened .mpp file and a new project with *Microsoft Project* therefore calculate float the same way.
 
 ## Worked example: one network, three profiles
 

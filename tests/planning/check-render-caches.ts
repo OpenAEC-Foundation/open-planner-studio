@@ -7,6 +7,15 @@
 const g = globalThis as unknown as Record<string, unknown>;
 g.document = { documentElement: {} };
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
+// De vandaaglijn staat op de huidige tijd binnen de dag (`localNowOnDayAxis`) en schuift dus tussen twee
+// renders een fractie op; op de derde decimaal verschilde dat soms (CI faalde er zo op). De caches hebben
+// niets met de klok te maken: bevries hem voor deze check.
+const RealDate = Date;
+const FROZEN_NOW = RealDate.now();
+g.Date = class extends RealDate {
+  constructor(...args: unknown[]) { super(...((args.length ? args : [FROZEN_NOW]) as [number])); }
+  static now() { return FROZEN_NOW; }
+};
 
 import { useAppStore } from '@/state/appStore';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
