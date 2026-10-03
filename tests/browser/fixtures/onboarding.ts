@@ -38,27 +38,22 @@ export const tourStep = (page: Page) => page.evaluate(() => window.__OPS__!.stor
  * vóór elke klik (bv. om te controleren dat er niets over de rondleiding heen kwam).
  */
 export async function completeTour(page: Page, eachStep?: () => Promise<void>): Promise<void> {
-  const card = page.locator('[data-ops-tour-card]');
-  const primary = card.locator('.btn--primary');
-  // De titel van de kaart (elke stap heeft een eigen titel). Na een klik wachten we tot de KAART de
-  // nieuwe stap toont, niet alleen de store: het knoplabel ("Volgende" → "Sluiten") wordt in dezelfde
-  // render bijgewerkt. Wachten op `ui.tourStepIndex` alleen liet een trage CI het oude label
-  // lezen, op de laatste stap nog eens klikken (= afsluiten) en daarna eindeloos op een volgende
-  // stap wachten.
-  const title = card.locator('span.font-semibold').first();
+  const primary = page.locator('[data-ops-tour-card] .btn--primary');
+  // De titel van de kaart (elke stap heeft een eigen titel), of null als de kaart weg is — in één
+  // `evaluate`, dus atomair. Bewust GEEN label lezen vóór de klik en daarop sturen: een stap waarvan
+  // het anker (nog) ontbreekt, slaat de rondleiding vanzelf over (TourOverlay, na twee rAF's; bv. de
+  // lazy geladen Backstage bij stap 6). Tussen lezen en klikken stond de kaart dan al op de laatste
+  // stap: de klik sloot de rondleiding en de hulp wachtte nog op een volgende stap (CI, #278).
+  // Daarom: klik, en wacht tot de kaart óf weg is (dat was de afsluitknop) óf een andere stap toont.
+  const shownTitle = () => page.evaluate(() =>
+    document.querySelector('[data-ops-tour-card] span.font-semibold')?.textContent ?? null);
   for (let i = 0; i < 12; i++) {
     await eachStep?.();
-    const label = (await primary.textContent())?.trim() ?? '';
-    if (/^(Close|Sluiten)$/.test(label)) {
-      await primary.click();
-      await expect(card).toHaveCount(0);
-      return;
-    }
-    const before = (await title.textContent()) ?? '';
-    const stepBefore = await tourStep(page);
+    const before = await shownTitle();
+    expect(before, 'de rondleidingskaart staat open').not.toBeNull();
     await primary.click();
-    await expect(title).not.toHaveText(before);
-    await expect.poll(() => tourStep(page)).not.toBe(stepBefore);
+    await expect.poll(shownTitle).not.toBe(before);
+    if ((await shownTitle()) === null) return;
   }
   throw new Error('de rondleiding bereikte geen laatste stap');
 }
