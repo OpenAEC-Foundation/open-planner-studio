@@ -53,4 +53,15 @@ test('Help volgt de UI-taal automatisch, behoudt een expliciete override en valt
   await expect(heading).toHaveText('Adding relations');
   await expect(fallback).toHaveText('التوثيق غير متوفر بلغتك بعد. أنت تقرأ النسخة الإنجليزية.');
   await expect.poll(() => page.evaluate(() => document.documentElement.dir)).toBe('rtl');
+
+  // De Engelse tekst blijft links-naar-rechts in de RTL-interface (anders springen leestekens naar
+  // het verkeerde eind); de taalmelding volgt de interface.
+  const direction = (selector: string) => page.locator(selector).first().evaluate(el => getComputedStyle(el).direction);
+  expect(await direction('.help-article-body')).toBe('ltr');
+  expect(await direction('.help-article-body li')).toBe('ltr');
+  const align = (selector: string) => page.locator(selector).first().evaluate(el => getComputedStyle(el).textAlign);
+  expect(['left', 'start']).toContain(await align('.help-article-body p'));
+  await expect(panel.locator('.help-article-body')).toHaveAttribute('lang', 'en');
+  expect(await direction('.help-toc-title')).toBe('ltr');
+  expect(await direction('[data-help-lang-fallback]')).toBe('rtl');
 });

@@ -76,6 +76,9 @@
   min-width: 0;
 }
 .help-article-body {
+  /* De tekst is nl of en en staat met dir="ltr" in de body; `start` lijnt hem dan links uit, ook als
+     de interface (ar/fa) via `[dir="rtl"] { text-align: right }` rechts uitlijnt. */
+  text-align: start;
   max-width: 760px;
   font-size: var(--text-body);
   line-height: 1.6;

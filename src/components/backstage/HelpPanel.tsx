@@ -306,7 +306,7 @@ export function HelpPanel() {
           onClick={() => navigate(a.id)}
         >
           {numbered && <span className="help-toc-order">{idx + 1}.</span>}
-          {titleOf(a)}
+          <span className="help-toc-title" dir="ltr" lang={lang}>{titleOf(a)}</span>
           {a.draft && <span className="help-toc-draft">{tMenu('backstage.helpDraft')}</span>}
         </button>
       ))}
@@ -399,19 +399,21 @@ export function HelpPanel() {
                 {tMenu('backstage.helpTutorialStep', { number: tutorialNumber, total: tutorialRoute.length })}
               </p>
             )}
-            <div className="help-article-body" ref={bodyRef} data-help-current={selectedId ?? undefined}>{renderedContent}</div>
+            {/* De tekst is nl of en: altijd links-naar-rechts, ook in een ar/fa-interface (anders springen
+                leestekens en lijsten naar de verkeerde kant). De taalmelding erboven volgt de UI. */}
+            <div className="help-article-body" ref={bodyRef} dir="ltr" lang={lang} data-help-current={selectedId ?? undefined}>{renderedContent}</div>
             {neighbours && (neighbours.prev || neighbours.next) && (
               <nav className="help-tutorial-nav" aria-label={tMenu('backstage.helpKind.tutorial')}>
                 {neighbours.prev ? (
                   <button type="button" className="help-tutorial-nav-btn" data-help-tutorial-nav="prev" onClick={() => navigate(neighbours.prev!.id)}>
                     <span className="help-tutorial-nav-label">{tMenu('backstage.helpTutorialPrev')}</span>
-                    <span className="help-tutorial-nav-title">{titleOf(neighbours.prev)}</span>
+                    <span className="help-tutorial-nav-title" dir="ltr" lang={lang}>{titleOf(neighbours.prev)}</span>
                   </button>
                 ) : <span />}
                 {neighbours.next && (
                   <button type="button" className="help-tutorial-nav-btn help-tutorial-nav-next" data-help-tutorial-nav="next" onClick={() => navigate(neighbours.next!.id)}>
                     <span className="help-tutorial-nav-label">{tMenu('backstage.helpTutorialNext')}</span>
-                    <span className="help-tutorial-nav-title">{titleOf(neighbours.next)}</span>
+                    <span className="help-tutorial-nav-title" dir="ltr" lang={lang}>{titleOf(neighbours.next)}</span>
                   </button>
                 )}
               </nav>
