@@ -1,6 +1,6 @@
 # Een nieuwe `planner_*`-MCP-tool toevoegen
 
-De AI-assistent (zie *AI-assistent* in `AGENTS.md`) stuurt de app aan via een vaste set
+De AI-assistent (zie *AI-assistent* in `.claude/rules/mcp.md`) stuurt de app aan via een vaste set
 `planner_*`-tools. Rust is daarbij een dom doorgeefluik (`src-tauri/src/mcp_bridge.rs`); de hele
 protocol- en toollaag zit in TypeScript, `src/services/mcp/`. Een tool toevoegen raakt altijd
 dezelfde vier plekken, en drie ervan geven — anders dan bij het IFC-recept — pas een falende
@@ -60,12 +60,12 @@ document ooit achter, dan heeft de code gelijk.
 ## Context-aandachtspunten
 
 - **`McpContext`** (`contracts.ts`) is wat je handler krijgt: `app`/`transactions` (de storecontext,
-  nooit zelf `appStoreContext`/`useAppStore` importeren — zie *State* in `AGENTS.md`),
+  nooit zelf `appStoreContext`/`useAppStore` importeren — zie *State* in `.claude/rules/state.md`),
   `expectedDocId` (het drift-anker), `tempIdMap` (batch-only), en de live vlaggen `paused`/`readOnly`
   plus `ensureBackup`/`markDuplicateBorn`.
 - **`staleGuard.ts`'s `ensureFreshSchedule`** herrekent de planning alleen als ze stale is of nog
   nooit gedraaid heeft, zonder een undo-snapshot te pushen (`runCPM` schrijft alleen berekende
-  velden terug — zie *Scheduling* in `AGENTS.md`). Gebruik hem in elke tool die een verse planning
+  velden terug — zie de scheduling-alinea in `.claude/rules/state.md`). Gebruik hem in elke tool die een verse planning
   nodig heeft maar geen extra undo-stap mag achterlaten (voorbeeld: `get_resource_histogram` in
   `readTools.ts`).
 - **Read-only-modus** (`ui.aiReadOnly`) en **pauze** (`ui.aiPaused`) worden vóór de handler

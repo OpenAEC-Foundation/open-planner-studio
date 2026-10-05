@@ -6,7 +6,7 @@ lezer zet geen conventie als override: het per-bestand-mechanisme (A19 uit `rem_
 2026-09-24 vervallen omdat de koppeling aan de bronvlag nooit getoetst was (Fable-critreview PR #169,
 bevinding 2). Breng het pas terug met een P6-doorgerekend bestand dat het verschil aantoont. Twijfel
 je: regel B uit de goal prompt (`docs/superpowers/plans/2026-09-22-goalprompt-x12-naar-nul.md`) beslist.
-Zie *Rekenprofielen* in `AGENTS.md` en de spec `docs/superpowers/specs/2026-09-22-rekenprofielen-design.md`.
+Zie *Rekenprofielen* in `.claude/rules/rekenprofielen.md` en de spec `docs/superpowers/specs/2026-09-22-rekenprofielen-design.md`.
 
 **Dit is een toelichting, geen vervanging.** Loopt het ooit achter, dan heeft de code gelijk.
 

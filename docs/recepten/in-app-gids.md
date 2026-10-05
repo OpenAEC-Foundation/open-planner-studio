@@ -1,7 +1,7 @@
 # Een nieuwe in-app gids toevoegen
 
 `public/docs/` is een eigen documentatiesubsysteem, los van `src/` — zie *In-app documentatie &
-wiki* in `AGENTS.md`. Eén manifest (`public/docs/manifest.json`) plus één map Markdown-artikelen per
+wiki* in `.claude/rules/docs-help.md`. Eén manifest (`public/docs/manifest.json`) plus één map Markdown-artikelen per
 taal. Manifest en artikelen worden runtime gefetcht (niet gebundeld), dus een nieuw artikel vraagt
 geen rebuild om zichtbaar te worden in dev — wel om hem in `dist/` te krijgen voor een echte deploy.
 

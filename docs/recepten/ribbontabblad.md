@@ -1,7 +1,7 @@
 # Een nieuw ribbontabblad toevoegen
 
 De shell is een Office-stijl ribbon (`src/components/layout/Ribbon`) met een declaratieve
-tab→groepen-configuratie; zie *Ribbon-driven UI* in `AGENTS.md`. Een tabblad toevoegen raakt vijf
+tab→groepen-configuratie; zie *Ribbon-driven UI* in `.claude/rules/ui-shell.md`. Een tabblad toevoegen raakt vijf
 plekken; ÉÉN daarvan geeft een compileerfout als je hem vergeet (de rest niet).
 
 **Dit is een toelichting, geen vervanging.** Waar de compiler en `npm run verify:docs` je
@@ -17,7 +17,7 @@ tegenhouden staat erbij; loopt dit document ooit achter, dan heeft de code gelij
 | 2. de tab-inhoud | `src/components/layout/Ribbon/ribbonConfig.tsx` (`RIBBON_TABS`) | **compileerfout.** `RIBBON_TABS` is getypeerd als `Record<Exclude<RibbonTab, 'file'>, RibbonTabConfig>` — een nieuw union-lid zonder bijbehorende entry laat de object-literal niet compileren |
 | 3. de tab-knop + label | `src/components/layout/Ribbon/Ribbon.tsx` (`tabs`-array + de `tMenu(...)`-lookup) | de tab bestaat, heeft inhoud, maar er verschijnt geen knop om hem te openen |
 | 4. de vertaling | `src/i18n/locales/*/menu.json` (`ribbon.<tab>`) | de tab-knop toont de kale i18next-sleutel of valt terug op Engels |
-| 5. de documentatie-bewering | `AGENTS.md` (Tabbladen-opsomming) | `npm run verify:docs` (Poort 7a) faalt |
+| 5. de documentatie-bewering | `AGENTS.md` (*Facts that `verify:docs` guards here*) | `npm run verify:docs` (Poort 7a) faalt |
 
 ## De stappen
 
@@ -54,7 +54,7 @@ tegenhouden staat erbij; loopt dit document ooit achter, dan heeft de code gelij
 4. **Voeg de vertaalsleutel toe**: `ribbon.<tab>` (of de naam die je in stap 3 koos) in de `ribbon`-
    sectie van `menu.json`, in **alle 14 locales** — zie `docs/recepten/i18n-sleutel.md` voor hoe
    `verify:i18n` dat afdwingt (elke locale moet de sleutel hebben, niet alleen nl+en).
-5. **Werk `AGENTS.md` bij**: de Ribbon-alinea somt `RibbonTab` op als backtick-identifiers
+5. **Werk `AGENTS.md` bij**: de alinea *Facts that `verify:docs` guards here* somt `RibbonTab` op als backtick-identifiers
    (`` `file` ``, `` `start` ``, …). Poort 7a in `scripts/verify-docs.ts` leest de `RibbonTab`-union
    rechtstreeks uit `slices/types.ts` en eist dat elk lid als `` `lid` `` in `AGENTS.md` voorkomt —
    dit is dus geen keuze maar een harde CI-poort.
