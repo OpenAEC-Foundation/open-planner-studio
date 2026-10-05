@@ -13,7 +13,7 @@ const TAB_LABELS: RegExp[] = [
   /^(Advanced|Geavanceerd)$/,
 ];
 
-// Exacte sectiekoppen (h3/h4) per tab, in de vaste volgorde uit CLAUDE.md/de opdracht.
+// Exacte sectiekoppen (h3/h4) per tab, in de vaste volgorde uit AGENTS.md/de opdracht.
 const SECTION_HEADINGS: RegExp[][] = [
   [
     /^(Theme|Thema)$/,

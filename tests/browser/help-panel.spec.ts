@@ -1,8 +1,6 @@
 import { expect, test } from './fixtures/ops';
 import type { Page } from '@playwright/test';
 
-const DOC_LOCALES = ['nl', 'en', 'fr', 'de', 'es', 'zh', 'it', 'pt', 'pl', 'tr', 'ar', 'ja', 'ko', 'fa'];
-
 async function changeUiLocale(page: Page, option: string, expectedLocale: string): Promise<void> {
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
   const settings = page.locator('.settings-dialog');
@@ -16,7 +14,9 @@ async function changeUiLocale(page: Page, option: string, expectedLocale: string
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: false }));
 }
 
-test('Help volgt de UI-taal automatisch, behoudt een expliciete override en biedt alle 14 talen', async ({ page, ops: _ops }) => {
+// Ontwerp gebruikersdocumentatie §6.2 (fase 4): de docs bestaan alleen in nl en en. Auto volgt de
+// UI-taal; een UI-taal zonder docs leest Engels met een melding; een expliciete keuze wint.
+test('Help volgt de UI-taal automatisch, behoudt een expliciete override en valt voor andere talen terug op Engels', async ({ page, ops: _ops }) => {
   await page.evaluate(() => localStorage.removeItem('ops-docs-locale'));
 
   // Echte route: Bestand → Help. De bridge opent geen Help-paneel en vervangt dus niet de geteste handeling.
@@ -25,28 +25,32 @@ test('Help volgt de UI-taal automatisch, behoudt een expliciete override en bied
 
   const panel = page.locator('.help-panel');
   const docsLanguage = panel.locator('#help-docslang');
-  const article = panel.locator('.help-article-body');
+  const heading = panel.locator('.help-article-body h1');
+  const fallback = panel.locator('[data-help-lang-fallback]');
   await expect(panel).toBeVisible();
-  await expect(article).toContainText('Your first schedule in 10 minutes');
+  await expect(heading).toHaveText('Adding relations');
+  await expect(fallback).toHaveCount(0);
   await expect(docsLanguage).toHaveValue('__auto__');
-  await expect(docsLanguage.locator('option')).toHaveCount(DOC_LOCALES.length + 1);
   await expect(docsLanguage.locator('option').evaluateAll(options => options.map(option => option.getAttribute('value'))))
-    .resolves.toEqual(['__auto__', ...DOC_LOCALES]);
+    .resolves.toEqual(['__auto__', 'nl', 'en']);
 
   // De UI-taal wordt via de bestaande instellingenbediening gewijzigd; Auto moet de docs meteen
-  // laten meebewegen naar de Nederlandse bron.
+  // laten meebewegen naar de Nederlandse tekst.
   await changeUiLocale(page, 'NL — Nederlands', 'nl');
-  await expect(article).toContainText('Je eerste planning in 10 minuten');
+  await expect(heading).toHaveText('Relaties leggen');
   await expect(docsLanguage).toHaveValue('__auto__');
 
   // Een expliciete keuze wint vervolgens van de UI-taal en blijft dat ook wanneer die wisselt.
   await docsLanguage.selectOption('en');
-  await expect(article).toContainText('Your first schedule in 10 minutes');
+  await expect(heading).toHaveText('Adding relations');
   await changeUiLocale(page, 'AR — العربية', 'ar');
-  await expect(article).toContainText('Your first schedule in 10 minutes');
+  await expect(heading).toHaveText('Adding relations');
+  await expect(fallback).toHaveCount(0);
 
-  // Na het wissen van de override volgt Help weer de (RTL-)interfacetaal.
+  // Na het wissen van de override volgt Help weer de interfacetaal; Arabisch heeft geen docs, dus
+  // Engels met de melding in het Arabisch, in een RTL-interface.
   await docsLanguage.selectOption('__auto__');
-  await expect(article).toContainText('أول جدول لك في 10 دقائق');
+  await expect(heading).toHaveText('Adding relations');
+  await expect(fallback).toHaveText('التوثيق غير متوفر بلغتك بعد. أنت تقرأ النسخة الإنجليزية.');
   await expect.poll(() => page.evaluate(() => document.documentElement.dir)).toBe('rtl');
 });
