@@ -62,7 +62,7 @@ Hoort het artikel bij een dialoog of paneel, geef die dan een ?-knop (ontwerp §
   `dirty` weglaten betekent: altijd vragen.
 - **Dialoog met een eigen kop:** `DialogHelpButton` uit `src/components/common/Dialog.tsx`, met
   dezelfde `help` en de `onClose` van de dialoog.
-- **Paneel:** `HelpButton` uit `src/components/common/HelpButton.tsx`; Help opent naast het paneel.
+- **Paneel:** `HelpButton` uit `src/components/common/HelpButton.tsx`; hij opent *Bestand › Help* op het artikel.
 
 ## De beperkte Markdown-subset (`src/utils/miniMarkdown.tsx`)
 
