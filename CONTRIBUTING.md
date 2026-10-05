@@ -59,7 +59,7 @@ and deploy red regardless of the change. Dependabot security alerts are enabled 
 and are the notification channel for new advisories; fix them in their own commit.
 
 Running individual components is also possible — see the command list at the top
-of [`CLAUDE.md`](CLAUDE.md). During work, `npm run test:planning` is usually
+of [`AGENTS.md`](AGENTS.md). During work, `npm run test:planning` is usually
 enough; run `npm run verify` before you push.
 
 There is **no formatter, and no style rules** — the linter only catches what
@@ -70,7 +70,7 @@ code stands out on its own. Follow the style of the surrounding code.
 ## Things that easily go wrong
 
 Four pitfalls that go wrong more often than the rest. The background is in
-[`CLAUDE.md`](CLAUDE.md); this is the short version.
+[`AGENTS.md`](AGENTS.md); this is the short version.
 
 1. **IFC is the file format, not an export.** New project data must round-trip
    through `src/services/ifc/` — otherwise it is gone after saving and reopening.
@@ -107,15 +107,16 @@ is red first is the best description of the bug.
 
 ## Documentation
 
-- [`CLAUDE.md`](CLAUDE.md) — the in-depth architecture guide, also useful for humans.
+- [`AGENTS.md`](AGENTS.md) — the architecture and agent guide, also useful for humans
+  (`CLAUDE.md` only imports it; area depth in `.claude/rules/`).
 - [`PLAN.md`](PLAN.md) — the roadmap.
 - [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — noteworthy changes.
 - [`docs/TODO.md`](docs/TODO.md) — what is still open; a good place to look for
   something to start on.
 - [`docs/extensions.md`](docs/extensions.md) — writing extensions.
 
-If your change affects the architecture or a command, update `CLAUDE.md` and
-`AGENTS.md` in the same PR. `npm run verify:docs` mechanically enforces part
+If your change affects the architecture or a command, update `AGENTS.md` (or the
+matching `.claude/rules/` file) in the same PR. `npm run verify:docs` mechanically enforces part
 of this for `AGENTS.md`/`README.md`/`CONTRIBUTING.md` — dangling `npm run`
 references, verify-chain step names and suite names must stay in sync with
 `package.json` — but it cannot check prose, so re-read what you touch rather

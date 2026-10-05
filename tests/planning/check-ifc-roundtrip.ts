@@ -1773,7 +1773,7 @@ const hasP6BoundarySequence = (input: ImportResult) =>
 //        (10a) `mergeTaskTime` in isolatie — alle 9 optionele velden, beide scenario's.
 //        (10b) het reviewer-scenario op alle drie de update-paden (taskSlice/draft/api.data).
 //        (10c) de clear-conventie op store-niveau (TaskDialog-stijl payload).
-//        (10d) TaskDialog.tsx-bronguard — dit repo heeft geen React-rendertest-harnas (CLAUDE.md:
+//        (10d) TaskDialog.tsx-bronguard — dit repo heeft geen React-rendertest-harnas (AGENTS.md:
 //              "Er is geen vitest/jest"), dus dit is een bewuste, lichte bronvorm-check: bewijst dat
 //              de daadwerkelijke `delete`→`= undefined`-mutatie in TaskDialog.tsx zelf is doorgevoerd.
 //        (10e) mspdiWriter.ts-vangnet (spec-review-bevinding): `Math.round(completion * 100)` gaf

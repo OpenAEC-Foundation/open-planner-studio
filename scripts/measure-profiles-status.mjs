@@ -30,7 +30,7 @@ export function childEnv(env, { dropXerCorpus = false } = {}) {
   return out;
 }
 
-/** Alle faalregels: XX (ook ingesprongen, zie CLAUDE.md) plus stacktraces/esbuild-fouten. */
+/** Alle faalregels: XX (ook ingesprongen, zie AGENTS.md) plus stacktraces/esbuild-fouten. */
 export function failureLines(lines) {
   return lines.filter((line) => /^\s*XX\s/.test(line) || /^\s*XX$/.test(line)
     || /^\s+at \S.*:\d+:\d+\)?$/.test(line) || /^✘ \[ERROR\]/.test(line));

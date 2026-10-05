@@ -75,13 +75,13 @@ het gebied te benoemen en gebruik dat als scope.
 | Sneltoets (`shortcutRegistry.ts`) | `ref-sneltoetsen` |
 | Scheduling / CPM / kalender | `uitleg-kritiek-pad`, `uitleg-relaties`, `uitleg-constraints`, `uitleg-kalenders`, `uitleg-dagen-en-uren`, `ref-rekenopties-en-conventies` |
 | Import/export-adapter (IFC/CSV/MSP/P6) | `uitleg-bestanden`, `ref-import-exportformaten`, `howto-exporteren`, `howto-mpp-openen`, `howto-xer-openen`, `howto-externe-relaties` |
-| Nieuwe instelling | `ref-instellingen` (+ de 3-surfaces-regel uit `CLAUDE.md`) |
+| Nieuwe instelling | `ref-instellingen` (+ de 3-surfaces-regel uit `AGENTS.md`) |
 | Resources / nivellering / baselines | `howto-resources-beheren`, `howto-resource-toewijzen`, `howto-overbezetting-oplossen`, `uitleg-nivelleren`, `uitleg-werkregels`, `uitleg-voortgang`, `howto-baseline-opslaan-en-beheren` |
 | Rapport / print / PDF | `howto-rapport-maken-en-afdrukken`, `ref-rapporttypes` |
 | Herstel / auto-save / bestands-I/O | `howto-herstellen-na-een-crash`, `howto-automatisch-opslaan`, `howto-bestand-openen-en-opslaan`, `uitleg-bestanden` |
 | Melding of waarschuwing | `ref-meldingen` |
 | Extensie-API | `docs/extensions.md`, `howto-extensie-installeren`, `ref-extensiepermissies`, `docs/wiki/Extensions-Authoring.md` |
-| Architectuur: slice, service, engine, npm-script, Tauri-plugin, poort | `CLAUDE.md` (alleen de kern), `.claude/rules/<onderdeel>.md` (diepgang), `AGENTS.md` |
+| Architectuur: slice, service, engine, npm-script, Tauri-plugin, poort | `AGENTS.md` (alleen de kern), `.claude/rules/<onderdeel>.md` (diepgang) |
 | Roadmap-item af | `docs/TODO.md` (item eruit — afgerond werk staat in de historie); `PLAN.md` alleen als de roadmap zélf schuift |
 | Testsuite / self-test-harness | `tests/planning/README.md`, `docs/self-test-harness.md`, `AGENTS.md` |
 | Zichtbaar voor de buitenwereld (feature, installatie, download) | `docs/wiki/Features.md`, `Installation.md`, `README.md` |

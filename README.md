@@ -80,8 +80,8 @@ src-tauri/           # De Rust-schil (dun: precies drie native commands)
 ```
 
 Deze boom is bewust grofmazig — een uitgeschreven versie loopt binnen een maand
-achter. Voor de details en de architectuurbeslissingen: [CLAUDE.md](CLAUDE.md)
-(de kern), de per-onderdeel-uitwerking in [`.claude/rules/`](.claude/rules/) en [AGENTS.md](AGENTS.md).
+achter. Voor de details en de architectuurbeslissingen: [AGENTS.md](AGENTS.md)
+(de kern) en de per-onderdeel-uitwerking in [`.claude/rules/`](.claude/rules/).
 
 ## Ribbon Tabs
 
