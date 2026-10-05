@@ -167,6 +167,10 @@ Node 22 (see CI). Rust stable only for the `tauri:*` commands.
 
 - **Working language is Dutch**: code comments, commit messages and the canonical source translations.
   This file is English on purpose; the `.claude/rules/` files are Dutch.
+- **Side findings go to [`knownbugs.md`](knownbugs.md).** Anything you run into that is not part of your own
+  task (bugs, odd behaviour, stale text or docs, wishes) gets an entry there, numbered and marked B (confirmed) or
+  S (reported only); do not quietly fix it in an unrelated PR. A PR that fixes an entry removes it. Check the file
+  before reporting a "new" bug.
 - **User-visible feature ⇒ guide** in `public/docs/{nl,en}/` plus a manifest entry. Those guides use a
   limited Markdown subset (no tables/blockquotes/h4/HTML). The GitHub wiki is generated, never edited by hand
   (`wiki` skill).
