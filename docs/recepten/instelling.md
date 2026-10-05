@@ -2,7 +2,7 @@
 
 Instellingen persisteren via `localStorage` (`ops-`-prefix), niet via `@tauri-apps/plugin-store` —
 die dependency staat wel in `package.json` maar wordt hier niet gebruikt (zie *Settings persistence*
-in `CLAUDE.md`). De **load**-kant loopt declaratief via één register; de **save**-kant blijft losse
+in `AGENTS.md`). De **load**-kant loopt declaratief via één register; de **save**-kant blijft losse
 functies. Dat is bewust asymmetrisch: laden gebeurt voor een kleine dertig instellingen tegelijk bij
 het opstarten (vandaar één descriptor-lijst), opslaan gebeurt per instelling op het moment dat de
 gebruiker hem wijzigt (vandaar een losse `saveX`-functie per instelling, aangeroepen vanuit de UI die
@@ -50,7 +50,7 @@ telkens erbij; loopt dit document ooit achter, dan heeft de code gelijk.
    Voeg je UI-element dus toe binnen `SettingsPanelContent.tsx` zelf — dat verschijnt daarmee
    automatisch op alle drie de plekken. Een los stuk UI ergens anders bouwen breekt deze conventie
    stilzwijgend.
-5. **Roep `t(...)` aan voor elk zichtbaar label** (zie *i18n* in `CLAUDE.md` en
+5. **Roep `t(...)` aan voor elk zichtbaar label** (zie *i18n* in `AGENTS.md` en
    `docs/recepten/i18n-sleutel.md`) — nooit hardgecodeerde tekst in het instellingenpaneel.
 
 ## De drie bewuste afwijkers

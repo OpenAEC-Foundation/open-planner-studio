@@ -29,7 +29,8 @@
 //      linkschema's anders dan docs:///examples://. Afbeeldingen: niet-lege alt-tekst en een
 //      niet-leeg pad; de placeholder `{lang}` in het pad mag (de viewer vult nl of en in) en het
 //      bestand moet onder public/docs bestaan (voor een draft een waarschuwing).
-//   7/8. Machinaal controleerbare beweringen in CLAUDE.md (+ .claude/rules/)/AGENTS.md/README.md/CONTRIBUTING.md.
+//   7/8. Machinaal controleerbare beweringen in AGENTS.md (+ .claude/rules/)/README.md/CONTRIBUTING.md.
+//        CLAUDE.md is alleen nog een `@AGENTS.md`-import; ook dat wordt bewaakt (7f).
 //   9. De agent-skill `goed-plannen` staat byte-identiek in `public/skills/` (bron, uitgeleverd)
 //      en `.claude/skills/` (waar Claude Code hem leest) — geen symlink, want Windows-CI.
 //   10. Elk artikel-id dat de app gebruikt — elke stringexport van src/state/helpArticles.ts en elke
@@ -285,8 +286,8 @@ function checkUntranslatedTitles(
   }
 }
 
-/** De padgebonden Claude-rules (`.claude/rules/*.md`): de diepgang die uit CLAUDE.md is verhuisd
- *  zodat CLAUDE.md zelf klein blijft. Ze hoeven de "moet genoemd worden"-beweringen van Poort 7 niet
+/** De padgebonden Claude-rules (`.claude/rules/*.md`): de diepgang die uit de agentinstructies is
+ *  verhuisd zodat AGENTS.md zelf klein blijft. Ze hoeven de "moet genoemd worden"-beweringen van Poort 7 niet
  *  te herhalen, maar wát ze beweren mag niet wegdrijven — daarom lezen 7c (dode `npm run`), 7e (het
  *  toolaantal) en 8d (`localhost:3007`) ze mee. */
 function readClaudeRules(): Record<string, string> {
@@ -300,10 +301,10 @@ function readClaudeRules(): Record<string, string> {
 }
 
 /**
- * Poort 7 — machinaal controleerbare beweringen in CLAUDE.md.
+ * Poort 7 — machinaal controleerbare beweringen in AGENTS.md.
  *
- * CLAUDE.md en AGENTS.md zijn de eerste bron die een bijdrager (mens of agent) leest, en ze
- * driftten stelselmatig: de dev-server-beschrijving stond ruim een maand achter op de code, de
+ * AGENTS.md is de enige bron van agentinstructies (CLAUDE.md importeert hem alleen) en de eerste
+ * bron die een bijdrager (mens of agent) leest. De agentdocumenten driftten stelselmatig: de dev-server-beschrijving stond ruim een maand achter op de code, de
  * auto-save-interval noemde nog de oude waarde, en twee ribbon-tabbladen plus drie
  * Backstage-secties ontbraken. Elk van die gevallen was mechanisch te betrappen geweest.
  *
@@ -311,13 +312,13 @@ function readClaudeRules(): Record<string, string> {
  * beweringen blijven mensenwerk — er wordt hier bewust geen tekstuele gelijkenis gemeten.
  */
 function checkAgentDocs(diffs: string[]): void {
-  const claude = readFileSync(join(ROOT, 'CLAUDE.md'), 'utf8');
+  const agents = readFileSync(join(ROOT, 'AGENTS.md'), 'utf8');
   const types = readFileSync(join(ROOT, 'src', 'state', 'slices', 'types.ts'), 'utf8');
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as {
     scripts: Record<string, string>;
   };
 
-  // 7a. `RibbonTab` en `BackstageSection`: elk lid van de union moet als `identifier` in CLAUDE.md
+  // 7a. `RibbonTab` en `BackstageSection`: elk lid van de union moet als `identifier` in AGENTS.md
   //     staan. Backticks in plaats van de Nederlandse weergavenaam, juist zodat dit te checken is.
   const union = (name: string): string[] => {
     const m = types.match(new RegExp(`export type ${name} =([\\s\\S]*?);`));
@@ -327,12 +328,12 @@ function checkAgentDocs(diffs: string[]): void {
   for (const typeName of ['RibbonTab', 'BackstageSection']) {
     const members = union(typeName);
     if (members.length === 0) {
-      diffs.push(`CLAUDE.md-check: kon de union ${typeName} niet uit slices/types.ts lezen (is hij hernoemd?)`);
+      diffs.push(`AGENTS.md-check: kon de union ${typeName} niet uit slices/types.ts lezen (is hij hernoemd?)`);
       continue;
     }
-    const missing = members.filter((m) => !claude.includes(`\`${m}\``));
+    const missing = members.filter((m) => !agents.includes(`\`${m}\``));
     if (missing.length) {
-      diffs.push(`CLAUDE.md noemt ${missing.length} van de ${members.length} ${typeName}-waarden niet: ${missing.map((m) => `\`${m}\``).join(', ')}`);
+      diffs.push(`AGENTS.md noemt ${missing.length} van de ${members.length} ${typeName}-waarden niet: ${missing.map((m) => `\`${m}\``).join(', ')}`);
     }
   }
 
@@ -341,27 +342,27 @@ function checkAgentDocs(diffs: string[]): void {
   const autoSave = readFileSync(join(ROOT, 'src', 'hooks', 'useAutoSave.ts'), 'utf8');
   const intervalMatch = autoSave.match(/AUTOSAVE_INTERVAL_MS\s*=\s*([\d_]+)/);
   if (!intervalMatch) {
-    diffs.push('CLAUDE.md-check: AUTOSAVE_INTERVAL_MS niet gevonden in useAutoSave.ts');
+    diffs.push('AGENTS.md-check: AUTOSAVE_INTERVAL_MS niet gevonden in useAutoSave.ts');
   } else {
     const seconds = Number(intervalMatch[1].replace(/_/g, '')) / 1000;
-    if (!claude.includes(`${seconds} s`)) {
-      diffs.push(`CLAUDE.md noemt de auto-save-interval niet als "${seconds} s" (useAutoSave.ts staat op ${intervalMatch[1]} ms)`);
+    if (!agents.includes(`${seconds} s`)) {
+      diffs.push(`AGENTS.md noemt de auto-save-interval niet als "${seconds} s" (useAutoSave.ts staat op ${intervalMatch[1]} ms)`);
     }
   }
 
-  // 7c. Elk npm-script moet in CLAUDE.md staan, en elk `npm run X` in CLAUDE.md moet bestaan.
+  // 7c. Elk npm-script moet in AGENTS.md staan, en elk `npm run X` in AGENTS.md moet bestaan.
   //     Zo werd `verify:docs`/`publish:wiki` onzichtbaar: het script bestond, de doc noemde het niet,
   //     en een agent wist dus niet dat er een 14-talige handleiding meemoet bij een nieuwe functie.
   //     Uitgezonderd: wrappers en aliassen die niets toevoegen aan wat er al beschreven staat.
   const SCRIPT_ALLOWLIST = new Set(['tauri', 'preview']);
   const undocumented = Object.keys(pkg.scripts)
     .filter((s) => !SCRIPT_ALLOWLIST.has(s))
-    .filter((s) => !claude.includes(`npm run ${s}`) && !(s === 'test' && claude.includes('npm test')));
+    .filter((s) => !agents.includes(`npm run ${s}`) && !(s === 'test' && agents.includes('npm test')));
   if (undocumented.length) {
-    diffs.push(`package.json-scripts die CLAUDE.md niet noemt: ${undocumented.join(', ')}`);
+    diffs.push(`package.json-scripts die AGENTS.md niet noemt: ${undocumented.join(', ')}`);
   }
   const rules = readClaudeRules();
-  for (const [name, text] of Object.entries({ 'CLAUDE.md': claude, ...rules })) {
+  for (const [name, text] of Object.entries({ 'AGENTS.md': agents, ...rules })) {
     const referenced = [...text.matchAll(/npm run ([a-z][\w:-]*)/g)].map((m) => m[1]);
     const dangling = [...new Set(referenced)].filter((s) => !(s in pkg.scripts));
     if (dangling.length) {
@@ -369,25 +370,25 @@ function checkAgentDocs(diffs: string[]): void {
     }
   }
 
-  // 7d. De locale-lijst. CLAUDE.md somt de talen op in één backtick-span; die span wordt hier
-  //     GEPARSED en als verzameling vergeleken. Bewust niet met `claude.includes('ko')`: een
+  // 7d. De locale-lijst. AGENTS.md somt de talen op in één backtick-span; die span wordt hier
+  //     GEPARSED en als verzameling vergeleken. Bewust niet met `agents.includes('ko')`: een
   //     tweeletterige code komt overal als deelwoord voor ("ko" in "koppeling"), dus zo'n check
   //     slaagt altijd — vacuüm groen, precies de faalmodus die dit script hoort te vangen.
-  const listSpan = [...claude.matchAll(/`([a-z]{2}(?:,\s*[a-z]{2})+)`/g)]
+  const listSpan = [...agents.matchAll(/`([a-z]{2}(?:,\s*[a-z]{2})+)`/g)]
     .map((m) => m[1].split(',').map((s) => s.trim()))
     .find((codes) => codes.length >= LANGS.length - 2);
   if (!listSpan) {
-    diffs.push(`CLAUDE.md bevat geen herkenbare locale-opsomming (verwacht: een backtick-span met ${LANGS.length} komma-gescheiden codes)`);
+    diffs.push(`AGENTS.md bevat geen herkenbare locale-opsomming (verwacht: een backtick-span met ${LANGS.length} komma-gescheiden codes)`);
   } else {
     const missing = LANGS.filter((l) => !listSpan.includes(l));
     const extra = listSpan.filter((l) => !(LANGS as readonly string[]).includes(l));
-    if (missing.length) diffs.push(`CLAUDE.md's locale-opsomming mist: ${missing.join(', ')}`);
-    if (extra.length) diffs.push(`CLAUDE.md's locale-opsomming noemt onbekende locales: ${extra.join(', ')}`);
+    if (missing.length) diffs.push(`AGENTS.md's locale-opsomming mist: ${missing.join(', ')}`);
+    if (extra.length) diffs.push(`AGENTS.md's locale-opsomming noemt onbekende locales: ${extra.join(', ')}`);
   }
 
-  // 7e. Het aantal `planner_*`-MCP-tools. Dit getal dreef stil weg (CLAUDE.md zei 38 terwijl de
+  // 7e. Het aantal `planner_*`-MCP-tools. Dit getal dreef stil weg (AGENTS.md zei 38 terwijl de
   //     bridge er 39 draaide): een tool erbij is één regel in de registry, en niemand denkt dan
-  //     aan een zin verderop in CLAUDE.md. Precies het soort drift dat deze poort hoort te vangen.
+  //     aan een zin verderop in AGENTS.md. Precies het soort drift dat deze poort hoort te vangen.
   //     Geteld over de tool-bestanden zelf, niet over een lijst die óók bij kan raken.
   //
   //     Bewust GEEN dynamic import van toolRegistry.ts/toolIndex.ts hier: dat sleept via
@@ -403,7 +404,7 @@ function checkAgentDocs(diffs: string[]): void {
   //     tool-naam die louter in beschrijvingsproza wordt genoemd (bv. "roep hierna planner_foo aan")
   //     terwijl `planner_foo` niet bestaat. Zo'n verzonnen naam voegde stil een extra element aan de
   //     Set toe zonder dat er een tool bijkwam — de telling bleef toevallig kloppen zolang niemand
-  //     ook de N in CLAUDE.md aanpaste, en een niet-bestaande tool in de doc-tekst viel dus nooit op.
+  //     ook de N in AGENTS.md aanpaste, en een niet-bestaande tool in de doc-tekst viel dus nooit op.
   //     De `name:`-geankerde regex telt uitsluitend de daadwerkelijke contract-registraties.
   const toolsDir = join(ROOT, 'src', 'services', 'mcp', 'tools');
   const toolNames = new Set<string>();
@@ -412,17 +413,25 @@ function checkAgentDocs(diffs: string[]): void {
     const src = readFileSync(join(toolsDir, file), 'utf8');
     for (const m of src.matchAll(/\bname:\s*["'](planner_[a-z_]+)["']/g)) toolNames.add(m[1]);
   }
-  const claimed = claude.match(/De (\d+)\s*\n?`planner_\*`-tools/);
+  const claimed = agents.match(/The (\d+)\s*\n?`planner_\*` tools/);
   if (!claimed) {
-    diffs.push('CLAUDE.md-check: geen "De N `planner_*`-tools"-bewering gevonden (is de zin herschreven?)');
+    diffs.push('AGENTS.md-check: geen "The N `planner_*` tools"-bewering gevonden (is de zin herschreven?)');
   } else if (Number(claimed[1]) !== toolNames.size) {
-    diffs.push(`CLAUDE.md zegt ${claimed[1]} \`planner_*\`-tools, maar src/services/mcp/tools/ definieert er ${toolNames.size}`);
+    diffs.push(`AGENTS.md zegt ${claimed[1]} \`planner_*\`-tools, maar src/services/mcp/tools/ definieert er ${toolNames.size}`);
   }
   for (const [name, text] of Object.entries(rules)) {
     const ruleClaim = text.match(/De (\d+)\s*\n?`planner_\*`-tools/);
     if (ruleClaim && Number(ruleClaim[1]) !== toolNames.size) {
       diffs.push(`${name} zegt ${ruleClaim[1]} \`planner_*\`-tools, maar src/services/mcp/tools/ definieert er ${toolNames.size}`);
     }
+  }
+
+  // 7f. CLAUDE.md is uitsluitend de import van AGENTS.md. Claude Code laadt CLAUDE.md automatisch;
+  //     zodra daar weer losse inhoud in komt, ontstaan er twee bronnen die uit elkaar drijven —
+  //     precies wat het overstappen naar AGENTS.md moest voorkomen.
+  const claudeStub = readFileSync(join(ROOT, 'CLAUDE.md'), 'utf8').trim();
+  if (claudeStub !== '@AGENTS.md') {
+    diffs.push('CLAUDE.md hoort alleen `@AGENTS.md` te bevatten — zet nieuwe agentinstructies in AGENTS.md');
   }
 }
 
@@ -455,10 +464,10 @@ function mentionsToken(text: string, token: string): boolean {
 
 /**
  * Poort 8 — AGENTS.md, README.md en CONTRIBUTING.md mechanisch tegen package.json (en, voor de
- * poortbewering, tegen CLAUDE.md en de handmatig onderhouden wiki-bronpagina's in `docs/wiki/`).
+ * poortbewering, tegen de handmatig onderhouden wiki-bronpagina's in `docs/wiki/`).
  *
- * Poort 7 hierboven bewaakt alléén CLAUDE.md. De drie andere top-level onboardingdocumenten lazen
- * niet mee en dreven onopgemerkt weg — AGENTS.md beweerde "no lint script" terwijl er allang een
+ * Poort 7 hierboven bewaakte oorspronkelijk alléén CLAUDE.md (nu: AGENTS.md). De drie andere
+ * top-level onboardingdocumenten lazen niet mee en dreven onopgemerkt weg — AGENTS.md beweerde "no lint script" terwijl er allang een
  * `npm run lint` bestond, README had een Ribbon-tab "Relaties" die niet bestaat, en CONTRIBUTING
  * had zowel een hardgecodeerde poort 3007 (die per worktree varieert) als een verify-tabel die twee
  * ketenstappen miste.
@@ -468,7 +477,7 @@ function mentionsToken(text: string, token: string): boolean {
  *   8a. dode `npm run <x>`-verwijzingen in de drie bestanden;
  *   8b. of AGENTS.md/CONTRIBUTING.md elke stap uit de `verify`-keten noemt;
  *   8c. of alle drie de bestanden elke suite uit `npm test` noemen;
- *   8d. hardgecodeerde `localhost:3007` (AGENTS/README/CONTRIBUTING/CLAUDE.md/de wiki-bronpagina's);
+ *   8d. hardgecodeerde `localhost:3007` (AGENTS/README/CONTRIBUTING/.claude/rules/de wiki-bronpagina's);
  *   8e. of README's "N artikelen"-bewering (indien aanwezig) het manifest-aantal volgt.
  *
  * 8b/8c tellen een stap-/suitenaam alleen mee als hij als LOS WOORD binnen een backtick-span
@@ -487,7 +496,7 @@ function mentionsToken(text: string, token: string): boolean {
  * Wat deze poort NIET vangt: inhoudelijke onwaarheden waarvan de tegenspraak niet in package.json of
  * het manifest zit — bijvoorbeeld een architectuurbewering als "de enige `invoke()` is X" terwijl de
  * code drie commands aanroept, of een beschrijving van hoe `runCPM` intern werkt die niet meer klopt.
- * Dat soort proza blijft mensenwerk (of een gerichte poort zoals Poort 7 hierboven voor CLAUDE.md).
+ * Dat soort proza blijft mensenwerk (of een gerichte poort zoals Poort 7 hierboven voor AGENTS.md).
  */
 function checkSupportingDocs(diffs: string[], manifestArticleCount: number): void {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as {
@@ -498,7 +507,6 @@ function checkSupportingDocs(diffs: string[], manifestArticleCount: number): voi
     'README.md': readFileSync(join(ROOT, 'README.md'), 'utf8'),
     'CONTRIBUTING.md': readFileSync(join(ROOT, 'CONTRIBUTING.md'), 'utf8'),
   };
-  const claude = readFileSync(join(ROOT, 'CLAUDE.md'), 'utf8');
   const wikiDir = join(ROOT, 'docs', 'wiki');
   const wikiFiles: Record<string, string> = {};
   if (existsSync(wikiDir)) {
@@ -566,9 +574,9 @@ function checkSupportingDocs(diffs: string[], manifestArticleCount: number): voi
 
   // 8d. Hardgecodeerde dev-poort. De poort is per worktree vast toegewezen in het bereik 3007–3106
   //     (scripts/dev-port.mjs), niet altijd 3007 — "localhost:3007" hardcoderen is dus altijd fout,
-  //     ook in CLAUDE.md en de handmatig onderhouden wiki-bronpagina's (`docs/wiki/*.md`, die via
+  //     ook in de rules en de handmatig onderhouden wiki-bronpagina's (`docs/wiki/*.md`, die via
   //     `npm run publish:wiki` naar de publieke GitHub-wiki gaan).
-  for (const [name, text] of Object.entries({ ...files, 'CLAUDE.md': claude, ...readClaudeRules(), ...wikiFiles })) {
+  for (const [name, text] of Object.entries({ ...files, ...readClaudeRules(), ...wikiFiles })) {
     if (text.includes('localhost:3007')) {
       diffs.push(`${name} hardcodeert "localhost:3007" — de dev-poort is per worktree vast toegewezen (3007–3106); lees hem uit de dev-server-uitvoer of .claude/launch.json`);
     }
@@ -721,7 +729,7 @@ function main() {
   const ids = manifest.articles.map((a) => a.id);
   const idSet = new Set(ids);
 
-  // 7. Machinaal controleerbare beweringen in CLAUDE.md (zie checkAgentDocs).
+  // 7. Machinaal controleerbare beweringen in AGENTS.md + de CLAUDE.md-stub (zie checkAgentDocs).
   checkAgentDocs(globalDiffs);
   // 8. Machinaal controleerbare beweringen in AGENTS.md/README.md/CONTRIBUTING.md (zie checkSupportingDocs).
   // Het README-aantal telt wat een gebruiker ziet: drafts niet.
@@ -753,7 +761,7 @@ function main() {
     }
   }
 
-  console.log('── Manifest-hygiëne + CLAUDE.md/AGENTS.md/README.md/CONTRIBUTING.md-beweringen ──');
+  console.log('── Manifest-hygiëne + AGENTS.md/CLAUDE.md/README.md/CONTRIBUTING.md-beweringen ──');
   if (globalDiffs.length === 0) console.log('  OK  manifest v2 en aliassen geldig, geen dubbele ids, geen wees-bestanden, app-artikel-id\'s bestaan, de vier onboardingdocumenten lopen gelijk met de code');
   else { anyFail = true; for (const d of globalDiffs) console.log(`  XX  ${d}`); }
 

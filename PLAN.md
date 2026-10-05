@@ -6,7 +6,7 @@
 > TypeScript), geen Python-MCP-server (de MCP-laag zit in TypeScript, `src/services/mcp/`), geen
 > web-ifc, geen Vitest, geen pnpm (npm), en undo/redo werkt met snapshots, niet met Immer patches.
 > De afvinkvakjes in de roadmap (§6) zijn evenmin bijgehouden. Voor de actuele structuur:
-> [`AGENTS.md`](AGENTS.md) en [`CLAUDE.md`](CLAUDE.md); voor openstaand werk:
+> [`AGENTS.md`](AGENTS.md); voor openstaand werk:
 > [`docs/TODO.md`](docs/TODO.md). §4 draagt daarnaast zijn eigen vervalmelding.
 
 ## 1. Visie & Doelstelling
@@ -577,7 +577,7 @@ grotendeels code die nooit bestaan heeft (`src/api/`, `documentStore.ts`, divers
 en simulaties) en werd plausibel genoeg gelezen als beschrijving van de code, terwijl dat
 niet zo was.
 
-Voor de werkelijke structuur: [`AGENTS.md`](AGENTS.md) en [`CLAUDE.md`](CLAUDE.md),
+Voor de werkelijke structuur: [`AGENTS.md`](AGENTS.md)
 en anders `ls src/`.
 
 ---

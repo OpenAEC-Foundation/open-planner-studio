@@ -216,7 +216,7 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 > (opgeslagen contour of exacte 21-punts-curve) met de `distributeUnits`-formule als terugval;
 > histogram/overallocatie/nivelleerder/bezetting lezen dezelfde `assignmentDayUnits`; een
 > duurwijziging herschaalt de contour proportioneel; MSPDI `<TimephasedData>` en P6
-> `<ResourceCurve>`/`<ResourceCurveObjectId>`/spreidingsstrings zijn native. Zie CLAUDE.md.
+> `<ResourceCurve>`/`<ResourceCurveObjectId>`/spreidingsstrings zijn native. Zie AGENTS.md.
 
 - [ ] **Fasen als opslagvorm.** `TimephasedContourPeriod` kan een fase van tien dagen als één
       periode dragen, maar de editor slaat bewust één periode per werkdag op (byte-identieke

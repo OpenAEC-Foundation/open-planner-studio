@@ -139,7 +139,7 @@ enkele tier — die omzeil je altijd met een expliciet pad.)
 ## Tier 1½ — De app-eigen MCP-bridge (Tauri-only, bewuste gebruikerskeuze)
 
 Naast de twee testkanalen hierboven heeft de app zélf een MCP-bridge: het AI-assistent-oppervlak uit
-CLAUDE.md → *AI-assistent (MCP-bridge)*, met de `planner_*`-tools. Dit is **geen dev-only testhaak**
+AGENTS.md → *AI-assistent (MCP-bridge)*, met de `planner_*`-tools. Dit is **geen dev-only testhaak**
 maar een productiefunctie — je verbindt er elke MCP-client mee, ook een aparte Claude Code-sessie.
 De Rust-kant (`src-tauri/src/mcp_bridge.rs`) bindt een `tiny_http`-server op `127.0.0.1:<poort>`; de
 TS-kant (`src/services/mcp/server.ts`) start/stopt 'm via Tauri `invoke`/`listen`. **Tauri-only**: in
@@ -172,7 +172,7 @@ de browser-dev-build bestaat de bridge niet, dus voor browserzelftests blijft Ti
    aanroepen.
 
 Voor de toolcatalogus (de `planner_*`-tools; taken, relaties, resources, kalender, project,
-baselines, documenten/bestanden, leestools, `planner_batch`) zie CLAUDE.md → *AI-assistent
+baselines, documenten/bestanden, leestools, `planner_batch`) zie AGENTS.md → *AI-assistent
 (MCP-bridge)* — niet hier gedupliceerd.
 
 **Begrenzing.** Dit kanaal bestaat alleen in de échte Tauri-runtime. Wil je de browser-dev-build
