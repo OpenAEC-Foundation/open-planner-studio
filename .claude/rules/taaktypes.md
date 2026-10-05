@@ -86,4 +86,4 @@ ontsluit stil), één keer per document (`taskTypesNotice.ts`); selector `taskTy
 (`src/state/taskTypesVisibility.ts`). Dan: `TaskWorkRuleField` in paneel en dialoog, de kolom **Werk
 (rest)** met slotjes in `TaskAssignmentsSection`, en de rasterkolommen `task.workRule` en
 `assignment.remainingWork` (alleen `available` wanneer ontsloten; `TaskColumnContext.taskTypesUnlocked`).
-Gids: `public/docs/{nl,en}/gids-taaktypes.md`; browserspec `tests/browser/work-rule.spec.ts`.
+Gidsen: `public/docs/{nl,en}/uitleg-werkregels.md` en `howto-werkregel-kiezen.md`; browserspec `tests/browser/work-rule.spec.ts`.

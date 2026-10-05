@@ -43,3 +43,4 @@ Press Esc or F11. The ribbon and panels come back on the tab where you began.
 
 - [Using split view and the mini-map](docs://howto-split-view-en-mini-map): two time windows or an overview strip during the presentation.
 - [Creating and using a layout](docs://howto-layouts-gebruiken): setting up the view you want to show with one click.
+- [Keyboard shortcuts](docs://ref-sneltoetsen): F11 and the other keys.

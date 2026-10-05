@@ -84,3 +84,4 @@ Een nieuwe taak verandert nog niets aan de andere datums. De statusbalk meldt *V
 - [Relaties leggen](docs://howto-relaties-leggen): taken aan elkaar koppelen.
 - [Taken selecteren, verwijderen en ongedaan maken](docs://howto-taken-selecteren-verwijderen): een taak weer weghalen.
 - [Kritiek pad en speling](docs://uitleg-kritiek-pad): wat de app uitrekent zodra er relaties zijn.
+- [Taakdialoog en eigenschappenpaneel](docs://ref-taak-eigenschappen): alle velden van een taak.

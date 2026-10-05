@@ -64,3 +64,4 @@ Right-click the break in the Gantt, or the piece after it, and choose *Remove br
 
 - [Critical path and float](docs://uitleg-kritiek-pad): how the schedule counts in work days and why the finish moves.
 - [Adding relations](docs://howto-relaties-leggen): another mode in the Gantt, which you use with a bar drag.
+- [Task dialog and properties panel](docs://ref-taak-eigenschappen): the Breaks section in the properties panel.

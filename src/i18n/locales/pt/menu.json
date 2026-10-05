@@ -319,12 +319,7 @@
     "library": "Biblioteca",
     "helpDocsLang": "Idioma da documentação",
     "helpDocsLangAuto": "Seguir o idioma da aplicação",
-    "helpStale": "Este idioma é atualizado apenas ocasionalmente. Para a documentação mais atualizada, mude para inglês ou neerlandês.",
-    "helpLayer": {
-      "quickstart": "Início rápido",
-      "gidsen": "Guias por tema",
-      "referentie": "Referência"
-    },
+    "helpLangFallback": "A documentação ainda não está disponível no seu idioma. Está a ler a versão em inglês.",
     "unapplied": {
       "title": "Alterações não aplicadas",
       "body": "Alterou as informações do projeto, mas ainda não as aplicou. O que pretende fazer com estas alterações?",

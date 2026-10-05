@@ -48,3 +48,5 @@ Voor de balkkleur kies je *Beeld › Baselines & voortgang › Balkkleuren*, dan
 
 - [Structuur aanpassen](docs://howto-structuur-aanpassen): de WBS-boom, de andere manier om taken in te delen.
 - [Project verplaatsen](docs://howto-project-verplaatsen): wat er met datums gebeurt bij het verplaatsen van het project.
+- [Een layout maken en gebruiken](docs://howto-layouts-gebruiken): groeperen en filteren op een code of eigen veld.
+- [Tabelkolommen aanpassen](docs://howto-tabelkolommen-aanpassen): een code of eigen veld als kolom tonen.

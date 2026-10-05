@@ -64,3 +64,4 @@ Klik met de rechtermuisknop op de onderbreking in de Gantt, of op het stuk erna,
 
 - [Kritiek pad en speling](docs://uitleg-kritiek-pad): hoe de planning rekent met werkdagen en waarom het einde opschuift.
 - [Relaties leggen](docs://howto-relaties-leggen): een andere modus in de Gantt, die je met een balksleep gebruikt.
+- [Taakdialoog en eigenschappenpaneel](docs://ref-taak-eigenschappen): de sectie Onderbrekingen in het eigenschappenpaneel.

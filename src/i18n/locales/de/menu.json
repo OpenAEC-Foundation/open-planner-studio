@@ -317,12 +317,7 @@
     "library": "Bibliothek",
     "helpDocsLang": "Dokumentationssprache",
     "helpDocsLangAuto": "App-Sprache folgen",
-    "helpStale": "Diese Sprache wird nur gelegentlich aktualisiert. Für die aktuellste Dokumentation wechseln Sie zu Englisch oder Niederländisch.",
-    "helpLayer": {
-      "quickstart": "Schnellstart",
-      "gidsen": "Themenbezogene Anleitungen",
-      "referentie": "Referenz"
-    },
+    "helpLangFallback": "Die Dokumentation ist noch nicht in Ihrer Sprache verfügbar. Sie lesen die englische Version.",
     "unapplied": {
       "title": "Änderungen nicht angewendet",
       "body": "Sie haben die Projektinfo geändert, aber noch nicht angewendet. Was möchten Sie mit diesen Änderungen tun?",

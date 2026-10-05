@@ -78,3 +78,4 @@ Wil je zelf bepalen welke taak blijft staan, geef die dan een hogere prioriteit.
 - [Nivelleren](docs://uitleg-nivelleren): wat nivelleren verschuift, binnen speling en erbuiten, en wat het niet doet.
 - [Resources beheren](docs://howto-resources-beheren): capaciteit en kalender van een resource aanpassen.
 - [Relaties leggen](docs://howto-relaties-leggen): taken achter elkaar zetten.
+- [Meldingen en waarschuwingen](docs://ref-meldingen): de waarschuwing Overbezet in het paneel Waarschuwingen.

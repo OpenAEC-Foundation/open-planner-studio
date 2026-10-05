@@ -95,3 +95,6 @@ A new relation does not move any bars yet; the status bar says *Out of date — 
 ## See also
 
 - [Critical path and float](docs://uitleg-kritiek-pad): what the app calculates from your relations, and why a task becomes critical.
+- [Relations and lag](docs://uitleg-relaties): what the four kinds of relation and a lag do to the dates.
+- [Tracing a path](docs://howto-pad-traceren): bringing the chain of predecessors and successors into view.
+- [Task dialog and properties panel](docs://ref-taak-eigenschappen): the fields for relations and lag in the panel and the dialog.

@@ -73,3 +73,4 @@ De labels betekenen dit:
 ## Zie ook
 
 - [De app bijwerken](docs://howto-app-bijwerken): een extensie kan een nieuwere versie van de app vragen.
+- [Extensiepermissies](docs://ref-extensiepermissies): wat elke permissie in de installatievraag betekent.

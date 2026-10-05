@@ -40,8 +40,15 @@ tegen de commits van de nieuwe release en aanpassen waar de werkelijkheid afwijk
   Het script berekent de slug centraal en gebruikt hem als bestandsnaam **én** in alle links (geen mismatch).
 - **Link-omzetting:** `docs://<id>` → de wiki-slug (via het manifest); `examples://…` → **platte tekst**
   (link eruit, tekst blijft). Onbekende `docs://`-id → **waarschuwing** in de dry-run (geen stille fout).
-- **Gegenereerde meta:** `_Sidebar.md` (wiki-only bovenaan → manifest-lagen *Getting started / Guides /
-  Reference* → *Project*) en `_Footer.md` (banner "generated — don't edit here" + LGPL-3.0).
+- **Gegenereerde meta:** `_Sidebar.md` (wiki-only bovenaan → een regel over de tutorials (die zitten
+  in de app, als extensie) → de manual in de drie Diátaxis-secties *How-to guides / Explanation /
+  Reference*, volgens `kind` en in manifestvolgorde → *Project*) en `_Footer.md` (banner "generated —
+  don't edit here" + LGPL-3.0).
+- **Afbeeldingen:** `public/docs/img/en/**` gaat mee naar `img/en/` op de wiki (een `{lang}` in een
+  afbeeldingspad wordt `en`); bij `--push` wordt de hele `img/`-map vervangen, dus beelden van
+  verwijderde artikelen verdwijnen mee.
+- **Drafts en aliassen:** een `draft`-artikel wordt niet gepubliceerd (een link ernaar wordt platte
+  tekst); een `docs://`-link naar een oud id volgt de alias in het manifest.
 - **Bootstrap** (eenmalig, al gedaan 2026-07-24): wiki aan (Settings → Features) + één pagina via de
   web-UI zodat `.wiki.git` bestaat. Faalt de clone in `--push`, dan is de wiki niet geïnitialiseerd.
 
@@ -60,7 +67,8 @@ het exacte aantal rolt uit de dry-run — lees het daar af in plaats van het te 
 - **Inhoud van een manual-pagina** → bewerk `public/docs/{nl,en}/<id>.md`. Houd **nl + en gelijk**
   (andere talen zijn een apart traject, geen wiki/release-stap).
 - **Nieuwe manual-pagina** → voeg de `.md` in nl **én** en toe **plus** een manifest-entry
-  (`id`, `title.nl`/`title.en`, `layer`, evt. `cluster`). De sidebar-groep volgt uit `layer`.
+  (`id`, `title.nl`/`title.en`, `kind`); recept `docs/recepten/in-app-gids.md`. De sidebar-groep volgt
+  uit `kind`. Let op: een nieuwe Engelse titel is een nieuwe wiki-URL, zonder redirect.
 - **Wiki-only pagina** → bewerk/voeg `docs/wiki/<Naam>.md` (Engels). Bestandsnaam = wiki-paginanaam;
   link naar manual-pagina's via hun slug.
 - **Changelog** → `docs/CHANGELOG.md`.
@@ -112,7 +120,7 @@ rode vlag — fix 'm of meld 'm expliciet.
 | Val | Waarom |
 |-----|--------|
 | Direct in de wiki bewerken | Wordt bij de volgende publish overschreven — bewerk de repo-bron. |
-| Manual-bestandsnamen zijn NL-slugs | `gids-plannen-wbs.md` → wiki-pagina `Planning-and-WBS` via `title.en`; niet verwarren. |
+| Manual-bestandsnamen zijn NL-slugs | `howto-relaties-leggen.md` → wiki-pagina `Adding-relations` via `title.en`; niet verwarren. |
 | `public/docs` = óók in-app Help | Een edit daar verandert de app-Help én de wiki — nl+en gelijk houden. |
 | `examples://`-links | Worden platte tekst op de wiki (de in-app actie werkt niet op een webpagina). |
 | Changelog is Engels | Sinds 2026-07-24; de wiki neemt `docs/CHANGELOG.md` as-is over (geen NL-kopje-truc meer). |

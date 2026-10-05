@@ -155,7 +155,7 @@ De import moet opleveren:
 - zeven relaties;
 - een aanwezig CPM-resultaat;
 - een aanwezig `xerSourceArchive` en een niet-lege `xerSourceProjectId`;
-- een zichtbare Engelse XER-openmelding met `helpArticleId` `gids-xer-import`.
+- een zichtbare Engelse XER-openmelding met `helpArticleId` `howto-xer-openen`.
 
 Daarnaast moeten `window.alert`, `window.confirm` en `window.prompt` nul keer zijn aangeroepen.
 

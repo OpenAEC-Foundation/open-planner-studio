@@ -66,3 +66,4 @@ Alleen de taken zonder eigen kalender gaan mee.
 - [Kalenders en werkdagen](docs://uitleg-kalenders): hoe de app werkdagen telt en welke kalender wint.
 - [Dagen en uren](docs://uitleg-dagen-en-uren): wat de netto-uren per dag doen.
 - [Een resourcekalender instellen](docs://howto-resourcekalender-instellen): een kalender voor een resource in plaats van een taak.
+- [Kalendervensters](docs://ref-kalenders): alle velden van de kalendervensters.

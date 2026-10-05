@@ -49,3 +49,4 @@ A new task then starts with 5 hours instead of 5 days. Existing tasks do not cha
 - [Days and hours](docs://uitleg-dagen-en-uren): how the app counts hours, what happens when days and hours meet and where it rounds.
 - [Setting working times](docs://howto-werktijden-instellen): the times of a calendar per weekday.
 - [Adding relations](docs://howto-relaties-leggen): a lag in hours between two tasks.
+- [Settings](docs://ref-instellingen): the setting Enable hour planning and what else it changes.

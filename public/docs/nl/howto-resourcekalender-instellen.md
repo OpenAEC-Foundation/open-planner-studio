@@ -43,3 +43,4 @@ Kies in de kolom *Kalender* een kalender uit de lijst. *Projectkalender* haalt d
 - [Kalenders en werkdagen](docs://uitleg-kalenders): waarom een resourcekalender geen datums verschuift.
 - [Een kalender maken en toewijzen](docs://howto-kalender-maken-en-toewijzen): de velden van het kalenderformulier.
 - [Feestdagen en bouwvak genereren](docs://howto-feestdagen-genereren): vakantie en feestdagen in de kalender zetten.
+- [Kalendervensters](docs://ref-kalenders): alle velden van de kalendervensters.

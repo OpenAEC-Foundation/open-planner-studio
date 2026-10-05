@@ -58,3 +58,4 @@ Een eigen preset staat op dit apparaat, niet in het projectbestand.
 - [Dagen en uren](docs://uitleg-dagen-en-uren): hoe de app werkuren telt en de netto-uren per dag afleidt.
 - [Urenplanning aanzetten](docs://howto-urenplanning-aanzetten): een taak in uren plannen.
 - [Kalenders en werkdagen](docs://uitleg-kalenders): welke kalender voor welke taak geldt.
+- [Kalendervensters](docs://ref-kalenders): alle velden van de kalendervensters.

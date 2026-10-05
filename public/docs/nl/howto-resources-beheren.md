@@ -64,3 +64,4 @@ Aanmaken, aanpassen en verwijderen kun je allemaal terugdraaien met *Ongedaan* (
 - [Resources toewijzen met een curve](docs://howto-resource-toewijzen): een resource op een taak zetten.
 - [Een resourcekalender instellen](docs://howto-resourcekalender-instellen): de werkdagen van één resource vastleggen.
 - [Overbezetting oplossen](docs://howto-overbezetting-oplossen): wat je doet als een resource op een dag te veel moet doen.
+- [Resourcepaneel](docs://ref-resourcepaneel): alle velden en knoppen van het resourcepaneel.

@@ -91,3 +91,4 @@ Open de PDF in je PDF-lezer en druk hem daar af. Print je een A3-PDF op een A4-p
 - [Een baseline opslaan en beheren](docs://howto-baseline-opslaan-en-beheren): de momentopname waarmee de Variance vergelijkt.
 - [Overbezetting oplossen](docs://howto-overbezetting-oplossen): wat je doet als de Resourcebelasting overbelaste weken laat zien.
 - [Kritiek pad en speling](docs://uitleg-kritiek-pad): waarom een activiteit kritiek is of bijna kritiek.
+- [Rapporttypes](docs://ref-rapporttypes): alle rapporttypes en hun opties.

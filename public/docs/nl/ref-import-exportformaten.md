@@ -28,7 +28,7 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 
 **Wat meegaat** — alles wat bij het project hoort: taken met structuur, duur, datums en voortgang; relaties met lag; constraints en deadlines; kalenders; resources en toewijzingen, ook de urenverdeling; baselines; activiteitcodes en eigen velden; aantekeningen; externe koppelingen naar andere projecten; onderbrekingen; werkregels en taaktypen; de projectinstellingen zoals de statusdatum, de voortgangsmodus, het rekenprofiel en de reken-opties; de koppeling met een resourcebibliotheek. Bij een project uit een `.xer` gaat ook het oorspronkelijke bronbestand mee.
 
-**Wat niet meegaat** — hoe je het scherm hebt ingesteld (zoom, scrollpositie, geselecteerde taak, ingeklapte fasen, gekozen filter en groepering) en de app-instellingen ([Instellingen](docs://ref-instellingen-lijst)). Het tabblad *IFC* toont de IFC-tekst van je project.
+**Wat niet meegaat** — hoe je het scherm hebt ingesteld (zoom, scrollpositie, geselecteerde taak, ingeklapte fasen, gekozen filter en groepering) en de app-instellingen ([Instellingen](docs://ref-instellingen)). Het tabblad *IFC* toont de IFC-tekst van je project.
 
 ## MS Project XML (MSPDI)
 

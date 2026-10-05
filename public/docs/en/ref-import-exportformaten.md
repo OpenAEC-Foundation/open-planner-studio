@@ -28,7 +28,7 @@ Per file format: whether you can open, save and export it, what does and does no
 
 **What goes along** — everything that belongs to the project: tasks with structure, duration, dates and progress; relations with lag; constraints and deadlines; calendars; resources and assignments, including the hour distribution; baselines; activity codes and custom fields; notes; external links to other projects; interruptions; work rules and task types; the project settings such as the status date, the progress mode, the calculation profile and the calculation options; the link with a resource library. For a project from a `.xer`, the original source file goes along too.
 
-**What does not go along** — how you have set up the screen (zoom, scroll position, selected task, collapsed phases, chosen filter and grouping) and the app settings ([Settings](docs://ref-instellingen-lijst)). The *IFC* tab shows the IFC text of your project.
+**What does not go along** — how you have set up the screen (zoom, scroll position, selected task, collapsed phases, chosen filter and grouping) and the app settings ([Settings](docs://ref-instellingen)). The *IFC* tab shows the IFC text of your project.
 
 ## MS Project XML (MSPDI)
 

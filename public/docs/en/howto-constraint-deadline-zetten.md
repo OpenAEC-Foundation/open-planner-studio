@@ -55,3 +55,4 @@ At *Constraint* choose *As soon as possible (ASAP)* again. That removes the seco
 - [Constraints and deadlines](docs://uitleg-constraints): what each type does, and the explanation of hard pin, negative float and deadline.
 - [Critical path and float](docs://uitleg-kritiek-pad): what negative float does to the critical path.
 - [Relations and lag](docs://uitleg-relaties): the relations a constraint sits alongside.
+- [Notifications and warnings](docs://ref-meldingen): the warnings for a violated constraint or missed deadline.

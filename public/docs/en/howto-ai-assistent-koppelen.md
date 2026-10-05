@@ -83,3 +83,5 @@ The backups are in the folder `ai-backups` in the data folder of the app. The ap
 ## See also
 
 - [Giving feedback](docs://howto-feedback-geven): if the connection works differently from what is described here, report it.
+- [Planning well](docs://gids-goed-plannen): the planning principles the assistant receives.
+- [Settings](docs://ref-instellingen): the AI settings.

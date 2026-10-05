@@ -57,3 +57,4 @@ Open het venster *Kolom kiezen* en klik onderaan op *Herstel standaard*. De knop
 
 - [Een layout maken en gebruiken](docs://howto-layouts-gebruiken): kolommen samen met een filter of sortering op een knop zetten.
 - [Codes en eigen velden](docs://howto-codes-en-velden): eigen kolommen aanmaken die je hier kunt kiezen.
+- [Tabelkolommen](docs://ref-tabelkolommen): alle kolommen en wat ze tonen.

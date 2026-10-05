@@ -55,3 +55,4 @@ Kies bij *Constraint* weer *Zo vroeg mogelijk (ASAP)*. Dat haalt ook de secundai
 - [Constraints en deadlines](docs://uitleg-constraints): wat elk type doet, en de uitleg bij harde pin, negatieve speling en deadline.
 - [Kritiek pad en speling](docs://uitleg-kritiek-pad): wat negatieve speling met het kritieke pad doet.
 - [Relaties en lag](docs://uitleg-relaties): de relaties waar een constraint naast staat.
+- [Meldingen en waarschuwingen](docs://ref-meldingen): de waarschuwingen bij een overschreden constraint of deadline.

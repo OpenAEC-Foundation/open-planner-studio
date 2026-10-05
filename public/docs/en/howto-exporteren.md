@@ -57,3 +57,4 @@ You read a filled-in progress sheet back through *File › Import*. See [Importi
 - [Files and formats](docs://uitleg-bestanden): what each format carries and what not.
 - [Opening and saving a file](docs://howto-bestand-openen-en-opslaan): keeping your project itself as IFC.
 - [Importing progress from a spreadsheet](docs://howto-voortgang-importeren): reading in a filled-in progress sheet.
+- [Import and export formats](docs://ref-import-exportformaten): per format what is carried over and what is not.

@@ -121,3 +121,4 @@ Hier verschillen de datums. Twee conventies in de groep *Voortgang zoals Microso
 - [Exporteren](docs://howto-exporteren): een project exporteren.
 - [Voortgang bijwerken](docs://howto-voortgang-bijwerken): percentage, werkelijke start en statusdatum invullen.
 - [Datums zoals opgeslagen](docs://uitleg-datums-zoals-opgeslagen): waarom geïmporteerde datums kunnen afwijken van wat de app zelf berekent.
+- [Rekenopties en conventies](docs://ref-rekenopties-en-conventies): alle conventies en reken-opties op een rij.

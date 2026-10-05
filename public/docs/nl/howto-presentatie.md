@@ -43,3 +43,4 @@ Druk op Esc of F11. Het lint en de panelen komen terug op het tabblad waar je be
 
 - [Split view en mini-map gebruiken](docs://howto-split-view-en-mini-map): twee tijdvensters of een overzichtsstrook tijdens de presentatie.
 - [Een layout maken en gebruiken](docs://howto-layouts-gebruiken): de weergave die je wilt tonen met één klik klaarzetten.
+- [Sneltoetsen](docs://ref-sneltoetsen): F11 en de andere toetsen.

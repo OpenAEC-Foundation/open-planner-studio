@@ -64,3 +64,4 @@ Click the cross on the tab, or choose *File › Close project*. If the project h
 - [Turning on AutoSave](docs://howto-automatisch-opslaan): letting the app update your file itself.
 - [Exporting](docs://howto-exporteren): making a copy in another format.
 - [Recovering after a crash](docs://howto-herstellen-na-een-crash): what you do if the app did not close cleanly.
+- [Import and export formats](docs://ref-import-exportformaten): per format what is carried over and what is not.

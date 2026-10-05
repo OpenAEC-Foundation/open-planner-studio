@@ -64,3 +64,4 @@ Klik op het kruisje van het tabblad, of kies *Bestand › Sluit project*. Heeft 
 - [Automatisch opslaan aanzetten](docs://howto-automatisch-opslaan): de app zelf je bestand laten bijwerken.
 - [Exporteren](docs://howto-exporteren): een kopie in een ander formaat maken.
 - [Herstellen na een crash](docs://howto-herstellen-na-een-crash): wat je doet als de app niet netjes sloot.
+- [Import- en exportformaten](docs://ref-import-exportformaten): per formaat wat meegaat en wat niet.

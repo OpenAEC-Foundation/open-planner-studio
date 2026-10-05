@@ -48,3 +48,5 @@ For the bar colour choose *View › Baselines & progress › Bar colors*, then *
 
 - [Adjusting the structure](docs://howto-structuur-aanpassen): the WBS tree, the other way to organise tasks.
 - [Moving a project](docs://howto-project-verplaatsen): what happens to dates when you move the project.
+- [Creating and using a layout](docs://howto-layouts-gebruiken): grouping and filtering on a code or custom field.
+- [Adjusting table columns](docs://howto-tabelkolommen-aanpassen): showing a code or custom field as a column.

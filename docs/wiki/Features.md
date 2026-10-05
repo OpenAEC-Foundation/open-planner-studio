@@ -34,18 +34,18 @@ bridge and automatic updates.
 - **Resource libraries** — resources and calendars live in a shared, organization-wide library that
   multiple projects draw from; a project shows what it actually uses, with per-item provenance
   (from the library, project-only, or orphaned) and a library/project view toggle. See
-  [Resource libraries](docs://gids-resourcebibliotheken) in the manual.
+  [The resource library](docs://uitleg-resourcebibliotheek) in the manual.
 - **Assignments** — assign resources to tasks, with time-phased max-units availability.
 - **Task types and work** — a work rule per task (fixed duration and units, fixed duration and
   work, fixed work, fixed units — the MS Project task types and P6 duration types) decides which
   corner of work = remaining duration × units moves when you edit another; remaining work per
   assignment is editable in hours. Hidden by default; a file that already carries task types shows
-  them. See [Task types and work](docs://gids-taaktypes) in the manual.
+  them. See [Work rules: duration, units and work](docs://uitleg-werkregels) in the manual.
 - **Histogram & leveling** — a resource histogram plus automatic leveling options, including
   leveling priority per task and leveling within slack only.
 - **Occupancy overview** — for multiple open projects drawing from the same library, a
   cross-document view of where each resource is booked and where the combined booking exceeds
-  company capacity. See [Occupancy overview](docs://gids-bezettingsoverzicht) in the manual.
+  company capacity. See [Using the occupancy overview](docs://howto-bezettingsoverzicht-gebruiken) in the manual.
 
 ## Views & editing
 
@@ -102,5 +102,5 @@ bridge and automatic updates.
   opt in to writing changed work back to that same file on the same interval.
 - **Automatic updates** — the desktop app updates itself where the install type supports it, and
   shows a one-off "you've just been updated" summary the first time you reopen it afterwards.
-- **14 languages** — Nederlands, English, Français, Deutsch, Español, 中文, Italiano, Português, Polski, Türkçe, العربية, 日本語, 한국어 and فارسی, including right-to-left layout for Arabic and Persian. The in-app manual has its own language picker, independent of the interface language, with a warning when a translation is behind the English source.
+- **14 languages** — Nederlands, English, Français, Deutsch, Español, 中文, Italiano, Português, Polski, Türkçe, العربية, 日本語, 한국어 and فارسی, including right-to-left layout for Arabic and Persian. The in-app manual is available in English and Dutch, with its own language picker independent of the interface language; in the other interface languages it shows the English text with a short notice.
 - **Extensible** — a frontend extension system for importers, ribbon buttons, PDF fonts and more. See [Extensions Authoring](Extensions-Authoring).

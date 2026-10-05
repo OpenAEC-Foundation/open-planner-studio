@@ -38,3 +38,5 @@ Bevat het bestand taken met onderbrekingen, nivellering of een resource-gedreven
 - [Datums zoals opgeslagen](docs://uitleg-datums-zoals-opgeslagen): de weergave van MS Project's eigen datums.
 - [Urenplanning aanzetten](docs://howto-urenplanning-aanzetten): als het bestand gegevens in uren bevat.
 - [Een Primavera P6-bestand (.xer) openen](docs://howto-xer-openen): hetzelfde voor Primavera.
+- [Import- en exportformaten](docs://ref-import-exportformaten): per formaat wat meegaat en wat niet.
+- [Rekenprofielen en conventies](docs://uitleg-rekenprofielen): waarom een MS Project-bestand met een eigen rekenprofiel opent.

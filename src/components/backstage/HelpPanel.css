@@ -195,12 +195,8 @@
   border-radius: var(--radius-md);
 }
 
-/* Waarschuwing bovenaan het artikel: niet-NL/EN-talen lopen mogelijk achter. */
-.help-stale-warning {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
+/* Melding bovenaan het artikel: de UI-taal heeft (nog) geen docs, dus de lezer krijgt Engels. */
+.help-lang-fallback {
   margin-bottom: var(--sp-3, 12px);
   padding: 8px 12px;
   font-size: var(--text-large);
@@ -208,25 +204,10 @@
   color: var(--theme-text);
   background: var(--theme-surface-alt);
   border: 1px solid var(--theme-border);
-  border-left: 3px solid var(--theme-accent);
+  /* Logische kant: in ar en fa (RTL) staat de accentstreep rechts — juist die talen zien deze melding. */
+  border-inline-start: 3px solid var(--theme-accent);
   border-radius: var(--radius-md);
 }
-.help-stale-text { flex: 1 1 220px; }
-.help-stale-actions {
-  display: inline-flex;
-  gap: 6px;
-  flex-shrink: 0;
-}
-.help-stale-btn {
-  padding: 3px 10px;
-  font-size: var(--text-large);
-  cursor: pointer;
-  color: var(--theme-accent-on);
-  background: var(--theme-accent);
-  border: none;
-  border-radius: var(--radius-md);
-}
-.help-stale-btn:hover { opacity: 0.9; }
 
 /* Blokafbeelding: een afbeelding die alleen op een eigen regel staat (miniMarkdown). */
 .help-figure {

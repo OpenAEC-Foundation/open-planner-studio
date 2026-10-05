@@ -156,15 +156,19 @@ const isTauri = () => '__TAURI_INTERNALS__' in window;
   editing session), an immutable IFC snapshot generation per *changed* document via
   `src/services/recovery/recoveryStore.ts` (Tauri: `appDataDir`; web:
   IndexedDB), keyed by worktree instance slug.
-- **`public/docs/` is a documentation subsystem with its own CI gate** — 38
-  articles in `nl` + `en` (26 of them also in the other 12 languages, which
-  fall back to English) plus a manifest, feeding the in-app help viewer
-  (Backstage → Help) and the generated GitHub wiki (`npm run publish:wiki`;
-  never hand-edit the wiki). Articles render through a *limited* Markdown subset
+- **`public/docs/` is a documentation subsystem with its own CI gate** —
+  articles in `nl` + `en` only, organised by Diátaxis (`kind`: how-to,
+  explanation, reference; the tutorials ship as an extension), plus a manifest
+  with `aliases` that keep old article ids working. Other UI languages read the
+  English text with a notice. It feeds the in-app help viewer (Backstage → Help)
+  and the generated GitHub wiki (`npm run publish:wiki`; never hand-edit the
+  wiki). Articles render through a *limited* Markdown subset
   (`src/utils/miniMarkdown.tsx`): no tables, no blockquotes, no h4, no raw HTML,
   and only `docs://`/`examples://` links. `npm run verify:docs` enforces all of
-  that. A user-visible feature needs an article (at minimum `nl` + `en`) or it is
-  undiscoverable.
+  that, plus that every article id the app uses (`src/state/helpArticles.ts`)
+  exists. A user-visible feature needs an article (`nl` + `en`, recipe
+  `docs/recepten/in-app-gids.md`) or it is undiscoverable; renaming one needs an
+  alias.
 
 ## Worktrees (how concurrent dev instances coexist)
 

@@ -67,3 +67,4 @@ De curve verandert alleen de verdeling. De duur, de datums en het totaal blijven
 - [Urenverdeling aanpassen](docs://howto-urenverdeling-aanpassen): de uren per dag zelf bepalen.
 - [Overbezetting oplossen](docs://howto-overbezetting-oplossen): wat je doet als een resource op een dag te veel moet doen.
 - [Werkregels: duur, inzet en werk](docs://uitleg-werkregels): wat er gebeurt met de duur als je de inzet wijzigt.
+- [Resourcepaneel](docs://ref-resourcepaneel): alle velden en knoppen van het resourcepaneel.

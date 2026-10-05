@@ -78,3 +78,4 @@ If you want to decide yourself which task stays, give it a higher priority. Righ
 - [Resource leveling](docs://uitleg-nivelleren): what leveling shifts, within float and beyond, and what it does not do.
 - [Managing resources](docs://howto-resources-beheren): adjusting a resource's capacity and calendar.
 - [Adding relations](docs://howto-relaties-leggen): putting tasks one after the other.
+- [Notifications and warnings](docs://ref-meldingen): the Overallocated warning in the Warnings panel.

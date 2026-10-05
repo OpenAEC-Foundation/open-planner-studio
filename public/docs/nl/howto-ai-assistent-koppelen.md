@@ -83,3 +83,5 @@ De backups staan in de map `ai-backups` in de gegevensmap van de app. De app hou
 ## Zie ook
 
 - [Feedback geven](docs://howto-feedback-geven): loopt de koppeling anders dan hier staat, meld het dan.
+- [Goed plannen](docs://gids-goed-plannen): de planningsprincipes die de assistent meekrijgt.
+- [Instellingen](docs://ref-instellingen): de AI-instellingen.

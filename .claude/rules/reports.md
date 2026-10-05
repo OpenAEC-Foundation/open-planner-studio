@@ -44,7 +44,7 @@ lijst), `TableReportView.tsx` tekent daar de `<table>`s uit en `makeSectionedRen
 (`pdfTable.ts`) de vector-PDF — dezelfde kolomspec, dus DOM en PDF kunnen niet uit elkaar lopen.
 Nieuw tabelrapport ⇒ engine-module, een `build*`-functie in `useTableReportSpec`, opties in
 `TableReportOptions` + `TableReportOptionsBlock`, sleutels onder `tableReports.*` in alle 14
-`report.json`-locales, en een sectie in `gids-rapporten-printen.md` (nl+en). Rapporten met een
+`report.json`-locales, en een sectie in `ref-rapporttypes.md` (nl+en). Rapporten met een
 tijdvenster (look-ahead, voortgang, belasting, toewijzingen) delen de **rapportageperiode** (issue
 #120): een `ReportingPeriod` (preset rond de statusdatum, `project` of `custom` met twee ISO-dagen)
 uit `src/engine/reports/reportingPeriod.ts`, per rapport opgeslagen in `TableReportOptions`, in de

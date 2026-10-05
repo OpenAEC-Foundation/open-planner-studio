@@ -70,3 +70,4 @@ De periode werkt niet in elk rapport hetzelfde.
 - [Een rapport maken en afdrukken](docs://howto-rapport-maken-en-afdrukken): het hele traject van rapporttype tot PDF.
 - [Voortgang, statusdatum en baseline](docs://uitleg-voortgang): wat de statusdatum is en waarom de app ermee rekent.
 - [Overbezetting oplossen](docs://howto-overbezetting-oplossen): wat je doet met de overbelaste weken uit de Resourcebelasting.
+- [Rapporttypes](docs://ref-rapporttypes): alle rapporttypes en hun opties.

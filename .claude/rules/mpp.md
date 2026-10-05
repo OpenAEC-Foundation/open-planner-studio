@@ -32,6 +32,6 @@ loslaat (contour/split/nivellering uit het bronbestand) geeft eenmalig per docum
 melding (`notifyTimephasedLoss`, `src/state/timephasedLossNotice.ts`) en markeert de taak in het
 eigenschappenpaneel (`TaskTimephasedNotice.tsx`); beide linken via `openHelpArticle` (`uiSlice.ts`,
 `NotifyInput.helpArticleId`) naar de Help-viewer (Backstage → Help). Zie de gids
-`public/docs/{nl,en}/gids-msproject-import.md` voor het gebruikersperspectief en de overige
+`public/docs/{nl,en}/howto-mpp-openen.md` voor het gebruikersperspectief en de overige
 `tests/planning/check-mpp-*.ts`-batterijen (import/relations/calendars/summary-relations) voor de
 rest van de regressiedekking.

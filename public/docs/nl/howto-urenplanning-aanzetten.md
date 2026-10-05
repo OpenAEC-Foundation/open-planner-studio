@@ -49,3 +49,4 @@ Een nieuwe taak begint dan met 5 uur in plaats van 5 dagen. Bestaande taken vera
 - [Dagen en uren](docs://uitleg-dagen-en-uren): hoe de app uren telt, wat er gebeurt als dagen en uren samenkomen en waar hij afrondt.
 - [Werktijden instellen](docs://howto-werktijden-instellen): de tijden van een kalender per weekdag.
 - [Relaties leggen](docs://howto-relaties-leggen): een lag in uren tussen twee taken.
+- [Instellingen](docs://ref-instellingen): de instelling Urenplanning inschakelen en wat hij verder verandert.
