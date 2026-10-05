@@ -5,6 +5,7 @@ import { Trash2 } from 'lucide-react';
 import { displayDate } from '@/utils/displayDate';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { ConfirmDialog } from './ConfirmDialog';
+import { BASELINES_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
 /**
  * Baseline-dialoog. Lijst met inline-hernoemen, actief-radio en verwijderen
@@ -57,7 +58,7 @@ export function BaselineDialog() {
       onCancel={close}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
     >
-        <DialogHeader title={t('baseline.dialog.title')} onClose={close} />
+        <DialogHeader title={t('baseline.dialog.title')} onClose={close} help={{ articleId: BASELINES_HELP_ARTICLE_ID }} />
 
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
           {/* Lijst van baselines */}

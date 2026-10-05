@@ -10,6 +10,7 @@ import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { calendarScalarBreakIssue } from '@/utils/effectiveWorkTime';
 import { calendarHasHolidayIssue, withCanonicalHolidayEnds } from '@/utils/holidayRange';
 import { withTransaction } from '@/state/batchTransaction';
+import { RESOURCE_CALENDAR_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
 /**
  * Resource-kalender-editor — hergebruikt `CalendarForm`, net als de
@@ -65,6 +66,8 @@ export function ResourceCalendarDialog({
       : { ...createNewCalendar(tCommon('resource.calendarDialog.title')), id: generateId('rescal') },
   );
   const [scalarTimeTextInvalid, setScalarTimeTextInvalid] = useState(false);
+  // De kopie bij het openen: de ?-knop vraagt alleen iets als de gebruiker hem heeft veranderd.
+  const [initialDraft] = useState(() => JSON.stringify(draft));
 
   // Dezelfde poort als de kalenderdialoog: ongeldige pauze of een ongeldige feestdagregel
   // (`holidayIssue`, gedeeld met MCP) blokkeert Toepassen.
@@ -104,7 +107,17 @@ export function ResourceCalendarDialog({
       onCancel={onClose}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[600px] max-h-[90vh] flex flex-col overflow-hidden"
     >
-        <DialogHeader title={tCommon('resource.calendarDialog.title')} onClose={onClose} />
+        <DialogHeader
+          title={tCommon('resource.calendarDialog.title')}
+          onClose={onClose}
+          help={{
+            articleId: RESOURCE_CALENDAR_HELP_ARTICLE_ID,
+            confirmLeave: {
+              dirty: JSON.stringify(draft) !== initialDraft,
+              onSave: () => { if (invalid) return false; handleApply(); },
+            },
+          }}
+        />
 
         <CalendarForm
           draft={draft}

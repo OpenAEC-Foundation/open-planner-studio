@@ -19,6 +19,7 @@ import { barColorFieldOptions } from '@/components/viewControls/barColorFieldOpt
 import { decodeFieldRef, encodeFieldRef } from '@/components/layout/Ribbon/ribbonPrimitives';
 import type { LayoutOverlays } from '@/types/view';
 import type { BarColorSelection } from '@/types/barColor';
+import { LAYOUTS_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
 /** Label- en tooltipsleutel per layoutdeel; de vijf klassieke delen hergebruiken hun eigen titel. */
 type LayoutKey = ParseKeys<['common', 'menu']>;
@@ -273,6 +274,11 @@ export function LayoutsDialog() {
       <DialogHeader
         title={t(editing ? 'common:view.layout.editTitle' : 'common:view.layout.newTitle')}
         onClose={close}
+        help={{
+          articleId: LAYOUTS_HELP_ARTICLE_ID,
+          // Altijd vragen: een nieuwe layout staat pas na Opslaan in de lijst.
+          confirmLeave: { onSave: () => { if (!layouts || parts.length === 0) return false; save(); } },
+        }}
       />
 
       <div className="flex-1 overflow-y-auto p-4 text-small leading-4 flex flex-col gap-4" data-ops-layout-dialog="true">

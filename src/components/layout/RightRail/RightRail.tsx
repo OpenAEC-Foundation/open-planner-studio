@@ -6,6 +6,10 @@ import { inlineDirectionOf, panelWidthAtPointer, useSplitter } from '@/hooks/use
 import { TaskPropertiesPanel } from '@/components/panels/TaskPropertiesPanel';
 import { ResourcePanelCompact } from '@/components/panels/ResourcePanelCompact';
 import { WarningsPanel } from '@/components/panels/WarningsPanel';
+import { HelpButton } from '@/components/common/HelpButton';
+import {
+  RESOURCE_PANEL_HELP_ARTICLE_ID, TASK_PROPERTIES_HELP_ARTICLE_ID, WARNINGS_HELP_ARTICLE_ID,
+} from '@/state/helpArticles';
 import {
   RIGHT_PANEL_MIN_WIDTH,
   RAIL_SECTION_MIN_HEIGHT,
@@ -200,6 +204,8 @@ export function RightRail() {
             fixedHeight={bothOn ? propsHeight : undefined}
             grow={!bothOn}
             actions={
+              <>
+              <HelpButton articleId={TASK_PROPERTIES_HELP_ARTICLE_ID} size={14} />
               <button
                 onClick={() => setUI({ showPropertiesPanel: false })}
                 title={t('sidebar.closeProperties')}
@@ -207,6 +213,7 @@ export function RightRail() {
               >
                 <X size={14} />
               </button>
+              </>
             }
           >
             <TaskPropertiesPanel />
@@ -236,6 +243,7 @@ export function RightRail() {
             collapseRailTitle={t('sidebar.collapseRail')}
             actions={
               <>
+                <HelpButton articleId={RESOURCE_PANEL_HELP_ARTICLE_ID} size={14} />
                 <button
                   onClick={() => setUI({ resourcePanelDocked: false })}
                   title={t('resource.compact.expandFull')}
@@ -281,6 +289,8 @@ export function RightRail() {
             onCollapseRail={stackOn ? undefined : () => setUI({ rightPanelCollapsed: true })}
             collapseRailTitle={t('sidebar.collapseRail')}
             actions={
+              <>
+              <HelpButton articleId={WARNINGS_HELP_ARTICLE_ID} size={14} />
               <button
                 onClick={() => setUI({ showWarningsPanel: false })}
                 title={t('warnings.close')}
@@ -289,6 +299,7 @@ export function RightRail() {
               >
                 <X size={14} />
               </button>
+              </>
             }
           >
             <WarningsPanel />

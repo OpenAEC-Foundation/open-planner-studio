@@ -10,6 +10,7 @@ import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { CalendarForm } from './CalendarForm';
 import { calendarScalarBreakIssue } from '@/utils/effectiveWorkTime';
 import { calendarHasHolidayIssue, withCanonicalHolidayEnds } from '@/utils/holidayRange';
+import { CALENDARS_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
 /** Kan deze bufferkalender zo niet worden opgeslagen? Ongeldige pauze of een ongeldige feestdagregel
  *  (zelfde regels als het formulier toont; MCP deelt `holidayIssue`). */
@@ -46,6 +47,9 @@ export function CalendarDialog() {
   // Enter in een invoerveld vraagt een tussentijdse commit aan; hij draait pas ná de render van die
   // toetsaanslag (zie `commitOnInputEnter` en het layout-effect hieronder).
   const [enterCommitRequested, setEnterCommitRequested] = useState(false);
+  // De buffer zoals hij het laatst in de store stond (bij openen en na elke commit): de ?-knop vraagt
+  // alleen Opslaan / Annuleren / Terug als er sindsdien iets is veranderd.
+  const [committedSnapshot, setCommittedSnapshot] = useState('');
 
   // Init vóór de eerste paint (useLayoutEffect, geen flash): promoveer (lazy, idempotente
   // normalisatie — geen gebruikerswijziging) de gedenormaliseerde projectkalender naar de zichtbare
@@ -57,6 +61,7 @@ export function CalendarDialog() {
     setLocalCalendars(cals);
     setLocalProjectId(st.project.calendarId);
     setSelectedId(cals.find(c => c.id === st.project.calendarId)?.id ?? cals[0]?.id ?? null);
+    setCommittedSnapshot(JSON.stringify([cals, st.project.calendarId]));
     setReady(true);
   }, [ensureProjectCalendarInLibrary]);
 
@@ -76,7 +81,9 @@ export function CalendarDialog() {
   // document in de modus "datums zoals opgeslagen" alsnog herberekenen.
   const commit = useCallback(() => {
     if (commitCalendarLibrary(localCalendars.map(withCanonicalHolidayEnds), localProjectId)) runCPM();
+    setCommittedSnapshot(JSON.stringify([localCalendars, localProjectId]));
   }, [commitCalendarLibrary, localCalendars, localProjectId, runCPM]);
+  const dirty = ready && JSON.stringify([localCalendars, localProjectId]) !== committedSnapshot;
 
   // Toepassen = de hele buffer in één keer naar de store + herberekenen + sluiten.
   const confirm = () => {
@@ -171,7 +178,14 @@ export function CalendarDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[860px] max-h-[90vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-calendar-dialog': true, onKeyDown: commitOnInputEnter }}
     >
-        <DialogHeader title={tCommon('calendar.library.title')} onClose={cancel} />
+        <DialogHeader
+          title={tCommon('calendar.library.title')}
+          onClose={cancel}
+          help={{
+            articleId: CALENDARS_HELP_ARTICLE_ID,
+            confirmLeave: { dirty, onSave: () => { if (invalid) return false; confirm(); } },
+          }}
+        />
 
         <div className="flex flex-1 overflow-hidden">
           {/* Links: bibliotheek-lijst (lokale buffer) */}

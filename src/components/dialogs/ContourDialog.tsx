@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
-import { Dialog } from '@/components/common/Dialog';
+import { Dialog, DialogHelpButton } from '@/components/common/Dialog';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
@@ -19,6 +19,7 @@ import { parseDate } from '@/utils/dateUtils';
 import { useLiveGridNav } from '@/components/panels/hooks/useLiveGridNav';
 import { ContourPhaseStrip } from './ContourPhaseStrip';
 import { useEscapeCapture } from '@/hooks/useEscapeCapture';
+import { CONTOUR_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
 /** Kolomsleutels van de fasentabel in weergavevolgorde — de bewerkbare cellen voor de rasternavigatie. */
 const PHASE_GRID_FIELDS = ['days', 'units'] as const;
@@ -111,6 +112,8 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
   // Tekstdrafts voor de inzet-invoer (vrij typen; ongeldig ⇒ rode rand, geen commit).
   const [unitsText, setUnitsText] = useState<string[]>(() => (model?.phases ?? []).map(p => fmtNum(p.unitsPerDay)));
   const [selected, setSelected] = useState<number | null>(null);
+  // De fasen bij het openen: de ?-knop vraagt alleen iets als de verdeling is veranderd.
+  const [initialPhases] = useState(() => JSON.stringify(model?.phases ?? []));
 
   const setPhases = (next: ContourPhase[]) => {
     setPhasesState(next);
@@ -173,11 +176,13 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
   const split = (index: number, afterDays: number) => { setPhases(splitPhase(phases, index, afterDays)); setSelected(index); };
   const merge = (index: number) => { setPhases(mergePhaseWithNext(phases, index)); setSelected(index); };
 
-  const apply = () => {
-    if (anyInvalid || totalDays === 0) return;
+  /** Toepassen; `false` = niets toegepast (ongeldige invoer), de dialoog blijft open. */
+  const apply = (): boolean => {
+    if (anyInvalid || totalDays === 0) return false;
     const periods = buildEditedContourPeriods(model.contour?.periods, slotsFromPhases(phases, model.mpd), task.splitGaps, model.mpd);
     setAssignmentContour(assignment.id, periods);
     onClose();
+    return true;
   };
   const release = () => {
     setAssignmentContour(assignment.id, null);
@@ -203,14 +208,20 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
             {resource?.name || assignment.resourceId} · {task.name}
           </span>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1 hover:bg-surface-hover rounded-[8px]"
-          aria-label={tCommon('close')}
-          title={tCommon('close')}
-        >
-          <X size={16} />
-        </button>
+        <span className="flex items-center gap-1">
+          <DialogHelpButton
+            help={{ articleId: CONTOUR_HELP_ARTICLE_ID, confirmLeave: { dirty: JSON.stringify(phases) !== initialPhases, onSave: apply } }}
+            onClose={onClose}
+          />
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-surface-hover rounded-[8px]"
+            aria-label={tCommon('close')}
+            title={tCommon('close')}
+          >
+            <X size={16} />
+          </button>
+        </span>
       </div>
 
       <div className="flex items-center gap-2 px-4 py-2 border-b border-border !text-body">
