@@ -74,12 +74,12 @@ het gebied te benoemen en gebruik dat als scope.
 | Sneltoets (`shortcutRegistry.ts`) | `ref-sneltoetsen`, `gids-sneltoetsen-bediening` |
 | Scheduling / CPM / kalender | `gids-kritiek-pad-analyse`, `gids-kalenders-uren`, `gids-plannen-wbs` |
 | Import/export-adapter (IFC/CSV/MSP/P6) | `gids-import-export`, `ref-externe-koppelingen` |
-| Nieuwe instelling | `ref-instellingen` (+ de 3-surfaces-regel uit `CLAUDE.md`) |
+| Nieuwe instelling | `ref-instellingen` (+ de 3-surfaces-regel uit `AGENTS.md`) |
 | Resources / nivellering / baselines | `gids-resources-histogram`, `ref-nivellering`, `gids-baselines-voortgang`, `ref-baselinebeheer` |
 | Rapport / print / PDF | `gids-rapporten-printen` |
 | Herstel / auto-save / bestands-I/O | `ref-herstellen`, `gids-import-export` |
 | Extensie-API | `docs/extensions.md`, `ref-extensies`, `docs/wiki/Extensions-Authoring.md` |
-| Architectuur: slice, service, engine, npm-script, Tauri-plugin, poort | `CLAUDE.md` (alleen de kern), `.claude/rules/<onderdeel>.md` (diepgang), `AGENTS.md` |
+| Architectuur: slice, service, engine, npm-script, Tauri-plugin, poort | `AGENTS.md` (alleen de kern), `.claude/rules/<onderdeel>.md` (diepgang) |
 | Roadmap-item af | `docs/TODO.md` (item eruit — afgerond werk staat in de historie); `PLAN.md` alleen als de roadmap zélf schuift |
 | Testsuite / self-test-harness | `tests/planning/README.md`, `docs/self-test-harness.md`, `AGENTS.md` |
 | Zichtbaar voor de buitenwereld (feature, installatie, download) | `docs/wiki/Features.md`, `Installation.md`, `README.md` |

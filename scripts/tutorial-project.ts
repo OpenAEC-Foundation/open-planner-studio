@@ -30,7 +30,7 @@
 // taken → relaties → kalenderdialoog → …), dus hier roepen we dezelfde store-acties aan die de
 // dialogen en het raster aanroepen, in de volgorde van de tutorials. Na elke berekenings-
 // relevante stap draait `runCPM()` zoals de knop Berekenen (F5) — planning is handmatig, niet
-// reactief (CLAUDE.md).
+// reactief (AGENTS.md).
 //
 // Vast jaar, geen relatief anker: de tutorialtekst noemt letterlijke datums, dus het project
 // ligt vast op 2027 (start maandag 7 juni 2027). De feestdagen komen uit de échte

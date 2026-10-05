@@ -129,6 +129,6 @@ Nuttig bij het lezen van een gefaalde release:
 ## 5. Zie ook
 
 - [`SECURITY.md`](../SECURITY.md) — kwetsbaarheden melden.
-- `CLAUDE.md` §*Auto-update & releases* — hoe de releaseketen in elkaar zit.
+- `.claude/rules/ci-release.md` §*Auto-update & releases* — hoe de releaseketen in elkaar zit.
 - `docs/superpowers/plans/2026-06-24-auto-update-cross-platform.md` — het
   oorspronkelijke ontwerp van de updaterketen.

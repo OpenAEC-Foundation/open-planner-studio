@@ -12,7 +12,7 @@
 // noemen bewust geen vast aantal tools meer, zodat een nieuwe tool geen tellers elders laat breken.
 //
 // Let op het onderscheid met Poort 7e in `scripts/verify-docs.ts`: die telt `planner_*`-literals in
-// dezelfde map en vergelijkt alleen het GETAL met de "N `planner_*`-tools"-bewering in CLAUDE.md.
+// dezelfde map en vergelijkt alleen het GETAL met de "N `planner_*` tools"-bewering in AGENTS.md.
 // Beide scannen dezelfde bron, maar Poort 7e bewaakt de documentatie; dit bestand bewaakt de
 // registratie zelf.
 //

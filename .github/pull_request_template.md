@@ -31,5 +31,5 @@
 ### Documentation
 
 <!-- Does this change the architecture, a command, or behaviour that is described
-     elsewhere? Then update CLAUDE.md/AGENTS.md, docs/CHANGELOG.md or the in-app
+     elsewhere? Then update AGENTS.md (or .claude/rules/), docs/CHANGELOG.md or the in-app
      docs in this PR. If not: "n/a". -->
