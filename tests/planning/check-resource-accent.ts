@@ -14,7 +14,7 @@ import { useAppStore } from '@/state/appStore';
 import { paletteColorForId } from '@/engine/renderer/resourcePalette';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
 import { barLayout } from '@/engine/renderer/rowGeometry';
-import { progressFill } from '@/engine/renderer/themePalette';
+import { barTones } from '@/engine/renderer/themePalette';
 import type { Task } from '@/types/task';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { BarColorSelection } from '@/types/barColor';
@@ -190,8 +190,9 @@ const barShapes = (shapes: RoundShape[]) => shapes.filter(sh => sh.h > 10 && sh.
   // Resource-categorie: 1:3-toewijzing ⇒ twee segmentvullingen in de resourcekleuren.
   const { shapes } = render(false, { selection: { mode: 'category', field: { src: 'resource' } } });
   const bars = barShapes(shapes);
-  const seg1 = bars.find(b => b.fill === '#111111');
-  const seg2 = bars.find(b => b.fill === '#222222');
+  // Balkvlakken zijn de lichte tint van de basiskleur (`barTones`).
+  const seg1 = bars.find(b => b.fill === barTones('#111111').fill);
+  const seg2 = bars.find(b => b.fill === barTones('#222222').fill);
   ok(!!seg1 && !!seg2, `scherm resource-modus: beide segmenten getekend (fills: ${[...new Set(bars.map(b => b.fill))].join(', ')})`);
   if (seg1 && seg2) {
     const total = seg1.w + seg2.w;
@@ -205,13 +206,13 @@ const barShapes = (shapes: RoundShape[]) => shapes.filter(sh => sh.h > 10 && sh.
   // auto: vulling = palet-hash op taak-id (licht thema ⇒ exacte kleur).
   const { shapes } = render(false, { selection: { mode: 'auto' } });
   const bars = barShapes(shapes);
-  ok(bars.some(b => b.fill === paletteColorForId(task.id)), `scherm auto-modus: balk in hash-kleur (fills: ${[...new Set(bars.map(b => b.fill))].join(', ')})`);
+  ok(bars.some(b => b.fill === barTones(paletteColorForId(task.id)).fill), `scherm auto-modus: balk in hash-kleur (fills: ${[...new Set(bars.map(b => b.fill))].join(', ')})`);
 }
 {
   // Task Type is een gewone Group-categorie; CONSTRUCTION heeft een vaste paletkleur.
   const { shapes } = render(false, { selection: { mode: 'category', field: { src: 'builtin', key: 'taskType' } } });
   const bars = barShapes(shapes);
-  ok(bars.some(b => b.fill === '#1E293B'), 'scherm Task-Type-categorie: CONSTRUCTION gebruikt vaste paletkleur');
+  ok(bars.some(b => b.fill === barTones('#1E293B').fill), 'scherm Task-Type-categorie: CONSTRUCTION gebruikt vaste paletkleur');
 }
 {
   // donker thema + Resource-categorie: segmentkleuren verlicht boven de zichtbaarheidsdrempel.
@@ -223,24 +224,24 @@ const barShapes = (shapes: RoundShape[]) => shapes.filter(sh => sh.h > 10 && sh.
     const b = parseInt(hex.slice(5, 7), 16) / 255;
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
   };
-  ok(bars.filter(b => b.stroke === '').every(b => lum(b.fill) >= 0.33), `scherm resource-modus donker: elke vulling zichtbaar (fills: ${[...new Set(bars.filter(b => b.stroke === '').map(b => b.fill))].join(', ')})`);
+  ok(bars.length > 0 && bars.every(b => lum(b.fill) >= 0.33), `scherm resource-modus donker: elke vulling zichtbaar (fills: ${[...new Set(bars.map(b => b.fill))].join(', ')})`);
 }
 {
   // Zonder selectie: critical is de veilige default.
   const { shapes } = render(false);
   const bars = barShapes(shapes);
-  ok(!bars.some(b => b.fill === paletteColorForId(task.id) && b.stroke === ''), 'default: geen moduskleuren');
+  ok(!bars.some(b => b.fill === barTones(paletteColorForId(task.id)).fill), 'default: geen moduskleuren');
 }
 
 {
-  // Voortgang in resource-modus: elk kleursegment krijgt de vulling uit zijn EIGEN kleur
-  // (`progressFill`), niet één vaste laag over beide. Bij 60% voortgang overlapt de vulling beide
-  // segmenten (25/75), dus moeten beide afgeleide vullingen verschijnen.
+  // Voortgang in resource-modus: elk kleurstuk krijgt de arcering in zijn EIGEN donkere tint
+  // (`barTones(..).outline`; headless zonder patroon een egale vulling in die tint). Bij 60%
+  // voortgang overlapt de voortgang beide stukken (25/75), dus moeten beide tinten verschijnen.
   const half: Task = { ...task, time: { ...task.time, completion: 0.6 } };
   const { shapes } = render(false, { task: half, selection: { mode: 'category', field: { src: 'resource' } } });
   const fills = new Set(barShapes(shapes).map(b => b.fill.toLowerCase()));
-  const p1 = progressFill('#111111').toLowerCase();
-  const p2 = progressFill('#222222').toLowerCase();
+  const p1 = barTones('#111111').outline.toLowerCase();
+  const p2 = barTones('#222222').outline.toLowerCase();
   ok(fills.has(p1) && fills.has(p2),
     `scherm resource-modus: voortgang per segment in eigen afgeleide kleur (${p1}, ${p2}; fills: ${[...fills].join(', ')})`);
   ok(!fills.has('rgba(0, 0, 0, 0.25)'), 'scherm resource-modus: geen vaste 25%-zwartlaag meer');

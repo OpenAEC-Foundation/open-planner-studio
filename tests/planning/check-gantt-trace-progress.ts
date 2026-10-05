@@ -6,8 +6,9 @@
 //
 // Deze batterij draait de ECHTE GanttRenderer met een opnemende 2D-context over één voltooide
 // voorganger + focus-taak, met de trace aan, en eist dat GEEN vulling in de rij van de voorganger de
-// blauwe/rode "licht"-variant gebruikt: de trace-tint zelf, plus de neutrale donkere voortgangslaag.
-// Zonder trace blijft de bestaande blauwe voortgangsvulling byte-identiek (regressie-anker).
+// voortgangstint van de standaardkleuren gebruikt: alleen de lichte vulling en de donkere
+// voortgangstint van de trace-kleur zelf (`barTones`). Zonder trace tekent een voltooide taak de
+// donkere tint van zijn eigen standaardkleur (regressie-anker).
 //
 // Draait via run.sh. Exit 0 = alles groen.
 
@@ -17,7 +18,7 @@ g.getComputedStyle = () => ({ getPropertyValue: () => '' });
 
 import { useAppStore } from '@/state/appStore';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
-import { GANTT_TRACE_COLORS, progressFill } from '@/engine/renderer/themePalette';
+import { GANTT_TRACE_COLORS, barTones, readGanttPalette } from '@/engine/renderer/themePalette';
 import { buildTrace } from '@/engine/taskGrid/trace';
 import type { ViewRow } from '@/engine/view/visibleRows';
 
@@ -68,7 +69,10 @@ const st = S();
 const rows: ViewRow[] = st.tasks.map(task => ({ kind: 'task', rowKey: task.id, task, depth: 0, dimmed: false }));
 const ROWH = 28, HDRH = 60;
 const inRow = (f: Fill, i: number) => f.y >= HDRH + i * ROWH && f.y + f.h <= HDRH + (i + 1) * ROWH;
-const LIGHT = ['#1E3A8A', '#7F1D1D'].map(c => c.toLowerCase());
+// Voortgang = kruisarcering in de donkere balktint (`barTones(..).outline`); headless (geen
+// patroon) valt hij terug op een egale vulling in die tint — dat is wat deze stub ziet.
+const PAL = readGanttPalette();
+const LIGHT = [barTones(PAL.normal).outline, barTones(PAL.critical).outline].map(c => c.toLowerCase());
 
 function render(traceMode: 'off' | 'predecessors' | 'successors'): Fill[] {
   const { ctx, fills } = makeCtx();
@@ -96,20 +100,21 @@ ok('zonder trace: voltooide balk mist de standaard voortgangsvulling', off.some(
 // Predecessors: rij 0 (de voorganger) krijgt de goudtint en géén blauwe/rode vulling eroverheen.
 const pred = render('predecessors').filter(f => inRow(f, 0));
 // FS-voorganger van de focus is per definitie driving ⇒ de donkere goudtint; de lichte telt ook.
-const GOLD = [GANTT_TRACE_COLORS.predecessor, GANTT_TRACE_COLORS.predecessorDriving].map(c => c.toLowerCase());
+const GOLD_BASE = [GANTT_TRACE_COLORS.predecessor, GANTT_TRACE_COLORS.predecessorDriving];
+const GOLD = GOLD_BASE.map(c => barTones(c).fill.toLowerCase());
 ok('predecessors: voorgangerbalk tekent niet in de trace-goudtint', pred.some(f => GOLD.includes(f.style.toLowerCase())));
 ok(
   `predecessors: voltooide voorganger krijgt de blauwe/rode voortgangsvulling over de trace-tint (${pred.map(f => f.style).join(', ')})`,
   !pred.some(f => LIGHT.includes(f.style.toLowerCase())),
 );
-// De voortgang komt uit de trace-tint zelf (`progressFill`), niet uit een vaste zwarte laag.
-const GOLD_PROGRESS = GOLD.map(c => progressFill(c).toLowerCase());
+// De voortgang komt uit de trace-tint zelf (donkere tint van `barTones`), niet uit de standaardkleur.
+const GOLD_PROGRESS = GOLD_BASE.map(c => barTones(c).outline.toLowerCase());
 ok(`predecessors: voortgang is de afgeleide goudvulling (${pred.map(f => f.style).join(', ')})`,
   pred.some(f => GOLD_PROGRESS.includes(f.style.toLowerCase())));
 
 // Successors (focus = voorganger): rij 1 (de opvolger) idem in paars.
 const succ = render('successors').filter(f => inRow(f, 1));
-const PURPLE = [GANTT_TRACE_COLORS.successor, GANTT_TRACE_COLORS.successorDriving].map(c => c.toLowerCase());
+const PURPLE = [GANTT_TRACE_COLORS.successor, GANTT_TRACE_COLORS.successorDriving].map(c => barTones(c).fill.toLowerCase());
 ok('successors: opvolgerbalk tekent niet in de trace-paarstint', succ.some(f => PURPLE.includes(f.style.toLowerCase())));
 ok(
   `successors: voltooide opvolger krijgt de blauwe/rode voortgangsvulling over de trace-tint (${succ.map(f => f.style).join(', ')})`,

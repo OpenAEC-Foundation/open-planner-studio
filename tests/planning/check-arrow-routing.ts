@@ -46,7 +46,7 @@ const palette = {
   hammock: '#b3b3b3',
   dependency: '#a0a0a0',
   // Alles wat GEEN balk/pijl is uit de weg zetten met kleuren die nergens mee botsen.
-  normalLight: '#010101', criticalLight: '#010102', nearCritical: '#010103', milestone: '#010104',
+  nearCritical: '#010103', milestone: '#010104',
   float: '#010105', baseline: '#010106', selected: '#010107', ghost: '#010108',
   grid: '#010109', gridWeekend: '#01010a', border: '#01010b', today: '#01010c', statusDate: '#01010d',
   bg: '#01010e', surface: '#01010f', headerBg: '#010110', text: '#010111', textSecondary: '#010112',

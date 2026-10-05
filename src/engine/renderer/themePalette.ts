@@ -33,21 +33,18 @@ export const GANTT_TRACE_COLORS = {
 // Gemeten (WCAG 2.x), lichte kaart #FAFAFA / donkere kaart #2E3239 / hoog-contrastkaart #0a0a0a:
 //   critical  #DC2626  4,63 / 2,67 / 4,10
 //   normal    #2563EB  4,95 / 2,49 / 3,83
-//   complete  #1E3A8A  9,92 / 1,24 / 1,91
 //   milestone #7C3AED  5,46 / 2,26 / 3,47
 //   baseline  #6B7280  4,63 / 2,66 / 4,10
 // Noem het bij de naam in plaats van het weg te redeneren: op de donkere kaart zakken ze naar
-// 1,24-2,67 en in het HOOG-CONTRASTTHEMA zou `complete` naar 1,91 zakken — dat is formeel non-conform met
-// WCAG 1.4.11 (die
-// kent geen grootte-uitzondering voor grafische objecten), en in `mode: 'critical'` is de balkkleur
-// de enige drager van "kritiek ja/nee", wat ook 1.4.1 raakt. Die afwijking is aanvaard voor licht
-// en donker. Wat de afruil dráágt is niet de vlakgrootte — de balk is
-// `rowHeight * 0,6` (`barLayout`), bij de standaardrij van 35 px dus 21 px, en in `mode: 'critical'` tekent
-// GanttRenderer er GEEN rand omheen (`modeAdvies` is daar `null`) — maar het LABEL: dat haalt via
-// `barLabelColor` (hieronder) 4,83-10,36 op elke balktint, en dat is wel gemeten.
+// 2,26-2,67 — dat is formeel non-conform met WCAG 1.4.11 (die kent geen grootte-uitzondering voor
+// grafische objecten), en in `mode: 'critical'` is de balkkleur de enige drager van "kritiek
+// ja/nee", wat ook 1.4.1 raakt. Die afwijking is aanvaard voor licht en donker.
+// LET OP: de taakbalk tekent deze tinten niet rechtstreeks. Hij tekent een LICHTE vulling met een
+// DONKERE rand en een donkere voortgangsvulling, beide afgeleid van de merktint (`barTones`
+// hieronder, af te stemmen met `BAR_TONE_STEP`); de rand scheidt de balk van elke ondergrond.
 // De speling (`float`) is als enige WEL per thema gescheiden gebleven (`--theme-bar-float`): die
 // band is halfdoorzichtig en draagt geen label, dus hij moet het puur van zijn ondergrond winnen.
-// LET OP 1: deze vijf waarden plus de spelinggroenen staan óók als CSS-var in
+// LET OP 1: deze vier waarden plus de spelinggroenen staan óók als CSS-var in
 // `src/styles/globals.css` (`--color-*` / `--theme-bar-float`). De tekenlaag leest die CSS niet in
 // headless tests, dus de twee bronnen moeten met de hand gelijk blijven.
 // LET OP 2: `--color-critical` is niet alléén een balkkleur. Tailwind v4 leidt er de utility
@@ -61,11 +58,9 @@ export const GANTT_TRACE_COLORS = {
 // documenten valt de mijlpaalmarkering daar samen met de identiteitskleur.
 const BRAND = {
   critical: '#DC2626',          // kritiek (rood)
-  criticalLight: '#7F1D1D',     // voortgangsvulling kritiek (2,07:1 tegen de kritieke balk)
   nearCritical: '#F59E0B',      // bijna-kritiek (amber)
   hammock: '#0E7490',           // hammock/LOE-balk (teal)
   normal: '#2563EB',            // normale taak (blauw)
-  normalLight: '#1E3A8A',       // voortgangsvulling / voltooid (blauw; 2,00:1 tegen de normale balk)
   milestone: '#7C3AED',         // mijlpaal (paars, ruit)
   baseline: '#6B7280',          // baseline-onderbalk (grijs)
   dependency: '#6B7280',        // afhankelijkheidspijl (grijs)
@@ -87,31 +82,13 @@ const FLOAT_PATH_TINTS: string[] = [
 ];
 
 // ── Labelkleur op een gekleurd vlak ──────────────────────────────────────────
-// Een vast wit balklabel is niet houdbaar zodra de balkkleur niet vaststaat:
-// in de kleurmodi (`auto`, resource-, categorie-kleuring) tekent de gebruiker zijn eigen tinten op
-// de balk, en op een lichte eigen kleur is wit onleesbaar. `barLabelColor` kiest daarom per vlak de
-// beste van twee: bijna-zwart (#111827, hetzelfde als PRINT_PALETTE.text) of wit.
-//
-// Met het verzadigde balkpalet (zie BRAND hierboven) wint wit op de VIJF STANDAARD-balktinten.
-// Gemeten (WCAG 2.x), zwart-label / wit-label:
-//   critical   #DC2626  3,67 / 4,83  ⇒ wit
-//   normal     #2563EB  3,43 / 5,17  ⇒ wit
-//   complete   #1E3A8A  1,71 / 10,36 ⇒ wit
-//   milestone  #7C3AED  3,11 / 5,70  ⇒ wit
-//   baseline   #6B7280  3,67 / 4,83  ⇒ wit
-// Ook op de donkere voortgangsvullingen, waar het label vaak op begint, blijft het wit:
-//   criticalLight #7F1D1D  1,77 / 10,02                      ⇒ wit
-//   moduskleur + 25% zwart (de rgba-overlay), bv. normal      1,84-2,40 / 7,39-9,63 ⇒ wit
-// "Alle balktinten" zou een overclaim zijn: er liggen meer vlakken onder een label, en die kiezen
-// juist ZWART — en dat hoort ook, want daar is zwart aantoonbaar leesbaarder:
-//   nearCritical #F59E0B  8,26 / 2,15  ⇒ zwart      ghost      #94A3B8  6,92 / 2,56  ⇒ zwart
-//   traceSucc    #A78BFA  6,52 / 2,72  ⇒ zwart      tracePred  #F59E0B  8,26 / 2,15  ⇒ zwart
-//   float-pad-tinten #0891B2 / #65A30D / #EA580C / #0D9488     ⇒ zwart (4,74-5,74 / 3,09-3,74)
-// Wit blijft winnen op `hammock` (#0E7490, 3,31 / 5,36) en `successorDriving` (#7C3AED, = milestone).
-// De speling draagt geen label, maar staat hier voor de volledigheid: #10B981 (donker thema)
-// 6,99 / 2,54 ⇒ zwart, #059669 (licht thema) 4,71 / 3,77 ⇒ zwart.
-// De functie is dus geen dode vangrail: hij kiest vandaag al op minstens zeven vlakken zwart, en hij
-// is onmisbaar voor de kleurmodi, waar de balkkleur uit projectdata komt en elke kant op kan.
+// Een vast balklabel is niet houdbaar zodra de balkkleur niet vaststaat: in de kleurmodi (`auto`,
+// resource-, categorie-kleuring) komt de basiskleur uit projectdata. `barLabelColor` kiest daarom
+// per vlak de beste van twee: bijna-zwart (#111827, hetzelfde als PRINT_PALETTE.text) of wit.
+// De taakbalk vraagt het aan voor het vlak onder de tekststart: de lichte vulling (meestal zwart
+// label) of, zodra de voortgang daar voorbij loopt, de donkere voortgangstint (meestal wit). Over
+// de grens tussen die twee houdt een halo in de tegenkleur het label leesbaar (GanttRenderer).
+// `check-bar-tones` bewaakt het labelcontrast op elke vulling.
 
 /** sRGB-hex ⇒ [r,g,b] (0-255). Accepteert `#rgb` en `#rrggbb`. */
 function hexToRgb(hex: string): [number, number, number] | null {
@@ -144,34 +121,10 @@ export const BAR_LABEL_DARK = '#111827';
 export const BAR_LABEL_LIGHT = '#ffffff';
 
 /**
- * Componeert `top` over `base` (beide `#rrggbb`, of `top` als `rgba(r, g, b, a)`), zodat de
- * labelkeuze de kleur ziet die de gebruiker ECHT onder de tekst ziet — de voortgangsvulling is in
- * de kleurmodi een half-transparante zwarte laag over de balkkleur, geen eigen hex.
- * Onparseerbare invoer ⇒ `base` ongewijzigd terug (de labelkeuze valt dan op de balkkleur terug).
- */
-export function compositeOver(top: string, base: string): string {
-  const b = hexToRgb(base);
-  if (!b) return base;
-  const rgba = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/i.exec(top.trim());
-  let t: [number, number, number] | null = null;
-  let alpha = 1;
-  if (rgba) {
-    t = [Number(rgba[1]), Number(rgba[2]), Number(rgba[3])];
-    alpha = rgba[4] === undefined ? 1 : Number(rgba[4]);
-  } else {
-    t = hexToRgb(top);
-  }
-  if (!t) return base;
-  const mix = (i: number): number => Math.round(t![i] * alpha + b[i] * (1 - alpha));
-  const hx = (n: number): string => Math.max(0, Math.min(255, n)).toString(16).padStart(2, '0');
-  return `#${hx(mix(0))}${hx(mix(1))}${hx(mix(2))}`;
-}
-
-/**
  * De leesbaarste labelkleur op `barColor`: bijna-zwart of wit, wie van de twee de hoogste
  * WCAG-contrastverhouding haalt. Eén gebruiksplek: het TAAKBALK-label in `GanttRenderer`, dat op
- * de balkkleur zelf of op de voortgangsvulling staat. Labels op de CANVAS-achtergrond horen bij
- * `palette.text`/`textSecondary` en niet hier.
+ * de lichte balkvulling of de donkere voortgangstint staat (`barTones`). Labels op de
+ * CANVAS-achtergrond horen bij `palette.text`/`textSecondary` en niet hier.
  * Onparseerbare invoer (een `rgba()`-string, een CSS-var) ⇒ wit.
  */
 export function barLabelColor(barColor: string): string {
@@ -182,61 +135,44 @@ export function barLabelColor(barColor: string): string {
   return dark >= light ? BAR_LABEL_DARK : BAR_LABEL_LIGHT;
 }
 
-/** Minimale WCAG-contrastverhouding tussen het voltooide en het resterende deel van één balk. */
-export const PROGRESS_MIN_CONTRAST = 2;
-
-/** Vulling als de balkkleur geen `#rrggbb` is (CSS-var, rgba): de vroegere vaste donkere laag. */
-export const PROGRESS_FALLBACK_OVERLAY = 'rgba(0, 0, 0, 0.25)';
-
-const progressFillCache = new Map<string, string>();
-
 /**
- * Voortgangsvulling bij een willekeurige balkkleur: dezelfde tint, naar zwart (of wit) gemengd
- * tot hij minstens `PROGRESS_MIN_CONTRAST` haalt tegen de balk zelf. Vervangt de vaste 25%-zwart-
- * laag, die op donkere en eigen kleuren (resource, categorie, trace) wegviel — op slate #1E293B
- * haalde die laag 1,13, op een bijna-zwarte eigen kleur ~1,0.
- *
- * `preferLighter`: eerst naar wit mengen (het hoog-contrastthema, waar de balken op een zwarte kaart
- * staan en "donkerder" onzichtbaar is). Haalt de voorkeursrichting de drempel niet (een bijna-
- * zwarte balk kan niet donkerder, een bijna-witte niet lichter), dan de andere richting; haalt geen
- * van beide hem, dan de richting met het hoogste contrast. Deterministisch en gememoized per invoer.
+ * AFSTEMKNOP taakbalk: hoe ver de lichte vulling en de donkere rand/voortgangsvulling van de
+ * basiskleur af liggen (0..1). Vulling = basiskleur `BAR_TONE_STEP` richting wit gemengd, rand en
+ * voortgang = basiskleur `BAR_TONE_STEP` richting zwart. 0,4 ⇒ op merkblauw #2563EB ~4:1 tussen
+ * vulling en rand. Hoger = harder contrast (en een blekere vulling), lager = dichter bij de
+ * basiskleur. Pas alleen dit getal aan om de balk af te stemmen.
  */
-export function progressFill(barColor: string, preferLighter = false): string {
-  const key = `${barColor}|${preferLighter ? 1 : 0}`;
-  const cached = progressFillCache.get(key);
-  if (cached) return cached;
-  const rgb = hexToRgb(barColor);
-  if (!rgb) return PROGRESS_FALLBACK_OVERLAY;
-  const hx = (n: number): string => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
-  const toward = (target: number): { hex: string; ratio: number } => {
-    let best = { hex: barColor, ratio: 1 };
-    for (let t = 0.05; t <= 1.0001; t += 0.05) {
-      const mixed: [number, number, number] = [0, 1, 2].map(i => rgb[i] + (target - rgb[i]) * t) as [number, number, number];
-      const rounded = mixed.map(Math.round) as [number, number, number];
-      const ratio = contrastRatio(rgb, rounded);
-      best = { hex: `#${hx(mixed[0])}${hx(mixed[1])}${hx(mixed[2])}`, ratio };
-      if (ratio >= PROGRESS_MIN_CONTRAST) break;
-    }
-    return best;
-  };
-  const first = toward(preferLighter ? 255 : 0);
-  let out = first;
-  if (first.ratio < PROGRESS_MIN_CONTRAST) {
-    const second = toward(preferLighter ? 0 : 255);
-    if (second.ratio >= PROGRESS_MIN_CONTRAST || second.ratio > first.ratio) out = second;
-  }
-  progressFillCache.set(key, out.hex);
-  return out.hex;
+export const BAR_TONE_STEP = 0.4;
+
+/** Rand/voortgang bij een niet-hex basiskleur (CSS-var, rgba): mengen kan dan niet. */
+const BAR_TONE_FALLBACK_OUTLINE = 'rgba(0, 0, 0, 0.55)';
+
+export interface BarTones {
+  /** Lichte vulling van de hele balk. */
+  fill: string;
+  /** Donkere rand om de balk én egale vulling van het voltooide deel. */
+  outline: string;
 }
 
-/** Of het palet zijn voortgangsvulling LICHTER dan de balk kiest (hoog contrast: `complete`
- *  #DBEAFE boven `normal` #60A5FA) of donkerder (licht/donker thema). `progressFill` volgt die
- *  richting, zodat afgeleide vullingen in hetzelfde thema dezelfde kant op gaan als de themavars. */
-export function progressPrefersLighter(palette: Pick<GanttPalette, 'normal' | 'normalLight'>): boolean {
-  const n = hexToRgb(palette.normal);
-  const l = hexToRgb(palette.normalLight);
-  if (!n || !l) return false;
-  return relativeLuminance(l) > relativeLuminance(n);
+const barTonesCache = new Map<string, BarTones>();
+
+/** Lichte vulling en donkere rand/voortgang bij een basiskleur (zie `BAR_TONE_STEP`). */
+export function barTones(base: string, step = BAR_TONE_STEP): BarTones {
+  const key = `${base}|${step}`;
+  const cached = barTonesCache.get(key);
+  if (cached) return cached;
+  const rgb = hexToRgb(base);
+  let tones: BarTones;
+  if (!rgb) {
+    tones = { fill: base, outline: BAR_TONE_FALLBACK_OUTLINE };
+  } else {
+    const hx = (n: number): string => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+    const mix = (target: number): string =>
+      `#${hx(rgb[0] + (target - rgb[0]) * step)}${hx(rgb[1] + (target - rgb[1]) * step)}${hx(rgb[2] + (target - rgb[2]) * step)}`;
+    tones = { fill: mix(255), outline: mix(0) };
+  }
+  barTonesCache.set(key, tones);
+  return tones;
 }
 
 // ── GanttRenderer ────────────────────────────────────────────────────────────
@@ -256,15 +192,12 @@ export interface GanttPalette {
   text: string;
   textSecondary: string;
   critical: string;
-  criticalLight: string;
   nearCritical: string;
   hammock: string;
   normal: string;
-  normalLight: string;
   milestone: string;
   float: string;
   baseline: string;
-  complete: string;
   selected: string;
   dependency: string;
   today: string;
@@ -304,18 +237,14 @@ export function readGanttPalette(): GanttPalette {
     // De balktinten komen uit BRAND, maar via een thema-var met BRAND als fallback — hetzelfde
     // patroon dat `--theme-bar-float` al had. Licht en donker definiëren die vars NIET, dus daar
     // valt alles terug op BRAND en is de uitkomst gelijk aan een directe `BRAND.x`. Alleen
-    // het hoog-contrastthema zet ze, omdat de verzadigde set daar onder 3:1 zakt (complete 2,95).
+    // het hoog-contrastthema zet ze, omdat de verzadigde set daar onder 3:1 zakt.
     critical: v('--theme-bar-critical', BRAND.critical),
-    criticalLight: v('--theme-bar-critical-progress', BRAND.criticalLight),
     nearCritical: BRAND.nearCritical,
     hammock: BRAND.hammock,
     normal: v('--theme-bar-normal', BRAND.normal),
-    normalLight: v('--theme-bar-complete', BRAND.normalLight),
     milestone: v('--theme-bar-milestone', BRAND.milestone),
     float: v('--theme-bar-float', '#059669'),
     baseline: v('--theme-bar-baseline', BRAND.baseline),
-    // complete deelt bewust één bron met normalLight — het IS dezelfde vulling.
-    complete: v('--theme-bar-complete', BRAND.normalLight),
     selected: v('--theme-accent', '#B45309'),
     dependency: BRAND.dependency,
     today: v('--theme-accent', '#B45309'),

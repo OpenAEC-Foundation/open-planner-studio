@@ -35,6 +35,7 @@ import type { ViewRow } from '@/engine/view/visibleRows';
 import { renderReport, type PrintOptions } from '@/services/print/printPreview';
 import type { Draw2D, TextAlign, TextBaseline } from '@/services/pdf/draw2d';
 import { computeSplitSegments } from '@/engine/renderer/splitBarGeometry';
+import { barTones, readGanttPalette } from '@/engine/renderer/themePalette';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { parseInstant, formatInstant } from '@/utils/dateUtils';
 
@@ -342,9 +343,10 @@ console.log('-- split-bar-render: voortgangsvulling globaal, niet per segment --
       { kind: 'task', rowKey: 'row2', task: hourTask('row2', '2026-06-01T08:00', '2026-06-22T16:00', oneGap, completion), depth: 0, dimmed: false },
     ]);
     const row2Rects = passB.rects.filter(r => inRow(r, 0));
-    // Voortgang gebruikt in critical/default exact de centrale normalLight-kleur. Herken die
-    // rechtstreeks; Task.color is legacydata en hoort geen renderer-testhulpmiddel meer te zijn.
-    const progressFills = row2Rects.filter(r => r.fillStyle.toUpperCase() === '#1E3A8A');
+    // Voortgang is een kruisarcering in de donkere tint van de balkkleur; headless (geen patroon)
+    // valt hij terug op een egale vulling in die tint. Herken die rechtstreeks.
+    const progressTone = barTones(readGanttPalette().normal).outline.toLowerCase();
+    const progressFills = row2Rects.filter(r => r.fillStyle.toLowerCase() === progressTone);
     ok('er is minstens 1 voortgangsvulling', progressFills.length > 0);
     const seg2Start = seg2.x;
     const leaksIntoSeg2 = progressFills.some(r => r.x >= seg2Start - 0.01);

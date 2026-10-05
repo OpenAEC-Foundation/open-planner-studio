@@ -18,7 +18,7 @@ import type { BarColorSelection } from '@/types/barColor';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import { ensureThemeVisible } from '@/engine/renderer/resourcePalette';
 import { TimelineTier, TierConfig, TIER_CONFIG, pickTiers, nextTickBoundary, snapToTickStart } from './timelineTiers';
-import { readGanttPalette, barLabelColor, compositeOver, progressFill, progressPrefersLighter, type GanttPalette } from './themePalette';
+import { readGanttPalette, barLabelColor, barTones, BAR_LABEL_LIGHT, type GanttPalette } from './themePalette';
 import { xToDayOffset, type GanttAxis } from './timeAxis';
 import { resolveGanttAxis, isCompressedEffective } from './workdayAxis';
 import { computeSplitSegments } from './splitBarGeometry';
@@ -198,61 +198,77 @@ interface RowObstacles {
 
 const EMPTY_SPANS = new Float64Array(0);
 
-// Near-critical "geblokt"-vulpatroon voor het high-contrast-thema.
-// GEMEMOIZED op moduleniveau: de bitmap wordt één keer getekend en de `CanvasPattern` één keer
-// gemunt — nooit per frame (elke render maakt een nieuwe GanttRenderer, dus instance-caching zou
-// per-frame zijn). Diagonale zwarte blokjes (8×8-tegel, twee kwadranten gevuld) lezen als "geblokt"
-// bovenop de amber themakleur, zodat near-critical zonder kleurwaarneming te onderscheiden is.
-let nearCriticalHatch: CanvasPattern | null = null;
-function getNearCriticalHatch(ctx: CanvasRenderingContext2D): CanvasPattern | null {
-  if (nearCriticalHatch) return nearCriticalHatch;
-  const size = 8;
-  const tile = document.createElement('canvas');
-  tile.width = size;
-  tile.height = size;
-  const p = tile.getContext('2d');
-  if (!p) return null;
-  p.fillStyle = 'rgba(0,0,0,0.82)';
-  p.fillRect(0, 0, size / 2, size / 2);
-  p.fillRect(size / 2, size / 2, size / 2, size / 2);
-  nearCriticalHatch = ctx.createPattern(tile, 'repeat');
-  return nearCriticalHatch;
-}
-
-// Kruisarcering voor de spelingsband: dunne diagonale lijnen in beide richtingen (45° en −45°)
-// in de float-kleur. Gememoized per kleur (de kleur is thema-afhankelijk), om dezelfde reden als
-// hierboven: nooit per frame een nieuwe bitmap of `CanvasPattern`. De tegel tekent per richting
-// de diagonaal plus de twee hoekstukjes, zodat de lijnen naadloos doorlopen over tegelgrenzen.
-const floatHatchByColor = new Map<string, CanvasPattern | null>();
-function getFloatHatch(ctx: CanvasRenderingContext2D, color: string): CanvasPattern | null {
-  const cached = floatHatchByColor.get(color);
+// Vulpatronen (near-critical-blokjes, kruisarcering) worden GEMEMOIZED op moduleniveau: de bitmap
+// wordt één keer getekend en de `CanvasPattern` één keer gemunt — nooit per frame (elke render maakt
+// een nieuwe GanttRenderer, dus instance-caching zou per-frame zijn). Sleutel = alles wat het
+// patroon bepaalt (kleur, maat). Zonder bruikbare DOM (planningssuite onder Node, soms met een kale
+// `document`-stub) is er geen patroon; de aanroeper tekent dan zonder.
+const patternCache = new Map<string, CanvasPattern | null>();
+function tilePattern(
+  ctx: CanvasRenderingContext2D,
+  key: string,
+  size: number,
+  draw: (p: CanvasRenderingContext2D) => void,
+): CanvasPattern | null {
+  const cached = patternCache.get(key);
   if (cached !== undefined) return cached;
-  // Headless (planningssuite onder Node, soms met een kale `document`-stub): geen bruikbare DOM,
-  // dan alleen de lichte vulling.
   if (typeof document === 'undefined' || typeof document.createElement !== 'function'
     || typeof ctx.createPattern !== 'function') return null;
-  const size = 5;
   const tile = document.createElement('canvas');
   tile.width = size;
   tile.height = size;
   const p = tile.getContext('2d');
   if (!p) return null;
-  p.strokeStyle = color + '40'; // 0.25 alpha
-  p.lineWidth = 1;
-  p.beginPath();
-  // Richting onder naar boven (45°).
-  p.moveTo(0, size); p.lineTo(size, 0);
-  p.moveTo(-1, 1); p.lineTo(1, -1);
-  p.moveTo(size - 1, size + 1); p.lineTo(size + 1, size - 1);
-  // Tegenrichting (boven naar onder) — maakt er een kruisarcering van.
-  p.moveTo(0, 0); p.lineTo(size, size);
-  p.moveTo(size - 1, -1); p.lineTo(size + 1, 1);
-  p.moveTo(-1, size - 1); p.lineTo(1, size + 1);
-  p.stroke();
+  draw(p);
   const pattern = ctx.createPattern(tile, 'repeat');
-  floatHatchByColor.set(color, pattern);
+  patternCache.set(key, pattern);
   return pattern;
 }
+
+// Near-critical "geblokt"-vulpatroon voor het high-contrast-thema. Diagonale zwarte blokjes
+// (8×8-tegel, twee kwadranten gevuld) lezen als "geblokt" bovenop de amber themakleur, zodat
+// near-critical zonder kleurwaarneming te onderscheiden is.
+function getNearCriticalHatch(ctx: CanvasRenderingContext2D): CanvasPattern | null {
+  const size = 8;
+  return tilePattern(ctx, 'near-critical', size, (p) => {
+    p.fillStyle = 'rgba(0,0,0,0.82)';
+    p.fillRect(0, 0, size / 2, size / 2);
+    p.fillRect(size / 2, size / 2, size / 2, size / 2);
+  });
+}
+
+// Kruisarcering: dunne diagonale lijnen in beide richtingen (45° en −45°) in `strokeColor`, op
+// een tegel van `size` px. Gebruikt door de spelingsband. De tegel tekent per richting de diagonaal
+// plus de twee hoekstukjes, zodat de lijnen naadloos doorlopen over tegelgrenzen.
+function getCrossHatch(ctx: CanvasRenderingContext2D, strokeColor: string, size: number): CanvasPattern | null {
+  return tilePattern(ctx, `cross|${strokeColor}|${size}`, size, (p) => {
+    p.strokeStyle = strokeColor;
+    p.lineWidth = 1;
+    p.beginPath();
+    // Richting onder naar boven (45°).
+    p.moveTo(0, size); p.lineTo(size, 0);
+    p.moveTo(-1, 1); p.lineTo(1, -1);
+    p.moveTo(size - 1, size + 1); p.lineTo(size + 1, size - 1);
+    // Tegenrichting (boven naar onder) — maakt er een kruisarcering van.
+    p.moveTo(0, 0); p.lineTo(size, size);
+    p.moveTo(size - 1, -1); p.lineTo(size + 1, 1);
+    p.moveTo(-1, size - 1); p.lineTo(1, size + 1);
+    p.stroke();
+  });
+}
+
+/** Tegelmaat (px) van de kruisarcering op de spelingsband. */
+const FLOAT_HATCH_SIZE = 5;
+/** Slagschaduw onder een taakbalk: kleur, vervaging (px) en verschuiving omlaag (px). */
+const BAR_SHADOW_COLOR = 'rgba(0, 0, 0, 0.5)';
+const BAR_SHADOW_BLUR = 3;
+const BAR_SHADOW_OFFSET_Y = 1.5;
+/** Lijndikte (px) van de halo achter een balklabel; de helft valt buiten de letters. */
+const BAR_LABEL_HALO_WIDTH = 3;
+/** Halo achter een donker balklabel: licht en licht doorzichtig. */
+const BAR_LABEL_HALO_ON_DARK_TEXT = 'rgba(255, 255, 255, 0.75)';
+/** Halo achter een wit balklabel: donker en licht doorzichtig. */
+const BAR_LABEL_HALO_ON_LIGHT_TEXT = 'rgba(17, 24, 39, 0.6)';
 
 /** Hoeveel verticale rasterlijnen het canvas op dit zoomniveau nog verdraagt.
  *
@@ -315,16 +331,12 @@ export class GanttRenderer {
   /** Balk-, accent- en baselinehoogte binnen één rij (`rowGeometry.ts`) — één bron voor tekenen,
    *  hit-testen en de sleep-duurbadge. */
   private readonly bar: BarLayout;
-  /** Voortgangsvulling lichter dan de balk (hoog contrast) of donkerder (licht/donker thema) —
-   *  afgeleid uit het palet zelf, zodat een thema zijn richting via zijn eigen vars kiest. */
-  private readonly progressLighter: boolean;
 
   constructor(ctx: CanvasRenderingContext2D, opts: GanttRenderOptions) {
     this.ctx = ctx;
     this.opts = opts;
     this.bar = barLayout(opts.rowHeight);
     this.colors = opts.palette ?? readGanttPalette();
-    this.progressLighter = progressPrefersLighter(this.colors);
 
     this.viewStart = parseDate(opts.view.viewStartDate);
     this.rows = opts.rows;
@@ -1231,7 +1243,16 @@ export class GanttRenderer {
     ctx.clip();
     // width - 10 = precies de ruimte tussen de tekststart (x1+6) en de rechter cliprand.
     const label = this.ellipsize(name, width - 10);
-    if (label) ctx.fillText(label, x1 + 6, textY);
+    if (label) {
+      // Halo: een zachte rand in de tegenkleur van het label, zodat de naam ook leesbaar blijft
+      // waar hij over de grens tussen voortgang en lichte vulling loopt. Bij een donker label (de gewone keuze op de lichte
+      // balkvulling) is de halo licht; bij een wit label donker.
+      ctx.strokeStyle = color === BAR_LABEL_LIGHT ? BAR_LABEL_HALO_ON_LIGHT_TEXT : BAR_LABEL_HALO_ON_DARK_TEXT;
+      ctx.lineWidth = BAR_LABEL_HALO_WIDTH;
+      ctx.lineJoin = 'round';
+      ctx.strokeText(label, x1 + 6, textY);
+      ctx.fillText(label, x1 + 6, textY);
+    }
     ctx.restore();
   }
 
@@ -1291,21 +1312,6 @@ export class GanttRenderer {
     }
 
     const color = overrideColor ?? modeColor ?? this.barColor(task);
-    // Voortgangsvulling: dezelfde tint als het vlak eronder, gemengd tot minstens 2:1 contrast
-    // (`progressFill`). Alleen de twee standaardtinten van de kritiek-pad-modus houden hun
-    // themavar (`criticalLight`/`normalLight`); bijna-kritiek, float-paden, de kleurmodi en een
-    // trace-tint (`overrideColor`) krijgen een vulling uit hun EIGEN kleur. Vroeger kregen die de
-    // blauwe vulling (paars float-pad 1,82:1) of een vaste 25%-zwartlaag (slate 1,13:1, een
-    // eigen bijna-zwarte kleur ~1:1). Een trace-tint krijgt bewust nooit de blauwe/rode vulling:
-    // die zou de goud/paarse tint vervangen.
-    const progressFor = (base: string): string => {
-      if (selection.mode === 'critical' && !overrideColor) {
-        if (task.time.isCritical && base === this.colors.critical) return this.colors.criticalLight;
-        if (base === this.colors.normal) return this.colors.normalLight;
-      }
-      return progressFill(base, this.progressLighter);
-    };
-    const progressColor = progressFor(color);
 
     // Een uur-taak splitst in werkblok-segmenten (pauzes/nachten vallen als gaten
     // weg) volgens de instelling; dag-taken en niet-gesplitste uur-taken zijn één doorlopend segment.
@@ -1370,51 +1376,53 @@ export class GanttRenderer {
       ctx.restore();
     }
 
-    const progressEnd = x1 + width * task.time.completion;
+    // Balkweergave: elk vlak (een werkblok, of in resource-modus een kleurstuk daarbinnen) krijgt
+    // een LICHTE vulling en een DONKERE rand uit zijn eigen basiskleur (`barTones`, af te stemmen
+    // met `BAR_TONE_STEP`); het voltooide deel wordt egaal in diezelfde donkere tint gevuld. Zo
+    // blijft voortgang zichtbaar in elke kleurmodus en elk thema zonder een aparte
+    // voortgangskleur. Elk vlak werpt een zachte slagschaduw (`BAR_SHADOW_*`).
+    const progressEnd = task.time.completion > 0 ? x1 + width * task.time.completion : -Infinity;
+    const paintPiece = (px1: number, px2: number, base: string, radius: number): void => {
+      const w = px2 - px1;
+      const tones = barTones(base);
+      // De slagschaduw hoort bij de vulling zelf (geen extra vlak): rand en voortgang erna
+      // tekenen zonder schaduw.
+      ctx.save();
+      ctx.shadowColor = BAR_SHADOW_COLOR;
+      ctx.shadowBlur = BAR_SHADOW_BLUR;
+      ctx.shadowOffsetY = BAR_SHADOW_OFFSET_Y;
+      ctx.fillStyle = tones.fill;
+      ctx.beginPath();
+      ctx.roundRect(px1, y, w, height, radius);
+      ctx.fill();
+      ctx.restore();
+      const doneTo = Math.min(px2, progressEnd);
+      if (doneTo > px1) {
+        ctx.fillStyle = tones.outline;
+        ctx.beginPath();
+        ctx.roundRect(px1, y, doneTo - px1, height, radius);
+        ctx.fill();
+      }
+      ctx.strokeStyle = tones.outline;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(px1 + 0.5, y + 0.5, Math.max(w - 1, 0), height - 1, radius);
+      ctx.stroke();
+    };
     for (const s of segs) {
       const sw = Math.max(s.x2 - s.x1, split ? 2 : 4);
       if (modeSegments.length > 0) {
-        // Resource-modus: kleursegmenten binnen dít werkblok (overlap van elk kleurinterval met
+        // Resource-modus: kleurstukken binnen dít werkblok (overlap van elk kleurinterval met
         // [s.x1, s.x2]) — uur-split-gaten blijven zo gaten, precies als bij een enkele kleur.
         for (let mi = 0; mi < modeSegments.length; mi++) {
           const ms = modeSegments[mi];
           const ox1 = Math.max(ms.cx1, s.x1);
           const ox2 = Math.min(ms.cx2, s.x2);
           if (ox2 - ox1 < 0.5) continue;
-          ctx.fillStyle = ms.color;
-          ctx.beginPath();
-          ctx.roundRect(ox1, y, ox2 - ox1, height, mi === 0 ? 3 : 0);
-          ctx.fill();
+          paintPiece(ox1, ox2, ms.color, mi === 0 ? 3 : 0);
         }
       } else {
-        // Segment-achtergrond
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.roundRect(s.x1, y, sw, height, 3);
-        ctx.fill();
-      }
-      // Voortgangsvulling: het deel van dit segment links van de globale voortgangsgrens.
-      if (task.time.completion > 0 && progressEnd > s.x1) {
-        const pw = Math.min(s.x1 + sw, progressEnd) - s.x1;
-        if (pw > 0 && modeSegments.length > 0) {
-          // Resource-modus: elk kleursegment krijgt de vulling uit zijn eigen kleur.
-          const px2 = s.x1 + pw;
-          for (let mi = 0; mi < modeSegments.length; mi++) {
-            const ms = modeSegments[mi];
-            const ox1 = Math.max(ms.cx1, s.x1);
-            const ox2 = Math.min(ms.cx2, px2);
-            if (ox2 - ox1 < 0.5) continue;
-            ctx.fillStyle = progressFor(ms.color);
-            ctx.beginPath();
-            ctx.roundRect(ox1, y, ox2 - ox1, height, mi === 0 ? 3 : 0);
-            ctx.fill();
-          }
-        } else if (pw > 0) {
-          ctx.fillStyle = progressColor;
-          ctx.beginPath();
-          ctx.roundRect(s.x1, y, pw, height, 3);
-          ctx.fill();
-        }
+        paintPiece(s.x1, s.x1 + sw, color, 3);
       }
     }
 
@@ -1462,7 +1470,7 @@ export class GanttRenderer {
     // wordt daar ook in de zichtbaarheidstest gebruikt.
     if (floatWidth > 0) {
       // Ingetogen speling: halve balkhoogte, verticaal gecentreerd. Een lichte vulling (25%
-      // dekking) met daarover een kruisarcering in dezelfde kleur (`getFloatHatch`): de band
+      // dekking) met daarover een kruisarcering in dezelfde kleur (`getCrossHatch`): de band
       // leest zo als "ruimte", niet als tweede balk, en blijft ook zonder kleurwaarneming
       // herkenbaar. Oorspronkelijke afweging (egale vulling op 60%) hieronder. Veel hoger
       // domineert de groene band het beeld: hij is vaak veel BREDER dan de balk zelf, dus een even
@@ -1479,7 +1487,7 @@ export class GanttRenderer {
       // De band is bewust geen tekstdrager, dus 3:1 is hier geen eis; 1,5:1 is wél te weinig.
       ctx.fillStyle = this.colors.float + '40'; // 0.25 alpha
       ctx.fillRect(x2, y + height / 4, floatWidth, height / 2);
-      const hatch = getFloatHatch(ctx, this.colors.float);
+      const hatch = getCrossHatch(ctx, this.colors.float + '40', FLOAT_HATCH_SIZE); // lijnen op 0.25 alpha
       if (hatch) {
         ctx.fillStyle = hatch;
         ctx.fillRect(x2, y + height / 4, floatWidth, height / 2);
@@ -1522,18 +1530,13 @@ export class GanttRenderer {
 
     // Task name on bar (if wide enough) — ellips i.p.v. een harde clip-snede.
     if (width > 40) {
-      // Labelkleur volgt de BALK, niet een vaste witte hex. Op de vijf standaard-balktinten kiest
-      // `barLabelColor` vanzelf wit, maar op nearCritical, ghost en de trace-/float-pad-tinten
-      // juist zwart — en in de kleurmodi komt de balkkleur helemaal uit projectdata (zie
-      // `barLabelColor` in themePalette.ts voor de gemeten verhoudingen). Kies de kleur daarom op
-      // het vlak dat de gebruiker ONDER het label ziet:
-      // dat is de voortgangsvulling zodra die tot voorbij de tekststart loopt, anders de
-      // (mogelijk moduseigen) balkkleur. `compositeOver` lost de terugvallaag (rgba, bij een
-      // niet-hex balkkleur) op tot een echte hex; een hex-vulling komt ongewijzigd terug.
-      const baseUnderLabel = modeSegments.length > 0 ? modeSegments[0].color : color;
-      const underLabel = task.time.completion > 0 && progressEnd > x1 + 6
-        ? compositeOver(progressFor(baseUnderLabel), baseUnderLabel)
-        : baseUnderLabel;
+      // Labelkleur volgt het vlak ONDER de tekststart: de donkere voortgangstint zodra de voortgang
+      // daar voorbij loopt, anders de lichte vulling van het eerste stuk (`barTones`). In de
+      // kleurmodi komt de basiskleur uit projectdata, dus de keuze (zwart of wit) blijft per balk.
+      // De halo in `drawBarName` houdt het label leesbaar waar het over de voortgangsgrens loopt.
+      // Basiskleur van het eerste vlak (in resource-modus het eerste kleurstuk).
+      const tonesUnderLabel = barTones(modeSegments.length > 0 ? modeSegments[0].color : color);
+      const underLabel = progressEnd > x1 + 6 ? tonesUnderLabel.outline : tonesUnderLabel.fill;
       this.drawBarName(task.name, barLabelColor(underLabel), x1, y, width, height, y + height / 2);
     }
     return resourceAccentHeight;

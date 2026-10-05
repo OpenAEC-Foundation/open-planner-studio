@@ -11,18 +11,19 @@ g.getComputedStyle = () => ({ getPropertyValue: () => '' });
 
 import { useAppStore } from '@/state/appStore';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
-import { readGanttPalette } from '@/engine/renderer/themePalette';
+import { readGanttPalette, barTones } from '@/engine/renderer/themePalette';
 
 const S = () => useAppStore.getState();
 let checks = 0;
 const fails: string[] = [];
 const ok = (label: string, cond: boolean, detail = '') => { checks++; if (!cond) fails.push(`${label}${detail ? `: ${detail}` : ''}`); };
 
-const BAR = new Set(['#b0b0b0', '#b1b1b1']);
+// Balkvlakken zijn de lichte tint van de basiskleur (`barTones`).
+const BAR = new Set(['#b0b0b0', '#b1b1b1'].map(c => barTones(c).fill.toLowerCase()));
 const ARROW = new Set(['#a0a0a0', '#b0b0b0']);
 const palette = {
   ...readGanttPalette(), normal: '#b1b1b1', critical: '#b0b0b0', dependency: '#a0a0a0',
-  normalLight: '#010101', criticalLight: '#010102', nearCritical: '#010103', milestone: '#010104',
+  nearCritical: '#010103', milestone: '#010104',
   float: '#010105', baseline: '#010106', selected: '#010107', ghost: '#010108',
 };
 

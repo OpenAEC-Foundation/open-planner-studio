@@ -1,8 +1,7 @@
 // Thema-balktinten: de CSS-overrides en de tekenlaag mogen niet uit elkaar lopen.
 //
 // De balkkleuren komen uit `BRAND`, maar `readGanttPalette` leest ze via een thema-var met BRAND
-// als fallback (`--theme-bar-critical`, `-normal`, `-complete`, `-milestone`, `-baseline`,
-// `-critical-progress`, `-float`). Licht en donker definiëren die vars bewust NIET en vallen dus
+// als fallback (`--theme-bar-critical`, `-normal`, `-milestone`, `-baseline`, `-float`). Licht en donker definiëren die vars bewust NIET en vallen dus
 // terug op BRAND; het hoog-contrastthema zet ze wél, omdat de verzadigde merkset op #0a0a0a door
 // de 3:1 heen zakt.
 //
@@ -11,8 +10,8 @@
 //   1. de tekenlaag valt zonder CSS terug op exact de BRAND-hexen (het licht/donker-pad);
 //   2. elk thema dat een balktint overschrijft, haalt op ZIJN EIGEN kaartkleur minstens 3:1 —
 //      voor hoog contrast met een strengere lat, want dat thema bestaat juist daarvoor;
-//   3. de balk en zijn voortgangsvulling blijven onderling te onderscheiden (RGB-afstand én
-//      WCAG >= PROGRESS_MIN_CONTRAST, in elk thema).
+//   3. de taakbalk leidt vulling, rand en voortgang af met `barTones`; ook op de tinten die een
+//      thema zelf zet blijven vulling en rand/voortgang onderling te onderscheiden.
 //
 // Draait via run.sh. Exit 0 = alles groen.
 
@@ -20,7 +19,7 @@ const g = globalThis as unknown as Record<string, unknown>;
 g.document = { documentElement: {} };
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
 
-import { readGanttPalette, contrastRatio, PROGRESS_MIN_CONTRAST } from '@/engine/renderer/themePalette';
+import { readGanttPalette, contrastRatio, barTones } from '@/engine/renderer/themePalette';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -40,10 +39,6 @@ const rgbOf = (hex: string): [number, number, number] => {
   const h = hex.replace('#', '');
   return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
 };
-const dist = (a: string, b: string): number => {
-  const [r1, g1, b1] = rgbOf(a); const [r2, g2, b2] = rgbOf(b);
-  return Math.round(Math.hypot(r1 - r2, g1 - g2, b1 - b2));
-};
 
 // ── 1. Zonder CSS: de tekenlaag levert exact de BRAND-hexen ─────────────────
 // Dit is het licht/donker-pad (die thema's zetten de balk-vars niet). Zakt hier iets weg, dan is
@@ -51,17 +46,9 @@ const dist = (a: string, b: string): number => {
 {
   const p = readGanttPalette();
   eq('fallback critical', p.critical, '#DC2626');
-  eq('fallback criticalLight', p.criticalLight, '#7F1D1D');
   eq('fallback normal', p.normal, '#2563EB');
-  eq('fallback normalLight', p.normalLight, '#1E3A8A');
-  eq('fallback complete', p.complete, '#1E3A8A');
   eq('fallback milestone', p.milestone, '#7C3AED');
   eq('fallback baseline', p.baseline, '#6B7280');
-  eq('complete en normalLight delen één bron', p.complete, p.normalLight);
-  const kr = contrastRatio(rgbOf(p.critical), rgbOf(p.criticalLight));
-  const nr = contrastRatio(rgbOf(p.normal), rgbOf(p.normalLight));
-  ok(`BRAND: kritiek vs voortgangsvulling ${kr.toFixed(2)} >= ${PROGRESS_MIN_CONTRAST}`, kr >= PROGRESS_MIN_CONTRAST);
-  ok(`BRAND: normaal vs voltooid ${nr.toFixed(2)} >= ${PROGRESS_MIN_CONTRAST}`, nr >= PROGRESS_MIN_CONTRAST);
 }
 
 // ── 2. De themablokken uit globals.css ──────────────────────────────────────
@@ -81,9 +68,11 @@ function themeBlock(selector: string): Record<string, string> {
 }
 
 const BALK_VARS = [
-  '--theme-bar-critical', '--theme-bar-critical-progress', '--theme-bar-normal',
-  '--theme-bar-complete', '--theme-bar-milestone', '--theme-bar-baseline',
+  '--theme-bar-critical', '--theme-bar-normal', '--theme-bar-milestone', '--theme-bar-baseline',
 ] as const;
+
+/** Ondergrens vulling↔rand/voortgang van `barTones` op een themetint (zie check-bar-tones). */
+const BAR_TONE_MIN_CONTRAST = 2.5;
 
 // Elk thema met zijn eigen kaartkleur en de lat die daar geldt. Hoog contrast bestaat om de norm
 // te halen, dus daar 7:1 in plaats van de 3:1-ondergrens voor grafische objecten.
@@ -106,18 +95,14 @@ for (const { selector, kaart, lat, moetZetten } of THEMAS) {
     ok(`${selector} ${v} (${vars[v]}) haalt ${ratio.toFixed(2)} >= ${lat} op ${kaart}`, ratio >= lat);
   }
 
-  // Balk en voortgangsvulling moeten uit elkaar te houden zijn, anders is voortgang onzichtbaar.
-  if (vars['--theme-bar-critical'] && vars['--theme-bar-critical-progress']) {
-    const d = dist(vars['--theme-bar-critical'], vars['--theme-bar-critical-progress']);
-    ok(`${selector}: kritiek vs zijn voortgangsvulling onderscheidbaar (RGB-afstand ${d} >= 60)`, d >= 60);
-    const c = contrastRatio(rgbOf(vars['--theme-bar-critical']), rgbOf(vars['--theme-bar-critical-progress']));
-    ok(`${selector}: kritiek vs zijn voortgangsvulling ${c.toFixed(2)} >= ${PROGRESS_MIN_CONTRAST}`, c >= PROGRESS_MIN_CONTRAST);
-  }
-  if (vars['--theme-bar-normal'] && vars['--theme-bar-complete']) {
-    const d = dist(vars['--theme-bar-normal'], vars['--theme-bar-complete']);
-    ok(`${selector}: normaal vs voltooid onderscheidbaar (RGB-afstand ${d} >= 60)`, d >= 60);
-    const c = contrastRatio(rgbOf(vars['--theme-bar-normal']), rgbOf(vars['--theme-bar-complete']));
-    ok(`${selector}: normaal vs voltooid ${c.toFixed(2)} >= ${PROGRESS_MIN_CONTRAST}`, c >= PROGRESS_MIN_CONTRAST);
+  // De taakbalk tekent een lichte vulling met donkere rand en voortgang uit elke tint; die twee
+  // moeten ook op de thema-eigen tinten uit elkaar te houden zijn, anders is voortgang onzichtbaar.
+  for (const v of ['--theme-bar-critical', '--theme-bar-normal'] as const) {
+    if (!vars[v]) continue;
+    const t = barTones(vars[v]);
+    const c = contrastRatio(rgbOf(t.fill), rgbOf(t.outline));
+    ok(`${selector} ${v}: vulling ${t.fill} vs rand/voortgang ${t.outline} ${c.toFixed(2)} >= ${BAR_TONE_MIN_CONTRAST}`,
+      c >= BAR_TONE_MIN_CONTRAST);
   }
 }
 
