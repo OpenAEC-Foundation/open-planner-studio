@@ -66,7 +66,11 @@ Een wijziging werkt direct. Er is geen knop *Toepassen* en geen *Annuleren*.
 
 **Benchmark…** — meet de prestaties van de rekenmotor. Effect: opent een venster waarin je een testplanning van een gekozen grootte laat genereren en de kernfasen laat meten. Je geopende project blijft onaangeroerd. Het is een knop, geen instelling: er is niets om te onthouden. Waar: *Geavanceerd*, onder *Benchmark*.
 
-**Statistieken…** — hoe vaak de app is gedownload. Effect: opent een venster met openbare downloadcijfers per besturingssysteem en per release, uit GitHub Releases. Er wordt niets van jou verzameld. Het is een knop, geen instelling. Waar: *Geavanceerd*, onder *Statistieken*.
+**Statistieken…** — hoe vaak de app is gedownload. Effect: opent het venster *Downloadstatistieken* met openbare cijfers uit GitHub Releases; er wordt niets van jou verzameld. Het is een knop, geen instelling. Waar: *Geavanceerd*, onder *Statistieken*. In het venster:
+
+- *Downloads per besturingssysteem* — per systeem de kolommen *Downloads*, *Installers* (wat een mens downloadt) en *Updates* (wat de updater in de app ophaalt), met een *Totaal*. Bij Linux zijn die twee niet te scheiden: de updater haalt hetzelfde `.deb`-, `.rpm`- of `.AppImage`-bestand op dat mensen ook met de hand downloaden, dus daar telt alleen het snap-bestand als installer. Daaronder *Updatecontroles vanuit de app*: hoe vaak de updater in een geïnstalleerde app het versiebestand van GitHub heeft opgehaald om naar een nieuwe versie te kijken. Dat zijn controles, geen installaties.
+- *Per release* — dezelfde downloads per versie, met de datum; eerst de zes nieuwste, met *Alle … releases tonen* voor de rest.
+- *Bron* — de datum van de cijfers (GitHub Releases, wekelijks bijgewerkt) en *Nu vernieuwen*. De app onthoudt de opgehaalde cijfers een half uur. Lukt ophalen niet, dan meldt het venster dat. Installaties via de Snap Store lopen niet via GitHub en ontbreken.
 
 **Rondleiding starten** — de introductierondleiding opnieuw. Effect: sluit het instellingenvenster en start de rondleiding vanaf de eerste stap. Waar: *Geavanceerd*, onder *Rondleiding*.
 
