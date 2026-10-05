@@ -128,6 +128,9 @@ GitHub Releases-API; de workflow publiceert de JSON wekelijks naar de `stats`-da
   (updater + Snap Store). Releasetekst in `docs/release-notes/v<versie>.md`; `docs/CHANGELOG.md` alleen bij release.
 - Gebruikersterm is "resourcebibliotheek"; code/IFC zeggen nog `companyId`/`companyName`.
 - Schermbewijs bij een PR: `artifacts/<onderwerp>/`, PNG ≤ ~150 KB, een handvol; lokale QA-screenshots in `qa/`.
+- **Bijvangst ⇒ `knownbugs.md`.** Alles wat je tegenkomt en niet bij je eigen taak hoort (bugs, vreemd gedrag,
+  verouderde teksten of docs, wensen) zet je daar, met nummer en zekerheid (B/S); niet stilletjes meefixen. Opgelost?
+  Haal het punt weg in de PR van de fix. Kijk er ook eerst in vóór je een "nieuwe" bug meldt.
 
 ## Waar de diepgang staat
 

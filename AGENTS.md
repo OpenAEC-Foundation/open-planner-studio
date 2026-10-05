@@ -130,6 +130,10 @@ const isTauri = () => '__TAURI_INTERNALS__' in window;
 
 ## Conventions
 
+- **Side findings go to [`knownbugs.md`](knownbugs.md).** Anything you run into that is not part of your own
+  task (bugs, odd behaviour, stale text or docs, wishes) gets an entry there, numbered and marked B (confirmed) or
+  S (reported only); do not quietly fix it in an unrelated PR. A PR that fixes an entry removes it. Check the file
+  before reporting a "new" bug.
 - Path alias **`@/` → `src/`** (in both `vite.config.ts` and `tsconfig.json`).
   Use it consistently.
 - **Working language is Dutch** for code comments, commit messages, and the
