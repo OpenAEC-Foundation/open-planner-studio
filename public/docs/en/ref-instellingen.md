@@ -66,7 +66,11 @@ A change takes effect immediately. There is no *Apply* button and no *Cancel*.
 
 **Benchmark…** — measures the performance of the scheduling engine. Effect: opens a window in which you have a test schedule of a chosen size generated and the core phases measured. Your open project is left untouched. It is a button, not a setting: there is nothing to remember. Where: *Advanced*, under *Benchmark*.
 
-**Statistics…** — how often the app has been downloaded. Effect: opens a window with public download figures per operating system and per release, from GitHub Releases. Nothing is collected from you. It is a button, not a setting. Where: *Advanced*, under *Statistics*.
+**Statistics…** — how often the app has been downloaded. Effect: opens the window *Download statistics* with public figures from GitHub Releases; nothing is collected from you. It is a button, not a setting. Where: *Advanced*, under *Statistics*. In the window:
+
+- *Downloads per operating system* — per system the columns *Downloads*, *Installers* (what a person downloads) and *Updates* (what the updater in the app fetches), with a *Total*. On Linux the two cannot be separated: the updater fetches the same `.deb`, `.rpm` or `.AppImage` file that people also download by hand, so there only the snap file counts as an installer. Below it *Update checks from the app*: how often the updater in an installed app has fetched the version file from GitHub to look for a new version. Those are checks, not installs.
+- *Per release* — the same downloads per version, with the date; first the six newest, with *Show all … releases* for the rest.
+- *Source* — the date of the figures (GitHub Releases, updated weekly) and *Refresh now*. The app keeps fetched figures for half an hour. If fetching fails, the window says so. Installs via the Snap Store do not go through GitHub and are missing.
 
 **Start tour** — the introductory tour again. Effect: closes the settings window and starts the tour from the first step. Where: *Advanced*, under *Tour*.
 

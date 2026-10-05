@@ -44,6 +44,10 @@ Be careful with *after*: that box lengthens or shortens the piece of work before
 
 Right-click the break in the Gantt, or the piece after it, and choose *Remove break*. *Remove all breaks* is in the right-click menu of every bar that has a break. Or use the *Breaks* block in the *Properties* panel, as above.
 
+### With an AI assistant
+
+A connected AI assistant sets breaks with the tool `planner_set_task_splits`, in the same form as the panel: after how many work days (or work hours) of work, and how many work days (or work hours) of pause. It always gives the whole list; an empty list removes all breaks. It reads them back with `planner_get_task`. The same rules apply as below: a task you cannot split, the assistant cannot split either. How to connect an assistant is in [Connecting an AI assistant (MCP)](docs://howto-ai-assistent-koppelen).
+
 ## Pitfalls and what the app does
 
 **Not every task can be split.** You cannot split a milestone, a summary task, a task with *Hammock (derived duration)* on (see [Creating a hammock](docs://howto-hammock)), a task with duration type *Elapsed time*, a task that is *Manually scheduled*, or a task shorter than two work days. In split mode the mouse shows a not-allowed cursor and nothing happens. For such a task the *Breaks* block is also missing in *Properties*.

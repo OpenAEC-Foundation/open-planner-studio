@@ -44,6 +44,10 @@ Pas op met *na*: dat vak verlengt of verkort het werkstuk vóór de pauze, en da
 
 Klik met de rechtermuisknop op de onderbreking in de Gantt, of op het stuk erna, en kies *Onderbreking opheffen*. *Alle onderbrekingen opheffen* staat in het rechtermuismenu van elke balk met een onderbreking. Of gebruik het blok *Onderbrekingen* in het paneel *Eigenschappen*, zoals hierboven.
 
+### Met een AI-assistent
+
+Een gekoppelde AI-assistent zet onderbrekingen met de tool `planner_set_task_splits`, in dezelfde vorm als het paneel: na hoeveel werkdagen (of werkuren) werk, en hoeveel werkdagen (of werkuren) pauze. Hij geeft telkens de hele lijst; een lege lijst heft alle onderbrekingen op. Teruglezen doet hij met `planner_get_task`. Dezelfde regels gelden als hieronder: een taak die je niet kunt splitsen, kan de assistent ook niet splitsen. Hoe je een assistent koppelt, staat in [Een AI-assistent koppelen (MCP)](docs://howto-ai-assistent-koppelen).
+
 ## Valkuilen en wat de app dan doet
 
 **Niet elke taak is te splitsen.** Een mijlpaal, een samenvattingstaak, een taak waarbij *Hammock (afgeleide duur)* aan staat (zie [Een hammock maken](docs://howto-hammock)), een taak met duurtype *Verstreken tijd*, een taak die *Handmatig gepland* is en een taak korter dan twee werkdagen kun je niet splitsen. In de splitsmodus toont de muis dan een verbodscursor en er gebeurt niets. Bij zo'n taak ontbreekt ook het blok *Onderbrekingen* in *Eigenschappen*.
