@@ -103,16 +103,16 @@ test('add_dependencies/update_dependencies-descriptions beloven de HUIDIGE weige
     assert(def !== undefined, `tool '${name}' ontbreekt in de registry`);
     const desc = def!.description ?? '';
     assert(
-      /voorouder/i.test(desc),
+      /ancestor/i.test(desc),
       `'${name}': description noemt de voorouder-weigering niet: ${desc}`,
     );
     assert(
-      /verzameltaak.{0,80}TOEGESTAAN|TOEGESTAAN.{0,80}verzameltaak/i.test(desc),
+      /summary task.{0,80}ALLOWED|ALLOWED.{0,80}summary task/i.test(desc),
       `'${name}': description zegt niet expliciet dat een verzameltaak-eindpunt is toegestaan: ${desc}`,
     );
     // De oude, nu onjuiste claim ("verzameltaak ... wordt/is ... geweigerd") mag niet meer voorkomen.
     assert(
-      !/verzameltaak[^.]{0,80}geweigerd/i.test(desc),
+      !/(?<!ancestor )summary task[^.]{0,80}refused/i.test(desc),
       `'${name}': description belooft nog steeds dat een verzameltaak-eindpunt geweigerd wordt: ${desc}`,
     );
   }
@@ -167,7 +167,7 @@ test('een duplicate-born document slaat de auto-backup over', async () => {
 /** Tools die per spec §Compositie nooit een batch-stap zijn en dus geen kern hoeven te hebben. */
 const NO_CORE_EXPECTED = new Set([
   'planner_save_baseline',   // batchable: false — een baseline hoort een losse, bewuste nulmeting te zijn
-  'planner_undo', 'planner_redo', 'planner_run_cpm',
+  'planner_undo', 'planner_redo',
   'planner_export_ifc', 'planner_import_schedule',
   'planner_new_document', 'planner_switch_document', 'planner_duplicate_document', 'planner_list_documents',
   'planner_batch',

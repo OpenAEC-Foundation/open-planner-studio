@@ -313,7 +313,7 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
 
     enterMcpTransaction() {
       if (activeMcpLease) {
-        throw new Error('MCP-transactie is niet herintreedbaar binnen dezelfde store-runtime');
+        throw new Error('MCP transaction is not re-entrant within the same store runtime');
       }
       const lease: ActiveMcpLease = {
         token: Symbol('mcp-transaction'),

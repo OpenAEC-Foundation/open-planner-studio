@@ -71,7 +71,7 @@ test('K3: leeg progress-object ⇒ weigering (was: touchesProgress=false ⇒ app
   const res = await call('planner_update_tasks', { updates: [{ id, progress: {} }] });
   assertEq(okData(res).updated, [], 'niets bijgewerkt');
   assertEq(rejections(res).length, 1, 'één weigering');
-  assert(/leeg|minstens/.test(rejections(res)[0].reason), `reden: ${rejections(res)[0].reason}`);
+  assert(/empty|at least/.test(rejections(res)[0].reason), `reden: ${rejections(res)[0].reason}`);
 });
 
 test('K3: leeg progress-object omzeilt de STATUSDATUM-guard niet meer', async () => {
@@ -114,7 +114,7 @@ test('K3: onzin-datum in progress ⇒ weigering met reden (geen stille verdampin
   store.getState().setProject({ statusDate: '2027-01-01' });
   const res = await call('planner_update_tasks', { updates: [{ id, progress: { actualStart: 'gisteren' } }] });
   assertEq(okData(res).updated, [], 'niets bijgewerkt');
-  assert(/ISO-datum/.test(rejections(res)[0].reason), `reden: ${rejections(res)[0].reason}`);
+  assert(/ISO date/.test(rejections(res)[0].reason), `reden: ${rejections(res)[0].reason}`);
 });
 
 // =================================================================================================
@@ -206,7 +206,7 @@ test('H1: dedup werkt over de NOTATIEGRENS heen (FS na FINISH_START is een dupli
   const res = await call('planner_add_dependencies', { dependencies: [{ predecessorId: a, successorId: b, type: 'FS' }] });
   assertEq(okData(res).added, [], 'geen tweede relatie');
   assertEq(store.getState().sequences.length, 1, 'nog steeds één relatie');
-  assert(/bestond al/.test(rejections(res)[0].reason), `reden: ${rejections(res)[0].reason}`);
+  assert(/already existed/.test(rejections(res)[0].reason), `reden: ${rejections(res)[0].reason}`);
 });
 
 test('H1: een écht onbekend type blijft geweigerd, mét de geldige verzameling in de reden', async () => {

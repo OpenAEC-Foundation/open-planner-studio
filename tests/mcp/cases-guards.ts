@@ -49,7 +49,7 @@ test('validate.taskExists: bestaand id ⇒ null, onbekend id ⇒ {id, reason}', 
   const id = store.getState().addTask({ name: 'bestaat' });
   assertEq(validate.taskExists(store.getState(), id), null, 'bestaand id hoort null (geen fout) te geven');
   const err = validate.taskExists(store.getState(), 'geen-taak');
-  assert(err !== null && err.id === 'geen-taak' && /onbekend|bestaat niet|niet gevonden/i.test(err.reason),
+  assert(err !== null && err.id === 'geen-taak' && /unknown|does not exist|not found/i.test(err.reason),
     'onbekend id hoort een {id, reason}-fout te geven die het id benoemt');
 });
 
@@ -169,7 +169,7 @@ test('validate.assignmentAllowed weigert de DUBBELE toewijzing (duplicaat = dubb
 
   // De guard weigert de tweede toewijzing (op een staat waarin de resource er al op zit).
   const second = validate.assignmentAllowed(store.getState(), t, r, 2);
-  assert(!second.ok && /al toegewezen|dubbel|reeds|bestaan/i.test(second.ok ? '' : second.reason),
+  assert(!second.ok && /already assigned|double|already|exist/i.test(second.ok ? '' : second.reason),
     'assignmentAllowed hoort de dubbele toewijzing te weigeren met een duidelijke reden');
 });
 

@@ -164,7 +164,7 @@ test('geneste runInMcpTransaction gooit en laat store/stacks onaangeroerd', () =
     assert(false, 'buitenste transactie hoort te falen op de geneste weigering');
     return;
   }
-  assert(res.error.includes('herintreedbaar'), 'foutmelding hoort de reentrancy-weigering te noemen');
+  assert(res.error.includes('re-entrant'), 'foutmelding hoort de reentrancy-weigering te noemen');
   assertEq(
     JSON.stringify(createSnapshot(store.getState())),
     beforeSnap,
@@ -302,7 +302,7 @@ test('nested run op hetzelfde factoryobject propageert en rolt outer B terug; B 
     txB.run(() => txB.draft.addTask({ name: 'inner-zelfde-factory' }));
   });
 
-  assert(!outer.ok && /herintreedbaar/i.test(outer.error),
+  assert(!outer.ok && /re-entrant/i.test(outer.error),
     'de nested enter hoort de outer callback als fout te bereiken');
   assertEq(JSON.stringify(createSnapshot(B.store.getState())), voor,
     'de outer call hoort volledig terug te rollen na de nested weigering');
@@ -325,7 +325,7 @@ test('tweede factory op dezelfde B-runtime kan reentrancy niet omzeilen', () => 
     txB2.run(() => txB2.draft.addTask({ name: 'inner-tweede-factory' }));
   });
 
-  assert(!outer.ok && /herintreedbaar/i.test(outer.error),
+  assert(!outer.ok && /re-entrant/i.test(outer.error),
     'de tweede factory hoort op B\'s actieve runtimelease geweigerd te worden');
   assertEq(JSON.stringify(createSnapshot(B.store.getState())), voor,
     'de weigering via factory twee hoort de outer B-call volledig terug te rollen');

@@ -153,7 +153,7 @@ test('manage_assignments: unitsPerDay onder FIXED_WORK verkort de taak; remainin
   // Diepte-regel van de schemapoort (docs/recepten/mcp-tool.md): de BINNENKANT van een bulk-item is
   // aan de handler — dus een zachte weigering met reden, geen harde VALIDATION-fout.
   const rej0 = rejections(bad);
-  assert(rej0.length === 1 && rej0[0].reason.includes('strikt positief'), `0 zacht geweigerd met reden: ${rej0[0]?.reason}`);
+  assert(rej0.length === 1 && rej0[0].reason.includes('strictly positive'), `0 zacht geweigerd met reden: ${rej0[0]?.reason}`);
   const bad2 = await call('planner_manage_assignments', { actions: [{ action: 'update', assignmentId: a }] });
   const rej = rejections(bad2);
   assert(rej.length === 1 && rej[0].reason.includes('remainingWorkMinutes'), `lege update noemt het nieuwe veld: ${rej[0]?.reason}`);

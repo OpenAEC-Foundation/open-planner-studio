@@ -106,7 +106,7 @@ test('add_tasks: mijlpaal + duration > 0 ⇒ nette VALIDATION-fout, NIETS aangem
   });
   assertEq(res.ok, false, 'een mijlpaal met duur > 0 hoort te falen');
   assertEq((res as McpToolErr).code, 'VALIDATION', 'de code is VALIDATION (geen throw uit de draft-laag)');
-  assert(/mijlpaal/i.test((res as McpToolErr).error), `de fout benoemt de mijlpaal-regel: ${(res as McpToolErr).error}`);
+  assert(/milestone/i.test((res as McpToolErr).error), `de fout benoemt de mijlpaal-regel: ${(res as McpToolErr).error}`);
   assertEq(store.getState().tasks.length, before, 'er is geen enkele taak aangemaakt');
 
   const ok = await call('planner_add_tasks', { tasks: [{ tempId: 'tmp-m2', name: 'Oplevering', isMilestone: true }] });
@@ -174,7 +174,7 @@ test('update_tasks: onbekend veld ⇒ zachte weigering en GEEN enkele mutatie', 
   const rej = rejections(res);
   assertEq(rej.length, 1, 'precies één zachte weigering');
   assertEq(rej[0].id, id, 'de weigering noemt de taak');
-  assert(rej[0].reason.includes("onbekend veld 'duration_days'"), `bruikbare reden: ${rej[0].reason}`);
+  assert(rej[0].reason.includes("unknown field 'duration_days'"), `bruikbare reden: ${rej[0].reason}`);
   assert(/duration, durationUnit, durationType/.test(rej[0].reason), `de reden somt de toegestane velden op: ${rej[0].reason}`);
   const t = taskById(id)!;
   assertEq(t.name, 'Fundering', 'de naam is NIET gewijzigd (alles-of-niets per item)');
@@ -192,16 +192,16 @@ test('update_tasks: mspTaskType/effortDriven/timephasedContours zijn read-only (
   const id = seedTask('Fundering', 5);
 
   const res1 = await call('planner_update_tasks', { updates: [{ id, fields: { mspTaskType: 'FIXED_WORK' } }] });
-  assert(rejections(res1)[0].reason.includes("onbekend veld 'mspTaskType'"), `gerichte hint: ${rejections(res1)[0].reason}`);
+  assert(rejections(res1)[0].reason.includes("unknown field 'mspTaskType'"), `gerichte hint: ${rejections(res1)[0].reason}`);
   assert(/importdata|\.mpp/.test(rejections(res1)[0].reason), `de reden legt uit WAAROM: ${rejections(res1)[0].reason}`);
 
   const res2 = await call('planner_update_tasks', { updates: [{ id, fields: { effortDriven: true } }] });
-  assert(rejections(res2)[0].reason.includes("onbekend veld 'effortDriven'"), `gerichte hint: ${rejections(res2)[0].reason}`);
+  assert(rejections(res2)[0].reason.includes("unknown field 'effortDriven'"), `gerichte hint: ${rejections(res2)[0].reason}`);
 
   const res3 = await call('planner_update_tasks', {
     updates: [{ id, fields: { timephasedContours: [{ resourceUid: 1, periods: [] }] } }],
   });
-  assert(rejections(res3)[0].reason.includes("onbekend veld 'timephasedContours'"), `gerichte hint: ${rejections(res3)[0].reason}`);
+  assert(rejections(res3)[0].reason.includes("unknown field 'timephasedContours'"), `gerichte hint: ${rejections(res3)[0].reason}`);
 
   const t = taskById(id)!;
   assert(t.mspTaskType === undefined, 'mspTaskType niet gezet');
@@ -222,7 +222,7 @@ test('X9: p6DurationType/p6ActivityType zijn via de echte MCP-update runtime rea
       updates: [{ id, fields: { [field]: value } }],
     });
     const rejection = rejections(res)[0];
-    assert(rejection?.reason.includes(`onbekend veld '${field}'`), `de runtimeweigering noemt ${field}`);
+    assert(rejection?.reason.includes(`unknown field '${field}'`), `de runtimeweigering noemt ${field}`);
     assert(/P6|\.xer|importdata/.test(rejection?.reason ?? ''), `de runtimeweigering motiveert ${field}`);
     assertEq(okData(res).updated, [], `${field} is niet als toegepast gerapporteerd`);
   }
@@ -259,7 +259,7 @@ test('update_tasks: mijlpaal + duration > 0 ⇒ zachte weigering, mijlpaal blijf
   const res = await call('planner_update_tasks', { updates: [{ id, fields: { duration: 7 } }] });
   const rej = rejections(res);
   assertEq(rej.length, 1, 'geweigerd');
-  assert(/mijlpaal/i.test(rej[0].reason), `de reden noemt de mijlpaal-regel: ${rej[0].reason}`);
+  assert(/milestone/i.test(rej[0].reason), `de reden noemt de mijlpaal-regel: ${rej[0].reason}`);
   assertEq(taskById(id)!.time.scheduleDuration, 0, 'de mijlpaal houdt duur 0');
 });
 
@@ -313,11 +313,11 @@ test('durationUnit zonder duration en uren zonder werkblokken worden geweigerd z
   store.setState((s) => { delete s.calendar.workTime; s.calendar.workDays = []; });
   const id = seedTask('Dagen', 2);
   const unitOnly = await call('planner_update_tasks', { updates: [{ id, fields: { durationUnit: 'hours' } }] });
-  assert(/samen met `duration`/.test(rejections(unitOnly)[0].reason), 'unit-only legt de atomaire wijzigingsregel uit');
+  assert(/together with `duration`/.test(rejections(unitOnly)[0].reason), 'unit-only legt de atomaire wijzigingsregel uit');
   const noBlocks = await call('planner_update_tasks', {
     updates: [{ id, fields: { duration: 12, durationUnit: 'hours' } }],
   });
-  assert(/concrete werkblokken/.test(rejections(noBlocks)[0].reason), 'urentaak zonder blokken wordt gericht geweigerd');
+  assert(/concrete work blocks/.test(rejections(noBlocks)[0].reason), 'urentaak zonder blokken wordt gericht geweigerd');
   assertEq(taskById(id)!.time.durationUnit, 'days', 'de bestaande dagidentiteit bleef behouden');
   assertEq(taskById(id)!.time.scheduleDuration, 2, 'de bestaande daghoeveelheid bleef behouden');
 });
@@ -347,11 +347,11 @@ test('duration in dagen: een fractie wordt geaccepteerd en exact bewaard, en de 
     rejections(await call('planner_update_tasks', { updates: [{ id, fields: { time: { scheduleDuration: 2.5 } } }] }))[0]?.reason ?? '',
   ];
   for (const h of hints) {
-    assert(h !== '' && !/hele dagen/i.test(h), `de weigerhint belooft geen "hele dagen": ${h}`);
-    assert(/fractie/i.test(h), `de weigerhint zegt dat een fractie mag: ${h}`);
+    assert(h !== '' && !/whole days/i.test(h), `de weigerhint belooft geen "hele dagen": ${h}`);
+    assert(/fraction/i.test(h), `de weigerhint zegt dat een fractie mag: ${h}`);
   }
   const desc = String((TASK_FIELD_SCHEMA_PROPERTIES.duration as { description?: unknown }).description ?? '');
-  assert(/fractie/i.test(desc) && !/hele dagen/i.test(desc), `de schemabeschrijving van \`duration\` noemt de fractie: ${desc}`);
+  assert(/fraction/i.test(desc) && !/whole days/i.test(desc), `de schemabeschrijving van \`duration\` noemt de fractie: ${desc}`);
   assertEq(taskById(id)!.time.scheduleDuration, 0.5, 'de geweigerde pogingen veranderden niets');
 });
 
@@ -459,7 +459,7 @@ test('batch: een onbekend veld in update_tasks blijft een ZACHTE weigering (batc
   const data = okData(res);
   assertEq(data.steps.map((s: any) => s.status), ['uitgevoerd', 'uitgevoerd'], 'de batch loopt door');
   assert(
-    data.rejections.some((r: any) => r.reason.includes("onbekend veld 'duration_days'")),
+    data.rejections.some((r: any) => r.reason.includes("unknown field 'duration_days'")),
     `de weigering staat prominent in het batch-rapport: ${JSON.stringify(data.rejections)}`,
   );
   assertEq(byName('Fundering').time.scheduleDuration, 8, 'de duur is niet stilletjes gewijzigd');

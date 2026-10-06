@@ -99,30 +99,30 @@ function unknownKeyReason(item: Record<string, unknown>, action: string): string
   const allowed = ALLOWED_KEYS[action];
   const bad = Object.keys(item).filter((k) => !allowed.includes(k));
   if (bad.length === 0) return null;
-  return `onbekende sleutel(s) ${bad.map((k) => `\`${k}\``).join(', ')} bij actie '${action}'; ` +
-    `toegestaan zijn: ${allowed.join(', ')}`;
+  return `unknown key(s) ${bad.map((k) => `\`${k}\``).join(', ')} for action '${action}'; allowed are: ` +
+    `${allowed.join(', ')}`;
 }
 
 /** Vormvalidatie van de `availabilitySteps`-lijst; string = reden, anders de genormaliseerde lijst. */
 function parseAvailabilitySteps(raw: unknown): AvailabilityStep[] | string {
-  if (!Array.isArray(raw)) return '`availabilitySteps` moet een array zijn (of `null` om ze te wissen)';
+  if (!Array.isArray(raw)) return '`availabilitySteps` must be an array (or `null` to clear them)';
   const seen = new Set<string>();
   const out: AvailabilityStep[] = [];
   for (const s of raw) {
-    if (!s || typeof s !== 'object' || Array.isArray(s)) return 'elk item in `availabilitySteps` moet een object zijn';
+    if (!s || typeof s !== 'object' || Array.isArray(s)) return 'every item in `availabilitySteps` must be an object';
     const step = s as Record<string, unknown>;
     for (const k of Object.keys(step)) {
       if (k !== 'from' && k !== 'maxUnits') {
-        return `onbekende sleutel \`${k}\` in \`availabilitySteps\`; toegestaan zijn: from, maxUnits`;
+        return `unknown key \`${k}\` in \`availabilitySteps\`; allowed are: from, maxUnits`;
       }
     }
     if (typeof step.from !== 'string' || !ISO_DATE_ONLY.test(step.from)) {
-      return `\`availabilitySteps.from\` moet een ISO-datum zijn (JJJJ-MM-DD), kreeg '${String(step.from)}'`;
+      return `\`availabilitySteps.from\` must be an ISO date (YYYY-MM-DD), got '${String(step.from)}'`;
     }
     if (!isFiniteNumber(step.maxUnits) || step.maxUnits <= 0) {
-      return `\`availabilitySteps.maxUnits\` moet een getal > 0 zijn (eenheden per werkdag), kreeg '${String(step.maxUnits)}'`;
+      return `\`availabilitySteps.maxUnits\` must be a number > 0 (units per working day), got '${String(step.maxUnits)}'`;
     }
-    if (seen.has(step.from)) return `\`availabilitySteps\` bevat twee stappen met dezelfde datum '${step.from}'`;
+    if (seen.has(step.from)) return `\`availabilitySteps\` contains two steps with the same date '${step.from}'`;
     seen.add(step.from);
     out.push({ from: step.from, maxUnits: step.maxUnits });
   }
@@ -138,47 +138,47 @@ function parseFields(item: Record<string, unknown>): FieldPatch | string {
   const patch: FieldPatch = {};
 
   if (item.name !== undefined) {
-    if (typeof item.name !== 'string' || item.name.trim() === '') return '`name` moet een niet-lege string zijn';
+    if (typeof item.name !== 'string' || item.name.trim() === '') return '`name` must be a non-empty string';
     patch.name = item.name;
   }
   if (item.type !== undefined) {
     if (!(RESOURCE_TYPES as string[]).includes(item.type as string)) {
-      return `onbekend \`type\` '${String(item.type)}'; geldige waarden zijn ${RESOURCE_TYPES.join(', ')} (hoofdlettergevoelig)`;
+      return `unknown \`type\` '${String(item.type)}'; valid values are ${RESOURCE_TYPES.join(', ')} (case-sensitive)`;
     }
     patch.type = item.type;
   }
   if (item.description !== undefined) {
-    if (typeof item.description !== 'string') return '`description` moet een string zijn (gebruik "" om hem te legen)';
+    if (typeof item.description !== 'string') return '`description` must be a string (use "" to empty it)';
     patch.description = item.description;
   }
   if (item.maxUnits !== undefined) {
     if (!isFiniteNumber(item.maxUnits) || item.maxUnits <= 0) {
-      return `\`maxUnits\` moet een getal > 0 zijn (capaciteit per WERKDAG; 1 = 100% = één persoon/stuk), kreeg '${String(item.maxUnits)}'`;
+      return `\`maxUnits\` must be a number > 0 (capacity per WORKING DAY; 1 = 100% = one person/piece), got '${String(item.maxUnits)}'`;
     }
     patch.maxUnits = item.maxUnits;
   }
   if (item.costPerHour !== undefined) {
     if (item.costPerHour === null) patch.costPerHour = undefined;
     else if (!isFiniteNumber(item.costPerHour) || item.costPerHour < 0) {
-      return `\`costPerHour\` moet een getal ≥ 0 zijn (kosten per UUR) of \`null\` om het te wissen, kreeg '${String(item.costPerHour)}'`;
+      return `\`costPerHour\` must be a number ≥ 0 (cost per HOUR) or \`null\` to clear it, got '${String(item.costPerHour)}'`;
     } else patch.costPerHour = item.costPerHour;
   }
   if (item.unitOfMeasure !== undefined) {
     if (item.unitOfMeasure === null) patch.unitOfMeasure = undefined;
     else if (typeof item.unitOfMeasure !== 'string' || item.unitOfMeasure.trim() === '') {
-      return '`unitOfMeasure` moet een niet-lege string zijn (bijv. "m3", "ton") of `null` om hem te wissen';
+      return '`unitOfMeasure` must be a non-empty string (e.g. "m3", "ton") or `null` to clear it';
     } else patch.unitOfMeasure = item.unitOfMeasure;
   }
   if (item.calendarId !== undefined) {
     if (item.calendarId === null) patch.calendarId = undefined;
     else if (typeof item.calendarId !== 'string' || item.calendarId === '') {
-      return '`calendarId` moet een bestaand kalender-id zijn of `null` (= de projectkalender)';
+      return '`calendarId` must be an existing calendar id or `null` (= the project calendar)';
     } else patch.calendarId = item.calendarId;
   }
   if (item.parentId !== undefined) {
     if (item.parentId === null) patch.parentId = undefined;
     else if (typeof item.parentId !== 'string' || item.parentId === '') {
-      return '`parentId` moet het id van een CREW-resource zijn of `null` (= geen ploeg)';
+      return '`parentId` must be the id of a CREW resource or `null` (= no crew)';
     } else patch.parentId = item.parentId;
   }
   if (item.availabilitySteps !== undefined) {
@@ -241,17 +241,17 @@ function libraryLockReason(s: StoreState, resourceId: string, fields: FieldPatch
 
   const res = s.resources.find((r) => r.id === resourceId);
   const companyId = res?.libraryOrigin?.companyId;
-  const bedrijf = s.companies.find((c) => c.id === companyId)?.name ?? 'de bedrijfsbibliotheek';
+  const bedrijf = s.companies.find((c) => c.id === companyId)?.name ?? '(name unknown)';
   const projectVelden = RESOURCE_FIELD_KEYS.filter((k) => !(RESOURCE_DIFF_FIELDS as string[]).includes(k));
   return (
-    `resource '${resourceId}'${res ? ` ('${res.name}')` : ''} komt uit de bibliotheek van ${bedrijf}; ` +
-    `${geraakt.join(', ')} ${geraakt.length === 1 ? 'ligt' : 'liggen'} daar vast en ${geraakt.length === 1 ? 'is' : 'zijn'} ` +
-    'ook in het resourcepaneel niet te wijzigen (de bibliotheek bepaalt WAT een resource is). ' +
-    'Twee routes: wijzig het in de bibliotheek zelf (Backstage → Bibliotheek) — dat geldt dan voor ELK ' +
-    'project dat deze resource gebruikt, en die route heeft de bridge bewust niet, want dat raakt ook ' +
-    'projecten die nu niet openstaan; óf maak deze resource eerst los van de bibliotheek ' +
-    '("Losmaken van de bibliotheek" in de Resources-tab), waarna hij projecteigen en volledig ' +
-    `bewerkbaar is. Wél gewoon te wijzigen via deze tool: ${projectVelden.join(', ')} (projectinzet).`
+    `resource '${resourceId}'${res ? ` ('${res.name}')` : ''} comes from the resource library ${bedrijf}; ` +
+    `${geraakt.join(', ')} ${geraakt.length === 1 ? 'is' : 'are'} fixed there and cannot be changed in the ` +
+    'resource panel either (the library determines WHAT a resource is). Two routes: change it in the library ' +
+    'itself (Backstage → Library) — that then applies to EVERY project that uses this resource, and the ' +
+    'bridge deliberately does not offer that route, because it also affects projects that are not open now; ' +
+    'or first unlink this resource from the library ("Unlink from library" in the Resources tab), after ' +
+    'which it is project-owned and fully editable. Can still be changed via this tool: ' +
+    `${projectVelden.join(', ')} (project deployment).`
   );
 }
 
@@ -289,25 +289,25 @@ function classifyResources(
       const calId = patch.calendarId as string;
       if (!calendarIds.has(calId)) {
         const hint = calId === s.calendar.id
-          ? " — dit is wél de PROJECTkalender, maar die staat nog niet in de bibliotheek van dit document; " +
-            'gebruik `null` (dat betekent al "de projectkalender") of promoot hem eerst met planner_update_calendar'
-          : "; haal geldige id's op met planner_list_calendars, of maak er een met planner_update_calendar (`create: true`)";
-        return `kalender '${calId}' bestaat niet in dit document${hint}`;
+          ? ' — this IS the PROJECT calendar, but it is not yet in the library of this document; use `null` ' +
+            '(that already means "the project calendar") or promote it first with planner_update_calendar'
+          : '; get valid ids with planner_list_calendars, or create one with planner_update_calendar (`create: true`)';
+        return `calendar '${calId}' does not exist in this document${hint}`;
       }
     }
     if (patch.parentId !== undefined) {
       const pid = patch.parentId as string;
       const parent = sim.find((r) => r.id === pid);
-      if (!parent) return `ploeg '${pid}' bestaat niet; \`parentId\` moet het id van een bestaande CREW-resource zijn`;
+      if (!parent) return `crew '${pid}' does not exist; \`parentId\` must be the id of an existing CREW resource`;
       if (parent.type !== 'CREW') {
-        return `resource '${pid}' heeft type ${parent.type}; \`parentId\` mag alleen naar een CREW-resource wijzen (ploeg-lidmaatschap)`;
+        return `resource '${pid}' has type ${parent.type}; \`parentId\` may only point to a CREW resource (crew membership)`;
       }
-      if (pid === selfId) return 'een resource kan niet zijn eigen ploeg zijn';
-      if (wouldCycle(selfId, pid)) return `ploeg '${pid}' zit al onder deze resource; dat zou een kring in het ploeg-lidmaatschap maken`;
+      if (pid === selfId) return 'a resource cannot be its own crew';
+      if (wouldCycle(selfId, pid)) return `crew '${pid}' is already under this resource; that would create a cycle in the crew membership`;
     }
     if (patch.unitOfMeasure !== undefined && effectiveType !== 'MATERIAL') {
-      return `\`unitOfMeasure\` geldt alleen voor type MATERIAL (deze resource is ${effectiveType}) — ` +
-        'net als in het resourcepaneel, waar het veld dan uitgeschakeld is';
+      return `\`unitOfMeasure\` only applies to type MATERIAL (this resource is ${effectiveType}) — just ` +
+        'like in the resource panel, where the field is disabled then';
     }
     return null;
   };
@@ -315,13 +315,13 @@ function classifyResources(
   actions.forEach((raw, index) => {
     const at = `#${index}`;
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-      rejections.push({ id: at, reason: 'elk item moet een object zijn met een `action` (create | update | delete)' });
+      rejections.push({ id: at, reason: 'every item must be an object with an `action` (create | update | delete)' });
       return;
     }
     const item = raw as unknown as Record<string, unknown>;
     const action = item.action;
     if (action !== 'create' && action !== 'update' && action !== 'delete') {
-      rejections.push({ id: at, reason: `onbekende actie '${String(action)}' (create | update | delete)` });
+      rejections.push({ id: at, reason: `unknown action '${String(action)}' (create | update | delete)` });
       return;
     }
     const badKey = unknownKeyReason(item, action);
@@ -336,19 +336,19 @@ function classifyResources(
         if (typeof item.tempId !== 'string' || !TEMP_ID_PATTERN.test(item.tempId)) {
           rejections.push({
             id: String(item.tempId),
-            reason: `\`tempId\` '${String(item.tempId)}' voldoet niet aan de gereserveerde batch-syntax; ` +
-              'hij moet met `tmp-` of `tmp_` beginnen (bijv. `tmp-kraan-2`), zodat een volgende batch-stap ' +
-              'ernaar kan verwijzen zonder ooit gewone tekst te raken',
+            reason: `\`tempId\` '${String(item.tempId)}' does not follow the reserved batch syntax; it must ` +
+              'start with `tmp-` or `tmp_` (e.g. `tmp-crane-2`), so a next batch step can refer to it ' +
+              'without ever hitting ordinary text',
           });
           return;
         }
         if (sim.some((r) => r.id === item.tempId)) {
-          rejections.push({ id: item.tempId as string, reason: `\`tempId\` '${item.tempId}' is al eerder in deze call gebruikt` });
+          rejections.push({ id: item.tempId as string, reason: `\`tempId\` '${item.tempId}' was already used earlier in this call` });
           return;
         }
       }
       if (typeof item.name !== 'string' || item.name.trim() === '') {
-        rejections.push({ id: label, reason: '`create` vereist een niet-lege `name`' });
+        rejections.push({ id: label, reason: '`create` requires a non-empty `name`' });
         return;
       }
       const fields = parseFields(item);
@@ -366,12 +366,12 @@ function classifyResources(
 
     if (action === 'update') {
       if (typeof item.id !== 'string' || item.id === '') {
-        rejections.push({ id: at, reason: '`update` vereist een niet-lege string-`id` (exact het id uit planner_list_resources)' });
+        rejections.push({ id: at, reason: '`update` requires a non-empty string `id` (exactly the id from planner_list_resources)' });
         return;
       }
       const cur = sim.find((r) => r.id === item.id);
       if (!cur) {
-        rejections.push({ id: item.id, reason: `resource '${item.id}' bestaat niet; haal geldige id's op met planner_list_resources, of maak hem aan met \`action: "create"\`` });
+        rejections.push({ id: item.id, reason: `resource '${item.id}' does not exist; get valid ids with planner_list_resources, or create it with \`action: "create"\`` });
         return;
       }
       const fields = parseFields(item);
@@ -379,7 +379,7 @@ function classifyResources(
       if (Object.keys(fields).length === 0) {
         rejections.push({
           id: item.id,
-          reason: `geen wijzigingen opgegeven; geef minstens één van ${RESOURCE_FIELD_KEYS.join(', ')} mee`,
+          reason: `no changes given; pass at least one of ${RESOURCE_FIELD_KEYS.join(', ')}`,
         });
         return;
       }
@@ -401,7 +401,7 @@ function classifyResources(
 
     // action === 'delete'
     if (typeof item.id !== 'string' || item.id === '') {
-      rejections.push({ id: at, reason: '`delete` vereist een niet-lege string-`id`' });
+      rejections.push({ id: at, reason: '`delete` requires a non-empty string `id`' });
       return;
     }
     if (item.cascade !== undefined && typeof item.cascade !== 'boolean') {
@@ -410,11 +410,11 @@ function classifyResources(
     }
     const target = sim.find((r) => r.id === item.id);
     if (!target) {
-      rejections.push({ id: item.id, reason: `resource '${item.id}' bestaat niet (of is in deze call al verwijderd)` });
+      rejections.push({ id: item.id, reason: `resource '${item.id}' does not exist (or was already deleted in this call)` });
       return;
     }
     if (target.id.startsWith('\u0000') || TEMP_ID_PATTERN.test(target.id)) {
-      rejections.push({ id: item.id, reason: 'een resource die in dezelfde call is aangemaakt kan niet in diezelfde call worden verwijderd' });
+      rejections.push({ id: item.id, reason: 'a resource created in the same call cannot be deleted in that same call' });
       return;
     }
     // CASCADE-POORT. Een resource verwijderen sloopt óók toewijzingen op taken die de aanroeper
@@ -426,8 +426,8 @@ function classifyResources(
       const taskCount = new Set(attached.map((a) => a.taskId)).size;
       rejections.push({
         id: item.id,
-        reason: `resource '${item.id}' heeft nog ${attached.length} toewijzing(en) op ${taskCount} taak/taken; ` +
-          'verwijderen wist die toewijzingen MEE. Bevestig met `cascade: true`, of haal ze eerst weg met ' +
+        reason: `resource '${item.id}' still has ${attached.length} assignment(s) on ${taskCount} task(s); ` +
+          'deleting clears those assignments TOO. Confirm with `cascade: true`, or remove them first with ' +
           'planner_manage_assignments (`remove`).',
       });
       return;
@@ -449,7 +449,7 @@ function classifyResources(
 function parseManageResources(args: unknown): ResourceAction[] | string {
   const a = (args ?? {}) as { actions?: unknown };
   if (!Array.isArray(a.actions) || a.actions.length === 0) {
-    return 'manage_resources vereist een niet-lege `actions`-array';
+    return 'manage_resources requires a non-empty `actions` array';
   }
   return a.actions as ResourceAction[];
 }
@@ -512,7 +512,7 @@ function manageResourcesCore(ctx: McpContext, actions: ResourceAction[]): Mutati
     const before = ctx.app.store.getState().resources.find((r) => r.id === plan.id);
     if (!before) {
       // Kan alleen bij een defect in de classificatie — harde stapfout i.p.v. stil doorgaan.
-      throw new McpStepError('NOT_FOUND', `resource '${plan.id}' bestaat niet (na classificatie)`);
+      throw new McpStepError('NOT_FOUND', `resource '${plan.id}' does not exist (after classification)`);
     }
     const name = before.name;
     const diff = ctx.transactions.draft.removeResource(plan.id);
@@ -548,35 +548,31 @@ const EMPTY_DATA = { created: {}, resources: [], updated: [], deleted: [], remov
 const manageResources: BatchStepTool = {
   name: 'planner_manage_resources',
   description:
-    'Beheer de RESOURCES zelf in bulk — aanmaken, wijzigen, verwijderen (één call = één ' +
-    'ongedaan-maak-stap). Dit is de tegenhanger van planner_manage_assignments: die koppelt een ' +
-    'BESTAANDE resource aan een taak, deze tool maakt/wijzigt/verwijdert de resource. Per item één ' +
-    '`action`: `create` (verplicht `name`, optioneel `tempId` + alle velden), `update` (`id` + ' +
-    'minstens één veld) of `delete` (`id`, en `cascade: true` zodra er nog toewijzingen op zitten). ' +
-    'Velden: `name`, `type` (LABOR | EQUIPMENT | MATERIAL | SUBCONTRACTOR | CREW, default LABOR), ' +
-    '`description`, `maxUnits` (capaciteit per WERKDAG; 1 = 100% = één persoon/stuk, default 1), ' +
-    '`costPerHour` (kosten per UUR), `unitOfMeasure` (alleen voor MATERIAL), `calendarId` ' +
-    '(bestaande bibliotheek-kalender; `null` = de projectkalender), `parentId` (ploeg-lidmaatschap, ' +
-    'moet een CREW-resource zijn; `null` = geen ploeg) en `availabilitySteps` (tijd-gefaseerde ' +
-    'capaciteit: `[{from: "JJJJ-MM-DD", maxUnits: n}]`; een lege lijst of `null` wist ze). De ' +
-    'veldnamen zijn exact die van planner_list_resources, dus je kunt gelezen waarden rechtstreeks ' +
-    'terugstoppen. `null` WIST een optioneel veld; een sleutel weglaten laat hem ongemoeid. ' +
-    'VERWIJDEREN IS DESTRUCTIEF: de resource, ál zijn toewijzingen en het ploeg-lidmaatschap van ' +
-    'zijn leden gaan weg. Zolang er toewijzingen op zitten wordt `delete` zacht geweigerd met het ' +
-    'exacte aantal; bevestig dan met `cascade: true`. De respons meldt per verwijderde resource ' +
-    'precies wat er meeging (`removedAssignmentIds`, `affectedTaskIds`, `orphanedCrewMemberIds`). ' +
-    'Geef bij `create` een `tempId` (`tmp-...`) mee als je de nieuwe resource in een volgende ' +
-    'planner_batch-stap wilt toewijzen — het echte id komt terug in `created`. Geweigerde items ' +
-    'komen terug in `itemRejections`; de geldige items blijven gewoon staan. ' +
-    'UIT DE BEDRIJFSBIBLIOTHEEK GEËRFDE RESOURCES: komt een resource uit een bedrijfsbibliotheek ' +
-    '(`libraryOrigin` in planner_list_resources), dan bepaalt die bibliotheek WAT hij is en liggen ' +
-    '`name`, `type`, `description`, `costPerHour` en `unitOfMeasure` vast — een `update` daarop ' +
-    'wordt geweigerd, precies zoals die velden ook in het resourcepaneel niet te wijzigen zijn. Wat ' +
-    'het PROJECT bepaalt blijft wél schrijfbaar: `maxUnits`, `calendarId`, `parentId` en ' +
-    '`availabilitySteps`. Moet zo\'n vastgelegd veld tóch anders, leg de gebruiker de twee routes ' +
-    'voor: in de bibliotheek wijzigen (geldt dan voor elk project dat de resource gebruikt; die ' +
-    'route heeft de bridge bewust niet) of de resource losmaken van de bibliotheek, waarna hij ' +
-    'projecteigen en volledig bewerkbaar is.',
+    'Manage the RESOURCES themselves in bulk — create, change, delete (one call = one undo step). This is ' +
+    'the counterpart of planner_manage_assignments: that one links an EXISTING resource to a task, this tool ' +
+    'creates/changes/deletes the resource. One `action` per item: `create` (required `name`, optional ' +
+    '`tempId` + all fields), `update` (`id` + at least one field) or `delete` (`id`, and `cascade: true` as ' +
+    'soon as it still has assignments). Fields: `name`, `type` (LABOR | EQUIPMENT | MATERIAL | SUBCONTRACTOR ' +
+    '| CREW, default LABOR), `description`, `maxUnits` (capacity per WORKING DAY; 1 = 100% = one ' +
+    'person/piece, default 1), `costPerHour` (cost per HOUR), `unitOfMeasure` (only for MATERIAL), ' +
+    '`calendarId` (existing library calendar; `null` = the project calendar), `parentId` (crew membership, ' +
+    'must be a CREW resource; `null` = no crew) and `availabilitySteps` (time-phased capacity: `[{from: ' +
+    '"YYYY-MM-DD", maxUnits: n}]`; an empty list or `null` clears them). The field names are exactly those ' +
+    'of planner_list_resources, so you can put read values straight back. `null` CLEARS an optional field; ' +
+    'leaving a key out leaves it alone. DELETING IS DESTRUCTIVE: the resource, ALL its assignments and the ' +
+    'crew membership of its members are removed. As long as it still has assignments, `delete` is softly ' +
+    'refused with the exact count; then confirm with `cascade: true`. The response reports per deleted ' +
+    'resource exactly what went along (`removedAssignmentIds`, `affectedTaskIds`, `orphanedCrewMemberIds`). ' +
+    'Pass a `tempId` (`tmp-...`) with `create` if you want to assign the new resource in a next ' +
+    'planner_batch step — the real id comes back in `created`. Refused items come back in `itemRejections`; ' +
+    'the valid items simply stay. RESOURCES INHERITED FROM THE RESOURCE LIBRARY: if a resource comes from a ' +
+    'resource library (`libraryOrigin` in planner_list_resources), that library determines WHAT it is and ' +
+    '`name`, `type`, `description`, `costPerHour` and `unitOfMeasure` are fixed — an `update` on them is ' +
+    'refused, exactly as those fields cannot be changed in the resource panel either. What the PROJECT ' +
+    'determines stays writable: `maxUnits`, `calendarId`, `parentId` and `availabilitySteps`. If such a ' +
+    'fixed field must be different after all, present the user with the two routes: change it in the library ' +
+    '(then applies to every project that uses the resource; the bridge deliberately does not offer that ' +
+    'route) or unlink the resource from the library, after which it is project-owned and fully editable.',
   kind: 'mutate',
   batchable: true,
   // Verwijderen wist toewijzingen (en dus werk) — dat is destructief.
@@ -587,65 +583,65 @@ const manageResources: BatchStepTool = {
       actions: {
         type: 'array',
         minItems: 1,
-        description: 'De uit te voeren resource-acties, in volgorde.',
+        description: 'The resource actions to run, in order.',
         items: {
           type: 'object',
           required: ['action'],
           properties: {
             action: { type: 'string', enum: ['create', 'update', 'delete'] },
-            id: { type: 'string', description: 'Bij `update`/`delete`: exact het resource-id uit planner_list_resources.' },
+            id: { type: 'string', description: 'For `update`/`delete`: exactly the resource id from planner_list_resources.' },
             tempId: {
               type: 'string',
               description:
-                'Alleen bij `create`: eigen aanduiding die met `tmp-` of `tmp_` begint. Het echte id komt ' +
-                'terug in `created[tempId]`; binnen planner_batch mag een volgende stap de tempId gebruiken.',
+                'Only for `create`: your own label starting with `tmp-` or `tmp_`. The real id comes back in ' +
+                '`created[tempId]`; inside planner_batch a next step may use the tempId.',
             },
             cascade: {
               type: 'boolean',
               description:
-                'Alleen bij `delete`: bevestig dat de bestaande toewijzingen van deze resource MEE mogen ' +
-                'worden gewist. Zonder deze vlag wordt een resource mét toewijzingen zacht geweigerd.',
+                'Only for `delete`: confirm that the existing assignments of this resource may be cleared ' +
+                'TOO. Without this flag a resource WITH assignments is softly refused.',
             },
-            name: { type: 'string', description: 'Weergavenaam; verplicht bij `create`.' },
+            name: { type: 'string', description: 'Display name; required for `create`.' },
             type: {
               type: 'string',
               enum: ['LABOR', 'EQUIPMENT', 'MATERIAL', 'SUBCONTRACTOR', 'CREW'],
-              description: 'Resourcesoort (HOOFDLETTERS). Default bij `create`: LABOR.',
+              description: 'Resource type (UPPERCASE). Default for `create`: LABOR.',
             },
-            description: { type: 'string', description: 'Vrije omschrijving; "" leegt hem.' },
+            description: { type: 'string', description: 'Free description; "" empties it.' },
             maxUnits: {
               type: 'number',
               exclusiveMinimum: 0,
-              description: 'Capaciteit per WERKDAG (P6 "Max Units"): 1 = 100% = één persoon/stuk, 3 = drie eenheden. Default 1.',
+              description: 'Capacity per WORKING DAY (P6 "Max Units"): 1 = 100% = one person/piece, 3 = three units. Default 1.',
             },
             costPerHour: {
               type: ['number', 'null'],
               minimum: 0,
-              description: 'Kosten per UUR; `null` wist het tarief.',
+              description: 'Cost per HOUR; `null` clears the rate.',
             },
             unitOfMeasure: {
               type: ['string', 'null'],
-              description: 'Meeteenheid, ALLEEN voor type MATERIAL (bijv. "m3"); `null` wist hem.',
+              description: 'Unit of measure, ONLY for type MATERIAL (e.g. "m3"); `null` clears it.',
             },
             calendarId: {
               type: ['string', 'null'],
-              description: 'Bestaande bibliotheek-kalender (planner_list_calendars); `null` = de projectkalender.',
+              description: 'Existing library calendar (planner_list_calendars); `null` = the project calendar.',
             },
             parentId: {
               type: ['string', 'null'],
-              description: 'Ploeg-lidmaatschap: id van een CREW-resource; `null` = geen ploeg. Puur groepering, geen capaciteits-rollup.',
+              description: 'Crew membership: id of a CREW resource; `null` = no crew. Pure grouping, no capacity roll-up.',
             },
             availabilitySteps: {
               type: ['array', 'null'],
               description:
-                'Tijd-gefaseerde capaciteit: vanaf `from` geldt `maxUnits`. Een lege lijst of `null` wist ze ' +
-                '(dan geldt de vlakke `maxUnits` weer altijd).',
+                'Time-phased capacity: from `from` onwards `maxUnits` applies. An empty list or `null` ' +
+                'clears them (then the flat `maxUnits` applies at all times again).',
               items: {
                 type: 'object',
                 required: ['from', 'maxUnits'],
                 properties: {
-                  from: { type: 'string', description: 'ISO-datum (JJJJ-MM-DD): vanaf deze dag geldt maxUnits.' },
-                  maxUnits: { type: 'number', exclusiveMinimum: 0, description: 'Capaciteit per werkdag vanaf `from`.' },
+                  from: { type: 'string', description: 'ISO date (YYYY-MM-DD): from this day maxUnits applies.' },
+                  maxUnits: { type: 'number', exclusiveMinimum: 0, description: 'Capacity per working day from `from`.' },
                 },
               },
             },
@@ -686,16 +682,16 @@ const manageResources: BatchStepTool = {
       const totalRemoved = data.removedAssignmentCount;
       if (totalRemoved > 0) {
         warnings.push(
-          `Er zijn ${totalRemoved} toewijzing(en) MEE verwijderd met ${data.deleted.length} resource(s) ` +
-          `(${data.deleted.map((d) => `${d.name}: ${d.removedAssignmentCount}`).join(', ')}). Dat werk staat nu ` +
-          'op geen enkele resource meer — controleer de betrokken taken (zie `affectedTaskIds`).',
+          `${totalRemoved} assignment(s) were deleted TOO along with ${data.deleted.length} resource(s) (` +
+          `${data.deleted.map((d) => `${d.name}: ${d.removedAssignmentCount}`).join(', ')}). That work is ` +
+          'now on no resource at all — check the tasks involved (see `affectedTaskIds`).',
         );
       }
       const orphaned = data.deleted.flatMap((d) => d.orphanedCrewMemberIds);
       if (orphaned.length > 0) {
         warnings.push(
-          `${orphaned.length} resource(s) zijn hun ploeg-lidmaatschap kwijt doordat hun CREW is verwijderd ` +
-          `(${orphaned.join(', ')}); hun \`parentId\` staat nu leeg.`,
+          `${orphaned.length} resource(s) lost their crew membership because their CREW was deleted (` +
+          `${orphaned.join(', ')}); their \`parentId\` is now empty.`,
         );
       }
       // Nivellering: de nivelleeruitvoer (vertraging, ook sub-dag-precisie uit een `.mpp`, en
@@ -710,8 +706,8 @@ const manageResources: BatchStepTool = {
       const state = ctx.app.store.getState();
       if (capacityTouched && state.tasks.some(hasLevelingOutput)) {
         warnings.push(
-          'Er staat een TOEGEPASTE nivellering op deze planning; die is berekend op de OUDE capaciteit en ' +
-          'is nu verouderd. Draai planner_level_resources opnieuw of wis hem met planner_clear_leveling.',
+          'An APPLIED leveling is on this schedule; it was calculated on the OLD capacity and is now out of ' +
+          'date. Run planner_level_resources again or clear it with planner_clear_leveling.',
         );
       }
       return { ...((res as McpToolOk).data as object), warnings, ...projectEndInfo(state) };
