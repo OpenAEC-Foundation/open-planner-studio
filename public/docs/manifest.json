@@ -330,6 +330,14 @@
       "kind": "howto"
     },
     {
+      "id": "howto-gantt-bedienen",
+      "title": {
+        "nl": "In de Gantt slepen, pannen en zoomen",
+        "en": "Dragging, panning and zooming in the Gantt"
+      },
+      "kind": "howto"
+    },
+    {
       "id": "howto-presentatie",
       "title": {
         "nl": "Presenteren op een groot scherm",
@@ -546,10 +554,26 @@
       "kind": "referentie"
     },
     {
+      "id": "ref-contextmenus",
+      "title": {
+        "nl": "Rechtermuismenu's",
+        "en": "Right-click menus"
+      },
+      "kind": "referentie"
+    },
+    {
       "id": "ref-instellingen",
       "title": {
         "nl": "Instellingen",
         "en": "Settings"
+      },
+      "kind": "referentie"
+    },
+    {
+      "id": "ref-projectinfo",
+      "title": {
+        "nl": "Nieuw project en Projectinfo",
+        "en": "New project and Project info"
       },
       "kind": "referentie"
     },
@@ -617,7 +641,7 @@
     "ref-filters": "howto-layouts-gebruiken",
     "ref-kolommen": "ref-tabelkolommen",
     "ref-layouts": "howto-layouts-gebruiken",
-    "ref-projectgegevens": "ref-rekenopties-en-conventies",
+    "ref-projectgegevens": "ref-projectinfo",
     "ref-extensies": "howto-extensie-installeren",
     "ref-herstellen": "howto-herstellen-na-een-crash",
     "gids-taaktypen": "ref-taak-eigenschappen",

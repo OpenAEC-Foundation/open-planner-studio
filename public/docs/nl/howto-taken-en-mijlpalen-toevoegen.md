@@ -85,3 +85,5 @@ Een nieuwe taak verandert nog niets aan de andere datums. De statusbalk meldt *V
 - [Taken selecteren, verwijderen en ongedaan maken](docs://howto-taken-selecteren-verwijderen): een taak weer weghalen.
 - [Kritiek pad en speling](docs://uitleg-kritiek-pad): wat de app uitrekent zodra er relaties zijn.
 - [Taakdialoog en eigenschappenpaneel](docs://ref-taak-eigenschappen): alle velden van een taak.
+- [Nieuw project en Projectinfo](docs://ref-projectinfo): beginnen met een fasering-template.
+- [Rechtermuismenu's](docs://ref-contextmenus): alle items van het menu op een taak.

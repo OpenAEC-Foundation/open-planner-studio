@@ -150,3 +150,4 @@ Deze toetsen staan niet in het venster *Sneltoetsen*.
 - [Een taak splitsen](docs://howto-taak-splitsen): het splits-gebaar waarbij Esc annuleert.
 - [Presenteren op een groot scherm](docs://howto-presentatie): F11 en Esc in de praktijk.
 - [Automatisch opslaan aanzetten](docs://howto-automatisch-opslaan): opslaan met Ctrl+S naast automatisch opslaan.
+- [In de Gantt slepen, pannen en zoomen](docs://howto-gantt-bedienen): de muisgebaren naast de toetsen.

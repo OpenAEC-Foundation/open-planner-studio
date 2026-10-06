@@ -134,3 +134,4 @@ Deze opties komen uit een `.xer`-bestand van Primavera P6 en zijn alleen te leze
 - [Relaties en lag](docs://uitleg-relaties): lag en de kalender waarin hij telt.
 - [Voortgang, statusdatum en baseline](docs://uitleg-voortgang): de statusdatum waar veel conventies naar verwijzen.
 - [Import- en exportformaten](docs://ref-import-exportformaten): welk profiel een bestand bij het openen krijgt.
+- [Nieuw project en Projectinfo](docs://ref-projectinfo): de andere velden van Projectinfo en het venster Nieuw project.

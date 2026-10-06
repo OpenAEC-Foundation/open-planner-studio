@@ -150,3 +150,4 @@ These keys are not in the *Keyboard Shortcuts* window.
 - [Splitting a task](docs://howto-taak-splitsen): the split gesture that Esc cancels.
 - [Presenting on a large screen](docs://howto-presentatie): F11 and Esc in practice.
 - [Turning on AutoSave](docs://howto-automatisch-opslaan): saving with Ctrl+S next to AutoSave.
+- [Dragging, panning and zooming in the Gantt](docs://howto-gantt-bedienen): the mouse gestures next to the keys.

@@ -13,7 +13,7 @@ The ribbon at the top of the screen has tabs, and each tab has groups of buttons
 
 Clicking *File* makes a screen of its own (the Backstage) take over the workspace. It has no ribbon. *Back* closes it. If you changed something under *Project info* and did not apply it, the app first asks what to do with it.
 
-- **New** — opens the *New project* window and closes the Backstage.
+- **New** — opens the *New project* window and closes the Backstage. The fields are in [New project and Project info](docs://ref-projectinfo).
 - **Open** — picks a file and opens it as a document. Closes the Backstage.
 - **Recent** — a list of recently opened projects; a click opens one. Only visible when the environment can reopen files: in the desktop app and in browsers that offer file access, such as Chrome and Edge. In other browsers the button is there, but the page stays empty.
 - **Examples** — bundled example schedules, split into *Full showcase schedules* (badge *All features*) and *Simple examples*. A click opens one in a new tab.
@@ -22,7 +22,7 @@ Clicking *File* makes a screen of its own (the Backstage) take over the workspac
 - **Export** — cards per export format, with a description. A click converts the project and saves it, and takes you back to *Home*. If the schedule has a cycle, the error appears in the Backstage and you stay there. If the project is linked to a resource library, the checkbox *Save library file alongside* appears below; it only works for the IFC card.
 - **Import** — at the top the card *Update progress from a spreadsheet* (disabled without tasks), below it the importers that extensions add.
 - **Print** — the button *Open print preview* takes you to the *Report* tab.
-- **Project info** — the metadata and calculation profile of this project. Changes only take effect after *Apply*. See [Calculation profiles and conventions](docs://uitleg-rekenprofielen).
+- **Project info** — the metadata and calculation profile of this project. Changes only take effect after *Apply*. See [New project and Project info](docs://ref-projectinfo) and [Calculation profiles and conventions](docs://uitleg-rekenprofielen).
 - **Settings** — the same settings as the *Settings* window.
 - **Extensions** — management and installation of extensions; see [Installing and managing an extension](docs://howto-extensie-installeren).
 - **Library** — management of resource libraries; see [Managing and sharing resource libraries](docs://howto-bibliotheken-beheren).
@@ -192,7 +192,7 @@ This group has the same name as the one on *Planning*, but holds the drawing opt
 
 ### Settings › Project
 
-- **Project info** — opens the *Project info* window: the metadata of the project and, in the block *Calculation profile and options*, how the project calculates.
+- **Project info** — opens the *Project info* window: the metadata of the project and, in the block *Calculation profile and options*, how the project calculates. See [New project and Project info](docs://ref-projectinfo).
 - **Settings** — opens the *Settings* window with the tabs *Appearance*, *Planning* and *Advanced*. The same settings are under *File › Settings*.
 
 ### Settings › Calendar
