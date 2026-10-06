@@ -114,7 +114,7 @@ test('één undo-stap per call', async () => {
 test('mijlpaal ⇒ VALIDATION met reden, niets geschreven', async () => {
   const id = await freshTask({ isMilestone: true });
   const before = JSON.stringify(S().tasks);
-  expectErr(await rpc('planner_set_task_splits', { taskId: id, interruptions: [{ afterWorkDays: 1, pauseDays: 1 }] }), 'VALIDATION', 'mijlpaal');
+  expectErr(await rpc('planner_set_task_splits', { taskId: id, interruptions: [{ afterWorkDays: 1, pauseDays: 1 }] }), 'VALIDATION', 'milestone');
   assertEq(JSON.stringify(S().tasks), before, 'taken ongewijzigd');
 });
 

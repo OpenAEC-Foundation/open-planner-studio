@@ -94,7 +94,7 @@ test('K6: `rawHolidays: []` in toevoeg-modus ⇒ zachte weigering, GEEN transact
   // onderscheiden van een echte wijziging, terwijl er niets veranderde.
   const rej = rejections(res);
   assertEq(rej.length, 1, 'precies één zachte weigering');
-  assert(/leeg|replace/i.test(rej[0].reason), `weigering moet de lege lijst benoemen: ${rej[0].reason}`);
+  assert(/empty|replace/i.test(rej[0].reason), `weigering moet de lege lijst benoemen: ${rej[0].reason}`);
   assertEq(okData(res).calendars.length, 0, 'geen enkele kalender-rij gemeld als gewijzigd');
   assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoBefore, 'lege-batch-snelpad: geen undo-snapshot voor een no-op');
   assertEq(S().calendar.holidays.length, 2, 'feestdagen onaangeroerd');
@@ -138,7 +138,7 @@ test('K6: de standaard (toevoeg-)modus blijft mergen — regressie', async () =>
 
 test('K6: de beschrijving BENOEMT de toevoeg-semantiek én de vervang-modus', () => {
   const d = mtool('planner_update_calendar').description;
-  assert(/toevoeg|voegt.*toe/i.test(d), 'description moet de toevoeg-semantiek benoemen');
+  assert(/\badd/i.test(d), 'description moet de toevoeg-semantiek benoemen');
   assert(/replace/i.test(d), 'description moet `holidaysMode: replace` benoemen (verwijderen/vervangen)');
 });
 
@@ -221,7 +221,7 @@ test('M7: create zonder generate/rawHolidays MELDT expliciet dat de app-default-
   assertEq(row.holidayCount, cal.holidays.length, 'de rij meldt het aantal feestdagen van de nieuwe kalender');
   if (cal.holidays.length > 0) {
     assertEq(row.holidaysFrom, 'app-default', 'herkomst expliciet benoemd');
-    assert(Array.isArray(data.warnings) && data.warnings.some((w: string) => /overgenomen|app-default|standaard/i.test(w)),
+    assert(Array.isArray(data.warnings) && data.warnings.some((w: string) => /TOOK OVER|app default|default/i.test(w)),
       `er hoort een waarschuwing over de overgenomen feestdagen te staan: ${JSON.stringify(data.warnings)}`);
   }
 });
@@ -269,7 +269,7 @@ test('K7: `schedulingOptions`/`floatPaths` worden EXPLICIET geweigerd met uitleg
     name: 'X', floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 5 },
   });
   expectValidation(res, 'floatPaths', 'floatPaths');
-  assert(/niet.*bridge|app|Planning/i.test((res as any).error), 'de fout moet zeggen waar het wél kan');
+  assert(/not.*bridge|app|Planning/i.test((res as any).error), 'de fout moet zeggen waar het wél kan');
 });
 
 test('K7: een ongeldige endDate-vorm wordt geweigerd; lege string wist hem', async () => {
@@ -596,7 +596,7 @@ test('BATCH: een lege `rawHolidays` blijft ook binnen een batch een ZACHTE weige
 
   const data = okData(res);
   const rej: { id: string; reason: string }[] = data.rejections ?? [];
-  assert(rej.some((r) => /leeg|replace/i.test(r.reason)),
+  assert(rej.some((r) => /empty|replace/i.test(r.reason)),
     `de zachte weigering moet in het batch-rapport staan: ${JSON.stringify(rej)}`);
   assertEq(S().calendar.holidays.length, 1, 'feestdagen onaangeroerd');
 });

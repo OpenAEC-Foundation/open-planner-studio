@@ -18,7 +18,7 @@ Standaard toont de tabel naast de Gantt *WBS*, *Taaknaam* en *Duur*. De tabel op
 
 ## Taak
 
-- **Taaknaam** — de naam van de taak. Bewerkbaar; verplicht.
+- **Taaknaam** — de naam van de taak. Bewerkbaar; verplicht. Een samenvattingstaak staat vet, met een lichte achtergrondtint op de naamcel; een mijlpaal staat vet in de mijlpaalkleur (dezelfde kleurfamilie als de mijlpaal in de Gantt). Een gewone taak blijft ongewijzigd. Dat is alleen opmaak: selecteren, slepen en bewerken werken hetzelfde.
 - **Beschrijving** — de beschrijving. Bewerkbaar; vrije tekst.
 - **WBS** — de WBS-code. Bewerkbaar en verplicht, maar alleen-lezen zolang *WBS auto* aan staat.
 - **Taaktype** — het taaktype (*Bouw*, *Installatie*, *Sloop*, *Logistiek*, *Keuring/Inspectie*, *Verplaatsing*, *Renovatie*, *Onderhoud* of *Overig*). Bewerkbaar met een keuzelijst.

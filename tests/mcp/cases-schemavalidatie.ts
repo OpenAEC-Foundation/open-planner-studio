@@ -54,7 +54,7 @@ test('validator: type-mismatch noemt pad én verwachting', () => {
   const err = validateToolArgs(schema, { duration: '10' });
   assert(err !== null, 'een string waar een number hoort moet falen');
   assert(err!.includes('duration'), `het pad staat in de boodschap: ${err}`);
-  assert(err!.includes('verwacht number'), `de verwachting staat in de boodschap: ${err}`);
+  assert(err!.includes('expected number'), `de verwachting staat in de boodschap: ${err}`);
   assert(err!.includes('"10"'), `de ONTVANGEN waarde staat in de boodschap: ${err}`);
 });
 
@@ -78,10 +78,10 @@ test('DIEPTE-REGEL: standaard blijft de BINNENKANT van array-items ongemoeid (bu
 });
 
 test('DIEPTE-REGEL: de BUITENKANT van een array blijft wél strikt (array-zijn, minItems, elementtype)', () => {
-  assert(validateToolArgs(NESTED_SCHEMA, { updates: 'geen array' })!.includes('verwacht array'), 'array-type');
-  assert(validateToolArgs(NESTED_SCHEMA, { updates: [] })!.includes('minstens 1'), 'minItems');
+  assert(validateToolArgs(NESTED_SCHEMA, { updates: 'geen array' })!.includes('expected array'), 'array-type');
+  assert(validateToolArgs(NESTED_SCHEMA, { updates: [] })!.includes('at least 1'), 'minItems');
   const err = validateToolArgs(NESTED_SCHEMA, { updates: ['een string'] });
-  assert(err !== null && err.startsWith('updates[0]:') && err.includes('verwacht object'), `elementtype: ${err}`);
+  assert(err !== null && err.startsWith('updates[0]:') && err.includes('expected object'), `elementtype: ${err}`);
 });
 
 test('validator: type als ARRAY-vorm (["string","null"]) blijft werken', () => {
@@ -102,23 +102,23 @@ test('validator: object-trefwoorden slaan NIET op null (constraint: ["object","n
 });
 
 test('validator: enum, required, additionalProperties, minItems/maxItems, minimum/maximum/exclusiveMinimum, pattern, integer', () => {
-  assert(validateToolArgs({ type: 'object', properties: { s: { type: 'string', enum: ['a', 'b'] } } }, { s: 'c' })!.includes('moet één van'), 'enum');
+  assert(validateToolArgs({ type: 'object', properties: { s: { type: 'string', enum: ['a', 'b'] } } }, { s: 'c' })!.includes('must be one of'), 'enum');
   assert(validateToolArgs({ type: 'object', required: ['ids'], properties: { ids: { type: 'array' } } }, {})!.includes('`ids`'), 'required');
-  assert(validateToolArgs({ type: 'object', properties: { a: { type: 'string' } }, additionalProperties: false }, { b: 1 })!.includes('onbekend veld'), 'additionalProperties');
-  assert(validateToolArgs({ type: 'object', properties: { xs: { type: 'array', minItems: 1 } } }, { xs: [] })!.includes('minstens 1'), 'minItems');
-  assert(validateToolArgs({ type: 'object', properties: { xs: { type: 'array', maxItems: 1 } } }, { xs: [1, 2] })!.includes('hoogstens 1'), 'maxItems');
+  assert(validateToolArgs({ type: 'object', properties: { a: { type: 'string' } }, additionalProperties: false }, { b: 1 })!.includes('unknown field'), 'additionalProperties');
+  assert(validateToolArgs({ type: 'object', properties: { xs: { type: 'array', minItems: 1 } } }, { xs: [] })!.includes('at least 1'), 'minItems');
+  assert(validateToolArgs({ type: 'object', properties: { xs: { type: 'array', maxItems: 1 } } }, { xs: [1, 2] })!.includes('at most 1'), 'maxItems');
   assert(validateToolArgs({ type: 'object', properties: { n: { type: 'number', minimum: 0 } } }, { n: -1 })!.includes('≥ 0'), 'minimum');
   assert(validateToolArgs({ type: 'object', properties: { n: { type: 'number', maximum: 100 } } }, { n: 101 })!.includes('≤ 100'), 'maximum');
   assert(validateToolArgs({ type: 'object', properties: { n: { type: 'number', exclusiveMinimum: 0 } } }, { n: 0 })!.includes('> 0'), 'exclusiveMinimum');
-  assert(validateToolArgs({ type: 'object', properties: { t: { type: 'string', pattern: '^tmp[-_]' } } }, { t: 'A' })!.includes('patroon'), 'pattern');
-  assert(validateToolArgs({ type: 'object', properties: { i: { type: 'integer' } } }, { i: 1.5 })!.includes('verwacht integer'), 'integer vs number');
+  assert(validateToolArgs({ type: 'object', properties: { t: { type: 'string', pattern: '^tmp[-_]' } } }, { t: 'A' })!.includes('pattern'), 'pattern');
+  assert(validateToolArgs({ type: 'object', properties: { i: { type: 'integer' } } }, { i: 1.5 })!.includes('expected integer'), 'integer vs number');
   assertEq(validateToolArgs({ type: 'object', properties: { n: { type: 'number' } } }, { n: 2 }), null, 'een geheel getal is ook een number');
 });
 
 test('validator: ontbrekende argumenten tellen als {} ⇒ nette required-melding, geen "kreeg undefined"', () => {
   const schema = { type: 'object', required: ['ids'], properties: { ids: { type: 'array' } } };
   const err = validateToolArgs(schema, undefined);
-  assert(err !== null && err.includes('verplicht veld `ids` ontbreekt'), `verwachtte required-melding, kreeg: ${err}`);
+  assert(err !== null && err.includes('required field `ids` is missing'), `verwachtte required-melding, kreeg: ${err}`);
   assertEq(validateToolArgs({ type: 'object', properties: {} }, undefined), null, 'geen required ⇒ geen argumenten is prima');
 });
 
@@ -146,7 +146,7 @@ test('dispatcher: `duration: "10"` (de klassieke LLM-vorm) wordt met pad en verw
   store.getState().newProject();
   const err = await expectSchemaReject('planner_add_tasks', { tasks: [{ tempId: 'tmp-a', name: 'A', duration: '10' }] });
   assert(err.includes('tasks[0].duration'), `pad in de fout: ${err}`);
-  assert(err.includes('verwacht number'), `verwachting in de fout: ${err}`);
+  assert(err.includes('expected number'), `verwachting in de fout: ${err}`);
   assertEq(store.getState().tasks.length, 0, 'geen taak aangemaakt');
 });
 
@@ -158,7 +158,7 @@ test('dispatcher: onbekende sleutel op een MUTATIETOOL wordt nu geweigerd (addit
 
 test('dispatcher: lege verplichte array (minItems) en ontbrekend verplicht veld worden geweigerd', async () => {
   registerAllTools();
-  assert((await expectSchemaReject('planner_delete_tasks', { ids: [] })).includes('minstens 1'), 'minItems');
+  assert((await expectSchemaReject('planner_delete_tasks', { ids: [] })).includes('at least 1'), 'minItems');
   assert((await expectSchemaReject('planner_update_tasks', {})).includes('`updates`'), 'required');
 });
 
@@ -265,7 +265,7 @@ async function expectBatchSchemaReject(
   assertEq(sc.code, 'VALIDATION', `de batch-fout moet VALIDATION zijn: ${JSON.stringify(sc).slice(0, 300)}`);
   const err = String(sc.error);
   assert(
-    err.includes(`stap ${stepNr}: ongeldige argumenten voor ${tool} —`),
+    err.includes(`step ${stepNr}: invalid arguments for ${tool} —`),
     `de fout moet stapnummer én tool noemen in de poort-vorm, kreeg: ${err}`,
   );
   assert(err.includes(pathToken), `de fout moet het pad '${pathToken}' noemen, kreeg: ${err}`);
@@ -279,7 +279,7 @@ test('batch: verkeerd TYPE in een stap wordt door de poort geweigerd en rolt de 
     { tool: 'planner_add_tasks', args: { tasks: [{ tempId: 'tmp-a', name: 'Wordt teruggedraaid', duration: 5 }] } },
     { tool: 'planner_update_tasks', args: { updates: 'geen array' } },
   ], 2, 'planner_update_tasks', 'updates');
-  assert(err.includes('verwacht array'), `de verwachting staat erin: ${err}`);
+  assert(err.includes('expected array'), `de verwachting staat erin: ${err}`);
   assertEq(store.getState().tasks.length, 0, 'de geslaagde eerste stap is teruggedraaid');
 });
 
@@ -291,7 +291,7 @@ test('batch: onbekende TOP-LEVEL sleutel in een stap wordt geweigerd (additional
     [{ tool: 'planner_delete_tasks', args: { ids: [id], cascade: true } }],
     1, 'planner_delete_tasks', 'cascade',
   );
-  assert(err.includes('onbekend veld'), `de sleutel wordt bij naam genoemd: ${err}`);
+  assert(err.includes('unknown field'), `de sleutel wordt bij naam genoemd: ${err}`);
   assert(store.getState().tasks.some((t) => t.id === id), 'de tool is NIET bereikt: de taak staat er nog');
 });
 
@@ -300,12 +300,12 @@ test('batch: ontbrekend REQUIRED veld en lege verplichte array (minItems) worden
   store.getState().newProject();
   assert(
     (await expectBatchSchemaReject([{ tool: 'planner_update_tasks', args: {} }], 1, 'planner_update_tasks', 'updates'))
-      .includes('verplicht veld'),
+      .includes('required field'),
     'required',
   );
   assert(
     (await expectBatchSchemaReject([{ tool: 'planner_delete_tasks', args: { ids: [] } }], 1, 'planner_delete_tasks', 'ids'))
-      .includes('minstens 1'),
+      .includes('at least 1'),
     'minItems',
   );
 });
@@ -317,7 +317,7 @@ test('batch: een foute ENUM-waarde in een stap wordt geweigerd', async () => {
     [{ tool: 'planner_get_resource_histogram', args: { bucket: 'jaar' } }],
     1, 'planner_get_resource_histogram', 'bucket',
   );
-  assert(err.includes('moet één van'), `de toegestane waarden staan erin: ${err}`);
+  assert(err.includes('must be one of'), `de toegestane waarden staan erin: ${err}`);
 });
 
 test('batch: het GEMETEN geval — een verschreven leesfilter wordt geweigerd, niet stil uitgevoerd', async () => {
@@ -333,7 +333,7 @@ test('batch: het GEMETEN geval — een verschreven leesfilter wordt geweigerd, n
     [{ tool: 'planner_list_tasks', args: { kritisch: true } }],
     1, 'planner_list_tasks', 'kritisch',
   );
-  assert(err.includes('onbekend veld'), `de verschreven sleutel wordt bij naam genoemd: ${err}`);
+  assert(err.includes('unknown field'), `de verschreven sleutel wordt bij naam genoemd: ${err}`);
 });
 
 test('batch: de fout noemt het STAPNUMMER van de juiste regel uit het draaiboek', async () => {
@@ -345,8 +345,8 @@ test('batch: de fout noemt het STAPNUMMER van de juiste regel uit het draaiboek'
     { tool: 'planner_get_task', args: { taskId: 't1', diepte: 3 } },
   ], 3, 'planner_get_task', 'diepte');
   // Het rapport per stap blijft intact: twee uitgevoerd (en teruggedraaid), de derde gefaald.
-  assert(err.includes('1. planner_update_project — uitgevoerd (teruggedraaid)'), `rapport stap 1: ${err}`);
-  assert(err.includes('3. planner_get_task — gefaald'), `rapport stap 3: ${err}`);
+  assert(err.includes('1. planner_update_project — executed (rolled back)'), `rapport stap 1: ${err}`);
+  assert(err.includes('3. planner_get_task — failed'), `rapport stap 3: ${err}`);
   assertEq(store.getState().tasks.length, 0, 'alles is teruggedraaid');
 });
 
@@ -392,7 +392,7 @@ test('batch: DIEPTE-REGEL — een per-item-weigering in een bulk-stap blijft ZAC
   const sc = res.structuredContent;
   assertEq(sc.data.steps[0].status, 'uitgevoerd', 'de bulk-stap telt als geslaagd');
   assertEq(sc.data.rejections.length, 1, 'de weigering staat prominent bovenaan de batch-respons');
-  assert(sc.data.rejections[0].reason.includes('stap 1'), `de weigering draagt zijn stapherkomst: ${sc.data.rejections[0].reason}`);
+  assert(sc.data.rejections[0].reason.includes('step 1'), `de weigering draagt zijn stapherkomst: ${sc.data.rejections[0].reason}`);
   assertEq(store.getState().tasks.find((t) => t.id === goed)!.name, 'hernoemd', 'het goede item is echt geland');
 });
 
@@ -405,7 +405,7 @@ test('batch: DIEPTE-REGEL — bij de ATOMAIRE uitzondering (add_tasks) is een it
     [{ tool: 'planner_add_tasks', args: { tasks: [{ tempId: 'tmp-goed', name: 'Goed' }, { tempId: 'tmp-fout', name: 'Fout', duration: '10' }] } }],
     1, 'planner_add_tasks', 'tasks[1].duration',
   );
-  assert(err.includes('verwacht number'), `de verwachting staat erin: ${err}`);
+  assert(err.includes('expected number'), `de verwachting staat erin: ${err}`);
   assertEq(store.getState().tasks.length, 0, 'geen enkele taak aangemaakt');
 });
 

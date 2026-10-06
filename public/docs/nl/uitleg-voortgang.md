@@ -169,3 +169,4 @@ In de profielen Primavera P6 en Microsoft Project eindigt het schilderwerk in di
 - [Een baseline opslaan en beheren](docs://howto-baseline-opslaan-en-beheren): een baseline vastleggen en gebruiken.
 - [Project verplaatsen](docs://howto-project-verplaatsen): wat er met werkelijke datums, statusdatum en baselines gebeurt.
 - [Kritiek pad en speling](docs://uitleg-kritiek-pad): waarom een taak kritiek is en wat speling betekent.
+- [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): voortgang en een statusdatum halverwege het project (20 mei 2027).

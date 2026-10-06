@@ -164,7 +164,7 @@ test('MCP-wijziging op een BIBLIOTHEEKVELD wordt geweigerd; niets verandert, gee
   const reden = soleReason(res0);
   assert(reden.includes('costPerHour'), `de weigering moet het veld NOEMEN, kreeg: ${reden}`);
   assert(reden.includes('Testbedrijf'), `de weigering moet de bibliotheek noemen, kreeg: ${reden}`);
-  assert(reden.includes('Losmaken'), `de weigering moet de losmaak-route noemen, kreeg: ${reden}`);
+  assert(reden.includes('Unlink'), `de weigering moet de losmaak-route noemen, kreeg: ${reden}`);
   assert(reden.includes('maxUnits'), `de weigering moet noemen wat WEL kan, kreeg: ${reden}`);
 
   const res = resource(resourceId)!;

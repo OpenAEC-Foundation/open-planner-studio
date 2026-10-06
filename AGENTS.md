@@ -149,7 +149,7 @@ Node 22 (see CI). Rust stable only for the `tauri:*` commands.
   `settings`, `extensions`, `library`, `help`.
 - Fourteen locales (`nl, en, fr, de, es, zh, it, pt, pl, tr, ar, ja, ko, fa`), each with four namespaces;
   `ar`/`fa` are RTL. A missing plural form falls back to English, not to `_other`.
-- MCP: The 42 `planner_*` tools live in `src/services/mcp/tools/`. New tool: `docs/recepten/mcp-tool.md`.
+- MCP: The 41 `planner_*` tools live in `src/services/mcp/tools/`. New tool: `docs/recepten/mcp-tool.md`.
 
 ## Worktrees and self-testing
 

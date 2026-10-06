@@ -63,7 +63,7 @@ If you want to decide yourself which task stays, give it a higher priority. Righ
 - *The resource does not work on all days this task needs — shifting cannot resolve this.* The resource has days off in its own calendar in the middle of the task. Change the calendar or the task.
 - *Bricklayer peaks at 2 units/day, capacity is 1 — cannot be resolved by shifting.* Through its curve the task alone asks more on one day than the resource can supply. Choose another curve or lower units.
 
-**It says *No tasks need to move — the schedule is already conflict-free.*** If that line appears together with the list *Remaining conflicts* in the proposal, believe the list. The line only says that there is nothing to shift. If the line appears without a list, while *Resources › Overallocation* still reports a resource, then all tasks that clash are pinned on priority 1000 or have already started. They do not move and the window does not report them as a conflict. So after applying, always look at *Overallocation*.
+**It says** *No tasks need to move — the schedule is already conflict-free.* If that line appears together with the list *Remaining conflicts* in the proposal, believe the list. The line only says that there is nothing to shift. If the line appears without a list, while *Resources › Overallocation* still reports a resource, then all tasks that clash are pinned on priority 1000 or have already started. They do not move and the window does not report them as a conflict. So after applying, always look at *Overallocation*.
 
 **Tasks that do not shift.** A task that has already started or is finished never shifts. Its load does count. Milestones and phases do not shift either.
 
@@ -79,3 +79,5 @@ If you want to decide yourself which task stays, give it a higher priority. Righ
 - [Managing resources](docs://howto-resources-beheren): adjusting a resource's capacity and calendar.
 - [Adding relations](docs://howto-relaties-leggen): putting tasks one after the other.
 - [Notifications and warnings](docs://ref-meldingen): the Overallocated warning in the Warnings panel.
+- [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): the plasterers are overbooked on 5 days. With *Level only within slack (smoothing) — project end date stays fixed* on, the finish stays on 17 August 2027 and a remaining conflict is left. With the box off (the default) everything is solved and the finish moves to 24 August 2027.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): the tower crane is overbooked on 65 days and the plasterers on 15 days. Leveling with the box *Level only within slack (smoothing) — project end date stays fixed* off pushes the finish from 9 May to 12 October 2028.

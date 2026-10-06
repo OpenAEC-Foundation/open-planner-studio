@@ -68,3 +68,4 @@ The curve only changes the distribution. The duration, the dates and the total s
 - [Resolving overallocation](docs://howto-overbezetting-oplossen): what to do when a resource has too much to do on a day.
 - [Work rules: duration, units and work](docs://uitleg-werkregels): what happens to the duration when you change the units.
 - [Resource panel](docs://ref-resourcepaneel): all fields and buttons of the resource panel.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): all five resource types, all six curves and a tower crane with a capacity step from 30 August 2027.

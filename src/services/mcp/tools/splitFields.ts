@@ -33,21 +33,21 @@ export interface SplitCalendars {
 }
 
 const REFUSAL_TEXT: Record<SplitRefusal, string> = {
-  milestone: 'een mijlpaal heeft geen duur en kan niet onderbroken worden',
-  summary: 'een verzameltaak volgt zijn kinderen; onderbreek de deeltaken',
-  hammock: 'een hammock/LOE-taak leidt zijn duur af en kan niet onderbroken worden',
-  elapsed: 'een taak met verstreken tijd (ELAPSEDTIME) loopt door en kan niet onderbroken worden',
-  manual: 'een handmatig geplande taak wordt niet door de planner gerekend en kan niet onderbroken worden',
-  'too-short': 'de taak is korter dan twee eenheden (werkdagen, of uren bij een uur-taak) en kan niet onderbroken worden',
-  'not-editable': 'de onderbrekingen van deze taak komen uit een import en passen niet in het bewerkmodel (alleen-lezen); alleen opheffen met een lege lijst kan',
+  milestone: 'a milestone has no duration and cannot be interrupted',
+  summary: 'a summary task follows its children; interrupt the subtasks',
+  hammock: 'a hammock/LOE task derives its duration and cannot be interrupted',
+  elapsed: 'a task with elapsed time (ELAPSEDTIME) keeps running and cannot be interrupted',
+  manual: 'a manually scheduled task is not calculated by the scheduler and cannot be interrupted',
+  'too-short': 'the task is shorter than two units (working days, or hours for an hour task) and cannot be interrupted',
+  'not-editable': 'the interruptions of this task come from an import and do not fit the editing model (read-only); only clearing them with an empty list is possible',
 };
 
 const EDIT_REFUSAL_TEXT: Record<SplitEditRefusal, string> = {
-  'position-out-of-range': 'de positie ligt niet binnen het werk van de taak (moet na de start en vóór het einde liggen)',
-  'position-on-gap': 'de positie valt precies op een andere onderbreking (twee onderbrekingen op dezelfde plek)',
-  'before-completed-work': 'de positie ligt in het al verrichte werk; onderbreek alleen het resterende deel',
-  'work-too-short': 'het werkstuk ervoor of erna wordt korter dan één eenheid',
-  'index-out-of-range': 'interne indexfout',
+  'position-out-of-range': 'the position is not within the work of the task (it must lie after the start and before the finish)',
+  'position-on-gap': 'the position coincides exactly with another interruption (two interruptions at the same spot)',
+  'before-completed-work': 'the position lies in work already performed; only interrupt the remaining part',
+  'work-too-short': 'the piece of work before or after it becomes shorter than one unit',
+  'index-out-of-range': 'internal index error',
 };
 
 function hoursPerDayOf(task: Task, cals: SplitCalendars): number {
@@ -89,21 +89,21 @@ export type SplitPlan =
  * een weigering, geen afronding.
  */
 export function planTaskSplits(task: Task, interruptions: unknown, cals: SplitCalendars): SplitPlan {
-  if (!Array.isArray(interruptions)) return { ok: false, reason: '`interruptions` moet een array zijn (leeg = alle onderbrekingen opheffen)' };
+  if (!Array.isArray(interruptions)) return { ok: false, reason: '`interruptions` must be an array (empty = clear all interruptions)' };
   const hoursPerDay = hoursPerDayOf(task, cals);
   const refusal = canSplitTask(task, hoursPerDay, isSummaryTask(task));
   if (interruptions.length === 0) {
     // Opheffen mag ook op een alleen-lezen importsplit — dezelfde uitzondering als het paneel.
-    if (refusal !== null && refusal !== 'not-editable') return { ok: false, reason: `taak '${task.id}': ${REFUSAL_TEXT[refusal]}` };
+    if (refusal !== null && refusal !== 'not-editable') return { ok: false, reason: `task '${task.id}': ${REFUSAL_TEXT[refusal]}` };
     return { ok: true, pieces: null };
   }
-  if (refusal) return { ok: false, reason: `taak '${task.id}': ${REFUSAL_TEXT[refusal]}` };
+  if (refusal) return { ok: false, reason: `task '${task.id}': ${REFUSAL_TEXT[refusal]}` };
 
   const hourUnit = taskDurationUnit(task) === 'hours';
   const afterKey = hourUnit ? 'afterWorkHours' : 'afterWorkDays';
   const pauseKey = hourUnit ? 'pauseHours' : 'pauseDays';
   const wrongKeys = hourUnit ? ['afterWorkDays', 'pauseDays'] : ['afterWorkHours', 'pauseHours'];
-  const unitWord = hourUnit ? 'hele uren (uur-taak)' : 'hele werkdagen (dag-taak)';
+  const unitWord = hourUnit ? 'whole hours (hour task)' : 'whole working days (day task)';
   const unit = splitUnitMinutes(task, hoursPerDay);
   const per = hourUnit ? 60 : unit;
 
@@ -111,24 +111,24 @@ export function planTaskSplits(task: Task, interruptions: unknown, cals: SplitCa
   for (let index = 0; index < interruptions.length; index++) {
     const item = interruptions[index] as Record<string, unknown> | null;
     const at = `interruptions[${index}]`;
-    if (!item || typeof item !== 'object' || Array.isArray(item)) return { ok: false, reason: `${at}: moet een object zijn` };
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return { ok: false, reason: `${at}: must be an object` };
     const unknownKey = Object.keys(item).find(k => !['afterWorkDays', 'afterWorkHours', 'pauseDays', 'pauseHours'].includes(k));
-    if (unknownKey) return { ok: false, reason: `${at}: onbekende sleutel '${unknownKey}'` };
+    if (unknownKey) return { ok: false, reason: `${at}: unknown key '${unknownKey}'` };
     const mixed = wrongKeys.find(k => k in item);
     if (mixed) {
-      return { ok: false, reason: `${at}: '${mixed}' past niet bij deze taak — de eenheid volgt de taak, gebruik ${afterKey}/${pauseKey} (${unitWord}); dag- en uursleutels mengen kan niet` };
+      return { ok: false, reason: `${at}: '${mixed}' does not fit this task — the unit follows the task, use ${afterKey}/${pauseKey} (${unitWord}); day and hour keys cannot be mixed` };
     }
     const after = item[afterKey];
     const pause = item[pauseKey];
-    if (typeof after !== 'number' || typeof pause !== 'number') return { ok: false, reason: `${at}: ${afterKey} en ${pauseKey} zijn allebei verplicht (getallen)` };
-    if (!Number.isInteger(after) || !Number.isInteger(pause)) return { ok: false, reason: `${at}: gebruik ${unitWord} — er wordt niet stil afgerond` };
-    if (!(pause > 0)) return { ok: false, reason: `${at}: ${pauseKey} moet minstens 1 zijn (een onderbreking van 0 bestaat niet)` };
+    if (typeof after !== 'number' || typeof pause !== 'number') return { ok: false, reason: `${at}: ${afterKey} and ${pauseKey} are both required (numbers)` };
+    if (!Number.isInteger(after) || !Number.isInteger(pause)) return { ok: false, reason: `${at}: use ${unitWord} — nothing is silently rounded` };
+    if (!(pause > 0)) return { ok: false, reason: `${at}: ${pauseKey} must be at least 1 (an interruption of 0 does not exist)` };
     parsed.push({ index, after, pause });
   }
 
   const workMinutes = durationMinutesOf(task, { isHourMode: hourUnit, hoursPerDay });
   const current = toSplitPieces(task.splitGaps, workMinutes);
-  if (!current) return { ok: false, reason: `taak '${task.id}': ${REFUSAL_TEXT['not-editable']}` };
+  if (!current) return { ok: false, reason: `task '${task.id}': ${REFUSAL_TEXT['not-editable']}` };
   const minOffset = completedWorkMinutes(task, hoursPerDay);
   let pieces = removeAllGaps(current);
   for (const p of [...parsed].sort((a, b) => a.after - b.after || a.index - b.index)) {

@@ -53,7 +53,7 @@ function reset(): void {
 // getest wordt (de oorspronkelijke synthetische fixture van 1.520 tekens bleef er ONDER en bewees
 // dus niets over de afkapgrens zelf).
 const LONG_CELL = 'synthetic-free-cell-' + 'x'.repeat(5000);
-const LONG_CELL_TRUNCATED_LENGTH = 2000 + '…(afgekapt op 2000 tekens)'.length;
+const LONG_CELL_TRUNCATED_LENGTH = 2000 + '…(truncated at 2000 characters)'.length;
 
 // Reviewronde 2 (review2-3d.md #2): de eerste fix dichtte alleen `rawRow.cells` af; vrije tekst
 // BUITEN `rawRow` (roleSources.description, resources.description, taskProjections.notes/
@@ -64,7 +64,7 @@ const LONG_CELL_TRUNCATED_LENGTH = 2000 + '…(afgekapt op 2000 tekens)'.length;
 // een correcte uitkomst, geen lek.
 const FREE_TEXT_SECRET = 'FREE-TEXT-SECRET-' + 'y'.repeat(9000);
 const LABEL_SECRET = 'LABEL-SECRET-' + 'z'.repeat(9000);
-const LABEL_TRUNCATED_LENGTH = 200 + '…(afgekapt op 200 tekens)'.length;
+const LABEL_TRUNCATED_LENGTH = 200 + '…(truncated at 200 characters)'.length;
 
 // Reviewronde 3 (review2-3d.md N2): een BLOCKLIST van vrije-tekstsleutels vergeet onvermijdelijk een
 // synoniem — `text`/`comment`/`memo`/`remark`/`title`/`longName` glipten er in ronde 2 allemaal
@@ -306,7 +306,7 @@ test('P6-velden blijven via update_tasks allemaal read-only met gerichte hints',
     const result = await callAsync('planner_update_tasks', { updates: [{ id, fields: { [field]: value } }] });
     assert(result.ok, `${field}: update call zelf blijft een zachte weigering`);
     const rejection = (result as McpToolOk).itemRejections?.[0];
-    assert(!!rejection && rejection.reason.includes(`onbekend veld '${field}'`), `${field}: REJECT_HINTS is gericht`);
+    assert(!!rejection && rejection.reason.includes(`unknown field '${field}'`), `${field}: REJECT_HINTS is gericht`);
     assert(/P6|\.xer|importdata/.test(rejection!.reason), `${field}: hint benoemt bronsemantiek`);
   }
   assertEq(JSON.stringify(S().tasks), before, 'geen P6-mutatie');
@@ -371,7 +371,7 @@ test('resourceCatalog: rawRow-cellen alleen achter includeRawRows, met afkapping
   const opened = ok(TOOL, { section: 'resourceCatalog', collection: 'resourceSources', limit: 1, includeRawRows: true });
   assertEq(opened.items[0].rawRow.cells.rsrc_id, 'R-1', 'korte cel ongewijzigd met opt-in');
   assertEq(opened.items[0].rawRow.cells.rsrc_notes.length, LONG_CELL_TRUNCATED_LENGTH, 'grote vrije cel afgekapt, niet volledig');
-  assert(opened.items[0].rawRow.cells.rsrc_notes.endsWith('afgekapt op 2000 tekens)'), 'afkapmarker aanwezig');
+  assert(opened.items[0].rawRow.cells.rsrc_notes.endsWith('truncated at 2000 characters)'), 'afkapmarker aanwezig');
 
   assertEq(err(TOOL, { section: 'resourceCatalog', collection: 'resourceSources', includeRawRows: true, limit: 101 }).code, 'VALIDATION', 'opt-in-paginalimiet 100');
   assertEq(err(TOOL, { section: 'summary', includeRawRows: true }).code, 'VALIDATION', 'includeRawRows alleen bij eigen sections');
@@ -416,7 +416,7 @@ test('taskSourceRowsByProject: expliciete selector, standaard geen cellen, opt-i
   const opened = ok(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-A', limit: 1, includeRawRows: true });
   assertEq(opened.items.length, 1, 'eerste pagina');
   assertEq(opened.items[0].cells.task_name.length, LONG_CELL_TRUNCATED_LENGTH, 'grote raw cel afgekapt, niet volledig (P1)');
-  assert(opened.items[0].cells.task_name.endsWith('afgekapt op 2000 tekens)'), 'afkapmarker aanwezig');
+  assert(opened.items[0].cells.task_name.endsWith('truncated at 2000 characters)'), 'afkapmarker aanwezig');
   const second = ok(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-A', limit: 1, includeRawRows: true, offset: opened.next_offset });
   assertEq(second.items[0].cells.task_id, 'TASK-B', 'volgende pagina zonder overlap');
 
@@ -454,7 +454,7 @@ test('rawSource: alleen opt-in, hard begrensd en paginaerbaar over grote payload
   attachArchive();
   const denied = err(TOOL, { section: 'rawSource' });
   assertEq(denied.code, 'VALIDATION', 'opt-in verplicht');
-  assert(/vrije notities|bronbytes/.test(denied.error), 'privacyhint');
+  assert(/free notes|source bytes/.test(denied.error), 'privacyhint');
   const first = ok(TOOL, { section: 'rawSource', includeRawSource: true, limit: 8 });
   assertEq(first.chunks.length, 8, 'harde eerste pagina');
   assertEq(first.totalChunks, 10, 'alle chunks geteld');
@@ -468,7 +468,7 @@ test('rawSource: alleen opt-in, hard begrensd en paginaerbaar over grote payload
   // dus een rawSource-pagina (tot 8 chunks) past nooit onder de 256 kB-responsgrens — de
   // toolbeschrijving mag rawSource daar niet onder scharen.
   assert(Math.ceil(first.chunkSizeBytes / 3) * 4 * 8 > 256 * 1024, 'volle rawSource-pagina > 256 kB bij echte chunkgrootte');
-  assert(/BEHALVE rawSource/.test(getTool(TOOL)?.description ?? ''), 'beschrijving zondert rawSource uit van de 256 kB-grens');
+  assert(/EXCEPT rawSource/.test(getTool(TOOL)?.description ?? ''), 'beschrijving zondert rawSource uit van de 256 kB-grens');
 });
 
 test('invalid args worden runtime geweigerd zonder storemutatie', () => {
@@ -504,7 +504,7 @@ test('P1: planner_batch weigert deze tool vóór enige mutatie, transactie of he
   const validArgsBatch = await callAsync('planner_batch', { steps: [{ tool: TOOL, args: { section: 'summary' } }] });
   assertEq(validArgsBatch.ok, false, 'geldige args helpen niet: de tool zelf is uitgesloten');
   assertEq((validArgsBatch as McpToolErr).code, 'VALIDATION', 'batchable:false ⇒ VALIDATION vóór de transactie');
-  assert(/niet batchable|uitgesloten/.test((validArgsBatch as McpToolErr).error), 'foutmelding noemt de uitsluiting');
+  assert(/not batchable|excluded/.test((validArgsBatch as McpToolErr).error), 'foutmelding noemt de uitsluiting');
 
   const invalidArgsBatch = await callAsync('planner_batch', { steps: [{ tool: TOOL, args: { unexpected: true } }] });
   assertEq(invalidArgsBatch.ok, false, 'ook met ongeldige args blijft de weigering VALIDATION');
@@ -534,11 +534,11 @@ test('archief onbruikbaar bij openen: summary zegt "geen archief (onbruikbaar bi
   const data = ok(TOOL);
   assertEq(data.sourcePresent, false, 'nog steeds geen bron');
   assertEq(JSON.stringify(data.archiveIssue), JSON.stringify({ code: 'bytes-missing' }), 'alleen de gesloten code, geen technische detail');
-  assert(String(data.note).startsWith('Geen archief (onbruikbaar bij openen: bytes-missing).'), `note noemt de code: ${data.note}`);
+  assert(String(data.note).startsWith('No archive (unusable on opening: bytes-missing).'), `note noemt de code: ${data.note}`);
   assert(!JSON.stringify(data).includes('geheim'), 'bestandsgestuurde validatortekst lekt niet');
   const missing = err(TOOL, { section: 'resourceCatalog', collection: 'resources' });
   assertEq(missing.code, 'NOT_FOUND', 'inhoudsectie blijft NOT_FOUND');
-  assert(missing.error.includes('onbruikbaar bij openen: bytes-missing'), `NOT_FOUND noemt de reden: ${missing.error}`);
+  assert(missing.error.includes('unusable on opening: bytes-missing'), `NOT_FOUND noemt de reden: ${missing.error}`);
   useAppStore.setState((state) => { state.xerArchiveIssue = null; });
 });
 
@@ -553,7 +553,7 @@ test('P3 (R9): sourcePresent:false loopt ook door de poort — currentProjectId 
   assertEq(data.selector.currentProjectId.length, LABEL_TRUNCATED_LENGTH, 'currentProjectId afgekapt op 200 tekens, ook zonder archief (R9)');
   assertEq(
     data.note,
-    'Er is voor dit document geen retained XER-bronarchief beschikbaar.',
+    'No retained XER source archive is available for this document.',
     'de statische systeemmelding blijft intact — die gaat bewust NIET door de vrije-tekstpoort (R9)',
   );
 });
@@ -835,7 +835,7 @@ test('P2 #4 (N4): cel-/veldNAMEN worden afgekapt én meegeteld in het budget', (
   // GEEN "geserialiseerd" in de melding — spiegelt de M4-pinningtest hieronder).
   const tooManyLongKeys = err(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-LONGKEY-BUDGET', includeRawRows: true, limit: 10 });
   assertEq(tooManyLongKeys.code, 'VALIDATION', 'lange kolomnamen alléén (triviale waarden) raken de responsgrens (N4)');
-  assert(!tooManyLongKeys.error.includes('geserialiseerd'), 'de weigering komt van de budget-tijdens-projectie (kolomnamen tellen mee), niet pas van finalizeBounded (N4)');
+  assert(!tooManyLongKeys.error.includes('serialized'), 'de weigering komt van de budget-tijdens-projectie (kolomnamen tellen mee), niet pas van finalizeBounded (N4)');
 });
 
 test('P3 (M4): het ByteBudget-effect is gepind — de weigering komt van vóór, niet ná, de serialisatie', () => {
@@ -849,7 +849,7 @@ test('P3 (M4): het ByteBudget-effect is gepind — de weigering komt van vóór,
   // toen de budgetdrempel alleen werd uitgeschakeld).
   const tooLarge = err(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-BIG', includeRawRows: true, limit: 100 });
   assertEq(tooLarge.code, 'VALIDATION', 'responsgrens grijpt in');
-  assert(!tooLarge.error.includes('geserialiseerd'), 'de weigering komt van de budget-tijdens-projectie, vóór volledige serialisatie (M4)');
+  assert(!tooLarge.error.includes('serialized'), 'de weigering komt van de budget-tijdens-projectie, vóór volledige serialisatie (M4)');
 });
 
 test('P3 #8: loopt via de ECHTE dispatch-weg (handleMcpMessage), niet alleen def.handler', async () => {

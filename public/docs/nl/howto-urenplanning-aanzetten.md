@@ -50,3 +50,4 @@ Een nieuwe taak begint dan met 5 uur in plaats van 5 dagen. Bestaande taken vera
 - [Werktijden instellen](docs://howto-werktijden-instellen): de tijden van een kalender per weekdag.
 - [Relaties leggen](docs://howto-relaties-leggen): een lag in uren tussen twee taken.
 - [Instellingen](docs://ref-instellingen): de instelling Urenplanning inschakelen en wat hij verder verandert.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): bevat taken in uren (vlechtwerk en storten) met een eigen urenkalender, *Hourly calendar, rebar fixing & pouring*.

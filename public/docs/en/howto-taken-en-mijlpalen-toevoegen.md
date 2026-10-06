@@ -85,3 +85,6 @@ A new task does not change the other dates yet. The status bar says *Out of date
 - [Selecting, deleting and undoing tasks](docs://howto-taken-selecteren-verwijderen): take a task away again.
 - [Critical path and float](docs://uitleg-kritiek-pad): what the app calculates once there are relations.
 - [Task dialog and properties panel](docs://ref-taak-eigenschappen): all fields of a task.
+- [New project and Project info](docs://ref-projectinfo): starting with a phasing template.
+- [Right-click menus](docs://ref-contextmenus): all items of the menu on a task.
+- [Refurbishment & Extension of a Family Home](examples://showcase-verbouwing-eengezinswoning.ifc): a small example project (*File › Examples*) with four phases, a start milestone and a mandatory handover milestone.

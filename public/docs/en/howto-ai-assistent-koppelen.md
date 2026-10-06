@@ -4,7 +4,7 @@ Goal: let an AI assistant read along and work on your schedule, with insight int
 
 ## When you need this
 
-You want an AI assistant to read, recalculate or change your schedule. For example to have it draft a first WBS, correct tasks or explain the critical path. That works through the **Model Context Protocol** (MCP): a standard that lets an AI assistant use tools of a program. For this, Open Planner Studio runs a small server on your own computer, the **bridge**. It offers a set of tools, all with a name that starts with `planner_`: reading and changing tasks, relations, resources, calendars, baselines, documents and files.
+You want an AI assistant to read, analyze or change your schedule. For example to have it draft a first WBS, correct tasks or explain the critical path. That works through the **Model Context Protocol** (MCP): a standard that lets an AI assistant use tools of a program. For this, Open Planner Studio runs a small server on your own computer, the **bridge**. It offers a set of tools, all with a name that starts with `planner_`: reading and changing tasks, relations, resources, calendars, baselines, documents and files. Which ones there are and what they refuse is in [AI tools](docs://ref-ai-tools); why the link works this way is in [How the AI link works](docs://uitleg-ai-koppeling).
 
 The bridge only works in the desktop app. If you turn on AI mode in the browser, you do see the *AI* tab, but the button *Start bridge* is grey with the text *The bridge only works in the desktop app.* The rest of this article is about the desktop app. In the browser, *Back up now* and *Open backup folder* are grey too.
 
@@ -58,13 +58,25 @@ Under *Safety* are the buttons with which you limit the AI:
 - *Back up now*: makes a backup of the active document straight away. Afterwards it says *Backup created:* with the file name.
 - *Open backup folder*: opens the folder with the backups.
 
-The backups are in the folder `ai-backups` in the data folder of the app. The app keeps the recent backups and thins out older ones.
+The backups are in the folder `ai-backups` in the data folder of the app. The app keeps the recent backups and thins out older ones; exactly how is in [AI tools](docs://ref-ai-tools).
+
+### 6. Have the assistant plan well
+
+An assistant that knows the tools can still build a schedule that no planner has any use for: tasks without relations, a fixed date on every task, or a breakdown that is far too fine. That is why the assistant receives the planning rules in three ways. For the first two you do not have to do anything.
+
+1. **The core rules come along by themselves.** When connecting, the bridge sends a short text with the core rules. Many clients put that text in their system prompt; whether yours does depends on the client. It says, among other things: start at the milestones, build tasks of roughly a day to two weeks, drive the schedule with relations instead of fixed dates, and say at the end what you assumed.
+2. **The connection prompt points to the full guide.** The connection prompt from the window *Connection details* asks the assistant to read the planning guide first, with the tool `planner_get_planning_guide`. That returns the planning guide, the text of [Planning well](docs://gids-goed-plannen) or a version of it for assistants. If you do not use the prompt, ask the assistant yourself: *Read the planning guide with planner_get_planning_guide first, before you change anything.*
+3. **Optional: the skill.** A skill is a small file of instructions that an assistant reads along in every session, so that in a later conversation it also knows the right order of tools. This only works with an assistant that supports skills; the skill itself mentions Claude Code and related assistants. Put the file `SKILL.md` in one of these places: `.claude/skills/goed-plannen/SKILL.md` in the project folder the assistant works in, or `~/.claude/skills/goed-plannen/SKILL.md` to have it in every project.
+
+You get the file in two ways. Ask the assistant to call the tool `planner_get_planning_guide` with `part` set to `skill`: the response contains the text and the places where it belongs. Or download it from `https://open-planner-studio.open-aec.com/skills/goed-plannen/SKILL.md`.
+
+Whether the assistant really read the guide you can see in the *Activity panel*: there is then a call of `planner_get_planning_guide`. The final answer it gives should contain a list of assumptions: estimated durations, the chosen breakdown, relations it created itself and every constraint it set. If that list is missing, ask for it.
 
 ## Pitfalls and what the app does then
 
 **The AI changes something that you want to take back.** Every change by the AI is a step that you undo with *Undo* (Ctrl+Z). A series of changes that the AI passes on as one whole is one step. Afterwards the project is shown as unsaved. After a change the schedule is calculated again, so you do not have to press F5 yourself.
 
-**The app refuses a call by the AI.** With *Pause* and *Read-only* the app refuses all changes and reading remains possible. If you have a dialog open, for example the settings or a task dialog, the app refuses all calls, including reading, until you close the dialog. The AI then gets an error message.
+**The app refuses a call by the AI.** With *Pause* and *Read-only* the app refuses all changes and reading remains possible, including the recalculation of a stale schedule. If you are in the middle of an edit yourself, such as dragging a bar or typing in a field, the AI gets the dates from before your edit with a notice that they are stale. If you have a dialog open, for example the settings, a task dialog or the welcome window, or presentation mode is on, the app refuses all calls, including reading, until you close the dialog. The AI then gets an error message with the internal name of what is open, for example `showTaskDialog`. Only `planner_get_planning_guide` keeps working, because it does not read your schedule.
 
 **You switch tabs while the AI is working.** The AI works on the document where its first change landed. If you switch tabs in the meantime, the app refuses its next change until it confirms that it wants to work on the other tab. That way nothing ends up in the wrong project.
 
@@ -83,5 +95,7 @@ The backups are in the folder `ai-backups` in the data folder of the app. The ap
 ## See also
 
 - [Giving feedback](docs://howto-feedback-geven): if the connection works differently from what is described here, report it.
+- [How the AI link works](docs://uitleg-ai-koppeling): what the link is, why the assistant works in your open project and what it may not do.
+- [AI tools](docs://ref-ai-tools): all `planner_*` tools by group, the error codes and how long backups are kept.
 - [Planning well](docs://gids-goed-plannen): the planning principles the assistant receives.
 - [Settings](docs://ref-instellingen): the AI settings.

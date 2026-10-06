@@ -266,9 +266,9 @@ test('batch: onbekende tool ⇒ volledige rollback + rapport uitgevoerd/gefaald/
   assert(!res.ok, 'een onbekende tool hoort de batch te laten falen');
   if (res.ok) return;
   assert(res.error.includes('planner_bestaat_niet'), `de fout hoort de onbekende toolnaam te noemen, kreeg: ${res.error}`);
-  assert(res.error.includes('uitgevoerd (teruggedraaid)'), `het rapport hoort stap 1 als uitgevoerd-en-teruggedraaid te melden, kreeg: ${res.error}`);
-  assert(res.error.includes('gefaald'), 'het rapport hoort de gefaalde stap te melden');
-  assert(res.error.includes('niet bereikt'), 'het rapport hoort de niet-bereikte stap te melden');
+  assert(res.error.includes('executed (rolled back)'), `het rapport hoort stap 1 als uitgevoerd-en-teruggedraaid te melden, kreeg: ${res.error}`);
+  assert(res.error.includes('failed'), 'het rapport hoort de gefaalde stap te melden');
+  assert(res.error.includes('not reached'), 'het rapport hoort de niet-bereikte stap te melden');
   assertEq(JSON.stringify(createSnapshot(store.getState())), beforeSnap, 'de store hoort byte-identiek teruggerold te zijn');
   assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, beforeUndo, 'een teruggerolde batch mag geen undo-stap achterlaten');
 });
@@ -311,7 +311,7 @@ test('batch: per-item-weigering in stap 2 ⇒ batch slaagt, weigering prominent 
   const data = res.data as BatchData;
   assertEq(Object.keys(data)[0], 'rejections', 'de weigeringen horen als EERSTE veld in de respons-data te staan (prominent bovenaan)');
   assertEq(data.rejections.length, 1, 'de weigering hoort verzameld te zijn');
-  assert(data.rejections[0].reason.includes('stap 2'), `de weigering hoort zijn stap te noemen, kreeg: ${data.rejections[0].reason}`);
+  assert(data.rejections[0].reason.includes('step 2'), `de weigering hoort zijn stap te noemen, kreeg: ${data.rejections[0].reason}`);
   assert(data.rejections[0].reason.includes('completion 140'), 'de originele reden hoort behouden te blijven');
   assertEq(res.itemRejections?.length, 1, 'de weigeringen horen óók op het contract-veld itemRejections te staan');
   assertEq(data.steps[2].status, 'uitgevoerd', 'stap 3 hoort gewoon gedraaid te zijn');
@@ -539,7 +539,7 @@ test('planner_batch: definitie is kind batch, niet zelf batchable, met slot-lees
   assertEq(batchDef.name, 'planner_batch', 'de tool hoort planner_batch te heten');
   assertEq(batchDef.kind, 'batch', "kind hoort 'batch' te zijn (stuurt de backup-trigger)");
   assertEq(batchDef.batchable, false, 'planner_batch mag nooit zelf als batch-stap draaien');
-  assert(/slot/i.test(batchDef.description), 'de beschrijving hoort uit te leggen dat alleen een SLOT-leesstap zinvol is');
+  assert(/final/i.test(batchDef.description), 'de beschrijving hoort uit te leggen dat alleen een SLOT-leesstap zinvol is');
   assert(/100/.test(batchDef.description), 'de beschrijving hoort de limiet van 100 stappen te noemen');
 });
 
@@ -654,7 +654,7 @@ test('batch: faalpad draagt steps + substeps in het data-veld van de fout', asyn
     'het gestructureerde rapport hoort per stap de status te dragen');
   assertEq(data!.substeps.length, 2, 'er horen substeps te zijn voor de uitgevoerde én de gefaalde stap');
   assertEq(data!.substeps[1].ok, false, 'de substep van de gefaalde stap hoort ok:false te melden');
-  assert(res.error.includes('uitgevoerd (teruggedraaid)'), 'de leesbare samenvatting blijft in `error` staan');
+  assert(res.error.includes('executed (rolled back)'), 'de leesbare samenvatting blijft in `error` staan');
 });
 
 // =================================================================================================
@@ -675,7 +675,7 @@ test('batch: kring in stap 1 + leesstap ⇒ CYCLE uit de tussentijdse herbereken
   assert(!res.ok, 'een kring vóór een leesstap hoort de batch te laten falen');
   if (!res.ok) {
     assertEq(res.code, 'CYCLE', 'code hoort CYCLE te zijn');
-    assert(res.error.includes('tussentijdse herberekening'), `de fout hoort de tussentijdse herberekening te noemen, kreeg: ${res.error}`);
+    assert(res.error.includes('intermediate recalculation'), `de fout hoort de tussentijdse herberekening te noemen, kreeg: ${res.error}`);
     const data = res.data as { steps: BatchData['steps'] } | undefined;
     assertEq(data?.steps[1].status, 'gefaald', 'de leesstap hoort als gefaalde stap gerapporteerd te worden');
   }

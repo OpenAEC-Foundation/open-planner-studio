@@ -50,3 +50,4 @@ A new task then starts with 5 hours instead of 5 days. Existing tasks do not cha
 - [Setting working times](docs://howto-werktijden-instellen): the times of a calendar per weekday.
 - [Adding relations](docs://howto-relaties-leggen): a lag in hours between two tasks.
 - [Settings](docs://ref-instellingen): the setting Enable hour planning and what else it changes.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): contains tasks in hours (rebar fixing and pouring) with an hour calendar of its own, *Hourly calendar, rebar fixing & pouring*.

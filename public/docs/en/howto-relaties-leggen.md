@@ -98,3 +98,4 @@ A new relation does not move any bars yet; the status bar says *Out of date — 
 - [Relations and lag](docs://uitleg-relaties): what the four kinds of relation and a lag do to the dates.
 - [Tracing a path](docs://howto-pad-traceren): bringing the chain of predecessors and successors into view.
 - [Task dialog and properties panel](docs://ref-taak-eigenschappen): the fields for relations and lag in the panel and the dialog.
+- [Refurbishment & Extension of a Family Home](examples://showcase-verbouwing-eengezinswoning.ifc): a chain of finish-to-start relations with one start-to-start (walls and roof, lag of 2 days) and one finish-to-finish (tiling and painting, lag of 1 day).

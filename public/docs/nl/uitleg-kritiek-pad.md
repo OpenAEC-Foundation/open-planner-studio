@@ -121,3 +121,4 @@ Krijgt de oplevering een deadline van woensdag 4 augustus, twee werkdagen vóór
 - [Constraints en deadlines](docs://uitleg-constraints): hoe een constraint of deadline negatieve speling geeft.
 - [Een pad traceren](docs://howto-pad-traceren): de keten achter een taak volgen.
 - [Rekenopties en conventies](docs://ref-rekenopties-en-conventies): de kritiek-definitie, bijna-kritiek en de speling-berekening per optie.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): een groot project met meerdere speling-paden, bijna-kritiek werk (drempel 3 werkdagen), een hammock, een harde pin en een externe koppeling.

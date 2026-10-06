@@ -48,7 +48,7 @@ test('get_project_info toont de SS-lag-variant (projectoptie) expliciet', async 
 test('update_project weigert schedulingOptions (ook de SS-lag-variant) met een verwijzing naar Projectinfo', async () => {
   S().newProject();
   const res = await call('planner_update_project', { schedulingOptions: { startToStartLagFrom: 'actualStart' } });
-  assert(!res.ok && /startToStartLagFrom/.test(res.error) && /Projectinfo/.test(res.error),
+  assert(!res.ok && /startToStartLagFrom/.test(res.error) && /Project info/.test(res.error),
     `weigertekst noemt de optie en Projectinfo: ${res.ok ? '' : res.error}`);
 });
 
@@ -72,7 +72,7 @@ test('get_project_info toont het nivelleerblok alleen-lezen en letterlijk', asyn
 test('update_project weigert leveling met de reden "gelezen, nog niet toegepast"', async () => {
   S().newProject();
   const res = await call('planner_update_project', { leveling: { levelAllResources: true } });
-  assert(!res.ok && /leveling/.test(res.error) && /nog NIET toegepast/.test(res.error),
+  assert(!res.ok && /leveling/.test(res.error) && /NOT applied yet/.test(res.error),
     `weigertekst noemt leveling en dat het nog niet wordt toegepast: ${res.ok ? '' : res.error}`);
 });
 
@@ -80,7 +80,7 @@ test('update_project weigert schedulingProfile met een verwijzing naar Projectin
   S().newProject();
   const res = await call('planner_update_project', { schedulingProfile: { id: 'p6' } });
   assert(!res.ok, 'moet weigeren');
-  assert(!res.ok && /Projectinfo/.test(res.error), `weigertekst noemt Projectinfo: ${res.ok ? '' : res.error}`);
+  assert(!res.ok && /Project info/.test(res.error), `weigertekst noemt Projectinfo: ${res.ok ? '' : res.error}`);
 });
 
 await run();

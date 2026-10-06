@@ -143,17 +143,17 @@ test('update_project: de datummelding noemt precies wat de controle accepteert',
   planningZonderVoortgang();
   for (const statusDate of ['2026-08-17xyz', '2026-08-17T10:00:00', '2026-02-31', '17-08-2026']) {
     const err = await callErr('planner_update_project', { statusDate });
-    assert(/JJJJ-MM-DD\b/.test(err) && /JJJJ-MM-DDTHH:mm/.test(err),
+    assert(/YYYY-MM-DD\b/.test(err) && /YYYY-MM-DDTHH:mm/.test(err),
       `statusDate ${statusDate}: melding noemt niet beide vormen: ${err}`);
   }
   assertEq(S().project.statusDate, undefined, 'geen enkele geweigerde statusdatum is opgeslagen');
   for (const [key, value] of [['startDate', '2026-08-17T10:00'], ['startDate', '2026-02-31'], ['endDate', '2026-08-17 extra']]) {
     const err = await callErr('planner_update_project', { [key]: value });
-    assert(/JJJJ-MM-DD/.test(err), `${key} ${value}: melding noemt de vorm niet: ${err}`);
+    assert(/YYYY-MM-DD/.test(err), `${key} ${value}: melding noemt de vorm niet: ${err}`);
   }
   assertEq(S().project.startDate, '2026-07-27', 'de geweigerde startdatum is niet opgeslagen');
   const sd = (def('planner_update_project').inputSchema as any).properties.statusDate.description as string;
-  assert(/JJJJ-MM-DDTHH:mm/.test(sd), `het statusDate-schemaveld noemt de datum-tijdvorm niet: ${sd}`);
+  assert(/YYYY-MM-DDTHH:mm/.test(sd), `het statusDate-schemaveld noemt de datum-tijdvorm niet: ${sd}`);
 });
 
 // =================================================================================================
@@ -197,7 +197,7 @@ test('get_task meldt het verschil tussen de gerekende finish en de actualFinish'
   assert(adj, 'get_task verzwijgt nog steeds dat earlyFinish ≠ actualFinish');
   assertEq(adj.actualFinish, '2026-08-04', 'het effect noemt het feit');
   assertEq(adj.earlyFinish, '2026-07-31', 'het effect noemt de gerekende finish');
-  assert(/buiten de werktijd/.test(adj.reason), `de reden legt de kalender-oorzaak uit: ${adj.reason}`);
+  assert(/outside the working time/.test(adj.reason), `de reden legt de kalender-oorzaak uit: ${adj.reason}`);
   assert(/planner_update_calendar/.test(adj.reason), 'de reden noemt de uitweg (kalender werkbaar maken)');
 });
 
@@ -228,7 +228,7 @@ test('een voltooide taak landt NOOIT ná zijn actualFinish, ook niet als het hel
 test('get_task-beschrijving verklaart de twee datums die er fout uitzien', () => {
   const d = def('planner_get_task').description;
   assert(/actualFinishAdjusted/.test(d), 'de beschrijving noemt het nieuwe meldveld niet');
-  assert(/NEGATIEVE `totalFloat`/.test(d), 'de beschrijving verklaart late-vóór-vroege datums niet');
+  assert(/NEGATIVE `totalFloat`/.test(d), 'de beschrijving verklaart late-vóór-vroege datums niet');
 });
 
 await run();

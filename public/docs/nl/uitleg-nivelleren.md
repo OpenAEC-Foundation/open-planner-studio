@@ -102,3 +102,4 @@ Zet je *Max. eenheden* van de metselaar op 2, dan is er geen overbezetting meer.
 - [Overbezetting oplossen](docs://howto-overbezetting-oplossen): de stappen om overbezetting te vinden en te nivelleren.
 - [Kritiek pad en speling](docs://uitleg-kritiek-pad): wat speling is en waarom een taak kritiek wordt.
 - [Werkregels: duur, inzet en werk](docs://uitleg-werkregels): hoe de duur van een taak meebeweegt met de inzet.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): drie torens die dezelfde ploegen en de torenkraan nodig hebben, en wat nivelleren daarmee doet.

@@ -206,7 +206,7 @@ export function createBackupService(deps: BackupDeps): BackupService {
   /** Schrijf één snapshot voor `docId`, ruim daarna op, en geef het pad terug. Rejec­t bij fs-fout. */
   async function writeSnapshot(docId: string): Promise<string> {
     const doc = deps.getDoc(docId);
-    if (!doc) throw new Error(`AI-backup: document '${docId}' niet gevonden`);
+    if (!doc) throw new Error(`AI backup: document '${docId}' not found`);
     const fs = await deps.getFs();
     const base = await fs.appDataDir();
     const bucket = backupBucket(docId, doc.filePath);
