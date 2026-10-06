@@ -93,6 +93,39 @@ en noem het in je rapport of PR-tekst.
     (review #261, punt O2). — S
 65. **Andere extensies kunnen `host:`-events uitzenden** via `api.events.emit` (`extensionApi.ts:~322`;
     review #261, punt O3). — S
+74. **Nederlandse parameternamen en enumwaarden in het MCP-contract.** Na de vertaling naar Engels zijn deze
+    sleutels bewust gebleven (ze zijn invoercontract): `planner_list_tasks` `kritiek`/`van`/`tot`/
+    `zonder_relaties`, `planner_get_resource_histogram` `van`/`tot` en `bucket: dag|week|maand`,
+    `update_calendar` `generate.bouwvak: geen|noord|midden|zuid`, en de stapstatus van `planner_batch`
+    (`uitgevoerd`/`gefaald`/`niet bereikt`). De beschrijvingen leggen ze in het Engels uit. Voorstel: Engelse
+    aliassen, oude namen nog een tijd accepteren. — B
+75. **AI-activiteitenpaneel toont tekst die niet via `t(...)` loopt.** De vaste markeringen
+    "onparseerbaar request", "onparseerbaar antwoord", "fout" (`services/mcp/server.ts:~274/285/293`) en
+    "… afgekapt" (`activityLog.ts`, `TRUNCATE_MARKER`) zijn hardgecodeerd Nederlands; daarnaast toont het
+    paneel de rauwe foutmelding van een tool (sinds de vertaling Engels) en de rauwe JSON. Ook de knop
+    *Nu backup maken* zet de rauwe foutmelding (`backup.ts` `makeManualBackup`, Nederlands) in
+    `aiSafety.backupErr`. Voorstel: in het paneel de foutcode (`code`) via `t(...)` tonen en de ruwe tekst
+    als detail. — B
+76. **Nog Nederlandse tekst die via MCP bij de agent kan komen, buiten de vertaalde MCP-laag.** De
+    solverfouten uit `scheduleErrorLegacyText` (`CPMSolver.ts:~339`, bv. "Kalender heeft geen werkdagen
+    ingesteld"; MCP én extensies lezen die letterlijk), de fout van `planner_get_planning_guide` als de gids
+    niet laadt (`guideTools.ts:~141`), en meldingen uit gedeelde importcode die `import_schedule` doorgeeft
+    (bv. `formatRegistry.ts:~99` "Onbekend XML-formaat…", `xerSourceArchive.ts`, `libraryOps.ts`). Of elk
+    importpad werkelijk bij de agent uitkomt is afgeleid, niet nagespeeld. — S (solver en gids: B)
+77. **`planner_batch` met alleen een `planner_level_resources`-stap op een verouderde planning laat een undo-stap
+    achter, ook als er niets genivelleerd wordt.** De levelkern roept `ensureFreshSchedule` BINNEN de
+    batch-transactie aan (`calendarResourceTools.ts:~1665`); de transactie meet die herrekening als datawijziging
+    (`documentDataChanged` in `createMcpTransactions.ts`), dus volgt er een "MCP-bewerking"-undo-stap met
+    `isDirty`. Nagespeeld met een tijdelijke case tegen de echte dispatcher: A→B, duur van A gewijzigd via de
+    store, batch `[{ tool: 'planner_level_resources' }]` zonder resources ⇒ `delays: {}`, toch +1 undo-stap en
+    vuil. Leesstappen hebben dit niet meer (de batch rekent ze vóór de transactie door, PR #285). Voorstel:
+    dezelfde voor-de-transactie-verversing ook voor een levelstap. — B
+78. **`planner_level_resources` meldt in "datums zoals opgeslagen" verschuivingen die geen nivellering zijn.**
+    De preview rekent tegen een verse solve, niet tegen de opgeslagen datums. Nagespeeld met de fixture
+    `tests/fixtures/recordedDatesIfc.ts` (geen resources), zonder `dryRun`: `delays: {}`, de modus blijft aan en
+    er komt geen undo-stap, maar `shifts` meldt taak 1.2 `oldStart 2026-03-16 → newStart 2026-03-09` (het
+    verschil tussen opgeslagen en herberekend). Een agent leest dat als effect van de nivellering. Dat `dryRun`
+    hetzelfde meldt, is afgeleid (zelfde preview), niet nagespeeld. — B
 
 ## Bestanden en herstel
 

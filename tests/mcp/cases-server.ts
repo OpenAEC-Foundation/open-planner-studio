@@ -353,7 +353,7 @@ test('twee buildMcpContext(B)-resultaten delen de runtimelease en laten B na rol
     tweede.transactions.run(() => tweede.transactions.draft.addTask({ name: 'inner-mag-niet' }));
   });
 
-  assert(!outer.ok && /herintreedbaar/i.test(outer.error),
+  assert(!outer.ok && /re-entrant/i.test(outer.error),
     'de tweede contextfactory mag B\'s actieve lease niet omzeilen');
   assertEq(JSON.stringify(createSnapshot(B.store.getState())), voor,
     'de nested weigering hoort de outer B-transactie volledig terug te rollen');

@@ -366,7 +366,7 @@ test('runMutateTool: McpStepError in de handler ⇒ die exacte code, store terug
 });
 
 // =================================================================================================
-// 17) guardNonTransactional (undo/redo/run_cpm): zelfde guards, ZONDER backup/transactie.
+// 17) guardNonTransactional (undo/redo): zelfde guards, ZONDER backup/transactie.
 // =================================================================================================
 test('guardNonTransactional: paused ⇒ PAUSED; schoon ⇒ null + anker gebonden; drift ⇒ DOC_DRIFT', async () => {
   resetFlags();

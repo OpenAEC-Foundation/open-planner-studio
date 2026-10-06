@@ -61,6 +61,10 @@ type Synchronous<T> = T extends PromiseLike<unknown> ? never : T;
 export interface McpTransactions {
   run<T>(fn: () => Synchronous<T>): McpTransactionResult<T>;
   draft: McpDraft;
+  /** Loopt er nu een `run` van DEZE factory? Leestools in een `planner_batch` draaien binnen de
+   *  transactie en mogen daar niet zelf herrekenen: de transactie zou die herrekening als
+   *  datawijziging meten (undo-stap + `isDirty`). Zie `freshenScheduleForRead` (tools/runtime.ts). */
+  isActive(): boolean;
 }
 
 // =================================================================================================
@@ -147,7 +151,7 @@ function createMcpDraft(
       // Onbekende parentId ⇒ herkenbare fout (VÓÓR enige mutatie, dus geen halve state).
       const parentTask = parentId !== null ? s.tasks.find((t) => t.id === parentId) : undefined;
       if (parentId !== null && !parentTask) {
-        throw new Error(`draft.addTask: onbekende parentId '${parentId}'`);
+        throw new Error(`draft.addTask: unknown parentId '${parentId}'`);
       }
       // Zelfde veld-afleiding (incl. taaktype-overerving) als de store-`addTask`: `buildNewTask`.
       // De typecontractvelden zijn niet via de `taskFields.ts`-allowlist zetbaar (REJECT_HINTS);
@@ -208,7 +212,7 @@ function createMcpDraft(
     const tempIds = new Set<string>();
     for (const item of items) {
       if (tempIds.has(item.tempId)) {
-        throw new Error(`draft.addTasks: dubbele tempId '${item.tempId}' binnen de call`);
+        throw new Error(`draft.addTasks: duplicate tempId '${item.tempId}' within the call`);
       }
       tempIds.add(item.tempId);
     }
@@ -219,7 +223,7 @@ function createMcpDraft(
       const p = item.parentId ?? null;
       if (p !== null && !existingIds.has(p) && !tempIds.has(p)) {
         throw new Error(
-          `draft.addTasks: onbekende parentId '${p}' (geen bestaand taak-id en geen tempId uit de call)`,
+          `draft.addTasks: unknown parentId '${p}' (no existing task id and no tempId from the call)`,
         );
       }
     }
@@ -228,7 +232,7 @@ function createMcpDraft(
     for (const item of items) {
       if (item.isMilestone && item.time && item.time.scheduleDuration > 0) {
         throw new Error(
-          `draft.addTasks: mijlpaal '${item.tempId}' mag geen duur > 0 hebben (scheduleDuration=${item.time.scheduleDuration})`,
+          `draft.addTasks: milestone '${item.tempId}' may not have a duration > 0 (scheduleDuration=${item.time.scheduleDuration})`,
         );
       }
     }
@@ -240,7 +244,7 @@ function createMcpDraft(
     const visit = (item: BulkTaskItem) => {
       const st = visitState.get(item.tempId);
       if (st === 2) return;
-      if (st === 1) throw new Error(`draft.addTasks: cykel in tempId-parents rond '${item.tempId}'`);
+      if (st === 1) throw new Error(`draft.addTasks: loop in tempId parents around '${item.tempId}'`);
       visitState.set(item.tempId, 1);
       const p = item.parentId ?? null;
       if (p !== null && tempIds.has(p)) visit(byTempId.get(p)!);
@@ -344,11 +348,11 @@ function createMcpDraft(
   moveTask(id: string, newParentId: string | null, position?: number): PhaseTransitionReport[] {
     let reports: PhaseTransitionReport[] = [];
     store.setState((s) => {
-      if (!s.tasks.some((t) => t.id === id)) throw new Error(`draft.moveTask: onbekende taak '${id}'`);
+      if (!s.tasks.some((t) => t.id === id)) throw new Error(`draft.moveTask: unknown task '${id}'`);
       if (newParentId !== null) {
-        if (!s.tasks.some((t) => t.id === newParentId)) throw new Error(`draft.moveTask: onbekende ouder '${newParentId}'`);
+        if (!s.tasks.some((t) => t.id === newParentId)) throw new Error(`draft.moveTask: unknown parent '${newParentId}'`);
         if (isSelfOrDescendant(s.tasks, newParentId, id)) {
-          throw new Error(`draft.moveTask: '${id}' kan niet onder zichzelf of een eigen afstammeling`);
+          throw new Error(`draft.moveTask: '${id}' cannot go under itself or one of its own descendants`);
         }
       }
       const plan = planPhaseTransitions(s, firstChildGains(s.tasks, [{ childId: id, parentId: newParentId }]));
@@ -599,7 +603,7 @@ function createMcpDraft(
     let refusal: SplitRefusal | null = null;
     store.setState((s) => {
       const task = s.tasks.find((t) => t.id === taskId);
-      if (!task) throw new Error(`draft.setTaskSplits: onbekende taskId '${taskId}'`);
+      if (!task) throw new Error(`draft.setTaskSplits: unknown taskId '${taskId}'`);
       const hoursPerDay = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
       refusal = taskSplitRefusal(task, pieces, hoursPerDay);
       if (refusal) return;
@@ -613,13 +617,13 @@ function createMcpDraft(
   ensureCustomTaskType(type: CustomTaskType): void {
     store.setState((s) => {
       const normalized = { id: type.id.trim(), name: type.name.trim() };
-      if (!normalized.id || !normalized.name) throw new Error('draft.ensureCustomTaskType: id en naam mogen niet leeg zijn');
+      if (!normalized.id || !normalized.name) throw new Error('draft.ensureCustomTaskType: id and name must not be empty');
       const { sameId, sameNameOtherId } = customTaskTypeClashes(s.customTaskTypes, normalized);
       if (sameId) {
-        if (sameId.name !== normalized.name) throw new Error(`draft.ensureCustomTaskType: id '${normalized.id}' heeft al naam '${sameId.name}'`);
+        if (sameId.name !== normalized.name) throw new Error(`draft.ensureCustomTaskType: id '${normalized.id}' already has name '${sameId.name}'`);
         return;
       }
-      if (sameNameOtherId) throw new Error(`draft.ensureCustomTaskType: naam '${normalized.name}' heeft al id '${sameNameOtherId.id}'`);
+      if (sameNameOtherId) throw new Error(`draft.ensureCustomTaskType: name '${normalized.name}' already has id '${sameNameOtherId.id}'`);
       s.customTaskTypes.push(normalized);
       markDocumentEdited(s);
     });
@@ -664,7 +668,7 @@ function createMcpDraft(
     let changed = 0;
     store.setState((s) => {
       const idx = s.calendars.findIndex((c) => c.id === id);
-      if (idx < 0) throw new Error(`draft.updateCalendar: onbekende kalender-id '${id}'`);
+      if (idx < 0) throw new Error(`draft.updateCalendar: unknown calendar id '${id}'`);
       // Tweeling van resourceSlice.ts's `updateCalendar`: momentopnamen vóór de mutatie.
       const byTask = assignmentsByTask(s.assignments);
       const affected = tasksOnCalendar(s, id).map((task) => ({ task, before: captureCalendarChange(task, byTask.get(task.id) ?? [], s) }));
@@ -690,7 +694,7 @@ function createMcpDraft(
     const id = generateId('res');
     store.setState((s) => {
       if (!isValidUnits(res.maxUnits)) {
-        throw new Error(`draft.addResource: ongeldige maxUnits ${String(res.maxUnits)} (strikt positief vereist)`);
+        throw new Error(`draft.addResource: invalid maxUnits ${String(res.maxUnits)} (strictly positive required)`);
       }
       insertResource(s, res, id);
       markDocumentEdited(s);
@@ -714,9 +718,9 @@ function createMcpDraft(
   updateResource(id: string, updates: Partial<Resource>): void {
     store.setState((s) => {
       const idx = s.resources.findIndex((r) => r.id === id);
-      if (idx < 0) throw new Error(`draft.updateResource: onbekende resource-id '${id}'`);
+      if (idx < 0) throw new Error(`draft.updateResource: unknown resource id '${id}'`);
       if ('maxUnits' in updates && !isValidUnits(updates.maxUnits)) {
-        throw new Error(`draft.updateResource: ongeldige maxUnits ${String(updates.maxUnits)} (strikt positief vereist)`);
+        throw new Error(`draft.updateResource: invalid maxUnits ${String(updates.maxUnits)} (strictly positive required)`);
       }
       const target = s.resources[idx] as unknown as Record<string, unknown>;
       for (const [key, value] of Object.entries(updates)) {
@@ -744,7 +748,7 @@ function createMcpDraft(
     const report = { removedAssignmentIds: [] as string[], affectedTaskIds: [] as string[], orphanedCrewMemberIds: [] as string[] };
     store.setState((s) => {
       if (!s.resources.some((r) => r.id === id)) {
-        throw new Error(`draft.removeResource: onbekende resource-id '${id}'`);
+        throw new Error(`draft.removeResource: unknown resource id '${id}'`);
       }
       // Voor/na vastleggen VÓÓR de filters (strings uit de draft kopiëren, geen draft-referenties).
       const doomed = s.assignments.filter((a) => a.resourceId === id);
@@ -771,12 +775,12 @@ function createMcpDraft(
     const id = generateId('asgn');
     store.setState((s) => {
       const task = s.tasks.find((t) => t.id === taskId);
-      if (!task) throw new Error(`draft.assignResource: onbekende taskId '${taskId}'`);
+      if (!task) throw new Error(`draft.assignResource: unknown taskId '${taskId}'`);
       if (task.isMilestone || isSummaryTask(task)) {
-        throw new Error(`draft.assignResource: kan geen resource toewijzen aan een mijlpaal/samenvattingstaak '${taskId}'`);
+        throw new Error(`draft.assignResource: cannot assign a resource to a milestone/summary task '${taskId}'`);
       }
       if (!isValidUnits(unitsPerDay)) {
-        throw new Error(`draft.assignResource: ongeldige unitsPerDay ${String(unitsPerDay)} (strikt positief vereist)`);
+        throw new Error(`draft.assignResource: invalid unitsPerDay ${String(unitsPerDay)} (strictly positive required)`);
       }
       // Zelfde lichaam als de store-actie (`assignmentMutations.ts`, incl. de werkregel); verlies
       // via de lease.
@@ -796,7 +800,7 @@ function createMcpDraft(
   updateAssignment(assignmentId: string, updates: Partial<Pick<ResourceAssignment, 'unitsPerDay' | 'curve'>>): void {
     store.setState((s) => {
       const idx = s.assignments.findIndex((a) => a.id === assignmentId);
-      if (idx < 0) throw new Error(`draft.updateAssignment: onbekende assignmentId '${assignmentId}'`);
+      if (idx < 0) throw new Error(`draft.updateAssignment: unknown assignmentId '${assignmentId}'`);
       const patch = acceptedAssignmentPatch(updates);
       if (!patch) return;
       // Zelfde lichaam als de store-actie (`assignmentMutations.ts`, incl. de werkregel).
@@ -814,14 +818,14 @@ function createMcpDraft(
   setAssignmentWork(assignmentId: string, remainingWorkMinutes: number): void {
     store.setState((s) => {
       const a = s.assignments.find((x) => x.id === assignmentId);
-      if (!a) throw new Error(`draft.setAssignmentWork: onbekende assignmentId '${assignmentId}'`);
+      if (!a) throw new Error(`draft.setAssignmentWork: unknown assignmentId '${assignmentId}'`);
       const task = s.tasks.find((t) => t.id === a.taskId);
-      if (!task) throw new Error(`draft.setAssignmentWork: toewijzing '${assignmentId}' zonder taak`);
+      if (!task) throw new Error(`draft.setAssignmentWork: assignment '${assignmentId}' without a task`);
       const oldWorkMinutes = taskWorkMinutesOf(task, taskCalendarHoursPerDay(task, s.calendars, s.calendar));
       const finishBasis = hourInputFinishBasis(task); // vóór `commitTrianglePlan`.
       const plan = planWorkEdit(task, s.assignments, s, assignmentId, remainingWorkMinutes);
       if (!plan) {
-        throw new Error(`draft.setAssignmentWork: werk ${String(remainingWorkMinutes)} geweigerd (strikt positief vereist; de werkregel geldt niet op mijlpalen, hangmatten, samenvattingen of ELAPSEDTIME-taken)`);
+        throw new Error(`draft.setAssignmentWork: work ${String(remainingWorkMinutes)} refused (strictly positive required; the work rule does not apply to milestones, hammocks, summary tasks or ELAPSEDTIME tasks)`);
       }
       if (commitTrianglePlan(task, s.assignments, plan).durationChanged) afterTriangleDurationChange(s, task, oldWorkMinutes, finishBasis);
       s.taskTypesVisible = true; // een gezette regel ontsluit de UI
@@ -837,7 +841,7 @@ function createMcpDraft(
   setTaskWorkRule(taskId: string, rule: WorkRule | undefined): void {
     store.setState((s) => {
       const task = s.tasks.find((t) => t.id === taskId);
-      if (!task) throw new Error(`draft.setTaskWorkRule: onbekende taskId '${taskId}'`);
+      if (!task) throw new Error(`draft.setTaskWorkRule: unknown taskId '${taskId}'`);
       if (task.workRule === rule) return;
       settleRuleChange(task, s.assignments, s, rule);
       if (rule !== undefined) s.taskTypesVisible = true; // een gezette regel ontsluit de UI
@@ -853,9 +857,9 @@ function createMcpDraft(
   setAssignmentContour(assignmentId: string, periods: TimephasedContourPeriod[] | null): void {
     store.setState((s) => {
       const a = s.assignments.find((x) => x.id === assignmentId);
-      if (!a) throw new Error(`draft.setAssignmentContour: onbekende assignmentId '${assignmentId}'`);
+      if (!a) throw new Error(`draft.setAssignmentContour: unknown assignmentId '${assignmentId}'`);
       const task = s.tasks.find((t) => t.id === a.taskId);
-      if (!task) throw new Error(`draft.setAssignmentContour: toewijzing '${assignmentId}' zonder taak`);
+      if (!task) throw new Error(`draft.setAssignmentContour: assignment '${assignmentId}' without a task`);
       const edit = contoursAfterEdit(s, task, a, periods);
       if (!edit) return;
       task.timephasedContours = edit.contours;
@@ -873,17 +877,17 @@ function createMcpDraft(
   moveAssignment(assignmentId: string, newTaskId: string): void {
     store.setState((s) => {
       const assignment = s.assignments.find((a) => a.id === assignmentId);
-      if (!assignment) throw new Error(`draft.moveAssignment: onbekende assignmentId '${assignmentId}'`);
+      if (!assignment) throw new Error(`draft.moveAssignment: unknown assignmentId '${assignmentId}'`);
       const newTask = s.tasks.find((t) => t.id === newTaskId);
-      if (!newTask) throw new Error(`draft.moveAssignment: onbekende taskId '${newTaskId}'`);
+      if (!newTask) throw new Error(`draft.moveAssignment: unknown taskId '${newTaskId}'`);
       if (newTask.isMilestone || isSummaryTask(newTask)) {
-        throw new Error(`draft.moveAssignment: doeltaak '${newTaskId}' is een mijlpaal/samenvattingstaak`);
+        throw new Error(`draft.moveAssignment: target task '${newTaskId}' is a milestone/summary task`);
       }
       const alreadyOnTarget = s.assignments.some(
         (a) => a.taskId === newTaskId && a.resourceId === assignment.resourceId,
       );
       if (alreadyOnTarget) {
-        throw new Error(`draft.moveAssignment: resource '${assignment.resourceId}' is al toegewezen aan taak '${newTaskId}'`);
+        throw new Error(`draft.moveAssignment: resource '${assignment.resourceId}' is already assigned to task '${newTaskId}'`);
       }
 
       for (const lostTaskId of relocateAssignment(s, assignment, newTask).lostTaskIds) recordTimephasedLoss(lostTaskId);
@@ -899,7 +903,7 @@ function createMcpDraft(
   unassignResource(assignmentId: string): void {
     store.setState((s) => {
       const removed = s.assignments.find((a) => a.id === assignmentId);
-      if (!removed) throw new Error(`draft.unassignResource: onbekende assignmentId '${assignmentId}'`);
+      if (!removed) throw new Error(`draft.unassignResource: unknown assignmentId '${assignmentId}'`);
       for (const lostTaskId of removeAssignment(s, removed).lostTaskIds) recordTimephasedLoss(lostTaskId);
       markDocumentEdited(s);
     });
@@ -1010,7 +1014,7 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
 
   const requireCurrentLease = (): McpTransactionLease => {
     if (!currentLease) {
-      throw new Error('MCP-draft vereist een actieve run op hetzelfde factoryobject');
+      throw new Error('MCP draft requires an active run on the same factory object');
     }
     return currentLease;
   };
@@ -1068,7 +1072,7 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
       try {
         value = fn() as T;
         if (isThenable(value)) {
-          throw new Error('MCP-transactiecallback moet strikt synchroon zijn en mag geen Promise/thenable retourneren');
+          throw new Error('MCP transaction callback must be strictly synchronous and may not return a Promise/thenable');
         }
         // Wijzigde de callback per saldo projectdata? Gemeten VÓÓR de eindherberekening: `runCPM`
         // alléén is nooit een wijziging. Dit is de ene plek waar elke MCP-schrijfactie langskomt — ook
@@ -1122,5 +1126,5 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
     }
   };
 
-  return { run, draft };
+  return { run, draft, isActive: () => currentLease !== null };
 }

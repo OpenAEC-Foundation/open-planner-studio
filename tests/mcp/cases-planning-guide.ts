@@ -57,7 +57,8 @@ test('de instructions bevatten de kernregels die een agent anders fout doet', ()
     'two weeks',            // granulariteit
     'Finish-to-start',      // relaties i.p.v. vaste datums
     'negative lag',
-    'planner_run_cpm',      // niet om te verversen, wél voor het resultaat
+    'planner_get_project_info', // het resultaat lezen; een losse herbereken-tool is er niet
+    'planner_get_critical_path',
     'assumed',              // meld je aannames
     'planner_get_planning_guide',
     'https://open-planner-studio.open-aec.com/docs/en/gids-goed-plannen.md',
@@ -65,6 +66,7 @@ test('de instructions bevatten de kernregels die een agent anders fout doet', ()
   for (const n of needles) {
     assert(text.includes(n), `instructions missen "${n}"`);
   }
+  assert(!text.includes('planner_run_cpm'), 'instructions noemen nog de verwijderde planner_run_cpm');
   assert(text.length < 2500, `instructions te lang (${text.length} tekens) — hij gaat in elke systeemprompt mee`);
 });
 

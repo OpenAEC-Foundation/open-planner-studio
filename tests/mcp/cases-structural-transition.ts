@@ -92,7 +92,7 @@ test('add_tasks met alleen een mijlpaal onder een taak met toewijzing: VALIDATIO
   const res = await rpc('planner_add_tasks', { tasks: [{ tempId: 'tmp-keuring', name: 'Keuring', parentId: L, isMilestone: true }] });
   assertEq(res.isError, true, 'de call faalt');
   assertEq(res.structuredContent.code, 'VALIDATION', 'foutcode VALIDATION');
-  assert(String(res.structuredContent.error).includes('geen van de nieuwe subtaken'), `reden noemt het probleem: ${res.structuredContent.error}`);
+  assert(String(res.structuredContent.error).includes('none of the new subtasks'), `reden noemt het probleem: ${res.structuredContent.error}`);
   assertEq([S().tasks.length, S().assignments.find(a => a.id === assignmentId)?.taskId], [count, L], 'volledige rollback');
 });
 

@@ -238,13 +238,13 @@ test('ongeldige pauze of werkende uitzondering ⇒ zachte weigering met reden, k
   S().ensureProjectCalendarInLibrary();
   const before = JSON.stringify(calById(projId));
   const cases: [Record<string, unknown>, RegExp][] = [
-    [{ simpleBreakStartMinute: 900, simpleBreakDurationMinutes: 90 }, /binnen de werkdag/],
-    [{ simpleBreakStartMinute: 420, simpleBreakDurationMinutes: 540 }, /hele werkdag/],
-    [{ simpleBreakDurationMinutes: 12.5 }, /geheel aantal minuten/],
-    [{ workStartHour: 13, simpleBreakStartMinute: 720, simpleBreakDurationMinutes: 60 }, /binnen de werkdag/],
-    [{ workingExceptions: [{ name: 'Omgekeerd', startDate: '2026-06-13', endDate: '2026-06-06' }] }, /ligt vóór startDate/],
-    [{ workingExceptions: [{ name: 'Band', startDate: '2026-06-13', endDate: '2026-06-13', bands: [{ start: 720, end: 420 }] }] }, /ligt niet ná/],
-    [{ workingExceptions: [{ name: 'X', startDate: '2026-06-13', endDate: '2026-06-13', color: 'rood' }] }, /onbekend veld/],
+    [{ simpleBreakStartMinute: 900, simpleBreakDurationMinutes: 90 }, /within the working day/],
+    [{ simpleBreakStartMinute: 420, simpleBreakDurationMinutes: 540 }, /whole working day/],
+    [{ simpleBreakDurationMinutes: 12.5 }, /whole number of minutes/],
+    [{ workStartHour: 13, simpleBreakStartMinute: 720, simpleBreakDurationMinutes: 60 }, /within the working day/],
+    [{ workingExceptions: [{ name: 'Omgekeerd', startDate: '2026-06-13', endDate: '2026-06-06' }] }, /lies before startDate/],
+    [{ workingExceptions: [{ name: 'Band', startDate: '2026-06-13', endDate: '2026-06-13', bands: [{ start: 720, end: 420 }] }] }, /does not lie after/],
+    [{ workingExceptions: [{ name: 'X', startDate: '2026-06-13', endDate: '2026-06-13', color: 'rood' }] }, /unknown field/],
   ];
   for (const [fields, reason] of cases) {
     const res = await call('planner_update_calendar', { calendars: [{ id: projId, ...fields }] });
@@ -327,7 +327,7 @@ test('hoursPerDay op een kalender met een ONGELDIGE opgeslagen pauze ⇒ weigeri
   const res = await call('planner_update_calendar', { calendars: [{ id: projId, hoursPerDay: 8 }] });
   const rej = rejections(res);
   assertEq(rej.length, 1, 'geweigerd');
-  assert(/binnen de werkdag/.test(rej[0].reason) && /herstel eerst de pauze/.test(rej[0].reason),
+  assert(/within the working day/.test(rej[0].reason) && /fix the break first/.test(rej[0].reason),
     `de reden noemt de ongeldige pauze en wat te doen: ${rej[0].reason}`);
   assertEq(JSON.stringify(calById(projId)), before, 'kalender onaangeroerd');
 });

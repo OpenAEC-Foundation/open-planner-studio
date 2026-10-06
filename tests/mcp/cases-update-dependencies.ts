@@ -183,10 +183,10 @@ test('lag in dagen: een fractie wordt geaccepteerd en niet afgerond, en de tekst
     ['hint lagMinutes', rejections(await call('planner_update_dependencies', { updates: [{ seqId: s1, lagMinutes: 60 }] }))[0]?.reason ?? ''],
   ];
   for (const [label, text] of texts) {
-    assert(text !== '' && !/hele werkdagen/i.test(text), `${label} belooft geen "hele werkdagen": ${text}`);
+    assert(text !== '' && !/whole working days/i.test(text), `${label} belooft geen "hele werkdagen": ${text}`);
   }
   for (const [label, text] of texts.slice(0, 2)) {
-    assert(/fractie/i.test(text), `${label} zegt dat een fractie mag: ${text}`);
+    assert(/fraction/i.test(text), `${label} zegt dat een fractie mag: ${text}`);
   }
 });
 
@@ -236,16 +236,16 @@ test('onbekend seqId ⇒ ZACHTE weigering; de geldige items uit dezelfde call ga
   assertEq(seqById(s1).type, 'START_START', 'de geldige wijziging landde');
   assertEq(rejections(res).length, 1, 'precies één zachte weigering');
   assertEq(rejections(res)[0].id, 'seq-bestaat-niet', 'de weigering noemt het rotte id');
-  assert(/bestaat niet/.test(rejections(res)[0].reason), `reden: ${rejections(res)[0].reason}`);
+  assert(/does not exist/.test(rejections(res)[0].reason), `reden: ${rejections(res)[0].reason}`);
 });
 
 test('onbekend veld ⇒ weigering die de SLEUTEL noemt, plus het alternatief', async () => {
   const cases: [string, unknown, RegExp][] = [
-    ['lagUnit', 'ELAPSEDTIME', /niet zetbaar/],
+    ['lagUnit', 'ELAPSEDTIME', /not settable/],
     ['lagPercent', 50, /lag: "\+50%"/],
-    ['lagDays', 3, /gebruik `lag`/],
-    ['id', 'x', /gebruik `seqId`/],
-    ['zomaarwat', 1, /Toegestaan: seqId/],
+    ['lagDays', 3, /use `lag`/],
+    ['id', 'x', /use `seqId`/],
+    ['zomaarwat', 1, /Allowed: seqId/],
   ];
   for (const [key, value, hintRe] of cases) {
     const { s1 } = threeChain();
@@ -264,7 +264,7 @@ test('dubbele seqId in één call ⇒ zachte weigering (geen stille laatste-wint
   });
   assertEq(seqById(s1).type, 'START_START', 'alleen het eerste item landde');
   assertEq(okData(res).updated.length, 1, 'één wijziging gerapporteerd');
-  assert(/meerdere keren/.test(rejections(res)[0].reason), `reden: ${rejections(res)[0].reason}`);
+  assert(/more than once/.test(rejections(res)[0].reason), `reden: ${rejections(res)[0].reason}`);
 });
 
 test('een relatie naar zichzelf ⇒ zachte weigering', async () => {
@@ -272,7 +272,7 @@ test('een relatie naar zichzelf ⇒ zachte weigering', async () => {
   const res = await call('planner_update_dependencies', { updates: [{ seqId: s1, successorId: a }] });
   assertEq(okData(res).updated, [], 'niets gewijzigd');
   assertEq(seqById(s1).successorId !== a, true, 'de relatie is ongemoeid');
-  assert(/zichzelf/.test(rejections(res)[0].reason), `reden: ${rejections(res)[0].reason}`);
+  assert(/itself/.test(rejections(res)[0].reason), `reden: ${rejections(res)[0].reason}`);
 });
 
 test('onbekend taak-id op een eindpunt ⇒ zachte weigering die het id noemt', async () => {
@@ -287,14 +287,14 @@ test('een item ZONDER wijzigbaar veld ⇒ weigering, niet stil ok', async () => 
   const { s1 } = threeChain();
   const res = await call('planner_update_dependencies', { updates: [{ seqId: s1 }] });
   assertEq(okData(res).updated, [], 'niets gewijzigd');
-  assert(/minstens één/.test(rejections(res)[0].reason), `reden: ${rejections(res)[0].reason}`);
+  assert(/at least one/.test(rejections(res)[0].reason), `reden: ${rejections(res)[0].reason}`);
 });
 
 test('een wijziging die NIETS verandert ⇒ weigering "er valt niets te wijzigen"', async () => {
   const { s1 } = threeChain();
   const res = await call('planner_update_dependencies', { updates: [{ seqId: s1, type: 'FS', lag: 0 }] });
   assertEq(okData(res).updated, [], 'niets gewijzigd');
-  assert(/niets te wijzigen/.test(rejections(res)[0].reason), `reden: ${rejections(res)[0].reason}`);
+  assert(/nothing to change/.test(rejections(res)[0].reason), `reden: ${rejections(res)[0].reason}`);
 });
 
 test('nul uitvoerbare items ⇒ GEEN transactie (undo-stack en redo-stack onaangeroerd)', async () => {
@@ -361,7 +361,7 @@ test('kringverwijzing via een verlegd eindpunt ⇒ CYCLE + byte-identieke rollba
   // noemt hij de betrokken taken. (Zonder pre-check komt de kale solver-string "Circular dependency
   // detected: …" door — óók CYCLE, maar veel minder bruikbaar. Deze assert is precies dat verschil.)
   const err = (res as any).error as string;
-  assert(/kringverwijzing gedetecteerd/.test(err), `de pre-check levert de precieze melding: ${err}`);
+  assert(/circular dependency detected/.test(err), `de pre-check levert de precieze melding: ${err}`);
   assert(err.includes(a), `de melding noemt de betrokken taken: ${err}`);
   assertEq(JSON.stringify(createSnapshot(store.getState())), before, 'de store is byte-identiek teruggerold');
 });
@@ -549,7 +549,7 @@ test('add_dependencies: verzameltaak-eindpunt toegestaan; alleen een voorouder-r
   const rej = rejections(res);
   assertEq(rej.length, 1, 'precies één zachte weigering');
   assertEq(rej[0].id, `${kind}->${fase}`, 'de weigering noemt Kind→Fase (de voorouder-relatie)');
-  assert(/voorouder/.test(rej[0].reason), `de reden noemt "voorouder": ${rej[0].reason}`);
+  assert(/ancestor/.test(rej[0].reason), `de reden noemt "voorouder": ${rej[0].reason}`);
 
   // Een weigering schrijft ook echt niets: geen Kind→Fase-relatie in de store.
   assert(
@@ -605,7 +605,7 @@ test('update_dependencies: opvolger verhangen naar de EIGEN (voor)ouder-samenvat
   const res = await call('planner_update_dependencies', { updates: [{ seqId: s1, successorId: fase }] });
   assertEq(okData(res).updated, [], 'niets gewijzigd');
   const reason = rejections(res)[0].reason;
-  assert(/voorouder/.test(reason), `de reden noemt "voorouder": ${reason}`);
+  assert(/ancestor/.test(reason), `de reden noemt "voorouder": ${reason}`);
   assertEq(seqById(s1).predecessorId, kind, 'de voorganger is ongemoeid');
   assertEq(seqById(s1).successorId, los, 'de opvolger is ongemoeid');
 });
@@ -620,7 +620,7 @@ test('update_dependencies: voorganger verhangen naar de EIGEN (voor)ouder-samenv
   const res = await call('planner_update_dependencies', { updates: [{ seqId: s1, predecessorId: fase }] });
   assertEq(okData(res).updated, [], 'niets gewijzigd');
   const reason = rejections(res)[0].reason;
-  assert(/voorouder/.test(reason), `de reden noemt "voorouder": ${reason}`);
+  assert(/ancestor/.test(reason), `de reden noemt "voorouder": ${reason}`);
   assertEq(seqById(s1).predecessorId, los, 'de voorganger is ongemoeid');
   assertEq(seqById(s1).successorId, kind, 'de opvolger is ongemoeid');
 });

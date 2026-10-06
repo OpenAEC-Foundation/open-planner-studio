@@ -28,9 +28,9 @@ const afterP6 = [
 expect('2 moveProject bewaart X0/X7 P6-data en verschuift alleen de semantische finishdatum',
   JSON.stringify(afterP6) === JSON.stringify(['P-X9', 'T-X9', true, 'CP_Phys', '2032-03-14', 'DT_FixedRate', 'TT_LOE', true]));
 const mcpFields = readFileSync(new URL('../../src/services/mcp/tools/taskFields.ts', import.meta.url), 'utf8');
-expect('3 MCP-verdict blokkeert P6 DurationType als agentinvoer', /p6DurationType: 'P6\\'s eigen Duration Type is via de bridge niet zetbaar/.test(mcpFields));
-expect('4 MCP-verdict blokkeert P6 ActivityType als agentinvoer', /p6ActivityType: 'P6\\'s eigen Activity Type is via de bridge niet zetbaar/.test(mcpFields));
-expect('5 MCP-verdict blokkeert expliciete targetvensterprovenance als agentinvoer', /p6ExplicitTargetWindow: 'de P6-XER-provenance/.test(mcpFields));
+expect('3 MCP-verdict blokkeert P6 DurationType als agentinvoer', /p6DurationType: 'P6\\'s own Duration Type is not settable via the bridge/.test(mcpFields));
+expect('4 MCP-verdict blokkeert P6 ActivityType als agentinvoer', /p6ActivityType: 'P6\\'s own Activity Type is not settable via the bridge/.test(mcpFields));
+expect('5 MCP-verdict blokkeert expliciete targetvensterprovenance als agentinvoer', /p6ExplicitTargetWindow: 'the P6 XER provenance/.test(mcpFields));
 expect('6 solverfirewall blijft in de XER-chunkcheck permanent bewaakt',
   readFileSync(new URL('./check-xer-chunk-boundary.ts', import.meta.url), 'utf8').includes("'early_', 'late_', 'restart_date', 'reend_date'"));
 if (failures.length === 0) {

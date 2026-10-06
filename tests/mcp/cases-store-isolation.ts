@@ -359,7 +359,7 @@ test('verkeerde of gesloten lease kan een actieve outer lease niet vrijgeven', (
   try {
     context.runtime.enterMcpTransaction();
   } catch (error) {
-    stillActive = /herintreedbaar/i.test(error instanceof Error ? error.message : String(error));
+    stillActive = /re-entrant/i.test(error instanceof Error ? error.message : String(error));
   }
   assert(stillActive, 'na de verkeerde exit hoort de echte outer lease nog actief te zijn');
   context.runtime.exitMcpTransaction(lease);
@@ -386,7 +386,7 @@ function assertNestedRollback(
     outer.draft.addTask({ name: `${label} outer` });
     inner.run(() => inner.draft.addTask({ name: `${label} inner` }));
   });
-  assert(!result.ok && /herintreedbaar/i.test(result.error),
+  assert(!result.ok && /re-entrant/i.test(result.error),
     `${label}: nested enter moet als throw de outer callback bereiken`);
   assertEq(plainState(B.app), before, `${label}: outer rollback herstelt B volledig`);
   const reuse = inner.run(() => inner.draft.addTask({ name: `${label} hergebruik` }));

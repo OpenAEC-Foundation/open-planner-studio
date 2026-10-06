@@ -99,7 +99,7 @@ test('move naar de taak waar de toewijzing al staat ⇒ zacht geweigerd; add in 
   const rej: { id: string; reason: string }[] = res.itemRejections ?? [];
   assertEq(rej.length, 1, 'precies één zachte weigering');
   assertEq(rej[0].id, asg, 'de weigering hangt aan het assignmentId');
-  assert(/staat al op taak/.test(rej[0].reason), `de reden zegt dat hij al op de taak staat: ${rej[0].reason}`);
+  assert(/is already on task/.test(rej[0].reason), `de reden zegt dat hij al op de taak staat: ${rej[0].reason}`);
   assert(!/draft\./.test(rej[0].reason), 'geen interne draft.-tekst in de reden');
 
   const asgs = store.getState().assignments;
@@ -135,7 +135,7 @@ test('planner_batch: move naar dezelfde taak ⇒ zacht geweigerd; add en volgend
   const reasons = (data.rejections as { id: string; reason: string }[]);
   assertEq(reasons.length, 1, 'precies één deel-weigering in de batch');
   assertEq(reasons[0].id, asg, 'de weigering hangt aan het assignmentId');
-  assert(/staat al op taak/.test(reasons[0].reason), `de reden zegt dat hij al op de taak staat: ${reasons[0].reason}`);
+  assert(/is already on task/.test(reasons[0].reason), `de reden zegt dat hij al op de taak staat: ${reasons[0].reason}`);
   assert(!/draft\./.test(reasons[0].reason), 'geen interne draft.-tekst in de reden');
 
   const asgs = store.getState().assignments;
@@ -182,7 +182,7 @@ test('move naar een andere taak waar dezelfde resource al staat ⇒ zacht geweig
   assertEq(data.added.length, 1, 'de add in dezelfde call is toegepast');
   const rej: { id: string; reason: string }[] = res.itemRejections ?? [];
   assertEq(rej.length, 1, 'precies één zachte weigering');
-  assert(/al toegewezen aan taak/.test(rej[0].reason), `de reden noemt de dubbeltelling: ${rej[0].reason}`);
+  assert(/already assigned to task/.test(rej[0].reason), `de reden noemt de dubbeltelling: ${rej[0].reason}`);
   assertEq(store.getState().assignments.find((x) => x.id === asg)!.taskId, a, 'de toewijzing staat nog op A');
 });
 

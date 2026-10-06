@@ -83,7 +83,7 @@ test('korter dan het gedane werk: zachte weigering met uitleg, taak ongewijzigd'
   const res = await rpc('planner_update_tasks', { updates: [{ id: t, fields: { duration: 3 } }] });
   const rejections: { id: string; reason: string }[] = res.itemRejections ?? [];
   assertEq(rejections.length, 1, 'precies één weigering');
-  assert(/gedane werk/.test(rejections[0]!.reason) && /minstens 4 werkdagen/.test(rejections[0]!.reason),
+  assert(/work done/.test(rejections[0]!.reason) && /at least 4 working days/.test(rejections[0]!.reason),
     `de reden noemt het gedane werk en de minimale duur: ${rejections[0]!.reason}`);
   assertEq(JSON.stringify(S().tasks.find((x) => x.id === t)), before, 'taak ongewijzigd');
   assert(res.data.progressAdjusted === undefined, 'geen progressAdjusted bij een weigering');

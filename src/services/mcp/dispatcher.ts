@@ -50,7 +50,8 @@ export const MCP_INSTRUCTIONS = [
   '- Start from the milestones and the delivery date, then fill in the work that leads to them.',
   '- Build a WBS of tasks that each take roughly one day to two weeks. Finer is unmaintainable, coarser is unsteerable. Summary tasks never get their own duration.',
   '- Drive the schedule with relationships, not fixed dates. Finish-to-start is the default; every task needs at least one predecessor and one successor apart from the first task and the final milestone. Use date constraints only for hard external dates the user gave you (permit, closure window, connection date) — a few percent of tasks at most, and never a negative lag.',
-  '- Mutating tools recalculate the schedule themselves, so you never work on stale dates. Call planner_run_cpm to OBTAIN the result (project end, duration, critical path) — not to refresh anything.',
+  '- There is no separate recalculate step. Every mutating tool that changes something recalculates the schedule itself, and every read tool that returns dates, float, the critical path or load first recalculates a schedule that is out of date (for example after an edit in the app). Read the result (project end, duration, critical path) with planner_get_project_info and planner_get_critical_path.',
+  '- Exception: when the envelope carries `datesAsRecorded: true`, the dates are the ones recorded in the imported file, not a calculation, and read tools leave them unchanged (recalculating would replace them). Say so when you report dates. The user can recalculate in the app, and your first change through a mutating tool recalculates as well.',
   '- Use planner_batch for a coherent series of steps: one undo step, one recalculation, one backup.',
   '- Finish by telling the user what you assumed: estimated durations, the chosen granularity, relationships you added on your own, resource capacities, calendar assumptions, and every constraint you set and why. Also say what you deliberately did not do.',
   '',
@@ -109,10 +110,10 @@ export async function handleMcpMessage(rawBody: string, ctx: McpContext): Promis
 
   // Batch-arrays worden bewust niet ondersteund (tools-only subset).
   if (Array.isArray(msg)) {
-    return errorMsg(null, -32600, 'Batch-arrays van JSON-RPC-berichten worden niet ondersteund');
+    return errorMsg(null, -32600, 'Batch arrays of JSON-RPC messages are not supported');
   }
   if (msg === null || typeof msg !== 'object') {
-    return errorMsg(null, -32600, 'Ongeldig JSON-RPC-bericht');
+    return errorMsg(null, -32600, 'Invalid JSON-RPC message');
   }
 
   const isNotification = !('id' in msg);
@@ -120,7 +121,7 @@ export async function handleMcpMessage(rawBody: string, ctx: McpContext): Promis
   const method: unknown = msg.method;
 
   if (typeof method !== 'string') {
-    return isNotification ? '' : errorMsg(id, -32600, 'Ongeldig JSON-RPC-bericht: ontbrekende methode');
+    return isNotification ? '' : errorMsg(id, -32600, 'Invalid JSON-RPC message: missing method');
   }
 
   // Notificaties (o.a. notifications/initialized): geen respons.
@@ -154,7 +155,7 @@ export async function handleMcpMessage(rawBody: string, ctx: McpContext): Promis
       const name: unknown = msg.params?.name;
       const def = typeof name === 'string' ? getTool(name) : undefined;
       if (!def) {
-        return errorMsg(id, -32602, `Onbekende tool: ${String(name)}`);
+        return errorMsg(id, -32602, `Unknown tool: ${String(name)}`);
       }
       // SCHEMA-POORT: valideer de argumenten tegen `def.inputSchema` VÓÓR de handler. Zonder deze
       // regel is elk `enum`/`type`/`required`/`minimum`/`additionalProperties` puur decoratief — het
@@ -177,7 +178,7 @@ export async function handleMcpMessage(rawBody: string, ctx: McpContext): Promis
         const err: McpToolResult = {
           ok: false,
           code: 'VALIDATION',
-          error: `ongeldige argumenten voor ${def.name} — ${schemaError}`,
+          error: `invalid arguments for ${def.name} — ${schemaError}`,
         };
         return resultMsg(id, wrapToolResult(err));
       }
@@ -188,12 +189,12 @@ export async function handleMcpMessage(rawBody: string, ctx: McpContext): Promis
         result = await def.handler(msg.params?.arguments, ctx);
       } catch (e) {
         if (import.meta.env.DEV) console.error(`[mcp] handler '${def.name}' gooide:`, e);
-        return errorMsg(id, -32603, `Interne fout bij uitvoeren van tool ${def.name}`);
+        return errorMsg(id, -32603, `Internal error while running tool ${def.name}`);
       }
       return resultMsg(id, wrapToolResult(result));
     }
 
     default:
-      return errorMsg(id, -32601, `Onbekende methode: ${method}`);
+      return errorMsg(id, -32601, `Unknown method: ${method}`);
   }
 }
