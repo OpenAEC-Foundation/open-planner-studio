@@ -4,20 +4,22 @@
 // als verify-examples zodat de invocatie-conventie (`npm run verify:docs`) identiek blijft.
 //
 // Checks:
-//   1. Elk manifest-artikel-id heeft public/docs/nl/<id>.md EN public/docs/en/<id>.md (brontalen,
-//      hard vereist); de overige 12 talen worden gevalideerd wanneer aanwezig maar mogen ontbreken
-//      (maandelijkse vertaalronde; voor nieuwe `kind`-artikelen zijn ze helemaal niet vereist).
-//      Geen wees-bestanden (md zonder manifest-entry); geen dubbele ids.
+//   1. Elk manifest-artikel-id heeft public/docs/nl/<id>.md EN public/docs/en/<id>.md. De docs
+//      bestaan alleen in die twee talen (DOC_LANGS = HELP_DOC_LANGS uit src/utils/helpManifest.ts;
+//      ontwerp gebruikersdocumentatie §6.3): een map van een andere taal onder public/docs is een fout
+//      (een verwijderde vertaling die terugkwam), net als een titel in een andere taal. Naast de
+//      taalmappen mag er alleen `img/` staan. Geen wees-bestanden (md zonder manifest-entry); geen
+//      dubbele ids.
 //   2. Elke docs://<id>-link wijst naar een bestaand manifest-id of een alias; een `#anker` erachter
 //      moet een kop in dat artikel zijn (zelfde taal, anders en; ankers volgen `headingSlug` in
 //      src/utils/helpManifest.ts). Een niet-draft artikel linkt niet naar een draft (in productie
 //      zou dat "artikel niet gevonden" geven).
 //   3. Elke examples://<file>-link wijst naar een bestand in public/examples/manifest.json.
-//   4. Manifest v2 (ontwerp gebruikersdocumentatie §6.1, bijgesteld 2026-09-28):
-//      - `version` is 2; title.nl/title.en niet leeg (overige talen: niet leeg indien aanwezig);
-//      - elk artikel heeft óf `layer` ∈ {quickstart, gidsen, referentie} (oud, tot fase 4) óf
-//        `kind` ∈ {howto, uitleg, referentie} (nieuw), nooit beide. `kind: tutorial` en `order` horen
-//        niet in het manifest: tutorials levert een extensie via src/utils/helpArticleRegistry.ts;
+//   4. Manifest v2 (ontwerp gebruikersdocumentatie §6.1, bijgesteld 2026-09-28; fase 4):
+//      - `version` is 2; title.nl/title.en niet leeg, geen titels in andere talen;
+//      - elk artikel heeft een `kind` ∈ {howto, uitleg, referentie}; de oude `layer` en het oude
+//        `cluster` bestaan niet meer. `kind: tutorial` en `order` horen niet in het manifest:
+//        tutorials levert een extensie via src/utils/helpArticleRegistry.ts;
 //      - `draft` is, als hij er staat, een boolean;
 //      - `aliases` (oud id → nieuw id): het oude id is geen bestaand artikel-id (geen overschaduwing),
 //        het nieuwe id bestaat en is geen draft.
@@ -30,7 +32,8 @@
 //      niet-leeg pad; de placeholder `{lang}` in het pad mag (de viewer vult nl of en in) en het
 //      bestand moet onder public/docs bestaan (voor een draft een waarschuwing).
 //   7/8. Machinaal controleerbare beweringen in AGENTS.md (+ .claude/rules/)/README.md/CONTRIBUTING.md.
-//        CLAUDE.md is alleen nog een `@AGENTS.md`-import; ook dat wordt bewaakt (7f).
+//        CLAUDE.md is alleen nog een `@AGENTS.md`-import; ook dat wordt bewaakt (7f). De
+//        locale-opsomming volgt de veertien UI-talen (UI_LANGS), niet de docstalen.
 //   9. De agent-skill `goed-plannen` staat byte-identiek in `public/skills/` (bron, uitgeleverd)
 //      en `.claude/skills/` (waar Claude Code hem leest) — geen symlink, want Windows-CI.
 //   10. Elk artikel-id dat de app gebruikt — elke stringexport van src/state/helpArticles.ts en elke
@@ -39,13 +42,16 @@
 //      bestaan. Zo breekt een hernoemd artikel niet meer stil een "Lees meer" of een ?-knop.
 //   6. Basishygiëne: geen dubbele koppen binnen één artikel, geen lege bestanden, NL≉EN
 //      (>60% identieke niet-lege regels tussen de twee taalversies = verdachte niet-vertaling), en
-//      geen achtergebleven nl/en-titel als h1, manifest-titel of docs://-linktekst in een vertaling.
+//      nl en en hebben dezelfde kopstructuur en dezelfde link-targets. (De controles op de twaalf
+//      vertalingen — achterlopende structuur, achtergebleven brontitels, `--strict-translations` —
+//      zijn met die vertalingen verdwenen in fase 4; het vertaaltraject brengt ze terug.)
 //
 //   npm run verify:docs          # exit 0 = alles groen, 1 = minstens één afwijking
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  HELP_IMAGE_LANG_PLACEHOLDER, MANIFEST_HELP_KINDS, extractHeadingSlugs, resolveHelpImagePath, splitHelpTarget,
+  HELP_DOC_LANGS, HELP_IMAGE_LANG_PLACEHOLDER, MANIFEST_HELP_KINDS, extractHeadingSlugs, resolveHelpImagePath,
+  splitHelpTarget,
 } from '@/utils/helpManifest';
 import * as APP_HELP_ARTICLES from '@/state/helpArticles';
 import { RELEASE_HIGHLIGHT_CATALOG } from '@/services/updater/releaseHighlights';
@@ -58,11 +64,12 @@ const EXAMPLES_MANIFEST_PATH = join(ROOT, 'public', 'examples', 'manifest.json')
 interface ManifestArticle {
   id: string;
   title?: Record<string, string>;
-  layer?: string;
   kind?: string;
   order?: unknown;
   draft?: unknown;
-  cluster?: string;
+  /** Bestaan niet meer sinds fase 4; staan hier alleen zodat de poort ze kan afkeuren. */
+  layer?: unknown;
+  cluster?: unknown;
 }
 interface Manifest {
   version: number;
@@ -72,17 +79,16 @@ interface Manifest {
 
 const MANIFEST_VERSION = 2;
 
-const VALID_LAYERS = new Set(['quickstart', 'gidsen', 'referentie']);
-// Alle 14 UI-locales met een eigen vertaalde docs-map (moet gelijk lopen met DOC_LANGS in
-// src/components/backstage/HelpPanel.tsx en Locale in src/i18n/config.ts).
-const LANGS = ['nl', 'en', 'fr', 'de', 'es', 'zh', 'it', 'pt', 'pl', 'tr', 'ar', 'ja', 'ko', 'fa'] as const;
-// Brontalen: hard vereist voor elk artikel. De overige 12 worden maandelijks vertaald en daarom
-// alleen gevalideerd wanneer ze aanwezig zijn — zo faalt de poort niet op een nieuw artikel dat nog
-// niet vertaald is, terwijl bestaande vertalingen wél volledig getoetst blijven (structuur/drift/parser).
-const SOURCE_LANGS: readonly string[] = ['nl', 'en'];
-// Vertaalronde-modus: `npm run verify:docs -- --strict-translations` maakt de structuurcheck 6d ook
-// voor de 12 vertaaltalen hard. Standaard is een achterlopende vertaling daar een waarschuwing (zie 6d).
-const STRICT_TRANSLATIONS = process.argv.includes('--strict-translations');
+// De veertien UI-talen: de mappen onder src/i18n/locales (dezelfde set als `supportedLanguages` in
+// src/i18n/config.ts, maar zonder die module te laden — die start i18next). Alleen voor de
+// locale-opsomming in CLAUDE.md (7d).
+const UI_LANGS: readonly string[] = readdirSync(join(ROOT, 'src', 'i18n', 'locales'), { withFileTypes: true })
+  .filter((d) => d.isDirectory()).map((d) => d.name);
+// De docstalen: nl en en, allebei hard vereist voor elk artikel (ontwerp §6.3). Elke andere UI-taal
+// leest in de viewer de Engelse tekst, met een melding.
+const DOC_LANGS: readonly string[] = HELP_DOC_LANGS;
+// Wat er naast de taalmappen onder public/docs mag staan.
+const DOCS_EXTRA_DIRS = new Set(['img']);
 
 interface Check { ok: boolean; msg: string }
 function expect(diffs: string[], ok: boolean, msg: string): Check {
@@ -235,57 +241,6 @@ function checkTranslationDrift(id: string, lang: string, translated: string, enS
   }
 }
 
-/** De eerste h1 van een artikel (codeblokken gestript), of undefined. */
-function firstH1(source: string): string | undefined {
-  return /^# (.+)$/m.exec(stripCode(source).replace(/\r\n/g, '\n'))?.[1].trim();
-}
-
-/** De bronnamen van een artikel voor check 6e: de nl- en en-titel en -h1, min elke naam die in nl
- *  én en voorkomt. Zo'n naam is een internationaal woord ("Filters", "Layouts") en mag in elke taal
- *  zo heten; een naam die alleen in nl of alleen in en voorkomt, is brontaal. */
-function sourceNames(article: ManifestArticle): Set<string> {
-  const read = (lang: string) => {
-    const p = join(DOCS_DIR, lang, `${article.id}.md`);
-    return existsSync(p) ? firstH1(readFileSync(p, 'utf8')) : undefined;
-  };
-  const nl = [article.title?.nl, read('nl')].filter((s): s is string => !!s);
-  const en = [article.title?.en, read('en')].filter((s): s is string => !!s);
-  return new Set([...nl, ...en].filter((s) => !(nl.includes(s) && en.includes(s))));
-}
-
-/** Check 6e: achtergebleven brontitels. Een vertaling (niet nl/en) mag een bronnaam (zie
- *  `sourceNames`) niet letterlijk dragen als h1, als manifest-titel of als tekst van een
- *  docs://-link naar dat artikel. Zo bleven twintig zh-gidsen met een Nederlandse h1 staan
- *  ("Sneltoetsen & bediening") en stond "Task types" als titel in twaalf talen: de TOC was vertaald,
- *  het artikel of de verwijzing niet. Alleen letterlijke gelijkheid telt, dus een eigen vertaling
- *  of parafrase slaagt altijd. */
-function checkUntranslatedTitles(
-  article: ManifestArticle,
-  sources: Record<string, string>,
-  namesById: Map<string, Set<string>>,
-  diffs: string[],
-) {
-  const own = namesById.get(article.id) ?? new Set<string>();
-  for (const lang of LANGS) {
-    if (SOURCE_LANGS.includes(lang)) continue;
-    const title = article.title?.[lang];
-    if (title && own.has(title)) {
-      diffs.push(`title.${lang} "${title}" is de onvertaalde nl/en-titel — vertaal hem of laat hem weg (dan geldt title.en)`);
-    }
-    const source = sources[lang];
-    if (!source) continue;
-    const h1 = firstH1(source);
-    if (h1 && own.has(h1)) {
-      diffs.push(`${lang}: h1 "${h1}" is de onvertaalde nl/en-titel`);
-    }
-    for (const m of stripCode(source).matchAll(/\[([^\]]+)\]\(docs:\/\/([a-zA-Z0-9_-]+)\)/g)) {
-      if (namesById.get(m[2])?.has(m[1].trim())) {
-        diffs.push(`${lang}: linktekst "[${m[1]}](docs://${m[2]})" is de onvertaalde nl/en-titel van dat artikel`);
-      }
-    }
-  }
-}
-
 /** De padgebonden Claude-rules (`.claude/rules/*.md`): de diepgang die uit de agentinstructies is
  *  verhuisd zodat AGENTS.md zelf klein blijft. Ze hoeven de "moet genoemd worden"-beweringen van Poort 7 niet
  *  te herhalen, maar wát ze beweren mag niet wegdrijven — daarom lezen 7c (dode `npm run`), 7e (het
@@ -376,12 +331,12 @@ function checkAgentDocs(diffs: string[]): void {
   //     slaagt altijd — vacuüm groen, precies de faalmodus die dit script hoort te vangen.
   const listSpan = [...agents.matchAll(/`([a-z]{2}(?:,\s*[a-z]{2})+)`/g)]
     .map((m) => m[1].split(',').map((s) => s.trim()))
-    .find((codes) => codes.length >= LANGS.length - 2);
+    .find((codes) => codes.length >= UI_LANGS.length - 2);
   if (!listSpan) {
-    diffs.push(`AGENTS.md bevat geen herkenbare locale-opsomming (verwacht: een backtick-span met ${LANGS.length} komma-gescheiden codes)`);
+    diffs.push(`AGENTS.md bevat geen herkenbare locale-opsomming (verwacht: een backtick-span met ${UI_LANGS.length} komma-gescheiden codes)`);
   } else {
-    const missing = LANGS.filter((l) => !listSpan.includes(l));
-    const extra = listSpan.filter((l) => !(LANGS as readonly string[]).includes(l));
+    const missing = UI_LANGS.filter((l) => !listSpan.includes(l));
+    const extra = listSpan.filter((l) => !UI_LANGS.includes(l));
     if (missing.length) diffs.push(`AGENTS.md's locale-opsomming mist: ${missing.join(', ')}`);
     if (extra.length) diffs.push(`AGENTS.md's locale-opsomming noemt onbekende locales: ${extra.join(', ')}`);
   }
@@ -669,15 +624,12 @@ function checkManifestV2(manifest: Manifest, diffs: string[]): void {
   }
 }
 
-/** Poort 4 (per artikel): layer óf kind, geen tutorial/order in het manifest, draft is boolean. */
+/** Poort 4 (per artikel): een geldige kind, geen layer/cluster, geen tutorial/order, draft is boolean. */
 function checkArticleKind(article: ManifestArticle, diffs: string[]): void {
-  const hasLayer = article.layer !== undefined;
   const hasKind = article.kind !== undefined;
-  if (hasLayer && hasKind) diffs.push('heeft zowel layer als kind — een artikel is óf oud (layer) óf nieuw (kind)');
-  else if (!hasLayer && !hasKind) diffs.push('heeft geen layer en geen kind');
-  if (hasLayer && !VALID_LAYERS.has(article.layer!)) {
-    diffs.push(`ongeldige layer "${article.layer}" (verwacht quickstart/gidsen/referentie)`);
-  }
+  if (!hasKind) diffs.push(`heeft geen kind (verwacht ${MANIFEST_HELP_KINDS.join('/')})`);
+  if (article.layer !== undefined) diffs.push('layer bestaat niet meer (fase 4) — gebruik kind');
+  if (article.cluster !== undefined) diffs.push('cluster bestaat niet meer (fase 4) — laat het veld weg');
   if (hasKind && article.kind === 'tutorial') {
     diffs.push('kind "tutorial" hoort niet in het manifest — tutorials levert een extensie via het Help-register (src/utils/helpArticleRegistry.ts)');
   } else if (hasKind && !(MANIFEST_HELP_KINDS as readonly string[]).includes(article.kind!)) {
@@ -712,7 +664,7 @@ function checkAppHelpArticles(manifest: Manifest, diffs: string[]): void {
     if (!target) { diffs.push(`${where}: "${id}" is geen artikel of alias in public/docs/manifest.json`); continue; }
     if (target.draft === true) { diffs.push(`${where}: "${id}" wijst naar een draft — in productie "artikel niet gevonden"`); continue; }
     if (anchor) {
-      for (const lang of SOURCE_LANGS) {
+      for (const lang of DOC_LANGS) {
         if (!anchorsOf(target.id, lang)?.has(anchor)) diffs.push(`${where}: anker "#${anchor}" bestaat niet in public/docs/${lang}/${target.id}.md`);
       }
     }
@@ -721,7 +673,6 @@ function checkAppHelpArticles(manifest: Manifest, diffs: string[]): void {
 
 function main() {
   let anyFail = false;
-  let laggingTranslations = 0;
   const globalDiffs: string[] = [];
 
   const manifest = loadManifest();
@@ -750,57 +701,58 @@ function main() {
   }
   for (const d of dupes) globalDiffs.push(`manifest: dubbele id "${d}"`);
 
-  // 1b. Wees-bestanden: .md op schijf zonder manifest-entry.
-  for (const lang of LANGS) {
+  // 1b. Alleen de docstalen (en img/) onder public/docs: een map van een andere taal is een
+  //     verwijderde vertaling die terugkwam (ontwerp §6.3), een los bestand hoort er ook niet.
+  for (const entry of readdirSync(DOCS_DIR, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      if (!DOC_LANGS.includes(entry.name) && !DOCS_EXTRA_DIRS.has(entry.name)) {
+        globalDiffs.push(`public/docs/${entry.name}/ hoort er niet: de documentatie bestaat alleen in ${DOC_LANGS.join(' en ')} (een andere taal leest Engels); naast de taalmappen mag alleen ${[...DOCS_EXTRA_DIRS].map((d) => `${d}/`).join(', ')} staan`);
+      }
+    } else if (entry.name !== 'manifest.json') {
+      globalDiffs.push(`public/docs/${entry.name} hoort er niet (alleen manifest.json en de mappen ${[...DOC_LANGS, ...DOCS_EXTRA_DIRS].join(', ')})`);
+    }
+  }
+  // 1c. Wees-bestanden: .md op schijf zonder manifest-entry.
+  for (const lang of DOC_LANGS) {
     const dir = join(DOCS_DIR, lang);
     if (!existsSync(dir)) { globalDiffs.push(`map ontbreekt: public/docs/${lang}`); continue; }
     for (const file of readdirSync(dir)) {
-      if (!file.endsWith('.md')) continue;
+      if (!file.endsWith('.md')) { globalDiffs.push(`public/docs/${lang}/${file}: alleen .md-artikelen horen in een taalmap`); continue; }
       const id = file.slice(0, -3);
       if (!idSet.has(id)) globalDiffs.push(`wees-bestand zonder manifest-entry: public/docs/${lang}/${file}`);
     }
   }
 
   console.log('── Manifest-hygiëne + AGENTS.md/CLAUDE.md/README.md/CONTRIBUTING.md-beweringen ──');
-  if (globalDiffs.length === 0) console.log('  OK  manifest v2 en aliassen geldig, geen dubbele ids, geen wees-bestanden, app-artikel-id\'s bestaan, de vier onboardingdocumenten lopen gelijk met de code');
+  if (globalDiffs.length === 0) console.log('  OK  manifest v2 en aliassen geldig, alleen nl en en, geen dubbele ids, geen wees-bestanden, app-artikel-id\'s bestaan, de vier onboardingdocumenten lopen gelijk met de code');
   else { anyFail = true; for (const d of globalDiffs) console.log(`  XX  ${d}`); }
-
-  // 6e heeft de bronnamen van ÁLLE artikelen nodig: een linktekst noemt een ander artikel.
-  const namesById = new Map(manifest.articles.map((a) => [a.id, sourceNames(a)] as const));
 
   // 2/3/4/5/6: per artikel.
   for (const article of manifest.articles) {
     const diffs: string[] = [];
-    const warnings: string[] = [];
     // Nog niet af in een draft (bijv. een screenshot dat nog gegenereerd moet worden): geen fout zolang
     // het artikel in productie verborgen is, wel zichtbaar in de uitvoer.
     const draftNotes: string[] = [];
 
-    // 1c. Bestaan van de taalbestanden. Brontalen (nl/en) zijn hard vereist; de overige talen worden
-    //     alleen getoetst als het bestand er is — een nog niet vertaald nieuw artikel blokkeert de
-    //     poort dus niet, maar bestaande vertalingen worden hieronder volledig gevalideerd.
+    // 1d. Beide taalbestanden bestaan.
     const paths: Record<string, string> = {};
-    for (const lang of LANGS) {
+    for (const lang of DOC_LANGS) {
       const p = join(DOCS_DIR, lang, `${article.id}.md`);
       paths[lang] = p;
-      if (SOURCE_LANGS.includes(lang)) {
-        expect(diffs, existsSync(p), `ontbreekt: public/docs/${lang}/${article.id}.md`);
-      }
+      expect(diffs, existsSync(p), `ontbreekt: public/docs/${lang}/${article.id}.md`);
     }
 
-    // 4. Titels + layer/kind. Brontalen (nl/en) zijn verplicht; een titel in een andere taal wordt alleen
-    //    afgekeurd als hij bestaat maar leeg is (ontbreken mag — volgt in de maandelijkse vertaalronde).
-    for (const lang of LANGS) {
-      const hasTitle = article.title?.[lang] !== undefined;
-      if (SOURCE_LANGS.includes(lang) || hasTitle) {
-        expect(diffs, !!article.title?.[lang]?.trim(), `title.${lang} ontbreekt of is leeg`);
-      }
+    // 4. Titels (alleen nl en en, niet leeg) + kind.
+    for (const lang of DOC_LANGS) {
+      expect(diffs, !!article.title?.[lang]?.trim(), `title.${lang} ontbreekt of is leeg`);
     }
+    const otherTitles = Object.keys(article.title ?? {}).filter((lang) => !DOC_LANGS.includes(lang));
+    expect(diffs, otherTitles.length === 0, `titels in andere talen dan ${DOC_LANGS.join('/')}: ${otherTitles.join(', ')} — die vallen terug op en, laat ze weg`);
     checkArticleKind(article, diffs);
     const isDraft = article.draft === true;
 
     const sources: Record<string, string> = {};
-    for (const lang of LANGS) {
+    for (const lang of DOC_LANGS) {
       if (!existsSync(paths[lang])) continue;
       const source = readFileSync(paths[lang], 'utf8');
       sources[lang] = source;
@@ -841,57 +793,33 @@ function main() {
       }
     }
 
-    // 6c. Vertaalsteekproef: elke niet-EN-taal mag niet grotendeels woordelijk gelijk zijn aan EN.
-    if (sources.en) {
-      for (const lang of LANGS) {
-        if (lang === 'en') continue;
-        if (sources[lang]) checkTranslationDrift(article.id, lang, sources[lang], sources.en, diffs);
-      }
-    }
+    // 6c. Vertaalsteekproef: nl mag niet grotendeels woordelijk gelijk zijn aan en.
+    if (sources.en && sources.nl) checkTranslationDrift(article.id, 'nl', sources.nl, sources.en, diffs);
 
-    // 6d. Structuur-pariteit vertaling ↔ EN-bron: kop-aantal + niveauvolgorde en de link-target-set
-    //     (docs://, examples://) moeten identiek zijn. Vangt een vertaling die een sectie of interne
-    //     link laat vallen/toevoegt — wat de andere checks per taal niet zien (labels/tekst mogen
-    //     verschillen, structuur niet). EN is de bron van waarheid.
-    //     Hard voor NL (brontaal: nl en en worden altijd samen bijgewerkt). Voor de 12 vertaaltalen
-    //     een WAARSCHUWING: die lopen per afspraak achter tot de maandelijkse vertaalronde (de
-    //     helpviewer meldt dat de gebruiker ook), dus een nieuwe kop of link in een EN-gids mag de
-    //     poort niet rood maken. Voorheen was dit ook voor hen hard, wat de `docs-update`-skill
-    //     ("overige locales laat je met rust") tegensprak. Tijdens de vertaalronde maakt
-    //     `--strict-translations` het weer hard, zodat een vertaler geen sectie laat vallen.
-    if (sources.en) {
+    // 6d. Structuur-pariteit nl ↔ en: kop-aantal + niveauvolgorde en de link-target-set (docs://,
+    //     examples://) zijn identiek. Vangt een sectie of link die in maar één van de twee kwam —
+    //     wat de andere checks per taal niet zien (labels/tekst mogen verschillen, structuur niet).
+    if (sources.en && sources.nl) {
       const enLevels = extractHeadingLevels(sources.en);
+      const nlLevels = extractHeadingLevels(sources.nl);
+      if (nlLevels.length !== enLevels.length || nlLevels.some((v, i) => v !== enLevels[i])) {
+        diffs.push(`nl: kop-structuur wijkt af van EN — EN heeft ${enLevels.length} koppen [${enLevels.join('')}], nl heeft ${nlLevels.length} [${nlLevels.join('')}] (sectie mogelijk weggevallen/toegevoegd)`);
+      }
       const enLinks = extractLinkTargets(sources.en);
-      for (const lang of LANGS) {
-        if (lang === 'en' || !sources[lang]) continue;
-        const sink = SOURCE_LANGS.includes(lang) || STRICT_TRANSLATIONS ? diffs : warnings;
-        const lLevels = extractHeadingLevels(sources[lang]);
-        if (lLevels.length !== enLevels.length || lLevels.some((v, i) => v !== enLevels[i])) {
-          sink.push(`${lang}: kop-structuur wijkt af van EN — EN heeft ${enLevels.length} koppen [${enLevels.join('')}], ${lang} heeft ${lLevels.length} [${lLevels.join('')}] (sectie mogelijk weggevallen/toegevoegd)`);
-        }
-        const lLinks = extractLinkTargets(sources[lang]);
-        if (lLinks.length !== enLinks.length || lLinks.some((v, i) => v !== enLinks[i])) {
-          sink.push(`${lang}: link-targets wijken af van EN — EN [${enLinks.join(', ')}] vs ${lang} [${lLinks.join(', ')}]`);
-        }
+      const nlLinks = extractLinkTargets(sources.nl);
+      if (nlLinks.length !== enLinks.length || nlLinks.some((v, i) => v !== enLinks[i])) {
+        diffs.push(`nl: link-targets wijken af van EN — EN [${enLinks.join(', ')}] vs nl [${nlLinks.join(', ')}]`);
       }
     }
-
-    // 6e. Achtergebleven brontitels in vertalingen (zie checkUntranslatedTitles).
-    checkUntranslatedTitles(article, sources, namesById, diffs);
 
     const ok = diffs.length === 0;
     if (!ok) anyFail = true;
-    laggingTranslations += warnings.length;
     console.log(`${ok ? 'OK ' : 'XX '} ${article.id}`);
     for (const d of diffs) console.log(`     - ${d}`);
-    for (const w of warnings) console.log(`     ! ${w} — loopt achter op EN, bijwerken in de vertaalronde`);
     for (const n of draftNotes) console.log(`     ! ${n} — draft, vóór het publiceren oplossen`);
   }
 
-  if (laggingTranslations > 0) {
-    console.log(`\n! ${laggingTranslations} vertaling(en) lopen structureel achter op EN — waarschuwing, geen fout (hard met --strict-translations)`);
-  }
-  console.log(`\n${manifest.articles.length} artikelen × ${LANGS.length} talen geverifieerd — ${anyFail ? 'FALEN' : 'alles groen'}`);
+  console.log(`\n${manifest.articles.length} artikelen × ${DOC_LANGS.length} talen (${DOC_LANGS.join(', ')}) geverifieerd — ${anyFail ? 'FALEN' : 'alles groen'}`);
   process.exit(anyFail ? 1 : 0);
 }
 

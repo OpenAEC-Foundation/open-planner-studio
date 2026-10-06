@@ -49,3 +49,4 @@ With *Install* you agree. *Don't install*, Esc and clicking outside the window r
 ## See also
 
 - [Import and export formats](docs://ref-import-exportformaten): the formats the app knows itself, next to what extensions add under *File › Import*.
+- [Installing and managing an extension](docs://howto-extensie-installeren): installing, disabling and removing an extension.

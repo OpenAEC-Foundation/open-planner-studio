@@ -122,10 +122,10 @@ de ene primary-gidsknop, de Wiki-link en desktop/smal/RTL-gedrag.
 uit stap 3 — disjuncte bestanden, mag parallel). Die skill is de volledige brief; kernmandaat:
 **elke doc-claim dubbelchecken tegen de commits van deze release** en bijwerken waar de doc achterloopt.
 Ze dekt beide bronnen:
-- **In-app gidsen** `public/docs/<lang>/<id>.md` — docs worden **in EN + NL** geschreven/bijgewerkt
-  (de brontalen); de overige locales volgen **maandelijks** in een aparte vertaalronde, niet per release.
-  `verify:docs` eist **alleen `nl` + `en`** en valideert de andere talen enkel wanneer ze er zijn —
-  een **nieuw** artikel in EN+NL houdt de poort dus groen, zónder stubs voor de overige talen.
+- **In-app gidsen** `public/docs/{nl,en}/<id>.md` — de docs bestaan alleen in **NL + EN** en worden
+  altijd samen bijgewerkt; andere UI-talen tonen de Engelse tekst. `verify:docs` eist beide en keurt
+  een map van een andere taal af. Een nieuw artikel volgt `docs/recepten/in-app-gids.md`; de `docsId`
+  van een nieuw hoogtepunt (stap 4a) moet een bestaand artikel-id zijn (poort 10).
 - **GitHub-wiki** — een build-artefact uit repo-bronnen (`public/docs/en`, `docs/wiki/*`, changelog)
   via `scripts/publish-wiki.mjs`. Nooit de wiki direct bewerken.
 

@@ -26,9 +26,9 @@ Per file format: whether you can open, save and export it, what does and does no
 
 **Export** — yes, as *IFC 4x3* (described as *BuildingSMART standard. 4D link with BIM models.*). Default name: the project name with the extension `.ifc`. If your project is linked to a resource library, the checkbox *Save library file alongside* is below the cards in *File › Export*. Ticked, the app asks for a place for *projectname-bibliotheek.ifc* after the project. The checkbox is not in the list on the *Home* tab.
 
-**What goes along** — everything that belongs to the project: tasks with structure, duration, dates and progress; relations with lag; constraints and deadlines; calendars; resources and assignments, including the hour distribution; baselines; activity codes and custom fields; notes; external links to other projects; interruptions; work rules and task types; the project settings such as the status date, the progress mode, the calculation profile and the calculation options; the link with a resource library. For a project from a `.xer`, the original source file goes along too.
+**What goes along** — everything that belongs to the project: tasks with structure, duration, dates and progress; relations with lag; constraints and deadlines; calendars; resources and assignments, including the hour distribution; baselines; activity codes and custom fields; notes; external links to other projects; interruptions; work rules and task types; the project settings such as the status date, the progress mode, the calculation profile and the calculation options; the link with a resource library. For a project from a `.xer`, the original source file goes along too. A custom task type is stored as the IFC type `USERDEFINED` with its name in the ObjectType field, so other IFC programs read the task normally; the app also keeps the fixed id of the type, so renaming does not break the link. If someone opens the file on another computer, the type appears there under *From this project*, not in their own *My task types*.
 
-**What does not go along** — how you have set up the screen (zoom, scroll position, selected task, collapsed phases, chosen filter and grouping) and the app settings ([Settings](docs://ref-instellingen-lijst)). The *IFC* tab shows the IFC text of your project.
+**What does not go along** — how you have set up the screen (zoom, scroll position, selected task, collapsed phases, chosen filter and grouping) and the app settings ([Settings](docs://ref-instellingen)). The *IFC* tab shows the IFC text of your project.
 
 ## MS Project XML (MSPDI)
 
@@ -38,7 +38,7 @@ Per file format: whether you can open, save and export it, what does and does no
 
 **Export** — yes, as *MS Project XML* (*Opens in Microsoft Project. Full WBS structure.*). Default name: the project name with `.xml`.
 
-**What goes along** — tasks with structure (level and WBS), duration, dates and progress; relations with lag, also in hours or percentages; constraints, including the deadline; calendars, including task and resource calendars; resources and assignments, including the curve or hour distribution; the status date; the critical threshold, as a whole number of work days of 0 or more with *Total float ≤ threshold*; the description of a task (as a note); the work rule of a task (as the MS Project task type). Of your baselines only the active one goes along, as baseline 0. A task in hours keeps its unit, and a milestone its kind (start, finish or automatic).
+**What goes along** — tasks with structure (level and WBS), duration, dates and progress; relations with lag, also in hours or percentages; constraints, including the deadline; calendars, including task and resource calendars; resources and assignments, including the curve or hour distribution; the status date; the critical threshold, as a whole number of work days of 0 or more with *Total float ≤ threshold*; the description of a task (as a note); the work rule of a task (as the MS Project task type); a custom task type, in a free field (*ExtendedAttribute*) that the app reads back and that MS Project may ignore. Of your baselines only the active one goes along, as baseline 0. A task in hours keeps its unit, and a milestone its kind (start, finish or automatic).
 
 **What does not go along** — notes (the checklist on a task), external links to other projects, activity codes and custom fields, a second constraint, the marking *Manually scheduled*, the leveling delay, the resume and stop point of an out-of-sequence task, the conventions *Remaining work resumes after the elapsed duration* and *Don't move unstarted tasks to the status date* of an MS Project profile, and the other calculation options. Interrupted tasks without an hour distribution go along without their interruptions.
 
@@ -56,6 +56,8 @@ Per file format: whether you can open, save and export it, what does and does no
 
 **What does not go along** — baselines, costs and rates, notes and the custom fields of MS Project. See [Opening an MS Project file (.mpp)](docs://howto-mpp-openen).
 
+**Origin and license** — the `.mpp` reader was written for Open Planner Studio and is derived from the source code and structural knowledge of MPXJ (`github.com/joniles/mpxj`, Jon Iles et al.), a Java library under LGPL-2.1. Structure and field constants were ported to TypeScript. Open Planner Studio itself is open source under LGPL-3.0. The `.xer` reader is not a derivative: MPXJ was only consulted there as a source of understanding.
+
 ## Primavera P6 XML
 
 **Open** — yes. The app recognises an `.xml` file as P6 XML by the root element `APIBusinessObjects`. Calculation profile: *Open Planner Studio*.
@@ -64,7 +66,7 @@ Per file format: whether you can open, save and export it, what does and does no
 
 **Export** — yes, as *Primavera P6 XML* (*For Oracle Primavera P6.*). Default name: the project name with `.xml`, so the same name as an MS Project XML export: give them different names yourself.
 
-**What goes along** — WBS structure and tasks with duration, dates and progress; relations with lag; constraints (also a second one, as a soft constraint); calendars; resources and assignments; the status date (as *DataDate*).
+**What goes along** — WBS structure and tasks with duration, dates and progress; relations with lag; constraints (also a second one, as a soft constraint); calendars; resources and assignments; the status date (as *DataDate*); a custom task type, in a field of its own, *OPS Custom Task Type*, that the app reads back and that P6 may ignore.
 
 **What does not go along** — baselines and deadlines; activity codes, custom fields, notes and external links; the calculation options; a working calendar exception (an exception that makes a day a working day). P6 has no lag in percentages: the app converts it to a fixed number of days. A lag in calendar days becomes a lag in working time: 3 calendar days become 3 work days. A hammock becomes an ordinary task, a manually scheduled task an ordinary task with calculated dates, and a leveling delay of less than a day is dropped.
 
@@ -82,7 +84,7 @@ Per file format: whether you can open, save and export it, what does and does no
 
 ## CSV
 
-**Open** — yes. The app reads `;` and `,` as separator. It recognises column headers in English and Dutch (for example *Name* or *Naam*, *Duration* or *Duur*, *Predecessors* or *Voorgangers*). Dates may be *yyyy-mm-dd*, *dd-mm-yyyy* or *dd/mm/yyyy*. You write a predecessor as WBS code, relation type and lag, for example `1.2FS+2d`. Calculation profile: *Open Planner Studio*. The project is called *CSV Import*.
+**Open** — yes. The app reads `;` and `,` as separator. It recognises column headers in English and Dutch (for example *Name* or *Naam*, *Duration* or *Duur*, *Predecessors* or *Voorgangers*). Dates may be *yyyy-mm-dd*, *dd-mm-yyyy* or *dd/mm/yyyy*. You write a predecessor as WBS code, relation type and lag, for example `1.2FS+2d`. Calculation profile: *Open Planner Studio*. The project is called *CSV Import*. A *Task Type* that is none of the fixed codes (such as `CONSTRUCTION` or `INSTALLATION`, which the app writes itself) becomes a custom task type under *From this project*, not in *My task types*; with *OPS Custom Task Type ID* the id of a custom type is kept.
 
 **Save** — no.
 

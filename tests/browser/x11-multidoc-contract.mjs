@@ -38,7 +38,7 @@ const evidence = {
     latencyMs: 1,
   })),
   help: {
-    notificationHelpArticleId: 'gids-xer-import',
+    notificationHelpArticleId: 'howto-xer-openen',
     activeTocTitle: 'Opening Primavera P6 (.xer)',
     articleHeading: 'Opening Primavera P6 (.xer)',
     activeRibbonTab: 'file',

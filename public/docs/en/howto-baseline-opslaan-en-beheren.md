@@ -55,3 +55,5 @@ Every baseline has six columns in the task table. Click the **+** at the right o
 - [Progress, status date and baseline](docs://uitleg-voortgang): what a baseline records and how the variance is calculated.
 - [Moving a project](docs://howto-project-verplaatsen): the checkbox *Shift baselines too*.
 - [Updating progress](docs://howto-voortgang-bijwerken): entering the actual state that you compare with the baseline.
+- [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): one baseline (*Baseline at start*) before the start, with progress and a status date of 20 May 2027.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): two baselines, *Contract* and *Re-baseline (variation order)*, with progress and a status date of 5 July 2027.

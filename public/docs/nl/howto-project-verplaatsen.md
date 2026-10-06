@@ -58,3 +58,4 @@ Niet mee schuift:
 
 - [Kritiek pad en speling](docs://uitleg-kritiek-pad): hoe de planning rekent en waarom het einde schuift.
 - [Relaties leggen](docs://howto-relaties-leggen): de relaties blijven bij het verplaatsen gewoon bestaan.
+- [Nieuw project en Projectinfo](docs://ref-projectinfo): wat de startdatum in Projectinfo doet.

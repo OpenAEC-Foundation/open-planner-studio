@@ -52,5 +52,5 @@ per werkdag) en de store-actie `resourceSlice.setAssignmentContour` (undo, `isDi
 een aanwezig werkveld van de toewijzing volgt de contoursom, `syncAssignmentWorkToContour`).
 Dagenlijst via `ResourceLoad.ts`'s `taskWorkDayIsos` — dezelfde als het histogram. Regressie:
 `tests/planning/check-contour-engine.ts` en `tests/browser/contour-dialog.spec.ts`; gidsen:
-`public/docs/{nl,en}/gids-msproject-import.md` §"Gecontoureerde toewijzingen" en
-`gids-resources-histogram.md` §"De urenverdeling zelf bewerken".
+`public/docs/{nl,en}/howto-urenverdeling-aanpassen.md` en, voor wat er bij import en export
+meegaat, `ref-import-exportformaten.md`.

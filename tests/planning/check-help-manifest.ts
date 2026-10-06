@@ -14,7 +14,7 @@ import { resolve } from 'node:path';
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
 import {
   createHeadingSlugger, extractHeadingSlugs, headingSlug, helpArticleMatches, resolveHelpArticle,
-  resolveHelpImagePath, splitHelpTarget, tutorialNeighbours, tutorialsInOrder, usableRegisteredArticles,
+  resolveHelpDocLang, resolveHelpImagePath, splitHelpTarget, tutorialNeighbours, tutorialsInOrder, usableRegisteredArticles,
   visibleHelpArticles, type HelpManifest,
 } from '@/utils/helpManifest';
 import {
@@ -34,17 +34,17 @@ const ok = (label: string, cond: boolean) => { checks++; if (!cond) diffs.push(l
 const manifest: HelpManifest = {
   version: 2,
   articles: [
-    { id: 'quick-start', title: { nl: 'Snel starten', en: 'Quick start' }, layer: 'quickstart' },
+    { id: 'howto-start', title: { nl: 'Beginnen', en: 'Getting started' }, kind: 'howto' },
     { id: 'howto-kalender', title: { nl: 'Kalender maken', en: 'Create a calendar' }, kind: 'howto' },
     { id: 'uitleg-kritiek-pad', title: { nl: 'Kritiek pad', en: 'Critical path' }, kind: 'uitleg', draft: true },
   ],
-  aliases: { 'gids-oud': 'howto-kalender', 'gids-naar-draft': 'uitleg-kritiek-pad', 'quick-start': 'howto-kalender' },
+  aliases: { 'gids-oud': 'howto-kalender', 'gids-naar-draft': 'uitleg-kritiek-pad', 'howto-start': 'howto-kalender' },
 };
 const ids = (list: readonly { id: string }[]) => list.map(a => a.id);
 
 // 1. Draft: productie ziet hem niet, dev wel.
-eq('01 dev: alle artikelen', ids(visibleHelpArticles(manifest, true)), ['quick-start', 'howto-kalender', 'uitleg-kritiek-pad']);
-eq('02 prod: draft weg', ids(visibleHelpArticles(manifest, false)), ['quick-start', 'howto-kalender']);
+eq('01 dev: alle artikelen', ids(visibleHelpArticles(manifest, true)), ['howto-start', 'howto-kalender', 'uitleg-kritiek-pad']);
+eq('02 prod: draft weg', ids(visibleHelpArticles(manifest, false)), ['howto-start', 'howto-kalender']);
 eq('03 dev: draft direct te openen', resolveHelpArticle(manifest, 'uitleg-kritiek-pad', true)?.id, 'uitleg-kritiek-pad');
 eq('04 dev: alias naar draft volgt', resolveHelpArticle(manifest, 'gids-naar-draft', true)?.id, 'uitleg-kritiek-pad');
 eq('05 prod: draft direct ⇒ niet gevonden', resolveHelpArticle(manifest, 'uitleg-kritiek-pad', false), null);
@@ -53,7 +53,7 @@ eq('06 prod: alias naar draft ⇒ niet gevonden', resolveHelpArticle(manifest, '
 // 2. Aliassen.
 eq('07 alias opent het nieuwe artikel', resolveHelpArticle(manifest, 'gids-oud', false)?.id, 'howto-kalender');
 eq('08 onbekend id ⇒ niet gevonden', resolveHelpArticle(manifest, 'bestaat-niet', true), null);
-eq('09 een bestaand id wint van een (verboden) alias met dezelfde sleutel', resolveHelpArticle(manifest, 'quick-start', false)?.id, 'quick-start');
+eq('09 een bestaand id wint van een (verboden) alias met dezelfde sleutel', resolveHelpArticle(manifest, 'howto-start', false)?.id, 'howto-start');
 
 // 3. docs://-doel met anker.
 eq('10 id zonder anker', splitHelpTarget('howto-kalender'), { id: 'howto-kalender', anchor: null });
@@ -74,6 +74,14 @@ eq('30 nl', resolveHelpImagePath('img/{lang}/tut-3.webp', 'nl'), 'img/nl/tut-3.w
 eq('31 en', resolveHelpImagePath('img/{lang}/tut-3.webp', 'en'), 'img/en/tut-3.webp');
 eq('32 de valt terug op en', resolveHelpImagePath('img/{lang}/tut-3.webp', 'de'), 'img/en/tut-3.webp');
 eq('33 zonder placeholder ongewijzigd', resolveHelpImagePath('img/vast.webp', 'nl'), 'img/vast.webp');
+
+// 5b. Docstaal (ontwerp §6.2, fase 4): alleen nl en en; een andere UI-taal leest en met een melding,
+//     een bewaarde oude keuze (bijv. de) valt terug op Auto.
+eq('26 nl-UI: nl, geen melding', resolveHelpDocLang('nl', null), { lang: 'nl', override: null, fallback: false });
+eq('27 en-GB-UI: en, geen melding', resolveHelpDocLang('en-GB', null), { lang: 'en', override: null, fallback: false });
+eq('28 de-UI: en mét melding', resolveHelpDocLang('de', null), { lang: 'en', override: null, fallback: true });
+eq('29 de-UI met keuze nl: nl, geen melding', resolveHelpDocLang('de', 'nl'), { lang: 'nl', override: 'nl', fallback: false });
+eq('29b bewaarde oude keuze de valt terug op Auto', resolveHelpDocLang('fr', 'de'), { lang: 'en', override: null, fallback: true });
 
 // 6. Zoeken ook in de artikeltekst.
 const entry = { title: 'Kalender maken', headings: ['Feestdagen'], body: 'De bouwvak valt in de zomer.' };
@@ -108,7 +116,7 @@ eq('45 eerste tutorial: geen vorige', [tutorialNeighbours(route, 'tut-a').prev?.
 eq('46 middelste tutorial', [tutorialNeighbours(route, 'tut-b').prev?.id, tutorialNeighbours(route, 'tut-b').next?.id], ['tut-a', 'tut-c']);
 eq('47 laatste tutorial: geen volgende', tutorialNeighbours(route, 'tut-c').next, null);
 // Een extensie kan een manifestartikel of alias niet kapen.
-const clash = registerHelpArticles('ext-kaper', [{ ...tut('quick-start', 9) }, { ...tut('gids-oud', 10) }, { ...tut('tut-d', 4) }]);
+const clash = registerHelpArticles('ext-kaper', [{ ...tut('howto-start', 9) }, { ...tut('gids-oud', 10) }, { ...tut('tut-d', 4) }]);
 ok('48 botsende id\'s mogen registreren…', clash.ok);
 eq('49 …maar de viewer laat ze vallen', ids(usableRegisteredArticles(manifest, getRegisteredHelpArticles())), ['tut-b', 'tut-a', 'tut-c', 'tut-d']);
 eq('50 geregistreerde tutorial is te openen', resolveHelpArticle(manifest, 'tut-b', false, usableRegisteredArticles(manifest, getRegisteredHelpArticles()))?.id, 'tut-b');

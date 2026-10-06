@@ -33,7 +33,7 @@ eq('01 .mpp-voorstel ⇒ profielmelding', mpp?.messageKey, 'notifications.schedu
 eq('02 profiel als merknaam', mpp?.params, { profile: 'Microsoft Project' });
 eq('03 actie naar Backstage → Projectinfo', mpp?.action,
   { kind: 'openBackstageSection', section: 'project-info', labelKey: 'notifications.actions.openProjectInfo' });
-eq('04 lees-meer naar de gids', mpp?.helpArticleId, 'gids-rekenprofielen');
+eq('04 lees-meer naar de gids', mpp?.helpArticleId, 'uitleg-rekenprofielen');
 eq('05 dedupe per import', mpp?.dedupeKey, 'scheduling-profile-applied:doc-1');
 eq('06 voorstel ops (CSV/MSPDI/P6-XML) ⇒ geen melding',
   withSchedulingProfileNotice([importOf(undefined, 'ops')], undefined, 'd'), undefined);
@@ -42,14 +42,14 @@ eq('07 eigen IFC (geen voorstel, wel p6-profiel) ⇒ geen melding',
 const xerNotice: NotifyInput = {
   severity: 'info', messageKey: 'notifications.xerImportOpened', params: { count: 2 },
   detailLines: [{ messageKey: 'notifications.xerImportProjectsSeen', params: { count: 2 } }],
-  helpArticleId: 'gids-xer-import',
+  helpArticleId: 'howto-xer-openen',
 };
 const merged = withSchedulingProfileNotice(
   [importOf(builtInProfile('p6'), 'p6'), importOf(builtInProfile('p6'), 'p6')], xerNotice, 'doc-x');
 eq('08 XER: samengevoegd, geen tweede toast', merged?.messageKey, 'notifications.xerImportOpened');
 eq('09 XER: profielregel bovenaan', merged?.detailLines?.[0],
   { messageKey: 'notifications.schedulingProfileApplied', params: { profile: 'Primavera P6' } });
-eq('10 XER: actie erbij, XER-gids blijft lees-meer', [merged?.action?.section, merged?.helpArticleId], ['project-info', 'gids-xer-import']);
+eq('10 XER: actie erbij, XER-gids blijft lees-meer', [merged?.action?.section, merged?.helpArticleId], ['project-info', 'howto-xer-openen']);
 eq('11 XER zonder profielvoorstel: ongewijzigd', withSchedulingProfileNotice([importOf(undefined, undefined)], xerNotice, 'd'), xerNotice);
 eq('11b eigen profiel ⇒ zijn naam', withSchedulingProfileNotice(
   [importOf({ baseId: 'p6', id: 'eigen', name: 'Mijn P6', overrides: {} }, 'p6')], undefined, 'd')?.params, { profile: 'Mijn P6' });

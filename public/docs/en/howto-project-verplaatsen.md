@@ -58,3 +58,4 @@ What does not shift:
 
 - [Critical path and float](docs://uitleg-kritiek-pad): how the schedule calculates and why the finish moves.
 - [Adding relations](docs://howto-relaties-leggen): relations simply stay in place when you move.
+- [New project and Project info](docs://ref-projectinfo): what the start date in Project info does.

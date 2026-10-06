@@ -315,12 +315,7 @@
     "library": "라이브러리",
     "helpDocsLang": "문서 언어",
     "helpDocsLangAuto": "앱 언어 따르기",
-    "helpStale": "이 언어는 가끔씩만 업데이트됩니다. 최신 문서를 보려면 영어 또는 네덜란드어로 전환하세요.",
-    "helpLayer": {
-      "quickstart": "빠른 시작",
-      "gidsen": "주제별 가이드",
-      "referentie": "참조"
-    },
+    "helpLangFallback": "문서가 아직 사용자의 언어로 제공되지 않습니다. 영어 버전을 보고 있습니다.",
     "unapplied": {
       "title": "변경 사항이 적용되지 않음",
       "body": "프로젝트 정보를 변경했지만 아직 적용하지 않았습니다. 이 변경 사항을 어떻게 하시겠습니까?",

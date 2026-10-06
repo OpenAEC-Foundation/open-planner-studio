@@ -4,7 +4,7 @@ Doel: een AI-assistent laten meelezen en meewerken aan je planning, met zicht op
 
 ## Wanneer je dit nodig hebt
 
-Je wilt dat een AI-assistent je planning leest, doorrekent of aanpast. Bijvoorbeeld een eerste opzet van een WBS laten maken, taken corrigeren of het kritieke pad laten uitleggen. Dat werkt via het **Model Context Protocol** (MCP): een standaard waarmee een AI-assistent gereedschappen van een programma kan gebruiken. Open Planner Studio draait daarvoor een kleine server op je eigen computer, de **bridge**. Die biedt een reeks gereedschappen (tools) aan, allemaal met een naam die begint met `planner_`: taken lezen en wijzigen, relaties, resources, kalenders, baselines, documenten en bestanden.
+Je wilt dat een AI-assistent je planning leest, analyseert of aanpast. Bijvoorbeeld een eerste opzet van een WBS laten maken, taken corrigeren of het kritieke pad laten uitleggen. Dat werkt via het **Model Context Protocol** (MCP): een standaard waarmee een AI-assistent gereedschappen van een programma kan gebruiken. Open Planner Studio draait daarvoor een kleine server op je eigen computer, de **bridge**. Die biedt een reeks gereedschappen (tools) aan, allemaal met een naam die begint met `planner_`: taken lezen en wijzigen, relaties, resources, kalenders, baselines, documenten en bestanden. Welke dat zijn en wat ze weigeren, staat in [AI-tools](docs://ref-ai-tools); waarom de koppeling zo werkt, staat in [Hoe de AI-koppeling werkt](docs://uitleg-ai-koppeling).
 
 De bridge werkt alleen in de desktop-app. Zet je AI-modus in de browser aan, dan zie je het tabblad *AI* wel, maar de knop *Bridge starten* is grijs met de tekst *De bridge werkt alleen in de desktop-app.* De rest van dit artikel gaat over de desktop-app. In de browser zijn ook *Nu backup maken* en *Backup-map openen* grijs.
 
@@ -58,13 +58,25 @@ Bij *Veiligheid* staan de knoppen waarmee jij de AI begrenst:
 - *Nu backup maken*: maakt meteen een backup van het actieve document. Daarna staat er *Backup gemaakt:* met de bestandsnaam.
 - *Backup-map openen*: opent de map met de backups.
 
-De backups staan in de map `ai-backups` in de gegevensmap van de app. De app houdt de recente backups en dunt oudere uit.
+De backups staan in de map `ai-backups` in de gegevensmap van de app. De app houdt de recente backups en dunt oudere uit; hoe precies, staat in [AI-tools](docs://ref-ai-tools).
+
+### 6. De assistent goed laten plannen
+
+Een assistent die de tools kent, kan nog steeds een planning bouwen waar geen planner iets aan heeft: taken zonder relaties, een vaste datum op elke taak of een opdeling die veel te fijn is. Daarom krijgt de assistent de planningsregels op drie manieren mee. Voor de eerste twee hoef je niets te doen.
+
+1. **De kernregels komen vanzelf mee.** Bij het verbinden stuurt de bridge een korte tekst mee met de kernregels. Veel clients zetten die tekst in hun systeemprompt; of de jouwe dat doet, hangt van de client af. Daarin staat onder meer: begin bij de mijlpalen, bouw taken van ongeveer een dag tot twee weken, stuur met relaties in plaats van met vaste datums, en meld aan het eind wat je hebt aangenomen.
+2. **De koppelprompt wijst naar de volledige gids.** De koppelprompt uit het venster *Verbindingsgegevens* vraagt de assistent om eerst de planningsgids te lezen met de tool `planner_get_planning_guide`. Die geeft de planningsgids terug, de tekst van [Goed plannen](docs://gids-goed-plannen) of een versie ervan voor assistenten. Gebruik je de prompt niet, vraag het de assistent dan zelf: *Lees eerst de planningsgids met planner_get_planning_guide, voordat je iets wijzigt.*
+3. **Optioneel: de skill.** Een skill is een klein bestand met instructies dat een assistent in elke sessie meeleest, zodat hij ook in een volgend gesprek de goede volgorde van tools kent. Dit werkt alleen met een assistent die skills ondersteunt; de skill zelf noemt Claude Code en verwante assistenten. Zet het bestand `SKILL.md` op één van deze plekken: `.claude/skills/goed-plannen/SKILL.md` in de projectmap waarin de assistent werkt, of `~/.claude/skills/goed-plannen/SKILL.md` om hem in elk project te hebben.
+
+Het bestand haal je op twee manieren op. Vraag de assistent de tool `planner_get_planning_guide` aan te roepen met `part` op `skill`: het antwoord bevat de tekst en de plekken waar hij hoort. Of download hem van `https://open-planner-studio.open-aec.com/skills/goed-plannen/SKILL.md`.
+
+Of de assistent de gids echt heeft gelezen, zie je in het *Activiteitenpaneel*: er staat dan een aanroep van `planner_get_planning_guide`. Het antwoord dat hij op het laatst geeft, hoort een lijst aannames te bevatten: geschatte duren, gekozen opdeling, relaties die hij zelf legde en elke constraint die hij zette. Mist die lijst, vraag erom.
 
 ## Valkuilen en wat de app dan doet
 
 **De AI wijzigt iets dat je wilt terugdraaien.** Elke wijziging van de AI is een stap die je met *Ongedaan* (Ctrl+Z) terugdraait. Een reeks wijzigingen die de AI als één geheel doorgeeft, is één stap. Het project staat daarna als niet opgeslagen. Na een wijziging staat de planning weer berekend, dus je hoeft zelf geen F5 te drukken.
 
-**De app weigert een aanroep van de AI.** Bij *Pauzeren* en *Alleen lezen* weigert de app alle wijzigingen en blijft lezen mogelijk. Heb je een dialoog open, bijvoorbeeld de instellingen of een taakdialoog, dan weigert de app alle aanroepen, ook het lezen, totdat je de dialoog sluit. De AI krijgt dan een foutmelding.
+**De app weigert een aanroep van de AI.** Bij *Pauzeren* en *Alleen lezen* weigert de app alle wijzigingen en blijft lezen mogelijk, ook met het doorrekenen van een verouderde planning. Zit je zelf midden in een bewerking, zoals een balk slepen of typen in een veld, dan krijgt de AI de datums van vóór je bewerking met een melding dat ze verouderd zijn. Heb je een dialoog open, bijvoorbeeld de instellingen, een taakdialoog of het welkomstvenster, of staat de presentatiemodus aan, dan weigert de app alle aanroepen, ook het lezen, totdat je de dialoog sluit. De AI krijgt dan een foutmelding met de interne naam van wat openstaat, bijvoorbeeld `showTaskDialog`. Alleen `planner_get_planning_guide` blijft werken, omdat die je planning niet leest.
 
 **Je wisselt van tabblad terwijl de AI werkt.** De AI werkt op het document waarop zijn eerste wijziging landde. Wissel jij intussen van tabblad, dan weigert de app zijn volgende wijziging totdat hij bevestigt dat hij op het andere tabblad wil werken. Zo belandt er niets in het verkeerde project.
 
@@ -83,3 +95,7 @@ De backups staan in de map `ai-backups` in de gegevensmap van de app. De app hou
 ## Zie ook
 
 - [Feedback geven](docs://howto-feedback-geven): loopt de koppeling anders dan hier staat, meld het dan.
+- [Hoe de AI-koppeling werkt](docs://uitleg-ai-koppeling): wat de koppeling is, waarom de assistent in je open project werkt en wat hij niet mag.
+- [AI-tools](docs://ref-ai-tools): alle `planner_*`-tools per groep, de foutcodes en hoe lang backups bewaard blijven.
+- [Goed plannen](docs://gids-goed-plannen): de planningsprincipes die de assistent meekrijgt.
+- [Instellingen](docs://ref-instellingen): de AI-instellingen.

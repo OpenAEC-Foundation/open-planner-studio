@@ -121,3 +121,4 @@ Here the dates differ. Two conventions in the group *Progress as in Microsoft Pr
 - [Exporting](docs://howto-exporteren): exporting a project.
 - [Updating progress](docs://howto-voortgang-bijwerken): entering percentage, actual start and status date.
 - [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen): why imported dates can differ from what the app calculates itself.
+- [Calculation options and conventions](docs://ref-rekenopties-en-conventies): all conventions and calculation options in one list.

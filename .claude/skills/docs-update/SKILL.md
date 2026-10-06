@@ -34,15 +34,16 @@ Generator-details (hoe `publish-wiki.mjs` werkt, slugs, `docs://`-omzetting) sta
 `wiki`-skill — daar lezen, niet hier dupliceren.
 
 ## Vaste feiten
-- **In-app help** = `public/docs/<lang>/<id>.md` + `public/docs/manifest.json` (het manifest is de
+- **In-app help** = `public/docs/{nl,en}/<id>.md` + `public/docs/manifest.json` (het manifest is de
   index — aantallen tel je daar, niet uit je hoofd). Gelezen door
-  `src/components/backstage/HelpPanel.tsx` — Backstage → Help en **F1**.
-- **Brontalen zijn `nl` + `en`** — die werk je **allebei** bij, altijd. De overige locales laat je
-  met rust: die lopen in een aparte maandelijkse vertaalronde. `verify:docs` eist alleen nl+en en
-  accepteert ontbrekende vertalingen (bewezen: `gids-ai-mcp` bestaat alleen in nl+en, poort groen).
-  Voeg je in nl+en een kop of `docs://`-link toe aan een gids die al vertalingen heeft, dan meldt
-  `verify:docs` per vertaling een `!`-waarschuwing ("loopt achter op EN") — geen fout, dus niet
-  bijwerken. Alleen een afwijking tussen `nl` en `en` zelf maakt de poort rood.
+  `src/components/backstage/HelpPanel.tsx` — Backstage → Help en **F1**. Ingedeeld volgens Diátaxis:
+  elk artikel heeft een `kind` (`howto`, `uitleg`, `referentie`); tutorials zitten in de
+  tutorials-extensie, niet hier. De schrijfgids (opbouw per soort, toon) staat in
+  `docs/superpowers/specs/2026-09-28-gebruikersdocumentatie-diataxis-design.md` §4.
+- **De docs bestaan alleen in `nl` + `en`** — die werk je **allebei** bij, altijd, met dezelfde
+  koppen en links (`verify:docs` eist die pariteit). Andere UI-talen tonen de Engelse tekst; een map
+  van een andere taal onder `public/docs` laat `verify:docs` falen. De twaalf vertalingen zijn een
+  apart traject, niet jouw taak.
 - **`public/docs/en` voedt twee consumenten**: de in-app Help **én** de GitHub-wiki. Eén edit daar
   verandert allebei.
 - **Wiki-only pagina's** = alles in `docs/wiki/*.md` (Engels; o.a. `Home`, `Features`,
@@ -70,15 +71,16 @@ het gebied te benoemen en gebruik dat als scope.
 ### 3. Route de gewijzigde gebieden naar doc-oppervlakken
 | Aangeraakt | Docs die kunnen liegen |
 |---|---|
-| UI: dialoog, paneel, ribbon-actie, backstage | `public/docs/{nl,en}/gids-*` + `ref-*` van dat gebied (zoek via `cluster` in het manifest) |
-| Sneltoets (`shortcutRegistry.ts`) | `ref-sneltoetsen`, `gids-sneltoetsen-bediening` |
-| Scheduling / CPM / kalender | `gids-kritiek-pad-analyse`, `gids-kalenders-uren`, `gids-plannen-wbs` |
-| Import/export-adapter (IFC/CSV/MSP/P6) | `gids-import-export`, `ref-externe-koppelingen` |
+| UI: dialoog, paneel, ribbon-actie, backstage | de `howto-*` van dat gebied, plus `ref-lint` (lintknoppen), `ref-taak-eigenschappen`, `ref-kalenders`, `ref-resourcepaneel` of `ref-tabelkolommen` (grep het manifest op het onderwerp) |
+| Sneltoets (`shortcutRegistry.ts`) | `ref-sneltoetsen` |
+| Scheduling / CPM / kalender | `uitleg-kritiek-pad`, `uitleg-relaties`, `uitleg-constraints`, `uitleg-kalenders`, `uitleg-dagen-en-uren`, `ref-rekenopties-en-conventies` |
+| Import/export-adapter (IFC/CSV/MSP/P6) | `uitleg-bestanden`, `ref-import-exportformaten`, `howto-exporteren`, `howto-mpp-openen`, `howto-xer-openen`, `howto-externe-relaties` |
 | Nieuwe instelling | `ref-instellingen` (+ de 3-surfaces-regel uit `AGENTS.md`) |
-| Resources / nivellering / baselines | `gids-resources-histogram`, `ref-nivellering`, `gids-baselines-voortgang`, `ref-baselinebeheer` |
-| Rapport / print / PDF | `gids-rapporten-printen` |
-| Herstel / auto-save / bestands-I/O | `ref-herstellen`, `gids-import-export` |
-| Extensie-API | `docs/extensions.md`, `ref-extensies`, `docs/wiki/Extensions-Authoring.md` |
+| Resources / nivellering / baselines | `howto-resources-beheren`, `howto-resource-toewijzen`, `howto-overbezetting-oplossen`, `uitleg-nivelleren`, `uitleg-werkregels`, `uitleg-voortgang`, `howto-baseline-opslaan-en-beheren` |
+| Rapport / print / PDF | `howto-rapport-maken-en-afdrukken`, `ref-rapporttypes` |
+| Herstel / auto-save / bestands-I/O | `howto-herstellen-na-een-crash`, `howto-automatisch-opslaan`, `howto-bestand-openen-en-opslaan`, `uitleg-bestanden` |
+| Melding of waarschuwing | `ref-meldingen` |
+| Extensie-API | `docs/extensions.md`, `howto-extensie-installeren`, `ref-extensiepermissies`, `docs/wiki/Extensions-Authoring.md` |
 | Architectuur: slice, service, engine, npm-script, Tauri-plugin, poort | `AGENTS.md` (alleen de kern), `.claude/rules/<onderdeel>.md` (diepgang) |
 | Roadmap-item af | `docs/TODO.md` (item eruit — afgerond werk staat in de historie); `PLAN.md` alleen als de roadmap zélf schuift |
 | Testsuite / self-test-harness | `tests/planning/README.md`, `docs/self-test-harness.md`, `AGENTS.md` |
@@ -106,8 +108,8 @@ Wacht op akkoord. Geen bewerkingen vóór dit punt.
 ## Fase 2 — bewerken en verifiëren
 
 1. Werk de goedgekeurde plekken bij, **nl én en gelijk** voor manual-artikelen. Nieuw artikel =
-   `.md` in nl + en **plus** een manifest-entry (`id`, `title.nl`, `title.en`, `layer`, evt.
-   `cluster`); de overige talen laat je aan de vertaalronde.
+   `.md` in nl + en **plus** een manifest-entry (`id`, `title.nl`, `title.en`, `kind`); volg het
+   recept `docs/recepten/in-app-gids.md`. Hernoem je een artikel, zet dan een alias van het oude id.
 2. Houd je aan de miniMarkdown-subset die `verify:docs` afdwingt: `#`/`##`/`###`, paragrafen,
    één niveau lijsten, `**vet**`/`*cursief*`/`` `code` ``, ```-blokken, en **alleen**
    `docs://`- en `examples://`-links. Geen tabellen, blockquotes, h4+, geen rauwe HTML.
@@ -135,7 +137,7 @@ poorten en de review van wat de subagent schreef. Alleen op verzoek van de user 
 | Doc bijwerken op basis van de doc | De doc is precies het ding dat verouderd is. Lees de code. |
 | Alleen `nl` of alleen `en` bijwerken | Beide zijn brontalen; `en` voedt óók de wiki. Ze lopen anders uit elkaar. |
 | Nieuw artikel schrijven zonder te vragen | Nieuw materiaal is een productbeslissing van de user, geen doc-onderhoud. |
-| De 12 vertalingen "even meenemen" | Aparte maandelijkse ronde. `verify:docs` eist ze niet. |
+| Een vertaling in een andere taal toevoegen | De docs bestaan alleen in nl + en; een andere taalmap laat `verify:docs` falen. Vertalingen zijn een apart traject. |
 | `docs/CHANGELOG.md` aanraken | Uitsluitend de releaseflow. Ook niet "één regeltje". |
 | `-- --push` draaien | Publiceren = release. De dry-run is hier het eindpunt. |
 | Tabel of blockquote in een manual-artikel | miniMarkdown rendert het niet; `verify:docs` waarschuwt. |

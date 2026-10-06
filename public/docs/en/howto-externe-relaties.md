@@ -51,3 +51,4 @@ Example: the site project finishes on Friday 18 June 2027. You link *Groundwork*
 - [Relations and lag](docs://uitleg-relaties): how the app calculates a relation and a lag.
 - [Adding relations](docs://howto-relaties-leggen): relations between tasks in the same project.
 - [Constraints and deadlines](docs://uitleg-constraints): date limits on a task, without another project.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): contains an external link on *Car park paving* (an external predecessor).

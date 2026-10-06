@@ -632,7 +632,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       );
       // De taaktypes-melding is een
       // detailregel in díe ene bestandsmelding — geen extra toast — met een EIGEN gidslink naar
-      // `gids-taaktypes` (`TASK_TYPES_DETAIL_LINE`; de "Lees meer" van de melding zelf gaat naar het
+      // `uitleg-werkregels` (`TASK_TYPES_DETAIL_LINE`; de "Lees meer" van de melding zelf gaat naar het
       // bestand/rekenprofiel). Zonder bestandsmelding (bv. MSPDI/IFC onder het ops-profiel) blijft
       // het een eigen melding met gids-link.
       if (notice && taskTypesUnlockedDocs > 0) {

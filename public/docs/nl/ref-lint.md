@@ -13,7 +13,7 @@ Het lint bovenin het scherm heeft tabbladen, en elk tabblad heeft groepen met kn
 
 Klik je op *Bestand*, dan neemt een eigen scherm (de Backstage) de werkruimte over. Het heeft geen lint. *Terug* sluit het weer. Heb je bij *Projectinfo* een wijziging gemaakt die je niet hebt toegepast, dan vraagt de app eerst wat hij ermee moet doen.
 
-- **Nieuw** — opent het venster *Nieuw project* en sluit de Backstage.
+- **Nieuw** — opent het venster *Nieuw project* en sluit de Backstage. De velden staan in [Nieuw project en Projectinfo](docs://ref-projectinfo).
 - **Openen** — kiest een bestand en opent het als document. Sluit de Backstage.
 - **Recent** — lijst met recent geopende projecten; een klik opent het. Alleen zichtbaar als de omgeving bestanden kan heropenen: in de desktop-app en in browsers die bestandstoegang bieden, zoals Chrome en Edge. In andere browsers staat de knop er wel, maar blijft de pagina leeg.
 - **Voorbeelden** — meegeleverde voorbeeldplanningen, verdeeld in *Volledige showcase-planningen* (badge *Alle functies*) en *Eenvoudige voorbeelden*. Een klik opent er een in een nieuw tabblad.
@@ -22,11 +22,11 @@ Klik je op *Bestand*, dan neemt een eigen scherm (de Backstage) de werkruimte ov
 - **Exporteren** — kaarten per exportformaat, met een omschrijving. Een klik zet het project om en slaat het op, en brengt je terug naar *Start*. Heeft de planning een kring, dan staat de fout in de Backstage en blijf je daar. Is het project aan een resourcebibliotheek gekoppeld, dan staat eronder het vinkje *Bibliotheekbestand ernaast opslaan*; dat werkt alleen bij de IFC-kaart.
 - **Importeren** — bovenaan de kaart *Voortgang bijwerken uit een blad* (uitgeschakeld zonder taken), daaronder de importers die extensies toevoegen.
 - **Afdruk** — de knop *Open afdrukvoorbeeld* brengt je naar het tabblad *Rapport*.
-- **Projectinfo** — de metadata en het rekenprofiel van dit project. Wijzigingen werken pas na *Toepassen*. Zie [Rekenprofielen en conventies](docs://uitleg-rekenprofielen).
+- **Projectinfo** — de metadata en het rekenprofiel van dit project. Wijzigingen werken pas na *Toepassen*. Zie [Nieuw project en Projectinfo](docs://ref-projectinfo) en [Rekenprofielen en conventies](docs://uitleg-rekenprofielen).
 - **Instellingen** — dezelfde instellingen als het venster *Instellingen*.
 - **Extensies** — beheer en installatie van extensies; zie [Een extensie installeren en beheren](docs://howto-extensie-installeren).
 - **Bibliotheek** — beheer van resourcebibliotheken; zie [Resourcebibliotheken beheren en delen](docs://howto-bibliotheken-beheren).
-- **Help** — de ingebouwde documentatie, met zoeken en een documentatietaal.
+- **Help** — de ingebouwde documentatie, ook met F1. Het zoekveld zoekt in titels, koppen en de tekst zelf. De artikelen staan in vier secties: *Tutorials*, *How-to*, *Uitleg* en *Referentie*. Bij *Documentatietaal* kies je *Volg de app-taal*, *Nederlands* of *English*. De Help bestaat alleen in het Nederlands en het Engels: staat de app in een andere taal, dan lees je de Engelse versie, met een melding. De keuze blijft op dit apparaat bewaard, los van de taal van de app.
 - **Rondleiding starten** — sluit de Backstage en start de rondleiding bij stap 1.
 - **Sluit project** — sluit het actieve document. Heeft het niet-opgeslagen wijzigingen, dan vraagt de app om bevestiging.
 
@@ -192,7 +192,7 @@ Deze groep heeft dezelfde naam als die op *Planning*, maar bevat de tekenopties 
 
 ### Instellingen › Project
 
-- **Projectinfo** — opent het venster *Projectinfo*: de metadata van het project en, in het blok *Rekenprofiel en reken-opties*, hoe het project rekent.
+- **Projectinfo** — opent het venster *Projectinfo*: de metadata van het project en, in het blok *Rekenprofiel en reken-opties*, hoe het project rekent. Zie [Nieuw project en Projectinfo](docs://ref-projectinfo).
 - **Instellingen** — opent het venster *Instellingen* met de tabbladen *Weergave*, *Planning* en *Geavanceerd*. Dezelfde instellingen staan onder *Bestand › Instellingen*.
 
 ### Instellingen › Kalender

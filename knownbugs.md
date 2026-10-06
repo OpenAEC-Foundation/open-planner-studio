@@ -158,6 +158,12 @@ en noem het in je rapport of PR-tekst.
 67. **`pendingHelpSection` blijft hangen** (review #261, punt O7). — S
 68. **Een gidsstap die eenmaal "gedaan" is, blijft gedaan**, ook na wisselen naar een leeg project. Gezien bij
     tutorial 6 stap 8; niet uitgezocht of dat bedoeld is. — S
+72. **Tutorials-extensie linkt nog naar twee id's van vóór fase 4.** `extensions/tutorials/main.js` (branch
+    `claude/tutorials-tut2-7`, ZIP 1.2.0) linkt in tutorial 5 met de tekst *Nivelleringsopties* / *Leveling
+    options* naar `docs://ref-nivellering`, en in tutorial 4 naar `docs://ref-instellingen-lijst`. Beide werken
+    via een alias (→ `howto-overbezetting-oplossen`, → `ref-instellingen`; in de productiebuild aangeklikt),
+    maar de linktekst *Nivelleringsopties* past niet meer bij het artikel *Overbezetting oplossen*.
+    Voorstel: in de extensie de nieuwe id's en titels gebruiken. — B
 
 ## Teksten en helpteksten
 
@@ -171,16 +177,30 @@ en noem het in je rapport of PR-tekst.
 43. **EN-melding lege rapportperiode** zegt "Whole project"; de optie heet *Project duration*. — S
 44. **Oude interne documentatie**: `docs/library.md` (standaardweergave resourcepaneel),
     `.claude/rules/mcp.md` (`MAX_PER_DOC`). — B
-48. **Duitse docs noemen *Kleinster* nog de standaard** (`public/docs/de/gids-kritiek-pad-analyse.md:75`,
-    `ref-projectgegevens.md:26`); nl/en zeggen *Automatisch*. Vervalt als fase 4 de vertaalmappen weghaalt. — B
 56. **nl-label "Orientatie:"** in de rapportopties mist het trema. — S
 57. **Statusdatum-label in de Gantt** toont ISO (`2027-06-28`), de rest dd-mm-jjjj. Mogelijk bewust. — S
+70. **`howto-structuur-aanpassen` zegt dat slepen in de Gantt "hetzelfde werkt als slepen in de lijst".** De
+    oude gids `gids-plannen-wbs` en `docs/TODO.md` ("balk-mousedown") zeggen dat de balk altijd één taak
+    verplaatst, ook bij een meervoudige selectie; in de lijst verhuist de hele selectie. Niet in de app
+    nagespeeld. Voorstel: de zin nalopen en zo nodig "één taak" toevoegen (nl + en). — S
+73. **Namen en beschrijvingen van de voorbeeldprojecten zijn Engels in elke interfacetaal.** Gezien in de
+    nl-interface bij *Bestand › Voorbeelden*; de Help-artikelen noemen daarom de Engelse namen. Niet
+    nagegaan of dat voor alle voorbeelden geldt. Voorstel: bewust laten, of per taal vertalen. — B
 
 ## Tests
 
 50. **`check-ifc-roundtrip` faalde op 30-09-2026** omdat het aanmaaktijdstempel toevallig de gezochte datum
     bevatte (CI op #261). Niet aangepast sindsdien; afgeleid: hij faalt alleen op die ene datum en die is
     voorbij. Het profieldeel van dit punt is opgelost in #278. — B (gezien), S (afgeleid)
+79. **`check-task-grid-performance` (relationIndex-mediaan ≤ 500 ms) zit lokaal op het randje.** Los gedraaid
+    496–499 ms (5-10-2026); rood (535–790 ms) in `npm run verify` zodra de container druk is (meerdere agents
+    tegelijk). In CI steeds groen. De grens meet de machine mee. Voorstel: grens relatief aan een
+    referentiemeting in dezelfde run, of alleen in CI hard. — B
+80. **Rondleidingstests soms rood in CI: de knop *Close* van de laatste stap is "not visible"**
+    (`tests/browser/first-start-tutorial.spec.ts`, 3 tests tegelijk; CI-job 112313353930 op #285, 6-10-2026).
+    De herhaalde job was groen, lokaal 20/20 groen; de diff van #285 raakte de rondleiding niet. Oorzaak
+    onbekend; mogelijk verwant aan 54 (stap overslaan bij een nog niet geladen Backstage). — B (gezien),
+    oorzaak onbekend
 
 ## Wensen en open taken (geen bug)
 
@@ -189,3 +209,8 @@ en noem het in je rapport of PR-tekst.
     `api.settings.getApp(key)`: tutorial 4 leest nu `localStorage['ops-enableHourPlanning']`. — B
 49. **Release-notes, volgende release**: een nieuw MS Project-project rekent de speling nu *Automatisch*
     (#277); projecten die eerder via de wizard *Kleinste* kregen, houden dat (geen migratie). — B
+69. **Twee lege bestanden in de repo-root**: `dn.txt` en `dv.txt`, meegekomen in commit `b635c15c`
+    ("merge: geen verzonnen projecteinde-anker …"). Voorstel: weghalen. — B
+71. **De dode-link-check uit de `wiki`-skill meldt `project://start.ifc`** in `Extensions-Authoring.md`: dat
+    staat in een codevoorbeeld (inline code), geen echte link. De check slaat inline code niet over, dus de
+    dry-run is nooit "dead: 0". Voorstel: in de check eerst `` `…` `` strippen. — B

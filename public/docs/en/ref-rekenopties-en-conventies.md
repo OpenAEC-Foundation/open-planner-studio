@@ -134,3 +134,4 @@ These options come from a Primavera P6 `.xer` file and are read-only. The block 
 - [Relations and lag](docs://uitleg-relaties): lag and the calendar in which it counts.
 - [Progress, status date and baseline](docs://uitleg-voortgang): the status date that many conventions refer to.
 - [Import and export formats](docs://ref-import-exportformaten): which profile a file gets when it is opened.
+- [New project and Project info](docs://ref-projectinfo): the other fields of Project info and the New project window.

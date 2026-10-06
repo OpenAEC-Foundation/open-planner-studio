@@ -117,3 +117,8 @@ If the handover gets a deadline of Wednesday 4 August, two work days before the 
 ## See also
 
 - [Adding relations](docs://howto-relaties-leggen): the steps to link tasks and set a lag.
+- [Relations and lag](docs://uitleg-relaties): how relations and lag determine the early dates.
+- [Constraints and deadlines](docs://uitleg-constraints): how a constraint or deadline produces negative float.
+- [Tracing a path](docs://howto-pad-traceren): following the chain behind a task.
+- [Calculation options and conventions](docs://ref-rekenopties-en-conventies): the critical definition, near-critical and the float calculation, option by option.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): a large project with multiple float paths, near-critical work (threshold 3 working days), a hammock, a hard pin and an external link.

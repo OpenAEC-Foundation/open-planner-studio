@@ -58,3 +58,4 @@ A preset of your own is stored on this device, not in the project file.
 - [Days and hours](docs://uitleg-dagen-en-uren): how the app counts working hours and derives the net hours per day.
 - [Turning on hour planning](docs://howto-urenplanning-aanzetten): planning a task in hours.
 - [Calendars and working days](docs://uitleg-kalenders): which calendar applies to which task.
+- [Calendar windows](docs://ref-kalenders): all fields of the calendar windows.

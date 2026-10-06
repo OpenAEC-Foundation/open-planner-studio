@@ -44,7 +44,7 @@ Kies *Start › Bestand › Opslaan als* of *Bestand › Opslaan als*, of druk o
 
 ### Een project sluiten
 
-Klik op het kruisje van het tabblad, of kies *Bestand › Sluit project*. Heeft het project wijzigingen die je niet opsloeg, dan vraagt de app: *Niet-opgeslagen wijzigingen: 'naam' heeft wijzigingen die nog niet zijn opgeslagen.* Je kiest *Annuleren* (het project blijft open), *Niet opslaan* (het project sluit en je wijzigingen zijn weg) of *Opslaan* (eerst opslaan, dan sluiten). Sluit je op de desktop de hele app, dan vraagt ze dit voor elk project met wijzigingen. Heeft een project wijzigingen en sluit je het browsertabblad of -venster, dan vraagt de browser om bevestiging.
+Klik op het kruisje van het tabblad, of kies *Bestand › Sluit project*. Heeft het project wijzigingen die je niet opsloeg, dan vraagt de app: *Niet-opgeslagen wijzigingen: 'naam' heeft wijzigingen die nog niet zijn opgeslagen.* Je kiest *Annuleren* (het project blijft open), *Niet opslaan* (het project sluit en je wijzigingen zijn weg) of *Opslaan* (eerst opslaan, dan sluiten). Sluit je op de desktop de hele app (met de sluitknop, Alt+F4 of het menu van je besturingssysteem), dan vraagt ze dit voor elk project met wijzigingen; *Annuleren*, of een opslag die mislukt, breekt het afsluiten af. Na zo'n gewone afsluiting ruimt de app de herstelkopieën van die sessie op, zodat het herstelvenster alleen na een echte crash verschijnt. Heeft een project wijzigingen en sluit je het browsertabblad of -venster, dan vraagt de browser om bevestiging.
 
 ## Valkuilen en wat de app dan doet
 
@@ -64,3 +64,4 @@ Klik op het kruisje van het tabblad, of kies *Bestand › Sluit project*. Heeft 
 - [Automatisch opslaan aanzetten](docs://howto-automatisch-opslaan): de app zelf je bestand laten bijwerken.
 - [Exporteren](docs://howto-exporteren): een kopie in een ander formaat maken.
 - [Herstellen na een crash](docs://howto-herstellen-na-een-crash): wat je doet als de app niet netjes sloot.
+- [Import- en exportformaten](docs://ref-import-exportformaten): per formaat wat meegaat en wat niet.

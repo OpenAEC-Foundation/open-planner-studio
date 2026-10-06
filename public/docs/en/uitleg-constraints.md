@@ -86,10 +86,10 @@ The critical path is *Groundwork*, *Pour foundation*, *Brickwork* and *Roofing*.
 
 And with a constraint or deadline on another task:
 
-- **ALAP on *Scaffolding***: the task moves to Thursday 17 and Friday 18 June, the latest moment before *Roofing*. *Roofing* is its only successor and had room for exactly its 3 work days of float; those are used up now and *Scaffolding* is critical.
-- **SNET Saturday 19 June on *Scaffolding***: the limit counts as Monday 21 June. *Scaffolding* runs on Monday 21 and Tuesday 22 June and *Roofing* moves along to Wednesday 23 to Friday 25 June.
-- **Deadline Friday 18 June on *Roofing***: nothing moves, *Roofing* stays on Monday 21 to Wednesday 23 June. *Groundwork*, *Pour foundation*, *Brickwork* and *Roofing* get −3 work days of float and the app reports *Deadline 18-06-2027 missed — early finish 23-06-2027*. *Scaffolding* keeps 0 work days of float and becomes critical too.
-- **SNET Monday 21 June on *Brickwork*, deadline Friday 25 June on *Roofing***: the constraint pushes the brickwork back a week, and the deadline reports that *Roofing* is late on Wednesday 30 June. *Brickwork* and *Roofing* get −3 work days of float; *Groundwork* and *Pour foundation* keep 2 work days.
+- **ALAP on** *Scaffolding*: the task moves to Thursday 17 and Friday 18 June, the latest moment before *Roofing*. *Roofing* is its only successor and had room for exactly its 3 work days of float; those are used up now and *Scaffolding* is critical.
+- **SNET Saturday 19 June on** *Scaffolding*: the limit counts as Monday 21 June. *Scaffolding* runs on Monday 21 and Tuesday 22 June and *Roofing* moves along to Wednesday 23 to Friday 25 June.
+- **Deadline Friday 18 June on** *Roofing*: nothing moves, *Roofing* stays on Monday 21 to Wednesday 23 June. *Groundwork*, *Pour foundation*, *Brickwork* and *Roofing* get −3 work days of float and the app reports *Deadline 18-06-2027 missed — early finish 23-06-2027*. *Scaffolding* keeps 0 work days of float and becomes critical too.
+- **SNET Monday 21 June on** *Brickwork*, **deadline Friday 25 June on** *Roofing*: the constraint pushes the brickwork back a week, and the deadline reports that *Roofing* is late on Wednesday 30 June. *Brickwork* and *Roofing* get −3 work days of float; *Groundwork* and *Pour foundation* keep 2 work days.
 
 In tutorial 3 you set a constraint and a deadline in the tutorial project yourself and see how the schedule moves.
 
@@ -112,3 +112,5 @@ In tutorial 3 you set a constraint and a deadline in the tutorial project yourse
 - [Setting a constraint or deadline](docs://howto-constraint-deadline-zetten): the steps to set a constraint or deadline.
 - [Relations and lag](docs://uitleg-relaties): the dependencies that constraints sit alongside.
 - [Critical path and float](docs://uitleg-kritiek-pad): how negative float arises and what it does to the critical path.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): a hard pin (*Must start on*) on *Municipal road closure (permitted closure period)* and a secondary constraint (*Start no later than*) on *Lift supply & installation — Tower A*.
+- [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): a deadline that is not met, with negative float.

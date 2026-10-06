@@ -58,7 +58,7 @@ mechanisch: `src/engine/` leest geen bronformaat (`p6Source`/`readFormat`/XER-br
 opties-sleutels alleen uit het register (+ elke conventie gelezen in de solver); ongepinde
 `p6…`/`xer…`/`mpp…`/`msp…`-velden rood; herkomst-datagates gepind, alleen omlaag. Syntactisch: een
 opties-object via een helper in een ander bestand onder een neutrale naam, of via `any`, ziet hij niet.
-Recept: `docs/recepten/conventie.md`; gids: `public/docs/{nl,en}/gids-rekenprofielen.md`; spec:
+Recept: `docs/recepten/conventie.md`; gidsen: `public/docs/{nl,en}/uitleg-rekenprofielen.md` en `ref-rekenopties-en-conventies.md`; spec:
 `docs/superpowers/specs/2026-09-22-rekenprofielen-design.md`; regel A en B:
 `docs/superpowers/plans/2026-09-22-goalprompt-x12-naar-nul.md`.
 

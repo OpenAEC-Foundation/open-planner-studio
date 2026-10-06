@@ -68,8 +68,11 @@ The labels mean this:
 
 **A card with *Quarantine*.** The app could not use the stored extension. Under the name it says *Reason:* with the cause. With *Remove from storage* you clean it up.
 
+**Writing an extension yourself.** The guide for extension authors (manifest, API, permissions) is in the repository `OpenAEC-Foundation/open-planner-studio` on GitHub, in the file `docs/extensions.md`.
+
 **An extension does not belong to a project.** Extensions are stored in the app: in the desktop app on this computer, in the browser in that browser's storage. They apply to all your projects and are not part of your project file. If you clear the site data in the browser, the extensions are gone.
 
 ## See also
 
 - [Updating the app](docs://howto-app-bijwerken): an extension can ask for a newer version of the app.
+- [Extension permissions](docs://ref-extensiepermissies): what each permission in the installation question means.

@@ -58,3 +58,5 @@ The app keeps collapsing and expanding per open document. It is not part of *Und
 
 - [Adding tasks and milestones](docs://howto-taken-en-mijlpalen-toevoegen): the reverse, and copying tasks.
 - [Adjusting the structure](docs://howto-structuur-aanpassen): hang a task under another phase instead of removing it.
+- [Dragging, panning and zooming in the Gantt](docs://howto-gantt-bedienen): the selection box and the scroll modes.
+- [Right-click menus](docs://ref-contextmenus): what *Delete* and the other items do to a selection.

@@ -10,29 +10,36 @@
 // hernoemd, zet dan in het manifest een alias van het oude naar het nieuwe id; uitgeleverde versies
 // linken nog naar het oude.
 //
+// Sinds fase 4 (omschakelen) wijzen deze constanten naar de nieuwe artikelen. De id's van vóór fase 4
+// (`gids-taaktypes`, `gids-xer-import`, …) staan als alias in het manifest: uitgeleverde versies
+// sturen hun meldingen nog daarheen.
+//
 // Niet hier: de `docsId`'s in `src/services/updater/releaseHighlights.ts`. Die horen bij een
 // uitgebrachte versie en blijven letterlijk staan; poort 10 controleert ze apart.
 
 /** Werkregels (taaktypes): melding bij openen en de detailregel in de bestandsmelding. */
-export const TASK_TYPES_HELP_ARTICLE_ID = 'gids-taaktypes';
+export const TASK_TYPES_HELP_ARTICLE_ID = 'uitleg-werkregels';
 
 /** Rekenprofielen: de melding "dit project rekent als …" bij openen. */
-export const SCHEDULING_PROFILE_HELP_ARTICLE_ID = 'gids-rekenprofielen';
+export const SCHEDULING_PROFILE_HELP_ARTICLE_ID = 'uitleg-rekenprofielen';
 
-/** Relaties en constraints: startbewerking tegen een constraint, relaties uitgesloten door de hiërarchie. */
-export const RELATIONS_CONSTRAINTS_HELP_ARTICLE_ID = 'gids-relaties-constraints';
+/** Constraints: een nieuwe start die een SNET werd of door een andere constraint werd tegengehouden. */
+export const CONSTRAINTS_HELP_ARTICLE_ID = 'uitleg-constraints';
+
+/** Relaties op samenvattingstaken: relaties die de hiërarchie uitsluit van de berekening. */
+export const HIERARCHY_RELATIONS_HELP_ARTICLE_ID = 'uitleg-relaties';
 
 /** Baselines en voortgang: statusdatum op vandaag gezet bij voortgang invoeren. */
-export const BASELINES_PROGRESS_HELP_ARTICLE_ID = 'gids-baselines-voortgang';
+export const BASELINES_PROGRESS_HELP_ARTICLE_ID = 'uitleg-voortgang';
 
 /** MS Project-import: tijdgefaseerde gegevens (contouren) die niet meekwamen. */
-export const MPP_TIMEPHASED_HELP_ARTICLE_ID = 'gids-msproject-import';
+export const MPP_TIMEPHASED_HELP_ARTICLE_ID = 'howto-mpp-openen';
 
 /** Primavera P6 (.xer): openen, exportverlies, onbruikbaar bronarchief. */
-export const XER_IMPORT_HELP_ARTICLE_ID = 'gids-xer-import';
+export const XER_IMPORT_HELP_ARTICLE_ID = 'howto-xer-openen';
 
 /** "Datums zoals opgeslagen": melding bij openen en de markering in het eigenschappenpaneel. */
-export const RECORDED_DATES_HELP_ARTICLE_ID = 'datums-zoals-opgeslagen';
+export const RECORDED_DATES_HELP_ARTICLE_ID = 'uitleg-datums-zoals-opgeslagen';
 
 /** De planningsgids voor agents (MCP `planner_get_planning_guide`). Id en pad zijn publiek (§8.3):
  *  uitgeleverde versies en geïnstalleerde skills linken ernaar — nooit hernoemen. */

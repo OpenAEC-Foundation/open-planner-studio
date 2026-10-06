@@ -1,41 +1,63 @@
 // Pure regels achter de in-app Help (`public/docs/manifest.json`): welke artikelen zichtbaar zijn,
 // hoe een (oud) id of alias naar een artikel leidt, de leerroute van de tutorials, de stabiele
-// kop-ankers en de taalvariant van een afbeeldingspad. Geen React, geen store, geen
+// kop-ankers, de docstaal en de taalvariant van een afbeeldingspad. Geen React, geen store, geen
 // `import.meta.env`: de viewer (`HelpPanel.tsx`), `miniMarkdown.tsx`, `scripts/verify-docs.ts` en
 // `tests/planning/check-help-manifest.ts` gebruiken exact dezelfde functies, zodat de poort en de
 // viewer niet uit elkaar kunnen lopen.
 //
 // Manifest v2 (ontwerp `docs/superpowers/specs/2026-09-28-gebruikersdocumentatie-diataxis-design.md`
-// §6.1, bijgesteld door de eigenaar op 2026-09-28): een artikel heeft óf de oude `layer`
-// (overgangsperiode tot fase 4) óf een `kind` uit `howto | uitleg | referentie`. Tutorials staan
-// NIET in het manifest: die levert een extensie aan via `helpArticleRegistry.ts`, met hun eigen
-// `order` (de leerroute). `draft` verbergt een manifestartikel in productie, en `aliases` laat een oud
-// id naar een nieuw artikel wijzen.
+// §6.1, bijgesteld door de eigenaar op 2026-09-28; omgeschakeld in fase 4): elk artikel heeft een
+// `kind` uit `howto | uitleg | referentie`. Tutorials staan NIET in het manifest: die levert een
+// extensie aan via `helpArticleRegistry.ts`, met hun eigen `order` (de leerroute). `draft` verbergt
+// een manifestartikel in productie, en `aliases` laat een oud id naar een nieuw artikel wijzen (de
+// id's van vóór fase 4 blijven zo werken in meldingen van uitgeleverde versies en externe links).
 
-export type HelpLayer = 'quickstart' | 'gidsen' | 'referentie';
 export type HelpKind = 'tutorial' | 'howto' | 'uitleg' | 'referentie';
 
-/** Volgorde van de oude secties (ongewijzigd t.o.v. manifest v1). */
-export const HELP_LAYERS: readonly HelpLayer[] = ['quickstart', 'gidsen', 'referentie'];
-/** Vaste volgorde van de vier nieuwe secties (ontwerp §3): Tutorials · How-to · Uitleg · Referentie. */
+/** Vaste volgorde van de vier secties (ontwerp §3): Tutorials · How-to · Uitleg · Referentie. */
 export const HELP_KINDS: readonly HelpKind[] = ['tutorial', 'howto', 'uitleg', 'referentie'];
 /** De soorten die in `public/docs/manifest.json` mogen staan; tutorials komen uit het register. */
 export const MANIFEST_HELP_KINDS: readonly HelpKind[] = ['howto', 'uitleg', 'referentie'];
 
+/**
+ * De talen waarin de documentatie bestaat (ontwerp §6.2/§6.3): alleen de brontalen nl en en. Elke
+ * andere UI-taal toont de Engelse tekst met een melding; een map van een andere taal onder
+ * `public/docs` is een fout in `verify:docs` (een verwijderde vertaling die terugkwam). De twaalf
+ * vertalingen volgen in een apart traject; dan komt een taal hier bij.
+ */
+export const HELP_DOC_LANGS = ['nl', 'en'] as const;
+export type HelpDocLang = typeof HELP_DOC_LANGS[number];
+
+export function isHelpDocLang(lang: string | null | undefined): lang is HelpDocLang {
+  return (HELP_DOC_LANGS as readonly string[]).includes(lang ?? '');
+}
+
+/**
+ * De docstaal bij een UI-taal (bijv. `nl`, `en-GB`, `de`) en een eventuele bewaarde keuze. Een
+ * bewaarde keuze telt alleen als het een docstaal is: een oude keuze als `de` (van vóór fase 4)
+ * valt terug op Auto. `fallback` zegt of de lezer Engels krijgt omdat zijn UI-taal geen docs heeft —
+ * dan toont de viewer een melding. Wie zelf een taal kiest, krijgt geen melding.
+ */
+export function resolveHelpDocLang(
+  uiLang: string,
+  saved: string | null | undefined,
+): { lang: HelpDocLang; override: HelpDocLang | null; fallback: boolean } {
+  const base = uiLang.split('-')[0];
+  const override = isHelpDocLang(saved) ? saved : null;
+  if (override) return { lang: override, override, fallback: false };
+  return isHelpDocLang(base) ? { lang: base, override: null, fallback: false } : { lang: 'en', override: null, fallback: true };
+}
+
 export interface HelpArticleMeta {
   id: string;
-  /** EN is altijd aanwezig als terugval; nieuwe (`kind`-)artikelen hebben alleen nl + en. */
+  /** Titels in de docstalen (nl en en); en is de terugval. */
   title: Partial<Record<string, string>> & { en: string };
-  /** Oude indeling (manifest v1); verdwijnt in fase 4. */
-  layer?: HelpLayer;
-  /** Nieuwe indeling: in het manifest `howto | uitleg | referentie`, `tutorial` alleen uit het register. */
+  /** In het manifest `howto | uitleg | referentie`, `tutorial` alleen uit het register. */
   kind?: HelpKind;
   /** Alleen bij geregistreerde tutorials: plaats in de leerroute. Niet in het manifest. */
   order?: number;
   /** Zichtbaar in dev, verborgen in productie (ook voor zoeken, links en aliassen). */
   draft?: boolean;
-  /** Ongebruikt veld uit v1; blijft tot fase 4 staan. */
-  cluster?: string;
 }
 
 export interface HelpManifest {
@@ -169,8 +191,8 @@ export function extractHeadingSlugs(source: string): string[] {
 /** Placeholder in een afbeeldingspad voor de docstaal: `img/{lang}/shot.webp`. */
 export const HELP_IMAGE_LANG_PLACEHOLDER = '{lang}';
 
-/** Taalmap van een afbeelding: alleen nl en en hebben eigen beelden, elke andere docstaal toont en. */
-export function helpImageLang(docLang: string): 'nl' | 'en' {
+/** Taalmap van een afbeelding: alleen nl en en hebben eigen beelden, elke andere taal toont en. */
+export function helpImageLang(docLang: string): HelpDocLang {
   return docLang === 'nl' ? 'nl' : 'en';
 }
 

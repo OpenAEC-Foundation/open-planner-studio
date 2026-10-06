@@ -205,17 +205,17 @@ test('bestandsmelding: de werkregel-detailregel opent de werkregelgids, niet de 
       severity: 'info',
       messageKey: 'notifications.schedulingProfileApplied',
       params: { profile: 'Primavera P6' },
-      helpArticleId: 'gids-rekenprofielen',
-      detailLines: [{ messageKey: 'notifications.taskTypesUnlockedDetail', helpArticleId: 'gids-taaktypes', linkKey: 'notifications.workRulesReadMore' }],
+      helpArticleId: 'uitleg-rekenprofielen',
+      detailLines: [{ messageKey: 'notifications.taskTypesUnlockedDetail', helpArticleId: 'uitleg-werkregels', linkKey: 'notifications.workRulesReadMore' }],
     });
   });
-  const link = page.locator('[data-ops-toast-detail-link="gids-taaktypes"]');
+  const link = page.locator('[data-ops-toast-detail-link="uitleg-werkregels"]');
   await expect(link).toBeVisible();
   await link.click();
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.backstageSection)).toBe('help');
   const titles = await page.evaluate(async () => {
     const m = await (await fetch(new URL('docs/manifest.json', document.baseURI))).json() as { articles: { id: string; title: Record<string, string> }[] };
-    return m.articles.find(a => a.id === 'gids-taaktypes')!.title;
+    return m.articles.find(a => a.id === 'uitleg-werkregels')!.title;
   });
   const active = page.locator('.help-toc-item.active');
   await expect(active).toHaveCount(1);

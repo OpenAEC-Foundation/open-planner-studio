@@ -104,3 +104,4 @@ De datums van *Metselwerk* veranderen niet. Wel staat vrijdag 4 juni in het hist
 - [Een kalender maken en toewijzen](docs://howto-kalender-maken-en-toewijzen): de stappen om een eigen kalender te maken en aan taken te geven.
 - [Feestdagen en bouwvak genereren](docs://howto-feestdagen-genereren): de feestdagen van een land en de bouwvak invullen.
 - [Een resourcekalender instellen](docs://howto-resourcekalender-instellen): de beschikbaarheid van een resource vastleggen.
+- [Kalendervensters](docs://ref-kalenders): alle velden van de kalendervensters.

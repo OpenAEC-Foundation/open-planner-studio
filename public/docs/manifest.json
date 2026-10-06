@@ -2,767 +2,12 @@
   "version": 2,
   "articles": [
     {
-      "id": "quick-start",
-      "title": {
-        "nl": "Snel starten",
-        "en": "Quick start",
-        "de": "Schnellstart",
-        "fr": "Démarrage rapide",
-        "es": "Inicio rápido",
-        "zh": "快速入门",
-        "it": "Avvio rapido",
-        "pt": "Início rápido",
-        "pl": "Szybki start",
-        "tr": "Hızlı başlangıç",
-        "ar": "البدء السريع",
-        "ja": "クイックスタート",
-        "ko": "빠른 시작",
-        "fa": "شروع سریع"
-      },
-      "layer": "quickstart"
-    },
-    {
-      "id": "gids-plannen-wbs",
-      "title": {
-        "nl": "Plannen & WBS",
-        "en": "Planning & WBS",
-        "de": "Planung & WBS",
-        "fr": "Planification & WBS",
-        "es": "Planificación y WBS",
-        "zh": "计划与 WBS",
-        "it": "Pianificazione e WBS",
-        "pt": "Planeamento & WBS",
-        "pl": "Planowanie i WBS",
-        "tr": "Planlama & WBS",
-        "ar": "التخطيط وWBS",
-        "ja": "計画と WBS",
-        "ko": "계획 및 WBS",
-        "fa": "برنامه‌ریزی و WBS"
-      },
-      "layer": "gidsen",
-      "cluster": "plannen-wbs"
-    },
-    {
-      "id": "gids-relaties-constraints",
-      "title": {
-        "nl": "Relaties & constraints",
-        "en": "Relations & constraints",
-        "de": "Beziehungen & Einschränkungen",
-        "fr": "Relations & contraintes",
-        "es": "Relaciones y restricciones",
-        "zh": "关系与限制",
-        "it": "Relazioni e vincoli",
-        "pt": "Relações & restrições",
-        "pl": "Relacje i ograniczenia",
-        "tr": "İlişkiler & kısıtlamalar",
-        "ar": "العلاقات والقيود",
-        "ja": "関係と制約",
-        "ko": "관계 및 제약 조건",
-        "fa": "روابط و محدودیت‌ها"
-      },
-      "layer": "gidsen",
-      "cluster": "relaties-constraints"
-    },
-    {
-      "id": "gids-taken-splitsen",
-      "title": {
-        "nl": "Taken splitsen",
-        "en": "Splitting tasks",
-        "de": "Vorgänge unterbrechen",
-        "fr": "Fractionner des tâches",
-        "es": "Dividir tareas",
-        "zh": "拆分任务",
-        "it": "Suddividere le attività",
-        "pt": "Dividir tarefas",
-        "pl": "Dzielenie zadań",
-        "tr": "Görevleri bölme",
-        "ar": "تقسيم المهام",
-        "ja": "タスクの分割",
-        "ko": "작업 분할",
-        "fa": "تقسیم کارها"
-      },
-      "layer": "gidsen",
-      "cluster": "taken-splitsen"
-    },
-    {
-      "id": "gids-kalenders-uren",
-      "title": {
-        "nl": "Kalenders, werkdagen & werkuren",
-        "en": "Calendars, working days & working hours",
-        "de": "Kalender & Stundenplanung",
-        "fr": "Calendriers & planification horaire",
-        "es": "Calendarios y planificación por horas",
-        "zh": "日历与小时计划",
-        "it": "Calendari e pianificazione oraria",
-        "pt": "Calendários & planeamento por horas",
-        "pl": "Kalendarze i planowanie godzinowe",
-        "tr": "Takvimler & saat planlaması",
-        "ar": "التقاويم والتخطيط بالساعات",
-        "ja": "カレンダーと時間計画",
-        "ko": "달력 및 시간 단위 계획",
-        "fa": "تقویم‌ها و برنامه‌ریزی ساعتی"
-      },
-      "layer": "gidsen",
-      "cluster": "kalenders-uren"
-    },
-    {
-      "id": "gids-resources-histogram",
-      "title": {
-        "nl": "Resources, histogram & nivellering",
-        "en": "Resources, histogram & leveling",
-        "de": "Ressourcen, Histogramm & Abgleich",
-        "fr": "Ressources, histogramme & nivellement",
-        "es": "Recursos, histograma y nivelación",
-        "zh": "资源、直方图与平衡",
-        "it": "Risorse, istogramma e livellamento",
-        "pt": "Recursos, histograma & nivelamento",
-        "pl": "Zasoby, histogram i bilansowanie",
-        "tr": "Kaynaklar, histogram & nivelleme",
-        "ar": "الموارد، المدرج التكراري والموازنة",
-        "ja": "リソース、ヒストグラム、山崩し",
-        "ko": "자원, 히스토그램 및 평준화",
-        "fa": "منابع، هیستوگرام و تسطیح"
-      },
-      "layer": "gidsen",
-      "cluster": "resources-histogram"
-    },
-    {
-      "id": "gids-resourcebibliotheken",
-      "title": {
-        "nl": "Resourcebibliotheken",
-        "en": "Resource libraries",
-        "de": "Ressourcenbibliotheken",
-        "fr": "Bibliothèques de ressources",
-        "es": "Bibliotecas de recursos",
-        "zh": "资源库",
-        "it": "Librerie di risorse",
-        "pt": "Bibliotecas de recursos",
-        "pl": "Biblioteki zasobów",
-        "tr": "Kaynak kitaplıkları",
-        "ar": "مكتبات الموارد",
-        "ja": "リソースライブラリ",
-        "ko": "리소스 라이브러리",
-        "fa": "کتابخانه‌های منابع"
-      },
-      "layer": "gidsen",
-      "cluster": "resourcebibliotheken"
-    },
-    {
-      "id": "gids-bezettingsoverzicht",
-      "title": {
-        "nl": "Bezettingsoverzicht",
-        "en": "Occupancy overview",
-        "de": "Auslastungsübersicht",
-        "fr": "Aperçu de l'occupation",
-        "es": "Resumen de ocupación",
-        "zh": "占用概览",
-        "it": "Panoramica dell'occupazione",
-        "pt": "Visão geral da ocupação",
-        "pl": "Przegląd obłożenia",
-        "tr": "Doluluk özeti",
-        "ar": "نظرة عامة على الإشغال",
-        "ja": "稼働状況の概要",
-        "ko": "가동 현황 개요",
-        "fa": "نمای کلی اشغال"
-      },
-      "layer": "gidsen",
-      "cluster": "bezettingsoverzicht"
-    },
-    {
-      "id": "gids-baselines-voortgang",
-      "title": {
-        "nl": "Baselines & voortgang",
-        "en": "Baselines & progress",
-        "de": "Baselines & Fortschritt",
-        "fr": "Baselines & avancement",
-        "es": "Baselines y progreso",
-        "zh": "基线与进度",
-        "it": "Baseline e avanzamento",
-        "pt": "Baselines & progresso",
-        "pl": "Baseline i postęp",
-        "tr": "Baseline'lar & ilerleme",
-        "ar": "خطوط الأساس والتقدم",
-        "ja": "ベースラインと進捗",
-        "ko": "기준선 및 진행",
-        "fa": "خطوط مبنا و پیشرفت"
-      },
-      "layer": "gidsen",
-      "cluster": "baselines-voortgang"
-    },
-    {
-      "id": "gids-kritiek-pad-analyse",
-      "title": {
-        "nl": "Kritiek pad & geavanceerde analyse",
-        "en": "Critical path & advanced analysis",
-        "de": "Kritischer Pfad & weitergehende Analyse",
-        "fr": "Chemin critique & analyse avancée",
-        "es": "Ruta crítica y análisis avanzado",
-        "zh": "关键路径与高级分析",
-        "it": "Percorso critico e analisi avanzata",
-        "pt": "Caminho crítico & análise avançada",
-        "pl": "Ścieżka krytyczna i analiza zaawansowana",
-        "tr": "Kritik yol & ileri düzey analiz",
-        "ar": "المسار الحرج والتحليل المتقدم",
-        "ja": "クリティカルパスと高度な分析",
-        "ko": "크리티컬 패스 및 고급 분석",
-        "fa": "مسیر بحرانی و تحلیل پیشرفته"
-      },
-      "layer": "gidsen",
-      "cluster": "kritiek-pad-analyse"
-    },
-    {
-      "id": "gids-import-export",
-      "title": {
-        "nl": "Im-/export",
-        "en": "Import/export",
-        "de": "Im-/Export",
-        "fr": "Import & export",
-        "es": "Importación/exportación",
-        "zh": "导入/导出",
-        "it": "Importazione/esportazione",
-        "pt": "Importação/exportação",
-        "pl": "Import/eksport",
-        "tr": "İçe/dışa aktarma",
-        "ar": "الاستيراد والتصدير",
-        "ja": "インポート/エクスポート",
-        "ko": "가져오기/내보내기",
-        "fa": "درون‌ریزی/برون‌ریزی"
-      },
-      "layer": "gidsen",
-      "cluster": "import-export"
-    },
-    {
-      "id": "gids-voortgang-importeren",
-      "title": {
-        "nl": "Voortgang importeren",
-        "en": "Importing progress",
-        "de": "Fortschritt importieren",
-        "fr": "Importer l'avancement",
-        "es": "Importar el avance",
-        "zh": "导入进度",
-        "it": "Importare l'avanzamento",
-        "pt": "Importar o progresso",
-        "pl": "Importowanie postępu",
-        "tr": "İlerlemeyi içe aktarma",
-        "ar": "استيراد التقدّم",
-        "ja": "進捗のインポート",
-        "ko": "진행률 가져오기",
-        "fa": "درون‌ریزی پیشرفت"
-      },
-      "layer": "gidsen",
-      "cluster": "voortgang-importeren"
-    },
-    {
-      "id": "gids-taaktypes",
-      "title": {
-        "nl": "Werkregels en werk",
-        "en": "Work rules and work",
-        "de": "Arbeitsregeln und Arbeit",
-        "fr": "Règles de travail et travail",
-        "es": "Reglas de trabajo y trabajo",
-        "zh": "工作规则与工时",
-        "it": "Regole di lavoro e lavoro",
-        "pt": "Regras de trabalho e trabalho",
-        "pl": "Reguły pracy i praca",
-        "tr": "İş kuralları ve iş",
-        "ar": "قواعد العمل والعمل",
-        "ja": "作業ルールと作業",
-        "ko": "작업 규칙과 작업량",
-        "fa": "قواعد کار و کار"
-      },
-      "layer": "gidsen"
-    },
-    {
-      "id": "gids-msproject-import",
-      "title": {
-        "nl": "MS Project (.mpp) openen",
-        "en": "Opening MS Project (.mpp)",
-        "de": "MS Project (.mpp) öffnen",
-        "fr": "Ouvrir MS Project (.mpp)",
-        "es": "Abrir MS Project (.mpp)",
-        "zh": "打开 MS Project（.mpp）",
-        "it": "Aprire MS Project (.mpp)",
-        "pt": "Abrir o MS Project (.mpp)",
-        "pl": "Otwieranie MS Project (.mpp)",
-        "tr": "MS Project (.mpp) dosyasını açma",
-        "ar": "فتح MS Project (.mpp)",
-        "ja": "MS Project（.mpp）を開く",
-        "ko": "MS Project(.mpp) 열기",
-        "fa": "باز کردن MS Project (.mpp)"
-      },
-      "layer": "gidsen",
-      "cluster": "msproject-import"
-    },
-    {
-      "id": "gids-xer-import",
-      "title": {
-        "nl": "Primavera P6 (.xer) openen",
-        "en": "Opening Primavera P6 (.xer)",
-        "de": "Primavera P6 (.xer) öffnen",
-        "fr": "Ouvrir Primavera P6 (.xer)",
-        "es": "Abrir Primavera P6 (.xer)",
-        "zh": "打开 Primavera P6（.xer）",
-        "it": "Aprire Primavera P6 (.xer)",
-        "pt": "Abrir Primavera P6 (.xer)",
-        "pl": "Otwieranie Primavera P6 (.xer)",
-        "tr": "Primavera P6 (.xer) dosyasını açma",
-        "ar": "فتح Primavera P6 (.xer)",
-        "ja": "Primavera P6（.xer）を開く",
-        "ko": "Primavera P6(.xer) 열기",
-        "fa": "باز کردن Primavera P6 (.xer)"
-      },
-      "layer": "gidsen",
-      "cluster": "xer-import"
-    },
-    {
-      "id": "gids-rekenprofielen",
-      "title": {
-        "nl": "Rekenprofielen",
-        "en": "Calculation profiles",
-        "de": "Berechnungsprofile",
-        "fr": "Profils de calcul",
-        "es": "Perfiles de cálculo",
-        "zh": "计算配置文件",
-        "it": "Profili di calcolo",
-        "pt": "Perfis de cálculo",
-        "pl": "Profile obliczeń",
-        "tr": "Hesaplama profilleri",
-        "ar": "ملفات الحساب",
-        "ja": "計算プロファイル",
-        "ko": "계산 프로필",
-        "fa": "پروفایل‌های محاسبه"
-      },
-      "layer": "gidsen",
-      "cluster": "rekenprofielen"
-    },
-    {
-      "id": "datums-zoals-opgeslagen",
-      "title": {
-        "nl": "Datums zoals opgeslagen",
-        "en": "Dates as recorded"
-      },
-      "layer": "gidsen"
-    },
-    {
-      "id": "gids-ai-mcp",
-      "title": {
-        "nl": "AI-assistent koppelen (MCP)",
-        "en": "Connecting an AI assistant (MCP)",
-        "de": "KI-Assistenten verbinden (MCP)",
-        "fr": "Connecter un assistant IA (MCP)",
-        "es": "Conectar un asistente de IA (MCP)",
-        "zh": "连接 AI 助手（MCP）",
-        "it": "Collegare un assistente IA (MCP)",
-        "pt": "Ligar um assistente de IA (MCP)",
-        "pl": "Podłączanie asystenta AI (MCP)",
-        "tr": "Yapay zekâ asistanı bağlama (MCP)",
-        "ar": "ربط مساعد الذكاء الاصطناعي (MCP)",
-        "ja": "AI アシスタントの接続（MCP）",
-        "ko": "AI 어시스턴트 연결(MCP)",
-        "fa": "اتصال دستیار هوش مصنوعی (MCP)"
-      },
-      "layer": "gidsen",
-      "cluster": "ai-mcp"
-    },
-    {
-      "id": "gids-rapporten-printen",
-      "title": {
-        "nl": "Rapporten & printen",
-        "en": "Reports & printing",
-        "de": "Berichte & Drucken",
-        "fr": "Rapports & impression",
-        "es": "Informes e impresión",
-        "zh": "报表与打印",
-        "it": "Report e stampa",
-        "pt": "Relatórios & impressão",
-        "pl": "Raporty i drukowanie",
-        "tr": "Raporlar & yazdırma",
-        "ar": "التقارير والطباعة",
-        "ja": "レポートと印刷",
-        "ko": "보고서 및 인쇄",
-        "fa": "گزارش‌ها و چاپ"
-      },
-      "layer": "gidsen",
-      "cluster": "rapporten-printen"
-    },
-    {
-      "id": "gids-sneltoetsen-bediening",
-      "title": {
-        "nl": "Sneltoetsen & bediening",
-        "en": "Keyboard shortcuts & controls",
-        "de": "Tastenkombinationen & Bedienung",
-        "fr": "Raccourcis clavier & manipulation",
-        "es": "Atajos de teclado y manejo",
-        "zh": "键盘快捷键与操作",
-        "it": "Scorciatoie da tastiera e comandi",
-        "pt": "Atalhos de teclado & controlos",
-        "pl": "Skróty klawiszowe i obsługa",
-        "tr": "Klavye kısayolları & kontroller",
-        "ar": "اختصارات لوحة المفاتيح والتحكم",
-        "ja": "ショートカットと操作",
-        "ko": "키보드 단축키 및 조작",
-        "fa": "میان‌برهای صفحه‌کلید و بدنه"
-      },
-      "layer": "gidsen",
-      "cluster": "sneltoetsen-bediening"
-    },
-    {
-      "id": "ref-taakdialoog",
-      "title": {
-        "nl": "Taakdialoog",
-        "en": "Task dialog",
-        "de": "Aufgabendialog",
-        "fr": "Boîte de dialogue de tâche",
-        "es": "Diálogo de tarea",
-        "zh": "任务对话框",
-        "it": "Finestra di dialogo attività",
-        "pt": "Diálogo de tarefa",
-        "pl": "Okno dialogowe zadania",
-        "tr": "Görev iletişim penceresi",
-        "ar": "حوار المهمة",
-        "ja": "タスクダイアログ",
-        "ko": "작업 대화상자",
-        "fa": "کادر گفتگوی وظیفه"
-      },
-      "layer": "referentie"
-    },
-    {
-      "id": "ref-kalenderdialoog",
-      "title": {
-        "nl": "Kalenderdialoog",
-        "en": "Calendar dialog",
-        "de": "Kalender-Dialog",
-        "fr": "Boîte de dialogue de calendrier",
-        "es": "Diálogo de calendario",
-        "zh": "日历对话框",
-        "it": "Finestra di dialogo calendario",
-        "pt": "Diálogo de calendário",
-        "pl": "Okno dialogowe kalendarza",
-        "tr": "Takvim iletişim penceresi",
-        "ar": "حوار التقويم",
-        "ja": "カレンダーダイアログ",
-        "ko": "달력 대화상자",
-        "fa": "کادر گفتگوی تقویم"
-      },
-      "layer": "referentie"
-    },
-    {
-      "id": "ref-resourcekalender",
-      "title": {
-        "nl": "Resourcekalender",
-        "en": "Resource calendar",
-        "de": "Ressourcenkalender",
-        "fr": "Calendrier de la ressource",
-        "es": "Calendario de recursos",
-        "zh": "资源日历",
-        "it": "Calendario risorsa",
-        "pt": "Calendário do recurso",
-        "pl": "Kalendarz zasobu",
-        "tr": "Kaynak takvimi",
-        "ar": "تقويم المورد",
-        "ja": "リソースカレンダー",
-        "ko": "자원 달력",
-        "fa": "تقویم منبع"
-      },
-      "layer": "referentie"
-    },
-    {
-      "id": "ref-nivellering",
-      "title": {
-        "nl": "Nivelleringsopties",
-        "en": "Leveling options",
-        "de": "Abgleich-Optionen",
-        "fr": "Options de nivellement",
-        "es": "Opciones de nivelación",
-        "zh": "平衡选项",
-        "it": "Opzioni di livellamento",
-        "pt": "Opções de nivelamento",
-        "pl": "Opcje bilansowania",
-        "tr": "Nivelleme seçenekleri",
-        "ar": "خيارات الموازنة",
-        "ja": "山崩しオプション",
-        "ko": "평준화 옵션",
-        "fa": "گزینه‌های تسطیح"
-      },
-      "layer": "referentie"
-    },
-    {
-      "id": "ref-baselinebeheer",
-      "title": {
-        "nl": "Baselinebeheer",
-        "en": "Baseline management",
-        "de": "Baseline-Verwaltung",
-        "fr": "Gestion des baselines",
-        "es": "Gestión de baselines",
-        "zh": "基线管理",
-        "it": "Gestione baseline",
-        "pt": "Gestão de baselines",
-        "pl": "Zarządzanie baseline",
-        "tr": "Baseline yönetimi",
-        "ar": "إدارة خطوط الأساس",
-        "ja": "ベースライン管理",
-        "ko": "기준선 관리",
-        "fa": "مدیریت خط مبنا"
-      },
-      "layer": "referentie"
-    },
-    {
-      "id": "ref-externe-koppelingen",
-      "title": {
-        "nl": "Externe koppelingen",
-        "en": "External links",
-        "de": "Externe Verknüpfungen",
-        "fr": "Liens externes",
-        "es": "Enlaces externos",
-        "zh": "外部链接",
-        "it": "Collegamenti esterni",
-        "pt": "Ligações externas",
-        "pl": "Łącza zewnętrzne",
-        "tr": "Dış bağlantılar",
-        "ar": "الروابط الخارجية",
-        "ja": "外部リンク",
-        "ko": "외부 링크",
-        "fa": "پیوندهای خارجی"
-      },
-      "layer": "referentie"
-    },
-    {
-      "id": "ref-codes-velden",
-      "title": {
-        "nl": "Codes & velden (structuur)",
-        "en": "Codes & fields (structure)",
-        "de": "Codes & Felder (Struktur)",
-        "fr": "Codes & champs (structure)",
-        "es": "Códigos y campos (estructura)",
-        "zh": "代码与字段（结构）",
-        "it": "Codici e campi (struttura)",
-        "pt": "Códigos & campos (estrutura)",
-        "pl": "Kody i pola (struktura)",
-        "tr": "Kodlar & alanlar (yapı)",
-        "ar": "الرموز والحقول (البنية)",
-        "ja": "コードとフィールド（構造）",
-        "ko": "코드 및 필드 (구조)",
-        "fa": "کدها و فیلدها (ساختار)"
-      },
-      "layer": "referentie"
-    },
-    {
-      "id": "ref-filters",
-      "title": {
-        "nl": "Filters",
-        "en": "Filters",
-        "de": "Filter",
-        "fr": "Filtres",
-        "es": "Filtros",
-        "zh": "筛选器",
-        "it": "Filtri",
-        "pt": "Filtros",
-        "pl": "Filtry",
-        "tr": "Filtreler",
-        "ar": "الفلاتر",
-        "ja": "フィルター",
-        "ko": "필터",
-        "fa": "فیلترها"
-      },
-      "layer": "referentie"
-    },
-    {
-      "id": "ref-kolommen",
-      "title": {
-        "nl": "Kolommen kiezen",
-        "en": "Choosing columns",
-        "de": "Spalten wählen",
-        "fr": "Choisir les colonnes",
-        "es": "Elegir columnas",
-        "zh": "选择列",
-        "it": "Scelta delle colonne",
-        "pt": "Escolher colunas",
-        "pl": "Wybór kolumn",
-        "tr": "Sütun seçimi",
-        "ar": "اختيار الأعمدة",
-        "ja": "列の選択",
-        "ko": "열 선택",
-        "fa": "انتخاب ستون‌ها"
-      },
-      "layer": "referentie"
-    },
-    {
-      "id": "ref-layouts",
-      "title": {
-        "nl": "Layouts opslaan/laden",
-        "en": "Saving and loading layouts",
-        "de": "Layouts speichern und laden",
-        "fr": "Enregistrer et charger des layouts",
-        "es": "Guardar y cargar layouts",
-        "zh": "保存和加载布局",
-        "it": "Salvare e caricare i layout",
-        "pt": "Guardar e carregar layouts",
-        "pl": "Zapisywanie i wczytywanie layoutów",
-        "tr": "Layout kaydetme & yükleme",
-        "ar": "حفظ التخطيطات وتحميلها",
-        "ja": "レイアウトの保存と読み込み",
-        "ko": "레이아웃 저장 및 불러오기",
-        "fa": "ذخیره و بارگذاری چیدمان‌ها"
-      },
-      "layer": "referentie"
-    },
-    {
-      "id": "ref-projectgegevens",
-      "title": {
-        "nl": "Projectinformatie",
-        "en": "Project information",
-        "de": "Projektinformationen",
-        "fr": "Informations du projet",
-        "es": "Información del proyecto",
-        "zh": "项目信息",
-        "it": "Informazioni sul progetto",
-        "pt": "Informações do projeto",
-        "pl": "Informacje o projekcie",
-        "tr": "Proje bilgileri",
-        "ar": "معلومات المشروع",
-        "ja": "プロジェクト情報",
-        "ko": "프로젝트 정보",
-        "fa": "اطلاعات پروژه"
-      },
-      "layer": "referentie"
-    },
-    {
-      "id": "ref-instellingen",
-      "title": {
-        "nl": "Instellingen",
-        "en": "Settings",
-        "de": "Einstellungen",
-        "fr": "Paramètres",
-        "es": "Configuración",
-        "zh": "设置",
-        "it": "Impostazioni",
-        "pt": "Definições",
-        "pl": "Ustawienia",
-        "tr": "Ayarlar",
-        "ar": "الإعدادات",
-        "ja": "設定",
-        "ko": "설정",
-        "fa": "تنظیمات"
-      },
-      "layer": "referentie"
-    },
-    {
-      "id": "ref-extensies",
-      "title": {
-        "nl": "Extensies beheren en installeren",
-        "en": "Managing and installing extensions",
-        "de": "Erweiterungen verwalten und installieren",
-        "fr": "Gérer et installer des extensions",
-        "es": "Gestionar e instalar extensiones",
-        "zh": "管理和安装扩展",
-        "it": "Gestire e installare le estensioni",
-        "pt": "Gerir e instalar extensões",
-        "pl": "Zarządzanie i instalowanie rozszerzeń",
-        "tr": "Uzantıları yönetme & yükleme",
-        "ar": "إدارة الإضافات وتثبيتها",
-        "ja": "拡張機能の管理とインストール",
-        "ko": "확장 프로그램 관리 및 설치",
-        "fa": "مدیریت و نصب افزونه‌ها"
-      },
-      "layer": "referentie"
-    },
-    {
-      "id": "ref-herstellen",
-      "title": {
-        "nl": "Herstellen na een crash",
-        "en": "Recovering after a crash",
-        "de": "Wiederherstellen nach einem Absturz",
-        "fr": "Récupérer après un plantage",
-        "es": "Recuperarse tras un fallo",
-        "zh": "崩溃后恢复",
-        "it": "Ripristino dopo un arresto anomalo",
-        "pt": "Recuperar após uma falha",
-        "pl": "Przywracanie po awarii",
-        "tr": "Bir çökmeden sonra kurtarma",
-        "ar": "الاستعادة بعد تعطُّل",
-        "ja": "クラッシュ後の復元",
-        "ko": "충돌 후 복구",
-        "fa": "بازیابی پس از یک خرابی"
-      },
-      "layer": "referentie"
-    },
-    {
-      "id": "gids-taaktypen",
-      "title": {
-        "nl": "Taaktypen",
-        "en": "Task types",
-        "de": "Aufgabentypen",
-        "fr": "Types de tâche",
-        "es": "Tipos de tarea",
-        "zh": "任务类型",
-        "it": "Tipi di attività",
-        "pt": "Tipos de tarefa",
-        "pl": "Typy zadań",
-        "tr": "Görev türleri",
-        "ar": "أنواع المهام",
-        "ja": "タスク種類",
-        "ko": "작업 유형",
-        "fa": "نوع‌های کار"
-      },
-      "layer": "gidsen"
-    },
-    {
-      "id": "gids-goed-plannen",
-      "title": {
-        "nl": "Goed plannen",
-        "en": "Planning well"
-      },
-      "layer": "gidsen"
-    },
-    {
-      "id": "ref-sneltoetsen",
-      "title": {
-        "nl": "Sneltoetsenoverzicht",
-        "en": "Keyboard shortcut reference",
-        "de": "Tastenkombinationen-Referenz",
-        "fr": "Référence des raccourcis clavier",
-        "es": "Referencia de atajos de teclado",
-        "zh": "键盘快捷键参考",
-        "it": "Riferimento scorciatoie da tastiera",
-        "pt": "Referência de atalhos de teclado",
-        "pl": "Skróty klawiszowe — pełna lista",
-        "tr": "Klavye kısayolları referansı",
-        "ar": "مرجع اختصارات لوحة المفاتيح",
-        "ja": "キーボードショートカット一覧",
-        "ko": "키보드 단축키 참조",
-        "fa": "مرجع میان‌برهای صفحه‌کلید"
-      },
-      "layer": "referentie"
-    },
-    {
-      "id": "ref-waarschuwingen",
-      "title": {
-        "nl": "Waarschuwingenpaneel",
-        "en": "Warnings panel",
-        "de": "Warnungsbereich",
-        "fr": "Panneau des avertissements",
-        "es": "Panel de advertencias",
-        "zh": "警告面板",
-        "it": "Pannello avvisi",
-        "pt": "Painel de avisos",
-        "pl": "Panel ostrzeżeń",
-        "tr": "Uyarılar paneli",
-        "ar": "لوحة التحذيرات",
-        "ja": "警告パネル",
-        "ko": "경고 패널",
-        "fa": "پنل هشدارها"
-      },
-      "layer": "referentie",
-      "cluster": "relaties-constraints"
-    },
-    {
       "id": "howto-relaties-leggen",
       "title": {
         "nl": "Relaties leggen",
         "en": "Adding relations"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-taken-en-mijlpalen-toevoegen",
@@ -770,8 +15,7 @@
         "nl": "Taken en mijlpalen toevoegen",
         "en": "Adding tasks and milestones"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-structuur-aanpassen",
@@ -779,8 +23,7 @@
         "nl": "Structuur aanpassen",
         "en": "Adjusting the structure"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-wbs-sjablonen",
@@ -788,8 +31,7 @@
         "nl": "WBS-sjablonen bewaren en invoegen",
         "en": "Saving and inserting WBS templates"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-codes-en-velden",
@@ -797,8 +39,7 @@
         "nl": "Codes en eigen velden",
         "en": "Codes and custom fields"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-taak-splitsen",
@@ -806,8 +47,7 @@
         "nl": "Een taak splitsen",
         "en": "Splitting a task"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-project-verplaatsen",
@@ -815,8 +55,7 @@
         "nl": "Project verplaatsen",
         "en": "Moving a project"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-taken-selecteren-verwijderen",
@@ -824,8 +63,15 @@
         "nl": "Taken selecteren, verwijderen en ongedaan maken",
         "en": "Selecting, deleting and undoing tasks"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
+    },
+    {
+      "id": "gids-goed-plannen",
+      "title": {
+        "nl": "Goed plannen",
+        "en": "Planning well"
+      },
+      "kind": "uitleg"
     },
     {
       "id": "uitleg-kritiek-pad",
@@ -833,8 +79,7 @@
         "nl": "Kritiek pad en speling",
         "en": "Critical path and float"
       },
-      "kind": "uitleg",
-      "draft": true
+      "kind": "uitleg"
     },
     {
       "id": "uitleg-relaties",
@@ -842,8 +87,7 @@
         "nl": "Relaties en lag",
         "en": "Relations and lag"
       },
-      "kind": "uitleg",
-      "draft": true
+      "kind": "uitleg"
     },
     {
       "id": "uitleg-constraints",
@@ -851,8 +95,7 @@
         "nl": "Constraints en deadlines",
         "en": "Constraints and deadlines"
       },
-      "kind": "uitleg",
-      "draft": true
+      "kind": "uitleg"
     },
     {
       "id": "howto-pad-traceren",
@@ -860,8 +103,7 @@
         "nl": "Een pad traceren",
         "en": "Tracing a path"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-externe-relaties",
@@ -869,8 +111,7 @@
         "nl": "Externe relaties naar een ander project",
         "en": "External relations to another project"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-constraint-deadline-zetten",
@@ -878,8 +119,7 @@
         "nl": "Een constraint of deadline zetten",
         "en": "Setting a constraint or deadline"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-hammock",
@@ -887,8 +127,7 @@
         "nl": "Een hammock maken",
         "en": "Creating a hammock"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "uitleg-kalenders",
@@ -896,8 +135,7 @@
         "nl": "Kalenders en werkdagen",
         "en": "Calendars and working days"
       },
-      "kind": "uitleg",
-      "draft": true
+      "kind": "uitleg"
     },
     {
       "id": "uitleg-dagen-en-uren",
@@ -905,8 +143,7 @@
         "nl": "Dagen en uren",
         "en": "Days and hours"
       },
-      "kind": "uitleg",
-      "draft": true
+      "kind": "uitleg"
     },
     {
       "id": "howto-kalender-maken-en-toewijzen",
@@ -914,8 +151,7 @@
         "nl": "Een kalender maken en toewijzen",
         "en": "Creating and assigning a calendar"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-feestdagen-genereren",
@@ -923,8 +159,7 @@
         "nl": "Feestdagen en bouwvak genereren",
         "en": "Generating holidays and the construction holiday"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-resourcekalender-instellen",
@@ -932,8 +167,7 @@
         "nl": "Een resourcekalender instellen",
         "en": "Setting up a resource calendar"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-urenplanning-aanzetten",
@@ -941,8 +175,7 @@
         "nl": "Urenplanning aanzetten",
         "en": "Turning on hour planning"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-werktijden-instellen",
@@ -950,8 +183,7 @@
         "nl": "Werktijden instellen",
         "en": "Setting working times"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-resources-beheren",
@@ -959,8 +191,7 @@
         "nl": "Resources beheren",
         "en": "Managing resources"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-resource-toewijzen",
@@ -968,8 +199,7 @@
         "nl": "Resources toewijzen met een curve",
         "en": "Assigning resources with a curve"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-urenverdeling-aanpassen",
@@ -977,8 +207,7 @@
         "nl": "Urenverdeling aanpassen",
         "en": "Adjusting the hour distribution"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-werkregel-kiezen",
@@ -986,8 +215,7 @@
         "nl": "Werkregel kiezen",
         "en": "Choosing a work rule"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-overbezetting-oplossen",
@@ -995,8 +223,7 @@
         "nl": "Overbezetting oplossen",
         "en": "Resolving overallocation"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "uitleg-werkregels",
@@ -1004,8 +231,7 @@
         "nl": "Werkregels: duur, inzet en werk",
         "en": "Work rules: duration, units and work"
       },
-      "kind": "uitleg",
-      "draft": true
+      "kind": "uitleg"
     },
     {
       "id": "uitleg-nivelleren",
@@ -1013,8 +239,7 @@
         "nl": "Nivelleren",
         "en": "Resource leveling"
       },
-      "kind": "uitleg",
-      "draft": true
+      "kind": "uitleg"
     },
     {
       "id": "uitleg-voortgang",
@@ -1022,8 +247,7 @@
         "nl": "Voortgang, statusdatum en baseline",
         "en": "Progress, status date and baseline"
       },
-      "kind": "uitleg",
-      "draft": true
+      "kind": "uitleg"
     },
     {
       "id": "uitleg-rekenprofielen",
@@ -1031,8 +255,7 @@
         "nl": "Rekenprofielen en conventies",
         "en": "Calculation profiles and conventions"
       },
-      "kind": "uitleg",
-      "draft": true
+      "kind": "uitleg"
     },
     {
       "id": "howto-baseline-opslaan-en-beheren",
@@ -1040,8 +263,7 @@
         "nl": "Een baseline opslaan en beheren",
         "en": "Saving and managing a baseline"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-voortgang-bijwerken",
@@ -1049,8 +271,7 @@
         "nl": "Voortgang bijwerken",
         "en": "Updating progress"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-voortgang-importeren",
@@ -1058,8 +279,7 @@
         "nl": "Voortgang uit een spreadsheet importeren",
         "en": "Importing progress from a spreadsheet"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-voortgangsmodus-kiezen",
@@ -1067,8 +287,7 @@
         "nl": "De voortgangsmodus kiezen",
         "en": "Choosing the progress mode"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-rapport-maken-en-afdrukken",
@@ -1076,8 +295,7 @@
         "nl": "Een rapport maken en afdrukken",
         "en": "Making and printing a report"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-rapportageperiode-kiezen",
@@ -1085,8 +303,7 @@
         "nl": "De rapportageperiode kiezen",
         "en": "Choosing the reporting period"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-layouts-gebruiken",
@@ -1094,8 +311,7 @@
         "nl": "Een layout maken en gebruiken",
         "en": "Creating and using a layout"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-tabelkolommen-aanpassen",
@@ -1103,8 +319,7 @@
         "nl": "Tabelkolommen aanpassen",
         "en": "Adjusting table columns"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-split-view-en-mini-map",
@@ -1112,8 +327,15 @@
         "nl": "Split view en mini-map gebruiken",
         "en": "Using split view and the mini-map"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
+    },
+    {
+      "id": "howto-gantt-bedienen",
+      "title": {
+        "nl": "In de Gantt slepen, pannen en zoomen",
+        "en": "Dragging, panning and zooming in the Gantt"
+      },
+      "kind": "howto"
     },
     {
       "id": "howto-presentatie",
@@ -1121,8 +343,7 @@
         "nl": "Presenteren op een groot scherm",
         "en": "Presenting on a large screen"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-meerdere-projecten",
@@ -1130,8 +351,7 @@
         "nl": "Met meerdere projecten tegelijk werken",
         "en": "Working with several projects at once"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "uitleg-bestanden",
@@ -1139,8 +359,7 @@
         "nl": "Bestanden en formaten",
         "en": "Files and formats"
       },
-      "kind": "uitleg",
-      "draft": true
+      "kind": "uitleg"
     },
     {
       "id": "uitleg-datums-zoals-opgeslagen",
@@ -1148,8 +367,7 @@
         "nl": "Datums zoals opgeslagen",
         "en": "Dates as recorded"
       },
-      "kind": "uitleg",
-      "draft": true
+      "kind": "uitleg"
     },
     {
       "id": "howto-bestand-openen-en-opslaan",
@@ -1157,8 +375,7 @@
         "nl": "Een bestand openen en opslaan",
         "en": "Opening and saving a file"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-automatisch-opslaan",
@@ -1166,8 +383,7 @@
         "nl": "Automatisch opslaan aanzetten",
         "en": "Turning on AutoSave"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-mpp-openen",
@@ -1175,8 +391,7 @@
         "nl": "Een MS Project-bestand (.mpp) openen",
         "en": "Opening an MS Project file (.mpp)"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-xer-openen",
@@ -1184,8 +399,7 @@
         "nl": "Een Primavera P6-bestand (.xer) openen",
         "en": "Opening a Primavera P6 file (.xer)"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-exporteren",
@@ -1193,8 +407,7 @@
         "nl": "Exporteren",
         "en": "Exporting"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-herstellen-na-een-crash",
@@ -1202,8 +415,7 @@
         "nl": "Herstellen na een crash",
         "en": "Recovering after a crash"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "uitleg-resourcebibliotheek",
@@ -1211,8 +423,15 @@
         "nl": "De resourcebibliotheek",
         "en": "The resource library"
       },
-      "kind": "uitleg",
-      "draft": true
+      "kind": "uitleg"
+    },
+    {
+      "id": "uitleg-ai-koppeling",
+      "title": {
+        "nl": "Hoe de AI-koppeling werkt",
+        "en": "How the AI link works"
+      },
+      "kind": "uitleg"
     },
     {
       "id": "howto-resourcebibliotheek-gebruiken",
@@ -1220,8 +439,7 @@
         "nl": "De resourcebibliotheek gebruiken",
         "en": "Using the resource library"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-bibliotheken-beheren",
@@ -1229,8 +447,7 @@
         "nl": "Resourcebibliotheken beheren en delen",
         "en": "Managing and sharing resource libraries"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-bezettingsoverzicht-gebruiken",
@@ -1238,8 +455,7 @@
         "nl": "Het bezettingsoverzicht gebruiken",
         "en": "Using the occupancy overview"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-extensie-installeren",
@@ -1247,8 +463,7 @@
         "nl": "Een extensie installeren en beheren",
         "en": "Installing and managing an extension"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-ai-assistent-koppelen",
@@ -1256,8 +471,7 @@
         "nl": "Een AI-assistent koppelen (MCP)",
         "en": "Connecting an AI assistant (MCP)"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-feedback-geven",
@@ -1265,8 +479,7 @@
         "nl": "Feedback geven",
         "en": "Giving feedback"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "howto-app-bijwerken",
@@ -1274,8 +487,7 @@
         "nl": "De app bijwerken",
         "en": "Updating the app"
       },
-      "kind": "howto",
-      "draft": true
+      "kind": "howto"
     },
     {
       "id": "ref-lint",
@@ -1283,8 +495,7 @@
         "nl": "Lint per tabblad",
         "en": "The ribbon, tab by tab"
       },
-      "kind": "referentie",
-      "draft": true
+      "kind": "referentie"
     },
     {
       "id": "ref-taak-eigenschappen",
@@ -1292,8 +503,7 @@
         "nl": "Taakdialoog en eigenschappenpaneel",
         "en": "Task dialog and properties panel"
       },
-      "kind": "referentie",
-      "draft": true
+      "kind": "referentie"
     },
     {
       "id": "ref-kalenders",
@@ -1301,8 +511,7 @@
         "nl": "Kalendervensters",
         "en": "Calendar windows"
       },
-      "kind": "referentie",
-      "draft": true
+      "kind": "referentie"
     },
     {
       "id": "ref-resourcepaneel",
@@ -1310,8 +519,7 @@
         "nl": "Resourcepaneel",
         "en": "Resource panel"
       },
-      "kind": "referentie",
-      "draft": true
+      "kind": "referentie"
     },
     {
       "id": "ref-tabelkolommen",
@@ -1319,8 +527,7 @@
         "nl": "Tabelkolommen",
         "en": "Table columns"
       },
-      "kind": "referentie",
-      "draft": true
+      "kind": "referentie"
     },
     {
       "id": "ref-meldingen",
@@ -1328,26 +535,47 @@
         "nl": "Meldingen en waarschuwingen",
         "en": "Notifications and warnings"
       },
-      "kind": "referentie",
-      "draft": true
+      "kind": "referentie"
     },
     {
-      "id": "ref-sneltoetsen-lijst",
+      "id": "ref-ai-tools",
+      "title": {
+        "nl": "AI-tools (planner_*)",
+        "en": "AI tools (planner_*)"
+      },
+      "kind": "referentie"
+    },
+    {
+      "id": "ref-sneltoetsen",
       "title": {
         "nl": "Sneltoetsen",
         "en": "Keyboard shortcuts"
       },
-      "kind": "referentie",
-      "draft": true
+      "kind": "referentie"
     },
     {
-      "id": "ref-instellingen-lijst",
+      "id": "ref-contextmenus",
+      "title": {
+        "nl": "Rechtermuismenu's",
+        "en": "Right-click menus"
+      },
+      "kind": "referentie"
+    },
+    {
+      "id": "ref-instellingen",
       "title": {
         "nl": "Instellingen",
         "en": "Settings"
       },
-      "kind": "referentie",
-      "draft": true
+      "kind": "referentie"
+    },
+    {
+      "id": "ref-projectinfo",
+      "title": {
+        "nl": "Nieuw project en Projectinfo",
+        "en": "New project and Project info"
+      },
+      "kind": "referentie"
     },
     {
       "id": "ref-rekenopties-en-conventies",
@@ -1355,8 +583,7 @@
         "nl": "Rekenopties en conventies",
         "en": "Calculation options and conventions"
       },
-      "kind": "referentie",
-      "draft": true
+      "kind": "referentie"
     },
     {
       "id": "ref-import-exportformaten",
@@ -1364,8 +591,7 @@
         "nl": "Import- en exportformaten",
         "en": "Import and export formats"
       },
-      "kind": "referentie",
-      "draft": true
+      "kind": "referentie"
     },
     {
       "id": "ref-rapporttypes",
@@ -1373,8 +599,7 @@
         "nl": "Rapporttypes",
         "en": "Report types"
       },
-      "kind": "referentie",
-      "draft": true
+      "kind": "referentie"
     },
     {
       "id": "ref-extensiepermissies",
@@ -1382,9 +607,46 @@
         "nl": "Extensiepermissies",
         "en": "Extension permissions"
       },
-      "kind": "referentie",
-      "draft": true
+      "kind": "referentie"
     }
   ],
-  "aliases": {}
+  "aliases": {
+    "quick-start": "howto-taken-en-mijlpalen-toevoegen",
+    "gids-plannen-wbs": "howto-structuur-aanpassen",
+    "gids-relaties-constraints": "uitleg-relaties",
+    "gids-taken-splitsen": "howto-taak-splitsen",
+    "gids-kalenders-uren": "uitleg-kalenders",
+    "gids-resources-histogram": "howto-resources-beheren",
+    "gids-resourcebibliotheken": "uitleg-resourcebibliotheek",
+    "gids-bezettingsoverzicht": "howto-bezettingsoverzicht-gebruiken",
+    "gids-baselines-voortgang": "uitleg-voortgang",
+    "gids-kritiek-pad-analyse": "uitleg-kritiek-pad",
+    "gids-import-export": "uitleg-bestanden",
+    "gids-voortgang-importeren": "howto-voortgang-importeren",
+    "gids-taaktypes": "uitleg-werkregels",
+    "gids-msproject-import": "howto-mpp-openen",
+    "gids-xer-import": "howto-xer-openen",
+    "gids-rekenprofielen": "uitleg-rekenprofielen",
+    "datums-zoals-opgeslagen": "uitleg-datums-zoals-opgeslagen",
+    "gids-ai-mcp": "howto-ai-assistent-koppelen",
+    "gids-rapporten-printen": "howto-rapport-maken-en-afdrukken",
+    "gids-sneltoetsen-bediening": "ref-sneltoetsen",
+    "ref-taakdialoog": "ref-taak-eigenschappen",
+    "ref-kalenderdialoog": "ref-kalenders",
+    "ref-resourcekalender": "howto-resourcekalender-instellen",
+    "ref-nivellering": "howto-overbezetting-oplossen",
+    "ref-baselinebeheer": "howto-baseline-opslaan-en-beheren",
+    "ref-externe-koppelingen": "howto-externe-relaties",
+    "ref-codes-velden": "howto-codes-en-velden",
+    "ref-filters": "howto-layouts-gebruiken",
+    "ref-kolommen": "ref-tabelkolommen",
+    "ref-layouts": "howto-layouts-gebruiken",
+    "ref-projectgegevens": "ref-projectinfo",
+    "ref-extensies": "howto-extensie-installeren",
+    "ref-herstellen": "howto-herstellen-na-een-crash",
+    "gids-taaktypen": "ref-taak-eigenschappen",
+    "ref-waarschuwingen": "ref-meldingen",
+    "ref-sneltoetsen-lijst": "ref-sneltoetsen",
+    "ref-instellingen-lijst": "ref-instellingen"
+  }
 }

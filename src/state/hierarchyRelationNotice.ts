@@ -2,7 +2,7 @@
 // `planner_move_task`) kan een BESTAANDE relatie veranderen in een relatie tussen een taak en zijn
 // eigen (voor)ouder: hang Fundering onder Grondwerk en "Grondwerk → Fundering" verbindt een taak met
 // haar eigen fase. Zo'n relatie telt in de berekening niet mee (`expandSummaryRelations` laat haar
-// vallen) maar blijft bewaard, net als bij een import (gids relaties & constraints).
+// vallen) maar blijft bewaard, net als bij een import (uitleg Relaties en lag).
 //
 // Weigeren is te streng — het is een gewone herstructurering — maar stil laten gebeuren ook: bij de
 // volgende berekening verschuift de opvolger zonder aanwijsbare reden. Deze module legt de toestand
@@ -18,7 +18,7 @@
 import type { RelationTree } from '@/engine/scheduler/relationRules';
 import type { Task } from '@/types/task';
 import { cycleLabel } from './notificationLabels';
-import { RELATIONS_CONSTRAINTS_HELP_ARTICLE_ID } from './helpArticles';
+import { HIERARCHY_RELATIONS_HELP_ARTICLE_ID } from './helpArticles';
 import { isAncestorRelation } from './relationRules';
 import type { NotifyInput } from './slices/types';
 
@@ -49,7 +49,7 @@ export function watchAncestorRelations(
       messageKey: 'notifications.relationsExcludedByHierarchy',
       params: { count },
       dedupeKey: 'relations-excluded-by-hierarchy',
-      helpArticleId: RELATIONS_CONSTRAINTS_HELP_ARTICLE_ID,
+      helpArticleId: HIERARCHY_RELATIONS_HELP_ARTICLE_ID,
     });
   };
 }
@@ -69,6 +69,6 @@ export function notifyHierarchyCycle(
     params: { cycle: cycleLabel(state.tasks, cycle) },
     // Samenvouwen: herhaald op Alt+Shift+→ drukken levert één regel met een teller op.
     dedupeKey: 'hierarchy-cycle',
-    helpArticleId: RELATIONS_CONSTRAINTS_HELP_ARTICLE_ID,
+    helpArticleId: HIERARCHY_RELATIONS_HELP_ARTICLE_ID,
   });
 }

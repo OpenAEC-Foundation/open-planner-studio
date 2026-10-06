@@ -1,13 +1,13 @@
-import { expect, test } from './fixtures/ops';
+import { expect, test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';
 import type { Page, Route } from '@playwright/test';
 
 // Help-viewer met manifest v2 (ontwerp gebruikersdocumentatie §6/§8, bijgesteld 2026-09-28):
 // tutorials uit het register (straks een extensie), draft/alias/anker in het manifest, de ?-knop in
 // een dialoog en "Lees de gids" in Net bijgewerkt.
 //
-// Fixtures: het manifest en een paar artikelen worden via `page.route` aangevuld (er staan nog geen
-// v2-artikelen in public/docs), en tutorials worden via de dev-brug geregistreerd zoals een
-// tutorialextensie dat straks doet. Alle geteste handelingen zijn echte klikken en toetsen.
+// Fixtures: het manifest en een paar artikelen worden via `page.route` aangevuld (een draft en een
+// fixture-alias; sinds fase 4 heeft het echte manifest geen drafts meer), en tutorials worden via de
+// dev-brug geregistreerd zoals de tutorialextensie dat doet. Alle geteste handelingen zijn echte klikken en toetsen.
 // "Draft verborgen in productie" is hier niet te zien — de testserver draait Vite-dev; dat gedrag
 // bewijst tests/planning/check-help-manifest.ts op dezelfde filterfunctie.
 
@@ -108,14 +108,14 @@ test('dev toont drafts, aliassen openen het nieuwe artikel en zoeken vindt artik
   // docs:// naar een oud id (alias) opent het nieuwe artikel.
   await page.locator('[data-help-article="howto-fixture"]').click();
   await expect(current(page)).toHaveAttribute('data-help-current', 'howto-fixture');
-  await page.locator('[data-help-article="quick-start"]').click();
-  await expect(current(page)).toHaveAttribute('data-help-current', 'quick-start');
+  await page.locator('[data-help-article="howto-relaties-leggen"]').click();
+  await expect(current(page)).toHaveAttribute('data-help-current', 'howto-relaties-leggen');
   await page.locator('[data-help-article="howto-fixture"]').click();
   await current(page).getByRole('button', { name: 'Via het oude id' }).click();
   await expect(current(page)).toHaveAttribute('data-help-current', 'howto-fixture');
 
   // "Lees meer" in een melding met het oude id (fixture: de melding; de klik is echt).
-  await page.locator('[data-help-article="quick-start"]').click();
+  await page.locator('[data-help-article="howto-relaties-leggen"]').click();
   await page.evaluate(() => window.__OPS__!.store.getState().notify({
     severity: 'info', messageKey: 'notifications.statusDateSetToday', params: { date: '1-1-2026' }, helpArticleId: 'gids-oud-fixture',
   }));
@@ -176,5 +176,57 @@ test('"Lees de gids" in Net bijgewerkt sluit eerst de dialoog', async ({ page, o
   await dialog.getByRole('button', { name: 'Read the guide' }).click();
   await expect(dialog).toHaveCount(0);
   await expect(page.locator('.help-panel')).toBeVisible();
-  await expect(current(page)).toHaveAttribute('data-help-current', 'gids-msproject-import');
+  // De release-hoogtepunten van 2026.8.1 noemen het oude id `gids-msproject-import`; de alias opent
+  // het artikel dat het verving.
+  await expect(current(page)).toHaveAttribute('data-help-current', 'howto-mpp-openen');
+});
+
+// Fase 4 (omschakelen): de oude id's van vóór de herschrijving staan als alias in het echte manifest.
+// Uitgeleverde versies sturen hun "Lees meer" nog naar zo'n oud id. Geen fixture-manifest hier.
+test('een oud id uit een melding opent het nieuwe artikel (echte manifestalias)', async ({ page, ops: _ops }) => {
+  await openHelp(page);
+  await page.locator('[data-help-article="howto-relaties-leggen"]').click();
+  await page.evaluate(() => window.__OPS__!.store.getState().notify({
+    severity: 'info', messageKey: 'notifications.statusDateSetToday', params: { date: '1-1-2026' }, helpArticleId: 'gids-xer-import',
+  }));
+  await page.locator('.ops-toast').getByRole('button', { name: 'Read more' }).click();
+  await expect(current(page)).toHaveAttribute('data-help-current', 'howto-xer-openen');
+  await expect(current(page).locator('h1')).toHaveText('Opening a Primavera P6 file (.xer)');
+  // Geen oude secties meer: alleen Tutorials · How-to · Uitleg · Referentie.
+  await expect(page.locator('[data-help-section]')).toHaveCount(4);
+  await expect(page.locator('[data-help-article="quick-start"]')).toHaveCount(0);
+});
+
+// Ontwerp §6.2: de docs bestaan alleen in nl en en. Een andere UI-taal leest Engels met een melding;
+// de taalkiezer biedt Auto / Nederlands / English, en een bewaarde oude keuze (de) valt terug op Auto.
+test('UI in het Duits: Help toont Engels met een melding, de taalkiezer kent alleen nl en en', async ({ page, ops: _ops }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('ops-locale', 'de');
+    localStorage.setItem('ops-docs-locale', 'de');
+  });
+  await page.reload();
+  await waitForOps(page);
+  await waitForWelcomeDialog(page);
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false }));
+
+  await page.locator('.ribbon-tab--file').click();
+  await page.getByRole('button', { name: 'Hilfe', exact: true }).click();
+  await expect(page.locator('.help-panel')).toBeVisible();
+  await expect(page.locator('[data-help-lang-fallback]')).toHaveText(
+    'Die Dokumentation ist noch nicht in Ihrer Sprache verfügbar. Sie lesen die englische Version.');
+  await page.locator('[data-help-article="uitleg-kritiek-pad"]').click();
+  await expect(current(page).locator('h1')).toHaveText('Critical path and float');
+  const select = page.locator('#help-docslang');
+  await expect(select.locator('option')).toHaveCount(3);
+  await expect(select).toHaveValue('__auto__');
+  expect(await page.evaluate(() => localStorage.getItem('ops-docs-locale'))).toBeNull();
+
+  // Zelf Nederlands kiezen: Nederlandse tekst, geen melding meer.
+  await select.selectOption('nl');
+  await expect(current(page).locator('h1')).toHaveText('Kritiek pad en speling');
+  await expect(page.locator('[data-help-lang-fallback]')).toHaveCount(0);
+
+  // Zoeken werkt op de tekst in de gekozen docstaal.
+  await page.locator('.help-search').fill('interfererende speling');
+  await expect(page.locator('[data-help-article="uitleg-kritiek-pad"]')).toBeVisible();
 });

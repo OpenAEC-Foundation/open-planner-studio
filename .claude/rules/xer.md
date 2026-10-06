@@ -80,4 +80,4 @@ recept en verboden omwegen in `scripts/README.md`; de cel-baseline per rekenprof
 `npm run measure:profiles`.
 `npm run test:browser:x11` legt lokaal (headed, met corpus en desktopdisplay) aanvullend schermbewijs vast;
 hij vervangt de corpusloze CI-poort niet.
-Gebruikersgidsen: `public/docs/{nl,en}/gids-xer-import.md` en `datums-zoals-opgeslagen.md`.
+Gebruikersgidsen: `public/docs/{nl,en}/howto-xer-openen.md` en `uitleg-datums-zoals-opgeslagen.md`.

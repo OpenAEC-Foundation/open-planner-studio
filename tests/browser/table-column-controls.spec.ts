@@ -1,4 +1,5 @@
-// De in-app gids "Kolommen kiezen" (public/docs/<taal>/ref-kolommen.md) beschrijft de kolombediening
+// De in-app gids "Kolommen kiezen" (toen public/docs/<taal>/ref-kolommen.md; sinds de omschakeling
+// van de documentatie `howto-tabelkolommen-aanpassen` en `ref-tabelkolommen`) beschrijft de kolombediening
 // van de twee taaktabellen. Tot deze spec beschreef hij een verdwenen venster (Zichtbaar-vinkjes,
 // Breedte-velden, een sleepgreep en een lijst "Beschikbare velden") en vaste kolommen voor de
 // takenlijst naast de Gantt. Deze spec loopt de beweringen van de herschreven gids na met echte

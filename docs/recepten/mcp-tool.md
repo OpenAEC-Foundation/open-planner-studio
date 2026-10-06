@@ -120,3 +120,4 @@ geregistreerd is. Beide poorten scannen dezelfde bron, maar toetsen iets anders.
 | batch-executor + temp-id-resolutie | `src/services/mcp/tools/batchTool.ts` |
 | de tests zelf + het volledigheidsvangnet | `tests/mcp/cases-*.ts`, `tests/mcp/cases-toolregistry.ts` |
 | tellingscontrole tegen AGENTS.md ("N tools") | `scripts/verify-docs.ts` (Poort 7e) |
+| gebruikersdocumentatie van de tools (met de hand bij te werken bij een nieuwe tool, nl én en) | `public/docs/{nl,en}/ref-ai-tools.md` |

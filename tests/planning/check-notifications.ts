@@ -633,7 +633,7 @@ eq('111 XER met twaalf documenten toont precies één bestandsmelding', N().leng
 eq('112 de XER-bestandsmelding is informatie, geen fout', N()[0]?.severity, 'info');
 eq('113 de XER-bestandsmelding gebruikt de samengestelde sleutel', N()[0]?.messageKey, 'notifications.xerImportOpened');
 eq('114 de hoofdtelling noemt de werkelijk geopende documenten', N()[0]?.params, { count: 12 });
-eq('115 de XER-bestandsmelding linkt naar de XER-gids', N()[0]?.helpArticleId, 'gids-xer-import');
+eq('115 de XER-bestandsmelding linkt naar de XER-gids', N()[0]?.helpArticleId, 'howto-xer-openen');
 eq('116 de details dragen alle werkelijk gemeten, niet-nulle signalen', N()[0]?.detailLines, [
   { messageKey: 'notifications.xerImportProjectsSeen', params: { count: 15 } },
   { messageKey: 'notifications.xerImportEmptyProjectsSkipped', params: { count: 3 } },
@@ -690,7 +690,7 @@ eq('118b NotificationHost geeft sleutel en parameters samen aan t door', transla
 S().openHelpArticle(N()[0]?.helpArticleId ?? '');
 eq('119 Lees meer opent Backstage', S().ui.activeRibbonTab, 'file');
 eq('120 Lees meer kiest Help', S().ui.backstageSection, 'help');
-eq('121 Lees meer draagt het XER-artikel naar HelpPanel over', S().ui.pendingHelpArticleId, 'gids-xer-import');
+eq('121 Lees meer draagt het XER-artikel naar HelpPanel over', S().ui.pendingHelpArticleId, 'howto-xer-openen');
 
 // ── 11. Een voorbereide gridmelding wordt pas na de atomaire datacommit getoond ───────────────
 clearAll();

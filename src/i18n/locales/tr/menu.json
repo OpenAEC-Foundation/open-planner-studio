@@ -317,12 +317,7 @@
     "library": "Kitaplık",
     "helpDocsLang": "Belge dili",
     "helpDocsLangAuto": "Uygulama dilini takip et",
-    "helpStale": "Bu dil yalnızca ara sıra güncellenir. En güncel belgeler için İngilizce veya Hollandaca'ya geçin.",
-    "helpLayer": {
-      "quickstart": "Hızlı başlangıç",
-      "gidsen": "Konuya göre kılavuzlar",
-      "referentie": "Referans"
-    },
+    "helpLangFallback": "Belgeler henüz dilinizde mevcut değil. İngilizce sürümü okuyorsunuz.",
     "unapplied": {
       "title": "Değişiklikler uygulanmadı",
       "body": "Proje bilgilerini değiştirdiniz ancak henüz uygulamadınız. Bu değişikliklerle ne yapmak istiyorsunuz?",

@@ -57,3 +57,4 @@ Een ingevuld voortgangsblad lees je weer in via *Bestand › Importeren*. Zie [V
 - [Bestanden en formaten](docs://uitleg-bestanden): wat elk formaat meeneemt en wat niet.
 - [Een bestand openen en opslaan](docs://howto-bestand-openen-en-opslaan): je project zelf bewaren als IFC.
 - [Voortgang uit een spreadsheet importeren](docs://howto-voortgang-importeren): een ingevuld voortgangsblad inlezen.
+- [Import- en exportformaten](docs://ref-import-exportformaten): per formaat wat meegaat en wat niet.

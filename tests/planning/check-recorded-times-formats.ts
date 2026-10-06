@@ -194,7 +194,7 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   const profiel = { severity: 'info' as const, messageKey: 'notifications.xerImportOpened' as const, params: { count: 1 } };
   eq('7a geen verse verschillen ⇒ melding ongewijzigd (ook undefined)', [withRecordedDatesNotice(undefined, 0, 0), withRecordedDatesNotice(profiel, 0, 0)], [undefined, profiel]);
   eq('7b geen melding ⇒ de regel wordt zelf de melding, modus vóór aanbod', withRecordedDatesNotice(undefined, 2, 3), {
-    severity: 'info', messageKey: 'notifications.importDatesAsRecorded', params: { count: 2 }, helpArticleId: 'datums-zoals-opgeslagen',
+    severity: 'info', messageKey: 'notifications.importDatesAsRecorded', params: { count: 2 }, helpArticleId: 'uitleg-datums-zoals-opgeslagen',
   });
   eq('7c een andere melding ⇒ de regel hangt eronder als detailregel', withRecordedDatesNotice(profiel, 0, 4)?.detailLines,
     [{ messageKey: 'notifications.importDatesAsRecordedOffer', params: { count: 4 } }]);

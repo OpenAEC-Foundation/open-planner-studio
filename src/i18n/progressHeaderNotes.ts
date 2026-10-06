@@ -26,7 +26,7 @@ import type { ImportLabelT } from './importLabels';
  *    `yyyy-mm-dd`) met een `date`-validatie: de invuller typt een datum in zijn eigen
  *    landinstelling en de cel draagt een serieel getal — die dag/maand-vraag bestaat er domweg
  *    niet. Zou de CSV-tekst blijven staan, dan zou het blad om een notatie vragen die het zelf
- *    niet gebruikt, en de gids (`gids-voortgang-importeren.md`) tegenspreken.
+ *    niet gebruikt, en de gids (`howto-voortgang-importeren.md`) tegenspreken.
  *
  * Eén gedeelde sleutel voor beide formaten zou dus altijd voor één van de twee liegen; daarom
  * staan `menu:export.progressXlsxNotes.completion|actualStart|actualFinish` ernaast.

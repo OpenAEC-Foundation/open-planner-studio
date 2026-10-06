@@ -38,3 +38,5 @@ If the file contains tasks with splits, leveling or a resource-driven schedule, 
 - [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen): the view of MS Project's own dates.
 - [Turning on hour planning](docs://howto-urenplanning-aanzetten): if the file contains data in hours.
 - [Opening a Primavera P6 file (.xer)](docs://howto-xer-openen): the same for Primavera.
+- [Import and export formats](docs://ref-import-exportformaten): per format what is carried over and what is not.
+- [Calculation profiles and conventions](docs://uitleg-rekenprofielen): why an MS Project file opens with its own calculation profile.

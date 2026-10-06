@@ -84,6 +84,8 @@ Je hebt bij een afwijking twee keuzes:
 
 ## Valkuilen en wat de app dan doet
 
+**De voorbeeldprojecten hebben een eigen bibliotheek.** Open je een van de drie showcase-voorbeelden (*Bestand › Voorbeelden*, of via een link in de Help), dan maakt de app eenmalig de bibliotheek *Demo resource library* aan en koppelt het project eraan. Resources van het project met dezelfde naam als een bibliotheekitem worden meteen gekoppeld; kalenders niet. Je eigen bibliotheken blijven ongemoeid. Open je twee showcases naast elkaar, dan tonen ze samen conflicten in [Het bezettingsoverzicht gebruiken](docs://howto-bezettingsoverzicht-gebruiken), bijvoorbeeld op de metselploeg (*Masonry crew*) tussen *Refurbishment & Extension of a Family Home* en *6 New Terraced Houses, De Akkers*.
+
 **Je ziet de schakelaar niet.** Het project is niet aan een bibliotheek gekoppeld. Doe stap 1.
 
 **Je bewerkt de bibliotheek per ongeluk.** Het paneel opent altijd op *Project* om dat te voorkomen. Wijzigingen in de weergave *Bibliotheek* gelden voor alle projecten en vallen buiten *Ongedaan*.

@@ -64,3 +64,4 @@ You can undo creating, editing and deleting with *Undo* (Ctrl+Z).
 - [Assigning resources with a curve](docs://howto-resource-toewijzen): putting a resource on a task.
 - [Setting up a resource calendar](docs://howto-resourcekalender-instellen): fixing the work days of one resource.
 - [Resolving overallocation](docs://howto-overbezetting-oplossen): what to do when a resource has too much to do on a day.
+- [Resource panel](docs://ref-resourcepaneel): all fields and buttons of the resource panel.

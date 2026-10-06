@@ -66,3 +66,4 @@ Only the tasks without a calendar of their own move along.
 - [Calendars and working days](docs://uitleg-kalenders): how the app counts work days and which calendar wins.
 - [Days and hours](docs://uitleg-dagen-en-uren): what the net hours per day do.
 - [Setting up a resource calendar](docs://howto-resourcekalender-instellen): a calendar for a resource instead of a task.
+- [Calendar windows](docs://ref-kalenders): all fields of the calendar windows.

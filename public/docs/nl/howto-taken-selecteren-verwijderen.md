@@ -58,3 +58,5 @@ Onder *Ongedaan* vallen wijzigingen in je projectgegevens (taken, relaties, reso
 
 - [Taken en mijlpalen toevoegen](docs://howto-taken-en-mijlpalen-toevoegen): het omgekeerde, en het kopiëren van taken.
 - [Structuur aanpassen](docs://howto-structuur-aanpassen): een taak onder een andere fase hangen in plaats van weghalen.
+- [In de Gantt slepen, pannen en zoomen](docs://howto-gantt-bedienen): het selectiekader en de scrollmodi.
+- [Rechtermuismenu's](docs://ref-contextmenus): wat *Verwijderen* en de andere items doen met een selectie.

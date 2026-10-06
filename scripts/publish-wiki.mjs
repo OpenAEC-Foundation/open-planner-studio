@@ -8,19 +8,20 @@
 // Sources:
 //   public/docs/manifest.json + public/docs/en/*.md   → the manual pages (also power the in-app F1/Help)
 //
-// Manifest v2 (docs/superpowers/specs/2026-09-28-gebruikersdocumentatie-diataxis-design.md): `draft`
-// articles are never published (they are hidden in the production app too). Articles with the new
-// `kind` (howto/uitleg/referentie) get their sidebar sections only in phase 4; until then a
-// non-draft `kind` article is published as a page without a sidebar entry (with a warning).
-// Tutorials are not in the manifest at all (they ship as an extension). `aliases` are resolved in
-// docs:// links; a link to an unpublished (draft) article becomes plain text.
+// Manifest v2 (docs/superpowers/specs/2026-09-28-gebruikersdocumentatie-diataxis-design.md §6.4):
+// every article has a `kind` (howto/uitleg/referentie) and the sidebar groups the pages in those
+// three Diátaxis sections, in manifest order. `draft` articles are never published (they are hidden
+// in the production app too). Tutorials are not in the manifest at all (they ship as the Tutorials
+// extension) and are not published here; the sidebar points to them in the app. `aliases` are
+// resolved in docs:// links; a link to an unpublished (draft) article becomes plain text.
+//   public/docs/img/en/**                              → images used by the manual pages (English variant)
 //   docs/wiki/*.md                                     → wiki-only pages (Home, Features, Installation, …)
 //   docs/CHANGELOG.md                                  → the Changelog page (as-is; authored in English)
 //   screenshot*.png                                    → image assets for the Home page
 //
 // See docs/superpowers/specs/2026-07-24-github-wiki-design.md.
 import {
-  readFileSync, readdirSync, writeFileSync, mkdirSync, rmSync, existsSync, copyFileSync,
+  readFileSync, readdirSync, writeFileSync, mkdirSync, rmSync, existsSync, copyFileSync, cpSync,
 } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -74,8 +75,8 @@ function rewriteLinks(md, sourceLabel) {
     }
     return `[${label}](${slug}${hash || ''})`;
   });
-  // Image paths may carry the {lang} placeholder; the wiki uses the English variant. Copying the
-  // images themselves follows in phase 4 (there are none in public/docs yet).
+  // Image paths may carry the {lang} placeholder; the wiki uses the English variant, copied from
+  // public/docs/img/en (step 4b below) to the same relative path on the wiki.
   md = md.replace(/(!\[[^\]]*\]\([^)]*)\{lang\}/g, '$1en');
   return md;
 }
@@ -111,24 +112,28 @@ for (const img of SCREENSHOTS) {
   if (existsSync(join(ROOT, img))) copyFileSync(join(ROOT, img), join(OUT, img));
 }
 
-// 5. Sidebar — wiki-only pages on top, then the manual grouped by manifest layer, then project pages.
-const LAYERS = [
-  ['quickstart', 'Getting started'],
-  ['gidsen', 'Guides'],
+// 4b. Images of the manual pages: the English variant, under the same relative path (img/en/…).
+const DOC_IMAGES = join(ROOT, 'public/docs/img/en');
+if (existsSync(DOC_IMAGES)) cpSync(DOC_IMAGES, join(OUT, 'img/en'), { recursive: true });
+
+// 5. Sidebar — wiki-only pages on top, then the manual in the three Diátaxis sections of the
+//    manifest (in manifest order), then project pages.
+const KINDS = [
+  ['howto', 'How-to guides'],
+  ['uitleg', 'Explanation'],
   ['referentie', 'Reference'],
 ];
 let sidebar = '**Open Planner Studio**\n\n- [Home](Home)\n- [Features](Features)\n- [Installation](Installation)\n\n';
-for (const [layer, heading] of LAYERS) {
-  const arts = published.filter((a) => a.layer === layer);
+sidebar += '**Tutorials**\n\nStep-by-step tutorials live in the app: install the Tutorials extension via Help › Tutorials.\n\n';
+for (const [kind, heading] of KINDS) {
+  const arts = published.filter((a) => a.kind === kind);
   if (!arts.length) continue;
   sidebar += `**${heading}**\n\n`;
   for (const a of arts) sidebar += `- [${a.title.en}](${idToSlug.get(a.id)})\n`;
   sidebar += '\n';
 }
-// Phase 4 adds the four Diátaxis sections to the sidebar; until then a published `kind` article has
-// no sidebar entry.
-for (const a of published.filter((x) => x.layer === undefined)) {
-  warnings.push(`"${a.id}" (kind ${a.kind}) is published without a sidebar entry — sidebar sections for kinds follow in phase 4`);
+for (const a of published.filter((x) => !KINDS.some(([kind]) => kind === x.kind))) {
+  warnings.push(`"${a.id}" has no known kind (${a.kind}) — published without a sidebar entry`);
 }
 sidebar += '**Project**\n\n- [Changelog](Changelog)\n- [Contributing](Contributing)\n- [Extensions Authoring](Extensions-Authoring)\n';
 writeFileSync(join(OUT, '_Sidebar.md'), sidebar);
@@ -163,11 +168,13 @@ try {
   process.exit(1);
 }
 // Remove previously managed pages/assets (leave .git intact), then copy the freshly generated set.
+// The img/ tree is managed as a whole, so images of removed or renamed articles disappear too.
 for (const f of readdirSync(clone)) {
   if (f === '.git') continue;
-  if (f.endsWith('.md') || /\.(png|jpe?g|gif|svg)$/i.test(f)) rmSync(join(clone, f), { force: true });
+  if (f === 'img') rmSync(join(clone, f), { recursive: true, force: true });
+  else if (f.endsWith('.md') || /\.(png|jpe?g|gif|svg|webp)$/i.test(f)) rmSync(join(clone, f), { force: true });
 }
-for (const f of readdirSync(OUT)) copyFileSync(join(OUT, f), join(clone, f));
+cpSync(OUT, clone, { recursive: true });
 
 execFileSync('git', ['-C', clone, 'add', '-A'], { stdio: 'inherit' });
 if (!execFileSync('git', ['-C', clone, 'status', '--porcelain']).toString().trim()) {

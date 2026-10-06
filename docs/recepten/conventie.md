@@ -51,8 +51,9 @@ Zie *Rekenprofielen* in `.claude/rules/rekenprofielen.md` en de spec `docs/super
    profiel), nooit een conventie-override uit een bronvlag (zie de inleiding).
 5. **i18n**: `conventions.<id>.label` en `.help` in alle 14 `common.json`-bestanden (`npm run verify:i18n`;
    `check-conventions-registry.ts` eist per locale beide teksten en precies de registersleutels).
-6. **Gids**: één regel onder "De zevenentwintig conventies" in `public/docs/{nl,en}/gids-rekenprofielen.md`
-   (pas het aantal aan, ook in de kop en in "Wat je hier leert").
+6. **Gids**: één regel onder de passende kop van "Conventies per profiel" in
+   `public/docs/{nl,en}/ref-rekenopties-en-conventies.md` (pas het aantal in de inleiding aan); raakt
+   de conventie het rekenmodel zelf, dan ook `uitleg-rekenprofielen.md`.
 7. **Tests**: `check-conventions-registry.ts` dekt de rij vanzelf; voeg een aan/uit-fixture met een
    met de hand afgeleid verschil toe (mutatiebewijs, patroon `check-conventions-p6-flags.ts`).
 8. **Landingspoort**: `npm run measure:profiles` vóór de commit — geen exacte cel mag inexact worden,
