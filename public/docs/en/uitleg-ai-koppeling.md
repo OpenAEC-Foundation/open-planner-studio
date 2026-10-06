@@ -34,7 +34,7 @@ An assistant can submit a series of steps as one whole with `planner_batch`, a s
 
 You set four things yourself, in the *AI* tab:
 
-- *Pause* and *Read-only* leave the assistant connected, but refuse every change. Reading stays possible.
+- *Pause* and *Read-only* leave the assistant connected, but refuse every change. Reading stays possible, including the recalculation of a stale schedule when reading: those are calculated fields, not project data, so no undo step is added and the project does not count as changed. If you are in the middle of an edit yourself, for example dragging a bar or typing in a field, a read tool does not recalculate: the assistant then gets the dates from before your edit, with a notice that they are stale.
 - An open dialog blocks everything. With a task dialog, the settings, presentation mode or the welcome window open, for example, the app refuses reading too, because you are in the middle of a manual action. The assistant gets the error code `DIALOG_OPEN`. The message names the internal name of what is open, for example `showTaskDialog` for the task dialog.
 - *Auto-backup* writes an IFC copy before the first change per document. If that backup fails, the app does not carry out the change.
 - The *Activity panel* shows every call, with arguments and response.

@@ -34,7 +34,7 @@ Een assistent kan een reeks stappen als één geheel indienen met `planner_batch
 
 Vier dingen bepaal je zelf, in het tabblad *AI*:
 
-- *Pauzeren* en *Alleen lezen* laten de assistent verbonden, maar weigeren elke wijziging. Lezen blijft mogelijk.
+- *Pauzeren* en *Alleen lezen* laten de assistent verbonden, maar weigeren elke wijziging. Lezen blijft mogelijk, ook het doorrekenen van een verouderde planning bij het lezen: dat zijn berekende velden, geen projectdata, dus er komt geen ongedaan-maakstap bij en het project staat niet als gewijzigd. Zit je zelf midden in een bewerking, bijvoorbeeld een balk slepen of typen in een veld, dan rekent een leestool niet door: de assistent krijgt dan de datums van vóór jouw bewerking, met een melding dat ze verouderd zijn.
 - Een open dialoog blokkeert alles. Met bijvoorbeeld een taakdialoog, de instellingen, de presentatiemodus of het welkomstvenster open weigert de app ook het lezen, omdat je dan midden in een handmatige actie zit. De assistent krijgt de foutcode `DIALOG_OPEN`. De melding noemt de interne naam van wat openstaat, bijvoorbeeld `showTaskDialog` voor de taakdialoog.
 - *Auto-backup* schrijft vóór de eerste wijziging per document een IFC-kopie. Mislukt die backup, dan voert de app de wijziging niet uit.
 - Het *Activiteitenpaneel* laat elke aanroep zien, met argumenten en antwoord.

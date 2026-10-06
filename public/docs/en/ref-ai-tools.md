@@ -4,7 +4,7 @@ All tools an AI assistant can call through the bridge, by group, with what they 
 
 ## How to read this list
 
-**Read** means: the tool changes nothing. That works during *Pause* and *Read-only* too. An open dialog does block it (see *When a tool is refused* below). A read tool always gives current dates: if the schedule is stale, it recalculates first. If the project is in the *Dates as recorded* view, it does not recalculate; the assistant then gets the recorded dates with a notice that they have not been recalculated.
+**Read** means: the tool changes nothing. That works during *Pause* and *Read-only* too. An open dialog does block it (see *When a tool is refused* below). A read tool always gives current dates: if the schedule is stale, it recalculates first, also during *Pause* and *Read-only*: those hold back changes, not the recalculation when reading. If you are in the middle of an edit (dragging a bar, typing in a field), it does not recalculate; the assistant then gets the dates from before your edit with a notice that they are stale. If the project is in the *Dates as recorded* view, it does not recalculate; the assistant then gets the recorded dates with a notice that they have not been recalculated.
 
 **Change** means: the tool changes your project. It is refused during *Pause*, *Read-only* and when a dialog is open. That also goes for the tools without a label below (`planner_undo`, `planner_redo`, the file tools and the document tools, except `planner_list_documents`). Every change is one step in your undo history. If project data changes, the app recalculates the schedule afterwards by itself; you do not have to press *Calculate*. Before the first change per document the app writes a backup, if *Auto-backup* is on.
 
