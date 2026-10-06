@@ -41,7 +41,7 @@ import {
 } from './runtime';
 
 /** Standaardverwijzing in elke weigering: waar haalt de agent geldige id's vandaan? */
-const LIST_HINT = "haal geldige id's op met planner_list_baselines";
+const LIST_HINT = 'get valid ids with planner_list_baselines';
 
 // ── Gedeelde vormcontrole ────────────────────────────────────────────────────────────────────────
 //
@@ -51,20 +51,20 @@ const LIST_HINT = "haal geldige id's op met planner_list_baselines";
 
 /** Compacte, leesbare regel per baseline voor in een foutmelding (max 5, daarna "…"). */
 function knownBaselinesHint(s: AppState): string {
-  if (s.baselines.length === 0) return 'er zijn nog geen baselines — maak er één met planner_save_baseline';
+  if (s.baselines.length === 0) return 'there are no baselines yet — create one with planner_save_baseline';
   const shown = s.baselines.slice(0, 5).map((b) => `${b.id} ('${b.name}')`);
   const rest = s.baselines.length - shown.length;
-  return `bekende baselines: ${shown.join(', ')}${rest > 0 ? ` (+${rest} meer)` : ''}`;
+  return `known baselines: ${shown.join(', ')}${rest > 0 ? ` (+${rest} more)` : ''}`;
 }
 
 /** Weigering voor een onbekend baseline-id, met de verwijzing naar de geldige id's. */
 function unknownBaselineReason(s: AppState, baselineId: string): string {
-  return `onbekende baseline-id '${baselineId}' — ${LIST_HINT} (${knownBaselinesHint(s)})`;
+  return `unknown baseline id '${baselineId}' — ${LIST_HINT} (${knownBaselinesHint(s)})`;
 }
 
 /** Weigering voor een `baselineId` die geen niet-lege string is. */
 function baselineIdShapeReason(value: unknown): string {
-  return `\`baselineId\` moet een niet-lege string zijn (${LIST_HINT}), kreeg ${value === undefined ? 'niets' : `${typeof value} '${String(value)}'`}`;
+  return `\`baselineId\` must be a non-empty string (${LIST_HINT}), got ${value === undefined ? 'nothing' : `${typeof value} '${String(value)}'`}`;
 }
 
 /** Zoek een baseline; `null` wanneer onbekend. */
@@ -96,9 +96,9 @@ function listBaselinesCore(s: AppState) {
   // De hint is het antwoord op "en nu?".
   let hint: string | undefined;
   if (baselines.length === 0) {
-    hint = 'Er zijn nog geen baselines. Leg er een vast met planner_save_baseline; pas daarna kunnen planner_compare_baseline en planner_analyze_delay meten.';
+    hint = 'There are no baselines yet. Record one with planner_save_baseline; only then can planner_compare_baseline and planner_analyze_delay measure.';
   } else if (!active) {
-    hint = 'Er is geen ACTIEVE baseline; planner_compare_baseline en planner_analyze_delay weigeren tot je er één activeert met planner_activate_baseline.';
+    hint = 'There is no ACTIVE baseline; planner_compare_baseline and planner_analyze_delay refuse until you activate one with planner_activate_baseline.';
   }
   return {
     count: baselines.length,
@@ -112,11 +112,10 @@ function listBaselinesCore(s: AppState) {
 const listBaselines: McpToolDef = {
   name: 'planner_list_baselines',
   description:
-    'Som alle opgeslagen baselines (nulmetingen) op: id, naam, opslagmoment, aantal vastgelegde taken, ' +
-    'vastgelegd projecteinde en WELKE er actief is. Gebruik dit om aan de id\'s te komen voor ' +
-    'planner_activate_baseline / planner_rename_baseline / planner_delete_baseline, en om te zien ' +
-    'waartegen planner_compare_baseline en planner_analyze_delay meten. Is er geen (actieve) baseline, ' +
-    'dan zegt `hint` welke tool dat verhelpt.',
+    'List all saved baselines: id, name, moment saved, number of recorded tasks, recorded project end and ' +
+    'WHICH one is active. Use this to get the ids for planner_activate_baseline / planner_rename_baseline / ' +
+    'planner_delete_baseline, and to see what planner_compare_baseline and planner_analyze_delay measure ' +
+    'against. If there is no (active) baseline, `hint` says which tool fixes that.',
   kind: 'read',
   batchable: true,
   annotations: READ_ANNOTATIONS,
@@ -143,11 +142,11 @@ function parseActivate(args: unknown): ActivateArgs | string {
   if (bad) return bad;
   const a = (args ?? {}) as { baselineId?: unknown };
   if (!('baselineId' in a) || a.baselineId === undefined) {
-    return '`baselineId` is verplicht (het id van de baseline die actief moet worden, of null om geen baseline actief te hebben)';
+    return '`baselineId` is required (the id of the baseline that should become active, or null to have no active baseline)';
   }
   if (a.baselineId === null) return { baselineId: null };
   if (typeof a.baselineId !== 'string' || a.baselineId === '') {
-    return `\`baselineId\` moet een niet-lege string zijn (of null), kreeg ${typeof a.baselineId} '${String(a.baselineId)}'`;
+    return `\`baselineId\` must be a non-empty string (or null), got ${typeof a.baselineId} '${String(a.baselineId)}'`;
   }
   return { baselineId: a.baselineId };
 }
@@ -171,11 +170,11 @@ function activatePlan(s: AppState, p: ActivateArgs): { error: string } | { chang
         ? {}
         : {
             reason: p.baselineId === null
-              ? 'er was al geen actieve baseline — er is niets gewijzigd'
-              : 'deze baseline was al actief — er is niets gewijzigd',
+              ? 'there was already no active baseline — nothing was changed'
+              : 'this baseline was already active — nothing was changed',
           }),
       ...(p.baselineId === null && changed
-        ? { note: 'Er is nu GEEN actieve baseline; planner_compare_baseline en planner_analyze_delay weigeren tot je er weer één activeert.' }
+        ? { note: 'There is now NO active baseline; planner_compare_baseline and planner_analyze_delay refuse until you activate one again.' }
         : {}),
     },
   };
@@ -194,11 +193,10 @@ function activateCore(ctx: McpContext, p: ActivateArgs): MutationOutcome {
 const activateBaseline: BatchStepTool = {
   name: 'planner_activate_baseline',
   description:
-    'Maak een bestaande baseline de ACTIEVE — dat is degene waartegen planner_compare_baseline en ' +
-    'planner_analyze_delay meten. Geef `baselineId: null` om géén baseline actief te hebben (die twee ' +
-    'tools weigeren dan). Id\'s haal je op met planner_list_baselines; een onbekend id wordt geweigerd. ' +
-    'Was de baseline al actief, dan meldt het antwoord `changed: false` en verandert er niets (geen ' +
-    'extra ongedaan-maak-stap).',
+    'Make an existing baseline the ACTIVE one — that is the one planner_compare_baseline and ' +
+    'planner_analyze_delay measure against. Pass `baselineId: null` to have no active baseline (those two ' +
+    'tools then refuse). Get ids with planner_list_baselines; an unknown id is refused. If the baseline was ' +
+    'already active, the answer reports `changed: false` and nothing changes (no extra undo step).',
   kind: 'mutate',
   batchable: true,
   // Idempotent: dezelfde baseline nogmaals activeren levert dezelfde toestand op.
@@ -208,7 +206,7 @@ const activateBaseline: BatchStepTool = {
     properties: {
       baselineId: {
         type: ['string', 'null'],
-        description: 'Id van de baseline die actief moet worden (planner_list_baselines), of null voor geen actieve baseline.',
+        description: 'Id of the baseline that should become active (planner_list_baselines), or null for no active baseline.',
       },
     },
     required: ['baselineId'],
@@ -246,11 +244,11 @@ function parseRename(args: unknown): RenameArgs | string {
     return baselineIdShapeReason(a.baselineId);
   }
   if (typeof a.name !== 'string') {
-    return `\`name\` moet een string zijn, kreeg ${a.name === undefined ? 'niets' : `${typeof a.name} '${String(a.name)}'`}`;
+    return `\`name\` must be a string, got ${a.name === undefined ? 'nothing' : `${typeof a.name} '${String(a.name)}'`}`;
   }
   // Een lege/witruimte-naam maakt de baseline in de lijst en de dialoog onherkenbaar; hem stil
   // accepteren zou een geslaagde call zijn die de agent zijn eigen referentiepunt kost.
-  if (a.name.trim() === '') return '`name` mag niet leeg zijn — geef een herkenbare naam';
+  if (a.name.trim() === '') return '`name` must not be empty — give a recognizable name';
   return { baselineId: a.baselineId, name: a.name };
 }
 
@@ -268,10 +266,10 @@ function renamePlan(s: AppState, p: RenameArgs): { error: string } | { changed: 
       name: p.name,
       previousName: b.name,
       changed,
-      ...(changed ? {} : { reason: 'de baseline heette al zo — er is niets gewijzigd' }),
+      ...(changed ? {} : { reason: 'the baseline already had that name — nothing was changed' }),
       // Dubbele namen zijn toegestaan (de UI staat ze ook toe) maar maken de lijst dubbelzinnig;
       // dat melden we, i.p.v. het stil te laten gebeuren of het onnodig te weigeren.
-      ...(duplicate ? { warning: `Een andere baseline heet ook '${p.name}'; ze zijn alleen nog op id te onderscheiden.` } : {}),
+      ...(duplicate ? { warning: `Another baseline is also called '${p.name}'; they can now only be told apart by id.` } : {}),
     },
   };
 }
@@ -286,18 +284,17 @@ function renameCore(ctx: McpContext, p: RenameArgs): MutationOutcome {
 const renameBaseline: BatchStepTool = {
   name: 'planner_rename_baseline',
   description:
-    'Hernoem een opgeslagen baseline. `baselineId` haal je op met planner_list_baselines; een onbekend ' +
-    'id of een lege naam wordt geweigerd. Draagt de baseline de naam al, dan meldt het antwoord ' +
-    '`changed: false` en verandert er niets. De naam hoeft niet uniek te zijn, maar een botsing wordt ' +
-    'als `warning` gemeld.',
+    'Rename a saved baseline. Get `baselineId` with planner_list_baselines; an unknown id or an empty name ' +
+    'is refused. If the baseline already has the name, the answer reports `changed: false` and nothing ' +
+    'changes. The name does not have to be unique, but a clash is reported as a `warning`.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS, idempotentHint: true },
   inputSchema: {
     type: 'object',
     properties: {
-      baselineId: { type: 'string', description: 'Id van de te hernoemen baseline (planner_list_baselines).' },
-      name: { type: 'string', description: 'De nieuwe naam; mag niet leeg zijn.' },
+      baselineId: { type: 'string', description: 'Id of the baseline to rename (planner_list_baselines).' },
+      name: { type: 'string', description: 'The new name; must not be empty.' },
     },
     required: ['baselineId', 'name'],
     additionalProperties: false,
@@ -363,7 +360,7 @@ function deleteCore(ctx: McpContext, p: DeleteArgs): MutationOutcome {
   // gebeurd is in plaats van hem hier na te rekenen (twee waarheden zouden gaan divergeren).
   const after = ctx.app.store.getState();
   if (findBaseline(after, p.baselineId)) {
-    throw new McpStepError('INTERNAL', `baseline '${p.baselineId}' staat er na het verwijderen nog steeds`);
+    throw new McpStepError('INTERNAL', `baseline '${p.baselineId}' is still there after deleting it`);
   }
   const activeBaselineId = after.activeBaselineId;
   const activeBaselineName = nameOf(after, activeBaselineId);
@@ -371,13 +368,13 @@ function deleteCore(ctx: McpContext, p: DeleteArgs): MutationOutcome {
   let note: string | undefined;
   if (wasActive && activeBaselineId) {
     note =
-      `De verwijderde baseline was de ACTIEVE; '${activeBaselineName}' (${activeBaselineId}) is nu actief. ` +
-      'planner_compare_baseline en planner_analyze_delay meten voortaan tegen díe meetlat — kies zo nodig ' +
-      'een andere met planner_activate_baseline.';
+      `The deleted baseline was the ACTIVE one; '${activeBaselineName}' (${activeBaselineId}) is now active. ` +
+      'planner_compare_baseline and planner_analyze_delay now measure against THAT yardstick — choose ' +
+      'another one with planner_activate_baseline if needed.';
   } else if (wasActive) {
     note =
-      'De verwijderde baseline was de ACTIEVE en er is er geen meer over: planner_compare_baseline en ' +
-      'planner_analyze_delay weigeren nu tot je er een nieuwe vastlegt met planner_save_baseline.';
+      'The deleted baseline was the ACTIVE one and none is left: planner_compare_baseline and ' +
+      'planner_analyze_delay now refuse until you record a new one with planner_save_baseline.';
   }
 
   return {
@@ -399,19 +396,19 @@ function deleteCore(ctx: McpContext, p: DeleteArgs): MutationOutcome {
 const deleteBaseline: BatchStepTool = {
   name: 'planner_delete_baseline',
   description:
-    'Verwijder ÉÉN opgeslagen baseline (een nulmeting is daarna niet te reconstrueren — de gebruiker ' +
-    'kan het wel ongedaan maken). `baselineId` haal je op met planner_list_baselines; een onbekend id ' +
-    'wordt geweigerd. LET OP: verwijder je de ACTIEVE baseline, dan valt de actieve terug op de laatst ' +
-    'overgebleven baseline, of op géén als er niets overblijft — het antwoord meldt met `wasActive`, ' +
-    '`activeBaselineId` en `remainingCount` exact wat er daarna geldt, want dit verschuift de meetlat ' +
-    'van planner_compare_baseline en planner_analyze_delay.',
+    'Delete ONE saved baseline (a baseline cannot be reconstructed afterwards — the user can undo it, ' +
+    'though). Get `baselineId` with planner_list_baselines; an unknown id is refused. NOTE: if you delete ' +
+    'the ACTIVE baseline, the active one falls back to the last remaining baseline, or to none if nothing is ' +
+    'left — the answer reports exactly what applies afterwards with `wasActive`, `activeBaselineId` and ' +
+    '`remainingCount`, because this shifts the yardstick of planner_compare_baseline and ' +
+    'planner_analyze_delay.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS, destructiveHint: true },
   inputSchema: {
     type: 'object',
     properties: {
-      baselineId: { type: 'string', description: 'Id van de te verwijderen baseline (planner_list_baselines).' },
+      baselineId: { type: 'string', description: 'Id of the baseline to delete (planner_list_baselines). ' },
     },
     required: ['baselineId'],
     additionalProperties: false,

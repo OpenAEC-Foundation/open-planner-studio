@@ -216,7 +216,7 @@ test('update_calendar: onbekend id zonder create ⇒ zachte weigering, GEEN snap
   const res = await call('planner_update_calendar', { calendars: [{ id: 'cal-bestaat-niet', name: 'x' }] }, ctx);
   assert(res.ok, 'all-unknown update_calendar slaagt als no-op met weigeringen');
   assertEq(rejections(res).length, 1, 'één zachte weigering');
-  assert(/create|bestaat niet/i.test(rejections(res)[0].reason), 'de reden wijst naar `create`');
+  assert(/create|does not exist/i.test(rejections(res)[0].reason), 'de reden wijst naar `create`');
   assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLen, 'GEEN nieuwe undo-snapshot');
   assertEq(store.getState().historyEvents.filter(event => event.state === 'undone').length, redoLen, 'redo-stack ONGEMOEID');
 });
@@ -311,7 +311,7 @@ test('manage_assignments: dubbele add in één call ⇒ eerste toegepast, tweede
   const data = okData(res);
   assertEq(data.added.length, 1, 'precies één toewijzing aangemaakt');
   assertEq(rejections(res).length, 1, 'de tweede is zacht geweigerd');
-  assert(/al toegewezen|dubbel/i.test(rejections(res)[0].reason), 'de reden noemt de dubbeltelling');
+  assert(/already assigned|double/i.test(rejections(res)[0].reason), 'de reden noemt de dubbeltelling');
   assertEq(store.getState().assignments.filter((x) => x.taskId === a && x.resourceId === r).length, 1,
     'de store bevat precies één toewijzing (geen dubbeltelling)');
 });
@@ -655,7 +655,7 @@ test('registratie: zeven T20-tools met prefix, description, vier annotaties en J
   assertEq(tools.find((t) => t.name === 'planner_clear_leveling').annotations.destructiveHint, false,
     'clear_leveling draagt GEEN destructiveHint (afgeleide, herberekenbare waarden)');
   // clear_leveling wijst de AI erop dat level_resources zelfresettend is.
-  assert(/zelfreset|zelf.*reset|vooraf.*zinloos|niet nodig/i.test(tool('planner_clear_leveling').description),
+  assert(/resets the delays ITSELF|pointless/i.test(tool('planner_clear_leveling').description),
     'clear_leveling-beschrijving legt uit dat het vóór level_resources zinloos is');
 });
 

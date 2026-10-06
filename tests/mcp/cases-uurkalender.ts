@@ -227,17 +227,17 @@ test('ongeldige uurbanden ⇒ weigering met uitleg; de kalender blijft onaangero
   });
 
   const gevallen: { naam: string; workTime: unknown; verwacht: RegExp }[] = [
-    { naam: 'eind vóór begin', workTime: week({ '1': [{ start: 960, end: 480 }] }), verwacht: /ligt niet ná|over middernacht telt DOOR|telt DOOR/i },
-    { naam: 'gelijk begin en eind', workTime: week({ '1': [{ start: 480, end: 480 }] }), verwacht: /ligt niet ná/i },
-    { naam: 'overlappende banden', workTime: week({ '2': [{ start: 480, end: 720 }, { start: 600, end: 960 }] }), verwacht: /overlappen of staan niet op volgorde/i },
-    { naam: 'start buiten de dag', workTime: week({ '3': [{ start: 1500, end: 1600 }] }), verwacht: /valt buiten de dag/i },
-    { naam: 'eind voorbij 2880', workTime: week({ '4': [{ start: 1400, end: 3000 }] }), verwacht: /overschrijdt 2880/i },
-    { naam: 'ontbrekende weekdag', workTime: { byWeekday: { '1': [{ start: 480, end: 960 }] } }, verwacht: /moet ALLE weekdagen/i },
-    { naam: 'verkeerde dagsleutel', workTime: week({ '8': [] }), verwacht: /onbekende dagsleutel/i },
-    { naam: 'niet-numerieke band', workTime: week({ '1': [{ start: '08:00', end: '16:00' }] }), verwacht: /moeten getallen zijn in MINUTEN/i },
-    { naam: 'onbekend bandveld', workTime: week({ '1': [{ start: 480, end: 960, pauze: 30 }] }), verwacht: /onbekend veld `workTime.byWeekday.1\[\].pauze`/i },
-    { naam: 'wrap over de volgende dag heen', workTime: week({ '1': [{ start: 1320, end: 1900 }], '2': [{ start: 400, end: 960 }] }), verwacht: /overlapt de eerste band van dag 2/i },
-    { naam: 'workTime spreekt workDays tegen', workTime: week({ '1': [{ start: 480, end: 960 }] }), verwacht: /spreekt `workTime` tegen/i },
+    { naam: 'eind vóór begin', workTime: week({ '1': [{ start: 960, end: 480 }] }), verwacht: /does not lie after|keeps COUNTING/i },
+    { naam: 'gelijk begin en eind', workTime: week({ '1': [{ start: 480, end: 480 }] }), verwacht: /does not lie after/i },
+    { naam: 'overlappende banden', workTime: week({ '2': [{ start: 480, end: 720 }, { start: 600, end: 960 }] }), verwacht: /overlap or are out of order/i },
+    { naam: 'start buiten de dag', workTime: week({ '3': [{ start: 1500, end: 1600 }] }), verwacht: /falls outside the day/i },
+    { naam: 'eind voorbij 2880', workTime: week({ '4': [{ start: 1400, end: 3000 }] }), verwacht: /exceeds 2880/i },
+    { naam: 'ontbrekende weekdag', workTime: { byWeekday: { '1': [{ start: 480, end: 960 }] } }, verwacht: /must contain ALL weekdays/i },
+    { naam: 'verkeerde dagsleutel', workTime: week({ '8': [] }), verwacht: /unknown day key/i },
+    { naam: 'niet-numerieke band', workTime: week({ '1': [{ start: '08:00', end: '16:00' }] }), verwacht: /must be numbers in MINUTES/i },
+    { naam: 'onbekend bandveld', workTime: week({ '1': [{ start: 480, end: 960, pauze: 30 }] }), verwacht: /unknown field `workTime.byWeekday.1\[\].pauze`/i },
+    { naam: 'wrap over de volgende dag heen', workTime: week({ '1': [{ start: 1320, end: 1900 }], '2': [{ start: 400, end: 960 }] }), verwacht: /overlaps the first band of day 2/i },
+    { naam: 'workTime spreekt workDays tegen', workTime: week({ '1': [{ start: 480, end: 960 }] }), verwacht: /contradicts `workTime`/i },
   ];
 
   for (const g of gevallen) {
@@ -278,7 +278,7 @@ test('een item met alleen afgeleide leesvelden is een no-op ⇒ zachte weigering
   S().ensureProjectCalendarInLibrary();
   const res = await call('planner_update_calendar', { calendars: [{ id: projId, isProjectDefault: true, usedByTasks: 3 }] });
   const reden = soleRejection(res);
-  assert(/geen wijzigingen opgegeven/.test(reden) && /workTime/.test(reden) && /holidays/.test(reden),
+  assert(/no changes given/.test(reden) && /workTime/.test(reden) && /holidays/.test(reden),
     `de weigering somt de bruikbare velden op: ${reden}`);
 });
 
@@ -306,8 +306,8 @@ test('dag→uur op de projectkalender ⇒ native taakduren blijven behouden', as
   assertEq(row.durationEffects, undefined, 'oude kalenderafhankelijke duurconversies zijn verwijderd');
 
   const w = (data.warnings as string[]).join(' | ');
-  assert(/native hoeveelheid.*blijven behouden/.test(w), `de waarschuwing bevestigt duurbehoud: ${w}`);
-  assert(!/EFFECTIEVE DUUR GEWIJZIGD/.test(w), `de waarschuwing claimt geen duurconversie: ${w}`);
+  assert(/native quantity.*are preserved/.test(w), `de waarschuwing bevestigt duurbehoud: ${w}`);
+  assert(!/EFFECTIVE DURATION CHANGED/.test(w), `de waarschuwing claimt geen duurconversie: ${w}`);
   const hourTask = S().tasks.find((t) => t.id === halve)!;
   assertEq(hourTask.time.durationUnit, 'hours', 'urentaak blijft uren');
   assertEq(hourTask.time.durationMinutes, 240, 'urentaak blijft exact 240 minuten');
@@ -332,7 +332,7 @@ test('uur→dag met bestaande urentaak ⇒ transactie blokkeert zonder dagfallba
 
   const res = await call('planner_update_calendar', { calendars: [{ id: projId, workTime: null }] });
   assert(!res.ok, 'banden verwijderen bij een bestaande urentaak hoort te worden geblokkeerd');
-  assert(!res.ok && /concrete werkblokken/.test(res.error), `fout legt de vereiste uit: ${res.ok ? '' : res.error}`);
+  assert(!res.ok && /concrete work blocks/.test(res.error), `fout legt de vereiste uit: ${res.ok ? '' : res.error}`);
   const hourTask = S().tasks.find((t) => t.id === halve)!;
   assertEq(hourTask.time.durationUnit, 'hours', 'urentaak blijft na blokkering uren');
   assertEq(hourTask.time.durationMinutes, 240, 'exacte minuten blijven na blokkering behouden');
@@ -359,7 +359,7 @@ test('`shift` is schrijfbaar, leesbaar en wisbaar', async () => {
   assertEq('shift' in (calById(projId) as object), false, '`shift` is echt verwijderd');
 
   const fout = await call('planner_update_calendar', { calendars: [{ id: projId, shift: 'NIGHT' }] });
-  assert(/onbekende `shift` 'NIGHT'.*FIRST, SECOND, THIRD, USERDEFINED/s.test(soleRejection(fout)),
+  assert(/unknown `shift` 'NIGHT'.*FIRST, SECOND, THIRD, USERDEFINED/s.test(soleRejection(fout)),
     'een onbekende ploeg wordt geweigerd MÉT de geldige waarden');
 });
 
@@ -393,24 +393,24 @@ test('generation: de leesvorm is schrijfbaar, wisbaar, en de generator-sleutels 
     calendars: [{ id: projId, generation: { country: 'NL', bouwvak: 'noord', generatedFromYear: 2025, generatedToYear: 2028 } }],
   });
   const reden = soleRejection(drift);
-  assert(/`generation.country` bestaat niet/.test(reden) && /ruleSetId/.test(reden),
+  assert(/`generation.country` does not exist/.test(reden) && /ruleSetId/.test(reden),
     `de weigering wijst naar de juiste sleutel: ${reden}`);
 
   // 7d. `generate` (actie) en `generation` (metadata) samen is tegenstrijdig.
   const beide = await call('planner_update_calendar', {
     calendars: [{ id: projId, generate: { country: 'NL', bouwvak: 'geen' }, generation: { ruleSetId: 'NL', generatedFromYear: 2025, generatedToYear: 2028 } }],
   });
-  assert(/`generate` OF `generation`/.test(soleRejection(beide)), 'de tegenstrijdigheid wordt uitgelegd');
+  assert(/`generate` OR `generation`/.test(soleRejection(beide)), 'de tegenstrijdigheid wordt uitgelegd');
 
   // 7e. Onzin-jaren en een onbekende ruleSetId ketsen af.
   const jaren = await call('planner_update_calendar', {
     calendars: [{ id: projId, generation: { ruleSetId: 'NL', generatedFromYear: 2030, generatedToYear: 2025 } }],
   });
-  assert(/ligt vóór `generatedFromYear`/.test(soleRejection(jaren)), 'omgekeerde jaarspanne geweigerd');
+  assert(/lies before `generatedFromYear`/.test(soleRejection(jaren)), 'omgekeerde jaarspanne geweigerd');
   const land = await call('planner_update_calendar', {
     calendars: [{ id: projId, generation: { ruleSetId: 'none', generatedFromYear: 2025, generatedToYear: 2028 } }],
   });
-  assert(/onbekende `generation.ruleSetId` 'none'/.test(soleRejection(land)), "'none' bestaat niet in de leesvorm");
+  assert(/unknown `generation.ruleSetId` 'none'/.test(soleRejection(land)), "'none' bestaat niet in de leesvorm");
 });
 
 // =================================================================================================
@@ -440,11 +440,11 @@ test('`holidays` vervangt de lijst exact en botst niet met rawHolidays/generate'
 
   // Conflicten.
   for (const [item, patroon] of [
-    [{ id: projId, holidays: lijst, rawHolidays: lijst }, /`holidays` OF `rawHolidays`/],
-    [{ id: projId, holidays: lijst, holidaysMode: 'replace' }, /`holidaysMode` hoort bij `rawHolidays`/],
-    [{ id: projId, holidays: lijst, generate: { country: 'NL', bouwvak: 'geen' } }, /`holidays` OF `generate`/],
-    [{ id: projId, holidays: [{ name: '', startDate: '2026-01-01', endDate: '2026-01-01' }] }, /niet-lege `name`/],
-    [{ id: projId, holidays: [{ name: 'X', startDate: '2026-01-05', endDate: '2026-01-01' }] }, /ligt vóór startDate/],
+    [{ id: projId, holidays: lijst, rawHolidays: lijst }, /`holidays` OR `rawHolidays`/],
+    [{ id: projId, holidays: lijst, holidaysMode: 'replace' }, /`holidaysMode` belongs to `rawHolidays`/],
+    [{ id: projId, holidays: lijst, generate: { country: 'NL', bouwvak: 'geen' } }, /`holidays` OR `generate`/],
+    [{ id: projId, holidays: [{ name: '', startDate: '2026-01-01', endDate: '2026-01-01' }] }, /non-empty `name`/],
+    [{ id: projId, holidays: [{ name: 'X', startDate: '2026-01-05', endDate: '2026-01-01' }] }, /lies before startDate/],
   ] as [Record<string, unknown>, RegExp][]) {
     const bad = await call('planner_update_calendar', { calendars: [item] });
     assert(patroon.test(soleRejection(bad)), `verwacht ${patroon}, kreeg: ${soleRejection(bad)}`);
@@ -462,7 +462,7 @@ test('een onbekend kalenderveld wordt geweigerd, niet stil weggegooid', async ()
     calendars: [{ id: projId, name: 'Nieuw', workingHours: 8 }],
   });
   const reden = soleRejection(res);
-  assert(/onbekend veld `workingHours`/.test(reden), `noemt het veld: ${reden}`);
+  assert(/unknown field `workingHours`/.test(reden), `noemt het veld: ${reden}`);
   assert(/workTime/.test(reden) && /generation/.test(reden), `noemt de toegestane lijst: ${reden}`);
   assertEq(calById(projId)!.name !== 'Nieuw', true, 'de rest van het item is NIET half toegepast');
 });
@@ -533,8 +533,8 @@ test('ongeldige banden binnen een batch: zachte weigering, de batch loopt door',
   assert(payload.ok !== false, `batch niet ok: ${JSON.stringify(payload).slice(0, 300)}`);
   const rej = (payload.itemRejections ?? []) as { reason: string }[];
   assertEq(rej.length, 1, `precies één zachte weigering, kreeg ${JSON.stringify(rej)}`);
-  assert(/stap 1 \(planner_update_calendar\)/.test(rej[0].reason), 'de weigering noemt de stap');
-  assert(/ALLE weekdagen|ligt niet ná/.test(rej[0].reason), `inhoudelijke reden: ${rej[0].reason}`);
+  assert(/step 1 \(planner_update_calendar\)/.test(rej[0].reason), 'de weigering noemt de stap');
+  assert(/ALL weekdays|does not lie after/.test(rej[0].reason), `inhoudelijke reden: ${rej[0].reason}`);
   assertEq(JSON.stringify(S().calendars), voor, 'de kalender is onaangeroerd');
   assertEq(S().project.name, 'Loopt door', 'de volgende stap is gewoon uitgevoerd');
 });

@@ -54,17 +54,17 @@ const ITEM_KEYS = ['seqId', 'type', 'lag', 'predecessorId', 'successorId'];
  *     ze hier zetbaar te worden.
  */
 const FIELD_HINTS: Record<string, string> = {
-  id: 'gebruik `seqId` — het sequence-id dat get_project_overview/get_task achter de `#` teruggeven',
-  lagDays: 'gebruik `lag` (getal 2/-1 of string "+2d")',
-  lagPercent: 'gebruik `lag: "+50%"` — procent-lag loopt via hetzelfde `lag`-veld',
+  id: 'use `seqId` — the sequence id that get_project_overview/get_task return after the `#`',
+  lagDays: 'use `lag` (number 2/-1 or string "+2d")',
+  lagPercent: 'use `lag: "+50%"` — a percentage lag goes through the same `lag` field',
   lagUnit:
-    'de lag-EENHEID (WORKTIME/ELAPSEDTIME) is via de bridge bewust niet zetbaar: de leestools tonen ' +
-    'hem niet, dus je zou het resultaat niet kunnen teruglezen',
+    'the lag UNIT (WORKTIME/ELAPSEDTIME) is deliberately not settable via the bridge: the read tools do not ' +
+    'show it, so you could not read the result back',
   lagMinutes:
-    'een minuut-precieze lag (uit een IFC-/P6-import) is via de bridge bewust niet zetbaar: de ' +
-    'leestools tonen hem niet. Geef de lag in werkdagen via `lag` (een fractie als 0.5 mag) — dat WIST de minuut-lag, ' +
-    'zodat de opgegeven waarde ook echt de werkzame is',
-  fields: 'de velden staan hier direct op het item (geen `fields`-blok): { seqId, type, lag, … }',
+    'a minute-precise lag (from an IFC/P6 import) is deliberately not settable via the bridge: the read ' +
+    'tools do not show it. Give the lag in working days via `lag` (a fraction such as 0.5 is allowed) — that ' +
+    'CLEARS the minute lag, so the given value is really the effective one',
+  fields: 'the fields sit directly on the item here (no `fields` block): { seqId, type, lag, … }',
 };
 
 /** De velden van één relatie zoals deze tool ze projecteert (id en `lagUnit` blijven ongemoeid). */
@@ -124,15 +124,15 @@ function classifyDepUpdates(
 
   for (const raw of updates) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-      rejections.push({ id: '(geen object)', reason: 'elk item moet een object met een `seqId` zijn' });
+      rejections.push({ id: '(not an object)', reason: 'every item must be an object with a `seqId`' });
       continue;
     }
     const it = raw as Record<string, unknown>;
     const seqId = it.seqId;
     if (typeof seqId !== 'string' || seqId === '') {
       rejections.push({
-        id: '(zonder seqId)',
-        reason: 'elk item vereist een string-`seqId` (het sequence-id uit get_project_overview / get_task)',
+        id: '(without seqId)',
+        reason: 'every item requires a string `seqId` (the sequence id from get_project_overview / get_task)',
       });
       continue;
     }
@@ -147,8 +147,9 @@ function classifyDepUpdates(
       rejections.push({
         id: seqId,
         reason:
-          `onbekend veld \`${k}\`${unknownKeys.length > 1 ? ` (en ${unknownKeys.slice(1).map((x) => `\`${x}\``).join(', ')})` : ''}` +
-          `${hint ? `; ${hint}` : ''}. Toegestaan: ${ITEM_KEYS.join(', ')}`,
+          `unknown field \`${k}\`` +
+          `${unknownKeys.length > 1 ? ` (and ${unknownKeys.slice(1).map((x) => `\`${x}\``).join(', ')})` : ''}` +
+          `${hint ? `; ${hint}` : ''}. Allowed: ${ITEM_KEYS.join(', ')}`,
       });
       continue;
     }
@@ -156,7 +157,7 @@ function classifyDepUpdates(
     if (seenSeqIds.has(seqId)) {
       rejections.push({
         id: seqId,
-        reason: `seqId '${seqId}' komt meerdere keren voor in deze call; voeg de wijzigingen samen in één item`,
+        reason: `seqId '${seqId}' occurs more than once in this call; merge the changes into one item`,
       });
       continue;
     }
@@ -164,7 +165,7 @@ function classifyDepUpdates(
 
     const seq = byId.get(seqId);
     if (!seq) {
-      rejections.push({ id: seqId, reason: `relatie '${seqId}' bestaat niet` });
+      rejections.push({ id: seqId, reason: `relationship '${seqId}' does not exist` });
       continue;
     }
     const cur = fieldsOf(seq);
@@ -173,7 +174,7 @@ function classifyDepUpdates(
     if (touched.length === 0) {
       rejections.push({
         id: seqId,
-        reason: 'geen wijziging opgegeven; geef minstens één van `type`, `lag`, `predecessorId`, `successorId`',
+        reason: 'no change given; give at least one of `type`, `lag`, `predecessorId`, `successorId`',
       });
       continue;
     }
@@ -196,8 +197,8 @@ function classifyDepUpdates(
     ] as [string, (v: string) => void][]) {
       const v = it[key];
       if (v === undefined) continue;
-      if (typeof v !== 'string') { bad = `\`${key}\` moet een taak-id (string) zijn, kreeg ${typeof v}`; break; }
-      if (!byTaskId.has(v)) { bad = `taak '${v}' (\`${key}\`) bestaat niet`; break; }
+      if (typeof v !== 'string') { bad = `\`${key}\` must be a task id (string), got ${typeof v}`; break; }
+      if (!byTaskId.has(v)) { bad = `task '${v}' (\`${key}\`) does not exist`; break; }
       set(v);
     }
     if (bad) { rejections.push({ id: seqId, reason: bad }); continue; }
@@ -271,7 +272,7 @@ function classifyDepUpdates(
     if (Object.keys(changes).length === 0) {
       rejections.push({
         id: seqId,
-        reason: `relatie '${seqId}' staat al op ${seqAbbrev(cur.type)}${lagReport(cur) === '0' ? '' : lagReport(cur)} (${cur.predecessorId} → ${cur.successorId}); er valt niets te wijzigen`,
+        reason: `relationship '${seqId}' is already ${seqAbbrev(cur.type)}${lagReport(cur) === '0' ? '' : lagReport(cur)} (${cur.predecessorId} → ${cur.successorId}); there is nothing to change`,
       });
       continue;
     }
@@ -289,8 +290,8 @@ function classifyDepUpdates(
       rejections.push({
         id: seqId,
         reason:
-          `dat zou een duplicaat van relatie '${clash}' opleveren (zelfde voorganger, opvolger én ` +
-          `type ${seqAbbrev(next.type)}); pas die aan of verwijder hem eerst`,
+          `that would create a duplicate of relationship '${clash}' (same predecessor, successor and type ` +
+          `${seqAbbrev(next.type)}); adjust or remove that one first`,
       });
       continue;
     }
@@ -306,7 +307,7 @@ function classifyDepUpdates(
 function parseUpdateDeps(args: unknown): unknown[] | string {
   const a = (args ?? {}) as { updates?: unknown };
   if (!Array.isArray(a.updates) || a.updates.length === 0) {
-    return 'update_dependencies vereist een niet-lege `updates`-array';
+    return 'update_dependencies requires a non-empty `updates` array';
   }
   return a.updates;
 }
@@ -337,7 +338,7 @@ function updateDependenciesCore(ctx: McpContext, updates: unknown[]): MutationOu
     { tasks: st.tasks, assignments: st.assignments, sequences: [] },
     [...projected.values()].map((f) => ({ predecessorId: f.predecessorId, successorId: f.successorId })),
   );
-  if (cyc) throw new McpStepError('CYCLE', `kringverwijzing gedetecteerd: ${cyc.join(' → ')}`);
+  if (cyc) throw new McpStepError('CYCLE', `circular dependency detected: ${cyc.join(' → ')}`);
 
   if (candidates.length > 0) {
     ctx.app.store.setState((s) => {
@@ -383,23 +384,21 @@ function affectedTaskIds(state: AppState, seqIds: string[], before: Map<string, 
 const updateDependencies: BatchStepTool = {
   name: 'planner_update_dependencies',
   description:
-    'WIJZIG bestaande relaties op hun sequence-id — de route voor "maak er een SS van", "zet de lag op ' +
-    '2 dagen" of "hang deze relatie aan een andere taak". Gebruik dit in plaats van ' +
-    'remove_dependencies + add_dependencies: het sequence-id blijft geldig en het is één undo-stap. ' +
-    'Het `seqId` staat in get_project_overview / get_task achter de `#` in de relatienotatie ' +
-    '("→2.3 FS+2d #seq-7"). Per item is elk veld OPTIONEEL en wordt alleen het opgegevene gewijzigd ' +
-    '(veld-merge): `type` (FINISH_START|FINISH_FINISH|START_START|START_FINISH, of kort FS/FF/SS/SF), ' +
-    '`lag`, `predecessorId`, `successorId`. ' + LAG_DOC + ' ' +
-    'Een verzameltaak (taak MET subtaken) als nieuwe voorganger/opvolger is TOEGESTAAN. Zacht ' +
-    'geweigerd per item (de rest van de bulk gaat gewoon door): een onbekend `seqId`, een onbekend ' +
-    'veld (de weigering NOEMT de sleutel), een onbekend taak-id, een relatie naar zichzelf, een ' +
-    'voorouder-relatie (een nieuwe voorganger/opvolger die de EIGEN (voor)ouder-samenvattingstaak ' +
-    'van de andere kant is), een wijziging die een BESTAANDE relatie zou dubbelen (zelfde ' +
-    'voorganger+opvolger+type), en een ' +
-    'item dat niets verandert — die laatste krijgt expliciet "er valt niets te wijzigen" in plaats ' +
-    'van een `ok` zonder effect. Een KRINGVERWIJZING (mogelijk zodra je een eindpunt verlegt) is een ' +
-    'harde fout die de hele call terugrolt. Retourneert per gewijzigde relatie het echte VOOR/NA-' +
-    'verschil (`changes`), de herrekende datums van de geraakte taken en het nieuwe projecteinde.',
+    'CHANGE existing relationships by their sequence id — the route for "make it an SS", "set the lag to 2 ' +
+    'days" or "attach this relationship to another task". Use this instead of remove_dependencies + ' +
+    'add_dependencies: the sequence id stays valid and it is one undo step. The `seqId` appears in ' +
+    'get_project_overview / get_task after the `#` in the relationship notation ("→2.3 FS+2d #seq-7"). Per ' +
+    'item every field is OPTIONAL and only what is given changes (field merge): `type` ' +
+    '(FINISH_START|FINISH_FINISH|START_START|START_FINISH, or short FS/FF/SS/SF), `lag`, `predecessorId`, ' +
+    `\`successorId\`. ${LAG_DOC} A summary task (a task WITH subtasks) as the new predecessor/successor is ` +
+    'ALLOWED. Softly refused per item (the rest of the bulk carries on): an unknown `seqId`, an unknown ' +
+    'field (the refusal NAMES the key), an unknown task id, a relationship to itself, an ancestor ' +
+    'relationship (a new predecessor/successor that is the OWN ancestor summary task of the other end), a ' +
+    'change that would DUPLICATE an EXISTING relationship (same predecessor+successor+type), and an item ' +
+    'that changes nothing — the latter explicitly gets "there is nothing to change" instead of an `ok` ' +
+    'without effect. A CIRCULAR DEPENDENCY (possible as soon as you move an end point) is a hard error that ' +
+    'rolls back the whole call. Returns per changed relationship the real BEFORE/AFTER difference ' +
+    '(`changes`), the recalculated dates of the affected tasks and the new project end.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -409,20 +408,20 @@ const updateDependencies: BatchStepTool = {
       updates: {
         type: 'array',
         minItems: 1,
-        description: 'De te wijzigen relaties; één item per sequence-id (dubbele seqId\'s worden geweigerd).',
+        description: 'The relationships to change; one item per sequence id (duplicate seqIds are refused).',
         items: {
           type: 'object',
           required: ['seqId'],
           properties: {
             seqId: {
               type: 'string',
-              description: 'Sequence-id van de te wijzigen relatie (de `#`-suffix in de relatienotatie van de leestools).',
+              description: 'Sequence id of the relationship to change (the `#` suffix in the relationship notation of the read tools).',
             },
             // Gedeelde schema-fragmenten (sequenceFields.ts): identiek aan add_dependencies.
             type: SEQ_TYPE_SCHEMA,
             lag: LAG_SCHEMA,
-            predecessorId: { type: 'string', description: 'Nieuwe voorganger (taak-id); weglaten = ongewijzigd.' },
-            successorId: { type: 'string', description: 'Nieuwe opvolger (taak-id); weglaten = ongewijzigd.' },
+            predecessorId: { type: 'string', description: 'New predecessor (task id); omitted = unchanged.' },
+            successorId: { type: 'string', description: 'New successor (task id); omitted = unchanged. ' },
           },
           additionalProperties: false,
         },

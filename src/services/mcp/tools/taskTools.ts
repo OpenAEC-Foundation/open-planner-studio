@@ -95,11 +95,11 @@ import { interruptionsOf, planTaskSplits } from './splitFields';
 
 /** "Wordt fase" — gedeeld door add_tasks en move_task. */
 const PHASE_TRANSITION_DOC =
-  'Krijgt een bestaande taak met resource-toewijzingen hierdoor haar EERSTE subtaak (ze wordt een fase), dan ' +
-  'verhuizen die toewijzingen naar de eerste nieuwe subtaak die ze mag dragen (geen mijlpaal of fase); een ' +
-  'mijlpaal die zo een fase wordt verliest zijn mijlpaalvlag. Het antwoord meldt dat in `phaseTransitions`. ' +
-  'Kan het niet schoon (geen geschikte subtaak, of die heeft dezelfde resource al), dan faalt de hele call ' +
-  '(VALIDATION) en verandert er niets.';
+  'If an existing task with resource assignments thereby gets its FIRST subtask (it becomes a phase), those ' +
+  'assignments move to the first new subtask that may carry them (not a milestone or phase); a milestone ' +
+  'that becomes a phase this way loses its milestone flag. The answer reports this in `phaseTransitions`. If ' +
+  'that cannot be done cleanly (no suitable subtask, or it already has the same resource), the whole call ' +
+  'fails (VALIDATION) and nothing changes.';
 
 // =================================================================================================
 // planner_add_tasks
@@ -141,26 +141,26 @@ interface ParsedAddItem {
 function parseAddTasks(args: unknown, state: AppState): ParsedAddItem[] | string {
   const a = (args ?? {}) as { tasks?: unknown };
   if (!Array.isArray(a.tasks) || a.tasks.length === 0) {
-    return 'add_tasks vereist een niet-lege `tasks`-array';
+    return 'add_tasks requires a non-empty `tasks` array';
   }
   const seenTemp = new Set<string>();
   const parsed: ParsedAddItem[] = [];
   for (const it of a.tasks) {
-    if (!it || typeof it !== 'object' || Array.isArray(it)) return 'elk taak-item moet een object zijn';
+    if (!it || typeof it !== 'object' || Array.isArray(it)) return 'every task item must be an object';
     const raw = it as Record<string, unknown>;
     if (typeof raw.tempId !== 'string' || typeof raw.name !== 'string') {
-      return 'elk taak-item vereist een string-`tempId` en -`name`';
+      return 'every task item requires a string `tempId` and `name`';
     }
     // Statische toolniveau-fout: dubbele tempId ⇒ VALIDATION VÓÓR enige transactie/backup (geen
     // spurious snapshot; draft.addTasks zou dit anders pas ín de transactie als throw vangen).
     const tid = raw.tempId;
-    if (seenTemp.has(tid)) return `dubbele tempId '${tid}' binnen de call`;
+    if (seenTemp.has(tid)) return `duplicate tempId '${tid}' within the call`;
     seenTemp.add(tid);
     if (raw.parentId !== undefined && typeof raw.parentId !== 'string') {
-      return `taak '${tid}': \`parentId\` moet een string zijn (bestaand taak-id of tempId uit deze call)`;
+      return `task '${tid}': \`parentId\` must be a string (existing task id or tempId from this call)`;
     }
     if (raw.position !== undefined && (typeof raw.position !== 'number' || !Number.isInteger(raw.position))) {
-      return `taak '${tid}': \`position\` moet een geheel getal zijn`;
+      return `task '${tid}': \`position\` must be an integer`;
     }
     // De inhoudelijke velden lopen door DEZELFDE allowlist als `update_tasks.fields` — een onbekende
     // sleutel (`duration_days`, `time`, …) is hier een HARDE VALIDATION-fout: add_tasks kent geen
@@ -168,7 +168,7 @@ function parseAddTasks(args: unknown, state: AppState): ParsedAddItem[] | string
     const { tempId: _t, parentId: _p, position: _pos, ...fields } = raw;
     void _t; void _p; void _pos;
     const res = parseTaskFields(fields, fieldContext(state));
-    if (!res.ok) return `taak '${tid}': ${res.reason}`;
+    if (!res.ok) return `task '${tid}': ${res.reason}`;
     parsed.push({
       tempId: tid,
       ...(typeof raw.parentId === 'string' ? { parentId: raw.parentId } : {}),
@@ -231,17 +231,17 @@ function addTasksCore(ctx: McpContext, items: ParsedAddItem[]): MutationOutcome 
 const addTasks: BatchStepTool = {
   name: 'planner_add_tasks',
   description:
-    'Maak één of meer taken aan (geneste WBS in één call). Elk item heeft een client-gekozen `tempId` ' +
-    '(uniek binnen de call); `parentId` mag een bestaand taak-id of een `tempId` uit dezelfde call zijn. ' +
-    'Een tempId MOET met `tmp-` of `tmp_` beginnen (bijv. `tmp-fundering`) — dat is de GERESERVEERDE ' +
-    'syntax waarop latere `planner_batch`-stappen hun verwijzingen herkennen; het schema dwingt die ' +
-    'vorm nu overal af, zodat dezelfde call binnen én buiten een batch werkt. ' +
-    '`position` is de invoeg-index binnen de ouder en klemt stil naar [0, aantal siblings]. ' +
-    'Geef de DUUR direct mee met `duration` en desgewenst `durationUnit` (`days`/`hours`; zonder duur krijgt een taak de ' +
-    'standaard 5 werkdagen). Een mijlpaal (`isMilestone`) heeft per definitie duur 0 — `duration` > 0 ' +
-    'is daar een fout. ' + TASK_FIELDS_DOC + ' Bij add_tasks is een onbekende sleutel een HARDE fout ' +
-    '(de hele call faalt), niet een per-item-weigering. ' + PHASE_TRANSITION_DOC + ' Retourneert de volledige ' +
-    'tempId→realId-map, de herrekende earlyStart/earlyFinish per aangemaakte taak en het projecteinde.',
+    'Create one or more tasks (nested WBS in one call). Every item has a client-chosen `tempId` (unique ' +
+    'within the call); `parentId` may be an existing task id or a `tempId` from the same call. A tempId MUST ' +
+    'start with `tmp-` or `tmp_` (e.g. `tmp-foundation`) — that is the RESERVED syntax by which later ' +
+    '`planner_batch` steps recognize their references; the schema now enforces that form everywhere, so the ' +
+    'same call works inside and outside a batch. `position` is the insertion index within the parent and is ' +
+    'silently clamped to [0, number of siblings]. Give the DURATION directly with `duration` and optionally ' +
+    '`durationUnit` (`days`/`hours`; without a duration a task gets the default of 5 working days). A ' +
+    'milestone (`isMilestone`) has duration 0 by definition — `duration` > 0 is an error there. ' +
+    `${TASK_FIELDS_DOC} For add_tasks an unknown key is a HARD error (the whole call fails), not a per-item ` +
+    `refusal. ${PHASE_TRANSITION_DOC} Returns the complete tempId→realId map, the recalculated ` +
+    'earlyStart/earlyFinish per created task and the project end.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -251,7 +251,7 @@ const addTasks: BatchStepTool = {
       tasks: {
         type: 'array',
         minItems: 1,
-        description: 'De aan te maken taken (top-down aangemaakt; tempId-parents mogen in willekeurige volgorde staan).',
+        description: 'The tasks to create (created top-down; tempId parents may appear in any order).',
         items: {
           type: 'object',
           required: ['tempId', 'name'],
@@ -260,13 +260,13 @@ const addTasks: BatchStepTool = {
               type: 'string',
               pattern: '^tmp[-_]',
               description:
-                'Client-gekozen tijdelijk id, uniek binnen de call; sleutel in de terugmap. MOET met ' +
-                '`tmp-` of `tmp_` beginnen (gereserveerde batch-syntax, bijv. `tmp-fundering`): alleen ' +
-                'zo kan planner_batch verwijzingen in latere stappen veilig vervangen zonder ooit vrije ' +
-                'tekst te raken. Deze eis geldt overal, ook buiten een batch (het schema dwingt hem af).',
+                'Client-chosen temporary id, unique within the call; key in the returned map. MUST start ' +
+                'with `tmp-` or `tmp_` (reserved batch syntax, e.g. `tmp-foundation`): only then can ' +
+                'planner_batch safely replace references in later steps without ever hitting free text. This ' +
+                'requirement applies everywhere, also outside a batch (the schema enforces it).',
             },
-            parentId: { type: 'string', description: 'Bestaand taak-id of een tempId uit dezelfde call; weglaten = wortel.' },
-            position: { type: 'integer', description: 'Invoeg-index binnen de ouder; klemt stil naar [0, aantal siblings].' },
+            parentId: { type: 'string', description: 'Existing task id or a tempId from the same call; omitted = root.' },
+            position: { type: 'integer', description: 'Insertion index within the parent; silently clamped to [0, number of siblings].' },
             // Exact dezelfde velden als `update_tasks.fields` — één allowlist voor aanmaken én wijzigen.
             ...TASK_FIELD_SCHEMA_PROPERTIES,
           },
@@ -300,10 +300,10 @@ const addTasks: BatchStepTool = {
 // =================================================================================================
 const FORBIDDEN_PROGRESS_IN_FIELDS = (fields: any): string | null => {
   if (fields && typeof fields === 'object') {
-    if ('status' in fields) return 'gebruik `progress`, niet `fields.status`, voor voortgang';
+    if ('status' in fields) return 'use `progress`, not `fields.status`, for progress';
     const time = fields.time;
     if (time && typeof time === 'object' && ('completion' in time || 'actualStart' in time || 'actualFinish' in time)) {
-      return 'gebruik `progress`, niet `fields.time.*`, voor voortgang/actuals';
+      return 'use `progress`, not `fields.time.*`, for progress/actuals';
     }
   }
   return null;
@@ -346,7 +346,7 @@ function classifyUpdate(
       ? fieldsRes.reason
       : progRes && !progRes.ok
         ? progRes.reason
-        : 'geen `fields` of `progress` opgegeven';
+        : 'no `fields` or `progress` given';
   return { executable: false, rejection: { id: u.id, reason } };
 }
 
@@ -354,7 +354,7 @@ function classifyUpdate(
 function parseUpdateTasks(args: unknown): { id: string; fields?: any; progress?: any }[] | string {
   const a = (args ?? {}) as { updates?: unknown };
   if (!Array.isArray(a.updates) || a.updates.length === 0) {
-    return 'update_tasks vereist een niet-lege `updates`-array';
+    return 'update_tasks requires a non-empty `updates` array';
   }
   return a.updates as { id: string; fields?: any; progress?: any }[];
 }
@@ -374,10 +374,11 @@ const round2 = (value: number) => Math.round(value * 100) / 100;
 
 /** Weigeringsreden bij een duur korter dan het gedane werk van een lopende taak. */
 function durationBelowDoneWorkReason(refused: { done: number; unit: 'days' | 'hours' }, completion: number): string {
-  const unit = refused.unit === 'hours' ? 'uur' : 'werkdagen';
-  return `de taak is al voor ${Math.round(completion * 100)}% gedaan (${round2(refused.done)} ${unit} gedaan werk): `
-    + `een nieuwe duur korter dan het gedane werk kan niet — het gedane werk blijft gelijk bij een `
-    + `duurwijziging. Kies een duur van minstens ${round2(refused.done)} ${unit}, of pas eerst de voortgang aan (\`progress\`)`;
+  const unit = refused.unit === 'hours' ? 'hours' : 'working days';
+  return `the task is already ${Math.round(completion * 100)}% done (${round2(refused.done)} ${unit} of work ` +
+    'done): a new duration shorter than the work done is not possible — the work done stays the same on a ' +
+    `duration change. Choose a duration of at least ${round2(refused.done)} ${unit}, or adjust the progress ` +
+    'first (`progress`)';
 }
 
 /** Synchrone, transactie-vrije kern van `update_tasks`. */
@@ -431,14 +432,14 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
       if (!shape.ok) { rejections.push({ id, reason: shape.reason }); rejectedHere = true; }
       else {
         const patch: ProgressPatch = shape.value;
-        let pr: { applied: true } | { applied: false; reason: string } = { applied: false, reason: 'niet-uitgevoerd' };
+        let pr: { applied: true } | { applied: false; reason: string } = { applied: false, reason: 'not executed' };
         ctx.app.store.setState((s) => { pr = progress.applyProgressUpdate(s, id, patch, statusDate); });
         if (pr.applied) touched = true;
         else { rejections.push({ id, reason: pr.reason }); rejectedHere = true; }
       }
     }
     if (touched) applied.push(id);
-    else if (!rejectedHere) rejections.push({ id, reason: 'geen `fields` of `progress` opgegeven' });
+    else if (!rejectedHere) rejections.push({ id, reason: 'no `fields` or `progress` given' });
   }
   return {
     data: { updated: applied, ...(progressAdjusted.length > 0 ? { progressAdjusted } : {}) },
@@ -449,26 +450,26 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
 const updateTasks: BatchStepTool = {
   name: 'planner_update_tasks',
   description:
-    'Wijzig bestaande taken. Per item: `fields` (naam, DUUR plus `durationUnit`, constraints, deadline, ' +
-    'kalender, …; GEEN voortgangsvelden) en/of `progress` (voortgangspad: UITSLUITEND `completion` in ' +
-    'PROCENTEN 0–100, `actualStart` en `actualFinish` als ISO-datum — elke andere sleutel, en een leeg ' +
-    '`progress`-object, wordt per item zacht GEWEIGERD, nooit stil genegeerd). ' + TASK_FIELDS_DOC + ' Een ' +
-    'geweigerd `fields`-blok laat de taak volledig ONGEWIJZIGD (nooit een halve merge). ' +
-    'Voortgang vraagt een projectstatusdatum: zonder statusdatum wordt `progress` per item geweigerd — zet ' +
-    'hem eerst met planner_update_project → `statusDate` (de peildatum); de AI-koppeling kiest die niet zelf. ' +
-    'Voortgang > 0 leidt de actualStart af uit de geplande start, BEHALVE als die geplande start ná de ' +
-    'statusdatum ligt: dan wordt het item geweigerd en geef je `actualStart` (≤ statusdatum) zelf mee. Actuals ná de ' +
-    'projectstatusdatum of buiten 0–100 worden per item zacht geweigerd — geldige items blijven staan. ' +
-    'Een VERZAMELTAAK (fase) heeft geen eigen voortgang: haar completion, status, actualStart (vroegste ' +
-    'van de bladtaken) en actualFinish (laatste, pas als alle bladtaken klaar zijn) worden bij elke ' +
-    'herberekening afgeleid, dus `progress` op een fase wordt zacht geweigerd — zet het op de bladtaken. ' +
-    'Een DUURWIJZIGING op een lopende taak (gestart, nog niet voltooid) houdt het gedane werk gelijk, zoals ' +
-    'MS Project: restduur = nieuwe duur − gedane werk en het percentage past zich aan (10 d op 40% → 12 d ⇒ ' +
-    'nog 8 d, 33%); het resultaat meldt die taken in `progressAdjusted` (completion in procenten, remaining in ' +
-    'de eigen eenheid). Een duur korter dan het gedane werk wordt per item zacht geweigerd. ' +
-    'Hefboom-tip: hypothetische uitloop = duur of SNET-constraint (via `fields`); geregistreerde voortgang ' +
-    '= actuals mét statusdatum (via `progress`). Merk op: één taak-id kan tegelijk in `updated` én in de ' +
-    'weigeringen verschijnen (bijv. `fields` geweigerd maar `progress` toegepast) — bewuste granulariteit.',
+    'Change existing tasks. Per item: `fields` (name, DURATION plus `durationUnit`, constraints, deadline, ' +
+    'calendar, …; NO progress fields) and/or `progress` (progress path: ONLY `completion` in PERCENT 0–100, ' +
+    '`actualStart` and `actualFinish` as ISO dates — any other key, and an empty `progress` object, is ' +
+    `softly REFUSED per item, never silently ignored). ${TASK_FIELDS_DOC} A refused \`fields\` block leaves ` +
+    'the task completely UNCHANGED (never a half merge). Progress requires a project status date: without a ' +
+    'status date `progress` is refused per item — set it first with planner_update_project → `statusDate` ' +
+    '(the reporting date); the AI connection does not choose it itself. Progress > 0 derives the actualStart ' +
+    'from the planned start, EXCEPT when that planned start lies after the status date: then the item is ' +
+    'refused and you pass `actualStart` (≤ status date) yourself. Actuals after the project status date or ' +
+    'outside 0–100 are softly refused per item — valid items stay. A SUMMARY TASK (phase) has no progress of ' +
+    'its own: its completion, status, actualStart (earliest of the leaf tasks) and actualFinish (latest, ' +
+    'only once all leaf tasks are done) are derived on every recalculation, so `progress` on a phase is ' +
+    'softly refused — set it on the leaf tasks. A DURATION CHANGE on a running task (started, not yet ' +
+    'completed) keeps the work done the same, like MS Project: remaining duration = new duration − work done ' +
+    'and the percentage adjusts (10 d at 40% → 12 d ⇒ 8 d left, 33%); the result reports those tasks in ' +
+    '`progressAdjusted` (completion in percent, remaining in the task\'s own unit). A duration shorter than ' +
+    'the work done is softly refused per item. Lever tip: hypothetical overrun = duration or SNET constraint ' +
+    '(via `fields`); recorded progress = actuals with a status date (via `progress`). Note: one task id can ' +
+    'appear in both `updated` and the refusals at the same time (e.g. `fields` refused but `progress` ' +
+    'applied) — deliberate granularity.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -486,21 +487,21 @@ const updateTasks: BatchStepTool = {
             fields: {
               type: 'object',
               description:
-                `Te wijzigen velden (expliciete allowlist: ${TASK_FIELD_NAMES.join(', ')}). Namen ` +
-                'spiegelen planner_get_task. Een onbekende sleutel wordt geweigerd — nooit stil genegeerd.',
+                `Fields to change (explicit allowlist: ${TASK_FIELD_NAMES.join(', ')}). Names mirror ` +
+                'planner_get_task. An unknown key is refused — never silently ignored.',
               properties: { ...TASK_FIELD_SCHEMA_PROPERTIES },
               additionalProperties: false,
             },
             progress: {
               type: 'object',
               description:
-                `Voortgangspad (expliciete allowlist: ${PROGRESS_FIELD_NAMES.join(', ')}). Een onbekende ` +
-                'sleutel (`percent`, `status`, …) wordt geweigerd met een reden — nooit stil genegeerd — ' +
-                'en een leeg `progress`-object ook: geef minstens één van de drie.',
+                `Progress path (explicit allowlist: ${PROGRESS_FIELD_NAMES.join(', ')}). An unknown key ` +
+                '(`percent`, `status`, …) is refused with a reason — never silently ignored — and so is an ' +
+                'empty `progress` object: give at least one of the three.',
               properties: {
-                completion: { type: 'number', minimum: 0, maximum: 100, description: 'Voltooiing in PROCENTEN (0–100).' },
-                actualStart: { type: ['string', 'null'], description: 'ISO-datum; mag niet ná de statusdatum liggen. null wist hem. Verplicht bij voortgang op een taak zonder werkelijke start waarvan de geplande start ná de statusdatum ligt.' },
-                actualFinish: { type: ['string', 'null'], description: 'ISO-datum; ≥ actualStart en niet ná de statusdatum. null wist hem.' },
+                completion: { type: 'number', minimum: 0, maximum: 100, description: 'Completion in PERCENT (0–100).' },
+                actualStart: { type: ['string', 'null'], description: 'ISO date; must not lie after the status date. null clears it. Required for progress on a task without an actual start whose planned start lies after the status date.' },
+                actualFinish: { type: ['string', 'null'], description: 'ISO date; ≥ actualStart and not after the status date. null clears it.' },
               },
               additionalProperties: false,
             },
@@ -558,7 +559,7 @@ const updateTasks: BatchStepTool = {
 function parseIdList(args: unknown, toolLabel: string): string[] | string {
   const a = (args ?? {}) as { ids?: unknown };
   if (!Array.isArray(a.ids) || a.ids.length === 0) {
-    return `${toolLabel} vereist een niet-lege \`ids\`-array`;
+    return `${toolLabel} requires a non-empty \`ids\` array`;
   }
   return a.ids as string[];
 }
@@ -614,12 +615,13 @@ function deleteTasksCore(ctx: McpContext, ids: string[]): MutationOutcome {
 const deleteTasks: BatchStepTool = {
   name: 'planner_delete_tasks',
   description:
-    'Verwijder taken op id INCLUSIEF HUN VOLLEDIGE SUBBOOM, plus alle relaties en toewijzingen daarvan — ' +
-    'één verzameltaak wissen kan dus veel meer taken meenemen dan je opgaf. Daarom rapporteert de tool ' +
-    'wat er ECHT weg is: `deletedTaskIds` (alle verwijderde taken), `deletedTaskCount`, `cascadedTaskIds` ' +
-    '(de niet-gevraagde meegewiste taken) en `removedDependencyCount`/`removedAssignmentCount`; ' +
-    '`deleted` blijft de gevraagde id\'s. Een id dat al door de cascade van een ander id uit dezelfde ' +
-    'call verdween telt als succes. Een id dat nooit bestond wordt per item zacht geweigerd.',
+    'Delete tasks by id INCLUDING THEIR COMPLETE SUBTREE, plus all their relationships and assignments — ' +
+    'deleting one summary task can therefore take many more tasks with it than you gave. That is why the ' +
+    'tool reports what is REALLY gone: `deletedTaskIds` (all deleted tasks), `deletedTaskCount`, ' +
+    '`cascadedTaskIds` (the tasks deleted along without being asked) and ' +
+    '`removedDependencyCount`/`removedAssignmentCount`; `deleted` stays the requested ids. An id that ' +
+    'already disappeared through the cascade of another id from the same call counts as success. An id that ' +
+    'never existed is softly refused per item.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS, destructiveHint: true },
@@ -674,15 +676,15 @@ const deleteTasks: BatchStepTool = {
 /** Vormvalidatie van `move_task`; string = foutboodschap. */
 function parseMoveTask(args: unknown): { id: string; newParentId: string | null; position?: number } | string {
   const a = (args ?? {}) as { id?: unknown; newParentId?: unknown; position?: unknown };
-  if (typeof a.id !== 'string') return 'move_task vereist een string-`id`';
+  if (typeof a.id !== 'string') return 'move_task requires a string `id`';
   if (!(a.newParentId === null || typeof a.newParentId === 'string')) {
-    return '`newParentId` moet een string of null zijn';
+    return '`newParentId` must be a string or null';
   }
   // Een niet-numerieke `position` hard weigeren: stil weggooien zou verderop `Math.min(NaN, …)` ⇒
   // `splice(NaN)` ⇒ gedrag als index 0 geven. De stille klem naar [0, aantal siblings] is
   // gedocumenteerd en blijft; niet-numerieke invoer is dat niet.
   if (a.position !== undefined && (typeof a.position !== 'number' || !Number.isInteger(a.position))) {
-    return '`position` moet een geheel getal zijn (invoeg-index binnen de ouder)';
+    return '`position` must be an integer (insertion index within the parent)';
   }
   return {
     id: a.id,
@@ -697,17 +699,17 @@ function parseMoveTask(args: unknown): { id: string; newParentId: string | null;
 function moveTaskCore(ctx: McpContext, p: { id: string; newParentId: string | null; position?: number }): MutationOutcome {
   const { id, newParentId, position } = p;
   const st = ctx.app.store.getState();
-  if (!st.tasks.some((t) => t.id === id)) throw new McpStepError('NOT_FOUND', `taak '${id}' bestaat niet`);
+  if (!st.tasks.some((t) => t.id === id)) throw new McpStepError('NOT_FOUND', `task '${id}' does not exist`);
   if (newParentId !== null) {
     if (!st.tasks.some((t) => t.id === newParentId)) {
-      throw new McpStepError('NOT_FOUND', `nieuwe ouder '${newParentId}' bestaat niet`);
+      throw new McpStepError('NOT_FOUND', `new parent '${newParentId}' does not exist`);
     }
     // Cykel-preventie: newParentId mag niet id zelf of een afstammeling van id zijn. `ancestorIds`
     // is cyclusveilig: een corrupte parentId-cyclus elders in de boom liet deze wandeling hangen.
     const parentById = new Map(st.tasks.map((t) => [t.id, t.parentId]));
     const ownDescendant = newParentId === id
       || [...ancestorIds(newParentId, (tid) => parentById.get(tid))].includes(id);
-    if (ownDescendant) throw new McpStepError('VALIDATION', 'kan een taak niet onder zichzelf of een eigen afstammeling plaatsen');
+    if (ownDescendant) throw new McpStepError('VALIDATION', 'cannot place a task under itself or one of its own descendants');
   }
   // Zelfde voorafregel als de UI: een relatie op een fase geldt voor elke taak erin, dus verhangen
   // kan een kring maken. Zonder deze toets vangt pas de eindberekening dat, met de Engelse
@@ -716,8 +718,8 @@ function moveTaskCore(ctx: McpContext, p: { id: string; newParentId: string | nu
   if (!verdict.ok) {
     throw new McpStepError(
       'CYCLE',
-      `kringverwijzing gedetecteerd: ${verdict.cycle.join(' → ')} — de relaties van een samenvattingstaak ` +
-      'gelden voor al haar subtaken, dus deze verplaatsing zou de planning laten vastlopen; de taak is niet verplaatst',
+      `circular dependency detected: ${verdict.cycle.join(' → ')} — the relationships of a summary task ` +
+      'apply to all its subtasks, so this move would deadlock the schedule; the task has not been moved',
     );
   }
   // Dezelfde relatiemelding als de store-`moveTask`: een bestaande relatie die
@@ -732,11 +734,11 @@ function moveTaskCore(ctx: McpContext, p: { id: string; newParentId: string | nu
 const moveTask: BatchStepTool = {
   name: 'planner_move_task',
   description:
-    'Verplaats een taak naar een nieuwe ouder (`newParentId: null` = wortel) en optioneel een `position` ' +
-    '(invoeg-index binnen de ouder; klemt stil naar [0, aantal siblings]). Een taak onder zichzelf of een ' +
-    'eigen afstammeling plaatsen is een harde fout. Een relatie op een samenvattingstaak geldt voor al haar ' +
-    'subtaken: een verplaatsing die zo een kringverwijzing maakt, is een harde fout (CYCLE) die de hele call ' +
-    'terugrolt. ' + PHASE_TRANSITION_DOC,
+    'Move a task to a new parent (`newParentId: null` = root) and optionally a `position` (insertion index ' +
+    'within the parent; silently clamped to [0, number of siblings]). Placing a task under itself or one of ' +
+    'its own descendants is a hard error. A relationship on a summary task applies to all its subtasks: a ' +
+    'move that creates a circular dependency this way is a hard error (CYCLE) that rolls back the whole ' +
+    `call. ${PHASE_TRANSITION_DOC}`,
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -744,8 +746,8 @@ const moveTask: BatchStepTool = {
     type: 'object',
     properties: {
       id: { type: 'string' },
-      newParentId: { type: ['string', 'null'], description: 'Nieuw ouder-id, of null voor wortelniveau.' },
-      position: { type: 'integer', description: 'Invoeg-index binnen de ouder; klemt stil naar [0, aantal siblings].' },
+      newParentId: { type: ['string', 'null'], description: 'New parent id, or null for root level.' },
+      position: { type: 'integer', description: 'Insertion index within the parent; silently clamped to [0, number of siblings].' },
     },
     required: ['id', 'newParentId'],
     additionalProperties: false,
@@ -794,8 +796,8 @@ function classifyDeps(
     // Lag: nooit stil naar 0 terugvallen.
     const lag = parseLag(d.lag);
     if (!lag.ok) { rejections.push({ id: label, reason: lag.reason }); continue; }
-    if (!byId.has(d.predecessorId)) { rejections.push({ id: label, reason: `voorganger '${d.predecessorId}' bestaat niet` }); continue; }
-    if (!byId.has(d.successorId)) { rejections.push({ id: label, reason: `opvolger '${d.successorId}' bestaat niet` }); continue; }
+    if (!byId.has(d.predecessorId)) { rejections.push({ id: label, reason: `predecessor '${d.predecessorId}' does not exist` }); continue; }
+    if (!byId.has(d.successorId)) { rejections.push({ id: label, reason: `successor '${d.successorId}' does not exist` }); continue; }
     // Zelfrelatie: per item zacht weigeren, net als `update_dependencies` — anders ziet de kring-
     // check hieronder een a→a-lus en rolt de HELE call terug als harde CYCLE.
     if (d.predecessorId === d.successorId) {
@@ -811,7 +813,7 @@ function classifyDeps(
       continue;
     }
     const key = relationKey({ predecessorId: d.predecessorId, successorId: d.successorId, type });
-    if (seen.has(key)) { rejections.push({ id: label, reason: 'relatie bestond al' }); continue; }
+    if (seen.has(key)) { rejections.push({ id: label, reason: 'relationship already existed' }); continue; }
     seen.add(key);
     candidates.push({ predecessorId: d.predecessorId, successorId: d.successorId, type, lag: lag.value });
   }
@@ -826,7 +828,7 @@ function classifyDeps(
 function parseAddDeps(args: unknown): { predecessorId: string; successorId: string; type: string; lag?: unknown }[] | string {
   const a = (args ?? {}) as { dependencies?: unknown };
   if (!Array.isArray(a.dependencies) || a.dependencies.length === 0) {
-    return 'add_dependencies vereist een niet-lege `dependencies`-array';
+    return 'add_dependencies requires a non-empty `dependencies` array';
   }
   return a.dependencies as { predecessorId: string; successorId: string; type: string; lag?: unknown }[];
 }
@@ -840,7 +842,7 @@ function addDependenciesCore(
   const { candidates, rejections } = classifyDeps(st, deps);
   // Kring over de UNIE (bestaande + alle kandidaten) ⇒ harde stap-fout.
   const cyc = validate.noCycle(st, candidates.map((c) => ({ predecessorId: c.predecessorId, successorId: c.successorId })));
-  if (cyc) throw new McpStepError('CYCLE', `kringverwijzing gedetecteerd: ${cyc.join(' → ')}`);
+  if (cyc) throw new McpStepError('CYCLE', `circular dependency detected: ${cyc.join(' → ')}`);
   const added: string[] = [];
   for (const c of candidates) {
     // `c.lag` is hier al door `parseLag` gegaan: een niet-numerieke lag heeft de relatie
@@ -864,7 +866,7 @@ function addDependenciesCore(
       // zoeken en laten hercirkelen.
       rejections.push({
         id: `${c.predecessorId}->${c.successorId}`,
-        reason: 'relatie geweigerd door de relatieregels (duplicaat, of een eindpunt dat geen effect heeft)',
+        reason: 'relationship refused by the relationship rules (duplicate, or an end point that has no effect)',
       });
     }
   }
@@ -874,17 +876,16 @@ function addDependenciesCore(
 const addDependencies: BatchStepTool = {
   name: 'planner_add_dependencies',
   description:
-    'Voeg NIEUWE relaties tussen taken toe. Per item: `predecessorId`, `successorId`, `type` ' +
-    '(FINISH_START | FINISH_FINISH | START_START | START_FINISH — de KORTE vorm FS/FF/SS/SF die de ' +
-    'leestools teruggeven mag ook) en optioneel `lag`. ' + LAG_DOC + ' ' +
-    'Een verzameltaak (taak MET subtaken) als voorganger/opvolger is TOEGESTAAN — die relatie wordt ' +
-    'doorgerekend naar de onderliggende bladtaken. Onbekende taak-id\'s, een reeds bestaande relatie, ' +
-    'of een voorouder-relatie (een taak gekoppeld aan zijn eigen (voor)ouder-samenvattingstaak) ' +
-    'worden per item zacht geweigerd; een kringverwijzing (over de bestaande én voorgestelde ' +
-    'relaties, ook via de subtaken van een samenvattingstaak) is een harde fout die de hele call terugrolt. ' +
-    'WIL JE EEN BESTAANDE RELATIE WIJZIGEN (ander type, andere lag, andere voorganger/opvolger)? ' +
-    'Gebruik planner_update_dependencies met het sequence-id — NIET verwijderen-en-opnieuw-toevoegen: ' +
-    'dat verliest het id en levert twee undo-stappen op.',
+    'Add NEW relationships between tasks. Per item: `predecessorId`, `successorId`, `type` (FINISH_START | ' +
+    'FINISH_FINISH | START_START | START_FINISH — the SHORT form FS/FF/SS/SF that the read tools return is ' +
+    `allowed too) and optionally \`lag\`. ${LAG_DOC} A summary task (a task WITH subtasks) as ` +
+    'predecessor/successor is ALLOWED — that relationship is passed on to the underlying leaf tasks in the ' +
+    'calculation. Unknown task ids, an already existing relationship, or an ancestor relationship (a task ' +
+    'linked to its own ancestor summary task) are softly refused per item; a circular dependency (across the ' +
+    'existing and proposed relationships, also via the subtasks of a summary task) is a hard error that ' +
+    'rolls back the whole call. DO YOU WANT TO CHANGE AN EXISTING RELATIONSHIP (other type, other lag, other ' +
+    'predecessor/successor)? Use planner_update_dependencies with the sequence id — NOT ' +
+    'remove-and-add-again: that loses the id and produces two undo steps.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -947,7 +948,7 @@ function removeDependenciesCore(ctx: McpContext, ids: string[]): MutationOutcome
   const removed: string[] = [];
   for (const id of ids) {
     if (st.sequences.some((s) => s.id === id)) { toRemove.add(id); removed.push(id); }
-    else rejections.push({ id, reason: `relatie '${id}' bestaat niet` });
+    else rejections.push({ id, reason: `relationship '${id}' does not exist` });
   }
   if (toRemove.size > 0) {
     ctx.app.store.setState((s) => {
@@ -961,10 +962,10 @@ function removeDependenciesCore(ctx: McpContext, ids: string[]): MutationOutcome
 const removeDependencies: BatchStepTool = {
   name: 'planner_remove_dependencies',
   description:
-    'Verwijder relaties DEFINITIEF op hun sequence-id (zoals get_project_overview / get_task die ' +
-    'teruggeven). Een onbekend id wordt per item zacht geweigerd. Retourneert de verwijderde id\'s en ' +
-    'het nieuwe projecteinde. Wil je een relatie alleen AANPASSEN (type, lag, voorganger/opvolger)? ' +
-    'Gebruik planner_update_dependencies — verwijderen en opnieuw toevoegen is daarvoor niet de route.',
+    'Delete relationships PERMANENTLY by their sequence id (as get_project_overview / get_task return them). ' +
+    'An unknown id is softly refused per item. Returns the deleted ids and the new project end. Do you only ' +
+    'want to CHANGE a relationship (type, lag, predecessor/successor)? Use planner_update_dependencies — ' +
+    'deleting and adding again is not the route for that.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS, destructiveHint: true },
@@ -985,7 +986,7 @@ const removeDependencies: BatchStepTool = {
       const st = ctx.app.store.getState();
       const existing = new Set(st.sequences.map((s) => s.id));
       if (!ids.some((id) => existing.has(id))) {
-        const rej = ids.map((id) => ({ id, reason: `relatie '${id}' bestaat niet` }));
+        const rej = ids.map((id) => ({ id, reason: `relationship '${id}' does not exist` }));
         return okDirectGuarded(ctx, { removed: [], projectEnd: projectEndInfo(st).projectEnd }, rej);
       }
     }
@@ -1028,7 +1029,7 @@ function historyStep(ctx: Parameters<McpToolDef['handler']>[1], dir: 'undo' | 'r
       undoDepth: depthsAfter.undoDepth,
       redoDepth: depthsAfter.redoDepth,
       projectEnd: after.cpmResult?.projectEnd ?? '',
-      ...(done ? {} : { reason: `de toepasbare ${dir}-geschiedenis is leeg; er is niets ${dir === 'undo' ? 'teruggedraaid' : 'opnieuw uitgevoerd'}` }),
+      ...(done ? {} : { reason: `the applicable ${dir} history is empty; nothing was ${dir === 'undo' ? 'undone' : 'redone'}` }),
     },
   };
 }
@@ -1036,12 +1037,11 @@ function historyStep(ctx: Parameters<McpToolDef['handler']>[1], dir: 'undo' | 'r
 const undo: McpToolDef = {
   name: 'planner_undo',
   description:
-    'Maak de laatste ongedaan-maakbare wijziging in het ACTIEVE document ongedaan (één stap). Controleer ' +
-    'ALTIJD `undone` in het antwoord: zonder toepasbaar sessie-event blijft de call `ok` maar is `undone` false ' +
-    '(met `reason`) — `ok` alleen betekent dus niet dat er iets is teruggedraaid. `undoDepth`/`redoDepth` ' +
-    'geven alleen de resterende, voor het actieve document toepasbare sessiediepte. Globale gridvoorkeuren ' +
-    'tellen mee; events van andere geopende documenten niet. De geschiedenis wordt GEDEELD met de gebruiker. Voor ' +
-    'wat-als-werk: gebruik duplicate_document, niet undo.',
+    'Undo the last undoable change in the ACTIVE document (one step). ALWAYS check `undone` in the answer: ' +
+    'without an applicable session event the call stays `ok` but `undone` is false (with `reason`) — so `ok` ' +
+    'alone does not mean that anything was undone. `undoDepth`/`redoDepth` only give the remaining session ' +
+    'depth applicable to the active document. Global grid preferences count; events of other open documents ' +
+    'do not. The history is SHARED with the user. For what-if work: use duplicate_document, not undo.',
   kind: 'other',
   batchable: false,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -1052,11 +1052,10 @@ const undo: McpToolDef = {
 const redo: McpToolDef = {
   name: 'planner_redo',
   description:
-    'Herhaal de laatst ongedaan gemaakte wijziging in het ACTIEVE document (één stap). Controleer ALTIJD ' +
-    '`redone` in het antwoord: bij een lege redo-stack blijft de call `ok` maar is `redone` false (met ' +
-    '`reason`). `undoDepth`/`redoDepth` geven de resterende, voor het actieve document toepasbare ' +
-    'sessiediepte. Globale gridvoorkeuren tellen mee; events van andere documenten niet. Een nieuwe ' +
-    'wijziging wist alleen botsende redo-scopes.',
+    'Redo the last undone change in the ACTIVE document (one step). ALWAYS check `redone` in the answer: ' +
+    'with an empty redo stack the call stays `ok` but `redone` is false (with `reason`). ' +
+    '`undoDepth`/`redoDepth` give the remaining session depth applicable to the active document. Global grid ' +
+    'preferences count; events of other documents do not. A new change only clears conflicting redo scopes.',
   kind: 'other',
   batchable: false,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -1071,8 +1070,8 @@ const redo: McpToolDef = {
  *  `planTaskSplits` (die kent de taak, en dus de eenheid). */
 function parseSetTaskSplits(args: unknown): { taskId: string; interruptions: unknown[] } | string {
   const a = (args ?? {}) as { taskId?: unknown; interruptions?: unknown };
-  if (typeof a.taskId !== 'string' || a.taskId === '') return 'set_task_splits vereist een `taskId`';
-  if (!Array.isArray(a.interruptions)) return 'set_task_splits vereist een `interruptions`-array (leeg = alle onderbrekingen opheffen)';
+  if (typeof a.taskId !== 'string' || a.taskId === '') return 'set_task_splits requires a `taskId`';
+  if (!Array.isArray(a.interruptions)) return 'set_task_splits requires an `interruptions` array (empty = clear all interruptions)';
   return { taskId: a.taskId, interruptions: a.interruptions };
 }
 
@@ -1083,7 +1082,7 @@ function planSplitsFor(
   p: { taskId: string; interruptions: unknown[] },
 ): { ok: true; pieces: SplitPiece[] | null } | { ok: false; code: 'NOT_FOUND' | 'VALIDATION'; reason: string } {
   const task = st.tasks.find((t) => t.id === p.taskId);
-  if (!task) return { ok: false, code: 'NOT_FOUND', reason: `taak '${p.taskId}' bestaat niet` };
+  if (!task) return { ok: false, code: 'NOT_FOUND', reason: `task '${p.taskId}' does not exist` };
   const plan = planTaskSplits(task, p.interruptions, st);
   return plan.ok ? plan : { ok: false, code: 'VALIDATION', reason: plan.reason };
 }
@@ -1096,7 +1095,7 @@ function setTaskSplitsCore(ctx: McpContext, p: { taskId: string; interruptions: 
   const plan = planSplitsFor(ctx.app.store.getState(), p);
   if (!plan.ok) throw new McpStepError(plan.code, plan.reason);
   const refusal = ctx.transactions.draft.setTaskSplits(p.taskId, plan.pieces);
-  if (refusal) throw new McpStepError('VALIDATION', `taak '${p.taskId}': onderbreken geweigerd (${refusal})`);
+  if (refusal) throw new McpStepError('VALIDATION', `task '${p.taskId}': interruption refused (${refusal})`);
   return { data: splitsReport(ctx.app.store.getState(), p.taskId) };
 }
 
@@ -1115,17 +1114,17 @@ function splitsReport(st: AppState, taskId: string) {
 const setTaskSplits: BatchStepTool = {
   name: 'planner_set_task_splits',
   description:
-    'Zet de ONDERBREKINGEN van één taak (werk dat wordt opgeschort en later hervat, bijv. twee projecten ' +
-    'die elkaar afwisselen) — liever dan de taak in losse taken op te knippen. `interruptions` vervangt ' +
-    'de hele lijst; een LEGE lijst heft alle onderbrekingen op. Posities staan op de WERK-as, zonder ' +
-    'pauzes: `afterWorkDays: 5` = na vijf werkdagen werk vanaf de taakstart, `pauseDays: 3` = drie ' +
-    'werkdagen stilstand. Een uur-taak (`durationUnit: "hours"`) gebruikt `afterWorkHours`/`pauseHours`; ' +
-    'de eenheid volgt de taak en dag- en uursleutels mengen wordt geweigerd. Alleen hele eenheden, geen ' +
-    'stille afronding. De werkduur blijft gelijk; de taak wordt langer met de pauzes. Niet splitsbaar: ' +
-    'mijlpalen, verzameltaken, hammocks, ELAPSEDTIME-taken, handmatig geplande taken, taken korter dan ' +
-    'twee eenheden, en niet-bewerkbare importsplits (die kun je alleen opheffen). Een positie in al ' +
-    'verricht werk wordt geweigerd. Alles-of-niets: één fout item ⇒ foutantwoord met de index, niets ' +
-    'geschreven. Leesvorm: planner_get_task geeft dezelfde `interruptions` terug.',
+    'Set the INTERRUPTIONS of one task (work that is suspended and resumed later, e.g. two projects that ' +
+    'alternate) — rather than cutting the task into separate tasks. `interruptions` replaces the whole list; ' +
+    'an EMPTY list clears all interruptions. Positions are on the WORK axis, without pauses: `afterWorkDays: ' +
+    '5` = after five working days of work from the task start, `pauseDays: 3` = three working days of ' +
+    'standstill. An hour task (`durationUnit: "hours"`) uses `afterWorkHours`/`pauseHours`; the unit follows ' +
+    'the task and mixing day and hour keys is refused. Whole units only, no silent rounding. The work ' +
+    'duration stays the same; the task gets longer by the pauses. Not splittable: milestones, summary tasks, ' +
+    'hammocks, ELAPSEDTIME tasks, manually scheduled tasks, tasks shorter than two units, and non-editable ' +
+    'imported splits (those you can only clear). A position in work already performed is refused. ' +
+    'All-or-nothing: one wrong item ⇒ error answer with the index, nothing written. Read form: ' +
+    'planner_get_task returns the same `interruptions`.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS, idempotentHint: true },
@@ -1135,14 +1134,14 @@ const setTaskSplits: BatchStepTool = {
       taskId: { type: 'string' },
       interruptions: {
         type: 'array',
-        description: 'De volledige nieuwe lijst onderbrekingen (leeg = alles opheffen), in willekeurige volgorde.',
+        description: 'The complete new list of interruptions (empty = clear all), in any order.',
         items: {
           type: 'object',
           properties: {
-            afterWorkDays: { type: 'number', minimum: 0, description: 'Werkdagen werk vóór de onderbreking (dag-taak).' },
-            afterWorkHours: { type: 'number', minimum: 0, description: 'Werkuren werk vóór de onderbreking (uur-taak).' },
-            pauseDays: { type: 'number', minimum: 0, description: 'Lengte van de onderbreking in werkdagen (dag-taak).' },
-            pauseHours: { type: 'number', minimum: 0, description: 'Lengte van de onderbreking in werkuren (uur-taak).' },
+            afterWorkDays: { type: 'number', minimum: 0, description: 'Working days of work before the interruption (day task).' },
+            afterWorkHours: { type: 'number', minimum: 0, description: 'Working hours of work before the interruption (hour task).' },
+            pauseDays: { type: 'number', minimum: 0, description: 'Length of the interruption in working days (day task).' },
+            pauseHours: { type: 'number', minimum: 0, description: 'Length of the interruption in working hours (hour task). ' },
           },
           additionalProperties: false,
         },

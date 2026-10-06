@@ -208,14 +208,14 @@ export function describePhaseRefusal(
 ): string {
   const phase = `'${taskName(s, refusal.phaseId)}' (${refusal.phaseId})`;
   if (refusal.kind === 'noAssignableChild') {
-    return `taak ${phase} heeft resource-toewijzingen en zou hierdoor een fase worden, maar geen van de nieuwe `
-      + 'subtaken mag toewijzingen dragen (alleen mijlpalen of fasen); een fase draagt zelf geen toewijzingen. '
-      + 'Verplaats of verwijder eerst de toewijzingen (planner_manage_assignments) — er is niets gewijzigd';
+    return `task ${phase} has resource assignments and would become a phase as a result, but none of the new ` +
+      'subtasks may carry assignments (only milestones or phases); a phase itself carries no assignments. ' +
+      'Move or remove the assignments first (planner_manage_assignments) — nothing was changed';
   }
-  return `taak ${phase} zou hierdoor een fase worden; haar toewijzing van resource '${resourceName(s, refusal.resourceId)}' `
-    + `kan niet naar de eerste nieuwe subtaak '${taskName(s, refusal.childId, pending)}' verhuizen, want die heeft die `
-    + 'resource al (één toewijzing per resource per taak). Pas eerst de toewijzingen aan (planner_manage_assignments) '
-    + '— er is niets gewijzigd';
+  return `task ${phase} would become a phase as a result; its assignment of resource '` +
+    `${resourceName(s, refusal.resourceId)}' cannot move to the first new subtask '` +
+    `${taskName(s, refusal.childId, pending)}', because that one already has that resource (one assignment ` +
+    'per resource per task). Adjust the assignments first (planner_manage_assignments) — nothing was changed ';
 }
 
 /** De meldingen na een geslaagde overgang (lees NA `applyPhaseTransitions`, roep `notify` buiten de producer). */

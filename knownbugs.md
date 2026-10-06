@@ -93,6 +93,34 @@ en noem het in je rapport of PR-tekst.
     (review #261, punt O2). — S
 65. **Andere extensies kunnen `host:`-events uitzenden** via `api.events.emit` (`extensionApi.ts:~322`;
     review #261, punt O3). — S
+73. **De MCP-leestools rekenen een verouderde planning niet bij.** `planner_get_project_info`,
+    `planner_get_critical_path` (en `list_tasks`/`get_task`/`compare_baseline`/`analyze_delay`) lezen
+    `cpmResult` zoals hij is; alleen `get_resource_histogram`, `level_resources` en `save_baseline` roepen
+    `ensureFreshSchedule` aan. Na een handmatige wijziging in de app (zonder *Automatisch berekenen*) geven ze
+    het oude projecteinde met `scheduleStale: true`, en sinds `planner_run_cpm` weg is kan de agent dat alleen
+    nog verversen met een mutatie die echt iets wijzigt (ook "datums zoals opgeslagen" verlaten kan dan niet
+    meer los). Nagespeeld met een script tegen de echte dispatcher: duur 5 → 20 via de store, beide leestools
+    bleven op het oude einde. Voorstel: `ensureFreshSchedule` in die leestools (de `readOnlyHint` blijft
+    kloppen, zie de kop van `staleGuard.ts`). — B
+74. **Nederlandse parameternamen en enumwaarden in het MCP-contract.** Na de vertaling naar Engels zijn deze
+    sleutels bewust gebleven (ze zijn invoercontract): `planner_list_tasks` `kritiek`/`van`/`tot`/
+    `zonder_relaties`, `planner_get_resource_histogram` `van`/`tot` en `bucket: dag|week|maand`,
+    `update_calendar` `generate.bouwvak: geen|noord|midden|zuid`, en de stapstatus van `planner_batch`
+    (`uitgevoerd`/`gefaald`/`niet bereikt`). De beschrijvingen leggen ze in het Engels uit. Voorstel: Engelse
+    aliassen, oude namen nog een tijd accepteren. — B
+75. **AI-activiteitenpaneel toont tekst die niet via `t(...)` loopt.** De vaste markeringen
+    "onparseerbaar request", "onparseerbaar antwoord", "fout" (`services/mcp/server.ts:~274/285/293`) en
+    "… afgekapt" (`activityLog.ts`, `TRUNCATE_MARKER`) zijn hardgecodeerd Nederlands; daarnaast toont het
+    paneel de rauwe foutmelding van een tool (sinds de vertaling Engels) en de rauwe JSON. Ook de knop
+    *Nu backup maken* zet de rauwe foutmelding (`backup.ts` `makeManualBackup`, Nederlands) in
+    `aiSafety.backupErr`. Voorstel: in het paneel de foutcode (`code`) via `t(...)` tonen en de ruwe tekst
+    als detail. — B
+76. **Nog Nederlandse tekst die via MCP bij de agent kan komen, buiten de vertaalde MCP-laag.** De
+    solverfouten uit `scheduleErrorLegacyText` (`CPMSolver.ts:~339`, bv. "Kalender heeft geen werkdagen
+    ingesteld"; MCP én extensies lezen die letterlijk), de fout van `planner_get_planning_guide` als de gids
+    niet laadt (`guideTools.ts:~141`), en meldingen uit gedeelde importcode die `import_schedule` doorgeeft
+    (bv. `formatRegistry.ts:~99` "Onbekend XML-formaat…", `xerSourceArchive.ts`, `libraryOps.ts`). Of elk
+    importpad werkelijk bij de agent uitkomt is afgeleid, niet nagespeeld. — S (solver en gids: B)
 
 ## Bestanden en herstel
 

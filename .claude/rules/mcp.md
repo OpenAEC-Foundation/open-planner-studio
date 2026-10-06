@@ -29,6 +29,9 @@ binnen `planner_batch` — een draaiboek mag de poort niet omzeilen), `toolRegis
 baselines, documenten/bestanden, leestools, XER/P6-bronprovenance, en `planner_batch` als transactionele executor met
 temp-id-resolutie).
 
+Alles wat de agent via MCP leest (tool- en schema-beschrijvingen, foutmeldingen, waarschuwingen, `MCP_INSTRUCTIONS`)
+is Engels; codecommentaar blijft Nederlands.
+
 Veiligheid is state, geen conventie: `ui.aiMode` (de hele AI-tab en bridge verschijnen pas hierdoor),
 `ui.aiPaused`, `ui.aiReadOnly` en `ui.aiServerStatus` leven in `uiSlice`; de per-request `McpContext`
 leest ze live, plus een drift-anker (`expectedDocId`) zodat een tool nooit op het verkeerde document

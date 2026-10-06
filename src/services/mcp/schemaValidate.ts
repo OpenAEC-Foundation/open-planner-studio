@@ -143,7 +143,7 @@ function walk(schema: Json, value: Json, path: string, out: string[], deepArrayI
   if (typeof t === 'string' || Array.isArray(t)) {
     const wanted = (Array.isArray(t) ? t : [t]).filter((x): x is string => typeof x === 'string');
     if (wanted.length > 0 && !wanted.some((w) => matchesType(value, w))) {
-      out.push(violation(path, `verwacht ${wanted.join(' of ')}, kreeg ${gotLabel(value)}`));
+      out.push(violation(path, `expected ${wanted.join(' or ')}, got ${gotLabel(value)}`));
       // Type klopt niet ⇒ de overige trefwoorden zouden alleen ruis opleveren.
       return;
     }
@@ -156,7 +156,7 @@ function walk(schema: Json, value: Json, path: string, out: string[], deepArrayI
     // als vangnet voor het onwaarschijnlijke geval van een samengestelde enum-waarde.
     const hit = allowed.some((a) => a === value || (typeof a === 'object' && JSON.stringify(a) === JSON.stringify(value)));
     if (!hit) {
-      out.push(violation(path, `moet één van [${allowed.map((a) => show(a)).join(', ')}] zijn, kreeg ${show(value)}`));
+      out.push(violation(path, `must be one of [${allowed.map((a) => show(a)).join(', ')}], got ${show(value)}`));
     }
   }
 
@@ -165,30 +165,30 @@ function walk(schema: Json, value: Json, path: string, out: string[], deepArrayI
     let re: RegExp | null = null;
     try { re = new RegExp(schema.pattern); } catch { re = null; }
     if (re && !re.test(value)) {
-      out.push(violation(path, `voldoet niet aan het verwachte patroon /${schema.pattern}/, kreeg ${show(value)}`));
+      out.push(violation(path, `does not match the expected pattern /${schema.pattern}/, got ${show(value)}`));
     }
   }
 
   // --- getal-trefwoorden ------------------------------------------------------------------------
   if (typeof value === 'number' && Number.isFinite(value)) {
     if (typeof schema.minimum === 'number' && value < schema.minimum) {
-      out.push(violation(path, `moet ≥ ${schema.minimum} zijn, kreeg ${value}`));
+      out.push(violation(path, `must be ≥ ${schema.minimum}, got ${value}`));
     }
     if (typeof schema.maximum === 'number' && value > schema.maximum) {
-      out.push(violation(path, `moet ≤ ${schema.maximum} zijn, kreeg ${value}`));
+      out.push(violation(path, `must be ≤ ${schema.maximum}, got ${value}`));
     }
     if (typeof schema.exclusiveMinimum === 'number' && value <= schema.exclusiveMinimum) {
-      out.push(violation(path, `moet > ${schema.exclusiveMinimum} zijn, kreeg ${value}`));
+      out.push(violation(path, `must be > ${schema.exclusiveMinimum}, got ${value}`));
     }
   }
 
   // --- array-trefwoorden ------------------------------------------------------------------------
   if (Array.isArray(value)) {
     if (typeof schema.minItems === 'number' && value.length < schema.minItems) {
-      out.push(violation(path, `verwacht minstens ${schema.minItems} item(s), kreeg ${value.length}`));
+      out.push(violation(path, `expected at least ${schema.minItems} item(s), got ${value.length}`));
     }
     if (typeof schema.maxItems === 'number' && value.length > schema.maxItems) {
-      out.push(violation(path, `verwacht hoogstens ${schema.maxItems} item(s), kreeg ${value.length}`));
+      out.push(violation(path, `expected at most ${schema.maxItems} item(s), got ${value.length}`));
     }
     if (isPlainObject(schema.items)) {
       for (let i = 0; i < value.length; i++) {
@@ -210,7 +210,7 @@ function walk(schema: Json, value: Json, path: string, out: string[], deepArrayI
       for (const key of schema.required) {
         if (typeof key !== 'string') continue;
         if (!(key in value) || value[key] === undefined) {
-          out.push(violation(path, `verplicht veld \`${key}\` ontbreekt`));
+          out.push(violation(path, `required field \`${key}\` is missing`));
         }
       }
     }
@@ -218,7 +218,7 @@ function walk(schema: Json, value: Json, path: string, out: string[], deepArrayI
       const allowed = Object.keys(props);
       for (const key of Object.keys(value)) {
         if (!allowed.includes(key)) {
-          out.push(violation(path, `onbekend veld \`${key}\`; toegestaan: ${allowed.join(', ')}`));
+          out.push(violation(path, `unknown field \`${key}\`; allowed: ${allowed.join(', ')}`));
         }
       }
     }
@@ -257,7 +257,7 @@ export function validateToolArgs(
   // Cap: bij een volledig verkeerd gevormde call zijn de eerste paar regels informatief, de rest ruis.
   const shown = out.slice(0, 8);
   const rest = out.length - shown.length;
-  return shown.join('; ') + (rest > 0 ? ` (+${rest} verdere schending(en))` : '');
+  return shown.join('; ') + (rest > 0 ? ` (+${rest} more violation(s)) ` : '');
 }
 
 /**

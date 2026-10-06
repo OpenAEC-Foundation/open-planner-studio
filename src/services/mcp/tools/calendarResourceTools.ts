@@ -62,7 +62,7 @@ import {
  * filteren vóór de mutatie, als ZACHTE per-item-weigering die de geldige waarden noemt.
  */
 const curveReason = (v: unknown): string =>
-  `onbekende curve '${String(v)}'; geldige waarden zijn ${RESOURCE_CURVES.join(', ')} (hoofdlettergevoelig)`;
+  `unknown curve '${String(v)}'; valid values are ${RESOURCE_CURVES.join(', ')} (case-sensitive)`;
 
 type Rejection = { id: string; reason: string };
 type StoreState = AppState;
@@ -199,25 +199,25 @@ function clockLabel(min: number): string {
   const m = ((min % MIN_PER_DAY) + MIN_PER_DAY) % MIN_PER_DAY;
   const hh = String(Math.floor(m / 60)).padStart(2, '0');
   const mm = String(Math.round(m % 60)).padStart(2, '0');
-  return `${hh}:${mm}${wrapped ? ' (volgende dag)' : ''}`;
+  return `${hh}:${mm}${wrapped ? ' (next day)' : ''}`;
 }
 
 /** Vormvalidatie van een feestdagenlijst (gedeeld door `rawHolidays` en `holidays`). De leesvorm eist
  *  een expliciete `endDate`; of de regel bruikbaar is (einde niet vóór begin) is dezelfde regel als
  *  in de kalenderdialogen (`holidayIssue`). */
 function holidayListReason(list: unknown, field: string): string | null {
-  if (!Array.isArray(list)) return `\`${field}\` moet een array zijn`;
+  if (!Array.isArray(list)) return `\`${field}\` must be an array`;
   for (const h of list as unknown[]) {
-    if (!h || typeof h !== 'object' || Array.isArray(h)) return `elk item in \`${field}\` moet een object zijn`;
+    if (!h || typeof h !== 'object' || Array.isArray(h)) return `every item in \`${field}\` must be an object`;
     const hh = h as Record<string, unknown>;
-    if (typeof hh.name !== 'string' || hh.name === '') return `elke \`${field}\`-uitzondering vereist een niet-lege \`name\``;
+    if (typeof hh.name !== 'string' || hh.name === '') return `every \`${field}\` exception requires a non-empty \`name\``;
     for (const k of ['startDate', 'endDate'] as const) {
       if (typeof hh[k] !== 'string' || !ISO_DATE_ONLY.test(hh[k] as string)) {
-        return `\`${field}.${k}\` moet een ISO-datum zijn (JJJJ-MM-DD), kreeg '${String(hh[k])}'`;
+        return `\`${field}.${k}\` must be an ISO date (YYYY-MM-DD), got '${String(hh[k])}'`;
       }
     }
     if (holidayIssue({ startDate: hh.startDate as string, endDate: hh.endDate as string }) === 'endBeforeStart') {
-      return `\`${field}\`: endDate '${String(hh.endDate)}' ligt vóór startDate '${String(hh.startDate)}'`;
+      return `\`${field}\`: endDate '${String(hh.endDate)}' lies before startDate '${String(hh.startDate)}'`;
     }
   }
   return null;
@@ -238,26 +238,26 @@ function holidayListReason(list: unknown, field: string): string | null {
  */
 function workTimeReason(wt: unknown): string | null {
   if (!wt || typeof wt !== 'object' || Array.isArray(wt)) {
-    return '`workTime` moet een object zijn met `byWeekday` (of `null` om terug te gaan naar een DAG-kalender)';
+    return '`workTime` must be an object with `byWeekday` (or `null` to go back to a DAY calendar)';
   }
   for (const k of Object.keys(wt)) {
-    if (k !== 'byWeekday') return `onbekend veld \`workTime.${k}\`; \`workTime\` kent alleen \`byWeekday\``;
+    if (k !== 'byWeekday') return `unknown field \`workTime.${k}\`; \`workTime\` only knows \`byWeekday\``;
   }
   const bw = (wt as { byWeekday?: unknown }).byWeekday;
   if (!bw || typeof bw !== 'object' || Array.isArray(bw)) {
-    return '`workTime.byWeekday` moet een object zijn met de weekdagsleutels "1" t/m "7" (1 = maandag … 7 = zondag)';
+    return '`workTime.byWeekday` must be an object with the weekday keys "1" to "7" (1 = Monday … 7 = Sunday)';
   }
   const rec = bw as Record<string, unknown>;
   for (const k of Object.keys(rec)) {
     if (!WEEKDAY_KEYS.includes(k)) {
-      return `onbekende dagsleutel \`workTime.byWeekday.${k}\`; geldige sleutels zijn "1" t/m "7" (1 = maandag … 7 = zondag)`;
+      return `unknown day key \`workTime.byWeekday.${k}\`; valid keys are "1" to "7" (1 = Monday … 7 = Sunday)`;
     }
   }
   const missing = WEEKDAY_KEYS.filter((k) => rec[k] === undefined);
   if (missing.length > 0) {
-    return `\`workTime.byWeekday\` moet ALLE weekdagen "1" t/m "7" bevatten (ontbreekt: ${missing.join(', ')}); ` +
-      'een dag met een lege lijst [] is niet-werkend. Een gedeeltelijke opgave zou de ontbrekende dagen ' +
-      'STIL niet-werkend maken — geef de volledige week (bijv. een lezing van planner_get_calendars).';
+    return `\`workTime.byWeekday\` must contain ALL weekdays "1" to "7" (missing: ${missing.join(', ')}); a ` +
+      'day with an empty list [] is non-working. A partial specification would SILENTLY make the missing ' +
+      'days non-working — give the complete week (e.g. a reading from planner_get_calendars).';
   }
   const firstBandOf = (key: string): { start: number; end: number } | undefined => {
     const l = rec[key];
@@ -265,7 +265,7 @@ function workTimeReason(wt: unknown): string | null {
   };
   for (const key of WEEKDAY_KEYS) {
     const list = rec[key];
-    if (!Array.isArray(list)) return `\`workTime.byWeekday.${key}\` moet een array van banden zijn ([] = niet-werkende dag)`;
+    if (!Array.isArray(list)) return `\`workTime.byWeekday.${key}\` must be an array of bands ([] = non-working day)`;
     const bad = bandListReason(list, `workTime.byWeekday.${key}`);
     if (bad) return bad;
     const prevEnd = list.length > 0 ? (list[list.length - 1] as { end: number }).end : -1;
@@ -274,7 +274,7 @@ function workTimeReason(wt: unknown): string | null {
       const nextKey = key === '7' ? '1' : String(Number(key) + 1);
       const next = firstBandOf(nextKey);
       if (next && isFiniteNumber(next.start) && next.start < prevEnd - MIN_PER_DAY) {
-        return `\`workTime.byWeekday.${key}\`: de band loopt door tot ${clockLabel(prevEnd)} en overlapt de eerste band van dag ${nextKey} (${clockLabel(next.start)})`;
+        return `\`workTime.byWeekday.${key}\`: the band runs until ${clockLabel(prevEnd)} and overlaps the first band of day ${nextKey} (${clockLabel(next.start)})`;
       }
     }
   }
@@ -290,29 +290,30 @@ function bandListReason(list: unknown[], label: string): string | null {
   let prevEnd = -1;
   for (const raw of list) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-      return `elke band in \`${label}\` moet een object {start, end} zijn (minuten vanaf middernacht)`;
+      return `every band in \`${label}\` must be an object {start, end} (minutes from midnight)`;
     }
     const b = raw as Record<string, unknown>;
     for (const k of Object.keys(b)) {
-      if (k !== 'start' && k !== 'end') return `onbekend veld \`${label}[].${k}\`; een band kent alleen \`start\` en \`end\``;
+      if (k !== 'start' && k !== 'end') return `unknown field \`${label}[].${k}\`; a band only knows \`start\` and \`end\``;
     }
     if (!isFiniteNumber(b.start) || !isFiniteNumber(b.end)) {
-      return `\`${label}\`: \`start\` en \`end\` moeten getallen zijn in MINUTEN vanaf middernacht (07:00 = 420)`;
+      return `\`${label}\`: \`start\` and \`end\` must be numbers in MINUTES from midnight (07:00 = 420)`;
     }
     const start = b.start;
     const end = b.end;
     if (start < 0 || start >= MIN_PER_DAY) {
-      return `\`${label}\`: \`start\` ${start} valt buiten de dag; geldig is 0 t/m 1439 minuten vanaf middernacht (0:00–23:59)`;
+      return `\`${label}\`: \`start\` ${start} falls outside the day; valid is 0 to 1439 minutes from midnight (0:00–23:59)`;
     }
     if (end <= start) {
-      return `\`${label}\`: \`end\` ${end} (${clockLabel(end)}) ligt niet ná \`start\` ${start} (${clockLabel(start)}). ` +
-        'Een dienst over middernacht telt DOOR in minuten: 22:00→06:00 is start 1320, end 1800 — niet 1320→360.';
+      return `\`${label}\`: \`end\` ${end} (${clockLabel(end)}) does not lie after \`start\` ${start} (` +
+        `${clockLabel(start)}). A shift across midnight keeps COUNTING in minutes: 22:00→06:00 is start ` +
+        '1320, end 1800 — not 1320→360.';
     }
     if (end > 2 * MIN_PER_DAY) {
-      return `\`${label}\`: \`end\` ${end} overschrijdt 2880 (een band mag hoogstens 24 uur na middernacht van de startdag eindigen)`;
+      return `\`${label}\`: \`end\` ${end} exceeds 2880 (a band may end at most 24 hours after midnight of the start day)`;
     }
     if (start < prevEnd) {
-      return `\`${label}\`: de banden overlappen of staan niet op volgorde (band vanaf ${clockLabel(start)} begint vóór het einde ${clockLabel(prevEnd)} van de vorige); geef ze oplopend en niet-overlappend`;
+      return `\`${label}\`: the bands overlap or are out of order (band from ${clockLabel(start)} starts before the end ${clockLabel(prevEnd)} of the previous one); give them ascending and non-overlapping`;
     }
     prevEnd = end;
   }
@@ -328,12 +329,12 @@ function workingExceptionsReason(list: unknown): string | null {
   for (const raw of list as Record<string, unknown>[]) {
     for (const k of Object.keys(raw)) {
       if (!['name', 'startDate', 'endDate', 'bands'].includes(k)) {
-        return `onbekend veld \`${field}[].${k}\`; een werkende uitzondering kent alleen name, startDate, endDate en (optioneel) bands`;
+        return `unknown field \`${field}[].${k}\`; a working exception only knows name, startDate, endDate and (optionally) bands`;
       }
     }
     if (raw.bands === undefined) continue;
     if (!Array.isArray(raw.bands)) {
-      return `\`${field}[].bands\` moet een array van banden zijn (weglaten = de gewone werktijd van de kalender)`;
+      return `\`${field}[].bands\` must be an array of bands (omitted = the normal working time of the calendar)`;
     }
     const bad = bandListReason(raw.bands, `${field}[].bands`);
     if (bad) return bad;
@@ -344,50 +345,51 @@ function workingExceptionsReason(list: unknown): string | null {
 /** Leesbare reden bij een ongeldig pauzepatroon (zelfde regels als de kalenderdialoog). */
 function scalarBreakReason(issue: ScalarBreakIssue, cal: Pick<WorkCalendar, 'workStartHour' | 'workEndHour' | 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'>): string {
   const day = `${clockLabel(cal.workStartHour * 60)}–${clockLabel(cal.workEndHour * 60)}`;
-  const pause = `pauze vanaf ${clockLabel(cal.simpleBreakStartMinute ?? 12 * 60)}, ${String(cal.simpleBreakDurationMinutes ?? 0)} min`;
+  const pause = `break from ${clockLabel(cal.simpleBreakStartMinute ?? 12 * 60)}, ${String(cal.simpleBreakDurationMinutes ?? 0)} min`;
   switch (issue) {
     case 'invalidDuration':
-      return '`simpleBreakDurationMinutes` moet een geheel aantal minuten van 0 of meer zijn (0 = geen pauze)';
+      return '`simpleBreakDurationMinutes` must be a whole number of minutes of 0 or more (0 = no break)';
     case 'outsideWorkingDay':
-      return `de ${pause} moet volledig binnen de werkdag ${day} vallen (\`simpleBreakStartMinute\`/\`simpleBreakDurationMinutes\` in MINUTEN, 12:30 = 750)`;
+      return `the ${pause} must fall entirely within the working day ${day} (\`simpleBreakStartMinute\`/\`simpleBreakDurationMinutes\` in MINUTES, 12:30 = 750)`;
     case 'consumesWorkingDay':
-      return `de ${pause} beslaat de hele werkdag ${day}; er blijft geen werktijd over`;
+      return `the ${pause} covers the whole working day ${day}; no working time is left`;
   }
 }
 
 /** Vormvalidatie van `generation` (de LEESVORM van de herkomst-metadata). */
 function generationReason(gen: unknown): string | null {
   if (!gen || typeof gen !== 'object' || Array.isArray(gen)) {
-    return '`generation` moet een object zijn zoals get_calendars het teruggeeft ' +
-      '(`ruleSetId`, optioneel `region`/`breakChoice`, `generatedFromYear`, `generatedToYear`), of `null` om de herkomst te wissen';
+    return '`generation` must be an object as get_calendars returns it (`ruleSetId`, optionally ' +
+      '`region`/`breakChoice`, `generatedFromYear`, `generatedToYear`), or `null` to clear the provenance';
   }
   const g = gen as Record<string, unknown>;
   const allowed = ['ruleSetId', 'region', 'breakChoice', 'generatedFromYear', 'generatedToYear'];
   for (const k of Object.keys(g)) {
     if (!allowed.includes(k)) {
       if (k === 'country' || k === 'bouwvak') {
-        return `\`generation.${k}\` bestaat niet; dat zijn de sleutels van \`generate\` (de GENERATOR). ` +
-          'In `generation` (de leesvorm) heten ze `ruleSetId` en `breakChoice`.';
+        return `\`generation.${k}\` does not exist; those are the keys of \`generate\` (the GENERATOR). In ` +
+          '`generation` (the read form) they are called `ruleSetId` and `breakChoice`.';
       }
-      return `onbekend veld \`generation.${k}\`; toegestaan: ${allowed.join(', ')}`;
+      return `unknown field \`generation.${k}\`; allowed: ${allowed.join(', ')}`;
     }
   }
   if (!(GEN_RULESETS as string[]).includes(g.ruleSetId as string)) {
-    return `onbekende \`generation.ruleSetId\` '${String(g.ruleSetId)}'; geldige waarden zijn ${GEN_RULESETS.join(', ')} ` +
-      "(hoofdlettergevoelig; 'none' bestaat hier niet — laat `generation` weg of geef `null` voor een letterlijke kalender)";
+    return `unknown \`generation.ruleSetId\` '${String(g.ruleSetId)}'; valid values are ` +
+      `${GEN_RULESETS.join(', ')} (case-sensitive; 'none' does not exist here — leave \`generation\` out or ` +
+      'give `null` for a literal calendar)';
   }
-  if (g.region !== undefined && typeof g.region !== 'string') return '`generation.region` moet een string zijn';
+  if (g.region !== undefined && typeof g.region !== 'string') return '`generation.region` must be a string';
   if (g.breakChoice !== undefined && !BREAK_CHOICES.includes(g.breakChoice as string)) {
-    return `onbekende \`generation.breakChoice\` '${String(g.breakChoice)}'; geldige waarden zijn ${BREAK_CHOICES.join(', ')} ` +
-      '(géén bouwvak = het veld weglaten)';
+    return `unknown \`generation.breakChoice\` '${String(g.breakChoice)}'; valid values are ` +
+      `${BREAK_CHOICES.join(', ')} (NO construction holiday = leave the field out)`;
   }
   for (const k of ['generatedFromYear', 'generatedToYear'] as const) {
     if (!Number.isInteger(g[k]) || (g[k] as number) < 1000 || (g[k] as number) > 9999) {
-      return `\`generation.${k}\` moet een jaartal zijn (geheel getal, 1000–9999), kreeg '${String(g[k])}'`;
+      return `\`generation.${k}\` must be a year (integer, 1000–9999), got '${String(g[k])}'`;
     }
   }
   if ((g.generatedToYear as number) < (g.generatedFromYear as number)) {
-    return `\`generation.generatedToYear\` (${String(g.generatedToYear)}) ligt vóór \`generatedFromYear\` (${String(g.generatedFromYear)})`;
+    return `\`generation.generatedToYear\` (${String(g.generatedToYear)}) lies before \`generatedFromYear\` (${String(g.generatedFromYear)})`;
   }
   return null;
 }
@@ -401,26 +403,26 @@ function calendarItemReason(item: CalendarItem): string | null {
   // get_calendars worden geaccepteerd (en verderop als `ignoredFields` gemeld).
   for (const key of Object.keys(item)) {
     if (CAL_ITEM_KEYS.includes(key) || CAL_READONLY_KEYS.includes(key)) continue;
-    return `onbekend veld \`${key}\`; een kalender-item kent alleen: ${CAL_ITEM_KEYS.join(', ')} ` +
-      `(de afgeleide leesvelden ${CAL_READONLY_KEYS.join(', ')} mogen mee maar worden genegeerd)`;
+    return `unknown field \`${key}\`; a calendar item only knows: ${CAL_ITEM_KEYS.join(', ')} (the derived ` +
+      `read fields ${CAL_READONLY_KEYS.join(', ')} may come along but are ignored)`;
   }
-  if (item.name !== undefined && typeof item.name !== 'string') return '`name` moet een string zijn';
-  if (item.description !== undefined && typeof item.description !== 'string') return '`description` moet een string zijn';
+  if (item.name !== undefined && typeof item.name !== 'string') return '`name` must be a string';
+  if (item.description !== undefined && typeof item.description !== 'string') return '`description` must be a string';
   if (item.workDays !== undefined) {
     if (!Array.isArray(item.workDays) || item.workDays.some((d) => !Number.isInteger(d) || d < 1 || d > 7)) {
-      return '`workDays` moet een array van ISO-weekdagnummers zijn (1 = maandag … 7 = zondag)';
+      return '`workDays` must be an array of ISO weekday numbers (1 = Monday … 7 = Sunday)';
     }
   }
   for (const k of ['workStartHour', 'workEndHour', 'hoursPerDay'] as const) {
-    if (item[k] !== undefined && !isFiniteNumber(item[k])) return `\`${k}\` moet een getal in UREN zijn`;
+    if (item[k] !== undefined && !isFiniteNumber(item[k])) return `\`${k}\` must be a number in HOURS`;
   }
   if (item.simpleBreakStartMinute !== undefined
     && (!Number.isInteger(item.simpleBreakStartMinute) || item.simpleBreakStartMinute < 0 || item.simpleBreakStartMinute >= MIN_PER_DAY)) {
-    return '`simpleBreakStartMinute` moet een geheel aantal MINUTEN vanaf middernacht zijn (0–1439; 12:30 = 750)';
+    return '`simpleBreakStartMinute` must be a whole number of MINUTES from midnight (0–1439; 12:30 = 750)';
   }
   if (item.simpleBreakDurationMinutes !== undefined
     && (!Number.isInteger(item.simpleBreakDurationMinutes) || item.simpleBreakDurationMinutes < 0 || item.simpleBreakDurationMinutes > MIN_PER_DAY)) {
-    return '`simpleBreakDurationMinutes` moet een geheel aantal minuten zijn (0–1440; 0 = geen pauze)';
+    return '`simpleBreakDurationMinutes` must be a whole number of minutes (0–1440; 0 = no break)';
   }
   if (item.workingExceptions !== undefined) {
     const bad = workingExceptionsReason(item.workingExceptions);
@@ -433,8 +435,8 @@ function calendarItemReason(item: CalendarItem): string | null {
     if (bad) return bad;
   }
   if (item.shift !== undefined && item.shift !== null && !SHIFT_VALUES.includes(item.shift)) {
-    return `onbekende \`shift\` '${String(item.shift)}'; geldige waarden zijn ${SHIFT_VALUES.join(', ')} ` +
-      '(hoofdlettergevoelig; `null` wist de ploeg-classificatie)';
+    return `unknown \`shift\` '${String(item.shift)}'; valid values are ${SHIFT_VALUES.join(', ')} ` +
+      '(case-sensitive; `null` clears the shift classification)';
   }
 
   // ── Herkomst + feestdagen: één bron tegelijk ──────────────────────────────────────────────────
@@ -443,57 +445,57 @@ function calendarItemReason(item: CalendarItem): string | null {
     if (bad) return bad;
   }
   if (item.generation !== undefined && item.generate !== undefined) {
-    return 'geef `generate` OF `generation`, niet allebei: `generate` DRAAIT de generator over de ' +
-      'projectspanne van dit document (en zet de herkomst zelf), terwijl `generation` alleen de ' +
-      'herkomst-metadata schrijft bij feestdagen die je meestuurt';
+    return 'give `generate` OR `generation`, not both: `generate` RUNS the generator over the project span ' +
+      'of this document (and sets the provenance itself), while `generation` only writes the provenance ' +
+      'metadata for holidays you send along';
   }
   if (item.holidays !== undefined) {
     const bad = holidayListReason(item.holidays, 'holidays');
     if (bad) return bad;
     if (item.rawHolidays !== undefined) {
-      return 'geef `holidays` OF `rawHolidays`, niet allebei: `holidays` zet de VOLLEDIGE lijst exact ' +
-        '(de leesvorm van get_calendars), `rawHolidays` voegt losse uitzonderingen toe';
+      return 'give `holidays` OR `rawHolidays`, not both: `holidays` sets the COMPLETE list exactly (the ' +
+        'read form of get_calendars), `rawHolidays` adds individual exceptions';
     }
     if (item.holidaysMode !== undefined) {
-      return '`holidaysMode` hoort bij `rawHolidays`; `holidays` vervangt de lijst per definitie exact';
+      return '`holidaysMode` belongs to `rawHolidays`; `holidays` replaces the list exactly by definition';
     }
     if (item.generate !== undefined) {
-      return 'geef `holidays` OF `generate`, niet allebei: de generator zou de meegestuurde lijst ' +
-        'meteen overschrijven met dagen over de projectspanne van DIT document';
+      return 'give `holidays` OR `generate`, not both: the generator would immediately overwrite the list ' +
+        'you sent with days over the project span of THIS document';
     }
   }
 
   if (item.generate !== undefined) {
     const g = item.generate as unknown;
-    if (!g || typeof g !== 'object' || Array.isArray(g)) return '`generate` moet een object zijn met minstens `country`';
+    if (!g || typeof g !== 'object' || Array.isArray(g)) return '`generate` must be an object with at least `country`';
     const gen = g as Record<string, unknown>;
     if (!(GEN_COUNTRIES as string[]).includes(gen.country as string)) {
-      return `onbekend \`generate.country\` '${String(gen.country)}'; geldige waarden zijn ${GEN_COUNTRIES.join(', ')} ` +
-        "(hoofdlettergevoelig; 'none' = geen feestdagenset, wist de gegenereerde dagen)";
+      return `unknown \`generate.country\` '${String(gen.country)}'; valid values are ` +
+        `${GEN_COUNTRIES.join(', ')} (case-sensitive; 'none' = no holiday set, clears the generated days)`;
     }
-    if (gen.region !== undefined && typeof gen.region !== 'string') return '`generate.region` moet een string zijn';
+    if (gen.region !== undefined && typeof gen.region !== 'string') return '`generate.region` must be a string';
     if (gen.bouwvak !== undefined && !BOUWVAK_CHOICES.includes(gen.bouwvak as string)) {
-      return `onbekende \`generate.bouwvak\` '${String(gen.bouwvak)}'; geldige waarden zijn ${BOUWVAK_CHOICES.join(', ')}`;
+      return `unknown \`generate.bouwvak\` '${String(gen.bouwvak)}'; valid values are ${BOUWVAK_CHOICES.join(', ')}`;
     }
   }
 
   if (item.holidaysMode !== undefined) {
     if (item.holidaysMode !== 'merge' && item.holidaysMode !== 'replace') {
-      return `onbekende \`holidaysMode\` '${String(item.holidaysMode)}'; geldige waarden zijn merge, replace`;
+      return `unknown \`holidaysMode\` '${String(item.holidaysMode)}'; valid values are merge, replace`;
     }
     if (item.rawHolidays === undefined) {
-      return '`holidaysMode` heeft alleen betekenis samen met `rawHolidays`';
+      return '`holidaysMode` only has meaning together with `rawHolidays`';
     }
   }
 
   if (item.rawHolidays !== undefined) {
-    if (!Array.isArray(item.rawHolidays)) return '`rawHolidays` moet een array zijn';
+    if (!Array.isArray(item.rawHolidays)) return '`rawHolidays` must be an array';
     // DE stille no-op: een lege lijst in de (default) TOEVOEG-modus verandert per definitie niets en
     // mag dus geen geslaagde wijziging heten. Een agent die een feestdag wil VERWIJDEREN stuurt
     // precies dit (de overblijvende dagen ⇒ vaak leeg).
     if (item.rawHolidays.length === 0 && (item.holidaysMode ?? 'merge') === 'merge') {
-      return 'een lege `rawHolidays` verandert niets in de standaard TOEVOEG-modus; gebruik ' +
-        '`holidaysMode: "replace"` om de feestdagenlijst te vervangen of te wissen';
+      return 'an empty `rawHolidays` changes nothing in the default ADD mode; use `holidaysMode: "replace"` ' +
+        'to replace or clear the holiday list';
     }
     const bad = holidayListReason(item.rawHolidays, 'rawHolidays');
     if (bad) return bad;
@@ -507,8 +509,8 @@ function calendarItemReason(item: CalendarItem): string | null {
     const derived = workDaysFromBands(item.workTime).join(',');
     const given = [...item.workDays].sort((a, b) => a - b).join(',');
     if (derived !== given) {
-      return `\`workDays\` (${given || 'leeg'}) spreekt \`workTime\` tegen: de banden leveren werkdagen ${derived || 'leeg'}. ` +
-        'Laat `workDays` weg (hij wordt uit de banden afgeleid) of maak beide gelijk.';
+      return `\`workDays\` (${given || 'empty'}) contradicts \`workTime\`: the bands yield working days ` +
+        `${derived || 'empty'}. Leave \`workDays\` out (it is derived from the bands) or make both equal.`;
     }
   }
   return null;
@@ -529,7 +531,7 @@ function classifyCalendars(s: StoreState, items: CalendarItem[]): { plans: Calen
   for (const item of items) {
     const label = typeof item?.id === 'string' ? item.id : String(item?.id);
     if (!item || typeof item.id !== 'string' || item.id === '') {
-      rejections.push({ id: label, reason: 'elk kalender-item vereist een niet-lege string-`id`' });
+      rejections.push({ id: label, reason: 'every calendar item requires a non-empty string `id`' });
       continue;
     }
     // Vormvalidatie vóór élke dispatch-beslissing: een item met een onbruikbare `generate`/
@@ -546,7 +548,7 @@ function classifyCalendars(s: StoreState, items: CalendarItem[]): { plans: Calen
       if (!hasFields) {
         rejections.push({
           id: item.id,
-          reason: `geen wijzigingen opgegeven; een item moet minstens één van deze velden dragen: ${CAL_FIELD_KEYS.join(', ')}`,
+          reason: `no changes given; an item must carry at least one of these fields: ${CAL_FIELD_KEYS.join(', ')}`,
         });
         continue;
       }
@@ -571,7 +573,7 @@ function classifyCalendars(s: StoreState, items: CalendarItem[]): { plans: Calen
     }
     rejections.push({
       id: item.id,
-      reason: `kalender '${item.id}' bestaat niet in dit document; geef \`create: true\` mee om hem aan te maken (kalender-id's zijn per document)`,
+      reason: `calendar '${item.id}' does not exist in this document; pass \`create: true\` to create it (calendar ids are per document)`,
     });
   }
   return { plans, rejections };
@@ -599,7 +601,7 @@ function cloneBands(wt: WorkTimeBands): WorkTimeBands {
 
 /** Basis van een nieuwe kalender (`create: true`): de gedeelde fabriek, met de naam van het item. */
 function newCalendarBase(item: CalendarItem): Omit<WorkCalendar, 'id'> {
-  return createNewCalendar(item.name ?? 'Nieuwe kalender');
+  return createNewCalendar(item.name ?? 'New calendar');
 }
 
 type CalendarBase = Omit<WorkCalendar, 'id'>;
@@ -647,9 +649,10 @@ function netHoursReason(item: CalendarItem, existing: CalendarBase): string | nu
     // Alleen bij oude/externe data met een ongeldige pauze (een item dat werkdag of pauze raakt, is
     // al door `mergedBreakReason` getoetst). De dialoog laat dan ook niets toepassen.
     const issue = calendarScalarBreakIssue(merged);
-    return `${issue ? scalarBreakReason(issue, merged) : 'het pauzepatroon is ongeldig'}; de netto uren ` +
-      '(`hoursPerDay`) volgen uit werkdag min pauze, dus herstel eerst de pauze ' +
-      '(`simpleBreakStartMinute`/`simpleBreakDurationMinutes`) of de werkdag (`workStartHour`/`workEndHour`)';
+    return `${issue ? scalarBreakReason(issue, merged) : 'the break pattern is invalid'}; the net hours ` +
+      '(`hoursPerDay`) follow from working day minus break, so fix the break first ' +
+      '(`simpleBreakStartMinute`/`simpleBreakDurationMinutes`) or the working day ' +
+      '(`workStartHour`/`workEndHour`)';
   }
   if (Math.abs(item.hoursPerDay - net) * 60 < 0.5) return null;
 
@@ -673,12 +676,13 @@ function netHoursReason(item: CalendarItem, existing: CalendarBase): string | nu
       examples.push(`\`simpleBreakDurationMinutes: ${altPause}\``);
     }
   }
-  return `\`hoursPerDay\` ${hoursLabel(item.hoursPerDay)} klopt niet met deze kalender: met een pauze zijn de netto ` +
-    'uren AFGELEID uit werkdag min pauze, zoals de niet-bewerkbare "Netto-uren per dag" in de kalenderdialoog — ' +
-    `hier ${clockLabel(start)}–${clockLabel(end)} met ${pause} min pauze = ${hoursLabel(net)} u netto. Laat \`hoursPerDay\` ` +
-    'weg, of wijzig de werkdag (`workStartHour`/`workEndHour`, in UREN) of de pauzeduur ' +
-    `(\`simpleBreakDurationMinutes\`, in MINUTEN) zodat werkdag min pauze ${hoursLabel(item.hoursPerDay)} u wordt` +
-    (examples.length > 0 ? ` (bijv. ${examples.join(' of ')})` : '');
+  return `\`hoursPerDay\` ${hoursLabel(item.hoursPerDay)} does not match this calendar: with a break the net ` +
+    'hours are DERIVED from working day minus break, like the non-editable "Net hours per day" in the ' +
+    `calendar dialog — here ${clockLabel(start)}–${clockLabel(end)} with ${pause} min break = ` +
+    `${hoursLabel(net)} h net. Leave \`hoursPerDay\` out, or change the working day ` +
+    '(`workStartHour`/`workEndHour`, in HOURS) or the break duration (`simpleBreakDurationMinutes`, in ' +
+    `MINUTES) so that working day minus break becomes ${hoursLabel(item.hoursPerDay)} h` +
+    `${(examples.length > 0 ? ` (e.g. ${examples.join(' or ')})` : '')}`;
 }
 
 /** De scalaire (niet-holiday) velden van een item als `Partial<WorkCalendar>`. `existing` levert de
@@ -783,7 +787,7 @@ function resolveHolidaysForItem(
 function parseUpdateCalendar(args: unknown): CalendarItem[] | string {
   const a = (args ?? {}) as { calendars?: unknown };
   if (!Array.isArray(a.calendars) || a.calendars.length === 0) {
-    return 'update_calendar vereist een niet-lege `calendars`-array';
+    return 'update_calendar requires a non-empty `calendars` array';
   }
   return a.calendars as CalendarItem[];
 }
@@ -865,7 +869,7 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
       const existing = ctx.app.store.getState().calendars.find((c) => c.id === plan.targetId);
       if (!existing) {
         // Kan alleen bij een defect in de promotie — harde stap-fout i.p.v. stil doorgaan.
-        throw new McpStepError('NOT_FOUND', `kalender '${plan.targetId}' bestaat niet (na promotie)`);
+        throw new McpStepError('NOT_FOUND', `calendar '${plan.targetId}' does not exist (after promotion)`);
       }
       // Modus-ijkpunt vóór de mutatie; native taakduren worden nooit geconverteerd.
       const beforeMode = calendarMode(existing);
@@ -915,7 +919,7 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
         if (hasAffectedHourTask) {
           throw new McpStepError(
             'VALIDATION',
-            `kan concrete werkblokken niet verwijderen: kalender '${plan.targetId}' wordt gebruikt door een urentaak`,
+            `cannot remove concrete work blocks: calendar '${plan.targetId}' is used by an hour task`,
           );
         }
       }
@@ -955,13 +959,13 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
 const WORKTIME_DAY_SCHEMA = {
   type: 'array',
   description:
-    'Werktijdbanden van deze weekdag, oplopend en niet-overlappend. Lege lijst = niet-werkende dag.',
+    'Working-time bands of this weekday, ascending and non-overlapping. Empty list = non-working day.',
   items: {
     type: 'object',
     required: ['start', 'end'],
     properties: {
-      start: { type: 'number', minimum: 0, maximum: 1439, description: 'Begin in MINUTEN vanaf middernacht (07:00 = 420).' },
-      end: { type: 'number', minimum: 1, maximum: 2880, description: 'Einde in MINUTEN vanaf middernacht van de STARTdag; over middernacht telt door (22:00→06:00 = 1800). Moet groter zijn dan `start`.' },
+      start: { type: 'number', minimum: 0, maximum: 1439, description: 'Start in MINUTES from midnight (07:00 = 420).' },
+      end: { type: 'number', minimum: 1, maximum: 2880, description: 'End in MINUTES from midnight of the START day; across midnight keeps counting (22:00→06:00 = 1800). Must be greater than `start`.' },
     },
   },
 } as const;
@@ -969,12 +973,12 @@ const WORKTIME_DAY_SCHEMA = {
 const WORKTIME_SCHEMA = {
   type: ['object', 'null'],
   description:
-    'UUR-kalender: werktijdbanden per ISO-weekdag in minuten vanaf middernacht. `null` = terug naar een ' +
-    'DAG-kalender. LET OP: dit herdefinieert de duur van elke taak op deze kalender (zie de beschrijving).',
+    'HOUR calendar: working-time bands per ISO weekday in minutes from midnight. `null` = back to a DAY ' +
+    'calendar. NOTE: this redefines the duration of every task on this calendar (see the description).',
   properties: {
     byWeekday: {
       type: 'object',
-      description: 'Alle zeven weekdagen ("1" = maandag … "7" = zondag) — een gedeeltelijke opgave wordt geweigerd.',
+      description: 'All seven weekdays ("1" = Monday … "7" = Sunday) — a partial specification is refused.',
       properties: {
         '1': WORKTIME_DAY_SCHEMA, '2': WORKTIME_DAY_SCHEMA, '3': WORKTIME_DAY_SCHEMA, '4': WORKTIME_DAY_SCHEMA,
         '5': WORKTIME_DAY_SCHEMA, '6': WORKTIME_DAY_SCHEMA, '7': WORKTIME_DAY_SCHEMA,
@@ -989,62 +993,59 @@ const HOLIDAY_ITEM_SCHEMA = {
   required: ['name', 'startDate', 'endDate'],
   properties: {
     name: { type: 'string' },
-    startDate: { type: 'string', description: 'ISO-datum (JJJJ-MM-DD), inclusief.' },
-    endDate: { type: 'string', description: 'ISO-datum (JJJJ-MM-DD), inclusief.' },
+    startDate: { type: 'string', description: 'ISO date (YYYY-MM-DD), inclusive.' },
+    endDate: { type: 'string', description: 'ISO date (YYYY-MM-DD), inclusive.' },
   },
 } as const;
 
 const updateCalendar: BatchStepTool = {
   name: 'planner_update_calendar',
   description:
-    'Wijzig of maak werkkalenders (bulk — één call = één ongedaan-maak-stap). Per item: een BESTAAND ' +
-    'kalender-id wijzigen, of een onbekend id met `create: true` aanmaken (onbekend id zónder `create` ' +
-    'wordt zacht geweigerd). LET OP: kalender-id\'s zijn PER DOCUMENT — een geïmporteerd of ander ' +
-    'document herbouwt kalenders via `create`, het hergebruikt nooit een id uit een ander document. ' +
-    'Feestdagen kunnen op twee manieren: `generate` (land/regio/bouwvak — de generator materialiseert ' +
-    'de dagen over de projectspanne en VERVANGT de bestaande lijst) en/of `rawHolidays` (letterlijke ' +
-    'uitzonderingen, bijv. vorstverlet). LET OP — `rawHolidays` is standaard TOEVOEGEN: de opgegeven ' +
-    'dagen worden bij de bestaande gemergd (dedup op datumbereik), er verdwijnt niets. Wil je een ' +
-    'feestdag VERWIJDEREN of de lijst exact zetten, geef dan `holidaysMode: "replace"` mee — dan wordt ' +
-    'de lijst precies `rawHolidays` (een LEGE array wist alle feestdagen). Een lege `rawHolidays` in de ' +
-    'toevoeg-modus wordt zacht geweigerd, want die zou niets doen. Worden er rauwe dagen gezet, dan ' +
-    'wordt de generator-herkomst gewist en is de kalender voortaan LETTERLIJK (`becameLiteral: true` ' +
-    'per item) — hergenereren kan dan niet meer. ' +
-    'Bij `create: true` ZONDER `generate`/`rawHolidays`/`holidays` erft de nieuwe kalender de feestdagen ' +
-    'van de app-standaardkalender (in bouwmodus: de NL-set); de respons meldt dat per rij als ' +
-    '`holidaysFrom: "app-default"` met `holidayCount`. Wil je gegarandeerd géén feestdagen, geef dan ' +
-    '`generate: { country: "none" }` of `holidays: []` mee. ' +
-    'KALENDER OVERZETTEN NAAR EEN ANDER DOCUMENT: geef een kalenderobject uit `planner_get_calendars` ' +
-    'LETTERLIJK terug (met `create: true`). Alle leesvelden worden geaccepteerd — `workTime` (uurbanden), ' +
-    '`shift`, `generation` (herkomst in de LEESVORM: `ruleSetId`/`breakChoice`/jaren), `holidays` (de ' +
-    'volledige lijst, die de bestaande lijst exact VERVANGT), het pauzepatroon ' +
-    '`simpleBreakStartMinute`/`simpleBreakDurationMinutes` (minuten) en `workingExceptions` (werkende dagen, ' +
-    'vervangt de lijst exact). De afgeleide leesvelden `isProjectDefault`/`usedByTasks`/`usedByResources` en ' +
-    'de bibliotheekstempel `libraryOrigin` mogen mee maar doen niets; de respons meldt ze als `ignoredFields`. ' +
-    'PAUZE: op een DAG-kalender met een pauze is `hoursPerDay` AFGELEID uit werkdag min pauze, net als de ' +
-    'niet-bewerkbare "Netto-uren per dag" in de kalenderdialoog. Raak je de pauze of begin/einde, dan volgt ' +
-    '`hoursPerDay` vanzelf. Meer of minder netto uren wil zeggen: wijzig `workStartHour`/`workEndHour` of ' +
-    '`simpleBreakDurationMinutes`. Een meegegeven `hoursPerDay` die niet klopt met werkdag min pauze (op de ' +
-    'minuut) wordt zacht geweigerd met de velden die je wél moet wijzigen; een gelijke waarde (zoals in een ' +
-    'letterlijke lezing) doet niets. Zonder pauzevelden (een legacy-kalender) blijft `hoursPerDay` gewoon te ' +
-    'zetten. Een pauze buiten de werkdag of over de hele dag wordt zacht geweigerd. ' +
-    'Gebruik `generate` (land/regio/bouwvak) óf `generation` (herkomst van meegestuurde dagen), nooit allebei — `generate` DRAAIT de generator over de projectspanne van DIT document, ' +
-    '`generation` schrijft alleen de herkomst. ' +
-    'UUR- VS DAG-KALENDER: `workTime` maakt er een UUR-kalender van (`null` zet hem terug op DAG). ' +
-    'Een kalenderwijziging verandert NOOIT de gekozen eenheid of native hoeveelheid van een taak. ' +
-    'Wel kunnen begin/eindverdeling en projecteinde veranderen; een urentaak is zonder concrete ' +
-    'werkblokken niet doorrekenbaar. De respons meldt een moduswissel als `modeChangedFrom` en bevestigt ' +
-    'met `taskDurationsPreserved: true` dat de taakduren niet zijn geconverteerd. ' +
-    '`workDays` en `hoursPerDay` worden uit de banden AFGELEID zodra je `workTime` meegeeft (zoals de ' +
-    'kalenderdialoog doet); geef je ze toch mee, dan mag `workDays` de banden niet tegenspreken. ' +
-    'BEWAREN IN HET BESTAND (IFC): een nieuw aangemaakte kalender waaraan GEEN taak en geen resource ' +
-    'hangt, overleeft opslaan+herladen NIET — hang er dus meteen taken aan met `update_tasks.calendarId`. ' +
-    'Uurbanden overleven IFC wél, maar per WEEKDAG VERSCHILLENDE banden niet: het formaat draagt één ' +
-    'werkweek-patroon, dus bij herladen krijgen alle werkdagen de banden van de eerste werkdag. ' +
-    'Een kalender waarin taken niet meer passen (bijv. een lang feestdagblok) levert géén fout maar een ' +
-    'prominente waarschuwing met `cappedTaskIds`. Blijft er daarentegen HELEMAAL geen werktijd over ' +
-    '(lege `workDays`, of `workTime`-banden op geen enkele dag), dan faalt de herberekening en wordt de ' +
-    'hele call teruggerold — er komt nooit een halve kalender in het document.',
+    'Change or create work calendars (bulk — one call = one undo step). Per item: change an EXISTING ' +
+    'calendar id, or create an unknown id with `create: true` (an unknown id WITHOUT `create` is softly ' +
+    'refused). NOTE: calendar ids are PER DOCUMENT — an imported or other document rebuilds calendars via ' +
+    '`create`, it never reuses an id from another document. Holidays can be set in two ways: `generate` ' +
+    '(country/region/construction holiday — the generator materializes the days over the project span and ' +
+    'REPLACES the existing list) and/or `rawHolidays` (literal exceptions, e.g. frost days). NOTE — ' +
+    '`rawHolidays` ADDS by default: the given days are merged with the existing ones (deduplicated by date ' +
+    'range), nothing disappears. If you want to REMOVE a holiday or set the list exactly, pass ' +
+    '`holidaysMode: "replace"` — then the list becomes exactly `rawHolidays` (an EMPTY array clears all ' +
+    'holidays). An empty `rawHolidays` in add mode is softly refused, because it would do nothing. If raw ' +
+    'days are set, the generator provenance is cleared and the calendar is LITERAL from then on ' +
+    '(`becameLiteral: true` per item) — regenerating is then no longer possible. With `create: true` WITHOUT ' +
+    '`generate`/`rawHolidays`/`holidays` the new calendar inherits the holidays of the app default calendar ' +
+    '(in construction mode: the NL set); the response reports that per row as `holidaysFrom: "app-default"` ' +
+    'with `holidayCount`. If you want guaranteed NO holidays, pass `generate: { country: "none" }` or ' +
+    '`holidays: []`. TRANSFERRING A CALENDAR TO ANOTHER DOCUMENT: pass a calendar object from ' +
+    '`planner_get_calendars` back LITERALLY (with `create: true`). All read fields are accepted — `workTime` ' +
+    '(hour bands), `shift`, `generation` (provenance in the READ FORM: `ruleSetId`/`breakChoice`/years), ' +
+    '`holidays` (the complete list, which REPLACES the existing list exactly), the break pattern ' +
+    '`simpleBreakStartMinute`/`simpleBreakDurationMinutes` (minutes) and `workingExceptions` (working days, ' +
+    'replaces the list exactly). The derived read fields `isProjectDefault`/`usedByTasks`/`usedByResources` ' +
+    'and the library stamp `libraryOrigin` may come along but do nothing; the response reports them as ' +
+    '`ignoredFields`. BREAK: on a DAY calendar with a break, `hoursPerDay` is DERIVED from working day minus ' +
+    'break, just like the non-editable "Net hours per day" in the calendar dialog. If you touch the break or ' +
+    'start/end, `hoursPerDay` follows automatically. More or fewer net hours means: change ' +
+    '`workStartHour`/`workEndHour` or `simpleBreakDurationMinutes`. A given `hoursPerDay` that does not ' +
+    'match working day minus break (to the minute) is softly refused, naming the fields you do need to ' +
+    'change; an equal value (as in a literal reading) does nothing. Without break fields (a legacy calendar) ' +
+    '`hoursPerDay` can simply be set. A break outside the working day or covering the whole day is softly ' +
+    'refused. Use `generate` (country/region/construction holiday) OR `generation` (provenance of days sent ' +
+    'along), never both — `generate` RUNS the generator over the project span of THIS document, `generation` ' +
+    'only writes the provenance. HOUR VS DAY CALENDAR: `workTime` turns it into an HOUR calendar (`null` ' +
+    'sets it back to DAY). A calendar change NEVER changes the chosen unit or native quantity of a task. ' +
+    'Start/finish distribution and project end can change, though; an hour task cannot be calculated without ' +
+    'concrete work blocks. The response reports a mode switch as `modeChangedFrom` and confirms with ' +
+    '`taskDurationsPreserved: true` that the task durations were not converted. `workDays` and `hoursPerDay` ' +
+    'are DERIVED from the bands as soon as you pass `workTime` (as the calendar dialog does); if you pass ' +
+    'them anyway, `workDays` must not contradict the bands. KEEPING IN THE FILE (IFC): a newly created ' +
+    'calendar to which NO task and no resource is attached does NOT survive save+reload — so attach tasks to ' +
+    'it right away with `update_tasks.calendarId`. Hour bands do survive IFC, but bands that DIFFER PER ' +
+    'WEEKDAY do not: the format carries one work-week pattern, so on reload all working days get the bands ' +
+    'of the first working day. A calendar in which tasks no longer fit (e.g. a long holiday block) gives no ' +
+    'error but a prominent warning with `cappedTaskIds`. If, on the other hand, NO working time at all is ' +
+    'left (empty `workDays`, or `workTime` bands on no day at all), the recalculation fails and the whole ' +
+    'call is rolled back — a half calendar never ends up in the document.',
   kind: 'mutate',
   batchable: true,
   // Een kalenderwijziging kan bestaande feestdagen/werkdagen (en daarmee de planning) overschrijven.
@@ -1055,90 +1056,92 @@ const updateCalendar: BatchStepTool = {
       calendars: {
         type: 'array',
         minItems: 1,
-        description: 'De te wijzigen/aan te maken kalenders; alles in één transactie.',
+        description: 'The calendars to change/create; everything in one transaction.',
         items: {
           type: 'object',
           required: ['id'],
           properties: {
-            id: { type: 'string', description: 'Bestaand kalender-id; bij `create: true` een vrij te kiezen aanduiding (het echte id komt terug als `id`, jouw waarde als `requestedId`).' },
-            create: { type: 'boolean', description: 'Maak de kalender aan als het id niet bestaat.' },
+            id: { type: 'string', description: 'Existing calendar id; with `create: true` a freely chosen label (the real id comes back as `id`, your value as `requestedId`).' },
+            create: { type: 'boolean', description: 'Create the calendar if the id does not exist.' },
             name: { type: 'string' },
             description: { type: 'string' },
             workDays: {
               type: 'array',
               items: { type: 'integer', minimum: 1, maximum: 7 },
-              description: 'Werkdagen als ISO-weekdagnummers (1 = maandag … 7 = zondag).',
+              description: 'Working days as ISO weekday numbers (1 = Monday … 7 = Sunday).',
             },
-            workStartHour: { type: 'number', description: 'Begin werkdag in UREN (0–24), bijv. 7.' },
-            workEndHour: { type: 'number', description: 'Einde werkdag in UREN (0–24), bijv. 16.' },
+            workStartHour: { type: 'number', description: 'Start of the working day in HOURS (0–24), e.g. 7.' },
+            workEndHour: { type: 'number', description: 'End of the working day in HOURS (0–24), e.g. 16.' },
             hoursPerDay: {
               type: 'number',
-              description: 'Netto werkuren per werkdag (UREN), bijv. 8. Op een DAG-kalender MET pauze afgeleid (werkdag min pauze): ' +
-                'een afwijkende waarde wordt zacht geweigerd, een gelijke doet niets — wijzig daar de werkdag of de pauzeduur.',
+              description: 'Net working hours per working day (HOURS), e.g. 8. On a DAY calendar WITH a ' +
+                'break it is derived (working day minus break): a differing value is softly refused, an ' +
+                'equal one does nothing — change the working day or the break duration there.',
             },
             simpleBreakStartMinute: {
               type: 'integer', minimum: 0, maximum: 1439,
-              description: 'Begin van de pauze op een DAG-kalender, in MINUTEN vanaf middernacht (12:30 = 750). Leesveld van get_calendars. De netto uren (`hoursPerDay`) worden eruit afgeleid, zoals in de kalenderdialoog.',
+              description: 'Start of the break on a DAY calendar, in MINUTES from midnight (12:30 = 750). Read field of get_calendars. The net hours (`hoursPerDay`) are derived from it, as in the calendar dialog.',
             },
             simpleBreakDurationMinutes: {
               type: 'integer', minimum: 0, maximum: 1440,
-              description: 'Pauzeduur in MINUTEN (0 = geen pauze). Moet binnen de werkdag vallen en mag hem niet helemaal beslaan. Leesveld van get_calendars.',
+              description: 'Break duration in MINUTES (0 = no break). Must fall within the working day and may not cover it completely. Read field of get_calendars.',
             },
             workingExceptions: {
               type: 'array',
               description:
-                'Dagen die WERKEND worden (bijv. een inhaalzaterdag) — de VOLLEDIGE lijst, exact het leesveld van ' +
-                'planner_get_calendars; vervangt de bestaande lijst (lege lijst = wissen). Optioneel per uitzondering ' +
-                '`bands` in dezelfde vorm als `workTime` (weglaten = de gewone werktijd van de kalender).',
+                'Days that become WORKING (e.g. a make-up Saturday) — the COMPLETE list, exactly the read ' +
+                'field of planner_get_calendars; replaces the existing list (empty list = clear). Optionally ' +
+                'per exception `bands` in the same form as `workTime` (omitted = the normal working time of ' +
+                'the calendar).',
               items: {
                 type: 'object',
                 required: ['name', 'startDate', 'endDate'],
                 properties: {
                   name: { type: 'string' },
-                  startDate: { type: 'string', description: 'ISO-datum (JJJJ-MM-DD), inclusief.' },
-                  endDate: { type: 'string', description: 'ISO-datum (JJJJ-MM-DD), inclusief.' },
+                  startDate: { type: 'string', description: 'ISO date (YYYY-MM-DD), inclusive.' },
+                  endDate: { type: 'string', description: 'ISO date (YYYY-MM-DD), inclusive.' },
                   bands: WORKTIME_DAY_SCHEMA,
                 },
               },
             },
             generate: {
               type: 'object',
-              description: 'Generator-basis voor feestdagen; de jaarspanne wordt uit het project afgeleid.',
+              description: 'Generator basis for holidays; the year span is derived from the project.',
               required: ['country'],
               properties: {
                 country: {
                   type: 'string',
                   enum: ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH', 'none'],
                   description:
-                    'Landcode van de feestdagenset — HOOFDLETTERS, exact één van de opgesomde waarden. ' +
-                    "`none` = geen feestdagenset: dat WIST de gegenereerde dagen (en de herkomst).",
+                    'Country code of the holiday set — UPPERCASE, exactly one of the listed values. `none` = ' +
+                    'no holiday set: that CLEARS the generated days (and the provenance).',
                 },
-                region: { type: 'string', description: 'Bundesland/landsdeel/kanton; weglaten = landelijk.' },
-                bouwvak: { type: 'string', enum: ['geen', 'noord', 'midden', 'zuid'], description: 'Alleen NL; default `geen`.' },
+                region: { type: 'string', description: 'Federal state/region/canton; omitted = national.' },
+                bouwvak: { type: 'string', enum: ['geen', 'noord', 'midden', 'zuid'], description: 'NL only; default `geen` (none).' },
               },
             },
             holidaysMode: {
               type: 'string',
               enum: ['merge', 'replace'],
               description:
-                '`merge` (default) = `rawHolidays` TOEVOEGEN aan de bestaande feestdagen. `replace` = de ' +
-                'feestdagenlijst exact gelijkstellen aan `rawHolidays` — dit is de ENIGE manier om een ' +
-                'feestdag te verwijderen; een lege `rawHolidays` wist ze dan allemaal.',
+                '`merge` (default) = ADD `rawHolidays` to the existing holidays. `replace` = set the holiday ' +
+                'list exactly to `rawHolidays` — this is the ONLY way to remove a holiday; an empty ' +
+                '`rawHolidays` then clears them all.',
             },
             rawHolidays: {
               type: 'array',
               description:
-                'Letterlijke uitzonderingen (vorstverlet, bedrijfssluiting). Standaard TOEVOEGEN (niets ' +
-                'verdwijnt); met `holidaysMode: "replace"` vervangt deze lijst de bestaande volledig. ' +
-                'Rauwe dagen wissen de generator-herkomst.',
+                'Literal exceptions (frost days, company closure). ADDS by default (nothing disappears); ' +
+                'with `holidaysMode: "replace"` this list replaces the existing one completely. Raw days ' +
+                'clear the generator provenance.',
               items: HOLIDAY_ITEM_SCHEMA,
             },
             holidays: {
               type: 'array',
               description:
-                'De VOLLEDIGE feestdagenlijst — exact het leesveld van planner_get_calendars. Vervangt de ' +
-                'bestaande lijst precies (lege lijst = geen feestdagen). Voor het overzetten van een kalender ' +
-                'tussen documenten; combineer met `generation` om ook de herkomst mee te nemen. Niet samen met ' +
+                'The COMPLETE holiday list — exactly the read field of planner_get_calendars. Replaces the ' +
+                'existing list precisely (empty list = no holidays). For transferring a calendar between ' +
+                'documents; combine with `generation` to take the provenance along too. Not together with ' +
                 '`rawHolidays`/`holidaysMode`/`generate`.',
               items: HOLIDAY_ITEM_SCHEMA,
             },
@@ -1146,27 +1149,27 @@ const updateCalendar: BatchStepTool = {
             shift: {
               type: ['string', 'null'],
               enum: ['FIRST', 'SECOND', 'THIRD', 'USERDEFINED', null],
-              description: 'Ploeg-classificatie (IFC `PredefinedType`); `null` wist hem. Leesveld van get_calendars.',
+              description: 'Shift classification (IFC `PredefinedType`); `null` clears it. Read field of get_calendars.',
             },
             generation: {
               type: ['object', 'null'],
               description:
-                'Herkomst-metadata in de LEESVORM van get_calendars — schrijft alleen vast WAAR de ' +
-                'meegestuurde feestdagen vandaan komen, en draait de generator NIET. `null` wist de herkomst ' +
-                '(de kalender wordt letterlijk). Niet samen met `generate`.',
+                'Provenance metadata in the READ FORM of get_calendars — only records WHERE the holidays ' +
+                'sent along come from, and does NOT run the generator. `null` clears the provenance (the ' +
+                'calendar becomes literal). Not together with `generate`.',
               required: ['ruleSetId', 'generatedFromYear', 'generatedToYear'],
               properties: {
-                ruleSetId: { type: 'string', enum: ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH'], description: 'Landenset die de datums voortbracht.' },
-                region: { type: 'string', description: 'Bundesland/landsdeel/kanton; weglaten = landelijk.' },
-                breakChoice: { type: 'string', enum: ['noord', 'midden', 'zuid'], description: 'NL-bouwvak; weglaten = geen.' },
-                generatedFromYear: { type: 'integer', description: 'Eerste gematerialiseerde jaar (incl.).' },
-                generatedToYear: { type: 'integer', description: 'Laatste gematerialiseerde jaar (incl.).' },
+                ruleSetId: { type: 'string', enum: ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH'], description: 'Country set that produced the dates.' },
+                region: { type: 'string', description: 'Federal state/region/canton; omitted = national.' },
+                breakChoice: { type: 'string', enum: ['noord', 'midden', 'zuid'], description: 'NL construction holiday (bouwvak); omitted = none.' },
+                generatedFromYear: { type: 'integer', description: 'First materialized year (incl.).' },
+                generatedToYear: { type: 'integer', description: 'Last materialized year (incl.).' },
               },
             },
-            isProjectDefault: { type: 'boolean', description: 'AFGELEID leesveld van get_calendars — mag mee, wordt genegeerd (komt terug als `ignoredFields`).' },
-            usedByTasks: { type: 'integer', description: 'AFGELEID leesveld van get_calendars — mag mee, wordt genegeerd.' },
-            usedByResources: { type: 'integer', description: 'AFGELEID leesveld van get_calendars — mag mee, wordt genegeerd.' },
-            libraryOrigin: { type: 'object', description: 'Bibliotheekstempel uit get_calendars (hoort bij het BRONdocument) — mag mee, wordt genegeerd (komt terug als `ignoredFields`); koppelen aan de bibliotheek gaat via de app.' },
+            isProjectDefault: { type: 'boolean', description: 'DERIVED read field of get_calendars — may come along, is ignored (comes back as `ignoredFields`).' },
+            usedByTasks: { type: 'integer', description: 'DERIVED read field of get_calendars — may come along, is ignored.' },
+            usedByResources: { type: 'integer', description: 'DERIVED read field of get_calendars — may come along, is ignored.' },
+            libraryOrigin: { type: 'object', description: 'Library stamp from get_calendars (belongs to the SOURCE document) — may come along, is ignored (comes back as `ignoredFields`); linking to the library goes through the app.' },
           },
         },
       },
@@ -1199,8 +1202,8 @@ const updateCalendar: BatchStepTool = {
       const warnings: string[] = [];
       if (cappedTaskIds) {
         warnings.push(
-          `Onwerkbaar venster: ${cappedTaskIds.length} taak/taken konden niet binnen deze kalender worden ingepland ` +
-          `(zie cappedTaskIds). De kalenderwijziging IS toegepast — controleer werkdagen en feestdagen.`,
+          `Unworkable window: ${cappedTaskIds.length} task(s) could not be scheduled within this calendar ` +
+          '(see cappedTaskIds). The calendar change HAS been applied — check working days and holidays.',
         );
       }
       // Een "leeg" aangemaakte kalender erft de feestdagen van de app-standaardkalender. Dat is
@@ -1208,28 +1211,29 @@ const updateCalendar: BatchStepTool = {
       const inherited = rows.filter((r) => r.created === true && r.holidaysFrom === 'app-default' && (r.holidayCount as number) > 0);
       if (inherited.length > 0) {
         warnings.push(
-          `${inherited.length} nieuw aangemaakte kalender(s) hebben de feestdagen van de app-standaardkalender ` +
-          `OVERGENOMEN (${inherited.map((r) => `${r.id}: ${r.holidayCount}`).join(', ')}) omdat er geen \`generate\` of ` +
-          '`rawHolidays` was opgegeven. Wil je een kalender zonder feestdagen, geef dan `generate: { country: "none" }`.',
+          `${inherited.length} newly created calendar(s) TOOK OVER the holidays of the app default calendar (` +
+          `${inherited.map((r) => `${r.id}: ${r.holidayCount}`).join(', ')}) because no \`generate\` or ` +
+          '`rawHolidays` was given. If you want a calendar without holidays, pass `generate: { country: ' +
+          '"none" }`.',
         );
       }
       // Een moduswissel kan de planning verschuiven, maar nooit een taakeenheid/hoeveelheid wijzigen.
       const switched = rows.filter((r) => r.modeChangedFrom !== undefined);
       if (switched.length > 0) {
         warnings.push(
-          `${switched.length} kalender(s) wisselden van modus: ` +
-          `${switched.map((r) => `${r.id}: ${r.modeChangedFrom} → ${r.mode}`).join(', ')}. ` +
-          'De gekozen eenheid en native hoeveelheid van elke taak blijven behouden. Alleen de ' +
-          'planning kan verschuiven; urentaken vereisen concrete werkblokken om door te rekenen.',
+          `${switched.length} calendar(s) switched mode: ` +
+          `${switched.map((r) => `${r.id}: ${r.modeChangedFrom} → ${r.mode}`).join(', ')}. The chosen unit ` +
+          'and native quantity of every task are preserved. Only the schedule can shift; hour tasks require ' +
+          'concrete work blocks to be calculated.',
         );
       }
       // De schakelaar Urenplanning is puur UI (de solver rekent sowieso uur-native): meld het, want
       // de gebruiker ziet zijn uurkalender anders nergens terug in de app.
       if (rows.some((r) => r.mode === 'hour') && !ctx.app.store.getState().ui.enableHourPlanning) {
         warnings.push(
-          'Er staat nu een UUR-kalender in dit document terwijl de app-instelling "Urenplanning" UIT staat. ' +
-          'De planning wordt wél uur-native gerekend, maar de app toont geen uur-invoer/-weergave totdat de ' +
-          'gebruiker die instelling aanzet (Instellingen → Urenplanning).',
+          'There is now an HOUR calendar in this document while the app setting "Enable hour planning" is ' +
+          'OFF. The schedule is calculated hour-native, but the app shows no hour input/display until the ' +
+          'user turns that setting on (Settings → Enable hour planning).',
         );
       }
       return { calendars: rows, warnings, projectEnd, ...(cappedTaskIds ? { cappedTaskIds } : {}) };
@@ -1270,18 +1274,18 @@ function classifyAssignments(
 
   actions.forEach((act, index) => {
     if (!act || typeof (act as { action?: unknown }).action !== 'string') {
-      rejections.push({ id: `#${index}`, reason: 'elk item vereist een `action` (add | update | move | remove)' });
+      rejections.push({ id: `#${index}`, reason: 'every item requires an `action` (add | update | move | remove)' });
       return;
     }
     switch (act.action) {
       case 'add': {
         const label = `${act.taskId}->${act.resourceId}`;
         if (typeof act.taskId !== 'string' || typeof act.resourceId !== 'string') {
-          rejections.push({ id: label, reason: '`add` vereist string-`taskId` en -`resourceId`' });
+          rejections.push({ id: label, reason: '`add` requires string `taskId` and `resourceId`' });
           return;
         }
         if (!s.resources.some((r) => r.id === act.resourceId)) {
-          rejections.push({ id: label, reason: `resource '${act.resourceId}' bestaat niet` });
+          rejections.push({ id: label, reason: `resource '${act.resourceId}' does not exist` });
           return;
         }
         if (act.curve !== undefined && !isResourceCurve(act.curve)) {
@@ -1297,12 +1301,12 @@ function classifyAssignments(
         // nieuwe toewijzing heeft daar nog geen tempId-resolveerbaar `assignmentId`.
         if (act.remainingWorkMinutes !== undefined) {
           if (!(typeof act.remainingWorkMinutes === 'number' && Number.isFinite(act.remainingWorkMinutes) && act.remainingWorkMinutes > 0)) {
-            rejections.push({ id: label, reason: `ongeldige remainingWorkMinutes ${String(act.remainingWorkMinutes)} (werkminuten, strikt positief vereist)` });
+            rejections.push({ id: label, reason: `invalid remainingWorkMinutes ${String(act.remainingWorkMinutes)} (work minutes, strictly positive required)` });
             return;
           }
           const owner = s.tasks.find((t) => t.id === act.taskId);
           if (!owner || !workRuleApplies(owner)) {
-            rejections.push({ id: label, reason: 'resterend werk is alleen zetbaar op een gewone bladtaak op werktijd (niet op een mijlpaal, verzameltaak, hangmat of ELAPSEDTIME-taak)' });
+            rejections.push({ id: label, reason: 'remaining work can only be set on an ordinary leaf task on working time (not on a milestone, summary task, hammock or ELAPSEDTIME task)' });
             return;
           }
         }
@@ -1314,30 +1318,30 @@ function classifyAssignments(
       case 'update': {
         const cur = sim.find((x) => x.id === act.assignmentId);
         if (!cur) {
-          rejections.push({ id: String(act.assignmentId), reason: `toewijzing '${act.assignmentId}' bestaat niet` });
+          rejections.push({ id: String(act.assignmentId), reason: `assignment '${act.assignmentId}' does not exist` });
           return;
         }
         const hasUnits = act.unitsPerDay !== undefined;
         const hasCurve = act.curve !== undefined;
         const hasWork = act.remainingWorkMinutes !== undefined;
         if (!hasUnits && !hasCurve && !hasWork) {
-          rejections.push({ id: act.assignmentId, reason: 'geen `unitsPerDay`, `curve` of `remainingWorkMinutes` opgegeven' });
+          rejections.push({ id: act.assignmentId, reason: 'no `unitsPerDay`, `curve` or `remainingWorkMinutes` given' });
           return;
         }
         // Resterend werk loopt via de werkdriehoek (`draft.setAssignmentWork`).
         if (hasWork && !(typeof act.remainingWorkMinutes === 'number' && Number.isFinite(act.remainingWorkMinutes) && act.remainingWorkMinutes > 0)) {
-          rejections.push({ id: act.assignmentId, reason: `ongeldige remainingWorkMinutes ${String(act.remainingWorkMinutes)} (werkminuten, strikt positief vereist)` });
+          rejections.push({ id: act.assignmentId, reason: `invalid remainingWorkMinutes ${String(act.remainingWorkMinutes)} (work minutes, strictly positive required)` });
           return;
         }
         if (hasWork) {
           const owner = s.tasks.find((t) => t.id === cur.taskId);
           if (!owner || !workRuleApplies(owner)) {
-            rejections.push({ id: act.assignmentId, reason: 'resterend werk is alleen zetbaar op een gewone bladtaak op werktijd (niet op een mijlpaal, verzameltaak, hangmat of ELAPSEDTIME-taak)' });
+            rejections.push({ id: act.assignmentId, reason: 'remaining work can only be set on an ordinary leaf task on working time (not on a milestone, summary task, hammock or ELAPSEDTIME task)' });
             return;
           }
         }
         if (hasUnits && !isValidUnits(act.unitsPerDay)) {
-          rejections.push({ id: act.assignmentId, reason: `ongeldige unitsPerDay ${String(act.unitsPerDay)} (eenheden/dag, strikt positief vereist)` });
+          rejections.push({ id: act.assignmentId, reason: `invalid unitsPerDay ${String(act.unitsPerDay)} (units/day, strictly positive required)` });
           return;
         }
         if (hasCurve && !isResourceCurve(act.curve)) {
@@ -1351,27 +1355,27 @@ function classifyAssignments(
       case 'move': {
         const cur = sim.find((x) => x.id === act.assignmentId);
         if (!cur) {
-          rejections.push({ id: String(act.assignmentId), reason: `toewijzing '${act.assignmentId}' bestaat niet` });
+          rejections.push({ id: String(act.assignmentId), reason: `assignment '${act.assignmentId}' does not exist` });
           return;
         }
         const target = s.tasks.find((t) => t.id === act.taskId);
         if (!target) {
-          rejections.push({ id: act.assignmentId, reason: `doeltaak '${act.taskId}' bestaat niet` });
+          rejections.push({ id: act.assignmentId, reason: `target task '${act.taskId}' does not exist` });
           return;
         }
         if (target.isMilestone || isSummaryTask(target)) {
-          rejections.push({ id: act.assignmentId, reason: `doeltaak '${act.taskId}' is een mijlpaal/verzameltaak; die dragen geen resources` });
+          rejections.push({ id: act.assignmentId, reason: `target task '${act.taskId}' is a milestone/summary task; those carry no resources` });
           return;
         }
         // Move naar de taak waar hij (gesimuleerd) al staat: de dubbelcheck hieronder sluit `cur`
         // zelf uit en zou dit doorlaten, waarna `draft.moveAssignment` gooit en de HELE call
         // terugrolt. Net als een dubbele `add` dus zacht weigeren — alleen dit item vervalt.
         if (cur.taskId === act.taskId) {
-          rejections.push({ id: act.assignmentId, reason: `toewijzing '${act.assignmentId}' staat al op taak '${act.taskId}' (resource '${cur.resourceId}'); verplaatsen naar dezelfde taak verandert niets` });
+          rejections.push({ id: act.assignmentId, reason: `assignment '${act.assignmentId}' is already on task '${act.taskId}' (resource '${cur.resourceId}'); moving to the same task changes nothing` });
           return;
         }
         if (sim.some((x) => x.id !== cur.id && x.taskId === act.taskId && x.resourceId === cur.resourceId)) {
-          rejections.push({ id: act.assignmentId, reason: `resource '${cur.resourceId}' is al toegewezen aan taak '${act.taskId}' (verplaatsen zou de last dubbel tellen)` });
+          rejections.push({ id: act.assignmentId, reason: `resource '${cur.resourceId}' is already assigned to task '${act.taskId}' (moving would double-count the load)` });
           return;
         }
         cur.taskId = act.taskId;
@@ -1380,7 +1384,7 @@ function classifyAssignments(
       }
       case 'remove': {
         if (!sim.some((x) => x.id === act.assignmentId)) {
-          rejections.push({ id: String(act.assignmentId), reason: `toewijzing '${act.assignmentId}' bestaat niet` });
+          rejections.push({ id: String(act.assignmentId), reason: `assignment '${act.assignmentId}' does not exist` });
           return;
         }
         sim = sim.filter((x) => x.id !== act.assignmentId);
@@ -1388,7 +1392,7 @@ function classifyAssignments(
         return;
       }
       default:
-        rejections.push({ id: `#${index}`, reason: `onbekende actie '${(act as { action: string }).action}' (add | update | move | remove)` });
+        rejections.push({ id: `#${index}`, reason: `unknown action '${(act as { action: string }).action}' (add | update | move | remove)` });
     }
   });
   return { plans, rejections };
@@ -1398,7 +1402,7 @@ function classifyAssignments(
 function parseAssignments(args: unknown): AssignmentAction[] | string {
   const a = (args ?? {}) as { actions?: unknown };
   if (!Array.isArray(a.actions) || a.actions.length === 0) {
-    return 'manage_assignments vereist een niet-lege `actions`-array';
+    return 'manage_assignments requires a non-empty `actions` array';
   }
   return a.actions as AssignmentAction[];
 }
@@ -1454,23 +1458,22 @@ function manageAssignmentsCore(ctx: McpContext, actions: AssignmentAction[]): Mu
 const manageAssignments: BatchStepTool = {
   name: 'planner_manage_assignments',
   description:
-    'Beheer resource-toewijzingen in bulk (één call = één ongedaan-maak-stap). Per item één `action`: ' +
-    '`add` (`taskId`, `resourceId`, `unitsPerDay` = eenheden per WERKDAG waarbij 1 = 100% / één ' +
-    'persoon, optioneel `curve` en `remainingWorkMinutes`), `update` (`assignmentId` + `unitsPerDay`, ' +
-    '`curve` en/of `remainingWorkMinutes`), `move` (`assignmentId` naar een andere `taskId`) of `remove` ' +
-    '(`assignmentId`). De id\'s en veldnamen zijn exact die van de leestools (get_task/list_resources), ' +
-    'dus je kunt ze rechtstreeks terugstoppen. WERKREGEL (taaktype, `workRule` op de taak — zie ' +
-    'planner_update_tasks): werk = restduur × inzet, en de regel bepaalt welke hoek meebeweegt. Onder ' +
-    'FIXED_WORK/FIXED_RATE verandert een `unitsPerDay`-wijziging of een resource erbij/eraf dus de ' +
-    'TAAKDUUR; `remainingWorkMinutes` (resterend werk in werkminuten, > 0) verlengt/verkort de taak ' +
-    '(inzet beschermd) of verandert de inzet (duur beschermd). Onder de standaardregel ' +
-    'FIXED_DURATION_RATE laat een inzetwijziging de duur ongemoeid en herschrijft `remainingWorkMinutes` ' +
-    'alleen de inzet (I = W / R). De respons meldt het projecteinde; lees de taak opnieuw voor de ' +
-    'nieuwe duur. ' +
-    'Toewijzen kan alleen op een BLADTAAK (geen mijlpaal, geen verzameltaak) en dezelfde resource mag ' +
-    'maar één keer op dezelfde taak staan — een tweede toewijzing zou de last dubbel tellen en wordt ' +
-    'zacht geweigerd, óók als het duplicaat binnen deze ene call zit. Geweigerde items komen terug in ' +
-    '`itemRejections`; de geldige items blijven gewoon staan.',
+    'Manage resource assignments in bulk (one call = one undo step). One `action` per item: `add` (`taskId`, ' +
+    '`resourceId`, `unitsPerDay` = units per WORKING DAY where 1 = 100% / one person, optionally `curve` and ' +
+    '`remainingWorkMinutes`), `update` (`assignmentId` + `unitsPerDay`, `curve` and/or ' +
+    '`remainingWorkMinutes`), `move` (`assignmentId` to another `taskId`) or `remove` (`assignmentId`). The ' +
+    'ids and field names are exactly those of the read tools (get_task/list_resources), so you can put them ' +
+    'straight back. WORK RULE (task type, `workRule` on the task — see planner_update_tasks): work = ' +
+    'remaining duration × units, and the rule determines which corner moves along. Under ' +
+    'FIXED_WORK/FIXED_RATE a `unitsPerDay` change or adding/removing a resource therefore changes the TASK ' +
+    'DURATION; `remainingWorkMinutes` (remaining work in work minutes, > 0) lengthens/shortens the task ' +
+    '(units protected) or changes the units (duration protected). Under the default rule FIXED_DURATION_RATE ' +
+    'a units change leaves the duration alone and `remainingWorkMinutes` only rewrites the units (U = W / ' +
+    'D). The response reports the project end; read the task again for the new duration. Assigning is only ' +
+    'possible on a LEAF TASK (no milestone, no summary task) and the same resource may only be on the same ' +
+    'task once — a second assignment would double-count the load and is softly refused, also when the ' +
+    'duplicate is within this one call. Refused items come back in `itemRejections`; the valid items simply ' +
+    'stay.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -1480,28 +1483,29 @@ const manageAssignments: BatchStepTool = {
       actions: {
         type: 'array',
         minItems: 1,
-        description: 'De uit te voeren toewijzings-acties, in volgorde.',
+        description: 'The assignment actions to run, in order.',
         items: {
           type: 'object',
           required: ['action'],
           properties: {
             action: { type: 'string', enum: ['add', 'update', 'move', 'remove'] },
-            taskId: { type: 'string', description: 'Bij `add`: de bladtaak. Bij `move`: de NIEUWE bladtaak.' },
-            resourceId: { type: 'string', description: 'Alleen bij `add`.' },
-            assignmentId: { type: 'string', description: 'Bij `update`/`move`/`remove`; exact het id uit de leestools.' },
-            unitsPerDay: { type: 'number', exclusiveMinimum: 0, description: 'Eenheden per WERKDAG (1 = 100% = één persoon/stuk; 0,5 = halve dag).' },
+            taskId: { type: 'string', description: 'For `add`: the leaf task. For `move`: the NEW leaf task.' },
+            resourceId: { type: 'string', description: 'Only for `add`.' },
+            assignmentId: { type: 'string', description: 'For `update`/`move`/`remove`; exactly the id from the read tools.' },
+            unitsPerDay: { type: 'number', exclusiveMinimum: 0, description: 'Units per WORKING DAY (1 = 100% = one person/piece; 0.5 = half a day).' },
             curve: {
               type: 'string',
               enum: [...RESOURCE_CURVES],
-              description: 'Verdeelcurve over de duur (de acht MS Project-/P6-vormen); weglaten = UNIFORM.',
+              description: 'Distribution curve over the duration (the eight MS Project/P6 shapes); omitted = UNIFORM.',
             },
             remainingWorkMinutes: {
               type: 'number',
               exclusiveMinimum: 0,
               description:
-                'Bij `add` of `update`: RESTEREND werk van deze toewijzing in WERKminuten (8 uur = 480). De ' +
-                'werkregel van de taak bepaalt wat meebeweegt: de duur (FIXED_WORK/FIXED_RATE) of de inzet ' +
-                '(FIXED_DURATION_*). Alleen op een gewone bladtaak op werktijd; materiaal telt niet mee voor de duur.',
+                'For `add` or `update`: REMAINING work of this assignment in WORK minutes (8 hours = 480). ' +
+                'The work rule of the task determines what moves along: the duration (FIXED_WORK/FIXED_RATE) ' +
+                'or the units (FIXED_DURATION_*). Only on an ordinary leaf task on working time; material ' +
+                'does not count towards the duration.',
             },
           },
         },
@@ -1563,19 +1567,20 @@ function levelingData(
   const warnings: string[] = [];
   if (!constrainToFloat && calendarDays !== 0) {
     warnings.push(
-      `De projecteinddatum VERSCHUIFT: ${r.projectEndBefore} → ${r.projectEndAfter} (${calendarDays > 0 ? '+' : ''}${calendarDays} kalenderdagen). ` +
-      'Dit is het gevolg van `constrainToFloat: false`; met `true` blijft de einddatum heilig.',
+      `The project end date SHIFTS: ${r.projectEndBefore} → ${r.projectEndAfter} (` +
+      `${calendarDays > 0 ? '+' : ''}${calendarDays} calendar days). This is the consequence of ` +
+      '`constrainToFloat: false`; with `true` the end date is sacred.',
     );
   }
   if (unresolvedCount > 0) {
     warnings.push(
-      `${unresolvedCount} taak/taken houden een onopgeloste piek; zie \`unresolvedReasons\` ` +
-      '(INTRINSIC_OVERRUN = de taak vraagt op zichzelf al meer dan de capaciteit, CALENDAR_MISMATCH = ' +
-      'resource- en taakkalender sluiten niet aan, INSUFFICIENT_CAPACITY = er is domweg te weinig capaciteit, ' +
-      'CEILING_TOO_TIGHT = het uitloop-plafond laat te weinig ruimte, CEILING_UNREACHABLE = een deadline/' +
-      'backward-constraint maakt elk plafond onbereikbaar, RESIDUAL_FULL = de eigen projectinzet had ' +
-      'ruimte maar de restcapaciteit van het bibliotheek-poolitem is op — andere documenten bezetten de ' +
-      'pool, NO_WINDOW_IN_HORIZON = de zoekhorizon liep leeg zonder een passend venster te vinden).',
+      `${unresolvedCount} task(s) keep an unresolved peak; see \`unresolvedReasons\` (INTRINSIC_OVERRUN = ` +
+      'the task on its own already asks for more than the capacity, CALENDAR_MISMATCH = resource and task ' +
+      'calendar do not line up, INSUFFICIENT_CAPACITY = there is simply too little capacity, ' +
+      'CEILING_TOO_TIGHT = the extension ceiling leaves too little room, CEILING_UNREACHABLE = a ' +
+      'deadline/backward constraint makes every ceiling unreachable, RESIDUAL_FULL = the project\'s own ' +
+      'allocation had room but the residual capacity of the library pool item is used up — other documents ' +
+      'occupy the pool, NO_WINDOW_IN_HORIZON = the search horizon ran out without finding a fitting window).',
     );
   }
   // `projectEndAfter` is de VOORSPELLING van de nivelleerder; `projectEnd` is wat er ná de
@@ -1584,7 +1589,7 @@ function levelingData(
   const { projectEnd, cappedTaskIds } = projectEndInfo(state);
   if (cappedTaskIds) {
     warnings.push(
-      `Onwerkbaar venster: ${cappedTaskIds.length} taak/taken passen niet binnen hun kalender (zie cappedTaskIds).`,
+      `Unworkable window: ${cappedTaskIds.length} task(s) do not fit within their calendar (see cappedTaskIds).`,
     );
   }
   return {
@@ -1611,31 +1616,31 @@ function parseLeveling(
 ): { options: LevelingOptions; constrainToFloat: boolean; dryRun: boolean } | string {
   const a = (args ?? {}) as { constrainToFloat?: unknown; resourceIds?: unknown; dryRun?: unknown };
   if (a.constrainToFloat !== undefined && typeof a.constrainToFloat !== 'boolean') {
-    return '`constrainToFloat` moet een boolean zijn';
+    return '`constrainToFloat` must be a boolean';
   }
   // `dryRun` streng typechecken: met `a.dryRun === true` zou elke niet-boolean (`"true"`, `1`) stil
   // `false` betekenen, dus een ECHTE nivellering terwijl de aanroeper dacht te previewen. Juist die
   // parameter wordt in de beschrijving verkocht als de veilige manier om eerst te kijken ⇒ hard
   // weigeren.
   if (a.dryRun !== undefined && typeof a.dryRun !== 'boolean') {
-    return `${booleanArgReason(a.dryRun, 'dryRun')} — ` +
-      'een niet-boolean zou stil als `false` gelden en dus een ECHTE nivellering uitvoeren';
+    return `${booleanArgReason(a.dryRun, 'dryRun')} — a non-boolean would silently count as \`false\` and so ` +
+      'run a REAL leveling';
   }
   if (a.resourceIds !== undefined) {
-    if (!Array.isArray(a.resourceIds)) return "`resourceIds` moet een array van resource-id's zijn";
+    if (!Array.isArray(a.resourceIds)) return '`resourceIds` must be an array of resource ids';
     // Een selectie die (deels) niet bestaat, geeft anders een stille nul-effect-run: de leveler
     // filtert onbekende id's weg, waarna `delays: {}` / `shifts: []` leest als "er hoefde niets
     // genivelleerd te worden". Een lege selectie is om dezelfde reden nooit bedoeld.
     if (a.resourceIds.length === 0) {
-      return '`resourceIds` is leeg; laat de parameter weg om ALLE hernieuwbare resources te nivelleren';
+      return '`resourceIds` is empty; leave the parameter out to level ALL renewable resources';
     }
     const bad = a.resourceIds.filter((x) => typeof x !== 'string' || x === '');
-    if (bad.length > 0) return "`resourceIds` mag alleen niet-lege resource-id-strings bevatten";
+    if (bad.length > 0) return '`resourceIds` may only contain non-empty resource id strings';
     const known = new Set(state.resources.map((r) => r.id));
     const unknown = (a.resourceIds as string[]).filter((id) => !known.has(id));
     if (unknown.length > 0) {
-      return `onbekende resource-id(s): ${unknown.join(', ')} — nivelleren zou dan stil niets doen; ` +
-        'haal geldige id\'s op met planner_list_resources';
+      return `unknown resource id(s): ${unknown.join(', ')} — leveling would then silently do nothing; get ` +
+        'valid ids with planner_list_resources';
     }
   }
   const constrainToFloat = a.constrainToFloat !== false; // default true (de hoofdroute)
@@ -1659,7 +1664,7 @@ function parseLeveling(
 function levelResourcesCore(ctx: McpContext, p: { options: LevelingOptions; dryRun: boolean }): MutationOutcome {
   const fresh = ensureFreshSchedule(ctx.app);
   if (fresh.error) {
-    throw new McpStepError('VALIDATION', `planning kon niet worden herrekend vóór het nivelleren: ${fresh.error}`);
+    throw new McpStepError('VALIDATION', `the schedule could not be recalculated before leveling: ${fresh.error}`);
   }
   const preview = ctx.app.store.getState().levelResources(p.options);
   // `dryRun` muteert per contract niets — binnen een batch dus een pure preview-stap.
@@ -1670,16 +1675,15 @@ function levelResourcesCore(ctx: McpContext, p: { options: LevelingOptions; dryR
 const levelResources: BatchStepTool = {
   name: 'planner_level_resources',
   description:
-    'Nivelleer resource-pieken door taken binnen hun speling (of daarbuiten) te verschuiven. ' +
-    '`constrainToFloat: true` (default) = gladstrijken BINNEN de speling: de projecteinddatum blijft ' +
-    'heilig en pieken die niet oplosbaar zijn blijven staan. `constrainToFloat: false` = de einddatum ' +
-    'mag opschuiven; de respons meldt die verschuiving dan prominent in `projectEndDelta` en ' +
-    '`warnings`. Met `resourceIds` beperk je het tot bepaalde resources (materiaal wordt altijd ' +
-    'overgeslagen); met `dryRun: true` krijg je een volledige PREVIEW zonder ook maar iets te ' +
-    'wijzigen — aan te raden vóór je toepast. De respons bevat altijd het volledige resultaat: ' +
-    '`delays` (toegepaste vertraging in werkdagen), `shifts` (elke taak wiens start opschuift), ' +
-    '`unresolved` + `unresolvedReasons` (waaróm een piek bleef staan) en projecteinde vóór/na. ' +
-    'De nivellering reset zichzelf eerst volledig, dus opnieuw draaien stapelt niet.',
+    'Level resource peaks by shifting tasks within their float (or beyond it). `constrainToFloat: true` ' +
+    '(default) = smooth WITHIN the float: the project end date is sacred and peaks that cannot be resolved ' +
+    'stay. `constrainToFloat: false` = the end date may move; the response then reports that shift ' +
+    'prominently in `projectEndDelta` and `warnings`. With `resourceIds` you restrict it to certain ' +
+    'resources (material is always skipped); with `dryRun: true` you get a complete PREVIEW without changing ' +
+    'anything at all — recommended before you apply. The response always contains the complete result: ' +
+    '`delays` (applied delay in working days), `shifts` (every task whose start moves), `unresolved` + ' +
+    '`unresolvedReasons` (WHY a peak remained) and the project end before/after. Leveling first resets ' +
+    'itself completely, so running it again does not stack.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -1688,19 +1692,19 @@ const levelResources: BatchStepTool = {
     properties: {
       constrainToFloat: {
         type: 'boolean',
-        description: 'true (default) = alleen binnen de totale speling schuiven, einddatum blijft heilig. false = einddatum mag verschuiven.',
+        description: 'true (default) = only shift within the total float, the end date stays sacred. false = the end date may shift.',
       },
       resourceIds: {
         type: 'array',
         items: { type: 'string' },
-        description: 'Beperk tot deze resources; weglaten = alle hernieuwbare resources (materiaal telt nooit mee).',
+        description: 'Restrict to these resources; omitted = all renewable resources (material never counts).',
       },
       dryRun: {
         type: 'boolean',
         description:
-          'true = alleen preview: er wordt niets genivelleerd en er ontstaat geen ongedaan-maak-stap. ' +
-          'Let op: een nog niet doorgerekende planning wordt ook dan éérst herrekend (anders kloppen de ' +
-          'voor/na-datums niet); `recomputed` meldt dat.',
+          'true = preview only: nothing is leveled and no undo step is created. Note: a schedule that has ' +
+          'not been calculated yet is still recalculated FIRST in that case (otherwise the before/after ' +
+          'dates would not be right); `recomputed` reports that.',
       },
     },
   },
@@ -1717,7 +1721,7 @@ const levelResources: BatchStepTool = {
 
     const fresh = ensureFreshSchedule(ctx.app);
     if (fresh.error) {
-      return toolError(ctx, 'VALIDATION', `planning kon niet worden herrekend vóór het nivelleren: ${fresh.error}`);
+      return toolError(ctx, 'VALIDATION', `the schedule could not be recalculated before leveling: ${fresh.error}`);
     }
 
     if (dryRun) {
@@ -1759,10 +1763,9 @@ function clearLevelingCore(ctx: McpContext): MutationOutcome {
 const clearLeveling: BatchStepTool = {
   name: 'planner_clear_leveling',
   description:
-    'Wis alle nivellerings-vertragingen, zodat elke taak weer op zijn ongenivelleerde datum staat. ' +
-    'Let op: `planner_level_resources` reset de vertragingen ZELF voordat het rekent — deze tool ' +
-    'vooraf draaien is dus zinloos. Gebruik hem alleen om een eerdere nivellering ongedaan te maken ' +
-    'zonder een nieuwe te berekenen.',
+    'Clear all leveling delays, so every task is back on its unleveled date. Note: `planner_level_resources` ' +
+    'resets the delays ITSELF before it calculates — so running this tool beforehand is pointless. Only use ' +
+    'it to undo an earlier leveling without calculating a new one.',
   kind: 'mutate',
   batchable: true,
   // GEEN destructiveHint: die annotatie staat op een GESLOTEN lijst (delete_tasks,
@@ -1810,32 +1813,33 @@ const PROJECT_KEYS = [
  *  oneindig veel bruikbaarder dan stilte. */
 const PROJECT_REFUSED: Record<string, string> = {
   schedulingOptions:
-    'de reken-opties (`schedulingOptions`, waaronder `floatPaths`, `criticalDefinition`, `lagCalendar`, `startToStartLagFrom`) ' +
-    'zijn NIET via de bridge instelbaar: samen met het rekenprofiel bepalen ze de solver-semantiek van het ' +
-    'hele document. Zet ze in de app onder Bestand → Projectinfo → Rekenprofiel en reken-opties; ' +
-    '`planner_get_project_info` toont het actieve profiel en de projectopties, `planner_get_critical_path` meldt met `pathsMode` welke stand geldt.',
+    'the calculation options (`schedulingOptions`, including `floatPaths`, `criticalDefinition`, ' +
+    '`lagCalendar`, `startToStartLagFrom`) are NOT settable via the bridge: together with the calculation ' +
+    'profile they determine the solver semantics of the whole document. Set them in the app under File → ' +
+    'Project info → Calculation profile and options; `planner_get_project_info` shows the active profile and ' +
+    'the project options, `planner_get_critical_path` reports with `pathsMode` which setting applies.',
   schedulingProfile:
-    'het rekenprofiel (P6 / MS Project / OPS / eigen) is NIET via de bridge instelbaar: een wissel verschuift ' +
-    'datums van het hele document. Kies het in de app onder Bestand → Projectinfo → Rekenprofiel; ' +
-    '`planner_get_project_info` toont het actieve profiel met zijn zevenentwintig opgeloste conventies.',
+    'the calculation profile (P6 / MS Project / OPS / custom) is NOT settable via the bridge: a switch ' +
+    'shifts dates of the whole document. Choose it in the app under File → Project info → Calculation ' +
+    'profile; `planner_get_project_info` shows the active profile with its twenty-seven resolved conventions.',
   leveling:
-    '`leveling` hoort in `project.schedulingOptions`: de nivelleerinstellingen uit het bronbestand (P6 ' +
-    'SCHEDOPTIONS/RSRCLEVELLIST) worden gelezen en bewaard, maar nog NIET toegepast en zijn niet via de ' +
-    'bridge instelbaar. `planner_get_project_info` toont ze alleen-lezen; handmatig nivelleren gaat met ' +
-    '`planner_level_resources`.',
+    '`leveling` belongs in `project.schedulingOptions`: the leveling settings from the source file (P6 ' +
+    'SCHEDOPTIONS/RSRCLEVELLIST) are read and kept, but NOT applied yet and not settable via the bridge. ' +
+    '`planner_get_project_info` shows them read-only; manual leveling is done with `planner_level_resources`.',
   floatPaths:
-    '`floatPaths` hoort in `project.schedulingOptions` en is NIET via de bridge instelbaar (zie de app onder ' +
-    'Bestand → Projectinfo → Rekenprofiel en reken-opties). `planner_get_critical_path` meldt met `pathsMode` welke stand geldt.',
+    '`floatPaths` belongs in `project.schedulingOptions` and is NOT settable via the bridge (see the app ' +
+    'under File → Project info → Calculation profile and options). `planner_get_critical_path` reports with ' +
+    '`pathsMode` which setting applies.',
   calendarId:
-    'WELKE kalender de projectdefault is, kan de bridge niet wisselen — dat doe je in de app ' +
-    '(kalenderbibliotheek → als projectkalender instellen). Wil je de INHOUD van de projectkalender ' +
-    'wijzigen (of hem gelijkmaken aan die van een ander document), schrijf dan met ' +
-    '`planner_update_calendar` op het id uit `planner_get_calendars.projectDefaultId`; een taak aan ' +
-    'een andere kalender hangen doe je met `update_tasks.calendarId`. Kalender-id\'s zijn per document.',
-  wbsAutoNumber: 'automatisch WBS-nummeren is een documentinstelling in de app, niet via de bridge.',
-  id: '`id` is de stabiele projectidentiteit en wordt nooit overschreven.',
-  createdAt: 'tijdstempels worden door de app beheerd.',
-  modifiedAt: 'tijdstempels worden door de app beheerd.',
+    'WHICH calendar is the project default cannot be switched via the bridge — you do that in the app ' +
+    '(calendar library → set as project calendar). If you want to change the CONTENT of the project calendar ' +
+    '(or align it with that of another document), write with `planner_update_calendar` to the id from ' +
+    '`planner_get_calendars.projectDefaultId`; attaching a task to another calendar is done with ' +
+    '`update_tasks.calendarId`. Calendar ids are per document.',
+  wbsAutoNumber: 'automatic WBS numbering is a document setting in the app, not via the bridge.',
+  id: '`id` is the stable project identity and is never overwritten.',
+  createdAt: 'timestamps are managed by the app.',
+  modifiedAt: 'timestamps are managed by the app.',
 };
 
 /** Vormvalidatie van `update_project`; string = foutboodschap. Levert de veld-merge, de
@@ -1850,19 +1854,19 @@ function parseUpdateProject(
   const a = (args ?? {}) as Record<string, unknown>;
   for (const key of Object.keys(a)) {
     if ((PROJECT_KEYS as readonly string[]).includes(key)) continue;
-    if (PROJECT_REFUSED[key]) return `\`${key}\` wordt niet geschreven: ${PROJECT_REFUSED[key]}`;
-    return `onbekend veld \`${key}\`; update_project kent alleen: ${PROJECT_KEYS.join(', ')}`;
+    if (PROJECT_REFUSED[key]) return `\`${key}\` is not written: ${PROJECT_REFUSED[key]}`;
+    return `unknown field \`${key}\`; update_project only knows: ${PROJECT_KEYS.join(', ')}`;
   }
   const updates: Partial<Project> = {};
   for (const key of ['name', 'description', 'author', 'company'] as const) {
     if (a[key] !== undefined) {
-      if (typeof a[key] !== 'string') return `\`${key}\` moet een string zijn`;
+      if (typeof a[key] !== 'string') return `\`${key}\` must be a string`;
       updates[key] = a[key] as string;
     }
   }
   if (a.startDate !== undefined) {
     if (!isProjectDateValue(a.startDate, false)) {
-      return '`startDate` moet een bestaande ISO-datum zijn (JJJJ-MM-DD, zonder tijd)';
+      return '`startDate` must be an existing ISO date (YYYY-MM-DD, without time)';
     }
     updates.startDate = a.startDate;
   }
@@ -1873,7 +1877,7 @@ function parseUpdateProject(
   // het veld is in het type een verplichte string.
   if (a.endDate !== undefined) {
     if (a.endDate !== '' && !isProjectDateValue(a.endDate, false)) {
-      return '`endDate` moet een bestaande ISO-datum zijn (JJJJ-MM-DD, zonder tijd) of een lege string om hem te wissen';
+      return '`endDate` must be an existing ISO date (YYYY-MM-DD, without time) or an empty string to clear it';
     }
     updates.endDate = a.endDate;
   }
@@ -1884,8 +1888,8 @@ function parseUpdateProject(
     if (a.progressMode === null || a.progressMode === '') {
       clearProgressMode = true;
     } else if (a.progressMode !== 'RETAINED_LOGIC' && a.progressMode !== 'PROGRESS_OVERRIDE') {
-      return `\`progressMode\` moet RETAINED_LOGIC of PROGRESS_OVERRIDE zijn (of null om terug te vallen ` +
-        `op de default RETAINED_LOGIC), kreeg '${String(a.progressMode)}'`;
+      return '`progressMode` must be RETAINED_LOGIC or PROGRESS_OVERRIDE (or null to fall back to the ' +
+        `default RETAINED_LOGIC), got '${String(a.progressMode)}'`;
     } else {
       updates.progressMode = a.progressMode;
     }
@@ -1897,7 +1901,7 @@ function parseUpdateProject(
     if (a.defaultWorkRule === null || a.defaultWorkRule === '') {
       clearDefaultWorkRule = true;
     } else if (typeof a.defaultWorkRule !== 'string' || !(WORK_RULES as readonly string[]).includes(a.defaultWorkRule)) {
-      return `\`defaultWorkRule\` moet één van ${WORK_RULES.join(' | ')} zijn (of null voor de standaard FIXED_DURATION_RATE)`;
+      return `\`defaultWorkRule\` must be one of ${WORK_RULES.join(' | ')} (or null for the default FIXED_DURATION_RATE)`;
     } else {
       updates.defaultWorkRule = a.defaultWorkRule as WorkRule;
     }
@@ -1910,8 +1914,8 @@ function parseUpdateProject(
     if (a.statusDate === null || a.statusDate === '') {
       clearStatusDate = true;
     } else if (!isProjectDateValue(a.statusDate, true)) {
-      return '`statusDate` moet een bestaande ISO-datum zijn (JJJJ-MM-DD) of, bij uurplanning, een ' +
-        'datum-tijd tot op de minuut (JJJJ-MM-DDTHH:mm); null of een lege string wist hem';
+      return '`statusDate` must be an existing ISO date (YYYY-MM-DD) or, with hour planning, a date-time to ' +
+        'the minute (YYYY-MM-DDTHH:mm); null or an empty string clears it';
     } else {
       updates.statusDate = a.statusDate;
     }
@@ -1923,7 +1927,7 @@ function parseUpdateProject(
     ...(clearDefaultWorkRule ? ['defaultWorkRule'] : []),
   ];
   if (touched.length === 0) {
-    return `update_project vereist minstens één veld (${PROJECT_KEYS.join('/')})`;
+    return `update_project requires at least one field (${PROJECT_KEYS.join('/')})`;
   }
   return { updates, clearStatusDate, clearProgressMode, clearDefaultWorkRule, touched };
 }
@@ -1933,10 +1937,10 @@ function parseUpdateProject(
  *  en dit gevolg (de hele planning schuift op) is groot genoeg om niet stil te mogen blijven. Het
  *  batch-pad krijgt hem hierdoor óók — daar is er geen `enrichOk` en dus geen voor/na-getal. */
 const STATUS_DATE_NOTE =
-  'De statusdatum is de DATA DATE: werk met completion 0 kan nooit vóór deze datum starten en wordt ' +
-  'erheen vooruitgeschoven. Ook zónder enige geregistreerde voortgang verschuift de hele planning ' +
-  '(inclusief de eerste mijlpaal) daardoor naar de statusdatum en schuift het projecteinde evenveel ' +
-  'op; `startDate` blijft ongemoeid. Wis de statusdatum (null) om dat terug te draaien.';
+  'The status date is the DATA DATE: work with completion 0 can never start before this date and is pushed ' +
+  'forward to it. Even WITHOUT any recorded progress the whole schedule (including the first milestone) ' +
+  'therefore shifts to the status date and the project end moves by the same amount; `startDate` stays ' +
+  'untouched. Clear the status date (null) to undo that.';
 
 /** Synchrone, transactie-vrije kern van `update_project`. */
 function updateProjectCore(
@@ -1970,33 +1974,31 @@ function updateProjectCore(
 const updateProject: BatchStepTool = {
   name: 'planner_update_project',
   description:
-    'Wijzig projectgegevens: `name`, `description`, `author`, `company`, `statusDate` (de peildatum ' +
-    'waarop voortgang wordt geregistreerd — zónder deze datum weigert het voortgangspad van ' +
-    'update_tasks), `endDate` (de contractuele/gewenste einddatum — puur metadata, hij dwingt NIETS ' +
-    'af in de planning; lege string wist hem), `defaultWorkRule` (projectstandaard-taaktype voor taken ' +
-    'zonder eigen `workRule`; null = FIXED_DURATION_RATE), `progressMode` (RETAINED_LOGIC of PROGRESS_OVERRIDE — ' +
-    'hoe de solver werk buiten de volgorde afhandelt; null = terug naar de default RETAINED_LOGIC) en ' +
-    '`startDate`. Een ONBEKEND veld wordt geweigerd met de toegestane lijst erbij — er wordt nooit ' +
-    'stil iets weggegooid. BELANGRIJK over `startDate`: het is het anker voor NIEUW aan te maken ' +
-    'taken en verschuift de REST van de bestaande planning niet — geen enkele taak-EIND schuift mee, ' +
-    'behalve het eind van de geklemde ankers zelf, dat duurbehoudend meeschuift. ' +
-    'Sinds T7b is er wél één gerichte uitzondering (bewerkbescherming, geen Δ-verschuiving): een ' +
-    'LATERE `startDate` klemt bestaande taak-ankers die zónder voorganger en zónder constraint vóór ' +
-    'de nieuwe startdatum staan, vooruit náár die datum (de respons meldt `anchorsClamped`) — zo blijft een ' +
-    'wortel-taak niet stil vóór het officiële projectbegin hangen na het verzetten van de start. Een ' +
-    'taak met een voorganger, een constraint, of een start ná de nieuwe datum blijft ongemoeid. Wil ' +
-    'je de HELE bestaande planning (elk anker, elke taak) Δ dagen opschuiven, gebruik dan ' +
-    '`planner_move_project`. Zet `startDate` dus vóór add_tasks, niet erna. NET ZO BELANGRIJK over ' +
-    '`statusDate`: dat is GEEN passief label maar de DATA DATE ' +
-    'uit P6/MSP, en die HERSCHIKT de planning. Werk dat nog niet begonnen is (completion 0) mag niet ' +
-    'meer vóór de statusdatum liggen en wordt naar die datum vooruitgeschoven; op een planning ' +
-    'zónder enige voortgang schuift dus ALLES mee — inclusief de eerste mijlpaal — en verspringt het ' +
-    'projecteinde evenveel, terwijl `startDate` gewoon blijft staan. Zet een statusdatum daarom pas ' +
-    'wanneer je ook echt voortgang gaat registreren. De respons meldt onder `statusDateEffect` het ' +
-    'projecteinde vóór én ná deze call, zodat je die verschuiving ziet. ' +
-    '`statusDate: null` (of een lege string) wist de statusdatum — doe dat bewust: zonder ' +
-    'peildatum worden reeds geregistreerde actuals inert (de solver pint er niet meer op) en kunnen ' +
-    'berekende datums bij de eerstvolgende herberekening verschuiven.',
+    'Change project details: `name`, `description`, `author`, `company`, `statusDate` (the reporting date on ' +
+    'which progress is recorded — WITHOUT this date the progress path of update_tasks refuses), `endDate` ' +
+    '(the contractual/desired end date — pure metadata, it enforces NOTHING in the schedule; an empty string ' +
+    'clears it), `defaultWorkRule` (project default task type for tasks without their own `workRule`; null = ' +
+    'FIXED_DURATION_RATE), `progressMode` (RETAINED_LOGIC or PROGRESS_OVERRIDE — how the solver handles ' +
+    'out-of-sequence work; null = back to the default RETAINED_LOGIC) and `startDate`. An UNKNOWN field is ' +
+    'refused with the allowed list — nothing is ever silently thrown away. IMPORTANT about `startDate`: it ' +
+    'is the anchor for tasks still to be CREATED and does not shift the REST of the existing schedule — no ' +
+    'task FINISH moves along, except the finish of the clamped anchors themselves, which moves along ' +
+    'preserving duration. Since T7b there IS one targeted exception (edit protection, not a Δ shift): a ' +
+    'LATER `startDate` clamps existing task anchors that have no predecessor and no constraint and lie ' +
+    'before the new start date forward TO that date (the response reports `anchorsClamped`) — so a root task ' +
+    'does not silently stay hanging before the official project start after moving the start. A task with a ' +
+    'predecessor, a constraint, or a start after the new date stays untouched. If you want to shift the ' +
+    'WHOLE existing schedule (every anchor, every task) by Δ days, use `planner_move_project`. So set ' +
+    '`startDate` before add_tasks, not after. EQUALLY IMPORTANT about `statusDate`: it is NOT a passive ' +
+    'label but the DATA DATE from P6/MSP, and it RESCHEDULES the schedule. Work that has not started yet ' +
+    '(completion 0) may no longer lie before the status date and is pushed forward to that date; on a ' +
+    'schedule WITHOUT any progress EVERYTHING therefore moves along — including the first milestone — and ' +
+    'the project end jumps by the same amount, while `startDate` simply stays. So only set a status date ' +
+    'when you are actually going to record progress. The response reports the project end before AND after ' +
+    'this call under `statusDateEffect`, so you see that shift. `statusDate: null` (or an empty string) ' +
+    'clears the status date — do that deliberately: without a reporting date, actuals already recorded ' +
+    'become inert (the solver no longer pins to them) and calculated dates can shift on the next ' +
+    'recalculation.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -2007,27 +2009,27 @@ const updateProject: BatchStepTool = {
       description: { type: 'string' },
       author: { type: 'string' },
       company: { type: 'string' },
-      startDate: { type: 'string', description: 'ISO-datum (JJJJ-MM-DD). Anker voor NIEUWE taken; verschuift bestaande taken NIET.' },
-      endDate: { type: 'string', description: 'Gewenste/contractuele einddatum als ISO-datum (JJJJ-MM-DD); lege string wist hem. Metadata — dwingt niets af in de planning.' },
+      startDate: { type: 'string', description: 'ISO date (YYYY-MM-DD). Anchor for NEW tasks; does NOT shift existing tasks.' },
+      endDate: { type: 'string', description: 'Desired/contractual end date as an ISO date (YYYY-MM-DD); an empty string clears it. Metadata — enforces nothing in the schedule.' },
       statusDate: {
         type: ['string', 'null'],
         description:
-          'ISO-datum (JJJJ-MM-DD) — bij uurplanning mag een tijd tot op de minuut (JJJJ-MM-DDTHH:mm) — ' +
-          'of null om te wissen. Dit is de DATA DATE: niet-gestart werk ' +
-          '(completion 0) wordt naar deze datum vooruitgeschoven, dus het zetten ervan verschuift ' +
-          'ook zonder enige voortgang de hele planning en het projecteinde.',
+          'ISO date (YYYY-MM-DD) — with hour planning a time to the minute is allowed (YYYY-MM-DDTHH:mm) — ' +
+          'or null to clear it. This is the DATA DATE: unstarted work (completion 0) is pushed forward to ' +
+          'this date, so setting it shifts the whole schedule and the project end even without any progress.',
       },
       progressMode: {
         type: ['string', 'null'],
         enum: ['RETAINED_LOGIC', 'PROGRESS_OVERRIDE', null],
-        description: 'Voortgangs-scheduling-modus; null = terug naar de default RETAINED_LOGIC.',
+        description: 'Progress scheduling mode; null = back to the default RETAINED_LOGIC.',
       },
       defaultWorkRule: {
         type: ['string', 'null'],
         enum: [...WORK_RULES, null],
         description:
-          'Projectstandaard-werkregel (taaktype) voor taken zonder eigen `workRule` — zie planner_update_tasks ' +
-          '`fields.workRule` voor de vier waarden. null = de standaard FIXED_DURATION_RATE. Wisselen verandert geen getal.',
+          'Project default work rule (task type) for tasks without their own `workRule` — see ' +
+          'planner_update_tasks `fields.workRule` for the four values. null = the default ' +
+          'FIXED_DURATION_RATE. Switching changes no number.',
       },
     },
     additionalProperties: false,
@@ -2071,11 +2073,10 @@ const updateProject: BatchStepTool = {
         // Herinnering in de payload zelf: de AI leest data vaak eerder dan de beschrijving. "Geen
         // bestaande taak verschuift" geldt niet onvoorwaardelijk: zie de uitzondering hieronder
         // (`anchorsClamped`, bewerkbescherming).
-        note: '`startDate` is het anker voor NIEUWE taken en verschuift de REST van de bestaande ' +
-          'planning niet. Uitzondering (bewerkbescherming, geen Δ-verschuiving): bij een LATERE ' +
-          'startDate schuiven wortel-taken zonder voorganger/constraint die vóór de nieuwe datum ' +
-          'staan mee náár die datum — zie `anchorsClamped`. Gebruik planner_move_project om de ' +
-          'HELE bestaande planning (elk anker) te verschuiven.',
+        note: '`startDate` is the anchor for NEW tasks and does not shift the REST of the existing schedule. ' +
+          'Exception (edit protection, not a Δ shift): with a LATER startDate, root tasks without ' +
+          'predecessor/constraint that lie before the new date move along TO that date — see ' +
+          '`anchorsClamped`. Use planner_move_project to shift the WHOLE existing schedule (every anchor).',
         ...(anchorsClamped > 0 ? { anchorsClamped } : {}),
         ...(statusDateTouched
           ? {
@@ -2115,7 +2116,7 @@ function parseMoveProject(args: unknown): { newStartDate: string; shiftBaselines
   // door; `parseDate` rolde die stil door (Δ klopt niet) en de ruwe string belandde in
   // `project.startDate` en dus in het IFC-bestand.
   if (!isProjectDateValue(a.newStartDate, false)) {
-    return '`newStartDate` moet een bestaande ISO-datum zijn (JJJJ-MM-DD)';
+    return '`newStartDate` must be an existing ISO date (YYYY-MM-DD)';
   }
   // Zelfde patroon als `dryRun`, lagere inzet: een niet-boolean zou stil als `false` gelden, dus
   // baselines blijven staan terwijl de aanroeper denkt ze mee te verschuiven.
@@ -2134,33 +2135,33 @@ function moveProjectCore(ctx: McpContext, p: { newStartDate: string; shiftBaseli
   const s0 = ctx.app.store.getState();
   const delta = computeMoveDelta(s0.project.startDate, p.newStartDate);
   if (!Number.isFinite(delta)) {
-    throw new McpStepError('VALIDATION', `kan de verschuiving niet bepalen vanaf projectstart '${s0.project.startDate}'`);
+    throw new McpStepError('VALIDATION', `cannot determine the shift from project start '${s0.project.startDate}'`);
   }
   if (delta === 0) {
-    return { data: { moved: false, deltaDays: 0, taskCount: s0.tasks.length, reason: 'de projectstart is al deze datum' } };
+    return { data: { moved: false, deltaDays: 0, taskCount: s0.tasks.length, reason: 'the project start is already this date' } };
   }
   const out = ctx.app.store.getState().moveProject(p.newStartDate, { shiftBaselines: p.shiftBaselines });
-  if (!out.moved) throw new McpStepError('VALIDATION', `verschuiven naar '${p.newStartDate}' leverde geen wijziging op`);
+  if (!out.moved) throw new McpStepError('VALIDATION', `shifting to '${p.newStartDate}' produced no change`);
   return { data: out };
 }
 
 const moveProject: BatchStepTool = {
   name: 'planner_move_project',
   description:
-    'Verschuif de HELE bestaande planning zodat het project op `newStartDate` begint: alle taken en ' +
-    'resource-datums schuiven mee. Dit is het tegenovergestelde van `planner_update_project.startDate` ' +
-    '(dat alleen het anker voor nieuwe taken zet). Let op: de KALENDERS schuiven bewust NIET mee — ' +
-    'feestdagen en bouwvak liggen op vaste datums, dus de einddatum kan met een ánder aantal dagen ' +
-    'verspringen dan de verschuiving zelf; de respons meldt beide. Baselines blijven standaard staan ' +
-    '(een baseline bestaat om afwijking te meten); met `shiftBaselines: true` schuiven ze mee.',
+    'Shift the WHOLE existing schedule so that the project starts on `newStartDate`: all tasks and resource ' +
+    'dates move along. This is the opposite of `planner_update_project.startDate` (which only sets the ' +
+    'anchor for new tasks). Note: the CALENDARS deliberately do NOT move along — holidays and construction ' +
+    'holiday lie on fixed dates, so the end date can jump by a DIFFERENT number of days than the shift ' +
+    'itself; the response reports both. Baselines stay put by default (a baseline exists to measure ' +
+    'deviation); with `shiftBaselines: true` they move along.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
   inputSchema: {
     type: 'object',
     properties: {
-      newStartDate: { type: 'string', description: 'Nieuwe projectstart als ISO-datum (JJJJ-MM-DD).' },
-      shiftBaselines: { type: 'boolean', description: 'Laat opgeslagen baselines meeschuiven; default false.' },
+      newStartDate: { type: 'string', description: 'New project start as an ISO date (YYYY-MM-DD).' },
+      shiftBaselines: { type: 'boolean', description: 'Let saved baselines move along; default false.' },
     },
     required: ['newStartDate'],
   },
@@ -2173,13 +2174,13 @@ const moveProject: BatchStepTool = {
     const s0 = ctx.app.store.getState();
     const delta = computeMoveDelta(s0.project.startDate, newStartDate);
     if (!Number.isFinite(delta)) {
-      return toolError(ctx, 'VALIDATION', `kan de verschuiving niet bepalen vanaf projectstart '${s0.project.startDate}'`);
+      return toolError(ctx, 'VALIDATION', `cannot determine the shift from project start '${s0.project.startDate}'`);
     }
     // No-op-snelpad: Δ=0 ⇒ `moveProject` muteert niets; dan ook geen transactie/undo-stap.
     if (delta === 0) {
       return okDirectGuarded(
         ctx,
-        { moved: false, deltaDays: 0, taskCount: s0.tasks.length, reason: 'de projectstart is al deze datum', projectEnd: projectEndInfo(s0).projectEnd },
+        { moved: false, deltaDays: 0, taskCount: s0.tasks.length, reason: 'the project start is already this date', projectEnd: projectEndInfo(s0).projectEnd },
         [],
       );
     }
@@ -2199,7 +2200,7 @@ const moveProject: BatchStepTool = {
         projectEnd,
         endDeltaDays,
         ...(endDeltaDays !== out.deltaDays
-          ? { note: `Het einde schuift ${endDeltaDays} kalenderdagen op terwijl de start ${out.deltaDays} dagen opschuift — de kalender (feestdagen/bouwvak) grijpt in.` }
+          ? { note: `The finish moves ${endDeltaDays} calendar days while the start moves ${out.deltaDays} days — the calendar (holidays/construction holiday) intervenes.` }
           : {}),
         ...(cappedTaskIds ? { cappedTaskIds } : {}),
       };
@@ -2222,22 +2223,22 @@ const moveProject: BatchStepTool = {
 const saveBaseline: McpToolDef = {
   name: 'planner_save_baseline',
   description:
-    'Leg de huidige planning vast als baseline (nulmeting) en maak die direct actief; latere ' +
-    'afwijkingen meet je ertegen af met compare_baseline/analyze_delay. Is de planning verouderd OF ' +
-    'nog nooit doorgerekend (bijv. na crash-herstel), dan wordt eerst herrekend zodat de baseline op ' +
-    'verse datums staat (`recomputed` meldt dat). Deze tool kan NIET als stap in een batch draaien: een baseline hoort een losse, ' +
-    'bewuste nulmeting te zijn. Zonder `name` krijgt de baseline een oplopende standaardnaam.',
+    'Record the current schedule as a baseline and make it active right away; later deviations are measured ' +
+    'against it with compare_baseline/analyze_delay. If the schedule is out of date OR has never been ' +
+    'calculated (e.g. after crash recovery), it is recalculated first so that the baseline is on fresh dates ' +
+    '(`recomputed` reports that). This tool can NOT run as a step in a batch: a baseline should be a ' +
+    'separate, deliberate measurement. Without `name` the baseline gets an incrementing default name.',
   kind: 'mutate',
   batchable: false,
   annotations: { ...WRITE_ANNOTATIONS },
   inputSchema: {
     type: 'object',
-    properties: { name: { type: 'string', description: 'Naam van de baseline; weglaten = "Baseline N".' } },
+    properties: { name: { type: 'string', description: 'Name of the baseline; omitted = "Baseline N".' } },
   },
   async handler(args, ctx) {
     const a = (args ?? {}) as { name?: unknown };
     if (a.name !== undefined && typeof a.name !== 'string') {
-      return toolError(ctx, 'VALIDATION', '`name` moet een string zijn');
+      return toolError(ctx, 'VALIDATION', '`name` must be a string');
     }
 
     const g = guardNonTransactional(ctx);
@@ -2247,7 +2248,7 @@ const saveBaseline: McpToolDef = {
     // aan én stale" is onbereikbaar, zie de kop van readTools.ts).
     const fresh = ensureFreshSchedule(ctx.app);
     if (fresh.error) {
-      return toolError(ctx, 'VALIDATION', `planning kon niet worden herrekend vóór de baseline: ${fresh.error}`);
+      return toolError(ctx, 'VALIDATION', `the schedule could not be recalculated before the baseline: ${fresh.error} `);
     }
 
     const name = (a.name as string | undefined) || `Baseline ${ctx.app.store.getState().baselines.length + 1}`;

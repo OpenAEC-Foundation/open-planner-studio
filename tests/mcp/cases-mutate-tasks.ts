@@ -265,7 +265,7 @@ test('add_dependencies: duplicaat in dezelfde call ⇒ één toegepast, één za
   const data = okData(res);
   assertEq(data.added.length, 1, 'precies één relatie toegevoegd');
   assertEq((res as McpToolOk).itemRejections!.length, 1, 'het duplicaat is zacht geweigerd');
-  assert(/bestond al|duplicaat|reeds|bestaat/i.test((res as McpToolOk).itemRejections![0].reason),
+  assert(/already existed|duplicate|already|exist/i.test((res as McpToolOk).itemRejections![0].reason),
     'de reden noemt dat de relatie al bestond');
   const seqs = store.getState().sequences.filter((s) => s.predecessorId === a && s.successorId === b);
   assertEq(seqs.length, 1, 'store bevat precies één a→b-relatie');
@@ -285,7 +285,7 @@ test('add_dependencies: zelfrelatie ⇒ zachte weigering per item, de rest van d
   assertEq(data.added.length, 1, 'de geldige relatie a→b is toegevoegd');
   const rej = (res as McpToolOk).itemRejections ?? [];
   assertEq(rej.length, 1, 'precies één weigering: de zelfrelatie');
-  assert(/zichzelf/.test(rej[0]?.reason ?? ''), 'de reden noemt de zelfrelatie (zelfde tekst als update_dependencies)');
+  assert(/itself/.test(rej[0]?.reason ?? ''), 'de reden noemt de zelfrelatie (zelfde tekst als update_dependencies)');
 });
 
 // =================================================================================================

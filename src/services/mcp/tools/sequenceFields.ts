@@ -43,7 +43,7 @@ export function normalizeSeqType(v: unknown): SequenceType | null {
 
 /** De reden-tekst bij een onbekend relatietype; noemt BEIDE notaties. */
 export function unknownTypeReason(raw: unknown): string {
-  return `onbekend relatietype '${String(raw)}'; toegestaan: ${SEQ_TYPES.join(' | ')} (of kort ${SEQ_TYPE_SHORT.join('/')})`;
+  return `unknown relationship type '${String(raw)}'; allowed: ${SEQ_TYPES.join(' | ')} (or short ${SEQ_TYPE_SHORT.join('/')})`;
 }
 
 /**
@@ -60,12 +60,12 @@ export function unknownTypeReason(raw: unknown): string {
  * laten genereren.
  */
 export const ANCESTOR_RELATION_REJECTION =
-  'een relatie tussen een taak en zijn eigen voorouder-samenvattingstaak (directe ouder of hoger) is niet toegestaan (in beide richtingen)';
+  'a relationship between a task and its own ancestor summary task (direct parent or higher) is not allowed (in either direction)';
 
 /** Weigertekst voor een relatie van een taak met zichzelf — gedeeld door `add_dependencies` en
  *  `update_dependencies`, net als `ANCESTOR_RELATION_REJECTION` hierboven. */
 export function selfRelationReason(taskId: string): string {
-  return `een relatie kan taak '${taskId}' niet met zichzelf verbinden`;
+  return `a relationship cannot connect task '${taskId}' to itself`;
 }
 
 /** FS/SS/FF/SF-afkorting voor de compacte relatienotatie (leeskant). */
@@ -144,7 +144,7 @@ export function lagPatchOf(lag: ParsedLag): Pick<Sequence, 'lagDays' | 'lagPerce
 export function parseLag(raw: unknown): { ok: true; value: ParsedLag } | { ok: false; reason: string } {
   if (raw === undefined || raw === null) return { ok: true, value: { days: 0 } };
   if (typeof raw === 'number') {
-    if (!Number.isFinite(raw)) return { ok: false, reason: '`lag` moet een eindig getal zijn (werkdagen)' };
+    if (!Number.isFinite(raw)) return { ok: false, reason: '`lag` must be a finite number (working days)' };
     return { ok: true, value: { days: raw } };
   }
   if (typeof raw === 'string') {
@@ -152,7 +152,7 @@ export function parseLag(raw: unknown): { ok: true; value: ParsedLag } | { ok: f
     const p = LAG_PERCENT_RE.exec(s);
     if (p) {
       const n = Number(p[1].replace(',', '.'));
-      if (!Number.isFinite(n)) return { ok: false, reason: `\`lag\` '${s}' is geen geldige procent-lag` };
+      if (!Number.isFinite(n)) return { ok: false, reason: `\`lag\` '${s}' is not a valid percentage lag` };
       // 0% ⇒ gewone lag 0 (zie de doc hierboven: anders onleesbaar en dus niet terugschrijfbaar).
       return { ok: true, value: n === 0 ? { days: 0 } : { days: 0, percent: n } };
     }
@@ -164,11 +164,12 @@ export function parseLag(raw: unknown): { ok: true; value: ParsedLag } | { ok: f
     return {
       ok: false,
       reason:
-        `\`lag\` '${s}' is geen geldige lag; geef werkdagen (een fractie als 0.5 mag) als getal (2, -1), als string ` +
-        '("+2d", "-1d", "2") of een procent-lag van de voorgangerduur ("+50%")',
+        `\`lag\` '${s}' is not a valid lag; give working days (a fraction such as 0.5 is allowed) as a ` +
+        'number (2, -1), as a string ("+2d", "-1d", "2") or a percentage lag of the predecessor duration ' +
+        '("+50%")',
     };
   }
-  return { ok: false, reason: `\`lag\` moet een getal in werkdagen zijn (of een string als "+2d"/"+50%"), kreeg ${typeof raw}` };
+  return { ok: false, reason: `\`lag\` must be a number of working days (or a string such as "+2d"/"+50%"), got ${typeof raw}` };
 }
 
 // --- Gedeelde schema-fragmenten -----------------------------------------------------------------
@@ -178,20 +179,21 @@ export function parseLag(raw: unknown): { ok: true; value: ParsedLag } | { ok: f
 export const SEQ_TYPE_SCHEMA = {
   type: 'string',
   enum: [...SEQ_TYPES, ...SEQ_TYPE_SHORT],
-  description: 'Lange vorm (FINISH_START, …) of de korte vorm die de leestools teruggeven (FS/FF/SS/SF).',
+  description: 'Long form (FINISH_START, …) or the short form the read tools return (FS/FF/SS/SF).',
 };
 
 export const LAG_SCHEMA = {
   type: ['number', 'string'],
   description:
-    'Lag. Als getal (2, -1) of als de leeskant-string ("+2d", "-1d", "2") = WERKDAGEN; een fractie ' +
-    '(0.5, "+0.5d") mag en wordt niet afgerond (negatief = lead); als procent-string ("+50%") = ' +
-    'percentage van de VOORGANGERDUUR, per herberekening opnieuw bepaald. Elke andere vorm wordt geweigerd — nooit stil op 0 gezet.',
+    'Lag. As a number (2, -1) or as the read-side string ("+2d", "-1d", "2") = WORKING DAYS; a fraction ' +
+    '(0.5, "+0.5d") is allowed and not rounded (negative = lead); as a percentage string ("+50%") = ' +
+    'percentage of the PREDECESSOR DURATION, re-evaluated on every recalculation. Any other form is refused ' +
+    '— never silently set to 0.',
 };
 
 /** Gedeelde documentatiezin over de lag-notatie voor de tool-descriptions. */
 export const LAG_DOC =
-  '`lag` mag een getal (2, -1), de leeskant-string ("+2d", "-1d", "2") of een procent-lag van de ' +
-  'voorgangerduur ("+50%") zijn; elke andere vorm wordt GEWEIGERD in plaats van stil op 0 gezet. ' +
-  'Een lag zetten wist altijd de andere lag-representaties (procent ⇄ dagen ⇄ de uit IFC ingelezen ' +
-  'minuut-lag), zodat de opgegeven waarde ook echt de werkzame is.';
+  '`lag` may be a number (2, -1), the read-side string ("+2d", "-1d", "2") or a percentage lag of the ' +
+  'predecessor duration ("+50%"); any other form is REFUSED instead of silently set to 0. Setting a lag ' +
+  'always clears the other lag representations (percentage ⇄ days ⇄ the minute lag read from IFC), so the ' +
+  'given value is really the effective one. ';

@@ -103,16 +103,16 @@ test('add_dependencies/update_dependencies-descriptions beloven de HUIDIGE weige
     assert(def !== undefined, `tool '${name}' ontbreekt in de registry`);
     const desc = def!.description ?? '';
     assert(
-      /voorouder/i.test(desc),
+      /ancestor/i.test(desc),
       `'${name}': description noemt de voorouder-weigering niet: ${desc}`,
     );
     assert(
-      /verzameltaak.{0,80}TOEGESTAAN|TOEGESTAAN.{0,80}verzameltaak/i.test(desc),
+      /summary task.{0,80}ALLOWED|ALLOWED.{0,80}summary task/i.test(desc),
       `'${name}': description zegt niet expliciet dat een verzameltaak-eindpunt is toegestaan: ${desc}`,
     );
     // De oude, nu onjuiste claim ("verzameltaak ... wordt/is ... geweigerd") mag niet meer voorkomen.
     assert(
-      !/verzameltaak[^.]{0,80}geweigerd/i.test(desc),
+      !/(?<!ancestor )summary task[^.]{0,80}refused/i.test(desc),
       `'${name}': description belooft nog steeds dat een verzameltaak-eindpunt geweigerd wordt: ${desc}`,
     );
   }

@@ -136,7 +136,7 @@ function truncateAt(value: string, maxChars: number): string {
   let end = maxChars;
   const codeUnit = value.charCodeAt(end - 1);
   if (codeUnit >= 0xd800 && codeUnit <= 0xdbff) end -= 1;
-  return `${value.slice(0, end)}…(afgekapt op ${maxChars} tekens)`;
+  return `${value.slice(0, end)}…(truncated at ${maxChars} characters)`;
 }
 
 function truncateCell(value: string): string {
@@ -193,7 +193,7 @@ function createByteBudget(maxBytes: number): ByteBudget {
       if (used > maxBytes) {
         throw new XerProvenanceError(
           'VALIDATION',
-          `Deze pagina overschrijdt de responsgrens van ${MAX_SECTION_RESPONSE_BYTES} bytes — verlaag \`limit\` of gebruik \`offset\` om te pagineren.`,
+          `This page exceeds the response limit of ${MAX_SECTION_RESPONSE_BYTES} bytes — lower \`limit\` or use \`offset\` to paginate.`,
         );
       }
     },
@@ -337,7 +337,7 @@ function finalizeBounded<T extends Record<string, unknown>>(result: T): T {
   if (byteLength > MAX_SECTION_RESPONSE_BYTES) {
     throw new XerProvenanceError(
       'VALIDATION',
-      `Deze pagina overschrijdt de responsgrens van ${MAX_SECTION_RESPONSE_BYTES} bytes geserialiseerd — verlaag \`limit\` of gebruik \`offset\` om te pagineren.`,
+      `This page exceeds the response limit of ${MAX_SECTION_RESPONSE_BYTES} bytes serialized — lower \`limit\` or use \`offset\` to paginate.`,
     );
   }
   return result;
@@ -367,11 +367,11 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 function requireOnlyKeys(args: unknown): XerProvenanceArgs {
   if (args === undefined || args === null) return {};
-  if (!isObject(args)) throw new XerProvenanceError('VALIDATION', 'inspect_xer_provenance verwacht een object met argumenten.');
+  if (!isObject(args)) throw new XerProvenanceError('VALIDATION', 'inspect_xer_provenance expects an object with arguments.');
   const allowed = ['section', 'collection', 'projectId', 'limit', 'offset', 'includeRawSource', 'includeRawRows'];
   for (const key of Object.keys(args)) {
     if (!allowed.includes(key)) {
-      throw new XerProvenanceError('VALIDATION', `onbekend argument \`${key}\` voor inspect_xer_provenance; toegestaan: ${allowed.join(', ')}.`);
+      throw new XerProvenanceError('VALIDATION', `unknown argument \`${key}\` for inspect_xer_provenance; allowed: ${allowed.join(', ')}.`);
     }
   }
   return args;
@@ -397,20 +397,20 @@ function requirePage(args: XerProvenanceArgs, options: PageOptions = {}): { limi
       // grens moet de client nog een pagina opvragen.
       throw new XerProvenanceError(
         'VALIDATION',
-        `\`${options.label}\` accepteert maximaal ${maxLimit} ${options.unit ?? 'items'} per antwoord; gebruik offset voor volgende pagina's.`,
+        `\`${options.label}\` accepts at most ${maxLimit} ${options.unit ?? 'items'} per answer; use offset for the next pages.`,
       );
     }
-    throw new XerProvenanceError('VALIDATION', `\`limit\` moet een geheel getal van 1 t/m ${maxLimit} zijn.`);
+    throw new XerProvenanceError('VALIDATION', `\`limit\` must be an integer from 1 to ${maxLimit}.`);
   }
   if (typeof offset !== 'number' || !Number.isInteger(offset) || offset < 0) {
-    throw new XerProvenanceError('VALIDATION', '`offset` moet een geheel getal ≥ 0 zijn.');
+    throw new XerProvenanceError('VALIDATION', '`offset` must be an integer ≥ 0.');
   }
   return { limit, offset };
 }
 
 function requireString(value: unknown, name: string): string {
   if (typeof value !== 'string' || value.trim() === '') {
-    throw new XerProvenanceError('VALIDATION', `\`${name}\` moet een niet-lege string zijn.`);
+    throw new XerProvenanceError('VALIDATION', `\`${name}\` must be a non-empty string.`);
   }
   return value;
 }
@@ -448,7 +448,7 @@ function collectionOf<T>(section: Section, collection: unknown, allowed: readonl
   if (typeof collection !== 'string' || !allowed.includes(collection)) {
     throw new XerProvenanceError(
       'VALIDATION',
-      `${section} vereist \`collection\` uit: ${allowed.join(', ')}.`,
+      `${section} requires \`collection\` from: ${allowed.join(', ')}.`,
     );
   }
   return value;
@@ -473,10 +473,10 @@ function projectIds(archive: XerSourceArchive): string[] {
 function missingArchiveNote(state: AppState): string {
   const issue = state.xerArchiveIssue;
   return issue
-    ? `Geen archief (onbruikbaar bij openen: ${issue.code}). Het IFC droeg een XER-bronarchief dat ` +
-      'niet valideerde en daarom is weggelaten; de planning komt volledig uit het IFC. ' +
-      'Importeer de originele .xer opnieuw om de bronherkomst terug te krijgen.'
-    : 'Er is voor dit document geen retained XER-bronarchief beschikbaar.';
+    ? `No archive (unusable on opening: ${issue.code}). The IFC carried an XER source archive that did not ` +
+      'validate and was therefore left out; the schedule comes entirely from the IFC. Import the original ' +
+      '.xer again to get the source provenance back.'
+    : 'No retained XER source archive is available for this document.';
 }
 
 function requireArchive(state: AppState): XerSourceArchive {
@@ -485,7 +485,7 @@ function requireArchive(state: AppState): XerSourceArchive {
       'NOT_FOUND',
       state.xerArchiveIssue
         ? missingArchiveNote(state)
-        : 'Het actieve document bevat geen retained XER-bron.',
+        : 'The active document contains no retained XER source.',
     );
   }
   return state.xerSourceArchive;
@@ -495,7 +495,7 @@ function validateProjectSelector(archive: XerSourceArchive, projectId: unknown):
   if (projectId === undefined) return undefined;
   const selected = requireString(projectId, 'projectId');
   if (!projectIds(archive).includes(selected)) {
-    throw new XerProvenanceError('NOT_FOUND', `Onbekende XER-projectselector: ${selected}.`);
+    throw new XerProvenanceError('NOT_FOUND', `Unknown XER project selector: ${selected}.`);
   }
   return selected;
 }
@@ -648,7 +648,7 @@ function diagnostics(archive: XerSourceArchive, args: XerProvenanceArgs): unknow
   const includeRawRows = args.includeRawRows === true;
   if (collection === 'importReport') {
     if (args.limit !== undefined || args.offset !== undefined) {
-      throw new XerProvenanceError('VALIDATION', '`limit` en `offset` horen niet bij diagnostics/importReport.');
+      throw new XerProvenanceError('VALIDATION', '`limit` and `offset` do not belong to diagnostics/importReport.');
     }
     // Ook het scalaire importReport-pad loopt door de poort + responsgrens —
     // structureel onbegrensd blijven is fout, ongeacht wat het type vandaag toevallig bevat.
@@ -686,7 +686,7 @@ function diagnostics(archive: XerSourceArchive, args: XerProvenanceArgs): unknow
 function taskSourceRows(archive: XerSourceArchive, args: XerProvenanceArgs): unknown {
   const projectId = requireString(args.projectId, 'projectId');
   if (!Object.prototype.hasOwnProperty.call(archive.readModel.taskSourceRowsByProject, projectId)) {
-    throw new XerProvenanceError('NOT_FOUND', `Onbekende XER-projectselector: ${projectId}.`);
+    throw new XerProvenanceError('NOT_FOUND', `Unknown XER project selector: ${projectId}.`);
   }
   const includeRawRows = args.includeRawRows === true;
   const rows = archive.readModel.taskSourceRowsByProject[projectId] ?? [];
@@ -704,13 +704,13 @@ function taskSourceRows(archive: XerSourceArchive, args: XerProvenanceArgs): unk
  *  expliciet. */
 function rawSource(archive: XerSourceArchive, args: XerProvenanceArgs): unknown {
   if (args.includeRawSource !== true) {
-    throw new XerProvenanceError('VALIDATION', 'rawSource vereist `includeRawSource: true`; bronbytes kunnen namen en vrije notities bevatten.');
+    throw new XerProvenanceError('VALIDATION', 'rawSource requires `includeRawSource: true`; source bytes can contain names and free notes.');
   }
   const paged = paginateRaw(archive.byteChunks, args, { maxLimit: 8, label: 'rawSource', unit: 'chunks' });
   const next = paged.offset + paged.slice.length;
   return {
     section: 'rawSource',
-    privacy: 'expliciet aangevraagd; base64-brondata kan vrije projectinformatie bevatten',
+    privacy: 'explicitly requested; base64 source data can contain free project information',
     byteLength: archive.byteLength,
     sha256: archive.sha256,
     encoding: 'base64',
@@ -726,67 +726,66 @@ function rawSource(archive: XerSourceArchive, args: XerProvenanceArgs): unknown 
 function inspect(state: AppState, rawArgs: unknown): unknown {
   const args = requireOnlyKeys(rawArgs);
   if (args.section !== undefined && (typeof args.section !== 'string' || !(SECTIONS as readonly string[]).includes(args.section))) {
-    throw new XerProvenanceError('VALIDATION', `\`section\` moet één van ${SECTIONS.join(', ')} zijn.`);
+    throw new XerProvenanceError('VALIDATION', `\`section\` must be one of ${SECTIONS.join(', ')}.`);
   }
   if (args.includeRawSource !== undefined && typeof args.includeRawSource !== 'boolean') {
-    throw new XerProvenanceError('VALIDATION', '`includeRawSource` moet een boolean zijn.');
+    throw new XerProvenanceError('VALIDATION', '`includeRawSource` must be a boolean.');
   }
   if (args.includeRawRows !== undefined && typeof args.includeRawRows !== 'boolean') {
-    throw new XerProvenanceError('VALIDATION', '`includeRawRows` moet een boolean zijn.');
+    throw new XerProvenanceError('VALIDATION', '`includeRawRows` must be a boolean.');
   }
   const section = (args.section ?? 'summary') as Section;
   const archive = state.xerSourceArchive;
   if (args.projectId !== undefined && (typeof args.projectId !== 'string' || args.projectId.trim() === '')) {
-    throw new XerProvenanceError('VALIDATION', '`projectId` moet een niet-lege string zijn.');
+    throw new XerProvenanceError('VALIDATION', '`projectId` must be a non-empty string.');
   }
   if (section !== 'rawSource' && args.includeRawSource !== undefined) {
-    throw new XerProvenanceError('VALIDATION', '`includeRawSource` hoort alleen bij section `rawSource`.');
+    throw new XerProvenanceError('VALIDATION', '`includeRawSource` only belongs to section `rawSource`.');
   }
   if (args.includeRawRows !== undefined && !RAW_ROWS_SECTIONS.includes(section)) {
     throw new XerProvenanceError(
       'VALIDATION',
-      '`includeRawRows` hoort alleen bij section `resourceCatalog`, `metadataCatalog`, `taskSourceRowsByProject` of `diagnostics`.',
+      '`includeRawRows` only belongs to section `resourceCatalog`, `metadataCatalog`, `taskSourceRowsByProject` or `diagnostics`.',
     );
   }
   if (section === 'summary') {
-    if (args.collection !== undefined) throw new XerProvenanceError('VALIDATION', '`collection` hoort niet bij section `summary`.');
-    if (args.limit !== undefined || args.offset !== undefined) throw new XerProvenanceError('VALIDATION', '`limit` en `offset` horen niet bij section `summary`.');
+    if (args.collection !== undefined) throw new XerProvenanceError('VALIDATION', '`collection` does not belong to section `summary`.');
+    if (args.limit !== undefined || args.offset !== undefined) throw new XerProvenanceError('VALIDATION', '`limit` and `offset` do not belong to section `summary`.');
     if (args.projectId !== undefined && archive) validateProjectSelector(archive, args.projectId);
     return summary(state, archive);
   }
   if (args.projectId !== undefined && archive) validateProjectSelector(archive, args.projectId);
   const selected = requireArchive(state);
   if (section === 'rawSource') {
-    if (args.collection !== undefined || args.projectId !== undefined) throw new XerProvenanceError('VALIDATION', '`rawSource` neemt alleen includeRawSource, limit en offset.');
+    if (args.collection !== undefined || args.projectId !== undefined) throw new XerProvenanceError('VALIDATION', '`rawSource` only takes includeRawSource, limit and offset.');
     return rawSource(selected, args);
   }
   if (section === 'taskSourceRowsByProject') {
-    if (args.collection !== undefined) throw new XerProvenanceError('VALIDATION', '`collection` hoort niet bij section `taskSourceRowsByProject`.');
+    if (args.collection !== undefined) throw new XerProvenanceError('VALIDATION', '`collection` does not belong to section `taskSourceRowsByProject`.');
     return taskSourceRows(selected, args);
   }
   if (section === 'resourceCatalog') return resourceCatalog(selected, args);
   if (section === 'metadataCatalog') return metadataCatalog(selected, args);
   if (section === 'diagnostics') return diagnostics(selected, args);
-  throw new XerProvenanceError('VALIDATION', `Onbekende section: ${section}.`);
+  throw new XerProvenanceError('VALIDATION', `Unknown section: ${section}.`);
 }
 
 const inputSchema = {
   type: 'object',
   properties: {
-    section: { type: 'string', enum: [...SECTIONS], description: 'Inspectieonderdeel; default summary.' },
-    collection: { type: 'string', enum: [...ALL_COLLECTIONS], description: 'Gepagineerde collectie binnen resourceCatalog, metadataCatalog of diagnostics.' },
-    projectId: { type: 'string', description: 'Verplichte expliciete XER-projectselector voor taskSourceRowsByProject.' },
-    limit: { type: 'number', description: 'Aantal items/chunks; default 50, rawSource maximaal 8, includeRawRows maximaal 100.' },
-    offset: { type: 'number', description: 'Startindex; default 0.' },
-    includeRawSource: { type: 'boolean', description: 'Verplicht true voor de expliciete rawSource-sectie.' },
+    section: { type: 'string', enum: [...SECTIONS], description: 'Inspection part; default summary.' },
+    collection: { type: 'string', enum: [...ALL_COLLECTIONS], description: 'Paginated collection within resourceCatalog, metadataCatalog or diagnostics.' },
+    projectId: { type: 'string', description: 'Required explicit XER project selector for taskSourceRowsByProject.' },
+    limit: { type: 'number', description: 'Number of items/chunks; default 50, rawSource at most 8, includeRawRows at most 100.' },
+    offset: { type: 'number', description: 'Start index; default 0.' },
+    includeRawSource: { type: 'boolean', description: 'Must be true for the explicit rawSource section.' },
     includeRawRows: {
       type: 'boolean',
       description:
-        'Alleen bij resourceCatalog/metadataCatalog/taskSourceRowsByProject/diagnostics: ontgrendelt ' +
-        'vrije-tekstvelden (notities, customFields, willekeurige XER-kolommen) i.p.v. ze weg te laten, ' +
-        'met een lagere paginalimiet (100), een cap van 200 cellen/velden per rij en per-cel-afkapping ' +
-        'op 2.000 tekens. Korte label-/naamvelden blijven ALTIJD zichtbaar maar afgekapt op 200 tekens,' +
-        ' met of zonder deze opt-in.',
+        'Only for resourceCatalog/metadataCatalog/taskSourceRowsByProject/diagnostics: unlocks free-text ' +
+        'fields (notes, customFields, arbitrary XER columns) instead of leaving them out, with a lower page ' +
+        'limit (100), a cap of 200 cells/fields per row and per-cell truncation at 2,000 characters. Short ' +
+        'label/name fields stay visible ALWAYS but truncated at 200 characters, with or without this opt-in.',
     },
   },
   additionalProperties: false,
@@ -795,30 +794,29 @@ const inputSchema = {
 export const xerProvenanceTools: McpToolDef[] = [{
   name: 'planner_inspect_xer_provenance',
   description:
-    'Bounded read-only inspectie van retained Primavera P6/XER-bronsemantiek. `section` is summary ' +
-    '(bronaanwezigheid, byteLength, SHA-256, chunk count, selector, number format, SCHEDOPTIONS-, ' +
-    'import- en diagnostiektellingen), resourceCatalog, metadataCatalog, taskSourceRowsByProject, ' +
-    'diagnostics of rawSource. Cataloguscollecties zijn expliciet benoemd en gepagineerd met `limit`, ' +
-    '`offset`, `total`, `has_more` en `next_offset`. `selector.availableProjectIds` (summary) is de ' +
-    'unie van geopende documentviews en elk project met TASK-rijen (óók leeg/baseline-uitgesloten) — ' +
-    'exact de projecten die `taskSourceRowsByProject` accepteert. DENY-BY-DEFAULT voor elke string: ' +
-    'alleen expliciet als id/code/label/enum-token herkende velden (namen, ids, codes, eenheden, ' +
-    'currencyCode, …) blijven zonder `includeRawRows:true` zichtbaar, en dan hard afgekapt op 200 ' +
-    'tekens. Elke andere string — ruwe XER-cellen, notities, `customFields`-waarden, en ook onbekende ' +
-    'of geneste vrije tekst zoals een taaknotitie-array — is zonder de opt-in VOLLEDIG ONZICHTBAAR, ' +
-    'met opt-in afgekapt op 2.000 tekens. Dit geldt voor élke string in élke sectie, inclusief ' +
-    '`summary` zelf en `diagnostics/documentViews`. Met opt-in gelden een lagere paginalimiet (100) en ' +
-    'een cap van 200 cellen/velden per rij; zowel celWAARDEN als celNAMEN (kolomkoppen uit het ' +
-    'bronbestand) zijn afgekapt en tellen mee in de responsbegroting. Elke pagina — óók summary — ' +
-    'kent een harde responsgrens (256 kB, gemeten in echte UTF-8-bytes), BEHALVE rawSource. ' +
-    'rawSource vereist expliciet `includeRawSource:true`, valt buiten die 256 kB-grens (één chunk is ' +
-    'al 192 KiB bron ≈ 256 kB base64) en is in plaats daarvan begrensd op maximaal acht vaste ' +
-    'base64-chunks per antwoord (tot ±2,1 MB; kies een kleinere `limit` voor kleinere antwoorden); ' +
-    'hij meldt de privacygrens. De tool gebruikt alleen retained state, muteert de store niet, voert geen CPM uit ' +
-    'en ondersteunt geen schrijfpad. Zonder archief meldt summary `sourcePresent:false` met ' +
-    '`archiveIssue` (`null`, of `{ code }` wanneer een aanwezig archief bij het openen onbruikbaar was ' +
-    'en is weggelaten — codes: schema-version, hash-mismatch, truncated, bytes-missing, ' +
-    'metadata-invalid, structure). Niet batchable: roep hem los aan, nooit als stap in `planner_batch`.',
+    'Bounded read-only inspection of retained Primavera P6/XER source semantics. `section` is summary ' +
+    '(source presence, byteLength, SHA-256, chunk count, selector, number format, SCHEDOPTIONS, import and ' +
+    'diagnostics counts), resourceCatalog, metadataCatalog, taskSourceRowsByProject, diagnostics or ' +
+    'rawSource. Catalog collections are explicitly named and paginated with `limit`, `offset`, `total`, ' +
+    '`has_more` and `next_offset`. `selector.availableProjectIds` (summary) is the union of opened document ' +
+    'views and every project with TASK rows (also empty/baseline-excluded ones) — exactly the projects that ' +
+    '`taskSourceRowsByProject` accepts. DENY-BY-DEFAULT for every string: only fields explicitly recognized ' +
+    'as id/code/label/enum token (names, ids, codes, units, currencyCode, …) stay visible without ' +
+    '`includeRawRows:true`, and then hard-truncated at 200 characters. Every other string — raw XER cells, ' +
+    'notes, `customFields` values, and also unknown or nested free text such as a task-note array — is ' +
+    'COMPLETELY INVISIBLE without the opt-in, and truncated at 2,000 characters with it. This applies to ' +
+    'every string in every section, including `summary` itself and `diagnostics/documentViews`. With the ' +
+    'opt-in a lower page limit (100) and a cap of 200 cells/fields per row apply; both cell VALUES and cell ' +
+    'NAMES (column headers from the source file) are truncated and count towards the response budget. Every ' +
+    'page — summary too — has a hard response limit (256 kB, measured in real UTF-8 bytes), EXCEPT ' +
+    'rawSource. rawSource explicitly requires `includeRawSource:true`, falls outside that 256 kB limit (one ' +
+    'chunk is already 192 KiB of source ≈ 256 kB base64) and is instead bounded to at most eight fixed ' +
+    'base64 chunks per answer (up to about 2.1 MB; choose a smaller `limit` for smaller answers); it reports ' +
+    'the privacy boundary. The tool only uses retained state, does not mutate the store, does not run CPM ' +
+    'and supports no write path. Without an archive, summary reports `sourcePresent:false` with ' +
+    '`archiveIssue` (`null`, or `{ code }` when an archive that was present turned out unusable on opening ' +
+    'and was left out — codes: schema-version, hash-mismatch, truncated, bytes-missing, metadata-invalid, ' +
+    'structure). Not batchable: call it on its own, never as a step in `planner_batch`. ',
   kind: 'read',
   batchable: false,
   inputSchema,

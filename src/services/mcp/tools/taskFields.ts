@@ -140,47 +140,47 @@ export const TASK_FIELD_NAMES = [
 
 /** Gerichte hints voor sleutels die een agent redelijkerwijs probeert maar die hier niet horen. */
 const REJECT_HINTS: Record<string, string> = {
-  time: 'zet de duur met `duration` (in dagen, een fractie als 2.5 mag — werkdagen bij WORKTIME, kalenderdagen bij ELAPSEDTIME) en het duurtype met `durationType` — de `time`-tak zelf is niet zetbaar (dat zou CPM-datums, floats en actuals wissen)',
-  scheduleDuration: 'gebruik `duration` (in dagen, een fractie als 2.5 mag — werkdagen bij WORKTIME, kalenderdagen bij ELAPSEDTIME)',
-  durationMinutes: 'gebruik `duration` met `durationUnit: "hours"`; de bridge berekent en bewaart de exacte minutenbron zelf',
-  status: 'gebruik `progress` (voortgangspad), niet `fields.status`',
-  completion: 'gebruik `progress.completion` (0–100)',
-  actualStart: 'gebruik `progress.actualStart`',
-  actualFinish: 'gebruik `progress.actualFinish`',
-  parentId: 'gebruik planner_move_task om een taak te verhangen',
-  childIds: 'de WBS-boom wijzigt via planner_move_task / planner_add_tasks',
-  resourceIds: 'gebruik planner_manage_assignments',
-  wbsCode: 'de WBS-code wordt afgeleid',
-  id: 'het taak-id ligt vast',
-  constraint2: 'een secundaire constraint is via de bridge niet zetbaar (P6-combinatieregels worden hier niet gevalideerd)',
-  isHammock: 'hammock/LOE is via de bridge niet zetbaar (de duur wordt dan afgeleid en negeert `duration`)',
-  notes: 'taak-aantekeningen zijn via de bridge niet zetbaar',
+  time: 'set the duration with `duration` (in days, a fraction such as 2.5 is allowed — working days for WORKTIME, calendar days for ELAPSEDTIME) and the duration type with `durationType` — the `time` branch itself is not settable (that would clear CPM dates, floats and actuals)',
+  scheduleDuration: 'use `duration` (in days, a fraction such as 2.5 is allowed — working days for WORKTIME, calendar days for ELAPSEDTIME)',
+  durationMinutes: 'use `duration` with `durationUnit: "hours"`; the bridge calculates and stores the exact minute source itself',
+  status: 'use `progress` (progress path), not `fields.status`',
+  completion: 'use `progress.completion` (0–100)',
+  actualStart: 'use `progress.actualStart`',
+  actualFinish: 'use `progress.actualFinish`',
+  parentId: 'use planner_move_task to re-parent a task',
+  childIds: 'the WBS tree changes via planner_move_task / planner_add_tasks',
+  resourceIds: 'use planner_manage_assignments',
+  wbsCode: 'the WBS code is derived',
+  id: 'the task id is fixed',
+  constraint2: 'a secondary constraint is not settable via the bridge (P6 combination rules are not validated here)',
+  isHammock: 'hammock/LOE is not settable via the bridge (the duration is then derived and ignores `duration`)',
+  notes: 'task notes are not settable via the bridge',
   // Niet via `fields` zetbaar. `manuallyScheduled` volgt het isHammock-patroon (leesbaar via de
   // leestools, hier geweigerd); levelingDelayMinutes/levelingDelayElapsed volgen de "vrije-vorm-bak,
   // geen leestool-tegenhanger"-redenering van levelingDelay; splitGaps heeft een eigen tool.
-  splitGaps: 'werkonderbrekingen (splits) zet je met planner_set_task_splits (`interruptions` op de werk-as: afterWorkDays/pauseDays of afterWorkHours/pauseHours), niet via `fields`',
-  manuallyScheduled: 'handmatig plannen is via de bridge niet zetbaar (de datums blijven dan RAUW staan, ongeacht kalender/relaties/`duration`)',
-  levelingDelayMinutes: 'sub-dag-nivelleervertraging is via de bridge niet zetbaar (geen leestool-tegenhanger, zie `levelingDelay`)',
-  levelingDelayElapsed: 'sub-dag-nivelleervertraging is via de bridge niet zetbaar (geen leestool-tegenhanger, zie `levelingDelay`)',
+  splitGaps: 'work interruptions (splits) are set with planner_set_task_splits (`interruptions` on the work axis: afterWorkDays/pauseDays or afterWorkHours/pauseHours), not via `fields`',
+  manuallyScheduled: 'manual scheduling is not settable via the bridge (the dates then stay RAW, regardless of calendar/relationships/`duration`)',
+  levelingDelayMinutes: 'sub-day leveling delay is not settable via the bridge (no read-tool counterpart, see `levelingDelay`)',
+  levelingDelayElapsed: 'sub-day leveling delay is not settable via the bridge (no read-tool counterpart, see `levelingDelay`)',
   // Drie .mpp-importvelden, puur data — read-only, geen agent-invoervorm; geen van drieën heeft een
   // schrijf-workflow om te valideren.
-  mspTaskType: 'MSP\'s eigen Task Type is via de bridge niet zetbaar (puur .mpp-importdata, geen rekengedrag — zie planner_get_task)',
-  effortDriven: 'MSP\'s "Effort Driven"-vlag is via de bridge niet zetbaar (puur .mpp-importdata, geen rekengedrag — zie planner_get_task)',
-  timephasedContours: 'de rauwe contourperiodes zijn via de bridge niet zetbaar (afgeleid uit een .mpp-import, geen agent-invoervorm — zie planner_get_task)',
+  mspTaskType: 'MSP\'s own Task Type is not settable via the bridge (pure .mpp import data, no calculation behaviour — see planner_get_task)',
+  effortDriven: 'MSP\'s "Effort Driven" flag is not settable via the bridge (pure .mpp import data, no calculation behaviour — see planner_get_task)',
+  timephasedContours: 'the raw contour periods are not settable via the bridge (derived from an .mpp import, no agent input form — see planner_get_task)',
   // De werkvelden per TOEWIJZING zijn geen taakvelden.
-  remainingWorkMinutes: 'resterend werk hoort bij een TOEWIJZING: planner_manage_assignments `update` met `remainingWorkMinutes`',
-  plannedWorkMinutes: 'begroot werk is via de bridge niet zetbaar (referentiewaarde uit een import — zie planner_get_task)',
-  actualWorkMinutes: 'verricht werk is via de bridge niet zetbaar (een feit uit een import; voortgang loopt via `progress`)',
+  remainingWorkMinutes: 'remaining work belongs to an ASSIGNMENT: planner_manage_assignments `update` with `remainingWorkMinutes`',
+  plannedWorkMinutes: 'budgeted work is not settable via the bridge (reference value from an import — see planner_get_task)',
+  actualWorkMinutes: 'actual work is not settable via the bridge (a fact from an import; progress goes through `progress`)',
   // P6/.xer-importvelden, zelfde "read-only, geen agent-invoervorm"-redenering als
   // mspTaskType/effortDriven hierboven.
-  p6DurationType: 'P6\'s eigen Duration Type is via de bridge niet zetbaar (puur .xer-importdata, geen rekengedrag — zie planner_get_task)',
-  p6ActivityType: 'P6\'s eigen Activity Type is via de bridge niet zetbaar (puur .xer-importdata, geen rekengedrag — zie planner_get_task)',
-  p6ExplicitTargetWindow: 'de P6-XER-provenance voor een expliciet targetvenster is via de bridge niet zetbaar (puur .xer-importdata, geen agent-invoervorm — zie planner_get_task)',
-  p6SuspendResume: 'de P6-suspend/resume-herkomstvlag is via de bridge niet zetbaar (puur .xer-importdata, geen agent-invoervorm — zie planner_get_task)',
-  p6ProjectId: 'P6\'s bronproject-id is via de bridge niet zetbaar (puur .xer-importdata, geen agent-invoervorm — zie planner_get_task)',
-  p6TaskId: 'P6\'s bronactiviteit-id is via de bridge niet zetbaar (puur .xer-importdata, geen agent-invoervorm — zie planner_get_task)',
-  p6CompletePctType: 'P6\'s Completion Percent Type is via de bridge niet zetbaar (puur .xer-importdata, geen agent-invoervorm — zie planner_get_task)',
-  p6ExpectedFinish: 'P6\'s Expected Finish is via de bridge niet zetbaar (puur .xer-importdata, geen agent-invoervorm — zie planner_get_task)',
+  p6DurationType: 'P6\'s own Duration Type is not settable via the bridge (pure .xer import data, no calculation behaviour — see planner_get_task)',
+  p6ActivityType: 'P6\'s own Activity Type is not settable via the bridge (pure .xer import data, no calculation behaviour — see planner_get_task)',
+  p6ExplicitTargetWindow: 'the P6 XER provenance for an explicit target window is not settable via the bridge (pure .xer import data, no agent input form — see planner_get_task)',
+  p6SuspendResume: 'the P6 suspend/resume provenance flag is not settable via the bridge (pure .xer import data, no agent input form — see planner_get_task)',
+  p6ProjectId: 'P6\'s source project id is not settable via the bridge (pure .xer import data, no agent input form — see planner_get_task)',
+  p6TaskId: 'P6\'s source activity id is not settable via the bridge (pure .xer import data, no agent input form — see planner_get_task)',
+  p6CompletePctType: 'P6\'s Completion Percent Type is not settable via the bridge (pure .xer import data, no agent input form — see planner_get_task)',
+  p6ExpectedFinish: 'P6\'s Expected Finish is not settable via the bridge (pure .xer import data, no agent input form — see planner_get_task)',
 };
 
 /** Uitkomst van de veldvalidatie. */
@@ -195,8 +195,8 @@ function allowedList(): string {
 function rejectUnknown(key: string): string {
   const hint = REJECT_HINTS[key];
   return hint
-    ? `onbekend veld '${key}': ${hint}. Toegestaan: ${allowedList()}`
-    : `onbekend veld '${key}'; toegestaan: ${allowedList()}`;
+    ? `unknown field '${key}': ${hint}. Allowed: ${allowedList()}`
+    : `unknown field '${key}'; allowed: ${allowedList()}`;
 }
 
 /** ISO-datum (date-only of datetime) die ook echt parseert. */
@@ -206,29 +206,29 @@ function isIsoDate(v: unknown): v is string {
 
 /** Validatie van één `constraint`-object. */
 function parseConstraint(raw: unknown): { ok: true; value: TaskConstraint } | { ok: false; reason: string } {
-  if (!isRecord(raw)) return { ok: false, reason: '`constraint` moet een object zijn ({ type, date?, hard? }) of null om te wissen' };
+  if (!isRecord(raw)) return { ok: false, reason: '`constraint` must be an object ({ type, date?, hard? }) or null to clear it' };
   const type = raw.type;
   if (typeof type !== 'string' || !(CONSTRAINT_TYPES as string[]).includes(type)) {
-    return { ok: false, reason: `\`constraint.type\` moet één van ${CONSTRAINT_TYPES.join(' | ')} zijn` };
+    return { ok: false, reason: `\`constraint.type\` must be one of ${CONSTRAINT_TYPES.join(' | ')}` };
   }
   const ct = type as ConstraintType;
   const needsDate = !DATELESS_CONSTRAINTS.includes(ct);
   if (needsDate && !isIsoDate(raw.date)) {
-    return { ok: false, reason: `\`constraint.date\` (ISO-datum) is verplicht bij type ${ct}` };
+    return { ok: false, reason: `\`constraint.date\` (ISO date) is required for type ${ct}` };
   }
   if (raw.date !== undefined && !isIsoDate(raw.date)) {
-    return { ok: false, reason: '`constraint.date` moet een ISO-datum zijn (YYYY-MM-DD)' };
+    return { ok: false, reason: '`constraint.date` must be an ISO date (YYYY-MM-DD)' };
   }
   if (raw.hard !== undefined) {
-    if (typeof raw.hard !== 'boolean') return { ok: false, reason: '`constraint.hard` moet een boolean zijn' };
+    if (typeof raw.hard !== 'boolean') return { ok: false, reason: '`constraint.hard` must be a boolean' };
     if (raw.hard && !HARD_CONSTRAINTS.includes(ct)) {
       // Stil negeren zou weer een no-op zijn: `hard` doet alleen iets op MSO/MFO.
-      return { ok: false, reason: `\`constraint.hard\` heeft alleen betekenis bij ${HARD_CONSTRAINTS.join('/')}, niet bij ${ct}` };
+      return { ok: false, reason: `\`constraint.hard\` only has meaning for ${HARD_CONSTRAINTS.join('/')}, not for ${ct}` };
     }
   }
   for (const k of Object.keys(raw)) {
     if (k !== 'type' && k !== 'date' && k !== 'hard') {
-      return { ok: false, reason: `onbekend veld '${k}' in \`constraint\`; toegestaan: type, date, hard` };
+      return { ok: false, reason: `unknown field '${k}' in \`constraint\`; allowed: type, date, hard` };
     }
   }
   return {
@@ -243,11 +243,11 @@ function parseConstraint(raw: unknown): { ok: true; value: TaskConstraint } | { 
 
 /** Waarom een nieuw primair constraint niet naast de bestaande secundaire past — agent-leesbaar. */
 const CONSTRAINT_PAIR_REASONS: Record<ConstraintPairIssue, string> = {
-  'no-secondary-with-mandatory-or-on': 'MSO/MFO (of een harde pin) legt start én einde al vast en verdraagt geen secundaire constraint',
-  'no-secondary-with-asap-alap': 'ASAP/ALAP draagt geen datumgrens en verdraagt geen secundaire constraint',
-  'secondary-same-side': 'primair en secundair zijn dan allebei een ondergrens (SNET/FNET) of allebei een bovengrens (SNLT/FNLT)',
-  'secondary-type-invalid': 'de secundaire constraint moet SNET, FNET, SNLT of FNLT zijn',
-  'secondary-hard-forbidden': 'een secundaire constraint mag nooit hard zijn',
+  'no-secondary-with-mandatory-or-on': 'MSO/MFO (or a hard pin) already fixes start and finish and tolerates no secondary constraint',
+  'no-secondary-with-asap-alap': 'ASAP/ALAP carries no date bound and tolerates no secondary constraint',
+  'secondary-same-side': 'primary and secondary would then both be a lower bound (SNET/FNET) or both an upper bound (SNLT/FNLT)',
+  'secondary-type-invalid': 'the secondary constraint must be SNET, FNET, SNLT or FNLT',
+  'secondary-hard-forbidden': 'a secondary constraint may never be hard',
 };
 
 function constraintPairReason(
@@ -256,9 +256,10 @@ function constraintPairReason(
 ): string {
   const primary = pair.constraint?.type ?? 'ASAP';
   const secondary = pair.constraint2 ? `${pair.constraint2.type} ${pair.constraint2.date ?? ''}`.trim() : '?';
-  return `\`constraint\` ${primary} vormt geen geldig paar met de bestaande secundaire constraint (${secondary}): `
-    + `${issues.map(issue => CONSTRAINT_PAIR_REASONS[issue]).join('; ')}. De secundaire constraint is via de bridge niet `
-    + 'zetbaar; `constraint: null` wist beide, of kies een primair type aan de andere kant van de grens';
+  return `\`constraint\` ${primary} does not form a valid pair with the existing secondary constraint (` +
+    `${secondary}): ${issues.map(issue => CONSTRAINT_PAIR_REASONS[issue]).join('; ')}. The secondary ` +
+    'constraint is not settable via the bridge; `constraint: null` clears both, or choose a primary type on ' +
+    'the other side of the bound';
 }
 
 /**
@@ -268,9 +269,9 @@ function constraintPairReason(
  * achterlaat.
  */
 export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldResult {
-  if (!isRecord(raw)) return { ok: false, reason: '`fields` moet een object zijn' };
+  if (!isRecord(raw)) return { ok: false, reason: '`fields` must be an object' };
   const keys = Object.keys(raw);
-  if (keys.length === 0) return { ok: false, reason: '`fields` is leeg' };
+  if (keys.length === 0) return { ok: false, reason: '`fields` is empty' };
 
   for (const k of keys) {
     if (!(TASK_FIELD_NAMES as readonly string[]).includes(k)) return { ok: false, reason: rejectUnknown(k) };
@@ -284,31 +285,31 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
   const effMilestone = 'isMilestone' in raw ? raw.isMilestone === true : ctx.currentIsMilestone;
 
   if ('name' in raw) {
-    if (typeof raw.name !== 'string' || raw.name.trim() === '') return { ok: false, reason: '`name` moet een niet-lege string zijn' };
+    if (typeof raw.name !== 'string' || raw.name.trim() === '') return { ok: false, reason: '`name` must be a non-empty string' };
     top.name = raw.name;
   }
   if ('description' in raw) {
-    if (typeof raw.description !== 'string') return { ok: false, reason: '`description` moet een string zijn' };
+    if (typeof raw.description !== 'string') return { ok: false, reason: '`description` must be a string' };
     top.description = raw.description;
   }
   if ('duration' in raw) {
     const d = raw.duration;
     if (typeof d !== 'number' || !Number.isFinite(d) || d < 0) {
-      return { ok: false, reason: '`duration` moet een eindig getal ≥ 0 zijn in de eenheid van `durationUnit`' };
+      return { ok: false, reason: '`duration` must be a finite number ≥ 0 in the unit of `durationUnit`' };
     }
     if (effMilestone && d > 0) {
-      return { ok: false, reason: `een mijlpaal heeft per definitie duur 0; \`duration\`=${d} is niet toegestaan` };
+      return { ok: false, reason: `a milestone has duration 0 by definition; \`duration\`=${d} is not allowed` };
     }
     const unit = raw.durationUnit ?? 'days';
     if (unit !== 'days' && unit !== 'hours') {
-      return { ok: false, reason: '`durationUnit` moet `days` of `hours` zijn' };
+      return { ok: false, reason: '`durationUnit` must be `days` or `hours`' };
     }
     if (unit === 'hours') {
       const cal = ctx.durationCalendar(
         typeof raw.calendarId === 'string' || raw.calendarId === null ? raw.calendarId : undefined,
       );
       if (!cal.hasWorkBlocks) {
-        return { ok: false, reason: 'een urentaak vereist een taakkalender met concrete werkblokken' };
+        return { ok: false, reason: 'an hour task requires a task calendar with concrete work blocks' };
       }
       const minutes = Math.round(d * 60);
       time.durationUnit = 'hours';
@@ -320,17 +321,17 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
       time.clearDurationMinutes = true;
     }
   } else if ('durationUnit' in raw) {
-    return { ok: false, reason: '`durationUnit` moet samen met `duration` worden opgegeven; de bridge herinterpreteert geen bestaand getal' };
+    return { ok: false, reason: '`durationUnit` must be given together with `duration`; the bridge does not reinterpret an existing number' };
   }
   if ('durationType' in raw) {
     if (typeof raw.durationType !== 'string' || !(DURATION_TYPES as string[]).includes(raw.durationType)) {
-      return { ok: false, reason: `\`durationType\` moet ${DURATION_TYPES.join(' of ')} zijn` };
+      return { ok: false, reason: `\`durationType\` must be ${DURATION_TYPES.join(' or ')}` };
     }
     time.durationType = raw.durationType as DurationType;
   }
   if ('taskType' in raw) {
     if (typeof raw.taskType !== 'string' || !(TASK_TYPES as string[]).includes(raw.taskType)) {
-      return { ok: false, reason: `\`taskType\` moet één van ${TASK_TYPES.join(' | ')} zijn` };
+      return { ok: false, reason: `\`taskType\` must be one of ${TASK_TYPES.join(' | ')}` };
     }
     top.taskType = raw.taskType as TaskType;
     if (raw.taskType !== 'USERDEFINED') top.customTaskTypeId = undefined;
@@ -339,30 +340,30 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
     const value = raw.customTaskType;
     if (!isRecord(value) || typeof value.id !== 'string' || typeof value.name !== 'string'
       || value.id.trim() === '' || value.name.trim() === '') {
-      return { ok: false, reason: '`customTaskType` moet { id, name } met niet-lege strings zijn' };
+      return { ok: false, reason: '`customTaskType` must be { id, name } with non-empty strings' };
     }
     if ('taskType' in raw && raw.taskType !== 'USERDEFINED') {
-      return { ok: false, reason: '`customTaskType` vereist taskType USERDEFINED (of laat taskType weg)' };
+      return { ok: false, reason: '`customTaskType` requires taskType USERDEFINED (or leave taskType out)' };
     }
     const candidate = { id: value.id.trim(), name: value.name.trim() };
     const { sameId, sameNameOtherId } = customTaskTypeClashes(ctx.customTaskTypes, candidate);
     if (sameId && sameId.name !== candidate.name) {
-      return { ok: false, reason: `customTaskType-id '${candidate.id}' bestaat al met projectsnapshot '${sameId.name}'` };
+      return { ok: false, reason: `customTaskType id '${candidate.id}' already exists with project snapshot '${sameId.name}'` };
     }
     if (sameNameOtherId) {
-      return { ok: false, reason: `customTaskType-naam '${candidate.name}' bestaat al met id '${sameNameOtherId.id}'` };
+      return { ok: false, reason: `customTaskType name '${candidate.name}' already exists with id '${sameNameOtherId.id}'` };
     }
     customTaskType = candidate;
     top.taskType = 'USERDEFINED';
     top.customTaskTypeId = candidate.id;
   }
   if ('isMilestone' in raw) {
-    if (typeof raw.isMilestone !== 'boolean') return { ok: false, reason: '`isMilestone` moet een boolean zijn' };
+    if (typeof raw.isMilestone !== 'boolean') return { ok: false, reason: '`isMilestone` must be a boolean' };
     if (raw.isMilestone) {
       // Dezelfde "wordt mijlpaal"-regel als paneel, dialoog, contextmenu, store en raster.
       const refusal = milestoneRefusal(ctx);
-      if (refusal === 'summary') return { ok: false, reason: 'een verzameltaak (met kinderen) kan geen mijlpaal worden' };
-      if (refusal === 'assignments') return { ok: false, reason: 'een taak met resource-toewijzingen kan geen mijlpaal worden; verwijder eerst de toewijzingen' };
+      if (refusal === 'summary') return { ok: false, reason: 'a summary task (with children) cannot become a milestone' };
+      if (refusal === 'assignments') return { ok: false, reason: 'a task with resource assignments cannot become a milestone; remove the assignments first' };
       // Mijlpaal ⇒ duur 0 (en géén achtergebleven minutenduur), spiegelt TaskDialog/TaskMilestoneFields.
       time.scheduleDuration = 0;
       time.durationUnit = 'days';
@@ -374,16 +375,16 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
     const mk = raw.milestoneKind;
     if (mk === null) top.milestoneKind = undefined;
     else if (typeof mk === 'string' && (MILESTONE_KINDS as string[]).includes(mk)) top.milestoneKind = mk as MilestoneKind;
-    else return { ok: false, reason: `\`milestoneKind\` moet ${MILESTONE_KINDS.join(' of ')} zijn (of null om te wissen)` };
+    else return { ok: false, reason: `\`milestoneKind\` must be ${MILESTONE_KINDS.join(' or ')} (or null to clear it)` };
   }
   if ('mandatory' in raw) {
-    if (typeof raw.mandatory !== 'boolean') return { ok: false, reason: '`mandatory` moet een boolean zijn' };
+    if (typeof raw.mandatory !== 'boolean') return { ok: false, reason: '`mandatory` must be a boolean' };
     top.mandatory = raw.mandatory;
   }
   if ('priority' in raw) {
     const p = raw.priority;
     if (typeof p !== 'number' || !Number.isInteger(p) || p < 0 || p > 1000) {
-      return { ok: false, reason: '`priority` moet een geheel getal 0–1000 zijn (500 = normaal, 1000 = niet nivelleren)' };
+      return { ok: false, reason: '`priority` must be an integer 0–1000 (500 = normal, 1000 = do not level)' };
     }
     top.priority = p;
   }
@@ -406,19 +407,19 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
   if ('deadline' in raw) {
     if (raw.deadline === null) top.deadline = undefined;
     else if (isIsoDate(raw.deadline)) top.deadline = raw.deadline;
-    else return { ok: false, reason: '`deadline` moet een ISO-datum zijn (YYYY-MM-DD) of null om te wissen' };
+    else return { ok: false, reason: '`deadline` must be an ISO date (YYYY-MM-DD) or null to clear it' };
   }
   let workRule: WorkRule | null | undefined;
   if ('workRule' in raw) {
     if (raw.workRule === null) workRule = null;
     else if (typeof raw.workRule === 'string' && (WORK_RULES as readonly string[]).includes(raw.workRule)) workRule = raw.workRule as WorkRule;
-    else return { ok: false, reason: `\`workRule\` moet één van ${WORK_RULES.join(' | ')} zijn (of null voor de projectstandaard)` };
+    else return { ok: false, reason: `\`workRule\` must be one of ${WORK_RULES.join(' | ')} (or null for the project default)` };
   }
   if ('calendarId' in raw) {
     if (raw.calendarId === null) top.calendarId = undefined;
-    else if (typeof raw.calendarId !== 'string') return { ok: false, reason: '`calendarId` moet een string zijn (of null voor de projectkalender)' };
+    else if (typeof raw.calendarId !== 'string') return { ok: false, reason: '`calendarId` must be a string (or null for the project calendar)' };
     else if (!ctx.calendarExists(raw.calendarId)) {
-      return { ok: false, reason: `onbekende calendarId '${raw.calendarId}' (zie planner_get_calendars)` };
+      return { ok: false, reason: `unknown calendarId '${raw.calendarId}' (see planner_get_calendars)` };
     } else top.calendarId = raw.calendarId;
   }
 
@@ -448,21 +449,21 @@ export const PROGRESS_FIELD_NAMES = ['completion', 'actualStart', 'actualFinish'
 
 /** Gerichte hints voor voortgangs-sleutels die een agent redelijkerwijs probeert. */
 const PROGRESS_REJECT_HINTS: Record<string, string> = {
-  percent: 'gebruik `completion` (PROCENTEN 0–100)',
-  percentage: 'gebruik `completion` (PROCENTEN 0–100)',
-  percentComplete: 'gebruik `completion` (PROCENTEN 0–100)',
-  percent_complete: 'gebruik `completion` (PROCENTEN 0–100)',
-  progress: 'gebruik `completion` (PROCENTEN 0–100)',
-  complete: 'gebruik `completion` (PROCENTEN 0–100)',
-  completed: 'gebruik `completion` (PROCENTEN 0–100)',
-  status: 'de status wordt AFGELEID uit `completion` en de actuals; hij is niet direct zetbaar',
-  start: 'gebruik `actualStart` (ISO-datum)',
-  finish: 'gebruik `actualFinish` (ISO-datum)',
-  end: 'gebruik `actualFinish` (ISO-datum)',
-  actual_start: 'gebruik `actualStart` (ISO-datum)',
-  actual_finish: 'gebruik `actualFinish` (ISO-datum)',
-  remaining: 'de resterende duur wordt afgeleid uit `completion`',
-  remainingTime: 'de resterende duur wordt afgeleid uit `completion`',
+  percent: 'use `completion` (PERCENT 0–100)',
+  percentage: 'use `completion` (PERCENT 0–100)',
+  percentComplete: 'use `completion` (PERCENT 0–100)',
+  percent_complete: 'use `completion` (PERCENT 0–100)',
+  progress: 'use `completion` (PERCENT 0–100)',
+  complete: 'use `completion` (PERCENT 0–100)',
+  completed: 'use `completion` (PERCENT 0–100)',
+  status: 'the status is DERIVED from `completion` and the actuals; it is not directly settable',
+  start: 'use `actualStart` (ISO date)',
+  finish: 'use `actualFinish` (ISO date)',
+  end: 'use `actualFinish` (ISO date)',
+  actual_start: 'use `actualStart` (ISO date)',
+  actual_finish: 'use `actualFinish` (ISO date)',
+  remaining: 'the remaining duration is derived from `completion`',
+  remainingTime: 'the remaining duration is derived from `completion`',
 };
 
 /** Wat `applyProgressUpdate` als update-object verwacht. */
@@ -484,11 +485,11 @@ export type ProgressParseResult =
  * Die vorm wordt hier naar een expliciete `undefined` genormaliseerd, zodat de sleutel aanwezig blijft.
  */
 export function parseProgress(raw: unknown): ProgressParseResult {
-  if (!isRecord(raw)) return { ok: false, reason: '`progress` moet een object zijn ({ completion?, actualStart?, actualFinish? })' };
+  if (!isRecord(raw)) return { ok: false, reason: '`progress` must be an object ({ completion?, actualStart?, actualFinish? })' };
   const keys = Object.keys(raw);
   const allowed = PROGRESS_FIELD_NAMES.join(', ');
   if (keys.length === 0) {
-    return { ok: false, reason: `\`progress\` is leeg; geef minstens één van: ${allowed}` };
+    return { ok: false, reason: `\`progress\` is empty; give at least one of: ${allowed}` };
   }
   for (const k of keys) {
     if (!(PROGRESS_FIELD_NAMES as readonly string[]).includes(k)) {
@@ -496,8 +497,8 @@ export function parseProgress(raw: unknown): ProgressParseResult {
       return {
         ok: false,
         reason: hint
-          ? `onbekend veld '${k}' in \`progress\`: ${hint}. Toegestaan: ${allowed}`
-          : `onbekend veld '${k}' in \`progress\`; toegestaan: ${allowed}`,
+          ? `unknown field '${k}' in \`progress\`: ${hint}. Allowed: ${allowed}`
+          : `unknown field '${k}' in \`progress\`; allowed: ${allowed}`,
       };
     }
   }
@@ -506,7 +507,7 @@ export function parseProgress(raw: unknown): ProgressParseResult {
   if ('completion' in raw) {
     const c = raw.completion;
     if (typeof c !== 'number' || !Number.isFinite(c)) {
-      return { ok: false, reason: '`progress.completion` moet een getal zijn (PROCENTEN 0–100)' };
+      return { ok: false, reason: '`progress.completion` must be a number (PERCENT 0–100)' };
     }
     value.completion = c;
   }
@@ -518,7 +519,7 @@ export function parseProgress(raw: unknown): ProgressParseResult {
       continue;
     }
     if (!isIsoDate(v)) {
-      return { ok: false, reason: `\`progress.${k}\` moet een ISO-datum zijn (YYYY-MM-DD) of null om te wissen` };
+      return { ok: false, reason: `\`progress.${k}\` must be an ISO date (YYYY-MM-DD) or null to clear it` };
     }
     value[k] = v;
   }
@@ -530,74 +531,74 @@ export function parseProgress(raw: unknown): ProgressParseResult {
 /** De schema-properties van de allowlist — gedeeld door `add_tasks`-items en `update_tasks.fields`,
  *  zodat schema en runtime-validatie niet uit elkaar kunnen lopen. */
 export const TASK_FIELD_SCHEMA_PROPERTIES: Record<string, unknown> = {
-  name: { type: 'string', description: 'Taaknaam (niet leeg).' },
+  name: { type: 'string', description: 'Task name (not empty).' },
   description: { type: 'string' },
   duration: {
     type: 'number',
     minimum: 0,
     description:
-      'Native taakduur in de eenheid van `durationUnit` (standaard days voor achterwaartse ' +
-      'compatibiliteit). In days mag een fractie (2.5); de bridge rondt die niet af, maar een ' +
-      'WORKTIME-dagtaak beslaat in de datums wel hele werkdagen (2.5 ⇒ 3). Mijlpaal ⇒ moet 0 zijn.',
+      'Native task duration in the unit of `durationUnit` (default days for backward compatibility). In days ' +
+      'a fraction is allowed (2.5); the bridge does not round it, but a WORKTIME day task does occupy whole ' +
+      'working days in its dates (2.5 ⇒ 3). Milestone ⇒ must be 0.',
   },
   durationUnit: {
     type: 'string',
     enum: ['days', 'hours'],
-    description: 'Blijvende taakeenheid. Altijd samen met `duration` opgeven; hours vereist concrete werkblokken.',
+    description: 'Persistent task unit. Always give it together with `duration`; hours requires concrete work blocks.',
   },
-  durationType: { type: 'string', enum: ['WORKTIME', 'ELAPSEDTIME'], description: 'WORKTIME = werkdagen (default), ELAPSEDTIME = doorlooptijd.' },
+  durationType: { type: 'string', enum: ['WORKTIME', 'ELAPSEDTIME'], description: 'WORKTIME = working days (default), ELAPSEDTIME = elapsed time.' },
   taskType: { type: 'string', enum: TASK_TYPES },
   customTaskType: {
     type: 'object',
-    description: 'OPS-customtype met stabiele id en projectsnapshot-naam; zet taskType op USERDEFINED. Een bestaand id kan niet van naam veranderen.',
+    description: 'OPS custom type with a stable id and project snapshot name; sets taskType to USERDEFINED. An existing id cannot change its name.',
     properties: { id: { type: 'string' }, name: { type: 'string' } },
     required: ['id', 'name'], additionalProperties: false,
   },
   isMilestone: {
     type: 'boolean',
     description:
-      'Mijlpaal: true zet de duur meteen op 0 (niet toegestaan op een verzameltaak of een taak met ' +
-      'toewijzingen). false laat de duur op 0 staan tot je in dezelfde of een volgende call `duration` meestuurt.',
+      'Milestone: true sets the duration to 0 right away (not allowed on a summary task or a task with ' +
+      'assignments). false leaves the duration at 0 until you send `duration` in the same or a later call.',
   },
-  milestoneKind: { type: ['string', 'null'], enum: ['START', 'FINISH', null], description: 'Anker van de mijlpaal; null = automatisch.' },
-  mandatory: { type: 'boolean', description: 'Verplichte (contractuele) mijlpaal — markering voor rapportage.' },
-  priority: { type: 'integer', minimum: 0, maximum: 1000, description: 'Nivelleer-prioriteit (default 500; 1000 = nooit verschuiven).' },
+  milestoneKind: { type: ['string', 'null'], enum: ['START', 'FINISH', null], description: 'Anchor of the milestone; null = automatic.' },
+  mandatory: { type: 'boolean', description: 'Mandatory (contractual) milestone — marker for reporting.' },
+  priority: { type: 'integer', minimum: 0, maximum: 1000, description: 'Leveling priority (default 500; 1000 = never shift).' },
   constraint: {
     type: ['object', 'null'],
-    description: 'Datum-constraint; null wist hem. `date` is verplicht behalve bij ASAP/ALAP; `hard` alleen bij MSO/MFO. ' +
-      'null, ASAP en ALAP wissen ook een bestaande secundaire constraint; een datumtype dat met die secundaire geen geldig paar vormt, wordt geweigerd.',
+    description: 'Date constraint; null clears it. `date` is required except for ASAP/ALAP; `hard` only for ' +
+      'MSO/MFO. null, ASAP and ALAP also clear an existing secondary constraint; a date type that does not ' +
+      'form a valid pair with that secondary one is refused.',
     properties: {
       type: { type: 'string', enum: ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'] },
-      date: { type: 'string', description: 'ISO-datum (YYYY-MM-DD).' },
-      hard: { type: 'boolean', description: 'P6 Mandatory-pin; alleen bij MSO/MFO.' },
+      date: { type: 'string', description: 'ISO date (YYYY-MM-DD).' },
+      hard: { type: 'boolean', description: 'P6 Mandatory pin; only for MSO/MFO.' },
     },
     required: ['type'],
     additionalProperties: false,
   },
-  deadline: { type: ['string', 'null'], description: 'Zachte deadline (ISO-datum); begrenst alleen de late finish. null wist hem.' },
-  calendarId: { type: ['string', 'null'], description: 'Taak-kalender uit de bibliotheek (planner_get_calendars); null = projectkalender.' },
+  deadline: { type: ['string', 'null'], description: 'Soft deadline (ISO date); only bounds the late finish. null clears it.' },
+  calendarId: { type: ['string', 'null'], description: 'Task calendar from the library (planner_get_calendars); null = project calendar.' },
   workRule: {
     type: ['string', 'null'],
     enum: [...WORK_RULES, null],
     description:
-      'Werkregel (taaktype) van de taak: welke hoek van werk = restduur × inzet vast staat wanneer een ' +
-      'andere verandert. FIXED_DURATION_RATE (standaard, MSP "Fixed Duration", niet effort-driven): ' +
-      'duur en inzet blijven, het werk volgt. FIXED_DURATION_WORK (P6 "Fixed Duration & Units"): duur ' +
-      'en werk blijven, de inzet volgt. FIXED_WORK (MSP "Fixed Work", P6 "Fixed Units"): het werk blijft; ' +
-      'meer inzet of een extra resource maakt de taak korter. FIXED_RATE (MSP "Fixed Units" effort-driven, ' +
-      'P6 "Fixed Units/Time"): de inzet blijft; meer werk maakt de taak langer. Alleen de regel wisselen ' +
-      'verandert geen enkel getal. null = terug naar de projectstandaard (planner_update_project ' +
-      '`defaultWorkRule`). Werkt alleen op gewone bladtaken (niet op mijlpalen, verzameltaken, ' +
-      'hangmatten of ELAPSEDTIME-taken).',
+      'Work rule (task type) of the task: which corner of work = remaining duration × units stays fixed when ' +
+      'another changes. FIXED_DURATION_RATE (default, MSP "Fixed Duration", not effort-driven): duration and ' +
+      'units stay, the work follows. FIXED_DURATION_WORK (P6 "Fixed Duration & Units"): duration and work ' +
+      'stay, the units follow. FIXED_WORK (MSP "Fixed Work", P6 "Fixed Units"): the work stays; more units ' +
+      'or an extra resource make the task shorter. FIXED_RATE (MSP "Fixed Units" effort-driven, P6 "Fixed ' +
+      'Units/Time"): the units stay; more work makes the task longer. Switching only the rule changes no ' +
+      'number at all. null = back to the project default (planner_update_project `defaultWorkRule`). Only ' +
+      'works on ordinary leaf tasks (not on milestones, summary tasks, hammocks or ELAPSEDTIME tasks).',
   },
 };
 
 /** Eén regel voor in tool-beschrijvingen: welke velden er zijn en dat de rest hard weigert. */
 export const TASK_FIELDS_DOC =
-  `Toegestane velden: ${TASK_FIELD_NAMES.join(', ')}. Elke andere sleutel wordt GEWEIGERD met een ` +
-  'reden (nooit stil genegeerd) en laat het hele item ongewijzigd. `duration` volgt ' +
-  '`durationUnit` (`days` of `hours`; zonder eenheid blijft de achterwaarts compatibele dagregel). ' +
-  'Geef beide samen om de eenheid bewust te wijzigen; de `time`-tak zelf, `status`, `parentId` en ' +
-  '`resourceIds` zijn hier bewust niet zetbaar (gebruik `progress`, planner_move_task resp. ' +
-  'planner_manage_assignments). `workRule` zet het taaktype (werk = restduur × inzet; zie de ' +
-  'veldbeschrijving) — resterend werk per toewijzing zet je met planner_manage_assignments.';
+  `Allowed fields: ${TASK_FIELD_NAMES.join(', ')}. Any other key is REFUSED with a reason (never silently ` +
+  'ignored) and leaves the whole item unchanged. `duration` follows `durationUnit` (`days` or `hours`; ' +
+  'without a unit the backward-compatible day rule stays). Give both together to change the unit ' +
+  'deliberately; the `time` branch itself, `status`, `parentId` and `resourceIds` are deliberately not ' +
+  'settable here (use `progress`, planner_move_task and planner_manage_assignments respectively). `workRule` ' +
+  'sets the task type (work = remaining duration × units; see the field description) — remaining work per ' +
+  'assignment is set with planner_manage_assignments. ';

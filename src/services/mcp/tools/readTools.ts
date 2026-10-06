@@ -139,7 +139,7 @@ function requireBool(v: unknown, name: string): void {
 function requireIsoDate(v: unknown, name: string): void {
   if (v === undefined) return;
   if (typeof v !== 'string' || !ISO_DATE_ONLY.test(v)) {
-    throw new McpStepError('VALIDATION', `\`${name}\` moet een ISO-datum zijn (JJJJ-MM-DD), kreeg '${String(v)}'.`);
+    throw new McpStepError('VALIDATION', `\`${name}\` must be an ISO date (YYYY-MM-DD), got '${String(v)}'.`);
   }
 }
 
@@ -151,12 +151,12 @@ function requireIsoDate(v: unknown, name: string): void {
 function requirePageArgs(args: PageArgs): void {
   if (args.limit !== undefined) {
     if (typeof args.limit !== 'number' || !Number.isInteger(args.limit) || args.limit < 1 || args.limit > 1000) {
-      throw new McpStepError('VALIDATION', `\`limit\` moet een geheel getal van 1 t/m 1000 zijn, kreeg '${String(args.limit)}'.`);
+      throw new McpStepError('VALIDATION', `\`limit\` must be an integer from 1 to 1000, got '${String(args.limit)}'.`);
     }
   }
   if (args.offset !== undefined) {
     if (typeof args.offset !== 'number' || !Number.isInteger(args.offset) || args.offset < 0) {
-      throw new McpStepError('VALIDATION', `\`offset\` moet een geheel getal ≥ 0 zijn, kreeg '${String(args.offset)}'.`);
+      throw new McpStepError('VALIDATION', `\`offset\` must be an integer ≥ 0, got '${String(args.offset)}'.`);
     }
   }
 }
@@ -357,7 +357,7 @@ function listTasks(s: AppState, args: ListTasksArgs) {
   requireBool(args.zonder_relaties, 'zonder_relaties');
   if (args.status !== undefined && !TASK_STATUSES.includes(args.status as string)) {
     throw new McpStepError('VALIDATION',
-      `\`status\` moet één van ${TASK_STATUSES.join(', ')} zijn (hoofdlettergevoelig), kreeg '${String(args.status)}'.`);
+      `\`status\` must be one of ${TASK_STATUSES.join(', ')} (case-sensitive), got '${String(args.status)}'.`);
   }
   requireIsoDate(args.van, 'van');
   requireIsoDate(args.tot, 'tot');
@@ -430,11 +430,11 @@ interface GetTaskArgs {
 function getTask(s: AppState, args: GetTaskArgs) {
   requireOnlyKeys(args, ['taskId'], 'get_task');
   if (typeof args.taskId !== 'string' || args.taskId === '') {
-    throw new McpStepError('VALIDATION', 'get_task vereist een `taskId` (string).');
+    throw new McpStepError('VALIDATION', 'get_task requires a `taskId` (string).');
   }
   const task = s.tasks.find((t) => t.id === args.taskId);
   if (!task) {
-    throw new McpStepError('NOT_FOUND', `Onbekende taak-id: ${args.taskId}`);
+    throw new McpStepError('NOT_FOUND', `Unknown task id: ${args.taskId}`);
   }
   const taskById = new Map(s.tasks.map((t) => [t.id, t]));
   const resById = new Map(s.resources.map((r) => [r.id, r]));
@@ -565,11 +565,11 @@ function getTask(s: AppState, args: GetTaskArgs) {
               actualFinish: tt.actualFinish,
               earlyFinish: tt.earlyFinish,
               reason:
-                'De `actualFinish` valt buiten de werktijd van de kalender ' +
-                `"${effCal.name}" (weekend, feestdag of bouwvak). De gerekende finish is daarom de ` +
-                'dichtstbijzijnde werk-moment op-of-vóór het feit; de actual zelf blijft ongewijzigd ' +
-                'bewaard. Wil je dat de berekening het feit letterlijk volgt, maak die periode dan ' +
-                'werkbaar in de kalender (planner_update_calendar).',
+                `The \`actualFinish\` falls outside the working time of the calendar "${effCal.name}" ` +
+                '(weekend, holiday or construction holiday). The calculated finish is therefore the nearest ' +
+                'working moment on or before the fact; the actual itself stays stored unchanged. If you want ' +
+                'the calculation to follow the fact literally, make that period workable in the calendar ' +
+                '(planner_update_calendar).',
             },
           }
         : {}),
@@ -597,8 +597,9 @@ function getCriticalPath(s: AppState) {
       scheduleStale: s.scheduleStale,
       hasResult: false,
       ...(cpm?.error ? { error: cpm.error } : {}),
-      note: 'No (valid) schedule result. If `error` is set, resolve that first (for example break the dependency ' +
-        'loop); every mutating tool that changes something recalculates the schedule at the end.',
+      note: 'No (valid) schedule result. If `error` is set, resolve that first (for example break the ' +
+        'circular dependency); every mutating tool that changes something recalculates the schedule at the ' +
+        'end.',
       criticalTasks: [],
       drivingRelations: [],
     };
@@ -744,23 +745,23 @@ function getResourceHistogram(ctx: McpContext, args: HistogramArgs) {
   requireOnlyKeys(args, HISTOGRAM_KEYS, 'get_resource_histogram');
   if (args.bucket !== undefined && args.bucket !== 'dag' && args.bucket !== 'week' && args.bucket !== 'maand') {
     throw new McpStepError('VALIDATION',
-      `\`bucket\` moet 'dag', 'week' of 'maand' zijn (Nederlandse waarden), kreeg '${String(args.bucket)}'.`);
+      `\`bucket\` must be 'dag', 'week' or 'maand' (Dutch values for day, week, month), got '${String(args.bucket)}'.`);
   }
   requireIsoDate(args.van, 'van');
   requireIsoDate(args.tot, 'tot');
   let resourceIds: string[] | undefined;
   if (args.resourceIds !== undefined) {
     if (!Array.isArray(args.resourceIds)) {
-      throw new McpStepError('VALIDATION', "`resourceIds` moet een array van resource-id-strings zijn.");
+      throw new McpStepError('VALIDATION', '`resourceIds` must be an array of resource id strings.');
     }
     if (args.resourceIds.some((x) => typeof x !== 'string' || x === '')) {
-      throw new McpStepError('VALIDATION', '`resourceIds` mag alleen niet-lege resource-id-strings bevatten.');
+      throw new McpStepError('VALIDATION', '`resourceIds` may only contain non-empty resource id strings.');
     }
     const known = new Set(ctx.app.store.getState().resources.map((r) => r.id));
     const unknown = (args.resourceIds as string[]).filter((id) => !known.has(id));
     if (unknown.length > 0) {
       throw new McpStepError('VALIDATION',
-        `onbekende resource-id(s): ${unknown.join(', ')} — haal geldige id's op met planner_list_resources.`);
+        `unknown resource id(s): ${unknown.join(', ')} — get valid ids with planner_list_resources.`);
     }
     resourceIds = args.resourceIds as string[];
   }
@@ -781,7 +782,7 @@ function getResourceHistogram(ctx: McpContext, args: HistogramArgs) {
     recomputed: fresh.recomputed,
     ...(fresh.error ? { scheduleError: fresh.error } : {}),
     ...(fresh.recomputed
-      ? { warning: 'De planning was verouderd; het histogram is vers herrekend vóór dit rapport.' }
+      ? { warning: 'The schedule was out of date; the histogram was freshly recalculated before this report.' }
       : {}),
   };
 
@@ -838,7 +839,7 @@ function getResourceHistogram(ctx: McpContext, args: HistogramArgs) {
     return {
       mode: 'aggregate' as const,
       detailAvailable: true,
-      hint: 'Aggregaat per resource (pieken zichtbaar via peakLoad/overallocatedDayCount). Geef `resourceIds` en/of een venster (`van`/`tot`) voor volledig bucket-detail.',
+      hint: 'Aggregate per resource (peaks visible via peakLoad/overallocatedDayCount). Pass `resourceIds` and/or a window (`van`/`tot`) for full bucket detail.',
       ...freshMeta,
       resources,
     };
@@ -852,8 +853,9 @@ function getResourceHistogram(ctx: McpContext, args: HistogramArgs) {
     * (resourceIds && resourceIds.length > 0 ? resourceIds.length : s.resources.length);
   if (bucketCount > MAX_HISTOGRAM_BUCKETS) {
     throw new McpStepError('VALIDATION',
-      `dit histogram zou ${bucketCount} buckets opleveren (grens ${MAX_HISTOGRAM_BUCKETS}); kies een kleiner venster ` +
-      "(`van`/`tot`), minder `resourceIds` of een grovere `bucket` ('week'/'maand'), of laat alles weg voor het aggregaat.");
+      `this histogram would produce ${bucketCount} buckets (limit ${MAX_HISTOGRAM_BUCKETS}); choose a ` +
+      'smaller window (`van`/`tot`), fewer `resourceIds` or a coarser `bucket` (\'week\'/\'maand\'), or ' +
+      'leave everything out for the aggregate.');
   }
   const report = computeHistogramReport({
     tasks: s.tasks,
@@ -918,8 +920,8 @@ function compareBaseline(s: AppState) {
   if (!baseline) {
     // De weigering moet naar een BESTAANDE weg wijzen (de baselinetools in `baselineTools.ts`).
     throw new McpStepError('VALIDATION',
-      'Geen actieve baseline. Sla er een op met planner_save_baseline, of kies een bestaande met ' +
-      'planner_activate_baseline (planner_list_baselines toont welke er zijn).');
+      'No active baseline. Save one with planner_save_baseline, or choose an existing one with ' +
+      'planner_activate_baseline (planner_list_baselines shows which exist).');
   }
   const cal = new CalendarEngine(s.calendar);
   const currentEnd = s.cpmResult?.projectEnd || undefined;
@@ -959,9 +961,9 @@ function analyzeDelay(s: AppState) {
   const baseline = activeBaseline(s);
   if (!baseline) {
     throw new McpStepError('VALIDATION',
-      'Geen actieve baseline. planner_analyze_delay vereist een baseline van vóór de vertraging: ' +
-      'activeer er een met planner_activate_baseline (planner_list_baselines toont welke er zijn), ' +
-      'of leg er nu een vast met planner_save_baseline — die meet dan pas vanaf nu.');
+      'No active baseline. planner_analyze_delay requires a baseline from before the delay: activate one ' +
+      'with planner_activate_baseline (planner_list_baselines shows which exist), or record one now with ' +
+      'planner_save_baseline — that one then only measures from now on.');
   }
   const cpm = s.cpmResult;
   const cal = new CalendarEngine(s.calendar);
@@ -1009,23 +1011,21 @@ export const readTools: McpToolDef[] = [
   {
     name: 'planner_get_project_info',
     description:
-      'Projectmetadata + statistieken: taak-/relatie-/resource-/toewijzingsaantallen, mijlpalen, ' +
-      'kritieke-taak-aantal (`criticalTasks`: alleen bladtaken/activiteiten, zoals de statusbalk — ' +
-      'verzameltaken met een opgerolde kritiek-vlag tellen niet mee), statusdatum, projecteinde/-duur, ' +
-      '`scheduleStale` (planning verouderd?), ' +
-      'en een kalender-samenvatting. Goede eerste call om een project te leren kennen. ' +
-      'LET OP bij `project.statusDate`: dat is niet zomaar een peildatum-label maar de DATA DATE uit ' +
-      'P6/MSP, en die stuurt de berekening. Werk met completion 0 kan niet vóór die datum starten en ' +
-      'wordt erheen vooruitgeschoven — staat er een statusdatum, dan is `schedule.projectEnd` dus ' +
-      'mede dóór die datum bepaald, ook als er nog geen enkele voortgang geregistreerd is. Ontbreekt ' +
-      'het veld, dan geldt die vloer niet en zijn reeds geregistreerde actuals inert. ' +
-      '`project.schedulingProfile` is het rekenprofiel met de opgeloste conventies, ' +
-      '`project.schedulingOptions` de projectopties van het bestand (alleen-lezen via de bridge); ' +
-      '`startToStartLagFrom` (`earlyStart` | `actualStart`, P6 "Calculate Start-to-Start lag from") ' +
-      'kiest de variant van conventie `p6InProgressStartLagElapsed` en staat er altijd. ' +
-      '`schedulingOptions.leveling` (alleen bij een bestand dat ze draagt, bv. een P6-XER) zijn de ' +
-      'nivelleerinstellingen van het bronbestand: gelezen en bewaard, nog NIET toegepast (geen ' +
-      'rekeneffect); handmatig nivelleren blijft `planner_level_resources`.',
+      'Project metadata + statistics: task/relationship/resource/assignment counts, milestones, critical ' +
+      'task count (`criticalTasks`: only leaf tasks/activities, like the status bar — summary tasks with a ' +
+      'rolled-up critical flag do not count), status date, project end/duration, `scheduleStale` (schedule ' +
+      'out of date?), and a calendar summary. A good first call to get to know a project. NOTE on ' +
+      '`project.statusDate`: it is not just a reporting-date label but the DATA DATE from P6/MSP, and it ' +
+      'drives the calculation. Work with completion 0 cannot start before that date and is pushed forward to ' +
+      'it — so if a status date is set, `schedule.projectEnd` is partly determined BY that date, even if no ' +
+      'progress has been recorded yet. If the field is missing, that floor does not apply and actuals ' +
+      'already recorded are inert. `project.schedulingProfile` is the calculation profile with the resolved ' +
+      'conventions, `project.schedulingOptions` the project options of the file (read-only via the bridge); ' +
+      '`startToStartLagFrom` (`earlyStart` | `actualStart`, P6 "Calculate Start-to-Start lag from") selects ' +
+      'the variant of convention `p6InProgressStartLagElapsed` and is always present. ' +
+      '`schedulingOptions.leveling` (only for a file that carries them, e.g. a P6 XER) are the leveling ' +
+      'settings of the source file: read and kept, NOT applied yet (no effect on the calculation); manual ' +
+      'leveling remains `planner_level_resources`.',
     kind: 'read',
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,
@@ -1035,20 +1035,18 @@ export const readTools: McpToolDef[] = [
   {
     name: 'planner_get_project_overview',
     description:
-      'Complete WBS-boom, compact: per taak `id` (het stabiele Task.id — precies wat elke mutatietool ' +
-      'nodig heeft), wbs, naam, dur(werkdagen), start/end (vroege datums), ' +
-      'prog(0-100), crit, ms(mijlpaal), en op geneste rijen depth(2+; wortel = 1), parent(wbs), parentId (stabiel; ' +
-      'gebruik dit en niet `parent` om de boom te reconstrueren — WBS-codes kunnen vrije tekst of ' +
-      'dubbel zijn) en uitgaande relaties in verkorte notatie ' +
-      '"→2.3 FS+2d #seq-7", waarbij het deel achter `#` het SEQUENCE-ID is (voer dat rechtstreeks aan ' +
-      'planner_update_dependencies om de relatie te WIJZIGEN, of aan planner_remove_dependencies om ' +
-      'hem te verwijderen). Type en lag staan hier in exact de notatie die die tools ACCEPTEREN ' +
-      '(FS/SS/FF/SF, "+2d", "+50%"). BEWUST ONGELIMITEERD: de volledige relatiegraaf zit gegarandeerd ' +
-      'in deze ENE respons (elke relatie staat één keer, bij zijn voorganger), dus één call volstaat ' +
-      'voor structuur- én netwerkWERK — je hebt er geen tweede call voor id\'s bij nodig. ' +
-      'NAAMDRIFT LEZEN↔SCHRIJVEN: het veld heet hier `wbs`, bij het schrijven (add_tasks/update_tasks) ' +
-      '`wbsCode`; `id` heet daar `taskId`. Voor grote projecten fors; gebruik list_tasks als je ' +
-      'paginering wilt.',
+      'Complete WBS tree, compact: per task `id` (the stable Task.id — exactly what every mutating tool ' +
+      'needs), wbs, name, dur (working days), start/end (early dates), prog (0-100), crit, ms (milestone), ' +
+      'and on nested rows depth (2+; root = 1), parent (wbs), parentId (stable; use this and not `parent` to ' +
+      'reconstruct the tree — WBS codes can be free text or duplicated) and outgoing relationships in short ' +
+      'notation "→2.3 FS+2d #seq-7", where the part after `#` is the SEQUENCE ID (pass that straight to ' +
+      'planner_update_dependencies to CHANGE the relationship, or to planner_remove_dependencies to remove ' +
+      'it). Type and lag appear here in exactly the notation those tools ACCEPT (FS/SS/FF/SF, "+2d", ' +
+      '"+50%"). DELIBERATELY UNLIMITED: the complete relationship graph is guaranteed to be in this ONE ' +
+      'response (every relationship appears once, at its predecessor), so one call is enough for structure ' +
+      'AND network WORK — you do not need a second call for ids. NAME DRIFT READ↔WRITE: the field is called ' +
+      '`wbs` here and `wbsCode` when writing (add_tasks/update_tasks); `id` is called `taskId` there. Hefty ' +
+      'for large projects; use list_tasks if you want pagination.',
     kind: 'read',
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,
@@ -1058,17 +1056,16 @@ export const readTools: McpToolDef[] = [
   {
     name: 'planner_list_tasks',
     description:
-      'Gepagineerde taaklijst met filters. Filters (alle optioneel, gecombineerd via EN): ' +
-      '`kritiek` (bool — let op: ook verzameltaken/fasen dragen een van hun kinderen opgerolde ' +
-      'kritiek-vlag en tellen hier mee; zulke rijen hebben `summary: true`, dus `total` kan hoger zijn ' +
-      'dan `criticalTasks` uit get_project_info), `status` (NOT_STARTED|STARTED|COMPLETED), `van`/`tot` ' +
-      '(ISO-datumvenster: taken die met [van,tot] overlappen, per dag en met beide grenzen inclusief — ' +
-      'ook een urentaak die op de tot-dag begint), `zonder_relaties` (bool — wees-detectie: alléén ' +
-      'LEAF-taken die in geen enkele relatie voorkomen; verzameltaken worden uitgesloten). ' +
-      'Paginering: `limit` (geheel getal 1..1000, default 50), `offset` (≥ 0); retourneert `total`, ' +
-      '`has_more`, `next_offset`. Elk filter wordt STRIKT gevalideerd: een verkeerd getypeerde of ' +
-      'buiten-domein waarde geeft een nette fout met de toegestane waarden erbij — nooit stilzwijgend ' +
-      'een andere verzameling.',
+      'Paginated task list with filters. Filters (all optional, combined with AND): `kritiek` (critical; ' +
+      'bool — note: summary tasks/phases also carry a critical flag rolled up from their children and count ' +
+      'here; such rows have `summary: true`, so `total` can be higher than `criticalTasks` from ' +
+      'get_project_info), `status` (NOT_STARTED|STARTED|COMPLETED), `van`/`tot` (from/to; ISO date window: ' +
+      'tasks overlapping [van,tot], per day and with both bounds inclusive — also an hour task that starts ' +
+      'on the `tot` day), `zonder_relaties` (without relationships; bool — orphan detection: ONLY LEAF tasks ' +
+      'that appear in no relationship at all; summary tasks are excluded). Pagination: `limit` (integer ' +
+      '1..1000, default 50), `offset` (≥ 0); returns `total`, `has_more`, `next_offset`. Every filter is ' +
+      'validated STRICTLY: a wrongly typed or out-of-domain value gives a clean error listing the allowed ' +
+      'values — never silently a different set.',
     kind: 'read',
     batchable: true,
     inputSchema: {
@@ -1076,11 +1073,11 @@ export const readTools: McpToolDef[] = [
       properties: {
         kritiek: { type: 'boolean' },
         status: { type: 'string', enum: ['NOT_STARTED', 'STARTED', 'COMPLETED'] },
-        van: { type: 'string', description: 'ISO-datum ondergrens van het venster' },
-        tot: { type: 'string', description: 'ISO-datum bovengrens van het venster' },
-        zonder_relaties: { type: 'boolean', description: 'Alleen leaf-taken zonder enige relatie (wezen)' },
-        limit: { type: 'number', description: 'Aantal per pagina (default 50)' },
-        offset: { type: 'number', description: 'Startindex (default 0)' },
+        van: { type: 'string', description: 'ISO date lower bound of the window' },
+        tot: { type: 'string', description: 'ISO date upper bound of the window' },
+        zonder_relaties: { type: 'boolean', description: 'Only leaf tasks without any relationship (orphans)' },
+        limit: { type: 'number', description: 'Number per page (default 50)' },
+        offset: { type: 'number', description: 'Start index (default 0)' },
       },
       additionalProperties: false,
     },
@@ -1090,38 +1087,36 @@ export const readTools: McpToolDef[] = [
   {
     name: 'planner_get_task',
     description:
-      'Detail van één taak (`taskId` verplicht): metadata, duur/durationType, vroege/late datums, ' +
-      'total/free float, kritiek-vlag, voortgang (+actuals), constraints (primair/secundair) en ' +
-      'deadline, de effectieve kalender, ouder/kinderen, alle toewijzingen (resource, units/dag, ' +
-      'curve) en voorgangers/opvolgers (met type + lag). Op een verzameltaak (fase) zijn voortgang, ' +
-      'status en actuals AFGELEID uit de bladtaken (alleen-lezen): actualStart = de vroegste, ' +
-      'actualFinish = de laatste zodra alle bladtaken klaar zijn. Een onderbroken taak draagt `splitGaps` ' +
-      '(rauw) plus de leesbare `interruptions` — dezelfde vorm die planner_set_task_splits accepteert; ' +
-      '`splitsEditable: false` = een importsplit die alleen opgeheven kan worden. Bij een uit .mpp ' +
-      'geïmporteerde taak, indien aanwezig: READ-ONLY `manuallyScheduled` (handmatig gepland), ' +
-      '`levelingDelayMinutes`, `mspTaskType` (MSP Task ' +
-      'Type: FIXED_UNITS/FIXED_DURATION/FIXED_WORK), `effortDriven` en `timephasedContours` (rauwe ' +
-      'contourperiodes — puur data, geen rekengedrag). Bij XER/P6 zijn, indien aanwezig, ook de acht ' +
-      'read-only bronvelden `p6DurationType`, `p6ActivityType`, `p6ProjectId`, `p6TaskId`, ' +
-      '`p6ExplicitTargetWindow` (ook false), `p6CompletePctType`, `p6ExpectedFinish` en ' +
-      '`p6SuspendResume` zichtbaar. Relatie-objecten tonen daarnaast, indien aanwezig, ' +
-      '`p6StartAtPredecessorFinishBoundary`. Onbekend id ⇒ nette NOT_FOUND. ' +
-      'NAAMDRIFT LEZEN↔SCHRIJVEN: `wbs` heet bij het schrijven `wbsCode`, en `calendar.effectiveId` ' +
-      'heet daar `calendarId` (let op: `effectiveId` kan de PROJECTkalender zijn — dan staat er geen ' +
-      'eigen `calendarId` op de taak, zie `calendar.isProjectDefault`). ' +
-      'TWEE DATUMS DIE ER FOUT UITZIEN MAAR HET NIET ZIJN: (1) bij NEGATIEVE `totalFloat` liggen de ' +
-      'late datums per definitie vóór de vroege — bij tf −33 dus 33 werkdagen terug, desnoods vóór de ' +
-      'projectstart; dat is de maat van de deadline-overschrijding, geen rekenfout. (2) een VOLTOOIDE ' +
-      'taak (completion 100) wordt op zijn actuals gepind, maar de gerekende datums liggen altijd op ' +
-      'een WERKdag van de taakkalender; valt de `actualFinish` in onwerkbare tijd (weekend, bouwvak, ' +
-      'feestdag), dan is `schedule.earlyFinish` de laatste werkdag daarvóór en wijkt hij dus af van ' +
-      'de `actualFinish` — de respons meldt dat expliciet onder `progress.actualFinishAdjusted`. ' +
-      'Beide zijn stabiel: opnieuw doorrekenen verandert er niets aan.',
+      'Detail of one task (`taskId` required): metadata, duration/durationType, early/late dates, total/free ' +
+      'float, critical flag, progress (+actuals), constraints (primary/secondary) and deadline, the ' +
+      'effective calendar, parent/children, all assignments (resource, units/day, curve) and ' +
+      'predecessors/successors (with type + lag). On a summary task (phase), progress, status and actuals ' +
+      'are DERIVED from the leaf tasks (read-only): actualStart = the earliest, actualFinish = the latest ' +
+      'once all leaf tasks are done. An interrupted task carries `splitGaps` (raw) plus the readable ' +
+      '`interruptions` — the same shape that planner_set_task_splits accepts; `splitsEditable: false` = an ' +
+      'imported split that can only be cleared. For a task imported from .mpp, if present: READ-ONLY ' +
+      '`manuallyScheduled` (manually scheduled), `levelingDelayMinutes`, `mspTaskType` (MSP Task Type: ' +
+      'FIXED_UNITS/FIXED_DURATION/FIXED_WORK), `effortDriven` and `timephasedContours` (raw contour periods ' +
+      '— pure data, no calculation behaviour). For XER/P6, if present, the eight read-only source fields ' +
+      '`p6DurationType`, `p6ActivityType`, `p6ProjectId`, `p6TaskId`, `p6ExplicitTargetWindow` (also false), ' +
+      '`p6CompletePctType`, `p6ExpectedFinish` and `p6SuspendResume` are visible as well. Relationship ' +
+      'objects additionally show `p6StartAtPredecessorFinishBoundary`, if present. Unknown id ⇒ clean ' +
+      'NOT_FOUND. NAME DRIFT READ↔WRITE: `wbs` is called `wbsCode` when writing, and `calendar.effectiveId` ' +
+      'is called `calendarId` there (note: `effectiveId` can be the PROJECT calendar — then the task has no ' +
+      'own `calendarId`, see `calendar.isProjectDefault`). TWO DATES THAT LOOK WRONG BUT ARE NOT: (1) with ' +
+      'NEGATIVE `totalFloat` the late dates lie before the early ones by definition — with tf −33 that is 33 ' +
+      'working days back, before the project start if need be; that is the measure of the deadline overrun, ' +
+      'not a calculation error. (2) a COMPLETED task (completion 100) is pinned to its actuals, but the ' +
+      'calculated dates always lie on a WORKING day of the task calendar; if the `actualFinish` falls in ' +
+      'non-working time (weekend, construction holiday, public holiday), `schedule.earlyFinish` is the last ' +
+      'working day before it and therefore differs from the `actualFinish` — the response reports that ' +
+      'explicitly under `progress.actualFinishAdjusted`. Both are stable: recalculating again does not ' +
+      'change them.',
     kind: 'read',
     batchable: true,
     inputSchema: {
       type: 'object',
-      properties: { taskId: { type: 'string', description: 'Stabiele Task.id' } },
+      properties: { taskId: { type: 'string', description: 'Stable Task.id' } },
       required: ['taskId'],
       additionalProperties: false,
     },
@@ -1131,12 +1126,12 @@ export const readTools: McpToolDef[] = [
   {
     name: 'planner_get_critical_path',
     description:
-      'Afgeplatte kritieke-taak-set (topo-volgorde) met per taak total float, plus de driving-relaties ' +
-      'GEFILTERD op paren waarvan BEIDE eindpunten kritiek zijn. Reconstructie van de keten uit deze ' +
-      'taken+relaties is client-werk. `pathsMode` meldt de situatie: "merged" (één samengevoegd ' +
-      'kritiek pad — het normale geval) of "parallel". Gescheiden parallelle ketens (`criticalPaths`) ' +
-      'worden ALLEEN meegegeven als floatPaths mét methode FREE_FLOAT actief is; anders is er per ' +
-      'definitie één samengevoegd pad en ontbreekt `criticalPaths`.',
+      'Flattened critical task set (topological order) with total float per task, plus the driving ' +
+      'relationships FILTERED to pairs whose BOTH end points are critical. Reconstructing the chain from ' +
+      'these tasks+relationships is client work. `pathsMode` reports the situation: "merged" (one merged ' +
+      'critical path — the normal case) or "parallel". Separate parallel chains (`criticalPaths`) are ONLY ' +
+      'included when floatPaths with method FREE_FLOAT is active; otherwise there is by definition one ' +
+      'merged path and `criticalPaths` is missing.',
     kind: 'read',
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,
@@ -1146,23 +1141,22 @@ export const readTools: McpToolDef[] = [
   {
     name: 'planner_list_resources',
     description:
-      'Gepagineerde resourcelijst met capaciteit (maxUnits, kostenuurtarief, meeteenheid, kalender, ' +
-      'ploeg, tijd-gefaseerde beschikbaarheid) en een toewijzings-samenvatting per resource (aantal ' +
-      'toewijzingen, aantal betrokken taken, som units/dag). De veldnamen zijn exact die van ' +
-      'planner_manage_resources, dus je kunt gelezen waarden rechtstreeks terugschrijven; velden ' +
-      'zonder waarde ontbreken in de rij. Komt een resource uit een bedrijfsbibliotheek, dan draagt ' +
-      'de rij een `library`-blok: `company` (bedrijfsnaam), `status` (`in-sync` | `behind` | ' +
-      '`deviated` | `removed`, of `null` bij een stempel van een ander bedrijf) en `lockedFields` — ' +
-      'de velden die de bibliotheek bepaalt en die planner_manage_resources op deze rij dus weigert. ' +
-      'Is `lockedFields` leeg, dan is de rij volledig bewerkbaar. Paginering identiek aan list_tasks: ' +
-      '`limit` (default 50), `offset`; retour `total`, `has_more`, `next_offset`.',
+      'Paginated resource list with capacity (maxUnits, hourly cost rate, unit of measure, calendar, crew, ' +
+      'time-phased availability) and an assignment summary per resource (number of assignments, number of ' +
+      'tasks involved, sum of units/day). The field names are exactly those of planner_manage_resources, so ' +
+      'you can write read values straight back; fields without a value are missing from the row. If a ' +
+      'resource comes from a resource library, the row carries a `library` block: `company` (library name), ' +
+      '`status` (`in-sync` | `behind` | `deviated` | `removed`, or `null` for a stamp from another library) ' +
+      'and `lockedFields` — the fields the library determines and that planner_manage_resources therefore ' +
+      'refuses on this row. If `lockedFields` is empty, the row is fully editable. Pagination identical to ' +
+      'list_tasks: `limit` (default 50), `offset`; returns `total`, `has_more`, `next_offset`.',
     kind: 'read',
     batchable: true,
     inputSchema: {
       type: 'object',
       properties: {
-        limit: { type: 'number', description: 'Aantal per pagina (default 50)' },
-        offset: { type: 'number', description: 'Startindex (default 0)' },
+        limit: { type: 'number', description: 'Number per page (default 50)' },
+        offset: { type: 'number', description: 'Start index (default 0)' },
       },
       additionalProperties: false,
     },
@@ -1172,30 +1166,29 @@ export const readTools: McpToolDef[] = [
   {
     name: 'planner_get_resource_histogram',
     description:
-      'Belasting/capaciteit-histogram per resource. Params: `resourceIds` (weglaten = alle; een ' +
-      'onbekend id geeft een nette fout, geen lege reeks), `van`/`tot` (ISO-venster), `bucket` (exact ' +
-      '"dag", "week" of "maand" — Nederlandse waarden, default "week"). HERREKENT de planning vers wanneer die ' +
-      'verouderd is of nog nooit is doorgerekend (en meldt dat via `recomputed`/`warning`). ' +
-      'DETAIL-OP-AANVRAAG: zónder venster ' +
-      'ÉN zónder resourceIds (de naïeve eerste call) levert de tool `mode:"aggregate"` — per resource ' +
-      'een samenvatting (peakLoad + peakDate, overallocatedDayCount, spanStart/spanEnd, loadSum, ' +
-      'capacitySum) mét `detailAvailable:true`; pieken blijven zo zichtbaar maar de respons is klein. ' +
-      'Geef `resourceIds` en/of `van`/`tot` voor `mode:"detail"` met de volledige bucket-arrays: per ' +
-      'bucket `load` (week-/maandbucket = som over de periode), `peakDayLoad`, `capacity`, dag-granulaire ' +
-      '`overallocatedDays` en per overbelaste bucket de veroorzakende toewijzingen (`causes`). ' +
-      'LET OP — WEEKMODUS-OVERHANG: weekvensters snappen naar hele ISO-weken (ma..zo), dus een venster ' +
-      'kan aan de randen dagen buiten [van,tot] meenemen; de capaciteit telt álle werkdagen van het ' +
-      '(gesnapte) weekvenster. Detail is begrensd op 10000 buckets (vensters × resources); daarboven ' +
-      'een VALIDATION-fout met de uitweg.',
+      'Load/capacity histogram per resource. Params: `resourceIds` (omitted = all; an unknown id gives a ' +
+      'clean error, not an empty series), `van`/`tot` (from/to; ISO window), `bucket` (exactly "dag" (day), ' +
+      '"week" or "maand" (month) — Dutch values, default "week"). RECALCULATES the schedule when it is out ' +
+      'of date or has never been calculated (and reports that via `recomputed`/`warning`). DETAIL ON ' +
+      'REQUEST: WITHOUT a window AND WITHOUT resourceIds (the naive first call) the tool returns ' +
+      '`mode:"aggregate"` — per resource a summary (peakLoad + peakDate, overallocatedDayCount, ' +
+      'spanStart/spanEnd, loadSum, capacitySum) with `detailAvailable:true`; peaks stay visible this way but ' +
+      'the response is small. Pass `resourceIds` and/or `van`/`tot` for `mode:"detail"` with the full bucket ' +
+      'arrays: per bucket `load` (week/month bucket = sum over the period), `peakDayLoad`, `capacity`, ' +
+      'day-granular `overallocatedDays` and per overallocated bucket the causing assignments (`causes`). ' +
+      'NOTE — WEEK MODE OVERHANG: week windows snap to whole ISO weeks (Mon..Sun), so a window can include ' +
+      'days outside [van,tot] at its edges; capacity counts ALL working days of the (snapped) week window. ' +
+      'Detail is capped at 10000 buckets (windows × resources); above that a VALIDATION error with the way ' +
+      'out.',
     kind: 'read',
     batchable: true,
     inputSchema: {
       type: 'object',
       properties: {
         resourceIds: { type: 'array', items: { type: 'string' } },
-        van: { type: 'string', description: 'ISO-datum vensterstart' },
-        tot: { type: 'string', description: 'ISO-datum venstereinde' },
-        bucket: { type: 'string', enum: ['dag', 'week', 'maand'], description: 'Bucketbreedte (default week)' },
+        van: { type: 'string', description: 'ISO date window start' },
+        tot: { type: 'string', description: 'ISO date window end' },
+        bucket: { type: 'string', enum: ['dag', 'week', 'maand'], description: 'Bucket width (default week)' },
       },
       additionalProperties: false,
     },
@@ -1205,18 +1198,18 @@ export const readTools: McpToolDef[] = [
   {
     name: 'planner_get_calendars',
     description:
-      'Alle kalenders: de UNIE van de projectkalender-cache en de bibliotheek (gededupt op id), elk ' +
-      'met `isProjectDefault`, gebruikt-door-tellingen (taken/resources) én de VOLLEDIGE ' +
-      'WorkCalendar-definitie (werkdagen, werkuren, pauzepatroon `simpleBreakStartMinute`/' +
-      '`simpleBreakDurationMinutes`, `workTime`-uurbanden, `shift`, `holidays`, `workingExceptions`, ' +
-      '`generation`, en bij een bibliotheekkopie `libraryOrigin`). Een kalenderobject hieruit is LETTERLIJK terug te schrijven met ' +
-      'planner_update_calendar en zo in een ANDER document te herbouwen — kalender-id\'s zijn ' +
-      'per-document, dus gebruik daar `create: true` (het echte nieuwe id komt terug in de respons) en ' +
-      'hang taken eraan met `update_tasks.calendarId`. Wil je de PROJECTkalender van een ander document ' +
-      'gelijkmaken, schrijf de velden dan op het id uit de `projectDefaultId` van dát document: WELKE ' +
-      'kalender de projectdefault IS kan de bridge niet wisselen (dat doe je in de app). De afgeleide ' +
-      'velden `isProjectDefault`/`usedByTasks`/`usedByResources` en de bibliotheekstempel `libraryOrigin` ' +
-      'mogen bij het terugschrijven meekomen maar doen daar niets.',
+      'All calendars: the UNION of the project calendar cache and the library (deduplicated by id), each ' +
+      'with `isProjectDefault`, used-by counts (tasks/resources) AND the COMPLETE WorkCalendar definition ' +
+      '(working days, working hours, break pattern `simpleBreakStartMinute`/`simpleBreakDurationMinutes`, ' +
+      '`workTime` hour bands, `shift`, `holidays`, `workingExceptions`, `generation`, and for a library copy ' +
+      '`libraryOrigin`). A calendar object from here can be written back LITERALLY with ' +
+      'planner_update_calendar and so rebuilt in ANOTHER document — calendar ids are per document, so use ' +
+      '`create: true` there (the real new id comes back in the response) and attach tasks to it with ' +
+      '`update_tasks.calendarId`. To align the PROJECT calendar of another document, write the fields to the ' +
+      'id from THAT document\'s `projectDefaultId`: WHICH calendar IS the project default cannot be switched ' +
+      'via the bridge (you do that in the app). The derived fields ' +
+      '`isProjectDefault`/`usedByTasks`/`usedByResources` and the library stamp `libraryOrigin` may come ' +
+      'along when writing back but do nothing there.',
     kind: 'read',
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,
@@ -1226,11 +1219,11 @@ export const readTools: McpToolDef[] = [
   {
     name: 'planner_compare_baseline',
     description:
-      'Vergelijk het huidige plan met de ACTIEVE baseline; levert alléén de afwijkers (status ≠ ' +
-      'onSchedule: late/early/new/dropped) plus `projectEndDelta`. Geen actieve baseline ⇒ nette ' +
-      'VALIDATION-fout. MEETLAT-DISCLOSURE: delta\'s zijn werkdagen op de HUIDIGE projectkalender — ' +
-      'na een kalenderwijziging is de meetlat zelf veranderd (magnitudes met een korrel zout; ' +
-      'richting en selectie blijven betrouwbaar).',
+      'Compare the current plan with the ACTIVE baseline; returns ONLY the deviating tasks (status ≠ ' +
+      'onSchedule: late/early/new/dropped) plus `projectEndDelta`. No active baseline ⇒ clean VALIDATION ' +
+      'error. YARDSTICK DISCLOSURE: deltas are working days on the CURRENT project calendar — after a ' +
+      'calendar change the yardstick itself has changed (take magnitudes with a grain of salt; direction and ' +
+      'selection stay reliable).',
     kind: 'read',
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,
@@ -1240,12 +1233,12 @@ export const readTools: McpToolDef[] = [
   {
     name: 'planner_analyze_delay',
     description:
-      'Vertragingsanalyse tegen de actieve baseline (vereist er één, anders nette VALIDATION-fout). De ' +
-      'OPLEVERINGS-IMPACT is `projectEndDelta` (werkdagen, signed) — NOOIT een som van per-taak-delta\'s ' +
-      '(dat zou een cascade dubbeltellen). De kritieke schuivers (variance ∩ kritiek pad) met hun ' +
-      'individuele delta\'s dienen als lokalisatie/verklaring, niet om op te tellen. Heeft de baseline ' +
-      'geen doorgerekend projecteinde, dan meldt de tool dat expliciet (`projectEndDeltaAvailable:false`) ' +
-      'i.p.v. 0 te suggereren.',
+      'Delay analysis against the active baseline (requires one, otherwise a clean VALIDATION error). The ' +
+      'DELIVERY IMPACT is `projectEndDelta` (working days, signed) — NEVER a sum of per-task deltas (that ' +
+      'would double-count a cascade). The critical shifters (variance ∩ critical path) with their individual ' +
+      'deltas serve as localisation/explanation, not to be added up. If the baseline has no calculated ' +
+      'project end, the tool reports that explicitly (`projectEndDeltaAvailable:false`) instead of ' +
+      'suggesting 0. ',
     kind: 'read',
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,

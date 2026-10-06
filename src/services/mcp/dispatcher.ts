@@ -109,10 +109,10 @@ export async function handleMcpMessage(rawBody: string, ctx: McpContext): Promis
 
   // Batch-arrays worden bewust niet ondersteund (tools-only subset).
   if (Array.isArray(msg)) {
-    return errorMsg(null, -32600, 'Batch-arrays van JSON-RPC-berichten worden niet ondersteund');
+    return errorMsg(null, -32600, 'Batch arrays of JSON-RPC messages are not supported');
   }
   if (msg === null || typeof msg !== 'object') {
-    return errorMsg(null, -32600, 'Ongeldig JSON-RPC-bericht');
+    return errorMsg(null, -32600, 'Invalid JSON-RPC message');
   }
 
   const isNotification = !('id' in msg);
@@ -120,7 +120,7 @@ export async function handleMcpMessage(rawBody: string, ctx: McpContext): Promis
   const method: unknown = msg.method;
 
   if (typeof method !== 'string') {
-    return isNotification ? '' : errorMsg(id, -32600, 'Ongeldig JSON-RPC-bericht: ontbrekende methode');
+    return isNotification ? '' : errorMsg(id, -32600, 'Invalid JSON-RPC message: missing method');
   }
 
   // Notificaties (o.a. notifications/initialized): geen respons.
@@ -154,7 +154,7 @@ export async function handleMcpMessage(rawBody: string, ctx: McpContext): Promis
       const name: unknown = msg.params?.name;
       const def = typeof name === 'string' ? getTool(name) : undefined;
       if (!def) {
-        return errorMsg(id, -32602, `Onbekende tool: ${String(name)}`);
+        return errorMsg(id, -32602, `Unknown tool: ${String(name)}`);
       }
       // SCHEMA-POORT: valideer de argumenten tegen `def.inputSchema` VÓÓR de handler. Zonder deze
       // regel is elk `enum`/`type`/`required`/`minimum`/`additionalProperties` puur decoratief — het
@@ -177,7 +177,7 @@ export async function handleMcpMessage(rawBody: string, ctx: McpContext): Promis
         const err: McpToolResult = {
           ok: false,
           code: 'VALIDATION',
-          error: `ongeldige argumenten voor ${def.name} — ${schemaError}`,
+          error: `invalid arguments for ${def.name} — ${schemaError}`,
         };
         return resultMsg(id, wrapToolResult(err));
       }
@@ -188,12 +188,12 @@ export async function handleMcpMessage(rawBody: string, ctx: McpContext): Promis
         result = await def.handler(msg.params?.arguments, ctx);
       } catch (e) {
         if (import.meta.env.DEV) console.error(`[mcp] handler '${def.name}' gooide:`, e);
-        return errorMsg(id, -32603, `Interne fout bij uitvoeren van tool ${def.name}`);
+        return errorMsg(id, -32603, `Internal error while running tool ${def.name}`);
       }
       return resultMsg(id, wrapToolResult(result));
     }
 
     default:
-      return errorMsg(id, -32601, `Onbekende methode: ${method}`);
+      return errorMsg(id, -32601, `Unknown method: ${method} `);
   }
 }

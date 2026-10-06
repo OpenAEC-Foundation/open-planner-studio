@@ -58,8 +58,8 @@ export interface McpFileFs {
 async function realFs(): Promise<McpFileFs> {
   if (!isTauri()) {
     throw new Error(
-      'De bestands-tools werken alleen in de desktop-app (Tauri): de browserversie heeft geen ' +
-      'directe bestandssysteem-toegang. Gebruik daar Bestand → Openen/Exporteren.',
+      'The file tools only work in the desktop app (Tauri): the browser version has no direct file system ' +
+      'access. Use File → Open/Export there.',
     );
   }
   const { exists, readTextFile, readFile, mkdir } = await import('@tauri-apps/plugin-fs');
@@ -132,8 +132,8 @@ export function checkScope(home: string, input: string): ScopeCheck {
     return {
       ok: false,
       reason:
-        `Pad '${input}' is niet bruikbaar: geef een ABSOLUUT pad binnen '${home}' ` +
-        `(een relatief pad of een pad dat via '..' boven de wortel uitklimt wordt geweigerd).`,
+        `Path '${input}' is not usable: give an ABSOLUTE path inside '${home}' (a relative path, or a path ` +
+        'that climbs above the root via \'..\', is refused).',
     };
   }
   const windows = /^[A-Za-z]:/.test(target) || /^[A-Za-z]:/.test(root);
@@ -144,8 +144,8 @@ export function checkScope(home: string, input: string): ScopeCheck {
     return {
       ok: false,
       reason:
-        `Pad '${input}' valt buiten de toegestane bestandsscope. De app mag alleen binnen de ` +
-        `home-map '${home}' lezen en schrijven; kies een pad daarbinnen.`,
+        `Path '${input}' is outside the allowed file scope. The app may only read and write inside the home ` +
+        `folder '${home}'; choose a path inside it.`,
     };
   }
   return { ok: true, path: target };
@@ -193,21 +193,20 @@ export const fileTools: McpToolDef[] = [
   {
     name: 'planner_export_ifc',
     description:
-      'Schrijf het ACTIEVE document als IFC 4.3-bestand naar `path` (het native formaat: taken, ' +
-      'relaties, kalenders, resources, toewijzingen, baselines en structuur gaan volledig mee). ' +
-      'BESTANDSSCOPE: alleen paden binnen de home-map van de gebruiker; erbuiten volgt een ' +
-      'SCOPE-fout. Een bestaand bestand wordt NIET overschreven tenzij je expliciet ' +
-      '`overwrite: true` meegeeft. Dit wijzigt de planning niet en verandert ook het opslaan-doel ' +
-      'van het document niet: het blijft "niet opgeslagen" in de app — het is een export, geen ' +
-      '"opslaan als". Let op: het pad komt uit jouw argumenten, niet uit een bestandsdialoog van de ' +
-      'gebruiker; noem het gekozen pad dus altijd in je antwoord.',
+      'Write the ACTIVE document as an IFC 4.3 file to `path` (the native format: tasks, relationships, ' +
+      'calendars, resources, assignments, baselines and structure are all included). FILE SCOPE: only paths ' +
+      'inside the user\'s home folder; outside it a SCOPE error follows. An existing file is NOT overwritten ' +
+      'unless you explicitly pass `overwrite: true`. This does not change the schedule, nor the document\'s ' +
+      'save target: it stays "not saved" in the app — it is an export, not a "save as". Note: the path comes ' +
+      'from your arguments, not from a file dialog of the user; so always mention the chosen path in your ' +
+      'answer.',
     kind: 'other',
     batchable: false, // export_ifc/import_schedule zijn uitgesloten van batch
     inputSchema: {
       type: 'object',
       properties: {
-        path: { type: 'string', description: 'Absoluut doelpad binnen de home-map, bv. /home/naam/planning.ifc (~ mag)' },
-        overwrite: { type: 'boolean', description: 'true = een bestaand bestand vervangen (default false)' },
+        path: { type: 'string', description: 'Absolute target path inside the home folder, e.g. /home/name/schedule.ifc (~ allowed)' },
+        overwrite: { type: 'boolean', description: 'true = replace an existing file (default false)' },
       },
       required: ['path'],
       additionalProperties: false,
@@ -219,10 +218,10 @@ export const fileTools: McpToolDef[] = [
       if (blocked) return blocked;
       const raw = (args ?? {}) as { path?: unknown; overwrite?: unknown };
       if (typeof raw.path !== 'string' || raw.path.trim() === '') {
-        return toolError(ctx, 'VALIDATION', "Parameter 'path' (tekst) is verplicht: het absolute doelpad van het IFC-bestand.");
+        return toolError(ctx, 'VALIDATION', 'Parameter \'path\' (text) is required: the absolute target path of the IFC file.');
       }
       if (raw.overwrite !== undefined && typeof raw.overwrite !== 'boolean') {
-        return toolError(ctx, 'VALIDATION', "Parameter 'overwrite' moet true of false zijn.");
+        return toolError(ctx, 'VALIDATION', 'Parameter \'overwrite\' must be true or false.');
       }
       const overwrite = raw.overwrite === true;
 
@@ -246,12 +245,12 @@ export const fileTools: McpToolDef[] = [
           return toolError(
             ctx,
             'VALIDATION',
-            `Er bestaat al een bestand op '${path}'. Geef 'overwrite': true mee om het te vervangen, ` +
-            'of kies een ander pad — de AI overschrijft niet uit zichzelf.',
+            `A file already exists at '${path}'. Pass 'overwrite': true to replace it, or choose another ` +
+            'path — the AI does not overwrite on its own.',
           );
         }
       } catch (e) {
-        return toolError(ctx, 'INTERNAL', `Kon het doelpad niet controleren: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError(ctx, 'INTERNAL', `Could not check the target path: ${e instanceof Error ? e.message : String(e)}`);
       }
 
       // Na de fs-awaits opnieuw: de gebruiker kan intussen gepauzeerd, alleen-lezen gezet, een
@@ -266,7 +265,7 @@ export const fileTools: McpToolDef[] = [
       try {
         await fs.writeTextFile(path, content);
       } catch (e) {
-        return toolError(ctx, 'INTERNAL', `Schrijven naar '${path}' is mislukt: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError(ctx, 'INTERNAL', `Writing to '${path}' failed: ${e instanceof Error ? e.message : String(e)}`);
       }
       return {
         ok: true,
@@ -286,38 +285,33 @@ export const fileTools: McpToolDef[] = [
   {
     name: 'planner_import_schedule',
     description:
-      'Lees een planningsbestand van schijf en open het als DOCUMENT (tabblad). Ondersteund: .ifc ' +
-      '(native, volledig), .xml (Primavera P6 of MS Project MSPDI — het formaat wordt op inhoud ' +
-      'herkend), .csv, .xer (Primavera P6, alleen-lezen) en .mpp (MS Project 2010-2021, MPP14, ' +
-      'alleen-lezen — oudere formaten en ' +
-      'wachtwoordbestanden geven een fout die vraagt om eerst als XML te exporteren). Er wordt NIET ' +
-      'samengevoegd met het huidige plan: een leeg-en-ongewijzigd ' +
-      'actief tabblad wordt hergebruikt, anders komt er een nieuw tabblad bij; het resultaat wordt ' +
-      'actief en het vervolgwerk landt daar. ' +
-      'VERLIES PER FORMAAT — noem dit tegen de gebruiker: CSV bevat GEEN kalender (het document ' +
-      'krijgt de standaardkalender, dus datums kunnen verschuiven!) en geen resources of ' +
-      'toewijzingen; P6-XML mapt Nonlabor-resources op EQUIPMENT; MPP bevat geen baselines/custom ' +
-      'fields; MSPDI is het rijkst na IFC. ' +
-      'Na een CSV-/XML-/MPP-import heeft het document nog GEEN opslagdoel (opslaan schrijft altijd ' +
-      'IFC, dus het bronbestand wordt nooit overschreven); alleen een IFC-import neemt het bronpad over. ' +
-      'Gebruik de `documents`-inventaris UIT DE RESPONS voor alle geopende documenten; `documentId` ' +
-      'blijft voor compatibiliteit het actieve document aanwijzen. Of het eerste project in het ' +
-      'bestaande tabblad of in een nieuw tabblad landde hangt af van de staat van de app. ' +
-      'Kalender-id\'s zijn per document: herbouw een kalender in het importdocument met ' +
-      'update_calendar — geef een kalenderobject uit planner_get_calendars van het masterdocument ' +
-      'LETTERLIJK terug (inclusief `workTime`-uurbanden, `shift`, `holidays` en `generation`) met ' +
-      '`create: true`, of gebruik het generator-pad (`generate`). Hang de taken daarna aan het NIEUWE ' +
-      'id via `update_tasks.calendarId`; wil je de PROJECTkalender van het importdocument gelijkmaken, ' +
-      'schrijf de velden dan op het id uit zijn eigen `projectDefaultId` (WELKE kalender de ' +
-      'projectdefault is, kan de bridge niet wisselen). Hergebruik nooit een id uit een ander document. ' +
-      'BESTANDSSCOPE: alleen paden binnen de home-map. Het pad komt uit ' +
-      'jouw argumenten, niet uit een bestandsdialoog van de gebruiker.',
+      'Read a schedule file from disk and open it as a DOCUMENT (tab). Supported: .ifc (native, complete), ' +
+      '.xml (Primavera P6 or MS Project MSPDI — the format is detected from the content), .csv, .xer ' +
+      '(Primavera P6, read-only) and .mpp (MS Project 2010-2021, MPP14, read-only — older formats and ' +
+      'password-protected files give an error asking to export as XML first). Nothing is merged into the ' +
+      'current plan: an empty and unchanged active tab is reused, otherwise a new tab is added; the result ' +
+      'becomes active and follow-up work lands there. LOSS PER FORMAT — tell the user: CSV contains NO ' +
+      'calendar (the document gets the default calendar, so dates can shift!) and no resources or ' +
+      'assignments; P6 XML maps Nonlabor resources to EQUIPMENT; MPP contains no baselines/custom fields; ' +
+      'MSPDI is the richest after IFC. After a CSV/XML/MPP import the document has NO save target yet ' +
+      '(saving always writes IFC, so the source file is never overwritten); only an IFC import takes over ' +
+      'the source path. Use the `documents` inventory FROM THE RESPONSE for all opened documents; ' +
+      '`documentId` keeps pointing at the active document for compatibility. Whether the first project ' +
+      'landed in the existing tab or in a new tab depends on the state of the app. Calendar ids are per ' +
+      'document: rebuild a calendar in the imported document with update_calendar — pass a calendar object ' +
+      'from planner_get_calendars of the master document back LITERALLY (including `workTime` hour bands, ' +
+      '`shift`, `holidays` and `generation`) with `create: true`, or use the generator path (`generate`). ' +
+      'Then attach the tasks to the NEW id via `update_tasks.calendarId`; to align the PROJECT calendar of ' +
+      'the imported document, write the fields to the id from its own `projectDefaultId` (WHICH calendar is ' +
+      'the project default cannot be switched via the bridge). Never reuse an id from another document. FILE ' +
+      'SCOPE: only paths inside the home folder. The path comes from your arguments, not from a file dialog ' +
+      'of the user.',
     kind: 'other',
     batchable: false,
     inputSchema: {
       type: 'object',
       properties: {
-        path: { type: 'string', description: 'Absoluut bronpad binnen de home-map (.ifc / .xml / .csv / .mpp / .xer; ~ mag)' },
+        path: { type: 'string', description: 'Absolute source path inside the home folder (.ifc / .xml / .csv / .mpp / .xer; ~ allowed)' },
       },
       required: ['path'],
       additionalProperties: false,
@@ -330,7 +324,7 @@ export const fileTools: McpToolDef[] = [
       if (blocked) return blocked;
       const raw = (args ?? {}) as { path?: unknown };
       if (typeof raw.path !== 'string' || raw.path.trim() === '') {
-        return toolError(ctx, 'VALIDATION', "Parameter 'path' (tekst) is verplicht: het absolute pad van het te importeren bestand.");
+        return toolError(ctx, 'VALIDATION', 'Parameter \'path\' (text) is required: the absolute path of the file to import.');
       }
 
       let fs: McpFileFs;
@@ -346,7 +340,7 @@ export const fileTools: McpToolDef[] = [
         if (!scope.ok) return toolError(ctx, 'SCOPE', scope.reason);
         path = scope.path;
       } catch (e) {
-        return toolError(ctx, 'INTERNAL', `Kon het bronpad niet controleren: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError(ctx, 'INTERNAL', `Could not check the source path: ${e instanceof Error ? e.message : String(e)}`);
       }
       // `content` blijft '' voor een binair formaat — puur voor `formatOf` (verderop) om te sniffen
       // op CSV/P6-XML/MSPDI-XML-inhoud; het OPSLAGDOEL-besluit hangt niet af van `formatOf`'s
@@ -359,7 +353,7 @@ export const fileTools: McpToolDef[] = [
         // óók hier — `fs` (McpFileFs) is structureel compatibel met `readFormatInput`'s `FormatIO`.
         input = await readFormatInput(path, fs);
       } catch (e) {
-        return toolError(ctx, 'NOT_FOUND', `Kon '${path}' niet lezen: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError(ctx, 'NOT_FOUND', `Could not read '${path}': ${e instanceof Error ? e.message : String(e)}`);
       }
       const content = input.text ?? '';
 
@@ -370,7 +364,7 @@ export const fileTools: McpToolDef[] = [
         // ImportLabels).
         parsed = await parseOpenedFile(input);
       } catch (e) {
-        return toolError(ctx, 'VALIDATION', `'${path}' kon niet worden gelezen als planning: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError(ctx, 'VALIDATION', `'${path}' could not be read as a schedule: ${e instanceof Error ? e.message : String(e)}`);
       }
 
       const format = formatOf(path, content);
@@ -404,7 +398,7 @@ export const fileTools: McpToolDef[] = [
       ]));
       const documents = opened.documentIds.map(documentId => {
         const payload = payloadById.get(documentId);
-        if (!payload) throw new Error(`Geopend document '${documentId}' ontbreekt na import`);
+        if (!payload) throw new Error(`Opened document '${documentId}' is missing after the import`);
         return {
           documentId,
           projectId: payload.project.id,
@@ -417,20 +411,20 @@ export const fileTools: McpToolDef[] = [
       });
       const notices: string[] = [];
       if (format === 'CSV') {
-        notices.push('CSV bevat geen kalender (het document draait nu op de STANDAARDkalender — datums kunnen afwijken) en geen resources/toewijzingen.');
+        notices.push('CSV contains no calendar (the document now runs on the DEFAULT calendar — dates may differ) and no resources/assignments.');
       } else if (format === 'P6-XML') {
-        notices.push('P6-XML: Nonlabor-resources zijn als EQUIPMENT geïmporteerd.');
+        notices.push('P6 XML: Nonlabor resources were imported as EQUIPMENT.');
       } else if (format === 'MPP14') {
-        notices.push('MPP-import is alleen-lezen (best effort; baselines en custom fields komen niet mee). Opslaan schrijft IFC; export naar MS Project = MSPDI-XML.');
+        notices.push('MPP import is read-only (best effort; baselines and custom fields are not included). Saving writes IFC; export to MS Project = MSPDI XML.');
       } else if (format === 'XER') {
         notices.push(
-          `XER-import is alleen-lezen; deze stap importeert ${documents.length} niet-lege ` +
-          `P6-project${documents.length === 1 ? '' : 'en'} als ${documents.length} ` +
-          `document${documents.length === 1 ? '' : 'en'}. Opslaan schrijft IFC.`,
+          `XER import is read-only; this step imports ${documents.length} non-empty P6 project` +
+          `${documents.length === 1 ? '' : 's'} as ${documents.length} document` +
+          `${documents.length === 1 ? '' : 's'}. Saving writes IFC.`,
         );
       }
       if (format !== 'IFC') {
-        notices.push('Het document heeft nog GEEN opslagdoel: opslaan schrijft IFC, dus het bronbestand wordt niet overschreven — de gebruiker kiest bij opslaan een pad.');
+        notices.push('The document has NO save target yet: saving writes IFC, so the source file is not overwritten — the user chooses a path when saving. ');
       }
       return {
         ok: true,

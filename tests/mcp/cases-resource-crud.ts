@@ -216,7 +216,7 @@ test('update zonder velden ⇒ zachte weigering (nooit `ok` zonder effect)', asy
   const id = await makeResource({ name: 'Timmerman' });
   const res = await call('planner_manage_resources', { actions: [{ action: 'update', id }] });
   const reason = soleReason(res);
-  assert(reason.includes('geen wijzigingen'), `de reden benoemt het lege effect: ${reason}`);
+  assert(reason.includes('no changes'), `de reden benoemt het lege effect: ${reason}`);
   assert(reason.includes('maxUnits'), `de reden noemt de bruikbare velden: ${reason}`);
   assertEq(okData(res).updated, [], 'niets als gewijzigd gerapporteerd');
 });
@@ -276,7 +276,7 @@ test('onbekend `type` en ongeldige `maxUnits` worden zacht geweigerd, met het ge
   const r = rejections(res);
   assertEq(r.length, 2, `twee weigeringen verwacht, kreeg ${JSON.stringify(r)}`);
   assert(r[0].reason.includes('EQUIPMENT'), `het type-domein staat erbij: ${r[0].reason}`);
-  assert(r[0].reason.includes('hoofdlettergevoelig'), `en dat het hoofdlettergevoelig is: ${r[0].reason}`);
+  assert(r[0].reason.includes('case-sensitive'), `en dat het hoofdlettergevoelig is: ${r[0].reason}`);
   assert(r[1].reason.includes('> 0'), `de maxUnits-regel staat erbij: ${r[1].reason}`);
   // ZACHTE weigering: het geldige item is gewoon aangemaakt.
   assertEq(store.getState().resources.map((x) => x.name), ['Goed'], 'één rot item rolt de bulk niet terug');
@@ -300,8 +300,8 @@ test('delete van een resource mét toewijzingen wordt zonder `cascade` zacht gew
 
   const res = await call('planner_manage_resources', { actions: [{ action: 'delete', id }] });
   const reason = soleReason(res);
-  assert(reason.includes('2 toewijzing'), `het exacte aantal toewijzingen staat erin: ${reason}`);
-  assert(reason.includes('2 taak/taken'), `en het aantal taken: ${reason}`);
+  assert(reason.includes('2 assignment'), `het exacte aantal toewijzingen staat erin: ${reason}`);
+  assert(reason.includes('2 task(s)'), `en het aantal taken: ${reason}`);
   assert(reason.includes('cascade: true'), `de weg vooruit staat erin: ${reason}`);
   assertEq(store.getState().resources.length, 1, 'de resource staat er nog');
   assertEq(store.getState().assignments.length, 2, 'de toewijzingen staan er nog');
@@ -340,7 +340,7 @@ test('delete met `cascade: true` ⇒ toewijzingen weg, task.resourceIds schoon, 
   for (const t of store.getState().tasks) {
     assertEq(t.resourceIds, [], `task.resourceIds van '${t.name}' is opgeruimd (geen verweesde verwijzing)`);
   }
-  assert((data.warnings as string[]).some((w) => w.includes('MEE verwijderd')),
+  assert((data.warnings as string[]).some((w) => w.includes('deleted TOO')),
     `de respons WAARSCHUWT over het meegewiste werk: ${JSON.stringify(data.warnings)}`);
 });
 
@@ -360,7 +360,7 @@ test('delete van een CREW ⇒ leden raken hun parentId kwijt en dat staat in het
     const r = store.getState().resources.find((x) => x.id === id)! as unknown as Record<string, unknown>;
     assert(!('parentId' in r), 'het lidmaatschap is ECHT verwijderd');
   }
-  assert((data.warnings as string[]).some((w) => w.includes('ploeg-lidmaatschap')),
+  assert((data.warnings as string[]).some((w) => w.includes('crew membership')),
     `er staat een waarschuwing over de verweesde leden: ${JSON.stringify(data.warnings)}`);
 });
 
@@ -381,9 +381,9 @@ test('parentId: onbekend, niet-CREW en zichzelf worden alle drie zacht geweigerd
   });
   const r = rejections(res);
   assertEq(r.length, 3, `drie weigeringen verwacht, kreeg ${JSON.stringify(r)}`);
-  assert(r[0].reason.includes('bestaat niet'), `onbekende ploeg: ${r[0].reason}`);
+  assert(r[0].reason.includes('does not exist'), `onbekende ploeg: ${r[0].reason}`);
   assert(r[1].reason.includes('CREW'), `niet-CREW-ploeg: ${r[1].reason}`);
-  assert(r[2].reason.includes('eigen ploeg'), `zelf-ouderschap: ${r[2].reason}`);
+  assert(r[2].reason.includes('own crew'), `zelf-ouderschap: ${r[2].reason}`);
 });
 
 // =================================================================================================
@@ -553,7 +553,7 @@ test('registratie: één tool met prefix, description, vier annotaties, batchabl
 // (`splitGaps` met `source: 'leveling'`) of UITSLUITEND sub-dag-vertraging uit een `.mpp`
 // (`levelingDelayMinutes`) kreeg daardoor stil géén waarschuwing, terwijl de ribbonknop, de
 // store-actie `clearLeveling` en `planner_clear_leveling` daar wél nivelleeruitvoer zien.
-const LEVELING_WARNING = 'TOEGEPASTE nivellering';
+const LEVELING_WARNING = 'APPLIED leveling';
 const LEVELING_GAP = { afterMinutes: 1440, gapMinutes: 480, source: 'leveling' as const };
 const USER_GAP = { afterMinutes: 1440, gapMinutes: 480, source: 'user' as const };
 

@@ -31,8 +31,9 @@ document ooit achter, dan heeft de code gelijk.
    nieuw bestand.
 2. **Schrijf de `McpToolDef`** (contract uit `contracts.ts`): `name` (verplicht met
    `planner_`-prefix — `toolIndex.ts` gooit anders bij registratie), `description` (niet-leeg, de AI
-   kiest tools hierop), `kind` (`read`/`mutate`/`document`/`other`/`batch` — stuurt guards en de
-   backup-trigger), `batchable`, `inputSchema`, `annotations`
+   kiest tools hierop; **Engels**, net als de schema-beschrijvingen, foutmeldingen en waarschuwingen die
+   de tool teruggeeft — alles wat de agent leest is Engels, met de termen van de Engelse UI), `kind`
+   (`read`/`mutate`/`document`/`other`/`batch` — stuurt guards en de backup-trigger), `batchable`, `inputSchema`, `annotations`
    (`readOnlyHint`/`destructiveHint`/`idempotentHint`/`openWorldHint`) en de `handler`.
 3. **Schrijf het schema bewust binnen de ondersteunde trefwoordenset.** `schemaValidate.ts` is
    *geen* volledige JSON-Schema-implementatie — hij dwingt precies twaalf trefwoorden af

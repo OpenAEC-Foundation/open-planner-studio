@@ -129,8 +129,8 @@ function blockingDialogName(ui: UIState): string | null {
 function dialogGuard(ctx: McpContext, action: string): McpToolErr | null {
   const ui = ctx.app.store.getState().ui;
   if (!hasBlockingDialogOpen(ui)) return null;
-  const name = blockingDialogName(ui) ?? 'een dialoog';
-  return toolError(ctx, 'DIALOG_OPEN', `Er staat een dialoog open (${name}); sluit die eerst voordat de AI ${action}.`);
+  const name = blockingDialogName(ui) ?? 'a dialog';
+  return toolError(ctx, 'DIALOG_OPEN', `A dialog is open (${name}); close it first before the AI ${action}.`);
 }
 
 // --- Stap-fout ----------------------------------------------------------------------------------
@@ -197,12 +197,12 @@ export function mapTransactionError(message: string): McpErrorCode {
  */
 export function preBackupGuards(ctx: McpContext): McpToolErr | null {
   if (ctx.paused) {
-    return toolError(ctx, 'PAUSED', 'De AI-bridge is door de gebruiker gepauzeerd; muterende tools zijn tijdelijk geweigerd.');
+    return toolError(ctx, 'PAUSED', 'The AI bridge has been paused by the user; mutating tools are refused for now.');
   }
   if (ctx.readOnly) {
-    return toolError(ctx, 'READ_ONLY', 'De AI-bridge staat in alleen-lezen-modus; muterende tools zijn geweigerd zolang die actief is.');
+    return toolError(ctx, 'READ_ONLY', 'The AI bridge is in read-only mode; mutating tools are refused while it is active.');
   }
-  return dialogGuard(ctx, 'wijzigingen maakt');
+  return dialogGuard(ctx, 'makes changes');
 }
 
 /**
@@ -230,7 +230,7 @@ function driftGuard(ctx: McpContext): McpToolErr | null {
     return toolError(
       ctx,
       'DOC_DRIFT',
-      `Actief document is gewijzigd: was ${ctx.expectedDocId}, nu ${activeId} — bevestig met switch_document`,
+      `The active document has changed: was ${ctx.expectedDocId}, now ${activeId} — confirm with switch_document`,
     );
   }
   if (ctx.expectedDocId === null) {
@@ -250,7 +250,7 @@ function driftGuard(ctx: McpContext): McpToolErr | null {
  * `INTERNAL`-fout — nooit een throw naar de dispatcher.
  */
 export function runReadTool(ctx: McpContext, fn: (s: AppState) => unknown): McpToolResult {
-  const blocked = dialogGuard(ctx, 'de planning leest');
+  const blocked = dialogGuard(ctx, 'reads the schedule');
   if (blocked) return blocked;
   try {
     const data = fn(ctx.app.store.getState());
@@ -302,7 +302,7 @@ export async function runMutateTool(
   try {
     backupPath = await ctx.ensureBackup(backupDocId, kind);
   } catch (e) {
-    return toolError(ctx, 'BACKUP_FAILED', `AI-backup vóór de wijziging is mislukt: ${e instanceof Error ? e.message : String(e)}`);
+    return toolError(ctx, 'BACKUP_FAILED', `AI backup before the change failed: ${e instanceof Error ? e.message : String(e)} `);
   }
 
   // (5) drift-check / anker-binding — PAS NU, ná de backup-await: tijdens die await kan de user van
