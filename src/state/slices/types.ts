@@ -317,10 +317,14 @@ export type NotificationMessageKey =
   | 'notifications.statusDateSetToday'
   // Restduur: een nieuwe duur korter dan het gedane werk van een lopende taak is
   // geweigerd — zie `runningDurationChange` in engine/taskMutationRules.ts. Parameters `name`, `percent`.
-  | 'notifications.durationBelowDoneWork';
+  | 'notifications.durationBelowDoneWork'
+  // Tutorialvraag na de eerste voltooide rondleiding (`TutorialOfferDialog`): "later" bij Nee of een
+  // geweigerde installatie, "unavailable" als ophalen/installeren/starten niet lukte.
+  | 'notifications.tutorialOfferLater'
+  | 'notifications.tutorialOfferUnavailable';
 
-/** Rekenprofielen: het actielabel is een i18n-sleutel in `common`. */
-export type NotificationActionLabelKey = 'notifications.actions.openProjectInfo';
+/** Het actielabel van een melding is een i18n-sleutel in `common`. */
+export type NotificationActionLabelKey = 'notifications.actions.openProjectInfo' | 'notifications.actions.openHelp';
 
 /** Een SERIALISEERBARE vervolgactie op een melding (geen functies in de store). `NotificationHost`
  *  voert hem uit; nieuwe soorten krijgen een eigen `kind`. */
@@ -599,6 +603,17 @@ export interface UIState {
    *  wanneer er geen tour loopt; overleeft een presentatiemodus-unmount/remount van
    *  `TourOverlay` (dit staat in de store, niet in component-state) — zie TourOverlay.tsx. */
   tourSnapshot: TourUiSnapshot | null;
+  /** session — de welkomstdialoog komt nog: `ops-welcomeSeen` ontbrak bij het opstarten en de
+   *  opstartcheck (die op de recovery-flow wacht) heeft hem nog niet getoond. Gezet door
+   *  `useSettingsBootstrap`, gewist zodra de welkomstcheck klaar is. Laat "Update beschikbaar"
+   *  wachten tot de hele eerste-startervaring voorbij is (`isOnboardingActive`, `state/onboarding.ts`). */
+  welcomePending: boolean;
+  /** session — de tutorialvraag (`TutorialOfferDialog`) staat open: gezet door een VOLTOOIDE
+   *  rondleiding zolang `tutorialOfferAnswered` onwaar is (zie `tourFinishPatch`). */
+  showTutorialOffer: boolean;
+  /** persisted (`ops-tutorialOfferAnswered`) — de tutorialvraag is beantwoord (Ja, Nee of
+   *  weggeklikt) en komt nooit meer terug, ook niet na een volgende voltooide rondleiding. */
+  tutorialOfferAnswered: boolean;
   // --- MCP-bridge / AI-modus. App-globaal (niet per document): de bridge
   //     bedient de héle app, niet één tabblad. Gevoed door `src/services/mcp/server.ts`. ---
   /** persisted — AI-modus: AAN ⇒ het AI-ribbontabblad verschijnt (conditioneel, net als de
@@ -637,6 +652,10 @@ export interface UIState {
    *  gezet) door `ExtensionManagerPanel` — zelfde eenmalig-verzoek-patroon als
    *  `pendingHelpArticleId`. */
   pendingExtensionsTab: 'browse' | null;
+  /** session — eenmalig verzoek om in Backstage → Help een sectie van de inhoudsopgave in beeld te
+   *  brengen (de tutorialvraag valt terug op Help › Tutorials). Geconsumeerd (en direct weer op
+   *  `null` gezet) door `HelpPanel` — zelfde eenmalig-verzoek-patroon als `pendingHelpArticleId`. */
+  pendingHelpSection: 'tutorials' | null;
 }
 
 // Path tracing (MSP "Task Path" / P6 "Trace Logic"): welke kant van het netwerk

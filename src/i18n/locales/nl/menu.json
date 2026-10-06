@@ -317,12 +317,7 @@
     "library": "Bibliotheek",
     "helpDocsLang": "Documentatietaal",
     "helpDocsLangAuto": "Volg de app-taal",
-    "helpStale": "Deze taal wordt maar af en toe bijgewerkt. Voor de meest actuele documentatie kun je beter overschakelen naar het Engels of Nederlands.",
-    "helpLayer": {
-      "quickstart": "Snel starten",
-      "gidsen": "Gidsen per onderwerp",
-      "referentie": "Referentie"
-    },
+    "helpLangFallback": "De documentatie is nog niet beschikbaar in jouw taal. Je leest de Engelse versie.",
     "unapplied": {
       "title": "Wijzigingen niet toegepast",
       "body": "Je hebt de projectinfo gewijzigd maar nog niet toegepast. Wat wil je met deze wijzigingen doen?",
@@ -397,6 +392,7 @@
     "confirmRemoveHint": "Klik nogmaals om definitief te verwijderen",
     "catalogLoading": "Catalogus laden...",
     "catalogError": "Catalogus kon niet geladen worden: {{error}}",
+    "networkTimeout": "geen antwoord binnen {{seconds}} s",
     "retry": "Opnieuw proberen",
     "noCatalogResults": "Geen extensies gevonden.",
     "install": "Installeren",

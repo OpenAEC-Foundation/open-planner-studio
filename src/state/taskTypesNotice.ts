@@ -46,7 +46,7 @@ export function notifyWorkRuleDurationsChanged(notify: (n: NotifyInput) => void,
   });
 }
 
-/** De detailregel in de ene bestandsmelding (.mpp/XER): eigen gidslink naar `gids-taaktypes`
+/** De detailregel in de ene bestandsmelding (.mpp/XER): eigen gidslink naar `uitleg-werkregels`
  *  (de melding zelf linkt naar het bestand/rekenprofiel). */
 export const TASK_TYPES_DETAIL_LINE: NotificationDetailLine = {
   messageKey: 'notifications.taskTypesUnlockedDetail',

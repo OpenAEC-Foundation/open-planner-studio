@@ -1,6 +1,6 @@
 # Een nieuwe `planner_*`-MCP-tool toevoegen
 
-De AI-assistent (zie *AI-assistent* in `CLAUDE.md`) stuurt de app aan via een vaste set
+De AI-assistent (zie *AI-assistent* in `.claude/rules/mcp.md`) stuurt de app aan via een vaste set
 `planner_*`-tools. Rust is daarbij een dom doorgeefluik (`src-tauri/src/mcp_bridge.rs`); de hele
 protocol- en toollaag zit in TypeScript, `src/services/mcp/`. Een tool toevoegen raakt altijd
 dezelfde vier plekken, en drie ervan geven — anders dan bij het IFC-recept — pas een falende
@@ -31,8 +31,9 @@ document ooit achter, dan heeft de code gelijk.
    nieuw bestand.
 2. **Schrijf de `McpToolDef`** (contract uit `contracts.ts`): `name` (verplicht met
    `planner_`-prefix — `toolIndex.ts` gooit anders bij registratie), `description` (niet-leeg, de AI
-   kiest tools hierop), `kind` (`read`/`mutate`/`document`/`other`/`batch` — stuurt guards en de
-   backup-trigger), `batchable`, `inputSchema`, `annotations`
+   kiest tools hierop; **Engels**, net als de schema-beschrijvingen, foutmeldingen en waarschuwingen die
+   de tool teruggeeft — alles wat de agent leest is Engels, met de termen van de Engelse UI), `kind`
+   (`read`/`mutate`/`document`/`other`/`batch` — stuurt guards en de backup-trigger), `batchable`, `inputSchema`, `annotations`
    (`readOnlyHint`/`destructiveHint`/`idempotentHint`/`openWorldHint`) en de `handler`.
 3. **Schrijf het schema bewust binnen de ondersteunde trefwoordenset.** `schemaValidate.ts` is
    *geen* volledige JSON-Schema-implementatie — hij dwingt precies twaalf trefwoorden af
@@ -60,14 +61,23 @@ document ooit achter, dan heeft de code gelijk.
 ## Context-aandachtspunten
 
 - **`McpContext`** (`contracts.ts`) is wat je handler krijgt: `app`/`transactions` (de storecontext,
-  nooit zelf `appStoreContext`/`useAppStore` importeren — zie *State* in `CLAUDE.md`),
+  nooit zelf `appStoreContext`/`useAppStore` importeren — zie *State* in `.claude/rules/state.md`),
   `expectedDocId` (het drift-anker), `tempIdMap` (batch-only), en de live vlaggen `paused`/`readOnly`
   plus `ensureBackup`/`markDuplicateBorn`.
 - **`staleGuard.ts`'s `ensureFreshSchedule`** herrekent de planning alleen als ze stale is of nog
   nooit gedraaid heeft, zonder een undo-snapshot te pushen (`runCPM` schrijft alleen berekende
-  velden terug — zie *Scheduling* in `CLAUDE.md`). Gebruik hem in elke tool die een verse planning
-  nodig heeft maar geen extra undo-stap mag achterlaten (voorbeeld: `get_resource_histogram` in
-  `readTools.ts`).
+  velden terug — zie de scheduling-alinea in `.claude/rules/state.md`). Muterende tools die vóór hun
+  werk een verse planning nodig hebben, roepen hem zelf aan (`save_baseline`, `level_resources`).
+- **Een leestool die berekende waarden teruggeeft** (datums, speling, kritiek pad, projecteinde,
+  bezetting, baseline-vergelijking) geeft `{ freshSchedule: true }` mee aan `runReadTool`, of roept de
+  meegegeven `freshen` zelf aan na het keuren van zijn args (`get_resource_histogram`). Dat loopt via
+  `freshenScheduleForRead` (`tools/runtime.ts`): niet in "datums zoals opgeslagen" (de envelop meldt dan
+  `datesAsRecorded` + `scheduleNote`), niet tijdens een lopende bewerking van de gebruiker
+  (`isAutoCalcHeld`, de envelop houdt `scheduleStale: true` met een `scheduleNote`), niet opnieuw na een
+  mislukte berekening met ongewijzigde invoer (dezelfde rem als Automatisch berekenen,
+  `failedSolveGate.ts`; de fout staat in `scheduleError`), en niet binnen een lopende MCP-transactie
+  (`planner_batch` ververst zelf vóór zijn transactie). Er is geen `planner_run_cpm`: zonder dit leest de
+  agent oude datums.
 - **Read-only-modus** (`ui.aiReadOnly`) en **pauze** (`ui.aiPaused`) worden vóór de handler
   afgedwongen door `preBackupGuards` (`tools/runtime.ts`) — een muterende tool hoeft dit zelf niet te
   controleren, maar een leestool (`kind: 'read'`) loopt via `runReadTool`, dat deze guards bewust
@@ -90,7 +100,7 @@ gelijke aantallen. Vult dat de laatste blinde vlek: vóór deze poort compileerd
 en de tool verdween stilzwijgend uit `tools/list`.
 
 Let op het onderscheid met **Poort 7e** in `scripts/verify-docs.ts`: die telt `planner_*`-literals in
-dezelfde map en vergelijkt het GETAL met de bewering "De N `planner_*`-tools" in `CLAUDE.md` — dat
+dezelfde map en vergelijkt het GETAL met de bewering "The N `planner_*` tools" in `AGENTS.md` — dat
 bewaakt alleen dat de documentatie het aantal niet laat wegdrijven, niet dat elke tool ook echt
 geregistreerd is. Beide poorten scannen dezelfde bron, maar toetsen iets anders.
 
@@ -109,4 +119,5 @@ geregistreerd is. Beide poorten scannen dezelfde bron, maar toetsen iets anders.
 | bridge-levenscyclus, token, `isTauri()`-splitsing | `src/services/mcp/server.ts` |
 | batch-executor + temp-id-resolutie | `src/services/mcp/tools/batchTool.ts` |
 | de tests zelf + het volledigheidsvangnet | `tests/mcp/cases-*.ts`, `tests/mcp/cases-toolregistry.ts` |
-| tellingscontrole tegen CLAUDE.md ("N tools") | `scripts/verify-docs.ts` (Poort 7e) |
+| tellingscontrole tegen AGENTS.md ("N tools") | `scripts/verify-docs.ts` (Poort 7e) |
+| gebruikersdocumentatie van de tools (met de hand bij te werken bij een nieuwe tool, nl én en) | `public/docs/{nl,en}/ref-ai-tools.md` |

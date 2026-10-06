@@ -319,12 +319,7 @@
     "library": "Biblioteca",
     "helpDocsLang": "Idioma de la documentación",
     "helpDocsLangAuto": "Seguir el idioma de la aplicación",
-    "helpStale": "Este idioma solo se actualiza ocasionalmente. Para la documentación más actualizada, cambie a inglés o neerlandés.",
-    "helpLayer": {
-      "quickstart": "Inicio rápido",
-      "gidsen": "Guías por tema",
-      "referentie": "Referencia"
-    },
+    "helpLangFallback": "La documentación aún no está disponible en su idioma. Está leyendo la versión en inglés.",
     "unapplied": {
       "title": "Cambios no aplicados",
       "body": "Ha modificado la información del proyecto pero aún no la ha aplicado. ¿Qué desea hacer con estos cambios?",
@@ -399,6 +394,7 @@
     "confirmRemoveHint": "Haz clic de nuevo para eliminar definitivamente",
     "catalogLoading": "Cargando catálogo...",
     "catalogError": "No se pudo cargar el catálogo: {{error}}",
+    "networkTimeout": "sin respuesta en {{seconds}} s",
     "retry": "Reintentar",
     "noCatalogResults": "No se encontraron extensiones.",
     "install": "Instalar",

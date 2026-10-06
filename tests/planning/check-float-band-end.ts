@@ -4,7 +4,7 @@
 // AANLEIDING. De band werd getekend als `totalFloat × zoom`: WERKdagen speling maal pixels per
 // KALENDERdag. Over een weekend stopte de band daardoor dagen te vroeg (A met 10 wd speling en
 // "Laatste einde" dinsdag 16-06 kreeg een band tot en met vrijdag 12-06), en in urenmodus schoot hij
-// juist door tot diep in de nacht. De gids (`gids-kritiek-pad-analyse.md`) belooft "tot de laatste
+// juist door tot diep in de nacht. De gids (toen `gids-kritiek-pad-analyse.md`) beloofde "tot de laatste
 // einddatum", en raster, paneel en MCP tonen `lateFinish`. Sindsdien leiden scherm, afdruk en het
 // afdrukbereik de band-rand af uit één helper (`floatBandEnd`, `src/utils/taskDates.ts`).
 //

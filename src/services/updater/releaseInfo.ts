@@ -40,16 +40,20 @@ export type OsName = 'linux' | 'windows' | 'macos' | string;
 /**
  * Pure detectie: moeten we de "wat is er nieuw"-dialoog tonen? Geeft de versiesprong terug, of
  * `null` wanneer er niets te melden valt.
- * - `stored` ontbreekt (verse installatie / eerste start) → `{ from: null, to: current }`: we tonen
- *   de dialoog wél, maar zónder "van"-versie (die kennen we niet).
+ * - `stored` ontbreekt én `welcomeSeenAtStartup` is onwaar (echte eerste start: ook de
+ *   welkomstvlag ontbrak) → `null`. Eigenaarsbesluit 2026-09-28: "Net bijgewerkt" alleen als de app
+ *   écht geüpdatet is, niet bij de allereerste start.
+ * - `stored` ontbreekt maar de welkomst was al gezien (bestaande gebruiker van vóór de
+ *   `lastVersion`-sleutel) → `{ from: null, to: current }`: tonen, zónder "van"-versie.
  * - `stored === current` (normale herstart) → `null` (niets tonen).
  * - anders → `{ from: stored, to: current }` (ook bij downgrade).
  */
 export function detectJustUpdated(
   stored: string | undefined,
   current: string,
+  welcomeSeenAtStartup: boolean,
 ): { from: string | null; to: string } | null {
-  if (!stored) return { from: null, to: current };
+  if (!stored) return welcomeSeenAtStartup ? { from: null, to: current } : null;
   if (stored === current) return null;
   return { from: stored, to: current };
 }

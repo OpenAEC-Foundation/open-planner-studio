@@ -64,3 +64,4 @@ Alt+↑ en Alt+↓ werken in zo'n weergave wél, zonder melding. Bij alleen een 
 - [WBS-sjablonen bewaren en invoegen](docs://howto-wbs-sjablonen): een hele fase hergebruiken.
 - [Relaties leggen](docs://howto-relaties-leggen): taken aan elkaar koppelen.
 - [Taken selecteren, verwijderen en ongedaan maken](docs://howto-taken-selecteren-verwijderen): een verplaatsing terugdraaien.
+- [Refurbishment & Extension of a Family Home](examples://showcase-verbouwing-eengezinswoning.ifc): vier fasen met hun subtaken, zoals je ze met inspringen opbouwt.

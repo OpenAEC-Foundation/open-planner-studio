@@ -50,7 +50,7 @@ test('zonder statusdatum: geweigerd, de reden zegt wat de AI moet doen, er veran
   const before = JSON.stringify(timeOf(V));
   const res = await rpc('planner_update_tasks', { updates: [{ id: V, progress: { completion: 40 } }] });
   const [reason] = reasons(res);
-  assert(!!reason && /planner_update_project/.test(reason) && /statusDate/.test(reason) && /herhaal/.test(reason),
+  assert(!!reason && /planner_update_project/.test(reason) && /statusDate/.test(reason) && /repeat/.test(reason),
     `de reden noemt de route (planner_update_project → statusDate) en dat de update herhaald moet worden: ${reason}`);
   assertEq(JSON.stringify(timeOf(V)), before, 'taak ongewijzigd');
   assertEq(S().project.statusDate ?? null, null, 'geen statusdatum gezet — niets automatisch');
@@ -62,7 +62,7 @@ test('later geplande taak zonder actualStart: geweigerd met de vraag om de werke
   const before = JSON.stringify(timeOf(L));
   const res = await rpc('planner_update_tasks', { updates: [{ id: L, progress: { completion: 40 } }] });
   const [reason] = reasons(res);
-  assert(!!reason && /progress\.actualStart/.test(reason) && /uiterlijk 2026-06-10/.test(reason),
+  assert(!!reason && /progress\.actualStart/.test(reason) && /at the latest 2026-06-10/.test(reason),
     `de reden vraagt om progress.actualStart, uiterlijk de statusdatum: ${reason}`);
   assertEq(JSON.stringify(timeOf(L)), before, 'taak ongewijzigd');
 });
@@ -78,7 +78,7 @@ test('later geplande taak: alleen actualFinish zonder actualStart is ook geweige
   const { L } = setup('2026-06-10');
   const res = await rpc('planner_update_tasks', { updates: [{ id: L, progress: { actualFinish: '2026-06-09' } }] });
   const [reason] = reasons(res);
-  assert(!!reason && /progress\.actualStart/.test(reason) && /uiterlijk 2026-06-09/.test(reason),
+  assert(!!reason && /progress\.actualStart/.test(reason) && /at the latest 2026-06-09/.test(reason),
     `de reden vraagt om een start, uiterlijk het opgegeven einde: ${reason}`);
 });
 

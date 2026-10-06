@@ -382,7 +382,7 @@ function queueTimeoutResponse(rawBody: string): string {
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && !('id' in parsed)) return '';
     id = (parsed as { id?: unknown })?.id ?? null;
   } catch { /* onparseerbaar ⇒ id null */ }
-  return JSON.stringify({ jsonrpc: '2.0', id, error: { code: -32001, message: 'timeout: niet uitgevoerd, te lang in de wachtrij' } });
+  return JSON.stringify({ jsonrpc: '2.0', id, error: { code: -32001, message: 'timeout: not executed, waited too long in the queue' } });
 }
 
 /** JSON-RPC `-32603 Internal error` voor een request waarvan de verwerking zelf wierp. Een
@@ -395,7 +395,7 @@ function internalErrorResponse(rawBody: string, error: unknown): string {
     id = parsed?.id ?? null;
   } catch { /* onparseerbaar ⇒ id null */ }
   const message = error instanceof Error ? error.message : String(error);
-  return JSON.stringify({ jsonrpc: '2.0', id, error: { code: -32603, message: `Interne fout: ${message}` } });
+  return JSON.stringify({ jsonrpc: '2.0', id, error: { code: -32603, message: `Internal error: ${message}` } });
 }
 
 // --- Status-handler (injecteerbaar) --------------------------------------------------------------

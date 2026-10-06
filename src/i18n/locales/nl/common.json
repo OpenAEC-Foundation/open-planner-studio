@@ -133,7 +133,8 @@
     "schedulingProfileShifted_one": "Na het toepassen is {{count}} taak verschoven.",
     "schedulingProfileShifted_other": "Na het toepassen zijn {{count}} taken verschoven.",
     "actions": {
-      "openProjectInfo": "Rekenprofiel openen"
+      "openProjectInfo": "Rekenprofiel openen",
+      "openHelp": "Help openen"
     },
     "xerArchiveUnusable": "Het XER-bronarchief in dit bestand is onbruikbaar en weggelaten; het project zelf is volledig geopend.",
     "xerArchiveUnusableLine": "Het XER-bronarchief in dit bestand was onbruikbaar en is weggelaten.",
@@ -145,7 +146,9 @@
     "xerArchiveReasonMetadataInvalid": "Reden: de bronbytes kloppen, maar de daaruit afgeleide gegevens zijn onbruikbaar.",
     "xerArchiveReasonStructure": "Reden: de opbouw van het archief in het IFC klopt niet (dubbel, herordend of verkeerd gekoppeld).",
     "statusDateSetToday": "Er stond nog geen statusdatum: die staat nu op vandaag ({{date}}), want voortgang wordt tot de statusdatum gemeten. Aanpassen kan via Planning → Statusdatum.",
-    "durationBelowDoneWork": "‘{{name}}’ is al voor {{percent}}% gedaan: een duur korter dan het gedane werk kan niet. De duur is niet gewijzigd."
+    "durationBelowDoneWork": "‘{{name}}’ is al voor {{percent}}% gedaan: een duur korter dan het gedane werk kan niet. De duur is niet gewijzigd.",
+    "tutorialOfferLater": "Je vindt de tutorials altijd in Help › Tutorials.",
+    "tutorialOfferUnavailable": "De tutorials konden nu niet worden geïnstalleerd of gestart. In Help › Tutorials kun je het later opnieuw proberen."
   },
   "scheduleErrors": {
     "cycle": "Kringverwijzing tussen taken: {{path}}",
@@ -1428,5 +1431,13 @@
     "close": "Begeleiding sluiten",
     "stepDone": "Gedaan",
     "waiting": "Voer de opdracht uit in de app; daarna kun je verder."
+  },
+  "tutorialOffer": {
+    "title": "Tutorials",
+    "question": "Wil je nu met een tutorial je eerste planning maken?",
+    "body": "De rondleiding is klaar. In tutorial 1 bouw je stap voor stap een planning voor een aanbouw aan een woning; een paneel geeft je één opdracht tegelijk en ziet wanneer je die gedaan hebt. De tutorials zijn een extensie: is die er nog niet, dan haalt de app hem op en vraagt eerst of je hem vertrouwt.",
+    "yes": "Ja",
+    "no": "Nee",
+    "busy": "Tutorials klaarzetten…"
   }
 }

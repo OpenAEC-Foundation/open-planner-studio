@@ -110,3 +110,4 @@ Zonder die constraint komt ook het voorbeeld zelf uit op 2 juli 2027. Het versch
 - [Codes en eigen velden](docs://howto-codes-en-velden): activiteitcodes en eigen velden, die alleen IFC bewaart.
 - [Externe relaties naar een ander project](docs://howto-externe-relaties): koppelingen die MS Project XML en P6 XML niet meenemen.
 - [Een baseline opslaan en beheren](docs://howto-baseline-opslaan-en-beheren): baselines, waarvan MS Project XML alleen de actieve meeneemt.
+- [Import- en exportformaten](docs://ref-import-exportformaten): per formaat wat meegaat en wat niet.

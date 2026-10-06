@@ -84,6 +84,8 @@ For a deviation you have two choices:
 
 ## Pitfalls and what the app does then
 
+**The example projects have a library of their own.** If you open one of the three showcase examples (*File › Examples*, or through a link in Help), the app once creates the library *Demo resource library* and links the project to it. Resources of the project with the same name as a library item are linked straight away; calendars are not. Your own libraries are left alone. If you open two showcases side by side, together they show conflicts in [Using the occupancy overview](docs://howto-bezettingsoverzicht-gebruiken), for example on the masonry crew (*Masonry crew*) between *Refurbishment & Extension of a Family Home* and *6 New Terraced Houses, De Akkers*.
+
 **You do not see the switch.** The project is not linked to a library. Do step 1.
 
 **You edit the library by accident.** The panel always opens on *Project* to prevent that. Changes in the *Library* view apply to all projects and fall outside *Undo*.

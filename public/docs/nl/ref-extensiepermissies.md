@@ -49,3 +49,4 @@ Met *Installeren* ga je akkoord. *Niet installeren*, Esc en klikken naast het ve
 ## Zie ook
 
 - [Import- en exportformaten](docs://ref-import-exportformaten): de formaten die de app zelf kent, naast wat extensies onder *Bestand › Importeren* toevoegen.
+- [Een extensie installeren en beheren](docs://howto-extensie-installeren): een extensie installeren, uitzetten en verwijderen.

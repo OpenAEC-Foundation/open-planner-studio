@@ -318,8 +318,11 @@ test('list_documents: twee documenten met titel, dirty/actief, projectstart, pro
   assertEq(second.isActive, true, 'het tweede document is actief');
   assertEq(second.taskCount, 0, 'een vers document heeft geen taken');
   assertEq(second.projectStart, '2026-09-07', 'projectstart van het tweede document');
-  assertEq(second.notCalculated, true, 'een nooit doorgerekend document meldt "niet doorgerekend"');
-  assertEq(second.projectEnd, undefined, 'geen projecteinde zonder cpmResult');
+  // Leestools rekenen een nooit doorgerekend ACTIEF document eerst door (freshenScheduleForRead), dus
+  // het "niet doorgerekend"-signaal blijft alleen voor geparkeerde documenten over (case 3).
+  assertEq(second.notCalculated, undefined, 'het actieve document is vóór het lezen doorgerekend');
+  assert(S().cpmResult !== null, 'list_documents heeft het actieve document doorgerekend');
+  assertEq(second.scheduleStale, undefined, 'het actieve document is na het lezen vers');
 });
 
 // =================================================================================================
@@ -370,6 +373,8 @@ test('list_documents: hersteld document zonder cpmResult meldt "niet doorgereken
     verouderdMetResultaat.notCalculated, undefined,
     'verouderd MÉT cpmResult is wél doorgerekend — de vlag mag niet uit scheduleStale komen',
   );
+  assertEq(verouderdMetResultaat.scheduleStale, true,
+    'een geparkeerd verouderd document kan niet doorgerekend worden en meldt dat per rij');
 });
 
 // =================================================================================================
@@ -629,8 +634,8 @@ test('import_schedule: IFC neemt het bronpad over als opslagdoel, CSV NIET (Ctrl
   // de gebruiker met IFC-inhoud overschrijven.
   assertEq(S().filePath, null, 'na een CSV-import heeft het document GEEN opslagdoel');
   assertEq(csv.filePath, null, 'en de respons meldt dat ook');
-  assert(String(csv.notice).includes('opslagdoel'), 'de respons benoemt het ontbrekende opslagdoel');
-  assert(String(csv.notice).includes('kalender'), 'en het CSV-kalenderverlies');
+  assert(String(csv.notice).includes('save target'), 'de respons benoemt het ontbrekende opslagdoel');
+  assert(String(csv.notice).includes('calendar'), 'en het CSV-kalenderverlies');
 
   const ifc = await callOk('planner_import_schedule', { path: ifcPath });
   assertEq(ifc.format, 'IFC', 'IFC wordt als native formaat herkend');
@@ -658,9 +663,9 @@ test('import_schedule: .mpp gaat via het bytes-pad, wordt als MPP14 herkend mét
 
   // (2) formaatherkenning + notice.
   assertEq(data.format, 'MPP14', 'formatOf herkent .mpp als MPP14');
-  assert(String(data.notice).includes('alleen-lezen'), 'de notice benoemt het alleen-lezen-karakter');
+  assert(String(data.notice).includes('read-only'), 'de notice benoemt het alleen-lezen-karakter');
   assert(String(data.notice).includes('MSPDI'), 'de notice wijst naar MSPDI-XML als exportroute');
-  assert(String(data.notice).includes('opslagdoel'), 'de notice benoemt ook het ontbrekende opslagdoel (formaat ≠ IFC)');
+  assert(String(data.notice).includes('save target'), 'de notice benoemt ook het ontbrekende opslagdoel (formaat ≠ IFC)');
 
   // (3) opslagdoel-guard: een binair bronformaat wordt nooit filePath, ook al importeerde het prima.
   assertEq(S().filePath, null, 'na een MPP-import heeft het document GEEN opslagdoel');
@@ -688,7 +693,7 @@ test('import_schedule: .xer behoudt CP1252 en beide UTF-16-BOM-payloads via MCP-
     assertEq(S().project.name, 'Café €', `${encoding}: projectnaam overleeft zonder re-encoding`);
     assertEq(data.tasks, 1, `${encoding}: de activiteit is geïmporteerd`);
     assertEq(S().filePath, null, `${encoding}: .xer wordt nooit het Ctrl+S-opslagdoel`);
-    assert(String(data.notice).includes('alleen-lezen'), `${encoding}: notice noemt alleen-lezen`);
+    assert(String(data.notice).includes('read-only'), `${encoding}: notice noemt alleen-lezen`);
   }
 });
 
@@ -717,7 +722,7 @@ test('import_schedule: meerproject-XER fan-out antwoordt met exact aantal en inv
   assertEq(data.documentId, docs[1].id, 'documentId blijft compatibel en wijst naar het actieve grootste project');
   assertEq(S().activeDocumentId, docs[1].id, 'het grootste project is werkelijk actief');
   assert(String(data.notice).includes('2'), 'de XER-notice noemt het werkelijke aantal projecten/documenten');
-  assert(!String(data.notice).includes('één niet-leeg P6-project'), 'de oude onware enkelvoudsclaim is verdwenen');
+  assert(!String(data.notice).includes('one non-empty P6 project'), 'de oude onware enkelvoudsclaim is verdwenen');
 });
 
 // Import/export-audit 2026-09 (bevinding 3): de XML-variant werd op VRIJE TEKST gekozen

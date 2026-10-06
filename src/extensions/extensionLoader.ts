@@ -63,6 +63,15 @@ const cancelledEnables = new Set<string>();
 /** Loopt af zodra de lopende activatie van dit id klaar is (ook geannuleerd of mislukt). */
 const enablingDone = new Map<string, Promise<void>>();
 
+/**
+ * Loopt af zodra een lopende activatie van `id` klaar is (geslaagd, mislukt of geannuleerd), of
+ * meteen als er geen loopt. Voor wie moet wachten tot een extensie tijdens het opstarten
+ * (`loadAllExtensions`) haar `onLoad` heeft afgerond — de tutorialvraag zendt pas dan uit.
+ */
+export function whenExtensionSettled(id: string): Promise<void> {
+  return enablingDone.get(id) ?? Promise.resolve();
+}
+
 /** Markeer een lopende activatie als geannuleerd (verwijderen tijdens laden). */
 export function cancelPendingEnable(id: string): boolean {
   if (!enablingExtensions.has(id)) return false;

@@ -6,7 +6,7 @@ IFC 4.3 is het **native bestandsformaat** van Open Planner Studio, geen exportfo
 
 > **Domeindata die niet door de IFC-laag round-trippt, is bij de volgende keer openen weg.**
 
-Die regel staat al in `CLAUDE.md`. Wat er niet stond is *hoe* — welke bestanden je aanraakt, in welke
+Die regel staat al in `AGENTS.md`. Wat er niet stond is *hoe* — welke bestanden je aanraakt, in welke
 volgorde, en waar de compiler je tegenhoudt als je iets vergeet. Dit bestand is die route.
 
 **Dit is een toelichting, geen vervanging.** De afdwinging is mechanisch en zit in de code en de

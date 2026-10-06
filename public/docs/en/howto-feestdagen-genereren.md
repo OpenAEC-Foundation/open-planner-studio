@@ -57,3 +57,6 @@ Choose *No holidays* under *Country* and click *Generate*. The list is then empt
 
 - [Calendars and working days](docs://uitleg-kalenders): how the app takes holidays and the construction holiday into account when counting work days.
 - [Creating and assigning a calendar](docs://howto-kalender-maken-en-toewijzen): making a calendar of your own to put holidays in.
+- [Calendar windows](docs://ref-kalenders): all fields of the calendar windows.
+- [New project and Project info](docs://ref-projectinfo): the holiday set for a new project.
+- [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): besides the holidays, the project calendar has a period off *Frost delay, foundations*.

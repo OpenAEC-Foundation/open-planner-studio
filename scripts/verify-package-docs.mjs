@@ -53,8 +53,9 @@ if (!existsSync(manifestPath)) usage(`manifest ontbreekt: ${manifestPath}`);
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 if (!Array.isArray(manifest.articles)) usage(`manifest bevat geen articles-array: ${manifestPath}`);
 
-// Talen = de vereniging van alle titeltalen (niet alleen die van het eerste artikel): nieuwe
-// manifest-v2-artikelen hebben alleen nl + en, dus het eerste artikel is geen maat voor de rest.
+// Talen = de vereniging van alle titeltalen. Sinds de omschakeling van de documentatie (fase 4) is
+// dat nl + en (`verify:docs` keurt titels en mappen in andere talen af); afgeleid uit het manifest in
+// plaats van vast, zodat een historisch package met `--docs-root` ook tegen zijn eigen boom klopt.
 // Per taal tellen alleen de artikelen die in de bron ook echt bestaan (drafts incluis: die zitten in
 // public/docs en dus ook in het package, de viewer verbergt ze).
 const localeDirs = [...new Set(manifest.articles.flatMap(article => Object.keys(article.title ?? {})))].sort();

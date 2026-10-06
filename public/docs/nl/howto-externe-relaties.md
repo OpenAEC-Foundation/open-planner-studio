@@ -51,3 +51,4 @@ Voorbeeld: het terreinproject eindigt vrijdag 18 juni 2027. Je koppelt *Grondwer
 - [Relaties en lag](docs://uitleg-relaties): hoe de app een relatie en een lag doorrekent.
 - [Relaties leggen](docs://howto-relaties-leggen): relaties tussen taken in hetzelfde project.
 - [Constraints en deadlines](docs://uitleg-constraints): datumgrenzen op een taak, zonder ander project.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): bevat een externe koppeling op *Car park paving* (een externe voorganger).

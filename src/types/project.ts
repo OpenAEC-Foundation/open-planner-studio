@@ -66,7 +66,11 @@ export interface SchedulingOptions {
     threshold?: number;
     thresholdHours?: number;
   };
-  /** TF-berekeningswijze. Default 'smallest' = min(start-, finish-float). */
+  /** TF-berekeningswijze: 'start' = LS−ES, 'finish' = LF−EF, 'smallest' = min(beide) (P6-modus).
+   *  Afwezig = *Automatisch*: finish-float bij statusdatum én gestarte taak, anders het minimum
+   *  (`scheduleAnalysis.ts`). Met een statusdatum is dat de regel van MS Project; zonder statusdatum
+   *  telt voortgang niet mee (MSP neemt dan voor een gestarte taak nog steeds de finish slack). Ook de
+   *  standaard van het MS Project-profiel. */
   totalFloatMode?: 'start' | 'finish' | 'smallest';
   /** Open-ended taken kritiek? Afwezig/false: een eindtaak krijgt tf via LF−EF. */
   makeOpenEndedCritical?: boolean;

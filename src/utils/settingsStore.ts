@@ -580,9 +580,31 @@ export async function saveWelcomeSeen(value: boolean): Promise<void> {
   await setSetting('welcomeSeen', value);
 }
 
+let welcomeSeenSnapshot: boolean | undefined;
+/**
+ * Stond `ops-welcomeSeen` er al bij het OPSTARTEN? Eén keer gelezen en daarna vastgehouden, zodat
+ * de welkomstdialoog (die de sleutel bij het sluiten zet) het antwoord niet meer verandert. De eerste
+ * aanroep hoort dus vroeg te gebeuren: `useSettingsBootstrap` doet dat bij mount, ruim vóór de
+ * welkomstdialoog kan verschijnen. Onwaar = een echte eerste start op deze machine/in deze browser.
+ * Synchroon (`readLocal`), want zowel de welkomstcheck als de "Net bijgewerkt"-check leunen erop.
+ */
+export function welcomeSeenAtStartup(): boolean {
+  if (welcomeSeenSnapshot === undefined) welcomeSeenSnapshot = readLocal('ops-welcomeSeen') === 'true';
+  return welcomeSeenSnapshot;
+}
+
+// Tutorialvraag na de eerste voltooide rondleiding: beantwoord = nooit meer vragen. De load-kant
+// loopt via het register (`tutorialOfferAnswered` in `settingsRegistry.ts`), zodat het einde van de
+// rondleiding synchroon uit de store kan beslissen.
+export async function saveTutorialOfferAnswered(value: boolean): Promise<void> {
+  await setSetting('tutorialOfferAnswered', value);
+}
+
 // "Je bent net geüpdatet"-detectie (fase "kleine dingen"): de laatst gestarte appversie. Bij de
 // volgende start vergelijken we deze met `getVersion()`; verschillen ze, dan is er net geüpdatet.
-// Ontbreekt de sleutel (verse installatie), dan tonen we NIETS en schrijven we 'm alleen weg.
+// Ontbreekt de sleutel, dan hangt het af van de welkomstvlag (`detectJustUpdated`): een echte eerste
+// start (ook `ops-welcomeSeen` ontbrak) toont NIETS en schrijft de versie alleen weg; een bestaande
+// gebruiker van vóór deze sleutel krijgt de melding wél, zonder "van"-versie.
 // Zelfde ops-* localStorage-pad als alle andere instellingen.
 export async function loadLastVersion(): Promise<string | undefined> {
   const v = await getSetting<string>('lastVersion');

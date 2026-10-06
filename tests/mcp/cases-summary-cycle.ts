@@ -43,8 +43,10 @@ function assertPrecheckedCycle(res: McpToolResult, label: string): string {
   assert(!res.ok, `${label}: hoort geweigerd te worden`);
   if (res.ok) return '';
   assertEq(res.code, 'CYCLE', `${label}: code CYCLE`);
-  assert(res.error.includes('kringverwijzing gedetecteerd'), `${label}: gewone kringtekst verwacht, kreeg: ${res.error}`);
-  assert(!/Circular dependency/i.test(res.error), `${label}: geen Engelse solvertekst uit de rollback, kreeg: ${res.error}`);
+  assert(res.error.includes('circular dependency detected'), `${label}: gewone kringtekst verwacht, kreeg: ${res.error}`);
+  // De solvertekst uit de rollback is "Circular dependency detected: a -> b" (hoofdletter, `->`); de
+  // voorafcontrole schrijft "circular dependency detected: a → b".
+  assert(!/Circular dependency detected: .* -> /.test(res.error), `${label}: geen solvertekst uit de rollback, kreeg: ${res.error}`);
   return res.error;
 }
 /** De stapstatussen van een gefaalde batch. */
@@ -101,7 +103,7 @@ test('batch: de move_task-stap die de kring maakt, faalt zelf — niet pas de ei
   const error = assertPrecheckedCycle(res, 'batch met move_task');
   // Vóór de wijziging: beide stappen "uitgevoerd", daarna liep de eindberekening vast.
   assertEq(batchStatuses(res), ['uitgevoerd', 'gefaald'], 'stap 2 (move_task) is de gefaalde stap');
-  assert(error.includes('1. planner_add_dependencies — uitgevoerd (teruggedraaid)'), `stap 1 is teruggedraaid, kreeg: ${error}`);
+  assert(error.includes('1. planner_add_dependencies — executed (rolled back)'), `stap 1 is teruggedraaid, kreeg: ${error}`);
   assertEq(snapshot(), before, 'de hele batch is teruggedraaid (bestaand contract)');
 });
 

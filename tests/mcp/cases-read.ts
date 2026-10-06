@@ -122,8 +122,8 @@ test('get_project_info: criticalTasks telt alleen bladtaken, zoals statusbalk en
   const lt = callOk('planner_list_tasks', { kritiek: true });
   assertEq(lt.total, 3, 'list_tasks({kritiek:true}) telt de fase mee');
   assertEq(lt.tasks.find((r: any) => r.id === f)?.summary, true, 'de fase-rij draagt summary:true');
-  assert(/verzameltaken|fasen/i.test(getTool('planner_list_tasks')!.description), 'beschrijving noemt dat verzameltaken meetellen in `kritiek`');
-  assert(/bladtaken|activiteiten/i.test(getTool('planner_get_project_info')!.description), 'beschrijving noemt dat criticalTasks alleen bladtaken telt');
+  assert(/summary tasks|phases/i.test(getTool('planner_list_tasks')!.description), 'beschrijving noemt dat verzameltaken meetellen in `kritiek`');
+  assert(/leaf tasks|activities/i.test(getTool('planner_get_project_info')!.description), 'beschrijving noemt dat criticalTasks alleen bladtaken telt');
 });
 
 // =================================================================================================
@@ -463,7 +463,7 @@ test('get_resource_histogram: detail boven 10000 buckets ⇒ VALIDATION met uitw
   assert(!res.ok, 'te groot detail geeft een fout');
   if (!res.ok) {
     assertEq(res.code, 'VALIDATION', 'VALIDATION-code');
-    assert(/grens 10000/.test(res.error) && /'week'\/'maand'/.test(res.error), `foutmelding noemt grens en uitweg (${res.error})`);
+    assert(/limit 10000/.test(res.error) && /'week'\/'maand'/.test(res.error), `foutmelding noemt grens en uitweg (${res.error})`);
   }
   // Net eronder blijft gewoon detail: één resource, één jaar in dagen.
   const ok = callOk('planner_get_resource_histogram', { bucket: 'dag', van: '2026-01-01', tot: '2026-12-31', resourceIds: [rId] });

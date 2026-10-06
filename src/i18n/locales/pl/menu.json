@@ -321,12 +321,7 @@
     "library": "Biblioteka",
     "helpDocsLang": "Język dokumentacji",
     "helpDocsLangAuto": "Zgodnie z językiem aplikacji",
-    "helpStale": "Ta wersja językowa jest aktualizowana tylko sporadycznie. Aby uzyskać najbardziej aktualną dokumentację, przełącz się na angielski lub niderlandzki.",
-    "helpLayer": {
-      "quickstart": "Szybki start",
-      "gidsen": "Przewodniki tematyczne",
-      "referentie": "Materiały referencyjne"
-    },
+    "helpLangFallback": "Dokumentacja nie jest jeszcze dostępna w Twoim języku. Czytasz wersję angielską.",
     "unapplied": {
       "title": "Zmiany nie zostały zastosowane",
       "body": "Zmieniono informacje o projekcie, ale ich jeszcze nie zastosowano. Co zrobić z tymi zmianami?",
@@ -401,6 +396,7 @@
     "confirmRemoveHint": "Kliknij ponownie, aby trwale usunąć",
     "catalogLoading": "Ładowanie katalogu...",
     "catalogError": "Nie można załadować katalogu: {{error}}",
+    "networkTimeout": "brak odpowiedzi w ciągu {{seconds}} s",
     "retry": "Spróbuj ponownie",
     "noCatalogResults": "Nie znaleziono rozszerzeń.",
     "install": "Zainstaluj",

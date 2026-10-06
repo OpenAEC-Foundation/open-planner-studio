@@ -48,3 +48,5 @@ Er opent dan niets. Controleer het bestand in P6, of vraag de afzender een nieuw
 - [Datums zoals opgeslagen](docs://uitleg-datums-zoals-opgeslagen): de weergave van Primavera's eigen datums.
 - [Een MS Project-bestand (.mpp) openen](docs://howto-mpp-openen): hetzelfde voor MS Project.
 - [Urenplanning aanzetten](docs://howto-urenplanning-aanzetten): als het bestand gegevens in uren bevat.
+- [Import- en exportformaten](docs://ref-import-exportformaten): per formaat wat meegaat en wat niet.
+- [Rekenprofielen en conventies](docs://uitleg-rekenprofielen): waarom een P6-bestand met een eigen rekenprofiel opent.

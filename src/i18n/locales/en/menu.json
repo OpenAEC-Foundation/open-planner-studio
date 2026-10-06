@@ -317,12 +317,7 @@
     "library": "Library",
     "helpDocsLang": "Documentation language",
     "helpDocsLangAuto": "Follow app language",
-    "helpStale": "This language is updated only occasionally. For the most up-to-date documentation, switch to English or Dutch.",
-    "helpLayer": {
-      "quickstart": "Quick start",
-      "gidsen": "Guides by topic",
-      "referentie": "Reference"
-    },
+    "helpLangFallback": "The documentation is not yet available in your language. You are reading the English version.",
     "unapplied": {
       "title": "Changes not applied",
       "body": "You changed the project info but have not applied it yet. What do you want to do with these changes?",
@@ -397,6 +392,7 @@
     "confirmRemoveHint": "Click again to remove permanently",
     "catalogLoading": "Loading catalog...",
     "catalogError": "Could not load catalog: {{error}}",
+    "networkTimeout": "no response within {{seconds}} s",
     "retry": "Retry",
     "noCatalogResults": "No extensions found.",
     "install": "Install",

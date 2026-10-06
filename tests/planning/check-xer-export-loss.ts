@@ -514,7 +514,7 @@ const notifiedSuccess = await store().exportAs('csv');
 expect('succesvolle echte store-export geeft één centrale XER-lossmelding met Lees meer',
   notifiedSuccess.ok
   && xerLossNotifications().length === 1
-  && xerLossNotifications()[0]?.helpArticleId === 'gids-xer-import');
+  && xerLossNotifications()[0]?.helpArticleId === 'howto-xer-openen');
 
 clearNotifications();
 failNextSave(new DOMException('geannuleerd', 'AbortError'));

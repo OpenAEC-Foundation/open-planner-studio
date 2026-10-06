@@ -34,4 +34,4 @@ op een kloon van zijn taken, alleen voor deze weergave, zonder de payload aan te
 **Automatisch berekenen** aanstaat, in welk geval het overzicht die documenten meteen écht bijwerkt
 (zie `.claude/rules/state.md`). De weergave ziet uitsluitend documenten die in déze app-instantie open staan;
 geen sync tussen machines of vensters (zie `docs/library.md` en de in-app gids
-`public/docs/{nl,en}/gids-bezettingsoverzicht.md`).
+`public/docs/{nl,en}/howto-bezettingsoverzicht-gebruiken.md`).

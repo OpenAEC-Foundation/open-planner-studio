@@ -8,10 +8,21 @@
 //   start-tut-1    leeg project met alleen projectinfo (wizard "Nieuw project", standaardkalender)
 //   na-tut-1       WBS (4 fasen), 20 taken met duur, start- en opleveringsmijlpaal, inspectie
 //   na-tut-2       + relaties (FS, twee met lag), berekend
+//   tussen-tut-3-bouwvak  na-tut-2 + bouwvak in de projectkalender, berekend
 //   na-tut-3       + bouwvak in de projectkalender, één constraint (SNET), één deadline
 //   na-tut-4       + urenplanning aan; stort, kanaalplaatvloer en dakelementen in uren
+//   tussen-tut-5-resources   na-tut-4 + de vijf resources (nog niets toegewezen)
+//   tussen-tut-5-toegewezen  + alle toewijzingen, berekend
+//   tussen-tut-5-werkregel   + werkregel "Vast werk" op het stucwerk met 2 stukadoors, berekend
+//                            (overbezet, vóór het nivelleren)
 //   na-tut-5       + resources, toewijzingen, werkregel "Vast werk" op het stucwerk, genivelleerd
-//   na-tut-6       + basisplanning (baseline), statusdatum en voortgang
+//   tussen-tut-6-baseline       na-tut-5 + basisplanning (baseline)
+//   tussen-tut-6-statusdatum    + statusdatum, NIET gerekend (zoals de lezer vóór Bereken)
+//   tussen-tut-6-voorbereiding  + voortgang van de voorbereiding (4 taken), niet gerekend
+//   tussen-tut-6-ontgraven      + het ontgraven (uitgelopen), niet gerekend
+//   tussen-tut-6-fundering      + wapening, keuring en stort, niet gerekend
+//   tussen-tut-6-metselwerk     + funderingsmetselwerk gestart, 50 %, niet gerekend
+//   na-tut-6       + basisplanning (baseline), statusdatum en voortgang, berekend
 //   na-tut-7       = na-tut-6 (tutorial 7 maakt een rapport; dat is geen projectdata)
 //
 // Waarom zo en niet declaratief via `gen-core.ts`: gen-core bouwt een project in één keer op. Een
@@ -19,7 +30,7 @@
 // taken → relaties → kalenderdialoog → …), dus hier roepen we dezelfde store-acties aan die de
 // dialogen en het raster aanroepen, in de volgorde van de tutorials. Na elke berekenings-
 // relevante stap draait `runCPM()` zoals de knop Berekenen (F5) — planning is handmatig, niet
-// reactief (CLAUDE.md).
+// reactief (AGENTS.md).
 //
 // Vast jaar, geen relatief anker: de tutorialtekst noemt letterlijke datums, dus het project
 // ligt vast op 2027 (start maandag 7 juni 2027). De feestdagen komen uit de échte
@@ -50,13 +61,23 @@
 //                Kanaalplaatvloer ma 28 jun 07:00–12:00 (5 u), Dakelementen di 6 jul 07:00–14:00
 //                (6 u). Speling van stort/dakelementen 3,25 wd en vloer 3,375 wd: de werkdag loopt
 //                tot 16:00, de dagtaak-opvolger begint pas de volgende ochtend.
-//   na-tut-5     na toewijzen + werkregel (Stucwerk "Vast werk", stukadoor 1 → 2: 4 → 2 wd):
+//   tussen-tut-5-resources   planning = na-tut-4 (wo 1 sep, 48 wd); vijf resources, geen toewijzingen.
+//   tussen-tut-5-toegewezen  planning nog steeds wo 1 sep (48 wd, 8 kritieke taken); Metselaar al
+//                5 wd overbezet (29 jun – 5 jul); Stucwerk 4 wd (23–28 jul), 1 stukadoor.
+//   tussen-tut-5-werkregel   Stucwerk "Vast werk", 2 stukadoors: 2 wd (vr 23 – ma 26 jul);
+//                oplevering ma 30 aug, 46 wd, 8 kritieke taken; Metselaar nog 5 wd overbezet.
+//   na-tut-5    na toewijzen + werkregel (Stucwerk "Vast werk", stukadoor 1 → 2: 4 → 2 wd):
 //                oplevering ma 30 aug, Metselaar 5 wd overbezet (binnen- en buitenspouwblad tegelijk,
 //                29 jun – 5 jul). Nivelleren (dialoogstandaard) schuift Buitenspouwblad 5 wd op
 //                (di 6 – di 13 jul); geen overbezetting meer; oplevering blijft ma 30 aug (de
 //                kozijnen wachten toch tot 14 jul). Kritiek: Start bouw … Inspectie wapening →
 //                Funderingsmetselwerk → Buitenspouwblad → Kozijnen … Oplevering. Stort (0,25 wd) en
 //                Kanaalplaatvloer (0,375 wd) houden hun uurspeling en zijn dus niet kritiek.
+//   tussen-tut-6-*  in het bestand nog de planning van na-tut-5 (einde ma 30 aug, 46 wd, 17 kritieke
+//                taken): de lezer rekent pas in stap 8. De app rekent bij het OPENEN van een .ifc wel:
+//                geopend geeft statusdatum ma 20 sep (alles niet-begonnen op 28 jun, 23 kritieke taken,
+//                deadline overschreden), voorbereiding di 14 sep (deadline overschreden), ontgraven vr
+//                10 sep, fundering wo 1 sep, metselwerk = na-tut-6 (di 31 aug).
 //   na-tut-6     basisplanning "Basisplanning" (oplevering ma 30 aug), statusdatum ma 28 jun.
 //                Werkelijk: Start bouw 7 jun, Bouwplaats 7–8 jun, Tuin 9 jun, Uitzetten 10 jun,
 //                Funderingssleuf ontgraven vr 11 – di 15 jun (3 i.p.v. 2 wd), Wapening 16–18 jun,
@@ -81,8 +102,10 @@ export type TutorialLang = 'nl' | 'en';
 export const TUTORIAL_LANGS: readonly TutorialLang[] = ['nl', 'en'];
 
 export const STAGE_IDS = [
-  'start-tut-1', 'na-tut-1', 'na-tut-2', 'tussen-tut-3-bouwvak', 'na-tut-3', 'na-tut-4', 'na-tut-5', 'na-tut-6',
-  'na-tut-7',
+  'start-tut-1', 'na-tut-1', 'na-tut-2', 'tussen-tut-3-bouwvak', 'na-tut-3', 'na-tut-4',
+  'tussen-tut-5-resources', 'tussen-tut-5-toegewezen', 'tussen-tut-5-werkregel', 'na-tut-5',
+  'tussen-tut-6-baseline', 'tussen-tut-6-statusdatum', 'tussen-tut-6-voorbereiding', 'tussen-tut-6-ontgraven',
+  'tussen-tut-6-fundering', 'tussen-tut-6-metselwerk', 'na-tut-6', 'na-tut-7',
 ] as const;
 export type StageId = typeof STAGE_IDS[number];
 
@@ -229,12 +252,32 @@ export const WORK_RULE = { task: 'plaster' as TaskKey, rule: 'FIXED_WORK' as con
 
 /** Tutorial 6: statusdatum en voortgang. */
 export const STATUS_DATE = '2027-06-28';
-/** Taken die op de statusdatum klaar zijn (in deze volgorde ingevoerd, telkens conform de dan
- *  berekende planning). Uitzondering: het ontgraven liep één werkdag uit (grondwater). */
-export const DONE_TASKS: TaskKey[] = ['msStart', 'site', 'garden', 'setout', 'excavate', 'rebar', 'inspection', 'pour'];
+/** Werkelijke datums die de lezer in tutorial 6 intypt, per stap (= per tussenstand), in de volgorde
+ *  van de tutorial. Alles liep volgens de baseline, behalve het ontgraven: dat liep één werkdag uit
+ *  (grondwater), en alles erna liep daardoor één werkdag later. De generator controleert dat
+ *  tegen de baseline (`checkProgressAgainstBaseline`). Een mijlpaal krijgt alleen een werkelijk
+ *  einde (de lezer typt er één datum; de app zet de start erbij). De stort is een urentaak: kloktijd. */
+export const PROGRESS_GROUPS: { stage: StageId; rows: { task: TaskKey; start: string; finish: string }[] }[] = [
+  { stage: 'tussen-tut-6-voorbereiding', rows: [
+    { task: 'msStart', start: '2027-06-07', finish: '2027-06-07' },
+    { task: 'site', start: '2027-06-07', finish: '2027-06-08' },
+    { task: 'garden', start: '2027-06-09', finish: '2027-06-09' },
+    { task: 'setout', start: '2027-06-10', finish: '2027-06-10' },
+  ] },
+  { stage: 'tussen-tut-6-ontgraven', rows: [
+    { task: 'excavate', start: '2027-06-11', finish: '2027-06-15' },
+  ] },
+  { stage: 'tussen-tut-6-fundering', rows: [
+    { task: 'rebar', start: '2027-06-16', finish: '2027-06-18' },
+    { task: 'inspection', start: '2027-06-18', finish: '2027-06-18' },
+    { task: 'pour', start: '2027-06-21T07:00', finish: '2027-06-21T14:00' },
+  ] },
+];
+/** De taak die uitliep (één werkdag langer dan gepland). */
 export const LATE_TASK = { task: 'excavate' as TaskKey, extraWorkdays: 1 };
-/** Taak die op de statusdatum loopt: gestart volgens planning, voor de helft klaar. */
-export const IN_PROGRESS = { task: 'foundBrick' as TaskKey, completion: 0.5 };
+/** Taak die op de statusdatum loopt: gestart (één werkdag na zijn baseline, door de uitloop), voor
+ *  de helft klaar. */
+export const IN_PROGRESS = { task: 'foundBrick' as TaskKey, start: '2027-06-25', completion: 0.5 };
 
 // ── Feiten per stand ──────────────────────────────────────────────────────────────────────────
 export interface StageFacts {
@@ -511,15 +554,22 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
   stages.push(b.snapshot('na-tut-4'));
 
   // ── Tutorial 5: resources, toewijzen, werkregel, overbezetting, nivelleren ──
+  // Tussenstanden voor tutorial 5: een extensie kan geen resources, toewijzingen of werkregels
+  // schrijven, dus "Toon mij"/"Opnieuw" van die stappen openen deze standen. Een snapshot leest
+  // alleen de store; de stappen erna (en daarmee na-tut-5) blijven ongewijzigd.
   for (const r of RESOURCES) {
     b.resIds.set(r.key, S().addResource({
       name: r.name[lang], type: r.type, description: '', maxUnits: r.maxUnits,
       ...(r.unitOfMeasure ? { unitOfMeasure: r.unitOfMeasure } : {}),
     }));
   }
+  if (S().resources.length !== RESOURCES.length) fail(lang, 'tut-5: niet alle resources aangemaakt');
+  // Resources aanmaken verandert de planning niet: geen herberekening, zoals de lezer ook niet hoeft.
+  stages.push(b.snapshot('tussen-tut-5-resources'));
   for (const a of ASSIGNMENTS) S().assignResource(b.id(a.task), b.resIds.get(a.res)!, a.units);
   if (S().assignments.length !== ASSIGNMENTS.length) fail(lang, 'tut-5: niet alle toewijzingen gelukt');
   b.calculate('tut-5 toewijzen');
+  stages.push(b.snapshot('tussen-tut-5-toegewezen'));
   const plasterBefore = b.task(WORK_RULE.task).time.scheduleDuration;
   S().setTaskWorkRule(b.id(WORK_RULE.task), WORK_RULE.rule);
   const plasterAsg = S().assignments.find(a => a.taskId === b.id(WORK_RULE.task));
@@ -529,6 +579,7 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
   const plasterAfter = b.task(WORK_RULE.task).time.scheduleDuration;
   if (!(plasterAfter < plasterBefore)) fail(lang, `tut-5: werkregel verkort het stucwerk niet (${plasterBefore} → ${plasterAfter})`);
   const beforeLeveling = b.facts();
+  stages.push(b.snapshot('tussen-tut-5-werkregel'));
   const overBefore = Object.keys(beforeLeveling.overallocated);
   if (overBefore.length !== 1 || overBefore[0] !== 'bricklayer') {
     fail(lang, `tut-5: vóór nivelleren hoort alleen de metselaar overbezet te zijn (is: ${overBefore.join(', ') || 'niemand'})`);
@@ -549,32 +600,35 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
   }
   stages.push(b.snapshot('na-tut-5'));
 
-  // ── Tutorial 6: basisplanning, statusdatum, voortgang ──
+  // ── Tutorial 6: basisplanning, statusdatum, voortgang — in de volgorde van de tutorial ──
+  // Tussenstanden voor tutorial 6: een extensie kan geen baseline, statusdatum of (via de
+  // app-regels) voortgang schrijven, dus "Toon mij"/"Opnieuw" van die stappen openen deze standen.
+  // De lezer rekent pas in stap 8, dus de generator ook: tot dan geen herberekening, en elke
+  // tussenstand draagt nog de berekende datums van na-tut-5 (zoals de lezer ze ziet vóór Bereken).
+  // Let op: de app rekent bij het OPENEN van een .ifc altijd; wat de lezer na "Toon mij" ziet, pint
+  // `check-tutorial-project.ts` apart ("geopend zoals de extensie").
   S().saveBaseline(BASELINE_NAME[lang]);
-  // De voortgang wordt taak voor taak ingevoerd, telkens conform de op dat moment berekende
-  // planning (de uitvoerder meldt "ging volgens planning"), behalve de uitloop van het ontgraven.
-  // Dat gebeurt vóór de statusdatum wordt gezet: mét statusdatum legt de motor niet-gestart werk op
-  // de statusdatum (data date), en dan is "de planning" van een al uitgevoerde taak niet meer zijn
-  // oorspronkelijke plek. De eindtoestand (werkelijke datums + statusdatum) is dezelfde als wanneer
-  // de lezer eerst de statusdatum zet en daarna de werkelijke datums invult.
-  for (const k of DONE_TASKS) {
-    b.calculate(`tut-6 voortgang ${k}`);
-    const t = b.task(k).time;
-    let finish = t.earlyFinish;
-    if (k === LATE_TASK.task) {
-      const next = nextWorkdays(finish.slice(0, 10), LATE_TASK.extraWorkdays, S().calendar);
-      finish = finish.length > 10 ? `${next}${finish.slice(10)}` : next;
-    }
-    if (!S().setActualStart(b.id(k), t.earlyStart)) fail(lang, `tut-6: werkelijke start ${k} geweigerd`);
-    if (!S().setActualFinish(b.id(k), finish)) fail(lang, `tut-6: werkelijk einde ${k} geweigerd (${t.earlyStart} → ${finish})`);
-  }
-  b.calculate('tut-6 lopende taak');
-  {
-    const t = b.task(IN_PROGRESS.task).time;
-    if (!S().setActualStart(b.id(IN_PROGRESS.task), t.earlyStart)) fail(lang, 'tut-6: start lopende taak geweigerd');
-    if (!S().setTaskProgress(b.id(IN_PROGRESS.task), IN_PROGRESS.completion)) fail(lang, 'tut-6: voortgang lopende taak geweigerd');
-  }
+  stages.push(b.snapshot('tussen-tut-6-baseline'));
   S().setStatusDate(STATUS_DATE);
+  stages.push(b.snapshot('tussen-tut-6-statusdatum'));
+  // Per taak eerst de start, dan het einde, zoals de tutorial vraagt; een mijlpaal alleen het einde.
+  for (const group of PROGRESS_GROUPS) {
+    for (const row of group.rows) {
+      if (!b.task(row.task).isMilestone && !S().setActualStart(b.id(row.task), row.start)) {
+        fail(lang, `tut-6: werkelijke start ${row.task} geweigerd (${row.start})`);
+      }
+      if (!S().setActualFinish(b.id(row.task), row.finish)) fail(lang, `tut-6: werkelijk einde ${row.task} geweigerd (${row.finish})`);
+      const t = b.task(row.task).time;
+      if (t.completion !== 1 || t.actualStart !== row.start || t.actualFinish !== row.finish) {
+        fail(lang, `tut-6: voortgang ${row.task} is ${t.actualStart} – ${t.actualFinish} ${t.completion}`);
+      }
+    }
+    stages.push(b.snapshot(group.stage));
+  }
+  if (!S().setActualStart(b.id(IN_PROGRESS.task), IN_PROGRESS.start)) fail(lang, 'tut-6: start lopende taak geweigerd');
+  if (!S().setTaskProgress(b.id(IN_PROGRESS.task), IN_PROGRESS.completion)) fail(lang, 'tut-6: voortgang lopende taak geweigerd');
+  stages.push(b.snapshot('tussen-tut-6-metselwerk'));
+  checkProgressAgainstBaseline(b);
   b.calculate('tut-6');
   const f6 = b.facts();
   if (f6.finish <= f5.finish) fail(lang, 'tut-6: de uitloop van het ontgraven verschuift de einddatum niet');
@@ -593,6 +647,39 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
     plasterDays: { before: plasterBefore, after: plasterAfter },
     levelingDelays,
   };
+}
+
+/**
+ * De voortgang van tutorial 6 is "de baseline, met één werkdag uitloop van het ontgraven": taken
+ * vóór het ontgraven op hun baselinedatums, het ontgraven met een werkdag later einde, alles erna
+ * (ook de start van de lopende taak) een werkdag later. Zo blijft de letterlijke invoer gekoppeld
+ * aan de planning waar hij uit volgt; wijkt een van beide af, dan schrijft de generator niets.
+ */
+function checkProgressAgainstBaseline(b: Builder): void {
+  const st = S();
+  const baseline = st.baselines.find(bl => bl.id === st.activeBaselineId);
+  if (!baseline) fail(b.lang, 'tut-6: geen actieve baseline');
+  const shift = (iso: string, days: number) => {
+    const day = days > 0 ? nextWorkdays(iso.slice(0, 10), days, st.calendar) : iso.slice(0, 10);
+    return `${day}${iso.slice(10)}`;
+  };
+  const planned = (k: TaskKey) => {
+    const bt = baseline.tasks.find(x => x.taskId === b.id(k));
+    if (!bt) fail(b.lang, `tut-6: ${k} niet in de baseline`);
+    return bt;
+  };
+  let late = 0;
+  for (const row of PROGRESS_GROUPS.flatMap(g => g.rows)) {
+    const bt = planned(row.task);
+    const extra = row.task === LATE_TASK.task ? LATE_TASK.extraWorkdays : 0;
+    const want = { start: shift(bt.start, late), finish: shift(bt.finish, late + extra) };
+    if (row.start !== want.start || row.finish !== want.finish) {
+      fail(b.lang, `tut-6: ${row.task} ${row.start} – ${row.finish} wijkt af van baseline + uitloop (${want.start} – ${want.finish})`);
+    }
+    late += extra;
+  }
+  const want = shift(planned(IN_PROGRESS.task).start, late);
+  if (IN_PROGRESS.start !== want) fail(b.lang, `tut-6: start ${IN_PROGRESS.task} ${IN_PROGRESS.start} ≠ baseline + uitloop (${want})`);
 }
 
 /** De datum `count` werkdagen ná `iso` op de projectkalender (werkdagen + feestdagen). */

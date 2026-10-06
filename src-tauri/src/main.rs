@@ -40,7 +40,7 @@ fn main() {
     //
     // Uitzondering: een dev-instantie (`OPS_DEV_INSTANCE`, gezet door scripts/tauri-dev.mjs).
     // Meerdere worktrees moeten hun desktop-build tegelijk kunnen draaien — dat is een
-    // vastgelegde werkwijze (zie CLAUDE.md) — en die instanties zijn al van elkaar geïsoleerd
+    // vastgelegde werkwijze (zie AGENTS.md) — en die instanties zijn al van elkaar geïsoleerd
     // via de worktree-slug in de recovery-bestandsnamen. De check staat bewust op runtime en
     // niet op `debug_assertions`, zodat deze tak gewoon meecompileert in `cargo check`.
     if std::env::var_os("OPS_DEV_INSTANCE").is_none() {

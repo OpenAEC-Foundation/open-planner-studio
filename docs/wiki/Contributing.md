@@ -67,7 +67,7 @@ Use `npm test` to run only the five behavioural suites. For a focused scheduling
 
 ## Project layout
 
-See the repository's `README.md` and `CLAUDE.md` for a tour of the source tree — the main areas are
+See the repository's `README.md` and `AGENTS.md` for a tour of the source tree — the main areas are
 `src/components` (React shell), `src/engine` (Canvas renderer and CPM scheduler), `src/services`
 (IFC, import/export, print, updater), `src/state` (Zustand store) and `src/i18n` (14 languages).
 

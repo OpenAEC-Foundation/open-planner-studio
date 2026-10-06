@@ -169,3 +169,4 @@ In the Primavera P6 and Microsoft Project profiles the painting in this example 
 - [Saving and managing a baseline](docs://howto-baseline-opslaan-en-beheren): recording a baseline and using it.
 - [Moving a project](docs://howto-project-verplaatsen): what happens to actual dates, the status date and baselines.
 - [Critical path and float](docs://uitleg-kritiek-pad): why a task is critical and what float means.
+- [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): progress and a status date partway through the project (20 May 2027).

@@ -44,7 +44,7 @@ Choose *Home › File › Save As* or *File › Save As*, or press Ctrl+Shift+S.
 
 ### Closing a project
 
-Click the cross on the tab, or choose *File › Close project*. If the project has changes that you did not save, the app asks: *Unsaved changes: 'name' has changes that haven't been saved yet.* You choose *Cancel* (the project stays open), *Don't save* (the project closes and your changes are gone) or *Save* (save first, then close). If you close the whole app on the desktop, it asks this for every project with changes. If a project has changes and you close the browser tab or window, the browser asks for confirmation.
+Click the cross on the tab, or choose *File › Close project*. If the project has changes that you did not save, the app asks: *Unsaved changes: 'name' has changes that haven't been saved yet.* You choose *Cancel* (the project stays open), *Don't save* (the project closes and your changes are gone) or *Save* (save first, then close). If you close the whole app on the desktop (with the close button, Alt+F4 or your operating system's menu), it asks this for every project with changes; *Cancel*, or a save that fails, stops the closing. After such a normal close the app cleans up the recovery copies of that session, so the recovery window only appears after a real crash. If a project has changes and you close the browser tab or window, the browser asks for confirmation.
 
 ## Pitfalls and what the app does then
 
@@ -64,3 +64,4 @@ Click the cross on the tab, or choose *File › Close project*. If the project h
 - [Turning on AutoSave](docs://howto-automatisch-opslaan): letting the app update your file itself.
 - [Exporting](docs://howto-exporteren): making a copy in another format.
 - [Recovering after a crash](docs://howto-herstellen-na-een-crash): what you do if the app did not close cleanly.
+- [Import and export formats](docs://ref-import-exportformaten): per format what is carried over and what is not.

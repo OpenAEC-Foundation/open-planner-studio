@@ -83,14 +83,14 @@ test('een geldig nieuw primair laat de secundaire staan', async () => {
 test('een ongeldig paar wordt per item geweigerd met reden; de taak blijft ongewijzigd', async () => {
   for (const [constraint, fragment] of [
     [{ type: 'MSO', date: '2026-03-09' }, 'MSO/MFO'],
-    [{ type: 'FNET', date: '2026-05-01' }, 'ondergrens'],
+    [{ type: 'FNET', date: '2026-05-01' }, 'lower bound'],
   ] as const) {
     const id = seedPair();
     const res = await updateFields(id, { constraint });
     assertEq(res.isError ?? false, false, 'zachte weigering, geen toolfout');
     const rejections = res.structuredContent.itemRejections as { id: string; reason: string }[];
     assertEq(rejections?.length, 1, `${constraint.type} naast SNET wordt geweigerd`);
-    assert(rejections[0].reason.includes('secundaire constraint') && rejections[0].reason.includes(fragment),
+    assert(rejections[0].reason.includes('secondary constraint') && rejections[0].reason.includes(fragment),
       `de reden noemt de secundaire constraint en waarom (${fragment}): ${rejections[0].reason}`);
     assertEq(task(id).constraint, { type: 'FNLT', date: '2026-06-30' }, 'primair ongewijzigd');
     assertEq(task(id).constraint2, { type: 'SNET', date: '2026-04-06' }, 'secundair ongewijzigd');

@@ -86,10 +86,10 @@ Het kritieke pad is *Grondwerk*, *Fundering storten*, *Metselen* en *Dakwerk*. H
 
 En met een constraint of deadline op een andere taak:
 
-- **ALAP op *Steigers***: de taak schuift naar donderdag 17 en vrijdag 18 juni, het laatste moment vóór *Dakwerk*. *Dakwerk* is zijn enige opvolger en had ruimte voor precies zijn 3 werkdagen speling; die zijn nu op en *Steigers* is kritiek.
-- **SNET zaterdag 19 juni op *Steigers***: de grens telt als maandag 21 juni. *Steigers* loopt maandag 21 en dinsdag 22 juni en *Dakwerk* schuift mee naar woensdag 23 tot en met vrijdag 25 juni.
-- **Deadline vrijdag 18 juni op *Dakwerk***: er verschuift niets, *Dakwerk* blijft op maandag 21 tot en met woensdag 23 juni. *Grondwerk*, *Fundering storten*, *Metselen* en *Dakwerk* krijgen −3 werkdagen speling en de app meldt *Deadline 18-06-2027 overschreden — vroegste einde 23-06-2027*. *Steigers* houdt nog 0 werkdagen speling over en wordt ook kritiek.
-- **SNET maandag 21 juni op *Metselen*, deadline vrijdag 25 juni op *Dakwerk***: de constraint duwt het metselwerk een week op, en de deadline meldt dat *Dakwerk* op woensdag 30 juni te laat is. *Metselen* en *Dakwerk* krijgen −3 werkdagen speling; *Grondwerk* en *Fundering storten* houden 2 werkdagen.
+- **ALAP op** *Steigers*: de taak schuift naar donderdag 17 en vrijdag 18 juni, het laatste moment vóór *Dakwerk*. *Dakwerk* is zijn enige opvolger en had ruimte voor precies zijn 3 werkdagen speling; die zijn nu op en *Steigers* is kritiek.
+- **SNET zaterdag 19 juni op** *Steigers*: de grens telt als maandag 21 juni. *Steigers* loopt maandag 21 en dinsdag 22 juni en *Dakwerk* schuift mee naar woensdag 23 tot en met vrijdag 25 juni.
+- **Deadline vrijdag 18 juni op** *Dakwerk*: er verschuift niets, *Dakwerk* blijft op maandag 21 tot en met woensdag 23 juni. *Grondwerk*, *Fundering storten*, *Metselen* en *Dakwerk* krijgen −3 werkdagen speling en de app meldt *Deadline 18-06-2027 overschreden — vroegste einde 23-06-2027*. *Steigers* houdt nog 0 werkdagen speling over en wordt ook kritiek.
+- **SNET maandag 21 juni op** *Metselen*, **deadline vrijdag 25 juni op** *Dakwerk*: de constraint duwt het metselwerk een week op, en de deadline meldt dat *Dakwerk* op woensdag 30 juni te laat is. *Metselen* en *Dakwerk* krijgen −3 werkdagen speling; *Grondwerk* en *Fundering storten* houden 2 werkdagen.
 
 In tutorial 3 zet je zelf een constraint en een deadline in het tutorialproject en zie je hoe de planning verschuift.
 
@@ -112,3 +112,5 @@ In tutorial 3 zet je zelf een constraint en een deadline in het tutorialproject 
 - [Een constraint of deadline zetten](docs://howto-constraint-deadline-zetten): de stappen om een constraint of deadline in te stellen.
 - [Relaties en lag](docs://uitleg-relaties): de afhankelijkheden waar constraints naast staan.
 - [Kritiek pad en speling](docs://uitleg-kritiek-pad): hoe negatieve speling ontstaat en wat het met het kritieke pad doet.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): een harde pin (*Moet starten op*) op *Municipal road closure (permitted closure period)* en een secundaire constraint (*Start niet later dan*) op *Lift supply & installation — Tower A*.
+- [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): een deadline die niet gehaald wordt, met negatieve speling.

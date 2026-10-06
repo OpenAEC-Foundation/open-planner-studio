@@ -31,7 +31,7 @@ Staan er reken-opties die alleen Primavera kent, dan staat onderaan het blok ook
 
 ### Waar je het profiel kiest
 
-Bij een nieuw project staat het profiel in het venster *Nieuw project*, dat je opent via *Start › Bestand › Nieuw*. Daar is *Rekenprofiel* een keuzelijst. Kies je *Primavera P6* of *Microsoft Project*, dan zet de app meteen ook de standaard reken-opties van dat profiel. Zo staat *Speling-berekening* dan op *Finishspeling* (Primavera P6) of op *Kleinste (start/finish)* (Microsoft Project).
+Bij een nieuw project staat het profiel in het venster *Nieuw project*, dat je opent via *Start › Bestand › Nieuw*. Daar is *Rekenprofiel* een keuzelijst. Kies je daar een profiel, dan vervangt de app de reken-opties die je al had ingevuld door de standaard van dat profiel; alleen instellingen uit een bronbestand blijven staan. Bij *Primavera P6* staat *Speling-berekening* dan op *Finishspeling*. Bij *Microsoft Project* en *Open Planner Studio* staat elke reken-optie op haar standaard, dus *Speling-berekening* op *Automatisch (standaard)*. Met een statusdatum is dat ook hoe MS Project zelf rekent: een gestarte taak krijgt de finishspeling, elke andere taak de kleinste van start- en finishspeling.
 
 Bij een bestaand project kies je het profiel onder *Instellingen › Project › Projectinfo*, in het blok *Rekenprofiel en reken-opties*, in de keuzelijst *Rekenprofiel*. Je vindt dezelfde plek ook via *Bestand › Projectinfo*. Wisselen van profiel verandert hier alleen de conventies. Je reken-opties blijven staan. Wil je ook de standaard reken-opties van het nieuwe profiel, kies dan *Standaardopties van dit profiel toepassen*.
 
@@ -50,7 +50,7 @@ Bij het openen van een bestand stelt de app een profiel voor, op basis van het f
 
 Bij een .mpp- of .xer-bestand meldt de app het profiel: *Dit project rekent als Microsoft Project. Aanpassen via Bestand → Projectinfo → Rekenprofiel en reken-opties.* Met de knop *Rekenprofiel openen* in de melding ga je direct naar Projectinfo. Bij een .xer-bestand staat deze regel als eerste detailregel in de openingsmelding van het bestand. Meer over de melding staat bij [Een Primavera P6-bestand (.xer) openen](docs://howto-xer-openen) en [Een MS Project-bestand (.mpp) openen](docs://howto-mpp-openen).
 
-Bij een .mpp-bestand zet de app alleen het profiel. De reken-opties blijven leeg, zoals bij een nieuw project: *Speling-berekening* staat op *Automatisch (standaard)*, niet op *Kleinste (start/finish)*. Wil je de standaard reken-opties van Microsoft Project, kies dan *Standaardopties van dit profiel toepassen*.
+Bij een .mpp-bestand zet de app alleen het profiel. De reken-opties blijven leeg, net als bij een nieuw project met het profiel *Microsoft Project*: *Speling-berekening* staat op *Automatisch (standaard)*. Een geopend .mpp-bestand en een nieuw project met *Microsoft Project* rekenen de speling dus op dezelfde manier.
 
 ## Rekenvoorbeeld: één netwerk, drie profielen
 
@@ -121,3 +121,4 @@ Hier verschillen de datums. Twee conventies in de groep *Voortgang zoals Microso
 - [Exporteren](docs://howto-exporteren): een project exporteren.
 - [Voortgang bijwerken](docs://howto-voortgang-bijwerken): percentage, werkelijke start en statusdatum invullen.
 - [Datums zoals opgeslagen](docs://uitleg-datums-zoals-opgeslagen): waarom geïmporteerde datums kunnen afwijken van wat de app zelf berekent.
+- [Rekenopties en conventies](docs://ref-rekenopties-en-conventies): alle conventies en reken-opties op een rij.

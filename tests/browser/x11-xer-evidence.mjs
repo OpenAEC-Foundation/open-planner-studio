@@ -677,7 +677,7 @@ async function runBrowserMultiDocumentHelp(page, preflightResult, bridgeGateSetu
 
   const imported = await readMultiDocumentOpsState(page);
   if (imported.documentCount !== 12) fail(`DOM/store import opende ${imported.documentCount} documenten, verwacht 12`);
-  if (imported.notification?.count !== 12 || imported.notification.helpArticleId !== 'gids-xer-import') {
+  if (imported.notification?.count !== 12 || imported.notification.helpArticleId !== 'howto-xer-openen') {
     fail(`XER-notificatieprojectie onjuist: ${JSON.stringify(imported.notification)}`);
   }
   const detailCounts = Object.fromEntries(imported.notification.detailLines.map((line) => [line.messageKey, line.count]));
@@ -1315,7 +1315,7 @@ async function runBrowserSmallA(preflightResult, server) {
         return Boolean(
           state && state.documents?.count === 1 && state.tasks?.importedCount === 8 &&
           state.sequences?.count === 7 && state.cpmResult && state.xerSourceArchive?.present &&
-          state.xerSourceProjectId && notification?.helpArticleId === 'gids-xer-import',
+          state.xerSourceProjectId && notification?.helpArticleId === 'howto-xer-openen',
         );
       }, XER_OPEN_MESSAGE_KEY, { timeout: 30_000 });
     } catch (error) {

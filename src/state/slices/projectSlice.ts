@@ -218,7 +218,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       // Ná een DAADWERKELIJKE klem meteen herberekenen — anders is de melding ("meegeschoven")
       // op het moment dat hij verschijnt nog niet waar (de taken staan dan wel op hun nieuwe anker,
       // maar early/late-datums en het kritieke pad zijn nog niet bijgewerkt). Buiten `setProject`'s
-      // gebruikelijke "scheduling is handmatig"-regel (CLAUDE.md) — bewust smal: alleen wanneer er
+      // gebruikelijke "scheduling is handmatig"-regel (AGENTS.md) — bewust smal: alleen wanneer er
       // écht iets geklemd is, niet bij elke `setProject`-aanroep.
       get().runCPM();
       get().notify({

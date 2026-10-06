@@ -21,11 +21,6 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
   bij heropenen als vastgelegd (geen vals aanbod, wel in de telling).
 
 ### Rapporten (tabelrapporten uit discussie #31, review 2026-09-08)
-- [ ] **Twaalf vertaalde gidsen beschrijven een niet-bestaande knop "Afdrukken…".** In
-  `public/docs/{de,fr,es,it,pt,pl,tr,ar,fa,zh,ja,ko}/gids-rapporten-printen.md` staat nog dat het
-  instellingenpaneel een printknop met systeemdialoog heeft; die is er niet (alles gaat via
-  Exporteer PDF). nl en en zijn gecorrigeerd; de rest volgt in de maandelijkse vertaalronde.
-  `verify:docs` vangt proza niet.
 - [ ] **Relatiepijlen in de Gantt-afdruk over een paginagrens.** Sinds issue #110 eindigt een
   pagina op een rijgrens, maar een pijl tussen twee rijen op verschillende pagina's wordt nog
   gesneden. Inherent aan tegelen; een oplossing (pijl per pagina afkappen met een markering) is
@@ -216,7 +211,7 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 > (opgeslagen contour of exacte 21-punts-curve) met de `distributeUnits`-formule als terugval;
 > histogram/overallocatie/nivelleerder/bezetting lezen dezelfde `assignmentDayUnits`; een
 > duurwijziging herschaalt de contour proportioneel; MSPDI `<TimephasedData>` en P6
-> `<ResourceCurve>`/`<ResourceCurveObjectId>`/spreidingsstrings zijn native. Zie CLAUDE.md.
+> `<ResourceCurve>`/`<ResourceCurveObjectId>`/spreidingsstrings zijn native. Zie AGENTS.md.
 
 - [ ] **Fasen als opslagvorm.** `TimephasedContourPeriod` kan een fase van tien dagen als één
       periode dragen, maar de editor slaat bewust één periode per werkdag op (byte-identieke
@@ -252,8 +247,8 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 
 > Ontwerp: `docs/superpowers/specs/2026-09-04-spec-taaktypes-opgeslagen-werk.md` (opvolger van de
 > spec van 2026-08-18). Gebouwd op PR #101 en als PR #170 (overname op de rekenprofielen-kop)
-> naar `main` gemerged. De gids `gids-taaktypes` bestaat in nl+en; de twaalf vertalingen volgen in
-> de maandelijkse ronde. Eigenaarsbesluiten 1–10 staan in spec §3.
+> naar `main` gemerged. De gidsen staan sinds de omschakeling van de documentatie in
+> `uitleg-werkregels` en `howto-werkregel-kiezen` (nl+en). Eigenaarsbesluiten 1–10 staan in spec §3.
 
 - [ ] **MS Project-meting van K2 en de Δ-regel (§6.4/§6.5):** beide zijn *documented* voor de richting
       en *reasoned* voor de OPS-werkdagen; wie MS Project heeft, meet cases 32–36 plus "duur wijzigen
@@ -408,8 +403,10 @@ importgrens). Deze drie zijn bewust blijven liggen.
       Ctrl/Cmd vasthouden helpt niet, want dan valt de mousedown in tak 5 en start er geen sleep.
       Vanaf een RIJ werkt groepssleep wel. **Keuze:** óf de balk-mousedown laat een bestaande
       meervoudige selectie waarin de taak zit met rust (gedrag gelijk aan de rij), óf het blijft
-      bewust één taak. De gidsen `public/docs/{nl,en}/gids-plannen-wbs.md` zeggen sinds PR #143
-      expliciet dát de balk altijd één taak verplaatst, dus bij de eerste keuze moeten die mee.
+      bewust één taak. De oude gids `gids-plannen-wbs` zei sinds PR #143 expliciet
+      dát de balk altijd één taak verplaatst; de opvolger `howto-structuur-aanpassen` zegt alleen
+      dat slepen in de Gantt "hetzelfde werkt als slepen in de lijst" — bij welke keuze ook: die
+      zin nalopen.
 - [ ] **Klein: de overdracht vraagt één extra muisbeweging.** `startRowDrag` is `setCandidate`; de
       kandidaat promoveert pas op de eerstvolgende mousemove ná de overdracht. Eén enkele sprong van
       6 px verticaal gevolgd door loslaten doet dus niets (en slikt de afsluitende klik in). In de

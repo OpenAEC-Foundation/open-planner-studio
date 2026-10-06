@@ -104,3 +104,4 @@ The dates of *Brickwork* do not change. But Friday 4 June is red in the histogra
 - [Creating and assigning a calendar](docs://howto-kalender-maken-en-toewijzen): the steps to make a calendar of your own and give it to tasks.
 - [Generating holidays and the construction holiday](docs://howto-feestdagen-genereren): filling in the holidays of a country and the construction holiday.
 - [Setting up a resource calendar](docs://howto-resourcekalender-instellen): recording the availability of a resource.
+- [Calendar windows](docs://ref-kalenders): all fields of the calendar windows.

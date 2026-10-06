@@ -25,7 +25,7 @@ Het venster heeft geen OK-knop: elke wijziging geldt meteen. Het type van een ve
 
 Je hebt twee plekken.
 
-- **In het paneel *Eigenschappen*** (of in het venster dat je met F2 opent). Onderaan staat het blok *Codes & velden*: per codetype een keuzelijst, per veld een invoer. Het blok verschijnt pas zodra er minstens één codetype of veld is.
+- **In het paneel** *Eigenschappen* (of in het venster dat je met F2 opent). Onderaan staat het blok *Codes & velden*: per codetype een keuzelijst, per veld een invoer. Het blok verschijnt pas zodra er minstens één codetype of veld is.
 - **Als kolom in de takenlijst.** Klik op de **+** rechts in de tabelkop (*Kolom toevoegen*) en kies onder *Aangepast* het codetype of veld. In de cel van een codetype typ je de code, bijvoorbeeld `N`, of kies je uit de lijst. Een code die niet bestaat, geeft *Kies een waarde uit deze activiteitencode.*
 
 ### Gebruiken
@@ -48,3 +48,6 @@ Voor de balkkleur kies je *Beeld › Baselines & voortgang › Balkkleuren*, dan
 
 - [Structuur aanpassen](docs://howto-structuur-aanpassen): de WBS-boom, de andere manier om taken in te delen.
 - [Project verplaatsen](docs://howto-project-verplaatsen): wat er met datums gebeurt bij het verplaatsen van het project.
+- [Een layout maken en gebruiken](docs://howto-layouts-gebruiken): groeperen en filteren op een code of eigen veld.
+- [Tabelkolommen aanpassen](docs://howto-tabelkolommen-aanpassen): een code of eigen veld als kolom tonen.
+- [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): de activiteitcodes *House* en *Discipline*, het eigen veld *Cost estimate* en aantekeningen (open en afgevinkt).

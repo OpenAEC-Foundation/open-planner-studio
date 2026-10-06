@@ -1,5 +1,6 @@
 import { expect, test } from './fixtures/ops';
 import type { Page } from '@playwright/test';
+import { completeTour, freshStart, startTourFromWelcome, tutorialOffer } from './fixtures/onboarding';
 
 declare global {
   interface Window {
@@ -81,4 +82,31 @@ test('update-highlights werken smal, licht/donker en RTL', async ({ page, ops: _
   await expect(dialog.getByText('الموارد', { exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.documentElement.dir)).toBe('rtl');
   await expect(dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).resolves.toBe(true);
+});
+
+// Eerste start met een bestaande `ops-lastVersion` maar zonder `ops-welcomeSeen` (bv. opslag
+// gedeeltelijk gewist): "Net bijgewerkt" wacht op de hele eerste-startervaring (`isOnboardingActive`)
+// — eerst welkom, rondleiding en tutorialvraag, pas daarna de updatehoogtepunten. De detectie zelf
+// (`useUpdateCheck`) is Tauri-only en headless getest in check-just-updated.ts; hier zet de dev-brug
+// haar uitkomst, direct na het laden, nog vóór de welkomst open is.
+test('"Net bijgewerkt" pas na welkomst, rondleiding en tutorialvraag', async ({ page, ops: _ops }) => {
+  await stubReleasesApi(page);
+  await page.route('https://raw.githubusercontent.com/**', route => route.fulfill({ status: 404, contentType: 'text/plain', body: 'not found' }));
+  const justUpdated = page.locator('[data-ops-just-updated-dialog]');
+  await freshStart(page, {
+    seed: { 'ops-lastVersion': JSON.stringify('2026.8.0') },
+    afterLoad: async p => {
+      await p.evaluate(() => window.__OPS__!.store.getState().setUI({ justUpdated: { from: '2026.8.0', to: '2026.8.1' } }));
+    },
+  });
+  await expect(justUpdated).toHaveCount(0);
+
+  await startTourFromWelcome(page);
+  await completeTour(page, async () => { await expect(justUpdated).toHaveCount(0); });
+  await expect(tutorialOffer(page)).toBeVisible();
+  await expect(justUpdated).toHaveCount(0);
+
+  await tutorialOffer(page).getByRole('button', { name: /^(No|Nee)$/ }).click();
+  await expect(tutorialOffer(page)).toHaveCount(0);
+  await expect(justUpdated).toBeVisible();
 });

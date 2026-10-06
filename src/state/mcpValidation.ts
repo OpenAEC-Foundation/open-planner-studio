@@ -62,7 +62,7 @@ export const validate = {
   taskExists(state: ReadableState, id: string): ItemError | null {
     return state.tasks.some((t) => t.id === id)
       ? null
-      : { id, reason: `taak '${id}' bestaat niet` };
+      : { id, reason: `task '${id}' does not exist` };
   },
 
   /**
@@ -74,7 +74,7 @@ export const validate = {
     const existing = new Set(state.tasks.map((t) => t.id));
     const errors: ItemError[] = [];
     for (const id of ids) {
-      if (!existing.has(id)) errors.push({ id, reason: `taak '${id}' bestaat niet` });
+      if (!existing.has(id)) errors.push({ id, reason: `task '${id}' does not exist` });
     }
     return errors;
   },
@@ -115,12 +115,12 @@ export const validate = {
    */
   assignmentAllowed(state: ReadableState, taskId: string, resourceId: string, units: number): GuardResult {
     const task = state.tasks.find((t) => t.id === taskId);
-    if (!task) return { ok: false, reason: `taak '${taskId}' bestaat niet` };
-    if (task.isMilestone) return { ok: false, reason: `taak '${taskId}' is een mijlpaal; een mijlpaal draagt geen resources` };
-    if (isSummaryTask(task)) return { ok: false, reason: `taak '${taskId}' is een verzameltaak (summary); wijs resources toe aan de bladtaken` };
-    if (!isValidUnits(units)) return { ok: false, reason: `ongeldige eenheden/dag ${String(units)} (strikt positief vereist)` };
+    if (!task) return { ok: false, reason: `task '${taskId}' does not exist` };
+    if (task.isMilestone) return { ok: false, reason: `task '${taskId}' is a milestone; a milestone carries no resources` };
+    if (isSummaryTask(task)) return { ok: false, reason: `task '${taskId}' is a summary task; assign resources to the leaf tasks` };
+    if (!isValidUnits(units)) return { ok: false, reason: `invalid units/day ${String(units)} (strictly positive required)` };
     if (state.assignments.some((a) => a.taskId === taskId && a.resourceId === resourceId)) {
-      return { ok: false, reason: `resource '${resourceId}' is al toegewezen aan taak '${taskId}' (een tweede toewijzing zou de last dubbel tellen)` };
+      return { ok: false, reason: `resource '${resourceId}' is already assigned to task '${taskId}' (a second assignment would double-count the load)` };
     }
     return { ok: true };
   },
@@ -165,7 +165,7 @@ export const progress = {
     statusDate: string | undefined,
   ): ProgressResult {
     const task = draftState.tasks.find((t) => t.id === taskId) as Task | undefined;
-    if (!task) return { applied: false, reason: `taak '${taskId}' bestaat niet` };
+    if (!task) return { applied: false, reason: `task '${taskId}' does not exist` };
 
     // Scratch: alle stappen werken op een KOPIE; commit gebeurt pas bij succes (stap 12).
     const time = { ...task.time };
@@ -174,7 +174,7 @@ export const progress = {
     // (1) range-validatie completion 0–100 (GEEN klem).
     if (update.completion !== undefined) {
       if (!Number.isFinite(update.completion) || update.completion < 0 || update.completion > 100) {
-        return { applied: false, reason: `completion ${update.completion} valt buiten het bereik 0–100` };
+        return { applied: false, reason: `completion ${update.completion} is outside the range 0–100` };
       }
       // (2) conversie 0–100 ⇒ 0–1.
       time.completion = update.completion / 100;
@@ -201,10 +201,10 @@ export const progress = {
     //     met dezelfde vergelijking als store en grid: een date-only statusdatum laat de hele dag toe.
     if (statusDate) {
       if (update.actualStart && isActualPastStatusDate(update.actualStart, statusDate)) {
-        return { applied: false, reason: `actualStart ${update.actualStart} ligt ná de statusdatum ${statusDate}` };
+        return { applied: false, reason: `actualStart ${update.actualStart} lies after the status date ${statusDate}` };
       }
       if (update.actualFinish && isActualPastStatusDate(update.actualFinish, statusDate)) {
-        return { applied: false, reason: `actualFinish ${update.actualFinish} ligt ná de statusdatum ${statusDate}` };
+        return { applied: false, reason: `actualFinish ${update.actualFinish} lies after the status date ${statusDate}` };
       }
     }
 
@@ -216,7 +216,7 @@ export const progress = {
 
     // (7) actualFinish >= actualStart (op instantprecisie, zoals het grid).
     if (isActualFinishBeforeStart(time)) {
-      return { applied: false, reason: `actualFinish ${time.actualFinish} ligt vóór actualStart ${time.actualStart}` };
+      return { applied: false, reason: `actualFinish ${time.actualFinish} lies before actualStart ${time.actualStart}` };
     }
 
     // (8) geen statusdatum maar wél actuals/voortgang ⇒ weigering met uitleg.
@@ -225,16 +225,16 @@ export const progress = {
     if (!statusDate && touchesProgress) {
       return {
         applied: false,
-        reason: 'geen statusdatum ingesteld: voortgang/actuals worden gemeten tot de statusdatum en kunnen zonder '
-          + 'niet worden geregistreerd. Zet eerst de statusdatum (de peildatum van deze voortgang) met '
-          + 'planner_update_project → `statusDate` en herhaal dan deze update; de AI-koppeling kiest die datum '
-          + 'niet zelf',
+        reason: 'no status date set: progress/actuals are measured up to the status date and cannot be ' +
+          'recorded without one. First set the status date (the reporting date of this progress) with ' +
+          'planner_update_project → `statusDate` and then repeat this update; the AI connection does not ' +
+          'choose that date itself',
       };
     }
 
     // (9) voortgang op een verzameltaak (heeft kinderen) ⇒ weigering.
     if (isSummaryTask(task)) {
-      return { applied: false, reason: `taak '${taskId}' is een verzameltaak (heeft kinderen); voortgang, status en werkelijke datums worden afgeleid uit de bladtaken eronder, niet direct gezet — zet de voortgang op die bladtaken` };
+      return { applied: false, reason: `task '${taskId}' is a summary task (has children); progress, status and actual dates are derived from the leaf tasks below it, not set directly — set the progress on those leaf tasks` };
     }
 
     // (10) invarianten.
@@ -248,10 +248,10 @@ export const progress = {
       const planned = scratch.time.earlyStart || scratch.time.scheduleStart;
       return {
         applied: false,
-        reason: `taak '${taskId}' heeft nog geen werkelijke start en stond gepland om pas ná de statusdatum `
-          + `(${question.statusDate}) te beginnen (geplande start ${planned}): voortgang betekent dat hij al begonnen `
-          + `is, maar wanneer weet alleen de gebruiker. Geef de werkelijke start mee in \`progress.actualStart\` `
-          + `(uiterlijk ${question.latest}); de AI-koppeling leidt hem niet af`,
+        reason: `task '${taskId}' has no actual start yet and was planned to start only after the status ` +
+          `date (${question.statusDate}) (planned start ${planned}): progress means it has already started, ` +
+          'but only the user knows when. Pass the actual start in `progress.actualStart` (at the latest ' +
+          `${question.latest}); the AI connection does not derive it`,
       };
     }
     // (12) COMMIT naar de draft.

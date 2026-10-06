@@ -70,3 +70,4 @@ The period does not work the same in every report.
 - [Making and printing a report](docs://howto-rapport-maken-en-afdrukken): the whole route from report type to PDF.
 - [Progress, status date and baseline](docs://uitleg-voortgang): what the status date is and why the app calculates with it.
 - [Resolving overallocation](docs://howto-overbezetting-oplossen): what to do with the overloaded weeks from Resource loading.
+- [Report types](docs://ref-rapporttypes): all report types and their options.

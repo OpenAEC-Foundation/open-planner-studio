@@ -84,8 +84,8 @@ export function assertSmallAState(snapshot) {
   if (snapshot.xerNotification?.messageKey !== XER_OPENED_MESSAGE) {
     failures.push('XER-openmelding ontbreekt');
   }
-  if (snapshot.xerNotification?.helpArticleId !== 'gids-xer-import') {
-    failures.push('XER-openmelding mist helpArticleId gids-xer-import');
+  if (snapshot.xerNotification?.helpArticleId !== 'howto-xer-openen') {
+    failures.push('XER-openmelding mist helpArticleId howto-xer-openen');
   }
   if (failures.length > 0) throw new Error(`SMALL-A store-assertie mislukt: ${failures.join('; ')}`);
 }
@@ -488,7 +488,7 @@ export function assertMultiDocumentEvidence(evidence) {
   }
 
   const help = evidence.help ?? {};
-  if (help.notificationHelpArticleId !== 'gids-xer-import') failures.push('verkeerde Help-artikelroute');
+  if (help.notificationHelpArticleId !== 'howto-xer-openen') failures.push('verkeerde Help-artikelroute');
   if (help.activeTocTitle !== 'Opening Primavera P6 (.xer)') failures.push('verkeerde actieve Help-titel');
   if (help.articleHeading !== 'Opening Primavera P6 (.xer)') failures.push('verkeerde Help-artikelkop');
   if (help.activeRibbonTab !== 'file' || help.backstageSection !== 'help') failures.push('Backstage Help-route niet actief');

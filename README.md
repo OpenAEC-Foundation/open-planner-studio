@@ -73,15 +73,15 @@ src/
   extensions/        # Extensiesysteem (types, api, loader, service)
   i18n/              # Vertalingen, 14 talen × 4 namespaces
   hooks/  types/  utils/  styles/
-public/docs/         # In-app handleiding: 38 artikelen in nl+en, de meeste ook in 12 andere talen (voedt ook de wiki)
+public/docs/         # In-app handleiding: 76 artikelen in nl+en (how-to, uitleg, referentie; voedt ook de wiki)
 examples/            # Voorbeeldplanningen in IFC
 tests/               # planning · library · mcp · dev-server · browser
 src-tauri/           # De Rust-schil (dun: precies drie native commands)
 ```
 
 Deze boom is bewust grofmazig — een uitgeschreven versie loopt binnen een maand
-achter. Voor de details en de architectuurbeslissingen: [CLAUDE.md](CLAUDE.md)
-(de kern), de per-onderdeel-uitwerking in [`.claude/rules/`](.claude/rules/) en [AGENTS.md](AGENTS.md).
+achter. Voor de details en de architectuurbeslissingen: [AGENTS.md](AGENTS.md)
+(de kern) en de per-onderdeel-uitwerking in [`.claude/rules/`](.claude/rules/).
 
 ## Ribbon Tabs
 

@@ -14,6 +14,7 @@ import { generateId } from '@/utils/id';
 import { loadLayouts, saveLayouts } from '@/utils/settingsStore';
 import { isFilterOnlyLayout } from '@/engine/view/layoutPresets';
 import type { FieldRef, FilterNode, FilterOperator, Layout } from '@/state/slices/types';
+import { LAYOUTS_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
 export type GroupNode = Extract<FilterNode, { kind: 'group' }>;
 type RuleNode = Extract<FilterNode, { kind: 'rule' }>;
@@ -292,6 +293,8 @@ export function FilterDialog() {
   const [root, setRoot] = useState<GroupNode>(
     () => (viewFilter && viewFilter.kind === 'group' ? viewFilter : defaultGroup()),
   );
+  // Het filter bij het openen: de ?-knop vraagt alleen iets als de regels zijn veranderd.
+  const [initialRoot] = useState(() => JSON.stringify(root));
   // Een opgeslagen filter is een layout die alleen een filter draagt. Deze dialoog
   // beheert dus een DEEL van de layoutlijst; de overige layouts reizen ongewijzigd mee bij opslaan.
   const [layouts, setLayouts] = useState<Layout[]>([]);
@@ -356,7 +359,11 @@ export function FilterDialog() {
     <Dialog
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[640px] max-h-[88vh] flex flex-col overflow-hidden"
     >
-        <DialogHeader title={t('view.filter.title')} onClose={close} />
+        <DialogHeader
+          title={t('view.filter.title')}
+          onClose={close}
+          help={{ articleId: LAYOUTS_HELP_ARTICLE_ID, confirmLeave: { dirty: JSON.stringify(root) !== initialRoot, onSave: apply } }}
+        />
 
         <div className="flex-1 overflow-y-auto p-4 text-small leading-4 flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2 border border-border rounded-[8px] p-2">

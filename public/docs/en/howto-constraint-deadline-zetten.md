@@ -55,3 +55,6 @@ At *Constraint* choose *As soon as possible (ASAP)* again. That removes the seco
 - [Constraints and deadlines](docs://uitleg-constraints): what each type does, and the explanation of hard pin, negative float and deadline.
 - [Critical path and float](docs://uitleg-kritiek-pad): what negative float does to the critical path.
 - [Relations and lag](docs://uitleg-relaties): the relations a constraint sits alongside.
+- [Notifications and warnings](docs://ref-meldingen): the warnings for a violated constraint or missed deadline.
+- [Refurbishment & Extension of a Family Home](examples://showcase-verbouwing-eengezinswoning.ifc): a permit constraint *Start no earlier than* on *Demolish existing extension* (14 May 2027) and a deadline that is met with room to spare.
+- [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): a deliberately tight deadline on *Contractual project handover* (15 July 2027): after calculating, the finish is on 17 August and many tasks have negative float.

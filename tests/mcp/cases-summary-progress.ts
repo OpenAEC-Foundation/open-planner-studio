@@ -87,7 +87,7 @@ test('update_tasks: werkelijke datums op een fase ⇒ zachte weigering met uitle
   assert(res.ok, `de call slaagt (zachte per-item-weigering): ${res.ok ? '' : res.error}`);
   const rejections = (res as McpToolOk).itemRejections ?? [];
   assertEq(rejections.length, 1, 'één zachte weigering');
-  assert(/werkelijke datums/.test(rejections[0]?.reason ?? '') && /bladtaken/.test(rejections[0]?.reason ?? ''),
+  assert(/actual dates/.test(rejections[0]?.reason ?? '') && /leaf tasks/.test(rejections[0]?.reason ?? ''),
     `de reden noemt dat werkelijke datums uit de bladtaken komen: ${rejections[0]?.reason}`);
   const phase = S().tasks.find(t => t.id === P)!;
   assertEq(phase.time.actualStart, '2026-03-04', 'de fase houdt haar afgeleide start');

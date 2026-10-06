@@ -39,3 +39,4 @@ Example: *Site cabin* gets SS from *Groundwork* (Monday 7 June 2027) and FF from
 - [Adding relations](docs://howto-relaties-leggen): the steps to add a relation of type SS or FF.
 - [Relations and lag](docs://uitleg-relaties): what SS and FF mean and how the lag counts.
 - [Critical path and float](docs://uitleg-kritiek-pad): what critical means and how float works.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): contains the hammock *Structural works tower A (LOE)*.

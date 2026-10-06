@@ -5,6 +5,8 @@ import { X } from 'lucide-react';
 import { SettingsPanelContent } from '@/components/settings/SettingsPanelContent';
 import { useDialogKeys } from '@/hooks/useDialogKeys';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
+import { DialogHelpButton } from '@/components/common/Dialog';
+import { SETTINGS_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import './SettingsDialog.css';
 
 export function SettingsDialog() {
@@ -44,7 +46,7 @@ export function SettingsDialog() {
   }, [setUI]);
 
   const onHeaderMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.modal-close-btn')) return;
+    if ((e.target as HTMLElement).closest('.modal-close-btn, [data-ops-help-button]')) return;
     if (!dialogRef.current) return;
     dragging.current = true;
     const rect = dialogRef.current.getBoundingClientRect();
@@ -67,9 +69,13 @@ export function SettingsDialog() {
           {/* Zelfde naam + tooltip als DialogHeader; X-icoon zoals FeedbackDialog in dezelfde
               .modal-close-btn-chrome. De sleep-uitsluiting hierboven werkt via closest() ook
               vanaf het svg-icoon. */}
-          <button className="modal-close-btn" onClick={close} aria-label={t('close')} title={t('close')}>
-            <X size={16} />
-          </button>
+          <span className="flex items-center gap-1">
+            {/* ?-knop: instellingen gelden meteen, er is niets onopgeslagen — sluiten en Help openen. */}
+            <DialogHelpButton help={{ articleId: SETTINGS_HELP_ARTICLE_ID }} onClose={close} />
+            <button className="modal-close-btn" onClick={close} aria-label={t('close')} title={t('close')}>
+              <X size={16} />
+            </button>
+          </span>
         </div>
 
         {/* Body — shared settings panel */}

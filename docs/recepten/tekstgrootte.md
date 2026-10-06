@@ -1,7 +1,7 @@
 # Een tekstgrootte kiezen (of er één toevoegen)
 
 De interface kent zes tekstrollen, gedefinieerd in het `@theme static`-blok van
-`src/styles/globals.css` (zie *Tekstgroottes* in `CLAUDE.md`):
+`src/styles/globals.css` (zie *Tekstgroottes* in `.claude/rules/text-roles.md`):
 
 | rol | px × `--ui-font-scale` | waarvoor |
 |---|---|---|
@@ -66,4 +66,4 @@ door negen losse maten terug te brengen; elke nieuwe rol is een stap terug.
 2. `<naam>` toevoegen aan `ROLES` in `scripts/verify-text-roles.mjs` en de px-waarde aan `ROLE_PX`
    in `tests/browser/text-roles.spec.ts`.
 3. Dezelfde rol met dezelfde px-waarde in `TEXT_ROLE_PX` (`src/engine/renderer/textRoles.ts`).
-4. De tabel hierboven en de sectie *Tekstgroottes* in `CLAUDE.md` bijwerken.
+4. De tabel hierboven en de sectie *Tekstgroottes* in `.claude/rules/text-roles.md` bijwerken.

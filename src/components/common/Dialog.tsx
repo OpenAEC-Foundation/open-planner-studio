@@ -37,6 +37,11 @@ export interface DialogProps {
   onCancel?: () => void;
   /** Enter = primaire actie (via `useDialogKeys`, met de textarea/dropdown/IME-uitzonderingen). */
   onConfirm?: () => void;
+  /**
+   * Enter op een gefocuste knop activeert díé knop in plaats van `onConfirm` (zie `useDialogKeys`).
+   * `onConfirm` blijft dan de actie voor Enter zonder knopfocus. Voor keuzedialogen (Ja/Nee).
+   */
+  focusedButtonOwnsEnter?: boolean;
   /** Overschrijft de standaard-overlaytint + z-laag (`bg-black/60 z-50`). */
   overlayClassName?: string;
   /** `stopPropagation` op de backdrop-klik (nodig bij stapeling boven een andere dialoog). */
@@ -49,11 +54,11 @@ export interface DialogProps {
 }
 
 export function Dialog({
-  panelClassName, onBackdropClick, onCancel, onConfirm,
+  panelClassName, onBackdropClick, onCancel, onConfirm, focusedButtonOwnsEnter,
   overlayClassName = 'bg-black/60 z-50', stopBackdropPropagation = false,
   overlayProps, panelProps, children,
 }: DialogProps) {
-  useDialogKeys({ onConfirm, onCancel });
+  useDialogKeys({ onConfirm, onCancel, focusedButtonOwnsEnter });
   // Focus-trap (a11y): Tab/Shift+Tab blijven binnen dit paneel; role/aria-modal maken het modaal.
   const panelRef = useRef<HTMLDivElement>(null);
   useFocusTrap(panelRef);
@@ -129,19 +134,6 @@ export interface DialogHeaderProps {
 export function DialogHeader({ title, icon, onClose, closeDisabled, closeIconSize = 16, help }: DialogHeaderProps) {
   const { t } = useTranslation('common');
   const closeLabel = t('close');
-  // De open-functie van de ?-knop, vastgehouden zolang de Opslaan/Annuleren/Terug-vraag openstaat.
-  const [pendingOpen, setPendingOpen] = useState<null | (() => void)>(null);
-
-  const handleHelp = (open: () => void) => {
-    const leave = help?.confirmLeave;
-    if (leave && (leave.dirty ?? true)) {
-      setPendingOpen(() => open);
-      return;
-    }
-    // Eerst de dialoog via zijn eigen route sluiten, dan pas Help openen.
-    onClose();
-    open();
-  };
 
   return (
     <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
@@ -153,9 +145,7 @@ export function DialogHeader({ title, icon, onClose, closeDisabled, closeIconSiz
         {title}
       </span>
       <span className="flex items-center gap-1">
-        {help && (
-          <HelpButton articleId={help.articleId} onOpen={handleHelp} disabled={closeDisabled} size={closeIconSize} />
-        )}
+        {help && <DialogHelpButton help={help} onClose={onClose} disabled={closeDisabled} size={closeIconSize} />}
         <button
           onClick={onClose}
           disabled={closeDisabled}
@@ -166,7 +156,40 @@ export function DialogHeader({ title, icon, onClose, closeDisabled, closeIconSiz
           <X size={closeIconSize} />
         </button>
       </span>
-      {pendingOpen && help?.confirmLeave && (
+    </div>
+  );
+}
+
+/**
+ * De ?-knop van een dialoog, los van `DialogHeader` bruikbaar voor een dialoog met een eigen kop
+ * (TaskDialog, ContourDialog, ExternalLinkDialog). Zonder `confirmLeave`: eerst de dialoog via zijn
+ * eigen `onClose` sluiten, dan Help openen. Met `confirmLeave` en wijzigingen: eerst de vraag
+ * Opslaan / Annuleren / Terug (ontwerp §10.2).
+ */
+export function DialogHelpButton({ help, onClose, disabled, size = 16 }: {
+  help: DialogHelp;
+  onClose: () => void;
+  disabled?: boolean;
+  size?: number;
+}) {
+  // De open-functie van de ?-knop, vastgehouden zolang de Opslaan/Annuleren/Terug-vraag openstaat.
+  const [pendingOpen, setPendingOpen] = useState<null | (() => void)>(null);
+
+  const handleHelp = (open: () => void) => {
+    const leave = help.confirmLeave;
+    if (leave && (leave.dirty ?? true)) {
+      setPendingOpen(() => open);
+      return;
+    }
+    // Eerst de dialoog via zijn eigen route sluiten, dan pas Help openen.
+    onClose();
+    open();
+  };
+
+  return (
+    <>
+      <HelpButton articleId={help.articleId} onOpen={handleHelp} disabled={disabled} size={size} />
+      {pendingOpen && help.confirmLeave && (
         <HelpLeaveDialog
           onBack={() => setPendingOpen(null)}
           onDiscard={() => { setPendingOpen(null); onClose(); pendingOpen(); }}
@@ -177,7 +200,7 @@ export function DialogHeader({ title, icon, onClose, closeDisabled, closeIconSiz
           }}
         />
       )}
-    </div>
+    </>
   );
 }
 

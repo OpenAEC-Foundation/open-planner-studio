@@ -57,3 +57,4 @@ Open the *Choose column* window and click *Reset to default* at the bottom. The 
 
 - [Creating and using a layout](docs://howto-layouts-gebruiken): putting columns on a button together with a filter or sorting.
 - [Codes and custom fields](docs://howto-codes-en-velden): creating your own columns that you can choose here.
+- [Table columns](docs://ref-tabelkolommen): all columns and what they show.

@@ -139,7 +139,7 @@ for (const { kind, statusDate, finish, explicitStart } of SCENARIOS) {
     });
     const rejections: { reason: string }[] = res.itemRejections ?? [];
     assertEq(rejections.length, 1, 'precies één per-item-weigering');
-    assert(/vóór actualStart/.test(rejections[0]!.reason), `reden noemt de volgorde: ${rejections[0]!.reason}`);
+    assert(/before actualStart/.test(rejections[0]!.reason), `reden noemt de volgorde: ${rejections[0]!.reason}`);
     assertEq(JSON.stringify(timeOf(t)), before, 'taak ongemoeid');
   });
 }

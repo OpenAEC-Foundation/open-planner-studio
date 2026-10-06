@@ -319,12 +319,7 @@
     "library": "Libreria",
     "helpDocsLang": "Lingua della documentazione",
     "helpDocsLangAuto": "Segui la lingua dell'app",
-    "helpStale": "Questa lingua viene aggiornata solo occasionalmente. Per la documentazione più aggiornata, passa all'inglese o all'olandese.",
-    "helpLayer": {
-      "quickstart": "Avvio rapido",
-      "gidsen": "Guide per argomento",
-      "referentie": "Riferimento"
-    },
+    "helpLangFallback": "La documentazione non è ancora disponibile nella tua lingua. Stai leggendo la versione inglese.",
     "unapplied": {
       "title": "Modifiche non applicate",
       "body": "Hai modificato le informazioni del progetto ma non le hai ancora applicate. Cosa vuoi fare con queste modifiche?",
@@ -399,6 +394,7 @@
     "confirmRemoveHint": "Fai clic di nuovo per rimuovere definitivamente",
     "catalogLoading": "Caricamento catalogo...",
     "catalogError": "Impossibile caricare il catalogo: {{error}}",
+    "networkTimeout": "nessuna risposta entro {{seconds}} s",
     "retry": "Riprova",
     "noCatalogResults": "Nessuna estensione trovata.",
     "install": "Installa",

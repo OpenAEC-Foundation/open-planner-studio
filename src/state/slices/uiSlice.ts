@@ -178,6 +178,11 @@ export function createDefaultUI(): UIState {
     showTourOverlay: false,
     tourStepIndex: 0,
     tourSnapshot: null,
+    // Eerste-startervaring, vervolg: welkomst nog op komst, tutorialvraag na een voltooide
+    // rondleiding (eenmalig; `tutorialOfferAnswered` hydrateert uit `ops-tutorialOfferAnswered`).
+    welcomePending: false,
+    showTutorialOffer: false,
+    tutorialOfferAnswered: false,
     // MCP-bridge / AI-modus: AI-modus default uit (geen AI-tabblad); server staat default
     // uit op de default-poort; geen pauze/lezen.
     aiMode: false,
@@ -189,6 +194,7 @@ export function createDefaultUI(): UIState {
     notifications: [],
     pendingHelpArticleId: null,
     pendingExtensionsTab: null,
+    pendingHelpSection: null,
   };
 }
 

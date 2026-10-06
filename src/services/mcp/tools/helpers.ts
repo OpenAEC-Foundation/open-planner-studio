@@ -117,17 +117,17 @@ export function parsedBatchStep<P>(
  */
 export function unknownArgsReason(args: unknown, allowed: readonly string[], toolName: string): string | null {
   if (args === undefined || args === null) return null;
-  if (typeof args !== 'object' || Array.isArray(args)) return `${toolName} verwacht een object met argumenten`;
+  if (typeof args !== 'object' || Array.isArray(args)) return `${toolName} expects an object with arguments`;
   for (const key of Object.keys(args as Record<string, unknown>)) {
     if (allowed.includes(key)) continue;
     return allowed.length === 0
-      ? `${toolName} neemt geen argumenten, maar kreeg \`${key}\``
-      : `onbekend argument \`${key}\` voor ${toolName}; toegestaan: ${allowed.join(', ')}`;
+      ? `${toolName} takes no arguments, but got \`${key}\``
+      : `unknown argument \`${key}\` for ${toolName}; allowed: ${allowed.join(', ')}`;
   }
   return null;
 }
 
 /** De weigertekst voor een argument dat gezet is maar geen boolean (zonder afsluitende punt). */
 export function booleanArgReason(value: unknown, name: string): string {
-  return `\`${name}\` moet een boolean zijn (true/false), kreeg ${typeof value} '${String(value)}'`;
+  return `\`${name}\` must be a boolean (true/false), got ${typeof value} '${String(value)}'`;
 }

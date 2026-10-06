@@ -47,7 +47,7 @@ Standaard is een taak kritiek als de totale speling 0 is of minder. Dat is aan t
 - **Kritiek-definitie** met *Totale speling ≤ drempel* en het veld *Drempel (werkdagen)*. Standaard is de drempel 0. Wie een buffer wil bewaken, zet de drempel bijvoorbeeld op 2: elke taak met 2 werkdagen speling of minder telt dan als kritiek en wordt rood.
 - **Bijna-kritiek markeren** met een eigen *Drempel*, standaard 2 werkdagen. Een taak met meer dan 0 maar hoogstens zoveel speling krijgt een amberkleurige balk. Zo zie je welke taken bijna geen marge meer hebben, zonder ze kritiek te noemen.
 - **Open-eind-taken kritiek**: een taak zonder opvolger die nog niet klaar is, telt als kritiek. Handig als vangnet tegen vergeten relaties (zie de misverstanden hieronder).
-- **Speling-berekening** bepaalt of de totale speling aan de startkant of de eindkant van de taak wordt gemeten, of de kleinste van beide. Nieuwe projecten staan op *Automatisch (standaard)*. Wie de rekenwijze van een ander pakket volgt, zet deze keuze met *Standaardopties van dit profiel toepassen* op de waarde van dat profiel: *Finishspeling* voor Primavera P6, *Kleinste (start/finish)* voor MS Project.
+- **Speling-berekening** bepaalt of de totale speling aan de startkant of de eindkant van de taak wordt gemeten, of de kleinste van beide. Nieuwe projecten staan op *Automatisch (standaard)*. Wie de rekenwijze van Primavera P6 volgt, zet deze keuze met *Standaardopties van dit profiel toepassen* op *Finishspeling*. Voor MS Project zet dezelfde knop hem terug op *Automatisch (standaard)*: met een statusdatum rekent MS Project zelf zo.
 
 ### Waar je het ziet
 
@@ -117,3 +117,8 @@ Krijgt de oplevering een deadline van woensdag 4 augustus, twee werkdagen vóór
 ## Zie ook
 
 - [Relaties leggen](docs://howto-relaties-leggen): de stappen om taken aan elkaar te koppelen en een lag te zetten.
+- [Relaties en lag](docs://uitleg-relaties): hoe relaties en lag de vroegste datums bepalen.
+- [Constraints en deadlines](docs://uitleg-constraints): hoe een constraint of deadline negatieve speling geeft.
+- [Een pad traceren](docs://howto-pad-traceren): de keten achter een taak volgen.
+- [Rekenopties en conventies](docs://ref-rekenopties-en-conventies): de kritiek-definitie, bijna-kritiek en de speling-berekening per optie.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): een groot project met meerdere speling-paden, bijna-kritiek werk (drempel 3 werkdagen), een hammock, een harde pin en een externe koppeling.

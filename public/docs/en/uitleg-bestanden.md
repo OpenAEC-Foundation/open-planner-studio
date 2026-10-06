@@ -110,3 +110,4 @@ Without that constraint the example itself also ends on 2 July 2027. So the diff
 - [Codes and custom fields](docs://howto-codes-en-velden): activity codes and custom fields, which only IFC keeps.
 - [External relations to another project](docs://howto-externe-relaties): links that MS Project XML and P6 XML do not carry.
 - [Saving and managing a baseline](docs://howto-baseline-opslaan-en-beheren): baselines, of which MS Project XML only carries the active one.
+- [Import and export formats](docs://ref-import-exportformaten): per format what is carried over and what is not.

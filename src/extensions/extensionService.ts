@@ -20,6 +20,8 @@ import { appLog } from '@/services/debug/appLog';
 import { askExtensionConsent, type ConsentSource, type ConsentVerification, type ExtensionConsentRequest } from './consent';
 import { isTauri } from '@/utils/platform';
 import { EXTENSION_ZIP_LIMITS, parseZipEntries, type ZipEntry } from '@/services/zip/zipReader';
+import { FetchTimeoutError, fetchWithIdleTimeout, fetchWithTimeout, readBodyBytes } from '@/services/fetchWithTimeout';
+import i18next from 'i18next';
 
 // De ZIP-lezer woont in `src/services/zip/`, zodat de `.xlsx`-lezer hem kan delen zonder de hele
 // extensie-/store-laag mee de bundel in te trekken. Hier blijft hij heruitgevoerd omdat afnemers
@@ -33,6 +35,25 @@ const CATALOG_URL =
   'https://raw.githubusercontent.com/OpenAEC-Foundation/open-planner-studio-extensions/main/catalog.json';
 const CATALOG_CACHE_MS = 30 * 60 * 1000; // 30 min
 
+/**
+ * Tijdslimieten voor het netwerk (zie `services/fetchWithTimeout.ts`). Zonder limiet bleef een
+ * hangende verbinding eeuwig "bezig" — o.a. de Ja-knop van de tutorialvraag.
+ *  - Catalogus: een klein JSON-bestand, dus een TOTALE limiet (verzoek + body).
+ *  - Extensie-ZIP: tot 48 MiB (`EXTENSION_ZIP_LIMITS`), dus een STILTE-limiet: de timer begint
+ *    opnieuw bij elk binnengekomen stuk. Een trage maar gestage download loopt af, hoe lang hij ook
+ *    duurt; alleen een download die zo lang niets binnenkrijgt, breekt af.
+ */
+export const CATALOG_FETCH_TIMEOUT_MS = 20_000;
+export const EXTENSION_DOWNLOAD_IDLE_TIMEOUT_MS = 30_000;
+
+/** Foutmelding voor de gebruiker/het log; een timeout krijgt een vertaalde tekst. */
+function networkErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof FetchTimeoutError) {
+    return i18next.t('extensions.networkTimeout', { ns: 'menu', seconds: Math.ceil(err.timeoutMs / 1000) });
+  }
+  return err instanceof Error ? err.message : fallback;
+}
+
 export async function fetchCatalog(): Promise<void> {
   const store = useAppStore.getState();
   const now = Date.now();
@@ -45,9 +66,11 @@ export async function fetchCatalog(): Promise<void> {
   try {
     // no-store: omzeil de browser/CDN-HTTP-cache zodat een net-bijgewerkte catalogus
     // niet stale wordt geserveerd (de store-cache hierboven beperkt de frequentie al).
-    const res = await fetch(CATALOG_URL, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const parsed = parseCatalog(await res.json());
+    const json = await fetchWithTimeout(CATALOG_URL, { cache: 'no-store' }, CATALOG_FETCH_TIMEOUT_MS, async (res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json() as Promise<unknown>;
+    });
+    const parsed = parseCatalog(json);
     if (!parsed.ok) throw new Error(parsed.error);
     store.setCatalog(parsed.value.catalog.extensions, parsed.value.issues, now);
     if (parsed.value.issues.length > 0) {
@@ -63,8 +86,7 @@ export async function fetchCatalog(): Promise<void> {
       );
     }
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Catalogus ophalen mislukt';
-    useAppStore.getState().setCatalogError(message);
+    useAppStore.getState().setCatalogError(networkErrorMessage(err, 'Catalogus ophalen mislukt'));
   } finally {
     useAppStore.getState().setCatalogLoading(false);
   }
@@ -143,10 +165,10 @@ async function gateConsent(
 
 export async function installFromCatalog(entry: CatalogEntry): Promise<InstallOutcome> {
   try {
-    const res = await fetch(entry.downloadUrl);
-    if (!res.ok) throw new Error(`Download mislukt: HTTP ${res.status}`);
-
-    const bytes = new Uint8Array(await res.arrayBuffer());
+    const bytes = await fetchWithIdleTimeout(entry.downloadUrl, {}, EXTENSION_DOWNLOAD_IDLE_TIMEOUT_MS, async (res, progress) => {
+      if (!res.ok) throw new Error(`Download mislukt: HTTP ${res.status}`);
+      return readBodyBytes(res, progress);
+    });
 
     const oordeel = await verifyCatalogDownload(entry, bytes);
     if (!oordeel.ok) throw new Error(oordeel.reason);
@@ -165,7 +187,7 @@ export async function installFromCatalog(entry: CatalogEntry): Promise<InstallOu
     );
   } catch (err) {
     console.error('[Extensies] Installeren vanuit catalogus mislukt:', err);
-    appLog.emit('error', 'Extensies', err instanceof Error ? err.message : String(err));
+    appLog.emit('error', 'Extensies', networkErrorMessage(err, String(err)));
     return 'failed';
   }
 }

@@ -150,7 +150,13 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
     const opts = defaultOptionsFor(b);
     ok(`43 defaultOptionsFor(${b}) bevat geen conventies`, Object.keys(opts).every(k => !(CONVENTION_KEYS as readonly string[]).includes(k)));
   }
-  eq('44 defaultOptionsFor(msproject)', defaultOptionsFor('msproject'), { totalFloatMode: 'smallest' });
+  // Bewust leeg sinds het eigenaarsbesluit van 2026-10-02 (spec §3.1): geen `totalFloatMode` ⇒
+  // *Automatisch* (finish-speling bij statusdatum én gestarte taak, anders het minimum) — MSP's eigen
+  // regel (MPXJ `MicrosoftSlackCalculator`, onze `mppTotalSlackTenths`) en wat een geopend `.mpp`
+  // draagt. Vroeger `{ totalFloatMode: 'smallest' }`, maar *Kleinste* is de P6-modus en week bij
+  // gestarte taken met een statusdatum af van MSP's opgeslagen speling. Gelijkheid met `.mpp`:
+  // `check-msproject-float-default.ts`.
+  eq('44 defaultOptionsFor(msproject) — leeg (speling automatisch, zoals MSP)', defaultOptionsFor('msproject'), {});
   eq('45 defaultOptionsFor(ops) — leeg (afwezig ≡ huidig gedrag)', defaultOptionsFor('ops'), {});
   const eff = effectiveSchedulingOptions({ schedulingProfile: builtInProfile('msproject'), schedulingOptions: { lagCalendar: '24hour' } });
   eq('46 effective: conventie uit profiel', eff.resumeFromActualElapsed, true);

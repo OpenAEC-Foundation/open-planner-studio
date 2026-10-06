@@ -22,7 +22,7 @@ vorige release bekijken · (2) release notes = een paar bullets, geen ellenlange
 per uitgebrachte versie (élke versie, geen gaten; géén `Ongepubliceerd`-kop, geen los-vast archief) ·
 (4) wiki bijwerken waar nodig —
 **allebei**: in-app gidsen (`public/docs`) én de GitHub-wiki · (5) oude worktrees opruimen ·
-(6) zelf aanvullen (de volledige technische procedure hieronder, incl. `CLAUDE.md` bijwerken — stap 6).
+(6) zelf aanvullen (de volledige technische procedure hieronder, incl. `AGENTS.md` bijwerken — stap 6).
 
 ## Vaste feiten
 - **Versie = CalVer** `YYYY.M.patch` (bv. `2026.7.13`); tags krijgen een `v`-prefix (`v2026.7.13`).
@@ -122,10 +122,10 @@ de ene primary-gidsknop, de Wiki-link en desktop/smal/RTL-gedrag.
 uit stap 3 — disjuncte bestanden, mag parallel). Die skill is de volledige brief; kernmandaat:
 **elke doc-claim dubbelchecken tegen de commits van deze release** en bijwerken waar de doc achterloopt.
 Ze dekt beide bronnen:
-- **In-app gidsen** `public/docs/<lang>/<id>.md` — docs worden **in EN + NL** geschreven/bijgewerkt
-  (de brontalen); de overige locales volgen **maandelijks** in een aparte vertaalronde, niet per release.
-  `verify:docs` eist **alleen `nl` + `en`** en valideert de andere talen enkel wanneer ze er zijn —
-  een **nieuw** artikel in EN+NL houdt de poort dus groen, zónder stubs voor de overige talen.
+- **In-app gidsen** `public/docs/{nl,en}/<id>.md` — de docs bestaan alleen in **NL + EN** en worden
+  altijd samen bijgewerkt; andere UI-talen tonen de Engelse tekst. `verify:docs` eist beide en keurt
+  een map van een andere taal af. Een nieuw artikel volgt `docs/recepten/in-app-gids.md`; de `docsId`
+  van een nieuw hoogtepunt (stap 4a) moet een bestaand artikel-id zijn (poort 10).
 - **GitHub-wiki** — een build-artefact uit repo-bronnen (`public/docs/en`, `docs/wiki/*`, changelog)
   via `scripts/publish-wiki.mjs`. Nooit de wiki direct bewerken.
 
@@ -133,14 +133,14 @@ Hier in **Fase A alleen voorbereiden + verifiëren** (bronnen bijwerken, `npm ru
 dode-link-check — alles groen). De daadwerkelijke `-- --push` = publiceren en gebeurt in **Fase B
 (stap 18)**, gedekt door de akkoord-poort.
 
-### 6. `CLAUDE.md` bijwerken
-`CLAUDE.md` is de architectuur-/commando-referentie voor Claude Code zelf (niet gedekt door
-`verify:docs`, dus rot stil weg als niemand 'm checkt). Loop de historie uit stap 1 langs op
+### 6. `AGENTS.md` bijwerken
+`AGENTS.md` is de architectuur-/commando-referentie voor agents (`CLAUDE.md` importeert hem alleen;
+`verify:docs` dekt maar een deel, de rest rot stil weg als niemand 'm checkt). Loop de historie uit stap 1 langs op
 wijzigingen die iets claimen dat er nu in staat: nieuwe/gewijzigde npm-scripts, nieuwe of
 hernoemde `src/services/`- of `state/slices/`-modules, nieuwe Tauri-plugins/commands, gewijzigde
 architectuurpatronen (bv. file-I/O-pad, IFC-roundtrip, ribbon/backstage-structuur), nieuwe i18n-
-namespaces/locales, of een gewijzigde release-/CI-procedure. Werk `CLAUDE.md` (alleen de kern; houd
-hem onder ~150 regels) of het passende `.claude/rules/<onderdeel>.md` (diepgang) bij waar het
+namespaces/locales, of een gewijzigde release-/CI-procedure. Werk `AGENTS.md` (alleen de kern; houd
+hem onder ~250 regels) of het passende `.claude/rules/<onderdeel>.md` (diepgang) bij waar het
 achterloopt; laat het onaangeroerd als er niets architecturaal relevants is veranderd sinds de
 vorige release. Kan gecombineerd worden met de doc-subagent uit stap 5 (zelfde soort werk,
 zelfde soort dubbelcheck-tegen-de-commits), of los.
@@ -314,7 +314,7 @@ branch en PR — `main` vereist daar een review en Nozzit heeft er géén bypass
 | latest.json markdown | De updater rendert geen markdown netjes → notes in `latest.json` = platte tekst. `scripts/release-notes.mjs --format=notes` stript inline-markdown, maar schrijf de bullets alsnog opmaak-arm. |
 | Website loopt achter | De dagelijkse Action werkt alleen de gegenereerde delen van de productpagina bij. Handgeschreven content — uitlichtblok, features, FAQ, vertalingen, screenshots — blijft op de vorige release staan tot iemand het doet. Zie stap 19. |
 | Releasetekst vergeten | Zonder `docs/release-notes/vX.Y.Z.md` krijgt de release de generieke tekst en een leeg `notes`-veld (zoals v2026.7.12). Terugval breekt niets, maar de tekst is dan fout — let op de gate-warning. |
-| CLAUDE.md | Geen `verify:docs`-poort, dus rot stil weg — stap 6 is de enige check. |
+| AGENTS.md | `verify:docs` bewaakt alleen de machinale feiten (scripts, tabbladen, locales, toolaantal); de rest rot stil weg — stap 6 is de enige check. |
 
 ## Rode vlaggen — stop
 - Tag pushen vóór de akkoord-poort (stap 12).

@@ -50,6 +50,24 @@ export const HOST_EVENTS = {
   projectNew: 'host:project-new',
   /** Het CPM-schema is (her)berekend. */
   scheduleCalculated: 'host:schedule-calculated',
+  /**
+   * De gebruiker vroeg de app een tutorial te starten (contract 1.4.0; nu: "Ja" op de tutorialvraag
+   * na de eerste voltooide rondleiding). Data: {@link HostTutorialRequest}. GERICHT aan één extensie:
+   * alleen de extensie met `extensionId` hoort te reageren, en `tutorialId` is een tutorialartikel
+   * dat zij zelf via `api.help.registerArticles` registreerde. De host zendt pas uit als die
+   * extensie actief is (haar `onLoad` is klaar), en kijkt daarna of er een begeleiding van haar loopt;
+   * zo niet, dan valt hij terug op Help › Tutorials. Start dus SYNCHROON `api.help.startGuide(...)`
+   * in de listener.
+   */
+  tutorialRequested: 'host:tutorial-requested',
 } as const;
 
 export type HostEventName = (typeof HOST_EVENTS)[keyof typeof HOST_EVENTS];
+
+/** De data van `host:tutorial-requested` (zie {@link HOST_EVENTS}). */
+export interface HostTutorialRequest {
+  /** Het extensie-id waarvoor het verzoek bedoeld is; andere extensies negeren het. */
+  extensionId: string;
+  /** Id van een door die extensie geregistreerd tutorialartikel (`kind: 'tutorial'`). */
+  tutorialId: string;
+}

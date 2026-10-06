@@ -18,6 +18,7 @@ import { hasBlockingDialogOpen } from '@/hooks/keyboard/shortcutRegistry';
 import type { DocumentInfo } from '@/state/slices/documentSlice';
 import type { UIState } from '@/state/slices/types';
 import { displayDocumentTitle } from '@/utils/documents';
+import { ensureFreshScheduleForRead, type ReadFreshResult } from '../staleGuard';
 import type {
   McpContext,
   McpEnvelope,
@@ -72,6 +73,23 @@ export function mcpDocumentTitle(info: DocumentInfo | undefined): string {
 // --- Envelop -------------------------------------------------------------------------------------
 
 /**
+ * De Engelse toelichting die de envelop meestuurt zolang het document in "datums zoals opgeslagen"
+ * staat (`McpEnvelope.scheduleNote`). Termen volgen de Engelse UI (`common:recordedDates.*`).
+ */
+export const DATES_AS_RECORDED_NOTE =
+  'Dates as recorded: the dates are the ones recorded in the imported file, not recalculated by Open Planner ' +
+  'Studio. Read tools do not recalculate in this mode, because recalculating would replace the recorded dates. ' +
+  'The user can recalculate in the app (Recalculate, F5), and any change you make with a mutating tool ' +
+  'recalculates the schedule and leaves this mode.';
+
+/** De toelichting op een leestool-call die niet doorrekende omdat de gebruiker midden in een
+ *  bewerking zat (`ReadFreshResult.heldByEdit`). */
+export const EDIT_IN_PROGRESS_NOTE =
+  'Not recalculated: the user is in the middle of an edit in the app (dragging or typing), and ' +
+  'recalculating now would move bars under their hands. The dates may be out of date (`scheduleStale`); ' +
+  'read again in a moment.';
+
+/**
  * Bouw de respons-envelop uit de LIVE store-state:
  *   - `activeDocumentId` — top-level doc-registry;
  *   - `documentTitle` — via de bestaande titel-afleiding (`getOpenDocuments()`, dat de interne
@@ -79,6 +97,8 @@ export function mcpDocumentTitle(info: DocumentInfo | undefined): string {
  *     titel (bestandsnaam zonder extensie, anders projectnaam, anders `MCP_UNTITLED_TITLE` +
  *     eventueel een volgnummer — zie `mcpDocumentTitle`);
  *   - `scheduleStale` — top-level plannings-versheidsvlag;
+ *   - `datesAsRecorded` + `scheduleNote` — alleen zolang "datums zoals opgeslagen" aanstaat;
+ *   - `scheduleError` — alleen zolang de laatste berekening een fout draagt;
  *   - `paused`/`readOnly` — de twee veiligheidsvlaggen, LIVE uit de ui-state. `McpContext.paused/
  *     readOnly` zijn een snapshot bij `buildMcpContext`; die gelijkheid geldt NIET meer zodra er een
  *     async grens tussen zit — tijdens de backup-await in `runMutateTool` kan de user de pauze-/
@@ -90,13 +110,21 @@ export function mcpDocumentTitle(info: DocumentInfo | undefined): string {
 export function buildEnvelope(ctx: McpContext): McpEnvelope {
   const s = ctx.app.store.getState();
   const active = s.getOpenDocuments().find((d) => d.isActive);
-  return {
+  const envelope: McpEnvelope = {
     activeDocumentId: s.activeDocumentId,
     documentTitle: mcpDocumentTitle(active),
     scheduleStale: s.scheduleStale,
     paused: s.ui.aiPaused,
     readOnly: s.ui.aiReadOnly,
   };
+  // "Datums zoals opgeslagen": `scheduleStale` is daar per invariant `false` (state/scheduleStale.ts)
+  // en kan de modus dus niet dragen. Zonder dit veld leest de agent opgeslagen datums als berekening.
+  if (s.datesAsRecorded) {
+    envelope.datesAsRecorded = true;
+    envelope.scheduleNote = DATES_AS_RECORDED_NOTE;
+  }
+  if (s.cpmResult?.error) envelope.scheduleError = s.cpmResult.error;
+  return envelope;
 }
 
 // --- Dialoog-guard ------------------------------------------------------------------------------
@@ -112,7 +140,7 @@ const BLOCKING_UI_FLAGS = [
   'showCalendarDialog', 'showUpdateDialog', 'showNewProjectDialog', 'showFeedbackDialog',
   'showStructureDialog', 'showLevelingDialog', 'showBaselineDialog', 'showColumnsDialog',
   'showFilterDialog', 'showLayoutsDialog', 'showProjectOverview', 'presentationMode',
-  'showTourOverlay', 'showWelcomeDialog', 'showProgressImportDialog', 'pendingActualStartQuestion',
+  'showTourOverlay', 'showWelcomeDialog', 'showTutorialOffer', 'showProgressImportDialog', 'pendingActualStartQuestion',
 ] as const;
 
 /** Naam van de eerste open blokkerende ui-vlag, of null wanneer er geen open staat. */
@@ -129,8 +157,8 @@ function blockingDialogName(ui: UIState): string | null {
 function dialogGuard(ctx: McpContext, action: string): McpToolErr | null {
   const ui = ctx.app.store.getState().ui;
   if (!hasBlockingDialogOpen(ui)) return null;
-  const name = blockingDialogName(ui) ?? 'een dialoog';
-  return toolError(ctx, 'DIALOG_OPEN', `Er staat een dialoog open (${name}); sluit die eerst voordat de AI ${action}.`);
+  const name = blockingDialogName(ui) ?? 'a dialog';
+  return toolError(ctx, 'DIALOG_OPEN', `A dialog is open (${name}); close it first before the AI ${action}.`);
 }
 
 // --- Stap-fout ----------------------------------------------------------------------------------
@@ -197,12 +225,12 @@ export function mapTransactionError(message: string): McpErrorCode {
  */
 export function preBackupGuards(ctx: McpContext): McpToolErr | null {
   if (ctx.paused) {
-    return toolError(ctx, 'PAUSED', 'De AI-bridge is door de gebruiker gepauzeerd; muterende tools zijn tijdelijk geweigerd.');
+    return toolError(ctx, 'PAUSED', 'The AI bridge has been paused by the user; mutating tools are refused for now.');
   }
   if (ctx.readOnly) {
-    return toolError(ctx, 'READ_ONLY', 'De AI-bridge staat in alleen-lezen-modus; muterende tools zijn geweigerd zolang die actief is.');
+    return toolError(ctx, 'READ_ONLY', 'The AI bridge is in read-only mode; mutating tools are refused while it is active.');
   }
-  return dialogGuard(ctx, 'wijzigingen maakt');
+  return dialogGuard(ctx, 'makes changes');
 }
 
 /**
@@ -230,7 +258,7 @@ function driftGuard(ctx: McpContext): McpToolErr | null {
     return toolError(
       ctx,
       'DOC_DRIFT',
-      `Actief document is gewijzigd: was ${ctx.expectedDocId}, nu ${activeId} — bevestig met switch_document`,
+      `The active document has changed: was ${ctx.expectedDocId}, now ${activeId} — confirm with switch_document`,
     );
   }
   if (ctx.expectedDocId === null) {
@@ -248,17 +276,59 @@ function driftGuard(ctx: McpContext): McpToolErr | null {
  * mutaties). Een `McpStepError` uit `fn` houdt zijn eigen code (VALIDATION/NOT_FOUND bij een
  * ongeldig argument of onbekend id), net als bij `runMutateTool`; elke andere throw wordt een
  * `INTERNAL`-fout — nooit een throw naar de dispatcher.
+ *
+ * VERSHEID: een leestool die berekende waarden teruggeeft, zet `freshSchedule: true` (of roept
+ * `freshen` zelf aan na het keuren van zijn args) — zie `freshenScheduleForRead`. `fn` krijgt de
+ * state van ná die herrekening.
  */
-export function runReadTool(ctx: McpContext, fn: (s: AppState) => unknown): McpToolResult {
-  const blocked = dialogGuard(ctx, 'de planning leest');
+export function runReadTool(
+  ctx: McpContext,
+  fn: (s: AppState, freshen: () => ReadFreshResult) => unknown,
+  opts?: { freshSchedule?: boolean },
+): McpToolResult {
+  const blocked = dialogGuard(ctx, 'reads the schedule');
   if (blocked) return blocked;
+  // Hooguit één versheidsronde per call; de uitkomst stuurt `scheduleRecalculated` in de envelop.
+  const freshness: { result?: ReadFreshResult } = {};
+  const freshen = (): ReadFreshResult => (freshness.result ??= freshenScheduleForRead(ctx));
   try {
-    const data = fn(ctx.app.store.getState());
-    return { ok: true, envelope: buildEnvelope(ctx), data };
+    // Ná de dialoog-guard: met een open modaal wordt er ook niet doorgerekend. Een tool die eerst
+    // zijn args wil keuren (de herrekening kan duur zijn), roept `freshen` zelf aan.
+    if (opts?.freshSchedule) freshen();
+    const data = fn(ctx.app.store.getState(), freshen);
+    const envelope = buildEnvelope(ctx);
+    if (freshness.result?.recomputed) envelope.scheduleRecalculated = true;
+    if (freshness.result?.heldByEdit) envelope.scheduleNote = EDIT_IN_PROGRESS_NOTE;
+    return { ok: true, envelope, data };
   } catch (e) {
     if (e instanceof McpStepError) return toolError(ctx, e.code, e.message);
     return toolError(ctx, 'INTERNAL', e instanceof Error ? e.message : String(e));
   }
+}
+
+/**
+ * Versheid voor een leestool die berekende waarden teruggeeft (datums, speling, kritiek pad,
+ * projecteinde, bezetting, baseline- en vertragingsvergelijking): een verouderde of nooit berekende
+ * planning wordt eerst doorgerekend, zodat de agent nooit op oude datums leest. Behalve:
+ *  - in "datums zoals opgeslagen", tijdens een lopende bewerking van de gebruiker en na een mislukte
+ *    berekening met ongewijzigde invoer (zie `ensureFreshScheduleForRead`); de envelop meldt dan de
+ *    modus, `scheduleStale` + `scheduleNote`, of `scheduleError`;
+ *  - binnen een lopende MCP-transactie (een leesstap in `planner_batch`): daar meet de transactie elke
+ *    taakwijziging als datawijziging, dus een herrekening hier zou van een lezing een undo-stap met
+ *    `isDirty` maken. De batch ververst zelf: vóór de transactie (`batchTool.ts`) en na mutaties
+ *    (`recomputeMidBatch`).
+ *
+ * WAAROM DIT OOK MAG BIJ PAUZE EN ALLEEN-LEZEN (die blokkeren `runReadTool` bewust niet): de
+ * herrekening is dezelfde als F5 van de gebruiker en schrijft alleen berekende velden.
+ * `runCPM` (scheduleSlice) roept buiten de modus geen `beginUndoable` aan en geen
+ * `markDocumentEdited` — de enige plek die `isDirty` zet (state/documentEdited.ts) — en
+ * `refreshLatestDocumentDataHistoryAfter` werkt alleen de `after` van het laatste history-event bij,
+ * zodat een redo dezelfde doorgerekende datums terugzet. De invoer (taken, relaties, kalenders,
+ * resources) blijft onaangeroerd; "alleen lezen" belooft dat de AI die niet wijzigt.
+ */
+export function freshenScheduleForRead(ctx: McpContext): ReadFreshResult {
+  if (ctx.transactions.isActive()) return { recomputed: false };
+  return ensureFreshScheduleForRead(ctx.app);
 }
 
 // --- Muterende tool -----------------------------------------------------------------------------
@@ -288,6 +358,11 @@ export async function runMutateTool(
   ctx: McpContext,
   kind: McpToolDef['kind'],
   fn: () => MutationOutcome,
+  opts?: {
+    /** Draait ná alle guards (pauze, alleen-lezen, dialoog, drift) en vóór de transactie, dus buiten
+     *  de snapshot. Voor `planner_batch`: een verouderde planning verversen vóór leesstappen. */
+    beforeTransaction?: () => void;
+  },
 ): Promise<McpToolResult> {
   // (1-3) pauze → alleen-lezen → dialoog (geen async grens; gedeeld met guardNonTransactional).
   const preErr = preBackupGuards(ctx);
@@ -302,7 +377,7 @@ export async function runMutateTool(
   try {
     backupPath = await ctx.ensureBackup(backupDocId, kind);
   } catch (e) {
-    return toolError(ctx, 'BACKUP_FAILED', `AI-backup vóór de wijziging is mislukt: ${e instanceof Error ? e.message : String(e)}`);
+    return toolError(ctx, 'BACKUP_FAILED', `AI backup before the change failed: ${e instanceof Error ? e.message : String(e)}`);
   }
 
   // (5) drift-check / anker-binding — PAS NU, ná de backup-await: tijdens die await kan de user van
@@ -313,6 +388,7 @@ export async function runMutateTool(
   if (postErr) return postErr;
   const driftErr = driftGuard(ctx);
   if (driftErr) return driftErr;
+  opts?.beforeTransaction?.();
 
   // (6) de eigenlijke mutatie als één atomaire, ongedaan-maakbare transactie. Een handler mag een
   //     `McpStepError` gooien om een precieze code te forceren; die vangen we hier op (zijn code
@@ -362,9 +438,9 @@ export function bindExpectedDoc(ctx: McpContext): void {
 /**
  * Dezelfde guards als `runMutateTool` (pauze → alleen-lezen → dialoog → drift + anker-binding), maar
  * ZONDER de AI-backup en ZONDER `ctx.transactions.run`. Voor tools die niet in een MCP-transactie
- * horen: `undo`/`redo` beheren hun eigen undo-stack, en `run_cpm` is een recompute die de undo-stack
- * alleen raakt wanneer hij "datums zoals opgeslagen" verlaat — dan is dat juist gewenst, want die
- * herberekening overschrijft de opgeslagen datums. Er is hier geen async grens, dus de drift-check
+ * horen: `undo`/`redo` beheren hun eigen undo-stack; daarnaast gebruiken tools die vóór hun
+ * transactie al iets doen (keuren, `ensureFreshSchedule`) deze guards als voorpost. Er is hier geen
+ * async grens, dus de drift-check
  * volgt direct op de dialoog-guard. Retourneert een `McpToolErr` bij een blokkade, anders `null` (de
  * tool mag door).
  */

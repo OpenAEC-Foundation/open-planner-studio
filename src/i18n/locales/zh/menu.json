@@ -315,12 +315,7 @@
     "library": "资料库",
     "helpDocsLang": "文档语言",
     "helpDocsLangAuto": "跟随应用语言",
-    "helpStale": "此语言的文档仅偶尔更新。如需查看最新文档，请切换到英语或荷兰语。",
-    "helpLayer": {
-      "quickstart": "快速入门",
-      "gidsen": "主题指南",
-      "referentie": "参考"
-    },
+    "helpLangFallback": "文档尚未提供您的语言版本。您正在阅读英文版。",
     "unapplied": {
       "title": "更改尚未应用",
       "body": "您已修改项目信息，但尚未应用。要如何处理这些更改？",
@@ -395,6 +390,7 @@
     "confirmRemoveHint": "再次点击以永久移除",
     "catalogLoading": "正在加载目录...",
     "catalogError": "无法加载目录：{{error}}",
+    "networkTimeout": "{{seconds}} 秒内无响应",
     "retry": "重试",
     "noCatalogResults": "未找到扩展。",
     "install": "安装",

@@ -217,7 +217,7 @@ test('undo herstelt de klem samen met de startDate', async () => {
 
 test('beschrijving: update_project verzwijgt de bewerkbescherming niet meer', () => {
   const up = def('planner_update_project').description;
-  assert(/anchorsClamped|bewerkbescherming|vóór de nieuwe/.test(up), 'update_project noemt de klem-uitzondering niet meer');
+  assert(/anchorsClamped|edit protection|before the new/.test(up), 'update_project noemt de klem-uitzondering niet meer');
 });
 
 await run();

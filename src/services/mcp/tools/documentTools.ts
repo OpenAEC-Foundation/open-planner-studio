@@ -72,6 +72,13 @@ interface DocumentRow {
   /** Alleen aanwezig wanneer er wél gerekend is maar met een fout (kringverwijzing) — dát is de
    *  reden dat `projectEnd` ontbreekt, en die reden mag niet als "niet doorgerekend" wegvallen. */
   calculationError?: string;
+  /** Alleen aanwezig (en dan `true`) wanneer de invoer na de laatste berekening is gewijzigd. Het
+   *  actieve document is dan al vers doorgerekend (de tool rekent het eerst door); een geparkeerd
+   *  document kan de tool niet doorrekenen zonder ernaar te wisselen, dus daar meldt hij het. */
+  scheduleStale?: true;
+  /** Alleen aanwezig (en dan `true`) in "datums zoals opgeslagen": `projectEnd` is dan het
+   *  vastgelegde einde uit het bestand, geen berekening. */
+  datesAsRecorded?: true;
 }
 
 /**
@@ -99,6 +106,8 @@ function listDocuments(s: AppState): { activeDocumentId: string; documents: Docu
     const project = isActive ? s.project : entry.payload!.project;
     const tasks = isActive ? s.tasks : entry.payload!.tasks;
     const cpm = isActive ? s.cpmResult : entry.payload!.cpmResult;
+    const stale = isActive ? s.scheduleStale : entry.payload!.scheduleStale;
+    const asRecorded = isActive ? s.datesAsRecorded : entry.payload!.datesAsRecorded;
     const info = infos.get(entry.id);
     const row: DocumentRow = {
       id: entry.id,
@@ -114,6 +123,10 @@ function listDocuments(s: AppState): { activeDocumentId: string; documents: Docu
       if (cpm.projectEnd) row.projectEnd = cpm.projectEnd;
       if (cpm.error) row.calculationError = cpm.error;
     }
+    // Een rij-veld van de respons, geen storevlag; `= stale` (genarrowd tot `true`) houdt de
+    // broncontrole 11c in tests/planning/check-recorded-dates.ts zuiver.
+    if (stale) row.scheduleStale = stale;
+    if (asRecorded) row.datesAsRecorded = asRecorded;
     return row;
   });
   return { activeDocumentId: s.activeDocumentId, documents };
@@ -130,32 +143,35 @@ export const documentTools: McpToolDef[] = [
   {
     name: 'planner_list_documents',
     description:
-      'Alle geopende documenten (tabbladen) met per document: id, titel, `isActive`, `isDirty`, ' +
-      'taakaantal, `projectStart` (= project.startDate, het anker waar vanaf gerekend wordt) en ' +
-      '`projectEnd` (het berekende projecteinde). Twee signalen om NIET te verwarren: ' +
-      '`notCalculated: true` betekent dat het document nog nooit is doorgerekend (typisch na ' +
-      'crash-herstel — alleen het actieve document wordt dan doorgerekend) en dus geen einddatum ' +
-      'heeft; `calculationError` betekent dat er wél gerekend is maar met een fout (kringverwijzing), ' +
-      'waardoor het einddatum-veld ontbreekt. `title` is een WEERGAVEtitel: de bestandsnaam zonder ' +
-      'extensie, anders de projectnaam, en voor een project zonder naam "New schedule" (bij meerdere ' +
-      'naamloze documenten genummerd: "New schedule (2)"). Wil je weten of er écht een projectnaam ' +
-      'is gezet, lees dan `project.name` via get_project_info. Gebruik deze tool om varianten te vergelijken ' +
-      '(einddatums naast elkaar) en om document-id\'s te vinden voor switch_document.',
+      'All open documents (tabs), with per document: id, title, `isActive`, `isDirty`, task count, ' +
+      '`projectStart` (= project.startDate, the anchor the schedule is calculated from) and `projectEnd` ' +
+      '(the calculated project end). Two signals NOT to confuse: `notCalculated: true` means the document ' +
+      'has never been calculated (typically after crash recovery — only the active document is calculated ' +
+      'then) and therefore has no end date; `calculationError` means it was calculated but with an error ' +
+      '(circular dependency), so the end-date field is missing. `title` is a DISPLAY title: the file name ' +
+      'without extension, otherwise the project name, and for a project without a name "New schedule" ' +
+      '(numbered when there are several untitled documents: "New schedule (2)"). To know whether a project ' +
+      'name has really been set, read `project.name` via get_project_info. Use this tool to compare variants ' +
+      '(end dates side by side) and to find document ids for switch_document. FRESHNESS: an out-of-date ' +
+      'ACTIVE document is recalculated first, like F5 in the app (no undo step; the envelope then carries ' +
+      '`scheduleRecalculated: true`). Other open documents cannot be recalculated without switching to them: ' +
+      'such a row carries `scheduleStale: true`, and its `projectEnd` is the last calculated one. ' +
+      '`datesAsRecorded: true` on a row means its dates are the ones recorded in the imported file, not a ' +
+      'calculation; such a document is never recalculated by a read.',
     kind: 'document',
     batchable: false, // document-tools zijn uitgesloten van batch
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: READ_ANNOTATIONS,
-    handler: (_args, ctx) => runReadTool(ctx, (s) => listDocuments(s)),
+    handler: (_args, ctx) => runReadTool(ctx, (s) => listDocuments(s), { freshSchedule: true }),
   },
   {
     name: 'planner_new_document',
     description:
-      'Open een NIEUW, LEEG document in een eigen tabblad en maak het actief — het equivalent van ' +
-      'Bestand → Nieuw, maar bewust ZONDER de projectwizard (een open dialoog zou alle vervolgtools ' +
-      'blokkeren). Het nieuwe document heeft geen taken, geen bestandspad en de standaardkalender; ' +
-      'zet project-eigenschappen daarna met update_project. Het drift-anker verschuift naar het ' +
-      'nieuwe document, dus vervolgmutaties landen daar. Wil je juist een KOPIE van de huidige ' +
-      'planning (wat-als/variant), gebruik dan duplicate_document.',
+      'Open a NEW, EMPTY document in its own tab and make it active — the equivalent of File → New, but ' +
+      'deliberately WITHOUT the project wizard (an open dialog would block all follow-up tools). The new ' +
+      'document has no tasks, no file path and the default calendar; set project properties afterwards with ' +
+      'update_project. The drift anchor moves to the new document, so follow-up mutations land there. If you ' +
+      'want a COPY of the current schedule instead (what-if/variant), use duplicate_document.',
     kind: 'document',
     batchable: false,
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
@@ -178,23 +194,22 @@ export const documentTools: McpToolDef[] = [
   {
     name: 'planner_duplicate_document',
     description:
-      'Dupliceer het ACTIEVE document naar een nieuw tabblad en maak die kopie actief — de route ' +
-      'voor wat-als-scenario\'s en tendervarianten (nooit undo gebruiken als wat-als: die stack deel ' +
-      'je met de gebruiker). De kopie is volledig losgekoppeld: eigen diepe kopie van alle ' +
-      'planningsdata, LEEG bestandspad (zodat een Ctrl+S van de gebruiker het bronbestand niet ' +
-      'overschrijft), verse undo-stack en `isDirty: true`. Naam: `name` indien meegegeven, anders ' +
-      '"<projectnaam> (variant N)" met het laagste vrije nummer — er bestaat geen los titelveld, dus ' +
-      'dit is de projectnaam. Heeft de bron GEEN projectnaam, dan blijft ook de kopie naamloos (er ' +
-      'wordt geen naam verzonnen) en zijn de twee alleen in de weergavetitel te onderscheiden: ' +
-      '"New schedule" / "New schedule (2)". Het drift-anker verschuift naar de kopie: alle vervolgstappen landen ' +
-      'dáár, dus switch expliciet terug naar het basisdocument voordat je een volgende variant maakt ' +
-      '(anders krijg je varianten-van-varianten). De AI sluit varianten niet op: de gebruiker beslist.',
+      'Duplicate the ACTIVE document into a new tab and make that copy active — the route for what-if ' +
+      'scenarios and tender variants (never use undo as a what-if: you share that stack with the user). The ' +
+      'copy is fully detached: its own deep copy of all schedule data, an EMPTY file path (so a Ctrl+S by ' +
+      'the user does not overwrite the source file), a fresh undo stack and `isDirty: true`. Name: `name` if ' +
+      'given, otherwise "<project name> (variant N)" with the lowest free number — there is no separate ' +
+      'title field, so this is the project name. If the source has NO project name, the copy stays untitled ' +
+      'too (no name is invented) and the two can only be told apart by their display title: "New schedule" / ' +
+      '"New schedule (2)". The drift anchor moves to the copy: all follow-up steps land THERE, so switch ' +
+      'back explicitly to the base document before you make another variant (otherwise you get variants of ' +
+      'variants). The AI does not close variants: the user decides.',
     kind: 'document',
     batchable: false,
     inputSchema: {
       type: 'object',
       properties: {
-        name: { type: 'string', description: 'Projectnaam voor de kopie; weglaten ⇒ "<naam> (variant N)"' },
+        name: { type: 'string', description: 'Project name for the copy; omitted ⇒ "<name> (variant N)"' },
       },
       additionalProperties: false,
     },
@@ -206,7 +221,7 @@ export const documentTools: McpToolDef[] = [
       if (blocked) return blocked;
       const raw = (args ?? {}) as { name?: unknown };
       if (raw.name !== undefined && typeof raw.name !== 'string') {
-        return toolError(ctx, 'VALIDATION', "Parameter 'name' moet een tekst zijn wanneer je hem meegeeft.");
+        return toolError(ctx, 'VALIDATION', 'Parameter \'name\' must be text when you pass it.');
       }
       const name = typeof raw.name === 'string' && raw.name.trim() !== '' ? raw.name.trim() : undefined;
       const documentId = ctx.app.store.getState().duplicateDocument(name);
@@ -235,17 +250,17 @@ export const documentTools: McpToolDef[] = [
   {
     name: 'planner_switch_document',
     description:
-      'Maak een ander geopend document actief (id\'s via list_documents). Dit is óók de manier om ' +
-      'een DOC_DRIFT-fout op te lossen: wisselde de gebruiker zelf van tabblad, dan weigeren ' +
-      'muterende tools tot je met deze tool bevestigt wélk document je bedoelt. Wisselen naar het ' +
-      'al-actieve document is toegestaan en verandert niets. Let op: taak-, relatie- en ' +
-      'kalender-id\'s zijn PER DOCUMENT — id\'s uit een ander document zijn hier betekenisloos.',
+      'Make another open document active (ids via list_documents). This is ALSO the way to resolve a ' +
+      'DOC_DRIFT error: if the user switched tabs themselves, mutating tools refuse until you confirm with ' +
+      'this tool WHICH document you mean. Switching to the already active document is allowed and changes ' +
+      'nothing. Note: task, relationship and calendar ids are PER DOCUMENT — ids from another document are ' +
+      'meaningless here.',
     kind: 'document',
     batchable: false,
     inputSchema: {
       type: 'object',
       properties: {
-        documentId: { type: 'string', description: 'Document-id uit list_documents' },
+        documentId: { type: 'string', description: 'Document id from list_documents' },
       },
       required: ['documentId'],
       additionalProperties: false,
@@ -258,12 +273,12 @@ export const documentTools: McpToolDef[] = [
       if (blocked) return blocked;
       const raw = (args ?? {}) as { documentId?: unknown };
       if (typeof raw.documentId !== 'string' || raw.documentId.trim() === '') {
-        return toolError(ctx, 'VALIDATION', "Parameter 'documentId' (tekst) is verplicht; haal geldige id's op met planner_list_documents.");
+        return toolError(ctx, 'VALIDATION', 'Parameter \'documentId\' (text) is required; get valid ids with planner_list_documents.');
       }
       const documentId = raw.documentId;
       const s = ctx.app.store.getState();
       if (!s.documents.some((d) => d.id === documentId)) {
-        return toolError(ctx, 'NOT_FOUND', `Onbekend document-id '${documentId}'; open documenten zijn: ${s.documents.map((d) => d.id).join(', ')}`);
+        return toolError(ctx, 'NOT_FOUND', `Unknown document id '${documentId}'; open documents are: ${s.documents.map((d) => d.id).join(', ')}`);
       }
       s.switchDocument(documentId); // no-op wanneer het al actief is
       bindExpectedDoc(ctx);

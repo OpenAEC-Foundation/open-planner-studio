@@ -43,3 +43,4 @@ In the *Calendar* column, choose a calendar from the list. *Project calendar* re
 - [Calendars and working days](docs://uitleg-kalenders): why a resource calendar shifts no dates.
 - [Creating and assigning a calendar](docs://howto-kalender-maken-en-toewijzen): the fields of the calendar form.
 - [Generating holidays and the construction holiday](docs://howto-feestdagen-genereren): putting holidays and downtime in the calendar.
+- [Calendar windows](docs://ref-kalenders): all fields of the calendar windows.
