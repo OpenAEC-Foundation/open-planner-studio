@@ -418,6 +418,14 @@
       "kind": "uitleg"
     },
     {
+      "id": "uitleg-ai-koppeling",
+      "title": {
+        "nl": "Hoe de AI-koppeling werkt",
+        "en": "How the AI link works"
+      },
+      "kind": "uitleg"
+    },
+    {
       "id": "howto-resourcebibliotheek-gebruiken",
       "title": {
         "nl": "De resourcebibliotheek gebruiken",
@@ -518,6 +526,14 @@
       "title": {
         "nl": "Meldingen en waarschuwingen",
         "en": "Notifications and warnings"
+      },
+      "kind": "referentie"
+    },
+    {
+      "id": "ref-ai-tools",
+      "title": {
+        "nl": "AI-tools (planner_*)",
+        "en": "AI tools (planner_*)"
       },
       "kind": "referentie"
     },
