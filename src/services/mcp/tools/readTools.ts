@@ -1015,8 +1015,10 @@ const FRESH = { freshSchedule: true } as const;
 const FRESH_NOTE =
   ' Calculated values are always current: if the schedule is out of date (for example after an edit in the ' +
   'app), this tool recalculates it first, like F5 in the app (no undo step; the envelope then carries ' +
-  '`scheduleRecalculated: true`). Exception: while the document shows the dates as recorded in the imported ' +
-  'file, nothing is recalculated and the envelope carries `datesAsRecorded: true` with a `scheduleNote`.';
+  '`scheduleRecalculated: true`). Exceptions, where nothing is recalculated: while the document shows the ' +
+  'dates as recorded in the imported file (the envelope carries `datesAsRecorded: true` with a ' +
+  '`scheduleNote`); while the user is in the middle of an edit in the app (`scheduleStale: true` with a ' +
+  '`scheduleNote`); and after a failed calculation as long as nothing changed (the error is in `scheduleError`).';
 
 const NO_ARGS_SCHEMA = { type: 'object', properties: {}, additionalProperties: false } as const;
 

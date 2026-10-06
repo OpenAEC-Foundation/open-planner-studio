@@ -195,6 +195,6 @@ export async function handleMcpMessage(rawBody: string, ctx: McpContext): Promis
     }
 
     default:
-      return errorMsg(id, -32601, `Unknown method: ${method} `);
+      return errorMsg(id, -32601, `Unknown method: ${method}`);
   }
 }

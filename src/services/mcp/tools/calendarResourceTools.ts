@@ -2248,7 +2248,7 @@ const saveBaseline: McpToolDef = {
     // aan én stale" is onbereikbaar, zie de kop van readTools.ts).
     const fresh = ensureFreshSchedule(ctx.app);
     if (fresh.error) {
-      return toolError(ctx, 'VALIDATION', `the schedule could not be recalculated before the baseline: ${fresh.error} `);
+      return toolError(ctx, 'VALIDATION', `the schedule could not be recalculated before the baseline: ${fresh.error}`);
     }
 
     const name = (a.name as string | undefined) || `Baseline ${ctx.app.store.getState().baselines.length + 1}`;

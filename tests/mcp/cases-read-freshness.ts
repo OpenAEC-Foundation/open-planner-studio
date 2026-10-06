@@ -13,11 +13,14 @@
 //  - zet in `runReadTool` de regel `if (opts?.freshSchedule) freshen();` uit ⇒ case 1 en 2 slaan rood
 //    (oude datums, `scheduleStale: true` in de envelop);
 //  - haal de modus-tak uit `ensureFreshScheduleForRead` (staleGuard.ts) ⇒ case 5 slaat rood;
-//  - haal de `ctx.transactions.isActive()`-tak uit `freshenScheduleForRead` ⇒ case 4 slaat rood.
+//  - haal de `ctx.transactions.isActive()`-tak uit `freshenScheduleForRead` ⇒ case 4 slaat rood;
+//  - haal de `isAutoCalcHeld()`-tak uit `ensureFreshScheduleForRead` ⇒ case 6 slaat rood;
+//  - haal de `failedSolveBlocks`-tak uit `ensureFreshScheduleForRead` ⇒ case 7 slaat rood.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { getTool, registerAllTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
-import { DATES_AS_RECORDED_NOTE } from '@/services/mcp/tools/runtime';
+import { DATES_AS_RECORDED_NOTE, EDIT_IN_PROGRESS_NOTE } from '@/services/mcp/tools/runtime';
+import { holdAutoCalc } from '@/state/editHold';
 import type { McpContext, McpToolResult } from '@/services/mcp/contracts';
 import { mcpTransactions } from '@/state/mcpTransaction';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -288,6 +291,83 @@ test('controle: de eerste echte mutatie in de modus rekent wél door en verlaat 
   assertEq(res.envelope.datesAsRecorded, undefined, 'de envelop meldt de modus niet meer');
   assertEq(applied(), before + 1, 'één undo-stap');
   assertEq(task(bId).time.earlyStart, '2026-03-09', 'B staat op zijn herberekende start');
+});
+
+// --- 6) Een lopende bewerking (sleepgebaar, typen) houdt het bijrekenen tegen ---------------------
+// Zelfde rem als Automatisch berekenen (`editHold.ts`, `useBarDrag`, `useTextEntryAutoCalcHold`):
+// anders verspringt de balk onder de muis van de gebruiker.
+test('lopende bewerking (holdAutoCalc): een leestool rekent niet door en meldt dat eerlijk', async () => {
+  const p = staleProject();
+  const cpm = S().cpmResult;
+  const release = holdAutoCalc();
+  try {
+    const res = ok(await rpc('planner_get_task', { taskId: p.b }), 'get_task (bewerking)');
+    assertEq(res.envelope.scheduleStale, true, 'de envelop meldt eerlijk een verouderde planning');
+    assertEq(res.envelope.scheduleRecalculated, undefined, 'niet bijgerekend');
+    assertEq(res.envelope.scheduleNote, EDIT_IN_PROGRESS_NOTE, 'met de Engelse toelichting');
+    assert(S().cpmResult === cpm, 'cpmResult ongemoeid');
+    assertEq(res.data.schedule.earlyStart, p.oldStartB, 'de (nog) oude start, eerlijk als verouderd gemeld');
+  } finally {
+    release();
+  }
+  const after = ok(await rpc('planner_get_task', { taskId: p.b }), 'get_task (na de bewerking)');
+  assertEq(after.envelope.scheduleRecalculated, true, 'na loslaten rekent de volgende lezing wél door');
+  assertEq(after.envelope.scheduleNote, undefined, 'en dan zonder toelichting');
+});
+
+// --- 7) Na een mislukte berekening niet opnieuw solven zolang de invoer gelijk bleef --------------
+// Zelfde rem als Automatisch berekenen (`failedSolveGate.ts`): anders solvet elke lezing opnieuw en
+// telt de melding `cpm-error` op (ook nadat de gebruiker hem wegklikte).
+function cyclicProject(): { a: string; b: string } {
+  const p = staleProject();
+  // B → A erbij, zoals een importer hem schrijft (de store-route weigert de kring zelf).
+  store.setState((s) => {
+    s.sequences.push({ id: 'seq-kring', predecessorId: p.b, successorId: p.a, type: 'FINISH_START', lagDays: 0 });
+  });
+  return p;
+}
+
+const cpmErrorCount = () => S().ui.notifications.find((n) => n.dedupeKey === 'cpm-error')?.count ?? 0;
+
+test('kringverwijzing: de eerste lezing rekent één keer, daarna geen nieuwe solve of melding zolang de invoer gelijk blijft', async () => {
+  cyclicProject();
+  store.setState((s) => { s.ui.notifications = []; });
+  const first = ok(await rpc('planner_list_tasks'), 'list_tasks 1');
+  const error = S().cpmResult?.error;
+  assert(typeof error === 'string' && error.length > 0, 'opzet: de berekening faalt op de kring');
+  assertEq(first.envelope.scheduleError, error, 'list_tasks meldt de rekenfout in de envelop');
+  assertEq(first.envelope.scheduleStale, true, 'en de planning blijft verouderd');
+  assertEq(cpmErrorCount(), 1, 'één melding van de mislukte berekening');
+  const failed = S().cpmResult;
+
+  for (const tool of ['planner_get_project_info', 'planner_list_tasks', 'planner_get_critical_path']) {
+    const res = ok(await rpc(tool), tool);
+    assertEq(res.envelope.scheduleError, error, `${tool}: de fout staat in de envelop`);
+  }
+  const detail = ok(await rpc('planner_get_task', { taskId: S().tasks[0].id }), 'get_task');
+  assertEq(detail.envelope.scheduleError, error, 'get_task: de fout staat in de envelop');
+  assert(S().cpmResult === failed, 'geen nieuwe solve: cpmResult is hetzelfde object');
+  assertEq(cpmErrorCount(), 1, 'de melding telt niet op');
+
+  // Weggeklikt blijft weg.
+  store.setState((s) => { s.ui.notifications = []; });
+  ok(await rpc('planner_get_project_info'), 'get_project_info na wegklikken');
+  assertEq(cpmErrorCount(), 0, 'een weggeklikte melding komt niet terug door een lezing');
+
+  // Echte invoerwijziging (de kring weg) ⇒ de volgende lezing rekent wél, en slaagt.
+  store.setState((s) => { s.sequences = s.sequences.filter((q) => q.id !== 'seq-kring'); });
+  const fixed = ok(await rpc('planner_get_project_info'), 'get_project_info na herstel');
+  assertEq(fixed.envelope.scheduleRecalculated, true, 'na een invoerwijziging wordt er opnieuw gerekend');
+  assertEq(fixed.envelope.scheduleError, undefined, 'zonder fout');
+  assertEq(fixed.envelope.scheduleStale, false, 'en vers');
+});
+
+test('planner_batch met een leesstap op een verouderde planning meldt scheduleRecalculated in de envelop', async () => {
+  staleProject();
+  const res = ok(await rpc('planner_batch', { steps: [{ tool: 'planner_get_project_info' }] }), 'batch');
+  assertEq(res.envelope.scheduleRecalculated, true, 'de batch rekende vooraf door en zegt dat');
+  const fresh = ok(await rpc('planner_batch', { steps: [{ tool: 'planner_get_project_info' }] }), 'batch 2');
+  assertEq(fresh.envelope.scheduleRecalculated, undefined, 'op een verse planning niet');
 });
 
 await run();

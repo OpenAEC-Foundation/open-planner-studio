@@ -257,7 +257,7 @@ export function validateToolArgs(
   // Cap: bij een volledig verkeerd gevormde call zijn de eerste paar regels informatief, de rest ruis.
   const shown = out.slice(0, 8);
   const rest = out.length - shown.length;
-  return shown.join('; ') + (rest > 0 ? ` (+${rest} more violation(s)) ` : '');
+  return shown.join('; ') + (rest > 0 ? ` (+${rest} more violation(s))` : '');
 }
 
 /**

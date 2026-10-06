@@ -82,6 +82,13 @@ export const DATES_AS_RECORDED_NOTE =
   'The user can recalculate in the app (Recalculate, F5), and any change you make with a mutating tool ' +
   'recalculates the schedule and leaves this mode.';
 
+/** De toelichting op een leestool-call die niet doorrekende omdat de gebruiker midden in een
+ *  bewerking zat (`ReadFreshResult.heldByEdit`). */
+export const EDIT_IN_PROGRESS_NOTE =
+  'Not recalculated: the user is in the middle of an edit in the app (dragging or typing), and ' +
+  'recalculating now would move bars under their hands. The dates may be out of date (`scheduleStale`); ' +
+  'read again in a moment.';
+
 /**
  * Bouw de respons-envelop uit de LIVE store-state:
  *   - `activeDocumentId` — top-level doc-registry;
@@ -91,6 +98,7 @@ export const DATES_AS_RECORDED_NOTE =
  *     eventueel een volgnummer — zie `mcpDocumentTitle`);
  *   - `scheduleStale` — top-level plannings-versheidsvlag;
  *   - `datesAsRecorded` + `scheduleNote` — alleen zolang "datums zoals opgeslagen" aanstaat;
+ *   - `scheduleError` — alleen zolang de laatste berekening een fout draagt;
  *   - `paused`/`readOnly` — de twee veiligheidsvlaggen, LIVE uit de ui-state. `McpContext.paused/
  *     readOnly` zijn een snapshot bij `buildMcpContext`; die gelijkheid geldt NIET meer zodra er een
  *     async grens tussen zit — tijdens de backup-await in `runMutateTool` kan de user de pauze-/
@@ -115,6 +123,7 @@ export function buildEnvelope(ctx: McpContext): McpEnvelope {
     envelope.datesAsRecorded = true;
     envelope.scheduleNote = DATES_AS_RECORDED_NOTE;
   }
+  if (s.cpmResult?.error) envelope.scheduleError = s.cpmResult.error;
   return envelope;
 }
 
@@ -289,6 +298,7 @@ export function runReadTool(
     const data = fn(ctx.app.store.getState(), freshen);
     const envelope = buildEnvelope(ctx);
     if (freshness.result?.recomputed) envelope.scheduleRecalculated = true;
+    if (freshness.result?.heldByEdit) envelope.scheduleNote = EDIT_IN_PROGRESS_NOTE;
     return { ok: true, envelope, data };
   } catch (e) {
     if (e instanceof McpStepError) return toolError(ctx, e.code, e.message);
@@ -300,8 +310,9 @@ export function runReadTool(
  * Versheid voor een leestool die berekende waarden teruggeeft (datums, speling, kritiek pad,
  * projecteinde, bezetting, baseline- en vertragingsvergelijking): een verouderde of nooit berekende
  * planning wordt eerst doorgerekend, zodat de agent nooit op oude datums leest. Behalve:
- *  - in "datums zoals opgeslagen" (zie `ensureFreshScheduleForRead`): niet rekenen, de envelop meldt
- *    de modus;
+ *  - in "datums zoals opgeslagen", tijdens een lopende bewerking van de gebruiker en na een mislukte
+ *    berekening met ongewijzigde invoer (zie `ensureFreshScheduleForRead`); de envelop meldt dan de
+ *    modus, `scheduleStale` + `scheduleNote`, of `scheduleError`;
  *  - binnen een lopende MCP-transactie (een leesstap in `planner_batch`): daar meet de transactie elke
  *    taakwijziging als datawijziging, dus een herrekening hier zou van een lezing een undo-stap met
  *    `isDirty` maken. De batch ververst zelf: vóór de transactie (`batchTool.ts`) en na mutaties
@@ -366,7 +377,7 @@ export async function runMutateTool(
   try {
     backupPath = await ctx.ensureBackup(backupDocId, kind);
   } catch (e) {
-    return toolError(ctx, 'BACKUP_FAILED', `AI backup before the change failed: ${e instanceof Error ? e.message : String(e)} `);
+    return toolError(ctx, 'BACKUP_FAILED', `AI backup before the change failed: ${e instanceof Error ? e.message : String(e)}`);
   }
 
   // (5) drift-check / anker-binding — PAS NU, ná de backup-await: tijdens die await kan de user van

@@ -29,8 +29,13 @@ export interface McpEnvelope {
    *  rekenen bewust niet door. `scheduleStale` is in die modus altijd `false` (state/scheduleStale.ts),
    *  dus dit veld is het enige signaal. */
   datesAsRecorded?: true;
-  /** Korte Engelse toelichting bij `datesAsRecorded`; alleen samen daarmee gezet. */
+  /** Korte Engelse toelichting op de rekenstand: bij `datesAsRecorded`, of op de leestool-call die
+   *  niet doorrekende omdat de gebruiker midden in een bewerking zat (sleept, typt). */
   scheduleNote?: string;
+  /** Additieve contractuitbreiding: de fout van de laatste berekening (`cpmResult.error`, bv. een
+   *  kringverwijzing), alleen gezet zolang die er is. Zo ziet de agent hem bij elke tool, niet alleen
+   *  bij `get_project_info` en de histogram. */
+  scheduleError?: string;
 }
 
 export interface McpToolOk {

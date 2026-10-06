@@ -260,7 +260,7 @@ export const documentTools: McpToolDef[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        documentId: { type: 'string', description: 'Document id from list_documents ' },
+        documentId: { type: 'string', description: 'Document id from list_documents' },
       },
       required: ['documentId'],
       additionalProperties: false,

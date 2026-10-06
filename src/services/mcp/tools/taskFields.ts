@@ -601,4 +601,4 @@ export const TASK_FIELDS_DOC =
   'deliberately; the `time` branch itself, `status`, `parentId` and `resourceIds` are deliberately not ' +
   'settable here (use `progress`, planner_move_task and planner_manage_assignments respectively). `workRule` ' +
   'sets the task type (work = remaining duration × units; see the field description) — remaining work per ' +
-  'assignment is set with planner_manage_assignments. ';
+  'assignment is set with planner_manage_assignments.';

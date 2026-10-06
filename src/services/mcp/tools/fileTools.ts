@@ -424,7 +424,7 @@ export const fileTools: McpToolDef[] = [
         );
       }
       if (format !== 'IFC') {
-        notices.push('The document has NO save target yet: saving writes IFC, so the source file is not overwritten — the user chooses a path when saving. ');
+        notices.push('The document has NO save target yet: saving writes IFC, so the source file is not overwritten — the user chooses a path when saving.');
       }
       return {
         ok: true,

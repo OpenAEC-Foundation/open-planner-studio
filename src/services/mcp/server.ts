@@ -395,7 +395,7 @@ function internalErrorResponse(rawBody: string, error: unknown): string {
     id = parsed?.id ?? null;
   } catch { /* onparseerbaar ⇒ id null */ }
   const message = error instanceof Error ? error.message : String(error);
-  return JSON.stringify({ jsonrpc: '2.0', id, error: { code: -32603, message: `Internal error: ${message} ` } });
+  return JSON.stringify({ jsonrpc: '2.0', id, error: { code: -32603, message: `Internal error: ${message}` } });
 }
 
 // --- Status-handler (injecteerbaar) --------------------------------------------------------------

@@ -1072,7 +1072,7 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
       try {
         value = fn() as T;
         if (isThenable(value)) {
-          throw new Error('MCP transaction callback must be strictly synchronous and may not return a Promise/thenable ');
+          throw new Error('MCP transaction callback must be strictly synchronous and may not return a Promise/thenable');
         }
         // Wijzigde de callback per saldo projectdata? Gemeten VÓÓR de eindherberekening: `runCPM`
         // alléén is nooit een wijziging. Dit is de ene plek waar elke MCP-schrijfactie langskomt — ook

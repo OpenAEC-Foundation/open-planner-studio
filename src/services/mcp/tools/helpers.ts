@@ -129,5 +129,5 @@ export function unknownArgsReason(args: unknown, allowed: readonly string[], too
 
 /** De weigertekst voor een argument dat gezet is maar geen boolean (zonder afsluitende punt). */
 export function booleanArgReason(value: unknown, name: string): string {
-  return `\`${name}\` must be a boolean (true/false), got ${typeof value} '${String(value)}' `;
+  return `\`${name}\` must be a boolean (true/false), got ${typeof value} '${String(value)}'`;
 }

@@ -816,7 +816,7 @@ export const xerProvenanceTools: McpToolDef[] = [{
     'and supports no write path. Without an archive, summary reports `sourcePresent:false` with ' +
     '`archiveIssue` (`null`, or `{ code }` when an archive that was present turned out unusable on opening ' +
     'and was left out — codes: schema-version, hash-mismatch, truncated, bytes-missing, metadata-invalid, ' +
-    'structure). Not batchable: call it on its own, never as a step in `planner_batch`. ',
+    'structure). Not batchable: call it on its own, never as a step in `planner_batch`.',
   kind: 'read',
   batchable: false,
   inputSchema,

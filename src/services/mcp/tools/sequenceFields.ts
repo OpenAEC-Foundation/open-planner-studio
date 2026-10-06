@@ -196,4 +196,4 @@ export const LAG_DOC =
   '`lag` may be a number (2, -1), the read-side string ("+2d", "-1d", "2") or a percentage lag of the ' +
   'predecessor duration ("+50%"); any other form is REFUSED instead of silently set to 0. Setting a lag ' +
   'always clears the other lag representations (percentage ⇄ days ⇄ the minute lag read from IFC), so the ' +
-  'given value is really the effective one. ';
+  'given value is really the effective one.';

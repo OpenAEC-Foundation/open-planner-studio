@@ -215,7 +215,7 @@ export function describePhaseRefusal(
   return `task ${phase} would become a phase as a result; its assignment of resource '` +
     `${resourceName(s, refusal.resourceId)}' cannot move to the first new subtask '` +
     `${taskName(s, refusal.childId, pending)}', because that one already has that resource (one assignment ` +
-    'per resource per task). Adjust the assignments first (planner_manage_assignments) — nothing was changed ';
+    'per resource per task). Adjust the assignments first (planner_manage_assignments) — nothing was changed';
 }
 
 /** De meldingen na een geslaagde overgang (lees NA `applyPhaseTransitions`, roep `notify` buiten de producer). */

@@ -408,7 +408,7 @@ const deleteBaseline: BatchStepTool = {
   inputSchema: {
     type: 'object',
     properties: {
-      baselineId: { type: 'string', description: 'Id of the baseline to delete (planner_list_baselines). ' },
+      baselineId: { type: 'string', description: 'Id of the baseline to delete (planner_list_baselines).' },
     },
     required: ['baselineId'],
     additionalProperties: false,

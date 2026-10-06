@@ -72,8 +72,12 @@ document ooit achter, dan heeft de code gelijk.
   bezetting, baseline-vergelijking) geeft `{ freshSchedule: true }` mee aan `runReadTool`, of roept de
   meegegeven `freshen` zelf aan na het keuren van zijn args (`get_resource_histogram`). Dat loopt via
   `freshenScheduleForRead` (`tools/runtime.ts`): niet in "datums zoals opgeslagen" (de envelop meldt dan
-  `datesAsRecorded` + `scheduleNote`) en niet binnen een lopende MCP-transactie (`planner_batch` ververst
-  zelf vóór zijn transactie). Er is geen `planner_run_cpm`: zonder dit leest de agent oude datums.
+  `datesAsRecorded` + `scheduleNote`), niet tijdens een lopende bewerking van de gebruiker
+  (`isAutoCalcHeld`, de envelop houdt `scheduleStale: true` met een `scheduleNote`), niet opnieuw na een
+  mislukte berekening met ongewijzigde invoer (dezelfde rem als Automatisch berekenen,
+  `failedSolveGate.ts`; de fout staat in `scheduleError`), en niet binnen een lopende MCP-transactie
+  (`planner_batch` ververst zelf vóór zijn transactie). Er is geen `planner_run_cpm`: zonder dit leest de
+  agent oude datums.
 - **Read-only-modus** (`ui.aiReadOnly`) en **pauze** (`ui.aiPaused`) worden vóór de handler
   afgedwongen door `preBackupGuards` (`tools/runtime.ts`) — een muterende tool hoeft dit zelf niet te
   controleren, maar een leestool (`kind: 'read'`) loopt via `runReadTool`, dat deze guards bewust

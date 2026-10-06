@@ -128,7 +128,7 @@ export function planTaskSplits(task: Task, interruptions: unknown, cals: SplitCa
 
   const workMinutes = durationMinutesOf(task, { isHourMode: hourUnit, hoursPerDay });
   const current = toSplitPieces(task.splitGaps, workMinutes);
-  if (!current) return { ok: false, reason: `task '${task.id}': ${REFUSAL_TEXT['not-editable']} ` };
+  if (!current) return { ok: false, reason: `task '${task.id}': ${REFUSAL_TEXT['not-editable']}` };
   const minOffset = completedWorkMinutes(task, hoursPerDay);
   let pieces = removeAllGaps(current);
   for (const p of [...parsed].sort((a, b) => a.after - b.after || a.index - b.index)) {

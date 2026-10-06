@@ -17,6 +17,8 @@
 // onbereikbaar — vastgelegd in tests/planning/check-recorded-dates.ts. Dat is precies
 // wat `readOnlyHint: true` op `get_resource_histogram` overeind houdt.
 import { appStoreContext, type AppStoreContext } from '@/state/appStore';
+import { isAutoCalcHeld } from '@/state/editHold';
+import { createFailedSolveGate, type FailedSolveGate } from '@/state/failedSolveGate';
 
 /** Uitkomst van `ensureFreshSchedule`. */
 export interface FreshResult {
@@ -62,22 +64,69 @@ export function ensureFreshSchedule(app: AppStoreContext = appStoreContext): Fre
 export interface ReadFreshResult extends FreshResult {
   /** Gezet wanneer het document in "datums zoals opgeslagen" staat: er is bewust NIET gerekend. */
   datesAsRecorded?: true;
+  /** Gezet wanneer de gebruiker midden in een bewerking zit (`editHold.ts`): niet gerekend. */
+  heldByEdit?: true;
+  /** Gezet wanneer de laatste berekening faalde en de invoer sindsdien niet veranderde: niet opnieuw
+   *  gerekend; `error` draagt de fout van toen. */
+  failedSolveUnchanged?: true;
+}
+
+/** Per storecontext één rem, zoals `useAutoCalcCPM` er één per app heeft. */
+const failedSolveGates = new WeakMap<AppStoreContext, FailedSolveGate>();
+
+/**
+ * Dezelfde rem als Automatisch berekenen (`failedSolveGate.ts`): na een mislukte berekening pas
+ * opnieuw rekenen als de plannings-invoer echt veranderde. Zonder rem solvet elke leescall op een
+ * planning met een kringverwijzing opnieuw (`runCPM` laat `scheduleStale` dan staan) en telt de
+ * melding `cpm-error` op, ook nadat de gebruiker hem wegklikte.
+ *
+ * De rem moet ELKE storewijziging zien om te weten tegen welke invoer een rekenresultaat hoort; hij
+ * abonneert zich daarom bij de eerste verouderde lezing op de store. Op dat moment is onbekend of een
+ * al aanwezige fout nog bij de huidige invoer hoort (de gebruiker kan sindsdien iets gewijzigd
+ * hebben), dus die eerste keer wordt er gewoon gerekend: hooguit één extra solve, nooit een te
+ * vroege weigering.
+ */
+function failedSolveBlocks(app: AppStoreContext): boolean {
+  const state = app.store.getState();
+  const known = failedSolveGates.get(app);
+  if (known) return known.blocks(state);
+  const gate = createFailedSolveGate({
+    cpmResult: null, tasks: state.tasks, sequences: state.sequences,
+    calendar: state.calendar, calendars: state.calendars, project: state.project,
+  });
+  failedSolveGates.set(app, gate);
+  app.store.subscribe((next) => { gate.blocks(next); });
+  return false;
 }
 
 /**
- * De leestool-variant: herrekent precies zoals `ensureFreshSchedule`, behalve in "datums zoals
- * opgeslagen". Daar rekent een leestool NOOIT door: `runCPM` zou de modus verlaten, de opgeslagen
- * datums vervangen en een undo-stap pushen (scheduleSlice.runCPM) — een stille wijziging door een
- * tool die `readOnlyHint: true` draagt. De leestool geeft dan de opgeslagen datums terug; de envelop
- * meldt de modus (`datesAsRecorded` + `scheduleNote`, zie `buildEnvelope` in tools/runtime.ts).
+ * De leestool-variant van `ensureFreshSchedule`. Rekent een verouderde of nooit berekende planning
+ * door, met drie uitzonderingen:
  *
- * Volgens de kop is "modus aan én verouderd/nooit gerekend" onbereikbaar, dus `ensureFreshSchedule`
- * zou in de modus ook al niets doen. Deze expliciete tak maakt dat voor leestools afgedwongen in
- * plaats van afgeleid: breekt die invariant ooit, dan verlaat een leestool de modus nog steeds niet.
+ * 1. "Datums zoals opgeslagen". Daar rekent een leestool NOOIT door: `runCPM` zou de modus verlaten,
+ *    de opgeslagen datums vervangen en een undo-stap pushen (scheduleSlice.runCPM) — een stille
+ *    wijziging door een tool die `readOnlyHint: true` draagt. De envelop meldt de modus
+ *    (`datesAsRecorded` + `scheduleNote`, zie `buildEnvelope` in tools/runtime.ts). Volgens de kop is
+ *    "modus aan én verouderd/nooit gerekend" onbereikbaar; deze tak maakt dat voor leestools
+ *    afgedwongen in plaats van afgeleid.
+ * 2. Een lopende bewerking (`isAutoCalcHeld`, editHold.ts): sleept of typt de gebruiker, dan zou een
+ *    herberekening de balk onder de muis laten verspringen. Dezelfde rem als Automatisch berekenen;
+ *    de envelop meldt dan eerlijk `scheduleStale: true`.
+ * 3. Een mislukte berekening waarvan de invoer niet veranderde (`failedSolveBlocks`).
+ *
  * Muterende tools (`level_resources`, `save_baseline`) houden `ensureFreshSchedule`: zij wijzigen
  * het document toch, en daar mag doorrekenen.
  */
 export function ensureFreshScheduleForRead(app: AppStoreContext): ReadFreshResult {
-  if (app.store.getState().datesAsRecorded) return { recomputed: false, datesAsRecorded: true };
+  const state = app.store.getState();
+  if (state.datesAsRecorded) return { recomputed: false, datesAsRecorded: true };
+  if (!state.scheduleStale && state.cpmResult) return { recomputed: false };
+  if (isAutoCalcHeld()) return { recomputed: false, heldByEdit: true };
+  if (failedSolveBlocks(app)) {
+    const error = state.cpmResult?.error;
+    return error
+      ? { recomputed: false, failedSolveUnchanged: true, error }
+      : { recomputed: false, failedSolveUnchanged: true };
+  }
   return ensureFreshSchedule(app);
 }

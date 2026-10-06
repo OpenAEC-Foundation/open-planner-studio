@@ -466,7 +466,7 @@ const batch: McpToolDef = {
           required: ['tool'],
           properties: {
             tool: { type: 'string', description: 'Name of the tool, including the `planner_` prefix.' },
-            args: { type: 'object', description: 'The args of that tool; omit for tools without args. ' },
+            args: { type: 'object', description: 'The args of that tool; omit for tools without args.' },
           },
         },
       },
@@ -498,13 +498,24 @@ const batch: McpToolDef = {
     // F5: een verouderde planning doorrekenen als er een leesstap in het draaiboek staat. Niet in
     // "datums zoals opgeslagen" (`ensureFreshScheduleForRead`). Na mutaties ververst
     // `recomputeMidBatch` zoals voorheen.
+    //
+    // BEWUST bij ELKE leesstap, ook één ná een mutatie. Alleen "leesstap vóór de eerste mutatie"
+    // scheelt bij [mutatie, leesstap] op een al verouderde planning één solve (anders: vooraf +
+    // `recomputeMidBatch` + de eindherberekening), maar dan leest [no-op-mutatie, leesstap] oude datums:
+    // een no-op zet `mutatedSinceRecompute` niet, dus `recomputeMidBatch` draait niet, en binnen de
+    // transactie kan niet meer zonder undo-stap worden bijgerekend (cases-undo-noop.ts pint dat geval).
+    // Die extra solve valt alleen als de planning al bij de start verouderd was.
     const hasReadStep = parsed.some((step) => getTool(step.tool)?.kind === 'read');
-    const beforeTransaction = hasReadStep ? () => { ensureFreshScheduleForRead(ctx.app); } : undefined;
+    let recalculatedBefore = false;
+    const beforeTransaction = hasReadStep
+      ? () => { recalculatedBefore = ensureFreshScheduleForRead(ctx.app).recomputed; }
+      : undefined;
 
     // Eén muterende aanroep: één backup-trigger, één drift-/dialoog-check, één transactie.
     const res = await runMutateTool(
       ctx, 'batch', () => executeSteps(parsed, ctx, report, substeps, rejections), { beforeTransaction },
     );
+    if (recalculatedBefore && res.envelope) res.envelope.scheduleRecalculated = true;
     ctx.tempIdMap.clear();
 
     // Guard-weigeringen (pauze/alleen-lezen/dialoog/drift/backup) raken de loop niet — dan is er niets

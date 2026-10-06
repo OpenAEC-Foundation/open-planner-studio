@@ -1141,7 +1141,7 @@ const setTaskSplits: BatchStepTool = {
             afterWorkDays: { type: 'number', minimum: 0, description: 'Working days of work before the interruption (day task).' },
             afterWorkHours: { type: 'number', minimum: 0, description: 'Working hours of work before the interruption (hour task).' },
             pauseDays: { type: 'number', minimum: 0, description: 'Length of the interruption in working days (day task).' },
-            pauseHours: { type: 'number', minimum: 0, description: 'Length of the interruption in working hours (hour task). ' },
+            pauseHours: { type: 'number', minimum: 0, description: 'Length of the interruption in working hours (hour task).' },
           },
           additionalProperties: false,
         },

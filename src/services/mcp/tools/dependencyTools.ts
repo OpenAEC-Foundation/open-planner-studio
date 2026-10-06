@@ -421,7 +421,7 @@ const updateDependencies: BatchStepTool = {
             type: SEQ_TYPE_SCHEMA,
             lag: LAG_SCHEMA,
             predecessorId: { type: 'string', description: 'New predecessor (task id); omitted = unchanged.' },
-            successorId: { type: 'string', description: 'New successor (task id); omitted = unchanged. ' },
+            successorId: { type: 'string', description: 'New successor (task id); omitted = unchanged.' },
           },
           additionalProperties: false,
         },

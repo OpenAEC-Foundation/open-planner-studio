@@ -251,7 +251,7 @@ export const progress = {
         reason: `task '${taskId}' has no actual start yet and was planned to start only after the status ` +
           `date (${question.statusDate}) (planned start ${planned}): progress means it has already started, ` +
           'but only the user knows when. Pass the actual start in `progress.actualStart` (at the latest ' +
-          `${question.latest}); the AI connection does not derive it `,
+          `${question.latest}); the AI connection does not derive it`,
       };
     }
     // (12) COMMIT naar de draft.

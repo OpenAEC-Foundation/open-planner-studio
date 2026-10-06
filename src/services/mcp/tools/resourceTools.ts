@@ -707,7 +707,7 @@ const manageResources: BatchStepTool = {
       if (capacityTouched && state.tasks.some(hasLevelingOutput)) {
         warnings.push(
           'An APPLIED leveling is on this schedule; it was calculated on the OLD capacity and is now out of ' +
-          'date. Run planner_level_resources again or clear it with planner_clear_leveling. ',
+          'date. Run planner_level_resources again or clear it with planner_clear_leveling.',
         );
       }
       return { ...((res as McpToolOk).data as object), warnings, ...projectEndInfo(state) };
