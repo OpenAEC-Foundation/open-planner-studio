@@ -23,7 +23,8 @@ De hele protocol- en toollaag zit in `src/services/mcp/`: `server.ts` (levenscyc
 bedrading — álle `@tauri-apps/*`-imports dynamisch achter `isTauri()`, zodat de web-build blijft
 bouwen), `dispatcher.ts`, `schemaValidate.ts` (schema's worden in de dispatcher afgedwongen, óók
 binnen `planner_batch` — een draaiboek mag de poort niet omzeilen), `toolRegistry.ts`/`toolIndex.ts`,
-`staleGuard.ts` (`ensureFreshSchedule`), `backup.ts` (AI-backups per document in `appDataDir`,
+`staleGuard.ts` (`ensureFreshSchedule`; leestools met berekende waarden rekenen via
+`freshenScheduleForRead` in `tools/runtime.ts` zelf bij, behalve in "datums zoals opgeslagen"), `backup.ts` (AI-backups per document in `appDataDir`,
 `MAX_PER_DOC = 10`) en `activityLog.ts` (ring-buffer achter het AI-activiteitenpaneel). De 41
 `planner_*`-tools staan in `src/services/mcp/tools/` (taken, relaties, resources, kalender, project,
 baselines, documenten/bestanden, leestools, XER/P6-bronprovenance, en `planner_batch` als transactionele executor met

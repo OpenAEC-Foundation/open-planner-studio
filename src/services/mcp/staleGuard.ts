@@ -1,6 +1,7 @@
 // Versheids-guard-helper. Puur een helper: geen tool, geen envelop, geen store-uitbreiding.
-// Gebruikt door `save_baseline`, de losse `level_resources` en `get_resource_histogram`, die vóór hun
-// werk een verse planning nodig hebben maar geen extra undo-stap mogen achterlaten.
+// Gebruikt door `save_baseline` en de losse `level_resources` (muterend), en via
+// `ensureFreshScheduleForRead` door elke leestool die berekende waarden teruggeeft — allemaal tools
+// die vóór hun werk een verse planning nodig hebben maar geen extra undo-stap mogen achterlaten.
 //
 // De invariant die dit veilig maakt: `runCPM` pusht geen undo-snapshot (het schrijft alleen
 // berekende velden terug via Immer; zie scheduleSlice.runCPM en transaction.ts — géén
@@ -55,4 +56,28 @@ export function ensureFreshSchedule(app: AppStoreContext = appStoreContext): Fre
   // Verse referentie ná de recompute ophalen — runCPM heeft een nieuwe cpmResult gezet.
   const error = app.store.getState().cpmResult?.error;
   return error ? { recomputed: true, error } : { recomputed: true };
+}
+
+/** Uitkomst van `ensureFreshScheduleForRead`. */
+export interface ReadFreshResult extends FreshResult {
+  /** Gezet wanneer het document in "datums zoals opgeslagen" staat: er is bewust NIET gerekend. */
+  datesAsRecorded?: true;
+}
+
+/**
+ * De leestool-variant: herrekent precies zoals `ensureFreshSchedule`, behalve in "datums zoals
+ * opgeslagen". Daar rekent een leestool NOOIT door: `runCPM` zou de modus verlaten, de opgeslagen
+ * datums vervangen en een undo-stap pushen (scheduleSlice.runCPM) — een stille wijziging door een
+ * tool die `readOnlyHint: true` draagt. De leestool geeft dan de opgeslagen datums terug; de envelop
+ * meldt de modus (`datesAsRecorded` + `scheduleNote`, zie `buildEnvelope` in tools/runtime.ts).
+ *
+ * Volgens de kop is "modus aan én verouderd/nooit gerekend" onbereikbaar, dus `ensureFreshSchedule`
+ * zou in de modus ook al niets doen. Deze expliciete tak maakt dat voor leestools afgedwongen in
+ * plaats van afgeleid: breekt die invariant ooit, dan verlaat een leestool de modus nog steeds niet.
+ * Muterende tools (`level_resources`, `save_baseline`) houden `ensureFreshSchedule`: zij wijzigen
+ * het document toch, en daar mag doorrekenen.
+ */
+export function ensureFreshScheduleForRead(app: AppStoreContext): ReadFreshResult {
+  if (app.store.getState().datesAsRecorded) return { recomputed: false, datesAsRecorded: true };
+  return ensureFreshSchedule(app);
 }

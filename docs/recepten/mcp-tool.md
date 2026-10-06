@@ -66,9 +66,14 @@ document ooit achter, dan heeft de code gelijk.
   plus `ensureBackup`/`markDuplicateBorn`.
 - **`staleGuard.ts`'s `ensureFreshSchedule`** herrekent de planning alleen als ze stale is of nog
   nooit gedraaid heeft, zonder een undo-snapshot te pushen (`runCPM` schrijft alleen berekende
-  velden terug — zie de scheduling-alinea in `.claude/rules/state.md`). Gebruik hem in elke tool die een verse planning
-  nodig heeft maar geen extra undo-stap mag achterlaten (voorbeeld: `get_resource_histogram` in
-  `readTools.ts`).
+  velden terug — zie de scheduling-alinea in `.claude/rules/state.md`). Muterende tools die vóór hun
+  werk een verse planning nodig hebben, roepen hem zelf aan (`save_baseline`, `level_resources`).
+- **Een leestool die berekende waarden teruggeeft** (datums, speling, kritiek pad, projecteinde,
+  bezetting, baseline-vergelijking) geeft `{ freshSchedule: true }` mee aan `runReadTool`, of roept de
+  meegegeven `freshen` zelf aan na het keuren van zijn args (`get_resource_histogram`). Dat loopt via
+  `freshenScheduleForRead` (`tools/runtime.ts`): niet in "datums zoals opgeslagen" (de envelop meldt dan
+  `datesAsRecorded` + `scheduleNote`) en niet binnen een lopende MCP-transactie (`planner_batch` ververst
+  zelf vóór zijn transactie). Er is geen `planner_run_cpm`: zonder dit leest de agent oude datums.
 - **Read-only-modus** (`ui.aiReadOnly`) en **pauze** (`ui.aiPaused`) worden vóór de handler
   afgedwongen door `preBackupGuards` (`tools/runtime.ts`) — een muterende tool hoeft dit zelf niet te
   controleren, maar een leestool (`kind: 'read'`) loopt via `runReadTool`, dat deze guards bewust

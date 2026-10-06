@@ -72,6 +72,13 @@ interface DocumentRow {
   /** Alleen aanwezig wanneer er wél gerekend is maar met een fout (kringverwijzing) — dát is de
    *  reden dat `projectEnd` ontbreekt, en die reden mag niet als "niet doorgerekend" wegvallen. */
   calculationError?: string;
+  /** Alleen aanwezig (en dan `true`) wanneer de invoer na de laatste berekening is gewijzigd. Het
+   *  actieve document is dan al vers doorgerekend (de tool rekent het eerst door); een geparkeerd
+   *  document kan de tool niet doorrekenen zonder ernaar te wisselen, dus daar meldt hij het. */
+  scheduleStale?: true;
+  /** Alleen aanwezig (en dan `true`) in "datums zoals opgeslagen": `projectEnd` is dan het
+   *  vastgelegde einde uit het bestand, geen berekening. */
+  datesAsRecorded?: true;
 }
 
 /**
@@ -99,6 +106,8 @@ function listDocuments(s: AppState): { activeDocumentId: string; documents: Docu
     const project = isActive ? s.project : entry.payload!.project;
     const tasks = isActive ? s.tasks : entry.payload!.tasks;
     const cpm = isActive ? s.cpmResult : entry.payload!.cpmResult;
+    const stale = isActive ? s.scheduleStale : entry.payload!.scheduleStale;
+    const asRecorded = isActive ? s.datesAsRecorded : entry.payload!.datesAsRecorded;
     const info = infos.get(entry.id);
     const row: DocumentRow = {
       id: entry.id,
@@ -114,6 +123,10 @@ function listDocuments(s: AppState): { activeDocumentId: string; documents: Docu
       if (cpm.projectEnd) row.projectEnd = cpm.projectEnd;
       if (cpm.error) row.calculationError = cpm.error;
     }
+    // Een rij-veld van de respons, geen storevlag; `= stale` (genarrowd tot `true`) houdt de
+    // broncontrole 11c in tests/planning/check-recorded-dates.ts zuiver.
+    if (stale) row.scheduleStale = stale;
+    if (asRecorded) row.datesAsRecorded = asRecorded;
     return row;
   });
   return { activeDocumentId: s.activeDocumentId, documents };
@@ -139,12 +152,17 @@ export const documentTools: McpToolDef[] = [
       'without extension, otherwise the project name, and for a project without a name "New schedule" ' +
       '(numbered when there are several untitled documents: "New schedule (2)"). To know whether a project ' +
       'name has really been set, read `project.name` via get_project_info. Use this tool to compare variants ' +
-      '(end dates side by side) and to find document ids for switch_document.',
+      '(end dates side by side) and to find document ids for switch_document. FRESHNESS: an out-of-date ' +
+      'ACTIVE document is recalculated first, like F5 in the app (no undo step; the envelope then carries ' +
+      '`scheduleRecalculated: true`). Other open documents cannot be recalculated without switching to them: ' +
+      'such a row carries `scheduleStale: true`, and its `projectEnd` is the last calculated one. ' +
+      '`datesAsRecorded: true` on a row means its dates are the ones recorded in the imported file, not a ' +
+      'calculation; such a document is never recalculated by a read.',
     kind: 'document',
     batchable: false, // document-tools zijn uitgesloten van batch
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: READ_ANNOTATIONS,
-    handler: (_args, ctx) => runReadTool(ctx, (s) => listDocuments(s)),
+    handler: (_args, ctx) => runReadTool(ctx, (s) => listDocuments(s), { freshSchedule: true }),
   },
   {
     name: 'planner_new_document',

@@ -9,18 +9,21 @@
 // tool gooit een `McpStepError` om een NETTE code terug te geven (VALIDATION bij een
 // ongeldig argument, NOT_FOUND bij een onbekend id) i.p.v. de generieke INTERNAL van een kale throw.
 //
-// `get_resource_histogram` roept `ensureFreshSchedule` aan (herrekent ALLEEN als stale of nog nooit
-// gerekend) en meldt in de data of het (her)berekend is; dat is de enige leestool die de store-cache
-// raakt, en dat is een versheids-refresh, geen mutatie — de annotatie blijft `readOnlyHint:true`
-// (readOnlyHint staat op ALLE leestools).
+// VERSHEID. Elke tool hier die berekende waarden teruggeeft (datums, speling, kritiek pad,
+// projecteinde, bezetting, baseline-/vertragingsvergelijking) rekent een verouderde of nooit berekende
+// planning eerst zelf door (`FRESH`, of `freshen` na het keuren van de args bij
+// `get_resource_histogram`) — zie `freshenScheduleForRead` in runtime.ts. Zonder `planner_run_cpm` is
+// dat de enige manier waarop de agent na een handmatige wijziging in de app verse datums leest.
+// `list_resources` en `get_calendars` geven alleen invoer terug en rekenen niet.
 //
-// `runCPM` pusht alleen een undo-snapshot bij het verlaten van "datums zoals opgeslagen", en
-// "modus aan én verouderd" is onbereikbaar (zie de kop van staleGuard.ts). Daarmee blijft
-// `readOnlyHint:true` verdedigbaar.
+// Dat is een versheids-refresh, geen mutatie: dezelfde herrekening als F5, zonder undo-stap en zonder
+// `isDirty`. In "datums zoals opgeslagen" rekent een leestool NOOIT door (`runCPM` zou daar de modus
+// verlaten en wél een undo-stap pushen); de envelop meldt dan de modus. Daarmee blijft
+// `readOnlyHint:true` verdedigbaar (readOnlyHint staat op ALLE leestools).
 
 import type { AppState } from '@/state/appStore';
 import { flattenOrder } from '@/utils/wbs';
-import { ensureFreshSchedule } from '../staleGuard';
+import type { ReadFreshResult } from '../staleGuard';
 import { McpStepError, runReadTool } from './runtime';
 import { lagLabel, seqAbbrev } from './sequenceFields';
 import type { McpContext, McpToolDef } from '../contracts';
@@ -736,7 +739,7 @@ interface HistogramArgs {
   bucket?: unknown;
 }
 
-function getResourceHistogram(ctx: McpContext, args: HistogramArgs) {
+function getResourceHistogram(ctx: McpContext, args: HistogramArgs, freshen: () => ReadFreshResult) {
   // VALIDEREN VÓÓR DE (potentieel dure) RECOMPUTE. Drie stille faalgevallen die zo uitgesloten zijn:
   //   - `bucket` gecoërceerd (`bucket: 'day'` stil 'week');
   //   - niet-string `resourceIds` weggefilterd; valt alles weg, dan wordt `scoped` false en schakelt
@@ -766,10 +769,10 @@ function getResourceHistogram(ctx: McpContext, args: HistogramArgs) {
     resourceIds = args.resourceIds as string[];
   }
 
-  // Vers herrekenen wanneer stale of nog nooit gerekend. Dit is de enige leestool die de cache
-  // raakt; het is een versheids-refresh, geen mutatie — en hij kan de undo-stack niet raken, want
-  // "datums zoals opgeslagen" is onbereikbaar in combinatie met stale/nooit-gerekend (zie de kop).
-  const fresh = ensureFreshSchedule(ctx.app);
+  // Vers herrekenen wanneer stale of nog nooit gerekend — maar niet in "datums zoals opgeslagen" en
+  // niet binnen een batch-transactie (zie `freshenScheduleForRead`). Een versheids-refresh, geen
+  // mutatie: geen undo-stap, geen `isDirty`.
+  const fresh = freshen();
   const s = ctx.app.store.getState(); // verse contextstate ná een eventuele recompute
 
   const bucket: 'dag' | 'week' | 'maand' = args.bucket === 'dag' ? 'dag' : args.bucket === 'maand' ? 'maand' : 'week';
@@ -1005,6 +1008,16 @@ function analyzeDelay(s: AppState) {
 
 // ── Tool-definities ──────────────────────────────────────────────────────────────────────────────
 
+/** Leestool met berekende waarden: eerst een verouderde planning doorrekenen (zie de kop). */
+const FRESH = { freshSchedule: true } as const;
+
+/** Gedeelde zin in de beschrijving van elke leestool die zo doorrekent. */
+const FRESH_NOTE =
+  ' Calculated values are always current: if the schedule is out of date (for example after an edit in the ' +
+  'app), this tool recalculates it first, like F5 in the app (no undo step; the envelope then carries ' +
+  '`scheduleRecalculated: true`). Exception: while the document shows the dates as recorded in the imported ' +
+  'file, nothing is recalculated and the envelope carries `datesAsRecorded: true` with a `scheduleNote`.';
+
 const NO_ARGS_SCHEMA = { type: 'object', properties: {}, additionalProperties: false } as const;
 
 export const readTools: McpToolDef[] = [
@@ -1025,12 +1038,12 @@ export const readTools: McpToolDef[] = [
       'the variant of convention `p6InProgressStartLagElapsed` and is always present. ' +
       '`schedulingOptions.leveling` (only for a file that carries them, e.g. a P6 XER) are the leveling ' +
       'settings of the source file: read and kept, NOT applied yet (no effect on the calculation); manual ' +
-      'leveling remains `planner_level_resources`.',
+      'leveling remains `planner_level_resources`.' + FRESH_NOTE,
     kind: 'read',
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, [], 'get_project_info'); return getProjectInfo(s); }),
+    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, [], 'get_project_info'); return getProjectInfo(s); }, FRESH),
   },
   {
     name: 'planner_get_project_overview',
@@ -1046,12 +1059,12 @@ export const readTools: McpToolDef[] = [
       'response (every relationship appears once, at its predecessor), so one call is enough for structure ' +
       'AND network WORK — you do not need a second call for ids. NAME DRIFT READ↔WRITE: the field is called ' +
       '`wbs` here and `wbsCode` when writing (add_tasks/update_tasks); `id` is called `taskId` there. Hefty ' +
-      'for large projects; use list_tasks if you want pagination.',
+      'for large projects; use list_tasks if you want pagination.' + FRESH_NOTE,
     kind: 'read',
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, [], 'get_project_overview'); return getProjectOverview(s); }),
+    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, [], 'get_project_overview'); return getProjectOverview(s); }, FRESH),
   },
   {
     name: 'planner_list_tasks',
@@ -1065,7 +1078,7 @@ export const readTools: McpToolDef[] = [
       'that appear in no relationship at all; summary tasks are excluded). Pagination: `limit` (integer ' +
       '1..1000, default 50), `offset` (≥ 0); returns `total`, `has_more`, `next_offset`. Every filter is ' +
       'validated STRICTLY: a wrongly typed or out-of-domain value gives a clean error listing the allowed ' +
-      'values — never silently a different set.',
+      'values — never silently a different set.' + FRESH_NOTE,
     kind: 'read',
     batchable: true,
     inputSchema: {
@@ -1082,7 +1095,7 @@ export const readTools: McpToolDef[] = [
       additionalProperties: false,
     },
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => runReadTool(ctx, (s) => listTasks(s, (args ?? {}) as ListTasksArgs)),
+    handler: (args, ctx) => runReadTool(ctx, (s) => listTasks(s, (args ?? {}) as ListTasksArgs), FRESH),
   },
   {
     name: 'planner_get_task',
@@ -1111,7 +1124,7 @@ export const readTools: McpToolDef[] = [
       'non-working time (weekend, construction holiday, public holiday), `schedule.earlyFinish` is the last ' +
       'working day before it and therefore differs from the `actualFinish` — the response reports that ' +
       'explicitly under `progress.actualFinishAdjusted`. Both are stable: recalculating again does not ' +
-      'change them.',
+      'change them.' + FRESH_NOTE,
     kind: 'read',
     batchable: true,
     inputSchema: {
@@ -1121,7 +1134,7 @@ export const readTools: McpToolDef[] = [
       additionalProperties: false,
     },
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => runReadTool(ctx, (s) => getTask(s, (args ?? {}) as GetTaskArgs)),
+    handler: (args, ctx) => runReadTool(ctx, (s) => getTask(s, (args ?? {}) as GetTaskArgs), FRESH),
   },
   {
     name: 'planner_get_critical_path',
@@ -1131,12 +1144,12 @@ export const readTools: McpToolDef[] = [
       'these tasks+relationships is client work. `pathsMode` reports the situation: "merged" (one merged ' +
       'critical path — the normal case) or "parallel". Separate parallel chains (`criticalPaths`) are ONLY ' +
       'included when floatPaths with method FREE_FLOAT is active; otherwise there is by definition one ' +
-      'merged path and `criticalPaths` is missing.',
+      'merged path and `criticalPaths` is missing.' + FRESH_NOTE,
     kind: 'read',
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, [], 'get_critical_path'); return getCriticalPath(s); }),
+    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, [], 'get_critical_path'); return getCriticalPath(s); }, FRESH),
   },
   {
     name: 'planner_list_resources',
@@ -1168,8 +1181,8 @@ export const readTools: McpToolDef[] = [
     description:
       'Load/capacity histogram per resource. Params: `resourceIds` (omitted = all; an unknown id gives a ' +
       'clean error, not an empty series), `van`/`tot` (from/to; ISO window), `bucket` (exactly "dag" (day), ' +
-      '"week" or "maand" (month) — Dutch values, default "week"). RECALCULATES the schedule when it is out ' +
-      'of date or has never been calculated (and reports that via `recomputed`/`warning`). DETAIL ON ' +
+      '"week" or "maand" (month) — Dutch values, default "week"). A recalculation (see the end of this ' +
+      'description) is also reported in the data via `recomputed`/`warning`. DETAIL ON ' +
       'REQUEST: WITHOUT a window AND WITHOUT resourceIds (the naive first call) the tool returns ' +
       '`mode:"aggregate"` — per resource a summary (peakLoad + peakDate, overallocatedDayCount, ' +
       'spanStart/spanEnd, loadSum, capacitySum) with `detailAvailable:true`; peaks stay visible this way but ' +
@@ -1179,7 +1192,7 @@ export const readTools: McpToolDef[] = [
       'NOTE — WEEK MODE OVERHANG: week windows snap to whole ISO weeks (Mon..Sun), so a window can include ' +
       'days outside [van,tot] at its edges; capacity counts ALL working days of the (snapped) week window. ' +
       'Detail is capped at 10000 buckets (windows × resources); above that a VALIDATION error with the way ' +
-      'out.',
+      'out.' + FRESH_NOTE,
     kind: 'read',
     batchable: true,
     inputSchema: {
@@ -1193,7 +1206,7 @@ export const readTools: McpToolDef[] = [
       additionalProperties: false,
     },
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => runReadTool(ctx, () => getResourceHistogram(ctx, (args ?? {}) as HistogramArgs)),
+    handler: (args, ctx) => runReadTool(ctx, (_s, freshen) => getResourceHistogram(ctx, (args ?? {}) as HistogramArgs, freshen)),
   },
   {
     name: 'planner_get_calendars',
@@ -1223,12 +1236,12 @@ export const readTools: McpToolDef[] = [
       'onSchedule: late/early/new/dropped) plus `projectEndDelta`. No active baseline ⇒ clean VALIDATION ' +
       'error. YARDSTICK DISCLOSURE: deltas are working days on the CURRENT project calendar — after a ' +
       'calendar change the yardstick itself has changed (take magnitudes with a grain of salt; direction and ' +
-      'selection stay reliable).',
+      'selection stay reliable).' + FRESH_NOTE,
     kind: 'read',
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, [], 'compare_baseline'); return compareBaseline(s); }),
+    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, [], 'compare_baseline'); return compareBaseline(s); }, FRESH),
   },
   {
     name: 'planner_analyze_delay',
@@ -1238,11 +1251,11 @@ export const readTools: McpToolDef[] = [
       'would double-count a cascade). The critical shifters (variance ∩ critical path) with their individual ' +
       'deltas serve as localisation/explanation, not to be added up. If the baseline has no calculated ' +
       'project end, the tool reports that explicitly (`projectEndDeltaAvailable:false`) instead of ' +
-      'suggesting 0. ',
+      'suggesting 0.' + FRESH_NOTE,
     kind: 'read',
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, [], 'analyze_delay'); return analyzeDelay(s); }),
+    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, [], 'analyze_delay'); return analyzeDelay(s); }, FRESH),
   },
 ];

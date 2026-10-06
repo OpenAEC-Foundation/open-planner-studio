@@ -318,8 +318,11 @@ test('list_documents: twee documenten met titel, dirty/actief, projectstart, pro
   assertEq(second.isActive, true, 'het tweede document is actief');
   assertEq(second.taskCount, 0, 'een vers document heeft geen taken');
   assertEq(second.projectStart, '2026-09-07', 'projectstart van het tweede document');
-  assertEq(second.notCalculated, true, 'een nooit doorgerekend document meldt "niet doorgerekend"');
-  assertEq(second.projectEnd, undefined, 'geen projecteinde zonder cpmResult');
+  // Leestools rekenen een nooit doorgerekend ACTIEF document eerst door (freshenScheduleForRead), dus
+  // het "niet doorgerekend"-signaal blijft alleen voor geparkeerde documenten over (case 3).
+  assertEq(second.notCalculated, undefined, 'het actieve document is vóór het lezen doorgerekend');
+  assert(S().cpmResult !== null, 'list_documents heeft het actieve document doorgerekend');
+  assertEq(second.scheduleStale, undefined, 'het actieve document is na het lezen vers');
 });
 
 // =================================================================================================
@@ -370,6 +373,8 @@ test('list_documents: hersteld document zonder cpmResult meldt "niet doorgereken
     verouderdMetResultaat.notCalculated, undefined,
     'verouderd MÉT cpmResult is wél doorgerekend — de vlag mag niet uit scheduleStale komen',
   );
+  assertEq(verouderdMetResultaat.scheduleStale, true,
+    'een geparkeerd verouderd document kan niet doorgerekend worden en meldt dat per rij');
 });
 
 // =================================================================================================

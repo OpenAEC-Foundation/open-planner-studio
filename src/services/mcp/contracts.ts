@@ -20,6 +20,17 @@ export interface McpEnvelope {
    *  eenmalige-melding-gate te hangen — een tweede mutatie die opnieuw sturing loslaat (geen nieuwe
    *  toast meer, zie `timephasedLossNotice.ts`) draagt dit veld dus gewoon opnieuw. */
   timephasedGuidanceLost?: number;
+  /** Additieve contractuitbreiding: alleen gezet (en dan `true`) op de LEESTOOL-call die een
+   *  verouderde of nooit berekende planning eerst zelf doorrekende (`ensureFreshScheduleForRead`).
+   *  Dezelfde herrekening als F5: geen undo-stap, geen `isDirty`; wel zichtbaar in de app. */
+  scheduleRecalculated?: true;
+  /** Additieve contractuitbreiding: alleen gezet (en dan `true`) zolang het document in "datums
+   *  zoals opgeslagen" staat. De datums zijn dan die uit het bestand, geen berekening, en leestools
+   *  rekenen bewust niet door. `scheduleStale` is in die modus altijd `false` (state/scheduleStale.ts),
+   *  dus dit veld is het enige signaal. */
+  datesAsRecorded?: true;
+  /** Korte Engelse toelichting bij `datesAsRecorded`; alleen samen daarmee gezet. */
+  scheduleNote?: string;
 }
 
 export interface McpToolOk {

@@ -61,6 +61,10 @@ type Synchronous<T> = T extends PromiseLike<unknown> ? never : T;
 export interface McpTransactions {
   run<T>(fn: () => Synchronous<T>): McpTransactionResult<T>;
   draft: McpDraft;
+  /** Loopt er nu een `run` van DEZE factory? Leestools in een `planner_batch` draaien binnen de
+   *  transactie en mogen daar niet zelf herrekenen: de transactie zou die herrekening als
+   *  datawijziging meten (undo-stap + `isDirty`). Zie `freshenScheduleForRead` (tools/runtime.ts). */
+  isActive(): boolean;
 }
 
 // =================================================================================================
@@ -1122,5 +1126,5 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
     }
   };
 
-  return { run, draft };
+  return { run, draft, isActive: () => currentLease !== null };
 }

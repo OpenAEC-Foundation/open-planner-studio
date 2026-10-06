@@ -191,20 +191,28 @@ test('planner_batch die een naam wijzigt en weer terugzet: per saldo niets, dus 
   assertEq(task(a).name, 'Grondwerk', 'naam zoals hij was');
 });
 
-test('planner_batch: no-op-stap gevolgd door een leesstap op een verouderde planning ⇒ niets herrekend', async () => {
+// Sinds leestools zelf bijrekenen (besluit 2026-10): een leesstap in een batch leest verse datums. De
+// batch rekent daarvoor VÓÓR de transactie door, zoals F5 — dus nog steeds geen undo-stap, de
+// redo-stapel blijft en het document wordt niet vuil; alleen de berekende datums zijn ververst.
+test('planner_batch: no-op-stap gevolgd door een leesstap op een verouderde planning ⇒ verse datums, geen undo-stap', async () => {
   const { a, b } = savedProject();
   const staleStartB = makeStale(a, b);
   const before = snap();
   const res = ok(await rpc('planner_batch', {
     steps: [
       { tool: 'planner_update_tasks', args: { updates: [{ id: a, fields: { name: 'Grondwerk' } }] } },
-      { tool: 'planner_get_task', args: { taskId: a } },
+      { tool: 'planner_get_task', args: { taskId: b } },
     ],
   }));
   assertEq(res.data.steps[1].status, 'uitgevoerd', 'de leesstap is uitgevoerd');
-  expectNothingHappened('batch no-op + lezen (verouderd)', before);
-  assertEq(task(b).time.earlyStart, staleStartB, 'B staat nog op zijn oude berekende start');
-  assertEq(res.envelope.scheduleStale, true, 'de envelop meldt eerlijk dat de planning nog verouderd is');
+  assertEq(applied(), before.applied, 'geen undo-stap');
+  assertEq(undone(), before.undone, 'de redo-stapel van de gebruiker blijft staan');
+  assertEq(S().isDirty, before.dirty, 'document niet gewijzigd');
+  assertEq(S().scheduleStale, false, 'de planning is vóór de leesstap doorgerekend');
+  assert(task(b).time.earlyStart !== staleStartB, 'B staat op zijn verse start');
+  assertEq(res.data.steps[1].data.schedule.earlyStart, task(b).time.earlyStart,
+    'de leesstap gaf de verse start terug, niet de verouderde');
+  assertEq(res.envelope.scheduleStale, false, 'de envelop meldt een verse planning');
 });
 
 test('controle: planner_batch met een echte wijziging blijft één undo-stap', async () => {
