@@ -76,7 +76,7 @@ All tools an AI assistant can call through the bridge, by group, with what they 
 
 ## Guide and source provenance
 
-- `planner_get_planning_guide` (read) — the planning guide ([Planning well](docs://gids-goed-plannen) or a version of it for assistants), the skill *goed-plannen* or both, plus the places where the skill belongs and the download addresses. Does not touch the schedule.
+- `planner_get_planning_guide` (read) — the English guide for assistants (the principles of [Planning well](docs://gids-goed-plannen), with the tools for each principle), the two skills *goed-plannen* (setting up a schedule) and *progress-update* (updating progress), or everything. Choose with `part`: `guide`, `skill` (both skills) or `both`; `both` by default. Returns, for each skill, the places where it belongs and the download addresses. The parameter `language` is still accepted for older assistants, but the text is always English. Does not touch the schedule.
 - `planner_inspect_xer_provenance` (read) — inspect the retained source semantics of an opened Primavera P6 file (`.xer`): what the file contained, with counts of the import and diagnostics. Free-text fields from the file stay invisible by default; the assistant has to ask for them explicitly. Cannot be used in a script.
 
 ## The script

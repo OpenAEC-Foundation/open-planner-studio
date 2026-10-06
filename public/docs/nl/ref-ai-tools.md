@@ -76,7 +76,7 @@ Alle tools die een AI-assistent via de bridge kan aanroepen, per groep, met wat 
 
 ## Gids en bronherkomst
 
-- `planner_get_planning_guide` (lezen) — de planningsgids ([Goed plannen](docs://gids-goed-plannen) of een versie ervan voor assistenten), de skill *goed-plannen* of allebei, plus de plekken waar de skill hoort en de downloadadressen. Raakt de planning niet aan.
+- `planner_get_planning_guide` (lezen) — de Engelse gids voor assistenten (de principes van [Goed plannen](docs://gids-goed-plannen), met bij elk principe de tools), de twee skills *goed-plannen* (een planning opzetten) en *progress-update* (de voortgang bijwerken), of alles. Kies met `part`: `guide`, `skill` (beide skills) of `both`; standaard `both`. Geeft per skill de plekken waar hij hoort en de downloadadressen. De parameter `language` wordt nog geaccepteerd voor oudere assistenten, maar de tekst is altijd Engels. Raakt de planning niet aan.
 - `planner_inspect_xer_provenance` (lezen) — de bewaarde bronsemantiek van een geopend Primavera P6-bestand (`.xer`) inzien: wat het bestand bevatte, met tellingen van de import en diagnostiek. Standaard blijven vrije tekstvelden uit het bestand onzichtbaar; de assistent moet daar uitdrukkelijk om vragen. Kan niet in een draaiboek.
 
 ## Het draaiboek

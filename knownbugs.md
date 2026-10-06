@@ -41,6 +41,17 @@ en noem het in je rapport of PR-tekst.
     kloktijd): na Bereken vroege start en einde `2027-06-18T16:00`, vóór de werkelijke start, met speling 1.
     Dagtaken volgen hun actuals wel. — S
 58. **Voortgangsrapport:** voltooide taken krijgen "Near-critical" en in de tabel totale speling 1d. Bedoeld? — S
+81. **Voortgang zonder werkelijke datums legt start én einde op de statusdatum.** Een taak die vóór de
+    statusdatum gepland stond maar nog op 0% stond, is door de statusdatum al naar die datum geschoven. Krijgt
+    hij daarna `completion: 100` zonder datums, dan wordt de werkelijke start de verschoven `earlyStart` en het
+    werkelijke einde de statusdatum (`defaultActualStart`/`defaultActualFinish`, `taskMutationRules.ts:29-46`);
+    alleen `actualFinish` opgeven zet de werkelijke start op dezelfde dag (`applyProgressInvariants`).
+    Nagespeeld via de echte MCP-dispatcher: Grondwerk gepland 7–9 juni 2027, statusdatum vrijdag 11 juni,
+    `completion: 100` ⇒ werkelijk 11–11 juni en +2 werkdagen projecteinde t.o.v. de baseline, terwijl er niets
+    is uitgelopen. De skill `progress-update` laat een agent daarom altijd beide datums meegeven. Dat het
+    grid en de panelen hetzelfde doen, is afgeleid (gedeelde regel), niet nagespeeld. Voorstel: bij het
+    afleiden de geplande start van vóór de statusdatumvloer nemen, of net als bij een start ná de statusdatum
+    om de datum vragen. — B (MCP), S (UI)
 
 ## Tabel, invoer en bediening
 
@@ -108,10 +119,10 @@ en noem het in je rapport of PR-tekst.
     als detail. — B
 76. **Nog Nederlandse tekst die via MCP bij de agent kan komen, buiten de vertaalde MCP-laag.** De
     solverfouten uit `scheduleErrorLegacyText` (`CPMSolver.ts:~339`, bv. "Kalender heeft geen werkdagen
-    ingesteld"; MCP én extensies lezen die letterlijk), de fout van `planner_get_planning_guide` als de gids
-    niet laadt (`guideTools.ts:~141`), en meldingen uit gedeelde importcode die `import_schedule` doorgeeft
-    (bv. `formatRegistry.ts:~99` "Onbekend XML-formaat…", `xerSourceArchive.ts`, `libraryOps.ts`). Of elk
-    importpad werkelijk bij de agent uitkomt is afgeleid, niet nagespeeld. — S (solver en gids: B)
+    ingesteld"; MCP én extensies lezen die letterlijk), en meldingen uit gedeelde importcode die
+    `import_schedule` doorgeeft (bv. `formatRegistry.ts:~99` "Onbekend XML-formaat…", `xerSourceArchive.ts`,
+    `libraryOps.ts`). Of elk importpad werkelijk bij de agent uitkomt is afgeleid, niet nagespeeld. (De fout
+    van `planner_get_planning_guide` is sinds de Engelse agentgids Engels.) — S (solver: B)
 77. **`planner_batch` met alleen een `planner_level_resources`-stap op een verouderde planning laat een undo-stap
     achter, ook als er niets genivelleerd wordt.** De levelkern roept `ensureFreshSchedule` BINNEN de
     batch-transactie aan (`calendarResourceTools.ts:~1665`); de transactie meet die herrekening als datawijziging
@@ -126,6 +137,20 @@ en noem het in je rapport of PR-tekst.
     er komt geen undo-stap, maar `shifts` meldt taak 1.2 `oldStart 2026-03-16 → newStart 2026-03-09` (het
     verschil tussen opgeslagen en herberekend). Een agent leest dat als effect van de nivellering. Dat `dryRun`
     hetzelfde meldt, is afgeleid (zelfde preview), niet nagespeeld. — B
+82. **`planner_update_tasks` meldt een duur op een samenvattingstaak als `updated`, maar er verandert niets.**
+    `fields.duration: 20` op een fase met één subtaak van 2 dagen: antwoord `ok`, de fase staat in `updated`,
+    `planner_get_task` blijft `duration: 2` (afgeleid). Strijdig met "never silently ignored" in de
+    tool-beschrijving. Nagespeeld via de echte dispatcher. Voorstel: per item weigeren met een reden ("de duur
+    van een samenvattingstaak is afgeleid van zijn subtaken"); `planner_add_tasks` met een duur op een item dat
+    kinderen krijgt idem nakijken. — B
+83. **Leestool-beschrijvingen noemen `wbsCode` als schrijfveld, maar de schrijftools weigeren het.**
+    `planner_get_project_overview` en `planner_get_task` (`readTools.ts:~1063`, `~1119`): "`wbs` here and
+    `wbsCode` when writing (add_tasks/update_tasks)"; `taskFields.ts:153` weigert `wbsCode` ("the WBS code is
+    derived"). Nagespeeld: `fields.wbsCode` ⇒ `itemRejections`. Voorstel: de zin uit beide beschrijvingen
+    halen. — B
+84. **`planner_get_project_overview` beschrijft `dur` als werkdagen**, maar de rij geeft de duur in de eigen
+    eenheid van de taak met `durUnit` ernaast (`readTools.ts:~315`, `nativeDuration`); bij een urentaak zijn
+    het dus uren. Alleen in de code gezien. — S
 
 ## Bestanden en herstel
 
