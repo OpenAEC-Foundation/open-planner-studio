@@ -15,7 +15,7 @@ import { milestoneRefusalNotices } from '@/state/structuralTransition';
 import { Select } from '@/components/common/Select';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { X } from 'lucide-react';
-import { Dialog } from '@/components/common/Dialog';
+import { Dialog, DialogHelpButton } from '@/components/common/Dialog';
 import { Field } from '@/components/task-sections/shared';
 import { TaskBasicFields } from '@/components/task-sections/TaskBasicFields';
 import { TaskNotesFields } from '@/components/task-sections/TaskNotesFields';
@@ -30,6 +30,7 @@ import { TaskAssignmentsSection } from '@/components/task-sections/TaskAssignmen
 import { TaskWorkRuleField } from '@/components/task-sections/TaskWorkRuleField';
 import { TaskCodesFieldsSection } from '@/components/task-sections/TaskCodesFieldsSection';
 import { TaskDurationField } from '@/components/task-sections/TaskDurationField';
+import { TASK_PROPERTIES_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
 /** Lege draft voor de (in de praktijk onbereikbare) "nieuwe taak"-tak:
  *  een vangnet, geen actieve UI-ingang roept de dialoog ooit met `editingTaskId: null` aan. */
@@ -151,8 +152,9 @@ export function TaskDialog() {
     return { ok: true };
   };
 
-  const handleSave = () => {
-    if (!draft.name.trim()) return;
+  /** Opslaan en sluiten; `false` = geweigerd (melding), de dialoog blijft open. */
+  const handleSave = (): boolean => {
+    if (!draft.name.trim()) return false;
     // Een andere bovenliggende taak die via de relaties van de nieuwe fase een kring zou maken
     // moet VÓÓR er iets wordt opgeslagen geweigerd worden. `moveTask` weigert zelf ook,
     // maar dan zou de rest van de bewerking al zijn doorgevoerd en de dialoog sluiten; zo blijft hij
@@ -162,7 +164,7 @@ export function TaskDialog() {
       const verdict = moveTaskVerdict(current, editingTask.id, draft.parentId);
       if (!verdict.ok) {
         notifyHierarchyCycle(current, verdict.cycle);
-        return;
+        return false;
       }
     }
     // Wordt mijlpaal: het vinkje weigert al in het concept (`TaskMilestoneFields`); dit
@@ -176,7 +178,7 @@ export function TaskDialog() {
       });
       if (refusal) {
         for (const notice of milestoneRefusalNotices([{ name: editingTask.name, refusal }])) store.notify(notice);
-        return;
+        return false;
       }
     }
     // Opslaan = één undo-stap met dezelfde voortgangsregels als het paneel; de details (vers uit de
@@ -194,8 +196,9 @@ export function TaskDialog() {
       session: historyMarkRef.current,
       today: localTodayIso(),
     });
-    if (!saved) return;
+    if (!saved) return false;
     setUI({ showTaskDialog: false, editingTaskId: null });
+    return true;
   };
 
   const handleClose = () => {
@@ -230,14 +233,21 @@ export function TaskDialog() {
           <h2 className="text-body leading-5 font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
             {editingTask ? t('dialog.editTitle') : t('dialog.newTitle')}
           </h2>
-          <button
-            onClick={handleClose}
-            className="p-1 hover:bg-surface-hover rounded-[8px]"
-            aria-label={tCommon('close')}
-            title={tCommon('close')}
-          >
-            <X size={16} />
-          </button>
+          <span className="flex items-center gap-1">
+            {/* ?-knop: altijd eerst Opslaan / Annuleren / Terug — de dialoog werkt met een concept. */}
+            <DialogHelpButton
+              help={{ articleId: TASK_PROPERTIES_HELP_ARTICLE_ID, confirmLeave: { onSave: handleSave } }}
+              onClose={handleClose}
+            />
+            <button
+              onClick={handleClose}
+              className="p-1 hover:bg-surface-hover rounded-[8px]"
+              aria-label={tCommon('close')}
+              title={tCommon('close')}
+            >
+              <X size={16} />
+            </button>
+          </span>
         </div>
 
         <div className="p-4 flex flex-col gap-3 text-small leading-4 overflow-y-auto">

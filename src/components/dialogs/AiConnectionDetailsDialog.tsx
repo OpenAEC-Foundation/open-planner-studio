@@ -4,6 +4,7 @@ import { Copy, Check, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { getTools, TOOL_PREFIX } from '@/services/mcp/toolRegistry';
 import { useCopyFeedback } from '@/hooks/useCopyFeedback';
+import { AI_CONNECTION_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
 /**
  * Verbindingsgegevens-dialoog voor de MCP-bridge (AI-ribbontab → groep Verbinding).
@@ -114,7 +115,7 @@ export function AiConnectionDetailsDialog({ port, token, onClose }: AiConnection
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-ai-connection-dialog': true }}
     >
-      <DialogHeader title={t('ai.connectionDetailsTitle')} onClose={onClose} />
+      <DialogHeader title={t('ai.connectionDetailsTitle')} onClose={onClose} help={{ articleId: AI_CONNECTION_HELP_ARTICLE_ID }} />
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
         {/* Endpoint */}

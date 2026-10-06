@@ -13,6 +13,7 @@ import {
   type UpdateStatus,
 } from '@/services/updater/updaterService';
 import { useCopyFeedback } from '@/hooks/useCopyFeedback';
+import { UPDATE_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
 // Copy-paste-commando voor handmatige .deb-installatie — alléén nog een
 // FALLBACK wanneer de in-app installatie op een .deb-systeem faalt (bijv.
@@ -142,7 +143,7 @@ export function UpdateDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[520px] max-h-[90vh] flex flex-col overflow-hidden"
     >
         {/* Header */}
-        <DialogHeader title={t('updates.dialogTitle')} onClose={close} closeDisabled={isDownloading} />
+        <DialogHeader title={t('updates.dialogTitle')} onClose={close} closeDisabled={isDownloading} help={{ articleId: UPDATE_HELP_ARTICLE_ID }} />
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
