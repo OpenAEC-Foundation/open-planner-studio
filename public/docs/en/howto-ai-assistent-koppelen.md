@@ -76,7 +76,7 @@ Whether the assistant really read the guide you can see in the *Activity panel*:
 
 **The AI changes something that you want to take back.** Every change by the AI is a step that you undo with *Undo* (Ctrl+Z). A series of changes that the AI passes on as one whole is one step. Afterwards the project is shown as unsaved. After a change the schedule is calculated again, so you do not have to press F5 yourself.
 
-**The app refuses a call by the AI.** With *Pause* and *Read-only* the app refuses all changes and reading remains possible. If you have a dialog open, for example the settings, a task dialog or the welcome window, or presentation mode is on, the app refuses all calls, including reading, until you close the dialog. The AI then gets an error message with the name of the dialog. Only `planner_get_planning_guide` keeps working, because it does not read your schedule.
+**The app refuses a call by the AI.** With *Pause* and *Read-only* the app refuses all changes and reading remains possible. If you have a dialog open, for example the settings, a task dialog or the welcome window, or presentation mode is on, the app refuses all calls, including reading, until you close the dialog. The AI then gets an error message with the internal name of what is open, for example `showTaskDialog`. Only `planner_get_planning_guide` keeps working, because it does not read your schedule.
 
 **You switch tabs while the AI is working.** The AI works on the document where its first change landed. If you switch tabs in the meantime, the app refuses its next change until it confirms that it wants to work on the other tab. That way nothing ends up in the wrong project.
 

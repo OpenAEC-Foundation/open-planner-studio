@@ -4,7 +4,7 @@ All tools an AI assistant can call through the bridge, by group, with what they 
 
 ## How to read this list
 
-**Read** means: the tool changes nothing. That works during *Pause* and *Read-only* too. An open dialog does block it (see *When a tool is refused* below).
+**Read** means: the tool changes nothing. That works during *Pause* and *Read-only* too. An open dialog does block it (see *When a tool is refused* below). A read tool always gives current dates: if the schedule is stale, it recalculates first. If the project is in the *Dates as recorded* view, it does not recalculate; the assistant then gets the recorded dates with a notice that they have not been recalculated.
 
 **Change** means: the tool changes your project. It is refused during *Pause*, *Read-only* and when a dialog is open. That also goes for the tools without a label below (`planner_undo`, `planner_redo`, the file tools and the document tools, except `planner_list_documents`). Every change is one step in your undo history. If project data changes, the app recalculates the schedule afterwards by itself; you do not have to press *Calculate*. Before the first change per document the app writes a backup, if *Auto-backup* is on.
 
@@ -18,7 +18,7 @@ All tools an AI assistant can call through the bridge, by group, with what they 
 - `planner_get_task` (read) — one task in detail: dates, float, progress, constraints, deadline, calendar, assignments, predecessors and successors, interruptions.
 - `planner_get_critical_path` (read) — the critical tasks with their total float, and the relations that drive the path.
 - `planner_list_resources` (read) — resources with capacity, rate, calendar, crew, availability and a summary of their assignments. If a resource comes from a library, it shows which fields are fixed.
-- `planner_get_resource_histogram` (read) — load against capacity per resource, per day, week or month (week by default). With no window and no resources it gives a summary per resource; with a window or resources it gives the full series and the tasks that cause an overallocation. If the schedule is stale, it recalculates first.
+- `planner_get_resource_histogram` (read) — load against capacity per resource, per day, week or month (week by default). With no window and no resources it gives a summary per resource; with a window or resources it gives the full series and the tasks that cause an overallocation.
 - `planner_get_calendars` (read) — all calendars with their full definition and how many tasks and resources use them.
 
 ## Read: baselines and variance
@@ -43,7 +43,7 @@ All tools an AI assistant can call through the bridge, by group, with what they 
 
 ## Project and calendars
 
-- `planner_update_project` (change) — name, description, author, company, start date, end date, status date, progress mode and the project default for the work rule. The start date is the anchor for new tasks and does not move existing tasks. The status date is not a label but the reference date of the calculation: on a schedule without progress, everything moves along. The end date is metadata only.
+- `planner_update_project` (change) — name, description, author, company, start date, end date, status date, progress mode and the project default for the work rule. The start date is the anchor for new tasks. If the assistant sets it later, only loose tasks move along (without a predecessor and without a constraint that sets a lower bound, such as *Start no earlier than*) and the response reports how many as `anchorsClamped`; the rest of the schedule stays put, see [New project and Project info](docs://ref-projectinfo). The status date is not a label but the reference date of the calculation: on a schedule without progress, everything moves along. The end date is metadata only.
 - `planner_move_project` (change) — move the whole existing schedule to a new start date. The calendars do not move along, so the end can jump by a different number of days than the start. Baselines stay, unless the assistant explicitly has them move too. See [Moving a project](docs://howto-project-verplaatsen).
 - `planner_update_calendar` (change, bulk) — change or create calendars: working days, working hours, break, hour bands, holidays (generate for a country and region, or specify literally) and working exceptions. It cannot change which calendar is the project calendar.
 
@@ -89,13 +89,15 @@ The assistant then gets a response with an error code and an explanation.
 
 - `PAUSED` — *Pause* is on.
 - `READ_ONLY` — *Read-only* is on.
-- `DIALOG_OPEN` — a dialog is open. That counts for reading too, except for `planner_get_planning_guide`. The response names which dialog it is.
+- `DIALOG_OPEN` — a dialog is open. That counts for reading too, except for `planner_get_planning_guide`. The response names what is open by its internal name, for example `showTaskDialog`.
 - `DOC_DRIFT` — you switched tabs while the assistant was working. It has to confirm with `planner_switch_document` which document it works on.
 - `VALIDATION` — the arguments do not match the schema, or the requested change is not allowed. The response names the field.
 - `NOT_FOUND` — an id or document does not exist.
 - `CYCLE` — the change would create a circular reference. Everything in that call is rolled back.
 - `SCOPE` — the file path lies outside your user folder.
 - `BACKUP_FAILED` — the backup before the change failed; the change was not carried out.
+- `INTERNAL` — an unexpected error while running a tool, for example a file operation that failed. The response gives the original error message.
+- `STALE_PRECONDITION` — is part of the bridge's contract, but none of the current tools returns this code.
 
 A request that sat in the queue longer than 110 seconds is no longer carried out by the app: the client has already received a time-out, and carrying it out would change things twice on a retry. A call that takes longer than 120 seconds gets a time-out from the bridge.
 

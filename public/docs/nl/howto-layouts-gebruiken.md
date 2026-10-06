@@ -37,10 +37,11 @@ Onder *Filteren* bouw je regels. Klik op *+ regel*, kies een *Veld*, een *Operat
 Welke operatoren je krijgt, hangt af van het soort veld:
 
 - Tekst (*Taaknaam*, *WBS*): *is gelijk aan*, *is ongelijk aan*, *bevat*, *begint met* en *is leeg*.
-- Getal en datum (*Totale speling*, *Start*, *Voortgang*): *is gelijk aan*, *is ongelijk aan*, *kleiner dan*, *kleiner of gelijk aan*, *groter dan*, *groter of gelijk aan*, *tussen* (met *Van* en *Tot*) en *is leeg*.
+- Getal en datum (*Totale speling*, *Start*, *Voortgang*): *is gelijk aan*, *is ongelijk aan*, *kleiner dan*, *kleiner of gelijk aan*, *groter dan*, *groter of gelijk aan*, *tussen* en *is leeg*. Bij *tussen* staan er twee velden: bij een getal met *Van* en *Tot* als hint, bij een datum zonder hint (de eerste datum is het begin, de tweede het einde).
 - Ja/nee (*Kritiek*, *Mijlpaal*, *Bijna kritiek*): *is gelijk aan* en *is ongelijk aan*, met als waarde *Ja* of *Nee*.
 - Keuze (*Type*, een activiteitscode): *is gelijk aan*, *is ongelijk aan*, *is een van* (met aanvinkbare waarden) en *is leeg*.
 - *Resources*: *is een van* en *is leeg*.
+- *In uitvoering*: alleen *tussen*, met twee datums (van en tot).
 
 Met het veld *In uitvoering* en de operator *tussen* en twee datums krijg je alle taken die op enig moment in die periode lopen, zoals alles wat in juni actief is.
 

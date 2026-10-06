@@ -12,7 +12,7 @@ There are three menus. Which one you get depends on where you click:
 
 On the empty background of the Gantt, and on the band of a group header in the Gantt, the right mouse button opens no menu. A right-click in the timeline header does nothing either. The column headers of the task list have their own menu, described in [Adjusting table columns](docs://howto-tabelkolommen-aanpassen).
 
-**Which tasks does an item apply to?** You click on one task, but the selection sets the scope. If the task you click on is part of the selection, the item applies to the whole selection. If it is not, it applies to that one task only. With a right-click on a bar in the Gantt, that task is selected first if it was not selected yet. Every item that changes something is one step in *Undo*, also for a whole selection.
+**Which tasks does an item apply to?** You click on one task, but the selection sets the scope. If the task you click on is part of the selection, the item applies to the whole selection. If it is not, it applies to that one task only. With a right-click on a bar in the Gantt or on a row in the task list, that task replaces the selection if it was not part of it. Every item that changes something is one step in *Undo*, also for a whole selection.
 
 ## The task menu
 

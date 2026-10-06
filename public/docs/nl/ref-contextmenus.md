@@ -12,7 +12,7 @@ Er zijn drie menu's. Welke je krijgt, hangt af van waar je klikt:
 
 Op de lege achtergrond van de Gantt, en op de band van een groepskop in de Gantt, opent de rechtermuisknop geen menu. Ook een rechtsklik in de tijdlijnkop doet niets. De kolomkoppen van de takenlijst hebben een eigen menu, beschreven in [Tabelkolommen aanpassen](docs://howto-tabelkolommen-aanpassen).
 
-**Voor welke taken geldt een item?** Je klikt op één taak, maar de selectie bepaalt het bereik. Zit de taak waarop je klikt in de selectie, dan geldt het item voor de hele selectie. Zit hij er niet in, dan geldt het alleen voor die ene taak. Bij een rechtsklik op een balk in de Gantt wordt die taak eerst geselecteerd als hij nog niet geselecteerd was. Elk item dat iets wijzigt is één stap in *Ongedaan*, ook voor een hele selectie.
+**Voor welke taken geldt een item?** Je klikt op één taak, maar de selectie bepaalt het bereik. Zit de taak waarop je klikt in de selectie, dan geldt het item voor de hele selectie. Zit hij er niet in, dan geldt het alleen voor die ene taak. Bij een rechtsklik op een balk in de Gantt of op een rij in de takenlijst vervangt die taak de selectie als hij er nog niet in zat. Elk item dat iets wijzigt is één stap in *Ongedaan*, ook voor een hele selectie.
 
 ## Het taakmenu
 

@@ -24,7 +24,7 @@ At its first change, the bridge binds the connection to the document that is act
 
 ### Every change recalculates
 
-In the app you plan by hand: you change something, then you press *Calculate* (F5), unless *Calculate automatically* is on. That does not apply to a change by the assistant. Every write action of the assistant goes through one transaction. If project data changes in it, the app recalculates at the end by itself, once for a script. A read tool only recalculates if the schedule is stale, for example because you changed something yourself and have not pressed *Calculate* yet. So the assistant never has to refresh the schedule, and you do not have to press *Calculate* after a change by it. It then reads the result, such as the project end and the critical path, back with the read tools.
+In the app you plan by hand: you change something, then you press *Calculate* (F5), unless *Calculate automatically* is on. That does not apply to a change by the assistant. Every write action of the assistant goes through one transaction. If project data changes in it, the app recalculates at the end by itself, once for a script. A read tool always gives current dates: if the schedule is stale, for example because you changed something yourself and have not pressed *Calculate* yet, the read tool recalculates first. There is one exception: if the project is in the *Dates as recorded* view (after an import), a read tool does not recalculate quietly, because that would replace those dates. The assistant then gets the recorded dates, with a notice that they have not been recalculated. A change by the assistant itself always recalculates, even then. You do not have to press *Calculate* after a change by the assistant. It then reads the result, such as the project end and the critical path, back with the read tools. See also [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen).
 
 ### A script is one step
 
@@ -35,7 +35,7 @@ An assistant can submit a series of steps as one whole with `planner_batch`, a s
 You set four things yourself, in the *AI* tab:
 
 - *Pause* and *Read-only* leave the assistant connected, but refuse every change. Reading stays possible.
-- An open dialog blocks everything. With a task dialog, the settings, presentation mode or the welcome window open, for example, the app refuses reading too, because you are in the middle of a manual action. The assistant gets the error code `DIALOG_OPEN` with the name of the dialog.
+- An open dialog blocks everything. With a task dialog, the settings, presentation mode or the welcome window open, for example, the app refuses reading too, because you are in the middle of a manual action. The assistant gets the error code `DIALOG_OPEN`. The message names the internal name of what is open, for example `showTaskDialog` for the task dialog.
 - *Auto-backup* writes an IFC copy before the first change per document. If that backup fails, the app does not carry out the change.
 - The *Activity panel* shows every call, with arguments and response.
 

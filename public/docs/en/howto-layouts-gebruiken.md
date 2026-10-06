@@ -37,10 +37,11 @@ Under *Filter* you build rules. Click *+ rule*, choose a *Field*, an *Operator* 
 Which operators you get depends on the kind of field:
 
 - Text (*Task Name*, *WBS*): *equals*, *not equals*, *contains*, *starts with* and *is empty*.
-- Number and date (*Total Float*, *Start*, *Progress*): *equals*, *not equals*, *less than*, *less than or equal*, *greater than*, *greater than or equal*, *between* (with *From* and *To*) and *is empty*.
+- Number and date (*Total Float*, *Start*, *Progress*): *equals*, *not equals*, *less than*, *less than or equal*, *greater than*, *greater than or equal*, *between* and *is empty*. With *between* there are two fields: for a number with *From* and *To* as a hint, for a date without a hint (the first date is the start, the second the end).
 - Yes/no (*Critical*, *Milestone*, *Near Critical*): *equals* and *not equals*, with the value *Yes* or *No*.
 - Choice (*Type*, an activity code): *equals*, *not equals*, *is one of* (with tick-box values) and *is empty*.
 - *Resources*: *is one of* and *is empty*.
+- *In progress*: only *between*, with two dates (from and to).
 
 With the field *In progress* and the operator *between* and two dates you get all tasks that run at any moment in that period, such as everything active in June.
 

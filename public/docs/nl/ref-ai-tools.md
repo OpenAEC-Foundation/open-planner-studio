@@ -4,7 +4,7 @@ Alle tools die een AI-assistent via de bridge kan aanroepen, per groep, met wat 
 
 ## Hoe je deze lijst leest
 
-**Lezen** betekent: de tool wijzigt niets. Dat werkt ook tijdens *Pauzeren* en *Alleen lezen*. Een open dialoog blokkeert wel (zie onder *Wanneer een tool wordt geweigerd*).
+**Lezen** betekent: de tool wijzigt niets. Dat werkt ook tijdens *Pauzeren* en *Alleen lezen*. Een open dialoog blokkeert wel (zie onder *Wanneer een tool wordt geweigerd*). Een leestool geeft altijd actuele datums: is de planning verouderd, dan rekent hij eerst door. Staat het project in de weergave *Datums zoals opgeslagen*, dan rekent hij niet door; de assistent krijgt dan de opgeslagen datums met een melding dat ze niet zijn doorgerekend.
 
 **Wijzigen** betekent: de tool verandert je project. Hij wordt geweigerd tijdens *Pauzeren*, *Alleen lezen* en bij een open dialoog. Dat geldt ook voor de tools zonder label hieronder (`planner_undo`, `planner_redo`, de bestandstools en de documenttools, behalve `planner_list_documents`). Elke wijziging is één stap in je ongedaan-maakgeschiedenis. Verandert er projectdata, dan rekent de app de planning daarna zelf door; jij hoeft niet op *Bereken* te drukken. Vóór de eerste wijziging per document schrijft de app een backup, als *Auto-backup* aan staat.
 
@@ -18,7 +18,7 @@ Alle tools die een AI-assistent via de bridge kan aanroepen, per groep, met wat 
 - `planner_get_task` (lezen) — één taak in detail: datums, speling, voortgang, constraints, deadline, kalender, toewijzingen, voorgangers en opvolgers, onderbrekingen.
 - `planner_get_critical_path` (lezen) — de kritieke taken met hun totale speling, en de relaties die het pad bepalen.
 - `planner_list_resources` (lezen) — resources met capaciteit, tarief, kalender, ploeg, beschikbaarheid en een samenvatting van hun toewijzingen. Komt een resource uit een bibliotheek, dan staat erbij welke velden vastliggen.
-- `planner_get_resource_histogram` (lezen) — belasting tegenover capaciteit per resource, per dag, week of maand (standaard week). Zonder venster en zonder resources geeft hij een samenvatting per resource; met een venster of resources de volledige reeksen en de taken die een overbezetting veroorzaken. Is de planning verouderd, dan rekent hij eerst door.
+- `planner_get_resource_histogram` (lezen) — belasting tegenover capaciteit per resource, per dag, week of maand (standaard week). Zonder venster en zonder resources geeft hij een samenvatting per resource; met een venster of resources de volledige reeksen en de taken die een overbezetting veroorzaken.
 - `planner_get_calendars` (lezen) — alle kalenders met hun volledige definitie en door hoeveel taken en resources ze gebruikt worden.
 
 ## Lezen: baselines en afwijking
@@ -43,7 +43,7 @@ Alle tools die een AI-assistent via de bridge kan aanroepen, per groep, met wat 
 
 ## Project en kalenders
 
-- `planner_update_project` (wijzigen) — naam, omschrijving, auteur, opdrachtgever, startdatum, einddatum, statusdatum, voortgangsmodus en de projectstandaard voor de werkregel. De startdatum is het anker voor nieuwe taken en schuift bestaande taken niet. De statusdatum is geen label maar de peildatum van de berekening: op een planning zonder voortgang schuift alles mee. De einddatum is alleen metadata.
+- `planner_update_project` (wijzigen) — naam, omschrijving, auteur, opdrachtgever, startdatum, einddatum, statusdatum, voortgangsmodus en de projectstandaard voor de werkregel. De startdatum is het anker voor nieuwe taken. Zet de assistent hem later, dan schuiven alleen losse taken mee (zonder voorganger en zonder constraint met een ondergrens, zoals *Start niet eerder dan*) en meldt het antwoord hoeveel als `anchorsClamped`; de rest van de planning blijft staan, zie [Nieuw project en Projectinfo](docs://ref-projectinfo). De statusdatum is geen label maar de peildatum van de berekening: op een planning zonder voortgang schuift alles mee. De einddatum is alleen metadata.
 - `planner_move_project` (wijzigen) — de hele bestaande planning naar een nieuwe startdatum verschuiven. De kalenders schuiven niet mee, dus het einde kan met een ander aantal dagen verspringen dan de start. Baselines blijven staan, tenzij de assistent ze uitdrukkelijk mee laat schuiven. Zie [Project verplaatsen](docs://howto-project-verplaatsen).
 - `planner_update_calendar` (wijzigen, bulk) — kalenders wijzigen of aanmaken: werkdagen, werkuren, pauze, uurbanden, feestdagen (genereren voor een land en regio of letterlijk opgeven) en werkende uitzonderingen. Welke kalender de projectkalender is, kan hij niet wijzigen.
 
@@ -89,13 +89,15 @@ De assistent krijgt dan een antwoord met een foutcode en een uitleg.
 
 - `PAUSED` — *Pauzeren* staat aan.
 - `READ_ONLY` — *Alleen lezen* staat aan.
-- `DIALOG_OPEN` — er staat een dialoog open. Dat telt ook voor lezen, behalve bij `planner_get_planning_guide`. Het antwoord noemt welke dialoog het is.
+- `DIALOG_OPEN` — er staat een dialoog open. Dat telt ook voor lezen, behalve bij `planner_get_planning_guide`. Het antwoord noemt wat openstaat met de interne naam, bijvoorbeeld `showTaskDialog`.
 - `DOC_DRIFT` — jij wisselde van tabblad terwijl de assistent werkte. Hij moet met `planner_switch_document` bevestigen op welk document hij werkt.
 - `VALIDATION` — de argumenten kloppen niet met het schema, of de gevraagde wijziging mag niet. Het antwoord noemt het veld.
 - `NOT_FOUND` — een id of document bestaat niet.
 - `CYCLE` — de wijziging zou een kringverwijzing maken. Alles van die aanroep wordt teruggedraaid.
 - `SCOPE` — het bestandspad ligt buiten je gebruikersmap.
 - `BACKUP_FAILED` — de backup vóór de wijziging mislukte; de wijziging is niet uitgevoerd.
+- `INTERNAL` — een onverwachte fout bij het uitvoeren van een tool, bijvoorbeeld een bestandsbewerking die mislukte. Het antwoord geeft de oorspronkelijke foutmelding.
+- `STALE_PRECONDITION` — staat in het contract van de bridge, maar geen van de huidige tools geeft deze code terug.
 
 Een aanvraag die langer dan 110 seconden in de wachtrij stond, voert de app niet meer uit: de client heeft dan al een time-out gekregen, en uitvoeren zou bij een nieuwe poging dubbel wijzigen. Een aanroep die langer dan 120 seconden duurt, krijgt een time-out van de bridge.
 

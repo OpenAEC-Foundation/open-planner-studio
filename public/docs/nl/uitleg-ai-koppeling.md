@@ -24,7 +24,7 @@ Bij zijn eerste wijziging bindt de bridge de verbinding aan het document dat dan
 
 ### Elke wijziging rekent door
 
-In de app plan je handmatig: je wijzigt, daarna druk je op *Bereken* (F5), tenzij *Automatisch berekenen* aan staat. Voor een wijziging door de assistent geldt dat niet. Elke schrijfactie van de assistent loopt door één transactie. Verandert er daarbij projectdata, dan rekent de app aan het eind zelf door, bij een draaiboek één keer. Een leestool rekent alleen bij als de planning verouderd is, bijvoorbeeld omdat jij zelf iets wijzigde en nog niet op *Bereken* drukte. De assistent hoeft de planning dus nooit te verversen, en jij hoeft na een wijziging van hem niet op *Bereken* te drukken. Het resultaat, zoals het projecteinde en het kritieke pad, leest hij daarna terug met de leestools.
+In de app plan je handmatig: je wijzigt, daarna druk je op *Bereken* (F5), tenzij *Automatisch berekenen* aan staat. Voor een wijziging door de assistent geldt dat niet. Elke schrijfactie van de assistent loopt door één transactie. Verandert er daarbij projectdata, dan rekent de app aan het eind zelf door, bij een draaiboek één keer. Een leestool geeft altijd actuele datums: is de planning verouderd, bijvoorbeeld omdat jij zelf iets wijzigde en nog niet op *Bereken* drukte, dan rekent de leestool eerst door. Eén uitzondering: staat het project in de weergave *Datums zoals opgeslagen* (na een import), dan rekent een leestool niet stilletjes door, want dat zou die datums vervangen. De assistent krijgt dan de opgeslagen datums, met een melding dat ze niet zijn doorgerekend. Een wijziging door de assistent zelf rekent altijd door, ook dan. Jij hoeft na een wijziging van de assistent niet op *Bereken* te drukken. Het resultaat, zoals het projecteinde en het kritieke pad, leest hij daarna terug met de leestools. Zie ook [Datums zoals opgeslagen](docs://uitleg-datums-zoals-opgeslagen).
 
 ### Een draaiboek is één stap
 
@@ -35,7 +35,7 @@ Een assistent kan een reeks stappen als één geheel indienen met `planner_batch
 Vier dingen bepaal je zelf, in het tabblad *AI*:
 
 - *Pauzeren* en *Alleen lezen* laten de assistent verbonden, maar weigeren elke wijziging. Lezen blijft mogelijk.
-- Een open dialoog blokkeert alles. Met bijvoorbeeld een taakdialoog, de instellingen, de presentatiemodus of het welkomstvenster open weigert de app ook het lezen, omdat je dan midden in een handmatige actie zit. De assistent krijgt de foutcode `DIALOG_OPEN` met de naam van de dialoog.
+- Een open dialoog blokkeert alles. Met bijvoorbeeld een taakdialoog, de instellingen, de presentatiemodus of het welkomstvenster open weigert de app ook het lezen, omdat je dan midden in een handmatige actie zit. De assistent krijgt de foutcode `DIALOG_OPEN`. De melding noemt de interne naam van wat openstaat, bijvoorbeeld `showTaskDialog` voor de taakdialoog.
 - *Auto-backup* schrijft vóór de eerste wijziging per document een IFC-kopie. Mislukt die backup, dan voert de app de wijziging niet uit.
 - Het *Activiteitenpaneel* laat elke aanroep zien, met argumenten en antwoord.
 

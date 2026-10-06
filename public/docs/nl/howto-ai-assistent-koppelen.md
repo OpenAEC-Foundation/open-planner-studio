@@ -76,7 +76,7 @@ Of de assistent de gids echt heeft gelezen, zie je in het *Activiteitenpaneel*: 
 
 **De AI wijzigt iets dat je wilt terugdraaien.** Elke wijziging van de AI is een stap die je met *Ongedaan* (Ctrl+Z) terugdraait. Een reeks wijzigingen die de AI als één geheel doorgeeft, is één stap. Het project staat daarna als niet opgeslagen. Na een wijziging staat de planning weer berekend, dus je hoeft zelf geen F5 te drukken.
 
-**De app weigert een aanroep van de AI.** Bij *Pauzeren* en *Alleen lezen* weigert de app alle wijzigingen en blijft lezen mogelijk. Heb je een dialoog open, bijvoorbeeld de instellingen, een taakdialoog of het welkomstvenster, of staat de presentatiemodus aan, dan weigert de app alle aanroepen, ook het lezen, totdat je de dialoog sluit. De AI krijgt dan een foutmelding met de naam van de dialoog. Alleen `planner_get_planning_guide` blijft werken, omdat die je planning niet leest.
+**De app weigert een aanroep van de AI.** Bij *Pauzeren* en *Alleen lezen* weigert de app alle wijzigingen en blijft lezen mogelijk. Heb je een dialoog open, bijvoorbeeld de instellingen, een taakdialoog of het welkomstvenster, of staat de presentatiemodus aan, dan weigert de app alle aanroepen, ook het lezen, totdat je de dialoog sluit. De AI krijgt dan een foutmelding met de interne naam van wat openstaat, bijvoorbeeld `showTaskDialog`. Alleen `planner_get_planning_guide` blijft werken, omdat die je planning niet leest.
 
 **Je wisselt van tabblad terwijl de AI werkt.** De AI werkt op het document waarop zijn eerste wijziging landde. Wissel jij intussen van tabblad, dan weigert de app zijn volgende wijziging totdat hij bevestigt dat hij op het andere tabblad wil werken. Zo belandt er niets in het verkeerde project.
 
