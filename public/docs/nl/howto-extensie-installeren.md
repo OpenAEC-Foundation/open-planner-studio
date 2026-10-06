@@ -68,6 +68,8 @@ De labels betekenen dit:
 
 **Een kaart met *Quarantaine*.** De app kon de opgeslagen extensie niet gebruiken. Onder de naam staat *Reden:* met de oorzaak. Met *Uit opslag verwijderen* ruim je hem op.
 
+**Zelf een extensie schrijven.** De handleiding voor extensie-auteurs (manifest, API, permissies) staat in de repository `OpenAEC-Foundation/open-planner-studio` op GitHub, in het bestand `docs/extensions.md`.
+
 **Een extensie hoort niet bij een project.** Extensies staan in de app: in de desktop-app op deze computer, in de browser in de opslag van die browser. Ze gelden voor al je projecten en zijn geen onderdeel van je projectbestand. Wis je in de browser de sitegegevens, dan zijn de extensies weg.
 
 ## Zie ook

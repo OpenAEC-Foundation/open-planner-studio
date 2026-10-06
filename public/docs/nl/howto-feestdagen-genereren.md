@@ -59,3 +59,4 @@ Kies bij *Land* de keuze *Geen feestdagen* en klik op *Genereren*. De lijst is d
 - [Een kalender maken en toewijzen](docs://howto-kalender-maken-en-toewijzen): een eigen kalender maken waar je feestdagen in zet.
 - [Kalendervensters](docs://ref-kalenders): alle velden van de kalendervensters.
 - [Nieuw project en Projectinfo](docs://ref-projectinfo): de feestdagenset bij een nieuw project.
+- [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): de projectkalender heeft naast de feestdagen een vrije periode *Frost delay, foundations* (vorstverlet).

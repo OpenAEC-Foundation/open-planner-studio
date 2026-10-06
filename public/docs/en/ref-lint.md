@@ -26,7 +26,7 @@ Clicking *File* makes a screen of its own (the Backstage) take over the workspac
 - **Settings** — the same settings as the *Settings* window.
 - **Extensions** — management and installation of extensions; see [Installing and managing an extension](docs://howto-extensie-installeren).
 - **Library** — management of resource libraries; see [Managing and sharing resource libraries](docs://howto-bibliotheken-beheren).
-- **Help** — the built-in documentation, with search and a documentation language.
+- **Help** — the built-in documentation, also with F1. The search field searches titles, headings and the text itself. The articles are in four sections: *Tutorials*, *How-to guides*, *Explanation* and *Reference*. Under *Documentation language* you choose *Follow app language*, *Nederlands* or *English*. Help only exists in Dutch and English: if the app is in another language, you read the English version, with a notice. The choice is kept on this device, separately from the language of the app.
 - **Start tour** — closes the Backstage and starts the tour at step 1.
 - **Close project** — closes the active document. If it has unsaved changes, the app asks for confirmation.
 

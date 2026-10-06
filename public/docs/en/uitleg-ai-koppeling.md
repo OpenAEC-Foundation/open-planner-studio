@@ -24,7 +24,7 @@ At its first change, the bridge binds the connection to the document that is act
 
 ### Every change recalculates
 
-In the app you plan by hand: you change something, then you press *Calculate*. An assistant does not have to. Every tool that changes something recalculates the schedule at the end by itself, so an assistant never works on stale dates. If it wants the result, the project end, the duration and the critical path, it calls `planner_run_cpm`. That is not a refresh but a query.
+In the app you plan by hand: you change something, then you press *Calculate* (F5), unless *Calculate automatically* is on. That does not apply to a change by the assistant. Every write action of the assistant goes through one transaction. If project data changes in it, the app recalculates at the end by itself, once for a script. A read tool only recalculates if the schedule is stale, for example because you changed something yourself and have not pressed *Calculate* yet. So the assistant never has to refresh the schedule, and you do not have to press *Calculate* after a change by it. It then reads the result, such as the project end and the critical path, back with the read tools.
 
 ### A script is one step
 
@@ -55,9 +55,9 @@ The bridge is deliberately narrower than the app. What the assistant cannot do u
 
 An assistant that knows the tools can still build a schedule that no planner has any use for: tasks without relations, a fixed date on every task, or a breakdown that is far too fine. So the app gives it three things.
 
-**The core rules in the handshake.** When connecting, the bridge sends a short text in the `instructions` field of the MCP handshake, in English. Many clients put that text in their system prompt; whether yours does depends on the client. The rules: start at the milestones and the delivery date, build tasks of roughly a day to two weeks, drive the schedule with relations instead of fixed dates, use constraints only for hard external dates, use `planner_batch` for a coherent series, and say at the end what you assumed and what you deliberately did not do.
+**The core rules in the handshake.** When connecting, the bridge sends a short text in the `instructions` field of the MCP handshake. Many clients put that text in their system prompt; whether yours does depends on the client. The rules: start at the milestones and the delivery date, build tasks of roughly a day to two weeks, drive the schedule with relations instead of fixed dates, use constraints only for hard external dates, use `planner_batch` for a coherent series, and say at the end what you assumed and what you deliberately did not do.
 
-**The full guide.** The tool `planner_get_planning_guide` returns the guide [Planning well](docs://gids-goed-plannen), in Dutch or English. The connection prompt from the window *Connection details* asks the assistant to read it first. The tool also works while a dialog is open, while paused and in read-only mode, because it does not read your schedule.
+**The full guide.** The tool `planner_get_planning_guide` returns the planning guide, the text of [Planning well](docs://gids-goed-plannen) or a version of it for assistants. The connection prompt from the window *Connection details* asks the assistant to read it first. The tool also works while a dialog is open, while paused and in read-only mode, because it does not read your schedule.
 
 **The skill.** A skill is a small file of instructions that an assistant reads along in every session. The skill *goed-plannen* describes the order in which the tools are used, the recalculation rule and the duty to report assumptions. The planning principles themselves are not in it; they are in the guide. The tool returns the skill together with the place where it belongs. How you install it is in [Connecting an AI assistant (MCP)](docs://howto-ai-assistent-koppelen).
 
@@ -69,7 +69,7 @@ You ask an assistant: build an extension with foundation, brickwork and roof, in
 2. three tasks: Foundation of 5 working days, Brickwork of 10 and Roof of 4;
 3. two Finish-to-Start relations: Foundation to Brickwork, Brickwork to Roof.
 
-The app carries out the three steps, recalculates and reports: project end Thursday 26 March 2026, project duration 19 working days, all three tasks critical. That matches the sum: 5 + 10 + 4 is 19 working days, and 19 working days after Monday 2 March end on Thursday 26 March. The whole script is one step in your history. One *Undo* removes the three tasks, the two relations and the new project start.
+The app carries out the three steps and recalculates. If the assistant reads back afterwards, it finds: project end Thursday 26 March 2026, project duration 19 working days, all three tasks critical. That matches the sum: 5 + 10 + 4 is 19 working days, and 19 working days after Monday 2 March end on Thursday 26 March. The whole script is one step in your history. One *Undo* removes the three tasks, the two relations and the new project start.
 
 Now the what-if. You then ask the assistant to update the progress, and for that it sets the status date to Monday 16 March. A status date is not a label: work that has not started may not lie before that date and moves up to it. Without a single line of progress, the whole schedule therefore moves along: Foundation runs from 16 to 20 March, Brickwork from 23 March to 7 April and Roof from 8 to 13 April. The project end jumps from 26 March to 13 April. The schedule moves up two working weeks, and the calendar in this example, *Bouwkalender NL*, has Good Friday (3 April) and Easter (5 and 6 April). Those two free weekdays push the end two more days. That is why the assistant only sets the status date at your request, and only when there is real progress to record.
 

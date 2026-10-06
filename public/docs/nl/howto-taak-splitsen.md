@@ -46,7 +46,7 @@ Klik met de rechtermuisknop op de onderbreking in de Gantt, of op het stuk erna,
 
 ### Met een AI-assistent
 
-Een gekoppelde AI-assistent zet onderbrekingen met de tool `planner_set_task_splits`, in dezelfde vorm als het paneel: na hoeveel werkdagen (of werkuren) werk, en hoeveel werkdagen (of werkuren) pauze. Hij geeft telkens de hele lijst; een lege lijst heft alle onderbrekingen op. Teruglezen doet hij met `planner_get_task`. Dezelfde regels gelden als hieronder: een taak die je niet kunt splitsen, kan de assistent ook niet splitsen. Hoe je een assistent koppelt, staat in [Een AI-assistent koppelen (MCP)](docs://howto-ai-assistent-koppelen).
+Een gekoppelde AI-assistent zet onderbrekingen met de tool `planner_set_task_splits`, in dezelfde vorm als het paneel: na hoeveel werkdagen (of werkuren) werk, en hoeveel werkdagen (of werkuren) pauze. Hij geeft telkens de hele lijst; een lege lijst heft alle onderbrekingen op. Teruglezen doet hij met `planner_get_task`. Dezelfde regels gelden als hieronder: een taak die je niet kunt splitsen, kan de assistent ook niet splitsen. Anders dan bij een splitsing die je zelf maakt, rekent de app de planning daarna zelf door. Hoe je een assistent koppelt, staat in [Een AI-assistent koppelen (MCP)](docs://howto-ai-assistent-koppelen).
 
 ## Valkuilen en wat de app dan doet
 

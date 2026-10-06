@@ -102,3 +102,4 @@ If you set the bricklayer's *Max units* to 2, there is no overallocation any mor
 - [Resolving overallocation](docs://howto-overbezetting-oplossen): the steps to find overallocation and level it.
 - [Critical path and float](docs://uitleg-kritiek-pad): what float is and why a task becomes critical.
 - [Work rules: duration, units and work](docs://uitleg-werkregels): how a task's duration moves along with the units.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): three towers that need the same crews and the tower crane, and what leveling does with that.

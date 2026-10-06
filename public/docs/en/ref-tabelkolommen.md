@@ -18,7 +18,7 @@ By default the table next to the Gantt shows *WBS*, *Task name* and *Duration*. 
 
 ## Task
 
-- **Task name** — the name of the task. Editable; required.
+- **Task name** — the name of the task. Editable; required. A summary task is shown in bold, with a light background tint on the name cell; a milestone is shown in bold in the milestone color (the same color family as the milestone in the Gantt). An ordinary task stays as it is. That is formatting only: selecting, dragging and editing work the same.
 - **Description** — the description. Editable; free text.
 - **WBS** — the WBS code. Editable and required, but read-only while *WBS auto* is on.
 - **Task type** — the task type (*Construction*, *Installation*, *Demolition*, *Logistics*, *Inspection*, *Relocation*, *Renovation*, *Maintenance* or *Other*). Editable with a list.

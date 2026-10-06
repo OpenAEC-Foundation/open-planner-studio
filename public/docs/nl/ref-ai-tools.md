@@ -6,7 +6,7 @@ Alle tools die een AI-assistent via de bridge kan aanroepen, per groep, met wat 
 
 **Lezen** betekent: de tool wijzigt niets. Dat werkt ook tijdens *Pauzeren* en *Alleen lezen*. Een open dialoog blokkeert wel (zie onder *Wanneer een tool wordt geweigerd*).
 
-**Wijzigen** betekent: de tool verandert je project. Hij wordt geweigerd tijdens *Pauzeren*, *Alleen lezen* en bij een open dialoog. Dat geldt ook voor de tools zonder label hieronder (`planner_run_cpm`, `planner_undo`, `planner_redo`, de bestandstools en de documenttools, behalve `planner_list_documents`). Elke wijziging is één stap in je ongedaan-maakgeschiedenis en rekent de planning daarna zelf door. Vóór de eerste wijziging per document schrijft de app een backup, als *Auto-backup* aan staat.
+**Wijzigen** betekent: de tool verandert je project. Hij wordt geweigerd tijdens *Pauzeren*, *Alleen lezen* en bij een open dialoog. Dat geldt ook voor de tools zonder label hieronder (`planner_undo`, `planner_redo`, de bestandstools en de documenttools, behalve `planner_list_documents`). Elke wijziging is één stap in je ongedaan-maakgeschiedenis. Verandert er projectdata, dan rekent de app de planning daarna zelf door; jij hoeft niet op *Bereken* te drukken. Vóór de eerste wijziging per document schrijft de app een backup, als *Auto-backup* aan staat.
 
 **Bulk** betekent: één aanroep kan meerdere items bevatten. Een ongeldig item wordt dan geweigerd met een reden, en de geldige items blijven staan. Het antwoord noemt de geweigerde items.
 
@@ -61,9 +61,8 @@ Alle tools die een AI-assistent via de bridge kan aanroepen, per groep, met wat 
 - `planner_rename_baseline` (wijzigen) — een baseline hernoemen.
 - `planner_delete_baseline` (wijzigen) — één baseline verwijderen. Was het de actieve, dan wordt de laatst overgebleven baseline actief, of geen als er niets overblijft.
 
-## Berekenen en ongedaan maken
+## Ongedaan maken
 
-- `planner_run_cpm` — de planningsuitkomst opvragen: projecteinde, projectduur en een samenvatting van het kritieke pad. Wijzigingen zijn al doorgerekend; deze tool ververst dus niets maar levert de cijfers.
 - `planner_undo` en `planner_redo` — één stap ongedaan maken of opnieuw doen in het actieve document. De geschiedenis is dezelfde als die van jou. Het antwoord zegt of er echt iets is teruggedraaid.
 
 ## Documenten en bestanden
@@ -77,12 +76,12 @@ Alle tools die een AI-assistent via de bridge kan aanroepen, per groep, met wat 
 
 ## Gids en bronherkomst
 
-- `planner_get_planning_guide` (lezen) — de gids [Goed plannen](docs://gids-goed-plannen) (taal `nl` of `en`, standaard `en`), de skill *goed-plannen* of allebei, plus de plekken waar de skill hoort en de downloadadressen. Raakt de planning niet aan.
+- `planner_get_planning_guide` (lezen) — de planningsgids ([Goed plannen](docs://gids-goed-plannen) of een versie ervan voor assistenten), de skill *goed-plannen* of allebei, plus de plekken waar de skill hoort en de downloadadressen. Raakt de planning niet aan.
 - `planner_inspect_xer_provenance` (lezen) — de bewaarde bronsemantiek van een geopend Primavera P6-bestand (`.xer`) inzien: wat het bestand bevatte, met tellingen van de import en diagnostiek. Standaard blijven vrije tekstvelden uit het bestand onzichtbaar; de assistent moet daar uitdrukkelijk om vragen. Kan niet in een draaiboek.
 
 ## Het draaiboek
 
-- `planner_batch` — een draaiboek van maximaal 100 stappen als één wijziging uitvoeren: één ongedaan-maakstap, één herberekening, één backup. Valt een stap structureel om, dan draait het hele draaiboek terug en het antwoord zegt per stap wat is uitgevoerd, mislukt of niet bereikt. Tijdelijke namen (`tmp-…`) uit `planner_add_tasks` gelden in latere stappen. Niet toegestaan als stap: `planner_batch` zelf, `planner_run_cpm`, undo en redo, de document- en bestandstools, `planner_save_baseline`, `planner_get_planning_guide` en `planner_inspect_xer_provenance`. Een draaiboek is geen scripttaal: er zijn geen variabelen, voorwaarden of lussen.
+- `planner_batch` — een draaiboek van maximaal 100 stappen als één wijziging uitvoeren: één ongedaan-maakstap, één herberekening, één backup. Valt een stap structureel om, dan draait het hele draaiboek terug en het antwoord zegt per stap wat is uitgevoerd, mislukt of niet bereikt. Tijdelijke namen (`tmp-…`) uit `planner_add_tasks` gelden in latere stappen. Niet toegestaan als stap: `planner_batch` zelf, undo en redo, de document- en bestandstools, `planner_save_baseline`, `planner_get_planning_guide` en `planner_inspect_xer_provenance`. Een draaiboek is geen scripttaal: er zijn geen variabelen, voorwaarden of lussen.
 
 ## Wanneer een tool wordt geweigerd
 

@@ -112,3 +112,5 @@ In tutorial 3 you set a constraint and a deadline in the tutorial project yourse
 - [Setting a constraint or deadline](docs://howto-constraint-deadline-zetten): the steps to set a constraint or deadline.
 - [Relations and lag](docs://uitleg-relaties): the dependencies that constraints sit alongside.
 - [Critical path and float](docs://uitleg-kritiek-pad): how negative float arises and what it does to the critical path.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): a hard pin (*Must start on*) on *Municipal road closure (permitted closure period)* and a secondary constraint (*Start no later than*) on *Lift supply & installation — Tower A*.
+- [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): a deadline that is not met, with negative float.

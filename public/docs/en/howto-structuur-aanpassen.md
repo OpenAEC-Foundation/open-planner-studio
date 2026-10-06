@@ -64,3 +64,4 @@ Alt+↑ and Alt+↓ do work in such a view, without a message. With only a filte
 - [Saving and inserting WBS templates](docs://howto-wbs-sjablonen): reuse a whole phase.
 - [Adding relations](docs://howto-relaties-leggen): link tasks together.
 - [Selecting, deleting and undoing tasks](docs://howto-taken-selecteren-verwijderen): reverse a move.
+- [Refurbishment & Extension of a Family Home](examples://showcase-verbouwing-eengezinswoning.ifc): four phases with their subtasks, the way you build them by indenting.

@@ -34,6 +34,14 @@ De layout staat nu als knop in het lint, maar is nog niet toegepast. Klik op de 
 
 Onder *Filteren* bouw je regels. Klik op *+ regel*, kies een *Veld*, een *Operator* en een waarde. Wil je alleen de kritieke taken: veld *Kritiek*, operator *is gelijk aan*, waarde *Ja*. De velden zijn onder meer *Taaknaam*, *Start*, *Einde*, *Totale speling*, *Voortgang* en *Mijlpaal*, plus je eigen activiteitscodes en velden en *Resources*. De operatoren hangen af van het soort veld: bij tekst kun je bijvoorbeeld *bevat* kiezen, bij getallen en datums *tussen*.
 
+Welke operatoren je krijgt, hangt af van het soort veld:
+
+- Tekst (*Taaknaam*, *WBS*): *is gelijk aan*, *is ongelijk aan*, *bevat*, *begint met* en *is leeg*.
+- Getal en datum (*Totale speling*, *Start*, *Voortgang*): *is gelijk aan*, *is ongelijk aan*, *kleiner dan*, *kleiner of gelijk aan*, *groter dan*, *groter of gelijk aan*, *tussen* (met *Van* en *Tot*) en *is leeg*.
+- Ja/nee (*Kritiek*, *Mijlpaal*, *Bijna kritiek*): *is gelijk aan* en *is ongelijk aan*, met als waarde *Ja* of *Nee*.
+- Keuze (*Type*, een activiteitscode): *is gelijk aan*, *is ongelijk aan*, *is een van* (met aanvinkbare waarden) en *is leeg*.
+- *Resources*: *is een van* en *is leeg*.
+
 Met het veld *In uitvoering* en de operator *tussen* en twee datums krijg je alle taken die op enig moment in die periode lopen, zoals alles wat in juni actief is.
 
 Meerdere regels combineer je met de keuzelijst bovenaan: *Alles hieronder (AND)* toont taken die aan alle regels voldoen, *Iets hieronder (OR)* taken die aan minstens één regel voldoen. Met *+ groep* voeg je een subgroep met eigen regels toe.

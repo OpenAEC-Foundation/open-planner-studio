@@ -79,3 +79,5 @@ Wil je zelf bepalen welke taak blijft staan, geef die dan een hogere prioriteit.
 - [Resources beheren](docs://howto-resources-beheren): capaciteit en kalender van een resource aanpassen.
 - [Relaties leggen](docs://howto-relaties-leggen): taken achter elkaar zetten.
 - [Meldingen en waarschuwingen](docs://ref-meldingen): de waarschuwing Overbezet in het paneel Waarschuwingen.
+- [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): de stukadoors zijn op 5 dagen overbezet. Met *Alleen binnen speling nivelleren (smoothing)* aan blijft het einde op 17 augustus 2027 staan en houd je een restconflict. Met het vakje uit (de standaard) is alles opgelost en verschuift het einde naar 24 augustus 2027.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): de torenkraan is op 65 dagen en de stukadoors zijn op 15 dagen overbezet. Nivelleren met het vakje *Alleen binnen speling nivelleren (smoothing)* uit schuift het einde van 9 mei naar 12 oktober 2028.

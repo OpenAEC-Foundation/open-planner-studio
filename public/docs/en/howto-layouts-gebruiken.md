@@ -34,6 +34,14 @@ The layout is now a button in the ribbon, but it is not applied yet. Click the b
 
 Under *Filter* you build rules. Click *+ rule*, choose a *Field*, an *Operator* and a value. If you only want the critical tasks: field *Critical*, operator *equals*, value *Yes*. The fields include *Task Name*, *Start*, *Finish*, *Total Float*, *Progress* and *Milestone*, plus your own activity codes and fields and *Resources*. The operators depend on the kind of field: for text you can choose *contains*, for numbers and dates *between*.
 
+Which operators you get depends on the kind of field:
+
+- Text (*Task Name*, *WBS*): *equals*, *not equals*, *contains*, *starts with* and *is empty*.
+- Number and date (*Total Float*, *Start*, *Progress*): *equals*, *not equals*, *less than*, *less than or equal*, *greater than*, *greater than or equal*, *between* (with *From* and *To*) and *is empty*.
+- Yes/no (*Critical*, *Milestone*, *Near Critical*): *equals* and *not equals*, with the value *Yes* or *No*.
+- Choice (*Type*, an activity code): *equals*, *not equals*, *is one of* (with tick-box values) and *is empty*.
+- *Resources*: *is one of* and *is empty*.
+
 With the field *In progress* and the operator *between* and two dates you get all tasks that run at any moment in that period, such as everything active in June.
 
 You combine several rules with the list at the top: *All of the following (AND)* shows tasks that meet all rules, *Any of the following (OR)* tasks that meet at least one rule. With *+ group* you add a subgroup with its own rules.

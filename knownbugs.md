@@ -150,6 +150,9 @@ en noem het in je rapport of PR-tekst.
     oude gids `gids-plannen-wbs` en `docs/TODO.md` ("balk-mousedown") zeggen dat de balk altijd één taak
     verplaatst, ook bij een meervoudige selectie; in de lijst verhuist de hele selectie. Niet in de app
     nagespeeld. Voorstel: de zin nalopen en zo nodig "één taak" toevoegen (nl + en). — S
+73. **Namen en beschrijvingen van de voorbeeldprojecten zijn Engels in elke interfacetaal.** Gezien in de
+    nl-interface bij *Bestand › Voorbeelden*; de Help-artikelen noemen daarom de Engelse namen. Niet
+    nagegaan of dat voor alle voorbeelden geldt. Voorstel: bewust laten, of per taal vertalen. — B
 
 ## Tests
 

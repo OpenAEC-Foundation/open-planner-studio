@@ -39,3 +39,4 @@ Voorbeeld: *Bouwplaats* krijgt SS vanaf *Grondwerk* (maandag 7 juni 2027) en FF 
 - [Relaties leggen](docs://howto-relaties-leggen): de stappen om een relatie met type SS of FF te leggen.
 - [Relaties en lag](docs://uitleg-relaties): wat SS en FF betekenen en hoe de lag telt.
 - [Kritiek pad en speling](docs://uitleg-kritiek-pad): wat kritiek betekent en hoe speling werkt.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): bevat de hammock *Structural works tower A (LOE)*.

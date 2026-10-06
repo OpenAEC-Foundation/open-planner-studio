@@ -112,3 +112,5 @@ In tutorial 3 zet je zelf een constraint en een deadline in het tutorialproject 
 - [Een constraint of deadline zetten](docs://howto-constraint-deadline-zetten): de stappen om een constraint of deadline in te stellen.
 - [Relaties en lag](docs://uitleg-relaties): de afhankelijkheden waar constraints naast staan.
 - [Kritiek pad en speling](docs://uitleg-kritiek-pad): hoe negatieve speling ontstaat en wat het met het kritieke pad doet.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): een harde pin (*Moet starten op*) op *Municipal road closure (permitted closure period)* en een secundaire constraint (*Start niet later dan*) op *Lift supply & installation — Tower A*.
+- [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): een deadline die niet gehaald wordt, met negatieve speling.

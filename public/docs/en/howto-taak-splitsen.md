@@ -46,7 +46,7 @@ Right-click the break in the Gantt, or the piece after it, and choose *Remove br
 
 ### With an AI assistant
 
-A connected AI assistant sets breaks with the tool `planner_set_task_splits`, in the same form as the panel: after how many work days (or work hours) of work, and how many work days (or work hours) of pause. It always gives the whole list; an empty list removes all breaks. It reads them back with `planner_get_task`. The same rules apply as below: a task you cannot split, the assistant cannot split either. How to connect an assistant is in [Connecting an AI assistant (MCP)](docs://howto-ai-assistent-koppelen).
+A connected AI assistant sets breaks with the tool `planner_set_task_splits`, in the same form as the panel: after how many work days (or work hours) of work, and how many work days (or work hours) of pause. It always gives the whole list; an empty list removes all breaks. It reads them back with `planner_get_task`. The same rules apply as below: a task you cannot split, the assistant cannot split either. Unlike a split you make yourself, the app recalculates the schedule afterwards by itself. How to connect an assistant is in [Connecting an AI assistant (MCP)](docs://howto-ai-assistent-koppelen).
 
 ## Pitfalls and what the app does
 

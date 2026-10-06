@@ -6,7 +6,7 @@ All tools an AI assistant can call through the bridge, by group, with what they 
 
 **Read** means: the tool changes nothing. That works during *Pause* and *Read-only* too. An open dialog does block it (see *When a tool is refused* below).
 
-**Change** means: the tool changes your project. It is refused during *Pause*, *Read-only* and when a dialog is open. That also goes for the tools without a label below (`planner_run_cpm`, `planner_undo`, `planner_redo`, the file tools and the document tools, except `planner_list_documents`). Every change is one step in your undo history and recalculates the schedule afterwards by itself. Before the first change per document the app writes a backup, if *Auto-backup* is on.
+**Change** means: the tool changes your project. It is refused during *Pause*, *Read-only* and when a dialog is open. That also goes for the tools without a label below (`planner_undo`, `planner_redo`, the file tools and the document tools, except `planner_list_documents`). Every change is one step in your undo history. If project data changes, the app recalculates the schedule afterwards by itself; you do not have to press *Calculate*. Before the first change per document the app writes a backup, if *Auto-backup* is on.
 
 **Bulk** means: one call can contain several items. An invalid item is then refused with a reason, and the valid items stay. The response names the refused items.
 
@@ -61,9 +61,8 @@ All tools an AI assistant can call through the bridge, by group, with what they 
 - `planner_rename_baseline` (change) — rename a baseline.
 - `planner_delete_baseline` (change) — delete one baseline. If it was the active one, the last remaining baseline becomes active, or none if nothing remains.
 
-## Calculating and undoing
+## Undoing
 
-- `planner_run_cpm` — query the schedule result: project end, project duration and a summary of the critical path. Changes are already calculated; this tool therefore refreshes nothing but supplies the figures.
 - `planner_undo` and `planner_redo` — undo or redo one step in the active document. The history is the same as yours. The response says whether anything was really reverted.
 
 ## Documents and files
@@ -77,12 +76,12 @@ All tools an AI assistant can call through the bridge, by group, with what they 
 
 ## Guide and source provenance
 
-- `planner_get_planning_guide` (read) — the guide [Planning well](docs://gids-goed-plannen) (language `nl` or `en`, `en` by default), the skill *goed-plannen* or both, plus the places where the skill belongs and the download addresses. Does not touch the schedule.
+- `planner_get_planning_guide` (read) — the planning guide ([Planning well](docs://gids-goed-plannen) or a version of it for assistants), the skill *goed-plannen* or both, plus the places where the skill belongs and the download addresses. Does not touch the schedule.
 - `planner_inspect_xer_provenance` (read) — inspect the retained source semantics of an opened Primavera P6 file (`.xer`): what the file contained, with counts of the import and diagnostics. Free-text fields from the file stay invisible by default; the assistant has to ask for them explicitly. Cannot be used in a script.
 
 ## The script
 
-- `planner_batch` — run a script of at most 100 steps as one change: one undo step, one recalculation, one backup. If a step fails structurally, the whole script is rolled back and the response says per step what was carried out, failed or not reached. Temporary names (`tmp-…`) from `planner_add_tasks` apply in later steps. Not allowed as a step: `planner_batch` itself, `planner_run_cpm`, undo and redo, the document and file tools, `planner_save_baseline`, `planner_get_planning_guide` and `planner_inspect_xer_provenance`. A script is not a programming language: there are no variables, conditions or loops.
+- `planner_batch` — run a script of at most 100 steps as one change: one undo step, one recalculation, one backup. If a step fails structurally, the whole script is rolled back and the response says per step what was carried out, failed or not reached. Temporary names (`tmp-…`) from `planner_add_tasks` apply in later steps. Not allowed as a step: `planner_batch` itself, undo and redo, the document and file tools, `planner_save_baseline`, `planner_get_planning_guide` and `planner_inspect_xer_provenance`. A script is not a programming language: there are no variables, conditions or loops.
 
 ## When a tool is refused
 

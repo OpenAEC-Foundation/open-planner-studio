@@ -56,6 +56,8 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 
 **Wat niet meegaat** — baselines, kosten en tarieven, aantekeningen en de eigen velden van MS Project. Zie [Een MS Project-bestand (.mpp) openen](docs://howto-mpp-openen).
 
+**Herkomst en licentie** — de `.mpp`-lezer is geschreven voor Open Planner Studio en afgeleid van de broncode en structuurkennis van MPXJ (`github.com/joniles/mpxj`, Jon Iles e.a.), een Java-bibliotheek onder LGPL-2.1. Structuur en veldconstanten zijn naar TypeScript overgezet. Open Planner Studio zelf is open source onder LGPL-3.0. De `.xer`-lezer is geen overname: daarvoor is MPXJ alleen als bron van begrip geraadpleegd.
+
 ## Primavera P6 XML
 
 **Openen** — ja. De app herkent een `.xml`-bestand als P6 XML aan het hoofdelement `APIBusinessObjects`. Rekenprofiel: *Open Planner Studio*.

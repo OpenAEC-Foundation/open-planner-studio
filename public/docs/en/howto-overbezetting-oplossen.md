@@ -79,3 +79,5 @@ If you want to decide yourself which task stays, give it a higher priority. Righ
 - [Managing resources](docs://howto-resources-beheren): adjusting a resource's capacity and calendar.
 - [Adding relations](docs://howto-relaties-leggen): putting tasks one after the other.
 - [Notifications and warnings](docs://ref-meldingen): the Overallocated warning in the Warnings panel.
+- [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): the plasterers are overbooked on 5 days. With *Level only within slack (smoothing) — project end date stays fixed* on, the finish stays on 17 August 2027 and a remaining conflict is left. With the box off (the default) everything is solved and the finish moves to 24 August 2027.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): the tower crane is overbooked on 65 days and the plasterers on 15 days. Leveling with the box *Level only within slack (smoothing) — project end date stays fixed* off pushes the finish from 9 May to 12 October 2028.

@@ -98,3 +98,4 @@ Een nieuwe relatie verschuift nog geen balken; de statusbalk meldt *Verouderd �
 - [Relaties en lag](docs://uitleg-relaties): wat de vier soorten relaties en een lag met de datums doen.
 - [Een pad traceren](docs://howto-pad-traceren): de keten van voorgangers en opvolgers in beeld brengen.
 - [Taakdialoog en eigenschappenpaneel](docs://ref-taak-eigenschappen): de velden voor relaties en lag in het paneel en het venster.
+- [Refurbishment & Extension of a Family Home](examples://showcase-verbouwing-eengezinswoning.ifc): een keten van eind-start-relaties met één start-start (muren en dak, lag van 2 dagen) en één eind-eind (tegelwerk en schilderwerk, lag van 1 dag).

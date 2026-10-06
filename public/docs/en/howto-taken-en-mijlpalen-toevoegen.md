@@ -87,3 +87,4 @@ A new task does not change the other dates yet. The status bar says *Out of date
 - [Task dialog and properties panel](docs://ref-taak-eigenschappen): all fields of a task.
 - [New project and Project info](docs://ref-projectinfo): starting with a phasing template.
 - [Right-click menus](docs://ref-contextmenus): all items of the menu on a task.
+- [Refurbishment & Extension of a Family Home](examples://showcase-verbouwing-eengezinswoning.ifc): a small example project (*File › Examples*) with four phases, a start milestone and a mandatory handover milestone.

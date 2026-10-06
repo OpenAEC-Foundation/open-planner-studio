@@ -24,7 +24,7 @@ Bij zijn eerste wijziging bindt de bridge de verbinding aan het document dat dan
 
 ### Elke wijziging rekent door
 
-In de app plan je handmatig: je wijzigt, daarna druk je op *Bereken*. Een assistent hoeft dat niet. Elke tool die iets wijzigt, rekent de planning aan het eind zelf door, dus een assistent werkt nooit op verouderde datums. Wil hij het resultaat weten, het projecteinde, de duur en het kritieke pad, dan roept hij `planner_run_cpm` aan. Dat is geen verversing maar een opvraag.
+In de app plan je handmatig: je wijzigt, daarna druk je op *Bereken* (F5), tenzij *Automatisch berekenen* aan staat. Voor een wijziging door de assistent geldt dat niet. Elke schrijfactie van de assistent loopt door één transactie. Verandert er daarbij projectdata, dan rekent de app aan het eind zelf door, bij een draaiboek één keer. Een leestool rekent alleen bij als de planning verouderd is, bijvoorbeeld omdat jij zelf iets wijzigde en nog niet op *Bereken* drukte. De assistent hoeft de planning dus nooit te verversen, en jij hoeft na een wijziging van hem niet op *Bereken* te drukken. Het resultaat, zoals het projecteinde en het kritieke pad, leest hij daarna terug met de leestools.
 
 ### Een draaiboek is één stap
 
@@ -55,9 +55,9 @@ De bridge is bewust smaller dan de app. Wat de assistent niet kan, heeft meestal
 
 Een assistent die de tools kent, kan nog steeds een planning bouwen waar geen planner iets aan heeft: taken zonder relaties, een vaste datum op elke taak of een veel te fijne opdeling. De app geeft hem daarom drie dingen mee.
 
-**De kernregels in de handdruk.** Bij het verbinden stuurt de bridge in het veld `instructions` van de MCP-handdruk een korte tekst mee, in het Engels. Veel clients zetten die tekst in hun systeemprompt; of jouw client dat doet, hangt van de client af. De regels: begin bij de mijlpalen en de opleverdatum, bouw taken van ongeveer een dag tot twee weken, stuur met relaties in plaats van met vaste datums, gebruik constraints alleen voor harde externe datums, gebruik `planner_batch` voor een samenhangende reeks, en meld aan het eind wat je hebt aangenomen en wat je bewust niet hebt gedaan.
+**De kernregels in de handdruk.** Bij het verbinden stuurt de bridge in het veld `instructions` van de MCP-handdruk een korte tekst mee. Veel clients zetten die tekst in hun systeemprompt; of jouw client dat doet, hangt van de client af. De regels: begin bij de mijlpalen en de opleverdatum, bouw taken van ongeveer een dag tot twee weken, stuur met relaties in plaats van met vaste datums, gebruik constraints alleen voor harde externe datums, gebruik `planner_batch` voor een samenhangende reeks, en meld aan het eind wat je hebt aangenomen en wat je bewust niet hebt gedaan.
 
-**De volledige gids.** De tool `planner_get_planning_guide` geeft de gids [Goed plannen](docs://gids-goed-plannen) terug, in het Nederlands of het Engels. De koppelprompt uit het venster *Verbindingsgegevens* vraagt de assistent die eerst te lezen. De tool werkt ook als er een dialoog openstaat, in pauze en in alleen-lezen, want hij leest je planning niet.
+**De volledige gids.** De tool `planner_get_planning_guide` geeft de planningsgids terug, de tekst van [Goed plannen](docs://gids-goed-plannen) of een versie ervan voor assistenten. De koppelprompt uit het venster *Verbindingsgegevens* vraagt de assistent die eerst te lezen. De tool werkt ook als er een dialoog openstaat, in pauze en in alleen-lezen, want hij leest je planning niet.
 
 **De skill.** Een skill is een klein bestand met instructies dat een assistent bij elke sessie meeleest. De skill *goed-plannen* beschrijft de volgorde waarin de tools worden ingezet, de herberekeningsregel en de plicht om aannames terug te melden. De planningsprincipes zelf staan er niet in; die staan in de gids. De tool geeft de skill mee, samen met de plek waar hij hoort. Hoe je hem installeert, staat in [Een AI-assistent koppelen (MCP)](docs://howto-ai-assistent-koppelen).
 
@@ -69,7 +69,7 @@ Je vraagt een assistent: bouw een uitbouw met fundering, metselwerk en dak, in d
 2. drie taken: Fundering van 5 werkdagen, Metselwerk van 10 en Dak van 4;
 3. twee Eind-Start-relaties: Fundering naar Metselwerk, Metselwerk naar Dak.
 
-De app voert de drie stappen uit, rekent door en meldt: projecteinde donderdag 26 maart 2026, projectduur 19 werkdagen, alle drie de taken kritiek. Dat klopt met de som: 5 + 10 + 4 is 19 werkdagen, en 19 werkdagen na maandag 2 maart eindigen op donderdag 26 maart. Het hele draaiboek is één stap in je geschiedenis. Een keer *Ongedaan* haalt de drie taken, de twee relaties én de nieuwe projectstart weg.
+De app voert de drie stappen uit en rekent door. Leest de assistent daarna terug, dan staat er: projecteinde donderdag 26 maart 2026, projectduur 19 werkdagen, alle drie de taken kritiek. Dat klopt met de som: 5 + 10 + 4 is 19 werkdagen, en 19 werkdagen na maandag 2 maart eindigen op donderdag 26 maart. Het hele draaiboek is één stap in je geschiedenis. Een keer *Ongedaan* haalt de drie taken, de twee relaties én de nieuwe projectstart weg.
 
 Nu de wat-als. Je vraagt de assistent daarna om de voortgang bij te werken, en hij zet daarvoor de statusdatum op maandag 16 maart. Een statusdatum is geen label: werk dat nog niet begonnen is, mag niet vóór die datum liggen en schuift ernaartoe. Zonder één regel voortgang schuift daardoor de hele planning mee: Fundering loopt van 16 tot 20 maart, Metselwerk van 23 maart tot 7 april en Dak van 8 tot 13 april. Het projecteinde springt van 26 maart naar 13 april. De planning schuift twee werkweken op, en de kalender in dit voorbeeld, *Bouwkalender NL*, kent Goede Vrijdag (3 april) en Pasen (5 en 6 april). Die twee vrije weekdagen duwen het einde nog twee dagen verder. Daarom zet de assistent de statusdatum alleen op jouw verzoek, en pas als er echt voortgang te registreren is.
 

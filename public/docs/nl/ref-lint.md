@@ -26,7 +26,7 @@ Klik je op *Bestand*, dan neemt een eigen scherm (de Backstage) de werkruimte ov
 - **Instellingen** — dezelfde instellingen als het venster *Instellingen*.
 - **Extensies** — beheer en installatie van extensies; zie [Een extensie installeren en beheren](docs://howto-extensie-installeren).
 - **Bibliotheek** — beheer van resourcebibliotheken; zie [Resourcebibliotheken beheren en delen](docs://howto-bibliotheken-beheren).
-- **Help** — de ingebouwde documentatie, met zoeken en een documentatietaal.
+- **Help** — de ingebouwde documentatie, ook met F1. Het zoekveld zoekt in titels, koppen en de tekst zelf. De artikelen staan in vier secties: *Tutorials*, *How-to*, *Uitleg* en *Referentie*. Bij *Documentatietaal* kies je *Volg de app-taal*, *Nederlands* of *English*. De Help bestaat alleen in het Nederlands en het Engels: staat de app in een andere taal, dan lees je de Engelse versie, met een melding. De keuze blijft op dit apparaat bewaard, los van de taal van de app.
 - **Rondleiding starten** — sluit de Backstage en start de rondleiding bij stap 1.
 - **Sluit project** — sluit het actieve document. Heeft het niet-opgeslagen wijzigingen, dan vraagt de app om bevestiging.
 

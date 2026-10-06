@@ -50,3 +50,4 @@ Voor de balkkleur kies je *Beeld › Baselines & voortgang › Balkkleuren*, dan
 - [Project verplaatsen](docs://howto-project-verplaatsen): wat er met datums gebeurt bij het verplaatsen van het project.
 - [Een layout maken en gebruiken](docs://howto-layouts-gebruiken): groeperen en filteren op een code of eigen veld.
 - [Tabelkolommen aanpassen](docs://howto-tabelkolommen-aanpassen): een code of eigen veld als kolom tonen.
+- [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): de activiteitcodes *House* en *Discipline*, het eigen veld *Cost estimate* en aantekeningen (open en afgevinkt).
