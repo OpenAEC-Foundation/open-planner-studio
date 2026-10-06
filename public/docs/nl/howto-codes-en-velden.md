@@ -25,7 +25,7 @@ Het venster heeft geen OK-knop: elke wijziging geldt meteen. Het type van een ve
 
 Je hebt twee plekken.
 
-- **In het paneel *Eigenschappen*** (of in het venster dat je met F2 opent). Onderaan staat het blok *Codes & velden*: per codetype een keuzelijst, per veld een invoer. Het blok verschijnt pas zodra er minstens één codetype of veld is.
+- **In het paneel** *Eigenschappen* (of in het venster dat je met F2 opent). Onderaan staat het blok *Codes & velden*: per codetype een keuzelijst, per veld een invoer. Het blok verschijnt pas zodra er minstens één codetype of veld is.
 - **Als kolom in de takenlijst.** Klik op de **+** rechts in de tabelkop (*Kolom toevoegen*) en kies onder *Aangepast* het codetype of veld. In de cel van een codetype typ je de code, bijvoorbeeld `N`, of kies je uit de lijst. Een code die niet bestaat, geeft *Kies een waarde uit deze activiteitencode.*
 
 ### Gebruiken

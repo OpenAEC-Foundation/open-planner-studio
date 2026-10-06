@@ -63,7 +63,7 @@ Wil je zelf bepalen welke taak blijft staan, geef die dan een hogere prioriteit.
 - *De resource werkt niet op alle dagen die deze taak nodig heeft — verschuiven lost dit niet op.* De resource heeft in zijn eigen kalender vrije dagen midden in de taak. Pas de kalender of de taak aan.
 - *Metselaar vraagt op de piek 2 eenh./dag, capaciteit is 1 — niet oplosbaar door schuiven.* De taak vraagt door haar curve alleen al op één dag meer dan de resource kan leveren. Kies een andere curve of een lagere inzet.
 
-**Er staat *Geen taken hoeven te verschuiven — de planning is al conflictvrij.*** Staat die regel samen met de lijst *Resterende conflicten* in het voorstel, geloof dan de lijst. De regel zegt alleen dat er niets te verschuiven valt. Staat de regel zonder lijst, terwijl *Resources › Overallocatie* nog een resource meldt, dan zijn alle taken die botsen vastgepind op prioriteit 1000 of al gestart. Die schuiven niet en het venster meldt ze niet als conflict. Kijk daarom na het toepassen altijd naar *Overallocatie*.
+**Er staat** *Geen taken hoeven te verschuiven — de planning is al conflictvrij.* Staat die regel samen met de lijst *Resterende conflicten* in het voorstel, geloof dan de lijst. De regel zegt alleen dat er niets te verschuiven valt. Staat de regel zonder lijst, terwijl *Resources › Overallocatie* nog een resource meldt, dan zijn alle taken die botsen vastgepind op prioriteit 1000 of al gestart. Die schuiven niet en het venster meldt ze niet als conflict. Kijk daarom na het toepassen altijd naar *Overallocatie*.
 
 **Taken die niet meeschuiven.** Een taak die al gestart of klaar is, schuift nooit. Haar belasting telt wel mee. Ook mijlpalen en fasen schuiven niet.
 
