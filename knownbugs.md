@@ -192,6 +192,15 @@ en noem het in je rapport of PR-tekst.
 50. **`check-ifc-roundtrip` faalde op 30-09-2026** omdat het aanmaaktijdstempel toevallig de gezochte datum
     bevatte (CI op #261). Niet aangepast sindsdien; afgeleid: hij faalt alleen op die ene datum en die is
     voorbij. Het profieldeel van dit punt is opgelost in #278. — B (gezien), S (afgeleid)
+79. **`check-task-grid-performance` (relationIndex-mediaan ≤ 500 ms) zit lokaal op het randje.** Los gedraaid
+    496–499 ms (5-10-2026); rood (535–790 ms) in `npm run verify` zodra de container druk is (meerdere agents
+    tegelijk). In CI steeds groen. De grens meet de machine mee. Voorstel: grens relatief aan een
+    referentiemeting in dezelfde run, of alleen in CI hard. — B
+80. **Rondleidingstests soms rood in CI: de knop *Close* van de laatste stap is "not visible"**
+    (`tests/browser/first-start-tutorial.spec.ts`, 3 tests tegelijk; CI-job 112313353930 op #285, 6-10-2026).
+    De herhaalde job was groen, lokaal 20/20 groen; de diff van #285 raakte de rondleiding niet. Oorzaak
+    onbekend; mogelijk verwant aan 54 (stap overslaan bij een nog niet geladen Backstage). — B (gezien),
+    oorzaak onbekend
 
 ## Wensen en open taken (geen bug)
 
