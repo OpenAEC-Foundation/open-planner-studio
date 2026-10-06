@@ -167,7 +167,7 @@ test('een duplicate-born document slaat de auto-backup over', async () => {
 /** Tools die per spec §Compositie nooit een batch-stap zijn en dus geen kern hoeven te hebben. */
 const NO_CORE_EXPECTED = new Set([
   'planner_save_baseline',   // batchable: false — een baseline hoort een losse, bewuste nulmeting te zijn
-  'planner_undo', 'planner_redo', 'planner_run_cpm',
+  'planner_undo', 'planner_redo',
   'planner_export_ifc', 'planner_import_schedule',
   'planner_new_document', 'planner_switch_document', 'planner_duplicate_document', 'planner_list_documents',
   'planner_batch',

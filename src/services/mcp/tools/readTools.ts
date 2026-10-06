@@ -597,7 +597,8 @@ function getCriticalPath(s: AppState) {
       scheduleStale: s.scheduleStale,
       hasResult: false,
       ...(cpm?.error ? { error: cpm.error } : {}),
-      note: 'Geen (geldig) planningsresultaat — draai planner_run_cpm.',
+      note: 'No (valid) schedule result. If `error` is set, resolve that first (for example break the dependency ' +
+        'loop); every mutating tool that changes something recalculates the schedule at the end.',
       criticalTasks: [],
       drivingRelations: [],
     };
@@ -993,7 +994,8 @@ function analyzeDelay(s: AppState) {
     projectEndDelta: hasDelta ? variance.projectEndDelta : null,
     ...(hasDelta
       ? {}
-      : { note: 'De baseline heeft geen doorgerekend projecteinde — de opleverings-impact is onbekend (niet 0). Sla een baseline op ná een run_cpm om dit te meten.' }),
+      : { note: 'The baseline has no calculated project end — the delivery impact is unknown (not 0). Save a new ' +
+          'baseline (planner_save_baseline recalculates the schedule first) to measure this.' }),
     criticalShifterCount: shifters.length,
     criticalShifters: shifters,
   };
@@ -1114,7 +1116,7 @@ export const readTools: McpToolDef[] = [
       'een WERKdag van de taakkalender; valt de `actualFinish` in onwerkbare tijd (weekend, bouwvak, ' +
       'feestdag), dan is `schedule.earlyFinish` de laatste werkdag daarvóór en wijkt hij dus af van ' +
       'de `actualFinish` — de respons meldt dat expliciet onder `progress.actualFinishAdjusted`. ' +
-      'Beide zijn stabiel: een extra planner_run_cpm verandert er niets aan.',
+      'Beide zijn stabiel: opnieuw doorrekenen verandert er niets aan.',
     kind: 'read',
     batchable: true,
     inputSchema: {

@@ -1,4 +1,4 @@
-// T19 — mutatietools taken/relaties (+ undo/redo + run_cpm), planner_-prefix, per-item-zacht.
+// T19 — mutatietools taken/relaties (+ undo/redo), planner_-prefix, per-item-zacht.
 // Draait headless tegen de ECHTE Zustand-store (via de harness) + de MINIMALE F2-runtime-stub
 // (src/services/mcp/tools/runtime.ts). De stub bouwt envelop, draait de guards (paused/readOnly/
 // dialoog/drift), roept ctx.ensureBackup aan en draait runInMcpTransaction — genoeg om de tools te
@@ -7,7 +7,7 @@
 // Testlijst (spec §Testen r146 + §Tool-set Muteren): add_tasks-map+datums; update_tasks 19-goed-1-fout
 // ⇒ 19 toegepast + weigering in itemRejections; voortgang 40% ⇒ STARTED+actualStart (via de tool!);
 // delete; move; add_dependencies-kring ⇒ CYCLE + rollback (byte-identiek); dedup-relatie ⇒ zachte
-// weigering; undo maakt de laatste tool-mutatie in ÉÉN stap ongedaan; run_cpm ververst stale;
+// weigering; undo maakt de laatste tool-mutatie in ÉÉN stap ongedaan; een mutatie ververst stale;
 // registry-registratie via registerToolModules + tools/list-vorm via de dispatcher; plus de guards
 // (paused/readOnly/drift) en de backup-hook.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
@@ -328,18 +328,18 @@ test('undo: één tool-mutatie = één undo-stap (add_tasks volledig ongedaan)',
 });
 
 // =================================================================================================
-// 10) run_cpm — ververst een stale planning
+// 10) Geen losse herbereken-tool: een wijzigende mutatie ververst een stale planning zelf
 // =================================================================================================
-test('run_cpm: verse herberekening wist scheduleStale + levert projectEnd/kritiek-pad', async () => {
+test('geen planner_run_cpm: een wijzigende mutatie wist scheduleStale en levert projectEnd', async () => {
   reset();
   store.getState().addTask({ name: 'rc' }); // store-addTask ⇒ scheduleStale true
   assertEq(store.getState().scheduleStale, true, 'planning is stale na een store-edit');
+  assert(!taskTools.some((t) => t.name === 'planner_run_cpm'), 'planner_run_cpm hoort niet meer te bestaan');
   const ctx = makeCtx();
-  const res = await call('planner_run_cpm', {}, ctx);
+  const res = await call('planner_add_tasks', { tasks: [{ tempId: 'X', name: 'na stale' }] }, ctx);
   const data = okData(res);
-  assertEq(store.getState().scheduleStale, false, 'run_cpm wist scheduleStale');
+  assertEq(store.getState().scheduleStale, false, 'de eindherberekening van de mutatie wist scheduleStale');
   assert(typeof data.projectEnd === 'string' && data.projectEnd.length > 0, 'projectEnd gevuld');
-  assert(typeof data.criticalTaskCount === 'number', 'kritiek-pad-samenvatting aanwezig');
   assertEq(res.ok && res.envelope.scheduleStale, false, 'envelop meldt vers');
 });
 
@@ -413,7 +413,7 @@ test('registratie: registerToolModules([taskTools]) ⇒ tools/list draagt prefix
   for (const name of [
     'planner_add_tasks', 'planner_update_tasks', 'planner_delete_tasks', 'planner_move_task',
     'planner_add_dependencies', 'planner_remove_dependencies', 'planner_undo', 'planner_redo',
-    'planner_run_cpm', 'planner_set_task_splits',
+    'planner_set_task_splits',
   ]) {
     assert(listed.has(name), `${name} ontbreekt in de T19-module`);
   }
@@ -429,8 +429,6 @@ test('registratie: registerToolModules([taskTools]) ⇒ tools/list draagt prefix
   // Destructieve tools dragen destructiveHint (spec §Naamgeving & annotaties).
   const del = tools.find((t) => t.name === 'planner_delete_tasks');
   assertEq(del.annotations.destructiveHint, true, 'delete_tasks is destructief');
-  const rc = tools.find((t) => t.name === 'planner_run_cpm');
-  assertEq(rc.annotations.idempotentHint, true, 'run_cpm is idempotent');
 });
 
 // =================================================================================================

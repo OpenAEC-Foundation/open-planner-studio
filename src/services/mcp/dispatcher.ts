@@ -50,7 +50,7 @@ export const MCP_INSTRUCTIONS = [
   '- Start from the milestones and the delivery date, then fill in the work that leads to them.',
   '- Build a WBS of tasks that each take roughly one day to two weeks. Finer is unmaintainable, coarser is unsteerable. Summary tasks never get their own duration.',
   '- Drive the schedule with relationships, not fixed dates. Finish-to-start is the default; every task needs at least one predecessor and one successor apart from the first task and the final milestone. Use date constraints only for hard external dates the user gave you (permit, closure window, connection date) — a few percent of tasks at most, and never a negative lag.',
-  '- Mutating tools recalculate the schedule themselves, so you never work on stale dates. Call planner_run_cpm to OBTAIN the result (project end, duration, critical path) — not to refresh anything.',
+  '- Every mutating tool that changes something recalculates the schedule itself, so there is no separate recalculate step. Read the result (project end, duration, critical path) with planner_get_project_info and planner_get_critical_path; `scheduleStale` in every response says whether those dates are current.',
   '- Use planner_batch for a coherent series of steps: one undo step, one recalculation, one backup.',
   '- Finish by telling the user what you assumed: estimated durations, the chosen granularity, relationships you added on your own, resource capacities, calendar assumptions, and every constraint you set and why. Also say what you deliberately did not do.',
   '',

@@ -1,4 +1,4 @@
-// MCP-toolmodule: mutatietools voor taken en relaties, plus undo/redo en run_cpm. Alle namen dragen
+// MCP-toolmodule: mutatietools voor taken en relaties, plus undo/redo. Alle namen dragen
 // de service-prefix `planner_`; elke tool draagt een beschrijving (de AI kiest tools op
 // beschrijving) en de standaard MCP-annotaties.
 //
@@ -7,8 +7,9 @@
 // rolt nooit alles terug) en komen als `itemRejections` terug; structurele fouten
 // (kringverwijzing, taak-niet-gevonden bij een enkelvoudige tool) zijn HARD via `McpStepError`.
 //
-// `undo`/`redo`/`run_cpm` lopen NIET via de transactie (ze beheren hun eigen undo-stack, resp. zijn
-// een pure herberekening) maar wél via dezelfde guards (`guardNonTransactional`).
+// `undo`/`redo` lopen NIET via de transactie (ze beheren hun eigen undo-stack) maar wél via
+// dezelfde guards (`guardNonTransactional`). Een losse herberekentool is er bewust niet meer: elke
+// mutatie die iets wijzigt rekent aan het eind zelf door (`createMcpTransactions.ts`).
 import type { McpContext, McpToolDef, McpToolOk, McpToolResult } from '../contracts';
 // Alleen als TYPE geïmporteerd: `import type` wordt bij het compileren volledig weggestreept,
 // dus dit legt géén runtime-import naar `batchTool` (dat zelf via de leaf-module `toolIndex` opzoekt).
@@ -1064,45 +1065,6 @@ const redo: McpToolDef = {
 };
 
 // =================================================================================================
-// planner_run_cpm — expliciete, geforceerde herberekening (CPM + kalender). Niet-transactioneel:
-// runCPM pusht geen undo-snapshot, dus geen eigen undo-stap — behalve wanneer hij "datums zoals
-// opgeslagen" verlaat; dat overschrijft de opgeslagen datums en hoort ongedaan te kunnen.
-// =================================================================================================
-const runCpm: McpToolDef = {
-  name: 'planner_run_cpm',
-  description:
-    'Vraag de PLANNINGSUITKOMST op. Wijzigingen via de tools zijn al doorgerekend — elke mutatie die iets ' +
-    'wijzigt draait aan het eind zelf `runCPM` — dus je hoeft dit NIET aan te roepen om te verversen. Een ' +
-    'call die niets wijzigt rekent ook niets door: `scheduleStale` in de envelop zegt of de datums actueel ' +
-    'zijn. Deze tool herberekent ' +
-    'idempotent (kritieke-pad-methode + kalender, wist `scheduleStale`) en geeft het projecteinde, de ' +
-    'projectduur (werkdagen) en een kritieke-pad-samenvatting terug: precies de cijfers waarmee je de ' +
-    'gebruiker het effect van je wijzigingen meldt.',
-  kind: 'other',
-  batchable: false,
-  annotations: { ...WRITE_ANNOTATIONS, idempotentHint: true },
-  inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-  handler(_args, ctx): McpToolResult {
-    const g = guardNonTransactional(ctx);
-    if (g) return g;
-    ctx.app.store.getState().runCPM();
-    const cpm = ctx.app.store.getState().cpmResult;
-    return {
-      ok: true,
-      envelope: okEnvelope(ctx),
-      data: {
-        projectEnd: cpm?.projectEnd ?? '',
-        projectDuration: cpm?.projectDuration ?? 0,
-        criticalTaskCount: cpm?.criticalPath.length ?? 0,
-        criticalPathTaskIds: cpm?.criticalPath ?? [],
-        ...(cpm?.error ? { error: cpm.error } : {}),
-      },
-    };
-  },
-};
-
-/** Alle tools van deze module als vlakke array (registreer via één regel in toolRegistry.MODULES). */
-// =================================================================================================
 // planner_set_task_splits
 // =================================================================================================
 /** Vormvalidatie van `set_task_splits`; string = foutboodschap. De inhoud van `interruptions` keurt
@@ -1212,6 +1174,7 @@ const setTaskSplits: BatchStepTool = {
   },
 };
 
+/** Alle tools van deze module als vlakke array (registreer via één regel in toolRegistry.MODULES). */
 export const taskTools: McpToolDef[] = [
   addTasks,
   updateTasks,
@@ -1221,6 +1184,5 @@ export const taskTools: McpToolDef[] = [
   removeDependencies,
   undo,
   redo,
-  runCpm,
   setTaskSplits,
 ];
