@@ -34,8 +34,13 @@
 //   7/8. Machinaal controleerbare beweringen in AGENTS.md (+ .claude/rules/)/README.md/CONTRIBUTING.md.
 //        CLAUDE.md is alleen nog een `@AGENTS.md`-import; ook dat wordt bewaakt (7f). De
 //        locale-opsomming volgt de veertien UI-talen (UI_LANGS), niet de docstalen.
-//   9. De agent-skill `goed-plannen` staat byte-identiek in `public/skills/` (bron, uitgeleverd)
-//      en `.claude/skills/` (waar Claude Code hem leest) — geen symlink, want Windows-CI.
+//   9. Elke agent-skill onder `public/skills/<naam>/SKILL.md` (bron, uitgeleverd: `goed-plannen`,
+//      `progress-update`) staat byte-identiek in `.claude/skills/<naam>/` (waar Claude Code hem leest)
+//      — geen symlink, want Windows-CI — en zijn frontmatter-`name` is de mapnaam.
+//   11. De agentgids (`public/agent/planning-guide.md`, geen Help-artikel) groeit niet los van het
+//      Help-artikel `gids-goed-plannen`: elk principe (`###` onder de principesectie, nl én en) heeft
+//      via de expliciete koppeltabel in `scripts/lib/agent-guide-coupling.ts` een tegenhanger in de
+//      agentgids, en omgekeerd; de agentgids bevat geen `docs://`-links (alleen volledige URL's).
 //   10. Elk artikel-id dat de app gebruikt — elke stringexport van src/state/helpArticles.ts en elke
 //      `docsId` in src/services/updater/releaseHighlights.ts — bestaat in het manifest (als artikel
 //      of alias) en is in productie zichtbaar (geen draft). Een `#anker` erin moet in nl én en
@@ -55,6 +60,7 @@ import {
 } from '@/utils/helpManifest';
 import * as APP_HELP_ARTICLES from '@/state/helpArticles';
 import { RELEASE_HIGHLIGHT_CATALOG } from '@/services/updater/releaseHighlights';
+import { AGENT_GUIDE_FILE, checkAgentGuideLinks, checkPrincipleCoupling } from './lib/agent-guide-coupling';
 
 const ROOT = process.cwd();
 const DOCS_DIR = join(ROOT, 'public', 'docs');
@@ -548,37 +554,72 @@ function checkSupportingDocs(diffs: string[], manifestArticleCount: number): voi
 }
 
 /**
- * Poort 9 — de agent-skill "goed-plannen" heeft ÉÉN bron.
+ * Poort 9 — elke agent-skill heeft ÉÉN bron.
  *
- * `public/skills/goed-plannen/SKILL.md` is de bron: die wordt met de webbuild meegeleverd en is dus
+ * `public/skills/<naam>/SKILL.md` is de bron: die wordt met de webbuild meegeleverd en is dus
  * publiek downloadbaar (én de tool `planner_get_planning_guide` leest hem daar). Claude Code leest
  * skills uitsluitend uit `.claude/skills/`, dus daar moet een kopie staan. Een symlink kan niet:
  * CI draait óók op Windows, waar een repo-symlink zonder ontwikkelaarsmodus als tekstbestand
  * uitcheckt — dan serveert de app een pad in plaats van een skill.
  *
- * Dus: byte-identieke kopie, met deze poort als bewaker. Wijzig altijd de bron in `public/` en
- * kopieer daarna; de foutmelding hieronder zegt precies dat.
+ * Dus: byte-identieke kopie, met deze poort als bewaker, voor ELKE map onder `public/skills/` (een
+ * nieuwe skill valt er vanzelf onder; vergeet dan ook de `!.claude/skills/<naam>/`-regel in
+ * `.gitignore` niet, anders mist CI de kopie). Wijzig altijd de bron in `public/` en kopieer daarna;
+ * de foutmelding hieronder zegt precies dat. Welke skills de MCP-tool levert, toetst
+ * `tests/mcp/cases-planning-guide.ts` tegen dezelfde mappen.
  */
-function checkSkillCopy(diffs: string[]): void {
-  const source = join(ROOT, 'public', 'skills', 'goed-plannen', 'SKILL.md');
-  const copy = join(ROOT, '.claude', 'skills', 'goed-plannen', 'SKILL.md');
-  if (!existsSync(source)) {
-    diffs.push('ontbreekt: public/skills/goed-plannen/SKILL.md (de bron van de agent-skill, publiek geserveerd door de webbuild)');
+function checkSkillCopies(diffs: string[]): void {
+  const skillsDir = join(ROOT, 'public', 'skills');
+  if (!existsSync(skillsDir)) {
+    diffs.push('ontbreekt: public/skills/ (de bron van de agent-skills, publiek geserveerd door de webbuild)');
     return;
   }
-  if (!existsSync(copy)) {
-    diffs.push('ontbreekt: .claude/skills/goed-plannen/SKILL.md — kopieer hem uit public/skills/goed-plannen/SKILL.md (Claude Code leest skills alleen daar)');
+  const names = readdirSync(skillsDir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
+  if (names.length === 0) diffs.push('public/skills/ bevat geen enkele skill');
+  for (const name of names) {
+    const rel = `skills/${name}/SKILL.md`;
+    const source = join(skillsDir, name, 'SKILL.md');
+    const copy = join(ROOT, '.claude', 'skills', name, 'SKILL.md');
+    if (!existsSync(source)) {
+      diffs.push(`ontbreekt: public/${rel} (elke map onder public/skills/ is een agent-skill met een SKILL.md)`);
+      continue;
+    }
+    const frontName = /^---\r?\n(?:[^\n]*\n)*?name:\s*(\S+)\s*\r?\n/.exec(readFileSync(source, 'utf8'))?.[1];
+    if (frontName !== name) {
+      diffs.push(`public/${rel}: frontmatter-name is ${JSON.stringify(frontName ?? null)}, verwacht "${name}" (de mapnaam)`);
+    }
+    if (!existsSync(copy)) {
+      diffs.push(`ontbreekt: .claude/${rel} — kopieer hem uit public/${rel} (Claude Code leest skills alleen daar)`);
+      continue;
+    }
+    if (!readFileSync(source).equals(readFileSync(copy))) {
+      diffs.push(
+        `.claude/${rel} wijkt af van public/${rel} — ` +
+        'de bron staat in public/ (die wordt uitgeleverd en gedownload); kopieer hem daarna over de ' +
+        `.claude-versie heen (\`cp public/${rel} .claude/${rel}\`)`,
+      );
+    }
+  }
+}
+
+/**
+ * Poort 11 — de agentgids groeit niet los van het Help-artikel "Goed plannen" (zie
+ * `scripts/lib/agent-guide-coupling.ts` voor het waarom en de koppeltabel).
+ */
+function checkAgentGuide(diffs: string[]): void {
+  const agentPath = join(ROOT, AGENT_GUIDE_FILE);
+  if (!existsSync(agentPath)) {
+    diffs.push(`ontbreekt: ${AGENT_GUIDE_FILE} (de agentgids die planner_get_planning_guide levert)`);
     return;
   }
-  const a = readFileSync(source);
-  const b = readFileSync(copy);
-  if (!a.equals(b)) {
-    diffs.push(
-      '.claude/skills/goed-plannen/SKILL.md wijkt af van public/skills/goed-plannen/SKILL.md — ' +
-      'de bron staat in public/ (die wordt uitgeleverd en gedownload); kopieer hem daarna over de ' +
-      '.claude-versie heen (`cp public/skills/goed-plannen/SKILL.md .claude/skills/goed-plannen/SKILL.md`)',
-    );
-  }
+  const id = APP_HELP_ARTICLES.PLANNING_GUIDE_ARTICLE_ID;
+  const read = (lang: string) => {
+    const p = join(DOCS_DIR, lang, `${id}.md`);
+    return existsSync(p) ? readFileSync(p, 'utf8') : '';
+  };
+  const agent = readFileSync(agentPath, 'utf8');
+  diffs.push(...checkPrincipleCoupling({ nl: read('nl'), en: read('en'), agent }));
+  diffs.push(...checkAgentGuideLinks(agent));
 }
 
 /** Het alias-object van het manifest (leeg als het ontbreekt of geen object is; dat meldt poort 4). */
@@ -685,8 +726,10 @@ function main() {
   // 8. Machinaal controleerbare beweringen in AGENTS.md/README.md/CONTRIBUTING.md (zie checkSupportingDocs).
   // Het README-aantal telt wat een gebruiker ziet: drafts niet.
   checkSupportingDocs(globalDiffs, manifest.articles.filter((a) => a.draft !== true).length);
-  // 9. De agent-skill heeft één bron (zie checkSkillCopy).
-  checkSkillCopy(globalDiffs);
+  // 9. Elke agent-skill heeft één bron (zie checkSkillCopies).
+  checkSkillCopies(globalDiffs);
+  // 11. De agentgids heeft voor elk principe van gids-goed-plannen een tegenhanger (zie checkAgentGuide).
+  checkAgentGuide(globalDiffs);
   // 4 (manifestniveau). Versie en aliassen.
   checkManifestV2(manifest, globalDiffs);
   // 10. Artikel-id's die de app gebruikt (zie checkAppHelpArticles).
