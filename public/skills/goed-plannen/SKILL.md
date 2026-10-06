@@ -61,7 +61,8 @@ Controleer de namen en schema's daar of via `tools/list` — raad ze nooit.
 5. **Resources** — `planner_manage_resources`, `planner_manage_assignments`; lezen met
    `planner_list_resources` en `planner_get_resource_histogram`. Nivelleer pas als logica en duren
    staan, en alleen op verzoek: `planner_level_resources` / `planner_clear_leveling`.
-6. **Berekenen en lezen** — `planner_run_cpm`, daarna `planner_get_critical_path` en
+6. **Berekenen en lezen** — elke mutatie rekent zelf door; lees de uitkomst met
+   `planner_get_project_info` en `planner_get_critical_path`, en de structuur met
    `planner_get_project_overview`.
 7. **Baseline en voortgang** — `planner_save_baseline` (en `planner_list_baselines` /
    `planner_activate_baseline` / `planner_rename_baseline` / `planner_delete_baseline`), voortgang
@@ -75,12 +76,15 @@ Controleer de namen en schema's daar of via `tools/list` — raad ze nooit.
 
 ## Herberekenen
 
-Mutatietools herberekenen zelf al — elke MCP-transactie draait aan het eind `runCPM` — dus je werkt
-niet stil op verouderde datums. Roep na een reeks wijzigingen tóch `planner_run_cpm` aan, niet om de
-planning vers te maken maar om het resultaat te krijgen: die tool geeft je het projecteinde, de
-projectduur en een kritieke-pad-samenvatting terug, en dat zijn de cijfers waarop je je conclusie
-baseert. Baseer nooit een uitspraak over datums, speling of kritiek pad op cijfers van
-vóór je laatste wijziging.
+Er is geen aparte rekenstap. Elke mutatietool die iets wijzigt rekent aan het eind zelf door, en elke
+leestool die datums, speling, kritiek pad of bezetting teruggeeft rekent een verouderde planning (bijvoorbeeld
+na een wijziging in de app) eerst zelf door. Haal na een reeks wijzigingen het resultaat op met
+`planner_get_project_info` (projecteinde, projectduur, aantal kritieke taken) en `planner_get_critical_path`:
+dat zijn de cijfers waarop je je conclusie baseert. Uitzondering: draagt de envelop `datesAsRecorded: true`,
+dan zijn de datums die uit het geïmporteerde bestand, geen berekening, en rekent een leestool bewust niet door
+(dat zou de opgeslagen datums vervangen); `scheduleNote` legt het uit. Meld dat bij je datums; de gebruiker
+kan herberekenen, en je eerste echte wijziging rekent ook door. Baseer nooit een uitspraak over datums,
+speling of kritiek pad op cijfers van vóór je laatste wijziging.
 
 ## `planner_batch` voor samenhangende reeksen
 
