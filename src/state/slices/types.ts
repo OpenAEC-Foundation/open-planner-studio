@@ -379,6 +379,9 @@ export interface AppNotification {
   helpArticleId?: string;
   /** Optionele vervolgknop; zie `NotificationAction` (serialiseerbaar, nooit een functie). */
   action?: NotificationAction;
+  /** Alleen voor `info`: hoe lang de melding blijft staan, in ms (standaard 5000). Voor uitleg
+   *  die je echt moet kunnen lezen, zoals de browseruitleg bij opslaan. */
+  durationMs?: number;
 }
 
 /** Wat een aanroeper meegeeft; `id` en `count` vult de store. */

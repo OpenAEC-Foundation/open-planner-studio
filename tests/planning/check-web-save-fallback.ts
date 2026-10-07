@@ -286,6 +286,7 @@ async function main() {
   // Sinds review 2026-10-06 (punt 4) is de download-info de uitleg voor browsergebruikers.
   eq('7b één melding, en dat is de browseruitleg over downloads', notes, [{ sev: 'info', key: 'notifications.browserSavesAsDownload' }]);
   eq('7b2 met een link naar de handleiding over bestanden', S().ui.notifications[0]?.helpArticleId, 'uitleg-bestanden');
+  eq('7b3 en blijft langer staan dan een gewone info (15 s)', S().ui.notifications[0]?.durationMs, 15_000);
   eq('7c geen rauwe browserfout als detail', S().ui.notifications[0]?.detail, undefined);
   eq('7d het document geldt als opgeslagen', S().isDirty, false);
 

@@ -31,6 +31,8 @@ export function browserSaveNotice({ hadFile, existingName, outcome }: BrowserSav
     messageKey: outcome.viaDownload ? 'notifications.browserSavesAsDownload' : 'notifications.browserCannotOverwrite',
     params: { name: outcome.viaDownload ? outcome.name : (existingName ?? outcome.name) },
     helpArticleId: BROWSER_SAVE_HELP_ARTICLE_ID,
+    // Drie zinnen uitleg plus een link: 5 s is te kort om te lezen (review 2026-10-06).
+    durationMs: 15_000,
   };
 }
 
