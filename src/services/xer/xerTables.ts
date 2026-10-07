@@ -149,6 +149,8 @@ const P6_NOTE_FIELDS = new Set([
   'WBSMEMO.wbs_memo',
 ]);
 
+const P6_NOTE_TABLES = new Set([...P6_NOTE_FIELDS].map(key => key.slice(0, key.indexOf('.'))));
+
 /** Decodeer uitsluitend P6-notitievervuiling en de DEL-DEL-regelovergang. */
 export function decodeXerNoteText(raw: string): string {
   const withoutContamination = Array.from(raw)
@@ -158,8 +160,10 @@ export function decodeXerNoteText(raw: string): string {
 }
 
 function decodeTextCell(table: string, field: string, raw: string): string {
-  const unquoted = raw.replace(/""/g, '"');
-  return P6_NOTE_FIELDS.has(`${table}.${field}`) ? decodeXerNoteText(unquoted) : unquoted;
+  // Draait voor élke cel (rehab-2: ±0,8 s bij openen). Zonder aanhalingsteken valt er niets te
+  // ontdubbelen, en de notitiesleutel wordt alleen samengesteld voor de acht notitietabellen.
+  const unquoted = raw.includes('"') ? raw.replace(/""/g, '"') : raw;
+  return P6_NOTE_TABLES.has(table) && P6_NOTE_FIELDS.has(`${table}.${field}`) ? decodeXerNoteText(unquoted) : unquoted;
 }
 
 /**
@@ -484,15 +488,29 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/** Getalpatroon per notatie (decimaalteken × groepsteken: hoogstens zes). Vroeger bouwde
+ *  `parseXerNumber` voor ELK getal een nieuwe `RegExp` — 1,7 s bij het openen van rehab-2.xer
+ *  (prestatiemeting 2026-10-07). Het patroon heeft geen `g`-vlag, dus `test` is toestandsloos. */
+const XER_NUMBER_PATTERNS = new Map<string, RegExp>();
+
+function xerNumberPattern(format: XerNumberFormat): RegExp {
+  const key = `${format.decimal}${format.group ?? ''}`;
+  let pattern = XER_NUMBER_PATTERNS.get(key);
+  if (!pattern) {
+    const decimal = escapeRegExp(format.decimal);
+    const group = format.group === null ? null : escapeRegExp(format.group);
+    const integer = group === null ? '\\d+' : `(?:\\d+|\\d{1,3}(?:${group}\\d{3})+)`;
+    pattern = new RegExp(`^[+-]?${integer}(?:${decimal}\\d+)?$`);
+    XER_NUMBER_PATTERNS.set(key, pattern);
+  }
+  return pattern;
+}
+
 /** Parse een numerieke XER-token strikt volgens de in de tweepas bepaalde bestandsnotatie. */
 export function parseXerNumber(raw: string, format: XerNumberFormat): number | null {
   const value = raw.trim();
   if (!value) return null;
-  const decimal = escapeRegExp(format.decimal);
-  const group = format.group === null ? null : escapeRegExp(format.group);
-  const integer = group === null ? '\\d+' : `(?:\\d+|\\d{1,3}(?:${group}\\d{3})+)`;
-  const pattern = new RegExp(`^[+-]?${integer}(?:${decimal}\\d+)?$`);
-  if (!pattern.test(value)) {
+  if (!xerNumberPattern(format).test(value)) {
     throw new XerImportError('XER_INVALID_NUMBER', `Ongeldig XER-getal: ${JSON.stringify(value)}.`);
   }
   let normalized = value;
