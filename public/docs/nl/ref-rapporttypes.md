@@ -124,7 +124,7 @@ Het blok *Overzicht* toont *Statusdatum*, *Periode*, *Vooruitblik t/m*, *Baselin
 
 ## Planningsgezondheid
 
-Een controle van de planning zelf op fouten en ongewone waarden, in de geest van de DCMA 14-punts-controle. Opties onder *Rapportopties*.
+Een controle van de planning zelf op fouten en ongewone waarden, met bovenaan de DCMA 14-puntsbeoordeling. Opties onder *Rapportopties*.
 
 **Hoge speling > (wd):** — Getal van 1 tot 365. Standaard: 44. Effect: een niet-voltooide taak met meer totale speling dan dit valt onder *Hoge speling*.
 
@@ -134,7 +134,28 @@ Een controle van de planning zelf op fouten en ongewone waarden, in de geest van
 
 **Near-critical ≤ (wd):** — Getal van 0 tot 60. Standaard: 5. Effect: bepaalt de controle *Near-critical*.
 
-De controles staan in deze volgorde, met hun ernst. Fout: *Negatieve speling*, *Gemiste deadline*, *Geschonden constraint* en *Inconsistente voortgang* (werkelijke start of einde ná de statusdatum, 100% zonder werkelijk einde, werkelijk einde maar geen 100%, voortgang zonder werkelijke start). Waarschuwing: *Zonder voorganger (open begin)* en *Zonder opvolger (open einde)* (geen mijlpalen), *Lange duur*, *Lead (negatieve lag)*, *Harde constraint* (een verplichte constraint of een MSO, MFO, SNLT of FNLT) en *Out-of-sequence voortgang*. Info: *Near-critical*, *Hoge speling* en *Lange lag*. Het rapport bekijkt alleen bladtaken die geen hammock zijn. Het blok *Overzicht* telt *Fouten*, *Waarschuwingen*, *Ter informatie*, *Bladtaken* en *Relaties*; daaronder staan een sectie *Overzicht* (per controle de ernst en het aantal) en een sectie *Bevindingen* (elke taak of relatie). Zonder berekening ontbreken de controles die speling nodig hebben.
+De sectie *DCMA 14-puntsbeoordeling* staat bovenaan. Ze volgt de veertien controles van de Amerikaanse Defense Contract Management Agency, met de formules en normen uit hun *EVMS Program Analysis Pamphlet* (DCMA-EA PAM 200.1, oktober 2012). Per punt zie je *Aantal*, *Van* (het totaal waarover geteld is), *Waarde*, *Norm*, *Uitslag* en *Toelichting*. De uitslag is *Voldoet*, *Markering* of *n.v.t.*; bij n.v.t. staat de reden in de toelichting. Een markering is geen afkeuring: het pamflet noemt het een reden om verder te kijken. De drempels onder *Rapportopties* gelden niet voor deze sectie; die rekent altijd met de normen uit het pamflet.
+
+Geteld worden niet-voltooide bladtaken, zonder mijlpalen en hammocks, en de relaties naar zulke taken. De melding boven het rapport noemt beide aantallen. De veertien punten:
+
+- *Logica*: taken zonder voorganger of opvolger. Norm: hoogstens 5%.
+- *Leads*: relaties met een negatieve lag. Norm: geen.
+- *Lags*: relaties met een positieve lag, hoe kort ook. Norm: hoogstens 5%.
+- *Relatietypes*: het aandeel FS-relaties. Norm: minstens 90%.
+- *Harde constraints*: taken met een verplichte constraint of een MSO, MFO, SNLT of FNLT. Norm: hoogstens 5%.
+- *Hoge speling*: taken met meer dan 44 werkdagen totale speling. Norm: hoogstens 5%. Vraagt een berekening.
+- *Negatieve speling*: taken met een totale speling onder 0. Norm: geen. Vraagt een berekening.
+- *Lange duur*: taken langer dan 44 werkdagen. Telt de baselineduur als de taak in de actieve baseline staat, anders de huidige duur. Norm: hoogstens 5%.
+- *Ongeldige datums*: een werkelijke start of werkelijk einde ná de statusdatum, of een prognosestart of prognose-einde vóór de statusdatum. Norm: geen. Vraagt een statusdatum.
+- *Resources*: taken zonder resource. Norm: geen. Alleen als het project resources gebruikt; anders n.v.t.
+- *Gemiste taken*: van de taken die volgens de baseline vóór of op de statusdatum klaar moesten zijn, het aandeel dat later eindigt of later is voorspeld. Norm: hoogstens 5%. Vraagt een statusdatum en een actieve baseline.
+- *Kritiek-padtest*: de app verlengt een kritieke taak met 100 werkdagen en rekent opnieuw, op een kopie, zonder het project te wijzigen. De test slaagt als de laatste taak van het project daarna niet vóór die taak eindigt. Getest wordt de kritieke, niet-voltooide taak met de vroegste start; de toelichting noemt de taak en hoeveel werkdagen het einde opschoof.
+- *CPLI*: (lengte van het kritieke pad + speling) / lengte van het kritieke pad. De lengte telt de werkdagen van de statusdatum tot het einde van de laatste taak; de speling is het verschil met het baseline-einde van die taak, of de berekende speling als de taak niet in de baseline staat. Norm: minstens 0,95. Vraagt een statusdatum.
+- *BEI*: het aantal taken dat op de statusdatum voltooid is, gedeeld door het aantal dat volgens de baseline dan klaar had moeten zijn plus de taken zonder baseline. Norm: minstens 0,95. Vraagt een statusdatum en een actieve baseline.
+
+Twee punten wijken af van het pamflet, omdat de app het begrip niet kent: *Lange duur* telt elke niet-voltooide taak, want het pamflet beperkt dit tot de detailplanningsperiode (rolling wave), en *Resources* kijkt alleen naar toegewezen resources, niet naar kosten. Het pamflet noemt voor de kritiek-padtest geen getal; de 100 werkdagen zijn een keuze van de app.
+
+De controles staan in deze volgorde, met hun ernst. Fout: *Negatieve speling*, *Gemiste deadline*, *Geschonden constraint* en *Inconsistente voortgang* (werkelijke start of einde ná de statusdatum, prognosestart of prognose-einde vóór de statusdatum, 100% zonder werkelijk einde, werkelijk einde maar geen 100%, voortgang zonder werkelijke start). Waarschuwing: *Zonder voorganger (open begin)* en *Zonder opvolger (open einde)* (geen mijlpalen), *Lange duur*, *Lead (negatieve lag)*, *Harde constraint* (een verplichte constraint of een MSO, MFO, SNLT of FNLT), *Out-of-sequence voortgang* en *Gemiste taak (t.o.v. baseline)*. Info: *Near-critical*, *Hoge speling*, *Lange lag*, *Relatie anders dan FS* en *Zonder resource* (alleen als het project resources gebruikt). Het rapport bekijkt alleen bladtaken die geen hammock zijn. Het blok *Overzicht* telt *DCMA-markeringen*, *Fouten*, *Waarschuwingen*, *Ter informatie*, *Bladtaken* en *Relaties*; onder de DCMA-sectie staan een sectie *Overzicht* (per controle de ernst en het aantal) en een sectie *Bevindingen* (elke taak of relatie). Zonder berekening ontbreken de controles die speling nodig hebben.
 
 ## Resourcebelasting
 

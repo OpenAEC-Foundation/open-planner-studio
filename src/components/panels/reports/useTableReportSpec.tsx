@@ -10,9 +10,11 @@ import { formatReportNumber, formatSignedReportNumber, localizeDecimalPoint } fr
 import type { ReportType, TableReportOptions } from '@/utils/reportSettings';
 import type { ReportingPeriod } from '@/engine/reports';
 import { isTableReportType } from '@/utils/reportSettings';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
+import { SEQUENCE_TYPE_OPTIONS } from '@/types/sequence';
 import {
   type ReportContext, type LookAheadRow, type CriticalRow, type ProgressRow, type HealthCheck, type HealthItem,
-  type ResourceLoadingRow, type ResourceAssignmentRow, type WbsSummaryRow,
+  type DcmaMetric, DCMA_DAYS, type ResourceLoadingRow, type ResourceAssignmentRow, type WbsSummaryRow,
   computeLookAhead, computeCriticalReport, computeProgressReport, computeScheduleHealth,
   computeResourceLoading, computeResourceAssignments, computeWbsSummary,
 } from '@/engine/reports';
@@ -53,6 +55,13 @@ function useReportContext(): { ctx: ReportContext; stale: boolean } {
   const baselines = useAppStore(s => s.baselines);
   const activeBaselineId = useAppStore(s => s.activeBaselineId);
   const statusDate = useAppStore(s => s.project.statusDate);
+  // De velden die de solver van het project leest (`SolveProjectFields`) — voor de kritiek-padtest
+  // van de DCMA-beoordeling, die zelf een what-if doorrekent.
+  const progressMode = useAppStore(s => s.project.progressMode);
+  const schedulingOptions = useAppStore(s => s.project.schedulingOptions);
+  const schedulingProfile = useAppStore(s => s.project.schedulingProfile);
+  const startDate = useAppStore(s => s.project.startDate);
+  const endDate = useAppStore(s => s.project.endDate);
   const stale = useAppStore(s => s.scheduleStale);
   const datesAsRecorded = useAppStore(s => s.datesAsRecorded);
   // "Vandaag" één keer per dag stabiel: een nieuwe dag geeft een nieuwe waarde, binnen de dag niet.
@@ -61,7 +70,9 @@ function useReportContext(): { ctx: ReportContext; stale: boolean } {
     tasks, sequences, resources, assignments, calendar, calendars, cpmResult,
     baseline: activeBaselineId ? baselines.find(b => b.id === activeBaselineId) ?? null : null,
     statusDate, today, datesAsRecorded,
-  }), [tasks, sequences, resources, assignments, calendar, calendars, cpmResult, baselines, activeBaselineId, statusDate, today, datesAsRecorded]);
+    solveOptions: solveOptionsFor({ statusDate, progressMode, schedulingOptions, schedulingProfile, startDate, endDate }),
+  }), [tasks, sequences, resources, assignments, calendar, calendars, cpmResult, baselines, activeBaselineId, statusDate, today, datesAsRecorded,
+    progressMode, schedulingOptions, schedulingProfile, startDate, endDate]);
   return { ctx, stale };
 }
 
@@ -244,6 +255,7 @@ function healthDetailText(t: T, dd: DD, item: HealthItem): string {
   const parts: string[] = [];
   if (d.reason) parts.push(t(`tableReports.health.reason_${d.reason}`));
   if (d.constraintType) parts.push(d.constraintType);
+  if (d.relationType) parts.push(SEQUENCE_TYPE_OPTIONS.find(o => o.value === d.relationType)?.label ?? d.relationType);
   // De engine levert de lag taalneutraal ("+1.5d", `formatLagShort`); hier krijgt hij hetzelfde
   // decimaalteken als `dd.num(d.float)` verderop in dezelfde cel.
   if (d.lag) parts.push(t('tableReports.health.detail_lag', { value: dd.lagText(d.lag) }));
@@ -251,6 +263,41 @@ function healthDetailText(t: T, dd: DD, item: HealthItem): string {
   if (d.float !== undefined) parts.push(t('tableReports.health.detail_float', { value: dd.num(d.float) }));
   if (d.date) parts.push(dd.date(d.date));
   return parts.join(' · ');
+}
+
+const DCMA_RESULT_COLOR: Record<DcmaMetric['result'], string> = {
+  pass: REPORT_COLORS.ok, flag: REPORT_COLORS.warn, na: REPORT_COLORS.muted,
+};
+
+function dcmaValueText(m: DcmaMetric, dd: DD): string {
+  if (m.value === undefined) return '';
+  return m.norm.kind === 'minIndex' ? dd.num(m.value) : `${dd.num(m.value)}%`;
+}
+
+function dcmaNormText(t: T, dd: DD, m: DcmaMetric): string {
+  const p = 'tableReports.health';
+  switch (m.norm.kind) {
+    case 'maxPercent': return m.norm.value === 0 ? t(`${p}.norm_none`) : t(`${p}.norm_maxPercent`, { value: dd.num(m.norm.value) });
+    case 'minPercent': return t(`${p}.norm_minPercent`, { value: dd.num(m.norm.value) });
+    case 'minIndex': return t(`${p}.norm_minIndex`, { value: dd.num(m.norm.value) });
+    case 'test': return t(`${p}.norm_test`);
+  }
+}
+
+function dcmaDetailText(t: T, dd: DD, m: DcmaMetric): string {
+  const p = 'tableReports.health';
+  if (m.naReason) return t(`${p}.na_${m.naReason}`);
+  if (m.test) {
+    return t(`${p}.test_detail`, {
+      task: m.test.name, slip: dd.num(m.test.slipDays), end: m.test.endName, shift: dd.signed(m.test.endShiftDays),
+    });
+  }
+  if (m.cpli) {
+    return t(`${p}.cpli_detail`, {
+      cpl: dd.num(m.cpli.criticalPathLength), tf: dd.signed(m.cpli.totalFloat), basis: t(`${p}.cpli_basis_${m.cpli.floatBasis}`),
+    });
+  }
+  return '';
 }
 
 function buildHealth(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, stale: boolean): TableReportSpec {
@@ -268,6 +315,17 @@ function buildHealth(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, st
     { key: 'severity', header: t(`${p}.severity`), width: 110, align: 'left', text: r => t(`${p}.severity_${r.severity}`), color: sevColor, bold: r => r.count > 0 },
     { key: 'count', header: t(`${p}.count`), width: 80, align: 'right', text: r => String(r.count), color: sevColor, bold: r => r.count > 0 },
   ];
+  const dcmaColor = (m: DcmaMetric) => DCMA_RESULT_COLOR[m.result];
+  const dcmaColumns: ReportColumn<DcmaMetric>[] = [
+    { key: 'point', header: t(`${p}.dcma_point`), width: 40, align: 'right', text: m => String(m.point) },
+    { key: 'metric', header: t(`${p}.dcma_metric`), width: 250, align: 'left', text: m => t(`${p}.metric_${m.id}`, { days: DCMA_DAYS }) },
+    { key: 'count', header: t(`${p}.count`), width: 60, align: 'right', text: m => (m.count === undefined ? '' : String(m.count)) },
+    { key: 'base', header: t(`${p}.dcma_base`), width: 60, align: 'right', text: m => (m.base === undefined ? '' : String(m.base)) },
+    { key: 'value', header: t(`${p}.dcma_value`), width: 70, align: 'right', text: m => dcmaValueText(m, dd), color: dcmaColor, bold: m => m.result === 'flag' },
+    { key: 'norm', header: t(`${p}.dcma_norm`), width: 90, align: 'left', text: m => dcmaNormText(t, dd, m) },
+    { key: 'result', header: t(`${p}.dcma_result`), width: 90, align: 'left', text: m => t(`${p}.result_${m.result}`), color: dcmaColor, bold: m => m.result !== 'na' },
+    { key: 'detail', header: t(`${p}.detail`), width: 300, align: 'left', text: m => dcmaDetailText(t, dd, m) },
+  ];
   const detailColumns: ReportColumn<HealthDetailRow>[] = [
     { key: 'check', header: t(`${p}.check`), width: 220, align: 'left', text: r => t(`${p}.check_${r.id}`), color: r => SEVERITY_COLOR[r.severity], bold: () => true },
     { key: 'wbs', header: t('tableReports.common.wbs'), width: 110, align: 'left', text: r => r.item.wbs },
@@ -277,8 +335,9 @@ function buildHealth(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, st
   return {
     title: t(`${p}.title`),
     subtitle: t(`${p}.subtitle`, { float: o.healthHighFloatDays, duration: o.healthLongDurationDays, lag: o.healthLagDays, near: o.nearCriticalDays }),
-    notes: commonNotes(t, dd, ctx, stale),
+    notes: [...commonNotes(t, dd, ctx, stale), t(`${p}.dcma_note`, { tasks: r.dcma.incompleteCount, relations: r.dcma.relationCount })],
     summary: [
+      { label: t(`${p}.summary_dcmaFlags`), value: String(r.dcma.flags), color: r.dcma.flags ? REPORT_COLORS.warn : REPORT_COLORS.ok },
       { label: t(`${p}.errors`), value: String(r.totals.errors), color: r.totals.errors ? REPORT_COLORS.error : REPORT_COLORS.ok },
       { label: t(`${p}.warnings`), value: String(r.totals.warnings), color: r.totals.warnings ? REPORT_COLORS.warn : undefined },
       { label: t(`${p}.infos`), value: String(r.totals.infos) },
@@ -286,6 +345,7 @@ function buildHealth(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, st
       { label: t(`${p}.relations`), value: String(r.relationCount) },
     ],
     sections: [
+      section<DcmaMetric>({ key: 'dcma', heading: t(`${p}.dcma_section`), columns: dcmaColumns, rows: r.dcma.metrics }),
       section<HealthSummaryRow>({ key: 'summary', heading: t(`${p}.sectionSummary`), columns: summaryColumns, rows: summaryRows }),
       section<HealthDetailRow>({ key: 'details', heading: t(`${p}.sectionDetails`), columns: detailColumns, rows: detailRows, emptyText: t(`${p}.empty`) }),
     ],
