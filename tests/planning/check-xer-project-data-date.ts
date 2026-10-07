@@ -102,8 +102,9 @@ eq('PROJECT-data-date legacy last-dialect: productvelden blijven byte/productvel
   task: [{ id: 'T1', scheduleStart: '2026-01-02', scheduleFinish: '2026-01-03' }],
 });
 
-// data_date is uitsluitend een compatibiliteitsbron voor project.statusDate. De reeds bestaande
-// TASK-terugval voor een ontbrekend targetvenster blijft exclusief op last_recalc_date gebaseerd.
+// data_date is een compatibiliteitsbron voor project.statusDate. Sinds review PR #109 (N1) is de
+// statusdatum (dus ook data_date als last_recalc_date-kolom ontbreekt) ook het anker voor een
+// activiteit zonder targetvenster — vroeger kreeg die hier 1970-01-01.
 const dataOnlyMissingTargetWindow = read(bytes([
   'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
   '%T\tCALENDAR',
@@ -119,10 +120,10 @@ const dataOnlyMissingTargetWindow = read(bytes([
 ]));
 eq('PROJECT-data-date data-only zonder targetvenster: statusDate gebruikt data_date',
   dataOnlyMissingTargetWindow.project.statusDate, '2026-01-05');
-eq('PROJECT-data-date data-only zonder targetvenster: scheduleStart houdt oude last-only-terugval',
-  dataOnlyMissingTargetWindow.tasks[0]?.time.scheduleStart, '1970-01-01');
-eq('PROJECT-data-date data-only zonder targetvenster: scheduleFinish houdt oude last-only-terugval',
-  dataOnlyMissingTargetWindow.tasks[0]?.time.scheduleFinish, '1970-01-01');
+eq('PROJECT-data-date data-only zonder targetvenster: scheduleStart = statusdatum (N1, niet meer 1970)',
+  dataOnlyMissingTargetWindow.tasks[0]?.time.scheduleStart, '2026-01-05');
+eq('PROJECT-data-date data-only zonder targetvenster: scheduleFinish = start (nulduur)',
+  dataOnlyMissingTargetWindow.tasks[0]?.time.scheduleFinish, '2026-01-05');
 
 // End-to-end combinatie: PROJECT heeft uitsluitend data_date, terwijl de voltooide TT_LOE via
 // precies de bestaande, smalle actualFinish-route moet blijven lopen. De LOE-batterij bewaakt de

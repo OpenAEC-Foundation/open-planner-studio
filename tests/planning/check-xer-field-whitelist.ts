@@ -268,7 +268,10 @@ export const XER_TASK_IGNORED: readonly string[] = [
 // dus wél een CI-poort. Toegestaan zijn uitsluitend twee lezingen van DEZELFDE kolomnaam op een
 // ANDERE tabel — bak 2 is een TASK-tabel-lijst — elk gepind op bestand én exacte vorm:
 //   • `projectRow.cells.plan_end_date` in `xerReader.ts` (PROJECT-tabel: het geplande projecteinde
-//     voor `useProjectEndDateForFloat`, X5), en
+//     voor `useProjectEndDateForFloat`, X5),
+//   • `projectRow.cells.plan_start_date` in `xerReader.ts` (PROJECT-tabel: de geplande projectstart
+//     als anker voor een activiteit zonder `target_start_date`, review PR #109 N1 — P6-invoer, geen
+//     rekenuitvoer), en
 //   • `row.cells.critical_drtn_hr_cnt` in `xerScheduleOptions.ts` (SCHEDOPTIONS-tabel: de
 //     kritiek-drempel in uren, X5).
 // Elke andere treffer — ook dezelfde naam in een ander bestand of in een andere vorm — is rood.
@@ -339,6 +342,7 @@ export const XER_TASK_IGNORED: readonly string[] = [
       // BAK 2 — de whitelist-sluiproute-grep die plan §4.1 belooft (zie de kop van dit blok).
       const bak2Toegestaan: ReadonlyArray<{ field: string; file: string; exact: RegExp }> = [
         { field: 'plan_end_date', file: join(xerDir, 'xerReader.ts'), exact: /projectRow\.cells\.plan_end_date\b/ },
+        { field: 'plan_start_date', file: join(xerDir, 'xerReader.ts'), exact: /projectRow\.cells\.plan_start_date\b/ },
         { field: 'critical_drtn_hr_cnt', file: join(xerDir, 'xerScheduleOptions.ts'), exact: /row\.cells\.critical_drtn_hr_cnt\b/ },
       ];
       const bak2Overtreders: string[] = [];
@@ -483,6 +487,8 @@ function astFieldHits(fileName: string, text: string, fields: readonly string[])
     const uitzonderingen: Uitzondering[] = [
       { file: 'services/xer/xerReader.ts', field: 'plan_end_date', context: 'access:projectRow.cells', count: 1,
         waarom: 'PROJECT-tabel (niet TASK): het geplande projecteinde voor useProjectEndDateForFloat, X5' },
+      { file: 'services/xer/xerReader.ts', field: 'plan_start_date', context: 'access:projectRow.cells', count: 1,
+        waarom: 'PROJECT-tabel (niet TASK): geplande projectstart als anker voor een ontbrekende target_start_date, review PR #109 N1' },
       { file: 'services/xer/xerScheduleOptions.ts', field: 'critical_drtn_hr_cnt', context: 'access:row.cells', count: 1,
         waarom: 'SCHEDOPTIONS-tabel: de kritiek-drempel in uren, X5' },
       { file: 'services/xer/xerTables.ts', field: 'plan_end_date', context: 'catalog:XER_KNOWN_FIELDS_BY_TABLE.PROJECT', count: 1,
