@@ -4,10 +4,9 @@ import { xerDocumentName, xerProjectCode } from '@/utils/xerDocumentName';
 import { useTranslation } from 'react-i18next';
 import { isTauri } from '@/utils/platform';
 import {
-  FileText, FolderOpen, Save, Undo2, Redo2, Minus, Square, Copy, X, Settings,
+  Undo2, Redo2, Minus, Square, Copy, X, Settings,
 } from 'lucide-react';
 import { SwitcherPill } from '@/components/layout/DocumentChrome/SwitcherPill';
-import { buildImportLabels } from '@/i18n/importLabels';
 import { canRedo, canUndo } from '@/state/sessionHistory';
 import { canWriteToRefWithoutPrompt, type FileRef } from '@/services/fileAccess';
 
@@ -35,8 +34,6 @@ export function TitleBar() {
   const redoAvailable = useAppStore(canRedo);
   const isDirty = useAppStore(s => s.isDirty);
   const setUI = useAppStore(s => s.setUI);
-  const saveFile = useAppStore(s => s.saveFile);
-  const openFile = useAppStore(s => s.openFile);
   const filePath = useAppStore(s => s.filePath);
   const fileHandle = useAppStore(s => s.fileHandle);
   const autoSaveToFile = useAppStore(s => s.autoSaveToFile);
@@ -137,16 +134,8 @@ export function TitleBar() {
           <img src="/icon.png" className="title-bar-app-icon" alt="Open Planner Studio" />
           <div className="quick-access-separator" />
 
-          <button className="quick-access-btn" title={tMenu('ribbon.newProjectTitle')} onClick={() => setUI({ showNewProjectDialog: true })}>
-            <FileText size={16} />
-          </button>
-          <button className="quick-access-btn" title={tMenu('ribbon.open')} onClick={() => { void openFile(buildImportLabels(tCommon)); }}>
-            <FolderOpen size={16} />
-          </button>
-          <button className="quick-access-btn" title={tMenu('ribbon.saveTitle')} onClick={() => { void saveFile(); }}>
-            <Save size={16} />
-          </button>
-
+          {/* Nieuw/Openen/Opslaan staan hier bewust niet (review 2026-10-06): ze staan al op Start en in
+              Bestand, en de oude Opslaan-knop droeg het misleidende label "Opslaan als…". */}
           <button
             className={`title-bar-autosave${autoSaveToFile ? ' active' : ''}`}
             role="switch"

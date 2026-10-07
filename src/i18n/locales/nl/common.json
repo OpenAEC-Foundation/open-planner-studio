@@ -69,6 +69,8 @@
     "mppEncrypted": "Dit .mpp-bestand is met een wachtwoord beveiligd. Exporteer het in MS Project als XML (Bestand → Opslaan als → XML) en open dat bestand.",
     "saveFailed": "Opslaan mislukt",
     "savedViaDownload": "Opgeslagen als download: '{{name}}' staat nu in je downloadmap. Deze omgeving staat de app niet toe rechtstreeks naar de gekozen locatie te schrijven.",
+    "browserCannotOverwrite": "Deze browser laat de app niet terugschrijven naar '{{name}}'. Daarom vraagt de app bij elke keer opslaan opnieuw waar het bestand moet komen. In Chrome, Edge of de desktop-app gebeurt dit niet.",
+    "browserSavesAsDownload": "Opgeslagen als download: '{{name}}' staat in je downloadmap. Deze browser laat de app niet naar een eigen plek schrijven, dus elke keer opslaan maakt een nieuwe download. In Chrome, Edge of de desktop-app werkt Opslaan hetzelfde bestand gewoon bij.",
     "autoSaveFailed": "Automatisch opslaan mislukt",
     "recoveryReadFailed": "Hersteld bestand kon niet worden gelezen",
     "recoveryRestoreFailed": "Herstellen mislukt",

@@ -183,6 +183,9 @@ export type NotificationMessageKey =
   | 'notifications.saveFailed'
   | 'notifications.librarySaveFailed'
   | 'notifications.savedViaDownload'
+  // Opslaan in een browser die niet terugschrijft — zie `browserSaveNotice.ts` (één keer per sessie).
+  | 'notifications.browserCannotOverwrite'
+  | 'notifications.browserSavesAsDownload'
   | 'notifications.autoSaveFailed'
   | 'notifications.recoveryReadFailed'
   | 'notifications.recoveryRestoreFailed'

@@ -283,9 +283,18 @@ async function main() {
   await S().saveFile();
   const notes = S().ui.notifications.map(n => ({ sev: n.severity, key: n.messageKey }));
   eq('7a het project is als download opgeslagen', downloads.length, 1);
-  eq('7b één melding, en dat is de download-info', notes, [{ sev: 'info', key: 'notifications.savedViaDownload' }]);
+  // Sinds review 2026-10-06 (punt 4) is de download-info de uitleg voor browsergebruikers.
+  eq('7b één melding, en dat is de browseruitleg over downloads', notes, [{ sev: 'info', key: 'notifications.browserSavesAsDownload' }]);
+  eq('7b2 met een link naar de handleiding over bestanden', S().ui.notifications[0]?.helpArticleId, 'uitleg-bestanden');
   eq('7c geen rauwe browserfout als detail', S().ui.notifications[0]?.detail, undefined);
   eq('7d het document geldt als opgeslagen', S().isDirty, false);
+
+  // 7d2. Een tweede Ctrl+S in dezelfde sessie: wéér een download, maar geen tweede uitleg.
+  S().addTask({ name: 'A2' });
+  await S().saveFile();
+  eq('7d2 de tweede opslag is weer een download', downloads.length, 2);
+  eq('7d3 en de uitleg staat er nog steeds maar één keer',
+    S().ui.notifications.filter(n => n.messageKey === 'notifications.browserSavesAsDownload').map(n => n.count), [1]);
 
   // ── 7e. Een late uitkomst hoort bij document B, nooit bij inmiddels actief document C ─────
   resetWebWriteRefusalForTests();
@@ -327,6 +336,31 @@ async function main() {
   eq('7n Opslaan als-bestandsnaam blijft bij bron', S().filePath, 'project.ifc');
   eq('7o Opslaan als-handle blijft bij bron', S().fileHandle === saveAsHandle, true);
   eq('7p ongewijzigde Opslaan als-bron wordt schoon', S().isDirty, false);
+
+  // ── 7q. Project met een bestand dat de browser niet kan terugschrijven (geopend via de
+  // input-terugval: wel een naam, geen handle). Opslaan opent weer een venster; dat krijgt één keer
+  // uitleg met de naam van het bestaande bestand. Een nieuw project dat voor het eerst via een
+  // venster wordt opgeslagen krijgt géén uitleg: dat venster is gewoon normaal.
+  const { resetBrowserSaveNoticeForTests } = await import('@/state/browserSaveNotice');
+  resetBrowserSaveNoticeForTests();
+  resetWebWriteRefusalForTests();
+  installWindow(makeHandle({}));
+  S().newDocument();
+  S().addTask({ name: 'Bestaand' });
+  useAppStore.setState({ filePath: 'bestaand.ifc', fileHandle: null });
+  const before7q = S().ui.notifications.length;
+  await S().saveFile();
+  const added7q = S().ui.notifications.slice(before7q);
+  eq('7q bestaand bestand, opnieuw een venster: één uitleg', added7q.map(n => n.messageKey), ['notifications.browserCannotOverwrite']);
+  eq('7r de uitleg noemt het bestaande bestand', added7q[0]?.params?.name, 'bestaand.ifc');
+
+  resetBrowserSaveNoticeForTests();
+  installWindow(makeHandle({}));
+  S().newDocument();
+  S().addTask({ name: 'Nieuw' });
+  const before7s = S().ui.notifications.length;
+  await S().saveFile();
+  eq('7s eerste keer opslaan via een venster: geen uitleg', S().ui.notifications.length, before7s);
 
   // ── 8. featurePolicy meldt vooraf een blokkade → meteen de input-terugval, geen picker ──────
   resetWebReadRefusalForTests();

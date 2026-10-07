@@ -85,6 +85,8 @@
     "mppEncrypted": "Este arquivo .mpp está protegido por senha. Exporte-o no MS Project como XML (Arquivo → Salvar como → XML) e abra esse arquivo.",
     "saveFailed": "Falha ao salvar",
     "savedViaDownload": "Guardado como transferência: '{{name}}' está agora na sua pasta de transferências. Este ambiente não permite que a aplicação escreva diretamente no local escolhido.",
+    "browserCannotOverwrite": "Este navegador não permite que a aplicação volte a gravar em «{{name}}». Por isso, a aplicação pergunta novamente onde guardar o ficheiro sempre que guarda. Isto não acontece no Chrome, no Edge nem na aplicação de ambiente de trabalho.",
+    "browserSavesAsDownload": "Guardado como transferência: «{{name}}» está na sua pasta de transferências. Este navegador não permite que a aplicação grave num local próprio, por isso cada gravação cria uma nova transferência. No Chrome, no Edge ou na aplicação de ambiente de trabalho, Guardar atualiza simplesmente o mesmo ficheiro.",
     "autoSaveFailed": "Falha no salvamento automático",
     "recoveryReadFailed": "Não foi possível ler o arquivo recuperado",
     "recoveryRestoreFailed": "Falha na restauração",
