@@ -866,8 +866,12 @@ export class GanttRenderer {
     ctx.strokeStyle = this.colors.statusDate;
     ctx.lineWidth = 2;
     ctx.setLineDash([4, 4]); // zelfde patroon als de vandaag-/statusdatumlijn (één beeld)
+    // Elke rij is een eigen stuk pad: de streepjes beginnen per stuk opnieuw. Een uitstulping
+    // loopt VANUIT de voortgangspunt naar de statusdatumlijn, zodat er altijd een streepje precies
+    // op de punt staat (bij één doorlopend patroon viel daar soms een gat, en stopte de lijn zichtbaar
+    // te vroeg). Zonder hoekverbinding schiet de punt ook niet meer voorbij de voortgangsgrens van de
+    // balk (een `miter`-hoek stak bij een spitse uitstulping tot ~10 px door).
     ctx.beginPath();
-    ctx.moveTo(statusX, headerHeight);
 
     for (let i = 0; i < this.rows.length; i++) {
       const rowTop = this.rowToY(i);
@@ -896,9 +900,15 @@ export class GanttRenderer {
         }
       }
 
-      ctx.lineTo(statusX, rowTop);
-      ctx.lineTo(progressX, rowMid);
-      ctx.lineTo(statusX, rowBottom);
+      if (progressX === statusX) {
+        ctx.moveTo(statusX, rowTop);
+        ctx.lineTo(statusX, rowBottom);
+      } else {
+        ctx.moveTo(progressX, rowMid);
+        ctx.lineTo(statusX, rowTop);
+        ctx.moveTo(progressX, rowMid);
+        ctx.lineTo(statusX, rowBottom);
+      }
     }
     ctx.stroke();
     ctx.restore();
