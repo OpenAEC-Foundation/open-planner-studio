@@ -55,7 +55,9 @@ Translations: `npm run i18n:add` puts one string in all 14 locales at once (reci
 `npm run i18n:resolve` merges them per key after a `git merge` — run it even when git reports no conflict.
 
 Generators/helpers: `npm run gen:examples` (regenerates `public/examples`), `npm run gen:tutorial-project`
-(tutorial project nl/en to `build/tutorial-project/`, see `scripts/README.md`), `npm run gen:release-highlights-json`,
+(tutorial project nl/en to `build/tutorial-project/`, see `scripts/README.md`), `npm run gen:docs-screenshots -- --out <dir>`
+(tutorial screenshots as WebP from the step scripts in `tests/browser/tutorials/`, which `test:browser` runs without
+capturing), `npm run gen:release-highlights-json`,
 `npm run publish:wiki` (dry run; `-- --push` publishes), `npm run stats:downloads` (downloads per OS from the
 GitHub Releases API; the workflow publishes the JSON weekly to the `stats` data branch).
 
