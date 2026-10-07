@@ -2,8 +2,10 @@
 // parseExternalSource, fileTools.parseByExtension, devBridge.openFromPath) plus de bijbehorende
 // exportlijst (Backstage).
 
-import { readIFC } from '@/services/ifc/ifcReader';
-import { XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT } from '@/services/xerSourceArchive';
+import { readIFC, type IfcReadOptions } from '@/services/ifc/ifcReader';
+import {
+  XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT, XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_FORMAT,
+} from '@/services/xerSourceArchive';
 import { readCSV } from '@/services/csv/csvReader';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { readP6XML } from '@/services/p6/p6xmlReader';
@@ -100,18 +102,21 @@ function parseProjectXml(content: string): OpenedImport {
 }
 
 /**
- * Lees IFC met behoud van de lazy XER-chunkgrens. Alleen een schema-2-envelope laadt de parser;
- * gewone IFC en historische schema-1-archieven blijven op het bestaande synchrone hoofdpad.
+ * Lees IFC met behoud van de lazy XER-chunkgrens. Alleen een schema-2-envelope (of een schema-3-
+ * crashherstelverwijzing) laadt de parser; gewone IFC en historische schema-1-archieven blijven op
+ * het bestaande synchrone hoofdpad. `resolveXerArchiveReference` geeft alleen crashherstel mee.
  */
 export async function readIFCWithXerReconstruction(
   content: string,
   labels: ImportLabels = {},
+  options: Pick<IfcReadOptions, 'resolveXerArchiveReference'> = {},
 ): Promise<ImportResult> {
-  if (content.includes(XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT)) {
+  if (content.includes(XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT)
+    || content.includes(XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_FORMAT)) {
     const { reconstructXerSourceFromBytes } = await import('@/services/xer/xerReader');
-    return readIFC(content, labels, { reconstructXerArchive: reconstructXerSourceFromBytes });
+    return readIFC(content, labels, { ...options, reconstructXerArchive: reconstructXerSourceFromBytes });
   }
-  return readIFC(content, labels);
+  return readIFC(content, labels, options);
 }
 
 /** Default-formaat bij een onbekende extensie. Een APARTE, benoemde const-entry i.p.v. `READ_FORMATS.find(...)!` —

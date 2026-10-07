@@ -4,7 +4,7 @@ import { isTauri } from '@/utils/platform';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { RecoveryDeltaTracker, type RecoverySourceDocument } from '@/services/recovery/recoveryDelta';
-import { saveRecovery } from '@/services/recovery/recoveryStore';
+import { runRecoveryTick } from '@/services/recovery/recoverySnapshot';
 import { registerRecoveryFlush } from '@/services/recovery/recoveryFlush';
 import { canWriteToRefWithoutPrompt, saveToRefWithoutPrompt, type FileRef } from '@/services/fileAccess';
 import { actualAutoSaveDelay, createActualAutoSaveController, type ActualAutoSaveCandidate } from '@/services/actualAutosave/actualAutoSave';
@@ -60,16 +60,10 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
           // manifestmetadata mee zodat crashherstel hem terugzet i.p.v. hem te raden.
           datesAsRecorded: payload.datesAsRecorded,
         }));
-        const recoverySave = recoveryDelta.prepare(
-          state.activeDocumentId,
-          recoveryDocs,
-          (source) => writeIFC(buildWriteIFCInput(source)),
-        );
-        if (!recoverySave) return;
         // Backend-keuze (Tauri-bestanden of IndexedDB) zit in recoveryStore. De volledige
-        // documentlijst is manifestmetadata; alleen `upserts` bevat zware IFC-teksten.
-        await saveRecovery(recoverySave);
-        recoveryDelta.commit(state.activeDocumentId, recoveryDocs);
+        // documentlijst is manifestmetadata; alleen `upserts` bevat IFC-teksten, en die dragen het
+        // XER-bronarchief alleen als verwijzing (eigenaarsbesluit plan (9), `serializeRecoverySnapshot`).
+        await runRecoveryTick(recoveryDelta, state.activeDocumentId, recoveryDocs);
       } catch (err) {
         console.error('Auto-save failed:', err);
         // dedupeKey is hier niet optioneel: de auto-save probeert het elke ~10 s opnieuw, dus

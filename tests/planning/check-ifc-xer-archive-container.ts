@@ -94,7 +94,7 @@ expect('8 hernoemde chunk: archief weg mét signaal (structure)', dropsArchiveWi
 expect('9 FOUTCODE hash-mismatch: corrupte bronhash ⇒ archief weg mét signaal', dropsArchiveWith(ifc.replace(archive.sha256, `0${archive.sha256.slice(1)}`), 'Sha256', 'hash-mismatch'));
 expect('10 verkeerde manifestchunkgrootte: archief weg mét signaal (structure)', dropsArchiveWith(ifc.replace('IFCINTEGER(196608)', 'IFCINTEGER(196607)'), 'ByteChunkSize', 'structure'));
 expect('10a FOUTCODE schema-version: onbekende archiefschemaversie ⇒ archief weg mét signaal',
-  dropsArchiveWith(replaceIntegerProperty(ifc, 'SchemaVersion', 3), 'SchemaVersion', 'schema-version'));
+  dropsArchiveWith(replaceIntegerProperty(ifc, 'SchemaVersion', 99), 'SchemaVersion', 'schema-version'));
 expect('10b mismatchende ByteLength ⇒ afgeknot (truncated), vóór samenvoegen',
   dropsArchiveWith(ifc.replace(`IFCINTEGER(${bytes.length})`, `IFCINTEGER(${bytes.length + 1})`), 'heeft', 'truncated'));
 const reorderedChunks = ifc

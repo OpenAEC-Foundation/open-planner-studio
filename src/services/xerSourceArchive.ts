@@ -31,6 +31,14 @@ export const XER_SOURCE_ARCHIVE_CHUNK_BYTES = 196_608;
  */
 export const XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION = 2;
 export const XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT = 'raw-source-reconstruction-v1';
+/**
+ * Crashherstel-verwijzing (eigenaarsbesluit plan (9), "één keer schrijven, niet per snapshot"). Een
+ * recovery-snapshot draagt de bronbytes NIET; de pset noemt alleen lengte en SHA-256, en de bytes staan
+ * één keer als content-adressed blob in de crashherstelopslag (`recoveryStore`). Alleen crashherstel
+ * schrijft en leest deze vorm; een projectbestand is altijd `embedded` (schema 2).
+ */
+export const XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_SCHEMA_VERSION = 3;
+export const XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_FORMAT = 'recovery-reference-v1';
 
 export type XerSourceArchiveEncoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252';
 export type XerSourceArchiveBom = 'utf-8' | 'utf-16le' | 'utf-16be' | 'none';

@@ -1,5 +1,8 @@
 import { sameIFCSource, type IFCSaveSource } from '@/state/ifcSaveInput';
-import type { RecoveryDocContent, RecoveryDocMetadata, RecoverySaveInput } from './recoveryStore';
+import type {
+  RecoveryArchiveSupplier, RecoveryDocContent, RecoveryDocMetadata, RecoverySaveInput,
+} from './recoveryStore';
+import { decodeXerSourceArchive } from '@/services/xerSourceArchive';
 
 /** Eén open document, precies zoals de auto-save het aan de recoverylaag aanbiedt. */
 export interface RecoverySourceDocument extends RecoveryDocMetadata {
@@ -22,6 +25,29 @@ export interface RecoveryDelta {
   needsPersist: boolean;
 }
 
+/**
+ * De manifestmetadata van één document. `xerArchive` volgt uit de bron zelf (de sha256 van het
+ * bronarchief), zodat manifest en referentiesnapshot per constructie naar dezelfde blob wijzen.
+ */
+function metadataOf(document: RecoverySourceDocument): RecoveryDocMetadata {
+  const { id, filePath, isDirty, datesAsRecorded } = document;
+  const sha = document.source.xerSourceArchive?.sha256;
+  return { id, filePath, isDirty, datesAsRecorded, ...(sha ? { xerArchive: sha } : {}) };
+}
+
+/**
+ * Per verwezen archief een LAZY leverancier van de bronbytes. Een closure kost niets; de opslaglaag
+ * roept hem alleen aan als de blob nog ontbreekt.
+ */
+function archiveSuppliers(documents: readonly RecoverySourceDocument[]): Map<string, RecoveryArchiveSupplier> {
+  const out = new Map<string, RecoveryArchiveSupplier>();
+  for (const document of documents) {
+    const archive = document.source.xerSourceArchive;
+    if (archive?.sha256 && !out.has(archive.sha256)) out.set(archive.sha256, () => decodeXerSourceArchive(archive));
+  }
+  return out;
+}
+
 function sameMetadata(a: readonly RecoveryDocMetadata[], b: readonly RecoveryDocMetadata[]): boolean {
   return a.length === b.length && a.every((value, index) => {
     const other = b[index];
@@ -31,7 +57,8 @@ function sameMetadata(a: readonly RecoveryDocMetadata[], b: readonly RecoveryDoc
       && value.isDirty === other.isDirty
       // De modusvlag hoort bij de manifestmetadata: een documentwissel in of
       // uit "datums zoals opgeslagen" moet ook zónder inhoudswijziging een manifestschrijf geven.
-      && value.datesAsRecorded === other.datesAsRecorded;
+      && value.datesAsRecorded === other.datesAsRecorded
+      && (value.xerArchive ?? null) === (other.xerArchive ?? null);
   });
 }
 
@@ -45,9 +72,7 @@ export function planRecoveryDelta(
   documents: readonly RecoverySourceDocument[],
   persisted: PersistedRecoveryState | null,
 ): RecoveryDelta {
-  const metadata = documents.map(({ id, filePath, isDirty, datesAsRecorded }) => ({
-    id, filePath, isDirty, datesAsRecorded,
-  }));
+  const metadata = documents.map(metadataOf);
   const changedDocuments = documents.filter((document) => {
     const previous = persisted?.sources.get(document.id);
     return previous === undefined || !sameIFCSource(previous, document.source);
@@ -69,9 +94,7 @@ export function persistedRecoveryState(
 ): PersistedRecoveryState {
   return {
     activeDocumentId,
-    documents: documents.map(({ id, filePath, isDirty, datesAsRecorded }) => ({
-      id, filePath, isDirty, datesAsRecorded,
-    })),
+    documents: documents.map(metadataOf),
     sources: new Map(documents.map((document) => [document.id, document.source])),
   };
 }
@@ -103,17 +126,14 @@ export class RecoveryDeltaTracker {
         ? cached.ifc
         : serialize(document.source);
       this.serialized.set(document.id, { source: document.source, ifc });
-      return {
-        id: document.id, ifc, filePath: document.filePath, isDirty: document.isDirty,
-        datesAsRecorded: document.datesAsRecorded,
-      };
+      return { ...metadataOf(document), ifc };
     });
+    const archives = archiveSuppliers(documents);
     return {
       activeDocumentId,
-      documents: documents.map(({ id, filePath, isDirty, datesAsRecorded }) => ({
-        id, filePath, isDirty, datesAsRecorded,
-      })),
+      documents: documents.map(metadataOf),
       upserts,
+      ...(archives.size > 0 ? { archives } : {}),
     };
   }
 

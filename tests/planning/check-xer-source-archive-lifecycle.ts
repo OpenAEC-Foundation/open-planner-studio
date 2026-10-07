@@ -21,6 +21,7 @@ import { readXER } from '@/services/xer/xerReader';
 import type { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { clearRecovery, fullRecoverySave, loadRecovery, saveRecovery } from '@/services/recovery/recoveryStore';
+import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 
 declare const process: {
   exit(code: number): never;
@@ -37,51 +38,7 @@ const store = () => useAppStore.getState();
 
 // Browser-API is de enige niet-headless rand. Deze minimale IDB-dubbel bewaart echte records en
 // transacties; saveRecovery/loadRecovery/clearRecovery zelf draaien ongewijzigd door hun publieke grens.
-const idbRecords = new Map<string, unknown>();
-const fakeDb = {
-  objectStoreNames: { contains: () => true },
-  createObjectStore: () => undefined,
-  close: () => undefined,
-  onversionchange: null as (() => void) | null,
-  transaction: (_store: string, _mode: string) => {
-    const tx = {
-      oncomplete: null as (() => void) | null,
-      onerror: null as (() => void) | null,
-      error: null,
-      objectStore: () => ({
-        getAll: () => {
-          const request = { result: [] as unknown[], error: null, onsuccess: null as (() => void) | null, onerror: null as (() => void) | null };
-          queueMicrotask(() => { request.result = [...idbRecords.values()]; request.onsuccess?.(); });
-          return request;
-        },
-        put: (value: { id: string }) => {
-          idbRecords.set(value.id, structuredClone(value));
-          queueMicrotask(() => tx.oncomplete?.());
-        },
-        delete: (id: string) => {
-          idbRecords.delete(id);
-          queueMicrotask(() => tx.oncomplete?.());
-        },
-      }),
-    };
-    return tx;
-  },
-};
-const fakeIndexedDb = {
-  open: () => {
-    const request = {
-      result: fakeDb,
-      error: null,
-      onupgradeneeded: null as (() => void) | null,
-      onsuccess: null as (() => void) | null,
-      onerror: null as (() => void) | null,
-    };
-    queueMicrotask(() => { request.onupgradeneeded?.(); request.onsuccess?.(); });
-    return request;
-  },
-};
-(globalThis as unknown as { window: object }).window = {};
-(globalThis as unknown as { indexedDB: unknown }).indexedDB = fakeIndexedDb;
+installFakeRecoveryIndexedDb();
 
 const bytes = new TextEncoder().encode([
   'ERMHDR\t23.12\t2026-08-01\t\t\t\t\t\tEUR',

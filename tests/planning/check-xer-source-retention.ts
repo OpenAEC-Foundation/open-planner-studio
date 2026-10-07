@@ -10,6 +10,7 @@ import { decodeXerSourceArchive, sha256Hex } from '@/services/xerSourceArchive';
 import { createAppStore, type AppState } from '@/state/appStore';
 import { payloadFromImport, recoveryInputFromParsed } from '@/state/documentContract';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 
 declare const process: { env: Record<string, string | undefined>; exit(code: number): never };
 
@@ -74,63 +75,7 @@ const truthy = (label: string, value: boolean) => {
 };
 
 // De browserrand is nep; recoveryStore, IFC-write/read en documentrestore zijn echt.
-const records = new Map<string, unknown>();
-const fakeDb = {
-  objectStoreNames: { contains: () => true },
-  createObjectStore: () => undefined,
-  close: () => undefined,
-  onversionchange: null as (() => void) | null,
-  transaction: (_store: string, _mode: string) => {
-    const tx = {
-      oncomplete: null as (() => void) | null,
-      onerror: null as (() => void) | null,
-      onabort: null as (() => void) | null,
-      error: null,
-      abort: () => tx.onabort?.(),
-      objectStore: () => ({
-        getAll: () => {
-          const request = {
-            result: [] as unknown[],
-            error: null,
-            onsuccess: null as (() => void) | null,
-            onerror: null as (() => void) | null,
-          };
-          queueMicrotask(() => {
-            request.result = [...records.values()];
-            request.onsuccess?.();
-          });
-          return request;
-        },
-        put: (value: { id: string }) => {
-          records.set(value.id, structuredClone(value));
-          queueMicrotask(() => tx.oncomplete?.());
-        },
-        delete: (id: string) => {
-          records.delete(id);
-          queueMicrotask(() => tx.oncomplete?.());
-        },
-      }),
-    };
-    return tx;
-  },
-};
-(globalThis as unknown as { window: object }).window = {};
-(globalThis as unknown as { indexedDB: unknown }).indexedDB = {
-  open: () => {
-    const request = {
-      result: fakeDb,
-      error: null,
-      onupgradeneeded: null as (() => void) | null,
-      onsuccess: null as (() => void) | null,
-      onerror: null as (() => void) | null,
-    };
-    queueMicrotask(() => {
-      request.onupgradeneeded?.();
-      request.onsuccess?.();
-    });
-    return request;
-  },
-};
+installFakeRecoveryIndexedDb();
 
 // Drie bronchunks, een onbekende tabel en een onbekend taakveld. De kalenderpayload is echte P6-XER:
 // dubbele/non-work exceptions leveren p6NonWorkPenaltyDates op; de FS-relatie begint exact op de

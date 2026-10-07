@@ -288,7 +288,7 @@ eq('5k v3-plan behoudt een v2-snapshot zonder nieuwe inhoud', v3Plan.documents[0
 eq('5l v3-plan maakt precies één immutable generatie voor de upsert', v3Plan.writes,
   [{ name: 'recovery.snapshot.doc-2.g-42.ifc', ifc: 'nieuwe B-inhoud' }]);
 eq('5m v3-manifestregel wijst naar die generatie', v3Plan.documents[1]?.ifc, 'recovery.snapshot.doc-2.g-42.ifc');
-eq('5n v4 is de actuele manifestversie (v3 + de modusvlag per document)', RECOVERY_MANIFEST_VERSION, 4);
+eq('5n v5 is de actuele manifestversie (v4 + de archiefverwijzing per document)', RECOVERY_MANIFEST_VERSION, 5);
 
 // 5o–5r — "datums zoals opgeslagen" reist als manifestmetadata mee (critreview laag 3,
 // bevindingen 2/3), en een OUDER manifest zonder dat veld MOET leesbaar blijven: het staat op de

@@ -1,10 +1,10 @@
 import { isTauri } from '@/utils/platform';
-import { idbGetAll, openDb } from '@/utils/idb';
+import { openDbStores } from '@/utils/idb';
 import {
   ownRecoveryNames, recoveryTmpSuffix,
   type RecoveryNames, type RecoveryManifest, type RecoveryManifestDoc,
 } from '@/hooks/recoveryPaths';
-import { writeTextFileAtomic } from '@/services/fileAccess/atomicWrite';
+import { writeBytesFileAtomic, writeTextFileAtomic } from '@/services/fileAccess/atomicWrite';
 
 /** Eén recovery-document (IFC-CONTENT, niet de bestandsnaam). */
 export interface RecoveryDocContent {
@@ -14,6 +14,8 @@ export interface RecoveryDocContent {
   isDirty: boolean;
   /** Zie `RecoveryDocMetadata.datesAsRecorded`. */
   datesAsRecorded: boolean;
+  /** Zie `RecoveryDocMetadata.xerArchive`. */
+  xerArchive?: string;
 }
 
 /** Metadata die bij élke recoveryronde in het manifest hoort, ook zonder nieuwe IFC-payload. */
@@ -30,7 +32,19 @@ export interface RecoveryDocMetadata {
    * leesbaarheid van oudere manifesten.
    */
   datesAsRecorded: boolean;
+  /**
+   * SHA-256 van het XER-bronarchief waar de snapshot naar verwijst (zie
+   * `RecoveryManifestDoc.xerArchive`). Afwezig: geen archief, of een ingebed archief (oude vorm).
+   */
+  xerArchive?: string;
 }
+
+/**
+ * Lazy leverancier van de ruwe bronbytes van één archief. De opslaglaag roept hem ALLEEN aan als de
+ * blob nog niet bestaat: een tick met een bestaande blob raakt het archief niet aan (geen decodering,
+ * geen kopie). Eigenaarsbesluit plan (9), "één keer schrijven".
+ */
+export type RecoveryArchiveSupplier = () => Uint8Array;
 
 /**
  * De opslaggrens van recovery: de volledige open-documentlijst is manifestmetadata; `upserts`
@@ -42,17 +56,51 @@ export interface RecoverySaveInput {
   activeDocumentId: string | null;
   documents: RecoveryDocMetadata[];
   upserts: RecoveryDocContent[];
+  /**
+   * Per verwezen archief-sha256 de leverancier van de bronbytes. Elke `xerArchive` in `documents`
+   * MOET hier staan: ontbreekt de blob op schijf (eerste tick, of opgeruimd), dan schrijft de
+   * opslaglaag hem vóór het manifest. Afwezig = geen verwijzingen.
+   */
+  archives?: ReadonlyMap<string, RecoveryArchiveSupplier>;
 }
 
 /** Gebruik uitsluitend in tests en voor expliciete compatibiliteitsmigraties: alles is nieuw. */
-export function fullRecoverySave(activeDocumentId: string | null, docs: RecoveryDocContent[]): RecoverySaveInput {
+export function fullRecoverySave(
+  activeDocumentId: string | null,
+  docs: RecoveryDocContent[],
+  archives?: ReadonlyMap<string, RecoveryArchiveSupplier>,
+): RecoverySaveInput {
   return {
     activeDocumentId,
-    documents: docs.map(({ id, filePath, isDirty, datesAsRecorded }) => ({
-      id, filePath, isDirty, datesAsRecorded,
+    documents: docs.map(({ id, filePath, isDirty, datesAsRecorded, xerArchive }) => ({
+      id, filePath, isDirty, datesAsRecorded, ...(xerArchive ? { xerArchive } : {}),
     })),
     upserts: docs,
+    ...(archives ? { archives } : {}),
   };
+}
+
+/** Alle archief-sha's waar deze ronde naar verwijst; elk moet een leverancier hebben. */
+function referencedArchives(input: RecoverySaveInput): Set<string> {
+  const out = new Set<string>();
+  for (const document of input.documents) {
+    if (!document.xerArchive) continue;
+    if (!/^[0-9a-f]{64}$/.test(document.xerArchive)) {
+      throw new Error(`Recovery: ongeldige archiefverwijzing voor ${JSON.stringify(document.id)}.`);
+    }
+    if (!input.archives?.has(document.xerArchive)) {
+      throw new Error(`Recovery: archiefverwijzing van ${JSON.stringify(document.id)} heeft geen bronbytes.`);
+    }
+    out.add(document.xerArchive);
+  }
+  return out;
+}
+
+/** Roep de leverancier aan en controleer dat hij precies het verwezen archief levert. */
+function suppliedArchiveBytes(input: RecoverySaveInput, sha256: string): Uint8Array {
+  const bytes = input.archives!.get(sha256)!();
+  if (!(bytes instanceof Uint8Array)) throw new Error('Recovery: archiefleverancier gaf geen bytes.');
+  return bytes;
 }
 
 /** Geladen record incl. weergave-mtime (Tauri: bestand-mtime; web: addedAt). */
@@ -63,6 +111,11 @@ export interface LoadedRecoveryDoc extends RecoveryDocContent {
 export interface LoadedRecovery {
   activeDocumentId: string | null;
   docs: LoadedRecoveryDoc[];
+  /**
+   * De archiefblobs (sha256 → ruwe bronbytes) waar de manifestregels naar verwijzen. Een
+   * ontbrekende blob staat er niet in; de lezer meldt dat document dan met `bytes-missing`.
+   */
+  archives: ReadonlyMap<string, Uint8Array>;
 }
 
 // ---------------------------------------------------------------------------
@@ -79,7 +132,7 @@ const legacyFile = names.legacy;
 const TMP_SUFFIX = recoveryTmpSuffix;
 
 /** Manifestversie mét eigenaarschapsvelden. Zie `RecoveryManifest` voor de migratieregel. */
-export const RECOVERY_MANIFEST_VERSION = 4;
+export const RECOVERY_MANIFEST_VERSION = 5;
 
 /**
  * Id van DEZE app-instantie (proces/realm). Wordt in het manifest gezet zodat een volgende
@@ -103,6 +156,8 @@ const ownWritten = new Set<string>();
  * gewist worden.
  */
 const adoptedIfc = new Set<string>();
+/** Archief-sha's waarvan DEZE instantie de blob schreef (zie `archiveRemovals`). */
+const ownWrittenArchives = new Set<string>();
 
 export type ManifestOwnership = 'none' | 'own' | 'legacy' | 'foreign';
 
@@ -137,14 +192,37 @@ export interface RecoveryCleanupInput {
   adopted: string[];
   /** Naamgeving van DEZE base. */
   names: RecoveryNames;
+  /** Archief-sha's waar het NIEUWE manifest (zonder carry-over) naar verwijst. */
+  keepArchives?: string[];
+  /** Archief-sha's waarvan deze instantie zelf de blob schreef. */
+  ownWrittenArchives?: string[];
 }
 
 export interface RecoveryCleanupPlan {
   ownership: ManifestOwnership;
-  /** Exacte bestandsnamen die weg mogen. */
+  /** Exacte bestandsnamen die weg mogen (snapshots, archiefblobs en halffabricaten). */
   remove: string[];
   /** Documentregels van een vreemde eigenaar die in ons manifest mee moeten. */
   carryOver: RecoveryManifestDoc[];
+}
+
+/**
+ * Archiefblobs die weg mogen: dezelfde eigen-boekhoudingsregel als de snapshots (vorig eigen/legacy
+ * manifest ∪ zelf geschreven), maar een blob blijft staan zolang het nieuwe manifest — inclusief de
+ * meegedragen regels van een vreemde eigenaar — hem noemt. Content-adressed: twaalf documenten uit
+ * één bestand delen één blob, en die gaat pas weg als de laatste verwijzing weg is.
+ */
+function archiveRemovals(
+  candidates: Iterable<string>, referenced: ReadonlySet<string>, present: ReadonlySet<string>, n: RecoveryNames,
+): string[] {
+  const remove: string[] = [];
+  for (const sha of new Set(candidates)) {
+    if (referenced.has(sha) || !/^[0-9a-f]{64}$/.test(sha)) continue;
+    const name = n.archiveName(sha);
+    if (present.has(name)) remove.push(name);
+    if (present.has(name + recoveryTmpSuffix)) remove.push(name + recoveryTmpSuffix);
+  }
+  return remove;
 }
 
 /**
@@ -202,7 +280,8 @@ export function planRecoveryCleanup(input: RecoveryCleanupInput): RecoveryCleanu
   // manifest zelf): die horen na een geslaagde `rename` niet meer te bestaan, dus wat er ligt is
   // een restant van een crash. Ze worden op exacte naam aangewezen, niet met een sweep, zodat een
   // in-flight `.tmp` van een andere instantie buiten schot blijft.
-  for (const name of [...keep, n.manifest]) {
+  const keepArchiveNames = (input.keepArchives ?? []).map((sha) => n.archiveName(sha));
+  for (const name of [...keep, ...keepArchiveNames, n.manifest]) {
     const tmp = name + recoveryTmpSuffix;
     if (present.has(tmp) && !remove.includes(tmp)) remove.push(tmp);
   }
@@ -216,8 +295,21 @@ export function planRecoveryCleanup(input: RecoveryCleanupInput): RecoveryCleanu
       carryOver.push({
         id: d.id, ifc: d.ifc, filePath: d.filePath ?? null, isDirty: d.isDirty ?? true,
         datesAsRecorded: d.datesAsRecorded ?? false,
+        ...(typeof d.xerArchive === 'string' ? { xerArchive: d.xerArchive } : {}),
       });
     }
+  }
+
+  const referencedArchives = new Set([
+    ...(input.keepArchives ?? []),
+    ...carryOver.flatMap((d) => (d.xerArchive ? [d.xerArchive] : [])),
+  ]);
+  const archiveCandidates = [...(input.ownWrittenArchives ?? [])];
+  if (prev && (ownership === 'own' || ownership === 'legacy')) {
+    for (const d of prev.documents) if (d && typeof d.xerArchive === 'string') archiveCandidates.push(d.xerArchive);
+  }
+  for (const name of archiveRemovals(archiveCandidates, referencedArchives, present, n)) {
+    if (!remove.includes(name)) remove.push(name);
   }
 
   return { ownership, remove, carryOver };
@@ -249,6 +341,7 @@ export function planRecoveryClear(
   // wél gefilterd op onze eigen naamvorm.
   for (const d of manifest?.documents ?? []) {
     if (d && typeof d.ifc === 'string' && n.snapshotDocId(d.ifc) !== null) out.add(d.ifc);
+    if (d && typeof d.xerArchive === 'string' && /^[0-9a-f]{64}$/.test(d.xerArchive)) out.add(n.archiveName(d.xerArchive));
   }
   return [...out];
 }
@@ -271,6 +364,8 @@ export function planRecoveryExitClear(input: {
   ownWritten: string[];
   adopted: string[];
   names: RecoveryNames;
+  /** Archief-sha's waarvan deze instantie zelf de blob schreef. */
+  ownWrittenArchives?: string[];
 }): { remove: string[]; manifest: 'keep' | 'remove' | RecoveryManifestDoc[] } {
   const present = new Set(input.listing);
   const adopted = new Set(input.adopted);
@@ -280,10 +375,21 @@ export function planRecoveryExitClear(input: {
     if (present.has(name)) remove.push(name);
     if (present.has(name + recoveryTmpSuffix)) remove.push(name + recoveryTmpSuffix);
   }
-  if (manifestOwnership(input.manifest, input.self) !== 'own') return { remove, manifest: 'keep' };
+  const ownManifest = manifestOwnership(input.manifest, input.self) === 'own';
   const removed = new Set(remove);
-  const kept = (input.manifest?.documents ?? []).filter((d) =>
-    d && typeof d.ifc === 'string' && adopted.has(d.ifc) && !removed.has(d.ifc) && present.has(d.ifc));
+  const kept = ownManifest
+    ? (input.manifest?.documents ?? []).filter((d) =>
+      d && typeof d.ifc === 'string' && adopted.has(d.ifc) && !removed.has(d.ifc) && present.has(d.ifc))
+    : [];
+  // Eigen archiefblobs gaan mee weg, behalve als een regel die blijft staan ernaar verwijst: een
+  // bewaard (uitgesteld of vreemd) manifest. Is het manifest niet van ons, dan blijft alles staan
+  // waar dát manifest naar verwijst.
+  const stillReferenced = new Set(
+    (ownManifest ? kept : (input.manifest?.documents ?? []))
+      .flatMap((d) => (d && typeof d.xerArchive === 'string' ? [d.xerArchive] : [])),
+  );
+  remove.push(...archiveRemovals(input.ownWrittenArchives ?? [], stillReferenced, present, input.names));
+  if (!ownManifest) return { remove, manifest: 'keep' };
   return { remove, manifest: kept.length > 0 ? kept : 'remove' };
 }
 
@@ -323,7 +429,8 @@ function checkedUpserts(input: RecoverySaveInput): Map<string, RecoveryDocConten
     }
     const metadata = input.documents.find((candidate) => candidate.id === document.id)!;
     if (document.filePath !== metadata.filePath || document.isDirty !== metadata.isDirty
-      || document.datesAsRecorded !== metadata.datesAsRecorded) {
+      || document.datesAsRecorded !== metadata.datesAsRecorded
+      || (document.xerArchive ?? null) !== (metadata.xerArchive ?? null)) {
       throw new Error(`Recovery: upsertmetadata voor ${JSON.stringify(document.id)} wijkt af van het manifest.`);
     }
     upserts.set(document.id, document);
@@ -360,6 +467,7 @@ export function planTauriV3RecoverySave(
       documents.push({
         id: metadata.id, ifc, filePath: metadata.filePath, isDirty: metadata.isDirty,
         datesAsRecorded: metadata.datesAsRecorded,
+        ...(metadata.xerArchive ? { xerArchive: metadata.xerArchive } : {}),
       });
       writes.push({ name: ifc, ifc: changed.ifc });
       continue;
@@ -368,9 +476,13 @@ export function planTauriV3RecoverySave(
     if (!previousDocument) {
       throw new Error(`Recovery: ${JSON.stringify(metadata.id)} heeft geen vorige snapshot en geen upsert.`);
     }
+    // Ongewijzigde inhoud ⇒ dezelfde snapshot ⇒ dezelfde verwijzing. Die komt uit de huidige
+    // metadata (afgeleid uit dezelfde bron), niet uit het vorige manifest: een oude v4-regel
+    // zonder verwijzing blijft zo zonder, want zijn snapshot draagt het archief ingebed.
     documents.push({
       id: metadata.id, ifc: previousDocument.ifc, filePath: metadata.filePath,
       isDirty: metadata.isDirty, datesAsRecorded: metadata.datesAsRecorded,
+      ...(metadata.xerArchive ? { xerArchive: metadata.xerArchive } : {}),
     });
   }
 
@@ -408,6 +520,16 @@ async function saveTauri(input: RecoverySaveInput): Promise<void> {
   // immutable naam. Het oude manifest wijst nog naar de vorige complete generatie zolang dit
   // lukt of faalt; een crash kan dus geen half nieuwe documentverzameling publiceren.
   const snapshotPlan = planTauriV3RecoverySave(prev, input, nextRecoveryGeneration(), names);
+  // Fase 0: archiefblobs, content-adressed en immutable. Bestaat de blob al, dan raakt deze ronde
+  // het archief niet aan — de leverancier (decodering) loopt alleen bij een ontbrekende blob. Vóór de
+  // snapshots en vóór de manifestcommit: een gecommit manifest verwijst nooit naar een ontbrekende blob.
+  const keepArchives = [...referencedArchives(input)];
+  for (const sha of keepArchives) {
+    const name = names.archiveName(sha);
+    if (await exists(await join(dir, name))) continue;
+    await writeBytesFileAtomic(dir, name, suppliedArchiveBytes(input, sha), TMP_SUFFIX);
+    ownWrittenArchives.add(sha);
+  }
   for (const write of snapshotPlan.writes) {
     await writeAtomic(write.name, write.ifc);
     ownWritten.add(write.name);
@@ -418,6 +540,7 @@ async function saveTauri(input: RecoverySaveInput): Promise<void> {
   const plan = planRecoveryCleanup({
     listing, prev, self: instanceId, keep,
     ownWritten: [...ownWritten], adopted: [...adoptedIfc], names,
+    keepArchives, ownWrittenArchives: [...ownWrittenArchives],
   });
   if (plan.ownership === 'foreign') {
     console.warn(
@@ -448,7 +571,27 @@ async function saveTauri(input: RecoverySaveInput): Promise<void> {
   for (const name of plan.remove) {
     try { await remove(await join(dir, name)); } catch { /* al weg */ }
     ownWritten.delete(name);
+    const sha = names.archiveSha(name);
+    if (sha) ownWrittenArchives.delete(sha);
   }
+}
+
+/** Lees de archiefblobs waar de manifestregels naar verwijzen; een ontbrekende of onleesbare blob
+ *  ontbreekt in de map (de lezer meldt het document dan met `bytes-missing`). */
+async function readArchivesTauri(dir: string, documents: readonly RecoveryManifestDoc[]): Promise<Map<string, Uint8Array>> {
+  const { readFile } = await import('@tauri-apps/plugin-fs');
+  const { join } = await import('@tauri-apps/api/path');
+  const archives = new Map<string, Uint8Array>();
+  for (const d of documents) {
+    const sha = d?.xerArchive;
+    if (typeof sha !== 'string' || !/^[0-9a-f]{64}$/.test(sha) || archives.has(sha)) continue;
+    try {
+      archives.set(sha, await readFile(await join(dir, names.archiveName(sha))));
+    } catch (err) {
+      console.error('Recovery: kon archiefblob niet lezen:', sha, err);
+    }
+  }
+  return archives;
 }
 
 /**
@@ -526,12 +669,18 @@ async function loadTauri(): Promise<LoadedRecovery> {
             id: d.id, ifc, filePath: d.filePath ?? null, isDirty: d.isDirty ?? true,
             // v1–v3-manifest kent het veld niet ⇒ `false` (aanbod, geen modus).
             datesAsRecorded: d.datesAsRecorded ?? false, mtime,
+            ...(typeof d.xerArchive === 'string' ? { xerArchive: d.xerArchive } : {}),
           });
         } catch (err) {
           console.error('Recovery: kon documentsnapshot niet lezen:', d.id, err);
         }
       }
-      if (docs.length > 0) return { activeDocumentId: manifest.activeDocumentId ?? null, docs };
+      if (docs.length > 0) {
+        return {
+          activeDocumentId: manifest.activeDocumentId ?? null, docs,
+          archives: await readArchivesTauri(dir, manifest.documents),
+        };
+      }
       // Manifest gelezen maar géén enkel document eruit leesbaar → alsnog scannen (hieronder):
       // misschien staan er snapshots die dit manifest niet (meer) noemt.
     } else {
@@ -541,7 +690,8 @@ async function loadTauri(): Promise<LoadedRecovery> {
     // Terugval: de losse snapshots staan er nog; die mogen niet verloren gaan omdat één
     // klein JSON-bestand stuk is.
     const scanned = await scanTauriSnapshots();
-    if (scanned.length > 0) return { activeDocumentId: scanned[0].id, docs: scanned };
+    // De scan vindt alleen v1/v2-snapshots; die dragen hun archief ingebed.
+    if (scanned.length > 0) return { activeDocumentId: scanned[0].id, docs: scanned, archives: new Map() };
   }
 
   // Terugval: oude losse <base>.ifc (één document).
@@ -551,10 +701,11 @@ async function loadTauri(): Promise<LoadedRecovery> {
     return {
       activeDocumentId: 'legacy',
       docs: [{ id: 'legacy', ifc, filePath: null, isDirty: true, datesAsRecorded: false, mtime }],
+      archives: new Map(),
     };
   }
 
-  return { activeDocumentId: null, docs: [] };
+  return { activeDocumentId: null, docs: [], archives: new Map() };
 }
 
 async function clearTauri(): Promise<void> {
@@ -573,6 +724,8 @@ async function clearTauri(): Promise<void> {
     try { await remove(await join(dir, name)); } catch { /* al weg */ }
     ownWritten.delete(name);
     adoptedIfc.delete(name);
+    const sha = names.archiveSha(name);
+    if (sha) ownWrittenArchives.delete(sha);
   }
   // Het manifest zelf zit al in de scan; als `readDir` faalde staat hij er nog.
   if (await exists(manifestPath)) {
@@ -597,6 +750,7 @@ async function clearOwnTauri(): Promise<void> {
   const plan = planRecoveryExitClear({
     listing: await listAppDataTauri(dir), manifest, self: instanceId,
     ownWritten: [...ownWritten], adopted: [...adoptedIfc], names,
+    ownWrittenArchives: [...ownWrittenArchives],
   });
   if (plan.manifest === 'remove') {
     try { await remove(manifestPath); } catch { /* al weg */ }
@@ -609,6 +763,8 @@ async function clearOwnTauri(): Promise<void> {
   for (const name of plan.remove) {
     try { await remove(await join(dir, name)); } catch { /* al weg */ }
     ownWritten.delete(name);
+    const sha = names.archiveSha(name);
+    if (sha) ownWrittenArchives.delete(sha);
   }
 }
 
@@ -618,6 +774,13 @@ async function clearOwnTauri(): Promise<void> {
 
 const WEB_DB = 'ops-recovery';
 const WEB_STORE = 'records';
+/**
+ * v2 (2026-10-07): de content-adressed XER-archiefblobs in een EIGEN object-store, zodat de
+ * `getAll()` op de snapshots per tick nooit de (grote) archiefbytes meeleest. Sleutel = sha256.
+ */
+const WEB_ARCHIVE_STORE = 'xer-archives';
+const WEB_DB_VERSION = 2;
+const openRecoveryDb = (): Promise<IDBDatabase> => openDbStores(WEB_DB, WEB_DB_VERSION, [WEB_STORE, WEB_ARCHIVE_STORE]);
 const SESSION_KEY = 'ops-recovery-session';
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 dagen
 
@@ -784,6 +947,22 @@ interface WebManifestRecord {
   addedAt: number;
 }
 type WebRecord = WebDocRecord | WebManifestRecord;
+interface WebArchiveRecord {
+  id: string; // sha256 van de bronbytes
+  bytes: Uint8Array;
+  addedAt: number;
+}
+
+/** Alle archiefverwijzingen van alle manifesten in de database (alle tabs, alle vastgehouden generaties). */
+function webArchiveReferences(manifests: Iterable<WebManifestRecord>): Set<string> {
+  const out = new Set<string>();
+  for (const manifest of manifests) {
+    for (const document of manifest.documents ?? []) {
+      if (document && typeof document.xerArchive === 'string') out.add(document.xerArchive);
+    }
+  }
+  return out;
+}
 
 const docKey = (sid: string, docId: string): string => `${sid}::doc::${docId}`;
 const manifestKey = (sid: string): string => `${sid}::manifest`;
@@ -798,10 +977,12 @@ const manifestKey = (sid: string): string => `${sid}::manifest`;
 async function saveWeb(input: RecoverySaveInput): Promise<void> {
   const sid = await sessionId();
   const now = Date.now();
-  const db = await openDb(WEB_DB, WEB_STORE);
+  const db = await openRecoveryDb();
   await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(WEB_STORE, 'readwrite');
+    // Eén transactie over beide stores: blob, snapshots, manifest en opruimen committen samen.
+    const tx = db.transaction([WEB_STORE, WEB_ARCHIVE_STORE], 'readwrite');
     const store = tx.objectStore(WEB_STORE);
+    const archiveStore = tx.objectStore(WEB_ARCHIVE_STORE);
     let settled = false;
     const fail = (err: unknown) => {
       if (settled) return;
@@ -820,63 +1001,116 @@ async function saveWeb(input: RecoverySaveInput): Promise<void> {
     const allRequest = store.getAll();
     allRequest.onerror = () => fail(allRequest.error ?? new Error('IndexedDB-recoveryrecords niet leesbaar.'));
     allRequest.onsuccess = () => {
-      try {
-        const all = allRequest.result as WebRecord[];
-        const upserts = checkedUpserts(input);
-        const existing = new Set(all
-          .filter((record): record is WebDocRecord => record.kind === 'doc' && record.sessionId === sid)
-          .map((record) => record.docId));
-        for (const document of input.documents) {
-          if (!upserts.has(document.id) && !existing.has(document.id)) {
-            throw new Error(`Recovery: ${JSON.stringify(document.id)} heeft geen webrecord en geen upsert.`);
+      // Alleen de SLEUTELS van de archiefstore: bestaan en opruimen zonder de bytes te lezen.
+      const keysRequest = archiveStore.getAllKeys();
+      keysRequest.onerror = () => fail(keysRequest.error ?? new Error('IndexedDB-archiefsleutels niet leesbaar.'));
+      keysRequest.onsuccess = () => {
+        try {
+          const all = allRequest.result as WebRecord[];
+          const archiveKeys = new Set((keysRequest.result as IDBValidKey[]).filter((key): key is string => typeof key === 'string'));
+          const upserts = checkedUpserts(input);
+          const referenced = referencedArchives(input);
+          const existing = new Set(all
+            .filter((record): record is WebDocRecord => record.kind === 'doc' && record.sessionId === sid)
+            .map((record) => record.docId));
+          for (const document of input.documents) {
+            if (!upserts.has(document.id) && !existing.has(document.id)) {
+              throw new Error(`Recovery: ${JSON.stringify(document.id)} heeft geen webrecord en geen upsert.`);
+            }
           }
-        }
 
-        // Alleen nieuwe of inhoudelijk gewijzigde IFC-payloads worden aangeraakt.
-        for (const document of upserts.values()) {
-          const record: WebDocRecord = {
-            id: docKey(sid, document.id), kind: 'doc', sessionId: sid, docId: document.id,
-            ifc: document.ifc, addedAt: now,
+          // Eén keer per archief: de leverancier (decodering) loopt alleen als de blob er nog niet is.
+          for (const sha of referenced) {
+            if (archiveKeys.has(sha)) continue;
+            const record: WebArchiveRecord = { id: sha, bytes: suppliedArchiveBytes(input, sha), addedAt: now };
+            archiveStore.put(record);
+          }
+
+          // Alleen nieuwe of inhoudelijk gewijzigde IFC-payloads worden aangeraakt.
+          for (const document of upserts.values()) {
+            const record: WebDocRecord = {
+              id: docKey(sid, document.id), kind: 'doc', sessionId: sid, docId: document.id,
+              ifc: document.ifc, addedAt: now,
+            };
+            store.put(record);
+          }
+
+          // Alle metadata hoort bij het manifest. Daardoor is een actieve-tabwissel of alleen een
+          // pad-/dirtywijziging exact één manifest-write, nooit een serie grote IFC-copies.
+          const manifest: WebManifestRecord = {
+            id: manifestKey(sid), kind: 'manifest', sessionId: sid,
+            version: RECOVERY_MANIFEST_VERSION,
+            activeDocumentId: input.activeDocumentId,
+            documents: input.documents.map((document) => ({
+              id: document.id,
+              ifc: docKey(sid, document.id),
+              filePath: document.filePath,
+              isDirty: document.isDirty,
+              datesAsRecorded: document.datesAsRecorded,
+              ...(document.xerArchive ? { xerArchive: document.xerArchive } : {}),
+            })),
+            addedAt: now,
           };
-          store.put(record);
-        }
+          store.put(manifest);
 
-        // Alle metadata hoort bij het manifest. Daardoor is een actieve-tabwissel of alleen een
-        // pad-/dirtywijziging exact één manifest-write, nooit een serie grote IFC-copies.
-        const manifest: WebManifestRecord = {
-          id: manifestKey(sid), kind: 'manifest', sessionId: sid,
-          version: RECOVERY_MANIFEST_VERSION,
-          activeDocumentId: input.activeDocumentId,
-          documents: input.documents.map((document) => ({
-            id: document.id,
-            ifc: docKey(sid, document.id),
-            filePath: document.filePath,
-            isDirty: document.isDirty,
-            datesAsRecorded: document.datesAsRecorded,
-          })),
-          addedAt: now,
-        };
-        store.put(manifest);
-
-        const keep = new Set(input.documents.map((document) => docKey(sid, document.id)));
-        for (const record of all) {
-          if (record.sessionId !== sid && now - record.addedAt > MAX_AGE_MS) store.delete(record.id);
-          if (record.sessionId === sid && record.kind === 'doc' && !keep.has(record.id)) store.delete(record.id);
+          const keep = new Set(input.documents.map((document) => docKey(sid, document.id)));
+          const survivingManifests: WebManifestRecord[] = [manifest];
+          for (const record of all) {
+            const expired = record.sessionId !== sid && now - record.addedAt > MAX_AGE_MS;
+            if (expired) store.delete(record.id);
+            if (record.sessionId === sid && record.kind === 'doc' && !keep.has(record.id)) store.delete(record.id);
+            if (record.kind === 'manifest' && record.id !== manifest.id && !expired) survivingManifests.push(record);
+          }
+          // Een blob verdwijnt zodra GEEN manifest in de database hem nog noemt.
+          const stillReferenced = webArchiveReferences(survivingManifests);
+          for (const key of archiveKeys) if (!stillReferenced.has(key)) archiveStore.delete(key);
+        } catch (err) {
+          // Geen gedeeltelijke promotie: alle writes hierboven horen bij dezelfde transactie en
+          // verdwijnen bij abort. Onze headless dubbel kent geen `abort`, daarom defensief optioneel.
+          (tx as unknown as { abort?: () => void }).abort?.();
+          fail(err);
         }
-      } catch (err) {
-        // Geen gedeeltelijke promotie: alle writes hierboven horen bij dezelfde transactie en
-        // verdwijnen bij abort. Onze headless dubbel kent geen `abort`, daarom defensief optioneel.
-        (tx as unknown as { abort?: () => void }).abort?.();
-        fail(err);
-      }
+      };
     };
   });
+}
+
+/** Lees alle snapshotrecords plus de verwezen archiefblobs in één readonly-transactie. Een fout geeft
+ *  een lege uitkomst (stil), net als de oude `idbGetAll`: een kapotte IndexedDB mag de start niet blokkeren. */
+async function readWebRecovery(): Promise<{ records: WebRecord[]; archives: Map<string, Uint8Array> }> {
+  try {
+    const db = await openRecoveryDb();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction([WEB_STORE, WEB_ARCHIVE_STORE], 'readonly');
+      const allRequest = tx.objectStore(WEB_STORE).getAll();
+      allRequest.onerror = () => reject(allRequest.error);
+      allRequest.onsuccess = () => {
+        const records = allRequest.result as WebRecord[];
+        const wanted = [...webArchiveReferences(records.filter((r): r is WebManifestRecord => r.kind === 'manifest'))];
+        const archives = new Map<string, Uint8Array>();
+        if (wanted.length === 0) { resolve({ records, archives }); return; }
+        let pending = wanted.length;
+        for (const sha of wanted) {
+          const request = tx.objectStore(WEB_ARCHIVE_STORE).get(sha);
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => {
+            const value = request.result as WebArchiveRecord | undefined;
+            if (value && value.bytes instanceof Uint8Array) archives.set(sha, value.bytes);
+            pending -= 1;
+            if (pending === 0) resolve({ records, archives });
+          };
+        }
+      };
+    });
+  } catch {
+    return { records: [], archives: new Map() };
+  }
 }
 
 async function loadWeb(): Promise<LoadedRecovery> {
   const sid = await sessionId();
   const held = await heldSessionIds();
-  const all = await idbGetAll<WebRecord>(WEB_DB, WEB_STORE);
+  const { records: all, archives: allArchives } = await readWebRecovery();
   const docs: LoadedRecoveryDoc[] = [];
   const seen = new Set<string>();
   let activeDocumentId: string | null = null;
@@ -887,7 +1121,7 @@ async function loadWeb(): Promise<LoadedRecovery> {
     if (activeDocumentId === null) activeDocumentId = manifest.activeDocumentId;
     const metadata = Array.isArray(manifest.documents)
       ? manifest.documents
-      : (manifest.docIds ?? []).map((id) => ({
+      : (manifest.docIds ?? []).map((id): RecoveryManifestDoc => ({
         id, ifc: docKey(generation, id), filePath: null, isDirty: true, datesAsRecorded: false,
       }));
     for (const document of metadata) {
@@ -904,32 +1138,51 @@ async function loadWeb(): Promise<LoadedRecovery> {
         // v1–v3-webrecord kent het veld niet ⇒ `false` (aanbod, geen modus).
         datesAsRecorded: document.datesAsRecorded ?? false,
         mtime: new Date(rec.addedAt),
+        ...(typeof document.xerArchive === 'string' ? { xerArchive: document.xerArchive } : {}),
       });
     }
   }
-  return { activeDocumentId, docs };
+  // Alleen de blobs waar de geladen documenten naar verwijzen (niet die van andere tabs).
+  const archives = new Map<string, Uint8Array>();
+  for (const doc of docs) {
+    const bytes = doc.xerArchive ? allArchives.get(doc.xerArchive) : undefined;
+    if (doc.xerArchive && bytes) archives.set(doc.xerArchive, bytes);
+  }
+  return { activeDocumentId, docs, archives };
 }
 
 async function clearWeb(): Promise<void> {
   const sid = await sessionId();
   const generations = new Set([sid, ...(await heldSessionIds())]);
-  const db = await openDb(WEB_DB, WEB_STORE);
+  const db = await openRecoveryDb();
   await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(WEB_STORE, 'readwrite');
+    const tx = db.transaction([WEB_STORE, WEB_ARCHIVE_STORE], 'readwrite');
     const store = tx.objectStore(WEB_STORE);
+    const archiveStore = tx.objectStore(WEB_ARCHIVE_STORE);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
     const allRequest = store.getAll();
     allRequest.onerror = () => reject(allRequest.error);
     allRequest.onsuccess = () => {
-      const ours = (allRequest.result as WebRecord[]).filter((record) => generations.has(record.sessionId));
-      for (const record of ours) store.delete(record.id);
-      writeHeldSessionIds([]);
-      heldSessionIdsPromise = Promise.resolve([]);
-      // Echte IndexedDB committeert ook een lege transactie; de kleine headless dubbel plant dan
-      // geen `oncomplete`. Alleen voor dat lege, write-loze geval lossen we lokaal op — nooit een
-      // tweede, losse transaction openen: dat zou de atomische grens breken.
-      if (ours.length === 0) queueMicrotask(resolve);
+      const keysRequest = archiveStore.getAllKeys();
+      keysRequest.onerror = () => reject(keysRequest.error);
+      keysRequest.onsuccess = () => {
+        const all = allRequest.result as WebRecord[];
+        const ours = all.filter((record) => generations.has(record.sessionId));
+        for (const record of ours) store.delete(record.id);
+        // Blobs zonder verwijzing uit een manifest van een ANDER tab gaan mee.
+        const stillReferenced = webArchiveReferences(all.filter((record): record is WebManifestRecord =>
+          record.kind === 'manifest' && !generations.has(record.sessionId)));
+        const orphanArchives = (keysRequest.result as IDBValidKey[])
+          .filter((key): key is string => typeof key === 'string' && !stillReferenced.has(key));
+        for (const key of orphanArchives) archiveStore.delete(key);
+        writeHeldSessionIds([]);
+        heldSessionIdsPromise = Promise.resolve([]);
+        // Echte IndexedDB committeert ook een lege transactie; de kleine headless dubbel plant dan
+        // geen `oncomplete`. Alleen voor dat lege, write-loze geval lossen we lokaal op — nooit een
+        // tweede, losse transaction openen: dat zou de atomische grens breken.
+        if (ours.length === 0 && orphanArchives.length === 0) queueMicrotask(resolve);
+      };
     };
   });
 }

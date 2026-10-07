@@ -70,8 +70,12 @@ export function useRecoveryRestore(): RecoveryRestore {
         let failed = 0;
         for (const d of loaded.docs) {
           try {
+            // Een snapshot met archiefVERWIJZING (eigenaarsbesluit plan (9)) haalt de bronbytes uit
+            // de crashherstelopslag. Ontbreekt de blob, dan opent het document zonder archief en
+            // met de `xerArchiveIssue`-melding ("openen met melding"), net als elk onbruikbaar archief.
             const parsed = await readIFCWithXerReconstruction(
               d.ifc, buildImportLabels(startupTRef.current),
+              { resolveXerArchiveReference: (sha256) => loaded.archives.get(sha256) },
             );
             // Welke velden bij crashherstel meegaan bepaalt `recoveryInputFromParsed` — deze hook
             // houdt bewust geen veldkennis.
