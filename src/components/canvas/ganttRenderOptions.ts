@@ -25,6 +25,7 @@ import { resolveGanttAxis } from '@/engine/renderer/workdayAxis';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { diffDays, parseDate } from '@/utils/dateUtils';
 import { resolveTaskFinish } from '@/utils/ganttViewport';
+import { knownDrivingSequenceIds } from '@/engine/scheduler/drivingInfo';
 
 /** Overlay-datums uit de actieve baseline, keyed op Task.id. */
 export { buildBaselineOverlay };
@@ -233,7 +234,8 @@ export function buildGanttRenderOptions(input: GanttRenderOptionsInput): GanttRe
   const cpm = cpmResult && !cpmResult.error ? cpmResult : undefined;
   return {
     ...rest,
-    drivingSequenceIds: cpm?.drivingSequenceIds,
+    // Opgeslagen datums (`drivingUnknown`) weten niet wat driving is ⇒ ook undefined.
+    drivingSequenceIds: knownDrivingSequenceIds(cpm),
     violatedConstraintTaskIds: cpm?.violatedConstraintTaskIds,
     missedDeadlineTaskIds: cpm?.missedDeadlineTaskIds,
   };

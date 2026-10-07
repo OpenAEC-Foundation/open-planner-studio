@@ -406,6 +406,8 @@ export function cpmResultFromRecorded(
     criticalPath,
     criticalPaths: [criticalPath],
     drivingSequenceIds: [],
+    // Onbekend, niet "niets driving" — zie `CPMResult.drivingUnknown`.
+    drivingUnknown: true,
     sequenceFreeFloat: {},
     truncatedLeadSequenceIds: [],
     violatedConstraintTaskIds: [],

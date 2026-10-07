@@ -46,6 +46,7 @@ import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import type { GanttAxis } from '@/engine/renderer/timeAxis';
 import type { HistogramSeries, HistogramPickerItem } from '@/engine/renderer/HistogramRenderer';
 import type { TraceMode } from '@/state/slices/types';
+import { buildRecordedTime, cpmResultFromRecorded } from '@/engine/scheduler/recordedDates';
 
 const S = () => useAppStore.getState();
 
@@ -540,6 +541,21 @@ const optsNoCpm = buildGanttRenderOptions({ ...baseInput, cpmResult: null });
 eq('26 geen CPM: geen drivingSequenceIds', optsNoCpm.drivingSequenceIds, undefined);
 eq('27 geen CPM: geen violatedConstraintTaskIds', optsNoCpm.violatedConstraintTaskIds, undefined);
 eq('28 geen CPM: geen missedDeadlineTaskIds', optsNoCpm.missedDeadlineTaskIds, undefined);
+
+// 28b–28d — N4 (prestatiemeting rehab-2, 2026-10-07): "Datums zoals opgeslagen" reconstrueert het
+// resultaat uit het bestand en weet NIET welke relaties driving zijn (de lege lijst betekent daar
+// "onbekend", niet "niets driving"). Vroeger las de renderer die lege lijst als "alles non-driving"
+// en streepte hij ELKE relatie — fout volgens zijn eigen regel, en op rehab-2 de duurste
+// canvasbewerking. Onbekend ⇒ `undefined` ⇒ neutraal doorgetrokken; de overige lijsten blijven.
+const recordedRecon = cpmResultFromRecorded(
+  { [idA]: buildRecordedTime({ start: '2027-03-01', finish: '2027-03-05' })! },
+  S().tasks, calendar,
+);
+const optsRecorded = buildGanttRenderOptions({ ...baseInput, cpmResult: recordedRecon });
+eq('28b opgeslagen datums: geen driving-informatie ⇒ drivingSequenceIds undefined', optsRecorded.drivingSequenceIds, undefined);
+eq('28c opgeslagen datums: missedDeadlineTaskIds komt nog door', optsRecorded.missedDeadlineTaskIds, recordedRecon.missedDeadlineTaskIds);
+eq('28d berekend en niets driving blijft een lege lijst (gestreept)',
+  buildGanttRenderOptions({ ...baseInput, cpmResult: { ...cpmDistinct, drivingSequenceIds: [] } }).drivingSequenceIds, []);
 
 // 29 — doorgeefvelden. Dit is de check die omvalt als iemand een veld hernoemt of laat vallen:
 // het zijn precies de velden die het component eerder twee keer met de hand overtypte.
