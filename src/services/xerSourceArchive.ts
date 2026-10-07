@@ -32,7 +32,9 @@ export const XER_SOURCE_ARCHIVE_CHUNK_BYTES = 196_608;
 export const XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION = 2;
 export const XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT = 'raw-source-reconstruction-v1';
 
-export type XerSourceArchiveEncoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252';
+/** De codering waarmee de lezer de bytes las (`XerEncoding`); sinds review PR #109 N3 ook de
+ *  enkelbyte-codetabellen 1251/1253/1256. */
+export type XerSourceArchiveEncoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252' | 'windows-1251' | 'windows-1253' | 'windows-1256';
 export type XerSourceArchiveBom = 'utf-8' | 'utf-16le' | 'utf-16be' | 'none';
 export type XerSourceArchiveNewline = 'crlf' | 'lf' | 'cr' | 'mixed' | 'none';
 
@@ -638,7 +640,7 @@ function validateSourceRow(value: unknown, path: string): void {
 function validateTableReport(value: unknown, path: string): void {
   const report = objectOf(value, path);
   exactKeys(report, ['encoding', 'endMarkerSeen', 'issues', 'unknownTables', 'unknownFields'], path);
-  oneOf(report.encoding, ['utf-8', 'utf-16le', 'utf-16be', 'windows-1252'], `${path}.encoding`);
+  oneOf(report.encoding, ['utf-8', 'utf-16le', 'utf-16be', 'windows-1252', 'windows-1251', 'windows-1253', 'windows-1256'], `${path}.encoding`);
   booleanOf(report.endMarkerSeen, `${path}.endMarkerSeen`);
   for (const [index, issueValue] of arrayOf(report.issues, `${path}.issues`).entries()) {
     const issue = objectOf(issueValue, `${path}.issues[${index}]`);

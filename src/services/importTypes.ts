@@ -14,7 +14,7 @@ import type { XerResourceIssue, XerTaskResourceSource } from './xer/xerResourceT
 import type { XerMetadataCatalog } from './xer/xerMetadataTypes';
 import type { XerSourceArchive } from './xerSourceArchive';
 
-export type XerSourceEncoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252';
+export type XerSourceEncoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252' | 'windows-1251' | 'windows-1253' | 'windows-1256';
 
 export interface XerTableReportMetadata {
   encoding: XerSourceEncoding;

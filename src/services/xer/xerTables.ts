@@ -6,7 +6,10 @@
  * MPXJ-code overgenomen; deze parser heeft een eigen tokenizer, rapportvorm en getalparser.
  */
 
-export type XerEncoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252';
+/** Tekstcodering van een XER (besluit B17: BOM, anders UTF-8, anders een enkelbyte-codetabel). De
+ *  enkelbyte-keuze is Windows-1252, tenzij de tekst eenduidig Cyrillisch (1251), Grieks (1253) of
+ *  Arabisch (1256) is — zie `detectSingleByteEncoding` (review PR #109, N3). */
+export type XerEncoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252' | 'windows-1251' | 'windows-1253' | 'windows-1256';
 /**
  * XER is inhoudelijk tekst, maar encodingdetectie vereist de oorspronkelijke bytes. De registry
  * bedraadt XER daarom als `binary` en mag een reeds gedecodeerde string nooit opnieuw encoderen.
@@ -315,11 +318,120 @@ function decodeXerBytes(bytes: Uint8Array): { text: string; encoding: XerEncodin
       encoding: 'utf-8',
     };
   } catch {
+    const encoding = detectSingleByteEncoding(bytes);
     return {
-      text: new TextDecoder('windows-1252').decode(bytes),
-      encoding: 'windows-1252',
+      text: new TextDecoder(encoding).decode(bytes),
+      encoding,
     };
   }
+}
+
+type SingleByteEncoding = 'windows-1252' | 'windows-1251' | 'windows-1253' | 'windows-1256';
+
+/** Niet-Latijnse kandidaten met het schrift dat hun bovenste helft (0x80–0xFF) vooral oplevert.
+ *  De Latijnse codetabellen 1250/1254 staan er bewust NIET in: hun letters zijn ook in 1252 geldige
+ *  Latijnse letters, dus een score kan ze niet eenduidig van 1252 scheiden (twijfel ⇒ 1252). */
+const SINGLE_BYTE_CANDIDATES: ReadonlyArray<{ encoding: SingleByteEncoding; script: RegExp }> = [
+  { encoding: 'windows-1251', script: /^\p{Script_Extensions=Cyrillic}$/u },
+  { encoding: 'windows-1253', script: /^\p{Script_Extensions=Greek}$/u },
+  { encoding: 'windows-1256', script: /^\p{Script_Extensions=Arabic}$/u },
+];
+/** Minimaal aantal "zuivere" woorden (alleen bytes ≥ 0x80) voordat de lezer van 1252 afwijkt. */
+const MIN_PURE_HIGH_WORDS = 8;
+/** Minimaal aandeel zuivere woorden onder alle woorden met een byte ≥ 0x80: West-Europese tekst
+ *  heeft accenten BINNEN Latijnse woorden ("Café"), niet-Latijnse tekst bestaat uit hele woorden
+ *  boven 0x7F. */
+const MIN_PURE_HIGH_SHARE = 0.5;
+/** De winnaar moet vrijwel elk zuiver woord als geldig woord van zijn schrift lezen … */
+const MIN_WINNING_SCORE = 0.9;
+/** … en ruim voor de tweede kandidaat liggen; anders is het twijfel. */
+const MIN_WINNING_MARGIN = 0.3;
+
+const LETTER = /^\p{L}$/u;
+
+function isUpper(char: string): boolean {
+  return char !== char.toLowerCase();
+}
+
+function isLower(char: string): boolean {
+  return char !== char.toUpperCase();
+}
+
+/** Een geldig woord: alleen letters van ÉÉN schrift, met een gewoon hoofdletterpatroon (alles klein,
+ *  alles groot, of één beginhoofdletter). Arabisch kent geen hoofdletters. Grieks: de slot-sigma `ς`
+ *  alleen aan het eind. Een fout gedecodeerd woord breekt vrijwel altijd een van deze regels. */
+function isWordOfScript(word: readonly string[], script: RegExp): boolean {
+  for (const char of word) {
+    if (!LETTER.test(char) || !script.test(char)) return false;
+  }
+  const upperAfterFirst = word.slice(1).some(isUpper);
+  const lowerAnywhere = word.some(isLower);
+  const casedOk = !upperAfterFirst || !lowerAnywhere;
+  if (!casedOk) return false;
+  return !word.slice(0, -1).includes('ς');
+}
+
+/**
+ * Review PR #109, N3 (Fable 15): kies de enkelbyte-codetabel voor een niet-UTF-8-XER zonder BOM.
+ * Binnen besluit B17 (UTF-8, anders enkelbyte, de melding noemt de keuze) — alleen de keuze tussen
+ * enkelbyte-tabellen is nieuw:
+ *
+ * 1. Woorden = maximale reeksen bytes die een ASCII-letter of ≥ 0x80 zijn. "Zuiver" = minstens twee
+ *    bytes, alle ≥ 0x80.
+ * 2. Te weinig zuivere woorden, of zuivere woorden in de minderheid ⇒ Latijnse tekst ⇒ 1252.
+ * 3. Per kandidaat (1251/1253/1256): het aandeel zuivere woorden dat na decoderen een geldig woord
+ *    van het eigen schrift is (`isWordOfScript`). Winnaar alleen bij ≥ 0.9 én ≥ 0.3 voorsprong.
+ * 4. Anders twijfel ⇒ 1252 (het oude gedrag; de openingsmelding noemt de gekozen codering).
+ *
+ * Deterministisch en alleen op de bytes. Een bestand met hooguit een paar Arabische eenheden tussen
+ * Latijnse namen blijft zo 1252 — bestaande 1252-bestanden veranderen niet.
+ */
+function detectSingleByteEncoding(bytes: Uint8Array): SingleByteEncoding {
+  const pureWords = new Map<string, number>();
+  let wordsWithHigh = 0;
+  let pureCount = 0;
+  let start = -1;
+  let hasHigh = false;
+  let hasAsciiLetter = false;
+  const flush = (end: number) => {
+    if (start >= 0 && hasHigh) {
+      wordsWithHigh += 1;
+      if (!hasAsciiLetter && end - start >= 2) {
+        pureCount += 1;
+        const key = String.fromCharCode(...bytes.subarray(start, end));
+        pureWords.set(key, (pureWords.get(key) ?? 0) + 1);
+      }
+    }
+    start = -1;
+    hasHigh = false;
+    hasAsciiLetter = false;
+  };
+  for (let index = 0; index < bytes.length; index++) {
+    const byte = bytes[index];
+    const asciiLetter = (byte >= 0x41 && byte <= 0x5a) || (byte >= 0x61 && byte <= 0x7a);
+    if (byte >= 0x80 || asciiLetter) {
+      if (start < 0) start = index;
+      if (byte >= 0x80) hasHigh = true;
+      else hasAsciiLetter = true;
+    } else {
+      flush(index);
+    }
+  }
+  flush(bytes.length);
+  if (pureCount < MIN_PURE_HIGH_WORDS || pureCount / wordsWithHigh < MIN_PURE_HIGH_SHARE) return 'windows-1252';
+
+  const scores = SINGLE_BYTE_CANDIDATES.map(({ encoding, script }) => {
+    const decoder = new TextDecoder(encoding);
+    let good = 0;
+    for (const [key, count] of pureWords) {
+      const word = [...decoder.decode(Uint8Array.from(key, char => char.charCodeAt(0)))];
+      if (isWordOfScript(word, script)) good += count;
+    }
+    return { encoding, score: good / pureCount };
+  }).sort((left, right) => right.score - left.score);
+  const [best, second] = scores;
+  if (best.score >= MIN_WINNING_SCORE && best.score - second.score >= MIN_WINNING_MARGIN) return best.encoding;
+  return 'windows-1252';
 }
 
 function assertRequiredColumns(tables: ReadonlyMap<string, XerTable>): void {

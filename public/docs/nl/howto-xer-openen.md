@@ -24,7 +24,7 @@ De eerste regel van de melding noemt het aantal geopende tabbladen. Daaronder st
 - *1 externe koppeling bewaard.* Een relatie tussen twee projecten. De app bewaart hem als brongegeven, maar maakt er geen relatie van in je planning.
 - *1 taak toont de datums zoals Primavera ze opsloeg (niet herberekend).* Het aantal taken dat je in de weergave *Datums zoals opgeslagen* ziet.
 
-De overige regels zijn diagnose van het lezen zelf: het aantal geziene projecten, een overgeslagen leeg project, een genegeerde losse baselineverwijzing, een andere tekencodering dan gewone UTF-8, activiteiten zonder geplande start (die beginnen op de statusdatum of de projectstart uit het bestand) en tellers voor bevindingen in de tabellen, de kalenders en de getallen, voor onbekende veldwaarden en voor P6-planningsinstellingen die de app door een veilige keuze verving. Ze vragen niets van je. *Lees meer* opent de Help over het openen van Primavera-bestanden.
+De overige regels zijn diagnose van het lezen zelf: het aantal geziene projecten, een overgeslagen leeg project, een genegeerde losse baselineverwijzing, een andere tekencodering dan gewone UTF-8 (de melding noemt welke: bij Arabische, Cyrillische of Griekse tekst kiest de app de passende Windows-codetabel, anders Windows-1252), activiteiten zonder geplande start (die beginnen op de statusdatum of de projectstart uit het bestand) en tellers voor bevindingen in de tabellen, de kalenders en de getallen, voor onbekende veldwaarden en voor P6-planningsinstellingen die de app door een veilige keuze verving. Ze vragen niets van je. *Lees meer* opent de Help over het openen van Primavera-bestanden.
 
 ## Valkuilen en wat de app dan doet
 
