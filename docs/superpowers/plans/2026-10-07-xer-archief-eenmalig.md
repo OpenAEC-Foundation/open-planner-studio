@@ -105,3 +105,12 @@ serialisatie zelf moeten verkleinen of naar een worker verplaatsen.
   en bij herstel (`loadRecovery`, per blob). rehab-2: 610–636 ms pure JS, 31–32 ms native. Poort: g1/g2.
   Niet gedekt: de schema-2-lezer (opgeslagen IFC heropenen) voegt de bytes binnen de synchrone `readIFC`
   samen en hasht ze daar nog in pure JS.
+
+## Browserbewijs (echte IndexedDB, echte handelingen)
+
+`tests/browser/xer-recovery-archive.spec.ts`: (1) een `.xer` met twee projecten openen via Openen en de
+bestandskiezer, een taaknaam wijzigen in de tabel, de tick afwachten in de echte IndexedDB (`ops-recovery`
+v2, precies één blob in `xer-archives`, beide manifestregels verwijzen ernaar), herladen en Herstellen in
+het herstelvenster ⇒ beide documenten terug mét archief en zonder melding; (2) een v1-database met een oude
+snapshot (ingebed archief), neergezet vóór de app-start, wordt na de upgrade naar v2 nog hersteld. Tegen
+`origin/main` zijn beide rood (blobs 0, versie 1), op deze branch groen.
