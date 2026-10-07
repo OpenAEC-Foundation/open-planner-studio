@@ -215,11 +215,24 @@ en noem het in je rapport of PR-tekst.
     `useGanttHistogramInteraction.ts` vergelijkt "2027-06-28" met "2027-06-28T07:00". Voorstel: vergelijken
     op `.slice(0,10)`. De balken zelf kloppen. — S
 52. **Tour-anker `ribbon:resources:resourceAssign` verdwijnt** zodra een extensie met lintknoppen is
-    geïnstalleerd en de taakselectie wisselt; de markering valt dan terug op de linttab. — S
+    geïnstalleerd en de taakselectie wisselt; de markering valt dan terug op de linttab. Nagespeeld
+    2026-10-07: met de tutorials-ZIP geïnstalleerd vindt het stapscript van tutorial 5 het anker na het
+    selecteren van Funderingsmetselwerk niet meer (1280×1050 en 1366×768, nl en en); zonder extensie wel. — B
 59. **Begeleidingspaneel van een extensie-gids** wijkt uit voor een anker eronder, maar springt daarna niet
     terug; op 1366×768 bedekt het zo de histogramlijst. — S
 62. **Melding schuift over de knoppen van het begeleidingspaneel** (1600×950, venster Baselines open):
     `toastPlacement.ts` houdt geen rekening met het paneel. — B (gezien), oorzaak afgeleid
+91. **Het begeleidingspaneel ligt over de knoppen van een venster.** Het paneel staat boven dialogen
+    (`GuidePanel.css`: z 66, dialogen z 60) en wijkt alleen uit voor het anker van de stap. Tutorial 3, stap
+    *De bouwvak in de kalender*: de knop **Toepassen** van het venster Kalenders ligt onder het paneel en is
+    niet aan te klikken (1280×1050 en 1366×768, nl en en; Playwright: het paneel onderschept de klik). Gezien
+    met de tutorials-ZIP en de stapscripts van de app. Voorstel: het paneel laten uitwijken voor een open
+    venster, of het onder dialogen leggen. — B
+92. **Op 1366×768 bedekt het begeleidingspaneel bijna de hele rechterrail.** Met een lange stap (tutorial 1,
+    *De fundering*) is het paneel ±540 px hoog (`max-height: min(70vh, 560px)`) en ligt het over Eigenschappen,
+    ook over het veld Duur dat de stap laat invullen; de stappen in Eigenschappen hebben bewust geen anker, dus
+    het paneel wijkt niet uit. Gezien in de doorloop met de tutorials-ZIP (schermafbeelding in de
+    scratchpad van de sessie). — B
 66. **Het UpdateDialog opent over een lopende gids heen** (review #261, punt O4). — S
 67. **`pendingHelpSection` blijft hangen** (review #261, punt O7). — S
 68. **Een gidsstap die eenmaal "gedaan" is, blijft gedaan**, ook na wisselen naar een leeg project. Gezien bij
