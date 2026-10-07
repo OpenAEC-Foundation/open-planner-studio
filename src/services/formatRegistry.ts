@@ -4,7 +4,7 @@
 
 import { readIFC, type IfcReadOptions } from '@/services/ifc/ifcReader';
 import {
-  XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT, XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_FORMAT,
+  precomputeSha256, XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT, XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_FORMAT,
 } from '@/services/xerSourceArchive';
 import { readCSV } from '@/services/csv/csvReader';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
@@ -147,6 +147,8 @@ const READ_FORMATS: ReadFormat[] = [
       if (!i.bytes) throw new Error('XER requires original binary content');
       // Dynamic import: encodingdetectie en de semantische reader blijven buiten de main chunk.
       const { readXER } = await import('@/services/xer/xerReader');
+      // De archief-SHA-256 eerst native (`crypto.subtle`); `readXER` hergebruikt hem synchroon.
+      await precomputeSha256(i.bytes);
       return readXER(i.bytes);
     } },
 ];

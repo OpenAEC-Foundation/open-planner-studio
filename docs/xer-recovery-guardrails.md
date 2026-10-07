@@ -30,6 +30,12 @@ publiceren.
   `datesAsRecorded`). Nieuwe documentinhoud krijgt een immutable generatienaam. Eerst
   worden de volledige IFC-generaties via temp+rename gepubliceerd; daarna is de atomaire rename van
   het manifest het commitpunt; oude eigen generaties worden pas daarna opgeruimd.
+- De webbackend leest per tick geen snapshotinhoud terug: alleen `getAllKeys()` op beide stores en
+  de manifestrecords via `get` (sinds 2026-10-07; daarvoor las `getAll()` elke tick alle snapshots).
+  Een andere generatie verloopt als haar manifest ouder is dan 7 dagen of ontbreekt.
+- De SHA-256 van het bronarchief wordt bij openen en bij herstel vooraf native berekend
+  (`precomputeSha256`, `crypto.subtle`; pure JS alleen als terugval). Zelfde algoritme, dus dezelfde
+  content-adressering. rehab-2: 610–636 ms in pure JS tegen 31–32 ms native (Node 22).
 - De webbackend schrijft document-upserts, manifest en verwijderingen in één strikte IndexedDB-
   `readwrite`-transactie. Een fout mag de persisted basis van de delta-tracker niet bevorderen.
 - Recoverymanifesten van versie 1 tot en met 4 blijven leesbaar; hun snapshots dragen het archief

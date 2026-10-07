@@ -24,7 +24,9 @@ import { RecoveryDeltaTracker, type RecoverySourceDocument } from '@/services/re
 import { runRecoveryTick, serializeRecoverySnapshot } from '@/services/recovery/recoverySnapshot';
 import { clearRecovery, fullRecoverySave, loadRecovery, saveRecovery } from '@/services/recovery/recoveryStore';
 import { readXER } from '@/services/xer/xerReader';
-import { decodeXerSourceArchive, sha256Hex, XER_SOURCE_ARCHIVE_CHUNK_BYTES } from '@/services/xerSourceArchive';
+import {
+  decodeXerSourceArchive, precomputeSha256, sha256Hex, sha256HexPortable, XER_SOURCE_ARCHIVE_CHUNK_BYTES,
+} from '@/services/xerSourceArchive';
 import { useAppStore } from '@/state/appStore';
 import { recoveryInputFromParsed } from '@/state/documentContract';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
@@ -42,7 +44,7 @@ const expect = (label: string, condition: boolean) => {
 };
 
 // Bytes per put, per store. Strings tellen per teken, Uint8Array per byte.
-const written = { records: 0, archives: 0, archivePuts: 0 };
+const written = { records: 0, archives: 0, archivePuts: 0, read: 0 };
 const sizeOf = (value: unknown): number => {
   if (typeof value === 'string') return value.length;
   if (value instanceof Uint8Array) return value.byteLength;
@@ -55,8 +57,9 @@ const idb = installFakeRecoveryIndexedDb({
     if (store === 'xer-archives') { written.archives += sizeOf(value); written.archivePuts += 1; }
     else written.records += sizeOf(value);
   },
+  onRead: (_store, _method, result) => { written.read += sizeOf(result); },
 });
-const resetWritten = () => { written.records = 0; written.archives = 0; written.archivePuts = 0; };
+const resetWritten = () => { written.records = 0; written.archives = 0; written.archivePuts = 0; written.read = 0; };
 
 // ── Synthetische bron: twee projecten, één groot onbekend tabelveld (±16 MB) ─────────────────────────
 const PAYLOAD_CHUNKS = 82; // 82 × 196.608 B ≈ 16,1 MB
@@ -99,7 +102,7 @@ const tick = async () => {
   resetWritten();
   const started = performance.now();
   await runRecoveryTick(tracker, store().activeDocumentId, recoveryDocs());
-  return { ms: performance.now() - started, records: written.records, archives: written.archives, archivePuts: written.archivePuts };
+  return { ms: performance.now() - started, records: written.records, archives: written.archives, archivePuts: written.archivePuts, read: written.read };
 };
 
 // ── (a)/(c) eerste tick: snapshots zonder archief, precies één gedeelde blob ──────────────────────────
@@ -122,10 +125,14 @@ const edit = await tick();
 expect(`a3 bewerkingstick schrijft ≤ ${TICK_BUDGET_BYTES} B (gemeten ${edit.records} B snapshots + ${edit.archives} B archief)`,
   edit.records + edit.archives <= TICK_BUDGET_BYTES);
 expect('a4 bewerkingstick schrijft geen archiefblob opnieuw', edit.archivePuts === 0);
+// Prestatiemeting 2026-10-07: `saveWeb` las per tick alle snapshots terug (`getAll`). Nu alleen sleutels
+// en manifesten: de gelezen bytes blijven ver onder één snapshot.
+expect(`a6 bewerkingstick leest alleen sleutels en manifesten terug (gemeten ${edit.read} B gelezen)`,
+  edit.read <= 4 * 1024);
 const snapshot = serializeRecoverySnapshot(store().getOpenDocumentPayloads()[0]!.payload);
 expect(`a5 de snapshottekst zelf draagt het archief niet (${snapshot.length} tekens)`,
   snapshot.length <= TICK_BUDGET_BYTES && !snapshot.includes('ByteChunk000000'));
-console.log(`X9 recovery-once: bron=${bytes.length} B | tick1 snapshots=${first.records} B archief=${first.archives} B ${first.ms.toFixed(0)} ms | bewerkingstick snapshots=${edit.records} B archief=${edit.archives} B ${edit.ms.toFixed(1)} ms`);
+console.log(`X9 recovery-once: bron=${bytes.length} B | tick1 snapshots=${first.records} B archief=${first.archives} B ${first.ms.toFixed(0)} ms | bewerkingstick snapshots=${edit.records} B archief=${edit.archives} B gelezen=${edit.read} B ${edit.ms.toFixed(1)} ms`);
 
 // ── (b)/(c) herstel via de verwijzing ───────────────────────────────────────────────────────────
 const restoreFrom = async () => {
@@ -216,6 +223,18 @@ expect('f5 geen enkele snapshot verwijst nog: de blob is opgeruimd', idb.store('
 await clearRecovery();
 expect('f6 clearRecovery laat geen records of blobs achter',
   idb.store('records').size === 0 && idb.store('xer-archives').size === 0);
+
+// ── (g) native SHA-256 (`crypto.subtle`) = de draagbare JS-versie: de content-adressering blijft gelijk ──
+{
+  const samples = [new Uint8Array(0), new TextEncoder().encode('abc'), bytes.subarray(5, 70_000), bytes];
+  let same = true;
+  for (const sample of samples) {
+    const copy = sample.slice();
+    same &&= (await precomputeSha256(copy)) === sha256HexPortable(sample) && sha256Hex(copy) === sha256HexPortable(sample);
+  }
+  expect('g1 precomputeSha256 (native) geeft dezelfde hex als de draagbare implementatie, ook voor een subarray', same);
+  expect('g2 de bekende sha van de bron is de SHA-256 van de bytes', sha256HexPortable(bytes) === sourceSha);
+}
 
 if (failures.length > 0) {
   console.log(`XX  xer-archive-recovery-once: ${failures.length} afwijking(en) van ${checks}`);

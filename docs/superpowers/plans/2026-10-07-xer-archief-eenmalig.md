@@ -94,3 +94,14 @@ hoofdthread per tick (Node 22, deze machine). De webbackend las bovendien elke t
 Bevinding: bij rehab-2 is het archief ±25 MB van de 60 MB per tick. De resterende ±35 MB is de IFC van de
 planning zelf (zeer veel taken). Dat deel valt buiten dit besluit; een volgende stap zou de snapshot-
 serialisatie zelf moeten verkleinen of naar een worker verplaatsen.
+
+## Aanvulling na de prestatiemeting op rehab-2 (2026-10-07)
+
+- `saveWeb` leest per tick alleen sleutels (`getAllKeys`) en de manifestrecords (`get`), niet meer alle
+  snapshots (`getAll`). Gelezen per bewerkingstick: vóór de hele vorige snapshot (rehab-2 ±60 MB), na
+  273 bytes (rehab-2) en 1.873 bytes (OZB, twaalf manifestregels). Poort: `check-xer-archive-recovery-once.ts` a6.
+- SHA-256 van het archief: `precomputeSha256` rekent native met `crypto.subtle` en zet de uitkomst in een
+  `WeakMap` per bytes-object; de synchrone `sha256Hex` gebruikt die. Bij openen (`formatRegistry`, `.xer`)
+  en bij herstel (`loadRecovery`, per blob). rehab-2: 610–636 ms pure JS, 31–32 ms native. Poort: g1/g2.
+  Niet gedekt: de schema-2-lezer (opgeslagen IFC heropenen) voegt de bytes binnen de synchrone `readIFC`
+  samen en hasht ze daar nog in pure JS.

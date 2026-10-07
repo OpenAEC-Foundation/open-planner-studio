@@ -12,6 +12,8 @@ export interface FakeRecoveryIdbHooks {
   onTransaction?(mode: string): void;
   /** Per put: de store, de nieuwe waarde en de vorige waarde onder dezelfde sleutel. */
   onPut?(store: string, value: { id: string }, previous: unknown): void;
+  /** Per leesverzoek (`getAll`, `getAllKeys`, `get`): de store, de methode en wat er terugkomt. */
+  onRead?(store: string, method: string, result: unknown): void;
 }
 
 export interface FakeRecoveryIdb {
@@ -26,9 +28,9 @@ interface FakeRequest<T> {
   onerror: (() => void) | null;
 }
 
-function request<T>(initial: T, compute: () => T): FakeRequest<T> {
+function request<T>(initial: T, compute: () => T, observe?: (result: T) => void): FakeRequest<T> {
   const req: FakeRequest<T> = { result: initial, error: null, onsuccess: null, onerror: null };
-  queueMicrotask(() => { req.result = compute(); req.onsuccess?.(); });
+  queueMicrotask(() => { req.result = compute(); observe?.(req.result); req.onsuccess?.(); });
   return req;
 }
 
@@ -53,9 +55,9 @@ export function installFakeRecoveryIndexedDb(hooks: FakeRecoveryIdbHooks = {}): 
         error: null,
         abort: () => tx.onabort?.(),
         objectStore: (name: string) => ({
-          getAll: () => request<unknown[]>([], () => [...store(name).values()]),
-          getAllKeys: () => request<string[]>([], () => [...store(name).keys()]),
-          get: (key: string) => request<unknown>(undefined, () => store(name).get(key)),
+          getAll: () => request<unknown[]>([], () => [...store(name).values()], (r) => hooks.onRead?.(name, 'getAll', r)),
+          getAllKeys: () => request<string[]>([], () => [...store(name).keys()], (r) => hooks.onRead?.(name, 'getAllKeys', r)),
+          get: (key: string) => request<unknown>(undefined, () => store(name).get(key), (r) => hooks.onRead?.(name, 'get', r)),
           put: (value: { id: string }) => {
             hooks.onPut?.(name, value, store(name).get(value.id));
             store(name).set(value.id, structuredClone(value));

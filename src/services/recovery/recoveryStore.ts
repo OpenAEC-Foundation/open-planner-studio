@@ -5,6 +5,7 @@ import {
   type RecoveryNames, type RecoveryManifest, type RecoveryManifestDoc,
 } from '@/hooks/recoveryPaths';
 import { writeBytesFileAtomic, writeTextFileAtomic } from '@/services/fileAccess/atomicWrite';
+import { precomputeSha256 } from '@/services/xerSourceArchive';
 
 /** Eén recovery-document (IFC-CONTENT, niet de bestandsnaam). */
 export interface RecoveryDocContent {
@@ -998,21 +999,44 @@ async function saveWeb(input: RecoverySaveInput): Promise<void> {
     tx.onerror = () => fail(tx.error ?? new Error('IndexedDB-recoverytransactie mislukt.'));
     tx.onabort = () => fail(tx.error ?? new Error('IndexedDB-recoverytransactie afgebroken.'));
 
-    const allRequest = store.getAll();
-    allRequest.onerror = () => fail(allRequest.error ?? new Error('IndexedDB-recoveryrecords niet leesbaar.'));
-    allRequest.onsuccess = () => {
+    // Per tick NIET `getAll()`: dat las alle snapshots (bij rehab-2 ±35–60 MB) terug om er alleen de
+    // sleutels en de manifesten uit te halen (prestatiemeting 2026-10-07, 0,3–0,8 s per tick). Nu:
+    // sleutels van beide stores, en alleen de kleine manifestrecords via `get`.
+    const keysRequest = store.getAllKeys();
+    keysRequest.onerror = () => fail(keysRequest.error ?? new Error('IndexedDB-recoverysleutels niet leesbaar.'));
+    keysRequest.onsuccess = () => {
+      const recordKeys = (keysRequest.result as IDBValidKey[]).filter((key): key is string => typeof key === 'string');
+      const manifestKeys = recordKeys.filter((key) => key.endsWith('::manifest'));
+      const manifests = new Map<string, WebManifestRecord>();
+      let pending = manifestKeys.length + 1;
+      const step = () => {
+        pending -= 1;
+        if (pending === 0) writeRound();
+      };
+      for (const key of manifestKeys) {
+        const request = store.get(key);
+        request.onerror = () => fail(request.error ?? new Error('IndexedDB-recoverymanifest niet leesbaar.'));
+        request.onsuccess = () => {
+          const value = request.result as WebRecord | undefined;
+          if (value && value.kind === 'manifest') manifests.set(value.sessionId, value);
+          step();
+        };
+      }
       // Alleen de SLEUTELS van de archiefstore: bestaan en opruimen zonder de bytes te lezen.
-      const keysRequest = archiveStore.getAllKeys();
-      keysRequest.onerror = () => fail(keysRequest.error ?? new Error('IndexedDB-archiefsleutels niet leesbaar.'));
-      keysRequest.onsuccess = () => {
+      let archiveKeys = new Set<string>();
+      const archiveKeysRequest = archiveStore.getAllKeys();
+      archiveKeysRequest.onerror = () => fail(archiveKeysRequest.error ?? new Error('IndexedDB-archiefsleutels niet leesbaar.'));
+      archiveKeysRequest.onsuccess = () => {
+        archiveKeys = new Set((archiveKeysRequest.result as IDBValidKey[]).filter((key): key is string => typeof key === 'string'));
+        step();
+      };
+
+      const writeRound = () => {
         try {
-          const all = allRequest.result as WebRecord[];
-          const archiveKeys = new Set((keysRequest.result as IDBValidKey[]).filter((key): key is string => typeof key === 'string'));
           const upserts = checkedUpserts(input);
           const referenced = referencedArchives(input);
-          const existing = new Set(all
-            .filter((record): record is WebDocRecord => record.kind === 'doc' && record.sessionId === sid)
-            .map((record) => record.docId));
+          const ownDocPrefix = `${sid}::doc::`;
+          const existing = new Set(recordKeys.filter((key) => key.startsWith(ownDocPrefix)).map((key) => key.slice(ownDocPrefix.length)));
           for (const document of input.documents) {
             if (!upserts.has(document.id) && !existing.has(document.id)) {
               throw new Error(`Recovery: ${JSON.stringify(document.id)} heeft geen webrecord en geen upsert.`);
@@ -1053,13 +1077,22 @@ async function saveWeb(input: RecoverySaveInput): Promise<void> {
           };
           store.put(manifest);
 
+          // Opruimen op sleutel. Een andere generatie verloopt als haar manifest ouder is dan
+          // MAX_AGE_MS, of als ze geen manifest (meer) heeft: zonder manifest biedt `loadWeb` haar
+          // nooit aan (snapshots en manifest worden altijd in één transactie geschreven).
           const keep = new Set(input.documents.map((document) => docKey(sid, document.id)));
           const survivingManifests: WebManifestRecord[] = [manifest];
-          for (const record of all) {
-            const expired = record.sessionId !== sid && now - record.addedAt > MAX_AGE_MS;
-            if (expired) store.delete(record.id);
-            if (record.sessionId === sid && record.kind === 'doc' && !keep.has(record.id)) store.delete(record.id);
-            if (record.kind === 'manifest' && record.id !== manifest.id && !expired) survivingManifests.push(record);
+          for (const key of recordKeys) {
+            const keySession = key.slice(0, key.indexOf('::'));
+            if (keySession === sid) {
+              if (key.startsWith(ownDocPrefix) && !keep.has(key)) store.delete(key);
+              continue;
+            }
+            const other = manifests.get(keySession);
+            if (!other || now - other.addedAt > MAX_AGE_MS) store.delete(key);
+          }
+          for (const [session, other] of manifests) {
+            if (session !== sid && now - other.addedAt <= MAX_AGE_MS) survivingManifests.push(other);
           }
           // Een blob verdwijnt zodra GEEN manifest in de database hem nog noemt.
           const stillReferenced = webArchiveReferences(survivingManifests);
@@ -1206,8 +1239,12 @@ export function saveRecovery(input: RecoverySaveInput): Promise<void> {
   return serializeRecoveryWrite(() => (isTauri() ? saveTauri(input) : saveWeb(input)));
 }
 
-export function loadRecovery(): Promise<LoadedRecovery> {
-  return isTauri() ? loadTauri() : loadWeb();
+export async function loadRecovery(): Promise<LoadedRecovery> {
+  const loaded = await (isTauri() ? loadTauri() : loadWeb());
+  // De herstelverificatie (lengte + SHA-256 per blob) en de reconstructie hashen synchroon; reken de
+  // digests hier vooraf native uit (`crypto.subtle`), zodat dat niet in pure JS op de hoofdthread loopt.
+  for (const bytes of loaded.archives.values()) await precomputeSha256(bytes);
+  return loaded;
 }
 
 export function clearRecovery(): Promise<void> {
