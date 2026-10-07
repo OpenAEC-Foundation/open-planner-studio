@@ -90,6 +90,21 @@ Taak-, fase-, resource-, kalender- en baselinenamen zijn vertaald; de data is ve
   (`openExampleFromString`) om te zien dat herberekenen niets verschuift. Een motorwijziging die een
   tutorialgetal verandert, wordt daar rood.
 
+## Screenshots voor de tutorials genereren
+
+`npm run gen:docs-screenshots -- --out <map>` → `generate-docs-screenshots.mjs`. Draait
+`tests/browser/tutorial-steps.spec.ts` (de stapscripts van de zeven tutorials in `tests/browser/tutorials/`)
+via `run-browser-tests.mjs` met vastleggen aan (`OPS_DOCS_SCREENSHOTS_OUT`): elke tutorial in nl en en vanaf
+zijn stand van `gen:tutorial-project`, met echte UI-events, een controle na elke stap en de uitsneden als
+WebP (alleen licht thema; venster 1280×1050, sommige beelden tijdelijk breder of smaller). De WebP-codering
+doet Chromium zelf (geen extra afhankelijkheid). Pas als alles groen is, vervangt het script
+`<map>/img/<taal>/tut-*.webp`; een rode stap laat `<map>` ongemoeid.
+
+- `<map>` is de map van de extensie (`extensions/tutorials` in `open-planner-studio-extensions`); de
+  tutorialtekst daar verwijst naar `img/{lang}/<naam>.webp` (extensie-API, `docs/extensions.md`).
+- `-- --only tut-3-kalender,tut-4-uren` draait alleen die tutorials en vervangt alleen hun beelden.
+- Zonder vastleggen draait dezelfde spec in `npm run test:browser` (en dus in `verify` en CI).
+
 ## Meetlatdata genereren
 
 `node scripts/generate-p6-verified-cases.mjs <p6-comparison-map>` schrijft
