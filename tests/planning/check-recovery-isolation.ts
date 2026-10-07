@@ -440,6 +440,90 @@ eqSet('7g manifestregels zonder listing', clearZonderListing, ['recovery.doc-1.i
   eq('8f alleen eigen werk: manifest weg', plan.manifest, 'remove');
 }
 
+// ── 9. XER-archiefblobs (eigenaarsbesluit plan (9), 2026-10-07): content-adressed, één per bron ──
+const SHA_A = 'a'.repeat(64);
+const SHA_B = 'b'.repeat(64);
+const blobA = PROD.archiveName(SHA_A);
+const blobB = PROD.archiveName(SHA_B);
+eq('9a archiefblob-naam', blobA, `recovery.xerarchive.${SHA_A}.bin`);
+eq('9b productie herkent zijn eigen blob', PROD.archiveSha(blobA), SHA_A);
+eq('9c productie herkent een DEV-blob NIET', PROD.archiveSha(DEV.archiveName(SHA_A)), null);
+eq('9d dev herkent een productieblob NIET', DEV.archiveSha(blobA), null);
+eq('9e een blob is geen snapshot', PROD.snapshotDocId(blobA), null);
+eq('9f isOwnFile: eigen blob en zijn halffabricaat', [PROD.isOwnFile(blobA), PROD.isOwnFile(`${blobA}.tmp`)], [true, true]);
+eq('9g isOwnFile: blob van een andere base niet', PROD.isOwnFile(DEV.archiveName(SHA_A)), false);
+eq('9h een ongeldige sha is geen blob', PROD.archiveSha('recovery.xerarchive.xyz.bin'), null);
+{
+  const withArchive = (owner: string, docs: { id: string; ifc: string; xerArchive?: string }[]): RecoveryManifest => ({
+    ...manifest(owner, docs),
+    documents: docs.map((d) => ({ id: d.id, ifc: d.ifc, filePath: null, isDirty: true, ...(d.xerArchive ? { xerArchive: d.xerArchive } : {}) })),
+  });
+  // Eigen vorig manifest verwees naar A; het nieuwe manifest naar B ⇒ A weg, B blijft.
+  const own = plan({
+    listing: ['recovery.documents.json', blobA, blobB, `${blobB}.tmp`],
+    prev: withArchive(SELF, [{ id: 'doc-1', ifc: 'recovery.snapshot.doc-1.g1.ifc', xerArchive: SHA_A }]),
+    keep: ['recovery.snapshot.doc-1.g2.ifc'], keepArchives: [SHA_B], ownWrittenArchives: [SHA_B],
+  });
+  eqSet('9i verwijzing weg ⇒ blob weg; verwezen blob blijft (alleen zijn crash-halffabricaat weg)', own.remove, [blobA, `${blobB}.tmp`]);
+  // Vreemd manifest verwijst naar A; wij schreven A ooit ook ⇒ A blijft (carry-over noemt hem).
+  const foreign = plan({
+    listing: ['recovery.documents.json', 'recovery.snapshot.doc-9.g1.ifc', blobA],
+    prev: withArchive(OTHER, [{ id: 'doc-9', ifc: 'recovery.snapshot.doc-9.g1.ifc', xerArchive: SHA_A }]),
+    keep: [], keepArchives: [], ownWrittenArchives: [SHA_A],
+  });
+  eqSet('9j blob van een meegedragen vreemde regel blijft staan', foreign.remove, []);
+  eq('9k de meegedragen regel houdt zijn verwijzing', foreign.carryOver.map((d) => d.xerArchive), [SHA_A]);
+  // Vreemde blob die wij nooit schreven en die niemand noemt: niet onze boekhouding ⇒ blijft.
+  const stranger = plan({ listing: [blobB], prev: withArchive(OTHER, []), ownWrittenArchives: [] });
+  eqSet('9l een blob buiten de eigen boekhouding wordt niet geveegd', stranger.remove, []);
+  // Twee documenten delen één blob: één sluit ⇒ blob blijft.
+  const shared = plan({
+    listing: [blobA], prev: withArchive(SELF, [
+      { id: 'doc-1', ifc: 'recovery.snapshot.doc-1.g1.ifc', xerArchive: SHA_A },
+      { id: 'doc-2', ifc: 'recovery.snapshot.doc-2.g1.ifc', xerArchive: SHA_A },
+    ]),
+    keep: ['recovery.snapshot.doc-2.g1.ifc'], keepArchives: [SHA_A], ownWrittenArchives: [SHA_A],
+  });
+  eqSet('9m gedeelde blob blijft zolang één document ernaar verwijst', shared.remove.filter((n) => n === blobA), []);
+  // clearRecovery: blobs horen bij de base, ook zonder listing via de manifestregel.
+  eqSet('9n clear neemt de eigen blobs mee', planRecoveryClear([blobA, DEV.archiveName(SHA_B)], null, PROD), [blobA]);
+  eqSet('9o clear zonder listing vindt de blob via het manifest',
+    planRecoveryClear([], withArchive(SELF, [{ id: 'doc-1', ifc: 'recovery.doc-1.ifc', xerArchive: SHA_A }]), PROD),
+    ['recovery.doc-1.ifc', blobA]);
+  // Schone afsluiting: eigen blob weg, tenzij een bewaarde (uitgestelde) regel ernaar verwijst.
+  const exitKeep = planRecoveryExitClear({
+    listing: ['recovery.documents.json', 'recovery.doc-eigen.ifc', 'recovery.doc-gecrasht.ifc', blobA, blobB],
+    manifest: withArchive(SELF, [
+      { id: 'doc-eigen', ifc: 'recovery.doc-eigen.ifc', xerArchive: SHA_B },
+      { id: 'doc-gecrasht', ifc: 'recovery.doc-gecrasht.ifc', xerArchive: SHA_A },
+    ]),
+    self: SELF, ownWritten: ['recovery.doc-eigen.ifc'], adopted: ['recovery.doc-gecrasht.ifc'], names: PROD,
+    ownWrittenArchives: [SHA_A, SHA_B],
+  });
+  eqSet('9p afsluiten: eigen blob weg, blob van de uitgestelde regel blijft', exitKeep.remove, ['recovery.doc-eigen.ifc', blobB]);
+  const exitForeign = planRecoveryExitClear({
+    listing: ['recovery.documents.json', blobA], manifest: withArchive(OTHER, [{ id: 'doc-x', ifc: 'recovery.doc-x.ifc', xerArchive: SHA_A }]),
+    self: SELF, ownWritten: [], adopted: [], names: PROD, ownWrittenArchives: [SHA_A],
+  });
+  eqSet('9q afsluiten: een vreemd manifest dat de blob noemt, houdt hem', exitForeign.remove, []);
+}
+// v5: de verwijzing reist mee in het Tauri-plan, ook voor ongewijzigde documenten.
+{
+  const v5Plan = planTauriV3RecoverySave(
+    manifest(SELF, [{ id: 'doc-1', ifc: 'recovery.snapshot.doc-1.g1.ifc' }]),
+    {
+      activeDocumentId: 'doc-1',
+      documents: [
+        { id: 'doc-1', filePath: null, isDirty: true, datesAsRecorded: false, xerArchive: SHA_A },
+        { id: 'doc-2', filePath: null, isDirty: true, datesAsRecorded: false, xerArchive: SHA_A },
+      ],
+      upserts: [{ id: 'doc-2', ifc: 'nieuw', filePath: null, isDirty: true, datesAsRecorded: false, xerArchive: SHA_A }],
+    },
+    'g-2', PROD,
+  );
+  eq('9r v5-plan: beide regels dragen de verwijzing', v5Plan.documents.map((d) => d.xerArchive), [SHA_A, SHA_A]);
+}
+
 if (diffs.length === 0) {
   console.log(`OK  recovery-isolation-check: alle checks groen (${checks})`);
   process.exit(0);
