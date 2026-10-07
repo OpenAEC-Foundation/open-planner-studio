@@ -2015,24 +2015,88 @@ export class GanttRenderer {
     return Number.isNaN(best) ? prefer : best;
   }
 
+  /** Marge rond de canvas waarbinnen een pijlsegment niet wordt geknipt: ruim boven lijnbreedte en
+   *  lijnverbinding, zodat een knippunt nooit zichtbaar is. */
+  private static readonly ARROW_CLIP_MARGIN = 16;
+
   /** Tekent het pijlpad uit het scratch-pad (`n` = aantal getallen, dus 2× het aantal punten).
    *  Punten die samenvallen worden overgeslagen — een lege lineTo is met `lineCap:'butt'` weliswaar
-   *  onzichtbaar, maar zo blijft het pad ook onafhankelijk van een eventuele lineCap van buiten. */
+   *  onzichtbaar, maar zo blijft het pad ook onafhankelijk van een eventuele lineCap van buiten.
+   *
+   *  KNIPPEN (prestatiemeting rehab-2, 2026-10-07). Een pijl die het beeld kruist kan tienduizenden
+   *  pixels buiten beeld doorlopen (relatie tussen rij 100 en rij 6.000); de rasteraar berekende het
+   *  streeppatroon over die hele lengte — ±1 s per frame op 10.730 relaties. Ligt een punt buiten
+   *  de canvas + `ARROW_CLIP_MARGIN`, dan tekenen we alleen de zichtbare stukken (de segmenten zijn
+   *  as-evenwijdig, maar het knippen is algemeen). Elk stuk krijgt `lineDashOffset` = de afgelegde
+   *  lengte tot zijn begin, zodat het streeppatroon exact gelijk valt met het ongeknipte pad. Het
+   *  pad dat volledig in beeld ligt, loopt het oude, ongewijzigde pad. */
   private strokeArrowPath(pts: number[], n: number): void {
     const ctx = this.ctx;
-    ctx.beginPath();
-    let px = pts[0];
-    let py = pts[1];
-    ctx.moveTo(px, py);
-    for (let i = 2; i < n; i += 2) {
-      const x = pts[i];
-      const y = pts[i + 1];
-      if (x === px && y === py) continue;
-      ctx.lineTo(x, y);
-      px = x;
-      py = y;
+    const m = GanttRenderer.ARROW_CLIP_MARGIN;
+    const minX = -m, minY = -m;
+    const maxX = this.opts.canvasWidth + m, maxY = this.opts.canvasHeight + m;
+    let inside = true;
+    for (let i = 0; i < n; i += 2) {
+      const x = pts[i], y = pts[i + 1];
+      if (x < minX || x > maxX || y < minY || y > maxY) { inside = false; break; }
     }
-    ctx.stroke();
+    if (inside) {
+      ctx.beginPath();
+      let px = pts[0];
+      let py = pts[1];
+      ctx.moveTo(px, py);
+      for (let i = 2; i < n; i += 2) {
+        const x = pts[i];
+        const y = pts[i + 1];
+        if (x === px && y === py) continue;
+        ctx.lineTo(x, y);
+        px = x;
+        py = y;
+      }
+      ctx.stroke();
+      return;
+    }
+
+    // Geknipt: per segment Liang–Barsky tegen de rechthoek; aaneengesloten zichtbare stukken vormen
+    // één run (één subpad, één stroke) met de juiste streepfase.
+    let travelled = 0;
+    let runOpen = false;
+    let endX = 0, endY = 0;
+    for (let i = 2; i < n; i += 2) {
+      const x0 = pts[i - 2], y0 = pts[i - 1], x1 = pts[i], y1 = pts[i + 1];
+      const dx = x1 - x0, dy = y1 - y0;
+      if (dx === 0 && dy === 0) continue;
+      const len = Math.hypot(dx, dy);
+      let t0 = 0, t1 = 1;
+      const edge = (p: number, q: number): boolean => {
+        if (p === 0) return q >= 0;
+        const r = q / p;
+        if (p < 0) { if (r > t1) return false; if (r > t0) t0 = r; } else { if (r < t0) return false; if (r < t1) t1 = r; }
+        return true;
+      };
+      const visible = edge(-dx, x0 - minX) && edge(dx, maxX - x0) && edge(-dy, y0 - minY) && edge(dy, maxY - y0) && t1 > t0;
+      if (visible) {
+        const sx = x0 + t0 * dx, sy = y0 + t0 * dy;
+        const ex = x0 + t1 * dx, ey = y0 + t1 * dy;
+        if (!runOpen || sx !== endX || sy !== endY) {
+          if (runOpen) ctx.stroke();
+          ctx.beginPath();
+          ctx.lineDashOffset = travelled + t0 * len;
+          ctx.moveTo(sx, sy);
+          runOpen = true;
+        }
+        ctx.lineTo(ex, ey);
+        endX = ex;
+        endY = ey;
+        if (t1 < 1) { ctx.stroke(); runOpen = false; }
+      } else if (runOpen) {
+        ctx.stroke();
+        runOpen = false;
+      }
+      travelled += len;
+    }
+    if (runOpen) ctx.stroke();
+    ctx.lineDashOffset = 0;
   }
 
   /**
@@ -2172,7 +2236,8 @@ export class GanttRenderer {
       this.strokeArrowPath(pts, n);
 
       // Arrowhead — base aan de aankomstkant (dirIn): FS/SS wijst naar rechts (base links), FF/SF
-      // naar links (base rechts): `toX + dirIn*5`.
+      // naar links (base rechts): `toX + dirIn*5`. Een kop buiten beeld (±5 px) tekenen we niet.
+      if (succY < -8 || succY > canvasH + 8 || toX < -8 || toX > this.opts.canvasWidth + 8) continue;
       ctx.beginPath();
       ctx.moveTo(toX, succY);
       ctx.lineTo(toX + dirIn * 5, succY - 3);
