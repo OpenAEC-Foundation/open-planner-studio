@@ -1429,6 +1429,8 @@
     "doneNext": "Klaar, volgende",
     "finish": "Klaar",
     "close": "Begeleiding sluiten",
+    "collapse": "Begeleiding inklappen",
+    "expand": "Begeleiding uitklappen",
     "stepDone": "Gedaan",
     "waiting": "Voer de opdracht uit in de app; daarna kun je verder."
   },

@@ -1,6 +1,7 @@
 /* Begeleidingspaneel (extensie-API 1.4.0) — zwevend boven de statusbalk, aan de eindkant van het
-   venster (rechts; in ar/fa links via `inset-inline-*`). Waarom zwevend en niet in de rail: zie de
-   kop van GuidePanel.tsx. Boven dialogen (z 60), onder de meldingen (z 70). */
+   venster (rechts; in ar/fa links via `inset-inline-*`) of, als het moet uitwijken, aan de beginkant.
+   Waarom zwevend en niet in de rail: zie de kop van GuidePanel.tsx; waar het staat: guidePlacement.ts.
+   Boven dialogen (z 60), onder de meldingen (z 70). */
 
 .guide-panel {
   position: fixed;
@@ -19,6 +20,32 @@
 }
 .guide-panel--end { inset-inline-end: 12px; }
 .guide-panel--start { inset-inline-start: 12px; }
+
+/* Op een laag scherm (1366×768) zou 70vh bijna het hele werkvlak bedekken: daar hooguit de helft van
+   de hoogte; de stap-tekst scrolt. */
+@media (max-height: 800px) {
+  .guide-panel { max-height: 50vh; }
+}
+
+/* Ingeklapt: alleen een knopje met de stapteller, klein genoeg voor de rand naast een venster. */
+.guide-panel--compact {
+  width: auto;
+  border-radius: 999px;
+}
+.guide-panel-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--theme-text);
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.guide-panel-pill:hover { background: var(--theme-hover); }
 
 .guide-panel-head {
   display: flex;

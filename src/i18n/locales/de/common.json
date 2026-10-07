@@ -1429,6 +1429,8 @@
     "doneNext": "Erledigt, weiter",
     "finish": "Fertig",
     "close": "Anleitung schließen",
+    "collapse": "Anleitung einklappen",
+    "expand": "Anleitung ausklappen",
     "stepDone": "Erledigt",
     "waiting": "Führe die Aufgabe in der App aus; danach geht es weiter."
   },
