@@ -212,8 +212,9 @@ Node 22 (see CI). Rust stable only for the `tauri:*` commands.
 | `ci-release` | `.github/`, release notes, bump |
 | `docs-index` | `docs/`, `PLAN.md`, `artifacts/` |
 
-Skills in `.claude/skills/`: `release`, `wiki`, `docs-update`, `goed-plannen` (source of the latter:
-`public/skills/goed-plannen/SKILL.md`, copied byte-identically).
+Skills in `.claude/skills/`: `release`, `wiki`, `docs-update`, `goed-plannen`, `progress-update` (source of the
+last two: `public/skills/<name>/SKILL.md`, copied byte-identically; they are the agent skills that
+`planner_get_planning_guide` hands out, next to the English agent guide `public/agent/planning-guide.md`).
 
 Recipes: `docs/recepten/` (MCP tool, setting, translation key, ribbon tab, text size, in-app guide,
 scheduling convention) and `docs/ifc-round-trip.md`. Self-test: `docs/self-test-harness.md`. Roadmap: `PLAN.md`
