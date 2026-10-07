@@ -368,7 +368,9 @@ test('resourceCatalog: rawRow-cellen alleen achter includeRawRows, met afkapping
   const serializedClosed = JSON.stringify(closed);
   assert(!serializedClosed.includes('synthetic-free-cell-'), 'geen vrije brontekst zonder opt-in');
 
-  const opened = ok(TOOL, { section: 'resourceCatalog', collection: 'resourceSources', limit: 1, includeRawRows: true });
+  // RSRC-cellen dragen persoonsgegevens (rsrc_name): naast includeRawRows ook includeResourceNames
+  // (eigenaarsbesluit 22-09). Alleen includeRawRows houdt de rij dicht — zie de resourcenamen-tests.
+  const opened = ok(TOOL, { section: 'resourceCatalog', collection: 'resourceSources', limit: 1, includeRawRows: true, includeResourceNames: true });
   assertEq(opened.items[0].rawRow.cells.rsrc_id, 'R-1', 'korte cel ongewijzigd met opt-in');
   assertEq(opened.items[0].rawRow.cells.rsrc_notes.length, LONG_CELL_TRUNCATED_LENGTH, 'grote vrije cel afgekapt, niet volledig');
   assert(opened.items[0].rawRow.cells.rsrc_notes.endsWith('truncated at 2000 characters)'), 'afkapmarker aanwezig');
@@ -455,14 +457,14 @@ test('rawSource: alleen opt-in, hard begrensd en paginaerbaar over grote payload
   const denied = err(TOOL, { section: 'rawSource' });
   assertEq(denied.code, 'VALIDATION', 'opt-in verplicht');
   assert(/free notes|source bytes/.test(denied.error), 'privacyhint');
-  const first = ok(TOOL, { section: 'rawSource', includeRawSource: true, limit: 8 });
+  const first = ok(TOOL, { section: 'rawSource', includeRawSource: true, includeResourceNames: true, limit: 8 });
   assertEq(first.chunks.length, 8, 'harde eerste pagina');
   assertEq(first.totalChunks, 10, 'alle chunks geteld');
   assertEq(first.has_more, true, 'volgende chunkpagina');
-  const second = ok(TOOL, { section: 'rawSource', includeRawSource: true, limit: 8, offset: first.next_offset });
+  const second = ok(TOOL, { section: 'rawSource', includeRawSource: true, includeResourceNames: true, limit: 8, offset: first.next_offset });
   assertEq(second.chunks.length, 2, 'laatste pagina');
   assertEq(second.chunks[0].index, 8, 'chunk-index');
-  assertEq(err(TOOL, { section: 'rawSource', includeRawSource: true, limit: 9 }).code, 'VALIDATION', 'geen onbeperkte base64');
+  assertEq(err(TOOL, { section: 'rawSource', includeRawSource: true, includeResourceNames: true, limit: 9 }).code, 'VALIDATION', 'geen onbeperkte base64');
   assertEq(err(TOOL, { section: 'rawSource', includeRawSource: false }).code, 'VALIDATION', 'false is geen opt-in');
   // Fable-critreview PR #109 bevinding 11: bij echte chunkgrootte is één base64-chunk al 256 KiB,
   // dus een rawSource-pagina (tot 8 chunks) past nooit onder de 256 kB-responsgrens — de
@@ -873,6 +875,104 @@ test('P3 #8: loopt via de ECHTE dispatch-weg (handleMcpMessage), niet alleen def
 
   const validCall = await rpcCall({ section: 'summary' });
   assertEq(validCall.result?.isError, false, 'een geldige summary-call passeert de dispatcher ongehinderd');
+});
+
+// Eigenaarsbesluit 22-09 (bevestigd 2026-10-07): "MCP-provenance: codes altijd; resourcenamen alleen
+// achter een opt-in, en de AI-client moet die opt-in aan zijn gebruiker vragen." De fixture loopt door
+// de ECHTE lezer, met een P6-resource die een persoon is ("Jan de Vries", resourcecode "JDV").
+const PERSON_NAME = 'Jan de Vries';
+const PERSON_CODE = 'JDV';
+
+function buildPersonArchiveFixture(): XerSourceArchive {
+  const source = new TextEncoder().encode([
+    'ERMHDR\t23.12\t2026-08-01\t\t\t\t\t\tEUR',
+    '%T\tCURRTYPE',
+    '%F\tcurr_short_name\tdecimal_symbol\tdigit_group_symbol',
+    '%R\tEUR\tcomma\tperiod',
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date',
+    '%R\tP-NAAM\tNamen-fixture\tC\t2026-08-01 08:00',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    '%R\tC\tStandaard\t8\t40\t',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\ttask_code\ttask_name\tclndr_id\ttarget_start_date\ttarget_end_date\ttarget_drtn_hr_cnt\ttask_type\tduration_type\tstatus_code',
+    '%R\tT-NAAM\tP-NAAM\tA-1\tFundering storten\tC\t2026-08-01 08:00\t2026-08-01 16:00\t8\tTT_Task\tDT_FixedDUR2\tTK_NotStart',
+    '%T\tRSRC',
+    '%F\trsrc_id\trsrc_name\trsrc_short_name\trsrc_type\tclndr_id\tdef_qty_per_hr',
+    `%R\tR-NAAM\t${PERSON_NAME}\t${PERSON_CODE}\tRT_Labor\tC\t1`,
+    '%T\tTASKRSRC',
+    '%F\ttaskrsrc_id\tproj_id\ttask_id\trsrc_id\ttarget_qty_per_hr\tremain_qty_per_hr\tremain_qty\ttarget_qty',
+    '%R\tAS-NAAM\tP-NAAM\tT-NAAM\tR-NAAM\t1\t1\t8\t8',
+    '%E',
+  ].join('\r\n'));
+  return reconstructXerSourceFromBytes(source).archive;
+}
+
+test('resourcenamen: zonder includeResourceNames nergens een persoonsnaam, codes wel (eigenaarsbesluit 22-09)', () => {
+  const archive = buildPersonArchiveFixture();
+  assert(JSON.stringify(archive.readModel.resourceCatalog.resources).includes(PERSON_NAME), 'testopzet: de lezer draagt de persoonsnaam echt in resources[].name');
+  attachRealArchive(archive, 'P-NAAM');
+
+  const resources = ok(TOOL, { section: 'resourceCatalog', collection: 'resources', limit: 10 });
+  assertEq(resources.items.length, 1, 'één resource');
+  assert(!('name' in resources.items[0]), 'resources[].name verdwijnt zonder includeResourceNames');
+  assertEq(resources.items[0].nameHidden, true, 'vaste markering: de naam is bewust weggelaten');
+  assertEq(resources.items[0].code, PERSON_CODE, 'de resourcecode (rsrc_short_name) blijft altijd zichtbaar');
+
+  const sources = ok(TOOL, { section: 'resourceCatalog', collection: 'resourceSources', limit: 10 });
+  assertEq(sources.items[0].code, PERSON_CODE, 'resourceSources draagt de code ook zonder opt-in');
+
+  // Elke sectie/collectie, ook mét includeRawRows (vrije tekst ≠ toestemming voor persoonsnamen).
+  const calls: Array<Record<string, unknown>> = [
+    {},
+    ...['resources', 'identities', 'resourceSources', 'roleSources', 'rates', 'curves', 'assignmentSources', 'issues']
+      .flatMap((collection) => [
+        { section: 'resourceCatalog', collection },
+        { section: 'resourceCatalog', collection, includeRawRows: true },
+      ]),
+    { section: 'diagnostics', collection: 'documentViews', includeRawRows: true },
+    { section: 'taskSourceRowsByProject', projectId: 'P-NAAM', includeRawRows: true },
+  ];
+  for (const args of calls) {
+    const text = JSON.stringify(ok(TOOL, args));
+    assert(!text.includes(PERSON_NAME), `geen persoonsnaam zonder includeResourceNames: ${JSON.stringify(args)}`);
+  }
+  // De ruwe bronbytes dragen de naam ook: rawSource vraagt dezelfde toestemming.
+  const rawDenied = err(TOOL, { section: 'rawSource', includeRawSource: true });
+  assertEq(rawDenied.code, 'VALIDATION', 'rawSource zonder includeResourceNames geweigerd');
+  assert(rawDenied.error.includes('includeResourceNames'), 'de fout noemt de ontbrekende opt-in');
+});
+
+test('resourcenamen: mét includeResourceNames zichtbaar (afgekapt label), codes blijven', () => {
+  attachRealArchive(buildPersonArchiveFixture(), 'P-NAAM');
+  const resources = ok(TOOL, { section: 'resourceCatalog', collection: 'resources', includeResourceNames: true });
+  assertEq(resources.items[0].name, PERSON_NAME, 'met toestemming komt de naam terug');
+  assert(!('nameHidden' in resources.items[0]), 'geen markering als de naam zichtbaar is');
+  assertEq(resources.items[0].code, PERSON_CODE, 'code blijft');
+
+  const rowsWithoutNames = ok(TOOL, { section: 'resourceCatalog', collection: 'resourceSources', includeRawRows: true });
+  assert(!('cells' in rowsWithoutNames.items[0].rawRow), 'RSRC-cellen blijven dicht met alleen includeRawRows');
+  const rowsWithNames = ok(TOOL, { section: 'resourceCatalog', collection: 'resourceSources', includeRawRows: true, includeResourceNames: true });
+  assertEq(rowsWithNames.items[0].rawRow.cells.rsrc_name, PERSON_NAME, 'beide opt-ins ⇒ RSRC-cel zichtbaar');
+
+  const raw = ok(TOOL, { section: 'rawSource', includeRawSource: true, includeResourceNames: true, limit: 1 });
+  assertEq(raw.chunks.length, 1, 'rawSource met beide opt-ins werkt');
+
+  assertEq(err(TOOL, { section: 'metadataCatalog', collection: 'customFieldDefs', includeResourceNames: true }).code, 'VALIDATION', 'includeResourceNames alleen bij resourceCatalog/rawSource');
+  assertEq(err(TOOL, { section: 'resourceCatalog', collection: 'resources', includeResourceNames: 'ja' }).code, 'VALIDATION', 'includeResourceNames moet boolean zijn');
+});
+
+test('resourcenamen: toolbeschrijving laat de AI-client eerst de gebruiker om toestemming vragen', () => {
+  const tool = getTool(TOOL)!;
+  const option = (tool.inputSchema as any).properties.includeResourceNames;
+  assert(!!option, 'includeResourceNames staat in het invoerschema');
+  assertEq(option.type, 'boolean', 'boolean');
+  assertEq(option.default, false, 'standaard false');
+  for (const text of [tool.description, option.description as string]) {
+    assert(/ask the user for (explicit )?permission/i.test(text), 'toestemmingsinstructie aan de AI-client');
+    assert(/AI provider/i.test(text), 'legt uit waarom: namen gaan naar de AI-aanbieder');
+  }
 });
 
 await run();

@@ -57,7 +57,13 @@ interface XerProvenanceArgs {
   offset?: unknown;
   includeRawSource?: unknown;
   includeRawRows?: unknown;
+  includeResourceNames?: unknown;
 }
+
+/** Sections die `includeResourceNames` accepteren: alleen daar kan een resourcenaam de respons in
+ *  (`resourceCatalog/resources[].name`, de RSRC-cellen van `resourceCatalog/resourceSources`, en de
+ *  ruwe bronbytes van `rawSource`). Elders is de optie een VALIDATION-fout, geen stille no-op. */
+const RESOURCE_NAMES_SECTIONS: readonly Section[] = ['resourceCatalog', 'rawSource'];
 
 /** Sections die door de generieke bronrij-/vrije-tekstpoort lopen. `diagnostics` hoort erbij:
  *  `documentViews` draagt via `resources.assignments[].rawRow` dezelfde vrije XER-cellen als de
@@ -89,10 +95,24 @@ const MAX_SECTION_RESPONSE_BYTES = 256 * 1024;
  *  een vergeten sleutel hier betekent "verbergen" (fail-safe), een vergeten sleutel in een blocklist
  *  betekent "lekken" (fail-open).
  *
- *  GEACCEPTEERD RISICO: `name` en `code` blijven zichtbaar (afgekapt op
- *  200 tekens) omdat een provenance-inspectie zonder namen nutteloos is — maar een P6-resourcenaam
- *  is in de praktijk routinematig een persoonsnaam. Dit is dus bewust GEEN AVG-schone lijst. Moet
- *  deze tool ooit persoonsgegevensvrij zijn, dan hoort `name` alsnog achter `includeRawRows`.
+ *  RESOURCENAMEN (eigenaarsbesluit 22-09, bevestigd 2026-10-07: "codes altijd; resourcenamen alleen
+ *  achter een opt-in, en de AI-client moet die opt-in aan zijn gebruiker vragen"). Een P6-resource is
+ *  in de praktijk routinematig een persoon, dus `name` staat hier wel, maar wordt op de enige plekken
+ *  waar hij een persoonsnaam draagt VÓÓR deze poort weggehaald tenzij `includeResourceNames:true`
+ *  (`projectResourceItem`/`projectResourceSourceItem`): `resourceCatalog/resources[].name` (= RSRC
+ *  `rsrc_name`), de RSRC-cellen van `resourceCatalog/resourceSources[].rawRow` (`rsrc_name`, maar ook
+ *  `email_addr`/`employee_code`/telefoon — daarom de HELE rij, geen celblocklist) en `rawSource` (de
+ *  bytes bevatten de RSRC-tabel). De resourcecode (`rsrc_short_name`, als `code`) blijft altijd
+ *  zichtbaar. Afweging per overige `name`-sleutel in de blootgestelde grafiek — géén persoonsnaam in
+ *  opzet, dus zichtbaar zonder opt-in:
+ *   - `roleSources[].name`/`shortName` (ROLES): een functie ("Uitvoerder"), geen persoon;
+ *   - `curves[].name` (RSRCCURVDATA): een verdelingscurve;
+ *   - `activityCodeTypes[].name`, `customFieldDefs[].name`: kolom-/codetypelabels; de
+ *     activiteitscodewaarden tonen alleen `code` — hun `description` is vrije tekst (achter
+ *     `includeRawRows`), ook als een codetype als "Verantwoordelijke" namen bevat;
+ *   - `unknownTables[].name`/`unknownFields[].name`: tabel-/kolomnamen uit de `%T`/`%F`-koppen.
+ *  Project-, taak-, WBS- en kalendernamen komen deze tool alleen via bronrij-CELLEN binnen (deny by
+ *  default, achter `includeRawRows`); ook die zijn geen persoonsgegevens-in-opzet.
  *
  *  Elke sleutel hieronder is nagelopen tegen de daadwerkelijk blootgestelde grafiek (resourceCatalog,
  *  metadataCatalog, diagnostics, taskSourceRowsByProject, summary) — geen sleutel "voor het geval
@@ -266,6 +286,67 @@ function projectFreeTextMap(map: Record<string, unknown>, includeRawRows: boolea
   return projected;
 }
 
+/** Markering op een resource waarvan de naam bewust is weggelaten (geen `includeResourceNames`). Een
+ *  boolean i.p.v. een vervangende string onder `name`: een AI-client mag een markering nooit voor de
+ *  naam zelf aanzien. */
+const NAME_HIDDEN_KEY = 'nameHidden';
+
+/** De resourcecode (P6 "Resource ID" = RSRC `rsrc_short_name`). `Resource` zelf heeft geen codeveld
+ *  (`name` valt in de lezer terug op deze code), dus de code komt uit de bronrij. Leeg ⇒ geen `code`. */
+function resourceCodeOf(cells: Readonly<Record<string, string>> | undefined): string | undefined {
+  const code = cells?.rsrc_short_name?.trim();
+  return code ? code : undefined;
+}
+
+function resourceCodesByInternalId(archive: XerSourceArchive): Map<string, string> {
+  const codes = new Map<string, string>();
+  for (const source of archive.readModel.resourceCatalog.rows.resources) {
+    const code = resourceCodeOf(source.rawRow?.cells);
+    if (code !== undefined) codes.set(source.internalId, code);
+  }
+  return codes;
+}
+
+/** `resourceCatalog/resources`: zonder `includeResourceNames` verdwijnt `name` (een persoonsnaam)
+ *  en komt `nameHidden: true` ervoor in de plaats; de code komt er altijd bij. Vers object, daarna
+ *  nog steeds door de generieke poort. */
+function projectResourceItem(item: unknown, codes: ReadonlyMap<string, string>, includeResourceNames: boolean): unknown {
+  if (!isPlainRecord(item)) return item;
+  const { name, ...rest } = item;
+  const code = typeof rest.id === 'string' ? codes.get(rest.id) : undefined;
+  return {
+    ...rest,
+    ...(code !== undefined ? { code } : {}),
+    ...(includeResourceNames ? { name } : { [NAME_HIDDEN_KEY]: true }),
+  };
+}
+
+/** `resourceCatalog/resourceSources`: de code altijd; de RSRC-cellen alleen met BEIDE opt-ins
+ *  (`includeRawRows` voor vrije tekst, `includeResourceNames` voor persoonsgegevens). Zonder de
+ *  tweede blijft `rawRow` de gesloten `{line, fieldCount}`-vorm, ook als `includeRawRows` aan staat. */
+function projectResourceSourceItem(
+  item: unknown,
+  includeRawRows: boolean,
+  includeResourceNames: boolean,
+  budget: ByteBudget,
+): unknown {
+  if (!isPlainRecord(item)) return sanitizeProvenanceValue(item, null, includeRawRows, budget);
+  const { rawRow, ...rest } = item;
+  const out = sanitizeProvenanceValue(rest, null, includeRawRows, budget) as Record<string, unknown>;
+  const code = isPlainRecord(rawRow) && isPlainRecord(rawRow.cells)
+    ? resourceCodeOf(rawRow.cells as Record<string, string>)
+    : undefined;
+  if (code !== undefined) {
+    const truncated = truncateLabel(code);
+    budget.charge(truncated);
+    out.code = truncated;
+  }
+  if (rawRow !== undefined) {
+    out.rawRow = sanitizeProvenanceValue(rawRow, 'rawRow', includeRawRows && includeResourceNames, budget);
+  }
+  return out;
+}
+
 /**
  * DE ENE POORT (deny-by-default): elke waarde die een sectiefunctie
  * teruggeeft loopt hierdoor vóór hij de respons in gaat. Regels, in volgorde:
@@ -368,7 +449,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 function requireOnlyKeys(args: unknown): XerProvenanceArgs {
   if (args === undefined || args === null) return {};
   if (!isObject(args)) throw new XerProvenanceError('VALIDATION', 'inspect_xer_provenance expects an object with arguments.');
-  const allowed = ['section', 'collection', 'projectId', 'limit', 'offset', 'includeRawSource', 'includeRawRows'];
+  const allowed = ['section', 'collection', 'projectId', 'limit', 'offset', 'includeRawSource', 'includeRawRows', 'includeResourceNames'];
   for (const key of Object.keys(args)) {
     if (!allowed.includes(key)) {
       throw new XerProvenanceError('VALIDATION', `unknown argument \`${key}\` for inspect_xer_provenance; allowed: ${allowed.join(', ')}.`);
@@ -613,12 +694,23 @@ function resourceCatalog(archive: XerSourceArchive, args: XerProvenanceArgs): un
     issues: catalog.issues,
   } as Record<Collection, readonly unknown[]>;
   const includeRawRows = args.includeRawRows === true;
+  const includeResourceNames = args.includeResourceNames === true;
   const pageOptions: PageOptions = includeRawRows
     ? { maxLimit: RAW_ROWS_OPT_IN_MAX_LIMIT, label: 'includeRawRows', unit: 'rijen' }
     : {};
   const paged = paginateRaw(values[collection], args, pageOptions);
   const budget = createByteBudget(MAX_SECTION_RESPONSE_BYTES);
-  const items = paged.slice.map((item) => sanitizeProvenanceValue(item, null, includeRawRows, budget));
+  let items: unknown[];
+  if (collection === 'resources') {
+    const codes = resourceCodesByInternalId(archive);
+    items = paged.slice.map((item) => sanitizeProvenanceValue(
+      projectResourceItem(item, codes, includeResourceNames), null, includeRawRows, budget,
+    ));
+  } else if (collection === 'resourceSources') {
+    items = paged.slice.map((item) => projectResourceSourceItem(item, includeRawRows, includeResourceNames, budget));
+  } else {
+    items = paged.slice.map((item) => sanitizeProvenanceValue(item, null, includeRawRows, budget));
+  }
   return finalizeBounded({ section: 'resourceCatalog', collection, ...envelope(paged, items) });
 }
 
@@ -706,6 +798,14 @@ function rawSource(archive: XerSourceArchive, args: XerProvenanceArgs): unknown 
   if (args.includeRawSource !== true) {
     throw new XerProvenanceError('VALIDATION', 'rawSource requires `includeRawSource: true`; source bytes can contain names and free notes.');
   }
+  if (args.includeResourceNames !== true) {
+    // De bronbytes bevatten de RSRC-tabel en dus elke resourcenaam: dezelfde toestemming als
+    // `resourceCatalog/resources[].name` (eigenaarsbesluit 22-09).
+    throw new XerProvenanceError(
+      'VALIDATION',
+      'rawSource also requires `includeResourceNames: true`: the source bytes contain resource names (often names of people). Ask the user for permission first.',
+    );
+  }
   const paged = paginateRaw(archive.byteChunks, args, { maxLimit: 8, label: 'rawSource', unit: 'chunks' });
   const next = paged.offset + paged.slice.length;
   return {
@@ -734,6 +834,9 @@ function inspect(state: AppState, rawArgs: unknown): unknown {
   if (args.includeRawRows !== undefined && typeof args.includeRawRows !== 'boolean') {
     throw new XerProvenanceError('VALIDATION', '`includeRawRows` must be a boolean.');
   }
+  if (args.includeResourceNames !== undefined && typeof args.includeResourceNames !== 'boolean') {
+    throw new XerProvenanceError('VALIDATION', '`includeResourceNames` must be a boolean.');
+  }
   const section = (args.section ?? 'summary') as Section;
   const archive = state.xerSourceArchive;
   if (args.projectId !== undefined && (typeof args.projectId !== 'string' || args.projectId.trim() === '')) {
@@ -746,6 +849,12 @@ function inspect(state: AppState, rawArgs: unknown): unknown {
     throw new XerProvenanceError(
       'VALIDATION',
       '`includeRawRows` only belongs to section `resourceCatalog`, `metadataCatalog`, `taskSourceRowsByProject` or `diagnostics`.',
+    );
+  }
+  if (args.includeResourceNames !== undefined && !RESOURCE_NAMES_SECTIONS.includes(section)) {
+    throw new XerProvenanceError(
+      'VALIDATION',
+      '`includeResourceNames` only belongs to section `resourceCatalog` or `rawSource`; no other section returns resource names.',
     );
   }
   if (section === 'summary') {
@@ -785,7 +894,18 @@ const inputSchema = {
         'Only for resourceCatalog/metadataCatalog/taskSourceRowsByProject/diagnostics: unlocks free-text ' +
         'fields (notes, customFields, arbitrary XER columns) instead of leaving them out, with a lower page ' +
         'limit (100), a cap of 200 cells/fields per row and per-cell truncation at 2,000 characters. Short ' +
-        'label/name fields stay visible ALWAYS but truncated at 200 characters, with or without this opt-in.',
+        'label/name fields stay visible ALWAYS but truncated at 200 characters, with or without this opt-in — ' +
+        'except resource names, which need includeResourceNames.',
+    },
+    includeResourceNames: {
+      type: 'boolean',
+      default: false,
+      description:
+        'Only for resourceCatalog and rawSource. Default false: resource names (P6 resources are often ' +
+        'people) are left out — `resources[].name` is replaced by `nameHidden: true`, RSRC source-row cells ' +
+        'stay closed even with includeRawRows, and rawSource is refused. Resource codes (`code`) are ' +
+        'ALWAYS visible. Before you set this to true, ask the user for permission: the names are personal ' +
+        'data and go to your AI provider. Only set it after the user agreed.',
     },
   },
   additionalProperties: false,
@@ -801,7 +921,7 @@ export const xerProvenanceTools: McpToolDef[] = [{
     '`has_more` and `next_offset`. `selector.availableProjectIds` (summary) is the union of opened document ' +
     'views and every project with TASK rows (also empty/baseline-excluded ones) — exactly the projects that ' +
     '`taskSourceRowsByProject` accepts. DENY-BY-DEFAULT for every string: only fields explicitly recognized ' +
-    'as id/code/label/enum token (names, ids, codes, units, currencyCode, …) stay visible without ' +
+    'as id/code/label/enum token (names except resource names, ids, codes, units, currencyCode, …) stay visible without ' +
     '`includeRawRows:true`, and then hard-truncated at 200 characters. Every other string — raw XER cells, ' +
     'notes, `customFields` values, and also unknown or nested free text such as a task-note array — is ' +
     'COMPLETELY INVISIBLE without the opt-in, and truncated at 2,000 characters with it. This applies to ' +
@@ -816,7 +936,11 @@ export const xerProvenanceTools: McpToolDef[] = [{
     'and supports no write path. Without an archive, summary reports `sourcePresent:false` with ' +
     '`archiveIssue` (`null`, or `{ code }` when an archive that was present turned out unusable on opening ' +
     'and was left out — codes: schema-version, hash-mismatch, truncated, bytes-missing, metadata-invalid, ' +
-    'structure). Not batchable: call it on its own, never as a step in `planner_batch`.',
+    'structure). RESOURCE NAMES: P6 resource names are usually names of people. By default they are left ' +
+    'out (resource codes stay visible); `includeResourceNames:true` shows them (resourceCatalog) and is ' +
+    'also required for rawSource. Before you set it, ask the user for permission and say why: the names ' +
+    'are personal data and go to your AI provider. Not batchable: call it on its own, never as a step in ' +
+    '`planner_batch`.',
   kind: 'read',
   batchable: false,
   inputSchema,

@@ -38,7 +38,11 @@ Drie architectuurregels die je moet kennen. (1) **Het bronarchief.** De volledig
 en elke crashherstel-snapshot dragen het archief, zonder bovengrens — gemeten 17,7 MB `.xer` ⇒ ±50 MB
 IFC, ±3,6 s hoofdthread per auto-save-tick (`docs/xer-recovery-guardrails.md`; eigenaarsbesluit,
 plan §10.f). De MCP-tool `planner_inspect_xer_provenance` en de extensie-API `data.getImportSource*` (achter
-de permissie `importSource`, default-deny) lezen eruit. Een onbruikbaar archief (corrupt, afgeknot of door
+de permissie `importSource`, default-deny) lezen eruit. De MCP-tool toont resourcenamen alleen met
+`includeResourceNames: true` (ook vereist voor `rawSource`; RSRC-bronrijcellen vragen dat naast `includeRawRows`);
+de toolbeschrijving laat de AI-client eerst de gebruiker om toestemming vragen. Codes (`code` = `rsrc_short_name`)
+blijven altijd zichtbaar (eigenaarsbesluit 22-09, bevestigd 2026-10-07). De extensie-API filtert géén namen: daar is
+de door de gebruiker verleende `importSource`-permissie de toestemming. Een onbruikbaar archief (corrupt, afgeknot of door
 een ander IFC-programma herschreven) wordt bij openen WEGGELATEN met één in-app melding — nooit stil
 (eigenaarsbesluit 2026-09-24, "openen met melding"): `readIFC` zet `ImportResult.xerArchiveIssue` (zes
 codes), `src/state/xerArchiveIssueNotice.ts` maakt er de melding van, `data.getImportSourceIssue()` en
