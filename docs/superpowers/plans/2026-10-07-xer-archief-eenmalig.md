@@ -83,3 +83,14 @@ hoofdthread per tick (Node 22, deze machine). De webbackend las bovendien elke t
   (f) opruimen: sluiten van het laatste document met het archief wist de blob.
 - `check-xer-archive-recovery-corpus.ts`: meet per tick bytes en tijd op rehab-2/OZB en poort de bytes.
 - Mutant: `serializeRecoverySnapshot` terug op `embedded` ⇒ (a) rood.
+
+## Meting (2026-10-07, Linux/Node 22, zelfde script vóór en na, headless IndexedDB-dubbel)
+
+- rehab-2 (18,6 MB bron), bewerkingstick: vóór 60.459.788 bytes / 2,47 s; na 35.660.682 bytes / 1,42 s.
+  Eerste tick na: 35,7 MB snapshot + één blob van 18,6 MB. Herstel: vóór 18,9 s; na 14,7 s.
+- OZB (twaalf documenten uit één bestand): eerste tick vóór 4.820.412 bytes, na 2.069.829 bytes (één blob
+  i.p.v. twaalf ingebedde kopieën); bewerkingstick vóór 398.672, na 154.522 bytes.
+
+Bevinding: bij rehab-2 is het archief ±25 MB van de 60 MB per tick. De resterende ±35 MB is de IFC van de
+planning zelf (zeer veel taken). Dat deel valt buiten dit besluit; een volgende stap zou de snapshot-
+serialisatie zelf moeten verkleinen of naar een worker verplaatsen.

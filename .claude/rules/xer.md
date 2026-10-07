@@ -2,6 +2,7 @@
 paths:
   - "src/services/xer/**"
   - "src/services/xerSourceArchive.ts"
+  - "src/services/recovery/recoverySnapshot.ts"
   - "src/services/xerExportLoss.ts"
   - "src/state/xerArchiveIssueNotice.ts"
   - "src/utils/xerDocumentName.ts"
@@ -35,9 +36,12 @@ de overdrachtsstand staat in `docs/superpowers/plans/2026-08-20-plan-xer-p6-leze
 Drie architectuurregels die je moet kennen. (1) **Het bronarchief.** De volledige oorspronkelijke
 `.xer`-bytes reizen als `xerSourceArchive` (+ `xerImportMetadata`, `xerSourceProjectId`) mee in
 `DOCUMENT_FIELDS` én in `IFC_SAVE_KEYS` (`src/state/ifcSaveInput.ts`; de archiefvelden zelf in `src/services/xerSourceArchive.ts`): het IFC-projectbestand
-en elke crashherstel-snapshot dragen het archief, zonder bovengrens — gemeten 17,7 MB `.xer` ⇒ ±50 MB
-IFC, ±3,6 s hoofdthread per auto-save-tick (`docs/xer-recovery-guardrails.md`; eigenaarsbesluit,
-plan §10.f). De MCP-tool `planner_inspect_xer_provenance` en de extensie-API `data.getImportSource*` (achter
+draagt het archief volledig (pset-schema 2). Crashherstel schrijft het één keer (eigenaarsbesluit plan
+(9), sinds 2026-10-07): een snapshot draagt alleen een verwijzing (schema 3, `recovery-reference-v1`,
+via `serializeRecoverySnapshot` in `src/services/recovery/recoverySnapshot.ts`), de bytes staan als
+content-adressed blob (sha256) naast de snapshots en verdwijnen als geen manifestregel ze nog noemt;
+een ontbrekende blob ⇒ openen met `xerArchiveIssue` `bytes-missing` (`docs/xer-recovery-guardrails.md`,
+ontwerp in `docs/superpowers/plans/2026-10-07-xer-archief-eenmalig.md`). De MCP-tool `planner_inspect_xer_provenance` en de extensie-API `data.getImportSource*` (achter
 de permissie `importSource`, default-deny) lezen eruit. Een onbruikbaar archief (corrupt, afgeknot of door
 een ander IFC-programma herschreven) wordt bij openen WEGGELATEN met één in-app melding — nooit stil
 (eigenaarsbesluit 2026-09-24, "openen met melding"): `readIFC` zet `ImportResult.xerArchiveIssue` (zes
