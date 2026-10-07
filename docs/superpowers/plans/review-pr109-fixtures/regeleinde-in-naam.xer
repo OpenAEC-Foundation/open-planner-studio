@@ -1,0 +1,13 @@
+ERMHDR	23.12	2026-04-01						EUR
+%T	CALENDAR
+%F	clndr_id	clndr_name	proj_id	clndr_type	day_hr_cnt	week_hr_cnt	clndr_data
+%R	C1	Werkweek	P1	CA_Project	8	40	(0||CalendarData()(    (0||DaysOfWeek()(      (0||1()())      (0||2()(        (0||0(s|08:00|f|16:00)())))      (0||3()(        (0||0(s|08:00|f|16:00)())))      (0||4()(        (0||0(s|08:00|f|16:00)())))      (0||5()(        (0||0(s|08:00|f|16:00)())))      (0||6()(        (0||0(s|08:00|f|16:00)())))      (0||7()())))    (0||Exceptions()())))
+%T	PROJECT
+%F	proj_id	proj_short_name	clndr_id	plan_start_date	plan_end_date
+%R	P1	PRJ	C1	2026-06-01 08:00	
+%T	TASK
+%F	task_id	proj_id	clndr_id	task_code	task_name	task_type	duration_type	status_code	target_drtn_hr_cnt	remain_drtn_hr_cnt	target_start_date	target_end_date
+%R	T1	P1	C1	A100	Fundering
+storten	TT_Task	DT_FixedDrtn	TK_NotStart	80	80	2026-06-01 08:00	2026-06-12 16:00
+%R	T2	P1	C1	A200	Normaal	TT_Task	DT_FixedDrtn	TK_NotStart	80	80	2026-06-01 08:00	2026-06-12 16:00
+%E
