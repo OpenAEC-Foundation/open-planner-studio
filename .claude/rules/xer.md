@@ -23,7 +23,8 @@ paths:
 
 `src/services/xer/` leest het native `.xer`-uitwisselingsformaat van Primavera P6 rechtstreeks
 (geen Rust, geen externe bibliotheek): `xerTables.ts` (tabelparser, getalnotatie uit `CURRTYPE`,
-tekencodering BOM → UTF-8 → Windows-1252), `xerReader.ts` (entry point `readXER()`, hetzelfde
+tekencodering BOM → UTF-8 → Windows-1252; een `%R` die door een rauw regeleinde in een cel te kort is, wordt met
+de volgende markerloze regels samengevoegd als dat het veldental exact haalt, max. 8 regels — P6 zelf schrijft DEL-DEL), `xerReader.ts` (entry point `readXER()`, hetzelfde
 `ImportResult`-contract als de andere lezers, via `formatRegistry.ts` achter een dynamic import),
 `xerMultiProject.ts` (één bestand ⇒ meerdere documenten; baselineprojecten worden bij hun huidige
 project gematerialiseerd), `xerCalendarData.ts` (de `clndr_data`-decoder incl. herstelcodes),

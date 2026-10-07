@@ -585,6 +585,41 @@ function freezeXerRows(tables: ReadonlyMap<string, XerTable>): void {
   }
 }
 
+/** Bovengrens op het aantal vervolgregels dat `joinLineBrokenRow` aan één `%R` plakt. */
+const MAX_LINE_BREAK_CONTINUATIONS = 8;
+
+/**
+ * Review PR #109, N2 (Fable 8): een RAUW regeleinde in een tekstcel. P6 zelf schrijft een regeleinde
+ * in een cel als DEL-DEL (`\x7f\x7f`, zie `decodeTextCell`); ook MPXJ breekt een record op elke
+ * CR/LF, ook binnen aanhalingstekens. Een met een spreadsheet of script bewerkte XER kan toch een echte
+ * LF/CRLF in bv. `task_name` dragen: dan eindigt de `%R`-regel te vroeg en begint de rest van de rij
+ * op een regel zonder marker. Zonder herstel verloor de taak duur en datums (`XER_UNKNOWN_RECORD`).
+ *
+ * Herstel, bewust smal: alleen een `%R` met TE WEINIG cellen, alleen de direct volgende regels die
+ * niet met `%` beginnen, hooguit `MAX_LINE_BREAK_CONTINUATIONS`, en alleen als het resultaat het
+ * veldental EXACT haalt. De laatste cel krijgt `\n` + het eerste stuk van de vervolgregel. Lukt dat
+ * niet, dan `undefined` en blijft het bestaande gedrag (`XER_ROW_FIELD_COUNT_MISMATCH`) staan.
+ */
+function joinLineBrokenRow(
+  lines: readonly string[],
+  rowIndex: number,
+  values: readonly string[],
+  expected: number,
+): { values: string[]; consumed: number } | undefined {
+  if (values.length === 0) return undefined;
+  const joined = [...values];
+  for (let offset = 1; offset <= MAX_LINE_BREAK_CONTINUATIONS && rowIndex + offset < lines.length; offset++) {
+    const line = lines[rowIndex + offset];
+    if (line.trimStart().startsWith('%')) return undefined;
+    const parts = line.split('\t');
+    joined[joined.length - 1] = `${joined[joined.length - 1]}\n${parts[0]}`;
+    joined.push(...parts.slice(1));
+    if (joined.length === expected) return { values: joined, consumed: offset };
+    if (joined.length > expected) return undefined;
+  }
+  return undefined;
+}
+
 /** Parse uitsluitend de oorspronkelijke bestandsbytes; een stringingang is ook runtime ongeldig. */
 export function parseXerTables(bytes: XerByteInput): XerTables {
   if (!(bytes instanceof Uint8Array)) {
@@ -677,7 +712,15 @@ export function parseXerTables(bytes: XerByteInput): XerTables {
       }
     } else if (marker === '%R' && current && current.fields.length > 0) {
       const table = current;
-      const rowValues = values.slice(1);
+      let rowValues = values.slice(1);
+      let consumedLines = 0;
+      if (rowValues.length < table.fields.length) {
+        const joined = joinLineBrokenRow(lines, index, rowValues, table.fields.length);
+        if (joined) {
+          rowValues = joined.values;
+          consumedLines = joined.consumed;
+        }
+      }
       if (rowValues.length !== table.fields.length) {
         issues.push({
           code: 'XER_ROW_FIELD_COUNT_MISMATCH',
@@ -692,6 +735,7 @@ export function parseXerTables(bytes: XerByteInput): XerTables {
         cells[field] = decodeTextCell(table.name, field, rowValues[fieldIndex] ?? '');
       });
       table.rows.push({ line: index + 1, cells });
+      index += consumedLines;
     } else if (marker === '%R' && current) {
       issues.push({ code: 'XER_DATA_WITHOUT_FIELDS', line: index + 1, table: current.name });
     } else if (marker === '%R' && currentUnknown) {

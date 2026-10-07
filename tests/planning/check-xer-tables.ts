@@ -1186,6 +1186,42 @@ eq('32 bekende PROJECT-velden geven geen false positive', reportedUnknownFields(
   '%E',
 ]), []);
 
+// Review PR #109, N2 (Fable 8): een RAUW regeleinde midden in een tekstcel (P6 zelf schrijft
+// DEL-DEL, maar een met een spreadsheet of script bewerkte XER kan een echte LF/CRLF dragen) kapte de
+// rij af: de taak verloor duur en datums. Nu voegt de lezer een te korte %R samen met de direct
+// volgende markerloze regels zolang dat het veldental EXACT haalt (max. 8 vervolgregels).
+const TASK_FIELDS = '%F\ttask_id\tproj_id\ttask_code\ttask_name\ttarget_drtn_hr_cnt\ttarget_start_date';
+const lineBreakRows = (newline: string, rows: readonly string[]) => parseXerTables(utf8([
+  'ERMHDR\t23.12', '%T\tTASK', TASK_FIELDS, ...rows, '%E',
+], newline));
+for (const newline of ['\n', '\r\n']) {
+  const parsed = lineBreakRows(newline, [
+    '%R\tT1\tP1\tA100\tFundering',
+    'storten\t80\t2026-06-01 08:00',
+    '%R\tT2\tP1\tA200\tNormaal\t40\t2026-06-02 08:00',
+  ]);
+  eq(`33 regeleinde in task_name (${JSON.stringify(newline)}) ⇒ rij samengevoegd, niets verloren`, {
+    rows: parsed.tables.get('TASK')?.rows.map(row => ({ line: row.line, ...row.cells })),
+    issues: parsed.report.issues,
+  }, {
+    rows: [
+      { line: 4, task_id: 'T1', proj_id: 'P1', task_code: 'A100', task_name: 'Fundering\nstorten', target_drtn_hr_cnt: '80', target_start_date: '2026-06-01 08:00' },
+      { line: 6, task_id: 'T2', proj_id: 'P1', task_code: 'A200', task_name: 'Normaal', target_drtn_hr_cnt: '40', target_start_date: '2026-06-02 08:00' },
+    ],
+    issues: [],
+  });
+}
+const twoBreaks = lineBreakRows('\n', ['%R\tT1\tP1\tA100\tRegel een', 'regel twee', 'regel drie\t80\t2026-06-01 08:00']);
+eq('33a twee regeleinden in één cel', twoBreaks.tables.get('TASK')?.rows[0]?.cells.task_name, 'Regel een\nregel twee\nregel drie');
+const notMergeable = lineBreakRows('\n', ['%R\tT1\tP1\tA100', '%R\tT2\tP1\tA200\tNormaal\t40\t2026-06-02 08:00']);
+eq('33b een korte rij zonder vervolgregel blijft de bestaande veldtel-melding geven', notMergeable.report.issues,
+  [{ code: 'XER_ROW_FIELD_COUNT_MISMATCH', line: 4, table: 'TASK', expected: 6, actual: 3 }]);
+const overshoot = lineBreakRows('\n', ['%R\tT1\tP1\tA100\tFundering', 'storten\t80\t2026-06-01 08:00\tte veel']);
+eq('33c samenvoegen dat het veldental overschrijdt gebeurt niet', overshoot.report.issues.map(issue => issue.code),
+  ['XER_ROW_FIELD_COUNT_MISMATCH', 'XER_UNKNOWN_RECORD']);
+const tooMany = lineBreakRows('\n', ['%R\tT1\tP1\tA100\tL0', ...Array.from({ length: 9 }, (_, i) => `L${i + 1}`), 'slot\t80\t2026-06-01 08:00']);
+eq('33d meer dan 8 vervolgregels ⇒ niet samengevoegd (begrensd)', tooMany.report.issues[0]?.code, 'XER_ROW_FIELD_COUNT_MISMATCH');
+
 if (diffs.length === 0) {
   console.log(`OK  xer-tables: ${checks} checks groen`);
 } else {
