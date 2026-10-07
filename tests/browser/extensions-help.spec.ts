@@ -234,7 +234,11 @@ test('help-API: tutorial in Help, meegeleverd project openen, begeleiding met co
 
 test('help-API: een tutorialartikel toont afbeeldingen alleen uit de eigen assets, in de docstaal', async ({ page, ops: _ops }) => {
   const external: string[] = [];
-  page.on('request', request => { if (request.url().includes('example.com')) external.push(request.url()); });
+  // Elk verzoek naar de host uit het artikel (exacte hostnaam, niet als deel van een andere URL).
+  page.on('request', request => {
+    const url = new URL(request.url());
+    if (url.hostname === 'example.com') external.push(url.href);
+  });
   await installTestExtension(page, ARTICLE_IMAGES_JS, { 'img/en/stap.png': PNG_1X1, 'img/nl/stap.png': PNG_2X1 });
 
   await openHelp(page);
@@ -247,7 +251,9 @@ test('help-API: een tutorialartikel toont afbeeldingen alleen uit de eigen asset
   await expect.poll(() => own.evaluate(el => (el as HTMLImageElement).naturalWidth)).toBe(1);
   // Een extern adres is geen asset: alleen de alt-tekst, geen <img> en geen netwerkverzoek.
   await expect(body.locator('.help-image-placeholder', { hasText: 'External picture' })).toBeVisible();
-  await expect(body.locator('img[src*="example.com"]')).toHaveCount(0);
+  // Geen <img> met dat adres: elke afbeelding in het artikel is een blob-URL uit de eigen assets.
+  await expect(body.locator('img')).toHaveCount(1);
+  expect(await body.locator('img').evaluateAll(els => els.map(el => new URL((el as HTMLImageElement).src).protocol))).toEqual(['blob:']);
 
   // Docstaal Nederlands: dezelfde regel, nu de nl-asset (2 px breed).
   await page.locator('#help-docslang').selectOption('nl');
