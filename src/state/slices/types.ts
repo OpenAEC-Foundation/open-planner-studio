@@ -251,6 +251,7 @@ export type NotificationMessageKey =
   | 'notifications.xerImportCalendarIssues'
   | 'notifications.xerImportNumberIssues'
   | 'notifications.xerImportEnumFallbacks'
+  | 'notifications.xerImportMissingPlannedStarts'
   | 'notifications.xerImportUnsupportedSemantics'
   // "Datums zoals opgeslagen" staat standaard aan zodra
   // een geopend XER-document restverschillen heeft. Meervoud, `count` = som van

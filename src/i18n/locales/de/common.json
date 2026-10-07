@@ -54,6 +54,8 @@
     "xerImportNumberIssues_other": "{{count}} Zahlenformat-Hinweise.",
     "xerImportEnumFallbacks_one": "{{count}} Enum-Rückfall.",
     "xerImportEnumFallbacks_other": "{{count}} Enum-Rückfälle.",
+    "xerImportMissingPlannedStarts_one": "{{count}} Vorgang hatte keinen geplanten Anfang und beginnt jetzt am Datenstichtag oder Projektanfang aus der Datei.",
+    "xerImportMissingPlannedStarts_other": "{{count}} Vorgänge hatten keinen geplanten Anfang und beginnen jetzt am Datenstichtag oder Projektanfang aus der Datei.",
     "xerImportUnsupportedSemantics_one": "{{count}} P6-Planungseinstellung mit sicherem Rückfall.",
     "xerImportUnsupportedSemantics_other": "{{count}} P6-Planungseinstellungen mit sicherem Rückfall.",
     "xerImportDatesAsRecorded_one": "{{count}} Vorgang zeigt die von Primavera gespeicherten Termine (nicht neu berechnet).",

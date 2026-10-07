@@ -43,6 +43,7 @@
     "xerImportCalendarIssues_other": "日历发现：{{count}}",
     "xerImportNumberIssues_other": "数字格式问题：{{count}}",
     "xerImportEnumFallbacks_other": "枚举回退：{{count}}",
+    "xerImportMissingPlannedStarts_other": "{{count}} 个作业没有计划开始日期，现在从文件中的数据日期或项目开始日期开始。",
     "xerImportUnsupportedSemantics_other": "使用安全回退的 P6 排程设置：{{count}}",
     "xerImportDatesAsRecorded_other": "显示 Primavera 记录日期（未重新计算）的任务：{{count}} 个",
     "xerImportDatesAsRecordedOffer_other": "与文件中记录的日期不同的任务：{{count}} 个（可以显示）",

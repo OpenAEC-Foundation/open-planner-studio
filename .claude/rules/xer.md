@@ -47,6 +47,10 @@ een ander IFC-programma herschreven) wordt bij openen WEGGELATEN met één in-ap
 (eigenaarsbesluit 2026-09-24, "openen met melding"): `readIFC` zet `ImportResult.xerArchiveIssue` (zes
 codes), `src/state/xerArchiveIssueNotice.ts` maakt er de melding van, `data.getImportSourceIssue()` en
 de MCP-provenance tonen het signaal; `xerOrigin` blijft dan afwezig (geen archief, geen archiefherkomst).
+Een activiteit zonder `target_start_date` volgt de gedeelde regel `resolveMissingScheduleDates`
+(`services/importDates.ts`): anker = statusdatum (`last_recalc_date`, of `data_date` als die kolom ontbreekt), dan
+`PROJECT.plan_start_date`, dan de vroegste aanwezige taakstart; nooit meer 1970. De openingsmelding telt ze
+(`ImportResult.xerMissingPlannedStarts`, transient; review PR #109 N1).
 De documentnaam na een XER-import is de projectnaam, met het P6 Project-ID tussen haakjes als dat afwijkt
 (`src/utils/xerDocumentName.ts`). (2) **Bak 4 — opgeslagen rekenuitvoer is
 weergave, nooit solverinvoer.** De zes P6-uitvoerkolommen (`early_/late_start/end_date`,

@@ -43,6 +43,7 @@
     "xerImportCalendarIssues_other": "カレンダーの検出事項: {{count}}",
     "xerImportNumberIssues_other": "数値形式の問題: {{count}}",
     "xerImportEnumFallbacks_other": "列挙値のフォールバック: {{count}}",
+    "xerImportMissingPlannedStarts_other": "計画開始のないアクティビティ {{count}} 件は、ファイルのデータ日付またはプロジェクト開始日から開始するようになりました。",
     "xerImportUnsupportedSemantics_other": "安全なフォールバックを使った P6 計画設定: {{count}}",
     "xerImportDatesAsRecorded_other": "Primavera が記録した日付をそのまま表示しているタスク: {{count}} 件（再計算していません）",
     "xerImportDatesAsRecordedOffer_other": "ファイルに記録された日付と異なるタスク: {{count}} 件（表示できます）",
