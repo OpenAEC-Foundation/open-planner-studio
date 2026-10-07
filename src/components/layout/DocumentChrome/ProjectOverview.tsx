@@ -108,25 +108,25 @@ export function ProjectOverview() {
             >
               <span style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: card.color }} />
 
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10, paddingLeft: 6 }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span className="!text-heading" style={{ fontFamily: "var(--font-heading)", fontWeight: 700, color: 'var(--theme-text)' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 10, paddingLeft: 6 }}>
+                <div style={{ minWidth: 0, flex: '1 1 auto' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                    <span className="!text-heading" style={{ fontFamily: "var(--font-heading)", fontWeight: 700, color: 'var(--theme-text)', minWidth: 0, overflowWrap: 'anywhere' }}>
                       {card.title}
                     </span>
                     {card.isActive && (
                       <span className="!text-caption" style={{
-                        fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em',
+                        flex: 'none', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em',
                         color: 'var(--theme-accent-on)', background: 'var(--theme-accent)',
                         borderRadius: 9999, padding: '2px 7px',
                       }}>{t('documents.active')}</span>
                     )}
                     {card.isDirty && (
-                      <span style={{ width: 7, height: 7, borderRadius: 9999, background: 'var(--theme-warning-text)' }} />
+                      <span style={{ flex: 'none', width: 7, height: 7, borderRadius: 9999, background: 'var(--theme-warning-text)' }} />
                     )}
                   </div>
                   {card.fileName && (
-                    <div className="!text-small" style={{ color: 'var(--theme-text-muted)', marginTop: 3, fontFamily: "var(--font-code)" }}>
+                    <div className="!text-small" style={{ color: 'var(--theme-text-muted)', marginTop: 3, overflowWrap: 'anywhere', fontFamily: "var(--font-code)" }}>
                       {card.fileName}
                     </div>
                   )}
