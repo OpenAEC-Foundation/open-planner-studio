@@ -88,3 +88,27 @@ export const RESOURCE_PANEL_HELP_ARTICLE_ID = 'ref-resourcepaneel';
 
 /** Het paneel Waarschuwingen. */
 export const WARNINGS_HELP_ARTICLE_ID = 'ref-meldingen';
+
+// ── ?-knoppen in zes vensters (besluit eigenaar na fase 4) ──────────────────────────────────────────
+
+/** Projectinformatie (Instellingen › Project › Projectinfo): de referentie van het formulier. */
+export const PROJECT_INFO_HELP_ARTICLE_ID = 'ref-projectinfo';
+
+/** Project verplaatsen. */
+export const MOVE_PROJECT_HELP_ARTICLE_ID = 'howto-project-verplaatsen';
+
+/** Resources nivelleren: stap 3 van dit artikel loopt het venster door (het oude `ref-nivellering`
+ *  is een alias hierheen). */
+export const LEVELING_HELP_ARTICLE_ID = 'howto-overbezetting-oplossen';
+
+/** Resourcebibliotheek koppelen (Herkennen en Afwijkingen). */
+export const LIBRARY_LINK_HELP_ARTICLE_ID = 'howto-resourcebibliotheek-gebruiken';
+
+/** Bibliotheek importeren (beheerscherm van de resourcebibliotheken). */
+export const LIBRARY_IMPORT_HELP_ARTICLE_ID = 'howto-bibliotheken-beheren';
+
+/** Voortgang bijwerken uit een blad. */
+export const PROGRESS_IMPORT_HELP_ARTICLE_ID = 'howto-voortgang-importeren';
+
+/** Niet-opgeslagen werk herstellen (na een crash). */
+export const RECOVERY_HELP_ARTICLE_ID = 'howto-herstellen-na-een-crash';

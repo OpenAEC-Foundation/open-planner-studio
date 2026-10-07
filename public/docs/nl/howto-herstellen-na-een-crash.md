@@ -13,7 +13,7 @@ De laptop viel uit, de app liep vast of het browsertabblad crashte, en je had de
 3. Kies *Herstellen*. De app opent alle projecten uit de lijst, elk in een tabblad, met de stand van de laatste kopie. Enter doet hetzelfde.
 4. Kijk je projecten na en sla ze meteen op met Ctrl+S.
 
-Wil je niet herstellen, dan heb je twee keuzes. *Niet herstellen* verwijdert de kopieën, en dat kun je niet ongedaan maken. Sluit je het venster met Escape, met het kruisje of door ernaast te klikken, dan blijven de kopieën staan en vraagt de app bij de volgende start opnieuw.
+Wil je niet herstellen, dan heb je twee keuzes. *Niet herstellen* verwijdert de kopieën, en dat kun je niet ongedaan maken. Sluit je het venster met Escape, met het kruisje, met het vraagteken (dat opent dit artikel) of door ernaast te klikken, dan blijven de kopieën staan en vraagt de app bij de volgende start opnieuw.
 
 ## Valkuilen en wat de app dan doet
 

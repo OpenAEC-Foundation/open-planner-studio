@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { RotateCcw, FileText } from 'lucide-react';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
+import { RECOVERY_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
 /**
  * Eén te herstellen document, zoals de {@link RecoveryDialog} het toont.
@@ -59,9 +60,12 @@ export function RecoveryDialog({ entries, onRestore, onDiscard, onClose }: Recov
       onCancel={onClose}
       onConfirm={onRestore}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[520px] max-h-[90vh] flex flex-col overflow-hidden"
+      panelProps={{ 'data-ops-recovery-dialog': true }}
     >
         {/* Header */}
-        <DialogHeader title={t('recovery.dialogTitle')} onClose={onClose} />
+        {/* ?-knop zonder vraag (geen invoer): sluit via `onClose`, dus uitstellen — de kopieën blijven
+            staan en de vraag komt bij de volgende start terug — en opent dan Help. */}
+        <DialogHeader title={t('recovery.dialogTitle')} onClose={onClose} help={{ articleId: RECOVERY_HELP_ARTICLE_ID }} />
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">

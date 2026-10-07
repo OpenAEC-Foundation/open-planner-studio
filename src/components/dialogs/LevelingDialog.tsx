@@ -7,6 +7,7 @@ import { distributeUnits } from '@/engine/scheduler/ResourceLoad';
 import { parseDate } from '@/utils/dateUtils';
 import { LEVELING_REASON_KEY } from '@/utils/levelingReasonKey';
 import { levelInBackground, LevelingCancelledError, type BackgroundLeveling } from '@/services/leveling/backgroundLeveling';
+import { LEVELING_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
 function fmt(iso: string): string {
   if (!iso) return '—';
@@ -107,10 +108,12 @@ export function LevelingDialog() {
     setRunning(false);
   };
 
-  const apply = () => {
-    if (!result) return;
+  /** Toepassen; `false` = er is (nog) geen voorstel om toe te passen, de dialoog blijft open. */
+  const apply = (): boolean => {
+    if (!result || running) return false;
     applyLeveling(result);
     close();
+    return true;
   };
 
   // Preview-rijen uit `result.shifts`: ELKE taak wiens start wijzigt — ook niet-geresourcete
@@ -163,8 +166,15 @@ export function LevelingDialog() {
     <Dialog
       onCancel={close}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[720px] max-h-[88vh] flex flex-col overflow-hidden"
+      panelProps={{ 'data-ops-leveling-dialog': true }}
     >
-        <DialogHeader title={t('resource.leveling.dialogTitle')} onClose={close} />
+        <DialogHeader
+          title={t('resource.leveling.dialogTitle')}
+          onClose={close}
+          // Altijd eerst vragen (besluit eigenaar): opties en voorstel staan pas na Toepassen in de
+          // planning. Opslaan = Toepassen; zonder voorstel past hij niets toe en blijft het venster open.
+          help={{ articleId: LEVELING_HELP_ARTICLE_ID, confirmLeave: { onSave: apply } }}
+        />
 
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
           {/* Opties */}

@@ -214,3 +214,13 @@ en noem het in je rapport of PR-tekst.
 71. **De dode-link-check uit de `wiki`-skill meldt `project://start.ifc`** in `Extensions-Authoring.md`: dat
     staat in een codevoorbeeld (inline code), geen echte link. De check slaat inline code niet over, dus de
     dry-run is nooit "dead: 0". Voorstel: in de check eerst `` `…` `` strippen. — B
+85. **Het venster *Nieuw project* heeft geen ?-knop**, terwijl `ref-projectinfo` (*Nieuw project en
+    Projectinfo*) het ook beschrijft. De ?-knop van `ProjectInfoDialog` staat bewust alleen in de modus
+    Projectinformatie (besluit eigenaar: zes vensters, de wizard hoort er niet bij). Voorstel: als de eigenaar
+    dat wil, `help` ook in de wizard zetten, met `confirmLeave` zonder `dirty` (de wizard kent geen
+    "niet toegepast"). — B
+86. **Geen enkele gids noemt de ?-knoppen in vensters en panelen.** `ref-sneltoetsen` zegt bij F1 *Niet in
+    een invoerveld en niet in een dialoog*, maar niet dat een venster een vraagteken in de kop heeft dat
+    Help op het juiste artikel opent (en eerst vraagt bij onopgeslagen invoer). Gezien met een zoekactie
+    in `public/docs/{nl,en}` (alleen `howto-herstellen-na-een-crash` noemt het, sinds de branch `claude/helpknoppen-meer`).
+    Voorstel: één zin bij F1 in `ref-sneltoetsen`, of een korte alinea in het Help-artikel. — B
