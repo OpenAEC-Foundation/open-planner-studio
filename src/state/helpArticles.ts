@@ -49,3 +49,44 @@ export const PLANNING_GUIDE_ARTICLE_ID = 'gids-goed-plannen';
 
 /** ?-knop in de sneltoetsendialoog (proefplek van de contextuele hulp). */
 export const SHORTCUTS_HELP_ARTICLE_ID = 'ref-sneltoetsen';
+
+// ── ?-knoppen in dialogen en panelen (ontwerp §8.1, fase 4) ─────────────────────────────────────────
+
+/** Taak bewerken en het paneel Eigenschappen. */
+export const TASK_PROPERTIES_HELP_ARTICLE_ID = 'ref-taak-eigenschappen';
+
+/** De kalenderbibliotheek (Planning › Kalender › Kalender). */
+export const CALENDARS_HELP_ARTICLE_ID = 'ref-kalenders';
+
+/** De kalender van een resource. */
+export const RESOURCE_CALENDAR_HELP_ARTICLE_ID = 'howto-resourcekalender-instellen';
+
+/** Filter en layouts (Beeld › Layout). */
+export const LAYOUTS_HELP_ARTICLE_ID = 'howto-layouts-gebruiken';
+
+/** Codes & velden (activity codes en eigen velden). */
+export const CODES_FIELDS_HELP_ARTICLE_ID = 'howto-codes-en-velden';
+
+/** Baselines beheren. */
+export const BASELINES_HELP_ARTICLE_ID = 'howto-baseline-opslaan-en-beheren';
+
+/** De urenverdeling (contour) van een toewijzing. */
+export const CONTOUR_HELP_ARTICLE_ID = 'howto-urenverdeling-aanpassen';
+
+/** Externe relaties naar een ander project. */
+export const EXTERNAL_LINKS_HELP_ARTICLE_ID = 'howto-externe-relaties';
+
+/** Instellingen (en de downloadstatistieken daaronder). */
+export const SETTINGS_HELP_ARTICLE_ID = 'ref-instellingen';
+
+/** De app bijwerken (Software-update). */
+export const UPDATE_HELP_ARTICLE_ID = 'howto-app-bijwerken';
+
+/** De verbindingsgegevens van de AI-bridge. */
+export const AI_CONNECTION_HELP_ARTICLE_ID = 'howto-ai-assistent-koppelen';
+
+/** Het resourcepaneel. */
+export const RESOURCE_PANEL_HELP_ARTICLE_ID = 'ref-resourcepaneel';
+
+/** Het paneel Waarschuwingen. */
+export const WARNINGS_HELP_ARTICLE_ID = 'ref-meldingen';

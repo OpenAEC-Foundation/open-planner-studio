@@ -5,6 +5,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { CommitColorInput, CommitTextInput } from '@/components/common/CommitInput';
 import type { CustomFieldType } from '@/types/structure';
+import { CODES_FIELDS_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
 const inputCls = 'input !text-small !leading-4 !px-2 !py-1 w-full';
 const FIELD_TYPES: CustomFieldType[] = ['text', 'number', 'integer', 'cost', 'date', 'boolean'];
@@ -42,7 +43,7 @@ export function StructureDialog() {
       onCancel={close}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[720px] max-h-[90vh] flex flex-col overflow-hidden"
     >
-        <DialogHeader title={t('structure.title')} onClose={close} closeIconSize={14} />
+        <DialogHeader title={t('structure.title')} onClose={close} closeIconSize={14} help={{ articleId: CODES_FIELDS_HELP_ARTICLE_ID }} />
 
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-5 text-small leading-4">
           {/* Activity-code-types */}

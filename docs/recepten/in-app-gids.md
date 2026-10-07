@@ -50,6 +50,20 @@ ooit achter, dan heeft de code gelijk.
 7. **Draai `npm run verify:docs`**, en bij een wijziging in `public/docs/en` ook `npm run publish:wiki`
    (dry-run; zie de `wiki`-skill).
 
+## Een ?-knop naar het artikel
+
+Hoort het artikel bij een dialoog of paneel, geef die dan een ?-knop (ontwerp §8.1, §10.2):
+
+- Zet het id als constante in `src/state/helpArticles.ts` (poort 10 controleert dat hij bestaat).
+- **Dialoog met `DialogHeader`:** de prop `help={{ articleId }}`. De knop sluit de dialoog via zijn
+  eigen `onClose` en opent Help. Heeft de dialoog invoer die nog niet is opgeslagen, geef dan ook
+  `confirmLeave: { onSave, dirty }`: dan vraagt hij eerst Opslaan / Annuleren / Terug. `onSave` is de
+  eigen opslaanroute van de dialoog en geeft `false` terug als er niets is opgeslagen (validatie);
+  `dirty` weglaten betekent: altijd vragen.
+- **Dialoog met een eigen kop:** `DialogHelpButton` uit `src/components/common/Dialog.tsx`, met
+  dezelfde `help` en de `onClose` van de dialoog.
+- **Paneel:** `HelpButton` uit `src/components/common/HelpButton.tsx`; hij opent *Bestand › Help* op het artikel.
+
 ## De beperkte Markdown-subset (`src/utils/miniMarkdown.tsx`)
 
 Er is bewust géén markdown-dependency: `renderMiniMarkdown()` is een eigen, kleine parser die

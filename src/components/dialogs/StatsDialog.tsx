@@ -5,6 +5,7 @@ import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { DownloadStatsSection } from '@/components/settings/DownloadStatsSection';
 import '@/components/dialogs/SettingsDialog.css';
 import '@/components/settings/SettingsPanelContent.css';
+import { SETTINGS_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
 /**
  * Statistieken-dialoog: hoe vaak Open Planner Studio is gedownload, per OS en per release.
@@ -25,7 +26,7 @@ export function StatsDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-stats-dialog': true }}
     >
-      <DialogHeader title={t('settings.statsTitle')} icon={<BarChart3 size={16} />} onClose={close} />
+      <DialogHeader title={t('settings.statsTitle')} icon={<BarChart3 size={16} />} onClose={close} help={{ articleId: SETTINGS_HELP_ARTICLE_ID }} />
       <div className="flex-1 overflow-y-auto p-4">
         <DownloadStatsSection />
       </div>

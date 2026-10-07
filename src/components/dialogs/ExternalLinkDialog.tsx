@@ -2,13 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X, Link2, FileDown } from 'lucide-react';
-import { Dialog } from '@/components/common/Dialog';
+import { Dialog, DialogHelpButton } from '@/components/common/Dialog';
 import type { Task, ExternalLink } from '@/types/task';
 import { externalSourceSide } from '@/engine/externalLinks';
 import { formatExternalLagShort, parseExternalLagInput } from '@/engine/taskGrid/relationFormat';
 import { effectiveCalendarOf } from '@/utils/taskDuration';
 import { isHourCalendar } from '@/services/subdayIo';
 import { buildImportLabels } from '@/i18n/importLabels';
+import { EXTERNAL_LINKS_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
 type Direction = ExternalLink['direction'];
 type RelType = ExternalLink['relType'];
@@ -184,16 +185,17 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
     : !!srcTask);
   const hourMode = ownerHourMode;
 
-  const submit = () => {
+  /** Bewaart de koppeling en sluit; `false` = niets bewaard (dan blijft de dialoog open). */
+  const submit = (): boolean => {
     if (!externalLinkDialogDocumentIsCurrent(
       openedDocumentId,
       useAppStore.getState().activeDocumentId,
     )) {
       onClose();
-      return;
+      return false;
     }
-    if (!canAdd) return;
-    if (!parsedLag) return;
+    if (!canAdd) return false;
+    if (!parsedLag) return false;
     const link: Omit<ExternalLink, 'id'> = manual
       ? buildManualExternalLinkSubmission({
           existing, direction, relType, lag: parsedLag,
@@ -212,9 +214,10 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
           sourceMissing: false,
         };
     if (linkId) {
-      if (!existing || !updateExternalLink(taskId, linkId, link)) return;
+      if (!existing || !updateExternalLink(taskId, linkId, link)) return false;
     } else addExternalLink(taskId, link);
     onClose();
+    return true;
   };
 
   return (
@@ -227,6 +230,9 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
         {/* Kop */}
         <div className="flex items-center justify-between px-4" style={{ minHeight: 44, borderBottom: '1px solid var(--theme-border)' }}>
           <span className="ui-card-header flex items-center gap-2"><Link2 size={14} />{t('externalLinks.dialogTitle')}</span>
+          <span className="flex items-center gap-1">
+          {/* ?-knop: altijd eerst Opslaan / Annuleren / Terug — een nieuwe koppeling bestaat pas na Opslaan. */}
+          <DialogHelpButton help={{ articleId: EXTERNAL_LINKS_HELP_ARTICLE_ID, confirmLeave: { onSave: submit } }} onClose={onClose} />
           <button
             onClick={onClose}
             className="text-text-muted hover:text-text-primary"
@@ -235,6 +241,7 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
           >
             <X size={16} />
           </button>
+          </span>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-small leading-4">
