@@ -12,6 +12,25 @@ const EXT_ID = 'test-tutorials';
 
 // 1×1 PNG, voor de afbeelding in een stap (komt als blob-URL uit de assets van de extensie).
 const PNG_1X1 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+// 2×1 PNG: de nl-variant, zodat de breedte laat zien welke taalvariant de viewer laadde.
+const PNG_2X1 = 'iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAADklEQVR4nGP4z8AAQv8BD/kD/YURmXYAAAAASUVORK5CYII=';
+
+// Een tutorialartikel met een afbeelding uit de eigen assets (`{lang}` = de docstaal) en één met een
+// extern adres: dat is geen asset, dus de viewer toont de alt-tekst en laadt niets van buiten.
+const ARTICLE_IMAGES_JS = `
+module.exports = {
+  onLoad(api) {
+    api.help.registerArticles([{
+      id: 'tut-test-beelden', kind: 'tutorial', order: 1,
+      title: { nl: 'Beelden', en: 'Pictures' },
+      body: {
+        nl: '# Beelden\\n\\n![Stapbeeld](img/{lang}/stap.png)\\n\\n![Extern beeld](https://example.com/extern.png)',
+        en: '# Pictures\\n\\n![Step picture](img/{lang}/stap.png)\\n\\n![External picture](https://example.com/extern.png)',
+      },
+    }]);
+  },
+};
+`;
 
 const MAIN_JS = `
 module.exports = {
@@ -61,11 +80,16 @@ module.exports = {
 };
 `;
 
-async function installTestExtension(page: Page): Promise<void> {
-  await page.evaluate(async ({ id, code, png }) => {
+async function installTestExtension(
+  page: Page,
+  mainCode = MAIN_JS,
+  images: Record<string, string> = { 'img/en/stap.png': PNG_1X1, 'img/nl/stap.png': PNG_1X1 },
+): Promise<void> {
+  await page.evaluate(async ({ id, code, pngs }) => {
     const res = await fetch('/examples/showcase-verbouwing-eengezinswoning.ifc');
     const ifc = new Uint8Array(await res.arrayBuffer());
-    const image = Uint8Array.from(atob(png), c => c.charCodeAt(0));
+    const assets: Record<string, Uint8Array> = { 'start.ifc': ifc };
+    for (const [name, b64] of Object.entries(pngs)) assets[name] = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
     await window.__OPS__!.extensions.installFromCode({
       id,
       name: 'Testtutorials',
@@ -77,8 +101,8 @@ async function installTestExtension(page: Page): Promise<void> {
       category: 'Other',
       main: 'main.js',
       permissions: ['help', 'ribbon'],
-    }, code, { 'start.ifc': ifc, 'img/en/stap.png': image, 'img/nl/stap.png': image });
-  }, { id: EXT_ID, code: MAIN_JS, png: PNG_1X1 });
+    }, code, assets);
+  }, { id: EXT_ID, code: mainCode, pngs: images });
   await expect.poll(() => page.evaluate(id => window.__OPS__!.store.getState().installedExtensions[id]?.status, EXT_ID))
     .toBe('enabled');
 }
@@ -206,6 +230,32 @@ test('help-API: tutorial in Help, meegeleverd project openen, begeleiding met co
   await expect(page.locator('[data-help-article="tut-test-eerste"]')).toHaveCount(0);
   await page.locator('[data-tour-anchor="ribbon-tab:start"]').click();
   await expect(page.getByRole('button', { name: 'Start guide', exact: true })).toHaveCount(0);
+});
+
+test('help-API: een tutorialartikel toont afbeeldingen alleen uit de eigen assets, in de docstaal', async ({ page, ops: _ops }) => {
+  const external: string[] = [];
+  page.on('request', request => { if (request.url().includes('example.com')) external.push(request.url()); });
+  await installTestExtension(page, ARTICLE_IMAGES_JS, { 'img/en/stap.png': PNG_1X1, 'img/nl/stap.png': PNG_2X1 });
+
+  await openHelp(page);
+  await page.locator('[data-help-section="kind-tutorial"]').getByRole('button', { name: /Pictures/ }).click();
+  const body = page.locator('.help-article-body');
+
+  // Docstaal Engels (Auto bij een Engelse interface): de en-asset als blob-URL.
+  const own = body.locator('img.help-image[alt="Step picture"]');
+  await expect(own).toHaveAttribute('src', /^blob:/);
+  await expect.poll(() => own.evaluate(el => (el as HTMLImageElement).naturalWidth)).toBe(1);
+  // Een extern adres is geen asset: alleen de alt-tekst, geen <img> en geen netwerkverzoek.
+  await expect(body.locator('.help-image-placeholder', { hasText: 'External picture' })).toBeVisible();
+  await expect(body.locator('img[src*="example.com"]')).toHaveCount(0);
+
+  // Docstaal Nederlands: dezelfde regel, nu de nl-asset (2 px breed).
+  await page.locator('#help-docslang').selectOption('nl');
+  const ownNl = body.locator('img.help-image[alt="Stapbeeld"]');
+  await expect(ownNl).toHaveAttribute('src', /^blob:/);
+  await expect.poll(() => ownNl.evaluate(el => (el as HTMLImageElement).naturalWidth)).toBe(2);
+  await expect(body.locator('.help-image-placeholder', { hasText: 'Extern beeld' })).toBeVisible();
+  expect(external).toEqual([]);
 });
 
 test('ui.showNotification: de melding van een extensie is zichtbaar, met naam en als platte tekst', async ({ page, ops: _ops }) => {

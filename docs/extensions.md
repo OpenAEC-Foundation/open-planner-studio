@@ -352,8 +352,14 @@ anders `en`. De tekst gebruikt dezelfde Markdown-subset als de ingebouwde gidsen
 extensie-specifieke aanvullingen:
 
 - `![alt](img/{lang}/stap-1.webp)` — de afbeelding komt uit je **eigen assets** (het ZIP-pad), met
-  `{lang}` vervangen door `nl` of `en`. De app maakt er een blob-URL van en trekt die in bij het
-  uitschakelen. Ontbreekt de asset, dan toont de viewer de alt-tekst in een placeholder.
+  `{lang}` vervangen door `nl` of `en` (de docstaal van de Help-viewer, en in het begeleidingspaneel de
+  taal van het paneel). De app maakt er een blob-URL van en trekt die in bij het uitschakelen.
+  Ontbreekt de asset, dan toont de viewer de alt-tekst in een placeholder. Het pad is altijd een
+  assetnaam: een extern adres (`https://…`) of een asset van een andere extensie laadt de viewer nooit
+  (ook dan alleen de alt-tekst). Het MIME-type volgt de extensie: `.webp`, `.png`, `.jpg`/`.jpeg`,
+  `.gif`, `.svg` of `.avif`. Een afbeelding op een eigen regel wordt een blok (maximaal de breedte van
+  de tekst: 760 px in Help, ±300 px in het paneel, kleiner wordt niet vergroot); geef altijd een
+  alt-tekst mee.
 - `[Open het startproject](project://start.ifc)` — opent die meegeleverde `.ifc` als nieuw document
   (zelfde route als `openBundledProject`). Lukt dat niet, dan meldt de app "Het projectbestand … van
   de extensie … kon niet worden geopend"; een dubbelklik opent één document.
