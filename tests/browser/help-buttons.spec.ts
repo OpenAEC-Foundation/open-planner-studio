@@ -303,10 +303,10 @@ test('voortgang importeren: bij het kiezen meteen Help, met een ingelezen blad e
   await expect.poll(completion).toBe(0.4);
 });
 
-test('herstellen na een crash: de ?-knop stelt uit en opent Help meteen', async ({ page, ops: _ops }) => {
+test('herstellen na een crash: ? opent Help zonder te kiezen; terug staat het venster er weer en herstellen werkt', async ({ page, ops: _ops }) => {
   // Fixture: een gewijzigd project krijgt meteen een herstelkopie (eerste auto-save-ronde); daarna
   // herladen in hetzelfde tabblad, zoals de gids beschrijft. De welkomst staat als gezien, zodat hij
-  // na het uitstellen niet over Help heen komt.
+  // na het herstel niet tussendoor komt.
   await seedProject(page, [{ name: 'Onopgeslagen werk', start: '2026-09-07', finish: '2026-09-11' }]);
   const recordCount = () => page.evaluate(() => new Promise<number>((resolve) => {
     const request = indexedDB.open('ops-recovery');
@@ -330,6 +330,15 @@ test('herstellen na een crash: de ?-knop stelt uit en opent Help meteen', async 
   await expect(leaveDialog(page)).toHaveCount(0);
   await expect(dialog).toHaveCount(0);
   await expectHelpOn(page, 'howto-herstellen-na-een-crash');
-  // Uitgesteld, niet weggegooid: de kopie staat er nog.
+  // Niets gekozen: de kopie staat er nog.
   expect(await recordCount()).toBeGreaterThan(0);
+
+  // Terug uit Help: het herstelvenster staat er weer, en Herstellen haalt het werk terug.
+  await page.locator('[data-ops-backstage-back]').click();
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: /^(Restore|Herstellen)$/ }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect.poll(() => page.evaluate(
+    () => window.__OPS__!.store.getState().tasks.map(t => t.name),
+  )).toContain('Onopgeslagen werk');
 });

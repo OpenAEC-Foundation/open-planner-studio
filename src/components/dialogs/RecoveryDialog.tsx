@@ -34,6 +34,11 @@ interface RecoveryDialogProps {
    * verschijnt de vraag opnieuw.
    */
   onClose: () => void;
+  /**
+   * De ?-knop: verbergt het venster zolang Help openstaat, zonder te kiezen. Het herstel blijft dus
+   * gewoon openstaan (de auto-save staat nog uit) en het venster komt terug zodra Help dicht is.
+   */
+  onHelp: () => void;
 }
 
 /**
@@ -46,7 +51,7 @@ interface RecoveryDialogProps {
  * gecentreerde overlay, kaart met header/body/footer en `btn`-knoppen. Doet zelf
  * geen file-I/O — App.tsx levert de data en handelt de keuze af.
  */
-export function RecoveryDialog({ entries, onRestore, onDiscard, onClose }: RecoveryDialogProps) {
+export function RecoveryDialog({ entries, onRestore, onDiscard, onClose, onHelp }: RecoveryDialogProps) {
   const { t, i18n } = useTranslation('common');
 
   const fmt = new Intl.DateTimeFormat(i18n.language, {
@@ -63,9 +68,13 @@ export function RecoveryDialog({ entries, onRestore, onDiscard, onClose }: Recov
       panelProps={{ 'data-ops-recovery-dialog': true }}
     >
         {/* Header */}
-        {/* ?-knop zonder vraag (geen invoer): sluit via `onClose`, dus uitstellen — de kopieën blijven
-            staan en de vraag komt bij de volgende start terug — en opent dan Help. */}
-        <DialogHeader title={t('recovery.dialogTitle')} onClose={onClose} help={{ articleId: RECOVERY_HELP_ARTICLE_ID }} />
+        {/* ?-knop zonder vraag (geen invoer). Bewust NIET via `onClose` (dat stelt het herstel uit tot
+            de volgende start): `onHelp` verbergt het venster alleen zolang Help openstaat. */}
+        <DialogHeader
+          title={t('recovery.dialogTitle')}
+          onClose={onClose}
+          help={{ articleId: RECOVERY_HELP_ARTICLE_ID, close: onHelp }}
+        />
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">

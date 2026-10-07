@@ -13,7 +13,9 @@ The laptop died, the app froze or the browser tab crashed, and you had not yet s
 3. Choose *Restore*. The app opens all projects in the list, each in a tab, with the state of the last copy. Enter does the same.
 4. Check your projects and save them straight away with Ctrl+S.
 
-If you do not want to restore, you have two options. *Don't restore* deletes the copies, and you cannot undo that. If you close the window with Escape, with the cross, with the question mark (which opens this article) or by clicking next to it, the copies stay and the app asks again at the next start.
+If you do not want to restore, you have two options. *Don't restore* deletes the copies, and you cannot undo that. If you close the window with Escape, with the cross or by clicking next to it, the copies stay and the app asks again at the next start.
+
+The question mark at the top right of the window opens this article without making a choice. While you read in Help, the window waits. When you go back, it is there again and you can still restore.
 
 ## Pitfalls and what the app does then
 
