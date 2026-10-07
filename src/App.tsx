@@ -375,6 +375,13 @@ function AppContent() {
       {/* Dialogs — lazy geladen; één Suspense-grens rond het hele blok. Alle dialogs
           zijn standaard verborgen (gated of intern `return null`), dus een null-fallback tijdens het
           laden van een chunk is onzichtbaar. */}
+      {/* Rondleiding in een EIGEN Suspense-grens: in het gedeelde blok hieronder verbergt React bij
+          het laden van een andere lazy dialoog (bv. de tutorialvraag) de hele grens met display:none.
+          De rondleidingskaart werd dan 0x0 en onklikbaar zolang die chunk laadde (CI, PR #293). */}
+      <Suspense fallback={null}>
+        {showTourOverlay && <TourOverlay />}
+      </Suspense>
+
       <Suspense fallback={null}>
         <TaskDialog />
         {showNewOrOpenProjectDialog && <NewOrOpenProjectDialog />}
@@ -393,7 +400,6 @@ function AppContent() {
         {showBenchmarkDialog && <BenchmarkDialog />}
         {showStatsDialog && <StatsDialog />}
         {showWelcomeDialog && <WelcomeDialog />}
-        {showTourOverlay && <TourOverlay />}
         {/* Tutorialvraag na een voltooide rondleiding (eenmalig, `state/onboarding.ts`). Vóór de
             toestemmingsdialoog gemount: die stapelt er bij "Ja" bovenop. */}
         {showTutorialOffer && <TutorialOfferDialog />}
