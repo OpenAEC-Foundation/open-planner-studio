@@ -55,6 +55,12 @@ en noem het in je rapport of PR-tekst.
     gebouwd):** de afgeleide werkelijke start moet het oorspronkelijk geplande begin van vóór de
     statusdatumverschuiving zijn. — B (MCP), S (UI)
 
+96. **In "Datums zoals opgeslagen" tonen het taakpaneel, path tracing en de MCP-tool "geen driving"**, omdat
+    ze de driving-lijst nog rechtstreeks lezen. De Gantt en het rapport gebruiken sinds deze PR de helper
+    `drivingInfo.ts`, die "geen driving-informatie" onderscheidt van "berekend, niets driving"; de andere
+    lezers nog niet. Gevonden bij de prestatiefixes voor grote planningen (rehab-2). Voorstel: dezelfde helper
+    in die drie lezers. — S
+
 ## Tabel, invoer en bediening
 
 12. **Tabelkolom *Kalender*** toont en bewerkt het interne kalender-id (`cal-…`) in plaats van de naam. — B
