@@ -4,13 +4,14 @@ Which menus the right mouse button opens in the Gantt and in the task list, what
 
 ## Which menu where
 
-There are three menus. Which one you get depends on where you click:
+There are four menus. Which one you get depends on where you click:
 
 - **On a task bar in the Gantt** — the task menu, with *Start relation from here* at the top.
 - **On a task in the task list** — the same task menu, without that one item at the top. This goes for the task list to the left of the Gantt and for the *Table* tab.
 - **On a group header in the task list** — a small menu to expand and collapse groups. Group headers only appear when you group, for example with the *Resource diagram* layout.
+- **On empty space** — in the Gantt next to or below the bars, and in the task list below the last task or on the grey *New task* row. The menu has *New task*, *Add milestone* and *Paste*; in the Gantt also *Reset zoom* and *Fit to project*. A new task or milestone goes to the bottom of the list. In the Gantt it starts on the date where you clicked; in the task list the name cell opens right away so you can type.
 
-On the empty background of the Gantt, and on the band of a group header in the Gantt, the right mouse button opens no menu. A right-click in the timeline header does nothing either. The column headers of the task list have their own menu, described in [Adjusting table columns](docs://howto-tabelkolommen-aanpassen).
+On the band of a group header in the Gantt, the right mouse button opens no menu. A right-click in the timeline header does nothing either. The column headers of the task list have their own menu, described in [Adjusting table columns](docs://howto-tabelkolommen-aanpassen).
 
 **Which tasks does an item apply to?** You click on one task, but the selection sets the scope. If the task you click on is part of the selection, the item applies to the whole selection. If it is not, it applies to that one task only. With a right-click on a bar in the Gantt or on a row in the task list, that task replaces the selection if it was not part of it. Every item that changes something is one step in *Undo*, also for a whole selection.
 

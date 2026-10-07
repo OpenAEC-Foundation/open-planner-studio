@@ -291,7 +291,8 @@
       "baselineVarianceStart": "Écart de début",
       "baselineVarianceFinish": "Écart de fin",
       "baselineVarianceDuration": "Écart de durée"
-    }
+    },
+    "ghostRow": "Nouvelle tâche"
   },
   "taskStatus": {
     "NOT_STARTED": "Non démarrée",

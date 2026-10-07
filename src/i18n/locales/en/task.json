@@ -287,7 +287,8 @@
       "baselineVarianceStart": "Start variance",
       "baselineVarianceFinish": "Finish variance",
       "baselineVarianceDuration": "Duration variance"
-    }
+    },
+    "ghostRow": "New task"
   },
   "taskStatus": {
     "NOT_STARTED": "Not started",

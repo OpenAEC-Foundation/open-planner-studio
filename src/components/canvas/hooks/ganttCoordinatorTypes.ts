@@ -151,6 +151,9 @@ export interface GanttContextMenuState {
    *  VÓÓR het aangeklikte stuk. `null` op stuk 0, zonder splits, of op een split die niet bewerkbaar
    *  is (dan blijft alleen "Alle onderbrekingen opheffen" over). */
   splitGapIndex: number | null;
+  /** Rechtsklik op LEGE ruimte (geen balk): de datum onder de cursor (`YYYY-MM-DD`). "Nieuwe taak"
+   *  en "Nieuwe mijlpaal" beginnen dan op die datum (review 2026-10-06, punt 1). */
+  clickDate?: string | null;
 }
 
 export interface GanttTooltipState {

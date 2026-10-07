@@ -295,7 +295,8 @@
       "baselineVarianceStart": "Odchylenie rozpoczęcia",
       "baselineVarianceFinish": "Odchylenie zakończenia",
       "baselineVarianceDuration": "Odchylenie czasu trwania"
-    }
+    },
+    "ghostRow": "Nowe zadanie"
   },
   "taskStatus": {
     "NOT_STARTED": "Nierozpoczęte",

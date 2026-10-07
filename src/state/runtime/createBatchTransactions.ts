@@ -2,7 +2,8 @@ import type { AppStoreContext } from '../appStore';
 import { createSnapshot } from '../snapshot';
 
 export interface BatchTransactions {
-  withTransaction<T>(fn: () => T): T;
+  /** `label` ⇒ de naam van de ene undo-stap (standaard "Bulkbewerking"). */
+  withTransaction<T>(fn: () => T, label?: string): T;
 }
 
 /** Bind de bestaande gedeeltelijk-committen batchsemantiek aan precies één storecontext. */
@@ -10,7 +11,7 @@ export function createBatchTransactions(context: AppStoreContext): BatchTransact
   const { store, runtime } = context;
 
   return {
-    withTransaction<T>(fn: () => T): T {
+    withTransaction<T>(fn: () => T, label = 'Bulkbewerking'): T {
       if (runtime.isBatchActive()) return fn();
 
       runtime.resetUndoCoalescing();
@@ -34,7 +35,7 @@ export function createBatchTransactions(context: AppStoreContext): BatchTransact
         // Eén rijenberekening voor de hele batch, vóór de undo-stap (die legt `viewRows` vast).
         if (runtime.takeDeferredViewRows()) store.getState().recomputeViewRows();
         store.setState((state) => {
-          runtime.recordDocumentDataHistory(state, before, documentId, 'Bulkbewerking');
+          runtime.recordDocumentDataHistory(state, before, documentId, label);
         });
       }
       if (didThrow) throw thrown;

@@ -287,7 +287,8 @@
       "baselineVarianceStart": "Abweichung Anfang",
       "baselineVarianceFinish": "Abweichung Ende",
       "baselineVarianceDuration": "Abweichung Dauer"
-    }
+    },
+    "ghostRow": "Neue Aufgabe"
   },
   "taskStatus": {
     "NOT_STARTED": "Nicht begonnen",

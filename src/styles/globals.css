@@ -126,6 +126,18 @@
   opacity: 0.58;
 }
 
+/* De spookregel onderaan (review 2026-10-06, punt 1): een grijze "Nieuwe taak" die pas een echte
+   taak wordt als je er iets invult. Sta je erin, dan valt het grijze label weg en ziet de regel eruit
+   als een gewone, lege taak. */
+.task-grid-ghost-placeholder {
+  color: var(--theme-text-muted);
+  font-style: italic;
+}
+
+.task-grid-data-row[data-grid-ghost="true"]:has([data-grid-active="true"]) .task-grid-ghost-placeholder {
+  visibility: hidden;
+}
+
 /* Browserreview, observatie 4: de rij-indicators (selectiebalk, drop-zone tijdens rijsleep) waren
  * tot nu toe een `box-shadow: inset` op de RIJ zelf — maar een box-shadow van een element schildert
  * ALTIJD vóór zijn eigen kinderen (de schilderorde is achtergrond/rand/box-shadow, dan pas

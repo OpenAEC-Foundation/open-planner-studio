@@ -49,6 +49,8 @@ export interface DataGridCoreProps {
   onCellPointerDown?: (cell: GridCellAddress, event: React.PointerEvent<HTMLDivElement>) => void;
   onCellDoubleClick?: (cell: GridCellAddress, event: React.MouseEvent<HTMLDivElement>) => void;
   onCellContextMenu?: (cell: GridCellAddress, event: React.MouseEvent<HTMLDivElement>) => void;
+  /** Rechtsklik op lege ruimte in het raster (onder de laatste rij), niet op een cel of kop. */
+  onEmptyContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void;
   onDataRowMouseDown?: (
     row: DataGridDataRowModel,
     absoluteIndex: number,
@@ -200,6 +202,7 @@ export function DataGridCore({
   onCellPointerDown,
   onCellDoubleClick,
   onCellContextMenu,
+  onEmptyContextMenu,
   onDataRowMouseDown,
   onGroupContextMenu,
   onCopy,
@@ -402,6 +405,13 @@ export function DataGridCore({
         style={{ width: viewportWidth, height: headerHeight + viewportHeight, direction: 'ltr' }}
         onScroll={handleScroll}
         onKeyDown={handleKeyDown}
+        onContextMenu={event => {
+          // Cellen, groepsrijen en de kop handelen hun eigen rechtsklik af (en voorkomen de default).
+          if (event.defaultPrevented || !onEmptyContextMenu) return;
+          const target = event.target as Element;
+          if (target.closest('[data-grid-data-row], [role="row"], [role="columnheader"]')) return;
+          onEmptyContextMenu(event);
+        }}
         onCopy={event => {
           if (shouldHandleDataGridClipboardEvent(event)) onCopy?.(event);
         }}
@@ -478,6 +488,7 @@ export function DataGridCore({
                 data-grid-row-key={row.rowKey}
                 data-ops-row-index={mounted.index}
                 data-grid-dimmed={row.dimmed ? 'true' : undefined}
+                data-grid-ghost={row.ghost ? 'true' : undefined}
                 data-grid-row-selected={row.selected ? 'true' : undefined}
                 data-grid-trace-role={row.traceClass?.replace('task-grid-trace-', '')}
                 data-grid-drop-zone={row.dropZone ?? undefined}

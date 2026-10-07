@@ -4,13 +4,14 @@ Welke menu's de rechtermuisknop opent in de Gantt en in de takenlijst, wat elk i
 
 ## Welk menu waar
 
-Er zijn drie menu's. Welke je krijgt, hangt af van waar je klikt:
+Er zijn vier menu's. Welke je krijgt, hangt af van waar je klikt:
 
 - **Op een taakbalk in de Gantt** — het taakmenu, met bovenaan *Relatie leggen vanaf hier*.
 - **Op een taak in de takenlijst** — hetzelfde taakmenu, zonder dat ene item bovenaan. Dit geldt voor de takenlijst links van de Gantt en voor het tabblad *Tabel*.
 - **Op een groepskop in de takenlijst** — een klein menu om groepen in en uit te klappen. De groepskoppen verschijnen alleen als je groepeert, bijvoorbeeld met de layout *Resourcediagram*.
+- **Op lege ruimte** — in de Gantt naast of onder de balken, en in de takenlijst onder de laatste taak of op de grijze regel *Nieuwe taak*. Het menu heeft *Nieuwe taak*, *Mijlpaal toevoegen* en *Plakken*; in de Gantt ook *Zoom herstellen* en *Passend maken op project*. Een nieuwe taak of mijlpaal komt onderaan de lijst. In de Gantt begint hij op de datum waar je klikte; in de takenlijst gaat de naamcel meteen open om te typen.
 
-Op de lege achtergrond van de Gantt, en op de band van een groepskop in de Gantt, opent de rechtermuisknop geen menu. Ook een rechtsklik in de tijdlijnkop doet niets. De kolomkoppen van de takenlijst hebben een eigen menu, beschreven in [Tabelkolommen aanpassen](docs://howto-tabelkolommen-aanpassen).
+Op de band van een groepskop in de Gantt opent de rechtermuisknop geen menu. Ook een rechtsklik in de tijdlijnkop doet niets. De kolomkoppen van de takenlijst hebben een eigen menu, beschreven in [Tabelkolommen aanpassen](docs://howto-tabelkolommen-aanpassen).
 
 **Voor welke taken geldt een item?** Je klikt op één taak, maar de selectie bepaalt het bereik. Zit de taak waarop je klikt in de selectie, dan geldt het item voor de hele selectie. Zit hij er niet in, dan geldt het alleen voor die ene taak. Bij een rechtsklik op een balk in de Gantt of op een rij in de takenlijst vervangt die taak de selectie als hij er nog niet in zat. Elk item dat iets wijzigt is één stap in *Ongedaan*, ook voor een hele selectie.
 

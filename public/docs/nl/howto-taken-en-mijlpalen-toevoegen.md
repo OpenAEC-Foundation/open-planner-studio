@@ -19,6 +19,20 @@ De nieuwe taak heet eerst *Nieuwe taak* en begint op de projectstart.
 
 Is er een taak geselecteerd, dan komt de nieuwe taak direct eronder, op hetzelfde niveau. Is de geselecteerde taak een samenvattingstaak, dan komt hij onder die hele fase, dus na haar subtaken. Is er niets geselecteerd, dan komt hij onderaan de lijst. De tooltip van de knop zegt welke van de twee er gebeurt: *Nieuwe taak direct onder de selectie* of *Nieuwe taak onderaan de lijst*. Selecteer je meerdere taken, dan komt er één nieuwe taak, onder de onderste van de selectie zoals je die op het scherm ziet.
 
+### Snel achter elkaar in de takenlijst
+
+Onder de laatste taak in de takenlijst staat altijd een grijze regel *Nieuwe taak*. Dat is nog geen taak: hij staat niet in de Gantt en niet in het bestand.
+
+1. Klik in een cel van die regel, of ga er met pijltje omlaag naartoe.
+2. Typ de naam en druk op Enter. Nu is het een echte taak, op hetzelfde niveau als de taak erboven. De cursor staat meteen op de nieuwe grijze regel eronder.
+3. Typ de volgende naam, en zo verder.
+
+Vul je in de grijze regel alleen een duur of een datum in, dan heet de taak *Nieuwe taak*. Ga je weg zonder iets in te vullen, dan gebeurt er niets: geen taak en geen stap in *Ongedaan*. Het aanmaken en de eerste waarde zijn samen één stap in *Ongedaan*. De grijze regel staat er alleen als de takenlijst niet gefilterd, gegroepeerd of gesorteerd is.
+
+### Met de rechtermuisknop op lege ruimte
+
+Klik met de rechtermuisknop op lege ruimte: in de takenlijst onder de laatste taak, of in de Gantt naast of onder de balken. Kies *Nieuwe taak* of *Mijlpaal toevoegen*. De taak komt onderaan de lijst. In de Gantt begint hij op de datum waar je klikte. In de takenlijst gaat de naamcel meteen open om te typen.
+
 ### Boven of onder een bepaalde taak
 
 Klik met de rechtermuisknop op de taak en kies *Invoegen boven* of *Invoegen onder*. Met het toetsenbord kan het ook: Insert voegt boven de geselecteerde taak in, Ctrl+I (op een Mac ⌘+I) eronder. In de takenlijst gaat na Insert de naamcel meteen open om te typen.

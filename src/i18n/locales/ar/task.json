@@ -303,7 +303,8 @@
       "baselineVarianceStart": "انحراف البدء",
       "baselineVarianceFinish": "انحراف الانتهاء",
       "baselineVarianceDuration": "انحراف المدة"
-    }
+    },
+    "ghostRow": "مهمة جديدة"
   },
   "taskStatus": {
     "NOT_STARTED": "لم تبدأ",
