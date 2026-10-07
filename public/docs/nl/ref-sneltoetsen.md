@@ -94,7 +94,7 @@ Inspringen, uitspringen en invoegen boven of onder een geselecteerde taak werken
 
 **Ctrl+P** — *Naar rapport-tabblad*: brengt je naar het tabblad *Rapport*. Het is dus geen printopdracht. Niet in een dialoog.
 
-**F1** — *Help openen*: opent *Bestand › Help*. Niet in een invoerveld en niet in een dialoog.
+**F1** — *Help openen*: opent *Bestand › Help*. Niet in een invoerveld en niet in een dialoog. In een venster gebruik je het vraagteken rechtsboven: dat opent Help op het artikel over dat venster (zie [Lint per tabblad](docs://ref-lint), bij *Help*).
 
 **Ctrl+1** tot en met **Ctrl+9** — *Wissel van document*: gaat naar het eerste tot en met negende geopende document. Bestaat dat document niet, dan gebeurt er niets. Niet in een dialoog en niet bij een niet-toegepaste Projectinfo.
 

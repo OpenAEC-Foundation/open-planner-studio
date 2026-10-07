@@ -5,6 +5,7 @@ import { useAppStore } from '@/state/appStore';
 import { readPoolIFC, resolveUniqueCompanyName, resolvePoolImportPreselection, classifyPoolImportIdentityHint } from '@/services/library';
 import { openFileDialog } from '@/services/fileAccess';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
+import { LIBRARY_IMPORT_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import type { CompanyPool } from '@/types/library';
 
 const TARGET_COMPANY_SELECT_ID = 'pool-import-target-company';
@@ -139,7 +140,12 @@ export function PoolImportDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-pool-import-dialog': true }}
     >
-      <DialogHeader title={t('companyLibrary.importTitle')} onClose={close} />
+      <DialogHeader
+        title={t('companyLibrary.importTitle')}
+        onClose={close}
+        // Vragen zodra er een bestand gekozen is (dat is nog niet ingelezen); Opslaan = de importknop.
+        help={{ articleId: LIBRARY_IMPORT_HELP_ARTICLE_ID, confirmLeave: { dirty: imported !== null, onSave: confirm } }}
+      />
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-small leading-4">
         <button onClick={() => { void pick(); }} className="btn btn--sm btn--secondary self-start">

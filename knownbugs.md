@@ -273,3 +273,8 @@ en noem het in je rapport of PR-tekst.
 71. **De dode-link-check uit de `wiki`-skill meldt `project://start.ifc`** in `Extensions-Authoring.md`: dat
     staat in een codevoorbeeld (inline code), geen echte link. De check slaat inline code niet over, dus de
     dry-run is nooit "dead: 0". Voorstel: in de check eerst `` `…` `` strippen. — B
+90. **Het venster *Nieuw project* heeft geen ?-knop**, terwijl `ref-projectinfo` (*Nieuw project en
+    Projectinfo*) het ook beschrijft. De ?-knop van `ProjectInfoDialog` staat bewust alleen in de modus
+    Projectinformatie (besluit eigenaar: zes vensters, de wizard hoort er niet bij). Voorstel: als de eigenaar
+    dat wil, `help` ook in de wizard zetten, met `confirmLeave` zonder `dirty` (de wizard kent geen
+    "niet toegepast"). — B

@@ -15,6 +15,8 @@ De laptop viel uit, de app liep vast of het browsertabblad crashte, en je had de
 
 Wil je niet herstellen, dan heb je twee keuzes. *Niet herstellen* verwijdert de kopieën, en dat kun je niet ongedaan maken. Sluit je het venster met Escape, met het kruisje of door ernaast te klikken, dan blijven de kopieën staan en vraagt de app bij de volgende start opnieuw.
 
+Het vraagteken rechtsboven in het venster opent dit artikel zonder dat je iets kiest. Zolang je in Help leest, wacht het venster. Ga je terug, dan staat het er weer en kun je alsnog herstellen.
+
 ## Valkuilen en wat de app dan doet
 
 **Je krijgt de stand van de laatste kopie.** Wat je in de laatste seconden voor de crash deed, kan ontbreken. Een project dat wijzigingen had, staat weer als *Niet opgeslagen* gemarkeerd. De geschiedenis van *Ongedaan maken* is leeg: je kunt geen stappen van vóór de crash terugdraaien. Zoom, scrollpositie en selectie worden opnieuw opgebouwd.

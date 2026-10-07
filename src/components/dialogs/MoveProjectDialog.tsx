@@ -6,6 +6,7 @@ import { displayDate } from '@/utils/displayDate';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { localTodayIso } from '@/utils/dateUtils';
 import type { MoveProjectPreview } from '@/state/slices/projectSlice';
+import { MOVE_PROJECT_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
 /**
  * "Project verplaatsen…" — verschuif de HELE planning naar een nieuwe startdatum.
@@ -32,6 +33,8 @@ export function MoveProjectDialog() {
   const close = () => setUI({ showMoveProjectDialog: false });
 
   const [newStart, setNewStart] = useState(project.startDate?.slice(0, 10) ?? '');
+  // De startdatum bij het openen: de ?-knop vraagt alleen iets als de invoer is veranderd.
+  const [initialStart] = useState(newStart);
   const [shiftBaselines, setShiftBaselines] = useState(false);
   const [preview, setPreview] = useState<MoveProjectPreview | null>(null);
 
@@ -49,12 +52,15 @@ export function MoveProjectDialog() {
     setPreview(previewMoveProject(newStart, { shiftBaselines }));
   };
 
-  const apply = () => {
+  const canApply = !!preview && !preview.error && Number.isFinite(delta) && delta !== 0;
+
+  /** Toepassen; `false` = niets verplaatst (nog geen geldig voorbeeld, of de actie weigerde). */
+  const apply = (): boolean => {
+    if (!canApply) return false;
     const res = moveProject(newStart, { shiftBaselines });
     if (res.moved) close();
+    return res.moved;
   };
-
-  const canApply = !!preview && !preview.error && Number.isFinite(delta) && delta !== 0;
   const isPast = validNewStart && newStart < localTodayIso();
   const fmt = (iso: string) => displayDate(iso, notation) || '—';
 
@@ -95,7 +101,15 @@ export function MoveProjectDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-move-project-dialog': true }}
     >
-      <DialogHeader title={t('moveProject.title')} onClose={close} />
+      <DialogHeader
+        title={t('moveProject.title')}
+        onClose={close}
+        help={{
+          articleId: MOVE_PROJECT_HELP_ARTICLE_ID,
+          // Opslaan = Toepassen: alleen met een berekend voorbeeld, net als de knop onderaan.
+          confirmLeave: { dirty: newStart !== initialStart || shiftBaselines, onSave: apply },
+        }}
+      />
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-small leading-4">
         {/* Zonder geldige huidige startdatum valt er niets te berekenen. */}

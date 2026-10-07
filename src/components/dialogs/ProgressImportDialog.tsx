@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { AlertTriangle } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
+import { PROGRESS_IMPORT_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import { openFileDialog } from '@/services/fileAccess';
 import { localTodayIso, parseDate } from '@/utils/dateUtils';
 import { formatDisplayDate } from '@/i18n/dateFormat';
@@ -242,6 +243,15 @@ export function ProgressImportDialog() {
     setStage('result');
   };
 
+  /** Opslaan vanuit de ?-knop: dezelfde toepassing als Toepassen, maar daarna sluiten in plaats van
+   *  de resultaatstap tonen (Help opent erna). `false` = niets om toe te passen, venster blijft open. */
+  const applyAndClose = (): boolean => {
+    if (stage !== 'preview' || !rows || !plan || plan.appliedCount === 0) return false;
+    applyProgressImport(rows, overrides, { today: localTodayIso() });
+    close();
+    return true;
+  };
+
   // Per sectie hooguit `MAX_RENDERED_ROWS` DOM-rijen (en bij "wacht op
   // koppeling"/"betwijfeld" evenveel `ProgressImportLinkPicker`s) — plain data-afleidingen, geen
   // hooks nodig; `needsLinkRows`/`doubtfulRows`/`generalRows` zijn zelf al gememoïseerd hierboven.
@@ -282,7 +292,16 @@ export function ProgressImportDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[720px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-progress-import-dialog': true }}
     >
-      <DialogHeader title={t('progressImport.title')} onClose={close} />
+      <DialogHeader
+        title={t('progressImport.title')}
+        onClose={close}
+        // Vragen zolang er een ingelezen blad klaarstaat (datumvolgorde of voorbeeld); in de stap
+        // Bestand kiezen en na het resultaat staat er niets open, dan opent Help meteen.
+        help={{
+          articleId: PROGRESS_IMPORT_HELP_ARTICLE_ID,
+          confirmLeave: { dirty: stage === 'dateOrder' || stage === 'preview', onSave: applyAndClose },
+        }}
+      />
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-small leading-4">
         {stage === 'pick' && (

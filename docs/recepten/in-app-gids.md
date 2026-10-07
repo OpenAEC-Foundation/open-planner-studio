@@ -60,6 +60,8 @@ Hoort het artikel bij een dialoog of paneel, geef die dan een ?-knop (ontwerp §
   `confirmLeave: { onSave, dirty }`: dan vraagt hij eerst Opslaan / Annuleren / Terug. `onSave` is de
   eigen opslaanroute van de dialoog en geeft `false` terug als er niets is opgeslagen (validatie);
   `dirty` weglaten betekent: altijd vragen.
+- **Moet de ?-knop anders sluiten dan het kruisje,** geef dan `close` mee. Het herstelvenster doet dat:
+  zijn kruisje stelt het herstel uit, de ?-knop verbergt het venster alleen zolang Help openstaat.
 - **Dialoog met een eigen kop:** `DialogHelpButton` uit `src/components/common/Dialog.tsx`, met
   dezelfde `help` en de `onClose` van de dialoog.
 - **Paneel:** `HelpButton` uit `src/components/common/HelpButton.tsx`; hij opent *Bestand › Help* op het artikel.
