@@ -29,6 +29,7 @@ import {
   type RelationCellItem,
 } from '@/engine/taskGrid/relationCell';
 import { RelationSentence, relationSentenceName } from '@/components/common/RelationSentence';
+import { Select } from '@/components/common/Select';
 import type { ParsedRelationToken } from '@/engine/taskGrid/relationPlan';
 import type { Task } from '@/types/task';
 import type { GridEditorInputProps } from './GridEditorHost';
@@ -206,6 +207,18 @@ export function controlKeyDown(event: KeyboardEvent<HTMLElement>): void {
   if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
 }
 
+/** Toetsen rond een `Select` in een celeditor: staat de lijst open, dan zijn alle toetsen behalve
+ *  Tab van die lijst (Escape sluit alleen de lijst, pijltjes verspringen niet van cel). Dicht gedraagt
+ *  hij zich als elke andere knop in de editor. */
+function selectControlKeyDown(event: KeyboardEvent<HTMLElement>): void {
+  const open = (event.target as Element | null)?.closest?.('[aria-expanded="true"]') != null;
+  if (open && event.key !== 'Tab') {
+    event.stopPropagation();
+    return;
+  }
+  controlKeyDown(event);
+}
+
 export function RelationCellEditor({
   inputProps,
   inputRef,
@@ -363,17 +376,16 @@ export function RelationCellEditor({
             return (
               <div key={token.relationId ?? `${token.taskId ?? token.wbsCode}:${index}`} className="task-grid-relation-token" role="listitem" {...tokenFocusProps(index)}>
                 <span className="task-grid-relation-reference" title={taskLabel}>{taskLabel}</span>
-                <select
-                  {...validationProps}
-                  aria-label={t('relations.controlType', { task: taskLabel })}
-                  value={token.relType}
-                  onKeyDown={controlKeyDown}
-                  onChange={event => replaceToken(index, {
-                    ...token, relType: event.currentTarget.value as ExternalRelationType,
-                  })}
-                >
-                  {RELATION_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
-                </select>
+                <span className="task-grid-relation-type" onKeyDown={selectControlKeyDown}>
+                  <Select
+                    {...validationProps}
+                    aria-label={t('relations.controlType', { task: taskLabel })}
+                    value={token.relType}
+                    options={RELATION_TYPES.map(type => ({ value: type, label: type }))}
+                    onChange={value => replaceToken(index, { ...token, relType: value as ExternalRelationType })}
+                    className="ops-select__trigger--compact"
+                  />
+                </span>
                 <input
                   {...validationProps}
                   aria-label={t('relations.controlLag', { task: taskLabel })}
@@ -406,18 +418,19 @@ export function RelationCellEditor({
               >
                 {sourceLabel}
               </button>
-              <select
-                {...validationProps}
-                aria-label={t('relations.controlType', { task: sourceLabel })}
-                value={token.external.relType}
-                onKeyDown={controlKeyDown}
-                onChange={event => replaceToken(index, {
-                  ...token,
-                  external: { ...token.external, relType: event.currentTarget.value as ExternalRelationType },
-                })}
-              >
-                {compatibleTypes.map(type => <option key={type} value={type}>{type}</option>)}
-              </select>
+              <span className="task-grid-relation-type" onKeyDown={selectControlKeyDown}>
+                <Select
+                  {...validationProps}
+                  aria-label={t('relations.controlType', { task: sourceLabel })}
+                  value={token.external.relType}
+                  options={compatibleTypes.map(type => ({ value: type, label: type }))}
+                  onChange={value => replaceToken(index, {
+                    ...token,
+                    external: { ...token.external, relType: value as ExternalRelationType },
+                  })}
+                  className="ops-select__trigger--compact"
+                />
+              </span>
               <input
                 {...validationProps}
                 aria-label={t('relations.controlLag', { task: sourceLabel })}

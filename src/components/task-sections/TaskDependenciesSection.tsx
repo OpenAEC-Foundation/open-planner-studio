@@ -4,6 +4,7 @@ import { useAppStore } from '@/state/appStore';
 import { SequenceType, SEQUENCE_TYPE_OPTIONS, type Sequence } from '@/types/sequence';
 import { Task } from '@/types/task';
 import { RelationSentence, relationSentenceName } from '@/components/common/RelationSentence';
+import { Select } from '@/components/common/Select';
 import { SequenceLagInput } from '@/components/common/SequenceLagInput';
 import { HoverTooltip } from '@/components/canvas/HoverTooltip';
 import { TaskTooltipContent } from '@/components/canvas/TaskTooltipContent';
@@ -56,6 +57,8 @@ const EMPTY_DRAFT: RelationDraft = {
  * (opent op elk tabblad via F2). `interactive=false` valt daarom
  * terug op platte tekst (taaknaam), zonder knop/hover/klik.
  */
+const TYPE_OPTIONS = SEQUENCE_TYPE_OPTIONS.map(o => ({ value: o.value, label: o.label }));
+
 export function TaskDependenciesSection({ taskId, interactive = true }: { taskId: string; interactive?: boolean }) {
   const { t } = useTranslation('task');
   const tasks = useAppStore(s => s.tasks);
@@ -184,15 +187,15 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
                 </span>
               )}
             </span>
-            <select
-              value={seq.type}
-              onChange={e => updateSequence(seq.id, { type: e.target.value as SequenceType })}
-              className="dependency-type-field input !w-full !text-small !px-1 !py-0.5"
-            >
-              {SEQUENCE_TYPE_OPTIONS.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
+            <span className="dependency-type-field">
+              <Select
+                value={seq.type}
+                aria-label={t('relations.type')}
+                options={TYPE_OPTIONS}
+                onChange={value => updateSequence(seq.id, { type: value as SequenceType })}
+                className="ops-select__trigger--compact"
+              />
+            </span>
             <SequenceLagInput
               seq={seq}
               title={t('properties.lag')}
@@ -221,18 +224,20 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
       {interactive && (draft ? (
         <div className="dependency-draft" data-ops-dependency-draft>
           <div className="dependency-draft-head">
-            <select
-              aria-label={t('properties.addRelationDirection')}
-              data-ops-dependency-direction
-              value={draft.direction}
-              onChange={e => setDraft(current => (current
-                ? { ...current, direction: e.target.value as DraftDirection }
-                : current))}
-              className="input !w-auto !text-small !px-1 !py-0.5"
-            >
-              <option value="predecessor">{t('relations.predecessor')}</option>
-              <option value="successor">{t('relations.successor')}</option>
-            </select>
+            <span className="dependency-draft-direction" data-ops-dependency-direction={draft.direction}>
+              <Select
+                aria-label={t('properties.addRelationDirection')}
+                value={draft.direction}
+                options={[
+                  { value: 'predecessor', label: t('relations.predecessor') },
+                  { value: 'successor', label: t('relations.successor') },
+                ]}
+                onChange={value => setDraft(current => (current
+                  ? { ...current, direction: value as DraftDirection }
+                  : current))}
+                className="ops-select__trigger--compact"
+              />
+            </span>
             <div className="dependency-draft-search">
               <input
                 autoFocus
@@ -303,19 +308,17 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
               {draftOther ? (draftOther.wbsCode || draftOther.name) : t('properties.addRelationPick')}
             </span>
             <span className="dependency-driving-slot" />
-            <select
-              aria-label={t('relations.type')}
-              data-ops-dependency-type
-              value={draft.type}
-              onChange={e => setDraft(current => (current
-                ? { ...current, type: e.target.value as SequenceType }
-                : current))}
-              className="dependency-type-field input !w-full !text-small !px-1 !py-0.5"
-            >
-              {SEQUENCE_TYPE_OPTIONS.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
+            <span className="dependency-type-field" data-ops-dependency-type>
+              <Select
+                value={draft.type}
+                aria-label={t('relations.type')}
+                options={TYPE_OPTIONS}
+                onChange={value => setDraft(current => (current
+                  ? { ...current, type: value as SequenceType }
+                  : current))}
+                className="ops-select__trigger--compact"
+              />
+            </span>
             <SequenceLagInput
               seq={draftSequence}
               title={t('properties.lag')}

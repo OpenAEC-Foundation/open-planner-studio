@@ -49,7 +49,11 @@ test('Gantt-popover toont de uitlegzin en volgt de typekeuze', async ({ page, op
   await expect(sentence).toHaveText('Metselwerk can only start once Fundering has finished.');
   await shot(page, 'popover-fs');
 
-  await popover.locator('select').selectOption('START_START');
+  // Zonder muis: de focus staat na het slepen op de typekeuze.
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(popover).toBeVisible();
   await expect(sentence).toHaveAttribute('data-ops-relation-sentence', 'SS');
   await expect(sentence).toHaveText('Metselwerk can only start once Fundering has started.');
   await shot(page, 'popover-ss');
@@ -68,13 +72,11 @@ test('eigenschappenpaneel: uitlegzin alleen onder de relatie met focus', async (
   await item.scrollIntoViewIfNeeded();
   await expect(item.locator('[data-ops-relation-sentence]')).toHaveCount(0);
 
-  const type = item.locator('select.dependency-type-field');
-  await type.focus();
-  await page.keyboard.press('Tab');
-  await page.keyboard.press('Shift+Tab');
+  const type = item.locator('.dependency-type-field .ops-select__trigger');
+  await type.click();
   await expect(item.locator('[data-ops-relation-sentence]'))
     .toHaveText('Metselwerk can only start once Fundering has finished.');
-  await type.selectOption('FINISH_FINISH');
+  await page.getByRole('option', { name: 'FF', exact: true }).click();
   await expect(item.locator('[data-ops-relation-sentence]'))
     .toHaveText('Metselwerk can only finish once Fundering has finished.');
   await shot(page, 'paneel-ff');
@@ -108,11 +110,16 @@ test('relatiecel in de tabel: uitlegzin met de eigen taak als opvolger', async (
   await expect(editor).toBeVisible();
   await expect(editor.locator('[data-ops-relation-sentence]')).toHaveCount(0);
 
-  const type = editor.locator('.task-grid-relation-token select').first();
+  const type = editor.locator('.task-grid-relation-type .ops-select__trigger').first();
   await type.focus();
   await expect(editor.locator('[data-ops-relation-sentence]'))
     .toHaveText('Metselwerk can only start once Fundering has finished.');
-  await type.selectOption('SF');
+  // Escape sluit eerst alleen de lijst; de celbewerking blijft open.
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Escape');
+  await expect(editor).toBeVisible();
+  await type.click();
+  await page.getByRole('option', { name: 'SF', exact: true }).click();
   await expect(editor.locator('[data-ops-relation-sentence]'))
     .toHaveText('Metselwerk can only finish once Fundering has started.');
   await shot(page, 'tabel-sf');

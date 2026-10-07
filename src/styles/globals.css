@@ -1063,6 +1063,15 @@
   align-items: center;
 }
 
+/* Typekeuze = gedeelde `Select`; even hoog als het lagvak en de verwijderknop ernaast. */
+.task-grid-relation-type {
+  min-width: 0;
+}
+
+.task-grid-relation-type .ops-select__trigger {
+  height: 26px;
+}
+
 /* De uitlegzin over het type staat onder de relatie met focus en beslaat de hele breedte. */
 .task-grid-relation-token > .relation-sentence {
   grid-column: 1 / -1;
@@ -1949,6 +1958,11 @@ body {
   display: flex;
   align-items: center;
   gap: 0.25rem;
+}
+
+.dependency-draft-direction {
+  flex: none;
+  width: 6.5rem;
 }
 
 /* De trefferlijst zweeft boven de rest van het paneel: hij mag de conceptrij en de knoppen
