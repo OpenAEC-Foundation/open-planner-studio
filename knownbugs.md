@@ -231,8 +231,7 @@ en noem het in je rapport of PR-tekst.
 92. **Op 1366×768 bedekt het begeleidingspaneel bijna de hele rechterrail.** Met een lange stap (tutorial 1,
     *De fundering*) is het paneel ±540 px hoog (`max-height: min(70vh, 560px)`) en ligt het over Eigenschappen,
     ook over het veld Duur dat de stap laat invullen; de stappen in Eigenschappen hebben bewust geen anker, dus
-    het paneel wijkt niet uit. Gezien in de doorloop met de tutorials-ZIP (schermafbeelding in de
-    scratchpad van de sessie). — B
+    het paneel wijkt niet uit. Gezien in de doorloop met de tutorials-ZIP. — B
 66. **Het UpdateDialog opent over een lopende gids heen** (review #261, punt O4). — S
 67. **`pendingHelpSection` blijft hangen** (review #261, punt O7). — S
 68. **Een gidsstap die eenmaal "gedaan" is, blijft gedaan**, ook na wisselen naar een leeg project. Gezien bij
