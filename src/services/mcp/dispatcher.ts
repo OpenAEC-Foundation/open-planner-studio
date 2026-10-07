@@ -9,8 +9,7 @@
 import type { McpContext, McpToolResult, McpToolDef } from './contracts';
 import { getTools, getTool } from './toolRegistry';
 import { ATOMIC_ITEM_TOOLS, validateToolArgs } from './schemaValidate';
-import { GUIDE_PUBLIC_BASE } from './tools/guideTools';
-import { PLANNING_GUIDE_ARTICLE_ID } from '@/state/helpArticles';
+import { AGENT_GUIDE_URL } from './tools/guideTools';
 
 /** serverInfo.name in de initialize-respons. */
 export const MCP_SERVER_NAME = 'open-planner-studio';
@@ -39,8 +38,9 @@ export const DEFAULT_PROTOCOL_VERSION = '2025-06-18';
  * als bij `MCP_UNTITLED_TITLE` in `tools/runtime.ts`.
  *
  * KORT HOUDEN: dit gaat in élke systeemprompt mee. Alleen de regels die een agent zonder verdere
- * vraag fout doet; de volledige inhoud staat in de gids, bereikbaar via de tool die hieronder
- * genoemd wordt (`planner_get_planning_guide`, `tools/guideTools.ts`). Eén exportconstante zodat
+ * vraag fout doet; de volledige inhoud staat in de agentgids (`public/agent/planning-guide.md`, niet
+ * het Help-artikel voor mensen), bereikbaar via de tool die hieronder genoemd wordt
+ * (`planner_get_planning_guide`, `tools/guideTools.ts`). Eén exportconstante zodat
  * `tests/mcp/cases-planning-guide.ts` hem tegen de initialize-respons kan houden.
  */
 export const MCP_INSTRUCTIONS = [
@@ -52,10 +52,12 @@ export const MCP_INSTRUCTIONS = [
   '- Drive the schedule with relationships, not fixed dates. Finish-to-start is the default; every task needs at least one predecessor and one successor apart from the first task and the final milestone. Use date constraints only for hard external dates the user gave you (permit, closure window, connection date) — a few percent of tasks at most, and never a negative lag.',
   '- There is no separate recalculate step. Every mutating tool that changes something recalculates the schedule itself, and every read tool that returns dates, float, the critical path or load first recalculates a schedule that is out of date (for example after an edit in the app). Read the result (project end, duration, critical path) with planner_get_project_info and planner_get_critical_path.',
   '- Exception: when the envelope carries `datesAsRecorded: true`, the dates are the ones recorded in the imported file, not a calculation, and read tools leave them unchanged (recalculating would replace them). Say so when you report dates. The user can recalculate in the app, and your first change through a mutating tool recalculates as well.',
+  '- When the envelope carries `scheduleError`, the calculation failed (for example a circular dependency): fix that first, because a change after which the calculation still fails is rolled back.',
   '- Use planner_batch for a coherent series of steps: one undo step, one recalculation, one backup.',
+  '- Progress needs a status date, the user\'s reporting date: never invent it, and pass the actual start and finish dates the user gives you.',
   '- Finish by telling the user what you assumed: estimated durations, the chosen granularity, relationships you added on your own, resource capacities, calendar assumptions, and every constraint you set and why. Also say what you deliberately did not do.',
   '',
-  `For the full guide call \`planner_get_planning_guide\`, or read ${GUIDE_PUBLIC_BASE}/docs/en/${PLANNING_GUIDE_ARTICLE_ID}.md`,
+  `For the full guide (each principle with the tools that apply it) and the skills goed-plannen (building a schedule) and progress-update (weekly progress), call \`planner_get_planning_guide\`, or read ${AGENT_GUIDE_URL}`,
 ].join('\n');
 
 /** Protocolversies die we herkennen en dus mogen echoën (nieuwste eerst). */
