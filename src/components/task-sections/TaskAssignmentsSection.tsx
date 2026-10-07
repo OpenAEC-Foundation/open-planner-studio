@@ -1,11 +1,11 @@
-import { useState, type KeyboardEvent } from 'react';
+import { useMemo, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import type { ResourceCurve } from '@/types/resource';
 import { UnitsInput } from '@/components/common/UnitsInput';
 import { AlertTriangle, BarChart3, Lock, Trash2 } from 'lucide-react';
 import { RESOURCE_CURVES, CURVE_KEY } from './shared';
-import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 import { assignmentCurveState, contouredAssignmentIds } from '@/engine/contour/curveState';
 import { ContourDialog } from '@/components/dialogs/ContourDialog';
 import { matchContoursToAssignments } from '@/engine/contour/contourEngine';
@@ -13,6 +13,8 @@ import { effectiveWorkRule, remainingMinutesOf, workRuleApplies } from '@/engine
 import { ruleProtectsWork } from '@/engine/work/workTriangle';
 import { taskTypesUnlocked } from '@/state/taskTypesVisibility';
 import { taskCalendarHoursPerDay } from '@/utils/taskDefaults';
+import type { Task } from '@/types/task';
+import { createMoveCandidateLookup } from './moveCandidates';
 
 /** Pseudowaarden van de curve-dropdown voor de twee data-toestanden van de contour-engine:
  *  een opgeslagen contour (de dropdown is dan uitgeschakeld — loslaten gaat via het
@@ -60,6 +62,39 @@ function WorkHoursInput({ value, onCommit, ariaLabel, title, className }: {
 }
 
 /**
+ * Keuzelijst "verplaats naar…" die zijn opties pas bouwt als de gebruiker hem opent (focus of
+ * muisklik). Op een groot project zijn dat duizenden `<option>`s per toewijzingsrij; die bij elke
+ * render bouwen maakte selecteren en bewerken onbruikbaar (prestatiemeting rehab-2, 2026-10-07).
+ * `mousedown` is een discreet React-event: de state-update rendert synchroon, dus de opties staan
+ * er al als de browser de lijst openklapt.
+ */
+function MoveToSelect({ label, candidates, onMove }: {
+  label: string; candidates: () => Task[]; onMove: (targetTaskId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <select
+      value=""
+      title={label}
+      aria-label={label}
+      onFocus={() => setOpen(true)}
+      onMouseDown={() => setOpen(true)}
+      onBlur={() => setOpen(false)}
+      onChange={e => { if (e.target.value) onMove(e.target.value); }}
+      className="input !text-small !px-1 !py-0.5 flex-1 min-w-0 !w-auto"
+      data-ops-assignment-move={open ? 'open' : 'closed'}
+    >
+      <option value="">{label}</option>
+      {open && candidates().map(c => (
+        <option key={c.id} value={c.id}>
+          {c.wbsCode ? `${c.wbsCode} — ${c.name}` : c.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/**
  * Toewijzingen (incl. "verplaats naar…") — sectie van
  * `TaskPropertiesPanel`. RELATIONEEL/storeful: roept `assignResource`/
  * `updateAssignment`/`unassignResource`/`moveAssignment` rechtstreeks aan, identiek in paneel
@@ -83,6 +118,8 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
   const calendars = useAppStore(s => s.calendars);
   const projectCalendar = useAppStore(s => s.calendar);
   const [contourAssignmentId, setContourAssignmentId] = useState<string | null>(null);
+  // Eén index per (taken, toewijzingen) — zie `moveCandidates.ts`. Vóór de vroege uitstap: hooks.
+  const moveLookup = useMemo(() => createMoveCandidateLookup(tasks, assignments), [tasks, assignments]);
 
   const task = tasks.find(t => t.id === taskId);
   if (!task) return null;
@@ -125,13 +162,6 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
     return { stored: hours(stored), derived: hours(derived) };
   };
 
-  /** Kandidaat-doeltaken voor "verplaats naar…" (item 4): leaf-taken zonder deze resource, exclusief
-   *  de huidige taak zelf. */
-  const moveCandidates = (resourceId: string) => tasks.filter(t =>
-    t.id !== taskId && !t.isMilestone && isLeafTask(t)
-    && !assignments.some(a => a.taskId === t.id && a.resourceId === resourceId)
-  );
-
   return (
     <>
       <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
@@ -163,7 +193,8 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
           )}
           {taskAssignments.map(a => {
             const res = resources.find(r => r.id === a.resourceId);
-            const candidates = moveCandidates(a.resourceId);
+            // Alleen "is er een kandidaat?" per render; de lijst zelf bouwt `MoveToSelect` pas bij openen.
+            const canMove = moveLookup.has(taskId, a.resourceId);
             const curveState = assignmentCurveState(a, contouredIds.has(a.id));
             const contoured = curveState === 'contoured';
             const importedCurve = curveState === 'imported';
@@ -243,22 +274,12 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                   >
                     <BarChart3 size={10} />
                   </button>
-                  {candidates.length > 0 && (
-                    <select
-                      value=""
-                      title={t('properties.assignments.moveTo')}
-                      aria-label={t('properties.assignments.moveTo')}
-                      onChange={e => { if (e.target.value) moveAssignment(a.id, e.target.value); }}
-                      className="input !text-small !px-1 !py-0.5 flex-1 min-w-0 !w-auto"
-                      data-ops-assignment-move
-                    >
-                      <option value="">{t('properties.assignments.moveTo')}</option>
-                      {candidates.map(c => (
-                        <option key={c.id} value={c.id}>
-                          {c.wbsCode ? `${c.wbsCode} — ${c.name}` : c.name}
-                        </option>
-                      ))}
-                    </select>
+                  {canMove && (
+                    <MoveToSelect
+                      label={t('properties.assignments.moveTo')}
+                      candidates={() => moveLookup.list(taskId, a.resourceId)}
+                      onMove={target => moveAssignment(a.id, target)}
+                    />
                   )}
                 </div>
               </div>
