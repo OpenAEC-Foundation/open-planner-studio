@@ -54,7 +54,7 @@
     "milestone": "마일스톤",
     "summary": "요약",
     "float": "여유",
-    "completion": "진행률",
+    "completion": "완료",
     "relationStyle": "주도 / 비주도",
     "categoriesMore_other": "… 외 {{count}}개 범주"
   },

@@ -90,7 +90,7 @@ The app also keeps these choices on this device, but you set them at the item it
 
 **Resource accent** — a thin stripe in the resource colour under the task bar. Default: off. Where: *View › Baselines & progress › Resource accent*.
 
-**Float band** — the float as a band behind non-critical bars. Default: on. Where: *View › Baselines & progress › Float band*.
+**Float band** — the float as a band behind non-critical bars; not for completed tasks. Default: on. Where: *View › Baselines & progress › Float band*.
 
 **Bar colors** — what the colour of a bar depends on. Choose from *Critical path*, *Per task — automatic* and *By category*. Default: *Critical path*. Effect: applies to the Gantt and the report at the same time. Where: *View › Baselines & progress › Bar colors*.
 

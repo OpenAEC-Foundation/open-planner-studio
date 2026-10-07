@@ -56,6 +56,7 @@ Every change to progress or the status date makes the schedule out of date: the 
 ## Checking the result
 
 - On the status date the Gantt shows a dashed line with the date in the header. At running tasks the line bulges out to the percentage in the bar. You turn these on or off with *View › Baselines & progress › Progress line* and *Status date line*.
+- The completed part of a bar turns grey; the rest keeps its colour. A task that is fully done is fully grey, with a tick before the name and without a float band. If you show the predecessors or successors of a task, those bars keep their highlight colour, also when they are done.
 - Completed tasks are never red: with a status date a completed task is not critical.
 - Phases show a derived percentage and the finish of the schedule may have moved.
 - If you saved a baseline, the original schedule is under each bar and the report type *Variance* shows the variance.

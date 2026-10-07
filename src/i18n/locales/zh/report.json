@@ -54,7 +54,7 @@
     "milestone": "里程碑",
     "summary": "摘要",
     "float": "浮动",
-    "completion": "完成度",
+    "completion": "已完成",
     "relationStyle": "驱动 / 非驱动",
     "categoriesMore_other": "… 还有 {{count}} 个类别"
   },

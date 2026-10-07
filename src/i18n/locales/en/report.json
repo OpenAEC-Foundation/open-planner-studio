@@ -56,7 +56,7 @@
     "milestone": "Milestone",
     "summary": "Summary",
     "float": "Float",
-    "completion": "Completion",
+    "completion": "Completed",
     "relationStyle": "Driving / non-driving",
     "categoriesMore_one": "… and {{count}} more category",
     "categoriesMore_other": "… and {{count}} more categories"

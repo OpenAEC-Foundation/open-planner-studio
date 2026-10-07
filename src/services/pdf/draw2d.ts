@@ -10,6 +10,16 @@
  */
 
 export type TextAlign = 'left' | 'right' | 'center';
+/** Hoekstraal: één waarde voor alle hoeken, of per hoek `[linksboven, rechtsboven, rechtsonder,
+ *  linksonder]` (zelfde volgorde als canvas `roundRect`). */
+export type CornerRadii = number | readonly [number, number, number, number];
+
+/** Hoekstralen per hoek, elk begrensd op de halve breedte/hoogte (zoals de enkele straal altijd al). */
+export function resolveCornerRadii(r: CornerRadii, w: number, h: number): [number, number, number, number] {
+  const max = Math.max(0, Math.min(w / 2, h / 2));
+  const [tl, tr, br, bl] = typeof r === 'number' ? [r, r, r, r] : r;
+  return [Math.min(tl, max), Math.min(tr, max), Math.min(br, max), Math.min(bl, max)];
+}
 export type TextBaseline = 'middle' | 'alphabetic' | 'bottom';
 
 export interface Draw2D {
@@ -31,7 +41,7 @@ export interface Draw2D {
   closePath(): void;
   fill(): void;
   stroke(): void;
-  roundRect(x: number, y: number, w: number, h: number, r: number): void;
+  roundRect(x: number, y: number, w: number, h: number, r: CornerRadii): void;
   // tekst
   fillText(text: string, x: number, y: number): void;
   measureText(text: string): { width: number };

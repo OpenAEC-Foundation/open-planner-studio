@@ -58,7 +58,7 @@
     "milestone": "Jalon",
     "summary": "Résumé",
     "float": "Marge",
-    "completion": "Avancement",
+    "completion": "Terminé",
     "relationStyle": "Déterminante / non déterminante",
     "categoriesMore_one": "… et {{count}} catégorie de plus",
     "categoriesMore_many": "… et {{count}} catégories de plus",

@@ -39,9 +39,8 @@ export const GANTT_TRACE_COLORS = {
 // 2,26-2,67 — dat is formeel non-conform met WCAG 1.4.11 (die kent geen grootte-uitzondering voor
 // grafische objecten), en in `mode: 'critical'` is de balkkleur de enige drager van "kritiek
 // ja/nee", wat ook 1.4.1 raakt. Die afwijking is aanvaard voor licht en donker.
-// LET OP: de taakbalk tekent deze tinten niet rechtstreeks. Hij tekent een LICHTE vulling met een
-// DONKERE rand en een donkere voortgangsvulling, beide afgeleid van de merktint (`barTones`
-// hieronder, af te stemmen met `BAR_TONE_STEP`); de rand scheidt de balk van elke ondergrond.
+// De taakbalk tekent deze tinten effen; alleen het voltooide deel wordt grijs (`doneBarTones`
+// hieronder, getekend via `paintProgressBarPiece` in barPaint.ts).
 // De speling (`float`) is als enige WEL per thema gescheiden gebleven (`--theme-bar-float`): die
 // band is halfdoorzichtig en draagt geen label, dus hij moet het puur van zijn ondergrond winnen.
 // LET OP 1: deze vier waarden plus de spelinggroenen staan óók als CSS-var in
@@ -85,10 +84,9 @@ const FLOAT_PATH_TINTS: string[] = [
 // Een vast balklabel is niet houdbaar zodra de balkkleur niet vaststaat: in de kleurmodi (`auto`,
 // resource-, categorie-kleuring) komt de basiskleur uit projectdata. `barLabelColor` kiest daarom
 // per vlak de beste van twee: bijna-zwart (#111827, hetzelfde als PRINT_PALETTE.text) of wit.
-// De taakbalk vraagt het aan voor het vlak onder de tekststart: de lichte vulling (meestal zwart
-// label) of, zodra de voortgang daar voorbij loopt, de donkere voortgangstint (meestal wit). Over
-// de grens tussen die twee houdt een halo in de tegenkleur het label leesbaar (GanttRenderer).
-// `check-bar-tones` bewaakt het labelcontrast op elke vulling.
+// De taakbalk vraagt het aan voor de basiskleur; op het grijze, voltooide deel gebruikt hij de
+// gedempte tekstkleur van `doneBarTones`, en de labelkleur wisselt precies op de grens.
+// `check-bar-progress` bewaakt het labelcontrast op het grijs.
 
 /** sRGB-hex ⇒ [r,g,b] (0-255). Accepteert `#rgb` en `#rrggbb`. */
 function hexToRgb(hex: string): [number, number, number] | null {
@@ -122,8 +120,8 @@ export const BAR_LABEL_LIGHT = '#ffffff';
 
 /**
  * De leesbaarste labelkleur op `barColor`: bijna-zwart of wit, wie van de twee de hoogste
- * WCAG-contrastverhouding haalt. Eén gebruiksplek: het TAAKBALK-label in `GanttRenderer`, dat op
- * de lichte balkvulling of de donkere voortgangstint staat (`barTones`). Labels op de
+ * WCAG-contrastverhouding haalt. Eén gebruiksplek: het TAAKBALK-label in `GanttRenderer`, op de
+ * effen basiskleur van de balk. Labels op de
  * CANVAS-achtergrond horen bij `palette.text`/`textSecondary` en niet hier.
  * Onparseerbare invoer (een `rgba()`-string, een CSS-var) ⇒ wit.
  */
@@ -135,44 +133,31 @@ export function barLabelColor(barColor: string): string {
   return dark >= light ? BAR_LABEL_DARK : BAR_LABEL_LIGHT;
 }
 
-/**
- * AFSTEMKNOP taakbalk: hoe ver de lichte vulling en de donkere rand/voortgangsvulling van de
- * basiskleur af liggen (0..1). Vulling = basiskleur `BAR_TONE_STEP` richting wit gemengd, rand en
- * voortgang = basiskleur `BAR_TONE_STEP` richting zwart. 0,4 ⇒ op merkblauw #2563EB ~4:1 tussen
- * vulling en rand. Hoger = harder contrast (en een blekere vulling), lager = dichter bij de
- * basiskleur. Pas alleen dit getal aan om de balk af te stemmen.
- */
-export const BAR_TONE_STEP = 0.4;
+/** Grijze ondergrond van een voltooide taakbalk per thema; de basiskleur kleurt er nog een fractie
+ *  (`DONE_BAR_HUE`) doorheen, zodat een afgeronde kritieke taak niet volledig anoniem wordt. */
+const DONE_BAR_GREY = { light: '#E5E7EB', dark: '#4E5561' } as const;
+/** Label en vinkje op een voltooide balk: gedempt, maar >= 4,5:1 op `DONE_BAR_GREY`. */
+const DONE_BAR_TEXT = { light: '#4B5563', dark: '#E2E5EA' } as const;
+const DONE_BAR_HUE = 0.08;
 
-/** Rand/voortgang bij een niet-hex basiskleur (CSS-var, rgba): mengen kan dan niet. */
-const BAR_TONE_FALLBACK_OUTLINE = 'rgba(0, 0, 0, 0.55)';
-
-export interface BarTones {
-  /** Lichte vulling van de hele balk. */
+export interface DoneBarTones {
   fill: string;
-  /** Donkere rand om de balk én egale vulling van het voltooide deel. */
-  outline: string;
+  text: string;
 }
 
-const barTonesCache = new Map<string, BarTones>();
-
-/** Lichte vulling en donkere rand/voortgang bij een basiskleur (zie `BAR_TONE_STEP`). */
-export function barTones(base: string, step = BAR_TONE_STEP): BarTones {
-  const key = `${base}|${step}`;
-  const cached = barTonesCache.get(key);
-  if (cached) return cached;
-  const rgb = hexToRgb(base);
-  let tones: BarTones;
-  if (!rgb) {
-    tones = { fill: base, outline: BAR_TONE_FALLBACK_OUTLINE };
-  } else {
-    const hx = (n: number): string => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
-    const mix = (target: number): string =>
-      `#${hx(rgb[0] + (target - rgb[0]) * step)}${hx(rgb[1] + (target - rgb[1]) * step)}${hx(rgb[2] + (target - rgb[2]) * step)}`;
-    tones = { fill: mix(255), outline: mix(0) };
-  }
-  barTonesCache.set(key, tones);
-  return tones;
+/**
+ * Tinten van een taakbalk die 100% voltooid is: bleek en uitgegrijsd, zodat afgerond werk naar
+ * de achtergrond zakt en de blik naar het werk gaat dat nog moet gebeuren.
+ */
+export function doneBarTones(base: string, dark: boolean): DoneBarTones {
+  const grey = dark ? DONE_BAR_GREY.dark : DONE_BAR_GREY.light;
+  const text = dark ? DONE_BAR_TEXT.dark : DONE_BAR_TEXT.light;
+  const g = hexToRgb(grey)!;
+  const b = hexToRgb(base);
+  if (!b) return { fill: grey, text };
+  const hx = (n: number): string => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+  const mix = (i: number): string => hx(g[i] + (b[i] - g[i]) * DONE_BAR_HUE);
+  return { fill: `#${mix(0)}${mix(1)}${mix(2)}`, text };
 }
 
 // ── GanttRenderer ────────────────────────────────────────────────────────────

@@ -50,7 +50,7 @@ De planning als balkenplan, met een tabel links en een tijdlijn rechts, over mee
 
 **Taaknamen op staafjes** — Standaard: aan. Effect: de naam van de taak op de balk, waar de balk breed genoeg is.
 
-**Voltooiing tonen** — Standaard: aan. Effect: een donkerder deel in de balk tot de voortgang van de taak, en de kolom *Volt.* in de tabel.
+**Voltooiing tonen** — Standaard: aan. Effect: het voltooide deel van de balk wordt grijs, net als in de Gantt, en de kolom *Volt.* staat in de tabel. Een voltooide taak krijgt geen spelingsband.
 
 **Taaknamen afkappen** — Standaard: aan. Effect: aan kapt namen in de tabel af op de breedte van *Naamkolom:*. Uit laat de kolom meegroeien met de langste naam; dan staat er *De naamkolom past zich aan de langste taaknaam aan*.
 

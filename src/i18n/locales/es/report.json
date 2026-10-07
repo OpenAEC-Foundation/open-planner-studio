@@ -58,7 +58,7 @@
     "milestone": "Hito",
     "summary": "Resumen",
     "float": "Holgura",
-    "completion": "Avance",
+    "completion": "Completado",
     "relationStyle": "Determinante / no determinante",
     "categoriesMore_one": "… y {{count}} categoría más",
     "categoriesMore_many": "… y {{count}} categorías más",

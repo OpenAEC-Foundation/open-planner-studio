@@ -35,7 +35,7 @@ import type { ViewRow } from '@/engine/view/visibleRows';
 import { renderReport, type PrintOptions } from '@/services/print/printPreview';
 import type { Draw2D, TextAlign, TextBaseline } from '@/services/pdf/draw2d';
 import { computeSplitSegments } from '@/engine/renderer/splitBarGeometry';
-import { barTones, readGanttPalette } from '@/engine/renderer/themePalette';
+import { doneBarTones, readGanttPalette } from '@/engine/renderer/themePalette';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { parseInstant, formatInstant } from '@/utils/dateUtils';
 
@@ -343,9 +343,8 @@ console.log('-- split-bar-render: voortgangsvulling globaal, niet per segment --
       { kind: 'task', rowKey: 'row2', task: hourTask('row2', '2026-06-01T08:00', '2026-06-22T16:00', oneGap, completion), depth: 0, dimmed: false },
     ]);
     const row2Rects = passB.rects.filter(r => inRow(r, 0));
-    // Voortgang is een kruisarcering in de donkere tint van de balkkleur; headless (geen patroon)
-    // valt hij terug op een egale vulling in die tint. Herken die rechtstreeks.
-    const progressTone = barTones(readGanttPalette().normal).outline.toLowerCase();
+    // Het voltooide deel is grijs (`doneBarTones` van de balkkleur). Herken dat rechtstreeks.
+    const progressTone = doneBarTones(readGanttPalette().normal, false).fill.toLowerCase();
     const progressFills = row2Rects.filter(r => r.fillStyle.toLowerCase() === progressTone);
     ok('er is minstens 1 voortgangsvulling', progressFills.length > 0);
     const seg2Start = seg2.x;
@@ -580,7 +579,9 @@ console.log('-- split-bar-render (print/PDF): voortgangsvulling globaal, niet pe
     const completion = ((seg1.x + seg1.w * 0.5) - overallX1) / overallWidth;
     const passB = makeD2D();
     renderReport(() => passB.d2d, [printTask('p2', '2026-06-01', '2026-07-20', oneGap, completion)], [], PRINT_CAL, 'P', printOptions);
-    const progressFills = passB.rects.filter(r => r.fillStyle === 'rgba(0, 0, 0, 0.25)');
+    // Het voltooide deel is grijs: `doneBarTones` van de balkkleur uit pass A (afdruk = licht).
+    const printGrey = doneBarTones(seg1.fillStyle, false).fill;
+    const progressFills = passB.rects.filter(r => r.fillStyle === printGrey);
     ok('print: minstens 1 voortgangsvulling', progressFills.length > 0);
     const leaksIntoSeg2 = progressFills.some(r => r.x >= seg2.x - 0.01);
     ok('print: GEEN voortgangsvulling in segment 2', !leaksIntoSeg2);

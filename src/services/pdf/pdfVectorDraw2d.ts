@@ -20,7 +20,7 @@ import {
   moveTo, lineTo, closePath, appendBezierCurve, rectangle, fill, stroke,
   beginText, endText, setFontAndSize, setTextMatrix, showText,
 } from 'pdf-lib';
-import type { Draw2D, TextAlign, TextBaseline } from './draw2d';
+import { resolveCornerRadii, type CornerRadii, type Draw2D, type TextAlign, type TextBaseline } from './draw2d';
 import {
   shapeAndPlace, isArabicScriptCp, isNeutralCp,
   type ShapingFonts, type ShapedRun, type FontKey,
@@ -453,25 +453,26 @@ export class PdfVectorDraw2D implements Draw2D {
   /**
    * Afgeronde rechthoek — reproduceert `CanvasDraw2D.roundRect` (arcTo-variant) met bezier-hoeken
    * (kappa). Zet — net als de canvas-backend — een nieuw (subpad-)pad klaar; de aanroeper doet
-   * daarna `fill()`. Guard `w<0`, `r = min(r, w/2, h/2)`. Bouwt in canvas-coördinaten en flipt elke y.
+   * daarna `fill()`. Guard `w<0`, elke straal begrensd op `min(w/2, h/2)`, `r` per hoek mag
+   * (`CornerRadii`). Bouwt in canvas-coördinaten en flipt elke y.
    */
-  roundRect(x: number, y: number, w: number, h: number, r: number): void {
+  roundRect(x: number, y: number, w: number, h: number, r: CornerRadii): void {
     this.pathBuf = [];
     if (w < 0) return;
-    r = Math.min(r, w / 2, h / 2);
-    const c = KAPPA * r;
+    const [tl, tr, br, bl] = resolveCornerRadii(r, w, h);
     const fy = (yy: number) => this.flipY(yy);
     const P = this.pathBuf;
-    // start midden-boven-links, met de klok mee (canvas-conventie), y geflipt bij emit.
-    P.push(moveTo(x + r, fy(y)));
-    P.push(lineTo(x + w - r, fy(y)));
-    P.push(appendBezierCurve(x + w - r + c, fy(y), x + w, fy(y + r - c), x + w, fy(y + r)));       // TR
-    P.push(lineTo(x + w, fy(y + h - r)));
-    P.push(appendBezierCurve(x + w, fy(y + h - r + c), x + w - r + c, fy(y + h), x + w - r, fy(y + h))); // BR
-    P.push(lineTo(x + r, fy(y + h)));
-    P.push(appendBezierCurve(x + r - c, fy(y + h), x, fy(y + h - r + c), x, fy(y + h - r)));       // BL
-    P.push(lineTo(x, fy(y + r)));
-    P.push(appendBezierCurve(x, fy(y + r - c), x + r - c, fy(y), x + r, fy(y)));                   // TL
+    // start midden-boven-links, met de klok mee (canvas-conventie), y geflipt bij emit. Een hoek met
+    // straal 0 is een rechte hoek: de bezier valt dan samen met het hoekpunt.
+    P.push(moveTo(x + tl, fy(y)));
+    P.push(lineTo(x + w - tr, fy(y)));
+    P.push(appendBezierCurve(x + w - tr + KAPPA * tr, fy(y), x + w, fy(y + tr - KAPPA * tr), x + w, fy(y + tr)));             // TR
+    P.push(lineTo(x + w, fy(y + h - br)));
+    P.push(appendBezierCurve(x + w, fy(y + h - br + KAPPA * br), x + w - br + KAPPA * br, fy(y + h), x + w - br, fy(y + h))); // BR
+    P.push(lineTo(x + bl, fy(y + h)));
+    P.push(appendBezierCurve(x + bl - KAPPA * bl, fy(y + h), x, fy(y + h - bl + KAPPA * bl), x, fy(y + h - bl)));             // BL
+    P.push(lineTo(x, fy(y + tl)));
+    P.push(appendBezierCurve(x, fy(y + tl - KAPPA * tl), x + tl - KAPPA * tl, fy(y), x + tl, fy(y)));                         // TL
     P.push(closePath());
   }
 

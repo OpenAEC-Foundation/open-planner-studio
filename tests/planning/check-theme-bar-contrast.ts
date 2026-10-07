@@ -10,8 +10,8 @@
 //   1. de tekenlaag valt zonder CSS terug op exact de BRAND-hexen (het licht/donker-pad);
 //   2. elk thema dat een balktint overschrijft, haalt op ZIJN EIGEN kaartkleur minstens 3:1 —
 //      voor hoog contrast met een strengere lat, want dat thema bestaat juist daarvoor;
-//   3. de taakbalk leidt vulling, rand en voortgang af met `barTones`; ook op de tinten die een
-//      thema zelf zet blijven vulling en rand/voortgang onderling te onderscheiden.
+//   3. het grijze, voltooide deel van een taakbalk (`doneBarTones`) haalt op elke themakaart
+//      minstens 3:1, zodat afgerond werk wel bleek maar niet onzichtbaar wordt.
 //
 // Draait via run.sh. Exit 0 = alles groen.
 
@@ -19,7 +19,7 @@ const g = globalThis as unknown as Record<string, unknown>;
 g.document = { documentElement: {} };
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
 
-import { readGanttPalette, contrastRatio, barTones } from '@/engine/renderer/themePalette';
+import { readGanttPalette, contrastRatio, doneBarTones } from '@/engine/renderer/themePalette';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -71,8 +71,8 @@ const BALK_VARS = [
   '--theme-bar-critical', '--theme-bar-normal', '--theme-bar-milestone', '--theme-bar-baseline',
 ] as const;
 
-/** Ondergrens vulling↔rand/voortgang van `barTones` op een themetint (zie check-bar-tones). */
-const BAR_TONE_MIN_CONTRAST = 2.5;
+/** Ondergrens van het grijze, voltooide balkdeel op de themakaart (grafisch object, WCAG 1.4.11). */
+const DONE_MIN_CONTRAST = 3;
 
 // Elk thema met zijn eigen kaartkleur en de lat die daar geldt. Hoog contrast bestaat om de norm
 // te halen, dus daar 7:1 in plaats van de 3:1-ondergrens voor grafische objecten.
@@ -95,14 +95,25 @@ for (const { selector, kaart, lat, moetZetten } of THEMAS) {
     ok(`${selector} ${v} (${vars[v]}) haalt ${ratio.toFixed(2)} >= ${lat} op ${kaart}`, ratio >= lat);
   }
 
-  // De taakbalk tekent een lichte vulling met donkere rand en voortgang uit elke tint; die twee
-  // moeten ook op de thema-eigen tinten uit elkaar te houden zijn, anders is voortgang onzichtbaar.
+  // Het voltooide deel van een taakbalk is grijs (`doneBarTones`). Het hoog-contrastthema tekent
+  // met het lichte grijs (`darkTheme` staat daar uit); dat moet op de eigen kaart zichtbaar blijven.
   for (const v of ['--theme-bar-critical', '--theme-bar-normal'] as const) {
     if (!vars[v]) continue;
-    const t = barTones(vars[v]);
-    const c = contrastRatio(rgbOf(t.fill), rgbOf(t.outline));
-    ok(`${selector} ${v}: vulling ${t.fill} vs rand/voortgang ${t.outline} ${c.toFixed(2)} >= ${BAR_TONE_MIN_CONTRAST}`,
-      c >= BAR_TONE_MIN_CONTRAST);
+    const grey = doneBarTones(vars[v], false).fill;
+    const c = contrastRatio(rgbOf(grey), rgbOf(kaart));
+    ok(`${selector} ${v}: grijs voltooid deel ${grey} haalt ${c.toFixed(2)} >= ${DONE_MIN_CONTRAST} op ${kaart}`,
+      c >= DONE_MIN_CONTRAST);
+  }
+}
+
+// Donker thema (geen eigen balktinten, dus BRAND): het donkere grijs op de donkere kaart.
+{
+  const pal = readGanttPalette();
+  for (const base of [pal.critical, pal.normal]) {
+    const grey = doneBarTones(base, true).fill;
+    const c = contrastRatio(rgbOf(grey), rgbOf('#2E3239'));
+    // Het donkere grijs is bewust ingetogen: het moet van de kaart loskomen, niet ermee wedijveren.
+    ok(`[data-theme="dark"] grijs voltooid deel ${grey} haalt ${c.toFixed(2)} >= 1.5 op #2E3239`, c >= 1.5);
   }
 }
 

@@ -1318,9 +1318,8 @@ button.task-grid-relation-reference {
        milestone #7C3AED  5.46 / 2.26 / 3.47 / 5.70
        baseline  #6B7280  4.63 / 2.66 / 4.10 / 4.83
      Die 3:1-eis is dus opgegeven op de donkere kaart; formeel is dat non-conform met WCAG 1.4.11 —
-     bewust aanvaard voor licht en donker. De taakbalk tekent deze tinten niet rechtstreeks: hij
-     krijgt een lichte vulling, een donkere rand en een donkere voortgangsvulling, afgeleid van de
-     merktint (`barTones` / `BAR_TONE_STEP` in themePalette.ts). De speling (`--theme-bar-float`) is als enige WEL per thema
+     bewust aanvaard voor licht en donker. De taakbalk tekent deze tinten effen; alleen het voltooide
+     deel wordt grijs (`doneBarTones` in themePalette.ts). De speling (`--theme-bar-float`) is als enige WEL per thema
      gescheiden: die band is halfdoorzichtig en draagt geen label, dus hij moet het puur van zijn
      ondergrond winnen (donker #10B981 op #2E3239 = 5.07; licht #059669 op #FAFAFA = 3.61;
      hoog contrast houdt zijn eigen #34D399).
@@ -1543,8 +1542,8 @@ button.task-grid-relation-reference {
        normal            #60A5FA   7.79
        milestone         #D9A6FF  10.23
        baseline          #9CA3AF   7.80
-     De taakbalk leidt zijn vulling, rand en voortgang van deze tinten af (`barTones` in
-     themePalette.ts); een aparte voortgangsvar is daardoor niet meer nodig.
+     De taakbalk tekent deze tinten effen en maakt het voltooide deel grijs (`doneBarTones` in
+     themePalette.ts); een aparte voortgangsvar is daardoor niet nodig.
      REIKWIJDTE, expliciet: deze vars sturen uitsluitend de CANVAS-renderers (Gantt, histogram,
      minimap) via readGanttPalette/readHistogramPalette/readMiniMapPalette. De app-brede
      `--color-*`-designtokens hierboven blijven in ELK thema de verzadigde merkset — dus het

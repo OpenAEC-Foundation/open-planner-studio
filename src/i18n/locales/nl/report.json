@@ -56,7 +56,7 @@
     "milestone": "Mijlpaal",
     "summary": "Samenvatting",
     "float": "Speling",
-    "completion": "Voltooiing",
+    "completion": "Voltooid",
     "relationStyle": "Bepalend / niet-bepalend",
     "categoriesMore_one": "… en {{count}} categorie meer",
     "categoriesMore_other": "… en nog {{count}} categorieën"

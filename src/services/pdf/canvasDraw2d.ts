@@ -1,4 +1,4 @@
-import type { Draw2D, TextAlign, TextBaseline } from './draw2d';
+import { resolveCornerRadii, type CornerRadii, type Draw2D, type TextAlign, type TextBaseline } from './draw2d';
 
 /** Eén geclipt venster van het logische rapport op een bestaand pagina-canvas. */
 export interface CanvasDrawWindow {
@@ -111,24 +111,24 @@ export class CanvasDraw2D implements Draw2D {
   stroke(): void { this.ctx.stroke(); }
 
   /**
-   * Afgeronde rechthoek (arcTo-variant). Guard `if (w < 0) return`, `r = min(r, w/2, h/2)`. Geen
-   * ctx.roundRect gebruiken (dat is nieuwer + geeft iets ander gedrag); deze helper blijft de bron van
-   * waarheid.
+   * Afgeronde rechthoek (arcTo-variant). Guard `if (w < 0) return`, elke straal begrensd op
+   * `min(w/2, h/2)`. `r` per hoek mag (`CornerRadii`). Geen ctx.roundRect gebruiken (dat is nieuwer +
+   * geeft iets ander gedrag); deze helper blijft de bron van waarheid.
    */
-  roundRect(x: number, y: number, w: number, h: number, r: number): void {
+  roundRect(x: number, y: number, w: number, h: number, r: CornerRadii): void {
     if (w < 0) return;
-    r = Math.min(r, w / 2, h / 2);
+    const [tl, tr, br, bl] = resolveCornerRadii(r, w, h);
     const ctx = this.ctx;
     ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.arcTo(x + w, y, x + w, y + r, r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
-    ctx.lineTo(x + r, y + h);
-    ctx.arcTo(x, y + h, x, y + h - r, r);
-    ctx.lineTo(x, y + r);
-    ctx.arcTo(x, y, x + r, y, r);
+    ctx.moveTo(x + tl, y);
+    ctx.lineTo(x + w - tr, y);
+    ctx.arcTo(x + w, y, x + w, y + tr, tr);
+    ctx.lineTo(x + w, y + h - br);
+    ctx.arcTo(x + w, y + h, x + w - br, y + h, br);
+    ctx.lineTo(x + bl, y + h);
+    ctx.arcTo(x, y + h, x, y + h - bl, bl);
+    ctx.lineTo(x, y + tl);
+    ctx.arcTo(x, y, x + tl, y, tl);
     ctx.closePath();
   }
 

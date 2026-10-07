@@ -18,7 +18,8 @@ import type { BarColorSelection } from '@/types/barColor';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import { ensureThemeVisible } from '@/engine/renderer/resourcePalette';
 import { TimelineTier, TierConfig, TIER_CONFIG, pickTiers, nextTickBoundary, snapToTickStart } from './timelineTiers';
-import { readGanttPalette, barLabelColor, barTones, BAR_LABEL_LIGHT, type GanttPalette } from './themePalette';
+import { readGanttPalette, barLabelColor, doneBarTones, type GanttPalette } from './themePalette';
+import { paintProgressBarPiece } from './barPaint';
 import { xToDayOffset, type GanttAxis } from './timeAxis';
 import { resolveGanttAxis, isCompressedEffective } from './workdayAxis';
 import { computeSplitSegments } from './splitBarGeometry';
@@ -259,16 +260,9 @@ function getCrossHatch(ctx: CanvasRenderingContext2D, strokeColor: string, size:
 
 /** Tegelmaat (px) van de kruisarcering op de spelingsband. */
 const FLOAT_HATCH_SIZE = 5;
-/** Slagschaduw onder een taakbalk: kleur, vervaging (px) en verschuiving omlaag (px). */
-const BAR_SHADOW_COLOR = 'rgba(0, 0, 0, 0.5)';
-const BAR_SHADOW_BLUR = 3;
-const BAR_SHADOW_OFFSET_Y = 1.5;
-/** Lijndikte (px) van de halo achter een balklabel; de helft valt buiten de letters. */
-const BAR_LABEL_HALO_WIDTH = 3;
-/** Halo achter een donker balklabel: licht en licht doorzichtig. */
-const BAR_LABEL_HALO_ON_DARK_TEXT = 'rgba(255, 255, 255, 0.75)';
-/** Halo achter een wit balklabel: donker en licht doorzichtig. */
-const BAR_LABEL_HALO_ON_LIGHT_TEXT = 'rgba(17, 24, 39, 0.6)';
+/** Hoekstraal (px) van een taakbalk. */
+const BAR_RADIUS = 4;
+
 
 /** Hoeveel verticale rasterlijnen het canvas op dit zoomniveau nog verdraagt.
  *
@@ -1241,29 +1235,30 @@ export class GanttRenderer {
 
   /** Taaknaam in een balk van `width` breed, afgekapt met een ellips; de clip op de balk blijft als
    *  vangnet staan (`ellipsize` hoort er al binnen te passen). Gedeeld door taak- en hammockbalk. */
-  private drawBarName(name: string, color: string, x1: number, y: number, width: number, height: number, textY: number): void {
+  private drawBarName(name: string, color: string, x1: number, y: number, width: number, height: number, textY: number, indent = 0, split?: { x: number; color: string }): void {
     const ctx = this.ctx;
-    ctx.fillStyle = color;
     // Zelfde rol als de rastertekst links (`.task-grid-core`: `--text-body`).
     ctx.font = this.font('body');
     ctx.textBaseline = 'middle';
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(x1 + 4, y, width - 8, height);
-    ctx.clip();
     // width - 10 = precies de ruimte tussen de tekststart (x1+6) en de rechter cliprand.
-    const label = this.ellipsize(name, width - 10);
-    if (label) {
-      // Halo: een zachte rand in de tegenkleur van het label, zodat de naam ook leesbaar blijft
-      // waar hij over de grens tussen voortgang en lichte vulling loopt. Bij een donker label (de gewone keuze op de lichte
-      // balkvulling) is de halo licht; bij een wit label donker.
-      ctx.strokeStyle = color === BAR_LABEL_LIGHT ? BAR_LABEL_HALO_ON_LIGHT_TEXT : BAR_LABEL_HALO_ON_DARK_TEXT;
-      ctx.lineWidth = BAR_LABEL_HALO_WIDTH;
-      ctx.lineJoin = 'round';
-      ctx.strokeText(label, x1 + 6, textY);
-      ctx.fillText(label, x1 + 6, textY);
+    const label = this.ellipsize(name, width - 10 - indent);
+    if (!label) return;
+    // Met `split` wisselt de labelkleur precies op de voortgangsgrens: links van `split.x` in
+    // `split.color` (op het grijze, voltooide deel), rechts in `color` (op de basiskleur).
+    const right = x1 + width - 4;
+    const parts: { from: number; to: number; color: string }[] = split
+      ? [{ from: x1 + 4, to: Math.min(split.x, right), color: split.color }, { from: Math.max(split.x, x1 + 4), to: right, color }]
+      : [{ from: x1 + 4, to: right, color }];
+    for (const part of parts) {
+      if (part.to <= part.from) continue;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(part.from, y, part.to - part.from, height);
+      ctx.clip();
+      ctx.fillStyle = part.color;
+      ctx.fillText(label, x1 + 6 + indent, textY);
+      ctx.restore();
     }
-    ctx.restore();
   }
 
   private drawTaskBar(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): number {
@@ -1386,39 +1381,20 @@ export class GanttRenderer {
       ctx.restore();
     }
 
-    // Balkweergave: elk vlak (een werkblok, of in resource-modus een kleurstuk daarbinnen) krijgt
-    // een LICHTE vulling en een DONKERE rand uit zijn eigen basiskleur (`barTones`, af te stemmen
-    // met `BAR_TONE_STEP`); het voltooide deel wordt egaal in diezelfde donkere tint gevuld. Zo
-    // blijft voortgang zichtbaar in elke kleurmodus en elk thema zonder een aparte
-    // voortgangskleur. Elk vlak werpt een zachte slagschaduw (`BAR_SHADOW_*`).
-    const progressEnd = task.time.completion > 0 ? x1 + width * task.time.completion : -Infinity;
-    const paintPiece = (px1: number, px2: number, base: string, radius: number): void => {
-      const w = px2 - px1;
-      const tones = barTones(base);
-      // De slagschaduw hoort bij de vulling zelf (geen extra vlak): rand en voortgang erna
-      // tekenen zonder schaduw.
-      ctx.save();
-      ctx.shadowColor = BAR_SHADOW_COLOR;
-      ctx.shadowBlur = BAR_SHADOW_BLUR;
-      ctx.shadowOffsetY = BAR_SHADOW_OFFSET_Y;
-      ctx.fillStyle = tones.fill;
-      ctx.beginPath();
-      ctx.roundRect(px1, y, w, height, radius);
-      ctx.fill();
-      ctx.restore();
-      const doneTo = Math.min(px2, progressEnd);
-      if (doneTo > px1) {
-        ctx.fillStyle = tones.outline;
-        ctx.beginPath();
-        ctx.roundRect(px1, y, doneTo - px1, height, radius);
-        ctx.fill();
-      }
-      ctx.strokeStyle = tones.outline;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect(px1 + 0.5, y + 0.5, Math.max(w - 1, 0), height - 1, radius);
-      ctx.stroke();
-    };
+    // Balkweergave: elk vlak (een werkblok, of in resource-modus een kleurstuk daarbinnen) is
+    // effen in zijn eigen basiskleur — kritiek blijft rood, de kleurmodi blijven herkenbaar. Het
+    // VOLTOOIDE deel wordt over de volle hoogte bleek en grijs (`doneBarTones`), van links naar
+    // rechts: voortgang is zo in één oogopslag te lezen, en de kleur blijft over op het werk dat nog
+    // moet gebeuren. Een taak die 100% voltooid is, is dus helemaal grijs.
+    // Uitzondering: in een trace (voorgangers/opvolgers tonen) wint de trace-tint, ook op voltooid
+    // werk — anders verdwijnt precies de markering waar de gebruiker om vroeg (issue #114).
+    const completion = overrideColor ? 0 : task.time.completion;
+    const isDone = completion >= 1;
+    const greyTones = completion > 0 ? doneBarTones(color, dark) : null;
+    const progressX = isDone ? Infinity : x1 + width * completion;
+    // Eén tekenregel met de afdruk (`paintProgressBarPiece` in barPaint.ts).
+    const paintPiece = (px1: number, px2: number, base: string, roundLeft: boolean, roundRight: boolean): void =>
+      paintProgressBarPiece(ctx, px1, px2, y, height, BAR_RADIUS, base, progressX, dark, roundLeft, roundRight);
     for (const s of segs) {
       const sw = Math.max(s.x2 - s.x1, split ? 2 : 4);
       if (modeSegments.length > 0) {
@@ -1429,10 +1405,10 @@ export class GanttRenderer {
           const ox1 = Math.max(ms.cx1, s.x1);
           const ox2 = Math.min(ms.cx2, s.x2);
           if (ox2 - ox1 < 0.5) continue;
-          paintPiece(ox1, ox2, ms.color, mi === 0 ? 3 : 0);
+          paintPiece(ox1, ox2, ms.color, mi === 0 || ox1 > ms.cx1, mi === modeSegments.length - 1 || ox2 < ms.cx2);
         }
       } else {
-        paintPiece(s.x1, s.x1 + sw, color, 3);
+        paintPiece(s.x1, s.x1 + sw, color, true, true);
       }
     }
 
@@ -1478,7 +1454,9 @@ export class GanttRenderer {
 
     // Float indicator (ná de exclusieve balk-finish x2) — breedte is hierboven al bepaald en
     // wordt daar ook in de zichtbaarheidstest gebruikt.
-    if (floatWidth > 0) {
+    // Een voltooide taak heeft geen speling meer om te bewaken: zonder deze uitzondering zou de
+    // band het zwaarste vlak in de rij worden, naast een bewust bleke balk.
+    if (floatWidth > 0 && !isDone) {
       // Ingetogen speling: halve balkhoogte, verticaal gecentreerd. Een lichte vulling (25%
       // dekking) met daarover een kruisarcering in dezelfde kleur (`getCrossHatch`): de band
       // leest zo als "ruimte", niet als tweede balk, en blijft ook zonder kleurwaarneming
@@ -1538,16 +1516,31 @@ export class GanttRenderer {
       }
     }
 
-    // Task name on bar (if wide enough) — ellips i.p.v. een harde clip-snede.
+    // Task name on bar (if wide enough) — ellips i.p.v. een harde clip-snede. Op de basiskleur
+    // kiest `barLabelColor` zwart of wit (in resource-modus op het eerste kleurstuk); op het grijze,
+    // voltooide deel is het label gedempt. Een voltooide balk krijgt een vinkje vóór de naam.
     if (width > 40) {
-      // Labelkleur volgt het vlak ONDER de tekststart: de donkere voortgangstint zodra de voortgang
-      // daar voorbij loopt, anders de lichte vulling van het eerste stuk (`barTones`). In de
-      // kleurmodi komt de basiskleur uit projectdata, dus de keuze (zwart of wit) blijft per balk.
-      // De halo in `drawBarName` houdt het label leesbaar waar het over de voortgangsgrens loopt.
-      // Basiskleur van het eerste vlak (in resource-modus het eerste kleurstuk).
-      const tonesUnderLabel = barTones(modeSegments.length > 0 ? modeSegments[0].color : color);
-      const underLabel = progressEnd > x1 + 6 ? tonesUnderLabel.outline : tonesUnderLabel.fill;
-      this.drawBarName(task.name, barLabelColor(underLabel), x1, y, width, height, y + height / 2);
+      const textY = y + height / 2;
+      const labelBase = modeSegments.length > 0 ? modeSegments[0].color : color;
+      if (isDone && greyTones) {
+        const cx = x1 + 7;
+        const s = Math.max(3, Math.round(height * 0.18));
+        ctx.save();
+        ctx.strokeStyle = greyTones.text;
+        ctx.lineWidth = 1.6;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(cx, textY);
+        ctx.lineTo(cx + s * 0.8, textY + s * 0.8);
+        ctx.lineTo(cx + s * 2.2, textY - s * 0.8);
+        ctx.stroke();
+        ctx.restore();
+        this.drawBarName(task.name, greyTones.text, x1, y, width, height, textY, s * 2.2 + 5);
+      } else {
+        const split = greyTones ? { x: progressX, color: greyTones.text } : undefined;
+        this.drawBarName(task.name, barLabelColor(labelBase), x1, y, width, height, textY, 0, split);
+      }
     }
     return resourceAccentHeight;
   }

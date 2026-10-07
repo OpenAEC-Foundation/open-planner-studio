@@ -3,8 +3,8 @@
 // Het balklabel was ooit hardgecodeerd wit. Dat is niet houdbaar zodra de balkkleur uit projectdata
 // komt: in de kleurmodi (`auto`, resource- en categoriekleuring) kiest de gebruiker zijn eigen
 // tinten, en op een lichte eigen kleur is wit onleesbaar. `barLabelColor` kiest daarom per vlak
-// zwart of wit, op de gemeten WCAG-contrastverhouding. De taakbalk vraagt het aan voor het vlak
-// ONDER de tekst: de lichte vulling of de donkere voortgangstint uit `barTones`.
+// zwart of wit, op de gemeten WCAG-contrastverhouding. De taakbalk vraagt het aan voor zijn effen
+// basiskleur; het label op het grijze, voltooide deel bewaakt check-bar-progress.
 //
 // Sinds het kleurherstel van 18-09-2026 (verzadigde merktinten terug op de balken) wint WIT op de
 // VIJF STANDAARD-balktinten — het beeld van vóór werkblok U2 dus, maar nu gemeten in plaats van
@@ -12,8 +12,7 @@
 // liggen ook onder een label en kiezen juist zwart. Die staan hieronder apart gepind, want dat
 // gedrag is even belangrijk om te bewaken als het witte geval.
 // Deze check pint de uitkomst per vlak (niet de formule): wit op de standaardtinten, zwart op de
-// spelinggroenen en op de lichte niet-standaardtinten, en op de balktonen zwart op de lichte
-// vulling en wit op de donkere voortgang. `contrastRatio` wordt daarbij gebruikt als onafhankelijke meting: de
+// spelinggroenen en op de lichte niet-standaardtinten. `contrastRatio` wordt daarbij gebruikt als onafhankelijke meting: de
 // gekozen kleur moet aantoonbaar de hoogste verhouding halen van de twee kandidaten, en minimaal
 // 3:1 (grote/vette tekst, WCAG AA).
 //
@@ -26,7 +25,6 @@ g.getComputedStyle = () => ({ getPropertyValue: () => '' });
 import {
   barLabelColor,
   contrastRatio,
-  barTones,
   BAR_LABEL_DARK,
   BAR_LABEL_LIGHT,
 } from '@/engine/renderer/themePalette';
@@ -113,14 +111,6 @@ for (const [naam, hex] of ZWARTE_VLAKKEN) {
 // "alles buiten de vijf is zwart", en dat is het niet.
 expectLabel('balkvlak hammock', '#0E7490', BAR_LABEL_LIGHT, 4.5);
 expectLabel('balkvlak traceSuccDriving', '#7C3AED', BAR_LABEL_LIGHT, 4.5);
-
-// ── Balktonen (`barTones`): zwart op de lichte vulling, wit op de donkere voortgang ──
-// Dit zijn de vlakken waar het label in de Gantt werkelijk op staat.
-for (const [naam, hex] of [['kritiek', '#DC2626'], ['normaal', '#2563EB']] as const) {
-  const t = barTones(hex);
-  expectLabel(`lichte vulling ${naam}`, t.fill, BAR_LABEL_DARK, 4.5);
-  expectLabel(`donkere voortgang ${naam}`, t.outline, BAR_LABEL_LIGHT, 4.5);
-}
 
 // ── Randgeval: onparseerbare invoer valt terug op wit (het vroegere gedrag) ──
 eq('onparseerbare rgba() ⇒ wit', barLabelColor('rgba(1,2,3,0.5)'), BAR_LABEL_LIGHT);

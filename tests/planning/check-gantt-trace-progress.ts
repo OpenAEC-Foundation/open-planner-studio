@@ -4,11 +4,13 @@
 // bij een voltooide taak dus de héle balk. Precies de voorbeeldprojecten (status-datum in het verleden,
 // vroege taken 100 %) toonden zo geen enkele trace-kleur; alleen het dimmen van de rest was zichtbaar.
 //
+// Sinds de balkweergave van oktober 2026 wordt voltooid werk grijs (`doneBarTones`). Dat grijs mag
+// de trace NIET wegpoetsen: in een trace wint de trace-tint, ook op een voltooide taak.
+//
 // Deze batterij draait de ECHTE GanttRenderer met een opnemende 2D-context over één voltooide
-// voorganger + focus-taak, met de trace aan, en eist dat GEEN vulling in de rij van de voorganger de
-// voortgangstint van de standaardkleuren gebruikt: alleen de lichte vulling en de donkere
-// voortgangstint van de trace-kleur zelf (`barTones`). Zonder trace tekent een voltooide taak de
-// donkere tint van zijn eigen standaardkleur (regressie-anker).
+// voorganger + focus-taak, met de trace aan, en eist dat de rij van de voorganger in de trace-tint
+// zelf getekend wordt, zonder grijs en zonder standaardkleur. Zonder trace tekent een voltooide
+// taak het grijs van zijn eigen standaardkleur (regressie-anker).
 //
 // Draait via run.sh. Exit 0 = alles groen.
 
@@ -18,7 +20,7 @@ g.getComputedStyle = () => ({ getPropertyValue: () => '' });
 
 import { useAppStore } from '@/state/appStore';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
-import { GANTT_TRACE_COLORS, barTones, readGanttPalette } from '@/engine/renderer/themePalette';
+import { GANTT_TRACE_COLORS, doneBarTones, readGanttPalette } from '@/engine/renderer/themePalette';
 import { buildTrace } from '@/engine/taskGrid/trace';
 import type { ViewRow } from '@/engine/view/visibleRows';
 
@@ -69,10 +71,10 @@ const st = S();
 const rows: ViewRow[] = st.tasks.map(task => ({ kind: 'task', rowKey: task.id, task, depth: 0, dimmed: false }));
 const ROWH = 28, HDRH = 60;
 const inRow = (f: Fill, i: number) => f.y >= HDRH + i * ROWH && f.y + f.h <= HDRH + (i + 1) * ROWH;
-// Voortgang = kruisarcering in de donkere balktint (`barTones(..).outline`); headless (geen
-// patroon) valt hij terug op een egale vulling in die tint — dat is wat deze stub ziet.
+// Voltooid zonder trace = het grijs van de standaardkleur (`doneBarTones`, licht thema).
 const PAL = readGanttPalette();
-const LIGHT = [barTones(PAL.normal).outline, barTones(PAL.critical).outline].map(c => c.toLowerCase());
+const GREY = [doneBarTones(PAL.normal, false).fill, doneBarTones(PAL.critical, false).fill].map(c => c.toLowerCase());
+const STANDARD = [PAL.normal, PAL.critical].map(c => c.toLowerCase());
 
 function render(traceMode: 'off' | 'predecessors' | 'successors'): Fill[] {
   const { ctx, fills } = makeCtx();
@@ -93,32 +95,26 @@ function render(traceMode: 'off' | 'predecessors' | 'successors'): Fill[] {
   return fills;
 }
 
-// Regressie-anker: zonder trace tekent een voltooide taak nog steeds de blauwe voortgangsvulling.
+// Regressie-anker: zonder trace tekent een voltooide taak het grijs van zijn standaardkleur.
 const off = render('off').filter(f => inRow(f, 0));
-ok('zonder trace: voltooide balk mist de standaard voortgangsvulling', off.some(f => LIGHT.includes(f.style.toLowerCase())));
+ok(`zonder trace: voltooide balk is grijs (${off.map(f => f.style).join(', ')})`, off.some(f => GREY.includes(f.style.toLowerCase())));
 
-// Predecessors: rij 0 (de voorganger) krijgt de goudtint en géén blauwe/rode vulling eroverheen.
+// Predecessors: rij 0 (de voorganger) krijgt de goudtint, zonder grijs of standaardkleur.
 const pred = render('predecessors').filter(f => inRow(f, 0));
-// FS-voorganger van de focus is per definitie driving ⇒ de donkere goudtint; de lichte telt ook.
-const GOLD_BASE = [GANTT_TRACE_COLORS.predecessor, GANTT_TRACE_COLORS.predecessorDriving];
-const GOLD = GOLD_BASE.map(c => barTones(c).fill.toLowerCase());
-ok('predecessors: voorgangerbalk tekent niet in de trace-goudtint', pred.some(f => GOLD.includes(f.style.toLowerCase())));
+const GOLD = [GANTT_TRACE_COLORS.predecessor, GANTT_TRACE_COLORS.predecessorDriving].map(c => c.toLowerCase());
+ok(`predecessors: voorgangerbalk tekent in de trace-goudtint (${pred.map(f => f.style).join(', ')})`, pred.some(f => GOLD.includes(f.style.toLowerCase())));
 ok(
-  `predecessors: voltooide voorganger krijgt de blauwe/rode voortgangsvulling over de trace-tint (${pred.map(f => f.style).join(', ')})`,
-  !pred.some(f => LIGHT.includes(f.style.toLowerCase())),
+  `predecessors: voltooide voorganger wordt grijs of standaardkleur over de trace-tint (${pred.map(f => f.style).join(', ')})`,
+  !pred.some(f => GREY.includes(f.style.toLowerCase()) || STANDARD.includes(f.style.toLowerCase())),
 );
-// De voortgang komt uit de trace-tint zelf (donkere tint van `barTones`), niet uit de standaardkleur.
-const GOLD_PROGRESS = GOLD_BASE.map(c => barTones(c).outline.toLowerCase());
-ok(`predecessors: voortgang is de afgeleide goudvulling (${pred.map(f => f.style).join(', ')})`,
-  pred.some(f => GOLD_PROGRESS.includes(f.style.toLowerCase())));
 
 // Successors (focus = voorganger): rij 1 (de opvolger) idem in paars.
 const succ = render('successors').filter(f => inRow(f, 1));
-const PURPLE = [GANTT_TRACE_COLORS.successor, GANTT_TRACE_COLORS.successorDriving].map(c => barTones(c).fill.toLowerCase());
-ok('successors: opvolgerbalk tekent niet in de trace-paarstint', succ.some(f => PURPLE.includes(f.style.toLowerCase())));
+const PURPLE = [GANTT_TRACE_COLORS.successor, GANTT_TRACE_COLORS.successorDriving].map(c => c.toLowerCase());
+ok(`successors: opvolgerbalk tekent in de trace-paarstint (${succ.map(f => f.style).join(', ')})`, succ.some(f => PURPLE.includes(f.style.toLowerCase())));
 ok(
-  `successors: voltooide opvolger krijgt de blauwe/rode voortgangsvulling over de trace-tint (${succ.map(f => f.style).join(', ')})`,
-  !succ.some(f => LIGHT.includes(f.style.toLowerCase())),
+  `successors: voltooide opvolger wordt grijs of standaardkleur over de trace-tint (${succ.map(f => f.style).join(', ')})`,
+  !succ.some(f => GREY.includes(f.style.toLowerCase()) || STANDARD.includes(f.style.toLowerCase())),
 );
 
 if (diffs.length === 0) {
