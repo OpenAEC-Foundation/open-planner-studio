@@ -41,8 +41,10 @@ export const XER_IMPORT_HELP_ARTICLE_ID = 'howto-xer-openen';
 /** "Datums zoals opgeslagen": melding bij openen en de markering in het eigenschappenpaneel. */
 export const RECORDED_DATES_HELP_ARTICLE_ID = 'uitleg-datums-zoals-opgeslagen';
 
-/** De planningsgids voor agents (MCP `planner_get_planning_guide`). Id en pad zijn publiek (§8.3):
- *  uitgeleverde versies en geïnstalleerde skills linken ernaar — nooit hernoemen. */
+/** Het Help-artikel "Goed plannen" voor mensen. Id en pad zijn publiek (§8.3): uitgeleverde
+ *  versies (hun MCP-instructie en `planner_get_planning_guide`) en eerder geïnstalleerde skills linken
+ *  ernaar — nooit hernoemen. Agents krijgen sinds oktober 2026 de aparte agentgids
+ *  `public/agent/planning-guide.md`; verify:docs (poort 11) houdt de principes van beide gelijk. */
 export const PLANNING_GUIDE_ARTICLE_ID = 'gids-goed-plannen';
 
 /** ?-knop in de sneltoetsendialoog (proefplek van de contextuele hulp). */
