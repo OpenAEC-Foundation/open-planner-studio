@@ -402,9 +402,19 @@ zoals in een artikel. Knoppen: **Terug**, **Toon mij** (alleen met `prepare`), *
 
 Het paneel zweeft rechtsonder (in `ar`/`fa` linksonder) boven de statusbalk, en niet in de
 rechterrail: die bestaat niet in de volledige weergaven (Tabel, IFC, Rapport, Resources) en in
-Backstage, terwijl een tutorial daar juist doorheen loopt. Ligt het gemarkeerde element onder het
-paneel en is de andere kant vrij, dan wijkt het paneel daarheen uit. Het ligt boven dialogen en onder
-de meldingen.
+Backstage, terwijl een tutorial daar juist doorheen loopt. Het ligt boven dialogen en onder de
+meldingen, maar het bedekt geen gemarkeerd element en geen open venster: ligt een van die twee eronder
+en is de andere kant vrij, dan wijkt het paneel daarheen uit, en zodra de weg weer vrij is keert het
+terug. Past het aan geen van beide kanten naast een open venster (een breed venster op een klein
+scherm), dan klapt het vanzelf in tot een knopje met de stapteller; de gebruiker kan het uitklappen,
+en het klapt weer uit zodra het venster dicht is. De gebruiker kan het ook zelf inklappen; een nieuwe
+stap klapt het weer uit. Op een scherm van hooguit 800 px hoog is het paneel hooguit half zo hoog als
+het venster.
+
+Het paneel weet alleen wat het niet mag bedekken via het anker. Laat een stap iets aanklikken op een
+plek die het paneel kan bedekken (de onderkant van de rechterrail, bijvoorbeeld het paneel
+Waarschuwingen), geef die plek dan als anker (`rail:warnings`), ook als die pas tijdens de stap
+verschijnt.
 
 **Ankers.** `anchor` is de waarde van een `data-tour-anchor`-attribuut; de app markeert dat element
 met dezelfde rand als de rondleiding, maar **niet modaal**: de gebruiker kan het gewoon aanklikken. Een

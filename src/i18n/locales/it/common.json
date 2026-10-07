@@ -1479,6 +1479,8 @@
     "doneNext": "Fatto, avanti",
     "finish": "Fine",
     "close": "Chiudi la guida",
+    "collapse": "Comprimi la guida",
+    "expand": "Espandi la guida",
     "stepDone": "Fatto",
     "waiting": "Esegui l’attività nell’app; poi potrai continuare."
   },

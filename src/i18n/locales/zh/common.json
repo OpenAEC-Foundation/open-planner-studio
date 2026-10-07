@@ -1379,6 +1379,8 @@
     "doneNext": "完成，下一步",
     "finish": "完成",
     "close": "关闭引导",
+    "collapse": "收起引导",
+    "expand": "展开引导",
     "stepDone": "已完成",
     "waiting": "在应用中完成此任务，然后即可继续。"
   },

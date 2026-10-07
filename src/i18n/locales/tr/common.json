@@ -1429,6 +1429,8 @@
     "doneNext": "Tamam, ileri",
     "finish": "Bitir",
     "close": "Rehberi kapat",
+    "collapse": "Rehberi daralt",
+    "expand": "Rehberi genişlet",
     "stepDone": "Tamamlandı",
     "waiting": "Görevi uygulamada yap; ardından devam edebilirsin."
   },

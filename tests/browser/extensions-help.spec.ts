@@ -1,4 +1,4 @@
-import { expect, test, state } from './fixtures/ops';
+import { expect, test, seedProject, state } from './fixtures/ops';
 import type { Locator, Page } from '@playwright/test';
 
 // Extensie-API 1.4.0 (`api.help.*`) end-to-end: een test-extensie registreert een tutorial, opent
@@ -291,4 +291,83 @@ test('generieke lintankers: tab, groep, knop en component-item', async ({ page, 
   await expect(page.locator('[data-tour-anchor="ribbon:start:addTask"]')).toHaveCount(0);
   await expect(page.locator('[data-tour-anchor="ribbon:planning:calendar"]')).toBeVisible();
   await expect(page.locator('[data-tour-anchor="status-bar"]')).toBeVisible();
+});
+
+// knownbugs 52: de tab Bestand (Backstage) haalt de scrollcontainer van het lint weg; daarna kwam er een nieuwe,
+// maar de waarnemer die de ankers van component-items zet bleef op de oude hangen. Een component dat zichzelf
+// daarna opnieuw rendert (Toewijzen ▾ wordt bij een taakselectie een andere knop) verloor zo zijn anker, en
+// het begeleidingspaneel van een tutorial vond de knop niet meer.
+test('lintanker van een component-item blijft staan na een bezoek aan Bestand', async ({ page, ops: _ops }) => {
+  await seedProject(page, [{ name: 'Metselwerk', start: '2026-03-02', finish: '2026-03-13' }]);
+  const assign = page.locator('[data-tour-anchor="ribbon:resources:resourceAssign"]');
+  await page.locator('[data-tour-anchor="ribbon-tab:resources"]').click();
+  await expect(assign.first()).toBeVisible();
+  await page.locator('[data-tour-anchor="ribbon-tab:file"]').click();
+  await expect(assign).toHaveCount(0);
+  await page.locator('[data-tour-anchor="ribbon-tab:resources"]').click();
+  await page.locator('[data-grid-column-id="task.name"]', { hasText: 'Metselwerk' }).first().click();
+  await expect.poll(() => state(page).then(s => s.selectedTaskIds.length)).toBe(1);
+  await expect(assign.first()).toBeVisible();
+  await expect(assign.locator('button:not([disabled])').or(assign.and(page.locator('button:not([disabled])'))).first()).toBeVisible();
+});
+
+/** Overlappen twee elementen op het scherm? */
+async function overlapping(a: Locator, b: Locator): Promise<boolean> {
+  const p = await a.boundingBox();
+  const q = await b.boundingBox();
+  if (!p || !q) return false;
+  return p.x < q.x + q.width && q.x < p.x + p.width && p.y < q.y + q.height && q.y < p.y + p.height;
+}
+
+// knownbugs 91: het begeleidingspaneel lag over de knoppen van een venster (Toepassen in Kalenders). Nu wijkt
+// het uit, en past het naast het venster nergens, dan klapt het vanzelf in tot een knopje in de rand. De
+// gebruiker kan het ook zelf in- en uitklappen.
+test('begeleidingspaneel: klapt in voor een venster dat het anders bedekt, en zelf in en uit', async ({ page, ops: _ops }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await installTestExtension(page);
+  await page.getByRole('button', { name: 'Start guide', exact: true }).click();
+  await expect(panel(page)).toHaveAttribute('data-ops-guide-compact', 'false');
+  await expect(panel(page)).toHaveAttribute('data-ops-guide-side', 'end');
+
+  await action(page, 'collapse').click();
+  await expect(panel(page)).toHaveAttribute('data-ops-guide-compact', 'true');
+  await expect(panel(page).locator('[data-ops-guide-task]')).toHaveCount(0);
+  await expect(panel(page).locator('[data-ops-guide-progress]')).toHaveText('Step 1 of 2');
+  await action(page, 'expand').click();
+  await expect(panel(page)).toHaveAttribute('data-ops-guide-compact', 'false');
+  await expect(panel(page).locator('[data-ops-guide-task]')).toContainText('Click Task on the ribbon.');
+
+  // Kalenders is 860 breed en bijna schermhoog: het paneel past er aan geen kant naast.
+  await page.locator('[data-tour-anchor="ribbon-tab:planning"]').click();
+  await page.locator('[data-tour-anchor="ribbon:planning:calendar"]').first().click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await expect(panel(page)).toHaveAttribute('data-ops-guide-compact', 'true');
+  expect(await overlapping(panel(page), dialog), 'het knopje ligt naast het venster').toBe(false);
+  // Uitklappen mag (de opdracht lezen), ook al ligt het paneel dan over het venster; weer inklappen.
+  await action(page, 'expand').click();
+  await expect(panel(page)).toHaveAttribute('data-ops-guide-compact', 'false');
+  await action(page, 'collapse').click();
+  await expect(panel(page)).toHaveAttribute('data-ops-guide-compact', 'true');
+  // De knoppen onderaan het venster zijn gewoon te bedienen.
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(panel(page)).toHaveAttribute('data-ops-guide-compact', 'false');
+  await expect(panel(page)).toHaveAttribute('data-ops-guide-side', 'end');
+});
+
+// knownbugs 59: het paneel week uit voor een anker eronder, maar sprong daarna niet terug.
+test('begeleidingspaneel: wijkt uit voor het anker en keert daarna terug', async ({ page, ops: _ops }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await installTestExtension(page, MAIN_JS.replace("anchor: 'ribbon:start:addTask'", "anchor: 'properties-panel'"));
+  const rail = page.locator('[data-tour-anchor="properties-panel"]');
+  await expect(rail).toBeVisible();
+  await page.getByRole('button', { name: 'Start guide', exact: true }).click();
+  await expect(panel(page)).toHaveAttribute('data-ops-guide-side', 'start');
+  expect(await overlapping(panel(page), rail), 'het paneel ligt niet over het anker').toBe(false);
+  await expectSpotlightAround(page, rail);
+  // Gedaan: de markering verdwijnt, het paneel gaat terug naar rechtsonder.
+  await action(page, 'showMe').click();
+  await expect(panel(page)).toHaveAttribute('data-ops-guide-done', 'true');
+  await expect(panel(page)).toHaveAttribute('data-ops-guide-side', 'end');
 });

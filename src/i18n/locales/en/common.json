@@ -1429,6 +1429,8 @@
     "doneNext": "Done, next",
     "finish": "Finish",
     "close": "Close guide",
+    "collapse": "Collapse guide",
+    "expand": "Expand guide",
     "stepDone": "Done",
     "waiting": "Carry out the task in the app; then you can continue."
   },
