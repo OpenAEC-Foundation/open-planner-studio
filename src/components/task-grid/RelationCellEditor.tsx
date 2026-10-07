@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type FocusEvent,
   type KeyboardEvent,
   type MouseEvent,
   type Ref,
@@ -27,6 +28,7 @@ import {
   relationTaskOptions,
   type RelationCellItem,
 } from '@/engine/taskGrid/relationCell';
+import { RelationSentence, relationSentenceName } from '@/components/common/RelationSentence';
 import type { ParsedRelationToken } from '@/engine/taskGrid/relationPlan';
 import type { Task } from '@/types/task';
 import type { GridEditorInputProps } from './GridEditorHost';
@@ -184,6 +186,8 @@ export function RelationCellContent({ items, onFocusTask, onExternalContextMenu 
 }
 
 export interface RelationCellEditorProps {
+  /** Welke kant de cel toont: in de kolom Voorgangers is de eigen taak de opvolger. */
+  direction: 'predecessor' | 'successor';
   inputProps: GridEditorInputProps;
   inputRef: Ref<HTMLInputElement>;
   label: string;
@@ -207,6 +211,7 @@ export function RelationCellEditor({
   inputRef,
   label,
   ownerTaskId,
+  direction,
   tasks,
   tokens,
   rawText,
@@ -221,6 +226,24 @@ export function RelationCellEditor({
     'aria-describedby': inputProps['aria-describedby'],
   };
   const [query, setQuery] = useState('');
+  // De uitlegzin over het type staat alleen onder de relatie waar de focus in zit.
+  const [focusedToken, setFocusedToken] = useState<number | null>(null);
+  const ownerTask = tasks.find(candidate => candidate.id === ownerTaskId);
+  const sentenceFor = (type: ExternalRelationType, otherName: string) => (
+    <RelationSentence
+      type={type}
+      predecessorName={direction === 'predecessor' ? otherName : relationSentenceName(ownerTask)}
+      successorName={direction === 'predecessor' ? relationSentenceName(ownerTask) : otherName}
+    />
+  );
+  const tokenFocusProps = (index: number) => ({
+    onFocus: () => setFocusedToken(index),
+    onBlur: (event: FocusEvent<HTMLDivElement>) => {
+      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+        setFocusedToken(current => (current === index ? null : current));
+      }
+    },
+  });
   const anchorRef = useRef<HTMLSpanElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const queryInputRef = useRef<HTMLInputElement>(null);
@@ -338,7 +361,7 @@ export function RelationCellEditor({
             const task = token.taskId ? tasks.find(candidate => candidate.id === token.taskId) : undefined;
             const taskLabel = `${token.wbsCode}${task?.name ? ` ${task.name}` : ''}`;
             return (
-              <div key={token.relationId ?? `${token.taskId ?? token.wbsCode}:${index}`} className="task-grid-relation-token" role="listitem">
+              <div key={token.relationId ?? `${token.taskId ?? token.wbsCode}:${index}`} className="task-grid-relation-token" role="listitem" {...tokenFocusProps(index)}>
                 <span className="task-grid-relation-reference" title={taskLabel}>{taskLabel}</span>
                 <select
                   {...validationProps}
@@ -359,6 +382,7 @@ export function RelationCellEditor({
                   onChange={event => replaceToken(index, { ...token, lagText: event.currentTarget.value })}
                 />
                 <button type="button" aria-label={t('relations.removeInternal', { task: taskLabel })} onKeyDown={controlKeyDown} onClick={() => removeToken(index)}>×</button>
+                {focusedToken === index && sentenceFor(token.relType, relationSentenceName(task ?? { wbsCode: token.wbsCode }))}
               </div>
             );
           }
@@ -372,7 +396,7 @@ export function RelationCellEditor({
             type,
           ));
           return (
-            <div key={key} className="task-grid-relation-token task-grid-relation-token--external" role="listitem">
+            <div key={key} className="task-grid-relation-token task-grid-relation-token--external" role="listitem" {...tokenFocusProps(index)}>
               <button
                 type="button"
                 className="task-grid-relation-reference"
@@ -409,6 +433,10 @@ export function RelationCellEditor({
                 }}
               />
               <button type="button" aria-label={t('relations.removeExternal', { task: sourceLabel })} onKeyDown={controlKeyDown} onClick={() => removeToken(index)}>×</button>
+              {focusedToken === index && sentenceFor(
+                token.external.relType,
+                token.external.sourceRef.taskName || token.external.sourceRef.taskId,
+              )}
             </div>
           );
         })}

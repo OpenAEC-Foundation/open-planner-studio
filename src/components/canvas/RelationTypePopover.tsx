@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { SequenceType, SEQUENCE_TYPE_OPTIONS, type Sequence } from '@/types/sequence';
 import { SequenceLagInput } from '@/components/common/SequenceLagInput';
+import { RelationSentence, relationSentenceName } from '@/components/common/RelationSentence';
+import { useAppStore } from '@/state/appStore';
 
 export interface RelationTypePopoverProps {
   /** Eindpunten van de nog niet vastgelegde relatie. */
@@ -37,6 +39,8 @@ export function RelationTypePopover({
 }: RelationTypePopoverProps) {
   const { t } = useTranslation('task');
   const popoverRef = useRef<HTMLDivElement>(null);
+  const predecessor = useAppStore(s => s.tasks.find(task => task.id === sourceTaskId));
+  const successor = useAppStore(s => s.tasks.find(task => task.id === targetTaskId));
   const [draft, setDraft] = useState<Omit<Sequence, 'id'>>({
     predecessorId: sourceTaskId,
     successorId: targetTaskId,
@@ -82,14 +86,14 @@ export function RelationTypePopover({
     return () => document.removeEventListener('keydown', handleEscape, true);
   }, [onCancel]);
 
-  const adjustedX = Math.min(x, window.innerWidth - 220);
-  const adjustedY = Math.min(y, window.innerHeight - 100);
+  const adjustedX = Math.min(x, window.innerWidth - 300);
+  const adjustedY = Math.min(y, window.innerHeight - 130);
 
   return (
     <div
       ref={popoverRef}
       data-ops-relation-popover
-      className="fixed z-[var(--z-contextmenu)] bg-surface border border-border rounded-[8px] shadow-[var(--shadow-pop)] p-2.5 flex flex-col gap-2 min-w-[200px]"
+      className="fixed z-[var(--z-contextmenu)] bg-surface border border-border rounded-[8px] shadow-[var(--shadow-pop)] p-2.5 flex flex-col gap-2 min-w-[200px] max-w-[280px]"
       style={{ left: adjustedX, top: adjustedY }}
     >
       <span className="!text-small font-semibold uppercase tracking-wide text-text-secondary">
@@ -122,6 +126,11 @@ export function RelationTypePopover({
           onDraftChange={patch => setDraft(current => ({ ...current, ...patch }))}
         />
       </div>
+      <RelationSentence
+        type={sequence.type}
+        predecessorName={relationSentenceName(predecessor)}
+        successorName={relationSentenceName(successor)}
+      />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { SequenceType, SEQUENCE_TYPE_OPTIONS, type Sequence } from '@/types/sequence';
 import { Task } from '@/types/task';
+import { RelationSentence, relationSentenceName } from '@/components/common/RelationSentence';
 import { SequenceLagInput } from '@/components/common/SequenceLagInput';
 import { HoverTooltip } from '@/components/canvas/HoverTooltip';
 import { TaskTooltipContent } from '@/components/canvas/TaskTooltipContent';
@@ -64,6 +65,9 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
   const removeSequence = useAppStore(s => s.removeSequence);
   const focusOnTask = useAppStore(s => s.focusOnTask);
   const [hover, setHover] = useState<HoverState | null>(null);
+  // De uitlegzin staat alleen onder de relatie waar de focus in zit: onder élke regel zou het blok
+  // bij veel relaties twee keer zo lang maken.
+  const [focusedSequenceId, setFocusedSequenceId] = useState<string | null>(null);
 
   // Spooktooltip: onMouseLeave/onClick op de knop zelf zijn niet genoeg. Wisselt de selectie (of
   // verandert de sequence-lijst) zonder dat de muis de knop verlaat — bv. Ctrl+Z, een pijltoets, of
@@ -141,8 +145,15 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
         return (
           <div
             key={seq.id}
-            className="dependency-row !text-small"
+            className="dependency-item"
+            onFocus={() => setFocusedSequenceId(seq.id)}
+            onBlur={e => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                setFocusedSequenceId(current => (current === seq.id ? null : current));
+              }
+            }}
           >
+          <div className="dependency-row !text-small">
             {!interactive ? (
               <span className="dependency-wbs-cell min-w-0 truncate">{other?.name || '?'}</span>
             ) : other ? (
@@ -195,6 +206,14 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
             >
               <Trash2 size={10} />
             </button>
+          </div>
+          {focusedSequenceId === seq.id && (
+            <RelationSentence
+              type={seq.type}
+              predecessorName={relationSentenceName(tasks.find(t => t.id === seq.predecessorId))}
+              successorName={relationSentenceName(tasks.find(t => t.id === seq.successorId))}
+            />
+          )}
           </div>
         );
         })}
@@ -317,6 +336,13 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
               <Check size={10} />
             </button>
           </div>
+          {draftOther && (
+            <RelationSentence
+              type={draft.type}
+              predecessorName={relationSentenceName(tasks.find(t => t.id === draftSequence.predecessorId))}
+              successorName={relationSentenceName(tasks.find(t => t.id === draftSequence.successorId))}
+            />
+          )}
         </div>
       ) : (
         <button

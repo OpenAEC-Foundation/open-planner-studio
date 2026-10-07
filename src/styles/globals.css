@@ -1063,6 +1063,11 @@
   align-items: center;
 }
 
+/* De uitlegzin over het type staat onder de relatie met focus en beslaat de hele breedte. */
+.task-grid-relation-token > .relation-sentence {
+  grid-column: 1 / -1;
+}
+
 .task-grid-relation-reference {
   min-width: 0;
   overflow: hidden;
@@ -1888,6 +1893,19 @@ body {
   height: 0.75rem;
   align-items: center;
   justify-content: center;
+}
+
+/* Eén relatie in het eigenschappenpaneel: de regel zelf plus, zolang de focus erin staat, de
+   uitlegzin over het type ("Metselwerk begint pas als Fundering klaar is."). */
+.dependency-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.relation-sentence {
+  display: block;
+  overflow-wrap: anywhere;
 }
 
 /* Relatie toevoegen vanuit het eigenschappenpaneel (2026-09). De conceptrij hergebruikt bewust
