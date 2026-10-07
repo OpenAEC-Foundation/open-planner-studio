@@ -36,7 +36,8 @@ is Engels; codecommentaar blijft Nederlands. Dat geldt ook voor wat `planner_get
 agentgids `public/agent/planning-guide.md` (per principe de tools, niet het Help-artikel voor mensen) en de skills
 `public/skills/{goed-plannen,progress-update}/SKILL.md` (byte-identiek in `.claude/skills/`). Verandert een tool iets
 wat daar beschreven staat, werk dan ook die teksten bij; `verify:docs` (poort 9 en 11) bewaakt de kopieën en de
-koppeling met het Help-artikel, niet de inhoud van elke toolbewering.
+koppeling met het Help-artikel; `tests/mcp/cases-agent-texts.ts` houdt elke `planner_*`-naam en elke genoemde parameter
+(en enumwaarde) in die teksten tegen de registry en de `inputSchema`'s. De inhoud van elke toolbewering bewaakt geen poort.
 
 Veiligheid is state, geen conventie: `ui.aiMode` (de hele AI-tab en bridge verschijnen pas hierdoor),
 `ui.aiPaused`, `ui.aiReadOnly` en `ui.aiServerStatus` leven in `uiSlice`; de per-request `McpContext`

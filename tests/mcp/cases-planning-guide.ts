@@ -24,6 +24,7 @@ import type { McpContext } from '@/services/mcp/contracts';
 import {
   AGENT_GUIDE_FILE, PRINCIPLE_COUPLING, checkAgentGuideLinks, checkPrincipleCoupling, principleHeadings,
 } from '../../scripts/lib/agent-guide-coupling';
+import { checkSkillFrontmatter, checkSkillSets, sharedClaudeSkills } from '../../scripts/lib/agent-skills-check';
 
 registerAllTools();
 
@@ -44,10 +45,13 @@ function assetPathOf(url: string): string {
   return url.replace(/^\//, '');
 }
 
-function installFetch(mode: 'stub' | 'disk' | 'missing'): void {
+function installFetch(mode: 'stub' | 'disk' | 'missing' | 'no-progress-skill'): void {
   (globalThis as any).fetch = async (url: string) => {
     fetched.push(url);
     if (mode === 'missing') return { ok: false, status: 404, text: async () => '' };
+    if (mode === 'no-progress-skill' && url.includes('/skills/progress-update/')) {
+      return { ok: false, status: 404, text: async () => '' };
+    }
     const path = assetPathOf(url);
     if (mode === 'disk') {
       const file = join(PUBLIC, path);
@@ -211,6 +215,26 @@ test('een onbereikbare asset geeft een Engelse NOT_FOUND met alle publieke downl
   assert(!/\b(kon|niet|gids|lege)\b/i.test(msg), `Nederlandse woorden in de foutmelding: ${msg}`);
 });
 
+test('één ontbrekende skill blokkeert de rest niet: ok, met `missing` en de publieke URL', async () => {
+  installFetch('no-progress-skill');
+  const res = await call(makeMcpContext(), {});
+  assertEq(res.isError, false, `een deel ontbreekt, de rest hoort te komen: ${JSON.stringify(res.structuredContent)}`);
+  const data = res.structuredContent.data;
+  assertEq(data.guide, GUIDE_BODY, 'de gids komt mee');
+  assertEq(data.skills.map((s: any) => s.name), ['goed-plannen'], 'alleen de skill die laadde');
+  assertEq(data.skill, SKILL_BODIES['goed-plannen'], 'compat-veld blijft gevuld');
+  assertEq(data.missing.map((m: any) => [m.path, m.url]), [
+    ['skills/progress-update/SKILL.md', 'https://open-planner-studio.open-aec.com/skills/progress-update/SKILL.md'],
+  ], 'missing noemt het bestand en zijn publieke URL');
+  assertEq(data.install.skills.length, 2, 'de installatie-aanwijzing noemt nog steeds beide skills');
+});
+
+test('alles aanwezig: geen `missing`-veld', async () => {
+  installFetch('stub');
+  const res = await call(makeMcpContext(), {});
+  assertEq(res.structuredContent.data.missing, undefined, 'missing alleen bij een ontbrekend deel');
+});
+
 test('de echte bestanden in public/ bestaan, en de tool levert precies die', async () => {
   installFetch('disk');
   fetched.length = 0;
@@ -288,6 +312,32 @@ test('mutatie: een agentsectie zonder principe, een verdwenen sectie en een docs
   assert(checkPrincipleCoupling(gone).some((d) => d.includes('principesectie')), 'verdwenen principesectie niet gemeld');
 
   assertEq(checkAgentGuideLinks('See [Relations](docs://uitleg-relaties).').length, 1, 'docs://-link niet gemeld');
+});
+
+// --- (d) poort 9: frontmatter en skill-verzamelingen -------------------------------------------------
+
+test('poort 9: frontmatter-name alleen binnen de frontmatter, leeg of anders = fout', () => {
+  const ok = '---\nname: progress-update\ndescription: Use when …\n---\n\n# X\n';
+  assertEq(checkSkillFrontmatter(ok, 'progress-update', 'x'), [], 'een correcte frontmatter is groen');
+  assert(checkSkillFrontmatter('---\nname:\ndescription: d\n---\n', 'a', 'x').some((d) => d.includes('leeg')), 'lege name niet gemeld');
+  assert(checkSkillFrontmatter('---\nname: b\ndescription: d\n---\n', 'a', 'x').some((d) => d.includes('"b"')), 'verkeerde name niet gemeld');
+  assert(checkSkillFrontmatter('---\ndescription: d\n---\n\nname: a\n', 'a', 'x').some((d) => d.includes('ontbreekt')),
+    'een name-regel BUITEN de frontmatter telt niet');
+  assert(checkSkillFrontmatter('# geen frontmatter\nname: a\n', 'a', 'x').some((d) => d.includes('geen frontmatter')), 'ontbrekende frontmatter niet gemeld');
+  assert(checkSkillFrontmatter('---\nname: a\ndescription:\n---\n', 'a', 'x').some((d) => d.includes('description')), 'lege description niet gemeld');
+});
+
+test('poort 9: een wees in .claude/skills/ en een niet-gedeelde agent-skill worden gemeld', () => {
+  const real = sharedClaudeSkills(readFileSync(join(ROOT, '.gitignore'), 'utf8'));
+  for (const n of ['release', 'wiki', 'docs-update', 'goed-plannen', 'progress-update']) {
+    assert(real.includes(n), `.gitignore deelt ${n} niet`);
+  }
+  const base = { publicSkills: ['goed-plannen', 'progress-update'], claudeDirs: ['release', 'wiki', 'docs-update', 'goed-plannen', 'progress-update', 'lokaal'], shared: real };
+  assertEq(checkSkillSets(base), [], 'de huidige situatie (plus een lokale, niet-gedeelde map) is groen');
+  const orphan = checkSkillSets({ ...base, publicSkills: ['goed-plannen'] });
+  assert(orphan.some((d) => d.includes('.claude/skills/progress-update/ is een wees')), `wees niet gemeld: ${JSON.stringify(orphan)}`);
+  const notShared = checkSkillSets({ ...base, shared: real.filter((n) => n !== 'progress-update') });
+  assert(notShared.some((d) => d.includes('!.claude/skills/progress-update/')), `ontbrekende .gitignore-regel niet gemeld: ${JSON.stringify(notShared)}`);
 });
 
 await run();

@@ -36,7 +36,9 @@
 //        locale-opsomming volgt de veertien UI-talen (UI_LANGS), niet de docstalen.
 //   9. Elke agent-skill onder `public/skills/<naam>/SKILL.md` (bron, uitgeleverd: `goed-plannen`,
 //      `progress-update`) staat byte-identiek in `.claude/skills/<naam>/` (waar Claude Code hem leest)
-//      — geen symlink, want Windows-CI — en zijn frontmatter-`name` is de mapnaam.
+//      — geen symlink, want Windows-CI —, zijn frontmatter heeft een `name` gelijk aan de mapnaam en een
+//      niet-lege `description`, `.gitignore` deelt de kopie, en een gedeelde map in `.claude/skills/`
+//      zonder bron is een wees (behalve de repo-skills; zie `scripts/lib/agent-skills-check.ts`).
 //   11. De agentgids (`public/agent/planning-guide.md`, geen Help-artikel) groeit niet los van het
 //      Help-artikel `gids-goed-plannen`: elk principe (`###` onder de principesectie, nl én en) heeft
 //      via de expliciete koppeltabel in `scripts/lib/agent-guide-coupling.ts` een tegenhanger in de
@@ -61,6 +63,7 @@ import {
 import * as APP_HELP_ARTICLES from '@/state/helpArticles';
 import { RELEASE_HIGHLIGHT_CATALOG } from '@/services/updater/releaseHighlights';
 import { AGENT_GUIDE_FILE, checkAgentGuideLinks, checkPrincipleCoupling } from './lib/agent-guide-coupling';
+import { checkSkillFrontmatter, checkSkillSets, sharedClaudeSkills } from './lib/agent-skills-check';
 
 const ROOT = process.cwd();
 const DOCS_DIR = join(ROOT, 'public', 'docs');
@@ -584,10 +587,7 @@ function checkSkillCopies(diffs: string[]): void {
       diffs.push(`ontbreekt: public/${rel} (elke map onder public/skills/ is een agent-skill met een SKILL.md)`);
       continue;
     }
-    const frontName = /^---\r?\n(?:[^\n]*\n)*?name:\s*(\S+)\s*\r?\n/.exec(readFileSync(source, 'utf8'))?.[1];
-    if (frontName !== name) {
-      diffs.push(`public/${rel}: frontmatter-name is ${JSON.stringify(frontName ?? null)}, verwacht "${name}" (de mapnaam)`);
-    }
+    diffs.push(...checkSkillFrontmatter(readFileSync(source, 'utf8'), name, `public/${rel}`));
     if (!existsSync(copy)) {
       diffs.push(`ontbreekt: .claude/${rel} — kopieer hem uit public/${rel} (Claude Code leest skills alleen daar)`);
       continue;
@@ -600,6 +600,13 @@ function checkSkillCopies(diffs: string[]): void {
       );
     }
   }
+  const claudeSkillsDir = join(ROOT, '.claude', 'skills');
+  const claudeDirs = existsSync(claudeSkillsDir)
+    ? readdirSync(claudeSkillsDir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)
+    : [];
+  const gitignorePath = join(ROOT, '.gitignore');
+  const shared = existsSync(gitignorePath) ? sharedClaudeSkills(readFileSync(gitignorePath, 'utf8')) : [];
+  diffs.push(...checkSkillSets({ publicSkills: names, claudeDirs, shared }));
 }
 
 /**

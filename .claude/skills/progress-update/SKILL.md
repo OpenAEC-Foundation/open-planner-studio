@@ -47,8 +47,10 @@ Ask for, and do not invent:
 - milestones that were reached, with their date.
 
 Also ask about every task that should have started by the reporting date but has no report. Find them
-in `planner_compare_baseline` (`baselineStart` before the reporting date) or with `planner_list_tasks`
-`status: "NOT_STARTED"`.
+before you set the status date, with `planner_list_tasks` `status: "NOT_STARTED"` and `tot` (to) set to
+the reporting date. Do it in this order: once the status date is set, unstarted work is pushed forward
+to it, and before it is set `planner_compare_baseline` shows no deviation for work that simply has not
+started yet.
 
 ## 3. Status date and progress, in one batch
 
@@ -67,10 +69,12 @@ The rules the tool applies (all checked against the code):
 - A finished task: `completion: 100` with both `actualStart` and `actualFinish`. Without
   `actualFinish`, a 100% task gets the status date as its actual finish. `actualFinish` alone also
   makes the task 100% complete, but then sets the actual start to that same day.
-- A running task: `completion` with `actualStart`. Without `actualStart` the tool takes the planned
-  start, and once the status date is set, unstarted work has already been pushed forward to that date.
-  So a derived actual start can land on the status date instead of the real day. Always pass the
-  actual dates you were given.
+- A running task: `completion` with `actualStart`. Without `actualStart` the tool derives the actual
+  start from the planned start, and which planned start depends on the route. Inside this batch
+  nothing is recalculated between the two steps, so it is the planned start from before the status
+  date. In separate calls the status date has already pushed unstarted work forward to it, so the
+  derived start lands on the status date. Either way it is a guess, not the user's date: always pass
+  the actual dates you were given.
 - A task whose planned start lies after the status date and has no actual start is refused unless you
   pass `actualStart`.
 - Actual dates may not lie after the status date, and `actualFinish` may not lie before `actualStart`.
@@ -145,8 +149,11 @@ on Friday 11 June: Groundwork ran 7 to 9 June, Pour foundation started on 10 Jun
   gives `progressAdjusted` with 25% and 3 days remaining. Project end becomes Friday 25 June;
   `planner_analyze_delay` reports `projectEndDelta` 2, with Pour foundation, Brickwork and Roofing as
   critical shifters, each 2 days late. The delay is 2 working days, not 6.
-- The trap: had you sent only `completion: 100` for Groundwork after setting the status date, without
-  actual dates, its actual start and finish would both land on 11 June, and the project end would show
-  2 days of delay that never happened. Setting the status date alone, without any progress, already
-  moves the project end of this schedule from 23 to 29 June, because all unstarted work is pushed to
-  11 June.
+- The trap: had you sent only `completion: 100` for Groundwork and `completion: 50` for Pour
+  foundation in that batch, without actual dates, Groundwork would get the status date (11 June) as
+  its actual finish instead of 9 June, and the project end would show 1 day of delay that never
+  happened (Thursday 24 June). In separate calls it is worse: Groundwork's actual start and finish
+  both land on 11 June, Pour foundation is refused (its planned start has moved past the status
+  date), and the end shows 2 days of delay. Setting the status date alone, without any progress,
+  already moves the project end of this schedule from 23 to 29 June, because all unstarted work is
+  pushed to 11 June.

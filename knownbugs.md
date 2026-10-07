@@ -41,17 +41,19 @@ en noem het in je rapport of PR-tekst.
     kloktijd): na Bereken vroege start en einde `2027-06-18T16:00`, vóór de werkelijke start, met speling 1.
     Dagtaken volgen hun actuals wel. — S
 58. **Voortgangsrapport:** voltooide taken krijgen "Near-critical" en in de tabel totale speling 1d. Bedoeld? — S
-81. **Voortgang zonder werkelijke datums legt start én einde op de statusdatum.** Een taak die vóór de
-    statusdatum gepland stond maar nog op 0% stond, is door de statusdatum al naar die datum geschoven. Krijgt
-    hij daarna `completion: 100` zonder datums, dan wordt de werkelijke start de verschoven `earlyStart` en het
-    werkelijke einde de statusdatum (`defaultActualStart`/`defaultActualFinish`, `taskMutationRules.ts:29-46`);
-    alleen `actualFinish` opgeven zet de werkelijke start op dezelfde dag (`applyProgressInvariants`).
-    Nagespeeld via de echte MCP-dispatcher: Grondwerk gepland 7–9 juni 2027, statusdatum vrijdag 11 juni,
-    `completion: 100` ⇒ werkelijk 11–11 juni en +2 werkdagen projecteinde t.o.v. de baseline, terwijl er niets
-    is uitgelopen. De skill `progress-update` laat een agent daarom altijd beide datums meegeven. Dat het
-    grid en de panelen hetzelfde doen, is afgeleid (gedeelde regel), niet nagespeeld. Voorstel: bij het
-    afleiden de geplande start van vóór de statusdatumvloer nemen, of net als bij een start ná de statusdatum
-    om de datum vragen. — B (MCP), S (UI)
+81. **Voortgang zonder werkelijke datums legt een verkeerde werkelijke start of een verkeerd einde vast.** Bij
+    `completion: 100` zonder `actualFinish` wordt het werkelijke einde de statusdatum (`defaultActualFinish`,
+    `taskMutationRules.ts:29-34`); zonder `actualStart` wordt de werkelijke start de geplande start
+    (`defaultActualStart`, r.44-46); alleen `actualFinish` opgeven zet de start op dezelfde dag
+    (`applyProgressInvariants`). Welke geplande start dat is, hangt af van de route (zie 85): in losse calls
+    heeft de statusdatum niet-gestart werk al naar die datum geschoven, binnen één `planner_batch` niet.
+    Nagespeeld via de echte MCP-dispatcher op Grondwerk (3 wd, gepland 7–9 juni 2027), Fundering storten (2),
+    Metselwerk (5), Dak (3), statusdatum vrijdag 11 juni, baseline-einde 23 juni: losse calls met alleen
+    `completion: 100` ⇒ Grondwerk werkelijk 11–11 juni, +2 werkdagen; in één batch ⇒ werkelijk 7–11 juni.
+    De skill `progress-update` laat een agent daarom altijd beide datums meegeven. Dat het grid en de panelen
+    hetzelfde doen, is afgeleid (gedeelde regel), niet nagespeeld. **Besluit eigenaar (2026-10-07, nog niet
+    gebouwd):** de afgeleide werkelijke start moet het oorspronkelijk geplande begin van vóór de
+    statusdatumverschuiving zijn. — B (MCP), S (UI)
 
 ## Tabel, invoer en bediening
 
@@ -151,6 +153,38 @@ en noem het in je rapport of PR-tekst.
 84. **`planner_get_project_overview` beschrijft `dur` als werkdagen**, maar de rij geeft de duur in de eigen
     eenheid van de taak met `durUnit` ernaast (`readTools.ts:~315`, `nativeDuration`); bij een urentaak zijn
     het dus uren. Alleen in de code gezien. — S
+85. **Dezelfde voortgang geeft in één `planner_batch` een ander resultaat dan in losse calls.** Binnen een
+    batch rekent `recomputeMidBatch` alleen vóór een lees- of levelstap (`batchTool.ts:~320`), dus tussen
+    `planner_update_project` (statusdatum) en `planner_update_tasks` niet: de voortgang ziet de geplande
+    datums van vóór de statusdatum. Nagespeeld via de echte dispatcher (netwerk en datums als bij 81, alleen
+    percentages, geen datums): batch ⇒ Grondwerk werkelijk 7–11 juni, Fundering storten (50%) gestart op 10
+    juni, projecteinde donderdag 24 juni (+1); losse calls ⇒ Grondwerk werkelijk 11–11 juni, Fundering
+    storten geweigerd (geplande start na de statusdatum), projecteinde vrijdag 25 juni (+2). Met expliciete
+    werkelijke datums zijn beide routes gelijk (23 juni, +0). Voorstel: na een statusdatumwijziging binnen
+    een batch tussentijds herrekenen, of 81 oplossen zodat de afleiding niet van de route afhangt. — B
+86. **`planner_list_tasks` met `zonder_relaties: true` meldt bladtaken die via hun fase in het netwerk zitten.**
+    Het filter telt alleen relaties op de taak zelf (`readTools.ts:~392`), terwijl de solver een relatie op
+    een samenvattingstaak doorgeeft aan haar bladtaken. Nagespeeld: Other —SS→ Fase X —FS→ Last, met
+    bladtaak LeafA onder Fase X ⇒ het filter geeft `LeafA`, terwijl LeafA kritiek is en aan het netwerk
+    hangt. De agentgids en `goed-plannen` waarschuwen er nu voor. Voorstel: relaties van voorouders
+    meetellen, of het veld uitbreiden met "via fase". — B
+87. **De beschrijving van `planner_update_calendar` zegt dat een ongebruikte kalender opslaan niet
+    overleeft**, maar dat is sinds de A2-fix niet meer waar: `ifcReader.ts:~2801-2816` leest elke overige
+    IFCWORKCALENDAR terug, en `tests/mcp/cases-uurkalender.ts:~615-624` pint dat vast. Gevonden doordat de
+    eerste versie van de agentgids de zin overnam. Voorstel: de zin uit de beschrijving
+    (`calendarResourceTools.ts:~1042`) halen; alleen het behoud van urenbanden van een ongebruikte
+    urenkalender is apart te toetsen. — B
+88. **Feestdagen gegenereerd vóór de taken dekken een lang project niet.** Zonder rekenresultaat geeft
+    `calendarSpan` geen projecteinde door en neemt `computeGenerateSpan` startjaar−1 t/m startjaar+3
+    (`calendarResourceTools.ts:~585`, `generateCalendarHolidays.ts:~62`). Nagespeeld: start 7 juni 2027,
+    `generate` NL ⇒ 2026–2030; daarna een taak van 1500 werkdagen ⇒ einde 2033, nog steeds geen feestdagen
+    na 2030; `generate` opnieuw ⇒ 2026–2034. De agentgids zegt nu dat je opnieuw genereert als het einde
+    voorbij `generatedToYear` ligt. Voorstel: bij een herberekening waarvan het einde de spanne verlaat
+    melden of bijgenereren. — B
+89. **De publieke agentgids-URL is niet versiegebonden** (ontwerppunt). `/agent/planning-guide.md` op de
+    website volgt de laatste deploy, terwijl een desktopversie zijn eigen kopie meelevert; een oudere app kan
+    dus naar een gids wijzen die tools beschrijft die hij niet heeft. De gids zegt nu dat de kopie van de tool
+    voorgaat. Voorstel: een versiepad (bv. `/agent/<versie>/planning-guide.md`) of de versie in de gids. — S
 
 ## Bestanden en herstel
 

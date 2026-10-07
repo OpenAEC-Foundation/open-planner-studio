@@ -76,6 +76,12 @@ export interface SkillInstallInfo {
   url: string;
 }
 
+export interface MissingAsset {
+  path: string;
+  url: string;
+  reason: string;
+}
+
 export interface PlanningGuidePayload {
   /** Taal van de inhoud: altijd `en`. */
   language: 'en';
@@ -86,8 +92,11 @@ export interface PlanningGuidePayload {
   guide?: string;
   /** Beide skills, met hun tekst (alleen bij part skill/both). */
   skills?: { name: AgentSkillName; text: string }[];
-  /** De tekst van `goed-plannen` — hetzelfde als `skills[0].text`; blijft voor oudere clients. */
+  /** De tekst van `goed-plannen` — hetzelfde als zijn `skills`-tekst; blijft voor oudere clients. */
   skill?: string;
+  /** Alleen gezet wanneer een deel niet laadde: welk bestand, waarom, en waar het publiek staat. De
+   *  rest komt gewoon mee — één ontbrekende skill blokkeert de gids niet. */
+  missing?: MissingAsset[];
   /** Waar de agent de skills neerzet + waar hij alles rechtstreeks kan downloaden. */
   install: {
     guideUrl: string;
@@ -138,32 +147,40 @@ function assetBase(): string {
 }
 
 /**
- * Haal gids en/of skills op. `fetchImpl` is injecteerbaar zodat de poort headless testbaar is —
- * dezelfde naad als `fetchTextAsset` zelf. Gooit bij het eerste bestand dat niet laadt, met het
- * pad erbij (de handler maakt er een nette NOT_FOUND van).
+ * Haal gids en/of skills op, elk bestand APART: een ontbrekend bestand komt in `missing` (met de
+ * publieke URL als alternatief) en houdt de andere niet tegen. `fetchImpl` is injecteerbaar zodat de
+ * poort headless testbaar is — dezelfde naad als `fetchTextAsset` zelf.
  */
 export async function loadPlanningGuide(
   part: GuidePart,
   fetchImpl?: TextAssetFetch,
-): Promise<Pick<PlanningGuidePayload, 'guide' | 'skills' | 'skill'>> {
+): Promise<Pick<PlanningGuidePayload, 'guide' | 'skills' | 'skill' | 'missing'>> {
   const base = assetBase();
-  const load = async (path: string): Promise<string> => {
+  const missing: MissingAsset[] = [];
+  const load = async (path: string): Promise<string | undefined> => {
     try {
       return await fetchTextAsset(`${base}${path}`, fetchImpl);
     } catch (e) {
-      throw new Error(`${path}: ${e instanceof Error ? e.message : String(e)}`);
+      missing.push({ path, url: `${GUIDE_PUBLIC_BASE}/${path}`, reason: e instanceof Error ? e.message : String(e) });
+      return undefined;
     }
   };
-  const out: Pick<PlanningGuidePayload, 'guide' | 'skills' | 'skill'> = {};
+  const out: Pick<PlanningGuidePayload, 'guide' | 'skills' | 'skill' | 'missing'> = {};
   if (part === 'guide' || part === 'both') {
-    out.guide = await load(AGENT_GUIDE_PATH);
+    const guide = await load(AGENT_GUIDE_PATH);
+    if (guide !== undefined) out.guide = guide;
   }
   if (part === 'skill' || part === 'both') {
     const skills: { name: AgentSkillName; text: string }[] = [];
-    for (const s of AGENT_SKILLS) skills.push({ name: s.name, text: await load(skillAssetPath(s.name)) });
+    for (const s of AGENT_SKILLS) {
+      const text = await load(skillAssetPath(s.name));
+      if (text !== undefined) skills.push({ name: s.name, text });
+    }
     out.skills = skills;
-    out.skill = skills[0].text;
+    const first = skills.find((s) => s.name === AGENT_SKILLS[0].name);
+    if (first) out.skill = first.text;
   }
+  if (missing.length > 0) out.missing = missing;
   return out;
 }
 
@@ -176,7 +193,7 @@ export const guideTools: McpToolDef[] = [
       'through the tools. The skills are `goed-plannen` (building or restructuring a schedule) and ' +
       '`progress-update` (recording a weekly progress update). Read the guide BEFORE building or restructuring ' +
       'a schedule. Also returns where to install each skill so it is available in later sessions, and the ' +
-      'public download URLs. All content is English; `language` is still accepted for compatibility but does ' +
+      'public download URLs. A part that could not be loaded is listed under `missing` with its public URL. All content is English; `language` is still accepted for compatibility but does ' +
       'not change the content. Read-only; touches no project data.',
     kind: 'read',
     batchable: false,
@@ -201,24 +218,24 @@ export const guideTools: McpToolDef[] = [
       const a = (args ?? {}) as { language?: GuideLanguage; part?: GuidePart };
       const part = a.part ?? 'both';
       const install = installInfo();
-      try {
-        const texts = await loadPlanningGuide(part);
-        const data: PlanningGuidePayload = { language: 'en', part, ...texts, install };
-        if (a.language !== undefined && a.language !== 'en') {
-          data.languageNote = 'The guide and the skills are English only; the `language` parameter is accepted for compatibility and does not change the content.';
-        }
-        return { ok: true, envelope: buildEnvelope(ctx), data };
-      } catch (e) {
-        // Een ontbrekende/onbereikbare asset is geen interne crash maar een nette melding, mét het
-        // alternatief: de agent kan de teksten altijd nog van de publieke URL's halen.
+      const texts = await loadPlanningGuide(part);
+      // Niets geladen ⇒ een nette NOT_FOUND mét de publieke URL's als alternatief. Een deel geladen ⇒
+      // gewoon `ok`, met `missing` voor wat ontbrak.
+      if (texts.guide === undefined && (texts.skills?.length ?? 0) === 0) {
+        const reasons = (texts.missing ?? []).map((m) => `${m.path}: ${m.reason}`).join('; ');
         return toolError(
           ctx,
           'NOT_FOUND',
-          `The planning guide could not be read from the app assets (${e instanceof Error ? e.message : String(e)}). ` +
+          `The planning guide could not be read from the app assets (${reasons}). ` +
             `Download it instead from ${install.guideUrl}; the skills: ` +
             install.skills.map((s) => `${s.name} ${s.url}`).join(', ') + '.',
         );
       }
+      const data: PlanningGuidePayload = { language: 'en', part, ...texts, install };
+      if (a.language !== undefined && a.language !== 'en') {
+        data.languageNote = 'The guide and the skills are English only; the `language` parameter is accepted for compatibility and does not change the content.';
+      }
+      return { ok: true, envelope: buildEnvelope(ctx), data };
     },
   },
 ];

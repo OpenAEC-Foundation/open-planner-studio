@@ -2,7 +2,7 @@
 
 This guide is for an AI agent that builds or maintains a schedule in Open Planner Studio through the `planner_*` MCP tools. It follows the same principles as the Help article for people, *Planning well* (https://open-planner-studio.open-aec.com/docs/en/gids-goed-plannen.md), but for each principle it names the tools that apply it and what the app does when you call them. A person presses a key to recalculate and clicks through menus; you call tools, and the app recalculates for you.
 
-Where this guide and a tool description disagree, the tool description wins: read it in `tools/list`, it comes straight from the code. Never guess a tool name or a parameter.
+Where this guide and a tool description disagree, the tool description wins: read it in `tools/list`, it comes straight from the code. Never guess a tool name or a parameter. The copy of this guide that `planner_get_planning_guide` returns belongs to the app version you are connected to; if it differs from the public URL, the copy from the tool wins.
 
 Two skills go with this guide. `planner_get_planning_guide` returns this guide and both skills, with the paths where a skill belongs:
 
@@ -87,7 +87,7 @@ Finish-to-start is the default; in a healthy construction schedule about nine ou
 - A lag in calendar days cannot be set through the tools. For concrete curing, add a visible curing task with `durationType: "ELAPSEDTIME"` instead of a lag.
 - Change a relationship with `planner_update_dependencies` and its `seqId` (in `planner_get_project_overview`, after the `#` in `rels`), not by removing and adding it again.
 - A summary task as predecessor or successor is allowed; the relationship applies to its leaf tasks. A circular dependency is a hard error (`CYCLE`) that rolls back the whole call.
-- Find tasks without any relationship with `planner_list_tasks` `zonder_relaties: true` (leaf tasks only). A task that has a predecessor but no successor does not show there: in `planner_get_project_overview` every row lists its outgoing relationships under `rels`, so a leaf task without `rels` (other than the final milestone, and unless its summary task carries the relationship) is missing a successor.
+- Find tasks without any relationship with `planner_list_tasks` `zonder_relaties: true` (leaf tasks only). That filter only counts relationships on the task itself: a leaf task whose summary task carries the relationship is listed too, although it is tied into the network. Check such a row against the `rels` of its parent in `planner_get_project_overview` before you add anything. A task that has a predecessor but no successor does not show there: in `planner_get_project_overview` every row lists its outgoing relationships under `rels`, so a leaf task without `rels` (other than the final milestone, and unless its summary task carries the relationship) is missing a successor.
 
 ### Constraints and fixed dates: as few as possible
 
@@ -107,14 +107,14 @@ All durations count in working days or working hours of a calendar, so set up th
 - Generate holidays with `planner_update_calendar` `generate` (`country`, optional `region`, and for NL `bouwvak`: `geen`, `noord`, `midden` or `zuid`). The generator fills the days over the project span and replaces the existing holiday list.
 - `rawHolidays` adds literal days (frost period, company shutdown) to the existing ones. It turns the calendar literal: it can no longer be regenerated (`becameLiteral: true`). `holidaysMode: "replace"` makes the list exactly what you send.
 - Give a resource its own calendar only if it really differs, such as a facade builder who comes four days a week (`planner_manage_resources` `calendarId`). A resource calendar moves no task date; it only shows as overallocation in the histogram on a task working day the resource does not work.
-- A new calendar that no task and no resource uses does not survive saving: attach tasks to it right away (`planner_update_tasks` `fields.calendarId`).
+- Generated holidays cover a fixed span of years (`generation.generatedFromYear` to `generatedToYear` in `planner_get_calendars`). Generated before there are tasks, that span runs from the year before the project start to three years after it. If the project end lies beyond `generatedToYear` once the tasks are in, run the same `generate` again: it then covers the span up to the project end.
 
 ### Resources: who does it, and is that possible
 
 A schedule without resources answers only half the question. Once crews and equipment are assigned, the load shows what a timeline cannot: that on one day you need three plastering crews while you have two. Start with the resources that pinch: the tower crane, your own crews, subcontractors with a capacity ceiling, long lead times. Give each resource an honest capacity.
 
 - Create resources with `planner_manage_resources` (`action: "create"`, `name`, `type`, `maxUnits` = capacity per working day, where 1 is one person or one piece).
-- Assign with `planner_manage_assignments` (`action: "add"`, `taskId`, `resourceId`, `unitsPerDay`). Only on a leaf task (not a milestone or summary task), and one resource only once per task.
+- Assign with `planner_manage_assignments` (`action: "add"`, `taskId`, `resourceId`, `unitsPerDay`). Only on a leaf task (not a milestone or summary task), and one resource only once per task. Under the work rule `FIXED_WORK` or `FIXED_RATE` (the task's `workRule`, or the project's `defaultWorkRule`), adding or removing a resource or changing `unitsPerDay` changes the task duration; under the default `FIXED_DURATION_RATE` it does not.
 - Read the load with `planner_get_resource_histogram`. Without arguments you get a summary per resource (`peakLoad`, `overallocatedDayCount`); with `resourceIds` and/or `van` and `tot` (from and to) the detail with the assignments that cause each peak. `bucket` takes the Dutch values `dag`, `week` or `maand`.
 - Level only when the user asks for it, and only once logic and durations are in place. Run `planner_level_resources` with `dryRun: true` first and show the result. The default `constrainToFloat: true` keeps the project end fixed and reports what stays unresolved (`unresolved`, `unresolvedReasons`); `constrainToFloat: false` lets the end move (`projectEndDelta`). `planner_clear_leveling` undoes leveling.
 - Do not level against a structural shortage. Leveling rearranges work in time; it does not hire extra plasterers. Report the shortage: phasing, extra capacity or different work is the user's decision.
@@ -151,7 +151,7 @@ A small network from Monday 7 June 2027 on the default construction calendar (Mo
 
 Check, with the tools, the mistakes that make a schedule lie quietly:
 
-- No task without relationships: `planner_list_tasks` with `zonder_relaties: true` returns nothing, and every leaf task except the final milestone has a successor (`rels` in `planner_get_project_overview`).
+- No task without relationships: every row that `planner_list_tasks` with `zonder_relaties: true` returns is either fixed or tied in through a relationship on its summary task, and every leaf task except the final milestone has a successor, on itself or on its summary task (`rels` in `planner_get_project_overview`).
 - No constraint without an external date the user gave you, and no hard pin the user did not ask for.
 - Task lengths between roughly a day and two weeks, with any exception named.
 - No negative lags, and no unnamed lags where a visible task belongs.
