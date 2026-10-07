@@ -1,5 +1,6 @@
 import { produce } from 'immer';
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
+import { resourceLoadInputsUnchanged } from './resourceLoadReuse';
 import { deriveViewRows } from './slices/viewSlice';
 import { buildTaskRelationIndex, type TaskRelationIndex } from '@/engine/taskGrid/relationIndex';
 import { buildTaskColumnRegistry, canonicalGridJson, readOnlyValidationCode } from '@/engine/taskGrid/taskColumnRegistry';
@@ -1028,7 +1029,11 @@ export function prepareGridMutation(
   let resourceLoadResult: ResourceLoadResult | null;
   try {
     viewRows = deriveViewRows(isolated);
-    resourceLoadResult = computeReliableResourceLoad(
+    // Een bewerking die de belasting niet raakt (naam, notities, codes, …) hergebruikt het vorige
+    // resultaat — zie `resourceLoadReuse.ts`. Zonder vorig resultaat wordt er gewoon gerekend.
+    resourceLoadResult = state.resourceLoadResult !== null && resourceLoadInputsUnchanged(state, isolated)
+      ? state.resourceLoadResult
+      : computeReliableResourceLoad(
       after.cpmResult,
       isolated.resources,
       isolated.assignments,
