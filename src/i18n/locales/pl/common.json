@@ -1529,6 +1529,8 @@
     "doneNext": "Gotowe, dalej",
     "finish": "Zakończ",
     "close": "Zamknij przewodnik",
+    "collapse": "Zwiń przewodnik",
+    "expand": "Rozwiń przewodnik",
     "stepDone": "Zrobione",
     "waiting": "Wykonaj zadanie w aplikacji; potem możesz przejść dalej."
   },

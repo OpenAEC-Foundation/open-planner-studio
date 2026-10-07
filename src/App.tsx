@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useSyncExternalStore } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { setNoneLabelValue, setResourceTypeLabelsValue } from '@/utils/noneLabel';
 import { useResolvedUITheme, useSystemColorSchemeSync } from '@/hooks/useResolvedUITheme';
@@ -131,6 +131,11 @@ function AppContent() {
   // Recovery-restore bij opstarten (Tauri én web): detectie + RecoveryDialog-callbacks; levert ook
   // de auto-save-poort (`autoSaveEnabled`) en het reactieve "flow afgehandeld"-signaal.
   const { recovery, recoveryResolved, autoSaveEnabled } = useRecoveryRestore();
+  // De ?-knop van het herstelvenster verbergt het venster alleen zolang Backstage → Help openstaat;
+  // daarbuiten (terug, andere Backstage-sectie) staat het er weer. Er wordt niets gekozen: het
+  // herstel blijft openstaan en de auto-save blijft uit tot de gebruiker herstelt, weggooit of uitstelt.
+  const [recoveryInHelp, setRecoveryInHelp] = useState(false);
+  const helpOpen = useAppStore(s => s.ui.activeRibbonTab === 'file' && s.ui.backstageSection === 'help');
 
   // Settings-bootstrap: hydrateert ~20 instellingen + extensies bij mount, en toont de
   // welkomstdialoog zodra de recovery-flow is afgehandeld.
@@ -409,12 +414,13 @@ function AppContent() {
             "Taak bewerken". */}
         <ActualStartDialog />
         <LibraryLinkDialog />
-        {recovery && (
+        {recovery && !(recoveryInHelp && helpOpen) && (
           <RecoveryDialog
             entries={recovery.entries}
             onRestore={recovery.onRestore}
             onDiscard={recovery.onDiscard}
             onClose={recovery.onClose}
+            onHelp={() => setRecoveryInHelp(true)}
           />
         )}
         {/* Pas na de hele eerste-startervaring (`isOnboardingActive`): niet in het venster waarin de

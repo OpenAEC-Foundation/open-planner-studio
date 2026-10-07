@@ -124,7 +124,7 @@ The block *Summary* shows *Status date*, *Period*, *Look ahead until*, *Baseline
 
 ## Schedule health
 
-A check of the schedule itself for errors and unusual values, in the spirit of the DCMA 14-point check. Options under *Report options*.
+A check of the schedule itself for errors and unusual values, with the DCMA 14-point assessment at the top. Options under *Report options*.
 
 **High float > (wd):** — Number from 1 to 365. Default: 44. Effect: an uncompleted task with more total float than this falls under *High float*.
 
@@ -134,7 +134,28 @@ A check of the schedule itself for errors and unusual values, in the spirit of t
 
 **Near-critical ≤ (wd):** — Number from 0 to 60. Default: 5. Effect: determines the check *Near-critical*.
 
-The checks are in this order, with their severity. Error: *Negative float*, *Missed deadline*, *Violated constraint* and *Inconsistent progress* (actual start or finish after the status date, 100% without an actual finish, actual finish but not 100%, progress without an actual start). Warning: *No predecessor (open start)* and *No successor (open end)* (not milestones), *Long duration*, *Lead (negative lag)*, *Hard constraint* (a mandatory constraint or an MSO, MFO, SNLT or FNLT) and *Out-of-sequence progress*. Info: *Near-critical*, *High float* and *Long lag*. The report looks at leaf tasks that are not hammocks only. The block *Summary* counts *Errors*, *Warnings*, *Information*, *Leaf tasks* and *Relations*; below it are a section *Overview* (per check the severity and the count) and a section *Findings* (every task or relation). Without a calculation, the checks that need float are missing.
+The section *DCMA 14-point assessment* comes first. It follows the fourteen checks of the US Defense Contract Management Agency, with the formulas and thresholds from their *EVMS Program Analysis Pamphlet* (DCMA-EA PAM 200.1, October 2012). Per point you see *Count*, *Of* (the total that was counted over), *Value*, *Threshold*, *Result* and *Detail*. The result is *Pass*, *Flag* or *n/a*; for n/a the reason is in the detail. A flag is not a failure: the pamphlet calls it a reason to look further. The thresholds under *Report options* do not apply to this section; it always uses the thresholds from the pamphlet.
+
+It counts incomplete leaf tasks, without milestones and hammocks, and the relationships into such tasks. The note above the report gives both numbers. The fourteen points:
+
+- *Logic*: tasks without a predecessor or successor. Threshold: at most 5%.
+- *Leads*: relationships with a negative lag. Threshold: none.
+- *Lags*: relationships with a positive lag, however short. Threshold: at most 5%.
+- *Relationship types*: the share of FS relationships. Threshold: at least 90%.
+- *Hard constraints*: tasks with a mandatory constraint or an MSO, MFO, SNLT or FNLT. Threshold: at most 5%.
+- *High float*: tasks with more than 44 working days of total float. Threshold: at most 5%. Needs a calculation.
+- *Negative float*: tasks with a total float below 0. Threshold: none. Needs a calculation.
+- *High duration*: tasks longer than 44 working days. Counts the baseline duration if the task is in the active baseline, otherwise the current duration. Threshold: at most 5%.
+- *Invalid dates*: an actual start or actual finish after the status date, or a forecast start or forecast finish before the status date. Threshold: none. Needs a status date.
+- *Resources*: tasks without a resource. Threshold: none. Only if the project uses resources; otherwise n/a.
+- *Missed tasks*: of the tasks the baseline says should be finished on or before the status date, the share that finishes later or is forecast later. Threshold: at most 5%. Needs a status date and an active baseline.
+- *Critical path test*: the app extends a critical task by 100 working days and recalculates, on a copy, without changing the project. The test passes if the last task of the project then does not finish before that task. It tests the critical, incomplete task with the earliest start; the detail names the task and how many working days the finish moved.
+- *CPLI*: (critical path length + float) / critical path length. The length counts the working days from the status date to the finish of the last task; the float is the difference with the baseline finish of that task, or the calculated float if the task is not in the baseline. Threshold: at least 0.95. Needs a status date.
+- *BEI*: the number of tasks complete on the status date, divided by the number the baseline says should be complete by then plus the tasks without a baseline. Threshold: at least 0.95. Needs a status date and an active baseline.
+
+Two points differ from the pamphlet because the app does not have the concept: *High duration* counts every incomplete task, as the pamphlet limits it to the detail planning period (rolling wave), and *Resources* looks at assigned resources only, not at costs. The pamphlet gives no number for the critical path test; the 100 working days are the app's choice.
+
+The checks are in this order, with their severity. Error: *Negative float*, *Missed deadline*, *Violated constraint* and *Inconsistent progress* (actual start or finish after the status date, forecast start or forecast finish before the status date, 100% without an actual finish, actual finish but not 100%, progress without an actual start). Warning: *No predecessor (open start)* and *No successor (open end)* (not milestones), *Long duration*, *Lead (negative lag)*, *Hard constraint* (a mandatory constraint or an MSO, MFO, SNLT or FNLT), *Out-of-sequence progress* and *Missed task (against baseline)*. Info: *Near-critical*, *High float*, *Long lag*, *Relationship other than FS* and *Without resource* (only if the project uses resources). The report looks at leaf tasks that are not hammocks only. The block *Summary* counts *DCMA flags*, *Errors*, *Warnings*, *Information*, *Leaf tasks* and *Relations*; below the DCMA section are a section *Overview* (per check the severity and the count) and a section *Findings* (every task or relation). Without a calculation, the checks that need float are missing.
 
 ## Resource loading
 

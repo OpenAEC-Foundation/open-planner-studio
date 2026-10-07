@@ -1479,6 +1479,8 @@
     "doneNext": "Feito, seguinte",
     "finish": "Concluir",
     "close": "Fechar o guia",
+    "collapse": "Recolher o guia",
+    "expand": "Expandir o guia",
     "stepDone": "Feito",
     "waiting": "Execute a tarefa na aplicação; depois pode continuar."
   },

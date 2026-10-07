@@ -41,6 +41,19 @@ en noem het in je rapport of PR-tekst.
     kloktijd): na Bereken vroege start en einde `2027-06-18T16:00`, vóór de werkelijke start, met speling 1.
     Dagtaken volgen hun actuals wel. — S
 58. **Voortgangsrapport:** voltooide taken krijgen "Near-critical" en in de tabel totale speling 1d. Bedoeld? — S
+81. **Voortgang zonder werkelijke datums legt een verkeerde werkelijke start of een verkeerd einde vast.** Bij
+    `completion: 100` zonder `actualFinish` wordt het werkelijke einde de statusdatum (`defaultActualFinish`,
+    `taskMutationRules.ts:29-34`); zonder `actualStart` wordt de werkelijke start de geplande start
+    (`defaultActualStart`, r.44-46); alleen `actualFinish` opgeven zet de start op dezelfde dag
+    (`applyProgressInvariants`). Welke geplande start dat is, hangt af van de route (zie 85): in losse calls
+    heeft de statusdatum niet-gestart werk al naar die datum geschoven, binnen één `planner_batch` niet.
+    Nagespeeld via de echte MCP-dispatcher op Grondwerk (3 wd, gepland 7–9 juni 2027), Fundering storten (2),
+    Metselwerk (5), Dak (3), statusdatum vrijdag 11 juni, baseline-einde 23 juni: losse calls met alleen
+    `completion: 100` ⇒ Grondwerk werkelijk 11–11 juni, +2 werkdagen; in één batch ⇒ werkelijk 7–11 juni.
+    De skill `progress-update` laat een agent daarom altijd beide datums meegeven. Dat het grid en de panelen
+    hetzelfde doen, is afgeleid (gedeelde regel), niet nagespeeld. **Besluit eigenaar (2026-10-07, nog niet
+    gebouwd):** de afgeleide werkelijke start moet het oorspronkelijk geplande begin van vóór de
+    statusdatumverschuiving zijn. — B (MCP), S (UI)
 
 ## Tabel, invoer en bediening
 
@@ -58,6 +71,13 @@ en noem het in je rapport of PR-tekst.
 60. **Duur-kolom afgeknipt** in de standaard Gantt-weergave (WBS 60 + Taaknaam 240 + Duur 60 + de
     "+"-kolom): je leest "2c" in plaats van "2d", op 1600 én 1366 px breed. — B
 63. **"Werkelijke einde"** (kolomnaam, `task.json:55`) tegenover "Werkelijk einde" elders (`common.json`). — S
+90. **Een klik in een getalveld selecteert de waarde niet: typen voegt toe.** Duur in Eigenschappen: na één klik
+    staat de cursor achter de 5 (selectie 1–1), dus `2` wordt 52 dagen en bij een urentaak `6h` na de 1 wordt
+    16h; Max. eenheden in de nieuwe rij van het resourcepaneel: `2` wordt 21. Een dubbelklik selecteert de
+    waarde wel. Gemeten met de stapscripts van de tutorials (`tests/browser/tutorials/`) en losse
+    Playwright-proeven; de tutorials zeggen daarom nu "dubbelklik". Voorstel: de inhoud selecteren bij focus,
+    zoals de tabelcel waarin typen al vervangt. Eenh./dag (Toewijzen ▾ en het blok Toewijzingen) niet apart
+    gemeten. — B
 
 ## Kalenders
 
@@ -108,10 +128,10 @@ en noem het in je rapport of PR-tekst.
     als detail. — B
 76. **Nog Nederlandse tekst die via MCP bij de agent kan komen, buiten de vertaalde MCP-laag.** De
     solverfouten uit `scheduleErrorLegacyText` (`CPMSolver.ts:~339`, bv. "Kalender heeft geen werkdagen
-    ingesteld"; MCP én extensies lezen die letterlijk), de fout van `planner_get_planning_guide` als de gids
-    niet laadt (`guideTools.ts:~141`), en meldingen uit gedeelde importcode die `import_schedule` doorgeeft
-    (bv. `formatRegistry.ts:~99` "Onbekend XML-formaat…", `xerSourceArchive.ts`, `libraryOps.ts`). Of elk
-    importpad werkelijk bij de agent uitkomt is afgeleid, niet nagespeeld. — S (solver en gids: B)
+    ingesteld"; MCP én extensies lezen die letterlijk), en meldingen uit gedeelde importcode die
+    `import_schedule` doorgeeft (bv. `formatRegistry.ts:~99` "Onbekend XML-formaat…", `xerSourceArchive.ts`,
+    `libraryOps.ts`). Of elk importpad werkelijk bij de agent uitkomt is afgeleid, niet nagespeeld. (De fout
+    van `planner_get_planning_guide` is sinds de Engelse agentgids Engels.) — S (solver: B)
 77. **`planner_batch` met alleen een `planner_level_resources`-stap op een verouderde planning laat een undo-stap
     achter, ook als er niets genivelleerd wordt.** De levelkern roept `ensureFreshSchedule` BINNEN de
     batch-transactie aan (`calendarResourceTools.ts:~1665`); de transactie meet die herrekening als datawijziging
@@ -126,6 +146,52 @@ en noem het in je rapport of PR-tekst.
     er komt geen undo-stap, maar `shifts` meldt taak 1.2 `oldStart 2026-03-16 → newStart 2026-03-09` (het
     verschil tussen opgeslagen en herberekend). Een agent leest dat als effect van de nivellering. Dat `dryRun`
     hetzelfde meldt, is afgeleid (zelfde preview), niet nagespeeld. — B
+82. **`planner_update_tasks` meldt een duur op een samenvattingstaak als `updated`, maar er verandert niets.**
+    `fields.duration: 20` op een fase met één subtaak van 2 dagen: antwoord `ok`, de fase staat in `updated`,
+    `planner_get_task` blijft `duration: 2` (afgeleid). Strijdig met "never silently ignored" in de
+    tool-beschrijving. Nagespeeld via de echte dispatcher. Voorstel: per item weigeren met een reden ("de duur
+    van een samenvattingstaak is afgeleid van zijn subtaken"); `planner_add_tasks` met een duur op een item dat
+    kinderen krijgt idem nakijken. — B
+83. **Leestool-beschrijvingen noemen `wbsCode` als schrijfveld, maar de schrijftools weigeren het.**
+    `planner_get_project_overview` en `planner_get_task` (`readTools.ts:~1063`, `~1119`): "`wbs` here and
+    `wbsCode` when writing (add_tasks/update_tasks)"; `taskFields.ts:153` weigert `wbsCode` ("the WBS code is
+    derived"). Nagespeeld: `fields.wbsCode` ⇒ `itemRejections`. Voorstel: de zin uit beide beschrijvingen
+    halen. — B
+84. **`planner_get_project_overview` beschrijft `dur` als werkdagen**, maar de rij geeft de duur in de eigen
+    eenheid van de taak met `durUnit` ernaast (`readTools.ts:~315`, `nativeDuration`); bij een urentaak zijn
+    het dus uren. Alleen in de code gezien. — S
+85. **Dezelfde voortgang geeft in één `planner_batch` een ander resultaat dan in losse calls.** Binnen een
+    batch rekent `recomputeMidBatch` alleen vóór een lees- of levelstap (`batchTool.ts:~320`), dus tussen
+    `planner_update_project` (statusdatum) en `planner_update_tasks` niet: de voortgang ziet de geplande
+    datums van vóór de statusdatum. Nagespeeld via de echte dispatcher (netwerk en datums als bij 81, alleen
+    percentages, geen datums): batch ⇒ Grondwerk werkelijk 7–11 juni, Fundering storten (50%) gestart op 10
+    juni, projecteinde donderdag 24 juni (+1); losse calls ⇒ Grondwerk werkelijk 11–11 juni, Fundering
+    storten geweigerd (geplande start na de statusdatum), projecteinde vrijdag 25 juni (+2). Met expliciete
+    werkelijke datums zijn beide routes gelijk (23 juni, +0). Voorstel: na een statusdatumwijziging binnen
+    een batch tussentijds herrekenen, of 81 oplossen zodat de afleiding niet van de route afhangt. — B
+86. **`planner_list_tasks` met `zonder_relaties: true` meldt bladtaken die via hun fase in het netwerk zitten.**
+    Het filter telt alleen relaties op de taak zelf (`readTools.ts:~392`), terwijl de solver een relatie op
+    een samenvattingstaak doorgeeft aan haar bladtaken. Nagespeeld: Other —SS→ Fase X —FS→ Last, met
+    bladtaak LeafA onder Fase X ⇒ het filter geeft `LeafA`, terwijl LeafA kritiek is en aan het netwerk
+    hangt. De agentgids en `goed-plannen` waarschuwen er nu voor. Voorstel: relaties van voorouders
+    meetellen, of het veld uitbreiden met "via fase". — B
+87. **De beschrijving van `planner_update_calendar` zegt dat een ongebruikte kalender opslaan niet
+    overleeft**, maar dat is sinds de A2-fix niet meer waar: `ifcReader.ts:~2801-2816` leest elke overige
+    IFCWORKCALENDAR terug, en `tests/mcp/cases-uurkalender.ts:~615-624` pint dat vast. Gevonden doordat de
+    eerste versie van de agentgids de zin overnam. Voorstel: de zin uit de beschrijving
+    (`calendarResourceTools.ts:~1042`) halen; alleen het behoud van urenbanden van een ongebruikte
+    urenkalender is apart te toetsen. — B
+88. **Feestdagen gegenereerd vóór de taken dekken een lang project niet.** Zonder rekenresultaat geeft
+    `calendarSpan` geen projecteinde door en neemt `computeGenerateSpan` startjaar−1 t/m startjaar+3
+    (`calendarResourceTools.ts:~585`, `generateCalendarHolidays.ts:~62`). Nagespeeld: start 7 juni 2027,
+    `generate` NL ⇒ 2026–2030; daarna een taak van 1500 werkdagen ⇒ einde 2033, nog steeds geen feestdagen
+    na 2030; `generate` opnieuw ⇒ 2026–2034. De agentgids zegt nu dat je opnieuw genereert als het einde
+    voorbij `generatedToYear` ligt. Voorstel: bij een herberekening waarvan het einde de spanne verlaat
+    melden of bijgenereren. — B
+89. **De publieke agentgids-URL is niet versiegebonden** (ontwerppunt). `/agent/planning-guide.md` op de
+    website volgt de laatste deploy, terwijl een desktopversie zijn eigen kopie meelevert; een oudere app kan
+    dus naar een gids wijzen die tools beschrijft die hij niet heeft. De gids zegt nu dat de kopie van de tool
+    voorgaat. Voorstel: een versiepad (bv. `/agent/<versie>/planning-guide.md`) of de versie in de gids. — S
 
 ## Bestanden en herstel
 
@@ -148,10 +214,6 @@ en noem het in je rapport of PR-tekst.
 51. **Histogram-tooltip "0 taken dragen bij"** op de startdag van een urentaak: `contributingTaskNames` in
     `useGanttHistogramInteraction.ts` vergelijkt "2027-06-28" met "2027-06-28T07:00". Voorstel: vergelijken
     op `.slice(0,10)`. De balken zelf kloppen. — S
-52. **Tour-anker `ribbon:resources:resourceAssign` verdwijnt** zodra een extensie met lintknoppen is
-    geïnstalleerd en de taakselectie wisselt; de markering valt dan terug op de linttab. — S
-59. **Begeleidingspaneel van een extensie-gids** wijkt uit voor een anker eronder, maar springt daarna niet
-    terug; op 1366×768 bedekt het zo de histogramlijst. — S
 62. **Melding schuift over de knoppen van het begeleidingspaneel** (1600×950, venster Baselines open):
     `toastPlacement.ts` houdt geen rekening met het paneel. — B (gezien), oorzaak afgeleid
 66. **Het UpdateDialog opent over een lopende gids heen** (review #261, punt O4). — S
@@ -201,6 +263,18 @@ en noem het in je rapport of PR-tekst.
     De herhaalde job was groen, lokaal 20/20 groen; de diff van #285 raakte de rondleiding niet. Oorzaak
     onbekend; mogelijk verwant aan 54 (stap overslaan bij een nog niet geladen Backstage). — B (gezien),
     oorzaak onbekend
+90. **`check-xer-tables` is rood als de `TextDecoder` van Node byte 0x80 (CP1252) niet naar € vertaalt**
+    ("Café €" wordt "Café "; 6 asserties in deel 5). Gezien 7-10-2026 in een cloudcontainer (Node 22.22.0,
+    ICU 77.1), óók op de onaangeraakte commit `c00163a`; daar geeft `new TextDecoder('windows-1252')` voor
+    byte 0x80 geen €. De check hangt dus af van de ICU-build van Node, niet van de code. Voorstel: de
+    check slaat deel 5 over (met melding) als die decoder 0x80 niet naar € vertaalt, of de reader decodeert
+    CP1252 met een eigen tabel. — B (nagespeeld), oorzaak in de ICU-build afgeleid
+91. **De browsersuite start niet in een container met alleen de voorgeïnstalleerde Chromium-1194**
+    (`@playwright/test` 1.62.1 verwacht een nieuwere headless shell; `scripts/run-browser-tests.mjs`
+    stopt dan met "Playwright headless shell ontbreekt"). Met `executablePath` naar
+    `/opt/pw-browsers/chromium-1194` draaien de tests wel, maar elke test eindigt rood op één
+    "Failed to load resource: 404" in de console, ook de bestaande `table-reports.spec.ts` (gedraaid op de
+    branch van de DCMA-PR, die dat rapport niet raakt). Welke URL dat is, is niet vastgesteld. — S
 
 ## Wensen en open taken (geen bug)
 
@@ -214,3 +288,8 @@ en noem het in je rapport of PR-tekst.
 71. **De dode-link-check uit de `wiki`-skill meldt `project://start.ifc`** in `Extensions-Authoring.md`: dat
     staat in een codevoorbeeld (inline code), geen echte link. De check slaat inline code niet over, dus de
     dry-run is nooit "dead: 0". Voorstel: in de check eerst `` `…` `` strippen. — B
+93. **Het venster *Nieuw project* heeft geen ?-knop**, terwijl `ref-projectinfo` (*Nieuw project en
+    Projectinfo*) het ook beschrijft. De ?-knop van `ProjectInfoDialog` staat bewust alleen in de modus
+    Projectinformatie (besluit eigenaar: zes vensters, de wizard hoort er niet bij). Voorstel: als de eigenaar
+    dat wil, `help` ook in de wizard zetten, met `confirmLeave` zonder `dirty` (de wizard kent geen
+    "niet toegepast"). — B

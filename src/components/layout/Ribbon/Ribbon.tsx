@@ -254,17 +254,26 @@ function applyRibbonAnchorMarkers(root: HTMLElement): void {
 }
 
 function useRibbonAnchorMarkers(scrollRef: RefObject<HTMLElement | null>): void {
+  // De scrollcontainer is niet vast: op de tab Bestand (Backstage) verdwijnt hij en daarna komt er
+  // een nieuwe. De waarnemer volgt daarom het element zelf, niet de ref; een waarnemer op de oude,
+  // losgekoppelde container ziet niets meer, en een component dat zichzelf daarna opnieuw rendert
+  // (Toewijzen ▾ bij een taakselectie) verloor dan zijn anker (knownbugs 52).
+  const observed = useRef<{ root: HTMLElement; observer: MutationObserver } | null>(null);
   useLayoutEffect(() => {
     const root = scrollRef.current;
     if (root) applyRibbonAnchorMarkers(root);
-  });
-  useLayoutEffect(() => {
-    const root = scrollRef.current;
+    if (observed.current?.root === root) return;
+    observed.current?.observer.disconnect();
+    observed.current = null;
     if (!root || typeof MutationObserver === 'undefined') return;
     const observer = new MutationObserver(() => applyRibbonAnchorMarkers(root));
     observer.observe(root, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, [scrollRef]);
+    observed.current = { root, observer };
+  });
+  useLayoutEffect(() => () => {
+    observed.current?.observer.disconnect();
+    observed.current = null;
+  }, []);
 }
 
 export function Ribbon() {

@@ -15,6 +15,8 @@ The laptop died, the app froze or the browser tab crashed, and you had not yet s
 
 If you do not want to restore, you have two options. *Don't restore* deletes the copies, and you cannot undo that. If you close the window with Escape, with the cross or by clicking next to it, the copies stay and the app asks again at the next start.
 
+The question mark at the top right of the window opens this article without making a choice. While you read in Help, the window waits. When you go back, it is there again and you can still restore.
+
 ## Pitfalls and what the app does then
 
 **You get the state of the last copy.** What you did in the last seconds before the crash may be missing. A project that had changes is marked *Unsaved* again. The *Undo* history is empty: you cannot undo steps from before the crash. Zoom, scroll position and selection are rebuilt.

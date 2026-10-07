@@ -41,8 +41,10 @@ export const XER_IMPORT_HELP_ARTICLE_ID = 'howto-xer-openen';
 /** "Datums zoals opgeslagen": melding bij openen en de markering in het eigenschappenpaneel. */
 export const RECORDED_DATES_HELP_ARTICLE_ID = 'uitleg-datums-zoals-opgeslagen';
 
-/** De planningsgids voor agents (MCP `planner_get_planning_guide`). Id en pad zijn publiek (§8.3):
- *  uitgeleverde versies en geïnstalleerde skills linken ernaar — nooit hernoemen. */
+/** Het Help-artikel "Goed plannen" voor mensen. Id en pad zijn publiek (§8.3): uitgeleverde
+ *  versies (hun MCP-instructie en `planner_get_planning_guide`) en eerder geïnstalleerde skills linken
+ *  ernaar — nooit hernoemen. Agents krijgen sinds oktober 2026 de aparte agentgids
+ *  `public/agent/planning-guide.md`; verify:docs (poort 11) houdt de principes van beide gelijk. */
 export const PLANNING_GUIDE_ARTICLE_ID = 'gids-goed-plannen';
 
 /** ?-knop in de sneltoetsendialoog (proefplek van de contextuele hulp). */
@@ -88,3 +90,27 @@ export const RESOURCE_PANEL_HELP_ARTICLE_ID = 'ref-resourcepaneel';
 
 /** Het paneel Waarschuwingen. */
 export const WARNINGS_HELP_ARTICLE_ID = 'ref-meldingen';
+
+// ── ?-knoppen in zes vensters (besluit eigenaar na fase 4) ──────────────────────────────────────────
+
+/** Projectinformatie (Instellingen › Project › Projectinfo): de referentie van het formulier. */
+export const PROJECT_INFO_HELP_ARTICLE_ID = 'ref-projectinfo';
+
+/** Project verplaatsen. */
+export const MOVE_PROJECT_HELP_ARTICLE_ID = 'howto-project-verplaatsen';
+
+/** Resources nivelleren: stap 3 van dit artikel loopt het venster door (het oude `ref-nivellering`
+ *  is een alias hierheen). */
+export const LEVELING_HELP_ARTICLE_ID = 'howto-overbezetting-oplossen';
+
+/** Resourcebibliotheek koppelen (Herkennen en Afwijkingen). */
+export const LIBRARY_LINK_HELP_ARTICLE_ID = 'howto-resourcebibliotheek-gebruiken';
+
+/** Bibliotheek importeren (beheerscherm van de resourcebibliotheken). */
+export const LIBRARY_IMPORT_HELP_ARTICLE_ID = 'howto-bibliotheken-beheren';
+
+/** Voortgang bijwerken uit een blad. */
+export const PROGRESS_IMPORT_HELP_ARTICLE_ID = 'howto-voortgang-importeren';
+
+/** Niet-opgeslagen werk herstellen (na een crash). */
+export const RECOVERY_HELP_ARTICLE_ID = 'howto-herstellen-na-een-crash';

@@ -94,7 +94,7 @@ Indent, outdent and inserting above or below a selected task only work in the pl
 
 **Ctrl+P** — *Go to Report tab*: takes you to the *Report* tab. It is therefore not a print command. Not in a dialog.
 
-**F1** — *Open help*: opens *File › Help*. Not in an input field and not in a dialog.
+**F1** — *Open help*: opens *File › Help*. Not in an input field and not in a dialog. In a window, use the question mark at the top right: it opens Help on the article about that window (see [The ribbon, tab by tab](docs://ref-lint), under *Help*).
 
 **Ctrl+1** to **Ctrl+9** — *Switch document*: goes to the first to ninth open document. If that document does not exist, nothing happens. Not in a dialog and not with unapplied Project info.
 

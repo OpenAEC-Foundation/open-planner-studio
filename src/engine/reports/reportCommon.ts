@@ -4,6 +4,7 @@ import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Baseline } from '@/types/baseline';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
+import type { ProjectSolveOptions } from '@/engine/scheduler/solveInput';
 import { createTaskEngineCache, type TaskEngineCache } from '@/engine/scheduler/taskEngineCache';
 import { effHoursPerDay, effectiveCalendarOf } from '@/utils/taskDuration';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
@@ -49,6 +50,9 @@ export interface ReportContext {
   /** "Datums zoals opgeslagen" staat aan: verzameltaken tonen dan hun opgeslagen
    *  voortgang, net als hun opgeslagen datums (zie `isSummaryProgressDerived`). */
   datesAsRecorded?: boolean;
+  /** De solve-opties van het project (`solveOptionsFor`) — alleen nodig voor rapporten die zelf een
+   *  what-if doorrekenen (de kritiek-padtest van de DCMA-beoordeling); ontbreekt ⇒ die test n.v.t. */
+  solveOptions?: ProjectSolveOptions;
 }
 
 /** Alleen de dag-component van een ISO-datum(tijd): vergelijkbaar als string. */

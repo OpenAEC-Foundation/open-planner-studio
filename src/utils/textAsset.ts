@@ -57,6 +57,6 @@ export async function fetchTextAsset(
   const text = await res.text();
   // GEEN content-type-check hier — zie de moduletoelichting hierboven (Tauri labelt .md als HTML).
   if (looksLikeSpaFallback(text)) throw new Error('SPA-fallback (body)');
-  if (text.trim() === '') throw new Error('lege body');
+  if (text.trim() === '') throw new Error('empty body');
   return text;
 }

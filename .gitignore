@@ -13,6 +13,7 @@ dist/
 !.claude/skills/wiki/
 !.claude/skills/docs-update/
 !.claude/skills/goed-plannen/
+!.claude/skills/progress-update/
 temp/
 
 # Build-uitvoer van `npm run gen:tutorial-project` (de extensie-build haalt hem hier op)

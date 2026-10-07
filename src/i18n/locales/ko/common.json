@@ -1379,6 +1379,8 @@
     "doneNext": "완료, 다음",
     "finish": "마침",
     "close": "안내 닫기",
+    "collapse": "안내 접기",
+    "expand": "안내 펼치기",
     "stepDone": "완료",
     "waiting": "앱에서 작업을 수행하면 계속할 수 있습니다."
   },

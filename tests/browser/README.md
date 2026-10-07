@@ -42,13 +42,25 @@ Hoe het in elkaar zit:
   `ops.acceptError(…)`). Daarnaast helpers als `state`, `seedProject` en `barPoint`.
 - **`fixtures/locale.ts`**: de taalwissel via de echte Instellingen-knoppen, met de ltr/rtl-gevallen
   (`ar`, `fa`, `nl`, `en`).
+- **`tutorial-steps.spec.ts`** + **`tutorials/`**: de stapscripts van de zeven tutorials (extensie
+  `tutorials` in `open-planner-studio-extensions`), één per tutorial (`tut-1.ts` … `tut-7.ts`, vorm in
+  `tutorials/dsl.ts`, uitvoering in `tutorials/runner.ts`). Elke tutorial draait in nl en en als eigen
+  test vanaf zijn startstand van `gen:tutorial-project` (de spec genereert de standen zelf, ±2 s), met
+  dezelfde knopnamen en invoer als de tutorialtekst; na elke stap een controle van de toestand en
+  (meestal) van de tekst die de tutorial belooft (statusbalk, paneel), en aan het eind moet het project
+  exact gelijk zijn aan de eindstand van de generator. Een hernoemde knop of een andere uitkomst maakt de
+  tutorial zo hier rood (ontwerp gebruikersdocumentatie §7.4). Dezelfde spec is de screenshotgenerator
+  (`npm run gen:docs-screenshots`, zie `scripts/README.md`); zonder vastleggen controleert hij alleen
+  dat het onderwerp van elk beeld in beeld is. Hulp bij schrijven: `OPS_TUTORIAL_ONLY=<id,…>` draait
+  alleen die tutorials, `OPS_TUTORIAL_DEBUG_DIR=<map>` legt na elke stap een volledige schermafdruk vast.
+  Duur: 14 tests, ±6 min in één job (gemeten 2026-10-07: 347 s lokaal).
 - **`helpers/ops-state.mjs`** hoort bij het X11-harnas hieronder, niet bij de spec-suite.
 
 Tests lopen via echte browser-events. De brug mag deterministische fixtures zetten en state of
 Canvasgeometrie lezen, maar de geteste gebruikershandeling nooit vervangen.
 
 In CI draait de suite als apart deel van `scripts/verify-parts.mjs` (`test:browser`), verdeeld over
-drie shards (`--shard=1/3` … `3/3`), elk met een eigen bewaakte Vite-server; de CI-, live- en release-workflows uploaden bij falen `playwright-report/`
+vier shards (`--shard=1/4` … `4/4`), elk met een eigen bewaakte Vite-server; de CI-, live- en release-workflows uploaden bij falen `playwright-report/`
 en `test-results/` als `playwright-*`-artefact (zeven dagen).
 
 ## X11/XWayland-browserharnas voor XER (`npm run test:browser:x11`)

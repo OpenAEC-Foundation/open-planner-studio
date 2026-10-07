@@ -112,6 +112,12 @@ export interface DialogHelp {
     onSave: () => boolean | void;
     dirty?: boolean;
   };
+  /**
+   * Eigen sluitroute voor de ?-knop, als die anders moet zijn dan het kruisje. Weglaten = `onClose`.
+   * Het herstelvenster gebruikt dit: zijn kruisje stelt het herstel uit, de ?-knop verbergt het
+   * venster alleen zolang Help openstaat.
+   */
+  close?: () => void;
 }
 
 export interface DialogHeaderProps {
@@ -145,7 +151,7 @@ export function DialogHeader({ title, icon, onClose, closeDisabled, closeIconSiz
         {title}
       </span>
       <span className="flex items-center gap-1">
-        {help && <DialogHelpButton help={help} onClose={onClose} disabled={closeDisabled} size={closeIconSize} />}
+        {help && <DialogHelpButton help={help} onClose={help.close ?? onClose} disabled={closeDisabled} size={closeIconSize} />}
         <button
           onClick={onClose}
           disabled={closeDisabled}

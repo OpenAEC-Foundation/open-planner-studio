@@ -43,7 +43,9 @@ de `verify:i18n`-poort. De overige scripts draaien via hun npm-script in de kete
 | `verify-store-boundaries.mjs` | `verify:store-boundaries` | core-runtimefactories en storegebonden MCP-tools importeren nooit `useAppStore`/`appStoreContext` (AST, dus commentaar en strings tellen niet); `--root` laat `tests/planning/check-store-runtime-boundaries.ts` fixtures controleren |
 | `verify-gantt-boundaries.mjs` | `verify:gantt-boundaries` | de eigendomsgrenzen van Gantt-shell, coordinators, renderers en taakraster; `--root` voor `tests/planning/check-gantt-boundaries.ts` |
 | `lib/ts-imports.mjs` | de twee grenspoorten hierboven | hun gedeelde AST-steiger: bronbestanden verzamelen, parsen, `@/`-/relatieve imports naar een modulepad vertalen, runtimebindings van een importclause |
-| `verify-docs.ts` | `verify:docs` | de in-app gidsen in `public/docs/`: manifest v2 (`kind`, `draft`, `aliases`), alleen nl en en (een andere taalmap is fout), manifest-dekking, weesbestanden, `docs://`/`examples://`-links (incl. `#anker`), afbeeldingen (alt-tekst, bestand bestaat), of de inhoud binnen de mini-Markdown-subset blijft, en (poort 10) of elk artikel-id uit `src/state/helpArticles.ts` en de release-hoogtepunten bestaat; bewaakt daarnaast dat `.claude/skills/goed-plannen/SKILL.md` byte-identiek is aan de bron `public/skills/goed-plannen/SKILL.md` |
+| `lib/agent-skills-check.ts` | `verify:docs` (poort 9), `tests/mcp/cases-planning-guide.ts` | pure toetsen op de agent-skills: frontmatter (`name` = mapnaam, niet-lege `description`), `.gitignore` deelt elke skill, geen wees in `.claude/skills/` |
+| `lib/agent-guide-coupling.ts` | `verify:docs` (poort 11), `tests/mcp/cases-planning-guide.ts` | de koppeltabel principe-van-`gids-goed-plannen` (nl, en) ↔ sectie van de agentgids, plus de pure toets erop (ook het mutatiebewijs in de MCP-suite) |
+| `verify-docs.ts` | `verify:docs` | de in-app gidsen in `public/docs/`: manifest v2 (`kind`, `draft`, `aliases`), alleen nl en en (een andere taalmap is fout), manifest-dekking, weesbestanden, `docs://`/`examples://`-links (incl. `#anker`), afbeeldingen (alt-tekst, bestand bestaat), of de inhoud binnen de mini-Markdown-subset blijft, en (poort 10) of elk artikel-id uit `src/state/helpArticles.ts` en de release-hoogtepunten bestaat; bewaakt daarnaast dat elke skill onder `public/skills/<naam>/SKILL.md` byte-identiek in `.claude/skills/<naam>/` staat (poort 9) en dat elk principe van `gids-goed-plannen` (nl én en) via de koppeltabel in `scripts/lib/agent-guide-coupling.ts` een tegenhanger heeft in de agentgids `public/agent/planning-guide.md` (poort 11) |
 | `verify-examples.ts` | `verify:examples` | de gebundelde voorbeeldprojecten laden en rekenen door zoals verwacht |
 | `verify-conventions.mjs` | `verify:conventions` | AST-poort van de rekenprofielen (ook aangeroepen door `tests/planning/check-conventions-boundary.ts`): de motor (`src/engine/` plus de motorhelper `src/utils/p6SuspendResume.ts`) leest geen bronformaat (`p6Source`/`importFormat`/`readFormat`/`xerSourceProjectId`/`xerSourceArchive`/`xerImportMetadata`, ook via string-index, `in` of destructuring; geen lezer-, `formatRegistry`- of `xerSourceArchive`-imports en geen niet-letterlijke dynamische imports); opties-sleutels alleen uit het register (`convention('…')` in `CONVENTIONS` plus de projectopties uit `interface SchedulingOptions`): een onbekende of niet-letterlijke sleutel op een opties-object, `Reflect.get`/`Object.keys|values|entries` op een opties-object (ook via hernoemde imports, type-aliassen en `import('…')`-typen), een registerconventie die in geen vanuit `solveProject.ts` bereikbaar bestand gelezen wordt, en een ongepind herkomstveld (`p6…`/`xer…`/`mpp…`/`msp…`/`mpx…` dat geen eigen lid op `this` of op een in hetzelfde bestand gedeclareerd object is) zijn rood (Fable-critreview PR #169, bevinding 4 + critreview 2e ronde). Grens: syntactisch, dus een opties-object dat via een helper in een ander bestand onder een neutrale naam binnenkomt, of een waarde die al als `any` binnenkomt, ziet de poort niet; herkomst-datagates (ook via destructuring en `in`) gepind in `verify-conventions.datagates.json`, alleen omlaag (`--write-baseline` herpint, alleen als alles groen is). Een optionele `verify-conventions.allowlist.json` kan overgangscode tijdelijk vrijstellen (alleen namen, alleen bestaande bestanden, reden met de overgangsmarkering); in de eindstand bestaat hij niet |
 
@@ -87,6 +89,21 @@ Taak-, fase-, resource-, kalender- en baselinenamen zijn vertaald; de data is ve
   gelijk is aan `nl`, en opent elk bestand via dezelfde route als *Voorbeelden*
   (`openExampleFromString`) om te zien dat herberekenen niets verschuift. Een motorwijziging die een
   tutorialgetal verandert, wordt daar rood.
+
+## Screenshots voor de tutorials genereren
+
+`npm run gen:docs-screenshots -- --out <map>` → `generate-docs-screenshots.mjs`. Draait
+`tests/browser/tutorial-steps.spec.ts` (de stapscripts van de zeven tutorials in `tests/browser/tutorials/`)
+via `run-browser-tests.mjs` met vastleggen aan (`OPS_DOCS_SCREENSHOTS_OUT`): elke tutorial in nl en en vanaf
+zijn stand van `gen:tutorial-project`, met echte UI-events, een controle na elke stap en de uitsneden als
+WebP (alleen licht thema; venster 1280×1050, sommige beelden tijdelijk breder of smaller). De WebP-codering
+doet Chromium zelf (geen extra afhankelijkheid). Pas als alles groen is, vervangt het script
+`<map>/img/<taal>/tut-*.webp`; een rode stap laat `<map>` ongemoeid.
+
+- `<map>` is de map van de extensie (`extensions/tutorials` in `open-planner-studio-extensions`); de
+  tutorialtekst daar verwijst naar `img/{lang}/<naam>.webp` (extensie-API, `docs/extensions.md`).
+- `-- --only tut-3-kalender,tut-4-uren` draait alleen die tutorials en vervangt alleen hun beelden.
+- Zonder vastleggen draait dezelfde spec in `npm run test:browser` (en dus in `verify` en CI).
 
 ## Meetlatdata genereren
 

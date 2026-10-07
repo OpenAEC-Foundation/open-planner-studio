@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Link2, AlertCircle, ArrowRight } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
+import { LIBRARY_LINK_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
 /**
  * Het gedeelde koppel-/afwijkingenscherm. Twee secties met gedeelde vormtaal:
@@ -61,7 +62,8 @@ export function LibraryLinkDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[640px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-library-link-dialog': true }}
     >
-      <DialogHeader title={t('companyLibrary.linkTitle')} onClose={close} />
+      {/* ?-knop zonder vraag: elke keuze hier werkt meteen, er staat niets onopgeslagen open. */}
+      <DialogHeader title={t('companyLibrary.linkTitle')} onClose={close} help={{ articleId: LIBRARY_LINK_HELP_ARTICLE_ID }} />
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
         {/* ── Herkennen ── */}
