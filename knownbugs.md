@@ -260,6 +260,18 @@ en noem het in je rapport of PR-tekst.
     De herhaalde job was groen, lokaal 20/20 groen; de diff van #285 raakte de rondleiding niet. Oorzaak
     onbekend; mogelijk verwant aan 54 (stap overslaan bij een nog niet geladen Backstage). — B (gezien),
     oorzaak onbekend
+90. **`check-xer-tables` is rood als de `TextDecoder` van Node byte 0x80 (CP1252) niet naar € vertaalt**
+    ("Café €" wordt "Café "; 6 asserties in deel 5). Gezien 7-10-2026 in een cloudcontainer (Node 22.22.0,
+    ICU 77.1), óók op de onaangeraakte commit `c00163a`; daar geeft `new TextDecoder('windows-1252')` voor
+    byte 0x80 geen €. De check hangt dus af van de ICU-build van Node, niet van de code. Voorstel: de
+    check slaat deel 5 over (met melding) als die decoder 0x80 niet naar € vertaalt, of de reader decodeert
+    CP1252 met een eigen tabel. — B (nagespeeld), oorzaak in de ICU-build afgeleid
+91. **De browsersuite start niet in een container met alleen de voorgeïnstalleerde Chromium-1194**
+    (`@playwright/test` 1.62.1 verwacht een nieuwere headless shell; `scripts/run-browser-tests.mjs`
+    stopt dan met "Playwright headless shell ontbreekt"). Met `executablePath` naar
+    `/opt/pw-browsers/chromium-1194` draaien de tests wel, maar elke test eindigt rood op één
+    "Failed to load resource: 404" in de console, ook de bestaande `table-reports.spec.ts` (gedraaid op de
+    branch van de DCMA-PR, die dat rapport niet raakt). Welke URL dat is, is niet vastgesteld. — S
 
 ## Wensen en open taken (geen bug)
 

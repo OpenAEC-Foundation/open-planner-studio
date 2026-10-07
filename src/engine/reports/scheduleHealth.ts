@@ -1,12 +1,15 @@
 import type { Task, ConstraintType } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import { formatLagShort } from '@/utils/lagFormat';
-import { expandSummaryRelations, originalSequenceId } from '@/engine/scheduler/expandSummaryRelations';
+import { originalSequenceId } from '@/engine/scheduler/expandSummaryRelations';
 import { resolveEffectiveLagDays } from '@/engine/scheduler/CPMSolver';
 import { effHoursPerDay, effectiveCalendarOf } from '@/utils/taskDuration';
 import type { WorkCalendar } from '@/types/calendar';
-import { isActualPastStatusDate } from '@/engine/taskMutationRules';
-import { type ReportContext, durationDays, isNearCritical, activityTasks, progressState } from './reportCommon';
+import { type ReportContext, dayOf, durationDays, isNearCritical, progressState } from './reportCommon';
+import { buildLogicIndex, isHardConstraint } from './logicIndex';
+import {
+  type DcmaAssessment, computeDcmaAssessment, invalidDateReasons, isMissedTask, resourceLoadedTaskIds,
+} from './dcmaAssessment';
 
 /**
  * Planningsgezondheid: de geautomatiseerde planningsreview, in de
@@ -18,6 +21,10 @@ import { type ReportContext, durationDays, isNearCritical, activityTasks, progre
  * ≈ twee maanden) — die zijn onderbouwd en breed bekend. Leads (negatieve lag) worden apart van
  * lags gemeld: DCMA staat leads helemaal niet toe, terwijl een gewone lag boven de drempel alleen ter
  * informatie is.
+ *
+ * Daarnaast levert het rapport de DCMA 14-puntsbeoordeling zelf (`dcmaAssessment.ts`): per punt
+ * het percentage of de index tegen de norm uit het pamflet. De controles hieronder zijn de lijsten
+ * achter die percentages, met de instelbare drempels; de DCMA-tabel rekent altijd met de vaste normen.
  *
  * WAT HIER BEWUST NIET STAAT: de dubbele meldingen die het waarschuwingenpaneel al
  * geeft over solverfouten (cyclus, afgekapte leads, hammocks); dit rapport gaat over de KWALITEIT
@@ -37,7 +44,10 @@ export type HealthCheckId =
   | 'longLag'
   | 'hardConstraint'
   | 'outOfSequence'
-  | 'progressException';
+  | 'progressException'
+  | 'missedTask'
+  | 'nonFsRelation'
+  | 'missingResource';
 
 export type HealthSeverity = 'error' | 'warning' | 'info';
 
@@ -46,7 +56,9 @@ export type ProgressExceptionReason =
   | 'actualFinishAfterStatusDate'
   | 'completeWithoutActualFinish'
   | 'actualFinishWithoutComplete'
-  | 'progressWithoutActualStart';
+  | 'progressWithoutActualStart'
+  | 'forecastStartBeforeStatusDate'
+  | 'forecastFinishBeforeStatusDate';
 
 export interface HealthItem {
   /** Taak-rij: wbs + naam; relatie-rij: "voorganger → opvolger". */
@@ -62,6 +74,8 @@ export interface HealthItem {
     constraintType?: ConstraintType;
     date?: string;
     reason?: ProgressExceptionReason;
+    /** Relatietype (alleen `nonFsRelation`). */
+    relationType?: Sequence['type'];
   };
 }
 
@@ -85,10 +99,8 @@ export interface HealthResult {
   leafCount: number;
   relationCount: number;
   calculated: boolean;
+  dcma: DcmaAssessment;
 }
-
-/** DCMA-definitie: constraints die de late datums vastzetten (en dus de logica kunnen overstemmen). */
-const HARD_TYPES: ReadonlySet<ConstraintType> = new Set(['MSO', 'MFO', 'SNLT', 'FNLT']);
 
 const SEVERITY: Record<HealthCheckId, HealthSeverity> = {
   noPredecessor: 'warning',
@@ -104,20 +116,25 @@ const SEVERITY: Record<HealthCheckId, HealthSeverity> = {
   hardConstraint: 'warning',
   outOfSequence: 'warning',
   progressException: 'error',
+  missedTask: 'warning',
+  nonFsRelation: 'info',
+  missingResource: 'info',
 };
 
 export const HEALTH_CHECK_ORDER: readonly HealthCheckId[] = [
   'negativeFloat', 'missedDeadline', 'violatedConstraint', 'progressException',
-  'noPredecessor', 'noSuccessor', 'longDuration', 'lead', 'hardConstraint', 'outOfSequence',
-  'nearCritical', 'highFloat', 'longLag',
+  'noPredecessor', 'noSuccessor', 'longDuration', 'lead', 'hardConstraint', 'outOfSequence', 'missedTask',
+  'nearCritical', 'highFloat', 'longLag', 'nonFsRelation', 'missingResource',
 ];
 
 export function computeScheduleHealth(ctx: ReportContext, opts: HealthOptions): HealthResult {
-  const leaves = activityTasks(ctx.tasks);
-  const leafIds = new Set(leaves.map(t => t.id));
-  const byId = new Map(ctx.tasks.map(t => [t.id, t]));
+  const logic = buildLogicIndex(ctx);
+  const { leaves, relations, byId, hasPred, hasSucc, originalSeqById } = logic;
   const cpm = ctx.cpmResult && !ctx.cpmResult.error ? ctx.cpmResult : null;
   const { statusDate } = ctx;
+  const statusDay = statusDate ? dayOf(statusDate) : undefined;
+  const baseMap = new Map(ctx.baseline ? ctx.baseline.tasks.map(b => [b.taskId, b]) : []);
+  const resourced = resourceLoadedTaskIds(ctx);
 
   const items = new Map<HealthCheckId, HealthItem[]>();
   const add = (id: HealthCheckId, item: HealthItem) => {
@@ -127,21 +144,6 @@ export function computeScheduleHealth(ctx: ReportContext, opts: HealthOptions): 
   };
   const taskItem = (t: Task, detail: HealthItem['detail'] = {}): HealthItem =>
     ({ taskId: t.id, wbs: t.wbsCode, name: t.name, detail });
-
-  // Dezelfde relatieset als de solver: relaties op verzameltaken worden eerst naar bladtaakrelaties
-  // uitgevouwen (`expandSummaryRelations`, zoals `runCPM` doet — op een MS Project-import is dat
-  // de normale vorm). Alleen relaties tussen bladtaken blijven over.
-  const hasPred = new Set<string>();
-  const hasSucc = new Set<string>();
-  const { sequences: expanded } = expandSummaryRelations(ctx.tasks, ctx.sequences);
-  const relations = expanded.filter(s => leafIds.has(s.predecessorId) && leafIds.has(s.successorId));
-  for (const s of relations) { hasSucc.add(s.predecessorId); hasPred.add(s.successorId); }
-  // Externe links tellen als logica aan die kant.
-  for (const t of leaves) {
-    for (const l of t.externalLinks ?? []) {
-      if (l.direction === 'predecessor') hasPred.add(t.id); else hasSucc.add(t.id);
-    }
-  }
 
   for (const t of leaves) {
     const state = progressState(t);
@@ -161,27 +163,40 @@ export function computeScheduleHealth(ctx: ReportContext, opts: HealthOptions): 
       }
     }
     for (const c of [t.constraint, t.constraint2]) {
-      if (c && (c.hard || HARD_TYPES.has(c.type))) {
+      if (isHardConstraint(c)) {
         add('hardConstraint', taskItem(t, { constraintType: c.type, date: c.date }));
       }
     }
-    // Voortgangsuitzonderingen: inconsistente actuals. "Ná de statusdatum" met dezelfde precisie
-    // als het raster en de store-setters (`isActualPastStatusDate`).
+    // Voortgangsuitzonderingen: inconsistente actuals, en (DCMA punt 9) een prognose vóór de
+    // statusdatum. Eén definitie met de DCMA-telling (`invalidDateReasons`): "ná" met dezelfde
+    // precisie als het raster en de store-setters (`isActualPastStatusDate`).
     const { actualStart, actualFinish, completion } = t.time;
-    if (statusDate && actualStart && isActualPastStatusDate(actualStart, statusDate)) {
-      add('progressException', taskItem(t, { reason: 'actualStartAfterStatusDate', date: actualStart }));
-    }
-    if (statusDate && actualFinish && isActualPastStatusDate(actualFinish, statusDate)) {
-      add('progressException', taskItem(t, { reason: 'actualFinishAfterStatusDate', date: actualFinish }));
+    if (statusDate && statusDay) {
+      for (const reason of invalidDateReasons(t, statusDate, statusDay, !!cpm)) {
+        const date = reason === 'actualStartAfterStatusDate' ? actualStart
+          : reason === 'actualFinishAfterStatusDate' ? actualFinish
+            : reason === 'forecastStartBeforeStatusDate' ? t.time.earlyStart : t.time.earlyFinish;
+        add('progressException', taskItem(t, { reason, date }));
+      }
     }
     if (completion >= 1 && !actualFinish) add('progressException', taskItem(t, { reason: 'completeWithoutActualFinish' }));
     if (actualFinish && completion < 1) add('progressException', taskItem(t, { reason: 'actualFinishWithoutComplete' }));
     if (completion > 0 && !actualStart) add('progressException', taskItem(t, { reason: 'progressWithoutActualStart' }));
+    if (!t.isMilestone) {
+      // Gemiste taak (DCMA punt 11): had volgens de baseline klaar moeten zijn en eindigt later.
+      const bt = baseMap.get(t.id);
+      if (statusDay && bt && dayOf(bt.finish) <= statusDay && isMissedTask(t, bt)) {
+        add('missedTask', taskItem(t, { date: bt.finish }));
+      }
+      // Zonder resource (DCMA punt 10): alleen in een project dat resources gebruikt.
+      if (resourced.size > 0 && state !== 'complete' && !resourced.has(t.id) && durationDays(ctx, t) > 0) {
+        add('missingResource', taskItem(t));
+      }
+    }
   }
 
   // Rapporteer per GEMODELLEERDE relatie: een faserelatie vouwt voor de solver uit tot n×m
   // bladrelaties, maar de planner ziet er één (op de fasenamen) en telt hem één keer.
-  const originalSeqById = new Map(ctx.sequences.map(s => [s.id, s]));
   const seqItem = (s: Sequence, detail: HealthItem['detail'] = {}): HealthItem => {
     const shown = originalSeqById.get(originalSequenceId(s.id)) ?? s;
     const p = byId.get(shown.predecessorId);
@@ -191,8 +206,14 @@ export function computeScheduleHealth(ctx: ReportContext, opts: HealthOptions): 
   // Eén lag-definitie met de solver (`resolveEffectiveLagDays`): procent-lag uit de voorgangerduur,
   // `lagDays` leidend, minuut-lag via de uren/dag van de voorgangerkalender.
   const reportedLag = new Set<string>();
+  const reportedType = new Set<string>();
   for (const s of relations) {
     const orig = originalSequenceId(s.id);
+    const shown = originalSeqById.get(orig) ?? s;
+    if (shown.type !== 'FINISH_START' && !reportedType.has(orig)) {
+      reportedType.add(orig);
+      add('nonFsRelation', seqItem(s, { relationType: shown.type }));
+    }
     if (reportedLag.has(orig)) continue;
     const pred = byId.get(s.predecessorId);
     if (!pred) continue;
@@ -228,5 +249,5 @@ export function computeScheduleHealth(ctx: ReportContext, opts: HealthOptions): 
     else totals.infos += c.items.length;
   }
   const relationCount = new Set(relations.map(s => originalSequenceId(s.id))).size;
-  return { checks, totals, leafCount: leaves.length, relationCount, calculated: cpm !== null };
+  return { checks, totals, leafCount: leaves.length, relationCount, calculated: cpm !== null, dcma: computeDcmaAssessment(ctx, logic) };
 }
