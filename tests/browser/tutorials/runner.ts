@@ -378,7 +378,7 @@ async function toWebp(page: Page, png: Buffer, quality: number): Promise<Buffer>
 }
 
 /** De toestand die vergeleken wordt met de eindstand: alles wat de tutorial bouwt, niet de weergave. */
-function documentFacts(s: Snap): unknown {
+export function documentFacts(s: Snap): unknown {
   return {
     projectName: s.projectName, startDate: s.startDate, statusDate: s.statusDate,
     tasks: [...s.tasks].sort((a, b) => a.wbs.localeCompare(b.wbs, undefined, { numeric: true }) || a.name.localeCompare(b.name)),
@@ -419,7 +419,8 @@ async function runActions(page: Page, actions: Action[], opts: RunOptions, where
   }
 }
 
-async function runStep(page: Page, script: TutorialScript, step: Step, index: number, opts: RunOptions): Promise<void> {
+/** Eén stap: de handelingen, de controles, de beeldhandelingen en de beelden. */
+export async function runStep(page: Page, script: TutorialScript, step: Step, index: number, opts: RunOptions): Promise<void> {
   const where = `${script.id} [${opts.lang}] stap ${index + 1} (${step.id})`;
   await runActions(page, step.do, opts, where, 'handeling');
   for (const check of step.expect) await verify(page, check, opts.lang, where);
