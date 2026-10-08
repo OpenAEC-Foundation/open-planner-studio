@@ -336,7 +336,8 @@ ok('Assignment-validatie staat op de focusbare invoervelden en niet op de sameng
     && (cellEditor.match(/aria-describedby=\{inputProps\['aria-describedby'\]\}/g)?.length ?? 0) >= 3);
 ok('Relatie-validatie staat op type-, lag- en zoekvelden en niet op de samengestelde wrapper',
   relationEditor.includes('const validationProps = {')
-    && (relationEditor.match(/<select\s+\{\.\.\.validationProps\}/g)?.length ?? 0) === 2
+    // De typekeuze is sinds review 2026-10-06 de gedeelde `Select` (geen native `<select>`).
+    && (relationEditor.match(/<Select\s+\{\.\.\.validationProps\}/g)?.length ?? 0) === 2
     && (relationEditor.match(/<input\s+\{\.\.\.validationProps\}/g)?.length ?? 0) === 3
     && !/<div[^>]*className="task-grid-relation-editor"[^>]*validationProps/.test(relationEditor));
 
