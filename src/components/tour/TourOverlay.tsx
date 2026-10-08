@@ -81,6 +81,9 @@ function computeCardPosition(
  * richting waarin genavigeerd werd — nooit een crash, nooit een oneindige lus (begrensd door de
  * lengte van `TOUR_STEPS`).
  */
+/** Zo lang wacht een stap op een anker dat nog niet in de DOM staat (bv. de lazy Backstage). */
+const ANCHOR_WAIT_MS = 3000;
+
 export function TourOverlay() {
   const { t } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
@@ -151,30 +154,61 @@ export function TourOverlay() {
   // Voorbereiden + meten. Twee geneste rAF's: de eerste geeft React de kans de state-update uit
   // `prepare()` (tab-wissel, paneel uitklappen, …) te renderen; pas in de tweede meten we het
   // daadwerkelijke anker, anders vangen we een stale rect van vóór de layout-wijziging.
+  //
+  // Bij elke stapwissel gaat de kaart eerst weg (`setRect(null)`): anders stond de titel van de
+  // NIEUWE stap op de plek van de vorige en kon je erop klikken terwijl de stap nog wisselde
+  // (knownbugs 80). Staat het anker er na de twee rAF's nog niet — de Backstage is lazy geladen,
+  // dus stap 6 (Voorbeelden) mist hem bij de eerste keer bijna altijd (knownbugs 54) — dan wacht de
+  // rondleiding tot ANCHOR_WAIT_MS of hij alsnog verschijnt, en slaat ze de stap pas daarna over.
   useEffect(() => {
     if (!step) { abort(); return; }
+    setRect(null);
     step.prepare();
 
     let cancelled = false;
     let raf2 = 0;
+    let observer: MutationObserver | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const find = () => document.querySelector(tourAnchorSelector(step.anchor));
+    const stopWaiting = () => {
+      observer?.disconnect();
+      observer = null;
+      if (timer !== null) clearTimeout(timer);
+      timer = null;
+    };
+    const skip = () => {
+      const dir = directionRef.current;
+      if (dir === 'forward' && stepIndex < TOUR_STEPS.length - 1) goTo(stepIndex + 1, 'forward');
+      else if (dir === 'backward' && stepIndex > 0) goTo(stepIndex - 1, 'backward');
+      else abort();
+    };
     const raf1 = requestAnimationFrame(() => {
       raf2 = requestAnimationFrame(() => {
         if (cancelled) return;
-        const el = document.querySelector(tourAnchorSelector(step.anchor));
-        if (!el) {
-          const dir = directionRef.current;
-          if (dir === 'forward' && stepIndex < TOUR_STEPS.length - 1) goTo(stepIndex + 1, 'forward');
-          else if (dir === 'backward' && stepIndex > 0) goTo(stepIndex - 1, 'backward');
-          else abort();
-          return;
-        }
-        setRect(el.getBoundingClientRect());
+        const el = find();
+        if (el) { setRect(el.getBoundingClientRect()); return; }
+        observer = new MutationObserver(() => {
+          const found = find();
+          if (!found || cancelled) return;
+          stopWaiting();
+          // Nog één frame: het net gemounte anker heeft dan zijn layout.
+          requestAnimationFrame(() => { if (!cancelled) setRect(found.getBoundingClientRect()); });
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+        timer = setTimeout(() => {
+          stopWaiting();
+          if (cancelled) return;
+          const found = find();
+          if (found) setRect(found.getBoundingClientRect());
+          else skip();
+        }, ANCHOR_WAIT_MS);
       });
     });
     return () => {
       cancelled = true;
       cancelAnimationFrame(raf1);
       cancelAnimationFrame(raf2);
+      stopWaiting();
     };
   }, [step, stepIndex, abort, goTo]);
 
@@ -208,7 +242,11 @@ export function TourOverlay() {
     return () => observer.disconnect();
   }, [cardNode]);
 
-  if (!step || !rect) return null;
+  if (!step) return null;
+  // Tijdens het meten of wachten op het anker: geen kaart, maar de rondleiding blijft wel modaal.
+  if (!rect) {
+    return <div aria-hidden style={{ position: 'fixed', inset: 0, zIndex: 9997, pointerEvents: 'auto' }} />;
+  }
 
   const { top: cardTop, left: cardLeft } = computeCardPosition(
     rect,
