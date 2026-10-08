@@ -25,7 +25,7 @@ test('conceptrij: zoeken met pijltoets + Enter legt een voorgangerrelatie vast',
 
   const draft = page.locator('[data-ops-dependency-draft]');
   await expect(draft).toBeVisible();
-  await expect(draft.locator('[data-ops-dependency-direction]')).toHaveValue('predecessor');
+  await expect(draft.locator('[data-ops-dependency-direction]')).toHaveAttribute('data-ops-dependency-direction', 'predecessor');
 
   const search = draft.locator('[data-ops-dependency-search]');
   await search.click();
@@ -35,7 +35,8 @@ test('conceptrij: zoeken met pijltoets + Enter legt een voorgangerrelatie vast',
   // Pijl-omlaag + Enter kiest de treffer; de tweede Enter bevestigt de samengestelde relatie.
   await search.press('ArrowDown');
   await search.press('Enter');
-  await draft.locator('[data-ops-dependency-type]').selectOption('START_START');
+  await draft.locator('[data-ops-dependency-type] .ops-select__trigger').click();
+  await page.getByRole('option', { name: 'SS', exact: true }).click();
   await search.press('Enter');
 
   await expect(page.locator('[data-ops-dependency-draft]')).toHaveCount(0);
@@ -58,7 +59,8 @@ test('conceptrij: muiskeuze met richting Opvolger, en een duplicaat wordt geweig
 
   await page.locator('[data-ops-dependency-add]').click();
   const draft = page.locator('[data-ops-dependency-draft]');
-  await draft.locator('[data-ops-dependency-direction]').selectOption('successor');
+  await draft.locator('[data-ops-dependency-direction] .ops-select__trigger').click();
+  await page.getByRole('option', { name: /^(Successor|Opvolger)$/ }).click();
   await draft.locator('[data-ops-dependency-search]').click();
   await draft.locator('[data-ops-dependency-search]').pressSequentially('Fund');
   await draft.locator('[data-ops-dependency-option="0"]').click();
@@ -73,7 +75,8 @@ test('conceptrij: muiskeuze met richting Opvolger, en een duplicaat wordt geweig
   // en er komt geen tweede sequence bij. De conceptrij blijft staan om te corrigeren.
   await page.locator('[data-ops-dependency-add]').click();
   const again = page.locator('[data-ops-dependency-draft]');
-  await again.locator('[data-ops-dependency-direction]').selectOption('successor');
+  await again.locator('[data-ops-dependency-direction] .ops-select__trigger').click();
+  await page.getByRole('option', { name: /^(Successor|Opvolger)$/ }).click();
   await again.locator('[data-ops-dependency-search]').click();
   await again.locator('[data-ops-dependency-search]').pressSequentially('Fund');
   await again.locator('[data-ops-dependency-option="0"]').click();
