@@ -1,6 +1,7 @@
 import { useAppStore } from '@/state/appStore';
 import { firstRowIndexByTask, isTreeMode } from '@/engine/view/visibleRows';
 import type { Task } from '@/types/task';
+import { lastTaskRow } from '@/engine/taskGrid/ghostRow';
 
 /**
  * Waar landt een NIEUWE taak?
@@ -174,4 +175,26 @@ export function insertTaskRelativeToScope(
     return null;
   }
   return finishNewTask(store.addTask({ ...partial, position: { anchorId, where } }));
+}
+
+/**
+ * Route 3 — "Nieuwe taak" / "Nieuwe mijlpaal" uit het rechtsklikmenu op LEGE ruimte (review vader
+ * 2026-10-06, punt 1): de taak komt onderaan de lijst, op het niveau van de laatste zichtbare taak
+ * (dezelfde plek als de spookregel van het taakraster). Buiten de boomweergave is "onderaan" geen
+ * vaste plek; dan gewoon achteraan, zoals `addTask` zonder positie.
+ *
+ * Geeft alleen de positie; de aanroeper kiest zelf hoe de naam klaargezet wordt (de Gantt via het
+ * eigenschappenpaneel, het taakraster in de naamcel).
+ */
+export function endOfListPosition(): { position?: { anchorId: string; where: InsertWhere } } {
+  const { viewRows, view } = useAppStore.getState();
+  if (!isTreeMode(view)) return {};
+  const last = lastTaskRow(viewRows);
+  return last ? { position: { anchorId: last.task.id, where: 'below' } } : {};
+}
+
+/** Nieuwe taak onderaan (zie `endOfListPosition`), afgerond zoals elke andere toevoegroute. */
+export function addTaskAtEnd(partial: NewTaskInput): string {
+  const id = useAppStore.getState().addTask({ ...partial, ...endOfListPosition() });
+  return id ? finishNewTask(id) : id;
 }

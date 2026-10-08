@@ -287,7 +287,8 @@
       "baselineVarianceStart": "Başlangıç sapması",
       "baselineVarianceFinish": "Bitiş sapması",
       "baselineVarianceDuration": "Süre sapması"
-    }
+    },
+    "ghostRow": "Yeni görev"
   },
   "taskStatus": {
     "NOT_STARTED": "Başlamadı",

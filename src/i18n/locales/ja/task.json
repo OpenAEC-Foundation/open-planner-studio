@@ -283,7 +283,8 @@
       "baselineVarianceStart": "開始差異",
       "baselineVarianceFinish": "終了差異",
       "baselineVarianceDuration": "期間差異"
-    }
+    },
+    "ghostRow": "新しいタスク"
   },
   "taskStatus": {
     "NOT_STARTED": "未開始",

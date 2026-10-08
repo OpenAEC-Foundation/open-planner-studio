@@ -291,7 +291,8 @@
       "baselineVarianceStart": "Variación de inicio",
       "baselineVarianceFinish": "Variación de finalización",
       "baselineVarianceDuration": "Variación de duración"
-    }
+    },
+    "ghostRow": "Nueva tarea"
   },
   "taskStatus": {
     "NOT_STARTED": "No iniciada",

@@ -69,6 +69,9 @@ export interface ContextMenuProps {
   onToggleGroupCollapse: () => void;
   onExpandAll: () => void;
   onCollapseAll: () => void;
+  /** Zoom terugzetten en Passend maken in het menu op lege ruimte. Het taakraster zet dit uit: daar
+   *  is geen tijdlijn om te zoomen. Standaard aan (Gantt). */
+  showViewItems?: boolean;
 }
 
 const PRIORITY_LOW = 100;
@@ -99,6 +102,7 @@ export function ContextMenu({
   onStartRelationFromBar, splitGapIndex = null, onRemoveSplitGap, onRemoveAllSplitGaps,
   onPaste, onZoomReset, onFitToProject,
   onToggleGroupCollapse, onExpandAll, onCollapseAll,
+  showViewItems = true,
 }: ContextMenuProps) {
   // `common` blijft de standaard-namespace; `menu` staat erbij zodat het in-/uitklap-item exact
   // dezelfde labels draagt als de Beeld-tab in plaats van een tweede, eigen vertaling
@@ -282,9 +286,13 @@ export function ContextMenu({
             onClick={() => { if (canPaste) { onPaste(); closeAll(); } }}
             onEnter={() => setOpenSub(null)}
           />
-          <Separator />
-          <MenuItem label={t('context.zoomReset')} onClick={() => { onZoomReset(); closeAll(); }} onEnter={() => setOpenSub(null)} />
-          <MenuItem label={t('context.fitToProject')} onClick={() => { onFitToProject(); closeAll(); }} onEnter={() => setOpenSub(null)} />
+          {showViewItems && (
+            <>
+              <Separator />
+              <MenuItem label={t('context.zoomReset')} onClick={() => { onZoomReset(); closeAll(); }} onEnter={() => setOpenSub(null)} />
+              <MenuItem label={t('context.fitToProject')} onClick={() => { onFitToProject(); closeAll(); }} onEnter={() => setOpenSub(null)} />
+            </>
+          )}
         </>
       )}
     </div>

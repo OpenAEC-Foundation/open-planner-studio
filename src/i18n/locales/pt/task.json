@@ -291,7 +291,8 @@
       "baselineVarianceStart": "Desvio de início",
       "baselineVarianceFinish": "Desvio de fim",
       "baselineVarianceDuration": "Desvio de duração"
-    }
+    },
+    "ghostRow": "Nova tarefa"
   },
   "taskStatus": {
     "NOT_STARTED": "Não iniciada",

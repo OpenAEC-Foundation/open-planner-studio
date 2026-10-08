@@ -287,7 +287,8 @@
       "baselineVarianceStart": "انحراف شروع",
       "baselineVarianceFinish": "انحراف پایان",
       "baselineVarianceDuration": "انحراف مدت"
-    }
+    },
+    "ghostRow": "وظیفهٔ جدید"
   },
   "taskStatus": {
     "NOT_STARTED": "شروع نشده",

@@ -287,7 +287,8 @@
       "baselineVarianceStart": "Startafwijking",
       "baselineVarianceFinish": "Eindafwijking",
       "baselineVarianceDuration": "Duurafwijking"
-    }
+    },
+    "ghostRow": "Nieuwe taak"
   },
   "taskStatus": {
     "NOT_STARTED": "Niet gestart",

@@ -291,7 +291,8 @@
       "baselineVarianceStart": "Scostamento inizio",
       "baselineVarianceFinish": "Scostamento fine",
       "baselineVarianceDuration": "Scostamento durata"
-    }
+    },
+    "ghostRow": "Nuova attività"
   },
   "taskStatus": {
     "NOT_STARTED": "Non iniziata",

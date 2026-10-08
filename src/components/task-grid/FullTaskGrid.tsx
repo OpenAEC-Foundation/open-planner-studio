@@ -52,7 +52,18 @@ import { isTreeMode } from '@/engine/view/visibleRows';
 import { effectiveCalendarOf, effHoursPerDay } from '@/utils/taskDuration';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { signedWorkDaysBetween } from '@/engine/variance';
-import { insertTaskRelativeToScope } from '@/state/taskInsertActions';
+import { endOfListPosition, insertTaskRelativeToScope } from '@/state/taskInsertActions';
+import { withTransaction } from '@/state/batchTransaction';
+import {
+  appendGhostRow,
+  GHOST_ROW_KEY,
+  GHOST_TASK_ID,
+  intentsTouchGhost,
+  isGhostTaskId,
+  lastTaskRow,
+  retargetGhostIntents,
+} from '@/engine/taskGrid/ghostRow';
+import { buildNewTask, createDefaultTaskTime } from '@/utils/taskDefaults';
 import { recordedGridBinding } from '@/state/recordedDatesSelectors';
 import { useAppStore } from '@/state/appStore';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
@@ -323,7 +334,31 @@ export function TaskGridSurface({
   const commitTaskGridColumns = useAppStore(state => state.commitTaskGridColumns);
   const setTaskGridScrollX = useAppStore(state => state.setTaskGridScrollX);
   const recordRecentTaskColumn = useAppStore(state => state.recordRecentTaskColumn);
+  const constructionMode = useAppStore(state => state.ui.constructionMode);
+  // De spookregel onderaan (review 2026-10-06, punt 1; zie `engine/taskGrid/ghostRow.ts`). Alleen
+  // in de boomweergave: daar is "onderaan" ook de plek waar de nieuwe taak landt.
+  const showGhostRow = isTreeMode(view);
+  const ghostTask = useMemo<Task>(() => {
+    const last = lastTaskRow(viewRows);
+    const parentId = last?.task.parentId ?? null;
+    return buildNewTask({ name: '' }, {
+      id: GHOST_TASK_ID,
+      parentId,
+      parentTask: parentId ? tasks.find(task => task.id === parentId) : undefined,
+      constructionMode,
+      time: createDefaultTaskTime(project.startDate || localTodayIso(), 5, 'days', calendar),
+    });
+  }, [calendar, constructionMode, project.startDate, tasks, viewRows]);
+  const gridRows = useMemo(
+    () => (showGhostRow ? appendGhostRow(viewRows, ghostTask) : viewRows),
+    [ghostTask, showGhostRow, viewRows],
+  );
+  // Na het vastleggen op de spookregel: zet de celcursor op dezelfde kolom van de nieuwe taak, zodra
+  // die rij er is (de rijen komen pas bij de volgende render uit de store).
+  const pendingGhostSelectRef = useRef<{ taskId: string; columnId: TaskColumnId } | null>(null);
   const [selection, setSelection] = useState<GridSelectionState>(createEmptyGridSelection);
+  const selectionRef = useRef(selection);
+  selectionRef.current = selection;
   const [editing, setEditing] = useState<EditingCell | null>(null);
   const [surfaceError, setSurfaceError] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<GridContextMenuState | null>(null);
@@ -376,7 +411,9 @@ export function TaskGridSurface({
   );
   const adapterDomain = useMemo(() => createTaskGridAdapterDomain({
     projectId: project.id,
-    tasks,
+    // De sjabloontaak van de spookregel hoort erbij, anders kent de adapter zijn cellen niet (en
+    // zijn ze alleen-lezen). Hij heeft geen relaties of toewijzingen, dus verder telt hij nergens mee.
+    tasks: showGhostRow ? [...tasks, ghostTask] : tasks,
     sequences,
     cpmResult,
     assignments,
@@ -418,22 +455,61 @@ export function TaskGridSurface({
     activityCodeTypes, assignments, baselines, calendar, calendarEngine, calendarOptions, calendars,
     cpmResult, customFieldDefs, customTaskTypes, datesAsRecorded, dateNotation, durationDisplay, project.id,
     project.wbsAutoNumber, recordedDates, resources, scheduleStale, sequences, showTaskTypes,
-    taskTypesVisible, tCommon, tTask, taskI18n.language, tasks, textDirection,
+    taskTypesVisible, tCommon, tTask, taskI18n.language, tasks, textDirection, showGhostRow, ghostTask,
   ]);
+  // Vastleggen op de spookregel: maak de taak (onderaan, op het niveau van de laatste taak) en schrijf
+  // de waarde er in ÉÉN undo-stap op. Weigert de transactie, dan verdwijnt de taak weer binnen
+  // dezelfde stap en is er per saldo niets gebeurd.
+  const commitOnGhost = useCallback((
+    intents: readonly GridIntent[],
+    columnId: TaskColumnId | undefined,
+  ): GridResult<void, readonly CellValidationError[]> => {
+    const wasDirty = useAppStore.getState().isDirty;
+    const box: { taskId: string; result: GridResult<void, readonly CellValidationError[]> | null } = {
+      taskId: '',
+      result: null,
+    };
+    withTransaction(() => {
+      const store = useAppStore.getState();
+      box.taskId = store.addTask({
+        name: tTask('defaultTask', { defaultValue: 'Nieuwe taak' }),
+        ...endOfListPosition(),
+      });
+      if (!box.taskId) return;
+      box.result = runGridMutation(
+        retargetGhostIntents(intents, box.taskId),
+        { ...progressEntryOptions(), recordHistory: false },
+      );
+      if (!box.result.ok) useAppStore.getState().deleteTask(box.taskId);
+    }, 'Taak toevoegen');
+    if (!box.taskId || !box.result?.ok) {
+      if (!wasDirty) useAppStore.setState({ isDirty: false });
+      return box.result && !box.result.ok
+        ? box.result
+        : { ok: false, errors: [{ code: 'invalid', messageKey: 'taskGrid.validation.invalid' }] };
+    }
+    selectTask(box.taskId, false);
+    if (columnId) pendingGhostSelectRef.current = { taskId: box.taskId, columnId };
+    setEditing(null);
+    setSurfaceError(null);
+    return { ok: true, value: undefined };
+  }, [runGridMutation, selectTask, tTask]);
+
   const adapter = useMemo(() => createTaskGridAdapter({
     surfaceId,
-    rows: viewRows,
+    rows: gridRows,
     selectedTaskIds,
     trace,
     callbacks: {
       onPrepareEdit: () => true,
-      onCommitEdit: (_target, intents) => {
+      onCommitEdit: (target, intents) => {
         if (useAppStore.getState().activeDocumentId !== activeDocumentId) {
           return {
             ok: false,
             errors: [{ code: 'documentChanged', messageKey: 'taskGrid.validation.invalid' }],
           };
         }
+        if (intentsTouchGhost(intents)) return commitOnGhost(intents, target.columnId);
         const result = runGridMutation(intents, progressEntryOptions());
         const asked = !result.ok && askActualStartAndRetry(
           intents, result.errors,
@@ -449,9 +525,9 @@ export function TaskGridSurface({
       },
     },
   }, adapterDomain), [
-    activeDocumentId, adapterDomain, runGridMutation, selectedTaskIds, surfaceId, tTask, trace, viewRows,
+    activeDocumentId, adapterDomain, commitOnGhost, gridRows, runGridMutation, selectedTaskIds, surfaceId, tTask, trace,
   ]);
-  const rowIndex = useMemo(() => createTaskGridRowIndex(viewRows), [viewRows]);
+  const rowIndex = useMemo(() => createTaskGridRowIndex(gridRows), [gridRows]);
   const tasksById = useMemo(() => new Map(tasks.map(task => [task.id, task] as const)), [tasks]);
   const availableIds = useMemo(
     () => new Set(adapter.availableColumns.map(column => column.id)),
@@ -471,6 +547,30 @@ export function TaskGridSurface({
   const previousRowsRef = useRef(rowIndex);
   const previousColumnsRef = useRef<readonly TaskColumnId[]>(visibleColumnIds);
   useEffect(() => {
+    // Net vastgelegd op de spookregel. Bleef de cursor in dezelfde kolom (Enter), dan staat hij nu
+    // op de NIEUWE spookregel eronder: door naar de volgende taak, zoals afgesproken. Ging hij naar
+    // een andere kolom (Tab), dan hoort die bij de taak die net gemaakt is, niet bij een nieuwe.
+    const pendingGhost = pendingGhostSelectRef.current;
+    const createdRow = pendingGhost
+      ? rowIndex.taskRows.find(row => row.task.id === pendingGhost.taskId)
+      : undefined;
+    if (pendingGhost && createdRow) {
+      pendingGhostSelectRef.current = null;
+      const active = selectionRef.current.active;
+      if (active?.rowKey === GHOST_ROW_KEY && active.columnId !== pendingGhost.columnId) {
+        setSelection(updateGridSelection(
+          createEmptyGridSelection(),
+          { rowKey: createdRow.rowKey, columnId: active.columnId },
+          rowIndex,
+          visibleColumnIds,
+          'replace',
+        ));
+        selectTasks([pendingGhost.taskId], false, pendingGhost.taskId);
+        previousRowsRef.current = rowIndex;
+        previousColumnsRef.current = visibleColumnIds;
+        return;
+      }
+    }
     setSelection(current => {
       if (!current.active) {
         const preferredTaskIds = publishedActiveTaskId
@@ -478,7 +578,8 @@ export function TaskGridSurface({
           : selectedTaskIds;
         const selectedRows = preferredTaskIds
           .flatMap(id => rowIndex.taskRows.filter(row => row.task.id === id));
-        const selected = selectedRows[0] ?? rowIndex.taskRows[0];
+        // Nooit vanzelf op de spookregel beginnen: dan zie je zijn grijze label "Nieuwe taak" niet.
+        const selected = selectedRows[0] ?? rowIndex.taskRows.find(row => row.rowKey !== GHOST_ROW_KEY);
         const columnId = visibleColumnIds[0];
         if (!selected || !columnId) return createEmptyGridSelection();
         return updateGridSelection(
@@ -509,13 +610,14 @@ export function TaskGridSurface({
     });
     previousRowsRef.current = rowIndex;
     previousColumnsRef.current = visibleColumnIds;
-  }, [publishedActiveTaskId, rowIndex, selectedTaskIds, visibleColumnIds]);
+  }, [publishedActiveTaskId, rowIndex, selectTasks, selectedTaskIds, visibleColumnIds]);
 
   useEffect(() => {
     if (!editing || editing.documentId !== activeDocumentId) return;
-    const liveRowExists = useAppStore.getState().viewRows.some(candidate => (
-      candidate.kind === 'task' && candidate.rowKey === editing.cell.rowKey
-    ));
+    const liveRowExists = editing.cell.rowKey === GHOST_ROW_KEY
+      || useAppStore.getState().viewRows.some(candidate => (
+        candidate.kind === 'task' && candidate.rowKey === editing.cell.rowKey
+      ));
     if (shouldCancelTaskGridEdit({
       indexedRowExists: rowIndex.taskByRowKey.has(editing.cell.rowKey),
       liveRowExists,
@@ -548,7 +650,12 @@ export function TaskGridSurface({
 
   const applySelection = useCallback((next: GridSelectionState) => {
     setSelection(next);
-    selectTasks([...next.selectedTaskIds], false, next.activeTaskId);
+    // De spookregel is geen taak: die id gaat nooit naar de store-selectie.
+    selectTasks(
+      next.selectedTaskIds.filter(id => !isGhostTaskId(id)),
+      false,
+      isGhostTaskId(next.activeTaskId) ? null : next.activeTaskId,
+    );
     setSurfaceError(null);
   }, [selectTasks]);
 
@@ -640,6 +747,8 @@ export function TaskGridSurface({
     if (command.kind === 'clear-cells') {
       if (!finishEditing()) return;
       const planned = planTaskGridClear(clipboardEnvironment());
+      // Wissen op de spookregel: daar staat nog niets, dus er valt ook niets te wissen.
+      if (planned.ok && intentsTouchGhost([planned.value])) return;
       if (!planned.ok) {
         setSurfaceError(validationMessage(planned.errors[0], 'taskGrid.validation.clearNotPossible'));
         return;
@@ -674,6 +783,32 @@ export function TaskGridSurface({
     }
   }, [activeDocumentId, adapter.rowMetaByKey, applySelection, clipboardEnvironment, finishEditing, onPlainTaskClick, readOnlyMessage, rowIndex, runGridMutation, selectTask, selection, startEdit, tTask, tasksById, validationMessage, visibleColumnIds]);
 
+  // "Nieuwe taak"/"Nieuwe mijlpaal" uit het menu op lege ruimte: onderaan, en de naamcel staat
+  // meteen open om te typen — hetzelfde ritueel als de Insert-toets hierboven.
+  const addAtEndAndEditName = useCallback((milestone: boolean) => {
+    const id = addTask({
+      name: milestone
+        ? tTask('defaultMilestone', { defaultValue: 'Nieuwe mijlpaal' })
+        : tTask('defaultTask', { defaultValue: 'Nieuwe taak' }),
+      ...(milestone ? { isMilestone: true, taskType: 'ATTENDANCE' as const } : {}),
+      ...endOfListPosition(),
+    });
+    if (!id) return;
+    const live = useAppStore.getState().viewRows.find(candidate => candidate.kind === 'task' && candidate.task.id === id);
+    if (!live) return;
+    selectTask(id, false);
+    const cell = { rowKey: live.rowKey, columnId: 'task.name' as TaskColumnId };
+    if (!visibleColumnIds.includes(cell.columnId)) return;
+    setSelection(updateGridSelection(createEmptyGridSelection(), cell, createTaskGridRowIndex(useAppStore.getState().viewRows), visibleColumnIds, 'replace'));
+    setEditing({ documentId: activeDocumentId, cell, replacement: '' });
+  }, [activeDocumentId, addTask, selectTask, tTask, visibleColumnIds]);
+
+  const openEmptyContextMenu = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (!finishEditing()) return;
+    setContextMenu({ documentId: activeDocumentId, x: event.clientX, y: event.clientY, task: null, group: null });
+  }, [activeDocumentId, finishEditing]);
+
   const { startRowDrag, dragState } = useTableRowDrag({
     rows: viewRows,
     tasksById,
@@ -699,6 +834,7 @@ export function TaskGridSurface({
     const meta = adapter.rowMetaByKey.get(row.rowKey);
     return {
       ...row,
+      ghost: row.rowKey === GHOST_ROW_KEY,
       dragging: meta?.kind === 'task' && dragState?.taskId === meta.taskId,
       dropZone: dragState?.hoverRowIndex === absoluteIndex ? dragState.hoverZone : null,
     };
@@ -782,7 +918,8 @@ export function TaskGridSurface({
     if (!base) return { text: '', readOnly: true };
     const cell = { rowKey: row.rowKey, columnId: column.id };
     const meta = adapter.rowMetaByKey.get(row.rowKey);
-    const task = meta?.kind === 'task' ? tasksById.get(meta.taskId) : undefined;
+    const isGhost = row.rowKey === GHOST_ROW_KEY;
+    const task = meta?.kind === 'task' ? (isGhost ? ghostTask : tasksById.get(meta.taskId)) : undefined;
     const isName = column.id === 'task.name';
     // De naamrij draagt de hiërarchie. Elke rij reserveert één inspringeenheid voor het
     // triehoekje (`taskNameIndent`), zodat een blad zijn naam op dezelfde kolom begint als een
@@ -873,6 +1010,17 @@ export function TaskGridSurface({
         content: isName && task ? renderNameRow(task, editor, true) : editor,
       };
     }
+    // De spookregel toont geen waarden van zijn sjabloontaak: alleen een grijze "Nieuwe taak" in de
+    // naamkolom. Wat leesbaar of bewerkbaar is, volgt wel de kolom (berekende kolommen blijven dicht).
+    if (isGhost) {
+      return {
+        text: '',
+        readOnly: base.readOnly,
+        content: isName && task
+          ? renderNameRow(task, <span className="task-grid-ghost-placeholder">{tTask('taskGrid.ghostRow')}</span>, false)
+          : undefined,
+      };
+    }
     const relationDirection = column.id === 'relation.predecessors'
       ? 'predecessor'
       : column.id === 'relation.successors' ? 'successor' : null;
@@ -919,7 +1067,7 @@ export function TaskGridSurface({
         false,
       ) : undefined,
     };
-  }, [activeDocumentId, adapter, addTask, applySelection, collapsedTaskIds, editing, focusOnTask, nameIndentMode, rowIndex, selection, showSummaryAdd, tCommon, tTask, tasksById, toggleCollapse, validationMessage, visibleColumnIds]);
+  }, [activeDocumentId, adapter, addTask, applySelection, collapsedTaskIds, editing, focusOnTask, ghostTask, nameIndentMode, rowIndex, selection, showSummaryAdd, tCommon, tTask, tasksById, toggleCollapse, validationMessage, visibleColumnIds]);
 
   const rowHeight = Math.max(20, Math.round(28 * uiFontScale / 100));
   const headerHeight = Math.max(24, Math.round(baseHeaderHeight * uiFontScale / 100));
@@ -984,7 +1132,9 @@ export function TaskGridSurface({
           applySelection(next);
           setUI({ showPropertiesPanel: true, rightPanelCollapsed: false });
         }}
+        onEmptyContextMenu={openEmptyContextMenu}
         onCellContextMenu={(cell, event) => {
+          if (cell.rowKey === GHOST_ROW_KEY) { openEmptyContextMenu(event); return; }
           event.preventDefault();
           if (!finishEditing()) return;
           const meta = adapter.rowMetaByKey.get(cell.rowKey);
@@ -1147,12 +1297,15 @@ export function TaskGridSurface({
             name: tTask('defaultTask', { defaultValue: 'Nieuwe taak' }),
             parentId: contextMenu.task?.id ?? null,
           })}
-          onAddMilestone={() => addTask({
-            name: tTask('defaultMilestone', { defaultValue: 'Nieuwe mijlpaal' }),
-            isMilestone: true,
-            taskType: 'ATTENDANCE',
-            parentId: contextMenu.task?.id ?? null,
-          })}
+          onAddMilestone={() => {
+            if (!contextMenu.task) { addAtEndAndEditName(true); return; }
+            addTask({
+              name: tTask('defaultMilestone', { defaultValue: 'Nieuwe mijlpaal' }),
+              isMilestone: true,
+              taskType: 'ATTENDANCE',
+              parentId: contextMenu.task.id,
+            });
+          }}
           addRelationDisabledReason={ganttVisible ? undefined : tMenu('ribbon.ganttOnlyHint')}
           onAddRelation={() => {
             if (!contextMenu.task) return;
@@ -1190,9 +1343,8 @@ export function TaskGridSurface({
           onDelete={() => {
             if (contextMenu.task) contextMenuBulk.remove(contextMenu.task.id);
           }}
-          onAddTask={() => contextMenuBulk.addNearSelection(
-            tTask('defaultTask', { defaultValue: 'Nieuwe taak' }),
-          )}
+          onAddTask={() => addAtEndAndEditName(false)}
+          showViewItems={false}
           onInsertAbove={() => {
             if (contextMenu.task) contextMenuBulk.insert(
               contextMenu.task.id,

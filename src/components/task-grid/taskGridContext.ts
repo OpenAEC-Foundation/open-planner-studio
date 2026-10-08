@@ -15,6 +15,8 @@ export interface DataGridDataRowModel {
   rowKey: string;
   depth: number;
   dimmed?: boolean;
+  /** De spookregel onderaan (zie `engine/taskGrid/ghostRow.ts`): nog geen taak. */
+  ghost?: boolean;
   selected?: boolean;
   traceClass?: string | null;
   dropZone?: 'before' | 'after' | 'nest' | null;

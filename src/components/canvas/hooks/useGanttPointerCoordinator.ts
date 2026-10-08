@@ -9,6 +9,7 @@ import { useSplitGesture } from './useSplitGesture';
 import { canSplitTask } from '@/engine/scheduler/splitEdit';
 import { isSummaryTask } from '@/engine/scheduler/relationRules';
 import type { Task } from '@/types/task';
+import { formatDate } from '@/utils/dateUtils';
 import type { GanttRenderer } from '@/engine/renderer/GanttRenderer';
 import type {
   GanttContextMenuState,
@@ -226,7 +227,21 @@ export function useGanttPointerCoordinator(
     const y = event.clientY - rect.top;
     if (y < headerHeight) return;
     const task = renderer.getRelationSourceAt(x, y);
-    if (!task) return;
+    if (!task) {
+      // Lege ruimte: het korte menu met "Nieuwe taak" en "Nieuwe mijlpaal", op de datum onder de
+      // cursor (review 2026-10-06, punt 1).
+      const clicked = viewport.sharedAxis?.xToDate(x);
+      setContextMenu({
+        x: event.clientX,
+        y: event.clientY,
+        task: null,
+        barHit: false,
+        group: null,
+        splitGapIndex: null,
+        clickDate: clicked ? formatDate(clicked) : null,
+      });
+      return;
+    }
     if (task && !selectedTaskIds.includes(task.id)) selectTask(task.id, false);
     // Welke pauze "Onderbreking opheffen" bedoelt — de pauze onder de cursor,
     // anders die vóór het aangeklikte stuk. Alleen op een bewerkbare split met evenveel getekende
@@ -250,7 +265,7 @@ export function useGanttPointerCoordinator(
       group: null,
       splitGapIndex,
     });
-  }, [canvasRef, rendererRef, clearHistogramTooltip, headerHeight, selectedTaskIds, selectTask, effectiveCalendarByTaskId, calendar]);
+  }, [canvasRef, rendererRef, clearHistogramTooltip, headerHeight, selectedTaskIds, selectTask, effectiveCalendarByTaskId, calendar, viewport.sharedAxis]);
 
   const beginPan = useCallback((event: ReactMouseEvent<HTMLCanvasElement>, button: number) => {
     pan.startPan({
