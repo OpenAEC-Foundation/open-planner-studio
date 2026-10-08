@@ -53,6 +53,8 @@
     "mppEncrypted": "이 .mpp 파일은 암호로 보호되어 있습니다. MS Project에서 XML로 내보낸 후(파일 → 다른 이름으로 저장 → XML) 해당 파일을 여세요.",
     "saveFailed": "저장하지 못했습니다",
     "savedViaDownload": "다운로드로 저장했습니다. '{{name}}' 파일이 다운로드 폴더에 있습니다. 이 환경에서는 앱이 선택한 위치에 직접 쓸 수 없습니다.",
+    "browserCannotOverwrite": "이 브라우저에서는 앱이 '{{name}}'에 다시 쓸 수 없습니다. 그래서 저장할 때마다 파일을 어디에 둘지 다시 묻습니다. Chrome, Edge 또는 데스크톱 앱에서는 이런 일이 없습니다.",
+    "browserSavesAsDownload": "다운로드로 저장됨: '{{name}}'이(가) 다운로드 폴더에 있습니다. 이 브라우저에서는 앱이 원하는 위치에 쓸 수 없으므로 저장할 때마다 새 다운로드가 만들어집니다. Chrome, Edge 또는 데스크톱 앱에서는 저장하면 같은 파일이 업데이트됩니다.",
     "autoSaveFailed": "자동 저장 실패",
     "recoveryReadFailed": "복구된 파일을 읽을 수 없습니다",
     "recoveryRestoreFailed": "복원하지 못했습니다",

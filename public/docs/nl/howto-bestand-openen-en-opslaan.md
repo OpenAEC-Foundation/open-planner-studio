@@ -34,7 +34,8 @@ Kies *Start › Bestand › Opslaan* of *Bestand › Opslaan*, of druk op Ctrl+S
 
 1. Heeft het project al een bestand, omdat je een IFC-bestand opende of het eerder opsloeg, dan schrijft de app naar dat bestand. Er verschijnt geen venster.
 2. Heeft het project nog geen bestand, dan vraagt de app waar het moet komen. Ze stelt de projectnaam met `.ifc` voor. Daarna is dat bestand het bestand van het project.
-3. Bewaart je browser alleen via een download (zoals Firefox), dan komt het bestand in je downloadmap. Je ziet de melding *Opgeslagen als download: 'naam.ifc' staat nu in je downloadmap. Deze omgeving staat de app niet toe rechtstreeks naar de gekozen locatie te schrijven.*
+3. Bewaart je browser alleen via een download (zoals Firefox), dan komt het bestand in je downloadmap, en elke keer opslaan maakt een nieuwe download. De eerste keer in een sessie zie je de melding *Opgeslagen als download: 'naam.ifc' staat in je downloadmap. Deze browser laat de app niet naar een eigen plek schrijven, dus elke keer opslaan maakt een nieuwe download. In Chrome, Edge of de desktop-app werkt Opslaan hetzelfde bestand gewoon bij.*
+4. Kan je browser niet terugschrijven naar het bestand van het project, dan vraagt de app bij elke keer opslaan opnieuw waar het bestand moet komen. Dat lijkt op *Opslaan als*, maar het is een grens van de browser. De eerste keer in een sessie legt de melding *Deze browser laat de app niet terugschrijven naar 'naam.ifc'.* dat uit, met een link naar [Bestanden](docs://uitleg-bestanden).
 
 Na het opslaan verdwijnt de markering *Niet opgeslagen*: de stip op het tabblad, de asterisk voor de projectnaam bovenaan en de tekst *Niet opgeslagen* rechtsonder in de statusbalk.
 

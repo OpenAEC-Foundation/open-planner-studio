@@ -37,6 +37,8 @@ import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
 import type { ImportLabelT } from '@/i18n/importLabels';
 import { invalidateDocumentRedo, removeSessionHistoryForDocumentFromState } from '../sessionHistory';
 import { scheduleFailedNotice } from '../scheduleErrorNotice';
+import { browserSaveNotice } from '../browserSaveNotice';
+import { basename } from '@/utils/filePath';
 import type { ScheduleErrorInfo } from '@/engine/scheduler/CPMSolver';
 
 /**
@@ -413,6 +415,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         return commitSavedDocument(documentId, state);
       }
 
+      // Hier is de opslag NIET teruggeschreven naar een bestaand bestand. In de browser legt
+      // `browserSaveNotice` één keer per sessie uit waarom er weer een venster of download komt.
+      const hadFile = !isTauri() && (state.fileHandle !== null || !!state.filePath);
       const outcome = await saveFileDialog(
         `${suggestedFileBase(state)}.ifc`,
         content,
@@ -424,7 +429,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         fileHandle: outcome.ref?.kind === 'handle' ? outcome.ref.handle : null,
       });
       await pushRecent(outcome.ref, outcome.name);
-      noticeIfDownloaded(outcome);
+      if (!isTauri()) {
+        const notice = browserSaveNotice({ hadFile, existingName: state.filePath ? basename(state.filePath) : null, outcome });
+        if (notice) get().notify(notice);
+      }
       return saved;
     } catch (err) {
       console.error('Save failed:', err);

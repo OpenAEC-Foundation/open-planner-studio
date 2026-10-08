@@ -34,7 +34,8 @@ Choose *Home › File › Save* or *File › Save*, or press Ctrl+S. What happen
 
 1. If the project already has a file, because you opened an IFC file or saved it before, the app writes to that file. No window appears.
 2. If the project has no file yet, the app asks where it should go. It suggests the project name with `.ifc`. After that, that file is the project's file.
-3. If your browser only saves through a download (such as Firefox), the file lands in your downloads folder. You see the message *Saved as a download: 'name.ifc' is now in your downloads folder. This environment does not let the app write directly to the location you picked.*
+3. If your browser only saves through a download (such as Firefox), the file lands in your downloads folder, and every save creates a new download. The first time in a session you see the message *Saved as a download: 'name.ifc' is in your downloads folder. This browser does not let the app write to a place of its own, so every save creates a new download. In Chrome, Edge or the desktop app, Save simply updates the same file.*
+4. If your browser cannot write back to the project's file, the app asks again where to put the file every time you save. That looks like *Save As*, but it is a limit of the browser. The first time in a session the message *This browser does not let the app write back to 'name.ifc'.* explains this, with a link to [Files](docs://uitleg-bestanden).
 
 After saving, the *Unsaved* marker disappears: the dot on the tab, the asterisk before the project name at the top and the text *Unsaved* at the bottom right of the status bar.
 

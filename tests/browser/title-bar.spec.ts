@@ -19,12 +19,13 @@ async function setName(page: Page, name: string): Promise<void> {
   await expect(page.locator('[data-ops-title-file-name]')).toContainText(name.slice(0, 8));
 }
 
-// Gemeten linkercluster in de Engelse dev-build: ~422px; de middenruimte is dus
-// viewport − 2×422 − 24. De breedtes hieronder houden ruim afstand tot de container-
-// drempels (400px en 120px) zodat een iets ander font in CI de uitkomst niet kantelt.
-const WIDE = 1366;   // middenruimte ≈ 498px: appnaam zichtbaar, lange projectnaam kort in
-const NARROW = 1100; // middenruimte ≈ 232px: appnaam weg, projectnaam zichtbaar
-const TINY = 900;    // middenruimte ≈ 8px: beide weg, de tabbalk toont de naam
+// Gemeten linkercluster in de Engelse dev-build: ~344px (sinds review 2026-10-06 zonder de knoppen
+// Nieuw/Openen/Opslaan, voorheen ~422px); de middenruimte is dus viewport − 2×344 − 24. De breedtes
+// hieronder houden ruim afstand tot de containerdrempels (400px en 120px) zodat een iets ander font
+// in CI de uitkomst niet kantelt.
+const WIDE = 1200;   // middenruimte ≈ 488px: appnaam zichtbaar, lange projectnaam kort in
+const NARROW = 960;  // middenruimte ≈ 248px: appnaam weg, projectnaam zichtbaar
+const TINY = 760;    // middenruimte ≈ 48px: beide weg, de tabbalk toont de naam
 
 test('lange projectnaam: titel raakt de feedbackknop niet, staat gecentreerd en kort in', async ({ page }) => {
   await page.goto('/');

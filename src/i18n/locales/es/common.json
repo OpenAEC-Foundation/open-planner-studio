@@ -85,6 +85,8 @@
     "mppEncrypted": "Este archivo .mpp está protegido con contraseña. Expórtalo en MS Project como XML (Archivo → Guardar como → XML) y abre ese archivo.",
     "saveFailed": "No se pudo guardar",
     "savedViaDownload": "Guardado como descarga: '{{name}}' está ahora en tu carpeta de descargas. Este entorno no permite que la aplicación escriba directamente en la ubicación elegida.",
+    "browserCannotOverwrite": "Este navegador no permite que la aplicación vuelva a escribir en «{{name}}». Por eso la aplicación pregunta de nuevo dónde guardar el archivo cada vez que guardas. Esto no ocurre en Chrome, Edge ni en la aplicación de escritorio.",
+    "browserSavesAsDownload": "Guardado como descarga: «{{name}}» está en tu carpeta de descargas. Este navegador no permite que la aplicación escriba en una ubicación propia, así que cada guardado crea una descarga nueva. En Chrome, Edge o la aplicación de escritorio, Guardar simplemente actualiza el mismo archivo.",
     "autoSaveFailed": "Error de guardado automático",
     "recoveryReadFailed": "No se pudo leer el archivo recuperado",
     "recoveryRestoreFailed": "No se pudo restaurar",

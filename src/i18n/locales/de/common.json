@@ -69,6 +69,8 @@
     "mppEncrypted": "Diese .mpp-Datei ist passwortgeschützt. Exportieren Sie sie in MS Project als XML (Datei → Speichern unter → XML) und öffnen Sie diese Datei.",
     "saveFailed": "Speichern fehlgeschlagen",
     "savedViaDownload": "Als Download gespeichert: '{{name}}' liegt jetzt in Ihrem Download-Ordner. Diese Umgebung erlaubt der App nicht, direkt an den gewählten Ort zu schreiben.",
+    "browserCannotOverwrite": "Dieser Browser lässt die App nicht in „{{name}}“ zurückschreiben. Deshalb fragt die App bei jedem Speichern erneut, wohin die Datei soll. In Chrome, Edge oder der Desktop-App passiert das nicht.",
+    "browserSavesAsDownload": "Als Download gespeichert: „{{name}}“ liegt in deinem Download-Ordner. Dieser Browser lässt die App nicht an einen eigenen Ort schreiben, daher erzeugt jedes Speichern einen neuen Download. In Chrome, Edge oder der Desktop-App aktualisiert Speichern einfach dieselbe Datei.",
     "autoSaveFailed": "Automatisches Speichern fehlgeschlagen",
     "recoveryReadFailed": "Wiederhergestellte Datei konnte nicht gelesen werden",
     "recoveryRestoreFailed": "Wiederherstellung fehlgeschlagen",

@@ -85,6 +85,8 @@
     "mppEncrypted": "Questo file .mpp è protetto da password. Esportalo da MS Project come XML (File → Salva con nome → XML) e apri quel file.",
     "saveFailed": "Salvataggio non riuscito",
     "savedViaDownload": "Salvato come download: '{{name}}' si trova ora nella cartella dei download. Questo ambiente non consente all'applicazione di scrivere direttamente nella posizione scelta.",
+    "browserCannotOverwrite": "Questo browser non consente all'app di riscrivere su «{{name}}». Per questo l'app chiede di nuovo dove salvare il file a ogni salvataggio. Questo non accade in Chrome, Edge o nell'app desktop.",
+    "browserSavesAsDownload": "Salvato come download: «{{name}}» si trova nella cartella dei download. Questo browser non consente all'app di scrivere in una posizione propria, quindi ogni salvataggio crea un nuovo download. In Chrome, Edge o nell'app desktop, Salva aggiorna semplicemente lo stesso file.",
     "autoSaveFailed": "Salvataggio automatico non riuscito",
     "recoveryReadFailed": "Impossibile leggere il file ripristinato",
     "recoveryRestoreFailed": "Ripristino non riuscito",

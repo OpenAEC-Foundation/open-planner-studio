@@ -74,7 +74,7 @@ On the desktop the app works with real paths. *Save* writes straight to your fil
 
 In a browser that can keep files wherever you want (such as Chrome and Edge) you get an ordinary open and save window. After that, *Save* writes straight to the file; for a file you opened, the browser asks for permission once. The *Recent* list works, with file names only.
 
-In a browser without that ability (such as Firefox) the app opens a file through the file picker and saves through a download. You then get the message *Saved as a download: 'name.ifc' is now in your downloads folder. This environment does not let the app write directly to the location you picked.* *File › Recent* is there, but opens an empty page, and AutoSave is not available. You get the same message in any environment that does not let the app write to the place you picked.
+In a browser without that ability (such as Firefox) the app opens a file through the file picker and saves through a download. With *Save*, the message *Saved as a download: 'name.ifc' is in your downloads folder. …* explains this once per session; with *Save As* and exports you see *Saved as a download: 'name.ifc' is now in your downloads folder. This environment does not let the app write directly to the location you picked.* If the browser can show a save window but cannot write back to the project's file, *Save* asks for a place again every time. A message explains that once per session as well. *File › Recent* is there, but opens an empty page, and AutoSave is not available. You get the same message in any environment that does not let the app write to the place you picked.
 
 ## Example: exporting the example project
 
