@@ -519,7 +519,11 @@
     "controlLag": "{{task}} — ritardo",
     "removeInternal": "Rimuovi la relazione con {{task}}",
     "removeExternal": "Rimuovi la relazione esterna con {{task}}",
-    "searchPlaceholder": "WBS o nome attività"
+    "searchPlaceholder": "WBS o nome attività",
+    "sentenceFS": "{{succ}} inizia solo dopo la fine di {{pred}}.",
+    "sentenceSS": "{{succ}} inizia solo dopo l'inizio di {{pred}}.",
+    "sentenceFF": "{{succ}} finisce solo dopo la fine di {{pred}}.",
+    "sentenceSF": "{{succ}} finisce solo dopo l'inizio di {{pred}}."
   },
   "structure": {
     "title": "Codici e campi",

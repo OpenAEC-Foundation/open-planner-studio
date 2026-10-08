@@ -52,7 +52,12 @@ export function useClickOutside<T extends HTMLElement>(
       const node = target as Node | null;
       const insideMain = ref.current !== null && ref.current.contains(node);
       const insideExtra = extraRef?.current != null && extraRef.current.contains(node);
-      return !insideMain && !insideExtra;
+      // Het open menu van een `Select` hangt via een portal aan `document.body`. Het hoort altijd bij
+      // een trigger die zelf binnen staat (stond die buiten, dan had het openen al als "buiten"
+      // geteld), dus een klik op een optie is geen klik ernaast.
+      const element = node instanceof Element ? node : node?.parentElement ?? null;
+      const insideSelectMenu = element?.closest('.ops-select__menu') != null;
+      return !insideMain && !insideExtra && !insideSelectMenu;
     };
 
     const onPointer = (e: MouseEvent) => { if (isOutside(e.target)) cbRef.current(); };

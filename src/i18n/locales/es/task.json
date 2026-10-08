@@ -519,7 +519,11 @@
     "controlLag": "{{task}} — desfase",
     "removeInternal": "Quitar la relación con {{task}}",
     "removeExternal": "Quitar la relación externa con {{task}}",
-    "searchPlaceholder": "EDT o nombre de tarea"
+    "searchPlaceholder": "EDT o nombre de tarea",
+    "sentenceFS": "{{succ}} empieza solo cuando termina {{pred}}.",
+    "sentenceSS": "{{succ}} empieza solo cuando empieza {{pred}}.",
+    "sentenceFF": "{{succ}} termina solo cuando termina {{pred}}.",
+    "sentenceSF": "{{succ}} termina solo cuando empieza {{pred}}."
   },
   "structure": {
     "title": "Códigos y campos",

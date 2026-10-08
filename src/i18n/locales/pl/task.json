@@ -523,7 +523,11 @@
     "controlLag": "{{task}} — opóźnienie",
     "removeInternal": "Usuń relację z {{task}}",
     "removeExternal": "Usuń relację zewnętrzną z {{task}}",
-    "searchPlaceholder": "SPP lub nazwa zadania"
+    "searchPlaceholder": "SPP lub nazwa zadania",
+    "sentenceFS": "{{succ}} rozpoczyna się dopiero po zakończeniu zadania {{pred}}.",
+    "sentenceSS": "{{succ}} rozpoczyna się dopiero po rozpoczęciu zadania {{pred}}.",
+    "sentenceFF": "{{succ}} kończy się dopiero po zakończeniu zadania {{pred}}.",
+    "sentenceSF": "{{succ}} kończy się dopiero po rozpoczęciu zadania {{pred}}."
   },
   "structure": {
     "title": "Kody i pola",

@@ -515,7 +515,11 @@
     "controlLag": "{{task}} — تأخیر",
     "removeInternal": "حذف رابطه با {{task}}",
     "removeExternal": "حذف رابطه خارجی با {{task}}",
-    "searchPlaceholder": "WBS یا نام وظیفه"
+    "searchPlaceholder": "WBS یا نام وظیفه",
+    "sentenceFS": "{{succ}} فقط پس از پایان {{pred}} آغاز می‌شود.",
+    "sentenceSS": "{{succ}} فقط پس از آغاز {{pred}} آغاز می‌شود.",
+    "sentenceFF": "{{succ}} فقط پس از پایان {{pred}} پایان می‌یابد.",
+    "sentenceSF": "{{succ}} فقط پس از آغاز {{pred}} پایان می‌یابد."
   },
   "structure": {
     "title": "کدها و فیلدها",

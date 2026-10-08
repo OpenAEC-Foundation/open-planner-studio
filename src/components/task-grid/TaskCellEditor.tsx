@@ -266,6 +266,7 @@ export function TaskCellEditor({
             inputRef={node => { inputRef.current = node; }}
             label={label}
             ownerTaskId={ownerTaskId}
+            direction={String(descriptor?.id) === 'relation.successors' ? 'successor' : 'predecessor'}
             tasks={[...adapter.context.tasksById.values()]}
             tokens={relationTokens}
             {...(initialText !== undefined ? { rawText: text } : {})}
