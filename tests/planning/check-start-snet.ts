@@ -381,7 +381,7 @@ for (const constraint of OTHER_CONSTRAINTS) {
 // De tekst nest `$t(task:constraintType.{{type}})`: controleer per taal met een echte i18next-instantie
 // dat die nesting heel is gebleven en het eigen label van die taal oplevert.
 {
-  const LOCALES = ['nl', 'en', 'fr', 'de', 'es', 'zh', 'it', 'pt', 'pl', 'tr', 'ar', 'ja', 'ko', 'fa'];
+  const LOCALES = ['nl', 'en', 'fr', 'de', 'es', 'zh', 'it', 'pt', 'pl', 'tr', 'ar', 'ja', 'ko', 'lo', 'fa'];
   for (const locale of LOCALES) {
     const read = (ns: string) => JSON.parse(readFileSync(
       fileURLToPath(new URL(`../../src/i18n/locales/${locale}/${ns}.json`, import.meta.url)), 'utf8')) as Record<string, unknown>;

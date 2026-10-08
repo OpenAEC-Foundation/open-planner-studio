@@ -1212,7 +1212,7 @@ const offerOnly = (ifcText: string): ImportResult => ({
   if (localesRoot) {
     const talen = readdirSync(localesRoot, { withFileTypes: true })
       .filter((e) => e.isDirectory()).map((e) => e.name).sort();
-    eq('14e alle veertien talen worden gecontroleerd', talen.length, 14);
+    eq('14e alle veertien talen worden gecontroleerd', talen.length, 15);
 
     const zonderNeutraal: string[] = [];
     const neutraalNoemtPrimavera: string[] = [];
