@@ -511,7 +511,11 @@
     "controlLag": "{{task}} — ラグ",
     "removeInternal": "{{task}} との依存関係を削除",
     "removeExternal": "{{task}} との外部依存関係を削除",
-    "searchPlaceholder": "WBS またはタスク名"
+    "searchPlaceholder": "WBS またはタスク名",
+    "sentenceFS": "{{succ}} は {{pred}} の完了後に開始します。",
+    "sentenceSS": "{{succ}} は {{pred}} の開始後に開始します。",
+    "sentenceFF": "{{succ}} は {{pred}} の完了後に完了します。",
+    "sentenceSF": "{{succ}} は {{pred}} の開始後に完了します。"
   },
   "structure": {
     "title": "コードとフィールド",

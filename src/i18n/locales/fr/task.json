@@ -519,7 +519,11 @@
     "controlLag": "{{task}} — décalage",
     "removeInternal": "Supprimer la relation avec {{task}}",
     "removeExternal": "Supprimer la relation externe avec {{task}}",
-    "searchPlaceholder": "SDP ou nom de tâche"
+    "searchPlaceholder": "SDP ou nom de tâche",
+    "sentenceFS": "{{succ}} ne commence qu'après la fin de {{pred}}.",
+    "sentenceSS": "{{succ}} ne commence qu'après le début de {{pred}}.",
+    "sentenceFF": "{{succ}} ne se termine qu'après la fin de {{pred}}.",
+    "sentenceSF": "{{succ}} ne se termine qu'après le début de {{pred}}."
   },
   "structure": {
     "title": "Codes et champs",
