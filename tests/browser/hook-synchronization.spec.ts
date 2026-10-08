@@ -75,10 +75,11 @@ test('hook synchronization: een ander relatieveld wist half ingevoerde lag niet'
   await page.keyboard.press('Enter');
   const editor = page.locator('[data-task-editor-kind="relations"]');
   const lag = editor.locator('input[placeholder="0d"]');
-  const type = editor.locator('select');
+  const type = editor.locator('.task-grid-relation-type .ops-select__trigger');
   await expect(lag).toBeVisible();
   await lag.fill('-');
-  await type.selectOption('SS');
+  await type.click();
+  await page.getByRole('option', { name: 'SS', exact: true }).click();
 
   await expect(lag).toHaveValue('-');
   await lag.fill('2d');

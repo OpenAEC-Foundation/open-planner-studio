@@ -516,7 +516,11 @@
     "controlLag": "{{task}} — lag",
     "removeInternal": "Remove relationship with {{task}}",
     "removeExternal": "Remove external relationship with {{task}}",
-    "searchPlaceholder": "WBS or task name"
+    "searchPlaceholder": "WBS or task name",
+    "sentenceFS": "{{succ}} can only start once {{pred}} has finished.",
+    "sentenceSS": "{{succ}} can only start once {{pred}} has started.",
+    "sentenceFF": "{{succ}} can only finish once {{pred}} has finished.",
+    "sentenceSF": "{{succ}} can only finish once {{pred}} has started."
   },
   "structure": {
     "title": "Codes & fields",

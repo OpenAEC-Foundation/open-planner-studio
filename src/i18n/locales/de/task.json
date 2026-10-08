@@ -516,7 +516,11 @@
     "controlLag": "{{task}} — Zeitabstand",
     "removeInternal": "Beziehung mit {{task}} entfernen",
     "removeExternal": "Externe Beziehung mit {{task}} entfernen",
-    "searchPlaceholder": "WBS oder Aufgabenname"
+    "searchPlaceholder": "WBS oder Aufgabenname",
+    "sentenceFS": "{{succ}} beginnt erst, wenn {{pred}} abgeschlossen ist.",
+    "sentenceSS": "{{succ}} beginnt erst, wenn {{pred}} begonnen hat.",
+    "sentenceFF": "{{succ}} endet erst, wenn {{pred}} abgeschlossen ist.",
+    "sentenceSF": "{{succ}} endet erst, wenn {{pred}} begonnen hat."
   },
   "structure": {
     "title": "Codes & Felder",
