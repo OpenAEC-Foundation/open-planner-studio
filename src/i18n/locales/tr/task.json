@@ -515,7 +515,11 @@
     "controlLag": "{{task}} — gecikme",
     "removeInternal": "{{task}} ile ilişkiyi kaldır",
     "removeExternal": "{{task}} ile dış ilişkiyi kaldır",
-    "searchPlaceholder": "WBS veya görev adı"
+    "searchPlaceholder": "WBS veya görev adı",
+    "sentenceFS": "{{succ}} görevi, ancak {{pred}} görevi bittikten sonra başlar.",
+    "sentenceSS": "{{succ}} görevi, ancak {{pred}} görevi başladıktan sonra başlar.",
+    "sentenceFF": "{{succ}} görevi, ancak {{pred}} görevi bittikten sonra biter.",
+    "sentenceSF": "{{succ}} görevi, ancak {{pred}} görevi başladıktan sonra biter."
   },
   "structure": {
     "title": "Kodlar ve alanlar",

@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { SequenceType, SEQUENCE_TYPE_OPTIONS, type Sequence } from '@/types/sequence';
 import { SequenceLagInput } from '@/components/common/SequenceLagInput';
+import { RelationSentence, relationSentenceName } from '@/components/common/RelationSentence';
+import { Select } from '@/components/common/Select';
+import { useAppStore } from '@/state/appStore';
 
 export interface RelationTypePopoverProps {
   /** Eindpunten van de nog niet vastgelegde relatie. */
@@ -37,6 +40,8 @@ export function RelationTypePopover({
 }: RelationTypePopoverProps) {
   const { t } = useTranslation('task');
   const popoverRef = useRef<HTMLDivElement>(null);
+  const predecessor = useAppStore(s => s.tasks.find(task => task.id === sourceTaskId));
+  const successor = useAppStore(s => s.tasks.find(task => task.id === targetTaskId));
   const [draft, setDraft] = useState<Omit<Sequence, 'id'>>({
     predecessorId: sourceTaskId,
     successorId: targetTaskId,
@@ -68,6 +73,9 @@ export function RelationTypePopover({
       // Escape: na het slepen staat de
       // focus niet altijd in de popover. Bewust zonder stopPropagation: het lagveld zet bij Enter zijn
       // waarde nog in het concept, en `commit` leest dat pas na de render (zie hierboven).
+      // Staat de keuzelijst van het type open, dan zijn Enter en Escape van die lijst: kiezen of
+      // alleen de lijst sluiten. Pas daarna betekenen ze weer "vastleggen" of "annuleren".
+      if ((event.target as Element | null)?.closest?.('[aria-expanded="true"]')) return;
       if (event.key === 'Enter' && !event.isComposing) {
         event.preventDefault();
         commit();
@@ -82,46 +90,52 @@ export function RelationTypePopover({
     return () => document.removeEventListener('keydown', handleEscape, true);
   }, [onCancel]);
 
-  const adjustedX = Math.min(x, window.innerWidth - 220);
-  const adjustedY = Math.min(y, window.innerHeight - 100);
+  // Na het slepen staat de focus op de typekeuze, zodat pijltjes en Enter meteen werken. Uitgesteld:
+  // de klik die bij de loslatende mouseup hoort, zet de focus anders terug op het canvas.
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      popoverRef.current?.querySelector<HTMLButtonElement>('.ops-select__trigger')?.focus();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const adjustedX = Math.min(x, window.innerWidth - 300);
+  const adjustedY = Math.min(y, window.innerHeight - 130);
 
   return (
     <div
       ref={popoverRef}
       data-ops-relation-popover
-      className="fixed z-[var(--z-contextmenu)] bg-surface border border-border rounded-[8px] shadow-[var(--shadow-pop)] p-2.5 flex flex-col gap-2 min-w-[200px]"
+      className="fixed z-[var(--z-contextmenu)] bg-surface border border-border rounded-[8px] shadow-[var(--shadow-pop)] p-2.5 flex flex-col gap-2 min-w-[200px] max-w-[280px]"
       style={{ left: adjustedX, top: adjustedY }}
     >
       <span className="!text-small font-semibold uppercase tracking-wide text-text-secondary">
         {t('properties.relationPopoverTitle')}
       </span>
       <div className="flex items-center gap-2">
-        {/* GEEN `flex-1` op een native `<select>` in
-            een flex-rij — dat zet flex-basis op 0%, dus het vakje krimpt tot ~11.75px (tekst
-            onzichtbaar). Zelfde patroon als `TaskDependenciesSection` (properties.dependencies-
-            rij): het select-vakje krijgt zijn natuurlijke content-breedte, de lag-input ernaast
-            blijft de vaste breedte. Die breedte moet `!w-16` zijn en niet `w-16`: `.input` staat
-            in `globals.css` buiten elke cascade-layer met `width: 100%`, en unlayered CSS wint van
-            de Tailwind-utilities in `@layer utilities` — zonder `!` doet de breedte niets en
-            vechten beide vakjes om dezelfde 100%. */}
-        <select
-          autoFocus
+        {/* De typekeuze is de gedeelde `Select`, geen native `<select>` (review 2026-10-06). De
+            lag-input houdt `!w-16` en niet `w-16`: `.input` staat in `globals.css` buiten elke
+            cascade-layer met `width: 100%`, en unlayered CSS wint van de Tailwind-utilities. */}
+        <Select
           value={sequence.type}
-          onChange={e => setDraft(current => ({ ...current, type: e.target.value as SequenceType }))}
-          className="input !text-body !px-1.5 !py-1"
-        >
-          {SEQUENCE_TYPE_OPTIONS.map(o => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
+          aria-label={t('properties.relationPopoverTitle')}
+          options={SEQUENCE_TYPE_OPTIONS.map(o => ({ value: o.value, label: o.label }))}
+          onChange={value => setDraft(current => ({ ...current, type: value as SequenceType }))}
+          className="ops-select__trigger--compact !w-20"
+        />
         <SequenceLagInput
           seq={sequence}
           title={t('properties.lag')}
-          className="input !text-body !px-1.5 !py-1 !w-16 text-right"
+          className="input !text-small !px-1.5 !py-0 !h-6 !w-16 text-right"
           onCommit={patch => setDraft(current => ({ ...current, ...patch }))}
           onDraftChange={patch => setDraft(current => ({ ...current, ...patch }))}
         />
       </div>
+      <RelationSentence
+        type={sequence.type}
+        predecessorName={relationSentenceName(predecessor)}
+        successorName={relationSentenceName(successor)}
+      />
     </div>
   );
 }

@@ -160,7 +160,7 @@ for (const mode of ['Shift', 'dependency mode'] as const) {
     if (mode === 'Shift') await page.keyboard.up('Shift');
 
     // De getrokken relatie is eerst een concept. Klik-buiten bewaart die als één undoable mutatie.
-    await expect(page.getByRole('combobox')).toBeVisible();
+    await expect(page.locator('[data-ops-relation-popover]')).toBeVisible();
     await page.getByRole('button', { name: 'File', exact: true }).click();
     await expect.poll(() => state(page).then(s => s.sequences.length)).toBe(1);
     const after = await state(page);
@@ -193,11 +193,11 @@ test('Gantt relationpopover Escape annuleert zonder relatie, undo-stap of meldin
   await page.mouse.move(target.x, target.y, { steps: 5 });
   await page.mouse.up();
   await page.keyboard.up('Shift');
-  await expect(page.getByRole('combobox')).toBeVisible();
+  await expect(page.locator('[data-ops-relation-popover]')).toBeVisible();
 
   await page.keyboard.press('Escape');
 
-  await expect(page.getByRole('combobox')).toHaveCount(0);
+  await expect(page.locator('[data-ops-relation-popover]')).toHaveCount(0);
   const after = await state(page);
   expect(after.sequences).toEqual(before.sequences);
   expect(after.undoDepth).toBe(before.undoDepth);
@@ -229,7 +229,7 @@ test('Gantt Shift-sleep die een kring sluit wordt geweigerd met een kringmelding
   await page.mouse.move(target.x, target.y, { steps: 5 });
   await page.mouse.up();
   await page.keyboard.up('Shift');
-  await expect(page.getByRole('combobox')).toBeVisible();
+  await expect(page.locator('[data-ops-relation-popover]')).toBeVisible();
   await page.getByRole('button', { name: 'File', exact: true }).click();
 
   await expect(page.locator('.ops-toast', { hasText: 'Kring na → Kring voor → Kring na' })).toBeVisible();
@@ -255,7 +255,8 @@ test('Gantt relationpopover bewaart gekozen type en lag als één relatie', asyn
   await page.mouse.move(target.x, target.y, { steps: 5 });
   await page.mouse.up();
   await page.keyboard.up('Shift');
-  await page.getByRole('combobox').selectOption('FINISH_FINISH');
+  await page.locator('[data-ops-relation-popover] .ops-select__trigger').click();
+  await page.getByRole('option', { name: 'FF', exact: true }).click();
   const lag = page.getByPlaceholder('0d');
   await lag.fill('2d');
 
