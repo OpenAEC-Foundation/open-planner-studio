@@ -49,6 +49,23 @@
   font-size: var(--text-small);
 }
 
+/* Compacte trigger voor dichte rijen (relatietype in paneel, tabelcel en Gantt-popover): even
+   hoog als de `.input`-vakjes ernaast, zodat de rij niet verspringt. */
+.ops-select__trigger.ops-select__trigger--compact {
+  gap: var(--sp-1);
+  height: 1.5rem;
+  padding-block: 0;
+  padding-inline: var(--sp-2) var(--sp-1);
+  border-width: 1px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-small);
+}
+
+.ops-select__trigger--compact .ops-select__chevron {
+  width: 12px;
+  height: 12px;
+}
+
 .ops-select__value {
   /* Zonder `min-width: 0` blijft dit een flex-item met `min-width: auto`, en omdat de tekst
      `white-space: nowrap` heeft is de min-content-breedte gelijk aan de volledige, ongewrapte
