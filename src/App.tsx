@@ -22,6 +22,7 @@ import { ProjectOverview } from '@/components/layout/DocumentChrome/ProjectOverv
 import { CloseDocumentDialog } from '@/components/layout/DocumentChrome/CloseDocumentDialog';
 import { useKeyboardShortcuts } from '@/hooks/keyboard/useKeyboardShortcuts';
 import { useSettingsBootstrap } from '@/hooks/useSettingsBootstrap';
+import { useDemoStartExample } from '@/hooks/useDemoStartExample';
 import { useAutoCalcCPM } from '@/hooks/useAutoCalcCPM';
 import { useExitRecordedDates } from '@/hooks/useExitRecordedDates';
 import { useAutoSave } from '@/hooks/useAutoSave';
@@ -140,6 +141,8 @@ function AppContent() {
   // Settings-bootstrap: hydrateert ~20 instellingen + extensies bij mount, en toont de
   // welkomstdialoog zodra de recovery-flow is afgehandeld.
   useSettingsBootstrap(recoveryResolved, recovery);
+  // Demo-start (issue #276): de live browserbouw opent met een voorbeeldplanning; zie de hook.
+  useDemoStartExample(recoveryResolved, recovery);
 
   // Toestemmingsvraag bij extensie-installatie bedraden. MOET eager en vroeg: de
   // faalstand van `askExtensionConsent` is WEIGEREN, dus zonder deze registratie zou een installatie
