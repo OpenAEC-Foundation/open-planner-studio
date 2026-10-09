@@ -39,7 +39,10 @@ function softText(at: string, text: string, nl: string[], en: string, pkg: UiPac
     if (!inSource) continue;
     const forms = t.forms.length ? t.forms : [t.target];
     if (!forms.some(f => low.includes(f.toLocaleLowerCase()))) warnings.push(`${at}: term "${t.target}" (${t.id}) niet gevonden`);
-    for (const a of t.avoid ?? []) if (low.includes(a.toLocaleLowerCase())) warnings.push(`${at}: vermijd "${a}" (${t.id})`);
+    // Een avoid-variant kan in de eigen term zitten ("fri slakk" ⊃ "slakk"): haal de vormen eerst weg.
+    const rest = forms.map(f => f.toLocaleLowerCase()).sort((a, b) => b.length - a.length)
+      .reduce((s, f) => s.split(f).join('\u0000'), low);
+    for (const a of t.avoid ?? []) if (rest.includes(a.toLocaleLowerCase())) warnings.push(`${at}: vermijd "${a}" (${t.id})`);
   }
   for (const k of pkg.keep) {
     if (nl.some(s => countToken(s, k) > 0) && countToken(text, k) === 0) warnings.push(`${at}: eigennaam "${k}" niet letterlijk overgenomen`);
