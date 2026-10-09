@@ -35,7 +35,7 @@ de `verify:i18n`-poort. De overige scripts draaien via hun npm-script in de kete
 | `i18n-diff.mjs` | `verify:i18n` | ontbrekende vertaalsleutels t.o.v. `nl`, met CLDR-pluralcategorieën |
 | `verify-i18n-keys.mjs` | `verify:i18n` | geen cast (`as 'a.b'`) op een vertaalsleutel in `src/`: zo'n cast zet de typecheck van die sleutel uit (`as const` mag); bewezen door `tests/planning/check-i18n-keys.ts` |
 | `i18n-fmt.ts` | `verify:i18n` (met `--check`) en `npm run i18n:fmt` (schrijven) | de vaste opmaak van alle 56 locale-bestanden: één sleutel per regel, volgorde van `nl`, meervoudsfamilies in CLDR-volgorde |
-| `i18n-add.ts` | `npm run i18n:add` | zet één tekst (of meervoudsfamilie) in alle 14 locales tegelijk, na validatie van locales, CLDR-categorieën en `{{invulplekken}}`; `--update` wijzigt, `--after` plaatst |
+| `i18n-add.ts` | `npm run i18n:add` | zet één tekst (of meervoudsfamilie) in alle 14 locales tegelijk, na validatie van locales, CLDR-categorieën en `{{invulplekken}}`; `--update` wijzigt, `--after` plaatst; werkt de bron-hash in `i18n/ui-sources/` bij (vertaalstraat) |
 | `i18n-resolve.ts` | `npm run i18n:resolve` | voegt na `git merge` alle locale-bestanden per sleutel samen (merge-base, HEAD, MERGE_HEAD; of de merge-commit achteraf), maakt ze op en doet `git add`; een echte botsing blijft open met exit 1 |
 | `i18n-tools.ts` | de drie hierboven, en `tests/planning/check-i18n-tools.ts` | de pure kern (ordenen, serialiseren, valideren, plaatsen, per sleutel samenvoegen) |
 | `verify-text-roles.mjs` | `verify:text-roles` | tekstgroottes lopen uitsluitend via de zes tekstrollen (`text-caption` … `text-title` / `var(--text-…)`); keurt kale px/rem-font-sizes, `text-[Npx]`, Tailwinds eigen schaal en inline `fontSize` in `src/` af (niet in `engine/`/`services/`) |
@@ -48,6 +48,22 @@ de `verify:i18n`-poort. De overige scripts draaien via hun npm-script in de kete
 | `verify-docs.ts` | `verify:docs` | de in-app gidsen in `public/docs/`: manifest v2 (`kind`, `draft`, `aliases`), alleen nl en en (een andere taalmap is fout), manifest-dekking, weesbestanden, `docs://`/`examples://`-links (incl. `#anker`), afbeeldingen (alt-tekst, bestand bestaat), of de inhoud binnen de mini-Markdown-subset blijft, en (poort 10) of elk artikel-id uit `src/state/helpArticles.ts` en de release-hoogtepunten bestaat; bewaakt daarnaast dat elke skill onder `public/skills/<naam>/SKILL.md` byte-identiek in `.claude/skills/<naam>/` staat (poort 9) en dat elk principe van `gids-goed-plannen` (nl én en) via de koppeltabel in `scripts/lib/agent-guide-coupling.ts` een tegenhanger heeft in de agentgids `public/agent/planning-guide.md` (poort 11) |
 | `verify-examples.ts` | `verify:examples` | de gebundelde voorbeeldprojecten laden en rekenen door zoals verwacht |
 | `verify-conventions.mjs` | `verify:conventions` | AST-poort van de rekenprofielen (ook aangeroepen door `tests/planning/check-conventions-boundary.ts`): de motor (`src/engine/` plus de motorhelper `src/utils/p6SuspendResume.ts`) leest geen bronformaat (`p6Source`/`importFormat`/`readFormat`/`xerSourceProjectId`/`xerSourceArchive`/`xerImportMetadata`, ook via string-index, `in` of destructuring; geen lezer-, `formatRegistry`- of `xerSourceArchive`-imports en geen niet-letterlijke dynamische imports); opties-sleutels alleen uit het register (`convention('…')` in `CONVENTIONS` plus de projectopties uit `interface SchedulingOptions`): een onbekende of niet-letterlijke sleutel op een opties-object, `Reflect.get`/`Object.keys|values|entries` op een opties-object (ook via hernoemde imports, type-aliassen en `import('…')`-typen), een registerconventie die in geen vanuit `solveProject.ts` bereikbaar bestand gelezen wordt, en een ongepind herkomstveld (`p6…`/`xer…`/`mpp…`/`msp…`/`mpx…` dat geen eigen lid op `this` of op een in hetzelfde bestand gedeclareerd object is) zijn rood (Fable-critreview PR #169, bevinding 4 + critreview 2e ronde). Grens: syntactisch, dus een opties-object dat via een helper in een ander bestand onder een neutrale naam binnenkomt, of een waarde die al als `any` binnenkomt, ziet de poort niet; herkomst-datagates (ook via destructuring en `in`) gepind in `verify-conventions.datagates.json`, alleen omlaag (`--write-baseline` herpint, alleen als alles groen is). Een optionele `verify-conventions.allowlist.json` kan overgangscode tijdelijk vrijstellen (alleen namen, alleen bestaande bestanden, reden met de overgangsmarkering); in de eindstand bestaat hij niet |
+
+## Vertaalstraat (`npm run translate`)
+
+Termbase en UI-vertaling door kleine Haiku-agents per werkpakket; ontwerp
+`docs/superpowers/specs/2026-10-09-vertaalstraat-design.md`. Logica in pure modules (getoetst in
+`tests/planning/check-translate-*.ts`), I/O alleen in `cli.ts`. Werkmap `build/translate/` en cache
+`build/cache/` staan in `.gitignore`.
+
+| script | aangeroepen door | doet |
+|---|---|---|
+| `translate/cli.ts` | `npm run translate -- <commando>` | `validate-termbase`, `concepts-candidates`, `concepts-merge`, `terms-lookup <taal>`, `apply-terms <taal>`, `prepare ui <taal> [--missing\|--stale\|--all]`, `bundle-check`, `apply ui <taal>`, `seed-sources`, `status [taal]` |
+| `translate/check.ts` | gebundeld tot `build/translate/check.mjs` (door `prepare`, `terms-lookup`, `concepts-candidates`) | de poort die een agent zelf draait: `node build/translate/check.mjs <pakket>`; zelfstandig, zonder `node_modules` |
+| `translate/gates.ts` | `check.ts`, `apply.ts`, `cli.ts` | de harde en zachte poorten (§7) en de schema's van concepten-, termen- en blinde-controle-uitvoer |
+| `translate/ui.ts`, `apply.ts` | `cli.ts`, `i18n-add.ts` | UI-pakketten (`--missing`, `--stale`), samenvoegen (alleen groen), bron-hashes `i18n/ui-sources/<taal>.json`, status |
+| `translate/termbase.ts`, `tbx.ts`, `candidates.ts`, `common.ts` | `cli.ts` | termbase-schema en samenvoegen, Microsoft-terminologie (TBX, map `OPS_MSTERMS_DIR`, standaard `build/cache/msterms`), kandidaat-termen |
+| `translate/prompts/*.md` | de orkestrator | de vaste opdrachten voor de agents (Engels); plekhouders in `prompts/README.md` |
 
 ## Voorbeeldprojecten genereren
 

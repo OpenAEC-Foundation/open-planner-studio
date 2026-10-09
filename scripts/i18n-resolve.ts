@@ -27,11 +27,12 @@
 // package.json zelf in conflict, los dat dan EERST op: npm én esbuild lezen het, dus geen enkel
 // script start zolang er conflictmarkeringen in staan.
 import { execFileSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   LOCALES, NAMESPACES, formatLocale, mergeLocale, serialize, type Json, type JsonObject, type MergeConflict,
 } from './i18n-tools';
+import { orderSources, type UiSources } from './translate/ui';
 
 function fail(message: string): never {
   console.log(`XX  i18n:resolve: ${message}`);
@@ -118,6 +119,36 @@ for (const ns of NAMESPACES) {
   }
 }
 
+// Vertaalstraat: de bron-hashes in i18n/ui-sources/<taal>.json per sleutel samenvoegen, net als de
+// locales (anders botsen twee PR's die elk een sleutel toevoegen op dezelfde slotregel). Een hash die
+// aan beide kanten anders werd, valt weg: de sleutel telt dan als "zonder hash" (actueel) in
+// `translate status`. Dat blokkeert de merge niet; het script noemt de sleutel wel.
+const sourceDrops: string[] = [];
+const nlMerged = Object.fromEntries(NAMESPACES.map(ns => [ns, parse(
+  readFileSync(join(root, `src/i18n/locales/nl/${ns}.json`), 'utf8'), `nl/${ns}.json`)]));
+for (const loc of LOCALES) {
+  if (loc === 'nl') continue;
+  const rel = `i18n/ui-sources/${loc}.json`;
+  const o = git('show', `${ours}:${rel}`);
+  const t = git('show', `${theirs}:${rel}`);
+  if (o === null && t === null) continue;
+  const b = git('show', `${base}:${rel}`);
+  const result = mergeLocale(b === null ? {} : parse(b, `${rel} (merge-base)`), o === null ? {} : parse(o, `${rel} (${ours})`),
+    t === null ? {} : parse(t, `${rel} (${theirs})`));
+  const merged = result.merged as unknown as UiSources;
+  for (const c of result.conflicts) {
+    const [ns, ...rest] = c.path.split('.');
+    if (merged[ns]) delete merged[ns][rest.join('.')];
+    sourceDrops.push(`${loc} ${c.path}`);
+  }
+  writeFileSync(join(root, rel), serialize(orderSources(merged, nlMerged) as unknown as JsonObject));
+  clean.push(rel);
+}
+if (sourceDrops.length > 0) {
+  console.log(`!!  i18n:resolve: ${sourceDrops.length} bron-hash(es) aan beide kanten anders; weggelaten (de vertaalstraat ziet ze als "zonder hash"):`);
+  for (const d of sourceDrops.slice(0, 20)) console.log(`   - ${d}`);
+}
+
 if (clean.length > 0 && git('add', '--', ...clean) === null) fail('`git add` van de samengevoegde bestanden mislukte');
 
 const show = (v: Json | undefined) => (v === undefined ? '(weg)' : JSON.stringify(v));
@@ -136,7 +167,7 @@ if (!merging) {
       + 'koos er al een waarde voor en die blijft staan — controleer ze:');
     for (const c of conflicts) console.log(`   - ${c.file} ${c.path}: HEAD^1 ${show(c.ours)} · HEAD^2 ${show(c.theirs)}`);
   }
-  const changed = (git('diff', '--cached', '--name-only', '--', 'src/i18n/locales') ?? '').trim().split('\n').filter(Boolean);
+  const changed = (git('diff', '--cached', '--name-only', '--', 'src/i18n/locales', 'i18n/ui-sources') ?? '').trim().split('\n').filter(Boolean);
   if (changed.length === 0) {
     console.log(`OK  i18n:resolve: de merge-commit HEAD klopt per sleutel al — niets gewijzigd (merge-base ${base.slice(0, 8)})`);
   } else {

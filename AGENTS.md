@@ -53,6 +53,9 @@ no exact cell may become inexact); the P6 part needs `OPS_XER_CORPUS`.
 Translations: `npm run i18n:add` puts one string in all 14 locales at once (recipe `docs/recepten/i18n-sleutel.md`),
 `npm run i18n:fmt` puts the locale files in the fixed format (one key per line, `nl` order),
 `npm run i18n:resolve` merges them per key after a `git merge` — run it even when git reports no conflict.
+`npm run translate -- <command>` is the translation pipeline (termbase `i18n/termbase/`, UI work packages in
+`build/translate/`, `apply ui`, `status`; design `docs/superpowers/specs/2026-10-09-vertaalstraat-design.md`,
+overview `scripts/README.md`). `i18n:add` also updates the source hashes in `i18n/ui-sources/`.
 
 Generators/helpers: `npm run gen:examples` (regenerates `public/examples`), `npm run gen:tutorial-project`
 (tutorial project nl/en to `build/tutorial-project/`, see `scripts/README.md`), `npm run gen:docs-screenshots -- --out <dir>`

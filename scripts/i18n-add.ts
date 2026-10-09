@@ -11,12 +11,13 @@
 // CLDR-meervoudscategorieën heeft, of de {{invulplekken}} afwijken van nl. Een bestaande sleutel
 // wijzigen kan alleen met --update (bijv. een label inkorten: één commando i.p.v. 14 bestanden).
 // --after <broer> plaatst een nieuwe sleutel direct na die broer; anders achteraan in zijn object.
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   LOCALES, NAMESPACES, formatLocale, keyExists, serialize, setTranslation, validateTranslations,
   type JsonObject, type Namespace, type Translation,
 } from './i18n-tools';
+import { orderSources, setSourceHash, type UiSources } from './translate/ui';
 
 function fail(message: string): never {
   console.log(`XX  i18n:add: ${message}`);
@@ -51,7 +52,7 @@ const errors = validateTranslations(input);
 if (errors.length > 0) fail(`niets geschreven, want:\n    - ${errors.join('\n    - ')}`);
 
 const dir = join(process.cwd(), 'src/i18n/locales');
-const read = (loc: string) => JSON.parse(readFileSync(join(dir, loc, `${ns}.json`), 'utf8')) as JsonObject;
+const read = (loc: string, n: string = ns) => JSON.parse(readFileSync(join(dir, loc, `${n}.json`), 'utf8')) as JsonObject;
 
 const nl = read('nl');
 const exists = keyExists(nl, path);
@@ -62,10 +63,20 @@ setTranslation(nl, path, input.nl, exists ? undefined : after);
 const nlText = serialize(nl);
 const nlOrdered = formatLocale(nlText, nlText);
 writeFileSync(join(dir, 'nl', `${ns}.json`), nlOrdered);
+// Vertaalstraat (§9): elke taal die hier geschreven wordt, is bijgewerkt tegen de nieuwe nl-tekst.
+// Zonder deze hash zou `translate prepare ui --stale` een gewone i18n:add niet van een verouderde
+// vertaling kunnen onderscheiden.
+const sourcesDir = join(process.cwd(), 'i18n/ui-sources');
+const nlByNs = Object.fromEntries(NAMESPACES.map(n => [n, n === ns ? JSON.parse(nlOrdered) as JsonObject : read('nl', n)]));
 for (const loc of LOCALES) {
   if (loc === 'nl') continue;
   const data = read(loc);
   setTranslation(data, path, input[loc]);
   writeFileSync(join(dir, loc, `${ns}.json`), formatLocale(serialize(data), nlOrdered));
+  const sourcesFile = join(sourcesDir, `${loc}.json`);
+  const sources = existsSync(sourcesFile) ? JSON.parse(readFileSync(sourcesFile, 'utf8')) as UiSources : {};
+  setSourceHash(sources, ns, path, input.nl);
+  mkdirSync(sourcesDir, { recursive: true });
+  writeFileSync(sourcesFile, serialize(orderSources(sources, nlByNs) as unknown as JsonObject));
 }
 console.log(`OK  i18n:add: ${ns}:${path} ${exists ? 'gewijzigd' : 'toegevoegd'} in ${LOCALES.length} locales`);

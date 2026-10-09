@@ -19,6 +19,10 @@ temp/
 # Build-uitvoer van `npm run gen:tutorial-project` (de extensie-build haalt hem hier op)
 /build/tutorial-project/
 
+# Vertaalstraat: werkpakketten en lokale cache (Microsoft-terminologie, nooit committen; ontwerp §13)
+/build/translate/
+/build/cache/
+
 # Tauri
 src-tauri/target/
 src-tauri/gen/
