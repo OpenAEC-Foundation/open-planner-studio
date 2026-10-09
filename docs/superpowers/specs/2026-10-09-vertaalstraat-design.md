@@ -1,7 +1,8 @@
 # Vertaalstraat — eerst de vaktermen, dan de UI en de docs
 
-*Ontwerp, 2026-10-09, versie 0.2. Status: **concept**. v0.1 kreeg van de reviewer (Opus, xhigh) "nee, nog
-niet klaar"; v0.2 verwerkt alle 18 bevindingen (zie §14). Aanleiding: verzoek van de eigenaar (2026-10-09):
+*Ontwerp, 2026-10-09, versie 0.3. Status: **concept**. v0.1 kreeg van de reviewer (Opus, xhigh) "nee, nog
+niet klaar"; v0.2 verwerkte de 18 bevindingen (§14); v0.2 kreeg "ja voor PR 1, nee voor het docs-deel"; v0.3
+verwerkt die tweede ronde (§15). Aanleiding: verzoek van de eigenaar (2026-10-09):
 "alle talen uit de todo toevoegen, eerst de vaktermen goed vertalen, daarna alles, ook de docs; zoveel
 mogelijk met Haiku 5.5, nooit boven 100k context per agent".*
 
@@ -94,7 +95,7 @@ Een taalbestand:
     "term": "Gesamtpuffer",
     "forms": ["Gesamtpuffer", "Gesamtpuffers"],
     "avoid": ["Gesamtschlupf"],
-    "source": "tbx:msp",
+    "source": "tbx",
     "status": "tbx" } }
 ```
 
@@ -194,10 +195,13 @@ label, en niet elk label is een treffer. Daarom vier soorten:
 | **c. Letterlijk** | *Pour foundation*, *Bouwkalender NL*, *OPS Task ID*, XLSX-kolommen *Start*, *Name* | de tekst zelf | staat byte-gelijk in de vertaling |
 | **d. Vrij** | gewone nadruk | niets | geen |
 
-Soort **c** gaat vóór **a**: een XLSX-kolom *Start* blijft *Start*, ook al bestaat er een UI-tekst
-*Start*. De lijst `i18n/docs-literal.json` komt uit de code (`scripts/tutorial-project.ts`,
-`src/engine/calendar/defaultCalendar.ts`, de kolommen van `src/services/xlsx/` en de CSV-adapter) plus een
-handlijst, en een script controleert dat elke code-bron er nog in staat.
+Vaste kolomnamen van bestandsformaten (XLSX-voortgang `src/services/xlsx/writeProgressXlsx.ts:78-85`, CSV)
+zijn géén soort c: *Start*, *Name*, *Duration* en *Critical* zijn in 9+ artikelen óók een UI-kolom, en een
+globale lijst zou ze overal Engels laten. Daarom worden zulke bestandskolommen in de `en`- en `nl`-bron
+**inline code** (`Start`); de inline-codepoort houdt ze dan gelijk. Soort c (`i18n/docs-literal.json`)
+bevat daarna alleen namen die nooit een UI-label zijn: tutorialnamen (`scripts/tutorial-project.ts`) en
+vaste datanamen (`Bouwkalender NL`, `src/engine/calendar/defaultCalendar.ts:28`). Een script controleert dat
+elke code-bron er nog in staat.
 
 Regel in de opdracht: een label staat in de **nominatief**, met een draagwoord als de zin een naamval vraagt
 (cs: *v okně *Typ vazby**). Zo hoeft het label niet te verbuigen en blijft de poort exact.
@@ -256,7 +260,9 @@ rondes; wat daarna openstaat, gaat als lijst naar Opus.
   de vaste opmaak. Per sleutel komt de hash van de `nl`-bron in `i18n/ui-sources/<taal>.json`.
 - Docs → `public/docs/<taal>/<id>.md` en een index `public/docs/<taal>/index.json`:
   `{ "<id>": { "title": "<vertaalde H1>", "sections": ["<hash van de en-sectie>", …],
-  "labels": ["task:columns.totalFloat", …] } }`. De titel komt uit de vertaalde H1 (in 152 van 152 gevallen
+  "structure": "<hash van de kop- en linkstructuur van de en-versie>", "labels": ["task:columns.totalFloat", …] } }`.
+  Sectie 0 is de tekst tot de eerste `##` (H1 + inleiding). Het bestand wordt **gegenereerd** door `apply`,
+  met één regel per artikel in vaste volgorde, zodat twee docs-PR's zelden op dezelfde regel botsen. De titel komt uit de vertaalde H1 (in 152 van 152 gevallen
   is de manifest-titel gelijk aan de H1), dus `manifest.json` krijgt **geen** 25 extra titels en blijft
   conflictarm.
 
@@ -264,9 +270,16 @@ rondes; wat daarna openstaat, gaat als lijst naar Opus.
 
 - `prepare --missing` maakt alleen pakketten voor wat ontbreekt.
 - `prepare --stale` maakt pakketten voor UI-sleutels waarvan de `nl`-hash veranderde en voor
-  docs-**secties** waarvan de `en`-hash of een gebruikt label veranderde. De agent krijgt dan de oude
+  docs-**secties** waarvan de `en`-hash of een gebruikt label veranderde. Secties worden op **inhoud**
+  gekoppeld (langste gemeenschappelijke reeks van hashes), niet op positie: een ingevoegde sectie maakt de
+  volgende secties niet verouderd. De agent krijgt dan de oude
   vertaling erbij en past alleen aan wat nodig is.
 - `translate status` toont per taal: ontbreekt / verouderd / actueel.
+- `translate rename <oud> <nieuw>` en `translate remove <id>` doen een hernoeming of verwijdering in alle
+  docstalen en `index.json` tegelijk. Een wees in een andere taal dan `nl`/`en` is een rapport, geen fout.
+- UI-basislijn: PR 1 zaait `i18n/ui-sources/<taal>.json` voor alle bestaande talen (de huidige `nl`-hash
+  per sleutel), en `i18n:add` werkt de hash bij voor elke taal die het schrijft. Zo kan `--stale` ook een
+  `i18n:add --update` zien die alleen `nl`/`en` wijzigde.
 
 ## 10. Wat er in de app verandert
 
@@ -291,13 +304,17 @@ rondes; wat daarna openstaat, gaat als lijst naar Opus.
   naar logische eigenschappen (`padding-inline-start`). `help-panel.spec.ts:59-66` (eist `ltr` in ar)
   wordt herschreven.
 - `verify:docs`: **`nl` en `en` blijven verplicht**; de andere talen zijn optioneel. Wat er is, moet
-  kloppen: geen artikel zonder manifest-id, geen artikel zonder index-regel, structuur gelijk aan `en`
-  (generalisatie van de nl↔en-pariteit, `verify-docs.ts:847-858`). Ontbrekende of verouderde vertalingen
+  kloppen: geen artikel zonder index-regel, en de vertaling heeft de structuur van **de `en`-versie waaruit
+  ze komt** (`structure` in `index.json`), niet van de huidige `en`. Wijkt de huidige `en` daarvan af, dan is
+  de vertaling verouderd: een rapport, geen fout. Zo maakt een `en`-PR die een `##` of link toevoegt geen
+  enkele andere taal rood. Ontbrekende of verouderde vertalingen
   zijn een **rapport**, geen fout — anders blokkeert elk nieuw Engels artikel elke PR. De mappen-poort
   (`verify-docs.ts:754-770`) staat alle docstalen en `index.json` toe.
 - Ankers: poort 10 eist dat een anker in elke docstaal bestaat; ankers volgen de koptekst, dus dat kan niet
   met 27 talen. De app gebruikt geen ankers (0 in `public/docs`, 0 in `src/`); de poort controleert ankers
   voortaan alleen in `nl`/`en`, en vastgelegd wordt dat app-links geen anker gebruiken.
+- `verify-package-docs.mjs:61` haalt de docstalen nu uit de manifest-titels (die blijven nl/en); dat wordt
+  de mappen onder `public/docs`, anders worden de 25 talen in het pakket nooit gecontroleerd.
 - Afbeeldingen: zonder eigen `img/<taal>/` valt een taal terug op `en` (`helpImageLang`).
 - Tests die nu eisen dat `de`/`fr` op Engels terugvallen (`check-help-manifest.ts:80-84`,
   `help-docs-v2.spec.ts:200-202`, `help-panel.spec.ts:35`) gaan over op een artikel dat in die taal
@@ -317,8 +334,12 @@ deze klus (B4).
 
 - **`i18n:add`** eist nu een tekst in elke locale (`scripts/i18n-tools.ts:102`). Met 27 talen moet een
   agent dan 27 vertalingen schrijven. Voorstel (B5): `i18n:add` eist `nl` + `en`; de andere talen mogen
-  ontbreken en vallen terug op `en`; `translate prepare ui --missing` vult ze aan, en `verify:i18n` meldt
-  ontbrekende sleutels als rapport, niet als fout. Zo blijft elke open PR met een nieuwe tekst groen.
+  ontbreken en vallen terug op `en`; `translate prepare ui --missing` vult ze aan. Een **helemaal
+  ontbrekende** sleutel wordt in `verify:i18n` een rapport; een **halve meervoudsfamilie** blijft rood
+  (`i18n-diff.mjs:68-81` telt die nu als ontbrekend; dat onderscheid moet erin). Mee aan te passen:
+  `validateTranslations` (`i18n-tools.ts:102`) + `check-i18n-tools.ts`, en `check-task-grid-i18n.ts:157,174-184`
+  (eist elke kolomsleutel in alle talen). Nadeel voor de eigenaar: de 12 bestaande talen lopen dan ook
+  achter tot de straat draait, waar elke PR ze nu meteen vult. Besluit vóór PR 2.
 - **Release:** de release-skill draait `translate status`; bij ontbrekende of verouderde vertalingen
   eerst `prepare --missing --stale` + de straat. Zo krijgt een gebruiker bij een release actuele
   vertalingen, terwijl `main` tussendoor mag achterlopen.
@@ -332,8 +353,15 @@ blinde controle, vertalen, nalezen, herstellen). Opus doet alleen: dit ontwerp, 
 conflicten beslissen, de review per PR.
 
 **Isolatie:** de agents draaien in de cwd van de sessie en laden daar `AGENTS.md`. De opdracht beperkt ze
-tot hun pakket; na elke run controleert de orkestrator `git status` (alleen `build/translate/` mag
-veranderd zijn).
+tot hun pakket. Na elke run controleert de orkestrator `git status`: alleen `build/translate/` mag veranderd
+zijn. Is er iets anders veranderd, dan stopt de run en draait de orkestrator die wijzigingen terug vóór er
+iets wordt samengevoegd.
+
+**Check in de agent:** `check.ts` gebruikt dezelfde regels als `verify:docs`/`verify:i18n` (de parser-regels
+gaan uit `verify-docs.ts` naar een gedeelde module). Vóór een run bundelt `translate prepare` hem met esbuild
+naar `build/translate/check.mjs`, zodat een agent hem zonder `node_modules` kan draaien. De opdracht noemt
+het **absolute** node-pad (`/home/agent/.nvm/versions/node/v22.23.2/bin/node`), want agent-shells laden nvm
+niet.
 
 **Contextbudget (te meten in de proef):** ±20–25k harnas + ≤ ±10k pakket + ≤ ±10k uitvoer + ≤ 3 check-rondes
 ⇒ ±50k piek, ruim onder 100k. De proef meet de echte piek per agent; komt hij boven 70k, dan worden de
@@ -426,3 +454,18 @@ rood; [STIL] = blijft groen maar test de nieuwe talen niet.
 - **Geen wijziging nodig:** datum- en getalnotatie (Intl), `RTL_LOCALES`, `index.html` (`lang` wordt runtime
   gezet), Tauri-config, `releaseHighlights.ts` (valt terug op `en`). Feestdagsets voor de nieuwe landen
   staan los van de taal (eventueel later, `knownbugs.md`).
+
+## 15. Verwerking van de tweede review (v0.2 → v0.3)
+
+Reviewer (Opus, xhigh), 2026-10-09, oordeel v0.2: **ja voor PR 1** onder vier voorwaarden, **nee voor het
+docs-deel**. Verwerkt:
+
+- N1 structuur vergelijken met de bron-`en` (`structure` in `index.json`) → §9, §10 · N2 `rename`/`remove`,
+  wezen als rapport → §9 · N3 bestandskolommen als inline code, soort c smal → §5.3 · N4 B5 nauwkeurig, met
+  halve familie rood en basislijn → §9, §11 · N5 `verify-package-docs` → §10 · N6 gebundelde `check.ts` → §12 ·
+  N7 absoluut node-pad → §12 · N8 sectie 0 en koppeling op inhoud → §9 · N9 `index.json` gegenereerd, één
+  regel per artikel → §9 · N10 geen `tbx:msp` → §4.1 · punt 13 run stoppen en terugdraaien → §12.
+
+Voorwaarden voor PR 1 (reviewer): alleen termbase + UI-straat (labelkaart, sectiehashes en `index.json` gaan
+naar PR 4); gebundelde check + absoluut node-pad; `ui-sources`-basislijn voor de bestaande talen; geen
+`tbx:msp`.
