@@ -39,7 +39,10 @@ function softText(at: string, text: string, nl: string[], en: string, pkg: UiPac
     if (!inSource) continue;
     const forms = t.forms.length ? t.forms : [t.target];
     if (!forms.some(f => low.includes(f.toLocaleLowerCase()))) warnings.push(`${at}: term "${t.target}" (${t.id}) niet gevonden`);
-    for (const a of t.avoid ?? []) if (low.includes(a.toLocaleLowerCase())) warnings.push(`${at}: vermijd "${a}" (${t.id})`);
+    // Een avoid-variant kan in de eigen term zitten ("fri slakk" ⊃ "slakk"): haal de vormen eerst weg.
+    const rest = forms.map(f => f.toLocaleLowerCase()).sort((a, b) => b.length - a.length)
+      .reduce((s, f) => s.split(f).join('\u0000'), low);
+    for (const a of t.avoid ?? []) if (rest.includes(a.toLocaleLowerCase())) warnings.push(`${at}: vermijd "${a}" (${t.id})`);
   }
   for (const k of pkg.keep) {
     if (nl.some(s => countToken(s, k) > 0) && countToken(text, k) === 0) warnings.push(`${at}: eigennaam "${k}" niet letterlijk overgenomen`);
@@ -76,11 +79,18 @@ export function checkUi(pkg: UiPackage, out: unknown): CheckResult {
       errors.push(`${item.key}: meervoudsvormen moeten precies [${cats.join(', ')}] zijn`
         + `${missing.length ? ` — ontbreekt ${missing.join(', ')}` : ''}${extra.length ? ` — overbodig ${extra.join(', ')}` : ''}`);
     }
+    // Elke vorm vergelijkt met de nl-vorm voor dezelfde getallen: `one` met nl `one`, de rest met nl `other`.
+    // Een familie mag per vorm andere invulplekken hebben ("'{{task}}' heeft…" tegenover "{{count}} taken…").
+    const nlFor = (c: string): string[] => {
+      if (typeof item.nl === 'string') return nl;
+      const src = c === 'one' && item.nl.one !== undefined ? item.nl.one : item.nl.other;
+      return src === undefined ? nl : [src];
+    };
     for (const c of cats) {
       if (!(c in v)) continue;
       const before = errors.length;
-      checkText(`${item.key}.${c}`, v[c], nl, pkg.tokens, true, errors);
-      if (errors.length === before) softText(`${item.key}.${c}`, v[c] as string, nl, enText(item.en, c), pkg, warnings);
+      checkText(`${item.key}.${c}`, v[c], nlFor(c), pkg.tokens, true, errors);
+      if (errors.length === before) softText(`${item.key}.${c}`, v[c] as string, nlFor(c), enText(item.en, c), pkg, warnings);
     }
   }
   return { errors, warnings };

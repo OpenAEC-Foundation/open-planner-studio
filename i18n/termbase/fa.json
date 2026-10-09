@@ -1089,13 +1089,16 @@
     "status": "existing-ui"
   },
   "schedule-error": {
-    "term": "خطای برنامه",
+    "term": "خطای زمان‌بندی",
     "forms": [
-      "خطای برنامه",
-      "خطاهای برنامه"
+      "خطای زمان‌بندی",
+      "خطاهای زمان‌بندی"
+    ],
+    "avoid": [
+      "خطای برنامه"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "secondary-constraint": {
     "term": "محدودیت ثانویه",
@@ -1178,11 +1181,8 @@
       "شروع-پایان",
       "شروع-پایان‌ها"
     ],
-    "avoid": [
-      "پایان-شروع"
-    ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-to-start": {
     "term": "شروع-شروع",

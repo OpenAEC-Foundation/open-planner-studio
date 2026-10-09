@@ -123,14 +123,17 @@
     "status": "model"
   },
   "assignment-units": {
-    "term": "napi hozzárendelési egység",
+    "term": "napi hozzárendelt mennyiség",
     "forms": [
-      "napi hozzárendelési egység",
-      "napi hozzárendelési egységet",
-      "napi hozzárendelési egységek"
+      "napi hozzárendelt mennyiség",
+      "napi hozzárendelt mennyiséget",
+      "napi hozzárendelt mennyiségek"
+    ],
+    "avoid": [
+      "napi egység"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "baseline": {
     "term": "alapterv",
@@ -169,7 +172,7 @@
       "kalkulálás"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "calculate-automatically": {
     "term": "automatikus ütemezés-számítás",
@@ -178,7 +181,7 @@
       "automatikus ütemezés-számítást"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "calculation-profile": {
     "term": "számítási profil",
@@ -260,7 +263,7 @@
       "bouwvak"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "contour": {
     "term": "eloszlás",
@@ -359,7 +362,7 @@
       "tényleges befejezés"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "custom-field": {
     "term": "egyéni mező",
@@ -460,15 +463,16 @@
     "status": "model"
   },
   "effort-driven": {
-    "term": "erőforrás-vezérelt",
+    "term": "munkamennyiség alapú",
     "forms": [
-      "erőforrás-vezérelt"
+      "munkamennyiség alapú",
+      "munkamennyiség alapú ütemezés"
     ],
     "avoid": [
-      "munkavégzés-vezérelt"
+      "erőforrás-vezérelt"
     ],
-    "source": "model",
-    "status": "model"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "elapsed-time": {
     "term": "eltelt időtartam",
@@ -525,30 +529,43 @@
     "status": "tbx"
   },
   "finish-driver": {
-    "term": "befejezés-meghatározó kapcsolat",
+    "term": "befejezést meghatározó kapcsolat",
     "forms": [
-      "befejezés-meghatározó kapcsolat",
-      "befejezés-meghatározó kapcsolatot",
-      "befejezés-meghatározó kapcsolatok"
+      "befejezést meghatározó kapcsolat",
+      "befejezést meghatározó kapcsolatot",
+      "befejezést meghatározó kapcsolatok"
+    ],
+    "avoid": [
+      "befejezés-meghatározó kapcsolat"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "finish-no-earlier-than": {
-    "term": "befejezés nem korábban",
+    "term": "nem korábbi befejezés",
     "forms": [
+      "nem korábbi befejezés",
+      "nem korábbi befejezést",
+      "nem korábbi befejezése"
+    ],
+    "avoid": [
       "befejezés nem korábban"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "finish-no-later-than": {
-    "term": "befejezés nem később",
+    "term": "nem későbbi befejezés",
     "forms": [
+      "nem későbbi befejezés",
+      "nem későbbi befejezést",
+      "nem későbbi befejezése"
+    ],
+    "avoid": [
       "befejezés nem később"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "finish-to-finish": {
     "term": "befejezés-befejezés",
@@ -660,17 +677,19 @@
     "status": "model"
   },
   "hard-constraint": {
-    "term": "kötött kényszer",
+    "term": "kötelező korlátozás",
     "forms": [
-      "kötött kényszer",
-      "kötött kényszert",
-      "kötött kényszerek"
+      "kötelező korlátozás",
+      "kötelező korlátozást",
+      "kötelező korlátozások",
+      "kötelező korlátozásnak"
     ],
     "avoid": [
+      "kötött kényszer",
       "kemény kényszer"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "histogram": {
     "term": "hisztogram",
@@ -716,24 +735,31 @@
     "status": "model"
   },
   "hour-planning": {
-    "term": "óratervezés",
+    "term": "óraalapú tervezés",
     "forms": [
-      "óratervezés",
-      "óratervezést",
-      "óratervezések"
+      "óraalapú tervezés",
+      "óraalapú tervezést",
+      "óraalapú tervezésben"
+    ],
+    "avoid": [
+      "óratervezés"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "hour-task": {
-    "term": "óraalapú feladat",
+    "term": "óraalapú tevékenység",
     "forms": [
-      "óraalapú feladat",
-      "óraalapú feladatot",
-      "óraalapú feladatok"
+      "óraalapú tevékenység",
+      "óraalapú tevékenységet",
+      "óraalapú tevékenységek",
+      "óraalapú tevékenységnek"
+    ],
+    "avoid": [
+      "óraalapú feladat"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "indent": {
     "term": "behúz",
@@ -886,14 +912,17 @@
     "status": "model"
   },
   "max-units": {
-    "term": "max. egység",
+    "term": "maximális mennyiség",
     "forms": [
-      "max. egység",
-      "max. egységet",
-      "max. egységek"
+      "maximális mennyiség",
+      "maximális mennyiséget",
+      "maximális mennyisége"
     ],
-    "source": "model",
-    "status": "model"
+    "avoid": [
+      "max. egység"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "milestone": {
     "term": "mérföldkő",
@@ -925,18 +954,18 @@
     "status": "model"
   },
   "missed-task": {
-    "term": "lekésett feladat",
+    "term": "lekésett tevékenység",
     "forms": [
-      "lekésett feladat",
-      "lekésett feladatot",
-      "lekésett feladatok",
-      "lekésett feladatokat"
+      "lekésett tevékenység",
+      "lekésett tevékenységet",
+      "lekésett tevékenységek"
     ],
     "avoid": [
+      "lekésett feladat",
       "elmaradt feladat"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "must-finish-on": {
     "term": "kötelező befejezés",
@@ -981,18 +1010,14 @@
     "status": "model"
   },
   "negative-float": {
-    "term": "negatív tartalék",
+    "term": "negatív tartalékidő",
     "forms": [
-      "negatív tartalék",
-      "negatív tartalékot",
-      "negatív tartaléka",
-      "negatív tartalékok"
-    ],
-    "avoid": [
-      "negatív speling"
+      "negatív tartalékidő",
+      "negatív tartalékidőt",
+      "negatív tartalékideje"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "non-working-day": {
     "term": "nem munkanap",
@@ -1143,8 +1168,7 @@
       "előrehaladások"
     ],
     "avoid": [
-      "állapot",
-      "haladás"
+      "állapot"
     ],
     "source": "model",
     "status": "model"
@@ -1329,7 +1353,6 @@
       "erőforrásokat"
     ],
     "avoid": [
-      "forrás",
       "resource"
     ],
     "source": "tbx",
@@ -1374,11 +1397,10 @@
       "menüszalagon"
     ],
     "avoid": [
-      "szalag",
       "ribbon"
     ],
     "source": "tbx",
-    "status": "tbx-chosen"
+    "status": "arbitrated"
   },
   "ribbon-tab": {
     "term": "menüszalag-lap",
@@ -1392,7 +1414,7 @@
       "ribbon-tab"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "round-trip": {
     "term": "veszteségmentes visszaalakítás",
@@ -1406,7 +1428,7 @@
       "körút"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "schedule": {
     "term": "ütemezés",
@@ -1440,18 +1462,17 @@
     "status": "model"
   },
   "secondary-constraint": {
-    "term": "másodlagos kényszer",
+    "term": "másodlagos korlátozás",
     "forms": [
-      "másodlagos kényszer",
-      "másodlagos kényszert",
-      "másodlagos kényszere",
-      "másodlagos kényszerek"
+      "másodlagos korlátozás",
+      "másodlagos korlátozást",
+      "másodlagos korlátozások"
     ],
     "avoid": [
-      "másodlagos korlát"
+      "másodlagos kényszer"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "shift": {
     "term": "műszak",
@@ -1481,7 +1502,7 @@
       "forrásfeladat"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "split-task": {
     "term": "megszakított tevékenység",
@@ -1535,24 +1556,28 @@
     "status": "model"
   },
   "start-to-finish": {
-    "term": "kezdés-befejezési kapcsolat",
+    "term": "kezdés-befejezés",
     "forms": [
-      "kezdés-befejezési kapcsolat",
-      "kezdés-befejezési kapcsolatot",
-      "kezdés-befejezési kapcsolatok"
+      "kezdés-befejezés",
+      "kezdés-befejezési"
+    ],
+    "avoid": [
+      "kezdés-befejezési kapcsolat"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-to-start": {
-    "term": "kezdés-kezdési kapcsolat",
+    "term": "kezdés-kezdés",
     "forms": [
-      "kezdés-kezdési kapcsolat",
-      "kezdés-kezdési kapcsolatot",
-      "kezdés-kezdési kapcsolatok"
+      "kezdés-kezdés",
+      "kezdés-kezdési"
+    ],
+    "avoid": [
+      "kezdés-kezdési kapcsolat"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-variance": {
     "term": "kezdési eltérés",
@@ -1710,15 +1735,18 @@
     "status": "model"
   },
   "violated-constraint": {
-    "term": "megsértett kötöttség",
+    "term": "megsértett korlátozás",
     "forms": [
+      "megsértett korlátozás",
+      "megsértett korlátozást",
+      "megsértett korlátozások"
+    ],
+    "avoid": [
       "megsértett kötöttség",
-      "megsértett kötöttséget",
-      "megsértett kötöttségek",
-      "megsértett kötöttségeket"
+      "megsértett kényszer"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "wbs": {
     "term": "WBS",
@@ -1767,15 +1795,18 @@
     "status": "model"
   },
   "work-hours": {
-    "term": "munkarend",
+    "term": "munkaórák",
     "forms": [
-      "munkarend",
-      "munkarendet",
-      "munkarendek",
-      "munkarendeket"
+      "munkaórák",
+      "munkaórákat",
+      "munkaórákban",
+      "munkaóra"
+    ],
+    "avoid": [
+      "munkarend"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "work-rule": {
     "term": "munkaszabály",
@@ -1785,8 +1816,11 @@
       "munkaszabályok",
       "munkaszabályokat"
     ],
+    "avoid": [
+      "tevékenységtípus"
+    ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "workday": {
     "term": "munkanap",

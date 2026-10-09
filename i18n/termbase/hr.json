@@ -115,7 +115,7 @@
       "krivuljom dodjele"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "assignment-units": {
     "term": "jedinice dodjele po danu",
@@ -124,7 +124,7 @@
       "jedinica dodjele po danu"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "baseline": {
     "term": "temeljni plan",
@@ -140,7 +140,7 @@
       "osnovica retka"
     ],
     "source": "tbx",
-    "status": "tbx-chosen"
+    "status": "arbitrated"
   },
   "bei": {
     "term": "indeks izvršenja temeljnog plana",
@@ -150,7 +150,7 @@
       "indeksu izvršenja temeljnog plana"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "calculate": {
     "term": "izračunati",
@@ -186,16 +186,17 @@
     "status": "tbx"
   },
   "calendar": {
-    "term": "projektni kalendar",
+    "term": "kalendar",
     "forms": [
-      "projektni kalendar",
-      "projektnog kalendara",
-      "projektnom kalendaru",
-      "projektnim kalendarom",
-      "projektni kalendari"
+      "kalendar",
+      "kalendara",
+      "kalendaru",
+      "kalendarom",
+      "kalendari",
+      "kalendare"
     ],
     "source": "tbx",
-    "status": "tbx-chosen"
+    "status": "arbitrated"
   },
   "capacity": {
     "term": "kapacitet",
@@ -267,29 +268,35 @@
     "status": "tbx"
   },
   "convention": {
-    "term": "konvencija",
+    "term": "pravilo izračuna",
     "forms": [
-      "konvencija",
-      "konvencije",
-      "konvenciju",
-      "konvencijom"
-    ],
-    "source": "model",
-    "status": "model"
-  },
-  "cost": {
-    "term": "cijena koštanja",
-    "forms": [
-      "cijena koštanja",
-      "cijene koštanja",
-      "cijenu koštanja",
-      "cijenom koštanja"
+      "pravilo izračuna",
+      "pravila izračuna",
+      "pravilu izračuna",
+      "pravilom izračuna"
     ],
     "avoid": [
-      "cijena"
+      "konvencija"
     ],
-    "source": "tbx",
-    "status": "tbx-chosen"
+    "source": "model",
+    "status": "arbitrated"
+  },
+  "cost": {
+    "term": "trošak",
+    "forms": [
+      "trošak",
+      "troška",
+      "trošku",
+      "troškom",
+      "troškovi",
+      "troškova",
+      "troškovima"
+    ],
+    "avoid": [
+      "cijena koštanja"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "crash-recovery": {
     "term": "oporavak od pada",
@@ -313,8 +320,8 @@
       "ključnog",
       "ključnih"
     ],
-    "source": "model",
-    "status": "model"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "critical-chains": {
     "term": "ključni lanci",
@@ -324,7 +331,7 @@
       "ključnim lancima"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "critical-path": {
     "term": "ključni put",
@@ -424,15 +431,19 @@
     "status": "model"
   },
   "driving-relationship": {
-    "term": "odlučujuća veza",
+    "term": "odlučujuća ovisnost",
     "forms": [
+      "odlučujuća ovisnost",
+      "odlučujuće ovisnosti",
+      "odlučujuću ovisnost",
+      "odlučujućom ovisnošću"
+    ],
+    "avoid": [
       "odlučujuća veza",
-      "odlučujuće veze",
-      "odlučujuću vezu",
-      "odlučujućom vezom"
+      "presudna veza"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "duration": {
     "term": "trajanje",
@@ -470,17 +481,18 @@
     "status": "model"
   },
   "effort-driven": {
-    "term": "vođeno naporom",
+    "term": "temeljeno na trudu",
     "forms": [
-      "vođeno naporom",
-      "vođenog naporom",
-      "vođenom naporom"
+      "temeljeno na trudu",
+      "temeljen na trudu",
+      "temeljena na trudu",
+      "temeljeni na trudu"
     ],
     "avoid": [
-      "vođeno radom"
+      "vođeno naporom"
     ],
-    "source": "model",
-    "status": "model"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "elapsed-time": {
     "term": "neprekinuto trajanje",
@@ -533,30 +545,40 @@
     "status": "tbx"
   },
   "finish-driver": {
-    "term": "pokretač završetka",
+    "term": "odlučujuća ovisnost završetka",
     "forms": [
-      "pokretač završetka",
-      "pokretača završetka",
-      "pokretaču završetka"
+      "odlučujuća ovisnost završetka",
+      "odlučujuće ovisnosti završetka",
+      "odlučujuću ovisnost završetka",
+      "odlučujućom ovisnošću završetka"
+    ],
+    "avoid": [
+      "pokretač završetka"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "finish-no-earlier-than": {
-    "term": "ne završava prije",
+    "term": "ne završiti prije",
     "forms": [
+      "ne završiti prije"
+    ],
+    "avoid": [
       "ne završava prije"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "finish-no-later-than": {
-    "term": "ne završava kasnije od",
+    "term": "ne završiti kasnije od",
     "forms": [
+      "ne završiti kasnije od"
+    ],
+    "avoid": [
       "ne završava kasnije od"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "finish-to-finish": {
     "term": "završetak-završetak",
@@ -668,10 +690,10 @@
       "hamakom"
     ],
     "avoid": [
-      "hangmat"
+      "zbirni zadatak"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "hard-constraint": {
     "term": "čvrsto ograničenje",
@@ -717,7 +739,7 @@
       "skupu praznika"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "hour-distribution-in-phases": {
     "term": "raspodjela sati po fazama",
@@ -727,7 +749,7 @@
       "raspodjelu sati po fazama"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "hour-planning": {
     "term": "planiranje u satima",
@@ -776,15 +798,19 @@
     "status": "model"
   },
   "lag": {
-    "term": "zaostajanje",
+    "term": "vrijeme odgode",
     "forms": [
-      "zaostajanje",
-      "zaostajanja",
-      "zaostajanju",
-      "zaostajanjem"
+      "vrijeme odgode",
+      "vremena odgode",
+      "vremenu odgode",
+      "vremenom odgode"
     ],
-    "source": "model",
-    "status": "model"
+    "avoid": [
+      "zaostajanje",
+      "odmak"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "late-dates": {
     "term": "kasni datumi",
@@ -817,27 +843,34 @@
     "status": "model"
   },
   "layout": {
-    "term": "raspored",
+    "term": "izgled",
     "forms": [
-      "raspored",
-      "rasporeda",
-      "rasporedu",
-      "rasporedom"
-    ],
-    "source": "tbx",
-    "status": "tbx"
-  },
-  "lead": {
-    "term": "prednost",
-    "forms": [
-      "prednost",
-      "prednosti"
+      "izgled",
+      "izgleda",
+      "izgledu",
+      "izgledom",
+      "izgledi"
     ],
     "avoid": [
+      "raspored"
+    ],
+    "source": "model",
+    "status": "arbitrated"
+  },
+  "lead": {
+    "term": "vrijeme preklapanja",
+    "forms": [
+      "vrijeme preklapanja",
+      "vremena preklapanja",
+      "vremenu preklapanja",
+      "vremenom preklapanja"
+    ],
+    "avoid": [
+      "prednost",
       "potencijalni klijent"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "leveling": {
     "term": "razrješavanje",
@@ -874,14 +907,19 @@
     "status": "tbx-chosen"
   },
   "longest-path": {
-    "term": "kritični put",
+    "term": "najdulji put",
     "forms": [
+      "najdulji put",
+      "najduljeg puta",
+      "najduljem putu",
+      "najduljim putem"
+    ],
+    "avoid": [
       "kritični put",
-      "kritičnog puta",
-      "kritičnom putu"
+      "ključni put"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "manually-scheduled": {
     "term": "ručno planiran",
@@ -895,13 +933,17 @@
     "status": "model"
   },
   "max-units": {
-    "term": "maks. jedinice",
+    "term": "maksimalan postotak jedinica",
     "forms": [
-      "maks. jedinice",
-      "maksimalne jedinice"
+      "maksimalan postotak jedinica",
+      "maksimalnog postotka jedinica",
+      "maksimalnim postotkom jedinica"
     ],
-    "source": "model",
-    "status": "model"
+    "avoid": [
+      "maks. jedinice"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "milestone": {
     "term": "kontrolna točka",
@@ -954,15 +996,19 @@
     "status": "model"
   },
   "near-critical": {
-    "term": "gotovo kritičan",
+    "term": "gotovo ključan",
     "forms": [
-      "gotovo kritičan",
-      "gotovo kritična",
-      "gotovo kritičnog",
-      "gotovo kritične"
+      "gotovo ključan",
+      "gotovo ključna",
+      "gotovo ključno",
+      "gotovo ključni",
+      "gotovo ključnog"
+    ],
+    "avoid": [
+      "gotovo kritičan"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "negative-float": {
     "term": "negativna vremenska rezerva",
@@ -1025,7 +1071,7 @@
       "praćenjem puta"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "percent-complete": {
     "term": "postotak dovršenog",
@@ -1061,15 +1107,18 @@
     "status": "model"
   },
   "planned-work": {
-    "term": "planirani posao",
+    "term": "planirani rad",
     "forms": [
-      "planirani posao",
-      "planiranog posla",
-      "planiranom poslu",
-      "planiranim poslom"
+      "planirani rad",
+      "planiranog rada",
+      "planiranom radu",
+      "planiranim radom"
+    ],
+    "avoid": [
+      "planirani posao"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "predecessor": {
     "term": "prethodnik",
@@ -1098,15 +1147,18 @@
     "status": "model"
   },
   "progress-mode": {
-    "term": "način napretka",
+    "term": "način praćenja napretka",
     "forms": [
-      "način napretka",
-      "načina napretka",
-      "načinu napretka",
-      "načinom napretka"
+      "način praćenja napretka",
+      "načina praćenja napretka",
+      "načinu praćenja napretka",
+      "načinom praćenja napretka"
+    ],
+    "avoid": [
+      "način napretka"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "project-finish": {
     "term": "datum završetka projekta",
@@ -1297,15 +1349,18 @@
     "status": "model"
   },
   "round-trip": {
-    "term": "povratna pretvorba",
+    "term": "spremanje bez gubitka podataka",
     "forms": [
-      "povratna pretvorba",
-      "povratne pretvorbe",
-      "povratnu pretvorbu",
-      "povratnom pretvorbom"
+      "spremanje bez gubitka podataka",
+      "spremanja bez gubitka podataka",
+      "spremanju bez gubitka podataka",
+      "spremanjem bez gubitka podataka"
+    ],
+    "avoid": [
+      "povratna pretvorba"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "schedule": {
     "term": "raspored",
@@ -1381,25 +1436,32 @@
     "status": "tbx"
   },
   "start-driver": {
-    "term": "pokretač početka",
+    "term": "odlučujuća ovisnost početka",
     "forms": [
-      "pokretač početka",
-      "pokretača početka",
-      "pokretaču početka",
-      "pokretači početka"
+      "odlučujuća ovisnost početka",
+      "odlučujuće ovisnosti početka",
+      "odlučujuću ovisnost početka",
+      "odlučujućom ovisnošću početka"
+    ],
+    "avoid": [
+      "pokretač početka"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-float": {
-    "term": "slobodni hod početka",
+    "term": "vremenska rezerva početka",
     "forms": [
-      "slobodni hod početka",
-      "slobodnog hoda početka",
-      "slobodnom hodu početka"
+      "vremenska rezerva početka",
+      "vremenske rezerve početka",
+      "vremensku rezervu početka",
+      "vremenskom rezervom početka"
+    ],
+    "avoid": [
+      "slobodni hod početka"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-no-earlier-than": {
     "term": "ne početi prije",
@@ -1471,16 +1533,20 @@
     "status": "tbx"
   },
   "successor": {
-    "term": "sljedbenik",
+    "term": "nasljednik",
     "forms": [
-      "sljedbenik",
-      "sljedbenika",
-      "sljedbeniku",
-      "sljedbenici",
-      "sljedbenicima"
+      "nasljednik",
+      "nasljednika",
+      "nasljedniku",
+      "nasljednikom",
+      "nasljednici",
+      "nasljednike"
     ],
-    "source": "model",
-    "status": "model"
+    "avoid": [
+      "sljedbenik"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "summary-task": {
     "term": "zadatak sažetka",
@@ -1621,7 +1687,7 @@
       "strukturnu analizu rada"
     ],
     "source": "tbx",
-    "status": "tbx-chosen"
+    "status": "arbitrated"
   },
   "wbs-element": {
     "term": "element strukturne analize rada",
@@ -1632,7 +1698,7 @@
       "elementi strukturne analize rada"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "work": {
     "term": "rad",
@@ -1682,8 +1748,11 @@
       "pravilu rada",
       "pravilima rada"
     ],
+    "avoid": [
+      "vrsta zadatka"
+    ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "workday": {
     "term": "radni dan",

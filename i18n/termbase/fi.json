@@ -130,50 +130,57 @@
       "jakautumiskäyriä"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "assignment-units": {
-    "term": "kohdistusyksiköt päivässä",
+    "term": "kuormitusaste päivässä",
     "forms": [
-      "kohdistusyksiköt päivässä",
-      "kohdistusyksikköä päivässä"
+      "kuormitusaste päivässä",
+      "kuormitusasteen päivässä",
+      "kuormitusastetta päivässä"
     ],
     "avoid": [
-      "prosenttia päivässä"
+      "prosenttia päivässä",
+      "kohdistusyksiköt päivässä"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "baseline": {
-    "term": "alkuperäinen",
+    "term": "alkuperäinen suunnitelma",
     "forms": [
+      "alkuperäinen suunnitelma",
+      "alkuperäisen suunnitelman",
+      "alkuperäistä suunnitelmaa",
+      "alkuperäiseen suunnitelmaan",
+      "alkuperäisessä suunnitelmassa",
+      "alkuperäiset suunnitelmat",
       "alkuperäinen",
       "alkuperäisen",
-      "alkuperäistä",
-      "alkuperäiset",
-      "alkuperäisten"
+      "alkuperäiset"
     ],
     "avoid": [
       "perusviiva",
       "perustaso",
-      "perussuorituskyky"
+      "perussuorituskyky",
+      "lähtötaso"
     ],
     "source": "tbx",
-    "status": "tbx-chosen"
+    "status": "arbitrated"
   },
   "bei": {
-    "term": "lähtötason toteutumisindeksi",
+    "term": "alkuperäisen suunnitelman toteutumisindeksi",
     "forms": [
-      "lähtötason toteutumisindeksi",
-      "lähtötason toteutumisindeksin",
-      "lähtötason toteutumisindeksiä",
-      "lähtötason toteutumisindeksit"
+      "alkuperäisen suunnitelman toteutumisindeksi",
+      "alkuperäisen suunnitelman toteutumisindeksin",
+      "alkuperäisen suunnitelman toteutumisindeksiä"
     ],
     "avoid": [
-      "BEI-arvo"
+      "BEI-arvo",
+      "lähtötason toteutumisindeksi"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "calculate": {
     "term": "laskea",
@@ -271,7 +278,7 @@
       "rajoitetyyppejä"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "construction-holiday": {
     "term": "rakennusalan kesäloma",
@@ -356,7 +363,7 @@
       "kriittisiä ketjuja"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "critical-path": {
     "term": "kriittinen polku",
@@ -511,19 +518,17 @@
     "status": "model"
   },
   "effort-driven": {
-    "term": "työmääräohjattu",
+    "term": "työmäärään perustuva",
     "forms": [
-      "työmääräohjattu",
-      "työmääräohjatun",
-      "työmääräohjattua",
-      "työmääräohjatut"
+      "työmäärään perustuva",
+      "työmäärään perustuvan",
+      "työmäärään perustuvaa"
     ],
     "avoid": [
-      "työmääräriippuvainen",
-      "resurssiohjattu"
+      "työmääräohjattu"
     ],
-    "source": "model",
-    "status": "model"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "elapsed-time": {
     "term": "käytetty aika",
@@ -588,82 +593,75 @@
     "status": "tbx"
   },
   "finish-driver": {
-    "term": "loppupäivän ohjaaja",
+    "term": "loppua ohjaava riippuvuus",
     "forms": [
-      "loppupäivän ohjaaja",
-      "loppupäivän ohjaajan",
-      "loppupäivän ohjaajaa",
-      "loppupäivän ohjaajat"
+      "loppua ohjaava riippuvuus",
+      "loppua ohjaavan riippuvuuden",
+      "loppua ohjaavaa riippuvuutta",
+      "loppua ohjaavat riippuvuudet"
     ],
     "avoid": [
-      "loppuajan ohjaaja",
-      "finish driver"
+      "loppupäivän ohjaaja"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "finish-no-earlier-than": {
-    "term": "ei aikaisemmin kuin loppu",
+    "term": "päättyy aikaisintaan",
     "forms": [
+      "päättyy aikaisintaan"
+    ],
+    "avoid": [
       "ei aikaisemmin kuin loppu"
     ],
-    "avoid": [
-      "aikaisintaan loppu",
-      "alkaa ei aikaisemmin kuin"
-    ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "finish-no-later-than": {
-    "term": "ei myöhemmin kuin loppu",
+    "term": "päättyy viimeistään",
     "forms": [
+      "päättyy viimeistään"
+    ],
+    "avoid": [
       "ei myöhemmin kuin loppu"
     ],
-    "avoid": [
-      "uiterlijke einddatum",
-      "viimeistään loppu"
-    ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "finish-to-finish": {
-    "term": "loppu-loppu",
+    "term": "lopusta loppuun",
     "forms": [
-      "loppu-loppu"
+      "lopusta loppuun"
     ],
     "avoid": [
-      "loppu-alku",
-      "alku-loppu"
+      "loppu-loppu"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "finish-to-start": {
-    "term": "loppu-alku",
+    "term": "lopusta alkuun",
     "forms": [
+      "lopusta alkuun"
+    ],
+    "avoid": [
       "loppu-alku"
     ],
-    "avoid": [
-      "alku-loppu",
-      "loppu-loppu"
-    ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "finish-variance": {
-    "term": "loppupoikkeama",
+    "term": "valmistumispäivän ero",
     "forms": [
-      "loppupoikkeama",
-      "loppupoikkeaman",
-      "loppupoikkeamaa",
-      "loppupoikkeamat"
+      "valmistumispäivän ero",
+      "valmistumispäivän eron",
+      "valmistumispäivän eroa"
     ],
     "avoid": [
-      "loppuvarianssi",
-      "finish variance"
+      "loppupoikkeama"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "fixed-duration": {
     "term": "kiinteä kesto",
@@ -711,50 +709,45 @@
     "status": "model"
   },
   "float": {
-    "term": "pelivara",
+    "term": "liukuma",
     "forms": [
-      "pelivara",
-      "pelivaran",
-      "pelivaraa",
-      "pelivarat"
+      "liukuma",
+      "liukuman",
+      "liukumaa",
+      "liukumat",
+      "liukumia"
     ],
     "avoid": [
-      "liukuluku",
-      "float",
-      "speling"
+      "liukuluku"
     ],
-    "source": "model",
-    "status": "model"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "float-path": {
-    "term": "pelivarapolku",
+    "term": "liukumapolku",
     "forms": [
-      "pelivarapolku",
-      "pelivarapolun",
-      "pelivarapolkua",
-      "pelivarapolut"
+      "liukumapolku",
+      "liukumapolun",
+      "liukumapolkua"
     ],
     "avoid": [
-      "pelivaraketju",
-      "float path"
+      "pelivarapolku"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "forecast-finish": {
-    "term": "ennustettu loppu",
+    "term": "ennustettu valmistumispäivä",
     "forms": [
-      "ennustettu loppu",
-      "ennustetun lopun",
-      "ennustettua loppua",
-      "ennustetut loput"
+      "ennustettu valmistumispäivä",
+      "ennustetun valmistumispäivän",
+      "ennustettua valmistumispäivää"
     ],
     "avoid": [
-      "ennusteloppu",
-      "forecast finish"
+      "ennustettu loppu"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "free-float": {
     "term": "vapaa pelivara",
@@ -780,11 +773,10 @@
       "riippumatot"
     ],
     "avoid": [
-      "hangmat",
       "yhteenvetotehtävä"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "hard-constraint": {
     "term": "kova rajoite",
@@ -859,7 +851,7 @@
       "urenverdeling in fasen"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "hour-planning": {
     "term": "tuntisuunnittelu",
@@ -874,7 +866,7 @@
       "hour planning"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "hour-task": {
     "term": "tuntitehtävä",
@@ -889,7 +881,7 @@
       "hour task"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "indent": {
     "term": "sisentää",
@@ -951,34 +943,30 @@
     "status": "model"
   },
   "late-finish": {
-    "term": "myöhäisin loppu",
+    "term": "myöhäisin valmistumispäivä",
     "forms": [
-      "myöhäisin loppu",
-      "myöhäisimmän lopun",
-      "myöhäisintä loppua",
-      "myöhäisimmät loput"
+      "myöhäisin valmistumispäivä",
+      "myöhäisimmän valmistumispäivän",
+      "myöhäisintä valmistumispäivää"
     ],
     "avoid": [
-      "late finish",
-      "myöhäisin päättyminen"
+      "myöhäisin loppu"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "late-start": {
-    "term": "myöhäisin alku",
+    "term": "myöhäisin alkamispäivä",
     "forms": [
-      "myöhäisin alku",
-      "myöhäisimmän alun",
-      "myöhäisintä alkua",
-      "myöhäisimmät alut"
+      "myöhäisin alkamispäivä",
+      "myöhäisimmän alkamispäivän",
+      "myöhäisintä alkamispäivää"
     ],
     "avoid": [
-      "late start",
-      "myöhäisin aloitus"
+      "myöhäisin alku"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "layout": {
     "term": "asettelu",
@@ -996,20 +984,20 @@
     "status": "tbx"
   },
   "lead": {
-    "term": "negatiivinen viive",
+    "term": "limitys",
     "forms": [
-      "negatiivinen viive",
-      "negatiivisen viiveen",
-      "negatiivista viivettä",
-      "negatiiviset viiveet"
+      "limitys",
+      "limityksen",
+      "limitystä",
+      "limitykset",
+      "limityksellä"
     ],
     "avoid": [
-      "liidi",
-      "ennakko",
-      "lead"
+      "negatiivinen viive",
+      "liidi"
     ],
-    "source": "model",
-    "status": "model"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "leveling": {
     "term": "tasaaminen",
@@ -1089,19 +1077,17 @@
     "status": "model"
   },
   "max-units": {
-    "term": "enimmäisyksikkömäärä",
+    "term": "enimmäismäärä",
     "forms": [
-      "enimmäisyksikkömäärä",
-      "enimmäisyksikkömäärän",
-      "enimmäisyksikkömäärää",
-      "enimmäisyksikkömäärät"
+      "enimmäismäärä",
+      "enimmäismäärän",
+      "enimmäismäärää"
     ],
     "avoid": [
-      "maks. yksiköt",
-      "max units"
+      "enimmäisyksikkömäärä"
     ],
-    "source": "model",
-    "status": "model"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "milestone": {
     "term": "välitavoite",
@@ -1183,18 +1169,17 @@
     "status": "model"
   },
   "negative-float": {
-    "term": "negatiivinen väljyys",
+    "term": "negatiivinen liukuma",
     "forms": [
-      "negatiivinen väljyys",
-      "negatiivisen väljyyden",
-      "negatiiviset väljyydet",
-      "negatiivista väljyyttä"
+      "negatiivinen liukuma",
+      "negatiivisen liukuman",
+      "negatiivista liukumaa"
     ],
     "avoid": [
-      "negatiivinen speling"
+      "negatiivinen väljyys"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "non-working-day": {
     "term": "ei-työpäivä",
@@ -1221,7 +1206,7 @@
       "out-of-sequence"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "outdent": {
     "term": "ulontaa",
@@ -1358,7 +1343,7 @@
       "edistymistila"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "project-finish": {
     "term": "projektin päättymispäivä",
@@ -1601,7 +1586,7 @@
       "kaksisuuntainen muunnos"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "schedule": {
     "term": "aikataulu",
@@ -1648,19 +1633,19 @@
     "status": "model"
   },
   "shift": {
-    "term": "vuoro",
+    "term": "työvuoro",
     "forms": [
-      "vuoro",
-      "vuoron",
-      "vuorot",
-      "vuoroa"
+      "työvuoro",
+      "työvuoron",
+      "työvuoroa",
+      "työvuorot",
+      "työvuoroja"
     ],
     "avoid": [
-      "siirrä",
       "siirto"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "source-task": {
     "term": "lähdetehtävä",
@@ -1675,7 +1660,7 @@
       "lähdeaktiviteetti"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "split-task": {
     "term": "jaettu tehtävä",
@@ -1693,16 +1678,18 @@
     "status": "tbx"
   },
   "start-driver": {
-    "term": "aloitusohjain",
+    "term": "alkua ohjaava riippuvuus",
     "forms": [
-      "aloitusohjain",
-      "aloitusohjaimen",
-      "aloitusohjainta",
-      "aloitusohjaimet",
-      "aloitusohjainten"
+      "alkua ohjaava riippuvuus",
+      "alkua ohjaavan riippuvuuden",
+      "alkua ohjaavaa riippuvuutta",
+      "alkua ohjaavat riippuvuudet"
+    ],
+    "avoid": [
+      "aloitusohjain"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-float": {
     "term": "aloitusliukuma",
@@ -1717,7 +1704,7 @@
       "kokonaisliukuma"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-no-earlier-than": {
     "term": "alkaa aikaisintaan",
@@ -1739,47 +1726,39 @@
     "status": "model"
   },
   "start-to-finish": {
-    "term": "alku-loppu",
+    "term": "alusta loppuun",
     "forms": [
-      "alku-loppu",
-      "alku-loppu-suhde",
-      "alku-loppu-suhteen",
-      "alku-loppu-suhteet"
+      "alusta loppuun"
     ],
     "avoid": [
-      "loppu-alku"
+      "alku-loppu"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-to-start": {
-    "term": "alku-alku",
+    "term": "alusta alkuun",
     "forms": [
-      "alku-alku",
-      "alku-alku-suhde",
-      "alku-alku-suhteen",
-      "alku-alku-suhteet"
+      "alusta alkuun"
     ],
     "avoid": [
-      "loppu-loppu"
+      "alku-alku"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-variance": {
-    "term": "aloitusero",
+    "term": "alkamispäivän ero",
     "forms": [
-      "aloitusero",
-      "aloituseron",
-      "aloituseroa",
-      "aloituserot",
-      "aloituseroja"
+      "alkamispäivän ero",
+      "alkamispäivän eron",
+      "alkamispäivän eroa"
     ],
     "avoid": [
-      "aloitusliukuma"
+      "aloitusero"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "status-date": {
     "term": "raportointipäivä",
@@ -1835,9 +1814,6 @@
       "yhteenvetotehtävät",
       "yhteenvetotehtävien"
     ],
-    "avoid": [
-      "yhteenveto"
-    ],
     "source": "tbx",
     "status": "tbx"
   },
@@ -1860,19 +1836,18 @@
     "status": "tbx-chosen"
   },
   "task-grid": {
-    "term": "tehtäväruudukko",
+    "term": "tehtävätaulukko",
     "forms": [
-      "tehtäväruudukko",
-      "tehtäväruudukon",
-      "tehtäväruudukkoa",
-      "tehtäväruudukot",
-      "tehtäväruudukoiden"
+      "tehtävätaulukko",
+      "tehtävätaulukon",
+      "tehtävätaulukkoa",
+      "tehtävätaulukossa"
     ],
     "avoid": [
-      "taulukko"
+      "tehtäväruudukko"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "task-type": {
     "term": "tehtävätyyppi",
@@ -1932,7 +1907,7 @@
       "opetusvideo"
     ],
     "source": "tbx",
-    "status": "tbx-chosen"
+    "status": "arbitrated"
   },
   "units": {
     "term": "kuormitusaste",
@@ -1977,22 +1952,20 @@
       "varianssiraportti"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "violated-constraint": {
-    "term": "rikottu rajoitus",
+    "term": "rikottu rajoite",
     "forms": [
-      "rikottu rajoitus",
-      "rikotun rajoituksen",
-      "rikottua rajoitusta",
-      "rikotut rajoitukset",
-      "rikottujen rajoitusten"
+      "rikottu rajoite",
+      "rikotun rajoitteen",
+      "rikottua rajoitetta"
     ],
     "avoid": [
-      "rikkoutunut rajoitus"
+      "rikottu rajoitus"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "wbs": {
     "term": "WBS",
@@ -2075,10 +2048,10 @@
       "työsääntöjen"
     ],
     "avoid": [
-      "työehto"
+      "tehtävätyyppi"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "workday": {
     "term": "työpäivä",
@@ -2088,9 +2061,6 @@
       "työpäivää",
       "työpäivät",
       "työpäivien"
-    ],
-    "avoid": [
-      "TYÖPÄIVÄ"
     ],
     "source": "tbx",
     "status": "tbx"

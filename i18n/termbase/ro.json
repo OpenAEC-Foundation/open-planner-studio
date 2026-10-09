@@ -75,7 +75,7 @@
     "status": "tbx-chosen"
   },
   "ai-assistant": {
-    "term": "Asistent de inteligență artificială",
+    "term": "asistent de inteligență artificială",
     "forms": [
       "asistent de inteligență artificială",
       "asistentul de inteligență artificială",
@@ -86,7 +86,7 @@
       "asistent AI"
     ],
     "source": "tbx",
-    "status": "tbx"
+    "status": "arbitrated"
   },
   "as-late-as-possible": {
     "term": "cât mai târziu posibil",
@@ -138,7 +138,7 @@
       "curbă de sarcină"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "assignment-units": {
     "term": "unități de atribuire pe zi",
@@ -150,7 +150,7 @@
       "unități pe zi"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "baseline": {
     "term": "referință",
@@ -222,17 +222,19 @@
     "status": "tbx"
   },
   "calendar": {
-    "term": "calendar proiect",
+    "term": "calendar",
     "forms": [
-      "calendar proiect",
-      "calendarul proiectului",
-      "calendare proiect"
+      "calendar",
+      "calendarul",
+      "calendare",
+      "calendarele",
+      "calendarului"
     ],
     "avoid": [
-      "calendar"
+      "program calendar"
     ],
     "source": "tbx",
-    "status": "tbx-chosen"
+    "status": "arbitrated"
   },
   "capacity": {
     "term": "capacitate",
@@ -300,7 +302,7 @@
       "vacanță de construcții"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "contour": {
     "term": "contur",
@@ -327,7 +329,7 @@
       "regulă de planificare"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "cost": {
     "term": "cost",
@@ -498,18 +500,19 @@
     "status": "model"
   },
   "driving-relationship": {
-    "term": "relație determinantă",
+    "term": "legătură determinantă",
     "forms": [
-      "relație determinantă",
-      "relația determinantă",
-      "relații determinante",
-      "relațiile determinante"
+      "legătură determinantă",
+      "legătura determinantă",
+      "legături determinante",
+      "legăturile determinante"
     ],
     "avoid": [
+      "relație determinantă",
       "relație de conducere"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "duration": {
     "term": "durată",
@@ -623,14 +626,14 @@
     "status": "tbx"
   },
   "finish-driver": {
-    "term": "legătura determinantă pentru sfârșit",
+    "term": "legătură determinantă pentru sfârșit",
     "forms": [
+      "legătură determinantă pentru sfârșit",
       "legătura determinantă pentru sfârșit",
-      "legăturii determinante pentru sfârșit",
-      "legăturile determinante pentru sfârșit"
+      "legături determinante pentru sfârșit"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "finish-no-earlier-than": {
     "term": "nu se termină mai devreme de",
@@ -649,36 +652,40 @@
     "status": "model"
   },
   "finish-to-finish": {
-    "term": "sfârșit la sfârșit",
+    "term": "sfârșit-sfârșit",
     "forms": [
-      "sfârșit la sfârșit"
-    ],
-    "avoid": [
       "sfârșit-sfârșit"
     ],
+    "avoid": [
+      "sfârșit la sfârșit"
+    ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "finish-to-start": {
-    "term": "sfârșit la început",
+    "term": "sfârșit-început",
     "forms": [
-      "sfârșit la început"
-    ],
-    "avoid": [
       "sfârșit-început"
     ],
-    "source": "model",
-    "status": "model"
-  },
-  "finish-variance": {
-    "term": "abatere de sfârșit",
-    "forms": [
-      "abatere de sfârșit",
-      "abaterea de sfârșit",
-      "abaterii de sfârșit"
+    "avoid": [
+      "sfârșit la început"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
+  },
+  "finish-variance": {
+    "term": "varianță de sfârșit",
+    "forms": [
+      "varianță de sfârșit",
+      "varianța de sfârșit",
+      "varianțe de sfârșit",
+      "varianței de sfârșit"
+    ],
+    "avoid": [
+      "abatere de sfârșit"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "fixed-duration": {
     "term": "durată fixă",
@@ -725,14 +732,18 @@
     "status": "model"
   },
   "float-path": {
-    "term": "traseu de marjă",
+    "term": "drum de marjă",
     "forms": [
-      "traseu de marjă",
-      "traseul de marjă",
-      "trasee de marjă"
+      "drum de marjă",
+      "drumul de marjă",
+      "drumuri de marjă",
+      "drumului de marjă"
+    ],
+    "avoid": [
+      "traseu de marjă"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "forecast-finish": {
     "term": "sfârșit prognozat",
@@ -765,18 +776,25 @@
       "hamace",
       "hamacurile"
     ],
-    "source": "model",
-    "status": "model"
-  },
-  "hard-constraint": {
-    "term": "constrângere strictă",
-    "forms": [
-      "constrângere strictă",
-      "constrângerea strictă",
-      "constrângeri stricte"
+    "avoid": [
+      "activitate rezumat"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
+  },
+  "hard-constraint": {
+    "term": "restricție strictă",
+    "forms": [
+      "restricție strictă",
+      "restricția strictă",
+      "restricții stricte",
+      "restricțiile stricte"
+    ],
+    "avoid": [
+      "constrângere strictă"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "histogram": {
     "term": "histogramă",
@@ -808,7 +826,7 @@
       "seturi de sărbători"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "hour-distribution-in-phases": {
     "term": "repartizarea orelor pe faze",
@@ -818,7 +836,7 @@
       "repartizările orelor pe faze"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "hour-planning": {
     "term": "planificare pe ore",
@@ -831,14 +849,18 @@
     "status": "model"
   },
   "hour-task": {
-    "term": "sarcină pe ore",
+    "term": "activitate pe ore",
     "forms": [
-      "sarcină pe ore",
-      "sarcina pe ore",
-      "sarcini pe ore"
+      "activitate pe ore",
+      "activitatea pe ore",
+      "activități pe ore",
+      "activitățile pe ore"
+    ],
+    "avoid": [
+      "sarcină pe ore"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "indent": {
     "term": "indenta",
@@ -875,8 +897,11 @@
       "decalaje",
       "decalajele"
     ],
+    "avoid": [
+      "avans"
+    ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "late-dates": {
     "term": "date târzii",
@@ -917,26 +942,25 @@
       "aspectele"
     ],
     "avoid": [
-      "Aspect",
       "schemă",
       "structură"
     ],
     "source": "tbx",
-    "status": "tbx-chosen"
+    "status": "arbitrated"
   },
   "lead": {
-    "term": "avans",
+    "term": "devans",
     "forms": [
-      "avans",
-      "avansul",
-      "avansuri",
-      "avansurile"
+      "devans",
+      "devansul",
+      "devansuri",
+      "devansului"
     ],
     "avoid": [
-      "client potențial"
+      "avans"
     ],
-    "source": "model",
-    "status": "model"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "leveling": {
     "term": "redistribuire",
@@ -977,14 +1001,18 @@
     "status": "tbx-chosen"
   },
   "longest-path": {
-    "term": "cale critică",
+    "term": "drum cel mai lung",
     "forms": [
+      "drum cel mai lung",
+      "drumul cel mai lung",
+      "drumului cel mai lung"
+    ],
+    "avoid": [
       "cale critică",
-      "calea critică",
-      "căi critice"
+      "drum critic"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "manually-scheduled": {
     "term": "planificat manual",
@@ -997,14 +1025,17 @@
     "status": "model"
   },
   "max-units": {
-    "term": "unități maxime",
+    "term": "capacitate maximă",
     "forms": [
-      "unități maxime",
-      "unitățile maxime",
-      "unităților maxime"
+      "capacitate maximă",
+      "capacitatea maximă",
+      "capacității maxime"
     ],
-    "source": "model",
-    "status": "model"
+    "avoid": [
+      "unități maxime"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "milestone": {
     "term": "jalon",
@@ -1032,15 +1063,18 @@
     "status": "model"
   },
   "missed-task": {
-    "term": "sarcină restantă",
+    "term": "activitate restantă",
     "forms": [
-      "sarcină restantă",
-      "sarcina restantă",
-      "sarcini restante",
-      "sarcinile restante"
+      "activitate restantă",
+      "activitatea restantă",
+      "activități restante",
+      "activitățile restante"
+    ],
+    "avoid": [
+      "sarcină restantă"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "must-finish-on": {
     "term": "trebuie să se termine la",
@@ -1069,15 +1103,18 @@
     "status": "model"
   },
   "negative-float": {
-    "term": "rezervă negativă",
+    "term": "marjă negativă",
     "forms": [
-      "rezervă negativă",
-      "rezerva negativă",
-      "rezerve negative",
-      "rezervele negative"
+      "marjă negativă",
+      "marja negativă",
+      "marje negative",
+      "marjei negative"
+    ],
+    "avoid": [
+      "rezervă negativă"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "non-working-day": {
     "term": "zi nelucrătoare",
@@ -1135,7 +1172,7 @@
       "urmăriri de traseu"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "percent-complete": {
     "term": "procent finalizare",
@@ -1215,24 +1252,28 @@
     "status": "model"
   },
   "project-finish": {
-    "term": "finalizare proiect",
+    "term": "sfârșit proiect",
     "forms": [
-      "finalizare proiect",
-      "finalizarea proiectului",
-      "finalizări de proiect"
+      "sfârșit proiect",
+      "sfârșitul proiectului"
+    ],
+    "avoid": [
+      "finalizare proiect"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "project-start": {
-    "term": "începere proiect",
+    "term": "început proiect",
     "forms": [
-      "începere proiect",
-      "începerea proiectului",
-      "începeri de proiect"
+      "început proiect",
+      "începutul proiectului"
+    ],
+    "avoid": [
+      "începere proiect"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "rate": {
     "term": "tarif standard",
@@ -1377,9 +1418,9 @@
     "status": "model"
   },
   "ribbon": {
-    "term": "Panglică",
+    "term": "panglică",
     "forms": [
-      "Panglică",
+      "panglică",
       "panglica",
       "panglicii",
       "panglicile"
@@ -1388,7 +1429,7 @@
       "bandă"
     ],
     "source": "tbx",
-    "status": "tbx-chosen"
+    "status": "arbitrated"
   },
   "ribbon-tab": {
     "term": "filă de panglică",
@@ -1402,12 +1443,17 @@
     "status": "model"
   },
   "round-trip": {
-    "term": "round-trip",
+    "term": "salvare fără pierderi",
     "forms": [
+      "salvare fără pierderi",
+      "salvarea fără pierderi",
+      "salvării fără pierderi"
+    ],
+    "avoid": [
       "round-trip"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "schedule": {
     "term": "planificare",
@@ -1435,15 +1481,17 @@
     "status": "model"
   },
   "secondary-constraint": {
-    "term": "constrângere secundară",
+    "term": "restricție secundară",
     "forms": [
-      "constrângere secundară",
-      "constrângerea secundară",
-      "constrângeri secundare",
-      "constrângerile secundare"
+      "restricție secundară",
+      "restricția secundară",
+      "restricții secundare"
+    ],
+    "avoid": [
+      "constrângere secundară"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "shift": {
     "term": "tură",
@@ -1490,34 +1538,31 @@
     "status": "tbx"
   },
   "start-driver": {
-    "term": "relație de start",
+    "term": "legătură determinantă pentru început",
     "forms": [
-      "relație de start",
-      "relația de start",
-      "relații de start",
-      "relațiile de start"
+      "legătură determinantă pentru început",
+      "legătura determinantă pentru început",
+      "legături determinante pentru început"
     ],
     "avoid": [
-      "driver de start",
-      "start driver"
+      "relație de start",
+      "driver de start"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-float": {
-    "term": "marjă de start",
+    "term": "marjă de început",
     "forms": [
-      "marjă de start",
-      "marja de start",
-      "marje de start",
-      "marjele de start"
+      "marjă de început",
+      "marja de început",
+      "marje de început"
     ],
     "avoid": [
-      "speling de start",
-      "start float"
+      "marjă de start"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-no-earlier-than": {
     "term": "nu începe înainte de",
@@ -1570,19 +1615,18 @@
     "status": "model"
   },
   "start-variance": {
-    "term": "varianță de start",
+    "term": "varianță de început",
     "forms": [
-      "varianță de start",
-      "varianța de start",
-      "varianțe de start",
-      "varianțele de start"
+      "varianță de început",
+      "varianța de început",
+      "varianțe de început"
     ],
     "avoid": [
-      "abatere de start",
-      "start variance"
+      "varianță de start",
+      "abatere de start"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "status-date": {
     "term": "data raportului de stare",
@@ -1614,19 +1658,20 @@
     "status": "tbx"
   },
   "successor": {
-    "term": "activitate succesoare",
+    "term": "succesor",
     "forms": [
-      "activitate succesoare",
-      "activitatea succesoare",
-      "activități succesoare",
-      "activitățile succesoare"
+      "succesor",
+      "succesorul",
+      "succesori",
+      "succesorii",
+      "succesorului",
+      "succesorilor"
     ],
     "avoid": [
-      "succesor",
-      "task succesor"
+      "activitate succesoare"
     ],
-    "source": "model",
-    "status": "model"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "summary-task": {
     "term": "activitate rezumat",
@@ -1637,7 +1682,6 @@
       "activitățile rezumat"
     ],
     "avoid": [
-      "rezumat",
       "task rezumat",
       "summary task"
     ],
@@ -1782,19 +1826,17 @@
     "status": "model"
   },
   "violated-constraint": {
-    "term": "constrângere încălcată",
+    "term": "restricție încălcată",
     "forms": [
-      "constrângere încălcată",
-      "constrângerea încălcată",
-      "constrângeri încălcate",
-      "constrângerile încălcate"
+      "restricție încălcată",
+      "restricția încălcată",
+      "restricții încălcate"
     ],
     "avoid": [
-      "constraint încălcat",
-      "violated constraint"
+      "constrângere încălcată"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "wbs": {
     "term": "WBS",
@@ -1882,10 +1924,10 @@
     ],
     "avoid": [
       "regulă de muncă",
-      "work rule"
+      "tip de activitate"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "workday": {
     "term": "zi lucrătoare",

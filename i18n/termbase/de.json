@@ -1306,7 +1306,7 @@
       "Terminplanfehlern"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "secondary-constraint": {
     "term": "sekundäre Einschränkung",

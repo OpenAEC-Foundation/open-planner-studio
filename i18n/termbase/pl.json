@@ -1207,18 +1207,20 @@
     "status": "existing-ui"
   },
   "planned": {
-    "term": "zaplanowany",
+    "term": "planowany",
     "forms": [
-      "zaplanowany",
-      "zaplanowanego",
-      "zaplanowanemu",
-      "zaplanowanym",
-      "zaplanowana",
-      "zaplanowane",
-      "zaplanowanych"
+      "planowany",
+      "planowana",
+      "planowane",
+      "planowanego",
+      "planowanej",
+      "planowanych"
+    ],
+    "avoid": [
+      "zaplanowany"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "planned-work": {
     "term": "praca planowana",
@@ -1517,7 +1519,7 @@
       "błędów harmonogramu"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "secondary-constraint": {
     "term": "ograniczenie drugorzędne",

@@ -112,7 +112,7 @@
       "profil"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "assignment-units": {
     "term": "tilldelningsenheter per dag",
@@ -121,7 +121,7 @@
       "tilldelningsenhet per dag"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "baseline": {
     "term": "baslinje",
@@ -180,19 +180,19 @@
     "status": "tbx"
   },
   "calendar": {
-    "term": "projektkalender",
+    "term": "kalender",
     "forms": [
-      "projektkalender",
-      "projektkalendern",
-      "projektkalendrar",
-      "projektkalendrarna"
+      "kalender",
+      "kalendern",
+      "kalendrar",
+      "kalendrarna"
     ],
     "avoid": [
       "kalenderprogram",
       "Outlook Kalender"
     ],
     "source": "tbx",
-    "status": "tbx-chosen"
+    "status": "arbitrated"
   },
   "capacity": {
     "term": "kapacitet",
@@ -217,7 +217,7 @@
       "slutförandegraderna"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "constraint": {
     "term": "restriktion",
@@ -271,15 +271,18 @@
     "status": "tbx"
   },
   "convention": {
-    "term": "konvention",
+    "term": "beräkningsregel",
     "forms": [
-      "konvention",
-      "konventionen",
-      "konventioner",
-      "konventionerna"
+      "beräkningsregel",
+      "beräkningsregeln",
+      "beräkningsregler",
+      "beräkningsreglerna"
+    ],
+    "avoid": [
+      "konvention"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "cost": {
     "term": "kostnad",
@@ -362,7 +365,7 @@
       "det aktuella slutet"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "custom-field": {
     "term": "eget fält",
@@ -421,15 +424,17 @@
     "status": "model"
   },
   "driving-relationship": {
-    "term": "drivande relation",
+    "term": "drivande samband",
     "forms": [
-      "drivande relation",
-      "drivande relationen",
-      "drivande relationer",
-      "drivande relationerna"
+      "drivande samband",
+      "drivande sambandet",
+      "drivande sambanden"
+    ],
+    "avoid": [
+      "drivande relation"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "duration": {
     "term": "varaktighet",
@@ -465,17 +470,16 @@
     "status": "model"
   },
   "effort-driven": {
-    "term": "ansträngningsdriven",
+    "term": "insatsberoende",
     "forms": [
-      "ansträngningsdriven",
-      "ansträngningsdrivna"
+      "insatsberoende",
+      "insatsberoende schemaläggning"
     ],
     "avoid": [
-      "insatsdriven",
-      "arbetsdriven"
+      "ansträngningsdriven"
     ],
-    "source": "model",
-    "status": "model"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "elapsed-time": {
     "term": "total varaktighet",
@@ -542,26 +546,26 @@
     "status": "model"
   },
   "finish-no-earlier-than": {
-    "term": "får inte sluta tidigare än",
+    "term": "slut tidigast",
     "forms": [
+      "slut tidigast"
+    ],
+    "avoid": [
       "får inte sluta tidigare än"
     ],
-    "avoid": [
-      "tidigast slut"
-    ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "finish-no-later-than": {
-    "term": "får inte sluta senare än",
+    "term": "slut senast",
     "forms": [
-      "får inte sluta senare än"
+      "slut senast"
     ],
     "avoid": [
-      "senast slut"
+      "får inte sluta senare än"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "finish-to-finish": {
     "term": "slut-till-slut",
@@ -645,8 +649,8 @@
       "float",
       "speling"
     ],
-    "source": "model",
-    "status": "model"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "float-path": {
     "term": "slackväg",
@@ -659,7 +663,7 @@
       "float-väg"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "forecast-finish": {
     "term": "prognostiserat slut",
@@ -696,19 +700,21 @@
       "hammock"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "hard-constraint": {
-    "term": "hård begränsning",
+    "term": "hård restriktion",
     "forms": [
-      "hård begränsning",
-      "hård begränsningen"
+      "hård restriktion",
+      "hårda restriktionen",
+      "hårda restriktioner"
     ],
     "avoid": [
+      "hård begränsning",
       "hårt villkor"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "histogram": {
     "term": "histogram",
@@ -747,7 +753,7 @@
       "helgdagskalender"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "hour-distribution-in-phases": {
     "term": "timfördelning i faser",
@@ -759,7 +765,7 @@
       "timfördelning per fas"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "hour-planning": {
     "term": "timplanering",
@@ -771,7 +777,7 @@
       "timmplanering"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "hour-task": {
     "term": "timuppgift",
@@ -784,7 +790,7 @@
       "timaktivitet"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "indent": {
     "term": "indrag",
@@ -877,17 +883,19 @@
     "status": "tbx"
   },
   "lead": {
-    "term": "förskott",
+    "term": "överlapp",
     "forms": [
-      "förskott",
-      "förskottet"
+      "överlapp",
+      "överlappet",
+      "överlappen",
+      "överlapps"
     ],
     "avoid": [
-      "lead",
+      "förskott",
       "negativ fördröjning"
     ],
-    "source": "model",
-    "status": "model"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "leveling": {
     "term": "utjämning",
@@ -929,17 +937,18 @@
     "status": "tbx-chosen"
   },
   "longest-path": {
-    "term": "kritisk väg",
+    "term": "längsta väg",
     "forms": [
-      "kritisk väg",
-      "kritiska vägen",
-      "kritiska vägar"
+      "längsta väg",
+      "längsta vägen",
+      "längsta vägar"
     ],
     "avoid": [
-      "längsta väg"
+      "kritisk väg",
+      "kritisk linje"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "manually-scheduled": {
     "term": "manuellt schemalagd",
@@ -955,16 +964,17 @@
     "status": "model"
   },
   "max-units": {
-    "term": "max. enheter",
+    "term": "max enheter",
     "forms": [
-      "max. enheter",
-      "max. enheterna"
+      "max enheter",
+      "max enheterna"
     ],
     "avoid": [
-      "maximala enheter"
+      "maximala enheter",
+      "max. enheter"
     ],
-    "source": "model",
-    "status": "model"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "milestone": {
     "term": "milstolpe",
@@ -995,7 +1005,7 @@
       "missade uppgifterna"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "must-finish-on": {
     "term": "måste slutföras på",
@@ -1024,13 +1034,17 @@
     "status": "model"
   },
   "negative-float": {
-    "term": "negativ marginal",
+    "term": "negativt slack",
     "forms": [
-      "negativ marginal",
-      "negativa marginaler"
+      "negativt slack",
+      "negativa slack",
+      "negativt slacket"
+    ],
+    "avoid": [
+      "negativ marginal"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "non-working-day": {
     "term": "ledig dag",
@@ -1043,12 +1057,16 @@
     "status": "model"
   },
   "out-of-sequence-progress": {
-    "term": "framsteg i fel ordning",
+    "term": "framdrift i fel ordning",
     "forms": [
+      "framdrift i fel ordning",
+      "framdriften i fel ordning"
+    ],
+    "avoid": [
       "framsteg i fel ordning"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "outdent": {
     "term": "dra ut",
@@ -1072,7 +1090,7 @@
       "överbelastning"
     ],
     "source": "tbx",
-    "status": "tbx-chosen"
+    "status": "arbitrated"
   },
   "path-tracing": {
     "term": "spåra drivkedja",
@@ -1081,7 +1099,7 @@
       "spåra drivkedjan"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "percent-complete": {
     "term": "procent färdig",
@@ -1205,29 +1223,32 @@
     "status": "model"
   },
   "relation": {
-    "term": "relation",
+    "term": "samband",
     "forms": [
-      "relation",
-      "relationen",
-      "relationer",
-      "relationerna"
+      "samband",
+      "sambandet",
+      "sambanden",
+      "sambands"
     ],
     "avoid": [
       "beroende"
     ],
     "source": "tbx",
-    "status": "tbx-chosen"
+    "status": "arbitrated"
   },
   "relationship-type": {
-    "term": "relationstyp",
+    "term": "sambandstyp",
     "forms": [
-      "relationstyp",
-      "relationstypen",
-      "relationstyper",
-      "relationstyperna"
+      "sambandstyp",
+      "sambandstypen",
+      "sambandstyper",
+      "sambandstyperna"
+    ],
+    "avoid": [
+      "relationstyp"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "remaining-duration": {
     "term": "återstående varaktighet",
@@ -1412,18 +1433,18 @@
     "status": "tbx"
   },
   "start-driver": {
-    "term": "startdrivande relation",
+    "term": "startdrivande samband",
     "forms": [
-      "startdrivande relation",
-      "startdrivande relationen",
-      "startdrivande relationer",
-      "startdrivande relationerna"
+      "startdrivande samband",
+      "startdrivande sambandet",
+      "startdrivande sambanden"
     ],
     "avoid": [
-      "startdriver"
+      "startdriver",
+      "startdrivande relation"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-float": {
     "term": "startslack",
@@ -1432,7 +1453,7 @@
       "startslacket"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-no-earlier-than": {
     "term": "start tidigast",
@@ -1522,9 +1543,6 @@
       "sammanfattningsaktiviteten",
       "sammanfattningsaktiviteter",
       "sammanfattningsaktiviteterna"
-    ],
-    "avoid": [
-      "sammanfattning"
     ],
     "source": "tbx",
     "status": "tbx"
@@ -1725,7 +1743,7 @@
     "avoid": [
       "arbetstider"
     ],
-    "source": "model",
-    "status": "model"
+    "source": "tbx",
+    "status": "arbitrated"
   }
 }

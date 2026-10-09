@@ -92,6 +92,18 @@ const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
   ok('fout: token vertaald', has(errorsOf(t, { hint: 'Zadejte například 1.2 KZ+2d' }), 'token "FS" ontbreekt'));
 }
 
+// ── 5b. Meervoud met per vorm andere invulplekken ────────────────────────────────────────────
+{
+  const p = pkg('ru', [{ key: 'm', plural: true,
+    nl: { one: "Mijlpaal '{{phase}}' is nu een verzameltaak.", other: '{{count}} mijlpalen zijn nu verzameltaken.' },
+    en: { one: "Milestone '{{phase}}' is now a summary task.", other: '{{count}} milestones are now summary tasks.' } }]);
+  eq('goed: one met {{phase}}, de rest met {{count}}', errorsOf(p, { m: {
+    one: 'Веха «{{phase}}» стала суммарной задачей.', few: '{{count}} вехи стали суммарными задачами.',
+    many: '{{count}} вех стали суммарными задачами.', other: '{{count}} вехи стали суммарными задачами.' } }), []);
+  ok('fout: {{phase}} ontbreekt in one', has(errorsOf(p, { m: {
+    one: 'Веха стала суммарной задачей.', few: '{{count}} вехи', many: '{{count}} вех', other: '{{count}} вехи' } }), 'm.one: invulplekken'));
+}
+
 // ── 6. Zachte waarschuwingen (geen fout) ─────────────────────────────────────────────────────
 {
   const p = pkg('cs', [
@@ -111,6 +123,12 @@ const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
   eq('zachte punten zijn geen fouten', r.errors, []);
   ok('waarschuwing: term niet in een van de vormen', has(r.warnings, 'cp: term "kritická cesta"'));
   ok('waarschuwing: avoid-treffer', has(r.warnings, 'bl: vermijd "základní plán"'));
+  const q = pkg('nb', [{ key: 'ff', nl: 'Vrije speling', en: 'Free float' }], {
+    terms: [{ id: 'free-float', nl: 'vrije speling', en: ['free float'], target: 'fri slakk', forms: ['fri slakk'], avoid: ['slakk'] }],
+  });
+  ok('geen valse avoid-waarschuwing als de variant in de eigen term zit',
+    !checkUi(q, { ff: 'Fri slakk' }).warnings.some(w => w.includes('vermijd')));
+  ok('wel een avoid-waarschuwing buiten de eigen term', has(checkUi(q, { ff: 'Slakk' }).warnings, 'vermijd "slakk"'));
   ok('waarschuwing: gelijk aan en', has(r.warnings, 'st: gelijk aan en'));
   ok('waarschuwing: veel langer dan en', has(r.warnings, 'lg: ') && has(r.warnings, '>1,6×'));
   ok('waarschuwing: eigennaam niet letterlijk', has(r.warnings, 'ifc: eigennaam "IFC"'));
