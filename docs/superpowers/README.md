@@ -202,6 +202,9 @@ bestandsnaam noemt (zelfde uitsluitingen als hierboven).
 | `plans/2026-09-24-ui-conventies-groepen-voorstel.md` | UI-voorstel conventies per thema — gemerged 24-09 (eigenaar "mergen") | 0 |
 | `plans/2026-09-24-nivellering-etappe-onderzoek.md` | onderzoek P6-nivellering; fundament (data) gemerged, motoretappe wacht op vijf eigenaarsbesluiten (§8) | 0 |
 | `plans/2026-09-24-pr169-body-voorstel.md` | voorstel PR-body #169 — overgenomen 24-09, daarna bijgewerkt op GitHub | 0 |
+| `plans/2026-09-28-brede-sweep-draaiboek.md` | draaiboek brede sweep (bugs, logica, rekenprofielen, bibliotheken, import/export, code-opbouw) — klaargezet 28-09, nog niet gestart | 0 |
+| `plans/2026-09-28-brede-sweep-grootboek.md` | werkregister van de sweep (sporen, bevindingen, merge-batches) — bijgehouden door de orkestrator | 0 |
+| `plans/2026-09-28-modelbenchmark/` | modelbenchmark Sonnet 5.5 tegen Opus 5.5 vóór de sweep: sleutel, vier auditrapporten (waaronder de audit-stap van spoor O) en twee blinde verificaties | 0 |
 | `plans/2026-09-24-eindreview-fable-pr169.md` | eindreview van de orkestrator (Fable) op #169 in drie delen — GO met B1 inbegrepen | 0 |
 | `plans/2026-09-24-fable-critreview-pr109.md` | onafhankelijke Fable-critreview #109 — LANDEN-MET-FIXES; fixes op `claude/xer-etappe3-fixes` | 0 |
 | `plans/2026-09-24-fable-critreview-pr167.md` | onafhankelijke Fable-critreview #167 — LANDEN-MET-FIXES; fixes op `claude/recorded-all-formats-fixes` | 0 |
