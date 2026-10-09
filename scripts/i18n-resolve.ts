@@ -3,7 +3,7 @@
 // locale-bestanden doet — óók als git geen conflict in de locale-bestanden meldde:
 //
 //   git merge origin/main        # conflicten? dan loopt de merge nog: resolve, daarna `git commit`
-//   npm run i18n:resolve         # alle 56 bestanden opnieuw samengevoegd, opgemaakt en ge-`git add`
+//   npm run i18n:resolve         # alle locale-bestanden opnieuw samengevoegd, opgemaakt en ge-`git add`
 //
 // Maakte git de merge-commit al (geen enkel conflict), dan controleert hetzelfde commando die
 // merge-commit (HEAD^1 + HEAD^2) per sleutel; wat het corrigeert staat daarna klaar voor

@@ -1,6 +1,6 @@
 # Een nieuwe vertaalsleutel toevoegen
 
-Veertien locales (`nl, en, fr, de, es, zh, it, pt, pl, tr, ar, ja, ko, fa`), elk met vier namespaces
+27 locales (`nl, en, fr, de, es, zh, it, pt, pl, tr, ar, ja, ko, fa, ru, uk, cs, sk, sr, hr, bg, hu, ro, sv, nb, da, fi`), elk met vier namespaces
 (`common`, `task`, `report`, `menu`) — zie *i18n* in `.claude/rules/i18n.md`. Nederlands is de **brontaal**: nieuwe
 sleutels worden eerst in `src/i18n/locales/nl/<namespace>.json` geschreven, alle andere talen volgen
 daaruit. Alleen Engels wordt eager mee-gebundeld (`config.ts`); de rest laadt lazy via `loadLocale()`.
@@ -15,7 +15,7 @@ poort; loopt dit document ooit achter, dan heeft die het gelijk.
 1. **Kies de namespace.** `common` voor generieke UI-tekst, `task` voor taakspecifieke labels,
    `report` voor rapport-/exportcontext, `menu` voor ribbon-/backstage-/menutekst. De vier bestanden
    staan naast elkaar per taal: `src/i18n/locales/<taal>/{common,task,report,menu}.json`.
-2. **Schrijf de vertalingen in één JSON-bestand**, per locale één tekst — alle 14, want elke nieuwe
+2. **Schrijf de vertalingen in één JSON-bestand**, per locale één tekst — alle 27, want elke nieuwe
    tekst gaat meteen in alle talen (besluit werkwijze 2026-09):
    ```json
    { "nl": "Onderbreking opheffen", "en": "Remove break", "fr": "…", "de": "…", … }
@@ -26,7 +26,7 @@ poort; loopt dit document ooit achter, dan heeft die het gelijk.
    { "nl": { "one": "{{count}} taak", "other": "{{count}} taken" },
      "pl": { "one": "…", "few": "…", "many": "…", "other": "…" }, "zh": { "other": "…" }, … }
    ```
-3. **Zet hem in alle 14 locales met één commando:**
+3. **Zet hem in alle 27 locales met één commando:**
    ```bash
    npm run i18n:add -- common:pad.naar.sleutel vertalingen.json              # nieuw, achteraan
    npm run i18n:add -- common:pad.naar.sleutel vertalingen.json --after broer # nieuw, na een broer
@@ -44,7 +44,7 @@ faalt `verify:i18n` op de opmaak.
 
 ## De vaste opmaak (`npm run i18n:fmt`)
 
-Alle 56 locale-bestanden hebben één opmaak: één sleutel per regel (JSON, twee spaties), in precies de
+Alle 108 locale-bestanden hebben één opmaak: één sleutel per regel (JSON, twee spaties), in precies de
 volgorde van `nl`; een meervoudsfamilie staat op de plek van haar `nl`-familie met de categorieën van
 de eigen taal in CLDR-volgorde (`zero`, `one`, `two`, `few`, `many`, `other`). Daardoor valt een
 mergeconflict op één regel in plaats van op een blok (vroeger stonden in zes talen 70 kolomnamen op één
@@ -55,7 +55,7 @@ de inhoud — `tests/planning/check-i18n-tools.ts` bewijst dat op alle echte bes
 ## Mergen (`npm run i18n:resolve`)
 
 Draai na elke `git merge` waarbij aan beide kanten locale-bestanden veranderden `npm run i18n:resolve`,
-óók als git daar geen conflict meldde. Het script voegt alle 56 bestanden per sleutel samen uit de drie
+óók als git daar geen conflict meldde. Het script voegt alle 108 bestanden per sleutel samen uit de drie
 versies die git kent (merge-base, jouw kant, de andere kant), zet ze in de vaste opmaak en doet
 `git add`. Wat maar één kant toevoegde, wijzigde of verwijderde, gaat mee.
 
@@ -136,7 +136,7 @@ geen generieke poort die elke `t(key, { count })`-aanroep in de hele codebase vi
 | i18next-init, eager (en) vs. lazy (overige) | `src/i18n/config.ts` |
 | lazy-loader per taal | `src/i18n/` (`loadLocale()`) |
 | de poort: CLDR-pluralcategorieën per locale | `scripts/i18n-diff.mjs` (`npm run verify:i18n`) |
-| toevoegen/wijzigen in alle 14 locales, vaste opmaak | `scripts/i18n-add.ts` (`npm run i18n:add`), `scripts/i18n-fmt.ts` (`npm run i18n:fmt`), kern `scripts/i18n-tools.ts` |
+| toevoegen/wijzigen in alle 27 locales, vaste opmaak | `scripts/i18n-add.ts` (`npm run i18n:add`), `scripts/i18n-fmt.ts` (`npm run i18n:fmt`), kern `scripts/i18n-tools.ts` |
 | test van die kern (inhoud blijft gelijk op alle echte bestanden) | `tests/planning/check-i18n-tools.ts` |
 | locale-bestanden per sleutel samenvoegen na `git merge` | `scripts/i18n-resolve.ts` (`npm run i18n:resolve`), end-to-end getest in `tests/planning/check-i18n-resolve.ts` |
 | domeincheck: taakgrid-registerlabels + echte `count`-aanroepen | `tests/planning/check-task-grid-i18n.ts` |

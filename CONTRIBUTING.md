@@ -44,7 +44,7 @@ CI. The steps, in this order:
 | `npm run lint` | a minimal ESLint gate — promise-handling, control-regex and the React-hooks rules, **no style rules** |
 | `npm test` | the five behavior suites (`planning`, `library`, `mcp`, `dev-server`, `browser`) |
 | `npm run verify:examples` | the example projects in `examples/` |
-| `npm run verify:docs` | the in-app documentation, 14 languages |
+| `npm run verify:docs` | the in-app documentation (nl + en) and the mechanical claims in AGENTS.md |
 | `npm run verify:i18n` | missing translation keys relative to `nl` |
 | `npm run verify:release-highlights-json` | `public/release-highlights.json` matches the release-highlight catalog |
 | `npm run verify:store-boundaries` | core runtime factories and store-bound MCP tools never import `useAppStore`/`appStoreContext` |

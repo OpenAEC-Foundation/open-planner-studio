@@ -52,7 +52,7 @@ tegenhouden staat erbij; loopt dit document ooit achter, dan heeft de code gelij
    Engelstalige sleutelnaam zijn. Wijkt jouw tab-identifier ook af van de gewenste sleutelnaam, voeg
    dan een derde `? :`-tak toe aan diezelfde regel.
 4. **Voeg de vertaalsleutel toe**: `ribbon.<tab>` (of de naam die je in stap 3 koos) in de `ribbon`-
-   sectie van `menu.json`, in **alle 14 locales** — zie `docs/recepten/i18n-sleutel.md` voor hoe
+   sectie van `menu.json`, in **alle 27 locales** — zie `docs/recepten/i18n-sleutel.md` voor hoe
    `verify:i18n` dat afdwingt (elke locale moet de sleutel hebben, niet alleen nl+en).
 5. **Werk `AGENTS.md` bij**: de alinea *Facts that `verify:docs` guards here* somt `RibbonTab` op als backtick-identifiers
    (`` `file` ``, `` `start` ``, …). Poort 7a in `scripts/verify-docs.ts` leest de `RibbonTab`-union

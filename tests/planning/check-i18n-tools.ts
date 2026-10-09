@@ -95,7 +95,7 @@ const canon = (v: Json): Json => {
   eq('ontbrekende tussenobjecten worden aangemaakt', root.nieuwe, { groep: { sleutel: 'G' } });
 }
 
-// ── 5. De echte 56 bestanden: opmaken verandert de inhoud niet, en is idempotent ──────────────
+// ── 5. De echte locale-bestanden: opmaken verandert de inhoud niet, en is idempotent ──────────────
 {
   const dir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'src', 'i18n', 'locales');
   for (const ns of NAMESPACES) {
@@ -154,7 +154,7 @@ const canon = (v: Json): Json => {
   eq('tekst wordt object vs tekst gewijzigd → botsing', r.conflicts.map(c => c.path), ['s']);
 
   // Op de echte bestanden: een pure herschikking aan de overkant verandert niets, en een verwijdering
-  // of wijziging aan onze kant overleeft haar — voor alle 56 bestanden.
+  // of wijziging aan onze kant overleeft haar — voor alle locale-bestanden.
   const dir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'src', 'i18n', 'locales');
   const reversed = (o: JsonObject): JsonObject => Object.fromEntries(Object.keys(o).reverse()
     .map(k => [k, (typeof o[k] === 'object' && o[k] !== null && !Array.isArray(o[k])) ? reversed(o[k] as JsonObject) : o[k]]));

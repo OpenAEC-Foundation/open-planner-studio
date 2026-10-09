@@ -13,7 +13,7 @@ welcome.
 | Rendering | HTML5 Canvas 2D |
 | State | Zustand + Immer |
 | Styling | TailwindCSS 4 + component CSS |
-| i18n | react-i18next (14 languages) |
+| i18n | react-i18next (27 languages) |
 | Build | Vite 7 |
 
 The Rust shell is deliberately thin: all IFC parsing and serialization, scheduling and rendering live
@@ -69,7 +69,7 @@ Use `npm test` to run only the five behavioural suites. For a focused scheduling
 
 See the repository's `README.md` and `AGENTS.md` for a tour of the source tree — the main areas are
 `src/components` (React shell), `src/engine` (Canvas renderer and CPM scheduler), `src/services`
-(IFC, import/export, print, updater), `src/state` (Zustand store) and `src/i18n` (14 languages).
+(IFC, import/export, print, updater), `src/state` (Zustand store) and `src/i18n` (27 languages).
 
 ## Extensions
 

@@ -49,7 +49,7 @@ description: |
 
   Also included:
   - An extension system for adding custom ribbon buttons and behavior
-  - 14 languages, including right-to-left support for Arabic and Persian
+  - 27 languages, including right-to-left support for Arabic and Persian
 
   Open Planner Studio is free and open source (LGPL-3.0-or-later), part of
   the OpenAEC Foundation family of applications, and built with Tauri for

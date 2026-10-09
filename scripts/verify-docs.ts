@@ -33,7 +33,7 @@
 //      bestand moet onder public/docs bestaan (voor een draft een waarschuwing).
 //   7/8. Machinaal controleerbare beweringen in AGENTS.md (+ .claude/rules/)/README.md/CONTRIBUTING.md.
 //        CLAUDE.md is alleen nog een `@AGENTS.md`-import; ook dat wordt bewaakt (7f). De
-//        locale-opsomming volgt de veertien UI-talen (UI_LANGS), niet de docstalen.
+//        locale-opsomming volgt de UI-talen (UI_LANGS), niet de docstalen.
 //   9. Elke agent-skill onder `public/skills/<naam>/SKILL.md` (bron, uitgeleverd: `goed-plannen`,
 //      `progress-update`) staat byte-identiek in `.claude/skills/<naam>/` (waar Claude Code hem leest)
 //      — geen symlink, want Windows-CI —, zijn frontmatter heeft een `name` gelijk aan de mapnaam en een
@@ -88,7 +88,7 @@ interface Manifest {
 
 const MANIFEST_VERSION = 2;
 
-// De veertien UI-talen: de mappen onder src/i18n/locales (dezelfde set als `supportedLanguages` in
+// De UI-talen: de mappen onder src/i18n/locales (dezelfde set als `supportedLanguages` in
 // src/i18n/config.ts, maar zonder die module te laden — die start i18next). Alleen voor de
 // locale-opsomming in CLAUDE.md (7d).
 const UI_LANGS: readonly string[] = readdirSync(join(ROOT, 'src', 'i18n', 'locales'), { withFileTypes: true })

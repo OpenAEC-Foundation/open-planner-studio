@@ -1,6 +1,6 @@
 // `npm run i18n:add -- <ns>:<pad.naar.sleutel> <vertalingen.json> [--update] [--after <broer>]`
 //
-// Zet één tekst in alle 14 locales tegelijk, op dezelfde plek (de volgorde van nl) — in plaats van
+// Zet één tekst in alle locales (`LOCALES`) tegelijk, op dezelfde plek (de volgorde van nl) — in plaats van
 // 14 bestanden met de hand. <vertalingen.json> bevat per locale de tekst:
 //
 //   { "nl": "Onderbreking opheffen", "en": "Remove break", "fr": "…", … }            // gewone tekst

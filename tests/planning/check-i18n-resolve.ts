@@ -1,5 +1,5 @@
 /**
- * `npm run i18n:resolve` end-to-end, in een wegwerp-git-repo met alle 56 locale-bestanden.
+ * `npm run i18n:resolve` end-to-end, in een wegwerp-git-repo met alle locale-bestanden.
  *
  * Bootst eerst de valkuil na waarvoor het script bestaat: de ene branch verwijdert een sleutel, de
  * andere verplaatst hem alleen (zoals de eenmalige herschikking) — git voegt dat "zonder conflict"

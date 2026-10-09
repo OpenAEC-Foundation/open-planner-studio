@@ -1,7 +1,7 @@
 // De kern achter `npm run i18n:fmt`, `i18n:add` en `i18n:resolve` — pure functies, zonder bestands-I/O,
 // zodat tests/planning/check-i18n-tools.ts ze rechtstreeks kan toetsen.
 //
-// Waarom dit bestaat: elke zichtbare tekst moet in dezelfde wijziging in alle 14 locales (besluit
+// Waarom dit bestaat: elke zichtbare tekst moet in dezelfde wijziging in alle locales (besluit
 // werkwijze 2026-09). Met de hand betekende dat 14 bestanden openen, in 25 van de 56 met een andere
 // sleutelvolgorde dan het Nederlands, en in zes talen 70 kolomnamen op één regel van ~2.600 tekens
 // — waar twee gelijktijdige wijzigingen altijd een conflict over de hele regel gaven.
@@ -11,7 +11,7 @@
 //     `nl`; een meervoudsfamilie staat op de plek van haar `nl`-familie, met de categorieën van de
 //     eigen taal in CLDR-volgorde (zero, one, two, few, many, other). Sleutels die `nl` niet kent,
 //     blijven achteraan in hun object staan (verify:i18n meldt ontbrekende, dit script gooit niets weg).
-//  2. TOEVOEGEN — een tekst gaat in één handeling in alle 14 locales, met per taal de CLDR-
+//  2. TOEVOEGEN — een tekst gaat in één handeling in alle locales (`LOCALES`), met per taal de CLDR-
 //     categorieën en dezelfde {{invulplekken}} als `nl`; anders weigert het script.
 
 export const NAMESPACES = ['common', 'task', 'report', 'menu'] as const;
@@ -96,7 +96,7 @@ export type Translation = string | Record<string, string>;
 
 /**
  * Controleer een set vertalingen vóór het schrijven. Levert een lijst fouten (leeg = goed):
- * alle 14 locales aanwezig en niets extra; overal hetzelfde soort (tekst óf familie); bij een familie
+ * alle locales (`LOCALES`) aanwezig en niets extra; overal hetzelfde soort (tekst óf familie); bij een familie
  * per taal exact de CLDR-categorieën; en overal dezelfde {{invulplekken}} als nl — behalve
  * `{{count}}`, dat een meervoudsvorm in woorden mag uitschrijven (Arabisch "مهمة واحدة").
  */
