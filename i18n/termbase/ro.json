@@ -1,7 +1,8 @@
 {
   "_style": {
     "address": "formal",
-    "note": "Romanian software addresses the user formally (dumneavoastră, impersonal or plural imperative such as 'calculați'). 'actual' is a false friend: 'actual' in Romanian means 'current', so avoid it. The candidate terms use 'real' for duration, work and date, and 'efectiv' for start and finish; keep these as the candidates give them."
+    "note": "Romanian software addresses the user formally (dumneavoastră, impersonal or plural imperative such as 'calculați'). 'actual' is a false friend: 'actual' in Romanian means 'current', so avoid it. The candidate terms use 'real' for duration, work and date, and 'efectiv' for start and finish; keep these as the candidates give them.",
+    "commands": "Commands use a noun of action, like Romanian Microsoft software: Salvare, Deschidere, Ștergere, Calculare."
   },
   "actual-date": {
     "term": "real",

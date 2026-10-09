@@ -19,6 +19,8 @@ per plural category.
 - Plural: give exactly the categories listed in the package's `plural` object, no more, no fewer. The
   numbers next to each category show what it means in this language; write each form for those numbers.
 - Address the user as `style.address` says (`formal` / `informal`).
+- Commands (buttons, menu and ribbon items, context-menu items) use the form in `style.commands`,
+  exactly like its examples. Sentences and hints follow `style.address`.
 - Keep short UI texts short: buttons, column names and menu items should be about as long as `en`.
   Same capitalisation style as the language's usual software. No explanations, no notes.
 - With `previous` (an older translation): change only what the new `nl` requires.

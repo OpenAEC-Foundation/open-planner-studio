@@ -33,7 +33,7 @@ export interface TermEntry {
   status: TermStatus;
 }
 
-export interface Style { address: 'formal' | 'informal'; note?: string }
+export interface Style { address: 'formal' | 'informal'; note?: string; commands?: string }
 
 /** Eén taalbestand `i18n/termbase/<taal>.json`: `_style` plus per concept-id een regel. */
 export type LangTermbase = { _style?: Style } & { [conceptId: string]: TermEntry | Style | undefined };

@@ -1,7 +1,8 @@
 {
   "_style": {
     "address": "formal",
-    "note": "Slovak software addresses the user formally (vy). No existing UI in this package, so the usual professional convention is followed."
+    "note": "Slovak software addresses the user formally (vy). No existing UI in this package, so the usual professional convention is followed.",
+    "commands": "Commands use the infinitive, like Slovak Microsoft software: Uložiť, Otvoriť, Odstrániť, Prepočítať."
   },
   "actual-date": {
     "term": "skutočný",

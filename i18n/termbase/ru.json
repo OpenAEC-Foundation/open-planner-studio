@@ -1,7 +1,8 @@
 {
   "_style": {
     "address": "formal",
-    "note": "Russian software addresses the user formally (вы). Buttons and hints use the polite imperative (-те)."
+    "note": "Russian software addresses the user formally (вы) in sentences and hints.",
+    "commands": "Commands (buttons, menu, ribbon, context menu) use the infinitive, like Russian Microsoft software: Сохранить, Открыть, Удалить, Рассчитать. Never the imperative (Сохраните)."
   },
   "actual-date": {
     "term": "фактический",

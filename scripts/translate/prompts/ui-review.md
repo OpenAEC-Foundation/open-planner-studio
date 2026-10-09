@@ -13,7 +13,8 @@ You get: `{{PACKAGES}}` (package JSON files, `"kind": "ui"`) and next to each it
   `{ "package": "<id>", "key": "<key>", "category": "<only for plural items>", "kind": "<kind>", "problem": "<short>", "proposal": "<full corrected text>" }`
   `kind` is one of: `meaning` (wrong meaning), `term` (not the term from `terms`), `plural` (wrong form
   for the example numbers), `unnatural` (correct but not how the language's software says it), `length`
-  (too long for a button or column), `style` (wrong form of address).
+  (too long for a button or column), `style` (wrong form of address, or a command that does not use the
+  form in `style.commands`).
 - Report real problems only. No style preferences, no praise. An empty array is a valid result.
 - `proposal` must keep `{{placeholders}}`, `$t(...)` and tokens byte for byte.
 

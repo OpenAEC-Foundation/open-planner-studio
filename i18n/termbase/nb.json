@@ -1,7 +1,8 @@
 {
   "_style": {
     "address": "informal",
-    "note": "Noorse software (Microsoft Office, Teams) spreekt de gebruiker in het Bokmål aan met 'du'. Daarom informeel."
+    "note": "Noorse software (Microsoft Office, Teams) spreekt de gebruiker in het Bokmål aan met 'du'. Daarom informeel.",
+    "commands": "Commands use the imperative, like Norwegian Microsoft software: Lagre, Åpne, Slett, Beregn."
   },
   "actual-date": {
     "term": "faktisk",

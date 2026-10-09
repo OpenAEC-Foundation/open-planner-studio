@@ -88,6 +88,7 @@ export function styleErrors(s: unknown, where: string): string[] {
   const e: string[] = [];
   if (s.address !== 'formal' && s.address !== 'informal') e.push(`${where}: _style.address moet formal of informal zijn`);
   if (s.note !== undefined && typeof s.note !== 'string') e.push(`${where}: _style.note moet tekst zijn`);
+  if (s.commands !== undefined && typeof s.commands !== 'string') e.push(`${where}: _style.commands moet tekst zijn`);
   return e;
 }
 

@@ -1,7 +1,8 @@
 {
   "_style": {
     "address": "formal",
-    "note": "Tato software používá vykání (formální 'vy') nebo bezosobní infinitivy. Zvoleno formální vykání, v souladu s ostatními překlady projektu."
+    "note": "Tato software používá vykání (formální 'vy') nebo bezosobní infinitivy. Zvoleno formální vykání, v souladu s ostatními překlady projektu.",
+    "commands": "Commands use the infinitive, like Czech Microsoft software: Uložit, Otevřít, Odstranit, Přepočítat."
   },
   "actual-date": {
     "term": "skutečný",

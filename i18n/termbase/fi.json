@@ -1,7 +1,8 @@
 {
   "_style": {
     "address": "formal",
-    "note": "Finnish software uses impersonal forms (imperative or passive without a pronoun), not sinä or te. Labels stay short and neutral."
+    "note": "Finnish software uses impersonal forms (imperative or passive without a pronoun), not sinä or te. Labels stay short and neutral.",
+    "commands": "Commands use the imperative, like Finnish Microsoft software: Tallenna, Avaa, Poista, Laske."
   },
   "actual-date": {
     "term": "todellinen",

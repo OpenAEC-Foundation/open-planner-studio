@@ -1,7 +1,8 @@
 {
   "_style": {
     "address": "formal",
-    "note": "Ukrainian desktop software addresses the user formally (ви) or with impersonal infinitives in menus. Use short imperative and infinitive forms for actions (обчислити, автоматично обчислювати) and neutral noun phrases for settings and fields."
+    "note": "Ukrainian desktop software addresses the user formally (ви) or with impersonal infinitives in menus. Use short imperative and infinitive forms for actions (обчислити, автоматично обчислювати) and neutral noun phrases for settings and fields.",
+    "commands": "Commands use the infinitive, like Ukrainian Microsoft software: Зберегти, Відкрити, Видалити, Обчислити."
   },
   "actual-date": {
     "term": "фактична дата",

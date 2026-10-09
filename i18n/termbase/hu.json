@@ -1,7 +1,8 @@
 {
   "_style": {
     "address": "formal",
-    "note": "Hungarian software uses formal 'Ön' or the impersonal imperative; avoid informal 'te'."
+    "note": "Hungarian software uses formal 'Ön' or the impersonal imperative; avoid informal 'te'.",
+    "commands": "Commands use a noun of action, like Hungarian Microsoft software: Mentés, Megnyitás, Törlés, Számítás."
   },
   "actual-date": {
     "term": "tényleges dátum",

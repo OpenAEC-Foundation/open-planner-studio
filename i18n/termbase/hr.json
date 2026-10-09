@@ -1,7 +1,8 @@
 {
   "_style": {
     "address": "formal",
-    "note": "Kroatische software spreekt de gebruiker formeel aan (Vi). Microsoft doet dat ook in het Kroatisch."
+    "note": "Kroatische software spreekt de gebruiker formeel aan (Vi). Microsoft doet dat ook in het Kroatisch.",
+    "commands": "Commands use the short imperative, like Croatian Microsoft software: Spremi, Otvori, Izbriši, Izračunaj."
   },
   "actual-date": {
     "term": "stvaran",

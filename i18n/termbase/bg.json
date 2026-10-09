@@ -1,7 +1,8 @@
 {
   "_style": {
     "address": "formal",
-    "note": "Bulgarian software addresses the user formally with Вие where a sentence needs it; buttons and labels use the infinitive or the imperative."
+    "note": "Bulgarian software addresses the user formally with Вие where a sentence needs it; buttons and labels use the infinitive or the imperative.",
+    "commands": "Commands use the short imperative, like Bulgarian Microsoft software: Запиши, Отвори, Изтрий, Изчисли."
   },
   "actual-date": {
     "term": "действителен",

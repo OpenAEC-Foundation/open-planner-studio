@@ -1,7 +1,8 @@
 {
   "_style": {
     "address": "informal",
-    "note": "Zweedse software spreekt de gebruiker met de informele 'du'-vorm aan. Knoppen en labels gebruiken de infinitief."
+    "note": "Zweedse software spreekt de gebruiker met de informele 'du'-vorm aan. Knoppen en labels gebruiken de infinitief.",
+    "commands": "Commands use the imperative, like Swedish Microsoft software: Spara, Öppna, Ta bort, Beräkna."
   },
   "actual-date": {
     "term": "verklig",
