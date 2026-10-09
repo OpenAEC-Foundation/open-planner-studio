@@ -211,31 +211,37 @@ function applyTermsCmd(args: string[]): void {
     writeFileSync(join(dir, 'inconsistencies.md'), inconsistencyReport(lang, outs, concepts));
     console.log(`OK  rapport: build/translate/${lang}/inconsistencies.md`);
   }
-  // Termen zonder bron (status model) krijgen een blinde controle: alleen de doelterm, ondoorzichtige id's.
-  const model = outs.flatMap(o => Object.entries(o).filter(([k, v]) => k !== '_style' && (v as { status?: string }).status === 'model'))
+  // Termen zonder bron (`model`) en zelf gekozen TBX-termen (`tbx-chosen`) krijgen een blinde controle:
+  // alleen de doelterm, ondoorzichtige id's. Bestaat de uitkomst al, dan wordt het rapport gemaakt.
+  const checkOut = join(dir, 'terms-check-01.out.json');
+  const mapFile = join(dir, 'terms-check-01.map.json');
+  if (existsSync(checkOut) && existsSync(mapFile)) {
+    const res = readJson<Record<string, { backTranslation: string; standard: boolean; suggestion?: string }>>(checkOut);
+    const map = readJson<Record<string, string>>(mapFile);
+    const byId = new Map(concepts.map(c => [c.id, c]));
+    const bad = Object.entries(res).filter(([, v]) => !v.standard);
+    const lines = [`# Blinde controle — ${lang}`, '', `${bad.length} van ${Object.keys(res).length} termen niet gangbaar; Opus beslist.`, '',
+      ...bad.map(([k, v]) => {
+        const c = byId.get(map[k] ?? '');
+        return `- ${map[k] ?? k} (en *${c?.en.join(' / ') ?? '?'}*): *${(tb[map[k]] as { term?: string } | undefined)?.term ?? '?'}* → terug *${v.backTranslation}*${v.suggestion ? `, voorstel *${v.suggestion}*` : ''}`;
+      }), ''];
+    writeFileSync(join(dir, 'terms-check-report.md'), lines.join('\n'));
+    console.log(`OK  rapport: build/translate/${lang}/terms-check-report.md (${bad.length} afwijkend)`);
+    return;
+  }
+  const unchecked = outs.flatMap(o => Object.entries(o).filter(([k, v]) => k !== '_style'
+    && ['model', 'tbx-chosen'].includes((v as { status?: string }).status ?? '')))
     .map(([id, v]) => ({ id, term: (v as { term: string }).term }));
-  if (model.length) {
+  if (unchecked.length) {
     archive(dir, 'terms-check-');
     const map: Record<string, string> = {};
     const pkg: TermsCheckPackage = {
       kind: 'terms-check', lang, id: 'terms-check-01',
-      items: model.map((m, i) => { const id = `t${i + 1}`; map[id] = m.id; return { id, term: m.term }; }),
+      items: unchecked.map((m, i) => { const id = `t${i + 1}`; map[id] = m.id; return { id, term: m.term }; }),
     };
     writeJson(join(dir, 'terms-check-01.json'), pkg);
     writeJson(join(dir, 'terms-check-01.map.json'), map);
-    console.log(`OK  blinde controle nodig voor ${model.length} term(en): build/translate/${lang}/terms-check-01.json`);
-  }
-  // Uitkomst van een eerdere blinde controle: onenigheid naar Opus.
-  const checkOut = join(dir, 'terms-check-01.out.json');
-  const mapFile = join(dir, 'terms-check-01.map.json');
-  if (existsSync(checkOut) && existsSync(mapFile) && !model.length) {
-    const res = readJson<Record<string, { backTranslation: string; standard: boolean; suggestion?: string }>>(checkOut);
-    const map = readJson<Record<string, string>>(mapFile);
-    const bad = Object.entries(res).filter(([, v]) => !v.standard);
-    const lines = [`# Blinde controle — ${lang}`, '', `${bad.length} van ${Object.keys(res).length} termen niet gangbaar; Opus beslist.`, '',
-      ...bad.map(([k, v]) => `- ${map[k] ?? k}: terug *${v.backTranslation}*${v.suggestion ? `, voorstel *${v.suggestion}*` : ''}`), ''];
-    writeFileSync(join(dir, 'terms-check-report.md'), lines.join('\n'));
-    console.log(`OK  rapport: build/translate/${lang}/terms-check-report.md (${bad.length} afwijkend)`);
+    console.log(`OK  blinde controle nodig voor ${unchecked.length} term(en): build/translate/${lang}/terms-check-01.json`);
   }
 }
 

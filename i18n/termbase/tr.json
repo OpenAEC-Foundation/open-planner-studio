@@ -1,0 +1,1784 @@
+{
+  "_style": {
+    "address": "formal",
+    "note": "The UI addresses the user with siz (polite plural imperatives such as girin, seçin, değiştirin). Use the same polite form in new texts."
+  },
+  "actual-date": {
+    "term": "gerçekleşen tarih",
+    "forms": [
+      "gerçekleşen tarih",
+      "gerçekleşen tarihi",
+      "gerçekleşen tarihler"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-duration": {
+    "term": "gerçekleşen süre",
+    "forms": [
+      "gerçekleşen süre",
+      "gerçekleşen süreyi",
+      "gerçekleşen süresi"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-finish": {
+    "term": "gerçekleşen bitiş",
+    "forms": [
+      "gerçekleşen bitiş",
+      "gerçekleşen bitişi",
+      "gerçekleşen bitişten"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-start": {
+    "term": "gerçekleşen başlangıç",
+    "forms": [
+      "gerçekleşen başlangıç",
+      "gerçekleşen başlangıcı",
+      "gerçekleşen başlangıçtan"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-work": {
+    "term": "gerçekleşen iş",
+    "forms": [
+      "gerçekleşen iş",
+      "gerçekleşen işi"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ai-assistant": {
+    "term": "yapay zeka asistanı",
+    "forms": [
+      "yapay zeka asistanı",
+      "yapay zeka asistanını",
+      "yapay zeka asistanları",
+      "yapay zeka asistanından"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "as-late-as-possible": {
+    "term": "mümkün olduğunca geç",
+    "forms": [
+      "mümkün olduğunca geç"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "as-soon-as-possible": {
+    "term": "mümkün olduğunca erken",
+    "forms": [
+      "mümkün olduğunca erken"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment": {
+    "term": "atama",
+    "forms": [
+      "atama",
+      "atamayı",
+      "atamaları",
+      "atamalar",
+      "atamalarına"
+    ],
+    "avoid": [
+      "ödev",
+      "laboratuvar"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment-curve": {
+    "term": "atama eğrisi",
+    "forms": [
+      "atama eğrisi",
+      "atama eğrisini",
+      "atama eğrileri"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment-units": {
+    "term": "günlük atama birimleri",
+    "forms": [
+      "günlük atama birimleri",
+      "günlük atama birimi"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "baseline": {
+    "term": "temel plan",
+    "forms": [
+      "temel plan",
+      "temel planı",
+      "temel planlar"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "bei": {
+    "term": "temel plan uygulama endeksi",
+    "forms": [
+      "temel plan uygulama endeksi",
+      "temel plan uygulama endeksini"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculate": {
+    "term": "hesapla",
+    "forms": [
+      "hesapla",
+      "hesaplanır",
+      "hesaplanmadı"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculate-automatically": {
+    "term": "otomatik hesapla",
+    "forms": [
+      "otomatik hesapla",
+      "otomatik hesaplamayı"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculation-profile": {
+    "term": "hesaplama profili",
+    "forms": [
+      "hesaplama profili",
+      "hesaplama profilini",
+      "hesaplama profilleri"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calendar": {
+    "term": "takvim",
+    "forms": [
+      "takvim",
+      "takvimi",
+      "takvimler",
+      "takvimde"
+    ],
+    "avoid": [
+      "takvim programı"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "capacity": {
+    "term": "kapasite",
+    "forms": [
+      "kapasite",
+      "kapasiteyi",
+      "kapasitesi",
+      "kapasiteler"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "completion": {
+    "term": "tamamlanma",
+    "forms": [
+      "tamamlanma",
+      "tamamlanmayı"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "constraint": {
+    "term": "kısıtlama",
+    "forms": [
+      "kısıtlama",
+      "kısıtlamayı",
+      "kısıtlaması",
+      "kısıtlamalar"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "constraint-type": {
+    "term": "kısıtlama türü",
+    "forms": [
+      "kısıtlama türü",
+      "kısıtlama türünü",
+      "kısıtlama türleri"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "construction-holiday": {
+    "term": "inşaat tatili",
+    "forms": [
+      "inşaat tatili",
+      "inşaat tatilini",
+      "inşaat tatilleri"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "contour": {
+    "term": "kontur",
+    "forms": [
+      "kontur",
+      "konturu",
+      "konturlar"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "convention": {
+    "term": "kural",
+    "forms": [
+      "kural",
+      "kuralı",
+      "kurallar",
+      "kuralları"
+    ],
+    "avoid": [
+      "sözleşme"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "cost": {
+    "term": "maliyet",
+    "forms": [
+      "maliyet",
+      "maliyeti",
+      "maliyetler"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "crash-recovery": {
+    "term": "çökme kurtarma",
+    "forms": [
+      "çökme kurtarma",
+      "çökme kurtarması"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical": {
+    "term": "kritik",
+    "forms": [
+      "kritik"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-chains": {
+    "term": "kritik zincir",
+    "forms": [
+      "kritik zincir",
+      "kritik zinciri",
+      "kritik zincirler"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-path": {
+    "term": "kritik yol",
+    "forms": [
+      "kritik yol",
+      "kritik yolu",
+      "kritik yollar"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-task": {
+    "term": "kritik görev",
+    "forms": [
+      "kritik görev",
+      "kritik görevi",
+      "kritik görevler"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "current-finish": {
+    "term": "mevcut bitiş",
+    "forms": [
+      "mevcut bitiş",
+      "mevcut bitişi"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "custom-field": {
+    "term": "özel alan",
+    "forms": [
+      "özel alan",
+      "özel alanı",
+      "özel alanlar"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "cycle": {
+    "term": "döngü",
+    "forms": [
+      "döngü",
+      "döngüyü",
+      "döngüler"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "dcma-assessment": {
+    "term": "DCMA 14 nokta değerlendirmesi",
+    "forms": [
+      "DCMA 14 nokta değerlendirmesi",
+      "DCMA 14 nokta değerlendirmesini"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "deadline": {
+    "term": "son tarih",
+    "forms": [
+      "son tarih",
+      "son tarihi",
+      "son tarihler"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "distribution": {
+    "term": "dağılım",
+    "forms": [
+      "dağılım",
+      "dağılımı",
+      "dağılımlar"
+    ],
+    "avoid": [
+      "dağıtım"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "driving-relationship": {
+    "term": "belirleyici ilişki",
+    "forms": [
+      "belirleyici ilişki",
+      "belirleyici ilişkiyi",
+      "belirleyici ilişkiler"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "duration": {
+    "term": "süre",
+    "forms": [
+      "süre",
+      "süreyi",
+      "süresi",
+      "süreler"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "early-finish": {
+    "term": "erken bitiş",
+    "forms": [
+      "erken bitiş",
+      "erken bitişi"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "early-start": {
+    "term": "erken başlangıç",
+    "forms": [
+      "erken başlangıç",
+      "erken başlangıcı"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "effort-driven": {
+    "term": "efor odaklı",
+    "forms": [
+      "efor odaklı"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "elapsed-time": {
+    "term": "geçen süre",
+    "forms": [
+      "geçen süre",
+      "geçen süreyi",
+      "geçen süreden"
+    ],
+    "avoid": [
+      "geçen zaman"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "extension": {
+    "term": "uzantı",
+    "forms": [
+      "uzantı",
+      "uzantıyı",
+      "uzantılar",
+      "uzantının"
+    ],
+    "avoid": [
+      "eklenti",
+      "tarayıcı eklentisi"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "external-relation": {
+    "term": "dış ilişki",
+    "forms": [
+      "dış ilişki",
+      "dış ilişkiyi",
+      "dış ilişkiler",
+      "dış ilişkinin"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish": {
+    "term": "bitiş",
+    "forms": [
+      "bitiş",
+      "bitişi",
+      "bitişler",
+      "bitişten"
+    ],
+    "avoid": [
+      "son"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-driver": {
+    "term": "bitiş driver'ı",
+    "forms": [
+      "bitiş driver'ı",
+      "bitiş driver'ını"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-no-earlier-than": {
+    "term": "şu tarihten önce bitmez",
+    "forms": [
+      "şu tarihten önce bitmez"
+    ],
+    "avoid": [
+      "en erken bitiş"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-no-later-than": {
+    "term": "şu tarihten sonra bitmez",
+    "forms": [
+      "şu tarihten sonra bitmez"
+    ],
+    "avoid": [
+      "en geç bitiş"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-to-finish": {
+    "term": "bitiş-bitiş",
+    "forms": [
+      "bitiş-bitiş",
+      "bitiş-bitiş ilişkisi",
+      "bitiş-bitiş ilişkisini"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-to-start": {
+    "term": "bitiş-başlangıç",
+    "forms": [
+      "bitiş-başlangıç",
+      "bitiş-başlangıç ilişkisi",
+      "bitiş-başlangıç ilişkisini"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-variance": {
+    "term": "bitiş sapması",
+    "forms": [
+      "bitiş sapması",
+      "bitiş sapmasını",
+      "bitiş sapmaları"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-duration": {
+    "term": "sabit süre",
+    "forms": [
+      "sabit süre",
+      "sabit süreyi",
+      "sabit süreler"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-units": {
+    "term": "sabit birimler",
+    "forms": [
+      "sabit birimler",
+      "sabit birimleri",
+      "sabit birimlerle"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-work": {
+    "term": "sabit iş",
+    "forms": [
+      "sabit iş",
+      "sabit işi",
+      "sabit işler"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "float": {
+    "term": "bolluk",
+    "forms": [
+      "bolluk",
+      "bolluğu",
+      "bolluğun",
+      "bolluklar"
+    ],
+    "avoid": [
+      "kayan"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "float-path": {
+    "term": "bolluk yolu",
+    "forms": [
+      "bolluk yolu",
+      "bolluk yolunu",
+      "bolluk yolları"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "forecast-finish": {
+    "term": "tahmini bitiş",
+    "forms": [
+      "tahmini bitiş",
+      "tahmini bitişi",
+      "tahmini bitişler"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "free-float": {
+    "term": "serbest bolluk",
+    "forms": [
+      "serbest bolluk",
+      "serbest bolluğu",
+      "serbest bolluğun"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hammock": {
+    "term": "hamak",
+    "forms": [
+      "hamak",
+      "hamağı",
+      "hamaklar"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hard-constraint": {
+    "term": "sert kısıt",
+    "forms": [
+      "sert kısıt",
+      "sert kısıtı",
+      "sert kısıtlar"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "histogram": {
+    "term": "histogram",
+    "forms": [
+      "histogram",
+      "histogramı",
+      "histogramlar"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "holiday": {
+    "term": "tatil",
+    "forms": [
+      "tatil",
+      "tatili",
+      "tatiller",
+      "tatilleri"
+    ],
+    "avoid": [
+      "bayram"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "holiday-set": {
+    "term": "tatil seti",
+    "forms": [
+      "tatil seti",
+      "tatil setini",
+      "tatil setleri"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-distribution-in-phases": {
+    "term": "aşamalara göre saat dağılımı",
+    "forms": [
+      "aşamalara göre saat dağılımı",
+      "aşamalara göre saat dağılımını"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-planning": {
+    "term": "saat planlaması",
+    "forms": [
+      "saat planlaması",
+      "saat planlamasını",
+      "saat planlamasının"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-task": {
+    "term": "saat görevi",
+    "forms": [
+      "saat görevi",
+      "saat görevini",
+      "saat görevinin",
+      "saat görevleri"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "indent": {
+    "term": "girinti",
+    "forms": [
+      "girinti",
+      "girintiyi",
+      "girintile",
+      "girintilemek"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "interruption": {
+    "term": "kesinti",
+    "forms": [
+      "kesinti",
+      "kesintiyi",
+      "kesintiler",
+      "kesintili"
+    ],
+    "avoid": [
+      "mola"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "lag": {
+    "term": "gecikme",
+    "forms": [
+      "gecikme",
+      "gecikmeyi",
+      "gecikmesi",
+      "gecikmeler"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-dates": {
+    "term": "geç tarihler",
+    "forms": [
+      "geç tarihler",
+      "geç tarihleri",
+      "geç tarih"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-finish": {
+    "term": "geç bitiş",
+    "forms": [
+      "geç bitiş",
+      "geç bitişi",
+      "geç bitişler"
+    ],
+    "avoid": [
+      "son bitiş"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-start": {
+    "term": "geç başlangıç",
+    "forms": [
+      "geç başlangıç",
+      "geç başlangıcı",
+      "geç başlangıçlar"
+    ],
+    "avoid": [
+      "son başlangıç"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "layout": {
+    "term": "düzen",
+    "forms": [
+      "düzen",
+      "düzeni",
+      "düzenler"
+    ],
+    "avoid": [
+      "yerleşim"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "lead": {
+    "term": "öne alma",
+    "forms": [
+      "öne alma",
+      "öne almayı"
+    ],
+    "avoid": [
+      "öncelik"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "leveling": {
+    "term": "dengeleme",
+    "forms": [
+      "dengeleme",
+      "dengelemeyi",
+      "dengelemesi"
+    ],
+    "avoid": [
+      "seviyeleme"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "leveling-delay": {
+    "term": "dengeleme gecikmesi",
+    "forms": [
+      "dengeleme gecikmesi",
+      "dengeleme gecikmesini",
+      "dengeleme gecikmesinin"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "link-tasks": {
+    "term": "ilişki oluşturmak",
+    "forms": [
+      "ilişki oluşturmak",
+      "ilişki oluştur",
+      "ilişki oluşturma"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "longest-path": {
+    "term": "en uzun yol",
+    "forms": [
+      "en uzun yol",
+      "en uzun yolu",
+      "en uzun yollar"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "manually-scheduled": {
+    "term": "elle planlanan",
+    "forms": [
+      "elle planlanan",
+      "elle planlanmış",
+      "elle planlama"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "max-units": {
+    "term": "maks. birim",
+    "forms": [
+      "maks. birim",
+      "maks. birimi",
+      "maks. birimler"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "milestone": {
+    "term": "kilometre taşı",
+    "forms": [
+      "kilometre taşı",
+      "kilometre taşını",
+      "kilometre taşları",
+      "kilometre taşına"
+    ],
+    "avoid": [
+      "milestone"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "milestone-kind": {
+    "term": "kilometre taşı türü",
+    "forms": [
+      "kilometre taşı türü",
+      "kilometre taşı türünü",
+      "kilometre taşı türleri",
+      "kilometre taşı türüne"
+    ],
+    "avoid": [
+      "kilometre taşı tipi"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "missed-task": {
+    "term": "kaçırılan görev",
+    "forms": [
+      "kaçırılan görev",
+      "kaçırılan görevi",
+      "kaçırılan görevler",
+      "kaçırılan görevleri"
+    ],
+    "avoid": [
+      "gecikmiş görev"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "must-finish-on": {
+    "term": "şu tarihte bitmeli",
+    "forms": [
+      "şu tarihte bitmeli"
+    ],
+    "avoid": [
+      "bitmesi gereken"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "must-start-on": {
+    "term": "şu tarihte başlamalı",
+    "forms": [
+      "şu tarihte başlamalı"
+    ],
+    "avoid": [
+      "başlaması gereken"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "near-critical": {
+    "term": "kritiğe yakın",
+    "forms": [
+      "kritiğe yakın"
+    ],
+    "avoid": [
+      "neredeyse kritik"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "negative-float": {
+    "term": "negatif bolluk",
+    "forms": [
+      "negatif bolluk",
+      "negatif bolluğu",
+      "negatif bolluğun",
+      "negatif bolluğa",
+      "negatif bollukları"
+    ],
+    "avoid": [
+      "negatif float",
+      "negatif speling"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "non-working-day": {
+    "term": "çalışılmayan",
+    "forms": [
+      "çalışılmayan",
+      "çalışılmayan günü",
+      "çalışılmayan günler",
+      "çalışılmayan güne"
+    ],
+    "avoid": [
+      "tatil"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "out-of-sequence-progress": {
+    "term": "sıra dışı ilerleme",
+    "forms": [
+      "sıra dışı ilerleme",
+      "sıra dışı ilerlemeyi",
+      "sıra dışı ilerlemesi",
+      "sıra dışı ilerlemeler"
+    ],
+    "avoid": [
+      "sıra dışı ilişki"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "outdent": {
+    "term": "girintiyi azalt",
+    "forms": [
+      "girintiyi azalt",
+      "girintiyi azaltmak"
+    ],
+    "avoid": [
+      "negatif girinti"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "overallocation": {
+    "term": "aşırı atanmış",
+    "forms": [
+      "aşırı atanmış",
+      "aşırı atanmışlık"
+    ],
+    "avoid": [
+      "çift rezervasyon"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "path-tracing": {
+    "term": "yol izleme",
+    "forms": [
+      "yol izleme",
+      "yol izlemeyi",
+      "yol izlemesi"
+    ],
+    "avoid": [
+      "iz sürme"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "percent-complete": {
+    "term": "tamamlanma yüzdesi",
+    "forms": [
+      "tamamlanma yüzdesi",
+      "tamamlanma yüzdesini",
+      "tamamlanma yüzdesine",
+      "tamamlanma yüzdeleri"
+    ],
+    "avoid": [
+      "% gereed"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "period": {
+    "term": "dönem",
+    "forms": [
+      "dönem",
+      "dönemi",
+      "dönemde",
+      "dönemler",
+      "dönemin"
+    ],
+    "avoid": [
+      "adet"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "planned": {
+    "term": "planlanmış",
+    "forms": [
+      "planlanmış",
+      "planlanmışı",
+      "planlanmışları"
+    ],
+    "avoid": [
+      "öngörülen"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "planned-work": {
+    "term": "planlanan iş",
+    "forms": [
+      "planlanan iş",
+      "planlanan işi",
+      "planlanan işler",
+      "planlanan işe"
+    ],
+    "avoid": [
+      "planlanmış iş"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "predecessor": {
+    "term": "öncül",
+    "forms": [
+      "öncül",
+      "öncülü",
+      "öncüle",
+      "öncüller",
+      "öncülleri"
+    ],
+    "avoid": [
+      "öncelik",
+      "önceki görev"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "progress": {
+    "term": "ilerleme",
+    "forms": [
+      "ilerleme",
+      "ilerlemeyi",
+      "ilerlemesi",
+      "ilerlemeler",
+      "ilerlemesine"
+    ],
+    "avoid": [
+      "sürüyor",
+      "gelişme"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "progress-mode": {
+    "term": "ilerleme modu",
+    "forms": [
+      "ilerleme modu",
+      "ilerleme modunu",
+      "ilerleme modunun",
+      "ilerleme modları"
+    ],
+    "avoid": [
+      "ilerleme kipi"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "project-finish": {
+    "term": "proje bitişi",
+    "forms": [
+      "proje bitişi",
+      "proje bitişini",
+      "proje bitişine",
+      "proje bitişleri"
+    ],
+    "avoid": [
+      "proje sonu"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "project-start": {
+    "term": "proje başlangıcı",
+    "forms": [
+      "proje başlangıcı",
+      "proje başlangıcını",
+      "proje başlangıcına",
+      "proje başlangıçları"
+    ],
+    "avoid": [
+      "proje açılışı"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "rate": {
+    "term": "ücret",
+    "forms": [
+      "ücret",
+      "ücreti",
+      "ücrete",
+      "ücretler",
+      "ücretini"
+    ],
+    "avoid": [
+      "değerlendirmek",
+      "faiz oranı"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "read-only": {
+    "term": "salt okunur",
+    "forms": [
+      "salt okunur",
+      "salt okunur modu",
+      "salt okunur modda"
+    ],
+    "avoid": [
+      "sadece okunur"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "recalculate": {
+    "term": "yeniden hesaplamak",
+    "forms": [
+      "yeniden hesaplamak",
+      "yeniden hesaplama",
+      "yeniden hesaplayın",
+      "yeniden hesaplanır"
+    ],
+    "avoid": [
+      "yenile"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "relation": {
+    "term": "ilişki",
+    "forms": [
+      "ilişki",
+      "ilişkiyi",
+      "ilişkisi",
+      "ilişkiler",
+      "ilişkiye"
+    ],
+    "avoid": [
+      "bağımlılık"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "relationship-type": {
+    "term": "ilişki türü",
+    "forms": [
+      "ilişki türü",
+      "ilişki türünü",
+      "ilişki türleri",
+      "ilişki türüne"
+    ],
+    "avoid": [
+      "ilişki tipi"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "remaining-duration": {
+    "term": "kalan süre",
+    "forms": [
+      "kalan süre",
+      "kalan süreyi",
+      "kalan süresi",
+      "kalan süreler",
+      "kalan süreye"
+    ],
+    "avoid": [
+      "kalan duur"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "remaining-work": {
+    "term": "kalan iş",
+    "forms": [
+      "kalan iş",
+      "kalan işi",
+      "kalan işin",
+      "kalan işe",
+      "kalan işler"
+    ],
+    "avoid": [
+      "kalan süre"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "report": {
+    "term": "rapor",
+    "forms": [
+      "rapor",
+      "raporu",
+      "raporun",
+      "raporlar",
+      "raporları",
+      "rapora"
+    ],
+    "avoid": [
+      "raporlama",
+      "bildirim"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "report-type": {
+    "term": "rapor türü",
+    "forms": [
+      "rapor türü",
+      "rapor türünü",
+      "rapor türleri",
+      "rapor türüne"
+    ],
+    "avoid": [
+      "rapor tipi"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource": {
+    "term": "kaynak",
+    "forms": [
+      "kaynak",
+      "kaynağı",
+      "kaynağın",
+      "kaynaklar",
+      "kaynakları",
+      "kaynağa"
+    ],
+    "avoid": [
+      "malzeme",
+      "ekipman"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource-library": {
+    "term": "kaynak kitaplığı",
+    "forms": [
+      "kaynak kitaplığı",
+      "kaynak kitaplığını",
+      "kaynak kitaplığının",
+      "kaynak kitaplıkları",
+      "kaynak kitaplıklarını"
+    ],
+    "avoid": [
+      "kütüphane",
+      "belge kitaplığı"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource-type": {
+    "term": "kaynak türü",
+    "forms": [
+      "kaynak türü",
+      "kaynak türünü",
+      "kaynak türleri",
+      "kaynak türüne"
+    ],
+    "avoid": [
+      "kaynak tipi"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ribbon": {
+    "term": "şerit",
+    "forms": [
+      "şerit",
+      "şeridi",
+      "şeridin",
+      "şeritler",
+      "şeritleri",
+      "şeride"
+    ],
+    "avoid": [
+      "ribbon",
+      "lint"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ribbon-tab": {
+    "term": "şerit sekmesi",
+    "forms": [
+      "şerit sekmesi",
+      "şerit sekmesini",
+      "şerit sekmeleri",
+      "şerit sekmesine",
+      "şerit sekmelerini"
+    ],
+    "avoid": [
+      "ribbon tab"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "round-trip": {
+    "term": "gidiş-dönüş",
+    "forms": [
+      "gidiş-dönüş",
+      "gidiş-dönüşü",
+      "gidiş-dönüşte"
+    ],
+    "avoid": [
+      "çift yönlü"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "schedule": {
+    "term": "planlama",
+    "forms": [
+      "planlama",
+      "planlamayı",
+      "planlamanın",
+      "planlamalar",
+      "planlamaya",
+      "planlamada"
+    ],
+    "avoid": [
+      "takvim",
+      "zaman çizelgesi"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "schedule-error": {
+    "term": "planlama hatası",
+    "forms": [
+      "planlama hatası",
+      "planlama hatasını",
+      "planlama hataları",
+      "planlama hatasına"
+    ],
+    "avoid": [
+      "program hatası"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "secondary-constraint": {
+    "term": "ikincil kısıtlama",
+    "forms": [
+      "ikincil kısıtlama",
+      "ikincil kısıtlamayı",
+      "ikincil kısıtlamanın",
+      "ikincil kısıtlamalar",
+      "ikincil kısıtlamaya"
+    ],
+    "avoid": [
+      "ikinci kısıtlama"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "shift": {
+    "term": "vardiya",
+    "forms": [
+      "vardiya",
+      "vardiyayı",
+      "vardiyanın",
+      "vardiyalar",
+      "vardiyaları",
+      "vardiyaya"
+    ],
+    "avoid": [
+      "kaydırmak",
+      "ekip"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "source-task": {
+    "term": "kaynak görev",
+    "forms": [
+      "kaynak görev",
+      "kaynak görevi",
+      "kaynak göreve",
+      "kaynak görevin"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "split-task": {
+    "term": "görevi böl",
+    "forms": [
+      "görevi böl"
+    ],
+    "avoid": [
+      "bölünen görev"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-driver": {
+    "term": "başlangıç driver'ı",
+    "forms": [
+      "başlangıç driver'ı",
+      "başlangıç driver'ını",
+      "başlangıç driver'ına"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-float": {
+    "term": "başlangıç bolluğu",
+    "forms": [
+      "başlangıç bolluğu",
+      "başlangıç bolluğunu",
+      "başlangıç bolluğuna"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-no-earlier-than": {
+    "term": "şu tarihten önce başlamaz (SNET)",
+    "forms": [
+      "şu tarihten önce başlamaz (SNET)"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-no-later-than": {
+    "term": "şu tarihten sonra başlamaz (SNLT)",
+    "forms": [
+      "şu tarihten sonra başlamaz (SNLT)"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-to-finish": {
+    "term": "başlangıç-bitiş",
+    "forms": [
+      "başlangıç-bitiş",
+      "başlangıç-bitişi",
+      "başlangıç-bitişin"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-to-start": {
+    "term": "başlangıç-başlangıç",
+    "forms": [
+      "başlangıç-başlangıç",
+      "başlangıç-başlangıcı",
+      "başlangıç-başlangıca"
+    ],
+    "avoid": [
+      "başla-başla"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-variance": {
+    "term": "başlangıç sapması",
+    "forms": [
+      "başlangıç sapması",
+      "başlangıç sapmasını",
+      "başlangıç sapmasının"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "status-date": {
+    "term": "durum tarihi",
+    "forms": [
+      "durum tarihi",
+      "durum tarihini",
+      "durum tarihine"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "subtask": {
+    "term": "alt görev",
+    "forms": [
+      "alt görev",
+      "alt görevi",
+      "alt göreve",
+      "alt görevler",
+      "alt görevleri"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "successor": {
+    "term": "ardıl",
+    "forms": [
+      "ardıl",
+      "ardılı",
+      "ardılın",
+      "ardıllar",
+      "ardılları"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "summary-task": {
+    "term": "özet görev",
+    "forms": [
+      "özet görev",
+      "özet görevi",
+      "özet göreve",
+      "özet görevin",
+      "özet görevler",
+      "özet görevleri"
+    ],
+    "avoid": [
+      "özet"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task": {
+    "term": "görev",
+    "forms": [
+      "görev",
+      "görevi",
+      "göreve",
+      "görevin",
+      "görevler",
+      "görevleri"
+    ],
+    "avoid": [
+      "etkinlik",
+      "faaliyet"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task-grid": {
+    "term": "görev ızgarası",
+    "forms": [
+      "görev ızgarası",
+      "görev ızgarasını",
+      "görev ızgarasının",
+      "görev ızgaraları"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task-type": {
+    "term": "görev türü",
+    "forms": [
+      "görev türü",
+      "görev türünü",
+      "görev türüne",
+      "görev türleri",
+      "görev türlerini"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "threshold": {
+    "term": "eşik",
+    "forms": [
+      "eşik",
+      "eşiği",
+      "eşiğe",
+      "eşikler",
+      "eşikleri"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "total-float": {
+    "term": "toplam bolluk",
+    "forms": [
+      "toplam bolluk",
+      "toplam bolluğu",
+      "toplam bolluğun",
+      "toplam bolluğa"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "tutorial": {
+    "term": "eğitim",
+    "forms": [
+      "eğitim",
+      "eğitimi",
+      "eğitime",
+      "eğitimler",
+      "eğitimleri"
+    ],
+    "avoid": [
+      "tutorial",
+      "öğretici"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "units": {
+    "term": "birim",
+    "forms": [
+      "birim",
+      "birimi",
+      "birime",
+      "birimler",
+      "birimleri"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "variance": {
+    "term": "sapma",
+    "forms": [
+      "sapma",
+      "sapmayı",
+      "sapmanın",
+      "sapmalar",
+      "sapmaları"
+    ],
+    "avoid": [
+      "varyans"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "variance-report": {
+    "term": "variance raporu",
+    "forms": [
+      "variance raporu",
+      "variance raporunu",
+      "variance raporları"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "violated-constraint": {
+    "term": "ihlal edilen kısıt",
+    "forms": [
+      "ihlal edilen kısıt",
+      "ihlal edilen kısıtı",
+      "ihlal edilen kısıtlar"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "wbs": {
+    "term": "WBS",
+    "forms": [
+      "WBS"
+    ],
+    "avoid": [
+      "İYS"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "wbs-element": {
+    "term": "İKY öğesi",
+    "forms": [
+      "İKY öğesi",
+      "İKY öğesini",
+      "İKY öğesine",
+      "İKY öğeleri"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work": {
+    "term": "iş",
+    "forms": [
+      "iş",
+      "işi",
+      "işe",
+      "işin",
+      "işler",
+      "işleri"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-calendar": {
+    "term": "iş takvimi",
+    "forms": [
+      "iş takvimi",
+      "iş takvimini",
+      "iş takvimine",
+      "iş takvimleri"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-hours": {
+    "term": "çalışma saatleri",
+    "forms": [
+      "çalışma saatleri",
+      "çalışma saatlerini",
+      "çalışma saatlerinin",
+      "çalışma saati"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-rule": {
+    "term": "iş kuralı",
+    "forms": [
+      "iş kuralı",
+      "iş kuralını",
+      "iş kuralına",
+      "iş kuralları",
+      "iş kurallarını"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "workday": {
+    "term": "iş günü",
+    "forms": [
+      "iş günü",
+      "iş gününü",
+      "iş gününe",
+      "iş günleri",
+      "iş günlerini"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "working-time": {
+    "term": "çalışma saatleri",
+    "forms": [
+      "çalışma saatleri",
+      "çalışma saatlerini",
+      "çalışma saatlerinin",
+      "çalışma saati"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  }
+}

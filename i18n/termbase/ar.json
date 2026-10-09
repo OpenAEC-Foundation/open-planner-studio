@@ -1,0 +1,1495 @@
+{
+  "_style": {
+    "address": "formal",
+    "note": "De bestaande UI-teksten spreken de gebruiker aan met de gebiedende wijs, mannelijk enkelvoud (أدخل، اختر، اضغط، حدّد), in Modern Standard Arabic. Die vorm volgen we."
+  },
+  "actual-date": {
+    "term": "التواريخ الفعلية",
+    "forms": [
+      "التواريخ الفعلية",
+      "التاريخ الفعلي"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-duration": {
+    "term": "المدة الفعلية",
+    "forms": [
+      "المدة الفعلية",
+      "المدد الفعلية"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-finish": {
+    "term": "النهاية الفعلية",
+    "forms": [
+      "النهاية الفعلية",
+      "نهاية فعلية"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-start": {
+    "term": "البداية الفعلية",
+    "forms": [
+      "البداية الفعلية",
+      "بداية فعلية"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-work": {
+    "term": "العمل الفعلي",
+    "forms": [
+      "العمل الفعلي",
+      "عمل فعلي"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ai-assistant": {
+    "term": "مساعد الذكاء الاصطناعي",
+    "forms": [
+      "مساعد الذكاء الاصطناعي",
+      "مساعدي الذكاء الاصطناعي"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "as-late-as-possible": {
+    "term": "في أبعد وقت ممكن",
+    "forms": [
+      "في أبعد وقت ممكن"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "as-soon-as-possible": {
+    "term": "في أقرب وقت ممكن",
+    "forms": [
+      "في أقرب وقت ممكن"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment": {
+    "term": "تعيين",
+    "forms": [
+      "تعيين",
+      "تعيينات"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment-curve": {
+    "term": "منحنى التعيين",
+    "forms": [
+      "منحنى التعيين",
+      "منحنيات التعيين"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment-units": {
+    "term": "وحدات التعيين يوميًا",
+    "forms": [
+      "وحدات التعيين يوميًا",
+      "وحدة تعيين يومية"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "baseline": {
+    "term": "خط الأساس",
+    "forms": [
+      "خط الأساس",
+      "خطوط الأساس"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "bei": {
+    "term": "مؤشر تنفيذ خط الأساس",
+    "forms": [
+      "مؤشر تنفيذ خط الأساس",
+      "مؤشرات تنفيذ خط الأساس"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculate": {
+    "term": "حساب",
+    "forms": [
+      "حساب",
+      "احسب"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculate-automatically": {
+    "term": "الحساب التلقائي",
+    "forms": [
+      "الحساب التلقائي",
+      "حساب تلقائي"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculation-profile": {
+    "term": "ملف الحساب",
+    "forms": [
+      "ملف الحساب",
+      "ملفات الحساب"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calendar": {
+    "term": "التقويم",
+    "forms": [
+      "التقويم",
+      "تقويم",
+      "التقاويم"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "capacity": {
+    "term": "السعة",
+    "forms": [
+      "السعة",
+      "سعة",
+      "السعات"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "completion": {
+    "term": "الإنجاز",
+    "forms": [
+      "الإنجاز",
+      "نسبة الإنجاز"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "constraint": {
+    "term": "قيد",
+    "forms": [
+      "قيد",
+      "القيد",
+      "قيود"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "constraint-type": {
+    "term": "نوع القيد",
+    "forms": [
+      "نوع القيد",
+      "أنواع القيود"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "construction-holiday": {
+    "term": "عطلة البناء",
+    "forms": [
+      "عطلة البناء",
+      "عطلات البناء"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "contour": {
+    "term": "مخطط",
+    "forms": [
+      "مخطط",
+      "مخططات"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "convention": {
+    "term": "اصطلاح",
+    "forms": [
+      "اصطلاح",
+      "اصطلاحات"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "cost": {
+    "term": "تكلفة",
+    "forms": [
+      "تكلفة",
+      "التكلفة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "crash-recovery": {
+    "term": "استرداد الأعطال",
+    "forms": [
+      "استرداد الأعطال",
+      "استرداد العطل"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical": {
+    "term": "حرج",
+    "forms": [
+      "حرج",
+      "حرجة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-chains": {
+    "term": "السلاسل الحرجة",
+    "forms": [
+      "السلاسل الحرجة",
+      "سلسلة حرجة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-path": {
+    "term": "المسار الحرج",
+    "forms": [
+      "المسار الحرج",
+      "مسار حرج"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-task": {
+    "term": "مهمة حرجة",
+    "forms": [
+      "مهمة حرجة",
+      "المهام الحرجة"
+    ],
+    "avoid": [
+      "مهمة هامة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "current-finish": {
+    "term": "النهاية الحالية",
+    "forms": [
+      "النهاية الحالية",
+      "نهاية حالية"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "custom-field": {
+    "term": "حقل مخصص",
+    "forms": [
+      "حقل مخصص",
+      "حقول مخصصة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "cycle": {
+    "term": "دورة",
+    "forms": [
+      "دورة",
+      "دورات"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "dcma-assessment": {
+    "term": "تقييم DCMA ذو النقاط الأربع عشرة",
+    "forms": [
+      "تقييم DCMA ذو النقاط الأربع عشرة",
+      "تقييم DCMA ذي النقاط الأربع عشرة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "deadline": {
+    "term": "الموعد النهائي",
+    "forms": [
+      "الموعد النهائي",
+      "موعد نهائي",
+      "المواعيد النهائية"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "distribution": {
+    "term": "توزيع",
+    "forms": [
+      "توزيع",
+      "التوزيع"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "driving-relationship": {
+    "term": "علاقة حاكمة",
+    "forms": [
+      "علاقة حاكمة",
+      "علاقات حاكمة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "duration": {
+    "term": "المدة",
+    "forms": [
+      "المدة",
+      "مدة",
+      "المدد"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "early-finish": {
+    "term": "النهاية المبكرة",
+    "forms": [
+      "النهاية المبكرة",
+      "نهاية مبكرة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "early-start": {
+    "term": "البداية المبكرة",
+    "forms": [
+      "البداية المبكرة",
+      "بداية مبكرة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "effort-driven": {
+    "term": "مدفوع بالجهد",
+    "forms": [
+      "مدفوع بالجهد"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "elapsed-time": {
+    "term": "الوقت المنقضي",
+    "forms": [
+      "الوقت المنقضي",
+      "الأوقات المنقضية"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "extension": {
+    "term": "إضافة",
+    "forms": [
+      "إضافة",
+      "الإضافة",
+      "الإضافات"
+    ],
+    "avoid": [
+      "ملحق"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "external-relation": {
+    "term": "رابط خارجي",
+    "forms": [
+      "رابط خارجي",
+      "الرابط الخارجي",
+      "روابط خارجية"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish": {
+    "term": "النهاية",
+    "forms": [
+      "النهاية",
+      "النهايات"
+    ],
+    "avoid": [
+      "إنهاء"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-driver": {
+    "term": "محرِّك النهاية",
+    "forms": [
+      "محرِّك النهاية",
+      "محرِّكات النهاية"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-no-earlier-than": {
+    "term": "لا ينتهي قبل",
+    "forms": [
+      "لا ينتهي قبل"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-no-later-than": {
+    "term": "لا ينتهي بعد",
+    "forms": [
+      "لا ينتهي بعد"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-to-finish": {
+    "term": "نهاية-نهاية",
+    "forms": [
+      "نهاية-نهاية",
+      "علاقة نهاية-نهاية",
+      "علاقات نهاية-نهاية"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-to-start": {
+    "term": "نهاية-بداية",
+    "forms": [
+      "نهاية-بداية",
+      "علاقة نهاية-بداية",
+      "علاقات نهاية-بداية"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-variance": {
+    "term": "انحراف الانتهاء",
+    "forms": [
+      "انحراف الانتهاء",
+      "انحرافات الانتهاء"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-duration": {
+    "term": "مدة ثابتة",
+    "forms": [
+      "مدة ثابتة",
+      "المدة الثابتة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-units": {
+    "term": "وحدات ثابتة",
+    "forms": [
+      "وحدات ثابتة",
+      "الوحدات الثابتة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-work": {
+    "term": "عمل ثابت",
+    "forms": [
+      "عمل ثابت",
+      "العمل الثابت"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "float": {
+    "term": "فائض",
+    "forms": [
+      "فائض",
+      "الفائض",
+      "الفوائض"
+    ],
+    "avoid": [
+      "حُر"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "float-path": {
+    "term": "مسار الفائض",
+    "forms": [
+      "مسار الفائض",
+      "مسارات الفائض"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "forecast-finish": {
+    "term": "النهاية المتوقعة",
+    "forms": [
+      "النهاية المتوقعة",
+      "النهايات المتوقعة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "free-float": {
+    "term": "الفائض الحر",
+    "forms": [
+      "الفائض الحر",
+      "الفوائض الحرة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hammock": {
+    "term": "هاموك",
+    "forms": [
+      "هاموك",
+      "الهاموك"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hard-constraint": {
+    "term": "قيد صارم",
+    "forms": [
+      "قيد صارم",
+      "القيد الصارم",
+      "القيود الصارمة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "histogram": {
+    "term": "المدرج التكراري",
+    "forms": [
+      "المدرج التكراري",
+      "مدرج تكراري"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "holiday": {
+    "term": "عطلة رسمية",
+    "forms": [
+      "عطلة رسمية",
+      "العطلات الرسمية"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "holiday-set": {
+    "term": "مجموعة العطل",
+    "forms": [
+      "مجموعة العطل",
+      "مجموعات العطل"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-distribution-in-phases": {
+    "term": "توزيع الساعات على مراحل",
+    "forms": [
+      "توزيع الساعات على مراحل",
+      "توزيع الساعات على المراحل"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-planning": {
+    "term": "التخطيط بالساعات",
+    "forms": [
+      "التخطيط بالساعات",
+      "تخطيط بالساعات"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-task": {
+    "term": "المهمة الساعية",
+    "forms": [
+      "المهمة الساعية",
+      "مهمة ساعية"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "indent": {
+    "term": "زيادة المسافة البادئة",
+    "forms": [
+      "زيادة المسافة البادئة",
+      "زيادة المسافات البادئة"
+    ],
+    "avoid": [
+      "تغيير المسافة البادئة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "interruption": {
+    "term": "انقطاع",
+    "forms": [
+      "انقطاع",
+      "الانقطاع",
+      "الانقطاعات"
+    ],
+    "avoid": [
+      "مقاطعة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "lag": {
+    "term": "تأخير",
+    "forms": [
+      "تأخير",
+      "التأخير",
+      "التأخيرات"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-dates": {
+    "term": "التواريخ المتأخرة",
+    "forms": [
+      "التواريخ المتأخرة",
+      "التاريخ المتأخر"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-finish": {
+    "term": "النهاية المتأخرة",
+    "forms": [
+      "النهاية المتأخرة",
+      "النهايات المتأخرة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-start": {
+    "term": "البداية المتأخرة",
+    "forms": [
+      "البداية المتأخرة",
+      "البدايات المتأخرة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "layout": {
+    "term": "التخطيط",
+    "forms": [
+      "التخطيط",
+      "تخطيط",
+      "التخطيطات"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "lead": {
+    "term": "تقديم",
+    "forms": [
+      "تقديم",
+      "التقديم",
+      "التقديمات"
+    ],
+    "avoid": [
+      "عميل متوقع"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "leveling": {
+    "term": "موازنة",
+    "forms": [
+      "موازنة",
+      "الموازنة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "leveling-delay": {
+    "term": "تأخير الموازنة",
+    "forms": [
+      "تأخير الموازنة",
+      "تأخيرات الموازنة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "link-tasks": {
+    "term": "ربط",
+    "forms": [
+      "ربط",
+      "يربط"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "longest-path": {
+    "term": "المسار الأطول",
+    "forms": [
+      "المسار الأطول",
+      "مسار أطول"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "manually-scheduled": {
+    "term": "مجدول يدويًا",
+    "forms": [
+      "مجدول يدويًا",
+      "مجدولة يدويًا"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "max-units": {
+    "term": "الحد الأقصى للوحدات",
+    "forms": [
+      "الحد الأقصى للوحدات",
+      "حد أقصى للوحدات"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "milestone": {
+    "term": "معلم",
+    "forms": [
+      "معلم",
+      "المعلم",
+      "معالم",
+      "المعالم"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "milestone-kind": {
+    "term": "نوع المعلم",
+    "forms": [
+      "نوع المعلم",
+      "نوعَ المعلم",
+      "أنواع المعالم"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "missed-task": {
+    "term": "مهمة فائتة",
+    "forms": [
+      "مهمة فائتة",
+      "المهمة الفائتة",
+      "مهام فائتة",
+      "المهام الفائتة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "must-finish-on": {
+    "term": "يجب أن ينتهي في",
+    "forms": [
+      "يجب أن ينتهي في",
+      "يجب أن تنتهي في"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "must-start-on": {
+    "term": "يجب أن يبدأ في",
+    "forms": [
+      "يجب أن يبدأ في",
+      "يجب أن تبدأ في"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "near-critical": {
+    "term": "شبه حرج",
+    "forms": [
+      "شبه حرج",
+      "شبه حرجة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "negative-float": {
+    "term": "فائض سالب",
+    "forms": [
+      "فائض سالب",
+      "الفائض السالب",
+      "فوائض سالبة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "non-working-day": {
+    "term": "غير عامل",
+    "forms": [
+      "غير عامل",
+      "غير عاملة",
+      "غير العامل"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "out-of-sequence-progress": {
+    "term": "تقدّم خارج التسلسل",
+    "forms": [
+      "تقدّم خارج التسلسل",
+      "تقدّمًا خارج التسلسل",
+      "التقدّم خارج التسلسل"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "outdent": {
+    "term": "إنقاص المسافة البادئة",
+    "forms": [
+      "إنقاص المسافة البادئة"
+    ],
+    "avoid": [
+      "تحريك لليسار",
+      "مسافة بادئة سلبية"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "overallocation": {
+    "term": "تحميل زائد",
+    "forms": [
+      "تحميل زائد",
+      "التحميل الزائد"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "path-tracing": {
+    "term": "تتبُّع المسار",
+    "forms": [
+      "تتبُّع المسار",
+      "تتبُّعِ المسار"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "percent-complete": {
+    "term": "نسبة الإنجاز",
+    "forms": [
+      "نسبة الإنجاز",
+      "نسب الإنجاز"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "period": {
+    "term": "الفترة",
+    "forms": [
+      "الفترة",
+      "فترة",
+      "الفترات"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "planned": {
+    "term": "مخطط",
+    "forms": [
+      "مخطط",
+      "مخططة",
+      "المخطط"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "planned-work": {
+    "term": "العمل المخطط",
+    "forms": [
+      "العمل المخطط",
+      "عمل مخطط",
+      "الأعمال المخططة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "predecessor": {
+    "term": "مهمة سابقة",
+    "forms": [
+      "مهمة سابقة",
+      "المهمة السابقة",
+      "مهام سابقة",
+      "المهام السابقة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "progress": {
+    "term": "التقدم",
+    "forms": [
+      "التقدم",
+      "تقدم",
+      "تقدمًا"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "progress-mode": {
+    "term": "وضع التقدم",
+    "forms": [
+      "وضع التقدم",
+      "أوضاع التقدم"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "project-finish": {
+    "term": "نهاية المشروع",
+    "forms": [
+      "نهاية المشروع",
+      "نهايةَ المشروع"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "project-start": {
+    "term": "بداية المشروع",
+    "forms": [
+      "بداية المشروع",
+      "بدايةَ المشروع"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "rate": {
+    "term": "السعر",
+    "forms": [
+      "السعر",
+      "سعر",
+      "السعرَ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "read-only": {
+    "term": "للقراءة فقط",
+    "forms": [
+      "للقراءة فقط"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "recalculate": {
+    "term": "إعادة الحساب",
+    "forms": [
+      "إعادة الحساب",
+      "إعادةَ الحساب"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "relation": {
+    "term": "علاقة",
+    "forms": [
+      "علاقة",
+      "العلاقة",
+      "علاقات",
+      "العلاقات"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "relationship-type": {
+    "term": "نوع العلاقة",
+    "forms": [
+      "نوع العلاقة",
+      "نوعَ العلاقة",
+      "أنواع العلاقات"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "remaining-duration": {
+    "term": "المدة المتبقية",
+    "forms": [
+      "المدة المتبقية",
+      "مدة متبقية"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "remaining-work": {
+    "term": "العمل المتبقي",
+    "forms": [
+      "العمل المتبقي",
+      "عمل متبقٍ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "report": {
+    "term": "تقرير",
+    "forms": [
+      "تقرير",
+      "التقرير",
+      "تقارير",
+      "التقارير"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "report-type": {
+    "term": "نوع التقرير",
+    "forms": [
+      "نوع التقرير",
+      "نوعَ التقرير",
+      "أنواع التقارير"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource": {
+    "term": "مورد",
+    "forms": [
+      "مورد",
+      "المورد",
+      "موارد",
+      "الموارد"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource-library": {
+    "term": "مكتبة الموارد",
+    "forms": [
+      "مكتبة الموارد",
+      "مكتبةَ الموارد",
+      "مكتبات الموارد"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource-type": {
+    "term": "نوع المورد",
+    "forms": [
+      "نوع المورد",
+      "نوعَ المورد",
+      "أنواع الموارد"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ribbon": {
+    "term": "الشريط",
+    "forms": [
+      "الشريط",
+      "شريط",
+      "الشريطَ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ribbon-tab": {
+    "term": "تبويب الشريط",
+    "forms": [
+      "تبويب الشريط",
+      "تبويبَ الشريط",
+      "تبويبات الشريط"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "round-trip": {
+    "term": "ذهاب وإياب",
+    "forms": [
+      "ذهاب وإياب"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "schedule": {
+    "term": "الجدول الزمني",
+    "forms": [
+      "الجدول الزمني",
+      "جدول زمني",
+      "الجداول الزمنية"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "schedule-error": {
+    "term": "خطأ في الجدول الزمني",
+    "forms": [
+      "خطأ في الجدول الزمني",
+      "أخطاء في الجدول الزمني"
+    ],
+    "avoid": [
+      "خطأ في التخطيط"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "secondary-constraint": {
+    "term": "قيد ثانوي",
+    "forms": [
+      "قيد ثانوي",
+      "القيد الثانوي",
+      "قيود ثانوية"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "shift": {
+    "term": "نوبة عمل",
+    "forms": [
+      "نوبة عمل",
+      "نوبات عمل",
+      "النوبة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "source-task": {
+    "term": "مهمة المصدر",
+    "forms": [
+      "مهمة المصدر",
+      "مهام المصدر"
+    ],
+    "avoid": [
+      "المهمة الأصلية"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "split-task": {
+    "term": "تقسيم المهمة",
+    "forms": [
+      "تقسيم المهمة",
+      "تقسيم المهام"
+    ],
+    "avoid": [
+      "مهمة منقسمة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-driver": {
+    "term": "محرِّك البداية",
+    "forms": [
+      "محرِّك البداية",
+      "محرِّكات البداية"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-float": {
+    "term": "فائض البداية",
+    "forms": [
+      "فائض البداية",
+      "فوائض البداية"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-no-earlier-than": {
+    "term": "لا يبدأ قبل (SNET)",
+    "forms": [
+      "لا يبدأ قبل (SNET)"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-no-later-than": {
+    "term": "لا يبدأ بعد (SNLT)",
+    "forms": [
+      "لا يبدأ بعد (SNLT)"
+    ],
+    "avoid": [
+      "لا يبدأ قبل (SNLT)"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-to-finish": {
+    "term": "بداية-نهاية",
+    "forms": [
+      "بداية-نهاية"
+    ],
+    "avoid": [
+      "بدء-نهاية"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-to-start": {
+    "term": "بداية-بداية",
+    "forms": [
+      "بداية-بداية"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-variance": {
+    "term": "انحراف البدء",
+    "forms": [
+      "انحراف البدء",
+      "انحرافات البدء"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "status-date": {
+    "term": "تاريخ الحالة",
+    "forms": [
+      "تاريخ الحالة",
+      "تواريخ الحالة"
+    ],
+    "avoid": [
+      "تاريخ التقدم"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "subtask": {
+    "term": "مهمة فرعية",
+    "forms": [
+      "مهمة فرعية",
+      "مهام فرعية"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "successor": {
+    "term": "اللاحق",
+    "forms": [
+      "اللاحق",
+      "اللاحقة",
+      "المهام اللاحقة"
+    ],
+    "avoid": [
+      "التابع",
+      "التالي"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "summary-task": {
+    "term": "مهمة موجزة",
+    "forms": [
+      "مهمة موجزة",
+      "مهام موجزة"
+    ],
+    "avoid": [
+      "ملخص"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task": {
+    "term": "مهمة",
+    "forms": [
+      "مهمة",
+      "المهمة",
+      "مهام",
+      "المهام"
+    ],
+    "avoid": [
+      "عمل"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task-grid": {
+    "term": "جدول المهام",
+    "forms": [
+      "جدول المهام",
+      "جداول المهام"
+    ],
+    "avoid": [
+      "قائمة المهام"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task-type": {
+    "term": "نوع المهمة",
+    "forms": [
+      "نوع المهمة",
+      "أنواع المهام"
+    ],
+    "avoid": [
+      "قاعدة العمل"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "threshold": {
+    "term": "العتبة",
+    "forms": [
+      "العتبة",
+      "عتبة",
+      "العتبات"
+    ],
+    "avoid": [
+      "الحد الأدنى"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "total-float": {
+    "term": "الفائض الكلي",
+    "forms": [
+      "الفائض الكلي",
+      "فائض كلي"
+    ],
+    "avoid": [
+      "فترة السماح"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "tutorial": {
+    "term": "درس تعليمي",
+    "forms": [
+      "درس تعليمي",
+      "الدرس التعليمي",
+      "دروس تعليمية",
+      "الدروس التعليمية"
+    ],
+    "avoid": [
+      "برنامج تعليمي"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "units": {
+    "term": "الوحدات",
+    "forms": [
+      "الوحدات",
+      "وحدات",
+      "الوحدة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "variance": {
+    "term": "انحراف",
+    "forms": [
+      "انحراف",
+      "الانحراف",
+      "انحرافات",
+      "الانحرافات"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "variance-report": {
+    "term": "تقرير الانحراف",
+    "forms": [
+      "تقرير الانحراف",
+      "تقارير الانحراف"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "violated-constraint": {
+    "term": "قيد منتهك",
+    "forms": [
+      "قيد منتهك",
+      "قيود منتهكة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "wbs": {
+    "term": "WBS",
+    "forms": [
+      "WBS"
+    ],
+    "avoid": [
+      "هيكل تقسيم العمل"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "wbs-element": {
+    "term": "عناصر الهيكل",
+    "forms": [
+      "عناصر الهيكل",
+      "عنصر الهيكل"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work": {
+    "term": "عمل",
+    "forms": [
+      "عمل",
+      "العمل",
+      "أعمال"
+    ],
+    "avoid": [
+      "وظيفة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-calendar": {
+    "term": "تقويم العمل",
+    "forms": [
+      "تقويم العمل",
+      "تقاويم العمل"
+    ],
+    "avoid": [
+      "جدول العمل"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-hours": {
+    "term": "ساعات العمل",
+    "forms": [
+      "ساعات العمل",
+      "ساعات عمل"
+    ],
+    "avoid": [
+      "أوقات العمل"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-rule": {
+    "term": "قاعدة العمل",
+    "forms": [
+      "قاعدة العمل",
+      "قواعد العمل"
+    ],
+    "avoid": [
+      "نوع المهمة"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "workday": {
+    "term": "يوم عمل",
+    "forms": [
+      "يوم عمل",
+      "أيام عمل",
+      "يوم العمل"
+    ],
+    "avoid": [
+      "يوم دوام"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "working-time": {
+    "term": "أوقات العمل",
+    "forms": [
+      "أوقات العمل",
+      "وقت العمل",
+      "أوقات عمل"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  }
+}

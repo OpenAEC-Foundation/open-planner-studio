@@ -1,0 +1,1278 @@
+{
+  "_style": {
+    "address": "formal",
+    "note": "Formeel (합니다/하세요-stijl), zoals de bestaande UI-teksten: '입력하세요', '확인하세요', '습니다'."
+  },
+  "actual-date": {
+    "term": "실제 날짜",
+    "forms": [
+      "실제 날짜"
+    ],
+    "avoid": [
+      "실제 기간",
+      "실제 일자"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-duration": {
+    "term": "실제 기간",
+    "forms": [
+      "실제 기간"
+    ],
+    "avoid": [
+      "실제 길이"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-finish": {
+    "term": "실제 완료",
+    "forms": [
+      "실제 완료"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-start": {
+    "term": "실제 시작",
+    "forms": [
+      "실제 시작"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-work": {
+    "term": "실제 작업",
+    "forms": [
+      "실제 작업"
+    ],
+    "avoid": [
+      "실제 데이터"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ai-assistant": {
+    "term": "AI 도우미",
+    "forms": [
+      "AI 도우미"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "as-late-as-possible": {
+    "term": "가능한 한 늦게",
+    "forms": [
+      "가능한 한 늦게"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "as-soon-as-possible": {
+    "term": "가능한 한 빨리",
+    "forms": [
+      "가능한 한 빨리"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment": {
+    "term": "할당",
+    "forms": [
+      "할당"
+    ],
+    "avoid": [
+      "과제",
+      "대입"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment-curve": {
+    "term": "배정 곡선",
+    "forms": [
+      "배정 곡선"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment-units": {
+    "term": "일일 배정 단위",
+    "forms": [
+      "일일 배정 단위"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "baseline": {
+    "term": "기준선",
+    "forms": [
+      "기준선"
+    ],
+    "avoid": [
+      "기준"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "bei": {
+    "term": "기준선 실행 지수",
+    "forms": [
+      "기준선 실행 지수"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculate": {
+    "term": "계산",
+    "forms": [
+      "계산"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculate-automatically": {
+    "term": "자동 계산",
+    "forms": [
+      "자동 계산"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculation-profile": {
+    "term": "계산 프로필",
+    "forms": [
+      "계산 프로필"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calendar": {
+    "term": "달력",
+    "forms": [
+      "달력"
+    ],
+    "avoid": [
+      "캘린더",
+      "일정"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "capacity": {
+    "term": "용량",
+    "forms": [
+      "용량"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "completion": {
+    "term": "완료율",
+    "forms": [
+      "완료율"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "constraint": {
+    "term": "제약 조건",
+    "forms": [
+      "제약 조건"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "constraint-type": {
+    "term": "제약 유형",
+    "forms": [
+      "제약 유형"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "construction-holiday": {
+    "term": "건설 휴가",
+    "forms": [
+      "건설 휴가"
+    ],
+    "avoid": [
+      "건축 휴가"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "contour": {
+    "term": "윤곽",
+    "forms": [
+      "윤곽"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "convention": {
+    "term": "규칙",
+    "forms": [
+      "규칙"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "cost": {
+    "term": "비용",
+    "forms": [
+      "비용"
+    ],
+    "avoid": [
+      "원가"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "crash-recovery": {
+    "term": "충돌 복구",
+    "forms": [
+      "충돌 복구"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical": {
+    "term": "크리티컬",
+    "forms": [
+      "크리티컬"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-chains": {
+    "term": "주공정 체인",
+    "forms": [
+      "주공정 체인"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-path": {
+    "term": "크리티컬 패스",
+    "forms": [
+      "크리티컬 패스"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-task": {
+    "term": "주공정 작업",
+    "forms": [
+      "주공정 작업"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "current-finish": {
+    "term": "현재 종료",
+    "forms": [
+      "현재 종료"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "custom-field": {
+    "term": "사용자 지정 필드",
+    "forms": [
+      "사용자 지정 필드"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "cycle": {
+    "term": "순환 관계",
+    "forms": [
+      "순환 관계"
+    ],
+    "avoid": [
+      "주기"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "dcma-assessment": {
+    "term": "DCMA 14개 항목 평가",
+    "forms": [
+      "DCMA 14개 항목 평가"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "deadline": {
+    "term": "기한",
+    "forms": [
+      "기한"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "distribution": {
+    "term": "분배",
+    "forms": [
+      "분배"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "driving-relationship": {
+    "term": "주도 관계",
+    "forms": [
+      "주도 관계"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "duration": {
+    "term": "기간",
+    "forms": [
+      "기간"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "early-finish": {
+    "term": "빠른 완료",
+    "forms": [
+      "빠른 완료"
+    ],
+    "avoid": [
+      "최조 완료"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "early-start": {
+    "term": "빠른 시작",
+    "forms": [
+      "빠른 시작"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "effort-driven": {
+    "term": "작업량 기준",
+    "forms": [
+      "작업량 기준"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "elapsed-time": {
+    "term": "경과 시간",
+    "forms": [
+      "경과 시간"
+    ],
+    "avoid": [
+      "경과된 시간"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "extension": {
+    "term": "확장 프로그램",
+    "forms": [
+      "확장 프로그램"
+    ],
+    "avoid": [
+      "확장명",
+      "익스텐션"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "external-relation": {
+    "term": "외부 관계",
+    "forms": [
+      "외부 관계"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish": {
+    "term": "완료",
+    "forms": [
+      "완료"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-driver": {
+    "term": "완료 드라이버",
+    "forms": [
+      "완료 드라이버"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-no-earlier-than": {
+    "term": "지정일 이후 완료",
+    "forms": [
+      "지정일 이후 완료"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-no-later-than": {
+    "term": "지정일 이전 완료",
+    "forms": [
+      "지정일 이전 완료"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-to-finish": {
+    "term": "완료-완료",
+    "forms": [
+      "완료-완료"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-to-start": {
+    "term": "완료-시작",
+    "forms": [
+      "완료-시작"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-variance": {
+    "term": "완료 차이",
+    "forms": [
+      "완료 차이"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-duration": {
+    "term": "고정 기간",
+    "forms": [
+      "고정 기간"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-units": {
+    "term": "고정 단위",
+    "forms": [
+      "고정 단위"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-work": {
+    "term": "고정 작업량",
+    "forms": [
+      "고정 작업량"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "float": {
+    "term": "여유",
+    "forms": [
+      "여유"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "float-path": {
+    "term": "여유 경로",
+    "forms": [
+      "여유 경로"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "forecast-finish": {
+    "term": "예상 완료",
+    "forms": [
+      "예상 완료"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "free-float": {
+    "term": "자유 여유 시간",
+    "forms": [
+      "자유 여유 시간"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hammock": {
+    "term": "해먹",
+    "forms": [
+      "해먹"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hard-constraint": {
+    "term": "강제 제약",
+    "forms": [
+      "강제 제약"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "histogram": {
+    "term": "히스토그램",
+    "forms": [
+      "히스토그램"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "holiday": {
+    "term": "공휴일",
+    "forms": [
+      "공휴일"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "holiday-set": {
+    "term": "공휴일 세트",
+    "forms": [
+      "공휴일 세트"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-distribution-in-phases": {
+    "term": "단계별 시간 분배",
+    "forms": [
+      "단계별 시간 분배"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-planning": {
+    "term": "시간 단위 계획",
+    "forms": [
+      "시간 단위 계획"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-task": {
+    "term": "시간 작업",
+    "forms": [
+      "시간 작업"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "indent": {
+    "term": "들여쓰기",
+    "forms": [
+      "들여쓰기"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "interruption": {
+    "term": "중단",
+    "forms": [
+      "중단"
+    ],
+    "avoid": [
+      "휴식"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "lag": {
+    "term": "지연",
+    "forms": [
+      "지연"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-dates": {
+    "term": "늦은 날짜",
+    "forms": [
+      "늦은 날짜"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-finish": {
+    "term": "늦은 완료",
+    "forms": [
+      "늦은 완료"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-start": {
+    "term": "늦은 시작",
+    "forms": [
+      "늦은 시작"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "layout": {
+    "term": "레이아웃",
+    "forms": [
+      "레이아웃"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "lead": {
+    "term": "리드",
+    "forms": [
+      "리드"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "leveling": {
+    "term": "평준화",
+    "forms": [
+      "평준화"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "leveling-delay": {
+    "term": "평준화 지연",
+    "forms": [
+      "평준화 지연"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "link-tasks": {
+    "term": "연결",
+    "forms": [
+      "연결"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "longest-path": {
+    "term": "최장 경로",
+    "forms": [
+      "최장 경로"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "manually-scheduled": {
+    "term": "수동 일정",
+    "forms": [
+      "수동 일정"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "max-units": {
+    "term": "최대 단위",
+    "forms": [
+      "최대 단위"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "milestone": {
+    "term": "마일스톤",
+    "forms": [
+      "마일스톤"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "milestone-kind": {
+    "term": "마일스톤 유형",
+    "forms": [
+      "마일스톤 유형"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "missed-task": {
+    "term": "기준선 미달 작업",
+    "forms": [
+      "기준선 미달 작업"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "must-finish-on": {
+    "term": "지정일에 완료",
+    "forms": [
+      "지정일에 완료"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "must-start-on": {
+    "term": "지정일에 시작",
+    "forms": [
+      "지정일에 시작"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "near-critical": {
+    "term": "준주공정",
+    "forms": [
+      "준주공정"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "negative-float": {
+    "term": "음수 여유",
+    "forms": [
+      "음수 여유"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "non-working-day": {
+    "term": "비근무일",
+    "forms": [
+      "비근무일"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "out-of-sequence-progress": {
+    "term": "순서 위반",
+    "forms": [
+      "순서 위반"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "outdent": {
+    "term": "내어쓰기",
+    "forms": [
+      "내어쓰기"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "overallocation": {
+    "term": "과다 할당",
+    "forms": [
+      "과다 할당"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "path-tracing": {
+    "term": "경로 추적",
+    "forms": [
+      "경로 추적"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "percent-complete": {
+    "term": "완료율",
+    "forms": [
+      "완료율"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "period": {
+    "term": "기간",
+    "forms": [
+      "기간"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "planned": {
+    "term": "계획",
+    "forms": [
+      "계획"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "planned-work": {
+    "term": "계획 작업",
+    "forms": [
+      "계획 작업"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "predecessor": {
+    "term": "선행 작업",
+    "forms": [
+      "선행 작업"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "progress": {
+    "term": "진행률",
+    "forms": [
+      "진행률"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "progress-mode": {
+    "term": "진행 모드",
+    "forms": [
+      "진행 모드"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "project-finish": {
+    "term": "프로젝트 종료일",
+    "forms": [
+      "프로젝트 종료일"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "project-start": {
+    "term": "프로젝트 시작일",
+    "forms": [
+      "프로젝트 시작일"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "rate": {
+    "term": "단가",
+    "forms": [
+      "단가"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "read-only": {
+    "term": "읽기 전용",
+    "forms": [
+      "읽기 전용"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "recalculate": {
+    "term": "다시 계산",
+    "forms": [
+      "다시 계산"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "relation": {
+    "term": "관계",
+    "forms": [
+      "관계"
+    ],
+    "avoid": [
+      "종속성"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "relationship-type": {
+    "term": "관계 유형",
+    "forms": [
+      "관계 유형"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "remaining-duration": {
+    "term": "남은 기간",
+    "forms": [
+      "남은 기간"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "remaining-work": {
+    "term": "남은 작업량",
+    "forms": [
+      "남은 작업량"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "report": {
+    "term": "보고서",
+    "forms": [
+      "보고서"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "report-type": {
+    "term": "보고서 유형",
+    "forms": [
+      "보고서 유형"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource": {
+    "term": "리소스",
+    "forms": [
+      "리소스"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource-library": {
+    "term": "리소스 라이브러리",
+    "forms": [
+      "리소스 라이브러리"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource-type": {
+    "term": "자원 유형",
+    "forms": [
+      "자원 유형"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ribbon": {
+    "term": "리본",
+    "forms": [
+      "리본"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ribbon-tab": {
+    "term": "리본 탭",
+    "forms": [
+      "리본 탭"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "round-trip": {
+    "term": "왕복",
+    "forms": [
+      "왕복"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "schedule": {
+    "term": "일정",
+    "forms": [
+      "일정"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "schedule-error": {
+    "term": "일정 오류",
+    "forms": [
+      "일정 오류"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "secondary-constraint": {
+    "term": "보조 제약 조건",
+    "forms": [
+      "보조 제약 조건"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "shift": {
+    "term": "교대",
+    "forms": [
+      "교대"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "source-task": {
+    "term": "소스 작업",
+    "forms": [
+      "소스 작업"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "split-task": {
+    "term": "작업 분할",
+    "forms": [
+      "작업 분할"
+    ],
+    "avoid": [
+      "스플라인"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-driver": {
+    "term": "시작 드라이버",
+    "forms": [
+      "시작 드라이버"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-float": {
+    "term": "시작 여유",
+    "forms": [
+      "시작 여유"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-no-earlier-than": {
+    "term": "지정일 이후 시작",
+    "forms": [
+      "지정일 이후 시작"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-no-later-than": {
+    "term": "지정일 이전 시작",
+    "forms": [
+      "지정일 이전 시작"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-to-finish": {
+    "term": "시작-완료",
+    "forms": [
+      "시작-완료"
+    ],
+    "avoid": [
+      "시작-종료"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-to-start": {
+    "term": "시작-시작",
+    "forms": [
+      "시작-시작"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-variance": {
+    "term": "시작 차이",
+    "forms": [
+      "시작 차이"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "status-date": {
+    "term": "상태 날짜",
+    "forms": [
+      "상태 날짜"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "subtask": {
+    "term": "하위 작업",
+    "forms": [
+      "하위 작업"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "successor": {
+    "term": "후행 작업",
+    "forms": [
+      "후행 작업"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "summary-task": {
+    "term": "요약 작업",
+    "forms": [
+      "요약 작업"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task": {
+    "term": "작업",
+    "forms": [
+      "작업"
+    ],
+    "avoid": [
+      "태스크"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task-grid": {
+    "term": "작업 그리드",
+    "forms": [
+      "작업 그리드"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task-type": {
+    "term": "작업 유형",
+    "forms": [
+      "작업 유형"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "threshold": {
+    "term": "임계값",
+    "forms": [
+      "임계값"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "total-float": {
+    "term": "총 여유",
+    "forms": [
+      "총 여유"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "tutorial": {
+    "term": "튜토리얼",
+    "forms": [
+      "튜토리얼"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "units": {
+    "term": "단위",
+    "forms": [
+      "단위"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "variance": {
+    "term": "차이",
+    "forms": [
+      "차이"
+    ],
+    "avoid": [
+      "가변성"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "variance-report": {
+    "term": "차이 보고서",
+    "forms": [
+      "차이 보고서"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "violated-constraint": {
+    "term": "제약 위반",
+    "forms": [
+      "제약 위반"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "wbs": {
+    "term": "WBS",
+    "forms": [
+      "WBS"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "wbs-element": {
+    "term": "WBS 요소",
+    "forms": [
+      "WBS 요소"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work": {
+    "term": "작업량",
+    "forms": [
+      "작업량"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-calendar": {
+    "term": "작업 달력",
+    "forms": [
+      "작업 달력"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-hours": {
+    "term": "근무 시간",
+    "forms": [
+      "근무 시간"
+    ],
+    "avoid": [
+      "작업 시간"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-rule": {
+    "term": "작업 규칙",
+    "forms": [
+      "작업 규칙"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "workday": {
+    "term": "근무일",
+    "forms": [
+      "근무일"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "working-time": {
+    "term": "근무 시간",
+    "forms": [
+      "근무 시간"
+    ],
+    "avoid": [
+      "작업 시간"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  }
+}

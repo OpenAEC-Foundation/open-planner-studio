@@ -1,0 +1,1594 @@
+{
+  "_style": {
+    "address": "formal",
+    "note": "The UI mixes usted and tú. Notifications and warnings use usted (pulse, Compruebe, Revise, Elimine, Cambie). Some hints use tú (Elige, Cámbialo, Pulsa, tu planificación). Usted follows the usual Spanish software style and the majority of the system messages."
+  },
+  "actual-date": {
+    "term": "fecha real",
+    "forms": [
+      "fecha real",
+      "fechas reales"
+    ],
+    "avoid": [
+      "fecha efectiva"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-duration": {
+    "term": "duración real",
+    "forms": [
+      "duración real",
+      "duraciones reales"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-finish": {
+    "term": "fin real",
+    "forms": [
+      "fin real",
+      "fines reales"
+    ],
+    "avoid": [
+      "fin actual"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-start": {
+    "term": "inicio real",
+    "forms": [
+      "inicio real",
+      "inicios reales"
+    ],
+    "avoid": [
+      "comienzo real"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-work": {
+    "term": "trabajo real",
+    "forms": [
+      "trabajo real",
+      "trabajos reales"
+    ],
+    "avoid": [
+      "datos reales"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ai-assistant": {
+    "term": "asistente de IA",
+    "forms": [
+      "asistente de IA",
+      "asistentes de IA"
+    ],
+    "avoid": [
+      "copiloto"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "as-late-as-possible": {
+    "term": "lo más tarde posible",
+    "forms": [
+      "lo más tarde posible"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "as-soon-as-possible": {
+    "term": "lo antes posible",
+    "forms": [
+      "lo antes posible"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment": {
+    "term": "asignación",
+    "forms": [
+      "asignación",
+      "asignaciones"
+    ],
+    "avoid": [
+      "tarea"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment-curve": {
+    "term": "curva de asignación",
+    "forms": [
+      "curva de asignación",
+      "curvas de asignación"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment-units": {
+    "term": "unidades de asignación por día",
+    "forms": [
+      "unidades de asignación por día",
+      "unidad de asignación por día"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "baseline": {
+    "term": "línea base",
+    "forms": [
+      "línea base",
+      "líneas base"
+    ],
+    "avoid": [
+      "baseline",
+      "plan base"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "bei": {
+    "term": "índice de ejecución de la línea base",
+    "forms": [
+      "índice de ejecución de la línea base",
+      "índices de ejecución de la línea base"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculate": {
+    "term": "calcular",
+    "forms": [
+      "calcular",
+      "calculado",
+      "calculada"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculate-automatically": {
+    "term": "calcular automáticamente",
+    "forms": [
+      "calcular automáticamente"
+    ],
+    "avoid": [
+      "autocalcular"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculation-profile": {
+    "term": "perfil de cálculo",
+    "forms": [
+      "perfil de cálculo",
+      "perfiles de cálculo"
+    ],
+    "avoid": [
+      "perfil"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calendar": {
+    "term": "calendario",
+    "forms": [
+      "calendario",
+      "calendarios"
+    ],
+    "avoid": [
+      "agenda"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "capacity": {
+    "term": "capacidad",
+    "forms": [
+      "capacidad",
+      "capacidades"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "completion": {
+    "term": "finalización",
+    "forms": [
+      "finalización",
+      "finalizaciones"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "constraint": {
+    "term": "restricción",
+    "forms": [
+      "restricción",
+      "restricciones"
+    ],
+    "avoid": [
+      "constraint"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "constraint-type": {
+    "term": "tipo de restricción",
+    "forms": [
+      "tipo de restricción",
+      "tipos de restricción"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "construction-holiday": {
+    "term": "vacaciones de construcción",
+    "forms": [
+      "vacaciones de construcción"
+    ],
+    "avoid": [
+      "vacaciones de obra"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "contour": {
+    "term": "contorno",
+    "forms": [
+      "contorno",
+      "contornos"
+    ],
+    "avoid": [
+      "perfil"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "convention": {
+    "term": "convención",
+    "forms": [
+      "convención",
+      "convenciones"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "cost": {
+    "term": "coste",
+    "forms": [
+      "coste",
+      "costes"
+    ],
+    "avoid": [
+      "costo"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "crash-recovery": {
+    "term": "recuperación",
+    "forms": [
+      "recuperación",
+      "recuperaciones"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical": {
+    "term": "crítico",
+    "forms": [
+      "crítico",
+      "crítica",
+      "críticos",
+      "críticas"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-chains": {
+    "term": "cadenas críticas",
+    "forms": [
+      "cadenas críticas",
+      "cadena crítica"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-path": {
+    "term": "ruta crítica",
+    "forms": [
+      "ruta crítica",
+      "rutas críticas"
+    ],
+    "avoid": [
+      "camino crítico"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-task": {
+    "term": "tarea crítica",
+    "forms": [
+      "tarea crítica",
+      "tareas críticas"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "current-finish": {
+    "term": "fin actual",
+    "forms": [
+      "fin actual",
+      "fines actuales"
+    ],
+    "avoid": [
+      "fin real"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "custom-field": {
+    "term": "campo personalizado",
+    "forms": [
+      "campo personalizado",
+      "campos personalizados"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "cycle": {
+    "term": "ciclo",
+    "forms": [
+      "ciclo",
+      "ciclos"
+    ],
+    "avoid": [
+      "bucle"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "dcma-assessment": {
+    "term": "evaluación DCMA de 14 puntos",
+    "forms": [
+      "evaluación DCMA de 14 puntos"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "deadline": {
+    "term": "fecha límite",
+    "forms": [
+      "fecha límite",
+      "fechas límite"
+    ],
+    "avoid": [
+      "deadline"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "distribution": {
+    "term": "distribución",
+    "forms": [
+      "distribución",
+      "distribuciones"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "driving-relationship": {
+    "term": "relación determinante",
+    "forms": [
+      "relación determinante",
+      "relaciones determinantes"
+    ],
+    "avoid": [
+      "driving"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "duration": {
+    "term": "duración",
+    "forms": [
+      "duración",
+      "duraciones"
+    ],
+    "avoid": [
+      "plazo"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "early-finish": {
+    "term": "fin temprano",
+    "forms": [
+      "fin temprano",
+      "fines tempranos"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "early-start": {
+    "term": "inicio temprano",
+    "forms": [
+      "inicio temprano",
+      "inicios tempranos"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "effort-driven": {
+    "term": "condicionada por el esfuerzo",
+    "forms": [
+      "condicionada por el esfuerzo",
+      "condicionadas por el esfuerzo"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "elapsed-time": {
+    "term": "tiempo transcurrido",
+    "forms": [
+      "tiempo transcurrido",
+      "tiempos transcurridos"
+    ],
+    "avoid": [
+      "tiempo real"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "extension": {
+    "term": "extensión",
+    "forms": [
+      "extensión",
+      "extensiones"
+    ],
+    "avoid": [
+      "plugin"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "external-relation": {
+    "term": "vínculo externo",
+    "forms": [
+      "vínculo externo",
+      "vínculos externos"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish": {
+    "term": "fin",
+    "forms": [
+      "fin",
+      "fines"
+    ],
+    "avoid": [
+      "finalización"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-driver": {
+    "term": "driver de fin",
+    "forms": [
+      "driver de fin",
+      "drivers de fin"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-no-earlier-than": {
+    "term": "no finalizar antes del",
+    "forms": [
+      "no finalizar antes del"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-no-later-than": {
+    "term": "no finalizar después del",
+    "forms": [
+      "no finalizar después del"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-to-finish": {
+    "term": "fin-fin",
+    "forms": [
+      "fin-fin"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-to-start": {
+    "term": "fin-comienzo",
+    "forms": [
+      "fin-comienzo"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-variance": {
+    "term": "variación de finalización",
+    "forms": [
+      "variación de finalización",
+      "variaciones de finalización"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-duration": {
+    "term": "duración fija",
+    "forms": [
+      "duración fija",
+      "duraciones fijas"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-units": {
+    "term": "unidades fijas",
+    "forms": [
+      "unidades fijas",
+      "unidad fija"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-work": {
+    "term": "trabajo fijo",
+    "forms": [
+      "trabajo fijo",
+      "trabajos fijos"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "float": {
+    "term": "holgura",
+    "forms": [
+      "holgura",
+      "holguras"
+    ],
+    "avoid": [
+      "float"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "float-path": {
+    "term": "ruta de holgura",
+    "forms": [
+      "ruta de holgura",
+      "rutas de holgura"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "forecast-finish": {
+    "term": "fin previsto",
+    "forms": [
+      "fin previsto",
+      "fines previstos"
+    ],
+    "avoid": [
+      "fin prevista"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "free-float": {
+    "term": "holgura libre",
+    "forms": [
+      "holgura libre",
+      "holguras libres"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hammock": {
+    "term": "hamaca",
+    "forms": [
+      "hamaca",
+      "hamacas"
+    ],
+    "avoid": [
+      "hammock"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hard-constraint": {
+    "term": "restricción estricta",
+    "forms": [
+      "restricción estricta",
+      "restricciones estrictas"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "histogram": {
+    "term": "histograma",
+    "forms": [
+      "histograma",
+      "histogramas"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "holiday": {
+    "term": "festivo",
+    "forms": [
+      "festivo",
+      "festivos"
+    ],
+    "avoid": [
+      "vacaciones"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "holiday-set": {
+    "term": "conjunto de festivos",
+    "forms": [
+      "conjunto de festivos",
+      "conjuntos de festivos"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-distribution-in-phases": {
+    "term": "distribución de horas por fases",
+    "forms": [
+      "distribución de horas por fases",
+      "distribuciones de horas por fases"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-planning": {
+    "term": "planificación por horas",
+    "forms": [
+      "planificación por horas",
+      "planificaciones por horas"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-task": {
+    "term": "tarea horaria",
+    "forms": [
+      "tarea horaria",
+      "tareas horarias"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "indent": {
+    "term": "aplicar sangría",
+    "forms": [
+      "aplicar sangría",
+      "sangría"
+    ],
+    "avoid": [
+      "indentar"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "interruption": {
+    "term": "interrupción",
+    "forms": [
+      "interrupción",
+      "interrupciones"
+    ],
+    "avoid": [
+      "descanso",
+      "break"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "lag": {
+    "term": "desfase",
+    "forms": [
+      "desfase",
+      "desfases"
+    ],
+    "avoid": [
+      "intervalo"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-dates": {
+    "term": "fechas tardías",
+    "forms": [
+      "fechas tardías",
+      "fecha tardía"
+    ],
+    "avoid": [
+      "fechas límite"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-finish": {
+    "term": "fin tardío",
+    "forms": [
+      "fin tardío",
+      "fines tardíos"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-start": {
+    "term": "inicio tardío",
+    "forms": [
+      "inicio tardío",
+      "inicios tardíos"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "layout": {
+    "term": "diseño",
+    "forms": [
+      "diseño",
+      "diseños"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "lead": {
+    "term": "adelanto",
+    "forms": [
+      "adelanto",
+      "adelantos"
+    ],
+    "avoid": [
+      "cliente potencial"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "leveling": {
+    "term": "nivelación",
+    "forms": [
+      "nivelación",
+      "nivelaciones"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "leveling-delay": {
+    "term": "retraso de redistribución",
+    "forms": [
+      "retraso de redistribución",
+      "retrasos de redistribución"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "link-tasks": {
+    "term": "vincular",
+    "forms": [
+      "vincular",
+      "vinculado",
+      "vinculada"
+    ],
+    "avoid": [
+      "conectar"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "longest-path": {
+    "term": "ruta más larga",
+    "forms": [
+      "ruta más larga",
+      "rutas más largas"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "manually-scheduled": {
+    "term": "programada manualmente",
+    "forms": [
+      "programada manualmente",
+      "programadas manualmente"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "max-units": {
+    "term": "unidades máx.",
+    "forms": [
+      "unidades máx.",
+      "unidades máximas"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "milestone": {
+    "term": "hito",
+    "forms": [
+      "hito",
+      "hitos"
+    ],
+    "avoid": [
+      "meta"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "milestone-kind": {
+    "term": "tipo de hito",
+    "forms": [
+      "tipo de hito",
+      "tipos de hito"
+    ],
+    "avoid": [
+      "clase de hito"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "missed-task": {
+    "term": "tarea incumplida",
+    "forms": [
+      "tarea incumplida",
+      "tareas incumplidas"
+    ],
+    "avoid": [
+      "tarea perdida"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "must-finish-on": {
+    "term": "debe finalizar el",
+    "forms": [
+      "debe finalizar el"
+    ],
+    "avoid": [
+      "debe terminar el"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "must-start-on": {
+    "term": "debe comenzar el",
+    "forms": [
+      "debe comenzar el"
+    ],
+    "avoid": [
+      "debe iniciar el"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "near-critical": {
+    "term": "casi crítica",
+    "forms": [
+      "casi crítica",
+      "casi crítico",
+      "casi críticas",
+      "casi críticos"
+    ],
+    "avoid": [
+      "cuasi crítica"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "negative-float": {
+    "term": "holgura negativa",
+    "forms": [
+      "holgura negativa",
+      "holguras negativas"
+    ],
+    "avoid": [
+      "flotación negativa",
+      "margen negativo"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "non-working-day": {
+    "term": "no laborable",
+    "forms": [
+      "no laborable",
+      "no laborables"
+    ],
+    "avoid": [
+      "tiempo libre",
+      "día libre"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "out-of-sequence-progress": {
+    "term": "avance fuera de secuencia",
+    "forms": [
+      "avance fuera de secuencia",
+      "avances fuera de secuencia"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "outdent": {
+    "term": "anular sangría",
+    "forms": [
+      "anular sangría",
+      "anula la sangría"
+    ],
+    "avoid": [
+      "sangría negativa"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "overallocation": {
+    "term": "sobreasignado",
+    "forms": [
+      "sobreasignado",
+      "sobreasignada",
+      "sobreasignados",
+      "sobreasignadas"
+    ],
+    "avoid": [
+      "sobrecargado",
+      "doble reserva"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "path-tracing": {
+    "term": "trazado de ruta",
+    "forms": [
+      "trazado de ruta",
+      "trazados de ruta"
+    ],
+    "avoid": [
+      "rastrear ruta"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "percent-complete": {
+    "term": "porcentaje de avance",
+    "forms": [
+      "porcentaje de avance",
+      "porcentajes de avance"
+    ],
+    "avoid": [
+      "grado de finalización"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "period": {
+    "term": "período",
+    "forms": [
+      "período",
+      "períodos"
+    ],
+    "avoid": [
+      "periodo"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "planned": {
+    "term": "planificado",
+    "forms": [
+      "planificado",
+      "planificada",
+      "planificados",
+      "planificadas"
+    ],
+    "avoid": [
+      "programado"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "planned-work": {
+    "term": "trabajo previsto",
+    "forms": [
+      "trabajo previsto",
+      "trabajos previstos"
+    ],
+    "avoid": [
+      "trabajo programado"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "predecessor": {
+    "term": "predecesor",
+    "forms": [
+      "predecesor",
+      "predecesora",
+      "predecesores",
+      "predecesoras"
+    ],
+    "avoid": [
+      "antecedente"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "progress": {
+    "term": "avance",
+    "forms": [
+      "avance",
+      "avances"
+    ],
+    "avoid": [
+      "adelanto"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "progress-mode": {
+    "term": "modo de progreso",
+    "forms": [
+      "modo de progreso",
+      "modos de progreso"
+    ],
+    "avoid": [
+      "modo de avance"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "project-finish": {
+    "term": "fin del proyecto",
+    "forms": [
+      "fin del proyecto",
+      "fines del proyecto"
+    ],
+    "avoid": [
+      "final del proyecto"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "project-start": {
+    "term": "inicio del proyecto",
+    "forms": [
+      "inicio del proyecto",
+      "inicios del proyecto"
+    ],
+    "avoid": [
+      "arranque del proyecto"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "rate": {
+    "term": "tarifa",
+    "forms": [
+      "tarifa",
+      "tarifas"
+    ],
+    "avoid": [
+      "tasa"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "read-only": {
+    "term": "solo lectura",
+    "forms": [
+      "solo lectura",
+      "de solo lectura"
+    ],
+    "avoid": [
+      "sólo lectura"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "recalculate": {
+    "term": "recalcular",
+    "forms": [
+      "recalcular",
+      "recalculado",
+      "recalcule"
+    ],
+    "avoid": [
+      "volver a calcular"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "relation": {
+    "term": "relación",
+    "forms": [
+      "relación",
+      "relaciones"
+    ],
+    "avoid": [
+      "dependencia"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "relationship-type": {
+    "term": "tipo de relación",
+    "forms": [
+      "tipo de relación",
+      "tipos de relación"
+    ],
+    "avoid": [
+      "tipo de dependencia"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "remaining-duration": {
+    "term": "duración restante",
+    "forms": [
+      "duración restante",
+      "duraciones restantes"
+    ],
+    "avoid": [
+      "tiempo restante"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "remaining-work": {
+    "term": "trabajo restante",
+    "forms": [
+      "trabajo restante",
+      "trabajos restantes"
+    ],
+    "avoid": [
+      "trabajo pendiente"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "report": {
+    "term": "informe",
+    "forms": [
+      "informe",
+      "informes"
+    ],
+    "avoid": [
+      "reporte"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "report-type": {
+    "term": "tipo de informe",
+    "forms": [
+      "tipo de informe",
+      "tipos de informe"
+    ],
+    "avoid": [
+      "tipo de reporte"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource": {
+    "term": "recurso",
+    "forms": [
+      "recurso",
+      "recursos"
+    ],
+    "avoid": [
+      "recurso humano"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource-library": {
+    "term": "biblioteca de recursos",
+    "forms": [
+      "biblioteca de recursos",
+      "bibliotecas de recursos"
+    ],
+    "avoid": [
+      "biblioteca de empresa"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource-type": {
+    "term": "tipo de recurso",
+    "forms": [
+      "tipo de recurso",
+      "tipos de recurso"
+    ],
+    "avoid": [
+      "clase de recurso"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ribbon": {
+    "term": "cinta",
+    "forms": [
+      "cinta",
+      "cintas"
+    ],
+    "avoid": [
+      "barra de herramientas",
+      "lint"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ribbon-tab": {
+    "term": "pestaña de la cinta",
+    "forms": [
+      "pestaña de la cinta",
+      "pestañas de la cinta"
+    ],
+    "avoid": [
+      "lengüeta de la cinta"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "round-trip": {
+    "term": "ida y vuelta",
+    "forms": [
+      "ida y vuelta"
+    ],
+    "avoid": [
+      "ida-vuelta"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "schedule": {
+    "term": "planificación",
+    "forms": [
+      "planificación",
+      "planificaciones"
+    ],
+    "avoid": [
+      "horario"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "schedule-error": {
+    "term": "error de planificación",
+    "forms": [
+      "error de planificación",
+      "errores de planificación"
+    ],
+    "avoid": [
+      "error de programación"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "secondary-constraint": {
+    "term": "restricción secundaria",
+    "forms": [
+      "restricción secundaria",
+      "restricciones secundarias"
+    ],
+    "avoid": [
+      "constraint secundaria"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "shift": {
+    "term": "turno",
+    "forms": [
+      "turno",
+      "turnos"
+    ],
+    "avoid": [
+      "cuadrilla"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "source-task": {
+    "term": "tarea de origen",
+    "forms": [
+      "tarea de origen",
+      "tareas de origen"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "split-task": {
+    "term": "dividir tarea",
+    "forms": [
+      "dividir tarea",
+      "tarea dividida",
+      "tareas divididas"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-driver": {
+    "term": "driver de inicio",
+    "forms": [
+      "driver de inicio",
+      "drivers de inicio"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-float": {
+    "term": "holgura de inicio",
+    "forms": [
+      "holgura de inicio",
+      "holguras de inicio"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-no-earlier-than": {
+    "term": "no comenzar antes del (SNET)",
+    "forms": [
+      "no comenzar antes del (SNET)"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-no-later-than": {
+    "term": "no comenzar después del (SNLT)",
+    "forms": [
+      "no comenzar después del (SNLT)"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-to-finish": {
+    "term": "relación comienzo-fin",
+    "forms": [
+      "relación comienzo-fin",
+      "relaciones comienzo-fin"
+    ],
+    "avoid": [
+      "relación fin-comienzo"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-to-start": {
+    "term": "relación comienzo-comienzo",
+    "forms": [
+      "relación comienzo-comienzo",
+      "relaciones comienzo-comienzo"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-variance": {
+    "term": "variación de inicio",
+    "forms": [
+      "variación de inicio",
+      "variaciones de inicio"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "status-date": {
+    "term": "fecha de estado",
+    "forms": [
+      "fecha de estado",
+      "fechas de estado"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "subtask": {
+    "term": "subtarea",
+    "forms": [
+      "subtarea",
+      "subtareas"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "successor": {
+    "term": "sucesor",
+    "forms": [
+      "sucesor",
+      "sucesores"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "summary-task": {
+    "term": "tarea de resumen",
+    "forms": [
+      "tarea de resumen",
+      "tareas de resumen"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task": {
+    "term": "tarea",
+    "forms": [
+      "tarea",
+      "tareas"
+    ],
+    "avoid": [
+      "tarea pendiente"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task-grid": {
+    "term": "tabla de tareas",
+    "forms": [
+      "tabla de tareas",
+      "tablas de tareas"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task-type": {
+    "term": "tipo de tarea",
+    "forms": [
+      "tipo de tarea",
+      "tipos de tarea"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "threshold": {
+    "term": "umbral",
+    "forms": [
+      "umbral",
+      "umbrales"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "total-float": {
+    "term": "holgura total",
+    "forms": [
+      "holgura total",
+      "holguras totales"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "tutorial": {
+    "term": "tutorial",
+    "forms": [
+      "tutorial",
+      "tutoriales"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "units": {
+    "term": "unidades",
+    "forms": [
+      "unidades",
+      "unidad"
+    ],
+    "avoid": [
+      "unidades máx."
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "variance": {
+    "term": "variación",
+    "forms": [
+      "variación",
+      "variaciones"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "variance-report": {
+    "term": "informe de Variance",
+    "forms": [
+      "informe de Variance"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "violated-constraint": {
+    "term": "restricción violada",
+    "forms": [
+      "restricción violada",
+      "restricciones violadas"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "wbs": {
+    "term": "WBS",
+    "forms": [
+      "WBS"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "wbs-element": {
+    "term": "elemento EDT",
+    "forms": [
+      "elemento EDT",
+      "elementos EDT"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work": {
+    "term": "trabajo",
+    "forms": [
+      "trabajo",
+      "trabajos"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-calendar": {
+    "term": "calendario laboral",
+    "forms": [
+      "calendario laboral",
+      "calendarios laborales"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-hours": {
+    "term": "horarios de trabajo",
+    "forms": [
+      "horario de trabajo",
+      "horarios de trabajo"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-rule": {
+    "term": "regla de trabajo",
+    "forms": [
+      "regla de trabajo",
+      "reglas de trabajo"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "workday": {
+    "term": "día laborable",
+    "forms": [
+      "día laborable",
+      "días laborables"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "working-time": {
+    "term": "horario laboral",
+    "forms": [
+      "horario laboral",
+      "horarios laborales"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  }
+}

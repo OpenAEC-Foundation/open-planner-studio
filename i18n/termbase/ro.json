@@ -1,0 +1,1920 @@
+{
+  "_style": {
+    "address": "formal",
+    "note": "Romanian software addresses the user formally (dumneavoastră, impersonal or plural imperative such as 'calculați'). 'actual' is a false friend: 'actual' in Romanian means 'current', so avoid it. The candidate terms use 'real' for duration, work and date, and 'efectiv' for start and finish; keep these as the candidates give them."
+  },
+  "actual-date": {
+    "term": "real",
+    "forms": [
+      "real",
+      "reală",
+      "reale",
+      "reali"
+    ],
+    "avoid": [
+      "actual",
+      "planificat"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "actual-duration": {
+    "term": "durată reală",
+    "forms": [
+      "durată reală",
+      "durata reală",
+      "durate reale",
+      "duratei reale"
+    ],
+    "avoid": [
+      "durată actuală"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "actual-finish": {
+    "term": "sfârșit efectiv",
+    "forms": [
+      "sfârșit efectiv",
+      "sfârșitul efectiv",
+      "sfârșituri efective"
+    ],
+    "avoid": [
+      "sfârșit actual",
+      "sfârșit real"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "actual-start": {
+    "term": "început efectiv",
+    "forms": [
+      "început efectiv",
+      "începutul efectiv",
+      "începuturi efective"
+    ],
+    "avoid": [
+      "început actual",
+      "start actual"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "actual-work": {
+    "term": "lucru real",
+    "forms": [
+      "lucru real",
+      "lucrul real",
+      "lucruri reale"
+    ],
+    "avoid": [
+      "date reale",
+      "muncă actuală"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "ai-assistant": {
+    "term": "Asistent de inteligență artificială",
+    "forms": [
+      "asistent de inteligență artificială",
+      "asistentul de inteligență artificială",
+      "asistenți de inteligență artificială",
+      "asistentului de inteligență artificială"
+    ],
+    "avoid": [
+      "asistent AI"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "as-late-as-possible": {
+    "term": "cât mai târziu posibil",
+    "forms": [
+      "cât mai târziu posibil"
+    ],
+    "avoid": [
+      "cât mai târziu"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "as-soon-as-possible": {
+    "term": "cât mai devreme posibil",
+    "forms": [
+      "cât mai devreme posibil"
+    ],
+    "avoid": [
+      "cât mai curând posibil"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "assignment": {
+    "term": "atribuire",
+    "forms": [
+      "atribuire",
+      "atribuirea",
+      "atribuiri",
+      "atribuirii"
+    ],
+    "avoid": [
+      "sarcină",
+      "temă",
+      "alocare"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "assignment-curve": {
+    "term": "curbă de atribuire",
+    "forms": [
+      "curbă de atribuire",
+      "curba de atribuire",
+      "curbe de atribuire",
+      "curbei de atribuire"
+    ],
+    "avoid": [
+      "curbă de sarcină"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "assignment-units": {
+    "term": "unități de atribuire pe zi",
+    "forms": [
+      "unități de atribuire pe zi",
+      "unitățile de atribuire pe zi"
+    ],
+    "avoid": [
+      "unități pe zi"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "baseline": {
+    "term": "referință",
+    "forms": [
+      "referință",
+      "referința",
+      "referințe",
+      "referințele"
+    ],
+    "avoid": [
+      "linie de bază",
+      "bază"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "bei": {
+    "term": "indice de execuție a referinței",
+    "forms": [
+      "indice de execuție a referinței",
+      "indicele de execuție a referinței"
+    ],
+    "avoid": [
+      "indice de execuție a liniei de bază"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "calculate": {
+    "term": "calcula",
+    "forms": [
+      "calcula",
+      "calculează",
+      "calculați",
+      "calculat",
+      "calculată"
+    ],
+    "avoid": [
+      "computa"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "calculate-automatically": {
+    "term": "calculare automată",
+    "forms": [
+      "calculare automată",
+      "calcularea automată"
+    ],
+    "avoid": [
+      "calcul manual"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "calculation-profile": {
+    "term": "profil de calcul",
+    "forms": [
+      "profil de calcul",
+      "profilul de calcul",
+      "profiluri de calcul",
+      "profilurilor de calcul"
+    ],
+    "avoid": [
+      "profil de planificare",
+      "model de calcul"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "calendar": {
+    "term": "calendar proiect",
+    "forms": [
+      "calendar proiect",
+      "calendarul proiectului",
+      "calendare proiect"
+    ],
+    "avoid": [
+      "calendar"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "capacity": {
+    "term": "capacitate",
+    "forms": [
+      "capacitate",
+      "capacitatea",
+      "capacități",
+      "capacității"
+    ],
+    "avoid": [
+      "capabilitate"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "completion": {
+    "term": "procent de finalizare",
+    "forms": [
+      "procent de finalizare",
+      "procentul de finalizare",
+      "procente de finalizare"
+    ],
+    "avoid": [
+      "completare"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "constraint": {
+    "term": "restricție",
+    "forms": [
+      "restricție",
+      "restricția",
+      "restricții",
+      "restricțiile"
+    ],
+    "avoid": [
+      "constrângere",
+      "constraint"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "constraint-type": {
+    "term": "tip de restricție",
+    "forms": [
+      "tip de restricție",
+      "tipul de restricție",
+      "tipuri de restricții"
+    ],
+    "avoid": [
+      "tip de constrângere"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "construction-holiday": {
+    "term": "concediu colectiv din construcții",
+    "forms": [
+      "concediu colectiv din construcții",
+      "concediul colectiv din construcții",
+      "concedii colective din construcții"
+    ],
+    "avoid": [
+      "vacanță de construcții"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "contour": {
+    "term": "contur",
+    "forms": [
+      "contur",
+      "conturul",
+      "contururi",
+      "conturului"
+    ],
+    "avoid": [
+      "profil"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "convention": {
+    "term": "convenție de calcul",
+    "forms": [
+      "convenție de calcul",
+      "convenția de calcul",
+      "convenții de calcul"
+    ],
+    "avoid": [
+      "regulă de planificare"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "cost": {
+    "term": "cost",
+    "forms": [
+      "cost",
+      "costul",
+      "costuri",
+      "costurile",
+      "costurilor"
+    ],
+    "avoid": [
+      "preț",
+      "preț de cost"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "crash-recovery": {
+    "term": "refacere în urma unei căderi",
+    "forms": [
+      "refacere în urma unei căderi",
+      "refacerea în urma unei căderi"
+    ],
+    "avoid": [
+      "recuperare crash"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "critical": {
+    "term": "critic",
+    "forms": [
+      "critic",
+      "critică",
+      "critici",
+      "critice"
+    ],
+    "avoid": [
+      "crucial",
+      "critical"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "critical-chains": {
+    "term": "lanțuri critice",
+    "forms": [
+      "lanțuri critice",
+      "lanțurile critice",
+      "lanț critic"
+    ],
+    "avoid": [
+      "lanțuri de dependențe"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "critical-path": {
+    "term": "drum critic",
+    "forms": [
+      "drum critic",
+      "drumul critic",
+      "drumuri critice",
+      "drumului critic"
+    ],
+    "avoid": [
+      "cale critică"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "critical-task": {
+    "term": "activitate critică",
+    "forms": [
+      "activitate critică",
+      "activitatea critică",
+      "activități critice",
+      "activităților critice"
+    ],
+    "avoid": [
+      "sarcină critică"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "current-finish": {
+    "term": "sfârșit calculat",
+    "forms": [
+      "sfârșit calculat",
+      "sfârșitul calculat",
+      "sfârșituri calculate"
+    ],
+    "avoid": [
+      "sfârșit actual",
+      "sfârșit curent"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "custom-field": {
+    "term": "câmp particularizat",
+    "forms": [
+      "câmp particularizat",
+      "câmpul particularizat",
+      "câmpuri particularizate",
+      "câmpurilor particularizate"
+    ],
+    "avoid": [
+      "câmp personalizat"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "cycle": {
+    "term": "ciclu",
+    "forms": [
+      "ciclu",
+      "ciclul",
+      "cicluri",
+      "ciclurile"
+    ],
+    "avoid": [
+      "buclă",
+      "cerc vicios"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "dcma-assessment": {
+    "term": "evaluare DCMA în 14 puncte",
+    "forms": [
+      "evaluare DCMA în 14 puncte",
+      "evaluarea DCMA în 14 puncte"
+    ],
+    "avoid": [
+      "DCMA 14-point assessment"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "deadline": {
+    "term": "termen limită",
+    "forms": [
+      "termen limită",
+      "termenul limită",
+      "termene limită",
+      "termenele limită"
+    ],
+    "avoid": [
+      "deadline",
+      "dată limită"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "distribution": {
+    "term": "distribuție",
+    "forms": [
+      "distribuție",
+      "distribuția",
+      "distribuții",
+      "distribuțiile"
+    ],
+    "avoid": [
+      "distribuire"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "driving-relationship": {
+    "term": "relație determinantă",
+    "forms": [
+      "relație determinantă",
+      "relația determinantă",
+      "relații determinante",
+      "relațiile determinante"
+    ],
+    "avoid": [
+      "relație de conducere"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "duration": {
+    "term": "durată",
+    "forms": [
+      "durată",
+      "durata",
+      "durate",
+      "duratei"
+    ],
+    "avoid": [
+      "durație"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "early-finish": {
+    "term": "sfârșit cel mai devreme",
+    "forms": [
+      "sfârșit cel mai devreme",
+      "sfârșitul cel mai devreme",
+      "sfârșituri cele mai devreme"
+    ],
+    "avoid": [
+      "sfârșit devreme",
+      "sfârșit efectiv"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "early-start": {
+    "term": "început cel mai devreme",
+    "forms": [
+      "început cel mai devreme",
+      "începutul cel mai devreme",
+      "începuturi cele mai devreme"
+    ],
+    "avoid": [
+      "început devreme",
+      "început efectiv"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "effort-driven": {
+    "term": "bazat pe efort",
+    "forms": [
+      "bazat pe efort",
+      "bazată pe efort",
+      "bazate pe efort"
+    ],
+    "avoid": [
+      "condus de efort"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "elapsed-time": {
+    "term": "timp scurs",
+    "forms": [
+      "timp scurs",
+      "timpul scurs",
+      "timpi scurși"
+    ],
+    "avoid": [
+      "timp efectiv"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "extension": {
+    "term": "extensie",
+    "forms": [
+      "extensie",
+      "extensia",
+      "extensii",
+      "extensiile"
+    ],
+    "avoid": [
+      "extensie nume de fișier"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "external-relation": {
+    "term": "legătură între proiecte",
+    "forms": [
+      "legătură între proiecte",
+      "legătura între proiecte",
+      "legăturile între proiecte"
+    ],
+    "avoid": [
+      "dependență externă",
+      "link extern"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "finish": {
+    "term": "sfârșit",
+    "forms": [
+      "sfârșit",
+      "sfârșitul",
+      "sfârșituri",
+      "sfârșiturile"
+    ],
+    "avoid": [
+      "finalizare",
+      "termina"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "finish-driver": {
+    "term": "legătura determinantă pentru sfârșit",
+    "forms": [
+      "legătura determinantă pentru sfârșit",
+      "legăturii determinante pentru sfârșit",
+      "legăturile determinante pentru sfârșit"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "finish-no-earlier-than": {
+    "term": "nu se termină mai devreme de",
+    "forms": [
+      "nu se termină mai devreme de"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "finish-no-later-than": {
+    "term": "nu se termină mai târziu de",
+    "forms": [
+      "nu se termină mai târziu de"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "finish-to-finish": {
+    "term": "sfârșit la sfârșit",
+    "forms": [
+      "sfârșit la sfârșit"
+    ],
+    "avoid": [
+      "sfârșit-sfârșit"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "finish-to-start": {
+    "term": "sfârșit la început",
+    "forms": [
+      "sfârșit la început"
+    ],
+    "avoid": [
+      "sfârșit-început"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "finish-variance": {
+    "term": "abatere de sfârșit",
+    "forms": [
+      "abatere de sfârșit",
+      "abaterea de sfârșit",
+      "abaterii de sfârșit"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "fixed-duration": {
+    "term": "durată fixă",
+    "forms": [
+      "durată fixă",
+      "durata fixă",
+      "durate fixe"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "fixed-units": {
+    "term": "unități fixe",
+    "forms": [
+      "unități fixe",
+      "unitățile fixe",
+      "unităților fixe"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "fixed-work": {
+    "term": "muncă fixă",
+    "forms": [
+      "muncă fixă",
+      "munca fixă",
+      "munci fixe"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "float": {
+    "term": "marjă",
+    "forms": [
+      "marjă",
+      "marja",
+      "marje",
+      "marjele"
+    ],
+    "avoid": [
+      "float"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "float-path": {
+    "term": "traseu de marjă",
+    "forms": [
+      "traseu de marjă",
+      "traseul de marjă",
+      "trasee de marjă"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "forecast-finish": {
+    "term": "sfârșit prognozat",
+    "forms": [
+      "sfârșit prognozat",
+      "sfârșitul prognozat",
+      "sfârșituri prognozate"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "free-float": {
+    "term": "marjă liberă",
+    "forms": [
+      "marjă liberă",
+      "marja liberă",
+      "marje libere"
+    ],
+    "avoid": [
+      "marjă totală"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "hammock": {
+    "term": "hamac",
+    "forms": [
+      "hamac",
+      "hamacul",
+      "hamace",
+      "hamacurile"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "hard-constraint": {
+    "term": "constrângere strictă",
+    "forms": [
+      "constrângere strictă",
+      "constrângerea strictă",
+      "constrângeri stricte"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "histogram": {
+    "term": "histogramă",
+    "forms": [
+      "histogramă",
+      "histograma",
+      "histograme",
+      "histogramele"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "holiday": {
+    "term": "sărbătoare",
+    "forms": [
+      "sărbătoare",
+      "sărbătoarea",
+      "sărbători",
+      "sărbătorile"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "holiday-set": {
+    "term": "set de sărbători",
+    "forms": [
+      "set de sărbători",
+      "setul de sărbători",
+      "seturi de sărbători"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "hour-distribution-in-phases": {
+    "term": "repartizarea orelor pe faze",
+    "forms": [
+      "repartizarea orelor pe faze",
+      "repartizării orelor pe faze",
+      "repartizările orelor pe faze"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "hour-planning": {
+    "term": "planificare pe ore",
+    "forms": [
+      "planificare pe ore",
+      "planificarea pe ore",
+      "planificări pe ore"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "hour-task": {
+    "term": "sarcină pe ore",
+    "forms": [
+      "sarcină pe ore",
+      "sarcina pe ore",
+      "sarcini pe ore"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "indent": {
+    "term": "indenta",
+    "forms": [
+      "indenta",
+      "indentează",
+      "indentat"
+    ],
+    "avoid": [
+      "indentare"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "interruption": {
+    "term": "pauză",
+    "forms": [
+      "pauză",
+      "pauza",
+      "pauze",
+      "pauzele"
+    ],
+    "avoid": [
+      "întrerupe"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "lag": {
+    "term": "decalaj",
+    "forms": [
+      "decalaj",
+      "decalajul",
+      "decalaje",
+      "decalajele"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "late-dates": {
+    "term": "date târzii",
+    "forms": [
+      "date târzii",
+      "datele târzii",
+      "dată târzie"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "late-finish": {
+    "term": "sfârșit târziu",
+    "forms": [
+      "sfârșit târziu",
+      "sfârșitul târziu",
+      "sfârșituri târzii"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "late-start": {
+    "term": "început târziu",
+    "forms": [
+      "început târziu",
+      "începutul târziu",
+      "începuturi târzii"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "layout": {
+    "term": "aspect",
+    "forms": [
+      "aspect",
+      "aspectul",
+      "aspecte",
+      "aspectele"
+    ],
+    "avoid": [
+      "Aspect",
+      "schemă",
+      "structură"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "lead": {
+    "term": "avans",
+    "forms": [
+      "avans",
+      "avansul",
+      "avansuri",
+      "avansurile"
+    ],
+    "avoid": [
+      "client potențial"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "leveling": {
+    "term": "redistribuire",
+    "forms": [
+      "redistribuire",
+      "redistribuirea",
+      "redistribuiri",
+      "redistribuirile"
+    ],
+    "avoid": [
+      "nivelare"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "leveling-delay": {
+    "term": "întârziere prin redistribuire",
+    "forms": [
+      "întârziere prin redistribuire",
+      "întârzierea prin redistribuire",
+      "întârzieri prin redistribuire"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "link-tasks": {
+    "term": "lega",
+    "forms": [
+      "lega",
+      "leagă",
+      "legat"
+    ],
+    "avoid": [
+      "link",
+      "legătură"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "longest-path": {
+    "term": "cale critică",
+    "forms": [
+      "cale critică",
+      "calea critică",
+      "căi critice"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "manually-scheduled": {
+    "term": "planificat manual",
+    "forms": [
+      "planificat manual",
+      "planificată manual",
+      "planificate manual"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "max-units": {
+    "term": "unități maxime",
+    "forms": [
+      "unități maxime",
+      "unitățile maxime",
+      "unităților maxime"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "milestone": {
+    "term": "jalon",
+    "forms": [
+      "jalon",
+      "jalonul",
+      "jaloane",
+      "jaloanele"
+    ],
+    "avoid": [
+      "etapă"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "milestone-kind": {
+    "term": "tip de jalon",
+    "forms": [
+      "tip de jalon",
+      "tipul de jalon",
+      "tipuri de jalon",
+      "tipurile de jalon"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "missed-task": {
+    "term": "sarcină restantă",
+    "forms": [
+      "sarcină restantă",
+      "sarcina restantă",
+      "sarcini restante",
+      "sarcinile restante"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "must-finish-on": {
+    "term": "trebuie să se termine la",
+    "forms": [
+      "trebuie să se termine la"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "must-start-on": {
+    "term": "trebuie să înceapă la",
+    "forms": [
+      "trebuie să înceapă la"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "near-critical": {
+    "term": "aproape critică",
+    "forms": [
+      "aproape critică",
+      "aproape critic",
+      "aproape critice"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "negative-float": {
+    "term": "rezervă negativă",
+    "forms": [
+      "rezervă negativă",
+      "rezerva negativă",
+      "rezerve negative",
+      "rezervele negative"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "non-working-day": {
+    "term": "zi nelucrătoare",
+    "forms": [
+      "zi nelucrătoare",
+      "ziua nelucrătoare",
+      "zile nelucrătoare",
+      "zilele nelucrătoare"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "out-of-sequence-progress": {
+    "term": "progres în afara secvenței",
+    "forms": [
+      "progres în afara secvenței",
+      "progresul în afara secvenței",
+      "progrese în afara secvenței"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "outdent": {
+    "term": "indenta negativ",
+    "forms": [
+      "indenta negativ",
+      "indentați negativ",
+      "indentează negativ"
+    ],
+    "avoid": [
+      "indent negativ"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "overallocation": {
+    "term": "supraalocare",
+    "forms": [
+      "supraalocare",
+      "supraalocarea",
+      "supraalocări",
+      "supraalocările"
+    ],
+    "avoid": [
+      "supraîncărcare"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "path-tracing": {
+    "term": "urmărire traseu",
+    "forms": [
+      "urmărire traseu",
+      "urmărirea traseului",
+      "urmăriri de traseu"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "percent-complete": {
+    "term": "procent finalizare",
+    "forms": [
+      "procent finalizare",
+      "procentul de finalizare",
+      "procente de finalizare",
+      "procentele de finalizare"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "period": {
+    "term": "perioadă",
+    "forms": [
+      "perioadă",
+      "perioada",
+      "perioade",
+      "perioadele"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "planned": {
+    "term": "planificat",
+    "forms": [
+      "planificat",
+      "planificată",
+      "planificați",
+      "planificate"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "planned-work": {
+    "term": "lucru planificat",
+    "forms": [
+      "lucru planificat",
+      "lucrul planificat",
+      "lucruri planificate",
+      "lucrurile planificate"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "predecessor": {
+    "term": "predecesor",
+    "forms": [
+      "predecesor",
+      "predecesorul",
+      "predecesori",
+      "predecesorii"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "progress": {
+    "term": "progres",
+    "forms": [
+      "progres",
+      "progresul",
+      "progrese",
+      "progresele"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "progress-mode": {
+    "term": "mod de progres",
+    "forms": [
+      "mod de progres",
+      "modul de progres",
+      "moduri de progres",
+      "modurile de progres"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "project-finish": {
+    "term": "finalizare proiect",
+    "forms": [
+      "finalizare proiect",
+      "finalizarea proiectului",
+      "finalizări de proiect"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "project-start": {
+    "term": "începere proiect",
+    "forms": [
+      "începere proiect",
+      "începerea proiectului",
+      "începeri de proiect"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "rate": {
+    "term": "tarif standard",
+    "forms": [
+      "tarif standard",
+      "tarifului standard",
+      "tarife standard",
+      "tarifele standard"
+    ],
+    "avoid": [
+      "rată"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "read-only": {
+    "term": "doar în citire",
+    "forms": [
+      "doar în citire"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "recalculate": {
+    "term": "recalcula",
+    "forms": [
+      "recalcula",
+      "recalculați",
+      "recalculează",
+      "recalculat"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "relation": {
+    "term": "dependență",
+    "forms": [
+      "dependență",
+      "dependența",
+      "dependențe",
+      "dependențele"
+    ],
+    "avoid": [
+      "relație"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "relationship-type": {
+    "term": "tip de dependență",
+    "forms": [
+      "tip de dependență",
+      "tipul de dependență",
+      "tipuri de dependență",
+      "tipurile de dependență"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "remaining-duration": {
+    "term": "durată rămasă",
+    "forms": [
+      "durată rămasă",
+      "durata rămasă",
+      "durate rămase",
+      "duratele rămase"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "remaining-work": {
+    "term": "lucru rămas",
+    "forms": [
+      "lucru rămas",
+      "lucrul rămas",
+      "lucruri rămase",
+      "lucrurile rămase"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "report": {
+    "term": "raport",
+    "forms": [
+      "raport",
+      "raportul",
+      "rapoarte",
+      "rapoartele"
+    ],
+    "avoid": [
+      "raportare"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "report-type": {
+    "term": "tip de raport",
+    "forms": [
+      "tip de raport",
+      "tipul de raport",
+      "tipuri de raport",
+      "tipurile de raport"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "resource": {
+    "term": "resursă",
+    "forms": [
+      "resursă",
+      "resursa",
+      "resurse",
+      "resursele"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "resource-library": {
+    "term": "bibliotecă de resurse",
+    "forms": [
+      "bibliotecă de resurse",
+      "biblioteca de resurse",
+      "biblioteci de resurse",
+      "bibliotecile de resurse"
+    ],
+    "avoid": [
+      "bibliotecă de documente",
+      "grup"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "resource-type": {
+    "term": "tip de resursă",
+    "forms": [
+      "tip de resursă",
+      "tipul de resursă",
+      "tipuri de resursă",
+      "tipurile de resursă"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "ribbon": {
+    "term": "Panglică",
+    "forms": [
+      "Panglică",
+      "panglica",
+      "panglicii",
+      "panglicile"
+    ],
+    "avoid": [
+      "bandă"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "ribbon-tab": {
+    "term": "filă de panglică",
+    "forms": [
+      "filă de panglică",
+      "fila de panglică",
+      "file de panglică",
+      "filele de panglică"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "round-trip": {
+    "term": "round-trip",
+    "forms": [
+      "round-trip"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "schedule": {
+    "term": "planificare",
+    "forms": [
+      "planificare",
+      "planificarea",
+      "planificări",
+      "planificările"
+    ],
+    "avoid": [
+      "program"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "schedule-error": {
+    "term": "eroare de planificare",
+    "forms": [
+      "eroare de planificare",
+      "eroarea de planificare",
+      "erori de planificare",
+      "erorile de planificare"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "secondary-constraint": {
+    "term": "constrângere secundară",
+    "forms": [
+      "constrângere secundară",
+      "constrângerea secundară",
+      "constrângeri secundare",
+      "constrângerile secundare"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "shift": {
+    "term": "tură",
+    "forms": [
+      "tură",
+      "tura",
+      "ture",
+      "turele"
+    ],
+    "avoid": [
+      "schimb"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "source-task": {
+    "term": "activitate sursă",
+    "forms": [
+      "activitate sursă",
+      "activitatea sursă",
+      "activități sursă",
+      "activitățile sursă"
+    ],
+    "avoid": [
+      "task sursă",
+      "sarcină sursă"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "split-task": {
+    "term": "activitate scindată",
+    "forms": [
+      "activitate scindată",
+      "activitatea scindată",
+      "activități scindate",
+      "activitățile scindate"
+    ],
+    "avoid": [
+      "activitate divizată",
+      "split task"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "start-driver": {
+    "term": "relație de start",
+    "forms": [
+      "relație de start",
+      "relația de start",
+      "relații de start",
+      "relațiile de start"
+    ],
+    "avoid": [
+      "driver de start",
+      "start driver"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-float": {
+    "term": "marjă de start",
+    "forms": [
+      "marjă de start",
+      "marja de start",
+      "marje de start",
+      "marjele de start"
+    ],
+    "avoid": [
+      "speling de start",
+      "start float"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-no-earlier-than": {
+    "term": "nu începe înainte de",
+    "forms": [
+      "nu începe înainte de"
+    ],
+    "avoid": [
+      "începe nu mai devreme de",
+      "start no earlier than"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-no-later-than": {
+    "term": "nu începe după",
+    "forms": [
+      "nu începe după"
+    ],
+    "avoid": [
+      "începe nu mai târziu de",
+      "start no later than"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-to-finish": {
+    "term": "început-sfârșit",
+    "forms": [
+      "început-sfârșit",
+      "începutul-sfârșit"
+    ],
+    "avoid": [
+      "start-finish",
+      "start-to-finish"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-to-start": {
+    "term": "început-început",
+    "forms": [
+      "început-început",
+      "începutul-începutul"
+    ],
+    "avoid": [
+      "start-start",
+      "start-to-start"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-variance": {
+    "term": "varianță de start",
+    "forms": [
+      "varianță de start",
+      "varianța de start",
+      "varianțe de start",
+      "varianțele de start"
+    ],
+    "avoid": [
+      "abatere de start",
+      "start variance"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "status-date": {
+    "term": "data raportului de stare",
+    "forms": [
+      "data raportului de stare",
+      "datei raportului de stare",
+      "datele raportului de stare"
+    ],
+    "avoid": [
+      "data de stare",
+      "status date"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "subtask": {
+    "term": "subactivitate",
+    "forms": [
+      "subactivitate",
+      "subactivitatea",
+      "subactivități",
+      "subactivitățile"
+    ],
+    "avoid": [
+      "subtaskă",
+      "subtask"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "successor": {
+    "term": "activitate succesoare",
+    "forms": [
+      "activitate succesoare",
+      "activitatea succesoare",
+      "activități succesoare",
+      "activitățile succesoare"
+    ],
+    "avoid": [
+      "succesor",
+      "task succesor"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "summary-task": {
+    "term": "activitate rezumat",
+    "forms": [
+      "activitate rezumat",
+      "activitatea rezumat",
+      "activități rezumat",
+      "activitățile rezumat"
+    ],
+    "avoid": [
+      "rezumat",
+      "task rezumat",
+      "summary task"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "task": {
+    "term": "activitate",
+    "forms": [
+      "activitate",
+      "activitatea",
+      "activități",
+      "activitățile"
+    ],
+    "avoid": [
+      "task",
+      "taskuri",
+      "sarcină",
+      "element de făcut"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "task-grid": {
+    "term": "tabel de activități",
+    "forms": [
+      "tabel de activități",
+      "tabelul de activități",
+      "tabele de activități",
+      "tabelele de activități"
+    ],
+    "avoid": [
+      "grilă de task-uri",
+      "task grid"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "task-type": {
+    "term": "tip de activitate",
+    "forms": [
+      "tip de activitate",
+      "tipul de activitate",
+      "tipuri de activitate",
+      "tipurile de activitate"
+    ],
+    "avoid": [
+      "tip de task",
+      "task type"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "threshold": {
+    "term": "prag",
+    "forms": [
+      "prag",
+      "pragul",
+      "praguri",
+      "pragurile"
+    ],
+    "avoid": [
+      "drempel",
+      "threshold"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "total-float": {
+    "term": "marjă totală",
+    "forms": [
+      "marjă totală",
+      "marja totală",
+      "marje totale",
+      "marjele totale"
+    ],
+    "avoid": [
+      "speling totală",
+      "total float"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "tutorial": {
+    "term": "tutorial",
+    "forms": [
+      "tutorial",
+      "tutorialul",
+      "tutoriale",
+      "tutorialele"
+    ],
+    "avoid": [
+      "tutoriał",
+      "ghid pas cu pas"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "units": {
+    "term": "unități de atribuire",
+    "forms": [
+      "unități de atribuire",
+      "unitățile de atribuire",
+      "unităților de atribuire"
+    ],
+    "avoid": [
+      "inzet",
+      "assignment units"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "variance": {
+    "term": "varianță",
+    "forms": [
+      "varianță",
+      "varianța",
+      "varianțe",
+      "varianțele"
+    ],
+    "avoid": [
+      "afwijking",
+      "variație",
+      "variance"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "variance-report": {
+    "term": "raport de varianță",
+    "forms": [
+      "raport de varianță",
+      "raportul de varianță",
+      "rapoarte de varianță",
+      "rapoartele de varianță"
+    ],
+    "avoid": [
+      "raport de variance",
+      "variance report"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "violated-constraint": {
+    "term": "constrângere încălcată",
+    "forms": [
+      "constrângere încălcată",
+      "constrângerea încălcată",
+      "constrângeri încălcate",
+      "constrângerile încălcate"
+    ],
+    "avoid": [
+      "constraint încălcat",
+      "violated constraint"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "wbs": {
+    "term": "WBS",
+    "forms": [
+      "WBS",
+      "WBS-ul",
+      "WBS-ului",
+      "WBS-uri",
+      "WBS-urile"
+    ],
+    "avoid": [
+      "structură de descompunere a lucrărilor"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "wbs-element": {
+    "term": "element WBS",
+    "forms": [
+      "element WBS",
+      "elementul WBS",
+      "elemente WBS",
+      "elementele WBS"
+    ],
+    "avoid": [
+      "WBS-element",
+      "nod WBS"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "work": {
+    "term": "lucru",
+    "forms": [
+      "lucru",
+      "lucrul",
+      "lucrului",
+      "lucruri",
+      "lucrurile"
+    ],
+    "avoid": [
+      "muncă",
+      "serviciu",
+      "work"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "work-calendar": {
+    "term": "calendar de lucru",
+    "forms": [
+      "calendar de lucru",
+      "calendarul de lucru",
+      "calendare de lucru",
+      "calendarele de lucru"
+    ],
+    "avoid": [
+      "calendar de muncă",
+      "work calendar"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "work-hours": {
+    "term": "ore de lucru",
+    "forms": [
+      "ore de lucru",
+      "orele de lucru",
+      "orelor de lucru"
+    ],
+    "avoid": [
+      "ore de muncă",
+      "work hours"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "work-rule": {
+    "term": "regulă de lucru",
+    "forms": [
+      "regulă de lucru",
+      "regula de lucru",
+      "reguli de lucru",
+      "regulile de lucru"
+    ],
+    "avoid": [
+      "regulă de muncă",
+      "work rule"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "workday": {
+    "term": "zi lucrătoare",
+    "forms": [
+      "zi lucrătoare",
+      "ziua lucrătoare",
+      "zile lucrătoare",
+      "zilele lucrătoare"
+    ],
+    "avoid": [
+      "zi de lucru",
+      "WORKDAY",
+      "workday"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "working-time": {
+    "term": "timp de lucru",
+    "forms": [
+      "timp de lucru",
+      "timpul de lucru",
+      "timpului de lucru"
+    ],
+    "avoid": [
+      "timp de muncă",
+      "working time"
+    ],
+    "source": "model",
+    "status": "model"
+  }
+}

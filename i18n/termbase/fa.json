@@ -1,0 +1,1438 @@
+{
+  "_style": {
+    "address": "formal",
+    "note": "De bestaande UI spreekt de gebruiker formeel aan met imperatieven op -ید (کنید, بزنید, روشن کنید). Gebruik dezelfde vorm."
+  },
+  "actual-date": {
+    "term": "تاریخ واقعی",
+    "forms": [
+      "تاریخ واقعی",
+      "تاریخ‌های واقعی"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-duration": {
+    "term": "مدت واقعی",
+    "forms": [
+      "مدت واقعی"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-finish": {
+    "term": "پایان واقعی",
+    "forms": [
+      "پایان واقعی"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-start": {
+    "term": "شروع واقعی",
+    "forms": [
+      "شروع واقعی"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-work": {
+    "term": "کار انجام‌شده",
+    "forms": [
+      "کار انجام‌شده"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ai-assistant": {
+    "term": "دستیار هوش مصنوعی",
+    "forms": [
+      "دستیار هوش مصنوعی",
+      "دستیارهای هوش مصنوعی"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "as-late-as-possible": {
+    "term": "تا حد ممکن دیر",
+    "forms": [
+      "تا حد ممکن دیر"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "as-soon-as-possible": {
+    "term": "در اسرع وقت",
+    "forms": [
+      "در اسرع وقت"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment": {
+    "term": "تخصیص",
+    "forms": [
+      "تخصیص",
+      "تخصیص‌ها",
+      "تخصیص‌های"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment-curve": {
+    "term": "منحنی تخصیص",
+    "forms": [
+      "منحنی تخصیص",
+      "منحنی‌های تخصیص"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment-units": {
+    "term": "واحدهای تخصیص در روز",
+    "forms": [
+      "واحدهای تخصیص در روز"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "baseline": {
+    "term": "خط مبنا",
+    "forms": [
+      "خط مبنا",
+      "خطوط مبنا"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "bei": {
+    "term": "شاخص اجرای خط مبنا",
+    "forms": [
+      "شاخص اجرای خط مبنا"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculate": {
+    "term": "محاسبه",
+    "forms": [
+      "محاسبه",
+      "محاسبه کردن"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculate-automatically": {
+    "term": "محاسبه خودکار",
+    "forms": [
+      "محاسبه خودکار"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculation-profile": {
+    "term": "پروفایل محاسبه",
+    "forms": [
+      "پروفایل محاسبه",
+      "پروفایل‌های محاسبه"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calendar": {
+    "term": "تقویم",
+    "forms": [
+      "تقویم",
+      "تقویم‌ها",
+      "تقویم‌های"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "capacity": {
+    "term": "ظرفیت",
+    "forms": [
+      "ظرفیت",
+      "ظرفیت‌ها"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "completion": {
+    "term": "تکمیل",
+    "forms": [
+      "تکمیل",
+      "درصد تکمیل"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "constraint": {
+    "term": "محدودیت",
+    "forms": [
+      "محدودیت",
+      "محدودیت‌ها"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "constraint-type": {
+    "term": "نوع محدودیت",
+    "forms": [
+      "نوع محدودیت",
+      "انواع محدودیت"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "construction-holiday": {
+    "term": "تعطیلات ساخت‌وساز",
+    "forms": [
+      "تعطیلات ساخت‌وساز"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "contour": {
+    "term": "منحنی",
+    "forms": [
+      "منحنی",
+      "منحنی‌ها",
+      "منحنی‌های"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "convention": {
+    "term": "قرارداد",
+    "forms": [
+      "قرارداد",
+      "قراردادها",
+      "قراردادهای"
+    ],
+    "avoid": [
+      "قاعده"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "cost": {
+    "term": "هزینه",
+    "forms": [
+      "هزینه",
+      "هزینه‌ها"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "crash-recovery": {
+    "term": "بازیابی خرابی",
+    "forms": [
+      "بازیابی خرابی"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical": {
+    "term": "بحرانی",
+    "forms": [
+      "بحرانی"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-chains": {
+    "term": "زنجیره‌های بحرانی",
+    "forms": [
+      "زنجیره بحرانی",
+      "زنجیره‌های بحرانی"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-path": {
+    "term": "مسیر بحرانی",
+    "forms": [
+      "مسیر بحرانی",
+      "مسیرهای بحرانی"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-task": {
+    "term": "وظیفه بحرانی",
+    "forms": [
+      "وظیفه بحرانی",
+      "وظایف بحرانی"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "current-finish": {
+    "term": "پایان کنونی",
+    "forms": [
+      "پایان کنونی"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "custom-field": {
+    "term": "فیلد سفارشی",
+    "forms": [
+      "فیلد سفارشی",
+      "فیلدهای سفارشی"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "cycle": {
+    "term": "چرخه",
+    "forms": [
+      "چرخه",
+      "چرخه‌ها"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "dcma-assessment": {
+    "term": "ارزیابی ۱۴ نقطه‌ای DCMA",
+    "forms": [
+      "ارزیابی ۱۴ نقطه‌ای DCMA"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "deadline": {
+    "term": "مهلت",
+    "forms": [
+      "مهلت",
+      "مهلت‌ها"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "distribution": {
+    "term": "توزیع",
+    "forms": [
+      "توزیع",
+      "توزیع‌ها"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "driving-relationship": {
+    "term": "رابطهٔ تعیین‌کننده",
+    "forms": [
+      "رابطهٔ تعیین‌کننده",
+      "روابط تعیین‌کننده"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "duration": {
+    "term": "مدت",
+    "forms": [
+      "مدت",
+      "مدت‌ها"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "early-finish": {
+    "term": "پایان زودهنگام",
+    "forms": [
+      "پایان زودهنگام"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "early-start": {
+    "term": "شروع زودهنگام",
+    "forms": [
+      "شروع زودهنگام"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "effort-driven": {
+    "term": "مبتنی بر تلاش",
+    "forms": [
+      "مبتنی بر تلاش"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "elapsed-time": {
+    "term": "زمان سپری‌شده",
+    "forms": [
+      "زمان سپری‌شده"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "extension": {
+    "term": "افزونه",
+    "forms": [
+      "افزونه",
+      "افزونه‌ها"
+    ],
+    "avoid": [
+      "پسوند",
+      "تمدید"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "external-relation": {
+    "term": "رابطه خارجی",
+    "forms": [
+      "رابطه خارجی",
+      "رابطه‌های خارجی"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish": {
+    "term": "پایان",
+    "forms": [
+      "پایان"
+    ],
+    "avoid": [
+      "خاتمه",
+      "پایان دادن"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-driver": {
+    "term": "درایور پایان",
+    "forms": [
+      "درایور پایان",
+      "درایورهای پایان"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-no-earlier-than": {
+    "term": "پایان نه زودتر از",
+    "forms": [
+      "پایان نه زودتر از"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-no-later-than": {
+    "term": "پایان نه دیرتر از",
+    "forms": [
+      "پایان نه دیرتر از"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-to-finish": {
+    "term": "پایان-پایان",
+    "forms": [
+      "پایان-پایان"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-to-start": {
+    "term": "پایان-شروع",
+    "forms": [
+      "پایان-شروع"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-variance": {
+    "term": "انحراف پایان",
+    "forms": [
+      "انحراف پایان"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-duration": {
+    "term": "مدت ثابت",
+    "forms": [
+      "مدت ثابت"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "fixed-units": {
+    "term": "واحدهای ثابت",
+    "forms": [
+      "واحدهای ثابت"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-work": {
+    "term": "کار ثابت",
+    "forms": [
+      "کار ثابت"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "float": {
+    "term": "شناوری",
+    "forms": [
+      "شناوری",
+      "شناوری‌ها"
+    ],
+    "avoid": [
+      "شناور"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "float-path": {
+    "term": "مسیر شناوری",
+    "forms": [
+      "مسیر شناوری",
+      "مسیرهای شناوری"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "forecast-finish": {
+    "term": "پایان پیش‌بینی‌شده",
+    "forms": [
+      "پایان پیش‌بینی‌شده"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "free-float": {
+    "term": "شناوری آزاد",
+    "forms": [
+      "شناوری آزاد"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hammock": {
+    "term": "هموک",
+    "forms": [
+      "هموک",
+      "هموک‌ها"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hard-constraint": {
+    "term": "محدودیت سخت",
+    "forms": [
+      "محدودیت سخت",
+      "محدودیت‌های سخت"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "histogram": {
+    "term": "هیستوگرام",
+    "forms": [
+      "هیستوگرام",
+      "هیستوگرام‌ها"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "holiday": {
+    "term": "تعطیلات",
+    "forms": [
+      "تعطیلات",
+      "تعطیل"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "holiday-set": {
+    "term": "مجموعه تعطیلات",
+    "forms": [
+      "مجموعه تعطیلات"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-distribution-in-phases": {
+    "term": "توزیع ساعات در فازها",
+    "forms": [
+      "توزیع ساعات در فازها"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-planning": {
+    "term": "برنامه‌ریزی ساعتی",
+    "forms": [
+      "برنامه‌ریزی ساعتی"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-task": {
+    "term": "وظیفهٔ ساعتی",
+    "forms": [
+      "وظیفهٔ ساعتی",
+      "وظیفه‌های ساعتی"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "indent": {
+    "term": "تورفتگی",
+    "forms": [
+      "تورفتگی"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "interruption": {
+    "term": "وقفه",
+    "forms": [
+      "وقفه",
+      "وقفه‌ها"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "lag": {
+    "term": "تأخیر",
+    "forms": [
+      "تأخیر",
+      "تأخیرها"
+    ],
+    "avoid": [
+      "پیش‌افت"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-dates": {
+    "term": "تاریخ‌های دیرهنگام",
+    "forms": [
+      "تاریخ‌های دیرهنگام",
+      "تاریخ دیرهنگام"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-finish": {
+    "term": "پایان دیرهنگام",
+    "forms": [
+      "پایان دیرهنگام"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-start": {
+    "term": "شروع دیرهنگام",
+    "forms": [
+      "شروع دیرهنگام"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "layout": {
+    "term": "چیدمان",
+    "forms": [
+      "چیدمان",
+      "چیدمان‌ها"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "lead": {
+    "term": "پیش‌افت",
+    "forms": [
+      "پیش‌افت",
+      "پیش‌افت‌ها"
+    ],
+    "avoid": [
+      "تأخیر منفی"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "leveling": {
+    "term": "تسطیح",
+    "forms": [
+      "تسطیح"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "leveling-delay": {
+    "term": "تأخیر تسطیح",
+    "forms": [
+      "تأخیر تسطیح"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "link-tasks": {
+    "term": "پیوند",
+    "forms": [
+      "پیوند",
+      "پیوندها"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "longest-path": {
+    "term": "طولانی‌ترین مسیر",
+    "forms": [
+      "طولانی‌ترین مسیر"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "manually-scheduled": {
+    "term": "زمان‌بندی دستی",
+    "forms": [
+      "زمان‌بندی دستی"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "max-units": {
+    "term": "حداکثر واحد",
+    "forms": [
+      "حداکثر واحد"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "milestone": {
+    "term": "نقطه عطف",
+    "forms": [
+      "نقطه عطف",
+      "نقطه‌های عطف"
+    ],
+    "avoid": [
+      "مایلستون"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "milestone-kind": {
+    "term": "نوع نقطه عطف",
+    "forms": [
+      "نوع نقطه عطف",
+      "انواع نقطه عطف"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "missed-task": {
+    "term": "فعالیت عقب‌افتاده",
+    "forms": [
+      "فعالیت عقب‌افتاده",
+      "فعالیت‌های عقب‌افتاده"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "must-finish-on": {
+    "term": "باید پایان یابد در",
+    "forms": [
+      "باید پایان یابد در"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "must-start-on": {
+    "term": "باید شروع شود در",
+    "forms": [
+      "باید شروع شود در"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "near-critical": {
+    "term": "نزدیک به بحرانی",
+    "forms": [
+      "نزدیک به بحرانی"
+    ],
+    "avoid": [
+      "تقریباً بحرانی"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "negative-float": {
+    "term": "شناوری منفی",
+    "forms": [
+      "شناوری منفی"
+    ],
+    "avoid": [
+      "اسپلینگ منفی"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "non-working-day": {
+    "term": "غیرکاری",
+    "forms": [
+      "غیرکاری",
+      "زمان غیرکاری",
+      "روزهای غیرکاری"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "out-of-sequence-progress": {
+    "term": "پیشرفت خارج از توالی",
+    "forms": [
+      "پیشرفت خارج از توالی"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "outdent": {
+    "term": "کاهش تورفتگی",
+    "forms": [
+      "کاهش تورفتگی"
+    ],
+    "avoid": [
+      "بیرون آمدگی",
+      "تورفتگی کاهش یافته"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "overallocation": {
+    "term": "بیش‌تخصیص",
+    "forms": [
+      "بیش‌تخصیص",
+      "بیش‌تخصیص‌یافته"
+    ],
+    "avoid": [
+      "اضافه‌بار"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "path-tracing": {
+    "term": "ردیابی مسیر",
+    "forms": [
+      "ردیابی مسیر"
+    ],
+    "avoid": [
+      "پیگیری مسیر"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "percent-complete": {
+    "term": "درصد پیشرفت",
+    "forms": [
+      "درصد پیشرفت"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "period": {
+    "term": "دوره",
+    "forms": [
+      "دوره",
+      "دوره‌ها"
+    ],
+    "avoid": [
+      "پریود"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "planned": {
+    "term": "برنامه‌ریزی‌شده",
+    "forms": [
+      "برنامه‌ریزی‌شده"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "planned-work": {
+    "term": "کار برنامه‌ریزی‌شده",
+    "forms": [
+      "کار برنامه‌ریزی‌شده"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "predecessor": {
+    "term": "پیش‌نیاز",
+    "forms": [
+      "پیش‌نیاز",
+      "پیش‌نیازها"
+    ],
+    "avoid": [
+      "پیش‌رو"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "progress": {
+    "term": "پیشرفت",
+    "forms": [
+      "پیشرفت"
+    ],
+    "avoid": [
+      "پیشروی"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "progress-mode": {
+    "term": "حالت پیشرفت",
+    "forms": [
+      "حالت پیشرفت"
+    ],
+    "avoid": [
+      "روش پیشرفت"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "project-finish": {
+    "term": "پایان پروژه",
+    "forms": [
+      "پایان پروژه"
+    ],
+    "avoid": [
+      "اتمام پروژه"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "project-start": {
+    "term": "شروع پروژه",
+    "forms": [
+      "شروع پروژه"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "rate": {
+    "term": "نرخ",
+    "forms": [
+      "نرخ",
+      "نرخ‌ها"
+    ],
+    "avoid": [
+      "امتیازدهی",
+      "RATE"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "read-only": {
+    "term": "فقط خواندنی",
+    "forms": [
+      "فقط خواندنی"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "recalculate": {
+    "term": "محاسبهٔ دوباره",
+    "forms": [
+      "محاسبهٔ دوباره"
+    ],
+    "avoid": [
+      "بازمحاسبه"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "relation": {
+    "term": "رابطه",
+    "forms": [
+      "رابطه",
+      "رابطه‌ها"
+    ],
+    "avoid": [
+      "وابستگی"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "relationship-type": {
+    "term": "نوع رابطه",
+    "forms": [
+      "نوع رابطه",
+      "انواع رابطه"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "remaining-duration": {
+    "term": "مدت باقی‌مانده",
+    "forms": [
+      "مدت باقی‌مانده"
+    ],
+    "avoid": [
+      "کار باقی‌مانده"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "remaining-work": {
+    "term": "کار باقی‌مانده",
+    "forms": [
+      "کار باقی‌مانده"
+    ],
+    "avoid": [
+      "مدت باقی‌مانده"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "report": {
+    "term": "گزارش",
+    "forms": [
+      "گزارش",
+      "گزارش‌ها"
+    ],
+    "avoid": [
+      "راپورت",
+      "گزارش‌دهی"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "report-type": {
+    "term": "نوع گزارش",
+    "forms": [
+      "نوع گزارش",
+      "انواع گزارش"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource": {
+    "term": "منبع",
+    "forms": [
+      "منبع",
+      "منابع"
+    ],
+    "avoid": [
+      "ریسورس"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource-library": {
+    "term": "کتابخانهٔ منابع",
+    "forms": [
+      "کتابخانهٔ منابع",
+      "کتابخانه‌های منابع"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource-type": {
+    "term": "نوع منبع",
+    "forms": [
+      "نوع منبع",
+      "انواع منبع"
+    ],
+    "avoid": [
+      "نوع ریسورس"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ribbon": {
+    "term": "نوار",
+    "forms": [
+      "نوار",
+      "نوارها"
+    ],
+    "avoid": [
+      "روبان"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ribbon-tab": {
+    "term": "تب نوار",
+    "forms": [
+      "تب نوار",
+      "تب‌های نوار"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "round-trip": {
+    "term": "رفت و برگشت",
+    "forms": [
+      "رفت و برگشت"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "schedule": {
+    "term": "برنامه",
+    "forms": [
+      "برنامه",
+      "برنامه‌ها"
+    ],
+    "avoid": [
+      "پلن"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "schedule-error": {
+    "term": "خطای برنامه",
+    "forms": [
+      "خطای برنامه",
+      "خطاهای برنامه"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "secondary-constraint": {
+    "term": "محدودیت ثانویه",
+    "forms": [
+      "محدودیت ثانویه"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "shift": {
+    "term": "شیفت",
+    "forms": [
+      "شیفت",
+      "شیفت‌ها"
+    ],
+    "avoid": [
+      "نوبت کاری"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "source-task": {
+    "term": "وظیفهٔ مبدأ",
+    "forms": [
+      "وظیفهٔ مبدأ",
+      "وظیفه‌های مبدأ"
+    ],
+    "avoid": [
+      "وظیفهٔ منبع"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "split-task": {
+    "term": "تقسیم وظیفه",
+    "forms": [
+      "تقسیم وظیفه",
+      "تقسیم‌های وظیفه"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-driver": {
+    "term": "درایور شروع",
+    "forms": [
+      "درایور شروع",
+      "درایورهای شروع"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-float": {
+    "term": "شناوری شروع",
+    "forms": [
+      "شناوری شروع",
+      "شناوری‌های شروع"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-no-earlier-than": {
+    "term": "شروع نه زودتر از",
+    "forms": [
+      "شروع نه زودتر از"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-no-later-than": {
+    "term": "شروع نه دیرتر از",
+    "forms": [
+      "شروع نه دیرتر از"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-to-finish": {
+    "term": "شروع-پایان",
+    "forms": [
+      "شروع-پایان",
+      "شروع-پایان‌ها"
+    ],
+    "avoid": [
+      "پایان-شروع"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-to-start": {
+    "term": "شروع-شروع",
+    "forms": [
+      "شروع-شروع",
+      "شروع-شروع‌ها"
+    ],
+    "avoid": [
+      "پایان-شروع"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-variance": {
+    "term": "انحراف شروع",
+    "forms": [
+      "انحراف شروع"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "status-date": {
+    "term": "تاریخ وضعیت",
+    "forms": [
+      "تاریخ وضعیت",
+      "تاریخ‌های وضعیت"
+    ],
+    "avoid": [
+      "تاریخ داده"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "subtask": {
+    "term": "زیروظیفه",
+    "forms": [
+      "زیروظیفه",
+      "زیروظیفه‌ها"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "successor": {
+    "term": "پس‌نیاز",
+    "forms": [
+      "پس‌نیاز",
+      "پس‌نیازها"
+    ],
+    "avoid": [
+      "پیش‌نیاز"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "summary-task": {
+    "term": "وظیفه خلاصه",
+    "forms": [
+      "وظیفه خلاصه",
+      "وظیفه‌های خلاصه"
+    ],
+    "avoid": [
+      "زیروظیفه"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task": {
+    "term": "وظیفه",
+    "forms": [
+      "وظیفه",
+      "وظیفه‌ها"
+    ],
+    "avoid": [
+      "کار",
+      "فعالیت"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task-grid": {
+    "term": "شبکه وظایف",
+    "forms": [
+      "شبکه وظایف",
+      "شبکهٔ وظایف"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task-type": {
+    "term": "نوع وظیفه",
+    "forms": [
+      "نوع وظیفه",
+      "نوع‌های وظیفه"
+    ],
+    "avoid": [
+      "نوع کار"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "threshold": {
+    "term": "آستانه",
+    "forms": [
+      "آستانه",
+      "آستانه‌ها"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "total-float": {
+    "term": "شناوری کل",
+    "forms": [
+      "شناوری کل",
+      "شناوری‌های کل"
+    ],
+    "avoid": [
+      "شناوری آزاد"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "tutorial": {
+    "term": "آموزش",
+    "forms": [
+      "آموزش",
+      "آموزش‌ها"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "units": {
+    "term": "واحد",
+    "forms": [
+      "واحد",
+      "واحدها"
+    ],
+    "avoid": [
+      "تخصیص"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "variance": {
+    "term": "انحراف",
+    "forms": [
+      "انحراف",
+      "انحراف‌ها"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "variance-report": {
+    "term": "گزارش انحراف",
+    "forms": [
+      "گزارش انحراف",
+      "گزارش‌های انحراف"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "violated-constraint": {
+    "term": "قید نقض‌شده",
+    "forms": [
+      "قید نقض‌شده",
+      "قیدهای نقض‌شده"
+    ],
+    "avoid": [
+      "محدودیت نقض‌شده"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "wbs": {
+    "term": "WBS",
+    "forms": [
+      "WBS"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "wbs-element": {
+    "term": "عنصر WBS",
+    "forms": [
+      "عنصر WBS",
+      "عناصر WBS"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work": {
+    "term": "کار",
+    "forms": [
+      "کار",
+      "کارها"
+    ],
+    "avoid": [
+      "وظیفه"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-calendar": {
+    "term": "تقویم کاری",
+    "forms": [
+      "تقویم کاری",
+      "تقویم‌های کاری"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-hours": {
+    "term": "ساعات کاری",
+    "forms": [
+      "ساعات کاری",
+      "ساعت کاری"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-rule": {
+    "term": "قاعدهٔ کار",
+    "forms": [
+      "قاعدهٔ کار",
+      "قواعد کار"
+    ],
+    "avoid": [
+      "نوع وظیفه"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "workday": {
+    "term": "روز کاری",
+    "forms": [
+      "روز کاری",
+      "روزهای کاری"
+    ],
+    "avoid": [
+      "روز کار"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "working-time": {
+    "term": "ساعات کاری",
+    "forms": [
+      "ساعات کاری",
+      "ساعت کاری"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  }
+}

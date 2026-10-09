@@ -1,0 +1,1711 @@
+{
+  "_style": {
+    "address": "formal",
+    "note": "Kroatische software spreekt de gebruiker formeel aan (Vi). Microsoft doet dat ook in het Kroatisch."
+  },
+  "actual-date": {
+    "term": "stvaran",
+    "forms": [
+      "stvaran",
+      "stvarna",
+      "stvarno",
+      "stvarni",
+      "stvarnog",
+      "stvarnom"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "actual-duration": {
+    "term": "stvarno trajanje",
+    "forms": [
+      "stvarno trajanje",
+      "stvarnog trajanja",
+      "stvarnom trajanju",
+      "stvarnim trajanjem"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "actual-finish": {
+    "term": "stvarni završetak",
+    "forms": [
+      "stvarni završetak",
+      "stvarnog završetka",
+      "stvarnom završetku",
+      "stvarnim završetkom",
+      "stvarni završeci"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "actual-start": {
+    "term": "stvarni početak",
+    "forms": [
+      "stvarni početak",
+      "stvarnog početka",
+      "stvarnom početku",
+      "stvarnim početkom",
+      "stvarni počeci"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "actual-work": {
+    "term": "stvarni rad",
+    "forms": [
+      "stvarni rad",
+      "stvarnog rada",
+      "stvarnom radu",
+      "stvarnim radom"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "ai-assistant": {
+    "term": "AI pomoćnik",
+    "forms": [
+      "AI pomoćnik",
+      "AI pomoćnika",
+      "AI pomoćniku",
+      "AI pomoćnikom",
+      "AI pomoćnici"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "as-late-as-possible": {
+    "term": "što kasnije moguće",
+    "forms": [
+      "što kasnije moguće"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "as-soon-as-possible": {
+    "term": "što prije moguće",
+    "forms": [
+      "što prije moguće"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "assignment": {
+    "term": "dodjela",
+    "forms": [
+      "dodjela",
+      "dodjele",
+      "dodjelu",
+      "dodjeli",
+      "dodjelom"
+    ],
+    "avoid": [
+      "zadatak"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "assignment-curve": {
+    "term": "krivulja dodjele",
+    "forms": [
+      "krivulja dodjele",
+      "krivulje dodjele",
+      "krivulju dodjele",
+      "krivulji dodjele",
+      "krivuljom dodjele"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "assignment-units": {
+    "term": "jedinice dodjele po danu",
+    "forms": [
+      "jedinice dodjele po danu",
+      "jedinica dodjele po danu"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "baseline": {
+    "term": "temeljni plan",
+    "forms": [
+      "temeljni plan",
+      "temeljnog plana",
+      "temeljnom planu",
+      "temeljnim planom",
+      "temeljni planovi"
+    ],
+    "avoid": [
+      "polazište",
+      "osnovica retka"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "bei": {
+    "term": "indeks izvršenja temeljnog plana",
+    "forms": [
+      "indeks izvršenja temeljnog plana",
+      "indeksa izvršenja temeljnog plana",
+      "indeksu izvršenja temeljnog plana"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "calculate": {
+    "term": "izračunati",
+    "forms": [
+      "izračunati",
+      "izračunaj",
+      "izračunava",
+      "izračunavanje"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "calculate-automatically": {
+    "term": "automatsko izračunavanje",
+    "forms": [
+      "automatsko izračunavanje",
+      "automatskog izračunavanja",
+      "automatskom izračunavanju"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "calculation-profile": {
+    "term": "profil izračuna",
+    "forms": [
+      "profil izračuna",
+      "profila izračuna",
+      "profilu izračuna",
+      "profilom izračuna",
+      "profili izračuna"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "calendar": {
+    "term": "projektni kalendar",
+    "forms": [
+      "projektni kalendar",
+      "projektnog kalendara",
+      "projektnom kalendaru",
+      "projektnim kalendarom",
+      "projektni kalendari"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "capacity": {
+    "term": "kapacitet",
+    "forms": [
+      "kapacitet",
+      "kapaciteta",
+      "kapacitetu",
+      "kapacitetom",
+      "kapaciteti"
+    ],
+    "avoid": [
+      "dostupnost"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "completion": {
+    "term": "dovršenost",
+    "forms": [
+      "dovršenost",
+      "dovršenosti",
+      "dovršenošću"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "constraint": {
+    "term": "ograničenje",
+    "forms": [
+      "ograničenje",
+      "ograničenja",
+      "ograničenju",
+      "ograničenjem"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "constraint-type": {
+    "term": "vrsta ograničenja",
+    "forms": [
+      "vrsta ograničenja",
+      "vrste ograničenja",
+      "vrstu ograničenja",
+      "vrstom ograničenja"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "construction-holiday": {
+    "term": "kolektivni godišnji odmor u građevinarstvu",
+    "forms": [
+      "kolektivni godišnji odmor u građevinarstvu",
+      "kolektivnog godišnjeg odmora u građevinarstvu",
+      "kolektivnom godišnjem odmoru u građevinarstvu"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "contour": {
+    "term": "obris",
+    "forms": [
+      "obris",
+      "obrisa",
+      "obrisu",
+      "obrisom",
+      "obrisi"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "convention": {
+    "term": "konvencija",
+    "forms": [
+      "konvencija",
+      "konvencije",
+      "konvenciju",
+      "konvencijom"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "cost": {
+    "term": "cijena koštanja",
+    "forms": [
+      "cijena koštanja",
+      "cijene koštanja",
+      "cijenu koštanja",
+      "cijenom koštanja"
+    ],
+    "avoid": [
+      "cijena"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "crash-recovery": {
+    "term": "oporavak od pada",
+    "forms": [
+      "oporavak od pada",
+      "oporavka od pada",
+      "oporavku od pada",
+      "oporavkom od pada"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "critical": {
+    "term": "ključan",
+    "forms": [
+      "ključan",
+      "ključna",
+      "ključno",
+      "ključni",
+      "ključne",
+      "ključnog",
+      "ključnih"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "critical-chains": {
+    "term": "ključni lanci",
+    "forms": [
+      "ključni lanci",
+      "ključnih lanaca",
+      "ključnim lancima"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "critical-path": {
+    "term": "ključni put",
+    "forms": [
+      "ključni put",
+      "ključnog puta",
+      "ključnom putu",
+      "ključnim putem",
+      "ključni putovi"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "critical-task": {
+    "term": "ključni zadatak",
+    "forms": [
+      "ključni zadatak",
+      "ključnog zadatka",
+      "ključnom zadatku",
+      "ključnim zadatkom",
+      "ključni zadaci",
+      "ključnih zadataka"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "current-finish": {
+    "term": "trenutačni završetak",
+    "forms": [
+      "trenutačni završetak",
+      "trenutačnog završetka",
+      "trenutačnom završetku",
+      "trenutačnim završetkom"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "custom-field": {
+    "term": "prilagođeno polje",
+    "forms": [
+      "prilagođeno polje",
+      "prilagođenog polja",
+      "prilagođenom polju",
+      "prilagođenim poljem",
+      "prilagođena polja"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "cycle": {
+    "term": "ciklus",
+    "forms": [
+      "ciklus",
+      "ciklusa",
+      "ciklusu",
+      "ciklusom",
+      "ciklusi"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "dcma-assessment": {
+    "term": "DCMA 14-točkovna procjena",
+    "forms": [
+      "DCMA 14-točkovna procjena",
+      "DCMA 14-točkovne procjene",
+      "DCMA 14-točkovnu procjenu"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "deadline": {
+    "term": "rok za dovršetak",
+    "forms": [
+      "rok za dovršetak",
+      "roka za dovršetak",
+      "roku za dovršetak",
+      "rokom za dovršetak",
+      "rokovi za dovršetak"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "distribution": {
+    "term": "raspodjela",
+    "forms": [
+      "raspodjela",
+      "raspodjele",
+      "raspodjelu",
+      "raspodjeli",
+      "raspodjelom"
+    ],
+    "avoid": [
+      "dodjela"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "driving-relationship": {
+    "term": "odlučujuća veza",
+    "forms": [
+      "odlučujuća veza",
+      "odlučujuće veze",
+      "odlučujuću vezu",
+      "odlučujućom vezom"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "duration": {
+    "term": "trajanje",
+    "forms": [
+      "trajanje",
+      "trajanja",
+      "trajanju",
+      "trajanjem"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "early-finish": {
+    "term": "najraniji završetak",
+    "forms": [
+      "najraniji završetak",
+      "najranijeg završetka",
+      "najranijem završetku",
+      "najranijim završetkom",
+      "najraniji završeci"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "early-start": {
+    "term": "najraniji početak",
+    "forms": [
+      "najraniji početak",
+      "najranijeg početka",
+      "najranijem početku",
+      "najranijim početkom",
+      "najraniji počeci"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "effort-driven": {
+    "term": "vođeno naporom",
+    "forms": [
+      "vođeno naporom",
+      "vođenog naporom",
+      "vođenom naporom"
+    ],
+    "avoid": [
+      "vođeno radom"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "elapsed-time": {
+    "term": "neprekinuto trajanje",
+    "forms": [
+      "neprekinuto trajanje",
+      "neprekinutog trajanja",
+      "neprekinutom trajanju"
+    ],
+    "avoid": [
+      "proteklo vrijeme"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "extension": {
+    "term": "proširenje",
+    "forms": [
+      "proširenje",
+      "proširenja",
+      "proširenju",
+      "proširenjem"
+    ],
+    "avoid": [
+      "dodatak"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "external-relation": {
+    "term": "međuzavisnost projekata",
+    "forms": [
+      "međuzavisnost projekata",
+      "međuzavisnosti projekata"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "finish": {
+    "term": "završetak",
+    "forms": [
+      "završetak",
+      "završetka",
+      "završetku",
+      "završetkom"
+    ],
+    "avoid": [
+      "kraj"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "finish-driver": {
+    "term": "pokretač završetka",
+    "forms": [
+      "pokretač završetka",
+      "pokretača završetka",
+      "pokretaču završetka"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "finish-no-earlier-than": {
+    "term": "ne završava prije",
+    "forms": [
+      "ne završava prije"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "finish-no-later-than": {
+    "term": "ne završava kasnije od",
+    "forms": [
+      "ne završava kasnije od"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "finish-to-finish": {
+    "term": "završetak-završetak",
+    "forms": [
+      "završetak-završetak"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "finish-to-start": {
+    "term": "završetak-početak",
+    "forms": [
+      "završetak-početak"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "finish-variance": {
+    "term": "odstupanje završetka",
+    "forms": [
+      "odstupanje završetka",
+      "odstupanja završetka",
+      "odstupanju završetka"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "fixed-duration": {
+    "term": "fiksno trajanje",
+    "forms": [
+      "fiksno trajanje",
+      "fiksnog trajanja",
+      "fiksnom trajanju"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "fixed-units": {
+    "term": "fiksne jedinice",
+    "forms": [
+      "fiksne jedinice",
+      "fiksnih jedinica",
+      "fiksnim jedinicama"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "fixed-work": {
+    "term": "fiksni rad",
+    "forms": [
+      "fiksni rad",
+      "fiksnog rada",
+      "fiksnom radu"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "float": {
+    "term": "vremenska rezerva",
+    "forms": [
+      "vremenska rezerva",
+      "vremenske rezerve",
+      "vremenskoj rezervi",
+      "vremensku rezervu"
+    ],
+    "avoid": [
+      "float",
+      "plovak"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "float-path": {
+    "term": "put vremenske rezerve",
+    "forms": [
+      "put vremenske rezerve",
+      "puta vremenske rezerve",
+      "putu vremenske rezerve"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "forecast-finish": {
+    "term": "prognozirani završetak",
+    "forms": [
+      "prognozirani završetak",
+      "prognoziranog završetka",
+      "prognoziranom završetku"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "free-float": {
+    "term": "slobodni hod",
+    "forms": [
+      "slobodni hod",
+      "slobodnog hoda",
+      "slobodnom hodu"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "hammock": {
+    "term": "hamak",
+    "forms": [
+      "hamak",
+      "hamaka",
+      "hamaku",
+      "hamakom"
+    ],
+    "avoid": [
+      "hangmat"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "hard-constraint": {
+    "term": "čvrsto ograničenje",
+    "forms": [
+      "čvrsto ograničenje",
+      "čvrstog ograničenja",
+      "čvrstom ograničenju"
+    ],
+    "avoid": [
+      "tvrdo ograničenje"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "histogram": {
+    "term": "histogram",
+    "forms": [
+      "histogram",
+      "histograma",
+      "histogramu",
+      "histogramom"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "holiday": {
+    "term": "praznik",
+    "forms": [
+      "praznik",
+      "praznika",
+      "prazniku",
+      "praznikom",
+      "praznici"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "holiday-set": {
+    "term": "skup praznika",
+    "forms": [
+      "skup praznika",
+      "skupa praznika",
+      "skupu praznika"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "hour-distribution-in-phases": {
+    "term": "raspodjela sati po fazama",
+    "forms": [
+      "raspodjela sati po fazama",
+      "raspodjele sati po fazama",
+      "raspodjelu sati po fazama"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "hour-planning": {
+    "term": "planiranje u satima",
+    "forms": [
+      "planiranje u satima",
+      "planiranja u satima",
+      "planiranju u satima"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "hour-task": {
+    "term": "zadatak u satima",
+    "forms": [
+      "zadatak u satima",
+      "zadatka u satima",
+      "zadatku u satima"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "indent": {
+    "term": "uvući",
+    "forms": [
+      "uvući",
+      "uvučen"
+    ],
+    "avoid": [
+      "uvlaka"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "interruption": {
+    "term": "prekid",
+    "forms": [
+      "prekid",
+      "prekida",
+      "prekidu",
+      "prekidom"
+    ],
+    "avoid": [
+      "pauza"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "lag": {
+    "term": "zaostajanje",
+    "forms": [
+      "zaostajanje",
+      "zaostajanja",
+      "zaostajanju",
+      "zaostajanjem"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "late-dates": {
+    "term": "kasni datumi",
+    "forms": [
+      "kasni datumi",
+      "kasnih datuma",
+      "kasnim datumima"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "late-finish": {
+    "term": "kasni završetak",
+    "forms": [
+      "kasni završetak",
+      "kasnog završetka",
+      "kasnom završetku"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "late-start": {
+    "term": "kasni početak",
+    "forms": [
+      "kasni početak",
+      "kasnog početka",
+      "kasnom početku"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "layout": {
+    "term": "raspored",
+    "forms": [
+      "raspored",
+      "rasporeda",
+      "rasporedu",
+      "rasporedom"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "lead": {
+    "term": "prednost",
+    "forms": [
+      "prednost",
+      "prednosti"
+    ],
+    "avoid": [
+      "potencijalni klijent"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "leveling": {
+    "term": "razrješavanje",
+    "forms": [
+      "razrješavanje",
+      "razrješavanja",
+      "razrješavanju",
+      "razrješavanjem"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "leveling-delay": {
+    "term": "kašnjenje u razrješavanju",
+    "forms": [
+      "kašnjenje u razrješavanju",
+      "kašnjenja u razrješavanju",
+      "kašnjenju u razrješavanju"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "link-tasks": {
+    "term": "povezati",
+    "forms": [
+      "povezati",
+      "poveži",
+      "povezan"
+    ],
+    "avoid": [
+      "spojiti"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "longest-path": {
+    "term": "kritični put",
+    "forms": [
+      "kritični put",
+      "kritičnog puta",
+      "kritičnom putu"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "manually-scheduled": {
+    "term": "ručno planiran",
+    "forms": [
+      "ručno planiran",
+      "ručno planirani",
+      "ručno planiranog",
+      "ručno planiranom"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "max-units": {
+    "term": "maks. jedinice",
+    "forms": [
+      "maks. jedinice",
+      "maksimalne jedinice"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "milestone": {
+    "term": "kontrolna točka",
+    "forms": [
+      "kontrolna točka",
+      "kontrolne točke",
+      "kontrolnu točku",
+      "kontrolnoj točki",
+      "kontrolnim točkama"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "milestone-kind": {
+    "term": "vrsta kontrolne točke",
+    "forms": [
+      "vrsta kontrolne točke",
+      "vrste kontrolne točke",
+      "vrstu kontrolne točke",
+      "vrstom kontrolne točke"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "missed-task": {
+    "term": "propušteni zadatak",
+    "forms": [
+      "propušteni zadatak",
+      "propuštenog zadatka",
+      "propuštenom zadatku",
+      "propuštenim zadacima"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "must-finish-on": {
+    "term": "mora završiti na",
+    "forms": [
+      "mora završiti na"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "must-start-on": {
+    "term": "mora započeti na",
+    "forms": [
+      "mora započeti na"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "near-critical": {
+    "term": "gotovo kritičan",
+    "forms": [
+      "gotovo kritičan",
+      "gotovo kritična",
+      "gotovo kritičnog",
+      "gotovo kritične"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "negative-float": {
+    "term": "negativna vremenska rezerva",
+    "forms": [
+      "negativna vremenska rezerva",
+      "negativne vremenske rezerve",
+      "negativnu vremensku rezervu"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "non-working-day": {
+    "term": "neradni dan",
+    "forms": [
+      "neradni dan",
+      "neradnog dana",
+      "neradnom danu",
+      "neradne dane"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "out-of-sequence-progress": {
+    "term": "napredak izvan redoslijeda",
+    "forms": [
+      "napredak izvan redoslijeda",
+      "napretka izvan redoslijeda",
+      "napretku izvan redoslijeda"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "outdent": {
+    "term": "pomaknuti na višu razinu",
+    "forms": [
+      "pomaknuti na višu razinu",
+      "pomakni na višu razinu",
+      "pomaknut na višu razinu"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "overallocation": {
+    "term": "preopterećenje resursa",
+    "forms": [
+      "preopterećenje resursa",
+      "preopterećenja resursa",
+      "preopterećenju resursa",
+      "preopterećenjem resursa"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "path-tracing": {
+    "term": "praćenje puta",
+    "forms": [
+      "praćenje puta",
+      "praćenja puta",
+      "praćenju puta",
+      "praćenjem puta"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "percent-complete": {
+    "term": "postotak dovršenog",
+    "forms": [
+      "postotak dovršenog",
+      "postotka dovršenog",
+      "postotku dovršenog",
+      "postotkom dovršenog"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "period": {
+    "term": "razdoblje",
+    "forms": [
+      "razdoblje",
+      "razdoblja",
+      "razdoblju",
+      "razdobljem"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "planned": {
+    "term": "planirano",
+    "forms": [
+      "planirano",
+      "planirana",
+      "planirani",
+      "planirane"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "planned-work": {
+    "term": "planirani posao",
+    "forms": [
+      "planirani posao",
+      "planiranog posla",
+      "planiranom poslu",
+      "planiranim poslom"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "predecessor": {
+    "term": "prethodnik",
+    "forms": [
+      "prethodnik",
+      "prethodnika",
+      "prethodniku",
+      "prethodnikom",
+      "prethodnici"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "progress": {
+    "term": "napredak",
+    "forms": [
+      "napredak",
+      "napretka",
+      "napretku",
+      "napretkom"
+    ],
+    "avoid": [
+      "progres"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "progress-mode": {
+    "term": "način napretka",
+    "forms": [
+      "način napretka",
+      "načina napretka",
+      "načinu napretka",
+      "načinom napretka"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "project-finish": {
+    "term": "datum završetka projekta",
+    "forms": [
+      "datum završetka projekta",
+      "datuma završetka projekta",
+      "datumu završetka projekta",
+      "datumom završetka projekta"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "project-start": {
+    "term": "datum početka projekta",
+    "forms": [
+      "datum početka projekta",
+      "datuma početka projekta",
+      "datumu početka projekta",
+      "datumom početka projekta"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "rate": {
+    "term": "standardna tarifa",
+    "forms": [
+      "standardna tarifa",
+      "standardne tarife",
+      "standardnu tarifu",
+      "standardnom tarifom"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "read-only": {
+    "term": "samo za čitanje",
+    "forms": [
+      "samo za čitanje",
+      "načina samo za čitanje",
+      "načinu samo za čitanje"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "recalculate": {
+    "term": "ponovno izračunati",
+    "forms": [
+      "ponovno izračunati",
+      "ponovno izračunaj",
+      "ponovno izračunavanje"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "relation": {
+    "term": "ovisnost",
+    "forms": [
+      "ovisnost",
+      "ovisnosti",
+      "ovisnošću",
+      "ovisnostima"
+    ],
+    "avoid": [
+      "relacija",
+      "veza"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "relationship-type": {
+    "term": "vrsta ovisnosti",
+    "forms": [
+      "vrsta ovisnosti",
+      "vrste ovisnosti",
+      "vrstu ovisnosti",
+      "vrstom ovisnosti"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "remaining-duration": {
+    "term": "preostalo trajanje",
+    "forms": [
+      "preostalo trajanje",
+      "preostalog trajanja",
+      "preostalom trajanju",
+      "preostalim trajanjem"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "remaining-work": {
+    "term": "preostali posao",
+    "forms": [
+      "preostali posao",
+      "preostalog posla",
+      "preostalom poslu",
+      "preostalim poslom"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "report": {
+    "term": "izvješće",
+    "forms": [
+      "izvješće",
+      "izvješća",
+      "izvješću",
+      "izvješćem",
+      "izvješćima"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "report-type": {
+    "term": "vrsta izvješća",
+    "forms": [
+      "vrsta izvješća",
+      "vrste izvješća",
+      "vrstu izvješća",
+      "vrstom izvješća"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "resource": {
+    "term": "resurs",
+    "forms": [
+      "resurs",
+      "resursa",
+      "resursu",
+      "resursom",
+      "resursi",
+      "resursima"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "resource-library": {
+    "term": "biblioteka",
+    "forms": [
+      "biblioteka",
+      "biblioteke",
+      "biblioteku",
+      "bibliotekom",
+      "biblioteci"
+    ],
+    "avoid": [
+      "biblioteka dokumenata",
+      "biblioteka kodova"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "resource-type": {
+    "term": "vrsta resursa",
+    "forms": [
+      "vrsta resursa",
+      "vrste resursa",
+      "vrstu resursa",
+      "vrstom resursa"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "ribbon": {
+    "term": "vrpca",
+    "forms": [
+      "vrpca",
+      "vrpce",
+      "vrpcu",
+      "vrpcom",
+      "vrpci",
+      "vrpcama"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "ribbon-tab": {
+    "term": "kartica vrpce",
+    "forms": [
+      "kartica vrpce",
+      "kartice vrpce",
+      "karticu vrpce",
+      "karticom vrpce"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "round-trip": {
+    "term": "povratna pretvorba",
+    "forms": [
+      "povratna pretvorba",
+      "povratne pretvorbe",
+      "povratnu pretvorbu",
+      "povratnom pretvorbom"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "schedule": {
+    "term": "raspored",
+    "forms": [
+      "raspored",
+      "rasporeda",
+      "rasporedu",
+      "rasporedom",
+      "rasporedi"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "schedule-error": {
+    "term": "pogreška u rasporedu",
+    "forms": [
+      "pogreška u rasporedu",
+      "pogreške u rasporedu",
+      "pogrešku u rasporedu",
+      "pogreškom u rasporedu"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "secondary-constraint": {
+    "term": "sekundarno ograničenje",
+    "forms": [
+      "sekundarno ograničenje",
+      "sekundarnog ograničenja",
+      "sekundarnom ograničenju",
+      "sekundarnim ograničenjem"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "shift": {
+    "term": "smjena",
+    "forms": [
+      "smjena",
+      "smjene",
+      "smjenu",
+      "smjenom",
+      "smjenama"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "source-task": {
+    "term": "izvorni zadatak",
+    "forms": [
+      "izvorni zadatak",
+      "izvornog zadatka",
+      "izvornom zadatku",
+      "izvorni zadaci",
+      "izvornih zadataka"
+    ],
+    "avoid": [
+      "vanjski zadatak"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "split-task": {
+    "term": "podijeljeni zadatak",
+    "forms": [
+      "podijeljeni zadatak",
+      "podijeljenog zadatka",
+      "podijeljenom zadatku",
+      "podijeljeni zadaci",
+      "podijeljenih zadataka"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "start-driver": {
+    "term": "pokretač početka",
+    "forms": [
+      "pokretač početka",
+      "pokretača početka",
+      "pokretaču početka",
+      "pokretači početka"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-float": {
+    "term": "slobodni hod početka",
+    "forms": [
+      "slobodni hod početka",
+      "slobodnog hoda početka",
+      "slobodnom hodu početka"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-no-earlier-than": {
+    "term": "ne početi prije",
+    "forms": [
+      "ne početi prije"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-no-later-than": {
+    "term": "ne početi kasnije od",
+    "forms": [
+      "ne početi kasnije od"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-to-finish": {
+    "term": "početak-završetak",
+    "forms": [
+      "početak-završetak"
+    ],
+    "avoid": [
+      "završetak-početak"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-to-start": {
+    "term": "početak-početak",
+    "forms": [
+      "početak-početak"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-variance": {
+    "term": "odstupanje početka",
+    "forms": [
+      "odstupanje početka",
+      "odstupanja početka",
+      "odstupanju početka",
+      "odstupanjem početka"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "status-date": {
+    "term": "datum stanja",
+    "forms": [
+      "datum stanja",
+      "datuma stanja",
+      "datumu stanja",
+      "datumom stanja"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "subtask": {
+    "term": "podzadatak",
+    "forms": [
+      "podzadatak",
+      "podzadatka",
+      "podzadatku",
+      "podzadaci",
+      "podzadataka"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "successor": {
+    "term": "sljedbenik",
+    "forms": [
+      "sljedbenik",
+      "sljedbenika",
+      "sljedbeniku",
+      "sljedbenici",
+      "sljedbenicima"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "summary-task": {
+    "term": "zadatak sažetka",
+    "forms": [
+      "zadatak sažetka",
+      "zadatka sažetka",
+      "zadatku sažetka",
+      "zadaci sažetka",
+      "zadataka sažetka"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "task": {
+    "term": "zadatak",
+    "forms": [
+      "zadatak",
+      "zadatka",
+      "zadatku",
+      "zadaci",
+      "zadataka",
+      "zadacima"
+    ],
+    "avoid": [
+      "aktivnost"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "task-grid": {
+    "term": "tablica zadataka",
+    "forms": [
+      "tablica zadataka",
+      "tablice zadataka",
+      "tablicu zadataka",
+      "tablici zadataka",
+      "tablicom zadataka"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "task-type": {
+    "term": "vrsta zadatka",
+    "forms": [
+      "vrsta zadatka",
+      "vrste zadatka",
+      "vrstu zadatka",
+      "vrsti zadatka",
+      "vrstom zadatka"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "threshold": {
+    "term": "prag",
+    "forms": [
+      "prag",
+      "praga",
+      "pragu",
+      "pragom",
+      "pragovi",
+      "pragova"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "total-float": {
+    "term": "ukupan slobodni hod",
+    "forms": [
+      "ukupan slobodni hod",
+      "ukupnog slobodnog hoda",
+      "ukupnom slobodnom hodu"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "tutorial": {
+    "term": "korisnički priručnik",
+    "forms": [
+      "korisnički priručnik",
+      "korisničkog priručnika",
+      "korisničkom priručniku",
+      "korisnički priručnici",
+      "korisničkih priručnika"
+    ],
+    "avoid": [
+      "tutorijal"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "units": {
+    "term": "jedinice dodjele",
+    "forms": [
+      "jedinice dodjele",
+      "jedinica dodjele",
+      "jedinicama dodjele"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "variance": {
+    "term": "odstupanje",
+    "forms": [
+      "odstupanje",
+      "odstupanja",
+      "odstupanju",
+      "odstupanjem"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "variance-report": {
+    "term": "izvješće o odstupanjima",
+    "forms": [
+      "izvješće o odstupanjima",
+      "izvješća o odstupanjima",
+      "izvješću o odstupanjima"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "violated-constraint": {
+    "term": "prekršeno ograničenje",
+    "forms": [
+      "prekršeno ograničenje",
+      "prekršenog ograničenja",
+      "prekršenom ograničenju"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "wbs": {
+    "term": "strukturna analiza rada",
+    "forms": [
+      "strukturna analiza rada",
+      "strukturne analize rada",
+      "strukturnu analizu rada"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "wbs-element": {
+    "term": "element strukturne analize rada",
+    "forms": [
+      "element strukturne analize rada",
+      "elementa strukturne analize rada",
+      "elementu strukturne analize rada",
+      "elementi strukturne analize rada"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "work": {
+    "term": "rad",
+    "forms": [
+      "rad",
+      "rada",
+      "radu",
+      "radom",
+      "radovi",
+      "radova"
+    ],
+    "avoid": [
+      "posao"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "work-calendar": {
+    "term": "radni kalendar",
+    "forms": [
+      "radni kalendar",
+      "radnog kalendara",
+      "radnom kalendaru",
+      "radni kalendari",
+      "radnih kalendara"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "work-hours": {
+    "term": "radni sati",
+    "forms": [
+      "radni sati",
+      "radnih sati",
+      "radnim satima",
+      "radni sat",
+      "radnog sata"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "work-rule": {
+    "term": "pravilo rada",
+    "forms": [
+      "pravilo rada",
+      "pravila rada",
+      "pravilu rada",
+      "pravilima rada"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "workday": {
+    "term": "radni dan",
+    "forms": [
+      "radni dan",
+      "radnog dana",
+      "radnom danu",
+      "radni dani",
+      "radnih dana"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "working-time": {
+    "term": "radno vrijeme",
+    "forms": [
+      "radno vrijeme",
+      "radnog vremena",
+      "radnom vremenu",
+      "radnim vremenom"
+    ],
+    "source": "model",
+    "status": "model"
+  }
+}

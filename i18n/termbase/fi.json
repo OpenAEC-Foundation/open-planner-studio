@@ -1,0 +1,2113 @@
+{
+  "_style": {
+    "address": "formal",
+    "note": "Finnish software uses impersonal forms (imperative or passive without a pronoun), not sinä or te. Labels stay short and neutral."
+  },
+  "actual-date": {
+    "term": "todellinen",
+    "forms": [
+      "todellinen",
+      "todellisen",
+      "todellista",
+      "todellisia"
+    ],
+    "avoid": [
+      "oikea"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "actual-duration": {
+    "term": "toteutunut kesto",
+    "forms": [
+      "toteutunut kesto",
+      "toteutuneen keston",
+      "toteutunutta kestoa",
+      "toteutuneet kestot"
+    ],
+    "avoid": [
+      "todellinen kesto"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "actual-finish": {
+    "term": "toteutunut valmistumispäivä",
+    "forms": [
+      "toteutunut valmistumispäivä",
+      "toteutuneen valmistumispäivän",
+      "toteutunutta valmistumispäivää",
+      "toteutuneet valmistumispäivät"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "actual-start": {
+    "term": "toteutunut alkamispäivä",
+    "forms": [
+      "toteutunut alkamispäivä",
+      "toteutuneen alkamispäivän",
+      "toteutunutta alkamispäivää",
+      "toteutuneet alkamispäivät"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "actual-work": {
+    "term": "toteutunut työmäärä",
+    "forms": [
+      "toteutunut työmäärä",
+      "toteutuneen työmäärän",
+      "toteutunutta työmäärää",
+      "toteutuneet työmäärät"
+    ],
+    "avoid": [
+      "todelliset työt"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "ai-assistant": {
+    "term": "tekoälyavustaja",
+    "forms": [
+      "tekoälyavustaja",
+      "tekoälyavustajan",
+      "tekoälyavustajaa",
+      "tekoälyavustajat",
+      "tekoälyavustajia"
+    ],
+    "avoid": [
+      "Tekoälyavustaja"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "as-late-as-possible": {
+    "term": "mahdollisimman myöhään",
+    "forms": [
+      "mahdollisimman myöhään"
+    ],
+    "avoid": [
+      "viimeistään"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "as-soon-as-possible": {
+    "term": "mahdollisimman aikaisin",
+    "forms": [
+      "mahdollisimman aikaisin"
+    ],
+    "avoid": [
+      "mahdollisimman pian"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "assignment": {
+    "term": "resurssikohdistus",
+    "forms": [
+      "resurssikohdistus",
+      "resurssikohdistuksen",
+      "resurssikohdistusta",
+      "resurssikohdistukset",
+      "resurssikohdistuksia"
+    ],
+    "avoid": [
+      "tehtävä",
+      "määritys"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "assignment-curve": {
+    "term": "jakautumiskäyrä",
+    "forms": [
+      "jakautumiskäyrä",
+      "jakautumiskäyrän",
+      "jakautumiskäyrää",
+      "jakautumiskäyrät",
+      "jakautumiskäyriä"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "assignment-units": {
+    "term": "kohdistusyksiköt päivässä",
+    "forms": [
+      "kohdistusyksiköt päivässä",
+      "kohdistusyksikköä päivässä"
+    ],
+    "avoid": [
+      "prosenttia päivässä"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "baseline": {
+    "term": "alkuperäinen",
+    "forms": [
+      "alkuperäinen",
+      "alkuperäisen",
+      "alkuperäistä",
+      "alkuperäiset",
+      "alkuperäisten"
+    ],
+    "avoid": [
+      "perusviiva",
+      "perustaso",
+      "perussuorituskyky"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "bei": {
+    "term": "lähtötason toteutumisindeksi",
+    "forms": [
+      "lähtötason toteutumisindeksi",
+      "lähtötason toteutumisindeksin",
+      "lähtötason toteutumisindeksiä",
+      "lähtötason toteutumisindeksit"
+    ],
+    "avoid": [
+      "BEI-arvo"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "calculate": {
+    "term": "laskea",
+    "forms": [
+      "laskea",
+      "laske",
+      "lasketaan",
+      "laskettu",
+      "laskenta"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "calculate-automatically": {
+    "term": "laske automaattisesti",
+    "forms": [
+      "laske automaattisesti"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "calculation-profile": {
+    "term": "laskentaprofiili",
+    "forms": [
+      "laskentaprofiili",
+      "laskentaprofiilin",
+      "laskentaprofiilia",
+      "laskentaprofiilit",
+      "laskentaprofiileja"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "calendar": {
+    "term": "kalenteri",
+    "forms": [
+      "kalenteri",
+      "kalenterin",
+      "kalenteria",
+      "kalenterit",
+      "kalentereita"
+    ],
+    "avoid": [
+      "kalenteriohjelma"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "capacity": {
+    "term": "kapasiteetti",
+    "forms": [
+      "kapasiteetti",
+      "kapasiteetin",
+      "kapasiteettia",
+      "kapasiteetit",
+      "kapasiteetteja"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "completion": {
+    "term": "valmiusaste",
+    "forms": [
+      "valmiusaste",
+      "valmiusasteen",
+      "valmiusastetta",
+      "valmiusasteet",
+      "valmiusasteita"
+    ],
+    "avoid": [
+      "valmistuminen"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "constraint": {
+    "term": "rajoite",
+    "forms": [
+      "rajoite",
+      "rajoitteen",
+      "rajoitetta",
+      "rajoitteet",
+      "rajoitteita"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "constraint-type": {
+    "term": "rajoitetyyppi",
+    "forms": [
+      "rajoitetyyppi",
+      "rajoitetyypin",
+      "rajoitetyyppiä",
+      "rajoitetyypit",
+      "rajoitetyyppejä"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "construction-holiday": {
+    "term": "rakennusalan kesäloma",
+    "forms": [
+      "rakennusalan kesäloma",
+      "rakennusalan kesäloman",
+      "rakennusalan kesälomaa",
+      "rakennusalan kesälomat",
+      "rakennusalan kesälomia"
+    ],
+    "avoid": [
+      "kesäloma"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "contour": {
+    "term": "jaksottuminen",
+    "forms": [
+      "jaksottuminen",
+      "jaksottumisen",
+      "jaksottumista",
+      "jaksottumiset",
+      "jaksottumisia"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "convention": {
+    "term": "laskentasääntö",
+    "forms": [
+      "laskentasääntö",
+      "laskentasäännön",
+      "laskentasääntöä",
+      "laskentasäännöt",
+      "laskentasääntöjä"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "cost": {
+    "term": "kustannus",
+    "forms": [
+      "kustannus",
+      "kustannuksen",
+      "kustannusta",
+      "kustannukset",
+      "kustannuksia"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "crash-recovery": {
+    "term": "palautus",
+    "forms": [
+      "palautus",
+      "palautuksen",
+      "palautusta",
+      "palautukset",
+      "palautuksia"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "critical": {
+    "term": "kriittinen",
+    "forms": [
+      "kriittinen",
+      "kriittisen",
+      "kriittistä",
+      "kriittiset",
+      "kriittisten"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "critical-chains": {
+    "term": "kriittiset ketjut",
+    "forms": [
+      "kriittiset ketjut",
+      "kriittisten ketjujen",
+      "kriittisiä ketjuja"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "critical-path": {
+    "term": "kriittinen polku",
+    "forms": [
+      "kriittinen polku",
+      "kriittisen polun",
+      "kriittistä polkua",
+      "kriittiset polut",
+      "kriittisten polkujen"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "critical-task": {
+    "term": "kriittinen tehtävä",
+    "forms": [
+      "kriittinen tehtävä",
+      "kriittisen tehtävän",
+      "kriittistä tehtävää",
+      "kriittiset tehtävät",
+      "kriittisten tehtävien"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "current-finish": {
+    "term": "nykyinen valmistumispäivä",
+    "forms": [
+      "nykyinen valmistumispäivä",
+      "nykyisen valmistumispäivän",
+      "nykyistä valmistumispäivää",
+      "nykyiset valmistumispäivät",
+      "nykyisten valmistumispäivien"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "custom-field": {
+    "term": "mukautettu kenttä",
+    "forms": [
+      "mukautettu kenttä",
+      "mukautetun kentän",
+      "mukautettua kenttää",
+      "mukautetut kentät",
+      "mukautettujen kenttien"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "cycle": {
+    "term": "kehä",
+    "forms": [
+      "kehä",
+      "kehän",
+      "kehää",
+      "kehät",
+      "kehiä"
+    ],
+    "avoid": [
+      "sykli",
+      "jakso"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "dcma-assessment": {
+    "term": "DCMA 14 kohdan arviointi",
+    "forms": [
+      "DCMA 14 kohdan arviointi",
+      "DCMA 14 kohdan arvioinnin",
+      "DCMA 14 kohdan arviointia"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "deadline": {
+    "term": "tavoitepäivä",
+    "forms": [
+      "tavoitepäivä",
+      "tavoitepäivän",
+      "tavoitepäivää",
+      "tavoitepäivät",
+      "tavoitepäiviä"
+    ],
+    "avoid": [
+      "tavoiteaika"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "distribution": {
+    "term": "jakautuminen",
+    "forms": [
+      "jakautuminen",
+      "jakautumisen",
+      "jakautumista",
+      "jakautumiset",
+      "jakautumisia"
+    ],
+    "avoid": [
+      "jakelu"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "driving-relationship": {
+    "term": "ohjaava riippuvuus",
+    "forms": [
+      "ohjaava riippuvuus",
+      "ohjaavan riippuvuuden",
+      "ohjaavaa riippuvuutta",
+      "ohjaavat riippuvuudet",
+      "ohjaavien riippuvuuksien"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "duration": {
+    "term": "kesto",
+    "forms": [
+      "kesto",
+      "keston",
+      "kestoa",
+      "kestot",
+      "kestoja"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "early-finish": {
+    "term": "varhaisin valmistumispäivä",
+    "forms": [
+      "varhaisin valmistumispäivä",
+      "varhaisimman valmistumispäivän",
+      "varhaisinta valmistumispäivää",
+      "varhaisimmat valmistumispäivät",
+      "varhaisimpien valmistumispäivien"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "early-start": {
+    "term": "varhaisin alkamispäivä",
+    "forms": [
+      "varhaisin alkamispäivä",
+      "varhaisimman alkamispäivän",
+      "varhaisinta alkamispäivää",
+      "varhaisimmat alkamispäivät",
+      "varhaisimpien alkamispäivien"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "effort-driven": {
+    "term": "työmääräohjattu",
+    "forms": [
+      "työmääräohjattu",
+      "työmääräohjatun",
+      "työmääräohjattua",
+      "työmääräohjatut"
+    ],
+    "avoid": [
+      "työmääräriippuvainen",
+      "resurssiohjattu"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "elapsed-time": {
+    "term": "käytetty aika",
+    "forms": [
+      "käytetty aika",
+      "käytetyn ajan",
+      "käytettyä aikaa",
+      "käytetyt ajat"
+    ],
+    "avoid": [
+      "kulunut aika"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "extension": {
+    "term": "laajennus",
+    "forms": [
+      "laajennus",
+      "laajennuksen",
+      "laajennusta",
+      "laajennukset"
+    ],
+    "avoid": [
+      "lisäosa",
+      "plugin",
+      "tarkenne",
+      "tiedostotunniste"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "external-relation": {
+    "term": "ulkoinen riippuvuus",
+    "forms": [
+      "ulkoinen riippuvuus",
+      "ulkoisen riippuvuuden",
+      "ulkoista riippuvuutta",
+      "ulkoiset riippuvuudet"
+    ],
+    "avoid": [
+      "ulkoinen linkki",
+      "ulkoinen koppeling",
+      "projektien välinen riippuvuus"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "finish": {
+    "term": "loppu",
+    "forms": [
+      "loppu",
+      "lopun",
+      "loppua",
+      "loput"
+    ],
+    "avoid": [
+      "valmis",
+      "päättyminen"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "finish-driver": {
+    "term": "loppupäivän ohjaaja",
+    "forms": [
+      "loppupäivän ohjaaja",
+      "loppupäivän ohjaajan",
+      "loppupäivän ohjaajaa",
+      "loppupäivän ohjaajat"
+    ],
+    "avoid": [
+      "loppuajan ohjaaja",
+      "finish driver"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "finish-no-earlier-than": {
+    "term": "ei aikaisemmin kuin loppu",
+    "forms": [
+      "ei aikaisemmin kuin loppu"
+    ],
+    "avoid": [
+      "aikaisintaan loppu",
+      "alkaa ei aikaisemmin kuin"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "finish-no-later-than": {
+    "term": "ei myöhemmin kuin loppu",
+    "forms": [
+      "ei myöhemmin kuin loppu"
+    ],
+    "avoid": [
+      "uiterlijke einddatum",
+      "viimeistään loppu"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "finish-to-finish": {
+    "term": "loppu-loppu",
+    "forms": [
+      "loppu-loppu"
+    ],
+    "avoid": [
+      "loppu-alku",
+      "alku-loppu"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "finish-to-start": {
+    "term": "loppu-alku",
+    "forms": [
+      "loppu-alku"
+    ],
+    "avoid": [
+      "alku-loppu",
+      "loppu-loppu"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "finish-variance": {
+    "term": "loppupoikkeama",
+    "forms": [
+      "loppupoikkeama",
+      "loppupoikkeaman",
+      "loppupoikkeamaa",
+      "loppupoikkeamat"
+    ],
+    "avoid": [
+      "loppuvarianssi",
+      "finish variance"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "fixed-duration": {
+    "term": "kiinteä kesto",
+    "forms": [
+      "kiinteä kesto",
+      "kiinteän keston",
+      "kiinteää kestoa",
+      "kiinteät kestot"
+    ],
+    "avoid": [
+      "kiinteä aika",
+      "kiinteä ajoitus"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "fixed-units": {
+    "term": "kiinteä yksikkömäärä",
+    "forms": [
+      "kiinteä yksikkömäärä",
+      "kiinteän yksikkömäärän",
+      "kiinteää yksikkömäärää",
+      "kiinteät yksikkömäärät"
+    ],
+    "avoid": [
+      "kiinteät yksiköt",
+      "kiinteä inzet"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "fixed-work": {
+    "term": "kiinteä työmäärä",
+    "forms": [
+      "kiinteä työmäärä",
+      "kiinteän työmäärän",
+      "kiinteää työmäärää",
+      "kiinteät työmäärät"
+    ],
+    "avoid": [
+      "kiinteä työ",
+      "fixed work"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "float": {
+    "term": "pelivara",
+    "forms": [
+      "pelivara",
+      "pelivaran",
+      "pelivaraa",
+      "pelivarat"
+    ],
+    "avoid": [
+      "liukuluku",
+      "float",
+      "speling"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "float-path": {
+    "term": "pelivarapolku",
+    "forms": [
+      "pelivarapolku",
+      "pelivarapolun",
+      "pelivarapolkua",
+      "pelivarapolut"
+    ],
+    "avoid": [
+      "pelivaraketju",
+      "float path"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "forecast-finish": {
+    "term": "ennustettu loppu",
+    "forms": [
+      "ennustettu loppu",
+      "ennustetun lopun",
+      "ennustettua loppua",
+      "ennustetut loput"
+    ],
+    "avoid": [
+      "ennusteloppu",
+      "forecast finish"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "free-float": {
+    "term": "vapaa pelivara",
+    "forms": [
+      "vapaa pelivara",
+      "vapaan pelivaran",
+      "vapaata pelivaraa",
+      "vapaat pelivarat"
+    ],
+    "avoid": [
+      "vapaa speling",
+      "free float"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "hammock": {
+    "term": "riippumatto",
+    "forms": [
+      "riippumatto",
+      "riippumattoa",
+      "riippumaton",
+      "riippumatot"
+    ],
+    "avoid": [
+      "hangmat",
+      "yhteenvetotehtävä"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "hard-constraint": {
+    "term": "kova rajoite",
+    "forms": [
+      "kova rajoite",
+      "kovan rajoitteen",
+      "kovaa rajoitetta",
+      "kovat rajoitteet"
+    ],
+    "avoid": [
+      "kiinteä rajoite",
+      "harde constraint"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "histogram": {
+    "term": "histogrammi",
+    "forms": [
+      "histogrammi",
+      "histogrammin",
+      "histogrammia",
+      "histogrammit"
+    ],
+    "avoid": [
+      "pylväsdiagrammi",
+      "resurssihistogrammi"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "holiday": {
+    "term": "vapaapäivä",
+    "forms": [
+      "vapaapäivä",
+      "vapaapäivän",
+      "vapaapäivää",
+      "vapaapäivät"
+    ],
+    "avoid": [
+      "loma",
+      "pyhäpäivä",
+      "feestdag"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "holiday-set": {
+    "term": "vapaapäiväluettelo",
+    "forms": [
+      "vapaapäiväluettelo",
+      "vapaapäiväluettelon",
+      "vapaapäiväluetteloa",
+      "vapaapäiväluettelot"
+    ],
+    "avoid": [
+      "feestdagenset",
+      "pyhäpäiväjoukko"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "hour-distribution-in-phases": {
+    "term": "tuntien jakautuminen vaiheisiin",
+    "forms": [
+      "tuntien jakautuminen vaiheisiin",
+      "tuntien jakautumisen vaiheisiin",
+      "tuntien jakautumista vaiheisiin"
+    ],
+    "avoid": [
+      "tuntijako vaiheittain",
+      "urenverdeling in fasen"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "hour-planning": {
+    "term": "tuntisuunnittelu",
+    "forms": [
+      "tuntisuunnittelu",
+      "tuntisuunnittelun",
+      "tuntisuunnittelua",
+      "tuntisuunnittelut"
+    ],
+    "avoid": [
+      "tuntiplanning",
+      "hour planning"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "hour-task": {
+    "term": "tuntitehtävä",
+    "forms": [
+      "tuntitehtävä",
+      "tuntitehtävän",
+      "tuntitehtävää",
+      "tuntitehtävät"
+    ],
+    "avoid": [
+      "tuntityö",
+      "hour task"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "indent": {
+    "term": "sisentää",
+    "forms": [
+      "sisentää",
+      "sisennä",
+      "sisennetään",
+      "sisennettyä"
+    ],
+    "avoid": [
+      "sisennys",
+      "siirrä alemmalle tasolle"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "interruption": {
+    "term": "tauko",
+    "forms": [
+      "tauko",
+      "tauon",
+      "taukoa",
+      "tauot"
+    ],
+    "avoid": [
+      "keskeytyminen",
+      "keskeyttää"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "lag": {
+    "term": "viive",
+    "forms": [
+      "viive",
+      "viiveen",
+      "viivettä",
+      "viiveet"
+    ],
+    "avoid": [
+      "lag",
+      "viiveaika"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "late-dates": {
+    "term": "myöhäiset päivämäärät",
+    "forms": [
+      "myöhäiset päivämäärät",
+      "myöhäisten päivämäärien",
+      "myöhäisiä päivämääriä"
+    ],
+    "avoid": [
+      "late dates",
+      "myöhäiset ajat"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "late-finish": {
+    "term": "myöhäisin loppu",
+    "forms": [
+      "myöhäisin loppu",
+      "myöhäisimmän lopun",
+      "myöhäisintä loppua",
+      "myöhäisimmät loput"
+    ],
+    "avoid": [
+      "late finish",
+      "myöhäisin päättyminen"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "late-start": {
+    "term": "myöhäisin alku",
+    "forms": [
+      "myöhäisin alku",
+      "myöhäisimmän alun",
+      "myöhäisintä alkua",
+      "myöhäisimmät alut"
+    ],
+    "avoid": [
+      "late start",
+      "myöhäisin aloitus"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "layout": {
+    "term": "asettelu",
+    "forms": [
+      "asettelu",
+      "asettelun",
+      "asettelua",
+      "asettelut"
+    ],
+    "avoid": [
+      "layout",
+      "ulkoasu"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "lead": {
+    "term": "negatiivinen viive",
+    "forms": [
+      "negatiivinen viive",
+      "negatiivisen viiveen",
+      "negatiivista viivettä",
+      "negatiiviset viiveet"
+    ],
+    "avoid": [
+      "liidi",
+      "ennakko",
+      "lead"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "leveling": {
+    "term": "tasaaminen",
+    "forms": [
+      "tasaaminen",
+      "tasaamisen",
+      "tasaamista",
+      "tasaamiset"
+    ],
+    "avoid": [
+      "nivellointi",
+      "leveling",
+      "smoothing"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "leveling-delay": {
+    "term": "tasaamisviive",
+    "forms": [
+      "tasaamisviive",
+      "tasaamisviiveen",
+      "tasaamisviivettä",
+      "tasaamisviiveet"
+    ],
+    "avoid": [
+      "nivelleervertraging",
+      "tasaamisviivytys"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "link-tasks": {
+    "term": "linkitä",
+    "forms": [
+      "linkitä",
+      "linkitse",
+      "linkitään",
+      "linkitty"
+    ],
+    "avoid": [
+      "linkittää",
+      "yhdistää",
+      "koppelen"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "longest-path": {
+    "term": "pisin polku",
+    "forms": [
+      "pisin polku",
+      "pisimmän polun",
+      "pisintä polkua",
+      "pisimmät polut"
+    ],
+    "avoid": [
+      "langste pad",
+      "longest path"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "manually-scheduled": {
+    "term": "manuaalisesti ajoitettu",
+    "forms": [
+      "manuaalisesti ajoitettu",
+      "manuaalisesti ajoitetun",
+      "manuaalisesti ajoitettua",
+      "manuaalisesti ajoitetut"
+    ],
+    "avoid": [
+      "handmatig gepland",
+      "manuaalisesti suunniteltu"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "max-units": {
+    "term": "enimmäisyksikkömäärä",
+    "forms": [
+      "enimmäisyksikkömäärä",
+      "enimmäisyksikkömäärän",
+      "enimmäisyksikkömäärää",
+      "enimmäisyksikkömäärät"
+    ],
+    "avoid": [
+      "maks. yksiköt",
+      "max units"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "milestone": {
+    "term": "välitavoite",
+    "forms": [
+      "välitavoite",
+      "välitavoitteen",
+      "välitavoitteet",
+      "välitavoitteita"
+    ],
+    "avoid": [
+      "virstanpylväs",
+      "merkkipaalu"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "milestone-kind": {
+    "term": "välitavoitetyyppi",
+    "forms": [
+      "välitavoitetyyppi",
+      "välitavoitetyypin",
+      "välitavoitetyypit",
+      "välitavoitetyyppejä"
+    ],
+    "avoid": [
+      "tyyppi"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "missed-task": {
+    "term": "myöhästynyt tehtävä",
+    "forms": [
+      "myöhästynyt tehtävä",
+      "myöhästyneen tehtävän",
+      "myöhästyneet tehtävät",
+      "myöhästyneitä tehtäviä"
+    ],
+    "avoid": [
+      "myöhässä oleva tehtävä"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "must-finish-on": {
+    "term": "täytyy päättyä",
+    "forms": [
+      "täytyy päättyä"
+    ],
+    "avoid": [
+      "päättyy viimeistään"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "must-start-on": {
+    "term": "täytyy alkaa",
+    "forms": [
+      "täytyy alkaa"
+    ],
+    "avoid": [
+      "alkaa viimeistään"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "near-critical": {
+    "term": "lähes kriittinen",
+    "forms": [
+      "lähes kriittinen",
+      "lähes kriittisen",
+      "lähes kriittiset",
+      "lähes kriittistä"
+    ],
+    "avoid": [
+      "melkein kriittinen"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "negative-float": {
+    "term": "negatiivinen väljyys",
+    "forms": [
+      "negatiivinen väljyys",
+      "negatiivisen väljyyden",
+      "negatiiviset väljyydet",
+      "negatiivista väljyyttä"
+    ],
+    "avoid": [
+      "negatiivinen speling"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "non-working-day": {
+    "term": "ei-työpäivä",
+    "forms": [
+      "ei-työpäivä",
+      "ei-työpäivän",
+      "ei-työpäivät",
+      "ei-työpäiviä"
+    ],
+    "avoid": [
+      "vapaa-aika"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "out-of-sequence-progress": {
+    "term": "järjestyksestä poikkeava edistyminen",
+    "forms": [
+      "järjestyksestä poikkeava edistyminen",
+      "järjestyksestä poikkeavan edistymisen",
+      "järjestyksestä poikkeavat edistymiset"
+    ],
+    "avoid": [
+      "out-of-sequence"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "outdent": {
+    "term": "ulontaa",
+    "forms": [
+      "ulontaa",
+      "ulontaminen"
+    ],
+    "avoid": [
+      "käänteinen sisennys"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "overallocation": {
+    "term": "ylikuormitus",
+    "forms": [
+      "ylikuormitus",
+      "ylikuormituksen",
+      "ylikuormitukset",
+      "ylikuormitusta"
+    ],
+    "avoid": [
+      "ylivarattu"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "path-tracing": {
+    "term": "polun jäljittäminen",
+    "forms": [
+      "polun jäljittäminen",
+      "polun jäljittämisen",
+      "polun jäljittämistä"
+    ],
+    "avoid": [
+      "polun seuraaminen"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "percent-complete": {
+    "term": "prosenttia valmiina",
+    "forms": [
+      "prosenttia valmiina",
+      "prosentin valmiina"
+    ],
+    "avoid": [
+      "prosentti valmis"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "period": {
+    "term": "aikajakso",
+    "forms": [
+      "aikajakso",
+      "aikajakson",
+      "aikajaksot",
+      "aikajaksoa"
+    ],
+    "avoid": [
+      "kuukautiset",
+      "periodi"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "planned": {
+    "term": "suunniteltu",
+    "forms": [
+      "suunniteltu",
+      "suunnitellun",
+      "suunnitellut",
+      "suunniteltua"
+    ],
+    "avoid": [
+      "ennustettu"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "planned-work": {
+    "term": "suunniteltu työ",
+    "forms": [
+      "suunniteltu työ",
+      "suunnitellun työn",
+      "suunnitellut työt",
+      "suunniteltua työtä"
+    ],
+    "avoid": [
+      "arvioitu työ"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "predecessor": {
+    "term": "edeltäjä",
+    "forms": [
+      "edeltäjä",
+      "edeltäjän",
+      "edeltäjät",
+      "edeltäjää"
+    ],
+    "avoid": [
+      "seuraaja"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "progress": {
+    "term": "edistyminen",
+    "forms": [
+      "edistyminen",
+      "edistymisen",
+      "edistymiset",
+      "edistymistä"
+    ],
+    "avoid": [
+      "Tilanne",
+      "tilanne"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "progress-mode": {
+    "term": "edistymistapa",
+    "forms": [
+      "edistymistapa",
+      "edistymistavan",
+      "edistymistavat",
+      "edistymistapaa"
+    ],
+    "avoid": [
+      "edistymistila"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "project-finish": {
+    "term": "projektin päättymispäivä",
+    "forms": [
+      "projektin päättymispäivä",
+      "projektin päättymispäivän",
+      "projektin päättymispäivät",
+      "projektin päättymispäivää"
+    ],
+    "avoid": [
+      "projektin loppu"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "project-start": {
+    "term": "projektin aloituspäivä",
+    "forms": [
+      "projektin aloituspäivä",
+      "projektin aloituspäivän",
+      "projektin aloituspäivät",
+      "projektin aloituspäivää"
+    ],
+    "avoid": [
+      "projektin alku"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "rate": {
+    "term": "normaalihinta",
+    "forms": [
+      "normaalihinta",
+      "normaalihinnan",
+      "normaalihinnat",
+      "normaalihintaa"
+    ],
+    "avoid": [
+      "arvioida",
+      "korko"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "read-only": {
+    "term": "vain luku",
+    "forms": [
+      "vain luku"
+    ],
+    "avoid": [
+      "vain lukeva"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "recalculate": {
+    "term": "laske uudelleen",
+    "forms": [
+      "laske uudelleen",
+      "lasketaan uudelleen"
+    ],
+    "avoid": [
+      "päivitä"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "relation": {
+    "term": "riippuvuus",
+    "forms": [
+      "riippuvuus",
+      "riippuvuuden",
+      "riippuvuudet",
+      "riippuvuutta"
+    ],
+    "avoid": [
+      "relaatio",
+      "yhteys",
+      "suhde"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "relationship-type": {
+    "term": "riippuvuustyyppi",
+    "forms": [
+      "riippuvuustyyppi",
+      "riippuvuustyypin",
+      "riippuvuustyypit",
+      "riippuvuustyyppiä"
+    ],
+    "avoid": [
+      "liiketoimintasuhde",
+      "suhdetyyppi"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "remaining-duration": {
+    "term": "jäljellä oleva kesto",
+    "forms": [
+      "jäljellä oleva kesto",
+      "jäljellä olevan keston",
+      "jäljellä olevat kestot",
+      "jäljellä olevaa kestoa"
+    ],
+    "avoid": [
+      "jäljellä oleva aika"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "remaining-work": {
+    "term": "jäljellä oleva työ",
+    "forms": [
+      "jäljellä oleva työ",
+      "jäljellä olevan työn",
+      "jäljellä olevat työt",
+      "jäljellä olevaa työtä"
+    ],
+    "avoid": [
+      "jäljellä oleva määrä"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "report": {
+    "term": "raportti",
+    "forms": [
+      "raportti",
+      "raportin",
+      "raportit",
+      "raporttia",
+      "raporttien"
+    ],
+    "avoid": [
+      "ilmoittaa",
+      "raportoida"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "report-type": {
+    "term": "raporttityyppi",
+    "forms": [
+      "raporttityyppi",
+      "raporttityypin",
+      "raporttityypit",
+      "raporttityyppiä"
+    ],
+    "avoid": [
+      "raporttimalli"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "resource": {
+    "term": "resurssi",
+    "forms": [
+      "resurssi",
+      "resurssin",
+      "resurssit",
+      "resurssia",
+      "resurssien"
+    ],
+    "avoid": [
+      "työntekijä"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "resource-library": {
+    "term": "kirjasto",
+    "forms": [
+      "kirjasto",
+      "kirjaston",
+      "kirjastot",
+      "kirjastoa"
+    ],
+    "avoid": [
+      "koodikirjasto",
+      "tiedostokirjasto",
+      "pooli"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "resource-type": {
+    "term": "resurssityyppi",
+    "forms": [
+      "resurssityyppi",
+      "resurssityypin",
+      "resurssityypit",
+      "resurssityyppiä"
+    ],
+    "avoid": [
+      "resurssiluokka"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "ribbon": {
+    "term": "valintanauha",
+    "forms": [
+      "valintanauha",
+      "valintanauhan",
+      "valintanauhat",
+      "valintanauhaa"
+    ],
+    "avoid": [
+      "nauha",
+      "Valintanauha"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "ribbon-tab": {
+    "term": "valintanauhan välilehti",
+    "forms": [
+      "valintanauhan välilehti",
+      "valintanauhan välilehden",
+      "valintanauhan välilehdet",
+      "valintanauhan välilehteä"
+    ],
+    "avoid": [
+      "välilehti"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "round-trip": {
+    "term": "häviötön kierto",
+    "forms": [
+      "häviötön kierto",
+      "häviöttömän kierron",
+      "häviöttömät kierrot",
+      "häviötöntä kiertoa"
+    ],
+    "avoid": [
+      "kaksisuuntainen muunnos"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "schedule": {
+    "term": "aikataulu",
+    "forms": [
+      "aikataulu",
+      "aikataulun",
+      "aikataulut",
+      "aikataulua",
+      "aikatauluja"
+    ],
+    "avoid": [
+      "ajoittaa",
+      "ajoitus"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "schedule-error": {
+    "term": "aikataulun virhe",
+    "forms": [
+      "aikataulun virhe",
+      "aikataulun virheen",
+      "aikataulun virheet",
+      "aikataulun virhettä"
+    ],
+    "avoid": [
+      "aikatauluvirhe"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "secondary-constraint": {
+    "term": "toissijainen rajoite",
+    "forms": [
+      "toissijainen rajoite",
+      "toissijaisen rajoitteen",
+      "toissijaiset rajoitteet",
+      "toissijaista rajoitetta"
+    ],
+    "avoid": [
+      "lisärajoite"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "shift": {
+    "term": "vuoro",
+    "forms": [
+      "vuoro",
+      "vuoron",
+      "vuorot",
+      "vuoroa"
+    ],
+    "avoid": [
+      "siirrä",
+      "siirto"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "source-task": {
+    "term": "lähdetehtävä",
+    "forms": [
+      "lähdetehtävä",
+      "lähdetehtävän",
+      "lähdetehtävää",
+      "lähdetehtävät",
+      "lähdetehtävien"
+    ],
+    "avoid": [
+      "lähdeaktiviteetti"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "split-task": {
+    "term": "jaettu tehtävä",
+    "forms": [
+      "jaettu tehtävä",
+      "jaetun tehtävän",
+      "jaettua tehtävää",
+      "jaetut tehtävät",
+      "jaettujen tehtävien"
+    ],
+    "avoid": [
+      "splitattu tehtävä"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "start-driver": {
+    "term": "aloitusohjain",
+    "forms": [
+      "aloitusohjain",
+      "aloitusohjaimen",
+      "aloitusohjainta",
+      "aloitusohjaimet",
+      "aloitusohjainten"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-float": {
+    "term": "aloitusliukuma",
+    "forms": [
+      "aloitusliukuma",
+      "aloitusliukuman",
+      "aloitusliukumaa",
+      "aloitusliukumat",
+      "aloitusliukumien"
+    ],
+    "avoid": [
+      "kokonaisliukuma"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-no-earlier-than": {
+    "term": "alkaa aikaisintaan",
+    "forms": [
+      "alkaa aikaisintaan"
+    ],
+    "avoid": [
+      "alkaa aikaisin"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-no-later-than": {
+    "term": "alkaa viimeistään",
+    "forms": [
+      "alkaa viimeistään"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-to-finish": {
+    "term": "alku-loppu",
+    "forms": [
+      "alku-loppu",
+      "alku-loppu-suhde",
+      "alku-loppu-suhteen",
+      "alku-loppu-suhteet"
+    ],
+    "avoid": [
+      "loppu-alku"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-to-start": {
+    "term": "alku-alku",
+    "forms": [
+      "alku-alku",
+      "alku-alku-suhde",
+      "alku-alku-suhteen",
+      "alku-alku-suhteet"
+    ],
+    "avoid": [
+      "loppu-loppu"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-variance": {
+    "term": "aloitusero",
+    "forms": [
+      "aloitusero",
+      "aloituseron",
+      "aloituseroa",
+      "aloituserot",
+      "aloituseroja"
+    ],
+    "avoid": [
+      "aloitusliukuma"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "status-date": {
+    "term": "raportointipäivä",
+    "forms": [
+      "raportointipäivä",
+      "raportointipäivän",
+      "raportointipäivää",
+      "raportointipäivät",
+      "raportointipäivien"
+    ],
+    "avoid": [
+      "tilapäivämäärä"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "subtask": {
+    "term": "alitehtävä",
+    "forms": [
+      "alitehtävä",
+      "alitehtävän",
+      "alitehtävää",
+      "alitehtävät",
+      "alitehtävien"
+    ],
+    "avoid": [
+      "aliaktiviteetti"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "successor": {
+    "term": "seuraaja",
+    "forms": [
+      "seuraaja",
+      "seuraajan",
+      "seuraajaa",
+      "seuraajat",
+      "seuraajien"
+    ],
+    "avoid": [
+      "jälkeläinen"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "summary-task": {
+    "term": "yhteenvetotehtävä",
+    "forms": [
+      "yhteenvetotehtävä",
+      "yhteenvetotehtävän",
+      "yhteenvetotehtävää",
+      "yhteenvetotehtävät",
+      "yhteenvetotehtävien"
+    ],
+    "avoid": [
+      "yhteenveto"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "task": {
+    "term": "tehtävä",
+    "forms": [
+      "tehtävä",
+      "tehtävän",
+      "tehtävää",
+      "tehtävät",
+      "tehtävien",
+      "tehtäviä"
+    ],
+    "avoid": [
+      "aktiviteetti",
+      "toiminto",
+      "työ"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "task-grid": {
+    "term": "tehtäväruudukko",
+    "forms": [
+      "tehtäväruudukko",
+      "tehtäväruudukon",
+      "tehtäväruudukkoa",
+      "tehtäväruudukot",
+      "tehtäväruudukoiden"
+    ],
+    "avoid": [
+      "taulukko"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "task-type": {
+    "term": "tehtävätyyppi",
+    "forms": [
+      "tehtävätyyppi",
+      "tehtävätyypin",
+      "tehtävätyyppiä",
+      "tehtävätyypit",
+      "tehtävätyyppien"
+    ],
+    "avoid": [
+      "työtyyppi"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "threshold": {
+    "term": "kynnysarvo",
+    "forms": [
+      "kynnysarvo",
+      "kynnysarvon",
+      "kynnysarvoa",
+      "kynnysarvot",
+      "kynnysarvojen"
+    ],
+    "avoid": [
+      "raja"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "total-float": {
+    "term": "kokonaisliukuma",
+    "forms": [
+      "kokonaisliukuma",
+      "kokonaisliukuman",
+      "kokonaisliukumaa",
+      "kokonaisliukumat",
+      "kokonaisliukumien"
+    ],
+    "avoid": [
+      "kokonaisvara"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "tutorial": {
+    "term": "opetusohjelma",
+    "forms": [
+      "opetusohjelma",
+      "opetusohjelman",
+      "opetusohjelmaa",
+      "opetusohjelmat",
+      "opetusohjelmien"
+    ],
+    "avoid": [
+      "opetusvideo"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "units": {
+    "term": "kuormitusaste",
+    "forms": [
+      "kuormitusaste",
+      "kuormitusasteen",
+      "kuormitusastetta",
+      "kuormitusasteet",
+      "kuormitusasteiden"
+    ],
+    "avoid": [
+      "yksikkö"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "variance": {
+    "term": "ero",
+    "forms": [
+      "ero",
+      "eron",
+      "eroa",
+      "erot",
+      "eroja"
+    ],
+    "avoid": [
+      "varianssi"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "variance-report": {
+    "term": "eroraportti",
+    "forms": [
+      "eroraportti",
+      "eroraportin",
+      "eroraporttia",
+      "eroraportit",
+      "eroraporttien"
+    ],
+    "avoid": [
+      "varianssiraportti"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "violated-constraint": {
+    "term": "rikottu rajoitus",
+    "forms": [
+      "rikottu rajoitus",
+      "rikotun rajoituksen",
+      "rikottua rajoitusta",
+      "rikotut rajoitukset",
+      "rikottujen rajoitusten"
+    ],
+    "avoid": [
+      "rikkoutunut rajoitus"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "wbs": {
+    "term": "WBS",
+    "forms": [
+      "WBS",
+      "WBS:n",
+      "WBS:ää",
+      "WBS:t"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "wbs-element": {
+    "term": "WBS-elementti",
+    "forms": [
+      "WBS-elementti",
+      "WBS-elementin",
+      "WBS-elementtiä",
+      "WBS-elementit",
+      "WBS-elementtien"
+    ],
+    "avoid": [
+      "WBS-solmu"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "work": {
+    "term": "työ",
+    "forms": [
+      "työ",
+      "työn",
+      "työtä",
+      "työt"
+    ],
+    "avoid": [
+      "työpaikka",
+      "aktiviteetti"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "work-calendar": {
+    "term": "työkalenteri",
+    "forms": [
+      "työkalenteri",
+      "työkalenterin",
+      "työkalenteria",
+      "työkalenterit",
+      "työkalentereiden"
+    ],
+    "avoid": [
+      "työaikakalenteri"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "work-hours": {
+    "term": "työtunnit",
+    "forms": [
+      "työtunti",
+      "työtunnin",
+      "työtuntia",
+      "työtunnit",
+      "työtuntien"
+    ],
+    "avoid": [
+      "työaika"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "work-rule": {
+    "term": "työsääntö",
+    "forms": [
+      "työsääntö",
+      "työsäännön",
+      "työsääntöä",
+      "työsäännöt",
+      "työsääntöjen"
+    ],
+    "avoid": [
+      "työehto"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "workday": {
+    "term": "työpäivä",
+    "forms": [
+      "työpäivä",
+      "työpäivän",
+      "työpäivää",
+      "työpäivät",
+      "työpäivien"
+    ],
+    "avoid": [
+      "TYÖPÄIVÄ"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "working-time": {
+    "term": "työaika",
+    "forms": [
+      "työaika",
+      "työajan",
+      "työaikaa",
+      "työajat",
+      "työaikojen"
+    ],
+    "avoid": [
+      "työtunnit"
+    ],
+    "source": "model",
+    "status": "model"
+  }
+}

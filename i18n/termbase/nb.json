@@ -1,0 +1,1637 @@
+{
+  "_style": {
+    "address": "informal",
+    "note": "Noorse software (Microsoft Office, Teams) spreekt de gebruiker in het Bokmål aan met 'du'. Daarom informeel."
+  },
+  "actual-date": {
+    "term": "faktisk",
+    "forms": [
+      "faktisk",
+      "faktiske"
+    ],
+    "avoid": [
+      "virkelig dato"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "actual-duration": {
+    "term": "faktisk varighet",
+    "forms": [
+      "faktisk varighet",
+      "faktiske varigheter",
+      "den faktiske varigheten"
+    ],
+    "avoid": [
+      "virkelig varighet"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "actual-finish": {
+    "term": "faktisk slutt",
+    "forms": [
+      "faktisk slutt",
+      "faktiske slutter",
+      "den faktiske slutten"
+    ],
+    "avoid": [
+      "virkelig slutt"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "actual-start": {
+    "term": "faktisk start",
+    "forms": [
+      "faktisk start",
+      "faktiske starter",
+      "den faktiske starten"
+    ],
+    "avoid": [
+      "virkelig start"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "actual-work": {
+    "term": "faktisk arbeid",
+    "forms": [
+      "faktisk arbeid",
+      "det faktiske arbeidet"
+    ],
+    "avoid": [
+      "faktiske data"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "ai-assistant": {
+    "term": "KI-assistent",
+    "forms": [
+      "KI-assistent",
+      "KI-assistenten",
+      "KI-assistenter",
+      "KI-assistentene"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "as-late-as-possible": {
+    "term": "så sent som mulig",
+    "forms": [
+      "så sent som mulig"
+    ],
+    "avoid": [
+      "så seint som mulig"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "as-soon-as-possible": {
+    "term": "så tidlig som mulig",
+    "forms": [
+      "så tidlig som mulig"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "assignment": {
+    "term": "tilordning",
+    "forms": [
+      "tilordning",
+      "tilordningen",
+      "tilordninger",
+      "tilordningene"
+    ],
+    "avoid": [
+      "oppgave"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "assignment-curve": {
+    "term": "tilordningskurve",
+    "forms": [
+      "tilordningskurve",
+      "tilordningskurven",
+      "tilordningskurver",
+      "tilordningskurvene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "assignment-units": {
+    "term": "tilordningsenheter per dag",
+    "forms": [
+      "tilordningsenheter per dag",
+      "tilordningsenhet per dag"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "baseline": {
+    "term": "grunnlinje",
+    "forms": [
+      "grunnlinje",
+      "grunnlinjen",
+      "grunnlinjer",
+      "grunnlinjene"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "bei": {
+    "term": "baseline-utførelsesindeks",
+    "forms": [
+      "baseline-utførelsesindeks",
+      "baseline-utførelsesindeksen"
+    ],
+    "avoid": [
+      "BEI-indeks"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "calculate": {
+    "term": "beregne",
+    "forms": [
+      "beregne",
+      "beregner",
+      "beregnet"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "calculate-automatically": {
+    "term": "beregne automatisk",
+    "forms": [
+      "beregne automatisk",
+      "beregner automatisk",
+      "beregnet automatisk"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "calculation-profile": {
+    "term": "beregningsprofil",
+    "forms": [
+      "beregningsprofil",
+      "beregningsprofilen",
+      "beregningsprofiler",
+      "beregningsprofilene"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "calendar": {
+    "term": "prosjektkalender",
+    "forms": [
+      "prosjektkalender",
+      "prosjektkalenderen",
+      "prosjektkalendere",
+      "prosjektkalenderne"
+    ],
+    "avoid": [
+      "kalender"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "capacity": {
+    "term": "kapasitet",
+    "forms": [
+      "kapasitet",
+      "kapasiteten",
+      "kapasiteter",
+      "kapasitetene"
+    ],
+    "avoid": [
+      "kapacitet"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "completion": {
+    "term": "fullføringsgrad",
+    "forms": [
+      "fullføringsgrad",
+      "fullføringsgraden",
+      "fullføringsgrader",
+      "fullføringsgradene"
+    ],
+    "avoid": [
+      "fullføring"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "constraint": {
+    "term": "begrensning",
+    "forms": [
+      "begrensning",
+      "begrensningen",
+      "begrensninger",
+      "begrensningene"
+    ],
+    "avoid": [
+      "constraint"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "constraint-type": {
+    "term": "begrensningstype",
+    "forms": [
+      "begrensningstype",
+      "begrensningstypen",
+      "begrensningstyper",
+      "begrensningstypene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "construction-holiday": {
+    "term": "byggferie",
+    "forms": [
+      "byggferie",
+      "byggferien",
+      "byggferier",
+      "byggferiene"
+    ],
+    "avoid": [
+      "fellesferie"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "contour": {
+    "term": "kontur",
+    "forms": [
+      "kontur",
+      "konturen",
+      "konturer",
+      "konturene"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "convention": {
+    "term": "konvensjon",
+    "forms": [
+      "konvensjon",
+      "konvensjonen",
+      "konvensjoner",
+      "konvensjonene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "cost": {
+    "term": "kostnad",
+    "forms": [
+      "kostnad",
+      "kostnaden",
+      "kostnader",
+      "kostnadene"
+    ],
+    "avoid": [
+      "kostpris"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "crash-recovery": {
+    "term": "gjenoppretting ved brudd",
+    "forms": [
+      "gjenoppretting ved brudd",
+      "gjenopprettingen ved brudd"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "critical": {
+    "term": "kritisk",
+    "forms": [
+      "kritisk",
+      "kritiske"
+    ],
+    "avoid": [
+      "kritiek"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "critical-chains": {
+    "term": "kritiske kjeder",
+    "forms": [
+      "kritisk kjede",
+      "kritiske kjeder",
+      "de kritiske kjedene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "critical-path": {
+    "term": "kritisk linje",
+    "forms": [
+      "kritisk linje",
+      "kritiske linjer",
+      "den kritiske linjen"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "critical-task": {
+    "term": "kritisk aktivitet",
+    "forms": [
+      "kritisk aktivitet",
+      "kritiske aktiviteter",
+      "den kritiske aktiviteten"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "current-finish": {
+    "term": "gjeldende slutt",
+    "forms": [
+      "gjeldende slutt",
+      "gjeldende slutter",
+      "gjeldende slutten"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "custom-field": {
+    "term": "egendefinert felt",
+    "forms": [
+      "egendefinert felt",
+      "egendefinerte felt",
+      "det egendefinerte feltet"
+    ],
+    "avoid": [
+      "eget felt"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "cycle": {
+    "term": "syklus",
+    "forms": [
+      "syklus",
+      "syklusen",
+      "sykluser",
+      "syklusene"
+    ],
+    "avoid": [
+      "cyclus"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "dcma-assessment": {
+    "term": "DCMA 14-punktsvurdering",
+    "forms": [
+      "DCMA 14-punktsvurdering",
+      "DCMA 14-punktsvurderingen"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "deadline": {
+    "term": "tidsfrist",
+    "forms": [
+      "tidsfrist",
+      "tidsfristen",
+      "tidsfrister",
+      "tidsfristene"
+    ],
+    "avoid": [
+      "deadline"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "distribution": {
+    "term": "fordeling",
+    "forms": [
+      "fordeling",
+      "fordelingen",
+      "fordelinger",
+      "fordelingene"
+    ],
+    "avoid": [
+      "distribusjon"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "driving-relationship": {
+    "term": "styrende relasjon",
+    "forms": [
+      "styrende relasjon",
+      "styrende relasjoner",
+      "den styrende relasjonen"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "duration": {
+    "term": "varighet",
+    "forms": [
+      "varighet",
+      "varigheten",
+      "varigheter",
+      "varighetene"
+    ],
+    "avoid": [
+      "duur"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "early-finish": {
+    "term": "tidligste slutt",
+    "forms": [
+      "tidligste slutt",
+      "tidligste slutten",
+      "tidligste slutter"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "early-start": {
+    "term": "tidligste start",
+    "forms": [
+      "tidligste start",
+      "tidligste starten",
+      "tidligste starter"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "effort-driven": {
+    "term": "innsatsdrevet",
+    "forms": [
+      "innsatsdrevet",
+      "innsatsdrevne"
+    ],
+    "avoid": [
+      "inndatadrevet"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "elapsed-time": {
+    "term": "brukt varighet",
+    "forms": [
+      "brukt varighet",
+      "brukte varigheter"
+    ],
+    "avoid": [
+      "brukt tid"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "extension": {
+    "term": "utvidelse",
+    "forms": [
+      "utvidelse",
+      "utvidelser"
+    ],
+    "avoid": [
+      "filtype"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "external-relation": {
+    "term": "kobling mellom prosjekter",
+    "forms": [
+      "kobling mellom prosjekter",
+      "koblinger mellom prosjekter"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "finish": {
+    "term": "slutt",
+    "forms": [
+      "slutt",
+      "slutten",
+      "slutter"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "finish-driver": {
+    "term": "sluttdriver",
+    "forms": [
+      "sluttdriver",
+      "sluttdriveren",
+      "sluttdrivere"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "finish-no-earlier-than": {
+    "term": "slutt ikke tidligere enn",
+    "forms": [
+      "slutt ikke tidligere enn"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "finish-no-later-than": {
+    "term": "slutt ikke senere enn",
+    "forms": [
+      "slutt ikke senere enn"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "finish-to-finish": {
+    "term": "slutt-til-slutt",
+    "forms": [
+      "slutt-til-slutt"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "finish-to-start": {
+    "term": "slutt-til-start",
+    "forms": [
+      "slutt-til-start"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "finish-variance": {
+    "term": "sluttavvik",
+    "forms": [
+      "sluttavvik",
+      "sluttavviket",
+      "sluttavvikene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "fixed-duration": {
+    "term": "fast varighet",
+    "forms": [
+      "fast varighet",
+      "faste varigheter"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "fixed-units": {
+    "term": "faste enheter",
+    "forms": [
+      "faste enheter",
+      "fast enhet"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "fixed-work": {
+    "term": "fast arbeid",
+    "forms": [
+      "fast arbeid"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "float": {
+    "term": "slakk",
+    "forms": [
+      "slakk",
+      "slakken",
+      "slakker"
+    ],
+    "avoid": [
+      "fri slakk",
+      "float"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "float-path": {
+    "term": "slakkpad",
+    "forms": [
+      "slakkpad",
+      "slakkpadet",
+      "slakkpader"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "forecast-finish": {
+    "term": "prognosert slutt",
+    "forms": [
+      "prognosert slutt",
+      "prognosert slutten"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "free-float": {
+    "term": "fri slakk",
+    "forms": [
+      "fri slakk",
+      "fri slakken",
+      "frie slakker"
+    ],
+    "avoid": [
+      "slakk"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "hammock": {
+    "term": "hengekøye",
+    "forms": [
+      "hengekøye",
+      "hengekøyen",
+      "hengekøyer"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "hard-constraint": {
+    "term": "hard begrensning",
+    "forms": [
+      "hard begrensning",
+      "harde begrensninger",
+      "den harde begrensningen"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "histogram": {
+    "term": "histogram",
+    "forms": [
+      "histogram",
+      "histogrammet",
+      "histogrammer"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "holiday": {
+    "term": "helligdag",
+    "forms": [
+      "helligdag",
+      "helligdagen",
+      "helligdager"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "holiday-set": {
+    "term": "helligdagssett",
+    "forms": [
+      "helligdagssett",
+      "helligdagssettet",
+      "helligdagssettene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "hour-distribution-in-phases": {
+    "term": "timefordeling i faser",
+    "forms": [
+      "timefordeling i faser"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "hour-planning": {
+    "term": "timeplanlegging",
+    "forms": [
+      "timeplanlegging",
+      "timeplanleggingen"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "hour-task": {
+    "term": "timeoppgave",
+    "forms": [
+      "timeoppgave",
+      "timeoppgaven",
+      "timeoppgaver"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "indent": {
+    "term": "rykke inn",
+    "forms": [
+      "rykke inn",
+      "rykker inn",
+      "rykket inn"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "interruption": {
+    "term": "avbrudd",
+    "forms": [
+      "avbrudd",
+      "avbruddet",
+      "avbruddene"
+    ],
+    "avoid": [
+      "pause"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "lag": {
+    "term": "forsinkelse",
+    "forms": [
+      "forsinkelse",
+      "forsinkelsen",
+      "forsinkelser"
+    ],
+    "avoid": [
+      "lag"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "late-dates": {
+    "term": "seneste datoer",
+    "forms": [
+      "seneste datoer",
+      "seneste dato",
+      "seneste datoene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "late-finish": {
+    "term": "seneste slutt",
+    "forms": [
+      "seneste slutt",
+      "seneste slutten"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "late-start": {
+    "term": "seneste start",
+    "forms": [
+      "seneste start",
+      "seneste starten"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "layout": {
+    "term": "oppsett",
+    "forms": [
+      "oppsett",
+      "oppsettet",
+      "oppsettene"
+    ],
+    "avoid": [
+      "layout"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "lead": {
+    "term": "forskudd",
+    "forms": [
+      "forskudd",
+      "forskuddet",
+      "forskuddene"
+    ],
+    "avoid": [
+      "lead"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "leveling": {
+    "term": "utjevning",
+    "forms": [
+      "utjevning",
+      "utjevningen",
+      "utjevninger"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "leveling-delay": {
+    "term": "utjevningsforsinkelse",
+    "forms": [
+      "utjevningsforsinkelse",
+      "utjevningsforsinkelsen",
+      "utjevningsforsinkelser"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "link-tasks": {
+    "term": "koble",
+    "forms": [
+      "koble",
+      "kobler",
+      "koblet"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "longest-path": {
+    "term": "lengste sti",
+    "forms": [
+      "lengste sti",
+      "lengste stien",
+      "lengste stier"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "manually-scheduled": {
+    "term": "manuelt planlagt",
+    "forms": [
+      "manuelt planlagt",
+      "manuelt planlagte"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "max-units": {
+    "term": "maks. enheter",
+    "forms": [
+      "maks. enheter",
+      "maks. enhet"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "milestone": {
+    "term": "milepæl",
+    "forms": [
+      "milepæl",
+      "milepælen",
+      "milepæler",
+      "milepælene"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "milestone-kind": {
+    "term": "milepæltype",
+    "forms": [
+      "milepæltype",
+      "milepæltypen",
+      "milepæltyper",
+      "milepæltypene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "missed-task": {
+    "term": "forsinket oppgave",
+    "forms": [
+      "forsinket oppgave",
+      "forsinket oppgaven",
+      "forsinkede oppgaver",
+      "forsinkede oppgavene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "must-finish-on": {
+    "term": "må slutte på",
+    "forms": [
+      "må slutte på"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "must-start-on": {
+    "term": "må starte på",
+    "forms": [
+      "må starte på"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "near-critical": {
+    "term": "nesten kritisk",
+    "forms": [
+      "nesten kritisk",
+      "nesten kritiske"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "negative-float": {
+    "term": "negativ slakk",
+    "forms": [
+      "negativ slakk",
+      "negative slakker",
+      "den negative slakken"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "non-working-day": {
+    "term": "ikke-arbeidsdag",
+    "forms": [
+      "ikke-arbeidsdag",
+      "ikke-arbeidsdagen",
+      "ikke-arbeidsdager",
+      "ikke-arbeidsdagene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "out-of-sequence-progress": {
+    "term": "fremdrift utenfor rekkefølge",
+    "forms": [
+      "fremdrift utenfor rekkefølge"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "outdent": {
+    "term": "redusere innrykk",
+    "forms": [
+      "redusere innrykk",
+      "reduserer innrykk",
+      "redusert innrykk"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "overallocation": {
+    "term": "overallokering",
+    "forms": [
+      "overallokering",
+      "overallokeringen",
+      "overallokeringer",
+      "overallokeringene"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "path-tracing": {
+    "term": "spor drivende relasjoner",
+    "forms": [
+      "spor drivende relasjoner",
+      "sporing av drivende relasjoner"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "percent-complete": {
+    "term": "prosent fullført",
+    "forms": [
+      "prosent fullført",
+      "prosenter fullført"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "period": {
+    "term": "periode",
+    "forms": [
+      "periode",
+      "perioden",
+      "perioder",
+      "periodene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "planned": {
+    "term": "planlagt",
+    "forms": [
+      "planlagt",
+      "planlagte"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "planned-work": {
+    "term": "planlagt arbeid",
+    "forms": [
+      "planlagt arbeid",
+      "planlagt arbeidet",
+      "planlagte arbeider"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "predecessor": {
+    "term": "forgjenger",
+    "forms": [
+      "forgjenger",
+      "forgjengeren",
+      "forgjengere",
+      "forgjengerne"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "progress": {
+    "term": "Fremdrift",
+    "forms": [
+      "Fremdrift"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "progress-mode": {
+    "term": "fremdriftsmodus",
+    "forms": [
+      "fremdriftsmodus",
+      "fremdriftsmodusen",
+      "fremdriftsmoduser",
+      "fremdriftsmodusene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "project-finish": {
+    "term": "prosjektslutt",
+    "forms": [
+      "prosjektslutt",
+      "prosjektslutten",
+      "prosjektslutter",
+      "prosjektsluttene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "project-start": {
+    "term": "prosjektstart",
+    "forms": [
+      "prosjektstart",
+      "prosjektstarten",
+      "prosjektstarter",
+      "prosjektstartene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "rate": {
+    "term": "standardsats",
+    "forms": [
+      "standardsats",
+      "standardsatsen",
+      "standardsatser",
+      "standardsatsene"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "read-only": {
+    "term": "skrivebeskyttet",
+    "forms": [
+      "skrivebeskyttet",
+      "skrivebeskyttede"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "recalculate": {
+    "term": "omberegne",
+    "forms": [
+      "omberegne",
+      "omberegner",
+      "omberegnet"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "relation": {
+    "term": "avhengighet",
+    "forms": [
+      "avhengighet",
+      "avhengigheten",
+      "avhengigheter",
+      "avhengighetene"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "relationship-type": {
+    "term": "avhengighetstype",
+    "forms": [
+      "avhengighetstype",
+      "avhengighetstypen",
+      "avhengighetstyper",
+      "avhengighetstypene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "remaining-duration": {
+    "term": "gjenstående varighet",
+    "forms": [
+      "gjenstående varighet",
+      "gjenstående varigheten",
+      "gjenstående varigheter"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "remaining-work": {
+    "term": "gjenstående arbeid",
+    "forms": [
+      "gjenstående arbeid",
+      "gjenstående arbeidet",
+      "gjenstående arbeider"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "report": {
+    "term": "rapport",
+    "forms": [
+      "rapport",
+      "rapporten",
+      "rapporter",
+      "rapportene"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "report-type": {
+    "term": "rapporttype",
+    "forms": [
+      "rapporttype",
+      "rapporttypen",
+      "rapporttyper",
+      "rapporttypene"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "resource": {
+    "term": "ressurs",
+    "forms": [
+      "ressurs",
+      "ressursen",
+      "ressurser",
+      "ressursene"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "resource-library": {
+    "term": "bibliotek",
+    "forms": [
+      "bibliotek",
+      "biblioteket",
+      "biblioteker",
+      "bibliotekene"
+    ],
+    "avoid": [
+      "pulje"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "resource-type": {
+    "term": "ressurstype",
+    "forms": [
+      "ressurstype",
+      "ressurstypen",
+      "ressurstyper",
+      "ressurstypene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "ribbon": {
+    "term": "bånd",
+    "forms": [
+      "bånd",
+      "båndet",
+      "båndene"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "ribbon-tab": {
+    "term": "båndfane",
+    "forms": [
+      "båndfane",
+      "båndfanen",
+      "båndfaner",
+      "båndfanene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "round-trip": {
+    "term": "tur-retur",
+    "forms": [
+      "tur-retur"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "schedule": {
+    "term": "tidsplan",
+    "forms": [
+      "tidsplan",
+      "tidsplanen",
+      "tidsplaner",
+      "tidsplanene"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "schedule-error": {
+    "term": "tidsplanfeil",
+    "forms": [
+      "tidsplanfeil",
+      "tidsplanfeilen",
+      "tidsplanfeil",
+      "tidsplanfeilene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "secondary-constraint": {
+    "term": "sekundær begrensning",
+    "forms": [
+      "sekundær begrensning",
+      "sekundære begrensninger",
+      "den sekundære begrensningen"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "shift": {
+    "term": "skift",
+    "forms": [
+      "skift",
+      "skiftet",
+      "skiftene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "source-task": {
+    "term": "kildeoppgave",
+    "forms": [
+      "kildeoppgave",
+      "kildeoppgaven",
+      "kildeoppgaver",
+      "kildeoppgavene"
+    ],
+    "avoid": [
+      "brontaak",
+      "kildeaktivitet"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "split-task": {
+    "term": "delt aktivitet",
+    "forms": [
+      "delt aktivitet",
+      "delte aktiviteter"
+    ],
+    "avoid": [
+      "splittet aktivitet"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "start-driver": {
+    "term": "startdriver",
+    "forms": [
+      "startdriver",
+      "startdriveren",
+      "startdrivere",
+      "startdriverne"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-float": {
+    "term": "startslakk",
+    "forms": [
+      "startslakk",
+      "startslakken",
+      "startslakker",
+      "startslakkene"
+    ],
+    "avoid": [
+      "startspeling"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-no-earlier-than": {
+    "term": "start ikke tidligere enn",
+    "forms": [
+      "start ikke tidligere enn"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-no-later-than": {
+    "term": "start senest",
+    "forms": [
+      "start senest"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-to-finish": {
+    "term": "start-til-slutt",
+    "forms": [
+      "start-til-slutt"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-to-start": {
+    "term": "start-til-start",
+    "forms": [
+      "start-til-start"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-variance": {
+    "term": "startavvik",
+    "forms": [
+      "startavvik",
+      "startavviket",
+      "startavvikene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "status-date": {
+    "term": "statusdato",
+    "forms": [
+      "statusdato",
+      "statusdatoen",
+      "statusdatoer",
+      "statusdatoene"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "subtask": {
+    "term": "delaktivitet",
+    "forms": [
+      "delaktivitet",
+      "delaktiviteten",
+      "delaktiviteter",
+      "delaktivitetene"
+    ],
+    "avoid": [
+      "underoppgave"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "successor": {
+    "term": "etterfølger",
+    "forms": [
+      "etterfølger",
+      "etterfølgeren",
+      "etterfølgere",
+      "etterfølgerne"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "summary-task": {
+    "term": "hovedaktivitet",
+    "forms": [
+      "hovedaktivitet",
+      "hovedaktiviteten",
+      "hovedaktiviteter",
+      "hovedaktivitetene"
+    ],
+    "avoid": [
+      "sammendrag"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "task": {
+    "term": "aktivitet",
+    "forms": [
+      "aktivitet",
+      "aktiviteten",
+      "aktiviteter",
+      "aktivitetene"
+    ],
+    "avoid": [
+      "oppgave",
+      "gjøremål"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "task-grid": {
+    "term": "aktivitetstabell",
+    "forms": [
+      "aktivitetstabell",
+      "aktivitetstabellen",
+      "aktivitetstabeller",
+      "aktivitetstabellene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "task-type": {
+    "term": "aktivitetstype",
+    "forms": [
+      "aktivitetstype",
+      "aktivitetstypen",
+      "aktivitetstyper",
+      "aktivitetstypene"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "threshold": {
+    "term": "terskelverdi",
+    "forms": [
+      "terskelverdi",
+      "terskelverdien",
+      "terskelverdier",
+      "terskelverdiene"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "total-float": {
+    "term": "totalslakk",
+    "forms": [
+      "totalslakk",
+      "totalslakken",
+      "totalslakker",
+      "totalslakkene"
+    ],
+    "avoid": [
+      "totalspeling"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "tutorial": {
+    "term": "opplæring",
+    "forms": [
+      "opplæring",
+      "opplæringen",
+      "opplæringer",
+      "opplæringene"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "units": {
+    "term": "tildelingsenheter",
+    "forms": [
+      "tildelingsenhet",
+      "tildelingsenheten",
+      "tildelingsenheter",
+      "tildelingsenhetene"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "variance": {
+    "term": "avvik",
+    "forms": [
+      "avvik",
+      "avviket",
+      "avvikene"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "variance-report": {
+    "term": "avvikrapport",
+    "forms": [
+      "avvikrapport",
+      "avvikrapporten",
+      "avvikrapporter",
+      "avvikrapportene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "violated-constraint": {
+    "term": "brutt restriksjon",
+    "forms": [
+      "brutt restriksjon",
+      "brutte restriksjoner",
+      "brutt restriksjonen"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "wbs": {
+    "term": "WBS",
+    "forms": [
+      "WBS"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "wbs-element": {
+    "term": "WBS-element",
+    "forms": [
+      "WBS-element",
+      "WBS-elementet",
+      "WBS-elementer",
+      "WBS-elementene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "work": {
+    "term": "arbeid",
+    "forms": [
+      "arbeid",
+      "arbeidet"
+    ],
+    "avoid": [
+      "innsats"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "work-calendar": {
+    "term": "arbeidskalender",
+    "forms": [
+      "arbeidskalender",
+      "arbeidskalenderen",
+      "arbeidskalendere",
+      "arbeidskalenderne"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "work-hours": {
+    "term": "arbeidstimer",
+    "forms": [
+      "arbeidstimer",
+      "arbeidstime",
+      "arbeidstimen",
+      "arbeidstimene"
+    ],
+    "avoid": [
+      "arbeidstid"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "work-rule": {
+    "term": "arbeidsregel",
+    "forms": [
+      "arbeidsregel",
+      "arbeidsregelen",
+      "arbeidsregler",
+      "arbeidsreglene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "workday": {
+    "term": "arbeidsdag",
+    "forms": [
+      "arbeidsdag",
+      "arbeidsdagen",
+      "arbeidsdager",
+      "arbeidsdagene"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "working-time": {
+    "term": "arbeidstid",
+    "forms": [
+      "arbeidstid",
+      "arbeidstiden",
+      "arbeidstider",
+      "arbeidstidene"
+    ],
+    "avoid": [
+      "arbeidstimer"
+    ],
+    "source": "model",
+    "status": "model"
+  }
+}

@@ -1,0 +1,1628 @@
+{
+  "_style": {
+    "address": "formal",
+    "note": "De bestaande Duitse UI spreekt de gebruiker in de Sie-vorm aan (z. B. 'Prüfen Sie Beziehungen', 'Ihre Planung')."
+  },
+  "actual-date": {
+    "term": "Ist-Werte",
+    "forms": [
+      "Ist-Werte",
+      "Ist-Werten",
+      "Ist-Wert"
+    ],
+    "avoid": [
+      "aktuell"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-duration": {
+    "term": "tatsächliche Dauer",
+    "forms": [
+      "tatsächliche Dauer",
+      "tatsächlicher Dauer",
+      "tatsächliche Dauern"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-finish": {
+    "term": "tatsächliches Ende",
+    "forms": [
+      "tatsächliches Ende",
+      "tatsächlichen Endes",
+      "tatsächlichem Ende",
+      "tatsächliche Enden"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-start": {
+    "term": "tatsächlicher Anfang",
+    "forms": [
+      "tatsächlicher Anfang",
+      "tatsächlichen Anfang",
+      "tatsächlichem Anfang",
+      "tatsächliche Anfänge"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-work": {
+    "term": "Ist-Arbeit",
+    "forms": [
+      "Ist-Arbeit",
+      "Ist-Arbeiten"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ai-assistant": {
+    "term": "KI-Assistent",
+    "forms": [
+      "KI-Assistent",
+      "KI-Assistenten"
+    ],
+    "avoid": [
+      "AI-Assistent"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "as-late-as-possible": {
+    "term": "so spät wie möglich",
+    "forms": [
+      "so spät wie möglich"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "as-soon-as-possible": {
+    "term": "so früh wie möglich",
+    "forms": [
+      "so früh wie möglich"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment": {
+    "term": "Zuweisung",
+    "forms": [
+      "Zuweisung",
+      "Zuweisungen"
+    ],
+    "avoid": [
+      "Aufgabe",
+      "Lab",
+      "Arbeitsauftrag"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment-curve": {
+    "term": "Zuordnungskurve",
+    "forms": [
+      "Zuordnungskurve",
+      "Zuordnungskurven"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment-units": {
+    "term": "Zuordnungseinheiten pro Tag",
+    "forms": [
+      "Zuordnungseinheiten pro Tag",
+      "Zuordnungseinheit pro Tag"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "baseline": {
+    "term": "Baseline",
+    "forms": [
+      "Baseline",
+      "Baselines"
+    ],
+    "avoid": [
+      "Grundlinie",
+      "Grundwerte"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "bei": {
+    "term": "Basisplan-Ausführungsindex",
+    "forms": [
+      "Basisplan-Ausführungsindex",
+      "Basisplan-Ausführungsindizes"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculate": {
+    "term": "berechnen",
+    "forms": [
+      "berechnen",
+      "berechnet"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculate-automatically": {
+    "term": "automatisch berechnen",
+    "forms": [
+      "automatisch berechnen",
+      "automatisch berechnet"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculation-profile": {
+    "term": "Berechnungsprofil",
+    "forms": [
+      "Berechnungsprofil",
+      "Berechnungsprofils",
+      "Berechnungsprofile"
+    ],
+    "avoid": [
+      "Rechenprofil"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calendar": {
+    "term": "Kalender",
+    "forms": [
+      "Kalender",
+      "Kalenders",
+      "Kalendern"
+    ],
+    "avoid": [
+      "Kalenderprogramm",
+      "Outlook-Kalender"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "capacity": {
+    "term": "Kapazität",
+    "forms": [
+      "Kapazität",
+      "Kapazitäten"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "completion": {
+    "term": "Fertigstellung",
+    "forms": [
+      "Fertigstellung",
+      "Fertigstellungen"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "constraint": {
+    "term": "Einschränkung",
+    "forms": [
+      "Einschränkung",
+      "Einschränkungen"
+    ],
+    "avoid": [
+      "Constraint"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "constraint-type": {
+    "term": "Einschränkungstyp",
+    "forms": [
+      "Einschränkungstyp",
+      "Einschränkungstyps",
+      "Einschränkungstypen"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "construction-holiday": {
+    "term": "Bauferien",
+    "forms": [
+      "Bauferien"
+    ],
+    "avoid": [
+      "Bauvakantie"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "contour": {
+    "term": "Kontur",
+    "forms": [
+      "Kontur",
+      "Konturen"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "convention": {
+    "term": "Konvention",
+    "forms": [
+      "Konvention",
+      "Konventionen"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "cost": {
+    "term": "Kosten",
+    "forms": [
+      "Kosten"
+    ],
+    "avoid": [
+      "Einstandspreis"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "crash-recovery": {
+    "term": "Wiederherstellung",
+    "forms": [
+      "Wiederherstellung",
+      "Wiederherstellungen"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical": {
+    "term": "kritisch",
+    "forms": [
+      "kritisch",
+      "kritische",
+      "kritischer"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-chains": {
+    "term": "kritische Kette",
+    "forms": [
+      "kritische Kette",
+      "kritische Ketten"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-path": {
+    "term": "kritischer Pfad",
+    "forms": [
+      "kritischer Pfad",
+      "kritischen Pfad",
+      "kritischem Pfad",
+      "kritische Pfade"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-task": {
+    "term": "kritischer Vorgang",
+    "forms": [
+      "kritischer Vorgang",
+      "kritischen Vorgang",
+      "kritischem Vorgang",
+      "kritische Vorgänge"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "current-finish": {
+    "term": "aktuelles Ende",
+    "forms": [
+      "aktuelles Ende",
+      "aktuellen Endes",
+      "aktuellem Ende",
+      "aktuelle Enden"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "custom-field": {
+    "term": "benutzerdefiniertes Feld",
+    "forms": [
+      "benutzerdefiniertes Feld",
+      "benutzerdefinierten Feld",
+      "benutzerdefinierte Felder"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "cycle": {
+    "term": "Zyklus",
+    "forms": [
+      "Zyklus",
+      "Zyklen"
+    ],
+    "avoid": [
+      "Kreis"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "dcma-assessment": {
+    "term": "DCMA-14-Punkte-Bewertung",
+    "forms": [
+      "DCMA-14-Punkte-Bewertung",
+      "DCMA-14-Punkte-Bewertungen"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "deadline": {
+    "term": "Stichtag",
+    "forms": [
+      "Stichtag",
+      "Stichtags",
+      "Stichtage"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "distribution": {
+    "term": "Verteilung",
+    "forms": [
+      "Verteilung",
+      "Verteilungen"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "driving-relationship": {
+    "term": "maßgebende Beziehung",
+    "forms": [
+      "maßgebende Beziehung",
+      "maßgebenden Beziehung",
+      "maßgebende Beziehungen"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "duration": {
+    "term": "Dauer",
+    "forms": [
+      "Dauer",
+      "Dauern"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "early-finish": {
+    "term": "frühestes Ende",
+    "forms": [
+      "frühestes Ende",
+      "frühesten Endes",
+      "frühestem Ende",
+      "früheste Enden"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "early-start": {
+    "term": "frühester Anfang",
+    "forms": [
+      "frühester Anfang",
+      "frühesten Anfangs",
+      "frühestem Anfang",
+      "früheste Anfänge"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "effort-driven": {
+    "term": "aufwandsgesteuert",
+    "forms": [
+      "aufwandsgesteuert",
+      "aufwandsgesteuerte"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "elapsed-time": {
+    "term": "verstrichene Zeit",
+    "forms": [
+      "verstrichene Zeit",
+      "verstrichenen Zeit",
+      "verstrichener Zeit"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "extension": {
+    "term": "Erweiterung",
+    "forms": [
+      "Erweiterung",
+      "Erweiterungen"
+    ],
+    "avoid": [
+      "Dateiendung"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "external-relation": {
+    "term": "externe Beziehung",
+    "forms": [
+      "externe Beziehung",
+      "externer Beziehung",
+      "externe Beziehungen"
+    ],
+    "avoid": [
+      "externe Abhängigkeit"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish": {
+    "term": "Ende",
+    "forms": [
+      "Ende",
+      "Endes",
+      "Enden"
+    ],
+    "avoid": [
+      "Fertigstellung"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-driver": {
+    "term": "Ende-Treiber",
+    "forms": [
+      "Ende-Treiber",
+      "Ende-Treibers",
+      "Ende-Treibern"
+    ],
+    "avoid": [
+      "Finish-Treiber"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-no-earlier-than": {
+    "term": "Ende nicht früher als",
+    "forms": [
+      "Ende nicht früher als"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-no-later-than": {
+    "term": "Ende nicht später als",
+    "forms": [
+      "Ende nicht später als"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-to-finish": {
+    "term": "Ende-Ende-Beziehung",
+    "forms": [
+      "Ende-Ende-Beziehung",
+      "Ende-Ende-Beziehungen"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-to-start": {
+    "term": "Ende-Anfang-Beziehung",
+    "forms": [
+      "Ende-Anfang-Beziehung",
+      "Ende-Anfang-Beziehungen"
+    ],
+    "avoid": [
+      "Ende-Start-Beziehung"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-variance": {
+    "term": "Abweichung Ende",
+    "forms": [
+      "Abweichung Ende",
+      "Abweichungen Ende"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-duration": {
+    "term": "feste Dauer",
+    "forms": [
+      "feste Dauer",
+      "fester Dauer"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-units": {
+    "term": "feste Einheiten",
+    "forms": [
+      "feste Einheiten",
+      "fester Einheiten"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-work": {
+    "term": "feste Arbeit",
+    "forms": [
+      "feste Arbeit",
+      "fester Arbeit"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "float": {
+    "term": "Puffer",
+    "forms": [
+      "Puffer",
+      "Puffers",
+      "Puffern"
+    ],
+    "avoid": [
+      "Gleitkomma"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "float-path": {
+    "term": "Pufferpfad",
+    "forms": [
+      "Pufferpfad",
+      "Pufferpfades",
+      "Pufferpfade"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "forecast-finish": {
+    "term": "Prognose-Ende",
+    "forms": [
+      "Prognose-Ende",
+      "Prognose-Endes",
+      "Prognose-Enden"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "free-float": {
+    "term": "freier Puffer",
+    "forms": [
+      "freier Puffer",
+      "freien Puffer",
+      "freiem Puffer",
+      "freien Puffers"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hammock": {
+    "term": "Hammock",
+    "forms": [
+      "Hammock",
+      "Hammocks"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hard-constraint": {
+    "term": "harte Einschränkung",
+    "forms": [
+      "harte Einschränkung",
+      "harter Einschränkung",
+      "harte Einschränkungen"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "histogram": {
+    "term": "Histogramm",
+    "forms": [
+      "Histogramm",
+      "Histogramms",
+      "Histogramme"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "holiday": {
+    "term": "Feiertag",
+    "forms": [
+      "Feiertag",
+      "Feiertags",
+      "Feiertage"
+    ],
+    "avoid": [
+      "Ferien"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "holiday-set": {
+    "term": "Feiertagsset",
+    "forms": [
+      "Feiertagsset",
+      "Feiertagssets"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-distribution-in-phases": {
+    "term": "Stundenverteilung in Phasen",
+    "forms": [
+      "Stundenverteilung in Phasen",
+      "Stundenverteilungen in Phasen"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-planning": {
+    "term": "Stundenplanung",
+    "forms": [
+      "Stundenplanung",
+      "Stundenplanungen"
+    ],
+    "avoid": [
+      "Urenplanung"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-task": {
+    "term": "Stundenvorgang",
+    "forms": [
+      "Stundenvorgang",
+      "Stundenvorgangs",
+      "Stundenvorgänge"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "indent": {
+    "term": "tiefer stufen",
+    "forms": [
+      "tiefer stufen",
+      "stuft tiefer",
+      "tiefer gestuft"
+    ],
+    "avoid": [
+      "einziehen",
+      "Einzug"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "interruption": {
+    "term": "Unterbrechung",
+    "forms": [
+      "Unterbrechung",
+      "Unterbrechungen"
+    ],
+    "avoid": [
+      "Pause"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "lag": {
+    "term": "Zeitabstand",
+    "forms": [
+      "Zeitabstand",
+      "Zeitabstands",
+      "Zeitabstände"
+    ],
+    "avoid": [
+      "Verzug"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-dates": {
+    "term": "späte Termine",
+    "forms": [
+      "späte Termine",
+      "späten Terminen"
+    ],
+    "avoid": [
+      "späte Daten"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-finish": {
+    "term": "spätestes Ende",
+    "forms": [
+      "spätestes Ende",
+      "spätesten Endes",
+      "spätestem Ende"
+    ],
+    "avoid": [
+      "spätes Ende"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-start": {
+    "term": "spätester Anfang",
+    "forms": [
+      "spätester Anfang",
+      "spätesten Anfangs",
+      "spätestem Anfang"
+    ],
+    "avoid": [
+      "später Start"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "layout": {
+    "term": "Layout",
+    "forms": [
+      "Layout",
+      "Layouts"
+    ],
+    "avoid": [
+      "Anordnung"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "lead": {
+    "term": "Vorlauf",
+    "forms": [
+      "Vorlauf",
+      "Vorlaufs",
+      "Vorläufe"
+    ],
+    "avoid": [
+      "Lead"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "leveling": {
+    "term": "Ressourcenabgleich",
+    "forms": [
+      "Ressourcenabgleich",
+      "Ressourcenabgleichs",
+      "Ressourcenabgleiche"
+    ],
+    "avoid": [
+      "Nivellierung"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "leveling-delay": {
+    "term": "Abgleichsverzögerung",
+    "forms": [
+      "Abgleichsverzögerung",
+      "Abgleichsverzögerungen"
+    ],
+    "avoid": [
+      "Abgleichverzögerung"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "link-tasks": {
+    "term": "verknüpfen",
+    "forms": [
+      "verknüpfen",
+      "verknüpft",
+      "verknüpfe"
+    ],
+    "avoid": [
+      "koppeln"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "longest-path": {
+    "term": "längster Pfad",
+    "forms": [
+      "längster Pfad",
+      "längsten Pfades",
+      "längsten Pfade"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "manually-scheduled": {
+    "term": "manuell geplant",
+    "forms": [
+      "manuell geplant",
+      "manuell geplanter",
+      "manuell geplante"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "max-units": {
+    "term": "Max. Einheiten",
+    "forms": [
+      "Max. Einheiten",
+      "Max. Einheit"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "milestone": {
+    "term": "Meilenstein",
+    "forms": [
+      "Meilenstein",
+      "Meilensteine",
+      "Meilensteins"
+    ],
+    "avoid": [
+      "Milestone"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "milestone-kind": {
+    "term": "Meilensteinart",
+    "forms": [
+      "Meilensteinart",
+      "Meilensteinarten"
+    ],
+    "avoid": [
+      "Milestone kind"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "missed-task": {
+    "term": "Verpasster Vorgang",
+    "forms": [
+      "Verpasster Vorgang",
+      "Verpasste Vorgänge",
+      "Verpassten Vorgang"
+    ],
+    "avoid": [
+      "Versäumter Vorgang"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "must-finish-on": {
+    "term": "Muss enden am",
+    "forms": [
+      "Muss enden am"
+    ],
+    "avoid": [
+      "Muss enden bis"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "must-start-on": {
+    "term": "Muss anfangen am",
+    "forms": [
+      "Muss anfangen am"
+    ],
+    "avoid": [
+      "Muss starten am"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "near-critical": {
+    "term": "fast kritisch",
+    "forms": [
+      "fast kritisch",
+      "fast kritische",
+      "fast kritischen"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "negative-float": {
+    "term": "negativer Puffer",
+    "forms": [
+      "negativer Puffer",
+      "negativen Puffer",
+      "negativem Puffer"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "non-working-day": {
+    "term": "arbeitsfreier Tag",
+    "forms": [
+      "arbeitsfreier Tag",
+      "arbeitsfreien Tag",
+      "arbeitsfreie Tage"
+    ],
+    "avoid": [
+      "Ruhetag"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "out-of-sequence-progress": {
+    "term": "Fortschritt außer Reihenfolge",
+    "forms": [
+      "Fortschritt außer Reihenfolge",
+      "Fortschritte außer Reihenfolge"
+    ],
+    "avoid": [
+      "Out of sequence",
+      "Out-of-Sequence"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "outdent": {
+    "term": "Ausrücken",
+    "forms": [
+      "Ausrücken"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "overallocation": {
+    "term": "überlastet",
+    "forms": [
+      "überlastet",
+      "überlastete",
+      "überlasteten"
+    ],
+    "avoid": [
+      "Überbelegung",
+      "Doppelbuchung"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "path-tracing": {
+    "term": "Pfadverfolgung",
+    "forms": [
+      "Pfadverfolgung"
+    ],
+    "avoid": [
+      "Tracing"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "percent-complete": {
+    "term": "Fertigstellungsgrad",
+    "forms": [
+      "Fertigstellungsgrad",
+      "Fertigstellungsgrade"
+    ],
+    "avoid": [
+      "Prozent gereed",
+      "Fortschritt in Prozent"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "period": {
+    "term": "Zeitraum",
+    "forms": [
+      "Zeitraum",
+      "Zeiträume",
+      "Zeitraums",
+      "Zeiträumen"
+    ],
+    "avoid": [
+      "Periode"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "planned": {
+    "term": "geplant",
+    "forms": [
+      "geplant",
+      "geplante",
+      "geplanten"
+    ],
+    "avoid": [
+      "Soll"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "planned-work": {
+    "term": "geplante Arbeit",
+    "forms": [
+      "geplante Arbeit",
+      "geplanter Arbeit",
+      "geplanten Arbeit"
+    ],
+    "avoid": [
+      "Planarbeit"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "predecessor": {
+    "term": "Vorgänger",
+    "forms": [
+      "Vorgänger",
+      "Vorgängers",
+      "Vorgängern"
+    ],
+    "avoid": [
+      "Vorläufer"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "progress": {
+    "term": "Fortschritt",
+    "forms": [
+      "Fortschritt",
+      "Fortschritts",
+      "Fortschritte"
+    ],
+    "avoid": [
+      "Status"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "progress-mode": {
+    "term": "Fortschrittsmodus",
+    "forms": [
+      "Fortschrittsmodus",
+      "Fortschrittsmodi"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "project-finish": {
+    "term": "Projektende",
+    "forms": [
+      "Projektende",
+      "Projektendes",
+      "Projektenden"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "project-start": {
+    "term": "Projektstart",
+    "forms": [
+      "Projektstart",
+      "Projektstarts"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "rate": {
+    "term": "Tarif",
+    "forms": [
+      "Tarif",
+      "Tarife",
+      "Tarifs"
+    ],
+    "avoid": [
+      "Rate"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "read-only": {
+    "term": "schreibgeschützt",
+    "forms": [
+      "schreibgeschützt",
+      "schreibgeschützte",
+      "schreibgeschützten"
+    ],
+    "avoid": [
+      "read-only"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "recalculate": {
+    "term": "neu berechnen",
+    "forms": [
+      "neu berechnen",
+      "neu berechnet"
+    ],
+    "avoid": [
+      "herberechnen"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "relation": {
+    "term": "Beziehung",
+    "forms": [
+      "Beziehung",
+      "Beziehungen"
+    ],
+    "avoid": [
+      "Relation"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "relationship-type": {
+    "term": "Beziehungstyp",
+    "forms": [
+      "Beziehungstyp",
+      "Beziehungstypen"
+    ],
+    "avoid": [
+      "Geschäftsbeziehungstyp",
+      "Relationstyp"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "remaining-duration": {
+    "term": "Restdauer",
+    "forms": [
+      "Restdauer",
+      "Restdauern"
+    ],
+    "avoid": [
+      "Restzeit"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "remaining-work": {
+    "term": "Restarbeit",
+    "forms": [
+      "Restarbeit"
+    ],
+    "avoid": [
+      "Restwerk"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "report": {
+    "term": "Bericht",
+    "forms": [
+      "Bericht",
+      "Berichte",
+      "Berichts"
+    ],
+    "avoid": [
+      "Report"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "report-type": {
+    "term": "Berichtstyp",
+    "forms": [
+      "Berichtstyp",
+      "Berichtstypen"
+    ],
+    "avoid": [
+      "Reporttyp"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource": {
+    "term": "Ressource",
+    "forms": [
+      "Ressource",
+      "Ressourcen"
+    ],
+    "avoid": [
+      "Resource"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource-library": {
+    "term": "Ressourcenbibliothek",
+    "forms": [
+      "Ressourcenbibliothek",
+      "Ressourcenbibliotheken"
+    ],
+    "avoid": [
+      "Bibliothek",
+      "Codebibliothek"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource-type": {
+    "term": "Ressourcentyp",
+    "forms": [
+      "Ressourcentyp",
+      "Ressourcentypen"
+    ],
+    "avoid": [
+      "Resource-Typ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ribbon": {
+    "term": "Menüband",
+    "forms": [
+      "Menüband",
+      "Menübänder",
+      "Menübandes"
+    ],
+    "avoid": [
+      "Band",
+      "Ribbon"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ribbon-tab": {
+    "term": "Menüband-Registerkarte",
+    "forms": [
+      "Menüband-Registerkarte",
+      "Menüband-Registerkarten"
+    ],
+    "avoid": [
+      "Ribbon-Tab"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "round-trip": {
+    "term": "Round-Trip",
+    "forms": [
+      "Round-Trip"
+    ],
+    "avoid": [
+      "Roundtrip",
+      "Round-trip"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "schedule": {
+    "term": "Terminplan",
+    "forms": [
+      "Terminplan",
+      "Terminplans",
+      "Terminpläne"
+    ],
+    "avoid": [
+      "Schedule"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "schedule-error": {
+    "term": "Terminplanfehler",
+    "forms": [
+      "Terminplanfehler",
+      "Terminplanfehlern"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "secondary-constraint": {
+    "term": "sekundäre Einschränkung",
+    "forms": [
+      "sekundäre Einschränkung",
+      "sekundäre Einschränkungen",
+      "sekundärer Einschränkung"
+    ],
+    "avoid": [
+      "Constraint"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "shift": {
+    "term": "Schicht",
+    "forms": [
+      "Schicht",
+      "Schichten"
+    ],
+    "avoid": [
+      "verschieben"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "source-task": {
+    "term": "Quellvorgang",
+    "forms": [
+      "Quellvorgang",
+      "Quellvorgänge"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "split-task": {
+    "term": "Vorgang teilen",
+    "forms": [
+      "Vorgang teilen"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-driver": {
+    "term": "Start-Treiber",
+    "forms": [
+      "Start-Treiber",
+      "Start-Treibers",
+      "Start-Treibern"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-float": {
+    "term": "Startpuffer",
+    "forms": [
+      "Startpuffer",
+      "Startpuffern"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-no-earlier-than": {
+    "term": "Anfang nicht früher als (SNET)",
+    "forms": [
+      "Anfang nicht früher als (SNET)"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-no-later-than": {
+    "term": "Anfang nicht später als (SNLT)",
+    "forms": [
+      "Anfang nicht später als (SNLT)"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-to-finish": {
+    "term": "Anfang-Ende",
+    "forms": [
+      "Anfang-Ende",
+      "Anfang-Ende-Beziehung",
+      "Anfang-Ende-Beziehungen"
+    ],
+    "avoid": [
+      "Ende-Anfang",
+      "Start-Ende"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-to-start": {
+    "term": "Anfang-Anfang",
+    "forms": [
+      "Anfang-Anfang",
+      "Anfang-Anfang-Beziehung",
+      "Anfang-Anfang-Beziehungen"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-variance": {
+    "term": "Abweichung Anfang",
+    "forms": [
+      "Abweichung Anfang"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "status-date": {
+    "term": "Statusdatum",
+    "forms": [
+      "Statusdatum",
+      "Statusdatums",
+      "Statusdaten"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "subtask": {
+    "term": "Unteraufgabe",
+    "forms": [
+      "Unteraufgabe",
+      "Unteraufgaben"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "successor": {
+    "term": "Nachfolger",
+    "forms": [
+      "Nachfolger",
+      "Nachfolgers",
+      "Nachfolgern"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "summary-task": {
+    "term": "Sammelaufgabe",
+    "forms": [
+      "Sammelaufgabe",
+      "Sammelaufgaben"
+    ],
+    "avoid": [
+      "Zusammenfassung"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task": {
+    "term": "Vorgang",
+    "forms": [
+      "Vorgang",
+      "Vorgangs",
+      "Vorgänge",
+      "Vorgängen"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task-grid": {
+    "term": "Aufgabenraster",
+    "forms": [
+      "Aufgabenraster",
+      "Aufgabenrasters",
+      "Aufgabenrastern"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task-type": {
+    "term": "Aufgabentyp",
+    "forms": [
+      "Aufgabentyp",
+      "Aufgabentyps",
+      "Aufgabentypen"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "threshold": {
+    "term": "Schwelle",
+    "forms": [
+      "Schwelle",
+      "Schwellen"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "total-float": {
+    "term": "Gesamtpuffer",
+    "forms": [
+      "Gesamtpuffer",
+      "Gesamtpuffers"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "tutorial": {
+    "term": "Tutorial",
+    "forms": [
+      "Tutorial",
+      "Tutorials"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "units": {
+    "term": "Einheiten",
+    "forms": [
+      "Einheiten",
+      "Einheit"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "variance": {
+    "term": "Abweichung",
+    "forms": [
+      "Abweichung",
+      "Abweichungen"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "variance-report": {
+    "term": "Variance-Bericht",
+    "forms": [
+      "Variance-Bericht",
+      "Variance-Berichte"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "violated-constraint": {
+    "term": "Verletzte Einschränkung",
+    "forms": [
+      "Verletzte Einschränkung",
+      "Verletzten Einschränkung",
+      "Verletzte Einschränkungen"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "wbs": {
+    "term": "PSP",
+    "forms": [
+      "PSP",
+      "PSPs"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "wbs-element": {
+    "term": "PSP-Element",
+    "forms": [
+      "PSP-Element",
+      "PSP-Elemente",
+      "PSP-Elementen"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work": {
+    "term": "Arbeit",
+    "forms": [
+      "Arbeit"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-calendar": {
+    "term": "Arbeitskalender",
+    "forms": [
+      "Arbeitskalender",
+      "Arbeitskalendern"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-hours": {
+    "term": "Arbeitszeiten",
+    "forms": [
+      "Arbeitszeiten",
+      "Arbeitszeit"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-rule": {
+    "term": "Arbeitsregel",
+    "forms": [
+      "Arbeitsregel",
+      "Arbeitsregeln"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "workday": {
+    "term": "Arbeitstag",
+    "forms": [
+      "Arbeitstag",
+      "Arbeitstage"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "working-time": {
+    "term": "Arbeitszeit",
+    "forms": [
+      "Arbeitszeit",
+      "Arbeitszeiten"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  }
+}

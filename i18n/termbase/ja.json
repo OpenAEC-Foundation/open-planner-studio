@@ -1,0 +1,1313 @@
+{
+  "_style": {
+    "address": "formal",
+    "note": "The existing Japanese UI uses polite forms (です/ます, ください, できません). Follow the ui texts."
+  },
+  "actual-date": {
+    "term": "実績日",
+    "forms": [
+      "実績日"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-duration": {
+    "term": "実績期間",
+    "forms": [
+      "実績期間"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-finish": {
+    "term": "実績終了日",
+    "forms": [
+      "実績終了日"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-start": {
+    "term": "実績開始日",
+    "forms": [
+      "実績開始日"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-work": {
+    "term": "実績作業",
+    "forms": [
+      "実績作業"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ai-assistant": {
+    "term": "AI アシスタント",
+    "forms": [
+      "AI アシスタント"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "as-late-as-possible": {
+    "term": "できるだけ遅く",
+    "forms": [
+      "できるだけ遅く"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "as-soon-as-possible": {
+    "term": "できるだけ早く",
+    "forms": [
+      "できるだけ早く"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment": {
+    "term": "割り当て",
+    "forms": [
+      "割り当て"
+    ],
+    "avoid": [
+      "課題",
+      "代入"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment-curve": {
+    "term": "割り当て曲線",
+    "forms": [
+      "割り当て曲線"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment-units": {
+    "term": "1日あたりの割り当て単位",
+    "forms": [
+      "1日あたりの割り当て単位"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "baseline": {
+    "term": "ベースライン",
+    "forms": [
+      "ベースライン"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "bei": {
+    "term": "ベースライン実行指数",
+    "forms": [
+      "ベースライン実行指数"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculate": {
+    "term": "計算",
+    "forms": [
+      "計算"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculate-automatically": {
+    "term": "自動計算",
+    "forms": [
+      "自動計算"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculation-profile": {
+    "term": "計算プロファイル",
+    "forms": [
+      "計算プロファイル"
+    ],
+    "avoid": [
+      "算定プロファイル"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calendar": {
+    "term": "カレンダー",
+    "forms": [
+      "カレンダー"
+    ],
+    "avoid": [
+      "予定表"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "capacity": {
+    "term": "キャパシティ",
+    "forms": [
+      "キャパシティ"
+    ],
+    "avoid": [
+      "容量"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "completion": {
+    "term": "完了率",
+    "forms": [
+      "完了率"
+    ],
+    "avoid": [
+      "完成"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "constraint": {
+    "term": "制約",
+    "forms": [
+      "制約"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "constraint-type": {
+    "term": "制約タイプ",
+    "forms": [
+      "制約タイプ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "construction-holiday": {
+    "term": "建設業休暇",
+    "forms": [
+      "建設業休暇"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "contour": {
+    "term": "輪郭",
+    "forms": [
+      "輪郭"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "convention": {
+    "term": "規則",
+    "forms": [
+      "規則"
+    ],
+    "avoid": [
+      "規約"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "cost": {
+    "term": "コスト",
+    "forms": [
+      "コスト"
+    ],
+    "avoid": [
+      "原価価格"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "crash-recovery": {
+    "term": "クラッシュ復元",
+    "forms": [
+      "クラッシュ復元"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical": {
+    "term": "クリティカル",
+    "forms": [
+      "クリティカル"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-chains": {
+    "term": "クリティカルチェーン",
+    "forms": [
+      "クリティカルチェーン"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-path": {
+    "term": "クリティカルパス",
+    "forms": [
+      "クリティカルパス"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-task": {
+    "term": "クリティカルタスク",
+    "forms": [
+      "クリティカルタスク"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "current-finish": {
+    "term": "現在の終了",
+    "forms": [
+      "現在の終了"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "custom-field": {
+    "term": "カスタムフィールド",
+    "forms": [
+      "カスタムフィールド"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "cycle": {
+    "term": "循環",
+    "forms": [
+      "循環"
+    ],
+    "avoid": [
+      "サイクル"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "dcma-assessment": {
+    "term": "DCMA 14 項目評価",
+    "forms": [
+      "DCMA 14 項目評価"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "deadline": {
+    "term": "期限",
+    "forms": [
+      "期限"
+    ],
+    "avoid": [
+      "締め切り",
+      "締切"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "distribution": {
+    "term": "配分",
+    "forms": [
+      "配分"
+    ],
+    "avoid": [
+      "流通"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "driving-relationship": {
+    "term": "駆動関係",
+    "forms": [
+      "駆動関係"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "duration": {
+    "term": "期間",
+    "forms": [
+      "期間"
+    ],
+    "avoid": [
+      "DURATION"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "early-finish": {
+    "term": "最早終了",
+    "forms": [
+      "最早終了"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "early-start": {
+    "term": "最早開始",
+    "forms": [
+      "最早開始"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "effort-driven": {
+    "term": "作業時間主導",
+    "forms": [
+      "作業時間主導"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "elapsed-time": {
+    "term": "経過時間",
+    "forms": [
+      "経過時間"
+    ],
+    "avoid": [
+      "経過期間"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "extension": {
+    "term": "拡張機能",
+    "forms": [
+      "拡張機能"
+    ],
+    "avoid": [
+      "拡張子"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "external-relation": {
+    "term": "外部リンク",
+    "forms": [
+      "外部リンク"
+    ],
+    "avoid": [
+      "外部関係"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish": {
+    "term": "終了",
+    "forms": [
+      "終了"
+    ],
+    "avoid": [
+      "完了"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-driver": {
+    "term": "終了ドライバー",
+    "forms": [
+      "終了ドライバー"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-no-earlier-than": {
+    "term": "指定日以降に終了",
+    "forms": [
+      "指定日以降に終了"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-no-later-than": {
+    "term": "指定日以前に終了",
+    "forms": [
+      "指定日以前に終了"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-to-finish": {
+    "term": "終了-終了",
+    "forms": [
+      "終了-終了"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-to-start": {
+    "term": "終了-開始",
+    "forms": [
+      "終了-開始"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-variance": {
+    "term": "終了差異",
+    "forms": [
+      "終了差異"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-duration": {
+    "term": "固定期間",
+    "forms": [
+      "固定期間"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-units": {
+    "term": "固定単位",
+    "forms": [
+      "固定単位"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-work": {
+    "term": "固定作業",
+    "forms": [
+      "固定作業"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "float": {
+    "term": "フロート",
+    "forms": [
+      "フロート"
+    ],
+    "avoid": [
+      "浮動",
+      "フローティング"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "float-path": {
+    "term": "フロートパス",
+    "forms": [
+      "フロートパス"
+    ],
+    "avoid": [
+      "余裕パス"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "forecast-finish": {
+    "term": "予測終了",
+    "forms": [
+      "予測終了"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "free-float": {
+    "term": "フリーフロート",
+    "forms": [
+      "フリーフロート"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hammock": {
+    "term": "ハンモック",
+    "forms": [
+      "ハンモック"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hard-constraint": {
+    "term": "ハード制約",
+    "forms": [
+      "ハード制約"
+    ],
+    "avoid": [
+      "強制制約"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "histogram": {
+    "term": "ヒストグラム",
+    "forms": [
+      "ヒストグラム"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "holiday": {
+    "term": "祝日",
+    "forms": [
+      "祝日"
+    ],
+    "avoid": [
+      "休日"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "holiday-set": {
+    "term": "祝日セット",
+    "forms": [
+      "祝日セット"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-distribution-in-phases": {
+    "term": "フェーズ別の時間配分",
+    "forms": [
+      "フェーズ別の時間配分"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-planning": {
+    "term": "時間計画",
+    "forms": [
+      "時間計画"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-task": {
+    "term": "時間タスク",
+    "forms": [
+      "時間タスク"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "indent": {
+    "term": "インデント",
+    "forms": [
+      "インデント"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "interruption": {
+    "term": "中断",
+    "forms": [
+      "中断"
+    ],
+    "avoid": [
+      "休憩"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "lag": {
+    "term": "ラグ",
+    "forms": [
+      "ラグ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-dates": {
+    "term": "遅い日付",
+    "forms": [
+      "遅い日付"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-finish": {
+    "term": "最遅終了",
+    "forms": [
+      "最遅終了"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-start": {
+    "term": "最遅開始",
+    "forms": [
+      "最遅開始"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "layout": {
+    "term": "レイアウト",
+    "forms": [
+      "レイアウト"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "lead": {
+    "term": "リード",
+    "forms": [
+      "リード"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "leveling": {
+    "term": "山崩し",
+    "forms": [
+      "山崩し"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "leveling-delay": {
+    "term": "山崩し遅延",
+    "forms": [
+      "山崩し遅延"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "link-tasks": {
+    "term": "リンク",
+    "forms": [
+      "リンク"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "longest-path": {
+    "term": "最長パス",
+    "forms": [
+      "最長パス"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "manually-scheduled": {
+    "term": "手動スケジュール",
+    "forms": [
+      "手動スケジュール"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "max-units": {
+    "term": "最大単位数",
+    "forms": [
+      "最大単位数"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "milestone": {
+    "term": "マイルストーン",
+    "forms": [
+      "マイルストーン"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "milestone-kind": {
+    "term": "マイルストーンの種類",
+    "forms": [
+      "マイルストーンの種類"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "missed-task": {
+    "term": "ベースライン未達タスク",
+    "forms": [
+      "ベースライン未達タスク"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "must-finish-on": {
+    "term": "指定日に終了",
+    "forms": [
+      "指定日に終了"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "must-start-on": {
+    "term": "指定日に開始",
+    "forms": [
+      "指定日に開始"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "near-critical": {
+    "term": "準クリティカル",
+    "forms": [
+      "準クリティカル"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "negative-float": {
+    "term": "負のフロート",
+    "forms": [
+      "負のフロート"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "non-working-day": {
+    "term": "非稼働日",
+    "forms": [
+      "非稼働日"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "out-of-sequence-progress": {
+    "term": "順序外進捗",
+    "forms": [
+      "順序外進捗"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "outdent": {
+    "term": "インデント解除",
+    "forms": [
+      "インデント解除"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "overallocation": {
+    "term": "過剰割り当て",
+    "forms": [
+      "過剰割り当て"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "path-tracing": {
+    "term": "パストレース",
+    "forms": [
+      "パストレース"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "percent-complete": {
+    "term": "完了率",
+    "forms": [
+      "完了率"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "period": {
+    "term": "期間",
+    "forms": [
+      "期間"
+    ],
+    "avoid": [
+      "周期"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "planned": {
+    "term": "計画された",
+    "forms": [
+      "計画された"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "planned-work": {
+    "term": "計画作業",
+    "forms": [
+      "計画作業"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "predecessor": {
+    "term": "先行タスク",
+    "forms": [
+      "先行タスク"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "progress": {
+    "term": "進捗",
+    "forms": [
+      "進捗"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "progress-mode": {
+    "term": "進捗モード",
+    "forms": [
+      "進捗モード"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "project-finish": {
+    "term": "プロジェクト終了日",
+    "forms": [
+      "プロジェクト終了日"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "project-start": {
+    "term": "プロジェクト開始日",
+    "forms": [
+      "プロジェクト開始日"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "rate": {
+    "term": "単価",
+    "forms": [
+      "単価"
+    ],
+    "avoid": [
+      "評価"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "read-only": {
+    "term": "読み取り専用",
+    "forms": [
+      "読み取り専用"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "recalculate": {
+    "term": "再計算",
+    "forms": [
+      "再計算"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "relation": {
+    "term": "関係",
+    "forms": [
+      "関係"
+    ],
+    "avoid": [
+      "リレーション"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "relationship-type": {
+    "term": "関係タイプ",
+    "forms": [
+      "関係タイプ"
+    ],
+    "avoid": [
+      "関係内容"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "remaining-duration": {
+    "term": "残存期間",
+    "forms": [
+      "残存期間"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "remaining-work": {
+    "term": "残作業",
+    "forms": [
+      "残作業"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "report": {
+    "term": "レポート",
+    "forms": [
+      "レポート"
+    ],
+    "avoid": [
+      "報告書"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "report-type": {
+    "term": "レポートの種類",
+    "forms": [
+      "レポートの種類"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource": {
+    "term": "リソース",
+    "forms": [
+      "リソース"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource-library": {
+    "term": "リソースライブラリ",
+    "forms": [
+      "リソースライブラリ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource-type": {
+    "term": "リソースの種類",
+    "forms": [
+      "リソースの種類"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ribbon": {
+    "term": "リボン",
+    "forms": [
+      "リボン"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ribbon-tab": {
+    "term": "リボンタブ",
+    "forms": [
+      "リボンタブ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "round-trip": {
+    "term": "ラウンドトリップ",
+    "forms": [
+      "ラウンドトリップ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "schedule": {
+    "term": "スケジュール",
+    "forms": [
+      "スケジュール"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "schedule-error": {
+    "term": "スケジュールエラー",
+    "forms": [
+      "スケジュールエラー"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "secondary-constraint": {
+    "term": "副制約",
+    "forms": [
+      "副制約"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "shift": {
+    "term": "シフト",
+    "forms": [
+      "シフト"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "source-task": {
+    "term": "ソースタスク",
+    "forms": [
+      "ソースタスク"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "split-task": {
+    "term": "タスクを分割",
+    "forms": [
+      "タスクを分割"
+    ],
+    "avoid": [
+      "スプリットタスク"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-driver": {
+    "term": "開始ドライバー",
+    "forms": [
+      "開始ドライバー"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-float": {
+    "term": "開始フロート",
+    "forms": [
+      "開始フロート"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-no-earlier-than": {
+    "term": "指定日以降に開始 (SNET)",
+    "forms": [
+      "指定日以降に開始 (SNET)"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-no-later-than": {
+    "term": "指定日以前に開始 (SNLT)",
+    "forms": [
+      "指定日以前に開始 (SNLT)"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-to-finish": {
+    "term": "開始-終了",
+    "forms": [
+      "開始-終了"
+    ],
+    "avoid": [
+      "開始-完了"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-to-start": {
+    "term": "開始-開始",
+    "forms": [
+      "開始-開始"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-variance": {
+    "term": "開始差異",
+    "forms": [
+      "開始差異"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "status-date": {
+    "term": "状態日",
+    "forms": [
+      "状態日"
+    ],
+    "avoid": [
+      "状況報告日"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "subtask": {
+    "term": "サブタスク",
+    "forms": [
+      "サブタスク"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "successor": {
+    "term": "後続タスク",
+    "forms": [
+      "後続タスク"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "summary-task": {
+    "term": "サマリータスク",
+    "forms": [
+      "サマリータスク"
+    ],
+    "avoid": [
+      "サマリー タスク"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task": {
+    "term": "タスク",
+    "forms": [
+      "タスク"
+    ],
+    "avoid": [
+      "アクティビティ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task-grid": {
+    "term": "タスクテーブル",
+    "forms": [
+      "タスクテーブル"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task-type": {
+    "term": "タスクタイプ",
+    "forms": [
+      "タスクタイプ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "threshold": {
+    "term": "しきい値",
+    "forms": [
+      "しきい値"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "total-float": {
+    "term": "トータルフロート",
+    "forms": [
+      "トータルフロート"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "tutorial": {
+    "term": "チュートリアル",
+    "forms": [
+      "チュートリアル"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "units": {
+    "term": "単位数",
+    "forms": [
+      "単位数"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "variance": {
+    "term": "差異",
+    "forms": [
+      "差異"
+    ],
+    "avoid": [
+      "相違"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "variance-report": {
+    "term": "差異レポート",
+    "forms": [
+      "差異レポート"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "violated-constraint": {
+    "term": "制約違反",
+    "forms": [
+      "制約違反"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "wbs": {
+    "term": "WBS",
+    "forms": [
+      "WBS"
+    ],
+    "avoid": [
+      "ワーク ブレークダウン ストラクチャ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "wbs-element": {
+    "term": "WBS 要素",
+    "forms": [
+      "WBS 要素"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work": {
+    "term": "作業",
+    "forms": [
+      "作業"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-calendar": {
+    "term": "作業カレンダー",
+    "forms": [
+      "作業カレンダー"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-hours": {
+    "term": "稼働時間",
+    "forms": [
+      "稼働時間"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-rule": {
+    "term": "作業ルール",
+    "forms": [
+      "作業ルール"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "workday": {
+    "term": "稼働日",
+    "forms": [
+      "稼働日"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "working-time": {
+    "term": "稼働時間",
+    "forms": [
+      "稼働時間"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  }
+}

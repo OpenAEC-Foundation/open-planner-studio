@@ -1,0 +1,1270 @@
+{
+  "_style": {
+    "address": "informal",
+    "note": "Chinese desktop software uses 你 for the user. The app's own ui texts use 你 (for example 你计划的其余部分, 请确认), so keep that. Short imperative sentences, for example 按 F5 或 请先设置."
+  },
+  "actual-date": {
+    "term": "实际日期",
+    "forms": [
+      "实际日期"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-duration": {
+    "term": "实际工期",
+    "forms": [
+      "实际工期"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-finish": {
+    "term": "实际完成日期",
+    "forms": [
+      "实际完成日期"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-start": {
+    "term": "实际开始日期",
+    "forms": [
+      "实际开始日期"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-work": {
+    "term": "实际工时",
+    "forms": [
+      "实际工时"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ai-assistant": {
+    "term": "AI 助手",
+    "forms": [
+      "AI 助手"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "as-late-as-possible": {
+    "term": "越晚越好",
+    "forms": [
+      "越晚越好"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "as-soon-as-possible": {
+    "term": "越早越好",
+    "forms": [
+      "越早越好"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment": {
+    "term": "分配",
+    "forms": [
+      "分配"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment-curve": {
+    "term": "分配曲线",
+    "forms": [
+      "分配曲线"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment-units": {
+    "term": "每日分配单位",
+    "forms": [
+      "每日分配单位"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "baseline": {
+    "term": "基线",
+    "forms": [
+      "基线"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "bei": {
+    "term": "基线执行指数",
+    "forms": [
+      "基线执行指数"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculate": {
+    "term": "计算",
+    "forms": [
+      "计算"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculate-automatically": {
+    "term": "自动计算",
+    "forms": [
+      "自动计算"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculation-profile": {
+    "term": "计算配置文件",
+    "forms": [
+      "计算配置文件"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calendar": {
+    "term": "日历",
+    "forms": [
+      "日历"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "capacity": {
+    "term": "产能",
+    "forms": [
+      "产能"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "completion": {
+    "term": "完成度",
+    "forms": [
+      "完成度"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "constraint": {
+    "term": "约束",
+    "forms": [
+      "约束"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "constraint-type": {
+    "term": "约束类型",
+    "forms": [
+      "约束类型"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "construction-holiday": {
+    "term": "建筑业假期",
+    "forms": [
+      "建筑业假期"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "contour": {
+    "term": "轮廓",
+    "forms": [
+      "轮廓"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "convention": {
+    "term": "约定",
+    "forms": [
+      "约定"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "cost": {
+    "term": "成本",
+    "forms": [
+      "成本"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "crash-recovery": {
+    "term": "崩溃恢复",
+    "forms": [
+      "崩溃恢复"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical": {
+    "term": "关键",
+    "forms": [
+      "关键"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-chains": {
+    "term": "关键链",
+    "forms": [
+      "关键链"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-path": {
+    "term": "关键路径",
+    "forms": [
+      "关键路径"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-task": {
+    "term": "关键任务",
+    "forms": [
+      "关键任务"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "current-finish": {
+    "term": "当前完成",
+    "forms": [
+      "当前完成"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "custom-field": {
+    "term": "自定义字段",
+    "forms": [
+      "自定义字段"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "cycle": {
+    "term": "循环",
+    "forms": [
+      "循环"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "dcma-assessment": {
+    "term": "DCMA 14 点评估",
+    "forms": [
+      "DCMA 14 点评估"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "deadline": {
+    "term": "截止日期",
+    "forms": [
+      "截止日期"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "distribution": {
+    "term": "工时分布",
+    "forms": [
+      "工时分布"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "driving-relationship": {
+    "term": "驱动关系",
+    "forms": [
+      "驱动关系"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "duration": {
+    "term": "工期",
+    "forms": [
+      "工期"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "early-finish": {
+    "term": "最早完成",
+    "forms": [
+      "最早完成"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "early-start": {
+    "term": "最早开始",
+    "forms": [
+      "最早开始"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "effort-driven": {
+    "term": "投入量驱动",
+    "forms": [
+      "投入量驱动"
+    ],
+    "avoid": [
+      "工作量驱动"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "elapsed-time": {
+    "term": "已用时间",
+    "forms": [
+      "已用时间"
+    ],
+    "avoid": [
+      "运行时间"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "extension": {
+    "term": "扩展",
+    "forms": [
+      "扩展"
+    ],
+    "avoid": [
+      "扩展名",
+      "浏览器扩展"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "external-relation": {
+    "term": "外部链接",
+    "forms": [
+      "外部链接"
+    ],
+    "avoid": [
+      "外部相关性"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish": {
+    "term": "完成",
+    "forms": [
+      "完成"
+    ],
+    "avoid": [
+      "结束"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-driver": {
+    "term": "结束驱动",
+    "forms": [
+      "结束驱动"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-no-earlier-than": {
+    "term": "不得早于…完成",
+    "forms": [
+      "不得早于…完成"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-no-later-than": {
+    "term": "不得晚于…完成",
+    "forms": [
+      "不得晚于…完成"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-to-finish": {
+    "term": "完成-完成",
+    "forms": [
+      "完成-完成"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-to-start": {
+    "term": "完成-开始",
+    "forms": [
+      "完成-开始"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-variance": {
+    "term": "完成差异",
+    "forms": [
+      "完成差异"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-duration": {
+    "term": "固定工期",
+    "forms": [
+      "固定工期"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-units": {
+    "term": "固定单位",
+    "forms": [
+      "固定单位"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-work": {
+    "term": "固定工时",
+    "forms": [
+      "固定工时"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "float": {
+    "term": "浮时",
+    "forms": [
+      "浮时"
+    ],
+    "avoid": [
+      "浮点数"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "float-path": {
+    "term": "浮时路径",
+    "forms": [
+      "浮时路径"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "forecast-finish": {
+    "term": "预测完成",
+    "forms": [
+      "预测完成"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "free-float": {
+    "term": "自由浮动时间",
+    "forms": [
+      "自由浮动时间"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hammock": {
+    "term": "吊床任务",
+    "forms": [
+      "吊床任务"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hard-constraint": {
+    "term": "强制约束",
+    "forms": [
+      "强制约束"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "histogram": {
+    "term": "直方图",
+    "forms": [
+      "直方图"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "holiday": {
+    "term": "假日",
+    "forms": [
+      "假日"
+    ],
+    "avoid": [
+      "节日"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "holiday-set": {
+    "term": "假日集",
+    "forms": [
+      "假日集"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-distribution-in-phases": {
+    "term": "按阶段的工时分布",
+    "forms": [
+      "按阶段的工时分布"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-planning": {
+    "term": "小时计划",
+    "forms": [
+      "小时计划"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-task": {
+    "term": "小时任务",
+    "forms": [
+      "小时任务"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "indent": {
+    "term": "降级",
+    "forms": [
+      "降级"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "interruption": {
+    "term": "中断",
+    "forms": [
+      "中断"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "lag": {
+    "term": "延隔",
+    "forms": [
+      "延隔"
+    ],
+    "avoid": [
+      "滞后时间"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-dates": {
+    "term": "最晚日期",
+    "forms": [
+      "最晚日期"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-finish": {
+    "term": "最晚完成",
+    "forms": [
+      "最晚完成"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-start": {
+    "term": "最晚开始",
+    "forms": [
+      "最晚开始"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "layout": {
+    "term": "布局",
+    "forms": [
+      "布局"
+    ],
+    "avoid": [
+      "版式"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "lead": {
+    "term": "提前量",
+    "forms": [
+      "提前量"
+    ],
+    "avoid": [
+      "潜在客户"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "leveling": {
+    "term": "资源平衡",
+    "forms": [
+      "资源平衡"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "leveling-delay": {
+    "term": "资源调配延迟",
+    "forms": [
+      "资源调配延迟"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "link-tasks": {
+    "term": "链接",
+    "forms": [
+      "链接"
+    ],
+    "avoid": [
+      "超链接",
+      "连接"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "longest-path": {
+    "term": "最长路径",
+    "forms": [
+      "最长路径"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "manually-scheduled": {
+    "term": "手动计划",
+    "forms": [
+      "手动计划"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "max-units": {
+    "term": "最大单位数",
+    "forms": [
+      "最大单位数"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "milestone": {
+    "term": "里程碑",
+    "forms": [
+      "里程碑"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "milestone-kind": {
+    "term": "里程碑类型",
+    "forms": [
+      "里程碑类型"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "missed-task": {
+    "term": "未按基线完成的任务",
+    "forms": [
+      "未按基线完成的任务"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "must-finish-on": {
+    "term": "必须完成于",
+    "forms": [
+      "必须完成于"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "must-start-on": {
+    "term": "必须开始于",
+    "forms": [
+      "必须开始于"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "near-critical": {
+    "term": "接近关键",
+    "forms": [
+      "接近关键"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "negative-float": {
+    "term": "负浮时",
+    "forms": [
+      "负浮时"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "non-working-day": {
+    "term": "非工作时间",
+    "forms": [
+      "非工作时间"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "out-of-sequence-progress": {
+    "term": "顺序外进度",
+    "forms": [
+      "顺序外进度"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "outdent": {
+    "term": "升级",
+    "forms": [
+      "升级"
+    ],
+    "avoid": [
+      "向左缩进"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "overallocation": {
+    "term": "过度分配",
+    "forms": [
+      "过度分配"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "path-tracing": {
+    "term": "路径追踪",
+    "forms": [
+      "路径追踪"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "percent-complete": {
+    "term": "完成百分比",
+    "forms": [
+      "完成百分比"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "period": {
+    "term": "期间",
+    "forms": [
+      "期间"
+    ],
+    "avoid": [
+      "经期"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "planned": {
+    "term": "计划的",
+    "forms": [
+      "计划的"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "planned-work": {
+    "term": "计划工时",
+    "forms": [
+      "计划工时"
+    ],
+    "avoid": [
+      "计划工作"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "predecessor": {
+    "term": "前置任务",
+    "forms": [
+      "前置任务"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "progress": {
+    "term": "进度",
+    "forms": [
+      "进度"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "progress-mode": {
+    "term": "进度模式",
+    "forms": [
+      "进度模式"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "project-finish": {
+    "term": "项目完成",
+    "forms": [
+      "项目完成"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "project-start": {
+    "term": "项目开始",
+    "forms": [
+      "项目开始"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "rate": {
+    "term": "费率",
+    "forms": [
+      "费率"
+    ],
+    "avoid": [
+      "评价"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "read-only": {
+    "term": "只读",
+    "forms": [
+      "只读"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "recalculate": {
+    "term": "重新计算",
+    "forms": [
+      "重新计算"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "relation": {
+    "term": "关系",
+    "forms": [
+      "关系"
+    ],
+    "avoid": [
+      "依赖项"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "relationship-type": {
+    "term": "关系类型",
+    "forms": [
+      "关系类型"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "remaining-duration": {
+    "term": "剩余工期",
+    "forms": [
+      "剩余工期"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "remaining-work": {
+    "term": "剩余工时",
+    "forms": [
+      "剩余工时"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "report": {
+    "term": "报表",
+    "forms": [
+      "报表"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "report-type": {
+    "term": "报表类型",
+    "forms": [
+      "报表类型"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource": {
+    "term": "资源",
+    "forms": [
+      "资源"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource-library": {
+    "term": "资源库",
+    "forms": [
+      "资源库"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource-type": {
+    "term": "资源类型",
+    "forms": [
+      "资源类型"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ribbon": {
+    "term": "功能区",
+    "forms": [
+      "功能区"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ribbon-tab": {
+    "term": "功能区标签",
+    "forms": [
+      "功能区标签"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "round-trip": {
+    "term": "往返",
+    "forms": [
+      "往返"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "schedule": {
+    "term": "计划",
+    "forms": [
+      "计划"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "schedule-error": {
+    "term": "计划错误",
+    "forms": [
+      "计划错误"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "secondary-constraint": {
+    "term": "次要限制",
+    "forms": [
+      "次要限制"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "shift": {
+    "term": "班次",
+    "forms": [
+      "班次"
+    ],
+    "avoid": [
+      "移动"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "source-task": {
+    "term": "源任务",
+    "forms": [
+      "源任务"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "split-task": {
+    "term": "拆分任务",
+    "forms": [
+      "拆分任务"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-driver": {
+    "term": "开始驱动",
+    "forms": [
+      "开始驱动"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-float": {
+    "term": "开始浮动",
+    "forms": [
+      "开始浮动"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-no-earlier-than": {
+    "term": "不得早于…开始",
+    "forms": [
+      "不得早于…开始"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-no-later-than": {
+    "term": "不得晚于…开始",
+    "forms": [
+      "不得晚于…开始"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-to-finish": {
+    "term": "开始-完成",
+    "forms": [
+      "开始-完成"
+    ],
+    "avoid": [
+      "开始-结束"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-to-start": {
+    "term": "开始-开始",
+    "forms": [
+      "开始-开始"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-variance": {
+    "term": "开始差异",
+    "forms": [
+      "开始差异"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "status-date": {
+    "term": "状态日期",
+    "forms": [
+      "状态日期"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "subtask": {
+    "term": "子任务",
+    "forms": [
+      "子任务"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "successor": {
+    "term": "后续任务",
+    "forms": [
+      "后续任务"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "summary-task": {
+    "term": "汇总任务",
+    "forms": [
+      "汇总任务"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task": {
+    "term": "任务",
+    "forms": [
+      "任务"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task-grid": {
+    "term": "任务表",
+    "forms": [
+      "任务表"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task-type": {
+    "term": "任务类型",
+    "forms": [
+      "任务类型"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "threshold": {
+    "term": "阈值",
+    "forms": [
+      "阈值"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "total-float": {
+    "term": "总浮动",
+    "forms": [
+      "总浮动"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "tutorial": {
+    "term": "教程",
+    "forms": [
+      "教程"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "units": {
+    "term": "单位",
+    "forms": [
+      "单位"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "variance": {
+    "term": "差异",
+    "forms": [
+      "差异"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "variance-report": {
+    "term": "差异报告",
+    "forms": [
+      "差异报告"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "violated-constraint": {
+    "term": "违反限制",
+    "forms": [
+      "违反限制"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "wbs": {
+    "term": "WBS",
+    "forms": [
+      "WBS"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "wbs-element": {
+    "term": "WBS 元素",
+    "forms": [
+      "WBS 元素"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work": {
+    "term": "工时",
+    "forms": [
+      "工时"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-calendar": {
+    "term": "工作日历",
+    "forms": [
+      "工作日历"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-hours": {
+    "term": "工作时间",
+    "forms": [
+      "工作时间"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-rule": {
+    "term": "工作规则",
+    "forms": [
+      "工作规则"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "workday": {
+    "term": "工作日",
+    "forms": [
+      "工作日"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "working-time": {
+    "term": "工作时间",
+    "forms": [
+      "工作时间"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  }
+}
