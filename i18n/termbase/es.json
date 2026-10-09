@@ -1280,7 +1280,7 @@
       "error de programación"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "secondary-constraint": {
     "term": "restricción secundaria",
@@ -1360,16 +1360,15 @@
     "status": "existing-ui"
   },
   "start-to-finish": {
-    "term": "relación comienzo-fin",
+    "term": "comienzo-fin",
     "forms": [
-      "relación comienzo-fin",
-      "relaciones comienzo-fin"
+      "comienzo-fin"
     ],
     "avoid": [
-      "relación fin-comienzo"
+      "relación comienzo-fin"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-to-start": {
     "term": "relación comienzo-comienzo",

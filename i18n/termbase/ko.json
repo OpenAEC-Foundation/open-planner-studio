@@ -1069,7 +1069,7 @@
       "시작-종료"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-to-start": {
     "term": "시작-시작",

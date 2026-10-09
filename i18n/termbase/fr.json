@@ -1271,7 +1271,7 @@
       "erreurs de planning"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "secondary-constraint": {
     "term": "contrainte secondaire",
@@ -1368,11 +1368,8 @@
     "forms": [
       "début-fin"
     ],
-    "avoid": [
-      "fin-début"
-    ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-to-start": {
     "term": "début-début",

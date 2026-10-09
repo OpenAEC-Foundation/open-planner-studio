@@ -136,11 +136,10 @@
       "průběhovou křivku přiřazení"
     ],
     "avoid": [
-      "kontura přiřazení",
-      "křivka přiřazení"
+      "kontura přiřazení"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "assignment-units": {
     "term": "jednotky přiřazení za den",
@@ -185,7 +184,7 @@
       "index základní úrovně"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "calculate": {
     "term": "přepočítat",
@@ -236,8 +235,7 @@
       "kalendáři"
     ],
     "avoid": [
-      "kalendářový program",
-      "Kalendář"
+      "kalendářový program"
     ],
     "source": "tbx",
     "status": "tbx-chosen"
@@ -444,7 +442,7 @@
       "skutečné dokončení"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "custom-field": {
     "term": "vlastní pole",
@@ -461,20 +459,19 @@
     "status": "tbx"
   },
   "cycle": {
-    "term": "cyklus",
+    "term": "cyklická závislost",
     "forms": [
-      "cyklus",
-      "cyklu",
-      "cyklem",
-      "cykly",
-      "cyklů"
+      "cyklická závislost",
+      "cyklické závislosti",
+      "cyklickou závislost",
+      "cyklickou závislostí"
     ],
     "avoid": [
       "smyčka",
       "kruh"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "dcma-assessment": {
     "term": "14bodové posouzení DCMA",
@@ -488,7 +485,7 @@
       "DCMA 14-point assessment"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "deadline": {
     "term": "konečný termín",
@@ -542,7 +539,6 @@
       "dobu trvání"
     ],
     "avoid": [
-      "trvání",
       "DURATION"
     ],
     "source": "tbx",
@@ -642,14 +638,19 @@
     "status": "tbx"
   },
   "finish-driver": {
-    "term": "určující vazba dokončení",
+    "term": "hnací vazba dokončení",
     "forms": [
-      "určující vazba dokončení",
-      "určující vazby dokončení",
-      "určující vazbu dokončení"
+      "hnací vazba dokončení",
+      "hnací vazby dokončení",
+      "hnací vazbě dokončení",
+      "hnací vazbu dokončení",
+      "hnací vazbou dokončení"
+    ],
+    "avoid": [
+      "určující vazba dokončení"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "finish-no-earlier-than": {
     "term": "dokončit nejdříve",
@@ -796,18 +797,20 @@
     "status": "tbx"
   },
   "hammock": {
-    "term": "souhrnný úkol",
+    "term": "překlenovací úkol",
     "forms": [
-      "souhrnný úkol",
-      "souhrnného úkolu",
-      "souhrnným úkolem"
+      "překlenovací úkol",
+      "překlenovacího úkolu",
+      "překlenovacímu úkolu",
+      "překlenovacím úkolem",
+      "překlenovací úkoly",
+      "překlenovacích úkolů"
     ],
     "avoid": [
-      "hangmat",
-      "hamaka"
+      "souhrnný úkol"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "hard-constraint": {
     "term": "pevné omezení",
@@ -866,7 +869,7 @@
       "rozložením hodin do fází"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "hour-planning": {
     "term": "plánování v hodinách",
@@ -919,18 +922,22 @@
     "status": "model"
   },
   "lag": {
-    "term": "zpoždění",
+    "term": "prodleva",
     "forms": [
-      "zpoždění",
-      "zpožděním",
-      "zpožděními"
+      "prodleva",
+      "prodlevy",
+      "prodlevě",
+      "prodlevu",
+      "prodlevou",
+      "prodlev",
+      "prodlevami"
     ],
     "avoid": [
-      "lag",
-      "prodleva"
+      "zpoždění",
+      "lag"
     ],
-    "source": "model",
-    "status": "model"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "late-dates": {
     "term": "pozdní termíny",
@@ -1038,17 +1045,19 @@
     "status": "tbx-chosen"
   },
   "longest-path": {
-    "term": "kritická cesta",
+    "term": "nejdelší cesta",
     "forms": [
-      "kritická cesta",
-      "kritické cesty",
-      "kritickou cestu"
+      "nejdelší cesta",
+      "nejdelší cesty",
+      "nejdelší cestě",
+      "nejdelší cestu",
+      "nejdelší cestou"
     ],
     "avoid": [
-      "nejdelší cesta"
+      "kritická cesta"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "manually-scheduled": {
     "term": "ručně plánováno",
@@ -1064,17 +1073,18 @@
     "status": "model"
   },
   "max-units": {
-    "term": "maximální jednotky",
+    "term": "maximální počet jednotek",
     "forms": [
-      "maximální jednotky",
-      "maximálních jednotek",
-      "maximálním jednotkám"
+      "maximální počet jednotek",
+      "maximálního počtu jednotek",
+      "maximálním počtem jednotek",
+      "maximálním počtu jednotek"
     ],
     "avoid": [
-      "max. jednotky"
+      "maximální jednotky"
     ],
-    "source": "model",
-    "status": "model"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "milestone": {
     "term": "milník",
@@ -1138,14 +1148,16 @@
     "status": "model"
   },
   "negative-float": {
-    "term": "záporná rezerva",
+    "term": "záporná časová rezerva",
     "forms": [
-      "záporná rezerva",
-      "záporné rezervy",
-      "zápornou rezervu"
+      "záporná časová rezerva",
+      "záporné časové rezervy",
+      "záporné časové rezervě",
+      "zápornou časovou rezervu",
+      "zápornou časovou rezervou"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "non-working-day": {
     "term": "nepracovní den",
@@ -1198,7 +1210,7 @@
       "sledováním cesty"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "percent-complete": {
     "term": "dokončeno %",
@@ -1270,24 +1282,28 @@
     "status": "model"
   },
   "project-finish": {
-    "term": "konec projektu",
+    "term": "dokončení projektu",
     "forms": [
-      "konec projektu",
-      "konce projektu",
-      "konci projektu"
+      "dokončení projektu",
+      "dokončením projektu"
+    ],
+    "avoid": [
+      "konec projektu"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "project-start": {
-    "term": "začátek projektu",
+    "term": "zahájení projektu",
     "forms": [
-      "začátek projektu",
-      "začátku projektu",
-      "začátky projektu"
+      "zahájení projektu",
+      "zahájením projektu"
+    ],
+    "avoid": [
+      "začátek projektu"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "rate": {
     "term": "standardní sazba",
@@ -1455,14 +1471,16 @@
     "status": "tbx"
   },
   "round-trip": {
-    "term": "bezeztrátový cyklus",
+    "term": "uložení bez ztráty dat",
     "forms": [
-      "bezeztrátový cyklus",
-      "bezeztrátového cyklu",
-      "bezeztrátovým cyklem"
+      "uložení bez ztráty dat",
+      "uložením bez ztráty dat"
+    ],
+    "avoid": [
+      "bezeztrátový cyklus"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "schedule": {
     "term": "plán",
@@ -1538,34 +1556,36 @@
     "status": "tbx"
   },
   "start-driver": {
-    "term": "hnací vazba začátku",
+    "term": "hnací vazba zahájení",
     "forms": [
-      "hnací vazba začátku",
-      "hnací vazby začátku",
-      "hnací vazbu začátku",
-      "hnací vazbou začátku",
-      "hnacích vazeb začátku"
+      "hnací vazba zahájení",
+      "hnací vazby zahájení",
+      "hnací vazbě zahájení",
+      "hnací vazbu zahájení",
+      "hnací vazbou zahájení"
     ],
     "avoid": [
+      "hnací vazba začátku",
       "řídicí vazba"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-float": {
-    "term": "časová rezerva začátku",
+    "term": "časová rezerva zahájení",
     "forms": [
-      "časová rezerva začátku",
-      "časové rezervy začátku",
-      "časovou rezervu začátku",
-      "časovou rezervou začátku",
-      "časových rezerv začátku"
+      "časová rezerva zahájení",
+      "časové rezervy zahájení",
+      "časové rezervě zahájení",
+      "časovou rezervu zahájení",
+      "časovou rezervou zahájení"
     ],
     "avoid": [
+      "časová rezerva začátku",
       "celková časová rezerva"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-no-earlier-than": {
     "term": "začít nejdříve",
@@ -1590,41 +1610,42 @@
     "status": "model"
   },
   "start-to-finish": {
-    "term": "začátek-konec",
+    "term": "zahájení-dokončení",
     "forms": [
-      "začátek-konec"
+      "zahájení-dokončení"
     ],
     "avoid": [
+      "začátek-konec",
       "konec-začátek"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-to-start": {
-    "term": "začátek-začátek",
+    "term": "zahájení-zahájení",
     "forms": [
+      "zahájení-zahájení"
+    ],
+    "avoid": [
       "začátek-začátek"
     ],
-    "avoid": [
-      "začátek-konec"
-    ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-variance": {
-    "term": "odchylka začátku",
+    "term": "odchylka zahájení",
     "forms": [
-      "odchylka začátku",
-      "odchylky začátku",
-      "odchylku začátku",
-      "odchylkou začátku",
-      "odchylek začátku"
+      "odchylka zahájení",
+      "odchylky zahájení",
+      "odchylce zahájení",
+      "odchylku zahájení",
+      "odchylkou zahájení"
     ],
     "avoid": [
-      "startovní odchylka"
+      "odchylka začátku"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "status-date": {
     "term": "datum stavu",
@@ -1682,7 +1703,6 @@
       "souhrnných úkolů"
     ],
     "avoid": [
-      "souhrn",
       "shrnutí"
     ],
     "source": "tbx",
@@ -1786,9 +1806,6 @@
       "jednotkám přiřazení",
       "jednotkami přiřazení",
       "jednotkách přiřazení"
-    ],
-    "avoid": [
-      "jednotka"
     ],
     "source": "tbx",
     "status": "tbx"
@@ -1918,10 +1935,11 @@
       "pravidlem pevné veličiny"
     ],
     "avoid": [
-      "pracovní pravidlo"
+      "pracovní pravidlo",
+      "typ úkolu"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "workday": {
     "term": "pracovní den",

@@ -114,7 +114,7 @@
       "krivkou priradenia"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "assignment-units": {
     "term": "jednotky priradenia na deň",
@@ -124,7 +124,7 @@
       "jednotkám priradenia na deň"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "baseline": {
     "term": "pôvodný plán",
@@ -153,7 +153,7 @@
       "index plnenia základnej čiary"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "calculate": {
     "term": "prepočítať",
@@ -191,19 +191,21 @@
     "status": "tbx"
   },
   "calendar": {
-    "term": "kalendár projektu",
+    "term": "kalendár",
     "forms": [
-      "kalendár projektu",
-      "kalendára projektu",
-      "kalendáru projektu",
-      "kalendárom projektu",
-      "kalendáre projektu"
+      "kalendár",
+      "kalendára",
+      "kalendáru",
+      "kalendárom",
+      "kalendári",
+      "kalendáre",
+      "kalendárov"
     ],
     "avoid": [
       "program kalendára"
     ],
     "source": "tbx",
-    "status": "tbx"
+    "status": "arbitrated"
   },
   "capacity": {
     "term": "kapacita",
@@ -277,17 +279,21 @@
     "status": "tbx"
   },
   "convention": {
-    "term": "konvencia",
+    "term": "pravidlo výpočtu",
     "forms": [
-      "konvencia",
-      "konvencie",
-      "konvencii",
-      "konvenciu",
-      "konvenciou",
-      "konvencií"
+      "pravidlo výpočtu",
+      "pravidla výpočtu",
+      "pravidlu výpočtu",
+      "pravidlom výpočtu",
+      "pravidle výpočtu",
+      "pravidlá výpočtu",
+      "pravidiel výpočtu"
+    ],
+    "avoid": [
+      "konvencia"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "cost": {
     "term": "náklad",
@@ -334,7 +340,7 @@
       "kritický reťazec"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "critical-path": {
     "term": "kritická cesta",
@@ -371,7 +377,7 @@
       "aktuálnym dokončením"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "custom-field": {
     "term": "vlastné pole",
@@ -386,15 +392,16 @@
     "status": "tbx"
   },
   "cycle": {
-    "term": "cyklus",
+    "term": "cyklická závislosť",
     "forms": [
-      "cyklus",
-      "cyklu",
-      "cyklom",
-      "cykly"
+      "cyklická závislosť",
+      "cyklickej závislosti",
+      "cyklickú závislosť",
+      "cyklickou závislosťou",
+      "cyklické závislosti"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "dcma-assessment": {
     "term": "14-bodové hodnotenie DCMA",
@@ -429,16 +436,20 @@
     "status": "model"
   },
   "driving-relationship": {
-    "term": "určujúci vzťah",
+    "term": "určujúca závislosť",
     "forms": [
-      "určujúci vzťah",
-      "určujúceho vzťahu",
-      "určujúcemu vzťahu",
-      "určujúcim vzťahom",
-      "určujúce vzťahy"
+      "určujúca závislosť",
+      "určujúcej závislosti",
+      "určujúcu závislosť",
+      "určujúcou závislosťou",
+      "určujúce závislosti"
+    ],
+    "avoid": [
+      "hnací vzťah",
+      "určujúci vzťah"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "duration": {
     "term": "trvanie",
@@ -452,26 +463,32 @@
     "status": "tbx"
   },
   "early-finish": {
-    "term": "najskorší koniec",
+    "term": "skoré dokončenie",
     "forms": [
-      "najskorší koniec",
-      "najskoršieho konca",
-      "najskoršiemu koncu",
-      "najskorším koncom"
+      "skoré dokončenie",
+      "skorého dokončenia",
+      "skorému dokončeniu",
+      "skorým dokončením"
+    ],
+    "avoid": [
+      "najskorší koniec"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "early-start": {
-    "term": "najskorší začiatok",
+    "term": "skorý začiatok",
     "forms": [
-      "najskorší začiatok",
-      "najskoršieho začiatku",
-      "najskoršiemu začiatku",
-      "najskorším začiatkom"
+      "skorý začiatok",
+      "skorého začiatku",
+      "skorému začiatku",
+      "skorým začiatkom"
+    ],
+    "avoid": [
+      "najskorší začiatok"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "effort-driven": {
     "term": "riadené úsilím",
@@ -550,19 +567,19 @@
     "status": "tbx"
   },
   "finish-driver": {
-    "term": "určujúca väzba dokončenia",
+    "term": "určujúca závislosť dokončenia",
     "forms": [
-      "určujúca väzba dokončenia",
-      "určujúcej väzby dokončenia",
-      "určujúcu väzbu dokončenia",
-      "určujúce väzby dokončenia"
+      "určujúca závislosť dokončenia",
+      "určujúcej závislosti dokončenia",
+      "určujúcu závislosť dokončenia",
+      "určujúcou závislosťou dokončenia"
     ],
     "avoid": [
-      "finish driver",
-      "hnacia väzba"
+      "hnacia väzba",
+      "určujúca väzba dokončenia"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "finish-no-earlier-than": {
     "term": "dokončiť nie skôr ako",
@@ -589,30 +606,26 @@
     "status": "model"
   },
   "finish-to-finish": {
-    "term": "koniec-koniec",
+    "term": "dokončenie-dokončenie",
     "forms": [
+      "dokončenie-dokončenie"
+    ],
+    "avoid": [
       "koniec-koniec"
     ],
-    "avoid": [
-      "finish-to-finish",
-      "FF",
-      "eind-eind"
-    ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "finish-to-start": {
-    "term": "koniec-začiatok",
+    "term": "dokončenie-začiatok",
     "forms": [
-      "koniec-začiatok"
+      "dokončenie-začiatok"
     ],
     "avoid": [
-      "finish-to-start",
-      "FS",
-      "eind-start"
+      "koniec-začiatok"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "finish-variance": {
     "term": "odchýlka dokončenia",
@@ -676,21 +689,19 @@
     "status": "model"
   },
   "float": {
-    "term": "celková časová rezerva",
+    "term": "časová rezerva",
     "forms": [
-      "celková časová rezerva",
-      "celkovej časovej rezervy",
-      "celkovú časovú rezervu",
-      "celkovou časovou rezervou",
-      "celkové časové rezervy"
+      "časová rezerva",
+      "časovej rezervy",
+      "časovej rezerve",
+      "časovú rezervu",
+      "časovou rezervou"
     ],
     "avoid": [
-      "float",
-      "speling",
       "typ Float"
     ],
-    "source": "model",
-    "status": "model"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "float-path": {
     "term": "cesta časovej rezervy",
@@ -706,7 +717,7 @@
       "spelingpad"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "forecast-finish": {
     "term": "predpokladané dokončenie",
@@ -750,11 +761,10 @@
       "hamaky"
     ],
     "avoid": [
-      "hammock",
-      "hangmat"
+      "súhrnná úloha"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "hard-constraint": {
     "term": "pevné obmedzenie",
@@ -819,22 +829,17 @@
       "feestdagenset"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "hour-distribution-in-phases": {
-    "term": "rozdelenie hodín do fáz",
+    "term": "rozloženie hodín do fáz",
     "forms": [
-      "rozdelenie hodín do fáz",
-      "rozdelenia hodín do fáz",
-      "rozdeleniu hodín do fáz",
-      "rozdelením hodín do fáz"
-    ],
-    "avoid": [
-      "hour distribution in phases",
-      "urenverdeling in fasen"
+      "rozloženie hodín do fáz",
+      "rozloženia hodín do fáz",
+      "rozložením hodín do fáz"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "hour-planning": {
     "term": "plánovanie v hodinách",
@@ -977,7 +982,7 @@
       "Navigácia"
     ],
     "source": "tbx",
-    "status": "tbx-chosen"
+    "status": "arbitrated"
   },
   "lead": {
     "term": "predstih",
@@ -1053,11 +1058,10 @@
       "najdlhšie cesty"
     ],
     "avoid": [
-      "longest path",
-      "langste pad"
+      "kritická cesta"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "manually-scheduled": {
     "term": "manuálne plánovaná",
@@ -1075,19 +1079,17 @@
     "status": "model"
   },
   "max-units": {
-    "term": "maximálne jednotky",
+    "term": "maximálny počet jednotiek",
     "forms": [
-      "maximálne jednotky",
-      "maximálnych jednotiek",
-      "maximálnym jednotkám",
-      "maximálnymi jednotkami"
+      "maximálny počet jednotiek",
+      "maximálneho počtu jednotiek",
+      "maximálnym počtom jednotiek"
     ],
     "avoid": [
-      "max units",
-      "max. eenheden"
+      "maximálne jednotky"
     ],
-    "source": "model",
-    "status": "model"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "milestone": {
     "term": "medzník",
@@ -1109,7 +1111,7 @@
       "typy medzníkov"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "missed-task": {
     "term": "zmeškaná úloha",
@@ -1120,7 +1122,7 @@
       "zmeškané úlohy"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "must-finish-on": {
     "term": "musí skončiť dňa",
@@ -1161,14 +1163,17 @@
     "status": "model"
   },
   "non-working-day": {
-    "term": "nepracovný čas",
+    "term": "nepracovný deň",
     "forms": [
-      "nepracovný čas",
-      "nepracovného času",
-      "nepracovné časy"
+      "nepracovný deň",
+      "nepracovného dňa",
+      "nepracovnému dňu",
+      "nepracovným dňom",
+      "nepracovné dni",
+      "nepracovných dní"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "out-of-sequence-progress": {
     "term": "postup mimo poradia",
@@ -1179,7 +1184,7 @@
       "postupy mimo poradia"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "outdent": {
     "term": "zvýšiť úroveň",
@@ -1257,15 +1262,21 @@
     "status": "model"
   },
   "predecessor": {
-    "term": "predchodca",
+    "term": "predchádzajúca úloha",
     "forms": [
-      "predchodca",
-      "predchodcu",
-      "predchodcovia",
-      "predchodcov"
+      "predchádzajúca úloha",
+      "predchádzajúcej úlohy",
+      "predchádzajúcej úlohe",
+      "predchádzajúcu úlohu",
+      "predchádzajúcou úlohou",
+      "predchádzajúce úlohy",
+      "predchádzajúcich úloh"
     ],
-    "source": "model",
-    "status": "model"
+    "avoid": [
+      "predchodca"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "progress": {
     "term": "postup",
@@ -1291,15 +1302,17 @@
     "status": "model"
   },
   "project-finish": {
-    "term": "koniec projektu",
+    "term": "dokončenie projektu",
     "forms": [
-      "koniec projektu",
-      "konca projektu",
-      "koncu projektu",
-      "koncom projektu"
+      "dokončenie projektu",
+      "dokončenia projektu",
+      "dokončením projektu"
+    ],
+    "avoid": [
+      "koniec projektu"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "project-start": {
     "term": "začiatok projektu",
@@ -1385,30 +1398,31 @@
     "status": "tbx"
   },
   "report": {
-    "term": "správa",
+    "term": "zostava",
     "forms": [
-      "správa",
-      "správy",
-      "správu",
-      "správe",
-      "správou"
+      "zostava",
+      "zostavy",
+      "zostave",
+      "zostavu",
+      "zostavou",
+      "zostáv"
     ],
     "avoid": [
-      "zostava"
+      "správa"
     ],
     "source": "tbx",
-    "status": "tbx-chosen"
+    "status": "arbitrated"
   },
   "report-type": {
-    "term": "typ správy",
+    "term": "typ zostavy",
     "forms": [
-      "typ správy",
-      "typu správy",
-      "typom správy",
-      "typy správ"
+      "typ zostavy",
+      "typu zostavy",
+      "typom zostavy",
+      "typy zostáv"
     ],
-    "source": "tbx",
-    "status": "tbx"
+    "source": "model",
+    "status": "arbitrated"
   },
   "resource": {
     "term": "zdroj",
@@ -1516,15 +1530,18 @@
     "status": "model"
   },
   "shift": {
-    "term": "zmena",
+    "term": "pracovná zmena",
     "forms": [
-      "zmena",
-      "zmeny",
-      "zmenu",
-      "zmene"
+      "pracovná zmena",
+      "pracovnej zmeny",
+      "pracovnej zmene",
+      "pracovnú zmenu",
+      "pracovnou zmenou",
+      "pracovné zmeny",
+      "pracovných zmien"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "source-task": {
     "term": "zdrojová úloha",
@@ -1554,14 +1571,18 @@
     "status": "tbx"
   },
   "start-driver": {
-    "term": "hnací vzťah začiatku",
+    "term": "určujúca závislosť začiatku",
     "forms": [
-      "hnací vzťah začiatku",
-      "hnacieho vzťahu začiatku",
-      "hnaciemu vzťahu začiatku"
+      "určujúca závislosť začiatku",
+      "určujúcej závislosti začiatku",
+      "určujúcu závislosť začiatku",
+      "určujúcou závislosťou začiatku"
+    ],
+    "avoid": [
+      "hnací vzťah začiatku"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-float": {
     "term": "časová rezerva začiatku",
@@ -1595,12 +1616,15 @@
     "status": "model"
   },
   "start-to-finish": {
-    "term": "začiatok-koniec",
+    "term": "začiatok-dokončenie",
     "forms": [
+      "začiatok-dokončenie"
+    ],
+    "avoid": [
       "začiatok-koniec"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-to-start": {
     "term": "začiatok-začiatok",
@@ -1661,8 +1685,11 @@
       "nasledujúce úlohy",
       "nasledujúcich úloh"
     ],
-    "source": "model",
-    "status": "model"
+    "avoid": [
+      "nasledovník"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "summary-task": {
     "term": "súhrnná úloha",
@@ -1672,9 +1699,6 @@
       "súhrnnú úlohu",
       "súhrnné úlohy",
       "súhrnných úloh"
-    ],
-    "avoid": [
-      "súhrn"
     ],
     "source": "tbx",
     "status": "tbx"
@@ -1779,15 +1803,15 @@
     "status": "tbx"
   },
   "variance-report": {
-    "term": "prehľad odchýlok",
+    "term": "zostava odchýlok",
     "forms": [
-      "prehľad odchýlok",
-      "prehľadu odchýlok",
-      "prehľady odchýlok",
-      "prehľadov odchýlok"
+      "zostava odchýlok",
+      "zostavy odchýlok",
+      "zostave odchýlok",
+      "zostavu odchýlok"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "violated-constraint": {
     "term": "porušené obmedzenie",
@@ -1810,7 +1834,7 @@
       "štruktúr rozdelenia práce"
     ],
     "source": "tbx",
-    "status": "tbx-chosen"
+    "status": "arbitrated"
   },
   "wbs-element": {
     "term": "prvok WBS",

@@ -119,16 +119,19 @@
       "tilordningskurvene"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "assignment-units": {
-    "term": "tilordningsenheter per dag",
+    "term": "tildelingsenheter per dag",
     "forms": [
-      "tilordningsenheter per dag",
-      "tilordningsenhet per dag"
+      "tildelingsenheter per dag",
+      "tildelingsenhetene per dag"
+    ],
+    "avoid": [
+      "tilordningsenheter per dag"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "baseline": {
     "term": "grunnlinje",
@@ -185,18 +188,18 @@
     "status": "tbx"
   },
   "calendar": {
-    "term": "prosjektkalender",
+    "term": "kalender",
     "forms": [
-      "prosjektkalender",
-      "prosjektkalenderen",
-      "prosjektkalendere",
-      "prosjektkalenderne"
+      "kalender",
+      "kalenderen",
+      "kalendere",
+      "kalenderne"
     ],
     "avoid": [
-      "kalender"
+      "kalenderprogram"
     ],
     "source": "tbx",
-    "status": "tbx"
+    "status": "arbitrated"
   },
   "capacity": {
     "term": "kapasitet",
@@ -220,11 +223,8 @@
       "fullføringsgrader",
       "fullføringsgradene"
     ],
-    "avoid": [
-      "fullføring"
-    ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "constraint": {
     "term": "begrensning",
@@ -277,15 +277,18 @@
     "status": "tbx"
   },
   "convention": {
-    "term": "konvensjon",
+    "term": "beregningsregel",
     "forms": [
-      "konvensjon",
-      "konvensjonen",
-      "konvensjoner",
-      "konvensjonene"
+      "beregningsregel",
+      "beregningsregelen",
+      "beregningsregler",
+      "beregningsreglene"
+    ],
+    "avoid": [
+      "konvensjon"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "cost": {
     "term": "kostnad",
@@ -330,7 +333,7 @@
       "de kritiske kjedene"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "critical-path": {
     "term": "kritisk linje",
@@ -427,14 +430,18 @@
     "status": "model"
   },
   "driving-relationship": {
-    "term": "styrende relasjon",
+    "term": "styrende avhengighet",
     "forms": [
+      "styrende avhengighet",
+      "styrende avhengigheten",
+      "styrende avhengigheter"
+    ],
+    "avoid": [
       "styrende relasjon",
-      "styrende relasjoner",
-      "den styrende relasjonen"
+      "drivende relasjon"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "duration": {
     "term": "varighet",
@@ -512,8 +519,8 @@
       "kobling mellom prosjekter",
       "koblinger mellom prosjekter"
     ],
-    "source": "tbx",
-    "status": "tbx-chosen"
+    "source": "model",
+    "status": "arbitrated"
   },
   "finish": {
     "term": "slutt",
@@ -526,14 +533,17 @@
     "status": "tbx"
   },
   "finish-driver": {
-    "term": "sluttdriver",
+    "term": "sluttstyrende avhengighet",
     "forms": [
-      "sluttdriver",
-      "sluttdriveren",
-      "sluttdrivere"
+      "sluttstyrende avhengighet",
+      "sluttstyrende avhengigheten",
+      "sluttstyrende avhengigheter"
+    ],
+    "avoid": [
+      "sluttdriver"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "finish-no-earlier-than": {
     "term": "slutt ikke tidligere enn",
@@ -618,14 +628,17 @@
     "status": "model"
   },
   "float-path": {
-    "term": "slakkpad",
+    "term": "slakksti",
     "forms": [
-      "slakkpad",
-      "slakkpadet",
-      "slakkpader"
+      "slakksti",
+      "slakkstien",
+      "slakkstier"
+    ],
+    "avoid": [
+      "slakkpad"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "forecast-finish": {
     "term": "prognosert slutt",
@@ -642,9 +655,6 @@
       "fri slakk",
       "fri slakken",
       "frie slakker"
-    ],
-    "avoid": [
-      "slakk"
     ],
     "source": "tbx",
     "status": "tbx"
@@ -697,7 +707,7 @@
       "helligdagssettene"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "hour-distribution-in-phases": {
     "term": "timefordeling i faser",
@@ -705,7 +715,7 @@
       "timefordeling i faser"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "hour-planning": {
     "term": "timeplanlegging",
@@ -714,17 +724,20 @@
       "timeplanleggingen"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "hour-task": {
-    "term": "timeoppgave",
+    "term": "timebasert aktivitet",
     "forms": [
-      "timeoppgave",
-      "timeoppgaven",
-      "timeoppgaver"
+      "timebasert aktivitet",
+      "timebaserte aktiviteten",
+      "timebaserte aktiviteter"
+    ],
+    "avoid": [
+      "timeoppgave"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "indent": {
     "term": "rykke inn",
@@ -804,17 +817,17 @@
     "status": "tbx"
   },
   "lead": {
-    "term": "forskudd",
+    "term": "ledetid",
     "forms": [
-      "forskudd",
-      "forskuddet",
-      "forskuddene"
+      "ledetid",
+      "ledetiden",
+      "ledetider"
     ],
     "avoid": [
-      "lead"
+      "forskudd"
     ],
-    "source": "model",
-    "status": "model"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "leveling": {
     "term": "utjevning",
@@ -853,8 +866,12 @@
       "lengste stien",
       "lengste stier"
     ],
+    "avoid": [
+      "kritisk linje",
+      "kritisk sti"
+    ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "manually-scheduled": {
     "term": "manuelt planlagt",
@@ -866,13 +883,16 @@
     "status": "model"
   },
   "max-units": {
-    "term": "maks. enheter",
+    "term": "maksimalt antall",
     "forms": [
-      "maks. enheter",
-      "maks. enhet"
+      "maksimalt antall",
+      "maksimale antallet"
     ],
-    "source": "model",
-    "status": "model"
+    "avoid": [
+      "maks. enheter"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "milestone": {
     "term": "milepæl",
@@ -897,15 +917,17 @@
     "status": "model"
   },
   "missed-task": {
-    "term": "forsinket oppgave",
+    "term": "forsinket aktivitet",
     "forms": [
-      "forsinket oppgave",
-      "forsinket oppgaven",
-      "forsinkede oppgaver",
-      "forsinkede oppgavene"
+      "forsinket aktivitet",
+      "forsinkede aktiviteten",
+      "forsinkede aktiviteter"
+    ],
+    "avoid": [
+      "forsinket oppgave"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "must-finish-on": {
     "term": "må slutte på",
@@ -983,13 +1005,16 @@
     "status": "tbx"
   },
   "path-tracing": {
-    "term": "spor drivende relasjoner",
+    "term": "spor styrende avhengigheter",
     "forms": [
-      "spor drivende relasjoner",
-      "sporing av drivende relasjoner"
+      "spor styrende avhengigheter",
+      "sporing av styrende avhengigheter"
+    ],
+    "avoid": [
+      "spor drivende relasjoner"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "percent-complete": {
     "term": "prosent fullført",
@@ -1042,12 +1067,13 @@
     "status": "tbx"
   },
   "progress": {
-    "term": "Fremdrift",
+    "term": "fremdrift",
     "forms": [
-      "Fremdrift"
+      "fremdrift",
+      "fremdriften"
     ],
     "source": "tbx",
-    "status": "tbx"
+    "status": "arbitrated"
   },
   "progress-mode": {
     "term": "fremdriftsmodus",
@@ -1231,7 +1257,7 @@
       "båndfanene"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "round-trip": {
     "term": "tur-retur",
@@ -1284,19 +1310,18 @@
     "status": "model"
   },
   "source-task": {
-    "term": "kildeoppgave",
+    "term": "kildeaktivitet",
     "forms": [
-      "kildeoppgave",
-      "kildeoppgaven",
-      "kildeoppgaver",
-      "kildeoppgavene"
+      "kildeaktivitet",
+      "kildeaktiviteten",
+      "kildeaktiviteter"
     ],
     "avoid": [
-      "brontaak",
-      "kildeaktivitet"
+      "kildeoppgave",
+      "brontaak"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "split-task": {
     "term": "delt aktivitet",
@@ -1311,15 +1336,17 @@
     "status": "tbx"
   },
   "start-driver": {
-    "term": "startdriver",
+    "term": "startstyrende avhengighet",
     "forms": [
-      "startdriver",
-      "startdriveren",
-      "startdrivere",
-      "startdriverne"
+      "startstyrende avhengighet",
+      "startstyrende avhengigheten",
+      "startstyrende avhengigheter"
+    ],
+    "avoid": [
+      "startdriver"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-float": {
     "term": "startslakk",
@@ -1344,12 +1371,15 @@
     "status": "model"
   },
   "start-no-later-than": {
-    "term": "start senest",
+    "term": "start ikke senere enn",
     "forms": [
+      "start ikke senere enn"
+    ],
+    "avoid": [
       "start senest"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-to-finish": {
     "term": "start-til-slutt",
@@ -1522,25 +1552,30 @@
     "status": "tbx"
   },
   "variance-report": {
-    "term": "avvikrapport",
+    "term": "avviksrapport",
     "forms": [
-      "avvikrapport",
-      "avvikrapporten",
-      "avvikrapporter",
-      "avvikrapportene"
+      "avviksrapport",
+      "avviksrapporten",
+      "avviksrapporter"
+    ],
+    "avoid": [
+      "avvikrapport"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "violated-constraint": {
-    "term": "brutt restriksjon",
+    "term": "brutt begrensning",
     "forms": [
-      "brutt restriksjon",
-      "brutte restriksjoner",
-      "brutt restriksjonen"
+      "brutt begrensning",
+      "brutte begrensningen",
+      "brutte begrensninger"
+    ],
+    "avoid": [
+      "brutt restriksjon"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "wbs": {
     "term": "WBS",

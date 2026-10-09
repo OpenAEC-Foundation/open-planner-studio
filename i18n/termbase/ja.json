@@ -1023,7 +1023,7 @@
       "スケジュールエラー"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "secondary-constraint": {
     "term": "副制約",
@@ -1101,7 +1101,7 @@
       "開始-完了"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-to-start": {
     "term": "開始-開始",

@@ -1703,10 +1703,7 @@
       "tempo de trabalho",
       "tempos de trabalho"
     ],
-    "avoid": [
-      "tempo útil"
-    ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   }
 }

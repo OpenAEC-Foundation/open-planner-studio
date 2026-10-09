@@ -995,7 +995,7 @@
       "计划错误"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "secondary-constraint": {
     "term": "次要限制",
