@@ -1,6 +1,6 @@
 // UI-straat: werkpakketten maken (§5.1), samenvoegen (§9), basislijn en status. Pure functies.
 import {
-  containsTerm, countToken, hashUnit, isComplete, pluralExamples, termEntries, textsOf, unitMap,
+  containsTerm, countToken, hasUiBaseline, hashUnit, isComplete, pluralExamples, termEntries, textsOf, unitMap,
   unitsOf, type Concept, type LangTermbase, type Style, type Unit, type UnitText,
 } from './common';
 import { orderLike, setTranslation, type JsonObject, type Namespace } from '../i18n-tools';
@@ -38,6 +38,14 @@ export interface NsInput { ns: Namespace | string; nl: JsonObject; en: JsonObjec
 
 export type Selection = 'missing' | 'stale' | 'all';
 
+/**
+ * Is de eenheid in de doeltaal vertaald? Compleet (alle CLDR-categorieën), en in een taal zonder
+ * basislijn (`hasUiBaseline`) ook met een bron-hash: daar is tekst zonder hash Engelse vulling.
+ */
+function isTranslated(t: Unit | undefined, u: Unit, lang: string, hashes: Record<string, string>): boolean {
+  return isComplete(t, u, lang) && (hasUiBaseline(lang) || hashes[u.key] !== undefined);
+}
+
 /** Welke eenheden moeten vertaald worden? Zie §9 (--missing, --stale). */
 export function selectUnits(input: NsInput, lang: string, mode: Selection, sources: UiSources): { unit: Unit; previous?: UnitText }[] {
   const target = unitMap(input.target);
@@ -45,7 +53,7 @@ export function selectUnits(input: NsInput, lang: string, mode: Selection, sourc
   const out: { unit: Unit; previous?: UnitText }[] = [];
   for (const u of unitsOf(input.nl)) {
     const t = target.get(u.key);
-    const complete = isComplete(t, u, lang);
+    const complete = isTranslated(t, u, lang, hashes);
     if (mode === 'all') { out.push({ unit: u }); continue; }
     if (mode === 'missing') { if (!complete) out.push({ unit: u }); continue; }
     const h = hashes[u.key];
@@ -175,6 +183,20 @@ export function setSourceHash(sources: UiSources, ns: string, key: string, nlTex
   (sources[ns] ?? (sources[ns] = {}))[key] = hashUnit(nlText);
 }
 
+/**
+ * Wat `i18n:add` met de bron-hash van taal `lang` doet. Een taal met basislijn krijgt de nieuwe hash.
+ * Een taal zonder basislijn (`hasUiBaseline`) verliest de hash: de tekst komt dan niet uit de straat
+ * (vaak Engelse vulling), dus `prepare ui --missing` moet hem opnieuw oppakken. Muteert; geeft terug
+ * of er iets veranderde.
+ */
+export function updateSourceHashForAdd(sources: UiSources, lang: string, ns: string, key: string, nlText: UnitText): boolean {
+  if (hasUiBaseline(lang)) { setSourceHash(sources, ns, key, nlText); return true; }
+  const h = sources[ns];
+  if (!h || h[key] === undefined) return false;
+  delete h[key];
+  return true;
+}
+
 /** Zet de bron-hashes in nl-volgorde (stabiel bestand, conflictarm). */
 export function orderSources(sources: UiSources, nlByNs: Record<string, JsonObject>): UiSources {
   const out: UiSources = {};
@@ -206,7 +228,8 @@ export interface NsStatus { ns: string; total: number; missing: number; stale: n
 
 /**
  * Status per namespace. `unhashed` = vertaald, maar zonder bron-hash (bv. een sleutel die buiten de
- * straat om is toegevoegd); die telt als actueel, maar wordt apart genoemd.
+ * straat om is toegevoegd); die telt als actueel, maar wordt apart genoemd. In een taal zonder
+ * basislijn (`hasUiBaseline`) telt tekst zonder hash als ontbrekend (Engelse vulling).
  */
 export function uiStatus(lang: string, inputs: NsInput[], sources: UiSources): NsStatus[] {
   return inputs.map(({ ns, nl, target }) => {
@@ -215,7 +238,7 @@ export function uiStatus(lang: string, inputs: NsInput[], sources: UiSources): N
     const s: NsStatus = { ns, total: 0, missing: 0, stale: 0, current: 0, unhashed: 0 };
     for (const u of unitsOf(nl)) {
       s.total++;
-      if (!isComplete(t.get(u.key), u, lang)) { s.missing++; continue; }
+      if (!isTranslated(t.get(u.key), u, lang, hashes)) { s.missing++; continue; }
       const h = hashes[u.key];
       if (h === undefined) { s.unhashed++; s.current++; continue; }
       if (h !== hashUnit(u.text)) s.stale++; else s.current++;

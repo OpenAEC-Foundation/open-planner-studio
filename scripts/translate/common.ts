@@ -47,6 +47,15 @@ export const termEntries = (tb: LangTermbase): [string, TermEntry][] =>
 export const EXISTING_TARGETS = ['fr', 'de', 'es', 'zh', 'it', 'pt', 'pl', 'tr', 'ar', 'ja', 'ko', 'fa'] as const;
 
 /**
+ * Heeft deze taal een UI-basislijn (`seed-sources`, §9)? Alleen `en` en de bestaande doeltalen.
+ * De nieuwe talen (ru, cs, sv, …) staan in de app eerst met Engels als tijdelijke inhoud; daar is
+ * alleen een bron-hash (van `apply ui`) het bewijs van een vertaling. Een sleutel zonder hash telt
+ * in zo'n taal dus als ontbrekend, ook als er tekst staat.
+ */
+export const hasUiBaseline = (lang: string): boolean =>
+  lang === 'en' || (EXISTING_TARGETS as readonly string[]).includes(lang);
+
+/**
  * Taal → bestand in de Microsoft Terminology Collection. `pt` = Portugal: de bestaande pt-UI is
  * overwegend Europees-Portugees (ficheiro 77×, Guardar, ecrã, Eliminar; alleen de XER-meldingen
  * zeggen "arquivo"). `sr` = Cyrillisch (voorstel B1, nog niet besloten).

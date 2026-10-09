@@ -3,12 +3,14 @@
  *
  * Bewaakt: alleen groene pakketten gaan erin; de volgorde wordt die van nl; sleutels buiten het
  * pakket blijven onaangeroerd; een nieuwe taal begint bij `{}`; de bron-hash per sleutel wordt
- * bijgewerkt (een familie = één hash), waarna --stale en status hem als actueel zien.
+ * bijgewerkt (een familie = één hash), waarna --stale en status hem als actueel zien; in een nieuwe
+ * taal (geen basislijn, Engelse vulling) telt tekst zonder hash als ontbrekend, ook bij i18n:add.
  */
 import { applyUiBatch } from '../../scripts/translate/apply';
 import { hashUnit } from '../../scripts/translate/common';
 import {
-  buildUiPackages, orderSources, seedSources, selectUnits, setSourceHash, uiStatus, type UiPackage, type UiSources,
+  buildUiPackages, orderSources, seedSources, selectUnits, setSourceHash, uiStatus, updateSourceHashForAdd,
+  type UiPackage, type UiSources,
 } from '../../scripts/translate/ui';
 import { serialize, type JsonObject } from '../../scripts/i18n-tools';
 
@@ -101,6 +103,32 @@ const en: JsonObject = {
   setSourceHash(s, 'task', 'cols.total', 'Totaal');
   setSourceHash(s, 'menu', 'n', { other: '{{count}} x', one: 'één x' });
   eq('hash per namespace + sleutel', [s.task['cols.total'], s.task.b, s.menu.n], [hashUnit('Totaal'), 'oud', hashUnit({ one: 'één x', other: '{{count}} x' })]);
+}
+
+// ── 5. Nieuwe taal met Engelse vulling (geen basislijn) ─────────────────────────────────────
+{
+  // ru staat in de app eerst met Engels als tijdelijke inhoud: tekst zonder hash is geen vertaling.
+  const ruFill: JsonObject = { a: 'First', grp: { x: 'X', n_one: '{{count}} task', n_few: '{{count}} tasks', n_many: '{{count}} tasks', n_other: '{{count}} tasks' }, z: 'Last' };
+  const inputs = [{ ns: 'common', nl, en, target: ruFill }];
+  eq('nieuwe taal, vulling zonder hash: --missing pakt alles op',
+    selectUnits(inputs[0], 'ru', 'missing', {}).map(s => s.unit.key), ['a', 'grp.x', 'grp.n', 'z']);
+  const st = uiStatus('ru', inputs, {})[0];
+  eq('nieuwe taal, vulling zonder hash: status = alles ontbreekt', [st.missing, st.current, st.unhashed], [4, 0, 0]);
+  const half: UiSources = { common: { a: hashUnit('Eerste') } };
+  eq('nieuwe taal: alleen sleutels met hash gelden als vertaald',
+    selectUnits(inputs[0], 'ru', 'missing', half).map(s => s.unit.key), ['grp.x', 'grp.n', 'z']);
+  // Een bestaande taal houdt de oude regel: vertaald zonder hash telt als actueel.
+  const de: JsonObject = { a: 'Erste', grp: { x: 'X', n_one: '{{count}} Aufgabe', n_other: '{{count}} Aufgaben' }, z: 'Letzte' };
+  eq('bestaande taal zonder hash: --missing laat vertaalde tekst staan',
+    selectUnits({ ns: 'common', nl, en, target: de }, 'de', 'missing', {}).map(s => s.unit.key), []);
+
+  // i18n:add: een taal met basislijn krijgt de hash; een nieuwe taal verliest hem (tekst komt niet uit de straat).
+  const deSrc: UiSources = {};
+  eq('i18n:add, bestaande taal: hash gezet', [updateSourceHashForAdd(deSrc, 'de', 'common', 'a', 'Eerste'), deSrc.common?.a], [true, hashUnit('Eerste')]);
+  const ruSrc: UiSources = { common: { a: hashUnit('Eerste'), z: 'x' } };
+  eq('i18n:add, nieuwe taal: hash weg', [updateSourceHashForAdd(ruSrc, 'ru', 'common', 'a', 'Eerste (nieuw)'), Object.keys(ruSrc.common)], [true, ['z']]);
+  const none: UiSources = {};
+  eq('i18n:add, nieuwe taal zonder bronbestand: niets te schrijven', [updateSourceHashForAdd(none, 'sv', 'common', 'a', 'Eerste'), none], [false, {}]);
 }
 
 if (diffs.length === 0) {

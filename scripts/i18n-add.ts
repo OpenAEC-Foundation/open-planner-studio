@@ -17,7 +17,7 @@ import {
   LOCALES, NAMESPACES, formatLocale, keyExists, serialize, setTranslation, validateTranslations,
   type JsonObject, type Namespace, type Translation,
 } from './i18n-tools';
-import { orderSources, setSourceHash, type UiSources } from './translate/ui';
+import { orderSources, updateSourceHashForAdd, type UiSources } from './translate/ui';
 
 function fail(message: string): never {
   console.log(`XX  i18n:add: ${message}`);
@@ -75,7 +75,8 @@ for (const loc of LOCALES) {
   writeFileSync(join(dir, loc, `${ns}.json`), formatLocale(serialize(data), nlOrdered));
   const sourcesFile = join(sourcesDir, `${loc}.json`);
   const sources = existsSync(sourcesFile) ? JSON.parse(readFileSync(sourcesFile, 'utf8')) as UiSources : {};
-  setSourceHash(sources, ns, path, input.nl);
+  // Een taal zonder basislijn (ru, cs, sv, …) krijgt hier geen hash: alleen `translate apply ui` zet die.
+  if (!updateSourceHashForAdd(sources, loc, ns, path, input.nl)) continue;
   mkdirSync(sourcesDir, { recursive: true });
   writeFileSync(sourcesFile, serialize(orderSources(sources, nlByNs) as unknown as JsonObject));
 }

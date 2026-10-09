@@ -10,7 +10,7 @@
 //                                      UI-pakketten → build/translate/<taal>/ui-<ns>-NN.json (+ check.mjs)
 //   bundle-check                       alleen build/translate/check.mjs bouwen
 //   apply ui <taal>                    groene UI-pakketten → src/i18n/locales/<taal>/ + i18n/ui-sources/<taal>.json
-//   seed-sources [taal…]               basislijn: huidige nl-hashes voor de bestaande talen
+//   seed-sources [taal…]               basislijn: huidige nl-hashes voor en + de bestaande talen (niet de nieuwe)
 //   status [taal]                      per taal en namespace: ontbreekt / verouderd / actueel
 //
 // Alle I/O staat hier; de logica zit in de pure modules ernaast (getoetst in tests/planning/check-translate-*.ts).
@@ -18,7 +18,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { LOCALES, NAMESPACES, type JsonObject } from '../i18n-tools';
-import { EXISTING_TARGETS, TBX_FILES, toJson, type Concept, type LangTermbase } from './common';
+import { EXISTING_TARGETS, TBX_FILES, hasUiBaseline, toJson, type Concept, type LangTermbase } from './common';
 import { chunk, collectCandidates } from './candidates';
 import { applyUiBatch } from './apply';
 import { checkPackage } from './gates';
@@ -315,7 +315,11 @@ function applyUi(args: string[]): void {
 }
 
 function seed(args: string[]): void {
-  const langs = positional(args).length ? positional(args).map(checkLang) : LOCALES.filter(l => l !== 'nl');
+  // Alleen talen met een basislijn: in een nieuwe taal staat Engels als vulling, en een hash zou die
+  // als "actueel" markeren (zie hasUiBaseline).
+  const langs = positional(args).length ? positional(args).map(checkLang) : LOCALES.filter(l => hasUiBaseline(l));
+  const without = langs.filter(l => !hasUiBaseline(l));
+  if (without.length) fail(`seed-sources: ${without.join(', ')} heeft geen basislijn (Engelse vulling); vul via prepare/apply ui`);
   const nl = nlByNs();
   for (const lang of langs) {
     if (!existsSync(join(LOCALES_DIR, lang))) { console.log(`..  ${lang}: geen locale-map, overgeslagen`); continue; }

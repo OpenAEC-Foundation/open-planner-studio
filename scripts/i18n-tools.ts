@@ -17,7 +17,10 @@
 export const NAMESPACES = ['common', 'task', 'report', 'menu'] as const;
 export type Namespace = typeof NAMESPACES[number];
 
-export const LOCALES = ['nl', 'en', 'fr', 'de', 'es', 'zh', 'it', 'pt', 'pl', 'tr', 'ar', 'ja', 'ko', 'fa'] as const;
+export const LOCALES = [
+  'nl', 'en', 'fr', 'de', 'es', 'zh', 'it', 'pt', 'pl', 'tr', 'ar', 'ja', 'ko', 'fa',
+  'ru', 'uk', 'cs', 'sk', 'sr', 'hr', 'bg', 'hu', 'ro', 'sv', 'nb', 'da', 'fi',
+] as const;
 export type Locale = typeof LOCALES[number];
 
 export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
