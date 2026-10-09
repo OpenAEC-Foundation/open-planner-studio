@@ -1,0 +1,2076 @@
+[
+  {
+    "id": "actual-date",
+    "kind": "term",
+    "nl": "werkelijke datum",
+    "en": [
+      "actual date",
+      "actual",
+      "actual dates"
+    ],
+    "definition": "The date on which a task really started or finished, as entered in a progress update.",
+    "seeAlso": [
+      "variance"
+    ]
+  },
+  {
+    "id": "actual-duration",
+    "kind": "term",
+    "nl": "werkelijke duur",
+    "en": [
+      "actual duration"
+    ],
+    "definition": "The duration a task has already taken."
+  },
+  {
+    "id": "actual-finish",
+    "kind": "term",
+    "nl": "werkelijk einde",
+    "en": [
+      "actual finish"
+    ],
+    "definition": "The date on which work on a task really finished.",
+    "seeAlso": [
+      "actual-start"
+    ]
+  },
+  {
+    "id": "actual-start",
+    "kind": "term",
+    "nl": "werkelijke start",
+    "en": [
+      "actual start"
+    ],
+    "definition": "The date on which work on a task really started.",
+    "seeAlso": [
+      "actual-finish"
+    ]
+  },
+  {
+    "id": "actual-work",
+    "kind": "term",
+    "nl": "werkelijk werk",
+    "en": [
+      "actual work"
+    ],
+    "definition": "Work already done on a task or assignment."
+  },
+  {
+    "id": "ai-assistant",
+    "kind": "term",
+    "nl": "AI-assistent",
+    "en": [
+      "AI assistant"
+    ],
+    "definition": "An optional assistant, linked through MCP, that can read or change the schedule.",
+    "seeAlso": [
+      "read-only"
+    ]
+  },
+  {
+    "id": "alap",
+    "kind": "token",
+    "nl": "ALAP",
+    "en": [
+      "ALAP"
+    ],
+    "definition": "Constraint code for as late as possible: the task is placed as late as the network allows.",
+    "seeAlso": [
+      "constraint"
+    ]
+  },
+  {
+    "id": "as-late-as-possible",
+    "kind": "term",
+    "nl": "zo laat mogelijk",
+    "en": [
+      "as late as possible"
+    ],
+    "definition": "Constraint type: schedule the task as late as possible without delaying the project."
+  },
+  {
+    "id": "as-soon-as-possible",
+    "kind": "term",
+    "nl": "zo vroeg mogelijk",
+    "en": [
+      "as soon as possible"
+    ],
+    "definition": "Constraint type: schedule the task as early as the logic allows."
+  },
+  {
+    "id": "asap",
+    "kind": "token",
+    "nl": "ASAP",
+    "en": [
+      "ASAP"
+    ],
+    "definition": "Code of a constraint type, shown as-is."
+  },
+  {
+    "id": "assignment",
+    "kind": "term",
+    "nl": "toewijzing",
+    "en": [
+      "assignment",
+      "assignments",
+      "resource assignment"
+    ],
+    "definition": "The link between a resource and a task that sets how much of the resource the task uses.",
+    "seeAlso": [
+      "resource",
+      "task"
+    ]
+  },
+  {
+    "id": "assignment-curve",
+    "kind": "term",
+    "nl": "toewijzingscurve",
+    "en": [
+      "assignment curve"
+    ],
+    "definition": "The distribution of the assigned work over the duration of the task, for example flat or peaking.",
+    "seeAlso": [
+      "assignment",
+      "hour-distribution-in-phases"
+    ]
+  },
+  {
+    "id": "assignment-units",
+    "kind": "term",
+    "nl": "toewijzingseenheden per dag",
+    "en": [
+      "assignment units per day"
+    ],
+    "definition": "The share of a resource's time assigned to a task per day, for example 100 percent.",
+    "seeAlso": [
+      "assignment",
+      "effort-driven"
+    ]
+  },
+  {
+    "id": "baseline",
+    "kind": "term",
+    "nl": "baseline",
+    "en": [
+      "baseline",
+      "re-baseline"
+    ],
+    "definition": "A saved copy of planned dates, kept to compare with the current schedule later.",
+    "seeAlso": [
+      "variance"
+    ]
+  },
+  {
+    "id": "bei",
+    "kind": "term",
+    "nl": "baseline-uitvoeringsindex",
+    "en": [
+      "BEI",
+      "baseline execution index"
+    ],
+    "definition": "Ratio of tasks finished to tasks the baseline planned to finish by the status date; 1.0 means on plan.",
+    "seeAlso": [
+      "baseline",
+      "status-date"
+    ]
+  },
+  {
+    "id": "calculate",
+    "kind": "term",
+    "nl": "berekenen",
+    "en": [
+      "calculate"
+    ],
+    "definition": "Run the schedule calculation (CPM) that sets task dates, float and the critical path.",
+    "seeAlso": [
+      "calculate-automatically",
+      "calculation-profile"
+    ]
+  },
+  {
+    "id": "calculate-automatically",
+    "kind": "term",
+    "nl": "automatisch berekenen",
+    "en": [
+      "calculate automatically"
+    ],
+    "definition": "Setting that runs the schedule calculation after each change.",
+    "seeAlso": [
+      "calculate"
+    ]
+  },
+  {
+    "id": "calculation-profile",
+    "kind": "term",
+    "nl": "rekenprofiel",
+    "en": [
+      "calculation profile",
+      "scheduling profile",
+      "calculation model"
+    ],
+    "definition": "A named set of scheduling rules, such as P6 or MSP behaviour, with its own options.",
+    "seeAlso": [
+      "calculate"
+    ]
+  },
+  {
+    "id": "calendar",
+    "kind": "term",
+    "nl": "kalender",
+    "en": [
+      "calendar",
+      "calendars",
+      "project calendar"
+    ],
+    "definition": "The working days, working hours and holidays that count as time for tasks."
+  },
+  {
+    "id": "capacity",
+    "kind": "term",
+    "nl": "capaciteit",
+    "en": [
+      "capacity"
+    ],
+    "definition": "The amount of work a resource can do in a period.",
+    "seeAlso": [
+      "resource",
+      "overallocation"
+    ]
+  },
+  {
+    "id": "completion",
+    "kind": "term",
+    "nl": "voltooiing",
+    "en": [
+      "completion"
+    ],
+    "definition": "The share of a task's work that is finished, expressed as a percentage.",
+    "seeAlso": [
+      "progress",
+      "remaining-work"
+    ]
+  },
+  {
+    "id": "constraint",
+    "kind": "term",
+    "nl": "constraint",
+    "en": [
+      "constraint",
+      "constraint date",
+      "date constraint",
+      "constraints"
+    ],
+    "definition": "A rule that limits a task's start or finish date, such as Start no earlier than.",
+    "seeAlso": [
+      "task"
+    ]
+  },
+  {
+    "id": "constraint-type",
+    "kind": "term",
+    "nl": "constrainttype",
+    "en": [
+      "constraint type"
+    ],
+    "definition": "The kind of date constraint on a task, such as Start no earlier than."
+  },
+  {
+    "id": "construction-holiday",
+    "kind": "term",
+    "nl": "bouwvak",
+    "en": [
+      "construction holiday",
+      "construction industry holiday"
+    ],
+    "definition": "The collective summer holiday of the construction industry, a fixed non-working period in a construction calendar."
+  },
+  {
+    "id": "contour",
+    "kind": "term",
+    "nl": "contour",
+    "en": [
+      "contour"
+    ],
+    "definition": "The pattern in which a resource's work is spread over a task, such as flat, early peak or back loaded.",
+    "seeAlso": [
+      "resource"
+    ]
+  },
+  {
+    "id": "convention",
+    "kind": "term",
+    "nl": "conventie",
+    "en": [
+      "convention"
+    ],
+    "definition": "One named scheduling rule inside a calculation profile, for example how float or constraints are handled.",
+    "seeAlso": [
+      "calculation-profile"
+    ]
+  },
+  {
+    "id": "cost",
+    "kind": "term",
+    "nl": "kosten",
+    "en": [
+      "cost",
+      "costs"
+    ],
+    "definition": "The money a task or resource costs."
+  },
+  {
+    "id": "crash-recovery",
+    "kind": "term",
+    "nl": "herstel na een crash",
+    "en": [
+      "crash recovery"
+    ],
+    "definition": "Restoring unsaved work from an automatic backup after the app stopped unexpectedly."
+  },
+  {
+    "id": "critical",
+    "kind": "term",
+    "nl": "kritiek",
+    "en": [
+      "critical"
+    ],
+    "definition": "A task is critical when its total float is at or below the critical threshold.",
+    "seeAlso": [
+      "critical-path",
+      "near-critical"
+    ]
+  },
+  {
+    "id": "critical-chains",
+    "kind": "term",
+    "nl": "kritieke ketens",
+    "en": [
+      "critical chains"
+    ],
+    "definition": "Sequences of linked tasks that form the critical path, as listed in the report.",
+    "seeAlso": [
+      "critical-path"
+    ]
+  },
+  {
+    "id": "critical-path",
+    "kind": "term",
+    "nl": "kritiek pad",
+    "en": [
+      "critical path"
+    ],
+    "definition": "The chain of linked tasks with the least float that sets the project finish date.",
+    "seeAlso": [
+      "critical",
+      "total-float"
+    ]
+  },
+  {
+    "id": "critical-task",
+    "kind": "term",
+    "nl": "kritieke taak",
+    "en": [
+      "critical task",
+      "critical activity"
+    ],
+    "definition": "A task on the critical path: a delay in it delays the project finish.",
+    "seeAlso": [
+      "float"
+    ]
+  },
+  {
+    "id": "csv",
+    "kind": "keep",
+    "nl": "CSV",
+    "en": [
+      "CSV"
+    ],
+    "definition": "A plain text table format, here semicolon separated, used for export and import."
+  },
+  {
+    "id": "current-finish",
+    "kind": "term",
+    "nl": "huidig einde",
+    "en": [
+      "current finish"
+    ],
+    "definition": "The finish date that the schedule now calculates for a task.",
+    "seeAlso": [
+      "forecast-finish",
+      "baseline",
+      "missed-task"
+    ]
+  },
+  {
+    "id": "custom-field",
+    "kind": "term",
+    "nl": "eigen veld",
+    "en": [
+      "custom field"
+    ],
+    "definition": "A custom field is a user-defined column of data that the project stores with each task or resource."
+  },
+  {
+    "id": "cycle",
+    "kind": "term",
+    "nl": "cyclus",
+    "en": [
+      "cycle"
+    ],
+    "definition": "A chain of relations that leads back to a task already in the chain.",
+    "seeAlso": [
+      "relation"
+    ]
+  },
+  {
+    "id": "dcma-assessment",
+    "kind": "term",
+    "nl": "DCMA 14-puntsbeoordeling",
+    "en": [
+      "DCMA 14-point assessment"
+    ],
+    "definition": "A schedule quality check with 14 tests defined by the US Defense Contract Management Agency."
+  },
+  {
+    "id": "deadline",
+    "kind": "term",
+    "nl": "deadline",
+    "en": [
+      "deadline"
+    ],
+    "definition": "The latest date by which a task must finish; the schedule shows a violation when the calculated finish is later.",
+    "seeAlso": [
+      "finish-no-later-than",
+      "constraint"
+    ]
+  },
+  {
+    "id": "distribution",
+    "kind": "term",
+    "nl": "verdeling",
+    "en": [
+      "distribution"
+    ],
+    "definition": "Distribution is how the work of a resource spreads over the duration of a task, for example front loaded or late peak.",
+    "seeAlso": [
+      "resource"
+    ]
+  },
+  {
+    "id": "driving-relationship",
+    "kind": "term",
+    "nl": "bepalende relatie",
+    "en": [
+      "driving relationship",
+      "driving"
+    ],
+    "definition": "The relationship that sets the early start of its successor, so a change on it moves that successor.",
+    "seeAlso": [
+      "critical-path"
+    ]
+  },
+  {
+    "id": "duration",
+    "kind": "term",
+    "nl": "duur",
+    "en": [
+      "duration"
+    ],
+    "definition": "The working time a task takes, shown in days or hours.",
+    "seeAlso": [
+      "task"
+    ]
+  },
+  {
+    "id": "early-finish",
+    "kind": "term",
+    "nl": "vroegste einde",
+    "en": [
+      "early finish"
+    ],
+    "definition": "The earliest date a task can finish, given its relations and calendar.",
+    "seeAlso": [
+      "early-start",
+      "late-finish"
+    ]
+  },
+  {
+    "id": "early-start",
+    "kind": "term",
+    "nl": "vroegste start",
+    "en": [
+      "early start"
+    ],
+    "definition": "The earliest date a task can start, given its relations and calendar.",
+    "seeAlso": [
+      "early-finish",
+      "late-start"
+    ]
+  },
+  {
+    "id": "effort-driven",
+    "kind": "term",
+    "nl": "inspanningsgestuurd",
+    "en": [
+      "effort driven"
+    ],
+    "definition": "A task setting where changing the resource units changes the duration, while the total work stays the same.",
+    "seeAlso": [
+      "assignment-units",
+      "duration"
+    ]
+  },
+  {
+    "id": "elapsed-time",
+    "kind": "term",
+    "nl": "verstreken tijd",
+    "en": [
+      "elapsed time",
+      "elapsed duration"
+    ],
+    "definition": "Duration counted in calendar time, including non-working days.",
+    "enBySource": {
+      "msp": "elapsed duration"
+    }
+  },
+  {
+    "id": "extension",
+    "kind": "term",
+    "nl": "extensie",
+    "en": [
+      "extension",
+      "extensions"
+    ],
+    "definition": "An add-on that adds features to the app and asks permission for what it may do."
+  },
+  {
+    "id": "external-relation",
+    "kind": "term",
+    "nl": "externe koppeling",
+    "en": [
+      "external relation",
+      "external relationship",
+      "external (cross-project) link",
+      "external link",
+      "external links",
+      "external relations",
+      "cross-project link"
+    ],
+    "definition": "A relation from a task to a task in another project file, refreshed from that file.",
+    "seeAlso": [
+      "relation"
+    ]
+  },
+  {
+    "id": "ff",
+    "kind": "token",
+    "nl": "FF",
+    "en": [
+      "FF"
+    ],
+    "definition": "FF is the code for a finish-to-finish relation type, read and written in files; never translate it.",
+    "seeAlso": [
+      "relation"
+    ]
+  },
+  {
+    "id": "finish",
+    "kind": "term",
+    "nl": "einde",
+    "en": [
+      "finish",
+      "end"
+    ],
+    "definition": "The date on which a task or the project ends.",
+    "seeAlso": [
+      "early-finish",
+      "late-finish"
+    ]
+  },
+  {
+    "id": "finish-driver",
+    "kind": "term",
+    "nl": "Finish-driver",
+    "en": [
+      "finish driver"
+    ],
+    "definition": "The finish driver is the predecessor relation that sets the finish date of a task.",
+    "seeAlso": [
+      "start-driver"
+    ]
+  },
+  {
+    "id": "finish-no-earlier-than",
+    "kind": "term",
+    "nl": "eindig niet eerder dan",
+    "en": [
+      "finish no earlier than"
+    ],
+    "definition": "Constraint type: the task may not finish before the constraint date."
+  },
+  {
+    "id": "finish-no-later-than",
+    "kind": "term",
+    "nl": "uiterlijke einddatum",
+    "en": [
+      "finish no later than"
+    ],
+    "definition": "A constraint that the task must finish on or before a given date.",
+    "seeAlso": [
+      "deadline",
+      "constraint"
+    ]
+  },
+  {
+    "id": "finish-to-finish",
+    "kind": "term",
+    "nl": "eind-eind",
+    "en": [
+      "finish-to-finish",
+      "finish-finish"
+    ],
+    "definition": "A relation where the successor finishes after the predecessor finishes.",
+    "seeAlso": [
+      "ff",
+      "relation"
+    ]
+  },
+  {
+    "id": "finish-to-start",
+    "kind": "term",
+    "nl": "eind-start",
+    "en": [
+      "finish-to-start",
+      "finish-start"
+    ],
+    "definition": "A relation where the successor starts after the predecessor finishes. This is the default relation type.",
+    "seeAlso": [
+      "fs",
+      "relation"
+    ]
+  },
+  {
+    "id": "finish-variance",
+    "kind": "term",
+    "nl": "eindafwijking",
+    "en": [
+      "finish variance"
+    ],
+    "definition": "Finish variance is the difference between the baseline finish and the current finish of a task.",
+    "seeAlso": [
+      "baseline",
+      "start-variance"
+    ]
+  },
+  {
+    "id": "fixed-duration",
+    "kind": "term",
+    "nl": "vaste duur",
+    "en": [
+      "fixed duration"
+    ],
+    "definition": "Task type in which the duration stays fixed when work or units change.",
+    "enBySource": {
+      "msp": "fixed duration"
+    }
+  },
+  {
+    "id": "fixed-units",
+    "kind": "term",
+    "nl": "vaste inzet",
+    "en": [
+      "fixed units"
+    ],
+    "definition": "Task type in which the units stay fixed when duration or work changes.",
+    "enBySource": {
+      "msp": "fixed units"
+    }
+  },
+  {
+    "id": "fixed-work",
+    "kind": "term",
+    "nl": "vast werk",
+    "en": [
+      "fixed work"
+    ],
+    "definition": "Task type in which the work stays fixed when duration or units change.",
+    "enBySource": {
+      "msp": "fixed work"
+    }
+  },
+  {
+    "id": "float",
+    "kind": "term",
+    "nl": "speling",
+    "en": [
+      "float"
+    ],
+    "definition": "The time, not a number, that a task can slip without changing a later date.",
+    "seeAlso": [
+      "free-float",
+      "negative-float",
+      "float-path",
+      "threshold"
+    ]
+  },
+  {
+    "id": "float-path",
+    "kind": "term",
+    "nl": "spelingpad",
+    "en": [
+      "float path"
+    ],
+    "definition": "A chain of tasks that share the same float, usually ending at a constraint or the project finish.",
+    "seeAlso": [
+      "float"
+    ]
+  },
+  {
+    "id": "fnet",
+    "kind": "token",
+    "nl": "FNET",
+    "en": [
+      "FNET"
+    ],
+    "definition": "FNET is the code for the constraint Finish no earlier than; never translate it.",
+    "seeAlso": [
+      "constraint"
+    ]
+  },
+  {
+    "id": "fnlt",
+    "kind": "token",
+    "nl": "FNLT",
+    "en": [
+      "FNLT"
+    ],
+    "definition": "FNLT is the code for the constraint Finish no later than; never translate it.",
+    "seeAlso": [
+      "constraint"
+    ]
+  },
+  {
+    "id": "forecast-finish",
+    "kind": "term",
+    "nl": "prognose-einde",
+    "en": [
+      "forecast finish"
+    ],
+    "definition": "The expected finish date of a task, based on its progress and remaining work.",
+    "seeAlso": [
+      "current-finish",
+      "remaining-work"
+    ]
+  },
+  {
+    "id": "free-float",
+    "kind": "term",
+    "nl": "vrije speling",
+    "en": [
+      "free float",
+      "free slack"
+    ],
+    "enBySource": {
+      "msp": "free slack",
+      "p6": "free float"
+    },
+    "definition": "Free float is the time a task can slip without delaying the start of any successor.",
+    "seeAlso": [
+      "total-float"
+    ]
+  },
+  {
+    "id": "fs",
+    "kind": "token",
+    "nl": "FS",
+    "en": [
+      "FS"
+    ],
+    "definition": "FS is the code for a finish-to-start relation type, read and written in files; never translate it.",
+    "seeAlso": [
+      "relation"
+    ]
+  },
+  {
+    "id": "gantt",
+    "kind": "keep",
+    "nl": "Gantt",
+    "en": [
+      "Gantt"
+    ],
+    "definition": "The timeline chart that shows tasks as bars against dates."
+  },
+  {
+    "id": "hammock",
+    "kind": "term",
+    "nl": "hangmat",
+    "en": [
+      "hammock"
+    ],
+    "definition": "A task that has no work of its own and spans the tasks linked to it; its dates follow those tasks.",
+    "seeAlso": [
+      "finish-driver"
+    ]
+  },
+  {
+    "id": "hard-constraint",
+    "kind": "term",
+    "nl": "harde constraint",
+    "en": [
+      "hard constraint",
+      "hard constraints"
+    ],
+    "definition": "A date constraint that the scheduler must respect, even when this moves the task away from its logic."
+  },
+  {
+    "id": "histogram",
+    "kind": "term",
+    "nl": "histogram",
+    "en": [
+      "histogram",
+      "resource histogram"
+    ],
+    "definition": "Chart of resource load over time."
+  },
+  {
+    "id": "holiday",
+    "kind": "term",
+    "nl": "feestdag",
+    "en": [
+      "holiday",
+      "holidays"
+    ],
+    "definition": "A non-working day in a calendar, such as a public holiday or a construction holiday.",
+    "seeAlso": [
+      "calendar"
+    ]
+  },
+  {
+    "id": "holiday-set",
+    "kind": "term",
+    "nl": "feestdagenset",
+    "en": [
+      "holiday set"
+    ],
+    "definition": "A holiday set is a list of public holidays that a calendar uses as non-working days."
+  },
+  {
+    "id": "hour-distribution-in-phases",
+    "kind": "term",
+    "nl": "urenverdeling in fasen",
+    "en": [
+      "hour distribution in phases"
+    ],
+    "definition": "The spread of planned work hours over the phases of a task.",
+    "seeAlso": [
+      "assignment-curve"
+    ]
+  },
+  {
+    "id": "hour-planning",
+    "kind": "term",
+    "nl": "urenplanning",
+    "en": [
+      "hour planning"
+    ],
+    "definition": "A planning mode in which durations are measured in hours instead of days."
+  },
+  {
+    "id": "hour-task",
+    "kind": "term",
+    "nl": "uurtaak",
+    "en": [
+      "hour task"
+    ],
+    "definition": "A task whose duration is planned in hours instead of workdays.",
+    "seeAlso": [
+      "work-calendar"
+    ]
+  },
+  {
+    "id": "ifc",
+    "kind": "keep",
+    "nl": "IFC",
+    "en": [
+      "IFC"
+    ],
+    "definition": "Industry Foundation Classes, the open BIM format that is the native file format of the app."
+  },
+  {
+    "id": "indent",
+    "kind": "term",
+    "nl": "inspringen",
+    "en": [
+      "indent"
+    ],
+    "definition": "Move a task one level down in the outline, under the task above it."
+  },
+  {
+    "id": "interruption",
+    "kind": "term",
+    "nl": "onderbreking",
+    "en": [
+      "interruption",
+      "break"
+    ],
+    "definition": "A period inside a task in which no work is done, which splits the task bar in the Gantt.",
+    "seeAlso": [
+      "task"
+    ]
+  },
+  {
+    "id": "lag",
+    "kind": "term",
+    "nl": "lag",
+    "en": [
+      "lag"
+    ],
+    "definition": "Time added to or subtracted from a relation, so that the linked task starts or finishes later or earlier.",
+    "seeAlso": [
+      "relation"
+    ]
+  },
+  {
+    "id": "late-dates",
+    "kind": "term",
+    "nl": "late datums",
+    "en": [
+      "late dates"
+    ],
+    "definition": "Late dates are the latest start and finish dates a task can have without delaying the project end date.",
+    "seeAlso": [
+      "total-float"
+    ]
+  },
+  {
+    "id": "late-finish",
+    "kind": "term",
+    "nl": "laatste einde",
+    "en": [
+      "late finish"
+    ],
+    "definition": "The latest date a task can finish without delaying the project finish.",
+    "seeAlso": [
+      "late-start",
+      "finish"
+    ]
+  },
+  {
+    "id": "late-start",
+    "kind": "term",
+    "nl": "laatste start",
+    "en": [
+      "late start"
+    ],
+    "definition": "The latest date a task can start without delaying the project finish.",
+    "seeAlso": [
+      "late-finish",
+      "early-start"
+    ]
+  },
+  {
+    "id": "layout",
+    "kind": "term",
+    "nl": "layout",
+    "en": [
+      "layout"
+    ],
+    "definition": "A saved arrangement of panels and views on the screen."
+  },
+  {
+    "id": "lead",
+    "kind": "term",
+    "nl": "lead",
+    "en": [
+      "lead"
+    ],
+    "definition": "A negative lag, so the successor may start before the predecessor finishes.",
+    "seeAlso": [
+      "lag"
+    ]
+  },
+  {
+    "id": "leveling",
+    "kind": "term",
+    "nl": "nivellering",
+    "en": [
+      "leveling",
+      "level resources",
+      "smoothing"
+    ],
+    "definition": "Changing task dates so that no resource is overallocated.",
+    "seeAlso": [
+      "overallocation"
+    ]
+  },
+  {
+    "id": "leveling-delay",
+    "kind": "term",
+    "nl": "nivelleervertraging",
+    "en": [
+      "leveling delay"
+    ],
+    "definition": "Delay added to a task by resource leveling.",
+    "enBySource": {
+      "msp": "leveling delay"
+    }
+  },
+  {
+    "id": "link-tasks",
+    "kind": "term",
+    "nl": "koppelen",
+    "en": [
+      "link",
+      "link tasks"
+    ],
+    "definition": "Create a dependency between tasks."
+  },
+  {
+    "id": "longest-path",
+    "kind": "term",
+    "nl": "langste pad",
+    "en": [
+      "longest path"
+    ],
+    "definition": "The longest path is the chain of linked tasks with the greatest total duration, which sets the project duration.",
+    "seeAlso": [
+      "total-float"
+    ]
+  },
+  {
+    "id": "manually-scheduled",
+    "kind": "term",
+    "nl": "handmatig gepland",
+    "en": [
+      "manually scheduled"
+    ],
+    "definition": "A task whose dates are set by the user, not by the scheduler."
+  },
+  {
+    "id": "max-units",
+    "kind": "term",
+    "nl": "max. eenheden",
+    "en": [
+      "max units"
+    ],
+    "definition": "The largest share of a resource that can work at the same time, in units.",
+    "seeAlso": [
+      "overallocation",
+      "resource"
+    ]
+  },
+  {
+    "id": "mfo",
+    "kind": "token",
+    "nl": "MFO",
+    "en": [
+      "MFO"
+    ],
+    "definition": "MFO is the code for the constraint Must finish on; never translate it.",
+    "seeAlso": [
+      "constraint"
+    ]
+  },
+  {
+    "id": "milestone",
+    "kind": "term",
+    "nl": "mijlpaal",
+    "en": [
+      "milestone"
+    ],
+    "definition": "A task with zero duration that marks an event in the schedule.",
+    "seeAlso": [
+      "task"
+    ]
+  },
+  {
+    "id": "milestone-kind",
+    "kind": "term",
+    "nl": "soort mijlpaal",
+    "en": [
+      "milestone kind",
+      "milestone type"
+    ],
+    "definition": "Milestone kind is the setting that says which type of milestone a task is.",
+    "seeAlso": [
+      "milestone"
+    ]
+  },
+  {
+    "id": "missed-task",
+    "kind": "term",
+    "nl": "gemiste taak",
+    "en": [
+      "missed task"
+    ],
+    "definition": "A task that is not finished by the date it had in the baseline.",
+    "seeAlso": [
+      "baseline"
+    ]
+  },
+  {
+    "id": "model-context-protocol",
+    "kind": "keep",
+    "nl": "Model Context Protocol",
+    "en": [
+      "Model Context Protocol"
+    ],
+    "definition": "The open protocol that lets AI assistants call tools in the app; the name is not translated."
+  },
+  {
+    "id": "ms-project",
+    "kind": "keep",
+    "nl": "Microsoft Project",
+    "en": [
+      "Microsoft Project",
+      "ms project"
+    ],
+    "definition": "Microsoft's scheduling program, with which the app exchanges files such as .mpp and MS Project XML."
+  },
+  {
+    "id": "mso",
+    "kind": "token",
+    "nl": "MSO",
+    "en": [
+      "MSO"
+    ],
+    "definition": "Code of a constraint type, shown as-is."
+  },
+  {
+    "id": "mspdi",
+    "kind": "keep",
+    "nl": "MSPDI",
+    "en": [
+      "MSPDI"
+    ],
+    "definition": "The Microsoft Project XML file format; the name is not translated."
+  },
+  {
+    "id": "must-finish-on",
+    "kind": "term",
+    "nl": "moet eindigen op",
+    "en": [
+      "must finish on"
+    ],
+    "definition": "Constraint type: the task finishes exactly on the constraint date."
+  },
+  {
+    "id": "must-start-on",
+    "kind": "term",
+    "nl": "moet starten op",
+    "en": [
+      "must start on"
+    ],
+    "definition": "Constraint type: the task starts exactly on the constraint date."
+  },
+  {
+    "id": "near-critical",
+    "kind": "term",
+    "nl": "bijna kritiek",
+    "en": [
+      "near-critical",
+      "near critical"
+    ],
+    "definition": "A task whose total float is just above the critical threshold.",
+    "seeAlso": [
+      "critical"
+    ]
+  },
+  {
+    "id": "negative-float",
+    "kind": "term",
+    "nl": "negatieve speling",
+    "en": [
+      "negative float"
+    ],
+    "definition": "Float below zero, which means the task finishes later than its required date.",
+    "seeAlso": [
+      "float"
+    ]
+  },
+  {
+    "id": "non-working-day",
+    "kind": "term",
+    "nl": "niet-werkdag",
+    "en": [
+      "non-working day",
+      "non-working"
+    ],
+    "definition": "Non-working time is a period on the calendar in which no work is planned.",
+    "seeAlso": [
+      "workday",
+      "working-time"
+    ]
+  },
+  {
+    "id": "out-of-sequence-progress",
+    "kind": "term",
+    "nl": "out-of-sequence voortgang",
+    "en": [
+      "out-of-sequence progress",
+      "out-of-sequence"
+    ],
+    "definition": "Progress recorded on a successor while its predecessor has not progressed as the logic requires.",
+    "seeAlso": [
+      "progress",
+      "predecessor"
+    ]
+  },
+  {
+    "id": "outdent",
+    "kind": "term",
+    "nl": "uitspringen",
+    "en": [
+      "outdent"
+    ],
+    "definition": "Move a task one level up in the outline."
+  },
+  {
+    "id": "overallocation",
+    "kind": "term",
+    "nl": "overbelasting",
+    "en": [
+      "overallocation",
+      "overallocated",
+      "double-booked",
+      "overloaded"
+    ],
+    "definition": "A resource needs more units at one time than its maximum units allow.",
+    "seeAlso": [
+      "leveling",
+      "max-units"
+    ]
+  },
+  {
+    "id": "path-tracing",
+    "kind": "term",
+    "nl": "pad traceren",
+    "en": [
+      "path tracing"
+    ],
+    "definition": "Highlighting the chain of driving relations that sets the dates of a selected task."
+  },
+  {
+    "id": "percent-complete",
+    "kind": "term",
+    "nl": "% gereed",
+    "en": [
+      "percent complete",
+      "% complete"
+    ],
+    "definition": "How much of a task is done, as a percentage."
+  },
+  {
+    "id": "period",
+    "kind": "term",
+    "nl": "periode",
+    "en": [
+      "period"
+    ],
+    "definition": "A date range that filters a report or a resource occupancy view.",
+    "seeAlso": [
+      "report-type"
+    ]
+  },
+  {
+    "id": "planned",
+    "kind": "term",
+    "nl": "gepland",
+    "en": [
+      "planned"
+    ],
+    "definition": "Planned means the dates or values that the schedule calculated, before actual progress is entered.",
+    "seeAlso": [
+      "baseline"
+    ]
+  },
+  {
+    "id": "planned-work",
+    "kind": "term",
+    "nl": "begroot werk",
+    "en": [
+      "planned work"
+    ],
+    "definition": "The total work planned for a task or assignment, in hours.",
+    "seeAlso": [
+      "remaining-work",
+      "assignment"
+    ]
+  },
+  {
+    "id": "predecessor",
+    "kind": "term",
+    "nl": "voorganger",
+    "en": [
+      "predecessor",
+      "predecessors"
+    ],
+    "definition": "A task that must come before a linked task, according to a relation.",
+    "seeAlso": [
+      "relation",
+      "successor"
+    ]
+  },
+  {
+    "id": "primavera-p6",
+    "kind": "keep",
+    "nl": "Primavera P6",
+    "en": [
+      "Primavera P6"
+    ],
+    "definition": "Oracle's scheduling program, with which the app exchanges XER and P6 XML files."
+  },
+  {
+    "id": "progress",
+    "kind": "term",
+    "nl": "voortgang",
+    "en": [
+      "progress"
+    ],
+    "definition": "How far a task is done, shown as percent complete and by actual dates.",
+    "seeAlso": [
+      "actual-start",
+      "actual-finish",
+      "status-date"
+    ]
+  },
+  {
+    "id": "progress-mode",
+    "kind": "term",
+    "nl": "voortgangsmodus",
+    "en": [
+      "progress mode"
+    ],
+    "definition": "The rule for how progress changes the schedule, such as Progress Override or Retained Logic.",
+    "seeAlso": [
+      "progress"
+    ]
+  },
+  {
+    "id": "progress-override",
+    "kind": "keep",
+    "nl": "Progress Override",
+    "en": [
+      "Progress Override"
+    ],
+    "definition": "P6 progress mode name, kept in English like the Dutch UI."
+  },
+  {
+    "id": "project-finish",
+    "kind": "term",
+    "nl": "projecteinde",
+    "en": [
+      "project finish",
+      "project finish date"
+    ],
+    "definition": "The date on which the project ends."
+  },
+  {
+    "id": "project-start",
+    "kind": "term",
+    "nl": "projectstart",
+    "en": [
+      "project start",
+      "project start date"
+    ],
+    "definition": "The date on which the project begins."
+  },
+  {
+    "id": "rate",
+    "kind": "term",
+    "nl": "tarief",
+    "en": [
+      "rate",
+      "hourly rate",
+      "standard rate"
+    ],
+    "definition": "Cost of a resource per unit of time.",
+    "enBySource": {
+      "msp": "standard rate"
+    }
+  },
+  {
+    "id": "read-only",
+    "kind": "term",
+    "nl": "alleen lezen",
+    "en": [
+      "read-only"
+    ],
+    "definition": "A mode in which an AI assistant can read the project but not change it.",
+    "seeAlso": [
+      "ai-assistant"
+    ]
+  },
+  {
+    "id": "recalculate",
+    "kind": "term",
+    "nl": "herberekenen",
+    "en": [
+      "recalculate"
+    ],
+    "definition": "Running the schedule calculation again so that all dates and float values match the current data.",
+    "seeAlso": [
+      "calculation-profile"
+    ]
+  },
+  {
+    "id": "relation",
+    "kind": "term",
+    "nl": "relatie",
+    "en": [
+      "relation",
+      "relations",
+      "dependency",
+      "dependencies",
+      "relationship"
+    ],
+    "definition": "A logical link between two tasks that sets the order of their dates.",
+    "seeAlso": [
+      "predecessor",
+      "successor"
+    ]
+  },
+  {
+    "id": "relationship-type",
+    "kind": "term",
+    "nl": "relatietype",
+    "en": [
+      "relationship type"
+    ],
+    "definition": "The kind of logic link between two tasks, such as FS, SS, FF or SF.",
+    "seeAlso": [
+      "fs",
+      "ff"
+    ]
+  },
+  {
+    "id": "remaining-duration",
+    "kind": "term",
+    "nl": "resterende duur",
+    "en": [
+      "remaining duration"
+    ],
+    "definition": "Remaining duration is the time still needed to finish a task that is in progress."
+  },
+  {
+    "id": "remaining-work",
+    "kind": "term",
+    "nl": "resterend werk",
+    "en": [
+      "remaining work"
+    ],
+    "definition": "The work still to do on a task or assignment after the reported progress, in hours.",
+    "seeAlso": [
+      "planned-work",
+      "completion"
+    ]
+  },
+  {
+    "id": "report",
+    "kind": "term",
+    "nl": "rapport",
+    "en": [
+      "report",
+      "reporting",
+      "reports"
+    ],
+    "definition": "A printable or exportable view of schedule data, such as a progress report."
+  },
+  {
+    "id": "report-type",
+    "kind": "term",
+    "nl": "rapporttype",
+    "en": [
+      "report type"
+    ],
+    "definition": "A kind of report with its own content and layout, such as a variance or milestone report.",
+    "seeAlso": [
+      "period",
+      "variance"
+    ]
+  },
+  {
+    "id": "resource",
+    "kind": "term",
+    "nl": "resource",
+    "en": [
+      "resource",
+      "resources"
+    ],
+    "definition": "A person, crew or material that can be assigned to tasks and has limited capacity.",
+    "seeAlso": [
+      "resource-library"
+    ]
+  },
+  {
+    "id": "resource-library",
+    "kind": "term",
+    "nl": "resourcebibliotheek",
+    "en": [
+      "library",
+      "resource library",
+      "pool"
+    ],
+    "definition": "The shared store of resources and calendars that projects can reuse.",
+    "seeAlso": [
+      "resource"
+    ]
+  },
+  {
+    "id": "resource-type",
+    "kind": "term",
+    "nl": "resourcetype",
+    "en": [
+      "resource type"
+    ],
+    "definition": "Resource type is the kind of a resource, used to group resources.",
+    "seeAlso": [
+      "resource"
+    ]
+  },
+  {
+    "id": "retained-logic",
+    "kind": "keep",
+    "nl": "Retained Logic",
+    "en": [
+      "Retained Logic"
+    ],
+    "definition": "P6 progress mode name, kept in English like the Dutch UI."
+  },
+  {
+    "id": "ribbon",
+    "kind": "term",
+    "nl": "lint",
+    "en": [
+      "ribbon"
+    ],
+    "definition": "The tabbed command bar at the top of the window."
+  },
+  {
+    "id": "ribbon-tab",
+    "kind": "term",
+    "nl": "linttabblad",
+    "en": [
+      "ribbon tab",
+      "ribbon tabs"
+    ],
+    "definition": "Ribbon tab is one of the top tabs that group the commands of the app."
+  },
+  {
+    "id": "round-trip",
+    "kind": "term",
+    "nl": "round-trip",
+    "en": [
+      "round-trip"
+    ],
+    "definition": "Round-trip means data that is saved and opened again stays unchanged."
+  },
+  {
+    "id": "schedule",
+    "kind": "term",
+    "nl": "planning",
+    "en": [
+      "schedule",
+      "planning"
+    ],
+    "definition": "The set of task dates, durations and relations that shows when work is planned."
+  },
+  {
+    "id": "schedule-error",
+    "kind": "term",
+    "nl": "planningsfout",
+    "en": [
+      "schedule error"
+    ],
+    "definition": "Schedule error is a message that the app shows when the schedule has a problem that blocks or changes the calculation.",
+    "seeAlso": [
+      "schedule"
+    ]
+  },
+  {
+    "id": "secondary-constraint",
+    "kind": "term",
+    "nl": "secundaire constraint",
+    "en": [
+      "secondary constraint",
+      "secondary constraint date"
+    ],
+    "definition": "A secondary constraint is a second date rule on a task, next to its main constraint.",
+    "seeAlso": [
+      "constraint"
+    ]
+  },
+  {
+    "id": "sf",
+    "kind": "token",
+    "nl": "SF",
+    "en": [
+      "SF"
+    ],
+    "definition": "Relation code for start-to-finish: the successor finishes when the predecessor starts.",
+    "seeAlso": [
+      "relation",
+      "ss"
+    ]
+  },
+  {
+    "id": "shift",
+    "kind": "term",
+    "nl": "ploeg",
+    "en": [
+      "shift"
+    ],
+    "definition": "A recurring work period within a day, such as a day, evening or night shift, set in a calendar.",
+    "seeAlso": [
+      "calendar"
+    ]
+  },
+  {
+    "id": "snet",
+    "kind": "token",
+    "nl": "SNET",
+    "en": [
+      "SNET"
+    ],
+    "definition": "Code for the start-no-earlier-than constraint, written with its date.",
+    "seeAlso": [
+      "constraint"
+    ]
+  },
+  {
+    "id": "snlt",
+    "kind": "token",
+    "nl": "SNLT",
+    "en": [
+      "SNLT"
+    ],
+    "definition": "SNLT is the code for the constraint Start no later than; never translate it.",
+    "seeAlso": [
+      "constraint"
+    ]
+  },
+  {
+    "id": "source-task",
+    "kind": "term",
+    "nl": "brontaak",
+    "en": [
+      "source task"
+    ],
+    "definition": "The task in the other project file that an external link points to."
+  },
+  {
+    "id": "split-task",
+    "kind": "term",
+    "nl": "splitsing",
+    "en": [
+      "split task",
+      "split mode"
+    ],
+    "definition": "Split task is a task that is divided into parts with a gap between them."
+  },
+  {
+    "id": "ss",
+    "kind": "token",
+    "nl": "SS",
+    "en": [
+      "SS"
+    ],
+    "definition": "Relation code for start-to-start: the successor starts when the predecessor starts.",
+    "seeAlso": [
+      "relation",
+      "sf"
+    ]
+  },
+  {
+    "id": "start-driver",
+    "kind": "term",
+    "nl": "Start-driver",
+    "en": [
+      "start driver"
+    ],
+    "definition": "The start driver is the predecessor relation that sets the start date of a task.",
+    "seeAlso": [
+      "finish-driver"
+    ]
+  },
+  {
+    "id": "start-float",
+    "kind": "term",
+    "nl": "startspeling",
+    "en": [
+      "start float"
+    ],
+    "definition": "Start float is the time a task's start can slip before it delays the start of a successor.",
+    "seeAlso": [
+      "total-float"
+    ]
+  },
+  {
+    "id": "start-no-earlier-than",
+    "kind": "term",
+    "nl": "start niet eerder dan",
+    "en": [
+      "start no earlier than"
+    ],
+    "definition": "Constraint type: the task may not start before the constraint date."
+  },
+  {
+    "id": "start-no-later-than",
+    "kind": "term",
+    "nl": "uiterlijke startdatum",
+    "en": [
+      "start no later than"
+    ],
+    "definition": "A constraint that the task must start on or before a given date.",
+    "seeAlso": [
+      "constraint",
+      "alap"
+    ]
+  },
+  {
+    "id": "start-to-finish",
+    "kind": "term",
+    "nl": "start-eind",
+    "en": [
+      "start-to-finish",
+      "start-finish"
+    ],
+    "definition": "Start-finish is a relationship in which the successor finishes after the predecessor starts."
+  },
+  {
+    "id": "start-to-start",
+    "kind": "term",
+    "nl": "start-start",
+    "en": [
+      "start-to-start",
+      "start-start"
+    ],
+    "definition": "Start-to-start is a relationship in which the successor starts after the predecessor starts, with an optional lag."
+  },
+  {
+    "id": "start-variance",
+    "kind": "term",
+    "nl": "startafwijking",
+    "en": [
+      "start variance"
+    ],
+    "definition": "Start variance is the difference between the baseline start and the current start of a task.",
+    "seeAlso": [
+      "baseline",
+      "finish-variance"
+    ]
+  },
+  {
+    "id": "status-date",
+    "kind": "term",
+    "nl": "statusdatum",
+    "en": [
+      "status date",
+      "progress date",
+      "data date"
+    ],
+    "definition": "The date up to which progress is recorded; later work is not yet done.",
+    "seeAlso": [
+      "progress"
+    ],
+    "enBySource": {
+      "msp": "status date",
+      "p6": "data date"
+    }
+  },
+  {
+    "id": "subtask",
+    "kind": "term",
+    "nl": "subtaak",
+    "en": [
+      "subtask",
+      "subtasks"
+    ],
+    "definition": "A task placed under a summary task in the outline."
+  },
+  {
+    "id": "successor",
+    "kind": "term",
+    "nl": "opvolger",
+    "en": [
+      "successor",
+      "successors"
+    ],
+    "definition": "A task that follows a linked task, according to a relation.",
+    "seeAlso": [
+      "relation",
+      "predecessor"
+    ]
+  },
+  {
+    "id": "summary-task",
+    "kind": "term",
+    "nl": "verzameltaak",
+    "en": [
+      "summary task",
+      "summary",
+      "WBS summary"
+    ],
+    "definition": "A task that groups subtasks; its dates and duration roll up from its subtasks.",
+    "enBySource": {
+      "msp": "summary task",
+      "p6": "WBS summary"
+    }
+  },
+  {
+    "id": "task",
+    "kind": "term",
+    "nl": "taak",
+    "en": [
+      "task",
+      "tasks",
+      "activity"
+    ],
+    "definition": "A unit of work with a start, a finish and a duration in the schedule.",
+    "seeAlso": [
+      "milestone",
+      "duration"
+    ]
+  },
+  {
+    "id": "task-grid",
+    "kind": "term",
+    "nl": "takenraster",
+    "en": [
+      "task grid",
+      "task table"
+    ],
+    "definition": "Task grid is the table with task rows and columns next to the Gantt chart."
+  },
+  {
+    "id": "task-type",
+    "kind": "term",
+    "nl": "taaktype",
+    "en": [
+      "task type"
+    ],
+    "definition": "A named rule set for a task that defines how its duration, units, work and calendar behave.",
+    "seeAlso": [
+      "task"
+    ],
+    "enBySource": {
+      "msp": "task type"
+    }
+  },
+  {
+    "id": "threshold",
+    "kind": "term",
+    "nl": "drempel",
+    "en": [
+      "threshold"
+    ],
+    "definition": "The number of working days that separates critical from near-critical tasks, based on float.",
+    "seeAlso": [
+      "float"
+    ]
+  },
+  {
+    "id": "total-float",
+    "kind": "term",
+    "nl": "totale speling",
+    "en": [
+      "total float",
+      "total slack"
+    ],
+    "enBySource": {
+      "msp": "total slack",
+      "p6": "total float"
+    },
+    "definition": "Total float is an amount of time, not a number, that a task can slip without moving the project finish.",
+    "seeAlso": [
+      "free-float",
+      "critical-path"
+    ]
+  },
+  {
+    "id": "total-float-code",
+    "kind": "token",
+    "nl": "TF",
+    "en": [
+      "TF"
+    ],
+    "definition": "Code for total float, as shown in report columns.",
+    "seeAlso": [
+      "total-float"
+    ]
+  },
+  {
+    "id": "tutorial",
+    "kind": "term",
+    "nl": "tutorial",
+    "en": [
+      "tutorial",
+      "tutorials"
+    ],
+    "definition": "A step-by-step lesson in the app, shipped as an extension.",
+    "seeAlso": [
+      "extension"
+    ]
+  },
+  {
+    "id": "units",
+    "kind": "term",
+    "nl": "inzet",
+    "en": [
+      "units",
+      "assignment units"
+    ],
+    "definition": "The rate at which a resource works on a task, for example 2 units = two people full time.",
+    "enBySource": {
+      "msp": "units"
+    }
+  },
+  {
+    "id": "variance",
+    "kind": "term",
+    "nl": "afwijking",
+    "en": [
+      "variance",
+      "duration variance"
+    ],
+    "definition": "The difference, in days, between a task date in the baseline and the same date now.",
+    "seeAlso": [
+      "baseline"
+    ]
+  },
+  {
+    "id": "variance-report",
+    "kind": "term",
+    "nl": "Variance-rapport",
+    "en": [
+      "variance report"
+    ],
+    "definition": "Variance report compares the current schedule dates with the baseline dates.",
+    "seeAlso": [
+      "baseline",
+      "report"
+    ]
+  },
+  {
+    "id": "violated-constraint",
+    "kind": "term",
+    "nl": "geschonden constraint",
+    "en": [
+      "violated constraint",
+      "constraint violated"
+    ],
+    "definition": "A constraint that the calculated dates do not meet.",
+    "seeAlso": [
+      "constraint"
+    ]
+  },
+  {
+    "id": "wbs",
+    "kind": "term",
+    "nl": "WBS",
+    "en": [
+      "WBS",
+      "work breakdown structure",
+      "WBS code"
+    ],
+    "definition": "Work breakdown structure: the hierarchical code that numbers each task in the project structure.",
+    "seeAlso": [
+      "task"
+    ]
+  },
+  {
+    "id": "wbs-element",
+    "kind": "term",
+    "nl": "WBS-element",
+    "en": [
+      "WBS element"
+    ],
+    "definition": "A node in the work breakdown structure that groups tasks into a hierarchy.",
+    "seeAlso": [
+      "task"
+    ]
+  },
+  {
+    "id": "work",
+    "kind": "term",
+    "nl": "werk",
+    "en": [
+      "work"
+    ],
+    "definition": "The total labour effort of a task or assignment, in hours."
+  },
+  {
+    "id": "work-calendar",
+    "kind": "term",
+    "nl": "werkkalender",
+    "en": [
+      "work calendar"
+    ],
+    "definition": "The set of working days and working hours that the schedule uses to calculate dates.",
+    "seeAlso": [
+      "hour-task"
+    ]
+  },
+  {
+    "id": "work-hours",
+    "kind": "term",
+    "nl": "werktijden",
+    "en": [
+      "work hours"
+    ],
+    "definition": "Work hours are the hours of a working day in a calendar.",
+    "seeAlso": [
+      "calendar"
+    ]
+  },
+  {
+    "id": "work-rule",
+    "kind": "term",
+    "nl": "werkregel",
+    "en": [
+      "work rule",
+      "work rules"
+    ],
+    "definition": "The rule that keeps one of duration, units or work fixed when another changes, such as fixed work or fixed units.",
+    "seeAlso": [
+      "task"
+    ]
+  },
+  {
+    "id": "workday",
+    "kind": "term",
+    "nl": "werkdag",
+    "en": [
+      "workday",
+      "work day",
+      "working day"
+    ],
+    "definition": "A workday is a day on the project calendar that carries working time.",
+    "seeAlso": [
+      "working-time"
+    ]
+  },
+  {
+    "id": "working-time",
+    "kind": "term",
+    "nl": "werktijd",
+    "en": [
+      "working time",
+      "work time"
+    ],
+    "definition": "Working time is the part of a workday in which work can be planned, set per calendar.",
+    "seeAlso": [
+      "workday"
+    ]
+  },
+  {
+    "id": "xer",
+    "kind": "keep",
+    "nl": "XER",
+    "en": [
+      "xer file",
+      "XER"
+    ],
+    "definition": "The P6 export file format that holds schedule data in tables."
+  }
+]
