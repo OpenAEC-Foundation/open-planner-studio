@@ -92,6 +92,18 @@ const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
   ok('fout: token vertaald', has(errorsOf(t, { hint: 'Zadejte například 1.2 KZ+2d' }), 'token "FS" ontbreekt'));
 }
 
+// ── 5b. Meervoud met per vorm andere invulplekken ────────────────────────────────────────────
+{
+  const p = pkg('ru', [{ key: 'm', plural: true,
+    nl: { one: "Mijlpaal '{{phase}}' is nu een verzameltaak.", other: '{{count}} mijlpalen zijn nu verzameltaken.' },
+    en: { one: "Milestone '{{phase}}' is now a summary task.", other: '{{count}} milestones are now summary tasks.' } }]);
+  eq('goed: one met {{phase}}, de rest met {{count}}', errorsOf(p, { m: {
+    one: 'Веха «{{phase}}» стала суммарной задачей.', few: '{{count}} вехи стали суммарными задачами.',
+    many: '{{count}} вех стали суммарными задачами.', other: '{{count}} вехи стали суммарными задачами.' } }), []);
+  ok('fout: {{phase}} ontbreekt in one', has(errorsOf(p, { m: {
+    one: 'Веха стала суммарной задачей.', few: '{{count}} вехи', many: '{{count}} вех', other: '{{count}} вехи' } }), 'm.one: invulplekken'));
+}
+
 // ── 6. Zachte waarschuwingen (geen fout) ─────────────────────────────────────────────────────
 {
   const p = pkg('cs', [
