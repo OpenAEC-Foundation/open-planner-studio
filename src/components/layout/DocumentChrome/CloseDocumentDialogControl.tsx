@@ -46,7 +46,7 @@ export function CloseDocumentDialogControl({
         }}
       >
         <h3 className="!text-heading" style={{
-          margin: '0 0 8px', fontFamily: "'Space Grotesk', sans-serif",
+          margin: '0 0 8px', fontFamily: 'var(--font-heading)',
           fontWeight: 700, color: 'var(--theme-text)',
         }}>
           {title}

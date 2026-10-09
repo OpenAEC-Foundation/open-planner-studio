@@ -1253,7 +1253,8 @@ button.task-grid-relation-reference {
   --dashboard-terminal-dim:   #D97706;
 
   /* Typography families */
-  --font-heading: "Space Grotesk", system-ui, sans-serif;
+  /* Inter als tweede: Space Grotesk heeft geen Cyrillisch (ru/uk/bg/sr). */
+  --font-heading: "Space Grotesk", "Inter", system-ui, sans-serif;
   --font-body:    "Inter", system-ui, sans-serif;
   --font-code:    "JetBrains Mono", monospace;
 
