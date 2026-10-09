@@ -1,7 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { hasUiBaseline } from '../../scripts/translate/common';
 
-const LOCALES = ['ar', 'de', 'en', 'es', 'fa', 'fr', 'it', 'ja', 'ko', 'nl', 'pl', 'pt', 'tr', 'zh'] as const;
+const LOCALES = [
+  'ar', 'bg', 'cs', 'da', 'de', 'en', 'es', 'fa', 'fi', 'fr', 'hr', 'hu', 'it', 'ja', 'ko', 'nb', 'nl', 'pl', 'pt',
+  'ro', 'ru', 'sk', 'sr', 'sv', 'tr', 'uk', 'zh',
+] as const;
 
 /** Alle door de nieuwe taakgrid zelf gebruikte teksten; bestaande domeinlabels staan hier ook in,
  * zodat hergebruik niet stil terug kan vallen op de standaardtaal. */
@@ -231,6 +235,21 @@ const relationColumnWords: Record<(typeof LOCALES)[number], readonly [string, st
   pt: ['Predecessoras', 'Sucessoras'],
   tr: ['Öncüller', 'Ardıllar'],
   zh: ['前置任务', '后续任务'],
+  // TIJDELIJK: de dertien nieuwe talen staan nog met Engels als vulling. Vervang deze en-woorden door
+  // de woorden van de vertaling zodra de vertaalstraat de taal vult (`translate apply ui <taal>`).
+  ru: ['Predecessors', 'Successors'],
+  uk: ['Predecessors', 'Successors'],
+  cs: ['Predecessors', 'Successors'],
+  sk: ['Predecessors', 'Successors'],
+  sr: ['Predecessors', 'Successors'],
+  hr: ['Predecessors', 'Successors'],
+  bg: ['Predecessors', 'Successors'],
+  hu: ['Predecessors', 'Successors'],
+  ro: ['Predecessors', 'Successors'],
+  sv: ['Predecessors', 'Successors'],
+  nb: ['Predecessors', 'Successors'],
+  da: ['Predecessors', 'Successors'],
+  fi: ['Predecessors', 'Successors'],
 };
 for (const locale of LOCALES) {
   const value = at(commonByLocale.get(locale), 'notifications.summaryRelationsDropped');
@@ -255,6 +274,15 @@ for (const key of [
 }
 
 const english = taskByLocale.get('en')!;
+// Een nieuwe taal (geen basislijn in de vertaalstraat) staat eerst met Engels als vulling. Daar geldt
+// "niet stil Engels" pas voor een sleutel die de straat vertaalde, dus die een bron-hash heeft in
+// i18n/ui-sources/<taal>.json. Zo wordt de controle per sleutel strenger naarmate de straat vult.
+const translatedByStraat = (locale: string, ns: string, key: string): boolean => {
+  const file = path.join(root, 'i18n/ui-sources', `${locale}.json`);
+  if (!fs.existsSync(file)) return false;
+  const sources = JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, Record<string, string>>;
+  return sources[ns]?.[key] !== undefined;
+};
 for (const key of [
   'taskGrid.history.addColumn',
   'taskGrid.history.autoFitColumn',
@@ -268,6 +296,7 @@ for (const key of [
 ] as const) {
   const englishValue = at(english, key);
   for (const locale of LOCALES.filter(candidate => candidate !== 'en')) {
+    if (!hasUiBaseline(locale) && !translatedByStraat(locale, 'task', key)) continue;
     ok(`${locale}: ${key} valt niet stil terug op Engels`, at(taskByLocale.get(locale), key) !== englishValue);
   }
 }

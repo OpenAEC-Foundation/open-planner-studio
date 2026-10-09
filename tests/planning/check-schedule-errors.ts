@@ -7,7 +7,7 @@
 // Deze batterij pint vast:
 //   1. elke guard in `solve()` levert de juiste code (+ taak/kring) én nog steeds letterlijk de oude
 //      `error`-tekst — MCP-tools, extensies en `mapTransactionError` lezen die;
-//   2. elke code heeft in alle veertien talen een niet-lege tekst met de juiste placeholder;
+//   2. elke code heeft in alle talen een niet-lege tekst met de juiste placeholder;
 //   3. de melding en het waarschuwingenpaneel dragen de code, en vertalen naar de gekozen taal.
 import i18next from 'i18next';
 import ar from '@/i18n/locales/ar/common.json';
@@ -24,6 +24,20 @@ import pl from '@/i18n/locales/pl/common.json';
 import pt from '@/i18n/locales/pt/common.json';
 import tr from '@/i18n/locales/tr/common.json';
 import zh from '@/i18n/locales/zh/common.json';
+import { LOCALES } from '../../scripts/i18n-tools';
+import ru_ from '@/i18n/locales/ru/common.json';
+import uk_ from '@/i18n/locales/uk/common.json';
+import cs_ from '@/i18n/locales/cs/common.json';
+import sk_ from '@/i18n/locales/sk/common.json';
+import sr_ from '@/i18n/locales/sr/common.json';
+import hr_ from '@/i18n/locales/hr/common.json';
+import bg_ from '@/i18n/locales/bg/common.json';
+import hu_ from '@/i18n/locales/hu/common.json';
+import ro_ from '@/i18n/locales/ro/common.json';
+import sv_ from '@/i18n/locales/sv/common.json';
+import nb_ from '@/i18n/locales/nb/common.json';
+import da_ from '@/i18n/locales/da/common.json';
+import fi_ from '@/i18n/locales/fi/common.json';
 import { createAppStoreContext } from '@/state/appStore';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { opsSolveInput } from './legacySolveOptions';
@@ -96,12 +110,14 @@ eq('1 cycle: de oude error-tekst is letterlijk ongewijzigd', cyc.error, `Circula
 truthy('1 cycle: MCP herkent de kring nog aan de tekst', /circular dependency/i.test(cyc.error ?? ''));
 eq('1 geen fout ⇒ geen errorInfo', solve([task('a', 'Fundering')]).errorInfo, undefined);
 
-// ── 2. Elke code heeft in alle veertien talen een tekst met de juiste placeholder ──────────────
+// ── 2. Elke code heeft in alle talen een tekst met de juiste placeholder ──────────────
 const COMMON: Record<string, { scheduleErrors?: Record<string, unknown> }> = {
   nl, en, fr, de, es, zh, it, pt, pl, tr, ar, ja, ko, fa,
+  ru: ru_, uk: uk_, cs: cs_, sk: sk_, sr: sr_, hr: hr_, bg: bg_,
+  hu: hu_, ro: ro_, sv: sv_, nb: nb_, da: da_, fi: fi_,
 };
 const locales = Object.keys(COMMON);
-eq('2.0 veertien talen', locales.length, 14);
+eq('2.0 alle talen uit LOCALES', [...locales].sort(), [...LOCALES].sort());
 for (const l of locales) {
   const block = COMMON[l].scheduleErrors ?? {};
   for (const code of SCHEDULE_ERROR_CODES) {

@@ -31,6 +31,19 @@ import plCommon from '@/i18n/locales/pl/common.json';
 import ptCommon from '@/i18n/locales/pt/common.json';
 import trCommon from '@/i18n/locales/tr/common.json';
 import zhCommon from '@/i18n/locales/zh/common.json';
+import ruCommon from '@/i18n/locales/ru/common.json';
+import ukCommon from '@/i18n/locales/uk/common.json';
+import csCommon from '@/i18n/locales/cs/common.json';
+import skCommon from '@/i18n/locales/sk/common.json';
+import srCommon from '@/i18n/locales/sr/common.json';
+import hrCommon from '@/i18n/locales/hr/common.json';
+import bgCommon from '@/i18n/locales/bg/common.json';
+import huCommon from '@/i18n/locales/hu/common.json';
+import roCommon from '@/i18n/locales/ro/common.json';
+import svCommon from '@/i18n/locales/sv/common.json';
+import nbCommon from '@/i18n/locales/nb/common.json';
+import daCommon from '@/i18n/locales/da/common.json';
+import fiCommon from '@/i18n/locales/fi/common.json';
 import arMenu from '@/i18n/locales/ar/menu.json';
 import deMenu from '@/i18n/locales/de/menu.json';
 import enMenu from '@/i18n/locales/en/menu.json';
@@ -45,6 +58,19 @@ import plMenu from '@/i18n/locales/pl/menu.json';
 import ptMenu from '@/i18n/locales/pt/menu.json';
 import trMenu from '@/i18n/locales/tr/menu.json';
 import zhMenu from '@/i18n/locales/zh/menu.json';
+import ruMenu from '@/i18n/locales/ru/menu.json';
+import ukMenu from '@/i18n/locales/uk/menu.json';
+import csMenu from '@/i18n/locales/cs/menu.json';
+import skMenu from '@/i18n/locales/sk/menu.json';
+import srMenu from '@/i18n/locales/sr/menu.json';
+import hrMenu from '@/i18n/locales/hr/menu.json';
+import bgMenu from '@/i18n/locales/bg/menu.json';
+import huMenu from '@/i18n/locales/hu/menu.json';
+import roMenu from '@/i18n/locales/ro/menu.json';
+import svMenu from '@/i18n/locales/sv/menu.json';
+import nbMenu from '@/i18n/locales/nb/menu.json';
+import daMenu from '@/i18n/locales/da/menu.json';
+import fiMenu from '@/i18n/locales/fi/menu.json';
 
 type Bundle = Record<string, unknown>;
 const LOCALES: Record<string, { common: Bundle; menu: Bundle }> = {
@@ -55,6 +81,13 @@ const LOCALES: Record<string, { common: Bundle; menu: Bundle }> = {
   pl: { common: plCommon, menu: plMenu }, tr: { common: trCommon, menu: trMenu },
   ar: { common: arCommon, menu: arMenu }, ja: { common: jaCommon, menu: jaMenu },
   ko: { common: koCommon, menu: koMenu }, fa: { common: faCommon, menu: faMenu },
+  ru: { common: ruCommon, menu: ruMenu }, uk: { common: ukCommon, menu: ukMenu },
+  cs: { common: csCommon, menu: csMenu }, sk: { common: skCommon, menu: skMenu },
+  sr: { common: srCommon, menu: srMenu }, hr: { common: hrCommon, menu: hrMenu },
+  bg: { common: bgCommon, menu: bgMenu }, hu: { common: huCommon, menu: huMenu },
+  ro: { common: roCommon, menu: roMenu }, sv: { common: svCommon, menu: svMenu },
+  nb: { common: nbCommon, menu: nbMenu }, da: { common: daCommon, menu: daMenu },
+  fi: { common: fiCommon, menu: fiMenu },
 };
 
 /** [namespace, pad] van elke teltekst; de parameters zijn die van de aanroeper. */

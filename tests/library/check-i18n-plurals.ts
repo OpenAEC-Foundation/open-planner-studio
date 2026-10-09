@@ -5,12 +5,12 @@
 // daadwerkelijke locale-JSON's (nl/en/pl/ar — de vier talen met een niet-triviale plural-split) en
 // controleert dat `t(key, { count })` bij count=1 (en voor pl/ar ook andere tellingen) de juiste
 // grammaticale vorm teruggeeft — niet de kale meervoudstekst. Sluit af met een regressie-anker op de
-// RAUWE JSON: de kale (niet-gesuffixte) sleutelvariant mag niet meer bestaan in ÉÉN van de 14 locales
+// RAUWE JSON: de kale (niet-gesuffixte) sleutelvariant mag niet meer bestaan in ÉÉN van de locales
 // (i18next v25 lost pluralvormen uitsluitend via `_one`/`_other`/... op; een resterende kale key zou
 // de gesplitste varianten overschaduwen).
 //
 // F7 — de 14 dode `companyLibrary.field.*`-keys (alles behalve `field.name`, wees sinds de sloop van
-// de oude diff-dialoog) moeten in ALLE 14 locales weg zijn; `field.name` zelf (nog in gebruik,
+// de oude diff-dialoog) moeten in ALLE locales weg zijn; `field.name` zelf (nog in gebruik,
 // ResourcePanel/LibrarySection) blijft staan.
 //
 // Headless op Node (esbuild-patroon van de zusterchecks). Exitcode = poort.
@@ -31,7 +31,10 @@ function assert(cond: boolean, msg: string): void {
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const localesDir = join(currentDir, '..', '..', 'src', 'i18n', 'locales');
-const ALL_LOCALES = ['nl', 'en', 'fr', 'de', 'es', 'zh', 'it', 'pt', 'pl', 'tr', 'ar', 'ja', 'ko', 'fa'];
+const ALL_LOCALES = [
+  'nl', 'en', 'fr', 'de', 'es', 'zh', 'it', 'pt', 'pl', 'tr', 'ar', 'ja', 'ko', 'fa',
+  'ru', 'uk', 'cs', 'sk', 'sr', 'hr', 'bg', 'hu', 'ro', 'sv', 'nb', 'da', 'fi',
+];
 
 function loadCommon(loc: string): { companyLibrary?: Record<string, unknown> } {
   return JSON.parse(readFileSync(join(localesDir, loc, 'common.json'), 'utf8'));
@@ -79,7 +82,7 @@ async function main() {
   assert(i18next.t('companyLibrary.refreshNotice', { count: 2 }) === 'تم تحديث عنصرين من المكتبة', 'ar: refreshNotice count=2 geeft de "two"-vorm');
   assert(i18next.t('companyLibrary.refreshNotice', { count: 0 }) === 'لم يتم تحديث أي عنصر من المكتبة', 'ar: refreshNotice count=0 geeft de "zero"-vorm');
 
-  // --- Regressie-anker: GEEN kale (niet-gesuffixte) key meer in ÉÉN van de 14 locales — deze assert
+  // --- Regressie-anker: GEEN kale (niet-gesuffixte) key meer in ÉÉN van de locales — deze assert
   // wordt rood zodra iemand de _one/_other-opsplitsing voor één taal terugdraait naar een platte string
   // (i18next zou die kale key dan gebruiken voor ELKE telling, ongeacht CLDR-categorie). ---
   for (const loc of ALL_LOCALES) {
@@ -104,7 +107,7 @@ async function main() {
     assert('refreshNotice_zero' in cl && 'refreshNotice_two' in cl && 'refreshNotice_few' in cl && 'refreshNotice_many' in cl, 'ar: refreshNotice_zero/_two/_few/_many bestaan (volledige CLDR-set)');
   }
 
-  // --- F7: dode field-keys weg, `field.name` (nog in gebruik) blijft — in ALLE 14 locales ---
+  // --- F7: dode field-keys weg, `field.name` (nog in gebruik) blijft — in ALLE locales ---
   const DEAD_FIELD_KEYS = [
     'description', 'workDays', 'workStartHour', 'workEndHour', 'hoursPerDay', 'holidays',
     'generation', 'workTime', 'shift', 'type', 'costPerHour', 'maxUnits', 'unitOfMeasure',

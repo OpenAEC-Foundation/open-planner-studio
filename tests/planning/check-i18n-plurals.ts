@@ -34,9 +34,24 @@ import pl from '@/i18n/locales/pl/common.json';
 import pt from '@/i18n/locales/pt/common.json';
 import tr from '@/i18n/locales/tr/common.json';
 import zh from '@/i18n/locales/zh/common.json';
+import ru_ from '@/i18n/locales/ru/common.json';
+import uk_ from '@/i18n/locales/uk/common.json';
+import cs_ from '@/i18n/locales/cs/common.json';
+import sk_ from '@/i18n/locales/sk/common.json';
+import sr_ from '@/i18n/locales/sr/common.json';
+import hr_ from '@/i18n/locales/hr/common.json';
+import bg_ from '@/i18n/locales/bg/common.json';
+import hu_ from '@/i18n/locales/hu/common.json';
+import ro_ from '@/i18n/locales/ro/common.json';
+import sv_ from '@/i18n/locales/sv/common.json';
+import nb_ from '@/i18n/locales/nb/common.json';
+import da_ from '@/i18n/locales/da/common.json';
+import fi_ from '@/i18n/locales/fi/common.json';
 
 const LOCALES: Record<string, Record<string, unknown>> = {
   nl, en, fr, de, es, zh, it, pt, pl, tr, ar, ja, ko, fa,
+  ru: ru_, uk: uk_, cs: cs_, sk: sk_, sr: sr_, hr: hr_, bg: bg_,
+  hu: hu_, ro: ro_, sv: sv_, nb: nb_, da: da_, fi: fi_,
 };
 
 /** Sleutels die met een `count` worden aangeroepen en dus per taal alle categorieën nodig hebben. */

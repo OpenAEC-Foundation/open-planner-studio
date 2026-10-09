@@ -14,6 +14,7 @@ import {
 import { optionKeysOnly, legacyOptionsToProfile, legacyOptionsBlobFor, LEGACY_XER_ALWAYS_ON, LEGACY_XER_ALSO_ON_X12, legacyXerDefault } from '@/services/ifc/schedulingProfileMigration';
 import { XER_SCHEDULING_DEFAULTS } from '@/services/xer/xerScheduleOptions';
 import { sanitizeProjectOptions, sanitizeSchedulingOptions } from '@/services/ifc/schedulingOptionsRead';
+import { LOCALES as I18N_LOCALES } from '../../scripts/i18n-tools';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -375,11 +376,11 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   ], ['earlyStart', undefined, undefined]);
 }
 
-// ── 8) i18n (plan taak D1): elke conventie, elk ingebouwd profiel en de profielmelding in alle 14 talen ──
+// ── 8) i18n (plan taak D1): elke conventie, elk ingebouwd profiel en de profielmelding in alle talen (`LOCALES`) ──
 // Alleen aanwezigheid en type; de pluralcategorieën per locale bewaakt `npm run verify:i18n`.
 {
   const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-  const LOCALES = ['nl', 'en', 'fr', 'de', 'es', 'zh', 'it', 'pt', 'pl', 'tr', 'ar', 'ja', 'ko', 'fa'];
+  const LOCALES = I18N_LOCALES;
   for (const locale of LOCALES) {
     const common = JSON.parse(readFileSync(join(ROOT, `src/i18n/locales/${locale}/common.json`), 'utf8')) as {
       conventions?: Record<string, { label?: unknown; help?: unknown }>;

@@ -26,6 +26,7 @@ import type { ImportResult } from '@/services/importTypes';
 import type { Task } from '@/types/task';
 import { createAppStoreContext, useAppStore } from '@/state/appStore';
 import { recoveryInputFromParsed } from '@/state/documentContract';
+import { LOCALES } from '../../scripts/i18n-tools';
 import { recordedDatesActiveKey, recordedDatesTaskActiveKey } from '@/components/layout/recordedDatesNoticeText';
 import { unrecordedExportGate } from '@/state/recordedDatesSelectors';
 import { writeCSV } from '@/services/csv/csvWriter';
@@ -1193,7 +1194,7 @@ const offerOnly = (ifcText: string): ImportResult => ({
 // #63-route voor elk ander formaat, waar niemand weet uit welk pakket de datums komen — daar is die
 // zin een verkeerde bewering. Twee helften:
 //  (a) de KEUZE (`recordedDatesActiveKey`, de React-vrije besluitmodule achter de component);
-//  (b) de INHOUD in alle veertien talen: de Primavera-familie noemt Primavera, de neutrale familie
+//  (b) de INHOUD in alle talen (`LOCALES`): de Primavera-familie noemt Primavera, de neutrale familie
 //      NIET — een vertaler die de zin kopieert wordt hier gepakt, in elke taal.
 {
   eq('14a verse XER-import ⇒ Primavera-tekst', recordedDatesActiveKey('xer'), 'recordedDates.activeCount');
@@ -1212,7 +1213,10 @@ const offerOnly = (ifcText: string): ImportResult => ({
   if (localesRoot) {
     const talen = readdirSync(localesRoot, { withFileTypes: true })
       .filter((e) => e.isDirectory()).map((e) => e.name).sort();
-    eq('14e alle veertien talen worden gecontroleerd', talen.length, 14);
+    eq('14e alle talen uit LOCALES worden gecontroleerd', talen, [...LOCALES].sort());
+    // Noemt de tekst Primavera? Op de stam, want talen verbuigen de naam (pl "Primaverę", cs
+    // "Primaveru", hu "Primaverában"), en ru/uk/bg/sr schrijven hem mogelijk in het Cyrillisch.
+    const noemtPrimavera = (v: unknown) => typeof v === 'string' && /Primaver|Примавер/i.test(v);
 
     const zonderNeutraal: string[] = [];
     const neutraalNoemtPrimavera: string[] = [];
@@ -1224,8 +1228,8 @@ const offerOnly = (ifcText: string): ImportResult => ({
       const primavera = Object.entries(rd).filter(([k]) => k.startsWith('activeCount_'));
       const neutraal = Object.entries(rd).filter(([k]) => k.startsWith('activeCountNeutral_'));
       if (neutraal.length === 0 || neutraal.length !== primavera.length) zonderNeutraal.push(taal);
-      if (neutraal.some(([, v]) => v.includes('Primavera'))) neutraalNoemtPrimavera.push(taal);
-      if (primavera.some(([, v]) => !v.includes('Primavera'))) primaveraNoemtHetNiet.push(taal);
+      if (neutraal.some(([, v]) => noemtPrimavera(v))) neutraalNoemtPrimavera.push(taal);
+      if (primavera.some(([, v]) => !noemtPrimavera(v))) primaveraNoemtHetNiet.push(taal);
     }
     eq('14f elke taal heeft de neutrale familie met exact dezelfde pluralvormen als de Primavera-familie',
       zonderNeutraal, []);
@@ -1248,9 +1252,9 @@ const offerOnly = (ifcText: string): ImportResult => ({
       const primavera = props.recordedDatesActive;
       const neutraal = props.recordedDatesActiveNeutral;
       if (typeof neutraal !== 'string' || neutraal.length === 0) badgeZonderNeutraal.push(taal);
-      else if (neutraal.includes('Primavera')) badgeNeutraalNoemtPrimavera.push(taal);
-      // `Primaver` en niet `Primavera`: het Pools verbuigt de naam ("przez Primaverę").
-      if (typeof primavera !== 'string' || !primavera.includes('Primaver')) badgePrimaveraNoemtHetNiet.push(taal);
+      else if (noemtPrimavera(neutraal)) badgeNeutraalNoemtPrimavera.push(taal);
+      // Op de stam (`noemtPrimavera`): het Pools verbuigt de naam ("przez Primaverę").
+      if (!noemtPrimavera(primavera)) badgePrimaveraNoemtHetNiet.push(taal);
     }
     eq('14l elke taal heeft de neutrale badge-tekst', badgeZonderNeutraal, []);
     eq('14m de NEUTRALE badge noemt Primavera in geen enkele taal', badgeNeutraalNoemtPrimavera, []);
