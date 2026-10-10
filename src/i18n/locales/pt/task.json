@@ -489,13 +489,13 @@
     "levelingDelay": "Atraso de nivelamento",
     "durationHours": "Duração (horas)",
     "splits": {
-      "title": "Pausas",
+      "title": "Interrupções",
       "after": "após",
       "pause": "pausa",
-      "add": "Adicionar pausa",
-      "remove": "Remover a pausa",
-      "readOnly": "Estas pausas vêm do ficheiro de origem numa forma que não pode ser editada aqui.",
-      "removeAll": "Remover todas as pausas",
+      "add": "Adicionar interrupção",
+      "remove": "Remover a interrupção",
+      "readOnly": "Estas interrupções vêm do ficheiro de origem numa forma que não pode ser editada aqui.",
+      "removeAll": "Remover todas as interrupções",
       "leveling": "nivelamento",
       "unitDays": "dias úteis",
       "unitHours": "horas"

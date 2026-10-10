@@ -489,13 +489,13 @@
     "levelingDelay": "Retard de nivellement",
     "durationHours": "Durée (heures)",
     "splits": {
-      "title": "Pauses",
+      "title": "Interruptions",
       "after": "après",
       "pause": "pause",
-      "add": "Ajouter une pause",
-      "remove": "Supprimer la pause",
-      "readOnly": "Ces pauses proviennent du fichier source sous une forme qui ne peut pas être modifiée ici.",
-      "removeAll": "Supprimer toutes les pauses",
+      "add": "Ajouter une interruption",
+      "remove": "Supprimer l'interruption",
+      "readOnly": "Ces interruptions proviennent du fichier source sous une forme qui ne peut pas être modifiée ici.",
+      "removeAll": "Supprimer toutes les interruptions",
       "leveling": "nivellement",
       "unitDays": "jours ouvrés",
       "unitHours": "heures"
