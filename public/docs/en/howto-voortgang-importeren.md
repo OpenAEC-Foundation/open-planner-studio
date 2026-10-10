@@ -18,9 +18,9 @@ Choose *Planning › Progress › Export progress sheet*. The same button is on 
 
 The sheet has eight columns. The column names stay in English, with a short instruction in the language of the app after them:
 
-- *OPS Task ID*, *WBS* and *Name* are only there to recognise the task. Leave them alone.
-- *Start* and *Finish* are the planned dates, for information. The app never writes them back.
-- *Completion (%)*, *Actual Start* and *Actual Finish* are the ones you fill in.
+- `OPS Task ID`, `WBS` and `Name` are only there to recognise the task. Leave them alone.
+- `Start` and `Finish` are the planned dates, for information. The app never writes them back.
+- `Completion (%)`, `Actual Start` and `Actual Finish` are the ones you fill in.
 
 The Excel sheet is protected, without a password: only the three fill-in columns can be edited. Excel checks that a percentage is between 0 and 100 and that an actual date is a date. A phase (summary task) is marked grey with *— summary task: do not fill in*.
 
@@ -28,8 +28,8 @@ The Excel sheet is protected, without a password: only the three fill-in columns
 
 For each task the site manager fills in:
 
-- *Completion (%)*: 0 up to and including 100. In the Excel sheet decimals are allowed (for example 33.3); in the CSV the instruction asks for whole numbers.
-- *Actual Start* and *Actual Finish*: in Excel as a date in your own regional setting; in the CSV as dd-mm-yyyy.
+- `Completion (%)`: 0 up to and including 100. In the Excel sheet decimals are allowed (for example 33.3); in the CSV the instruction asks for whole numbers.
+- `Actual Start` and `Actual Finish`: in Excel as a date in your own regional setting; in the CSV as dd-mm-yyyy.
 
 Whatever stays empty changes nothing. So an empty cell does not clear existing progress either; that can only be done in the app. A task that has not started, he leaves completely empty.
 
@@ -49,7 +49,7 @@ Reading in does not recalculate by itself. Press **Calculate** (F5), for example
 
 ## Rows that do not simply fit
 
-The app links every row to a task, first on *OPS Task ID* and otherwise on the WBS number.
+The app links every row to a task, first on `OPS Task ID` and otherwise on the WBS number.
 
 **Link is uncertain.** If the app found the task only by WBS number, the row is under *Link is uncertain*, with *Confirm* and *Change*. The row is applied too if you do nothing; so check that the task is right. *Confirm* takes the row out of this list; it changes nothing about what is applied. *Change* lets you choose another task. With *Clear link* you remove a link you made yourself. Note: a sheet from another project with the same WBS numbers is linked after all, under *Link is uncertain*, and applied when you click *Apply*.
 

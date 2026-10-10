@@ -50,7 +50,7 @@ Een ingevuld voortgangsblad lees je weer in via *Bestand › Importeren*. Zie [V
 
 **Onderbroken taken verliezen hun onderbrekingen.** MS Project en Primavera kennen een onderbreking alleen als urenverdeling. Bevat je project onderbroken taken zonder urenverdeling, dan meldt de app na een export naar MS Project XML of P6 XML: *2 taken met onderbrekingen zijn zonder onderbrekingen geëxporteerd: MS Project/P6 kennen die alleen als urenverdeling.* Bij één taak staat er *1 taak met onderbrekingen is zonder onderbrekingen geëxporteerd: MS Project/P6 kennen die alleen als urenverdeling.* Zie [Een taak splitsen](docs://howto-taak-splitsen).
 
-**Een planning in de weergave *Datums zoals opgeslagen*.** Exporteer je naar CSV terwijl je de datums uit het bronbestand ziet, dan laat de app *Critical* en *Total Float* leeg voor taken waarvan het bronbestand dat niet vastlegde. Zie [Datums zoals opgeslagen](docs://uitleg-datums-zoals-opgeslagen).
+**Een planning in de weergave *Datums zoals opgeslagen*.** Exporteer je naar CSV terwijl je de datums uit het bronbestand ziet, dan laat de app `Critical` en `Total Float` leeg voor taken waarvan het bronbestand dat niet vastlegde. Zie [Datums zoals opgeslagen](docs://uitleg-datums-zoals-opgeslagen).
 
 ## Zie ook
 

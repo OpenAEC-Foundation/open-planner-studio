@@ -38,7 +38,7 @@ Per file format: whether you can open, save and export it, what does and does no
 
 **Export** — yes, as *MS Project XML* (*Opens in Microsoft Project. Full WBS structure.*). Default name: the project name with `.xml`.
 
-**What goes along** — tasks with structure (level and WBS), duration, dates and progress; relations with lag, also in hours or percentages; constraints, including the deadline; calendars, including task and resource calendars; resources and assignments, including the curve or hour distribution; the status date; the critical threshold, as a whole number of work days of 0 or more with *Total float ≤ threshold*; the description of a task (as a note); the work rule of a task (as the MS Project task type); a custom task type, in a free field (*ExtendedAttribute*) that the app reads back and that MS Project may ignore. Of your baselines only the active one goes along, as baseline 0. A task in hours keeps its unit, and a milestone its kind (start, finish or automatic).
+**What goes along** — tasks with structure (level and WBS), duration, dates and progress; relations with lag, also in hours or percentages; constraints, including the deadline; calendars, including task and resource calendars; resources and assignments, including the curve or hour distribution; the status date; the critical threshold, as a whole number of work days of 0 or more with *Total float ≤ threshold*; the description of a task (as a note); the work rule of a task (as the MS Project task type); a custom task type, in a free field (`ExtendedAttribute`) that the app reads back and that MS Project may ignore. Of your baselines only the active one goes along, as baseline 0. A task in hours keeps its unit, and a milestone its kind (start, finish or automatic).
 
 **What does not go along** — notes (the checklist on a task), external links to other projects, activity codes and custom fields, a second constraint, the marking *Manually scheduled*, the leveling delay, the resume and stop point of an out-of-sequence task, the conventions *Remaining work resumes after the elapsed duration* and *Don't move unstarted tasks to the status date* of an MS Project profile, and the other calculation options. Interrupted tasks without an hour distribution go along without their interruptions.
 
@@ -66,7 +66,7 @@ Per file format: whether you can open, save and export it, what does and does no
 
 **Export** — yes, as *Primavera P6 XML* (*For Oracle Primavera P6.*). Default name: the project name with `.xml`, so the same name as an MS Project XML export: give them different names yourself.
 
-**What goes along** — WBS structure and tasks with duration, dates and progress; relations with lag; constraints (also a second one, as a soft constraint); calendars; resources and assignments; the status date (as *DataDate*); a custom task type, in a field of its own, *OPS Custom Task Type*, that the app reads back and that P6 may ignore.
+**What goes along** — WBS structure and tasks with duration, dates and progress; relations with lag; constraints (also a second one, as a soft constraint); calendars; resources and assignments; the status date (as `DataDate`); a custom task type, in a field of its own, `OPS Custom Task Type`, that the app reads back and that P6 may ignore.
 
 **What does not go along** — baselines and deadlines; activity codes, custom fields, notes and external links; the calculation options; a working calendar exception (an exception that makes a day a working day). P6 has no lag in percentages: the app converts it to a fixed number of days. A lag in calendar days becomes a lag in working time: 3 calendar days become 3 work days. A hammock becomes an ordinary task, a manually scheduled task an ordinary task with calculated dates, and a leveling delay of less than a day is dropped.
 
@@ -84,15 +84,15 @@ Per file format: whether you can open, save and export it, what does and does no
 
 ## CSV
 
-**Open** — yes. The app reads `;` and `,` as separator. It recognises column headers in English and Dutch (for example *Name* or *Naam*, *Duration* or *Duur*, *Predecessors* or *Voorgangers*). Dates may be *yyyy-mm-dd*, *dd-mm-yyyy* or *dd/mm/yyyy*. You write a predecessor as WBS code, relation type and lag, for example `1.2FS+2d`. Calculation profile: *Open Planner Studio*. The project is called *CSV Import*. A *Task Type* that is none of the fixed codes (such as `CONSTRUCTION` or `INSTALLATION`, which the app writes itself) becomes a custom task type under *From this project*, not in *My task types*; with *OPS Custom Task Type ID* the id of a custom type is kept.
+**Open** — yes. The app reads `;` and `,` as separator. It recognises column headers in English and Dutch (for example `Name` or `Naam`, `Duration` or `Duur`, `Predecessors` or `Voorgangers`). Dates may be *yyyy-mm-dd*, *dd-mm-yyyy* or *dd/mm/yyyy*. You write a predecessor as WBS code, relation type and lag, for example `1.2FS+2d`. Calculation profile: *Open Planner Studio*. The project is called *CSV Import*. A `Task Type` that is none of the fixed codes (such as `CONSTRUCTION` or `INSTALLATION`, which the app writes itself) becomes a custom task type under *From this project*, not in *My task types*; with `OPS Custom Task Type ID` the id of a custom type is kept.
 
 **Save** — no.
 
 **Export** — yes, as *CSV (;)* (*Universal table export. All tasks with dates and durations.*), on the card *CSV (semicolon-separated)*. The file uses a semicolon as separator, is in UTF-8 with a BOM and has English column headers.
 
-**What goes along** — per task these columns: *OPS Task ID*, *WBS*, *Outline Level*, *Name*, *Duration (days)*, *Start*, *Finish*, *Predecessors*, *Task Type*, *OPS Custom Task Type ID*, *Status*, *Completion (%)*, *Actual Start*, *Actual Finish*, *Critical*, *Total Float* and *Description*. Completion is in whole percentages.
+**What goes along** — per task these columns: `OPS Task ID`, `WBS`, `Outline Level`, `Name`, `Duration (days)`, `Start`, `Finish`, `Predecessors`, `Task Type`, `OPS Custom Task Type ID`, `Status`, `Completion (%)`, `Actual Start`, `Actual Finish`, `Critical`, `Total Float` and `Description`. Completion is in whole percentages.
 
-**What does not go along** — resources, assignments, calendars, constraints, deadlines, baselines and the status date. If the dates are in the view *Dates as recorded*, the export leaves *Critical* and *Total Float* empty for tasks whose source file did not record that.
+**What does not go along** — resources, assignments, calendars, constraints, deadlines, baselines and the status date. If the dates are in the view *Dates as recorded*, the export leaves `Critical` and `Total Float` empty for tasks whose source file did not record that.
 
 ## Progress sheet (Excel and CSV)
 
@@ -102,7 +102,7 @@ Per file format: whether you can open, save and export it, what does and does no
 
 **Export** — yes, as *Progress sheet (Excel)* (*Progress (Excel)* in the list) and *Progress sheet (CSV)* (*Progress (CSV)*). Default name: *projectname-voortgang*. The button *Export progress sheet* in the same ribbon group makes the Excel sheet in one click. The Excel sheet has fixed column widths, locked fields and date checking; the CSV sheet is the same content as plain text.
 
-**What goes along** — the columns *OPS Task ID*, *WBS*, *Name*, *Start*, *Finish*, *Completion (%)*, *Actual Start* and *Actual Finish*. When reading it in, the app uses *Completion (%)*, *Actual Start* and *Actual Finish*; *Start* and *Finish* only serve to recognise the date notation and do not change your schedule. The app links rows to tasks by the *OPS Task ID*, or otherwise by a unique WBS code.
+**What goes along** — the columns `OPS Task ID`, `WBS`, `Name`, `Start`, `Finish`, `Completion (%)`, `Actual Start` and `Actual Finish`. When reading it in, the app uses `Completion (%)`, `Actual Start` and `Actual Finish`; `Start` and `Finish` only serve to recognise the date notation and do not change your schedule. The app links rows to tasks by the `OPS Task ID`, or otherwise by a unique WBS code.
 
 **What does not go along** — everything outside these columns: duration, relations, resources and the rest of your schedule. A summary task gets no progress from the sheet.
 
