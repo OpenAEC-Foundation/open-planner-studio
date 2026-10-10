@@ -6,6 +6,7 @@
 //
 // Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import { clearRecovery, fullRecoverySave, holdRecoveryForLater, loadRecovery, saveRecovery } from '@/services/recovery/recoveryStore';
+import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -14,39 +15,7 @@ const eq = (label: string, got: unknown, want: unknown) => {
   if (JSON.stringify(got) !== JSON.stringify(want)) diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
 };
 
-const idbRecords = new Map<string, unknown>();
-const fakeDb = {
-  objectStoreNames: { contains: () => true },
-  createObjectStore: () => undefined,
-  close: () => undefined,
-  onversionchange: null as (() => void) | null,
-  transaction: () => {
-    const tx = {
-      oncomplete: null as (() => void) | null,
-      onerror: null as (() => void) | null,
-      onabort: null as (() => void) | null,
-      error: null,
-      objectStore: () => ({
-        getAll: () => {
-          const request = { result: [] as unknown[], error: null, onsuccess: null as (() => void) | null, onerror: null as (() => void) | null };
-          queueMicrotask(() => { request.result = [...idbRecords.values()]; request.onsuccess?.(); });
-          return request;
-        },
-        put: (value: { id: string }) => { idbRecords.set(value.id, structuredClone(value)); queueMicrotask(() => tx.oncomplete?.()); },
-        delete: (id: string) => { idbRecords.delete(id); queueMicrotask(() => tx.oncomplete?.()); },
-      }),
-    };
-    return tx;
-  },
-};
-(globalThis as unknown as { window: object }).window = {};
-(globalThis as unknown as { indexedDB: unknown }).indexedDB = {
-  open: () => {
-    const request = { result: fakeDb, error: null, onupgradeneeded: null as (() => void) | null, onsuccess: null as (() => void) | null, onerror: null as (() => void) | null };
-    queueMicrotask(() => { request.onupgradeneeded?.(); request.onsuccess?.(); });
-    return request;
-  },
-};
+const idb = installFakeRecoveryIndexedDb();
 const session = new Map<string, string>();
 (globalThis as unknown as { sessionStorage: unknown }).sessionStorage = {
   getItem: (k: string) => session.get(k) ?? null,
@@ -82,7 +51,7 @@ eq('dubbele id wordt één keer aangeboden', await ids(), ['A', 'C', 'D']);
 // "Niet herstellen" / schone exit wist alles, ook de vastgehouden generaties.
 await clearRecovery();
 eq('clearRecovery wist eigen + vastgehouden', await ids(), []);
-eq('geen records meer over', idbRecords.size, 0);
+eq('geen records meer over', idb.store('records').size + idb.store('xer-archives').size, 0);
 
 if (diffs.length === 0) {
   console.log(`OK  recovery-web-hold: alle checks groen (${checks})`);

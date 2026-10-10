@@ -32,7 +32,8 @@ import {
   bindXerImportMetadataToArchive, createXerSourceArchiveFromOwnedMetadata, decodeXerBase64Chunk,
   parseXerArchiveMetadataPayload, sha256Hex,
   XER_SOURCE_ARCHIVE_CHUNK_BYTES, XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT,
-  XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION,
+  XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION, XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_FORMAT,
+  XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_SCHEMA_VERSION,
   XER_SOURCE_ARCHIVE_SCHEMA_VERSION, type XerSourceArchive, type XerSourceArchiveBom,
   type XerSourceArchiveEncoding, type XerSourceArchiveNewline, type XerArchiveMetadataPayloadV1,
   type XerSourceReconstruction,
@@ -84,6 +85,13 @@ export interface IfcReadOptions {
   /** Alleen `readIFCWithXerReconstruction` vult dit. De lage sync-lezer mag schema-2 nooit
    * afhankelijk maken van een toevallig eerder geïmporteerde module. */
   reconstructXerArchive?: XerArchiveReconstructor;
+  /**
+   * Alleen crashherstel vult dit (`useRecoveryRestore`): de bronbytes van een recovery-snapshot met
+   * een archiefVERWIJZING (schema 3, `recovery-reference-v1`). Sleutel = SHA-256 van de bronbytes.
+   * `undefined` ⇒ de blob is weg; het document opent dan zonder archief, met `xerArchiveIssue`
+   * `bytes-missing` ("openen met melding").
+   */
+  resolveXerArchiveReference?: (sha256: string) => Uint8Array | undefined;
 }
 
 interface StepEntity {
@@ -174,7 +182,7 @@ export function readIFC(
   // fundament. Is het onbruikbaar, dan vallen archief, selector, XER-metadata en de daaruit
   // gereconstrueerde `recordedTimes` SAMEN weg en opent het project gewoon — met een verplicht
   // `xerArchiveIssue`-signaal, zodat het verlies nooit stil is. Zie `readXerArchiveOrIssue`.
-  const archiveRead = readXerArchiveOrIssue(entities, entityMap, options.reconstructXerArchive);
+  const archiveRead = readXerArchiveOrIssue(entities, entityMap, options);
   const xerSource = archiveRead.source;
   const xerSourceArchive = xerSource?.archive;
   const xerSourceProjectId = archiveRead.sourceProjectId;
@@ -441,10 +449,10 @@ interface XerArchiveRead {
 function readXerArchiveOrIssue(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
-  reconstructXerArchive: XerArchiveReconstructor | undefined,
+  options: IfcReadOptions,
 ): XerArchiveRead {
   try {
-    const source = extractXerSourceArchive(entities, entityMap, reconstructXerArchive);
+    const source = extractXerSourceArchive(entities, entityMap, options);
     const sourceProjectId = extractXerSourceProjectId(entities, entityMap, source?.archive);
     const xer = extractXerImportMetadata(source?.archive, sourceProjectId);
     return { source, sourceProjectId, xer };
@@ -628,13 +636,16 @@ function concatArchiveChunks(props: Map<string, unknown>, prefix: string, count:
 function extractXerSourceArchive(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
-  reconstructXerArchive: XerArchiveReconstructor | undefined,
+  options: IfcReadOptions,
 ): XerSourceReconstruction | undefined {
   const props = archiveProps(entities, entityMap, PSET.XerSourceArchive);
   if (!props) return undefined;
   const schemaVersion = nonNegativeSafeInteger(props.get('SchemaVersion'), 'SchemaVersion', 'schema-version');
   if (schemaVersion === XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION) {
-    return extractCompactXerSourceArchive(props, reconstructXerArchive);
+    return extractCompactXerSourceArchive(props, options.reconstructXerArchive);
+  }
+  if (schemaVersion === XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_SCHEMA_VERSION) {
+    return extractReferencedXerSourceArchive(props, options);
   }
   if (schemaVersion !== XER_SOURCE_ARCHIVE_SCHEMA_VERSION) xerArchiveError(`onbekend SchemaVersion ${schemaVersion}`, 'schema-version');
   if (requiredString(props, 'Format', 'schema-version') !== 'primavera-p6-xer') xerArchiveError('Format is niet primavera-p6-xer', 'schema-version');
@@ -690,6 +701,38 @@ function extractXerSourceArchive(
   }
 }
 
+/**
+ * Schema 3 = crashherstel-verwijzing: de pset noemt alleen lengte en SHA-256; de bytes komen uit de
+ * crashherstelopslag via `resolveXerArchiveReference`. Daarna exact dezelfde poorten als schema 2
+ * (lengte, hash, reconstructie). Een ontbrekende blob is `bytes-missing`: het document opent zonder
+ * archief en met melding, nooit stil en nooit geblokkeerd.
+ */
+function extractReferencedXerSourceArchive(
+  props: Map<string, unknown>,
+  options: IfcReadOptions,
+): XerSourceReconstruction {
+  if (requiredString(props, 'Format', 'schema-version') !== 'primavera-p6-xer') xerArchiveError('Format is niet primavera-p6-xer', 'schema-version');
+  if (requiredString(props, 'StorageFormat', 'schema-version') !== XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_FORMAT) {
+    xerArchiveError('StorageFormat is onbekend', 'schema-version');
+  }
+  const expected = ['SchemaVersion', 'Format', 'StorageFormat', 'ByteLength', 'Sha256'];
+  if (JSON.stringify([...props.keys()]) !== JSON.stringify(expected)) {
+    xerArchiveError('properties van de archiefverwijzing zijn niet exact en deterministisch geordend');
+  }
+  const byteLength = nonNegativeSafeInteger(props.get('ByteLength'), 'ByteLength');
+  const sourceHash = requiredString(props, 'Sha256');
+  if (!/^[0-9a-f]{64}$/.test(sourceHash)) xerArchiveError('Sha256 is ongeldig', 'hash-mismatch');
+  const sourceBytes = options.resolveXerArchiveReference?.(sourceHash);
+  if (!sourceBytes) {
+    xerArchiveError('de crashherstelopslag heeft geen archiefblob voor deze verwijzing', 'bytes-missing');
+  }
+  if (sourceBytes.byteLength !== byteLength) {
+    xerArchiveError(`archiefblob heeft ${sourceBytes.byteLength} i.p.v. ${byteLength} bytes`, 'truncated');
+  }
+  if (sha256Hex(sourceBytes) !== sourceHash) xerArchiveError('archiefblob past niet bij Sha256', 'hash-mismatch');
+  return reconstructVerifiedXerSource(sourceBytes, byteLength, sourceHash, options.reconstructXerArchive);
+}
+
 /** Schema 2 bevat alleen de bronbytes. Alle afleidbare caches herleven uit die bron. */
 function extractCompactXerSourceArchive(
   props: Map<string, unknown>,
@@ -713,6 +756,16 @@ function extractCompactXerSourceArchive(
   if (!/^[0-9a-f]{64}$/.test(sourceHash) || sha256Hex(sourceBytes) !== sourceHash) {
     xerArchiveError('Sha256 is ongeldig of past niet bij de bytes', 'hash-mismatch');
   }
+  return reconstructVerifiedXerSource(sourceBytes, byteLength, sourceHash, reconstructXerArchive);
+}
+
+/** Gedeelde staart van schema 2 en 3: de bytes zijn al op lengte en SHA-256 gecontroleerd. */
+function reconstructVerifiedXerSource(
+  sourceBytes: Uint8Array,
+  byteLength: number,
+  sourceHash: string,
+  reconstructXerArchive: XerArchiveReconstructor | undefined,
+): XerSourceReconstruction {
   if (!reconstructXerArchive) {
     // GEEN archieffout maar een AANROEPERcontractfout: de lage synchrone ingang laadt de lazy
     // XER-chunk bewust niet. Dat is geen eigenschap van het bestand, dus ook geen reden om het

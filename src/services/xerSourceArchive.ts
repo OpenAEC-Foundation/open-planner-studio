@@ -31,6 +31,14 @@ export const XER_SOURCE_ARCHIVE_CHUNK_BYTES = 196_608;
  */
 export const XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION = 2;
 export const XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT = 'raw-source-reconstruction-v1';
+/**
+ * Crashherstel-verwijzing (eigenaarsbesluit plan (9), "één keer schrijven, niet per snapshot"). Een
+ * recovery-snapshot draagt de bronbytes NIET; de pset noemt alleen lengte en SHA-256, en de bytes staan
+ * één keer als content-adressed blob in de crashherstelopslag (`recoveryStore`). Alleen crashherstel
+ * schrijft en leest deze vorm; een projectbestand is altijd `embedded` (schema 2).
+ */
+export const XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_SCHEMA_VERSION = 3;
+export const XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_FORMAT = 'recovery-reference-v1';
 
 export type XerSourceArchiveEncoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252';
 export type XerSourceArchiveBom = 'utf-8' | 'utf-16le' | 'utf-16be' | 'none';
@@ -479,6 +487,41 @@ export function detectXerSourcePresentation(bytes: Uint8Array): XerSourceArchive
  * zijn.
  */
 export function sha256Hex(input: Uint8Array): string {
+  const known = knownDigests.get(input);
+  if (known && known.byteLength === input.byteLength) return known.hex;
+  return sha256HexPortable(input);
+}
+
+/**
+ * Vooraf berekende digests, per bytes-OBJECT (prestatiemeting 2026-10-07: de pure-JS-hash kostte
+ * 2,3 s bij het openen van rehab-2). `precomputeSha256` rekent asynchroon met `crypto.subtle` (web
+ * én Tauri-webview; Node 22 heeft hem ook) en zet de uitkomst hier; de synchrone `sha256Hex` in de
+ * lezer, de archivering en de crashherstel-verificatie gebruikt hem dan. Hetzelfde algoritme
+ * (SHA-256), dus dezelfde hex — de content-adressering van crashherstel verandert niet.
+ * Alleen gebruiken voor bytes die na het inlezen niet meer veranderen (bestandsinhoud, archiefblob).
+ */
+const knownDigests = new WeakMap<Uint8Array, { hex: string; byteLength: number }>();
+
+export async function precomputeSha256(input: Uint8Array): Promise<string> {
+  const known = knownDigests.get(input);
+  if (known && known.byteLength === input.byteLength) return known.hex;
+  let hex: string | undefined;
+  const subtle = (globalThis as { crypto?: { subtle?: SubtleCrypto } }).crypto?.subtle;
+  if (subtle) {
+    try {
+      const digest = new Uint8Array(await subtle.digest('SHA-256', input as Uint8Array<ArrayBuffer>));
+      hex = Array.from(digest, (byte) => byte.toString(16).padStart(2, '0')).join('');
+    } catch {
+      hex = undefined; // bv. geen veilige context: val terug op de draagbare implementatie
+    }
+  }
+  hex ??= sha256HexPortable(input);
+  knownDigests.set(input, { hex, byteLength: input.byteLength });
+  return hex;
+}
+
+/** De draagbare, synchrone implementatie; ook de terugval van `precomputeSha256`. */
+export function sha256HexPortable(input: Uint8Array): string {
   const hash = [
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
     0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,

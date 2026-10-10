@@ -32,7 +32,11 @@ export interface RecoveryNames {
   snapshotDocId(name: string): string | null;
   /** Doc-id alleen voor een v1/v2-stabiele snapshot (voor manifestloze terugval). */
   stableSnapshotDocId(name: string): string | null;
-  /** Hoort deze bestandsnaam bij deze base? (snapshot, manifest, legacy of hun `.tmp`) */
+  /** v5: content-adressed XER-archiefblob (ruwe bronbytes), gedeeld door alle snapshots. */
+  archiveName(sha256: string): string;
+  /** SHA-256 als `name` EXACT een archiefblob van deze base is, anders `null`. */
+  archiveSha(name: string): string | null;
+  /** Hoort deze bestandsnaam bij deze base? (snapshot, archiefblob, manifest, legacy of hun `.tmp`) */
   isOwnFile(name: string): boolean;
 }
 
@@ -58,6 +62,9 @@ export interface RecoveryNames {
 export function recoveryNames(base: string): RecoveryNames {
   const snapshotRe = new RegExp(`^${escapeRe(base)}\\.([^.]+)\\.ifc$`);
   const generationSnapshotRe = new RegExp(`^${escapeRe(base)}\\.snapshot\\.([^.]+)\\.([^.]+)\\.ifc$`);
+  // Een sha256 is 64 hexadecimale tekens; een dev-base (`recovery.<slug>`) valt er dus nooit onder
+  // bij de productie-base, en omgekeerd.
+  const archiveRe = new RegExp(`^${escapeRe(base)}\\.xerarchive\\.([0-9a-f]{64})\\.bin$`);
   const manifest = `${base}.documents.json`;
   const legacy = `${base}.ifc`;
 
@@ -79,11 +86,13 @@ export function recoveryNames(base: string): RecoveryNames {
     generationIfcName: (docId: string, generation: string) => `${base}.snapshot.${docId}.${generation}.ifc`,
     snapshotDocId,
     stableSnapshotDocId,
+    archiveName: (sha256: string) => `${base}.xerarchive.${sha256}.bin`,
+    archiveSha: (name: string) => archiveRe.exec(name)?.[1] ?? null,
     isOwnFile: (name: string) => {
       const bare = name.endsWith(recoveryTmpSuffix)
         ? name.slice(0, -recoveryTmpSuffix.length)
         : name;
-      return bare === manifest || bare === legacy || snapshotDocId(bare) !== null;
+      return bare === manifest || bare === legacy || snapshotDocId(bare) !== null || archiveRe.test(bare);
     },
   };
 }
@@ -112,6 +121,14 @@ export interface RecoveryManifestDoc {
    * veld, dan geldt `false` — alleen het aanbod, niet de modus.
    */
   datesAsRecorded?: boolean;
+  /**
+   * v5: SHA-256 van het XER-bronarchief waar de snapshot naar VERWIJST (schema-3-pset
+   * `recovery-reference-v1`). De bytes staan één keer als blob naast de snapshots (Tauri:
+   * `archiveName`, web: object-store `xer-archives`). Afwezig = geen archief, of een oude snapshot
+   * (v1–v4) die het archief nog ingebed draagt. Een blob blijft bestaan zolang een manifestregel
+   * hem noemt.
+   */
+  xerArchive?: string;
 }
 
 export interface RecoveryManifest {
@@ -119,7 +136,8 @@ export interface RecoveryManifest {
    * 1 = zonder eigenaarschapsvelden (t/m de multi-document-release), 2 = met `ownerId`/
    * `heartbeatAt`, 3 = immutable generatie-snapshots met het manifest als commitpoint, 4 = per
    * document de modusvlag `datesAsRecorded` als manifestmetadata (een oud manifest zonder vlag
-   * leest als `false` = alleen aanbieden).
+   * leest als `false` = alleen aanbieden), 5 = per document de archiefverwijzing `xerArchive`
+   * (een oud manifest zonder verwijzing heeft ingebedde archieven in zijn snapshots).
    * Een v1/v2-manifest MOET leesbaar blijven: het staat op de schijf van iedereen die een oudere
    * versie draaide, en dat weigeren betekent dataverlies bij de eerste start na de update.
    * Beide eigenaarschapsvelden zijn daarom optioneel getypeerd en het versienummer wordt nergens

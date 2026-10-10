@@ -1,15 +1,22 @@
 // X9-compactopslag — verse corpusprocessen meten de volledige IFC- en recoveryketen eerlijk.
+// Sinds 2026-10-07 (eigenaarsbesluit plan (9), "bronarchief één keer schrijven") loopt de recoveryprobe
+// over de echte tick (`runRecoveryTick`) en het echte herstel via de archiefverwijzing, en is er een
+// budgetpoort: een bewerkingstick schrijft geen archiefbytes en blijft onder de helft van de bron.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
-import { clearRecovery, fullRecoverySave, loadRecovery, saveRecovery } from '@/services/recovery/recoveryStore';
+import { clearRecovery, loadRecovery } from '@/services/recovery/recoveryStore';
+import { RecoveryDeltaTracker, type RecoverySourceDocument } from '@/services/recovery/recoveryDelta';
+import { runRecoveryTick } from '@/services/recovery/recoverySnapshot';
+import { readIFCWithXerReconstruction } from '@/services/formatRegistry';
+import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 import { readXER } from '@/services/xer/xerReader';
 import { decodeXerSourceArchive, sha256Hex } from '@/services/xerSourceArchive';
 import { useAppStore } from '@/state/appStore';
-import { recoveryInputFromParsed } from '@/state/documentContract';
+import { recoveryInputFromParsed, type RecoveryDocInput } from '@/state/documentContract';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 
 declare const process: {
@@ -35,14 +42,26 @@ interface RecoveryProbe {
   exactBytes: boolean;
   deltaDocumentWrites: number;
   deltaManifestWrites: number;
-  deltaWriteIfcCalls: number;
   deltaEditRestored: boolean;
+  /** Bytes die de bewerkingstick naar de opslag schreef (snapshots + manifest + archiefblobs). */
+  editTickBytes: number;
+  /** Lengte van de INGEBEDDE IFC van het bewerkte document (de oude snapshotvorm), ter vergelijking. */
+  editedEmbeddedIfcChars: number;
+  /** Archiefbytes in de bewerkingstick (moet 0 zijn). */
+  editTickArchiveBytes: number;
+  /** Archiefblobs na de eerste tick (twaalf documenten uit één bestand ⇒ 1). */
+  archiveBlobs: number;
+  firstTickMs: number;
+  editTickMs: number;
+  restoreMs: number;
 }
 
 interface RecoveryStorageWrites {
   documents: number;
   manifests: number;
   readwriteTransactions: number;
+  recordBytes: number;
+  archiveBytes: number;
 }
 
 // Harde guardrails zijn uitsluitend semantisch/structureel en daardoor machine-onafhankelijk:
@@ -54,62 +73,34 @@ interface RecoveryStorageWrites {
 const MAX_DELTA_DOCUMENT_WRITES = 1;
 const REQUIRED_DELTA_MANIFEST_WRITES = 1;
 const OZB_RECOVERY_DOCUMENTS = 12;
+const EDIT_TICK_ARCHIVE_SAVING = 1.3;
+/** Manifest en recordsleutels van één tick. */
+const EDIT_TICK_SLACK_BYTES = 64 * 1024;
 
-function installFakeIndexedDb(): RecoveryStorageWrites {
-  const records = new Map<string, unknown>();
-  const writes: RecoveryStorageWrites = { documents: 0, manifests: 0, readwriteTransactions: 0 };
-  const fakeDb = {
-    objectStoreNames: { contains: () => true },
-    createObjectStore: () => undefined,
-    close: () => undefined,
-    onversionchange: null as (() => void) | null,
-    transaction: (_store: string, mode: string) => {
-      if (mode === 'readwrite') writes.readwriteTransactions += 1;
-      const tx = {
-        oncomplete: null as (() => void) | null,
-        onerror: null as (() => void) | null,
-        error: null,
-        objectStore: () => ({
-          getAll: () => {
-            const request = { result: [] as unknown[], error: null, onsuccess: null as (() => void) | null, onerror: null as (() => void) | null };
-            queueMicrotask(() => { request.result = [...records.values()]; request.onsuccess?.(); });
-            return request;
-          },
-          put: (value: { id: string }) => {
-            if (value.id.includes('::doc::')) writes.documents += 1;
-            if (value.id.endsWith('::manifest')) writes.manifests += 1;
-            records.set(value.id, structuredClone(value));
-            queueMicrotask(() => tx.oncomplete?.());
-          },
-          delete: (id: string) => {
-            records.delete(id);
-            queueMicrotask(() => tx.oncomplete?.());
-          },
-        }),
-      };
-      return tx;
+const sizeOf = (value: unknown): number => {
+  if (typeof value === 'string') return value.length;
+  if (value instanceof Uint8Array) return value.byteLength;
+  if (Array.isArray(value)) return value.reduce((sum: number, item) => sum + sizeOf(item), 0);
+  if (value && typeof value === 'object') return Object.values(value).reduce((sum: number, item) => sum + sizeOf(item), 0);
+  return 0;
+};
+
+function installFakeIndexedDb(): { writes: RecoveryStorageWrites; archiveBlobs: () => number } {
+  const writes: RecoveryStorageWrites = { documents: 0, manifests: 0, readwriteTransactions: 0, recordBytes: 0, archiveBytes: 0 };
+  const idb = installFakeRecoveryIndexedDb({
+    onTransaction: (mode) => { if (mode === 'readwrite') writes.readwriteTransactions += 1; },
+    onPut: (store, value) => {
+      if (store === 'xer-archives') { writes.archiveBytes += sizeOf(value); return; }
+      writes.recordBytes += sizeOf(value);
+      if (value.id.includes('::doc::')) writes.documents += 1;
+      if (value.id.endsWith('::manifest')) writes.manifests += 1;
     },
-  };
-  const fakeIndexedDb = {
-    open: () => {
-      const request = {
-        result: fakeDb,
-        error: null,
-        onupgradeneeded: null as (() => void) | null,
-        onsuccess: null as (() => void) | null,
-        onerror: null as (() => void) | null,
-      };
-      queueMicrotask(() => { request.onupgradeneeded?.(); request.onsuccess?.(); });
-      return request;
-    },
-  };
-  (globalThis as unknown as { window: object }).window = {};
-  (globalThis as unknown as { indexedDB: unknown }).indexedDB = fakeIndexedDb;
-  return writes;
+  });
+  return { writes, archiveBlobs: () => idb.store('xer-archives').size };
 }
 
 async function runProbe(label: string, mode: ProbeMode, filePath: string): Promise<RecoveryProbe> {
-  const storageWrites = installFakeIndexedDb();
+  const { writes: storageWrites, archiveBlobs: countArchiveBlobs } = installFakeIndexedDb();
   const started = performance.now();
   const bytes = new Uint8Array(readFileSync(filePath));
   const opened = readXER(bytes);
@@ -133,47 +124,65 @@ async function runProbe(label: string, mode: ProbeMode, filePath: string): Promi
   let recoveredArchives = 0;
   let deltaDocumentWrites = 0;
   let deltaManifestWrites = 0;
-  let deltaWriteIfcCalls = 0;
   let deltaEditRestored = false;
+  let editTickBytes = 0;
+  let editTickArchiveBytes = 0;
+  let editedEmbeddedIfcChars = 0;
+  let archiveBlobs = 0;
+  let firstTickMs = 0;
+  let editTickMs = 0;
+  let restoreMs = 0;
+  let restoredExact = true;
   if (mode === 'recovery') {
     await clearRecovery();
-    await saveRecovery(fullRecoverySave(docs[0]!.id, docs.map((document, index) => ({
-      id: document.id,
-      ifc: ifcs[index]!,
-      filePath: null,
-      isDirty: true,
-      datesAsRecorded: false,
-    }))));
-    storageWrites.documents = 0;
-    storageWrites.manifests = 0;
-    storageWrites.readwriteTransactions = 0;
+    // De echte auto-save-tick (`useAutoSave` → `runRecoveryTick`): delta, serialisatie met
+    // archiefverwijzing, opslag (blob één keer) en pas daarna de persistentiebasis.
+    const tracker = new RecoveryDeltaTracker();
+    const recoveryDocs = (): RecoverySourceDocument[] => useAppStore.getState().getOpenDocumentPayloads()
+      .map(({ id, payload }) => ({
+        id, source: payload, filePath: null, isDirty: true, datesAsRecorded: false,
+      }));
+    const activeId = docs[0]!.id;
+    let started = performance.now();
+    await runRecoveryTick(tracker, activeId, recoveryDocs());
+    firstTickMs = performance.now() - started;
+    archiveBlobs = countArchiveBlobs();
+    Object.assign(storageWrites, { documents: 0, manifests: 0, readwriteTransactions: 0, recordBytes: 0, archiveBytes: 0 });
 
-    // Een echte documentedit produceert één nieuwe IFC-tekst. De storagegrens krijgt daarnaast
-    // alle twaalf manifestregels, maar precies één zware upsert — de cruciale OZB-regressie.
-    const editedPayload = {
-      ...docs[0]!.payload,
-      project: { ...docs[0]!.payload.project, description: '__x9-recovery-delta__' },
-    };
-    const editedIfc = writeIFC(buildWriteIFCInput(editedPayload));
-    deltaWriteIfcCalls = 1;
-    await saveRecovery({
-      activeDocumentId: docs[0]!.id,
-      documents: docs.map((document) => ({ id: document.id, filePath: null, isDirty: true, datesAsRecorded: false })),
-      upserts: [{ id: docs[0]!.id, ifc: editedIfc, filePath: null, isDirty: true, datesAsRecorded: false }],
-    });
+    // Eén echte documentedit. De storagegrens krijgt alle manifestregels, maar precies één
+    // zware upsert — en geen archiefbytes (eigenaarsbesluit plan (9)).
+    useAppStore.getState().switchDocument(activeId);
+    useAppStore.getState().setProject({ description: '__x9-recovery-delta__' });
+    started = performance.now();
+    await runRecoveryTick(tracker, activeId, recoveryDocs());
+    editTickMs = performance.now() - started;
     deltaDocumentWrites = storageWrites.documents;
     deltaManifestWrites = storageWrites.manifests;
+    editTickBytes = storageWrites.recordBytes + storageWrites.archiveBytes;
+    editTickArchiveBytes = storageWrites.archiveBytes;
+    const edited = useAppStore.getState().getOpenDocumentPayloads().find((document) => document.id === activeId)!;
+    editedEmbeddedIfcChars = writeIFC(buildWriteIFCInput(edited.payload)).length;
     if (storageWrites.readwriteTransactions !== 1) {
       throw new Error(`${label}: recoverydelta gebruikte ${storageWrites.readwriteTransactions} readwrite-transacties`);
     }
+
+    // Herstel zoals `useRecoveryRestore`: de bronbytes komen via de verwijzing uit de opslag.
+    started = performance.now();
     const loaded = await loadRecovery();
-    deltaEditRestored = readIFC(loaded.docs.find((document) => document.id === docs[0]!.id)!.ifc)
-      .project.description === '__x9-recovery-delta__';
-    const inputs = loaded.docs.map(document => recoveryInputFromParsed(
-      readIFC(document.ifc),
-      { id: document.id, filePath: document.filePath, isDirty: document.isDirty, datesAsRecorded: document.datesAsRecorded },
-    ));
+    const inputs: RecoveryDocInput[] = [];
+    for (const document of loaded.docs) {
+      const parsed = await readIFCWithXerReconstruction(document.ifc, {}, {
+        resolveXerArchiveReference: (sha256) => loaded.archives.get(sha256),
+      });
+      if (document.id === activeId) deltaEditRestored = parsed.project.description === '__x9-recovery-delta__';
+      restoredExact &&= parsed.xerSourceArchive !== undefined
+        && sha256Hex(decodeXerSourceArchive(parsed.xerSourceArchive)) === archive.sha256;
+      inputs.push(recoveryInputFromParsed(parsed, {
+        id: document.id, filePath: document.filePath, isDirty: document.isDirty, datesAsRecorded: document.datesAsRecorded,
+      }));
+    }
     useAppStore.getState().restoreDocuments(inputs, loaded.activeDocumentId);
+    restoreMs = performance.now() - started;
     const recovered = useAppStore.getState().getOpenDocumentPayloads();
     recoveredDocuments = recovered.length;
     recoveredArchives = new Set(recovered.map(document => document.payload.xerSourceArchive)).size;
@@ -191,11 +200,17 @@ async function runProbe(label: string, mode: ProbeMode, filePath: string): Promi
     peakRssKiB: process.resourceUsage().maxRSS,
     recoveredDocuments,
     recoveredArchives,
-    exactBytes,
+    exactBytes: exactBytes && restoredExact,
     deltaDocumentWrites,
     deltaManifestWrites,
-    deltaWriteIfcCalls,
     deltaEditRestored,
+    editTickBytes,
+    editTickArchiveBytes,
+    editedEmbeddedIfcChars,
+    archiveBlobs,
+    firstTickMs,
+    editTickMs,
+    restoreMs,
   };
 }
 
@@ -246,10 +261,21 @@ if (!root || !existsSync(rehab) || !existsSync(ozb)) {
       expect(`${probe.label}: recovery herstelt elk document en canoniseert het gedeelde archief`,
         probe.recoveredDocuments === probe.documents && probe.recoveredArchives === 1);
       expect(`${probe.label}: één documentedit schrijft één IFC en één snapshotrecord, niet alle documenten`,
-        probe.deltaWriteIfcCalls === 1
-        && probe.deltaDocumentWrites === MAX_DELTA_DOCUMENT_WRITES
+        probe.deltaDocumentWrites === MAX_DELTA_DOCUMENT_WRITES
         && probe.deltaManifestWrites === REQUIRED_DELTA_MANIFEST_WRITES
         && probe.deltaEditRestored);
+      // Budgetpoort (eigenaarsbesluit plan (9)): machine-onafhankelijk in bytes. Het ingebedde archief
+      // kost ≥ 1,33 tekens per bronbyte (`check-xer-archive-scale.ts`). De bewerkingstick moet dus
+      // minstens 1,3 × de bron MINDER schrijven dan de oude, ingebedde snapshot van datzelfde document,
+      // en nul archiefbytes. De rest van de tick is de planning zelf (rehab-2: ±35 MB IFC zonder archief)
+      // en valt buiten deze poort.
+      expect(`${probe.label}: bewerkingstick schrijft geen archiefbytes en ≥ ${EDIT_TICK_ARCHIVE_SAVING} × bron minder dan een ingebedde snapshot (gemeten ${probe.editTickBytes} B, ingebed ${probe.editedEmbeddedIfcChars} tekens)`,
+        probe.editTickArchiveBytes === 0
+        && probe.editTickBytes + EDIT_TICK_ARCHIVE_SAVING * probe.sourceBytes <= probe.editedEmbeddedIfcChars + EDIT_TICK_SLACK_BYTES);
+      expect(`${probe.label}: alle documenten uit één bestand delen één archiefblob (gemeten ${probe.archiveBlobs})`,
+        probe.archiveBlobs === 1);
+      expect(`${probe.label}: tick- en hersteltijden zijn werkelijk gemeten`,
+        [probe.firstTickMs, probe.editTickMs, probe.restoreMs].every((ms) => Number.isFinite(ms) && ms >= 0));
     }
   }
   const ozbProbe = probes[2]!;
@@ -258,6 +284,9 @@ if (!root || !existsSync(rehab) || !existsSync(ozb)) {
     && ozbProbe.recoveredDocuments === OZB_RECOVERY_DOCUMENTS);
   console.log(`X9 recovery corpus: ${probes.map(probe =>
     `${probe.label}: docs=${probe.documents} source=${probe.sourceBytes} ifc=${probe.ifcChars} time=${probe.elapsedMs.toFixed(1)}ms peak-rss=${probe.peakRssKiB}KiB delta-ifc=${probe.deltaDocumentWrites} delta-manifest=${probe.deltaManifestWrites}`
+    + (probe.mode === 'recovery'
+      ? ` tick1=${probe.firstTickMs.toFixed(0)}ms edit-tick=${probe.editTickBytes}B/${probe.editTickMs.toFixed(1)}ms restore=${probe.restoreMs.toFixed(0)}ms blobs=${probe.archiveBlobs}`
+      : '')
   ).join(' | ')}`);
   if (failures.length > 0) {
     console.log(`XX  xer-archive-recovery-corpus: ${failures.length} afwijking(en)`);

@@ -46,6 +46,22 @@ export async function writeTextFileAtomic(dir: string, name: string, text: strin
   );
 }
 
+/** Tauri-variant voor binaire inhoud (de content-adressed XER-archiefblob van crashherstel). */
+export async function writeBytesFileAtomic(dir: string, name: string, bytes: Uint8Array, tmpSuffix = '.tmp'): Promise<void> {
+  const fs = await import('@tauri-apps/plugin-fs');
+  const { join } = await import('@tauri-apps/api/path');
+  const target = await join(dir, name);
+  const tmp = await join(dir, `${name}${tmpSuffix}`);
+  // Zelfde volgorde als `writeViaTemp`: eerst het halffabricaat, dan de atomaire rename.
+  await fs.writeFile(tmp, bytes);
+  try {
+    await fs.rename(tmp, target);
+  } catch (err) {
+    try { await fs.remove(tmp); } catch { /* al weg */ }
+    throw err;
+  }
+}
+
 // ── Gebruikersbestanden (Opslaan, Opslaan als, automatisch opslaan, export) ──────────────────────
 //
 // Zelfde schrijf-en-vervang, maar voor een bestand dat de GEBRUIKER beheert. Daar gelden drie

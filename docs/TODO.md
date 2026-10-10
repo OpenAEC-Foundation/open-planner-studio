@@ -630,8 +630,13 @@ met de dwingende volgorde, en het werkt alléén zolang de oude sleutel er nog i
   zesassige meting, gepinde baseline, suite rood zolang niet nul. Beginnen met P6 XML (meeste
   materiaal, grootste overlap met XER); `.mpp` uitbreiden van twee naar zes assen. CSV krijgt
   geen meetlat (geen bronpakket dat het antwoord geeft).
-- [ ] **XER: het bronarchief heeft geen bytegrens en gaat mee in élke auto-save-serialisatie**
-  (eindreview 2026-09-07, bevinding 1). Gemeten op `rehab-2.xer` (17,7 MB): IFC 50 MB, volledige
+- [x] **XER: het bronarchief heeft geen bytegrens en gaat mee in élke auto-save-serialisatie**
+  (eindreview 2026-09-07, bevinding 1). *Opgelost 2026-10-07 (branch `claude/xer-archief-eenmalig`,
+  ontwerp `docs/superpowers/plans/2026-10-07-xer-archief-eenmalig.md`):* crashherstel schrijft het
+  archief één keer als content-adressed blob; snapshots verwijzen ernaar; budgetpoort in
+  `check-xer-archive-recovery-once.ts` en `check-xer-archive-recovery-corpus.ts`. rehab-2-bewerkingstick
+  60,5 MB → 35,7 MB (de rest is de planning zelf), OZB eerste tick 12 kopieën → 1 blob.
+  Oorspronkelijke bevinding: Gemeten op `rehab-2.xer` (17,7 MB): IFC 50 MB, volledige
   herstelronde 73 s / 3,1 GB piek-RSS, ±3,6 s hoofdthread per 10-secondentick; bij twaalf documenten
   uit één bestand 26× amplificatie (OZB). Geen cap, geen opt-out, geen worker. Eigenaarsbesluit
   (plan §10.f): bytegrens waarboven het archief niet in de recovery-snapshot meegaat, óf het

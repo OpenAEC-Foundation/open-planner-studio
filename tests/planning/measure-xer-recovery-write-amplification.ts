@@ -16,66 +16,26 @@
  * gemeten en informatief gelogd door de corpuscheck.
  */
 import { clearRecovery, loadRecovery, saveRecovery } from '@/services/recovery/recoveryStore';
+import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 
 declare const process: { exit(code: number): never };
 
 interface StoredRecord { id: string; kind: 'doc' | 'manifest'; ifc?: string; }
 
-const records = new Map<string, StoredRecord>();
 let documentWrites = 0;
 let unchangedDocumentWrites = 0;
 let manifestWrites = 0;
 let readwriteTransactions = 0;
-const fakeDb = {
-  objectStoreNames: { contains: () => true },
-  createObjectStore: () => undefined,
-  close: () => undefined,
-  onversionchange: null as (() => void) | null,
-  transaction: (_store: string, mode: string) => {
-    if (mode === 'readwrite') readwriteTransactions += 1;
-    const tx = {
-      oncomplete: null as (() => void) | null,
-      onerror: null as (() => void) | null,
-      error: null,
-      objectStore: () => ({
-        getAll: () => {
-          const request = { result: [] as StoredRecord[], error: null, onsuccess: null as (() => void) | null, onerror: null as (() => void) | null };
-          queueMicrotask(() => { request.result = [...records.values()]; request.onsuccess?.(); });
-          return request;
-        },
-        put: (value: StoredRecord) => {
-          const previous = records.get(value.id);
-          if (value.kind === 'doc') documentWrites += 1;
-          if (value.kind === 'manifest') manifestWrites += 1;
-          if (value.kind === 'doc' && previous?.kind === 'doc' && previous.ifc === value.ifc) {
-            unchangedDocumentWrites += 1;
-          }
-          records.set(value.id, structuredClone(value));
-          queueMicrotask(() => tx.oncomplete?.());
-        },
-        delete: (id: string) => {
-          records.delete(id);
-          queueMicrotask(() => tx.oncomplete?.());
-        },
-      }),
-    };
-    return tx;
+installFakeRecoveryIndexedDb({
+  onTransaction: (mode) => { if (mode === 'readwrite') readwriteTransactions += 1; },
+  onPut: (_store, value, previous) => {
+    const record = value as StoredRecord;
+    const before = previous as StoredRecord | undefined;
+    if (record.kind === 'doc') documentWrites += 1;
+    if (record.kind === 'manifest') manifestWrites += 1;
+    if (record.kind === 'doc' && before?.kind === 'doc' && before.ifc === record.ifc) unchangedDocumentWrites += 1;
   },
-};
-(globalThis as unknown as { window: object }).window = {};
-(globalThis as unknown as { indexedDB: unknown }).indexedDB = {
-  open: () => {
-    const request = {
-      result: fakeDb,
-      error: null,
-      onupgradeneeded: null as (() => void) | null,
-      onsuccess: null as (() => void) | null,
-      onerror: null as (() => void) | null,
-    };
-    queueMicrotask(() => { request.onupgradeneeded?.(); request.onsuccess?.(); });
-    return request;
-  },
-};
+});
 
 const docs = Array.from({ length: 12 }, (_, index) => ({
   id: `doc-${String(index + 1).padStart(2, '0')}`,

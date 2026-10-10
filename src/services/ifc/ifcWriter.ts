@@ -23,7 +23,8 @@ import { isSummaryTask } from '@/utils/taskHierarchy';
 import { projectFileBase } from '@/utils/documents';
 import {
   XER_SOURCE_ARCHIVE_CHUNK_BYTES, XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT,
-  XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION, type XerSourceArchive,
+  XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION, XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_FORMAT,
+  XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_SCHEMA_VERSION, type XerSourceArchive,
 } from '@/services/xerSourceArchive';
 import {
   IFC_TASK_SLOTS, IFC_TASKTIME_SLOTS, type TaskTimeWriteCtx, type TaskWriteCtx, type WithheldTaskTimeField,
@@ -233,6 +234,14 @@ export type WriteIFCInput = ImportResult & {
    * aanstaat; afwezig ⇒ alles gewoon geschreven.
    */
   withheldTaskTimeFields?: Readonly<Record<string, readonly WithheldTaskTimeField[]>>;
+  /**
+   * Hoe het XER-bronarchief in het bestand landt. `embedded` (standaard) schrijft de volledige
+   * bronbytes: elk projectbestand, export en echte AutoSave. `recovery-reference` schrijft alleen
+   * lengte + SHA-256 en is UITSLUITEND voor crashherstel-snapshots (`serializeRecoverySnapshot`):
+   * de bytes staan daar één keer als blob naast de snapshots. Zie
+   * `docs/superpowers/plans/2026-10-07-xer-archief-eenmalig.md`.
+   */
+  xerSourceArchiveStorage?: 'embedded' | 'recovery-reference';
 };
 
 export function writeIFC(input: WriteIFCInput): string {
@@ -252,6 +261,7 @@ export function writeIFC(input: WriteIFCInput): string {
     withheldTaskTimeFields = undefined,
     recordedSourceFormat = undefined,
     ifcGlobalIds = undefined,
+    xerSourceArchiveStorage = 'embedded',
   } = input;
   const preservedGuids = new Map(Object.entries(ifcGlobalIds ?? {}));
   const ctx: WriteContext = {
@@ -316,7 +326,7 @@ export function writeIFC(input: WriteIFCInput): string {
   // Project. Description (arg 3) draagt project.description — de reader leest 'm terug
   // uit de IFCWORKPLAN.Description-slot, met terugval op deze.
   addLine(ctx, '_project', `IFCPROJECT(${ifcStr(objectGuid(ctx, 'proj', project.id))},#${ownerHistId},${ifcStr(project.name)},${ifcStr(project.description)},$,$,$,(#${ctxId}),#${unitAssId})`);
-  writeXerSourceArchive(ctx, ownerHistId, xerSourceArchive, xer?.sourceProjectId ?? xerSourceProjectId);
+  writeXerSourceArchive(ctx, ownerHistId, xerSourceArchive, xer?.sourceProjectId ?? xerSourceProjectId, xerSourceArchiveStorage);
 
   // Calendar (projectkalender — altijd de EERSTE IFCWORKCALENDAR in het bestand; vaste conventie
   // die de reader aanhoudt om 'm van de bibliotheek-kalenders hieronder te onderscheiden).
@@ -448,6 +458,7 @@ export function writeIFC(input: WriteIFCInput): string {
 /** Eén self-contained Pset met manifest én deterministisch geordende bytes. */
 function writeXerSourceArchive(
   ctx: WriteContext, ownerHistId: number, archive: XerSourceArchive | undefined, sourceProjectId: string | undefined,
+  storage: 'embedded' | 'recovery-reference',
 ): void {
   if (!archive) return;
   if (!sourceProjectId) throw new Error('XER-bronarchief kan niet zonder OPS_XerDocument-selector worden opgeslagen.');
@@ -456,14 +467,23 @@ function writeXerSourceArchive(
   }
   const props: number[] = [];
   const property = (name: string, value: string) => props.push(addLine(ctx, `xerarchive_prop_${name}`, `IFCPROPERTYSINGLEVALUE(${ifcStr(name)},$,${value},$)`));
-  property('SchemaVersion', `IFCINTEGER(${XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION})`);
-  property('Format', `IFCLABEL(${ifcStr(archive.format)})`);
-  property('StorageFormat', `IFCLABEL(${ifcStr(XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT)})`);
-  property('ByteLength', `IFCINTEGER(${archive.byteLength})`);
-  property('Sha256', `IFCTEXT(${ifcStr(archive.sha256)})`);
-  property('ByteChunkSize', `IFCINTEGER(${XER_SOURCE_ARCHIVE_CHUNK_BYTES})`);
-  property('ByteChunkCount', `IFCINTEGER(${archive.byteChunks.length})`);
-  archive.byteChunks.forEach((chunk, index) => property(`ByteChunk${String(index).padStart(6, '0')}`, `IFCTEXT(${ifcStr(chunk)})`));
+  if (storage === 'recovery-reference') {
+    // Crashherstel: alleen de verwijzing. De bytes (en hun base64-codering) raken deze tick niet.
+    property('SchemaVersion', `IFCINTEGER(${XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_SCHEMA_VERSION})`);
+    property('Format', `IFCLABEL(${ifcStr(archive.format)})`);
+    property('StorageFormat', `IFCLABEL(${ifcStr(XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_FORMAT)})`);
+    property('ByteLength', `IFCINTEGER(${archive.byteLength})`);
+    property('Sha256', `IFCTEXT(${ifcStr(archive.sha256)})`);
+  } else {
+    property('SchemaVersion', `IFCINTEGER(${XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION})`);
+    property('Format', `IFCLABEL(${ifcStr(archive.format)})`);
+    property('StorageFormat', `IFCLABEL(${ifcStr(XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT)})`);
+    property('ByteLength', `IFCINTEGER(${archive.byteLength})`);
+    property('Sha256', `IFCTEXT(${ifcStr(archive.sha256)})`);
+    property('ByteChunkSize', `IFCINTEGER(${XER_SOURCE_ARCHIVE_CHUNK_BYTES})`);
+    property('ByteChunkCount', `IFCINTEGER(${archive.byteChunks.length})`);
+    archive.byteChunks.forEach((chunk, index) => property(`ByteChunk${String(index).padStart(6, '0')}`, `IFCTEXT(${ifcStr(chunk)})`));
+  }
   const setId = addLine(ctx, 'pset_xerarchive', `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_xerarchive'))},#${ownerHistId},${ifcStr(PSET.XerSourceArchive)},$,(${props.map(id => `#${id}`).join(',')}))`);
   addLine(ctx, 'rel_xerarchive', `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_xerarchive'))},#${ownerHistId},$,$,(${ref(ctx, '_project')}),#${setId})`);
   const selectorProps: number[] = [];

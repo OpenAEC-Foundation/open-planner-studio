@@ -41,6 +41,41 @@ export function openDb(dbName: string, storeName: string, keyPath = 'id'): Promi
   return p;
 }
 
+/**
+ * Verbinding met een database met MEERDERE object-stores (allemaal keyPath `id`) op een expliciete
+ * versie. Alleen voor een database die uitsluitend via deze functie wordt geopend: `openDb` opent
+ * altijd versie 1 en zou na een upgrade met `VersionError` falen. Gebruikt door crashherstel
+ * (`ops-recovery` v2: snapshots + XER-archiefblobs in één transactie). Gooit bij een openingsfout.
+ */
+export function openDbStores(dbName: string, version: number, storeNames: readonly string[]): Promise<IDBDatabase> {
+  const cacheKey = `${dbName}::v${version}::${storeNames.join('+')}`;
+  const existing = dbPromises.get(cacheKey);
+  if (existing) return existing;
+  const p = new Promise<IDBDatabase>((resolve, reject) => {
+    const req = indexedDB.open(dbName, version);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      for (const storeName of storeNames) {
+        if (!db.objectStoreNames.contains(storeName)) db.createObjectStore(storeName, { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = () => {
+      const db = req.result;
+      db.onversionchange = () => {
+        db.close();
+        dbPromises.delete(cacheKey);
+      };
+      resolve(db);
+    };
+    req.onerror = () => {
+      dbPromises.delete(cacheKey);
+      reject(req.error);
+    };
+  });
+  dbPromises.set(cacheKey, p);
+  return p;
+}
+
 /** Alle records uit de store. Bij een IDB-fout: lege lijst (stil). */
 export async function idbGetAll<T>(dbName: string, storeName: string): Promise<T[]> {
   try {

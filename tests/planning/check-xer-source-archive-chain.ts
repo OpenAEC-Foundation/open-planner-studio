@@ -8,6 +8,7 @@ import { decodeXerSourceArchive, sha256Hex } from '@/services/xerSourceArchive';
 import { useAppStore } from '@/state/appStore';
 import { recoveryInputFromParsed } from '@/state/documentContract';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 
 declare const process: {
   exit(code: number): never;
@@ -24,50 +25,7 @@ const store = () => useAppStore.getState();
 
 // Alleen de browseropslaggrens is gedubbeld; recoveryStore, IFC-writer/reader en restoreDocuments
 // draaien echt. Browser/Tauri-UI en de tiensecondenhook blijven conform ruling X11.
-const records = new Map<string, unknown>();
-const fakeDb = {
-  objectStoreNames: { contains: () => true },
-  createObjectStore: () => undefined,
-  close: () => undefined,
-  onversionchange: null as (() => void) | null,
-  transaction: (_store: string, _mode: string) => {
-    const tx = {
-      oncomplete: null as (() => void) | null,
-      onerror: null as (() => void) | null,
-      error: null,
-      objectStore: () => ({
-        getAll: () => {
-          const request = { result: [] as unknown[], error: null, onsuccess: null as (() => void) | null, onerror: null as (() => void) | null };
-          queueMicrotask(() => { request.result = [...records.values()]; request.onsuccess?.(); });
-          return request;
-        },
-        put: (value: { id: string }) => {
-          records.set(value.id, structuredClone(value));
-          queueMicrotask(() => tx.oncomplete?.());
-        },
-        delete: (id: string) => {
-          records.delete(id);
-          queueMicrotask(() => tx.oncomplete?.());
-        },
-      }),
-    };
-    return tx;
-  },
-};
-(globalThis as unknown as { window: object }).window = {};
-(globalThis as unknown as { indexedDB: unknown }).indexedDB = {
-  open: () => {
-    const request = {
-      result: fakeDb,
-      error: null,
-      onupgradeneeded: null as (() => void) | null,
-      onsuccess: null as (() => void) | null,
-      onerror: null as (() => void) | null,
-    };
-    queueMicrotask(() => { request.onupgradeneeded?.(); request.onsuccess?.(); });
-    return request;
-  },
-};
+installFakeRecoveryIndexedDb();
 
 const projectRows: string[] = [];
 const scheduleRows: string[] = [];
