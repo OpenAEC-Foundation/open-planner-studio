@@ -888,21 +888,21 @@
       "continuous": "24/7"
     },
     "simpleBreak": {
-      "invalidStart": "Introduceți o oră de întrerupere validă în formatul HH:MM.",
+      "invalidStart": "Introduceți o oră de pauză validă în formatul HH:MM.",
       "invalidWorkStart": "Introduceți o oră de început validă în formatul HH:MM.",
       "invalidWorkEnd": "Introduceți o oră de sfârșit validă în formatul HH:MM.",
       "invalidWorkTimeOrder": "Ora de început trebuie să fie înaintea orei de sfârșit.",
       "increaseTime": "Mărire ora cu 15 minute",
       "decreaseTime": "Micșorare ora cu 15 minute",
-      "increaseBreakDuration": "Mărire durata întreruperii cu 15 minute",
-      "decreaseBreakDuration": "Micșorare durata întreruperii cu 15 minute",
-      "start": "Începutul întreruperii",
-      "duration": "Durata întreruperii (minute)",
-      "hint": "Setați începutul și durata întreruperii. Orele nete și intervalele de timp de lucru se calculează automat. Setați durata la 0 pentru o zi lucrătoare continuă.",
+      "increaseBreakDuration": "Mărire durata pauzei cu 15 minute",
+      "decreaseBreakDuration": "Micșorare durata pauzei cu 15 minute",
+      "start": "Începutul pauzei",
+      "duration": "Durata pauzei (minute)",
+      "hint": "Setați începutul și durata pauzei. Orele nete și intervalele de timp de lucru se calculează automat. Setați durata la 0 pentru o zi lucrătoare continuă.",
       "errors": {
-        "invalidDuration": "Durata întreruperii trebuie să fie un număr întreg de minute, minim 0.",
-        "outsideWorkingDay": "Întreruperea trebuie să se încadreze complet în ziua lucrătoare setată.",
-        "consumesWorkingDay": "Întreruperea nu poate ocupa întreaga zi lucrătoare."
+        "invalidDuration": "Durata pauzei trebuie să fie un număr întreg de minute, minim 0.",
+        "outsideWorkingDay": "Pauza trebuie să se încadreze complet în ziua lucrătoare setată.",
+        "consumesWorkingDay": "Pauza nu poate ocupa întreaga zi lucrătoare."
       }
     },
     "holidayErrors": {
@@ -924,7 +924,7 @@
       "noBands": "Zi nelucrătoare",
       "nextDay": "ziua următoare",
       "shiftPreset": "Tură",
-      "breakHint": "Un spațiu între două intervale este o întrerupere — ajustați orele după cum este necesar."
+      "breakHint": "Un spațiu între două intervale este o pauză — ajustați orele după cum este necesar."
     }
   },
   "view": {

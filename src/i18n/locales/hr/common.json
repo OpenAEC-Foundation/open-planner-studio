@@ -888,21 +888,21 @@
       "continuous": "24/7"
     },
     "simpleBreak": {
-      "invalidStart": "Unesite važeće vrijeme prekida u obliku SS:MM.",
+      "invalidStart": "Unesite važeće vrijeme pauze u obliku SS:MM.",
       "invalidWorkStart": "Unesite važeće vrijeme početka u obliku SS:MM.",
       "invalidWorkEnd": "Unesite važeće vrijeme završetka u obliku SS:MM.",
       "invalidWorkTimeOrder": "Vrijeme početka mora biti prije vremena završetka.",
       "increaseTime": "Povećaj vrijeme za 15 minuta",
       "decreaseTime": "Smanji vrijeme za 15 minuta",
-      "increaseBreakDuration": "Povećaj trajanje prekida za 15 minuta",
-      "decreaseBreakDuration": "Smanji trajanje prekida za 15 minuta",
-      "start": "Početak prekida",
-      "duration": "Trajanje prekida (minute)",
-      "hint": "Postavite početak i trajanje prekida; neto sati i blokovi radnog vremena izračunavaju se automatski. Postavite trajanje na 0 za neprekinuti radni dan.",
+      "increaseBreakDuration": "Povećaj trajanje pauze za 15 minuta",
+      "decreaseBreakDuration": "Smanji trajanje pauze za 15 minuta",
+      "start": "Početak pauze",
+      "duration": "Trajanje pauze (minute)",
+      "hint": "Postavite početak i trajanje pauze; neto sati i blokovi radnog vremena izračunavaju se automatski. Postavite trajanje na 0 za neprekinuti radni dan.",
       "errors": {
-        "invalidDuration": "Trajanje prekida mora biti cijeli broj minuta od 0 ili više.",
-        "outsideWorkingDay": "Prekid mora u potpunosti biti unutar postavljenog radnog dana.",
-        "consumesWorkingDay": "Prekid ne smije zauzeti cijeli radni dan."
+        "invalidDuration": "Trajanje pauze mora biti cijeli broj minuta od 0 ili više.",
+        "outsideWorkingDay": "Pauza mora u potpunosti biti unutar postavljenog radnog dana.",
+        "consumesWorkingDay": "Pauza ne smije zauzeti cijeli radni dan."
       }
     },
     "holidayErrors": {
@@ -924,7 +924,7 @@
       "noBands": "Neradno",
       "nextDay": "sljedeći dan",
       "shiftPreset": "Smjena",
-      "breakHint": "Razmak između dvaju blokova je prekid — po potrebi prilagodite vremena."
+      "breakHint": "Razmak između dvaju blokova je pauza — po potrebi prilagodite vremena."
     }
   },
   "view": {

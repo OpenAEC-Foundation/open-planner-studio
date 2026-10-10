@@ -846,21 +846,21 @@
       "continuous": "24/7"
     },
     "simpleBreak": {
-      "invalidStart": "Skriv inn et gyldig avbruddstidspunkt i formatet TT:MM.",
+      "invalidStart": "Skriv inn et gyldig pausetidspunkt i formatet TT:MM.",
       "invalidWorkStart": "Skriv inn et gyldig starttidspunkt i formatet TT:MM.",
       "invalidWorkEnd": "Skriv inn et gyldig sluttidspunkt i formatet TT:MM.",
       "invalidWorkTimeOrder": "Starttidspunktet må ligge før sluttidspunktet.",
       "increaseTime": "Øk tid med 15 minutter",
       "decreaseTime": "Reduser tid med 15 minutter",
-      "increaseBreakDuration": "Øk avbruddsvarigheten med 15 minutter",
-      "decreaseBreakDuration": "Reduser avbruddsvarigheten med 15 minutter",
-      "start": "Avbruddet starter",
-      "duration": "Avbruddsvarighet (minutter)",
-      "hint": "Angi når avbruddet starter og hvor lang varigheten er. Netto timer og arbeidstidsbånd beregnes automatisk. Sett varigheten til 0 for en sammenhengende arbeidsdag.",
+      "increaseBreakDuration": "Øk pausevarigheten med 15 minutter",
+      "decreaseBreakDuration": "Reduser pausevarigheten med 15 minutter",
+      "start": "Pausen starter",
+      "duration": "Pausevarighet (minutter)",
+      "hint": "Angi når pausen starter og hvor lang varigheten er. Netto timer og arbeidstidsbånd beregnes automatisk. Sett varigheten til 0 for en sammenhengende arbeidsdag.",
       "errors": {
-        "invalidDuration": "Avbruddsvarigheten må være et helt antall minutter, 0 eller mer.",
-        "outsideWorkingDay": "Avbruddet må ligge helt innenfor den innstilte arbeidsdagen.",
-        "consumesWorkingDay": "Avbruddet kan ikke ta hele arbeidsdagen."
+        "invalidDuration": "Pausevarigheten må være et helt antall minutter, 0 eller mer.",
+        "outsideWorkingDay": "Pausen må ligge helt innenfor den innstilte arbeidsdagen.",
+        "consumesWorkingDay": "Pausen kan ikke ta hele arbeidsdagen."
       }
     },
     "holidayErrors": {
@@ -882,7 +882,7 @@
       "noBands": "Ikke-arbeidsdag",
       "nextDay": "neste dag",
       "shiftPreset": "Skift",
-      "breakHint": "Et mellomrom mellom to bånd er et avbrudd. Juster tidene etter behov."
+      "breakHint": "Et mellomrom mellom to bånd er en pause. Juster tidene etter behov."
     }
   },
   "view": {

@@ -846,21 +846,21 @@
       "continuous": "24/7"
     },
     "simpleBreak": {
-      "invalidStart": "Indtast et gyldigt afbrydelsestidspunkt som tt:mm.",
+      "invalidStart": "Indtast et gyldigt pausetidspunkt som tt:mm.",
       "invalidWorkStart": "Indtast et gyldigt starttidspunkt som tt:mm.",
       "invalidWorkEnd": "Indtast et gyldigt sluttidspunkt som tt:mm.",
       "invalidWorkTimeOrder": "Starttidspunktet skal ligge før sluttidspunktet.",
       "increaseTime": "Forøg tid med 15 minutter",
       "decreaseTime": "Reducér tid med 15 minutter",
-      "increaseBreakDuration": "Forøg afbrydelsens varighed med 15 minutter",
-      "decreaseBreakDuration": "Reducér afbrydelsens varighed med 15 minutter",
-      "start": "Afbrydelsen starter",
-      "duration": "Afbrydelsens varighed (minutter)",
-      "hint": "Angiv et afbrydelsesstart og en varighed for afbrydelsen; netto timer og arbejdstidsbånd udledes automatisk. Sæt varigheden til 0 for en arbejdsdag uden afbrydelse.",
+      "increaseBreakDuration": "Forøg pausens varighed med 15 minutter",
+      "decreaseBreakDuration": "Reducér pausens varighed med 15 minutter",
+      "start": "Pausen starter",
+      "duration": "Pausens varighed (minutter)",
+      "hint": "Angiv et pausestart og en varighed for pausen; netto timer og arbejdstidsbånd udledes automatisk. Sæt varigheden til 0 for en arbejdsdag uden pause.",
       "errors": {
-        "invalidDuration": "Afbrydelsens varighed skal være et helt antal minutter på 0 eller mere.",
-        "outsideWorkingDay": "Afbrydelsen skal helt ligge inden for den indstillede arbejdsdag.",
-        "consumesWorkingDay": "Afbrydelsen må ikke fylde hele arbejdsdagen."
+        "invalidDuration": "Pausens varighed skal være et helt antal minutter på 0 eller mere.",
+        "outsideWorkingDay": "Pausen skal helt ligge inden for den indstillede arbejdsdag.",
+        "consumesWorkingDay": "Pausen må ikke fylde hele arbejdsdagen."
       }
     },
     "holidayErrors": {
@@ -882,7 +882,7 @@
       "noBands": "Ikke-arbejdsdag",
       "nextDay": "næste dag",
       "shiftPreset": "Arbejdsskift",
-      "breakHint": "Et hul mellem to bånd er en afbrydelse — justér tiderne efter behov."
+      "breakHint": "Et hul mellem to bånd er en pause — justér tiderne efter behov."
     }
   },
   "view": {

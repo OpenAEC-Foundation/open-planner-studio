@@ -846,21 +846,21 @@
       "continuous": "24/7"
     },
     "simpleBreak": {
-      "invalidStart": "Ange en giltig avbrottstid som TT:MM.",
+      "invalidStart": "Ange en giltig rasttid som TT:MM.",
       "invalidWorkStart": "Ange en giltig starttid som TT:MM.",
       "invalidWorkEnd": "Ange en giltig sluttid som TT:MM.",
       "invalidWorkTimeOrder": "Starttiden måste vara före sluttiden.",
       "increaseTime": "Öka tiden med 15 minuter",
       "decreaseTime": "Minska tiden med 15 minuter",
-      "increaseBreakDuration": "Öka avbrottets varaktighet med 15 minuter",
-      "decreaseBreakDuration": "Minska avbrottets varaktighet med 15 minuter",
-      "start": "Avbrottet börjar",
-      "duration": "Avbrottets varaktighet (minuter)",
-      "hint": "Ange en avbrottsstart och en varaktighet; nettotimmar och arbetstidsband härleds automatiskt. Sätt varaktigheten till 0 för en oavbruten arbetsdag.",
+      "increaseBreakDuration": "Öka rastens varaktighet med 15 minuter",
+      "decreaseBreakDuration": "Minska rastens varaktighet med 15 minuter",
+      "start": "Rasten börjar",
+      "duration": "Rastens varaktighet (minuter)",
+      "hint": "Ange en raststart och en varaktighet; nettotimmar och arbetstidsband härleds automatiskt. Sätt varaktigheten till 0 för en oavbruten arbetsdag.",
       "errors": {
-        "invalidDuration": "Avbrottets varaktighet måste vara ett heltal minuter, 0 eller mer.",
-        "outsideWorkingDay": "Avbrottet måste helt ligga inom den inställda arbetsdagen.",
-        "consumesWorkingDay": "Avbrottet får inte ta upp hela arbetsdagen."
+        "invalidDuration": "Rastens varaktighet måste vara ett heltal minuter, 0 eller mer.",
+        "outsideWorkingDay": "Rasten måste helt ligga inom den inställda arbetsdagen.",
+        "consumesWorkingDay": "Rasten får inte ta upp hela arbetsdagen."
       }
     },
     "holidayErrors": {
@@ -882,7 +882,7 @@
       "noBands": "Ej arbetstid",
       "nextDay": "nästa dag",
       "shiftPreset": "Skift",
-      "breakHint": "Ett glapp mellan två band är ett avbrott — justera tiderna vid behov."
+      "breakHint": "Ett glapp mellan två band är en rast — justera tiderna vid behov."
     }
   },
   "view": {
