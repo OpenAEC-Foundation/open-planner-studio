@@ -25,13 +25,25 @@ You get ONE package: `{{PACKAGE}}` (`"kind": "docs"`, language `lang`) and its E
   - `b`: a UI message with a filled-in place: write its target with `{{…}}` replaced by the same
     value as in the source.
   - `c`: copy exactly as in English (names of example tasks, calendars, projects).
+  - `"role": "tab"`: here the label is a ribbon or settings tab (the first part of a menu path, or
+    "the *X* tab"). Write exactly one of its `targets` there, `count` times: as its own italic span
+    or as the first part of the menu path. Not another translation of the same English word (cs
+    *Plán*, not *Plánování*).
   - A menu path `*A › B › C*` stays one italic span; each part is a label; keep `›`.
   - Other italics: translate normally and keep the italics.
-- `terms`: for these concepts use `target` or a form from `forms`. Never a word from `avoid`.
+- `terms`: for these concepts use `target` or a form from `forms`. Never a word from `avoid` (the
+  check makes that an error). Use a term only where the source word has the concept's meaning (see
+  `definition`). The same English word with another meaning (lunch *break* vs task *interruption*;
+  house *extension* vs software *extension*; *calculate* in prose vs the *Calculate* command) is
+  translated normally.
 - `tokens` (codes such as `FS`, `3ed`) and `keep` (names such as `IFC`, `MS Project`): unchanged.
   `keepSoft`: names this language may translate in running text.
 - Style: follow `style.docs` (form of address, examples) and `style.address`. If `style.quotes`
   exists, use exactly those quotation marks.
+- Names of example tasks, projects, calendars and resources stay in English exactly as in the source,
+  everywhere (also in prose, not only in italics), and also as link text.
+- `{{…}}` only where the source has it. Never copy a UI text with an open place (`{{n}}`) into the
+  guide: write what the source shows.
 - Translate the meaning, sentence by sentence. Add no explanations or notes; leave nothing out.
 - With `previous` (the current translation of a section, by section index): start from it and change
   only what the new English requires.
