@@ -71,6 +71,8 @@
 "ref-contextmenus": {"title": "Менији десног клика"},
 "ref-instellingen": {"title": "Подешавања"},
 "ref-projectinfo": {"title": "Направи нови пројекат и Подаци о пројекту"},
+"ref-rekenopties-en-conventies": {"title": "Опције израчунавања и правила израчунавања"},
 "ref-import-exportformaten": {"title": "Формати за увоз и извоз"},
+"ref-rapporttypes": {"title": "Типови извештаја"},
 "ref-extensiepermissies": {"title": "Дозволе проширења"}
 }

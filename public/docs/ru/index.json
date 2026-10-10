@@ -43,11 +43,13 @@
 "howto-gantt-bedienen": {"title": "Перетаскивание, прокрутка и масштабирование в диаграмме Ганта"},
 "howto-presentatie": {"title": "Презентация на большом экране"},
 "howto-meerdere-projecten": {"title": "Одновременное использование нескольких проектов"},
+"uitleg-bestanden": {"title": "Файлы и форматы"},
 "uitleg-datums-zoals-opgeslagen": {"title": "Даты как записаны"},
 "howto-bestand-openen-en-opslaan": {"title": "Открытие и сохранение файла"},
 "howto-automatisch-opslaan": {"title": "Включение автосохранения"},
 "howto-mpp-openen": {"title": "Открытие файла MS Project (.mpp)"},
 "howto-xer-openen": {"title": "Открытие файла Primavera P6 (.xer)"},
+"howto-exporteren": {"title": "Экспорт"},
 "howto-herstellen-na-een-crash": {"title": "Восстановление после сбоя"},
 "uitleg-resourcebibliotheek": {"title": "Библиотека ресурсов"},
 "uitleg-ai-koppeling": {"title": "Как работает связь с ИИ-помощником"},
@@ -68,6 +70,8 @@
 "ref-contextmenus": {"title": "Контекстные меню"},
 "ref-instellingen": {"title": "Настройки"},
 "ref-projectinfo": {"title": "Новый проект и Сведения о проекте"},
+"ref-rekenopties-en-conventies": {"title": "Параметры расчета и правила расчета"},
 "ref-import-exportformaten": {"title": "Импорт и экспорт форматов"},
-"ref-rapporttypes": {"title": "Типы отчетов"}
+"ref-rapporttypes": {"title": "Типы отчетов"},
+"ref-extensiepermissies": {"title": "Разрешения расширений"}
 }
