@@ -521,7 +521,8 @@
     "kind": "term",
     "nl": "inspanningsgestuurd",
     "en": [
-      "effort driven"
+      "effort driven",
+      "effort-driven"
     ],
     "definition": "A task setting where changing the resource units changes the duration, while the total work stays the same.",
     "seeAlso": [
