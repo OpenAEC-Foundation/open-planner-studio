@@ -121,7 +121,7 @@ const ok = (label: string, cond: boolean) => { checks++; if (!cond) diffs.push(l
     lang: 'cs', concepts, termbase: tb, mode: 'missing', sources: {},
     inputs: [{ ns: 'task', nl: { a: 'Totale speling', b: 'Relatie 1.2 FS+2d', c: 'Exporteren naar IFC' }, en: { a: 'Total float', b: 'Relation 1.2 FS+2d', c: 'Export to IFC' }, target: {} }],
   });
-  eq('term in pakket met doelterm en vormen', packs[0].terms, [{ id: 'total-float', nl: 'totale speling', en: ['total float', 'total slack'], target: 'celková časová rezerva', forms: ['celková časová rezerva', 'celkové časové rezervy'] }]);
+  eq('term in pakket met doelterm, vormen en definitie', packs[0].terms, [{ id: 'total-float', nl: 'totale speling', en: ['total float', 'total slack'], target: 'celková časová rezerva', forms: ['celková časová rezerva', 'celkové časové rezervy'], definition: 'd' }]);
   eq('alleen gebruikte tokens', packs[0].tokens, ['FS']);
   eq('keep-namen apart', packs[0].keep, ['IFC']);
   eq('stijl uit _style', packs[0].style, { address: 'formal' });

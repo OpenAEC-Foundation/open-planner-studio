@@ -7,7 +7,8 @@ findings `{{REVIEW_FILE}}` (only the entries with `"package": "{{ID}}"` apply).
 ## Rules
 - Read only these four files. Do not open, search or list any other file. Do not edit `knownbugs.md`.
 - Edit only `{{PACKAGE_DIR}}/{{ID}}.out.md`, and in it only the text named by `quote` in the findings.
-- Replace each `quote` with its `proposal`, unless that breaks a rule of the package (structure,
+- `quote` is a whole sentence and `proposal` the whole corrected sentence. Replace each `quote` with
+  its `proposal`, unless that breaks a rule of the package (structure,
   links, inline code, numbers, `labels`, `terms`, `tokens`, `keep`, `style`); then fix the problem in
   the smallest way that keeps the rule. Skip a finding whose `quote` is not in the file.
 - Change nothing else: not the wording around it, not the Markdown.

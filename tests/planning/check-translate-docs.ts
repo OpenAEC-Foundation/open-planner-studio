@@ -9,15 +9,17 @@
  *
  * Mutatiebewijs: in `linkSections` op positie koppelen ⇒ 07a rood; in `checkDocsSection` de
  * display-uitzondering weghalen ⇒ 09c rood; de NON_ASCII_DIGIT-poort weghalen ⇒ 10f rood;
- * `mergeArticle` een behouden verouderde sectie de nieuwe hash geven ⇒ 11e rood.
+ * `mergeArticle` een behouden verouderde sectie de nieuwe hash geven ⇒ 11e rood; in `classifyItalic` de
+ * tabbladfilter weghalen ⇒ 16b en 16f rood; de tabbladpoort in `checkDocsSection` uitzetten ⇒ 16f rood.
  */
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { sectionHash, splitSections, structureHash } from '../../scripts/lib/docs-structure';
 import {
-  articleState, avoidWords, blocksOf, buildDocsPackages, buildEnLabelIndex, classifyItalic, codesOf, docsReleaseGaps,
-  docsStatus, hasStem, pairChanged, hasWord, italicsOf, joinSections, labelsDigest, linkSections, literalNames, mergeArticle, normLabel,
-  orderDocsSources, parseDocsIndex, renameDocLinks, renameInEntry, sectionLabels, serializeDocsIndex, titleOf,
+  articleState, avoidWords, blocksOf, buildDocsPackages, buildEnLabelIndex, classifyItalic, codesOf, decodeIfcString, docsReleaseGaps,
+  docsStatus, hasStem, ifcNames, pairChanged, hasWord, italicsOf, joinSections, labelsDigest, linkSections, literalCandidates, literalNames,
+  mergeArticle, normLabel, orderDocsSources, parseDocsIndex, quotedNames, renameDocLinks, renameInEntry, ribbonTabKey, sectionLabels,
+  serializeDocsIndex, titleOf, tutorialNames, RIBBON_TABS, SETTINGS_TAB_KEYS,
   type DocsLiteral, type DocsSources,
 } from '../../scripts/translate/docs';
 import { checkDocs, checkDocsArticle } from '../../scripts/translate/gates';
@@ -224,7 +226,7 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
   has('10n keepSoft: Gantt vertaald is alleen een waarschuwing', run(CS_OK.replace('Gantt', 'Ganttův')).warnings, /naam "Gantt"/);
   ok('10n\' en geen fout', run(CS_OK.replace('Gantt', 'Ganttův')).errors.length === 0);
   has('10o term niet gevonden (zacht)', run(CS_OK.replace('Následník', 'Další úkol')).warnings, /term "následník"/);
-  has('10p avoid als los woord (zacht)', run(CS_OK.replace('Následník', 'Nástupce')).warnings, /vermijd "nástupce"/);
+  has('10p avoid als los woord is hard, met de term erbij', run(CS_OK.replace('Následník', 'Nástupce')).errors, /vermijd "nástupce" \(successor\) — schrijf de term "následník"/);
 }
 {
   // Pakket zonder sectie 0: de uitvoer begint met een ##-kop.
@@ -305,18 +307,34 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
 {
   const root = process.cwd();
   const lit = JSON.parse(readFileSync(resolve(root, 'i18n/docs-literal.json'), 'utf8')) as DocsLiteral;
+  const enUi = (() => {
+    const out = new Set<string>();
+    const walk = (o: JsonObject) => { for (const v of Object.values(o)) { if (typeof v === 'string') out.add(normLabel(v)); else if (v && typeof v === 'object' && !Array.isArray(v)) walk(v as JsonObject); } };
+    for (const f of readdirSync(resolve(root, 'src/i18n/locales/en'))) walk(JSON.parse(readFileSync(resolve(root, `src/i18n/locales/en/${f}`), 'utf8')) as JsonObject);
+    return out;
+  })();
+  // Het tutorialproject en elk voorbeeldproject: de lijst is precies wat `translate docs-literal` eruit haalt.
+  const extracted = (file: string): string[] | undefined => {
+    const text = readFileSync(resolve(root, file), 'utf8');
+    if (file === 'scripts/tutorial-project.ts') return literalCandidates(tutorialNames(text), enUi);
+    if (/^public\/examples\/[^/]+\.ifc$/.test(file)) return literalCandidates(ifcNames(text), enUi);
+    return undefined;
+  };
+  const ifcFiles = readdirSync(resolve(root, 'public/examples')).filter(f => f.endsWith('.ifc')).map(f => `public/examples/${f}`);
+  for (const f of ['scripts/tutorial-project.ts', ...ifcFiles]) ok(`15a' ${f} staat onder sources (npm run translate -- docs-literal)`, f in lit.sources);
   for (const [file, names] of Object.entries(lit.sources)) {
+    const want = extracted(file);
+    if (want) { eq(`15a ${file}: voorbeeldnamen actueel (npm run translate -- docs-literal)`, names, want); continue; }
     const code = readFileSync(resolve(root, file), 'utf8');
     for (const n of names) ok(`15a ${file} bevat nog '${n}' (soort c)`, code.includes(`'${n}'`) || code.includes(`"${n}"`));
   }
-  const flat = (o: JsonObject, out: string[] = []): string[] => {
-    for (const v of Object.values(o)) { if (typeof v === 'string') out.push(v); else if (v && typeof v === 'object' && !Array.isArray(v)) flat(v as JsonObject, out); }
-    return out;
-  };
+  ok('15a" tutorialproject: nl- en en-namen (taak, fase, project, kalender, resource)', ['Fundering storten', 'Pour foundation', 'Aanbouw woning', 'House extension', 'Bouwkalender NL', 'Mobiele kraan', 'Mobile crane']
+    .every(n => (lit.sources['scripts/tutorial-project.ts'] ?? []).includes(n)) && !(lit.sources['scripts/tutorial-project.ts'] ?? []).includes('Basisplanning'));
+  for (const [lang, words] of Object.entries(lit.avoidSoft ?? {})) ok(`15g avoidSoft ${lang}: een taal met termbase`, words.length > 0 && readdirSync(resolve(root, 'i18n/termbase')).includes(`${lang}.json`));
   const load = (lang: string) => Object.fromEntries(readdirSync(resolve(root, `src/i18n/locales/${lang}`)).map(f => [f.replace('.json', ''),
     JSON.parse(readFileSync(resolve(root, `src/i18n/locales/${lang}/${f}`), 'utf8')) as JsonObject]));
   const enLoc = load('en');
-  const enTexts = new Set(Object.values(enLoc).flatMap(o => flat(o)).map(normLabel));
+  const enTexts = enUi;
   for (const n of literalNames(lit)) ok(`15b soort c "${n}" is geen en-UI-tekst (anders soort a)`, !enTexts.has(n));
   for (const [id, list] of Object.entries(lit.display ?? {})) {
     const codes = codesOf(readFileSync(resolve(root, `public/docs/en/${id}.md`), 'utf8'));
@@ -350,6 +368,101 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
       ok(`15f ${lang}: het voorbeeld noemt *${String(target)}* (UI-tekst voor ${label})`, typeof target === 'string' && !!style?.docs?.includes(`*${target}*`));
     }
   }
+}
+
+// ── 16. Docs-straat v2: termbetekenis, tabbladen, voorbeeldnamen, avoid hard, invulplekken ─────
+{
+  // 16a: elke term krijgt zijn definitie mee (docs en UI).
+  const withDef: Concept[] = concepts.map(c => c.id === 'successor' ? { ...c, definition: 'The task that follows another task in a relation.' } : c);
+  const [p] = buildDocsPackages({ lang: 'cs', articles: [art], mode: 'missing', sources: {}, index, literal, concepts: withDef, termbase: tb });
+  eq('16a docs-term met definition', p.pkg.terms[0]?.definition, 'The task that follows another task in a relation.');
+
+  // 16b–f: tabbladen. "Planning" is in cs zowel het linttabblad (Plán) als een kolomgroep (Plánování).
+  const nlM: JsonObject = { ribbon: { planning: 'Planning', start: 'Start' }, columns: { planning: 'Planning' } };
+  const enM: JsonObject = { ribbon: { planning: 'Planning', start: 'Home' }, columns: { planning: 'Planning' } };
+  const csM: JsonObject = { ribbon: { planning: 'Plán', start: 'Domů' }, columns: { planning: 'Plánování' } };
+  const nlC: JsonObject = { settings: { planningTab: 'Planning' }, dlg: { deps: 'Relaties' } };
+  const enC: JsonObject = { settings: { planningTab: 'Planning' }, dlg: { deps: 'Relations' } };
+  const csC: JsonObject = { settings: { planningTab: 'Plán' }, dlg: { deps: 'Závislosti' } };
+  const tIndex = buildEnLabelIndex([{ ns: 'menu', nl: nlM, en: enM, target: csM }, { ns: 'common', nl: nlC, en: enC, target: csC }], 'cs',
+    { menu: { 'ribbon.planning': 'x', 'ribbon.start': 'x', 'columns.planning': 'x' }, common: { 'settings.planningTab': 'x', 'dlg.deps': 'x' } });
+  const TAB = '# T\n\nThe same button is on *Planning › Relations*. Turn it on in tab *Planning*. Under *Planning*, choose the column.\n';
+  const r = sectionLabels(0, TAB, tIndex, new Set());
+  const tab = r.labels.find(l => l.en === 'Planning' && l.role === 'tab');
+  const free = r.labels.find(l => l.en === 'Planning' && !l.role);
+  eq('16b tabbladplek: alleen de tabbladnaam als kandidaat, met role en aantal', [tab?.targets, tab?.count], [['Plán'], 2]);
+  eq('16c dezelfde naam buiten een tabbladplek: alle kandidaten', free?.targets, ['Plán', 'Plánování']);
+  ok('16d C3 houdt alle sleutels van het label (geen nieuwe digest)', 'menu:columns.planning' in r.keys && 'common:settings.planningTab' in r.keys);
+  eq('16d\' classifyItalic op een tabbladplek: role tab', classifyItalic('Planning', tIndex, new Set(), true)[0]?.role, 'tab');
+  eq('16d" "*X* tab" telt, "tabs: *X*" niet', ['On the *Planning* tab.', 'Three tabs: *Planning* and more.']
+    .map(t => sectionLabels(0, t, tIndex, new Set()).labels.find(l => l.en === 'Planning')?.role ?? null), ['tab', null]);
+  const [tp] = buildDocsPackages({ lang: 'cs', articles: [{ id: 'tab', md: TAB }], mode: 'missing', sources: {}, index: tIndex, literal, concepts });
+  const tRun = (out: string) => checkDocs(tp.pkg, tp.src, out);
+  const TAB_OK = '# T\n\nStejné tlačítko je také na kartě *Plán › Závislosti*. Zapněte ho na kartě *Plán*. Pod *Plánování* zvolte sloupec.\n';
+  eq('16e cs-geval goed: *Plán* op de tabbladplekken', tRun(TAB_OK).errors, []);
+  has('16f\' een later paddeel telt niet als tabblad (cs: de groep *Plán* op het tabblad *Domů*)', tRun(TAB_OK.replace('*Plán › Závislosti*', '*Domů › Plán › Závislosti*').replace('kartě *Plán*', 'kartě *Plánování*')).errors,
+    /label \*Planning\* staat 2× op een tabbladplek.*0× \*Plán\*/);
+  has('16f cs-geval fout: *Plánování › Závislosti* (zoals in de proef)', tRun(TAB_OK.replace('*Plán › Závislosti*', '*Plánování › Závislosti*')).errors,
+    /label \*Planning\* staat 2× op een tabbladplek.*1× \*Plán\*/);
+
+  // 16g–l: voorbeeldnamen letterlijk, ook tussen aanhalingstekens en als linktekst van een examples://-link.
+  const lits = new Set(['House extension', 'Refurbishment & Extension of a Family Home', 'Pour foundation']);
+  eq('16g geciteerd en examples-link', quotedNames('In "House extension" and [Refurbishment & Extension of a Family Home](examples://x.ifc); not "other" or `"Pour foundation"`.', lits),
+    ['Refurbishment & Extension of a Family Home', 'House extension']);
+  const NAMES = '# N\n\nOpen “House extension”. See [Refurbishment & Extension of a Family Home](examples://showcase.ifc).\n';
+  const [np] = buildDocsPackages({ lang: 'cs', articles: [{ id: 'n', md: NAMES }], mode: 'missing', sources: {}, index, literal: { sources: { x: [...lits] }, manual: [] }, concepts });
+  eq('16h soort c uit aanhalingstekens en linktekst', np.pkg.labels.map(l => `${l.kind}:${l.en}`), ['c:Refurbishment & Extension of a Family Home', 'c:House extension']);
+  const NAMES_CS = '# N\n\nOtevřete „House extension“. Viz [Refurbishment & Extension of a Family Home](examples://showcase.ifc).\n';
+  eq('16i namen byte-gelijk: groen', checkDocs(np.pkg, np.src, NAMES_CS).errors, []);
+  has('16j vertaalde projectnaam in de linktekst: rood', checkDocs(np.pkg, np.src, NAMES_CS.replace('[Refurbishment & Extension of a Family Home]', '[Rekonstrukce a přístavba rodinného domu]')).errors,
+    /moet letterlijk blijven: "Refurbishment & Extension of a Family Home"/);
+  eq('16k tutorialnamen: nl en en, zonder basislijn', tutorialNames("const PROJECT_NAME = n('Aanbouw woning', 'House extension');\nconst BASELINE_NAME = n('Basisplanning', 'Baseline');\n  { key: 'a', name: n('Stucwerk', 'Plastering'), days: 4 },\n  { name: n('Bob\\'s', 'Bob\\'s') },"),
+    ['Aanbouw woning', 'House extension', 'Stucwerk', 'Plastering', "Bob's"]);
+  eq('16l IFC-namen: project, taak, kalender, resource; STEP-codering terug', ifcNames([
+    "#1=IFCPROJECT('g',#2,'De Vaart',$);", "#3=IFCTASK('g',#2,'Walls \\X2\\2014\\X0\\ Tower A',$);", "#4=IFCWORKCALENDAR('g',#2,'Construction calendar NL','x');",
+    "#5=IFCCREWRESOURCE('g',#2,'Masonry crew','d');", "#6=IFCPROPERTYSINGLEVALUE('Status',$,$,$);", "#7=IFCTASK('g',#2,'Bob''s task',$);",
+  ].join('\n')), ['De Vaart', 'Walls — Tower A', 'Construction calendar NL', 'Masonry crew', "Bob's task"]);
+  eq('16l\' decodeIfcString', decodeIfcString("a''b \\X\\E9"), "a'b é");
+  eq('16l" en-UI-tekst valt weg', literalCandidates(['Save', 'House extension', 'x'], new Set(['Save'])), ['House extension']);
+
+  // 16m–r: avoid als los woord is hard; alleen vormen die het woord bevatten worden weggestreept.
+  eq('16m "na" maakt van "nakonec" geen los "konec"', avoidWords('úkoly na sobě nakonec závisejí', ['na'], ['konec']), []);
+  eq('16m\' eigen langere vorm streept weg', avoidWords('do konec projektu', ['konec projektu'], ['konec']), []);
+  const cpTb: LangTermbase = {
+    _style: { address: 'formal' },
+    successor: { term: 'následník', forms: ['následník', 'následníka'], avoid: ['nástupce'], source: 'tbx', status: 'tbx' },
+    'critical-path': { term: 'kritická cesta', forms: ['kritická cesta'], avoid: ['critical path'], source: 'model', status: 'model' },
+  };
+  const cpConcepts: Concept[] = [...concepts, { id: 'critical-path', kind: 'term', nl: 'kritiek pad', en: ['critical path'], definition: 'd' }];
+  const CP = '# C\n\nThe method is CPM (Critical Path Method): the critical path decides. Each successor follows.\n';
+  const [cp] = buildDocsPackages({ lang: 'cs', articles: [{ id: 'c', md: CP }], mode: 'missing', sources: {}, index, literal, concepts: cpConcepts, termbase: cpTb });
+  const CP_CS = '# C\n\nMetoda je CPM (Critical Path Method): rozhoduje kritická cesta. Každý následník následuje.\n';
+  eq('16n avoid-woord dat ook in de Engelse bron staat (afkorting uitgeschreven): geen fout', checkDocs(cp.pkg, cp.src, CP_CS).errors, []);
+  has('16o avoid in proza: hard', checkDocs(cp.pkg, cp.src, CP_CS.replace('Každý následník', 'Každý nástupce')).errors, /vermijd "nástupce"/);
+  eq('16p avoid in inline code: geen fout', checkDocs(cp.pkg, cp.src.replace('Each successor follows.', 'Each successor follows `x`.'), CP_CS.replace('následuje.', 'následuje `x`.').replace('Každý následník', 'Každý následník (`nástupce`)')).errors.filter(e => /vermijd/.test(e)), []);
+  const soft = buildDocsPackages({ lang: 'cs', articles: [{ id: 'c', md: CP }], mode: 'missing', sources: {}, index,
+    literal: { ...literal, avoidSoft: { cs: ['nástupce', 'jiné'] } }, concepts: cpConcepts, termbase: cpTb })[0];
+  eq('16q avoidSoft: alleen de avoid-woorden van de termen in het pakket', soft.pkg.avoidSoft, ['nástupce']);
+  const sr = checkDocs(soft.pkg, soft.src, CP_CS.replace('Každý následník', 'Každý nástupce'));
+  ok('16r avoidSoft: waarschuwing, geen fout', sr.errors.length === 0 && sr.warnings.some(w => /vermijd "nástupce".*gewoon woord/.test(w)));
+
+  // 16s–t: een {{…}} die de bron niet heeft (de proef: `*عرض كل الإصدارات ({{n}})*`).
+  has('16s invulplek in de proza zonder bron: hard', run(CS_OK.replace('*Uložit*', '*Uložit ({{n}})*')).errors, /invulplek \{\{n\}\} staat niet in de bron/);
+  const PH = '# P\n\nType `{{name}}` or {{name}} here.\n';
+  const [pp] = buildDocsPackages({ lang: 'cs', articles: [{ id: 'p', md: PH }], mode: 'missing', sources: {}, index, literal, concepts });
+  eq('16t invulplek die de bron ook heeft: geen fout', checkDocs(pp.pkg, pp.src, '# P\n\nNapište sem `{{name}}` nebo {{ name }}.\n').errors, []);
+
+  // 16u–v: de tabbladsleutels volgen de code.
+  const root = process.cwd();
+  const types = readFileSync(resolve(root, 'src/state/slices/types.ts'), 'utf8');
+  const union = /export type RibbonTab\s*=\s*([^;]+);/.exec(types)?.[1].match(/'([^']+)'/g)?.map(x => x.slice(1, -1));
+  eq('16u RIBBON_TABS = RibbonTab in types.ts', [...RIBBON_TABS], union);
+  const ribbon = readFileSync(resolve(root, 'src/components/layout/Ribbon/Ribbon.tsx'), 'utf8');
+  ok('16u\' Ribbon.tsx toont menu:ribbon.<tab> met beeld→view en instellingen→settings', ribbon.includes("tMenu(`ribbon.${tab === 'beeld' ? 'view' : tab === 'instellingen' ? 'settings' : tab}`)")
+    && ribbonTabKey('beeld') === 'menu:ribbon.view' && ribbonTabKey('planning') === 'menu:ribbon.planning');
+  const panel = readFileSync(resolve(root, 'src/components/settings/SettingsPanelContent.tsx'), 'utf8');
+  eq('16v SETTINGS_TAB_KEYS = de tabbladen van het instellingenvenster', [...SETTINGS_TAB_KEYS],
+    [...panel.matchAll(/t\('(settings\.\w+Tab)'\)/g)].map(m => `common:${m[1]}`));
 }
 
 if (diffs.length === 0) {

@@ -20,10 +20,54 @@ export interface DocsLiteral {
   keepTranslated?: Record<string, string[]>;
   /** Per artikel: inline code die de app per taal anders toont (niet byte-gelijk geëist). */
   display?: Record<string, string[]>;
+  /**
+   * Per taal: avoid-woorden die ook een gewoon woord met een andere betekenis zijn (cs "konec" = het eind
+   * van een lijst, "důležitý" = belangrijk). Daar is een treffer in de docs-poort geen harde fout maar een
+   * waarschuwing die de nalezer naloopt. Alleen toevoegen na een gemeten valse treffer.
+   */
+  avoidSoft?: Record<string, string[]>;
 }
 
 export const literalNames = (lit: DocsLiteral): string[] =>
   [...new Set([...Object.values(lit.sources).flat(), ...lit.manual])];
+
+// ── Voorbeeldnamen (labelsoort c) uit het tutorialproject en de voorbeeldprojecten ───────────
+
+const unescapeTs = (x: string): string => x.replace(/\\(.)/g, '$1');
+
+/**
+ * De project-, kalender-, fase-, taak- en resourcenamen van het tutorialproject (`scripts/tutorial-project.ts`):
+ * elke `name: n('nl', 'en')` plus `PROJECT_NAME` en `CALENDAR_NAME`, nl en en, in bestandsvolgorde, uniek.
+ * De naam van de basislijn telt niet (dat is geen voorbeeldnaam in een gids).
+ */
+export function tutorialNames(ts: string): string[] {
+  const re = /(?:\bname:\s*|\b(?:PROJECT|CALENDAR)_NAME\s*=\s*)n\(\s*'((?:[^'\\]|\\.)*)'\s*,\s*'((?:[^'\\]|\\.)*)'\s*\)/g;
+  const out: string[] = [];
+  for (const m of ts.matchAll(re)) out.push(unescapeTs(m[1]), unescapeTs(m[2]));
+  return [...new Set(out)];
+}
+
+/** Een IFC-tekst (STEP) terug naar gewone tekst: `''` → `'`, `\X2\…\X0\` (UTF-16, hex) en `\X\hh`. */
+export function decodeIfcString(x: string): string {
+  return x.replace(/''/g, "'")
+    .replace(/\\X2\\((?:[0-9A-F]{4})+)\\X0\\/gi, (_, hex: string) => String.fromCharCode(...(hex.match(/.{4}/g) ?? []).map(h => parseInt(h, 16))))
+    .replace(/\\X\\([0-9A-F]{2})/gi, (_, h: string) => String.fromCharCode(parseInt(h, 16)));
+}
+
+/** IFC-entiteiten waarvan de naam (derde attribuut) een voorbeeldnaam is: project, taak, kalender, resource. */
+const IFC_NAMED = /^#\d+\s*=\s*(IFCPROJECT|IFCTASK|IFCWORKCALENDAR|IFC[A-Z]*RESOURCE)\('[^']*',[^,]*,'((?:[^']|'')*)'/gm;
+
+/** De project-, taak-, kalender- en resourcenamen van een voorbeeldproject (`public/examples/*.ifc`), uniek. */
+export function ifcNames(ifc: string): string[] {
+  return [...new Set([...ifc.matchAll(IFC_NAMED)].map(m => decodeIfcString(m[2]).trim()).filter(n => /\p{L}/u.test(n)))];
+}
+
+/**
+ * Voorbeeldnamen die soort c mogen zijn: geen en-UI-tekst (die is soort a) en minstens twee tekens.
+ * `uiTexts` zijn de genormaliseerde en-UI-teksten (`normLabel`).
+ */
+export const literalCandidates = (names: string[], uiTexts: ReadonlySet<string>): string[] =>
+  names.filter(n => n.length >= 2 && !uiTexts.has(normLabel(n)));
 
 /**
  * Eén label in een sectie (§5.3). `a`: UI-label, één van `targets` moet letterlijk in de vertaling;
@@ -36,9 +80,18 @@ export interface DocsLabel {
   en: string;
   targets?: string[];
   keys?: string[];
+  /**
+   * `tab`: het label staat op een tabbladplek (eerste deel van een pad `*A › B*`, of "tab *X*" / "*X* tab")
+   * en `targets` zijn alleen de tabbladnamen (lint of instellingenvenster). De poort eist er precies één
+   * als eigen cursief (pad)deel; "Plánování" telt dan niet voor "Plán".
+   */
+  role?: 'tab';
+  /** Bij `role: 'tab'`: zo vaak staat het label op een tabbladplek in de bronsectie. */
+  count?: number;
 }
 
-export interface DocsTerm { id: string; en: string[]; target: string; forms: string[]; avoid?: string[] }
+/** Een term in een pakket; `definition` (uit concepts.json) zegt welke betekenis de term draagt. */
+export interface DocsTerm { id: string; en: string[]; target: string; forms: string[]; avoid?: string[]; definition?: string }
 
 /**
  * Metadata van één sectie in een pakket: de hash van de en-sectie, en `labels` = één hash over de gebruikte
@@ -69,6 +122,8 @@ export interface DocsPackage {
   keepSoft?: string[];
   /** Inline code die per taal anders mag (display-voorbeelden). */
   display?: string[];
+  /** Avoid-woorden die in deze taal ook een gewoon woord zijn: alleen een waarschuwing, de nalezer kijkt. */
+  avoidSoft?: string[];
   labels: DocsLabel[];
   /** Bij --stale (en --ids op een vertaald artikel): de huidige vertaling per sectie-index. */
   previous?: Record<string, string>;
@@ -191,11 +246,15 @@ export function hasWord(text: string, word: string): boolean {
 
 /**
  * De avoid-varianten die als los woord in `text` staan, nadat de vormen van de term zelf zijn
- * weggestreept (een avoid-variant kan in de eigen term zitten).
+ * weggestreept (een avoid-variant kan in de eigen term zitten). Een vorm verdwijnt alleen als los woord
+ * (anders maakt "na" van "nakonec" een los "konec"); in schriften zonder spaties en in Arabisch schrift
+ * (voorvoegsels plakken vast) als deeltekst.
  */
 export function avoidWords(text: string, forms: string[], avoid: string[]): string[] {
-  const rest = forms.map(f => f.toLocaleLowerCase()).filter(f => f !== '').sort((a, b) => b.length - a.length)
-    .reduce((s, f) => s.split(f).join(' \u0000 '), text.toLocaleLowerCase());
+  const rest = forms.map(f => f.trim()).filter(f => f !== '').sort((a, b) => b.length - a.length)
+    .reduce((s, f) => (NO_SPACE.test(f) || ARABIC.test(f)
+      ? s.split(f.toLocaleLowerCase()).join(' \u0000 ')
+      : s.replace(new RegExp(`(?<![${L}])${escapeRe(f.toLocaleLowerCase())}(?![${L}])`, 'gu'), ' \u0000 ')), text.toLocaleLowerCase());
   return avoid.filter(a => hasWord(rest, a));
 }
 
@@ -282,14 +341,39 @@ export function buildEnLabelIndex(inputs: NsInput[], lang: string, sources: UiSo
   return { exact, patterns: [...byPattern.values()], hashes };
 }
 
-interface Classified { kind: 'a' | 'b' | 'c'; en: string; hits: LabelHit[] }
+/**
+ * De sleutels van de tabbladnamen: de linttabbladen (`RibbonTab` in `src/state/slices/types.ts`; Ribbon.tsx
+ * toont `menu:ribbon.<tab>`, met `beeld` → `view` en `instellingen` → `settings`) en de tabbladen van het
+ * instellingenvenster (`SettingsPanelContent.tsx`). check-translate-docs.ts bewaakt dat deze lijst de code volgt.
+ */
+export const RIBBON_TABS = ['file', 'start', 'planning', 'resources', 'beeld', 'instellingen', 'table', 'ifc', 'report', 'ai'] as const;
+export const ribbonTabKey = (tab: string): string => `menu:ribbon.${tab === 'beeld' ? 'view' : tab === 'instellingen' ? 'settings' : tab}`;
+export const SETTINGS_TAB_KEYS = ['common:settings.appearanceTab', 'common:settings.planningTab', 'common:settings.advancedTab'] as const;
+export const TAB_KEYS: ReadonlySet<string> = new Set([...RIBBON_TABS.map(ribbonTabKey), ...SETTINGS_TAB_KEYS]);
 
-/** Soort a/b/c van één cursief stuk; een pad (`A › B`) of een paar (`A → B`) per deel. Vrij (d) = []. */
-export function classifyItalic(span: string, index: EnLabelIndex, literals: ReadonlySet<string>): Classified[] {
+interface Classified {
+  kind: 'a' | 'b' | 'c';
+  en: string;
+  /** Alle sleutels met dit en-label (voor C3: de sectie hangt van al die teksten af). */
+  hits: LabelHit[];
+  /** Op een tabbladplek: alleen de tabbladsleutels; die geven de `targets`. */
+  role?: 'tab';
+  tabHits?: LabelHit[];
+}
+
+/**
+ * Soort a/b/c van één cursief stuk; een pad (`A › B`) of een paar (`A → B`) per deel. Vrij (d) = [].
+ * `tab`: het stuk staat op een tabbladplek; het eerste deel van een pad met `›` staat er altijd. Heeft
+ * een a-label dan een tabbladsleutel, dan krijgt het `role: 'tab'` met alleen die sleutels als kandidaat.
+ */
+export function classifyItalic(span: string, index: EnLabelIndex, literals: ReadonlySet<string>, tab = false): Classified[] {
   const n = normLabel(span);
   if (n === '') return [];
   const a = index.exact.get(n);
-  if (a) return [{ kind: 'a', en: n, hits: a }];
+  if (a) {
+    const tabHits = tab ? a.filter(h => TAB_KEYS.has(h.key)) : [];
+    return [{ kind: 'a', en: n, hits: a, ...(tabHits.length ? { role: 'tab' as const, tabHits } : {}) }];
+  }
   const b = index.patterns.filter(p => n.includes(p.lit) && p.re.test(n));
   if (b.length) {
     // De ingevulde plekken van een patroon kunnen zelf letterlijk zijn (taaknamen van het tutorialproject).
@@ -298,9 +382,52 @@ export function classifyItalic(span: string, index: EnLabelIndex, literals: Read
   }
   if (literals.has(span.trim()) || literals.has(n)) return [{ kind: 'c', en: literals.has(span.trim()) ? span.trim() : n, hits: [] }];
   for (const sep of [' › ', ' → ']) {
-    if (n.includes(sep)) return n.split(sep).flatMap(part => classifyItalic(part, index, literals));
+    if (n.includes(sep)) return n.split(sep).flatMap((part, i) => classifyItalic(part, index, literals, sep === ' › ' ? i === 0 : false));
   }
   return [];
+}
+
+/** Staat een cursief stuk op een tabbladplek: "tab *X*", "*X* tab", "on the *X* tab"? */
+export const TAB_BEFORE = /(?<![\p{L}])tab\s*$/iu;
+export const TAB_AFTER = /^\s*tab(?![\p{L}])/iu;
+
+/** De cursieve stukken van een tekst met hun tabbladplek (buiten codeblokken). */
+function italicsWithPlace(md: string): { span: string; tab: boolean }[] {
+  const out: { span: string; tab: boolean }[] = [];
+  let fence = false;
+  for (const line of md.replace(/\r\n/g, '\n').split('\n')) {
+    if (FENCE_RE.test(line.trim())) { fence = !fence; continue; }
+    if (fence) continue;
+    for (const m of line.matchAll(INLINE_RE)) {
+      if (m[6] === undefined) continue;
+      const before = line.slice(0, m.index);
+      const after = line.slice(m.index + m[0].length);
+      out.push({ span: m[6], tab: TAB_BEFORE.test(before) || TAB_AFTER.test(after) });
+    }
+  }
+  return out;
+}
+
+/** Aanhalingstekens rond een naam: "…", “…”, „…“, ‘…’, «…». */
+const QUOTED_RE = /["“„‘«]([^"“”„‘’«»\n]{2,120})["”“’»]/gu;
+
+/**
+ * Plekken buiten cursief waar een voorbeeldnaam letterlijk moet blijven: tussen aanhalingstekens, en de
+ * linktekst van een `examples://`-link (de lijst *File › Examples* toont de naam in het Engels).
+ */
+export function quotedNames(md: string, literals: ReadonlySet<string>): string[] {
+  const out: string[] = [];
+  let fence = false;
+  for (const line of md.replace(/\r\n/g, '\n').split('\n')) {
+    if (FENCE_RE.test(line.trim())) { fence = !fence; continue; }
+    if (fence) continue;
+    const plain = line.replace(/`[^`]+`/g, ' ');
+    for (const m of plain.matchAll(INLINE_RE)) {
+      if (m[3] !== undefined && m[4].startsWith('examples://') && literals.has(m[3].trim())) out.push(m[3].trim());
+    }
+    for (const m of plain.matchAll(QUOTED_RE)) if (literals.has(m[1].trim())) out.push(m[1].trim());
+  }
+  return out;
 }
 
 /** De labels van één sectie (uniek per soort en tekst) en de gebruikte sleutels met hun hash. */
@@ -308,19 +435,26 @@ export function sectionLabels(section: number, text: string, index: EnLabelIndex
   const labels: DocsLabel[] = [];
   const keys: Record<string, string> = {};
   const seen = new Set<string>();
-  for (const span of italicsOf(text)) {
-    for (const c of classifyItalic(span, index, literals)) {
-      const id = `${c.kind}\u0000${c.en}`;
-      if (seen.has(id)) continue;
-      seen.add(id);
-      for (const h of c.hits) keys[h.key] = index.hashes.get(h.key) ?? sectionHash('');
-      if (c.kind === 'c') { labels.push({ section, kind: 'c', en: c.en }); continue; }
-      const targets = [...new Set(c.hits.map(h => h.target).filter((t): t is string => t !== undefined && t !== ''))];
-      labels.push({
-        section, kind: c.kind, en: c.en, targets,
-        ...(targets.length > 1 ? { keys: c.hits.map(h => h.key) } : {}),
-      });
-    }
+  const found: Classified[] = [
+    ...italicsWithPlace(text).flatMap(({ span, tab }) => classifyItalic(span, index, literals, tab)),
+    ...quotedNames(text, literals).map(en => ({ kind: 'c' as const, en, hits: [] })),
+  ];
+  const tabCount = new Map<string, number>();
+  for (const c of found) if (c.role === 'tab') tabCount.set(c.en, (tabCount.get(c.en) ?? 0) + 1);
+  for (const c of found) {
+    const id = `${c.kind}\u0000${c.role ?? ''}\u0000${c.en}`;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    // C3 houdt alle sleutels van het label bij (ook op een tabbladplek): zo verandert de digest niet.
+    for (const h of c.hits) keys[h.key] = index.hashes.get(h.key) ?? sectionHash('');
+    if (c.kind === 'c') { labels.push({ section, kind: 'c', en: c.en }); continue; }
+    const cand = c.tabHits ?? c.hits;
+    const targets = [...new Set(cand.map(h => h.target).filter((t): t is string => t !== undefined && t !== ''))];
+    labels.push({
+      section, kind: c.kind, en: c.en, targets,
+      ...(targets.length > 1 ? { keys: cand.map(h => h.key) } : {}),
+      ...(c.role ? { role: c.role, count: tabCount.get(c.en) ?? 1 } : {}),
+    });
   }
   const sorted: Record<string, string> = {};
   for (const k of Object.keys(keys).sort()) sorted[k] = keys[k];
@@ -338,7 +472,10 @@ export function docsTermsFor(text: string, concepts: Concept[], tb: LangTermbase
     if (c.kind !== 'term') continue;
     const e = entries.get(c.id);
     if (!e || !c.en.some(s => hasStem(text, s))) continue;
-    out.push({ id: c.id, en: c.en, target: e.term, forms: e.forms, ...(e.avoid?.length ? { avoid: e.avoid } : {}) });
+    out.push({
+      id: c.id, en: c.en, target: e.term, forms: e.forms, ...(e.avoid?.length ? { avoid: e.avoid } : {}),
+      ...(c.definition ? { definition: c.definition } : {}),
+    });
   }
   return out;
 }
@@ -526,6 +663,9 @@ export function buildDocsPackages(opts: {
       });
       const keep = docsLiteralsFor(src, opts.concepts, 'keep');
       const display = (opts.literal.display?.[art.id] ?? []).filter(d => codesOf(src).includes(d));
+      const terms = docsTermsFor(src, opts.concepts, opts.termbase);
+      const softSet = new Set(opts.literal.avoidSoft?.[opts.lang] ?? []);
+      const avoidSoft = [...new Set(terms.flatMap(t => t.avoid ?? []).filter(a => softSet.has(a)))];
       const previous = Object.fromEntries(group.filter(s => s.previous !== undefined).map(s => [String(s.index), s.previous!]));
       const style = opts.termbase?._style;
       out.push({
@@ -533,11 +673,12 @@ export function buildDocsPackages(opts: {
         pkg: {
           kind: 'docs', lang: opts.lang, id, article: art.id, part: gi + 1, parts: groups.length, mode: opts.mode,
           ...(style ? { style } : {}),
-          terms: docsTermsFor(src, opts.concepts, opts.termbase),
+          terms,
           tokens: docsLiteralsFor(src, opts.concepts, 'token'),
           keep: keep.filter(k => !keepSoft.includes(k)),
           ...(keep.some(k => keepSoft.includes(k)) ? { keepSoft: keep.filter(k => keepSoft.includes(k)) } : {}),
           ...(display.length ? { display } : {}),
+          ...(avoidSoft.length ? { avoidSoft } : {}),
           labels,
           ...(Object.keys(previous).length ? { previous } : {}),
           sections,

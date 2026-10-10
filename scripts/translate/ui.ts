@@ -31,7 +31,8 @@ export interface UiItem {
  */
 export interface UiLabel { nl: string; keys: string[]; targets: string[] }
 
-export interface UiTerm { id: string; nl: string; en: string[]; target: string; forms: string[]; avoid?: string[] }
+/** Een term in een UI-pakket; `definition` (uit concepts.json) zegt welke betekenis de term draagt. */
+export interface UiTerm { id: string; nl: string; en: string[]; target: string; forms: string[]; avoid?: string[]; definition?: string }
 
 export interface UiPackage {
   kind: 'ui';
@@ -256,7 +257,12 @@ export function termsFor(items: UiItem[], concepts: Concept[], tb: LangTermbase 
     if (!e) continue;
     const hit = extraIds.has(c.id) || items.some(it => textsOf(it.nl).some(t => containsTerm(t, c.nl))
       || textsOf(it.en).some(t => c.en.some(s => containsTerm(t, s))));
-    if (hit) out.push({ id: c.id, nl: c.nl, en: c.en, target: e.term, forms: e.forms, ...(e.avoid ? { avoid: e.avoid } : {}) });
+    if (hit) {
+      out.push({
+        id: c.id, nl: c.nl, en: c.en, target: e.term, forms: e.forms, ...(e.avoid ? { avoid: e.avoid } : {}),
+        ...(c.definition ? { definition: c.definition } : {}),
+      });
+    }
   }
   return out;
 }

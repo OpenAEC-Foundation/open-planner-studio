@@ -11,7 +11,10 @@ per plural category.
   `{ "<key>": { "<category>": "<text>", ... } }`. Exactly the keys of the package, no others.
 - Meaning: **`nl` decides** when `nl` and `en` differ. `en` is a second reading.
 - Terms: where a text contains a concept from `terms`, use its `target` or one of its `forms`. Never a
-  variant from `avoid`.
+  variant from `avoid`. Use a term only where the source word has the concept's meaning (see
+  `definition`). The same English word with another meaning (lunch *break* vs task *interruption*;
+  house *extension* vs software *extension*; *calculate* in prose vs the *Calculate* command) is
+  translated normally.
 - `tokens`: copy them unchanged (relation codes like `FS`, duration input like `3ed`). `keep`: names
   that stay as they are (`IFC`, `MS Project`).
 - `{{placeholders}}` and `$t(...)` nesting: copy byte for byte. Do not translate, rename, add or drop

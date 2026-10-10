@@ -10,6 +10,10 @@ plekhouders in vóór hij een agent start:
 | `{{PACKAGE_DIR}}`, `{{ID}}` | map en id van dat pakket |
 | `{{PACKAGES}}` | één of twee pakketpaden (nalezen, UI); docs worden per pakket nagelezen |
 | `{{REVIEW_FILE}}` | bv. `<repo>/build/translate/cs/review-01.json` (docs: `review-<id>.json`) |
+
+`prepare docs` schrijft naast de pakketten ook `pitfalls.md`: `pitfalls/_all.md` plus `pitfalls/<taal>.md`
+(bekende valkuilen uit de steekproeven). `docs-review.md` laat de nalezer dat bestand lezen; vul een
+valkuillijst aan na elke steekproef, kort en met een fout/goed-voorbeeld.
 | `{{NODE}}` | `/home/agent/.nvm/versions/node/v22.23.2/bin/node` (agent-shells laden nvm niet) |
 | `{{CHECK}}` | absoluut pad van `build/translate/check.mjs` (zelfstandig, geen node_modules nodig) |
 
@@ -23,7 +27,7 @@ plekhouders in vóór hij een agent start:
 | `ui-fix.md` | bevindingen toepassen |
 | `ui-termfix.md` | alleen de `avoidHits` vervangen door de term (`prepare ui <taal> --avoid` → `apply ui`) |
 | `docs.md` | één gidspakket vertalen en zelf keuren (`prepare docs` → `.out.md` → `apply docs`) |
-| `docs-review.md` | één gidspakket nalezen; lijst met `quote` + `proposal` per probleem |
+| `docs-review.md` | één gidspakket nalezen in vier vaste stappen (WW, betekenis, grammatica met `pitfalls.md`, consistentie); per probleem de hele zin als `quote` + `proposal` |
 | `docs-fix.md` | bevindingen in `.out.md` toepassen (alleen de geciteerde tekst) |
 
 Na elke run controleert de orkestrator `git status`: alleen `build/translate/` mag veranderd zijn (§12).

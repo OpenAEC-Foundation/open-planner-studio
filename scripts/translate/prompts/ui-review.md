@@ -9,6 +9,10 @@ You get: `{{PACKAGES}}` (package JSON files, `"kind": "ui"`) and next to each it
 - First run `{{NODE}} {{CHECK}} <package>` for each package and read its `WW` warnings.
 - Compare every item: `nl` (decides the meaning) and `en` against the translation, with `terms`,
   `tokens`, `plural` and `style` from the package.
+- Use a term only where the source word has the concept's meaning (see `definition`). The same
+  English word with another meaning (lunch *break* vs task *interruption*; house *extension* vs
+  software *extension*; *calculate* in prose vs the *Calculate* command) is translated normally.
+  Report a term used in the wrong meaning as `meaning`.
 - A text that names another UI element (column, button, tab, menu item) must use that element's label
   unchanged, in the nominative. Report inflected or paraphrased label names as `term`.
 - An item with `labels`: the translation must contain one of each label's `targets` letter for letter

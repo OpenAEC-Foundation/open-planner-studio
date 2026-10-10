@@ -15,12 +15,15 @@
 //   bundle-check                       alleen build/translate/check.mjs bouwen
 //   apply ui <taal>                    groene UI-pakketten → src/i18n/locales/<taal>/ + i18n/ui-sources/<taal>.json
 //   prepare docs <taal> [--missing|--stale|--ids a,b] [--max-words 2500]
-//                                      docs-pakketten → build/translate/<taal>/<id>[-NN].src.md + .json (+ check.mjs)
+//                                      docs-pakketten → build/translate/<taal>/<id>[-NN].src.md + .json (+ check.mjs,
+//                                      + pitfalls.md voor de nalezer uit prompts/pitfalls/)
 //   apply docs <taal>                  groene docs-pakketten → public/docs/<taal>/<id>.md + index.json (C2)
 //                                      + i18n/docs-sources/<taal>.json (C3); herschikt ook artikelen zonder pakket
 //   rename-doc <oud> <nieuw>           hernoem een artikel in alle docstalen (bestand, links, C2, C3)
 //   remove-doc <id>                    verwijder een artikel uit alle docstalen (bestand, C2, C3)
 //   docs-budget <taal…> [--max-words N] grootste docs-pakket per taal in tekens en geschatte tokens (§ contextbudget)
+//   docs-literal                       voorbeeldnamen (soort c) opnieuw uit scripts/tutorial-project.ts en
+//                                      public/examples/*.ifc → i18n/docs-literal.json (sources)
 //   seed-sources [taal…]               basislijn: huidige nl-hashes voor en + de bestaande talen (niet de nieuwe)
 //   status [taal] [--strict]           per taal en namespace (en docs): ontbreekt / verouderd / actueel;
 //                                      --strict = releasepoort `npm run verify:translations` (exit 1 bij elk gat)
@@ -37,7 +40,7 @@ import { applyFindings } from './findings';
 import { checkDocs, checkDocsArticle, checkPackage, formatResult } from './gates';
 import {
   articleState, buildDocsPackages, buildEnLabelIndex, docsReleaseGaps, docsStatus, mergeArticle, orderDocsSources,
-  literalNames, parseDocsIndex, renameDocLinks, renameInEntry, sectionLabels, serializeDocsIndex, titleOf, DOCS_MAX_WORDS,
+  ifcNames, literalCandidates, literalNames, normLabel, parseDocsIndex, tutorialNames, renameDocLinks, renameInEntry, sectionLabels, serializeDocsIndex, titleOf, DOCS_MAX_WORDS,
   type ArticleState, type DocsArticleInput, type DocsLiteral, type DocsMode, type DocsPackage, type DocsSources,
 } from './docs';
 import {
@@ -486,6 +489,14 @@ function buildDocsFor(lang: string, mode: DocsMode, ids: string[] | undefined, w
 
 const labelCounts = (p: DocsPackage) => (['a', 'b', 'c'] as const).map(k => `${k}${p.labels.filter(l => l.kind === k).length}`).join(' ');
 
+const PITFALLS_DIR = join(ROOT, 'scripts/translate/prompts/pitfalls');
+
+/** De valkuillijst voor de nalezer (`docs-review.md`): `_all.md` plus `<taal>.md` als die er is. */
+function pitfallsFor(lang: string): string {
+  const parts = ['_all.md', `${lang}.md`].map(f => join(PITFALLS_DIR, f)).filter(f => existsSync(f)).map(f => readFileSync(f, 'utf8').trimEnd());
+  return `${parts.join('\n\n')}\n`;
+}
+
 function prepareDocs(args: string[], lang: string): void {
   const { mode, ids } = docsMode(args);
   const packs = buildDocsFor(lang, mode, ids, maxWords(args));
@@ -496,6 +507,7 @@ function prepareDocs(args: string[], lang: string): void {
     writeFileSync(join(dir, `${pkg.id}.src.md`), src);
     writeFileSync(join(dir, `${pkg.id}.json`), packageText(pkg));
   }
+  writeFileSync(join(dir, 'pitfalls.md'), pitfallsFor(lang));
   bundleCheck();
   for (const { pkg, src } of packs) {
     const json = packageText(pkg).length;
@@ -504,6 +516,42 @@ function prepareDocs(args: string[], lang: string): void {
   }
   const arts = new Set(packs.map(p => p.pkg.article)).size;
   console.log(`OK  prepare docs ${lang} --${mode}${ids ? ` ${ids.join(',')}` : ''}: ${arts} artikel(en) in ${packs.length} pakket(ten) in build/translate/${lang}/`);
+}
+
+/** De en-UI-teksten, genormaliseerd zoals labels (een voorbeeldnaam die ook UI-tekst is, is soort a). */
+function enUiTexts(): Set<string> {
+  const out = new Set<string>();
+  const walk = (o: JsonObject) => {
+    for (const v of Object.values(o)) {
+      if (typeof v === 'string') out.add(normLabel(v));
+      else if (v && typeof v === 'object' && !Array.isArray(v)) walk(v as JsonObject);
+    }
+  };
+  for (const ns of NAMESPACES) walk(readLocale('en', ns));
+  return out;
+}
+
+/** `docs-literal`: de voorbeeldnamen in i18n/docs-literal.json opnieuw uit het tutorialproject en de voorbeelden. */
+function docsLiteral(): void {
+  const lit = loadLiteral();
+  const ui = enUiTexts();
+  const before = new Set(literalNames(lit));
+  const sources: Record<string, string[]> = {};
+  const tut = 'scripts/tutorial-project.ts';
+  sources[tut] = literalCandidates(tutorialNames(readFileSync(join(ROOT, tut), 'utf8')), ui);
+  const exDir = join(ROOT, 'public/examples');
+  for (const f of readdirSync(exDir).filter(x => x.endsWith('.ifc')).sort()) {
+    const rel = `public/examples/${f}`;
+    sources[rel] = literalCandidates(ifcNames(readFileSync(join(exDir, f), 'utf8')), ui);
+  }
+  // Andere bronnen (kalendernamen in code, CSV) blijven staan.
+  for (const [file, names] of Object.entries(lit.sources)) if (!(file in sources)) sources[file] = names;
+  const next: DocsLiteral = { ...lit, sources };
+  writeJson(DOCS_LITERAL, next);
+  const after = new Set(literalNames(next));
+  const added = [...after].filter(n => !before.has(n)).length;
+  const removed = [...before].filter(n => !after.has(n)).length;
+  console.log(`OK  docs-literal: ${after.size} voorbeeldnaam/-namen (was ${before.size}; +${added}, -${removed}) in ${Object.keys(sources).length} bron(nen)`);
 }
 
 function applyDocs(lang: string): void {
@@ -731,11 +779,12 @@ switch (cmd) {
   case 'rename-doc': renameDoc(rest); break;
   case 'remove-doc': removeDoc(rest); break;
   case 'docs-budget': docsBudget(rest); break;
+  case 'docs-literal': docsLiteral(); break;
   default:
     console.log('gebruik: npm run translate -- <validate-termbase | concepts-candidates | concepts-merge | terms-lookup <taal> | '
       + 'apply-terms <taal> | prepare ui <taal> [--missing|--stale|--all|--avoid [--stale]|--keys <bestand>] | bundle-check | '
       + 'apply ui <taal> | apply-findings <taal> <bestand> | seed-sources [taal…] | status [taal] [--strict] | '
       + 'prepare docs <taal> [--missing|--stale|--ids a,b] [--max-words N] | apply docs <taal> | rename-doc <oud> <nieuw> | '
-      + 'remove-doc <id> | docs-budget <taal…>>');
+      + 'remove-doc <id> | docs-budget <taal…> | docs-literal>');
     process.exit(cmd ? 1 : 0);
 }
