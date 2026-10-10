@@ -54,6 +54,8 @@
     "xerImportNumberIssues_other": "{{count}} number-format findings.",
     "xerImportEnumFallbacks_one": "{{count}} enum fallback.",
     "xerImportEnumFallbacks_other": "{{count}} enum fallbacks.",
+    "xerImportMissingPlannedStarts_one": "{{count}} activity had no planned start and now starts on the data date or project start from the file.",
+    "xerImportMissingPlannedStarts_other": "{{count}} activities had no planned start and now start on the data date or project start from the file.",
     "xerImportUnsupportedSemantics_one": "{{count}} P6 scheduling setting used a safe fallback.",
     "xerImportUnsupportedSemantics_other": "{{count}} P6 scheduling settings used safe fallbacks.",
     "xerImportDatesAsRecorded_one": "{{count}} task shows the dates as Primavera recorded them (not recalculated).",

@@ -468,7 +468,7 @@ export interface ExtImportSourceArchiveSummary {
   schemaVersion: number;
   byteLength: number;
   sha256: string;
-  encoding: 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252';
+  encoding: 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252' | 'windows-1251' | 'windows-1253' | 'windows-1256';
   bom: 'utf-8' | 'utf-16le' | 'utf-16be' | 'none';
   newline: 'crlf' | 'lf' | 'cr' | 'mixed' | 'none';
   chunkSize: number;

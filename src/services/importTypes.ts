@@ -14,7 +14,7 @@ import type { XerResourceIssue, XerTaskResourceSource } from './xer/xerResourceT
 import type { XerMetadataCatalog } from './xer/xerMetadataTypes';
 import type { XerSourceArchive } from './xerSourceArchive';
 
-export type XerSourceEncoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252';
+export type XerSourceEncoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252' | 'windows-1251' | 'windows-1253' | 'windows-1256';
 
 export interface XerTableReportMetadata {
   encoding: XerSourceEncoding;
@@ -331,6 +331,10 @@ export interface ImportResult {
    * `xer`/`recordedTimes` ontbreken. Nooit IFC-invoer en nooit geschreven (niet in `IFC_SAVE_KEYS`).
    */
   xerArchiveIssue?: XerArchiveIssue;
+  /** Alleen een verse `readXER`: het aantal activiteiten zonder `target_start_date` dat de lezer een
+   *  vervangende start gaf (gedeelde regel `resolveMissingScheduleDates`, review PR #109 N1). Voedt
+   *  één regel in de XER-openingsmelding. Transient: nooit opgeslagen, niet in het archief. */
+  xerMissingPlannedStarts?: number;
 }
 
 /**

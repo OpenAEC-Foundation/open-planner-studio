@@ -40,6 +40,7 @@ import {
 } from '@/services/xerSourceArchive';
 import type { RecordedTime } from '@/engine/scheduler/recordedDates';
 import { deriveImportedWorkRules } from '@/services/importNormalize';
+import { emptyMissingScheduleDates, resolveMissingScheduleDates } from '@/services/importDates';
 import { taskWorkMinutes as activityWorkMinutesOf } from '@/engine/contour/contourEngine';
 import { readXerCalendars } from './xerCalendarData';
 import { sourceInstant } from './xerInstant';
@@ -237,6 +238,10 @@ function projectStatusDate(tables: XerTables, projectRow: XerRow, hourMode: bool
       : '';
   return sourceInstant(raw, hourMode);
 }
+
+/** Plaatshouder voor een ontbrekende geplande start zonder enig projectanker; leeft alleen tussen de
+ *  activiteitenlus en `resolveMissingScheduleDates`, die hem altijd vervangt (missing.start). */
+const MISSING_START_PLACEHOLDER = '0001-01-01';
 
 function clockMinute(raw: string): number | undefined {
   const match = raw.trim().match(/^\d{4}-\d{2}-\d{2}[ T](\d{1,2}):(\d{2})/);
@@ -627,6 +632,15 @@ function readXerProject(
   );
   const mappedActivities: Task[] = [];
   let hasExplicitTaskFinish = false;
+  // Ontbrekende geplande start/finish (review PR #109, N1): vroeger '1970-01-01' en daarmee ook
+  // projectstart 1970, zonder melding. Nu de gedeelde regel van alle lezers
+  // (`resolveMissingScheduleDates`). Het projectstart-anker is voor XER de statusdatum
+  // (`last_recalc_date`, of `data_date` als die kolom ontbreekt — P6 plant onbegonnen werk vanaf de
+  // data date, en dit was al de terugval), anders `PROJECT.plan_start_date`. Dat anker zetten we hier
+  // zelf, met de tijd-van-de-dag in uurmodus (de gedeelde functie kent alleen het datumdeel); zonder
+  // enig anker kiest de gedeelde functie de vroegste aanwezige taakstart, anders vandaag.
+  const missingDates = emptyMissingScheduleDates();
+  let missingPlannedStarts = 0;
   for (const row of activityRows) {
     const effectiveCalendar = calendarById.get(row.cells.clndr_id) ?? projectCalendar;
     const hourMode = effectiveCalendar.workTime !== undefined;
@@ -634,9 +648,17 @@ function readXerProject(
     const explicitTargetFinish = sourceInstant(row.cells.target_end_date ?? '', hourMode);
     const hasExplicitTargetWindow = explicitTargetStart !== undefined && explicitTargetFinish !== undefined;
     if (explicitTargetFinish !== undefined) hasExplicitTaskFinish = true;
-    let start = explicitTargetStart
-      ?? sourceInstant(projectRow.cells.last_recalc_date ?? '', hourMode)
-      ?? '1970-01-01';
+    const anchorStart = explicitTargetStart === undefined
+      ? projectStatusDate(tables, projectRow, hourMode)
+        ?? sourceInstant(projectRow.cells.plan_start_date ?? '', hourMode)
+      : undefined;
+    if (explicitTargetStart === undefined) {
+      missingPlannedStarts += 1;
+      if (anchorStart === undefined) missingDates.start.add(row.cells.task_id);
+    }
+    if (explicitTargetFinish === undefined) missingDates.finish.add(row.cells.task_id);
+    // Plaatshouder alleen voor het geval zonder anker; `resolveMissingScheduleDates` vervangt hem.
+    let start = explicitTargetStart ?? anchorStart ?? MISSING_START_PLACEHOLDER;
     let finish = explicitTargetFinish ?? start;
     // P6 XER kan een TT_FinMile op de eerste minuut ná een werkbandgrens serialiseren met gelijke
     // target start/finish. Voor deze nulduur-activiteit is die minuut een grenscodering, geen werk:
@@ -799,6 +821,9 @@ function readXerProject(
       })(),
     });
   }
+
+  resolveMissingScheduleDates(mappedActivities, missingDates, '', task =>
+    calendarById.get(task.calendarId ?? '') ?? projectCalendar);
 
   const projectHourMode = projectCalendar.workTime !== undefined;
   const sourceProjectEnd = sourceInstant(projectRow.cells.plan_end_date ?? '', projectHourMode);
@@ -1012,6 +1037,7 @@ function readXerProject(
     recordedTimes,
     recordedTimesOrigin: 'xer',
     suggestedProfileId: 'p6',
+    ...(missingPlannedStarts > 0 ? { xerMissingPlannedStarts: missingPlannedStarts } : {}),
     xer: {
       sourceProjectId: projectId,
       defaultCurrencyCode: tables.header.defaultCurrencyCode,

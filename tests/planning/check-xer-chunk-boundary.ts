@@ -54,7 +54,11 @@ const reader = readFileSync(join(srcRoot, 'services', 'xer', 'xerReader.ts'), 'u
 // Haal uitsluitend de aantoonbaar project-scoped toegang uit de statische firewallscan, zodat de
 // poort de productregel bewaakt zonder twee verschillende tabellen op veldnaam te verwarren.
 const readerWithoutComments = reader.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
-const readerWithoutAllowedProjectInput = readerWithoutComments.split('projectRow.cells.plan_end_date').join('');
+// Idem `PROJECT.plan_start_date`: de geplande projectstart, anker voor een activiteit zonder
+// `target_start_date` (review PR #109, N1).
+const readerWithoutAllowedProjectInput = readerWithoutComments
+  .split('projectRow.cells.plan_end_date').join('')
+  .split('projectRow.cells.plan_start_date').join('');
 const forbiddenTaskFields = [
   'early_', 'late_', 'restart_date', 'reend_date',
   'rem_late_start_date', 'rem_late_end_date',

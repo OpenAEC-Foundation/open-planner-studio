@@ -176,6 +176,12 @@ export function xerImportNotice(
   addCount(calendarIssues, 'notifications.xerImportCalendarIssues');
   addCount(numberIssues, 'notifications.xerImportNumberIssues');
   addCount(enumFallbacks, 'notifications.xerImportEnumFallbacks');
+  // Activiteiten zonder `target_start_date` kregen het projectanker (review PR #109, N1) — dat is
+  // geen bestandsfeit maar een keuze van de lezer, dus de melding noemt het.
+  addCount(
+    results.reduce((total, result) => total + (result.xerMissingPlannedStarts ?? 0), 0),
+    'notifications.xerImportMissingPlannedStarts',
+  );
   addCount(unsupportedSemantics, 'notifications.xerImportUnsupportedSemantics');
   // "Datums zoals opgeslagen" staat standaard aan zodra
   // er restverschillen zijn. Eén regel voor het HELE bestand, ook bij twaalf documenten — de teller

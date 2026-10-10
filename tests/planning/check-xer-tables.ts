@@ -1186,6 +1186,94 @@ eq('32 bekende PROJECT-velden geven geen false positive', reportedUnknownFields(
   '%E',
 ]), []);
 
+// Review PR #109, N2 (Fable 8): een RAUW regeleinde midden in een tekstcel (P6 zelf schrijft
+// DEL-DEL, maar een met een spreadsheet of script bewerkte XER kan een echte LF/CRLF dragen) kapte de
+// rij af: de taak verloor duur en datums. Nu voegt de lezer een te korte %R samen met de direct
+// volgende markerloze regels zolang dat het veldental EXACT haalt (max. 8 vervolgregels).
+const TASK_FIELDS = '%F\ttask_id\tproj_id\ttask_code\ttask_name\ttarget_drtn_hr_cnt\ttarget_start_date';
+const lineBreakRows = (newline: string, rows: readonly string[]) => parseXerTables(utf8([
+  'ERMHDR\t23.12', '%T\tTASK', TASK_FIELDS, ...rows, '%E',
+], newline));
+for (const newline of ['\n', '\r\n']) {
+  const parsed = lineBreakRows(newline, [
+    '%R\tT1\tP1\tA100\tFundering',
+    'storten\t80\t2026-06-01 08:00',
+    '%R\tT2\tP1\tA200\tNormaal\t40\t2026-06-02 08:00',
+  ]);
+  eq(`33 regeleinde in task_name (${JSON.stringify(newline)}) ⇒ rij samengevoegd, niets verloren`, {
+    rows: parsed.tables.get('TASK')?.rows.map(row => ({ line: row.line, ...row.cells })),
+    issues: parsed.report.issues,
+  }, {
+    rows: [
+      { line: 4, task_id: 'T1', proj_id: 'P1', task_code: 'A100', task_name: 'Fundering\nstorten', target_drtn_hr_cnt: '80', target_start_date: '2026-06-01 08:00' },
+      { line: 6, task_id: 'T2', proj_id: 'P1', task_code: 'A200', task_name: 'Normaal', target_drtn_hr_cnt: '40', target_start_date: '2026-06-02 08:00' },
+    ],
+    issues: [],
+  });
+}
+const twoBreaks = lineBreakRows('\n', ['%R\tT1\tP1\tA100\tRegel een', 'regel twee', 'regel drie\t80\t2026-06-01 08:00']);
+eq('33a twee regeleinden in één cel', twoBreaks.tables.get('TASK')?.rows[0]?.cells.task_name, 'Regel een\nregel twee\nregel drie');
+const notMergeable = lineBreakRows('\n', ['%R\tT1\tP1\tA100', '%R\tT2\tP1\tA200\tNormaal\t40\t2026-06-02 08:00']);
+eq('33b een korte rij zonder vervolgregel blijft de bestaande veldtel-melding geven', notMergeable.report.issues,
+  [{ code: 'XER_ROW_FIELD_COUNT_MISMATCH', line: 4, table: 'TASK', expected: 6, actual: 3 }]);
+const overshoot = lineBreakRows('\n', ['%R\tT1\tP1\tA100\tFundering', 'storten\t80\t2026-06-01 08:00\tte veel']);
+eq('33c samenvoegen dat het veldental overschrijdt gebeurt niet', overshoot.report.issues.map(issue => issue.code),
+  ['XER_ROW_FIELD_COUNT_MISMATCH', 'XER_UNKNOWN_RECORD']);
+const tooMany = lineBreakRows('\n', ['%R\tT1\tP1\tA100\tL0', ...Array.from({ length: 9 }, (_, i) => `L${i + 1}`), 'slot\t80\t2026-06-01 08:00']);
+eq('33d meer dan 8 vervolgregels ⇒ niet samengevoegd (begrensd)', tooMany.report.issues[0]?.code, 'XER_ROW_FIELD_COUNT_MISMATCH');
+
+// Review PR #109, N3 (Fable 15): niet-UTF-8 zonder BOM was altijd Windows-1252. Arabische
+// (rehab-2), Cyrillische en Griekse P6-bestanden werden zo stil onleesbaar. Besluit B17 blijft (UTF-8,
+// anders een enkelbyte-codetabel; de melding noemt de keuze), maar de lezer kiest nu Windows-1251/
+// -1253/-1256 als de tekst daar EENDUIDIG woorden van één schrift oplevert; bij twijfel 1252.
+function singleByte(text: string, label: string): Uint8Array {
+  const decoder = new TextDecoder(label);
+  const byChar = new Map<string, number>();
+  for (let byte = 0; byte < 256; byte++) byChar.set(decoder.decode(Uint8Array.of(byte)), byte);
+  return Uint8Array.from([...text].map(char => {
+    const byte = byChar.get(char);
+    if (byte === undefined) throw new Error(`teken ${char} bestaat niet in ${label}`);
+    return byte;
+  }));
+}
+function namedXer(projectName: string, taskNames: readonly string[]): string {
+  return [
+    'ERMHDR\t23.12',
+    '%T\tPROJECT', '%F\tproj_id\tproj_name', `%R\tP1\t${projectName}`,
+    '%T\tTASK', '%F\ttask_id\tproj_id\ttask_code\ttask_name',
+    ...taskNames.map((name, index) => `%R\tT${index}\tP1\tA${index}\t${name}`),
+    '%E',
+  ].join('\r\n');
+}
+const CYRILLIC_TASKS = ['Фундамент', 'Строительство здания', 'Монтаж кровли', 'Устройство перекрытий', 'Земляные работы', 'Бетонирование колонн', 'Отделочные работы', 'Электромонтаж', 'Сдача объекта', 'Подготовка площадки'];
+const ARABIC_TASKS = ['أعمال الحفر', 'صب الخرسانة', 'أعمال التشطيب', 'تركيب الأبواب', 'أعمال الكهرباء', 'العزل المائي', 'تسليم المشروع', 'أعمال السباكة', 'تجهيز الموقع'];
+const GREEK_TASKS = ['Θεμελίωση', 'Κατασκευή κτιρίου', 'Σκυρόδεμα πλάκας', 'Τοιχοποιία', 'Ηλεκτρολογικά έργα', 'Υδραυλικά', 'Παράδοση έργου', 'Εκσκαφές', 'Οπλισμός δοκών', 'Μόνωση στέγης'];
+const WESTERN_TASKS = ['Café', 'Straße', 'Bétonnage', 'Fußgängerbrücke', 'Égout', 'Réception', 'Hôtel', 'Façade', 'Wärmedämmung', 'Übergabe', 'Größe', 'Ménage'];
+const LATIN_WITH_TWO_ARABIC_UNITS = ['Concrete متر', 'Steel مكعب', 'Formwork', 'Rebar', 'Excavation', 'Backfill', 'Piling', 'Blinding', 'Waterproofing', 'Handover'];
+const POLISH_TASKS = ['Łódź', 'Źródło', 'Zbrojenie płyty', 'Wykopy', 'Ściany', 'Dach', 'Odbiór końcowy', 'Instalacja elektryczna', 'Tynki', 'Posadzki'];
+const encodingCase = (projectName: string, tasks: readonly string[], label: string) => {
+  const parsed = parseXerTables(singleByte(namedXer(projectName, tasks), label));
+  return {
+    encoding: parsed.report.encoding,
+    name: parsed.tables.get('PROJECT')?.rows[0]?.cells.proj_name,
+    lastTask: parsed.tables.get('TASK')?.rows.at(-1)?.cells.task_name,
+  };
+};
+eq('34 Arabisch (cp1256) ⇒ windows-1256, leesbare namen', encodingCase('مشروع الرحاب - 2', ARABIC_TASKS, 'windows-1256'),
+  { encoding: 'windows-1256', name: 'مشروع الرحاب - 2', lastTask: 'تجهيز الموقع' });
+eq('34a Cyrillisch (cp1251) ⇒ windows-1251', encodingCase('Жилой комплекс', CYRILLIC_TASKS, 'windows-1251'),
+  { encoding: 'windows-1251', name: 'Жилой комплекс', lastTask: 'Подготовка площадки' });
+eq('34b Grieks (cp1253) ⇒ windows-1253', encodingCase('Νέο κτίριο', GREEK_TASKS, 'windows-1253'),
+  { encoding: 'windows-1253', name: 'Νέο κτίριο', lastTask: 'Μόνωση στέγης' });
+eq('34c West-Europees (cp1252) blijft windows-1252', encodingCase('Bürogebäude', WESTERN_TASKS, 'windows-1252'),
+  { encoding: 'windows-1252', name: 'Bürogebäude', lastTask: 'Ménage' });
+eq('34d twee Arabische eenheden tussen Latijnse namen = twijfel ⇒ windows-1252', encodingCase('Terminal', LATIN_WITH_TWO_ARABIC_UNITS, 'windows-1256').encoding,
+  'windows-1252');
+eq('34e Latijnse codetabel 1250 is niet eenduidig van 1252 te scheiden ⇒ windows-1252 (bewuste twijfel)', encodingCase('Budowa', POLISH_TASKS, 'windows-1250').encoding,
+  'windows-1252');
+eq('34f te weinig bewijs (één Cyrillisch woord) ⇒ windows-1252', encodingCase('Проект', ['Task'], 'windows-1251').encoding,
+  'windows-1252');
+
 if (diffs.length === 0) {
   console.log(`OK  xer-tables: ${checks} checks groen`);
 } else {

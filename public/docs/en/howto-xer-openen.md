@@ -24,7 +24,7 @@ The first line of the message names the number of opened tabs. Below it are only
 - *1 external link preserved.* A relation between two projects. The app keeps it as source data, but does not turn it into a relation in your schedule.
 - *1 task shows the dates as Primavera recorded them (not recalculated).* The number of tasks you see in the view *Dates as recorded*.
 
-The other lines are diagnostics of the reading itself: the number of projects found, a skipped empty project, an ignored dangling baseline reference, a text encoding other than plain UTF-8 and counters for findings in the tables, the calendars and the numbers, for unknown field values and for P6 scheduling settings that the app replaced by a safe choice. They ask nothing of you. *Read more* opens the Help about opening Primavera files.
+The other lines are diagnostics of the reading itself: the number of projects found, a skipped empty project, an ignored dangling baseline reference, a text encoding other than plain UTF-8 (the notice names which one: for Arabic, Cyrillic or Greek text the app picks the matching Windows code page, otherwise Windows-1252), activities without a planned start (they start on the data date or the project start from the file) and counters for findings in the tables, the calendars and the numbers, for unknown field values and for P6 scheduling settings that the app replaced by a safe choice. They ask nothing of you. *Read more* opens the Help about opening Primavera files.
 
 ## Pitfalls and what the app does then
 

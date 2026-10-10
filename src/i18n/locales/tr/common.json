@@ -54,6 +54,8 @@
     "xerImportNumberIssues_other": "{{count}} sayı biçimi sorunu.",
     "xerImportEnumFallbacks_one": "{{count}} enum geri dönüşü.",
     "xerImportEnumFallbacks_other": "{{count}} enum geri dönüşü.",
+    "xerImportMissingPlannedStarts_one": "{{count}} faaliyetin planlanan başlangıcı yoktu; artık dosyadaki veri tarihinde veya proje başlangıcında başlıyor.",
+    "xerImportMissingPlannedStarts_other": "{{count}} faaliyetin planlanan başlangıcı yoktu; artık dosyadaki veri tarihinde veya proje başlangıcında başlıyor.",
     "xerImportUnsupportedSemantics_one": "{{count}} P6 planlama ayarı güvenli geri dönüş kullandı.",
     "xerImportUnsupportedSemantics_other": "{{count}} P6 planlama ayarı güvenli geri dönüş kullandı.",
     "xerImportDatesAsRecorded_one": "{{count}} görev, Primavera'nın kaydettiği tarihleri gösteriyor (yeniden hesaplanmadı).",

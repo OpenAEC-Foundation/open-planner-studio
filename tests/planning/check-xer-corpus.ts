@@ -48,6 +48,21 @@ if (!root) {
 } else if (!existsSync(root)) {
   diffs.push('OPS_XER_CORPUS wijst niet naar een bestaande corpusmap');
 } else {
+  {
+    // Review PR #109, N3: rehab-2.xer is Arabische cp1256-tekst zonder BOM. Vroeger stil als
+    // windows-1252 gelezen ("ãÔÑæÚ ÇáÑÍÇÈ - 2" en 6.977 onleesbare taaknamen).
+    const rehab = join(root, 'crawl-xer-extra/jailaff-xer-splitter/rehab-2.xer');
+    if (existsSync(rehab)) {
+      const parsed = parseXerTables(new Uint8Array(readFileSync(rehab)));
+      const taskNames = parsed.tables.get('TASK')?.rows.map(row => row.cells.task_name ?? '') ?? [];
+      eq('R1 rehab-2: Arabisch herkend, taaknamen leesbaar', {
+        encoding: parsed.report.encoding,
+        tasks: taskNames.length,
+        arabicNames: taskNames.filter(name => /\p{Script=Arabic}/u.test(name)).length,
+        mojibakeNames: taskNames.filter(name => /[ÃÇÑÚãÔæ]/.test(name)).length,
+      }, { encoding: 'windows-1256', tasks: 6977, arabicNames: 6977, mojibakeNames: 0 });
+    }
+  }
   eq('K1 kedular-empty-schedule', summary(root, 'crawl-xer/kedular-empty-schedule.xer'), {
     encoding: 'utf-8', tables: { PROJECT: 1 }, issues: [], unknownTables: [],
   });
@@ -301,7 +316,9 @@ if (!root) {
     oracleErrors: 0,
     referenceOk: 1,
     referenceErrors: 0,
-    encodings: { 'utf-8': 60, 'windows-1252': 11 },
+    // Review PR #109, N3: rehab-2 (Arabisch) is sinds de enkelbyte-detectie windows-1256; de tien
+    // overige niet-UTF-8-bestanden blijven windows-1252.
+    encodings: { 'utf-8': 60, 'windows-1252': 10, 'windows-1256': 1 },
     errors: { XER_MISSING_REQUIRED_COLUMNS: 19, XER_INVALID_FILE: 2, XER_MISSING_REQUIRED_VALUE: 1 },
     issues: {
       XER_MISSING_END_MARKER: 6,

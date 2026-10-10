@@ -54,6 +54,8 @@
     "xerImportNumberIssues_other": "{{count}} مشکل قالب عدد.",
     "xerImportEnumFallbacks_one": "{{count}} بازگشت شمارشی.",
     "xerImportEnumFallbacks_other": "{{count}} بازگشت شمارشی.",
+    "xerImportMissingPlannedStarts_one": "{{count}} فعالیت شروع برنامه‌ریزی‌شده نداشت و اکنون در تاریخ داده یا شروع پروژه از فایل آغاز می‌شود.",
+    "xerImportMissingPlannedStarts_other": "{{count}} فعالیت شروع برنامه‌ریزی‌شده نداشتند و اکنون در تاریخ داده یا شروع پروژه از فایل آغاز می‌شوند.",
     "xerImportUnsupportedSemantics_one": "{{count}} تنظیم زمان‌بندی P6 از جایگزین امن استفاده کرد.",
     "xerImportUnsupportedSemantics_other": "{{count}} تنظیم زمان‌بندی P6 از جایگزین‌های امن استفاده کردند.",
     "xerImportDatesAsRecorded_one": "{{count}} فعالیت تاریخ‌های ثبت‌شده توسط Primavera را نشان می‌دهد (بدون محاسبه مجدد).",

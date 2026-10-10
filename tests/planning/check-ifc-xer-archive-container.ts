@@ -215,8 +215,34 @@ expect('16 geldige oudere IFC zonder XER-Psets blijft legacy-compatibel (en zond
   legacyRead.xerSourceArchive === undefined && legacyRead.xerSourceProjectId === undefined && legacyRead.xer === undefined
   && legacyRead.xerArchiveIssue === undefined);
 
+// Review PR #109, N3: een Arabische (cp1256) XER krijgt archiefcodering windows-1256. Die moet de
+// IFC-ronde overleven: de compacte container reconstrueert het archief uit de bytes, dus de
+// archiefvalidator (`validateTableReport`) moet de nieuwe codering kennen.
+{
+  const cp1256 = new TextDecoder('windows-1256');
+  const byChar = new Map<string, number>();
+  for (let byte = 0; byte < 256; byte++) byChar.set(cp1256.decode(Uint8Array.of(byte)), byte);
+  const names = ['أعمال الحفر', 'صب الخرسانة', 'أعمال التشطيب', 'تركيب الأبواب', 'أعمال الكهرباء', 'العزل المائي', 'تسليم المشروع', 'أعمال السباكة', 'تجهيز الموقع'];
+  const arabicText = [
+    'ERMHDR\t23.12\t2026-08-01\t\t\t\t\t\tEUR',
+    '%T\tPROJECT', '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date', '%R\tP-AR\tمشروع الرحاب\tC\t2026-08-01 08:00',
+    '%T\tCALENDAR', '%F\tclndr_id\tclndr_name\tday_hr_cnt\tweek_hr_cnt\tclndr_data', '%R\tC\tStandaard\t8\t40\t',
+    '%T\tTASK', '%F\ttask_id\tproj_id\ttask_code\ttask_name\tclndr_id\ttarget_start_date\ttarget_end_date\ttarget_drtn_hr_cnt\ttask_type\tduration_type\tstatus_code',
+    ...names.map((name, index) => `%R\tT${index}\tP-AR\tA-${index}\t${name}\tC\t2026-08-01 08:00\t2026-08-01 16:00\t8\tTT_Task\tDT_FixedDUR2\tTK_NotStart`),
+    '%E',
+  ].join('\r\n');
+  const arabicBytes = Uint8Array.from([...arabicText].map(char => byChar.get(char) ?? 0x3f));
+  const arabicOpened = readXER(arabicBytes);
+  if ('kind' in arabicOpened) throw new Error('Arabische fixture moet één document openen');
+  expect('22 Arabische XER: archiefcodering windows-1256', arabicOpened.xerSourceArchive?.encoding === 'windows-1256');
+  const arabicRead = readIFC(writeIFC(arabicOpened));
+  expect('23 Arabische XER: archief overleeft de IFC-ronde (niet weggelaten)',
+    arabicRead.xerSourceArchive?.encoding === 'windows-1256' && arabicRead.xerArchiveIssue === undefined);
+  expect('24 Arabische XER: taaknamen leesbaar na de IFC-ronde', arabicRead.tasks.some(task => task.name === 'تجهيز الموقع'));
+}
+
 for (const why of droppedFailures) failures.push(`   terugval: ${why}`);
-if (failures.length === 0) { console.log('OK  ifc-xer-archive-container: alle checks groen (30)'); process.exit(0); }
+if (failures.length === 0) { console.log('OK  ifc-xer-archive-container: alle checks groen (33)'); process.exit(0); }
 console.log(`XX  ifc-xer-archive-container: ${failures.length} afwijking(en)`);
 for (const failure of failures) console.log(`   - ${failure}`);
 process.exit(1);

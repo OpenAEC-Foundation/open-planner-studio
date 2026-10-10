@@ -20,6 +20,8 @@ import { readP6XML } from '@/services/p6/p6xmlReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { readMPP } from '@/services/mpp/mppReader';
+import { readXER } from '@/services/xer/xerReader';
+import { xerImportNotice } from '@/state/slices/fileSlice';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { ImportResult } from '@/services/importTypes';
@@ -176,6 +178,50 @@ function blankTaskTimeSlots(ifc: string, name: string, slots: number[]): string 
   const b = byName(parsed.tasks, 'B');
   eq('5 MPP: lege ScheduledStart/-Finish ⇒ projectstart, finish = start + 3 werkdagen',
     [b.time.scheduleStart.slice(0, 10), b.time.scheduleFinish.slice(0, 10)], ['2015-01-05', '2015-01-07']);
+}
+
+// ── 6. XER: TASK zonder target_start_date (review PR #109, N1). Vroeger 1970-01-01 + projectstart
+// 1970, zonder melding. Nu de gedeelde regel: anker = statusdatum (last_recalc_date, of data_date als
+// die kolom ontbreekt), anders PROJECT.plan_start_date, anders de vroegste aanwezige taakstart. ──
+{
+  const CAL = '(0||CalendarData()((0||DaysOfWeek()((0||1()())(0||2()((0||0(s|08:00|f|16:00)())))(0||3()((0||0(s|08:00|f|16:00)())))(0||4()((0||0(s|08:00|f|16:00)())))(0||5()((0||0(s|08:00|f|16:00)())))(0||6()((0||0(s|08:00|f|16:00)())))(0||7()())))(0||Exceptions()())))';
+  const xer = (projectFields: string[], projectValues: string[], otherStart: string): Uint8Array => new TextEncoder().encode([
+    'ERMHDR\t23.12\t2015-01-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC1\tWerkweek\tP1\tCA_Project\t8\t40\t${CAL}`,
+    '%T\tPROJECT',
+    `%F\tproj_id\tproj_short_name\tclndr_id\t${projectFields.join('\t')}`,
+    `%R\tP1\tPRJ\tC1\t${projectValues.join('\t')}`,
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date',
+    '%R\tT1\tP1\tC1\tA100\tZonder start\tTT_Task\tDT_FixedDrtn\tTK_NotStart\t24\t24\t\t',
+    `%R\tT2\tP1\tC1\tA200\tNormaal\tTT_Task\tDT_FixedDrtn\tTK_NotStart\t24\t24\t${otherStart} 08:00\t${otherStart} 16:00`,
+    '%E',
+  ].join('\r\n'));
+  const open = (bytes: Uint8Array): ImportResult => {
+    const opened = readXER(bytes);
+    return 'kind' in opened ? opened.results[0] : opened;
+  };
+  const check = (tag: string, parsed: ImportResult, anchor: string) => {
+    const t1 = byName(parsed.tasks, 'Zonder start');
+    eq(`${tag}: taak zonder target_start_date ⇒ start = anker`, t1.time.scheduleStart.slice(0, 10), anchor);
+    ok(`${tag}: nergens 1970 (${JSON.stringify(parsed.tasks.map(dates))}, project ${parsed.project.startDate})`,
+      !parsed.tasks.some(t => t.time.scheduleStart.startsWith('1970') || t.time.scheduleFinish.startsWith('1970'))
+      && !parsed.project.startDate.startsWith('1970'));
+    eq(`${tag}: projectstart = vroegste start, niet 1970`, parsed.project.startDate.slice(0, 10),
+      [anchor, byName(parsed.tasks, 'Normaal').time.scheduleStart.slice(0, 10)].sort()[0]);
+    eq(`${tag}: de melding telt één vervangen start`, parsed.xerMissingPlannedStarts, 1);
+  };
+  check('6a XER alleen plan_start_date', open(xer(['plan_start_date'], ['2015-01-05 08:00'], '2015-01-12')), '2015-01-05');
+  check('6b XER alleen data_date', open(xer(['data_date', 'plan_start_date'], ['2015-01-07 08:00', ''], '2015-01-12')), '2015-01-07');
+  check('6c XER last_recalc_date wint van plan_start_date', open(xer(['last_recalc_date', 'plan_start_date'], ['2015-01-08 08:00', '2015-01-05 08:00'], '2015-01-12')), '2015-01-08');
+  check('6d XER zonder projectdatums ⇒ vroegste aanwezige start', open(xer(['plan_end_date'], [''], '2015-01-14')), '2015-01-14');
+  const complete = open(xer(['plan_start_date'], ['2015-01-05 08:00'], '2015-01-12'));
+  ok('6e XER: taak mét start telt niet mee', byName(complete.tasks, 'Normaal').time.scheduleStart.startsWith('2015-01-12'));
+  eq('6f XER-openingsmelding noemt de vervangen start',
+    xerImportNotice([complete])?.detailLines?.find(line => line.messageKey === 'notifications.xerImportMissingPlannedStarts'),
+    { messageKey: 'notifications.xerImportMissingPlannedStarts', params: { count: 1 } });
 }
 
 if (diffs.length === 0) {

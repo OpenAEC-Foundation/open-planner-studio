@@ -54,6 +54,8 @@
     "xerImportNumberIssues_other": "{{count}} getalnotatieproblemen.",
     "xerImportEnumFallbacks_one": "{{count}} enum-terugval.",
     "xerImportEnumFallbacks_other": "{{count}} enum-terugvallen.",
+    "xerImportMissingPlannedStarts_one": "{{count}} activiteit had geen geplande start en begint nu op de statusdatum of projectstart uit het bestand.",
+    "xerImportMissingPlannedStarts_other": "{{count}} activiteiten hadden geen geplande start en beginnen nu op de statusdatum of projectstart uit het bestand.",
     "xerImportUnsupportedSemantics_one": "{{count}} P6-planningsinstelling met veilige terugval.",
     "xerImportUnsupportedSemantics_other": "{{count}} P6-planningsinstellingen met veilige terugval.",
     "xerImportDatesAsRecorded_one": "{{count}} taak toont de datums zoals Primavera ze opsloeg (niet herberekend).",

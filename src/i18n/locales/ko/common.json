@@ -43,6 +43,7 @@
     "xerImportCalendarIssues_other": "달력 발견 사항: {{count}}",
     "xerImportNumberIssues_other": "숫자 형식 문제: {{count}}",
     "xerImportEnumFallbacks_other": "열거형 대체: {{count}}",
+    "xerImportMissingPlannedStarts_other": "계획 시작이 없던 활동 {{count}}개가 이제 파일의 데이터 날짜 또는 프로젝트 시작일에 시작합니다.",
     "xerImportUnsupportedSemantics_other": "안전한 대체를 사용한 P6 일정 설정: {{count}}",
     "xerImportDatesAsRecorded_other": "Primavera에 기록된 날짜를 그대로 표시하는 작업: {{count}}개(다시 계산하지 않음)",
     "xerImportDatesAsRecordedOffer_other": "파일에 기록된 날짜와 다른 작업: {{count}}개(표시할 수 있습니다)",
