@@ -21,6 +21,9 @@ per plural category.
 - Address the user as `style.address` says (`formal` / `informal`).
 - Commands (buttons, menu and ribbon items, context-menu items) use the form in `style.commands`,
   exactly like its examples. Sentences and hints follow `style.address`.
+- When a text names another UI element (a column, button, tab or menu item), write that name exactly
+  as the element's own label, in the nominative, between the language's quotation marks; let the
+  sentence carry the grammar ("Check the columns «Predecessors» and «Successors»").
 - Keep short UI texts short: buttons, column names and menu items should be about as long as `en`.
   Same capitalisation style as the language's usual software. No explanations, no notes.
 - With `previous` (an older translation): change only what the new `nl` requires.

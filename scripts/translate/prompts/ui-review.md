@@ -9,6 +9,8 @@ You get: `{{PACKAGES}}` (package JSON files, `"kind": "ui"`) and next to each it
 - First run `{{NODE}} {{CHECK}} <package>` for each package and read its `WW` warnings.
 - Compare every item: `nl` (decides the meaning) and `en` against the translation, with `terms`,
   `tokens`, `plural` and `style` from the package.
+- A text that names another UI element (column, button, tab, menu item) must use that element's label
+  unchanged, in the nominative. Report inflected or paraphrased label names as `term`.
 - Write only `{{REVIEW_FILE}}`: a JSON array, one object per problem:
   `{ "package": "<id>", "key": "<key>", "category": "<only for plural items>", "kind": "<kind>", "problem": "<short>", "proposal": "<full corrected text>" }`
   `kind` is one of: `meaning` (wrong meaning), `term` (not the term from `terms`), `plural` (wrong form
