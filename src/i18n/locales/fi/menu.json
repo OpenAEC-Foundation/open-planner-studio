@@ -144,7 +144,7 @@
     "levelResourcesDialog": "Tasaa…",
     "clearLeveling": "Poista tasaaminen",
     "overallocationIndicator": "Ylikuormitus",
-    "overallocationCount_one": "yksi resurssi",
+    "overallocationCount_one": "{{count}} resurssi",
     "overallocationCount_other": "{{count}} resurssia",
     "overallocationNone": "Ei mitään",
     "baselines": "Alkuperäiset ja edistyminen",

@@ -131,7 +131,7 @@
     "milestoneClearedOnPhase_other": "{{count}} milepæler har nå delaktiviteter og er blitt hovedaktiviteter; milepælmarkeringen er fjernet.",
     "phaseRefusedNoAssignableChild": "'{{phase}}' kan ikke bli en hovedaktivitet: tilordningene kan ikke flyttes noe sted, fordi ingen av de nye delaktivitetene kan ha tilordninger (en milepæl eller hovedaktivitet). Ingenting er endret.",
     "phaseRefusedDuplicateResource": "'{{phase}}' kan ikke bli en hovedaktivitet: tilordningen av {{resource}} kan ikke flyttes til den nye delaktiviteten '{{child}}', fordi den allerede har {{resource}}. Ingenting er endret.",
-    "schedulingProfileApplied": "Dette prosjektet beregner som {{profile}}. Endre det via Fil → Prosjektinfo → Beregningsprofil og beregningsvalg.",
+    "schedulingProfileApplied": "Dette prosjektet beregner som {{profile}}. Endre det via Fil → Prosjektinfo → Beregningsprofil og beregningsalternativer.",
     "schedulingProfileShifted_one": "Etter bruk er {{count}} aktivitet forskjøvet.",
     "schedulingProfileShifted_other": "Etter bruk er {{count}} aktiviteter forskjøvet.",
     "actions": {
