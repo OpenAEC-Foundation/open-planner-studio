@@ -220,6 +220,15 @@ function checkDocsSection(pkg: DocsPackage, idx: number, src: DocSection, out: D
     }
     break;
   }
+  // Een regel "18. června" midden in een alinea wordt een genummerde lijst (ook als de opbouw al eerder afweek).
+  const lines = o.split('\n');
+  lines.forEach((line, i) => {
+    const prev = i > 0 ? lines[i - 1] : '';
+    if (/^\d+\.\s/.test(line) && prev.trim() !== '' && !/^(\d+\.|[-*])\s/.test(prev)) {
+      const msg = `${at}, regel ${i + 1}: "${short(line)}" begint met een getal en een punt; miniMarkdown maakt daar een genummerde lijst, de bron niet — zet het getal niet vooraan`;
+      if (!errors.includes(msg)) errors.push(msg);
+    }
+  });
   const ss = structureOf(s);
   const os = structureOf(o);
   if (ss.headings.join() !== os.headings.join()) errors.push(`${at}: kopniveaus [${os.headings.join(', ')}], de bron [${ss.headings.join(', ')}]`);
