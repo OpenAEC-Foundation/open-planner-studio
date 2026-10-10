@@ -779,6 +779,104 @@
       }
     ]
   },
+  "uitleg-kritiek-pad": {
+    "structure": "b7561d04809d8139",
+    "sections": [
+      {
+        "hash": "e02eb74764f9edae",
+        "labels": {}
+      },
+      {
+        "hash": "1f849558315dfc7c",
+        "labels": {
+          "common:properties": "fd7a801405ed368f",
+          "common:sidebar.properties": "fd7a801405ed368f",
+          "menu:ribbon.properties": "fd7a801405ed368f",
+          "task:properties.cpmResult": "3d9a29c1194ca0dc"
+        }
+      },
+      {
+        "hash": "2afd4b81a0d4060c",
+        "labels": {
+          "common:apply": "f36dbc893177a7f0",
+          "common:companyLibrary.projectView": "f45edf0068510853",
+          "common:progressImport.confirm": "f36dbc893177a7f0",
+          "common:properties": "fd7a801405ed368f",
+          "common:resource.leveling.apply": "f36dbc893177a7f0",
+          "common:resource.leveling.calculate": "fa3f81c39b76bdcf",
+          "common:schedulingProfile.applyDefaultOptions": "5bbd22c3833d41ec",
+          "common:schedulingProfile.optionsTitle": "a24082f168fdc2b3",
+          "common:schedulingProfile.title": "0827fd7b4f5150bb",
+          "common:settings.autoCalcCPM": "d903080cbdab531e",
+          "common:settings.calculationSection": "23f1d3726f915639",
+          "common:settings.planningTab": "e1746e4afc1d074d",
+          "common:settings.title": "985b5e0f2ccf1ba0",
+          "common:shortcuts.category.view": "4eddbc9b9536db3a",
+          "common:sidebar.properties": "fd7a801405ed368f",
+          "common:view.layout.apply": "f36dbc893177a7f0",
+          "common:warnings.target.project": "f45edf0068510853",
+          "menu:backstage.projectInfoTitle": "c8c339721a5b7f81",
+          "menu:backstage.settings": "985b5e0f2ccf1ba0",
+          "menu:ifc.apply": "f36dbc893177a7f0",
+          "menu:projectInfo.calc.critThreshold": "9939b645b83bdeb1",
+          "menu:projectInfo.calc.critTotalFloat": "214e5f4df780e8c9",
+          "menu:projectInfo.calc.nearCriticalThreshold": "e8898c22e933592c",
+          "menu:projectInfo.calc.tfAuto": "f6f55e9d9e1bb7af",
+          "menu:projectInfo.calc.tfFinish": "f23798d12a8f9533",
+          "menu:projectInfo.calc.title": "23f1d3726f915639",
+          "menu:ribbon.baselines": "295c3503e61239c9",
+          "menu:ribbon.calculate": "fa3f81c39b76bdcf",
+          "menu:ribbon.planning": "e1746e4afc1d074d",
+          "menu:ribbon.project": "f45edf0068510853",
+          "menu:ribbon.projectInfo": "a24eb5d582af9aa7",
+          "menu:ribbon.projectSettings": "985b5e0f2ccf1ba0",
+          "menu:ribbon.properties": "fd7a801405ed368f",
+          "menu:ribbon.schedule": "e1746e4afc1d074d",
+          "menu:ribbon.settings": "985b5e0f2ccf1ba0",
+          "menu:ribbon.start": "4af5d2efadd768d1",
+          "menu:ribbon.toggleFloatBand": "10e533341df0c379",
+          "menu:ribbon.view": "4eddbc9b9536db3a",
+          "menu:status.criticalPath": "26fd352a7f7f33ea",
+          "menu:status.scheduleStale": "999f007af5a56b71",
+          "report:critical": "9ec5e2530f168650",
+          "report:milestoneReport.status_critical": "c3519762024d978a",
+          "report:settings": "985b5e0f2ccf1ba0",
+          "report:tableReports.common.critical": "b78abb3bc144c751",
+          "report:tableReports.critical.status_critical": "c3519762024d978a",
+          "report:tableReports.health.dcma_norm": "e8898c22e933592c",
+          "task:properties.cpmResult": "3d9a29c1194ca0dc",
+          "task:properties.freeFloat": "79bd038e70dc231f",
+          "task:properties.recalculate": "fa3f81c39b76bdcf",
+          "task:properties.totalFloat": "c2becfc5dcc78c6d",
+          "task:relations.freeFloat": "2150af83ed3ad078",
+          "task:table.critical": "c3519762024d978a",
+          "task:taskGrid.category.computed": "99d9d929dbc0eafb",
+          "task:taskGrid.category.planning": "e1746e4afc1d074d",
+          "task:taskGrid.columns.critical": "c3519762024d978a",
+          "task:taskGrid.columns.freeFloat": "2150af83ed3ad078",
+          "task:taskGrid.columns.nearCritical": "49d64533dc2dc04c",
+          "task:taskGrid.columns.totalFloat": "ceb3e048f55daca8"
+        }
+      },
+      {
+        "hash": "198fa93376cad545",
+        "labels": {
+          "menu:projectInfo.calc.nearCritical": "2642b6b5d9229f47",
+          "menu:status.criticalPath": "26fd352a7f7f33ea"
+        }
+      },
+      {
+        "hash": "f91b6d31da38005b",
+        "labels": {
+          "menu:projectInfo.calc.makeOpenEndedCritical": "e75060e7b80485af"
+        }
+      },
+      {
+        "hash": "dc45b31a968b8e0a",
+        "labels": {}
+      }
+    ]
+  },
   "uitleg-relaties": {
     "structure": "ef812cf46f311267",
     "sections": [
@@ -1498,6 +1596,118 @@
       },
       {
         "hash": "ae553989520e35d3",
+        "labels": {}
+      }
+    ]
+  },
+  "howto-feestdagen-genereren": {
+    "structure": "4b6c0576b31cf120",
+    "sections": [
+      {
+        "hash": "1594a8b639f621e3",
+        "labels": {}
+      },
+      {
+        "hash": "1782cf9373dc6b9f",
+        "labels": {
+          "common:settings.constructionModeSection": "7d0c350e2858ba88"
+        }
+      },
+      {
+        "hash": "f79633e38b66df46",
+        "labels": {
+          "common:apply": "f36dbc893177a7f0",
+          "common:benchmark.phase.generate": "bf6194bf695a36ed",
+          "common:calendar.countryName.none": "8ada44646b7ef365",
+          "common:calendar.generate.apply": "452044886b02c241",
+          "common:calendar.generate.bouwvak.midden": "5411768c5ac820e5",
+          "common:calendar.generate.bouwvak.none": "16e072794c7174d0",
+          "common:calendar.generate.bouwvak.noord": "2fff7aa2952e233e",
+          "common:calendar.generate.bouwvak.zuid": "129a0782a78e18e8",
+          "common:calendar.generate.bouwvakLabel": "890eb876273497a8",
+          "common:calendar.generate.button": "b8d30b3790890071",
+          "common:calendar.generate.country": "3b5b26cbf7f6458d",
+          "common:calendar.generate.preview": "e14e9fd99f4e411c",
+          "common:calendar.generate.region": "d7506709ce222a8e",
+          "common:calendar.generate.regionNone": "7e1454037ab41ef2",
+          "common:calendar.library.title": "edfe6824ff565ca5",
+          "common:calendar.regen.button": "f111f34bbdc64372",
+          "common:calendar.regen.hint": "f27654244ad63a61",
+          "common:companyLibrary.calendars": "edfe6824ff565ca5",
+          "common:companyLibrary.projectView": "f45edf0068510853",
+          "common:feedback.fieldDescription": "b3680f2cba5f35d0",
+          "common:progressImport.confirm": "f36dbc893177a7f0",
+          "common:resource.availabilityStepsEditor.from": "2c704c5ef488d5a0",
+          "common:resource.calendarId": "ebf6f8dff5850aff",
+          "common:resource.leveling.apply": "f36dbc893177a7f0",
+          "common:resource.noParent": "16e072794c7174d0",
+          "common:settings.constructionModeSection": "7d0c350e2858ba88",
+          "common:settings.planningTab": "e1746e4afc1d074d",
+          "common:settings.title": "985b5e0f2ccf1ba0",
+          "common:view.filter.valueFrom": "2c704c5ef488d5a0",
+          "common:view.layout.apply": "f36dbc893177a7f0",
+          "common:warnings.target.project": "f45edf0068510853",
+          "menu:backstage.projectInfoTitle": "c8c339721a5b7f81",
+          "menu:backstage.settings": "985b5e0f2ccf1ba0",
+          "menu:ifc.apply": "f36dbc893177a7f0",
+          "menu:projectInfo.description": "b3680f2cba5f35d0",
+          "menu:ribbon.calendar": "ebf6f8dff5850aff",
+          "menu:ribbon.calendarDialog.addHoliday": "9938b486accb28ea",
+          "menu:ribbon.calendarDialog.from": "2c704c5ef488d5a0",
+          "menu:ribbon.calendarDialog.holidayName": "b3680f2cba5f35d0",
+          "menu:ribbon.calendarDialog.holidaysSection": "b74a9202333f5d30",
+          "menu:ribbon.calendarDialog.until": "4a38273155aa88a4",
+          "menu:ribbon.holidaysTitle": "b74a9202333f5d30",
+          "menu:ribbon.overallocationNone": "16e072794c7174d0",
+          "menu:ribbon.planning": "e1746e4afc1d074d",
+          "menu:ribbon.project": "f45edf0068510853",
+          "menu:ribbon.projectInfo": "a24eb5d582af9aa7",
+          "menu:ribbon.projectSettings": "985b5e0f2ccf1ba0",
+          "menu:ribbon.settings": "985b5e0f2ccf1ba0",
+          "menu:wizard.calendar.none": "8ada44646b7ef365",
+          "report:settings": "985b5e0f2ccf1ba0",
+          "report:statusLine_none": "16e072794c7174d0",
+          "report:tableReports.options.periodFrom": "2c704c5ef488d5a0",
+          "task:contourDialog.from": "2c704c5ef488d5a0",
+          "task:dialog.description": "b3680f2cba5f35d0",
+          "task:properties.calendar": "ebf6f8dff5850aff",
+          "task:properties.description": "b3680f2cba5f35d0",
+          "task:structure.valueDescription": "b3680f2cba5f35d0",
+          "task:taskGrid.category.planning": "e1746e4afc1d074d",
+          "task:taskGrid.columns.calendar": "ebf6f8dff5850aff",
+          "task:taskGrid.columns.description": "b3680f2cba5f35d0"
+        }
+      },
+      {
+        "hash": "6e44ffeb55e9ae05",
+        "labels": {
+          "common:apply": "f36dbc893177a7f0",
+          "common:calendar.generate.bouwvakHint": "81da0d09525a811f",
+          "common:calendar.holidayErrors.endBeforeStart": "eeb5fe46999e29d3",
+          "common:calendar.library.title": "edfe6824ff565ca5",
+          "common:companyLibrary.calendars": "edfe6824ff565ca5",
+          "common:documents.newProject": "7265fc88c7a6a2d2",
+          "common:progressImport.confirm": "f36dbc893177a7f0",
+          "common:resource.availabilityStepsEditor.from": "2c704c5ef488d5a0",
+          "common:resource.leveling.apply": "f36dbc893177a7f0",
+          "common:view.filter.valueFrom": "2c704c5ef488d5a0",
+          "common:view.layout.apply": "f36dbc893177a7f0",
+          "menu:commands.newProject": "7265fc88c7a6a2d2",
+          "menu:ifc.apply": "f36dbc893177a7f0",
+          "menu:newProject.title": "d70221c3b74e371b",
+          "menu:ribbon.calendarDialog.from": "2c704c5ef488d5a0",
+          "menu:ribbon.calendarDialog.until": "4a38273155aa88a4",
+          "menu:wizard.calendar.country": "7f8b8da1bae4ae29",
+          "menu:wizard.calendar.custom": "84f5e2e4d48907ee",
+          "report:tableReports.options.periodFrom": "2c704c5ef488d5a0",
+          "report:tableReports.options.periodInvalid": "5abad23a8d3ad623",
+          "report:tableReports.periodPresets.custom": "d5f4854a1c27bef5",
+          "task:contourDialog.from": "2c704c5ef488d5a0",
+          "task:taskGrid.category.custom": "75ee29a65df9b588"
+        }
+      },
+      {
+        "hash": "f121c1ca572c2ab8",
         "labels": {}
       }
     ]

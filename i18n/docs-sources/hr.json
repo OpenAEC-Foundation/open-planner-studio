@@ -779,6 +779,104 @@
       }
     ]
   },
+  "uitleg-kritiek-pad": {
+    "structure": "b7561d04809d8139",
+    "sections": [
+      {
+        "hash": "e02eb74764f9edae",
+        "labels": {}
+      },
+      {
+        "hash": "1f849558315dfc7c",
+        "labels": {
+          "common:properties": "ac21b8f720837ede",
+          "common:sidebar.properties": "ac21b8f720837ede",
+          "menu:ribbon.properties": "ac21b8f720837ede",
+          "task:properties.cpmResult": "166fe1aea5880b63"
+        }
+      },
+      {
+        "hash": "2afd4b81a0d4060c",
+        "labels": {
+          "common:apply": "8bae4156c53bfa8d",
+          "common:companyLibrary.projectView": "40ebf93af8d45215",
+          "common:progressImport.confirm": "8bae4156c53bfa8d",
+          "common:properties": "ac21b8f720837ede",
+          "common:resource.leveling.apply": "8bae4156c53bfa8d",
+          "common:resource.leveling.calculate": "7e8d037d62d10d3b",
+          "common:schedulingProfile.applyDefaultOptions": "761fd430c5f32d1e",
+          "common:schedulingProfile.optionsTitle": "e48472812f854d01",
+          "common:schedulingProfile.title": "5ced181442bd6342",
+          "common:settings.autoCalcCPM": "4d1222f1f054e10b",
+          "common:settings.calculationSection": "32e3c9e39d808c41",
+          "common:settings.planningTab": "bfeb8491fb5247e8",
+          "common:settings.title": "f771595473f6d1b0",
+          "common:shortcuts.category.view": "424a8bb7f18e73d2",
+          "common:sidebar.properties": "ac21b8f720837ede",
+          "common:view.layout.apply": "8bae4156c53bfa8d",
+          "common:warnings.target.project": "40ebf93af8d45215",
+          "menu:backstage.projectInfoTitle": "e48c7e37949ca9d5",
+          "menu:backstage.settings": "f771595473f6d1b0",
+          "menu:ifc.apply": "8bae4156c53bfa8d",
+          "menu:projectInfo.calc.critThreshold": "15f2b7141d4675d3",
+          "menu:projectInfo.calc.critTotalFloat": "4ce384bfda51b523",
+          "menu:projectInfo.calc.nearCriticalThreshold": "5d5eeabfdda0571e",
+          "menu:projectInfo.calc.tfAuto": "f828f2d477fb5c7c",
+          "menu:projectInfo.calc.tfFinish": "2bc85cf291636efc",
+          "menu:projectInfo.calc.title": "668abd222cc88be9",
+          "menu:ribbon.baselines": "918e2da083e425c7",
+          "menu:ribbon.calculate": "7e8d037d62d10d3b",
+          "menu:ribbon.planning": "bfeb8491fb5247e8",
+          "menu:ribbon.project": "40ebf93af8d45215",
+          "menu:ribbon.projectInfo": "e48c7e37949ca9d5",
+          "menu:ribbon.projectSettings": "f771595473f6d1b0",
+          "menu:ribbon.properties": "ac21b8f720837ede",
+          "menu:ribbon.schedule": "bfeb8491fb5247e8",
+          "menu:ribbon.settings": "f771595473f6d1b0",
+          "menu:ribbon.start": "96ca156349b6502e",
+          "menu:ribbon.toggleFloatBand": "a2713f4f0293d10f",
+          "menu:ribbon.view": "424a8bb7f18e73d2",
+          "menu:status.criticalPath": "c95e798e0b9c67bf",
+          "menu:status.scheduleStale": "cd19c2906b34586e",
+          "report:critical": "4aabc728f7a2b1f7",
+          "report:milestoneReport.status_critical": "8891edb8dfa42016",
+          "report:settings": "f771595473f6d1b0",
+          "report:tableReports.common.critical": "8891edb8dfa42016",
+          "report:tableReports.critical.status_critical": "8891edb8dfa42016",
+          "report:tableReports.health.dcma_norm": "5d5eeabfdda0571e",
+          "task:properties.cpmResult": "166fe1aea5880b63",
+          "task:properties.freeFloat": "3617eb4e7c51eea5",
+          "task:properties.recalculate": "7e8d037d62d10d3b",
+          "task:properties.totalFloat": "aa34515732ec079a",
+          "task:relations.freeFloat": "cfaca8e56bc1e31e",
+          "task:table.critical": "8891edb8dfa42016",
+          "task:taskGrid.category.computed": "8075ed36d5d7496c",
+          "task:taskGrid.category.planning": "bfeb8491fb5247e8",
+          "task:taskGrid.columns.critical": "8891edb8dfa42016",
+          "task:taskGrid.columns.freeFloat": "cfaca8e56bc1e31e",
+          "task:taskGrid.columns.nearCritical": "e80775d82cb100b3",
+          "task:taskGrid.columns.totalFloat": "2c9a5cab3e30650b"
+        }
+      },
+      {
+        "hash": "198fa93376cad545",
+        "labels": {
+          "menu:projectInfo.calc.nearCritical": "1e5ac67b0e88ed31",
+          "menu:status.criticalPath": "c95e798e0b9c67bf"
+        }
+      },
+      {
+        "hash": "f91b6d31da38005b",
+        "labels": {
+          "menu:projectInfo.calc.makeOpenEndedCritical": "ccd7812d3d648f56"
+        }
+      },
+      {
+        "hash": "dc45b31a968b8e0a",
+        "labels": {}
+      }
+    ]
+  },
   "uitleg-relaties": {
     "structure": "ef812cf46f311267",
     "sections": [
