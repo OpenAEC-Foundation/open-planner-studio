@@ -61,8 +61,8 @@ export const termEntries = (tb: LangTermbase): [string, TermEntry][] =>
 
 // ── Talen ────────────────────────────────────────────────────────────────────────────────────
 
-/** De twaalf bestaande doeltalen naast nl/en: daar volgt de termbase eerst de bestaande UI (§4.4). */
-export const EXISTING_TARGETS = ['fr', 'de', 'es', 'zh', 'it', 'pt', 'pl', 'tr', 'ar', 'ja', 'ko', 'fa'] as const;
+/** De dertien bestaande doeltalen naast nl/en: daar volgt de termbase eerst de bestaande UI (§4.4). */
+export const EXISTING_TARGETS = ['fr', 'de', 'es', 'zh', 'it', 'pt', 'pl', 'tr', 'ar', 'ja', 'ko', 'lo', 'fa'] as const;
 
 /**
  * Heeft deze taal een UI-basislijn (`seed-sources`, §9)? Alleen `en` en de bestaande doeltalen.

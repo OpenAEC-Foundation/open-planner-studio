@@ -257,7 +257,7 @@ const canon = (v: Json): Json => {
     eq('7a nieuwe sleutel met alleen nl + en: exit 0', r1.status, 0);
     eq('7a nl en en hebben de sleutel', [readObj(locFile('nl')).nieuw, readObj(locFile('en')).nieuw], ['Nieuw', 'New']);
     eq('7a fr en ru zijn byte-gelijk gebleven', [readText(locFile('fr')) === frBefore, readText(locFile('ru')) === ruBefore], [true, true]);
-    ok(`7a de uitvoer noemt de niet-opgegeven talen en de straat (${r1.out})`, /25 locale\(s\) niet opgegeven/.test(r1.out) && /prepare ui/.test(r1.out));
+    ok(`7a de uitvoer noemt de niet-opgegeven talen en de straat (${r1.out})`, /26 locale\(s\) niet opgegeven/.test(r1.out) && /prepare ui/.test(r1.out));
     eq('7a en krijgt de hash van de nieuwe nl-tekst', (readObj(srcFile('en')).common as JsonObject).nieuw, hashUnit('Nieuw'));
     eq('7a de straat ziet de sleutel als ontbrekend in fr', selectUnits({
       ns: 'common', nl: readObj(locFile('nl')), en: readObj(locFile('en')), target: readObj(locFile('fr')),

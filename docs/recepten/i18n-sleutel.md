@@ -1,6 +1,6 @@
 # Een nieuwe vertaalsleutel toevoegen
 
-27 locales (`nl, en, fr, de, es, zh, it, pt, pl, tr, ar, ja, ko, fa, ru, uk, cs, sk, sr, hr, bg, hu, ro, sv, nb, da, fi`), elk met vier namespaces
+28 locales (`nl, en, fr, de, es, zh, it, pt, pl, tr, ar, ja, ko, fa, ru, uk, cs, sk, sr, hr, bg, hu, ro, sv, nb, da, fi, lo`), elk met vier namespaces
 (`common`, `task`, `report`, `menu`) — zie *i18n* in `.claude/rules/i18n.md`. Nederlands is de **brontaal**: nieuwe
 sleutels worden eerst in `src/i18n/locales/nl/<namespace>.json` geschreven, alle andere talen volgen
 daaruit. Alleen Engels wordt eager mee-gebundeld (`config.ts`); de rest laadt lazy via `loadLocale()`.

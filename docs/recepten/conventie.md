@@ -49,7 +49,7 @@ Zie *Rekenprofielen* in `.claude/rules/rekenprofielen.md` en de spec `docs/super
    ander bestand door en lees het nooit via `any` — dat ziet hij niet.
 4. **Lezer**: een lezer zet alleen het profiel (`ImportResult.suggestedProfileId` / het ingebouwde
    profiel), nooit een conventie-override uit een bronvlag (zie de inleiding).
-5. **i18n**: `conventions.<id>.label` en `.help` in alle 27 `common.json`-bestanden (`npm run verify:i18n`;
+5. **i18n**: `conventions.<id>.label` en `.help` in alle 28 `common.json`-bestanden (`npm run verify:i18n`;
    `check-conventions-registry.ts` eist per locale beide teksten en precies de registersleutels).
 6. **Gids**: één regel onder de passende kop van "Conventies per profiel" in
    `public/docs/{nl,en}/ref-rekenopties-en-conventies.md` (pas het aantal in de inleiding aan); raakt
