@@ -181,16 +181,40 @@ export function containsTerm(text: string, term: string): boolean {
   return re.test(text);
 }
 
-/**
- * De avoid-varianten van één term die in `text` staan (hoofdletterongevoelig, als deeltekst). Een
- * avoid-variant kan in de eigen term zitten ("fri slakk" ⊃ "slakk"): de vormen van de term worden
- * daarom eerst weggestreept, de langste eerst. Dezelfde regel voor de zachte poort en `prepare --avoid`.
- */
-export function findAvoid(text: string, forms: string[], avoid: string[]): string[] {
-  const rest = forms.map(f => f.toLocaleLowerCase()).filter(f => f !== '').sort((a, b) => b.length - a.length)
-    .reduce((s, f) => s.split(f).join('\u0000'), text.toLocaleLowerCase());
-  return avoid.filter(a => a.trim() !== '' && rest.includes(a.toLocaleLowerCase()));
+/** Schriften zonder spaties tussen woorden (zh, ja, th, lo): daar zoeken we op deeltekst. */
+export const NO_SPACE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}\p{Script=Lao}]/u;
+export const ARABIC = /\p{Script=Arabic}/u;
+/** Tekens die bij een woord horen (voor een woordgrens). */
+export const L = '\\p{L}\\p{M}\\p{N}';
+
+/** Komt `word` als los woord voor (hoofdletterongevoelig)? Zonder spaties: als deeltekst. */
+export function hasWord(text: string, word: string): boolean {
+  const w = word.trim();
+  if (w === '') return false;
+  if (NO_SPACE.test(w)) return text.toLocaleLowerCase().includes(w.toLocaleLowerCase());
+  return new RegExp(`(?<![${L}])${escapeRe(w)}(?![${L}])`, 'iu').test(text);
 }
+
+/**
+ * De avoid-varianten die als los woord in `text` staan, nadat de vormen van de term zelf zijn
+ * weggestreept (een avoid-variant kan in de eigen term zitten). Een vorm verdwijnt alleen als los woord
+ * (anders maakt "na" van "nakonec" een los "konec"); in schriften zonder spaties en in Arabisch schrift
+ * (voorvoegsels plakken vast) als deeltekst.
+ */
+export function avoidWords(text: string, forms: string[], avoid: string[]): string[] {
+  const rest = forms.map(f => f.trim()).filter(f => f !== '').sort((a, b) => b.length - a.length)
+    .reduce((s, f) => (NO_SPACE.test(f) || ARABIC.test(f)
+      ? s.split(f.toLocaleLowerCase()).join(' \u0000 ')
+      : s.replace(new RegExp(`(?<![${L}])${escapeRe(f.toLocaleLowerCase())}(?![${L}])`, 'gu'), ' \u0000 ')), text.toLocaleLowerCase());
+  return avoid.filter(a => hasWord(rest, a));
+}
+
+/**
+ * De avoid-varianten van één term die als los woord in `text` staan (hoofdletterongevoelig; zonder spaties
+ * als deeltekst), nadat de vormen van de term zelf zijn weggestreept. Dezelfde regel voor de docs-poort,
+ * de zachte UI-poort en `prepare ui --avoid`.
+ */
+export const findAvoid = (text: string, forms: string[], avoid: string[]): string[] => avoidWords(text, forms, avoid);
 
 /** Aantal keer dat een token (hoofdlettergevoelig, los woord) in de tekst staat. */
 export function countToken(text: string, token: string): number {

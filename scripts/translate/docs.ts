@@ -3,10 +3,12 @@
 // structuurregels komen uit het gedeelde contract C1 (`scripts/lib/docs-structure.ts`).
 import { sectionHash, splitSections, structureHash, type DocSection } from '../lib/docs-structure';
 import {
-  countToken, placeholders, nestings, termEntries, textsOf, unitMap, unitsOf,
+  ARABIC, L, NO_SPACE, avoidWords, countToken, hasWord, placeholders, nestings, termEntries, textsOf, unitMap, unitsOf,
   type Concept, type LangTermbase, type Style,
 } from './common';
 import { avoidHitsIn, isTranslated, type AvoidRule, type NsInput, type ReleaseGap, type UiSources } from './ui';
+
+export { avoidWords, hasWord };
 
 // ── Typen ────────────────────────────────────────────────────────────────────────────────────
 
@@ -211,9 +213,6 @@ export function titleOf(md: string): string | undefined {
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 /** Schriften zonder spaties tussen woorden: daar zoeken we de hele woordgroep als deeltekst. */
-const NO_SPACE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}\p{Script=Lao}]/u;
-const ARABIC = /\p{Script=Arabic}/u;
-const L = '\\p{L}\\p{M}\\p{N}';
 
 /** De stam van één woord: korte woorden heel, langere zonder hun laatste ±30 %. */
 function stem(word: string): string {
@@ -235,28 +234,6 @@ export function stemRe(phrase: string): RegExp {
 }
 
 export const hasStem = (text: string, phrase: string): boolean => phrase.trim() !== '' && stemRe(phrase).test(text);
-
-/** Komt `word` als los woord voor (hoofdletterongevoelig)? Zonder spaties: als deeltekst. */
-export function hasWord(text: string, word: string): boolean {
-  const w = word.trim();
-  if (w === '') return false;
-  if (NO_SPACE.test(w)) return text.toLocaleLowerCase().includes(w.toLocaleLowerCase());
-  return new RegExp(`(?<![${L}])${escapeRe(w)}(?![${L}])`, 'iu').test(text);
-}
-
-/**
- * De avoid-varianten die als los woord in `text` staan, nadat de vormen van de term zelf zijn
- * weggestreept (een avoid-variant kan in de eigen term zitten). Een vorm verdwijnt alleen als los woord
- * (anders maakt "na" van "nakonec" een los "konec"); in schriften zonder spaties en in Arabisch schrift
- * (voorvoegsels plakken vast) als deeltekst.
- */
-export function avoidWords(text: string, forms: string[], avoid: string[]): string[] {
-  const rest = forms.map(f => f.trim()).filter(f => f !== '').sort((a, b) => b.length - a.length)
-    .reduce((s, f) => (NO_SPACE.test(f) || ARABIC.test(f)
-      ? s.split(f.toLocaleLowerCase()).join(' \u0000 ')
-      : s.replace(new RegExp(`(?<![${L}])${escapeRe(f.toLocaleLowerCase())}(?![${L}])`, 'gu'), ' \u0000 ')), text.toLocaleLowerCase());
-  return avoid.filter(a => hasWord(rest, a));
-}
 
 // ── Labelkaart (§5.3) ────────────────────────────────────────────────────────────────────────
 
@@ -449,7 +426,11 @@ export function sectionLabels(section: number, text: string, index: EnLabelIndex
     for (const h of c.hits) keys[h.key] = index.hashes.get(h.key) ?? sectionHash('');
     if (c.kind === 'c') { labels.push({ section, kind: 'c', en: c.en }); continue; }
     const cand = c.tabHits ?? c.hits;
-    const targets = [...new Set(cand.map(h => h.target).filter((t): t is string => t !== undefined && t !== ''))];
+    // Een a-label is de letterlijke en-tekst ("1 item updated…", de en-`_one`-vorm); een doelvorm met een invulplek
+    // ("{{count}} položka…") krijgt daarom het getal uit die en-tekst.
+    const num = c.kind === 'a' ? /\d+/.exec(c.en)?.[0] : undefined;
+    const fill = (t: string) => (num !== undefined ? t.replace(/\{\{\s*[\w.-]+\s*\}\}/g, num) : t);
+    const targets = [...new Set(cand.map(h => h.target).filter((t): t is string => t !== undefined && t !== '').map(fill))];
     labels.push({
       section, kind: c.kind, en: c.en, targets,
       ...(targets.length > 1 ? { keys: cand.map(h => h.key) } : {}),
