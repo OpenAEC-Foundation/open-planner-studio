@@ -19,3 +19,7 @@ From the reviews of the trial translations (cs, ar). Check each one in every sen
   the source shows.
 - **One word per thing.** The same panel, heading, label line ("Default:", "Where:") or example name is
   written the same way in the whole article.
+- A task that runs late or slips is not the *lag* term (lag = planned waiting time on a relation). Use the
+  language's normal word for delay.
+- WBS codes like `1.2` or `1.2.3` keep their dots, also in languages with a decimal comma.
+- Times and ISO dates keep their leading zero (`07:00`, `2027-06-07`); the number check compares digits.
