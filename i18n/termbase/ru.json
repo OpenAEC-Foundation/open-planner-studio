@@ -6,6 +6,17 @@
     "quotes": "«…»",
     "docs": "Guides: Formal вы and the polite imperative; no ё. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Выберите *Сохранить*.'; 'in the *Relation type* window' → 'в окне *Тип связи*'. Explanation: 'The app moves the successor to the next workday.' → 'Приложение переносит последователя на следующий рабочий день.' Address: 'If you change the duration, your schedule is out of date.' → 'Если вы измените длительность, ваш график уже не будет актуальным.'"
   },
+  "activity-code": {
+    "term": "код задачи",
+    "forms": [
+      "код задачи",
+      "кода задачи",
+      "коды задач",
+      "кодов задач"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "actual-date": {
     "term": "фактический",
     "forms": [
@@ -544,6 +555,19 @@
     "source": "model",
     "status": "model"
   },
+  "day-task": {
+    "term": "задача в днях",
+    "forms": [
+      "задача в днях",
+      "задачи в днях",
+      "задаче в днях",
+      "задачу в днях",
+      "задачей в днях",
+      "задач в днях"
+    ],
+    "source": "model",
+    "status": "arbitrated"
+  },
   "dcma-assessment": {
     "term": "оценка DCMA по 14 пунктам",
     "forms": [
@@ -578,6 +602,14 @@
     ],
     "source": "tbx",
     "status": "tbx-chosen"
+  },
+  "default-value": {
+    "term": "по умолчанию",
+    "forms": [
+      "по умолчанию"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "distribution": {
     "term": "распределение трудозатрат",
@@ -715,6 +747,20 @@
     ],
     "source": "tbx",
     "status": "tbx-chosen"
+  },
+  "file": {
+    "term": "файл",
+    "forms": [
+      "файл",
+      "файла",
+      "файлу",
+      "файлом",
+      "файле",
+      "файлы",
+      "файлов"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "finish": {
     "term": "окончание",
@@ -912,6 +958,21 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "gantt-bar": {
+    "term": "полоса",
+    "forms": [
+      "полоса",
+      "полосы",
+      "полосе",
+      "полосу",
+      "полосой",
+      "полос",
+      "полосам",
+      "полосами"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "hammock": {
     "term": "гамак",
@@ -1274,6 +1335,17 @@
     "source": "model",
     "status": "model"
   },
+  "mini-map": {
+    "term": "мини-карта",
+    "forms": [
+      "мини-карта",
+      "мини-карты",
+      "мини-карте",
+      "мини-карту"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "missed-task": {
     "term": "пропущенная задача",
     "forms": [
@@ -1359,6 +1431,18 @@
     ],
     "source": "model",
     "status": "model"
+  },
+  "occupancy": {
+    "term": "загрузка",
+    "forms": [
+      "загрузка",
+      "загрузки",
+      "загрузке",
+      "загрузку",
+      "загрузкой"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "out-of-sequence-progress": {
     "term": "выполнение с нарушением последовательности",
@@ -1509,6 +1593,16 @@
     "source": "model",
     "status": "model"
   },
+  "progress-line": {
+    "term": "линия хода выполнения",
+    "forms": [
+      "линия хода выполнения",
+      "линии хода выполнения",
+      "линию хода выполнения"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "progress-mode": {
     "term": "режим учета выполнения",
     "forms": [
@@ -1537,6 +1631,16 @@
     "source": "model",
     "status": "model"
   },
+  "project-info": {
+    "term": "сведения о проекте",
+    "forms": [
+      "сведения о проекте",
+      "сведений о проекте",
+      "сведениях о проекте"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "project-start": {
     "term": "начало проекта",
     "forms": [
@@ -1551,6 +1655,16 @@
     ],
     "source": "model",
     "status": "model"
+  },
+  "properties-panel": {
+    "term": "панель свойств",
+    "forms": [
+      "панель свойств",
+      "панели свойств",
+      "панелью свойств"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "rate": {
     "term": "стандартная ставка",
@@ -1716,6 +1830,15 @@
     "source": "model",
     "status": "model"
   },
+  "resource-panel": {
+    "term": "панель ресурсов",
+    "forms": [
+      "панель ресурсов",
+      "панели ресурсов"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "resource-type": {
     "term": "тип ресурса",
     "forms": [
@@ -1873,6 +1996,16 @@
     "source": "tbx",
     "status": "tbx"
   },
+  "split-view": {
+    "term": "разделенный вид",
+    "forms": [
+      "разделенный вид",
+      "разделенного вида",
+      "разделенном виде"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "start-driver": {
     "term": "определяющая связь начала",
     "forms": [
@@ -1975,6 +2108,17 @@
     "source": "model",
     "status": "model"
   },
+  "status-bar": {
+    "term": "строка состояния",
+    "forms": [
+      "строка состояния",
+      "строки состояния",
+      "строке состояния",
+      "строку состояния"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
+  },
   "status-date": {
     "term": "дата отчета о состоянии",
     "forms": [
@@ -2047,6 +2191,20 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "table-column": {
+    "term": "столбец",
+    "forms": [
+      "столбец",
+      "столбца",
+      "столбцу",
+      "столбцом",
+      "столбце",
+      "столбцы",
+      "столбцов"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "task": {
     "term": "задача",
@@ -2121,6 +2279,17 @@
     ],
     "source": "tbx",
     "status": "tbx-chosen"
+  },
+  "time-scale": {
+    "term": "шкала времени",
+    "forms": [
+      "шкала времени",
+      "шкалы времени",
+      "шкале времени",
+      "шкалу времени"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "total-float": {
     "term": "общий резерв времени",
@@ -2272,6 +2441,34 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "work-block": {
+    "term": "блок",
+    "forms": [
+      "блок",
+      "блока",
+      "блоку",
+      "блоком",
+      "блоке",
+      "блоки",
+      "блоков"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
+  "work-break": {
+    "term": "перерыв",
+    "forms": [
+      "перерыв",
+      "перерыва",
+      "перерыву",
+      "перерывом",
+      "перерыве",
+      "перерывы",
+      "перерывов"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "work-calendar": {
     "term": "рабочий календарь",

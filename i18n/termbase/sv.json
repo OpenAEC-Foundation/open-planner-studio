@@ -6,6 +6,16 @@
     "quotes": "”…”",
     "docs": "Guides: Informal du and the imperative, as in the UI. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Välj *Spara*.'; 'in the *Relation type* window' → 'i fönstret *Typ av samband*'. Explanation: 'The app moves the successor to the next workday.' → 'Appen flyttar den efterföljande uppgiften till nästa arbetsdag.' Address: 'If you change the duration, your schedule is out of date.' → 'Om du ändrar varaktigheten är din tidsplan inte längre aktuell.'"
   },
+  "activity-code": {
+    "term": "uppgiftskod",
+    "forms": [
+      "uppgiftskod",
+      "uppgiftskoden",
+      "uppgiftskoder"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "actual-date": {
     "term": "verklig",
     "forms": [
@@ -386,6 +396,16 @@
     "source": "model",
     "status": "model"
   },
+  "day-task": {
+    "term": "daguppgift",
+    "forms": [
+      "daguppgift",
+      "daguppgiften",
+      "daguppgifter"
+    ],
+    "source": "model",
+    "status": "arbitrated"
+  },
   "dcma-assessment": {
     "term": "DCMA 14-punktsbedömning",
     "forms": [
@@ -407,6 +427,15 @@
     ],
     "source": "tbx",
     "status": "tbx-chosen"
+  },
+  "default-value": {
+    "term": "standard",
+    "forms": [
+      "standard",
+      "standardvärde"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "distribution": {
     "term": "fördelning",
@@ -518,6 +547,16 @@
     ],
     "source": "tbx",
     "status": "tbx-chosen"
+  },
+  "file": {
+    "term": "fil",
+    "forms": [
+      "fil",
+      "filen",
+      "filer"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "finish": {
     "term": "slut",
@@ -689,6 +728,17 @@
     "source": "tbx",
     "status": "tbx"
   },
+  "gantt-bar": {
+    "term": "balk",
+    "forms": [
+      "balk",
+      "balken",
+      "balkar",
+      "uppgiftsbalk"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "hammock": {
     "term": "hängmatta",
     "forms": [
@@ -811,9 +861,7 @@
       "avbrottet"
     ],
     "avoid": [
-      "rast",
-      "break",
-      "paus"
+      "break"
     ],
     "source": "model",
     "status": "model"
@@ -994,6 +1042,15 @@
     "source": "model",
     "status": "model"
   },
+  "mini-map": {
+    "term": "minikarta",
+    "forms": [
+      "minikarta",
+      "minikartan"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "missed-task": {
     "term": "missad uppgift",
     "forms": [
@@ -1053,6 +1110,15 @@
     ],
     "source": "model",
     "status": "model"
+  },
+  "occupancy": {
+    "term": "beläggning",
+    "forms": [
+      "beläggning",
+      "beläggningen"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "out-of-sequence-progress": {
     "term": "framdrift i fel ordning",
@@ -1161,6 +1227,15 @@
     "source": "model",
     "status": "model"
   },
+  "progress-line": {
+    "term": "framdriftslinje",
+    "forms": [
+      "framdriftslinje",
+      "framdriftslinjen"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "progress-mode": {
     "term": "framdriftsläge",
     "forms": [
@@ -1180,6 +1255,15 @@
     "source": "model",
     "status": "model"
   },
+  "project-info": {
+    "term": "projektinfo",
+    "forms": [
+      "projektinfo",
+      "projektinformation"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "project-start": {
     "term": "projektstart",
     "forms": [
@@ -1188,6 +1272,15 @@
     ],
     "source": "model",
     "status": "model"
+  },
+  "properties-panel": {
+    "term": "egenskapspanel",
+    "forms": [
+      "egenskapspanel",
+      "egenskapspanelen"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "rate": {
     "term": "standardkostnad",
@@ -1316,6 +1409,15 @@
     "source": "tbx",
     "status": "tbx-chosen"
   },
+  "resource-panel": {
+    "term": "resurspanel",
+    "forms": [
+      "resurspanel",
+      "resurspanelen"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "resource-type": {
     "term": "resurstyp",
     "forms": [
@@ -1430,6 +1532,15 @@
     "source": "tbx",
     "status": "tbx"
   },
+  "split-view": {
+    "term": "delad vy",
+    "forms": [
+      "delad vy",
+      "delade vyn"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "start-driver": {
     "term": "startdrivande samband",
     "forms": [
@@ -1508,6 +1619,15 @@
     "source": "model",
     "status": "model"
   },
+  "status-bar": {
+    "term": "statusfält",
+    "forms": [
+      "statusfält",
+      "statusfältet"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
+  },
   "status-date": {
     "term": "rapportdatum",
     "forms": [
@@ -1554,6 +1674,16 @@
       "sammanfattningsaktiviteter"
     ],
     "source": "model",
+    "status": "arbitrated"
+  },
+  "table-column": {
+    "term": "kolumn",
+    "forms": [
+      "kolumn",
+      "kolumnen",
+      "kolumner"
+    ],
+    "source": "existing-ui",
     "status": "arbitrated"
   },
   "task": {
@@ -1603,6 +1733,15 @@
     ],
     "source": "tbx",
     "status": "tbx-chosen"
+  },
+  "time-scale": {
+    "term": "tidsskala",
+    "forms": [
+      "tidsskala",
+      "tidsskalan"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "total-float": {
     "term": "totalt slack",
@@ -1695,6 +1834,26 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "work-block": {
+    "term": "band",
+    "forms": [
+      "band",
+      "bandet"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
+  "work-break": {
+    "term": "rast",
+    "forms": [
+      "rast",
+      "rasten",
+      "raster",
+      "lunchrast"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "work-calendar": {
     "term": "arbetskalender",

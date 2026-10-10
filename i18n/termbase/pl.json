@@ -4,6 +4,17 @@
     "note": "The existing Polish UI addresses the user with 2nd person singular (Ty): imperatives such as Naciśnij, Wybierz, Podaj and Zmień, and the possessive Twoim. Follow the UI texts.",
     "docs": "Guides: Informal Ty and the imperative, as in the UI. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Wybierz *Zapisz*.'; 'in the *Relation type* window' → 'w oknie *Typ relacji*'. Explanation: 'The app moves the successor to the next workday.' → 'Aplikacja przesuwa następnika na następny dzień roboczy.' Address: 'If you change the duration, your schedule is out of date.' → 'Jeśli zmienisz czas trwania, Twój harmonogram nie jest już aktualny.'"
   },
+  "activity-code": {
+    "term": "kod czynności",
+    "forms": [
+      "kod czynności",
+      "kodu czynności",
+      "kody czynności",
+      "kodów czynności"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "actual-date": {
     "term": "rzeczywista data",
     "forms": [
@@ -400,6 +411,17 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "day-task": {
+    "term": "zadanie w dniach",
+    "forms": [
+      "zadanie w dniach",
+      "zadania w dniach",
+      "zadaniu w dniach",
+      "zadań w dniach"
+    ],
+    "source": "model",
+    "status": "arbitrated"
+  },
   "dcma-assessment": {
     "term": "ocena DCMA w 14 punktach",
     "forms": [
@@ -421,6 +443,18 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "default-value": {
+    "term": "domyślny",
+    "forms": [
+      "domyślny",
+      "domyślna",
+      "domyślne",
+      "domyślnie",
+      "domyślnego"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "distribution": {
     "term": "rozkład",
@@ -551,6 +585,18 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "file": {
+    "term": "plik",
+    "forms": [
+      "plik",
+      "pliku",
+      "pliki",
+      "plików",
+      "plikiem"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "finish": {
     "term": "zakończenie",
@@ -725,6 +771,20 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "gantt-bar": {
+    "term": "pasek",
+    "forms": [
+      "pasek",
+      "paska",
+      "pasku",
+      "paskiem",
+      "paski",
+      "pasków",
+      "paskach"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "hammock": {
     "term": "hamak",
@@ -1059,6 +1119,17 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "mini-map": {
+    "term": "minimapa",
+    "forms": [
+      "minimapa",
+      "minimapy",
+      "minimapie",
+      "minimapę"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "missed-task": {
     "term": "nietrzymane zadanie",
     "forms": [
@@ -1123,6 +1194,16 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "occupancy": {
+    "term": "obłożenie",
+    "forms": [
+      "obłożenie",
+      "obłożenia",
+      "obłożeniu"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "out-of-sequence-progress": {
     "term": "postęp poza kolejnością",
@@ -1256,6 +1337,16 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "progress-line": {
+    "term": "linia postępu",
+    "forms": [
+      "linia postępu",
+      "linii postępu",
+      "linię postępu"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "progress-mode": {
     "term": "tryb postępu",
     "forms": [
@@ -1279,6 +1370,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "project-info": {
+    "term": "info o projekcie",
+    "forms": [
+      "info o projekcie",
+      "informacje o projekcie"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "project-start": {
     "term": "początek projektu",
     "forms": [
@@ -1289,6 +1389,16 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "properties-panel": {
+    "term": "panel właściwości",
+    "forms": [
+      "panel właściwości",
+      "panelu właściwości",
+      "panelem właściwości"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "rate": {
     "term": "stawka",
@@ -1434,6 +1544,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "resource-panel": {
+    "term": "panel zasobów",
+    "forms": [
+      "panel zasobów",
+      "panelu zasobów"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "resource-type": {
     "term": "typ zasobu",
     "forms": [
@@ -1559,6 +1678,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "split-view": {
+    "term": "widok podzielony",
+    "forms": [
+      "widok podzielony",
+      "widoku podzielonego"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "start-driver": {
     "term": "driver początku",
     "forms": [
@@ -1630,6 +1758,16 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "status-bar": {
+    "term": "pasek stanu",
+    "forms": [
+      "pasek stanu",
+      "paska stanu",
+      "pasku stanu"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
+  },
   "status-date": {
     "term": "data statusu",
     "forms": [
@@ -1678,6 +1816,19 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "table-column": {
+    "term": "kolumna",
+    "forms": [
+      "kolumna",
+      "kolumny",
+      "kolumnie",
+      "kolumnę",
+      "kolumn",
+      "kolumnach"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "task": {
     "term": "zadanie",
     "forms": [
@@ -1694,16 +1845,19 @@
     "status": "existing-ui"
   },
   "task-grid": {
-    "term": "siatka zadań",
+    "term": "tabela zadań",
     "forms": [
+      "tabela zadań",
+      "tabeli zadań",
+      "tabelę zadań",
+      "tabelą zadań"
+    ],
+    "avoid": [
       "siatka zadań",
-      "siatki zadań",
-      "siatce zadań",
-      "siatkę zadań",
-      "siatką zadań"
+      "siatki zadań"
     ],
     "source": "existing-ui",
-    "status": "existing-ui"
+    "status": "arbitrated"
   },
   "task-type": {
     "term": "typ zadania",
@@ -1729,6 +1883,16 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "time-scale": {
+    "term": "skala czasu",
+    "forms": [
+      "skala czasu",
+      "skali czasu",
+      "skalę czasu"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "total-float": {
     "term": "zapas całkowity",
@@ -1839,6 +2003,30 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "work-block": {
+    "term": "pasmo",
+    "forms": [
+      "pasmo",
+      "pasma",
+      "pasm",
+      "pasmami"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
+  "work-break": {
+    "term": "przerwa",
+    "forms": [
+      "przerwa",
+      "przerwy",
+      "przerwę",
+      "przerwie",
+      "przerwą",
+      "przerw"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "work-calendar": {
     "term": "kalendarz pracy",

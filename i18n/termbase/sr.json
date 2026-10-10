@@ -6,6 +6,16 @@
     "quotes": "„…“",
     "docs": "Guides: Formal Ви and the plural imperative, Cyrillic, Ekavian. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Изаберите *Сачувај*.'; 'in the *Relation type* window' → 'у прозору *Тип зависности*'. Explanation: 'The app moves the successor to the next workday.' → 'Апликација помера наследника на следећи радни дан.' Address: 'If you change the duration, your schedule is out of date.' → 'Ако промените трајање, ваш распоред више није ажуран.'"
   },
+  "activity-code": {
+    "term": "шифра активности",
+    "forms": [
+      "шифра активности",
+      "шифре активности",
+      "шифру активности"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "actual-date": {
     "term": "стварни",
     "forms": [
@@ -415,6 +425,16 @@
     "source": "model",
     "status": "model"
   },
+  "day-task": {
+    "term": "задатак по данима",
+    "forms": [
+      "задатак по данима",
+      "задатка по данима",
+      "задаци по данима"
+    ],
+    "source": "model",
+    "status": "arbitrated"
+  },
   "dcma-assessment": {
     "term": "DCMA 14-тачкасто оцењивање",
     "forms": [
@@ -438,6 +458,16 @@
       "дедлајн"
     ],
     "source": "tbx",
+    "status": "arbitrated"
+  },
+  "default-value": {
+    "term": "подразумевано",
+    "forms": [
+      "подразумевано",
+      "подразумевани",
+      "подразумевана"
+    ],
+    "source": "existing-ui",
     "status": "arbitrated"
   },
   "distribution": {
@@ -562,6 +592,18 @@
     ],
     "source": "model",
     "status": "model"
+  },
+  "file": {
+    "term": "датотека",
+    "forms": [
+      "датотека",
+      "датотеке",
+      "датотеци",
+      "датотеку",
+      "датотеком"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "finish": {
     "term": "завршетак",
@@ -743,6 +785,16 @@
     "source": "model",
     "status": "arbitrated"
   },
+  "gantt-bar": {
+    "term": "трака задатка",
+    "forms": [
+      "трака задатка",
+      "траке задатака",
+      "траку задатка"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "hammock": {
     "term": "хамак",
     "forms": [
@@ -852,9 +904,6 @@
       "прекида",
       "прекиду",
       "прекидом"
-    ],
-    "avoid": [
-      "пауза"
     ],
     "source": "model",
     "status": "model"
@@ -1041,6 +1090,16 @@
     "source": "model",
     "status": "arbitrated"
   },
+  "mini-map": {
+    "term": "мини-мапа",
+    "forms": [
+      "мини-мапа",
+      "мини-мапе",
+      "мини-мапу"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "missed-task": {
     "term": "пропуштени задатак",
     "forms": [
@@ -1111,6 +1170,15 @@
     ],
     "source": "model",
     "status": "model"
+  },
+  "occupancy": {
+    "term": "заузетост",
+    "forms": [
+      "заузетост",
+      "заузетости"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "out-of-sequence-progress": {
     "term": "напредак ван редоследа",
@@ -1240,6 +1308,16 @@
     "source": "model",
     "status": "model"
   },
+  "progress-line": {
+    "term": "линија напретка",
+    "forms": [
+      "линија напретка",
+      "линије напретка",
+      "линију напретка"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "progress-mode": {
     "term": "режим напретка",
     "forms": [
@@ -1261,6 +1339,15 @@
     "source": "model",
     "status": "model"
   },
+  "project-info": {
+    "term": "подаци о пројекту",
+    "forms": [
+      "подаци о пројекту",
+      "података о пројекту"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "project-start": {
     "term": "почетак пројекта",
     "forms": [
@@ -1270,6 +1357,15 @@
     ],
     "source": "model",
     "status": "model"
+  },
+  "properties-panel": {
+    "term": "панел са својствима",
+    "forms": [
+      "панел са својствима",
+      "панела са својствима"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "rate": {
     "term": "стандардна цена",
@@ -1407,6 +1503,15 @@
     "source": "tbx",
     "status": "tbx"
   },
+  "resource-panel": {
+    "term": "панел ресурса",
+    "forms": [
+      "панел ресурса",
+      "панела ресурса"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "resource-type": {
     "term": "тип ресурса",
     "forms": [
@@ -1527,6 +1632,15 @@
     "source": "model",
     "status": "model"
   },
+  "split-view": {
+    "term": "подељени приказ",
+    "forms": [
+      "подељени приказ",
+      "подељеног приказа"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "start-driver": {
     "term": "одлучујућа зависност почетка",
     "forms": [
@@ -1602,6 +1716,15 @@
     "source": "model",
     "status": "model"
   },
+  "status-bar": {
+    "term": "статусна трака",
+    "forms": [
+      "статусна трака",
+      "статусној траци"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
+  },
   "status-date": {
     "term": "датум статуса",
     "forms": [
@@ -1667,6 +1790,18 @@
     "source": "model",
     "status": "arbitrated"
   },
+  "table-column": {
+    "term": "колона",
+    "forms": [
+      "колона",
+      "колоне",
+      "колони",
+      "колону",
+      "колоном"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "task": {
     "term": "задатак",
     "forms": [
@@ -1718,6 +1853,16 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "time-scale": {
+    "term": "временска скала",
+    "forms": [
+      "временска скала",
+      "временске скале",
+      "временску скалу"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "total-float": {
     "term": "укупна временска резерва",
@@ -1825,6 +1970,30 @@
       "послова"
     ],
     "source": "tbx",
+    "status": "arbitrated"
+  },
+  "work-block": {
+    "term": "блок",
+    "forms": [
+      "блок",
+      "блока",
+      "блоку",
+      "блоком",
+      "блокови"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
+  "work-break": {
+    "term": "пауза",
+    "forms": [
+      "пауза",
+      "паузе",
+      "паузу",
+      "паузом",
+      "паузи"
+    ],
+    "source": "existing-ui",
     "status": "arbitrated"
   },
   "work-calendar": {

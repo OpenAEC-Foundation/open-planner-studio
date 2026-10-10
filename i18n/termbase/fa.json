@@ -4,6 +4,14 @@
     "note": "De bestaande UI spreekt de gebruiker formeel aan met imperatieven op -ید (کنید, بزنید, روشن کنید). Gebruik dezelfde vorm.",
     "docs": "Guides: Formal imperative in -ید and شما, as in the UI; call the app نرم‌افزار, because برنامه is the term for the schedule. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → '*ذخیره* را انتخاب کنید.'; 'in the *Relation type* window' → 'در پنجرهٔ *نوع رابطه*'. Explanation: 'The app moves the successor to the next workday.' → 'نرم‌افزار پس‌نیاز را به روز کاری بعدی منتقل می‌کند.' Address: 'If you change the duration, your schedule is out of date.' → 'اگر مدت را تغییر دهید، برنامهٔ شما دیگر به‌روز نیست.'"
   },
+  "activity-code": {
+    "term": "کد فعالیت",
+    "forms": [
+      "کد فعالیت"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "actual-date": {
     "term": "تاریخ واقعی",
     "forms": [
@@ -292,6 +300,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "day-task": {
+    "term": "وظیفه بر حسب روز",
+    "forms": [
+      "وظیفه بر حسب روز"
+    ],
+    "source": "model",
+    "status": "arbitrated"
+  },
   "dcma-assessment": {
     "term": "ارزیابی ۱۴ نقطه‌ای DCMA",
     "forms": [
@@ -308,6 +324,14 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "default-value": {
+    "term": "پیش‌فرض",
+    "forms": [
+      "پیش‌فرض"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "distribution": {
     "term": "توزیع",
@@ -392,6 +416,15 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "file": {
+    "term": "فایل",
+    "forms": [
+      "فایل",
+      "فایل‌ها"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "finish": {
     "term": "پایان",
@@ -517,6 +550,15 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "gantt-bar": {
+    "term": "نوار وظیفه",
+    "forms": [
+      "نوار وظیفه",
+      "نوارهای وظیفه"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "hammock": {
     "term": "هموک",
@@ -737,6 +779,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "mini-map": {
+    "term": "نقشه کوچک",
+    "forms": [
+      "نقشه کوچک"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "missed-task": {
     "term": "فعالیت عقب‌افتاده",
     "forms": [
@@ -793,6 +843,14 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "occupancy": {
+    "term": "اشغال",
+    "forms": [
+      "اشغال"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "out-of-sequence-progress": {
     "term": "پیشرفت خارج از توالی",
@@ -897,6 +955,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "progress-line": {
+    "term": "خط پیشرفت",
+    "forms": [
+      "خط پیشرفت"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "progress-mode": {
     "term": "حالت پیشرفت",
     "forms": [
@@ -919,6 +985,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "project-info": {
+    "term": "اطلاعات پروژه",
+    "forms": [
+      "اطلاعات پروژه"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "project-start": {
     "term": "شروع پروژه",
     "forms": [
@@ -926,6 +1000,14 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "properties-panel": {
+    "term": "پنل ویژگی‌ها",
+    "forms": [
+      "پنل ویژگی‌ها"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "rate": {
     "term": "نرخ",
@@ -1039,6 +1121,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "resource-panel": {
+    "term": "پنل منابع",
+    "forms": [
+      "پنل منابع"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "resource-type": {
     "term": "نوع منبع",
     "forms": [
@@ -1145,6 +1235,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "split-view": {
+    "term": "نمای تقسیم‌شده",
+    "forms": [
+      "نمای تقسیم‌شده"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "start-driver": {
     "term": "درایور شروع",
     "forms": [
@@ -1205,6 +1303,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "status-bar": {
+    "term": "نوار وضعیت",
+    "forms": [
+      "نوار وضعیت"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
+  },
   "status-date": {
     "term": "تاریخ وضعیت",
     "forms": [
@@ -1247,6 +1353,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "table-column": {
+    "term": "ستون",
+    "forms": [
+      "ستون",
+      "ستون‌ها"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "task": {
     "term": "وظیفه",
     "forms": [
@@ -1286,6 +1401,14 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "time-scale": {
+    "term": "مقیاس زمانی",
+    "forms": [
+      "مقیاس زمانی"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "total-float": {
     "term": "شناوری کل",
@@ -1369,6 +1492,23 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "work-block": {
+    "term": "بازه",
+    "forms": [
+      "بازه",
+      "بازه‌ها"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
+  "work-break": {
+    "term": "استراحت",
+    "forms": [
+      "استراحت"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "work-calendar": {
     "term": "تقویم کاری",

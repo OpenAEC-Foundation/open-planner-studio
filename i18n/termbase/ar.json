@@ -4,6 +4,15 @@
     "note": "De bestaande UI-teksten spreken de gebruiker aan met de gebiedende wijs, mannelijk enkelvoud (أدخل، اختر، اضغط، حدّد), in Modern Standard Arabic. Die vorm volgen we.",
     "docs": "Guides: Masculine singular imperative, the user is \"you\" (masculine singular, as in the UI); Modern Standard Arabic. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'اختر *حفظ*.'; 'in the *Relation type* window' → 'في نافذة *نوع العلاقة*'. Explanation: 'The app moves the successor to the next workday.' → 'ينقل التطبيق المهمة اللاحقة إلى يوم العمل التالي.' Address: 'If you change the duration, your schedule is out of date.' → 'إذا غيّرت المدة، فلن يعود جدولك الزمني محدَّثًا.'"
   },
+  "activity-code": {
+    "term": "رمز النشاط",
+    "forms": [
+      "رمز النشاط",
+      "رموز النشاط"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "actual-date": {
     "term": "التواريخ الفعلية",
     "forms": [
@@ -305,6 +314,20 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "day-task": {
+    "term": "مهمة بالأيام",
+    "forms": [
+      "مهمة بالأيام",
+      "المهمة بالأيام",
+      "مهام بالأيام"
+    ],
+    "avoid": [
+      "مهمة يومية",
+      "مهمة اليوم"
+    ],
+    "source": "model",
+    "status": "arbitrated"
+  },
   "dcma-assessment": {
     "term": "تقييم DCMA ذو النقاط الأربع عشرة",
     "forms": [
@@ -323,6 +346,17 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "default-value": {
+    "term": "افتراضي",
+    "forms": [
+      "افتراضي",
+      "الافتراضي",
+      "افتراضية",
+      "الافتراضية"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "distribution": {
     "term": "توزيع",
@@ -423,6 +457,17 @@
       "الروابط الخارجية"
     ],
     "source": "model",
+    "status": "arbitrated"
+  },
+  "file": {
+    "term": "ملف",
+    "forms": [
+      "ملف",
+      "الملف",
+      "ملفات",
+      "الملفات"
+    ],
+    "source": "existing-ui",
     "status": "arbitrated"
   },
   "finish": {
@@ -564,6 +609,16 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "gantt-bar": {
+    "term": "شريط المهمة",
+    "forms": [
+      "شريط المهمة",
+      "أشرطة المهام",
+      "شريط المهام"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "hammock": {
     "term": "أرجوحة",
     "forms": [
@@ -636,6 +691,9 @@
     "forms": [
       "المهمة الساعية",
       "مهمة ساعية"
+    ],
+    "avoid": [
+      "مهمة الساعات"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -809,6 +867,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "mini-map": {
+    "term": "خريطة مصغرة",
+    "forms": [
+      "خريطة مصغرة",
+      "الخريطة المصغرة"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "missed-task": {
     "term": "مهمة فائتة",
     "forms": [
@@ -866,6 +933,15 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "occupancy": {
+    "term": "الإشغال",
+    "forms": [
+      "الإشغال",
+      "إشغال"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "out-of-sequence-progress": {
     "term": "تقدّم خارج التسلسل",
@@ -967,6 +1043,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "progress-line": {
+    "term": "خط التقدم",
+    "forms": [
+      "خط التقدم"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "progress-mode": {
     "term": "وضع التقدم",
     "forms": [
@@ -985,6 +1069,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "project-info": {
+    "term": "معلومات المشروع",
+    "forms": [
+      "معلومات المشروع"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "project-start": {
     "term": "بداية المشروع",
     "forms": [
@@ -993,6 +1085,17 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "properties-panel": {
+    "term": "لوحة الخصائص",
+    "forms": [
+      "لوحة الخصائص"
+    ],
+    "avoid": [
+      "جزء الخصائص"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "rate": {
     "term": "السعر",
@@ -1102,6 +1205,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "resource-panel": {
+    "term": "لوحة الموارد",
+    "forms": [
+      "لوحة الموارد"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "resource-type": {
     "term": "نوع المورد",
     "forms": [
@@ -1203,6 +1314,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "split-view": {
+    "term": "عرض مقسم",
+    "forms": [
+      "عرض مقسم",
+      "العرض المقسم"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "start-driver": {
     "term": "محرِّك البداية",
     "forms": [
@@ -1273,6 +1393,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "status-bar": {
+    "term": "شريط الحالة",
+    "forms": [
+      "شريط الحالة"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
+  },
   "status-date": {
     "term": "تاريخ الحالة",
     "forms": [
@@ -1316,6 +1444,17 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "table-column": {
+    "term": "عمود",
+    "forms": [
+      "عمود",
+      "العمود",
+      "أعمدة",
+      "الأعمدة"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "task": {
     "term": "مهمة",
     "forms": [
@@ -1358,6 +1497,14 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "time-scale": {
+    "term": "مقياس الزمن",
+    "forms": [
+      "مقياس الزمن"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "total-float": {
     "term": "الفائض الكلي",
@@ -1456,6 +1603,27 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "work-block": {
+    "term": "نطاق",
+    "forms": [
+      "نطاق",
+      "النطاق",
+      "نطاقات",
+      "النطاقات"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
+  "work-break": {
+    "term": "استراحة",
+    "forms": [
+      "استراحة",
+      "الاستراحة",
+      "استراحات"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "work-calendar": {
     "term": "تقويم العمل",

@@ -4,6 +4,15 @@
     "note": "De app spreekt de gebruiker aan met de jij-vorm (gebiedende wijs zoals Premi, Verifica, Modificalo).",
     "docs": "Guides: Informal tu and the imperative, as in the UI. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Scegli *Salva*.'; 'in the *Relation type* window' → 'nella finestra *Tipo di relazione*'. Explanation: 'The app moves the successor to the next workday.' → 'L'app sposta il successore al giorno lavorativo successivo.' Address: 'If you change the duration, your schedule is out of date.' → 'Se modifichi la durata, la tua pianificazione non è più aggiornata.'"
   },
+  "activity-code": {
+    "term": "codice attività",
+    "forms": [
+      "codice attività",
+      "codici attività"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "actual-date": {
     "term": "data effettiva",
     "forms": [
@@ -340,6 +349,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "day-task": {
+    "term": "attività in giorni",
+    "forms": [
+      "attività in giorni"
+    ],
+    "source": "model",
+    "status": "arbitrated"
+  },
   "dcma-assessment": {
     "term": "valutazione DCMA a 14 punti",
     "forms": [
@@ -356,6 +373,17 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "default-value": {
+    "term": "predefinito",
+    "forms": [
+      "predefinito",
+      "predefinita",
+      "predefiniti",
+      "predefinite"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "distribution": {
     "term": "distribuzione",
@@ -446,6 +474,14 @@
       "collegamenti esterni"
     ],
     "source": "tbx",
+    "status": "arbitrated"
+  },
+  "file": {
+    "term": "file",
+    "forms": [
+      "file"
+    ],
+    "source": "existing-ui",
     "status": "arbitrated"
   },
   "finish": {
@@ -568,6 +604,17 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "gantt-bar": {
+    "term": "barra",
+    "forms": [
+      "barra",
+      "barre",
+      "barra attività",
+      "barre attività"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "hammock": {
     "term": "hammock",
@@ -795,6 +842,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "mini-map": {
+    "term": "minimappa",
+    "forms": [
+      "minimappa"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "missed-task": {
     "term": "attività mancata",
     "forms": [
@@ -854,6 +909,14 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "occupancy": {
+    "term": "occupazione",
+    "forms": [
+      "occupazione"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "out-of-sequence-progress": {
     "term": "avanzamento fuori sequenza",
@@ -958,6 +1021,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "progress-line": {
+    "term": "linea di avanzamento",
+    "forms": [
+      "linea di avanzamento",
+      "linee di avanzamento"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "progress-mode": {
     "term": "modalità di progresso",
     "forms": [
@@ -974,6 +1046,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "project-info": {
+    "term": "info progetto",
+    "forms": [
+      "info progetto",
+      "informazioni progetto"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "project-start": {
     "term": "inizio del progetto",
     "forms": [
@@ -981,6 +1062,15 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "properties-panel": {
+    "term": "pannello proprietà",
+    "forms": [
+      "pannello proprietà",
+      "pannello delle proprietà"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "rate": {
     "term": "tariffa",
@@ -1089,6 +1179,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "resource-panel": {
+    "term": "pannello risorse",
+    "forms": [
+      "pannello risorse",
+      "pannello delle risorse"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "resource-type": {
     "term": "tipo di risorsa",
     "forms": [
@@ -1187,6 +1286,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "split-view": {
+    "term": "vista divisa",
+    "forms": [
+      "vista divisa",
+      "viste divise"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "start-driver": {
     "term": "driver di inizio",
     "forms": [
@@ -1249,6 +1357,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "status-bar": {
+    "term": "barra di stato",
+    "forms": [
+      "barra di stato"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
+  },
   "status-date": {
     "term": "data di stato",
     "forms": [
@@ -1287,6 +1403,15 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "table-column": {
+    "term": "colonna",
+    "forms": [
+      "colonna",
+      "colonne"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "task": {
     "term": "attività",
@@ -1331,6 +1456,15 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "time-scale": {
+    "term": "scala temporale",
+    "forms": [
+      "scala temporale",
+      "scale temporali"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "total-float": {
     "term": "margine totale",
@@ -1423,6 +1557,26 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "work-block": {
+    "term": "fascia",
+    "forms": [
+      "fascia",
+      "fasce",
+      "fascia oraria",
+      "fasce orarie"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
+  "work-break": {
+    "term": "pausa",
+    "forms": [
+      "pausa",
+      "pause"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "work-calendar": {
     "term": "calendario lavorativo",

@@ -4,6 +4,15 @@
     "note": "The UI addresses the user with siz (polite plural imperatives such as girin, seçin, değiştirin). Use the same polite form in new texts.",
     "docs": "Guides: Formal siz and the polite imperative (-in/-ın), as in the UI. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → '*Kaydet* öğesini seçin.'; 'in the *Relation type* window' → '*İlişki türü* penceresinde'. Explanation: 'The app moves the successor to the next workday.' → 'Uygulama ardılı bir sonraki iş gününe taşır.' Address: 'If you change the duration, your schedule is out of date.' → 'Süreyi değiştirirseniz planlamanız artık güncel olmaz.'"
   },
+  "activity-code": {
+    "term": "etkinlik kodu",
+    "forms": [
+      "etkinlik kodu",
+      "etkinlik kodları"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "actual-date": {
     "term": "gerçek tarih",
     "forms": [
@@ -362,6 +371,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "day-task": {
+    "term": "gün görevi",
+    "forms": [
+      "gün görevi",
+      "gün görevleri"
+    ],
+    "source": "model",
+    "status": "arbitrated"
+  },
   "dcma-assessment": {
     "term": "DCMA 14 nokta değerlendirmesi",
     "forms": [
@@ -380,6 +398,14 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "default-value": {
+    "term": "varsayılan",
+    "forms": [
+      "varsayılan"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "distribution": {
     "term": "dağılım",
@@ -482,6 +508,18 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "file": {
+    "term": "dosya",
+    "forms": [
+      "dosya",
+      "dosyası",
+      "dosyalar",
+      "dosyada",
+      "dosyadan"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "finish": {
     "term": "bitiş",
@@ -631,6 +669,19 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "gantt-bar": {
+    "term": "çubuk",
+    "forms": [
+      "çubuk",
+      "çubuğu",
+      "çubuklar",
+      "çubukları",
+      "görev çubuğu",
+      "görev çubukları"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "hammock": {
     "term": "hamak",
@@ -905,6 +956,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "mini-map": {
+    "term": "mini harita",
+    "forms": [
+      "mini harita",
+      "mini haritayı"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "missed-task": {
     "term": "kaçırılan görev",
     "forms": [
@@ -978,6 +1038,15 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "occupancy": {
+    "term": "doluluk",
+    "forms": [
+      "doluluk",
+      "doluluğu"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "out-of-sequence-progress": {
     "term": "sıra dışı ilerleme",
@@ -1113,6 +1182,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "progress-line": {
+    "term": "ilerleme çizgisi",
+    "forms": [
+      "ilerleme çizgisi"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "progress-mode": {
     "term": "ilerleme modu",
     "forms": [
@@ -1141,6 +1218,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "project-info": {
+    "term": "proje bilgisi",
+    "forms": [
+      "proje bilgisi",
+      "proje bilgileri"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "project-start": {
     "term": "proje başlangıcı",
     "forms": [
@@ -1154,6 +1240,16 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "properties-panel": {
+    "term": "özellikler paneli",
+    "forms": [
+      "özellikler paneli",
+      "özellikler panelini",
+      "özellikler panelinde"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "rate": {
     "term": "ücret",
@@ -1310,6 +1406,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "resource-panel": {
+    "term": "kaynak paneli",
+    "forms": [
+      "kaynak paneli",
+      "kaynak panelini"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "resource-type": {
     "term": "kaynak türü",
     "forms": [
@@ -1446,6 +1551,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "split-view": {
+    "term": "bölünmüş görünüm",
+    "forms": [
+      "bölünmüş görünüm"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "start-driver": {
     "term": "başlangıç driver'ı",
     "forms": [
@@ -1518,6 +1631,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "status-bar": {
+    "term": "durum çubuğu",
+    "forms": [
+      "durum çubuğu",
+      "durum çubuğunda"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
+  },
   "status-date": {
     "term": "durum tarihi",
     "forms": [
@@ -1564,6 +1686,17 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "table-column": {
+    "term": "sütun",
+    "forms": [
+      "sütun",
+      "sütunlar",
+      "sütunu",
+      "sütunları"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "task": {
     "term": "görev",
@@ -1615,6 +1748,14 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "time-scale": {
+    "term": "zaman ölçeği",
+    "forms": [
+      "zaman ölçeği"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "total-float": {
     "term": "toplam bolluk",
@@ -1729,6 +1870,27 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "work-block": {
+    "term": "bant",
+    "forms": [
+      "bant",
+      "bantlar",
+      "bandı"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
+  "work-break": {
+    "term": "mola",
+    "forms": [
+      "mola",
+      "molalar",
+      "molası",
+      "molayı"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "work-calendar": {
     "term": "iş takvimi",

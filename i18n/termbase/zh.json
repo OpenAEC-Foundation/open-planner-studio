@@ -4,6 +4,14 @@
     "note": "Chinese desktop software uses 你 for the user. The app's own ui texts use 你 (for example 你计划的其余部分, 请确认), so keep that. Short imperative sentences, for example 按 F5 或 请先设置.",
     "docs": "Guides: 你, as in the UI; short sentences. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → '选择 *保存*。'; 'in the *Relation type* window' → '在 *关系类型* 窗口中'. Explanation: 'The app moves the successor to the next workday.' → '应用会将后续任务移到下一个工作日。' Address: 'If you change the duration, your schedule is out of date.' → '如果你更改工期，你的计划就不再是最新的。'"
   },
+  "activity-code": {
+    "term": "活动代码",
+    "forms": [
+      "活动代码"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "actual-date": {
     "term": "实际日期",
     "forms": [
@@ -268,6 +276,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "day-task": {
+    "term": "天任务",
+    "forms": [
+      "天任务",
+      "按天任务"
+    ],
+    "source": "model",
+    "status": "arbitrated"
+  },
   "dcma-assessment": {
     "term": "DCMA 14 点评估",
     "forms": [
@@ -283,6 +300,15 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "default-value": {
+    "term": "默认",
+    "forms": [
+      "默认",
+      "默认值"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "distribution": {
     "term": "工时分布",
@@ -368,6 +394,14 @@
       "外部相关性"
     ],
     "source": "model",
+    "status": "arbitrated"
+  },
+  "file": {
+    "term": "文件",
+    "forms": [
+      "文件"
+    ],
+    "source": "existing-ui",
     "status": "arbitrated"
   },
   "finish": {
@@ -491,6 +525,14 @@
       "自由浮动时间"
     ],
     "source": "model",
+    "status": "arbitrated"
+  },
+  "gantt-bar": {
+    "term": "任务条",
+    "forms": [
+      "任务条"
+    ],
+    "source": "existing-ui",
     "status": "arbitrated"
   },
   "hammock": {
@@ -722,6 +764,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "mini-map": {
+    "term": "小地图",
+    "forms": [
+      "小地图"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "missed-task": {
     "term": "未按基线完成的任务",
     "forms": [
@@ -773,6 +823,15 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "occupancy": {
+    "term": "占用",
+    "forms": [
+      "占用",
+      "占用情况"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "out-of-sequence-progress": {
     "term": "顺序外进度",
@@ -866,6 +925,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "progress-line": {
+    "term": "进度线",
+    "forms": [
+      "进度线"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "progress-mode": {
     "term": "进度模式",
     "forms": [
@@ -882,6 +949,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "project-info": {
+    "term": "项目信息",
+    "forms": [
+      "项目信息"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "project-start": {
     "term": "项目开始",
     "forms": [
@@ -889,6 +964,14 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "properties-panel": {
+    "term": "属性面板",
+    "forms": [
+      "属性面板"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "rate": {
     "term": "费率",
@@ -984,6 +1067,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "resource-panel": {
+    "term": "资源面板",
+    "forms": [
+      "资源面板"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "resource-type": {
     "term": "资源类型",
     "forms": [
@@ -1067,6 +1158,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "split-view": {
+    "term": "拆分视图",
+    "forms": [
+      "拆分视图"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "start-driver": {
     "term": "开始驱动",
     "forms": [
@@ -1126,6 +1225,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "status-bar": {
+    "term": "状态栏",
+    "forms": [
+      "状态栏"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
+  },
   "status-date": {
     "term": "状态日期",
     "forms": [
@@ -1161,6 +1268,14 @@
     "source": "tbx",
     "status": "arbitrated"
   },
+  "table-column": {
+    "term": "列",
+    "forms": [
+      "列"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "task": {
     "term": "任务",
     "forms": [
@@ -1192,6 +1307,14 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "time-scale": {
+    "term": "时间刻度",
+    "forms": [
+      "时间刻度"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "total-float": {
     "term": "总浮时",
@@ -1267,6 +1390,24 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "work-block": {
+    "term": "时段",
+    "forms": [
+      "时段",
+      "工作时段"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
+  "work-break": {
+    "term": "休息",
+    "forms": [
+      "休息",
+      "休息时间"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "work-calendar": {
     "term": "工作日历",

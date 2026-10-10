@@ -1,5 +1,15 @@
 [
   {
+    "id": "activity-code",
+    "kind": "term",
+    "nl": "activiteitcode",
+    "en": [
+      "activity code",
+      "activity codes"
+    ],
+    "definition": "A Primavera P6 code that classifies activities; kept when a schedule is imported from XER."
+  },
+  {
     "id": "actual-date",
     "kind": "term",
     "nl": "werkelijke datum",
@@ -181,7 +191,7 @@
     "en": [
       "calculate"
     ],
-    "definition": "Run the schedule calculation (CPM) that sets task dates, float and the critical path.",
+    "definition": "The command (button, menu item or F5) that runs the schedule calculation (CPM) and sets task dates, float and the critical path. Use this term for the command itself; when a text explains what the app works out, use the ordinary verb for calculating.",
     "seeAlso": [
       "calculate-automatically",
       "calculation-profile"
@@ -423,6 +433,18 @@
     ]
   },
   {
+    "id": "day-task",
+    "kind": "term",
+    "nl": "dagtaak",
+    "en": [
+      "day task"
+    ],
+    "definition": "A task whose duration is planned in whole workdays; the default, as opposed to an hour task.",
+    "seeAlso": [
+      "hour-task"
+    ]
+  },
+  {
     "id": "dcma",
     "kind": "keep",
     "nl": "DCMA",
@@ -452,6 +474,15 @@
       "finish-no-later-than",
       "constraint"
     ]
+  },
+  {
+    "id": "default-value",
+    "kind": "term",
+    "nl": "standaard",
+    "en": [
+      "default"
+    ],
+    "definition": "The value a setting has until the user changes it, as in Default: on. Not a standard or norm."
   },
   {
     "id": "distribution",
@@ -548,10 +579,10 @@
     "kind": "term",
     "nl": "extensie",
     "en": [
-      "extension",
+      "app extension",
       "extensions"
     ],
-    "definition": "An add-on that adds features to the app and asks permission for what it may do."
+    "definition": "A software add-on for the app, installed from the extension catalogue, that adds features and asks permission for what it may do. Not a building extension."
   },
   {
     "id": "external-relation",
@@ -598,10 +629,9 @@
     "kind": "term",
     "nl": "einde",
     "en": [
-      "finish",
-      "end"
+      "finish"
     ],
-    "definition": "The date on which a task or the project ends.",
+    "definition": "The date on which a task or the project ends (noun). Not the verb to finish.",
     "seeAlso": [
       "early-finish",
       "late-finish"
@@ -821,6 +851,20 @@
     "definition": "The timeline chart that shows tasks as bars against dates."
   },
   {
+    "id": "gantt-bar",
+    "kind": "term",
+    "nl": "balk",
+    "en": [
+      "bar",
+      "task bar",
+      "Gantt bar"
+    ],
+    "definition": "The horizontal bar that shows the dates of a task in the Gantt chart. Not a table column, the status bar or a progress bar.",
+    "seeAlso": [
+      "table-column"
+    ]
+  },
+  {
     "id": "hammock",
     "kind": "term",
     "nl": "hangmat",
@@ -930,12 +974,13 @@
     "kind": "term",
     "nl": "onderbreking",
     "en": [
-      "interruption",
-      "break"
+      "interruption"
     ],
-    "definition": "A period inside a task in which no work is done, which splits the task bar in the Gantt.",
+    "definition": "A period inside a task in which no work is done, which splits the task bar in the Gantt (a split). Not a break in the working day: that is work-break.",
     "seeAlso": [
-      "task"
+      "task",
+      "split-task",
+      "work-break"
     ]
   },
   {
@@ -1002,9 +1047,10 @@
     "kind": "term",
     "nl": "lead",
     "en": [
-      "lead"
+      "lead",
+      "negative lag"
     ],
-    "definition": "A negative lag, so the successor may start before the predecessor finishes.",
+    "definition": "A negative lag in a relation, so the successor may start before the predecessor finishes. Not a procurement lead time and not the verb to lead (to).",
     "seeAlso": [
       "lag"
     ]
@@ -1043,7 +1089,7 @@
       "link",
       "link tasks"
     ],
-    "definition": "Create a dependency between tasks."
+    "definition": "Create a relation (dependency) between tasks, for example with the Link command. Not a hyperlink."
   },
   {
     "id": "longest-path",
@@ -1114,6 +1160,19 @@
     "definition": "Milestone kind is the setting that says which type of milestone a task is.",
     "seeAlso": [
       "milestone"
+    ]
+  },
+  {
+    "id": "mini-map",
+    "kind": "term",
+    "nl": "mini-map",
+    "en": [
+      "mini-map",
+      "minimap"
+    ],
+    "definition": "A small overview of the whole Gantt chart that shows the visible part; you click it to jump.",
+    "seeAlso": [
+      "split-view"
     ]
   },
   {
@@ -1223,6 +1282,19 @@
     ]
   },
   {
+    "id": "occupancy",
+    "kind": "term",
+    "nl": "bezetting",
+    "en": [
+      "occupancy",
+      "resource occupancy"
+    ],
+    "definition": "How much of the available time of a resource its assignments use in a period, shown in the occupancy view.",
+    "seeAlso": [
+      "overallocation"
+    ]
+  },
+  {
     "id": "out-of-sequence-progress",
     "kind": "term",
     "nl": "out-of-sequence voortgang",
@@ -1287,7 +1359,7 @@
     "en": [
       "period"
     ],
-    "definition": "A date range that filters a report or a resource occupancy view.",
+    "definition": "A date range that filters a report or a resource occupancy view, such as a reporting period. Not a period of time in general.",
     "seeAlso": [
       "report-type"
     ]
@@ -1355,6 +1427,18 @@
     ]
   },
   {
+    "id": "progress-line",
+    "kind": "term",
+    "nl": "voortgangslijn",
+    "en": [
+      "progress line"
+    ],
+    "definition": "A line in the Gantt chart through the status date that bends to show which tasks are ahead of or behind schedule.",
+    "seeAlso": [
+      "status-date"
+    ]
+  },
+  {
     "id": "progress-mode",
     "kind": "term",
     "nl": "voortgangsmodus",
@@ -1386,6 +1470,16 @@
     "definition": "The date on which the project ends."
   },
   {
+    "id": "project-info",
+    "kind": "term",
+    "nl": "projectinfo",
+    "en": [
+      "Project info",
+      "project information"
+    ],
+    "definition": "The dialog with the name, start date, calendar and calculation settings of the project, opened from File (Backstage)."
+  },
+  {
     "id": "project-start",
     "kind": "term",
     "nl": "projectstart",
@@ -1394,6 +1488,16 @@
       "project start date"
     ],
     "definition": "The date on which the project begins."
+  },
+  {
+    "id": "properties-panel",
+    "kind": "term",
+    "nl": "eigenschappenpaneel",
+    "en": [
+      "Properties panel",
+      "Properties pane"
+    ],
+    "definition": "The side panel that shows and edits the properties of the selected task, resource or relation."
   },
   {
     "id": "rate",
@@ -1428,7 +1532,7 @@
     "en": [
       "recalculate"
     ],
-    "definition": "Running the schedule calculation again so that all dates and float values match the current data.",
+    "definition": "Running the schedule calculation again after a change, so that all dates and float values match the current data. It describes what happens; the command itself is calculate.",
     "seeAlso": [
       "calculation-profile"
     ]
@@ -1494,7 +1598,7 @@
       "reporting",
       "reports"
     ],
-    "definition": "A printable or exportable view of schedule data, such as a progress report."
+    "definition": "A printable or exportable view of schedule data, such as a progress report (noun). Not the verb to report."
   },
   {
     "id": "report-type",
@@ -1532,6 +1636,19 @@
       "pool"
     ],
     "definition": "The shared store of resources and calendars that projects can reuse.",
+    "seeAlso": [
+      "resource"
+    ]
+  },
+  {
+    "id": "resource-panel",
+    "kind": "term",
+    "nl": "resourcepaneel",
+    "en": [
+      "resource panel",
+      "Resources panel"
+    ],
+    "definition": "The panel that lists the resources of the project with their calendars and assignments.",
     "seeAlso": [
       "resource"
     ]
@@ -1593,7 +1710,7 @@
       "schedule",
       "planning"
     ],
-    "definition": "The set of task dates, durations and relations that shows when work is planned."
+    "definition": "The set of task dates, durations and relations that shows when work is planned (noun). Not the verb to schedule."
   },
   {
     "id": "schedule-error",
@@ -1640,7 +1757,7 @@
     "en": [
       "shift"
     ],
-    "definition": "A recurring work period within a day, such as a day, evening or night shift, set in a calendar.",
+    "definition": "A recurring work period within a day, such as a day, evening or night shift, set in a calendar. Not the verb to shift (move) and not the Shift key.",
     "seeAlso": [
       "calendar"
     ]
@@ -1687,6 +1804,18 @@
       "split mode"
     ],
     "definition": "Split task is a task that is divided into parts with a gap between them."
+  },
+  {
+    "id": "split-view",
+    "kind": "term",
+    "nl": "split view",
+    "en": [
+      "split view"
+    ],
+    "definition": "A view that shows two parts of the schedule at the same time, next to or above each other.",
+    "seeAlso": [
+      "mini-map"
+    ]
   },
   {
     "id": "ss",
@@ -1781,6 +1910,15 @@
     ]
   },
   {
+    "id": "status-bar",
+    "kind": "term",
+    "nl": "statusbalk",
+    "en": [
+      "status bar"
+    ],
+    "definition": "The bar at the bottom of the window that shows the project finish, the critical path and other status information."
+  },
+  {
     "id": "status-date",
     "kind": "term",
     "nl": "statusdatum",
@@ -1838,6 +1976,19 @@
     }
   },
   {
+    "id": "table-column",
+    "kind": "term",
+    "nl": "kolom",
+    "en": [
+      "column",
+      "columns"
+    ],
+    "definition": "A field shown as a vertical column in the task table or a report table, such as Duration. A day column in the Gantt chart is a time unit, not a table column.",
+    "seeAlso": [
+      "gantt-bar"
+    ]
+  },
+  {
     "id": "task",
     "kind": "term",
     "nl": "taak",
@@ -1855,12 +2006,13 @@
   {
     "id": "task-grid",
     "kind": "term",
-    "nl": "takenraster",
+    "nl": "takenlijst",
     "en": [
-      "task grid",
-      "task table"
+      "task list",
+      "task table",
+      "task grid"
     ],
-    "definition": "Task grid is the table with task rows and columns next to the Gantt chart."
+    "definition": "The table with task rows and columns next to the Gantt chart, also called the task list."
   },
   {
     "id": "task-type",
@@ -1888,6 +2040,16 @@
     "seeAlso": [
       "float"
     ]
+  },
+  {
+    "id": "time-scale",
+    "kind": "term",
+    "nl": "tijdschaal",
+    "en": [
+      "time scale",
+      "timescale"
+    ],
+    "definition": "The date axis above the Gantt chart, with its units such as days, weeks and months."
   },
   {
     "id": "total-float",
@@ -2017,7 +2179,36 @@
     "en": [
       "work"
     ],
-    "definition": "The total labour effort of a task or assignment, in hours."
+    "definition": "The total labour effort of a task or assignment, in hours, as a scheduling quantity. Not the everyday verb to work and not construction work in general."
+  },
+  {
+    "id": "work-block",
+    "kind": "term",
+    "nl": "werktijdblok",
+    "en": [
+      "working-time block",
+      "block",
+      "band"
+    ],
+    "definition": "One continuous period of working time on a day in a calendar, such as 07:00–12:00; a break lies between two blocks.",
+    "seeAlso": [
+      "work-break",
+      "working-time"
+    ]
+  },
+  {
+    "id": "work-break",
+    "kind": "term",
+    "nl": "pauze",
+    "en": [
+      "break",
+      "lunch break"
+    ],
+    "definition": "Non-working time between two working-time blocks on one day, such as a lunch break; set in a calendar. Not a task interruption.",
+    "seeAlso": [
+      "work-block",
+      "interruption"
+    ]
   },
   {
     "id": "work-calendar",

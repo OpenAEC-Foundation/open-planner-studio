@@ -4,6 +4,15 @@
     "note": "Tratamento formal (você, imperativo de 3.ª pessoa: Verifique, Escolha, Defina, Altere), como nos textos ui. Português europeu (ficheiro, planeamento).",
     "docs": "Guides: Formal (third-person imperative, no tu), European Portuguese, as in the UI. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Escolha *Guardar*.'; 'in the *Relation type* window' → 'na janela *Tipo de relação*'. Explanation: 'The app moves the successor to the next workday.' → 'A aplicação move a sucessora para o dia útil seguinte.' Address: 'If you change the duration, your schedule is out of date.' → 'Se alterar a duração, o seu planeamento deixa de estar atualizado.'"
   },
+  "activity-code": {
+    "term": "código de atividade",
+    "forms": [
+      "código de atividade",
+      "códigos de atividade"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "actual-date": {
     "term": "data real",
     "forms": [
@@ -319,6 +328,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "day-task": {
+    "term": "tarefa em dias",
+    "forms": [
+      "tarefa em dias",
+      "tarefas em dias"
+    ],
+    "source": "model",
+    "status": "arbitrated"
+  },
   "dcma-assessment": {
     "term": "avaliação DCMA de 14 pontos",
     "forms": [
@@ -336,6 +354,16 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "default-value": {
+    "term": "padrão",
+    "forms": [
+      "padrão",
+      "padrões",
+      "por padrão"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "distribution": {
     "term": "distribuição",
@@ -447,6 +475,19 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "file": {
+    "term": "ficheiro",
+    "forms": [
+      "ficheiro",
+      "ficheiros"
+    ],
+    "avoid": [
+      "arquivo",
+      "arquivos"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "finish": {
     "term": "fim",
@@ -596,6 +637,17 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "gantt-bar": {
+    "term": "barra",
+    "forms": [
+      "barra",
+      "barras",
+      "barra de tarefa",
+      "barras de tarefa"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "hammock": {
     "term": "hammock",
@@ -851,6 +903,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "mini-map": {
+    "term": "minimapa",
+    "forms": [
+      "minimapa"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "missed-task": {
     "term": "tarefa falhada",
     "forms": [
@@ -931,6 +991,15 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "occupancy": {
+    "term": "ocupação",
+    "forms": [
+      "ocupação",
+      "ocupações"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "out-of-sequence-progress": {
     "term": "progresso fora de sequência",
@@ -1060,6 +1129,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "progress-line": {
+    "term": "linha de progresso",
+    "forms": [
+      "linha de progresso",
+      "linhas de progresso"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "progress-mode": {
     "term": "modo de progresso",
     "forms": [
@@ -1085,6 +1163,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "project-info": {
+    "term": "info do projeto",
+    "forms": [
+      "info do projeto",
+      "informações do projeto"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "project-start": {
     "term": "início do projeto",
     "forms": [
@@ -1097,6 +1184,15 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "properties-panel": {
+    "term": "painel de propriedades",
+    "forms": [
+      "painel de propriedades",
+      "painéis de propriedades"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "rate": {
     "term": "tarifa",
@@ -1238,6 +1334,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "resource-panel": {
+    "term": "painel de recursos",
+    "forms": [
+      "painel de recursos"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "resource-type": {
     "term": "tipo de recurso",
     "forms": [
@@ -1362,6 +1466,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "split-view": {
+    "term": "vista dividida",
+    "forms": [
+      "vista dividida",
+      "vistas divididas"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "start-driver": {
     "term": "driver de início",
     "forms": [
@@ -1440,6 +1553,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "status-bar": {
+    "term": "barra de estado",
+    "forms": [
+      "barra de estado"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
+  },
   "status-date": {
     "term": "data de estado",
     "forms": [
@@ -1487,6 +1608,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "table-column": {
+    "term": "coluna",
+    "forms": [
+      "coluna",
+      "colunas"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "task": {
     "term": "tarefa",
     "forms": [
@@ -1531,6 +1661,15 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "time-scale": {
+    "term": "escala temporal",
+    "forms": [
+      "escala temporal",
+      "escalas temporais"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "total-float": {
     "term": "folga total",
@@ -1638,6 +1777,24 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "work-block": {
+    "term": "faixa",
+    "forms": [
+      "faixa",
+      "faixas"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
+  "work-break": {
+    "term": "pausa",
+    "forms": [
+      "pausa",
+      "pausas"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "work-calendar": {
     "term": "calendário de trabalho",
     "forms": [
@@ -1689,19 +1846,6 @@
       "tempos de trabalho"
     ],
     "source": "model",
-    "status": "arbitrated"
-  },
-  "file": {
-    "term": "ficheiro",
-    "forms": [
-      "ficheiro",
-      "ficheiros"
-    ],
-    "avoid": [
-      "arquivo",
-      "arquivos"
-    ],
-    "source": "existing-ui",
     "status": "arbitrated"
   }
 }

@@ -5,6 +5,16 @@
     "commands": "Commands use the imperative, like Norwegian Microsoft software: Lagre, Åpne, Slett, Beregn.",
     "docs": "Guides: Informal du and the imperative, as in the UI. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Velg *Lagre*.'; 'in the *Relation type* window' → 'i vinduet *Type avhengighet*'. Explanation: 'The app moves the successor to the next workday.' → 'Appen flytter etterfølgeren til neste arbeidsdag.' Address: 'If you change the duration, your schedule is out of date.' → 'Hvis du endrer varigheten, er tidsplanen din ikke lenger oppdatert.'"
   },
+  "activity-code": {
+    "term": "aktivitetskode",
+    "forms": [
+      "aktivitetskode",
+      "aktivitetskoden",
+      "aktivitetskoder"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "actual-date": {
     "term": "faktisk",
     "forms": [
@@ -394,6 +404,15 @@
     "source": "model",
     "status": "model"
   },
+  "day-task": {
+    "term": "dagbasert aktivitet",
+    "forms": [
+      "dagbasert aktivitet",
+      "dagbaserte aktiviteter"
+    ],
+    "source": "model",
+    "status": "arbitrated"
+  },
   "dcma-assessment": {
     "term": "DCMA 14-punktsvurdering",
     "forms": [
@@ -416,6 +435,15 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "default-value": {
+    "term": "standard",
+    "forms": [
+      "standard",
+      "standardverdi"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "distribution": {
     "term": "fordeling",
@@ -525,6 +553,16 @@
       "koblinger mellom prosjekter"
     ],
     "source": "model",
+    "status": "arbitrated"
+  },
+  "file": {
+    "term": "fil",
+    "forms": [
+      "fil",
+      "filen",
+      "filer"
+    ],
+    "source": "existing-ui",
     "status": "arbitrated"
   },
   "finish": {
@@ -663,6 +701,17 @@
     "source": "tbx",
     "status": "tbx"
   },
+  "gantt-bar": {
+    "term": "stolpe",
+    "forms": [
+      "stolpe",
+      "stolpen",
+      "stolper",
+      "aktivitetsstolpe"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "hammock": {
     "term": "hengekøye",
     "forms": [
@@ -759,9 +808,6 @@
       "avbrudd",
       "avbruddet",
       "avbruddene"
-    ],
-    "avoid": [
-      "pause"
     ],
     "source": "model",
     "status": "model"
@@ -919,6 +965,15 @@
     "source": "model",
     "status": "model"
   },
+  "mini-map": {
+    "term": "minikart",
+    "forms": [
+      "minikart",
+      "minikartet"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "missed-task": {
     "term": "forsinket aktivitet",
     "forms": [
@@ -977,6 +1032,15 @@
     ],
     "source": "model",
     "status": "model"
+  },
+  "occupancy": {
+    "term": "belegg",
+    "forms": [
+      "belegg",
+      "belegget"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "out-of-sequence-progress": {
     "term": "fremdrift utenfor rekkefølge",
@@ -1080,6 +1144,15 @@
     "source": "tbx",
     "status": "arbitrated"
   },
+  "progress-line": {
+    "term": "fremdriftslinje",
+    "forms": [
+      "fremdriftslinje",
+      "fremdriftslinjen"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "progress-mode": {
     "term": "fremdriftsmodus",
     "forms": [
@@ -1102,6 +1175,15 @@
     "source": "model",
     "status": "model"
   },
+  "project-info": {
+    "term": "prosjektinfo",
+    "forms": [
+      "prosjektinfo",
+      "prosjektinformasjon"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "project-start": {
     "term": "prosjektstart",
     "forms": [
@@ -1112,6 +1194,15 @@
     ],
     "source": "model",
     "status": "model"
+  },
+  "properties-panel": {
+    "term": "egenskapspanel",
+    "forms": [
+      "egenskapspanel",
+      "egenskapspanelet"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "rate": {
     "term": "standardsats",
@@ -1232,6 +1323,15 @@
     "source": "tbx",
     "status": "tbx-chosen"
   },
+  "resource-panel": {
+    "term": "ressurspanel",
+    "forms": [
+      "ressurspanel",
+      "ressurspanelet"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "resource-type": {
     "term": "ressurstype",
     "forms": [
@@ -1340,6 +1440,15 @@
     "source": "tbx",
     "status": "tbx"
   },
+  "split-view": {
+    "term": "delt visning",
+    "forms": [
+      "delt visning",
+      "delte visningen"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "start-driver": {
     "term": "startstyrende avhengighet",
     "forms": [
@@ -1412,6 +1521,15 @@
     "source": "model",
     "status": "model"
   },
+  "status-bar": {
+    "term": "statuslinje",
+    "forms": [
+      "statuslinje",
+      "statuslinjen"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
+  },
   "status-date": {
     "term": "statusdato",
     "forms": [
@@ -1462,6 +1580,16 @@
     "source": "tbx",
     "status": "tbx"
   },
+  "table-column": {
+    "term": "kolonne",
+    "forms": [
+      "kolonne",
+      "kolonnen",
+      "kolonner"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "task": {
     "term": "aktivitet",
     "forms": [
@@ -1509,6 +1637,15 @@
     ],
     "source": "tbx",
     "status": "tbx-chosen"
+  },
+  "time-scale": {
+    "term": "tidsskala",
+    "forms": [
+      "tidsskala",
+      "tidsskalaen"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "total-float": {
     "term": "totalslakk",
@@ -1612,6 +1749,25 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "work-block": {
+    "term": "tidsbånd",
+    "forms": [
+      "tidsbånd",
+      "tidsbåndet"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
+  "work-break": {
+    "term": "pause",
+    "forms": [
+      "pause",
+      "pausen",
+      "pauser"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "work-calendar": {
     "term": "arbeidskalender",

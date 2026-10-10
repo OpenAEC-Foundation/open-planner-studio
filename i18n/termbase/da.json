@@ -5,6 +5,16 @@
     "commands": "Commands use the imperative, like Danish Microsoft software: Gem, Åbn, Slet, Beregn.",
     "docs": "Guides: Informal du and the imperative, as in the UI. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Vælg *Gem*.'; 'in the *Relation type* window' → 'i vinduet *Type afhængighed*'. Explanation: 'The app moves the successor to the next workday.' → 'Appen flytter den efterfølgende opgave til næste arbejdsdag.' Address: 'If you change the duration, your schedule is out of date.' → 'Hvis du ændrer varigheden, er din tidsplan ikke længere opdateret.'"
   },
+  "activity-code": {
+    "term": "opgavekode",
+    "forms": [
+      "opgavekode",
+      "opgavekoden",
+      "opgavekoder"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "actual-date": {
     "term": "faktisk",
     "forms": [
@@ -359,6 +369,15 @@
     "source": "model",
     "status": "model"
   },
+  "day-task": {
+    "term": "dagopgave",
+    "forms": [
+      "dagopgave",
+      "dagopgaver"
+    ],
+    "source": "model",
+    "status": "arbitrated"
+  },
   "dcma-assessment": {
     "term": "DCMA 14-punktsvurdering",
     "forms": [
@@ -378,6 +397,15 @@
     ],
     "source": "tbx",
     "status": "tbx-chosen"
+  },
+  "default-value": {
+    "term": "standard",
+    "forms": [
+      "standard",
+      "standardværdi"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "distribution": {
     "term": "fordeling",
@@ -496,6 +524,16 @@
     ],
     "source": "tbx",
     "status": "tbx-chosen"
+  },
+  "file": {
+    "term": "fil",
+    "forms": [
+      "fil",
+      "filen",
+      "filer"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "finish": {
     "term": "slutdato",
@@ -681,6 +719,17 @@
     "source": "tbx",
     "status": "tbx"
   },
+  "gantt-bar": {
+    "term": "bjælke",
+    "forms": [
+      "bjælke",
+      "bjælken",
+      "bjælker",
+      "opgavebjælke"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "hammock": {
     "term": "hængekøje",
     "forms": [
@@ -818,13 +867,6 @@
       "afbrydelser",
       "afbrydelserne",
       "afbrydelsens"
-    ],
-    "avoid": [
-      "pause",
-      "pausen",
-      "pauser",
-      "pauserne",
-      "pausens"
     ],
     "source": "model",
     "status": "arbitrated"
@@ -1023,6 +1065,15 @@
     "source": "model",
     "status": "model"
   },
+  "mini-map": {
+    "term": "minikort",
+    "forms": [
+      "minikort",
+      "minikortet"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "missed-task": {
     "term": "forsinket opgave",
     "forms": [
@@ -1096,6 +1147,15 @@
     ],
     "source": "model",
     "status": "model"
+  },
+  "occupancy": {
+    "term": "belægning",
+    "forms": [
+      "belægning",
+      "belægningen"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "out-of-sequence-progress": {
     "term": "fremdrift uden for rækkefølge",
@@ -1208,6 +1268,15 @@
     "source": "model",
     "status": "model"
   },
+  "progress-line": {
+    "term": "fremdriftslinje",
+    "forms": [
+      "fremdriftslinje",
+      "fremdriftslinjen"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "progress-mode": {
     "term": "fremdriftsmetode",
     "forms": [
@@ -1230,6 +1299,15 @@
     "source": "model",
     "status": "model"
   },
+  "project-info": {
+    "term": "projektinfo",
+    "forms": [
+      "projektinfo",
+      "projektoplysninger"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "project-start": {
     "term": "projektstartdato",
     "forms": [
@@ -1240,6 +1318,15 @@
     ],
     "source": "model",
     "status": "model"
+  },
+  "properties-panel": {
+    "term": "egenskabspanel",
+    "forms": [
+      "egenskabspanel",
+      "egenskabspanelet"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "rate": {
     "term": "standardsats",
@@ -1377,6 +1464,15 @@
     "source": "tbx",
     "status": "tbx-chosen"
   },
+  "resource-panel": {
+    "term": "ressourcepanel",
+    "forms": [
+      "ressourcepanel",
+      "ressourcepanelet"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "resource-type": {
     "term": "ressourcetype",
     "forms": [
@@ -1503,6 +1599,15 @@
     "source": "tbx",
     "status": "tbx"
   },
+  "split-view": {
+    "term": "opdelt visning",
+    "forms": [
+      "opdelt visning",
+      "opdelte visning"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "start-driver": {
     "term": "startbestemmende afhængighed",
     "forms": [
@@ -1585,6 +1690,15 @@
     "source": "model",
     "status": "model"
   },
+  "status-bar": {
+    "term": "statuslinje",
+    "forms": [
+      "statuslinje",
+      "statuslinjen"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
+  },
   "status-date": {
     "term": "statusdato",
     "forms": [
@@ -1644,6 +1758,16 @@
     "source": "tbx",
     "status": "tbx"
   },
+  "table-column": {
+    "term": "kolonne",
+    "forms": [
+      "kolonne",
+      "kolonnen",
+      "kolonner"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "task": {
     "term": "opgave",
     "forms": [
@@ -1700,6 +1824,15 @@
     ],
     "source": "tbx",
     "status": "tbx-chosen"
+  },
+  "time-scale": {
+    "term": "tidsskala",
+    "forms": [
+      "tidsskala",
+      "tidsskalaen"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "total-float": {
     "term": "samlet slæk",
@@ -1819,6 +1952,25 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "work-block": {
+    "term": "tidsbånd",
+    "forms": [
+      "tidsbånd",
+      "tidsbåndet"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
+  "work-break": {
+    "term": "pause",
+    "forms": [
+      "pause",
+      "pausen",
+      "pauser"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "work-calendar": {
     "term": "arbejdskalender",

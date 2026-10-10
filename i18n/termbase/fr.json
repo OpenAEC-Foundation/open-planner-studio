@@ -4,6 +4,16 @@
     "note": "De app gebruikt het vouvoiement (vous, votre), zoals in de bestaande Franse UI-teksten.",
     "docs": "Guides: Formal vous, as in the UI. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Choisissez *Enregistrer*.'; 'in the *Relation type* window' → 'dans la fenêtre *Type de relation*'. Explanation: 'The app moves the successor to the next workday.' → 'L'application déplace le successeur au jour ouvré suivant.' Address: 'If you change the duration, your schedule is out of date.' → 'Si vous modifiez la durée, votre planning n'est plus à jour.'"
   },
+  "activity-code": {
+    "term": "code d'activité",
+    "forms": [
+      "code d'activité",
+      "codes d'activité",
+      "code d’activité"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "actual-date": {
     "term": "date réelle",
     "forms": [
@@ -376,6 +386,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "day-task": {
+    "term": "tâche en jours",
+    "forms": [
+      "tâche en jours",
+      "tâches en jours"
+    ],
+    "source": "model",
+    "status": "arbitrated"
+  },
   "dcma-assessment": {
     "term": "évaluation DCMA en 14 points",
     "forms": [
@@ -399,6 +418,14 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "default-value": {
+    "term": "par défaut",
+    "forms": [
+      "par défaut"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "distribution": {
     "term": "répartition",
@@ -494,6 +521,15 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "file": {
+    "term": "fichier",
+    "forms": [
+      "fichier",
+      "fichiers"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "finish": {
     "term": "fin",
@@ -624,6 +660,17 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "gantt-bar": {
+    "term": "barre",
+    "forms": [
+      "barre",
+      "barres",
+      "barre de tâche",
+      "barres de tâche"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "hammock": {
     "term": "hamac",
@@ -853,6 +900,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "mini-map": {
+    "term": "mini-carte",
+    "forms": [
+      "mini-carte",
+      "mini-cartes"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "missed-task": {
     "term": "tâche manquée",
     "forms": [
@@ -919,6 +975,15 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "occupancy": {
+    "term": "occupation",
+    "forms": [
+      "occupation",
+      "occupations"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "out-of-sequence-progress": {
     "term": "avancement hors séquence",
@@ -1022,6 +1087,16 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "progress-line": {
+    "term": "ligne d'avancement",
+    "forms": [
+      "ligne d'avancement",
+      "lignes d'avancement",
+      "ligne d’avancement"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "progress-mode": {
     "term": "mode d'avancement",
     "forms": [
@@ -1039,6 +1114,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "project-info": {
+    "term": "Info projet",
+    "forms": [
+      "Info projet",
+      "informations du projet"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "project-start": {
     "term": "début du projet",
     "forms": [
@@ -1047,6 +1131,15 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "properties-panel": {
+    "term": "panneau des propriétés",
+    "forms": [
+      "panneau des propriétés",
+      "panneaux des propriétés"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "rate": {
     "term": "tarif",
@@ -1170,6 +1263,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "resource-panel": {
+    "term": "panneau des ressources",
+    "forms": [
+      "panneau des ressources"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "resource-type": {
     "term": "type de ressource",
     "forms": [
@@ -1271,6 +1372,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "split-view": {
+    "term": "vue partagée",
+    "forms": [
+      "vue partagée",
+      "vues partagées"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "start-driver": {
     "term": "driver de début",
     "forms": [
@@ -1338,6 +1448,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "status-bar": {
+    "term": "barre d'état",
+    "forms": [
+      "barre d'état",
+      "barre d’état"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
+  },
   "status-date": {
     "term": "date d'état",
     "forms": [
@@ -1380,6 +1499,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "table-column": {
+    "term": "colonne",
+    "forms": [
+      "colonne",
+      "colonnes"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "task": {
     "term": "tâche",
     "forms": [
@@ -1421,6 +1549,15 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "time-scale": {
+    "term": "échelle de temps",
+    "forms": [
+      "échelle de temps",
+      "échelles de temps"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "total-float": {
     "term": "marge totale",
@@ -1509,6 +1646,26 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "work-block": {
+    "term": "plage",
+    "forms": [
+      "plage",
+      "plages",
+      "plage horaire",
+      "plages horaires"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
+  "work-break": {
+    "term": "pause",
+    "forms": [
+      "pause",
+      "pauses"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "work-calendar": {
     "term": "calendrier de travail",

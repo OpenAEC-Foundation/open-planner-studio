@@ -4,6 +4,15 @@
     "note": "De bestaande Duitse UI spreekt de gebruiker in de Sie-vorm aan (z. B. 'Prüfen Sie Beziehungen', 'Ihre Planung').",
     "docs": "Guides: Formal Sie, as in most of the UI (about 170 Sie forms against about 20 du forms). A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Wählen Sie *Speichern*.'; 'in the *Relation type* window' → 'im Fenster *Beziehungstyp*'. Explanation: 'The app moves the successor to the next workday.' → 'Die App verschiebt den Nachfolger auf den nächsten Arbeitstag.' Address: 'If you change the duration, your schedule is out of date.' → 'Wenn Sie die Dauer ändern, ist Ihr Terminplan nicht mehr aktuell.'"
   },
+  "activity-code": {
+    "term": "Aktivitätscode",
+    "forms": [
+      "Aktivitätscode",
+      "Aktivitätscodes"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "actual-date": {
     "term": "Ist-Werte",
     "forms": [
@@ -352,6 +361,16 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "day-task": {
+    "term": "Tagesvorgang",
+    "forms": [
+      "Tagesvorgang",
+      "Tagesvorgangs",
+      "Tagesvorgänge"
+    ],
+    "source": "model",
+    "status": "arbitrated"
+  },
   "dcma-assessment": {
     "term": "DCMA-14-Punkte-Bewertung",
     "forms": [
@@ -370,6 +389,15 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "default-value": {
+    "term": "Standard",
+    "forms": [
+      "Standard",
+      "standardmäßig"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "distribution": {
     "term": "Verteilung",
@@ -474,6 +502,15 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "file": {
+    "term": "Datei",
+    "forms": [
+      "Datei",
+      "Dateien"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "finish": {
     "term": "Ende",
@@ -616,6 +653,16 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "gantt-bar": {
+    "term": "Balken",
+    "forms": [
+      "Balken",
+      "Vorgangsbalken",
+      "Balkens"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "hammock": {
     "term": "Hammock",
@@ -890,6 +937,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "mini-map": {
+    "term": "Minimap",
+    "forms": [
+      "Minimap"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "missed-task": {
     "term": "Verpasster Vorgang",
     "forms": [
@@ -961,6 +1016,15 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "occupancy": {
+    "term": "Belegung",
+    "forms": [
+      "Belegung",
+      "Belegungen"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "out-of-sequence-progress": {
     "term": "Fortschritt außer Reihenfolge",
@@ -1078,6 +1142,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "progress-line": {
+    "term": "Fortschrittslinie",
+    "forms": [
+      "Fortschrittslinie",
+      "Fortschrittslinien"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "progress-mode": {
     "term": "Fortschrittsmodus",
     "forms": [
@@ -1097,6 +1170,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "project-info": {
+    "term": "Projektinfo",
+    "forms": [
+      "Projektinfo",
+      "Projektinformationen"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "project-start": {
     "term": "Projektstart",
     "forms": [
@@ -1105,6 +1187,15 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "properties-panel": {
+    "term": "Eigenschaftenbereich",
+    "forms": [
+      "Eigenschaftenbereich",
+      "Eigenschaftenbereichs"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "rate": {
     "term": "Tarif",
@@ -1233,6 +1324,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "resource-panel": {
+    "term": "Ressourcen-Panel",
+    "forms": [
+      "Ressourcen-Panel",
+      "Ressourcenpanel"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "resource-type": {
     "term": "Ressourcentyp",
     "forms": [
@@ -1341,6 +1441,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "split-view": {
+    "term": "geteilte Ansicht",
+    "forms": [
+      "geteilte Ansicht",
+      "geteilten Ansicht"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "start-driver": {
     "term": "Start-Treiber",
     "forms": [
@@ -1407,6 +1516,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "status-bar": {
+    "term": "Statusleiste",
+    "forms": [
+      "Statusleiste"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
+  },
   "status-date": {
     "term": "Statusdatum",
     "forms": [
@@ -1454,6 +1571,15 @@
       "Sammelaufgabe"
     ],
     "source": "tbx",
+    "status": "arbitrated"
+  },
+  "table-column": {
+    "term": "Spalte",
+    "forms": [
+      "Spalte",
+      "Spalten"
+    ],
+    "source": "existing-ui",
     "status": "arbitrated"
   },
   "task": {
@@ -1504,6 +1630,15 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "time-scale": {
+    "term": "Zeitskala",
+    "forms": [
+      "Zeitskala",
+      "Zeitskalen"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "total-float": {
     "term": "Gesamtpuffer",
@@ -1589,6 +1724,25 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "work-block": {
+    "term": "Band",
+    "forms": [
+      "Band",
+      "Bänder",
+      "Zeitband"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
+  "work-break": {
+    "term": "Pause",
+    "forms": [
+      "Pause",
+      "Pausen"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "work-calendar": {
     "term": "Arbeitskalender",

@@ -4,6 +4,14 @@
     "note": "The existing Japanese UI uses polite forms (です/ます, ください, できません). Follow the ui texts.",
     "docs": "Guides: Polite です/ます forms, as in the UI; no あなた. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → '*保存* を選択します。'; 'in the *Relation type* window' → '*関係の種類* ウィンドウで'. Explanation: 'The app moves the successor to the next workday.' → 'アプリは後続タスクを次の稼働日に移動します。' Address: 'If you change the duration, your schedule is out of date.' → '期間を変更すると、スケジュールは最新ではなくなります。'"
   },
+  "activity-code": {
+    "term": "アクティビティコード",
+    "forms": [
+      "アクティビティコード"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "actual-date": {
     "term": "実績日",
     "forms": [
@@ -296,6 +304,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "day-task": {
+    "term": "日タスク",
+    "forms": [
+      "日タスク",
+      "日単位のタスク"
+    ],
+    "source": "model",
+    "status": "arbitrated"
+  },
   "dcma-assessment": {
     "term": "DCMA 14 項目評価",
     "forms": [
@@ -315,6 +332,15 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "default-value": {
+    "term": "既定",
+    "forms": [
+      "既定",
+      "既定値"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "distribution": {
     "term": "配分",
@@ -399,6 +425,14 @@
       "外部依存関係"
     ],
     "source": "model",
+    "status": "arbitrated"
+  },
+  "file": {
+    "term": "ファイル",
+    "forms": [
+      "ファイル"
+    ],
+    "source": "existing-ui",
     "status": "arbitrated"
   },
   "finish": {
@@ -519,6 +553,15 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "gantt-bar": {
+    "term": "バー",
+    "forms": [
+      "バー",
+      "タスクバー"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "hammock": {
     "term": "ハンモック",
@@ -730,6 +773,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "mini-map": {
+    "term": "ミニマップ",
+    "forms": [
+      "ミニマップ"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "missed-task": {
     "term": "ベースライン未達タスク",
     "forms": [
@@ -777,6 +828,14 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "occupancy": {
+    "term": "稼働状況",
+    "forms": [
+      "稼働状況"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "out-of-sequence-progress": {
     "term": "順序外進捗",
@@ -864,6 +923,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "progress-line": {
+    "term": "進捗ライン",
+    "forms": [
+      "進捗ライン"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "progress-mode": {
     "term": "進捗モード",
     "forms": [
@@ -880,6 +947,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "project-info": {
+    "term": "プロジェクト情報",
+    "forms": [
+      "プロジェクト情報"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "project-start": {
     "term": "プロジェクト開始日",
     "forms": [
@@ -887,6 +962,14 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "properties-panel": {
+    "term": "プロパティパネル",
+    "forms": [
+      "プロパティパネル"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "rate": {
     "term": "単価",
@@ -985,6 +1068,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "resource-panel": {
+    "term": "リソースパネル",
+    "forms": [
+      "リソースパネル"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "resource-type": {
     "term": "リソースの種類",
     "forms": [
@@ -1074,6 +1165,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "split-view": {
+    "term": "分割ビュー",
+    "forms": [
+      "分割ビュー"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "start-driver": {
     "term": "開始ドライバー",
     "forms": [
@@ -1133,6 +1232,15 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "status-bar": {
+    "term": "ステータスバー",
+    "forms": [
+      "ステータスバー",
+      "ステータス バー"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
+  },
   "status-date": {
     "term": "状態日",
     "forms": [
@@ -1170,6 +1278,14 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "table-column": {
+    "term": "列",
+    "forms": [
+      "列"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "task": {
     "term": "タスク",
@@ -1210,6 +1326,14 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "time-scale": {
+    "term": "タイムスケール",
+    "forms": [
+      "タイムスケール"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "total-float": {
     "term": "トータルフロート",
@@ -1288,6 +1412,24 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "work-block": {
+    "term": "帯",
+    "forms": [
+      "帯",
+      "時間帯"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
+  "work-break": {
+    "term": "休憩",
+    "forms": [
+      "休憩",
+      "休憩時間"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "work-calendar": {
     "term": "作業カレンダー",

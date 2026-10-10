@@ -5,6 +5,16 @@
     "commands": "Commands use a noun of action, like Romanian Microsoft software: Salvare, Deschidere, Ștergere, Calculare.",
     "docs": "Guides: Formal dumneavoastră and the plural imperative. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Alegeți *Salvare*.'; 'in the *Relation type* window' → 'în fereastra *Tip de dependență*'. Explanation: 'The app moves the successor to the next workday.' → 'Aplicația mută succesorul în următoarea zi lucrătoare.' Address: 'If you change the duration, your schedule is out of date.' → 'Dacă modificați durata, planificarea dumneavoastră nu mai este actualizată.'"
   },
+  "activity-code": {
+    "term": "cod de activitate",
+    "forms": [
+      "cod de activitate",
+      "codul de activitate",
+      "coduri de activitate"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "actual-date": {
     "term": "real",
     "forms": [
@@ -453,6 +463,15 @@
     "source": "model",
     "status": "model"
   },
+  "day-task": {
+    "term": "activitate pe zile",
+    "forms": [
+      "activitate pe zile",
+      "activități pe zile"
+    ],
+    "source": "model",
+    "status": "arbitrated"
+  },
   "dcma-assessment": {
     "term": "evaluare DCMA în 14 puncte",
     "forms": [
@@ -479,6 +498,16 @@
     ],
     "source": "tbx",
     "status": "tbx-chosen"
+  },
+  "default-value": {
+    "term": "implicit",
+    "forms": [
+      "implicit",
+      "implicită",
+      "implicite"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "distribution": {
     "term": "distribuție",
@@ -605,6 +634,17 @@
     ],
     "source": "tbx",
     "status": "tbx-chosen"
+  },
+  "file": {
+    "term": "fișier",
+    "forms": [
+      "fișier",
+      "fișierul",
+      "fișiere",
+      "fișierele"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "finish": {
     "term": "sfârșit",
@@ -760,6 +800,17 @@
     "source": "tbx",
     "status": "tbx"
   },
+  "gantt-bar": {
+    "term": "bară",
+    "forms": [
+      "bară",
+      "bara",
+      "bare",
+      "barele"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "hammock": {
     "term": "hamac",
     "forms": [
@@ -873,14 +924,6 @@
       "întreruperile",
       "întreruperii",
       "întreruperilor"
-    ],
-    "avoid": [
-      "pauză",
-      "pauza",
-      "pauze",
-      "pauzele",
-      "pauzei",
-      "pauzelor"
     ],
     "source": "model",
     "status": "arbitrated"
@@ -1056,6 +1099,15 @@
     "source": "model",
     "status": "model"
   },
+  "mini-map": {
+    "term": "mini-hartă",
+    "forms": [
+      "mini-hartă",
+      "mini-harta"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "missed-task": {
     "term": "activitate restantă",
     "forms": [
@@ -1120,6 +1172,15 @@
     ],
     "source": "model",
     "status": "model"
+  },
+  "occupancy": {
+    "term": "ocupare",
+    "forms": [
+      "ocupare",
+      "ocuparea"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "out-of-sequence-progress": {
     "term": "progres în afara secvenței",
@@ -1234,6 +1295,15 @@
     "source": "model",
     "status": "model"
   },
+  "progress-line": {
+    "term": "linie de progres",
+    "forms": [
+      "linie de progres",
+      "linia de progres"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "progress-mode": {
     "term": "mod de progres",
     "forms": [
@@ -1257,6 +1327,15 @@
     "source": "model",
     "status": "arbitrated"
   },
+  "project-info": {
+    "term": "informații proiect",
+    "forms": [
+      "informații proiect",
+      "informațiile proiectului"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "project-start": {
     "term": "început proiect",
     "forms": [
@@ -1267,6 +1346,15 @@
       "începere proiect"
     ],
     "source": "model",
+    "status": "arbitrated"
+  },
+  "properties-panel": {
+    "term": "panou de proprietăți",
+    "forms": [
+      "panou de proprietăți",
+      "panoul de proprietăți"
+    ],
+    "source": "existing-ui",
     "status": "arbitrated"
   },
   "rate": {
@@ -1400,6 +1488,15 @@
     "source": "model",
     "status": "model"
   },
+  "resource-panel": {
+    "term": "panou resurse",
+    "forms": [
+      "panou resurse",
+      "panoul de resurse"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "resource-type": {
     "term": "tip de resursă",
     "forms": [
@@ -1531,6 +1628,15 @@
     "source": "tbx",
     "status": "tbx"
   },
+  "split-view": {
+    "term": "vizualizare împărțită",
+    "forms": [
+      "vizualizare împărțită",
+      "vizualizarea împărțită"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "start-driver": {
     "term": "legătură determinantă pentru început",
     "forms": [
@@ -1622,6 +1728,15 @@
     "source": "model",
     "status": "arbitrated"
   },
+  "status-bar": {
+    "term": "bara de stare",
+    "forms": [
+      "bara de stare",
+      "bară de stare"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
+  },
   "status-date": {
     "term": "data raportului de stare",
     "forms": [
@@ -1681,6 +1796,17 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "table-column": {
+    "term": "coloană",
+    "forms": [
+      "coloană",
+      "coloana",
+      "coloane",
+      "coloanele"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "task": {
     "term": "activitate",
@@ -1743,6 +1869,15 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "time-scale": {
+    "term": "scară de timp",
+    "forms": [
+      "scară de timp",
+      "scara de timp"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "total-float": {
     "term": "marjă totală",
@@ -1877,6 +2012,29 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "work-block": {
+    "term": "interval",
+    "forms": [
+      "interval",
+      "intervalul",
+      "intervale",
+      "intervalele"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
+  "work-break": {
+    "term": "pauză",
+    "forms": [
+      "pauză",
+      "pauza",
+      "pauze",
+      "pauzele",
+      "pauzei"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "work-calendar": {
     "term": "calendar de lucru",

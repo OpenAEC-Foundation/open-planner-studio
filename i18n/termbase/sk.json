@@ -6,6 +6,16 @@
     "quotes": "„…“",
     "docs": "Guides: Formal vy and the formal imperative. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Vyberte *Uložiť*.'; 'in the *Relation type* window' → 'v okne *Typ závislosti*'. Explanation: 'The app moves the successor to the next workday.' → 'Aplikácia presunie nasledujúcu úlohu na ďalší pracovný deň.' Address: 'If you change the duration, your schedule is out of date.' → 'Ak zmeníte trvanie, váš plán už nie je aktuálny.'"
   },
+  "activity-code": {
+    "term": "kód aktivity",
+    "forms": [
+      "kód aktivity",
+      "kódu aktivity",
+      "kódy aktivít"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "actual-date": {
     "term": "skutočný",
     "forms": [
@@ -411,6 +421,16 @@
     "source": "model",
     "status": "arbitrated"
   },
+  "day-task": {
+    "term": "úloha v dňoch",
+    "forms": [
+      "úloha v dňoch",
+      "úlohy v dňoch",
+      "úlohe v dňoch"
+    ],
+    "source": "model",
+    "status": "arbitrated"
+  },
   "dcma-assessment": {
     "term": "14-bodové hodnotenie DCMA",
     "forms": [
@@ -431,6 +451,16 @@
     ],
     "source": "tbx",
     "status": "tbx-chosen"
+  },
+  "default-value": {
+    "term": "predvolené",
+    "forms": [
+      "predvolené",
+      "predvolený",
+      "predvolená"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "distribution": {
     "term": "rozloženie práce",
@@ -556,6 +586,18 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "file": {
+    "term": "súbor",
+    "forms": [
+      "súbor",
+      "súboru",
+      "súborom",
+      "súbory",
+      "súborov"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "finish": {
     "term": "dokončenie",
@@ -756,6 +798,19 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "gantt-bar": {
+    "term": "pruh",
+    "forms": [
+      "pruh",
+      "pruhu",
+      "pruhy",
+      "pruhov",
+      "pruhoch",
+      "pruhom"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "hammock": {
     "term": "hamak",
@@ -1111,6 +1166,16 @@
     "source": "model",
     "status": "arbitrated"
   },
+  "mini-map": {
+    "term": "mini-mapa",
+    "forms": [
+      "mini-mapa",
+      "mini-mapy",
+      "mini-mape"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "missed-task": {
     "term": "zmeškaná úloha",
     "forms": [
@@ -1171,6 +1236,15 @@
       "nepracovných dní"
     ],
     "source": "model",
+    "status": "arbitrated"
+  },
+  "occupancy": {
+    "term": "obsadenosť",
+    "forms": [
+      "obsadenosť",
+      "obsadenosti"
+    ],
+    "source": "existing-ui",
     "status": "arbitrated"
   },
   "out-of-sequence-progress": {
@@ -1288,6 +1362,16 @@
     "source": "model",
     "status": "model"
   },
+  "progress-line": {
+    "term": "čiara postupu",
+    "forms": [
+      "čiara postupu",
+      "čiary postupu",
+      "čiaru postupu"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "progress-mode": {
     "term": "režim postupu",
     "forms": [
@@ -1312,6 +1396,15 @@
     "source": "model",
     "status": "arbitrated"
   },
+  "project-info": {
+    "term": "info o projekte",
+    "forms": [
+      "info o projekte",
+      "informácie o projekte"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "project-start": {
     "term": "začiatok projektu",
     "forms": [
@@ -1322,6 +1415,15 @@
     ],
     "source": "model",
     "status": "model"
+  },
+  "properties-panel": {
+    "term": "panel vlastností",
+    "forms": [
+      "panel vlastností",
+      "panela vlastností"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "rate": {
     "term": "štandardná sadzba",
@@ -1447,6 +1549,14 @@
     "source": "tbx",
     "status": "tbx-chosen"
   },
+  "resource-panel": {
+    "term": "panel zdrojov",
+    "forms": [
+      "panel zdrojov"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "resource-type": {
     "term": "typ zdroja",
     "forms": [
@@ -1565,6 +1675,15 @@
     "source": "tbx",
     "status": "tbx"
   },
+  "split-view": {
+    "term": "rozdelené zobrazenie",
+    "forms": [
+      "rozdelené zobrazenie",
+      "rozdelenom zobrazení"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "start-driver": {
     "term": "určujúca závislosť začiatku",
     "forms": [
@@ -1642,6 +1761,15 @@
     "source": "model",
     "status": "model"
   },
+  "status-bar": {
+    "term": "stavový riadok",
+    "forms": [
+      "stavový riadok",
+      "stavovom riadku"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
+  },
   "status-date": {
     "term": "dátum kontroly stavu",
     "forms": [
@@ -1698,6 +1826,18 @@
     "source": "tbx",
     "status": "tbx"
   },
+  "table-column": {
+    "term": "stĺpec",
+    "forms": [
+      "stĺpec",
+      "stĺpca",
+      "stĺpci",
+      "stĺpce",
+      "stĺpcov"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "task": {
     "term": "úloha",
     "forms": [
@@ -1751,6 +1891,16 @@
     ],
     "source": "tbx",
     "status": "tbx-chosen"
+  },
+  "time-scale": {
+    "term": "časová škála",
+    "forms": [
+      "časová škála",
+      "časovej škály",
+      "časovú škálu"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "total-float": {
     "term": "celková časová rezerva",
@@ -1868,6 +2018,31 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "work-block": {
+    "term": "blok",
+    "forms": [
+      "blok",
+      "bloku",
+      "bloky",
+      "blokov",
+      "blokom"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
+  "work-break": {
+    "term": "prestávka",
+    "forms": [
+      "prestávka",
+      "prestávky",
+      "prestávke",
+      "prestávku",
+      "prestávkou",
+      "prestávok"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "work-calendar": {
     "term": "pracovný kalendár",

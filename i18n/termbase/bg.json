@@ -6,6 +6,19 @@
     "quotes": "„…“",
     "docs": "Guides: Formal Вие and the formal imperative, as in the UI. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Изберете *Запиши*.'; 'in the *Relation type* window' → 'в прозореца *Тип зависимост*'. Explanation: 'The app moves the successor to the next workday.' → 'Приложението премества последователя на следващия работен ден.' Address: 'If you change the duration, your schedule is out of date.' → 'Ако промените продължителността, графикът Ви вече не е актуален.'"
   },
+  "activity-code": {
+    "term": "код на дейност",
+    "forms": [
+      "код на дейност",
+      "кода на дейност",
+      "кодове на дейност"
+    ],
+    "avoid": [
+      "код за активност"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "actual-date": {
     "term": "действителен",
     "forms": [
@@ -381,6 +394,16 @@
     "source": "model",
     "status": "model"
   },
+  "day-task": {
+    "term": "задача в дни",
+    "forms": [
+      "задача в дни",
+      "задачата в дни",
+      "задачи в дни"
+    ],
+    "source": "model",
+    "status": "arbitrated"
+  },
   "dcma-assessment": {
     "term": "14-точкова оценка на DCMA",
     "forms": [
@@ -399,6 +422,14 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "default-value": {
+    "term": "по подразбиране",
+    "forms": [
+      "по подразбиране"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "distribution": {
     "term": "разпределение",
@@ -509,6 +540,17 @@
     ],
     "source": "tbx",
     "status": "tbx-chosen"
+  },
+  "file": {
+    "term": "файл",
+    "forms": [
+      "файл",
+      "файла",
+      "файлът",
+      "файлове"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "finish": {
     "term": "завършване",
@@ -680,6 +722,16 @@
     "source": "model",
     "status": "arbitrated"
   },
+  "gantt-bar": {
+    "term": "лента на задача",
+    "forms": [
+      "лента на задача",
+      "лентата на задачата",
+      "ленти на задачи"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "hammock": {
     "term": "хамак",
     "forms": [
@@ -718,9 +770,6 @@
       "празничния ден",
       "празнични дни",
       "празничните дни"
-    ],
-    "avoid": [
-      "почивка"
     ],
     "source": "model",
     "status": "model"
@@ -784,8 +833,7 @@
       "прекъсвания"
     ],
     "avoid": [
-      "прекъсвам",
-      "почивка"
+      "прекъсвам"
     ],
     "source": "model",
     "status": "model"
@@ -954,6 +1002,15 @@
     "source": "model",
     "status": "model"
   },
+  "mini-map": {
+    "term": "мини карта",
+    "forms": [
+      "мини карта",
+      "мини картата"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "missed-task": {
     "term": "пропусната задача",
     "forms": [
@@ -1016,6 +1073,15 @@
     ],
     "source": "model",
     "status": "model"
+  },
+  "occupancy": {
+    "term": "заетост",
+    "forms": [
+      "заетост",
+      "заетостта"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "out-of-sequence-progress": {
     "term": "напредък извън последователността",
@@ -1122,6 +1188,15 @@
     "source": "tbx",
     "status": "tbx"
   },
+  "progress-line": {
+    "term": "линия на напредъка",
+    "forms": [
+      "линия на напредъка",
+      "линията на напредъка"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "progress-mode": {
     "term": "режим на отчитане на напредъка",
     "forms": [
@@ -1144,6 +1219,15 @@
     "source": "model",
     "status": "arbitrated"
   },
+  "project-info": {
+    "term": "инфо за проекта",
+    "forms": [
+      "инфо за проекта",
+      "информация за проекта"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "project-start": {
     "term": "начало на проекта",
     "forms": [
@@ -1152,6 +1236,15 @@
     ],
     "source": "model",
     "status": "model"
+  },
+  "properties-panel": {
+    "term": "панел със свойства",
+    "forms": [
+      "панел със свойства",
+      "панела със свойства"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "rate": {
     "term": "стандартна цена на единица",
@@ -1267,6 +1360,15 @@
     "source": "tbx",
     "status": "tbx-chosen"
   },
+  "resource-panel": {
+    "term": "панел за ресурси",
+    "forms": [
+      "панел за ресурси",
+      "панела за ресурси"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "resource-type": {
     "term": "тип ресурс",
     "forms": [
@@ -1372,6 +1474,15 @@
     "source": "tbx",
     "status": "tbx"
   },
+  "split-view": {
+    "term": "разделен изглед",
+    "forms": [
+      "разделен изглед",
+      "разделения изглед"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "start-driver": {
     "term": "определяща връзка за началото",
     "forms": [
@@ -1445,6 +1556,15 @@
     "source": "model",
     "status": "model"
   },
+  "status-bar": {
+    "term": "лента на състоянието",
+    "forms": [
+      "лента на състоянието",
+      "лентата на състоянието"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
+  },
   "status-date": {
     "term": "дата на състоянието",
     "forms": [
@@ -1499,6 +1619,17 @@
     "source": "model",
     "status": "arbitrated"
   },
+  "table-column": {
+    "term": "колона",
+    "forms": [
+      "колона",
+      "колоната",
+      "колони",
+      "колоните"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "task": {
     "term": "задача",
     "forms": [
@@ -1508,8 +1639,7 @@
       "задачите"
     ],
     "avoid": [
-      "задание",
-      "дейност"
+      "задание"
     ],
     "source": "tbx",
     "status": "tbx-chosen"
@@ -1545,6 +1675,15 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "time-scale": {
+    "term": "времева скала",
+    "forms": [
+      "времева скала",
+      "времевата скала"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "total-float": {
     "term": "общ резерв",
@@ -1653,6 +1792,26 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "work-block": {
+    "term": "интервал",
+    "forms": [
+      "интервал",
+      "интервала",
+      "интервали"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
+  "work-break": {
+    "term": "почивка",
+    "forms": [
+      "почивка",
+      "почивката",
+      "почивки"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "work-calendar": {
     "term": "работен календар",

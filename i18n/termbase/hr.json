@@ -5,6 +5,16 @@
     "commands": "Commands use the short imperative, like Croatian Microsoft software: Spremi, Otvori, Izbriši, Izračunaj.",
     "docs": "Guides: Formal Vi and the formal imperative. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Odaberite *Spremi*.'; 'in the *Relation type* window' → 'u prozoru *Vrsta ovisnosti*'. Explanation: 'The app moves the successor to the next workday.' → 'Aplikacija premješta nasljednika na sljedeći radni dan.' Address: 'If you change the duration, your schedule is out of date.' → 'Ako promijenite trajanje, vaš raspored više nije ažuran.'"
   },
+  "activity-code": {
+    "term": "šifra zadatka",
+    "forms": [
+      "šifra zadatka",
+      "šifre zadatka",
+      "šifru zadatka"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "actual-date": {
     "term": "stvaran",
     "forms": [
@@ -422,6 +432,16 @@
     "source": "model",
     "status": "model"
   },
+  "day-task": {
+    "term": "zadatak u danima",
+    "forms": [
+      "zadatak u danima",
+      "zadatka u danima",
+      "zadaci u danima"
+    ],
+    "source": "model",
+    "status": "arbitrated"
+  },
   "dcma-assessment": {
     "term": "DCMA 14-točkovna procjena",
     "forms": [
@@ -443,6 +463,17 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "default-value": {
+    "term": "zadano",
+    "forms": [
+      "zadano",
+      "zadani",
+      "zadana",
+      "zadane"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "distribution": {
     "term": "raspodjela",
@@ -561,6 +592,18 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "file": {
+    "term": "datoteka",
+    "forms": [
+      "datoteka",
+      "datoteke",
+      "datoteci",
+      "datoteku",
+      "datotekom"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "finish": {
     "term": "završetak",
@@ -713,6 +756,18 @@
     "source": "tbx",
     "status": "tbx"
   },
+  "gantt-bar": {
+    "term": "traka",
+    "forms": [
+      "traka",
+      "trake",
+      "traci",
+      "traku",
+      "trakom"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "hammock": {
     "term": "hamak",
     "forms": [
@@ -822,9 +877,6 @@
       "prekida",
       "prekidu",
       "prekidom"
-    ],
-    "avoid": [
-      "pauza"
     ],
     "source": "model",
     "status": "model"
@@ -1008,6 +1060,16 @@
     "source": "model",
     "status": "model"
   },
+  "mini-map": {
+    "term": "mini-karta",
+    "forms": [
+      "mini-karta",
+      "mini-karte",
+      "mini-kartu"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "missed-task": {
     "term": "propušteni zadatak",
     "forms": [
@@ -1073,6 +1135,15 @@
     ],
     "source": "model",
     "status": "model"
+  },
+  "occupancy": {
+    "term": "zauzetost",
+    "forms": [
+      "zauzetost",
+      "zauzetosti"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "out-of-sequence-progress": {
     "term": "napredak izvan redoslijeda",
@@ -1189,6 +1260,16 @@
     "source": "model",
     "status": "model"
   },
+  "progress-line": {
+    "term": "linija napretka",
+    "forms": [
+      "linija napretka",
+      "linije napretka",
+      "liniju napretka"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "progress-mode": {
     "term": "način praćenja napretka",
     "forms": [
@@ -1214,6 +1295,15 @@
     "source": "model",
     "status": "model"
   },
+  "project-info": {
+    "term": "podaci o projektu",
+    "forms": [
+      "podaci o projektu",
+      "podataka o projektu"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "project-start": {
     "term": "datum početka projekta",
     "forms": [
@@ -1224,6 +1314,16 @@
     ],
     "source": "model",
     "status": "model"
+  },
+  "properties-panel": {
+    "term": "okno svojstava",
+    "forms": [
+      "okno svojstava",
+      "okna svojstava",
+      "oknu svojstava"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "rate": {
     "term": "standardna tarifa",
@@ -1356,6 +1456,15 @@
     "source": "tbx",
     "status": "tbx-chosen"
   },
+  "resource-panel": {
+    "term": "okno resursa",
+    "forms": [
+      "okno resursa",
+      "okna resursa"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "resource-type": {
     "term": "vrsta resursa",
     "forms": [
@@ -1478,6 +1587,15 @@
     "source": "tbx",
     "status": "tbx"
   },
+  "split-view": {
+    "term": "podijeljeni prikaz",
+    "forms": [
+      "podijeljeni prikaz",
+      "podijeljenog prikaza"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "start-driver": {
     "term": "odlučujuća ovisnost početka",
     "forms": [
@@ -1549,6 +1667,15 @@
     "source": "model",
     "status": "model"
   },
+  "status-bar": {
+    "term": "traka stanja",
+    "forms": [
+      "traka stanja",
+      "traci stanja"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
+  },
   "status-date": {
     "term": "datum stanja",
     "forms": [
@@ -1599,6 +1726,18 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "table-column": {
+    "term": "stupac",
+    "forms": [
+      "stupac",
+      "stupca",
+      "stupcu",
+      "stupci",
+      "stupaca"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "task": {
     "term": "zadatak",
@@ -1652,6 +1791,16 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "time-scale": {
+    "term": "vremenska skala",
+    "forms": [
+      "vremenska skala",
+      "vremenske skale",
+      "vremensku skalu"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "total-float": {
     "term": "ukupan slobodni hod",
@@ -1771,6 +1920,30 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "work-block": {
+    "term": "blok",
+    "forms": [
+      "blok",
+      "bloka",
+      "bloku",
+      "blokom",
+      "blokovi"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
+  "work-break": {
+    "term": "pauza",
+    "forms": [
+      "pauza",
+      "pauze",
+      "pauzi",
+      "pauzu",
+      "pauzom"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "work-calendar": {
     "term": "radni kalendar",

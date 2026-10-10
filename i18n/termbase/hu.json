@@ -6,6 +6,15 @@
     "quotes": "„…”",
     "docs": "Guides: Formal Ön forms (third person), never te. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Válassza a *Mentés* lehetőséget.'; 'in the *Relation type* window' → 'a *Kapcsolattípus* ablakban'. Explanation: 'The app moves the successor to the next workday.' → 'Az alkalmazás a következő munkanapra helyezi az utódot.' Address: 'If you change the duration, your schedule is out of date.' → 'Ha módosítja az időtartamot, az ütemezése már nem naprakész.'"
   },
+  "activity-code": {
+    "term": "tevékenységkód",
+    "forms": [
+      "tevékenységkód",
+      "tevékenységkódok"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "actual-date": {
     "term": "tényleges dátum",
     "forms": [
@@ -378,6 +387,16 @@
     "source": "model",
     "status": "model"
   },
+  "day-task": {
+    "term": "napalapú tevékenység",
+    "forms": [
+      "napalapú tevékenység",
+      "napalapú tevékenységek",
+      "napalapú tevékenységet"
+    ],
+    "source": "model",
+    "status": "arbitrated"
+  },
   "dcma-assessment": {
     "term": "DCMA 14 pontos értékelés",
     "forms": [
@@ -396,6 +415,15 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "default-value": {
+    "term": "alapértelmezett",
+    "forms": [
+      "alapértelmezett",
+      "alapértelmezés"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "distribution": {
     "term": "eloszlás",
@@ -499,6 +527,18 @@
     ],
     "source": "tbx",
     "status": "tbx-chosen"
+  },
+  "file": {
+    "term": "fájl",
+    "forms": [
+      "fájl",
+      "fájlt",
+      "fájlok",
+      "fájlban",
+      "fájlból"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "finish": {
     "term": "befejezés",
@@ -648,6 +688,18 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "gantt-bar": {
+    "term": "sáv",
+    "forms": [
+      "sáv",
+      "sávok",
+      "sávot",
+      "sávja",
+      "tevékenységsáv"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "hammock": {
     "term": "hangmat",
@@ -944,6 +996,15 @@
     "source": "model",
     "status": "model"
   },
+  "mini-map": {
+    "term": "mini-térkép",
+    "forms": [
+      "mini-térkép",
+      "mini-térképen"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "missed-task": {
     "term": "lekésett tevékenység",
     "forms": [
@@ -1023,6 +1084,15 @@
     ],
     "source": "model",
     "status": "model"
+  },
+  "occupancy": {
+    "term": "foglaltság",
+    "forms": [
+      "foglaltság",
+      "foglaltságot"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "out-of-sequence-progress": {
     "term": "sorrenden kívüli előrehaladás",
@@ -1163,6 +1233,15 @@
     "source": "model",
     "status": "model"
   },
+  "progress-line": {
+    "term": "előrehaladási vonal",
+    "forms": [
+      "előrehaladási vonal",
+      "előrehaladási vonalat"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "progress-mode": {
     "term": "előrehaladási mód",
     "forms": [
@@ -1188,6 +1267,15 @@
     "source": "model",
     "status": "model"
   },
+  "project-info": {
+    "term": "projektinfó",
+    "forms": [
+      "projektinfó",
+      "projektinformáció"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "project-start": {
     "term": "projektkezdés",
     "forms": [
@@ -1201,6 +1289,16 @@
     ],
     "source": "model",
     "status": "model"
+  },
+  "properties-panel": {
+    "term": "tulajdonságok panel",
+    "forms": [
+      "tulajdonságok panel",
+      "tulajdonságok panelen",
+      "tulajdonságok panelt"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "rate": {
     "term": "alapdíj",
@@ -1363,6 +1461,15 @@
     "source": "tbx",
     "status": "tbx"
   },
+  "resource-panel": {
+    "term": "erőforráspanel",
+    "forms": [
+      "erőforráspanel",
+      "erőforráspanelen"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "resource-type": {
     "term": "erőforrástípus",
     "forms": [
@@ -1505,6 +1612,15 @@
     "source": "tbx",
     "status": "tbx"
   },
+  "split-view": {
+    "term": "osztott nézet",
+    "forms": [
+      "osztott nézet",
+      "osztott nézetben"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "start-driver": {
     "term": "kezdést meghatározó kapcsolat",
     "forms": [
@@ -1581,6 +1697,15 @@
     "source": "model",
     "status": "model"
   },
+  "status-bar": {
+    "term": "állapotsor",
+    "forms": [
+      "állapotsor",
+      "állapotsorban"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
+  },
   "status-date": {
     "term": "állapotdátum",
     "forms": [
@@ -1623,6 +1748,17 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "table-column": {
+    "term": "oszlop",
+    "forms": [
+      "oszlop",
+      "oszlopok",
+      "oszlopot",
+      "oszlopban"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "task": {
     "term": "tevékenység",
@@ -1671,6 +1807,15 @@
     ],
     "source": "tbx",
     "status": "tbx-chosen"
+  },
+  "time-scale": {
+    "term": "időskála",
+    "forms": [
+      "időskála",
+      "időskálán"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "total-float": {
     "term": "teljes tartalékidő",
@@ -1774,6 +1919,27 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "work-block": {
+    "term": "idősáv",
+    "forms": [
+      "idősáv",
+      "idősávok",
+      "idősávot"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
+  "work-break": {
+    "term": "szünet",
+    "forms": [
+      "szünet",
+      "szünetet",
+      "szünetek",
+      "szünetben"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "work-calendar": {
     "term": "munkanaptár",

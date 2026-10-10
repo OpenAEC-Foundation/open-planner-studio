@@ -4,6 +4,14 @@
     "note": "Formeel (합니다/하세요-stijl), zoals de bestaande UI-teksten: '입력하세요', '확인하세요', '습니다'.",
     "docs": "Guides: Formal 합니다/하세요 forms, as in the UI; no 당신. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → '*저장*을 선택합니다.'; 'in the *Relation type* window' → '*관계 유형* 창에서'. Explanation: 'The app moves the successor to the next workday.' → '앱은 후행 작업을 다음 근무일로 옮깁니다.' Address: 'If you change the duration, your schedule is out of date.' → '기간을 변경하면 일정이 더 이상 최신 상태가 아닙니다.'"
   },
+  "activity-code": {
+    "term": "활동 코드",
+    "forms": [
+      "활동 코드"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "actual-date": {
     "term": "실제 날짜",
     "forms": [
@@ -303,6 +311,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "day-task": {
+    "term": "일 단위 작업",
+    "forms": [
+      "일 단위 작업"
+    ],
+    "source": "model",
+    "status": "arbitrated"
+  },
   "dcma-assessment": {
     "term": "DCMA 14개 항목 평가",
     "forms": [
@@ -318,6 +334,15 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "default-value": {
+    "term": "기본",
+    "forms": [
+      "기본",
+      "기본값"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "distribution": {
     "term": "분배",
@@ -411,6 +436,14 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "file": {
+    "term": "파일",
+    "forms": [
+      "파일"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "finish": {
     "term": "완료",
@@ -532,6 +565,15 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "gantt-bar": {
+    "term": "막대",
+    "forms": [
+      "막대",
+      "작업 막대"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "hammock": {
     "term": "해먹",
@@ -732,6 +774,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "mini-map": {
+    "term": "미니맵",
+    "forms": [
+      "미니맵"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "missed-task": {
     "term": "기준선 미달 작업",
     "forms": [
@@ -785,6 +835,14 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "occupancy": {
+    "term": "점유 현황",
+    "forms": [
+      "점유 현황"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "out-of-sequence-progress": {
     "term": "순서 위반",
@@ -869,6 +927,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "progress-line": {
+    "term": "진행선",
+    "forms": [
+      "진행선"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "progress-mode": {
     "term": "진행 모드",
     "forms": [
@@ -885,6 +951,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "project-info": {
+    "term": "프로젝트 정보",
+    "forms": [
+      "프로젝트 정보"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "project-start": {
     "term": "프로젝트 시작일",
     "forms": [
@@ -892,6 +966,14 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "properties-panel": {
+    "term": "속성 패널",
+    "forms": [
+      "속성 패널"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "rate": {
     "term": "단가",
@@ -984,6 +1066,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "resource-panel": {
+    "term": "리소스 패널",
+    "forms": [
+      "리소스 패널"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "resource-type": {
     "term": "자원 유형",
     "forms": [
@@ -1067,6 +1157,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "split-view": {
+    "term": "분할 보기",
+    "forms": [
+      "분할 보기"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "start-driver": {
     "term": "시작 드라이버",
     "forms": [
@@ -1126,6 +1224,14 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "status-bar": {
+    "term": "상태 표시줄",
+    "forms": [
+      "상태 표시줄"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
+  },
   "status-date": {
     "term": "상태 날짜",
     "forms": [
@@ -1160,6 +1266,14 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "table-column": {
+    "term": "열",
+    "forms": [
+      "열"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "task": {
     "term": "작업",
@@ -1198,6 +1312,14 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "time-scale": {
+    "term": "시간 척도",
+    "forms": [
+      "시간 척도"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "total-float": {
     "term": "총 여유",
@@ -1273,6 +1395,24 @@
     ],
     "source": "existing-ui",
     "status": "existing-ui"
+  },
+  "work-block": {
+    "term": "구간",
+    "forms": [
+      "구간",
+      "근무 구간"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
+  "work-break": {
+    "term": "휴식",
+    "forms": [
+      "휴식",
+      "휴식 시간"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "work-calendar": {
     "term": "작업 달력",

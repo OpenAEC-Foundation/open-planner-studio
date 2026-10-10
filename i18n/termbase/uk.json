@@ -6,6 +6,22 @@
     "quotes": "«…»",
     "docs": "Guides: Formal ви and the formal imperative; 2019 spelling. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Виберіть *Зберегти*.'; 'in the *Relation type* window' → 'у вікні *Тип залежності*'. Explanation: 'The app moves the successor to the next workday.' → 'Застосунок переносить наступника на наступний робочий день.' Address: 'If you change the duration, your schedule is out of date.' → 'Якщо ви зміните тривалість, ваш графік більше не буде актуальним.'"
   },
+  "activity-code": {
+    "term": "код операції",
+    "forms": [
+      "код операції",
+      "коду операції",
+      "коди операцій",
+      "кодів операцій"
+    ],
+    "avoid": [
+      "код діяльності",
+      "коду діяльності",
+      "коди діяльності"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "actual-date": {
     "term": "фактична дата",
     "forms": [
@@ -412,6 +428,15 @@
     "source": "model",
     "status": "arbitrated"
   },
+  "day-task": {
+    "term": "завдання в днях",
+    "forms": [
+      "завдання в днях",
+      "завдань в днях"
+    ],
+    "source": "model",
+    "status": "arbitrated"
+  },
   "dcma-assessment": {
     "term": "14-пунктова оцінка DCMA",
     "forms": [
@@ -436,6 +461,14 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "default-value": {
+    "term": "за замовчуванням",
+    "forms": [
+      "за замовчуванням"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "distribution": {
     "term": "розподіл",
@@ -547,6 +580,19 @@
     ],
     "source": "tbx",
     "status": "tbx-chosen"
+  },
+  "file": {
+    "term": "файл",
+    "forms": [
+      "файл",
+      "файлу",
+      "файлі",
+      "файлом",
+      "файли",
+      "файлів"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "finish": {
     "term": "завершення",
@@ -688,6 +734,19 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "gantt-bar": {
+    "term": "смуга",
+    "forms": [
+      "смуга",
+      "смуги",
+      "смузі",
+      "смугу",
+      "смугою",
+      "смуг"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "hammock": {
     "term": "завдання-гамак",
@@ -972,6 +1031,16 @@
     "source": "model",
     "status": "model"
   },
+  "mini-map": {
+    "term": "міні-карта",
+    "forms": [
+      "міні-карта",
+      "міні-карти",
+      "міні-карту"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "missed-task": {
     "term": "прострочене завдання",
     "forms": [
@@ -1040,6 +1109,16 @@
       "вихідний"
     ],
     "source": "model",
+    "status": "arbitrated"
+  },
+  "occupancy": {
+    "term": "зайнятість",
+    "forms": [
+      "зайнятість",
+      "зайнятості",
+      "зайнятістю"
+    ],
+    "source": "existing-ui",
     "status": "arbitrated"
   },
   "out-of-sequence-progress": {
@@ -1166,6 +1245,16 @@
     "source": "model",
     "status": "model"
   },
+  "progress-line": {
+    "term": "лінія прогресу",
+    "forms": [
+      "лінія прогресу",
+      "лінії прогресу",
+      "лінію прогресу"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "progress-mode": {
     "term": "режим прогресу",
     "forms": [
@@ -1187,6 +1276,15 @@
     "source": "model",
     "status": "model"
   },
+  "project-info": {
+    "term": "відомості проєкту",
+    "forms": [
+      "відомості проєкту",
+      "відомостях проєкту"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "project-start": {
     "term": "дата початку проєкту",
     "forms": [
@@ -1196,6 +1294,15 @@
     ],
     "source": "model",
     "status": "model"
+  },
+  "properties-panel": {
+    "term": "панель властивостей",
+    "forms": [
+      "панель властивостей",
+      "панелі властивостей"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "rate": {
     "term": "стандартна ставка",
@@ -1338,6 +1445,15 @@
     "source": "model",
     "status": "model"
   },
+  "resource-panel": {
+    "term": "панель ресурсів",
+    "forms": [
+      "панель ресурсів",
+      "панелі ресурсів"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "resource-type": {
     "term": "тип ресурсу",
     "forms": [
@@ -1470,6 +1586,15 @@
     "source": "tbx",
     "status": "tbx"
   },
+  "split-view": {
+    "term": "розділений вигляд",
+    "forms": [
+      "розділений вигляд",
+      "розділеного вигляду"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "start-driver": {
     "term": "визначальна залежність початку",
     "forms": [
@@ -1556,6 +1681,16 @@
     "source": "model",
     "status": "model"
   },
+  "status-bar": {
+    "term": "рядок стану",
+    "forms": [
+      "рядок стану",
+      "рядка стану",
+      "рядку стану"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
+  },
   "status-date": {
     "term": "дата звітування про стан",
     "forms": [
@@ -1619,6 +1754,19 @@
     "source": "tbx",
     "status": "tbx"
   },
+  "table-column": {
+    "term": "стовпець",
+    "forms": [
+      "стовпець",
+      "стовпця",
+      "стовпцю",
+      "стовпцем",
+      "стовпці",
+      "стовпців"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "task": {
     "term": "завдання",
     "forms": [
@@ -1680,6 +1828,15 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "time-scale": {
+    "term": "масштаб часу",
+    "forms": [
+      "масштаб часу",
+      "масштабу часу"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "total-float": {
     "term": "загальний часовий резерв",
@@ -1819,6 +1976,31 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "work-block": {
+    "term": "інтервал",
+    "forms": [
+      "інтервал",
+      "інтервалу",
+      "інтервалом",
+      "інтервали",
+      "інтервалів"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
+  "work-break": {
+    "term": "перерва",
+    "forms": [
+      "перерва",
+      "перерви",
+      "перерві",
+      "перерву",
+      "перервою",
+      "перерв"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "work-calendar": {
     "term": "робочий календар",

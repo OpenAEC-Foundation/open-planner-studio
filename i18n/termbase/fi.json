@@ -5,6 +5,16 @@
     "commands": "Commands use the imperative, like Finnish Microsoft software: Tallenna, Avaa, Poista, Laske.",
     "docs": "Guides: Imperative without a pronoun for steps; elsewhere impersonal (passive) forms, never sinä or te. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Valitse *Tallenna*.'; 'in the *Relation type* window' → '*Riippuvuuden tyyppi* -ikkunassa'. Explanation: 'The app moves the successor to the next workday.' → 'Sovellus siirtää seuraajan seuraavalle työpäivälle.' Address: 'If you change the duration, your schedule is out of date.' → 'Jos kestoa muutetaan, aikataulu ei ole enää ajan tasalla.'"
   },
+  "activity-code": {
+    "term": "tehtäväkoodi",
+    "forms": [
+      "tehtäväkoodi",
+      "tehtäväkoodin",
+      "tehtäväkoodit"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "actual-date": {
     "term": "todellinen",
     "forms": [
@@ -430,6 +440,16 @@
     "source": "model",
     "status": "model"
   },
+  "day-task": {
+    "term": "päivätehtävä",
+    "forms": [
+      "päivätehtävä",
+      "päivätehtävän",
+      "päivätehtävät"
+    ],
+    "source": "model",
+    "status": "arbitrated"
+  },
   "dcma-assessment": {
     "term": "DCMA 14 kohdan arviointi",
     "forms": [
@@ -454,6 +474,16 @@
     ],
     "source": "tbx",
     "status": "tbx-chosen"
+  },
+  "default-value": {
+    "term": "oletus",
+    "forms": [
+      "oletus",
+      "oletusarvo",
+      "oletuksena"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "distribution": {
     "term": "jakautuminen",
@@ -579,6 +609,18 @@
     ],
     "source": "tbx",
     "status": "tbx-chosen"
+  },
+  "file": {
+    "term": "tiedosto",
+    "forms": [
+      "tiedosto",
+      "tiedoston",
+      "tiedostot",
+      "tiedostossa",
+      "tiedostosta"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "finish": {
     "term": "loppu",
@@ -775,6 +817,17 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "gantt-bar": {
+    "term": "palkki",
+    "forms": [
+      "palkki",
+      "palkin",
+      "palkit",
+      "tehtäväpalkki"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "hammock": {
     "term": "riippumatto",
@@ -1124,6 +1177,15 @@
     "source": "model",
     "status": "model"
   },
+  "mini-map": {
+    "term": "pienoiskartta",
+    "forms": [
+      "pienoiskartta",
+      "pienoiskartan"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "missed-task": {
     "term": "myöhästynyt tehtävä",
     "forms": [
@@ -1196,6 +1258,15 @@
     ],
     "source": "model",
     "status": "model"
+  },
+  "occupancy": {
+    "term": "käyttöaste",
+    "forms": [
+      "käyttöaste",
+      "käyttöasteen"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "out-of-sequence-progress": {
     "term": "järjestyksestä poikkeava edistyminen",
@@ -1327,6 +1398,15 @@
     "source": "model",
     "status": "model"
   },
+  "progress-line": {
+    "term": "edistymisviiva",
+    "forms": [
+      "edistymisviiva",
+      "edistymisviivan"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "progress-mode": {
     "term": "edistymistapa",
     "forms": [
@@ -1355,6 +1435,15 @@
     "source": "model",
     "status": "model"
   },
+  "project-info": {
+    "term": "projektitiedot",
+    "forms": [
+      "projektitiedot",
+      "projektitietoihin"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "project-start": {
     "term": "projektin aloituspäivä",
     "forms": [
@@ -1368,6 +1457,16 @@
     ],
     "source": "model",
     "status": "model"
+  },
+  "properties-panel": {
+    "term": "ominaisuuspaneeli",
+    "forms": [
+      "ominaisuuspaneeli",
+      "ominaisuuspaneelin",
+      "ominaisuuspaneelissa"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "rate": {
     "term": "normaalihinta",
@@ -1527,6 +1626,15 @@
     "source": "tbx",
     "status": "tbx-chosen"
   },
+  "resource-panel": {
+    "term": "resurssipaneeli",
+    "forms": [
+      "resurssipaneeli",
+      "resurssipaneelin"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "resource-type": {
     "term": "resurssityyppi",
     "forms": [
@@ -1666,6 +1774,15 @@
     "source": "tbx",
     "status": "tbx"
   },
+  "split-view": {
+    "term": "jaettu näkymä",
+    "forms": [
+      "jaettu näkymä",
+      "jaetun näkymän"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
   "start-driver": {
     "term": "alkua ohjaava riippuvuus",
     "forms": [
@@ -1745,6 +1862,15 @@
     "source": "model",
     "status": "arbitrated"
   },
+  "status-bar": {
+    "term": "tilarivi",
+    "forms": [
+      "tilarivi",
+      "tilarivillä"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
+  },
   "status-date": {
     "term": "raportointipäivä",
     "forms": [
@@ -1801,6 +1927,16 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "table-column": {
+    "term": "sarake",
+    "forms": [
+      "sarake",
+      "sarakkeen",
+      "sarakkeet"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "task": {
     "term": "tehtävä",
@@ -1862,6 +1998,15 @@
     ],
     "source": "tbx",
     "status": "tbx-chosen"
+  },
+  "time-scale": {
+    "term": "aikaskaala",
+    "forms": [
+      "aikaskaala",
+      "aikaskaalan"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "total-float": {
     "term": "kokonaispelivara",
@@ -1991,6 +2136,27 @@
     ],
     "source": "tbx",
     "status": "tbx"
+  },
+  "work-block": {
+    "term": "lohko",
+    "forms": [
+      "lohko",
+      "lohkon",
+      "lohkot"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
+  },
+  "work-break": {
+    "term": "tauko",
+    "forms": [
+      "tauko",
+      "tauon",
+      "taukoa",
+      "tauot"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   },
   "work-calendar": {
     "term": "työkalenteri",
