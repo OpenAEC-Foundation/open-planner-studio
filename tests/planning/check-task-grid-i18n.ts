@@ -248,17 +248,15 @@ const relationColumnWords: Record<(typeof LOCALES)[number], readonly [string, st
   ru: ['Предшественники', 'Последователи'],
   sv: ['Föregående', 'Efterföljande'],
   sr: ['Претходници', 'Наследници'],
-  // TIJDELIJK: de dertien nieuwe talen staan nog met Engels als vulling. Vervang deze en-woorden door
-  // de woorden van de vertaling zodra de vertaalstraat de taal vult (`translate apply ui <taal>`).
-  uk: ['Predecessors', 'Successors'],
-  sk: ['Predecessors', 'Successors'],
-  hr: ['Predecessors', 'Successors'],
-  bg: ['Predecessors', 'Successors'],
-  hu: ['Predecessors', 'Successors'],
-  ro: ['Predecessors', 'Successors'],
-  nb: ['Predecessors', 'Successors'],
-  da: ['Predecessors', 'Successors'],
-  fi: ['Predecessors', 'Successors'],
+  uk: ['Попередники', 'Наступники'],
+  sk: ['Predchádzajúce úlohy', 'Nasledujúce úlohy'],
+  hr: ['Prethodnici', 'Nasljednici'],
+  bg: ['Предшественици', 'Последователи'],
+  hu: ['Elődök', 'Utódok'],
+  ro: ['Predecesori', 'Succesori'],
+  nb: ['Forgjengere', 'Etterfølgere'],
+  da: ['Foregående opgaver', 'Efterfølgende opgaver'],
+  fi: ['Edeltäjät', 'Seuraajat'],
 };
 for (const locale of LOCALES) {
   const value = at(commonByLocale.get(locale), 'notifications.summaryRelationsDropped');
