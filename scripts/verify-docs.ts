@@ -57,11 +57,12 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  HELP_DOC_LANGS, HELP_IMAGE_LANG_PLACEHOLDER, MANIFEST_HELP_KINDS, extractHeadingSlugs, resolveHelpImagePath,
+  HELP_DOC_LANGS, MANIFEST_HELP_KINDS, extractHeadingSlugs, resolveHelpImagePath,
   splitHelpTarget,
 } from '@/utils/helpManifest';
 import * as APP_HELP_ARTICLES from '@/state/helpArticles';
 import { RELEASE_HIGHLIGHT_CATALOG } from '@/services/updater/releaseHighlights';
+import { stripCode, subsetErrors } from './lib/docs-structure';
 import { AGENT_GUIDE_FILE, checkAgentGuideLinks, checkPrincipleCoupling } from './lib/agent-guide-coupling';
 import { checkSkillFrontmatter, checkSkillSets, sharedClaudeSkills } from './lib/agent-skills-check';
 
@@ -115,16 +116,6 @@ function loadExampleFiles(): Set<string> {
   return new Set(list.map((e: any) => e.file));
 }
 
-/** Strip fenced code blocks and inline-code spans vóór de parser-compat-scan, zodat backtick-
- *  gequote voorbeeldsyntax (bv. `` `<Notes>` `` als MSPDI-veldnaam) niet als "raw HTML" of anders
- *  onbedoeld gemarkeerd wordt — binnen `code` rendert miniMarkdown de tekst altijd als platte
- *  tekst, dus daar gelden de blok-niveau-beperkingen niet. */
-function stripCode(source: string): string {
-  return source
-    .replace(/```[\s\S]*?```/g, (m) => '\n'.repeat((m.match(/\n/g) ?? []).length))
-    .replace(/`[^`\n]+`/g, (m) => ' '.repeat(m.length));
-}
-
 const HEADER_RE = /^(#{1,3})\s+(.*)$/;
 
 function extractHeadings(source: string): string[] {
@@ -158,80 +149,21 @@ function extractLinkTargets(source: string): string[] {
     .sort();
 }
 
-/** Check 5: markdown-constructies buiten de subset die src/utils/miniMarkdown.tsx ondersteunt. */
+/** Check 5: markdown-constructies buiten de subset die src/utils/miniMarkdown.tsx ondersteunt. De
+ *  regels zelf staan in `scripts/lib/docs-structure.ts` (contract C1, gedeeld met de docs-straat);
+ *  hier alleen het bestaan van de afbeeldingen (het pad wordt door de viewer opgelost tegen
+ *  BASE_URL/docs/<pad>, met `{lang}` = de beeldtaal van deze docstaal). */
 function checkParserCompat(id: string, lang: string, source: string, diffs: string[], draftNotes: string[], isDraft: boolean) {
-  const scanLines = stripCode(source).replace(/\r\n/g, '\n').split('\n');
   const label = `${id}/${lang}`;
-
-  scanLines.forEach((line, idx) => {
-    const n = idx + 1;
-    if (/^#{4,}\s/.test(line)) {
-      diffs.push(`${label}:${n} h4+ kop niet ondersteund (parser kent alleen #/##/###)`);
-    }
-    if (/^\s*\|.*\|\s*$/.test(line)) {
-      diffs.push(`${label}:${n} tabel-syntax (|) niet ondersteund door miniMarkdown`);
-    }
-    if (/^\s*>/.test(line)) {
-      diffs.push(`${label}:${n} blockquote (>) niet ondersteund door miniMarkdown`);
-    }
-    if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) {
-      diffs.push(`${label}:${n} horizontale lijn (---/***) niet ondersteund door miniMarkdown`);
-    }
-    if (/^\s{1,}[-*]\s+\S/.test(line)) {
-      diffs.push(`${label}:${n} ingesprongen (geneste) ongeordende lijst-item niet ondersteund — UL_RE vereist regel-start op kolom 0`);
-    }
-    if (/^\s{1,}\d+\.\s+\S/.test(line)) {
-      diffs.push(`${label}:${n} ingesprongen (geneste) geordende lijst-item niet ondersteund — OL_RE vereist regel-start op kolom 0`);
-    }
-    if (/\[\^[^\]]+\]/.test(line)) {
-      diffs.push(`${label}:${n} voetnoot-syntax ([^ref]) niet ondersteund door miniMarkdown`);
-    }
-    if (/\[[^\]]+\]\[[^\]]*\]/.test(line)) {
-      diffs.push(`${label}:${n} reference-style link ([tekst][ref]) niet ondersteund door miniMarkdown`);
-    }
-    if (/~~[^~]+~~/.test(line)) {
-      diffs.push(`${label}:${n} doorhaal-syntax (~~tekst~~) niet ondersteund door miniMarkdown`);
-    }
-    const htmlTag = /<\/?[a-zA-Z][a-zA-Z0-9]*(\s[^<>]*)?>/.exec(line);
-    if (htmlTag) {
-      diffs.push(`${label}:${n} raw HTML-tag (${htmlTag[0]}) wordt niet geïnterpreteerd, alleen als platte tekst getoond`);
-    }
-    // Linkschema's anders dan docs://, examples:// (echte tekst — inline code is al gestript,
-    // dus dit ziet ook markdown-links binnen backticks niet als fout-positief).
-    // `(?<!!)`: een afbeelding `![alt](pad)` is geen link (die toetst het afbeeldingsblok hieronder).
-    const linkRe = /(?<!!)\[[^\]]+\]\(([^)]+)\)/g;
-    let lm: RegExpExecArray | null;
-    while ((lm = linkRe.exec(line)) !== null) {
-      const href = lm[1];
-      if (!href.startsWith('docs://') && !href.startsWith('examples://')) {
-        diffs.push(`${label}:${n} linkschema niet toegestaan (alleen docs:// en examples://): ${href}`);
-      }
-    }
-  });
-
-  // Afbeeldingen (codeblokken en inline code gestript: een voorbeeld-syntax telt niet). Het pad
-  // wordt door de viewer opgelost tegen BASE_URL/docs/<pad>, met `{lang}` = nl of en; alt-tekst is
-  // verplicht (schermlezers, en de placeholder als het beeld ontbreekt toont juist die tekst).
-  const imgRe = /!\[([^\]]*)\]\(([^)]*)\)/g;
-  let im: RegExpExecArray | null;
-  scanLines.forEach((line, idx) => {
-    imgRe.lastIndex = 0;
-    while ((im = imgRe.exec(line)) !== null) {
-      const [, alt, rawPath] = im;
-      const where = `${label}:${idx + 1}`;
-      if (!alt.trim()) diffs.push(`${where} afbeelding zonder alt-tekst: ![](${rawPath}) — beschrijf wat het beeld toont`);
-      const path = rawPath.trim();
-      if (!path) { diffs.push(`${where} afbeelding zonder pad: ![${alt}]()`); continue; }
-      const leftover = path.split(HELP_IMAGE_LANG_PLACEHOLDER).join('').match(/\{[^}]*\}/);
-      if (leftover) diffs.push(`${where} onbekende placeholder ${leftover[0]} in afbeeldingspad (alleen ${HELP_IMAGE_LANG_PLACEHOLDER})`);
-      const resolved = resolveHelpImagePath(path, lang);
-      if (/^[a-z]+:/i.test(resolved) || resolved.startsWith('/') || resolved.split('/').includes('..')) {
-        diffs.push(`${where} afbeeldingspad moet relatief binnen public/docs blijven: ${path}`);
-      } else if (!existsSync(join(DOCS_DIR, resolved))) {
-        (isDraft ? draftNotes : diffs).push(`${where} afbeelding bestaat niet: public/docs/${resolved}`);
-      }
-    }
-  });
+  const imageCheck = (path: string, line: number): string | null => {
+    const resolved = resolveHelpImagePath(path, lang);
+    if (existsSync(join(DOCS_DIR, resolved))) return null;
+    const msg = `afbeelding bestaat niet: public/docs/${resolved}`;
+    if (!isDraft) return msg;
+    draftNotes.push(`${label}:${line} ${msg}`);
+    return null;
+  };
+  for (const err of subsetErrors(source, imageCheck)) diffs.push(`${label}:${err}`);
 }
 
 /** Check 6c: vertaalsteekproef — een verdacht hoog aandeel woordelijk identieke regels (>60%) t.o.v.
