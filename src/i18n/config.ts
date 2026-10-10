@@ -2,7 +2,7 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { readLocal, syncSettingToLocalStorage } from '@/utils/settingsStore';
 
-// --- Alleen de fallback-taal (en) wordt eager geïmporteerd. De overige 15 talen
+// --- Alleen de fallback-taal (en) wordt eager geïmporteerd. De overige 14 talen
 // laden lazy via loadLocale() (Vite splitst per taal een eigen async chunk). ---
 import enCommon from './locales/en/common.json';
 import enTask from './locales/en/task.json';

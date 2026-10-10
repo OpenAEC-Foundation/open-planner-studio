@@ -16,7 +16,7 @@ Een wijziging werkt direct. Er is geen knop *Toepassen* en geen *Annuleren*.
 
 **Volg systeemthema** — laat het kleurenschema van je besturingssysteem kiezen. Standaard: uit. Effect: de app is *Licht* of *Donker*, naar wat je systeem heeft; de drie themakaarten staan dan uit. *Hoog contrast* volgt je systeem niet: dat kies je zelf. Zet je de schakelaar uit, dan blijft het thema staan dat op dat moment in beeld was. Waar: *Weergave*, onder *Thema*.
 
-**Taal** — de taal van de interface. Standaard: de taal van je browser of systeem als de app die kent, anders Engels. Effect: alle teksten in de app; de veertien talen staan gesorteerd op hun korte code. Arabisch en Perzisch spiegelen de interface van rechts naar links. De taal van de Help-artikelen stel je apart in, bij *Documentatietaal* in *Bestand › Help*. Waar: *Weergave*.
+**Taal** — de taal van de interface. Standaard: de taal van je browser of systeem als de app die kent, anders Engels. Effect: alle teksten in de app; de vijftien talen staan gesorteerd op hun korte code. Arabisch en Perzisch spiegelen de interface van rechts naar links. De taal van de Help-artikelen stel je apart in, bij *Documentatietaal* in *Bestand › Help*. Waar: *Weergave*.
 
 **Lettertype** — het lettertype van de hele interface. Keuze uit *Standaard*, *Systeem*, *Met schreef* en *Monospace*. Standaard: *Standaard*. Effect: koppen en tekst in het venster, en de tekst in de Gantt en het histogram. Een webapp volgt het lettertype van je systeem niet vanzelf; daarom kies je het hier. Waar: *Weergave*.
 

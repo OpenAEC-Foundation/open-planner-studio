@@ -1,6 +1,6 @@
 # Een nieuwe vertaalsleutel toevoegen
 
-Veertien locales (`nl, en, fr, de, es, zh, it, pt, pl, tr, ar, ja, ko, fa`), elk met vier namespaces
+Vijftien locales (`nl, en, fr, de, es, zh, it, pt, pl, tr, ar, ja, ko, lo, fa`), elk met vier namespaces
 (`common`, `task`, `report`, `menu`) — zie *i18n* in `.claude/rules/i18n.md`. Nederlands is de **brontaal**: nieuwe
 sleutels worden eerst in `src/i18n/locales/nl/<namespace>.json` geschreven, alle andere talen volgen
 daaruit. Alleen Engels wordt eager mee-gebundeld (`config.ts`); de rest laadt lazy via `loadLocale()`.
@@ -26,7 +26,7 @@ poort; loopt dit document ooit achter, dan heeft die het gelijk.
    { "nl": { "one": "{{count}} taak", "other": "{{count}} taken" },
      "pl": { "one": "…", "few": "…", "many": "…", "other": "…" }, "zh": { "other": "…" }, … }
    ```
-3. **Zet hem in alle 14 locales met één commando:**
+3. **Zet hem in alle 15 locales met één commando:**
    ```bash
    npm run i18n:add -- common:pad.naar.sleutel vertalingen.json              # nieuw, achteraan
    npm run i18n:add -- common:pad.naar.sleutel vertalingen.json --after broer # nieuw, na een broer
@@ -136,7 +136,7 @@ geen generieke poort die elke `t(key, { count })`-aanroep in de hele codebase vi
 | i18next-init, eager (en) vs. lazy (overige) | `src/i18n/config.ts` |
 | lazy-loader per taal | `src/i18n/` (`loadLocale()`) |
 | de poort: CLDR-pluralcategorieën per locale | `scripts/i18n-diff.mjs` (`npm run verify:i18n`) |
-| toevoegen/wijzigen in alle 14 locales, vaste opmaak | `scripts/i18n-add.ts` (`npm run i18n:add`), `scripts/i18n-fmt.ts` (`npm run i18n:fmt`), kern `scripts/i18n-tools.ts` |
+| toevoegen/wijzigen in alle 15 locales, vaste opmaak | `scripts/i18n-add.ts` (`npm run i18n:add`), `scripts/i18n-fmt.ts` (`npm run i18n:fmt`), kern `scripts/i18n-tools.ts` |
 | test van die kern (inhoud blijft gelijk op alle echte bestanden) | `tests/planning/check-i18n-tools.ts` |
 | locale-bestanden per sleutel samenvoegen na `git merge` | `scripts/i18n-resolve.ts` (`npm run i18n:resolve`), end-to-end getest in `tests/planning/check-i18n-resolve.ts` |
 | domeincheck: taakgrid-registerlabels + echte `count`-aanroepen | `tests/planning/check-task-grid-i18n.ts` |

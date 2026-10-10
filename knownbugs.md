@@ -243,6 +243,11 @@ en noem het in je rapport of PR-tekst.
 73. **Namen en beschrijvingen van de voorbeeldprojecten zijn Engels in elke interfacetaal.** Gezien in de
     nl-interface bij *Bestand › Voorbeelden*; de Help-artikelen noemen daarom de Engelse namen. Niet
     nagegaan of dat voor alle voorbeelden geldt. Voorstel: bewust laten, of per taal vertalen. — B
+95. **De maximale breedte van de curvekolom is niet nagemeten voor Laotiaans (`lo`).** Het commentaar bij
+    `COL.curve` (`src/services/print/printPreview.ts:129`) zegt dat die breedte past voor de langste
+    curvenaam van "álle veertien talen". `lo` kwam erbij met #301; Inter heeft geen Laotiaanse glyphs, dus de
+    canvasmeting valt terug op een systeemfont. Niet gemeten of nagespeeld. Voorstel: de langste `lo`-curvenaam
+    meten tegen `COL.curve.w` en het commentaar bijwerken. — S
 
 ## Tests
 

@@ -7,7 +7,7 @@
 // Deze batterij pint vast:
 //   1. elke guard in `solve()` levert de juiste code (+ taak/kring) én nog steeds letterlijk de oude
 //      `error`-tekst — MCP-tools, extensies en `mapTransactionError` lezen die;
-//   2. elke code heeft in alle veertien talen een niet-lege tekst met de juiste placeholder;
+//   2. elke code heeft in alle vijftien talen een niet-lege tekst met de juiste placeholder;
 //   3. de melding en het waarschuwingenpaneel dragen de code, en vertalen naar de gekozen taal.
 import i18next from 'i18next';
 import ar from '@/i18n/locales/ar/common.json';
@@ -19,6 +19,7 @@ import fr from '@/i18n/locales/fr/common.json';
 import it from '@/i18n/locales/it/common.json';
 import ja from '@/i18n/locales/ja/common.json';
 import ko from '@/i18n/locales/ko/common.json';
+import lo from '@/i18n/locales/lo/common.json';
 import nl from '@/i18n/locales/nl/common.json';
 import pl from '@/i18n/locales/pl/common.json';
 import pt from '@/i18n/locales/pt/common.json';
@@ -96,12 +97,12 @@ eq('1 cycle: de oude error-tekst is letterlijk ongewijzigd', cyc.error, `Circula
 truthy('1 cycle: MCP herkent de kring nog aan de tekst', /circular dependency/i.test(cyc.error ?? ''));
 eq('1 geen fout ⇒ geen errorInfo', solve([task('a', 'Fundering')]).errorInfo, undefined);
 
-// ── 2. Elke code heeft in alle veertien talen een tekst met de juiste placeholder ──────────────
+// ── 2. Elke code heeft in alle vijftien talen een tekst met de juiste placeholder ──────────────
 const COMMON: Record<string, { scheduleErrors?: Record<string, unknown> }> = {
-  nl, en, fr, de, es, zh, it, pt, pl, tr, ar, ja, ko, fa,
+  nl, en, fr, de, es, zh, it, pt, pl, tr, ar, ja, ko, lo, fa,
 };
 const locales = Object.keys(COMMON);
-eq('2.0 veertien talen', locales.length, 14);
+eq('2.0 vijftien talen', locales.length, 15);
 for (const l of locales) {
   const block = COMMON[l].scheduleErrors ?? {};
   for (const code of SCHEDULE_ERROR_CODES) {

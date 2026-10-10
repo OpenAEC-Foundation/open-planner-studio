@@ -58,7 +58,7 @@ export default defineConfig({
     fs: { allow: allowedFsRoots() },
     watch: {
       // Sibling git worktrees under .claude/worktrees/ each carry a full src
-      // tree (14 locales × 4 namespaces + all components). Watching them
+      // tree (15 locales × 4 namespaces + all components). Watching them
       // recursively multiplies inotify usage ~10× and blows past
       // fs.inotify.max_user_watches (ENOSPC) once a second dev server starts —
       // the main dev server has no business watching other worktrees. Appended

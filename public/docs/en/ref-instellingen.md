@@ -16,7 +16,7 @@ A change takes effect immediately. There is no *Apply* button and no *Cancel*.
 
 **Follow system theme** — lets the colour scheme of your operating system decide. Default: off. Effect: the app is *Light* or *Dark*, depending on your system; the three theme cards are then switched off. *High Contrast* does not follow your system: you pick it yourself. If you switch this off, the theme that was on screen at that moment stays. Where: *Appearance*, under *Theme*.
 
-**Language** — the language of the interface. Default: the language of your browser or system if the app knows it, otherwise English. Effect: all texts in the app; the fourteen languages are sorted by their short code. Arabic and Persian mirror the interface from right to left. You set the language of the Help articles separately, under *Documentation language* in *File › Help*. Where: *Appearance*.
+**Language** — the language of the interface. Default: the language of your browser or system if the app knows it, otherwise English. Effect: all texts in the app; the fifteen languages are sorted by their short code. Arabic and Persian mirror the interface from right to left. You set the language of the Help articles separately, under *Documentation language* in *File › Help*. Where: *Appearance*.
 
 **Font** — the font of the whole interface. Choose from *Default*, *System*, *Serif* and *Monospace*. Default: *Default*. Effect: headings and text in the window, and the text in the Gantt and the histogram. A web app does not follow your system font by itself; that is why you choose it here. Where: *Appearance*.
 

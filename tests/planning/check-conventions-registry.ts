@@ -375,7 +375,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   ], ['earlyStart', undefined, undefined]);
 }
 
-// ── 8) i18n (plan taak D1): elke conventie, elk ingebouwd profiel en de profielmelding in alle 14 talen ──
+// ── 8) i18n (plan taak D1): elke conventie, elk ingebouwd profiel en de profielmelding in alle 15 talen ──
 // Alleen aanwezigheid en type; de pluralcategorieën per locale bewaakt `npm run verify:i18n`.
 {
   const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');

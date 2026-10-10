@@ -32,7 +32,7 @@ interface SchedulingProfileSectionProps {
 // De conventie-, profiel-, thema- en bronoptiesleutels worden uit een getypeerde id opgebouwd; het
 // retourtype `ParseKeys<'common'>` laat de typecheck elke samengestelde sleutel controleren (geen cast,
 // `verify:i18n`). `check-conventions-registry` sectie 8 bewijst daarnaast dat elke sleutel in alle
-// 14 locales bestaat.
+// 15 locales bestaat.
 const conventionLabelKey = (id: ConventionKey): ParseKeys<'common'> => `conventions.${id}.label`;
 const conventionHelpKey = (id: ConventionKey): ParseKeys<'common'> => `conventions.${id}.help`;
 const builtInNameKey = (id: BuiltInProfileId): ParseKeys<'common'> => `profiles.builtIn.${id}`;

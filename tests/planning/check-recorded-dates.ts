@@ -1193,7 +1193,7 @@ const offerOnly = (ifcText: string): ImportResult => ({
 // #63-route voor elk ander formaat, waar niemand weet uit welk pakket de datums komen — daar is die
 // zin een verkeerde bewering. Twee helften:
 //  (a) de KEUZE (`recordedDatesActiveKey`, de React-vrije besluitmodule achter de component);
-//  (b) de INHOUD in alle veertien talen: de Primavera-familie noemt Primavera, de neutrale familie
+//  (b) de INHOUD in alle vijftien talen: de Primavera-familie noemt Primavera, de neutrale familie
 //      NIET — een vertaler die de zin kopieert wordt hier gepakt, in elke taal.
 {
   eq('14a verse XER-import ⇒ Primavera-tekst', recordedDatesActiveKey('xer'), 'recordedDates.activeCount');
@@ -1212,7 +1212,7 @@ const offerOnly = (ifcText: string): ImportResult => ({
   if (localesRoot) {
     const talen = readdirSync(localesRoot, { withFileTypes: true })
       .filter((e) => e.isDirectory()).map((e) => e.name).sort();
-    eq('14e alle veertien talen worden gecontroleerd', talen.length, 15);
+    eq('14e alle vijftien talen worden gecontroleerd', talen.length, 15);
 
     const zonderNeutraal: string[] = [];
     const neutraalNoemtPrimavera: string[] = [];

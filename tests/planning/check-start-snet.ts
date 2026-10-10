@@ -377,7 +377,7 @@ for (const constraint of OTHER_CONSTRAINTS) {
   eq('Melding: "Lees meer" wijst naar een bestaande gids', manifest.articles.some(article => article.id === help), true);
 }
 
-// ── 14. De tegenhoudmelding noemt het type in gebruikerstaal, in alle 14 talen ─────────────────
+// ── 14. De tegenhoudmelding noemt het type in gebruikerstaal, in alle 15 talen ─────────────────
 // De tekst nest `$t(task:constraintType.{{type}})`: controleer per taal met een echte i18next-instantie
 // dat die nesting heel is gebleven en het eigen label van die taal oplevert.
 {

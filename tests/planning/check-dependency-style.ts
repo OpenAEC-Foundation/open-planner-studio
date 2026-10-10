@@ -332,7 +332,7 @@ console.log('-- legenda: één regel verklaart doorgetrokken vs. gestreept --');
   } else ok('relaties uit ⇒ geen lijnstijl-regel in de legenda');
 }
 
-// ── 8. Alle veertien talen hebben de nieuwe legenda-sleutel ─────────────────────────────────────
+// ── 8. Alle vijftien talen hebben de nieuwe legenda-sleutel ─────────────────────────────────────
 // (`verify:i18n` bewaakt dit ook, maar dan pas op suiteniveau; hier faalt hij bij de functie zelf.)
 console.log('-- legenda: sleutel aanwezig in de bronvertaling --');
 {

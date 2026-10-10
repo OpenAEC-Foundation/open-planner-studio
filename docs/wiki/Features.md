@@ -102,5 +102,5 @@ bridge and automatic updates.
   opt in to writing changed work back to that same file on the same interval.
 - **Automatic updates** — the desktop app updates itself where the install type supports it, and
   shows a one-off "you've just been updated" summary the first time you reopen it afterwards.
-- **14 languages** — Nederlands, English, Français, Deutsch, Español, 中文, Italiano, Português, Polski, Türkçe, العربية, 日本語, 한국어 and فارسی, including right-to-left layout for Arabic and Persian. The in-app manual is available in English and Dutch, with its own language picker independent of the interface language; in the other interface languages it shows the English text with a short notice.
+- **15 languages** — Nederlands, English, Français, Deutsch, Español, 中文, Italiano, Português, Polski, Türkçe, العربية, 日本語, 한국어, ລາວ and فارسی, including right-to-left layout for Arabic and Persian. The in-app manual is available in English and Dutch, with its own language picker independent of the interface language; in the other interface languages it shows the English text with a short notice.
 - **Extensible** — a frontend extension system for importers, ribbon buttons, PDF fonts and more. See [Extensions Authoring](Extensions-Authoring).

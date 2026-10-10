@@ -314,7 +314,7 @@ const scheduleGroup: RibbonGroupSpec = {
  */
 const tableColumnsGroup: RibbonGroupSpec = {
   // Groepskop zonder beletselteken (`menu:ribbon.columns` is "Kolommen…", een knoplabel);
-  // `common:view.columns.title` bestaat al in alle veertien talen.
+  // `common:view.columns.title` bestaat al in alle vijftien talen.
   id: 'tableColumns', labelKey: 'common:view.columns.title',
   items: [{
     kind: 'button', id: 'tableColumns', icon: <Columns3 size={20} />, labelKey: 'menu:ribbon.columns',

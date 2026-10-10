@@ -50,7 +50,7 @@ and `npm run verify:release-highlights` (separate: local update highlights and s
 its own commit). `npm run measure:profiles` (separate) measures the cell baseline per scheduling profile (rule A:
 no exact cell may become inexact); the P6 part needs `OPS_XER_CORPUS`.
 
-Translations: `npm run i18n:add` puts one string in all 14 locales at once (recipe `docs/recepten/i18n-sleutel.md`),
+Translations: `npm run i18n:add` puts one string in all 15 locales at once (recipe `docs/recepten/i18n-sleutel.md`),
 `npm run i18n:fmt` puts the locale files in the fixed format (one key per line, `nl` order),
 `npm run i18n:resolve` merges them per key after a `git merge` — run it even when git reports no conflict.
 
@@ -130,7 +130,7 @@ Node 22 (see CI). Rust stable only for the `tauri:*` commands.
   `workdayAxis.ts`); interaction in `src/components/canvas/hooks/`. Change visual Gantt behaviour in the
   renderer, not in components.
 - **Notifications go through one channel** from the store — no `alert()` or ad-hoc toasts.
-- **Text:** always via `t(...)`, never hard-coded, in all fourteen locales. Text sizes only via the six roles
+- **Text:** always via `t(...)`, never hard-coded, in all fifteen locales. Text sizes only via the six roles
   (`text-caption`…`text-title`); `text-xs`/`text-sm` no longer exist and silently do nothing.
 - **Settings:** `localStorage` under `ops-` keys (no store plugin: the npm dependency `@tauri-apps/plugin-store`
   is gone; the Rust side still registers `tauri-plugin-store`, unused), declared in `settingsRegistry.ts`.
@@ -149,7 +149,7 @@ Node 22 (see CI). Rust stable only for the `tauri:*` commands.
   `ifc`, `report`, `ai` (only with `ui.aiMode`). Source: `slices/types.ts`.
 - Backstage sections (`BackstageSection`): `recent`, `examples`, `export`, `import`, `print`, `project-info`,
   `settings`, `extensions`, `library`, `help`.
-- Fourteen locales (`nl, en, fr, de, es, zh, it, pt, pl, tr, ar, ja, ko, lo, fa`), each with four namespaces;
+- Fifteen locales (`nl, en, fr, de, es, zh, it, pt, pl, tr, ar, ja, ko, lo, fa`), each with four namespaces;
   `ar`/`fa` are RTL. A missing plural form falls back to English, not to `_other`.
 - MCP: The 41 `planner_*` tools live in `src/services/mcp/tools/`. New tool: `docs/recepten/mcp-tool.md`.
 
