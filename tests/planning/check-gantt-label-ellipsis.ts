@@ -5,9 +5,9 @@
 // maxWidth is geen alternatief, want die KNIJPT de glyphs samen. `GanttRenderer.ellipsize` zoekt nu
 // binair met `measureText` de langste prefix die mét "…" past.
 //
-// Sinds oktober 2026 staat een naam die niet in de balk past NAAST de balk, volledig tot
-// OUTSIDE_MAX px en pas daarna met een ellips (GanttRenderer `drawOutsideBarName`). Standaard
-// links (rechts ligt de spelingsband); tegen de linkerrand van het beeld valt hij terug naar rechts.
+// Sinds oktober 2026 staat een naam die niet in de balk past RECHTS achter de balk, voorbij de knik
+// van de eigen uitgaande relatie, volledig tot OUTSIDE_MAX px en pas daarna met een ellips
+// (GanttRenderer `drawOutsideBarName`).
 //
 // Deze check draait de ECHTE renderer met een opnemende ctx-stub (measureText = 6 px per teken, het
 // bestaande stubpatroon) en controleert per balk welke string er daadwerkelijk de `fillText` in ging.
@@ -33,10 +33,9 @@ function ok(label: string, cond: boolean): void {
 }
 
 const CHAR_W = 6; // zelfde measureText-stub als de andere renderer-checks
-/** Gelijk aan OUTSIDE_LABEL_GAP / OUTSIDE_LABEL_MAX in GanttRenderer. */
-const OUTSIDE_GAP = 6;
-/** Gelijk aan OUTSIDE_LABEL_GAP_LEFT: links ruimte voor het pijlpuntje van een relatie. */
-const OUTSIDE_GAP_LEFT = 10;
+/** Gelijk aan ARROW_STUB + OUTSIDE_LABEL_GAP en OUTSIDE_LABEL_MAX in GanttRenderer: de naam begint
+ *  voorbij de knik van de eigen uitgaande relatie. */
+const OUTSIDE_GAP = 8 + 6;
 const OUTSIDE_MAX = 260;
 
 interface TextCall { text: string; x: number; y: number }
@@ -140,39 +139,6 @@ if (rectKort && rectLang) {
     ok('ellips benut de beschikbare breedte maximaal', eenMeer.length * CHAR_W > OUTSIDE_MAX);
     // En het BEGIN van de naam blijft staan — dat was juist het leesprobleem.
     ok('het begin van de naam blijft leesbaar', LANG.startsWith(labelLang.text.slice(0, -1)));
-  }
-}
-
-// ── Links van de balk: een balk verderop in de tijd, met genoeg ruimte links ─────
-{
-  const LATER_START = '2026-02-02';
-  const LATER_FINISH = '2026-02-06';
-  const MIDDEL = 'Upper floor masonry — House 4'; // 29 tekens = 174 px: past niet in de balk, wel links
-  const later: Task = {
-    ...S().tasks[0], id: 'later', name: MIDDEL,
-    time: { ...time, scheduleStart: LATER_START, scheduleFinish: LATER_FINISH, earlyStart: LATER_START, earlyFinish: LATER_FINISH, lateStart: LATER_START, lateFinish: LATER_FINISH },
-  } as Task;
-  const { ctx: ctx2, texts: texts2 } = makeCtx();
-  const r2 = new GanttRenderer(ctx2, {
-    rows: [{ kind: 'task', rowKey: later.id, task: later, depth: 0, dimmed: false }],
-    sequences: [],
-    calendar: st.calendar,
-    view: { ...st.view, scrollX: 0, scrollY: 0, zoom: ZOOM, viewStartDate: FIXED_START },
-    selectedTaskIds: [],
-    showStatusDateLine: false,
-    showProgressLine: false,
-    canvasWidth: W,
-    canvasHeight: H,
-    rowHeight: ROWH,
-    headerHeight: HDRH,
-  });
-  r2.render();
-  const rect = r2.getTaskBarRect('later');
-  ok('links: opzet, balk ver genoeg van de linkerrand', rect !== null && rect.left > MIDDEL.length * CHAR_W + OUTSIDE_GAP_LEFT + 4);
-  if (rect) {
-    const label = texts2.find(t => t.text === MIDDEL);
-    ok(`links: volledige naam getekend, rechts uitgelijnd op ${OUTSIDE_GAP_LEFT} px vóór de balk (teksten: ${JSON.stringify(texts2.map(t => [t.text.slice(0, 12), t.x]))})`,
-      label !== undefined && Math.abs(label.x - (rect.left - OUTSIDE_GAP_LEFT)) < 0.001);
   }
 }
 

@@ -273,11 +273,7 @@ function getCrossHatch(ctx: CanvasRenderingContext2D, strokeColor: string, size:
 const FLOAT_HATCH_SIZE = 5;
 /** Taaknaam naast de balk: afstand tot de balk, maximale breedte en de dikte van de rand in de
  *  achtergrondkleur (px). */
-/** Aan welke kant een naam staat die niet in de balk past. Links: rechts ligt de spelingsband. */
-const OUTSIDE_LABEL_SIDE = 'left' as 'left' | 'right';
-const OUTSIDE_LABEL_GAP = 6;
-/** Links meer ruimte: daar komt het pijlpuntje van een binnenkomende relatie binnen. */
-const OUTSIDE_LABEL_GAP_LEFT = 10;
+const OUTSIDE_LABEL_GAP = 6;  // vanaf de knik van de eigen uitgaande relatie (`ARROW_STUB`), niet vanaf de balk
 const OUTSIDE_LABEL_MAX = 260;
 const OUTSIDE_LABEL_KNOCKOUT = 3;
 /** Hoekstraal (px) van een taakbalk. */
@@ -1282,28 +1278,22 @@ export class GanttRenderer {
   }
 
   /**
-   * Taaknaam NAAST de balk, voor een naam die niet in de balk past. Standaard links van de balk
-   * (`OUTSIDE_LABEL_SIDE`): rechts ligt de spelingsband, en daar viel de naam overheen. Is er links
-   * te weinig ruimte (balk tegen de linkerrand van het beeld), dan rechts. Volledig tot
-   * `OUTSIDE_LABEL_MAX` px (daarna een ellips). Een smalle rand in de achtergrondkleur houdt de tekst
-   * leesbaar boven relatiepijlen en spelingsband.
+   * Taaknaam rechts achter de balk, voor een naam die niet in de balk past. Begint voorbij de knik
+   * van de eigen uitgaande relatie (zelfde regel als de afdruk, `BAR_LABEL_GAP = DEP_STUB + 8`),
+   * anders loopt die pijllijn dwars door de naam. Volledig tot `OUTSIDE_LABEL_MAX` px (daarna een
+   * ellips) en nooit voorbij de canvasrand. Een smalle rand in de achtergrondkleur houdt de tekst
+   * leesbaar boven de spelingsband en de relatiepijlen.
    */
-  private drawOutsideBarName(name: string, color: string, barLeft: number, barRight: number, textY: number): void {
+  private drawOutsideBarName(name: string, color: string, barRight: number, textY: number): void {
     const ctx = this.ctx;
+    const x = barRight + GanttRenderer.ARROW_STUB + OUTSIDE_LABEL_GAP;
+    const maxWidth = Math.min(OUTSIDE_LABEL_MAX, this.opts.canvasWidth - x - 4);
+    if (maxWidth < 16) return;
     ctx.font = this.font('body');
     ctx.textBaseline = 'middle';
-    const leftRoom = Math.min(OUTSIDE_LABEL_MAX, barLeft - OUTSIDE_LABEL_GAP_LEFT - 4);
-    const rightRoom = Math.min(OUTSIDE_LABEL_MAX, this.opts.canvasWidth - barRight - OUTSIDE_LABEL_GAP - 4);
-    const fullWidth = ctx.measureText(name).width;
-    // Links als de hele naam daar past (of daar in elk geval meer ruimte is dan rechts).
-    const useLeft = OUTSIDE_LABEL_SIDE === 'left' && leftRoom >= 16 && (leftRoom >= Math.min(fullWidth, OUTSIDE_LABEL_MAX) || leftRoom >= rightRoom);
-    const maxWidth = useLeft ? leftRoom : rightRoom;
-    if (maxWidth < 16) return;
     const label = this.ellipsize(name, maxWidth);
     if (!label) return;
-    const x = useLeft ? barLeft - OUTSIDE_LABEL_GAP_LEFT : barRight + OUTSIDE_LABEL_GAP;
     ctx.save();
-    ctx.textAlign = useLeft ? 'right' : 'left';
     ctx.lineJoin = 'round';
     ctx.lineWidth = OUTSIDE_LABEL_KNOCKOUT;
     ctx.strokeStyle = this.colors.bg;
@@ -1573,7 +1563,7 @@ export class GanttRenderer {
     // Taaknaam. Past de hele naam in de balk, dan staat hij erin: op de basiskleur kiest
     // `barLabelColor` zwart of wit (in resource-modus op het eerste kleurstuk), op het grijze,
     // voltooide deel is hij gedempt, en hij wisselt van kleur precies op de voortgangsgrens.
-    // Past hij niet, dan staat de VOLLEDIGE naam rechts naast de balk (`drawOutsideBarName`) in
+    // Past hij niet, dan staat de VOLLEDIGE naam rechts achter de balk (`drawOutsideBarName`) in
     // plaats van een afgekapte "Ground floor masonry — H…" erin. Een voltooide balk krijgt een
     // vinkje vóór de naam; staat de naam buiten, dan blijft het vinkje in de balk als dat past.
     {
@@ -1608,7 +1598,7 @@ export class GanttRenderer {
         }
       } else {
         if (isDone && greyTones && width >= checkSize * 2.2 + 10) drawCheck(x1 + (width - checkSize * 2.2) / 2);
-        this.drawOutsideBarName(task.name, isDone ? this.colors.textSecondary : this.colors.text, x1, x1 + width, textY);
+        this.drawOutsideBarName(task.name, isDone ? this.colors.textSecondary : this.colors.text, x1 + width, textY);
       }
     }
     return resourceAccentHeight;
