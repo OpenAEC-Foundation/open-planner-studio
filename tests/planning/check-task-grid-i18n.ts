@@ -4,7 +4,7 @@ import { hasUiBaseline } from '../../scripts/translate/common';
 import { REQUIRED_LOCALES } from '../../scripts/i18n-tools';
 
 const LOCALES = [
-  'ar', 'bg', 'cs', 'da', 'de', 'en', 'es', 'fa', 'fi', 'fr', 'hr', 'hu', 'it', 'ja', 'ko', 'nb', 'nl', 'pl', 'pt',
+  'ar', 'bg', 'cs', 'da', 'de', 'en', 'es', 'fa', 'fi', 'fr', 'hr', 'hu', 'it', 'ja', 'ko', 'lo', 'nb', 'nl', 'pl', 'pt',
   'ro', 'ru', 'sk', 'sr', 'sv', 'tr', 'uk', 'zh',
 ] as const;
 
@@ -239,6 +239,7 @@ const relationColumnWords: Record<(typeof LOCALES)[number], readonly [string, st
   it: ['Predecessori', 'Successori'],
   ja: ['先行タスク', '後続タスク'],
   ko: ['선행 작업', '후속 작업'],
+  lo: ['ວຽກກ່ອນໜ້າ', 'ວຽກຖັດໄປ'],
   nl: ['voorganger', 'opvolger'],
   pl: ['Poprzedniki', 'Następniki'],
   pt: ['Predecessoras', 'Sucessoras'],

@@ -38,6 +38,7 @@ import sv_ from '@/i18n/locales/sv/common.json';
 import nb_ from '@/i18n/locales/nb/common.json';
 import da_ from '@/i18n/locales/da/common.json';
 import fi_ from '@/i18n/locales/fi/common.json';
+import lo from '@/i18n/locales/lo/common.json';
 import { createAppStoreContext } from '@/state/appStore';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { opsSolveInput } from './legacySolveOptions';
@@ -114,7 +115,7 @@ eq('1 geen fout ⇒ geen errorInfo', solve([task('a', 'Fundering')]).errorInfo, 
 const COMMON: Record<string, { scheduleErrors?: Record<string, unknown> }> = {
   nl, en, fr, de, es, zh, it, pt, pl, tr, ar, ja, ko, fa,
   ru: ru_, uk: uk_, cs: cs_, sk: sk_, sr: sr_, hr: hr_, bg: bg_,
-  hu: hu_, ro: ro_, sv: sv_, nb: nb_, da: da_, fi: fi_,
+  hu: hu_, ro: ro_, sv: sv_, nb: nb_, da: da_, fi: fi_, lo,
 };
 const locales = Object.keys(COMMON);
 eq('2.0 alle talen uit LOCALES', [...locales].sort(), [...LOCALES].sort());

@@ -86,7 +86,7 @@ eq('29 de-UI met keuze nl: nl', resolveHelpDocLang('de', 'nl'), { lang: 'nl', ov
 eq('29b bewaarde keuze de telt', resolveHelpDocLang('fr', 'de'), { lang: 'de', override: 'de', fallback: false });
 eq('29c onbekende UI-taal: en mét melding', resolveHelpDocLang('xx', null), { lang: 'en', override: null, fallback: true });
 eq('29d onzin als bewaarde keuze valt terug op Auto', resolveHelpDocLang('fr', 'klingon'), { lang: 'fr', override: null, fallback: false });
-eq('29e alle 27 UI-talen zijn docstaal', HELP_DOC_LANGS.length, 27);
+eq('29e alle 28 UI-talen zijn docstaal', HELP_DOC_LANGS.length, 28);
 ok('29f ar en sr zijn docstaal', isHelpDocLang('ar') && isHelpDocLang('sr') && !isHelpDocLang('xx'));
 const deIndex = { 'howto-start': { title: 'Erste Schritte' } };
 eq('29g artikel in de index: in die taal', articleLang('howto-start', 'de', deIndex), { lang: 'de', fallback: false });

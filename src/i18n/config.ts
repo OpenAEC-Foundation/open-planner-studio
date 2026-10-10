@@ -28,6 +28,7 @@ export const LANGUAGE_LABELS: Record<Locale, [string, string]> = {
   ar: ['AR', 'العربية'],
   ja: ['JA', '日本語'],
   ko: ['KO', '한국어'],
+  lo: ['LO', 'ລາວ'],
   fa: ['FA', 'فارسی'],
   ru: ['RU', 'Русский'],
   uk: ['UK', 'Українська'],
