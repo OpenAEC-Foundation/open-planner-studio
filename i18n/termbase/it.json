@@ -127,8 +127,7 @@
       "baseline"
     ],
     "avoid": [
-      "linea di base",
-      "previsione"
+      "linea di base"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -205,9 +204,6 @@
     "forms": [
       "vincolo",
       "vincoli"
-    ],
-    "avoid": [
-      "constraint"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -393,6 +389,9 @@
       "fine anticipata",
       "fini anticipate"
     ],
+    "avoid": [
+      "fine minima"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -401,6 +400,9 @@
     "forms": [
       "inizio anticipato",
       "inizi anticipati"
+    ],
+    "avoid": [
+      "inizio al più presto"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -433,13 +435,17 @@
     "status": "existing-ui"
   },
   "external-relation": {
-    "term": "collegamento esterno",
+    "term": "relazione esterna",
     "forms": [
+      "relazione esterna",
+      "relazioni esterne"
+    ],
+    "avoid": [
       "collegamento esterno",
       "collegamenti esterni"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "finish": {
     "term": "fine",
@@ -532,9 +538,6 @@
       "margine",
       "margini"
     ],
-    "avoid": [
-      "float"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -569,6 +572,9 @@
     "term": "hammock",
     "forms": [
       "hammock"
+    ],
+    "avoid": [
+      "amaca"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -656,9 +662,6 @@
       "ritardo",
       "ritardi"
     ],
-    "avoid": [
-      "intervallo"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -676,6 +679,9 @@
     "forms": [
       "fine posticipata",
       "fini posticipate"
+    ],
+    "avoid": [
+      "fine al più tardi"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -764,17 +770,20 @@
     "status": "existing-ui"
   },
   "milestone": {
-    "term": "traguardo",
+    "term": "cardine",
     "forms": [
-      "traguardo",
-      "traguardi"
+      "cardine",
+      "cardini",
+      "attività cardine"
     ],
     "avoid": [
+      "traguardo",
+      "traguardi",
       "milestone",
       "pietra miliare"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "milestone-kind": {
     "term": "tipo di cardine",
@@ -830,6 +839,9 @@
       "margine negativo",
       "margini negativi"
     ],
+    "avoid": [
+      "slack negativo"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -870,7 +882,10 @@
       "sovrassegnati"
     ],
     "avoid": [
-      "sovrallocata"
+      "sovrallocata",
+      "sovrallocato",
+      "sovrallocati",
+      "sovrallocate"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1013,22 +1028,30 @@
     "status": "existing-ui"
   },
   "remaining-duration": {
-    "term": "durata residua",
+    "term": "durata rimanente",
     "forms": [
+      "durata rimanente",
+      "durate rimanenti"
+    ],
+    "avoid": [
       "durata residua",
       "durate residue"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "remaining-work": {
-    "term": "lavoro residuo",
+    "term": "lavoro rimanente",
     "forms": [
+      "lavoro rimanente",
+      "lavori rimanenti"
+    ],
+    "avoid": [
       "lavoro residuo",
       "lavori residui"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "report": {
     "term": "report",
@@ -1061,9 +1084,6 @@
     "forms": [
       "libreria di risorse",
       "librerie di risorse"
-    ],
-    "avoid": [
-      "pool"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1141,9 +1161,6 @@
     "forms": [
       "turno",
       "turni"
-    ],
-    "avoid": [
-      "squadra"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1267,9 +1284,6 @@
       "attività di riepilogo",
       "dell'attività di riepilogo"
     ],
-    "avoid": [
-      "riepilogo"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1282,8 +1296,7 @@
     ],
     "avoid": [
       "compito",
-      "mansione",
-      "task"
+      "mansione"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1326,7 +1339,8 @@
       "al margine totale"
     ],
     "avoid": [
-      "float totale"
+      "float totale",
+      "slack totale"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

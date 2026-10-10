@@ -47,6 +47,9 @@
       "rzeczywistego rozpoczęcia",
       "rzeczywistym rozpoczęciu"
     ],
+    "avoid": [
+      "rzeczywisty start"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -126,18 +129,25 @@
     "status": "existing-ui"
   },
   "baseline": {
-    "term": "linia bazowa",
+    "term": "plan bazowy",
     "forms": [
-      "linia bazowa",
-      "linii bazowej",
-      "linię bazową",
-      "linie bazowe"
+      "plan bazowy",
+      "planu bazowego",
+      "planowi bazowemu",
+      "planem bazowym",
+      "planie bazowym",
+      "plany bazowe",
+      "planów bazowych",
+      "planami bazowymi"
     ],
     "avoid": [
+      "linia bazowa",
+      "baseline",
+      "linii bazowej",
       "punkt odniesienia"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "bei": {
     "term": "wskaźnik realizacji planu bazowego",
@@ -204,8 +214,7 @@
       "zdolnością"
     ],
     "avoid": [
-      "pojemność",
-      "wydajność"
+      "pojemność"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -228,9 +237,6 @@
       "ograniczeniu",
       "ograniczeniem",
       "ograniczeń"
-    ],
-    "avoid": [
-      "constraint"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -412,9 +418,6 @@
       "terminy ostateczne",
       "terminów ostatecznych"
     ],
-    "avoid": [
-      "deadline"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -454,9 +457,6 @@
       "czasy trwania",
       "czasów trwania"
     ],
-    "avoid": [
-      "długość"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -467,6 +467,10 @@
       "najwcześniejszego zakończenia",
       "najwcześniejszym zakończeniu"
     ],
+    "avoid": [
+      "wczesny koniec",
+      "wczesnego końca"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -476,6 +480,11 @@
       "najwcześniejsze rozpoczęcie",
       "najwcześniejszego rozpoczęcia",
       "najwcześniejszym rozpoczęciu"
+    ],
+    "avoid": [
+      "wczesny początek",
+      "wczesnego początku",
+      "najwcześniejszy start"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -533,7 +542,11 @@
       "relacji zewnętrznych"
     ],
     "avoid": [
-      "link zewnętrzny"
+      "link zewnętrzny",
+      "powiązanie zewnętrzne",
+      "powiązania zewnętrzne",
+      "zewnętrzne połączenie",
+      "zewnętrzne połączenia"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -765,9 +778,6 @@
       "świętem",
       "świąt"
     ],
-    "avoid": [
-      "dzień wolny"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -981,10 +991,6 @@
       "połącz",
       "połączył",
       "połączyła"
-    ],
-    "avoid": [
-      "link",
-      "łączyć"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1325,9 +1331,6 @@
       "relacje",
       "relacjach"
     ],
-    "avoid": [
-      "zbiór"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1425,8 +1428,7 @@
       "bibliotek zasobów"
     ],
     "avoid": [
-      "biblioteka kodów",
-      "plik biblioteki"
+      "biblioteka kodów"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1530,9 +1532,6 @@
       "zmianom",
       "zmianami",
       "zmianach"
-    ],
-    "avoid": [
-      "przesunąć"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1675,9 +1674,6 @@
       "zadania sumaryczne",
       "zadaniem sumarycznym"
     ],
-    "avoid": [
-      "podsumowanie"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1691,7 +1687,6 @@
       "zadań"
     ],
     "avoid": [
-      "aktywność",
       "zadanie do wykonania"
     ],
     "source": "existing-ui",
@@ -1889,9 +1884,6 @@
       "dniu roboczym",
       "dni roboczych",
       "dniach roboczych"
-    ],
-    "avoid": [
-      "dzień kalendarzowy"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

@@ -4,53 +4,70 @@
     "note": "The UI addresses the user with siz (polite plural imperatives such as girin, seçin, değiştirin). Use the same polite form in new texts."
   },
   "actual-date": {
-    "term": "gerçekleşen tarih",
+    "term": "gerçek tarih",
     "forms": [
-      "gerçekleşen tarih",
-      "gerçekleşen tarihi",
-      "gerçekleşen tarihler"
+      "gerçek tarih",
+      "gerçek tarihler",
+      "gerçek tarihleri"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "avoid": [
+      "gerçekleşen tarih"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "actual-duration": {
-    "term": "gerçekleşen süre",
+    "term": "gerçek süre",
     "forms": [
-      "gerçekleşen süre",
-      "gerçekleşen süreyi",
-      "gerçekleşen süresi"
+      "gerçek süre",
+      "gerçek süresi"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "avoid": [
+      "gerçekleşen süre"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "actual-finish": {
-    "term": "gerçekleşen bitiş",
+    "term": "gerçek bitiş",
     "forms": [
-      "gerçekleşen bitiş",
-      "gerçekleşen bitişi",
-      "gerçekleşen bitişten"
+      "gerçek bitiş",
+      "gerçek bitişi",
+      "gerçek bitişten",
+      "gerçek bitiştir"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "avoid": [
+      "gerçekleşen bitiş"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "actual-start": {
-    "term": "gerçekleşen başlangıç",
+    "term": "gerçek başlangıç",
     "forms": [
-      "gerçekleşen başlangıç",
-      "gerçekleşen başlangıcı",
-      "gerçekleşen başlangıçtan"
+      "gerçek başlangıç",
+      "gerçek başlangıcı",
+      "gerçek başlangıçtan",
+      "gerçek başlangıçlar"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "avoid": [
+      "gerçekleşen başlangıç",
+      "gerçekleşen başlangıcı"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "actual-work": {
-    "term": "gerçekleşen iş",
+    "term": "gerçek iş",
     "forms": [
-      "gerçekleşen iş",
-      "gerçekleşen işi"
+      "gerçek iş",
+      "gerçek işi"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "avoid": [
+      "gerçekleşen iş"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "ai-assistant": {
     "term": "yapay zeka asistanı",
@@ -120,6 +137,9 @@
       "temel plan",
       "temel planı",
       "temel planlar"
+    ],
+    "avoid": [
+      "baseline"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -204,6 +224,10 @@
       "kısıtlaması",
       "kısıtlamalar"
     ],
+    "avoid": [
+      "kısıt tarihi",
+      "kısıt tarihleri"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -213,6 +237,9 @@
       "kısıtlama türü",
       "kısıtlama türünü",
       "kısıtlama türleri"
+    ],
+    "avoid": [
+      "kısıt türü"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -244,9 +271,6 @@
       "kuralı",
       "kurallar",
       "kuralları"
-    ],
-    "avoid": [
-      "sözleşme"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -438,7 +462,6 @@
       "uzantının"
     ],
     "avoid": [
-      "eklenti",
       "tarayıcı eklentisi"
     ],
     "source": "existing-ui",
@@ -451,6 +474,10 @@
       "dış ilişkiyi",
       "dış ilişkiler",
       "dış ilişkinin"
+    ],
+    "avoid": [
+      "dış bağlantı",
+      "harici bağlantı"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -471,6 +498,9 @@
     "forms": [
       "bitiş driver'ı",
       "bitiş driver'ını"
+    ],
+    "avoid": [
+      "bitiş sürücüsü"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -608,18 +638,24 @@
       "hamağı",
       "hamaklar"
     ],
+    "avoid": [
+      "hammock"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
   "hard-constraint": {
-    "term": "sert kısıt",
+    "term": "kesin kısıtlama",
     "forms": [
-      "sert kısıt",
-      "sert kısıtı",
-      "sert kısıtlar"
+      "kesin kısıtlama",
+      "kesin kısıtlamalar",
+      "kesin kısıtlaması"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "avoid": [
+      "sert kısıt"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "histogram": {
     "term": "histogram",
@@ -704,9 +740,6 @@
       "kesintiler",
       "kesintili"
     ],
-    "avoid": [
-      "mola"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -765,7 +798,8 @@
       "düzenler"
     ],
     "avoid": [
-      "yerleşim"
+      "yerleşim",
+      "layout"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -775,9 +809,6 @@
     "forms": [
       "öne alma",
       "öne almayı"
-    ],
-    "avoid": [
-      "öncelik"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1063,10 +1094,6 @@
       "öncüller",
       "öncülleri"
     ],
-    "avoid": [
-      "öncelik",
-      "önceki görev"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1080,7 +1107,6 @@
       "ilerlemesine"
     ],
     "avoid": [
-      "sürüyor",
       "gelişme"
     ],
     "source": "existing-ui",
@@ -1165,9 +1191,6 @@
       "yeniden hesaplayın",
       "yeniden hesaplanır"
     ],
-    "avoid": [
-      "yenile"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1238,8 +1261,7 @@
       "rapora"
     ],
     "avoid": [
-      "raporlama",
-      "bildirim"
+      "raporlama"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1267,10 +1289,6 @@
       "kaynaklar",
       "kaynakları",
       "kaynağa"
-    ],
-    "avoid": [
-      "malzeme",
-      "ekipman"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1360,9 +1378,6 @@
       "planlamaya",
       "planlamada"
     ],
-    "avoid": [
-      "zaman çizelgesi"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1405,10 +1420,6 @@
       "vardiyaları",
       "vardiyaya"
     ],
-    "avoid": [
-      "kaydırmak",
-      "ekip"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1440,6 +1451,9 @@
       "başlangıç driver'ı",
       "başlangıç driver'ını",
       "başlangıç driver'ına"
+    ],
+    "avoid": [
+      "başlangıç sürücüsü"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1547,9 +1561,6 @@
       "özet görevler",
       "özet görevleri"
     ],
-    "avoid": [
-      "özet"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1563,23 +1574,22 @@
       "görevler",
       "görevleri"
     ],
-    "avoid": [
-      "etkinlik",
-      "faaliyet"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
   "task-grid": {
-    "term": "görev ızgarası",
+    "term": "görev tablosu",
     "forms": [
-      "görev ızgarası",
-      "görev ızgarasını",
-      "görev ızgarasının",
-      "görev ızgaraları"
+      "görev tablosu",
+      "görev tablosunu",
+      "görev tablosunda"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "avoid": [
+      "görev ızgarası",
+      "görev ızgarasını"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "task-type": {
     "term": "görev türü",
@@ -1685,21 +1695,26 @@
       "WBS"
     ],
     "avoid": [
-      "İYS"
+      "İYS",
+      "İKY"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
   "wbs-element": {
-    "term": "İKY öğesi",
+    "term": "WBS öğesi",
     "forms": [
+      "WBS öğesi",
+      "WBS öğesini",
+      "WBS öğesine",
+      "WBS öğeleri"
+    ],
+    "avoid": [
       "İKY öğesi",
-      "İKY öğesini",
-      "İKY öğesine",
       "İKY öğeleri"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "model",
+    "status": "arbitrated"
   },
   "work": {
     "term": "iş",

@@ -358,23 +358,21 @@
     "status": "existing-ui"
   },
   "external-relation": {
-    "term": "外部链接",
+    "term": "外部关系",
     "forms": [
-      "外部链接"
+      "外部关系"
     ],
     "avoid": [
+      "外部链接",
       "外部相关性"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "model",
+    "status": "arbitrated"
   },
   "finish": {
     "term": "完成",
     "forms": [
       "完成"
-    ],
-    "avoid": [
-      "结束"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -457,7 +455,9 @@
       "浮时"
     ],
     "avoid": [
-      "浮点数"
+      "浮点数",
+      "浮动时间",
+      "浮动范围"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -466,6 +466,9 @@
     "term": "浮时路径",
     "forms": [
       "浮时路径"
+    ],
+    "avoid": [
+      "浮动路径"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -479,12 +482,15 @@
     "status": "existing-ui"
   },
   "free-float": {
-    "term": "自由浮动时间",
+    "term": "自由浮时",
     "forms": [
+      "自由浮时"
+    ],
+    "avoid": [
       "自由浮动时间"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "model",
+    "status": "arbitrated"
   },
   "hammock": {
     "term": "吊床任务",
@@ -495,12 +501,16 @@
     "status": "existing-ui"
   },
   "hard-constraint": {
-    "term": "强制约束",
+    "term": "硬约束",
     "forms": [
-      "强制约束"
+      "硬约束"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "avoid": [
+      "强制约束",
+      "硬性限制"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "histogram": {
     "term": "直方图",
@@ -575,7 +585,8 @@
       "延隔"
     ],
     "avoid": [
-      "滞后时间"
+      "滞后时间",
+      "延时"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -585,6 +596,9 @@
     "forms": [
       "最晚日期"
     ],
+    "avoid": [
+      "最迟日期"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -593,6 +607,9 @@
     "forms": [
       "最晚完成"
     ],
+    "avoid": [
+      "最迟完成"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -600,6 +617,9 @@
     "term": "最晚开始",
     "forms": [
       "最晚开始"
+    ],
+    "avoid": [
+      "最迟开始"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -631,16 +651,24 @@
     "forms": [
       "资源平衡"
     ],
+    "avoid": [
+      "资源调配"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
   "leveling-delay": {
-    "term": "资源调配延迟",
+    "term": "资源平衡延迟",
     "forms": [
-      "资源调配延迟"
+      "资源平衡延迟",
+      "平衡延迟"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "avoid": [
+      "资源调配延迟",
+      "调配延迟"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "link-tasks": {
     "term": "链接",
@@ -648,8 +676,7 @@
       "链接"
     ],
     "avoid": [
-      "超链接",
-      "连接"
+      "超链接"
     ],
     "source": "tbx",
     "status": "tbx-chosen"
@@ -719,17 +746,21 @@
     "status": "existing-ui"
   },
   "near-critical": {
-    "term": "接近关键",
+    "term": "近关键",
     "forms": [
+      "近关键",
       "接近关键"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "model",
+    "status": "arbitrated"
   },
   "negative-float": {
     "term": "负浮时",
     "forms": [
       "负浮时"
+    ],
+    "avoid": [
+      "负浮动"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -765,6 +796,9 @@
     "term": "过度分配",
     "forms": [
       "过度分配"
+    ],
+    "avoid": [
+      "超负荷"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -998,20 +1032,20 @@
     "status": "arbitrated"
   },
   "secondary-constraint": {
-    "term": "次要限制",
+    "term": "次要约束",
     "forms": [
+      "次要约束"
+    ],
+    "avoid": [
       "次要限制"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "model",
+    "status": "arbitrated"
   },
   "shift": {
     "term": "班次",
     "forms": [
       "班次"
-    ],
-    "avoid": [
-      "移动"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1116,12 +1150,15 @@
     "status": "existing-ui"
   },
   "summary-task": {
-    "term": "汇总任务",
+    "term": "摘要任务",
     "forms": [
+      "摘要任务"
+    ],
+    "avoid": [
       "汇总任务"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "task": {
     "term": "任务",
@@ -1156,12 +1193,15 @@
     "status": "existing-ui"
   },
   "total-float": {
-    "term": "总浮动",
+    "term": "总浮时",
     "forms": [
+      "总浮时"
+    ],
+    "avoid": [
       "总浮动"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "model",
+    "status": "arbitrated"
   },
   "tutorial": {
     "term": "教程",

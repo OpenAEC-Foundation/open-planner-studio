@@ -357,6 +357,9 @@
       "النهاية المبكرة",
       "نهاية مبكرة"
     ],
+    "avoid": [
+      "أبكر انتهاء"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -365,6 +368,9 @@
     "forms": [
       "البداية المبكرة",
       "بداية مبكرة"
+    ],
+    "avoid": [
+      "البدء المبكر"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -400,23 +406,29 @@
     "status": "existing-ui"
   },
   "external-relation": {
-    "term": "رابط خارجي",
+    "term": "علاقة خارجية",
     "forms": [
-      "رابط خارجي",
-      "الرابط الخارجي",
-      "روابط خارجية"
+      "علاقة خارجية",
+      "العلاقة الخارجية",
+      "علاقات خارجية",
+      "العلاقات الخارجية",
+      "علاقتان خارجيتان"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "avoid": [
+      "رابط خارجي",
+      "رابطان خارجيان",
+      "روابط خارجية",
+      "الرابط الخارجي",
+      "الروابط الخارجية"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "finish": {
     "term": "النهاية",
     "forms": [
       "النهاية",
       "النهايات"
-    ],
-    "avoid": [
-      "إنهاء"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -426,6 +438,9 @@
     "forms": [
       "محرِّك النهاية",
       "محرِّكات النهاية"
+    ],
+    "avoid": [
+      "محرك انتهاء"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -453,6 +468,9 @@
       "علاقة نهاية-نهاية",
       "علاقات نهاية-نهاية"
     ],
+    "avoid": [
+      "إنهاء-إنهاء"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -462,6 +480,9 @@
       "نهاية-بداية",
       "علاقة نهاية-بداية",
       "علاقات نهاية-بداية"
+    ],
+    "avoid": [
+      "إنهاء-بدء"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -543,13 +564,16 @@
     "status": "existing-ui"
   },
   "hammock": {
-    "term": "هاموك",
+    "term": "أرجوحة",
     "forms": [
-      "هاموك",
-      "الهاموك"
+      "أرجوحة",
+      "الأرجوحة"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "avoid": [
+      "هاموك"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "hard-constraint": {
     "term": "قيد صارم",
@@ -665,6 +689,9 @@
       "النهاية المتأخرة",
       "النهايات المتأخرة"
     ],
+    "avoid": [
+      "الإنهاء المتأخر"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -706,6 +733,9 @@
       "موازنة",
       "الموازنة"
     ],
+    "avoid": [
+      "تسوية الموارد"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -714,6 +744,9 @@
     "forms": [
       "تأخير الموازنة",
       "تأخيرات الموازنة"
+    ],
+    "avoid": [
+      "تأخير التسوية"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1154,9 +1187,6 @@
       "مهمة المصدر",
       "مهام المصدر"
     ],
-    "avoid": [
-      "المهمة الأصلية"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1215,7 +1245,8 @@
       "بداية-نهاية"
     ],
     "avoid": [
-      "بدء-نهاية"
+      "بدء-نهاية",
+      "بدء-إنهاء"
     ],
     "source": "model",
     "status": "arbitrated"
@@ -1224,6 +1255,10 @@
     "term": "بداية-بداية",
     "forms": [
       "بداية-بداية"
+    ],
+    "avoid": [
+      "بدء-بدء",
+      "بدء-البدء"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1266,8 +1301,7 @@
       "المهام اللاحقة"
     ],
     "avoid": [
-      "التابع",
-      "التالي"
+      "التابع"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1277,9 +1311,6 @@
     "forms": [
       "مهمة موجزة",
       "مهام موجزة"
-    ],
-    "avoid": [
-      "ملخص"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1302,7 +1333,8 @@
       "جداول المهام"
     ],
     "avoid": [
-      "قائمة المهام"
+      "قائمة المهام",
+      "شبكة المهام"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1322,9 +1354,6 @@
       "العتبة",
       "عتبة",
       "العتبات"
-    ],
-    "avoid": [
-      "الحد الأدنى"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

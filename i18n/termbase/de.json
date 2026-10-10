@@ -10,43 +10,51 @@
       "Ist-Werten",
       "Ist-Wert"
     ],
-    "avoid": [
-      "aktuell"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
   "actual-duration": {
-    "term": "tatsächliche Dauer",
+    "term": "Ist-Dauer",
     "forms": [
-      "tatsächliche Dauer",
-      "tatsächlicher Dauer",
-      "tatsächliche Dauern"
+      "Ist-Dauer"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "avoid": [
+      "tatsächliche Dauer",
+      "tatsächlichen Dauer",
+      "tatsächlicher Dauer"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "actual-finish": {
-    "term": "tatsächliches Ende",
+    "term": "Ist-Ende",
     "forms": [
-      "tatsächliches Ende",
-      "tatsächlichen Endes",
-      "tatsächlichem Ende",
-      "tatsächliche Enden"
+      "Ist-Ende",
+      "Ist-Endes"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "avoid": [
+      "tatsächliches Ende",
+      "tatsächlichen Ende",
+      "tatsächlichem Ende"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "actual-start": {
-    "term": "tatsächlicher Anfang",
+    "term": "Ist-Anfang",
     "forms": [
+      "Ist-Anfang",
+      "Ist-Anfangs",
+      "Ist-Anfänge"
+    ],
+    "avoid": [
       "tatsächlicher Anfang",
       "tatsächlichen Anfang",
-      "tatsächlichem Anfang",
-      "tatsächliche Anfänge"
+      "tatsächliche Anfang",
+      "tatsächlichem Anfang"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "actual-work": {
     "term": "Ist-Arbeit",
@@ -92,7 +100,6 @@
       "Zuweisungen"
     ],
     "avoid": [
-      "Aufgabe",
       "Lab",
       "Arbeitsauftrag"
     ],
@@ -207,9 +214,6 @@
     "forms": [
       "Einschränkung",
       "Einschränkungen"
-    ],
-    "avoid": [
-      "Constraint"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -402,6 +406,9 @@
       "frühestem Ende",
       "früheste Enden"
     ],
+    "avoid": [
+      "früheres Ende"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -412,6 +419,9 @@
       "frühesten Anfangs",
       "frühestem Anfang",
       "früheste Anfänge"
+    ],
+    "avoid": [
+      "früher Start"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -455,7 +465,11 @@
       "externe Beziehungen"
     ],
     "avoid": [
-      "externe Abhängigkeit"
+      "externe Abhängigkeit",
+      "externe Verknüpfung",
+      "externe Verknüpfungen",
+      "externen Verknüpfung",
+      "externen Verknüpfungen"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -500,25 +514,27 @@
     "status": "existing-ui"
   },
   "finish-to-finish": {
-    "term": "Ende-Ende-Beziehung",
+    "term": "Ende-Ende",
     "forms": [
+      "Ende-Ende",
       "Ende-Ende-Beziehung",
       "Ende-Ende-Beziehungen"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "model",
+    "status": "arbitrated"
   },
   "finish-to-start": {
-    "term": "Ende-Anfang-Beziehung",
+    "term": "Ende-Anfang",
     "forms": [
+      "Ende-Anfang",
       "Ende-Anfang-Beziehung",
       "Ende-Anfang-Beziehungen"
     ],
     "avoid": [
-      "Ende-Start-Beziehung"
+      "Ende-Start"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "model",
+    "status": "arbitrated"
   },
   "finish-variance": {
     "term": "Abweichung Ende",
@@ -606,6 +622,9 @@
       "Hammock",
       "Hammocks"
     ],
+    "avoid": [
+      "Hängematten"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -635,9 +654,6 @@
       "Feiertag",
       "Feiertags",
       "Feiertage"
-    ],
-    "avoid": [
-      "Ferien"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -702,9 +718,6 @@
       "Unterbrechung",
       "Unterbrechungen"
     ],
-    "avoid": [
-      "Pause"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -765,9 +778,6 @@
       "Layout",
       "Layouts"
     ],
-    "avoid": [
-      "Anordnung"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -785,17 +795,19 @@
     "status": "existing-ui"
   },
   "leveling": {
-    "term": "Ressourcenabgleich",
+    "term": "Kapazitätsabgleich",
     "forms": [
-      "Ressourcenabgleich",
-      "Ressourcenabgleichs",
-      "Ressourcenabgleiche"
+      "Kapazitätsabgleich",
+      "Kapazitätsabgleichs",
+      "Abgleich"
     ],
     "avoid": [
+      "Ressourcenabgleich",
+      "Ressourcen abgleichen",
       "Nivellierung"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "leveling-delay": {
     "term": "Abgleichsverzögerung",
@@ -804,7 +816,8 @@
       "Abgleichsverzögerungen"
     ],
     "avoid": [
-      "Abgleichverzögerung"
+      "Abgleichverzögerung",
+      "Abgleich-Verzögerung"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -918,6 +931,10 @@
       "fast kritische",
       "fast kritischen"
     ],
+    "avoid": [
+      "beinahe kritisch",
+      "nahezu kritisch"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1011,9 +1028,6 @@
       "Zeitraums",
       "Zeiträumen"
     ],
-    "avoid": [
-      "Periode"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1023,9 +1037,6 @@
       "geplant",
       "geplante",
       "geplanten"
-    ],
-    "avoid": [
-      "Soll"
     ],
     "source": "model",
     "status": "model"
@@ -1062,9 +1073,6 @@
       "Fortschritt",
       "Fortschritts",
       "Fortschritte"
-    ],
-    "avoid": [
-      "Status"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1104,9 +1112,6 @@
       "Tarife",
       "Tarifs"
     ],
-    "avoid": [
-      "Rate"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1140,9 +1145,6 @@
     "forms": [
       "Beziehung",
       "Beziehungen"
-    ],
-    "avoid": [
-      "Relation"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1214,9 +1216,6 @@
       "Ressource",
       "Ressourcen"
     ],
-    "avoid": [
-      "Resource"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1224,10 +1223,10 @@
     "term": "Ressourcenbibliothek",
     "forms": [
       "Ressourcenbibliothek",
-      "Ressourcenbibliotheken"
+      "Ressourcenbibliotheken",
+      "Bibliothek"
     ],
     "avoid": [
-      "Bibliothek",
       "Codebibliothek"
     ],
     "source": "existing-ui",
@@ -1253,7 +1252,6 @@
       "Menübandes"
     ],
     "avoid": [
-      "Band",
       "Ribbon"
     ],
     "source": "existing-ui",
@@ -1291,7 +1289,8 @@
       "Terminpläne"
     ],
     "avoid": [
-      "Schedule"
+      "Schedule",
+      "Zeitplan"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1312,9 +1311,6 @@
       "sekundäre Einschränkungen",
       "sekundärer Einschränkung"
     ],
-    "avoid": [
-      "Constraint"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1323,9 +1319,6 @@
     "forms": [
       "Schicht",
       "Schichten"
-    ],
-    "avoid": [
-      "verschieben"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1390,7 +1383,6 @@
       "Anfang-Ende-Beziehungen"
     ],
     "avoid": [
-      "Ende-Anfang",
       "Start-Ende"
     ],
     "source": "model",
@@ -1425,13 +1417,19 @@
     "status": "existing-ui"
   },
   "subtask": {
-    "term": "Unteraufgabe",
+    "term": "Teilvorgang",
     "forms": [
-      "Unteraufgabe",
-      "Unteraufgaben"
+      "Teilvorgang",
+      "Teilvorgangs",
+      "Teilvorgänge",
+      "Teilvorgängen"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "avoid": [
+      "Unteraufgabe",
+      "Teilaufgabe"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "successor": {
     "term": "Nachfolger",
@@ -1444,16 +1442,18 @@
     "status": "existing-ui"
   },
   "summary-task": {
-    "term": "Sammelaufgabe",
+    "term": "Sammelvorgang",
     "forms": [
-      "Sammelaufgabe",
-      "Sammelaufgaben"
+      "Sammelvorgang",
+      "Sammelvorgangs",
+      "Sammelvorgänge",
+      "Sammelvorgängen"
     ],
     "avoid": [
-      "Zusammenfassung"
+      "Sammelaufgabe"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "task": {
     "term": "Vorgang",
@@ -1463,28 +1463,37 @@
       "Vorgänge",
       "Vorgängen"
     ],
+    "avoid": [
+      "Aufgabe"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
   "task-grid": {
-    "term": "Aufgabenraster",
+    "term": "Vorgangstabelle",
     "forms": [
-      "Aufgabenraster",
-      "Aufgabenrasters",
-      "Aufgabenrastern"
+      "Vorgangstabelle",
+      "Vorgangstabellen"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "avoid": [
+      "Aufgabenraster",
+      "Aufgabentabelle"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "task-type": {
-    "term": "Aufgabentyp",
+    "term": "Vorgangsart",
     "forms": [
-      "Aufgabentyp",
-      "Aufgabentyps",
-      "Aufgabentypen"
+      "Vorgangsart",
+      "Vorgangsarten"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "avoid": [
+      "Aufgabentyp",
+      "Vorgangstyp"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "threshold": {
     "term": "Schwelle",
@@ -1555,6 +1564,9 @@
     "forms": [
       "PSP",
       "PSPs"
+    ],
+    "avoid": [
+      "WBS"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

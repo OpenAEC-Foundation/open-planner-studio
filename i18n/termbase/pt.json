@@ -333,9 +333,6 @@
       "prazo",
       "prazos"
     ],
-    "avoid": [
-      "deadline"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -372,6 +369,10 @@
       "fim antecipado",
       "fins antecipados"
     ],
+    "avoid": [
+      "fim mais cedo",
+      "término mais cedo"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -380,6 +381,10 @@
     "forms": [
       "início antecipado",
       "inícios antecipados"
+    ],
+    "avoid": [
+      "início mais cedo",
+      "início cedo"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -433,6 +438,12 @@
       "da relação externa",
       "às relações externas"
     ],
+    "avoid": [
+      "ligação externa",
+      "ligações externas",
+      "vínculo externo",
+      "vínculos externos"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -443,6 +454,9 @@
       "fins",
       "do fim"
     ],
+    "avoid": [
+      "término"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -452,6 +466,9 @@
       "driver de fim",
       "drivers de fim",
       "do driver de fim"
+    ],
+    "avoid": [
+      "condutor de"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -479,6 +496,9 @@
       "relação fim-fim",
       "relações fim-fim"
     ],
+    "avoid": [
+      "término-término"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -490,7 +510,8 @@
       "relações fim-início"
     ],
     "avoid": [
-      "fim-start"
+      "fim-start",
+      "término-início"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -662,9 +683,6 @@
       "avançar",
       "avanço"
     ],
-    "avoid": [
-      "recuar"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -675,9 +693,6 @@
       "interrupções",
       "da interrupção"
     ],
-    "avoid": [
-      "quebra"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -687,9 +702,6 @@
       "desfasamento",
       "desfasamentos",
       "do desfasamento"
-    ],
-    "avoid": [
-      "lag"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -711,6 +723,10 @@
       "fins tardios",
       "do fim tardio"
     ],
+    "avoid": [
+      "fim mais tarde",
+      "término mais tarde"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -720,6 +736,9 @@
       "início tardio",
       "inícios tardios",
       "do início tardio"
+    ],
+    "avoid": [
+      "início mais tarde"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -770,9 +789,6 @@
       "vincular",
       "vinculada",
       "vinculadas"
-    ],
-    "avoid": [
-      "associar"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -988,9 +1004,6 @@
       "do período",
       "no período"
     ],
-    "avoid": [
-      "janela"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1025,13 +1038,15 @@
     "term": "predecessora",
     "forms": [
       "predecessora",
-      "predecessoras"
+      "predecessoras",
+      "predecessor",
+      "predecessores"
     ],
     "avoid": [
       "antecessora"
     ],
     "source": "existing-ui",
-    "status": "existing-ui"
+    "status": "arbitrated"
   },
   "progress": {
     "term": "progresso",
@@ -1103,7 +1118,8 @@
       "em só leitura"
     ],
     "avoid": [
-      "apenas leitura"
+      "apenas leitura",
+      "somente leitura"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1130,9 +1146,6 @@
       "relações",
       "da relação",
       "a relação"
-    ],
-    "avoid": [
-      "link"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1211,9 +1224,6 @@
       "do recurso",
       "os recursos"
     ],
-    "avoid": [
-      "fonte"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1223,9 +1233,6 @@
       "biblioteca de recursos",
       "bibliotecas de recursos",
       "da biblioteca de recursos"
-    ],
-    "avoid": [
-      "repositório"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1252,7 +1259,8 @@
       "no friso"
     ],
     "avoid": [
-      "barra de ferramentas"
+      "barra de ferramentas",
+      "faixa de opções"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1263,10 +1271,6 @@
       "separador do friso",
       "separadores do friso",
       "separador"
-    ],
-    "avoid": [
-      "aba",
-      "guia"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1289,6 +1293,9 @@
       "planeamentos",
       "do planeamento",
       "o planeamento"
+    ],
+    "avoid": [
+      "planejamento"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1326,10 +1333,6 @@
       "turnos",
       "do turno",
       "os turnos"
-    ],
-    "avoid": [
-      "equipa",
-      "deslocar"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1401,16 +1404,16 @@
     "status": "existing-ui"
   },
   "start-to-finish": {
-    "term": "início-término",
+    "term": "início-fim",
     "forms": [
-      "início-término",
-      "relações início-término"
+      "início-fim",
+      "relações início-fim"
     ],
     "avoid": [
-      "início-fim"
+      "início-término"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-to-start": {
     "term": "início-início",
@@ -1464,22 +1467,21 @@
     "term": "sucessora",
     "forms": [
       "sucessora",
-      "sucessoras"
+      "sucessoras",
+      "sucessor",
+      "sucessores"
     ],
     "avoid": [
       "tarefa seguidora"
     ],
     "source": "existing-ui",
-    "status": "existing-ui"
+    "status": "arbitrated"
   },
   "summary-task": {
     "term": "tarefa de resumo",
     "forms": [
       "tarefa de resumo",
       "tarefas de resumo"
-    ],
-    "avoid": [
-      "resumo"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1526,9 +1528,6 @@
       "limiar",
       "limiares"
     ],
-    "avoid": [
-      "limite"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1549,9 +1548,6 @@
     "forms": [
       "tutorial",
       "tutoriais"
-    ],
-    "avoid": [
-      "guia"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1610,17 +1606,24 @@
     "forms": [
       "WBS"
     ],
+    "avoid": [
+      "EAP"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
   "wbs-element": {
-    "term": "elemento EAP",
+    "term": "elemento WBS",
     "forms": [
+      "elemento WBS",
+      "elementos WBS"
+    ],
+    "avoid": [
       "elemento EAP",
       "elementos EAP"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "model",
+    "status": "arbitrated"
   },
   "work": {
     "term": "trabalho",
@@ -1651,9 +1654,6 @@
     "forms": [
       "horário de trabalho",
       "horários de trabalho"
-    ],
-    "avoid": [
-      "horas de trabalho"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

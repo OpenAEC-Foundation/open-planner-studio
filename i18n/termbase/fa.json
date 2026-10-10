@@ -210,9 +210,6 @@
       "قراردادها",
       "قراردادهای"
     ],
-    "avoid": [
-      "قاعده"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -343,6 +340,9 @@
     "forms": [
       "پایان زودهنگام"
     ],
+    "avoid": [
+      "زودترین پایان"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -376,10 +376,6 @@
       "افزونه",
       "افزونه‌ها"
     ],
-    "avoid": [
-      "پسوند",
-      "تمدید"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -388,6 +384,10 @@
     "forms": [
       "رابطه خارجی",
       "رابطه‌های خارجی"
+    ],
+    "avoid": [
+      "پیوند خارجی",
+      "پیوند بیرونی"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -409,6 +409,9 @@
     "forms": [
       "درایور پایان",
       "درایورهای پایان"
+    ],
+    "avoid": [
+      "محرک پایان"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -520,6 +523,10 @@
       "هموک",
       "هموک‌ها"
     ],
+    "avoid": [
+      "بانوجی",
+      "ننویی"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -528,6 +535,10 @@
     "forms": [
       "محدودیت سخت",
       "محدودیت‌های سخت"
+    ],
+    "avoid": [
+      "قید سخت",
+      "قیدهای سخت"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -649,9 +660,6 @@
       "پیش‌افت",
       "پیش‌افت‌ها"
     ],
-    "avoid": [
-      "تأخیر منفی"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -659,6 +667,9 @@
     "term": "تسطیح",
     "forms": [
       "تسطیح"
+    ],
+    "avoid": [
+      "هم‌سطح‌سازی"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -809,7 +820,8 @@
       "بیش‌تخصیص‌یافته"
     ],
     "avoid": [
-      "اضافه‌بار"
+      "اضافه‌بار",
+      "بیش‌بار"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1219,6 +1231,9 @@
       "پس‌نیاز",
       "پس‌نیازها"
     ],
+    "avoid": [
+      "پسین"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1256,7 +1271,8 @@
       "نوع‌های وظیفه"
     ],
     "avoid": [
-      "نوع کار"
+      "نوع کار",
+      "نوع‌های کار"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1385,9 +1401,6 @@
     "forms": [
       "روز کاری",
       "روزهای کاری"
-    ],
-    "avoid": [
-      "روز کار"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

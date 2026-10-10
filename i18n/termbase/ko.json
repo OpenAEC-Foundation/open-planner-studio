@@ -234,12 +234,15 @@
     "status": "existing-ui"
   },
   "critical": {
-    "term": "크리티컬",
+    "term": "주공정",
     "forms": [
+      "주공정"
+    ],
+    "avoid": [
       "크리티컬"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "model",
+    "status": "arbitrated"
   },
   "critical-chains": {
     "term": "주공정 체인",
@@ -250,17 +253,24 @@
     "status": "existing-ui"
   },
   "critical-path": {
-    "term": "크리티컬 패스",
+    "term": "주공정 경로",
     "forms": [
-      "크리티컬 패스"
+      "주공정 경로"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "avoid": [
+      "크리티컬 패스",
+      "임계 경로"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "critical-task": {
     "term": "주공정 작업",
     "forms": [
       "주공정 작업"
+    ],
+    "avoid": [
+      "주요 경로 작업"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -278,6 +288,9 @@
     "forms": [
       "사용자 지정 필드"
     ],
+    "avoid": [
+      "사용자 정의 필드"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -285,9 +298,6 @@
     "term": "순환 관계",
     "forms": [
       "순환 관계"
-    ],
-    "avoid": [
-      "주기"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -321,6 +331,9 @@
     "forms": [
       "주도 관계"
     ],
+    "avoid": [
+      "드라이빙"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -338,7 +351,8 @@
       "빠른 완료"
     ],
     "avoid": [
-      "최조 완료"
+      "최조 완료",
+      "가장 이른 종료"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -347,6 +361,9 @@
     "term": "빠른 시작",
     "forms": [
       "빠른 시작"
+    ],
+    "avoid": [
+      "조기 시작"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -387,6 +404,10 @@
     "forms": [
       "외부 관계"
     ],
+    "avoid": [
+      "외부 링크",
+      "외부 연결"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -402,6 +423,9 @@
     "term": "완료 드라이버",
     "forms": [
       "완료 드라이버"
+    ],
+    "avoid": [
+      "종료 드라이버"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -427,6 +451,9 @@
     "forms": [
       "완료-완료"
     ],
+    "avoid": [
+      "종료-종료"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -434,6 +461,9 @@
     "term": "완료-시작",
     "forms": [
       "완료-시작"
+    ],
+    "avoid": [
+      "종료-시작"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -515,6 +545,9 @@
     "forms": [
       "강제 제약"
     ],
+    "avoid": [
+      "강한 제약"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -579,9 +612,6 @@
     "forms": [
       "중단"
     ],
-    "avoid": [
-      "휴식"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -605,6 +635,10 @@
     "term": "늦은 완료",
     "forms": [
       "늦은 완료"
+    ],
+    "avoid": [
+      "최종 완료",
+      "최대 완료"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -726,6 +760,9 @@
     "forms": [
       "준주공정"
     ],
+    "avoid": [
+      "준임계"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -733,6 +770,9 @@
     "term": "음수 여유",
     "forms": [
       "음수 여유"
+    ],
+    "avoid": [
+      "음의 여유"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -765,6 +805,9 @@
     "term": "과다 할당",
     "forms": [
       "과다 할당"
+    ],
+    "avoid": [
+      "과부하"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1099,12 +1142,15 @@
     "status": "existing-ui"
   },
   "successor": {
-    "term": "후행 작업",
+    "term": "후속 작업",
     "forms": [
+      "후속 작업"
+    ],
+    "avoid": [
       "후행 작업"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "model",
+    "status": "arbitrated"
   },
   "summary-task": {
     "term": "요약 작업",
@@ -1126,12 +1172,15 @@
     "status": "existing-ui"
   },
   "task-grid": {
-    "term": "작업 그리드",
+    "term": "작업 표",
     "forms": [
+      "작업 표"
+    ],
+    "avoid": [
       "작업 그리드"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "model",
+    "status": "arbitrated"
   },
   "task-type": {
     "term": "작업 유형",

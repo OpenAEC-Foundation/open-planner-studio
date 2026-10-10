@@ -43,9 +43,6 @@
       "début réel",
       "débuts réels"
     ],
-    "avoid": [
-      "début actuel"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -54,9 +51,6 @@
     "forms": [
       "travail réel",
       "travaux réels"
-    ],
-    "avoid": [
-      "travail actuel"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -77,6 +71,9 @@
     "term": "le plus tard possible",
     "forms": [
       "le plus tard possible"
+    ],
+    "avoid": [
+      "dès que possible au plus tard"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -100,8 +97,7 @@
     ],
     "avoid": [
       "assignation",
-      "devoir",
-      "activité"
+      "devoir"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -137,7 +133,8 @@
     ],
     "avoid": [
       "ligne de base",
-      "base de référence"
+      "base de référence",
+      "baseline"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -232,9 +229,6 @@
       "contrainte",
       "contraintes"
     ],
-    "avoid": [
-      "limite"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -268,9 +262,6 @@
       "profil",
       "profils"
     ],
-    "avoid": [
-      "contour"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -279,9 +270,6 @@
     "forms": [
       "convention",
       "conventions"
-    ],
-    "avoid": [
-      "option"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -304,9 +292,6 @@
     "forms": [
       "récupération",
       "récupérations"
-    ],
-    "avoid": [
-      "sauvegarde automatique"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -409,7 +394,6 @@
       "échéances"
     ],
     "avoid": [
-      "deadline",
       "date limite"
     ],
     "source": "existing-ui",
@@ -503,6 +487,10 @@
       "relation externe",
       "relations externes"
     ],
+    "avoid": [
+      "lien externe",
+      "liens externes"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -512,10 +500,6 @@
       "fin",
       "fins"
     ],
-    "avoid": [
-      "terminer",
-      "terminaison"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -524,6 +508,9 @@
     "forms": [
       "driver de fin",
       "drivers de fin"
+    ],
+    "avoid": [
+      "pilote de fin"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -652,6 +639,12 @@
       "contrainte stricte",
       "contraintes strictes"
     ],
+    "avoid": [
+      "contrainte dure",
+      "contraintes dures",
+      "contrainte forte",
+      "contraintes fortes"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -760,13 +753,16 @@
     "status": "existing-ui"
   },
   "layout": {
-    "term": "layout",
+    "term": "disposition",
     "forms": [
-      "layout",
-      "layouts"
+      "disposition",
+      "dispositions"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "avoid": [
+      "layout"
+    ],
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "lead": {
     "term": "avance",
@@ -791,6 +787,9 @@
     "forms": [
       "retard de nivellement",
       "retards de nivellement"
+    ],
+    "avoid": [
+      "délai de nivellement"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -837,9 +836,6 @@
     "forms": [
       "jalon",
       "jalons"
-    ],
-    "avoid": [
-      "étape"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1022,9 +1018,6 @@
       "avancement",
       "avancements"
     ],
-    "avoid": [
-      "progression"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1060,9 +1053,6 @@
       "tarif",
       "tarifs"
     ],
-    "avoid": [
-      "taux"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1094,7 +1084,14 @@
       "relations"
     ],
     "avoid": [
-      "lien"
+      "liens",
+      "le lien",
+      "un lien",
+      "ce lien",
+      "du lien",
+      "de lien",
+      "mode lien",
+      "au lien"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1134,9 +1131,6 @@
     "forms": [
       "rapport",
       "rapports"
-    ],
-    "avoid": [
-      "signaler"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1222,9 +1216,6 @@
       "planning",
       "plannings"
     ],
-    "avoid": [
-      "programme"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1251,9 +1242,6 @@
     "forms": [
       "équipe",
       "équipes"
-    ],
-    "avoid": [
-      "déplacer"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1287,6 +1275,9 @@
     "forms": [
       "driver de début",
       "drivers de début"
+    ],
+    "avoid": [
+      "pilote de début"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1347,13 +1338,19 @@
     "status": "existing-ui"
   },
   "status-date": {
-    "term": "date de statut",
+    "term": "date d'état",
     "forms": [
+      "date d'état",
+      "dates d'état",
+      "date d’état",
+      "dates d’état"
+    ],
+    "avoid": [
       "date de statut",
       "dates de statut"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "subtask": {
     "term": "sous-tâche",
@@ -1379,9 +1376,6 @@
       "tâche récapitulative",
       "tâches récapitulatives"
     ],
-    "avoid": [
-      "résumé"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1391,20 +1385,20 @@
       "tâche",
       "tâches"
     ],
-    "avoid": [
-      "activité"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
   "task-grid": {
-    "term": "grille des tâches",
+    "term": "tableau des tâches",
     "forms": [
-      "grille des tâches",
-      "grilles des tâches"
+      "tableau des tâches",
+      "tableaux des tâches"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "avoid": [
+      "grille des tâches"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "task-type": {
     "term": "type de tâche",

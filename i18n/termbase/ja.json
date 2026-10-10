@@ -180,12 +180,15 @@
     "status": "existing-ui"
   },
   "constraint-type": {
-    "term": "制約タイプ",
+    "term": "制約の種類",
     "forms": [
+      "制約の種類"
+    ],
+    "avoid": [
       "制約タイプ"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "model",
+    "status": "arbitrated"
   },
   "construction-holiday": {
     "term": "建設業休暇",
@@ -328,6 +331,9 @@
     "forms": [
       "駆動関係"
     ],
+    "avoid": [
+      "ドライビング"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -335,9 +341,6 @@
     "term": "期間",
     "forms": [
       "期間"
-    ],
-    "avoid": [
-      "DURATION"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -371,9 +374,6 @@
     "forms": [
       "経過時間"
     ],
-    "avoid": [
-      "経過期間"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -389,23 +389,21 @@
     "status": "existing-ui"
   },
   "external-relation": {
-    "term": "外部リンク",
+    "term": "外部関係",
     "forms": [
-      "外部リンク"
-    ],
-    "avoid": [
       "外部関係"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "avoid": [
+      "外部リンク",
+      "外部依存関係"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "finish": {
     "term": "終了",
     "forms": [
       "終了"
-    ],
-    "avoid": [
-      "完了"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -604,9 +602,6 @@
     "forms": [
       "中断"
     ],
-    "avoid": [
-      "休憩"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -623,6 +618,9 @@
     "forms": [
       "遅い日付"
     ],
+    "avoid": [
+      "最遅日付"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -630,6 +628,9 @@
     "term": "最遅終了",
     "forms": [
       "最遅終了"
+    ],
+    "avoid": [
+      "遅い終了日"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -662,6 +663,9 @@
     "term": "山崩し",
     "forms": [
       "山崩し"
+    ],
+    "avoid": [
+      "平準化"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -718,6 +722,9 @@
     "term": "マイルストーンの種類",
     "forms": [
       "マイルストーンの種類"
+    ],
+    "avoid": [
+      "マイルストーンタイプ"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -790,6 +797,9 @@
     "term": "過剰割り当て",
     "forms": [
       "過剰割り当て"
+    ],
+    "avoid": [
+      "過負荷"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -881,9 +891,6 @@
     "term": "単価",
     "forms": [
       "単価"
-    ],
-    "avoid": [
-      "評価"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -982,6 +989,9 @@
     "forms": [
       "リソースの種類"
     ],
+    "avoid": [
+      "リソース種別"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1029,6 +1039,9 @@
     "term": "副制約",
     "forms": [
       "副制約"
+    ],
+    "avoid": [
+      "第2制約"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1162,9 +1175,6 @@
     "forms": [
       "タスク"
     ],
-    "avoid": [
-      "アクティビティ"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1173,16 +1183,24 @@
     "forms": [
       "タスクテーブル"
     ],
+    "avoid": [
+      "タスクグリッド"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
   "task-type": {
-    "term": "タスクタイプ",
+    "term": "タスク種類",
     "forms": [
-      "タスクタイプ"
+      "タスク種類",
+      "タスクの種類"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "avoid": [
+      "タスクタイプ",
+      "タスク種別"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "threshold": {
     "term": "しきい値",
@@ -1196,6 +1214,9 @@
     "term": "トータルフロート",
     "forms": [
       "トータルフロート"
+    ],
+    "avoid": [
+      "総余裕"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1220,9 +1241,6 @@
     "term": "差異",
     "forms": [
       "差異"
-    ],
-    "avoid": [
-      "相違"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

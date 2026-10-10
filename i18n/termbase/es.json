@@ -161,9 +161,6 @@
       "perfil de cálculo",
       "perfiles de cálculo"
     ],
-    "avoid": [
-      "perfil"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -202,9 +199,6 @@
     "forms": [
       "restricción",
       "restricciones"
-    ],
-    "avoid": [
-      "constraint"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -353,9 +347,6 @@
       "fecha límite",
       "fechas límite"
     ],
-    "avoid": [
-      "deadline"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -385,9 +376,6 @@
     "forms": [
       "duración",
       "duraciones"
-    ],
-    "avoid": [
-      "plazo"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -444,13 +432,17 @@
     "status": "existing-ui"
   },
   "external-relation": {
-    "term": "vínculo externo",
+    "term": "relación externa",
     "forms": [
+      "relación externa",
+      "relaciones externas"
+    ],
+    "avoid": [
       "vínculo externo",
       "vínculos externos"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "model",
+    "status": "arbitrated"
   },
   "finish": {
     "term": "fin",
@@ -466,6 +458,9 @@
     "forms": [
       "driver de fin",
       "drivers de fin"
+    ],
+    "avoid": [
+      "impulsor de"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -498,6 +493,9 @@
     "term": "fin-comienzo",
     "forms": [
       "fin-comienzo"
+    ],
+    "avoid": [
+      "fin-inicio"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -544,9 +542,6 @@
       "holgura",
       "holguras"
     ],
-    "avoid": [
-      "float"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -564,9 +559,6 @@
     "forms": [
       "fin previsto",
       "fines previstos"
-    ],
-    "avoid": [
-      "fin prevista"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -597,6 +589,12 @@
     "forms": [
       "restricción estricta",
       "restricciones estrictas"
+    ],
+    "avoid": [
+      "restricción dura",
+      "restricciones duras",
+      "restricción rígida",
+      "restricciones rígidas"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -687,7 +685,9 @@
       "desfases"
     ],
     "avoid": [
-      "intervalo"
+      "retardo",
+      "demora",
+      "posposición"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -725,6 +725,9 @@
       "diseño",
       "diseños"
     ],
+    "avoid": [
+      "layout"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -746,17 +749,23 @@
       "nivelación",
       "nivelaciones"
     ],
+    "avoid": [
+      "redistribución"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
   "leveling-delay": {
-    "term": "retraso de redistribución",
+    "term": "retraso de nivelación",
     "forms": [
-      "retraso de redistribución",
-      "retrasos de redistribución"
+      "retraso de nivelación",
+      "retrasos de nivelación"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "avoid": [
+      "retraso de redistribución"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "link-tasks": {
     "term": "vincular",
@@ -764,9 +773,6 @@
       "vincular",
       "vinculado",
       "vinculada"
-    ],
-    "avoid": [
-      "conectar"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -803,9 +809,6 @@
     "forms": [
       "hito",
       "hitos"
-    ],
-    "avoid": [
-      "meta"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -918,8 +921,10 @@
     "status": "existing-ui"
   },
   "overallocation": {
-    "term": "sobreasignado",
+    "term": "sobreasignación",
     "forms": [
+      "sobreasignación",
+      "sobreasignaciones",
       "sobreasignado",
       "sobreasignada",
       "sobreasignados",
@@ -929,8 +934,8 @@
       "sobrecargado",
       "doble reserva"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "path-tracing": {
     "term": "trazado de ruta",
@@ -962,9 +967,6 @@
       "período",
       "períodos"
     ],
-    "avoid": [
-      "periodo"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -975,9 +977,6 @@
       "planificada",
       "planificados",
       "planificadas"
-    ],
-    "avoid": [
-      "programado"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1273,9 +1272,6 @@
       "turno",
       "turnos"
     ],
-    "avoid": [
-      "cuadrilla"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1344,13 +1340,16 @@
     "status": "arbitrated"
   },
   "start-to-start": {
-    "term": "relación comienzo-comienzo",
+    "term": "comienzo-comienzo",
     "forms": [
-      "relación comienzo-comienzo",
-      "relaciones comienzo-comienzo"
+      "comienzo-comienzo"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "avoid": [
+      "relación comienzo-comienzo",
+      "inicio-inicio"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "start-variance": {
     "term": "variación de inicio",
@@ -1414,6 +1413,9 @@
     "forms": [
       "tabla de tareas",
       "tablas de tareas"
+    ],
+    "avoid": [
+      "cuadrícula de tareas"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1494,17 +1496,24 @@
     "forms": [
       "WBS"
     ],
+    "avoid": [
+      "EDT"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
   "wbs-element": {
-    "term": "elemento EDT",
+    "term": "elemento WBS",
     "forms": [
+      "elemento WBS",
+      "elementos WBS"
+    ],
+    "avoid": [
       "elemento EDT",
       "elementos EDT"
     ],
-    "source": "existing-ui",
-    "status": "existing-ui"
+    "source": "model",
+    "status": "arbitrated"
   },
   "work": {
     "term": "trabajo",
