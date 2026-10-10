@@ -56,7 +56,7 @@ More about selecting is in [Selecting, deleting and undoing tasks](docs://howto-
 
 The further you zoom out, the fewer grid lines there are. At 8 pixels per day or more there is a line for every day, with a thicker line at the week boundary. Between 2 and 8 pixels per day only the week boundary remains. Below 2 pixels per day, at year level, only the month boundaries are left. Otherwise the canvas would become an even stripe pattern in which the bars disappear. The grey weekends and days off, and the week bands that are tinted alternately, stay at every level; they carry the week structure when the lines drop out. In the timeline header the week numbers and day numbers only appear when there is room for them, and from 40 pixels per day the weekday is shown before the day number as well.
 
-The task name is shown in the bar if it fits completely. If it does not fit, for example when you zoom out, the full name is shown to the right of the bar.
+The task name is shown in the bar if it fits completely. If it does not fit, for example when you zoom out, the full name is shown to the left of the bar. If the bar is at the left edge of the view, the name is shown to the right of it.
 
 ## Pitfalls and what the app does then
 

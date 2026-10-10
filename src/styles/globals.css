@@ -1452,6 +1452,9 @@ button.task-grid-relation-reference {
   /* Lagen: --theme-bg is de getinte werkruimte (achter de kaarten); --theme-surface zijn de
      kaarten/chrome (bewust géén #FFFFFF — dat blijft over voor wat er bovenop zweeft: inputs,
      dropdowns, dialogen via --theme-surface-elevated). */
+  /* Samenvattingsbalk: het merk-leisteen. Expliciet, want het donkere blok hierboven geldt ook voor
+     `:root` en zet een lichtere tint. */
+  --theme-bar-summary: #475569;
   --theme-bg: #E5E5E8;
   --theme-surface: #FAFAFA;
   --theme-surface-alt: #F1F1F3;

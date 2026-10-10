@@ -226,6 +226,17 @@ function tilePattern(
   return pattern;
 }
 
+/**
+ * Legt het begin van een vulpatroon op (`x`, `y`). Een canvaspatroon begint standaard op het
+ * nulpunt van het canvas: een band toont dan een stuk van één vast patroon, en bij pannen of slepen
+ * schuift de band als een raampje over dat stilstaande patroon. Met het patroon vast aan de band
+ * beweegt het mee. Het patroon is gedeeld (gememoized), dus vóór ELKE vulling opnieuw zetten.
+ */
+function anchorPattern(pattern: CanvasPattern, x: number, y: number): void {
+  if (typeof pattern.setTransform !== 'function' || typeof DOMMatrix === 'undefined') return;
+  pattern.setTransform(new DOMMatrix().translateSelf(x, y));
+}
+
 // Near-critical "geblokt"-vulpatroon voor het high-contrast-thema. Diagonale zwarte blokjes
 // (8×8-tegel, twee kwadranten gevuld) lezen als "geblokt" bovenop de amber themakleur, zodat
 // near-critical zonder kleurwaarneming te onderscheiden is.
@@ -262,7 +273,11 @@ function getCrossHatch(ctx: CanvasRenderingContext2D, strokeColor: string, size:
 const FLOAT_HATCH_SIZE = 5;
 /** Taaknaam naast de balk: afstand tot de balk, maximale breedte en de dikte van de rand in de
  *  achtergrondkleur (px). */
+/** Aan welke kant een naam staat die niet in de balk past. Links: rechts ligt de spelingsband. */
+const OUTSIDE_LABEL_SIDE = 'left' as 'left' | 'right';
 const OUTSIDE_LABEL_GAP = 6;
+/** Links meer ruimte: daar komt het pijlpuntje van een binnenkomende relatie binnen. */
+const OUTSIDE_LABEL_GAP_LEFT = 10;
 const OUTSIDE_LABEL_MAX = 260;
 const OUTSIDE_LABEL_KNOCKOUT = 3;
 /** Hoekstraal (px) van een taakbalk. */
@@ -1267,20 +1282,28 @@ export class GanttRenderer {
   }
 
   /**
-   * Taaknaam RECHTS naast de balk, voor een naam die niet in de balk past. Volledig, tot
-   * `OUTSIDE_LABEL_MAX` px (daarna een ellips) en nooit voorbij de canvasrand. Een smalle rand in
-   * de achtergrondkleur houdt de tekst leesbaar boven de spelingsband en de relatiepijlen.
+   * Taaknaam NAAST de balk, voor een naam die niet in de balk past. Standaard links van de balk
+   * (`OUTSIDE_LABEL_SIDE`): rechts ligt de spelingsband, en daar viel de naam overheen. Is er links
+   * te weinig ruimte (balk tegen de linkerrand van het beeld), dan rechts. Volledig tot
+   * `OUTSIDE_LABEL_MAX` px (daarna een ellips). Een smalle rand in de achtergrondkleur houdt de tekst
+   * leesbaar boven relatiepijlen en spelingsband.
    */
-  private drawOutsideBarName(name: string, color: string, barRight: number, textY: number): void {
+  private drawOutsideBarName(name: string, color: string, barLeft: number, barRight: number, textY: number): void {
     const ctx = this.ctx;
-    const x = barRight + OUTSIDE_LABEL_GAP;
-    const maxWidth = Math.min(OUTSIDE_LABEL_MAX, this.opts.canvasWidth - x - 4);
-    if (maxWidth < 16) return;
     ctx.font = this.font('body');
     ctx.textBaseline = 'middle';
+    const leftRoom = Math.min(OUTSIDE_LABEL_MAX, barLeft - OUTSIDE_LABEL_GAP_LEFT - 4);
+    const rightRoom = Math.min(OUTSIDE_LABEL_MAX, this.opts.canvasWidth - barRight - OUTSIDE_LABEL_GAP - 4);
+    const fullWidth = ctx.measureText(name).width;
+    // Links als de hele naam daar past (of daar in elk geval meer ruimte is dan rechts).
+    const useLeft = OUTSIDE_LABEL_SIDE === 'left' && leftRoom >= 16 && (leftRoom >= Math.min(fullWidth, OUTSIDE_LABEL_MAX) || leftRoom >= rightRoom);
+    const maxWidth = useLeft ? leftRoom : rightRoom;
+    if (maxWidth < 16) return;
     const label = this.ellipsize(name, maxWidth);
     if (!label) return;
+    const x = useLeft ? barLeft - OUTSIDE_LABEL_GAP_LEFT : barRight + OUTSIDE_LABEL_GAP;
     ctx.save();
+    ctx.textAlign = useLeft ? 'right' : 'left';
     ctx.lineJoin = 'round';
     ctx.lineWidth = OUTSIDE_LABEL_KNOCKOUT;
     ctx.strokeStyle = this.colors.bg;
@@ -1464,6 +1487,7 @@ export class GanttRenderer {
           ctx.fillStyle = hatch;
           for (const s of segs) {
             const sw = Math.max(s.x2 - s.x1, split ? 2 : 4);
+            anchorPattern(hatch, s.x1, y);
             ctx.beginPath();
             ctx.roundRect(s.x1, y, sw, height, 3);
             ctx.fill();
@@ -1506,6 +1530,7 @@ export class GanttRenderer {
       ctx.fillRect(x2, y + height / 4, floatWidth, height / 2);
       const hatch = getCrossHatch(ctx, this.colors.float + '40', FLOAT_HATCH_SIZE); // lijnen op 0.25 alpha
       if (hatch) {
+        anchorPattern(hatch, x2, y + height / 4);
         ctx.fillStyle = hatch;
         ctx.fillRect(x2, y + height / 4, floatWidth, height / 2);
       }
@@ -1583,7 +1608,7 @@ export class GanttRenderer {
         }
       } else {
         if (isDone && greyTones && width >= checkSize * 2.2 + 10) drawCheck(x1 + (width - checkSize * 2.2) / 2);
-        this.drawOutsideBarName(task.name, isDone ? this.colors.textSecondary : this.colors.text, x1 + width, textY);
+        this.drawOutsideBarName(task.name, isDone ? this.colors.textSecondary : this.colors.text, x1, x1 + width, textY);
       }
     }
     return resourceAccentHeight;
