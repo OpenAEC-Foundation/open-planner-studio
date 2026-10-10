@@ -52,3 +52,13 @@ na de naam; projectoverzichtkaart = "Berekenen. . ."; werkvlak toont de oude pla
 indicator pas na 250 ms en minstens 500 ms zichtbaar; per rekenend project een eigen indicator; reduced-motion = stil;
 fouten via de bestaande melding. Daarna volgen: deel 2 (architectuur: workerpool per project, generatieteller,
 synchrone route voor MCP/extensies), spec, plan.
+
+## Besluit 12 (2026-10-10): overal een bolletje
+
+Eigenaar, op het voorstel van deel 1 (tabblad-puntjes, rail-bolletje, wisselaar-tekst): "doe overal maar een
+bolletje". Dus: tabblad, rail, wisselaar in de titelbalk en de kaart in het projectoverzicht tonen tijdens het rekenen
+alleen een statusbolletje (zacht pulserend; stil bij prefers-reduced-motion). Geen bewegende puntjes en geen zichtbare
+tekst "Berekenen. . .". Orkestrator-aanname, nog te bevestigen bij het prototype: de tooltip/aria-label
+"Berekenen…" blijft, voor uitleg bij hover en voor schermlezers. De rest van deel 1 (oude planning blijft staan,
+250 ms / 500 ms, per project, fouten via de melding) is niet tegengesproken. Stand blijft: geparkeerd; deel 2
+(architectuur) is nog niet voorgelegd.
