@@ -4912,6 +4912,99 @@
       }
     ]
   },
+  "howto-ai-assistent-koppelen": {
+    "structure": "258436395d1813c2",
+    "sections": [
+      {
+        "hash": "cfc2c2474a3c4d4e",
+        "labels": {}
+      },
+      {
+        "hash": "4309015ed5ed9a65",
+        "labels": {
+          "common:ai.desktopOnly": "ad3993ca76cb1331",
+          "common:ai.start": "5ad251f78bed0136",
+          "common:aiSafety.backupNow": "6d589d8d5fed058b",
+          "common:aiSafety.openFolder": "1442ff1b6688f459",
+          "menu:ribbon.ai": "11fb682be0a0233d"
+        }
+      },
+      {
+        "hash": "043b85c7735ffb12",
+        "labels": {
+          "common:ai.auth": "be57429c2beb8b55",
+          "common:ai.configSnippet": "5b16866ab7e441f4",
+          "common:ai.connect": "8242279e2a68fefa",
+          "common:ai.connectPrompt": "ec572127a3b401c9",
+          "common:ai.connectionDetailsTitle": "08be2d838dd61643",
+          "common:ai.endpoint": "8a94c40e5638ea72",
+          "common:ai.port": "90947197f86bfdea",
+          "common:ai.regenerate": "2ff4f09a853e8849",
+          "common:ai.regenerateConfirm": "be8ff5b9f4cd9ccc",
+          "common:ai.start": "5ad251f78bed0136",
+          "common:ai.statusError": "fc8def4f8b153232",
+          "common:ai.statusLive": "7a5d4cabfe7df90e",
+          "common:ai.statusOff": "5fc6dbb920e10a1d",
+          "common:ai.statusPortBusy": "62684eba10482964",
+          "common:ai.stop": "73c7ea288c592217",
+          "common:ai.token": "4a2ec492d412721a",
+          "common:ai.tokenWarning": "66c6e1e7cfc1b91a",
+          "common:aiActivity.args": "d5e2ec23f6e43520",
+          "common:aiActivity.clear": "fc38aced5a1d4f30",
+          "common:aiActivity.empty": "580087ab3dfce85b",
+          "common:aiActivity.panelButton": "6c4d6b0e9176a316",
+          "common:aiActivity.result": "21216a3fcc26b377",
+          "common:aiActivity.title": "f504672694e005ec",
+          "common:aiSafety.autoBackupOff": "94bb63f62ce4a947",
+          "common:aiSafety.autoBackupOn": "92e1ba9385d29e12",
+          "common:aiSafety.backupNow": "6d589d8d5fed058b",
+          "common:aiSafety.openFolder": "1442ff1b6688f459",
+          "common:aiSafety.pause": "e741bfc02245189f",
+          "common:aiSafety.readOnly": "26f9fac9bf83365e",
+          "common:aiSafety.resume": "ffe5cca7d0b309b6",
+          "common:companyLibrary.projectView": "f45edf0068510853",
+          "common:debugTerminal.clear": "fc38aced5a1d4f30",
+          "common:debugTerminal.pause": "e741bfc02245189f",
+          "common:debugTerminal.resume": "ffe5cca7d0b309b6",
+          "common:settings.advancedTab": "4ead56d90669d128",
+          "common:settings.aiAutostart": "214dcb74f9dfbe12",
+          "common:settings.aiMode": "ba411d3f876f238a",
+          "common:settings.title": "985b5e0f2ccf1ba0",
+          "common:shortcuts.category.file": "f242456b22736979",
+          "common:view.filter.clear": "fc38aced5a1d4f30",
+          "common:warnings.target.project": "f45edf0068510853",
+          "menu:backstage.settings": "985b5e0f2ccf1ba0",
+          "menu:ribbon.ai": "11fb682be0a0233d",
+          "menu:ribbon.aiActivity": "1ea23c0ac23f597d",
+          "menu:ribbon.aiConnection": "92bc3c01bb656083",
+          "menu:ribbon.aiSafety": "bb1f4ba2acd295ed",
+          "menu:ribbon.aiServer": "2d502664f9f5c064",
+          "menu:ribbon.file": "f242456b22736979",
+          "menu:ribbon.project": "f45edf0068510853",
+          "menu:ribbon.projectSettings": "985b5e0f2ccf1ba0",
+          "menu:ribbon.settings": "985b5e0f2ccf1ba0",
+          "report:settings": "985b5e0f2ccf1ba0",
+          "report:tableReports.health.severity_error": "fc8def4f8b153232"
+        }
+      },
+      {
+        "hash": "b50a7da4718cf1aa",
+        "labels": {
+          "common:aiSafety.pause": "e741bfc02245189f",
+          "common:aiSafety.readOnly": "26f9fac9bf83365e",
+          "common:debugTerminal.pause": "e741bfc02245189f",
+          "common:feedback.tools.undo": "80a363ef22aaef2d",
+          "common:settings.aiAutostart": "214dcb74f9dfbe12",
+          "menu:commands.undo": "80a363ef22aaef2d",
+          "menu:ribbon.undo": "80a363ef22aaef2d"
+        }
+      },
+      {
+        "hash": "1d1a9a1d3ffd4444",
+        "labels": {}
+      }
+    ]
+  },
   "howto-feedback-geven": {
     "structure": "4fb403962d999489",
     "sections": [
