@@ -25,7 +25,9 @@
 .ops-tabstrip-menu { align-self: center; width: 30px; height: 26px; margin-right: 2px; }
 .ops-tabstrip-scroll-button { align-self: center; width: 24px; height: 26px; flex: none; }
 .ops-tabstrip-viewport {
-  align-self: stretch; flex: 1 1 auto; min-width: 0; overflow-x: auto; overflow-y: hidden;
+  /* Krimpt tot de inhoud: de "+" volgt direct na het laatste tabblad (zoals een browser). Bij overloop
+     krimpt de viewport tot min-width 0 en blijft de "+" aan de eindrand zichtbaar; RTL spiegelt via flex. */
+  align-self: stretch; flex: 0 1 auto; min-width: 0; overflow-x: auto; overflow-y: hidden;
   scrollbar-width: thin; scroll-behavior: smooth;
 }
 .ops-tabstrip-tabs { display: flex; align-items: stretch; gap: 3px; min-width: max-content; height: 100%; }
@@ -123,6 +125,7 @@
 }
 
 /* ---------- Gedeeld overzicht ---------- */
+.ops-card-close { flex: none; }
 .ops-card-close:hover {
   background: rgba(220, 38, 38, 0.16) !important;
   border-color: #DC2626 !important;
