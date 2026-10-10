@@ -129,6 +129,18 @@ eq('02i normLabel', [normLabel('Save…'), normLabel('Link ▾'), normLabel('Don
   ok('03h sleutels met doeltekst-hash voor C3', r.keys['common:dlg.relType'] === sectionHash('Typ závislosti'));
   const fresh = buildEnLabelIndex([{ ns: 'common', nl, en, target: cs }], 'cs', {});
   eq('03i nieuwe taal zonder bron-hash: geen doeltekst (Engelse vulling)', fresh.exact.get('Relation type')?.[0].target, undefined);
+  // Meervoud: en one/other tegenover ar met zes vormen (en `one` schrijft het getal uit). Elke ar-vorm telt.
+  const nlP: JsonObject = { cp: { summary_one: 'Kritiek pad: {{count}} taak, {{duration}} werkdagen', summary_other: 'Kritiek pad: {{count}} taken, {{duration}} werkdagen' } };
+  const enP: JsonObject = { cp: { summary_one: 'Critical path: {{count}} task, {{duration}} work days', summary_other: 'Critical path: {{count}} tasks, {{duration}} work days' } };
+  const arP: JsonObject = { cp: {
+    summary_zero: 'المسار الحرج: لا مهام، {{duration}} يوم عمل', summary_one: 'المسار الحرج: مهمة واحدة، {{duration}} يوم عمل',
+    summary_two: 'المسار الحرج: مهمتان، {{duration}} يوم عمل', summary_few: 'المسار الحرج: {{count}} مهام، {{duration}} يوم عمل',
+    summary_many: 'المسار الحرج: {{count}} مهمة، {{duration}} يوم عمل', summary_other: 'المسار الحرج: {{count}} مهمة، {{duration}} يوم عمل' } };
+  const arIndex = buildEnLabelIndex([{ ns: 'common', nl: nlP, en: enP, target: arP }], 'ar', { common: { 'cp.summary': 'x' } });
+  const pl = classifyItalic('Critical path: 21 tasks, 45 work days', arIndex, new Set());
+  const plTargets = sectionLabels(0, '*Critical path: 21 tasks, 45 work days*', arIndex, new Set()).labels[0]?.targets ?? [];
+  eq('03j meervoud in een patroon: soort b', pl.map(c => c.kind), ['b']);
+  ok('03k meervoud: elke ar-vorm is een kandidaat (ook many/other met {{count}})', plTargets.length === 5 && plTargets.some(t => t.includes('{{count}} مهمة')));
 }
 
 // ── 04. Termen, tokens, keep, display in het pakket ──────────────────────────────────────────

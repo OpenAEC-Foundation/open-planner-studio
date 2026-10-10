@@ -252,14 +252,21 @@ export function buildEnLabelIndex(inputs: NsInput[], lang: string, sources: UiSo
       hashes.set(key, sectionHash(tTexts.join('\n')));
       if (!e) continue;
       const eTexts = textsOf(e.text);
+      // Meervoud: de categorieën van en en de doeltaal vallen niet samen (en one/other, ar zes vormen,
+      // en de ar-vorm `one` schrijft het getal uit). Elke doelvorm is dan een geldige kandidaat.
+      const plural = eTexts.length > 1 || tTexts.length > 1;
+      const add = (list: LabelHit[], tt: string | undefined) => {
+        const target = tt !== undefined ? normLabel(tt) : undefined;
+        if (!list.some(h => h.key === key && h.target === target)) list.push({ key, ...(target !== undefined ? { target } : {}) });
+      };
       eTexts.forEach((et, i) => {
         if (nestings(et).length || et.length > 200) return;
-        const tt = tTexts[Math.min(i, tTexts.length - 1)];
+        const tts: (string | undefined)[] = plural ? (tTexts.length ? tTexts : [undefined]) : [tTexts[Math.min(i, tTexts.length - 1)]];
         if (placeholders(et).length === 0) {
           const n = normLabel(et);
           if (!/\p{L}/u.test(n)) return;
           const list = exact.get(n) ?? [];
-          if (!list.some(h => h.key === key)) list.push({ key, ...(tt !== undefined ? { target: normLabel(tt) } : {}) });
+          for (const tt of tts) add(list, tt);
           exact.set(n, list);
           return;
         }
@@ -267,7 +274,7 @@ export function buildEnLabelIndex(inputs: NsInput[], lang: string, sources: UiSo
         const pr = patternRe(n, true);
         if (!pr) return;
         const p = byPattern.get(n) ?? { ...pr, hits: [] };
-        if (!p.hits.some(h => h.key === key)) p.hits.push({ key, ...(tt !== undefined ? { target: normLabel(tt) } : {}) });
+        for (const tt of tts) add(p.hits, tt);
         byPattern.set(n, p);
       });
     }
