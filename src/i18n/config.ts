@@ -1,6 +1,7 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { readLocal, syncSettingToLocalStorage } from '@/utils/settingsStore';
+import { LOCALES, RTL_LOCALES, localeDirection, type Locale } from './locales';
 
 // --- Alleen de fallback-taal (en) wordt eager geïmporteerd. De overige 26 talen
 // laden lazy via loadLocale() (Vite splitst per taal een eigen async chunk). ---
@@ -9,13 +10,9 @@ import enTask from './locales/en/task.json';
 import enReport from './locales/en/report.json';
 import enMenu from './locales/en/menu.json';
 
-export type Locale =
-  | 'nl' | 'en' | 'fr' | 'de' | 'es' | 'zh'
-  | 'it' | 'pt' | 'pl' | 'tr' | 'ar' | 'ja' | 'ko' | 'fa'
-  | 'ru' | 'uk' | 'cs' | 'sk' | 'sr' | 'hr' | 'bg'
-  | 'hu' | 'ro' | 'sv' | 'nb' | 'da' | 'fi';
-
-export const RTL_LOCALES: Locale[] = ['ar', 'fa'];
+// De talenlijst zelf staat in `./locales.ts` (contract C4, zonder i18next); hier opnieuw
+// geëxporteerd zodat bestaande imports uit `@/i18n/config` blijven werken.
+export { LOCALES, RTL_LOCALES, localeDirection, type Locale };
 
 export const LANGUAGE_LABELS: Record<Locale, [string, string]> = {
   nl: ['NL', 'Nederlands'],
@@ -61,7 +58,7 @@ export function localeFromBrowserLanguage(tag: string | undefined): Locale | nul
   return supportedLanguages.includes(lng as Locale) ? (lng as Locale) : null;
 }
 
-export const supportedLanguages = Object.keys(LANGUAGE_LABELS) as Locale[];
+export const supportedLanguages: Locale[] = [...LOCALES];
 
 const resources = {
   en: { common: enCommon, task: enTask, report: enReport, menu: enMenu },
@@ -80,14 +77,6 @@ void i18n
     interpolation: { escapeValue: false },
     react: { useSuspense: false },
   });
-
-/** Schrijfrichting van de shell in taal `lng`: `rtl` voor ar/fa. Zet `<html dir>` hieronder, en is
- *  de bron voor wie tijdens het renderen al moet weten dat de shell gespiegeld is (bv. aan welke kant
- *  de takenlijst en dus de histogramkiezer staat) — een component die `useTranslation` gebruikt,
- *  rendert bij een taalwissel opnieuw. */
-export function localeDirection(lng: string): 'ltr' | 'rtl' {
-  return RTL_LOCALES.includes(lng as Locale) ? 'rtl' : 'ltr';
-}
 
 // Set document direction + lang on language change (RTL support; <html lang> volgt de
 // taalkeuze i.p.v. de hardcoded "nl" uit index.html — TODO-quick-win)
