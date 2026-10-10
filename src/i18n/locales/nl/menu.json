@@ -315,7 +315,7 @@
     "library": "Bibliotheek",
     "helpDocsLang": "Documentatietaal",
     "helpDocsLangAuto": "Volg de app-taal",
-    "helpLangFallback": "De documentatie is nog niet beschikbaar in jouw taal. Je leest de Engelse versie.",
+    "helpLangFallback": "Dit artikel is nog niet in jouw taal beschikbaar; je leest de Engelse versie.",
     "unapplied": {
       "title": "Wijzigingen niet toegepast",
       "body": "Je hebt de projectinfo gewijzigd maar nog niet toegepast. Wat wil je met deze wijzigingen doen?",
