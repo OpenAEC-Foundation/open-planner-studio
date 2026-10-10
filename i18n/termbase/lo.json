@@ -1,0 +1,1463 @@
+{
+  "_style": {
+    "address": "formal",
+    "note": "Formal address: ທ່ານ (you) in longer UI sentences and ກະລຸນາ (please) for requests; the app is called ແອັບ. Lao has no spaces between words; a space marks a clause or phrase break, as in the UI. Numbers always use digits 0-9 (never Lao digits ໐-໙), as the app shows them. Keep Latin acronyms and product names (WBS, SNET, Ribbon, Undo) as in the UI.",
+    "commands": "Short imperative verb without a subject, as in the UI buttons and menus: Save = ບັນທຶກ, Open = ເປີດ, Delete = ລຶບ, Cancel = ຍົກເລີກ, Calculate = ຄິດໄລ່.",
+    "quotes": "“…” (curly double quotes), also around placeholders (“{{name}}”). A single ‘{{name}}’ is used in the UI only for a task name at the start of a sentence; follow the source.",
+    "docs": "Guides: formal address (ທ່ານ) as in the UI, polite but plain. A UI label stays exactly as in the UI, in italics, with a carrier word (dialog, tab, button, column) before it. Step: 'Choose *Save*.' → 'ເລືອກ *ບັນທຶກ*.'; 'in the *Relation type* dialog' → 'ໃນກ່ອງໂຕ້ຕອບ *ປະເພດສາຍພົວພັນ*'. Explanation: 'The app moves the successor to the next workday.' → 'ແອັບຈະຍ້າຍໜ້າວຽກຖັດໄປໄປຍັງມື້ເຮັດວຽກຖັດໄປ.' Address: 'If you change the duration, your schedule is out of date.' → 'ຖ້າທ່ານປ່ຽນໄລຍະເວລາ ແຜນງານຂອງທ່ານຈະບໍ່ເປັນປັດຈຸບັນ.'"
+  },
+  "activity-code": {
+    "term": "ລະຫັດກິດຈະກຳ",
+    "forms": [
+      "ລະຫັດກິດຈະກຳ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-date": {
+    "term": "ວັນທີຕົວຈິງ",
+    "forms": [
+      "ວັນທີຕົວຈິງ"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "actual-duration": {
+    "term": "ໄລຍະເວລາຕົວຈິງ",
+    "forms": [
+      "ໄລຍະເວລາຕົວຈິງ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-finish": {
+    "term": "ວັນສຳເລັດຕົວຈິງ",
+    "forms": [
+      "ວັນສຳເລັດຕົວຈິງ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-start": {
+    "term": "ວັນເລີ່ມຕົວຈິງ",
+    "forms": [
+      "ວັນເລີ່ມຕົວຈິງ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "actual-work": {
+    "term": "ວຽກຕົວຈິງ",
+    "forms": [
+      "ວຽກຕົວຈິງ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ai-assistant": {
+    "term": "ຕົວຊ່ວຍ AI",
+    "forms": [
+      "ຕົວຊ່ວຍ AI"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "as-late-as-possible": {
+    "term": "ຊ້າເທົ່າທີ່ຈະຊ້າໄດ້",
+    "forms": [
+      "ຊ້າເທົ່າທີ່ຈະຊ້າໄດ້"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "as-soon-as-possible": {
+    "term": "ໄວເທົ່າທີ່ຈະໄວໄດ້",
+    "forms": [
+      "ໄວເທົ່າທີ່ຈະໄວໄດ້"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment": {
+    "term": "ການມອບໝາຍ",
+    "forms": [
+      "ການມອບໝາຍ"
+    ],
+    "avoid": [
+      "ວຽກທີ່ມອບໝາຍ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment-curve": {
+    "term": "ເສັ້ນໂຄ້ງການມອບໝາຍ",
+    "forms": [
+      "ເສັ້ນໂຄ້ງການມອບໝາຍ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "assignment-units": {
+    "term": "ຫົວໜ່ວຍການມອບໝາຍຕໍ່ມື້",
+    "forms": [
+      "ຫົວໜ່ວຍການມອບໝາຍຕໍ່ມື້"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "baseline": {
+    "term": "ແຜນຫຼັກ",
+    "forms": [
+      "ແຜນຫຼັກ"
+    ],
+    "avoid": [
+      "ເສັ້ນຖານ",
+      "ຖານເສັ້ນ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "bei": {
+    "term": "ດັດຊະນີການປະຕິບັດຕາມແຜນພື້ນຖານ",
+    "forms": [
+      "ດັດຊະນີການປະຕິບັດຕາມແຜນພື້ນຖານ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculate": {
+    "term": "ຄິດໄລ່",
+    "forms": [
+      "ຄິດໄລ່"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculate-automatically": {
+    "term": "ຄິດໄລ່ອັດຕະໂນມັດ",
+    "forms": [
+      "ຄິດໄລ່ອັດຕະໂນມັດ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calculation-profile": {
+    "term": "ໂປຣໄຟລ໌ການຄິດໄລ່",
+    "forms": [
+      "ໂປຣໄຟລ໌ການຄິດໄລ່"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "calendar": {
+    "term": "ປະຕິທິນ",
+    "forms": [
+      "ປະຕິທິນ"
+    ],
+    "avoid": [
+      "ໂປຣແກຣມປະຕິທິນ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "capacity": {
+    "term": "ກຳລັງຮອງຮັບ",
+    "forms": [
+      "ກຳລັງຮອງຮັບ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui",
+    "avoid": [
+      "ຄວາມສາມາດຕາມຊ່ວງເວລາ"
+    ]
+  },
+  "completion": {
+    "term": "ເປີເຊັນສຳເລັດ",
+    "forms": [
+      "ເປີເຊັນສຳເລັດ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "constraint": {
+    "term": "ເງື່ອນໄຂ",
+    "forms": [
+      "ເງື່ອນໄຂ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui",
+    "avoid": [
+      "ຂໍ້ຈຳກັດ"
+    ]
+  },
+  "constraint-type": {
+    "term": "ປະເພດເງື່ອນໄຂ",
+    "forms": [
+      "ປະເພດເງື່ອນໄຂ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "construction-holiday": {
+    "term": "ວັນພັກຊ່າງກໍ່ສ້າງ",
+    "forms": [
+      "ວັນພັກຊ່າງກໍ່ສ້າງ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui",
+    "avoid": [
+      "ມື້ພັກຊ່າງກໍ່ສ້າງ"
+    ]
+  },
+  "contour": {
+    "term": "ຮູບແບບການກະຈາຍ",
+    "forms": [
+      "ຮູບແບບການກະຈາຍ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "convention": {
+    "term": "ຂໍ້ກຳນົດ",
+    "forms": [
+      "ຂໍ້ກຳນົດ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "cost": {
+    "term": "ຕົ້ນທຶນ",
+    "forms": [
+      "ຕົ້ນທຶນ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "crash-recovery": {
+    "term": "ລະບົບກູ້ຄືນຂໍ້ມູນ",
+    "forms": [
+      "ລະບົບກູ້ຄືນຂໍ້ມູນ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical": {
+    "term": "ວິກິດ",
+    "forms": [
+      "ວິກິດ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-chains": {
+    "term": "ສາຍພົວພັນວິກິດ",
+    "forms": [
+      "ສາຍພົວພັນວິກິດ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "critical-path": {
+    "term": "ເສັ້ນທາງວິກິດ",
+    "forms": [
+      "ເສັ້ນທາງວິກິດ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui",
+    "avoid": [
+      "ສາຍວິກິດ"
+    ]
+  },
+  "critical-task": {
+    "term": "ໜ້າວຽກວິກິດ",
+    "forms": [
+      "ໜ້າວຽກວິກິດ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "current-finish": {
+    "term": "ສິ້ນສຸດປັດຈຸບັນ",
+    "forms": [
+      "ສິ້ນສຸດປັດຈຸບັນ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "custom-field": {
+    "term": "ຊ່ອງກຳນົດເອງ",
+    "forms": [
+      "ຊ່ອງກຳນົດເອງ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui",
+    "avoid": [
+      "ຟິລດ໌ກຳນົດເອງ"
+    ]
+  },
+  "cycle": {
+    "term": "ການເຊື່ອມໂຍງວົນລູບ",
+    "forms": [
+      "ການເຊື່ອມໂຍງວົນລູບ"
+    ],
+    "avoid": [
+      "ວົງມົນ",
+      "ຮອບ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "day-task": {
+    "term": "ໜ້າວຽກລາຍມື້",
+    "forms": [
+      "ໜ້າວຽກລາຍມື້"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "dcma-assessment": {
+    "term": "ການປະເມີນ 14 ຂໍ້ຕາມ DCMA",
+    "forms": [
+      "ການປະເມີນ 14 ຂໍ້ຕາມ DCMA"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "deadline": {
+    "term": "ກຳນົດສົ່ງ",
+    "forms": [
+      "ກຳນົດສົ່ງ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui",
+    "avoid": [
+      "ກຳນົດເວລາສິ້ນສຸດ"
+    ]
+  },
+  "default-value": {
+    "term": "ຄ່າເລີ່ມຕົ້ນ",
+    "forms": [
+      "ຄ່າເລີ່ມຕົ້ນ"
+    ],
+    "avoid": [
+      "ຄ່າມາດຕະຖານ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "distribution": {
+    "term": "ການກະຈາຍ",
+    "forms": [
+      "ການກະຈາຍ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "driving-relationship": {
+    "term": "ສາຍພົວພັນຄວບຄຸມ",
+    "forms": [
+      "ສາຍພົວພັນຄວບຄຸມ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "duration": {
+    "term": "ໄລຍະເວລາ",
+    "forms": [
+      "ໄລຍະເວລາ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "early-finish": {
+    "term": "ສິ້ນສຸດໄວສຸດ",
+    "forms": [
+      "ສິ້ນສຸດໄວສຸດ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "early-start": {
+    "term": "ເລີ່ມຕົ້ນໄວສຸດ",
+    "forms": [
+      "ເລີ່ມຕົ້ນໄວສຸດ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "effort-driven": {
+    "term": "ຂຶ້ນກັບປະລິມານວຽກ",
+    "forms": [
+      "ຂຶ້ນກັບປະລິມານວຽກ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "elapsed-time": {
+    "term": "ເວລາລ່ວງເລີຍ",
+    "forms": [
+      "ເວລາລ່ວງເລີຍ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "extension": {
+    "term": "ສ່ວນເສີມ",
+    "forms": [
+      "ສ່ວນເສີມ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "external-relation": {
+    "term": "ສາຍສຳພັນພາຍນອກ",
+    "forms": [
+      "ສາຍສຳພັນພາຍນອກ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui",
+    "avoid": [
+      "ສາຍພົວພັນພາຍນອກ"
+    ]
+  },
+  "file": {
+    "term": "ໄຟລ໌",
+    "forms": [
+      "ໄຟລ໌"
+    ],
+    "avoid": [
+      "ຟາຍ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish": {
+    "term": "ສິ້ນສຸດ",
+    "forms": [
+      "ສິ້ນສຸດ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-driver": {
+    "term": "ຕົວຄວບຄຸມການສິ້ນສຸດ",
+    "forms": [
+      "ຕົວຄວບຄຸມການສິ້ນສຸດ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-no-earlier-than": {
+    "term": "ສິ້ນສຸດບໍ່ກ່ອນ",
+    "forms": [
+      "ສິ້ນສຸດບໍ່ກ່ອນ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-no-later-than": {
+    "term": "ສິ້ນສຸດບໍ່ຊ້າກວ່າ",
+    "forms": [
+      "ສິ້ນສຸດບໍ່ຊ້າກວ່າ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-to-finish": {
+    "term": "ສຳເລັດ-ສຳເລັດ",
+    "forms": [
+      "ສຳເລັດ-ສຳເລັດ"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "finish-to-start": {
+    "term": "ສຳເລັດ-ເລີ່ມຕົ້ນ",
+    "forms": [
+      "ສຳເລັດ-ເລີ່ມຕົ້ນ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "finish-variance": {
+    "term": "ຄວາມແຕກຕ່າງມື້ສິ້ນສຸດ",
+    "forms": [
+      "ຄວາມແຕກຕ່າງມື້ສິ້ນສຸດ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-duration": {
+    "term": "ຄົງທີ່ໄລຍະເວລາ",
+    "forms": [
+      "ຄົງທີ່ໄລຍະເວລາ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-units": {
+    "term": "ຄົງທີ່ຫົວໜ່ວຍ",
+    "forms": [
+      "ຄົງທີ່ຫົວໜ່ວຍ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "fixed-work": {
+    "term": "ຄົງທີ່ວຽກ",
+    "forms": [
+      "ຄົງທີ່ວຽກ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "float": {
+    "term": "float",
+    "forms": [
+      "float"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui",
+    "avoid": [
+      "ຢືດຢຸ່ນ",
+      "ຊ່ວງເວລາຫວ່າງ"
+    ]
+  },
+  "float-path": {
+    "term": "ເສັ້ນທາງຜ່ອນຜັນ",
+    "forms": [
+      "ເສັ້ນທາງຜ່ອນຜັນ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui",
+    "avoid": [
+      "ເສັ້ນທາງຢືດຢຸ່ນ"
+    ]
+  },
+  "forecast-finish": {
+    "term": "ຄາດຄະເນສິ້ນສຸດ",
+    "forms": [
+      "ຄາດຄະເນສິ້ນສຸດ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "free-float": {
+    "term": "free float",
+    "forms": [
+      "free float"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "gantt-bar": {
+    "term": "ແຖບໜ້າວຽກ",
+    "forms": [
+      "ແຖບໜ້າວຽກ"
+    ],
+    "avoid": [
+      "ແຖບລາຍການ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hammock": {
+    "term": "ແຮມມັອກ",
+    "forms": [
+      "ແຮມມັອກ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hard-constraint": {
+    "term": "ເງື່ອນໄຂເຂັ້ມງວດ",
+    "forms": [
+      "ເງື່ອນໄຂເຂັ້ມງວດ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui",
+    "avoid": [
+      "ຂໍ້ກຳນົດແບບບັງຄັບແຂງ"
+    ]
+  },
+  "histogram": {
+    "term": "ຮິສໂຕແກຣມ",
+    "forms": [
+      "ຮິສໂຕແກຣມ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "holiday": {
+    "term": "ວັນພັກ",
+    "forms": [
+      "ວັນພັກ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui",
+    "avoid": [
+      "ມື້ພັກລັດຖະການ"
+    ]
+  },
+  "holiday-set": {
+    "term": "ຊຸດວັນພັກ",
+    "forms": [
+      "ຊຸດວັນພັກ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-distribution-in-phases": {
+    "term": "ການກະຈາຍຊົ່ວໂມງຕາມແຕ່ລະໄລຍະ",
+    "forms": [
+      "ການກະຈາຍຊົ່ວໂມງຕາມແຕ່ລະໄລຍະ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-planning": {
+    "term": "ການວາງແຜນລາຍຊົ່ວໂມງ",
+    "forms": [
+      "ການວາງແຜນລາຍຊົ່ວໂມງ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "hour-task": {
+    "term": "ໜ້າວຽກລາຍຊົ່ວໂມງ",
+    "forms": [
+      "ໜ້າວຽກລາຍຊົ່ວໂມງ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "indent": {
+    "term": "ຫຍໍ້ໜ້າເຂົ້າ",
+    "forms": [
+      "ຫຍໍ້ໜ້າເຂົ້າ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui",
+    "avoid": [
+      "ຫຍັບເຂົ້າ"
+    ]
+  },
+  "interruption": {
+    "term": "ຊ່ວງພັກ",
+    "forms": [
+      "ຊ່ວງພັກ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui",
+    "avoid": [
+      "ການຢຸດພັກ",
+      "ການພັກຊ່ວງ"
+    ]
+  },
+  "lag": {
+    "term": "ຄ່າ Lag",
+    "forms": [
+      "ຄ່າ Lag"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-dates": {
+    "term": "ວັນທີ late",
+    "forms": [
+      "ວັນທີ late"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-finish": {
+    "term": "ສິ້ນສຸດຊ້າສຸດ",
+    "forms": [
+      "ສິ້ນສຸດຊ້າສຸດ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "late-start": {
+    "term": "ເລີ່ມຕົ້ນຊ້າສຸດ",
+    "forms": [
+      "ເລີ່ມຕົ້ນຊ້າສຸດ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "layout": {
+    "term": "ຮູບແບບ",
+    "forms": [
+      "ຮູບແບບ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "lead": {
+    "term": "ໄລຍະນຳໜ້າ",
+    "forms": [
+      "ໄລຍະນຳໜ້າ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "leveling": {
+    "term": "ການປັບສົມດຸນ",
+    "forms": [
+      "ການປັບສົມດຸນ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "leveling-delay": {
+    "term": "ຄວາມຊັກຊ້າຈາກການປັບສົມດຸນ",
+    "forms": [
+      "ຄວາມຊັກຊ້າຈາກການປັບສົມດຸນ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "link-tasks": {
+    "term": "ເຊື່ອມໂຍງ",
+    "forms": [
+      "ເຊື່ອມໂຍງ"
+    ],
+    "avoid": [
+      "ລິ້ງ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "longest-path": {
+    "term": "ເສັ້ນທາງທີ່ຍາວທີ່ສຸດ",
+    "forms": [
+      "ເສັ້ນທາງທີ່ຍາວທີ່ສຸດ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "manually-scheduled": {
+    "term": "ກຳນົດເວລາດ້ວຍຕົນເອງ",
+    "forms": [
+      "ກຳນົດເວລາດ້ວຍຕົນເອງ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "max-units": {
+    "term": "ຈຳນວນສູງສຸດ",
+    "forms": [
+      "ຈຳນວນສູງສຸດ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "milestone": {
+    "term": "ຫຼັກໝາຍ",
+    "forms": [
+      "ຫຼັກໝາຍ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "milestone-kind": {
+    "term": "ປະເພດຫຼັກໝາຍ",
+    "forms": [
+      "ປະເພດຫຼັກໝາຍ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "mini-map": {
+    "term": "ແຜນທີ່ຍໍ້ສ່ວນ",
+    "forms": [
+      "ແຜນທີ່ຍໍ້ສ່ວນ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "missed-task": {
+    "term": "ວຽກຫຼຸດແຜນ",
+    "forms": [
+      "ວຽກຫຼຸດແຜນ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "must-finish-on": {
+    "term": "ຕ້ອງສິ້ນສຸດໃນວັນທີ",
+    "forms": [
+      "ຕ້ອງສິ້ນສຸດໃນວັນທີ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "must-start-on": {
+    "term": "ຕ້ອງເລີ່ມໃນວັນທີ",
+    "forms": [
+      "ຕ້ອງເລີ່ມໃນວັນທີ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "near-critical": {
+    "term": "ໃກ້ວິກິດ",
+    "forms": [
+      "ໃກ້ວິກິດ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "negative-float": {
+    "term": "ເວລາຜ່ອນຜັນຕິດລົບ",
+    "forms": [
+      "ເວລາຜ່ອນຜັນຕິດລົບ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui",
+    "avoid": [
+      "ໄລຍະຜ່ອນຜັນຕິດລົບ"
+    ]
+  },
+  "non-working-day": {
+    "term": "ມື້ພັກ",
+    "forms": [
+      "ມື້ພັກ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "occupancy": {
+    "term": "ການຄອງໃຊ້",
+    "forms": [
+      "ການຄອງໃຊ້"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "out-of-sequence-progress": {
+    "term": "ຄວາມຄືບໜ້າຂ້າມລຳດັບ",
+    "forms": [
+      "ຄວາມຄືບໜ້າຂ້າມລຳດັບ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "outdent": {
+    "term": "ຫຍໍ້ໜ້າອອກ",
+    "forms": [
+      "ຫຍໍ້ໜ້າອອກ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui",
+    "avoid": [
+      "ຫຍັບອອກ"
+    ]
+  },
+  "overallocation": {
+    "term": "ໃຊ້ງານເກີນກຳລັງ",
+    "forms": [
+      "ໃຊ້ງານເກີນກຳລັງ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "path-tracing": {
+    "term": "ຕິດຕາມເສັ້ນທາງ",
+    "forms": [
+      "ຕິດຕາມເສັ້ນທາງ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "percent-complete": {
+    "term": "ເປີເຊັນສຳເລັດ",
+    "forms": [
+      "ເປີເຊັນສຳເລັດ"
+    ],
+    "source": "tbx",
+    "status": "tbx"
+  },
+  "period": {
+    "term": "ໄລຍະເວລາ",
+    "forms": [
+      "ໄລຍະເວລາ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "planned": {
+    "term": "ຕາມແຜນ",
+    "forms": [
+      "ຕາມແຜນ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "planned-work": {
+    "term": "ວຽກຕາມແຜນ",
+    "forms": [
+      "ວຽກຕາມແຜນ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "predecessor": {
+    "term": "ໜ້າວຽກກ່ອນໜ້າ",
+    "forms": [
+      "ໜ້າວຽກກ່ອນໜ້າ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "progress": {
+    "term": "ຄວາມຄືບໜ້າ",
+    "forms": [
+      "ຄວາມຄືບໜ້າ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "progress-line": {
+    "term": "ເສັ້ນຄວາມຄືບໜ້າ",
+    "forms": [
+      "ເສັ້ນຄວາມຄືບໜ້າ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "progress-mode": {
+    "term": "ຮູບແບບຄວາມຄືບໜ້າ",
+    "forms": [
+      "ຮູບແບບຄວາມຄືບໜ້າ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "project-finish": {
+    "term": "ວັນສິ້ນສຸດໂຄງການ",
+    "forms": [
+      "ວັນສິ້ນສຸດໂຄງການ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "project-info": {
+    "term": "ຂໍ້ມູນໂຄງການ",
+    "forms": [
+      "ຂໍ້ມູນໂຄງການ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui",
+    "avoid": [
+      "ຂໍ້ມູນລາຍລະອຽດໂຄງການ"
+    ]
+  },
+  "project-start": {
+    "term": "ວັນເລີ່ມຕົ້ນໂຄງການ",
+    "forms": [
+      "ວັນເລີ່ມຕົ້ນໂຄງການ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "properties-panel": {
+    "term": "ແຜງຄຸນສົມບັດ",
+    "forms": [
+      "ແຜງຄຸນສົມບັດ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "rate": {
+    "term": "ອັດຕາຄ່າໃຊ້ຈ່າຍ",
+    "forms": [
+      "ອັດຕາຄ່າໃຊ້ຈ່າຍ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "read-only": {
+    "term": "ອ່ານຢ່າງດຽວ",
+    "forms": [
+      "ອ່ານຢ່າງດຽວ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui",
+    "avoid": [
+      "ອ່ານໄດ້ຢ່າງດຽວ"
+    ]
+  },
+  "recalculate": {
+    "term": "ຄິດໄລ່ຄືນໃໝ່",
+    "forms": [
+      "ຄິດໄລ່ຄືນໃໝ່"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui",
+    "avoid": [
+      "ຄິດໄລ່ໃໝ່"
+    ]
+  },
+  "relation": {
+    "term": "ສາຍສຳພັນ",
+    "forms": [
+      "ສາຍສຳພັນ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "relationship-type": {
+    "term": "ປະເພດສາຍພົວພັນ",
+    "forms": [
+      "ປະເພດສາຍພົວພັນ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "remaining-duration": {
+    "term": "ໄລຍະເວລາທີ່ເຫຼືອ",
+    "forms": [
+      "ໄລຍະເວລາທີ່ເຫຼືອ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "remaining-work": {
+    "term": "ວຽກທີ່ເຫຼືອ",
+    "forms": [
+      "ວຽກທີ່ເຫຼືອ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "report": {
+    "term": "ລາຍງານ",
+    "forms": [
+      "ລາຍງານ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "report-type": {
+    "term": "ປະເພດບົດລາຍງານ",
+    "forms": [
+      "ປະເພດບົດລາຍງານ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource": {
+    "term": "ຊັບພະຍາກອນ",
+    "forms": [
+      "ຊັບພະຍາກອນ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource-library": {
+    "term": "ຄັງຂໍ້ມູນ",
+    "forms": [
+      "ຄັງຂໍ້ມູນ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui",
+    "avoid": [
+      "ຄັງຊັບພະຍາກອນ"
+    ]
+  },
+  "resource-panel": {
+    "term": "ແຜງຊັບພະຍາກອນ",
+    "forms": [
+      "ແຜງຊັບພະຍາກອນ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "resource-type": {
+    "term": "ປະເພດຊັບພະຍາກອນ",
+    "forms": [
+      "ປະເພດຊັບພະຍາກອນ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ribbon": {
+    "term": "ແຖບເຄື່ອງມື",
+    "forms": [
+      "ແຖບເຄື່ອງມື"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "ribbon-tab": {
+    "term": "ແທັບ",
+    "forms": [
+      "ແທັບ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "round-trip": {
+    "term": "ການອ່ານ-ຂຽນກັບຄືນ",
+    "forms": [
+      "ການອ່ານ-ຂຽນກັບຄືນ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "schedule": {
+    "term": "ແຜນງານ",
+    "forms": [
+      "ແຜນງານ"
+    ],
+    "avoid": [
+      "ກຳນົດເວລາ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "schedule-error": {
+    "term": "ຂໍ້ຜິດພາດແຜນງານ",
+    "forms": [
+      "ຂໍ້ຜິດພາດແຜນງານ"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "secondary-constraint": {
+    "term": "ເງື່ອນໄຂສຳຮອງ",
+    "forms": [
+      "ເງື່ອນໄຂສຳຮອງ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "shift": {
+    "term": "ກະວຽກ",
+    "forms": [
+      "ກະວຽກ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "source-task": {
+    "term": "ໜ້າວຽກຕົ້ນທາງ",
+    "forms": [
+      "ໜ້າວຽກຕົ້ນທາງ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "split-task": {
+    "term": "ແຍກວຽກ",
+    "forms": [
+      "ແຍກວຽກ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "split-view": {
+    "term": "ແບ່ງມຸມມອງ",
+    "forms": [
+      "ແບ່ງມຸມມອງ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-driver": {
+    "term": "ຕົວຄວບຄຸມການເລີ່ມ",
+    "forms": [
+      "ຕົວຄວບຄຸມການເລີ່ມ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-float": {
+    "term": "ໄລຍະຜ່ອນຜັນຕອນເລີ່ມຕົ້ນ",
+    "forms": [
+      "ໄລຍະຜ່ອນຜັນຕອນເລີ່ມຕົ້ນ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui",
+    "avoid": [
+      "ໄລຍະຢືດຢຸ່ນຕອນເລີ່ມຕົ້ນ"
+    ]
+  },
+  "start-no-earlier-than": {
+    "term": "ເລີ່ມບໍ່ກ່ອນ (SNET)",
+    "forms": [
+      "ເລີ່ມບໍ່ກ່ອນ (SNET)"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-no-later-than": {
+    "term": "ເລີ່ມບໍ່ຊ້າກວ່າ (SNLT)",
+    "forms": [
+      "ເລີ່ມບໍ່ຊ້າກວ່າ (SNLT)"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-to-finish": {
+    "term": "start-to-finish",
+    "forms": [
+      "start-to-finish"
+    ],
+    "source": "model",
+    "status": "model"
+  },
+  "start-to-start": {
+    "term": "start-to-start",
+    "forms": [
+      "start-to-start"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "start-variance": {
+    "term": "ຄວາມແຕກຕ່າງມື້ເລີ່ມຕົ້ນ",
+    "forms": [
+      "ຄວາມແຕກຕ່າງມື້ເລີ່ມຕົ້ນ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "status-bar": {
+    "term": "ແຖບສະຖານະ",
+    "forms": [
+      "ແຖບສະຖານະ"
+    ],
+    "source": "tbx",
+    "status": "tbx-chosen"
+  },
+  "status-date": {
+    "term": "ວັນທີສະຖານະ",
+    "forms": [
+      "ວັນທີສະຖານະ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "subtask": {
+    "term": "ໜ້າວຽກຍ່ອຍ",
+    "forms": [
+      "ໜ້າວຽກຍ່ອຍ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "successor": {
+    "term": "ໜ້າວຽກຖັດໄປ",
+    "forms": [
+      "ໜ້າວຽກຖັດໄປ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "summary-task": {
+    "term": "ໜ້າວຽກຫຼັກ",
+    "forms": [
+      "ໜ້າວຽກຫຼັກ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "table-column": {
+    "term": "ຖັນ",
+    "forms": [
+      "ຖັນ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task": {
+    "term": "ໜ້າວຽກ",
+    "forms": [
+      "ໜ້າວຽກ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task-grid": {
+    "term": "ຕາຕະລາງໜ້າວຽກ",
+    "forms": [
+      "ຕາຕະລາງໜ້າວຽກ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "task-type": {
+    "term": "ປະເພດໜ້າວຽກ",
+    "forms": [
+      "ປະເພດໜ້າວຽກ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "threshold": {
+    "term": "ເກນກຳນົດ",
+    "forms": [
+      "ເກນກຳນົດ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui",
+    "avoid": [
+      "ຄ່າກຳນົດ"
+    ]
+  },
+  "time-scale": {
+    "term": "ມາດຕາສ່ວນເວລາ",
+    "forms": [
+      "ມາດຕາສ່ວນເວລາ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui",
+    "avoid": [
+      "ແຖບເວລາ"
+    ]
+  },
+  "total-float": {
+    "term": "ໄລຍະຜ່ອນຜັນລວມ",
+    "forms": [
+      "ໄລຍະຜ່ອນຜັນລວມ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui",
+    "avoid": [
+      "ໄລຍະເວລາຢືດຢຸ່ນລວມ",
+      "ເວລາຜ່ອນຜັນທັງໝົດ"
+    ]
+  },
+  "tutorial": {
+    "term": "ບົດຮຽນແນະນຳ",
+    "forms": [
+      "ບົດຮຽນແນະນຳ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "units": {
+    "term": "ໜ່ວຍ",
+    "forms": [
+      "ໜ່ວຍ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "variance": {
+    "term": "ຄວາມແຕກຕ່າງ",
+    "forms": [
+      "ຄວາມແຕກຕ່າງ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui",
+    "avoid": [
+      "ຄວາມຜິດດ່ຽງ"
+    ]
+  },
+  "variance-report": {
+    "term": "ບົດລາຍງານຄວາມແຕກຕ່າງ",
+    "forms": [
+      "ບົດລາຍງານຄວາມແຕກຕ່າງ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "violated-constraint": {
+    "term": "ລະເມີດເງື່ອນໄຂ",
+    "forms": [
+      "ລະເມີດເງື່ອນໄຂ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "wbs": {
+    "term": "WBS",
+    "forms": [
+      "WBS"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "wbs-element": {
+    "term": "ອົງປະກອບ WBS",
+    "forms": [
+      "ອົງປະກອບ WBS"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work": {
+    "term": "ປະລິມານວຽກ",
+    "forms": [
+      "ປະລິມານວຽກ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-block": {
+    "term": "ຊ່ວງເວລາເຮັດວຽກ",
+    "forms": [
+      "ຊ່ວງເວລາເຮັດວຽກ"
+    ],
+    "avoid": [
+      "ບລັອກ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-break": {
+    "term": "ຊ່ວງພັກ",
+    "forms": [
+      "ຊ່ວງພັກ"
+    ],
+    "avoid": [
+      "ການພັກຊ່ວງ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-calendar": {
+    "term": "ປະຕິທິນການເຮັດວຽກ",
+    "forms": [
+      "ປະຕິທິນການເຮັດວຽກ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-hours": {
+    "term": "ຊົ່ວໂມງເຮັດວຽກ",
+    "forms": [
+      "ຊົ່ວໂມງເຮັດວຽກ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "work-rule": {
+    "term": "ກົດເກນວຽກ",
+    "forms": [
+      "ກົດເກນວຽກ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "workday": {
+    "term": "ມື້ເຮັດວຽກ",
+    "forms": [
+      "ມື້ເຮັດວຽກ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  },
+  "working-time": {
+    "term": "ເວລາເຮັດວຽກ",
+    "forms": [
+      "ເວລາເຮັດວຽກ"
+    ],
+    "source": "existing-ui",
+    "status": "existing-ui"
+  }
+}
