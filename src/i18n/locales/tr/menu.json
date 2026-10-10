@@ -315,7 +315,7 @@
     "library": "Kitaplık",
     "helpDocsLang": "Belge dili",
     "helpDocsLangAuto": "Uygulama dilini takip et",
-    "helpLangFallback": "Belgeler henüz dilinizde mevcut değil. İngilizce sürümü okuyorsunuz.",
+    "helpLangFallback": "Bu belge henüz dilinizde mevcut değil. İngilizce sürümünü okuyorsunuz.",
     "unapplied": {
       "title": "Değişiklikler uygulanmadı",
       "body": "Proje bilgilerini değiştirdiniz ancak henüz uygulamadınız. Bu değişikliklerle ne yapmak istiyorsunuz?",

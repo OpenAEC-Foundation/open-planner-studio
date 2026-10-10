@@ -313,7 +313,7 @@
     "library": "资料库",
     "helpDocsLang": "文档语言",
     "helpDocsLangAuto": "跟随应用语言",
-    "helpLangFallback": "文档尚未提供您的语言版本。您正在阅读英文版。",
+    "helpLangFallback": "此文章尚未提供你的语言版本。你正在阅读英文版。",
     "unapplied": {
       "title": "更改尚未应用",
       "body": "您已修改项目信息，但尚未应用。要如何处理这些更改？",

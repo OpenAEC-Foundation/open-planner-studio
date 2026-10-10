@@ -315,7 +315,7 @@
     "library": "Erőforrástár",
     "helpDocsLang": "Dokumentáció nyelve",
     "helpDocsLangAuto": "Az alkalmazás nyelvét követi",
-    "helpLangFallback": "A dokumentáció még nem érhető el az Ön nyelvén. Az angol változatot olvassa.",
+    "helpLangFallback": "Ez a cikk még nem érhető el az Ön nyelvén; az angol változatot olvassa.",
     "unapplied": {
       "title": "Nem alkalmazott módosítások",
       "body": "Módosította a projektadatokat, de még nem alkalmazta őket. Mit szeretne tenni ezekkel a módosításokkal?",

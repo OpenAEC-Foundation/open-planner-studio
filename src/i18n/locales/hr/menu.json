@@ -317,7 +317,7 @@
     "library": "Biblioteka",
     "helpDocsLang": "Jezik dokumentacije",
     "helpDocsLangAuto": "Prati jezik aplikacije",
-    "helpLangFallback": "Dokumentacija još nije dostupna na vašem jeziku. Čitate englesku verziju.",
+    "helpLangFallback": "Ovaj članak još nije dostupan na vašem jeziku; čitate englesku verziju.",
     "unapplied": {
       "title": "Promjene nisu primijenjene",
       "body": "Promijenili ste podatke o projektu, ali ih još niste primijenili. Što želite učiniti s ovim promjenama?",

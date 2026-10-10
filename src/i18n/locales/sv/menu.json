@@ -315,7 +315,7 @@
     "library": "Bibliotek",
     "helpDocsLang": "Dokumentationsspråk",
     "helpDocsLangAuto": "Följ appens språk",
-    "helpLangFallback": "Dokumentationen finns inte på ditt språk än. Du läser den engelska versionen.",
+    "helpLangFallback": "Den här artikeln är ännu inte tillgänglig på ditt språk; du läser den engelska versionen.",
     "unapplied": {
       "title": "Ändringar inte tillämpade",
       "body": "Du har ändrat projektinfon men inte tillämpat den. Vad vill du göra med ändringarna?",

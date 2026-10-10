@@ -317,7 +317,7 @@
     "library": "Bibliothèque",
     "helpDocsLang": "Langue de la documentation",
     "helpDocsLangAuto": "Suivre la langue de l'application",
-    "helpLangFallback": "La documentation n'est pas encore disponible dans votre langue. Vous lisez la version anglaise.",
+    "helpLangFallback": "Cet article n'est pas encore disponible dans votre langue. Vous lisez la version anglaise.",
     "unapplied": {
       "title": "Modifications non appliquées",
       "body": "Vous avez modifié les informations du projet sans les appliquer. Que voulez-vous faire de ces modifications ?",

@@ -315,7 +315,7 @@
     "library": "Kirjasto",
     "helpDocsLang": "Dokumentaation kieli",
     "helpDocsLangAuto": "Seuraa sovelluksen kieltä",
-    "helpLangFallback": "Dokumentaatio ei ole vielä saatavilla tällä kielellä. Näytetään englanninkielinen versio.",
+    "helpLangFallback": "Tämä artikkeli ei ole vielä saatavilla suomeksi. Luettavana on englanninkielinen versio.",
     "unapplied": {
       "title": "Muutoksia ei ole käytetty",
       "body": "Projektitietoja on muutettu, mutta muutoksia ei ole vielä käytetty. Mitä muutoksille tehdään?",

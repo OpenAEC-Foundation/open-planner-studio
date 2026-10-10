@@ -315,7 +315,7 @@
     "library": "Bibliotek",
     "helpDocsLang": "Dokumentasjonsspråk",
     "helpDocsLangAuto": "Følg appspråket",
-    "helpLangFallback": "Dokumentasjonen er ikke tilgjengelig på språket ditt ennå. Du leser den engelske versjonen.",
+    "helpLangFallback": "Denne artikkelen er ikke tilgjengelig på språket ditt ennå; du leser den engelske versjonen.",
     "unapplied": {
       "title": "Endringer er ikke brukt",
       "body": "Du har endret prosjektinfo, men ennå ikke brukt den. Hva vil du gjøre med disse endringene?",

@@ -315,7 +315,7 @@
     "library": "Bibliothek",
     "helpDocsLang": "Dokumentationssprache",
     "helpDocsLangAuto": "App-Sprache folgen",
-    "helpLangFallback": "Die Dokumentation ist noch nicht in Ihrer Sprache verfügbar. Sie lesen die englische Version.",
+    "helpLangFallback": "Dieser Artikel ist noch nicht in Ihrer Sprache verfügbar. Sie lesen die englische Version.",
     "unapplied": {
       "title": "Änderungen nicht angewendet",
       "body": "Sie haben die Projektinfo geändert, aber noch nicht angewendet. Was möchten Sie mit diesen Änderungen tun?",

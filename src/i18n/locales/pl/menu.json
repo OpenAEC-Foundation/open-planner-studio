@@ -319,7 +319,7 @@
     "library": "Biblioteka",
     "helpDocsLang": "Język dokumentacji",
     "helpDocsLangAuto": "Zgodnie z językiem aplikacji",
-    "helpLangFallback": "Dokumentacja nie jest jeszcze dostępna w Twoim języku. Czytasz wersję angielską.",
+    "helpLangFallback": "Ten artykuł nie jest jeszcze dostępny w Twoim języku; czytasz wersję angielską.",
     "unapplied": {
       "title": "Zmiany nie zostały zastosowane",
       "body": "Zmieniono informacje o projekcie, ale ich jeszcze nie zastosowano. Co zrobić z tymi zmianami?",

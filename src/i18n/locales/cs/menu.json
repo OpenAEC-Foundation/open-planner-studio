@@ -319,7 +319,7 @@
     "library": "Knihovna zdrojů",
     "helpDocsLang": "Jazyk dokumentace",
     "helpDocsLangAuto": "Podle jazyka aplikace",
-    "helpLangFallback": "Dokumentace zatím není dostupná ve vašem jazyce. Čtete anglickou verzi.",
+    "helpLangFallback": "Tento článek zatím není ve vašem jazyce k dispozici. Čtete anglickou verzi.",
     "unapplied": {
       "title": "Změny nebyly použity",
       "body": "Změnili jste informace o projektu, ale ještě jste je nepoužili. Co chcete se změnami udělat?",
