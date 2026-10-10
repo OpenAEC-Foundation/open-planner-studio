@@ -252,10 +252,12 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
   ok(fills.some(r => r.color === '#0D9488'), 'Task Type: INSTALLATION gebruikt #0D9488');
 }
 {
-  // Resource-categorie: t-norm heeft 2 resources 1:3 ⇒ twee segmenten met 25%/75%.
+  // Resource-categorie: t-norm heeft 2 resources 1:3 ⇒ twee segmenten met 25%/75%. Voltooiing uit:
+  // t-norm staat op 60%, en het voltooide deel is grijs (`paintProgressBarPiece`), dus het eerste
+  // stuk zou anders helemaal grijs zijn. Hier gaat het om de kleurverdeling.
   const { roundRects } = record(FIX_TASKS, [], cal, baseOptions({
     barColorSelection: { mode: 'category', field: { src: 'resource' } },
-    resources: [R1, R2], assignments: FIX_ASG,
+    resources: [R1, R2], assignments: FIX_ASG, showCompletion: false,
   }));
   const fills = roundRects.filter(r => r.mode === 'fill' && r.h > 10 && r.h < 20 && r.w > 3);
   const seg1 = fills.find(r => r.color === '#111111');

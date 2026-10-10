@@ -8,9 +8,10 @@ import type { Draw2D } from '@/services/pdf/draw2d';
 import { CanvasDraw2D } from '@/services/pdf/canvasDraw2d';
 import { printableWidthLogicalPx, type TileLayout } from '@/services/print/tileLayout';
 // Print-vriendelijk kleurschema uit het centrale themapalet.
-import { PRINT_PALETTE as PRINT_COLORS } from '@/engine/renderer/themePalette';
+import { PRINT_PALETTE as PRINT_COLORS, doneBarTones } from '@/engine/renderer/themePalette';
 import { isCompressedEffective, resolveGanttAxis } from '@/engine/renderer/workdayAxis';
 import { computeSplitSegments } from '@/engine/renderer/splitBarGeometry';
+import { paintProgressBarPiece } from '@/engine/renderer/barPaint';
 import { snapToChoice } from '@/utils/numberChoice';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 // Balkkleurmodi: pure adviesmodule — de printlaag vertaalt alleen naar
@@ -1360,10 +1361,16 @@ export function renderReport(
       const barY = y + barHeight * 0.3;
       const barH = barHeight * 0.3;
 
-      d2d.fillStyle = PRINT_COLORS.summary;
-      d2d.fillRect(x1, barY, width, barH);
+      // Voortgang zoals op het scherm: het voltooide deel van de fase is grijs
+      // (`paintProgressBarPiece`); de linkerkap is grijs zodra er voortgang is, de rechterkap pas
+      // bij 100%.
+      const sumCompletion = options.showCompletion ? Math.max(0, Math.min(1, task.time.completion || 0)) : 0;
+      const sumProgressX = sumCompletion >= 1 ? Infinity : sumCompletion > 0 ? rawX1 + (rawX2 - rawX1) * sumCompletion : -Infinity;
+      const sumGrey = doneBarTones(PRINT_COLORS.summary, false).fill;
+      paintProgressBarPiece(d2d, x1, x1 + width, barY, barH, 0, PRINT_COLORS.summary, sumProgressX, false);
 
       // Left triangle
+      d2d.fillStyle = sumCompletion > 0 ? sumGrey : PRINT_COLORS.summary;
       if (x1 === rawX1) {
         d2d.beginPath();
         d2d.moveTo(x1, barY);
@@ -1374,6 +1381,7 @@ export function renderReport(
       }
 
       // Right triangle
+      d2d.fillStyle = sumCompletion >= 1 ? sumGrey : PRINT_COLORS.summary;
       if (x2 === rawX2) {
         d2d.beginPath();
         d2d.moveTo(x1 + width, barY);
@@ -1424,6 +1432,13 @@ export function renderReport(
         d2d.stroke();
       }
 
+      // Voortgang zoals op het scherm (één tekenregel, `paintProgressBarPiece`): het voltooide deel
+      // is bleek en grijs, de rest houdt zijn kleur; bij 100% is de hele balk grijs. Eén globale
+      // voortgangsgrens over de volle taakduur, dus nooit kleur over de tijdgaten.
+      const completion = options.showCompletion ? task.time.completion : 0;
+      const isDone = completion >= 1;
+      const progressX = isDone ? Infinity : completion > 0 ? rawX1 + width * completion : -Infinity;
+
       for (const s of segs) {
         // De minimumbreedte (3 px, 2 bij splits) op de RUWE maat, en het einde bij een venster op de
         // chartrand geklemd zodat dat minimum er niet overheen steekt.
@@ -1449,16 +1464,12 @@ export function renderReport(
             const vx1 = windowed ? Math.max(sx, m.tableWidth) : sx;
             const vx2 = windowed ? Math.min(sx + w, canvasWidth) : sx + w;
             if (!windowed || vx2 > vx1) {
-              d2d.fillStyle = seg.color;
-              d2d.roundRect(vx1, y, vx2 - vx1, barHeight, si === 0 ? 3 : 0);
-              d2d.fill();
+              paintProgressBarPiece(d2d, vx1, vx2, y, barHeight, 3, seg.color, progressX, false, si === 0, isLast);
             }
             sx += w;
           });
         } else {
-          d2d.fillStyle = advies.fill;
-          d2d.roundRect(sx1, y, sw, barHeight, 3);
-          d2d.fill();
+          paintProgressBarPiece(d2d, sx1, sx1 + sw, y, barHeight, 3, advies.fill, progressX, false);
         }
         if (advies.outline) {
           d2d.strokeStyle = advies.outline;
@@ -1468,26 +1479,10 @@ export function renderReport(
         }
       }
 
-      // Eén globale voortgangsgrens over de volle taakduur, maar nooit kleur over de tijdgaten.
-      if (options.showCompletion && task.time.completion > 0) {
-        const progressEnd = clampX(rawX1 + width * task.time.completion);
-        d2d.fillStyle = 'rgba(0, 0, 0, 0.25)';
-        for (const s of segs) {
-          const sw = Math.max(s.x2 - s.x1, split ? 2 : 3);
-          if (progressEnd > s.x1) {
-            const pw = Math.min(s.x1 + sw, progressEnd) - s.x1;
-            if (pw > 0) {
-              d2d.beginPath();
-              d2d.roundRect(s.x1, y, pw, barHeight, 3);
-              d2d.fill();
-            }
-          }
-        }
-      }
-
       // Float indicator — tot het einde van "Laatste einde" (`floatBandEnd`, dezelfde helper als
       // het scherm en het datumbereik hierboven), op dagniveau zoals de balk zelf.
-      const bandEnd = options.showFloat ? floatBandEnd(task, true) : null;
+      // Een voltooide taak heeft geen speling meer om te bewaken (zelfde regel als het scherm).
+      const bandEnd = options.showFloat && !isDone ? floatBandEnd(task, true) : null;
       const floatEndX = bandEnd ? clampX(dateToX(bandEnd)) : x2;
       if (bandEnd && floatEndX > x2) {
         d2d.fillStyle = PRINT_COLORS.float + '40';
@@ -2697,6 +2692,13 @@ function drawFooter(
         d2d.closePath();
         d2d.fill();
       } });
+      // Voltooid: dezelfde tekenregel als de balken (half grijs, half normale kleur), zodat het
+      // blokje precies laat zien wat het grijs in de balk betekent.
+      if (options.showCompletion && printRows.some(row => row.kind === 'task' && (row.task?.time.completion ?? 0) > 0)) {
+        items.push({ label: lg?.completion ?? 'Voltooid', draw: (x) => {
+          paintProgressBarPiece(d2d, x, x + swatchW, midY - m.s(4), m.s(8), m.s(2), PRINT_COLORS.normal, x + swatchW / 2, false);
+        } });
+      }
       if (options.showFloat) {
         items.push({ label: lg?.float ?? 'Speling', draw: (x) => {
           d2d.fillStyle = PRINT_COLORS.float + '40';

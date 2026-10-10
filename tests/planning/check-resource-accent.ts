@@ -2,7 +2,7 @@
  * Resource-accent op het scherm (#21 punt 1-nieuw) — regressiebatterij.
  *
  * Bewaakt: met `showResourceAccent: true` tekent de renderer onder élke bladbalk met resources een
- * dun streepje (h = 3, direct onder de balk) dat bij meerdere resources gesegmenteerd is naar rato
+ * dun streepje (h = `barLayout(rowHeight).accentHeight`, direct onder de balk) dat bij meerdere resources gesegmenteerd is naar rato
  * van unitsPerDay; zonder vlag (of `false`) tekent hij niets extra. Mijlpalen en samenvattingstaken
  * krijgen géén accent (geen bladbalk). De balkvulling zelf verandert nooit door de vlag — alleen
  * het streepje komt erbij (supplement, geen vervanging).
@@ -13,6 +13,8 @@
 import { useAppStore } from '@/state/appStore';
 import { paletteColorForId } from '@/engine/renderer/resourcePalette';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
+import { barLayout } from '@/engine/renderer/rowGeometry';
+import { doneBarTones } from '@/engine/renderer/themePalette';
 import type { Task } from '@/types/task';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { BarColorSelection } from '@/types/barColor';
@@ -112,11 +114,12 @@ function render(showResourceAccent: boolean, over: {
   return { fillRects, shapes };
 }
 
-// De balk zelf: rowH 28, barH ≈ 0.55×28 ≈ 15; balk-y ≈ hdrH + (rowH−barH)/2 ≈ 60 + 6.5 = 66.5.
-// Het accent: y ≈ balkY + barH + 1 ≈ 82.5, h = 3 — uniek herkenbaar aan h === 3 onder de kopstrook.
+// Balk, accent en baseline komen uit `barLayout(ROWH)`. Het accent staat op y = balkY + barH + 1
+// en is uniek herkenbaar aan zijn hoogte (`ACCENT_H`) onder de kopstrook.
 // Bewust GEEN x-filter op een tabelgrens: de renderer bezit alleen de tijdlijn en een taak op de
 // projectstart begint daarom op x = 0.
-const accents = (rects: Rect[]) => rects.filter(r => r.h === 3 && r.y > HDRH);
+const ACCENT_H = barLayout(ROWH).accentHeight;
+const accents = (rects: Rect[]) => rects.filter(r => r.h === ACCENT_H && r.y > HDRH);
 
 {
   const { fillRects: on } = render(true);
@@ -135,7 +138,8 @@ const accents = (rects: Rect[]) => rects.filter(r => r.h === 3 && r.y > HDRH);
 }
 
 // Baseline en resource-accent zijn twee onafhankelijke onderbalken. Als beide aan staan, mogen ze
-// elkaar niet bedekken: de baseline begint pas onder het volledige 3px-resource-accent.
+// elkaar niet bedekken: de baseline begint pas onder het volledige resource-accent. De baseline
+// houdt in elke combinatie dezelfde hoogte (`barLayout`), met of zonder accent.
 {
   const { fillRects, shapes } = render(true, { baseline: true });
   const a = accents(fillRects);
@@ -148,6 +152,10 @@ const accents = (rects: Rect[]) => rects.filter(r => r.h === 3 && r.y > HDRH);
     ok(baseline.y + baseline.h <= HDRH + ROWH,
       `baseline-combinatie: gestapelde baseline blijft binnen de rij (eindigt ${baseline.y + baseline.h}, rij eindigt ${HDRH + ROWH})`);
   }
+  const alone = render(false, { baseline: true }).shapes.find(sh => sh.fill === '#6B7280' && sh.h < 10);
+  ok(!!alone && !!baseline && Math.abs(alone.h - baseline.h) < 1e-9,
+    `baseline-hoogte gelijk met en zonder accent (alleen ${alone?.h}, met accent ${baseline?.h})`);
+  ok(!!alone && Math.abs(alone.h - barLayout(ROWH).baselineHeight) < 1e-9, 'baseline-hoogte volgt barLayout');
 }
 
 // ── Donker thema: te donkere resourcekleuren verlicht (#21 user-bevinding) ──────────────────────
@@ -182,6 +190,7 @@ const barShapes = (shapes: RoundShape[]) => shapes.filter(sh => sh.h > 10 && sh.
   // Resource-categorie: 1:3-toewijzing ⇒ twee segmentvullingen in de resourcekleuren.
   const { shapes } = render(false, { selection: { mode: 'category', field: { src: 'resource' } } });
   const bars = barShapes(shapes);
+  // Balkvlakken zijn effen in de basiskleur.
   const seg1 = bars.find(b => b.fill === '#111111');
   const seg2 = bars.find(b => b.fill === '#222222');
   ok(!!seg1 && !!seg2, `scherm resource-modus: beide segmenten getekend (fills: ${[...new Set(bars.map(b => b.fill))].join(', ')})`);
@@ -215,13 +224,28 @@ const barShapes = (shapes: RoundShape[]) => shapes.filter(sh => sh.h > 10 && sh.
     const b = parseInt(hex.slice(5, 7), 16) / 255;
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
   };
-  ok(bars.filter(b => b.stroke === '').every(b => lum(b.fill) >= 0.33), `scherm resource-modus donker: elke vulling zichtbaar (fills: ${[...new Set(bars.filter(b => b.stroke === '').map(b => b.fill))].join(', ')})`);
+  ok(bars.length > 0 && bars.every(b => lum(b.fill) >= 0.33), `scherm resource-modus donker: elke vulling zichtbaar (fills: ${[...new Set(bars.map(b => b.fill))].join(', ')})`);
 }
 {
   // Zonder selectie: critical is de veilige default.
   const { shapes } = render(false);
   const bars = barShapes(shapes);
-  ok(!bars.some(b => b.fill === paletteColorForId(task.id) && b.stroke === ''), 'default: geen moduskleuren');
+  ok(!bars.some(b => b.fill === paletteColorForId(task.id)), 'default: geen moduskleuren');
+}
+
+{
+  // Voortgang in resource-modus: het voltooide deel van elk kleurstuk wordt het grijs van ZIJN
+  // EIGEN kleur (`doneBarTones`). Bij 60% voortgang overlapt de voortgang beide stukken (25/75),
+  // dus moeten beide grijzen verschijnen, en het tweede stuk houdt rechts zijn eigen kleur.
+  const half: Task = { ...task, time: { ...task.time, completion: 0.6 } };
+  const { shapes } = render(false, { task: half, selection: { mode: 'category', field: { src: 'resource' } } });
+  const fills = new Set(barShapes(shapes).map(b => b.fill.toLowerCase()));
+  const p1 = doneBarTones('#111111', false).fill.toLowerCase();
+  const p2 = doneBarTones('#222222', false).fill.toLowerCase();
+  ok(fills.has(p1) && fills.has(p2),
+    `scherm resource-modus: voortgang per segment in eigen afgeleide kleur (${p1}, ${p2}; fills: ${[...fills].join(', ')})`);
+  ok(!fills.has('rgba(0, 0, 0, 0.25)'), 'scherm resource-modus: geen vaste 25%-zwartlaag meer');
+  ok(fills.has('#222222'), `scherm resource-modus: tweede stuk houdt rechts van de voortgang zijn kleur (fills: ${[...fills].join(', ')})`);
 }
 
 // Resource accent is een onafhankelijke overlay: exact dezelfde twee strepen bij elke selectie.

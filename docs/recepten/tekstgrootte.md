@@ -46,8 +46,12 @@ op een rolmaat uitkomt, op 100% en 125%.
 
 ## Buiten de rollen
 
-- **Canvas, PDF, print** (`src/engine/`, `src/services/`) rekenen in eigen eenheden en krijgen de
-  schaal als getal mee — geen CSS, dus geen rollen.
+- **Schermcanvas** (Gantt-tijdlijn, histogram) leest geen CSS, maar gebruikt wél de rollen: via
+  `canvasFont('<rol>', schaal, familie)` uit `src/engine/renderer/textRoles.ts`, nooit een losse
+  px-maat. `TEXT_ROLE_PX` daar is een spiegel van het `@theme`-blok; `verify:text-roles` faalt als
+  de twee uit elkaar lopen.
+- **PDF, print** (`src/services/`) rekenen in eigen eenheden en krijgen de schaal als getal mee —
+  geen CSS, dus geen rollen.
 - **SVG-`<text fontSize={9}>`** rekent in viewBox-eenheden.
 - **Een echte uitzondering in de DOM** krijgt op de regel zelf, in commentaar, de markering
   `text-roles: <reden>` (zie `ScreenshotAnnotator.tsx`: annotatietekst volgt de schaal van de
@@ -61,4 +65,5 @@ door negen losse maten terug te brengen; elke nieuwe rol is een stap terug.
 1. `--text-<naam>: calc(<n>px * var(--ui-font-scale, 1));` in het `@theme static`-blok.
 2. `<naam>` toevoegen aan `ROLES` in `scripts/verify-text-roles.mjs` en de px-waarde aan `ROLE_PX`
    in `tests/browser/text-roles.spec.ts`.
-3. De tabel hierboven en de sectie *Tekstgroottes* in `.claude/rules/text-roles.md` bijwerken.
+3. Dezelfde rol met dezelfde px-waarde in `TEXT_ROLE_PX` (`src/engine/renderer/textRoles.ts`).
+4. De tabel hierboven en de sectie *Tekstgroottes* in `.claude/rules/text-roles.md` bijwerken.

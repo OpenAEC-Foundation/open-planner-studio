@@ -58,7 +58,7 @@
     "milestone": "Traguardo",
     "summary": "Riepilogo",
     "float": "Margine",
-    "completion": "Avanzamento",
+    "completion": "Completato",
     "relationStyle": "Determinante / non determinante",
     "categoriesMore_one": "… e {{count}} altra categoria",
     "categoriesMore_many": "… e {{count}} altre categorie",

@@ -9,8 +9,8 @@
 // zelf de bijbehorende read*-functie aan. Zo is de renderer puur/headless-testbaar.
 //
 // LET OP: de exacte casing van elke hex is load-bearing — de teken-aanroepen geven de string
-// letterlijk aan `fillStyle`/`strokeStyle` door. Waarden in verschillende casing (bv. Gantt
-// `#991B1B` vs print `#991b1b`) blijven daarom apart en worden NIET samengevoegd.
+// letterlijk aan `fillStyle`/`strokeStyle` door. Waarden die alleen in casing verschillen
+// blijven daarom apart en worden NIET samengevoegd.
 
 /** Leest een CSS-custom-property van het document-element, met fallback als de var leeg is
  *  (`getComputedStyle(...).getPropertyValue(...).trim() || fallback`). */
@@ -33,21 +33,17 @@ export const GANTT_TRACE_COLORS = {
 // Gemeten (WCAG 2.x), lichte kaart #FAFAFA / donkere kaart #2E3239 / hoog-contrastkaart #0a0a0a:
 //   critical  #DC2626  4,63 / 2,67 / 4,10
 //   normal    #2563EB  4,95 / 2,49 / 3,83
-//   complete  #1D4ED8  6,42 / 1,92 / 2,95
 //   milestone #7C3AED  5,46 / 2,26 / 3,47
 //   baseline  #6B7280  4,63 / 2,66 / 4,10
 // Noem het bij de naam in plaats van het weg te redeneren: op de donkere kaart zakken ze naar
-// 1,92-2,67 en in het HOOG-CONTRASTTHEMA zakt `complete` naar 2,95 — dat is formeel non-conform met
-// WCAG 1.4.11 (die
-// kent geen grootte-uitzondering voor grafische objecten), en in `mode: 'critical'` is de balkkleur
-// de enige drager van "kritiek ja/nee", wat ook 1.4.1 raakt. Die afwijking is aanvaard voor licht
-// en donker. Wat de afruil dráágt is niet de vlakgrootte — de balk is
-// `rowHeight * 0,5`, bij de standaard ROW_HEIGHT 28 dus ~14 px, en in `mode: 'critical'` tekent
-// GanttRenderer er GEEN rand omheen (`modeAdvies` is daar `null`) — maar het LABEL: dat haalt via
-// `barLabelColor` (hieronder) 4,83-6,70 op elke balktint, en dat is wel gemeten.
+// 2,26-2,67 — dat is formeel non-conform met WCAG 1.4.11 (die kent geen grootte-uitzondering voor
+// grafische objecten), en in `mode: 'critical'` is de balkkleur de enige drager van "kritiek
+// ja/nee", wat ook 1.4.1 raakt. Die afwijking is aanvaard voor licht en donker.
+// De taakbalk tekent deze tinten effen; alleen het voltooide deel wordt grijs (`doneBarTones`
+// hieronder, getekend via `paintProgressBarPiece` in barPaint.ts).
 // De speling (`float`) is als enige WEL per thema gescheiden gebleven (`--theme-bar-float`): die
 // band is halfdoorzichtig en draagt geen label, dus hij moet het puur van zijn ondergrond winnen.
-// LET OP 1: deze vijf waarden plus de spelinggroenen staan óók als CSS-var in
+// LET OP 1: deze vier waarden plus de spelinggroenen staan óók als CSS-var in
 // `src/styles/globals.css` (`--color-*` / `--theme-bar-float`). De tekenlaag leest die CSS niet in
 // headless tests, dus de twee bronnen moeten met de hand gelijk blijven.
 // LET OP 2: `--color-critical` is niet alléén een balkkleur. Tailwind v4 leidt er de utility
@@ -61,11 +57,9 @@ export const GANTT_TRACE_COLORS = {
 // documenten valt de mijlpaalmarkering daar samen met de identiteitskleur.
 const BRAND = {
   critical: '#DC2626',          // kritiek (rood)
-  criticalLight: '#991B1B',     // voortgangsvulling kritiek
   nearCritical: '#F59E0B',      // bijna-kritiek (amber)
   hammock: '#0E7490',           // hammock/LOE-balk (teal)
   normal: '#2563EB',            // normale taak (blauw)
-  normalLight: '#1D4ED8',       // voortgangsvulling / voltooid (blauw)
   milestone: '#7C3AED',         // mijlpaal (paars, ruit)
   baseline: '#6B7280',          // baseline-onderbalk (grijs)
   dependency: '#6B7280',        // afhankelijkheidspijl (grijs)
@@ -87,31 +81,12 @@ const FLOAT_PATH_TINTS: string[] = [
 ];
 
 // ── Labelkleur op een gekleurd vlak ──────────────────────────────────────────
-// Een vast wit balklabel is niet houdbaar zodra de balkkleur niet vaststaat:
-// in de kleurmodi (`auto`, resource-, categorie-kleuring) tekent de gebruiker zijn eigen tinten op
-// de balk, en op een lichte eigen kleur is wit onleesbaar. `barLabelColor` kiest daarom per vlak de
-// beste van twee: bijna-zwart (#111827, hetzelfde als PRINT_PALETTE.text) of wit.
-//
-// Met het verzadigde balkpalet (zie BRAND hierboven) wint wit op de VIJF STANDAARD-balktinten.
-// Gemeten (WCAG 2.x), zwart-label / wit-label:
-//   critical   #DC2626  3,67 / 4,83  ⇒ wit
-//   normal     #2563EB  3,43 / 5,17  ⇒ wit
-//   complete   #1D4ED8  2,65 / 6,70  ⇒ wit
-//   milestone  #7C3AED  3,11 / 5,70  ⇒ wit
-//   baseline   #6B7280  3,67 / 4,83  ⇒ wit
-// Ook op de donkere voortgangsvullingen, waar het label vaak op begint, blijft het wit:
-//   criticalLight #991B1B  2,13 / 8,31                       ⇒ wit
-//   moduskleur + 25% zwart (de rgba-overlay), bv. normal      1,84-2,40 / 7,39-9,63 ⇒ wit
-// "Alle balktinten" zou een overclaim zijn: er liggen meer vlakken onder een label, en die kiezen
-// juist ZWART — en dat hoort ook, want daar is zwart aantoonbaar leesbaarder:
-//   nearCritical #F59E0B  8,26 / 2,15  ⇒ zwart      ghost      #94A3B8  6,92 / 2,56  ⇒ zwart
-//   traceSucc    #A78BFA  6,52 / 2,72  ⇒ zwart      tracePred  #F59E0B  8,26 / 2,15  ⇒ zwart
-//   float-pad-tinten #0891B2 / #65A30D / #EA580C / #0D9488     ⇒ zwart (4,74-5,74 / 3,09-3,74)
-// Wit blijft winnen op `hammock` (#0E7490, 3,31 / 5,36) en `successorDriving` (#7C3AED, = milestone).
-// De speling draagt geen label, maar staat hier voor de volledigheid: #10B981 (donker thema)
-// 6,99 / 2,54 ⇒ zwart, #059669 (licht thema) 4,71 / 3,77 ⇒ zwart.
-// De functie is dus geen dode vangrail: hij kiest vandaag al op minstens zeven vlakken zwart, en hij
-// is onmisbaar voor de kleurmodi, waar de balkkleur uit projectdata komt en elke kant op kan.
+// Een vast balklabel is niet houdbaar zodra de balkkleur niet vaststaat: in de kleurmodi (`auto`,
+// resource-, categorie-kleuring) komt de basiskleur uit projectdata. `barLabelColor` kiest daarom
+// per vlak de beste van twee: bijna-zwart (#111827, hetzelfde als PRINT_PALETTE.text) of wit.
+// De taakbalk vraagt het aan voor de basiskleur; op het grijze, voltooide deel gebruikt hij de
+// gedempte tekstkleur van `doneBarTones`, en de labelkleur wisselt precies op de grens.
+// `check-bar-progress` bewaakt het labelcontrast op het grijs.
 
 /** sRGB-hex ⇒ [r,g,b] (0-255). Accepteert `#rgb` en `#rrggbb`. */
 function hexToRgb(hex: string): [number, number, number] | null {
@@ -144,34 +119,10 @@ export const BAR_LABEL_DARK = '#111827';
 export const BAR_LABEL_LIGHT = '#ffffff';
 
 /**
- * Componeert `top` over `base` (beide `#rrggbb`, of `top` als `rgba(r, g, b, a)`), zodat de
- * labelkeuze de kleur ziet die de gebruiker ECHT onder de tekst ziet — de voortgangsvulling is in
- * de kleurmodi een half-transparante zwarte laag over de balkkleur, geen eigen hex.
- * Onparseerbare invoer ⇒ `base` ongewijzigd terug (de labelkeuze valt dan op de balkkleur terug).
- */
-export function compositeOver(top: string, base: string): string {
-  const b = hexToRgb(base);
-  if (!b) return base;
-  const rgba = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/i.exec(top.trim());
-  let t: [number, number, number] | null = null;
-  let alpha = 1;
-  if (rgba) {
-    t = [Number(rgba[1]), Number(rgba[2]), Number(rgba[3])];
-    alpha = rgba[4] === undefined ? 1 : Number(rgba[4]);
-  } else {
-    t = hexToRgb(top);
-  }
-  if (!t) return base;
-  const mix = (i: number): number => Math.round(t![i] * alpha + b[i] * (1 - alpha));
-  const hx = (n: number): string => Math.max(0, Math.min(255, n)).toString(16).padStart(2, '0');
-  return `#${hx(mix(0))}${hx(mix(1))}${hx(mix(2))}`;
-}
-
-/**
  * De leesbaarste labelkleur op `barColor`: bijna-zwart of wit, wie van de twee de hoogste
- * WCAG-contrastverhouding haalt. Eén gebruiksplek: het TAAKBALK-label in `GanttRenderer`, dat op
- * de balkkleur zelf of op de voortgangsvulling staat. Labels op de CANVAS-achtergrond horen bij
- * `palette.text`/`textSecondary` en niet hier.
+ * WCAG-contrastverhouding haalt. Eén gebruiksplek: het TAAKBALK-label in `GanttRenderer`, op de
+ * effen basiskleur van de balk. Labels op de
+ * CANVAS-achtergrond horen bij `palette.text`/`textSecondary` en niet hier.
  * Onparseerbare invoer (een `rgba()`-string, een CSS-var) ⇒ wit.
  */
 export function barLabelColor(barColor: string): string {
@@ -180,6 +131,33 @@ export function barLabelColor(barColor: string): string {
   const dark = contrastRatio(rgb, [17, 24, 39]);
   const light = contrastRatio(rgb, [255, 255, 255]);
   return dark >= light ? BAR_LABEL_DARK : BAR_LABEL_LIGHT;
+}
+
+/** Grijze ondergrond van een voltooide taakbalk per thema; de basiskleur kleurt er nog een fractie
+ *  (`DONE_BAR_HUE`) doorheen, zodat een afgeronde kritieke taak niet volledig anoniem wordt. */
+const DONE_BAR_GREY = { light: '#E5E7EB', dark: '#4E5561' } as const;
+/** Label en vinkje op een voltooide balk: gedempt, maar >= 4,5:1 op `DONE_BAR_GREY`. */
+const DONE_BAR_TEXT = { light: '#4B5563', dark: '#E2E5EA' } as const;
+const DONE_BAR_HUE = 0.08;
+
+export interface DoneBarTones {
+  fill: string;
+  text: string;
+}
+
+/**
+ * Tinten van een taakbalk die 100% voltooid is: bleek en uitgegrijsd, zodat afgerond werk naar
+ * de achtergrond zakt en de blik naar het werk gaat dat nog moet gebeuren.
+ */
+export function doneBarTones(base: string, dark: boolean): DoneBarTones {
+  const grey = dark ? DONE_BAR_GREY.dark : DONE_BAR_GREY.light;
+  const text = dark ? DONE_BAR_TEXT.dark : DONE_BAR_TEXT.light;
+  const g = hexToRgb(grey)!;
+  const b = hexToRgb(base);
+  if (!b) return { fill: grey, text };
+  const hx = (n: number): string => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+  const mix = (i: number): string => hx(g[i] + (b[i] - g[i]) * DONE_BAR_HUE);
+  return { fill: `#${mix(0)}${mix(1)}${mix(2)}`, text };
 }
 
 // ── GanttRenderer ────────────────────────────────────────────────────────────
@@ -199,15 +177,12 @@ export interface GanttPalette {
   text: string;
   textSecondary: string;
   critical: string;
-  criticalLight: string;
   nearCritical: string;
   hammock: string;
   normal: string;
-  normalLight: string;
   milestone: string;
   float: string;
   baseline: string;
-  complete: string;
   selected: string;
   dependency: string;
   today: string;
@@ -247,25 +222,23 @@ export function readGanttPalette(): GanttPalette {
     // De balktinten komen uit BRAND, maar via een thema-var met BRAND als fallback — hetzelfde
     // patroon dat `--theme-bar-float` al had. Licht en donker definiëren die vars NIET, dus daar
     // valt alles terug op BRAND en is de uitkomst gelijk aan een directe `BRAND.x`. Alleen
-    // het hoog-contrastthema zet ze, omdat de verzadigde set daar onder 3:1 zakt (complete 2,95).
+    // het hoog-contrastthema zet ze, omdat de verzadigde set daar onder 3:1 zakt.
     critical: v('--theme-bar-critical', BRAND.critical),
-    criticalLight: v('--theme-bar-critical-progress', BRAND.criticalLight),
     nearCritical: BRAND.nearCritical,
     hammock: BRAND.hammock,
     normal: v('--theme-bar-normal', BRAND.normal),
-    normalLight: v('--theme-bar-complete', BRAND.normalLight),
     milestone: v('--theme-bar-milestone', BRAND.milestone),
     float: v('--theme-bar-float', '#059669'),
     baseline: v('--theme-bar-baseline', BRAND.baseline),
-    // complete deelt bewust één bron met normalLight — het IS dezelfde vulling.
-    complete: v('--theme-bar-complete', BRAND.normalLight),
     selected: v('--theme-accent', '#B45309'),
     dependency: BRAND.dependency,
     today: v('--theme-accent', '#B45309'),
     // statusdatum-/voortgangslijn: accent-oranje, zelfde bron als today/selected
     statusDate: v('--theme-accent', '#B45309'),
     headerBg: v('--theme-surface-alt', '#F6F8FB'),
-    summary: BRAND.summary,
+    // Samenvattingsbalk: het donkere thema zet een lichtere leisteen (`--theme-bar-summary`), anders
+    // valt het grijze, voltooide deel van een fase weg tegen de balk en de balk tegen de kaart.
+    summary: v('--theme-bar-summary', BRAND.summary),
     ghost: BRAND.ghost,
     constraintEarly: BRAND.constraintEarly,
     constraintLate: BRAND.constraintLate,

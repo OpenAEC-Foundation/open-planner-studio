@@ -60,7 +60,7 @@
     "milestone": "Kamień milowy",
     "summary": "Podsumowanie",
     "float": "Zapas",
-    "completion": "Postęp",
+    "completion": "Ukończone",
     "relationStyle": "Wiodąca / niewiodąca",
     "categoriesMore_one": "… i {{count}} kategoria więcej",
     "categoriesMore_few": "… i {{count}} kategorie więcej",

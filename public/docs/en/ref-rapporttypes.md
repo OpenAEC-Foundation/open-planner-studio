@@ -50,7 +50,7 @@ The schedule as a bar chart, with a table on the left and a timeline on the righ
 
 **Task names on bars** — Default: on. Effect: the name of the task on the bar, where there is room.
 
-**Show completion** — Default: on. Effect: a darker part in the bar up to the progress of the task, and the column *Compl.* in the table.
+**Show completion** — Default: on. Effect: the completed part of the bar turns grey, as in the Gantt, and the column *Compl.* appears in the table. A completed task gets no float band.
 
 **Truncate task names** — Default: on. Effect: on cuts names in the table at the width of *Name column:*. Off lets the column grow with the longest name; it then says *The name column adapts to the longest task name*.
 

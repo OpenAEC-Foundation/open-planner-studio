@@ -28,19 +28,23 @@ function eq(label: string, got: unknown, want: unknown): void {
   }
 }
 
-interface Pt { x: number; y: number }
+interface Pt { kind: 'M' | 'L'; x: number; y: number }
+/** Legt alleen padpunten vast die getekend worden terwijl er een streepjespatroon actief is: de
+ *  voortgangslijn (en de statusdatumlijn), niet de balken, labels of vinkjes. */
 function makeCtx(): { ctx: CanvasRenderingContext2D; lines: Pt[] } {
   const lines: Pt[] = [];
   const noop = () => {};
+  let dashed = false;
   const ctx = {
     fillStyle: '', strokeStyle: '', lineWidth: 1, font: '', textAlign: '', textBaseline: '',
     globalAlpha: 1, lineCap: '', lineJoin: '', shadowBlur: 0, shadowColor: '',
     fillRect: noop, strokeRect: noop, clearRect: noop, beginPath: noop, closePath: noop,
-    moveTo: noop, lineTo: (x: number, y: number) => { lines.push({ x, y }); },
+    moveTo: (x: number, y: number) => { if (dashed) lines.push({ kind: 'M', x, y }); },
+    lineTo: (x: number, y: number) => { if (dashed) lines.push({ kind: 'L', x, y }); },
     arc: noop, arcTo: noop, ellipse: noop, rect: noop, roundRect: noop,
     fill: noop, stroke: noop, save: noop, restore: noop, clip: noop,
     translate: noop, scale: noop, rotate: noop,
-    setLineDash: noop, getLineDash: () => [],
+    setLineDash: (d: number[]) => { dashed = d.length > 0; }, getLineDash: () => [],
     fillText: noop, strokeText: noop,
     measureText: (t: string) => ({ width: String(t).length * 6 }),
     createLinearGradient: () => ({ addColorStop: noop }),
@@ -97,20 +101,26 @@ new GanttRenderer(ctx, {
   headerHeight: HDRH,
 }).render();
 
-/** De voortgangslijn tekent per rij `lineTo(statusX, rowTop)` gevolgd door `lineTo(progressX, rowMid)`. */
+/** Per rij tekent de voortgangslijn óf een recht stuk `statusX` van rowTop naar rowBottom, óf een
+ *  uitstulping: twee stukken die op de voortgangspunt (rowMid) BEGINNEN en naar de statusdatumlijn
+ *  lopen. Geeft progressX − statusX terug (0 = recht), of null als de rij geen lijn kreeg. */
 function bend(row: number): number | null {
   const top = HDRH + row * ROWH;
   const mid = top + ROWH / 2;
-  for (let i = 1; i < lines.length; i++) {
-    if (lines[i].y === mid && lines[i - 1].y === top) return lines[i].x - lines[i - 1].x;
-  }
-  return null;
+  const atTop = lines.find(p => p.y === top);
+  if (!atTop) return null;
+  const atMid = lines.find(p => p.y === mid);
+  return atMid ? atMid.x - atTop.x : 0;
 }
 
 eq('Uurtaak die pas op de statusdag start: rechte lijn (tijdzone-onafhankelijk)', bend(0), 0);
 eq('Uurtaak die op de statusdag voltooid is: rechte lijn (tijdzone-onafhankelijk)', bend(1), 0);
 const control = bend(2);
 eq('Controle: een half voltooide taak stulpt uit', control !== null && control !== 0, true);
+// De uitstulping begint met een moveTo OP de punt: dan begint het streepjespatroon daar, en staat er
+// altijd een streepje precies op de voortgangsgrens van de balk (zie drawProgressLine).
+const tip = lines.find(p => p.y === HDRH + 2 * ROWH + ROWH / 2);
+eq('Uitstulping begint op de voortgangspunt', tip?.kind, 'M');
 
 if (diffs.length === 0) {
   console.log(`OK  gantt-progress-line: alle checks groen (${checks})`);

@@ -58,7 +58,7 @@
     "milestone": "Marco",
     "summary": "Resumo",
     "float": "Folga",
-    "completion": "Conclusão",
+    "completion": "Concluído",
     "relationStyle": "Determinante / não determinante",
     "categoriesMore_one": "… e {{count}} outra categoria",
     "categoriesMore_many": "… e {{count}} outras categorias",

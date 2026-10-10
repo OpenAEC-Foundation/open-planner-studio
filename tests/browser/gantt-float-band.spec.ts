@@ -42,8 +42,10 @@ test('de spelingsband eindigt op "Laatste einde", ook over een weekend', async (
   // het einde van die dag. Ter controle: dat ligt 14 kalenderdagen (12 px) rechts van de balk.
   expect(cLeft.x - aRight.x).toBeCloseTo(14 * 12, 0);
 
-  // Lees de canvasrij van A vanaf de balkrand en zoek waar het band-groen ophoudt. Wacht tot de
-  // band geschilderd is (de F5-berekening plant een nieuwe paint).
+  // Lees de canvasrij van A en zoek waar het band-groen ophoudt. Begin 30 px vóór "Laatste einde",
+  // niet bij de balkrand: de naam "A kort" past niet in de smalle balk en staat rechts erachter,
+  // óp het begin van de band (GanttRenderer `drawOutsideBarName`). Wacht tot de band geschilderd is
+  // (de F5-berekening plant een nieuwe paint).
   const scanBandEnd = () => page.evaluate(({ x0, y }) => {
     const canvas = [...document.querySelectorAll('canvas')].find(c => {
       const r = c.getBoundingClientRect();
@@ -57,10 +59,20 @@ test('de spelingsband eindigt op "Laatste einde", ook over een weekend', async (
     const green = (i: number) => data[i * 4 + 1] > data[i * 4] + 25 && data[i * 4 + 1] > data[i * 4 + 2] + 5;
     const start = Math.round((x0 - r.left) * sx) + 2;
     if (!green(start)) return null;
+    // De band is halfdoorzichtig en gearceerd: een dagrasterlijn schemert erdoorheen en is dan
+    // niet groen genoeg. Sla daarom korte niet-groene stukjes (<= 3 px) over; de band houdt pas
+    // op waar er daarna geen groen meer volgt.
+    const GAP = 3;
     let end = start;
-    while (end < canvas.width && green(end)) end++;
+    while (end < canvas.width) {
+      if (green(end)) { end++; continue; }
+      let k = 1;
+      while (k <= GAP && end + k < canvas.width && !green(end + k)) k++;
+      if (k > GAP || end + k >= canvas.width) break;
+      end += k;
+    }
     return end / sx + r.left;
-  }, { x0: aRight.x, y: aRight.y });
+  }, { x0: cLeft.x - 30, y: aRight.y });
 
   await expect.poll(scanBandEnd, { message: 'geen spelingsband achter de balk van A geschilderd' }).not.toBeNull();
   const bandEnd = (await scanBandEnd())!;

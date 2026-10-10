@@ -56,7 +56,7 @@
     "milestone": "Meilenstein",
     "summary": "Zusammenfassung",
     "float": "Puffer",
-    "completion": "Fertigstellung",
+    "completion": "Erledigt",
     "relationStyle": "Maßgebend / nicht maßgebend",
     "categoriesMore_one": "… und {{count}} weitere Kategorie",
     "categoriesMore_other": "… und {{count}} weitere Kategorien"

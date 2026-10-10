@@ -63,8 +63,8 @@ function makeCtx(): { ctx: CanvasRenderingContext2D; rects: Rect[] } {
   };
   return { ctx: ctx as unknown as CanvasRenderingContext2D, rects };
 }
-// Zelfde fallbackkleur als check-gantt-float-cull.ts: `--theme-bar-float` op 60% dekking.
-const SCREEN_FLOAT = '#05966999';
+// Zelfde fallbackkleur als check-gantt-float-cull.ts: `--theme-bar-float` op 25% dekking (onder de arcering).
+const SCREEN_FLOAT = '#05966940';
 
 function renderScreen(viewStartDate: string, zoom: number, extra: Record<string, unknown> = {}) {
   const { ctx, rects } = makeCtx();

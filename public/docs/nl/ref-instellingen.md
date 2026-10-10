@@ -90,7 +90,7 @@ Deze keuzes bewaart de app ook op dit apparaat, maar je stelt ze in bij het onde
 
 **Resource-accent** — een dun streepje in de resourcekleur onder de taakbalk. Standaard: uit. Waar: *Beeld › Baselines & voortgang › Resource-accent*.
 
-**Spelingsband** — de speling als band achter niet-kritieke balken. Standaard: aan. Waar: *Beeld › Baselines & voortgang › Spelingsband*.
+**Spelingsband** — de speling als band achter niet-kritieke balken; niet bij voltooide taken. Standaard: aan. Waar: *Beeld › Baselines & voortgang › Spelingsband*.
 
 **Balkkleuren** — waar de kleur van een balk van afhangt. Keuze uit *Kritiek pad*, *Per taak — automatisch* en *Op categorie*. Standaard: *Kritiek pad*. Effect: geldt voor de Gantt en het rapport tegelijk. Waar: *Beeld › Baselines & voortgang › Balkkleuren*.
 

@@ -3,18 +3,16 @@
 // Het balklabel was ooit hardgecodeerd wit. Dat is niet houdbaar zodra de balkkleur uit projectdata
 // komt: in de kleurmodi (`auto`, resource- en categoriekleuring) kiest de gebruiker zijn eigen
 // tinten, en op een lichte eigen kleur is wit onleesbaar. `barLabelColor` kiest daarom per vlak
-// zwart of wit, op de gemeten WCAG-contrastverhouding — en `compositeOver` lost de half-
-// transparante voortgangslaag eerst op tot een echte hex, zodat de keuze het vlak ziet dat de
-// gebruiker ONDER de tekst ziet.
+// zwart of wit, op de gemeten WCAG-contrastverhouding. De taakbalk vraagt het aan voor zijn effen
+// basiskleur; het label op het grijze, voltooide deel bewaakt check-bar-progress.
 //
 // Sinds het kleurherstel van 18-09-2026 (verzadigde merktinten terug op de balken) wint WIT op de
 // VIJF STANDAARD-balktinten — het beeld van vóór werkblok U2 dus, maar nu gemeten in plaats van
 // aangenomen. "Alle balktinten" zou onjuist zijn: nearCritical, ghost en de trace-/float-pad-tinten
 // liggen ook onder een label en kiezen juist zwart. Die staan hieronder apart gepind, want dat
 // gedrag is even belangrijk om te bewaken als het witte geval.
-// Deze check pint de uitkomst per vlak (niet de formule): wit op de vijf standaardtinten, wit op de
-// donkere kritieke voortgangsvulling en op de 25%-zwart-overlay, zwart op de spelinggroenen en op de
-// lichte niet-standaardtinten. `contrastRatio` wordt daarbij gebruikt als onafhankelijke meting: de
+// Deze check pint de uitkomst per vlak (niet de formule): wit op de standaardtinten, zwart op de
+// spelinggroenen en op de lichte niet-standaardtinten. `contrastRatio` wordt daarbij gebruikt als onafhankelijke meting: de
 // gekozen kleur moet aantoonbaar de hoogste verhouding halen van de twee kandidaten, en minimaal
 // 3:1 (grote/vette tekst, WCAG AA).
 //
@@ -27,7 +25,6 @@ g.getComputedStyle = () => ({ getPropertyValue: () => '' });
 import {
   barLabelColor,
   contrastRatio,
-  compositeOver,
   BAR_LABEL_DARK,
   BAR_LABEL_LIGHT,
 } from '@/engine/renderer/themePalette';
@@ -66,12 +63,11 @@ function expectLabel(label: string, vlak: string, verwacht: string, minRatio: nu
   ok(`${label} (${vlak}): contrast ${gekozen.toFixed(2)} >= ${minRatio}`, gekozen >= minRatio);
 }
 
-// ── De vijf balktinten: wit label ───────────────────────────────────────────
+// ── De vier merktinten: wit label ───────────────────────────────────────────
 // Exact de hexen uit BRAND/readGanttPalette die als BALKVLAK onder een label kunnen liggen.
 const BALKTINTEN: [string, string][] = [
   ['kritiek', '#DC2626'],
   ['normaal', '#2563EB'],
-  ['voltooid/normalLight', '#1D4ED8'],
   ['mijlpaal', '#7C3AED'],
   ['baseline', '#6B7280'],
 ];
@@ -80,7 +76,7 @@ for (const [naam, hex] of BALKTINTEN) {
 }
 
 // ── De speling: zwart label ─────────────────────────────────────────────────
-// De spelingband draagt zelf GEEN label; hij wordt getekend als `colors.float + '99'` en er komt
+// De spelingband draagt zelf GEEN label; hij wordt getekend als `colors.float + '40'` plus arcering en er komt
 // nooit tekst overheen. Hij staat hier puur als functiedekking: het is wel een tint uit hetzelfde
 // palet, en de enige die per thema verschilt (`--theme-bar-float`). Beide waarden gepind, zodat een
 // toekomstige groentint die naar wit-label zou kantelen hier opvalt.
@@ -115,20 +111,6 @@ for (const [naam, hex] of ZWARTE_VLAKKEN) {
 // "alles buiten de vijf is zwart", en dat is het niet.
 expectLabel('balkvlak hammock', '#0E7490', BAR_LABEL_LIGHT, 4.5);
 expectLabel('balkvlak traceSuccDriving', '#7C3AED', BAR_LABEL_LIGHT, 4.5);
-
-// ── De donkere kritieke voortgangsvulling: wit label ────────────────────────
-expectLabel('voortgangsvulling kritiek', '#991B1B', BAR_LABEL_LIGHT, 4.5);
-
-// ── De 25%-zwart-overlay (modi/trace-tint): wit label op elke balktint ──────
-// In de kleurmodi en bij een trace-tint is de voortgangsvulling geen eigen hex maar
-// `rgba(0, 0, 0, 0.25)` over de balkkleur — precies de string die GanttRenderer gebruikt.
-const OVERLAY = 'rgba(0, 0, 0, 0.25)';
-for (const [naam, hex] of [...BALKTINTEN, ...FLOATTINTEN]) {
-  const vlak = compositeOver(OVERLAY, hex);
-  ok(`overlay op ${naam}: compositeOver geeft een echte hex`, /^#[0-9a-f]{6}$/i.test(vlak));
-  ok(`overlay op ${naam} is donkerder dan de balk zelf`, rgbOf(vlak).every((c, i) => c <= rgbOf(hex)[i]));
-  expectLabel(`25%-zwart-overlay op ${naam}`, vlak, BAR_LABEL_LIGHT, 3);
-}
 
 // ── Randgeval: onparseerbare invoer valt terug op wit (het vroegere gedrag) ──
 eq('onparseerbare rgba() ⇒ wit', barLabelColor('rgba(1,2,3,0.5)'), BAR_LABEL_LIGHT);

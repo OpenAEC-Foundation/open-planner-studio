@@ -54,7 +54,7 @@
     "milestone": "マイルストーン",
     "summary": "サマリー",
     "float": "フロート",
-    "completion": "進捗",
+    "completion": "完了",
     "relationStyle": "駆動 / 非駆動",
     "categoriesMore_other": "… 他{{count}}カテゴリ"
   },

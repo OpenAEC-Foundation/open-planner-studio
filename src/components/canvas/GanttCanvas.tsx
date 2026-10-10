@@ -64,12 +64,13 @@ import { useGanttPointerCoordinator } from './hooks/useGanttPointerCoordinator';
 import { editableSplitPieces } from './hooks/useBarDrag';
 import { removeGap } from '@/engine/scheduler/splitEdit';
 import { useGanttRowDragBridge } from './ganttRowDragBridge';
+import { TASK_ROW_HEIGHT } from '@/engine/taskGrid/rowHeight';
 import type { HistogramRenderInput } from './hooks/ganttCoordinatorTypes';
 
 // Basisgeometrie op Tekengrootte 100%: de component leidt hieruit de EFFECTIEVE
 // `rowHeight`/`headerHeight` af (× ui.uiFontScale/100) — gebruik binnen de component die geschaalde
 // waarden, nooit deze constanten direct, anders lopen tekenen en hit-testen uit de pas.
-const ROW_HEIGHT = 28;
+const ROW_HEIGHT = TASK_ROW_HEIGHT; // gedeeld met FullTaskGrid (`taskGrid/rowHeight.ts`)
 const HEADER_HEIGHT = 50;
 // Dikte van de ZWEVENDE scrollbalken over de panes (horizontaal en verticaal).
 // Exact de `::-webkit-scrollbar`-maat uit globals.css (8px) — NIET ruimer: meer levert een dode
@@ -183,7 +184,7 @@ export function GanttCanvas({
   // De Tekengrootte-instelling (ui.uiFontScale). De DOM-chrome schaalt via de rem-basis
   // (`--ui-font-scale` in App.tsx), maar een canvas leest geen CSS — de factor gaat daarom als
   // `fontScale` mee naar de renderer, en schaalt hier óók de rij-/headerhoogte: zonder dat zou
-  // grotere tekst in de vaste 28px-rij clippen. Alle hit-tests, overlays en scrollgrenzen hieronder
+  // grotere tekst in de vaste basisrij clippen. Alle hit-tests, overlays en scrollgrenzen hieronder
   // rekenen met dezelfde geschaalde waarden, zodat tekenen en aanwijzen op de pixel blijven kloppen.
   const uiFontScale = useAppStore(s => s.ui.uiFontScale);
   const fontScale = uiFontScale / 100;

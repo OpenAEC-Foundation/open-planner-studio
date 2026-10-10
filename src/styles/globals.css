@@ -73,7 +73,7 @@
   white-space: nowrap;
 }
 
-/* Een editorpop-over is bewust breder/hoger dan zijn 28px-cel. De gewone celinhoud blijft
+/* Een editorpop-over is bewust breder/hoger dan zijn 32px-cel. De gewone celinhoud blijft
  * ellipsized, maar de actieve editor mag niet door die wrapper worden afgeknipt: anders zijn
  * dropdowns en chipknoppen wel in de DOM aanwezig maar fysiek niet aanklikbaar.
  * Issue #89: de contentspan is een flex-item van de cel en kromp zonder `flex: 1 1 auto` tot de
@@ -1341,14 +1341,11 @@ button.task-grid-relation-reference {
      #2E3239 / hoog-contrastkaart #0a0a0a / wit-label-op-balk:
        critical  #DC2626  4.63 / 2.67 / 4.10 / 4.83
        normal    #2563EB  4.95 / 2.49 / 3.83 / 5.17
-       complete  #1D4ED8  6.42 / 1.92 / 2.95 / 6.70
        milestone #7C3AED  5.46 / 2.26 / 3.47 / 5.70
        baseline  #6B7280  4.63 / 2.66 / 4.10 / 4.83
-     Die 3:1-eis is dus opgegeven, en niet alleen op de donkere kaart: in het HOOG-CONTRASTTHEMA
-     zakt `complete` naar 2.95. Formeel is dat non-conform met WCAG 1.4.11 — bewust aanvaard voor
-     licht en donker; voor hoog contrast staat het open (zie themePalette.ts). Wat de afruil draagt
-     is het LABEL (4.83-6.70), niet de vlakgrootte: de balk is ~14 px hoog en heeft in de
-     standaardmodus geen rand. De speling (`--theme-bar-float`) is als enige WEL per thema
+     Die 3:1-eis is dus opgegeven op de donkere kaart; formeel is dat non-conform met WCAG 1.4.11 —
+     bewust aanvaard voor licht en donker. De taakbalk tekent deze tinten effen; alleen het voltooide
+     deel wordt grijs (`doneBarTones` in themePalette.ts). De speling (`--theme-bar-float`) is als enige WEL per thema
      gescheiden: die band is halfdoorzichtig en draagt geen label, dus hij moet het puur van zijn
      ondergrond winnen (donker #10B981 op #2E3239 = 5.07; licht #059669 op #FAFAFA = 3.61;
      hoog contrast houdt zijn eigen #34D399).
@@ -1362,7 +1359,6 @@ button.task-grid-relation-reference {
   --color-task-milestone: #7C3AED;
   --color-task-float: #10B981;
   --color-task-baseline: #6B7280;
-  --color-task-complete: #1D4ED8;
 }
 
 /* Dark theme — OpenAEC default
@@ -1403,6 +1399,9 @@ button.task-grid-relation-reference {
   --theme-grid-milestone-text: #A78BFA;
   /* Spelingband, donker thema: 5,07:1 op de donkere kaart (#2E3239). */
   --theme-bar-float: #10B981;
+  /* Samenvattingsbalk, donker thema: lichtere leisteen (slate-400), 5,0:1 op de donkere kaart
+     (#2E3239). Het merk-#475569 haalde daar maar 1,7 en viel samen met het grijs van voltooid werk. */
+  --theme-bar-summary: #94A3B8;
   --theme-critical-text: #F87171;
   --theme-input-bg: #23262D;
   --theme-dropdown-bg: #2E3239;
@@ -1453,6 +1452,9 @@ button.task-grid-relation-reference {
   /* Lagen: --theme-bg is de getinte werkruimte (achter de kaarten); --theme-surface zijn de
      kaarten/chrome (bewust géén #FFFFFF — dat blijft over voor wat er bovenop zweeft: inputs,
      dropdowns, dialogen via --theme-surface-elevated). */
+  /* Samenvattingsbalk: het merk-leisteen. Expliciet, want het donkere blok hierboven geldt ook voor
+     `:root` en zet een lichtere tint. */
+  --theme-bar-summary: #475569;
   --theme-bg: #E5E5E8;
   --theme-surface: #FAFAFA;
   --theme-surface-alt: #F1F1F3;
@@ -1569,13 +1571,11 @@ button.task-grid-relation-reference {
      --theme-grid-milestone-text) zodat balk en tekst dezelfde taal spreken.
      Gemeten (WCAG 2.x) op #0a0a0a:
        critical          #FF6B6B   7.13
-       critical-progress #FFC2C2  12.96   (voortgangsvulling; #991B1B haalde 2.38 — donkere vlek)
        normal            #60A5FA   7.79
-       complete          #BFDBFE  13.93   (voortgang/voltooid; #1D4ED8 haalde 2.95)
        milestone         #D9A6FF  10.23
        baseline          #9CA3AF   7.80
-     De voortgangsvulling is hier LICHTER dan de balk, niet donkerder: op een zwarte kaart is
-     "donkerder" onzichtbaar. Normal->complete houdt RGB-afstand 109, critical->progress 123.
+     De taakbalk tekent deze tinten effen en maakt het voltooide deel grijs (`doneBarTones` in
+     themePalette.ts); een aparte voortgangsvar is daardoor niet nodig.
      REIKWIJDTE, expliciet: deze vars sturen uitsluitend de CANVAS-renderers (Gantt, histogram,
      minimap) via readGanttPalette/readHistogramPalette/readMiniMapPalette. De app-brede
      `--color-*`-designtokens hierboven blijven in ELK thema de verzadigde merkset — dus het
@@ -1586,9 +1586,7 @@ button.task-grid-relation-reference {
      lezen nog steeds BRAND. nearCritical heeft in dit thema al het geblokte vulpatroon
      (fase 2.9 §5.4) en heeft aan kleur alleen niet genoeg. */
   --theme-bar-critical: #FF6B6B;
-  --theme-bar-critical-progress: #FFC2C2;
   --theme-bar-normal: #60A5FA;
-  --theme-bar-complete: #BFDBFE;
   --theme-bar-milestone: #D9A6FF;
   --theme-bar-baseline: #9CA3AF;
   /* Kritieke-pad-tekst: helder rood, >=4.5:1 op #0a0a0a/#000 (7.1–7.6:1). */

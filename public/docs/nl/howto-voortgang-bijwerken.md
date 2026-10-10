@@ -56,6 +56,7 @@ Elke wijziging in voortgang of statusdatum maakt de planning verouderd: de statu
 ## Resultaat controleren
 
 - Op de statusdatum staat in de Gantt een gestippelde lijn met de datum in de kop. Bij lopende taken buigt de lijn uit naar het percentage in de balk. Aan of uit zet je die met *Beeld › Baselines & voortgang › Voortgangslijn* en *Statusdatumlijn*.
+- Het voltooide deel van een balk wordt grijs; de rest houdt zijn kleur. Een taak die helemaal klaar is, is helemaal grijs, met een vinkje voor de naam en zonder spelingsband. Ook de balk van een fase wordt grijs tot zijn afgeleide percentage, zodat je per fase ziet hoe ver het werk is. Toon je voorgangers of opvolgers van een taak, dan houden die balken hun markeerkleur, ook als ze klaar zijn.
 - Voltooide taken zijn nooit rood: met een statusdatum is een voltooide taak niet kritiek.
 - Fasen tonen een afgeleid percentage en het einde van de planning kan opgeschoven zijn.
 - Heb je een baseline opgeslagen, dan staat onder elke balk de oorspronkelijke planning en laat het rapporttype *Variance* de afwijking zien.

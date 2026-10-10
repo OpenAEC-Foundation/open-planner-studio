@@ -56,7 +56,7 @@
     "milestone": "Kilometre taşı",
     "summary": "Özet",
     "float": "Bolluk",
-    "completion": "Tamamlanma",
+    "completion": "Tamamlandı",
     "relationStyle": "Belirleyici / belirleyici olmayan",
     "categoriesMore_one": "… ve {{count}} kategori daha",
     "categoriesMore_other": "… ve {{count}} kategori daha"
