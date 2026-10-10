@@ -4583,6 +4583,92 @@
       }
     ]
   },
+  "uitleg-resourcebibliotheek": {
+    "structure": "87602e12f18ea575",
+    "sections": [
+      {
+        "hash": "5685652731e9470b",
+        "labels": {}
+      },
+      {
+        "hash": "36ee7182f4da8904",
+        "labels": {}
+      },
+      {
+        "hash": "6540d546fd9f2400",
+        "labels": {
+          "common:companyLibrary.deviates": "766bd7e9677a7346",
+          "common:companyLibrary.linkTitle": "832f84cff2d89cd1",
+          "common:companyLibrary.notInCompany": "8d49f2b900a81c65",
+          "common:companyLibrary.refreshNotice": "e9fc32df49e28fde",
+          "common:resource.availabilityStepsEditor.maxUnits": "f89707e34b285d96",
+          "common:resource.availabilityStepsEditor.title": "3ac3f24090b5a954",
+          "common:resource.maxUnits": "f89707e34b285d96",
+          "common:resource.occupancyView": "473d01009bc6a006",
+          "common:resource.promoteToLibrary": "e14c4b826854b953"
+        }
+      },
+      {
+        "hash": "34fa280db42e1eb9",
+        "labels": {
+          "common:calendar.generate.bouwvak.none": "28b9296c9f12562d",
+          "common:resource.availabilityStepsEditor.maxUnits": "f89707e34b285d96",
+          "common:resource.compact.title": "04efee431566c819",
+          "common:resource.leveling.resourceSelect": "04efee431566c819",
+          "common:resource.maxUnits": "f89707e34b285d96",
+          "common:resource.noParent": "28b9296c9f12562d",
+          "common:resource.occupancy.conflictDays": "a0b3f0addce5f5b6",
+          "common:resource.occupancy.docCount": "1c0bbbca2be8a502",
+          "common:resource.panel.title": "04efee431566c819",
+          "menu:ribbon.openResourcePanel": "04efee431566c819",
+          "menu:ribbon.overallocationIndicator": "5e916c4d6e94eaf3",
+          "menu:ribbon.overallocationNone": "ac06993bf0334b32",
+          "menu:ribbon.resources": "04efee431566c819",
+          "report:resourceGantt.resources": "f12981bb41a2d951",
+          "report:statusLine_none": "28b9296c9f12562d",
+          "report:tableReports.common.resources": "04efee431566c819",
+          "report:tableReports.health.metric_resources": "04efee431566c819",
+          "report:tableReports.resourceAssignments.resources": "04efee431566c819",
+          "report:tableReports.resourceLoading.resources": "04efee431566c819",
+          "task:column.resource": "04efee431566c819",
+          "task:taskGrid.category.resources": "04efee431566c819"
+        }
+      },
+      {
+        "hash": "063c7ab7f2bc5ca5",
+        "labels": {
+          "common:companyLibrary.companyView": "3888ca6d367c962a",
+          "common:companyLibrary.companyViewHint": "790a6f6990ed976b",
+          "common:feedback.tools.undo": "be61429a1d64de90",
+          "common:resource.availabilityStepsEditor.maxUnits": "f89707e34b285d96",
+          "common:resource.compact.title": "04efee431566c819",
+          "common:resource.leveling.resourceSelect": "04efee431566c819",
+          "common:resource.maxUnits": "f89707e34b285d96",
+          "common:resource.panel.title": "04efee431566c819",
+          "common:resource.promoteToLibrary": "e14c4b826854b953",
+          "menu:backstage.library": "835aed2664942ae7",
+          "menu:commands.undo": "3e220c7830f237ef",
+          "menu:ribbon.levelResourcesDialog": "3535ee0610588866",
+          "menu:ribbon.leveling": "94413bda792e149e",
+          "menu:ribbon.openResourcePanel": "04efee431566c819",
+          "menu:ribbon.resources": "04efee431566c819",
+          "menu:ribbon.undo": "3e220c7830f237ef",
+          "report:resourceGantt.resources": "f12981bb41a2d951",
+          "report:tableReports.common.resources": "04efee431566c819",
+          "report:tableReports.health.metric_resources": "04efee431566c819",
+          "report:tableReports.options.wbsLevel": "c6ef093ec264ae18",
+          "report:tableReports.resourceAssignments.resources": "04efee431566c819",
+          "report:tableReports.resourceLoading.resources": "04efee431566c819",
+          "task:column.resource": "04efee431566c819",
+          "task:taskGrid.category.resources": "04efee431566c819"
+        }
+      },
+      {
+        "hash": "c0eb2e7e3aafcc4a",
+        "labels": {}
+      }
+    ]
+  },
   "uitleg-ai-koppeling": {
     "structure": "03426ab29e2a41b5",
     "sections": [
