@@ -8,7 +8,7 @@ import { conceptErrors, styleErrors, termEntryErrors } from './termbase';
 import type { UiLabel, UiPackage } from './ui';
 import { sectionHash, splitSections, structureOf, subsetErrors, type DocSection } from '../lib/docs-structure';
 import {
-  avoidWords, blocksOf, codesOf, hasStem, outSections, type Block, type DocsPackage,
+  avoidWords, blocksOf, codesOf, hasStem, hasWord, italicsOf, normLabel, outSections, type Block, type DocsPackage,
 } from './docs';
 import type { TermsCheckPackage, TermsPackage } from './tbx';
 
@@ -255,7 +255,16 @@ function checkDocsSection(pkg: DocsPackage, idx: number, src: DocSection, out: D
   const extra = [...od].filter(([d, n]) => n > (sd.get(d) ?? 0)).map(([d]) => d);
   if (extra.length) warnings.push(`${at}: getallen die de bron niet heeft: ${extra.join(', ')}`);
 
+  // Placeholders: een `{{…}}` die de bron niet heeft, is een UI-tekst met een open plek die in de proza belandde.
+  const sp = bag((s.match(/\{\{[^{}]*\}\}/g) ?? []).map(x => x.replace(/\s+/g, '')));
+  for (const [ph, n] of bag((o.match(/\{\{[^{}]*\}\}/g) ?? []).map(x => x.replace(/\s+/g, '')))) {
+    if (n > (sp.get(ph) ?? 0)) errors.push(`${at}: invulplek ${ph} staat niet in de bron — schrijf de tekst zoals de bron hem toont (bv. "…" of het getal)`);
+  }
+
   // Labels (§5.3).
+  // Tabbladplekken in de vertaling: een heel cursief stuk, of het eerste deel van een pad (niet een later deel:
+  // cs *Domů › Plán › Přepočítat* is de groep Plán, niet het tabblad).
+  const parts = italicsOf(o).map(x => normLabel(x.split(/\s*›\s*/)[0]));
   for (const l of pkg.labels.filter(x => x.section === idx)) {
     const what = `label *${short(l.en)}*${l.keys ? ` (${l.keys.slice(0, 2).join(', ')}${l.keys.length > 2 ? ', …' : ''})` : ''}`;
     if (l.kind === 'c') {
@@ -264,6 +273,16 @@ function checkDocsSection(pkg: DocsPackage, idx: number, src: DocSection, out: D
     }
     const targets = l.targets ?? [];
     if (targets.length === 0) { warnings.push(`${at}: ${what} heeft nog geen vertaling in de UI; vertaal het als korte UI-naam`); continue; }
+    if (l.role === 'tab') {
+      // Een tabblad: precies één van de tabbladnamen, als eigen cursief deel (niet als deel van een langer woord).
+      const want = new Set(targets.map(normLabel));
+      const got = parts.filter(p => want.has(p)).length;
+      const need = l.count ?? 1;
+      if (got < need) {
+        errors.push(`${at}: ${what} staat ${need}× op een tabbladplek (pad of "tab *…*"), de vertaling heeft ${got}× *${targets.join('* of *')}* — schrijf daar precies die tabbladnaam (cursief: los, of als eerste deel van het pad), geen andere vertaling van "${short(l.en)}"`);
+      }
+      continue;
+    }
     const okLabel = l.kind === 'a' ? targets.some(t => o.includes(t)) : targets.some(t => fillRe(t).test(o));
     if (!okLabel) {
       errors.push(`${at}: ${what} moet ${l.kind === 'a' ? 'letterlijk' : 'volgens het patroon'} "${targets.slice(0, 3).join('" of "')}"${targets.length > 3 ? ' (of een andere kandidaat uit het pakket)' : ''} zijn`);
@@ -275,12 +294,25 @@ function checkDocsSection(pkg: DocsPackage, idx: number, src: DocSection, out: D
   for (const k of pkg.keep) if (countToken(s, k) > 0 && countToken(o, k) === 0) errors.push(`${at}: naam "${k}" ontbreekt (niet vertalen)`);
   for (const k of pkg.keepSoft ?? []) if (countToken(s, k) > 0 && countToken(o, k) === 0) warnings.push(`${at}: naam "${k}" niet letterlijk (mag in deze taal)`);
 
-  // Zacht: termen (één waarschuwing per concept per sectie), avoid als los woord, lengte, gelijk aan en.
+  // Termen: niet gevonden is zacht (de bron kan het woord in een andere betekenis gebruiken). Een avoid-woord
+  // als los woord is hard: buiten inline code, buiten UI-labels en buiten de vormen van alle termen.
+  const allForms = pkg.terms.flatMap(t => (t.forms.length ? t.forms : [t.target]));
+  const labelTexts = pkg.labels.filter(x => x.section === idx).flatMap(l => l.targets ?? []);
+  const prose = o.replace(/`[^`]+`/g, ' ');
+  const avoidSoft = new Set((pkg.avoidSoft ?? []).map(a => a.toLocaleLowerCase()));
   for (const t of pkg.terms) {
     if (!t.en.some(e => hasStem(s, e))) continue;
     const forms = t.forms.length ? t.forms : [t.target];
     if (!forms.some(f => hasStem(o, f))) warnings.push(`${at}: term "${t.target}" (${t.id}) niet gevonden`);
-    for (const a of avoidWords(o, forms, t.avoid ?? [])) warnings.push(`${at}: vermijd "${a}" (${t.id})`);
+    // Staat het avoid-woord zelf in de Engelse bron (een afkorting uitgeschreven: "Critical Path Method"), dan is het overgenomen.
+    // Alleen vormen en labels die het avoid-woord zelf bevatten worden weggestreept ("konec projektu" ⊃ "konec");
+    // een korte vorm als "المهام" mag "قائمة المهام" niet opbreken.
+    const hits = (t.avoid ?? []).filter(a => avoidWords(prose, [...allForms, ...labelTexts].filter(f => hasWord(f, a)), [a]).length > 0)
+      .filter(a => !hasWord(s, a));
+    for (const a of hits) {
+      if (avoidSoft.has(a.toLocaleLowerCase())) { warnings.push(`${at}: vermijd "${a}" (${t.id}) — ook een gewoon woord; alleen goed als het Engels hier iets anders bedoelt dan de term`); continue; }
+      errors.push(`${at}: vermijd "${a}" (${t.id}) — schrijf de term "${t.target}"${forms.length > 1 ? ` of een vorm ervan (${forms.slice(0, 4).join(', ')})` : ''}; heeft het Engelse woord hier een andere betekenis, vertaal het dan zonder "${a}"`);
+    }
   }
   const ratio = o.length / Math.max(1, s.length);
   if (ratio > 1.8) warnings.push(`${at}: ${o.length} tekens, de bron ${s.length} (>1,8×)`);
@@ -297,9 +329,11 @@ function duplicateHeadings(src: string, out: string): string[] {
 
 /**
  * De docs-poort (§7): `.out.md` tegen `.src.md` en het pakket. Hard: dezelfde secties, blokken,
- * kopniveaus, links, afbeeldingen en lijstitems; de miniMarkdown-subset; geen dubbele kop; labels a/b/c;
- * inline code byte-gelijk (behalve `display`); dezelfde cijferreeksen, alleen ASCII-cijfers; tokens en
- * keep-namen. Zacht: termen per sectie, avoid als los woord, lengte, gelijk aan en.
+ * kopniveaus, links, afbeeldingen en lijstitems; de miniMarkdown-subset; geen dubbele kop; labels a/b/c
+ * (een tabblad: precies een tabbladnaam als eigen cursief deel); inline code byte-gelijk (behalve `display`);
+ * dezelfde cijferreeksen, alleen ASCII-cijfers; geen `{{…}}` die de bron niet heeft; tokens en keep-namen;
+ * een avoid-woord als los woord (buiten code, labels en termvormen). Zacht: term niet gevonden, lengte,
+ * gelijk aan en.
  */
 export function checkDocs(pkg: DocsPackage, srcMd: string, outMd: string): CheckResult {
   const errors: string[] = [];
