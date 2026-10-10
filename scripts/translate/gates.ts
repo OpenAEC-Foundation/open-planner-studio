@@ -194,6 +194,20 @@ const CJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hang
 const fillRe = (target: string): RegExp =>
   new RegExp(target.split(/\{\{\s*[\w.-]+\s*\}\}/).map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.+?'), 'u');
 
+/** Cursieve stukken die een a/b-label zijn (bron: de en-tekst; vertaling: een doelkandidaat) uit de tekst halen. */
+function withoutLabelSpans(text: string, labels: DocsPackage['labels'], side: 'src' | 'out'): string {
+  if (labels.length === 0) return text;
+  let rest = text;
+  for (const span of new Set(italicsOf(text))) {
+    const parts = [normLabel(span), ...span.split(/\s*[›→]\s*/).map(normLabel)];
+    const hit = (p: string) => labels.some(l => side === 'src'
+      ? normLabel(l.en) === p
+      : (l.targets ?? []).some(t => (placeholders(t).length ? fillRe(t).test(p) : normLabel(t) === p)));
+    if (parts.some(hit)) rest = rest.split(span).join(' ');
+  }
+  return rest;
+}
+
 /** Harde en zachte poorten voor één sectie: bron (en) tegen vertaling. */
 function checkDocsSection(pkg: DocsPackage, idx: number, src: DocSection, out: DocSection, errors: string[], warnings: string[]): void {
   const at = `sectie ${idx}${src.heading ? ` (${short(src.heading)})` : ''}`;
@@ -249,8 +263,11 @@ function checkDocsSection(pkg: DocsPackage, idx: number, src: DocSection, out: D
   // Cijfers: elke cijferreeks van de bron staat er, alleen ASCII-cijfers.
   const bad = o.match(new RegExp(NON_ASCII_DIGIT.source, 'gu'));
   if (bad) errors.push(`${at}: niet-ASCII-cijfers ${[...new Set(bad)].join(' ')} — schrijf 0-9`);
-  const sd = bag(s.match(/[0-9]+/g) ?? []);
-  const od = bag(o.match(/[0-9]+/g) ?? []);
+  // Getallen binnen een herkend UI-label (soort a/b) tellen niet mee: de labelregel controleert het label zelf
+  // (de ar-vorm van "1 task shows …" schrijft het getal uit).
+  const sectionLabelsHere = pkg.labels.filter(x => x.section === idx && (x.kind === 'a' || x.kind === 'b'));
+  const sd = bag(withoutLabelSpans(s, sectionLabelsHere, 'src').match(/[0-9]+/g) ?? []);
+  const od = bag(withoutLabelSpans(o, sectionLabelsHere, 'out').match(/[0-9]+/g) ?? []);
   for (const [d, n] of sd) if ((od.get(d) ?? 0) < n) errors.push(`${at}: getal ${d} staat ${n}× in de bron, ${od.get(d) ?? 0}× in de vertaling`);
   const extra = [...od].filter(([d, n]) => n > (sd.get(d) ?? 0)).map(([d]) => d);
   if (extra.length) warnings.push(`${at}: getallen die de bron niet heeft: ${extra.join(', ')}`);
@@ -283,7 +300,7 @@ function checkDocsSection(pkg: DocsPackage, idx: number, src: DocSection, out: D
       }
       continue;
     }
-    const okLabel = l.kind === 'a' ? targets.some(t => o.includes(t)) : targets.some(t => fillRe(t).test(o));
+    const okLabel = l.kind === 'a' ? targets.some(t => (placeholders(t).length ? fillRe(t).test(o) : o.includes(t))) : targets.some(t => fillRe(t).test(o));
     if (!okLabel) {
       errors.push(`${at}: ${what} moet ${l.kind === 'a' ? 'letterlijk' : 'volgens het patroon'} "${targets.slice(0, 3).join('" of "')}"${targets.length > 3 ? ' (of een andere kandidaat uit het pakket)' : ''} zijn`);
     }

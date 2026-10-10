@@ -43,6 +43,10 @@ const tb: LangTermbase = {
   eq('vorm van de term eerst weggestreept ("fri slakk" ⊃ "slakk")', findAvoid('Vis fri slakk', ['fri slakk'], ['slakk']), []);
   eq('losse avoid naast de term telt wel', findAvoid('Fri slakk og slakk', ['fri slakk'], ['slakk']), ['slakk']);
   eq('geen treffer', findAvoid('Kritični put', ['kritični put'], ['ključni put']), []);
+  eq('alleen als los woord: sr "лаг" in "Прилагођено"', findAvoid('Прилагођено', ['кашњење'], ['лаг']), []);
+  eq('alleen als los woord: ro "actual" in "actualizați"', findAvoid('Vă rugăm să actualizați', ['curent'], ['actual']), []);
+  eq('echte treffer als los woord (Cyrillisch)', findAvoid('Прикажи лаг задатка', ['кашњење'], ['лаг']), ['лаг']);
+  eq('zh/ja/ko: deeltekst blijft', findAvoid('显示滞后时间', ['延迟'], ['滞后']), ['滞后']);
   const pkg = {
     kind: 'ui' as const, lang: 'hr', namespace: 'task', id: 'x', mode: 'missing' as const, tokens: [], keep: [],
     terms: [{ id: 'critical-path', nl: 'kritiek pad', en: ['critical path'], target: 'kritični put', forms: ['kritični put'], avoid: ['ključni put'] }],

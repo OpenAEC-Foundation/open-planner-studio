@@ -465,6 +465,34 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
     [...panel.matchAll(/t\('(settings\.\w+Tab)'\)/g)].map(m => `common:${m[1]}`));
 }
 
+// ── 17. Getallen in UI-labels (labelregel gaat voor de cijferregel) ──────────────────────────
+{
+  const unitNl: JsonObject = { lib: { updated_one: '1 item bijgewerkt uit de bibliotheek', updated_other: '{{count}} items bijgewerkt uit de bibliotheek' } };
+  const unitEn: JsonObject = { lib: { updated_one: '1 item updated from the library', updated_other: '{{count}} items updated from the library' } };
+  const csT: JsonObject = { lib: {
+    updated_one: '{{count}} položka aktualizována z knihovny', updated_few: '{{count}} položky aktualizovány z knihovny',
+    updated_many: '{{count}} položky aktualizovány z knihovny', updated_other: '{{count}} položek aktualizováno z knihovny' } };
+  const csIdx = buildEnLabelIndex([{ ns: 'common', nl: unitNl, en: unitEn, target: csT }], 'cs', { common: { 'lib.updated': 'x' } });
+  const MD = '# L\n\nNa konci uvidíte *1 item updated from the library* po 3 krocích.\n';
+  const [lp] = buildDocsPackages({ lang: 'cs', articles: [{ id: 'l', md: MD }], mode: 'missing', sources: {}, index: csIdx, literal, concepts });
+  const lab = lp.pkg.labels.find(l => l.kind === 'a');
+  ok('17a a-label: doelvorm met invulplek krijgt het getal van de en-tekst', (lab?.targets ?? []).includes('1 položka aktualizována z knihovny') && !(lab?.targets ?? []).some(t => t.includes('{{')));
+  const lRun = (out: string) => checkDocs(lp.pkg, lp.src, out);
+  eq('17b cs "1 položka aktualizována z knihovny": groen', lRun('# L\n\nNa konci uvidíte *1 položka aktualizována z knihovny* po 3 krocích.\n').errors, []);
+  has('17c verkeerd label blijft rood', lRun('# L\n\nNa konci uvidíte *něco jiného* po 3 krocích.\n').errors, /moet letterlijk/);
+  has('17d een getal buiten het label blijft verplicht', lRun('# L\n\nNa konci uvidíte *1 položka aktualizována z knihovny* po třech krocích.\n').errors, /getal 3 staat 1× in de bron/);
+
+  const arEn: JsonObject = { m: { shows_one: '1 task shows the lag', shows_other: '{{count}} tasks show the lag' } };
+  const arNl: JsonObject = { m: { shows_one: '1 taak toont de vertraging', shows_other: '{{count}} taken tonen de vertraging' } };
+  const arT: JsonObject = { m: {
+    shows_zero: 'لا مهام تعرض التأخير', shows_one: 'مهمة واحدة تعرض التأخير', shows_two: 'مهمتان تعرضان التأخير',
+    shows_few: '{{count}} مهام تعرض التأخير', shows_many: '{{count}} مهمة تعرض التأخير', shows_other: '{{count}} مهمة تعرض التأخير' } };
+  const arIdx = buildEnLabelIndex([{ ns: 'common', nl: arNl, en: arEn, target: arT }], 'ar', {});
+  const AR_MD = '# A\n\nOpen the file; *1 task shows the lag*.\n';
+  const [ap] = buildDocsPackages({ lang: 'ar', articles: [{ id: 'a', md: AR_MD }], mode: 'missing', sources: {}, index: arIdx, literal, concepts });
+  eq('17e ar-label met uitgeschreven getal: geen cijferfout', checkDocs(ap.pkg, ap.src, '# A\n\nافتح الملف؛ *مهمة واحدة تعرض التأخير*.\n').errors, []);
+}
+
 if (diffs.length === 0) {
   console.log(`OK  translate-docs: alle checks groen (${checks})`);
   process.exit(0);
