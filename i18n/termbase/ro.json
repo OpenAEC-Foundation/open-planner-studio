@@ -13,8 +13,7 @@
       "reali"
     ],
     "avoid": [
-      "actual",
-      "planificat"
+      "actual"
     ],
     "source": "tbx",
     "status": "tbx"
@@ -310,9 +309,6 @@
       "contururi",
       "conturului"
     ],
-    "avoid": [
-      "profil"
-    ],
     "source": "tbx",
     "status": "tbx"
   },
@@ -534,8 +530,7 @@
       "sfârșituri cele mai devreme"
     ],
     "avoid": [
-      "sfârșit devreme",
-      "sfârșit efectiv"
+      "sfârșit devreme"
     ],
     "source": "model",
     "status": "model"
@@ -548,8 +543,7 @@
       "începuturi cele mai devreme"
     ],
     "avoid": [
-      "început devreme",
-      "început efectiv"
+      "început devreme"
     ],
     "source": "model",
     "status": "model"
@@ -620,7 +614,6 @@
       "sfârșiturile"
     ],
     "avoid": [
-      "finalizare",
       "termina"
     ],
     "source": "tbx",
@@ -763,9 +756,6 @@
       "marja liberă",
       "marje libere"
     ],
-    "avoid": [
-      "marjă totală"
-    ],
     "source": "tbx",
     "status": "tbx"
   },
@@ -776,9 +766,6 @@
       "hamacul",
       "hamace",
       "hamacurile"
-    ],
-    "avoid": [
-      "activitate rezumat"
     ],
     "source": "model",
     "status": "arbitrated"
@@ -1002,8 +989,7 @@
       "legat"
     ],
     "avoid": [
-      "link",
-      "legătură"
+      "link"
     ],
     "source": "tbx",
     "status": "tbx-chosen"
@@ -1016,8 +1002,7 @@
       "drumului cel mai lung"
     ],
     "avoid": [
-      "cale critică",
-      "drum critic"
+      "cale critică"
     ],
     "source": "model",
     "status": "arbitrated"
@@ -1886,7 +1871,6 @@
       "lucrurile"
     ],
     "avoid": [
-      "muncă",
       "serviciu",
       "work"
     ],
@@ -1931,8 +1915,7 @@
       "regulile de lucru"
     ],
     "avoid": [
-      "regulă de muncă",
-      "tip de activitate"
+      "regulă de muncă"
     ],
     "source": "model",
     "status": "arbitrated"

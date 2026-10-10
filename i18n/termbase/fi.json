@@ -85,9 +85,6 @@
     "forms": [
       "mahdollisimman myöhään"
     ],
-    "avoid": [
-      "viimeistään"
-    ],
     "source": "model",
     "status": "model"
   },
@@ -112,7 +109,6 @@
       "resurssikohdistuksia"
     ],
     "avoid": [
-      "tehtävä",
       "määritys"
     ],
     "source": "model",
@@ -787,9 +783,6 @@
       "riippumaton",
       "riippumatot"
     ],
-    "avoid": [
-      "yhteenvetotehtävä"
-    ],
     "source": "model",
     "status": "arbitrated"
   },
@@ -1149,9 +1142,6 @@
     "forms": [
       "täytyy päättyä"
     ],
-    "avoid": [
-      "päättyy viimeistään"
-    ],
     "source": "model",
     "status": "model"
   },
@@ -1159,9 +1149,6 @@
     "term": "täytyy alkaa",
     "forms": [
       "täytyy alkaa"
-    ],
-    "avoid": [
-      "alkaa viimeistään"
     ],
     "source": "model",
     "status": "model"
@@ -1296,9 +1283,6 @@
       "suunnitellut",
       "suunniteltua"
     ],
-    "avoid": [
-      "ennustettu"
-    ],
     "source": "model",
     "status": "model"
   },
@@ -1323,9 +1307,6 @@
       "edeltäjän",
       "edeltäjät",
       "edeltäjää"
-    ],
-    "avoid": [
-      "seuraaja"
     ],
     "source": "tbx",
     "status": "tbx"
@@ -1832,8 +1813,7 @@
     ],
     "avoid": [
       "aktiviteetti",
-      "toiminto",
-      "työ"
+      "toiminto"
     ],
     "source": "tbx",
     "status": "tbx-chosen"
@@ -2035,9 +2015,6 @@
       "työtunnit",
       "työtuntien"
     ],
-    "avoid": [
-      "työaika"
-    ],
     "source": "model",
     "status": "model"
   },
@@ -2049,9 +2026,6 @@
       "työsääntöä",
       "työsäännöt",
       "työsääntöjen"
-    ],
-    "avoid": [
-      "tehtävätyyppi"
     ],
     "source": "model",
     "status": "arbitrated"
@@ -2076,9 +2050,6 @@
       "työaikaa",
       "työajat",
       "työaikojen"
-    ],
-    "avoid": [
-      "työtunnit"
     ],
     "source": "model",
     "status": "model"

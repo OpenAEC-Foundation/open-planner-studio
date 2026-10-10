@@ -100,9 +100,6 @@
       "dodjeli",
       "dodjelom"
     ],
-    "avoid": [
-      "zadatak"
-    ],
     "source": "tbx",
     "status": "tbx-chosen"
   },
@@ -454,9 +451,6 @@
       "raspodjelu",
       "raspodjeli",
       "raspodjelom"
-    ],
-    "avoid": [
-      "dodjela"
     ],
     "source": "model",
     "status": "model"
@@ -888,9 +882,6 @@
       "izgledom",
       "izgledi"
     ],
-    "avoid": [
-      "raspored"
-    ],
     "source": "model",
     "status": "arbitrated"
   },
@@ -964,7 +955,6 @@
       "najduljim putem"
     ],
     "avoid": [
-      "kritični put",
       "ključni put"
     ],
     "source": "model",
@@ -1536,9 +1526,6 @@
     "forms": [
       "početak-završetak"
     ],
-    "avoid": [
-      "završetak-početak"
-    ],
     "source": "model",
     "status": "model"
   },
@@ -1781,9 +1768,6 @@
       "radovi",
       "radova"
     ],
-    "avoid": [
-      "posao"
-    ],
     "source": "tbx",
     "status": "tbx"
   },
@@ -1818,9 +1802,6 @@
       "pravila rada",
       "pravilu rada",
       "pravilima rada"
-    ],
-    "avoid": [
-      "vrsta zadatka"
     ],
     "source": "model",
     "status": "arbitrated"

@@ -125,6 +125,25 @@ export function validateLangTermbase(lang: string, tb: unknown, concepts: Concep
     if (!byId.has(id)) { errors.push(`${lang}.${id}: onbekend concept`); continue; }
     errors.push(...termEntryErrors(entry, `${lang}.${id}`));
   }
+  // Een avoid-variant mag geen term (of los woord van een vorm) van een ánder concept zijn: anders
+  // markeert de straat elke correcte tekst met dat andere begrip als fout (hr: "zadatak" = taak stond
+  // als avoid bij toewijzing en gaf 175 valse treffers).
+  const owners = new Map<string, string[]>();
+  for (const [id, entry] of Object.entries(tb)) {
+    if (id === '_style' || !isRecord(entry)) continue;
+    const words = [entry.term, ...(Array.isArray(entry.forms) ? entry.forms : [])].filter(isStr);
+    for (const w of words) {
+      const key = w.toLocaleLowerCase();
+      for (const k of [key, ...key.split(/\s+/)]) owners.set(k, [...(owners.get(k) ?? []), id]);
+    }
+  }
+  for (const [id, entry] of Object.entries(tb)) {
+    if (id === '_style' || !isRecord(entry) || !Array.isArray(entry.avoid)) continue;
+    for (const a of entry.avoid.filter(isStr)) {
+      const other = (owners.get(a.toLocaleLowerCase()) ?? []).filter(o => o !== id);
+      if (other.length) errors.push(`${lang}.${id}: avoid "${a}" is een term van ${[...new Set(other)].join(', ')}`);
+    }
+  }
   const missing = concepts.filter(c => c.kind === 'term' && !(c.id in tb)).map(c => c.id);
   return { errors, missing };
 }

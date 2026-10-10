@@ -606,9 +606,6 @@
       "تأخیر",
       "تأخیرها"
     ],
-    "avoid": [
-      "پیش‌افت"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -975,9 +972,6 @@
     "forms": [
       "مدت باقی‌مانده"
     ],
-    "avoid": [
-      "کار باقی‌مانده"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -985,9 +979,6 @@
     "term": "کار باقی‌مانده",
     "forms": [
       "کار باقی‌مانده"
-    ],
-    "avoid": [
-      "مدت باقی‌مانده"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1190,9 +1181,6 @@
       "شروع-شروع",
       "شروع-شروع‌ها"
     ],
-    "avoid": [
-      "پایان-شروع"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1231,9 +1219,6 @@
       "پس‌نیاز",
       "پس‌نیازها"
     ],
-    "avoid": [
-      "پیش‌نیاز"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1243,9 +1228,6 @@
       "وظیفه خلاصه",
       "وظیفه‌های خلاصه"
     ],
-    "avoid": [
-      "زیروظیفه"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1254,10 +1236,6 @@
     "forms": [
       "وظیفه",
       "وظیفه‌ها"
-    ],
-    "avoid": [
-      "کار",
-      "فعالیت"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1298,9 +1276,6 @@
       "شناوری کل",
       "شناوری‌های کل"
     ],
-    "avoid": [
-      "شناوری آزاد"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1318,9 +1293,6 @@
     "forms": [
       "واحد",
       "واحدها"
-    ],
-    "avoid": [
-      "تخصیص"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1378,9 +1350,6 @@
       "کار",
       "کارها"
     ],
-    "avoid": [
-      "وظیفه"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1407,9 +1376,6 @@
     "forms": [
       "قاعدهٔ کار",
       "قواعد کار"
-    ],
-    "avoid": [
-      "نوع وظیفه"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

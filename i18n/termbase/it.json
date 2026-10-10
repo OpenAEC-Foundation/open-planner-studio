@@ -81,9 +81,6 @@
     "forms": [
       "il più tardi possibile"
     ],
-    "avoid": [
-      "il più presto possibile"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -103,9 +100,6 @@
     "forms": [
       "assegnazione",
       "assegnazioni"
-    ],
-    "avoid": [
-      "attività"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -945,9 +939,6 @@
       "avanzamento",
       "avanzamenti"
     ],
-    "avoid": [
-      "stato"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1009,9 +1000,6 @@
       "relazione",
       "relazioni"
     ],
-    "avoid": [
-      "rapporto"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1046,9 +1034,6 @@
     "term": "report",
     "forms": [
       "report"
-    ],
-    "avoid": [
-      "rapporto"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1222,9 +1207,6 @@
     "term": "inizio-fine",
     "forms": [
       "inizio-fine"
-    ],
-    "avoid": [
-      "fine-inizio"
     ],
     "source": "model",
     "status": "model"

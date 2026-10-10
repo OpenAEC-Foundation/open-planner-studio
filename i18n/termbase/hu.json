@@ -222,9 +222,6 @@
       "elkészültség",
       "elkészültséget"
     ],
-    "avoid": [
-      "befejezés"
-    ],
     "source": "model",
     "status": "model"
   },
@@ -357,9 +354,6 @@
       "jelenlegi befejezést",
       "jelenlegi befejezések"
     ],
-    "avoid": [
-      "tényleges befejezés"
-    ],
     "source": "model",
     "status": "arbitrated"
   },
@@ -442,9 +436,6 @@
       "korai befejezést",
       "korai befejezések"
     ],
-    "avoid": [
-      "tényleges befejezés"
-    ],
     "source": "model",
     "status": "model"
   },
@@ -454,9 +445,6 @@
       "korai kezdés",
       "korai kezdést",
       "korai kezdések"
-    ],
-    "avoid": [
-      "tényleges kezdés"
     ],
     "source": "model",
     "status": "model"
@@ -703,8 +691,7 @@
       "ünnepnapok"
     ],
     "avoid": [
-      "szabadnap",
-      "szabadság"
+      "szabadnap"
     ],
     "source": "model",
     "status": "model"
@@ -1058,8 +1045,7 @@
       "kihúzzák"
     ],
     "avoid": [
-      "negatív behúzás",
-      "behúz"
+      "negatív behúzás"
     ],
     "source": "tbx",
     "status": "tbx"
@@ -1820,9 +1806,6 @@
       "munkaszabályt",
       "munkaszabályok",
       "munkaszabályokat"
-    ],
-    "avoid": [
-      "tevékenységtípus"
     ],
     "source": "model",
     "status": "arbitrated"

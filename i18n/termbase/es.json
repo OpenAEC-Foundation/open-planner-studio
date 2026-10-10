@@ -30,9 +30,6 @@
       "fin real",
       "fines reales"
     ],
-    "avoid": [
-      "fin actual"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -93,9 +90,6 @@
     "forms": [
       "asignación",
       "asignaciones"
-    ],
-    "avoid": [
-      "tarea"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -241,9 +235,6 @@
       "contorno",
       "contornos"
     ],
-    "avoid": [
-      "perfil"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -323,9 +314,6 @@
     "forms": [
       "fin actual",
       "fines actuales"
-    ],
-    "avoid": [
-      "fin real"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -469,9 +457,6 @@
     "forms": [
       "fin",
       "fines"
-    ],
-    "avoid": [
-      "finalización"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -631,9 +616,6 @@
       "festivo",
       "festivos"
     ],
-    "avoid": [
-      "vacaciones"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -715,9 +697,6 @@
     "forms": [
       "fechas tardías",
       "fecha tardía"
-    ],
-    "avoid": [
-      "fechas límite"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1035,9 +1014,6 @@
       "avance",
       "avances"
     ],
-    "avoid": [
-      "adelanto"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1264,9 +1240,6 @@
       "planificación",
       "planificaciones"
     ],
-    "avoid": [
-      "horario"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1486,9 +1459,6 @@
     "forms": [
       "unidades",
       "unidad"
-    ],
-    "avoid": [
-      "unidades máx."
     ],
     "source": "existing-ui",
     "status": "existing-ui"

@@ -85,10 +85,6 @@
       "atribuição",
       "atribuições"
     ],
-    "avoid": [
-      "tarefa",
-      "trabalho"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1045,9 +1041,6 @@
       "do progresso",
       "o progresso"
     ],
-    "avoid": [
-      "avanço"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1297,9 +1290,6 @@
       "do planeamento",
       "o planeamento"
     ],
-    "avoid": [
-      "horário"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1398,9 +1388,6 @@
       "não começar antes de",
       "restrição não começar antes de"
     ],
-    "avoid": [
-      "não começar depois de"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1409,9 +1396,6 @@
     "forms": [
       "não começar depois de",
       "restrição não começar depois de"
-    ],
-    "avoid": [
-      "não começar antes de"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

@@ -100,7 +100,6 @@
     ],
     "avoid": [
       "priradená úloha",
-      "úloha",
       "cvičenie"
     ],
     "source": "tbx",
@@ -568,8 +567,7 @@
     ],
     "avoid": [
       "finish",
-      "koniec",
-      "dokončiť"
+      "koniec"
     ],
     "source": "tbx",
     "status": "tbx"
@@ -595,8 +593,7 @@
       "dokončiť nie skôr ako"
     ],
     "avoid": [
-      "finish no earlier than",
-      "začiatok nie skôr ako"
+      "finish no earlier than"
     ],
     "source": "model",
     "status": "model"
@@ -768,9 +765,6 @@
       "hamakom",
       "hamaky"
     ],
-    "avoid": [
-      "súhrnná úloha"
-    ],
     "source": "model",
     "status": "arbitrated"
   },
@@ -818,7 +812,6 @@
     ],
     "avoid": [
       "holiday",
-      "dovolenka",
       "feestdag"
     ],
     "source": "model",
@@ -924,7 +917,6 @@
     ],
     "avoid": [
       "lag",
-      "predstih",
       "medzera"
     ],
     "source": "model",
@@ -1064,9 +1056,6 @@
       "najdlhšiu cestu",
       "najdlhšou cestou",
       "najdlhšie cesty"
-    ],
-    "avoid": [
-      "kritická cesta"
     ],
     "source": "model",
     "status": "arbitrated"
@@ -1509,9 +1498,6 @@
       "plány",
       "plánov"
     ],
-    "avoid": [
-      "rozvrh"
-    ],
     "source": "tbx",
     "status": "tbx-chosen"
   },
@@ -1903,9 +1889,6 @@
       "pracovné doby",
       "pracovných dôb"
     ],
-    "avoid": [
-      "pracovný čas"
-    ],
     "source": "model",
     "status": "model"
   },
@@ -1939,9 +1922,6 @@
       "pracovnému času",
       "pracovné časy",
       "pracovných časov"
-    ],
-    "avoid": [
-      "pracovná doba"
     ],
     "source": "model",
     "status": "model"

@@ -90,9 +90,6 @@
       "tildelinger",
       "tildelingerne"
     ],
-    "avoid": [
-      "opgave"
-    ],
     "source": "tbx",
     "status": "tbx-chosen"
   },
@@ -1437,7 +1434,6 @@
       "tidsplanerne"
     ],
     "avoid": [
-      "planlægning",
       "planlægge"
     ],
     "source": "tbx",
@@ -1844,8 +1840,7 @@
       "arbejdstime"
     ],
     "avoid": [
-      "werktijden",
-      "arbejdstid"
+      "werktijden"
     ],
     "source": "model",
     "status": "model"

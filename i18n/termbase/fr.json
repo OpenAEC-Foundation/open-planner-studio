@@ -34,9 +34,6 @@
       "fin réelle",
       "fins réelles"
     ],
-    "avoid": [
-      "fin actuelle"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -80,9 +77,6 @@
     "term": "le plus tard possible",
     "forms": [
       "le plus tard possible"
-    ],
-    "avoid": [
-      "dès que possible"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -335,9 +329,6 @@
       "chaîne critique",
       "chaînes critiques"
     ],
-    "avoid": [
-      "chemin critique"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -370,9 +361,6 @@
     "forms": [
       "fin actuelle",
       "fins actuelles"
-    ],
-    "avoid": [
-      "fin réelle"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -458,9 +446,6 @@
       "durée",
       "durées"
     ],
-    "avoid": [
-      "période"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -470,9 +455,6 @@
       "fin au plus tôt",
       "fins au plus tôt"
     ],
-    "avoid": [
-      "fin au plus tard"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -481,9 +463,6 @@
     "forms": [
       "début au plus tôt",
       "débuts au plus tôt"
-    ],
-    "avoid": [
-      "début au plus tard"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -554,9 +533,6 @@
     "forms": [
       "fin au plus tôt le"
     ],
-    "avoid": [
-      "fin au plus tôt"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -564,9 +540,6 @@
     "term": "fin au plus tard le",
     "forms": [
       "fin au plus tard le"
-    ],
-    "avoid": [
-      "fin au plus tard"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -661,9 +634,6 @@
       "marge libre",
       "marges libres"
     ],
-    "avoid": [
-      "marge totale"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -699,9 +669,6 @@
     "forms": [
       "jour férié",
       "jours fériés"
-    ],
-    "avoid": [
-      "congé"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -952,9 +919,6 @@
     "forms": [
       "jour non ouvré",
       "jours non ouvrés"
-    ],
-    "avoid": [
-      "jour férié"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1345,9 +1309,6 @@
       "début au plus tôt",
       "débuts au plus tôt"
     ],
-    "avoid": [
-      "début au plus tard"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1356,9 +1317,6 @@
     "forms": [
       "début au plus tard",
       "débuts au plus tard"
-    ],
-    "avoid": [
-      "début au plus tôt"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1505,9 +1463,6 @@
     "forms": [
       "écart",
       "écarts"
-    ],
-    "avoid": [
-      "variance"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

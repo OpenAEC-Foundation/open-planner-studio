@@ -211,6 +211,12 @@ const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
   ok('termbase: source leeg', has(bad, 'source ontbreekt'));
   ok('termbase: status onbekend', has(bad, 'status moet één van'));
   ok('termbase: onbekend concept', has(bad, 'de.onbekend: onbekend concept'));
+  const clash = validateLangTermbase('de', {
+    _style: { address: 'informal' },
+    'total-float': { term: 'Gesamtpuffer', forms: ['Gesamtpuffer'], avoid: ['Basisplan'], source: 'tbx', status: 'tbx' },
+    baseline: { term: 'Basisplan', forms: ['Basisplan'], source: 'tbx', status: 'tbx' },
+  }, concepts).errors;
+  ok('termbase: avoid mag geen term van een ander concept zijn', has(clash, 'avoid "Basisplan" is een term van baseline'));
 }
 
 if (diffs.length === 0) {

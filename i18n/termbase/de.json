@@ -467,9 +467,6 @@
       "Endes",
       "Enden"
     ],
-    "avoid": [
-      "Fertigstellung"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },

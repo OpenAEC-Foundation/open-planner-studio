@@ -102,9 +102,6 @@
       "przydziały",
       "przydziałów"
     ],
-    "avoid": [
-      "zadanie"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -220,9 +217,6 @@
       "ukończenia",
       "ukończeniem"
     ],
-    "avoid": [
-      "zakończenie"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -286,9 +280,6 @@
       "konwencję",
       "konwencje",
       "konwencjami"
-    ],
-    "avoid": [
-      "reguła"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -555,10 +546,6 @@
       "zakończeniu",
       "zakończeniem"
     ],
-    "avoid": [
-      "koniec",
-      "zakończ"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -698,9 +685,6 @@
       "ścieżkę zapasu",
       "ścieżką zapasu",
       "ścieżek zapasu"
-    ],
-    "avoid": [
-      "ścieżka krytyczna"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1757,9 +1741,6 @@
       "zapasu całkowitego",
       "zapasem całkowitym",
       "zapasy całkowite"
-    ],
-    "avoid": [
-      "zapas swobodny"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

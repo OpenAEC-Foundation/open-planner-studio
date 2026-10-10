@@ -625,7 +625,6 @@
       "slakker"
     ],
     "avoid": [
-      "fri slakk",
       "float"
     ],
     "source": "model",
@@ -871,7 +870,6 @@
       "lengste stier"
     ],
     "avoid": [
-      "kritisk linje",
       "kritisk sti"
     ],
     "source": "model",
@@ -1633,9 +1631,6 @@
       "arbeidstimen",
       "arbeidstimene"
     ],
-    "avoid": [
-      "arbeidstid"
-    ],
     "source": "model",
     "status": "model"
   },
@@ -1668,9 +1663,6 @@
       "arbeidstiden",
       "arbeidstider",
       "arbeidstidene"
-    ],
-    "avoid": [
-      "arbeidstimer"
     ],
     "source": "model",
     "status": "model"

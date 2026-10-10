@@ -15,7 +15,6 @@
       "skutečnou"
     ],
     "avoid": [
-      "aktuální",
       "reálný"
     ],
     "source": "tbx",
@@ -43,8 +42,7 @@
       "skutečným dokončením"
     ],
     "avoid": [
-      "skutečný konec",
-      "aktuální dokončení"
+      "skutečný konec"
     ],
     "source": "tbx",
     "status": "tbx"
@@ -326,8 +324,7 @@
       "průběhovou křivkou"
     ],
     "avoid": [
-      "kontura",
-      "profil"
+      "kontura"
     ],
     "source": "tbx",
     "status": "tbx"
@@ -397,7 +394,6 @@
       "kritickými řetězci"
     ],
     "avoid": [
-      "kritická cesta",
       "kritické chains"
     ],
     "source": "model",
@@ -440,8 +436,7 @@
       "aktuálním dokončením"
     ],
     "avoid": [
-      "současné dokončení",
-      "skutečné dokončení"
+      "současné dokončení"
     ],
     "source": "model",
     "status": "arbitrated"
@@ -675,9 +670,6 @@
     "forms": [
       "dokončit nejpozději"
     ],
-    "avoid": [
-      "dokončit nejdříve"
-    ],
     "source": "model",
     "status": "model"
   },
@@ -770,9 +762,6 @@
       "cesty časové rezervy",
       "cestu časové rezervy"
     ],
-    "avoid": [
-      "kritická cesta"
-    ],
     "source": "model",
     "status": "model"
   },
@@ -812,9 +801,6 @@
       "překlenovacím úkolem",
       "překlenovací úkoly",
       "překlenovacích úkolů"
-    ],
-    "avoid": [
-      "souhrnný úkol"
     ],
     "source": "model",
     "status": "arbitrated"
@@ -939,7 +925,6 @@
       "prodlevami"
     ],
     "avoid": [
-      "zpoždění",
       "lag"
     ],
     "source": "tbx",
@@ -1058,9 +1043,6 @@
       "nejdelší cestě",
       "nejdelší cestu",
       "nejdelší cestou"
-    ],
-    "avoid": [
-      "kritická cesta"
     ],
     "source": "model",
     "status": "arbitrated"
@@ -1584,8 +1566,7 @@
       "časovou rezervou zahájení"
     ],
     "avoid": [
-      "časová rezerva začátku",
-      "celková časová rezerva"
+      "časová rezerva začátku"
     ],
     "source": "model",
     "status": "arbitrated"
@@ -1688,9 +1669,6 @@
       "následníkem",
       "následníci",
       "následníků"
-    ],
-    "avoid": [
-      "předchůdce"
     ],
     "source": "tbx",
     "status": "tbx"
@@ -1909,9 +1887,6 @@
       "pracovní kalendáře",
       "pracovních kalendářů"
     ],
-    "avoid": [
-      "pracovní doba"
-    ],
     "source": "model",
     "status": "model"
   },
@@ -1922,9 +1897,6 @@
       "pracovních hodin",
       "pracovním hodinám",
       "pracovními hodinami"
-    ],
-    "avoid": [
-      "pracovní doba"
     ],
     "source": "model",
     "status": "model"
@@ -1938,8 +1910,7 @@
       "pravidlem pevné veličiny"
     ],
     "avoid": [
-      "pracovní pravidlo",
-      "typ úkolu"
+      "pracovní pravidlo"
     ],
     "source": "model",
     "status": "arbitrated"
@@ -1955,9 +1926,6 @@
       "pracovní dny",
       "pracovních dnů"
     ],
-    "avoid": [
-      "pracovní doba"
-    ],
     "source": "tbx",
     "status": "tbx"
   },
@@ -1972,8 +1940,7 @@
       "pracovních dob"
     ],
     "avoid": [
-      "pracovní čas",
-      "pracovní den"
+      "pracovní čas"
     ],
     "source": "model",
     "status": "model"

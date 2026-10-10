@@ -96,7 +96,6 @@
       "tilldelningarna"
     ],
     "avoid": [
-      "uppgift",
       "labbuppgift"
     ],
     "source": "tbx",
@@ -109,9 +108,6 @@
       "tilldelningskurvan",
       "tilldelningskurvor",
       "tilldelningskurvorna"
-    ],
-    "avoid": [
-      "profil"
     ],
     "source": "model",
     "status": "arbitrated"
@@ -327,9 +323,6 @@
       "kritisk kedja",
       "kritiska kedjorna"
     ],
-    "avoid": [
-      "kritisk linje"
-    ],
     "source": "model",
     "status": "model"
   },
@@ -447,7 +440,6 @@
       "varaktigheterna"
     ],
     "avoid": [
-      "tid",
       "löptid"
     ],
     "source": "tbx",
@@ -533,7 +525,6 @@
       "slutet"
     ],
     "avoid": [
-      "avsluta",
       "slutförande"
     ],
     "source": "tbx",
@@ -834,7 +825,6 @@
       "fördröjningar"
     ],
     "avoid": [
-      "förskjutning",
       "lag"
     ],
     "source": "model",
@@ -952,8 +942,7 @@
       "längsta vägar"
     ],
     "avoid": [
-      "kritisk väg",
-      "kritisk linje"
+      "kritisk väg"
     ],
     "source": "model",
     "status": "arbitrated"
@@ -1703,9 +1692,6 @@
       "arbeten",
       "arbetena"
     ],
-    "avoid": [
-      "arbetstid"
-    ],
     "source": "tbx",
     "status": "tbx"
   },
@@ -1755,9 +1741,6 @@
     "forms": [
       "arbetstid",
       "arbetstiden"
-    ],
-    "avoid": [
-      "arbetstider"
     ],
     "source": "tbx",
     "status": "arbitrated"

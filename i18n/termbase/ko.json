@@ -9,7 +9,6 @@
       "실제 날짜"
     ],
     "avoid": [
-      "실제 기간",
       "실제 일자"
     ],
     "source": "existing-ui",
@@ -110,9 +109,6 @@
     "forms": [
       "기준선"
     ],
-    "avoid": [
-      "기준"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -154,8 +150,7 @@
       "달력"
     ],
     "avoid": [
-      "캘린더",
-      "일정"
+      "캘린더"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

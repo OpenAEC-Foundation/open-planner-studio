@@ -463,9 +463,6 @@
       "bitişler",
       "bitişten"
     ],
-    "avoid": [
-      "son"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -947,9 +944,6 @@
       "çalışılmayan günler",
       "çalışılmayan güne"
     ],
-    "avoid": [
-      "tatil"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1230,9 +1224,6 @@
       "kalan işe",
       "kalan işler"
     ],
-    "avoid": [
-      "kalan süre"
-    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1370,7 +1361,6 @@
       "planlamada"
     ],
     "avoid": [
-      "takvim",
       "zaman çizelgesi"
     ],
     "source": "existing-ui",
