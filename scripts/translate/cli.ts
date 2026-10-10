@@ -445,8 +445,10 @@ const docsPackageBases = (dir: string): string[] =>
   existsSync(dir) ? readdirSync(dir).filter(f => f.endsWith('.src.md')).map(f => f.slice(0, -'.src.md'.length)).sort() : [];
 
 /** Zet oude docs-pakketten (`.src.md`, `.json`, `.out.md`) opzij in `archive/<tijd>/`. */
-function archiveDocs(dir: string): void {
-  const bases = docsPackageBases(dir);
+function archiveDocs(dir: string, onlyIds?: string[]): void {
+  // Met --ids alleen de pakketten van die artikelen (een artikel kan `<id>-NN` heten); andere
+  // pakketten en hun vertaling blijven staan (anders verdwijnt lopend werk naar archive/).
+  const bases = docsPackageBases(dir).filter(b => !onlyIds || onlyIds.some(id => b === id || new RegExp(`^${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-\\d+$`).test(b)));
   if (bases.length === 0) return;
   const to = join(dir, 'archive', stamp());
   mkdirSync(to, { recursive: true });
@@ -488,7 +490,7 @@ function prepareDocs(args: string[], lang: string): void {
   const { mode, ids } = docsMode(args);
   const packs = buildDocsFor(lang, mode, ids, maxWords(args));
   const dir = join(WORK, lang);
-  archiveDocs(dir);
+  archiveDocs(dir, mode === 'ids' ? ids : undefined);
   mkdirSync(dir, { recursive: true });
   for (const { pkg, src } of packs) {
     writeFileSync(join(dir, `${pkg.id}.src.md`), src);
