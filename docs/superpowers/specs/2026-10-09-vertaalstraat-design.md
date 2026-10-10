@@ -396,7 +396,7 @@ Voor de eigenaar (worden één voor één voorgelegd, met voorbeeld):
 - **B2 — Verouderd docsartikel. BESLOTEN: (a), eigenaar, 2026-10-10 — de viewer toont de bestaande vertaling; bij elke release draait de straat (`--missing --stale`) voor UI én docs. De docs-vertaalrun start pas op uitdrukkelijk verzoek van de eigenaar.** (a) de viewer toont toch de vertaling; (b) de viewer toont het Engels met
   een melding; (c) per sectie: actuele secties in de taal, verouderde in het Engels. Voorstel: (a) op `main`,
   en de release-regel uit §11 zorgt dat een release geen verouderde vertaling bevat.
-- **B3 — Melding "machinevertaling".** Geen moedertaalspreker in de keten. Voorstel: in Help een korte
+- **B3 — Melding "machinevertaling". BESLOTEN: geen melding (optie 2), eigenaar, 2026-10-10.** Geen moedertaalspreker in de keten. Voorstel: in Help een korte
   melding in de nieuwe talen, tot iemand een taal nakijkt; in de UI geen melding.
 - **B4 — Tutorials.** Voorstel: aparte fase na deze klus.
 - **B5 — `i18n:add` met 27 talen. BESLOTEN: voorstel §11 (nl + en verplicht, rest via de straat), eigenaar, 2026-10-10 — met de eis dat een release volledig is: de releasepoort stopt bij elke ontbrekende of verouderde vertaling (UI en, zodra die bestaan, docs).** Voorstel: zie §11.
