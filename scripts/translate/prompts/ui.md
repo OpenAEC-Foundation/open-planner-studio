@@ -24,6 +24,10 @@ per plural category.
 - When a text names another UI element (a column, button, tab or menu item), write that name exactly
   as the element's own label, in the nominative, between the language's quotation marks; let the
   sentence carry the grammar ("Check the columns «Predecessors» and «Successors»").
+- `labels` on an item: `nl` names another UI text (a button, tab, block). Put one of its `targets`
+  in the translation exactly as written, letter for letter, not inflected or shortened; let the
+  sentence carry the grammar. A label without `targets` is not translated yet: translate it as a
+  short UI name.
 - Quotation marks: if `style.quotes` exists, use exactly those marks (e.g. `„…“`), also where `nl`
   or `en` uses other ones.
 - Keep short UI texts short: buttons, column names and menu items should be about as long as `en`.

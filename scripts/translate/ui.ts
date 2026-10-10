@@ -1,6 +1,7 @@
 // UI-straat: werkpakketten maken (§5.1), samenvoegen (§9), basislijn en status. Pure functies.
 import {
-  containsTerm, countToken, findAvoid, hasUiBaseline, hashUnit, isComplete, pluralExamples, termEntries, textsOf, unitMap,
+  containsTerm, countToken, findAvoid, hasUiBaseline, hashUnit, isComplete, nestings, placeholders, pluralExamples,
+  termEntries, textsOf, unitMap,
   unitsOf, type Concept, type LangTermbase, type Style, type Unit, type UnitText,
 } from './common';
 import { orderLike, setTranslation, type JsonObject, type Namespace } from '../i18n-tools';
@@ -19,7 +20,16 @@ export interface UiItem {
   avoidHits?: string[];
   /** Bij --avoid: de nl-tekst veranderde ook sinds `previous` (of er is geen bron-hash). */
   stale?: true;
+  /** Andere UI-teksten die letterlijk in `nl` staan (een knop, tab of blok): zie `labelsFor`. */
+  labels?: UiLabel[];
 }
+
+/**
+ * Een UI-naam in een tekst: de nl-tekst van één of meer andere sleutels (`ns:pad`), met hun huidige
+ * doeltekst(en). De poort eist dat één van `targets` letterlijk in de vertaling staat; is er nog geen
+ * doeltekst, dan alleen een waarschuwing.
+ */
+export interface UiLabel { nl: string; keys: string[]; targets: string[] }
 
 export interface UiTerm { id: string; nl: string; en: string[]; target: string; forms: string[]; avoid?: string[] }
 
@@ -160,6 +170,81 @@ export function selectKeys(input: NsInput, lang: string, keys: Set<string>): Sel
   });
 }
 
+// ── Labels: UI-namen die een andere tekst letterlijk noemt ──────────────────────────────────
+
+/** Eén mogelijk label: een nl-tekst met de sleutels die hem dragen en hun huidige doelteksten. */
+export interface LabelEntry extends UiLabel { re: RegExp }
+
+/** Hoe vaak een los woord in andere nl-teksten mag staan voor het nog als label telt. */
+export const LABEL_COMMON_WORD_MAX = 5;
+
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const wordRe = (s: string, flags = 'u') => new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(s)}(?![\\p{L}\\p{N}])`, flags);
+
+/**
+ * Alle mogelijke labels over alle namespaces. Een label is een gewone (geen meervouds)tekst zonder
+ * invulplekken of `$t(…)`, die met een hoofdletter begint, van ten minste twee woorden of tien tekens. Eén los woord dat in meer dan
+ * `LABEL_COMMON_WORD_MAX` andere nl-teksten staat ("Instellingen") telt niet: dat is gewone taal. De
+ * doeltekst telt alleen als de eenheid vertaald is (`isTranslated`; in een nieuwe taal is tekst zonder
+ * hash Engelse vulling) en geen avoid-variant uit de termbase bevat (`rules`).
+ */
+export function buildLabelIndex(inputs: NsInput[], lang: string, sources: UiSources, rules: AvoidRule[] = []): LabelEntry[] {
+  const byText = new Map<string, { keys: string[]; targets: string[] }>();
+  const allNl: string[] = [];
+  for (const input of inputs) {
+    const target = unitMap(input.target);
+    const hashes = sources[input.ns] ?? {};
+    for (const u of unitsOf(input.nl)) {
+      allNl.push(...textsOf(u.text));
+      if (u.plural || typeof u.text !== 'string') continue;
+      const t = u.text.trim();
+      // Een UI-naam begint in nl met een hoofdletter; "groter dan" of "niet berekend" is gewone taal.
+      if (t === '' || t.length > 80 || !/^\p{Lu}/u.test(t) || placeholders(t).length || nestings(t).length) continue;
+      const words = t.split(/\s+/).length;
+      if (words < 2 && t.length < 10) continue;
+      const e = byText.get(t) ?? { keys: [], targets: [] };
+      byText.set(t, e);
+      e.keys.push(`${input.ns}:${u.key}`);
+      const tu = target.get(u.key);
+      // Een doeltekst met een avoid-variant verandert zelf nog (`--avoid`): die eisen we niet af.
+      if (isTranslated(tu, u, lang, hashes) && typeof tu!.text === 'string' && !e.targets.includes(tu!.text)
+        && avoidHitsIn(tu!.text, rules).hits.length === 0) e.targets.push(tu!.text);
+    }
+  }
+  const out: LabelEntry[] = [];
+  for (const [nl, e] of byText) {
+    if (!/\s/.test(nl)) {
+      const ci = wordRe(nl, 'iu');
+      if (allNl.filter(x => x !== nl && ci.test(x)).length > LABEL_COMMON_WORD_MAX) continue;
+    }
+    out.push({ nl, keys: e.keys, targets: e.targets, re: wordRe(nl, 'gu') });
+  }
+  return out;
+}
+
+/** Staat het label midden in de tekst? Aan het begin van de tekst of een zin is de hoofdletter gewone spelling. */
+function midSentence(t: string, re: RegExp): boolean {
+  for (const m of t.matchAll(re)) {
+    const before = t.slice(0, m.index);
+    if (before.trim() !== '' && !/[.!?]\s*$/.test(before)) return true;
+  }
+  return false;
+}
+
+/**
+ * De labels die letterlijk (hoofdlettergevoelig, als los woord of woordgroep, niet aan het begin van
+ * een zin) in de nl-tekst van een eenheid staan, zonder de eenheid zelf. Valt een gevonden label binnen een langer gevonden label
+ * ("Projectinfo" in "Bestand → Projectinfo"), dan telt alleen het langste.
+ */
+export function labelsFor(key: string, ns: string, nl: UnitText, index: LabelEntry[]): UiLabel[] {
+  const texts = textsOf(nl);
+  const self = `${ns}:${key}`;
+  const found = index.filter(l => !l.keys.includes(self)
+    && texts.some(t => t !== l.nl && t.includes(l.nl) && midSentence(t, l.re)));
+  return found.filter(l => !found.some(o => o !== l && o.nl.length > l.nl.length && o.nl.includes(l.nl)))
+    .map(({ nl: n, keys, targets }) => ({ nl: n, keys, targets }));
+}
+
 /** Termen die in de items voorkomen (nl- of en-term, woordgrens, hoofdletterongevoelig). */
 export function termsFor(items: UiItem[], concepts: Concept[], tb: LangTermbase | undefined, extraIds: ReadonlySet<string> = new Set()): UiTerm[] {
   if (!tb) return [];
@@ -207,6 +292,7 @@ export function buildUiPackages(opts: {
   /** `--keys`: per namespace precies deze eenheden (uit `resolveKeyList`); `mode` telt dan niet. */
   keys?: Map<string, Set<string>>;
 }): UiPackage[] {
+  const labelIndex = buildLabelIndex(opts.inputs, opts.lang, opts.sources, avoidRules(opts.concepts, opts.termbase));
   const size = opts.size ?? 150;
   const maxChars = opts.maxChars ?? 24000;
   const packs: UiPackage[] = [];
@@ -224,15 +310,19 @@ export function buildUiPackages(opts: {
       : opts.avoid
         ? selectAvoid(input, opts.lang, opts.sources, rules, withStale)
         : selectUnits(input, opts.lang, opts.mode, opts.sources);
-    const all: UiItem[] = selected.map(({ unit, previous, avoidHits, stale }) => ({
-      key: unit.key,
-      ...(unit.plural ? { plural: true as const } : {}),
-      nl: unit.text,
-      en: en.get(unit.key)?.text ?? unit.text,
-      ...(previous !== undefined ? { previous } : {}),
-      ...(avoidHits ? { avoidHits } : {}),
-      ...(stale ? { stale } : {}),
-    }));
+    const all: UiItem[] = selected.map(({ unit, previous, avoidHits, stale }) => {
+      const labels = labelsFor(unit.key, input.ns, unit.text, labelIndex);
+      return {
+        key: unit.key,
+        ...(unit.plural ? { plural: true as const } : {}),
+        nl: unit.text,
+        en: en.get(unit.key)?.text ?? unit.text,
+        ...(previous !== undefined ? { previous } : {}),
+        ...(avoidHits ? { avoidHits } : {}),
+        ...(stale ? { stale } : {}),
+        ...(labels.length ? { labels } : {}),
+      };
+    });
     const groups: UiItem[][] = [];
     let cur: UiItem[] = [];
     let chars = 0;

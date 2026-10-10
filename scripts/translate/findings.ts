@@ -3,7 +3,7 @@
 // een rode regel wordt overgeslagen en gemeld. De nl-bron verandert niet, dus de bron-hashes ook niet.
 import { isComplete, unitMap, type Concept, type LangTermbase, type UnitText } from './common';
 import { checkUi } from './gates';
-import { literalsFor, termsFor, type UiItem, type UiPackage } from './ui';
+import { avoidRules, buildLabelIndex, labelsFor, literalsFor, termsFor, type UiItem, type UiPackage, type UiSources } from './ui';
 import { orderLike, setTranslation, type JsonObject } from '../i18n-tools';
 
 /** Eén regel uit het bestand: `{ "key": "ns:pad", "fix": "<tekst>" | { "<categorie>": "<tekst>" } }`. */
@@ -66,6 +66,8 @@ export function applyFindings(opts: {
   readTarget: (ns: string) => JsonObject;
   concepts: Concept[];
   termbase?: LangTermbase;
+  /** Bron-hashes van de taal: bepalen welke labelvertalingen meetellen (labelpoort). */
+  sources?: UiSources;
 }): FindingsResult {
   const res: FindingsResult = { targets: new Map(), applied: [], skipped: [], warnings: [] };
   if (!Array.isArray(opts.findings)) {
@@ -73,6 +75,11 @@ export function applyFindings(opts: {
     return res;
   }
   const skip = (key: string, ...reasons: string[]) => { res.skipped.push({ key, reasons }); };
+  // De labelpoort kijkt naar de doelteksten vóór deze ronde: een label dat zelf in de lijst staat,
+  // telt met zijn oude vertaling (zet zulke regels in één ronde, of draai twee keer).
+  const labelIndex = buildLabelIndex(Object.keys(opts.nl).map(ns => ({
+    ns, nl: opts.nl[ns], en: opts.en[ns] ?? {}, target: opts.readTarget(ns),
+  })), opts.lang, opts.sources ?? {}, avoidRules(opts.concepts, opts.termbase));
   (opts.findings as unknown[]).forEach((f, i) => {
     const label = isRecord(f) && typeof f.key === 'string' ? f.key : `regel ${i + 1}`;
     if (!isRecord(f) || typeof f.key !== 'string') return skip(label, 'verwacht { "key": "ns:pad", "fix": … }');
@@ -112,9 +119,11 @@ export function applyFindings(opts: {
       value = { ...(current!.text as Record<string, string>), ...value };
     } else if (category) return skip(label, '"category" bij een sleutel zonder meervoud');
 
+    const labels = labelsFor(key, ns, src.text, labelIndex);
     const item: UiItem = {
       key, ...(src.plural ? { plural: true as const } : {}), nl: src.text,
       en: unitMap(opts.en[ns] ?? {}).get(key)?.text ?? src.text,
+      ...(labels.length ? { labels } : {}),
     };
     const items = [item];
     const pkg: UiPackage = {

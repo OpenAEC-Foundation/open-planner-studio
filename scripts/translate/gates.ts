@@ -5,7 +5,7 @@ import {
   countToken, containsTerm, findAvoid, nestings, placeholders, pluralCategories, textsOf, type UnitText,
 } from './common';
 import { conceptErrors, styleErrors, termEntryErrors } from './termbase';
-import type { UiPackage } from './ui';
+import type { UiLabel, UiPackage } from './ui';
 import type { TermsCheckPackage, TermsPackage } from './tbx';
 
 export interface CheckResult { errors: string[]; warnings: string[] }
@@ -28,6 +28,24 @@ function checkText(at: string, text: unknown, nl: string[], tokens: string[], al
   }
   for (const tok of tokens) {
     if (nl.every(s => countToken(s, tok) > 0) && countToken(text, tok) === 0) errors.push(`${at}: token "${tok}" ontbreekt (nooit vertalen)`);
+  }
+}
+
+/**
+ * Labelpoort: noemt de nl-tekst een andere UI-tekst letterlijk (een knop, tab of blok), dan moet de
+ * vertaling de huidige vertaling van dat label letterlijk bevatten (hard). Nog geen vertaling van het
+ * label: alleen een waarschuwing. Alleen labels die in deze nl-vorm staan tellen.
+ */
+function checkLabels(at: string, text: string, nl: string[], labels: UiLabel[] | undefined, errors: string[], warnings: string[]): void {
+  for (const l of labels ?? []) {
+    if (!nl.some(s => s.includes(l.nl))) continue;
+    if (l.targets.length === 0) {
+      warnings.push(`${at}: label "${l.nl}" (${l.keys[0]}) heeft nog geen vaste vertaling; gebruik straks precies die`);
+      continue;
+    }
+    if (!l.targets.some(t => text.includes(t))) {
+      errors.push(`${at}: label "${l.nl}" (${l.keys[0]}) moet letterlijk "${l.targets.join('" of "')}" zijn`);
+    }
   }
 }
 
@@ -65,6 +83,7 @@ export function checkUi(pkg: UiPackage, out: unknown): CheckResult {
       if (typeof v !== 'string') { errors.push(`${item.key}: verwacht één tekst, geen meervoudsvormen`); continue; }
       const before = errors.length;
       checkText(item.key, v, nl, pkg.tokens, false, errors);
+      if (errors.length === before) checkLabels(item.key, v, nl, item.labels, errors, warnings);
       if (errors.length === before) softText(item.key, v, nl, enText(item.en), pkg, warnings);
       continue;
     }
@@ -87,6 +106,7 @@ export function checkUi(pkg: UiPackage, out: unknown): CheckResult {
       if (!(c in v)) continue;
       const before = errors.length;
       checkText(`${item.key}.${c}`, v[c], nlFor(c), pkg.tokens, true, errors);
+      if (errors.length === before) checkLabels(`${item.key}.${c}`, v[c] as string, nlFor(c), item.labels, errors, warnings);
       if (errors.length === before) softText(`${item.key}.${c}`, v[c] as string, nlFor(c), enText(item.en, c), pkg, warnings);
     }
   }

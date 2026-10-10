@@ -73,6 +73,12 @@ hoofdletterongevoelig). Zet de oude term als `avoid` in `i18n/termbase/<taal>.js
 (alleen die woorden vervangen). Met `--stale` erbij komen ook de verouderde sleutels mee. `--keys <bestand>`
 kiest precies de sleutels uit een JSON-lijst `["ns:pad", …]`, met de huidige tekst als `previous`.
 
+**Labelpoort.** `prepare ui` geeft een item `labels` als zijn nl-tekst een andere UI-tekst letterlijk
+noemt (een knop, tab of blok: begint met een hoofdletter, ≥ 2 woorden of ≥ 10 tekens, geen invulplekken,
+niet aan het begin van een zin; bij overlap telt het langste). De check eist dan dat de huidige vertaling
+van dat label letterlijk in de vertaling staat (hard); is het label nog niet vertaald, dan alleen een
+waarschuwing. `apply-findings` gebruikt dezelfde poort.
+
 ## Voorbeeldprojecten genereren
 
 `npm run gen:examples` → `generate-examples.ts`. De rest is de generator eronder en wordt niet los

@@ -348,6 +348,7 @@ function applyFindingsCmd(args: string[]): void {
     lang, findings, nl: nlByNs(),
     en: Object.fromEntries(NAMESPACES.map(ns => [ns, readLocale('en', ns)])),
     readTarget: ns => readLocale(lang, ns), concepts: loadConcepts(), termbase: loadTermbase(lang),
+    sources: readJsonOr<UiSources>(sourcesPath(lang), {}),
   });
   for (const sk of res.skipped) {
     console.log(`XX  ${sk.key}: overgeslagen`);
