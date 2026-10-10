@@ -14,26 +14,38 @@
 //   apply-findings <taal> <bestand>    [{ key: "ns:pad", fix }] na de harde poorten → src/i18n/locales/<taal>/
 //   bundle-check                       alleen build/translate/check.mjs bouwen
 //   apply ui <taal>                    groene UI-pakketten → src/i18n/locales/<taal>/ + i18n/ui-sources/<taal>.json
+//   prepare docs <taal> [--missing|--stale|--ids a,b] [--max-words 2500]
+//                                      docs-pakketten → build/translate/<taal>/<id>[-NN].src.md + .json (+ check.mjs)
+//   apply docs <taal>                  groene docs-pakketten → public/docs/<taal>/<id>.md + index.json (C2)
+//                                      + i18n/docs-sources/<taal>.json (C3); herschikt ook artikelen zonder pakket
+//   rename-doc <oud> <nieuw>           hernoem een artikel in alle docstalen (bestand, links, C2, C3)
+//   remove-doc <id>                    verwijder een artikel uit alle docstalen (bestand, C2, C3)
+//   docs-budget <taal…> [--max-words N] grootste docs-pakket per taal in tekens en geschatte tokens (§ contextbudget)
 //   seed-sources [taal…]               basislijn: huidige nl-hashes voor en + de bestaande talen (niet de nieuwe)
-//   status [taal] [--strict]           per taal en namespace: ontbreekt / verouderd / actueel;
+//   status [taal] [--strict]           per taal en namespace (en docs): ontbreekt / verouderd / actueel;
 //                                      --strict = releasepoort `npm run verify:translations` (exit 1 bij elk gat)
 //
 // Alle I/O staat hier; de logica zit in de pure modules ernaast (getoetst in tests/planning/check-translate-*.ts).
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { LOCALES, NAMESPACES, type JsonObject } from '../i18n-tools';
 import { EXISTING_TARGETS, TBX_FILES, hasUiBaseline, toJson, type Concept, type LangTermbase } from './common';
 import { chunk, collectCandidates } from './candidates';
 import { applyUiBatch } from './apply';
 import { applyFindings } from './findings';
-import { checkPackage } from './gates';
+import { checkDocs, checkDocsArticle, checkPackage, formatResult } from './gates';
+import {
+  articleState, buildDocsPackages, buildEnLabelIndex, docsReleaseGaps, docsStatus, mergeArticle, orderDocsSources,
+  literalNames, parseDocsIndex, renameDocLinks, renameInEntry, sectionLabels, serializeDocsIndex, titleOf, DOCS_MAX_WORDS,
+  type ArticleState, type DocsArticleInput, type DocsLiteral, type DocsMode, type DocsPackage, type DocsSources,
+} from './docs';
 import {
   applyTerms, conceptsErrors, inconsistencyReport, mergeConcepts, validateLangTermbase, type TermsOut,
 } from './termbase';
 import { buildTermsPackages, indexTbx, parseTbx, uiExamplesFor, type TermsCheckPackage, type TermsPackage } from './tbx';
 import {
-  buildUiPackages, orderSources, packageText, resolveKeyList, seedSources, uiReleaseGaps, uiStatus,
+  avoidRules, buildUiPackages, orderSources, packageText, resolveKeyList, seedSources, uiReleaseGaps, uiStatus,
   type NsInput, type ReleaseGap, type Selection, type UiPackage, type UiSources,
 } from './ui';
 
@@ -73,7 +85,7 @@ function option(args: string[], name: string): string | undefined {
   const i = args.indexOf(name);
   return i >= 0 ? args[i + 1] : undefined;
 }
-const positional = (args: string[]) => args.filter((a, i) => !a.startsWith('--') && !(i > 0 && /^--(size|concepts|keys)$/.test(args[i - 1])));
+const positional = (args: string[]) => args.filter((a, i) => !a.startsWith('--') && !(i > 0 && /^--(size|concepts|keys|ids|max-words)$/.test(args[i - 1])));
 
 function loadConcepts(path = CONCEPTS): Concept[] {
   if (!existsSync(path)) {
@@ -264,7 +276,8 @@ function bundleCheck(): void {
 
 function prepare(args: string[]): void {
   const [what, langArg] = positional(args);
-  if (what !== 'ui') fail(`prepare ${what ?? ''}: alleen "ui" bestaat (docs volgt in PR 4)`);
+  if (what === 'docs') { prepareDocs(args, checkLang(langArg)); return; }
+  if (what !== 'ui') fail(`prepare ${what ?? ''}: kies "ui" of "docs"`);
   const lang = checkLang(langArg);
   const modes = (['--missing', '--stale', '--all'] as const).filter(f => flag(args, f));
   if (modes.length > 1) fail('kies één van --missing, --stale, --all');
@@ -303,7 +316,8 @@ function prepare(args: string[]): void {
 
 function applyUi(args: string[]): void {
   const [what, langArg] = positional(args);
-  if (what !== 'ui') fail(`apply ${what ?? ''}: alleen "ui" bestaat (docs volgt in PR 4)`);
+  if (what === 'docs') { applyDocs(checkLang(langArg)); return; }
+  if (what !== 'ui') fail(`apply ${what ?? ''}: kies "ui" of "docs"`);
   const lang = checkLang(langArg);
   const dir = join(WORK, lang);
   const files = existsSync(dir) ? readdirSync(dir).filter(f => /^ui-[a-z]+-\d+\.json$/.test(f)).sort() : [];
@@ -377,14 +391,274 @@ function seed(args: string[]): void {
   }
 }
 
+// ── Docs-straat ──────────────────────────────────────────────────────────────────────────────
+
+const DOCS_DIR = join(ROOT, 'public/docs');
+const DOCS_SOURCES_DIR = join(ROOT, 'i18n/docs-sources');
+const DOCS_LITERAL = join(ROOT, 'i18n/docs-literal.json');
+/** Mappen onder public/docs die geen vertaling zijn. */
+const DOCS_NOT_A_LANG = new Set(['nl', 'en', 'img']);
+
+interface ManifestArticle { id: string; draft?: boolean }
+const manifestArticles = (): ManifestArticle[] => readJson<{ articles: ManifestArticle[] }>(join(DOCS_DIR, 'manifest.json')).articles;
+const manifestOrder = (): string[] => manifestArticles().map(a => a.id);
+const docsSourcesPath = (lang: string) => join(DOCS_SOURCES_DIR, `${lang}.json`);
+const readDocsSources = (lang: string): DocsSources => readJsonOr<DocsSources>(docsSourcesPath(lang), {});
+const docPath = (lang: string, id: string) => join(DOCS_DIR, lang, `${id}.md`);
+const readDoc = (lang: string, id: string): string | undefined => existsSync(docPath(lang, id)) ? readFileSync(docPath(lang, id), 'utf8') : undefined;
+const docsIndexPath = (lang: string) => join(DOCS_DIR, lang, 'index.json');
+const readDocsIndex = (lang: string): Record<string, string> =>
+  existsSync(docsIndexPath(lang)) ? parseDocsIndex(readFileSync(docsIndexPath(lang), 'utf8')) : {};
+
+function loadLiteral(): DocsLiteral {
+  if (!existsSync(DOCS_LITERAL)) fail('i18n/docs-literal.json ontbreekt');
+  return readJson<DocsLiteral>(DOCS_LITERAL);
+}
+
+/** Talen met docsvertalingen: een map onder public/docs of een C3-bestand. */
+function docsLangs(): string[] {
+  const dirs = readdirSync(DOCS_DIR).filter(d => !DOCS_NOT_A_LANG.has(d) && statSync(join(DOCS_DIR, d)).isDirectory());
+  const c3 = existsSync(DOCS_SOURCES_DIR) ? readdirSync(DOCS_SOURCES_DIR).filter(f => f.endsWith('.json')).map(f => f.replace(/\.json$/, '')) : [];
+  return [...new Set([...dirs, ...c3])].sort();
+}
+
+/** De niet-draft artikelen in manifest-volgorde, met en-bron en (als die er is) de vertaling. */
+const docsInputs = (lang: string): DocsArticleInput[] => manifestArticles().filter(a => !a.draft).map(a => {
+  const md = readDoc('en', a.id);
+  if (md === undefined) fail(`public/docs/en/${a.id}.md ontbreekt`);
+  const translated = readDoc(lang, a.id);
+  return { id: a.id, md, ...(translated !== undefined ? { translated } : {}) };
+});
+
+const labelIndexFor = (lang: string) => buildEnLabelIndex(
+  nsInputs(lang), lang, readJsonOr<UiSources>(sourcesPath(lang), {}), avoidRules(loadConcepts(), loadTermbase(lang)),
+);
+
+function docsStates(lang: string): ArticleState[] {
+  const sources = readDocsSources(lang);
+  const hashes = labelIndexFor(lang).hashes;
+  return docsInputs(lang).map(a => articleState(a.id, a.md, a.translated, sources[a.id], hashes));
+}
+
+/** De docs-pakketbestanden in een werkmap: per pakket de basisnaam (zonder `.src.md`). */
+const docsPackageBases = (dir: string): string[] =>
+  existsSync(dir) ? readdirSync(dir).filter(f => f.endsWith('.src.md')).map(f => f.slice(0, -'.src.md'.length)).sort() : [];
+
+/** Zet oude docs-pakketten (`.src.md`, `.json`, `.out.md`) opzij in `archive/<tijd>/`. */
+function archiveDocs(dir: string): void {
+  const bases = docsPackageBases(dir);
+  if (bases.length === 0) return;
+  const to = join(dir, 'archive', stamp());
+  mkdirSync(to, { recursive: true });
+  for (const b of bases) {
+    for (const ext of ['.src.md', '.json', '.out.md']) if (existsSync(join(dir, b + ext))) renameSync(join(dir, b + ext), join(to, b + ext));
+  }
+  console.log(`..  ${bases.length} oud(e) docs-pakket(ten) verplaatst naar ${to.slice(ROOT.length + 1)}`);
+}
+
+function docsMode(args: string[]): { mode: DocsMode; ids?: string[] } {
+  const modes = (['--missing', '--stale', '--ids'] as const).filter(f => flag(args, f));
+  if (modes.length > 1) fail('kies één van --missing, --stale, --ids');
+  if (modes[0] !== '--ids') return { mode: (modes[0]?.slice(2) ?? 'missing') as DocsMode };
+  const list = option(args, '--ids');
+  if (!list || list.startsWith('--')) fail('--ids: geef artikel-id\'s, bv. --ids howto-relaties-leggen,ref-instellingen');
+  const ids = list.split(',').map(x => x.trim()).filter(Boolean);
+  const known = new Set(manifestOrder());
+  const unknown = ids.filter(id => !known.has(id));
+  if (unknown.length) fail(`--ids: onbekend artikel ${unknown.join(', ')}`);
+  return { mode: 'ids', ids };
+}
+
+function maxWords(args: string[]): number {
+  const v = Number(option(args, '--max-words') ?? DOCS_MAX_WORDS);
+  if (!Number.isFinite(v) || v < 100) fail('--max-words: geef een getal ≥ 100');
+  return v;
+}
+
+function buildDocsFor(lang: string, mode: DocsMode, ids: string[] | undefined, words: number) {
+  return buildDocsPackages({
+    lang, articles: docsInputs(lang), mode, ...(ids ? { ids } : {}), sources: readDocsSources(lang),
+    index: labelIndexFor(lang), literal: loadLiteral(), concepts: loadConcepts(), termbase: loadTermbase(lang), maxWords: words,
+  });
+}
+
+const labelCounts = (p: DocsPackage) => (['a', 'b', 'c'] as const).map(k => `${k}${p.labels.filter(l => l.kind === k).length}`).join(' ');
+
+function prepareDocs(args: string[], lang: string): void {
+  const { mode, ids } = docsMode(args);
+  const packs = buildDocsFor(lang, mode, ids, maxWords(args));
+  const dir = join(WORK, lang);
+  archiveDocs(dir);
+  mkdirSync(dir, { recursive: true });
+  for (const { pkg, src } of packs) {
+    writeFileSync(join(dir, `${pkg.id}.src.md`), src);
+    writeFileSync(join(dir, `${pkg.id}.json`), packageText(pkg));
+  }
+  bundleCheck();
+  for (const { pkg, src } of packs) {
+    const json = packageText(pkg).length;
+    console.log(`    ${pkg.id}: secties ${pkg.sections.map(s => s.index).join(',')}, ${pkg.sections.reduce((n, s) => n + s.words, 0)} woorden,`
+      + ` ${src.length} + ${json} tekens, labels ${labelCounts(pkg)}, termen ${pkg.terms.length}${pkg.previous ? `, previous ${Object.keys(pkg.previous).length}` : ''}`);
+  }
+  const arts = new Set(packs.map(p => p.pkg.article)).size;
+  console.log(`OK  prepare docs ${lang} --${mode}${ids ? ` ${ids.join(',')}` : ''}: ${arts} artikel(en) in ${packs.length} pakket(ten) in build/translate/${lang}/`);
+}
+
+function applyDocs(lang: string): void {
+  const dir = join(WORK, lang);
+  const order = manifestOrder();
+  const inputs = new Map(docsInputs(lang).map(a => [a.id, a]));
+  const sources = readDocsSources(lang);
+  const titles = readDocsIndex(lang);
+  const index = labelIndexFor(lang);
+  const hashes = index.hashes;
+  const literals = new Set(literalNames(loadLiteral()));
+  const labelsOf = (i: number, text: string) => sectionLabels(i, text, index, literals).keys;
+  const byArticle = new Map<string, { base: string; pkg: DocsPackage; src: string; out?: string }[]>();
+  for (const base of docsPackageBases(dir)) {
+    const pkg = readJson<DocsPackage>(join(dir, `${base}.json`));
+    const out = existsSync(join(dir, `${base}.out.md`)) ? readFileSync(join(dir, `${base}.out.md`), 'utf8') : undefined;
+    const list = byArticle.get(pkg.article) ?? [];
+    list.push({ base, pkg, src: readFileSync(join(dir, `${base}.src.md`), 'utf8'), ...(out !== undefined ? { out } : {}) });
+    byArticle.set(pkg.article, list);
+  }
+  let red = 0;
+  const applied: string[] = [];
+  let written = 0;
+  let rearranged = 0;
+  const write = (id: string, md: string, entry: DocsSources[string]) => {
+    mkdirSync(join(DOCS_DIR, lang), { recursive: true });
+    writeFileSync(docPath(lang, id), md);
+    sources[id] = entry;
+    titles[id] = titleOf(md) ?? id;
+  };
+  for (const [id, list] of byArticle) {
+    const art = inputs.get(id);
+    if (!art) { console.log(`XX  ${id}: staat niet (meer) in het manifest, overgeslagen`); red++; continue; }
+    if (list.some(x => x.out === undefined)) { console.log(`..  ${id}: nog geen uitvoer voor ${list.filter(x => x.out === undefined).map(x => x.base).join(', ')}`); continue; }
+    const reds = list.map(x => ({ x, r: checkDocs(x.pkg, x.src, x.out!) })).filter(({ r }) => r.errors.length > 0);
+    if (reds.length) {
+      red++;
+      for (const { x, r } of reds) for (const line of formatResult(x.pkg.id, r).filter(l => !l.startsWith('WW'))) console.log(`    ${line}`);
+      console.log(`XX  ${id}: rood, niet samengevoegd`);
+      continue;
+    }
+    const m = mergeArticle({ enMd: art.md, translated: art.translated, entry: sources[id], labelHashes: hashes, labelsOf, packages: list.map(x => ({ pkg: x.pkg, out: x.out! })) });
+    if ('error' in m) { red++; console.log(`XX  ${id}: ${m.error}`); continue; }
+    const errs = checkDocsArticle(art.md, m.md);
+    if (errs.length) { red++; for (const e of errs) console.log(`    XX ${e}`); console.log(`XX  ${id}: samengevoegd artikel rood, niet geschreven`); continue; }
+    write(id, m.md, m.entry);
+    written++;
+    applied.push(...list.map(x => x.base));
+    console.log(`OK  ${id}: ${m.fromPackages} sectie(s) uit ${list.length} pakket(ten), ${m.kept} behouden`);
+  }
+  // Artikelen zonder pakket waarvan alleen secties verdwenen of verschoven: herschikken zonder agent.
+  for (const art of inputs.values()) {
+    if (byArticle.has(art.id) || art.translated === undefined || !sources[art.id]) continue;
+    const st = articleState(art.id, art.md, art.translated, sources[art.id], hashes);
+    if (st.state !== 'stale' || st.sections.some(x => x.state !== 'current')) continue;
+    const m = mergeArticle({ enMd: art.md, translated: art.translated, entry: sources[art.id], labelHashes: hashes, labelsOf, packages: [] });
+    if ('error' in m || checkDocsArticle(art.md, m.md).length) continue;
+    write(art.id, m.md, m.entry);
+    rearranged++;
+    console.log(`OK  ${art.id}: herschikt (secties verwijderd of verplaatst in en)`);
+  }
+  if (written || rearranged) {
+    writeFileSync(docsIndexPath(lang), serializeDocsIndex(titles, order));
+    writeJson(docsSourcesPath(lang), orderDocsSources(sources, order));
+  }
+  if (applied.length) {
+    const to = join(dir, 'applied', stamp());
+    mkdirSync(to, { recursive: true });
+    for (const b of applied) for (const ext of ['.src.md', '.json', '.out.md']) renameSync(join(dir, b + ext), join(to, b + ext));
+  }
+  console.log(`${red ? 'XX' : 'OK'}  apply docs ${lang}: ${written} artikel(en) samengevoegd, ${rearranged} herschikt, ${red} rood overgeslagen`);
+  if (red) process.exit(1);
+}
+
+function renameDoc(args: string[]): void {
+  const [from, to] = positional(args);
+  if (!from || !to || from === to) fail('rename-doc <oud> <nieuw>');
+  const enNew = readDoc('en', to);
+  let moved = 0;
+  for (const lang of docsLangs()) {
+    if (existsSync(docPath(lang, to)) && existsSync(docPath(lang, from))) fail(`${lang}: ${to}.md bestaat al naast ${from}.md`);
+    if (existsSync(docPath(lang, from))) { renameSync(docPath(lang, from), docPath(lang, to)); moved++; }
+    const dir = join(DOCS_DIR, lang);
+    let links = 0;
+    if (existsSync(dir)) {
+      for (const f of readdirSync(dir).filter(x => x.endsWith('.md'))) {
+        const md = readFileSync(join(dir, f), 'utf8');
+        const next = renameDocLinks(md, from, to);
+        if (next !== md) { writeFileSync(join(dir, f), next); links++; }
+      }
+    }
+    const titles = readDocsIndex(lang);
+    if (from in titles) { titles[to] = titles[from]; delete titles[from]; }
+    const src = readDocsSources(lang);
+    if (src[from]) { src[to] = src[from]; delete src[from]; }
+    for (const id of Object.keys(src)) {
+      const en = id === to ? enNew : readDoc('en', id);
+      if (en !== undefined) src[id] = renameInEntry(src[id], en, from, to);
+    }
+    if (existsSync(dir)) writeFileSync(docsIndexPath(lang), serializeDocsIndex(titles, manifestOrder()));
+    if (existsSync(docsSourcesPath(lang))) writeJson(docsSourcesPath(lang), orderDocsSources(src, manifestOrder()));
+    console.log(`..  ${lang}: ${links} bestand(en) met links bijgewerkt`);
+  }
+  if (enNew === undefined) console.log(`!!  public/docs/en/${to}.md bestaat nog niet: hernoem ook nl/en en het manifest (met een alias), dan kloppen de hashes`);
+  console.log(`OK  rename-doc ${from} → ${to}: ${moved} vertaling(en) hernoemd in ${docsLangs().length} taal/talen`);
+}
+
+function removeDoc(args: string[]): void {
+  const [id] = positional(args);
+  if (!id) fail('remove-doc <id>');
+  let removed = 0;
+  for (const lang of docsLangs()) {
+    if (existsSync(docPath(lang, id))) { unlinkSync(docPath(lang, id)); removed++; }
+    const titles = readDocsIndex(lang);
+    delete titles[id];
+    const src = readDocsSources(lang);
+    delete src[id];
+    if (existsSync(join(DOCS_DIR, lang))) writeFileSync(docsIndexPath(lang), serializeDocsIndex(titles, manifestOrder()));
+    if (existsSync(docsSourcesPath(lang))) writeJson(docsSourcesPath(lang), orderDocsSources(src, manifestOrder()));
+    const dir = join(DOCS_DIR, lang);
+    const linking = existsSync(dir) ? readdirSync(dir).filter(f => f.endsWith('.md') && readFileSync(join(dir, f), 'utf8').includes(`docs://${id}`)) : [];
+    if (linking.length) console.log(`!!  ${lang}: nog links naar ${id} in ${linking.join(', ')} (volgen de en-bron na prepare --stale)`);
+  }
+  console.log(`OK  remove-doc ${id}: ${removed} vertaling(en) verwijderd in ${docsLangs().length} taal/talen`);
+}
+
+/**
+ * Contextbudget: per taal het grootste docs-pakket (alle artikelen heel). Invoer = .src.md + .json
+ * (tekens / 3,5); uitvoer = de bron in de doeltaal (tekens / 3,5 × 1,6 voor Cyrillisch/Arabisch).
+ */
+function docsBudget(args: string[]): void {
+  const langs = positional(args).map(checkLang);
+  if (langs.length === 0) fail('docs-budget <taal…>');
+  const words = maxWords(args);
+  for (const lang of langs) {
+    const packs = buildDocsFor(lang, 'ids', manifestOrder(), words).map(({ pkg, src }) => {
+      const json = packageText(pkg).length;
+      const inTok = Math.round((src.length + json) / 3.5);
+      const outTok = Math.round((src.length / 3.5) * 1.6);
+      return { id: pkg.id, words: pkg.sections.reduce((n, s) => n + s.words, 0), src: src.length, json, inTok, outTok, labels: labelCounts(pkg) };
+    }).sort((a, b) => (b.inTok + b.outTok) - (a.inTok + a.outTok));
+    console.log(`${lang}: ${packs.length} pakket(ten) bij --max-words ${words}`);
+    for (const p of packs.slice(0, 5)) {
+      console.log(`    ${p.id}: ${p.words} woorden, src ${p.src} + json ${p.json} tekens ≈ ${p.inTok} tokens in, ≈ ${p.outTok} uit; labels ${p.labels}`);
+    }
+  }
+}
+
 /**
  * De releasepoort (besluit B5, 2026-10-10): één lijst van bronnen van gaten. Elke bron levert per taal
- * de eenheden die niet bij zijn (ontbreekt / verouderd / zonder hash). Aanhaakpunt voor de docs (PR 4):
- * voeg hier een `docsReleaseGaps` toe met dezelfde vorm (`ReleaseGap`, `where` = `docs:<id>#<sectie>`),
- * dan eist `npm run verify:translations` vanzelf ook complete en actuele docs.
+ * de eenheden die niet bij zijn (ontbreekt / verouderd / zonder hash). De docs (`where` = `docs:<id>` of
+ * `docs:<id>#<sectie>`) tellen per taal mee zodra die taal docsvertalingen heeft.
  */
 const RELEASE_GAP_SOURCES: ((lang: string) => ReleaseGap[])[] = [
   lang => uiReleaseGaps(lang, nsInputs(lang), readJsonOr<UiSources>(sourcesPath(lang), {})),
+  // Docs tellen mee zodra een taal docsvertalingen heeft (besluit B5: "zodra die bestaan").
+  lang => (lang !== 'en' && docsLangs().includes(lang) ? docsReleaseGaps(lang, docsStates(lang)) : []),
 ];
 
 const GAP_LABEL: Record<ReleaseGap['state'], string> = { missing: 'ontbreekt', stale: 'verouderd', unhashed: 'zonder hash' };
@@ -405,7 +679,7 @@ function strictStatus(langs: string[]): void {
   }
   if (total) {
     console.log(`XX  verify:translations: ${total} vertaling(en) niet bij in ${red.length} taal/talen (${red.join(', ')}).`);
-    console.log('    Draai de vertaalstraat: per taal `prepare ui <taal> --missing` en `--stale`, de stations, `apply ui <taal>`'
+    console.log('    Draai de vertaalstraat: per taal `prepare ui|docs <taal> --missing` en `--stale`, de stations, `apply ui|docs <taal>`'
       + ' (release-skill, stap "Vertalingen bijwerken met de straat").');
     process.exit(1);
   }
@@ -427,6 +701,16 @@ function status(args: string[]): void {
     }
   }
   console.log(todo ? `..  ${todo} eenheid/eenheden te vertalen (ontbreekt, verouderd of zonder hash)` : 'OK  alles actueel');
+  console.log('');
+  console.log('docs  ontbreekt  verouderd (secties)  actueel   (artikelen)');
+  let docsTodo = 0;
+  for (const lang of langs.filter(l => l !== 'en')) {
+    const st = docsStatus(lang, docsStates(lang));
+    docsTodo += st.missing + st.stale;
+    console.log(`${lang.padEnd(5)} ${String(st.missing).padStart(9)}  ${`${st.stale} (${st.staleSections})`.padStart(19)}  ${String(st.current).padStart(7)}`
+      + `${docsLangs().includes(lang) ? '' : '   (nog geen docs: telt niet in de releasepoort)'}`);
+  }
+  console.log(docsTodo ? `..  ${docsTodo} artikel(en) te vertalen of bij te werken` : 'OK  docs actueel');
 }
 
 const [cmd, ...rest] = process.argv.slice(2);
@@ -442,9 +726,14 @@ switch (cmd) {
   case 'apply-findings': applyFindingsCmd(rest); break;
   case 'seed-sources': seed(rest); break;
   case 'status': status(rest); break;
+  case 'rename-doc': renameDoc(rest); break;
+  case 'remove-doc': removeDoc(rest); break;
+  case 'docs-budget': docsBudget(rest); break;
   default:
     console.log('gebruik: npm run translate -- <validate-termbase | concepts-candidates | concepts-merge | terms-lookup <taal> | '
       + 'apply-terms <taal> | prepare ui <taal> [--missing|--stale|--all|--avoid [--stale]|--keys <bestand>] | bundle-check | '
-      + 'apply ui <taal> | apply-findings <taal> <bestand> | seed-sources [taal…] | status [taal] [--strict]>');
+      + 'apply ui <taal> | apply-findings <taal> <bestand> | seed-sources [taal…] | status [taal] [--strict] | '
+      + 'prepare docs <taal> [--missing|--stale|--ids a,b] [--max-words N] | apply docs <taal> | rename-doc <oud> <nieuw> | '
+      + 'remove-doc <id> | docs-budget <taal…>>');
     process.exit(cmd ? 1 : 0);
 }

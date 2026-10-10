@@ -59,7 +59,7 @@ export type Selection = 'missing' | 'stale' | 'all';
  * Is de eenheid in de doeltaal vertaald? Compleet (alle CLDR-categorieën), en in een taal zonder
  * basislijn (`hasUiBaseline`) ook met een bron-hash: daar is tekst zonder hash Engelse vulling.
  */
-function isTranslated(t: Unit | undefined, u: Unit, lang: string, hashes: Record<string, string>): boolean {
+export function isTranslated(t: Unit | undefined, u: Unit, lang: string, hashes: Record<string, string>): boolean {
   return isComplete(t, u, lang) && (hasUiBaseline(lang) || hashes[u.key] !== undefined);
 }
 

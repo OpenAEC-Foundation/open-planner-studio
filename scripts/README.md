@@ -51,20 +51,31 @@ de `verify:i18n`-poort. De overige scripts draaien via hun npm-script in de kete
 
 ## Vertaalstraat (`npm run translate`)
 
-Termbase en UI-vertaling door kleine Haiku-agents per werkpakket; ontwerp
+Termbase, UI- en docsvertaling door kleine Haiku-agents per werkpakket; ontwerp
 `docs/superpowers/specs/2026-10-09-vertaalstraat-design.md`. Logica in pure modules (getoetst in
 `tests/planning/check-translate-*.ts`), I/O alleen in `cli.ts`. Werkmap `build/translate/` en cache
 `build/cache/` staan in `.gitignore`.
 
 | script | aangeroepen door | doet |
 |---|---|---|
-| `translate/cli.ts` | `npm run translate -- <commando>` | `validate-termbase`, `concepts-candidates`, `concepts-merge`, `terms-lookup <taal>`, `apply-terms <taal>`, `prepare ui <taal> [--missing\|--stale\|--all\|--avoid [--stale]\|--keys <bestand>]`, `bundle-check`, `apply ui <taal>`, `apply-findings <taal> <bestand>`, `seed-sources`, `status [taal] [--strict]`; `status --strict` is de releasepoort `npm run verify:translations` (exit 1 bij elke ontbrekende, verouderde of hashloze vertaling; aanhaakpunt voor de docs: `RELEASE_GAP_SOURCES`) |
-| `translate/check.ts` | gebundeld tot `build/translate/check.mjs` (door `prepare`, `terms-lookup`, `concepts-candidates`) | de poort die een agent zelf draait: `node build/translate/check.mjs <pakket>`; zelfstandig, zonder `node_modules` |
-| `translate/gates.ts` | `check.ts`, `apply.ts`, `cli.ts` | de harde en zachte poorten (§7) en de schema's van concepten-, termen- en blinde-controle-uitvoer |
+| `translate/cli.ts` | `npm run translate -- <commando>` | `validate-termbase`, `concepts-candidates`, `concepts-merge`, `terms-lookup <taal>`, `apply-terms <taal>`, `prepare ui <taal> [--missing\|--stale\|--all\|--avoid [--stale]\|--keys <bestand>]`, `bundle-check`, `apply ui <taal>`, `apply-findings <taal> <bestand>`, `seed-sources`, `status [taal] [--strict]`, `prepare docs <taal> [--missing\|--stale\|--ids a,b] [--max-words N]`, `apply docs <taal>`, `rename-doc <oud> <nieuw>`, `remove-doc <id>`, `docs-budget <taal…>`; `status --strict` is de releasepoort `npm run verify:translations` (exit 1 bij elke ontbrekende, verouderde of hashloze vertaling; de docs van een taal tellen mee zodra die taal docsvertalingen heeft, via `RELEASE_GAP_SOURCES`) |
+| `translate/check.ts` | gebundeld tot `build/translate/check.mjs` (door `prepare`, `terms-lookup`, `concepts-candidates`) | de poort die een agent zelf draait: `node build/translate/check.mjs <pakket>`; zelfstandig, zonder `node_modules`. Staat `<pakket>.src.md` ernaast, dan is het een docs-pakket en leest hij `<pakket>.out.md` |
+| `translate/gates.ts` | `check.ts`, `apply.ts`, `cli.ts` | de harde en zachte poorten (§7) en de schema's van concepten-, termen- en blinde-controle-uitvoer; `checkDocs` (per sectie: opbouw, subset, dubbele kop, labels a/b/c, inline code behalve display, cijfers alleen ASCII, geen "getal + punt" vooraan, tokens/keep; zacht: termen, avoid als los woord, lengte) en `checkDocsArticle` (het samengevoegde artikel) |
+| `translate/docs.ts` | `cli.ts`, `gates.ts` | docs-straat: labelkaart uit de en-UI (a: UI-label, b: patroon met `{{…}}`, c: `i18n/docs-literal.json`), pakketten per artikel of per reeks hele `##`-secties (±2.500 woorden), `--stale` per sectie gekoppeld op inhoud (en-hash of label-hash veranderd, `previous` erbij), samenvoegen, `public/docs/<taal>/index.json` (C2), `i18n/docs-sources/<taal>.json` (C3), status en releasegaten. Secties en hashes uit `lib/docs-structure.ts` (C1) |
 | `translate/ui.ts`, `apply.ts` | `cli.ts`, `i18n-add.ts` | UI-pakketten (`--missing`, `--stale`, `--avoid`, `--keys`), samenvoegen (alleen groen), bron-hashes `i18n/ui-sources/<taal>.json`, status |
 | `translate/findings.ts` | `cli.ts` | `apply-findings`: een lijst `[{ "key": "ns:pad", "fix": … }]` per regel door de harde poorten en dan in de locale; een rode of onleesbare regel wordt overgeslagen en gemeld (exit 1); bron-hashes blijven staan, want nl veranderde niet |
 | `translate/termbase.ts`, `tbx.ts`, `candidates.ts`, `common.ts` | `cli.ts` | termbase-schema en samenvoegen, Microsoft-terminologie (TBX, map `OPS_MSTERMS_DIR`, standaard `build/cache/msterms`), kandidaat-termen |
 | `translate/prompts/*.md` | de orkestrator | de vaste opdrachten voor de agents (Engels); plekhouders in `prompts/README.md` |
+
+**Docs-straat.** `prepare docs <taal>` schrijft per pakket `<id>[-NN].src.md` (de Engelse bron) en
+`<id>[-NN].json` (termen, tokens, keep, labels, `style` met `_style.docs`, display-voorbeelden en bij
+`--stale` de oude vertaling per sectie); de agent schrijft `<id>[-NN].out.md` (`prompts/docs.md`).
+`apply docs <taal>` voegt alleen groene pakketten samen (alle pakketten van een artikel groen), controleert
+het artikel opnieuw en schrijft het artikel, C2 en C3; een verouderde sectie zonder pakket houdt zijn oude
+hash. Een artikel waarin en alleen secties verwijderde of verplaatste, herschikt `apply docs` zonder agent.
+Bestandskolommen (CSV, voortgangsblad) staan in de bron als inline code; inline code die de app per taal
+anders toont, staat per artikel onder `display` in `i18n/docs-literal.json`. `docs-budget <taal…>` meet
+het grootste pakket (tekens en geschatte tokens).
 
 **Termbase veranderd?** `prepare ui <taal> --avoid` vindt precies de vertalingen waarin een `avoid`-variant
 van een term staat (zelfde regel als de zachte poort: eerst de vormen van de term wegstrepen,

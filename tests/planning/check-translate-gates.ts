@@ -180,7 +180,8 @@ const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
   const cp = { kind: 'terms-check', lang: 'cs', id: 'terms-check-01', items: [{ id: 't1', term: 'mezera' }] };
   eq('blinde controle: goed', checkPackage(cp, { t1: { backTranslation: 'gap', standard: true } }).errors, []);
   ok('blinde controle: standard ontbreekt', has(checkPackage(cp, { t1: { backTranslation: 'gap' } }).errors, 'standard moet true of false'));
-  ok('onbekend pakket', has(checkPackage({ kind: 'docs' }, {}).errors, 'onbekend kind'));
+  ok('onbekend pakket', has(checkPackage({ kind: 'nope' }, {}).errors, 'onbekend kind'));
+  ok('docs-pakket: niet via checkPackage (checkDocs met .src.md)', has(checkPackage({ kind: 'docs' }, {}).errors, 'checkDocs'));
 }
 
 // ── 8. Termbase-validatie en stam ────────────────────────────────────────────────────────────
