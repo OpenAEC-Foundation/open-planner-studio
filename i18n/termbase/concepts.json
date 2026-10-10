@@ -423,6 +423,15 @@
     ]
   },
   {
+    "id": "dcma",
+    "kind": "keep",
+    "nl": "DCMA",
+    "en": [
+      "DCMA"
+    ],
+    "definition": "US Defense Contract Management Agency; name of the 14-point schedule assessment, kept as is."
+  },
+  {
     "id": "dcma-assessment",
     "kind": "term",
     "nl": "DCMA 14-puntsbeoordeling",
