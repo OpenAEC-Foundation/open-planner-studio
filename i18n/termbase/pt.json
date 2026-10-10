@@ -1689,5 +1689,18 @@
     ],
     "source": "model",
     "status": "arbitrated"
+  },
+  "file": {
+    "term": "ficheiro",
+    "forms": [
+      "ficheiro",
+      "ficheiros"
+    ],
+    "avoid": [
+      "arquivo",
+      "arquivos"
+    ],
+    "source": "existing-ui",
+    "status": "arbitrated"
   }
 }

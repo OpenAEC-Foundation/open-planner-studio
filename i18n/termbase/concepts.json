@@ -584,6 +584,16 @@
     ]
   },
   {
+    "id": "file",
+    "kind": "term",
+    "nl": "bestand",
+    "en": [
+      "file",
+      "files"
+    ],
+    "definition": "A document stored on disk, such as a schedule saved as IFC or an imported XER file."
+  },
+  {
     "id": "finish",
     "kind": "term",
     "nl": "einde",
