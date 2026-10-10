@@ -49,7 +49,12 @@ class XDocument {
 }
 
 function parseXML(src: string): XDocument {
-  const clean = src.replace(/<\?[\s\S]*?\?>/g, '').replace(/<!--[\s\S]*?-->/g, '');
+  // Herhaal tot niets meer verandert: één ronde kan uit '<!<!---->--' een nieuw '<!--' maken.
+  let clean = src;
+  for (let prev = ''; prev !== clean;) {
+    prev = clean;
+    clean = clean.replace(/<\?[\s\S]*?\?>/g, '').replace(/<!--[\s\S]*?-->/g, '');
+  }
   const holder = new XNode('#holder');
   let cur: XNode = holder;
   const re = /<(\/?)([A-Za-z_][\w.:-]*)([^>]*?)(\/?)>|([^<]+)/g;

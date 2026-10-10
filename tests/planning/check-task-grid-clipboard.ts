@@ -302,6 +302,7 @@ function planAndCommitPaste(
   const parsedCases: Array<[string, TaskColumnId, string, unknown]> = [
     ['tekst', taskColumnId('task.description'), 'letterlijk', 'letterlijk'],
     ['percentage', taskColumnId('task.time.completion'), '25%', 0.25],
+    ['percentage met spatie en komma', taskColumnId('task.time.completion'), '12,5 %', 0.125],
     ['boolean', taskColumnId('task.isMilestone'), 'ja', true],
     ['enum', taskColumnId('task.taskType'), 'installation', 'INSTALLATION'],
     ['datum', taskColumnId('task.constraint.date'), '31-12-2026', '2026-12-31'],
@@ -317,6 +318,13 @@ function planAndCommitPaste(
         ? planned.value.writes[0].value
         : planned.ok ? planned.value.writes : planned.errors,
       expected);
+  }
+
+  // Alleen één procentteken achteraan telt; '5%0' of '50%%' is geen getal.
+  for (const bad of ['5%0', '50%%']) {
+    const completion = taskColumnId('task.time.completion');
+    const planned = planTaskGridPaste(bad, environment(rows, [completion], { rowKey: first.id, columnId: completion }));
+    eq(`percentage '${bad}' wordt geweigerd`, planned.ok, false);
   }
 
   const localizedBoolean = taskColumnId('task.isMilestone');
