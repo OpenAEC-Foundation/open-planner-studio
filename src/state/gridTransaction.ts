@@ -94,6 +94,10 @@ export interface GridMutationError {
  */
 export interface GridMutationOptions {
   progressEntry?: { today: string };
+  /** `false` ⇒ deze transactie schrijft GEEN eigen undo-stap: een omringende `withTransaction`
+   *  neemt hem samen met zijn andere mutaties op in één stap. Alleen voor die situatie (de
+   *  spookregel van het taakraster: taak aanmaken + eerste waarde). Standaard `true`. */
+  recordHistory?: boolean;
 }
 
 export interface GridTransactionSlice {
@@ -1059,6 +1063,7 @@ function commitPreparedAgainstStore(
   set: StoreSet,
   prepared: PreparedGridMutation,
   requireFreshBefore = false,
+  recordHistory = true,
 ): GridResult<void, readonly GridMutationError[]> {
   if (get().activeDocumentId !== prepared.documentId) {
     return { ok: false, errors: [{ code: 'documentChanged', message: 'Het actieve document is gewijzigd' }] };
@@ -1077,9 +1082,11 @@ function commitPreparedAgainstStore(
         state.viewRows = [...prepared.derivedAfter.viewRows];
         state.resourceLoadResult = prepared.derivedAfter.resourceLoadResult;
         markDocumentEdited(state);
-        recordDocumentDataHistoryDelta(
-          state, prepared.label, prepared.documentId, prepared.before, prepared.after,
-        );
+        if (recordHistory) {
+          recordDocumentDataHistoryDelta(
+            state, prepared.label, prepared.documentId, prepared.before, prepared.after,
+          );
+        }
       });
     } catch (error) {
       return { ok: false, errors: [{ code: 'commitFailed', message: (error as Error).message }] };
@@ -1125,7 +1132,7 @@ function runGridMutationAgainstStore(
     if (intents.length === 0) return { ok: true, value: undefined };
     const prepared = prepareGridMutation(get(), intents, options);
     if (!prepared.ok) return prepared;
-    const committed = commitPreparedAgainstStore(get, set, prepared.value);
+    const committed = commitPreparedAgainstStore(get, set, prepared.value, false, options?.recordHistory ?? true);
     return committed.ok
       ? { ok: true, value: undefined }
       : { ok: false, errors: committed.errors.map(error => validationError(error.code)) };

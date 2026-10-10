@@ -108,7 +108,8 @@ export function NotificationHost() {
   const { t } = useTranslation();
   const placement = useToastPlacement(notifications.length > 0);
 
-  // Auto-dismiss uitsluitend voor `info`-meldingen (5 s); `error` blijft staan tot wegklikken.
+  // Auto-dismiss uitsluitend voor `info`-meldingen (5 s, of `durationMs`); `error` blijft staan tot
+  // wegklikken.
   // Bekend en geaccepteerd neveneffect: bij elke lijstwijziging herstart dit effect álle lopende
   // info-timers — een nieuwe melding verlengt de zichtbaarheid van reeds zichtbare info's met 5 s.
   // Dat is bewust: meldingen zijn kort (max. 3 tegelijk) en zo voorkomen we dat een net verschenen
@@ -117,7 +118,7 @@ export function NotificationHost() {
     if (notifications.length === 0) return;
     const timers = notifications
       .filter((n) => n.severity === 'info')
-      .map((n) => setTimeout(() => dismissNotification(n.id), 5000));
+      .map((n) => setTimeout(() => dismissNotification(n.id), n.durationMs ?? 5000));
     return () => { for (const tm of timers) clearTimeout(tm); };
   }, [notifications, dismissNotification]);
 

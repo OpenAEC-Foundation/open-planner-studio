@@ -35,6 +35,8 @@ import { ContextMenu } from './ContextMenu';
 // Reikwijdte (aangeklikte taak = handgreep, selectie = bereik) + de bulk-uitvoering
 // als ÉÉN undo-stap. DOM-vrij afgezonderd zodat de regressiebatterij dezelfde functies draait.
 import { contextMenuOutlineScope, contextMenuBulk } from './contextMenuScope';
+import { addTaskAtEnd } from '@/state/taskInsertActions';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { RelationTypePopover } from './RelationTypePopover';
 import { createRelationDraftWithFeedback } from '@/state/relationActions';
 // Hover-tooltip die zichzelf binnen het venster houdt (nodig zodra de titel wrapt).
@@ -389,6 +391,17 @@ export function GanttCanvas({
 
   const defaultTaskName = tTask('defaultTask');
   const defaultMilestoneName = tTask('defaultMilestone');
+  // Rechtsklik op lege ruimte → "Nieuwe taak"/"Nieuwe mijlpaal": onderaan de lijst, beginnend op
+  // de datum onder de cursor (review 2026-10-06, punt 1). Zonder voorganger is `scheduleStart` het
+  // anker van de solver, dus de taak blijft na Berekenen op die datum staan.
+  const addAtClickedDate = (milestone: boolean) => {
+    const date = pointer.contextMenu?.clickDate;
+    addTaskAtEnd({
+      name: milestone ? defaultMilestoneName : defaultTaskName,
+      ...(milestone ? { isMilestone: true, taskType: 'ATTENDANCE' as const } : {}),
+      ...(date ? { time: createDefaultTaskTime(date, milestone ? 0 : 5, 'days', calendar) } : {}),
+    });
+  };
   const revealTaskIfOffscreen = useCallback((task: Task) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -994,6 +1007,7 @@ export function GanttCanvas({
             });
           }}
           onAddMilestone={() => {
+            if (!contextMenu.task) { addAtClickedDate(true); return; }
             addTask({
               name: defaultMilestoneName,
               isMilestone: true,
@@ -1039,7 +1053,8 @@ export function GanttCanvas({
             if (contextMenu.task) contextMenuBulk.remove(contextMenu.task.id);
           }}
           onAddTask={() => {
-            contextMenuBulk.addNearSelection(defaultTaskName);
+            // Alleen in het menu op lege ruimte: onderaan, op de aangeklikte datum.
+            addAtClickedDate(false);
           }}
           onInsertAbove={() => {
             if (contextMenu.task) contextMenuBulk.insert(contextMenu.task.id, 'above', defaultTaskName);

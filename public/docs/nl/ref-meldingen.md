@@ -67,7 +67,9 @@ De lijst hieronder is een keuze, gegroepeerd naar onderwerp. Waar het niet staat
 ### Opslaan, openen en herstel
 
 - **Opslaan mislukt** (fout) — *Opslaan mislukt* met de reden eronder. Bij opslaan, opslaan als en het exporteren van een rapport.
-- **Opgeslagen als download** (info) — *Opgeslagen als download: '{naam}' staat nu in je downloadmap. …* Als de omgeving de app niet rechtstreeks naar de gekozen plek laat schrijven. Twee downloads vlak na elkaar vouwen samen.
+- **Opgeslagen als download** (info) — *Opgeslagen als download: '{naam}' staat nu in je downloadmap. …* Bij *Opslaan als* en exporteren, als de omgeving de app niet rechtstreeks naar de gekozen plek laat schrijven. Twee downloads vlak na elkaar vouwen samen.
+- **Opslaan als download (uitleg)** (info) — *Opgeslagen als download: '{naam}' staat in je downloadmap. Deze browser laat de app niet naar een eigen plek schrijven, …* Bij *Opslaan* in een browser die alleen via een download bewaart. Eén keer per sessie, met een link naar de uitleg over bestanden.
+- **Browser schrijft niet terug** (info) — *Deze browser laat de app niet terugschrijven naar '{naam}'. …* Bij *Opslaan* van een project met een bestand, als de browser opnieuw om een plek moet vragen. Eén keer per sessie, met een link naar de uitleg over bestanden.
 - **Automatisch opslaan mislukt** (fout) — *Automatisch opslaan mislukt* met de reden. Geldt voor het automatisch opslaan naar het bestand en voor het crashherstel.
 - **Bibliotheek kon niet worden opgeslagen** (fout) — *Bibliotheek kon niet worden opgeslagen*, bij het opslaan van de resourcebibliotheek.
 - **Bestand openen mislukt** (fout) — *Bestand openen mislukt* met de reden. Bij een voorbeeld, een recent bestand of een importbestand.

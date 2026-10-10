@@ -229,3 +229,23 @@ test('extensie-ZIP antwoordt nooit → na de stiltelimiet Help › Tutorials met
   expect(await page.evaluate(() => window.__OPS__!.store.getState().installedExtensions.tutorials)).toBeUndefined();
   expect(await answered(page)).toBe('true');
 });
+
+// knownbugs 54/80: de Backstage is lazy geladen. Laadt hij traag, dan sloeg de rondleiding stap 6
+// (Voorbeelden) meteen over en stond de kaart even met de titel van de nieuwe stap op de plek van de
+// vorige; het testhulpje klikte dan in een wisselende kaart. Nu wacht de stap op zijn anker.
+test('trage Backstage: de stap Voorbeelden wacht op zijn anker en wordt niet overgeslagen', async ({ page, ops: _ops }) => {
+  await catalogUnavailable(page);
+  await page.route('**/src/components/backstage/Backstage.tsx*', async route => {
+    await new Promise(resolve => setTimeout(resolve, 900));
+    await route.continue();
+  });
+  await freshStart(page);
+  await startTourFromWelcome(page);
+  const titles: string[] = [];
+  await completeTour(page, async () => {
+    titles.push(await page.locator('[data-ops-tour-card] span.font-semibold').innerText());
+  });
+  expect(titles).toContain('Example projects');
+  expect(titles[titles.length - 1]).toBe('Your feedback matters');
+  await expect(offer(page)).toBeVisible();
+});

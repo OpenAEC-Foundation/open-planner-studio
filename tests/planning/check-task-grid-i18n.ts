@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const LOCALES = ['ar', 'de', 'en', 'es', 'fa', 'fr', 'it', 'ja', 'ko', 'nl', 'pl', 'pt', 'tr', 'zh'] as const;
+const LOCALES = ['ar', 'de', 'en', 'es', 'fa', 'fr', 'it', 'ja', 'ko', 'lo', 'nl', 'pl', 'pt', 'tr', 'zh'] as const;
 
 /** Alle door de nieuwe taakgrid zelf gebruikte teksten; bestaande domeinlabels staan hier ook in,
  * zodat hergebruik niet stil terug kan vallen op de standaardtaal. */
@@ -226,6 +226,7 @@ const relationColumnWords: Record<(typeof LOCALES)[number], readonly [string, st
   it: ['Predecessori', 'Successori'],
   ja: ['先行タスク', '後続タスク'],
   ko: ['선행 작업', '후속 작업'],
+  lo: ['ວຽກກ່ອນໜ້າ', 'ວຽກຖັດໄປ'],
   nl: ['voorganger', 'opvolger'],
   pl: ['Poprzedniki', 'Następniki'],
   pt: ['Predecessoras', 'Sucessoras'],
@@ -336,7 +337,8 @@ ok('Assignment-validatie staat op de focusbare invoervelden en niet op de sameng
     && (cellEditor.match(/aria-describedby=\{inputProps\['aria-describedby'\]\}/g)?.length ?? 0) >= 3);
 ok('Relatie-validatie staat op type-, lag- en zoekvelden en niet op de samengestelde wrapper',
   relationEditor.includes('const validationProps = {')
-    && (relationEditor.match(/<select\s+\{\.\.\.validationProps\}/g)?.length ?? 0) === 2
+    // De typekeuze is sinds review 2026-10-06 de gedeelde `Select` (geen native `<select>`).
+    && (relationEditor.match(/<Select\s+\{\.\.\.validationProps\}/g)?.length ?? 0) === 2
     && (relationEditor.match(/<input\s+\{\.\.\.validationProps\}/g)?.length ?? 0) === 3
     && !/<div[^>]*className="task-grid-relation-editor"[^>]*validationProps/.test(relationEditor));
 

@@ -283,7 +283,8 @@
       "baselineVarianceStart": "开始差异",
       "baselineVarianceFinish": "完成差异",
       "baselineVarianceDuration": "工期差异"
-    }
+    },
+    "ghostRow": "新任务"
   },
   "taskStatus": {
     "NOT_STARTED": "未开始",
@@ -511,7 +512,11 @@
     "controlLag": "{{task}} — 延迟",
     "removeInternal": "移除与 {{task}} 的关系",
     "removeExternal": "移除与 {{task}} 的外部关系",
-    "searchPlaceholder": "WBS 或任务名称"
+    "searchPlaceholder": "WBS 或任务名称",
+    "sentenceFS": "{{pred}} 完成后，{{succ}} 才能开始。",
+    "sentenceSS": "{{pred}} 开始后，{{succ}} 才能开始。",
+    "sentenceFF": "{{pred}} 完成后，{{succ}} 才能完成。",
+    "sentenceSF": "{{pred}} 开始后，{{succ}} 才能完成。"
   },
   "structure": {
     "title": "代码与字段",

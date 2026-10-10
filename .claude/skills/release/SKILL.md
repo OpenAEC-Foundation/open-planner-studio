@@ -14,7 +14,7 @@ triggert CI-builds, publicatie op GitHub én auto-update naar álle gebruikers. 
 is het startsein voor de vóórbereiding, maar de **tag-push is de enige harde akkoord-poort**:
 dáár vraag je één keer expliciet bevestiging (versie + de bullets) vóór je pusht. Alles
 daarvóór is omkeerbaar — bereid het compleet voor. **Vlak vóór die akkoord-poort draait verplicht
-een critreview tier 2** (stap 11).
+een review door de `reviewer`-agent** (stap 11).
 
 De zes eisen van de user zitten hieronder verweven: (1) volledige commit-historie sinds de
 vorige release bekijken · (2) release notes = een paar bullets, geen ellenlange tekst ·
@@ -183,11 +183,11 @@ git add docs/release-notes/vX.Y.Z.md
 git commit -am "chore(release): vX.Y.Z"
 ```
 
-### 11. Critreview tier 2 — vóór je om release-akkoord vraagt
-Draai vóór de akkoord-poort een **hyperkritische review, tier 2 (Opus, volle scope)** op de
+### 11. Review — vóór je om release-akkoord vraagt
+Draai vóór de akkoord-poort een review door de **`reviewer`-agent** (Opus, xhigh, volle scope) op de
 release-kandidaat: de changelog-diff (de nieuwe sectie), de release notes en de volledige scope
-sinds de vorige tag. Dispatch één review-subagent die de `hyperkritische-review`-skill aanroept
-(zie de `critreview`-skill voor het opzetten). **Geen go?** Eerst fixen, dan pas verder. Verplicht —
+sinds de vorige tag. Geef de bevindingen door met de labels [BEVESTIGD]/[VERMOED] intact.
+**Geen go?** Eerst fixen, dan pas verder. Verplicht —
 de user wil de review-uitkomst zien vóór de akkoord-vraag.
 
 ### 12. ⛔ AKKOORD-POORT

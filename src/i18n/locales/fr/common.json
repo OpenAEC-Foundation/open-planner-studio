@@ -85,6 +85,8 @@
     "mppEncrypted": "Ce fichier .mpp est protégé par un mot de passe. Exportez-le depuis MS Project au format XML (Fichier → Enregistrer sous → XML) et ouvrez ce fichier.",
     "saveFailed": "Échec de l'enregistrement",
     "savedViaDownload": "Enregistré sous forme de téléchargement : '{{name}}' se trouve maintenant dans votre dossier de téléchargements. Cet environnement ne permet pas à l'application d'écrire directement à l'emplacement choisi.",
+    "browserCannotOverwrite": "Ce navigateur ne permet pas à l'application de réécrire dans « {{name}} ». C'est pourquoi l'application redemande l'emplacement du fichier à chaque enregistrement. Cela ne se produit pas dans Chrome, Edge ou l'application de bureau.",
+    "browserSavesAsDownload": "Enregistré en téléchargement : « {{name}} » se trouve dans votre dossier de téléchargements. Ce navigateur ne permet pas à l'application d'écrire à un emplacement choisi ; chaque enregistrement crée donc un nouveau téléchargement. Dans Chrome, Edge ou l'application de bureau, Enregistrer met simplement à jour le même fichier.",
     "autoSaveFailed": "Échec de l'enregistrement automatique",
     "recoveryReadFailed": "Le fichier récupéré n'a pas pu être lu",
     "recoveryRestoreFailed": "Échec de la restauration",

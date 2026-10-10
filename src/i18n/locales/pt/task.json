@@ -291,7 +291,8 @@
       "baselineVarianceStart": "Desvio de início",
       "baselineVarianceFinish": "Desvio de fim",
       "baselineVarianceDuration": "Desvio de duração"
-    }
+    },
+    "ghostRow": "Nova tarefa"
   },
   "taskStatus": {
     "NOT_STARTED": "Não iniciada",
@@ -519,7 +520,11 @@
     "controlLag": "{{task}} — desfasamento",
     "removeInternal": "Remover relação com {{task}}",
     "removeExternal": "Remover relação externa com {{task}}",
-    "searchPlaceholder": "EAP ou nome da tarefa"
+    "searchPlaceholder": "EAP ou nome da tarefa",
+    "sentenceFS": "{{succ}} só começa depois que {{pred}} termina.",
+    "sentenceSS": "{{succ}} só começa depois que {{pred}} começa.",
+    "sentenceFF": "{{succ}} só termina depois que {{pred}} termina.",
+    "sentenceSF": "{{succ}} só termina depois que {{pred}} começa."
   },
   "structure": {
     "title": "Códigos e campos",

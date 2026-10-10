@@ -69,6 +69,8 @@
     "mppEncrypted": "Bu .mpp dosyası parola ile korunuyor. MS Project'te XML olarak dışa aktarın (Dosya → Farklı Kaydet → XML) ve o dosyayı açın.",
     "saveFailed": "Kaydetme başarısız",
     "savedViaDownload": "İndirme olarak kaydedildi: '{{name}}' artık indirmeler klasörünüzde. Bu ortam uygulamanın seçtiğiniz konuma doğrudan yazmasına izin vermiyor.",
+    "browserCannotOverwrite": "Bu tarayıcı, uygulamanın '{{name}}' dosyasına geri yazmasına izin vermiyor. Bu yüzden uygulama her kaydetmede dosyanın nereye kaydedileceğini yeniden sorar. Chrome, Edge veya masaüstü uygulamasında bu olmaz.",
+    "browserSavesAsDownload": "İndirme olarak kaydedildi: '{{name}}' indirilenler klasörünüzde. Bu tarayıcı, uygulamanın kendi seçtiği bir yere yazmasına izin vermiyor; bu yüzden her kaydetme yeni bir indirme oluşturur. Chrome, Edge veya masaüstü uygulamasında Kaydet aynı dosyayı günceller.",
     "autoSaveFailed": "Otomatik kaydetme başarısız",
     "recoveryReadFailed": "Kurtarılan dosya okunamadı",
     "recoveryRestoreFailed": "Geri yükleme başarısız",

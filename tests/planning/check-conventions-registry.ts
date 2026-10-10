@@ -379,7 +379,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
 // Alleen aanwezigheid en type; de pluralcategorieën per locale bewaakt `npm run verify:i18n`.
 {
   const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-  const LOCALES = ['nl', 'en', 'fr', 'de', 'es', 'zh', 'it', 'pt', 'pl', 'tr', 'ar', 'ja', 'ko', 'fa'];
+  const LOCALES = ['nl', 'en', 'fr', 'de', 'es', 'zh', 'it', 'pt', 'pl', 'tr', 'ar', 'ja', 'ko', 'lo', 'fa'];
   for (const locale of LOCALES) {
     const common = JSON.parse(readFileSync(join(ROOT, `src/i18n/locales/${locale}/common.json`), 'utf8')) as {
       conventions?: Record<string, { label?: unknown; help?: unknown }>;

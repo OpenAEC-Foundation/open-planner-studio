@@ -10,6 +10,8 @@ You add relations when you build a schedule, when a task is added, or when two j
 
 The default relation is **FS** (Finish-Start): the successor can only start once the predecessor is finished. The app also knows SS, FF and SF, which tie a start or finish to a start or finish; with SS (Start-Start), for example, the plastering can only start once the building services have started.
 
+Not sure which type you need? Below the type choice, a sentence with the real task names explains it, for example *Metselwerk can only start once Fundering has finished.* Choose another type and the sentence changes with it. You see it in the *Relation type* window, in the *Dependencies* block and in the *Predecessors* or *Successors* column.
+
 ## Steps
 
 There are four ways to add a relation. They create the same relation; pick whatever suits your situation best.

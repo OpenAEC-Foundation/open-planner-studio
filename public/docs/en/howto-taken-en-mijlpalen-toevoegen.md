@@ -19,6 +19,20 @@ The new task is first called *New task* and starts on the project start.
 
 If a task is selected, the new task goes directly below it, at the same level. If the selected task is a summary task, the new task goes below that whole phase, so after its subtasks. If nothing is selected, it goes at the bottom of the list. The button's tooltip says which of the two will happen: *New task directly below the selection* or *New task at the bottom of the list*. If you select several tasks, one new task is created, below the lowest of the selection as you see it on screen.
 
+### Quickly one after another in the task list
+
+Below the last task in the task list there is always a grey *New task* row. It is not a task yet: it is not in the Gantt and not in the file.
+
+1. Click a cell of that row, or go to it with the down arrow.
+2. Type the name and press Enter. Now it is a real task, at the same level as the task above it. The cursor is right away on the new grey row below.
+3. Type the next name, and so on.
+
+If you only fill in a duration or a date on the grey row, the task is called *New task*. If you leave without filling in anything, nothing happens: no task and no step in *Undo*. Creating the task and its first value are one step in *Undo* together. The grey row is only there when the task list is not filtered, grouped or sorted.
+
+### With the right mouse button on empty space
+
+Right-click on empty space: in the task list below the last task, or in the Gantt next to or below the bars. Choose *New task* or *Add milestone*. The task goes to the bottom of the list. In the Gantt it starts on the date where you clicked. In the task list the name cell opens right away so you can type.
+
 ### Above or below a specific task
 
 Right-click the task and choose *Insert above* or *Insert below*. The keyboard works too: Insert adds above the selected task, Ctrl+I (⌘+I on a Mac) below it. In the task list the name cell opens straight away after Insert, ready for typing.

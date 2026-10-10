@@ -10,6 +10,8 @@ Je legt relaties bij het opbouwen van een planning, als er een taak bijkomt, of 
 
 De standaardrelatie is **FS** (Eind-Start): de opvolger kan pas beginnen als de voorganger klaar is. De app kent daarnaast SS, FF en SF, die een start of einde aan een start of einde koppelen; bij SS (Start-Start) kan het stucwerk bijvoorbeeld pas beginnen als de installaties begonnen zijn.
 
+Twijfel je welk type je nodig hebt? Onder de keuze van het type staat een zin met de echte taaknamen, bijvoorbeeld *Metselwerk begint pas als Fundering klaar is.* Kies je een ander type, dan verandert de zin mee. Je ziet hem in het venster *Type relatie*, in het blok *Afhankelijkheden* en in de kolom *Voorgangers* of *Opvolgers*.
+
 ## Stappen
 
 Er zijn vier manieren om een relatie te leggen. Ze maken dezelfde relatie; kies wat het handigst is voor je situatie.

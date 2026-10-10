@@ -31,7 +31,7 @@ function assert(cond: boolean, msg: string): void {
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const localesDir = join(currentDir, '..', '..', 'src', 'i18n', 'locales');
-const ALL_LOCALES = ['nl', 'en', 'fr', 'de', 'es', 'zh', 'it', 'pt', 'pl', 'tr', 'ar', 'ja', 'ko', 'fa'];
+const ALL_LOCALES = ['nl', 'en', 'fr', 'de', 'es', 'zh', 'it', 'pt', 'pl', 'tr', 'ar', 'ja', 'ko', 'lo', 'fa'];
 
 function loadCommon(loc: string): { companyLibrary?: Record<string, unknown> } {
   return JSON.parse(readFileSync(join(localesDir, loc, 'common.json'), 'utf8'));
@@ -90,7 +90,7 @@ async function main() {
     assert('removeCompanyConfirmLinked_other' in cl, `${loc}: companyLibrary.removeCompanyConfirmLinked_other bestaat (verplichte fallback-categorie)`);
   }
   // zh/ja/ko: uitsluitend _other (geen plural-onderscheid in deze talen) — een _one hier zou dode data zijn.
-  for (const loc of ['zh', 'ja', 'ko']) {
+  for (const loc of ['zh', 'ja', 'ko', 'lo']) {
     const cl = loadCommon(loc).companyLibrary ?? {};
     assert(!('refreshNotice_one' in cl), `${loc}: geen refreshNotice_one (deze taal kent geen pluralonderscheid)`);
   }

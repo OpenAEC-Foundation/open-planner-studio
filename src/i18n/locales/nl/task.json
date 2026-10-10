@@ -287,7 +287,8 @@
       "baselineVarianceStart": "Startafwijking",
       "baselineVarianceFinish": "Eindafwijking",
       "baselineVarianceDuration": "Duurafwijking"
-    }
+    },
+    "ghostRow": "Nieuwe taak"
   },
   "taskStatus": {
     "NOT_STARTED": "Niet gestart",
@@ -515,7 +516,11 @@
     "controlLag": "{{task}} — vertraging",
     "removeInternal": "Verwijder relatie met {{task}}",
     "removeExternal": "Verwijder externe relatie met {{task}}",
-    "searchPlaceholder": "WBS of taaknaam"
+    "searchPlaceholder": "WBS of taaknaam",
+    "sentenceFS": "{{succ}} begint pas als {{pred}} klaar is.",
+    "sentenceSS": "{{succ}} begint pas als {{pred}} begint.",
+    "sentenceFF": "{{succ}} is pas klaar als {{pred}} klaar is.",
+    "sentenceSF": "{{succ}} is pas klaar als {{pred}} begint."
   },
   "structure": {
     "title": "Codes & velden",

@@ -303,7 +303,8 @@
       "baselineVarianceStart": "انحراف البدء",
       "baselineVarianceFinish": "انحراف الانتهاء",
       "baselineVarianceDuration": "انحراف المدة"
-    }
+    },
+    "ghostRow": "مهمة جديدة"
   },
   "taskStatus": {
     "NOT_STARTED": "لم تبدأ",
@@ -531,7 +532,11 @@
     "controlLag": "{{task}} — التأخير",
     "removeInternal": "إزالة العلاقة مع {{task}}",
     "removeExternal": "إزالة العلاقة الخارجية مع {{task}}",
-    "searchPlaceholder": "WBS أو اسم المهمة"
+    "searchPlaceholder": "WBS أو اسم المهمة",
+    "sentenceFS": "تبدأ {{succ}} فقط بعد انتهاء {{pred}}.",
+    "sentenceSS": "تبدأ {{succ}} فقط بعد بدء {{pred}}.",
+    "sentenceFF": "تنتهي {{succ}} فقط بعد انتهاء {{pred}}.",
+    "sentenceSF": "تنتهي {{succ}} فقط بعد بدء {{pred}}."
   },
   "structure": {
     "title": "الرموز والحقول",

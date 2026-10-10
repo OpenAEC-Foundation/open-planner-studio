@@ -67,7 +67,9 @@ The list below is a selection, grouped by topic. Where it does not say otherwise
 ### Saving, opening and recovery
 
 - **Saving failed** (error) — *Failed to save* with the reason below it. When saving, saving as and exporting a report.
-- **Saved as a download** (info) — *Saved as a download: '{name}' is now in your downloads folder. …* When the environment does not let the app write directly to the location you picked. Two downloads right after each other fold together.
+- **Saved as a download** (info) — *Saved as a download: '{name}' is now in your downloads folder. …* With *Save As* and exports, when the environment does not let the app write directly to the location you picked. Two downloads right after each other fold together.
+- **Saved as a download (explanation)** (info) — *Saved as a download: '{name}' is in your downloads folder. This browser does not let the app write to a place of its own, …* With *Save* in a browser that only saves through a download. Once per session, with a link to the explanation of files.
+- **Browser does not write back** (info) — *This browser does not let the app write back to '{name}'. …* With *Save* of a project that has a file, when the browser has to ask for a place again. Once per session, with a link to the explanation of files.
 - **Auto-save failed** (error) — *Auto-save failed* with the reason. Applies to auto-saving to the file and to crash recovery.
 - **Library could not be saved** (error) — *Library could not be saved*, when saving the resource library.
 - **Opening a file failed** (error) — *Failed to open file* with the reason. For an example, a recent file or an imported file.

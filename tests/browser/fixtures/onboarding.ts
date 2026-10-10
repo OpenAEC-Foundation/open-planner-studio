@@ -39,21 +39,22 @@ export const tourStep = (page: Page) => page.evaluate(() => window.__OPS__!.stor
  */
 export async function completeTour(page: Page, eachStep?: () => Promise<void>): Promise<void> {
   const primary = page.locator('[data-ops-tour-card] .btn--primary');
-  // De titel van de kaart (elke stap heeft een eigen titel), of null als de kaart weg is — in één
-  // `evaluate`, dus atomair. Bewust GEEN label lezen vóór de klik en daarop sturen: een stap waarvan
-  // het anker (nog) ontbreekt, slaat de rondleiding vanzelf over (TourOverlay, na twee rAF's; bv. de
-  // lazy geladen Backstage bij stap 6). Tussen lezen en klikken stond de kaart dan al op de laatste
-  // stap: de klik sloot de rondleiding en de hulp wachtte nog op een volgende stap (CI, #278).
-  // Daarom: klik, en wacht tot de kaart óf weg is (dat was de afsluitknop) óf een andere stap toont.
+  // Klik, en wacht dan tot óf de rondleiding dicht is (dat was de afsluitknop) óf de kaart een
+  // ANDERE stap toont. Tussen twee stappen is de kaart even weg (TourOverlay meet of wacht dan op
+  // het anker, bv. de lazy Backstage bij stap 6; knownbugs 54/80), dus "geen kaart" betekent niet
+  // "klaar": de toestand van de rondleiding zelf (`ui.showTourOverlay`) beslist. Bewust GEEN label
+  // lezen vóór de klik en daarop sturen: een stap waarvan het anker uitblijft, slaat de rondleiding
+  // vanzelf over.
   const shownTitle = () => page.evaluate(() =>
     document.querySelector('[data-ops-tour-card] span.font-semibold')?.textContent ?? null);
+  const tourOpen = () => page.evaluate(() => window.__OPS__!.store.getState().ui.showTourOverlay);
   for (let i = 0; i < 12; i++) {
     await eachStep?.();
+    await expect(primary, 'de rondleidingskaart staat open').toBeVisible();
     const before = await shownTitle();
-    expect(before, 'de rondleidingskaart staat open').not.toBeNull();
     await primary.click();
-    await expect.poll(shownTitle).not.toBe(before);
-    if ((await shownTitle()) === null) return;
+    await expect.poll(async () => !(await tourOpen()) || ((await shownTitle()) ?? before) !== before).toBe(true);
+    if (!(await tourOpen())) return;
   }
   throw new Error('de rondleiding bereikte geen laatste stap');
 }

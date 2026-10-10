@@ -206,11 +206,6 @@ en noem het in je rapport of PR-tekst.
 
 ## Rondleiding, Help en extensie-gidsen
 
-54. **Rondleiding slaat stap 6 (*Voorbeelden*) over als de Backstage nog niet geladen is.** `Backstage` is
-    lazy (`App.tsx:81`); `TourOverlay` zoekt het anker na twee rAF's en gaat bij een ontbrekend anker meteen
-    door. Op een trage verbinding of machine mist de gebruiker die stap. Gezien in CI (#278) en lokaal
-    nagespeeld met een vertraagde module. Voorstel: het anker kort laten afwachten voordat de stap wordt
-    overgeslagen. — B
 51. **Histogram-tooltip "0 taken dragen bij"** op de startdag van een urentaak: `contributingTaskNames` in
     `useGanttHistogramInteraction.ts` vergelijkt "2027-06-28" met "2027-06-28T07:00". Voorstel: vergelijken
     op `.slice(0,10)`. De balken zelf kloppen. — S
@@ -258,11 +253,6 @@ en noem het in je rapport of PR-tekst.
     496–499 ms (5-10-2026); rood (535–790 ms) in `npm run verify` zodra de container druk is (meerdere agents
     tegelijk). In CI steeds groen. De grens meet de machine mee. Voorstel: grens relatief aan een
     referentiemeting in dezelfde run, of alleen in CI hard. — B
-80. **Rondleidingstests soms rood in CI: de knop *Close* van de laatste stap is "not visible"**
-    (`tests/browser/first-start-tutorial.spec.ts`, 3 tests tegelijk; CI-job 112313353930 op #285, 6-10-2026).
-    De herhaalde job was groen, lokaal 20/20 groen; de diff van #285 raakte de rondleiding niet. Oorzaak
-    onbekend; mogelijk verwant aan 54 (stap overslaan bij een nog niet geladen Backstage). — B (gezien),
-    oorzaak onbekend
 90. **`check-xer-tables` is rood als de `TextDecoder` van Node byte 0x80 (CP1252) niet naar € vertaalt**
     ("Café €" wordt "Café "; 6 asserties in deel 5). Gezien 7-10-2026 in een cloudcontainer (Node 22.22.0,
     ICU 77.1), óók op de onaangeraakte commit `c00163a`; daar geeft `new TextDecoder('windows-1252')` voor
@@ -293,3 +283,8 @@ en noem het in je rapport of PR-tekst.
     Projectinformatie (besluit eigenaar: zes vensters, de wizard hoort er niet bij). Voorstel: als de eigenaar
     dat wil, `help` ook in de wizard zetten, met `confirmLeave` zonder `dirty` (de wizard kent geen
     "niet toegepast"). — B
+94. **Tab in een open tabelcel legt niets vast.** De cel-editor van het taakraster (`GridEditorHost`) kent
+    alleen Enter en Escape; Tab verplaatst de browserfocus uit het invoerveld, zonder vast te leggen en
+    zonder naar de volgende kolom te gaan. Bij snel invoeren via de spookregel (typ naam, Tab, typ duur)
+    verwacht je het Excel-gedrag: vastleggen en een kolom verder (Shift+Tab terug). Gezien bij review
+    vader, punt 1. — B

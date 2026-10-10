@@ -283,7 +283,8 @@
       "baselineVarianceStart": "시작 차이",
       "baselineVarianceFinish": "완료 차이",
       "baselineVarianceDuration": "기간 차이"
-    }
+    },
+    "ghostRow": "새 작업"
   },
   "taskStatus": {
     "NOT_STARTED": "시작 안 함",
@@ -511,7 +512,11 @@
     "controlLag": "{{task}} — 지연",
     "removeInternal": "{{task}}과(와)의 관계 제거",
     "removeExternal": "{{task}}과(와)의 외부 관계 제거",
-    "searchPlaceholder": "WBS 또는 작업 이름"
+    "searchPlaceholder": "WBS 또는 작업 이름",
+    "sentenceFS": "{{succ}}은(는) {{pred}}이(가) 끝난 뒤에 시작합니다.",
+    "sentenceSS": "{{succ}}은(는) {{pred}}이(가) 시작된 뒤에 시작합니다.",
+    "sentenceFF": "{{succ}}은(는) {{pred}}이(가) 끝난 뒤에 끝납니다.",
+    "sentenceSF": "{{succ}}은(는) {{pred}}이(가) 시작된 뒤에 끝납니다."
   },
   "structure": {
     "title": "코드 및 필드",
