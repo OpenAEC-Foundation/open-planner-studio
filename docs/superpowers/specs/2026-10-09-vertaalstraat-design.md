@@ -393,7 +393,7 @@ Voor de eigenaar (worden één voor één voorgelegd, met voorbeeld):
   (`config.ts:48`), de taalsplitsing (`config.ts:116`, `helpManifest.ts:45`) en `verify-docs.ts:341`. Wel
   staan de MS Project-termen in de TBX vooral in Latijns schrift (omzetten naar Cyrillisch is
   mechanisch). Voorstel: Cyrillisch.
-- **B2 — Verouderd docsartikel.** (a) de viewer toont toch de vertaling; (b) de viewer toont het Engels met
+- **B2 — Verouderd docsartikel. BESLOTEN: (a), eigenaar, 2026-10-10 — de viewer toont de bestaande vertaling; bij elke release draait de straat (`--missing --stale`) voor UI én docs. De docs-vertaalrun start pas op uitdrukkelijk verzoek van de eigenaar.** (a) de viewer toont toch de vertaling; (b) de viewer toont het Engels met
   een melding; (c) per sectie: actuele secties in de taal, verouderde in het Engels. Voorstel: (a) op `main`,
   en de release-regel uit §11 zorgt dat een release geen verouderde vertaling bevat.
 - **B3 — Melding "machinevertaling".** Geen moedertaalspreker in de keten. Voorstel: in Help een korte
