@@ -8,7 +8,7 @@ import type { Draw2D } from '@/services/pdf/draw2d';
 import { CanvasDraw2D } from '@/services/pdf/canvasDraw2d';
 import { printableWidthLogicalPx, type TileLayout } from '@/services/print/tileLayout';
 // Print-vriendelijk kleurschema uit het centrale themapalet.
-import { PRINT_PALETTE as PRINT_COLORS } from '@/engine/renderer/themePalette';
+import { PRINT_PALETTE as PRINT_COLORS, doneBarTones } from '@/engine/renderer/themePalette';
 import { isCompressedEffective, resolveGanttAxis } from '@/engine/renderer/workdayAxis';
 import { computeSplitSegments } from '@/engine/renderer/splitBarGeometry';
 import { paintProgressBarPiece } from '@/engine/renderer/barPaint';
@@ -1361,10 +1361,16 @@ export function renderReport(
       const barY = y + barHeight * 0.3;
       const barH = barHeight * 0.3;
 
-      d2d.fillStyle = PRINT_COLORS.summary;
-      d2d.fillRect(x1, barY, width, barH);
+      // Voortgang zoals op het scherm: het voltooide deel van de fase is grijs
+      // (`paintProgressBarPiece`); de linkerkap is grijs zodra er voortgang is, de rechterkap pas
+      // bij 100%.
+      const sumCompletion = options.showCompletion ? Math.max(0, Math.min(1, task.time.completion || 0)) : 0;
+      const sumProgressX = sumCompletion >= 1 ? Infinity : sumCompletion > 0 ? rawX1 + (rawX2 - rawX1) * sumCompletion : -Infinity;
+      const sumGrey = doneBarTones(PRINT_COLORS.summary, false).fill;
+      paintProgressBarPiece(d2d, x1, x1 + width, barY, barH, 0, PRINT_COLORS.summary, sumProgressX, false);
 
       // Left triangle
+      d2d.fillStyle = sumCompletion > 0 ? sumGrey : PRINT_COLORS.summary;
       if (x1 === rawX1) {
         d2d.beginPath();
         d2d.moveTo(x1, barY);
@@ -1375,6 +1381,7 @@ export function renderReport(
       }
 
       // Right triangle
+      d2d.fillStyle = sumCompletion >= 1 ? sumGrey : PRINT_COLORS.summary;
       if (x2 === rawX2) {
         d2d.beginPath();
         d2d.moveTo(x1 + width, barY);

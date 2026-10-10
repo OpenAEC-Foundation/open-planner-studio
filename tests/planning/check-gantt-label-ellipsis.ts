@@ -5,6 +5,9 @@
 // maxWidth is geen alternatief, want die KNIJPT de glyphs samen. `GanttRenderer.ellipsize` zoekt nu
 // binair met `measureText` de langste prefix die mét "…" past.
 //
+// Sinds oktober 2026 staat een naam die niet in de balk past RECHTS naast de balk, volledig tot
+// OUTSIDE_MAX px en pas daarna met een ellips (GanttRenderer `drawOutsideBarName`).
+//
 // Deze check draait de ECHTE renderer met een opnemende ctx-stub (measureText = 6 px per teken, het
 // bestaande stubpatroon) en controleert per balk welke string er daadwerkelijk de `fillText` in ging.
 //
@@ -29,6 +32,9 @@ function ok(label: string, cond: boolean): void {
 }
 
 const CHAR_W = 6; // zelfde measureText-stub als de andere renderer-checks
+/** Gelijk aan OUTSIDE_LABEL_GAP / OUTSIDE_LABEL_MAX in GanttRenderer. */
+const OUTSIDE_GAP = 6;
+const OUTSIDE_MAX = 260;
 
 interface TextCall { text: string; x: number; y: number }
 function makeCtx(): { ctx: CanvasRenderingContext2D; texts: TextCall[] } {
@@ -108,24 +114,27 @@ if (rectKort && rectLang) {
   ok('opzet: de lange naam past niet in de balk', LANG.length * CHAR_W > maxW);
 
   const labelKort = texts.find((t) => Math.abs(t.x - (rectKort.left + 6)) < 0.001 && t.text.startsWith('Fund'));
-  const labelLang = texts.find((t) => Math.abs(t.x - (rectLang.left + 6)) < 0.001 && t.text.startsWith('Sheet'));
+  const labelLang = texts.find((t) => Math.abs(t.x - (rectLang.right + OUTSIDE_GAP)) < 0.001 && t.text.startsWith('Sheet'));
 
-  ok('korte naam: label getekend', labelKort !== undefined);
-  ok('lange naam: label getekend', labelLang !== undefined);
+  ok('korte naam: label in de balk getekend', labelKort !== undefined);
+  ok(`lange naam: label rechts naast de balk getekend (teksten: ${JSON.stringify(texts.map(t => [t.text.slice(0, 12), t.x]))})`, labelLang !== undefined);
+  ok('lange naam: GEEN afgekapt label meer in de balk', !texts.some((t) => Math.abs(t.x - (rectLang.left + 6)) < 0.001 && t.text.startsWith('Sheet')));
 
   if (labelKort) {
     ok('korte naam blijft ONGEWIJZIGD (geen ellips)', labelKort.text === KORT);
   }
   if (labelLang) {
+    // De naam is langer dan OUTSIDE_MAX: pas dáár komt een ellips, niet op de balkbreedte.
+    ok('opzet: de lange naam is breder dan de maximale labelbreedte', LANG.length * CHAR_W > OUTSIDE_MAX);
     ok('lange naam eindigt op een ellips', labelLang.text.endsWith('…'));
-    ok('lange naam is echt ingekort', labelLang.text.length < LANG.length);
     ok(
-      `lange naam past binnen de balkbreedte (${labelLang.text.length * CHAR_W} <= ${maxW})`,
-      labelLang.text.length * CHAR_W <= maxW,
+      `lange naam past binnen ${OUTSIDE_MAX} px (${labelLang.text.length * CHAR_W})`,
+      labelLang.text.length * CHAR_W <= OUTSIDE_MAX,
     );
+    ok(`lange naam is veel langer dan wat in de balk paste (${labelLang.text.length * CHAR_W} > ${maxW})`, labelLang.text.length * CHAR_W > maxW);
     // Maximaal benut: één teken erbij zou niet meer passen.
     const eenMeer = labelLang.text.slice(0, -1) + LANG.charAt(labelLang.text.length - 1) + '…';
-    ok('ellips benut de beschikbare breedte maximaal', eenMeer.length * CHAR_W > maxW);
+    ok('ellips benut de beschikbare breedte maximaal', eenMeer.length * CHAR_W > OUTSIDE_MAX);
     // En het BEGIN van de naam blijft staan — dat was juist het leesprobleem.
     ok('het begin van de naam blijft leesbaar', LANG.startsWith(labelLang.text.slice(0, -1)));
   }

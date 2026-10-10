@@ -56,6 +56,8 @@ Meer over selecteren staat in [Taken selecteren, verwijderen en ongedaan maken](
 
 Hoe verder je uitzoomt, hoe minder rasterlijnen er staan. Bij 8 pixels per dag of meer staat er een lijn voor elke dag, met een dikkere lijn op de weekgrens. Tussen 2 en 8 pixels per dag blijft alleen de weekgrens over. Onder 2 pixels per dag, op jaarniveau, zijn het alleen nog de maandgrenzen. Anders zou het canvas een egaal streeppatroon worden waarin de balken verdwijnen. De grijze weekenden en vrije dagen, en de weekbanden die om en om getint zijn, blijven op elk niveau staan; zij dragen de weekstructuur als de lijnen wegvallen. In de tijdlijnkop verschijnen de weeknummers en dagnummers pas als er ruimte voor is, en vanaf 40 pixels per dag staat er ook de weekdag voor het dagnummer.
 
+De taaknaam staat in de balk als hij er helemaal in past. Past hij niet, bijvoorbeeld als je uitzoomt, dan staat de volledige naam rechts naast de balk.
+
 ## Valkuilen en wat de app dan doet
 
 **De start verschuift niet.** Heeft de taak een voorganger én een andere constraint dan SNET, bijvoorbeeld *Zo laat mogelijk (ALAP)*, dan past de app het verslepen van de start niet toe. Na het loslaten meldt de app welke constraint de start tegenhoudt. Pas die constraint aan om de start te verzetten. De rechterrand werkt wel, want die verandert alleen de duur.

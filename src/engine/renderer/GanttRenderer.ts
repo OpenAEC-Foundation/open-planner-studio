@@ -260,6 +260,11 @@ function getCrossHatch(ctx: CanvasRenderingContext2D, strokeColor: string, size:
 
 /** Tegelmaat (px) van de kruisarcering op de spelingsband. */
 const FLOAT_HATCH_SIZE = 5;
+/** Taaknaam naast de balk: afstand tot de balk, maximale breedte en de dikte van de rand in de
+ *  achtergrondkleur (px). */
+const OUTSIDE_LABEL_GAP = 6;
+const OUTSIDE_LABEL_MAX = 260;
+const OUTSIDE_LABEL_KNOCKOUT = 3;
 /** Hoekstraal (px) van een taakbalk. */
 const BAR_RADIUS = 4;
 
@@ -1261,6 +1266,30 @@ export class GanttRenderer {
     }
   }
 
+  /**
+   * Taaknaam RECHTS naast de balk, voor een naam die niet in de balk past. Volledig, tot
+   * `OUTSIDE_LABEL_MAX` px (daarna een ellips) en nooit voorbij de canvasrand. Een smalle rand in
+   * de achtergrondkleur houdt de tekst leesbaar boven de spelingsband en de relatiepijlen.
+   */
+  private drawOutsideBarName(name: string, color: string, barRight: number, textY: number): void {
+    const ctx = this.ctx;
+    const x = barRight + OUTSIDE_LABEL_GAP;
+    const maxWidth = Math.min(OUTSIDE_LABEL_MAX, this.opts.canvasWidth - x - 4);
+    if (maxWidth < 16) return;
+    ctx.font = this.font('body');
+    ctx.textBaseline = 'middle';
+    const label = this.ellipsize(name, maxWidth);
+    if (!label) return;
+    ctx.save();
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = OUTSIDE_LABEL_KNOCKOUT;
+    ctx.strokeStyle = this.colors.bg;
+    ctx.strokeText(label, x, textY);
+    ctx.fillStyle = color;
+    ctx.fillText(label, x, textY);
+    ctx.restore();
+  }
+
   private drawTaskBar(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): number {
     const ctx = this.ctx;
     const geo = this.barGeometry(task);
@@ -1516,15 +1545,22 @@ export class GanttRenderer {
       }
     }
 
-    // Task name on bar (if wide enough) — ellips i.p.v. een harde clip-snede. Op de basiskleur
-    // kiest `barLabelColor` zwart of wit (in resource-modus op het eerste kleurstuk); op het grijze,
-    // voltooide deel is het label gedempt. Een voltooide balk krijgt een vinkje vóór de naam.
-    if (width > 40) {
+    // Taaknaam. Past de hele naam in de balk, dan staat hij erin: op de basiskleur kiest
+    // `barLabelColor` zwart of wit (in resource-modus op het eerste kleurstuk), op het grijze,
+    // voltooide deel is hij gedempt, en hij wisselt van kleur precies op de voortgangsgrens.
+    // Past hij niet, dan staat de VOLLEDIGE naam rechts naast de balk (`drawOutsideBarName`) in
+    // plaats van een afgekapte "Ground floor masonry — H…" erin. Een voltooide balk krijgt een
+    // vinkje vóór de naam; staat de naam buiten, dan blijft het vinkje in de balk als dat past.
+    {
       const textY = y + height / 2;
       const labelBase = modeSegments.length > 0 ? modeSegments[0].color : color;
-      if (isDone && greyTones) {
-        const cx = x1 + 7;
-        const s = Math.max(3, Math.round(height * 0.18));
+      const checkSize = Math.max(3, Math.round(height * 0.18));
+      const checkW = checkSize * 2.2 + 5;
+      const indent = isDone && greyTones ? checkW : 0;
+      ctx.font = this.font('body');
+      const fitsInside = width > 40 && ctx.measureText(task.name).width <= width - 10 - indent;
+      const drawCheck = (cx: number): void => {
+        if (!greyTones) return;
         ctx.save();
         ctx.strokeStyle = greyTones.text;
         ctx.lineWidth = 1.6;
@@ -1532,14 +1568,22 @@ export class GanttRenderer {
         ctx.lineJoin = 'round';
         ctx.beginPath();
         ctx.moveTo(cx, textY);
-        ctx.lineTo(cx + s * 0.8, textY + s * 0.8);
-        ctx.lineTo(cx + s * 2.2, textY - s * 0.8);
+        ctx.lineTo(cx + checkSize * 0.8, textY + checkSize * 0.8);
+        ctx.lineTo(cx + checkSize * 2.2, textY - checkSize * 0.8);
         ctx.stroke();
         ctx.restore();
-        this.drawBarName(task.name, greyTones.text, x1, y, width, height, textY, s * 2.2 + 5);
+      };
+      if (fitsInside) {
+        if (isDone && greyTones) {
+          drawCheck(x1 + 7);
+          this.drawBarName(task.name, greyTones.text, x1, y, width, height, textY, indent);
+        } else {
+          const split = greyTones ? { x: progressX, color: greyTones.text } : undefined;
+          this.drawBarName(task.name, barLabelColor(labelBase), x1, y, width, height, textY, 0, split);
+        }
       } else {
-        const split = greyTones ? { x: progressX, color: greyTones.text } : undefined;
-        this.drawBarName(task.name, barLabelColor(labelBase), x1, y, width, height, textY, 0, split);
+        if (isDone && greyTones && width >= checkSize * 2.2 + 10) drawCheck(x1 + (width - checkSize * 2.2) / 2);
+        this.drawOutsideBarName(task.name, isDone ? this.colors.textSecondary : this.colors.text, x1 + width, textY);
       }
     }
     return resourceAccentHeight;
@@ -1600,13 +1644,19 @@ export class GanttRenderer {
     const barY = y + height * 0.3;
     const barH = height * 0.4;
 
-    // Summary bar (afgeronde hoeken voor de moderne look; ruit-eindkappen blijven)
-    ctx.fillStyle = overrideColor ?? this.colors.summary;
-    ctx.beginPath();
-    ctx.roundRect(x1, barY, width, barH, 2);
-    ctx.fill();
+    // Samenvattingsbalk (afgeronde hoeken; ruit-eindkappen blijven). Voortgang zoals bij een
+    // taakbalk: het voltooide deel van de fase is grijs (`paintProgressBarPiece`), zodat je de
+    // voortgang per fase in één oogopslag ziet. De linkerkap is grijs zodra er voortgang is, de
+    // rechterkap pas bij 100%. In een trace wint de trace-tint, net als bij taakbalken.
+    const base = overrideColor ?? this.colors.summary;
+    const completion = overrideColor ? 0 : Math.max(0, Math.min(1, task.time.completion || 0));
+    const progressX = completion >= 1 ? Infinity : completion > 0 ? x1 + width * completion : -Infinity;
+    const dark = this.opts.darkTheme === true;
+    const grey = completion > 0 ? doneBarTones(base, dark).fill : base;
+    paintProgressBarPiece(ctx, x1, x1 + width, barY, barH, 2, base, progressX, dark);
 
     // Triangles at start and end
+    ctx.fillStyle = completion > 0 ? grey : base;
     ctx.beginPath();
     ctx.moveTo(x1, barY);
     ctx.lineTo(x1, barY + barH + 4);
@@ -1614,6 +1664,7 @@ export class GanttRenderer {
     ctx.closePath();
     ctx.fill();
 
+    ctx.fillStyle = completion >= 1 ? grey : base;
     ctx.beginPath();
     ctx.moveTo(x1 + width, barY);
     ctx.lineTo(x1 + width, barY + barH + 4);

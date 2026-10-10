@@ -236,7 +236,9 @@ export function readGanttPalette(): GanttPalette {
     // statusdatum-/voortgangslijn: accent-oranje, zelfde bron als today/selected
     statusDate: v('--theme-accent', '#B45309'),
     headerBg: v('--theme-surface-alt', '#F6F8FB'),
-    summary: BRAND.summary,
+    // Samenvattingsbalk: het donkere thema zet een lichtere leisteen (`--theme-bar-summary`), anders
+    // valt het grijze, voltooide deel van een fase weg tegen de balk en de balk tegen de kaart.
+    summary: v('--theme-bar-summary', BRAND.summary),
     ghost: BRAND.ghost,
     constraintEarly: BRAND.constraintEarly,
     constraintLate: BRAND.constraintLate,

@@ -1399,6 +1399,9 @@ button.task-grid-relation-reference {
   --theme-grid-milestone-text: #A78BFA;
   /* Spelingband, donker thema: 5,07:1 op de donkere kaart (#2E3239). */
   --theme-bar-float: #10B981;
+  /* Samenvattingsbalk, donker thema: lichtere leisteen (slate-400), 5,0:1 op de donkere kaart
+     (#2E3239). Het merk-#475569 haalde daar maar 1,7 en viel samen met het grijs van voltooid werk. */
+  --theme-bar-summary: #94A3B8;
   --theme-critical-text: #F87171;
   --theme-input-bg: #23262D;
   --theme-dropdown-bg: #2E3239;
