@@ -29,7 +29,7 @@
     "xerDuplicateId": "XER-filen inneholder en dobbel WBS-, aktivitets- eller avhengighets-ID.",
     "xerAmbiguousLocalRelation": "En XER-avhengighet uten prosjektomfang kan ikke entydig knyttes til ett lokalt prosjekt.",
     "xerDanglingLocalRelation": "En lokal XER-avhengighet peker på en aktivitet som mangler.",
-    "xerEnumFallback": "XER {{family}}: ukjent token ‘{{token}}’; gikk tilbake til ‘{{fallback}}’.",
+    "xerEnumFallback": "XER {{family}}: ukjent token ‘{{token}}’; brukte ‘{{fallback}}’ i stedet.",
     "xerImportOpened_one": "XER-fil åpnet: {{count}} prosjektdokument.",
     "xerImportOpened_other": "XER-fil åpnet: {{count}} prosjektdokumenter.",
     "xerImportProjectsSeen_one": "{{count}} prosjekt funnet.",
@@ -82,7 +82,7 @@
     "relationCreated": "Avhengighet opprettet: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Denne avhengigheten finnes allerede",
     "relationAncestorEndpoint": "En avhengighet mellom en aktivitet og dens egen overordnede hovedaktivitet er ikke tillatt.",
-    "relationCycle": "Denne avhengigheten ville skape en syklus i tidsplanen ({{cycle}}), og er ikke opprettet.",
+    "relationCycle": "Denne avhengigheten ville skape en syklus i tidsplanen ({{cycle}}) og er ikke opprettet.",
     "hierarchyCycle": "Denne flyttingen ville skape en syklus i tidsplanen ({{cycle}}): avhengighetene til en hovedaktivitet gjelder også for delaktivitetene. Ingenting er flyttet.",
     "relationsExcludedByHierarchy_one": "Etter flyttingen kobler {{count}} avhengighet en aktivitet til sin egen hovedaktivitet; den telles ikke lenger med i beregningen.",
     "relationsExcludedByHierarchy_other": "Etter flyttingen kobler {{count}} avhengigheter en aktivitet til sin egen hovedaktivitet; de telles ikke lenger med i beregningen.",
@@ -114,7 +114,7 @@
     "startSnetMany_one": "Den nye starten for {{count}} aktivitet med en forgjenger er satt som begrensningen Start ikke tidligere enn (SNET). Etter omberegning (F5) starter den aktiviteten ikke før den datoen.",
     "startSnetMany_other": "De nye startene for {{count}} aktiviteter med en forgjenger er satt som begrensningen Start ikke tidligere enn (SNET). Etter omberegning (F5) starter ingen av dem før sin dato.",
     "startBlockedByConstraint": "Den nye starten for '{{name}}' er ikke brukt: aktiviteten har en forgjenger, og begrensningen $t(task:constraintType.{{type}}) {{date}} bestemmer starten. Endre den begrensningen for å flytte starten.",
-    "startBlockedByConstraintNoDate": "Den nye starten for '{{name}}' er ikke brukt: aktiviteten har en forgjenger, og begrensningen $t(task:constraintType.{{type}}) bestemmer starten. Endre den begrensningen for å flytte starten.",
+    "startBlockedByConstraintNoDate": "Den nye starten for '{{name}}' ble ikke tatt i bruk: aktiviteten har en forgjenger og begrensningen $t(task:constraintType.{{type}}), og de bestemmer starten. Endre den begrensningen for å flytte starten.",
     "startBlockedByConstraintMany_one": "Den nye starten for {{count}} aktivitet er ikke brukt: aktiviteten har en forgjenger og en annen begrensning enn Start ikke tidligere enn (SNET). Endre den begrensningen for å flytte starten.",
     "startBlockedByConstraintMany_other": "De nye startene for {{count}} aktiviteter er ikke brukt: de har en forgjenger og en annen begrensning enn Start ikke tidligere enn (SNET). Endre begrensningene for å flytte startene.",
     "referencesClearedOnPaste_one": "{{count}} referanse fantes ikke i dette dokumentet og er tømt (en aktivitetskalender, egen aktivitetstype, aktivitetskode eller egendefinert felt fra kildedokumentet).",
@@ -154,7 +154,7 @@
   },
   "scheduleErrors": {
     "cycle": "Sirkulær avhengighet mellom aktiviteter: {{path}}",
-    "noWorkingDays": "Kalenderen har ingen arbeidsdager satt",
+    "noWorkingDays": "Kalenderen har ingen arbeidsdager angitt",
     "invalidDayDuration": "Ugyldig varighet i dager for aktiviteten '{{task}}'",
     "invalidHourDuration": "Ugyldig varighet i timer for aktiviteten '{{task}}'",
     "hourTaskWithoutWorkHours": "Timebasert aktivitet '{{task}}' har ingen gyldige arbeidstimer i kalenderen sin",
@@ -188,7 +188,7 @@
     "addRelation": "Legg til avhengighet",
     "delete": "Slett",
     "newTask": "Opprett aktivitet",
-    "tracePath": "Spor styrende avhengigheter",
+    "tracePath": "Spor bane",
     "traceOff": "Stopp sporing av styrende avhengigheter",
     "saveTemplate": "Lagre gren som mal",
     "insertAbove": "Sett inn over",
@@ -212,7 +212,7 @@
     "expandGroup": "Utvid gruppe",
     "collapseGroup": "Skjul gruppe",
     "expandAll": "Utvid alle",
-    "collapseAll": "Skjul alle"
+    "collapseAll": "Slå sammen alle"
   },
   "settings": {
     "title": "Innstillinger",
@@ -371,7 +371,7 @@
     "statusDot": "KI-bro: {{status}}"
   },
   "aiSafety": {
-    "pause": "Pause",
+    "pause": "Avbrudd",
     "resume": "Fortsett",
     "pauseHint": "Endringer avvises midlertidig. Lesing er fortsatt tillatt. Broen forblir aktiv.",
     "readOnly": "Skrivebeskyttet",
@@ -414,7 +414,7 @@
   },
   "debugTerminal": {
     "resume": "Fortsett",
-    "pause": "Pause",
+    "pause": "Avbrudd",
     "clear": "Tøm",
     "toggleLevel": "{{level}} på/av",
     "newEntries": "↓ {{count}} nye",
@@ -427,7 +427,7 @@
     "unassignedResource": "Ikke tildelt"
   },
   "documents": {
-    "overviewTitle": "Åpne prosjekter",
+    "overviewTitle": "Prosjekter som er åpne",
     "openBadge": "{{count}} åpne",
     "switchHint": "⌘1–9 for å bytte",
     "openProject": "Åpne prosjekt",
@@ -1224,7 +1224,7 @@
     "dateOrderOptionA": "{{date}}",
     "dateOrderOptionB": "{{date}}",
     "dateOrderBack": "Gå tilbake til datospørsmålet",
-    "dateOrderContradictory": "Denne filen har motstridige datonotasjoner, uten en tydelig celle å spørre om. Appen har gått ut fra dag-måned. Datoer som ikke passer der, står under som uleselige og er avvist.",
+    "dateOrderContradictory": "Denne filen har motstridige datonotasjoner, uten en tydelig celle å spørre om. Appen har gått ut fra dag-måned. Datoer som ikke passer med det, er avvist som uleselige nedenfor.",
     "confirm": "Bruk",
     "close": "Lukk",
     "resultTitle": "Resultat",
@@ -1291,8 +1291,8 @@
       "help": "En dato-og-klokkeslett-begrensning på en milepæl uten varighet er et nøyaktig punkt, også ved starten av et arbeidsbånd."
     },
     "resumeFromActualElapsed": {
-      "label": "Gjenstående arbeid fortsetter etter brukt varighet",
-      "help": "En pågående aktivitet fortsetter gjenstående arbeid på faktisk start pluss brukt varighet, ikke på statusdatoen."
+      "label": "Gjenstående arbeid fortsetter etter forløpt tid",
+      "help": "En pågående aktivitet fortsetter gjenstående arbeid på faktisk start pluss forløpt tid, ikke på statusdatoen."
     },
     "unstartedIgnoresStatusDate": {
       "label": "Ikke-startede aktiviteter flyttes ikke til statusdatoen",

@@ -20,7 +20,7 @@
   },
   "durationType": {
     "WORKTIME": "Arbetstid",
-    "ELAPSEDTIME": "Total varaktighet"
+    "ELAPSEDTIME": "Förfluten tid"
   },
   "table": {
     "title": "Tabell",
@@ -45,14 +45,14 @@
     "chooseColumn": "Välja kolumn",
     "recentColumns": "Senast använda",
     "noColumns": "Lägg till en kolumn med +.",
-    "toggleSummary": "Fälla ut eller fälla ihop sammanfattningsaktivitet",
+    "toggleSummary": "Fälla ut eller fälla ihop sammanfattningsuppgift",
     "calculatedReadOnly": "Den här beräknade kolumnen kan inte redigeras."
   },
   "taskGrid": {
     "columns": {
       "activityCodeData": "Uppgiftskoddata",
       "actualDuration": "Verklig varaktighet",
-      "actualFinish": "Verkligt slut",
+      "actualFinish": "Faktiskt slut",
       "actualStart": "Verklig start",
       "assignedResources": "Tilldelade resurser",
       "assignmentCurve": "Tilldelningskurva",
@@ -80,7 +80,7 @@
       "earlyFinish": "Tidigaste slut",
       "earlyStart": "Tidigaste start",
       "effortDriven": "Insatsberoende",
-      "explicitSummary": "Explicit sammanfattningsaktivitet",
+      "explicitSummary": "Explicit sammanfattningsuppgift",
       "externalRelationData": "Data för externt samband",
       "floatPath": "Slackväg",
       "freeFloat": "Fritt slack",
@@ -182,7 +182,7 @@
       "hourPlanningDisabled": "Timplanering är avstängd i inställningarna.",
       "durationConversionNotExact": "Den här varaktigheten kan inte exakt omräknas till den andra enheten.",
       "milestoneRequired": "Det här fältet gäller bara för milstolpar.",
-      "milestoneUnavailable": "En sammanfattningsaktivitet med underuppgifter kan inte bli en milstolpe.",
+      "milestoneUnavailable": "En sammanfattningsuppgift med underuppgifter kan inte bli en milstolpe.",
       "actualAfterStatusDate": "Det verkliga datumet ligger efter rapportdatumet.",
       "actualFinishBeforeStart": "Det verkliga slutet ligger före den verkliga starten.",
       "actualStartRequired": "Den här uppgiften skulle börja först efter rapportdatumet. Ange först verklig start.",
@@ -191,9 +191,9 @@
       "constraintDateUnavailable": "Ange först en restriktionstyp innan du anger ett restriktionsdatum.",
       "constraintHardUnavailable": "En hård restriktion kräver en restriktionstyp med ett datum.",
       "hammockUnavailable": "Den här uppgiften kan inte bli en hängmattauppgift.",
-      "activityCode": "Välj ett värde från den här aktivitetskoden.",
-      "activityCodeAmbiguous": "Det här värdet för aktivitetskoden förekommer mer än en gång. Välj det i listan.",
-      "activityCodeTypeNotFound": "Den här aktivitetskoden finns inte längre.",
+      "activityCode": "Välj ett värde från den här uppgiftskoden.",
+      "activityCodeAmbiguous": "Det här värdet för uppgiftskoden förekommer mer än en gång. Välj det i listan.",
+      "activityCodeTypeNotFound": "Den här uppgiftskoden finns inte längre.",
       "customFieldNotFound": "Det egna fältet finns inte längre.",
       "customFieldType": "Värdet passar inte med typen för det egna fältet.",
       "relations": "Använd samband som 1.2 FS+2d, åtskilda med semikolon.",
@@ -246,10 +246,10 @@
       "duplicateRelationId": "Det här sambands-ID förekommer mer än en gång.",
       "relationIdWrongCell": "Det här sambands-ID hör till en annan cell.",
       "unknownTask": "Den refererade uppgiften finns inte.",
-      "unrepresentableSummaryRelation": "Ett samband med en sammanfattningsaktivitet kan inte redigeras här.",
+      "unrepresentableSummaryRelation": "Ett samband med en sammanfattningsuppgift kan inte redigeras här.",
       "self": "En uppgift kan inte bero på sig själv.",
-      "ancestor": "En uppgift kan inte ha ett samband med sin egen sammanfattningsaktivitet.",
-      "summaryProgress": "Framdriften för en sammanfattningsaktivitet härleds från underuppgifterna och kan inte ändras här."
+      "ancestor": "En uppgift kan inte ha ett samband med sin egen sammanfattningsuppgift.",
+      "summaryProgress": "Framdriften för en sammanfattningsuppgift härleds från underuppgifterna och kan inte ändras här."
     },
     "controls": {
       "collapse": "Fäll ihop",
@@ -275,8 +275,8 @@
       "resetColumns": "Återställ kolumnlayouten till standard"
     },
     "summary": {
-      "activityCodeAssignments_one": "{{count}} aktivitetskodtilldelning",
-      "activityCodeAssignments_other": "{{count}} aktivitetskodtilldelningar",
+      "activityCodeAssignments_one": "{{count}} uppgiftskodtilldelning",
+      "activityCodeAssignments_other": "{{count}} uppgiftskodtilldelningar",
       "customFields_one": "{{count}} eget fält",
       "customFields_other": "{{count}} egna fält",
       "internalRelations_one": "{{count}} internt samband",
@@ -366,8 +366,8 @@
     "protectsFIXED_DURATION_WORK": "varaktighet och arbete (tilldelningsenheter följer)",
     "protectsFIXED_WORK": "arbete (varaktighet följer tilldelningsenheterna)",
     "protectsFIXED_RATE": "tilldelningsenheter (varaktighet följer arbetet)",
-    "mspEffortDriven": "Från MS Project: ansträngningsstyrd",
-    "mspNotEffortDriven": "Från MS Project: inte ansträngningsstyrd",
+    "mspEffortDriven": "Från MS Project: insatsberoende",
+    "mspNotEffortDriven": "Från MS Project: inte insatsberoende",
     "none": "Projektstandard"
   },
   "properties": {
@@ -426,7 +426,7 @@
       "actualFinish": "Verkligt slut",
       "actualDate": "Verkligt datum",
       "remaining": "Återstående",
-      "summaryDerived": "Härleds från underuppgifterna: ändra framdriften där. Sammanfattningsaktiviteten uppdateras när du har beräknat (F5)."
+      "summaryDerived": "Härleds från underuppgifterna: ändra framdriften där. Sammanfattningsuppgiften uppdateras när du har beräknat (F5)."
     },
     "cpmResult": "CPM-resultat",
     "earlyStart": "Tidigaste start:",
@@ -459,7 +459,7 @@
       "noResources": "Skapa först resurser (Resources-fliken).",
       "allAssigned": "Alla resurser är redan tilldelade.",
       "disabledMilestone": "Tilldelningar är inte möjliga på milstolpar.",
-      "disabledSummary": "Tilldelningar är inte möjliga på sammanfattningsaktiviteter.",
+      "disabledSummary": "Tilldelningar är inte möjliga på sammanfattningsuppgifter.",
       "moveTo": "Flytta till…",
       "contour": "Timfördelning…",
       "contoured": "Profil",
@@ -552,10 +552,10 @@
   "constraintType": {
     "ASAP": "Så tidigt som möjligt (ASAP)",
     "ALAP": "Så sent som möjligt (ALAP)",
-    "SNET": "Start tidigast (SNET)",
-    "SNLT": "Start senast (SNLT)",
-    "FNET": "Slut tidigast (FNET)",
-    "FNLT": "Slut senast (FNLT)",
+    "SNET": "Starta tidigast (SNET)",
+    "SNLT": "Starta senast (SNLT)",
+    "FNET": "Avsluta tidigast (FNET)",
+    "FNLT": "Avsluta senast (FNLT)",
     "MSO": "Måste starta på (MSO)",
     "MFO": "Måste slutföras på (MFO)"
   },

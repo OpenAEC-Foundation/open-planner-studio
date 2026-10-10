@@ -12,7 +12,7 @@
     "dismiss": "Închidere notificare",
     "taskEditRevertBlocked": "O modificare făcută de asistentul de inteligență artificială sau de o extensie a intervenit între timp. Modificările activităților făcute înainte nu au fost anulate și rămân ca pași obișnuiți sub Anulare.",
     "openFailed": "Deschiderea fișierului a eșuat",
-    "extGuideCallbackFailed": "Un pas al extensiei {{name}} a dat o eroare. Îndrumarea continuă.",
+    "extGuideCallbackFailed": "Un pas al extensiei {{name}} a eșuat. Îndrumarea continuă.",
     "extHelpProjectOpenFailed": "Fișierul de proiect {{file}} din extensia {{name}} nu a putut fi deschis.",
     "extensionMessage": "Extensia {{name}}: {{message}}",
     "xerInvalidInput": "Importul XER necesită octeții originali ai fișierului.",
@@ -112,9 +112,9 @@
     "mppSourceScheduleNotes_one": "Acest fișier MS Project conține {{count}} activitate cu o planificare fragmentată, redistribuită sau ghidată de resurse. Este importată și afișată ca atare.",
     "mppSourceScheduleNotes_few": "Acest fișier MS Project conține {{count}} activități cu o planificare fragmentată, redistribuită sau ghidată de resurse. Sunt importate și afișate ca atare.",
     "mppSourceScheduleNotes_other": "Acest fișier MS Project conține {{count}} de activități cu o planificare fragmentată, redistribuită sau ghidată de resurse. Sunt importate și afișate ca atare.",
-    "exportSplitsLost_one": "{{count}} activitate cu pauze a fost exportată fără pauzele ei: MS Project și P6 cunosc pauzele doar ca distribuție a lucrului.",
-    "exportSplitsLost_few": "{{count}} activități cu pauze au fost exportate fără pauzele lor: MS Project și P6 cunosc pauzele doar ca distribuție a lucrului.",
-    "exportSplitsLost_other": "{{count}} de activități cu pauze au fost exportate fără pauzele lor: MS Project și P6 cunosc pauzele doar ca distribuție a lucrului.",
+    "exportSplitsLost_one": "{{count}} activitate cu întreruperi a fost exportată fără întreruperile ei: MS Project și P6 cunosc întreruperile doar ca distribuție a lucrului.",
+    "exportSplitsLost_few": "{{count}} activități cu întreruperi au fost exportate fără întreruperile lor: MS Project și P6 cunosc întreruperile doar ca distribuție a lucrului.",
+    "exportSplitsLost_other": "{{count}} de activități cu întreruperi au fost exportate fără întreruperile lor: MS Project și P6 cunosc întreruperile doar ca distribuție a lucrului.",
     "projectStartAnchorsClamped_one": "Început proiect mutat: {{count}} ancoră de activitate fără predecesor sau restricție a fost deplasată la noua dată de început.",
     "projectStartAnchorsClamped_few": "Început proiect mutat: {{count}} ancore de activitate fără predecesor sau restricție au fost deplasate la noua dată de început.",
     "projectStartAnchorsClamped_other": "Început proiect mutat: {{count}} de ancore de activitate fără predecesor sau restricție au fost deplasate la noua dată de început.",
@@ -141,7 +141,7 @@
     "startSnetMany_few": "Noile începuturi pentru {{count}} activități cu predecesor sunt salvate ca restricții Nu începe înainte de (SNET). După ce recalculați (F5), niciuna dintre ele nu începe înainte de data ei.",
     "startSnetMany_other": "Noile începuturi pentru {{count}} de activități cu predecesor sunt salvate ca restricții Nu începe înainte de (SNET). După ce recalculați (F5), niciuna dintre ele nu începe înainte de data ei.",
     "startBlockedByConstraint": "Noul început al „{{name}}” nu a fost aplicat: activitatea are un predecesor, iar restricția $t(task:constraintType.{{type}}) {{date}} determină începutul. Modificați restricția pentru a muta începutul.",
-    "startBlockedByConstraintNoDate": "Noul început al „{{name}}” nu a fost aplicat: activitatea are un predecesor, iar restricția $t(task:constraintType.{{type}}) determină începutul. Modificați restricția pentru a muta începutul.",
+    "startBlockedByConstraintNoDate": "Noul început al activității „{{name}}” nu a fost aplicat: activitatea are un predecesor și restricția $t(task:constraintType.{{type}}), iar acestea determină începutul. Modificați restricția pentru a muta începutul.",
     "startBlockedByConstraintMany_one": "Noul început pentru {{count}} activitate nu a fost aplicat: activitatea are un predecesor și o restricție diferită de Nu începe înainte de (SNET). Modificați restricția pentru a muta începutul.",
     "startBlockedByConstraintMany_few": "Noile începuturi pentru {{count}} activități nu au fost aplicate: activitățile au un predecesor și o restricție diferită de Nu începe înainte de (SNET). Modificați restricțiile pentru a muta începuturile.",
     "startBlockedByConstraintMany_other": "Noile începuturi pentru {{count}} de activități nu au fost aplicate: activitățile au un predecesor și o restricție diferită de Nu începe înainte de (SNET). Modificați restricțiile pentru a muta începuturile.",
@@ -165,7 +165,7 @@
     "milestoneClearedOnPhase_other": "{{count}} de jaloane au acum subactivități și au devenit activități rezumat; marcajul de jalon a fost eliminat.",
     "phaseRefusedNoAssignableChild": "„{{phase}}” nu poate deveni activitate rezumat: atribuirile sale nu pot merge nicăieri, pentru că niciuna dintre subactivitățile noi nu poate purta atribuiri (un jalon sau o activitate rezumat). Nu s-a schimbat nimic.",
     "phaseRefusedDuplicateResource": "„{{phase}}” nu poate deveni activitate rezumat: atribuirea resursei {{resource}} nu poate trece la noua subactivitate „{{child}}”, pentru că aceasta are deja {{resource}}. Nu s-a schimbat nimic.",
-    "schedulingProfileApplied": "Acest proiect calculează ca {{profile}}. Modificați din Fișier → Informații proiect → Profil de calcul și opțiuni de calcul.",
+    "schedulingProfileApplied": "Acest proiect se calculează conform profilului {{profile}}. Modificați din Fișier → Informații proiect → Profil de calcul și opțiuni de calcul.",
     "schedulingProfileShifted_one": "După aplicare, {{count}} activitate a fost deplasată.",
     "schedulingProfileShifted_few": "După aplicare, {{count}} activități au fost deplasate.",
     "schedulingProfileShifted_other": "După aplicare, {{count}} de activități au fost deplasate.",
@@ -176,7 +176,7 @@
     "xerArchiveUnusable": "Arhiva sursă XER din acest fișier nu este utilizabilă și a fost omisă; proiectul în sine a fost deschis complet.",
     "xerArchiveUnusableLine": "Arhiva sursă XER din acest fișier nu era utilizabilă și a fost omisă.",
     "xerArchiveUnusableConsequence": "Planificarea, profilul de calcul și toate datele de proiect din IFC sunt complete. Lipsește: datele așa cum le-a salvat Primavera și proveniența sursei pentru AI și extensii. La salvare, fișierul se scrie fără arhivă; importați din nou fișierul .xer original ca să recuperați arhiva.",
-    "xerArchiveReasonSchemaVersion": "Motiv: arhiva are o versiune de schemă sau un aspect necunoscut (un program de scriere mai nou sau altul).",
+    "xerArchiveReasonSchemaVersion": "Motiv: arhiva are o versiune de format sau un aspect necunoscut (un program de scriere mai nou sau altul).",
     "xerArchiveReasonHashMismatch": "Motiv: suma de control nu se potrivește cu octeții sursă; arhiva este deteriorată.",
     "xerArchiveReasonTruncated": "Motiv: arhiva este trunchiată; o parte din octeții sursă lipsește.",
     "xerArchiveReasonBytesMissing": "Motiv: octeții sursă lipsesc; probabil un alt program IFC a rescris fișierul.",
@@ -239,15 +239,15 @@
     "priorityNormal": "Normală",
     "priorityHigh": "Ridicată",
     "startRelationHere": "Creare dependență de aici",
-    "removeSplitGap": "Eliminare pauză",
-    "removeAllSplitGaps": "Eliminare tuturor pauzelor",
+    "removeSplitGap": "Eliminare întrerupere",
+    "removeAllSplitGaps": "Eliminare tuturor întreruperilor",
     "paste": "Lipire",
     "zoomReset": "Resetare zoom",
     "fitToProject": "Potrivire la proiect",
     "expandGroup": "Extindere grup",
     "collapseGroup": "Restrângere grup",
     "expandAll": "Extindere tot",
-    "collapseAll": "Restrângere tot"
+    "collapseAll": "Restrângere totală"
   },
   "settings": {
     "title": "Setări",
@@ -283,7 +283,7 @@
     "language": "Limbă",
     "languageHint": "Limba de afișare a aplicației, aplicată imediat.",
     "version": "Versiune",
-    "versionHint": "Numărul actual al versiunii aplicației.",
+    "versionHint": "Numărul curent al versiunii aplicației.",
     "tourHint": "Parcurgeți din nou turul de introducere al aplicației.",
     "theme": "Temă",
     "themeHint": "Schema de culori a interfeței.",
@@ -305,7 +305,7 @@
     "durationDisplayAuto": "Automat (unitatea proprie a fiecărei activități)",
     "durationDisplayDays": "Întotdeauna zile",
     "durationDisplayHours": "Întotdeauna ore",
-    "barSplitMode": "Bare de activitate la pauze",
+    "barSplitMode": "Bare de activitate la întreruperi",
     "barSplitModeHint": "Dacă o bară de activitate se împarte vizual la zilele nelucrătoare.",
     "barSplitNever": "Niciodată împărțire",
     "barSplitSelection": "Împărțire la selectare",
@@ -623,7 +623,7 @@
   },
   "companyLibrary": {
     "title": "Bibliotecă de resurse",
-    "intro": "Gestionați bibliotecile de resurse și conținutul lor comun. Alocarea se face în fila Resurse; ce alocați devine automat o copie cu proveniență în proiect.",
+    "intro": "Gestionați bibliotecile de resurse și conținutul lor comun. Atribuirea se face în fila Resurse; ce atribuiți devine automat o copie cu proveniență în proiect.",
     "resourceManagementHint": "Resursele le gestionați în fila Resurse (vizualizarea Bibliotecă); aici gestionați bibliotecile de resurse, calendarele și importul sau exportul.",
     "companies": "Biblioteci de resurse",
     "addCompany": "Adăugare bibliotecă de resurse",
@@ -727,10 +727,10 @@
     "noParent": "Niciuna",
     "availabilityStepsEditor": {
       "title": "Capacitate pe etape de timp",
-      "addStep": "Adăugare etapă",
+      "addStep": "Adăugare pas",
       "from": "De la",
       "maxUnits": "Capacitate maximă",
-      "empty": "Nicio etapă — se aplică mereu capacitatea maximă fixă."
+      "empty": "Niciun pas — se aplică mereu capacitatea maximă fixă."
     },
     "panel": {
       "title": "Resurse",
@@ -888,21 +888,21 @@
       "continuous": "24/7"
     },
     "simpleBreak": {
-      "invalidStart": "Introduceți o oră de pauză validă în formatul HH:MM.",
+      "invalidStart": "Introduceți o oră de întrerupere validă în formatul HH:MM.",
       "invalidWorkStart": "Introduceți o oră de început validă în formatul HH:MM.",
       "invalidWorkEnd": "Introduceți o oră de sfârșit validă în formatul HH:MM.",
       "invalidWorkTimeOrder": "Ora de început trebuie să fie înaintea orei de sfârșit.",
       "increaseTime": "Mărire ora cu 15 minute",
       "decreaseTime": "Micșorare ora cu 15 minute",
-      "increaseBreakDuration": "Mărire durata pauzei cu 15 minute",
-      "decreaseBreakDuration": "Micșorare durata pauzei cu 15 minute",
-      "start": "Începutul pauzei",
-      "duration": "Durata pauzei (minute)",
-      "hint": "Setați începutul și durata pauzei. Orele nete și intervalele de timp de lucru se calculează automat. Setați durata la 0 pentru o zi lucrătoare continuă.",
+      "increaseBreakDuration": "Mărire durata întreruperii cu 15 minute",
+      "decreaseBreakDuration": "Micșorare durata întreruperii cu 15 minute",
+      "start": "Începutul întreruperii",
+      "duration": "Durata întreruperii (minute)",
+      "hint": "Setați începutul și durata întreruperii. Orele nete și intervalele de timp de lucru se calculează automat. Setați durata la 0 pentru o zi lucrătoare continuă.",
       "errors": {
-        "invalidDuration": "Durata pauzei trebuie să fie un număr întreg de minute, minim 0.",
-        "outsideWorkingDay": "Pauza trebuie să se încadreze complet în ziua lucrătoare setată.",
-        "consumesWorkingDay": "Pauza nu poate ocupa întreaga zi lucrătoare."
+        "invalidDuration": "Durata întreruperii trebuie să fie un număr întreg de minute, minim 0.",
+        "outsideWorkingDay": "Întreruperea trebuie să se încadreze complet în ziua lucrătoare setată.",
+        "consumesWorkingDay": "Întreruperea nu poate ocupa întreaga zi lucrătoare."
       }
     },
     "holidayErrors": {
@@ -924,7 +924,7 @@
       "noBands": "Zi nelucrătoare",
       "nextDay": "ziua următoare",
       "shiftPreset": "Tură",
-      "breakHint": "Un spațiu între două intervale este o pauză — ajustați orele după cum este necesar."
+      "breakHint": "Un spațiu între două intervale este o întrerupere — ajustați orele după cum este necesar."
     }
   },
   "view": {
@@ -936,7 +936,7 @@
     "filter": {
       "title": "Filtrare",
       "addRule": "+ regulă",
-      "addGroup": "+ grup",
+      "addGroup": "+ grupare",
       "all": "Toate de mai jos (AND)",
       "any": "Oricare de mai jos (OR)",
       "clear": "Ștergere",
@@ -998,7 +998,7 @@
       "infoColumns": "Coloanele vizibile din tabelul de activități, ordinea și lățimea lor.",
       "infoFilter": "Filtrul activ acum. Dacă nu este activ niciun filtru, acest aspect șterge filtrul.",
       "infoGroup": "Gruparea activităților, de exemplu pe resursă. Fără grupare, aspectul afișează arborele WBS.",
-      "infoSort": "Ordinea de sortare a activităților în arbore sau în cadrul unui grup.",
+      "infoSort": "Ordinea de sortare a activităților în arbore sau în cadrul unei grupări.",
       "infoTimeScale": "Scara de timp a diagramei Gantt (zi, săptămână, lună…). Nebifată: zoomul rămâne cum este.",
       "infoRelations": "Dacă liniile de dependență dintre activități sunt vizibile. Într-o vizualizare grupată, de obicei sunt mai bine dezactivate.",
       "useCurrentView": "Preluare vizualizare curentă",
@@ -1026,7 +1026,7 @@
     },
     "dependencyModeHint": "Mod de dependență: trageți în Gantt de la o bară la alta pentru a crea o dependență. Apăsați Esc pentru a opri.",
     "dependencyModeStop": "Oprire",
-    "splitModeHint": "Faceți clic pe o bară în ziua în care începe pauza și trageți spre dreapta pentru durată. Apăsați Esc pentru a opri.",
+    "splitModeHint": "Faceți clic pe o bară în ziua în care începe întreruperea și trageți spre dreapta pentru durată. Apăsați Esc pentru a opri.",
     "splitModeStop": "Oprire"
   },
   "dateInput": {
@@ -1148,9 +1148,9 @@
     "startRow": "Început proiect: {{before}} → {{after}}",
     "endRow": "Sfârșit proiect: {{before}} → {{after}}",
     "durationUnchanged": "Durata proiectului rămâne de {{days}} zile lucrătoare.",
-    "durationChanged": "Atenție: sfârșitul proiectului se deplasează cu {{endDays}} zile calendaristice în loc de {{days}}. Calendarul (sărbătorile, concediul colectiv din construcții, pauza de iarnă) nu se deplasează. Durata proiectului se schimbă de la {{before}} la {{after}} zile lucrătoare.",
-    "endShiftedOnly": "Atenție: sfârșitul proiectului se deplasează cu {{endDays}} zile calendaristice în loc de {{days}}. Calendarul (sărbătorile, concediul colectiv din construcții, pauza de iarnă) nu se deplasează. Durata proiectului rămâne de {{duration}} zile lucrătoare.",
-    "durationOnly": "Atenție: calendarul (sărbătorile, concediul colectiv din construcții, pauza de iarnă) nu se deplasează. Durata proiectului se schimbă de la {{before}} la {{after}} zile lucrătoare.",
+    "durationChanged": "Atenție: sfârșitul proiectului se deplasează cu {{endDays}} zile calendaristice în loc de {{days}}. Calendarul (sărbătorile, concediul colectiv din construcții, întreruperea de iarnă) nu se deplasează. Durata proiectului se modifică de la {{before}} la {{after}} zile lucrătoare.",
+    "endShiftedOnly": "Atenție: sfârșitul proiectului se deplasează cu {{endDays}} zile calendaristice în loc de {{days}}. Calendarul (sărbătorile, concediul colectiv din construcții, întreruperea de iarnă) nu se deplasează. Durata proiectului rămâne de {{duration}} zile lucrătoare.",
+    "durationOnly": "Atenție: calendarul (sărbătorile, concediul colectiv din construcții, întreruperea de iarnă) nu se deplasează. Durata proiectului se modifică de la {{before}} la {{after}} zile lucrătoare.",
     "affectedTasks_one": "{{count}} activitate deplasată",
     "affectedTasks_few": "{{count}} activități deplasate",
     "affectedTasks_other": "{{count}} de activități deplasate",

@@ -156,7 +156,7 @@
     "progressModeRetained": "Retained Logic",
     "progressModeOverride": "Progress Override",
     "toggleBaselineOverlay": "Suprapunere referință",
-    "toggleProgressLine": "Linia de progres",
+    "toggleProgressLine": "Linie de progres",
     "toggleStatusDateLine": "Linia datei raportului de stare",
     "year": "An",
     "quarter": "Trimestru",
@@ -182,7 +182,7 @@
     "relationDrawOnHint": "Activați modul dependențe; apoi trageți de la o bară la alta în Gantt",
     "relationDrawOffHint": "Dezactivare mod dependențe",
     "splitTask": "Scindare activitate",
-    "splitTaskOnHint": "Activați modul de scindare; apoi faceți clic pe o bară unde începe pauza",
+    "splitTaskOnHint": "Activați modul de scindare; apoi faceți clic pe o bară unde începe întreruperea",
     "splitTaskOffHint": "Dezactivare mod de scindare",
     "ganttOnlyHint": "Disponibil doar când diagrama Gantt este vizibilă",
     "relationLinkSelected": "Legare activități selectate",
@@ -344,7 +344,7 @@
     "progressXlsxShort": "Progres (Excel)",
     "progressXlsxSheetName": "Progres",
     "progressXlsxValidation": {
-      "percentTitle": "Procent de finalizare (%)",
+      "percentTitle": "Finalizare (%)",
       "percentError": "Introduceți un număr de la 0 până la 100.",
       "dateTitle": "Data reală",
       "dateError": "Introduceți o dată validă."

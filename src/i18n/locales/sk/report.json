@@ -95,7 +95,7 @@
     "title": "Zostava odchýlok",
     "baselineStart": "Pôvodný plán: začiatok",
     "baselineFinish": "Pôvodný plán: dokončenie",
-    "currentStart": "Aktuálny začiatok",
+    "currentStart": "Skutočný začiatok",
     "currentFinish": "Aktuálne dokončenie",
     "deltaStart": "Δ začiatok (pd)",
     "deltaFinish": "Δ dokončenie (pd)",
@@ -199,7 +199,7 @@
       "onlyOverloaded": "Iba preťažené obdobia",
       "includeCompleted": "Zahrnúť dokončené úlohy",
       "wbsLevel": "Úroveň:",
-      "wbsLevelAll": "Úplná štruktúra rozdelenia práce",
+      "wbsLevelAll": "Úplná WBS",
       "includeActivities": "Zobraziť úlohy"
     },
     "periodPresets": {

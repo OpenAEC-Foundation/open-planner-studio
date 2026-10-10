@@ -3,14 +3,14 @@
   "summary": "Sažetak",
   "tasks": "Zadaci:",
   "leafTasks": "Listni zadaci:",
-  "critical": "Ključni:",
+  "critical": "Kritični:",
   "relations": "Ovisnosti:",
   "settings": "Postavke",
   "paper": "Papir:",
   "orientation": "Orijentacija:",
   "landscape": "Vodoravno",
   "portrait": "Okomito",
-  "showCriticalPath": "Ključni put",
+  "showCriticalPath": "Kritični put",
   "showFloat": "Prikaži vremensku rezervu",
   "showDependencies": "Ovisnosti",
   "showWeekends": "Vikendi",
@@ -52,7 +52,7 @@
   "previewPageLimit_few": "… i još {{count}} stranice — izvezite za cijeli dokument",
   "previewPageLimit_other": "… i još {{count}} stranica — izvezite za cijeli dokument",
   "legend": {
-    "criticalPath": "Ključni put",
+    "criticalPath": "Kritični put",
     "normal": "Normalno",
     "baseline": "Temeljni plan",
     "milestone": "Kontrolna točka",
@@ -81,7 +81,7 @@
     "milestones": "Pregled kontrolnih točaka",
     "variance": "Odstupanja",
     "lookAhead": "Look-ahead",
-    "critical": "Ključni i gotovo ključni",
+    "critical": "Kritični i gotovo kritični",
     "progress": "Izvješće o napretku",
     "health": "Stanje rasporeda",
     "resourceLoading": "Opterećenje resursa",
@@ -123,7 +123,7 @@
     "kind_FINISH": "Završetak",
     "yes": "Da",
     "status_late": "Kasni",
-    "status_critical": "Ključan",
+    "status_critical": "Kritičan",
     "status_onSchedule": "Prema rasporedu",
     "empty": "Nema kontrolnih točaka u ovom projektu.",
     "total": "Kontrolne točke",
@@ -131,7 +131,7 @@
     "lateCount": "Kasni"
   },
   "barColorModeLabel": "Boje traka:",
-  "barColorMode_critical": "Ključni put",
+  "barColorMode_critical": "Kritični put",
   "barColorMode_auto": "Po zadatku — automatski",
   "barColorMode_category": "Po kategoriji",
   "barColorFieldLabel": "Polje kategorije",
@@ -175,13 +175,13 @@
       "freeFloat": "FF (r.d.)",
       "status": "Status",
       "resources": "Resursi",
-      "critical": "Ključan",
-      "nearCritical": "Gotovo ključan",
+      "critical": "Kritičan",
+      "nearCritical": "Gotovo kritičan",
       "yes": "Da"
     },
     "options": {
       "sectionTitle": "Opcije izvješća",
-      "nearCriticalDays": "Gotovo ključan ≤ (r.d.):",
+      "nearCriticalDays": "Gotovo kritičan ≤ (r.d.):",
       "highFloatDays": "Visoka vremenska rezerva > (r.d.):",
       "longDurationDays": "Dugo trajanje > (r.d.):",
       "lagDays": "Vrijeme odgode > (r.d.):",
@@ -196,7 +196,7 @@
       "onlyOverloaded": "Samo preopterećena razdoblja",
       "includeCompleted": "Uključi dovršene zadatke",
       "wbsLevel": "Razina:",
-      "wbsLevelAll": "Cijela strukturna analiza rada",
+      "wbsLevelAll": "Cijela WBS",
       "includeActivities": "Prikaži zadatke"
     },
     "periodPresets": {
@@ -227,13 +227,13 @@
       "empty": "Nema zadataka u ovom prozoru."
     },
     "critical": {
-      "title": "Ključni i gotovo ključni zadaci",
-      "subtitle": "Gotovo ključan: ukupan slobodni hod ≤ {{days}} radnih dana",
-      "paths": "Ključni lanci",
+      "title": "Kritični i gotovo kritični zadaci",
+      "subtitle": "Gotovo kritičan: ukupan slobodni hod ≤ {{days}} radnih dana",
+      "paths": "Kritični lanci",
       "floatPath": "Put",
-      "status_critical": "Ključan",
-      "status_nearCritical": "Gotovo ključan",
-      "empty": "Nema ključnih ni gotovo ključnih zadataka."
+      "status_critical": "Kritičan",
+      "status_nearCritical": "Gotovo kritičan",
+      "empty": "Nema kritičnih ni gotovo kritičnih zadataka."
     },
     "progress": {
       "title": "Izvješće o napretku",
@@ -256,13 +256,13 @@
         "inProgress": "U tijeku",
         "startingNext": "Počinje u sljedećem razdoblju",
         "overdue": "Kasni",
-        "critical": "Otvoreni ključni zadaci"
+        "critical": "Otvoreni kritični zadaci"
       },
       "empty": "Nema zadataka."
     },
     "health": {
       "title": "Stanje rasporeda",
-      "subtitle": "Pragovi: visoka vremenska rezerva > {{float}} r.d. · dugo trajanje > {{duration}} r.d. · vrijeme odgode > {{lag}} r.d. · gotovo ključan ≤ {{near}} r.d.",
+      "subtitle": "Pragovi: visoka vremenska rezerva > {{float}} r.d. · dugo trajanje > {{duration}} r.d. · vrijeme odgode > {{lag}} r.d. · gotovo kritičan ≤ {{near}} r.d.",
       "errors": "Pogreške",
       "warnings": "Upozorenja",
       "infos": "Informacije",
@@ -281,7 +281,7 @@
       "check_negativeFloat": "Negativna vremenska rezerva",
       "check_missedDeadline": "Propušten rok za dovršetak",
       "check_violatedConstraint": "Prekršeno ograničenje",
-      "check_nearCritical": "Gotovo ključan",
+      "check_nearCritical": "Gotovo kritičan",
       "check_highFloat": "Visoka vremenska rezerva",
       "check_longDuration": "Dugo trajanje",
       "check_lead": "Vrijeme preklapanja (negativno vrijeme odgode)",
@@ -327,8 +327,8 @@
       "metric_invalidDates": "Neispravni datumi",
       "metric_resources": "Resursi",
       "metric_missedTasks": "Propušteni zadaci",
-      "metric_criticalPathTest": "Test ključnog puta",
-      "metric_cpli": "CPLI (indeks duljine ključnog puta)",
+      "metric_criticalPathTest": "Test kritičnog puta",
+      "metric_cpli": "CPLI (indeks duljine kritičnog puta)",
       "metric_bei": "BEI (indeks izvršenja temeljnog plana)",
       "norm_maxPercent": "≤ {{value}}%",
       "norm_minPercent": "≥ {{value}}%",
@@ -342,7 +342,7 @@
       "na_noBaseline": "nema aktivnog temeljnog plana",
       "na_nothingDue": "prema temeljnom planu još ništa nije završeno prije datuma stanja",
       "na_notResourceLoaded": "raspored nije opterećen resursima",
-      "na_noCandidate": "nema ključnog zadatka za odgodu",
+      "na_noCandidate": "nema kritičnog zadatka za odgodu",
       "na_finished": "završni zadatak je prije datuma stanja",
       "test_detail": "{{task}} {{slip}} wd dulje: {{end}} pomiče se za {{shift}} wd",
       "cpli_detail": "CPL {{cpl}} wd · TF {{tf}} wd ({{basis}})",
@@ -379,7 +379,7 @@
       "empty": "Nema dodjela."
     },
     "wbsSummary": {
-      "title": "Sažetak strukturne analize rada",
+      "title": "Sažetak WBS-a",
       "baselineStart": "Početak temeljnog plana",
       "baselineFinish": "Završetak temeljnog plana",
       "duration": "Trajanje (wd)",
@@ -389,10 +389,10 @@
       "critical": "Ključ.",
       "inProgress": "U tijeku",
       "complete": "Dovršeno",
-      "elements": "Elementi strukturne analize rada",
+      "elements": "Elementi WBS-a",
       "activitiesLabel": "Zadaci",
       "levelSubtitle": "Zaključno s razinom {{level}}",
-      "empty": "Nema elemenata strukturne analize rada."
+      "empty": "Nema elemenata WBS-a."
     }
   }
 }

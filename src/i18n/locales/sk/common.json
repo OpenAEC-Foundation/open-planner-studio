@@ -26,7 +26,7 @@
     "xerInvalidNumber": "Súbor XER obsahuje neplatné číslo.",
     "xerSingleProjectRequired": "Tento import podporuje presne jeden projekt P6 na súbor XER.",
     "xerEmptyProject": "Projekt P6 v tomto súbore XER neobsahuje žiadne úlohy.",
-    "xerDuplicateId": "Súbor XER obsahuje duplicitné ID štruktúry rozdelenia práce, úlohy alebo závislosti.",
+    "xerDuplicateId": "Súbor XER obsahuje duplicitné ID WBS, úlohy alebo závislosti.",
     "xerAmbiguousLocalRelation": "Závislosť XER bez vymedzeného rozsahu sa nedá jednoznačne priradiť jednému lokálnemu projektu.",
     "xerDanglingLocalRelation": "Lokálna závislosť XER odkazuje na chýbajúcu úlohu.",
     "xerEnumFallback": "XER {{family}}: neznámy token ‘{{token}}’; použitá záložná hodnota ‘{{fallback}}’.",
@@ -110,19 +110,19 @@
     "recoveryDocumentsSkipped_few": "{{count}} súbory na obnovenie sa nepodarilo načítať a boli preskočené.",
     "recoveryDocumentsSkipped_many": "{{count}} súboru na obnovenie sa nepodarilo načítať a boli preskočené.",
     "recoveryDocumentsSkipped_other": "{{count}} súborov na obnovenie sa nepodarilo načítať a boli preskočené.",
-    "scheduleFailed": "Plán sa nepodarilo vypočítať",
+    "scheduleFailed": "Plán sa nepodarilo prepočítať",
     "ifcParseFailed": "IFC sa nepodarilo prečítať",
     "templateSaved": "Vetva uložená ako šablóna „{{name}}“",
     "relationCreated": "Závislosť vytvorená: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Táto závislosť už existuje",
     "relationAncestorEndpoint": "Závislosť medzi úlohou a jej vlastnou súhrnnou úlohou (aj vyššou) nie je povolená.",
-    "relationCycle": "Táto závislosť by v pláne vytvorila cyklickú závislosť ({{cycle}}) a nebola vytvorená.",
-    "hierarchyCycle": "Toto presunutie by v pláne vytvorilo cyklickú závislosť ({{cycle}}): závislosti súhrnnej úlohy platia aj pre jej čiastkové úlohy. Nič sa nepresunulo.",
+    "relationCycle": "Táto závislosť by v pláne vytvorila cyklus ({{cycle}}) a nebola vytvorená.",
+    "hierarchyCycle": "Toto presunutie by v pláne vytvorilo cyklus ({{cycle}}): závislosti súhrnnej úlohy platia aj pre jej čiastkové úlohy. Nič sa nepresunulo.",
     "relationsExcludedByHierarchy_one": "Po presune spája {{count}} závislosť úlohu s jej vlastnou súhrnnou úlohou; už sa nezapočíta do výpočtu.",
     "relationsExcludedByHierarchy_few": "Po presune spájajú {{count}} závislosti úlohu s jej vlastnou súhrnnou úlohou; už sa nezapočítavajú do výpočtu.",
     "relationsExcludedByHierarchy_many": "Po presune spájajú {{count}} závislosti úlohu s jej vlastnou súhrnnou úlohou; už sa nezapočítavajú do výpočtu.",
     "relationsExcludedByHierarchy_other": "Po presune spája {{count}} závislostí úlohu s jej vlastnou súhrnnou úlohou; už sa nezapočítavajú do výpočtu.",
-    "summaryRelationsDropped": "{{total}} závislosť(i) sa nepodarilo zahrnúť do výpočtu. Skontrolujte stĺpce Predchádzajúce úlohy a Nasledujúce úlohy.",
+    "summaryRelationsDropped": "Počet závislostí, ktoré sa nepodarilo zahrnúť do výpočtu: {{total}}. Skontrolujte stĺpce Predchádzajúce úlohy a Nasledujúce úlohy.",
     "duplicateIdsRenamed": "Objekty s duplicitným ID v tomto súbore: {{total}}. Dostali vlastné ID; odkazy na ne zostávajú pri prvom výskyte. Skontrolujte závislosti a priradenia.",
     "relationsSkippedOnInsert_one": "{{count}} závislosť sa nevytvorila: neplatné prepojenie (napr. úloha s jej vlastnou súhrnnou úlohou alebo duplikát).",
     "relationsSkippedOnInsert_few": "{{count}} závislosti sa nevytvorili: neplatné prepojenia (napr. úloha s jej vlastnou súhrnnou úlohou alebo duplikát).",
@@ -152,10 +152,10 @@
     "workRuleDurationsChanged_few": "Pravidlo práce po zmene kalendára upravilo trvanie {{count}} úlohy (práca zostáva, hodiny za deň sa zmenili).",
     "workRuleDurationsChanged_many": "Pravidlo práce po zmene kalendára upravilo trvanie {{count}} úlohy (práca zostáva, hodiny za deň sa zmenili).",
     "workRuleDurationsChanged_other": "Pravidlo práce po zmene kalendára upravilo trvanie {{count}} úloh (práca zostáva, hodiny za deň sa zmenili).",
-    "pasteSkippedReadOnly_one": "{{count}} bunka preskočená: je iba na čítanie (napríklad automaticky číslovaný kód štruktúry rozdelenia práce alebo vypočítaný stĺpec).",
-    "pasteSkippedReadOnly_few": "{{count}} bunky preskočené: sú iba na čítanie (napríklad automaticky číslované kódy štruktúry rozdelenia práce alebo vypočítané stĺpce).",
-    "pasteSkippedReadOnly_many": "{{count}} bunky preskočené: sú iba na čítanie (napríklad automaticky číslované kódy štruktúry rozdelenia práce alebo vypočítané stĺpce).",
-    "pasteSkippedReadOnly_other": "{{count}} buniek preskočených: sú iba na čítanie (napríklad automaticky číslované kódy štruktúry rozdelenia práce alebo vypočítané stĺpce).",
+    "pasteSkippedReadOnly_one": "{{count}} bunka preskočená: je iba na čítanie (napríklad automaticky číslovaný kód WBS alebo vypočítaný stĺpec).",
+    "pasteSkippedReadOnly_few": "{{count}} bunky preskočené: sú iba na čítanie (napríklad automaticky číslované kódy WBS alebo vypočítané stĺpce).",
+    "pasteSkippedReadOnly_many": "{{count}} bunky preskočené: sú iba na čítanie (napríklad automaticky číslované kódy WBS alebo vypočítané stĺpce).",
+    "pasteSkippedReadOnly_other": "{{count}} buniek preskočených: sú iba na čítanie (napríklad automaticky číslované kódy WBS alebo vypočítané stĺpce).",
     "librarySaveFailed": "Knižnicu sa nepodarilo uložiť",
     "levelingDelayRoundedToWorkdays_one": "Vyvažovanie zaokrúhľuje minútovo presné oneskorenie pri vyvažovaní z MS Project na celé pracovné dni. Týka sa to jednej úlohy.",
     "levelingDelayRoundedToWorkdays_few": "Vyvažovanie zaokrúhľuje minútovo presné oneskorenie pri vyvažovaní z MS Project na celé pracovné dni. Týka sa to {{count}} úlohy.",
@@ -198,7 +198,7 @@
     "milestoneClearedOnPhase_many": "{{count}} medzníky majú teraz čiastkové úlohy a stali sa súhrnnými úlohami; označenia medzníkov boli odstránené.",
     "milestoneClearedOnPhase_other": "{{count}} medzníkov má teraz čiastkové úlohy a stalo sa súhrnnými úlohami; označenia medzníkov boli odstránené.",
     "phaseRefusedNoAssignableChild": "'{{phase}}' nemôže byť súhrnnou úlohou: jej priradenia nemajú kam ísť, pretože žiadna z nových čiastkových úloh nesmie niesť priradenia (medzník alebo súhrnná úloha). Nič sa nezmenilo.",
-    "phaseRefusedDuplicateResource": "'{{phase}}' nemôže byť súhrnnou úlohou: priradenie zdroja {{resource}} sa nemôže presunúť do novej čiastkovej úlohy '{{child}}', pretože tá už má {{resource}}. Nič sa nezmenilo.",
+    "phaseRefusedDuplicateResource": "„{{phase}}“ nemôže byť súhrnnou úlohou: priradenie zdroja {{resource}} sa nemôže presunúť do novej čiastkovej úlohy „{{child}}“, pretože tá už má {{resource}}. Nič sa nezmenilo.",
     "schedulingProfileApplied": "Tento projekt sa počíta ako {{profile}}. Zmeniť ho môžete v ponuke Súbor → Informácie o projekte → Profil výpočtu a možnosti výpočtu.",
     "schedulingProfileShifted_one": "Po použití bola posunutá {{count}} úloha.",
     "schedulingProfileShifted_few": "Po použití boli posunuté {{count}} úlohy.",
@@ -217,10 +217,10 @@
     "xerArchiveReasonBytesMissing": "Dôvod: samotné zdrojové bajty chýbajú — pravdepodobne súbor prepísal iný program pre IFC.",
     "xerArchiveReasonMetadataInvalid": "Dôvod: zdrojové bajty sú neporušené, ale údaje z nich odvodené nie sú použiteľné.",
     "xerArchiveReasonStructure": "Dôvod: štruktúra archívu v IFC nie je správna (zdvojená, preusporiadaná alebo nesprávne pripojená).",
-    "statusDateSetToday": "Dátum kontroly stavu ešte nebol nastavený: teraz je nastavený na dnešok ({{date}}), pretože postup sa meria do dátumu kontroly stavu. Zmeniť ho môžete v ponuke Plán → Dátum kontroly stavu.",
-    "durationBelowDoneWork": "‘{{name}}’ je už na {{percent}} % hotová: trvanie kratšie ako už vykonaná práca nie je možné. Trvanie nebolo zmenené.",
-    "tutorialOfferLater": "Kurzy nájdete kedykoľvek v ponuke Pomoc › Kurzy.",
-    "tutorialOfferUnavailable": "Kurzy sa teraz nepodarilo nainštalovať ani spustiť. Skúsiť to znova môžete neskôr v ponuke Pomoc › Kurzy."
+    "statusDateSetToday": "Dátum stavu ešte nebol nastavený: teraz je nastavený na dnešok ({{date}}), pretože postup sa meria do dátumu stavu. Zmeniť ho môžete na karte Plán → Dátum stavu.",
+    "durationBelowDoneWork": "Úloha „{{name}}“ je už hotová na {{percent}} %: trvanie kratšie ako už vykonaná práca nie je možné. Trvanie nebolo zmenené.",
+    "tutorialOfferLater": "Návody nájdete kedykoľvek v ponuke Pomoc › Návody.",
+    "tutorialOfferUnavailable": "Návody sa teraz nepodarilo nainštalovať ani spustiť. Skúsiť to znova môžete neskôr v ponuke Pomoc › Návody."
   },
   "scheduleErrors": {
     "cycle": "Kruhová závislosť medzi úlohami: {{path}}",
@@ -258,7 +258,7 @@
     "addRelation": "Pridať závislosť",
     "delete": "Odstrániť",
     "newTask": "Vytvoriť úlohu",
-    "tracePath": "Zapnúť sledovanie cesty",
+    "tracePath": "Sledovať cestu",
     "traceOff": "Zastaviť sledovanie cesty",
     "saveTemplate": "Uložiť vetvu ako šablónu",
     "insertAbove": "Vložiť nad",
@@ -1007,7 +1007,7 @@
       "addLevel": "+ úroveň",
       "level": "Úroveň {{n}}",
       "direction": "Smer",
-      "noLevels": "Bez zoskupenia — strom štruktúry rozdelenia práce",
+      "noLevels": "Bez zoskupenia — strom WBS",
       "maxLevels": "Najviac 2 úrovne zoskupenia"
     },
     "sort": {
@@ -1039,7 +1039,7 @@
       "partRelations": "Čiary závislostí",
       "infoColumns": "Viditeľné stĺpce tabuľky úloh, ich poradie a šírka.",
       "infoFilter": "Filter, ktorý je teraz aktívny. Ak nie je zapnutý žiadny filter, toto rozloženie filter vymaže.",
-      "infoGroup": "Zoskupenie úloh, napríklad podľa zdroja. Bez zoskupenia rozloženie zobrazí strom štruktúry rozdelenia práce.",
+      "infoGroup": "Zoskupenie úloh, napríklad podľa zdroja. Bez zoskupenia rozloženie zobrazí strom WBS.",
       "infoSort": "Poradie úloh v strome alebo v skupine.",
       "infoTimeScale": "Časová mierka Gantt (deň, týždeň, mesiac…). Nie je označené: priblíženie zostane, ako je.",
       "infoRelations": "Či sú čiary závislostí medzi úlohami viditeľné. V zoskupenom zobrazení sú zvyčajne lepšie vypnuté.",
@@ -1368,7 +1368,7 @@
     },
     "p6ZeroDurationUsesPlannedBoundary": {
       "label": "Medzník sleduje plánovanú hranicu kalendára",
-      "help": "Medzník bez trvania zostane na hranici kalendára, ktorú súbor plánoval. Začiatok dňa zostane medzníkom začiatku. Koniec pásma môže pripadnúť na dokončenie predchádzajúcej úlohy."
+      "help": "Medzník bez trvania zostane na hranici kalendára, ktorú súbor plánoval. Začiatok dňa zostane medzníkom začiatku. Dokončenie pásma môže pripadnúť na dokončenie predchádzajúcej úlohy."
     },
     "p6UseTaskPlannedStartFloor": {
       "label": "Plánovaný začiatok ako ďalšia dolná hranica",
@@ -1537,11 +1537,11 @@
     "waiting": "Vykonajte pokyn v aplikácii; potom môžete pokračovať."
   },
   "tutorialOffer": {
-    "title": "Kurzy",
-    "question": "Chcete teraz vytvoriť svoj prvý plán pomocou kurzu?",
-    "body": "Prehliadka je hotová. V kurze 1 krok za krokom vytvoríte plán prístavby k domu. Panel vám dáva jeden pokyn naraz a zistí, kedy ho splníte. Kurzy fungujú ako rozšírenie: ak ešte nie je nainštalované, aplikácia ho stiahne a najprv sa opýta, či mu dôverujete.",
+    "title": "Návody",
+    "question": "Chcete teraz vytvoriť svoj prvý plán pomocou návodu?",
+    "body": "Prehliadka je hotová. V návode 1 krok za krokom vytvoríte plán prístavby k domu. Panel vám dáva jeden pokyn naraz a zistí, kedy ho splníte. Návody fungujú ako rozšírenie: ak ešte nie je nainštalované, aplikácia ho stiahne a najprv sa opýta, či mu dôverujete.",
     "yes": "Áno",
     "no": "Nie",
-    "busy": "Pripravujú sa kurzy…"
+    "busy": "Pripravujú sa návody…"
   }
 }

@@ -176,7 +176,7 @@
     "progressImport": "Aktualizovat průběh z tabulky",
     "progressExport": "Exportovat tabulku průběhu",
     "progressGroup": "Průběh",
-    "relationHintModeOn": "Zapněte režim závislostí; potom táhněte v diagramu Gantt z pruhu na pruh",
+    "relationHintModeOn": "Zapněte režim závislostí; potom táhněte v Ganttově diagramu z pruhu na pruh",
     "relationHintModeOff": "Vypněte režim závislostí",
     "relationHintPair": "Vytvořit závislost dokončení-zahájení mezi dvěma vybranými úkoly",
     "relationDraw": "Nakreslit závislost",
@@ -197,7 +197,7 @@
     "taskHintBelow": "Nový úkol přímo pod výběrem",
     "taskHintAppend": "Nový úkol na konci seznamu",
     "columnsHintTable": "Vyberte sloupce zobrazení Tabulka",
-    "columnsHintGoToTable": "Vyberte sloupce zobrazení Tabulka — zobrazeno na kartě Tabulka",
+    "columnsHintGoToTable": "Vybrat sloupce zobrazení Tabulka — zobrazeno na kartě Tabulka",
     "toggleResourceAccent": "Zvýraznění zdrojů",
     "toggleFloatBand": "Pás časové rezervy",
     "screenColors": "Barvy pruhů",
@@ -346,7 +346,7 @@
     "progressXlsxShort": "Průběh (Excel)",
     "progressXlsxSheetName": "Průběh",
     "progressXlsxValidation": {
-      "percentTitle": "Procento dokončení (%)",
+      "percentTitle": "Dokončení (%)",
       "percentError": "Zadejte číslo od 0 do 100 včetně.",
       "dateTitle": "Skutečné datum",
       "dateError": "Zadejte platné datum."

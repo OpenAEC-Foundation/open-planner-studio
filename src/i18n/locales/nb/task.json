@@ -20,7 +20,7 @@
   },
   "durationType": {
     "WORKTIME": "Arbeidstid",
-    "ELAPSEDTIME": "Brukt varighet"
+    "ELAPSEDTIME": "Forløpt tid"
   },
   "table": {
     "title": "Tabell",
@@ -90,7 +90,7 @@
       "lateFinish": "Seneste slutt",
       "lateStart": "Seneste start",
       "levelingDelay": "Utjevningsforsinkelse",
-      "levelingDelayElapsed": "Utjevningsforsinkelse i brukt varighet",
+      "levelingDelayElapsed": "Utjevningsforsinkelse i forløpt tid",
       "levelingDelayMinutes": "Utjevningsforsinkelse (minutter)",
       "mandatoryMilestone": "Obligatorisk milepæl",
       "manuallyScheduled": "Manuelt planlagt",
@@ -108,7 +108,7 @@
       "recordedSource": "Opprinnelse (lagrede datoer)",
       "remainingMinutes": "Gjenstående (minutter)",
       "remainingTime": "Gjenstående",
-      "resourceIds": "Ressurs-IDer",
+      "resourceIds": "Ressurs-ID-er",
       "resume": "Gjenopptaksdato",
       "scheduleFinish": "Planlagt slutt",
       "start": "Start",

@@ -15,7 +15,7 @@
     "merge": "Sammenlæg",
     "lastPhaseHint": "Den sidste fase løber til opgavens slutdato.",
     "noDays": "Denne opgave har ingen arbejdsdage.",
-    "hint": "Fordelingen ændrer kun timerne pr. dag for denne tildeling. Opgavedatoerne og pauserne forbliver, som de er. En fase med 0 tildelingsenheder forbliver inden for opgavens varighed.",
+    "hint": "Fordelingen ændrer kun timerne pr. dag for denne tildeling. Opgavedatoerne og afbrydelserne forbliver, som de er. En fase med 0 tildelingsenheder forbliver inden for opgavens varighed.",
     "release": "Frigiv fordeling"
   },
   "durationType": {
@@ -114,8 +114,8 @@
       "start": "Start",
       "finish": "Slutdato",
       "scheduleStart": "Planlagt startdato",
-      "splitGaps": "Pauser",
-      "status": "Status",
+      "splitGaps": "Afbrydelser",
+      "status": "Fremdrift",
       "stop": "Stopdato",
       "successors": "Efterfølgende opgaver",
       "taskId": "Opgave-id",
@@ -191,9 +191,9 @@
       "constraintDateUnavailable": "Angiv først en begrænsningstype, før du indtaster en begrænsningsdato.",
       "constraintHardUnavailable": "En hård begrænsning kræver en begrænsningstype med en dato.",
       "hammockUnavailable": "Denne opgave kan ikke blive en hængekøjeopgave.",
-      "activityCode": "Vælg en værdi fra denne aktivitetskode.",
-      "activityCodeAmbiguous": "Denne værdi for aktivitetskoden forekommer flere gange. Vælg den fra listen.",
-      "activityCodeTypeNotFound": "Denne aktivitetskode findes ikke længere.",
+      "activityCode": "Vælg en værdi fra denne opgavekode.",
+      "activityCodeAmbiguous": "Denne værdi for opgavekoden forekommer flere gange. Vælg den fra listen.",
+      "activityCodeTypeNotFound": "Denne opgavekode findes ikke længere.",
       "customFieldNotFound": "Dette brugerdefinerede felt findes ikke længere.",
       "customFieldType": "Værdien passer ikke til typen for dette brugerdefinerede felt.",
       "relations": "Brug afhængigheder som 1.2 FS+2d, adskilt af semikolon.",
@@ -275,8 +275,8 @@
       "resetColumns": "Nulstil kolonnernes layout til standard"
     },
     "summary": {
-      "activityCodeAssignments_one": "{{count}} aktivitetskodetildeling",
-      "activityCodeAssignments_other": "{{count}} aktivitetskodetildelinger",
+      "activityCodeAssignments_one": "{{count}} opgavekodetildeling",
+      "activityCodeAssignments_other": "{{count}} opgavekodetildelinger",
       "customFields_one": "{{count}} brugerdefineret felt",
       "customFields_other": "{{count}} brugerdefinerede felter",
       "internalRelations_one": "{{count}} intern afhængighed",
@@ -366,8 +366,8 @@
     "protectsFIXED_DURATION_WORK": "varighed og arbejde (tildelingsenheder følger)",
     "protectsFIXED_WORK": "arbejde (varighed følger tildelingsenhederne)",
     "protectsFIXED_RATE": "tildelingsenheder (varighed følger arbejdet)",
-    "mspEffortDriven": "Fra MS Project: effort-driven",
-    "mspNotEffortDriven": "Fra MS Project: ikke effort-driven",
+    "mspEffortDriven": "Fra MS Project: indsatsbaseret",
+    "mspNotEffortDriven": "Fra MS Project: ikke indsatsbaseret",
     "none": "Projektstandard"
   },
   "properties": {
@@ -485,13 +485,13 @@
     "levelingDelay": "Udjævningsforskydning",
     "durationHours": "Varighed (timer)",
     "splits": {
-      "title": "Pauser",
+      "title": "Afbrydelser",
       "after": "efter",
-      "pause": "pause",
-      "add": "Tilføj pause",
-      "remove": "Slet pause",
-      "readOnly": "Disse pauser kommer fra kildefilen i et format, der ikke kan redigeres her.",
-      "removeAll": "Slet alle pauser",
+      "pause": "afbrydelse",
+      "add": "Tilføj afbrydelse",
+      "remove": "Slet afbrydelse",
+      "readOnly": "Disse afbrydelser kommer fra kildefilen i et format, der ikke kan redigeres her.",
+      "removeAll": "Slet alle afbrydelser",
       "leveling": "udjævning",
       "unitDays": "arbejdsdage",
       "unitHours": "timer"
@@ -566,7 +566,7 @@
   },
   "defaultTask": "Ny opgave",
   "defaultMilestone": "Ny milepæl",
-  "defaultInspection": "Nyt inspektionsmoment",
+  "defaultInspection": "Nyt inspektionspunkt",
   "column": {
     "resource": "Ressourcer",
     "resourceType": "Ressourcetype",
@@ -574,7 +574,7 @@
     "customFieldSuffix": "brugerdefineret felt"
   },
   "tooltip": {
-    "status": "Status"
+    "status": "Fremdrift"
   },
   "externalLinks": {
     "action": "Tilføj ekstern afhængighed…",
@@ -619,10 +619,10 @@
     "deleteRelation": "Slet afhængighed"
   },
   "split": {
-    "gapDays_one": "{{count}} arbejdsdag pause",
-    "gapDays_other": "{{count}} arbejdsdage pause",
-    "gapHours_one": "{{count}} times pause",
-    "gapHours_other": "{{count}} timers pause",
+    "gapDays_one": "{{count}} arbejdsdag afbrydelse",
+    "gapDays_other": "{{count}} arbejdsdage afbrydelse",
+    "gapHours_one": "{{count}} times afbrydelse",
+    "gapHours_other": "{{count}} timers afbrydelse",
     "pieceDays_one": "Stykke: {{count}} arbejdsdag",
     "pieceDays_other": "Stykke: {{count}} arbejdsdage",
     "pieceHours_one": "Stykke: {{count}} time",

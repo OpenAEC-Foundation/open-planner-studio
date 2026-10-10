@@ -26,7 +26,7 @@
     "xerInvalidNumber": "XER datoteka sadrži nevaljan broj.",
     "xerSingleProjectRequired": "Ovaj uvoz podržava točno jedan P6 projekt po XER datoteci.",
     "xerEmptyProject": "P6 projekt u ovoj XER datoteci ne sadrži zadatke.",
-    "xerDuplicateId": "XER datoteka sadrži dvostruki ID za strukturnu analizu rada, zadatak ili ovisnost.",
+    "xerDuplicateId": "XER datoteka sadrži dvostruki ID za WBS, zadatak ili ovisnost.",
     "xerAmbiguousLocalRelation": "Ovisnost iz XER-a bez oznake projekta nije jednoznačno dodijeljiva jednom lokalnom projektu.",
     "xerDanglingLocalRelation": "Lokalna ovisnost iz XER-a upućuje na nedostajući zadatak.",
     "xerEnumFallback": "XER {{family}}: nepoznata oznaka ‘{{token}}’; upotrijebljeno je ‘{{fallback}}’.",
@@ -128,20 +128,20 @@
     "workRuleDurationsChanged_one": "Nakon promjene kalendara pravilo rada prilagodilo je trajanje za {{count}} zadatak (rad ostaje, sati dnevno su se promijenili).",
     "workRuleDurationsChanged_few": "Nakon promjene kalendara pravilo rada prilagodilo je trajanje za {{count}} zadatka (rad ostaje, sati dnevno su se promijenili).",
     "workRuleDurationsChanged_other": "Nakon promjene kalendara pravilo rada prilagodilo je trajanje za {{count}} zadataka (rad ostaje, sati dnevno su se promijenili).",
-    "pasteSkippedReadOnly_one": "Preskočena je {{count}} ćelija: ona je samo za čitanje (na primjer automatski numerirana oznaka strukturne analize rada ili izračunati stupac).",
-    "pasteSkippedReadOnly_few": "Preskočene su {{count}} ćelije: one su samo za čitanje (na primjer automatski numerirana oznaka strukturne analize rada ili izračunati stupac).",
-    "pasteSkippedReadOnly_other": "Preskočeno je {{count}} ćelija: one su samo za čitanje (na primjer automatski numerirana oznaka strukturne analize rada ili izračunati stupac).",
+    "pasteSkippedReadOnly_one": "Preskočena je {{count}} ćelija: ona je samo za čitanje (na primjer automatski numerirana oznaka WBS-a ili izračunati stupac).",
+    "pasteSkippedReadOnly_few": "Preskočene su {{count}} ćelije: one su samo za čitanje (na primjer automatski numerirana oznaka WBS-a ili izračunati stupac).",
+    "pasteSkippedReadOnly_other": "Preskočeno je {{count}} ćelija: one su samo za čitanje (na primjer automatski numerirana oznaka WBS-a ili izračunati stupac).",
     "librarySaveFailed": "Biblioteku nije bilo moguće spremiti",
-    "levelingDelayRoundedToWorkdays_one": "Razrješavanje zaokružuje minutno precizno kašnjenje u razrješavanju iz MS Projecta na cijele radne dane za {{count}} zadatak.",
-    "levelingDelayRoundedToWorkdays_few": "Razrješavanje zaokružuje minutno precizno kašnjenje u razrješavanju iz MS Projecta na cijele radne dane za {{count}} zadatka.",
-    "levelingDelayRoundedToWorkdays_other": "Razrješavanje zaokružuje minutno precizno kašnjenje u razrješavanju iz MS Projecta na cijele radne dane za {{count}} zadataka.",
+    "levelingDelayRoundedToWorkdays_one": "Uravnoteživanje zaokružuje minutno precizno kašnjenje zbog uravnoteživanja iz MS Projecta na cijele radne dane za {{count}} zadatak.",
+    "levelingDelayRoundedToWorkdays_few": "Uravnoteživanje zaokružuje minutno precizno kašnjenje zbog uravnoteživanja iz MS Projecta na cijele radne dane za {{count}} zadatka.",
+    "levelingDelayRoundedToWorkdays_other": "Uravnoteživanje zaokružuje minutno precizno kašnjenje zbog uravnoteživanja iz MS Projecta na cijele radne dane za {{count}} zadataka.",
     "startSnetCreated": "'{{name}}' ima prethodnika: novi početak je postavljen kao ograničenje „ne početi prije“ (SNET) {{date}}. Nakon ponovnog izračunavanja (F5) zadatak ne počinje prije tog datuma.",
     "startSnetUpdated": "Ograničenje „ne početi prije“ (SNET) zadatka '{{name}}' pomaknuto je na {{date}}. Nakon ponovnog izračunavanja (F5) zadatak ne počinje prije tog datuma.",
     "startSnetMany_one": "Novi početak za {{count}} zadatak s prethodnikom postavljen je kao ograničenje „ne početi prije“ (SNET). Nakon ponovnog izračunavanja (F5) taj zadatak ne počinje prije svog datuma.",
     "startSnetMany_few": "Novi počeci za {{count}} zadatka s prethodnikom postavljeni su kao ograničenja „ne početi prije“ (SNET). Nakon ponovnog izračunavanja (F5) ti zadaci ne počinju prije svojih datuma.",
     "startSnetMany_other": "Novi počeci za {{count}} zadataka s prethodnikom postavljeni su kao ograničenja „ne početi prije“ (SNET). Nakon ponovnog izračunavanja (F5) nijedan od tih zadataka ne počinje prije svog datuma.",
     "startBlockedByConstraint": "Novi početak '{{name}}' nije primijenjen: zadatak ima prethodnika, a prethodnik i ograničenje $t(task:constraintType.{{type}}) {{date}} određuju početak. Promijenite to ograničenje da biste pomaknuli početak.",
-    "startBlockedByConstraintNoDate": "Novi početak '{{name}}' nije primijenjen: zadatak ima prethodnika, a prethodnik i ograničenje $t(task:constraintType.{{type}}) određuju početak. Promijenite to ograničenje da biste pomaknuli početak.",
+    "startBlockedByConstraintNoDate": "Novi početak zadatka '{{name}}' nije primijenjen: zadatak ima prethodnika, a prethodnik i ograničenje $t(task:constraintType.{{type}}) određuju početak. Promijenite to ograničenje da biste pomaknuli početak.",
     "startBlockedByConstraintMany_one": "Novi početak za {{count}} zadatak nije primijenjen: taj zadatak ima prethodnika i ograničenje koje nije „ne početi prije“ (SNET). Promijenite to ograničenje da biste pomaknuli početak.",
     "startBlockedByConstraintMany_few": "Novi počeci za {{count}} zadatka nisu primijenjeni: ti zadaci imaju prethodnika i ograničenja koja nisu „ne početi prije“ (SNET). Promijenite ta ograničenja da biste pomaknuli početke.",
     "startBlockedByConstraintMany_other": "Novi počeci za {{count}} zadataka nisu primijenjeni: ti zadaci imaju prethodnika i ograničenja koja nisu „ne početi prije“ (SNET). Promijenite ta ograničenja da biste pomaknuli početke.",
@@ -184,8 +184,8 @@
     "xerArchiveReasonStructure": "Razlog: struktura arhiva u IFC-u nije ispravna (udvostručena, poredana drugačije ili pogrešno povezana).",
     "statusDateSetToday": "Datum stanja još nije bio postavljen: sada je postavljen na danas ({{date}}), jer se napredak mjeri do datuma stanja. Promijenite ga u Raspored → Datum stanja.",
     "durationBelowDoneWork": "'{{name}}' je već {{percent}}% završen: trajanje kraće od već obavljenog rada nije moguće. Trajanje nije promijenjeno.",
-    "tutorialOfferLater": "Korisničke priručnike uvijek možete pronaći u izborniku Pomoć › Korisnički priručnici.",
-    "tutorialOfferUnavailable": "Korisnički priručnici trenutno nisu mogli biti instalirani ni pokrenuti. Pokušajte ponovno kasnije u Pomoć › Korisnički priručnici."
+    "tutorialOfferLater": "Lekcije uvijek možete pronaći u izborniku Pomoć › Lekcije.",
+    "tutorialOfferUnavailable": "Lekcije trenutno nisu mogle biti instalirane ni pokrenute. Pokušajte ponovno kasnije u Pomoć › Lekcije."
   },
   "scheduleErrors": {
     "cycle": "Kružna ovisnost između zadataka: {{path}}",
@@ -223,7 +223,7 @@
     "addRelation": "Dodaj ovisnost",
     "delete": "Izbriši",
     "newTask": "Novi zadatak",
-    "tracePath": "Pokreni praćenje puta",
+    "tracePath": "Prati put",
     "traceOff": "Zaustavi praćenje puta",
     "saveTemplate": "Spremi granu kao predložak",
     "insertAbove": "Umetni iznad",
@@ -421,10 +421,10 @@
     "openErr": "Mapa se nije mogla otvoriti: {{error}}"
   },
   "aiActivity": {
-    "title": "AI aktivnosti",
-    "panelButton": "Panel aktivnosti",
+    "title": "AI zadatak",
+    "panelButton": "Panel zadatka",
     "clear": "Obriši",
-    "empty": "Još nema AI aktivnosti. Pozivi mosta prikazat će se ovdje.",
+    "empty": "Još nema AI zadatka. Pozivi mosta prikazat će se ovdje.",
     "args": "Argumenti",
     "result": "Odgovor"
   },
@@ -473,7 +473,7 @@
     "allProjects": "Svi projekti",
     "active": "Aktivno",
     "tasksWord": "zadaci",
-    "criticalWord": "ključni",
+    "criticalWord": "kritični",
     "confirmClose": "Ovaj dokument ima nespremljene promjene. Želite li ga ipak zatvoriti?",
     "closeTitle": "Nespremljene promjene",
     "closeBody": "'{{name}}' ima promjene koje još nisu spremljene.",
@@ -766,11 +766,11 @@
       "staleHint": "Raspored je zastario — ponovno izračunajte (F5)"
     },
     "leveling": {
-      "dialogTitle": "Razrješavanje resursa",
-      "constrainToFloat": "Razrješavanje samo unutar vremenske rezerve (smoothing) — datum završetka projekta ostaje nepromijenjen",
+      "dialogTitle": "Uravnoteživanje resursa",
+      "constrainToFloat": "Uravnoteživanje samo unutar vremenske rezerve (smoothing) — datum završetka projekta ostaje nepromijenjen",
       "resourceSelect": "Resursi",
       "calculate": "Izračunaj",
-      "failed": "Razrješavanje nije uspjelo: {{message}}",
+      "failed": "Uravnoteživanje nije uspjelo: {{message}}",
       "staleResult": "Raspored je promijenjen tijekom izračuna. Ponovno kliknite Izračunaj.",
       "stop": "Zaustavi",
       "calculating": "Izračunavanje…",
@@ -782,8 +782,8 @@
       "remainingConflictsHint": "Ovi zadaci ne stanu u svoju vremensku rezervu — često zato što resurs tih dana ne radi ili nema dovoljan kapacitet.",
       "intrinsicOverrun": "Resurs {{resource}}: vrhunac dnevnih jedinica dodjele je {{peak}}, kapacitet je {{capacity}} — ne može se riješiti pomicanjem.",
       "noChanges": "Nijedan zadatak ne treba pomaknuti — raspored je već bez sukoba.",
-      "notCalculated": "Kliknite Izračunaj da biste stvorili prijedlog razrješavanja.",
-      "needsCPM": "Prvo izračunajte raspored (F5) prije razrješavanja.",
+      "notCalculated": "Kliknite Izračunaj da biste stvorili prijedlog uravnoteživanja.",
+      "needsCPM": "Prvo izračunajte raspored (F5) prije uravnoteživanja.",
       "colTask": "Zadatak",
       "colOldStart": "Stari početak",
       "colNewStart": "Novi početak",
@@ -802,7 +802,7 @@
     "curve": {
       "uniform": "Ujednačeno",
       "frontLoaded": "Opterećeno na početku",
-      "backLoaded": "Opterećeno na kraju",
+      "backLoaded": "Opterećeno na završetku",
       "bell": "Zvonasto",
       "earlyPeak": "Rani vrh",
       "latePeak": "Kasni vrh",
@@ -965,7 +965,7 @@
       "addLevel": "+ razina",
       "level": "Razina {{n}}",
       "direction": "Smjer",
-      "noLevels": "Bez grupiranja — stablo strukturne analize rada",
+      "noLevels": "Bez grupiranja — stablo WBS-a",
       "maxLevels": "Najviše 2 razine grupiranja"
     },
     "sort": {
@@ -997,7 +997,7 @@
       "partRelations": "Crte ovisnosti",
       "infoColumns": "Vidljivi stupci tablice zadataka, njihov redoslijed i širina.",
       "infoFilter": "Filtar koji je trenutačno aktivan. Ako nijedan filtar nije uključen, ovaj izgled briše filtar.",
-      "infoGroup": "Kako se zadaci grupiraju, na primjer po resursu. Bez grupiranja izgled prikazuje stablo strukturne analize rada.",
+      "infoGroup": "Kako se zadaci grupiraju, na primjer po resursu. Bez grupiranja izgled prikazuje stablo WBS-a.",
       "infoSort": "Redoslijed sortiranja zadataka unutar stabla ili unutar grupe.",
       "infoTimeScale": "Vremenska skala Gantt-prikaza (dan, tjedan, mjesec…). Ako nije označeno, zumiranje ostaje kakvo jest.",
       "infoRelations": "Jesu li crte ovisnosti između zadataka vidljive. U grupiranom prikazu obično je bolje da budu isključene.",
@@ -1185,7 +1185,7 @@
     "sectionHint": "Izmjerite performanse motora rasporeda na generiranom testnom projektu.",
     "open": "Benchmark…",
     "title": "Benchmark",
-    "intro": "Generirajte testni raspored i izmjerite ključne faze. Ovo ne mijenja vaš otvoreni projekt.",
+    "intro": "Generirajte testni raspored i izmjerite kritične faze. Ovo ne mijenja vaš otvoreni projekt.",
     "sizeLabel": "Veličina rasporeda",
     "tasksCount": "{{count}} zadataka",
     "resourceLabel": "Broj resursa",
@@ -1207,7 +1207,7 @@
     "summaryTasks": "Zadaci",
     "summarySequences": "Ovisnosti",
     "summaryResources": "Resursi · dodjele",
-    "summaryCritical": "Ključni zadaci",
+    "summaryCritical": "Kritični zadaci",
     "summaryIfc": "Veličina IFC-a",
     "summaryRoundtrip": "Spremanje bez gubitka podataka",
     "roundtripOk": "U redu",
@@ -1220,7 +1220,7 @@
       "render": "Gantt-iscrtavanje"
     },
     "detailGenerate": "{{tasks}} zadataka · {{sequences}} ovisnosti",
-    "detailCpm": "{{leaf}} krajnjih zadataka · {{sequences}} ovisnosti · {{critical}} ključnih",
+    "detailCpm": "{{leaf}} krajnjih zadataka · {{sequences}} ovisnosti · {{critical}} kritičnih",
     "detailIfcRead": "{{count}} zadataka ponovno učitano · spremanje bez gubitka podataka: {{status}}",
     "detailRender": "{{rows}} redaka · {{w}}×{{h}}",
     "renderUnavailable": "iscrtavanje nije dostupno (nema 2D-konteksta platna)",
@@ -1263,7 +1263,7 @@
     "changeLink": "Promijeni",
     "clearLink": "Ukloni povezivanje",
     "pickerPlaceholder": "Odaberi zadatak…",
-    "pickerFilter": "Traži: strukturna analiza rada ili naziv…",
+    "pickerFilter": "Traži: WBS ili naziv…",
     "pickerTooMany": "Previše zadataka za prikaz. Suzite pojam za traženje.",
     "pickerTaken": "već povezano s drugim retkom",
     "overrideDropped": "Povezivanje za redak {{row}} upućuje na zadatak koji više ne postoji i zanemaren je.",
@@ -1274,7 +1274,7 @@
     "dateOrderOptionA": "{{date}}",
     "dateOrderOptionB": "{{date}}",
     "dateOrderBack": "Vrati se na pitanje o datumu",
-    "dateOrderContradictory": "Ova datoteka sadrži proturječne zapise datuma. Nema jasne ćelije za pitanje. Aplikacija je pretpostavila dan-mjesec. Datumi koji se tome ne uklapaju dolje su odbijeni kao nečitljivi.",
+    "dateOrderContradictory": "Ova datoteka sadrži proturječne zapise datuma, a nema jasne ćelije o kojoj bi se moglo pitati. Aplikacija je pretpostavila redoslijed dan-mjesec. Datumi koji se ne uklapaju u taj redoslijed dolje su odbijeni kao nečitljivi.",
     "confirm": "Primijeni",
     "close": "Zatvori",
     "resultTitle": "Rezultat",
@@ -1289,7 +1289,7 @@
     },
     "reason": {
       "unmatched": "Za ovaj redak nije pronađen zadatak.",
-      "ambiguousWbs": "Ova oznaka strukturne analize rada pripada većem broju zadataka. Povežite redak ručno.",
+      "ambiguousWbs": "Ova oznaka WBS-a pripada većem broju zadataka. Povežite redak ručno.",
       "duplicateRow": "Drugi redak je već preuzeo ovaj zadatak.",
       "summaryTask": "Zadaci sažetka ne mogu dobiti napredak iz lista.",
       "unreadableDate": "Nečitljiv datum.",
@@ -1341,8 +1341,8 @@
       "help": "Ograničenje datuma i vremena na kontrolnoj točki bez trajanja je točan trenutak, i na početku radnog bloka."
     },
     "resumeFromActualElapsed": {
-      "label": "Preostali posao nastavlja se nakon neprekinutog trajanja",
-      "help": "Zadatak u tijeku nastavlja preostali posao na stvarnom početku plus neprekinuto trajanje, a ne na datumu stanja."
+      "label": "Preostali posao nastavlja se nakon proteklog vremena",
+      "help": "Zadatak u tijeku nastavlja preostali posao na stvarnom početku plus proteklo vrijeme, a ne na datumu stanja."
     },
     "unstartedIgnoresStatusDate": {
       "label": "Nezapočeti zadaci se ne pomiču na datum stanja",
@@ -1487,11 +1487,11 @@
     "waiting": "Izvršite zadatak u aplikaciji; zatim možete nastaviti."
   },
   "tutorialOffer": {
-    "title": "Korisnički priručnici",
-    "question": "Želite li sada u korisničkom priručniku izraditi svoj prvi raspored?",
-    "body": "Razgledavanje je završeno. U korisničkom priručniku 1 izrađujete raspored za dogradnju kuće korak po korak. Ploča vam daje jednu uputu u isto vrijeme i primijeti kada ste je izvršili. Korisnički priručnici su proširenje: ako još nije instalirano, aplikacija ga preuzima i prvo pita želite li mu vjerovati.",
+    "title": "Lekcije",
+    "question": "Želite li sada u lekciji izraditi svoj prvi raspored?",
+    "body": "Razgledavanje je završeno. U lekciji 1 izrađujete raspored za dogradnju kuće korak po korak. Ploča vam daje jednu uputu u isto vrijeme i primijeti kada ste je izvršili. Lekcije su proširenje: ako još nije instalirano, aplikacija ga preuzima i prvo pita želite li mu vjerovati.",
     "yes": "Da",
     "no": "Ne",
-    "busy": "Priprema korisničkih priručnika…"
+    "busy": "Priprema lekcija…"
   }
 }
