@@ -388,27 +388,45 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
       notifications?: { schedulingProfileApplied?: unknown; schedulingProfileShifted_other?: unknown; actions?: { openProjectInfo?: unknown } };
       schedulingProfile?: { title?: unknown; themes?: Record<string, unknown> };
     };
+    // Besluit B5 (2026-10-10): een andere taal dan nl/en mag een sleutel nog missen (de app valt terug op
+    // en, de vertaalstraat vult hem vóór een release); wat er wél staat, moet kloppen.
+    const optional = locale !== 'nl' && locale !== 'en';
+    const isText = (label: string, v: unknown) => { if (v === undefined && optional) return; eq(label, typeof v, 'string'); };
     for (const c of CONVENTIONS) {
-      eq(`i18n ${locale} ${c.labelKey}.label`, typeof common.conventions?.[c.id]?.label, 'string');
-      eq(`i18n ${locale} ${c.labelKey}.help`, typeof common.conventions?.[c.id]?.help, 'string');
+      isText(`i18n ${locale} ${c.labelKey}.label`, common.conventions?.[c.id]?.label);
+      isText(`i18n ${locale} ${c.labelKey}.help`, common.conventions?.[c.id]?.help);
     }
     for (const theme of [...CONVENTION_THEMES, 'ownProfilesOnly']) {
-      eq(`i18n ${locale} schedulingProfile.themes.${theme}`, typeof common.schedulingProfile?.themes?.[theme], 'string');
+      isText(`i18n ${locale} schedulingProfile.themes.${theme}`, common.schedulingProfile?.themes?.[theme]);
     }
-    for (const id of BUILT_IN_PROFILE_IDS) eq(`i18n ${locale} profiles.builtIn.${id}`, typeof common.profiles?.builtIn?.[id], 'string');
-    eq(`i18n ${locale} profiles.modified`, typeof common.profiles?.modified, 'string');
-    eq(`i18n ${locale} profiles.copyOf`, typeof common.profiles?.copyOf, 'string');
-    eq(`i18n ${locale} notifications.schedulingProfileApplied`, typeof common.notifications?.schedulingProfileApplied, 'string');
-    eq(`i18n ${locale} notifications.schedulingProfileShifted_other`, typeof common.notifications?.schedulingProfileShifted_other, 'string');
-    eq(`i18n ${locale} notifications.actions.openProjectInfo`, typeof common.notifications?.actions?.openProjectInfo, 'string');
-    // Gebruikstest I5 (3c): de melding wijst naar het blok zoals het in Projectinfo heet.
-    ok(`i18n ${locale} melding noemt de bloknaam`, typeof common.schedulingProfile?.title === 'string'
-      && typeof common.notifications?.schedulingProfileApplied === 'string'
-      && common.notifications.schedulingProfileApplied.includes(common.schedulingProfile.title));
+    for (const id of BUILT_IN_PROFILE_IDS) isText(`i18n ${locale} profiles.builtIn.${id}`, common.profiles?.builtIn?.[id]);
+    isText(`i18n ${locale} profiles.modified`, common.profiles?.modified);
+    isText(`i18n ${locale} profiles.copyOf`, common.profiles?.copyOf);
+    isText(`i18n ${locale} notifications.schedulingProfileApplied`, common.notifications?.schedulingProfileApplied);
+    isText(`i18n ${locale} notifications.schedulingProfileShifted_other`, common.notifications?.schedulingProfileShifted_other);
+    isText(`i18n ${locale} notifications.actions.openProjectInfo`, common.notifications?.actions?.openProjectInfo);
+    // Gebruikstest I5 (3c): de melding wijst naar het blok zoals het in Projectinfo heet. In een andere
+    // taal dan nl/en alleen als beide teksten er staan (anders komen ze allebei uit en).
+    const applied = common.notifications?.schedulingProfileApplied;
+    const title = common.schedulingProfile?.title;
+    if (!optional || (applied !== undefined && title !== undefined)) {
+      ok(`i18n ${locale} melding noemt de bloknaam`, typeof title === 'string'
+        && typeof applied === 'string' && applied.includes(title));
+    }
     // Merknamen zijn in elke taal gelijk (de store-melding gebruikt ze onvertaald, spec v3.1 §6).
-    eq(`i18n ${locale} merknamen`, common.profiles?.builtIn, { p6: 'Primavera P6', msproject: 'Microsoft Project', ops: 'Open Planner Studio' });
+    const brands: Record<string, string> = { p6: 'Primavera P6', msproject: 'Microsoft Project', ops: 'Open Planner Studio' };
+    if (optional) {
+      for (const [id, name] of Object.entries(common.profiles?.builtIn ?? {})) eq(`i18n ${locale} merknaam ${id}`, name, brands[id]);
+    } else {
+      eq(`i18n ${locale} merknamen`, common.profiles?.builtIn, brands);
+    }
     // Geen sleutels buiten het register: een verweesde vertaling wijst op een hernoemde conventie.
-    same(`i18n ${locale} conventions == register`, Object.keys(common.conventions ?? {}).sort(), [...CONVENTION_KEYS].sort());
+    const conventionKeys = Object.keys(common.conventions ?? {}).sort();
+    if (optional) {
+      same(`i18n ${locale} conventions ⊆ register`, conventionKeys.filter(k => !(CONVENTION_KEYS as readonly string[]).includes(k)), []);
+    } else {
+      same(`i18n ${locale} conventions == register`, conventionKeys, [...CONVENTION_KEYS].sort());
+    }
   }
 }
 

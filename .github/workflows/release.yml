@@ -64,6 +64,13 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps --only-shell chromium
 
+      # Besluit B5 (2026-10-10): een PR vraagt alleen nl + en, dus main mag met vertalingen
+      # achterlopen; een release niet. Elke UI-sleutel moet in elke taal vertaald en actueel zijn
+      # (de vertaalstraat draaide, release-skill stap 6a). Vóór de verify: dit faalt in seconden.
+      # Bewust niet in `npm run verify`, anders wordt elke PR rood.
+      - name: Verify translations (alle talen compleet en actueel)
+        run: npm run verify:translations
+
       # Exact dezelfde poort als ci.yml en live.yml — één definitie, in
       # package.json: typecheck (src én scripts/tests) + de vijf testsuites +
       # verify:examples + verify:docs.

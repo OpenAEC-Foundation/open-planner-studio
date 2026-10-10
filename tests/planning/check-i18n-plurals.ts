@@ -74,6 +74,12 @@ const PROBE_COUNTS = [0, 1, 2, 3, 5, 11, 21, 100];
 
 const diffs: string[] = [];
 let checks = 0;
+// Besluit B5 (2026-10-10): een andere taal dan nl/en mag een sleutel of een hele familie nog missen (de app
+// valt terug op en, de vertaalstraat vult hem vóór een release). Wat er wél staat, moet kloppen; een
+// halve familie blijft fout.
+const optional = (loc: string) => loc !== 'nl' && loc !== 'en';
+const familyAbsent = (mp: Record<string, string>, key: string) =>
+  !Object.keys(mp).some(k => k === key || k.startsWith(`${key}_`));
 
 const fail = (msg: string) => diffs.push(msg);
 const moveProjectOf = (loc: string) =>
@@ -88,6 +94,7 @@ for (const loc of Object.keys(LOCALES)) {
 
   for (const key of PLURAL_KEYS) {
     checks++;
+    if (optional(loc) && familyAbsent(mp, key)) continue;
     const found = new Set(
       Object.keys(mp)
         .filter(k => k === key || k.startsWith(`${key}_`))
@@ -114,6 +121,7 @@ for (const loc of Object.keys(LOCALES)) {
   for (const key of LABEL_KEYS) {
     checks++;
     const v = mp[key];
+    if (v === undefined && optional(loc)) continue;
     if (typeof v !== 'string' || v.trim() === '') fail(`${loc}/${key}: ontbreekt of leeg`);
   }
 
@@ -132,7 +140,7 @@ const baseKeys = (loc: string) =>
   ));
 const nlBase = baseKeys('nl');
 for (const loc of Object.keys(LOCALES)) {
-  if (loc === 'nl') continue;
+  if (loc === 'nl' || optional(loc)) continue; // B5: alleen en moet compleet zijn
   checks++;
   const mine = baseKeys(loc);
   const missing = [...nlBase].filter(k => !mine.has(k));
@@ -154,6 +162,7 @@ for (const loc of Object.keys(LOCALES)) {
   });
 
   for (const key of PLURAL_KEYS) {
+    if (optional(loc) && familyAbsent(moveProjectOf(loc), key)) continue;
     for (const n of PROBE_COUNTS) {
       checks++;
       const path = `moveProject.${key}`;
@@ -168,6 +177,7 @@ for (const loc of Object.keys(LOCALES)) {
   }
 
   for (const key of LABEL_KEYS) {
+    if (optional(loc) && moveProjectOf(loc)[key] === undefined) continue;
     checks++;
     const path = `moveProject.${key}`;
     const out = inst.t(path, { items: 'x: 1' });

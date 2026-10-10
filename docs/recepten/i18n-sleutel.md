@@ -5,6 +5,15 @@
 sleutels worden eerst in `src/i18n/locales/nl/<namespace>.json` geschreven, alle andere talen volgen
 daaruit. Alleen Engels wordt eager mee-gebundeld (`config.ts`); de rest laadt lazy via `loadLocale()`.
 
+**De werkwijze in het kort (besluit B5, eigenaar, 2026-10-10):**
+
+1. **Een PR vraagt alleen `nl` + `en`.** De andere talen mogen ontbreken; de app toont daar het Engels.
+2. **De vertaalstraat vult de rest** (`npm run translate`, ontwerp
+   `docs/superpowers/specs/2026-10-09-vertaalstraat-design.md`): `prepare ui <taal> --missing` en `--stale`.
+3. **Een release eist alles.** `npm run verify:translations` faalt bij elke ontbrekende, verouderde of
+   nog niet door de straat gehaalde vertaling. Die poort zit in `release.yml` en in de release-skill,
+   bewust niet in `npm run verify` (anders wordt elke PR rood).
+
 **Dit is een toelichting, geen vervanging.** `npm run verify:i18n` (`scripts/i18n-diff.mjs`) is de
 poort; loopt dit document ooit achter, dan heeft die het gelijk.
 
@@ -15,29 +24,49 @@ poort; loopt dit document ooit achter, dan heeft die het gelijk.
 1. **Kies de namespace.** `common` voor generieke UI-tekst, `task` voor taakspecifieke labels,
    `report` voor rapport-/exportcontext, `menu` voor ribbon-/backstage-/menutekst. De vier bestanden
    staan naast elkaar per taal: `src/i18n/locales/<taal>/{common,task,report,menu}.json`.
-2. **Schrijf de vertalingen in één JSON-bestand**, per locale één tekst — alle 27, want elke nieuwe
-   tekst gaat meteen in alle talen (besluit werkwijze 2026-09):
+2. **Schrijf de vertalingen in één JSON-bestand**: `nl` en `en` zijn verplicht. Een andere taal mag je
+   erbij zetten als je hem zeker weet; anders laat je hem weg en vult de straat hem:
    ```json
-   { "nl": "Onderbreking opheffen", "en": "Remove break", "fr": "…", "de": "…", … }
+   { "nl": "Onderbreking opheffen", "en": "Remove break" }
    ```
    Telt de tekst iets (`t(key, { count })`), schrijf dan per locale de meervoudsvormen van díé taal
    (zie *De valkuil* hieronder):
    ```json
    { "nl": { "one": "{{count}} taak", "other": "{{count}} taken" },
-     "pl": { "one": "…", "few": "…", "many": "…", "other": "…" }, "zh": { "other": "…" }, … }
+     "en": { "one": "{{count}} task", "other": "{{count}} tasks" } }
    ```
-3. **Zet hem in alle 27 locales met één commando:**
+3. **Zet hem erin met één commando:**
    ```bash
    npm run i18n:add -- common:pad.naar.sleutel vertalingen.json              # nieuw, achteraan
    npm run i18n:add -- common:pad.naar.sleutel vertalingen.json --after broer # nieuw, na een broer
    npm run i18n:add -- common:pad.naar.sleutel vertalingen.json --update     # bestaande wijzigen
    ```
-   Het script schrijft niets en noemt de fout als een locale ontbreekt, een taal niet precies haar
-   CLDR-meervoudscategorieën heeft, of de `{{invulplekken}}` afwijken van `nl` (een meervoudsvorm mag
-   `{{count}}` in woorden uitschrijven, zoals het Arabische "مهمة واحدة"). De sleutel komt in elke
-   locale op dezelfde plek, want alle bestanden volgen de volgorde van `nl`.
+   Het script schrijft niets en noemt de fout als `nl` of `en` ontbreekt, een opgegeven taal niet
+   precies haar CLDR-meervoudscategorieën heeft, of de `{{invulplekken}}` afwijken van `nl`. Een
+   meervoudsvorm vergelijkt met de nl-vorm voor dezelfde getallen (`one` met nl `one`, de rest met nl
+   `other`), en mag `{{count}}` in woorden uitschrijven, zoals het Arabische "مهمة واحدة". De sleutel
+   komt in elke locale op dezelfde plek, want alle bestanden volgen de volgorde van `nl`.
+
+   Voor elke taal die je niet opgeeft, schrijft het script niets en haalt het de bron-hash van die
+   sleutel weg uit `i18n/ui-sources/<taal>.json`. Bij `--update` blijft de oude vertaling dan staan tot
+   de straat hem vervangt; `translate prepare ui <taal> --stale` pakt hem op, met de oude tekst erbij.
+   Verandert de sleutel van soort (tekst ↔ meervoudsfamilie), dan haalt het script de oude tekst weg.
 4. **Roep hem aan met `t('namespace:pad.naar.sleutel')`** — nooit hardgecodeerde zichtbare tekst.
-5. **Draai `npm run verify:i18n`.** Zie hieronder wat hij precies controleert.
+5. **Draai `npm run verify:i18n`.** Zie hieronder wat hij precies controleert. Een regel als
+   `.. sv: 1 sleutel(s) ontbreken (common 1)` is een rapport, geen fout.
+
+## Vóór een release: de straat en de releasepoort
+
+```bash
+npm run translate -- status                  # per taal: ontbreekt / verouderd / actueel (zonder hash)
+npm run translate -- prepare ui <taal> --missing   # en daarna --stale; stations en apply ui: zie de release-skill
+npm run verify:translations; echo "exit=$?"  # releasepoort: exit 0 = elke taal compleet en actueel
+```
+
+`verify:translations` (`translate status --strict`) telt per taal drie soorten gaten: **ontbreekt** (geen of
+een halve vertaling; in een nieuwe taal ook tekst zonder hash, want dat is Engelse vulling), **verouderd**
+(de nl-tekst veranderde na de vertaling) en **zonder hash** (vertaald, maar niet door de straat bijgehouden,
+bv. na een `i18n:add` die deze taal niet schreef). De release-skill beschrijft de hele ronde.
 
 Met de hand bewerken mag nog steeds (het blijft gewone JSON); draai daarna `npm run i18n:fmt`, anders
 faalt `verify:i18n` op de opmaak.
@@ -88,9 +117,12 @@ een letterlijke sleutelvergelijking:
   vier locales is in de praktijk gelijk aan `_other`, omdat `{{count}}` altijd als cijfers wordt
   weergegeven (nooit compact als "1M") — `_many` slaat dus alleen aan bij exacte veelvouden van
   een miljoen.
-- **Poort, geen rapportage — met een uitzondering.** Zonder `--json` eindigt het script op exit 1
-  zodra er ergens een sleutel ontbreekt (`npm run verify:i18n`, onderdeel van `npm run verify`).
-  `--json` blijft rapportagemodus (exit 0) voor doorsluizen naar tooling.
+- **Poort voor `en` en halve families, rapport voor de rest (B5).** Zonder `--json` eindigt het script
+  op exit 1 als `en` een sleutel of vorm mist (en is de terugvaltaal), of als een taal een **halve**
+  meervoudsfamilie heeft (een deel van haar CLDR-categorieën: i18next valt dan voor sommige getallen
+  terug op Engels, midden in een vertaalde zin). Ontbreekt een sleutel of hele familie in een andere
+  taal, dan meldt het één regel per taal met aantallen en eindigt het op exit 0; `--verbose` noemt de
+  sleutels. `--json` blijft rapportagemodus (exit 0) met `errors` en `absent` apart.
 
 ## Een samengestelde sleutel: geen `as`
 
@@ -136,8 +168,9 @@ geen generieke poort die elke `t(key, { count })`-aanroep in de hele codebase vi
 | i18next-init, eager (en) vs. lazy (overige) | `src/i18n/config.ts` |
 | lazy-loader per taal | `src/i18n/` (`loadLocale()`) |
 | de poort: CLDR-pluralcategorieën per locale | `scripts/i18n-diff.mjs` (`npm run verify:i18n`) |
-| toevoegen/wijzigen in alle 27 locales, vaste opmaak | `scripts/i18n-add.ts` (`npm run i18n:add`), `scripts/i18n-fmt.ts` (`npm run i18n:fmt`), kern `scripts/i18n-tools.ts` |
+| toevoegen/wijzigen (nl + en verplicht, rest optioneel), vaste opmaak | `scripts/i18n-add.ts` (`npm run i18n:add`), `scripts/i18n-fmt.ts` (`npm run i18n:fmt`), kern `scripts/i18n-tools.ts` |
 | test van die kern (inhoud blijft gelijk op alle echte bestanden) | `tests/planning/check-i18n-tools.ts` |
 | locale-bestanden per sleutel samenvoegen na `git merge` | `scripts/i18n-resolve.ts` (`npm run i18n:resolve`), end-to-end getest in `tests/planning/check-i18n-resolve.ts` |
 | domeincheck: taakgrid-registerlabels + echte `count`-aanroepen | `tests/planning/check-task-grid-i18n.ts` |
+| releasepoort: elke taal compleet en actueel | `scripts/translate/cli.ts` (`status --strict`, `npm run verify:translations`), kern `uiReleaseGaps` in `scripts/translate/ui.ts` |
 | RTL-locales (`ar`, `fa`) | `RTL_LOCALES` in `src/i18n/config.ts` |

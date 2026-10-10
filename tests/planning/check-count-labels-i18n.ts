@@ -119,6 +119,13 @@ const PROBE_COUNTS = [0, 1, 2, 3, 5, 11, 22, 100];
 
 const diffs: string[] = [];
 let checks = 0;
+// Besluit B5 (2026-10-10): een andere taal dan nl/en mag een hele familie nog missen (de app valt terug op
+// en, de vertaalstraat vult hem vóór een release). Wat er wél staat, moet kloppen; een halve familie niet.
+const optional = (loc: string) => loc !== 'nl' && loc !== 'en';
+const familyAbsent = (bundle: Bundle, path: string): boolean => {
+  const leaf = path.split('.').at(-1)!;
+  return !Object.keys(parentOf(bundle, path)).some(k => k === leaf || k.startsWith(`${leaf}_`));
+};
 const fail = (msg: string) => diffs.push(msg);
 
 const parentOf = (bundle: Bundle, path: string): Record<string, unknown> => {
@@ -132,6 +139,7 @@ for (const [loc, bundles] of Object.entries(LOCALES)) {
   const expected = new Set<string>(new Intl.PluralRules(loc).resolvedOptions().pluralCategories);
   for (const [ns, path] of KEYS) {
     checks++;
+    if (optional(loc) && familyAbsent(bundles[ns], path)) continue;
     const leaf = path.split('.').at(-1)!;
     const parent = parentOf(bundles[ns], path);
     if (leaf in parent) fail(`${loc}/${ns}:${path}: de kale sleutel bestaat nog naast de meervoudsvormen`);
@@ -162,6 +170,7 @@ for (const [loc, bundles] of Object.entries(LOCALES)) {
   const rules = new Intl.PluralRules(loc);
 
   for (const [ns, path, params] of KEYS) {
+    if (optional(loc) && familyAbsent(bundles[ns], path)) continue;
     for (const n of PROBE_COUNTS) {
       checks++;
       const out = inst.t(`${ns}:${path}`, { ...params, count: n });

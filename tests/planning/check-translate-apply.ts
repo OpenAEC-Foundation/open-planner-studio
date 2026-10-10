@@ -9,7 +9,7 @@
 import { applyUiBatch } from '../../scripts/translate/apply';
 import { hashUnit } from '../../scripts/translate/common';
 import {
-  buildUiPackages, orderSources, seedSources, selectUnits, setSourceHash, uiStatus, updateSourceHashForAdd,
+  buildUiPackages, orderSources, seedSources, selectUnits, setSourceHash, uiReleaseGaps, uiStatus, updateSourceHashForAdd,
   type UiPackage, type UiSources,
 } from '../../scripts/translate/ui';
 import { serialize, type JsonObject } from '../../scripts/i18n-tools';
@@ -95,6 +95,15 @@ const en: JsonObject = {
   eq('status: gewijzigde nl = verouderd', [st2.missing, st2.stale, st2.current], [2, 1, 1]);
   const st3 = uiStatus('ar', [{ ns: 'common', nl, en, target: ar }], {})[0];
   eq('status: vertaald zonder hash telt als actueel, apart genoemd', [st3.current, st3.unhashed], [2, 2]);
+  // B5: `i18n:add` haalt de hash weg in een niet-opgegeven taal; `--stale` moet de oude tekst dan oppakken.
+  eq('--stale pakt ook vertaald-zonder-hash op, met de oude tekst',
+    selectUnits({ ns: 'common', nl, en, target: ar }, 'ar', 'stale', { common: { a: seeded.common.a } })
+      .map(s => [s.unit.key, s.previous]), [['grp.x', 'س']]);
+  // De releasepoort (`status --strict`, `npm run verify:translations`): elk gat telt, met plek en soort.
+  const gaps = uiReleaseGaps('ar', [{ ns: 'common', nl: changed, en, target: ar }], { common: { a: seeded.common.a } });
+  eq('releasepoort: ontbreekt, verouderd en zonder hash, elk met plek', gaps.map(g => `${g.where} ${g.state}`).sort(),
+    ['common:a stale', 'common:grp.n missing', 'common:grp.x unhashed', 'common:z missing'].sort());
+  eq('releasepoort: alles actueel = geen gaten', uiReleaseGaps('ar', [{ ns: 'common', nl: { a: nl.a }, en, target: ar }], seeded), []);
 }
 
 // ── 4. i18n:add houdt de hash bij ───────────────────────────────────────────────────────────

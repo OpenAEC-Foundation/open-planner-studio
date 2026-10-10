@@ -11,7 +11,8 @@
 //   bundle-check                       alleen build/translate/check.mjs bouwen
 //   apply ui <taal>                    groene UI-pakketten → src/i18n/locales/<taal>/ + i18n/ui-sources/<taal>.json
 //   seed-sources [taal…]               basislijn: huidige nl-hashes voor en + de bestaande talen (niet de nieuwe)
-//   status [taal]                      per taal en namespace: ontbreekt / verouderd / actueel
+//   status [taal] [--strict]           per taal en namespace: ontbreekt / verouderd / actueel;
+//                                      --strict = releasepoort `npm run verify:translations` (exit 1 bij elk gat)
 //
 // Alle I/O staat hier; de logica zit in de pure modules ernaast (getoetst in tests/planning/check-translate-*.ts).
 import { spawnSync } from 'node:child_process';
@@ -27,8 +28,8 @@ import {
 } from './termbase';
 import { buildTermsPackages, indexTbx, parseTbx, uiExamplesFor, type TermsCheckPackage, type TermsPackage } from './tbx';
 import {
-  buildUiPackages, orderSources, packageText, seedSources, uiStatus,
-  type NsInput, type Selection, type UiPackage, type UiSources,
+  buildUiPackages, orderSources, packageText, seedSources, uiReleaseGaps, uiStatus,
+  type NsInput, type ReleaseGap, type Selection, type UiPackage, type UiSources,
 } from './ui';
 
 const ROOT = process.cwd();
@@ -330,20 +331,56 @@ function seed(args: string[]): void {
   }
 }
 
+/**
+ * De releasepoort (besluit B5, 2026-10-10): één lijst van bronnen van gaten. Elke bron levert per taal
+ * de eenheden die niet bij zijn (ontbreekt / verouderd / zonder hash). Aanhaakpunt voor de docs (PR 4):
+ * voeg hier een `docsReleaseGaps` toe met dezelfde vorm (`ReleaseGap`, `where` = `docs:<id>#<sectie>`),
+ * dan eist `npm run verify:translations` vanzelf ook complete en actuele docs.
+ */
+const RELEASE_GAP_SOURCES: ((lang: string) => ReleaseGap[])[] = [
+  lang => uiReleaseGaps(lang, nsInputs(lang), readJsonOr<UiSources>(sourcesPath(lang), {})),
+];
+
+const GAP_LABEL: Record<ReleaseGap['state'], string> = { missing: 'ontbreekt', stale: 'verouderd', unhashed: 'zonder hash' };
+
+/** `status --strict` = `npm run verify:translations`: exit 1 bij elk gat in elke taal. */
+function strictStatus(langs: string[]): void {
+  let total = 0;
+  const red: string[] = [];
+  for (const lang of langs) {
+    const gaps = RELEASE_GAP_SOURCES.flatMap(source => source(lang));
+    if (gaps.length === 0) { console.log(`OK  ${lang}: alles vertaald en actueel`); continue; }
+    total += gaps.length;
+    red.push(lang);
+    const count = (state: ReleaseGap['state']) => gaps.filter(g => g.state === state).length;
+    console.log(`XX  ${lang}: ${count('missing')} ontbreekt, ${count('stale')} verouderd, ${count('unhashed')} zonder hash`);
+    for (const g of gaps.slice(0, 10)) console.log(`      ${g.where} (${GAP_LABEL[g.state]})`);
+    if (gaps.length > 10) console.log(`      … en ${gaps.length - 10} meer (\`npm run translate -- status ${lang}\`)`);
+  }
+  if (total) {
+    console.log(`XX  verify:translations: ${total} vertaling(en) niet bij in ${red.length} taal/talen (${red.join(', ')}).`);
+    console.log('    Draai de vertaalstraat: per taal `prepare ui <taal> --missing` en `--stale`, de stations, `apply ui <taal>`'
+      + ' (release-skill, stap "Vertalingen bijwerken met de straat").');
+    process.exit(1);
+  }
+  console.log(`OK  verify:translations: ${langs.length} talen compleet en actueel`);
+}
+
 function status(args: string[]): void {
   const asked = positional(args)[0];
   const langs = asked ? [checkLang(asked)]
     : readdirSync(LOCALES_DIR).filter(d => d !== 'nl' && statSync(join(LOCALES_DIR, d)).isDirectory()).sort();
+  if (flag(args, '--strict')) { strictStatus(langs); return; }
   console.log('taal  namespace  ontbreekt  verouderd  actueel  (zonder hash)');
   let todo = 0;
   for (const lang of langs) {
     const rows = uiStatus(lang, nsInputs(lang), readJsonOr<UiSources>(sourcesPath(lang), {}));
     for (const r of rows) {
-      todo += r.missing + r.stale;
+      todo += r.missing + r.stale + r.unhashed;
       console.log(`${lang.padEnd(5)} ${r.ns.padEnd(10)} ${String(r.missing).padStart(9)}  ${String(r.stale).padStart(9)}  ${String(r.current).padStart(7)}  ${r.unhashed ? `(${r.unhashed})` : ''}`);
     }
   }
-  console.log(todo ? `..  ${todo} eenheid/eenheden te vertalen` : 'OK  alles actueel');
+  console.log(todo ? `..  ${todo} eenheid/eenheden te vertalen (ontbreekt, verouderd of zonder hash)` : 'OK  alles actueel');
 }
 
 const [cmd, ...rest] = process.argv.slice(2);
@@ -360,6 +397,6 @@ switch (cmd) {
   case 'status': status(rest); break;
   default:
     console.log('gebruik: npm run translate -- <validate-termbase | concepts-candidates | concepts-merge | terms-lookup <taal> | '
-      + 'apply-terms <taal> | prepare ui <taal> [--missing|--stale|--all] | bundle-check | apply ui <taal> | seed-sources [taal…] | status [taal]>');
+      + 'apply-terms <taal> | prepare ui <taal> [--missing|--stale|--all] | bundle-check | apply ui <taal> | seed-sources [taal…] | status [taal] [--strict]>');
     process.exit(cmd ? 1 : 0);
 }

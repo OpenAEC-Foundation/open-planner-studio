@@ -32,10 +32,10 @@ de `verify:i18n`-poort. De overige scripts draaien via hun npm-script in de kete
 | script | npm-script | doet |
 |---|---|---|
 | `verify-parts.mjs` | `.github/workflows/ci.yml` (job `verify`) | verdeelt de stappen van `npm run verify` — rechtstreeks gelezen uit `package.json` — over de parallelle CI-delen; een niet-ingedeelde stap valt in `static`. `--list` toont de indeling, `--check-ci` eist dat de CI-matrix elk deel draait |
-| `i18n-diff.mjs` | `verify:i18n` | ontbrekende vertaalsleutels t.o.v. `nl`, met CLDR-pluralcategorieën |
+| `i18n-diff.mjs` | `verify:i18n` | ontbrekende vertaalsleutels t.o.v. `nl`, met CLDR-pluralcategorieën. Fout: een gat in `en`, of een halve meervoudsfamilie in welke taal ook. Rapport (exit 0, één regel per taal; `--verbose` noemt de sleutels): een sleutel die in een andere taal helemaal ontbreekt (besluit B5) |
 | `verify-i18n-keys.mjs` | `verify:i18n` | geen cast (`as 'a.b'`) op een vertaalsleutel in `src/`: zo'n cast zet de typecheck van die sleutel uit (`as const` mag); bewezen door `tests/planning/check-i18n-keys.ts` |
 | `i18n-fmt.ts` | `verify:i18n` (met `--check`) en `npm run i18n:fmt` (schrijven) | de vaste opmaak van alle 108 locale-bestanden: één sleutel per regel, volgorde van `nl`, meervoudsfamilies in CLDR-volgorde |
-| `i18n-add.ts` | `npm run i18n:add` | zet één tekst (of meervoudsfamilie) in alle 27 locales tegelijk, na validatie van locales, CLDR-categorieën en `{{invulplekken}}`; `--update` wijzigt, `--after` plaatst; werkt de bron-hash in `i18n/ui-sources/` bij (vertaalstraat) |
+| `i18n-add.ts` | `npm run i18n:add` | zet één tekst (of meervoudsfamilie) in `nl` + `en` (verplicht) en in elke opgegeven locale, na validatie van CLDR-categorieën en `{{invulplekken}}`; `--update` wijzigt, `--after` plaatst; werkt de bron-hash in `i18n/ui-sources/` bij voor wat het schrijft en haalt hem weg voor de rest, zodat de vertaalstraat die talen oppakt (besluit B5) |
 | `i18n-resolve.ts` | `npm run i18n:resolve` | voegt na `git merge` alle locale-bestanden per sleutel samen (merge-base, HEAD, MERGE_HEAD; of de merge-commit achteraf), maakt ze op en doet `git add`; een echte botsing blijft open met exit 1 |
 | `i18n-tools.ts` | de drie hierboven, en `tests/planning/check-i18n-tools.ts` | de pure kern (ordenen, serialiseren, valideren, plaatsen, per sleutel samenvoegen) |
 | `verify-text-roles.mjs` | `verify:text-roles` | tekstgroottes lopen uitsluitend via de zes tekstrollen (`text-caption` … `text-title` / `var(--text-…)`); keurt kale px/rem-font-sizes, `text-[Npx]`, Tailwinds eigen schaal en inline `fontSize` in `src/` af (niet in `engine/`/`services/`) |
@@ -58,7 +58,7 @@ Termbase en UI-vertaling door kleine Haiku-agents per werkpakket; ontwerp
 
 | script | aangeroepen door | doet |
 |---|---|---|
-| `translate/cli.ts` | `npm run translate -- <commando>` | `validate-termbase`, `concepts-candidates`, `concepts-merge`, `terms-lookup <taal>`, `apply-terms <taal>`, `prepare ui <taal> [--missing\|--stale\|--all]`, `bundle-check`, `apply ui <taal>`, `seed-sources`, `status [taal]` |
+| `translate/cli.ts` | `npm run translate -- <commando>` | `validate-termbase`, `concepts-candidates`, `concepts-merge`, `terms-lookup <taal>`, `apply-terms <taal>`, `prepare ui <taal> [--missing\|--stale\|--all]`, `bundle-check`, `apply ui <taal>`, `seed-sources`, `status [taal] [--strict]`; `status --strict` is de releasepoort `npm run verify:translations` (exit 1 bij elke ontbrekende, verouderde of hashloze vertaling; aanhaakpunt voor de docs: `RELEASE_GAP_SOURCES`) |
 | `translate/check.ts` | gebundeld tot `build/translate/check.mjs` (door `prepare`, `terms-lookup`, `concepts-candidates`) | de poort die een agent zelf draait: `node build/translate/check.mjs <pakket>`; zelfstandig, zonder `node_modules` |
 | `translate/gates.ts` | `check.ts`, `apply.ts`, `cli.ts` | de harde en zachte poorten (§7) en de schema's van concepten-, termen- en blinde-controle-uitvoer |
 | `translate/ui.ts`, `apply.ts` | `cli.ts`, `i18n-add.ts` | UI-pakketten (`--missing`, `--stale`), samenvoegen (alleen groen), bron-hashes `i18n/ui-sources/<taal>.json`, status |

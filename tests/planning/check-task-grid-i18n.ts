@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { hasUiBaseline } from '../../scripts/translate/common';
+import { REQUIRED_LOCALES } from '../../scripts/i18n-tools';
 
 const LOCALES = [
   'ar', 'bg', 'cs', 'da', 'de', 'en', 'es', 'fa', 'fi', 'fr', 'hr', 'hu', 'it', 'ja', 'ko', 'nb', 'nl', 'pl', 'pt',
@@ -174,6 +175,10 @@ const at = (value: unknown, dotted: string): unknown => dotted.split('.').reduce
 const variables = (text: string): string[] => [...text.matchAll(/{{\s*([A-Za-z0-9_]+)\s*}}/g)]
   .map(match => match[1]).sort();
 
+// Besluit B5 (2026-10-10): een nieuwe tekst vraagt alleen nl + en. In een andere taal mag een sleutel
+// (of een hele meervoudsfamilie) nog ontbreken — de app valt terug op en, en de vertaalstraat vult hem
+// aan vóór een release (`npm run verify:translations`). Wat er wél staat, moet kloppen.
+const optional = (locale: string): boolean => !(REQUIRED_LOCALES as readonly string[]).includes(locale);
 const taskByLocale = new Map(LOCALES.map(locale => [locale, readJson(locale, 'task')] as const));
 const dutch = taskByLocale.get('nl')!;
 for (const key of REQUIRED_KEYS) {
@@ -182,6 +187,7 @@ for (const key of REQUIRED_KEYS) {
   const expectedVariables = typeof dutchValue === 'string' ? variables(dutchValue) : [];
   for (const locale of LOCALES) {
     const value = at(taskByLocale.get(locale), key);
+    if (value === undefined && optional(locale)) continue;
     ok(`${locale}: ${key} bestaat en is niet leeg`, typeof value === 'string' && value.trim().length > 0);
     ok(`${locale}: ${key} heeft exact dezelfde interpolatievariabelen`,
       typeof value === 'string' && JSON.stringify(variables(value)) === JSON.stringify(expectedVariables));
@@ -208,6 +214,9 @@ for (const key of COUNTED_TASK_GRID_KEYS) {
     ok(`${locale}: ${key} gebruikt geen kale sleutel die CLDR-selectie omzeilt`,
       at(taskLocale, key) === undefined);
     const categories = new Intl.PluralRules(locale).resolvedOptions().pluralCategories;
+    const familyKey = (category: string) => key.replace(/([^.]+)$/, `$1_${category}`);
+    // Een helemaal ontbrekende familie mag (B5); een halve familie niet.
+    if (optional(locale) && categories.every(category => at(taskLocale, familyKey(category)) === undefined)) continue;
     for (const category of categories) {
       const pluralKey = key.replace(/([^.]+)$/, `$1_${category}`);
       const value = at(taskLocale, pluralKey);
@@ -253,6 +262,7 @@ const relationColumnWords: Record<(typeof LOCALES)[number], readonly [string, st
 };
 for (const locale of LOCALES) {
   const value = at(commonByLocale.get(locale), 'notifications.summaryRelationsDropped');
+  if (value === undefined && optional(locale)) continue;
   const [predecessor, successor] = relationColumnWords[locale];
   ok(`${locale}: importwaarschuwing verwijst naar beide relatiekolommen`,
     typeof value === 'string' && value.includes(predecessor) && value.includes(successor));
@@ -269,6 +279,7 @@ for (const key of [
 ] as const) {
   for (const locale of LOCALES) {
     const value = at(commonByLocale.get(locale), key);
+    if (value === undefined && optional(locale)) continue;
     ok(`${locale}: ${key} bestaat en is niet leeg`, typeof value === 'string' && value.trim().length > 0);
   }
 }

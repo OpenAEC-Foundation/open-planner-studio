@@ -46,16 +46,21 @@ plural forms + no cast on a key + fixed formatting), `npm run verify:store-bound
 convention registry, provenance data gates pinned), `npm run verify:cycles` (circular imports after type erasure),
 `npm run verify:text-roles` (only the six text roles), `npm run verify:release-highlights-json` (in the chain)
 and `npm run verify:release-highlights` (separate: local update highlights and stats before a tagged release).
-`npm run verify:audit` is deliberately NOT in `verify` (Dependabot is the notification channel; an advisory gets
+`npm run verify:translations` (release gate, deliberately NOT in `verify`: every UI key in every locale translated
+and current per `i18n/ui-sources/`; `release.yml` and the release skill run it). `npm run verify:audit` is
+deliberately NOT in `verify` (Dependabot is the notification channel; an advisory gets
 its own commit). `npm run measure:profiles` (separate) measures the cell baseline per scheduling profile (rule A:
 no exact cell may become inexact); the P6 part needs `OPS_XER_CORPUS`.
 
-Translations: `npm run i18n:add` puts one string in all 27 locales at once (recipe `docs/recepten/i18n-sleutel.md`),
+Translations: `npm run i18n:add` puts one string in `nl` + `en` (required) and any other locale you give
+(recipe `docs/recepten/i18n-sleutel.md`); missing locales fall back to `en` until the pipeline fills them,
 `npm run i18n:fmt` puts the locale files in the fixed format (one key per line, `nl` order),
 `npm run i18n:resolve` merges them per key after a `git merge` — run it even when git reports no conflict.
 `npm run translate -- <command>` is the translation pipeline (termbase `i18n/termbase/`, UI work packages in
-`build/translate/`, `apply ui`, `status`; design `docs/superpowers/specs/2026-10-09-vertaalstraat-design.md`,
-overview `scripts/README.md`). `i18n:add` also updates the source hashes in `i18n/ui-sources/`.
+`build/translate/`, `apply ui`, `status`; run for all locales before every release; design
+`docs/superpowers/specs/2026-10-09-vertaalstraat-design.md`,
+overview `scripts/README.md`). `i18n:add` also updates the source hashes in `i18n/ui-sources/` (and drops them
+for locales it did not write, so `prepare ui <locale> --missing`/`--stale` picks them up).
 
 Generators/helpers: `npm run gen:examples` (regenerates `public/examples`), `npm run gen:tutorial-project`
 (tutorial project nl/en to `build/tutorial-project/`, see `scripts/README.md`), `npm run gen:docs-screenshots -- --out <dir>`
@@ -133,7 +138,8 @@ Node 22 (see CI). Rust stable only for the `tauri:*` commands.
   `workdayAxis.ts`); interaction in `src/components/canvas/hooks/`. Change visual Gantt behaviour in the
   renderer, not in components.
 - **Notifications go through one channel** from the store — no `alert()` or ad-hoc toasts.
-- **Text:** always via `t(...)`, never hard-coded, in all 27 locales. Text sizes only via the six roles
+- **Text:** always via `t(...)`, never hard-coded; a PR needs `nl` + `en`, a release all 27 locales
+  (translation pipeline, `verify:translations`). Text sizes only via the six roles
   (`text-caption`…`text-title`); `text-xs`/`text-sm` no longer exist and silently do nothing.
 - **Settings:** `localStorage` under `ops-` keys (no store plugin: the npm dependency `@tauri-apps/plugin-store`
   is gone; the Rust side still registers `tauri-plugin-store`, unused), declared in `settingsRegistry.ts`.

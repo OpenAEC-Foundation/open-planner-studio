@@ -1,8 +1,8 @@
 // De kern achter `npm run i18n:fmt`, `i18n:add` en `i18n:resolve` — pure functies, zonder bestands-I/O,
 // zodat tests/planning/check-i18n-tools.ts ze rechtstreeks kan toetsen.
 //
-// Waarom dit bestaat: elke zichtbare tekst moet in dezelfde wijziging in alle locales (besluit
-// werkwijze 2026-09). Met de hand betekende dat 14 bestanden openen, in 25 van de 56 met een andere
+// Waarom dit bestaat: elke zichtbare tekst moest in dezelfde wijziging in alle locales (besluit
+// werkwijze 2026-09; sinds B5, 2026-10-10, alleen nl + en, de rest via de vertaalstraat). Met de hand betekende dat 14 bestanden openen, in 25 van de 56 met een andere
 // sleutelvolgorde dan het Nederlands, en in zes talen 70 kolomnamen op één regel van ~2.600 tekens
 // — waar twee gelijktijdige wijzigingen altijd een conflict over de hele regel gaven.
 //
@@ -11,8 +11,9 @@
 //     `nl`; een meervoudsfamilie staat op de plek van haar `nl`-familie, met de categorieën van de
 //     eigen taal in CLDR-volgorde (zero, one, two, few, many, other). Sleutels die `nl` niet kent,
 //     blijven achteraan in hun object staan (verify:i18n meldt ontbrekende, dit script gooit niets weg).
-//  2. TOEVOEGEN — een tekst gaat in één handeling in alle locales (`LOCALES`), met per taal de CLDR-
-//     categorieën en dezelfde {{invulplekken}} als `nl`; anders weigert het script.
+//  2. TOEVOEGEN — een tekst gaat in één handeling in nl + en (verplicht) en in elke andere locale die
+//     is opgegeven, met per taal de CLDR-categorieën en dezelfde {{invulplekken}} als `nl`; anders
+//     weigert het script. De rest vult de vertaalstraat (besluit B5, 2026-10-10).
 
 export const NAMESPACES = ['common', 'task', 'report', 'menu'] as const;
 export type Namespace = typeof NAMESPACES[number];
@@ -94,23 +95,33 @@ const placeholders = (text: string): string[] =>
 /** Eén vertaling: gewone tekst, of een meervoudsfamilie { categorie: tekst }. */
 export type Translation = string | Record<string, string>;
 
+/** De locales die `i18n:add` altijd eist (besluit B5, 2026-10-10); de rest vult de vertaalstraat. */
+export const REQUIRED_LOCALES = ['nl', 'en'] as const;
+
 /**
- * Controleer een set vertalingen vóór het schrijven. Levert een lijst fouten (leeg = goed):
- * alle locales (`LOCALES`) aanwezig en niets extra; overal hetzelfde soort (tekst óf familie); bij een familie
- * per taal exact de CLDR-categorieën; en overal dezelfde {{invulplekken}} als nl — behalve
- * `{{count}}`, dat een meervoudsvorm in woorden mag uitschrijven (Arabisch "مهمة واحدة").
+ * Controleer een set vertalingen vóór het schrijven. Levert een lijst fouten (leeg = goed).
+ * `nl` en `en` zijn verplicht (`REQUIRED_LOCALES`); de andere locales zijn optioneel (besluit B5:
+ * de app valt terug op en, de vertaalstraat vult ze aan). Wat er wél staat moet kloppen: een bekende
+ * locale, overal hetzelfde soort (tekst óf familie), bij een familie per taal exact de CLDR-categorieën,
+ * en dezelfde {{invulplekken}} als nl. Een meervoudsvorm vergelijkt met de nl-vorm voor dezelfde
+ * getallen (`one` met nl `one`, de rest met nl `other`; zelfde regel als `scripts/translate/gates.ts`),
+ * en mag `{{count}}` in woorden uitschrijven (Arabisch "مهمة واحدة").
  */
 export function validateTranslations(input: Record<string, Translation>): string[] {
   const errors: string[] = [];
-  for (const loc of LOCALES) if (!has(input, loc)) errors.push(`${loc}: ontbreekt`);
+  for (const loc of REQUIRED_LOCALES) if (!has(input, loc)) errors.push(`${loc}: ontbreekt (nl en en zijn verplicht)`);
   for (const loc of Object.keys(input)) {
     if (!(LOCALES as readonly string[]).includes(loc)) errors.push(`${loc}: onbekende locale`);
   }
   const nl = input.nl;
   if (nl === undefined) return errors;
   const plural = typeof nl !== 'string';
-  const nlForms = typeof nl === 'string' ? [nl] : Object.values(nl);
-  const nlVars = placeholders(nlForms.join(' '));
+  /** De nl-invulplekken voor categorie `cat` (zonder `count`): `one` ↔ nl `one`, de rest ↔ nl `other`. */
+  const nlVarsFor = (cat: string): string[] => {
+    if (typeof nl === 'string') return placeholders(nl);
+    const src = cat === 'one' && nl.one !== undefined ? nl.one : nl.other ?? Object.values(nl).join(' ');
+    return placeholders(src).filter(v => v !== 'count');
+  };
   for (const loc of LOCALES) {
     const value = input[loc];
     if (value === undefined) continue;
@@ -121,7 +132,8 @@ export function validateTranslations(input: Record<string, Translation>): string
     if (typeof value === 'string') {
       if (value.trim() === '') errors.push(`${loc}: lege tekst`);
       const got = placeholders(value);
-      if (got.join() !== nlVars.join()) errors.push(`${loc}: invulplekken {{${got.join('}}, {{')}}} ≠ nl {{${nlVars.join('}}, {{')}}}`);
+      const want = nlVarsFor('other');
+      if (got.join() !== want.join()) errors.push(`${loc}: invulplekken {{${got.join('}}, {{')}}} ≠ nl {{${want.join('}}, {{')}}}`);
       continue;
     }
     const want = pluralCategories(loc);
@@ -135,13 +147,45 @@ export function validateTranslations(input: Record<string, Translation>): string
     for (const [cat, text] of Object.entries(value)) {
       if (typeof text !== 'string' || text.trim() === '') { errors.push(`${loc}.${cat}: lege tekst`); continue; }
       const vars = placeholders(text).filter(v => v !== 'count');
-      const wantVars = nlVars.filter(v => v !== 'count');
+      const wantVars = nlVarsFor(cat);
       if (vars.join() !== wantVars.join()) {
-        errors.push(`${loc}.${cat}: invulplekken {{${vars.join('}}, {{')}}} ≠ nl {{${wantVars.join('}}, {{')}}} (count mag in woorden)`);
+        errors.push(`${loc}.${cat}: invulplekken {{${vars.join('}}, {{')}}} ≠ nl ${cat === 'one' ? 'one' : 'other'} {{${wantVars.join('}}, {{')}}} (count mag in woorden)`);
       }
     }
   }
   return errors;
+}
+
+/**
+ * Haal de tekst of familie op `path` weg (muteert `root`); lege tussenobjecten blijven staan.
+ * Geeft terug of er iets weg was.
+ */
+export function removeTranslation(root: JsonObject, path: string): boolean {
+  const parts = path.split('.');
+  const leaf = parts.pop()!;
+  let node: Json | undefined = root;
+  for (const p of parts) {
+    if (!isObject(node) || !has(node, p)) return false;
+    node = node[p];
+  }
+  if (!isObject(node)) return false;
+  const doomed = Object.keys(node).filter(k => k === leaf || stemOf(k) === leaf);
+  for (const k of doomed) delete node[k];
+  return doomed.length > 0;
+}
+
+/** Is de waarde op `path` een meervoudsfamilie (true), een tekst (false) of afwezig (undefined)? */
+export function translationKind(root: JsonObject, path: string): boolean | undefined {
+  const parts = path.split('.');
+  const leaf = parts.pop()!;
+  let node: Json | undefined = root;
+  for (const p of parts) {
+    if (!isObject(node) || !has(node, p)) return undefined;
+    node = node[p];
+  }
+  if (!isObject(node)) return undefined;
+  if (Object.keys(node).some(k => stemOf(k) === leaf)) return true;
+  return has(node, leaf) && typeof node[leaf] === 'string' ? false : undefined;
 }
 
 /** Bestaat `path` (zonder of met meervoudsfamilie) in dit object? */
