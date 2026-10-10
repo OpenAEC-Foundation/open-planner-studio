@@ -75,8 +75,10 @@ Node 22 (see CI). Rust stable only for the `tauri:*` commands.
   ESLint only enforces `@typescript-eslint/no-floating-promises`, `@typescript-eslint/no-misused-promises`,
   `no-control-regex`, `react-hooks/rules-of-hooks`, `react-hooks/exhaustive-deps` and unused `eslint-disable`
   suppressions — no formatter, no style rules; `import/no-cycle` is deliberately absent (`verify:cycles` covers it).
-- Run the planning suite after every change to scheduling code; run `npm run verify` before you push —
-  a red suite blocks both deploy and release.
+- Run the planning suite after every change to scheduling code. Run scoped tests and targeted checks
+  freely while you work (table below). Do not run the full `npm run verify` locally before you push:
+  CI runs the full gate on every PR. Open a draft PR early and watch it with `gh pr checks --watch`; if a
+  check is red, fix it and push again. A red suite blocks both deploy and release.
 - Browser tests use real browser events. The dev-only `window.__OPS__` bridge may set fixtures and read state,
   but never replace the user action under test.
 - Never assume port 3007: read it from the dev-server output or `.claude/launch.json`.
@@ -94,7 +96,7 @@ Node 22 (see CI). Rust stable only for the `tauri:*` commands.
 | MCP tool | `bash tests/mcp/run.sh cases-<x>.ts` |
 | library code | `bash tests/library/run.sh [check-<x>.ts]` |
 | in-app docs/guides | `npm run verify:docs` |
-| always, once, before push | `npm run verify` |
+| before push | the targeted checks above; the full `npm run verify` runs in CI on the PR |
 
 ## Invariants that bite
 
