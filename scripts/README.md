@@ -58,12 +58,20 @@ Termbase en UI-vertaling door kleine Haiku-agents per werkpakket; ontwerp
 
 | script | aangeroepen door | doet |
 |---|---|---|
-| `translate/cli.ts` | `npm run translate -- <commando>` | `validate-termbase`, `concepts-candidates`, `concepts-merge`, `terms-lookup <taal>`, `apply-terms <taal>`, `prepare ui <taal> [--missing\|--stale\|--all]`, `bundle-check`, `apply ui <taal>`, `seed-sources`, `status [taal] [--strict]`; `status --strict` is de releasepoort `npm run verify:translations` (exit 1 bij elke ontbrekende, verouderde of hashloze vertaling; aanhaakpunt voor de docs: `RELEASE_GAP_SOURCES`) |
+| `translate/cli.ts` | `npm run translate -- <commando>` | `validate-termbase`, `concepts-candidates`, `concepts-merge`, `terms-lookup <taal>`, `apply-terms <taal>`, `prepare ui <taal> [--missing\|--stale\|--all\|--avoid [--stale]\|--keys <bestand>]`, `bundle-check`, `apply ui <taal>`, `apply-findings <taal> <bestand>`, `seed-sources`, `status [taal] [--strict]`; `status --strict` is de releasepoort `npm run verify:translations` (exit 1 bij elke ontbrekende, verouderde of hashloze vertaling; aanhaakpunt voor de docs: `RELEASE_GAP_SOURCES`) |
 | `translate/check.ts` | gebundeld tot `build/translate/check.mjs` (door `prepare`, `terms-lookup`, `concepts-candidates`) | de poort die een agent zelf draait: `node build/translate/check.mjs <pakket>`; zelfstandig, zonder `node_modules` |
 | `translate/gates.ts` | `check.ts`, `apply.ts`, `cli.ts` | de harde en zachte poorten (§7) en de schema's van concepten-, termen- en blinde-controle-uitvoer |
-| `translate/ui.ts`, `apply.ts` | `cli.ts`, `i18n-add.ts` | UI-pakketten (`--missing`, `--stale`), samenvoegen (alleen groen), bron-hashes `i18n/ui-sources/<taal>.json`, status |
+| `translate/ui.ts`, `apply.ts` | `cli.ts`, `i18n-add.ts` | UI-pakketten (`--missing`, `--stale`, `--avoid`, `--keys`), samenvoegen (alleen groen), bron-hashes `i18n/ui-sources/<taal>.json`, status |
+| `translate/findings.ts` | `cli.ts` | `apply-findings`: een lijst `[{ "key": "ns:pad", "fix": … }]` per regel door de harde poorten en dan in de locale; een rode of onleesbare regel wordt overgeslagen en gemeld (exit 1); bron-hashes blijven staan, want nl veranderde niet |
 | `translate/termbase.ts`, `tbx.ts`, `candidates.ts`, `common.ts` | `cli.ts` | termbase-schema en samenvoegen, Microsoft-terminologie (TBX, map `OPS_MSTERMS_DIR`, standaard `build/cache/msterms`), kandidaat-termen |
 | `translate/prompts/*.md` | de orkestrator | de vaste opdrachten voor de agents (Engels); plekhouders in `prompts/README.md` |
+
+**Termbase veranderd?** `prepare ui <taal> --avoid` vindt precies de vertalingen waarin een `avoid`-variant
+van een term staat (zelfde regel als de zachte poort: eerst de vormen van de term wegstrepen,
+hoofdletterongevoelig). Zet de oude term als `avoid` in `i18n/termbase/<taal>.json`; het pakket krijgt
+`reason: "avoid"`, per item `previous` en `avoidHits`, en gaat naar de opdracht `prompts/ui-termfix.md`
+(alleen die woorden vervangen). Met `--stale` erbij komen ook de verouderde sleutels mee. `--keys <bestand>`
+kiest precies de sleutels uit een JSON-lijst `["ns:pad", …]`, met de huidige tekst als `previous`.
 
 ## Voorbeeldprojecten genereren
 

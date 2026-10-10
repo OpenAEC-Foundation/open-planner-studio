@@ -60,6 +60,8 @@ poort; loopt dit document ooit achter, dan heeft die het gelijk.
 ```bash
 npm run translate -- status                  # per taal: ontbreekt / verouderd / actueel (zonder hash)
 npm run translate -- prepare ui <taal> --missing   # en daarna --stale; stations en apply ui: zie de release-skill
+npm run translate -- prepare ui <taal> --avoid     # na een termwissel: teksten met de oude term (avoid in de termbase)
+npm run translate -- apply-findings <taal> f.json  # nagelezen verbeteringen [{ "key": "ns:pad", "fix": … }] direct toepassen
 npm run verify:translations; echo "exit=$?"  # releasepoort: exit 0 = elke taal compleet en actueel
 ```
 
