@@ -361,7 +361,8 @@ const validateDate: Validator = value =>
     : failure('date', value);
 
 const parsePercentage: Parser = text => {
-  const normalized = text.trim().replace('%', '').replace(',', '.');
+  // Eén procentteken achteraan mag; elders maakt het de invoer ongeldig.
+  const normalized = text.trim().replace(/%$/, '').trim().replace(',', '.');
   if (normalized === '') return failure('percentage', text);
   const value = Number(normalized);
   return Number.isFinite(value) ? success(value / 100) : failure('percentage', text);
