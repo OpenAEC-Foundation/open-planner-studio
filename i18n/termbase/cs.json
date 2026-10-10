@@ -1,8 +1,9 @@
 {
   "_style": {
     "address": "formal",
-    "note": "Tato software používá vykání (formální 'vy') nebo bezosobní infinitivy. Zvoleno formální vykání, v souladu s ostatními překlady projektu.",
-    "commands": "Commands use the infinitive, like Czech Microsoft software: Uložit, Otevřít, Odstranit, Přepočítat."
+    "note": "Formal address (vykání). Quotation marks are „…“, also around placeholders („{{name}}“); never straight or English quotes. Menu paths are introduced with 'na kartě' or 'v nabídce', not a bare 'v'. Hints and tooltips that tell the user to do something use the formal imperative (Vyberte…, zapněte…); never mix it with the infinitive in one sentence. Commands (buttons, menu items, context menu) follow `commands` and are never nouns.",
+    "commands": "Commands use the infinitive, like Czech Microsoft software: Uložit, Otevřít, Odstranit, Přepočítat.",
+    "quotes": "„…“"
   },
   "actual-date": {
     "term": "skutečný",
@@ -460,14 +461,19 @@
     "status": "tbx"
   },
   "cycle": {
-    "term": "cyklická závislost",
+    "term": "cyklus",
     "forms": [
-      "cyklická závislost",
-      "cyklické závislosti",
-      "cyklickou závislost",
-      "cyklickou závislostí"
+      "cyklus",
+      "cyklu",
+      "cyklem",
+      "cykly",
+      "cyklů"
     ],
     "avoid": [
+      "cyklická závislost",
+      "cyklickou závislost",
+      "cyklické závislosti",
+      "cyklickou závislostí",
       "smyčka",
       "kruh"
     ],
@@ -553,7 +559,6 @@
       "nejdřívějším dokončením"
     ],
     "avoid": [
-      "dřívější dokončení",
       "early finish"
     ],
     "source": "model",
@@ -574,8 +579,9 @@
     "status": "model"
   },
   "effort-driven": {
-    "term": "řízený úsilím",
+    "term": "řízeno úsilím",
     "forms": [
+      "řízeno úsilím",
       "řízený úsilím",
       "řízená úsilím",
       "řízené úsilím"
@@ -583,8 +589,8 @@
     "avoid": [
       "řízený prací"
     ],
-    "source": "model",
-    "status": "model"
+    "source": "tbx",
+    "status": "arbitrated"
   },
   "elapsed-time": {
     "term": "uplynulá doba trvání",
@@ -904,8 +910,7 @@
       "zvětšte odsazení"
     ],
     "avoid": [
-      "odsadit",
-      "odsazení"
+      "odsadit"
     ],
     "source": "tbx",
     "status": "tbx"
@@ -1455,9 +1460,6 @@
       "pásu karet",
       "pásem karet"
     ],
-    "avoid": [
-      "pás"
-    ],
     "source": "tbx",
     "status": "tbx-chosen"
   },
@@ -1589,26 +1591,26 @@
     "status": "arbitrated"
   },
   "start-no-earlier-than": {
-    "term": "začít nejdříve",
+    "term": "zahájit nejdříve",
     "forms": [
+      "zahájit nejdříve"
+    ],
+    "avoid": [
       "začít nejdříve"
     ],
-    "avoid": [
-      "začátek nejdříve"
-    ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-no-later-than": {
-    "term": "začít nejpozději",
+    "term": "zahájit nejpozději",
     "forms": [
-      "začít nejpozději"
+      "zahájit nejpozději"
     ],
     "avoid": [
-      "začátek nejpozději"
+      "začít nejpozději"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-to-finish": {
     "term": "zahájení-dokončení",

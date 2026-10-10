@@ -1,7 +1,7 @@
 {
   "_style": {
     "address": "formal",
-    "note": "Romanian software addresses the user formally (dumneavoastră, impersonal or plural imperative such as 'calculați'). 'actual' is a false friend: 'actual' in Romanian means 'current', so avoid it. The candidate terms use 'real' for duration, work and date, and 'efectiv' for start and finish; keep these as the candidates give them.",
+    "note": "Formal address (dumneavoastră; plural imperative such as 'calculați'). 'actual' is a false friend: in Romanian it means 'current', so avoid it; use 'real' for duration, work and date and 'efectiv' for start and finish. Hints and tooltips that tell the user to do something use the plural imperative (Selectați…, activați…); never mix it with another form in one sentence. Commands (buttons, menu items) follow `commands`.",
     "commands": "Commands use a noun of action, like Romanian Microsoft software: Salvare, Deschidere, Ștergere, Calculare."
   },
   "actual-date": {
@@ -93,9 +93,6 @@
     "term": "cât mai târziu posibil",
     "forms": [
       "cât mai târziu posibil"
-    ],
-    "avoid": [
-      "cât mai târziu"
     ],
     "source": "model",
     "status": "model"
@@ -558,17 +555,20 @@
     "status": "model"
   },
   "effort-driven": {
-    "term": "bazat pe efort",
+    "term": "determinat de efort",
     "forms": [
-      "bazat pe efort",
-      "bazată pe efort",
-      "bazate pe efort"
+      "determinat de efort",
+      "determinată de efort",
+      "determinate de efort",
+      "determinați de efort"
     ],
     "avoid": [
+      "bazat pe efort",
+      "bazată pe efort",
       "condus de efort"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "elapsed-time": {
     "term": "timp scurs",
@@ -877,18 +877,25 @@
     "status": "tbx-chosen"
   },
   "interruption": {
-    "term": "pauză",
+    "term": "întrerupere",
     "forms": [
+      "întrerupere",
+      "întreruperea",
+      "întreruperi",
+      "întreruperile",
+      "întreruperii",
+      "întreruperilor"
+    ],
+    "avoid": [
       "pauză",
       "pauza",
       "pauze",
-      "pauzele"
+      "pauzele",
+      "pauzei",
+      "pauzelor"
     ],
-    "avoid": [
-      "întrerupe"
-    ],
-    "source": "tbx",
-    "status": "tbx"
+    "source": "model",
+    "status": "arbitrated"
   },
   "lag": {
     "term": "decalaj",

@@ -1,7 +1,7 @@
 {
   "_style": {
     "address": "formal",
-    "note": "Kroatische software spreekt de gebruiker formeel aan (Vi). Microsoft doet dat ook in het Kroatisch.",
+    "note": "Formal address with Vi, like Croatian Microsoft software. Hints and tooltips that tell the user to do something use the formal imperative (Odaberite…, uključite…); never mix it with the infinitive in one sentence. Commands (buttons, menu items) follow `commands`.",
     "commands": "Commands use the short imperative, like Croatian Microsoft software: Spremi, Otvori, Izbriši, Izračunaj."
   },
   "actual-date": {
@@ -311,53 +311,83 @@
     "status": "tbx"
   },
   "critical": {
-    "term": "ključan",
+    "term": "kritičan",
     "forms": [
+      "kritičan",
+      "kritična",
+      "kritično",
+      "kritični",
+      "kritičnog",
+      "kritične",
+      "kritičnih"
+    ],
+    "avoid": [
       "ključan",
       "ključna",
       "ključno",
       "ključni",
-      "ključne",
       "ključnog",
-      "ključnih"
+      "ključne",
+      "ključnih",
+      "ključnosti"
     ],
-    "source": "tbx",
+    "source": "model",
     "status": "arbitrated"
   },
   "critical-chains": {
-    "term": "ključni lanci",
+    "term": "kritični lanci",
     "forms": [
+      "kritični lanci",
+      "kritičnih lanaca",
+      "kritičnim lancima",
+      "kritične lance"
+    ],
+    "avoid": [
       "ključni lanci",
-      "ključnih lanaca",
-      "ključnim lancima"
+      "ključnih lanaca"
     ],
     "source": "model",
     "status": "arbitrated"
   },
   "critical-path": {
-    "term": "ključni put",
+    "term": "kritični put",
     "forms": [
+      "kritični put",
+      "kritičnog puta",
+      "kritičnom putu",
+      "kritičnim putem",
+      "kritični putovi"
+    ],
+    "avoid": [
       "ključni put",
       "ključnog puta",
       "ključnom putu",
-      "ključnim putem",
-      "ključni putovi"
+      "ključnim putem"
     ],
-    "source": "tbx",
-    "status": "tbx"
+    "source": "model",
+    "status": "arbitrated"
   },
   "critical-task": {
-    "term": "ključni zadatak",
+    "term": "kritični zadatak",
     "forms": [
+      "kritični zadatak",
+      "kritičnog zadatka",
+      "kritičnom zadatku",
+      "kritičnim zadatkom",
+      "kritični zadaci",
+      "kritičnih zadataka",
+      "kritičnim zadacima"
+    ],
+    "avoid": [
       "ključni zadatak",
       "ključnog zadatka",
       "ključnom zadatku",
-      "ključnim zadatkom",
       "ključni zadaci",
-      "ključnih zadataka"
+      "ključnih zadataka",
+      "ključnim zadacima"
     ],
-    "source": "tbx",
-    "status": "tbx"
+    "source": "model",
+    "status": "arbitrated"
   },
   "current-finish": {
     "term": "trenutačni završetak",
@@ -482,31 +512,37 @@
     "status": "model"
   },
   "effort-driven": {
-    "term": "temeljeno na trudu",
+    "term": "vođeno radom",
     "forms": [
+      "vođeno radom",
+      "vođen radom",
+      "vođena radom",
+      "vođeni radom"
+    ],
+    "avoid": [
       "temeljeno na trudu",
       "temeljen na trudu",
       "temeljena na trudu",
-      "temeljeni na trudu"
-    ],
-    "avoid": [
       "vođeno naporom"
     ],
-    "source": "tbx",
+    "source": "model",
     "status": "arbitrated"
   },
   "elapsed-time": {
-    "term": "neprekinuto trajanje",
+    "term": "proteklo vrijeme",
     "forms": [
+      "proteklo vrijeme",
+      "proteklog vremena",
+      "proteklom vremenu",
+      "proteklim vremenom"
+    ],
+    "avoid": [
       "neprekinuto trajanje",
       "neprekinutog trajanja",
       "neprekinutom trajanju"
     ],
-    "avoid": [
-      "proteklo vrijeme"
-    ],
-    "source": "tbx",
-    "status": "tbx"
+    "source": "model",
+    "status": "arbitrated"
   },
   "extension": {
     "term": "proširenje",
@@ -874,25 +910,37 @@
     "status": "arbitrated"
   },
   "leveling": {
-    "term": "razrješavanje",
+    "term": "uravnoteživanje",
     "forms": [
+      "uravnoteživanje",
+      "uravnoteživanja",
+      "uravnoteživanju",
+      "uravnoteživanjem",
+      "uravnoteživanje resursa"
+    ],
+    "avoid": [
       "razrješavanje",
       "razrješavanja",
       "razrješavanju",
       "razrješavanjem"
     ],
     "source": "tbx",
-    "status": "tbx"
+    "status": "arbitrated"
   },
   "leveling-delay": {
-    "term": "kašnjenje u razrješavanju",
+    "term": "kašnjenje zbog uravnoteživanja",
     "forms": [
-      "kašnjenje u razrješavanju",
-      "kašnjenja u razrješavanju",
-      "kašnjenju u razrješavanju"
+      "kašnjenje zbog uravnoteživanja",
+      "kašnjenja zbog uravnoteživanja",
+      "kašnjenju zbog uravnoteživanja",
+      "kašnjenjem zbog uravnoteživanja"
     ],
-    "source": "tbx",
-    "status": "tbx"
+    "avoid": [
+      "kašnjenje u razrješavanju",
+      "razrješavanju"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "link-tasks": {
     "term": "povezati",
@@ -997,16 +1045,19 @@
     "status": "model"
   },
   "near-critical": {
-    "term": "gotovo ključan",
+    "term": "gotovo kritičan",
     "forms": [
-      "gotovo ključan",
-      "gotovo ključna",
-      "gotovo ključno",
-      "gotovo ključni",
-      "gotovo ključnog"
+      "gotovo kritičan",
+      "gotovo kritična",
+      "gotovo kritično",
+      "gotovo kritični",
+      "gotovo kritičnog"
     ],
     "avoid": [
-      "gotovo kritičan"
+      "gotovo ključan",
+      "gotovo ključna",
+      "gotovo ključni",
+      "gotovo ključno"
     ],
     "source": "model",
     "status": "arbitrated"
@@ -1625,19 +1676,26 @@
     "status": "tbx"
   },
   "tutorial": {
-    "term": "korisnički priručnik",
+    "term": "lekcija",
     "forms": [
+      "lekcija",
+      "lekcije",
+      "lekciji",
+      "lekciju",
+      "lekcijom",
+      "lekcijama"
+    ],
+    "avoid": [
       "korisnički priručnik",
       "korisničkog priručnika",
       "korisničkom priručniku",
+      "korisničke priručnike",
+      "korisničkih priručnika",
       "korisnički priručnici",
-      "korisničkih priručnika"
-    ],
-    "avoid": [
       "tutorijal"
     ],
-    "source": "tbx",
-    "status": "tbx"
+    "source": "model",
+    "status": "arbitrated"
   },
   "units": {
     "term": "jedinice dodjele",
@@ -1681,22 +1739,34 @@
     "status": "model"
   },
   "wbs": {
-    "term": "strukturna analiza rada",
+    "term": "WBS",
     "forms": [
+      "WBS",
+      "WBS-a",
+      "WBS-u",
+      "WBS-om"
+    ],
+    "avoid": [
       "strukturna analiza rada",
       "strukturne analize rada",
-      "strukturnu analizu rada"
+      "strukturnu analizu rada",
+      "strukturnom analizom rada"
     ],
-    "source": "tbx",
+    "source": "model",
     "status": "arbitrated"
   },
   "wbs-element": {
-    "term": "element strukturne analize rada",
+    "term": "WBS element",
     "forms": [
-      "element strukturne analize rada",
-      "elementa strukturne analize rada",
-      "elementu strukturne analize rada",
-      "elementi strukturne analize rada"
+      "WBS element",
+      "WBS elementa",
+      "WBS elementu",
+      "WBS elementom",
+      "WBS elementi",
+      "WBS elemenata"
+    ],
+    "avoid": [
+      "element strukturne analize rada"
     ],
     "source": "model",
     "status": "arbitrated"

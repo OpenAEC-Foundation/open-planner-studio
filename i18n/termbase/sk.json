@@ -1,8 +1,9 @@
 {
   "_style": {
     "address": "formal",
-    "note": "Slovak software addresses the user formally (vy). No existing UI in this package, so the usual professional convention is followed.",
-    "commands": "Commands use the infinitive, like Slovak Microsoft software: Uložiť, Otvoriť, Odstrániť, Prepočítať."
+    "note": "Formal address (vy). Quotation marks are „…“, also around placeholders („{{name}}“); never straight or English quotes. A ribbon tab is 'karta' (na karte Plán), not 'ponuka'. Hints and tooltips that tell the user to do something use the formal imperative (Vyberte…, zapnite…); never mix it with the infinitive in one sentence. Commands (buttons, menu items, context menu) follow `commands`.",
+    "commands": "Commands use the infinitive, like Slovak Microsoft software: Uložiť, Otvoriť, Odstrániť, Prepočítať.",
+    "quotes": "„…“"
   },
   "actual-date": {
     "term": "skutočný",
@@ -393,13 +394,19 @@
     "status": "tbx"
   },
   "cycle": {
-    "term": "cyklická závislosť",
+    "term": "cyklus",
     "forms": [
+      "cyklus",
+      "cyklu",
+      "cyklom",
+      "cykly",
+      "cyklov"
+    ],
+    "avoid": [
       "cyklická závislosť",
-      "cyklickej závislosti",
       "cyklickú závislosť",
-      "cyklickou závislosťou",
-      "cyklické závislosti"
+      "cyklickej závislosti",
+      "cyklickou závislosťou"
     ],
     "source": "model",
     "status": "arbitrated"
@@ -1771,15 +1778,24 @@
     "status": "tbx"
   },
   "tutorial": {
-    "term": "kurz",
+    "term": "návod",
     "forms": [
+      "návod",
+      "návodu",
+      "návode",
+      "návodom",
+      "návody",
+      "návodov"
+    ],
+    "avoid": [
+      "kurzy",
       "kurz",
       "kurzu",
-      "kurzy",
+      "kurze",
       "kurzov"
     ],
-    "source": "tbx",
-    "status": "tbx"
+    "source": "model",
+    "status": "arbitrated"
   },
   "units": {
     "term": "jednotky priradenia",
@@ -1827,14 +1843,17 @@
     "status": "model"
   },
   "wbs": {
-    "term": "štruktúra rozdelenia práce",
+    "term": "WBS",
     "forms": [
+      "WBS"
+    ],
+    "avoid": [
       "štruktúra rozdelenia práce",
       "štruktúry rozdelenia práce",
       "štruktúru rozdelenia práce",
-      "štruktúr rozdelenia práce"
+      "štruktúrou rozdelenia práce"
     ],
-    "source": "tbx",
+    "source": "model",
     "status": "arbitrated"
   },
   "wbs-element": {

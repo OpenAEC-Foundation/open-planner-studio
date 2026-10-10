@@ -1,8 +1,9 @@
 {
   "_style": {
     "address": "formal",
-    "note": "Bulgarian software addresses the user formally with Вие where a sentence needs it; buttons and labels use the infinitive or the imperative.",
-    "commands": "Commands use the short imperative, like Bulgarian Microsoft software: Запиши, Отвори, Изтрий, Изчисли."
+    "note": "Formal address with Вие where a sentence needs it. Quotation marks are „…“, also around placeholders („{{name}}“); never straight or English quotes. Hints and tooltips that tell the user to do something use the formal imperative (Изберете…, включете…); never mix it with another form in one sentence. Commands (buttons, menu items) follow `commands`.",
+    "commands": "Commands use the short imperative, like Bulgarian Microsoft software: Запиши, Отвори, Изтрий, Изчисли.",
+    "quotes": "„…“"
   },
   "actual-date": {
     "term": "действителен",
@@ -466,22 +467,25 @@
       "въз основа на усилията"
     ],
     "avoid": [
-      "управлявана от работата"
+      "управлявана от работата",
+      "effort-driven",
+      "управлявано от усилието"
     ],
     "source": "tbx",
     "status": "arbitrated"
   },
   "elapsed-time": {
-    "term": "необходимо време за завършване",
+    "term": "изминало време",
     "forms": [
+      "изминало време",
+      "изминалото време"
+    ],
+    "avoid": [
       "необходимо време за завършване",
       "необходимото време за завършване"
     ],
-    "avoid": [
-      "изминало време"
-    ],
-    "source": "tbx",
-    "status": "tbx"
+    "source": "model",
+    "status": "arbitrated"
   },
   "extension": {
     "term": "разширение",
@@ -627,24 +631,31 @@
     "status": "model"
   },
   "float": {
-    "term": "забавяне",
+    "term": "резерв",
     "forms": [
-      "забавяне",
-      "забавянето",
-      "забавяния"
+      "резерв",
+      "резерва",
+      "резервът",
+      "резерви",
+      "резервите"
     ],
     "avoid": [
-      "плаваща запетая"
+      "забавяне",
+      "забавянето"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "float-path": {
-    "term": "път на забавянето",
+    "term": "път на резерва",
     "forms": [
+      "път на резерва",
+      "пътя на резерва",
+      "пътят на резерва"
+    ],
+    "avoid": [
       "път на забавянето",
-      "пътя на забавянето",
-      "пътища на забавянето"
+      "пътя на забавянето"
     ],
     "source": "model",
     "status": "arbitrated"
@@ -662,17 +673,18 @@
     "status": "arbitrated"
   },
   "free-float": {
-    "term": "свободно забавяне",
+    "term": "свободен резерв",
     "forms": [
-      "свободно забавяне",
-      "свободното забавяне",
-      "свободни забавяния"
+      "свободен резерв",
+      "свободния резерв",
+      "свободният резерв"
     ],
     "avoid": [
-      "общо забавяне"
+      "свободно забавяне",
+      "свободното забавяне"
     ],
-    "source": "tbx",
-    "status": "tbx"
+    "source": "model",
+    "status": "arbitrated"
   },
   "hammock": {
     "term": "хамак",
@@ -996,13 +1008,15 @@
     "status": "model"
   },
   "negative-float": {
-    "term": "отрицателно забавяне",
+    "term": "отрицателен резерв",
     "forms": [
-      "отрицателно забавяне",
-      "отрицателното забавяне"
+      "отрицателен резерв",
+      "отрицателния резерв",
+      "отрицателният резерв"
     ],
     "avoid": [
-      "отрицателен резерв"
+      "отрицателно забавяне",
+      "отрицателното забавяне"
     ],
     "source": "model",
     "status": "arbitrated"
@@ -1387,14 +1401,15 @@
     "status": "arbitrated"
   },
   "start-float": {
-    "term": "забавяне на началото",
+    "term": "резерв на началото",
     "forms": [
-      "забавяне на началото",
-      "забавянето на началото"
+      "резерв на началото",
+      "резерва на началото",
+      "резервът на началото"
     ],
     "avoid": [
-      "стартово забавяне",
-      "стартов резерв"
+      "забавяне на началото",
+      "забавянето на началото"
     ],
     "source": "model",
     "status": "arbitrated"
@@ -1483,15 +1498,21 @@
     "status": "arbitrated"
   },
   "summary-task": {
-    "term": "обобщение на задача",
+    "term": "обобщаваща задача",
     "forms": [
-      "обобщение на задача",
-      "обобщението на задачата",
-      "обобщения на задачи",
-      "обобщенията на задачи"
+      "обобщаваща задача",
+      "обобщаващата задача",
+      "обобщаващи задачи",
+      "обобщаващите задачи"
     ],
-    "source": "tbx",
-    "status": "tbx"
+    "avoid": [
+      "обобщение на задача",
+      "обобщения на задачи",
+      "обобщенията на задачи",
+      "обобщението на задачата"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "task": {
     "term": "задача",
@@ -1541,26 +1562,36 @@
     "status": "tbx"
   },
   "total-float": {
-    "term": "общо забавяне",
+    "term": "общ резерв",
     "forms": [
-      "общо забавяне",
-      "общото забавяне",
-      "общи забавяния",
-      "общите забавяния"
+      "общ резерв",
+      "общия резерв",
+      "общият резерв"
     ],
-    "source": "tbx",
-    "status": "tbx"
+    "avoid": [
+      "общо забавяне",
+      "общото забавяне"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "tutorial": {
-    "term": "въвеждащ курс",
+    "term": "урок",
     "forms": [
-      "въвеждащ курс",
-      "въвеждащият курс",
-      "въвеждащи курсове",
-      "въвеждащите курсове"
+      "урок",
+      "урока",
+      "урокът",
+      "уроци",
+      "уроците"
     ],
-    "source": "tbx",
-    "status": "tbx"
+    "avoid": [
+      "въвеждащ курс",
+      "въвеждащи курсове",
+      "въвеждащите курсове",
+      "въвеждащия курс"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "units": {
     "term": "единици за назначение",
@@ -1605,12 +1636,15 @@
     "status": "model"
   },
   "wbs": {
-    "term": "структура на декомпозирани дейности",
+    "term": "WBS",
     "forms": [
+      "WBS"
+    ],
+    "avoid": [
       "структура на декомпозирани дейности",
       "структурата на декомпозираните дейности"
     ],
-    "source": "tbx",
+    "source": "model",
     "status": "arbitrated"
   },
   "wbs-element": {

@@ -1,8 +1,9 @@
 {
   "_style": {
     "address": "informal",
-    "note": "Zweedse software spreekt de gebruiker met de informele 'du'-vorm aan. Knoppen en labels gebruiken de infinitief.",
-    "commands": "Commands use the imperative, like Swedish Microsoft software: Spara, Öppna, Ta bort, Beräkna."
+    "note": "Informal address with du, like Swedish Microsoft software. Buttons and menu items use the imperative from `commands` (Stäng, Spara), never the infinitive (Stänga). Hints and tooltips that tell the user to do something also use the imperative (Välj…, aktivera…). Quotation marks are ”…”, also around placeholders (”{{name}}”). 'datum' is neuter: det datumet, inget datum.",
+    "commands": "Commands use the imperative, like Swedish Microsoft software: Spara, Öppna, Ta bort, Beräkna.",
+    "quotes": "”…”"
   },
   "actual-date": {
     "term": "verklig",
@@ -477,22 +478,26 @@
       "insatsberoende schemaläggning"
     ],
     "avoid": [
-      "ansträngningsdriven"
+      "ansträngningsdriven",
+      "ansträngningsstyrd",
+      "ansträngningsstyrda"
     ],
     "source": "tbx",
     "status": "arbitrated"
   },
   "elapsed-time": {
-    "term": "total varaktighet",
+    "term": "förfluten tid",
     "forms": [
+      "förfluten tid",
+      "förflutna tiden",
+      "förflutna tid"
+    ],
+    "avoid": [
       "total varaktighet",
       "totala varaktigheten"
     ],
-    "avoid": [
-      "förfluten tid"
-    ],
-    "source": "tbx",
-    "status": "tbx"
+    "source": "model",
+    "status": "arbitrated"
   },
   "extension": {
     "term": "tillägg",
@@ -547,22 +552,24 @@
     "status": "model"
   },
   "finish-no-earlier-than": {
-    "term": "slut tidigast",
+    "term": "avsluta tidigast",
     "forms": [
-      "slut tidigast"
+      "avsluta tidigast"
     ],
     "avoid": [
+      "slut tidigast",
       "får inte sluta tidigare än"
     ],
     "source": "model",
     "status": "arbitrated"
   },
   "finish-no-later-than": {
-    "term": "slut senast",
+    "term": "avsluta senast",
     "forms": [
-      "slut senast"
+      "avsluta senast"
     ],
     "avoid": [
+      "slut senast",
       "får inte sluta senare än"
     ],
     "source": "model",
@@ -1457,20 +1464,26 @@
     "status": "arbitrated"
   },
   "start-no-earlier-than": {
-    "term": "start tidigast",
+    "term": "starta tidigast",
     "forms": [
+      "starta tidigast"
+    ],
+    "avoid": [
       "start tidigast"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-no-later-than": {
-    "term": "start senast",
+    "term": "starta senast",
     "forms": [
+      "starta senast"
+    ],
+    "avoid": [
       "start senast"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-to-finish": {
     "term": "start-till-slut",
@@ -1538,15 +1551,20 @@
     "status": "tbx"
   },
   "summary-task": {
-    "term": "sammanfattningsaktivitet",
+    "term": "sammanfattningsuppgift",
     "forms": [
+      "sammanfattningsuppgift",
+      "sammanfattningsuppgiften",
+      "sammanfattningsuppgifter",
+      "sammanfattningsuppgifterna"
+    ],
+    "avoid": [
       "sammanfattningsaktivitet",
       "sammanfattningsaktiviteten",
-      "sammanfattningsaktiviteter",
-      "sammanfattningsaktiviteterna"
+      "sammanfattningsaktiviteter"
     ],
-    "source": "tbx",
-    "status": "tbx"
+    "source": "model",
+    "status": "arbitrated"
   },
   "task": {
     "term": "uppgift",
@@ -1706,9 +1724,6 @@
     "forms": [
       "arbetstider",
       "arbetstiderna"
-    ],
-    "avoid": [
-      "arbetstid"
     ],
     "source": "model",
     "status": "model"

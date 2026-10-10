@@ -1,8 +1,9 @@
 {
   "_style": {
     "address": "formal",
-    "note": "Russian software addresses the user formally (вы) in sentences and hints.",
-    "commands": "Commands (buttons, menu, ribbon, context menu) use the infinitive, like Russian Microsoft software: Сохранить, Открыть, Удалить, Рассчитать. Never the imperative (Сохраните)."
+    "note": "Formal address (вы). Never use the letter ё; always е, like Russian Microsoft software (расчет, учет, еще, отчета). In running text the Gantt chart is 'диаграмма Ганта'; keep the bare name Gantt only where it is a fixed product or column name. Quotation marks are «…», also around placeholders («{{name}}»). Hints and tooltips that tell the user to do something use the polite imperative (-те: перетащите…, щелкните…); never mix it with the infinitive in one sentence. Commands (buttons, menu items, ribbon, context menu) follow `commands`.",
+    "commands": "Commands (buttons, menu, ribbon, context menu) use the infinitive, like Russian Microsoft software: Сохранить, Открыть, Удалить, Рассчитать. Never the imperative (Сохраните).",
+    "quotes": "«…»"
   },
   "actual-date": {
     "term": "фактический",
@@ -659,7 +660,9 @@
       "фиксированном объеме работ"
     ],
     "avoid": [
-      "управляемая трудозатратами"
+      "управляемая трудозатратами",
+      "с учетом трудозатрат",
+      "с учётом трудозатрат"
     ],
     "source": "tbx",
     "status": "arbitrated"
@@ -1018,9 +1021,6 @@
       "почасового планирования",
       "почасовому планированию",
       "почасовым планированием"
-    ],
-    "avoid": [
-      "часовое планирование"
     ],
     "source": "model",
     "status": "model"
@@ -1650,6 +1650,10 @@
       "оставшиеся длительности",
       "оставшихся длительностей"
     ],
+    "avoid": [
+      "остаток",
+      "остатка"
+    ],
     "source": "tbx",
     "status": "tbx"
   },
@@ -2152,21 +2156,27 @@
     "status": "tbx"
   },
   "tutorial": {
-    "term": "учебник",
+    "term": "урок",
     "forms": [
-      "учебник",
-      "учебника",
-      "учебнику",
-      "учебником",
-      "учебнике",
-      "учебники",
-      "учебников"
+      "урок",
+      "урока",
+      "уроку",
+      "уроком",
+      "уроке",
+      "уроки",
+      "уроков",
+      "урокам"
     ],
     "avoid": [
+      "учебник",
+      "учебника",
+      "учебнике",
+      "учебники",
+      "учебников",
       "руководство",
       "туториал"
     ],
-    "source": "tbx",
+    "source": "model",
     "status": "arbitrated"
   },
   "units": {

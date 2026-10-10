@@ -1,8 +1,9 @@
 {
   "_style": {
     "address": "formal",
-    "note": "Ukrainian desktop software addresses the user formally (ви) or with impersonal infinitives in menus. Use short imperative and infinitive forms for actions (обчислити, автоматично обчислювати) and neutral noun phrases for settings and fields.",
-    "commands": "Commands use the infinitive, like Ukrainian Microsoft software: Зберегти, Відкрити, Видалити, Обчислити."
+    "note": "Formal address (ви). Spelling follows the 2019 orthography: проєкт, проєкту, проєкти — never проект. Quotation marks are «…», also around placeholders («{{name}}»). Hints and tooltips that tell the user to do something use the formal imperative (Виберіть…, увімкніть…); never mix it with the infinitive in one sentence. Commands (buttons, menu items, context menu) follow `commands`. Settings and fields are neutral noun phrases.",
+    "commands": "Commands use the infinitive, like Ukrainian Microsoft software: Зберегти, Відкрити, Видалити, Обчислити.",
+    "quotes": "«…»"
   },
   "actual-date": {
     "term": "фактична дата",
@@ -133,27 +134,39 @@
     "status": "model"
   },
   "baseline": {
-    "term": "основний план",
+    "term": "базовий план",
     "forms": [
+      "базовий план",
+      "базового плану",
+      "базовому плану",
+      "базовим планом",
+      "базовому плані",
+      "базові плани",
+      "базових планів",
+      "базовими планами"
+    ],
+    "avoid": [
       "основний план",
       "основного плану",
       "основному плану",
-      "основні плани"
-    ],
-    "avoid": [
-      "базова лінія",
-      "базовий показник"
+      "основним планом",
+      "основному плані",
+      "основні плани",
+      "основних планів",
+      "основними планами"
     ],
     "source": "tbx",
-    "status": "tbx"
+    "status": "arbitrated"
   },
   "bei": {
-    "term": "індекс виконання основного плану",
+    "term": "індекс виконання базового плану",
     "forms": [
-      "індекс виконання основного плану",
-      "індексу виконання основного плану",
-      "індексом виконання основного плану",
-      "індекси виконання основного плану"
+      "індекс виконання базового плану",
+      "індексу виконання базового плану",
+      "індексом виконання базового плану"
+    ],
+    "avoid": [
+      "індекс виконання основного плану"
     ],
     "source": "model",
     "status": "arbitrated"
@@ -383,18 +396,23 @@
     "status": "tbx"
   },
   "cycle": {
-    "term": "циклічна залежність",
+    "term": "цикл",
     "forms": [
-      "циклічна залежність",
-      "циклічної залежності",
-      "циклічну залежність",
-      "циклічні залежності"
+      "цикл",
+      "циклу",
+      "циклом",
+      "циклі",
+      "цикли",
+      "циклів"
     ],
     "avoid": [
-      "цикл"
+      "циклічна залежність",
+      "циклічну залежність",
+      "циклічної залежності",
+      "циклічною залежністю"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "dcma-assessment": {
     "term": "14-пунктова оцінка DCMA",
@@ -486,7 +504,9 @@
       "фіксованим обсягом роботи"
     ],
     "avoid": [
-      "керований трудовитратами"
+      "керований трудовитратами",
+      "керована трудовитратами",
+      "кероване трудовитратами"
     ],
     "source": "tbx",
     "status": "arbitrated"

@@ -1,7 +1,7 @@
 {
   "_style": {
     "address": "informal",
-    "note": "Noorse software (Microsoft Office, Teams) spreekt de gebruiker in het Bokmål aan met 'du'. Daarom informeel.",
+    "note": "Informal address with du, like Norwegian Microsoft software. Write compounds as one word, as Bokmål does (standardzoom, grunnlinjeoverlegg); use a hyphen only after an abbreviation or a name (ID-er, MS Project-fil). Write ID in capitals; plural ID-er. Hints and tooltips that tell the user to do something use the imperative (Velg…, slå på…), the same form as commands.",
     "commands": "Commands use the imperative, like Norwegian Microsoft software: Lagre, Åpne, Slett, Beregn."
   },
   "actual-date": {
@@ -491,16 +491,19 @@
     "status": "model"
   },
   "elapsed-time": {
-    "term": "brukt varighet",
+    "term": "forløpt tid",
     "forms": [
-      "brukt varighet",
-      "brukte varigheter"
+      "forløpt tid",
+      "forløpte tid",
+      "forløpte tiden"
     ],
     "avoid": [
+      "brukt varighet",
+      "brukte varighet",
       "brukt tid"
     ],
-    "source": "tbx",
-    "status": "tbx"
+    "source": "model",
+    "status": "arbitrated"
   },
   "extension": {
     "term": "utvidelse",
@@ -1006,13 +1009,15 @@
     "status": "tbx"
   },
   "path-tracing": {
-    "term": "spor styrende avhengigheter",
+    "term": "banesporing",
     "forms": [
-      "spor styrende avhengigheter",
-      "sporing av styrende avhengigheter"
+      "banesporing",
+      "banesporingen",
+      "spor bane",
+      "spor banen"
     ],
     "avoid": [
-      "spor drivende relasjoner"
+      "spor styrende avhengigheter"
     ],
     "source": "model",
     "status": "arbitrated"

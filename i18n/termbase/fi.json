@@ -1,7 +1,7 @@
 {
   "_style": {
     "address": "formal",
-    "note": "Finnish software uses impersonal forms (imperative or passive without a pronoun), not sinä or te. Labels stay short and neutral.",
+    "note": "Finnish software uses impersonal forms, not sinä or te. Labels stay short and neutral. Hints and tooltips that tell the user to do something use the imperative without a pronoun (Valitse…, ota käyttöön…), the same form as commands; never mix it with the infinitive in one sentence.",
     "commands": "Commands use the imperative, like Finnish Microsoft software: Tallenna, Avaa, Poista, Laske."
   },
   "actual-date": {
@@ -77,9 +77,6 @@
       "tekoälyavustajat",
       "tekoälyavustajia"
     ],
-    "avoid": [
-      "Tekoälyavustaja"
-    ],
     "source": "tbx",
     "status": "tbx"
   },
@@ -148,21 +145,29 @@
     "status": "arbitrated"
   },
   "baseline": {
-    "term": "alkuperäinen suunnitelma",
+    "term": "perustaso",
     "forms": [
-      "alkuperäinen suunnitelma",
-      "alkuperäisen suunnitelman",
-      "alkuperäistä suunnitelmaa",
-      "alkuperäiseen suunnitelmaan",
-      "alkuperäisessä suunnitelmassa",
-      "alkuperäiset suunnitelmat",
-      "alkuperäinen",
-      "alkuperäisen",
-      "alkuperäiset"
+      "perustaso",
+      "perustason",
+      "perustasoa",
+      "perustasot",
+      "perustasoja",
+      "perustasoon",
+      "perustasossa",
+      "perustasosta",
+      "perustasolle"
     ],
     "avoid": [
+      "alkuperäinen",
+      "alkuperäisen",
+      "alkuperäiset",
+      "alkuperäistä",
+      "alkuperäisiä",
+      "alkuperäisestä",
+      "alkuperäiselle",
+      "alkuperäiseen",
+      "alkuperäisessä",
       "perusviiva",
-      "perustaso",
       "perussuorituskyky",
       "lähtötaso"
     ],
@@ -170,15 +175,16 @@
     "status": "arbitrated"
   },
   "bei": {
-    "term": "alkuperäisen suunnitelman toteutumisindeksi",
+    "term": "perustason toteutumisindeksi",
     "forms": [
-      "alkuperäisen suunnitelman toteutumisindeksi",
-      "alkuperäisen suunnitelman toteutumisindeksin",
-      "alkuperäisen suunnitelman toteutumisindeksiä"
+      "perustason toteutumisindeksi",
+      "perustason toteutumisindeksin",
+      "perustason toteutumisindeksiä"
     ],
     "avoid": [
-      "BEI-arvo",
-      "lähtötason toteutumisindeksi"
+      "alkuperäisen suunnitelman toteutumisindeksi",
+      "lähtötason toteutumisindeksi",
+      "BEI-arvo"
     ],
     "source": "model",
     "status": "arbitrated"
@@ -289,9 +295,6 @@
       "rakennusalan kesälomaa",
       "rakennusalan kesälomat",
       "rakennusalan kesälomia"
-    ],
-    "avoid": [
-      "kesäloma"
     ],
     "source": "model",
     "status": "model"
@@ -526,24 +529,26 @@
       "työmäärään perustuvaa"
     ],
     "avoid": [
-      "työmääräohjattu"
+      "työmääräohjattu",
+      "effort-driven"
     ],
     "source": "tbx",
     "status": "arbitrated"
   },
   "elapsed-time": {
-    "term": "käytetty aika",
+    "term": "kulunut aika",
     "forms": [
-      "käytetty aika",
-      "käytetyn ajan",
-      "käytettyä aikaa",
-      "käytetyt ajat"
+      "kulunut aika",
+      "kuluneen ajan",
+      "kulunutta aikaa"
     ],
     "avoid": [
-      "kulunut aika"
+      "käytetty aika",
+      "käytetyn ajan",
+      "käytettyä aikaa"
     ],
-    "source": "tbx",
-    "status": "tbx"
+    "source": "model",
+    "status": "arbitrated"
   },
   "extension": {
     "term": "laajennus",
@@ -703,36 +708,45 @@
       "kiinteät työmäärät"
     ],
     "avoid": [
-      "kiinteä työ",
       "fixed work"
     ],
     "source": "model",
     "status": "model"
   },
   "float": {
-    "term": "liukuma",
+    "term": "pelivara",
     "forms": [
+      "pelivara",
+      "pelivaran",
+      "pelivaraa",
+      "pelivarat",
+      "pelivaroja",
+      "pelivaraan"
+    ],
+    "avoid": [
       "liukuma",
       "liukuman",
       "liukumaa",
-      "liukumat",
-      "liukumia"
-    ],
-    "avoid": [
+      "liukumansa",
+      "liukumanauha",
+      "liukumasarakkeet",
       "liukuluku"
     ],
-    "source": "tbx",
+    "source": "model",
     "status": "arbitrated"
   },
   "float-path": {
-    "term": "liukumapolku",
+    "term": "pelivarapolku",
     "forms": [
-      "liukumapolku",
-      "liukumapolun",
-      "liukumapolkua"
+      "pelivarapolku",
+      "pelivarapolun",
+      "pelivarapolkua",
+      "pelivarapolkuja"
     ],
     "avoid": [
-      "pelivarapolku"
+      "liukumapolku",
+      "liukumapolun",
+      "liukumapolkuja"
     ],
     "source": "model",
     "status": "arbitrated"
@@ -1113,9 +1127,6 @@
       "välitavoitetyypit",
       "välitavoitetyyppejä"
     ],
-    "avoid": [
-      "tyyppi"
-    ],
     "source": "model",
     "status": "model"
   },
@@ -1170,13 +1181,15 @@
     "status": "model"
   },
   "negative-float": {
-    "term": "negatiivinen liukuma",
+    "term": "negatiivinen pelivara",
     "forms": [
-      "negatiivinen liukuma",
-      "negatiivisen liukuman",
-      "negatiivista liukumaa"
+      "negatiivinen pelivara",
+      "negatiivisen pelivaran",
+      "negatiivista pelivaraa"
     ],
     "avoid": [
+      "negatiivinen liukuma",
+      "negatiivisen liukuman",
       "negatiivinen väljyys"
     ],
     "source": "model",
@@ -1554,10 +1567,6 @@
       "valintanauhat",
       "valintanauhaa"
     ],
-    "avoid": [
-      "nauha",
-      "Valintanauha"
-    ],
     "source": "tbx",
     "status": "tbx"
   },
@@ -1568,9 +1577,6 @@
       "valintanauhan välilehden",
       "valintanauhan välilehdet",
       "valintanauhan välilehteä"
-    ],
-    "avoid": [
-      "välilehti"
     ],
     "source": "model",
     "status": "model"
@@ -1693,16 +1699,15 @@
     "status": "arbitrated"
   },
   "start-float": {
-    "term": "aloitusliukuma",
+    "term": "aloituspelivara",
     "forms": [
-      "aloitusliukuma",
-      "aloitusliukuman",
-      "aloitusliukumaa",
-      "aloitusliukumat",
-      "aloitusliukumien"
+      "aloituspelivara",
+      "aloituspelivaran",
+      "aloituspelivaraa"
     ],
     "avoid": [
-      "kokonaisliukuma"
+      "aloitusliukuma",
+      "aloitusliukuman"
     ],
     "source": "model",
     "status": "arbitrated"
@@ -1711,9 +1716,6 @@
     "term": "alkaa aikaisintaan",
     "forms": [
       "alkaa aikaisintaan"
-    ],
-    "avoid": [
-      "alkaa aikaisin"
     ],
     "source": "model",
     "status": "model"
@@ -1881,19 +1883,19 @@
     "status": "tbx-chosen"
   },
   "total-float": {
-    "term": "kokonaisliukuma",
+    "term": "kokonaispelivara",
     "forms": [
-      "kokonaisliukuma",
-      "kokonaisliukuman",
-      "kokonaisliukumaa",
-      "kokonaisliukumat",
-      "kokonaisliukumien"
+      "kokonaispelivara",
+      "kokonaispelivaran",
+      "kokonaispelivaraa"
     ],
     "avoid": [
-      "kokonaisvara"
+      "kokonaisliukuma",
+      "kokonaisliukuman",
+      "kokonaisliukumaa"
     ],
-    "source": "tbx",
-    "status": "tbx"
+    "source": "model",
+    "status": "arbitrated"
   },
   "tutorial": {
     "term": "opetusohjelma",

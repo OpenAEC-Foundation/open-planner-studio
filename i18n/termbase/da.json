@@ -1,7 +1,7 @@
 {
   "_style": {
     "address": "informal",
-    "note": "Deense software en Microsoft-UI spreken de gebruiker aan met \"du\" (informeel).",
+    "note": "Informal address with du, like Danish Microsoft software. Fallback (a safe default value) is 'sikker standardværdi', never 'reserve' (which means backup or stock). Hints and tooltips that tell the user to do something use the imperative (Vælg…, slå … til), the same form as commands.",
     "commands": "Commands use the imperative, like Danish Microsoft software: Gem, Åbn, Slet, Beregn."
   },
   "actual-date": {
@@ -448,7 +448,8 @@
       "indsatsbaseret planlægning"
     ],
     "avoid": [
-      "indsatsdrevet"
+      "indsatsdrevet",
+      "effort-driven"
     ],
     "source": "tbx",
     "status": "arbitrated"
@@ -812,20 +813,23 @@
     "status": "tbx"
   },
   "interruption": {
-    "term": "pause",
+    "term": "afbrydelse",
     "forms": [
+      "afbrydelse",
+      "afbrydelsen",
+      "afbrydelser",
+      "afbrydelserne",
+      "afbrydelsens"
+    ],
+    "avoid": [
       "pause",
       "pausen",
       "pauser",
-      "pauserne"
+      "pauserne",
+      "pausens"
     ],
-    "avoid": [
-      "afbryde",
-      "break",
-      "onderbreking"
-    ],
-    "source": "tbx",
-    "status": "tbx"
+    "source": "model",
+    "status": "arbitrated"
   },
   "lag": {
     "term": "forsinkelse",

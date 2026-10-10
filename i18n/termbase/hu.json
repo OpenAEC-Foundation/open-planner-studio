@@ -1,8 +1,9 @@
 {
   "_style": {
     "address": "formal",
-    "note": "Hungarian software uses formal 'Ön' or the impersonal imperative; avoid informal 'te'.",
-    "commands": "Commands use a noun of action, like Hungarian Microsoft software: Mentés, Megnyitás, Törlés, Számítás."
+    "note": "Formal address with Ön or the impersonal imperative; never the informal te. Quotation marks are „…”, also around placeholders („{{name}}”); never straight or English quotes. Fallback (a safe default value) is 'alapértelmezés', never 'tartalék', which collides with tartalékidő (float). Hints and tooltips that tell the user to do something use the formal imperative (Válassza ki…, kapcsolja be…); never mix it with another form in one sentence. Commands (buttons, menu items) follow `commands`.",
+    "commands": "Commands use a noun of action, like Hungarian Microsoft software: Mentés, Megnyitás, Törlés, Számítás.",
+    "quotes": "„…”"
   },
   "actual-date": {
     "term": "tényleges dátum",
@@ -155,9 +156,6 @@
       "alapterv-végrehajtási index",
       "alapterv-végrehajtási indexet",
       "alapterv-végrehajtási indexek"
-    ],
-    "avoid": [
-      "végrehajtási index"
     ],
     "source": "model",
     "status": "model"
@@ -470,7 +468,8 @@
       "munkamennyiség alapú ütemezés"
     ],
     "avoid": [
-      "erőforrás-vezérelt"
+      "erőforrás-vezérelt",
+      "munkaigény-vezérelt"
     ],
     "source": "tbx",
     "status": "arbitrated"
@@ -481,9 +480,6 @@
       "eltelt időtartam",
       "eltelt időtartamot",
       "eltelt időtartamok"
-    ],
-    "avoid": [
-      "eltelt idő"
     ],
     "source": "tbx",
     "status": "tbx"
@@ -523,8 +519,7 @@
       "befejezések"
     ],
     "avoid": [
-      "vége",
-      "Befejezés"
+      "vége"
     ],
     "source": "tbx",
     "status": "tbx"
@@ -543,26 +538,24 @@
     "status": "arbitrated"
   },
   "finish-no-earlier-than": {
-    "term": "nem korábbi befejezés",
+    "term": "nem korábban befejeződő",
     "forms": [
-      "nem korábbi befejezés",
-      "nem korábbi befejezést",
-      "nem korábbi befejezése"
+      "nem korábban befejeződő"
     ],
     "avoid": [
+      "nem korábbi befejezés",
       "befejezés nem korábban"
     ],
     "source": "model",
     "status": "arbitrated"
   },
   "finish-no-later-than": {
-    "term": "nem későbbi befejezés",
+    "term": "nem később befejeződő",
     "forms": [
-      "nem későbbi befejezés",
-      "nem későbbi befejezést",
-      "nem későbbi befejezése"
+      "nem később befejeződő"
     ],
     "avoid": [
+      "nem későbbi befejezés",
       "befejezés nem később"
     ],
     "source": "model",
@@ -854,27 +847,36 @@
     "status": "model"
   },
   "leveling": {
-    "term": "simítás",
+    "term": "kiegyenlítés",
     "forms": [
-      "simítás",
-      "simítást",
-      "simítások"
+      "kiegyenlítés",
+      "kiegyenlítést",
+      "kiegyenlítése",
+      "kiegyenlítési",
+      "kiegyenlítéssel",
+      "erőforrás-kiegyenlítés"
     ],
     "avoid": [
-      "nivellálás"
+      "simítás",
+      "simítási",
+      "simítása",
+      "simítást"
     ],
-    "source": "tbx",
-    "status": "tbx"
+    "source": "model",
+    "status": "arbitrated"
   },
   "leveling-delay": {
-    "term": "simítási késleltetés",
+    "term": "kiegyenlítési késleltetés",
     "forms": [
-      "simítási késleltetés",
-      "simítási késleltetést",
-      "simítási késleltetések"
+      "kiegyenlítési késleltetés",
+      "kiegyenlítési késleltetést",
+      "kiegyenlítési késleltetése"
     ],
-    "source": "tbx",
-    "status": "tbx"
+    "avoid": [
+      "simítási késleltetés"
+    ],
+    "source": "model",
+    "status": "arbitrated"
   },
   "link-tasks": {
     "term": "összekapcsol",
@@ -1537,24 +1539,26 @@
     "status": "model"
   },
   "start-no-earlier-than": {
-    "term": "nem korábbi kezdés",
+    "term": "nem korábban kezdődő",
     "forms": [
-      "nem korábbi kezdés",
-      "nem korábbi kezdést",
-      "nem korábbi kezdések"
+      "nem korábban kezdődő"
+    ],
+    "avoid": [
+      "nem korábbi kezdés"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-no-later-than": {
-    "term": "nem későbbi kezdés",
+    "term": "nem később kezdődő",
     "forms": [
-      "nem későbbi kezdés",
-      "nem későbbi kezdést",
-      "nem későbbi kezdések"
+      "nem később kezdődő"
+    ],
+    "avoid": [
+      "nem későbbi kezdés"
     ],
     "source": "model",
-    "status": "model"
+    "status": "arbitrated"
   },
   "start-to-finish": {
     "term": "kezdés-befejezés",
