@@ -42,8 +42,10 @@ test('de spelingsband eindigt op "Laatste einde", ook over een weekend', async (
   // het einde van die dag. Ter controle: dat ligt 14 kalenderdagen (12 px) rechts van de balk.
   expect(cLeft.x - aRight.x).toBeCloseTo(14 * 12, 0);
 
-  // Lees de canvasrij van A vanaf de balkrand en zoek waar het band-groen ophoudt. Wacht tot de
-  // band geschilderd is (de F5-berekening plant een nieuwe paint).
+  // Lees de canvasrij van A en zoek waar het band-groen ophoudt. Begin 30 px vóór "Laatste einde",
+  // niet bij de balkrand: de naam "A kort" past niet in de smalle balk en staat rechts erachter,
+  // óp het begin van de band (GanttRenderer `drawOutsideBarName`). Wacht tot de band geschilderd is
+  // (de F5-berekening plant een nieuwe paint).
   const scanBandEnd = () => page.evaluate(({ x0, y }) => {
     const canvas = [...document.querySelectorAll('canvas')].find(c => {
       const r = c.getBoundingClientRect();
@@ -70,7 +72,7 @@ test('de spelingsband eindigt op "Laatste einde", ook over een weekend', async (
       end += k;
     }
     return end / sx + r.left;
-  }, { x0: aRight.x, y: aRight.y });
+  }, { x0: cLeft.x - 30, y: aRight.y });
 
   await expect.poll(scanBandEnd, { message: 'geen spelingsband achter de balk van A geschilderd' }).not.toBeNull();
   const bandEnd = (await scanBandEnd())!;
