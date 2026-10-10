@@ -399,7 +399,7 @@ Voor de eigenaar (worden één voor één voorgelegd, met voorbeeld):
 - **B3 — Melding "machinevertaling".** Geen moedertaalspreker in de keten. Voorstel: in Help een korte
   melding in de nieuwe talen, tot iemand een taal nakijkt; in de UI geen melding.
 - **B4 — Tutorials.** Voorstel: aparte fase na deze klus.
-- **B5 — `i18n:add` met 27 talen.** Voorstel: zie §11.
+- **B5 — `i18n:add` met 27 talen. BESLOTEN: voorstel §11 (nl + en verplicht, rest via de straat), eigenaar, 2026-10-10 — met de eis dat een release volledig is: de releasepoort stopt bij elke ontbrekende of verouderde vertaling (UI en, zodra die bestaan, docs).** Voorstel: zie §11.
 - **B6 — PR #301 (Lao, externe bijdrager).** Open (niet gemerged). Voorstel: eerst die PR afhandelen; `lo`
   krijgt daarna ook een termbase en een nalees-ronde door de straat.
 - **B7 — Verbruik.** Ruwe schatting ±4.500 Haiku-agentaanroepen voor alles. De proef meet het echte verbruik
