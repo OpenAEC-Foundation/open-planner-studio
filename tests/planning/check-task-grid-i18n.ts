@@ -238,11 +238,11 @@ const relationColumnWords: Record<(typeof LOCALES)[number], readonly [string, st
   cs: ['Předchůdci', 'Následníci'],
   ru: ['Предшественники', 'Последователи'],
   sv: ['Föregående', 'Efterföljande'],
+  sr: ['Претходници', 'Наследници'],
   // TIJDELIJK: de dertien nieuwe talen staan nog met Engels als vulling. Vervang deze en-woorden door
   // de woorden van de vertaling zodra de vertaalstraat de taal vult (`translate apply ui <taal>`).
   uk: ['Predecessors', 'Successors'],
   sk: ['Predecessors', 'Successors'],
-  sr: ['Predecessors', 'Successors'],
   hr: ['Predecessors', 'Successors'],
   bg: ['Predecessors', 'Successors'],
   hu: ['Predecessors', 'Successors'],
