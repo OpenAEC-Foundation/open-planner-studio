@@ -2,7 +2,7 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { readLocal, syncSettingToLocalStorage } from '@/utils/settingsStore';
 
-// --- Alleen de fallback-taal (en) wordt eager geïmporteerd. De overige 13 talen
+// --- Alleen de fallback-taal (en) wordt eager geïmporteerd. De overige 15 talen
 // laden lazy via loadLocale() (Vite splitst per taal een eigen async chunk). ---
 import enCommon from './locales/en/common.json';
 import enTask from './locales/en/task.json';
@@ -11,7 +11,7 @@ import enMenu from './locales/en/menu.json';
 
 export type Locale =
   | 'nl' | 'en' | 'fr' | 'de' | 'es' | 'zh'
-  | 'it' | 'pt' | 'pl' | 'tr' | 'ar' | 'ja' | 'ko' | 'fa';
+  | 'it' | 'pt' | 'pl' | 'tr' | 'ar' | 'ja' | 'ko' | 'lo' | 'fa';
 
 export const RTL_LOCALES: Locale[] = ['ar', 'fa'];
 
@@ -29,6 +29,7 @@ export const LANGUAGE_LABELS: Record<Locale, [string, string]> = {
   ar: ['AR', 'العربية'],
   ja: ['JA', '日本語'],
   ko: ['KO', '한국어'],
+  lo: ['LO', 'ລາວ'],
   fa: ['FA', 'فارسی'],
 };
 
