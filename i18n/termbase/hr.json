@@ -2,7 +2,8 @@
   "_style": {
     "address": "formal",
     "note": "Formal address with Vi, like Croatian Microsoft software. Hints and tooltips that tell the user to do something use the formal imperative (Odaberite…, uključite…); never mix it with the infinitive in one sentence. Commands (buttons, menu items) follow `commands`.",
-    "commands": "Commands use the short imperative, like Croatian Microsoft software: Spremi, Otvori, Izbriši, Izračunaj."
+    "commands": "Commands use the short imperative, like Croatian Microsoft software: Spremi, Otvori, Izbriši, Izračunaj.",
+    "docs": "Guides: Formal Vi and the formal imperative. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Odaberite *Spremi*.'; 'in the *Relation type* window' → 'u prozoru *Vrsta ovisnosti*'. Explanation: 'The app moves the successor to the next workday.' → 'Aplikacija premješta nasljednika na sljedeći radni dan.' Address: 'If you change the duration, your schedule is out of date.' → 'Ako promijenite trajanje, vaš raspored više nije ažuran.'"
   },
   "actual-date": {
     "term": "stvaran",

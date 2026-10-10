@@ -3,7 +3,8 @@
     "address": "formal",
     "note": "Formal address with Ön or the impersonal imperative; never the informal te. Quotation marks are „…”, also around placeholders („{{name}}”); never straight or English quotes. Fallback (a safe default value) is 'alapértelmezés', never 'tartalék', which collides with tartalékidő (float). Hints and tooltips that tell the user to do something use the formal imperative (Válassza ki…, kapcsolja be…); never mix it with another form in one sentence. Commands (buttons, menu items) follow `commands`.",
     "commands": "Commands use a noun of action, like Hungarian Microsoft software: Mentés, Megnyitás, Törlés, Számítás.",
-    "quotes": "„…”"
+    "quotes": "„…”",
+    "docs": "Guides: Formal Ön forms (third person), never te. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Válassza a *Mentés* lehetőséget.'; 'in the *Relation type* window' → 'a *Kapcsolattípus* ablakban'. Explanation: 'The app moves the successor to the next workday.' → 'Az alkalmazás a következő munkanapra helyezi az utódot.' Address: 'If you change the duration, your schedule is out of date.' → 'Ha módosítja az időtartamot, az ütemezése már nem naprakész.'"
   },
   "actual-date": {
     "term": "tényleges dátum",

@@ -1,7 +1,7 @@
 // `translate apply-findings <taal> <bestand>`: gecontroleerde verbeteringen direct in een locale zetten.
 // Pure functies: elke regel gaat door dezelfde harde poorten als `check` (via een pakket van één item);
 // een rode regel wordt overgeslagen en gemeld. De nl-bron verandert niet, dus de bron-hashes ook niet.
-import { isComplete, unitMap, type Concept, type LangTermbase, type UnitText } from './common';
+import { isComplete, uiStyle, unitMap, type Concept, type LangTermbase, type UnitText } from './common';
 import { checkUi } from './gates';
 import { avoidRules, buildLabelIndex, labelsFor, literalsFor, termsFor, type UiItem, type UiPackage, type UiSources } from './ui';
 import { orderLike, setTranslation, type JsonObject } from '../i18n-tools';
@@ -128,7 +128,7 @@ export function applyFindings(opts: {
     const items = [item];
     const pkg: UiPackage = {
       kind: 'ui', lang: opts.lang, namespace: ns, id: 'findings', mode: 'keys',
-      ...(opts.termbase?._style ? { style: opts.termbase._style } : {}),
+      ...(opts.termbase?._style ? { style: uiStyle(opts.termbase._style) } : {}),
       terms: termsFor(items, opts.concepts, opts.termbase),
       tokens: literalsFor(items, opts.concepts, 'token'),
       keep: literalsFor(items, opts.concepts, 'keep'),

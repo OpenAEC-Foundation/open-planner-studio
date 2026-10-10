@@ -3,7 +3,8 @@
     "address": "formal",
     "note": "Formal address (вы). Never use the letter ё; always е, like Russian Microsoft software (расчет, учет, еще, отчета). In running text the Gantt chart is 'диаграмма Ганта'; keep the bare name Gantt only where it is a fixed product or column name. Quotation marks are «…», also around placeholders («{{name}}»). Hints and tooltips that tell the user to do something use the polite imperative (-те: перетащите…, щелкните…); never mix it with the infinitive in one sentence. Commands (buttons, menu items, ribbon, context menu) follow `commands`.",
     "commands": "Commands (buttons, menu, ribbon, context menu) use the infinitive, like Russian Microsoft software: Сохранить, Открыть, Удалить, Рассчитать. Never the imperative (Сохраните).",
-    "quotes": "«…»"
+    "quotes": "«…»",
+    "docs": "Guides: Formal вы and the polite imperative; no ё. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Выберите *Сохранить*.'; 'in the *Relation type* window' → 'в окне *Тип связи*'. Explanation: 'The app moves the successor to the next workday.' → 'Приложение переносит последователя на следующий рабочий день.' Address: 'If you change the duration, your schedule is out of date.' → 'Если вы измените длительность, ваш график уже не будет актуальным.'"
   },
   "actual-date": {
     "term": "фактический",

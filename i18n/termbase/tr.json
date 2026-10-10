@@ -1,7 +1,8 @@
 {
   "_style": {
     "address": "formal",
-    "note": "The UI addresses the user with siz (polite plural imperatives such as girin, seçin, değiştirin). Use the same polite form in new texts."
+    "note": "The UI addresses the user with siz (polite plural imperatives such as girin, seçin, değiştirin). Use the same polite form in new texts.",
+    "docs": "Guides: Formal siz and the polite imperative (-in/-ın), as in the UI. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → '*Kaydet* öğesini seçin.'; 'in the *Relation type* window' → '*İlişki türü* penceresinde'. Explanation: 'The app moves the successor to the next workday.' → 'Uygulama ardılı bir sonraki iş gününe taşır.' Address: 'If you change the duration, your schedule is out of date.' → 'Süreyi değiştirirseniz planlamanız artık güncel olmaz.'"
   },
   "actual-date": {
     "term": "gerçek tarih",

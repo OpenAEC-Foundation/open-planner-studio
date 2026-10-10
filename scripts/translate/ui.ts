@@ -1,7 +1,7 @@
 // UI-straat: werkpakketten maken (§5.1), samenvoegen (§9), basislijn en status. Pure functies.
 import {
   containsTerm, countToken, findAvoid, hasUiBaseline, hashUnit, isComplete, nestings, placeholders, pluralExamples,
-  termEntries, textsOf, unitMap,
+  termEntries, textsOf, uiStyle, unitMap,
   unitsOf, type Concept, type LangTermbase, type Style, type Unit, type UnitText,
 } from './common';
 import { orderLike, setTranslation, type JsonObject, type Namespace } from '../i18n-tools';
@@ -59,7 +59,7 @@ export type Selection = 'missing' | 'stale' | 'all';
  * Is de eenheid in de doeltaal vertaald? Compleet (alle CLDR-categorieën), en in een taal zonder
  * basislijn (`hasUiBaseline`) ook met een bron-hash: daar is tekst zonder hash Engelse vulling.
  */
-function isTranslated(t: Unit | undefined, u: Unit, lang: string, hashes: Record<string, string>): boolean {
+export function isTranslated(t: Unit | undefined, u: Unit, lang: string, hashes: Record<string, string>): boolean {
   return isComplete(t, u, lang) && (hasUiBaseline(lang) || hashes[u.key] !== undefined);
 }
 
@@ -344,7 +344,7 @@ export function buildUiPackages(opts: {
         id: `ui-${input.ns}-${String(i + 1).padStart(2, '0')}`,
         mode,
         ...(opts.avoid ? { reason: 'avoid' as const } : {}),
-        ...(opts.termbase?._style ? { style: opts.termbase._style } : {}),
+        ...(opts.termbase?._style ? { style: uiStyle(opts.termbase._style) } : {}),
         terms: termsFor(items, opts.concepts, opts.termbase, hitIds),
         tokens: literalsFor(items, opts.concepts, 'token'),
         keep: literalsFor(items, opts.concepts, 'keep'),

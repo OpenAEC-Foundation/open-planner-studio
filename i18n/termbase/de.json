@@ -1,7 +1,8 @@
 {
   "_style": {
     "address": "formal",
-    "note": "De bestaande Duitse UI spreekt de gebruiker in de Sie-vorm aan (z. B. 'Prüfen Sie Beziehungen', 'Ihre Planung')."
+    "note": "De bestaande Duitse UI spreekt de gebruiker in de Sie-vorm aan (z. B. 'Prüfen Sie Beziehungen', 'Ihre Planung').",
+    "docs": "Guides: Formal Sie, as in most of the UI (about 170 Sie forms against about 20 du forms). A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Wählen Sie *Speichern*.'; 'in the *Relation type* window' → 'im Fenster *Beziehungstyp*'. Explanation: 'The app moves the successor to the next workday.' → 'Die App verschiebt den Nachfolger auf den nächsten Arbeitstag.' Address: 'If you change the duration, your schedule is out of date.' → 'Wenn Sie die Dauer ändern, ist Ihr Terminplan nicht mehr aktuell.'"
   },
   "actual-date": {
     "term": "Ist-Werte",

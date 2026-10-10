@@ -90,6 +90,7 @@ export function styleErrors(s: unknown, where: string): string[] {
   if (s.note !== undefined && typeof s.note !== 'string') e.push(`${where}: _style.note moet tekst zijn`);
   if (s.commands !== undefined && typeof s.commands !== 'string') e.push(`${where}: _style.commands moet tekst zijn`);
   if (s.quotes !== undefined && typeof s.quotes !== 'string') e.push(`${where}: _style.quotes moet tekst zijn`);
+  if (s.docs !== undefined && typeof s.docs !== 'string') e.push(`${where}: _style.docs moet tekst zijn`);
   return e;
 }
 

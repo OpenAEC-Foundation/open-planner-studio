@@ -6,6 +6,10 @@ import {
 } from './common';
 import { conceptErrors, styleErrors, termEntryErrors } from './termbase';
 import type { UiLabel, UiPackage } from './ui';
+import { sectionHash, splitSections, structureOf, subsetErrors, type DocSection } from '../lib/docs-structure';
+import {
+  avoidWords, blocksOf, codesOf, hasStem, outSections, type Block, type DocsPackage,
+} from './docs';
 import type { TermsCheckPackage, TermsPackage } from './tbx';
 
 export interface CheckResult { errors: string[]; warnings: string[] }
@@ -171,6 +175,162 @@ export function checkTermsCheckOut(pkg: TermsCheckPackage, out: unknown): CheckR
   return { errors, warnings: [] };
 }
 
+// ── Docs (§7) ────────────────────────────────────────────────────────────────────────────────
+
+const bag = (xs: string[]): Map<string, number> => {
+  const m = new Map<string, number>();
+  for (const x of xs) m.set(x, (m.get(x) ?? 0) + 1);
+  return m;
+};
+const BLOCK_NAME: Record<Block['kind'], string> = {
+  h1: 'een #-kop', h2: 'een ##-kop', h3: 'een ###-kop', p: 'een alinea', ul: 'een opsomming (-)', ol: 'een genummerde lijst (1.)',
+  img: 'een afbeelding', code: 'een codeblok',
+};
+const short = (s: string) => (s.length > 60 ? `${s.slice(0, 57)}…` : s);
+const NON_ASCII_DIGIT = /(?![0-9])\p{Nd}/u;
+const CJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+
+/** Patroon van een UI-tekst met `{{…}}` als open plek (labelsoort b). */
+const fillRe = (target: string): RegExp =>
+  new RegExp(target.split(/\{\{\s*[\w.-]+\s*\}\}/).map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.+?'), 'u');
+
+/** Harde en zachte poorten voor één sectie: bron (en) tegen vertaling. */
+function checkDocsSection(pkg: DocsPackage, idx: number, src: DocSection, out: DocSection, errors: string[], warnings: string[]): void {
+  const at = `sectie ${idx}${src.heading ? ` (${short(src.heading)})` : ''}`;
+  const o = out.text;
+  const s = src.text;
+  if (o.trim() === '') { errors.push(`${at}: leeg`); return; }
+
+  // Opbouw: dezelfde blokken in dezelfde volgorde (koppen, alinea's, lijsten, afbeeldingen).
+  const sb = blocksOf(s);
+  const ob = blocksOf(o);
+  for (let i = 0; i < Math.max(sb.length, ob.length); i++) {
+    const a = sb[i];
+    const b = ob[i];
+    if (a && b && a.kind === b.kind) {
+      if (a.items !== b.items) errors.push(`${at}, regel ${b.line}: lijst met ${b.items} item(s), de bron heeft er ${a.items}`);
+      continue;
+    }
+    if (b?.kind === 'ol' && a?.kind !== 'ol') {
+      errors.push(`${at}, regel ${b.line}: "${short(b.text)}" begint met een getal en een punt; miniMarkdown maakt daar een genummerde lijst, de bron niet — zet het getal niet vooraan`);
+    } else if (!b) {
+      errors.push(`${at}: ${BLOCK_NAME[a!.kind]} ontbreekt (bron regel ${a!.line}: "${short(a!.text)}")`);
+    } else {
+      errors.push(`${at}, regel ${b.line}: ${BLOCK_NAME[b.kind]}, de bron heeft daar ${a ? BLOCK_NAME[a.kind] : 'niets meer'}`);
+    }
+    break;
+  }
+  // Een regel "18. června" midden in een alinea wordt een genummerde lijst (ook als de opbouw al eerder afweek).
+  const lines = o.split('\n');
+  lines.forEach((line, i) => {
+    const prev = i > 0 ? lines[i - 1] : '';
+    if (/^\d+\.\s/.test(line) && prev.trim() !== '' && !/^(\d+\.|[-*])\s/.test(prev)) {
+      const msg = `${at}, regel ${i + 1}: "${short(line)}" begint met een getal en een punt; miniMarkdown maakt daar een genummerde lijst, de bron niet — zet het getal niet vooraan`;
+      if (!errors.includes(msg)) errors.push(msg);
+    }
+  });
+  const ss = structureOf(s);
+  const os = structureOf(o);
+  if (ss.headings.join() !== os.headings.join()) errors.push(`${at}: kopniveaus [${os.headings.join(', ')}], de bron [${ss.headings.join(', ')}]`);
+  if (ss.links.join('\n') !== os.links.join('\n')) errors.push(`${at}: links ${os.links.join(' ') || '(geen)'} ≠ bron ${ss.links.join(' ') || '(geen)'} (doelen en volgorde ongewijzigd)`);
+  if (ss.images.join('\n') !== os.images.join('\n')) errors.push(`${at}: afbeeldingen ${os.images.join(' ') || '(geen)'} ≠ bron ${ss.images.join(' ') || '(geen)'}`);
+  if (ss.listItems !== os.listItems) errors.push(`${at}: ${os.listItems} lijstitem(s), de bron ${ss.listItems}`);
+
+  // Inline code: byte-gelijk, behalve de display-voorbeelden.
+  const sc = codesOf(s);
+  const oc = codesOf(o);
+  if (sc.length !== oc.length) errors.push(`${at}: ${oc.length} inline-code-stuk(ken), de bron ${sc.length}`);
+  const display = pkg.display ?? [];
+  const have = bag(oc);
+  for (const [code, n] of bag(sc.filter(c => !display.includes(c)))) {
+    if ((have.get(code) ?? 0) < n) errors.push(`${at}: inline code \`${code}\` ontbreekt of is veranderd (byte-gelijk overnemen)`);
+  }
+
+  // Cijfers: elke cijferreeks van de bron staat er, alleen ASCII-cijfers.
+  const bad = o.match(new RegExp(NON_ASCII_DIGIT.source, 'gu'));
+  if (bad) errors.push(`${at}: niet-ASCII-cijfers ${[...new Set(bad)].join(' ')} — schrijf 0-9`);
+  const sd = bag(s.match(/[0-9]+/g) ?? []);
+  const od = bag(o.match(/[0-9]+/g) ?? []);
+  for (const [d, n] of sd) if ((od.get(d) ?? 0) < n) errors.push(`${at}: getal ${d} staat ${n}× in de bron, ${od.get(d) ?? 0}× in de vertaling`);
+  const extra = [...od].filter(([d, n]) => n > (sd.get(d) ?? 0)).map(([d]) => d);
+  if (extra.length) warnings.push(`${at}: getallen die de bron niet heeft: ${extra.join(', ')}`);
+
+  // Labels (§5.3).
+  for (const l of pkg.labels.filter(x => x.section === idx)) {
+    const what = `label *${short(l.en)}*${l.keys ? ` (${l.keys.slice(0, 2).join(', ')}${l.keys.length > 2 ? ', …' : ''})` : ''}`;
+    if (l.kind === 'c') {
+      if (!o.includes(l.en)) errors.push(`${at}: ${what} moet letterlijk blijven: "${l.en}"`);
+      continue;
+    }
+    const targets = l.targets ?? [];
+    if (targets.length === 0) { warnings.push(`${at}: ${what} heeft nog geen vertaling in de UI; vertaal het als korte UI-naam`); continue; }
+    const okLabel = l.kind === 'a' ? targets.some(t => o.includes(t)) : targets.some(t => fillRe(t).test(o));
+    if (!okLabel) {
+      errors.push(`${at}: ${what} moet ${l.kind === 'a' ? 'letterlijk' : 'volgens het patroon'} "${targets.slice(0, 3).join('" of "')}"${targets.length > 3 ? ' (of een andere kandidaat uit het pakket)' : ''} zijn`);
+    }
+  }
+
+  // Tokens en keep-namen.
+  for (const t of pkg.tokens) if (countToken(s, t) > 0 && countToken(o, t) === 0) errors.push(`${at}: token "${t}" ontbreekt (nooit vertalen)`);
+  for (const k of pkg.keep) if (countToken(s, k) > 0 && countToken(o, k) === 0) errors.push(`${at}: naam "${k}" ontbreekt (niet vertalen)`);
+  for (const k of pkg.keepSoft ?? []) if (countToken(s, k) > 0 && countToken(o, k) === 0) warnings.push(`${at}: naam "${k}" niet letterlijk (mag in deze taal)`);
+
+  // Zacht: termen (één waarschuwing per concept per sectie), avoid als los woord, lengte, gelijk aan en.
+  for (const t of pkg.terms) {
+    if (!t.en.some(e => hasStem(s, e))) continue;
+    const forms = t.forms.length ? t.forms : [t.target];
+    if (!forms.some(f => hasStem(o, f))) warnings.push(`${at}: term "${t.target}" (${t.id}) niet gevonden`);
+    for (const a of avoidWords(o, forms, t.avoid ?? [])) warnings.push(`${at}: vermijd "${a}" (${t.id})`);
+  }
+  const ratio = o.length / Math.max(1, s.length);
+  if (ratio > 1.8) warnings.push(`${at}: ${o.length} tekens, de bron ${s.length} (>1,8×)`);
+  if (ratio < (CJK.test(o) ? 0.15 : 0.4)) warnings.push(`${at}: ${o.length} tekens, de bron ${s.length} (veel korter: iets weggelaten?)`);
+  if (sectionHash(o) === sectionHash(s)) warnings.push(`${at}: gelijk aan en`);
+}
+
+/** Geen kop twee keer (behalve als de bron hem ook twee keer heeft). */
+function duplicateHeadings(src: string, out: string): string[] {
+  const heads = (md: string) => blocksOf(md).filter(b => b.kind.startsWith('h')).map(b => b.text.trim());
+  const sb = bag(heads(src));
+  return [...bag(heads(out))].filter(([h, n]) => n > 1 && n > (sb.get(h) ?? 0)).map(([h]) => `kop "${short(h)}" staat ${'meer dan één'} keer in de vertaling`);
+}
+
+/**
+ * De docs-poort (§7): `.out.md` tegen `.src.md` en het pakket. Hard: dezelfde secties, blokken,
+ * kopniveaus, links, afbeeldingen en lijstitems; de miniMarkdown-subset; geen dubbele kop; labels a/b/c;
+ * inline code byte-gelijk (behalve `display`); dezelfde cijferreeksen, alleen ASCII-cijfers; tokens en
+ * keep-namen. Zacht: termen per sectie, avoid als los woord, lengte, gelijk aan en.
+ */
+export function checkDocs(pkg: DocsPackage, srcMd: string, outMd: string): CheckResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  if (outMd.trim() === '') return { errors: ['uitvoer: leeg'], warnings };
+  const srcSecs = outSections(pkg, srcMd);
+  if ('error' in srcSecs) return { errors: [`.src.md past niet bij het pakket: ${srcSecs.error}`], warnings };
+  for (const line of subsetErrors(outMd)) errors.push(`regel ${line} (buiten de Markdown-subset)`);
+  errors.push(...duplicateHeadings(srcMd, outMd));
+  const outSecs = outSections(pkg, outMd);
+  if ('error' in outSecs) { errors.push(outSecs.error); return { errors, warnings }; }
+  pkg.sections.forEach((meta, k) => checkDocsSection(pkg, meta.index, srcSecs[k], outSecs[k], errors, warnings));
+  return { errors, warnings };
+}
+
+/**
+ * De poort op een samengevoegd artikel (`apply docs`): alleen wat over het hele artikel gaat — de
+ * opbouw gelijk aan de en-bron, de subset, geen dubbele kop, een H1.
+ */
+export function checkDocsArticle(enMd: string, md: string): string[] {
+  const errors: string[] = [];
+  const a = structureOf(enMd);
+  const b = structureOf(md);
+  if (JSON.stringify(a) !== JSON.stringify(b)) errors.push(`opbouw wijkt af van en: ${JSON.stringify(b)} ≠ ${JSON.stringify(a)}`);
+  for (const line of subsetErrors(md)) errors.push(`regel ${line} (buiten de Markdown-subset)`);
+  errors.push(...duplicateHeadings(enMd, md));
+  if (!/^#\s+\S/m.test(md)) errors.push('geen #-kop (titel)');
+  if (splitSections(md).length !== splitSections(enMd).length) errors.push('aantal ##-secties wijkt af van en');
+  return errors;
+}
+
 /** Kies de poort op basis van `kind` in het pakket. */
 export function checkPackage(pkg: unknown, out: unknown): CheckResult {
   if (!isRecord(pkg)) return { errors: ['pakket: geen object'], warnings: [] };
@@ -179,6 +339,7 @@ export function checkPackage(pkg: unknown, out: unknown): CheckResult {
     case 'concepts': return checkConceptsOut(out);
     case 'terms': return checkTermsOut(pkg as unknown as TermsPackage, out);
     case 'terms-check': return checkTermsCheckOut(pkg as unknown as TermsCheckPackage, out);
+    case 'docs': return { errors: ['pakket: docs-pakket — controleer met checkDocs (`.src.md` en `.out.md`)'], warnings: [] };
     default: return { errors: [`pakket: onbekend kind "${String(pkg.kind)}"`], warnings: [] };
   }
 }

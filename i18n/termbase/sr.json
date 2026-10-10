@@ -3,7 +3,8 @@
     "address": "formal",
     "note": "Serbian in Cyrillic script, Ekavian standard (извештај, додела; not извјештај, додјела). Formal address with the plural Ви, like Serbian Microsoft software: 'Унесите вредност.' Terms are nouns in the nominative singular, except where the concept is an adjective or a verb. Only keep and token names (IFC, MS Project, DCMA, FS, SS) stay in Latin script. Quotation marks are „…“, also around placeholders (за „{{name}}“); never straight quotes. Hints and tooltips that tell the user to do something use the plural imperative (Изаберите…, укључите…); never mix it with another form in one sentence. Commands (buttons, menu items) follow `commands`.",
     "commands": "Commands (buttons, menu items, ribbon, context menu) use the singular imperative, like Serbian Microsoft software: Сачувај, Отвори, Избриши, Израчунај. Sentences that ask the user to act use the plural imperative: Сачувајте пројекат.",
-    "quotes": "„…“"
+    "quotes": "„…“",
+    "docs": "Guides: Formal Ви and the plural imperative, Cyrillic, Ekavian. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Изаберите *Сачувај*.'; 'in the *Relation type* window' → 'у прозору *Тип зависности*'. Explanation: 'The app moves the successor to the next workday.' → 'Апликација помера наследника на следећи радни дан.' Address: 'If you change the duration, your schedule is out of date.' → 'Ако промените трајање, ваш распоред више није ажуран.'"
   },
   "actual-date": {
     "term": "стварни",

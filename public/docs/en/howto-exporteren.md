@@ -50,7 +50,7 @@ You read a filled-in progress sheet back through *File › Import*. See [Importi
 
 **Split tasks lose their splits.** MS Project and Primavera only know a split as an hour distribution. If your project contains split tasks without an hour distribution, the app reports after an export to MS Project XML or P6 XML: *2 tasks with breaks were exported without their breaks: MS Project/P6 only know breaks as a work distribution.* For one task it says *1 task with breaks was exported without its breaks: MS Project/P6 only know breaks as a work distribution.* See [Splitting a task](docs://howto-taak-splitsen).
 
-**A schedule in the view *Dates as recorded*.** If you export to CSV while you see the dates from the source file, the app leaves *Critical* and *Total Float* empty for tasks for which the source file did not record that. See [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen).
+**A schedule in the view *Dates as recorded*.** If you export to CSV while you see the dates from the source file, the app leaves `Critical` and `Total Float` empty for tasks for which the source file did not record that. See [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen).
 
 ## See also
 

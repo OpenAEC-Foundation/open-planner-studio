@@ -1,7 +1,8 @@
 {
   "_style": {
     "address": "informal",
-    "note": "De app spreekt de gebruiker aan met de jij-vorm (gebiedende wijs zoals Premi, Verifica, Modificalo)."
+    "note": "De app spreekt de gebruiker aan met de jij-vorm (gebiedende wijs zoals Premi, Verifica, Modificalo).",
+    "docs": "Guides: Informal tu and the imperative, as in the UI. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Scegli *Salva*.'; 'in the *Relation type* window' → 'nella finestra *Tipo di relazione*'. Explanation: 'The app moves the successor to the next workday.' → 'L'app sposta il successore al giorno lavorativo successivo.' Address: 'If you change the duration, your schedule is out of date.' → 'Se modifichi la durata, la tua pianificazione non è più aggiornata.'"
   },
   "actual-date": {
     "term": "data effettiva",

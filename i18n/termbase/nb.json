@@ -2,7 +2,8 @@
   "_style": {
     "address": "informal",
     "note": "Informal address with du, like Norwegian Microsoft software. Write compounds as one word, as Bokmål does (standardzoom, grunnlinjeoverlegg); use a hyphen only after an abbreviation or a name (ID-er, MS Project-fil). Write ID in capitals; plural ID-er. Hints and tooltips that tell the user to do something use the imperative (Velg…, slå på…), the same form as commands.",
-    "commands": "Commands use the imperative, like Norwegian Microsoft software: Lagre, Åpne, Slett, Beregn."
+    "commands": "Commands use the imperative, like Norwegian Microsoft software: Lagre, Åpne, Slett, Beregn.",
+    "docs": "Guides: Informal du and the imperative, as in the UI. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Velg *Lagre*.'; 'in the *Relation type* window' → 'i vinduet *Type avhengighet*'. Explanation: 'The app moves the successor to the next workday.' → 'Appen flytter etterfølgeren til neste arbeidsdag.' Address: 'If you change the duration, your schedule is out of date.' → 'Hvis du endrer varigheten, er tidsplanen din ikke lenger oppdatert.'"
   },
   "actual-date": {
     "term": "faktisk",

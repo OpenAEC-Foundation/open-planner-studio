@@ -18,9 +18,9 @@ Kies *Planning › Voortgang › Voortgangsblad exporteren*. Dezelfde knop staat
 
 Het blad heeft acht kolommen. De kolomnamen blijven Engels, met een korte instructie in de taal van de app erachter:
 
-- *OPS Task ID*, *WBS* en *Name* zijn alleen om de taak te herkennen. Laat ze staan.
-- *Start* en *Finish* zijn de geplande datums, ter informatie. De app schrijft ze nooit terug.
-- *Completion (%)*, *Actual Start* en *Actual Finish* vul je in.
+- `OPS Task ID`, `WBS` en `Name` zijn alleen om de taak te herkennen. Laat ze staan.
+- `Start` en `Finish` zijn de geplande datums, ter informatie. De app schrijft ze nooit terug.
+- `Completion (%)`, `Actual Start` en `Actual Finish` vul je in.
 
 Het Excel-blad is beveiligd, zonder wachtwoord: alleen de drie invulkolommen zijn te bewerken. Excel controleert dat een percentage tussen 0 en 100 ligt en dat een werkelijke datum een datum is. Een fase (samenvattende taak) is grijs gemarkeerd met *— verzameltaak: niet invullen*.
 
@@ -28,8 +28,8 @@ Het Excel-blad is beveiligd, zonder wachtwoord: alleen de drie invulkolommen zij
 
 De uitvoerder vult per taak in:
 
-- *Completion (%)*: 0 tot en met 100. In het Excel-blad mag met decimalen (bijvoorbeeld 33,3); in de CSV vraagt de instructie om hele getallen.
-- *Actual Start* en *Actual Finish*: in Excel als datum in de eigen landinstelling; in de CSV als dd-mm-jjjj.
+- `Completion (%)`: 0 tot en met 100. In het Excel-blad mag met decimalen (bijvoorbeeld 33,3); in de CSV vraagt de instructie om hele getallen.
+- `Actual Start` en `Actual Finish`: in Excel als datum in de eigen landinstelling; in de CSV als dd-mm-jjjj.
 
 Wat leeg blijft, verandert niets. Met een leeg vak wis je dus ook geen bestaande voortgang; dat kan alleen in de app. Een taak die niet gestart is, laat hij helemaal leeg.
 
@@ -49,7 +49,7 @@ Het inlezen rekent zelf niet door. Druk op **Bereken** (F5), bijvoorbeeld via *P
 
 ## Rijen die niet zonder meer passen
 
-De app koppelt elke rij aan een taak, eerst op *OPS Task ID* en anders op het WBS-nummer.
+De app koppelt elke rij aan een taak, eerst op `OPS Task ID` en anders op het WBS-nummer.
 
 **Koppeling betwijfeld.** Vond de app de taak alleen op WBS-nummer, dan staat de rij onder *Koppeling betwijfeld*, met *Bevestigen* en *Wijzigen*. De rij wordt ook toegepast als je niets doet; controleer dus of de taak klopt. *Bevestigen* haalt de rij uit deze lijst; aan wat er wordt toegepast verandert het niets. *Wijzigen* laat je een andere taak kiezen. Met *Koppeling wissen* haal je een koppeling die je zelf legde weer weg. Let op: een blad van een ander project met dezelfde WBS-nummers wordt wél gekoppeld, onder *Koppeling betwijfeld*, en bij *Toepassen* doorgevoerd.
 

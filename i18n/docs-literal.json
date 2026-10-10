@@ -1,0 +1,61 @@
+{
+  "_note": "Docs-straat (ontwerp §5.3). sources/manual: labelsoort c — namen die in elke taal letterlijk (byte-gelijk) blijven en nooit een UI-label zijn. Een naam onder sources moet als tekst in dat bestand staan (tests/planning/check-translate-docs.ts). display: per artikel de inline code die de app per taal anders toont (eenheden, opmaak); de check eist die niet byte-gelijk. keepTranslated: keep-namen die een taal in lopende tekst wel vertaalt (zacht in plaats van hard).",
+  "sources": {
+    "scripts/tutorial-project.ts": [
+      "House extension",
+      "Construction calendar NL",
+      "Preparation",
+      "Foundations",
+      "Shell",
+      "Finishing",
+      "Start of construction",
+      "Set up site",
+      "Clear garden and paving",
+      "Set out the extension",
+      "Excavate foundation trench",
+      "Foundation formwork and reinforcement",
+      "Reinforcement inspection",
+      "Pour foundation",
+      "Foundation brickwork",
+      "Lay hollow-core floor",
+      "Build inner cavity leaf",
+      "Build outer cavity leaf",
+      "Place roof elements",
+      "Apply roofing",
+      "Install window frames",
+      "Break through rear wall",
+      "Install building services",
+      "Plastering",
+      "Lay floor screed",
+      "Tiling",
+      "Painting",
+      "Snagging and cleaning",
+      "Handover",
+      "Carpentry crew",
+      "Bricklayer",
+      "Mobile crane",
+      "Plasterer",
+      "Concrete"
+    ],
+    "src/engine/calendar/defaultCalendar.ts": [
+      "Bouwkalender NL",
+      "Standaardkalender"
+    ],
+    "src/services/csv/csvReader.ts": [
+      "CSV Import"
+    ]
+  },
+  "manual": [],
+  "keepTranslated": {
+    "ru": ["Gantt"]
+  },
+  "display": {
+    "howto-relaties-leggen": ["+3d", "+4u", "+2d"],
+    "ref-instellingen": ["2.25d(18h)"],
+    "uitleg-dagen-en-uren": ["2.25d(18h)", "16h", "37h"],
+    "ref-tabelkolommen": ["← 1.2", "→ 1.4", "← 1.2: 3d", "Split gaps: 2", "Name: 1; Name: 0.5", "Name: Uniform", "Name: date", "Name: 12", "Name: 6", "<baseline> — Scheduled start", "✓ text; ○ text", "WBS type±lag", "40%"],
+    "ref-meldingen": ["WBS name", "predecessor → successor (FS+2d)"],
+    "ref-taak-eigenschappen": ["code — description"],
+    "ref-ai-tools": ["<project name>-<timestamp>.ifc"]
+  }
+}
