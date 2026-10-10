@@ -3,7 +3,8 @@
     "address": "informal",
     "note": "Informal address with du, like Swedish Microsoft software. Buttons and menu items use the imperative from `commands` (Stäng, Spara), never the infinitive (Stänga). Hints and tooltips that tell the user to do something also use the imperative (Välj…, aktivera…). Quotation marks are ”…”, also around placeholders (”{{name}}”). 'datum' is neuter: det datumet, inget datum.",
     "commands": "Commands use the imperative, like Swedish Microsoft software: Spara, Öppna, Ta bort, Beräkna.",
-    "quotes": "”…”"
+    "quotes": "”…”",
+    "docs": "Guides: Informal du and the imperative, as in the UI. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Välj *Spara*.'; 'in the *Relation type* window' → 'i fönstret *Typ av samband*'. Explanation: 'The app moves the successor to the next workday.' → 'Appen flyttar den efterföljande uppgiften till nästa arbetsdag.' Address: 'If you change the duration, your schedule is out of date.' → 'Om du ändrar varaktigheten är din tidsplan inte längre aktuell.'"
   },
   "actual-date": {
     "term": "verklig",

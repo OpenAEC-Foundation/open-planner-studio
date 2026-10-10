@@ -2,7 +2,8 @@
   "_style": {
     "address": "informal",
     "note": "Informal address with du, like Danish Microsoft software. Fallback (a safe default value) is 'sikker standardværdi', never 'reserve' (which means backup or stock). Hints and tooltips that tell the user to do something use the imperative (Vælg…, slå … til), the same form as commands.",
-    "commands": "Commands use the imperative, like Danish Microsoft software: Gem, Åbn, Slet, Beregn."
+    "commands": "Commands use the imperative, like Danish Microsoft software: Gem, Åbn, Slet, Beregn.",
+    "docs": "Guides: Informal du and the imperative, as in the UI. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Vælg *Gem*.'; 'in the *Relation type* window' → 'i vinduet *Type afhængighed*'. Explanation: 'The app moves the successor to the next workday.' → 'Appen flytter den efterfølgende opgave til næste arbejdsdag.' Address: 'If you change the duration, your schedule is out of date.' → 'Hvis du ændrer varigheden, er din tidsplan ikke længere opdateret.'"
   },
   "actual-date": {
     "term": "faktisk",

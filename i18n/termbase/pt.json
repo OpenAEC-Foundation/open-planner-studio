@@ -1,7 +1,8 @@
 {
   "_style": {
     "address": "formal",
-    "note": "Tratamento formal (você, imperativo de 3.ª pessoa: Verifique, Escolha, Defina, Altere), como nos textos ui. Português europeu (ficheiro, planeamento)."
+    "note": "Tratamento formal (você, imperativo de 3.ª pessoa: Verifique, Escolha, Defina, Altere), como nos textos ui. Português europeu (ficheiro, planeamento).",
+    "docs": "Guides: Formal (third-person imperative, no tu), European Portuguese, as in the UI. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Escolha *Guardar*.'; 'in the *Relation type* window' → 'na janela *Tipo de relação*'. Explanation: 'The app moves the successor to the next workday.' → 'A aplicação move a sucessora para o dia útil seguinte.' Address: 'If you change the duration, your schedule is out of date.' → 'Se alterar a duração, o seu planeamento deixa de estar atualizado.'"
   },
   "actual-date": {
     "term": "data real",

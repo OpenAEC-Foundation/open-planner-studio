@@ -1,6 +1,6 @@
 // Microsoft Terminology Collection (TBX) lezen en per concept kandidaat-termen zoeken (§4.3).
 // De TBX blijft lokaal (build/cache/msterms, licentie §13); hier alleen pure functies.
-import { containsTerm, textsOf, unitsOf, type Concept, type LangTermbase, type Style } from './common';
+import { containsTerm, textsOf, uiStyle, unitsOf, type Concept, type LangTermbase, type Style } from './common';
 import type { JsonObject } from '../i18n-tools';
 
 export interface TbxTarget {
@@ -177,7 +177,7 @@ export function buildTermsPackages(opts: {
       lang: opts.lang,
       id: `terms-${String(n).padStart(2, '0')}`,
       existingUi: opts.ui !== undefined,
-      ...(opts.termbase?._style ? { style: opts.termbase._style } : {}),
+      ...(opts.termbase?._style ? { style: uiStyle(opts.termbase._style) } : {}),
       concepts: todo.slice(i, i + size).map(c => ({
         id: c.id, kind: 'term', nl: c.nl, en: c.en, definition: c.definition,
         candidates: candidatesFor(c, opts.idx),

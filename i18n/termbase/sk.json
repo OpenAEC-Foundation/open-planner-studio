@@ -3,7 +3,8 @@
     "address": "formal",
     "note": "Formal address (vy). Quotation marks are „…“, also around placeholders („{{name}}“); never straight or English quotes. A ribbon tab is 'karta' (na karte Plán), not 'ponuka'. Hints and tooltips that tell the user to do something use the formal imperative (Vyberte…, zapnite…); never mix it with the infinitive in one sentence. Commands (buttons, menu items, context menu) follow `commands`.",
     "commands": "Commands use the infinitive, like Slovak Microsoft software: Uložiť, Otvoriť, Odstrániť, Prepočítať.",
-    "quotes": "„…“"
+    "quotes": "„…“",
+    "docs": "Guides: Formal vy and the formal imperative. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Vyberte *Uložiť*.'; 'in the *Relation type* window' → 'v okne *Typ závislosti*'. Explanation: 'The app moves the successor to the next workday.' → 'Aplikácia presunie nasledujúcu úlohu na ďalší pracovný deň.' Address: 'If you change the duration, your schedule is out of date.' → 'Ak zmeníte trvanie, váš plán už nie je aktuálny.'"
   },
   "actual-date": {
     "term": "skutočný",

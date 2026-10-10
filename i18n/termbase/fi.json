@@ -2,7 +2,8 @@
   "_style": {
     "address": "formal",
     "note": "Finnish software uses impersonal forms, not sinä or te. Labels stay short and neutral. Hints and tooltips that tell the user to do something use the imperative without a pronoun (Valitse…, ota käyttöön…), the same form as commands; never mix it with the infinitive in one sentence.",
-    "commands": "Commands use the imperative, like Finnish Microsoft software: Tallenna, Avaa, Poista, Laske."
+    "commands": "Commands use the imperative, like Finnish Microsoft software: Tallenna, Avaa, Poista, Laske.",
+    "docs": "Guides: Imperative without a pronoun for steps; elsewhere impersonal (passive) forms, never sinä or te. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Valitse *Tallenna*.'; 'in the *Relation type* window' → '*Riippuvuuden tyyppi* -ikkunassa'. Explanation: 'The app moves the successor to the next workday.' → 'Sovellus siirtää seuraajan seuraavalle työpäivälle.' Address: 'If you change the duration, your schedule is out of date.' → 'Jos kestoa muutetaan, aikataulu ei ole enää ajan tasalla.'"
   },
   "actual-date": {
     "term": "todellinen",

@@ -1,7 +1,8 @@
 {
   "_style": {
     "address": "formal",
-    "note": "The existing Japanese UI uses polite forms (です/ます, ください, できません). Follow the ui texts."
+    "note": "The existing Japanese UI uses polite forms (です/ます, ください, できません). Follow the ui texts.",
+    "docs": "Guides: Polite です/ます forms, as in the UI; no あなた. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → '*保存* を選択します。'; 'in the *Relation type* window' → '*関係の種類* ウィンドウで'. Explanation: 'The app moves the successor to the next workday.' → 'アプリは後続タスクを次の稼働日に移動します。' Address: 'If you change the duration, your schedule is out of date.' → '期間を変更すると、スケジュールは最新ではなくなります。'"
   },
   "actual-date": {
     "term": "実績日",

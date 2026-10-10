@@ -1,7 +1,8 @@
 {
   "_style": {
     "address": "informal",
-    "note": "The existing Polish UI addresses the user with 2nd person singular (Ty): imperatives such as Naciśnij, Wybierz, Podaj and Zmień, and the possessive Twoim. Follow the UI texts."
+    "note": "The existing Polish UI addresses the user with 2nd person singular (Ty): imperatives such as Naciśnij, Wybierz, Podaj and Zmień, and the possessive Twoim. Follow the UI texts.",
+    "docs": "Guides: Informal Ty and the imperative, as in the UI. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Wybierz *Zapisz*.'; 'in the *Relation type* window' → 'w oknie *Typ relacji*'. Explanation: 'The app moves the successor to the next workday.' → 'Aplikacja przesuwa następnika na następny dzień roboczy.' Address: 'If you change the duration, your schedule is out of date.' → 'Jeśli zmienisz czas trwania, Twój harmonogram nie jest już aktualny.'"
   },
   "actual-date": {
     "term": "rzeczywista data",

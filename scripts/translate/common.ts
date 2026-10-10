@@ -39,10 +39,22 @@ export interface Style {
   commands?: string;
   /** De aanhalingstekens van de taal voor UI-namen in een zin, bv. `„…“` of `«…»`. */
   quotes?: string;
+  /**
+   * Schrijfwijze van de in-app gidsen (docs-straat): aanspreekvorm plus drie voorbeelden in de taal —
+   * een stapzin met een UI-label in de nominatief (en een draagwoord), een uitlegzin en de aanspreekvorm.
+   */
+  docs?: string;
 }
 
 /** Eén taalbestand `i18n/termbase/<taal>.json`: `_style` plus per concept-id een regel. */
 export type LangTermbase = { _style?: Style } & { [conceptId: string]: TermEntry | Style | undefined };
+
+/** `_style` voor een UI- of termpakket: zonder `docs` (dat is alleen voor de gidsen). */
+export function uiStyle(s: Style | undefined): Style | undefined {
+  if (!s) return undefined;
+  const { docs: _docs, ...rest } = s;
+  return rest;
+}
 
 export const termEntries = (tb: LangTermbase): [string, TermEntry][] =>
   Object.entries(tb).filter(([k]) => k !== '_style') as [string, TermEntry][];

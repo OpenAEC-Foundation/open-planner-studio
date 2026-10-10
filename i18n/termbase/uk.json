@@ -3,7 +3,8 @@
     "address": "formal",
     "note": "Formal address (ви). Spelling follows the 2019 orthography: проєкт, проєкту, проєкти — never проект. Quotation marks are «…», also around placeholders («{{name}}»). Hints and tooltips that tell the user to do something use the formal imperative (Виберіть…, увімкніть…); never mix it with the infinitive in one sentence. Commands (buttons, menu items, context menu) follow `commands`. Settings and fields are neutral noun phrases.",
     "commands": "Commands use the infinitive, like Ukrainian Microsoft software: Зберегти, Відкрити, Видалити, Обчислити.",
-    "quotes": "«…»"
+    "quotes": "«…»",
+    "docs": "Guides: Formal ви and the formal imperative; 2019 spelling. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → 'Виберіть *Зберегти*.'; 'in the *Relation type* window' → 'у вікні *Тип залежності*'. Explanation: 'The app moves the successor to the next workday.' → 'Застосунок переносить наступника на наступний робочий день.' Address: 'If you change the duration, your schedule is out of date.' → 'Якщо ви зміните тривалість, ваш графік більше не буде актуальним.'"
   },
   "actual-date": {
     "term": "фактична дата",

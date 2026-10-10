@@ -1,7 +1,8 @@
 {
   "_style": {
     "address": "informal",
-    "note": "Chinese desktop software uses 你 for the user. The app's own ui texts use 你 (for example 你计划的其余部分, 请确认), so keep that. Short imperative sentences, for example 按 F5 或 请先设置."
+    "note": "Chinese desktop software uses 你 for the user. The app's own ui texts use 你 (for example 你计划的其余部分, 请确认), so keep that. Short imperative sentences, for example 按 F5 或 请先设置.",
+    "docs": "Guides: 你, as in the UI; short sentences. A UI label stays exactly as in the UI, in italics and in the nominative; a carrier word (window, tab, button, column) takes the case. Step: 'Choose *Save*.' → '选择 *保存*。'; 'in the *Relation type* window' → '在 *关系类型* 窗口中'. Explanation: 'The app moves the successor to the next workday.' → '应用会将后续任务移到下一个工作日。' Address: 'If you change the duration, your schedule is out of date.' → '如果你更改工期，你的计划就不再是最新的。'"
   },
   "actual-date": {
     "term": "实际日期",
