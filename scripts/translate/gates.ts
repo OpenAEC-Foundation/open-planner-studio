@@ -190,22 +190,40 @@ const short = (s: string) => (s.length > 60 ? `${s.slice(0, 57)}…` : s);
 const NON_ASCII_DIGIT = /(?![0-9])\p{Nd}/u;
 const CJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
 
-/** Patroon van een UI-tekst met `{{…}}` als open plek (labelsoort b). */
+/** Aanhalingstekens die in een doc-tekst voor elkaar mogen staan (de UI schrijft 'x', een taal typografisch „x“ of «x»). */
+const QUOTE_CHARS = `'"‘’‚‛“”„‟«»‹›`;
+
+/**
+ * Patroon van een UI-tekst met `{{…}}` als open plek (labelsoort b). De plek past ook op `{naam}` (de en-docs
+ * schrijven een enkele accolade); aanhalingstekens rond de plek mogen typografisch anders zijn.
+ */
 const fillRe = (target: string): RegExp =>
-  new RegExp(target.split(/\{\{\s*[\w.-]+\s*\}\}/).map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.+?'), 'u');
+  new RegExp(target.split(/\{\{\s*[\w.-]+\s*\}\}/).map(p => [...p].map(ch => (QUOTE_CHARS.includes(ch) ? `[${QUOTE_CHARS}]` : ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))).join('')).join('.+?'), 'u');
 
 /** Cursieve stukken die een a/b-label zijn (bron: de en-tekst; vertaling: een doelkandidaat) uit de tekst halen. */
 function withoutLabelSpans(text: string, labels: DocsPackage['labels'], side: 'src' | 'out'): string {
   if (labels.length === 0) return text;
   let rest = text;
-  for (const span of new Set(italicsOf(text))) {
+  for (const span of [...new Set(italicsOf(text))].sort((a, b) => b.length - a.length)) {
     const parts = [normLabel(span), ...span.split(/\s*[›→]\s*/).map(normLabel)];
     const hit = (p: string) => labels.some(l => side === 'src'
       ? normLabel(l.en) === p
       : (l.targets ?? []).some(t => (placeholders(t).length ? fillRe(t).test(p) : normLabel(t) === p)));
-    if (parts.some(hit)) rest = rest.split(span).join(' ');
+    // Alleen het hele cursieve stuk (`*span*`), lange stukken eerst: een kort label als "Critical" mag niet
+    // binnen een langer stuk ("Critical path: 21 tasks") wegvallen.
+    if (parts.some(hit)) rest = rest.split(`*${span}*`).join(' ');
   }
   return rest;
+}
+
+/**
+ * Staat een label met cijfers ("DCMA 14-point assessment") in de bron ook buiten cursief, en schrijft de vertaling
+ * het label cursief (of andersom), dan telt het cijfer aan één kant niet mee. De labelregel controleert het label zelf.
+ * Haalt daarom de gewone (niet-cursieve) voorkomens van zulke labels weg, aan beide kanten.
+ */
+function withoutPlainLabelNumbers(text: string, labels: DocsPackage['labels'], side: 'src' | 'out'): string {
+  const forms = labels.flatMap(l => (side === 'src' ? [l.en] : l.targets ?? [])).filter(f => /[0-9]/.test(f) && placeholders(f).length === 0);
+  return [...new Set(forms)].sort((a, b) => b.length - a.length).reduce((t, f) => t.split(f).join(' '), text);
 }
 
 /** Harde en zachte poorten voor één sectie: bron (en) tegen vertaling. */
@@ -266,8 +284,8 @@ function checkDocsSection(pkg: DocsPackage, idx: number, src: DocSection, out: D
   // Getallen binnen een herkend UI-label (soort a/b) tellen niet mee: de labelregel controleert het label zelf
   // (de ar-vorm van "1 task shows …" schrijft het getal uit).
   const sectionLabelsHere = pkg.labels.filter(x => x.section === idx && (x.kind === 'a' || x.kind === 'b'));
-  const sd = bag(withoutLabelSpans(s, sectionLabelsHere, 'src').match(/[0-9]+/g) ?? []);
-  const od = bag(withoutLabelSpans(o, sectionLabelsHere, 'out').match(/[0-9]+/g) ?? []);
+  const sd = bag(withoutPlainLabelNumbers(withoutLabelSpans(s, sectionLabelsHere, 'src'), sectionLabelsHere, 'src').match(/[0-9]+/g) ?? []);
+  const od = bag(withoutPlainLabelNumbers(withoutLabelSpans(o, sectionLabelsHere, 'out'), sectionLabelsHere, 'out').match(/[0-9]+/g) ?? []);
   for (const [d, n] of sd) if ((od.get(d) ?? 0) < n) errors.push(`${at}: getal ${d} staat ${n}× in de bron, ${od.get(d) ?? 0}× in de vertaling`);
   const extra = [...od].filter(([d, n]) => n > (sd.get(d) ?? 0)).map(([d]) => d);
   if (extra.length) warnings.push(`${at}: getallen die de bron niet heeft: ${extra.join(', ')}`);
@@ -315,7 +333,8 @@ function checkDocsSection(pkg: DocsPackage, idx: number, src: DocSection, out: D
   // als los woord is hard: buiten inline code, buiten UI-labels en buiten de vormen van alle termen.
   const allForms = pkg.terms.flatMap(t => (t.forms.length ? t.forms : [t.target]));
   const labelTexts = pkg.labels.filter(x => x.section === idx).flatMap(l => l.targets ?? []);
-  const prose = o.replace(/`[^`]+`/g, ' ');
+  // Een avoid-woord binnen een herkend label is geen fout: het label komt uit de UI.
+  const prose = withoutLabelSpans(o, sectionLabelsHere, 'out').replace(/`[^`]+`/g, ' ');
   const avoidSoft = new Set((pkg.avoidSoft ?? []).map(a => a.toLocaleLowerCase()));
   for (const t of pkg.terms) {
     if (!t.en.some(e => hasStem(s, e))) continue;

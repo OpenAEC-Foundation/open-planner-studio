@@ -357,7 +357,7 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
   };
   const get = (o: JsonObject, path: string): unknown => path.split('.').reduce<unknown>((x, k) => (x as JsonObject | undefined)?.[k], o);
   const langs = readdirSync(resolve(root, 'i18n/termbase')).filter(f => f.endsWith('.json') && f !== 'concepts.json').map(f => f.replace('.json', ''));
-  eq('15d 25 talen in de termbase', langs.length, 25);
+  eq('15d 26 talen in de termbase', langs.length, 26);
   for (const lang of langs) {
     const style = (JSON.parse(readFileSync(resolve(root, `i18n/termbase/${lang}.json`), 'utf8')) as LangTermbase)._style;
     ok(`15e ${lang}: _style.docs bestaat`, typeof style?.docs === 'string' && style.docs.includes("'Choose *Save*.'"));
@@ -491,6 +491,52 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
   const AR_MD = '# A\n\nOpen the file; *1 task shows the lag*.\n';
   const [ap] = buildDocsPackages({ lang: 'ar', articles: [{ id: 'a', md: AR_MD }], mode: 'missing', sources: {}, index: arIdx, literal, concepts });
   eq('17e ar-label met uitgeschreven getal: geen cijferfout', checkDocs(ap.pkg, ap.src, '# A\n\nافتح الملف؛ *مهمة واحدة تعرض التأخير*.\n').errors, []);
+}
+
+// ── 18. Randgevallen van de cijfer-, plekhouder- en avoid-regel bij labels ───────────────────
+{
+  const e18: JsonObject = { s: {
+    critical: 'Critical', status_one: 'Critical path: {{count}} task, {{duration}} work days', status_other: 'Critical path: {{count}} tasks, {{duration}} work days',
+    dcma: 'DCMA 14-point assessment', cycle: 'Circular dependency between tasks: {{path}}', hour: "Hour task '{{task}}' has no valid working hours in its calendar" } };
+  const n18: JsonObject = { s: {
+    critical: 'Kritiek', status_one: 'Kritiek pad: {{count}} taak, {{duration}} werkdagen', status_other: 'Kritiek pad: {{count}} taken, {{duration}} werkdagen',
+    dcma: 'DCMA 14-punts beoordeling', cycle: 'Cyclische relatie tussen taken: {{path}}', hour: "Uurtaak '{{task}}' heeft geen geldige werkuren in zijn kalender" } };
+  const t18: JsonObject = { s: {
+    critical: 'Kritický', status_one: 'Kritická cesta: {{count}} úkol, {{duration}} pracovních dnů', status_few: 'Kritická cesta: {{count}} úkoly, {{duration}} pracovních dnů',
+    status_many: 'Kritická cesta: {{count}} úkolu, {{duration}} pracovních dnů', status_other: 'Kritická cesta: {{count}} úkolů, {{duration}} pracovních dnů',
+    dcma: '14bodové hodnocení DCMA', cycle: 'Cyklická závislost mezi úkoly: {{path}}', hour: "Hodinový úkol '{{task}}' nemá platné pracovní hodiny ve svém kalendáři" } };
+  const idx18 = buildEnLabelIndex([{ ns: 'common', nl: n18, en: e18, target: t18 }], 'cs',
+    { common: Object.fromEntries(['s.critical', 's.status', 's.dcma', 's.cycle', 's.hour'].map(k => [k, 'x'])) });
+  const tb18: LangTermbase = {
+    _style: { address: 'formal', docs: 'Guides: formal.' },
+    cycle: { term: 'cyklus', forms: ['cyklus', 'cyklu'], avoid: ['cyklická závislost'], source: 'tbx', status: 'tbx' },
+  };
+  const c18: Concept[] = [{ id: 'cycle', kind: 'term', nl: 'cyclus', en: ['cycle'], definition: 'd' }];
+  const mk = (md: string) => buildDocsPackages({ lang: 'cs', articles: [{ id: 'x', md }], mode: 'missing', sources: {}, index: idx18, literal, concepts: c18, termbase: tb18 })[0];
+  const errs = (md: string, out: string) => { const q = mk(md); return checkDocs(q.pkg, q.src, out).errors; };
+
+  // 18a/b: een kort label (*Critical*) valt niet weg binnen een langer label (*Critical path: 21 tasks, 45 work days*).
+  const SRC_A = '# T\n\n## Rekenen\n\nThe column *Critical* counts. The status bar says *Critical path: 21 tasks, 45 work days*. All 21 tasks are critical.\n';
+  const OUT_A = '# T\n\n## Rekenen\n\nSloupec *Kritický* se počítá. Stavový řádek hlásí *Kritická cesta: 21 úkolů, 45 pracovních dnů*. Všech 21 úkolů je kritických.\n';
+  eq('18a kort label binnen lang label: cijfers groen', errs(SRC_A, OUT_A), []);
+  has('18b het getal buiten het label blijft verplicht', errs(SRC_A, OUT_A.replace('Všech 21 úkolů je kritických.', 'Všechny úkoly jsou kritické.')), /getal 21 staat 1× in de bron, 0× in de vertaling/);
+
+  // 18c/d: een label met cijfers dat in de bron gewoon staat en in de vertaling cursief (of andersom).
+  const SRC_B = '# T\n\n## Kwaliteit\n\nThe report starts with the DCMA 14-point assessment. See *DCMA 14-point assessment* for more.\n';
+  eq('18c label met cijfer, plat en cursief: groen', errs(SRC_B, '# T\n\n## Kwaliteit\n\nZpráva začíná *14bodové hodnocení DCMA*. Více viz *14bodové hodnocení DCMA*.\n'), []);
+  const OUT_B = '# T\n\n## Kwaliteit\n\nZpráva začíná *14bodové hodnocení DCMA*. Více viz *14bodové hodnocení DCMA*.\n';
+  has('18d een ander getal blijft rood', errs(SRC_B + '\nIt has 5 checks.\n', OUT_B + '\nMá pět kontrol.\n'), /getal 5 staat 1× in de bron, 0× in de vertaling/);
+
+  // 18e/f/g: enkele accolade in een label is een plekhouder; avoid-woord binnen een herkend label is geen fout.
+  const SRC_C = '# T\n\n## Meldingen\n\nThe relations form a cycle: *Circular dependency between tasks: {path}* appears.\n';
+  eq('18e {path} als plekhouder, avoid-woord in het label: groen', errs(SRC_C, '# T\n\n## Meldingen\n\nZávislosti tvoří cyklus: *Cyklická závislost mezi úkoly: {path}* se zobrazí.\n'), []);
+  has('18f een ander label voor {path} blijft rood', errs(SRC_C, '# T\n\n## Meldingen\n\nZávislosti tvoří cyklus: *Cyklus vazeb mezi úkoly: {path}* se zobrazí.\n'), /volgens het patroon/);
+  has('18g avoid-woord buiten een label blijft rood', errs(SRC_C, '# T\n\n## Meldingen\n\nZávislosti tvoří cyklická závislost: *Cyklická závislost mezi úkoly: {path}* se zobrazí.\n'), /vermijd "cyklická závislost"/);
+
+  // 18h/i: typografische aanhalingstekens rond een plekhouder.
+  const SRC_D = "# T\n\n## Valkuilen\n\nThe app can report *Hour task 'name' has no valid working hours in its calendar*.\n";
+  eq('18h „naam“ i.p.v. \'naam\' rond de plek: groen', errs(SRC_D, '# T\n\n## Valkuilen\n\nAplikace může hlásit *Hodinový úkol „name“ nemá platné pracovní hodiny ve svém kalendáři*.\n'), []);
+  has('18i andere woorden blijven rood', errs(SRC_D, '# T\n\n## Valkuilen\n\nAplikace může hlásit *Hodinový úkol „name“ nemá pracovní dobu*.\n'), /volgens het patroon/);
 }
 
 if (diffs.length === 0) {
