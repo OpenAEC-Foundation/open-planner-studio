@@ -33,7 +33,13 @@ export interface TermEntry {
   status: TermStatus;
 }
 
-export interface Style { address: 'formal' | 'informal'; note?: string; commands?: string }
+export interface Style {
+  address: 'formal' | 'informal';
+  note?: string;
+  commands?: string;
+  /** De aanhalingstekens van de taal voor UI-namen in een zin, bv. `„…“` of `«…»`. */
+  quotes?: string;
+}
 
 /** Eén taalbestand `i18n/termbase/<taal>.json`: `_style` plus per concept-id een regel. */
 export type LangTermbase = { _style?: Style } & { [conceptId: string]: TermEntry | Style | undefined };
@@ -161,6 +167,17 @@ export function containsTerm(text: string, term: string): boolean {
   if (term.trim() === '') return false;
   const re = new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(term.trim())}(?:s|es|en|n)?(?![\\p{L}\\p{N}])`, 'iu');
   return re.test(text);
+}
+
+/**
+ * De avoid-varianten van één term die in `text` staan (hoofdletterongevoelig, als deeltekst). Een
+ * avoid-variant kan in de eigen term zitten ("fri slakk" ⊃ "slakk"): de vormen van de term worden
+ * daarom eerst weggestreept, de langste eerst. Dezelfde regel voor de zachte poort en `prepare --avoid`.
+ */
+export function findAvoid(text: string, forms: string[], avoid: string[]): string[] {
+  const rest = forms.map(f => f.toLocaleLowerCase()).filter(f => f !== '').sort((a, b) => b.length - a.length)
+    .reduce((s, f) => s.split(f).join('\u0000'), text.toLocaleLowerCase());
+  return avoid.filter(a => a.trim() !== '' && rest.includes(a.toLocaleLowerCase()));
 }
 
 /** Aantal keer dat een token (hoofdlettergevoelig, los woord) in de tekst staat. */

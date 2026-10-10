@@ -8,6 +8,10 @@
 //   apply-terms <taal>                 groene terms-NN.out.json → i18n/termbase/<taal>.json (+ rapporten)
 //   prepare ui <taal> [--missing|--stale|--all] [--size 150]
 //                                      UI-pakketten → build/translate/<taal>/ui-<ns>-NN.json (+ check.mjs)
+//   prepare ui <taal> --avoid [--stale] vertalingen met een avoid-variant uit de termbase (reason "avoid",
+//                                      per item `previous` en `avoidHits`; opdracht prompts/ui-termfix.md)
+//   prepare ui <taal> --keys <bestand> precies de sleutels uit een JSON-lijst ["ns:pad", …] (met `previous`)
+//   apply-findings <taal> <bestand>    [{ key: "ns:pad", fix }] na de harde poorten → src/i18n/locales/<taal>/
 //   bundle-check                       alleen build/translate/check.mjs bouwen
 //   apply ui <taal>                    groene UI-pakketten → src/i18n/locales/<taal>/ + i18n/ui-sources/<taal>.json
 //   seed-sources [taal…]               basislijn: huidige nl-hashes voor en + de bestaande talen (niet de nieuwe)
@@ -22,13 +26,14 @@ import { LOCALES, NAMESPACES, type JsonObject } from '../i18n-tools';
 import { EXISTING_TARGETS, TBX_FILES, hasUiBaseline, toJson, type Concept, type LangTermbase } from './common';
 import { chunk, collectCandidates } from './candidates';
 import { applyUiBatch } from './apply';
+import { applyFindings } from './findings';
 import { checkPackage } from './gates';
 import {
   applyTerms, conceptsErrors, inconsistencyReport, mergeConcepts, validateLangTermbase, type TermsOut,
 } from './termbase';
 import { buildTermsPackages, indexTbx, parseTbx, uiExamplesFor, type TermsCheckPackage, type TermsPackage } from './tbx';
 import {
-  buildUiPackages, orderSources, packageText, seedSources, uiReleaseGaps, uiStatus,
+  buildUiPackages, orderSources, packageText, resolveKeyList, seedSources, uiReleaseGaps, uiStatus,
   type NsInput, type ReleaseGap, type Selection, type UiPackage, type UiSources,
 } from './ui';
 
@@ -68,7 +73,7 @@ function option(args: string[], name: string): string | undefined {
   const i = args.indexOf(name);
   return i >= 0 ? args[i + 1] : undefined;
 }
-const positional = (args: string[]) => args.filter((a, i) => !a.startsWith('--') && !(i > 0 && /^--(size|concepts)$/.test(args[i - 1])));
+const positional = (args: string[]) => args.filter((a, i) => !a.startsWith('--') && !(i > 0 && /^--(size|concepts|keys)$/.test(args[i - 1])));
 
 function loadConcepts(path = CONCEPTS): Concept[] {
   if (!existsSync(path)) {
@@ -264,10 +269,25 @@ function prepare(args: string[]): void {
   const modes = (['--missing', '--stale', '--all'] as const).filter(f => flag(args, f));
   if (modes.length > 1) fail('kies één van --missing, --stale, --all');
   const mode = (modes[0]?.slice(2) ?? 'missing') as Selection;
+  const avoid = flag(args, '--avoid');
+  const keysFile = option(args, '--keys');
+  if (flag(args, '--keys') && (!keysFile || keysFile.startsWith('--'))) fail('--keys: geef een bestand');
+  if (avoid && (mode === 'all' || flag(args, '--missing'))) fail('--avoid gaat alleen samen met --stale');
+  if (keysFile && (avoid || modes.length)) fail('--keys gaat niet samen met --missing, --stale, --all of --avoid');
+  let keys: Map<string, Set<string>> | undefined;
+  if (keysFile) {
+    const path = resolve(ROOT, keysFile);
+    if (!existsSync(path)) fail(`--keys: ${keysFile} bestaat niet`);
+    const r = resolveKeyList(readJson<unknown>(path), nlByNs());
+    if (r.errors.length) fail(`${r.errors.length} fout(en) in ${keysFile}:\n    - ${r.errors.join('\n    - ')}`);
+    keys = r.keys;
+  }
+  const termbase = loadTermbase(lang);
+  if (avoid && !termbase) fail(`--avoid: i18n/termbase/${lang}.json bestaat niet`);
   const sources = readJsonOr<UiSources>(sourcesPath(lang), {});
   const packs = buildUiPackages({
-    lang, inputs: nsInputs(lang), mode, sources, concepts: loadConcepts(), termbase: loadTermbase(lang),
-    size: Number(option(args, '--size') ?? 150),
+    lang, inputs: nsInputs(lang), mode, sources, concepts: loadConcepts(), termbase,
+    size: Number(option(args, '--size') ?? 150), avoid, ...(keys ? { keys } : {}),
   });
   const dir = join(WORK, lang);
   archive(dir, 'ui-');
@@ -276,7 +296,8 @@ function prepare(args: string[]): void {
   bundleCheck();
   const items = packs.reduce((s, p) => s + p.items.length, 0);
   const sizes = packs.map(p => packageText(p).length);
-  console.log(`OK  prepare ui ${lang} --${mode}: ${items} item(s) in ${packs.length} pakket(ten)`
+  const label = keys ? `--keys ${keysFile}` : avoid ? `--avoid${mode === 'stale' ? ' --stale' : ''}` : `--${mode}`;
+  console.log(`OK  prepare ui ${lang} ${label}: ${items} item(s) in ${packs.length} pakket(ten)`
     + (packs.length ? `, grootste ${Math.max(...sizes)} tekens` : ''));
 }
 
@@ -313,6 +334,31 @@ function applyUi(args: string[]): void {
   }
   console.log(`${red ? 'XX' : 'OK'}  apply ui ${lang}: ${applied.length} pakket(ten) samengevoegd, ${red} rood overgeslagen`);
   if (red) process.exit(1);
+}
+
+function applyFindingsCmd(args: string[]): void {
+  const [langArg, file] = positional(args);
+  const lang = checkLang(langArg);
+  if (!file) fail('apply-findings <taal> <bestand>: geef een bestand');
+  const path = resolve(ROOT, file);
+  if (!existsSync(path)) fail(`${file} bestaat niet`);
+  let findings: unknown;
+  try { findings = readJson<unknown>(path); } catch (err) { fail(`${file}: ${err instanceof Error ? err.message : String(err)}`); }
+  const res = applyFindings({
+    lang, findings, nl: nlByNs(),
+    en: Object.fromEntries(NAMESPACES.map(ns => [ns, readLocale('en', ns)])),
+    readTarget: ns => readLocale(lang, ns), concepts: loadConcepts(), termbase: loadTermbase(lang),
+    sources: readJsonOr<UiSources>(sourcesPath(lang), {}),
+  });
+  for (const sk of res.skipped) {
+    console.log(`XX  ${sk.key}: overgeslagen`);
+    for (const r of sk.reasons) console.log(`      ${r}`);
+  }
+  for (const w of res.warnings) console.log(`WW  ${w}`);
+  // De nl-bron veranderde niet: i18n/ui-sources/<taal>.json blijft zoals hij is.
+  for (const [ns, obj] of res.targets) writeJson(join(LOCALES_DIR, lang, `${ns}.json`), obj);
+  console.log(`${res.skipped.length ? 'XX' : 'OK'}  apply-findings ${lang}: ${res.applied.length} toegepast, ${res.skipped.length} overgeslagen`);
+  if (res.skipped.length) process.exit(1);
 }
 
 function seed(args: string[]): void {
@@ -393,10 +439,12 @@ switch (cmd) {
   case 'prepare': prepare(rest); break;
   case 'bundle-check': bundleCheck(); break;
   case 'apply': applyUi(rest); break;
+  case 'apply-findings': applyFindingsCmd(rest); break;
   case 'seed-sources': seed(rest); break;
   case 'status': status(rest); break;
   default:
     console.log('gebruik: npm run translate -- <validate-termbase | concepts-candidates | concepts-merge | terms-lookup <taal> | '
-      + 'apply-terms <taal> | prepare ui <taal> [--missing|--stale|--all] | bundle-check | apply ui <taal> | seed-sources [taal…] | status [taal] [--strict]>');
+      + 'apply-terms <taal> | prepare ui <taal> [--missing|--stale|--all|--avoid [--stale]|--keys <bestand>] | bundle-check | '
+      + 'apply ui <taal> | apply-findings <taal> <bestand> | seed-sources [taal…] | status [taal] [--strict]>');
     process.exit(cmd ? 1 : 0);
 }

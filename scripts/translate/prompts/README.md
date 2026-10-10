@@ -21,5 +21,6 @@ plekhouders in vóór hij een agent start:
 | `ui.md` | UI vertalen en zelf keuren (`prepare ui` → `apply ui`) |
 | `ui-review.md` | nalezen, gestructureerde lijst |
 | `ui-fix.md` | bevindingen toepassen |
+| `ui-termfix.md` | alleen de `avoidHits` vervangen door de term (`prepare ui <taal> --avoid` → `apply ui`) |
 
 Na elke run controleert de orkestrator `git status`: alleen `build/translate/` mag veranderd zijn (§12).

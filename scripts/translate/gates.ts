@@ -2,10 +2,10 @@
 // Hard (rood, exit 1) en zacht (waarschuwing voor de nalezer). check.ts is de dunne I/O-schil
 // eromheen; `translate prepare` bundelt die tot build/translate/check.mjs.
 import {
-  countToken, containsTerm, nestings, placeholders, pluralCategories, textsOf, type UnitText,
+  countToken, containsTerm, findAvoid, nestings, placeholders, pluralCategories, textsOf, type UnitText,
 } from './common';
 import { conceptErrors, styleErrors, termEntryErrors } from './termbase';
-import type { UiPackage } from './ui';
+import type { UiLabel, UiPackage } from './ui';
 import type { TermsCheckPackage, TermsPackage } from './tbx';
 
 export interface CheckResult { errors: string[]; warnings: string[] }
@@ -31,6 +31,24 @@ function checkText(at: string, text: unknown, nl: string[], tokens: string[], al
   }
 }
 
+/**
+ * Labelpoort: noemt de nl-tekst een andere UI-tekst letterlijk (een knop, tab of blok), dan moet de
+ * vertaling de huidige vertaling van dat label letterlijk bevatten (hard). Nog geen vertaling van het
+ * label: alleen een waarschuwing. Alleen labels die in deze nl-vorm staan tellen.
+ */
+function checkLabels(at: string, text: string, nl: string[], labels: UiLabel[] | undefined, errors: string[], warnings: string[]): void {
+  for (const l of labels ?? []) {
+    if (!nl.some(s => s.includes(l.nl))) continue;
+    if (l.targets.length === 0) {
+      warnings.push(`${at}: label "${l.nl}" (${l.keys[0]}) heeft nog geen vaste vertaling; gebruik straks precies die`);
+      continue;
+    }
+    if (!l.targets.some(t => text.includes(t))) {
+      errors.push(`${at}: label "${l.nl}" (${l.keys[0]}) moet letterlijk "${l.targets.join('" of "')}" zijn`);
+    }
+  }
+}
+
 /** Zachte controles op één vertaalde tekst. */
 function softText(at: string, text: string, nl: string[], en: string, pkg: UiPackage, warnings: string[]): void {
   const low = text.toLocaleLowerCase();
@@ -39,10 +57,7 @@ function softText(at: string, text: string, nl: string[], en: string, pkg: UiPac
     if (!inSource) continue;
     const forms = t.forms.length ? t.forms : [t.target];
     if (!forms.some(f => low.includes(f.toLocaleLowerCase()))) warnings.push(`${at}: term "${t.target}" (${t.id}) niet gevonden`);
-    // Een avoid-variant kan in de eigen term zitten ("fri slakk" ⊃ "slakk"): haal de vormen eerst weg.
-    const rest = forms.map(f => f.toLocaleLowerCase()).sort((a, b) => b.length - a.length)
-      .reduce((s, f) => s.split(f).join('\u0000'), low);
-    for (const a of t.avoid ?? []) if (rest.includes(a.toLocaleLowerCase())) warnings.push(`${at}: vermijd "${a}" (${t.id})`);
+    for (const a of findAvoid(text, forms, t.avoid ?? [])) warnings.push(`${at}: vermijd "${a}" (${t.id})`);
   }
   for (const k of pkg.keep) {
     if (nl.some(s => countToken(s, k) > 0) && countToken(text, k) === 0) warnings.push(`${at}: eigennaam "${k}" niet letterlijk overgenomen`);
@@ -68,6 +83,7 @@ export function checkUi(pkg: UiPackage, out: unknown): CheckResult {
       if (typeof v !== 'string') { errors.push(`${item.key}: verwacht één tekst, geen meervoudsvormen`); continue; }
       const before = errors.length;
       checkText(item.key, v, nl, pkg.tokens, false, errors);
+      if (errors.length === before) checkLabels(item.key, v, nl, item.labels, errors, warnings);
       if (errors.length === before) softText(item.key, v, nl, enText(item.en), pkg, warnings);
       continue;
     }
@@ -90,6 +106,7 @@ export function checkUi(pkg: UiPackage, out: unknown): CheckResult {
       if (!(c in v)) continue;
       const before = errors.length;
       checkText(`${item.key}.${c}`, v[c], nlFor(c), pkg.tokens, true, errors);
+      if (errors.length === before) checkLabels(`${item.key}.${c}`, v[c] as string, nlFor(c), item.labels, errors, warnings);
       if (errors.length === before) softText(`${item.key}.${c}`, v[c] as string, nlFor(c), enText(item.en, c), pkg, warnings);
     }
   }

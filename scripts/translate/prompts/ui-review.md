@@ -11,6 +11,10 @@ You get: `{{PACKAGES}}` (package JSON files, `"kind": "ui"`) and next to each it
   `tokens`, `plural` and `style` from the package.
 - A text that names another UI element (column, button, tab, menu item) must use that element's label
   unchanged, in the nominative. Report inflected or paraphrased label names as `term`.
+- An item with `labels`: the translation must contain one of each label's `targets` letter for letter
+  (the check makes this an `XX` error). Do not propose a text that changes or inflects it.
+- If `style.quotes` exists, every quotation mark must be one of those marks. Report other marks as
+  `style`.
 - Write only `{{REVIEW_FILE}}`: a JSON array, one object per problem:
   `{ "package": "<id>", "key": "<key>", "category": "<only for plural items>", "kind": "<kind>", "problem": "<short>", "proposal": "<full corrected text>" }`
   `kind` is one of: `meaning` (wrong meaning), `term` (not the term from `terms`), `plural` (wrong form
