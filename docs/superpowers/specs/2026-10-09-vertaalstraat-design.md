@@ -388,7 +388,7 @@ meervouden en naamvallen); docs: 5 artikelen in **cs** en **ar** (RTL). De eigen
 
 Voor de eigenaar (worden één voor één voorgelegd, met voorbeeld):
 
-- **B1 — Servisch schrift.** Cyrillisch (`sr`): officieel schrift, en `Intl.DateTimeFormat('sr')` geeft
+- **B1 — Servisch schrift. BESLOTEN: Cyrillisch (`sr`), eigenaar, 2026-10-10.** Cyrillisch (`sr`): officieel schrift, en `Intl.DateTimeFormat('sr')` geeft
   al Cyrillische maandnamen. Latijns vraagt de code `sr-Latn`, en die breekt `load: 'languageOnly'`
   (`config.ts:48`), de taalsplitsing (`config.ts:116`, `helpManifest.ts:45`) en `verify-docs.ts:341`. Wel
   staan de MS Project-termen in de TBX vooral in Latijns schrift (omzetten naar Cyrillisch is
