@@ -37,7 +37,7 @@
     "xerImportBaselinesMaterialized_other": "已具体化的基线：{{count}}",
     "xerImportDanglingBaselineReferences_other": "已忽略的悬空基线引用：{{count}}",
     "xerImportBaselineFallback": "已使用保护性基线回退。",
-    "xerImportExternalLinks_other": "已保留的外部链接：{{count}}",
+    "xerImportExternalLinks_other": "已保留的外部关系：{{count}}",
     "xerImportEncoding": "选定的文本编码：{{encoding}}。",
     "xerImportParserIssues_other": "解析器发现：{{count}}",
     "xerImportCalendarIssues_other": "日历发现：{{count}}",
@@ -64,10 +64,10 @@
     "templateSaved": "分支已保存为模板“{{name}}”",
     "relationCreated": "已创建关系：{{predecessor}} → {{successor}}",
     "relationDuplicate": "该关系已存在",
-    "relationAncestorEndpoint": "不允许在任务与其自身的（上级）汇总任务之间建立关系。",
+    "relationAncestorEndpoint": "不允许在任务与其自身的（上级）摘要任务之间建立关系。",
     "relationCycle": "此关系会在计划中形成循环（{{cycle}}），因此未创建。",
-    "hierarchyCycle": "此移动会在计划中形成循环（{{cycle}}）：汇总任务的关系同样适用于其子任务。未移动任何内容。",
-    "relationsExcludedByHierarchy_other": "移动后，有 {{count}} 个关系将任务与其自身的上级汇总任务相连；这些关系不再参与计算。",
+    "hierarchyCycle": "此移动会在计划中形成循环（{{cycle}}）：摘要任务的关系同样适用于其子任务。未移动任何内容。",
+    "relationsExcludedByHierarchy_other": "移动后，有 {{count}} 个关系将任务与其自身的上级摘要任务相连；这些关系不再参与计算。",
     "summaryRelationsDropped": "{{total}} 个关系未能计入计算。请检查前置任务和后续任务列。",
     "duplicateIdsRenamed": "此文件中 ID 重复的对象：{{total}}。它们已获得各自的 ID；对它们的引用仍指向第一次出现的对象。请检查关系和分配。",
     "relationsSkippedOnInsert_other": "有 {{count}} 个关系未创建：链接无效（例如任务链接到其自身的（祖）父级摘要任务，或重复关系）。",
@@ -670,7 +670,7 @@
       "steps": "阶段"
     },
     "compact": {
-      "overallocated": "超负荷",
+      "overallocated": "过度分配",
       "title": "资源",
       "expandFull": "完整面板",
       "closeDock": "关闭停靠"
@@ -689,7 +689,7 @@
     },
     "leveling": {
       "dialogTitle": "资源平衡",
-      "constrainToFloat": "仅在浮动范围内平衡（平滑）— 项目结束日期保持不变",
+      "constrainToFloat": "仅在浮时内平衡（平滑）— 项目结束日期保持不变",
       "resourceSelect": "资源",
       "calculate": "计算",
       "failed": "资源平衡失败：{{message}}",
@@ -701,7 +701,7 @@
       "projectEndUnchanged": "项目结束日期：不变（{{date}}）",
       "projectEndChanged": "项目结束日期：{{before}} → {{after}}",
       "remainingConflicts": "剩余冲突",
-      "remainingConflictsHint": "这些任务无法在其浮动范围内安排 — 通常是因为资源在这些天不工作，或产能不足。",
+      "remainingConflictsHint": "这些任务无法在其浮时内安排 — 通常是因为资源在这些天不工作，或产能不足。",
       "intrinsicOverrun": "{{resource}} 峰值需求为 {{peak}} 单位/天，而产能为 {{capacity}} — 无法通过移动解决。",
       "noChanges": "没有任务需要移动 — 计划已无冲突。",
       "notCalculated": "点击计算以生成平衡方案。",
@@ -714,7 +714,7 @@
       "conflictDays": "{{count}} 天",
       "reason": {
         "calendarMismatch": "该资源并非在此任务所需的所有天数中都工作 — 移动无法解决此问题。",
-        "insufficientCapacity": "浮动范围内的空闲产能不足，无法解决此冲突。",
+        "insufficientCapacity": "浮时内的空闲产能不足，无法解决此冲突。",
         "ceilingTooTight": "延误上限空间太小：在该工作日数内没有空闲窗口。",
         "ceilingUnreachable": "给予延误在此无济于事——截止日期或约束条件使该任务保持原位。",
         "noWindowInHorizon": "在搜索的时间段内未找到空闲窗口；再往后则未知。",
@@ -929,7 +929,7 @@
       "columnsNote": "采用表格中当前的列。通过表头的加号选择列。",
       "relationsShow": "显示关系线",
       "partOverlays": "叠加层",
-      "infoOverlays": "关系线、基线、进度线、状态日期线、资源强调、浮动时间带和条形颜色。未勾选：保持现状。",
+      "infoOverlays": "关系线、基线、进度线、状态日期线、资源强调、浮时带和条形颜色。未勾选：保持现状。",
       "overlaysNotStored": "此布局只保存关系线。如果在下方更改某个叠加层，它也会保存所有叠加层。",
       "missingColorField": "类别：此项目中不存在该字段"
     },
@@ -1070,7 +1070,7 @@
     "detailSteps": "资源能力阶段",
     "warnActuals_other": "{{count}} 项任务有实际开始/完成日期，这些日期也会一同移动。请确认这对进行中的项目是否合适。",
     "warnHardPins_other": "{{count}} 项任务设有强制（硬）约束；该锚定日期也会一同移动。",
-    "warnExternal_other": "{{count}} 个外部链接：其锚点会一同移动，但源项目不会。移动后请刷新这些链接。",
+    "warnExternal_other": "{{count}} 个外部关系：其锚点会一同移动，但源项目不会。移动后请刷新这些链接。",
     "warnHolidayGap": "日历“{{name}}”生成的节假日覆盖 {{from}}–{{to}}；移动后的计划延续至 {{year}}。请重新生成节假日。",
     "warnCustomDateFields_other": "{{count}} 个已填写的日期自定义字段将保持原有日期。",
     "warnPast": "新的开始日期位于过去。",
@@ -1191,7 +1191,7 @@
       "unmatched": "未找到此行对应的任务。",
       "ambiguousWbs": "此 WBS 编码出现在多个任务上——请手动关联此行。",
       "duplicateRow": "另一行已认领此任务。",
-      "summaryTask": "汇总任务不能从表格接收进度。",
+      "summaryTask": "摘要任务不能从表格接收进度。",
       "unreadableDate": "日期无法读取。",
       "unreadableNumber": "百分比无法读取。",
       "percentOutOfRange": "百分比超出 0–100 范围。请检查小数点：在使用不同区域设置的电子表格中，“8.38” 可能被读作 838。",
@@ -1213,8 +1213,8 @@
       "help": "已开始或已完成的任务在晚期一侧也保留其记录的日期；已完成的后续任务不会把未完成的前置任务拉回过去。"
     },
     "clampNegativeFreeFloat": {
-      "label": "自由浮动时间永不为负",
-      "help": "在无法满足的晚期约束下，总浮动时间保持为负，但自由浮动时间为零。"
+      "label": "自由浮时永不为负",
+      "help": "在无法满足的晚期约束下，总浮时保持为负，但自由浮时为零。"
     },
     "p6ZeroDurationUsesPlannedBoundary": {
       "label": "里程碑遵循计划的日历边界",
@@ -1274,11 +1274,11 @@
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "按任务自身日历计算自由浮动",
-      "help": "未开始任务的自由浮动时间按每个关系在任务自身的日历中计算，而不是按后续任务的日历：适用于完成-开始、开始-开始和完成-完成，也包括在紧前任务日历上按工作时间计的延隔。已开始的任务仅适用于无延隔的完成-开始。"
+      "help": "未开始任务的自由浮时按每个关系在任务自身的日历中计算，而不是按后续任务的日历：适用于完成-开始、开始-开始和完成-完成，也包括在紧前任务日历上按工作时间计的延隔。已开始的任务仅适用于无延隔的完成-开始。"
     },
     "p6CompletedRemainingLag": {
       "label": "已完成紧前任务的已流逝延隔不计入",
-      "help": "在最迟日期一侧，已完成紧前任务之后的延隔只计入在状态日期尚未流逝的部分。"
+      "help": "在最晚日期一侧，已完成紧前任务之后的延隔只计入在状态日期尚未流逝的部分。"
     },
     "p6CompletedOutOfSequenceWindow": {
       "label": "顺序外完成的任务等待其紧前任务",
@@ -1294,7 +1294,7 @@
     },
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "指向开始里程碑的完成-完成关系绑定到里程碑本身",
-      "help": "指向开始里程碑的完成-完成关系计到里程碑本身，而不是其当天的开始：紧前任务的最迟完成可以延伸到里程碑的最迟完成。"
+      "help": "指向开始里程碑的完成-完成关系计到里程碑本身，而不是其当天的开始：紧前任务的最晚完成可以延伸到里程碑的最晚完成。"
     },
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "计划开始不是进行中任务的下限",
@@ -1306,7 +1306,7 @@
     },
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "进度覆盖在逆推时也忽略已开始的紧后作业",
-      "help": "在进度覆盖（Progress Override）下，与已开始的紧后作业之间的关系不计入尚未完成的紧前作业的最迟日期和自由浮时。"
+      "help": "在进度覆盖（Progress Override）下，与已开始的紧后作业之间的关系不计入尚未完成的紧前作业的最晚日期和自由浮时。"
     },
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "最早完成不早于完成-完成界限",

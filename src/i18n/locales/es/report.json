@@ -12,7 +12,7 @@
   "portrait": "Vertical",
   "showCriticalPath": "Ruta crítica",
   "showFloat": "Mostrar holgura",
-  "showDependencies": "Dependencias",
+  "showDependencies": "Relaciones",
   "showWeekends": "Fines de semana",
   "showLegend": "Leyenda",
   "showTaskNames": "Nombres de tarea en las barras",
@@ -86,12 +86,12 @@
     "health": "Salud del cronograma",
     "resourceLoading": "Carga de recursos",
     "resourceAssignments": "Asignaciones de recursos",
-    "wbsSummary": "Resumen EDT"
+    "wbsSummary": "Resumen WBS"
   },
   "variance": {
     "title": "Informe de Variance",
-    "baselineStart": "Inicio de la baseline",
-    "baselineFinish": "Fin de la baseline",
+    "baselineStart": "Inicio de la línea base",
+    "baselineFinish": "Fin de la línea base",
     "currentStart": "Inicio actual",
     "currentFinish": "Fin actual",
     "deltaStart": "Δ inicio (dl)",
@@ -102,7 +102,7 @@
     "status_early": "Más pronto",
     "status_new": "Nueva",
     "status_dropped": "Eliminada",
-    "noBaseline": "No hay ninguna baseline activa — guarda una baseline o marca una como activa.",
+    "noBaseline": "No hay ninguna línea base activa — guarda una línea base o marca una como activa.",
     "projectEndDelta": "Fin del proyecto: {{delta}} días laborables",
     "total": "Tareas",
     "lateCount": "Más tarde",
@@ -110,7 +110,7 @@
   },
   "milestoneReport": {
     "title": "Resumen de hitos",
-    "wbs": "EDT",
+    "wbs": "WBS",
     "name": "Nombre",
     "kind": "Tipo",
     "date": "Fecha",
@@ -165,7 +165,7 @@
     "period": "Periodo",
     "statusDate": "Fecha de estado",
     "common": {
-      "wbs": "EDT",
+      "wbs": "WBS",
       "name": "Nombre",
       "start": "Inicio",
       "finish": "Fin",
@@ -184,7 +184,7 @@
       "nearCriticalDays": "Casi crítico ≤ (dl):",
       "highFloatDays": "Holgura alta > (dl):",
       "longDurationDays": "Duración larga > (dl):",
-      "lagDays": "Retardo > (dl):",
+      "lagDays": "Desfase > (dl):",
       "reportingPeriod": "Periodo del informe:",
       "periodFrom": "Desde",
       "periodTo": "Hasta",
@@ -193,10 +193,10 @@
       "aggregation": "Agregación:",
       "aggregation_week": "Semanal",
       "aggregation_month": "Mensual",
-      "onlyOverloaded": "Solo periodos sobrecargados",
+      "onlyOverloaded": "Solo periodos sobreasignados",
       "includeCompleted": "Incluir tareas completadas",
       "wbsLevel": "Nivel:",
-      "wbsLevelAll": "EDT completa",
+      "wbsLevelAll": "WBS completa",
       "includeActivities": "Mostrar actividades"
     },
     "periodPresets": {
@@ -262,7 +262,7 @@
     },
     "health": {
       "title": "Salud del cronograma",
-      "subtitle": "Umbrales: holgura alta > {{float}} dl · duración larga > {{duration}} dl · retardo > {{lag}} dl · casi crítico ≤ {{near}} dl",
+      "subtitle": "Umbrales: holgura alta > {{float}} dl · duración larga > {{duration}} dl · desfase > {{lag}} dl · casi crítico ≤ {{near}} dl",
       "errors": "Errores",
       "warnings": "Avisos",
       "infos": "Información",
@@ -284,9 +284,9 @@
       "check_nearCritical": "Casi crítico",
       "check_highFloat": "Holgura alta",
       "check_longDuration": "Duración larga",
-      "check_lead": "Adelanto (retardo negativo)",
-      "check_longLag": "Retardo largo",
-      "check_hardConstraint": "Restricción dura",
+      "check_lead": "Adelanto (desfase negativo)",
+      "check_longLag": "Desfase largo",
+      "check_hardConstraint": "Restricción estricta",
       "check_outOfSequence": "Avance fuera de secuencia",
       "check_progressException": "Avance incoherente",
       "check_missedTask": "Tarea incumplida (respecto a la línea base)",
@@ -299,7 +299,7 @@
       "reason_progressWithoutActualStart": "avance sin inicio real",
       "reason_forecastStartBeforeStatusDate": "inicio previsto anterior a la fecha de estado",
       "reason_forecastFinishBeforeStatusDate": "fin prevista anterior a la fecha de estado",
-      "detail_lag": "retardo {{value}}",
+      "detail_lag": "desfase {{value}}",
       "detail_days": "{{value}} dl",
       "detail_float": "HT {{value}} dl",
       "sectionSummary": "Resumen",
@@ -320,7 +320,7 @@
       "metric_leads": "Adelantos (desfase negativo)",
       "metric_lags": "Desfases",
       "metric_relationshipTypes": "Tipos de relación (proporción FS)",
-      "metric_hardConstraints": "Restricciones duras",
+      "metric_hardConstraints": "Restricciones estrictas",
       "metric_highFloat": "Holgura alta (> {{days}} dl)",
       "metric_negativeFloat": "Holgura negativa",
       "metric_highDuration": "Duración larga (> {{days}} dl)",
@@ -360,13 +360,13 @@
       "available": "Disponible",
       "variance": "Diferencia",
       "peak": "Pico/día",
-      "overloaded": "Sobrecargado",
+      "overloaded": "Sobreasignado",
       "resources": "Recursos",
       "weeks": "Semanas",
       "months": "Meses",
       "overloadedWeeks": "Semanas sobrecargadas",
-      "overloadedMonths": "Meses sobrecargados",
-      "overloadedResources": "Recursos sobrecargados",
+      "overloadedMonths": "Meses sobreasignados",
+      "overloadedResources": "Recursos sobreasignados",
       "empty": "Sin carga en este periodo."
     },
     "resourceAssignments": {
@@ -379,7 +379,7 @@
       "empty": "Sin asignaciones."
     },
     "wbsSummary": {
-      "title": "Resumen EDT",
+      "title": "Resumen WBS",
       "baselineStart": "Inicio línea base",
       "baselineFinish": "Fin línea base",
       "duration": "Duración (dl)",
@@ -389,10 +389,10 @@
       "critical": "Crít.",
       "inProgress": "En curso",
       "complete": "Hechas",
-      "elements": "Elementos EDT",
+      "elements": "Elementos WBS",
       "activitiesLabel": "Actividades",
       "levelSubtitle": "Hasta el nivel {{level}}",
-      "empty": "No hay elementos EDT."
+      "empty": "No hay elementos WBS."
     }
   }
 }

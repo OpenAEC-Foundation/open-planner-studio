@@ -152,7 +152,7 @@
   "statusLineHint": "عيّن أولاً تاريخ حالة",
   "followView": "متابعة العرض (تصفية، تجميع، فرز)",
   "statusDateLabel": "تاريخ الحالة",
-  "progressDateLabel": "تاريخ التقدم",
+  "progressDateLabel": "تاريخ الحالة",
   "resourceGantt": {
     "pageBreakPerResource": "كل مورد في صفحة جديدة",
     "includeUnassigned": "تضمين المهام بدون مورد",

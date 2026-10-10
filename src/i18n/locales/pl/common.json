@@ -46,19 +46,19 @@
     "xerImportBaselineProjectsExcluded_few": "Wykluczono {{count}} projekty bazowe.",
     "xerImportBaselineProjectsExcluded_many": "Wykluczono {{count}} projektów bazowych.",
     "xerImportBaselineProjectsExcluded_other": "Wykluczono {{count}} projektu bazowego.",
-    "xerImportBaselinesMaterialized_one": "Utworzono {{count}} linię bazową.",
-    "xerImportBaselinesMaterialized_few": "Utworzono {{count}} linie bazowe.",
-    "xerImportBaselinesMaterialized_many": "Utworzono {{count}} linii bazowych.",
-    "xerImportBaselinesMaterialized_other": "Utworzono {{count}} linii bazowej.",
-    "xerImportDanglingBaselineReferences_one": "Zignorowano {{count}} oderwane odwołanie do linii bazowej.",
-    "xerImportDanglingBaselineReferences_few": "Zignorowano {{count}} oderwane odwołania do linii bazowych.",
-    "xerImportDanglingBaselineReferences_many": "Zignorowano {{count}} oderwanych odwołań do linii bazowych.",
-    "xerImportDanglingBaselineReferences_other": "Zignorowano {{count}} oderwanego odwołania do linii bazowej.",
-    "xerImportBaselineFallback": "Użyto ochronnego rozwiązania awaryjnego dla linii bazowej.",
-    "xerImportExternalLinks_one": "Zachowano {{count}} zewnętrzne połączenie.",
-    "xerImportExternalLinks_few": "Zachowano {{count}} zewnętrzne połączenia.",
-    "xerImportExternalLinks_many": "Zachowano {{count}} zewnętrznych połączeń.",
-    "xerImportExternalLinks_other": "Zachowano {{count}} zewnętrznego połączenia.",
+    "xerImportBaselinesMaterialized_one": "Utworzono {{count}} plan bazowy.",
+    "xerImportBaselinesMaterialized_few": "Utworzono {{count}} plany bazowe.",
+    "xerImportBaselinesMaterialized_many": "Utworzono {{count}} planów bazowych.",
+    "xerImportBaselinesMaterialized_other": "Utworzono {{count}} planu bazowego.",
+    "xerImportDanglingBaselineReferences_one": "Zignorowano {{count}} oderwane odwołanie do planu bazowego.",
+    "xerImportDanglingBaselineReferences_few": "Zignorowano {{count}} oderwane odwołania do planów bazowych.",
+    "xerImportDanglingBaselineReferences_many": "Zignorowano {{count}} oderwanych odwołań do planów bazowych.",
+    "xerImportDanglingBaselineReferences_other": "Zignorowano {{count}} oderwanego odwołania do planu bazowego.",
+    "xerImportBaselineFallback": "Użyto ochronnego rozwiązania awaryjnego dla planu bazowego.",
+    "xerImportExternalLinks_one": "Zachowano {{count}} relację zewnętrzną.",
+    "xerImportExternalLinks_few": "Zachowano {{count}} relacje zewnętrzne.",
+    "xerImportExternalLinks_many": "Zachowano {{count}} relacji zewnętrznych.",
+    "xerImportExternalLinks_other": "Zachowano {{count}} relacji zewnętrznej.",
     "xerImportEncoding": "Wybrane kodowanie tekstu: {{encoding}}.",
     "xerImportParserIssues_one": "{{count}} ustalenie parsera.",
     "xerImportParserIssues_few": "{{count}} ustalenia parsera.",
@@ -630,16 +630,16 @@
   },
   "baseline": {
     "dialog": {
-      "title": "Baseline",
+      "title": "Plan bazowy",
       "name": "Nazwa",
       "created": "Utworzono",
       "active": "Aktywna",
       "delete": "Usuń",
-      "saveNew": "Zapisz nową baseline",
-      "defaultName": "Baseline {{n}} — {{date}}",
-      "noBaselines": "Brak zapisanych baseline",
+      "saveNew": "Zapisz nowy plan bazowy",
+      "defaultName": "Plan bazowy {{n}} — {{date}}",
+      "noBaselines": "Brak zapisanych planów bazowych",
       "staleHint": "Harmonogram jest nieaktualny — najpierw przelicz (F5)",
-      "deleteActiveConfirm": "Usunąć aktywną baseline?"
+      "deleteActiveConfirm": "Usunąć aktywny plan bazowy?"
     }
   },
   "progress": {
@@ -1018,17 +1018,17 @@
       "noLevels": "Brak sortowania — kolejność drzewa/pasm"
     },
     "layout": {
-      "saveTitle": "Zapisz layout jako…",
-      "manageTitle": "Zarządzaj layoutami",
+      "saveTitle": "Zapisz układ jako…",
+      "manageTitle": "Zarządzaj układami",
       "name": "Nazwa",
       "rename": "Zmień nazwę",
       "delete": "Usuń",
       "apply": "Zastosuj",
       "update": "Aktualizuj",
-      "applyConfirm": "Zastosować layout „{{name}}”? Spowoduje to zastąpienie bieżących kolumn/grupowania/sortowania/filtra/skali.",
+      "applyConfirm": "Zastosować układ „{{name}}”? Spowoduje to zastąpienie bieżących kolumn/grupowania/sortowania/filtra/skali.",
       "missingRefs": "Niektóre pola nie istnieją w tym dokumencie i zostaną pominięte.",
-      "noLayouts": "Brak zapisanych layoutów.",
-      "activeLayout": "Layout",
+      "noLayouts": "Brak zapisanych układów.",
+      "activeLayout": "Układ",
       "none": "(brak)",
       "builtinResourceDiagram": "Diagram zasobów",
       "newTitle": "Nowy układ",
@@ -1214,10 +1214,10 @@
     "warnHardPins_few": "{{count}} zadania mają twarde ograniczenie Obowiązkowe; te kotwice również się przesuną.",
     "warnHardPins_many": "{{count}} zadań ma twarde ograniczenie Obowiązkowe; te kotwice również się przesuną.",
     "warnHardPins_other": "{{count}} zadania ma twarde ograniczenie Obowiązkowe; ta kotwica również się przesunie.",
-    "warnExternal_one": "{{count}} powiązanie zewnętrzne: jego kotwica przesuwa się, ale projekt źródłowy nie. Odśwież powiązanie po przesunięciu.",
-    "warnExternal_few": "{{count}} powiązania zewnętrzne: ich kotwice przesuwają się, ale projekty źródłowe nie. Odśwież powiązania po przesunięciu.",
-    "warnExternal_many": "{{count}} powiązań zewnętrznych: ich kotwice przesuwają się, ale projekty źródłowe nie. Odśwież powiązania po przesunięciu.",
-    "warnExternal_other": "{{count}} powiązania zewnętrznego: jego kotwica przesuwa się, ale projekt źródłowy nie. Odśwież powiązanie po przesunięciu.",
+    "warnExternal_one": "{{count}} relacja zewnętrzna: jej kotwica przesuwa się, ale projekt źródłowy nie. Odśwież relację po przesunięciu.",
+    "warnExternal_few": "{{count}} relacje zewnętrzne: ich kotwice przesuwają się, ale projekty źródłowe nie. Odśwież relacje po przesunięciu.",
+    "warnExternal_many": "{{count}} relacji zewnętrznych: ich kotwice przesuwają się, ale projekty źródłowe nie. Odśwież relacje po przesunięciu.",
+    "warnExternal_other": "{{count}} relacji zewnętrznej: jej kotwica przesuwa się, ale projekt źródłowy nie. Odśwież relację po przesunięciu.",
     "warnHolidayGap": "Wygenerowane dni wolne kalendarza „{{name}}” obejmują {{from}}–{{to}}; przesunięty harmonogram sięga {{year}}. Wygeneruj dni wolne ponownie.",
     "warnCustomDateFields_one": "{{count}} wypełnione pole niestandardowe typu data zachowuje swoją datę.",
     "warnCustomDateFields_few": "{{count}} wypełnione pola niestandardowe typu data zachowują swoją datę.",
@@ -1302,7 +1302,7 @@
   "progressImport": {
     "title": "Aktualizuj postęp z arkusza",
     "chooseFile": "Wybierz plik…",
-    "intro": "Wybierz zwrócony arkusz CSV. Aplikacja odczytuje tylko ukończenie, rzeczywisty start i rzeczywiste zakończenie — reszta harmonogramu pozostaje bez zmian.",
+    "intro": "Wybierz zwrócony arkusz CSV. Aplikacja odczytuje tylko ukończenie, rzeczywiste rozpoczęcie i rzeczywiste zakończenie — reszta harmonogramu pozostaje bez zmian.",
     "summaryApplied": "Zastosowano: {{applied}}",
     "summaryNoop": "Bez zmian: {{noop}}",
     "summaryNeedsLink": "Czeka na powiązanie: {{needsLink}}",
@@ -1333,7 +1333,7 @@
       "tooLarge": "Ten plik jest zbyt duży, aby odczytać go jako arkusz postępu.",
       "tooManyRows": "Ten plik ma zbyt wiele wierszy, aby odczytać go jako arkusz postępu.",
       "noKeyColumn": "Ten plik nie ma kolumny „OPS Task ID” ani „WBS” do powiązania wierszy z zadaniami.",
-      "noProgressColumns": "Ten plik nie ma żadnej z kolumn Ukończenie, Rzeczywisty start ani Rzeczywiste zakończenie.",
+      "noProgressColumns": "Ten plik nie ma żadnej z kolumn Ukończenie, Rzeczywiste rozpoczęcie ani Rzeczywiste zakończenie.",
       "unreadable": "Nie udało się odczytać tego pliku jako arkusza postępu.",
       "encrypted": "Ten plik jest chroniony hasłem i nie można go odczytać."
     },
@@ -1353,7 +1353,7 @@
     },
     "field": {
       "completion": "Ukończenie",
-      "actualStart": "Rzeczywisty start",
+      "actualStart": "Rzeczywiste rozpoczęcie",
       "actualFinish": "Rzeczywiste zakończenie"
     }
   },
@@ -1376,15 +1376,15 @@
     },
     "p6FinishMilestoneBoundaryWindow": {
       "label": "Kamień końcowy jako okno granicy",
-      "help": "Kamień końcowy może leżeć na dwóch sąsiednich granicach kalendarza: wczesny początek na początku pasma, wczesny koniec na końcu poprzedniego pasma."
+      "help": "Kamień końcowy może leżeć na dwóch sąsiednich granicach kalendarza: najwcześniejsze rozpoczęcie na początku pasma, najwcześniejsze zakończenie na końcu poprzedniego pasma."
     },
     "p6PreserveActualInstants": {
       "label": "Przejmij daty rzeczywiste dokładnie",
       "help": "Zarejestrowane rzeczywiste daty rozpoczęcia i zakończenia nie są przesuwane do pasma czasu pracy."
     },
     "p6UseRemainingStartForProgress": {
-      "label": "Zadanie w toku: wczesny początek = początek pozostałej pracy",
-      "help": "Wczesny i późny początek zadania w toku opisują, gdzie zaczyna się pozostała praca, a nie historyczny rzeczywisty początek. Przy obliczaniu wstecz przez relację rozpoczęcie-rozpoczęcie liczy się tylko pozostały czas trwania."
+      "label": "Zadanie w toku: najwcześniejsze rozpoczęcie = początek pozostałej pracy",
+      "help": "Najwcześniejsze i najpóźniejsze rozpoczęcie zadania w toku opisują, gdzie zaczyna się pozostała praca, a nie historyczny rzeczywisty początek. Przy obliczaniu wstecz przez relację rozpoczęcie-rozpoczęcie liczy się tylko pozostały czas trwania."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Dokładny moment ograniczenia na kamieniu milowym",
@@ -1400,7 +1400,7 @@
     },
     "p6RelationFinishBoundary": {
       "label": "Następnik zaczyna na granicy zakończenia",
-      "help": "Przy relacji koniec-początek bez opóźnienia na wspólnej granicy pasma następnik zaczyna się w chwili zakończenia poprzednika (tylko relacje oznaczone tak w pliku). Przy obliczaniu wstecz następnik pokazuje swój najpóźniejszy start po prostu jako początek pasma pracy."
+      "help": "Przy relacji zakończenia-rozpoczęcia bez opóźnienia na wspólnej granicy pasma następnik zaczyna się w chwili zakończenia poprzednika (tylko relacje oznaczone tak w pliku). Przy obliczaniu wstecz następnik pokazuje swój najpóźniejszy start po prostu jako początek pasma pracy."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Opóźnienie wstecz od granicy zakończenia",
@@ -1411,8 +1411,8 @@
       "help": "Zakończone zadanie otrzymuje wczesne daty w oknie daty stanu, a jego koniec liczy się do końca projektu (tylko zadania pochodzące z P6)."
     },
     "p6CompletedLoeActualFinish": {
-      "label": "Zakończone LOE przez rzeczywisty koniec",
-      "help": "Zakończone działanie level-of-effort z jednym wejściem początek-początek podąża trasą przez swój rzeczywisty koniec (tylko zadania pochodzące z P6)."
+      "label": "Zakończone LOE przez rzeczywiste zakończenie",
+      "help": "Zakończone działanie level-of-effort z jednym wejściem początek-początek podąża trasą przez swoje rzeczywiste zakończenie (tylko zadania pochodzące z P6)."
     },
     "p6OpenLoeTargetSpan": {
       "label": "Nierozpoczęte LOE przyjmuje okno docelowe",
@@ -1443,8 +1443,8 @@
       "help": "Przy relacji start-start od zadania, które już się rozpoczęło, liczy się tylko ta część opóźnienia, która od jego rzeczywistego startu do daty stanu jeszcze nie upłynęła."
     },
     "p6FinishFinishStartMilestoneLateFinish": {
-      "label": "Relacja koniec-koniec do kamienia milowego startu wiąże się z samym kamieniem",
-      "help": "Relacja koniec-koniec do kamienia milowego startu liczy się do samego kamienia milowego, a nie do początku jego dnia: najpóźniejsze zakończenie poprzednika może sięgać najpóźniejszego zakończenia kamienia milowego."
+      "label": "Relacja zakończenie-zakończenie do kamienia milowego startu wiąże się z samym kamieniem",
+      "help": "Relacja zakończenie-zakończenie do kamienia milowego startu liczy się do samego kamienia milowego, a nie do początku jego dnia: najpóźniejsze zakończenie poprzednika może sięgać najpóźniejszego zakończenia kamienia milowego."
     },
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Planowany start nie jest dolną granicą dla zadania w toku",
@@ -1459,8 +1459,8 @@
       "help": "Przy Progress Override powiązanie z już rozpoczętym następnikiem nie wpływa na najpóźniejsze terminy ani zapas swobodny niezakończonego poprzednika."
     },
     "p6FinishNotBeforeFinishFinishBound": {
-      "label": "Najwcześniejsze zakończenie nie przed granicą koniec-koniec",
-      "help": "Przy powiązaniu koniec-koniec najwcześniejsze zakończenie następnika nigdy nie wypada w czasie zegarowym przed granicą wyznaczoną przez poprzednika. Jeśli ta granica przypada w czasie wolnym następnika, zakończeniem staje się początek następnego okresu pracy."
+      "label": "Najwcześniejsze zakończenie nie przed granicą zakończeniem-zakończeniem",
+      "help": "Przy powiązaniu zakończeniu-zakończeniu najwcześniejsze zakończenie następnika nigdy nie wypada w czasie zegarowym przed granicą wyznaczoną przez poprzednika. Jeśli ta granica przypada w czasie wolnym następnika, zakończeniem staje się początek następnego okresu pracy."
     },
     "p6AlapPositionedFromSuccessors": {
       "label": "Zadania ALAP tak późno, jak pozwalają następniki",

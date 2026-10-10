@@ -43,8 +43,8 @@
     "xerImportDanglingBaselineReferences_one": "{{count}} boşta kalan temel plan başvurusu yok sayıldı.",
     "xerImportDanglingBaselineReferences_other": "{{count}} boşta kalan temel plan başvurusu yok sayıldı.",
     "xerImportBaselineFallback": "Koruyucu temel plan geri dönüşü kullanıldı.",
-    "xerImportExternalLinks_one": "{{count}} harici bağlantı korundu.",
-    "xerImportExternalLinks_other": "{{count}} harici bağlantı korundu.",
+    "xerImportExternalLinks_one": "{{count}} dış ilişki korundu.",
+    "xerImportExternalLinks_other": "{{count}} dış ilişki korundu.",
     "xerImportEncoding": "Metin kodlaması seçildi: {{encoding}}.",
     "xerImportParserIssues_one": "{{count}} ayrıştırıcı bulgusu.",
     "xerImportParserIssues_other": "{{count}} ayrıştırıcı bulgusu.",
@@ -104,8 +104,8 @@
     "workRulesReadMore": "İş kuralları açıklaması",
     "workRuleDurationsChanged_one": "Takvim değişikliğinden sonra iş kuralı {{count}} görevin süresini ayarladı (iş aynı kaldı, günlük saatler değişti).",
     "workRuleDurationsChanged_other": "Takvim değişikliğinden sonra iş kuralı {{count}} görevin süresini ayarladı (iş aynı kaldı, günlük saatler değişti).",
-    "pasteSkippedReadOnly_one": "{{count}} hücre atlandı: salt okunur (örneğin otomatik numaralandırılmış bir İYS kodu veya hesaplanan bir sütun).",
-    "pasteSkippedReadOnly_other": "{{count}} hücre atlandı: salt okunur (örneğin otomatik numaralandırılmış bir İYS kodu veya hesaplanan bir sütun).",
+    "pasteSkippedReadOnly_one": "{{count}} hücre atlandı: salt okunur (örneğin otomatik numaralandırılmış bir WBS kodu veya hesaplanan bir sütun).",
+    "pasteSkippedReadOnly_other": "{{count}} hücre atlandı: salt okunur (örneğin otomatik numaralandırılmış bir WBS kodu veya hesaplanan bir sütun).",
     "librarySaveFailed": "Kitaplık kaydedilemedi",
     "levelingDelayRoundedToWorkdays_one": "Kaynak dengeleme, MS Project'ten gelen dakika hassasiyetindeki dengeleme gecikmesini {{count}} görev için tam iş gününe yuvarlar.",
     "levelingDelayRoundedToWorkdays_other": "Kaynak dengeleme, MS Project'ten gelen dakika hassasiyetindeki dengeleme gecikmesini {{count}} görev için tam iş gününe yuvarlar.",
@@ -153,7 +153,7 @@
     "tutorialOfferUnavailable": "Eğitimler şu anda yüklenemedi veya başlatılamadı. Daha sonra Yardım › Eğitimler bölümünden yeniden deneyebilirsiniz."
   },
   "scheduleErrors": {
-    "cycle": "Görevler arasında döngüsel bağımlılık: {{path}}",
+    "cycle": "Görevler arasında döngüsel ilişki: {{path}}",
     "noWorkingDays": "Takvimde tanımlı iş günü yok",
     "invalidDayDuration": "'{{task}}' görevi için geçersiz gün cinsinden süre",
     "invalidHourDuration": "'{{task}}' görevi için geçersiz saat cinsinden süre",
@@ -526,7 +526,7 @@
   "statusWarnings": {
     "missedDeadlines": "{{count}} son tarih aşıldı",
     "violatedConstraints": "{{count}} kısıtlama ihlal edildi",
-    "outOfSequence": "{{count}} sıra dışı ilişki",
+    "outOfSequence": "{{count}} sıra dışı ilerleme",
     "overallocated": "{{count}} kaynak aşırı atanmış"
   },
   "warnings": {
@@ -540,12 +540,12 @@
     "goTo": "Git: {{target}}",
     "kind": {
       "scheduleError": "Program hesaplanamadı: {{message}}",
-      "missedDeadline": "Son tarih {{deadline}} kaçırıldı — en erken bitiş {{finish}}",
+      "missedDeadline": "Son tarih {{deadline}} kaçırıldı — erken bitiş {{finish}}",
       "violatedConstraint": "{{constraint}} kısıtlaması mantık tarafından aşılıyor (negatif bolluk)",
       "outOfSequence": "Sıra dışı: ardılın ilerlemesi ilişkiyle çelişiyor",
       "truncatedLead": "Öncelik proje başlangıcıyla kesildi — ilişki tam olarak uygulanmıyor",
       "droppedSequence": "İlişki yok sayıldı: öncül veya ardıl eksik ya da yaprak görev değil",
-      "hammockNoFinishDriver": "Bitiş sürücüsü olmayan hamak (FF/SF öncülü yok): süresi sıfıra düşüyor",
+      "hammockNoFinishDriver": "Bitiş driver'ı olmayan hamak (FF/SF öncülü yok): süresi sıfıra düşüyor",
       "cappedTask": "Bitiş tarihi sınırlandı: takvim bu görev için çalışılabilir bir pencere bırakmıyor",
       "overallocation": "{{count}} gün aşırı atanmış ({{first}} – {{last}})",
       "overallocationNonWorkingDay": "{{count}} gün aşırı atanmış ({{first}} – {{last}}) — kaynak bu gün(ler)de takvimine göre çalışmıyor",
@@ -558,31 +558,31 @@
   },
   "baseline": {
     "dialog": {
-      "title": "Baseline'lar",
+      "title": "Temel planlar",
       "name": "Ad",
       "created": "Oluşturulma",
       "active": "Etkin",
       "delete": "Sil",
-      "saveNew": "Yeni baseline kaydet",
-      "defaultName": "Baseline {{n}} — {{date}}",
-      "noBaselines": "Henüz baseline yok",
+      "saveNew": "Yeni temel plan kaydet",
+      "defaultName": "Temel plan {{n}} — {{date}}",
+      "noBaselines": "Henüz temel plan yok",
       "staleHint": "Plan güncel değil — önce yeniden hesaplayın (F5)",
-      "deleteActiveConfirm": "Etkin baseline silinsin mi?"
+      "deleteActiveConfirm": "Etkin temel plan silinsin mi?"
     }
   },
   "progress": {
-    "actualsAfterStatusDate": "Gerçekleşen tarihler durum tarihinden sonra olamaz",
-    "actualStartAfterFinish": "Gerçekleşen başlangıç, gerçekleşen bitişten sonra."
+    "actualsAfterStatusDate": "Gerçek tarihler durum tarihinden sonra olamaz",
+    "actualStartAfterFinish": "Gerçek başlangıç, gerçek bitişten sonra."
   },
   "actualStartQuestion": {
-    "title": "Gerçekleşen başlangıcı girin",
+    "title": "Gerçek başlangıcı girin",
     "introOne": "“{{name}}” durum tarihinden ({{statusDate}}) sonra başlayacak şekilde planlanmıştı, ancak şimdi ilerleme giriliyor. Gerçekte ne zaman başladı?",
     "introMany": "Bu görevler durum tarihinden ({{statusDate}}) sonra başlayacak şekilde planlanmıştı, ancak şimdi ilerleme giriliyor. Gerçekte ne zaman başladılar?",
-    "fieldLabel": "{{name}} için gerçekleşen başlangıç",
+    "fieldLabel": "{{name}} için gerçek başlangıç",
     "latest": "En geç {{date}}.",
     "required": "Bir tarih girin.",
     "afterStatusDate": "Bu tarih durum tarihinden ({{date}}) sonra.",
-    "afterActualFinish": "Bu tarih gerçekleşen bitişten ({{date}}) sonra.",
+    "afterActualFinish": "Bu tarih gerçek bitişten ({{date}}) sonra.",
     "confirm": "İlerlemeyi uygula"
   },
   "companyLibrary": {
@@ -731,7 +731,7 @@
       "constrainToFloat": "Yalnızca bolluk içinde dengele (yumuşatma) — proje bitiş tarihi sabit kalır",
       "resourceSelect": "Kaynaklar",
       "calculate": "Hesapla",
-      "failed": "Seviyeleme başarısız oldu: {{message}}",
+      "failed": "Dengeleme başarısız oldu: {{message}}",
       "staleResult": "Hesaplama sırasında plan değişti. Hesapla'ya yeniden tıklayın.",
       "stop": "Durdur",
       "calculating": "Hesaplanıyor…",
@@ -782,8 +782,8 @@
       "staleAsShownBanner": "Değiştirilen bir belge henüz yeniden hesaplanmadı; burada son hesaplanan değerleriyle sayılıyor. O belgede F5'e basın veya “Otomatik hesapla” seçeneğini açın.",
       "docCount_one": "{{count}} belge",
       "docCount_other": "{{count}} belge",
-      "conflictDays_one": "{{count}} gün çift rezervasyonlu",
-      "conflictDays_other": "{{count}} gün çift rezervasyonlu",
+      "conflictDays_one": "{{count}} gün aşırı atanmış",
+      "conflictDays_other": "{{count}} gün aşırı atanmış",
       "moreDays_one": "… ve {{count}} tane daha",
       "moreDays_other": "… ve {{count}} tane daha",
       "period": "Dönem",
@@ -934,17 +934,17 @@
       "noLevels": "Sıralama yok — ağaç/bant sırası"
     },
     "layout": {
-      "saveTitle": "Layout'u farklı kaydet…",
-      "manageTitle": "Layoutları yönet",
+      "saveTitle": "Düzeni farklı kaydet…",
+      "manageTitle": "Düzenleri yönet",
       "name": "Ad",
       "rename": "Yeniden adlandır",
       "delete": "Sil",
       "apply": "Uygula",
       "update": "Güncelle",
-      "applyConfirm": "'{{name}}' layoutu uygulansın mı? Bu, mevcut sütunları/gruplamayı/sıralamayı/filtreyi/ölçeği değiştirir.",
+      "applyConfirm": "'{{name}}' düzeni uygulansın mı? Bu, mevcut sütunları/gruplamayı/sıralamayı/filtreyi/ölçeği değiştirir.",
       "missingRefs": "Bazı alanlar bu belgede yok ve atlanacak.",
-      "noLayouts": "Henüz kaydedilmiş layout yok.",
-      "activeLayout": "Layout",
+      "noLayouts": "Henüz kaydedilmiş düzen yok.",
+      "activeLayout": "Düzen",
       "none": "(yok)",
       "builtinResourceDiagram": "Kaynak diyagramı",
       "newTitle": "Yeni düzen",
@@ -1109,17 +1109,17 @@
     "affectedTasks_one": "{{count}} görev kaydırıldı",
     "affectedTasks_other": "{{count}} görev kaydırıldı",
     "affectedDetail": "Ayrıca kaydırıldı — {{items}}",
-    "detailConstraints": "kısıt tarihleri",
+    "detailConstraints": "kısıtlamalar",
     "detailDeadlines": "son tarihler",
-    "detailActuals": "gerçekleşen tarihler",
+    "detailActuals": "gerçek tarihler",
     "detailExternal": "dış çıpalar",
     "detailSteps": "kapasite kademeleri",
-    "warnActuals_one": "{{count}} görevin gerçekleşen başlangıç/bitiş tarihi var; bu tarih de kayar. Devam eden bir proje için doğru olup olmadığını kontrol edin.",
-    "warnActuals_other": "{{count}} görevin gerçekleşen başlangıç/bitiş tarihi var; bu tarihler de kayar. Devam eden bir proje için doğru olup olmadığını kontrol edin.",
+    "warnActuals_one": "{{count}} görevin gerçek başlangıç/bitiş tarihi var; bu tarih de kayar. Devam eden bir proje için doğru olup olmadığını kontrol edin.",
+    "warnActuals_other": "{{count}} görevin gerçek başlangıç/bitiş tarihi var; bu tarihler de kayar. Devam eden bir proje için doğru olup olmadığını kontrol edin.",
     "warnHardPins_one": "{{count}} görevde katı Zorunlu kısıt var; bu sabitleme de kayar.",
     "warnHardPins_other": "{{count}} görevde katı Zorunlu kısıt var; bu sabitlemeler de kayar.",
-    "warnExternal_one": "{{count}} dış bağlantı: çıpası kayar, ancak kaynak proje kaymaz. Taşımadan sonra bağlantıyı yenileyin.",
-    "warnExternal_other": "{{count}} dış bağlantı: çıpaları kayar, ancak kaynak projeler kaymaz. Taşımadan sonra bağlantıları yenileyin.",
+    "warnExternal_one": "{{count}} dış ilişki: çıpası kayar, ancak kaynak proje kaymaz. Taşımadan sonra bağlantıyı yenileyin.",
+    "warnExternal_other": "{{count}} dış ilişki: çıpaları kayar, ancak kaynak projeler kaymaz. Taşımadan sonra bağlantıları yenileyin.",
     "warnHolidayGap": "“{{name}}” takviminin oluşturulan tatilleri {{from}}–{{to}} aralığını kapsıyor; kaydırılan plan {{year}} yılına kadar sürüyor. Tatilleri yeniden oluşturun.",
     "warnCustomDateFields_one": "Doldurulmuş {{count}} özel tarih alanı tarihini korur.",
     "warnCustomDateFields_other": "Doldurulmuş {{count}} özel tarih alanı tarihlerini korur.",
@@ -1259,7 +1259,7 @@
   },
   "conventions": {
     "preserveActualDatesInBackwardPass": {
-      "label": "Geri hesaplamada gerçekleşen tarihleri koru",
+      "label": "Geri hesaplamada gerçek tarihleri koru",
       "help": "Başlamış veya tamamlanmış bir görev kayıtlı tarihlerini geç tarafta da korur; tamamlanmış bir ardıl, açık bir öncülü geçmişe çekmez."
     },
     "clampNegativeFreeFloat": {
@@ -1279,8 +1279,8 @@
       "help": "Bir bitiş kilometre taşı iki bitişik takvim sınırında durabilir: erken başlangıç bir bandın başında, erken bitiş önceki bandın sonunda."
     },
     "p6PreserveActualInstants": {
-      "label": "Gerçekleşen tarihleri aynen al",
-      "help": "Kayıtlı gerçekleşen başlangıç ve bitiş tarihleri bir çalışma zamanı bandına kaydırılmaz."
+      "label": "Gerçek tarihleri aynen al",
+      "help": "Kayıtlı gerçek başlangıç ve bitiş tarihleri bir çalışma zamanı bandına kaydırılmaz."
     },
     "p6UseRemainingStartForProgress": {
       "label": "Devam eden görev: erken başlangıç = kalan işin başlangıcı",
@@ -1304,7 +1304,7 @@
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Bitiş sınırından geriye gecikme",
-      "help": "Geri hesaplama bir bitiş sınırından çalışma zamanı gecikmesini çıkarıp tam bir bant başlangıcına denk gelirse, önceki bitiş sınırına iner. Gecikmesiz bir bitiş-bitiş ilişkisinde de bant sonundaki en geç bitiş o bitiş sınırında kalır."
+      "help": "Geri hesaplama bir bitiş sınırından çalışma zamanı gecikmesini çıkarıp tam bir bant başlangıcına denk gelirse, önceki bitiş sınırına iner. Gecikmesiz bir bitiş-bitiş ilişkisinde de bant sonundaki geç bitiş o bitiş sınırında kalır."
     },
     "p6CompletedDataDateWindow": {
       "label": "Durum tarihi penceresinde tamamlanan görev",
@@ -1340,11 +1340,11 @@
     },
     "p6InProgressStartLagElapsed": {
       "label": "Devam eden bir öncülden geçmiş BB gecikmesi sayılmaz",
-      "help": "Zaten başlamış bir görevden başla-başla ilişkisinde, gecikmenin yalnızca gerçek başlangıcından durum tarihine kadar henüz geçmemiş kısmı sayılır."
+      "help": "Zaten başlamış bir görevden başlangıç-başlangıç ilişkisinde, gecikmenin yalnızca gerçek başlangıcından durum tarihine kadar henüz geçmemiş kısmı sayılır."
     },
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "Başlangıç kilometre taşına bitiş-bitiş ilişkisi kilometre taşının kendisine bağlanır",
-      "help": "Başlangıç kilometre taşına bitiş-bitiş ilişkisi, kilometre taşının gününün başına değil kendisine kadar sayılır: öncülün en geç bitişi kilometre taşının en geç bitişine kadar uzayabilir."
+      "help": "Başlangıç kilometre taşına bitiş-bitiş ilişkisi, kilometre taşının gününün başına değil kendisine kadar sayılır: öncülün geç bitişi kilometre taşının geç bitişine kadar uzayabilir."
     },
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Planlanan başlangıç, devam eden bir görev için alt sınır değildir",

@@ -201,7 +201,7 @@
     "screenColors_critical": "クリティカルパス",
     "screenColors_auto": "タスクごと — 自動",
     "screenColors_category": "カテゴリ別",
-    "screenColorsMissingField": "このフィールドはこのプロジェクトにありません。一時的にタスクタイプを使用します。",
+    "screenColorsMissingField": "このフィールドはこのプロジェクトにありません。一時的にタスク種類を使用します。",
     "screenColorsHint": "クリティカルパス以外のモードでは、赤い枠線がクリティカルパスを示します。",
     "addLayout": "新規レイアウト",
     "toggleRelations": "関係線"
@@ -233,7 +233,7 @@
       "ssLagFrom": "進行中の先行作業の開始-開始ラグの計算起点",
       "ssLagEarlyStart": "最早開始（残作業の開始）",
       "ssLagActualStart": "実績開始（データ日付）",
-      "ssLagNeedsConvention": "規約「{{convention}}」がオンのときのみ適用されます。",
+      "ssLagNeedsConvention": "規則「{{convention}}」がオンのときのみ適用されます。",
       "criticalDefinition": "クリティカルの定義",
       "critTotalFloat": "トータルフロート ≤ しきい値",
       "critLongestPath": "最長パス",

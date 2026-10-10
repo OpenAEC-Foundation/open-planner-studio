@@ -11,28 +11,28 @@
   "notifications": {
     "dismiss": "Fechar notificação",
     "taskEditRevertBlocked": "Uma alteração do assistente de IA ou de uma extensão ocorreu entretanto. As alterações da tarefa anteriores não foram revertidas e permanecem como passos normais em Desfazer.",
-    "openFailed": "Falha ao abrir o arquivo",
+    "openFailed": "Falha ao abrir o ficheiro",
     "extGuideCallbackFailed": "Um passo da extensão {{name}} falhou. O guia continua.",
     "extHelpProjectOpenFailed": "Não foi possível abrir o ficheiro de projeto {{file}} da extensão {{name}}.",
     "extensionMessage": "Extensão {{name}}: {{message}}",
-    "xerInvalidInput": "A importação XER requer os bytes originais do arquivo.",
-    "xerInvalidFile": "Este não é um arquivo XER válido ou compatível.",
-    "xerInvalidEncoding": "A codificação de texto deste arquivo XER é inválida ou está truncada.",
-    "xerDuplicateTable": "O arquivo XER contém uma tabela duplicada.",
+    "xerInvalidInput": "A importação XER requer os bytes originais do ficheiro.",
+    "xerInvalidFile": "Este não é um ficheiro XER válido ou compatível.",
+    "xerInvalidEncoding": "A codificação de texto deste ficheiro XER é inválida ou está truncada.",
+    "xerDuplicateTable": "O ficheiro XER contém uma tabela duplicada.",
     "xerMissingRequiredColumns": "Uma tabela XER não contém colunas obrigatórias.",
     "xerMissingRequiredValue": "Um registro XER não contém um valor obrigatório.",
-    "xerAmbiguousDecimal": "Não é possível determinar com segurança a notação decimal deste arquivo XER.",
-    "xerInvalidNumberFormat": "Este arquivo XER tem uma formatação numérica inválida.",
-    "xerInvalidNumber": "O arquivo XER contém um número inválido.",
-    "xerSingleProjectRequired": "Esta importação suporta exatamente um projeto P6 por arquivo XER.",
-    "xerEmptyProject": "O projeto P6 neste arquivo XER não contém atividades.",
-    "xerDuplicateId": "O arquivo XER contém um ID de EAP, atividade ou relação duplicado.",
+    "xerAmbiguousDecimal": "Não é possível determinar com segurança a notação decimal deste ficheiro XER.",
+    "xerInvalidNumberFormat": "Este ficheiro XER tem uma formatação numérica inválida.",
+    "xerInvalidNumber": "O ficheiro XER contém um número inválido.",
+    "xerSingleProjectRequired": "Esta importação suporta exatamente um projeto P6 por ficheiro XER.",
+    "xerEmptyProject": "O projeto P6 neste ficheiro XER não contém atividades.",
+    "xerDuplicateId": "O ficheiro XER contém um ID de WBS, atividade ou relação duplicado.",
     "xerAmbiguousLocalRelation": "Uma relação XER sem âmbito não pode ser atribuída inequivocamente a um único projeto local.",
     "xerDanglingLocalRelation": "Uma relação XER local referencia uma atividade ausente.",
     "xerEnumFallback": "XER {{family}}: token desconhecido “{{token}}”; usado “{{fallback}}”.",
-    "xerImportOpened_one": "Arquivo XER aberto: {{count}} documento de projeto.",
-    "xerImportOpened_many": "Arquivo XER aberto: {{count}} documentos de projeto.",
-    "xerImportOpened_other": "Arquivo XER aberto: {{count}} documentos de projeto.",
+    "xerImportOpened_one": "Ficheiro XER aberto: {{count}} documento de projeto.",
+    "xerImportOpened_many": "Ficheiro XER aberto: {{count}} documentos de projeto.",
+    "xerImportOpened_other": "Ficheiro XER aberto: {{count}} documentos de projeto.",
     "xerImportProjectsSeen_one": "{{count}} projeto encontrado.",
     "xerImportProjectsSeen_many": "{{count}} projetos encontrados.",
     "xerImportProjectsSeen_other": "{{count}} projetos encontrados.",
@@ -49,9 +49,9 @@
     "xerImportDanglingBaselineReferences_many": "{{count}} referências de linha de base pendentes ignoradas.",
     "xerImportDanglingBaselineReferences_other": "{{count}} referências de linha de base pendentes ignoradas.",
     "xerImportBaselineFallback": "Foi usada uma alternativa protetora para a linha de base.",
-    "xerImportExternalLinks_one": "{{count}} vínculo externo preservado.",
-    "xerImportExternalLinks_many": "{{count}} vínculos externos preservados.",
-    "xerImportExternalLinks_other": "{{count}} vínculos externos preservados.",
+    "xerImportExternalLinks_one": "{{count}} relação externa preservada.",
+    "xerImportExternalLinks_many": "{{count}} relações externas preservadas.",
+    "xerImportExternalLinks_other": "{{count}} relações externas preservadas.",
     "xerImportEncoding": "Codificação de texto escolhida: {{encoding}}.",
     "xerImportParserIssues_one": "{{count}} ocorrência do analisador.",
     "xerImportParserIssues_many": "{{count}} ocorrências do analisador.",
@@ -81,19 +81,19 @@
     "importDatesAsRecordedOffer_many": "{{count}} tarefas diferem das datas registadas no ficheiro — pode mostrá-las.",
     "importDatesAsRecordedOffer_other": "{{count}} tarefas diferem das datas registadas no ficheiro — pode mostrá-las.",
     "xerExportLoss": "A exportação para {{format}} perde informações de origem XER.",
-    "mppLegacy": "Este arquivo .mpp usa um formato antigo (Project 2007 ou anterior). Exporte-o no MS Project como XML (Arquivo → Salvar como → XML) e abra esse arquivo.",
-    "mppEncrypted": "Este arquivo .mpp está protegido por senha. Exporte-o no MS Project como XML (Arquivo → Salvar como → XML) e abra esse arquivo.",
+    "mppLegacy": "Este ficheiro .mpp usa um formato antigo (Project 2007 ou anterior). Exporte-o no MS Project como XML (Ficheiro → Guardar como → XML) e abra esse ficheiro.",
+    "mppEncrypted": "Este ficheiro .mpp está protegido por senha. Exporte-o no MS Project como XML (Ficheiro → Guardar como → XML) e abra esse ficheiro.",
     "saveFailed": "Falha ao salvar",
     "savedViaDownload": "Guardado como transferência: '{{name}}' está agora na sua pasta de transferências. Este ambiente não permite que a aplicação escreva diretamente no local escolhido.",
     "browserCannotOverwrite": "Este navegador não permite que a aplicação volte a gravar em «{{name}}». Por isso, a aplicação pergunta novamente onde guardar o ficheiro sempre que guarda. Isto não acontece no Chrome, no Edge nem na aplicação de ambiente de trabalho.",
     "browserSavesAsDownload": "Guardado como transferência: «{{name}}» está na sua pasta de transferências. Este navegador não permite que a aplicação grave num local próprio, por isso cada gravação cria uma nova transferência. No Chrome, no Edge ou na aplicação de ambiente de trabalho, Guardar atualiza simplesmente o mesmo ficheiro.",
     "autoSaveFailed": "Falha no salvamento automático",
-    "recoveryReadFailed": "Não foi possível ler o arquivo recuperado",
+    "recoveryReadFailed": "Não foi possível ler o ficheiro recuperado",
     "recoveryRestoreFailed": "Falha na restauração",
-    "recoveryDocumentsSkipped_one": "{{count}} arquivo de recuperação não pôde ser carregado e foi ignorado.",
-    "recoveryDocumentsSkipped_many": "{{count}} arquivos de recuperação não puderam ser carregados e foram ignorados.",
-    "recoveryDocumentsSkipped_other": "{{count}} arquivos de recuperação não puderam ser carregados e foram ignorados.",
-    "scheduleFailed": "Não foi possível calcular o planejamento",
+    "recoveryDocumentsSkipped_one": "{{count}} ficheiro de recuperação não pôde ser carregado e foi ignorado.",
+    "recoveryDocumentsSkipped_many": "{{count}} ficheiros de recuperação não puderam ser carregados e foram ignorados.",
+    "recoveryDocumentsSkipped_other": "{{count}} ficheiros de recuperação não puderam ser carregados e foram ignorados.",
+    "scheduleFailed": "Não foi possível calcular o planeamento",
     "ifcParseFailed": "Não foi possível ler o IFC",
     "templateSaved": "Ramo guardado como modelo '{{name}}'",
     "relationCreated": "Relação criada: {{predecessor}} → {{successor}}",
@@ -109,18 +109,18 @@
     "relationsSkippedOnInsert_one": "{{count}} relação não foi criada: vínculo inválido (por exemplo, uma tarefa ligada à sua própria tarefa de resumo superior, ou uma duplicata).",
     "relationsSkippedOnInsert_many": "{{count}} relações não foram criadas: vínculo inválido (por exemplo, uma tarefa ligada à sua própria tarefa de resumo superior, ou uma duplicata).",
     "relationsSkippedOnInsert_other": "{{count}} relações não foram criadas: vínculo inválido (por exemplo, uma tarefa ligada à sua própria tarefa de resumo superior, ou uma duplicata).",
-    "mppSourceScheduleNotes_one": "Este arquivo do MS Project contém {{count}} tarefa com um cronograma dividido, nivelado ou controlado por recursos. Ela é importada e exibida como está.",
-    "mppSourceScheduleNotes_many": "Este arquivo do MS Project contém {{count}} tarefas com um cronograma dividido, nivelado ou controlado por recursos. Elas são importadas e exibidas como estão.",
-    "mppSourceScheduleNotes_other": "Este arquivo do MS Project contém {{count}} tarefas com um cronograma dividido, nivelado ou controlado por recursos. Elas são importadas e exibidas como estão.",
+    "mppSourceScheduleNotes_one": "Este ficheiro do MS Project contém {{count}} tarefa com um cronograma dividido, nivelado ou controlado por recursos. Ela é importada e exibida como está.",
+    "mppSourceScheduleNotes_many": "Este ficheiro do MS Project contém {{count}} tarefas com um cronograma dividido, nivelado ou controlado por recursos. Elas são importadas e exibidas como estão.",
+    "mppSourceScheduleNotes_other": "Este ficheiro do MS Project contém {{count}} tarefas com um cronograma dividido, nivelado ou controlado por recursos. Elas são importadas e exibidas como estão.",
     "exportSplitsLost_one": "{{count}} tarefa com interrupções foi exportada sem as suas interrupções: o MS Project/P6 só as conhece como distribuição do trabalho.",
     "exportSplitsLost_many": "{{count}} tarefas com interrupções foram exportadas sem as suas interrupções: o MS Project/P6 só as conhece como distribuição do trabalho.",
     "exportSplitsLost_other": "{{count}} tarefas com interrupções foram exportadas sem as suas interrupções: o MS Project/P6 só as conhece como distribuição do trabalho.",
     "projectStartAnchorsClamped_one": "Início do projeto alterado: {{count}} âncora de tarefa sem predecessora nem restrição foi movida para a nova data de início.",
     "projectStartAnchorsClamped_many": "Início do projeto alterado: {{count}} âncoras de tarefa sem predecessora nem restrição foram movidas para a nova data de início.",
     "projectStartAnchorsClamped_other": "Início do projeto alterado: {{count}} âncoras de tarefa sem predecessora nem restrição foram movidas para a nova data de início.",
-    "mppTimephasedSteeringLost_one": "A distribuição de horas do MS Project não controla mais {{count}} tarefa após esta edição; a distribuição original permanece guardada no arquivo.",
-    "mppTimephasedSteeringLost_many": "A distribuição de horas do MS Project não controla mais {{count}} tarefas após esta edição; a distribuição original permanece guardada no arquivo.",
-    "mppTimephasedSteeringLost_other": "A distribuição de horas do MS Project não controla mais {{count}} tarefas após esta edição; a distribuição original permanece guardada no arquivo.",
+    "mppTimephasedSteeringLost_one": "A distribuição de horas do MS Project não controla mais {{count}} tarefa após esta edição; a distribuição original permanece guardada no ficheiro.",
+    "mppTimephasedSteeringLost_many": "A distribuição de horas do MS Project não controla mais {{count}} tarefas após esta edição; a distribuição original permanece guardada no ficheiro.",
+    "mppTimephasedSteeringLost_other": "A distribuição de horas do MS Project não controla mais {{count}} tarefas após esta edição; a distribuição original permanece guardada no ficheiro.",
     "readMore": "Saiba mais",
     "taskTypesUnlocked": "Este ficheiro contém trabalho guardado ou regras de trabalho próprias; a regra de trabalho e o trabalho restante são mostrados para este projeto.",
     "taskTypesUnlockedDetail": "Este ficheiro contém trabalho guardado ou regras de trabalho próprias; a regra de trabalho e o trabalho restante são mostrados para este projeto.",
@@ -128,9 +128,9 @@
     "workRuleDurationsChanged_one": "Após a alteração do calendário, a regra de trabalho ajustou a duração de {{count}} tarefa (o trabalho mantém-se, as horas por dia mudaram).",
     "workRuleDurationsChanged_many": "Após a alteração do calendário, a regra de trabalho ajustou a duração de {{count}} tarefas (o trabalho mantém-se, as horas por dia mudaram).",
     "workRuleDurationsChanged_other": "Após a alteração do calendário, a regra de trabalho ajustou a duração de {{count}} tarefas (o trabalho mantém-se, as horas por dia mudaram).",
-    "pasteSkippedReadOnly_one": "{{count}} célula ignorada: é somente leitura (por exemplo, um código WBS numerado automaticamente ou uma coluna calculada).",
-    "pasteSkippedReadOnly_many": "{{count}} células ignoradas: são somente leitura (por exemplo, um código WBS numerado automaticamente ou uma coluna calculada).",
-    "pasteSkippedReadOnly_other": "{{count}} células ignoradas: são somente leitura (por exemplo, um código WBS numerado automaticamente ou uma coluna calculada).",
+    "pasteSkippedReadOnly_one": "{{count}} célula ignorada: é só leitura (por exemplo, um código WBS numerado automaticamente ou uma coluna calculada).",
+    "pasteSkippedReadOnly_many": "{{count}} células ignoradas: são só leitura (por exemplo, um código WBS numerado automaticamente ou uma coluna calculada).",
+    "pasteSkippedReadOnly_other": "{{count}} células ignoradas: são só leitura (por exemplo, um código WBS numerado automaticamente ou uma coluna calculada).",
     "librarySaveFailed": "Não foi possível guardar a biblioteca",
     "levelingDelayRoundedToWorkdays_one": "O nivelamento arredonda o atraso de nivelamento do MS Project, com precisão de minutos, de {{count}} tarefa para dias úteis inteiros.",
     "levelingDelayRoundedToWorkdays_many": "O nivelamento arredonda o atraso de nivelamento do MS Project, com precisão de minutos, de {{count}} tarefas para dias úteis inteiros.",
@@ -173,15 +173,15 @@
       "openProjectInfo": "Abrir perfil de cálculo",
       "openHelp": "Abrir ajuda"
     },
-    "xerArchiveUnusable": "O arquivo de origem XER deste ficheiro é inutilizável e foi omitido; o projeto em si foi aberto por completo.",
-    "xerArchiveUnusableLine": "O arquivo de origem XER deste ficheiro era inutilizável e foi omitido.",
-    "xerArchiveUnusableConsequence": "O cronograma, o perfil de cálculo e todos os dados do projeto do IFC estão completos. O que falta: as datas tal como o Primavera as guardou e a proveniência de origem para a IA e as extensões. Guardar escreve o ficheiro sem o arquivo; importe novamente o .xer original para recuperar o arquivo.",
-    "xerArchiveReasonSchemaVersion": "Motivo: o arquivo tem uma versão de esquema ou um formato desconhecidos (um escritor mais recente ou diferente).",
-    "xerArchiveReasonHashMismatch": "Motivo: a soma de verificação não corresponde aos bytes de origem — o arquivo está danificado.",
-    "xerArchiveReasonTruncated": "Motivo: o arquivo está truncado — falta parte dos bytes de origem.",
+    "xerArchiveUnusable": "O ficheiro de origem XER deste ficheiro é inutilizável e foi omitido; o projeto em si foi aberto por completo.",
+    "xerArchiveUnusableLine": "O ficheiro de origem XER deste ficheiro era inutilizável e foi omitido.",
+    "xerArchiveUnusableConsequence": "O cronograma, o perfil de cálculo e todos os dados do projeto do IFC estão completos. O que falta: as datas tal como o Primavera as guardou e a proveniência de origem para a IA e as extensões. Guardar escreve o ficheiro sem o ficheiro; importe novamente o .xer original para recuperar o ficheiro.",
+    "xerArchiveReasonSchemaVersion": "Motivo: o ficheiro tem uma versão de esquema ou um formato desconhecidos (um escritor mais recente ou diferente).",
+    "xerArchiveReasonHashMismatch": "Motivo: a soma de verificação não corresponde aos bytes de origem — o ficheiro está danificado.",
+    "xerArchiveReasonTruncated": "Motivo: o ficheiro está truncado — falta parte dos bytes de origem.",
     "xerArchiveReasonBytesMissing": "Motivo: faltam os próprios bytes de origem — provavelmente outro programa IFC reescreveu o ficheiro.",
     "xerArchiveReasonMetadataInvalid": "Motivo: os bytes de origem estão intactos, mas os dados derivados deles são inutilizáveis.",
-    "xerArchiveReasonStructure": "Motivo: a estrutura do arquivo no IFC está incorreta (duplicada, reordenada ou mal associada).",
+    "xerArchiveReasonStructure": "Motivo: a estrutura do ficheiro no IFC está incorreta (duplicada, reordenada ou mal associada).",
     "statusDateSetToday": "Ainda não havia data de estado: foi definida para hoje ({{date}}), porque o progresso é medido até à data de estado. Pode alterá-la em Planeamento → Data de estado.",
     "durationBelowDoneWork": "«{{name}}» já está {{percent}}% feita: uma duração inferior ao trabalho já realizado não é possível. A duração não foi alterada.",
     "tutorialOfferLater": "Encontra sempre os tutoriais em Ajuda › Tutoriais.",
@@ -353,7 +353,7 @@
     "documentChromeRail": "Separadores verticais",
     "documentChromeSwitcher": "Pílula",
     "dateNotation": "Formato de data",
-    "dateNotationHint": "Determina como as datas são exibidas em todo o aplicativo. Arquivos e cálculos não são afetados.",
+    "dateNotationHint": "Determina como as datas são exibidas em todo o aplicativo. Ficheiros e cálculos não são afetados.",
     "dateNotationDmy": "dd-mm-aaaa",
     "dateNotationMdy": "mm-dd-aaaa",
     "dateNotationYmd": "aaaa-mm-dd",
@@ -576,12 +576,12 @@
     "goTo": "Ir para: {{target}}",
     "kind": {
       "scheduleError": "Não foi possível calcular o planeamento: {{message}}",
-      "missedDeadline": "Prazo {{deadline}} ultrapassado — fim mais cedo {{finish}}",
+      "missedDeadline": "Prazo {{deadline}} ultrapassado — fim antecipado {{finish}}",
       "violatedConstraint": "A restrição {{constraint}} é ultrapassada pela lógica (folga negativa)",
       "outOfSequence": "Fora de sequência: o progresso do sucessor contradiz a relação",
       "truncatedLead": "Avanço truncado pelo início do projeto — a relação não é totalmente respeitada",
       "droppedSequence": "Relação ignorada: o predecessor ou o sucessor está em falta ou não é uma tarefa folha",
-      "hammockNoFinishDriver": "Hammock sem condutor de fim (sem predecessor FF/SF): a duração volta a zero",
+      "hammockNoFinishDriver": "Hammock sem driver de fim (sem predecessor FF/SF): a duração volta a zero",
       "cappedTask": "Data de fim limitada: o calendário não deixa nenhuma janela útil para esta tarefa",
       "overallocation": "Sobrealocado durante {{count}} dia(s) ({{first}} – {{last}})",
       "overallocationNonWorkingDay": "Sobrealocado durante {{count}} dia(s) ({{first}} – {{last}}) — o recurso não trabalha nesse(s) dia(s) segundo o seu calendário",
@@ -594,16 +594,16 @@
   },
   "baseline": {
     "dialog": {
-      "title": "Baselines",
+      "title": "Linhas de base",
       "name": "Nome",
       "created": "Criada",
       "active": "Ativa",
       "delete": "Eliminar",
-      "saveNew": "Guardar nova baseline",
-      "defaultName": "Baseline {{n}} — {{date}}",
-      "noBaselines": "Ainda não há baselines",
+      "saveNew": "Guardar nova linha de base",
+      "defaultName": "Linha de base {{n}} — {{date}}",
+      "noBaselines": "Ainda não há linhas de base",
       "staleHint": "A planificação está desatualizada — recalcule primeiro (F5)",
-      "deleteActiveConfirm": "Eliminar a baseline ativa?"
+      "deleteActiveConfirm": "Eliminar a linha de base ativa?"
     }
   },
   "progress": {
@@ -677,7 +677,7 @@
     "linkThis": "Vincular",
     "linkAll": "Vincular todas as sugestões",
     "useCompanyValues": "Usar valores da biblioteca",
-    "adoptFileValues": "Adotar os valores do arquivo na biblioteca",
+    "adoptFileValues": "Adotar os valores do ficheiro na biblioteca",
     "adoptWarning": "Atenção: isto altera a biblioteca e vale para todos os seus projetos.",
     "decideLater": "Decidir depois",
     "refreshNotice_one": "1 item atualizado a partir da biblioteca",
@@ -901,8 +901,8 @@
       "hint": "Os períodos de trabalho são calculados automaticamente. Duração 0 remove a pausa.",
       "errors": {
         "invalidDuration": "A duração deve ser um número inteiro de minutos igual ou superior a 0.",
-        "outsideWorkingDay": "A pausa deve ficar totalmente dentro do dia de trabalho.",
-        "consumesWorkingDay": "A pausa não pode ocupar todo o dia de trabalho."
+        "outsideWorkingDay": "A pausa deve ficar totalmente dentro do dia útil.",
+        "consumesWorkingDay": "A pausa não pode ocupar todo o dia útil."
       }
     },
     "holidayErrors": {
@@ -1166,9 +1166,9 @@
     "warnHardPins_one": "{{count}} tarefa tem uma restrição Obrigatória rígida; essa fixação desloca-se também.",
     "warnHardPins_many": "{{count}} tarefas têm uma restrição Obrigatória rígida; essas fixações deslocam-se também.",
     "warnHardPins_other": "{{count}} tarefas têm uma restrição Obrigatória rígida; essas fixações deslocam-se também.",
-    "warnExternal_one": "{{count}} ligação externa: a sua âncora desloca-se, mas o projeto de origem não. Atualize a ligação após a mudança.",
-    "warnExternal_many": "{{count}} ligações externas: as suas âncoras deslocam-se, mas os projetos de origem não. Atualize as ligações após a mudança.",
-    "warnExternal_other": "{{count}} ligações externas: as suas âncoras deslocam-se, mas os projetos de origem não. Atualize as ligações após a mudança.",
+    "warnExternal_one": "{{count}} relação externa: a sua âncora desloca-se, mas o projeto de origem não. Atualize a ligação após a mudança.",
+    "warnExternal_many": "{{count}} relações externas: as suas âncoras deslocam-se, mas os projetos de origem não. Atualize as ligações após a mudança.",
+    "warnExternal_other": "{{count}} relações externas: as suas âncoras deslocam-se, mas os projetos de origem não. Atualize as ligações após a mudança.",
     "warnHolidayGap": "Os feriados gerados do calendário «{{name}}» abrangem {{from}}–{{to}}; o planeamento deslocado vai até {{year}}. Volte a gerar os feriados.",
     "warnCustomDateFields_one": "{{count}} campo personalizado de data preenchido mantém a sua data.",
     "warnCustomDateFields_many": "{{count}} campos personalizados de data preenchidos mantêm a sua data.",
@@ -1182,7 +1182,7 @@
   },
   "benchmark": {
     "section": "Benchmark",
-    "sectionHint": "Mede o desempenho do motor de planejamento num projeto de teste gerado.",
+    "sectionHint": "Mede o desempenho do motor de planeamento num projeto de teste gerado.",
     "open": "Benchmark…",
     "title": "Benchmark",
     "intro": "Gere um cronograma de teste e meça as fases principais. Não afeta o projeto aberto.",
@@ -1326,15 +1326,15 @@
     },
     "p6FinishMilestoneBoundaryWindow": {
       "label": "Marco final como janela de limite",
-      "help": "Um marco final pode estar em dois limites de calendário adjacentes: início cedo no começo de uma faixa, fim cedo no fim da faixa anterior."
+      "help": "Um marco final pode estar em dois limites de calendário adjacentes: início antecipado no começo de uma faixa, fim cedo no fim da faixa anterior."
     },
     "p6PreserveActualInstants": {
       "label": "Manter exatas as datas reais",
       "help": "As datas reais de início e fim registadas não são deslocadas para uma faixa de trabalho."
     },
     "p6UseRemainingStartForProgress": {
-      "label": "Tarefa em curso: início cedo = início do trabalho restante",
-      "help": "O início cedo e tardio de uma tarefa em curso descrevem onde começa o trabalho restante, não o início real histórico. No cálculo para trás por uma relação início-início, conta apenas a duração restante."
+      "label": "Tarefa em curso: início antecipado = início do trabalho restante",
+      "help": "O início antecipado e tardio de uma tarefa em curso descrevem onde começa o trabalho restante, não o início real histórico. No cálculo para trás por uma relação início-início, conta apenas a duração restante."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Momento de restrição exato num marco",
@@ -1350,11 +1350,11 @@
     },
     "p6RelationFinishBoundary": {
       "label": "O sucessor começa no limite de fim",
-      "help": "Numa relação fim-início sem desfasamento num limite de faixa partilhado, o sucessor começa no fim do predecessor (apenas relações que o ficheiro marca assim). No cálculo para trás, o sucessor mostra o seu início mais tarde simplesmente como o início de uma faixa de trabalho."
+      "help": "Numa relação fim-início sem desfasamento num limite de faixa partilhado, o sucessor começa no fim do predecessor (apenas relações que o ficheiro marca assim). No cálculo para trás, o sucessor mostra o seu início tardio simplesmente como o início de uma faixa de trabalho."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Desfasamento para trás a partir de um limite de fim",
-      "help": "Quando o cálculo para trás subtrai um desfasamento em tempo de trabalho a partir de um limite de fim e cai exatamente num início de faixa, cai no limite de fim anterior. Numa relação fim-fim sem atraso, um fim mais tarde no fim de uma faixa também fica nesse limite de fim."
+      "help": "Quando o cálculo para trás subtrai um desfasamento em tempo de trabalho a partir de um limite de fim e cai exatamente num início de faixa, cai no limite de fim anterior. Numa relação fim-fim sem atraso, um fim tardio no fim de uma faixa também fica nesse limite de fim."
     },
     "p6CompletedDataDateWindow": {
       "label": "Tarefa concluída na janela da data de estado",
@@ -1370,11 +1370,11 @@
     },
     "p6CompletedPredecessorAtDataDate": {
       "label": "Predecessora concluída não retém além da data de estado",
-      "help": "Se o término real de uma predecessora concluída cair depois da data de estado, as sucessoras podem mesmo assim começar na data de estado."
+      "help": "Se o fim real de uma predecessora concluída cair depois da data de estado, as sucessoras podem mesmo assim começar na data de estado."
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Folga livre no calendário da própria tarefa",
-      "help": "A folga livre de uma tarefa não iniciada é contada, por relação, no calendário da própria tarefa e não no da sucessora: para término-início, início-início e término-término, também com um atraso em tempo de trabalho no calendário da predecessora. Uma tarefa iniciada apenas para término-início sem atraso."
+      "help": "A folga livre de uma tarefa não iniciada é contada, por relação, no calendário da própria tarefa e não no da sucessora: para fim-início, início-início e fim-fim, também com um atraso em tempo de trabalho no calendário da predecessora. Uma tarefa iniciada apenas para fim-início sem atraso."
     },
     "p6CompletedRemainingLag": {
       "label": "O atraso decorrido de uma predecessora concluída não conta",
@@ -1385,12 +1385,12 @@
       "help": "Uma tarefa concluída cuja predecessora ainda não terminou recebe a sua janela nula depois dessa predecessora, em vez de na data de estado (lógica retida)."
     },
     "p6CompletedPhysicalAtDataDate": {
-      "label": "Tarefa concluída com avanço físico na data de status",
-      "help": "Uma tarefa concluída com percentual de avanço físico aparece como um único ponto na data de status, ou mais tarde se um predecessor o exigir, em vez de nas suas datas reais. Medido apenas para o progresso físico; para outros tipos de progresso (padrão do P6: duração) este comportamento não foi medido e permanece desativado."
+      "label": "Tarefa concluída com avanço físico na data de estado",
+      "help": "Uma tarefa concluída com percentual de avanço físico aparece como um único ponto na data de estado, ou mais tarde se um predecessor o exigir, em vez de nas suas datas reais. Medido apenas para o progresso físico; para outros tipos de progresso (padrão do P6: duração) este comportamento não foi medido e permanece desativado."
     },
     "p6InProgressStartLagElapsed": {
       "label": "O atraso II decorrido de um predecessor em andamento não conta",
-      "help": "Numa relação início-início a partir de uma tarefa já iniciada, só conta a parte do atraso que ainda não decorreu desde o seu início real na data de status."
+      "help": "Numa relação início-início a partir de uma tarefa já iniciada, só conta a parte do atraso que ainda não decorreu desde o seu início real na data de estado."
     },
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "Uma relação fim-fim para um marco de início liga-se ao próprio marco",
@@ -1401,16 +1401,16 @@
       "help": "O trabalho restante de uma tarefa iniciada começa na data de estado e logo após as suas predecessoras, mesmo que o início planeado seja posterior."
     },
     "p6LateFinishOnOwnCalendar": {
-      "label": "Término mais tarde no calendário próprio",
-      "help": "Se o término mais tarde imposto por um sucessor cair fora do horário de trabalho da atividade, passa a ser o fim do período de trabalho anterior no calendário da própria atividade."
+      "label": "Fim tardio no calendário próprio",
+      "help": "Se o fim tardio imposto por um sucessor cair fora do horário de trabalho da atividade, passa a ser o fim do período de trabalho anterior no calendário da própria atividade."
     },
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "Progress Override ignora também para trás um sucessor iniciado",
       "help": "Com Progress Override, a relação com um sucessor já iniciado não conta nas datas mais tardias nem na folga livre de um predecessor que ainda não terminou."
     },
     "p6FinishNotBeforeFinishFinishBound": {
-      "label": "Término mais cedo nunca antes de um limite término-término",
-      "help": "Numa relação término-término, o término mais cedo do sucessor nunca fica, em hora de relógio, antes do limite fixado pelo predecessor. Se esse limite cair em tempo não útil do sucessor, o término passa a ser o início do período de trabalho seguinte."
+      "label": "Fim antecipado nunca antes de um limite fim-fim",
+      "help": "Numa relação fim-fim, o fim antecipado do sucessor nunca fica, em hora de relógio, antes do limite fixado pelo predecessor. Se esse limite cair em tempo não útil do sucessor, o fim passa a ser o início do período de trabalho seguinte."
     },
     "p6AlapPositionedFromSuccessors": {
       "label": "Tarefas ALAP tão tarde quanto as sucessoras permitem",
@@ -1459,7 +1459,7 @@
       "intro": "Estas opções de cálculo vêm de um ficheiro Primavera P6 (.xer). Entram no cálculo, mas não podem ser alteradas aqui.",
       "useExpectedFinishDates": "Usar datas de fim previstas (P6: Use Expected Finish Dates)",
       "useProjectEndDateForFloat": "Calcular a folga até à data de fim do projeto",
-      "p6CompletedLateFromRemainingWindow": "Tarefa concluída: datas mais tardias a partir da data de status",
+      "p6CompletedLateFromRemainingWindow": "Tarefa concluída: datas mais tardias a partir da data de estado",
       "needsConvention": "Só funciona em conjunto com a convenção «{{convention}}», que está desativada."
     }
   },

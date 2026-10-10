@@ -26,7 +26,7 @@
     "xerInvalidNumber": "El archivo XER contiene un número no válido.",
     "xerSingleProjectRequired": "Esta importación admite exactamente un proyecto P6 por archivo XER.",
     "xerEmptyProject": "El proyecto P6 de este archivo XER no contiene actividades.",
-    "xerDuplicateId": "El archivo XER contiene un ID de EDT, actividad o relación duplicado.",
+    "xerDuplicateId": "El archivo XER contiene un ID de WBS, actividad o relación duplicado.",
     "xerAmbiguousLocalRelation": "Una relación XER sin ámbito no se puede asignar de forma inequívoca a un único proyecto local.",
     "xerDanglingLocalRelation": "Una relación XER local hace referencia a una actividad inexistente.",
     "xerEnumFallback": "XER {{family}}: token desconocido «{{token}}»; se usó «{{fallback}}».",
@@ -49,9 +49,9 @@
     "xerImportDanglingBaselineReferences_many": "{{count}} referencias de línea base sin destino ignoradas.",
     "xerImportDanglingBaselineReferences_other": "{{count}} referencias de línea base sin destino ignoradas.",
     "xerImportBaselineFallback": "Se usó una alternativa protectora para la línea base.",
-    "xerImportExternalLinks_one": "{{count}} vínculo externo conservado.",
-    "xerImportExternalLinks_many": "{{count}} vínculos externos conservados.",
-    "xerImportExternalLinks_other": "{{count}} vínculos externos conservados.",
+    "xerImportExternalLinks_one": "{{count}} relación externa conservada.",
+    "xerImportExternalLinks_many": "{{count}} relaciones externas conservadas.",
+    "xerImportExternalLinks_other": "{{count}} relaciones externas conservadas.",
     "xerImportEncoding": "Codificación de texto elegida: {{encoding}}.",
     "xerImportParserIssues_one": "{{count}} hallazgo del analizador.",
     "xerImportParserIssues_many": "{{count}} hallazgos del analizador.",
@@ -188,7 +188,7 @@
     "tutorialOfferUnavailable": "Ahora no se han podido instalar ni iniciar los tutoriales. Puedes volver a intentarlo más tarde en Ayuda › Tutoriales."
   },
   "scheduleErrors": {
-    "cycle": "Dependencia circular entre tareas: {{path}}",
+    "cycle": "Relación circular entre tareas: {{path}}",
     "noWorkingDays": "El calendario no tiene días laborables configurados",
     "invalidDayDuration": "Duración en días no válida para la tarea '{{task}}'",
     "invalidHourDuration": "Duración en horas no válida para la tarea '{{task}}'",
@@ -581,7 +581,7 @@
       "outOfSequence": "Fuera de secuencia: el progreso del sucesor contradice la relación",
       "truncatedLead": "Adelanto truncado por el inicio del proyecto — la relación no se respeta por completo",
       "droppedSequence": "Relación ignorada: el predecesor o el sucesor falta o no es una tarea hoja",
-      "hammockNoFinishDriver": "Hamaca sin impulsor de fin (sin predecesor FF/SF): su duración vuelve a cero",
+      "hammockNoFinishDriver": "Hamaca sin driver de fin (sin predecesor FF/SF): su duración vuelve a cero",
       "cappedTask": "Fecha de fin limitada: el calendario no deja ninguna ventana laborable para esta tarea",
       "overallocation": "Sobreasignado durante {{count}} día(s) ({{first}} – {{last}})",
       "overallocationNonWorkingDay": "Sobreasignado durante {{count}} día(s) ({{first}} – {{last}}) — el recurso no trabaja ese(os) día(s) según su calendario",
@@ -594,16 +594,16 @@
   },
   "baseline": {
     "dialog": {
-      "title": "Baselines",
+      "title": "Líneas base",
       "name": "Nombre",
       "created": "Creada",
       "active": "Activa",
       "delete": "Eliminar",
-      "saveNew": "Guardar nueva baseline",
-      "defaultName": "Baseline {{n}} — {{date}}",
-      "noBaselines": "Aún no hay baselines",
+      "saveNew": "Guardar nueva línea base",
+      "defaultName": "Línea base {{n}} — {{date}}",
+      "noBaselines": "Aún no hay líneas base",
       "staleHint": "La planificación está desactualizada — recalcula primero (F5)",
-      "deleteActiveConfirm": "¿Eliminar la baseline activa?"
+      "deleteActiveConfirm": "¿Eliminar la línea base activa?"
     }
   },
   "progress": {
@@ -822,9 +822,9 @@
       "docCount_one": "{{count}} documento",
       "docCount_many": "{{count}} documentos",
       "docCount_other": "{{count}} documentos",
-      "conflictDays_one": "{{count}} día con doble reserva",
-      "conflictDays_many": "{{count}} días con doble reserva",
-      "conflictDays_other": "{{count}} días con doble reserva",
+      "conflictDays_one": "{{count}} día con sobreasignación",
+      "conflictDays_many": "{{count}} días con sobreasignación",
+      "conflictDays_other": "{{count}} días con sobreasignación",
       "moreDays_one": "… y {{count}} más",
       "moreDays_many": "… y {{count}} más",
       "moreDays_other": "… y {{count}} más",
@@ -976,17 +976,17 @@
       "noLevels": "Sin ordenación — orden de árbol/banda"
     },
     "layout": {
-      "saveTitle": "Guardar layout como…",
-      "manageTitle": "Gestionar layouts",
+      "saveTitle": "Guardar diseño como…",
+      "manageTitle": "Gestionar diseños",
       "name": "Nombre",
       "rename": "Cambiar nombre",
       "delete": "Eliminar",
       "apply": "Aplicar",
       "update": "Actualizar",
-      "applyConfirm": "¿Aplicar el layout «{{name}}»? Esto reemplaza las columnas/agrupación/orden/filtro/escala actuales.",
+      "applyConfirm": "¿Aplicar el diseño «{{name}}»? Esto reemplaza las columnas/agrupación/orden/filtro/escala actuales.",
       "missingRefs": "Algunos campos no existen en este documento y se omitirán.",
-      "noLayouts": "Aún no hay layouts guardados.",
-      "activeLayout": "Layout",
+      "noLayouts": "Aún no hay diseños guardados.",
+      "activeLayout": "Diseño",
       "none": "(ninguno)",
       "builtinResourceDiagram": "Diagrama de recursos",
       "newTitle": "Nuevo diseño",
@@ -1166,9 +1166,9 @@
     "warnHardPins_one": "{{count}} tarea tiene una restricción Obligatoria estricta; ese anclaje se desplaza también.",
     "warnHardPins_many": "{{count}} tareas tienen una restricción Obligatoria estricta; esos anclajes se desplazan también.",
     "warnHardPins_other": "{{count}} tareas tienen una restricción Obligatoria estricta; esos anclajes se desplazan también.",
-    "warnExternal_one": "{{count}} vínculo externo: su anclaje se desplaza, pero el proyecto de origen no. Actualice el vínculo después de mover.",
-    "warnExternal_many": "{{count}} vínculos externos: sus anclajes se desplazan, pero los proyectos de origen no. Actualice los vínculos después de mover.",
-    "warnExternal_other": "{{count}} vínculos externos: sus anclajes se desplazan, pero los proyectos de origen no. Actualice los vínculos después de mover.",
+    "warnExternal_one": "{{count}} relación externa: su anclaje se desplaza, pero el proyecto de origen no. Actualice la relación después de mover.",
+    "warnExternal_many": "{{count}} relaciones externas: sus anclajes se desplazan, pero los proyectos de origen no. Actualice las relaciones después de mover.",
+    "warnExternal_other": "{{count}} relaciones externas: sus anclajes se desplazan, pero los proyectos de origen no. Actualice las relaciones después de mover.",
     "warnHolidayGap": "Los festivos generados del calendario «{{name}}» cubren {{from}}–{{to}}; la planificación desplazada llega hasta {{year}}. Vuelva a generar los festivos.",
     "warnCustomDateFields_one": "{{count}} campo personalizado de fecha rellenado conserva su fecha.",
     "warnCustomDateFields_many": "{{count}} campos personalizados de fecha rellenados conservan su fecha.",
@@ -1350,11 +1350,11 @@
     },
     "p6RelationFinishBoundary": {
       "label": "El sucesor empieza en el límite de fin",
-      "help": "En una relación fin-inicio sin desfase sobre un límite de franja compartido, el sucesor empieza en el fin del predecesor (solo las relaciones que el archivo marca así). En el cálculo hacia atrás, el sucesor muestra su comienzo tardío simplemente como el inicio de una franja de trabajo."
+      "help": "En una relación fin-comienzo sin desfase sobre un límite de franja compartido, el sucesor empieza en el fin del predecesor (solo las relaciones que el archivo marca así). En el cálculo hacia atrás, el sucesor muestra su comienzo tardío simplemente como el inicio de una franja de trabajo."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Desfase hacia atrás desde un límite de fin",
-      "help": "Cuando el cálculo hacia atrás resta un desfase en tiempo de trabajo desde un límite de fin y cae justo en un inicio de franja, cae en el límite de fin anterior. En una relación fin-fin sin posposición, un fin tardío en el final de una franja también se queda en ese límite de fin."
+      "help": "Cuando el cálculo hacia atrás resta un desfase en tiempo de trabajo desde un límite de fin y cae justo en un inicio de franja, cae en el límite de fin anterior. En una relación fin-fin sin desfase, un fin tardío en el final de una franja también se queda en ese límite de fin."
     },
     "p6CompletedDataDateWindow": {
       "label": "Tarea completada en la ventana de la fecha de estado",
@@ -1362,7 +1362,7 @@
     },
     "p6CompletedLoeActualFinish": {
       "label": "LOE completada mediante su fin real",
-      "help": "Una actividad de nivel de esfuerzo completada con solo una entrada inicio-inicio sigue la ruta por su fin real (solo tareas con origen P6)."
+      "help": "Una actividad de nivel de esfuerzo completada con solo una entrada comienzo-comienzo sigue la ruta por su fin real (solo tareas con origen P6)."
     },
     "p6OpenLoeTargetSpan": {
       "label": "LOE no iniciada toma la ventana objetivo",
@@ -1374,11 +1374,11 @@
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Holgura libre en el calendario propio",
-      "help": "La holgura libre de una tarea no iniciada se cuenta, por relación, en el calendario de la propia tarea y no en el del sucesor: para fin-inicio, inicio-inicio y fin-fin, también con una demora en tiempo laborable en el calendario del predecesor. Una tarea iniciada solo para fin-inicio sin demora."
+      "help": "La holgura libre de una tarea no iniciada se cuenta, por relación, en el calendario de la propia tarea y no en el del sucesor: para fin-comienzo, comienzo-comienzo y fin-fin, también con un desfase en tiempo laborable en el calendario del predecesor. Una tarea iniciada solo para fin-comienzo sin desfase."
     },
     "p6CompletedRemainingLag": {
-      "label": "La demora transcurrida de un predecesor completado no cuenta",
-      "help": "En el lado tardío solo cuenta la parte de la demora tras un predecesor completado que aún no ha transcurrido en la fecha de estado."
+      "label": "El desfase transcurrido de un predecesor completado no cuenta",
+      "help": "En el lado tardío solo cuenta la parte del desfase tras un predecesor completado que aún no ha transcurrido en la fecha de estado."
     },
     "p6CompletedOutOfSequenceWindow": {
       "label": "Una tarea completada fuera de secuencia espera a sus predecesoras",
@@ -1390,7 +1390,7 @@
     },
     "p6InProgressStartLagElapsed": {
       "label": "El retraso CC transcurrido de un predecesor en curso no cuenta",
-      "help": "En una relación comienzo-comienzo desde una tarea ya iniciada, solo cuenta la parte del retraso que aún no ha transcurrido desde su comienzo real en la fecha de estado."
+      "help": "En una relación comienzo-comienzo desde una tarea ya iniciada, solo cuenta la parte del retraso que aún no ha transcurrido desde su inicio real en la fecha de estado."
     },
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "Una relación fin-fin hacia un hito de inicio se vincula al propio hito",

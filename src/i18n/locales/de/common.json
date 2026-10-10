@@ -10,7 +10,7 @@
   },
   "notifications": {
     "dismiss": "Benachrichtigung schließen",
-    "taskEditRevertBlocked": "Eine Änderung des KI-Assistenten oder einer Erweiterung kam dazwischen. Die vorher vorgenommenen Aufgabenänderungen wurden nicht zurückgesetzt und bleiben als normale Schritte unter Rückgängig.",
+    "taskEditRevertBlocked": "Eine Änderung des KI-Assistenten oder einer Erweiterung kam dazwischen. Die vorher vorgenommenen Vorgangsänderungen wurden nicht zurückgesetzt und bleiben als normale Schritte unter Rückgängig.",
     "openFailed": "Datei konnte nicht geöffnet werden",
     "extGuideCallbackFailed": "Ein Schritt der Erweiterung {{name}} ist fehlgeschlagen. Die Anleitung läuft weiter.",
     "extHelpProjectOpenFailed": "Die Projektdatei {{file}} der Erweiterung {{name}} konnte nicht geöffnet werden.",
@@ -26,7 +26,7 @@
     "xerInvalidNumber": "Die XER-Datei enthält eine ungültige Zahl.",
     "xerSingleProjectRequired": "Dieser Import unterstützt genau ein P6-Projekt pro XER-Datei.",
     "xerEmptyProject": "Das P6-Projekt in dieser XER-Datei enthält keine Aktivitäten.",
-    "xerDuplicateId": "Die XER-Datei enthält eine doppelte WBS-, Vorgangs- oder Beziehungs-ID.",
+    "xerDuplicateId": "Die XER-Datei enthält eine doppelte PSP-, Vorgangs- oder Beziehungs-ID.",
     "xerAmbiguousLocalRelation": "Eine nicht zugeordnete XER-Beziehung kann keinem lokalen Projekt eindeutig zugewiesen werden.",
     "xerDanglingLocalRelation": "Eine lokale XER-Beziehung verweist auf einen fehlenden Vorgang.",
     "xerEnumFallback": "XER {{family}}: unbekanntes Token „{{token}}“; Ersatzwert „{{fallback}}“.",
@@ -43,8 +43,8 @@
     "xerImportDanglingBaselineReferences_one": "{{count}} verwaister Baseline-Verweis ignoriert.",
     "xerImportDanglingBaselineReferences_other": "{{count}} verwaiste Baseline-Verweise ignoriert.",
     "xerImportBaselineFallback": "Ein schützender Baseline-Rückfall wurde verwendet.",
-    "xerImportExternalLinks_one": "{{count}} externe Verknüpfung beibehalten.",
-    "xerImportExternalLinks_other": "{{count}} externe Verknüpfungen beibehalten.",
+    "xerImportExternalLinks_one": "{{count}} externe Beziehung beibehalten.",
+    "xerImportExternalLinks_other": "{{count}} externe Beziehungen beibehalten.",
     "xerImportEncoding": "Textkodierung gewählt: {{encoding}}.",
     "xerImportParserIssues_one": "{{count}} Parser-Hinweis.",
     "xerImportParserIssues_other": "{{count}} Parser-Hinweise.",
@@ -76,16 +76,16 @@
     "recoveryRestoreFailed": "Wiederherstellung fehlgeschlagen",
     "recoveryDocumentsSkipped_one": "{{count}} Wiederherstellungsdatei konnte nicht geladen werden und wurde übersprungen.",
     "recoveryDocumentsSkipped_other": "{{count}} Wiederherstellungsdateien konnten nicht geladen werden und wurden übersprungen.",
-    "scheduleFailed": "Zeitplan konnte nicht berechnet werden",
+    "scheduleFailed": "Terminplan konnte nicht berechnet werden",
     "ifcParseFailed": "IFC konnte nicht gelesen werden",
     "templateSaved": "Zweig als Vorlage '{{name}}' gespeichert",
     "relationCreated": "Beziehung erstellt: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Diese Beziehung besteht bereits",
-    "relationAncestorEndpoint": "Eine Beziehung zwischen einer Aufgabe und ihrer eigenen übergeordneten Sammelaufgabe ist nicht zulässig.",
+    "relationAncestorEndpoint": "Eine Beziehung zwischen einem Vorgang und seinem eigenen übergeordneten Sammelvorgang ist nicht zulässig.",
     "relationCycle": "Diese Beziehung würde einen Zyklus im Terminplan erzeugen ({{cycle}}) und wurde nicht erstellt.",
-    "hierarchyCycle": "Diese Verschiebung würde einen Zyklus im Terminplan erzeugen ({{cycle}}): Die Beziehungen einer Sammelaufgabe gelten auch für ihre Teilaufgaben. Es wurde nichts verschoben.",
-    "relationsExcludedByHierarchy_one": "Nach dem Verschieben verbindet {{count}} Beziehung eine Aufgabe mit ihrer eigenen übergeordneten Sammelaufgabe; sie fließt nicht mehr in die Berechnung ein.",
-    "relationsExcludedByHierarchy_other": "Nach dem Verschieben verbinden {{count}} Beziehungen eine Aufgabe mit ihrer eigenen übergeordneten Sammelaufgabe; sie fließen nicht mehr in die Berechnung ein.",
+    "hierarchyCycle": "Diese Verschiebung würde einen Zyklus im Terminplan erzeugen ({{cycle}}): Die Beziehungen eines Sammelvorgangs gelten auch für seine Teilvorgänge. Es wurde nichts verschoben.",
+    "relationsExcludedByHierarchy_one": "Nach dem Verschieben verbindet {{count}} Beziehung einen Vorgang mit seinem eigenen übergeordneten Sammelvorgang; sie fließt nicht mehr in die Berechnung ein.",
+    "relationsExcludedByHierarchy_other": "Nach dem Verschieben verbinden {{count}} Beziehungen einen Vorgang mit seinem eigenen übergeordneten Sammelvorgang; sie fließen nicht mehr in die Berechnung ein.",
     "summaryRelationsDropped": "{{total}} Beziehung(en) konnten nicht einbezogen werden. Prüfen Sie die Vorgänger- und Nachfolgerspalten.",
     "duplicateIdsRenamed": "Objekte mit doppelter ID in dieser Datei: {{total}}. Sie haben eine eigene ID erhalten; Verweise darauf bleiben beim ersten Vorkommen. Prüfen Sie Beziehungen und Zuordnungen.",
     "relationsSkippedOnInsert_one": "{{count}} Beziehung wurde nicht erstellt: ungültige Verknüpfung (z. B. ein Vorgang mit seinem eigenen (Groß-)Sammelvorgang oder ein Duplikat).",
@@ -107,8 +107,8 @@
     "pasteSkippedReadOnly_one": "{{count}} Zelle übersprungen: Sie ist schreibgeschützt (z. B. ein automatisch nummerierter PSP-Code oder eine berechnete Spalte).",
     "pasteSkippedReadOnly_other": "{{count}} Zellen übersprungen: Sie sind schreibgeschützt (z. B. ein automatisch nummerierter PSP-Code oder eine berechnete Spalte).",
     "librarySaveFailed": "Bibliothek konnte nicht gespeichert werden",
-    "levelingDelayRoundedToWorkdays_one": "Der Ressourcenabgleich rundet die minutengenaue Abgleichverzögerung aus MS Project für {{count}} Vorgang auf ganze Arbeitstage.",
-    "levelingDelayRoundedToWorkdays_other": "Der Ressourcenabgleich rundet die minutengenaue Abgleichverzögerung aus MS Project für {{count}} Vorgänge auf ganze Arbeitstage.",
+    "levelingDelayRoundedToWorkdays_one": "Der Kapazitätsabgleich rundet die minutengenaue Abgleichsverzögerung aus MS Project für {{count}} Vorgang auf ganze Arbeitstage.",
+    "levelingDelayRoundedToWorkdays_other": "Der Kapazitätsabgleich rundet die minutengenaue Abgleichsverzögerung aus MS Project für {{count}} Vorgänge auf ganze Arbeitstage.",
     "startSnetCreated": "'{{name}}' hat einen Vorgänger: Der neue Anfang ist jetzt die Einschränkung Anfang nicht früher als (SNET) {{date}}. Nach dem Neuberechnen (F5) beginnt der Vorgang nicht vor diesem Datum.",
     "startSnetUpdated": "Die Einschränkung Anfang nicht früher als (SNET) von '{{name}}' wurde auf {{date}} verschoben. Nach dem Neuberechnen (F5) beginnt der Vorgang nicht vor diesem Datum.",
     "startSnetMany_one": "Der neue Anfang von {{count}} Vorgang mit Vorgänger ist jetzt eine Einschränkung Anfang nicht früher als (SNET). Nach dem Neuberechnen (F5) beginnt er nicht vor seinem Datum.",
@@ -117,20 +117,20 @@
     "startBlockedByConstraintNoDate": "Der neue Anfang von '{{name}}' wurde nicht übernommen: Der Vorgang hat einen Vorgänger und die Einschränkung $t(task:constraintType.{{type}}), die seinen Anfang bestimmen. Ändern Sie diese Einschränkung, um den Anfang zu verschieben.",
     "startBlockedByConstraintMany_one": "Der neue Anfang von {{count}} Vorgang wurde nicht übernommen: Er hat einen Vorgänger und eine andere Einschränkung als Anfang nicht früher als (SNET). Ändern Sie diese Einschränkung, um den Anfang zu verschieben.",
     "startBlockedByConstraintMany_other": "Die neuen Anfänge von {{count}} Vorgängen wurden nicht übernommen: Sie haben einen Vorgänger und eine andere Einschränkung als Anfang nicht früher als (SNET). Ändern Sie diese Einschränkungen, um die Anfänge zu verschieben.",
-    "referencesClearedOnPaste_one": "{{count}} Verweis existierte in diesem Dokument nicht und wurde geleert (ein Vorgangskalender, eigener Vorgangstyp, Aufgabencode oder benutzerdefiniertes Feld aus dem Quelldokument).",
-    "referencesClearedOnPaste_other": "{{count}} Verweise existierten in diesem Dokument nicht und wurden geleert (Vorgangskalender, eigene Vorgangstypen, Aufgabencodes oder benutzerdefinierte Felder aus dem Quelldokument).",
+    "referencesClearedOnPaste_one": "{{count}} Verweis existierte in diesem Dokument nicht und wurde geleert (ein Vorgangskalender, eigene Vorgangsart, Vorgangscode oder benutzerdefiniertes Feld aus dem Quelldokument).",
+    "referencesClearedOnPaste_other": "{{count}} Verweise existierten in diesem Dokument nicht und wurden geleert (Vorgangskalender, eigene Vorgangsarten, Vorgangscodes oder benutzerdefinierte Felder aus dem Quelldokument).",
     "milestoneRefusedAssignments_one": "„{{task}}“ hat Ressourcenzuweisungen und kann kein Meilenstein werden. Entfernen Sie zuerst die Zuweisungen.",
-    "milestoneRefusedAssignments_other": "{{count}} Aufgaben haben Ressourcenzuweisungen und können keine Meilensteine werden. Entfernen Sie zuerst die Zuweisungen.",
-    "milestoneRefusedSummary_one": "„{{task}}“ ist eine Sammelaufgabe mit Unteraufgaben und kann kein Meilenstein werden.",
-    "milestoneRefusedSummary_other": "{{count}} Aufgaben sind Sammelaufgaben mit Unteraufgaben und können keine Meilensteine werden.",
-    "assignmentsMovedToSubtask_one": "Die Zuweisung von {{resources}} wurde von „{{phase}}“ zur neuen Unteraufgabe „{{child}}“ verschoben: Eine Sammelaufgabe trägt selbst keine Zuweisungen.",
-    "assignmentsMovedToSubtask_other": "Die {{count}} Zuweisungen ({{resources}}) wurden von „{{phase}}“ zur neuen Unteraufgabe „{{child}}“ verschoben: Eine Sammelaufgabe trägt selbst keine Zuweisungen.",
-    "assignmentsMovedToSubtasks_one": "{{count}} Aufgabe wurde zur Sammelaufgabe; ihre Zuweisungen wurden zur ersten neuen Unteraufgabe verschoben.",
-    "assignmentsMovedToSubtasks_other": "{{count}} Aufgaben wurden zu Sammelaufgaben; ihre Zuweisungen wurden jeweils zur ersten neuen Unteraufgabe verschoben.",
-    "milestoneClearedOnPhase_one": "Meilenstein „{{phase}}“ hat jetzt Unteraufgaben und ist zur Sammelaufgabe geworden; die Meilensteinmarkierung wurde entfernt.",
-    "milestoneClearedOnPhase_other": "{{count}} Meilensteine haben jetzt Unteraufgaben und sind zu Sammelaufgaben geworden; die Meilensteinmarkierung wurde entfernt.",
-    "phaseRefusedNoAssignableChild": "„{{phase}}“ kann keine Sammelaufgabe werden: Ihre Zuweisungen können nirgendwohin, weil keine der neuen Unteraufgaben Zuweisungen tragen kann (ein Meilenstein oder eine Sammelaufgabe). Es wurde nichts geändert.",
-    "phaseRefusedDuplicateResource": "„{{phase}}“ kann keine Sammelaufgabe werden: Die Zuweisung von {{resource}} kann nicht zur neuen Unteraufgabe „{{child}}“, weil diese {{resource}} bereits hat. Es wurde nichts geändert.",
+    "milestoneRefusedAssignments_other": "{{count}} Vorgänge haben Ressourcenzuweisungen und können keine Meilensteine werden. Entfernen Sie zuerst die Zuweisungen.",
+    "milestoneRefusedSummary_one": "„{{task}}“ ist ein Sammelvorgang mit Teilvorgängen und kann kein Meilenstein werden.",
+    "milestoneRefusedSummary_other": "{{count}} Vorgänge sind Sammelvorgänge mit Teilvorgängen und können keine Meilensteine werden.",
+    "assignmentsMovedToSubtask_one": "Die Zuweisung von {{resources}} wurde von „{{phase}}“ zum neuen Teilvorgang „{{child}}“ verschoben: Ein Sammelvorgang trägt selbst keine Zuweisungen.",
+    "assignmentsMovedToSubtask_other": "Die {{count}} Zuweisungen ({{resources}}) wurden von „{{phase}}“ zum neuen Teilvorgang „{{child}}“ verschoben: Ein Sammelvorgang trägt selbst keine Zuweisungen.",
+    "assignmentsMovedToSubtasks_one": "{{count}} Vorgang wurde zum Sammelvorgang; seine Zuweisungen wurden zum ersten neuen Teilvorgang verschoben.",
+    "assignmentsMovedToSubtasks_other": "{{count}} Vorgänge wurden zu Sammelvorgängen; ihre Zuweisungen wurden jeweils zum ersten neuen Teilvorgang verschoben.",
+    "milestoneClearedOnPhase_one": "Meilenstein „{{phase}}“ hat jetzt Teilvorgänge und ist zum Sammelvorgang geworden; die Meilensteinmarkierung wurde entfernt.",
+    "milestoneClearedOnPhase_other": "{{count}} Meilensteine haben jetzt Teilvorgänge und sind zu Sammelvorgängen geworden; die Meilensteinmarkierung wurde entfernt.",
+    "phaseRefusedNoAssignableChild": "„{{phase}}“ kann kein Sammelvorgang werden: Ihre Zuweisungen können nirgendwohin, weil keine der neuen Teilvorgänge Zuweisungen tragen kann (ein Meilenstein oder ein Sammelvorgang). Es wurde nichts geändert.",
+    "phaseRefusedDuplicateResource": "„{{phase}}“ kann kein Sammelvorgang werden: Die Zuweisung von {{resource}} kann nicht zum neuen Teilvorgang „{{child}}“, weil dieser {{resource}} bereits hat. Es wurde nichts geändert.",
     "schedulingProfileApplied": "Dieses Projekt rechnet als {{profile}}. Ändern über Datei → Projektinfo → Berechnungsprofil und Berechnungsoptionen.",
     "schedulingProfileShifted_one": "Nach dem Anwenden wurde {{count}} Vorgang verschoben.",
     "schedulingProfileShifted_other": "Nach dem Anwenden wurden {{count}} Vorgänge verschoben.",
@@ -153,12 +153,12 @@
     "tutorialOfferUnavailable": "Die Tutorials konnten gerade nicht installiert oder gestartet werden. Unter Hilfe › Tutorials kannst du es später erneut versuchen."
   },
   "scheduleErrors": {
-    "cycle": "Zirkelbezug zwischen Aufgaben: {{path}}",
+    "cycle": "Zirkelbezug zwischen Vorgängen: {{path}}",
     "noWorkingDays": "Im Kalender sind keine Arbeitstage festgelegt",
-    "invalidDayDuration": "Ungültige Dauer in Tagen für Aufgabe '{{task}}'",
-    "invalidHourDuration": "Ungültige Dauer in Stunden für Aufgabe '{{task}}'",
-    "hourTaskWithoutWorkHours": "Stundenaufgabe '{{task}}' hat in ihrem Kalender keine gültigen Arbeitszeiten",
-    "invalidStartDate": "Ungültiges Startdatum für Aufgabe '{{task}}'"
+    "invalidDayDuration": "Ungültige Dauer in Tagen für Vorgang '{{task}}'",
+    "invalidHourDuration": "Ungültige Dauer in Stunden für Vorgang '{{task}}'",
+    "hourTaskWithoutWorkHours": "Stundenvorgang '{{task}}' hat in seinem Kalender keine gültigen Arbeitszeiten",
+    "invalidStartDate": "Ungültiges Startdatum für Vorgang '{{task}}'"
   },
   "yes": "Ja",
   "no": "Nein",
@@ -183,11 +183,11 @@
   },
   "context": {
     "edit": "Bearbeiten...",
-    "addSubtask": "Unteraufgabe hinzufügen",
+    "addSubtask": "Teilvorgang hinzufügen",
     "addMilestone": "Meilenstein hinzufügen",
     "addRelation": "Beziehung hinzufügen",
     "delete": "Löschen",
-    "newTask": "Neue Aufgabe",
+    "newTask": "Neuer Vorgang",
     "tracePath": "Pfad verfolgen",
     "traceOff": "Pfadverfolgung beenden",
     "saveTemplate": "Zweig als Vorlage speichern",
@@ -278,7 +278,7 @@
     "ganttSection": "Gantt",
     "compressNonWorkdaysSection": "Zeitachse",
     "compressNonWorkdays": "Nur Arbeitstage anzeigen",
-    "compressNonWorkdaysHint": "Komprimiert die Zeitachse: Wochenenden und Feiertage aus dem Projektkalender werden übersprungen, sodass eine 5-Arbeitstage-Aufgabe genau 5 Spalten breit ist.",
+    "compressNonWorkdaysHint": "Komprimiert die Zeitachse: Wochenenden und Feiertage aus dem Projektkalender werden übersprungen, sodass ein 5-Arbeitstage-Vorgang genau 5 Spalten breit ist.",
     "enableQuarterHourZoom": "Viertelstunden bei starker Vergrößerung anzeigen",
     "enableQuarterHourZoomHint": "Zusätzliche Viertelstunden-Abstufung auf der Stunden-Zeitachse beim weiten Hineinzoomen.",
     "weekStartDay": "Woche beginnt am",
@@ -296,7 +296,7 @@
     "scrollModePosition": "Position",
     "scrollModeModifier": "Tasten",
     "scrollModeDrag": "Zoom + Ziehen",
-    "dragModeHint": "Mausrad = zoomen (zentriert auf den Cursor) · Planhintergrund ziehen, um die Ansicht zu verschieben. Eine Aufgabenleiste ziehen verschiebt diese wie gewohnt. · Umschalt + Mausrad scrollt durch die Zeilen · Strg/⌘ + Ziehen zieht einen Auswahlrahmen.",
+    "dragModeHint": "Mausrad = zoomen (zentriert auf den Cursor) · Planhintergrund ziehen, um die Ansicht zu verschieben. Eine Vorgangsleiste ziehen verschiebt diese wie gewohnt. · Umschalt + Mausrad scrollt durch die Zeilen · Strg/⌘ + Ziehen zieht einen Auswahlrahmen.",
     "screenDivision": "Bildschirmaufteilung",
     "screenDivisionLeftRight": "Links/rechts",
     "screenDivisionTopBottom": "Oben/unten",
@@ -395,15 +395,15 @@
   },
   "confirm": {
     "newProject": "Neues Projekt erstellen? Nicht gespeicherte Änderungen gehen verloren.",
-    "deleteTask": "Sind Sie sicher, dass Sie diese Aufgabe löschen möchten?",
+    "deleteTask": "Sind Sie sicher, dass Sie diesen Vorgang löschen möchten?",
     "unsavedChanges": "Nicht gespeicherte Änderungen gehen verloren. Fortfahren?"
   },
   "recovery": {
     "dialogTitle": "Nicht gespeicherte Arbeit wiederherstellen",
     "explanation": "Open Planner Studio wurde nicht normal beendet. Die folgenden Dokumente enthielten nicht gespeicherte Änderungen, die wiederhergestellt werden können:",
     "timeLabel": "Gespeichert",
-    "taskCount_one": "{{count}} Aufgabe",
-    "taskCount_other": "{{count}} Aufgaben",
+    "taskCount_one": "{{count}} Vorgang",
+    "taskCount_other": "{{count}} Vorgänge",
     "restore": "Wiederherstellen",
     "dontRestore": "Nicht wiederherstellen"
   },
@@ -436,7 +436,7 @@
     "openExistingProject": "Bestehendes Projekt öffnen",
     "allProjects": "Alle Projekte",
     "active": "Aktiv",
-    "tasksWord": "Aufgaben",
+    "tasksWord": "Vorgänge",
     "criticalWord": "kritisch",
     "confirmClose": "Dieses Dokument enthält nicht gespeicherte Änderungen. Trotzdem schließen?",
     "closeTitle": "Nicht gespeicherte Änderungen",
@@ -542,7 +542,7 @@
       "scheduleError": "Der Terminplan konnte nicht berechnet werden: {{message}}",
       "missedDeadline": "Stichtag {{deadline}} überschritten — frühestes Ende {{finish}}",
       "violatedConstraint": "Einschränkung {{constraint}} wird durch die Logik überschritten (negativer Puffer)",
-      "outOfSequence": "Out of sequence: der Fortschritt des Nachfolgers widerspricht der Beziehung",
+      "outOfSequence": "Fortschritt außer Reihenfolge: der Fortschritt des Nachfolgers widerspricht der Beziehung",
       "truncatedLead": "Vorlauf durch den Projektstart gekappt — die Beziehung wird nicht vollständig eingehalten",
       "droppedSequence": "Beziehung ignoriert: Vorgänger oder Nachfolger fehlt oder ist kein Blattvorgang",
       "hammockNoFinishDriver": "Hammock ohne Ende-Treiber (kein EE/AE-Vorgänger): die Dauer fällt auf null zurück",
@@ -572,17 +572,17 @@
   },
   "progress": {
     "actualsAfterStatusDate": "Ist-Werte dürfen nicht nach dem Statusdatum liegen",
-    "actualStartAfterFinish": "Der tatsächliche Anfang liegt nach dem tatsächlichen Ende."
+    "actualStartAfterFinish": "Der Ist-Anfang liegt nach dem Ist-Ende."
   },
   "actualStartQuestion": {
-    "title": "Tatsächlichen Anfang angeben",
+    "title": "Ist-Anfang angeben",
     "introOne": "„{{name}}“ sollte laut Plan nach dem Statusdatum ({{statusDate}}) beginnen, erhält jetzt aber Fortschritt. Wann hat der Vorgang tatsächlich begonnen?",
     "introMany": "Diese Vorgänge sollten laut Plan nach dem Statusdatum ({{statusDate}}) beginnen, erhalten jetzt aber Fortschritt. Wann haben sie tatsächlich begonnen?",
-    "fieldLabel": "Tatsächlicher Anfang von {{name}}",
+    "fieldLabel": "Ist-Anfang von {{name}}",
     "latest": "Spätestens {{date}}.",
     "required": "Geben Sie ein Datum ein.",
     "afterStatusDate": "Dieses Datum liegt nach dem Statusdatum ({{date}}).",
-    "afterActualFinish": "Dieses Datum liegt nach dem tatsächlichen Ende ({{date}}).",
+    "afterActualFinish": "Dieses Datum liegt nach dem Ist-Ende ({{date}}).",
     "confirm": "Fortschritt übernehmen"
   },
   "companyLibrary": {
@@ -718,8 +718,8 @@
     },
     "histogram": {
       "allResources": "Alle Ressourcen",
-      "overallocatedTooltip_one": "{{count}} Aufgabe trägt bei am {{date}}",
-      "overallocatedTooltip_other": "{{count}} Aufgaben tragen bei am {{date}}",
+      "overallocatedTooltip_one": "{{count}} Vorgang trägt bei am {{date}}",
+      "overallocatedTooltip_other": "{{count}} Vorgänge tragen bei am {{date}}",
       "overallocatedNonWorkingDay": "Arbeitet an diesem Tag laut Kalender „{{calendar}}“ nicht",
       "noData": "Neu berechnen (F5), um die Auslastung anzuzeigen",
       "noResources": "Noch keine Ressourcen",
@@ -740,19 +740,19 @@
       "projectEndUnchanged": "Projektende: unverändert ({{date}})",
       "projectEndChanged": "Projektende: {{before}} → {{after}}",
       "remainingConflicts": "Verbleibende Konflikte",
-      "remainingConflictsHint": "Diese Aufgaben passen nicht in ihren Puffer — oft weil eine Ressource an diesen Tagen nicht arbeitet oder nicht genug Kapazität hat.",
+      "remainingConflictsHint": "Diese Vorgänge passen nicht in ihren Puffer — oft weil eine Ressource an diesen Tagen nicht arbeitet oder nicht genug Kapazität hat.",
       "intrinsicOverrun": "{{resource}} erreicht einen Spitzenwert von {{peak}} Einh./Tag, Kapazität ist {{capacity}} — durch Verschieben nicht lösbar.",
-      "noChanges": "Keine Aufgaben müssen verschoben werden — der Terminplan ist bereits konfliktfrei.",
+      "noChanges": "Keine Vorgänge müssen verschoben werden — der Terminplan ist bereits konfliktfrei.",
       "notCalculated": "Klicken Sie auf Berechnen, um einen Abgleichsvorschlag zu erstellen.",
       "needsCPM": "Berechnen Sie zuerst den Terminplan (F5), bevor Sie den Abgleich durchführen.",
-      "colTask": "Aufgabe",
+      "colTask": "Vorgang",
       "colOldStart": "Alter Start",
       "colNewStart": "Neuer Start",
       "colShift": "Verschobene Tage",
       "shiftDays": "{{count}} T",
       "conflictDays": "{{count}} Tag(e)",
       "reason": {
-        "calendarMismatch": "Die Ressource arbeitet nicht an allen Tagen, die diese Aufgabe benötigt — Verschieben löst dies nicht.",
+        "calendarMismatch": "Die Ressource arbeitet nicht an allen Tagen, die dieser Vorgang benötigt — Verschieben löst dies nicht.",
         "insufficientCapacity": "Nicht genug freie Kapazität innerhalb des Puffers, um diesen Konflikt zu lösen.",
         "ceilingTooTight": "Die Verschiebungsgrenze lässt zu wenig Raum: Innerhalb dieser Anzahl Arbeitstage ist kein freies Fenster.",
         "ceilingUnreachable": "Mehr Verschiebung hilft hier nicht — ein Termin oder eine Randbedingung hält diesen Vorgang an seinem Platz.",
@@ -923,7 +923,7 @@
       "addLevel": "+ Ebene",
       "level": "Ebene {{n}}",
       "direction": "Richtung",
-      "noLevels": "Keine Gruppierung — WBS-Baum",
+      "noLevels": "Keine Gruppierung — PSP-Baum",
       "maxLevels": "Maximal 2 Gruppierungsebenen"
     },
     "sort": {
@@ -1041,8 +1041,8 @@
       "selectAll": "Alles auswählen"
     },
     "structure": {
-      "moveUp": "Aufgabe nach oben verschieben",
-      "moveDown": "Aufgabe nach unten verschieben"
+      "moveUp": "Vorgang nach oben verschieben",
+      "moveDown": "Vorgang nach unten verschieben"
     },
     "nav": {
       "reportTab": "Zum Bericht-Tab",
@@ -1064,16 +1064,16 @@
     "next": "Weiter",
     "skip": "Überspringen",
     "tourStepTitle": "Tour starten?",
-    "tourStepBody": "Eine kurze Tour (7 Schritte) zeigt die wichtigsten Bereiche: Aufgaben, Terminplanung, Berichte und mehr. Du kannst jederzeit abbrechen.",
+    "tourStepBody": "Eine kurze Tour (7 Schritte) zeigt die wichtigsten Bereiche: Vorgänge, Terminplanung, Berichte und mehr. Du kannst jederzeit abbrechen.",
     "startTour": "Tour starten"
   },
   "tour": {
     "step1Title": "Menüband-Registerkarten",
     "step1Body": "Oben findest du die Menüband-Registerkarten. Jede Registerkarte gruppiert Funktionen rund um ein Thema, z. B. Start, Terminplanung und Ressourcen.",
-    "step2Title": "Aufgabentabelle und Gantt-Diagramm",
-    "step2Body": "Links die Aufgabentabelle, rechts das Gantt-Diagramm. Hier planst und bearbeitest du Aufgaben und siehst den Zeitplan.",
+    "step2Title": "Vorgangstabelle und Gantt-Diagramm",
+    "step2Body": "Links die Vorgangstabelle, rechts das Gantt-Diagramm. Hier planst und bearbeitest du Vorgänge und siehst den Terminplan.",
     "step3Title": "Eigenschaftenbereich",
-    "step3Body": "Wähle eine Aufgabe aus, um ihre Details in diesem Bereich anzuzeigen und zu bearbeiten.",
+    "step3Body": "Wähle einen Vorgang aus, um seine Details in diesem Bereich anzuzeigen und zu bearbeiten.",
     "step4Title": "Histogramm",
     "step4Body": "Der Histogrammstreifen zeigt die Ressourcenauslastung unter dem Gantt-Diagramm — praktisch, um Überlastungen zu erkennen.",
     "step5Title": "Berichte",
@@ -1118,8 +1118,8 @@
     "warnActuals_other": "{{count}} Vorgänge haben Ist-Start-/Ist-Endtermine; diese verschieben sich mit. Prüfen Sie, ob das für ein laufendes Projekt korrekt ist.",
     "warnHardPins_one": "{{count}} Vorgang hat eine harte Muss-Einschränkung; diese Fixierung verschiebt sich mit.",
     "warnHardPins_other": "{{count}} Vorgänge haben eine harte Muss-Einschränkung; diese Fixierungen verschieben sich mit.",
-    "warnExternal_one": "{{count}} externe Verknüpfung: ihr Anker verschiebt sich mit, das Quellprojekt jedoch nicht. Aktualisieren Sie die Verknüpfung nach dem Verschieben.",
-    "warnExternal_other": "{{count}} externe Verknüpfungen: ihre Anker verschieben sich mit, die Quellprojekte jedoch nicht. Aktualisieren Sie die Verknüpfungen nach dem Verschieben.",
+    "warnExternal_one": "{{count}} externe Beziehung: ihr Anker verschiebt sich mit, das Quellprojekt jedoch nicht. Aktualisieren Sie die Verknüpfung nach dem Verschieben.",
+    "warnExternal_other": "{{count}} externe Beziehungen: ihre Anker verschieben sich mit, die Quellprojekte jedoch nicht. Aktualisieren Sie die Verknüpfungen nach dem Verschieben.",
     "warnHolidayGap": "Die generierten Feiertage des Kalenders „{{name}}“ decken {{from}}–{{to}} ab; der verschobene Terminplan läuft bis {{year}}. Generieren Sie die Feiertage neu.",
     "warnCustomDateFields_one": "{{count}} ausgefülltes benutzerdefiniertes Datumsfeld behält sein Datum.",
     "warnCustomDateFields_other": "{{count}} ausgefüllte benutzerdefinierte Datumsfelder behalten ihr Datum.",
@@ -1202,7 +1202,7 @@
   "progressImport": {
     "title": "Fortschritt aus einer Tabelle aktualisieren",
     "chooseFile": "Datei wählen…",
-    "intro": "Wählen Sie ein zurückgesandtes CSV-Blatt. Die App liest nur Fertigstellungsgrad, tatsächlichen Start und tatsächliches Ende — der Rest Ihrer Planung bleibt unverändert.",
+    "intro": "Wählen Sie ein zurückgesandtes CSV-Blatt. Die App liest nur Fertigstellungsgrad, tatsächlichen Start und Ist-Ende — der Rest Ihrer Planung bleibt unverändert.",
     "summaryApplied": "Angewendet: {{applied}}",
     "summaryNoop": "Unverändert: {{noop}}",
     "summaryNeedsLink": "Wartet auf Verknüpfung: {{needsLink}}",
@@ -1212,11 +1212,11 @@
     "confirmLink": "Bestätigen",
     "changeLink": "Ändern",
     "clearLink": "Verknüpfung löschen",
-    "pickerPlaceholder": "Aufgabe wählen…",
-    "pickerFilter": "Suche nach WBS oder Name…",
-    "pickerTooMany": "Zu viele Aufgaben zum Anzeigen — Suche eingrenzen.",
+    "pickerPlaceholder": "Vorgang wählen…",
+    "pickerFilter": "Suche nach PSP oder Name…",
+    "pickerTooMany": "Zu viele Vorgänge zum Anzeigen — Suche eingrenzen.",
     "pickerTaken": "bereits mit einer anderen Zeile verknüpft",
-    "overrideDropped": "Die Verknüpfung für Zeile {{row}} verweist auf eine nicht mehr existierende Aufgabe und wurde ignoriert.",
+    "overrideDropped": "Die Verknüpfung für Zeile {{row}} verweist auf einen nicht mehr existierenden Vorgang und wurde ignoriert.",
     "moreRows": "…und {{more}} weitere",
     "sheetRowHint": "Zeile {{row}} im Blatt",
     "dateOrderTitle": "Tag zuerst oder Monat zuerst?",
@@ -1232,29 +1232,29 @@
     "fileIssue": {
       "tooLarge": "Diese Datei ist zu groß, um als Fortschrittsblatt gelesen zu werden.",
       "tooManyRows": "Diese Datei hat zu viele Zeilen, um als Fortschrittsblatt gelesen zu werden.",
-      "noKeyColumn": "Diese Datei hat keine Spalte „OPS Task ID“ oder „WBS“, um Zeilen mit Aufgaben zu verknüpfen.",
-      "noProgressColumns": "Diese Datei hat keine der Spalten Fertigstellung, Tatsächlicher Start oder Tatsächliches Ende.",
+      "noKeyColumn": "Diese Datei hat keine Spalte „OPS Task ID“ oder „PSP“, um Zeilen mit Vorgängen zu verknüpfen.",
+      "noProgressColumns": "Diese Datei hat keine der Spalten Fertigstellung, Tatsächlicher Start oder Ist-Ende.",
       "unreadable": "Diese Datei konnte nicht als Fortschrittsblatt gelesen werden.",
       "encrypted": "Diese Datei ist passwortgeschützt und kann nicht gelesen werden."
     },
     "reason": {
-      "unmatched": "Keine Aufgabe für diese Zeile gefunden.",
-      "ambiguousWbs": "Dieser WBS-Code kommt bei mehreren Aufgaben vor — Zeile manuell verknüpfen.",
-      "duplicateRow": "Eine andere Zeile hat diese Aufgabe bereits beansprucht.",
-      "summaryTask": "Sammelaufgaben können keinen Fortschritt aus einem Blatt erhalten.",
+      "unmatched": "Kein Vorgang für diese Zeile gefunden.",
+      "ambiguousWbs": "Dieser PSP-Code kommt bei mehreren Vorgängen vor — Zeile manuell verknüpfen.",
+      "duplicateRow": "Eine andere Zeile hat diesen Vorgang bereits beansprucht.",
+      "summaryTask": "Sammelvorgänge können keinen Fortschritt aus einem Blatt erhalten.",
       "unreadableDate": "Unlesbares Datum.",
       "unreadableNumber": "Unlesbarer Prozentwert.",
       "percentOutOfRange": "Prozentwert außerhalb von 0–100. Prüfen Sie das Dezimaltrennzeichen: „8,38“ kann in einer Tabellenkalkulation mit anderer Spracheinstellung als 838 gelesen werden.",
       "actualAfterStatusDate": "Das tatsächliche Datum liegt nach dem Stichtag.",
-      "actualFinishBeforeStart": "Tatsächliches Ende liegt vor tatsächlichem Start.",
+      "actualFinishBeforeStart": "Ist-Ende liegt vor tatsächlichem Start.",
       "conflictingProgressInputs": "Die eingegebenen Werte widersprechen sich.",
-      "actualStartRequired": "Diese Aufgabe beginnt laut Planung erst nach dem Stichtag: Tragen Sie zuerst den tatsächlichen Beginn im Blatt ein.",
+      "actualStartRequired": "Dieser Vorgang beginnt laut Planung erst nach dem Stichtag: Tragen Sie zuerst den tatsächlichen Beginn im Blatt ein.",
       "rejected": "Vom Planer abgelehnt."
     },
     "field": {
       "completion": "Fertigstellung",
       "actualStart": "Tatsächlicher Start",
-      "actualFinish": "Tatsächliches Ende"
+      "actualFinish": "Ist-Ende"
     }
   },
   "conventions": {
@@ -1276,15 +1276,15 @@
     },
     "p6FinishMilestoneBoundaryWindow": {
       "label": "Endmeilenstein als Grenzfenster",
-      "help": "Ein Endmeilenstein darf auf zwei benachbarten Kalendergrenzen stehen: früher Start am Beginn eines Bandes, frühes Ende am Ende des vorherigen Bandes."
+      "help": "Ein Endmeilenstein darf auf zwei benachbarten Kalendergrenzen stehen: frühester Anfang am Beginn eines Bandes, frühes Ende am Ende des vorherigen Bandes."
     },
     "p6PreserveActualInstants": {
       "label": "Istdaten exakt übernehmen",
       "help": "Erfasste Ist-Start- und Ist-Endtermine werden nicht auf ein Arbeitszeitband verschoben."
     },
     "p6UseRemainingStartForProgress": {
-      "label": "Laufender Vorgang: früher Start = Beginn der Restarbeit",
-      "help": "Früher und später Start eines laufenden Vorgangs beschreiben, wo die Restarbeit beginnt, nicht den historischen Ist-Start. Bei der Rückwärtsrechnung über eine Anfang-Anfang-Beziehung zählt nur die Restdauer."
+      "label": "Laufender Vorgang: frühester Anfang = Beginn der Restarbeit",
+      "help": "Früher und spätester Anfang eines laufenden Vorgangs beschreiben, wo die Restarbeit beginnt, nicht den historischen Ist-Start. Bei der Rückwärtsrechnung über eine Anfang-Anfang-Beziehung zählt nur die Restdauer."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Exakter Einschränkungszeitpunkt auf einem Meilenstein",
@@ -1359,7 +1359,7 @@
       "help": "Bei Progress Override zählt die Beziehung zu einem bereits begonnenen Nachfolger nicht für die späten Termine und die freie Pufferzeit eines noch nicht abgeschlossenen Vorgängers."
     },
     "p6FinishNotBeforeFinishFinishBound": {
-      "label": "Früheres Ende nicht vor einer Ende-Ende-Grenze",
+      "label": "Frühestes Ende nicht vor einer Ende-Ende-Grenze",
       "help": "Bei einer Ende-Ende-Beziehung liegt das frühe Ende des Nachfolgers in Uhrzeit nie vor der Grenze, die der Vorgänger setzt. Fällt diese Grenze in arbeitsfreie Zeit des Nachfolgers, wird das Ende der Beginn der nächsten Arbeitsperiode."
     },
     "p6AlapPositionedFromSuccessors": {
@@ -1434,7 +1434,7 @@
     "collapse": "Anleitung einklappen",
     "expand": "Anleitung ausklappen",
     "stepDone": "Erledigt",
-    "waiting": "Führe die Aufgabe in der App aus; danach geht es weiter."
+    "waiting": "Führe den Vorgang in der App aus; danach geht es weiter."
   },
   "tutorialOffer": {
     "title": "Tutorials",

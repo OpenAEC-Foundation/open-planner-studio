@@ -153,11 +153,11 @@ eq('3a de melding draagt de sleutel', notice?.detailKey, 'scheduleErrors.invalid
 eq('3b en de taak als parameter', notice?.detailParams, { task: 'Grondwerk', path: '' });
 eq('3c geen rauwe (Nederlandse) tekst meer in de melding', notice?.detail, undefined);
 eq('3d Engels', t('en')(notice!.detailKey!, notice!.detailParams), "Invalid start date for task 'Grondwerk'");
-eq('3e Duits', t('de')(notice!.detailKey!, notice!.detailParams), "Ungültiges Startdatum für Aufgabe 'Grondwerk'");
+eq('3e Duits', t('de')(notice!.detailKey!, notice!.detailParams), "Ungültiges Startdatum für Vorgang 'Grondwerk'");
 eq('3f Nederlands', t('nl')(notice!.detailKey!, notice!.detailParams), "Ongeldige startdatum voor taak 'Grondwerk'");
 
 eq('3g kring in het Engels', scheduleErrorText(cyc, t('en')), `Circular dependency between tasks: ${names.join(' → ')}`);
-eq('3h kring in het Duits', scheduleErrorText(cyc, t('de')), `Zirkelbezug zwischen Aufgaben: ${names.join(' → ')}`);
+eq('3h kring in het Duits', scheduleErrorText(cyc, t('de')), `Zirkelbezug zwischen Vorgängen: ${names.join(' → ')}`);
 eq('3i een resultaat zonder code valt terug op de vaste tekst', scheduleErrorText({ error: 'Circular dependency detected: A → B → A' }, t('en')), 'Circular dependency detected: A → B → A');
 eq('3j geen fout ⇒ lege tekst', scheduleErrorText(null, t('en')), '');
 eq('3k resultaat zonder code ⇒ melding met rauwe tekst', scheduleFailedNotice({ error: 'x' })?.detail, 'x');

@@ -12,7 +12,7 @@
   "portrait": "Dikey",
   "showCriticalPath": "Kritik yol",
   "showFloat": "Bolluğu göster",
-  "showDependencies": "Bağımlılıklar",
+  "showDependencies": "İlişkiler",
   "showWeekends": "Hafta sonları",
   "showLegend": "Gösterge",
   "showTaskNames": "Çubuklarda görev adları",
@@ -83,12 +83,12 @@
     "health": "Program sağlığı",
     "resourceLoading": "Kaynak yükü",
     "resourceAssignments": "Kaynak atamaları",
-    "wbsSummary": "İKY özeti"
+    "wbsSummary": "WBS özeti"
   },
   "variance": {
     "title": "Variance raporu",
-    "baselineStart": "Baseline başlangıcı",
-    "baselineFinish": "Baseline bitişi",
+    "baselineStart": "Temel plan başlangıcı",
+    "baselineFinish": "Temel plan bitişi",
     "currentStart": "Mevcut başlangıç",
     "currentFinish": "Mevcut bitiş",
     "deltaStart": "Δ başlangıç (ig)",
@@ -99,7 +99,7 @@
     "status_early": "Daha erken",
     "status_new": "Yeni",
     "status_dropped": "Kaldırıldı",
-    "noBaseline": "Etkin baseline yok — bir baseline kaydedin veya birini etkin olarak ayarlayın.",
+    "noBaseline": "Etkin temel plan yok — bir temel plan kaydedin veya birini etkin olarak ayarlayın.",
     "projectEndDelta": "Proje bitişi: {{delta}} iş günü",
     "total": "Görevler",
     "lateCount": "Daha geç",
@@ -107,7 +107,7 @@
   },
   "milestoneReport": {
     "title": "Kilometre taşı özeti",
-    "wbs": "İKY",
+    "wbs": "WBS",
     "name": "Ad",
     "kind": "Tür",
     "date": "Tarih",
@@ -162,7 +162,7 @@
     "period": "Dönem",
     "statusDate": "Durum tarihi",
     "common": {
-      "wbs": "İKY",
+      "wbs": "WBS",
       "name": "Ad",
       "start": "Başlangıç",
       "finish": "Bitiş",
@@ -193,7 +193,7 @@
       "onlyOverloaded": "Yalnızca aşırı yüklü dönemler",
       "includeCompleted": "Tamamlanan görevleri dahil et",
       "wbsLevel": "Seviye:",
-      "wbsLevelAll": "Tam İKY",
+      "wbsLevelAll": "Tam WBS",
       "includeActivities": "Aktiviteleri göster"
     },
     "periodPresets": {
@@ -283,7 +283,7 @@
       "check_longDuration": "Uzun süre",
       "check_lead": "Öne alma (negatif gecikme)",
       "check_longLag": "Uzun gecikme",
-      "check_hardConstraint": "Sert kısıt",
+      "check_hardConstraint": "Kesin kısıtlama",
       "check_outOfSequence": "Sıra dışı ilerleme",
       "check_progressException": "Tutarsız ilerleme",
       "check_missedTask": "Kaçırılan görev (temel plana göre)",
@@ -317,7 +317,7 @@
       "metric_leads": "Öne çekmeler (negatif gecikme)",
       "metric_lags": "Gecikmeler",
       "metric_relationshipTypes": "İlişki türleri (FS payı)",
-      "metric_hardConstraints": "Sert kısıtlar",
+      "metric_hardConstraints": "Kesin kısıtlamalar",
       "metric_highFloat": "Yüksek bolluk (> {{days}} ig)",
       "metric_negativeFloat": "Negatif bolluk",
       "metric_highDuration": "Uzun süre (> {{days}} ig)",
@@ -376,7 +376,7 @@
       "empty": "Atama yok."
     },
     "wbsSummary": {
-      "title": "İKY özeti",
+      "title": "WBS özeti",
       "baselineStart": "Temel başlangıç",
       "baselineFinish": "Temel bitiş",
       "duration": "Süre (ig)",
@@ -386,10 +386,10 @@
       "critical": "Krit.",
       "inProgress": "Devam",
       "complete": "Bitti",
-      "elements": "İKY öğeleri",
+      "elements": "WBS öğeleri",
       "activitiesLabel": "Aktiviteler",
       "levelSubtitle": "{{level}}. seviyeye kadar",
-      "empty": "İKY öğesi yok."
+      "empty": "WBS öğesi yok."
     }
   }
 }

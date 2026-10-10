@@ -37,7 +37,7 @@
     "xerImportBaselinesMaterialized_other": "具体化したベースライン: {{count}}",
     "xerImportDanglingBaselineReferences_other": "無効なベースライン参照を無視: {{count}}",
     "xerImportBaselineFallback": "保護的なベースラインのフォールバックを使用しました。",
-    "xerImportExternalLinks_other": "外部リンクを保持: {{count}}",
+    "xerImportExternalLinks_other": "外部関係を保持: {{count}}",
     "xerImportEncoding": "選択したテキストエンコーディング: {{encoding}}。",
     "xerImportParserIssues_other": "パーサーの検出事項: {{count}}",
     "xerImportCalendarIssues_other": "カレンダーの検出事項: {{count}}",
@@ -71,7 +71,7 @@
     "summaryRelationsDropped": "{{total}} 件の関係が計算に含められませんでした。先行タスク列と後続タスク列を確認してください。",
     "duplicateIdsRenamed": "このファイル内で ID が重複しているオブジェクト: {{total}}。それぞれに独自の ID が付与されました。参照は最初のオブジェクトに残ります。関係と割り当てを確認してください。",
     "relationsSkippedOnInsert_other": "{{count}} 件の関係を作成しませんでした。リンクが無効です（例：タスクが自身の（上位）サマリータスクにリンクしている、または重複している）。",
-    "mppSourceScheduleNotes_other": "この MS Project ファイルには、分割・平準化・リソース主導で計画されたタスクが {{count}} 件含まれています。そのまま読み込まれ、表示されます。",
+    "mppSourceScheduleNotes_other": "この MS Project ファイルには、分割・山崩し・リソース主導で計画されたタスクが {{count}} 件含まれています。そのまま読み込まれ、表示されます。",
     "exportSplitsLost_other": "中断のあるタスク {{count}} 件は中断なしでエクスポートされました。MS Project/P6 では中断を作業配分としてしか扱えません。",
     "projectStartAnchorsClamped_other": "プロジェクト開始日を変更しました。先行タスクも制約もないタスクの起点 {{count}} 件を新しい開始日に合わせて移動しました。",
     "mppTimephasedSteeringLost_other": "この編集の後、MS Project の時間配分はもう {{count}} 件のタスクを制御していません。元の配分はファイルに保存されたままです。",
@@ -89,7 +89,7 @@
     "startBlockedByConstraint": "「{{name}}」の新しい開始日は適用されませんでした。このタスクには先行タスクと制約「$t(task:constraintType.{{type}})」{{date}} があり、それらが開始日を決めます。開始日を移動するには、その制約を変更してください。",
     "startBlockedByConstraintNoDate": "「{{name}}」の新しい開始日は適用されませんでした。このタスクには先行タスクと制約「$t(task:constraintType.{{type}})」があり、それらが開始日を決めます。開始日を移動するには、その制約を変更してください。",
     "startBlockedByConstraintMany_other": "タスク {{count}} 件の新しい開始日は適用されませんでした。これらのタスクには先行タスクと「指定日以降に開始 (SNET)」以外の制約があります。開始日を移動するには、それらの制約を変更してください。",
-    "referencesClearedOnPaste_other": "この文書に存在しない参照 {{count}} 件をクリアしました（元の文書のタスクカレンダー、カスタムタスク種別、アクティビティコード、カスタムフィールド）。",
+    "referencesClearedOnPaste_other": "この文書に存在しない参照 {{count}} 件をクリアしました（元の文書のタスクカレンダー、カスタムタスク種類、アクティビティコード、カスタムフィールド）。",
     "milestoneRefusedAssignments_other": "リソースの割り当てがあるタスク {{count}} 件はマイルストーンにできません。先に割り当てを削除してください。",
     "milestoneRefusedSummary_other": "サブタスクを持つサマリータスク {{count}} 件はマイルストーンにできません。",
     "assignmentsMovedToSubtask_other": "{{count}} 件の割り当て（{{resources}}）を「{{phase}}」から新しいサブタスク「{{child}}」に移動しました。サマリータスク自体は割り当てを持ちません。",
@@ -670,7 +670,7 @@
       "steps": "ステップ"
     },
     "compact": {
-      "overallocated": "過負荷",
+      "overallocated": "過剰割り当て",
       "title": "リソース",
       "expandFull": "フルパネル",
       "closeDock": "ドッキングを閉じる"
@@ -692,7 +692,7 @@
       "constrainToFloat": "フロート内でのみ山崩しする（平滑化）— プロジェクト終了日は変わりません",
       "resourceSelect": "リソース",
       "calculate": "計算",
-      "failed": "平準化に失敗しました: {{message}}",
+      "failed": "山崩しに失敗しました: {{message}}",
       "staleResult": "計算中にスケジュールが変更されました。もう一度［計算］をクリックしてください。",
       "stop": "停止",
       "calculating": "計算中…",
@@ -1070,7 +1070,7 @@
     "detailSteps": "稼働可能量ステップ",
     "warnActuals_other": "{{count}} 件のタスクに実績開始日／実績終了日があり、これらも移動します。進行中のプロジェクトとして妥当か確認してください。",
     "warnHardPins_other": "{{count}} 件のタスクに厳格な「必須」制約があります。その固定日も移動します。",
-    "warnExternal_other": "{{count}} 件の外部リンク：アンカーは移動しますが、参照元プロジェクトは移動しません。移動後にリンクを更新してください。",
+    "warnExternal_other": "{{count}} 件の外部関係：アンカーは移動しますが、参照元プロジェクトは移動しません。移動後にリンクを更新してください。",
     "warnHolidayGap": "カレンダー「{{name}}」の生成済み祝日は {{from}}–{{to}} をカバーしていますが、移動後の工程は {{year}} 年まで続きます。祝日を再生成してください。",
     "warnCustomDateFields_other": "入力済みの日付型カスタムフィールド {{count}} 件は日付が変わりません。",
     "warnPast": "新しい開始日は過去の日付です。",
@@ -1274,7 +1274,7 @@
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "フリーフロートをタスク自身のカレンダーで計算",
-      "help": "未開始タスクのフリーフロートは、リレーションごとに後続タスクではなくタスク自身のカレンダーで計算します。終了-開始、開始-開始、終了-終了が対象で、先行タスクのカレンダー上の作業時間ラグも含みます。開始済みのタスクはラグなしの終了-開始のみです。"
+      "help": "未開始タスクのフリーフロートは、関係ごとに後続タスクではなくタスク自身のカレンダーで計算します。終了-開始、開始-開始、終了-終了が対象で、先行タスクのカレンダー上の作業時間ラグも含みます。開始済みのタスクはラグなしの終了-開始のみです。"
     },
     "p6CompletedRemainingLag": {
       "label": "完了した先行タスクの経過済みラグは数えない",
@@ -1301,12 +1301,12 @@
       "help": "開始済みタスクの残作業は、計画開始がそれより遅くても、ステータス日付かつ先行タスクの直後から始まります。"
     },
     "p6LateFinishOnOwnCalendar": {
-      "label": "遅い終了日を自身のカレンダーに合わせる",
-      "help": "後続作業が課す遅い終了日が作業の稼働時間外になる場合、作業自身のカレンダー上の直前の稼働期間の終わりになります。"
+      "label": "最遅終了を自身のカレンダーに合わせる",
+      "help": "後続作業が課す最遅終了が作業の稼働時間外になる場合、作業自身のカレンダー上の直前の稼働期間の終わりになります。"
     },
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "Progress Override は開始済みの後続を後方計算でも無視する",
-      "help": "Progress Override では、すでに開始した後続作業との関係は、未完了の先行作業の最遅日付とフリーフロートに含まれません。"
+      "help": "Progress Override では、すでに開始した後続作業との関係は、未完了の先行作業の遅い日付とフリーフロートに含まれません。"
     },
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "最早終了は終了-終了の境界より前にならない",

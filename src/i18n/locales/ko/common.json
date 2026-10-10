@@ -37,7 +37,7 @@
     "xerImportBaselinesMaterialized_other": "구체화한 기준선: {{count}}",
     "xerImportDanglingBaselineReferences_other": "끊어진 기준선 참조 무시: {{count}}",
     "xerImportBaselineFallback": "보호용 기준선 대체 경로를 사용했습니다.",
-    "xerImportExternalLinks_other": "외부 연결 보존: {{count}}",
+    "xerImportExternalLinks_other": "외부 관계 보존: {{count}}",
     "xerImportEncoding": "선택한 텍스트 인코딩: {{encoding}}.",
     "xerImportParserIssues_other": "파서 발견 사항: {{count}}",
     "xerImportCalendarIssues_other": "달력 발견 사항: {{count}}",
@@ -89,7 +89,7 @@
     "startBlockedByConstraint": "'{{name}}'의 새 시작일이 적용되지 않았습니다. 이 작업에는 선행 작업과 제약 조건 $t(task:constraintType.{{type}}) {{date}}이(가) 있으며, 이들이 시작일을 결정합니다. 시작일을 옮기려면 그 제약 조건을 변경하세요.",
     "startBlockedByConstraintNoDate": "'{{name}}'의 새 시작일이 적용되지 않았습니다. 이 작업에는 선행 작업과 제약 조건 $t(task:constraintType.{{type}})이(가) 있으며, 이들이 시작일을 결정합니다. 시작일을 옮기려면 그 제약 조건을 변경하세요.",
     "startBlockedByConstraintMany_other": "작업 {{count}}개의 새 시작일이 적용되지 않았습니다. 이 작업들에는 선행 작업과 지정일 이후 시작 (SNET)이 아닌 제약 조건이 있습니다. 시작일을 옮기려면 그 제약 조건을 변경하세요.",
-    "referencesClearedOnPaste_other": "이 문서에 없는 참조 {{count}}개를 비웠습니다(원본 문서의 작업 달력, 사용자 지정 작업 유형, 작업 코드 또는 사용자 정의 필드).",
+    "referencesClearedOnPaste_other": "이 문서에 없는 참조 {{count}}개를 비웠습니다(원본 문서의 작업 달력, 사용자 지정 작업 유형, 작업 코드 또는 사용자 지정 필드).",
     "milestoneRefusedAssignments_other": "리소스 할당이 있는 작업 {{count}}개는 마일스톤이 될 수 없습니다. 먼저 할당을 제거하세요.",
     "milestoneRefusedSummary_other": "하위 작업이 있는 요약 작업 {{count}}개는 마일스톤이 될 수 없습니다.",
     "assignmentsMovedToSubtask_other": "할당 {{count}}개({{resources}})를 '{{phase}}'에서 새 하위 작업 '{{child}}'(으)로 옮겼습니다. 요약 작업은 자체 할당을 갖지 않습니다.",
@@ -118,7 +118,7 @@
     "tutorialOfferUnavailable": "지금은 튜토리얼을 설치하거나 시작할 수 없습니다. 나중에 도움말 › 튜토리얼에서 다시 시도할 수 있습니다."
   },
   "scheduleErrors": {
-    "cycle": "작업 간 순환 종속성: {{path}}",
+    "cycle": "작업 간 순환 관계: {{path}}",
     "noWorkingDays": "달력에 근무일이 설정되어 있지 않습니다",
     "invalidDayDuration": "작업 '{{task}}'의 일 단위 기간이 올바르지 않습니다",
     "invalidHourDuration": "작업 '{{task}}'의 시간 단위 기간이 올바르지 않습니다",
@@ -161,8 +161,8 @@
     "indent": "들여쓰기",
     "outdent": "내어쓰기",
     "toggleMilestone": "마일스톤 전환",
-    "calendarMenu": "캘린더 지정",
-    "calendarProjectDefault": "프로젝트 캘린더",
+    "calendarMenu": "달력 지정",
+    "calendarProjectDefault": "프로젝트 달력",
     "progressMenu": "진행률",
     "priorityMenu": "우선순위",
     "priorityLow": "낮음",
@@ -243,7 +243,7 @@
     "ganttSection": "간트",
     "compressNonWorkdaysSection": "타임라인 축",
     "compressNonWorkdays": "근무일만 표시",
-    "compressNonWorkdaysHint": "타임라인을 압축합니다. 프로젝트 캘린더의 주말과 공휴일은 건너뛰어, 5 근무일짜리 작업이 정확히 5개 열 너비가 됩니다.",
+    "compressNonWorkdaysHint": "타임라인을 압축합니다. 프로젝트 달력의 주말과 공휴일은 건너뛰어, 5 근무일짜리 작업이 정확히 5개 열 너비가 됩니다.",
     "enableQuarterHourZoom": "최대 확대 시 15분 단위 표시",
     "enableQuarterHourZoomHint": "많이 확대했을 때 시간 타임스케일에 추가로 15분 단위 눈금을 표시합니다.",
     "weekStartDay": "주 시작 요일",
@@ -504,16 +504,16 @@
     "goTo": "이동: {{target}}",
     "kind": {
       "scheduleError": "일정을 계산할 수 없습니다: {{message}}",
-      "missedDeadline": "기한 {{deadline}} 초과 — 최조 완료 {{finish}}",
+      "missedDeadline": "기한 {{deadline}} 초과 — 빠른 완료 {{finish}}",
       "violatedConstraint": "제약 조건 {{constraint}}이(가) 논리에 의해 초과됨(음수 여유)",
-      "outOfSequence": "순서 위반: 후행 작업의 진행이 관계와 모순됩니다",
+      "outOfSequence": "순서 위반: 후속 작업의 진행이 관계와 모순됩니다",
       "truncatedLead": "리드가 프로젝트 시작에 의해 잘림 — 관계가 완전히 적용되지 않음",
-      "droppedSequence": "관계 무시됨: 선행 또는 후행 작업이 없거나 리프 작업이 아닙니다",
+      "droppedSequence": "관계 무시됨: 선행 또는 후속 작업이 없거나 리프 작업이 아닙니다",
       "hammockNoFinishDriver": "완료 드라이버가 없는 해먹(FF/SF 선행 없음): 기간이 0으로 돌아갑니다",
       "cappedTask": "완료일이 제한됨: 달력에 이 작업의 작업 가능한 기간이 없습니다",
       "overallocation": "{{count}}일 동안 과다 할당({{first}} – {{last}})",
-      "overallocationNonWorkingDay": "{{count}}일 동안 과다 할당({{first}} – {{last}}) — 이 리소스는 캘린더 상 이 날(들)에 근무하지 않습니다",
-      "overallocationMixed": "{{count}}일 동안 과다 할당({{first}} – {{last}}), 그중 {{nonWorking}}일은 리소스가 캘린더 상 근무하지 않는 날입니다"
+      "overallocationNonWorkingDay": "{{count}}일 동안 과다 할당({{first}} – {{last}}) — 이 리소스는 달력 상 이 날(들)에 근무하지 않습니다",
+      "overallocationMixed": "{{count}}일 동안 과다 할당({{first}} – {{last}}), 그중 {{nonWorking}}일은 리소스가 달력 상 근무하지 않는 날입니다"
     },
     "target": {
       "project": "프로젝트",
@@ -552,7 +552,7 @@
   "companyLibrary": {
     "title": "리소스 라이브러리",
     "intro": "리소스 라이브러리와 공유 풀을 관리합니다. 할당은 리소스 탭에서 이루어지며, 할당한 항목은 프로젝트 내에서 출처 정보를 유지한 사본으로 자동 변환됩니다.",
-    "resourceManagementHint": "리소스는 리소스 탭(라이브러리 보기)에서 관리합니다. 여기서는 리소스 라이브러리, 캘린더, 가져오기/내보내기를 관리합니다.",
+    "resourceManagementHint": "리소스는 리소스 탭(라이브러리 보기)에서 관리합니다. 여기서는 리소스 라이브러리, 달력, 가져오기/내보내기를 관리합니다.",
     "companies": "리소스 라이브러리",
     "addCompany": "리소스 라이브러리 추가",
     "newCompany": "새 리소스 라이브러리",
@@ -642,7 +642,7 @@
     "unitOnlyMaterial": "‘자재’ 유형 리소스에서만 입력할 수 있습니다.",
     "parent": "팀",
     "projectCalendar": "프로젝트 달력",
-    "noCalendar": "캘린더 없음",
+    "noCalendar": "달력 없음",
     "editCalendar": "편집…",
     "unlinkFromLibrary": "라이브러리에서 분리",
     "inheritedFieldHint": "라이브러리 값입니다 — 라이브러리 보기에서 편집하거나 이 리소스를 라이브러리에서 분리하세요.",
@@ -670,7 +670,7 @@
       "steps": "단계"
     },
     "compact": {
-      "overallocated": "과부하",
+      "overallocated": "과다 할당",
       "title": "리소스",
       "expandFull": "전체 패널",
       "closeDock": "도킹 닫기"
@@ -681,7 +681,7 @@
     "histogram": {
       "allResources": "모든 자원",
       "overallocatedTooltip_other": "{{date}}에 {{count}}개의 작업이 기여함",
-      "overallocatedNonWorkingDay": "캘린더 \"{{calendar}}\"에 따라 이 날은 근무하지 않습니다",
+      "overallocatedNonWorkingDay": "달력 \"{{calendar}}\"에 따라 이 날은 근무하지 않습니다",
       "noData": "부하를 표시하려면 다시 계산하세요 (F5)",
       "noResources": "아직 자원이 없습니다",
       "units": "단위",
@@ -1070,7 +1070,7 @@
     "detailSteps": "가용량 단계",
     "warnActuals_other": "{{count}}개 작업에 실제 시작일/종료일이 있으며 함께 이동합니다. 진행 중인 프로젝트에 적절한지 확인하세요.",
     "warnHardPins_other": "{{count}}개 작업에 강제(하드) 필수 제약이 있습니다. 해당 고정일도 함께 이동합니다.",
-    "warnExternal_other": "외부 링크 {{count}}개: 앵커는 함께 이동하지만 원본 프로젝트는 이동하지 않습니다. 이동 후 링크를 새로 고치세요.",
+    "warnExternal_other": "외부 관계 {{count}}개: 앵커는 함께 이동하지만 원본 프로젝트는 이동하지 않습니다. 이동 후 링크를 새로 고치세요.",
     "warnHolidayGap": "달력 “{{name}}”의 생성된 공휴일은 {{from}}–{{to}}을 포함하지만, 이동된 일정은 {{year}}년까지 이어집니다. 공휴일을 다시 생성하세요.",
     "warnCustomDateFields_other": "입력된 날짜형 사용자 지정 필드 {{count}}개는 날짜가 유지됩니다.",
     "warnPast": "새 시작일이 과거입니다.",
@@ -1107,7 +1107,7 @@
     "summaryTasks": "작업",
     "summarySequences": "관계",
     "summaryResources": "자원 · 배정",
-    "summaryCritical": "주요 경로 작업",
+    "summaryCritical": "주공정 작업",
     "summaryIfc": "IFC 크기",
     "summaryRoundtrip": "왕복",
     "roundtripOk": "정상",
@@ -1226,14 +1226,14 @@
     },
     "p6FinishMilestoneBoundaryWindow": {
       "label": "완료 마일스톤을 경계 창으로 처리",
-      "help": "완료 마일스톤은 인접한 두 달력 경계에 놓일 수 있습니다. 조기 시작은 구간의 시작, 조기 완료는 이전 구간의 끝입니다."
+      "help": "완료 마일스톤은 인접한 두 달력 경계에 놓일 수 있습니다. 빠른 시작은 구간의 시작, 조기 완료는 이전 구간의 끝입니다."
     },
     "p6PreserveActualInstants": {
       "label": "실적 날짜를 정확히 유지",
-      "help": "기록된 실적 시작 및 완료 날짜는 작업 시간 구간으로 이동되지 않습니다."
+      "help": "기록된 실적 시작 및 완료 날짜는 근무 시간 구간으로 이동되지 않습니다."
     },
     "p6UseRemainingStartForProgress": {
-      "label": "진행 중 작업: 조기 시작 = 남은 작업의 시작",
+      "label": "진행 중 작업: 빠른 시작 = 남은 작업의 시작",
       "help": "진행 중 작업의 조기 및 지연 시작은 과거의 실적 시작이 아니라 남은 작업이 시작되는 지점을 나타냅니다. 시작-시작 관계로 역산할 때는 잔여 기간만 계산합니다."
     },
     "p6PreserveZeroDurationConstraintInstants": {
@@ -1254,7 +1254,7 @@
     },
     "p6BackwardLagFinishBoundary": {
       "label": "완료 경계에서 역방향 지연",
-      "help": "역방향 계산이 완료 경계에서 작업 시간 지연을 빼서 정확히 구간 시작에 닿으면 이전 완료 경계에 놓입니다. 지연 없는 완료-완료 관계에서도 구간 끝에 있는 최종 완료는 그 완료 경계에 머뭅니다."
+      "help": "역방향 계산이 완료 경계에서 근무 시간 지연을 빼서 정확히 구간 시작에 닿으면 이전 완료 경계에 놓입니다. 지연 없는 완료-완료 관계에서도 구간 끝에 있는 늦은 완료는 그 완료 경계에 머뭅니다."
     },
     "p6CompletedDataDateWindow": {
       "label": "상태 날짜 창 안의 완료 작업",
@@ -1274,7 +1274,7 @@
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "자유 여유 시간을 작업 자체 달력으로 계산",
-      "help": "시작되지 않은 작업의 자유 여유 시간은 관계마다 후속 작업이 아니라 작업 자체의 달력으로 계산합니다. 완료-시작, 시작-시작, 완료-완료에 적용되며, 선행 작업 달력의 작업 시간 지연도 포함합니다. 시작된 작업은 지연 없는 완료-시작에만 적용됩니다."
+      "help": "시작되지 않은 작업의 자유 여유 시간은 관계마다 후속 작업이 아니라 작업 자체의 달력으로 계산합니다. 완료-시작, 시작-시작, 완료-완료에 적용되며, 선행 작업 달력의 근무 시간 지연도 포함합니다. 시작된 작업은 지연 없는 완료-시작에만 적용됩니다."
     },
     "p6CompletedRemainingLag": {
       "label": "완료된 선행 작업의 경과한 지연은 계산하지 않음",
@@ -1294,23 +1294,23 @@
     },
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "시작 마일스톤으로의 완료-완료 관계는 마일스톤 자체에 묶임",
-      "help": "시작 마일스톤으로의 완료-완료 관계는 그날의 시작이 아니라 마일스톤 자체까지 계산됩니다. 선행 작업의 최대 완료는 마일스톤의 최대 완료까지 늦출 수 있습니다."
+      "help": "시작 마일스톤으로의 완료-완료 관계는 그날의 시작이 아니라 마일스톤 자체까지 계산됩니다. 선행 작업의 늦은 완료는 마일스톤의 늦은 완료까지 늦출 수 있습니다."
     },
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "계획 시작은 진행 중인 작업의 하한이 아님",
       "help": "시작된 작업의 남은 작업은 계획 시작이 더 늦더라도 상태 날짜에, 선행 작업 바로 뒤에 시작됩니다."
     },
     "p6LateFinishOnOwnCalendar": {
-      "label": "자체 캘린더 기준 최종 완료",
-      "help": "후속 작업이 정한 최종 완료가 작업의 근무 시간 밖에 있으면, 작업 자체 캘린더의 이전 근무 기간 종료 시점이 됩니다."
+      "label": "자체 달력 기준 늦은 완료",
+      "help": "후속 작업이 정한 늦은 완료가 작업의 근무 시간 밖에 있으면, 작업 자체 달력의 이전 근무 기간 종료 시점이 됩니다."
     },
     "p6ProgressOverrideIgnoresStartedSuccessor": {
-      "label": "Progress Override는 시작된 후행 작업을 역방향 계산에서도 무시",
-      "help": "Progress Override에서는 이미 시작된 후행 작업과의 관계가 아직 끝나지 않은 선행 작업의 최늦 날짜와 자유 여유에 반영되지 않습니다."
+      "label": "Progress Override는 시작된 후속 작업을 역방향 계산에서도 무시",
+      "help": "Progress Override에서는 이미 시작된 후속 작업과의 관계가 아직 끝나지 않은 선행 작업의 최늦 날짜와 자유 여유에 반영되지 않습니다."
     },
     "p6FinishNotBeforeFinishFinishBound": {
-      "label": "가장 이른 종료는 종료-종료 경계보다 앞서지 않음",
-      "help": "종료-종료 관계에서 후행 작업의 가장 이른 종료는 시계 시간으로 선행 작업이 정한 경계보다 앞서지 않습니다. 그 경계가 후행 작업의 비작업 시간에 해당하면, 종료는 다음 작업 시간대의 시작이 됩니다."
+      "label": "빠른 완료는 완료-완료 경계보다 앞서지 않음",
+      "help": "완료-완료 관계에서 후속 작업의 빠른 완료는 시계 시간으로 선행 작업이 정한 경계보다 앞서지 않습니다. 그 경계가 후속 작업의 비근무 시간에 해당하면, 종료는 다음 근무 시간대의 시작이 됩니다."
     },
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP 작업을 후속 작업이 허용하는 만큼 늦게",
