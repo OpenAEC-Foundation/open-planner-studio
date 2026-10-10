@@ -12,8 +12,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-2, 6px);
-  border-right: 1px solid var(--theme-border);
-  padding-right: var(--sp-4, 12px);
+  /* Logische kant: in ar/fa (RTL) staat de inhoudsopgave rechts en de scheidslijn dus links. */
+  border-inline-end: 1px solid var(--theme-border);
+  padding-inline-end: var(--sp-4, 12px);
   /* Bewust géén eigen overflow/hoogte: `.backstage-main` (de omringende Backstage-sectie) is al
      zelf verticaal scrollbaar, net als elke andere sectie — geen geneste scrollcontainers nodig
      voor de golf-1-omvang (2 artikelen); latere golven kunnen dit heroverwegen bij 25 artikelen. */
@@ -25,7 +26,7 @@
 }
 .help-search-icon {
   position: absolute;
-  left: 8px;
+  inset-inline-start: 8px;
   top: 50%;
   transform: translateY(-50%);
   color: var(--theme-text-dim);
@@ -34,7 +35,8 @@
 /* Uiterlijk gedeeld met `.ext-search` — zie Backstage.css; hier alleen breedte en icoonruimte. */
 .help-search {
   width: 100%;
-  padding: 6px 10px 6px 28px;
+  padding-block: 6px;
+  padding-inline: 28px 10px;
 }
 
 .help-toc-layer {
@@ -55,7 +57,7 @@
 .help-toc-item {
   display: block;
   width: 100%;
-  text-align: left;
+  text-align: start;
   background: transparent;
   border: none;
   border-radius: var(--radius-md);
@@ -76,8 +78,9 @@
   min-width: 0;
 }
 .help-article-body {
-  /* De tekst is nl of en en staat met dir="ltr" in de body; `start` lijnt hem dan links uit, ook als
-     de interface (ar/fa) via `[dir="rtl"] { text-align: right }` rechts uitlijnt. */
+  /* De body draagt de richting van de getoonde tekst (`dir` in HelpPanel.tsx); `start` lijnt hem aan
+     de beginkant uit: een Engelse terugval links, ook als de interface (ar/fa) via
+     `[dir="rtl"] { text-align: right }` rechts uitlijnt, en een ar/fa-artikel rechts. */
   text-align: start;
   max-width: 760px;
   font-size: var(--text-body);
@@ -109,7 +112,8 @@
   /* Tailwind preflight (`@import "tailwindcss"` in globals.css) zet `list-style: none` op alle
      ul/ol — expliciet herstellen, anders renderen genummerde stappen en bullets zonder marker. */
   margin: 0 0 var(--sp-3, 10px) 0;
-  padding-left: 1.4em;
+  /* Logisch: in een rtl-artikel staan de markers rechts. */
+  padding-inline-start: 1.4em;
 }
 .help-ul { list-style: disc outside; }
 .help-ol { list-style: decimal outside; }

@@ -11,6 +11,7 @@
 // extensie aan via `helpArticleRegistry.ts`, met hun eigen `order` (de leerroute). `draft` verbergt
 // een manifestartikel in productie, en `aliases` laat een oud id naar een nieuw artikel wijzen (de
 // id's van vóór fase 4 blijven zo werken in meldingen van uitgeleverde versies en externe links).
+import { LOCALES, type Locale } from '../i18n/locales';
 
 export type HelpKind = 'tutorial' | 'howto' | 'uitleg' | 'referentie';
 
@@ -20,23 +21,31 @@ export const HELP_KINDS: readonly HelpKind[] = ['tutorial', 'howto', 'uitleg', '
 export const MANIFEST_HELP_KINDS: readonly HelpKind[] = ['howto', 'uitleg', 'referentie'];
 
 /**
- * De talen waarin de documentatie bestaat (ontwerp §6.2/§6.3): alleen de brontalen nl en en. Elke
- * andere UI-taal toont de Engelse tekst met een melding; een map van een andere taal onder
- * `public/docs` is een fout in `verify:docs` (een verwijderde vertaling die terugkwam). De twaalf
- * vertalingen volgen in een apart traject; dan komt een taal hier bij.
+ * De talen waarin de documentatie kan bestaan: alle UI-talen (contract C4, `src/i18n/locales.ts`).
+ * `nl` en `en` zijn de bron en altijd compleet; de andere talen vult de vertaalstraat
+ * (`npm run translate`), per artikel. Welke artikelen een andere taal heeft, staat in
+ * `public/docs/<taal>/index.json` (contract C2); wat daar niet in staat, leest de viewer in het Engels.
  */
-export const HELP_DOC_LANGS = ['nl', 'en'] as const;
-export type HelpDocLang = typeof HELP_DOC_LANGS[number];
+export const HELP_DOC_LANGS: readonly Locale[] = LOCALES;
+export type HelpDocLang = Locale;
+
+/** De brontalen: altijd compleet, zonder `index.json`. */
+export const HELP_SOURCE_LANGS = ['nl', 'en'] as const;
+export type HelpSourceLang = typeof HELP_SOURCE_LANGS[number];
 
 export function isHelpDocLang(lang: string | null | undefined): lang is HelpDocLang {
   return (HELP_DOC_LANGS as readonly string[]).includes(lang ?? '');
 }
 
+export function isHelpSourceLang(lang: string | null | undefined): lang is HelpSourceLang {
+  return (HELP_SOURCE_LANGS as readonly string[]).includes(lang ?? '');
+}
+
 /**
  * De docstaal bij een UI-taal (bijv. `nl`, `en-GB`, `de`) en een eventuele bewaarde keuze. Een
- * bewaarde keuze telt alleen als het een docstaal is: een oude keuze als `de` (van vóór fase 4)
- * valt terug op Auto. `fallback` zegt of de lezer Engels krijgt omdat zijn UI-taal geen docs heeft —
- * dan toont de viewer een melding. Wie zelf een taal kiest, krijgt geen melding.
+ * bewaarde keuze telt alleen als het een docstaal is. `fallback` zegt of de UI-taal zelf geen docstaal
+ * is (dan leest de lezer Engels, met een melding). Of een ARTIKEL in de gekozen taal bestaat, zegt
+ * `articleLang`.
  */
 export function resolveHelpDocLang(
   uiLang: string,
@@ -46,6 +55,24 @@ export function resolveHelpDocLang(
   const override = isHelpDocLang(saved) ? saved : null;
   if (override) return { lang: override, override, fallback: false };
   return isHelpDocLang(base) ? { lang: base, override: null, fallback: false } : { lang: 'en', override: null, fallback: true };
+}
+
+/** `public/docs/<taal>/index.json` (contract C2): per vertaald artikel de vertaalde H1. Gegenereerd door de straat. */
+export type HelpDocIndex = Record<string, { title: string }>;
+
+/**
+ * De taal waarin artikel `id` getoond wordt bij docstaal `lang`. `nl` en `en` zijn altijd compleet.
+ * Een andere taal heeft het artikel alleen als het in haar `index.json` staat; anders (of zonder
+ * index) volgt het Engels, met `fallback: true` — dan toont de viewer de melding.
+ */
+export function articleLang(
+  id: string,
+  lang: HelpDocLang,
+  index: HelpDocIndex | null | undefined,
+): { lang: HelpDocLang; fallback: boolean } {
+  if (isHelpSourceLang(lang)) return { lang, fallback: false };
+  if (index && Object.prototype.hasOwnProperty.call(index, id)) return { lang, fallback: false };
+  return { lang: 'en', fallback: true };
 }
 
 export interface HelpArticleMeta {
@@ -191,9 +218,17 @@ export function extractHeadingSlugs(source: string): string[] {
 /** Placeholder in een afbeeldingspad voor de docstaal: `img/{lang}/shot.webp`. */
 export const HELP_IMAGE_LANG_PLACEHOLDER = '{lang}';
 
-/** Taalmap van een afbeelding: alleen nl en en hebben eigen beelden, elke andere taal toont en. */
-export function helpImageLang(docLang: string): HelpDocLang {
-  return docLang === 'nl' ? 'nl' : 'en';
+/**
+ * De talen met een eigen beeldmap `public/docs/img/<taal>/`. Een taal zonder eigen beelden toont de
+ * Engelse (de straat vertaalt tekst, geen schermafbeeldingen). Krijgt een taal eigen beelden, zet
+ * hem dan hier bij.
+ */
+export const HELP_IMAGE_LANGS = ['nl', 'en'] as const;
+export type HelpImageLang = typeof HELP_IMAGE_LANGS[number];
+
+/** Taalmap van een afbeelding: de taal zelf als die eigen beelden heeft, anders en. */
+export function helpImageLang(docLang: string): HelpImageLang {
+  return (HELP_IMAGE_LANGS as readonly string[]).includes(docLang) ? docLang as HelpImageLang : 'en';
 }
 
 /** Vult `{lang}` in een afbeeldingspad in voor de gegeven docstaal. */

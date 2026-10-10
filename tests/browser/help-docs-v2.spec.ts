@@ -197,12 +197,20 @@ test('een oud id uit een melding opent het nieuwe artikel (echte manifestalias)'
   await expect(page.locator('[data-help-article="quick-start"]')).toHaveCount(0);
 });
 
-// Ontwerp §6.2: de docs bestaan alleen in nl en en. Een andere UI-taal leest Engels met een melding;
-// de taalkiezer biedt Auto / Nederlands / English, en een bewaarde oude keuze (de) valt terug op Auto.
-test('UI in het Duits: Help toont Engels met een melding, de taalkiezer kent alleen nl en en', async ({ page, ops: _ops }) => {
+// Vertaalstraat §10: elke UI-taal is een docstaal, per artikel via `public/docs/<taal>/index.json`.
+// Fixture: een nep-de-index met één artikel (geen echte vertaling nodig). Een artikel dat daar niet in
+// staat, leest Engels met een melding; zelf nl kiezen geeft Nederlands zonder melding; een bewaarde
+// waarde die geen docstaal is, valt terug op Auto.
+test('UI in het Duits: een artikel buiten de de-index toont Engels met een melding, de taalkiezer kent alle talen', async ({ page, ops: _ops }) => {
+  await page.route('**/docs/de/index.json', route => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ 'howto-relaties-leggen': { title: 'Beziehungen anlegen' } }),
+  }));
+  await page.route('**/docs/de/howto-relaties-leggen.md', route => route.fulfill({
+    status: 200, contentType: 'text/markdown', body: '# Beziehungen anlegen\n\nVorgänge verknüpfen.\n',
+  }));
   await page.evaluate(() => {
     localStorage.setItem('ops-locale', 'de');
-    localStorage.setItem('ops-docs-locale', 'de');
+    localStorage.setItem('ops-docs-locale', 'xx');
   });
   await page.reload();
   await waitForOps(page);
@@ -212,12 +220,19 @@ test('UI in het Duits: Help toont Engels met een melding, de taalkiezer kent all
   await page.locator('.ribbon-tab--file').click();
   await page.getByRole('button', { name: 'Hilfe', exact: true }).click();
   await expect(page.locator('.help-panel')).toBeVisible();
-  await expect(page.locator('[data-help-lang-fallback]')).toHaveText(
-    'Die Dokumentation ist noch nicht in Ihrer Sprache verfügbar. Sie lesen die englische Version.');
+  // Het artikel uit de index: Duits, zonder melding.
+  await page.locator('[data-help-article="howto-relaties-leggen"]').click();
+  await expect(current(page).locator('h1')).toHaveText('Beziehungen anlegen');
+  await expect(current(page)).toHaveAttribute('lang', 'de');
+  await expect(page.locator('[data-help-lang-fallback]')).toHaveCount(0);
+  // Een artikel buiten de index: Engels met de melding.
   await page.locator('[data-help-article="uitleg-kritiek-pad"]').click();
   await expect(current(page).locator('h1')).toHaveText('Critical path and float');
+  await expect(current(page)).toHaveAttribute('lang', 'en');
+  await expect(page.locator('[data-help-lang-fallback]')).toHaveText(
+    'Die Dokumentation ist noch nicht in Ihrer Sprache verfügbar. Sie lesen die englische Version.');
   const select = page.locator('#help-docslang');
-  await expect(select.locator('option')).toHaveCount(3);
+  await expect(select.locator('option')).toHaveCount(28);
   await expect(select).toHaveValue('__auto__');
   expect(await page.evaluate(() => localStorage.getItem('ops-docs-locale'))).toBeNull();
 

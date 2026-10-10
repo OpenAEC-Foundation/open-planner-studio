@@ -4,12 +4,15 @@
 // als verify-examples zodat de invocatie-conventie (`npm run verify:docs`) identiek blijft.
 //
 // Checks:
-//   1. Elk manifest-artikel-id heeft public/docs/nl/<id>.md EN public/docs/en/<id>.md. De docs
-//      bestaan alleen in die twee talen (DOC_LANGS = HELP_DOC_LANGS uit src/utils/helpManifest.ts;
-//      ontwerp gebruikersdocumentatie §6.3): een map van een andere taal onder public/docs is een fout
-//      (een verwijderde vertaling die terugkwam), net als een titel in een andere taal. Naast de
-//      taalmappen mag er alleen `img/` staan. Geen wees-bestanden (md zonder manifest-entry); geen
-//      dubbele ids.
+//   1. Elk manifest-artikel-id heeft public/docs/nl/<id>.md EN public/docs/en/<id>.md (de brontalen,
+//      DOC_LANGS = HELP_SOURCE_LANGS uit src/utils/helpManifest.ts), met titels alleen in nl + en.
+//      Onder public/docs mogen de mappen van alle UI-talen staan (src/i18n/locales.ts) plus `img/`.
+//      Geen wees-bestanden in nl/en (md zonder manifest-entry); geen dubbele ids.
+//   12. De andere talen zijn optioneel (vertaalstraat, ontwerp 2026-10-09-vertaalstraat-design.md
+//      §9/§10): wat er staat moet kloppen (index.json ↔ bestanden, indextitel = H1, parser-subset,
+//      structuur = die van de en-tekst waaruit de vertaling kwam, volgens i18n/docs-sources/<taal>.json);
+//      ontbrekend, verouderd, wees en een link naar een onbekend doel zijn een rapport (exit 0).
+//      Regels: scripts/lib/docs-translations.ts.
 //   2. Elke docs://<id>-link wijst naar een bestaand manifest-id of een alias; een `#anker` erachter
 //      moet een kop in dat artikel zijn (zelfde taal, anders en; ankers volgen `headingSlug` in
 //      src/utils/helpManifest.ts). Een niet-draft artikel linkt niet naar een draft (in productie
@@ -49,20 +52,19 @@
 //      bestaan. Zo breekt een hernoemd artikel niet meer stil een "Lees meer" of een ?-knop.
 //   6. Basishygiëne: geen dubbele koppen binnen één artikel, geen lege bestanden, NL≉EN
 //      (>60% identieke niet-lege regels tussen de twee taalversies = verdachte niet-vertaling), en
-//      nl en en hebben dezelfde kopstructuur en dezelfde link-targets. (De controles op de twaalf
-//      vertalingen — achterlopende structuur, achtergebleven brontitels, `--strict-translations` —
-//      zijn met die vertalingen verdwenen in fase 4; het vertaaltraject brengt ze terug.)
+//      nl en en hebben dezelfde kopstructuur en dezelfde link-targets. (Voor de andere talen: zie 12.)
 //
 //   npm run verify:docs          # exit 0 = alles groen, 1 = minstens één afwijking
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  HELP_DOC_LANGS, MANIFEST_HELP_KINDS, extractHeadingSlugs, resolveHelpImagePath,
+  HELP_DOC_LANGS, HELP_SOURCE_LANGS, MANIFEST_HELP_KINDS, extractHeadingSlugs, resolveHelpImagePath,
   splitHelpTarget,
 } from '@/utils/helpManifest';
 import * as APP_HELP_ARTICLES from '@/state/helpArticles';
 import { RELEASE_HIGHLIGHT_CATALOG } from '@/services/updater/releaseHighlights';
 import { stripCode, subsetErrors } from './lib/docs-structure';
+import { checkOptionalDocLang, optionalLangReportLine } from './lib/docs-translations';
 import { AGENT_GUIDE_FILE, checkAgentGuideLinks, checkPrincipleCoupling } from './lib/agent-guide-coupling';
 import { checkSkillFrontmatter, checkSkillSets, sharedClaudeSkills } from './lib/agent-skills-check';
 
@@ -94,9 +96,11 @@ const MANIFEST_VERSION = 2;
 // locale-opsomming in CLAUDE.md (7d).
 const UI_LANGS: readonly string[] = readdirSync(join(ROOT, 'src', 'i18n', 'locales'), { withFileTypes: true })
   .filter((d) => d.isDirectory()).map((d) => d.name);
-// De docstalen: nl en en, allebei hard vereist voor elk artikel (ontwerp §6.3). Elke andere UI-taal
-// leest in de viewer de Engelse tekst, met een melding.
-const DOC_LANGS: readonly string[] = HELP_DOC_LANGS;
+// De brontalen nl en en: allebei hard vereist voor elk artikel. De andere docstalen (alle UI-talen)
+// zijn optioneel en lopen via poort 12; de viewer toont per artikel Engels als een vertaling ontbreekt.
+const DOC_LANGS: readonly string[] = HELP_SOURCE_LANGS;
+const OPTIONAL_DOC_LANGS: readonly string[] = HELP_DOC_LANGS.filter((l) => !DOC_LANGS.includes(l));
+const DOCS_SOURCES_DIR = join(ROOT, 'i18n', 'docs-sources');
 // Wat er naast de taalmappen onder public/docs mag staan.
 const DOCS_EXTRA_DIRS = new Set(['img']);
 
@@ -683,18 +687,17 @@ function main() {
   }
   for (const d of dupes) globalDiffs.push(`manifest: dubbele id "${d}"`);
 
-  // 1b. Alleen de docstalen (en img/) onder public/docs: een map van een andere taal is een
-  //     verwijderde vertaling die terugkwam (ontwerp §6.3), een los bestand hoort er ook niet.
+  // 1b. Alleen de docstalen (alle UI-talen) en img/ onder public/docs; een los bestand hoort er niet.
   for (const entry of readdirSync(DOCS_DIR, { withFileTypes: true })) {
     if (entry.isDirectory()) {
-      if (!DOC_LANGS.includes(entry.name) && !DOCS_EXTRA_DIRS.has(entry.name)) {
-        globalDiffs.push(`public/docs/${entry.name}/ hoort er niet: de documentatie bestaat alleen in ${DOC_LANGS.join(' en ')} (een andere taal leest Engels); naast de taalmappen mag alleen ${[...DOCS_EXTRA_DIRS].map((d) => `${d}/`).join(', ')} staan`);
+      if (!(HELP_DOC_LANGS as readonly string[]).includes(entry.name) && !DOCS_EXTRA_DIRS.has(entry.name)) {
+        globalDiffs.push(`public/docs/${entry.name}/ hoort er niet: alleen de mappen van de UI-talen (src/i18n/locales.ts) en ${[...DOCS_EXTRA_DIRS].map((d) => `${d}/`).join(', ')}`);
       }
     } else if (entry.name !== 'manifest.json') {
-      globalDiffs.push(`public/docs/${entry.name} hoort er niet (alleen manifest.json en de mappen ${[...DOC_LANGS, ...DOCS_EXTRA_DIRS].join(', ')})`);
+      globalDiffs.push(`public/docs/${entry.name} hoort er niet (alleen manifest.json, de taalmappen en ${[...DOCS_EXTRA_DIRS].join(', ')})`);
     }
   }
-  // 1c. Wees-bestanden: .md op schijf zonder manifest-entry.
+  // 1c. Wees-bestanden in nl/en: .md op schijf zonder manifest-entry (andere talen: poort 12).
   for (const lang of DOC_LANGS) {
     const dir = join(DOCS_DIR, lang);
     if (!existsSync(dir)) { globalDiffs.push(`map ontbreekt: public/docs/${lang}`); continue; }
@@ -706,7 +709,7 @@ function main() {
   }
 
   console.log('── Manifest-hygiëne + AGENTS.md/CLAUDE.md/README.md/CONTRIBUTING.md-beweringen ──');
-  if (globalDiffs.length === 0) console.log('  OK  manifest v2 en aliassen geldig, alleen nl en en, geen dubbele ids, geen wees-bestanden, app-artikel-id\'s bestaan, de vier onboardingdocumenten lopen gelijk met de code');
+  if (globalDiffs.length === 0) console.log('  OK  manifest v2 en aliassen geldig, alleen docstalen onder public/docs, geen dubbele ids, geen wees-bestanden in nl/en, app-artikel-id\'s bestaan, de vier onboardingdocumenten lopen gelijk met de code');
   else { anyFail = true; for (const d of globalDiffs) console.log(`  XX  ${d}`); }
 
   // 2/3/4/5/6: per artikel.
@@ -800,6 +803,26 @@ function main() {
     for (const d of diffs) console.log(`     - ${d}`);
     for (const n of draftNotes) console.log(`     ! ${n} — draft, vóór het publiceren oplossen`);
   }
+
+  // 12. De optionele docstalen (zie scripts/lib/docs-translations.ts): fouten tellen, de rest is een rapport.
+  console.log('\n── Andere docstalen (optioneel, via de vertaalstraat) ──');
+  const aliases = manifestAliases(manifest);
+  const absent: string[] = [];
+  for (const lang of OPTIONAL_DOC_LANGS) {
+    if (!existsSync(join(DOCS_DIR, lang))) { absent.push(lang); continue; }
+    const r = checkOptionalDocLang({
+      docsDir: DOCS_DIR, sourcesDir: DOCS_SOURCES_DIR, lang, manifestIds: ids,
+      isKnownDocTarget: (id) => idSet.has(id) || Object.prototype.hasOwnProperty.call(aliases, id),
+      exampleFiles, resolveImagePath: resolveHelpImagePath,
+    });
+    if (r.errors.length) {
+      anyFail = true;
+      console.log(`  XX  ${lang}: ${r.errors.length} fout(en)`);
+      for (const e of r.errors) console.log(`     - ${e}`);
+    }
+    console.log(`  ..  ${optionalLangReportLine(r, ids.length)}`);
+  }
+  if (absent.length) console.log(`  ..  nog geen vertaling (alles Engels in de viewer): ${absent.join(', ')}`);
 
   console.log(`\n${manifest.articles.length} artikelen × ${DOC_LANGS.length} talen (${DOC_LANGS.join(', ')}) geverifieerd — ${anyFail ? 'FALEN' : 'alles groen'}`);
   process.exit(anyFail ? 1 : 0);
