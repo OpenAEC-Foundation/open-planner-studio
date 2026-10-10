@@ -43,6 +43,7 @@ import type { TFunction } from 'i18next';
 import { isLeafTask } from '@/utils/taskHierarchy';
 import { buildBaselineOverlay } from '@/types/baseline';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
+import { knownDrivingSequenceIds } from '@/engine/scheduler/drivingInfo';
 import { scheduleErrorText } from '@/i18n/scheduleErrors';
 
 /** Reactieve datum-formatters — zelfde vorm als `useDisplayDate()` (Hooks mogen hier niet in, dit
@@ -708,7 +709,8 @@ export function ReportPanel() {
     // gepersisteerd wordt; de printlaag kan het dus niet zelf afleiden en krijgt het hier door.
     // Bij een cyclus (`cpmResult.error`) of vóór de eerste berekening blijft het `undefined`, en
     // tekent het rapport alles neutraal doorgetrokken — dezelfde eerlijke terugval als het scherm.
-    drivingSequenceIds: cpmResult && !cpmResult.error ? cpmResult.drivingSequenceIds : undefined,
+    // Idem bij "Datums zoals opgeslagen": die reconstructie kent geen driving-relaties.
+    drivingSequenceIds: knownDrivingSequenceIds(cpmResult),
     // Gedeelde balkkleurkeuze, statuslijn en de rijenbron (`reportRows`, zie hierboven).
     barColorSelection,
     activityCodeTypes: fieldCtx.activityCodeTypes,

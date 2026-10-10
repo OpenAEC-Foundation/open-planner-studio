@@ -52,6 +52,12 @@ export interface CPMResult {
    * wordt bewust niet gepersisteerd (ook niet in IFC).
    */
   drivingSequenceIds: string[];
+  /** OPTIONEEL: `true` als dit resultaat NIET weet welke relaties driving zijn — de reconstructie
+   *  "Datums zoals opgeslagen" (`cpmResultFromRecorded`) solvet niet, en P6's eigen driving-vlag is
+   *  bak 2 (nooit gelezen). `drivingSequenceIds` is dan leeg zonder "niets is driving" te betekenen.
+   *  Lees de lijst daarom via `knownDrivingSequenceIds` (`drivingInfo.ts`), die hier `undefined`
+   *  geeft ⇒ Gantt en rapport tekenen alles neutraal doorgetrokken. */
+  drivingUnknown?: true;
   /** Vrije speling per relatie (werkdagen tussen de geëiste en de werkelijke vroegste datum
    *  van de opvolger). 0 = driving. Basis voor de relatietabel. */
   sequenceFreeFloat: Record<string, number>;
