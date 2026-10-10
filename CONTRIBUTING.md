@@ -44,7 +44,7 @@ CI. The steps, in this order:
 | `npm run lint` | a minimal ESLint gate — promise-handling, control-regex and the React-hooks rules, **no style rules** |
 | `npm test` | the five behavior suites (`planning`, `library`, `mcp`, `dev-server`, `browser`) |
 | `npm run verify:examples` | the example projects in `examples/` |
-| `npm run verify:docs` | the in-app documentation (nl + en) and the mechanical claims in AGENTS.md |
+| `npm run verify:docs` | the in-app documentation (nl + en required, other locales checked when present) and the mechanical claims in AGENTS.md |
 | `npm run verify:i18n` | missing translation keys relative to `nl` |
 | `npm run verify:release-highlights-json` | `public/release-highlights.json` matches the release-highlight catalog |
 | `npm run verify:store-boundaries` | core runtime factories and store-bound MCP tools never import `useAppStore`/`appStoreContext` |
@@ -99,7 +99,8 @@ CLDR plural categories per language.
 - One topic per pull request. Small PRs get read faster.
 - Mention in the PR how you tested it, and which suite you ran.
 - A user-visible feature comes with an in-app guide in `public/docs/{nl,en}/` (plus a
-  manifest entry), and a UI interaction with a browser test in `tests/browser/`.
+  manifest entry; the other languages come from the translation pipeline), and a UI interaction with a
+  browser test in `tests/browser/`.
 
 Does your change touch scheduling code? Add a case to `tests/planning/` — see
 [`tests/planning/README.md`](tests/planning/README.md). For a bugfix, a case that

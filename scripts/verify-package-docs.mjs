@@ -8,7 +8,7 @@
 //
 // `--docs-root` is alleen voor forensische controle van een historisch package tegen zijn exacte
 // bronboom; de CI gebruikt altijd de huidige `public/docs` uit dezelfde checkout.
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import process from 'node:process';
@@ -53,21 +53,28 @@ if (!existsSync(manifestPath)) usage(`manifest ontbreekt: ${manifestPath}`);
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 if (!Array.isArray(manifest.articles)) usage(`manifest bevat geen articles-array: ${manifestPath}`);
 
-// Talen = de vereniging van alle titeltalen. Sinds de omschakeling van de documentatie (fase 4) is
-// dat nl + en (`verify:docs` keurt titels en mappen in andere talen af); afgeleid uit het manifest in
-// plaats van vast, zodat een historisch package met `--docs-root` ook tegen zijn eigen boom klopt.
-// Per taal tellen alleen de artikelen die in de bron ook echt bestaan (drafts incluis: die zitten in
-// public/docs en dus ook in het package, de viewer verbergt ze).
-const localeDirs = [...new Set(manifest.articles.flatMap(article => Object.keys(article.title ?? {})))].sort();
-if (localeDirs.length === 0) usage('manifest bevat geen taalset in article-titels');
+// Talen = de taalmappen onder `public/docs` (niet de manifest-titels: die blijven nl + en, terwijl de
+// vertaalstraat er andere talen bij zet). `img/` is geen taal. nl en en zijn de bron en moeten er zijn;
+// een andere taal levert haar `index.json` en de artikelen die erin staan. Per taal tellen alleen de
+// manifest-artikelen die in de bron ook echt bestaan (drafts incluis: die zitten in public/docs en dus
+// ook in het package, de viewer verbergt ze). Afgeleid uit de boom zelf, zodat een historisch package
+// met `--docs-root` ook tegen zijn eigen boom klopt.
+const NON_LOCALE_DIRS = new Set(['img']);
+const localeDirs = readdirSync(docsRoot, { withFileTypes: true })
+  .filter(entry => entry.isDirectory() && !NON_LOCALE_DIRS.has(entry.name))
+  .map(entry => entry.name)
+  .sort();
+for (const required of ['en', 'nl']) {
+  if (!localeDirs.includes(required)) usage(`docs-map voor ${required} ontbreekt: ${resolve(docsRoot, required)}`);
+}
 const expected = ['/docs/manifest.json'];
 const perLocale = new Map();
 for (const locale of localeDirs) {
-  const folder = resolve(docsRoot, locale);
-  if (!existsSync(folder)) usage(`docs-map voor ${locale} ontbreekt: ${folder}`);
   const paths = manifest.articles
     .map(article => `${locale}/${article.id}.md`)
     .filter(relative => existsSync(resolve(docsRoot, relative)));
+  const hasIndex = existsSync(resolve(docsRoot, locale, 'index.json'));
+  if (hasIndex) paths.push(`${locale}/index.json`);
   if (paths.length === 0) usage(`docs-map voor ${locale} bevat geen manifest-artikelen`);
   perLocale.set(locale, paths);
   expected.push(...paths.map(relative => `/docs/${relative}`));
@@ -78,7 +85,7 @@ const missing = expected.filter(asset => !binary.includes(Buffer.from(asset)));
 console.log(`Controleer ${expected.length} Help-assets in ${snapArg ? `Snap ${resolve(snapArg)}` : `binary ${resolve(binaryArg)}`}`);
 for (const [locale, paths] of perLocale) {
   const embedded = paths.filter(relative => binary.includes(Buffer.from(`/docs/${relative}`))).length;
-  console.log(`  ${embedded === paths.length ? 'OK' : 'XX'} ${locale}: ${embedded}/${paths.length} artikelen ingesloten`);
+  console.log(`  ${embedded === paths.length ? 'OK' : 'XX'} ${locale}: ${embedded}/${paths.length} bestanden ingesloten`);
 }
 console.log(`  ${binary.includes(Buffer.from('/docs/manifest.json')) ? 'OK' : 'XX'} manifest.json`);
 

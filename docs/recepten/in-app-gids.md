@@ -2,7 +2,11 @@
 
 `public/docs/` is een eigen documentatiesubsysteem, los van `src/` — zie de `docs-help`-rule
 (`.claude/rules/docs-help.md`). Eén manifest (`public/docs/manifest.json`) plus de mappen `nl/` en
-`en/` met Markdown-artikelen. Manifest en artikelen worden runtime gefetcht (niet gebundeld), dus een
+`en/` met Markdown-artikelen. Jij schrijft alleen `nl` en `en`: dat is de bron. De andere UI-talen
+(`public/docs/<taal>/` met een gegenereerde `index.json`) vult de vertaalstraat (`npm run translate`,
+ontwerp `docs/superpowers/specs/2026-10-09-vertaalstraat-design.md`); pas die mappen nooit met de hand
+aan. Tot de straat een nieuw of gewijzigd artikel vertaalt, leest een andere taal het Engels (of de
+vorige vertaling); bij een release moet alles actueel zijn. Manifest en artikelen worden runtime gefetcht (niet gebundeld), dus een
 nieuw artikel vraagt geen rebuild om zichtbaar te worden in dev — wel om hem in `dist/` te krijgen
 voor een echte deploy.
 
@@ -35,8 +39,8 @@ ooit achter, dan heeft de code gelijk.
      "kind": "howto"
    }
    ```
-   Alleen `nl` en `en`: titels in andere talen keurt `verify:docs` af (de andere UI-talen tonen
-   Engels). Zolang het artikel nog niet af is, zet je er `"draft": true` bij: dan is het alleen in de
+   Alleen `nl` en `en`: titels in andere talen keurt `verify:docs` af (de titel van een vertaling
+   staat in de `index.json` van die taal, uit de vertaalde H1). Zolang het artikel nog niet af is, zet je er `"draft": true` bij: dan is het alleen in de
    dev-build zichtbaar.
 4. **Schrijf het artikel** in `public/docs/nl/<id>.md` én `public/docs/en/<id>.md`, met dezelfde
    koppen en dezelfde `docs://`-links (`verify:docs` eist die pariteit). Knopnamen letterlijk zoals de
@@ -96,7 +100,7 @@ als platte, niet-klikbare tekst — bewust geen externe netwerkaanroepen vanuit 
 `npm run verify:docs` (`scripts/verify-docs.ts`, onderdeel van `npm run verify`) controleert onder meer:
 
 1. Elk manifest-id heeft een `nl`- én een `en`-bestand; geen wees-`.md`-bestanden; geen dubbele id's.
-   Onder `public/docs` staan alleen `manifest.json`, `nl/`, `en/` en `img/`.
+   Onder `public/docs` staan alleen `manifest.json`, de taalmappen van de UI-talen en `img/`.
 2. Elke `docs://<id>`-link wijst naar een bestaand artikel of een alias, een `#anker` naar een
    bestaande kop; een gepubliceerd artikel linkt niet naar een draft.
 3. Elke `examples://<file>`-link wijst naar een bestand in `public/examples/manifest.json`.
@@ -111,6 +115,11 @@ als platte, niet-klikbare tekst — bewust geen externe netwerkaanroepen vanuit 
    kopstructuur en dezelfde link-targets.
 10. Elk artikel-id dat de app gebruikt (`src/state/helpArticles.ts`, de `docsId`'s in
     `src/services/updater/releaseHighlights.ts`) bestaat als artikel of alias en is geen draft.
+    Ankers controleert de poort alleen in `nl`/`en`; gebruik in app-links geen anker.
+12. De andere talen (alleen wat er staat): `index.json` ↔ bestanden, indextitel = H1, de subset en
+    dezelfde structuur als de `en`-tekst waaruit de vertaling kwam (`i18n/docs-sources/<taal>.json`)
+    zijn fouten. Ontbrekend, verouderd, een wees of een link naar een onbekend doel is een rapport:
+    jouw `en`-wijziging maakt dus geen andere taal rood.
 
 **Wat het NIET blokkeert:** inhoudelijke juistheid, toon en opbouw — dat is review tegen de
 checklist in het ontwerp (§4.3), bewust geen poort.
@@ -126,7 +135,9 @@ artefact en wordt nooit rechtstreeks bewerkt (zie de `wiki`-skill).
 | onderwerp | bestand |
 |---|---|
 | manifest (id's, titels nl/en, `kind`, `draft`, `aliases`) | `public/docs/manifest.json` |
-| artikelen | `public/docs/{nl,en}/<id>.md` |
+| artikelen | `public/docs/{nl,en}/<id>.md` (bron); `public/docs/<taal>/<id>.md` + `index.json` (vertaalstraat) |
+| secties en structuurhash (gedeeld met de straat) | `scripts/lib/docs-structure.ts` |
+| poort voor de andere talen | `scripts/lib/docs-translations.ts` |
 | de regels (draft, alias, docstaal, ankers) | `src/utils/helpManifest.ts` |
 | artikel-id's die de app gebruikt | `src/state/helpArticles.ts` |
 | de parser-subset | `src/utils/miniMarkdown.tsx` |

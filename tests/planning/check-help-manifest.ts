@@ -13,7 +13,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
 import {
-  createHeadingSlugger, extractHeadingSlugs, headingSlug, helpArticleMatches, resolveHelpArticle,
+  HELP_DOC_LANGS, articleLang, createHeadingSlugger, extractHeadingSlugs, headingSlug, helpArticleMatches,
+  helpImageLang, isHelpDocLang, resolveHelpArticle,
   resolveHelpDocLang, resolveHelpImagePath, splitHelpTarget, tutorialNeighbours, tutorialsInOrder, usableRegisteredArticles,
   visibleHelpArticles, type HelpManifest,
 } from '@/utils/helpManifest';
@@ -69,19 +70,31 @@ const slug = createHeadingSlugger();
 eq('24 dubbele koppen krijgen -1, -2', [slug('Stappen'), slug('Stappen'), slug('Stappen')], ['stappen', 'stappen-1', 'stappen-2']);
 eq('25 koppen in een codeblok tellen niet', extractHeadingSlugs('# Titel\n\n```\n# geen kop\n```\n\n## Stap\n'), ['titel', 'stap']);
 
-// 5. Afbeeldingspad met {lang}: nl ⇒ nl, en en elke andere docstaal ⇒ en.
+// 5. Afbeeldingspad met {lang}: nl ⇒ nl, en ⇒ en; een taal zonder eigen beeldmap ⇒ en.
 eq('30 nl', resolveHelpImagePath('img/{lang}/tut-3.webp', 'nl'), 'img/nl/tut-3.webp');
 eq('31 en', resolveHelpImagePath('img/{lang}/tut-3.webp', 'en'), 'img/en/tut-3.webp');
-eq('32 de valt terug op en', resolveHelpImagePath('img/{lang}/tut-3.webp', 'de'), 'img/en/tut-3.webp');
+eq('32 de (geen eigen beelden) valt terug op en', resolveHelpImagePath('img/{lang}/tut-3.webp', 'de'), 'img/en/tut-3.webp');
+eq('32b ar (geen eigen beelden) valt terug op en', helpImageLang('ar'), 'en');
 eq('33 zonder placeholder ongewijzigd', resolveHelpImagePath('img/vast.webp', 'nl'), 'img/vast.webp');
 
-// 5b. Docstaal (ontwerp §6.2, fase 4): alleen nl en en; een andere UI-taal leest en met een melding,
-//     een bewaarde oude keuze (bijv. de) valt terug op Auto.
+// 5b. Docstaal (vertaalstraat §10): elke UI-taal is een docstaal; per artikel bepaalt de index van die
+//     taal of de tekst er is, anders Engels met een melding.
 eq('26 nl-UI: nl, geen melding', resolveHelpDocLang('nl', null), { lang: 'nl', override: null, fallback: false });
 eq('27 en-GB-UI: en, geen melding', resolveHelpDocLang('en-GB', null), { lang: 'en', override: null, fallback: false });
-eq('28 de-UI: en mét melding', resolveHelpDocLang('de', null), { lang: 'en', override: null, fallback: true });
-eq('29 de-UI met keuze nl: nl, geen melding', resolveHelpDocLang('de', 'nl'), { lang: 'nl', override: 'nl', fallback: false });
-eq('29b bewaarde oude keuze de valt terug op Auto', resolveHelpDocLang('fr', 'de'), { lang: 'en', override: null, fallback: true });
+eq('28 de-UI: de is een docstaal', resolveHelpDocLang('de', null), { lang: 'de', override: null, fallback: false });
+eq('29 de-UI met keuze nl: nl', resolveHelpDocLang('de', 'nl'), { lang: 'nl', override: 'nl', fallback: false });
+eq('29b bewaarde keuze de telt', resolveHelpDocLang('fr', 'de'), { lang: 'de', override: 'de', fallback: false });
+eq('29c onbekende UI-taal: en mét melding', resolveHelpDocLang('xx', null), { lang: 'en', override: null, fallback: true });
+eq('29d onzin als bewaarde keuze valt terug op Auto', resolveHelpDocLang('fr', 'klingon'), { lang: 'fr', override: null, fallback: false });
+eq('29e alle 27 UI-talen zijn docstaal', HELP_DOC_LANGS.length, 27);
+ok('29f ar en sr zijn docstaal', isHelpDocLang('ar') && isHelpDocLang('sr') && !isHelpDocLang('xx'));
+const deIndex = { 'howto-start': { title: 'Erste Schritte' } };
+eq('29g artikel in de index: in die taal', articleLang('howto-start', 'de', deIndex), { lang: 'de', fallback: false });
+eq('29h artikel niet in de index: en mét melding', articleLang('howto-kalender', 'de', deIndex), { lang: 'en', fallback: true });
+eq('29i taal zonder index: en mét melding', articleLang('howto-start', 'fr', null), { lang: 'en', fallback: true });
+eq('29j nl heeft geen index nodig', articleLang('howto-start', 'nl', null), { lang: 'nl', fallback: false });
+eq('29k en heeft geen index nodig', articleLang('howto-start', 'en', undefined), { lang: 'en', fallback: false });
+eq('29l een id als "constructor" staat niet vanzelf in een index', articleLang('constructor', 'de', deIndex), { lang: 'en', fallback: true });
 
 // 6. Zoeken ook in de artikeltekst.
 const entry = { title: 'Kalender maken', headings: ['Feestdagen'], body: 'De bouwvak valt in de zomer.' };
@@ -162,6 +175,8 @@ const panel = readFileSync(resolve(process.cwd(), 'src/components/backstage/Help
 ok('70 HelpPanel: drafts alleen in dev', panel.includes('const INCLUDE_DRAFTS = import.meta.env.DEV;'));
 ok('71 HelpPanel: nooit rechtstreeks over manifest.articles (altijd via de draftfilter)', !panel.includes('manifest.articles') && !panel.includes('data.articles'));
 ok('72 HelpPanel: resolutie via resolveHelpArticle met INCLUDE_DRAFTS', /resolveHelpArticle\(manifest, selection\.id, INCLUDE_DRAFTS/.test(panel));
+ok('73 HelpPanel: taal per artikel via articleLang en de index', panel.includes('articleLang(a.id, lang, docIndex)') && panel.includes('/index.json'));
+ok('74 HelpPanel: geen vaste dir="ltr" meer (richting volgt de getoonde tekst)', !panel.includes('dir="ltr"') && panel.includes('dir={localeDirection(selectedLang)}'));
 
 // 10. Het echte manifest is v2 met een aliasobject.
 const real = JSON.parse(readFileSync(resolve(process.cwd(), 'public/docs/manifest.json'), 'utf8')) as HelpManifest;

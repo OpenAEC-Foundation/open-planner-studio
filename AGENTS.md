@@ -183,8 +183,10 @@ Node 22 (see CI). Rust stable only for the `tauri:*` commands.
   S (reported only); do not quietly fix it in an unrelated PR. A PR that fixes an entry removes it. Check the file
   before reporting a "new" bug.
 - **User-visible feature ⇒ guide** in `public/docs/{nl,en}/` plus a manifest entry (recipe
-  `docs/recepten/in-app-gids.md`). The docs exist in `nl` + `en` only, organised by Diátaxis (`kind`: how-to,
-  explanation, reference; the tutorials ship as an extension); other UI languages read English with a notice.
+  `docs/recepten/in-app-gids.md`). You write `nl` + `en` (the sources, required), organised by Diátaxis (`kind`:
+  how-to, explanation, reference; the tutorials ship as an extension); the other locales come from the translation
+  pipeline (`public/docs/<locale>/` + a generated `index.json`, structure hashes in `i18n/docs-sources/`), and an
+  article missing in a locale reads English with a notice.
   Renaming an article needs an alias in the manifest; ids the app uses live in `src/state/helpArticles.ts`.
   Those guides use a limited Markdown subset (no tables/blockquotes/h4/HTML). The GitHub wiki is generated,
   never edited by hand (`wiki` skill).
