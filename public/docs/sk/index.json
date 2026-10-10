@@ -30,6 +30,7 @@
 "uitleg-werkregels": {"title": "Pravidlá práce: trvanie, jednotky priradenia a práca"},
 "uitleg-nivelleren": {"title": "Vyvažovanie zdrojov"},
 "uitleg-voortgang": {"title": "Postup, dátum kontroly stavu a pôvodný plán"},
+"uitleg-rekenprofielen": {"title": "Profily výpočtu a pravidlá výpočtu"},
 "howto-baseline-opslaan-en-beheren": {"title": "Uloženie a správa pôvodného plánu"},
 "howto-voortgang-bijwerken": {"title": "Aktualizácia postupu"},
 "howto-voortgang-importeren": {"title": "Import postupu z tabuľky"},
