@@ -122,6 +122,9 @@ for (const l of locales) {
   const block = COMMON[l].scheduleErrors ?? {};
   for (const code of SCHEDULE_ERROR_CODES) {
     const text: unknown = block[code];
+    // Besluit B5 (2026-10-10): een andere taal dan nl/en mag de tekst nog missen (de app valt terug op en,
+    // de vertaalstraat vult hem vóór een release); wat er wél staat, moet kloppen.
+    if (text === undefined && l !== 'nl' && l !== 'en') continue;
     truthy(`2 ${l}: scheduleErrors.${code} bestaat`, typeof text === 'string' && text.trim() !== '');
     const want = code === 'cycle' ? ['{{path}}'] : code === 'noWorkingDays' ? [] : ['{{task}}'];
     eq(`2 ${l}: scheduleErrors.${code} placeholders`, (String(text).match(/\{\{\w+\}\}/g) ?? []), want);

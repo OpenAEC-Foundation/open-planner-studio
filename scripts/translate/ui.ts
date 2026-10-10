@@ -46,7 +46,11 @@ function isTranslated(t: Unit | undefined, u: Unit, lang: string, hashes: Record
   return isComplete(t, u, lang) && (hasUiBaseline(lang) || hashes[u.key] !== undefined);
 }
 
-/** Welke eenheden moeten vertaald worden? Zie §9 (--missing, --stale). */
+/**
+ * Welke eenheden moeten vertaald worden? Zie §9 (--missing, --stale). `--stale` neemt ook een vertaalde
+ * eenheid zonder bron-hash mee (met de oude tekst als `previous`): `i18n:add` haalt de hash weg in elke
+ * taal die het niet schrijft (besluit B5), en in een taal met basislijn blijft de oude tekst dan staan.
+ */
 export function selectUnits(input: NsInput, lang: string, mode: Selection, sources: UiSources): { unit: Unit; previous?: UnitText }[] {
   const target = unitMap(input.target);
   const hashes = sources[input.ns] ?? {};
@@ -57,7 +61,7 @@ export function selectUnits(input: NsInput, lang: string, mode: Selection, sourc
     if (mode === 'all') { out.push({ unit: u }); continue; }
     if (mode === 'missing') { if (!complete) out.push({ unit: u }); continue; }
     const h = hashes[u.key];
-    if (complete && h !== undefined && h !== hashUnit(u.text)) out.push({ unit: u, previous: t!.text });
+    if (complete && (h === undefined || h !== hashUnit(u.text))) out.push({ unit: u, previous: t!.text });
   }
   return out;
 }
@@ -226,24 +230,49 @@ export function seedSources(lang: string, inputs: NsInput[]): UiSources {
 
 export interface NsStatus { ns: string; total: number; missing: number; stale: number; current: number; unhashed: number }
 
+/** Toestand van één eenheid in de doeltaal: wat de straat (en de releasepoort) ervan vindt. */
+export type UnitState = 'missing' | 'stale' | 'unhashed' | 'current';
+
 /**
- * Status per namespace. `unhashed` = vertaald, maar zonder bron-hash (bv. een sleutel die buiten de
- * straat om is toegevoegd); die telt als actueel, maar wordt apart genoemd. In een taal zonder
- * basislijn (`hasUiBaseline`) telt tekst zonder hash als ontbrekend (Engelse vulling).
+ * Toestand per eenheid, in nl-volgorde. `missing`: niet (volledig) vertaald, of in een taal zonder
+ * basislijn (`hasUiBaseline`) tekst zonder hash (Engelse vulling). `stale`: de nl-hash veranderde.
+ * `unhashed`: vertaald, maar zonder bron-hash (bv. een sleutel die `i18n:add` niet schreef, besluit B5).
+ */
+export function uiUnitStates(lang: string, input: NsInput, sources: UiSources): { key: string; state: UnitState }[] {
+  const t = unitMap(input.target);
+  const hashes = sources[input.ns] ?? {};
+  return unitsOf(input.nl).map(u => {
+    if (!isTranslated(t.get(u.key), u, lang, hashes)) return { key: u.key, state: 'missing' as const };
+    const h = hashes[u.key];
+    if (h === undefined) return { key: u.key, state: 'unhashed' as const };
+    return { key: u.key, state: h !== hashUnit(u.text) ? 'stale' as const : 'current' as const };
+  });
+}
+
+/**
+ * Status per namespace. `unhashed` = vertaald, maar zonder bron-hash; die telt als actueel, maar wordt
+ * apart genoemd: `prepare ui --stale` pakt hem op, en de releasepoort (`status --strict`) laat hem niet
+ * door. In een taal zonder basislijn telt tekst zonder hash als ontbrekend (Engelse vulling).
  */
 export function uiStatus(lang: string, inputs: NsInput[], sources: UiSources): NsStatus[] {
-  return inputs.map(({ ns, nl, target }) => {
-    const t = unitMap(target);
-    const hashes = sources[ns] ?? {};
-    const s: NsStatus = { ns, total: 0, missing: 0, stale: 0, current: 0, unhashed: 0 };
-    for (const u of unitsOf(nl)) {
+  return inputs.map(input => {
+    const s: NsStatus = { ns: input.ns, total: 0, missing: 0, stale: 0, current: 0, unhashed: 0 };
+    for (const { state } of uiUnitStates(lang, input, sources)) {
       s.total++;
-      if (!isTranslated(t.get(u.key), u, lang, hashes)) { s.missing++; continue; }
-      const h = hashes[u.key];
-      if (h === undefined) { s.unhashed++; s.current++; continue; }
-      if (h !== hashUnit(u.text)) s.stale++; else s.current++;
+      if (state === 'missing') s.missing++;
+      else if (state === 'stale') s.stale++;
+      else { s.current++; if (state === 'unhashed') s.unhashed++; }
     }
     return s;
   });
 }
 
+/** Eén gat voor de releasepoort: een UI-eenheid (en later een docssectie) die niet bij is. */
+export interface ReleaseGap { lang: string; where: string; state: Exclude<UnitState, 'current'> }
+
+/** Alle UI-gaten van één taal voor de releasepoort (`translate status --strict`, besluit B5). */
+export function uiReleaseGaps(lang: string, inputs: NsInput[], sources: UiSources): ReleaseGap[] {
+  return inputs.flatMap(input => uiUnitStates(lang, input, sources)
+    .filter((u): u is { key: string; state: ReleaseGap['state'] } => u.state !== 'current')
+    .map(u => ({ lang, where: `${input.ns}:${u.key}`, state: u.state })));
+}

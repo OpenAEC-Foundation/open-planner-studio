@@ -383,21 +383,34 @@ for (const constraint of OTHER_CONSTRAINTS) {
 // dat die nesting heel is gebleven en het eigen label van die taal oplevert.
 {
   const LOCALES = I18N_LOCALES;
+  const readLocale = (locale: string, ns: string) => JSON.parse(readFileSync(
+    fileURLToPath(new URL(`../../src/i18n/locales/${locale}/${ns}.json`, import.meta.url)), 'utf8')) as Record<string, unknown>;
+  const enTask = readLocale('en', 'task') as { constraintType: Record<string, string> };
+  // Besluit B5 (2026-10-10): een andere taal dan nl/en mag deze sleutel nog missen (de app valt terug op en,
+  // de vertaalstraat vult hem vóór een release); wat er wél staat, moet kloppen.
+  // Een ontbrekend type-label valt (net als in de app) terug op het Engelse label.
+  const optional = (locale: string) => locale !== 'nl' && locale !== 'en';
   for (const locale of LOCALES) {
-    const read = (ns: string) => JSON.parse(readFileSync(
-      fileURLToPath(new URL(`../../src/i18n/locales/${locale}/${ns}.json`, import.meta.url)), 'utf8')) as Record<string, unknown>;
-    const task = read('task') as { constraintType: Record<string, string> };
+    const read = (ns: string) => readLocale(locale, ns);
+    const common = read('common') as { notifications?: Record<string, unknown> };
+    const task = read('task') as { constraintType?: Record<string, string> };
+    const label = (type: string) => task.constraintType?.[type] ?? (optional(locale) ? enTask.constraintType[type] : undefined);
     const instance = i18next.createInstance();
     await instance.init({
-      lng: locale, fallbackLng: false, ns: ['common', 'task'], defaultNS: 'common',
-      interpolation: { escapeValue: false }, resources: { [locale]: { common: read('common'), task } },
+      lng: locale, fallbackLng: optional(locale) ? 'en' : false, ns: ['common', 'task'], defaultNS: 'common',
+      interpolation: { escapeValue: false },
+      resources: { [locale]: { common, task }, ...(optional(locale) ? { en: { task: enTask } } : {}) },
     });
-    const withDate = instance.t('notifications.startBlockedByConstraint', { name: 'B', type: 'MFO', date: '12-06-2026' });
-    const noDate = instance.t('notifications.startBlockedByConstraintNoDate', { name: 'B', type: 'ALAP' });
-    eq(`${locale}: tegenhoudmelding noemt het eigen MFO-label en de datum`,
-      [withDate.includes(task.constraintType.MFO), withDate.includes('12-06-2026'), withDate.includes('$t(')], [true, true, false]);
-    eq(`${locale}: tegenhoudmelding zonder datum noemt het eigen ALAP-label`,
-      [noDate.includes(task.constraintType.ALAP), noDate.includes('$t(')], [true, false]);
+    if (common.notifications?.startBlockedByConstraint !== undefined || !optional(locale)) {
+      const withDate = instance.t('notifications.startBlockedByConstraint', { name: 'B', type: 'MFO', date: '12-06-2026' });
+      eq(`${locale}: tegenhoudmelding noemt het eigen MFO-label en de datum`,
+        [withDate.includes(label('MFO') ?? '\u0000'), withDate.includes('12-06-2026'), withDate.includes('$t(')], [true, true, false]);
+    }
+    if (common.notifications?.startBlockedByConstraintNoDate !== undefined || !optional(locale)) {
+      const noDate = instance.t('notifications.startBlockedByConstraintNoDate', { name: 'B', type: 'ALAP' });
+      eq(`${locale}: tegenhoudmelding zonder datum noemt het eigen ALAP-label`,
+        [noDate.includes(label('ALAP') ?? '\u0000'), noDate.includes('$t(')], [true, false]);
+    }
   }
 }
 

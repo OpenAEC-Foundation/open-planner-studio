@@ -18,6 +18,14 @@
 // De tweede regel werkt ook de andere kant op: het Pools heeft `few` en `many`,
 // categorieën die het Nederlands niet kent. Een puur nl-gedreven scan zou die
 // nooit eisen. Per locale wordt daarom de eigen categorielijst opgevraagd.
+//
+// Besluit B5 (2026-10-10): een nieuwe of gewijzigde tekst vraagt alleen nl + en; de andere talen vult
+// de vertaalstraat. Daarom drie soorten uitkomst:
+//  - `en` mist een sleutel (of een meervoudsvorm): FOUT — en is de terugvaltaal van de app.
+//  - een andere taal mist een sleutel of een hele meervoudsfamilie: RAPPORT (exit 0). De app valt daar
+//    terug op en; de releasepoort `npm run verify:translations` eist dat de straat hem aanvult.
+//  - een andere taal heeft een HALVE meervoudsfamilie (een deel van haar CLDR-categorieën): FOUT —
+//    i18next valt voor de ontbrekende getallen terug op en, midden in een vertaalde zin.
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -60,38 +68,47 @@ function getAtPath(obj, p) {
 }
 
 /**
- * Zet de nl-sleutelpaden om in de paden die DEZE locale moet hebben.
- * Gewone sleutels gaan één-op-één mee; een meervoudssleutel wordt vervangen door
- * de stam plus elke categorie die de locale kent (`_one` verdwijnt dus voor zh,
+ * De eenheden van de nl-paden: een gewone sleutel (`plural: false`, één pad) of een meervoudsfamilie
+ * (`plural: true`, per CLDR-categorie van DEZE locale één pad; `_one` verdwijnt dus voor zh,
  * `_few`/`_many` komen erbij voor pl).
  */
-function expectedPathsFor(basePaths, locale) {
+function expectedUnitsFor(basePaths, locale) {
   const cats = categoriesFor(locale);
-  const expected = new Set();
+  const units = [];
+  const seenStems = new Set();
   for (const p of basePaths) {
     const m = p.match(PLURAL_SUFFIX);
     if (!m) {
-      expected.add(p);
+      units.push({ key: p, plural: false, paths: [p] });
       continue;
     }
     const stem = p.slice(0, -m[0].length);
-    for (const cat of cats) expected.add(`${stem}_${cat}`);
+    if (seenStems.has(stem)) continue;
+    seenStems.add(stem);
+    units.push({ key: stem, plural: true, paths: [...cats].map((cat) => `${stem}_${cat}`) });
   }
-  return [...expected];
+  return units;
 }
 
 const baseFiles = fs.readdirSync(path.join(localesDir, base)).filter((f) => f.endsWith('.json'));
 
-let totalMissing = 0;
-const report = {};
+let totalErrors = 0;
+/** Fouten per locale en bestand: ontbrekende paden (en) en halve families (alle talen). */
+const errors = {};
+/** Rapport per locale en bestand: helemaal ontbrekende sleutels/families (niet-en; B5). */
+const absent = {};
 const basePluralReport = {};
+const push = (bucket, locale, file, item) => {
+  bucket[locale] = bucket[locale] || {};
+  bucket[locale][file] = [...(bucket[locale][file] || []), item];
+};
 
 for (const file of baseFiles) {
   const baseData = JSON.parse(fs.readFileSync(path.join(localesDir, base, file), 'utf8'));
   const basePaths = collectPaths(baseData);
 
   // De bronlocale is óók een echte locale. Zonder deze check kan iemand bijvoorbeeld nl/_other
-  // verwijderen: de 13 doelvertalingen vergelijken dan nog steeds met de verminkte bron en de
+  // verwijderen: de doelvertalingen vergelijken dan nog steeds met de verminkte bron en de
   // poort blijft ten onrechte groen. Verzamel pluralen per stam, zodat alle CLDR-vormen van het
   // Nederlands precies eenmaal vereist zijn, net als verderop voor elke doelvertaling.
   const foundByStem = new Map();
@@ -112,38 +129,45 @@ for (const file of baseFiles) {
     if (missing.length) problems.push(`${stem}: ontbreekt ${missing.join(', ')}`);
     if (extra.length) problems.push(`${stem}: overbodig ${extra.join(', ')}`);
     basePluralReport[file] = [...(basePluralReport[file] || []), ...problems];
-    totalMissing += missing.length + extra.length;
+    totalErrors += missing.length + extra.length;
   }
 
   for (const locale of others) {
-    const expected = expectedPathsFor(basePaths, locale);
     const filePath = path.join(localesDir, locale, file);
-    if (!fs.existsSync(filePath)) {
-      report[locale] = report[locale] || {};
-      report[locale][file] = expected;
-      totalMissing += expected.length;
-      continue;
-    }
-    const localeData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    const missing = expected.filter((p) => getAtPath(localeData, p) === undefined);
-    if (missing.length) {
-      report[locale] = report[locale] || {};
-      report[locale][file] = missing;
-      totalMissing += missing.length;
+    const localeData = fs.existsSync(filePath) ? JSON.parse(fs.readFileSync(filePath, 'utf8')) : {};
+    for (const unit of expectedUnitsFor(basePaths, locale)) {
+      const missing = unit.paths.filter((p) => getAtPath(localeData, p) === undefined);
+      if (missing.length === 0) continue;
+      if (locale === 'en') {
+        for (const p of missing) push(errors, locale, file, p);
+        totalErrors += missing.length;
+      } else if (missing.length === unit.paths.length) {
+        push(absent, locale, file, unit.key);
+      } else {
+        const cats = missing.map((p) => p.slice(unit.key.length + 1));
+        push(errors, locale, file, `${unit.key}: halve meervoudsfamilie, ontbreekt ${cats.join(', ')}`);
+        totalErrors += 1;
+      }
     }
   }
 }
+
+const count = (files) => (files ? Object.values(files).reduce((a, b) => a + b.length, 0) : 0);
 
 const jsonMode = process.argv.includes('--json');
 if (jsonMode) {
   // Rapportagemodus: bedoeld om doorgesluisd te worden, dus geen exitcode-poort.
-  console.log(JSON.stringify({ ...(Object.keys(basePluralReport).length ? { [base]: basePluralReport } : {}), ...report }, null, 2));
+  console.log(JSON.stringify({
+    errors: { ...(Object.keys(basePluralReport).length ? { [base]: basePluralReport } : {}), ...errors },
+    absent,
+  }, null, 2));
   process.exit(0);
 }
+const verbose = process.argv.includes('--verbose');
 
 if (Object.keys(basePluralReport).length) {
-  const count = Object.values(basePluralReport).reduce((total, paths) => total + paths.length, 0);
-  console.log(`\n=== ${base}: ${count} ongeldige CLDR-pluralvorm(en) ===`);
+  const n = Object.values(basePluralReport).reduce((total, paths) => total + paths.length, 0);
+  console.log(`\nXX ${base}: ${n} ongeldige CLDR-pluralvorm(en)`);
   for (const [file, paths] of Object.entries(basePluralReport)) {
     console.log(`  ${file}:`);
     for (const problem of paths) console.log(`    - ${problem}`);
@@ -151,19 +175,32 @@ if (Object.keys(basePluralReport).length) {
 }
 
 for (const locale of others) {
-  const files = report[locale];
-  const count = files ? Object.values(files).reduce((a, b) => a + b.length, 0) : 0;
-  console.log(`\n=== ${locale}: ${count} ontbrekende sleutels ===`);
-  if (files) {
-    for (const [file, paths] of Object.entries(files)) {
-      console.log(`  ${file}:`);
-      for (const p of paths) console.log(`    - ${p}`);
-    }
+  const files = errors[locale];
+  if (!files) continue;
+  console.log(`\nXX ${locale}: ${count(files)} fout(en)${locale === 'en' ? ' — en is de terugvaltaal en moet compleet zijn' : ''}`);
+  for (const [file, paths] of Object.entries(files)) {
+    console.log(`  ${file}:`);
+    for (const p of paths) console.log(`    - ${p}`);
   }
 }
 
-if (totalMissing > 0) {
-  console.log(`\nXX ${totalMissing} ontbrekende sleutel(s) over alle locales — vul ze aan of pas nl aan.`);
+// Rapport (B5): één regel per taal; de sleutels zelf met --verbose of via `npm run translate -- status <taal>`.
+const reported = others.filter((l) => absent[l]);
+if (reported.length) {
+  console.log('\n.. Rapport (geen fout): sleutels die in een taal nog helemaal ontbreken. De app valt daar terug op en;');
+  console.log('   de vertaalstraat vult ze aan, en een release eist ze (`npm run verify:translations`).');
+  for (const locale of reported) {
+    const files = absent[locale];
+    const perFile = Object.entries(files).map(([f, keys]) => `${f.replace(/\.json$/, '')} ${keys.length}`).join(', ');
+    console.log(`.. ${locale}: ${count(files)} sleutel(s) ontbreken (${perFile})`);
+    if (verbose) for (const [file, keys] of Object.entries(files)) for (const k of keys) console.log(`     ${file}: ${k}`);
+  }
+}
+
+if (totalErrors > 0) {
+  console.log(`\nXX ${totalErrors} fout(en) — vul en aan, maak halve meervoudsfamilies compleet, of pas nl aan.`);
   process.exit(1);
 }
-console.log(`\nOK — alle ${others.length} locales compleet t.o.v. ${base} (CLDR-pluralcategorieën meegerekend).`);
+const complete = others.length - reported.length;
+console.log(`\nOK — en compleet t.o.v. ${base}; ${complete} van ${others.length} locales compleet`
+  + `${reported.length ? `, ${reported.length} met ontbrekende sleutels (rapport)` : ''} (CLDR-pluralcategorieën meegerekend).`);

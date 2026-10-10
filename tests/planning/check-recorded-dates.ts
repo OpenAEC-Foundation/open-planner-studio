@@ -1218,6 +1218,9 @@ const offerOnly = (ifcText: string): ImportResult => ({
     // "Primaveru", hu "Primaverában"), en ru/uk/bg/sr schrijven hem mogelijk in het Cyrillisch.
     const noemtPrimavera = (v: unknown) => typeof v === 'string' && /Primaver|Примавер/i.test(v);
 
+    // Besluit B5 (2026-10-10): een andere taal dan nl/en mag een sleutel of familie nog missen (de app valt
+    // terug op en, de vertaalstraat vult hem vóór een release); wat er wél staat, moet kloppen.
+    const optioneel = (taal: string) => taal !== 'nl' && taal !== 'en';
     const zonderNeutraal: string[] = [];
     const neutraalNoemtPrimavera: string[] = [];
     const primaveraNoemtHetNiet: string[] = [];
@@ -1227,7 +1230,8 @@ const offerOnly = (ifcText: string): ImportResult => ({
       const rd = json.recordedDates ?? {};
       const primavera = Object.entries(rd).filter(([k]) => k.startsWith('activeCount_'));
       const neutraal = Object.entries(rd).filter(([k]) => k.startsWith('activeCountNeutral_'));
-      if (neutraal.length === 0 || neutraal.length !== primavera.length) zonderNeutraal.push(taal);
+      const eenOntbreekt = neutraal.length === 0 || primavera.length === 0;
+      if (eenOntbreekt ? !optioneel(taal) : neutraal.length !== primavera.length) zonderNeutraal.push(taal);
       if (neutraal.some(([, v]) => noemtPrimavera(v))) neutraalNoemtPrimavera.push(taal);
       if (primavera.some(([, v]) => !noemtPrimavera(v))) primaveraNoemtHetNiet.push(taal);
     }
@@ -1251,10 +1255,10 @@ const offerOnly = (ifcText: string): ImportResult => ({
       const props = json.properties ?? {};
       const primavera = props.recordedDatesActive;
       const neutraal = props.recordedDatesActiveNeutral;
-      if (typeof neutraal !== 'string' || neutraal.length === 0) badgeZonderNeutraal.push(taal);
+      if (neutraal === undefined && optioneel(taal)) { /* B5: mag nog ontbreken */ } else if (typeof neutraal !== 'string' || neutraal.length === 0) badgeZonderNeutraal.push(taal);
       else if (noemtPrimavera(neutraal)) badgeNeutraalNoemtPrimavera.push(taal);
       // Op de stam (`noemtPrimavera`): het Pools verbuigt de naam ("przez Primaverę").
-      if (!noemtPrimavera(primavera)) badgePrimaveraNoemtHetNiet.push(taal);
+      if (!(primavera === undefined && optioneel(taal)) && !noemtPrimavera(primavera)) badgePrimaveraNoemtHetNiet.push(taal);
     }
     eq('14l elke taal heeft de neutrale badge-tekst', badgeZonderNeutraal, []);
     eq('14m de NEUTRALE badge noemt Primavera in geen enkele taal', badgeNeutraalNoemtPrimavera, []);

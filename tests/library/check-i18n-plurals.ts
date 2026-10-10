@@ -85,11 +85,18 @@ async function main() {
   // --- Regressie-anker: GEEN kale (niet-gesuffixte) key meer in ÉÉN van de locales — deze assert
   // wordt rood zodra iemand de _one/_other-opsplitsing voor één taal terugdraait naar een platte string
   // (i18next zou die kale key dan gebruiken voor ELKE telling, ongeacht CLDR-categorie). ---
+  // Besluit B5 (2026-10-10): een andere taal dan nl/en mag een familie of sleutel nog missen (de app valt
+  // terug op en, de vertaalstraat vult hem vóór een release); wat er wél staat, moet kloppen.
+  const optional = (loc: string) => loc !== 'nl' && loc !== 'en';
+  const familyIn = (cl: Record<string, unknown>, key: string) => Object.keys(cl).some(k => k.startsWith(`${key}_`));
   for (const loc of ALL_LOCALES) {
     const cl = loadCommon(loc).companyLibrary ?? {};
     assert(!('refreshNotice' in cl), `${loc}: geen kale companyLibrary.refreshNotice-key meer (alleen _-suffixen)`);
     assert(!('removeCompanyConfirmLinked' in cl), `${loc}: geen kale companyLibrary.removeCompanyConfirmLinked-key meer`);
-    assert('refreshNotice_other' in cl, `${loc}: companyLibrary.refreshNotice_other bestaat (verplichte fallback-categorie)`);
+    if (!optional(loc) || familyIn(cl, 'refreshNotice')) {
+      assert('refreshNotice_other' in cl, `${loc}: companyLibrary.refreshNotice_other bestaat (verplichte fallback-categorie)`);
+    }
+    if (optional(loc) && !familyIn(cl, 'removeCompanyConfirmLinked')) continue;
     assert('removeCompanyConfirmLinked_other' in cl, `${loc}: companyLibrary.removeCompanyConfirmLinked_other bestaat (verplichte fallback-categorie)`);
   }
   // zh/ja/ko: uitsluitend _other (geen plural-onderscheid in deze talen) — een _one hier zou dode data zijn.
@@ -116,11 +123,14 @@ async function main() {
   for (const loc of ALL_LOCALES) {
     const cl = loadCommon(loc).companyLibrary as { field?: Record<string, unknown> } | undefined;
     const field = cl?.field ?? {};
-    assert(typeof field.name === 'string' && field.name.length > 0, `${loc}: companyLibrary.field.name blijft bestaan (nog in gebruik)`);
+    if (!(optional(loc) && field.name === undefined)) {
+      assert(typeof field.name === 'string' && field.name.length > 0, `${loc}: companyLibrary.field.name blijft bestaan (nog in gebruik)`);
+    }
     for (const dead of DEAD_FIELD_KEYS) {
       assert(!(dead in field), `${loc}: companyLibrary.field.${dead} is verwijderd (wees sinds de sloop van de oude diff-dialoog)`);
     }
-    assert(Object.keys(field).length === 1, `${loc}: companyLibrary.field draagt UITSLUITEND nog "name" (${Object.keys(field).join(', ')})`);
+    assert(Object.keys(field).every(k => k === 'name') && (optional(loc) || Object.keys(field).length === 1),
+      `${loc}: companyLibrary.field draagt UITSLUITEND nog "name" (${Object.keys(field).join(', ')})`);
   }
 
   console.log(`i18n-plurals: ${checks - fails}/${checks} groen`);
