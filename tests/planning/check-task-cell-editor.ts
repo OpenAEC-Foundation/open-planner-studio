@@ -194,7 +194,7 @@ ok('Assignmentcel opent een inline tokeneditor en geen los paneel',
     && !assignmentMarkup.includes('ops-assignment'));
 ok('Resourcekolom toont alleen lidmaatschap en geen units/curvebesturing',
   assignmentMarkup.includes('aria-label="remove Ploeg Noord"')
-    && !assignmentMarkup.includes('type="number"')
+    && !assignmentMarkup.includes('data-assignment-number')
     && !assignmentMarkup.includes('<option value="BELL"'));
 const unitsMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
   adapter: assignmentAdapter,
@@ -202,7 +202,7 @@ const unitsMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
   label: 'Units', messageForError, onCancel: () => undefined, onFocusCell: () => undefined,
 }));
 ok('Unitskolom toont alleen units en geen membership- of curvebesturing',
-  unitsMarkup.includes('type="number"')
+  unitsMarkup.includes('data-assignment-number="units"')
     && !unitsMarkup.includes('role="combobox"')
     && !unitsMarkup.includes('<option value="BELL"'));
 const curveMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
@@ -213,10 +213,10 @@ const curveMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
 ok('Curvekolom toont alleen curve en geen membership- of unitsbesturing',
   curveMarkup.includes('<option value="BELL" selected="">BELL</option>')
     && !curveMarkup.includes('role="combobox"')
-    && !curveMarkup.includes('type="number"'));
+    && !curveMarkup.includes('data-assignment-number'));
 const editorSource = fs.readFileSync('src/components/task-grid/TaskCellEditor.tsx', 'utf8');
 ok('Assignment-updaters bewaren native eventwaarden voordat React de updater uitvoert',
-  editorSource.includes('const unitsPerDay = event.currentTarget.valueAsNumber;')
+  editorSource.includes('const typed = event.currentTarget.value;')
     && editorSource.includes('const curve = event.currentTarget.value as ResourceCurve;')
     && !/setAssignmentTokens\([\s\S]{0,300}event\.currentTarget/.test(editorSource));
 const directAssignment = commitTaskCellEditorValue({

@@ -4,6 +4,7 @@
 // rijen). Onder de takenlijst: een resourcekiezer-lijst; onder de tijdlijn: staafjes per dag met
 // het deel boven de capaciteitslijn in rood (P6-patroon). Thema-bewust via CSS-variabelen.
 // Welke x bij kiezer en plot hoort, staat op één plek: `histogramLayout` hieronder.
+import { localizeDecimalPoint } from '@/utils/reportNumber';
 import type { ViewState } from '@/types/view';
 import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
 import { readHistogramPalette, type HistogramPalette } from './themePalette';
@@ -45,7 +46,8 @@ export interface HistogramRenderOptions {
    *  aanroepende hook, niet van deze renderer — die klemt hier alleen af op `[0, maxScroll]` (zie
    *  `histogramPickerMaxScroll`). Afwezig ⇒ 0. */
   pickerScrollY?: number;
-  labels: { unitsSuffix: string };
+  /** `numberLocale`: app-taal voor het decimaalteken van de as-label ("1,5" in nl); afwezig ⇒ punt. */
+  labels: { unitsSuffix: string; numberLocale?: string };
   emptyHint?: string;            // getoond wanneer er geen (herberekende) data is
   /** Geïnjecteerd histogram-palet. Afwezig ⇒ zelf gelezen via
    *  `readHistogramPalette()`; meegeven maakt de renderer headless-testbaar. */
@@ -447,6 +449,6 @@ export class HistogramRenderer {
   }
 
   private formatUnits(n: number): string {
-    return Number.isInteger(n) ? String(n) : n.toFixed(1);
+    return Number.isInteger(n) ? String(n) : localizeDecimalPoint(n.toFixed(1), this.opts.labels.numberLocale);
   }
 }

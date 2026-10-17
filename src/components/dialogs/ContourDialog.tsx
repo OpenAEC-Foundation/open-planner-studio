@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { formatReportNumber } from '@/utils/reportNumber';
 import { X } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { Dialog, DialogHelpButton } from '@/components/common/Dialog';
@@ -39,8 +40,6 @@ const SHAPE_KEY = {
 } as const satisfies Record<ContourShape, string>;
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
-const fmtNum = (n: number) => String(round2(n));
-const fmtHours = (minutes: number) => fmtNum(minutes / 60);
 
 /**
  * Fasen-editor — het venster waarmee de gebruiker de urenverdeling van ÉÉN toewijzing
@@ -69,6 +68,10 @@ const fmtHours = (minutes: number) => fmtNum(minutes / 60);
  */
 export function ContourDialog({ assignmentId, onClose }: { assignmentId: string; onClose: () => void }) {
   const { t, i18n } = useTranslation('task');
+  // Inzet en uren in de getalnotatie van de taal (zelfde als de duurkolom: nl "1,71"); de
+  // invoervelden lezen komma én punt terug.
+  const fmtNum = (n: number) => formatReportNumber(n, i18n.language);
+  const fmtHours = (minutes: number) => fmtNum(minutes / 60);
   const { t: tCommon } = useTranslation('common');
   const tasks = useAppStore(s => s.tasks);
   const resources = useAppStore(s => s.resources);

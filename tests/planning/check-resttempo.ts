@@ -344,10 +344,18 @@ console.log('-- (l) tabelkolom: begroot tempo in dezelfde opmaak als de inzet --
     const column = registry.find((c) => c.id === id)!;
     return column.format(column.read(task, ctx), task, ctx);
   };
-  eq('l1 Begrote eenheden per dag: alleen de toewijzingen met een apart begroot tempo, zonder afronding',
-    text('assignment.plannedUnits'), `Foreman: ${T_FOREMAN}; General worker: ${T_WORKER}`);
+  // Weergave op hooguit twee decimalen (eigenaar 2026-10-15); de opslag blijft exact (b1–b5).
+  eq('l1 Begrote eenheden per dag: alleen de toewijzingen met een apart begroot tempo, op twee decimalen',
+    text('assignment.plannedUnits'), 'Foreman: 1.11; General worker: 2.22');
   eq('l2 de inzetkolom toont het resttempo in dezelfde opmaak',
-    text('assignment.unitsPerDay'), 'Foreman: 34; General worker: 1; Compactor: 1.77777777777778');
+    text('assignment.unitsPerDay'), 'Foreman: 34; General worker: 1; Compactor: 1.78');
+  // Met de app-taal het decimaalteken van die taal; de bewerktekst blijft exact (geen stille afronding bij Enter).
+  const nlCtx = { ...ctx, numberLocale: 'nl' };
+  const unitsColumn = registry.find((c) => c.id === 'assignment.unitsPerDay')!;
+  eq('l3 inzetkolom in nl: komma als decimaalteken',
+    unitsColumn.format(unitsColumn.read(task, nlCtx), task, nlCtx), 'Foreman: 34; General worker: 1; Compactor: 1,78');
+  eq('l4 bewerktekst van de inzetkolom blijft exact',
+    unitsColumn.editText?.(task, ctx).includes('1.77777777777778'), true);
 }
 
 console.log('-- (k) extensie: lees-wijzig-laad houdt het begrote tempo (review #361 punt 1) --');

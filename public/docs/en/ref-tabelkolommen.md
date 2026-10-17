@@ -64,12 +64,12 @@ By default the table next to the Gantt shows *WBS*, *Task name* and *Duration*. 
 ## Resources
 
 - **Assigned resources** — the names of the assigned resources, separated by commas. Editable: adding a name assigns the resource with 1 unit per day, removing a name removes the assignment. Read-only on a milestone or summary task.
-- **Assignment units per day** — the units per resource, as `Name: 1; Name: 0.5`. Editable on a task with assignments.
-- **Planned units per day** — the planned rate per resource, as `Name: 1.11111111111111`, without rounding, like *Assignment units per day*. Only for an assignment from Primavera P6 with a different remaining rate; *Assignment units per day* then shows the remaining rate. Read-only.
+- **Assignment units per day** — the units per resource, as `Name: 1; Name: 0.5`, with at most two decimals. The stored value stays exact. Editable on a task with assignments.
+- **Planned units per day** — the planned rate per resource, as `Name: 1.11`, with at most two decimals, like *Assignment units per day*. Only for an assignment from Primavera P6 with a different remaining rate; *Assignment units per day* then shows the remaining rate. Read-only.
 - **Assignment curve** — the curve per resource, as `Name: Uniform`. Editable on a task with assignments.
 - **Work window start** and **Work window finish** — the work window per resource, from an imported file, as `Name: date`. Read-only.
-- **Planned work (hours)** and **Actual work (hours)** — the planned and actual work per resource in hours, as `Name: 12`, from an imported file. Read-only.
-- **Remaining work (hours)** — the remaining work per resource in hours, as `Name: 6`: the stored work, otherwise remaining duration × units. Editable on a task with assignments on which a work rule applies. Only visible in the picker when the work rules are visible.
+- **Planned work (hours)** and **Actual work (hours)** — the planned and actual work per resource in hours, as `Name: 617.14`, with at most two decimals, from an imported file. Read-only.
+- **Remaining work (hours)** — the remaining work per resource in hours, as `Name: 6` or `Name: 26.67`: the stored work, otherwise remaining duration × units. Editable on a task with assignments on which a work rule applies, with a comma or a point as decimal separator. Only visible in the picker when the work rules are visible.
 
 ## Progress
 

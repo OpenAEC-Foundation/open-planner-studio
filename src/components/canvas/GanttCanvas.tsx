@@ -580,14 +580,14 @@ export function GanttCanvas({
       // Zelfde tekstschaal als de Gantt erboven, anders staan
       // de strooklabels zichtbaar uit de pas op de gedeelde as.
       fontScale,
-      labels: { unitsSuffix: tCommon('resource.histogram.units') },
+      labels: { unitsSuffix: tCommon('resource.histogram.units'), numberLocale: i18n.language },
       emptyHint: !scopedResourceLoadResult
         ? tCommon('resource.histogram.noData')
         : scopedTaskResources.resources.length === 0
           ? tCommon('resource.histogram.noResources')
           : undefined,
     } : undefined
-  ), [showHistogram, histogramSeries, histogramPicker, effectiveHistogramResourceId, effectiveView, histogramPickerWidth, histogramPickerSide, histogramPickerScrollY, scopedResourceLoadResult, scopedTaskResources.resources.length, tCommon, histogramAxis, canvasFontFamily, fontScale]);
+  ), [showHistogram, histogramSeries, histogramPicker, effectiveHistogramResourceId, effectiveView, histogramPickerWidth, histogramPickerSide, histogramPickerScrollY, scopedResourceLoadResult, scopedTaskResources.resources.length, tCommon, i18n.language, histogramAxis, canvasFontFamily, fontScale]);
 
   const primaryRenderInput = useMemo<GanttRenderOptionsSourceInput>(() => ({
     rows: viewRows,

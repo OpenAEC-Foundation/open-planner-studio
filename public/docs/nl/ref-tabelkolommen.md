@@ -64,12 +64,12 @@ Standaard toont de tabel naast de Gantt *WBS*, *Taaknaam* en *Duur*. De tabel op
 ## Resources
 
 - **Toegewezen resources** — de namen van de toegewezen resources, gescheiden door komma's. Bewerkbaar: een naam erbij wijst de resource toe met 1 eenheid per dag, een naam weghalen haalt de toewijzing weg. Alleen-lezen bij een mijlpaal of samenvattingstaak.
-- **Toewijzingseenheden per dag** — de eenheden per resource, als `Naam: 1; Naam: 0.5`. Bewerkbaar bij een taak met toewijzingen.
-- **Begrote eenheden per dag** — het begrote tempo per resource, als `Naam: 1.11111111111111`, zonder afronding, net als *Toewijzingseenheden per dag*. Alleen bij een toewijzing uit Primavera P6 met een ander resterend tempo; *Toewijzingseenheden per dag* toont dan het resterende tempo. Alleen-lezen.
+- **Toewijzingseenheden per dag** — de eenheden per resource, als `Naam: 1; Naam: 0,5`, op hooguit twee decimalen. De opgeslagen waarde blijft exact. Bewerkbaar bij een taak met toewijzingen.
+- **Begrote eenheden per dag** — het begrote tempo per resource, als `Naam: 1,11`, op hooguit twee decimalen, net als *Toewijzingseenheden per dag*. Alleen bij een toewijzing uit Primavera P6 met een ander resterend tempo; *Toewijzingseenheden per dag* toont dan het resterende tempo. Alleen-lezen.
 - **Toewijzingscurve** — de curve per resource, als `Naam: Uniform`. Bewerkbaar bij een taak met toewijzingen.
 - **Start werkvenster** en **Einde werkvenster** — het werkvenster per resource, uit een geïmporteerd bestand, als `Naam: datum`. Alleen-lezen.
-- **Begroot werk (uren)** en **Verricht werk (uren)** — het begrote en verrichte werk per resource in uren, als `Naam: 12`, uit een geïmporteerd bestand. Alleen-lezen.
-- **Resterend werk (uren)** — het resterende werk per resource in uren, als `Naam: 6`: het opgeslagen werk, anders restduur × inzet. Bewerkbaar bij een taak met toewijzingen waarop een werkregel werkt. Alleen zichtbaar in de kiezer als de werkregels zichtbaar zijn.
+- **Begroot werk (uren)** en **Verricht werk (uren)** — het begrote en verrichte werk per resource in uren, als `Naam: 617,14`, met hoogstens twee decimalen, uit een geïmporteerd bestand. Alleen-lezen.
+- **Resterend werk (uren)** — het resterende werk per resource in uren, als `Naam: 6` of `Naam: 26,67`: het opgeslagen werk, anders restduur × inzet. Bewerkbaar bij een taak met toewijzingen waarop een werkregel werkt, met een komma of een punt als decimaalteken. Alleen zichtbaar in de kiezer als de werkregels zichtbaar zijn.
 
 ## Voortgang
 
