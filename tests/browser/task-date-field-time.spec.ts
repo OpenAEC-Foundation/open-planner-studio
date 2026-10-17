@@ -187,9 +187,10 @@ test('paneel: Werkelijke start van een voltooide taak doortabben verandert niets
 test('paneel: beperkingsdatum toont het datumdeel en weigert leegmaken', async ({ page, ops: _ops }) => {
   const id = await openShowcaseTask(page);
   const rail = page.locator('[data-ops-rail]');
-  const constraintSelect = rail.locator('select').filter({ has: page.locator('option[value="SNET"]') }).first();
+  const constraintSelect = rail.getByRole('button', { name: /^(Constraint|Beperking)$/ });
   await constraintSelect.scrollIntoViewIfNeeded();
-  await constraintSelect.selectOption('SNET');
+  await constraintSelect.click();
+  await page.locator('.ops-select__menu [role="option"][data-value="SNET"]').click();
   await expect.poll(() => taskFacts(page, id).then(task => task.constraint)).toEqual({ type: 'SNET', date: '2027-03-01T07:00' });
 
   const date = railGroup(page, 'Constraint date');

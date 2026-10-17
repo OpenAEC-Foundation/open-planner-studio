@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { Field, CustomFieldInput } from './shared';
+import { Select } from '@/components/common/Select';
 
 /**
  * Activity codes / custom fields (structuur) — sectie van `TaskPropertiesPanel`.
@@ -25,18 +26,23 @@ export function TaskCodesFieldsSection({ taskId }: { taskId: string }) {
       <span className="ui-card-header !text-small !leading-4">{t('structure.title')}</span>
       {activityCodeTypes.map(type => (
         <Field key={type.id} label={type.name}>
-          <select
+          <Select
+            aria-label={type.name}
             value={task.activityCodes?.[type.id] ?? ''}
-            onChange={e => setTaskActivityCode(taskId, type.id, e.target.value || null)}
-            className="input !text-small !leading-4 !px-2.5 !py-1.5"
-          >
-            <option value="">{t('structure.none')}</option>
-            {type.values.map(v => (
-              <option key={v.id} value={v.id}>
-                {v.code}{v.description ? ` — ${v.description}` : ''}
-              </option>
-            ))}
-          </select>
+            // Een id dat niet in dit codetype staat (kan via de extensie-API binnenkomen) toont "(geen)"
+            // als gewone waarde, zoals de native lijst op main. "(geen)" kiezen wist dat id dan echt:
+            // de waarde is anders dan '', dus de Select roept onChange('') aan.
+            valueLabel={t('structure.none')}
+            onChange={v => setTaskActivityCode(taskId, type.id, v || null)}
+            className="!text-small !leading-4 !px-2.5 !py-1.5"
+            options={[
+              { value: '', label: t('structure.none') },
+              ...type.values.map(v => ({
+                value: v.id,
+                label: `${v.code}${v.description ? ` — ${v.description}` : ''}`,
+              })),
+            ]}
+          />
         </Field>
       ))}
       {customFieldDefs.map(def => (

@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Task, MilestoneKind } from '@/types/task';
 import { Field } from './shared';
+import { Select } from '@/components/common/Select';
 import { milestoneRefusal, taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { useAppStore } from '@/state/appStore';
 import { milestoneRefusalNotices } from '@/state/structuralTransition';
@@ -47,18 +48,17 @@ export function TaskMilestoneFields({ task, onChange }: {
       {task.isMilestone && (
         <div className="grid grid-cols-2 gap-2">
           <Field label={t('properties.milestoneKind')}>
-            <select
+            <Select
+              aria-label={t('properties.milestoneKind')}
               value={task.milestoneKind ?? 'AUTO'}
-              onChange={e => {
-                const v = e.target.value;
-                onChange({ milestoneKind: v === 'AUTO' ? undefined : (v as MilestoneKind) });
-              }}
-              className="input !text-small !leading-4 !px-2.5 !py-1.5"
-            >
-              <option value="AUTO">{t('milestoneKind.AUTO')}</option>
-              <option value="START">{t('milestoneKind.START')}</option>
-              <option value="FINISH">{t('milestoneKind.FINISH')}</option>
-            </select>
+              onChange={v => onChange({ milestoneKind: v === 'AUTO' ? undefined : (v as MilestoneKind) })}
+              className="!text-small !leading-4 !px-2.5 !py-1.5"
+              options={[
+                { value: 'AUTO', label: t('milestoneKind.AUTO') },
+                { value: 'START', label: t('milestoneKind.START') },
+                { value: 'FINISH', label: t('milestoneKind.FINISH') },
+              ]}
+            />
           </Field>
           <label className="flex items-center gap-1.5 self-end pb-1.5">
             <input

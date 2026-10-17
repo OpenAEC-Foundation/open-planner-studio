@@ -151,8 +151,9 @@ test('Taak bewerken: een in dezelfde dialoog gekozen constraint wint van de gety
   const startField = dialog.getByRole('group', { name: /^(Start date|Startdatum)$/ });
   await typeDate(startField, '15062026');
   await page.keyboard.press('Tab');
-  // De primaire constraintkeuze (de eerste select met de constrainttypes).
-  await dialog.locator('select:has(option[value="MSO"])').first().selectOption('MSO');
+  // De primaire constraintkeuze: de eigen keuzelijst openklikken en MSO aanklikken.
+  await dialog.getByRole('button', { name: /^(Constraint|Beperking)$/ }).click();
+  await page.locator('.ops-select__menu [role="option"][data-value="MSO"]').click();
   await dialog.locator('[data-ops-task-save]').click();
   await expect(dialog).toHaveCount(0);
 

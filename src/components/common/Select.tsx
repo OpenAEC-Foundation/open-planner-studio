@@ -28,6 +28,10 @@ interface SelectProps {
   onChange: (value: string) => void;
   options: SelectOption[];
   placeholder?: string;
+  /** Label voor een `value` die bij geen optie hoort maar wél echt gezet is (bv. een type uit een
+   *  import dat de lijst niet aanbiedt). De trigger toont het als gewone waarde, niet grijs zoals
+   *  `placeholder`. De lijst zelf krijgt er geen optie bij en opent zonder actieve optie. */
+  valueLabel?: string;
   disabled?: boolean;
   id?: string;
   'aria-label'?: string;
@@ -93,6 +97,7 @@ export function Select({
   onChange,
   options,
   placeholder,
+  valueLabel,
   disabled = false,
   id,
   className,
@@ -124,7 +129,7 @@ export function Select({
 
   const selectedIndex = options.findIndex(o => o.value === value);
   const descriptionId = (i: number) => `${listboxId}-desc-${i}`;
-  const selectedLabel = selectedIndex >= 0 ? options[selectedIndex].label : undefined;
+  const selectedLabel = selectedIndex >= 0 ? options[selectedIndex].label : valueLabel;
 
   const firstEnabled = options.findIndex(o => !o.disabled);
   // De keuzelijst leest deze waarde uitsluitend op de gesloten→open-grens. Tijdens een open sessie
