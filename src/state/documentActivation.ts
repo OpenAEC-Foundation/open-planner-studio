@@ -4,7 +4,7 @@ import { solveInputFor } from '@/engine/scheduler/solveInput';
 import {
   applyRecordedTimesToTasks,
   captureRecordedDates,
-  countShiftedTasks,
+  shiftedTaskIds,
   type RecordedDatesState,
   type RecordedTime,
 } from '@/engine/scheduler/recordedDates';
@@ -154,11 +154,8 @@ export function materializeBehindOnlyRefresh(input: {
  * no-op, en dat blijft zo). Alleen het getal in de strook ("N taken verschuiven") moet kloppen met
  * wat Berekenen (F5) met de nieuwe kalender echt doet. Daarom één doorrekening op een KOPIE
  * (`cloneTasksForSolve`, dezelfde volledige invoer als F5 via `solveInputFor`) en dan
- * `countShiftedTasks` tegen de vastlegging. De taken, het `cpmResult` en de solverinvoer van het
+ * `shiftedTaskIds` tegen de vastlegging. De taken, het `cpmResult` en de solverinvoer van het
  * document veranderen niet.
- *
- * Geldt ook voor het AANBOD (`recordedDates` gevuld, modus uit): dat getal komt in de modus terecht
- * zodra de gebruiker "Opgeslagen datums tonen" kiest.
  *
  * Geen `recordedDates` ⇒ niets te tellen, geen doorrekening. Een solverfout ⇒ geen teller (de strook
  * valt terug op zijn tellerloze tekst); een verzonnen getal is verboden (contract in `recordedDates.ts`).
@@ -171,8 +168,14 @@ export function recountShiftedAfterLibraryRefresh(
   const tasks = cloneTasksForSolve(doc.tasks);
   const result = solveProject(solveInputFor(doc.project, tasks, doc.sequences, doc.calendar, doc.calendars));
   const next: RecordedDatesState = { ...recorded };
-  if (result.error) delete next.shifted;
-  else next.shifted = countShiftedTasks(tasks, recorded.times);
+  if (result.error) {
+    delete next.shifted;
+    delete next.shiftedTaskIds;
+  } else {
+    const ids = shiftedTaskIds(tasks, recorded.times);
+    next.shifted = ids.length;
+    next.shiftedTaskIds = ids;
+  }
   return next;
 }
 
@@ -297,13 +300,17 @@ export function prepareLoadedPayload(
  *     uit blijft uit, en er wordt niet opnieuw beslist. Een terugleesheuristiek ("0 verschoven op de
  *     rauwe taken ⇒ de modus stond aan") is vals-positief: een bewerking verlaat de modus en zet
  *     `scheduleStale`, maar de herberekening staat pas op `setTimeout(0)`, dus een auto-save in dat
- *     gat schrijft de brondatums weg zónder modus.
+ *     gat schrijft de brondatums weg zónder modus. Stond hij uit, dan vergeet de app de opgeslagen
+ *     datums (zie hieronder).
  *  (Vóór beide: de poort `recordedDatesSource` — geen bron met echte rekenuitvoer ⇒ niets.)
  *  2. Anders: automatisch aan bij een VERSE import (`isFreshImportOrigin`) mét restverschillen, en
- *     bij een HEROPENING van een eigen IFC (`'ifc-own'`/`'xer-archive'`) alleen zolang
- *     `importPristine` nog `true` is — een intussen bewerkte en opgeslagen planning mag bij
- *     heropenen niet stilzwijgend de oude brondatums tonen. Al het overige BIEDT de modus alleen
- *     aan: `recordedDates` gevuld, `datesAsRecorded` blijft `false`.
+ *     bij een HEROPENING van een eigen IFC (`'ifc-own'`/`'xer-archive'`) als `importPristine` nog
+ *     `true` is of het bestand IN de modus is opgeslagen (`recordedSourceFormat`) — "zoals je het
+ *     achterliet"; een buiten de modus opgeslagen planning toont bij heropenen nooit stilzwijgend de
+ *     oude brondatums.
+ *  Al het overige VERGEET de opgeslagen datums: `recordedDates` blijft `null`, `datesAsRecorded`
+ *  `false` (eigenaar, 2026-10-17, optie 1 — er is geen aanbod-stand meer). Gevolg, overal in de app:
+ *  `recordedDates !== null` ⇔ `datesAsRecorded`.
  *
  * `scheduleStale` gaat in de modus expliciet op `false` — nooit rechtstreeks op `true`, dus de
  * invariant in `state/scheduleStale.ts` blijft heel.
@@ -311,7 +318,7 @@ export function prepareLoadedPayload(
  * GEEN undo-snapshot: dit is een LAADPAD, geen mutator. De aanroeper draait vlak hiervoor/hierna
  * `removeSessionHistoryForDocumentFromState` — er is geen geschiedenis waarin een pre-load-toestand
  * kan opduiken. De contract-invariant "élke MUTATOR van `datesAsRecorded` pusht een snapshot"
- * (`showRecordedDates`/`runCPM`) blijft onverkort gelden; dit is er geen.
+ * (`runCPM`, `markDateMutation`) blijft onverkort gelden; dit is er geen.
  *
  * Muteert `prepared` in place, net als de rest van dit bestand (`prepareLoadedPayload`,
  * `materializeBehindOnlyRefresh`).
@@ -322,7 +329,7 @@ type RecordedSourceInput = Pick<ImportResult, 'recordedFields' | 'recordedTimes'
 /**
  * DE poort: "datums zoals opgeslagen" bestaat alleen voor een bron die echte REKENUITVOER
  * draagt. Levert de oorspronkelijke bron plus of laag 2 (ScheduleStart/-Finish) mag meetellen, of
- * `undefined` ⇒ geen vastlegging, geen modus, geen aanbod en geen melding.
+ * `undefined` ⇒ geen vastlegging, geen modus en geen melding.
  *
  *  - XER, P6 XML, MSPDI, `.mpp` (verse import) en het XER-archief in een eigen IFC ⇒ toegelaten.
  *  - Een vreemd IFC ⇒ alleen de taken met echte early-slots (laag 1); een vreemd IFC
@@ -368,22 +375,29 @@ export function applyRecordedDatesOnLoad(
   const allowed = captureAllowed(rawTasks, parsed);
   if (!allowed) return;
   const { recorded, sourceFormat } = allowed;
-  const shifted = countShiftedTasks(prepared.tasks, recorded.times);
+  const shiftedIds = shiftedTaskIds(prepared.tasks, recorded.times);
   // Een VERSE import van elk formaat gaat automatisch in de modus zodra er
-  // restverschillen zijn; een HEROPENING van een eigen IFC ('ifc-own'/'xer-archive') alleen
-  // zolang het document sinds de import niet is bewerkt (`importPristine`, uit het bestand zelf);
-  // zonder herkomst uitsluitend het aanbod.
+  // restverschillen zijn. Een HEROPENING van een eigen IFC ('ifc-own'/'xer-archive') opent "zoals
+  // je het achterliet" (eigenaar, 2026-10-17): in de modus als het document sinds de import niet is
+  // bewerkt (`importPristine`), OF als het IN de modus is opgeslagen. Dat laatste herkent de app aan
+  // `OPS_ImportProvenance.SourceFormat` (`recordedSourceFormat`): `ifcSaveInput.ts` schrijft hem
+  // alleen in de modus. Zo opent een bestand dat na een naamwijziging in de modus is opgeslagen weer
+  // met dezelfde datums, en een bestand dat buiten de modus is opgeslagen (na F5 of een
+  // datumbewerking) met de berekening. Dit vervangt optie B van #167 (alleen `importPristine`).
   const origin = parsed.recordedTimesOrigin;
-  const autoEnter = shifted > 0 && (
+  const autoEnter = shiftedIds.length > 0 && (
     isFreshImportOrigin(origin)
-    || ((origin === 'ifc-own' || origin === 'xer-archive') && prepared.importPristine === true)
+    || ((origin === 'ifc-own' || origin === 'xer-archive')
+      && (prepared.importPristine === true || parsed.recordedSourceFormat !== undefined))
   );
-  const enterMode = restoredMode ?? autoEnter;
-  // Niets verschoven én geen modus om te herstellen ⇒ er valt niets te melden: de herberekening
-  // kwam exact uit op wat het bestand zei.
-  if (shifted === 0 && !enterMode) return;
-  prepared.recordedDates = { ...recorded, shifted, origin: parsed.recordedTimesOrigin, sourceFormat };
-  if (enterMode) enterRecordedDatesMode(prepared, recorded.times);
+  // Geen modus ⇒ de app VERGEET de opgeslagen datums (eigenaar, 2026-10-17, optie 1): geen
+  // `recordedDates`, dus geen aanbod-strook, geen "wijkt af" en geen melding. Zelfde uitkomst als
+  // binnen een sessie bij de eerste datumwijziging (`markDateMutation`).
+  if (!(restoredMode ?? autoEnter)) return;
+  prepared.recordedDates = {
+    ...recorded, shifted: shiftedIds.length, shiftedTaskIds: shiftedIds, origin: parsed.recordedTimesOrigin, sourceFormat,
+  };
+  enterRecordedDatesMode(prepared, recorded.times);
 }
 
 /**

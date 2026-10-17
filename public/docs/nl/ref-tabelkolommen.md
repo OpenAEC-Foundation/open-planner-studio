@@ -96,7 +96,7 @@ Alle kolommen in deze categorie zijn alleen-lezen.
 - **Interfererende speling** — totale speling min vrije speling.
 - **Bijna kritiek** — *Ja* voor een bijna-kritieke taak. Alleen gevuld als *Bijna-kritiek markeren* aan staat (*Projectinstellingen*, blok *Rekenprofiel en reken-opties*); anders een streepje.
 - **Spelingpad** — het nummer van het spelingpad, 1 voor het meest kritieke. Alleen gevuld als *Meerdere speling-paden* aan staat; anders een streepje.
-- **Herkomst (opgeslagen datums)** — bij een bestand met vastgelegde datums: *Wijkt af* of *Deels niet vastgelegd*. Alleen zichtbaar in de kiezer bij zo'n bestand. Bij een niet vastgelegde as staat *Niet vastgelegd* in de late-datum- en spelingkolommen.
+- **Herkomst (opgeslagen datums)** — zolang de app de datums uit het bestand toont: *Deels niet vastgelegd* bij een taak waarvan het bestand niet alles bevat. Alleen zichtbaar in de kiezer in die weergave. Bij een niet vastgelegde as staat *Niet vastgelegd* in de late-datum- en spelingkolommen.
 
 Zie [Kritiek pad en speling](docs://uitleg-kritiek-pad).
 

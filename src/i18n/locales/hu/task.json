@@ -406,10 +406,6 @@
     "timephasedActive": "Az MS Project órás eloszlását követi",
     "timephasedLost": "Az MS Project dátumablaka a szerkesztés után már nincs alkalmazva — az órás eloszlás maga továbbra is érvényes, és a fájlban marad",
     "timephasedContoured": "Saját órás eloszlás",
-    "recordedDatesActive": "A Primavera saját mentett dátumait mutatja ehhez a tevékenységhez",
-    "recordedDatesActiveNeutral": "A dátumokat mutatja úgy, ahogy a fájlban szerepelnek ehhez a tevékenységhez",
-    "recordedDatesDeviates": "Eltér a mentett dátumoktól",
-    "recordedDatesPartlyUnrecorded": "A rögzítés részben hiányos — lásd a legkésőbbi és a tartalékidő oszlopokat",
     "completion": "Előrehaladás (%)",
     "progress": {
       "actualStart": "Tényleges kezdés",

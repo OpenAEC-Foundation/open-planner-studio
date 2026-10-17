@@ -406,10 +406,6 @@
     "timephasedActive": "Følger timefordelingen fra MS Project",
     "timephasedLost": "Datovindue fra MS Project er ikke længere anvendt efter redigering — timefordelingen selv gælder stadig og gemmes",
     "timephasedContoured": "Egen timefordeling",
-    "recordedDatesActive": "Viser Primaveras egne gemte datoer for denne opgave",
-    "recordedDatesActiveNeutral": "Viser datoerne som de står i filen for denne opgave",
-    "recordedDatesDeviates": "Afviger fra de gemte datoer",
-    "recordedDatesPartlyUnrecorded": "Registreringen er delvis ufuldstændig — se kolonnerne for seneste datoer og slæk.",
     "completion": "Fremdrift (%)",
     "progress": {
       "actualStart": "Faktisk startdato",

@@ -414,10 +414,6 @@
     "timephasedActive": "Розподіл годин береться з MS Project",
     "timephasedLost": "Вікно дат з MS Project більше не застосовується після редагування — сам розподіл годин лишається чинним і зберігається у файлі",
     "timephasedContoured": "Власний розподіл годин",
-    "recordedDatesActive": "Показує власні збережені дати Primavera для цього завдання",
-    "recordedDatesActiveNeutral": "Показує дати, як вони записані у файлі для цього завдання",
-    "recordedDatesDeviates": "Відрізняється від збережених дат",
-    "recordedDatesPartlyUnrecorded": "Запис частково неповний — див. колонки пізніх дат і резерву часу",
     "completion": "Прогрес (%)",
     "progress": {
       "actualStart": "Фактичний початок",

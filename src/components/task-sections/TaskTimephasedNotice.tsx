@@ -13,10 +13,9 @@ import { MPP_TIMEPHASED_HELP_ARTICLE_ID } from '@/state/helpArticles';
  *    "niet meer toegepast".
  * Geen van beide ⇒ geen MSP-herkomst op deze taak, niets renderen.
  *
- * Stijlprecedent: de bibliotheek-afwijkingsbadges in `ResourcePanel.tsx`
- * (`badge badge--red`/`companyLibrary.deviates`/`notInCompany`) — zelfde `badge`-klasse, hier
- * `badge--blue` (actief, een NEUTRALE/positieve info-toestand — geen fout) resp. `badge--gray`
- * (losgelaten, puur informatief verleden-tijd-signaal). Geen nieuwe kleuren, geen eigen CSS.
+ * Stijl: het `alert`-infoblok (`globals.css`), `alert--info` (actief, oranje, een NEUTRALE/positieve
+ * info-toestand — geen fout) resp. `alert--neutral` (losgelaten of eigen verdeling, grijs, puur
+ * informatief). Kleuren alleen uit het thema.
  *
  * RELATIONEEL/storeful (zelfde classificatie als `TaskFreePeriodWarning`/`TaskCpmResultSection`):
  * puur lezend, `taskId`-only.
@@ -43,15 +42,11 @@ export function TaskTimephasedNotice({ taskId }: { taskId: string }) {
     ? t('properties.timephasedActive')
     : state === 'lost' ? t('properties.timephasedLost') : t('properties.timephasedContoured');
 
+  // Infoblok over de volle breedte, zoals `TaskRecordedDatesNotice` (eigenaar, 2026-10-17): de
+  // zin van 'lost' liep als badge buiten het paneel.
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <span
-        className={`badge ${state === 'active' ? 'badge--blue' : 'badge--gray'} shrink-0`}
-        title={label}
-        data-ops-task-timephased={state}
-      >
-        {label}
-      </span>
+    <div className={`alert ${state === 'active' ? 'alert--info' : 'alert--neutral'} flex flex-col items-start gap-1 break-words`} data-ops-task-timephased={state}>
+      <span>{label}</span>
       <button
         type="button"
         className="ops-textlink !text-body"

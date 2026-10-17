@@ -84,40 +84,22 @@ eq('geen vastlegging (recordedDates === null) ⇒ undefined, ongeacht datesAsRec
 eq('taak niet in de vastlegging ⇒ undefined',
   recordedTaskMark(recordedState({ 'ander-id': fullRecord }), false, taskWith({})), undefined);
 
-eq('buiten de modus, vroege datums identiek aan de vastlegging, volledige assen ⇒ undefined (niets te melden)',
-  recordedTaskMark(
-    recordedState({ 't-1': fullRecord }), false,
-    taskWith({ earlyStart: fullRecord.start, earlyFinish: fullRecord.finish }),
-  ), undefined);
-
-eq('buiten de modus, vroege start wijkt af ⇒ deviates',
+// Geen aanbod-stand meer (eigenaar, 2026-10-17, optie 1): buiten de modus markeert niets, ook
+// niet als de datums afwijken of de vastlegging onvolledig is (vangnet voor een schrijver die
+// `recordedDates` buiten de modus zou laten staan).
+eq('buiten de modus, afwijkende datums ⇒ undefined (geen "wijkt af" meer)',
   recordedTaskMark(
     recordedState({ 't-1': fullRecord }), false,
     taskWith({ earlyStart: '2026-02-01', earlyFinish: fullRecord.finish }),
-  ), 'deviates');
+  ), undefined);
 
-eq('buiten de modus, vroeg einde wijkt af ⇒ deviates',
-  recordedTaskMark(
-    recordedState({ 't-1': fullRecord }), false,
-    taskWith({ earlyStart: fullRecord.start, earlyFinish: '2026-02-01' }),
-  ), 'deviates');
-
-// Critreview laag 3, bevinding 1: BUITEN de modus staat onze eigen, zojuist berekende late-/
-// spelinguitvoer op het scherm. "Deels niet vastgelegd" gaat over wat er getoond wordt, niet over
-// het bestand — dus geen markering, en (zie de bindingsectie onderaan) al helemaal geen verbergen.
-eq('buiten de modus, identieke vroege datums maar onvolledige vastlegging ⇒ undefined',
+eq('buiten de modus, onvolledige vastlegging ⇒ undefined',
   recordedTaskMark(
     recordedState({ 't-1': { ...fullRecord, lateFinish: undefined } }), false,
     taskWith({ earlyStart: fullRecord.start, earlyFinish: fullRecord.finish }),
   ), undefined);
 
-eq('buiten de modus blijft "wijkt af" wél gelden bij een onvolledige vastlegging',
-  recordedTaskMark(
-    recordedState({ 't-1': { ...fullRecord, lateFinish: undefined } }), false,
-    taskWith({ earlyStart: '2026-02-01', earlyFinish: fullRecord.finish }),
-  ), 'deviates');
-
-eq('IN de modus, volledige vastlegging ⇒ undefined ("wijkt af" is hier geen zinvol signaal)',
+eq('IN de modus, volledige vastlegging ⇒ undefined',
   recordedTaskMark(
     recordedState({ 't-1': fullRecord }), true,
     taskWith({ earlyStart: fullRecord.start, earlyFinish: fullRecord.finish }),
@@ -128,12 +110,6 @@ eq('IN de modus, ONVOLLEDIGE vastlegging ⇒ partly-unrecorded (eigenschap van h
     recordedState({ 't-1': { ...fullRecord, totalFloat: undefined } }), true,
     taskWith({ earlyStart: fullRecord.start, earlyFinish: fullRecord.finish }),
   ), 'partly-unrecorded');
-
-eq('IN de modus met een taak wier vroege datums (kunstmatig) toch afwijken ⇒ nooit deviates',
-  recordedTaskMark(
-    recordedState({ 't-1': fullRecord }), true,
-    taskWith({ earlyStart: '2026-09-09', earlyFinish: fullRecord.finish }),
-  ), undefined);
 
 // ── Draadverbinding: taskColumnRegistry.ts ─────────────────────────────────────────────────
 const registryInput = {
@@ -160,7 +136,7 @@ ok('zonder ctx.recordedMark bestaat de kolom recorded.source niet in de gefilter
   !registryPlain.filter(c => c.available(baseContext())).some(c => c.id === 'recorded.source'));
 
 const withMarkCtx = baseContext({
-  recordedMark: () => 'deviates',
+  recordedMark: () => 'partly-unrecorded',
   recordedUnrecordedAxes: () => ['lf', 'tf'],
 });
 ok('mét ctx.recordedMark bestaat de kolom recorded.source wél in de gefilterde beschikbare set',
@@ -171,10 +147,6 @@ ok('recorded.source-descriptor bestaat altijd in de ongefilterde registry (avail
   !!recordedSourceColumn);
 
 const task = taskWith({});
-eq('recorded.source toont de vertaalde badge voor "deviates"',
-  recordedSourceColumn.format(recordedSourceColumn.read(task, withMarkCtx), task, {
-    ...withMarkCtx, labelForText: key => ({ 'recordedDates.markDeviates': 'Wijkt af' }[key] ?? key),
-  }), 'Wijkt af');
 eq('recorded.source toont de vertaalde badge voor "partly-unrecorded"',
   recordedSourceColumn.format('partly-unrecorded', task, {
     ...withMarkCtx, labelForText: key => ({ 'recordedDates.markPartlyUnrecorded': 'Deels niet vastgelegd' }[key] ?? key),
@@ -182,20 +154,19 @@ eq('recorded.source toont de vertaalde badge voor "partly-unrecorded"',
 eq('recorded.source toont een streepje zonder markering',
   recordedSourceColumn.format(undefined, task, withMarkCtx), '—');
 eq('recorded.source valt terug op de Engelse sleutelnaam zonder labelForText (nooit een lege cel)',
-  recordedSourceColumn.format('deviates', task, { ...withMarkCtx, labelForText: undefined }), 'deviates');
+  recordedSourceColumn.format('partly-unrecorded', task, { ...withMarkCtx, labelForText: undefined }), 'partly-unrecorded');
 
 // Klembord (critreview laag 3, bevinding 11): zonder eigen `copy` leverde `copyScalar` het rauwe
-// token `deviates` terwijl de cel "Wijkt af" toont. MUTATIEBEWIJS: haal de `copy`-functie uit de
+// token `partly-unrecorded` terwijl de cel "Deels niet vastgelegd" toont. MUTATIEBEWIJS: haal de `copy`-functie uit de
 // kolomdefinitie ⇒ de eerste van deze twee slaat rood.
 const copyCtx = {
   ...withMarkCtx,
   labelForText: (key: string) => ({
-    'recordedDates.markDeviates': 'Wijkt af',
     'recordedDates.markPartlyUnrecorded': 'Deels niet vastgelegd',
   }[key] ?? key),
 };
 eq('recorded.source kopieert dezelfde tekst als de cel toont, niet het rauwe token',
-  recordedSourceColumn.copy(task, copyCtx), 'Wijkt af');
+  recordedSourceColumn.copy(task, copyCtx), 'Deels niet vastgelegd');
 eq('recorded.source kopieert een LEGE cel zonder markering (geen em-dash in een plakactie)',
   recordedSourceColumn.copy(task, { ...copyCtx, recordedMark: () => undefined }), '');
 
@@ -245,8 +216,8 @@ eq('zonder recordedUnrecordedAxes: lateFinish toont gewoon de datum',
   const gelijk = taskWith({ earlyStart: fullRecord.start, earlyFinish: fullRecord.finish });
   const afwijkend = taskWith({ earlyStart: '2026-02-01', earlyFinish: fullRecord.finish });
 
-  eq('badge buiten de modus, afwijkende datums ⇒ "wijkt af"',
-    recordedNoticeState(volledig, false, afwijkend), 'deviates');
+  eq('blok buiten de modus, afwijkende datums ⇒ niets (geen aanbod-stand meer)',
+    recordedNoticeState(volledig, false, afwijkend), undefined);
   eq('badge buiten de modus, onvolledige vastlegging maar gelijke datums ⇒ geen badge',
     recordedNoticeState(onvolledig, false, gelijk), undefined);
   eq('badge IN de modus, volledige vastlegging ⇒ "actief"',
@@ -265,12 +236,12 @@ eq('zonder recordedUnrecordedAxes: lateFinish toont gewoon de datum',
   const recorded = recordedState({ 't-1': { start: '2026-01-01', finish: '2026-01-02' } });
 
   const aanbod = recordedGridBinding(recorded, false);
-  ok('aanbodstand: de kolom recorded.source blijft bestaan (markering náást de waarde)',
-    aanbod.recordedMark !== undefined);
+  ok('buiten de modus (vangnet): geen kolom recorded.source',
+    aanbod.recordedMark === undefined);
   // `ok(... === undefined)` en niet `eq(..., undefined)`: `JSON.stringify` van een FUNCTIE is óók
   // `undefined`, dus een eq-vergelijking hier zou een aanwezige naad niet van een afwezige kunnen
   // onderscheiden — de assertie zou vacuüm zijn (gemeten tijdens het mutatiebewijs).
-  ok('aanbodstand: GEEN onvastgelegde-assennaad — de late-/floatkolommen tonen de echte berekening',
+  ok('buiten de modus (vangnet): GEEN onvastgelegde-assennaad — de late-/floatkolommen tonen de echte berekening',
     aanbod.recordedUnrecordedAxes === undefined);
 
   const modus = recordedGridBinding(recorded, true);
@@ -283,51 +254,54 @@ eq('zonder recordedUnrecordedAxes: lateFinish toont gewoon de datum',
     zonder.recordedMark === undefined && zonder.recordedUnrecordedAxes === undefined);
 }
 
-// ── Einde-tot-eind door de ECHTE store: een gewone IFC in de aanbodstand ─────────────────────
+// ── Einde-tot-eind door de ECHTE store ───────────────────────────────────────────────────────
 // Geen synthetische context maar de documentstate zoals `applyLoadedProject` hem achterlaat, door
-// dezelfde binding en dezelfde kolomdescriptor. Dit is de case die de review miste: de bedrading
-// vanuit het rasteroppervlak werd nergens getoetst.
-// MUTATIEBEWIJS: zet de poort in `recordedGridBinding` terug op `recorded ? … : undefined` ⇒ de
-// twee `lateStart`/`totalFloat`-asserties hieronder slaan ROOD ("Niet vastgelegd" i.p.v. de waarde).
+// dezelfde binding en dezelfde kolomdescriptor.
+//  1. Een BUITEN de modus opgeslagen, bewerkt eigen IFC (dus zonder `SourceFormat`, dat de app alleen
+//     in de modus schrijft): de app vergeet de opgeslagen datums, de late-/floatkolommen tonen onze
+//     echte berekening. Een bewerkt bestand MET `SourceFormat` is in de modus opgeslagen en opent
+//     sinds 2026-10-17 weer in de modus ("zoals je het achterliet", zie check-recorded-dates 7aj6c).
+//  2. Hetzelfde bestand ONBEWERKT, in de modus opgeslagen: "Niet vastgelegd" is het eerlijke antwoord.
+// Onder 1 is er geen vastlegging meer, dus de modus-poort in `recordedGridBinding` wordt hier niet
+// geraakt: 1 is een tegenproef op de echte store (onze berekening in de kolommen). Dat buiten de modus
+// geen vastlegging blijft staan, bewaakt check-recorded-dates 8a.
 {
   const S = () => useAppStore.getState();
+  const eigenIfc = (importPristine: boolean) => ({
+    ...readIFC(externIfc('mark')), recordedTimesOrigin: 'ifc-own' as const,
+    recordedSourceFormat: importPristine ? 'ifc' as const : undefined, importPristine,
+  });
   S().newProject();
-  // Sinds 2026-09-09 gaat een IFC uit een ander pakket automatisch de modus in; deze sectie test
-  // de markering vanuit de AANBOD-stand: een bewerkt, heropend eigen IFC dat zijn bron noemt (sinds
-  // 2026-09-24 het enige echte pad naar het aanbod — zonder bron is er geen aanbod meer).
-  S().applyLoadedProject({
-    ...readIFC(externIfc('mark')), recordedTimesOrigin: 'ifc-own', recordedSourceFormat: 'ifc', importPristine: false,
-  }, { filePath: null, recompute: true });
-  ok('voorwaarde: de gewone IFC-fixture staat in de AANBOD-stand (aanbod gevuld, modus uit)',
-    S().recordedDates !== null && S().datesAsRecorded === false);
+  S().applyLoadedProject(eigenIfc(false), { filePath: null, recompute: true });
+  ok('buiten de modus opgeslagen eigen IFC: geen vastlegging, modus uit', S().recordedDates === null && S().datesAsRecorded === false);
 
   const binding = recordedGridBinding(S().recordedDates, S().datesAsRecorded);
+  ok('buiten de modus opgeslagen eigen IFC: geen kolom recorded.source en geen onvastgelegde-assennaad',
+    binding.recordedMark === undefined && binding.recordedUnrecordedAxes === undefined);
   const storeTask = S().tasks.find(t => t.wbsCode === '1.1')!;
-  ok('voorwaarde: het bestand legde de vier optionele assen NIET vast (anders bewijst dit niets)',
-    unrecordedAxes(S().recordedDates!.times[storeTask.id]).length === 4);
-
   const ctx = baseContext({
     tasksById: new Map(S().tasks.map(t => [t.id, t])),
     relationIndex: buildTaskRelationIndex(S().tasks, S().sequences, S().cpmResult),
     ...binding,
     labelForText: key => ({ 'recordedDates.notRecorded': 'Niet vastgelegd' }[key] ?? key),
   });
-  eq('aanbodstand door de echte store: lateStart toont de BEREKENDE datum, niet "Niet vastgelegd"',
+  eq('buiten de modus opgeslagen eigen IFC door de echte store: lateStart toont de BEREKENDE datum, niet "Niet vastgelegd"',
     lateStartCol.format(lateStartCol.read(storeTask, ctx), storeTask, ctx), storeTask.time.lateStart);
-  eq('aanbodstand door de echte store: totalFloat toont de BEREKENDE speling, niet "Niet vastgelegd"',
+  eq('buiten de modus opgeslagen eigen IFC door de echte store: totalFloat toont de BEREKENDE speling, niet "Niet vastgelegd"',
     showsNumber(totalFloatCol.format(totalFloatCol.read(storeTask, ctx), storeTask, ctx), storeTask.time.totalFloat), true);
 
-  // Tegenproef op hetzelfde document: zodra de gebruiker "Opgeslagen datums tonen" kiest, IS de
-  // "niet vastgelegd"-tekst juist het eerlijke antwoord — het bestand zei daar niets.
-  S().showRecordedDates();
-  ok('voorwaarde: showRecordedDates zet de modus aan', S().datesAsRecorded === true);
+  S().newProject();
+  S().applyLoadedProject(eigenIfc(true), { filePath: null, recompute: true });
+  ok('voorwaarde: het onbewerkte eigen IFC opent in de modus', S().datesAsRecorded === true);
+  const modusTask = S().tasks.find(t => t.wbsCode === '1.1')!;
+  ok('voorwaarde: het bestand legde de vier optionele assen NIET vast (anders bewijst dit niets)',
+    unrecordedAxes(S().recordedDates!.times[modusTask.id]).length === 4);
   const modusCtx = baseContext({
     tasksById: new Map(S().tasks.map(t => [t.id, t])),
     relationIndex: buildTaskRelationIndex(S().tasks, S().sequences, S().cpmResult),
     ...recordedGridBinding(S().recordedDates, S().datesAsRecorded),
     labelForText: key => ({ 'recordedDates.notRecorded': 'Niet vastgelegd' }[key] ?? key),
   });
-  const modusTask = S().tasks.find(t => t.wbsCode === '1.1')!;
   eq('IN de modus: lateStart toont wél "Niet vastgelegd" (het bestand gaf die as niet)',
     lateStartCol.format(lateStartCol.read(modusTask, modusCtx), modusTask, modusCtx), 'Niet vastgelegd');
 }

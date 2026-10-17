@@ -406,10 +406,6 @@
     "timephasedActive": "Följer timfördelningen från MS Project",
     "timephasedLost": "MS Project-datumfönstret tillämpas inte längre efter redigering. Timfördelningen gäller fortfarande och sparas i filen.",
     "timephasedContoured": "Egen timfördelning",
-    "recordedDatesActive": "Visar Primaveras egna sparade datum för den här uppgiften",
-    "recordedDatesActiveNeutral": "Visar datumen så som de står i filen för den här uppgiften",
-    "recordedDatesDeviates": "Avviker från de sparade datumen",
-    "recordedDatesPartlyUnrecorded": "Lagringen är delvis ofullständig. Se kolumnerna senaste start/slack.",
     "completion": "Framdrift (%)",
     "progress": {
       "actualStart": "Verklig start",

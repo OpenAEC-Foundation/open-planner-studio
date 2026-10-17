@@ -24,6 +24,8 @@ import { countShiftedTasks, type RecordedTime } from '@/engine/scheduler/recorde
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { readXerArchiveIFC } from './xerArchiveTestReader';
+import { recountShiftedAfterLibraryRefresh } from '@/state/documentActivation';
+import type { Sequence } from '@/types/sequence';
 
 let checks = 0;
 const diffs: string[] = [];
@@ -158,10 +160,40 @@ console.log('-- (d) heropenen: eigen IFC, bibliotheek intussen gewijzigd --');
   fridayOff(f);
   f.S().applyOpenedImport(readXerArchiveIFC(ifc), { filePath: '/tmp/v1.ifc', recompute: true, fit: false, hourDataNotice: false, linkedOpen: true });
   eq('d0 voorwaarde: de open-grens ververste de kalender', f.S().calendar.workDays, [1, 2, 3, 4]);
-  eq('d1 strook (aanbod) telt NA de verversing: 3', strip(f), 3);
-  f.S().showRecordedDates();
-  eq('d2 "Opgeslagen datums tonen": modus aan met hetzelfde getal', [f.S().datesAsRecorded, f.S().scheduleStale, strip(f)], [true, false, 3]);
+  // Het bestand is sinds de import bewerkt (koppeling aan de bibliotheek), maar IN de modus
+  // opgeslagen: het opent weer in de modus, "zoals je het achterliet" (eigenaar, 2026-10-17). De
+  // strook telt NA de verversing van de open-grens.
+  eq('d1 bewerkt maar in de modus opgeslagen: modus aan, strook telt NA de verversing: 3',
+    [f.S().datesAsRecorded, f.S().recordedDates !== null, strip(f)], [true, true, 3]);
+  // Hetzelfde bestand als ONBEWERKT (vlag aan) opent wél in de modus; de strook telt dan NA de
+  // verversing.
+  f.S().newProject();
+  f.S().applyOpenedImport({ ...readXerArchiveIFC(ifc), importPristine: true }, { filePath: '/tmp/v1.ifc', recompute: true, fit: false, hourDataNotice: false, linkedOpen: true });
+  eq('d2 onbewerkt: modus aan, strook telt NA de verversing: 3', [f.S().datesAsRecorded, f.S().scheduleStale, strip(f)], [true, false, 3]);
+  eq('d2b de lijst per taak hoort bij hetzelfde getal', f.S().recordedDates?.shiftedTaskIds?.length, 3);
   eq('d3 strookgetal = wat F5 echt verschuift', strip(f), realF5Shift(f));
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// (e) Foutpad van de hertelling: faalt de doorrekening (cyclus), dan GEEN teller en GEEN lijst per
+// taak — een oude meting mag niet blijven staan als "N taken verschuiven".
+// MUTATIEBEWIJS: haal `delete next.shiftedTaskIds;` weg uit `recountShiftedAfterLibraryRefresh`
+// (`documentActivation.ts`) ⇒ e2 slaat ROOD.
+console.log('-- (e) hertelling met een solverfout: geen verzonnen meting --');
+{
+  const f = fixture();
+  const st = f.S();
+  eq('e0 voorwaarde: er is een meting', [st.recordedDates?.shifted, st.recordedDates?.shiftedTaskIds?.length], [1, 1]);
+  const [a, b] = st.tasks;
+  const cyclus: Sequence[] = [
+    { id: 'cyc-1', predecessorId: a!.id, successorId: b!.id, type: 'FINISH_START', lagDays: 0 },
+    { id: 'cyc-2', predecessorId: b!.id, successorId: a!.id, type: 'FINISH_START', lagDays: 0 },
+  ];
+  const next = recountShiftedAfterLibraryRefresh({ ...st, sequences: [...st.sequences, ...cyclus] });
+  eq('e1 solverfout: geen teller', next?.shifted, undefined);
+  eq('e2 solverfout: geen lijst per taak', next?.shiftedTaskIds, undefined);
+  eq('e3 de vastlegging zelf blijft', Object.keys(next?.times ?? {}).length, Object.keys(st.recordedDates!.times).length);
 }
 
 if (diffs.length > 0) {

@@ -226,8 +226,11 @@ function reset() {
   const resaved = readIFC(writeIFC(buildWriteIFCInput(S()))).tasks.find(t => t.name === 'Fase')!;
   eq('Openen + opslaan: het bestand draagt nu de afgeleide waarde', [resaved.time.completion, resaved.status], [1, 'COMPLETED']);
 
-  ok('Fixture: openen bood "datums zoals opgeslagen" aan', !!S().recordedDates);
-  S().showRecordedDates();
+  // Geen aanbod-stand meer (eigenaar, 2026-10-17): een bewerkt eigen IFC vergeet de opgeslagen
+  // datums. Hetzelfde bestand als ONBEWERKT (vlag aan) opent in de modus.
+  ok('Fixture (bewerkt): openen vergeet de opgeslagen datums', S().recordedDates === null && !S().datesAsRecorded);
+  S().applyLoadedProject({ ...readIFC(oldFile), recordedSourceFormat: 'mspdi', importPristine: true }, { filePath: null, recompute: true });
+  ok('Fixture (onbewerkt): opent in "datums zoals opgeslagen"', S().datesAsRecorded);
   eq('"Datums zoals opgeslagen": de fase toont haar opgeslagen voortgang',
     { completion: byName('Fase').time.completion, status: byName('Fase').status }, { completion: 0.62, status: 'STARTED' });
   eq('"Datums zoals opgeslagen": WBS-rapport volgt de opgeslagen waarde', wbsCompletion(byName('Fase').id), 0.62);

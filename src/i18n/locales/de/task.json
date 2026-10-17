@@ -407,10 +407,6 @@
     "timephasedActive": "Folgt der Stundenverteilung aus MS Project",
     "timephasedLost": "Stundenverteilung aus MS Project nach der Bearbeitung nicht mehr angewendet — die ursprüngliche Verteilung bleibt in der Datei erhalten",
     "timephasedContoured": "Eigene Stundenverteilung",
-    "recordedDatesActive": "Zeigt die von Primavera gespeicherten Termine für diesen Vorgang",
-    "recordedDatesActiveNeutral": "Zeigt die in der Datei gespeicherten Termine für diesen Vorgang",
-    "recordedDatesDeviates": "Weicht von den gespeicherten Terminen ab",
-    "recordedDatesPartlyUnrecorded": "Erfassung teilweise unvollständig — siehe die Spalten für spätesten Termin/Puffer",
     "completion": "Fortschritt (%)",
     "progress": {
       "actualStart": "Ist-Anfang",

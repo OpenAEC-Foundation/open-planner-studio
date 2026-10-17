@@ -798,6 +798,33 @@ function finishStructural(get: () => AppState, outcome: StructuralOutcome): void
   if (outcome.assignmentsMoved) get().recomputeResourceLoad();
 }
 
+/**
+ * Taakvelden die geen datum en geen planning raken. Dezelfde velden die het taakraster zonder
+ * `scheduleStale` schrijft (route `task-field` zonder `task.priority`, plus `activity-code` en
+ * `custom-field`, zie `expectedRoute`/`applyOneCellEdit` in `taskEditPlan.ts`).
+ *  - `taskType`/`customTaskTypeId`: een IFC-classificatie; de motor leest ze niet.
+ *  - `workRule`: `settleRuleChange` legt hooguit het restwerk vast ("Typewissel: geen enkel getal
+ *    verandert", `applyRuleChange` in `workTriangle.ts`) — hetzelfde als `setTaskWorkRule`, dat
+ *    daarom ook zonder `stale` sluit.
+ *
+ * Gebruik: een patch die ALLEEN deze velden verandert, laat "datums zoals opgeslagen" staan (de
+ * getoonde datums blijven dan kloppen met het bestand). Zie de gids `uitleg-datums-zoals-opgeslagen`:
+ * "Een naam wijzigen doet dat niet."
+ */
+const DATE_NEUTRAL_TASK_FIELDS: ReadonlySet<string> = new Set([
+  'name', 'description', 'wbsCode', 'color', 'notes', 'activityCodes', 'customFields',
+  'taskType', 'customTaskTypeId', 'workRule',
+]);
+
+function changesOnlyDateNeutralFields(before: Task, after: Task): boolean {
+  const keys = new Set([...Object.keys(before), ...Object.keys(after)]) as Set<keyof Task>;
+  for (const key of keys) {
+    if (sameValue(before[key], after[key])) continue;
+    if (!DATE_NEUTRAL_TASK_FIELDS.has(key)) return false;
+  }
+  return true;
+}
+
 export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, get) => ({
   tasks: [],
 
@@ -939,6 +966,10 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // (TaskDialog.handleSave) — ⇒ net als een onbekend id: geen snapshot, geen isDirty, geen
       // gevolgregel en dus ook geen melding.
       if (sameValue(task, next)) return;
+      // In "datums zoals opgeslagen" laat een patch die alleen datumneutrale velden echt verandert
+      // (naam, omschrijving, …) de modus staan — zie `DATE_NEUTRAL_TASK_FIELDS`. Gemeten vóór de
+      // mutatie, op dezelfde merge als de no-op-guard hierboven.
+      const keepsRecordedMode = s.datesAsRecorded && changesOnlyDateNeutralFields(task, next);
       // Een nieuwe duur korter dan het gedane werk van een
       // lopende taak wordt geweigerd — vóór de snapshot, dus niets veranderd, met een melding
       // (paneel, Gantt, extensie-API). Dezelfde regel die hieronder de rest laat meeschuiven, zie
@@ -1033,8 +1064,10 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // kalender — aan de INVOERKANT, nooit vanuit de solve. Zie `reconcileHourInputFinish`. BEWUST
       // NA `clearLevelingGaps`: anders telt het einde nivelleergaten mee die deze bewerking wist.
       reconcileHourInputFinish(task, finishBasis, resolveCalendar(task.calendarId, s.calendars, s.calendar));
-      // Datum-rakende mutatie (duur/start/constraint/mijlpaal → planning verouderd tot F5).
-      runtime.finishMutation(s, { stale: true });
+      // Datum-rakende mutatie (duur/start/constraint/mijlpaal → planning verouderd tot F5). Alleen
+      // een datumneutrale patch ín de modus laat de modus staan; buiten de modus blijft dit pad
+      // ongewijzigd `stale`.
+      runtime.finishMutation(s, { stale: !keepsRecordedMode });
     });
     for (const notice of refusedNotices) get().notify(notice);
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);

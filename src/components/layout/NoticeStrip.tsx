@@ -17,7 +17,7 @@ interface NoticeStripProps {
 }
 
 /**
- * De accentstrook onder het lint (modus- en aanbodmeldingen): icoon, uitleg, één primaire knop en
+ * De accentstrook onder het lint (modus- en aanbodmeldingen, bv. urendata): icoon, uitleg, één primaire knop en
  * optioneel een kruisje. Gedeeld door Split-/DependencyMode-, HourData-, StructureLocked- en
  * RecordedDatesNotice.
  */

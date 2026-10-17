@@ -46,7 +46,7 @@ export interface ApplyCpmCalendars {
  * WAT HIER BEWUST NIET GEBEURT: `scheduleStart`/`scheduleFinish` worden NIET meegeschreven. Die
  * twee staan in `ifcTaskSlots.ts` geregistreerd als `RECORDED_INPUT_SLOT_KEYS` — "wat het bestand
  * zei" — en `captureRecordedDates` leest ze als de "datums zoals opgeslagen"-laag terwijl
- * `showRecordedDates` ze niet herstelt. Ze hier overschrijven laat "Datums zoals opgeslagen" op
+ * `applyRecordedTimesToTasks` ze niet herstelt. Ze hier overschrijven laat "Datums zoals opgeslagen" op
  * verzameltaakrijen twee elkaar tegensprekende kolommen tonen en schrijft bij een save in die
  * modus een herberekening het IFC in, precies wat die modus belooft niet te doen.
  */
@@ -251,7 +251,7 @@ export function rollupSummaryTasks(
       // (MCP, voortgangsimport, paneel en raster weigeren hem), dus hier gaat niets verloren.
       // Dezelfde uitzonderingen als de datums: de `manuallyScheduled`-tak hierboven keert eerder
       // terug (de fase houdt haar opgeslagen voortgang), en "datums zoals opgeslagen" zet de
-      // bestandswaarde terug via `showRecordedDates` (`RecordedTime.summaryProgress`).
+      // bestandswaarde terug via `applyRecordedTimesToTasks` (`RecordedTime.summaryProgress`).
       // De werkelijke datums komen uit dezelfde helper en volgen dezelfde regels (vroegste werkelijke
       // start; laatste werkelijke einde pas als alle bladen klaar zijn). De restduur niet.
       if (progressCals) {

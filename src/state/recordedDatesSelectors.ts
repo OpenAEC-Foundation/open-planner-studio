@@ -1,4 +1,4 @@
-import { recordedDatesDeviate, type RecordedDatesState, type RecordedTime } from '@/engine/scheduler/recordedDates';
+import type { RecordedDatesState, RecordedTime } from '@/engine/scheduler/recordedDates';
 import type { Task } from '@/types/task';
 import type { RecordedTaskAxis, RecordedTaskMark } from '@/types/taskGrid';
 
@@ -6,9 +6,12 @@ import type { RecordedTaskAxis, RecordedTaskMark } from '@/types/taskGrid';
  * "Datums zoals opgeslagen" — de PURE afgeleide over
  * bestaande documentstate (`recordedDates`/`datesAsRecorded`), gedeeld door de taaktabel-kolom
  * (`taskColumnRegistry.ts`, via `TaskColumnContext.recordedMark`/`recordedUnrecordedAxes`) en het
- * eigenschappenpaneel (`TaskRecordedDatesNotice.tsx`). Bladmodule: importeert alleen types en de
- * pure vergelijking `recordedDatesDeviate` (dezelfde als de telling `countShiftedTasks`), geen
+ * eigenschappenpaneel (`TaskRecordedDatesNotice.tsx`). Bladmodule: importeert alleen types, geen
  * nieuw `Task`-veld en geen `DOCUMENT_FIELDS`-wijziging — de informatie zit al in de state.
+ *
+ * Alles hier hangt aan de MODUS (`datesAsRecorded`). Er is geen aanbod-stand meer (eigenaar,
+ * 2026-10-17, optie 1): buiten de modus is `recordedDates` `null`, en ook als een toekomstige
+ * schrijver dat mist, zegt geen van deze functies daar iets.
  *
  * `RecordedTaskMark`/`RecordedTaskAxis` staan in `@/types/taskGrid.ts` (niet hier) omdat
  * `TaskColumnContext` ze nodig heeft en `types/` bewust geen afhankelijkheid richting `state/`
@@ -75,58 +78,48 @@ export function unrecordedExportGate(
 }
 
 /**
- * Markering voor de taaktabel-kolom `recorded.source` (categorie `computed`). Twee gevallen, met
- * voorrang in deze volgorde:
- *
- *  1. `'deviates'` — de taak heeft een vastlegging (`recorded.times[task.id]`) waarvan de GETOONDE
- *     start/einde AFWIJKT van wat er nu op het scherm staat (`recordedDatesDeviate`: dezelfde
- *     vergelijking als de telling, dus een voltooide taak — werkelijke datums in beide — nooit).
- *     Alleen betekenisvol BUITEN de modus (`!datesAsRecorded`): IN de modus staat het scherm per
- *     constructie gelijk aan de vastlegging (`applyRecordedTimesToTasks` schrijft `rec.start`/
- *     `rec.finish` rechtstreeks naar `task.time.early*`), dus "wijkt af" zou daar altijd `false`
- *     zijn — geen zinvol signaal, dus niet apart gemeld.
- *  2. `'partly-unrecorded'` — de vastlegging zelf is onvolledig (`unrecordedAxes(rec).length > 0`):
- *     één of meer van de vier optionele assen ontbreken. UITSLUITEND IN DE MODUS: de markering is
- *     een uitspraak over WAT ER OP HET SCHERM STAAT, niet over het bestand. Buiten de modus staat
- *     onze eigen, zojuist berekende late-/spelinguitvoer in die kolommen — daar is niets "niet
- *     vastgelegd" aan, en de badge zou de gebruiker een echt getal laten wantrouwen (of, via
- *     `recordedUnrecordedAxes`, zelfs verbergen).
- *  3. `undefined` — geen vastlegging voor deze taak, of een volledige vastlegging die (buiten de
- *     modus) niet afwijkt van de herberekening.
- *
- * Geen vastlegging (`rec` ontbreekt) levert altijd `undefined`, ongeacht `datesAsRecorded` — een
- * taak die niet in het bestand stond (bv. toegevoegd ná het openen) heeft niets om over te melden.
+ * Markering voor de taaktabel-kolom `recorded.source` (categorie `computed`):
+ * `'partly-unrecorded'` als de vastlegging van deze taak een of meer van de vier optionele assen
+ * mist (`unrecordedAxes(rec).length > 0`), anders `undefined`. Alleen IN DE MODUS: de markering is
+ * een uitspraak over WAT ER OP HET SCHERM STAAT. Geen vastlegging voor deze taak (bv. toegevoegd ná
+ * het openen) ⇒ `undefined`.
  */
 export function recordedTaskMark(
   recorded: RecordedDatesState | null,
   datesAsRecorded: boolean,
   task: Task,
 ): RecordedTaskMark {
-  const rec = recorded?.times[task.id];
+  const rec = datesAsRecorded ? recorded?.times[task.id] : undefined;
   if (!rec) return undefined;
-  if (!datesAsRecorded) {
-    return recordedDatesDeviate(task, rec) ? 'deviates' : undefined;
-  }
   return unrecordedAxes(rec).length > 0 ? 'partly-unrecorded' : undefined;
 }
 
 /**
- * De badge in het eigenschappenpaneel (`TaskRecordedDatesNotice.tsx`) — dezelfde bron als de
- * tabelkolom, zodat de twee oppervlakken over dezelfde taak nooit iets anders kunnen zeggen.
- *
- *  - buiten de modus: precies `recordedTaskMark` (dus `'deviates'` of niets);
- *  - in de modus: `'partly-unrecorded'` zodra de vastlegging assen mist — dát is daar het
- *    informatieve signaal, en het is exact wat de kolom `recorded.source` dan óók toont — anders
- *    `'active'` ("deze taak toont de datums uit het bestand").
+ * Het blok in het eigenschappenpaneel (`TaskRecordedDatesNotice.tsx`) — dezelfde bron als de
+ * tabelkolom, zodat de twee oppervlakken over dezelfde taak nooit iets anders kunnen zeggen:
+ * `'partly-unrecorded'` zodra de vastlegging assen mist, anders `'active'` ("deze taak toont de
+ * datums uit het bestand"). Buiten de modus of zonder vastlegging voor deze taak: `undefined`.
  */
 export function recordedNoticeState(
   recorded: RecordedDatesState | null,
   datesAsRecorded: boolean,
   task: Task,
 ): 'active' | RecordedTaskMark {
-  const mark = recordedTaskMark(recorded, datesAsRecorded, task);
-  if (!datesAsRecorded) return mark;
-  return recorded?.times[task.id] ? (mark ?? 'active') : undefined;
+  if (!datesAsRecorded || !recorded?.times[task.id]) return undefined;
+  return recordedTaskMark(recorded, datesAsRecorded, task) ?? 'active';
+}
+
+/**
+ * Verschuift deze taak bij herberekenen? `undefined` = onbekend: buiten de modus, of een slapend
+ * hersteld document zonder meting (`RecordedDatesState.shiftedTaskIds` ontbreekt). Nooit verzonnen.
+ */
+export function recordedTaskWillShift(
+  recorded: RecordedDatesState | null,
+  datesAsRecorded: boolean,
+  taskId: string,
+): boolean | undefined {
+  if (!datesAsRecorded || !recorded?.shiftedTaskIds) return undefined;
+  return recorded.shiftedTaskIds.includes(taskId);
 }
 
 /**
@@ -134,16 +127,8 @@ export function recordedNoticeState(
  * rasteroppervlak (`FullTaskGrid` voor Gantt-taakraster én het tabblad Tabel, en het schrijfpad in
  * `gridTransaction.ts`) dezelfde poort gebruikt.
  *
- * De poort is `datesAsRecorded`, NIET `recordedDates !== null`. `recordedDates !== null
- * && !datesAsRecorded` is de AANBOD-stand: er is gewoon gesolved, `task.time.lateStart` en de
- * floats zijn echte CPM-uitvoer, en `recordedAxisFormat` zou ze door "Niet vastgelegd" vervangen —
- * permanent, want `runCPM` wist de vastlegging alleen bij het VERLATEN van de modus, dus ook F5
- * haalt het niet weg. Een IFC vult zelden `LateStart`/`TotalFloat`, dus dat zou vrijwel elk
- * document met een aanbod raken.
- *
- * `recordedMark` hangt bewust wél aan `recordedDates` alleen: "wijkt af" is juist buiten de modus
- * het zinvolle signaal, en die kolom vervangt geen enkele berekende waarde — hij zet er een
- * markering náást.
+ * De poort is `datesAsRecorded`: buiten de modus staan er echte CPM-uitvoer in de late-/floatkolommen,
+ * en `recordedAxisFormat` mag die nooit door "Niet vastgelegd" vervangen.
  */
 export function recordedGridBinding(
   recorded: RecordedDatesState | null,
@@ -153,7 +138,7 @@ export function recordedGridBinding(
   recordedUnrecordedAxes: ((task: Task) => readonly RecordedTaskAxis[]) | undefined;
 } {
   return {
-    recordedMark: recorded ? (task => recordedTaskMark(recorded, datesAsRecorded, task)) : undefined,
+    recordedMark: recorded && datesAsRecorded ? (task => recordedTaskMark(recorded, datesAsRecorded, task)) : undefined,
     recordedUnrecordedAxes: recorded && datesAsRecorded
       ? (task => unrecordedAxes(recorded.times[task.id]))
       : undefined,

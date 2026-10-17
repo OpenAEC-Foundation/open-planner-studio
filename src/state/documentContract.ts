@@ -491,7 +491,7 @@ export function payloadFromImport(parsed: ImportResult, filePath: string | null)
 }
 
 /** Zie `ImportResult.recordedTimesOrigin`: verse import (automatisch aan bij afwijkingen) versus
- *  heropening van een eigen IFC (alleen automatisch aan zolang `importPristine`). Eén definitie,
+ *  heropening van een eigen IFC (automatisch aan bij `importPristine` of opslaan in de modus). Eén definitie,
  *  gedeeld door `payloadFromImport` en `applyRecordedDatesOnLoad`. */
 export function isFreshImportOrigin(origin: RecordedTimesOrigin | undefined): boolean {
   return origin === 'xer' || origin === 'p6xml' || origin === 'mspdi' || origin === 'mpp' || origin === 'csv' || origin === 'ifc';

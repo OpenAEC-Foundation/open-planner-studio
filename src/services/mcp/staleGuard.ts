@@ -12,7 +12,7 @@
 //
 // DEZE HELPER RAAKT DIE UITZONDERING NIET, en dat is afgedwongen in plaats van gehoopt: hij doet
 // alleen iets bij `scheduleStale` of `cpmResult === null`, en in de modus is `scheduleStale` altijd
-// `false` (`showRecordedDates` zet hem zo, `markScheduleStale` in transaction.ts houdt hem zo) én
+// `false` (`applyRecordedDatesOnLoad` zet hem zo, `markScheduleStale` in transaction.ts houdt hem zo) én
 // `cpmResult` altijd gevuld (de reconstructie uit het bestand). "Modus aan én verouderd" is dus
 // onbereikbaar — vastgelegd in tests/planning/check-recorded-dates.ts. Dat is precies
 // wat `readOnlyHint: true` op `get_resource_histogram` overeind houdt.

@@ -28,15 +28,22 @@ export function recordedDatesActiveKey(origin: RecordedDatesState['origin']): Re
     : 'recordedDates.activeCountNeutral';
 }
 
-/** Dezelfde vraag voor de per-taak-badge in het eigenschappenpaneel (`TaskRecordedDatesNotice.tsx`,
- *  namespace `task`): ook die mag niet op élk document "Primavera" zeggen. Eén beslisregel, twee
- *  sleutels. */
-export type RecordedDatesTaskActiveKey = 'properties.recordedDatesActive' | 'properties.recordedDatesActiveNeutral';
+/** Dezelfde vraag voor het per-taak-blok in het eigenschappenpaneel (`TaskRecordedDatesNotice.tsx`,
+ *  namespace `task`): ook dat mag niet op élk document "Primavera" zeggen. Eén beslisregel, twee
+ *  sleutels per tekst (teksten: eigenaar, 2026-10-17). */
+export type RecordedDatesTaskShownKey = 'properties.recordedDatesShown' | 'properties.recordedDatesShownNeutral';
+export type RecordedDatesTaskMissingKey = 'properties.recordedDatesMissing' | 'properties.recordedDatesMissingNeutral';
 
-export function recordedDatesTaskActiveKey(origin: RecordedDatesState['origin']): RecordedDatesTaskActiveKey {
+export function recordedDatesTaskShownKey(origin: RecordedDatesState['origin']): RecordedDatesTaskShownKey {
   return isPrimaveraRecordedOrigin(origin)
-    ? 'properties.recordedDatesActive'
-    : 'properties.recordedDatesActiveNeutral';
+    ? 'properties.recordedDatesShown'
+    : 'properties.recordedDatesShownNeutral';
+}
+
+export function recordedDatesTaskMissingKey(origin: RecordedDatesState['origin']): RecordedDatesTaskMissingKey {
+  return isPrimaveraRecordedOrigin(origin)
+    ? 'properties.recordedDatesMissing'
+    : 'properties.recordedDatesMissingNeutral';
 }
 
 export function isPrimaveraRecordedOrigin(origin: RecordedDatesState['origin']): boolean {

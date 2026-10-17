@@ -322,8 +322,7 @@ function AppContent() {
           dan op een balk waar de onderbreking begint en sleep naar rechts voor de lengte. */}
       <SplitModeNotice />
 
-      {/* "Datums zoals opgeslagen"-strook: aanbod ná het laden van een bestand waarvan
-          herberekening de datums verschoof, of de modus zelf zolang hij aan staat. Bewust BOVEN de
+      {/* "Datums zoals opgeslagen"-strook: de modus zolang hij aan staat. Bewust BOVEN de
           `activeTab === 'file'`-vertakking (net als de meldingen hierboven), zodat de strook
           zichtbaar blijft in élke weergave — Gantt, tabel, rapport én Backstage. */}
       <RecordedDatesNotice />

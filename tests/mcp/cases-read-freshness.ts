@@ -227,7 +227,6 @@ test('planner_batch met alleen een histogram-leesstap op een verouderde planning
 function enterMode(tag: string): { bId: string } {
   S().newProject();
   S().applyLoadedProject(readIFC(externIfc(tag)), { filePath: null, recompute: true });
-  S().showRecordedDates();
   assertEq(S().datesAsRecorded, true, 'opzet: de modus staat aan');
   return { bId: S().tasks.find((t) => t.wbsCode === '1.2')!.id };
 }

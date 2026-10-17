@@ -39,7 +39,6 @@ S().undo();
 function enterMode(tag: string): { aId: string; bId: string } {
   S().newProject();
   S().applyLoadedProject(readIFC(externIfc(tag)), { filePath: null, recompute: true });
-  S().showRecordedDates();
   return {
     aId: S().tasks.find((t) => t.wbsCode === '1.1')!.id,
     bId: S().tasks.find((t) => t.wbsCode === '1.2')!.id,
@@ -120,7 +119,7 @@ test('contextfactory B verlaat recorded-dates met één B-undo en laat A buiten 
   const A = createAppStoreContext();
   const B = createAppStoreContext();
   B.store.getState().applyLoadedProject(readIFC(externIfc('factory-B')), { filePath: null, recompute: true });
-  B.store.getState().showRecordedDates();
+  assertEq(B.store.getState().datesAsRecorded, true, 'opzet: B opent in de modus');
   const bId = B.store.getState().tasks.find((task) => task.wbsCode === '1.2')!.id;
   const aTakenVoor = A.store.getState().tasks.length;
   const aUndoVoor = historyDepthsForActiveScope(A.store.getState()).undoDepth;

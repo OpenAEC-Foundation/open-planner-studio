@@ -40,7 +40,6 @@ function recordedDatesDocument(): Store {
   const store = createAppStore();
   const s = store.getState();
   s.applyLoadedProject(readIFC(externIfc('2')), { filePath: null, recompute: true });
-  store.getState().showRecordedDates();
   // De kalenderdialoog doet dit bij openen (puur additief, geen undo-stap).
   store.getState().ensureProjectCalendarInLibrary();
   return store;

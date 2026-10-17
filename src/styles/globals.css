@@ -2347,6 +2347,8 @@ body {
 .alert--success { background: color-mix(in srgb, var(--success) 12%, var(--theme-surface)); border-left-color: var(--success); color: var(--color-text-primary); }
 .alert--warning { background: color-mix(in srgb, var(--error) 12%, var(--theme-surface)); border-left-color: var(--error); color: var(--color-text-primary); }
 .alert--error   { background: color-mix(in srgb, var(--error) 12%, var(--theme-surface)); border-left-color: var(--error); color: var(--color-text-primary); }
+/* Neutraal (grijs) infoblok: dezelfde tint als `.badge--gray`, voor puur informatieve meldingen. */
+.alert--neutral { background: color-mix(in srgb, var(--color-text-primary) 8%, var(--theme-surface)); border-left-color: color-mix(in srgb, var(--color-text-primary) 35%, var(--theme-surface)); color: var(--color-text-primary); }
 
 /* Badges (DESIGN-SYSTEM.md §3.6) */
 .badge {

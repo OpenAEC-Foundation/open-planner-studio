@@ -410,10 +410,6 @@
     "timephasedActive": "Прати расподелу сати из MS Project",
     "timephasedLost": "Прозор датума из MS Project више се не примењује после измене — сама расподела сати и даље важи и чува се у датотеци",
     "timephasedContoured": "Сопствена расподела сати",
-    "recordedDatesActive": "Приказује датуме које је Primavera сачувала за овај задатак",
-    "recordedDatesActiveNeutral": "Приказује датуме онако како су наведени у датотеци за овај задатак",
-    "recordedDatesDeviates": "Одступа од сачуваних датума",
-    "recordedDatesPartlyUnrecorded": "Бележење је делимично непотпуно — видите колоне за најкасније датуме и временску резерву",
     "completion": "Напредак (%)",
     "progress": {
       "actualStart": "Стварни почетак",

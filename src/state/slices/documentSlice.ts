@@ -624,8 +624,9 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       try {
         const rawPayload = payloadFromInput(candidate);
         const p = prepareLoadedPayload(rawPayload, { recompute: true });
-        // Crashherstel herstelt het aanbod "datums zoals opgeslagen" (`recordedFields`, elk
-        // formaat) EN de modusvlag van vóór de crash —
+        // Crashherstel herstelt "datums zoals opgeslagen" (`recordedFields`, elk formaat) alleen
+        // als de modus vóór de crash aan stond; anders vergeet het de opgeslagen datums (geen
+        // aanbod-stand meer, eigenaar 2026-10-17). De modusvlag komt
         // uit de recovery-metadata (`candidate.datesAsRecorded`), dus een OPGESCHREVEN feit en
         // geen heuristiek: crashherstel is het hervatten van een sessie, geen heropening, en mag
         // dus niet opnieuw beslissen. `rawPayload.tasks` is bewust de PRE-solve array —

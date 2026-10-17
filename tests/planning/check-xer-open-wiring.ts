@@ -343,21 +343,20 @@ eq('8f recovery-inputoverdracht herstelt links per document zonder solverdoorwer
   eq('T4-20 …en er is ook geen aanbod (geen herkomst ⇒ geen vastlegging)', useAppStore.getState().recordedDates, null);
 
   // Heropen-beleid (orkestratorbesluit, XER-etappe laag 3, 2026-09-05, taak T5): 'xer-archive' —
-  // wat `readIFC`'s XER-archiefreconstructie zet voor een HEROPENDE IFC — biedt de modus alleen
-  // AAN, net als geheel géén herkomst hierboven. MUTATIEBEWIJS: stelde `applyRecordedDatesOnLoad`
+  // wat `readIFC`'s XER-archiefreconstructie zet voor een HEROPENDE IFC — gaat zonder vlag
+  // "ongewijzigd sinds import" NIET in de modus, en vergeet de opgeslagen datums (geen aanbod-stand
+  // meer, eigenaar 2026-10-17). MUTATIEBEWIJS: stelde `applyRecordedDatesOnLoad`
   // 'xer-archive' gelijk aan 'xer', dan zou T4-22 hieronder `true` worden.
   const singleAsArchiveOrigin = { ...singleAgain, recordedTimesOrigin: 'xer-archive' as const };
   useAppStore.getState().newDocument();
   useAppStore.getState().applyLoadedProject(singleAsArchiveOrigin, { filePath: null, recompute: true });
-  eq('T4-22 "xer-archive" (heropende IFC) biedt de modus alleen aan, NIET gelijk aan "xer"',
+  eq('T4-22 "xer-archive" (heropende IFC, bewerkt) gaat NIET in de modus, NIET gelijk aan "xer"',
     useAppStore.getState().datesAsRecorded, false);
-  ok('T4-23 …maar het aanbod verschijnt wél', useAppStore.getState().recordedDates !== null);
-  eq('T4-24 …met dezelfde teller', useAppStore.getState().recordedDates?.shifted, 1);
+  eq('T4-23 …en vergeet de opgeslagen datums (geen aanbod)', useAppStore.getState().recordedDates, null);
 
   // T4-25..29 — heropenen uit eigen IFC meldt NIETS (gebruikstest rekenprofielen 24-09, B4; vervangt
   // de eerdere aanbiedende XER-meldingsregel). `readIFC` zet `xerOrigin: 'xer-archive'` naast de
-  // gereconstrueerde `xer`-metadata; het aanbod blijft zichtbaar via `RecordedDatesNotice`
-  // (documentstate `recordedDates`). MUTATIEBEWIJS: haal het `xerOrigin`-filter uit
+  // gereconstrueerde `xer`-metadata. MUTATIEBEWIJS: haal het `xerOrigin`-filter uit
   // `xerImportNotice` ⇒ T4-25 slaat rood (weer één XER-melding).
   const reopenedArchive = { ...singleAsArchiveOrigin, xerOrigin: 'xer-archive' as const };
   const notifBeforeArchive = new Set(useAppStore.getState().ui.notifications.map((n) => n.id));
@@ -367,9 +366,7 @@ eq('8f recovery-inputoverdracht herstelt links per document zonder solverdoorwer
   eq('T4-25 de heropende XER-archief-IFC geeft GEEN XER-openingsmelding',
     archiveNotifs.filter((n) => n.messageKey === 'notifications.xerImportOpened').length, 0);
   eq('T4-26 voorwaarde: de modus staat daarbij UIT', useAppStore.getState().datesAsRecorded, false);
-  ok('T4-27 het aanbod "datums zoals opgeslagen" blijft (recordedDates gevuld)',
-    useAppStore.getState().recordedDates !== null);
-  eq('T4-28 …met hetzelfde aantal afwijkende taken', useAppStore.getState().recordedDates?.shifted, 1);
+  eq('T4-27 …en de opgeslagen datums zijn vergeten (geen aanbod-stand)', useAppStore.getState().recordedDates, null);
   // Tegenproef: dezelfde vastlegging als VERSE XER geeft wél de openingsmelding.
   const notifBeforeFresh = new Set(useAppStore.getState().ui.notifications.map((n) => n.id));
   useAppStore.getState().newDocument();

@@ -406,10 +406,6 @@
     "timephasedActive": "Seuraa MS Projectin tuntijakautumista",
     "timephasedLost": "MS Projectin päivämääräikkuna ei ole enää käytössä muokkauksen jälkeen — tuntijakautuminen pysyy voimassa ja tallessa tiedostossa",
     "timephasedContoured": "Oma tuntijakautuminen",
-    "recordedDatesActive": "Näyttää Primaveran omat tallennetut päivämäärät tälle tehtävälle",
-    "recordedDatesActiveNeutral": "Näyttää tiedostoon tallennetut päivämäärät tälle tehtävälle",
-    "recordedDatesDeviates": "Poikkeaa tallennetuista päivämääristä",
-    "recordedDatesPartlyUnrecorded": "Tallennus on osittain puutteellinen — katso myöhäis- ja pelivarasarakkeet",
     "completion": "Edistyminen (%)",
     "progress": {
       "actualStart": "Toteutunut alkamispäivä",

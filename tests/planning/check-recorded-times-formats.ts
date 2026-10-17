@@ -160,7 +160,7 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   const S = () => useAppStore.getState();
   const idOf = (wbs: string) => S().tasks.find(t => t.wbsCode === wbs)!.id;
   const meldingen = () => S().ui.notifications.filter(n =>
-    n.messageKey === 'notifications.importDatesAsRecorded' || n.messageKey === 'notifications.importDatesAsRecordedOffer').length;
+    n.messageKey === 'notifications.importDatesAsRecorded').length;
   S().newProject();
   S().applyOpenedImport(readMSPDI(MSPDI_FIXTURE), { filePath: null, recompute: true });
   eq('6a tegenproef: verse MSPDI-import staat in de modus, B mist vier assen',
@@ -197,14 +197,14 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
 // datumregel moet dan als detailregel mee, niet via `!notice` wegvallen.
 {
   const profiel = { severity: 'info' as const, messageKey: 'notifications.xerImportOpened' as const, params: { count: 1 } };
-  eq('7a geen verse verschillen ⇒ melding ongewijzigd (ook undefined)', [withRecordedDatesNotice(undefined, 0, 0), withRecordedDatesNotice(profiel, 0, 0)], [undefined, profiel]);
-  eq('7b geen melding ⇒ de regel wordt zelf de melding, modus vóór aanbod', withRecordedDatesNotice(undefined, 2, 3), {
+  eq('7a geen verse verschillen ⇒ melding ongewijzigd (ook undefined)', [withRecordedDatesNotice(undefined, 0), withRecordedDatesNotice(profiel, 0)], [undefined, profiel]);
+  eq('7b geen melding ⇒ de regel wordt zelf de melding', withRecordedDatesNotice(undefined, 2), {
     severity: 'info', messageKey: 'notifications.importDatesAsRecorded', params: { count: 2 }, helpArticleId: 'uitleg-datums-zoals-opgeslagen',
   });
-  eq('7c een andere melding ⇒ de regel hangt eronder als detailregel', withRecordedDatesNotice(profiel, 0, 4)?.detailLines,
-    [{ messageKey: 'notifications.importDatesAsRecordedOffer', params: { count: 4 } }]);
+  eq('7c een andere melding ⇒ de regel hangt eronder als detailregel', withRecordedDatesNotice(profiel, 4)?.detailLines,
+    [{ messageKey: 'notifications.importDatesAsRecorded', params: { count: 4 } }]);
   const xer = { ...profiel, detailLines: [{ messageKey: 'notifications.xerImportDatesAsRecorded' as const, params: { count: 2 } }] };
-  eq('7d een melding met een eigen datumregel (XER) ⇒ geen tweede', withRecordedDatesNotice(xer, 2, 0), xer);
+  eq('7d een melding met een eigen datumregel (XER) ⇒ geen tweede', withRecordedDatesNotice(xer, 2), xer);
 }
 
 // ── (8) Alleen bronnen met echte rekenuitvoer (eigenaarsbesluit 2026-09-24, "beperken") ─────────
@@ -216,7 +216,7 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
 {
   const S = () => useAppStore.getState();
   const meldingen = () => S().ui.notifications.filter(n =>
-    n.messageKey === 'notifications.importDatesAsRecorded' || n.messageKey === 'notifications.importDatesAsRecordedOffer').length;
+    n.messageKey === 'notifications.importDatesAsRecorded').length;
   S().newProject();
   const voorCsv = meldingen();
   S().applyOpenedImport(readCSV(CSV_FIXTURE), { filePath: null, recompute: true });
@@ -226,7 +226,7 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
     S().tasks.find(t => t.wbsCode === '1.2')?.time.earlyStart !== '2026-03-16');
 
   // MSPDI → een bewerking (vlag weg, modus blijft) → opslaan → heropenen: de bron reist mee, dus
-  // het aanbod blijft; zonder bron zou het eigen IFC niets meer bieden.
+  // het bestand opent weer in de modus ("zoals je het achterliet", eigenaar 2026-10-17).
   S().newProject();
   S().applyOpenedImport(readMSPDI(MSPDI_FIXTURE), { filePath: null, recompute: true });
   S().setProject({ description: 'bewerkt, zonder datumwijziging' });
@@ -236,8 +236,9 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   eq('8c2 …en dat leest terug', [reopenedEdited.recordedTimesOrigin, reopenedEdited.recordedSourceFormat, reopenedEdited.importPristine], ['ifc-own', 'mspdi', false]);
   S().newProject();
   S().applyOpenedImport(reopenedEdited, { filePath: null, recompute: true });
-  eq('8d heropend eigen IFC met MSPDI-bron, bewerkt: het aanbod (vastlegging, modus uit)',
-    [S().recordedDates !== null, S().datesAsRecorded, S().recordedDates?.sourceFormat], [true, false, 'mspdi']);
+  // In de modus opgeslagen (de bron staat erin) ⇒ weer in de modus, ook al is de vlag weg.
+  eq('8d heropend eigen IFC met MSPDI-bron, bewerkt maar in de modus opgeslagen: vastlegging en modus',
+    [S().recordedDates?.sourceFormat, S().datesAsRecorded], ['mspdi', true]);
 
   // Een eigen IFC zonder bron: planning in deze app gemaakt, datums verschoven zonder herberekening
   // opgeslagen (scheduleStale). Heropenen rekent door en verschuift — maar dat is onze eigen oude
@@ -317,7 +318,7 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   S().applyOpenedImport(savedSummary, { filePath: null, recompute: true });
   eq('9d met samenvatting: 2 vastgelegd ⇒ 2 na heropenen (de fase telt niet mee)', [S().recordedDates?.total, S().datesAsRecorded], [2, true]);
 
-  // Bevinding 2: buiten de modus (aanbodstand) geen SourceFormat, en heropenen geeft niets.
+  // Bevinding 2: buiten de modus geen SourceFormat, en heropenen geeft niets.
   // MUTATIEBEWIJS: de `datesAsRecorded`-poort op `recordedSourceFormat` weg ⇒ 9e/9f ROOD.
   S().newProject();
   S().applyOpenedImport(readMSPDI(MSPDI_FIXTURE), { filePath: null, recompute: true });
@@ -325,16 +326,17 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   const bewerkt = readIFC(writeIFC(buildWriteIFCInput(S())));
   S().newProject();
   S().applyOpenedImport(bewerkt, { filePath: null, recompute: true });
-  eq('9e0 voorwaarde: aanbodstand (vastlegging, modus uit)', [S().recordedDates !== null, S().datesAsRecorded], [true, false]);
-  // Een datumbewerking in de aanbodstand zonder herberekening: het bestand draagt dan onze OUDE solve,
+  // In de modus opgeslagen ⇒ heropent in de modus (8d). De datumbewerking hieronder verlaat de modus.
+  eq('9e0 voorwaarde: heropend in de modus (in de modus opgeslagen)', [S().recordedDates !== null, S().datesAsRecorded], [true, true]);
+  // Een datumbewerking zonder herberekening: het bestand draagt dan onze OUDE solve,
   // die bij heropenen afwijkt van de nieuwe — precies het geval waar een geclaimde bron zou liegen.
   bump('1.1');
-  eq('9e1 voorwaarde: aanbod staat nog, planning verouderd', [S().recordedDates !== null, S().datesAsRecorded, S().scheduleStale], [true, false, true]);
+  eq('9e1 voorwaarde: buiten de modus, planning verouderd', [S().recordedDates, S().datesAsRecorded, S().scheduleStale], [null, false, true]);
   const aanbodOpslag = writeIFC(buildWriteIFCInput(S()));
-  truthy('9e opslaan in de aanbodstand schrijft GEEN SourceFormat', !aanbodOpslag.includes("'SourceFormat'"));
+  truthy('9e opslaan buiten de modus schrijft GEEN SourceFormat', !aanbodOpslag.includes("'SourceFormat'"));
   S().newProject();
   S().applyOpenedImport(readIFC(aanbodOpslag), { filePath: null, recompute: true });
-  eq('9f heropenen van een aanbod-opslag: geen vastlegging, geen modus', [S().recordedDates, S().datesAsRecorded], [null, false]);
+  eq('9f heropenen van die opslag: geen vastlegging, geen modus', [S().recordedDates, S().datesAsRecorded], [null, false]);
 
   // Bevinding 3: een datumbewerking in de modus (verlaat de modus, wist de vastlegging) + opslaan
   // schrijft geen SourceFormat meer — de gids zegt "zolang je geen datums wijzigt of herberekent".

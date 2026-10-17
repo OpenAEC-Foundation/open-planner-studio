@@ -414,10 +414,6 @@
     "timephasedActive": "Riadi sa rozložením práce z MS Project",
     "timephasedLost": "Dátumové okno z MS Project sa po úprave už neuplatňuje — samotné rozloženie práce platí ďalej a zostáva uložené v súbore",
     "timephasedContoured": "Vlastné rozloženie práce",
-    "recordedDatesActive": "Zobrazuje vlastné uložené dátumy Primavery pre túto úlohu",
-    "recordedDatesActiveNeutral": "Zobrazuje dátumy tak, ako sú pre túto úlohu zapísané v súbore",
-    "recordedDatesDeviates": "Líši sa od uložených dátumov",
-    "recordedDatesPartlyUnrecorded": "Záznam je čiastočne neúplný — pozrite stĺpce pre neskoré dátumy a časovú rezervu.",
     "completion": "Postup (%)",
     "progress": {
       "actualStart": "Skutočný začiatok",

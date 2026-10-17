@@ -242,7 +242,6 @@ test('no-op op een verouderde planning: blijft verouderd, cpmResult ongemoeid', 
 test('no-op in "datums zoals opgeslagen": de modus blijft aan, geen undo-stap', async () => {
   S().newProject();
   S().applyLoadedProject(readIFC(externIfc('g5')), { filePath: null, recompute: true });
-  S().showRecordedDates();
   assertEq(S().datesAsRecorded, true, 'opzet: de modus staat aan');
   const bId = S().tasks.find((t) => t.wbsCode === '1.2')!.id;
   const recordedStart = task(bId).time.earlyStart;

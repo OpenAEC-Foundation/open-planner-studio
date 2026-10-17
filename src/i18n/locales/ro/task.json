@@ -410,10 +410,6 @@
     "timephasedActive": "Urmează distribuția orelor din MS Project",
     "timephasedLost": "Fereastra de date din MS Project nu mai este aplicată după editare — distribuția orelor rămâne valabilă și se păstrează în fișier",
     "timephasedContoured": "Distribuție proprie a orelor",
-    "recordedDatesActive": "Afișează datele salvate de Primavera pentru această activitate",
-    "recordedDatesActiveNeutral": "Afișează datele așa cum sunt în fișier pentru această activitate",
-    "recordedDatesDeviates": "Diferă de datele salvate",
-    "recordedDatesPartlyUnrecorded": "Înregistrare parțial incompletă — vedeți coloanele pentru târziu și marjă",
     "completion": "Progres (%)",
     "progress": {
       "actualStart": "Început efectiv",

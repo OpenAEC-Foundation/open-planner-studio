@@ -188,7 +188,7 @@ function parentWithChild(days: number): { parent: string; child: string } {
 // ── 8. `scheduleStart`/`scheduleFinish` blijven ONAANGERAAKT ─────────────────────────────────
 // Die twee staan in `ifcTaskSlots.ts` geregistreerd als `RECORDED_INPUT_SLOT_KEYS` — "wat het
 // bestand zei" — en `captureRecordedDates` leest ze als de datumlaag van issue #63, terwijl
-// `showRecordedDates` ze niet herstelt. Ze hier meeschrijven laat "Datums zoals opgeslagen" op
+// `applyRecordedTimesToTasks` ze niet herstelt. Ze hier meeschrijven laat "Datums zoals opgeslagen" op
 // verzameltaakrijen twee elkaar tegensprekende kolommen tonen. Deze case pint de afwezigheid.
 {
   reset();

@@ -91,7 +91,7 @@ export function buildWriteIFCInput(src: IFCSaveSource): WriteIFCInput {
     // Bestaande objecten houden hun GlobalId uit het ingelezen bestand.
     ...(src.ifcGlobalIds ? { ifcGlobalIds: src.ifcGlobalIds } : {}),
     // De oorspronkelijke bron reist mee in OPS_ImportProvenance, zodat een heropening op de BRON
-    // poort en niet op "het is nu een IFC". ALLEEN in de modus: buiten de modus (aanbodstand) staat
+    // poort en niet op "het is nu een IFC". ALLEEN in de modus: buiten de modus staat
     // onze eigen solve in het bestand; een bron noemen zou bij heropenen onze oude solve met de
     // nieuwe laten vergelijken en dat bv. "MS Project-datums" noemen.
     ...(src.datesAsRecorded && src.recordedDates?.sourceFormat

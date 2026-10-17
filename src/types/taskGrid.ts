@@ -14,7 +14,7 @@ export type TaskColumnId = string & { readonly __taskColumnId: unique symbol };
  * `@/state/*` afhangt; `recordedDatesSelectors.ts` importeert ze hier weer type-only vandaan.
  */
 export type RecordedTaskAxis = 'ls' | 'lf' | 'tf' | 'ff';
-export type RecordedTaskMark = 'deviates' | 'partly-unrecorded' | undefined;
+export type RecordedTaskMark = 'partly-unrecorded' | undefined;
 
 export type GridResult<T, E> =
   | { ok: true; value: T }
@@ -153,7 +153,7 @@ export interface TaskColumnContext {
    *  Dan tonen Baselineduur en Duurafwijking een ⚠. Ontbreekt ⇒ nooit een ⚠ (alleen weergave). */
   baselineOldDay?: (task: Task, baselineTask: BaselineTask) => boolean;
   /** "Datums zoals opgeslagen" — badge voor de kolom `recorded.source`.
-   *  `undefined` op documenten zonder vastlegging (`recordedDates === null`), dus de kolom bestaat
+   *  `undefined` buiten de modus (`recordedDates === null`), dus de kolom bestaat
    *  dan niet: `available(ctx) => ctx.recordedMark !== undefined`. */
   recordedMark?: (task: Task) => RecordedTaskMark;
   /** Welke late-/floatassen het BESTAND niet vastlegde voor deze taak — de bestaande late-/float-

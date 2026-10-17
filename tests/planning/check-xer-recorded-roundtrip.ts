@@ -207,9 +207,9 @@ expect('3c de twee opslagvormen verschillen echt (anders bewijst 3a niets)',
 // Een heropende IFC met XER-archief gaat automatisch de modus in zolang het document sinds de
 // import NIET is bewerkt — het bestand zegt dat zelf via `OPS_ImportProvenance`
 // (`importPristine`). Opslaan en herberekenen (F5, `runCPM`) zijn geen bewerking; een echte
-// mutator (hier `updateTask`) wist de vlag, en dan biedt de heropening alleen nog aan — een
-// sindsdien bewerkte en opgeslagen planning toont bij heropenen nooit stilzwijgend P6's oude
-// datums. Vervangt het orkestratorbesluit van 2026-09-05 ("nooit automatisch weer aan").
+// mutator (hier `updateTask`) wist de vlag. Daarna beslist de stand bij het opslaan: in de modus
+// opgeslagen ⇒ weer in de modus (4g), buiten de modus ⇒ de berekening (4i). "Zoals je het
+// achterliet" (eigenaar, 2026-10-17). Vervangt het orkestratorbesluit van 2026-09-05 en optie B.
 expect('4z voorwaarde: de verse import is "ongewijzigd sinds import" en runCPM raakt dat niet',
   basePayload.importPristine === true && outsidePayload.importPristine === true);
 expect('4y het buiten de modus opgeslagen IFC draagt de vlag als pset',
@@ -231,23 +231,42 @@ const reopenedInModePayload = store().getOpenDocumentPayloads()[0]!.payload;
 expect('4b heropenen van een ongewijzigd, ín-de-modus opgeslagen IFC gaat óók automatisch de modus in',
   reopenedInModePayload.datesAsRecorded === true && reopenedInModePayload.recordedDates !== null);
 
-// Bewerken wist de vlag: daarna alleen nog het aanbod, ook al is de vastlegging identiek.
+// Bewerken wist de vlag. Een naam wijzigen laat de modus staan, dus opslaan gebeurt IN de modus en
+// heropenen opent weer in de modus, met dezelfde datums: "zoals je het achterliet" (eigenaar,
+// 2026-10-17; vervangt optie B van #167). Buiten de modus opgeslagen ⇒ de berekening (4i).
 store().updateTask(store().tasks[0]!.id, { name: 'Bewerkt na import' });
 const editedPayload = store().getOpenDocumentPayloads()[0]!.payload;
 expect('4e één bewerking wist "ongewijzigd sinds import"', editedPayload.importPristine === false && editedPayload.isDirty === true);
 const ifcEdited = writeIFC(buildWriteIFCInput(editedPayload));
-expect('4f het bewerkte bestand draagt het pset niet meer', !ifcEdited.includes("'OPS_ImportProvenance'"));
+// Een naam wijzigen laat de modus staan (datumneutraal); opslaan in de modus schrijft het pset dan
+// nog wél, maar alleen met `SourceFormat` — de vlag zelf is weg (zelfde stand als na `renumberWbs`).
+expect('4f het bewerkte bestand draagt "ongewijzigd sinds import" niet meer', !ifcEdited.includes("'UnchangedSinceImport'"));
 const reopenedEdited = readXerArchiveIFC(ifcEdited);
 store().newProject();
 store().applyOpenedImport(reopenedEdited, {
   filePath: null, fileHandle: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: false,
 });
 const reopenedEditedPayload = store().getOpenDocumentPayloads()[0]!.payload;
-expect('4g heropenen van een bewerkt IFC biedt de modus alleen aan (nooit stil de oude P6-datums)',
-  reopenedEditedPayload.datesAsRecorded === false && reopenedEditedPayload.recordedDates !== null
+expect('4g heropenen van een IN de modus opgeslagen, bewerkt IFC: weer in de modus, vlag blijft uit',
+  reopenedEditedPayload.datesAsRecorded === true && reopenedEditedPayload.recordedDates !== null
   && reopenedEditedPayload.importPristine === false);
+eq('4g2 …met hetzelfde aantal verschoven taken als de oorspronkelijke import',
+  modeSummary(reopenedEditedPayload).shifted, modeSummary(basePayload).shifted);
 eq('4h de vastlegging zelf is daarbij onveranderd (zelfde herkomst en zesassige inhoud)',
   [reopenedEdited.recordedTimesOrigin, reopenedEdited.recordedTimes], ['xer-archive', originalTimes]);
+// 4i: een planningsbewerking (prioriteit) verlaat de modus; opslaan BUITEN de modus schrijft geen
+// `SourceFormat`, en heropenen toont de berekening — nooit stil P6's oude datums.
+store().updateTask(store().tasks[0]!.id, { priority: store().tasks[0]!.priority + 1 });
+expect('4i0 voorwaarde: de planningsbewerking verliet de modus', store().datesAsRecorded === false);
+const ifcEditedOutside = writeIFC(buildWriteIFCInput(store().getOpenDocumentPayloads()[0]!.payload));
+store().newProject();
+store().applyOpenedImport(readXerArchiveIFC(ifcEditedOutside), {
+  filePath: null, fileHandle: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: false,
+});
+const reopenedEditedOutside = store().getOpenDocumentPayloads()[0]!.payload;
+expect('4i buiten de modus opgeslagen, bewerkt IFC: geen modus, opgeslagen datums vergeten',
+  reopenedEditedOutside.datesAsRecorded === false && reopenedEditedOutside.recordedDates === null
+  && reopenedEditedOutside.importPristine === false);
 eq('4c beide heropeningen komen op hetzelfde aantal verschoven taken uit als de oorspronkelijke import',
   modeSummary(reopenedInModePayload).shifted, modeSummary(basePayload).shifted);
 eq('4d ... en dat geldt ook voor de buiten-de-modus-heropening',
@@ -298,10 +317,8 @@ eq('6c hersteld-in-modus document draagt dezelfde vastlegging als het gewone ope
 const recoveredFromOutsideMode = await recoverSingleDocument('6d', outsidePayload);
 expect('6e hersteld document dat vóór de crash UIT de modus stond, blijft UIT de modus (uit blijft uit)',
   recoveredFromOutsideMode.datesAsRecorded === false);
-expect('6f ... maar het #63-aanbod verschijnt wel (de restverschillen blijven zichtbaar)',
-  recoveredFromOutsideMode.recordedDates !== null);
-eq('6g hersteld-buiten-modus document draagt dezelfde vastlegging als het gewone openen',
-  recoveredFromOutsideMode.recordedDates?.times, originalTimes);
+expect('6f ... en vergeet de opgeslagen datums (geen aanbod-stand meer, eigenaar 2026-10-17)',
+  recoveredFromOutsideMode.recordedDates === null);
 
 // 6h — HET GAT WAAR DE HEURISTIEK OP STUKLIEP (critreview bevinding 2). Een bewerking verlaat de
 // modus en zet `scheduleStale`, maar de herberekening staat pas op `setTimeout(0)`
@@ -318,7 +335,9 @@ eq('6g hersteld-buiten-modus document draagt dezelfde vastlegging als het gewone
     store().getOpenDocumentPayloads()[0]!.payload.datesAsRecorded === true);
   const editId = store().tasks[0]!.id;
   const p6Start = store().tasks[0]!.time.earlyStart;
-  store().updateTask(editId, { name: 'Hernoemd door gebruiker' });
+  // Naam plus prioriteit: een naam alleen laat de modus staan (datumneutraal, zie
+  // `DATE_NEUTRAL_TASK_FIELDS` in taskSlice.ts); de prioriteit is planningsinvoer (nivelleren).
+  store().updateTask(editId, { name: 'Hernoemd door gebruiker', priority: store().tasks[0]!.priority + 1 });
   const gap = store().getOpenDocumentPayloads()[0]!.payload;
   expect('6i voorwaarde: de bewerking verliet de modus en zette de planning op verouderd',
     gap.datesAsRecorded === false && gap.scheduleStale === true);
@@ -330,8 +349,8 @@ eq('6g hersteld-buiten-modus document draagt dezelfde vastlegging als het gewone
     recoveredFromGap.datesAsRecorded === false);
   expect('6m ... de bewerking zelf overleeft het herstel gewoon',
     recoveredFromGap.tasks.find(task => task.id === editId)?.name === 'Hernoemd door gebruiker');
-  expect('6n ... en het #63-aanbod blijft over, zodat de gebruiker P6\'s datums zelf kan terugzetten',
-    recoveredFromGap.recordedDates !== null);
+  expect('6n ... en de opgeslagen datums zijn vergeten (geen aanbod-stand meer)',
+    recoveredFromGap.recordedDates === null);
 }
 
 // 6o — SLAPENDE documenten (critreview bevinding 3). `restoreDocuments` rekent alleen het actieve

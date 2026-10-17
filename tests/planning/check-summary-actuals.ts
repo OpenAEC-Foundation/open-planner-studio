@@ -234,8 +234,11 @@ function completeAll(ids: ReturnType<typeof reset>): void {
   const resaved = readIFC(writeIFC(buildWriteIFCInput(S()))).tasks.find(t => t.name === 'Fase')!;
   eq('Oud bestand B openen + opslaan: het bestand draagt nu de afgeleide waarde', actualsOf(resaved), { as: '2026-03-02', af: '2026-03-13' });
 
-  ok('Fixture B: openen bood "datums zoals opgeslagen" aan', !!S().recordedDates);
-  S().showRecordedDates();
+  // Geen aanbod-stand meer (eigenaar, 2026-10-17): een bewerkt eigen IFC vergeet de opgeslagen
+  // datums. Hetzelfde bestand als ONBEWERKT (vlag aan) opent in de modus.
+  ok('Fixture B (bewerkt): openen vergeet de opgeslagen datums', S().recordedDates === null && !S().datesAsRecorded);
+  S().applyLoadedProject({ ...readIFC(oldB), recordedSourceFormat: 'mspdi', importPristine: true }, { filePath: null, recompute: true });
+  ok('Fixture B (onbewerkt): opent in "datums zoals opgeslagen"', S().datesAsRecorded);
   eq('"Datums zoals opgeslagen": de fase toont haar opgeslagen werkelijke datums', actualsOf(byName('Fase')), { as: '2026-02-20', af: '2026-03-20' });
   S().runCPM();
   eq('Herberekenen verlaat de modus: weer afgeleid', actualsOf(byName('Fase')), { as: '2026-03-02', af: '2026-03-13' });

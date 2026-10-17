@@ -693,7 +693,7 @@ async function scanTauriSnapshots(): Promise<LoadedRecoveryDoc[]> {
     if (!name || !id) continue;
     try {
       const { ifc, mtime } = await readSnapshotTauri(await join(dir, name));
-      // Manifestloze scan: geen metadata, dus geen modus — alleen het aanbod "datums zoals opgeslagen" blijft over.
+      // Manifestloze scan: geen metadata, dus geen modus (de opgeslagen datums zijn dan vergeten).
       docs.push({ id, ifc, filePath: null, isDirty: true, datesAsRecorded: false, mtime });
     } catch (err) {
       console.error('Recovery: kon gescande snapshot niet lezen:', name, err);
@@ -722,7 +722,7 @@ async function loadTauri(): Promise<LoadedRecovery> {
           const { ifc, mtime } = await readSnapshotTauri(await join(dir, d.ifc));
           docs.push({
             id: d.id, ifc, filePath: d.filePath ?? null, isDirty: d.isDirty ?? true,
-            // v1–v3-manifest kent het veld niet ⇒ `false` (aanbod, geen modus).
+            // v1–v3-manifest kent het veld niet ⇒ `false` (geen modus).
             datesAsRecorded: d.datesAsRecorded ?? false, mtime,
             ...(typeof d.xerArchive === 'string' ? { xerArchive: d.xerArchive } : {}),
             // Een manifest van vóór issue #309 kent het site-doel niet ⇒ weggelaten (geen site-doel).
@@ -1225,7 +1225,7 @@ async function loadWeb(): Promise<LoadedRecovery> {
         ifc: rec.ifc,
         filePath: document.filePath ?? rec.filePath ?? null,
         isDirty: document.isDirty ?? rec.isDirty ?? true,
-        // v1–v3-webrecord kent het veld niet ⇒ `false` (aanbod, geen modus).
+        // v1–v3-webrecord kent het veld niet ⇒ `false` (geen modus).
         datesAsRecorded: document.datesAsRecorded ?? false,
         // Een webrecord van vóór issue #309 kent het site-doel niet ⇒ weggelaten (geen site-doel).
         ...siteMetaFields(document),

@@ -101,26 +101,21 @@ export function siteVersionCopyName(sourceName: string, version: string, copyLab
  * regel dan stil wegvallen.
  *
  *  - `freshShown` = taken die in een vers geopend document IN de modus de opgeslagen datums tonen
- *    (`recordedDates.total`); `freshOffer` = afwijkende taken in een document dat de modus alleen
- *    aanbiedt (`recordedDates.shifted`).
- *  - Beide 0 (o.a. elke HEROPENING van een eigen IFC) ⇒ `notice` ongewijzigd.
+ *    (`recordedDates.total`).
+ *  - 0 (o.a. elke HEROPENING van een eigen IFC) ⇒ `notice` ongewijzigd.
  *  - De melding draagt al een eigen datumregel (de XER-openingsmelding, `xerImportDatesAsRecorded*`)
  *    ⇒ ongewijzigd, anders stond het er twee keer.
  *  - Er is een andere melding ⇒ de regel komt er als detailregel onder.
  *  - Geen melding ⇒ de regel wordt zelf de melding, met de gids erachter.
- *
- * De modus gaat vóór het aanbod: staat hij in minstens één document aan, dan meldt de regel dat.
  */
 export function withRecordedDatesNotice(
   notice: NotifyInput | undefined,
   freshShown: number,
-  freshOffer: number,
 ): NotifyInput | undefined {
-  if (freshShown <= 0 && freshOffer <= 0) return notice;
-  const inMode = freshShown > 0;
+  if (freshShown <= 0) return notice;
   const line: NotificationDetailLine = {
-    messageKey: inMode ? 'notifications.importDatesAsRecorded' : 'notifications.importDatesAsRecordedOffer',
-    params: { count: inMode ? freshShown : freshOffer },
+    messageKey: 'notifications.importDatesAsRecorded',
+    params: { count: freshShown },
   };
   if (!notice) {
     return { severity: 'info', ...line, helpArticleId: RECORDED_DATES_HELP_ARTICLE_ID };
@@ -138,23 +133,16 @@ export function withRecordedDatesNotice(
 export function xerImportNotice(
   results: readonly ImportResult[],
   /** Som van `recordedDates.total` (taken die de opgeslagen datums TONEN) over de zojuist geopende
-   *  documenten waar de modus aanging, GESPLITST naar wat er werkelijk gebeurde. Bewust aparte
-   *  parameters i.p.v. iets uit `results` zelf afgeleid: het aantal vastgelegde taken bestaat pas
-   *  ná de solve op elk document (`applyLoadedProject` → `applyRecordedDatesOnLoad`), en
-   *  `ImportResult` draagt zelf geen `shifted`-veld (dat is documentstate, geen import-resultaat).
-   *
-   *  De SPLITSING: `xerImportDatesAsRecorded` zegt letterlijk
-   *  "niet herberekend", en dat mag alleen staan wanneer de modus daadwerkelijk aanging. Een
-   *  verse XER waarvan de modus niet aanging telt in `offerTotal` en krijgt een eigen, aanbiedende
-   *  regel. (Een heropende IFC met XER-archief meldt hier niets.) Beide `0` ⇒
-   *  geen detailregel. */
+   *  documenten waar de modus aanging. Bewust een aparte parameter i.p.v. iets uit `results` zelf
+   *  afgeleid: het aantal vastgelegde taken bestaat pas ná de solve op elk document
+   *  (`applyLoadedProject` → `applyRecordedDatesOnLoad`). `xerImportDatesAsRecorded` zegt letterlijk
+   *  "niet herberekend", en dat mag alleen staan wanneer de modus daadwerkelijk aanging. (Een
+   *  heropende IFC met XER-archief meldt hier niets.) `0` ⇒ geen detailregel. */
   datesAsRecordedShownTotal = 0,
-  /** Som van `recordedDates.shifted` over de documenten die de modus alléén AANBIEDEN. */
-  datesAsRecordedOfferTotal = 0,
 ): NotifyInput | undefined {
   // Alleen een VERSE XER-import meldt. Een heropende IFC
-  // draagt via het bronarchief óók `xer`-metadata, maar is geen import — het aanbod "datums zoals
-  // opgeslagen" loopt daar via `RecordedDatesNotice`, niet via deze melding.
+  // draagt via het bronarchief óók `xer`-metadata, maar is geen import — de modus "datums zoals
+  // opgeslagen" meldt zich daar via `RecordedDatesNotice`, niet via deze melding.
   results = results.filter(result => result.xerOrigin !== 'xer-archive');
   const xers = results.flatMap(result => result.xer ? [result.xer] : []);
   const xer = xers[0];
@@ -220,7 +208,6 @@ export function xerImportNotice(
   // er restverschillen zijn. Eén regel voor het HELE bestand, ook bij twaalf documenten — de teller
   // is de som over alle zojuist geopende documenten (zie `applyOpenedImport`), niet per document.
   addCount(datesAsRecordedShownTotal, 'notifications.xerImportDatesAsRecorded');
-  addCount(datesAsRecordedOfferTotal, 'notifications.xerImportDatesAsRecordedOffer');
 
   return {
     severity: 'info',
@@ -801,8 +788,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       const prepared = prepareLoadedPayload(payload, { recompute: !!opts.recompute });
       if (opts.recompute) {
-        // Wanneer de modus automatisch aangaat en wanneer hij alleen wordt aangeboden, beslist
-        // `applyRecordedDatesOnLoad` (verse import vs. heropening met `importPristine`). `payload.tasks`
+        // Of de modus aangaat, beslist `applyRecordedDatesOnLoad` (verse import vs. heropening met
+        // `importPristine`); anders vergeet het document de opgeslagen datums (geen aanbod-stand). `payload.tasks`
         // is hier bewust de PRE-solve
         // array (zie de docstring van `applyRecordedDatesOnLoad`): `prepareLoadedPayload` muteert
         // zijn `input`-argument niet.
@@ -921,17 +908,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // document leest zijn eigen `recordedTimes` uit zijn eigen `ImportResult`), maar de MELDING
       // blijft er één per bestand.
       let datesAsRecordedShownTotal = 0;
-      // Apart tellen, want de twee uitkomsten zijn verschillende
-      // beweringen. Alleen een document waar de modus ECHT aanging is "niet herberekend".
-      let datesAsRecordedOfferTotal = 0;
       let taskTypesUnlockedDocs = 0;
       // De formaatneutrale
-      // melding hieronder telt uitsluitend VERSE imports — zowel het aanbod als de automatisch-aan-tak.
+      // melding hieronder telt uitsluitend VERSE imports.
       // Een heropend eigen IFC ('ifc-own'/'xer-archive') krijgt de strook (die zegt het al), maar geen
       // openingsmelding — dat is het eigen projectbestand, geen import; ook niet als `importPristine`
       // de modus bij een ongewijzigd bestand automatisch weer aanzet.
       let freshShownTotal = 0;
-      let freshOfferTotal = 0;
       for (const result of results) {
         // De eerste payload mag het lege starttabblad hergebruiken; elk volgend project krijgt
         // gegarandeerd een eigen tab. Dit leest de actuele state per iteratie, want de vorige load
@@ -953,7 +936,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         }
         // Lees DIRECT ná deze aanroep: `applyLoadedProject` maakt het zojuist geladen document
         // actief, dus `get().recordedDates` is op dit punt exact dát document z'n eigen vastlegging.
-        const shifted = get().recordedDates?.shifted ?? 0;
         const fresh = isFreshImportOrigin(get().recordedDates?.origin);
         if (get().datesAsRecorded) {
           // In de modus tonen ALLE taken met een vastlegging de opgeslagen datums, niet alleen de
@@ -963,9 +945,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           const shown = get().recordedDates?.total ?? 0;
           datesAsRecordedShownTotal += shown;
           if (fresh) freshShownTotal += shown;
-        } else {
-          datesAsRecordedOfferTotal += shifted;
-          if (fresh) freshOfferTotal += shifted;
         }
       }
 
@@ -986,12 +965,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         withRecordedDatesNotice(
           withSchedulingProfileNotice(
             results,
-            xerImportNotice(results, datesAsRecordedShownTotal, datesAsRecordedOfferTotal)
+            xerImportNotice(results, datesAsRecordedShownTotal)
               ?? p6xmlImportNotice(results),
             openedDocumentIds[0] ?? '',
           ),
           freshShownTotal,
-          freshOfferTotal,
         ),
         results.map(result => result.xerArchiveIssue),
       ));
@@ -1319,7 +1297,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         set((s) => {
           if (s.activeDocumentId !== targetDocumentId) return;
           // Wél een snapshot: `finishMutation` verlaat de modus "datums zoals opgeslagen", en
-          // zonder snapshot is het aanbod dan onherstelbaar weg (laden → aanbod → ankers verversen
+          // zonder snapshot is de modus dan onherstelbaar weg (laden → modus → ankers verversen
           // → weg, zonder weg terug). Bovendien breekt het anders de snapshot-invariant: een
           // undo van een OUDERE bewerking zou `datesAsRecorded: true` terugzetten terwijl de
           // ankers al ververst zijn. Deze verversing verandert taakdatums en draait meteen

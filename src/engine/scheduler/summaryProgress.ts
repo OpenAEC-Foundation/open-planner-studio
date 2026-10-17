@@ -154,7 +154,7 @@ export function writeSummaryProgress(task: Task, progress: SummaryProgress): voi
  * Nee voor een HANDMATIG geplande verzameltaak: die rolt in `applyCpmResult` ook haar datums niet op
  * maar houdt haar opgeslagen waarden (MS Project-conventie, `.mpp`-getrouwheid) — de voortgang volgt
  * exact dezelfde uitzondering. De tweede uitzondering, "datums zoals opgeslagen", is
- * een documenttoestand en geen taakeigenschap; die regelen `showRecordedDates` (herstel) en het
+ * een documenttoestand en geen taakeigenschap; die regelen `applyRecordedTimesToTasks` (herstel) en het
  * WBS-rapport (`datesAsRecorded`).
  */
 export function isSummaryProgressDerived(task: Task): boolean {

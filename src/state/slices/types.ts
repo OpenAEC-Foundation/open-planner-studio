@@ -273,17 +273,15 @@ export type NotificationMessageKey =
   // `recordedDates.shifted` over alle documenten van dit bestand (één regel, ook bij twaalf
   // projecten — zie `xerImportNotice`/`applyOpenedImport`).
   | 'notifications.xerImportDatesAsRecorded'
-  | 'notifications.xerImportDatesAsRecordedOffer'
   | 'notifications.p6xmlImportEmpty'
   | 'notifications.p6xmlImportEmptyNoObjectIds'
   | 'notifications.p6xmlImportEmptyXerColumns'
   | 'notifications.p6xmlImportOpened'
   | 'notifications.p6xmlImportCrossProjectRelations'
   | 'notifications.p6xmlImportUnassignedActivities'
-  // Dezelfde twee regels, formaatneutraal,
+  // Dezelfde regel, formaatneutraal,
   // voor P6 XML/MSPDI/.mpp/CSV/IFC — één melding per geopend bestand (`applyOpenedImport`).
   | 'notifications.importDatesAsRecorded'
-  | 'notifications.importDatesAsRecordedOffer'
   | 'notifications.xerExportLoss'
   | 'notifications.mppSourceScheduleNotes'
   | 'notifications.projectStartAnchorsClamped'

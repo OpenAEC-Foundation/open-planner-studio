@@ -402,10 +402,6 @@
     "timephasedActive": "ປະຕິບັດຕາມການກະຈາຍຊົ່ວໂມງຈາກ MS Project",
     "timephasedLost": "ຊ່ວງວັນທີຂອງ MS Project ບໍ່ຖືກນຳໃຊ້ອີກຫຼັງຈາກການດັດແກ້ — ແຕ່ການກະຈາຍຊົ່ວໂມງເອງຍັງຄົງມີຜົນ ແລະ ຖືກບັນທຶກໄວ້ໃນໄຟລ໌",
     "timephasedContoured": "ການກະຈາຍຊົ່ວໂມງຂອງຕົນເອງ",
-    "recordedDatesActive": "ສະແດງວັນທີທີ່ບັນທຶກໄວ້ຂອງ Primavera ເອງສຳລັບໜ້າວຽກນີ້",
-    "recordedDatesActiveNeutral": "ສະແດງວັນທີຕາມທີ່ບັນທຶກໄວ້ໃນໄຟລ໌ສຳລັບໜ້າວຽກນີ້",
-    "recordedDatesDeviates": "ແຕກຕ່າງຈາກວັນທີທີ່ບັນທຶກໄວ້",
-    "recordedDatesPartlyUnrecorded": "ຂໍ້ມູນທີ່ບັນທຶກໄວ້ບໍ່ຄົບຖ້ວນບາງສ່ວນ — ເບິ່ງຖັນ late/float",
     "completion": "ຄວາມຄືບໜ້າ (%)",
     "progress": {
       "actualStart": "ເລີ່ມຕົ້ນຕົວຈິງ",

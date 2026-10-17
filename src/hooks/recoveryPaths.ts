@@ -118,7 +118,7 @@ export interface RecoveryManifestDoc {
    *
    * OPTIONEEL getypeerd, met dezelfde regel als `ownerId`/`heartbeatAt`: een v1–v3-manifest staat
    * op de schijf van iedereen die een oudere versie draaide en MOET leesbaar blijven. Ontbreekt het
-   * veld, dan geldt `false` — alleen het aanbod, niet de modus.
+   * veld, dan geldt `false` — geen modus (de opgeslagen datums zijn dan vergeten).
    */
   datesAsRecorded?: boolean;
   /**

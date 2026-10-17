@@ -98,8 +98,8 @@ See [Splitting a task](docs://howto-taak-splitsen).
 Only in the panel, and only when they apply.
 
 - **Long non-working period** — *This task runs through a …-day non-working period (… to …).*, or with the name of the holiday or construction break added. Appears when the task runs through a continuous period of 8 days or more that contains at least one holiday. It is a warning, not a refusal; check whether the schedule is meant that way.
-- **MS Project marker** — a badge *Follows the hour distribution from MS Project*, *MS Project date window no longer applied after editing — …* or *Own hour distribution*, with *Read more*. It says whether the hour distribution from an MS Project file still drives the dates.
-- **Recorded dates** — a badge for an imported file with recorded dates: *Shows the dates as recorded in the file for this task* (for a Primavera file *Shows Primavera’s own recorded dates for this task*), *Deviates from the recorded dates* or *Recorded data is partly incomplete — see the late/float columns*, with *Read more*. See [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen).
+- **MS Project marker** — a block *Follows the hour distribution from MS Project*, *MS Project date window no longer applied after editing — …* or *Own hour distribution*, with *Read more*. It says whether the hour distribution from an MS Project file still drives the dates.
+- **Recorded dates** — a block at the top of *Time*, directly above *Start*, as long as the app shows the dates from the file. Orange: *You see the dates that were in the file, not the app's calculation.* (for a Primavera file *You see the dates Primavera saved, not the app's calculation.*), with *Recalculating changes this task.* or *Recalculating leaves this task the same.* below it. Grey if the file does not contain everything for this task, with the missing values: *The file does not contain everything for this task. Missing: …* (for Primavera *Primavera did not save everything for this task. Missing: …*). With *Read more*. See [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen).
 
 ## Head and foot of the panel
 

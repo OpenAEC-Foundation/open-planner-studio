@@ -160,7 +160,6 @@ function formatScalar(value: unknown): string {
 /** Celtekst van de kolom `recorded.source` — gedeeld door `format` en `copy`, zodat het klembord
  *  nooit uit elkaar kan lopen met wat er op het scherm staat. */
 function recordedSourceText(value: unknown, ctx: TaskColumnContext): string {
-  if (value === 'deviates') return ctx.labelForText?.('recordedDates.markDeviates') ?? 'deviates';
   if (value === 'partly-unrecorded') return ctx.labelForText?.('recordedDates.markPartlyUnrecorded') ?? 'partly-unrecorded';
   return '—';
 }
@@ -928,18 +927,16 @@ function fixedTimeColumns(): TaskColumnDescriptor[] {
     readonlyColumn({ id: 'task.time.interferingFloat', labelKey: 'taskGrid.columns.interferingFloat', category: 'computed', valueKind: 'duration', read: task => task.time.interferingFloat, format: (value, _task, ctx) => workDaysCellText(value, ctx) }),
     readonlyColumn({ id: 'task.time.isNearCritical', labelKey: 'taskGrid.columns.nearCritical', category: 'computed', valueKind: 'boolean', read: task => task.time.isNearCritical }),
     readonlyColumn({ id: 'task.time.floatPath', labelKey: 'taskGrid.columns.floatPath', category: 'computed', valueKind: 'number', read: task => task.time.floatPath }),
-    // "Datums zoals opgeslagen" — badge die toont of DEZE
-    // taak een vastlegging heeft die afwijkt van de herberekening, of onvolledig is. Bestaat
-    // uitsluitend op documenten met een vastlegging (`ctx.recordedMark !== undefined` ⇒
-    // `recordedDates !== null`, zie `FullTaskGrid.tsx`) — op elk ander document is deze kolom
-    // onzichtbaar, dus geen ruis op IFC/CSV/MSPDI/MPP-documenten zonder vastlegging.
+    // "Datums zoals opgeslagen" — badge die toont of de vastlegging van DEZE taak onvolledig is.
+    // Bestaat uitsluitend in de modus (`ctx.recordedMark !== undefined` ⇒ `datesAsRecorded`, zie
+    // `recordedGridBinding`) — op elk ander document is deze kolom onzichtbaar.
     readonlyColumn({
       id: 'recorded.source', labelKey: 'taskGrid.columns.recordedSource', category: 'computed', valueKind: 'text',
       available: ctx => ctx.recordedMark !== undefined,
       read: (task, ctx) => ctx.recordedMark?.(task),
       format: (value, _task, ctx) => recordedSourceText(value, ctx),
-      // Zonder eigen `copy` levert `copyScalar` het RAUWE token (`deviates`) in het klembord
-      // terwijl de cel "Wijkt af" toont. Dezelfde tekst als de
+      // Zonder eigen `copy` levert `copyScalar` het RAUWE token (`partly-unrecorded`) in het
+      // klembord terwijl de cel "Deels niet vastgelegd" toont. Dezelfde tekst als de
       // cel dus — en de lege markering blijft een lege klembordcel in plaats van een em-dash, want
       // dat is wat een plakactie in een spreadsheet verwacht.
       copy: (task, ctx) => {

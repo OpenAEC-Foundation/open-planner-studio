@@ -33,7 +33,7 @@ Bij een Primavera-bestand rekent de app met het rekenprofiel *Primavera P6*. Dat
 
 Onder het lint staat een strook: *Je ziet de datums zoals ze in het bestand staan; bij herberekenen wijken 4 taken af.* Bij een Primavera-bron (een `.xer` of Primavera P6 XML) staat er *Je ziet de planning zoals Primavera hem opsloeg; bij herberekenen wijkt 1 taak af.* Rechts in de strook staat de knop *Herberekenen*. Die strook heeft geen kruisje.
 
-Daarnaast komt er een melding: *12 taken tonen de datums zoals ze in het bestand staan (niet herberekend).* Alleen bij een `.xer` staat er *12 taken tonen de datums zoals Primavera ze opsloeg (niet herberekend).* Dat getal telt alle taken waarvan het bestand datums vastlegde, ook de taken die niet afwijken. Het aantal taken dat bij herberekenen afwijkt, staat in de strook. Elke taak waarvan het bestand datums vastlegde, toont in het paneel *Eigenschappen* een markering: *Toont Primavera’s eigen opgeslagen datums voor deze taak* bij een Primavera-bron, of *Toont de datums zoals ze in het bestand staan voor deze taak* bij een andere bron. De Gantt, het taakraster en de statusbalk tonen de datums uit het bestand.
+Daarnaast komt er een melding: *12 taken tonen de datums zoals ze in het bestand staan (niet herberekend).* Alleen bij een `.xer` staat er *12 taken tonen de datums zoals Primavera ze opsloeg (niet herberekend).* Dat getal telt alle taken waarvan het bestand datums vastlegde, ook de taken die niet afwijken. Het aantal taken dat bij herberekenen afwijkt, staat in de strook. Elke taak waarvan het bestand datums vastlegde, toont in het paneel *Eigenschappen* een oranje blok, direct boven *Start*: *Je ziet de datums die Primavera opsloeg, niet de berekening van de app.* Bij een andere bron staat er *Je ziet de datums die in het bestand stonden, niet de berekening van de app.* Een tweede regel zegt wat er met deze taak gebeurt als je herberekent: *Bij herberekenen verandert deze taak.* of *Bij herberekenen blijft deze taak gelijk.* De Gantt, het taakraster en de statusbalk tonen de datums uit het bestand.
 
 ### Taken die gestart of klaar zijn
 
@@ -47,14 +47,14 @@ Van een taak die gestart is, kun je de start niet meer intypen. In het taakraste
 
 De app rekent in deze weergave niets door. Ze toont alleen wat het bestand vastlegde. Speling en kritiek pad zie je dus alleen als het bestand ze bevat. Legt het bestand geen kritieke taken vast, dan meldt de statusbalk 0 kritieke taken. Dat zegt niets over het kritieke pad in het pakket zelf. Wat alleen uit een berekening komt, bestaat in deze weergave niet: welke relaties de planning bepalen, geschonden constraints, taken die buiten hun volgorde lopen en bijna-kritieke taken.
 
-Legt het bestand van een taak niet alles vast, dan zie je in het paneel *Eigenschappen* de markering *Vastlegging deels onvolledig — zie de late-/spelingkolommen*. In een CSV-export blijven de kolommen *Critical* en *Total Float* voor zo'n taak leeg, in plaats van een verzonnen nul.
+Legt het bestand van een taak niet alles vast, dan zie je in het paneel *Eigenschappen* een grijs blok, bijvoorbeeld *Primavera heeft voor deze taak niet alles opgeslagen. Ontbreekt: Laatste start, Totale speling.* Bij een andere bron staat er *Het bestand bevat voor deze taak niet alles.* De ontbrekende waarden hebben dezelfde namen als de kolommen in het taakraster. In een CSV-export blijven de kolommen *Critical* en *Total Float* voor zo'n taak leeg, in plaats van een verzonnen nul.
 
 ### De weergave verlaten
 
 Je verlaat de weergave op twee manieren:
 
 - Klik in de strook op *Herberekenen*, of kies *Bereken* (F5). De app rekent door met haar eigen regels.
-- Wijzig iets waardoor de datums kunnen veranderen, zoals de duur van een taak of een nieuwe taak. De app verlaat de weergave en rekent meteen door, ook als *Automatisch berekenen* uit staat. Een naam wijzigen doet dat niet: dan blijft de weergave aan.
+- Wijzig iets waardoor de datums kunnen veranderen, zoals de duur van een taak of een nieuwe taak. De app verlaat de weergave en rekent meteen door, ook als *Automatisch berekenen* uit staat. Een naam, omschrijving, taaktype of werkregel wijzigen doet dat niet: dan blijft de weergave aan.
 
 Een kalenderwijziging uit de resourcebibliotheek laat de weergave aan en de datums uit het bestand staan, maar werkt het getal in de strook bij.
 
@@ -62,21 +62,19 @@ Na het verlaten is er geen knop meer om naar de weergave terug te schakelen. Ctr
 
 ### Crashherstel
 
-Herstel je na een crash een project dat in de weergave stond, dan blijft de weergave aan. Het project dat actief was, toont dezelfde strook als eerder. Een project op een ander tabblad toont de strook zonder aantal: *Je ziet de datums zoals ze in het bestand staan. Er is niet herberekend.* Zie [Herstellen na een crash](docs://howto-herstellen-na-een-crash).
+Herstel je na een crash een project dat in de weergave stond, dan blijft de weergave aan. Stond de weergave uit, dan vergeet de app de datums uit het bestand. Het project dat actief was, toont dezelfde strook als eerder. Een project op een ander tabblad toont de strook zonder aantal: *Je ziet de datums zoals ze in het bestand staan. Er is niet herberekend.* Zie [Herstellen na een crash](docs://howto-herstellen-na-een-crash).
 
 ### Opslaan en heropenen
 
-Sla je op terwijl je de weergave gebruikt, dan schrijft de app de getoonde datums in het IFC-bestand, samen met het bronformaat. Open je dat IFC-bestand later opnieuw en heb je het sinds de import niet bewerkt, dan staat de weergave weer aan, zonder nieuwe melding.
+Sla je op terwijl je de weergave gebruikt, dan schrijft de app de getoonde datums in het IFC-bestand, samen met het bronformaat. Open je dat IFC-bestand later opnieuw, dan staat de weergave weer aan, zonder nieuwe melding. Dat geldt ook als je in de weergave iets wijzigde dat de datums niet raakt, zoals een naam. De app opent het bestand zoals je het achterliet.
 
-Heb je tussendoor bewerkt en opgeslagen, dan hangt het af van de bron. Bij een Primavera-bestand bewaart het IFC-bestand het oorspronkelijke `.xer` mee. De app vergelijkt dan opnieuw en biedt de weergave aan: *Herberekening verschoof 1 van de 2 taken ten opzichte van de datums in het bestand.* Daarbij staat de knop *Opgeslagen datums tonen* en een kruisje. Op elke afwijkende taak staat in het paneel *Eigenschappen* de markering *Wijkt af van de opgeslagen datums*. *Opgeslagen datums tonen* zet de weergave aan; Ctrl+Z draait dat terug. Het kruisje verbergt het aanbod.
-
-Bij MS Project XML, `.mpp`, Primavera P6 XML of een IFC-bestand van een ander programma bewaart het IFC-bestand de bron niet. Bewerk en bewaar je zo'n project, dan vergelijkt de app bij het heropenen niet meer.
+Sla je op nadat je de weergave verliet, door te herberekenen of door een bewerking die de datums kan veranderen, dan staat de eigen berekening in het bestand. Bij het heropenen zie je die berekening, zonder strook en zonder blok in het paneel *Eigenschappen*. Er is één uitzondering: een `.xer` die je alleen herberekende en niet bewerkte (zie hierboven). Je bewerkte planning is nu de planning; de oude datums uit het bronpakket horen daar niet meer bij. Wil je ze toch zien, open dan het bronbestand opnieuw.
 
 ## Rekenvoorbeeld: de uitbouw
 
 Stel, je opent een Primavera-bestand *Uitbouw* met twee taken, op een kalender zonder feestdagen. In 2027 is 6 mei Hemelvaartsdag en 17 mei Tweede Pinksterdag: met feestdagen in de kalender komen de datums anders uit. *Fundering storten* duurt 5 werkdagen, *Metselwerk* 10 werkdagen, en Metselwerk volgt op Fundering met een Eind-Start-relatie. Het bestand legt vast dat Fundering loopt van maandag 3 mei tot en met vrijdag 7 mei 2027 en Metselwerk van maandag 17 mei tot en met vrijdag 28 mei 2027: een week later dan de vroegste start die de relatie toestaat. De geplande start van Metselwerk in het bestand is maandag 10 mei 2027.
 
-Direct na het openen zie je de datums uit het bestand. De statusbalk zegt *Einde: 28-05-2027* en *Kritiek pad: 2 taken, 20 werkdagen*. De strook meldt dat bij herberekenen 1 taak afwijkt, en beide taken tonen *Toont Primavera’s eigen opgeslagen datums voor deze taak*.
+Direct na het openen zie je de datums uit het bestand. De statusbalk zegt *Einde: 28-05-2027* en *Kritiek pad: 2 taken, 20 werkdagen*. De strook meldt dat bij herberekenen 1 taak afwijkt. Beide taken tonen het oranje blok *Je ziet de datums die Primavera opsloeg, niet de berekening van de app.* Bij Metselwerk staat eronder *Bij herberekenen verandert deze taak.*, bij Fundering *Bij herberekenen blijft deze taak gelijk.*
 
 Bij *Herberekenen* blijft Fundering op 3 tot en met 7 mei staan. Metselwerk begint nu op maandag 10 mei, de werkdag na het einde van Fundering, en eindigt op vrijdag 21 mei. De planning eindigt op 21 mei 2027 en beslaat 15 werkdagen in plaats van 20. Het kritieke pad bestaat uit dezelfde 2 taken.
 
@@ -86,7 +84,8 @@ Wat als het anders is?
 - Je voegt in de weergave een taak toe: dezelfde herberekening. Metselwerk gaat naar 10 tot en met 21 mei.
 - Je slaat op in de weergave en opent het IFC-bestand opnieuw, zonder bewerking: Metselwerk staat weer op 17 tot en met 28 mei.
 - Je herberekent, slaat op zonder verder te bewerken en opent het IFC-bestand opnieuw: de weergave staat weer aan en Metselwerk staat op 17 tot en met 28 mei.
-- Je bewerkt, slaat op en opent opnieuw: de app biedt de weergave aan met *Herberekening verschoof 1 van de 2 taken ten opzichte van de datums in het bestand.* Op Metselwerk staat *Wijkt af van de opgeslagen datums*.
+- Je wijzigt in de weergave alleen de naam van Metselwerk, slaat op en opent opnieuw: de weergave staat weer aan en Metselwerk staat op 17 tot en met 28 mei.
+- Je voegt in de weergave een taak toe, slaat op en opent opnieuw: de app vergeet de datums uit het bestand. Metselwerk staat op 10 tot en met 21 mei, zonder strook en zonder blok.
 - Fundering is in het bestand al klaar: werkelijk gestart op 3 mei en werkelijk klaar op 7 mei. Het bestand legt als vroege start de statusdatum vast. De balk van Fundering staat toch op 3 tot en met 7 mei, in de weergave en na herberekenen. Fundering telt niet mee als afwijking.
 
 ## Gevolgen en misverstanden
@@ -97,7 +96,7 @@ Wat als het anders is?
 
 **Opslaan in de weergave bewaart de datums van het bronpakket.** Het IFC-bestand bevat dan wat het bronpakket zei, niet wat de app zou uitrekenen.
 
-**De knop *Opgeslagen datums tonen* verschijnt niet bij elke import.** Bij een nieuw geopend bestand staat de weergave al aan. De knop komt alleen bij een heropend IFC-bestand met Primavera-bron dat je sinds de import bewerkte.
+**Na bewerken komen de datums uit het bestand niet terug.** Bewerk, bewaar en heropen je een project, dan zie je alleen nog de eigen berekening. Open het bronbestand opnieuw als je de datums uit het bronpakket wilt zien.
 
 ## Zie ook
 

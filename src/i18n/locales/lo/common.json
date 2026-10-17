@@ -46,9 +46,7 @@
     "xerImportEnumFallbacks_other": "ປ່ຽນໄປໃຊ້ຄ່າເລີ່ມຕົ້ນ {{count}} ຄ່າ.",
     "xerImportUnsupportedSemantics_other": "ການຕັ້ງຄ່າຕາຕະລາງ P6 ໃຊ້ຄ່າສຳຮອງທີ່ປອດໄພ {{count}} ລາຍການ.",
     "xerImportDatesAsRecorded_other": "{{count}} ໜ້າວຽກສະແດງວັນທີຕາມທີ່ Primavera ບັນທຶກໄວ້ (ບໍ່ໄດ້ຄິດໄລ່ຄືນໃໝ່).",
-    "xerImportDatesAsRecordedOffer_other": "{{count}} ໜ້າວຽກແຕກຕ່າງຈາກວັນທີໃນໄຟລ໌ — ທ່ານສາມາດເລືອກສະແດງໄດ້.",
     "importDatesAsRecorded_other": "{{count}} ໜ້າວຽກສະແດງວັນທີຕາມທີ່ບັນທຶກໃນໄຟລ໌ (ບໍ່ໄດ້ຄິດໄລ່ຄືນໃໝ່).",
-    "importDatesAsRecordedOffer_other": "{{count}} ໜ້າວຽກແຕກຕ່າງຈາກວັນທີໃນໄຟລ໌ — ທ່ານສາມາດເລືອກສະແດງໄດ້.",
     "xerExportLoss": "ການສົ່ງອອກເປັນ {{format}} ຈະສູນເສຍຂໍ້ມູນຕົ້ນສະບັບຂອງ XER.",
     "mppLegacy": "ໄຟລ໌ .mpp ນີ້ໃຊ້ຮູບແບບເກົ່າ (Project 2007 ຫຼື ເກົ່າກວ່າ). ໃນ MS Project, ໃຫ້ສົ່ງອອກເປັນ XML (File → Save As → XML) ແລ້ວເປີດໄຟລ໌ນັ້ນແທນ.",
     "mppEncrypted": "ໄຟລ໌ .mpp ນີ້ຖືກປ້ອງກັນດ້ວຍລະຫັດຜ່ານ. ໃນ MS Project, ໃຫ້ສົ່ງອອກເປັນ XML (File → Save As → XML) ແລ້ວເປີດໄຟລ໌ນັ້ນແທນ.",
@@ -959,13 +957,10 @@
     "enable": "ເປີດໃຊ້ການວາງແຜນລາຍຊົ່ວໂມງ"
   },
   "recordedDates": {
-    "offer_other": "ການຄິດໄລ່ຄືນໃໝ່ເຮັດໃຫ້ {{count}} ຈາກ {{total}} ໜ້າວຽກ ເລື່ອນອອກໄປຈາກວັນທີໃນໄຟລ໌.",
     "activeCount_other": "ທ່ານກຳລັງເບິ່ງແຜນງານຕາມທີ່ Primavera ບັນທຶກໄວ້; ການຄິດໄລ່ຄືນໃໝ່ຈະເຮັດໃຫ້ {{count}} ໜ້າວຽກຖືກຍ້າຍ.",
     "activeCountNeutral_other": "ທ່ານກຳລັງເບິ່ງວັນທີຕາມທີ່ບັນທຶກໄວ້ໃນໄຟລ໌; ການຄິດໄລ່ຄືນໃໝ່ຈະເຮັດໃຫ້ {{count}} ໜ້າວຽກຖືກຍ້າຍ.",
-    "show": "ສະແດງວັນທີທີ່ບັນທຶກໄວ້",
     "active": "ທ່ານກຳລັງເບິ່ງວັນທີຕາມທີ່ບັນທຶກໄວ້ໃນໄຟລ໌. ຍັງບໍ່ມີສິ່ງໃດຖືກຄິດໄລ່ຄືນໃໝ່.",
     "recalculate": "ຄິດໄລ່ຄືນໃໝ່",
-    "markDeviates": "ແຕກຕ່າງ",
     "markPartlyUnrecorded": "ບໍ່ໄດ້ບັນທຶກບາງສ່ວນ",
     "notRecorded": "ບໍ່ໄດ້ບັນທຶກ"
   },

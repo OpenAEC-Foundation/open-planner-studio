@@ -132,6 +132,11 @@ export interface RecordedDatesState extends RecordedDates {
    *  "in de modus" hangt (export-poort, "niet vastgelegd"-kolommen, badge) blijft wél gewoon werken,
    *  want dat hangt aan `times`, niet aan deze teller. Een verzonnen `shifted: 0` blijft verboden. */
   shifted?: number;
+  /** WELKE taken bij herberekenen verschuiven — dezelfde meting als `shifted` (altijd samen gezet,
+   *  `shifted === shiftedTaskIds.length`), zodat het eigenschappenpaneel per taak kan zeggen of hij
+   *  verandert (eigenaar, 2026-10-17). Zelfde regel als `shifted`: afwezig ⇒ onbekend, nooit een
+   *  verzonnen lege lijst. */
+  shiftedTaskIds?: string[];
   /** Bronformaat van de vastlegging (spiegelt `ImportResult.recordedTimesOrigin`) — bewust GEEN import van dat type hier: de engine-laag kent geen formaten,
    *  alleen deze twee letterlijke waarden. Stuurt uitsluitend WOORDKEUZE in de strook
    *  (`RecordedDatesNotice.tsx` noemt "Primavera" alleen wanneer dit gezet is); de modus-
@@ -266,7 +271,7 @@ export function captureRecordedDates(
  * zelfs een vroeg einde vóór die start); dat verschil zag de gebruiker nooit en mag de modus dus ook
  * niet aanzetten.
  *
- * Eén definitie voor de telling (`countShiftedTasks`) en de markering per taak (`recordedTaskMark`).
+ * Eén definitie voor de telling (`countShiftedTasks`) en de lijst per taak (`shiftedTaskIds`).
  */
 export function recordedDatesDeviate(task: Task, rec: RecordedTime): boolean {
   const progress = rec.summaryProgress;
@@ -289,13 +294,17 @@ export function recordedDatesDeviate(task: Task, rec: RecordedTime): boolean {
  *  is vastgelegd (`captureRecordedDates(...).times` — symmetrisch met `cpmResultFromRecorded`
  *  hieronder, die dezelfde `Record<string, RecordedTime>` neemt, geen bredere wrapper). */
 export function countShiftedTasks(tasks: Task[], times: Record<string, RecordedTime>): number {
-  let n = 0;
+  return shiftedTaskIds(tasks, times).length;
+}
+
+/** Dezelfde meting als {@link countShiftedTasks}, maar met de taak-id's: welke taken verschuiven. */
+export function shiftedTaskIds(tasks: Task[], times: Record<string, RecordedTime>): string[] {
+  const ids: string[] = [];
   for (const task of tasks) {
     const rec = times[task.id];
-    if (!rec) continue;
-    if (recordedDatesDeviate(task, rec)) n++;
+    if (rec && recordedDatesDeviate(task, rec)) ids.push(task.id);
   }
-  return n;
+  return ids;
 }
 
 /**
@@ -455,8 +464,7 @@ export function cpmResultFromRecorded(
 
 /**
  * Schrijf de vastlegging in de taken en lever het gereconstrueerde `CPMResult` — ÉÉN implementatie
- * voor `showRecordedDates` (`scheduleSlice.ts`) en de standaard-aan-route bij het laden
- * (`fileSlice.applyLoadedProject`). Muteert `tasks` IN-PLACE (een Immer-draft óf een
+ * voor de laadroute (`enterRecordedDatesMode` in `documentActivation.ts`). Muteert `tasks` IN-PLACE (een Immer-draft óf een
  * payload-kloon — de aanroeper bepaalt welke) en geeft daarna hetzelfde `CPMResult` terug als
  * `cpmResultFromRecorded(times, tasks, calendar)` op diezelfde, nu-bijgewerkte taken zou geven.
  *

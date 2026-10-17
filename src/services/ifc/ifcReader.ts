@@ -357,9 +357,9 @@ export function readIFC(
     libraryPool: libraryPoolOut.value,
     recordedFields,
     // Heropen-beleid: 'xer-archive', NIET 'xer' — deze route is een HEROPENING, geen verse import.
-    // `applyRecordedDatesOnLoad` zet de modus alleen automatisch aan bij 'xer'; 'xer-archive' krijgt
-    // uitsluitend het AANBOD, want een
-    // intussen bewerkte en opgeslagen planning mag bij heropenen niet stilzwijgend P6's oude datums
+    // `applyRecordedDatesOnLoad` zet de modus bij 'xer-archive' alleen aan zolang het bestand
+    // ongewijzigd is sinds de import (`importPristine`); anders vergeet hij de opgeslagen datums, want
+    // een intussen bewerkte en opgeslagen planning mag bij heropenen niet stilzwijgend P6's oude datums
     // tonen. Zie `importTypes.ts` (`recordedTimesOrigin`) voor het volledige onderscheid.
     ...(recordedTimes ? { recordedTimes, recordedTimesOrigin: 'xer-archive' as const }
       : { recordedTimesOrigin: ownAuthored ? 'ifc-own' as const : 'ifc' as const }),

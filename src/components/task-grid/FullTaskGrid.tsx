@@ -437,11 +437,10 @@ export function TaskGridSurface({
     signedWorkDaysBetween: (fromIso, toIso) => signedWorkDaysBetween(calendarEngine, fromIso, toIso),
     // ⚠ bij een baseline van een urentaak met de oude dagtelling (alleen weergave).
     baselineOldDay: createBaselineOldDayCheck(calendar, calendars),
-    // "Datums zoals opgeslagen" — `undefined` op documenten zonder
-    // vastlegging, dus de kolom `recorded.source` en de "niet vastgelegd"-tak op late/float
+    // "Datums zoals opgeslagen" — `undefined` buiten de modus, dus de kolom `recorded.source` en de "niet vastgelegd"-tak op late/float
     // bestaan dan niet (`available`-gates in taskColumnRegistry.ts). De poort per naad staat in
     // `recordedGridBinding` (gedeeld met `gridTransaction.ts`, headless getest): de "niet
-    // vastgelegd"-tak hangt aan `datesAsRecorded`, niet aan het loutere bestaan van een aanbod.
+    // vastgelegd"-tak hangt aan `datesAsRecorded`.
     ...recordedGridBinding(recordedDates, datesAsRecorded),
     taskTypesUnlocked: showTaskTypes || taskTypesVisible,
     labelForColumn: labelKey => resolveColumnLabel(

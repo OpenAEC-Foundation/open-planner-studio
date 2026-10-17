@@ -1,5 +1,5 @@
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
-import { applyRecordedTimesToTasks, type RecordedDatesState } from '@/engine/scheduler/recordedDates';
+import type { RecordedDatesState } from '@/engine/scheduler/recordedDates';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { solveInputFor, solveOptionsFor } from '@/engine/scheduler/solveInput';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
@@ -26,21 +26,12 @@ export interface ScheduleSlice {
   /** "Verouderd"-vlag: gezet door datum-rakende mutaties (taak-/relatie-/projectkalender-
    *  wijzigingen), gewist door `runCPM`. Voedt een subtiele "herbereken (F5)"-hint. */
   scheduleStale: boolean;
-  /** "Datums zoals opgeslagen" — wat het geopende bestand vastlegde, plus de teller
-   *  voor de melding. Niet-null ⇒ herberekening verschoof datums en de strook biedt de modus aan.
-   *  Bestaat alleen tussen het laden en de eerste bewerking/berekening. */
+  /** "Datums zoals opgeslagen" — wat het geopende bestand vastlegde, plus de teller voor de strook.
+   *  Niet-null ⇔ `datesAsRecorded` (er is geen aanbod-stand, eigenaar 2026-10-17). Bestaat alleen
+   *  tussen het laden en de eerste bewerking/berekening. */
   recordedDates: RecordedDatesState | null;
   /** Staat de modus aan: toont de app de opgeslagen datums in plaats van de herberekende? */
   datesAsRecorded: boolean;
-  /** Zet de app in "datums zoals opgeslagen": herstel wat het bestand vastlegde en reconstrueer
-   *  `cpmResult` daaruit, zonder te solven. Pusht een undo-snapshot (contract-invariant: élke
-   *  mutator van `datesAsRecorded` doet dat), maar zet bewust géén `isDirty` — de state komt hiermee
-   *  dichter bij het bestand te liggen, niet verder. No-op zonder `recordedDates`. */
-  showRecordedDates: () => void;
-  /** Aanbod afslaan: de strook verdwijnt en de gebruiker werkt normaal verder met de herberekende
-   *  planning. Géén undo-snapshot — er verandert niets aan de projectdata, alleen een aanbod
-   *  verdwijnt. */
-  dismissRecordedDates: () => void;
   runCPM: () => void;
   /** Herbereken ALLEEN de resource-belasting op de bestaande CPM-datums: pure resource-
    *  mutaties (toewijzen, capaciteit, kalender) verversen zo het histogram direct, ZONDER runCPM en
@@ -172,47 +163,6 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       error: cpm?.error ?? null,
       criticalTasks: get().tasks.filter((t) => t.time.isCritical).length,
     });
-  },
-
-  showRecordedDates: () => {
-    set((s) => {
-      const info = s.recordedDates;
-      if (!info || s.datesAsRecorded) return; // no-op ⇒ géén snapshot (transaction.ts-patroon)
-      runtime.beginUndoable(s);
-
-      // Gedeelde kern: schrijft de vastlegging in de taken en levert meteen het gereconstrueerde
-      // `CPMResult` — dezelfde functie die de laadroute (`enterRecordedDatesMode`) op een payload
-      // gebruikt.
-      s.cpmResult = applyRecordedTimesToTasks(s.tasks, info.times, s.calendar);
-      s.resourceLoadResult = computeReliableResourceLoad(
-        s.cpmResult, s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
-      );
-      s.datesAsRecorded = true;
-      // De weergave is consistent met wat er getoond wordt — niet verouderd.
-      s.scheduleStale = false;
-      // Wel history sluiten, maar bewust niet dirty maken: er is niets gewijzigd t.o.v. het bestand.
-      // `nonEdit`: undo/redo van deze stap wist "ongewijzigd sinds import" niet.
-      runtime.finishUndoable(s, { nonEdit: true });
-    });
-    get().recomputeViewRows();
-  },
-
-  dismissRecordedDates: () => {
-    // Géén beginUndoable/finishMutation: dit vuurt alleen in de AANBOD-stand (recordedDates gezet,
-    // datesAsRecorded nog false) en raakt geen projectdata (tasks/cpmResult) of `datesAsRecorded`
-    // aan — alleen het aanbod zelf verdwijnt. Dat lijkt in te gaan tegen de documentcontract-
-    // invariant ("élke mutator van een 'derived'-snapshotveld pusht een snapshot"), maar die
-    // invariant bewaakt DATA-consistentie: dat een undo nooit een half-oude/half-nieuwe combinatie
-    // van velden kan opleveren. Hier is er geen combinatie om uit elkaar te
-    // laten lopen — `recordedDates` bepaalt alleen of de strook een aanbod tóónt, en elke ECHTE
-    // mutator (showRecordedDates, runCPM) pusht zijn EIGEN snapshot mét de op-dat-moment geldende
-    // waarde van dit veld erin, dus die snapshots blijven intern consistent ongeacht wat dismiss
-    // deed. Vergelijk `recomputeResourceLoad`, dat `resourceLoadResult` (rol 'none') ook zonder
-    // snapshot muteert — een zuiver afgeleid veld, geen brondata.
-    // Effect van het ontbreken van een snapshot: een latere undo die vóór deze dismiss terugspoelt
-    // laat het aanbod correct herverschijnen (het bestond toen echt), in plaats van dat "dismiss"
-    // een eigen ongedaan-te-maken stap wordt — precies de bedoeling voor een wegklikbare melding.
-    set((s) => { s.recordedDates = null; });
   },
 
   levelingInput: (options) => {

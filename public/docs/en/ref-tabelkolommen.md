@@ -96,7 +96,7 @@ All columns in this category are read-only.
 - **Interfering float** — total float minus free float.
 - **Near critical** — *Yes* for a near-critical task. Only filled if *Mark near-critical* is on (*Project settings*, block *Calculation profile and options*); otherwise a dash.
 - **Float path** — the number of the float path, 1 for the most critical. Only filled if *Multiple float paths* is on; otherwise a dash.
-- **Recorded-dates source** — for a file with recorded dates: *Deviates* or *Partly unrecorded*. Only visible in the picker for such a file. On an unrecorded axis, *Not recorded* appears in the late-date and float columns.
+- **Recorded-dates source** — as long as the app shows the dates from the file: *Partly unrecorded* on a task for which the file does not contain everything. Only visible in the picker in that view. On an unrecorded axis, *Not recorded* appears in the late-date and float columns.
 
 See [Critical path and float](docs://uitleg-kritiek-pad).
 
