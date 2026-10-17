@@ -106,7 +106,7 @@ test('fasen-editor: splitsen, inzet typen, grens slepen, toepassen, undo en losl
     return [t.time.earlyStart, t.time.earlyFinish, t.splitGaps ?? null];
   }, taskId)).toEqual(['2026-09-07', '2026-09-11', null]);
   await expect(contourButton).toHaveAttribute('data-ops-assignment-contour', 'contoured');
-  await expect(row.locator('[data-ops-assignment-curve]')).toBeDisabled();
+  await expect(row.locator('[data-ops-assignment-curve] button')).toBeDisabled();
   await expect(page.locator('[data-ops-task-timephased]')).toHaveAttribute('data-ops-task-timephased', 'contoured');
 
   // Heropenen toont dezelfde twee fasen (run-length uit de opslagvorm); ongeldige invoer blokkeert

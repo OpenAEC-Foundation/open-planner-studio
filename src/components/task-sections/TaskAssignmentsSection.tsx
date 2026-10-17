@@ -1,8 +1,10 @@
-import { useMemo, useState, type KeyboardEvent } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import type { ResourceCurve } from '@/types/resource';
 import { UnitsInput } from '@/components/common/UnitsInput';
+import { Select, type SelectOption } from '@/components/common/Select';
+import { localizeDecimalPoint } from '@/utils/reportNumber';
 import { AlertTriangle, BarChart3, Lock, Trash2 } from 'lucide-react';
 import { RESOURCE_CURVES, CURVE_KEY } from './shared';
 import { isSummaryTask } from '@/utils/taskHierarchy';
@@ -26,72 +28,46 @@ const CONTOURED = '__contoured';
 const IMPORTED_CURVE = '__importedCurve';
 
 /**
- * Werkinvoer in uren die pas op Enter/blur commit — anders zou elke
- * toetsaanslag ("6" op weg naar "64") een eigen driehoekstap, undo-stap en contour-/venster-nazorg
- * afvuren. Ongeldig (≤ 0 of geen getal) ⇒ rode rand, geen commit, terug naar de getoonde waarde.
- */
-function WorkHoursInput({ value, onCommit, ariaLabel, title, className }: {
-  value: number; onCommit: (hours: number) => void; ariaLabel: string; title: string; className: string;
-}) {
-  const [draft, setDraft] = useState<string | null>(null);
-  const shown = draft ?? String(value);
-  const parsed = parseFloat(shown.replace(',', '.'));
-  const invalid = draft !== null && !(Number.isFinite(parsed) && parsed > 0);
-  const commit = () => {
-    if (draft !== null && Number.isFinite(parsed) && parsed > 0 && parsed !== value) onCommit(parsed);
-    setDraft(null);
-  };
-  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') { e.preventDefault(); commit(); (e.target as HTMLInputElement).blur(); }
-    if (e.key === 'Escape') { setDraft(null); (e.target as HTMLInputElement).blur(); }
-  };
-  return (
-    <input
-      type="number"
-      min="0"
-      step="any"
-      value={shown}
-      title={title}
-      aria-label={ariaLabel}
-      aria-invalid={invalid}
-      className={className}
-      onChange={e => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={onKeyDown}
-    />
-  );
-}
-
-/**
  * Keuzelijst "verplaats naar…" die zijn opties pas bouwt als de gebruiker hem opent (focus of
- * muisklik). Op een groot project zijn dat duizenden `<option>`s per toewijzingsrij; die bij elke
+ * muisklik). Op een groot project zijn dat duizenden opties per toewijzingsrij; die bij elke
  * render bouwen maakte selecteren en bewerken onbruikbaar (prestatiemeting rehab-2, 2026-10-07).
- * `mousedown` is een discreet React-event: de state-update rendert synchroon, dus de opties staan
- * er al als de browser de lijst openklapt.
+ * De eigen `Select` (nooit native, besluit eigenaar 2026-10-15) heeft geen open-event; de omhulling
+ * luistert daarom zelf naar `pointerdown` en focus. `pointerdown` is een discreet React-event: de
+ * state-update rendert synchroon, dus de opties staan er al als de klik de lijst openklapt.
+ * Hermeting 2026-10-17 (rehab-2.xer, 6978 taken, 40 taken met toewijzingen selecteren): lui
+ * mediaan 120–131 ms, met de lijst bij elke render 189 ms. De omhulling blijft dus.
+ * `data-ops-assignment-move-options` telt de gebouwde opties; de browsertest toetst daarop dat er
+ * vóór focus niets gebouwd is.
  */
 function MoveToSelect({ label, candidates, onMove }: {
   label: string; candidates: () => Task[]; onMove: (targetTaskId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const options: SelectOption[] = open
+    ? candidates().map(c => ({ value: c.id, label: c.wbsCode ? `${c.wbsCode} — ${c.name}` : c.name }))
+    : [];
   return (
-    <select
-      value=""
+    <div
+      className="min-w-0"
       title={label}
-      aria-label={label}
       onFocus={() => setOpen(true)}
-      onMouseDown={() => setOpen(true)}
-      onBlur={() => setOpen(false)}
-      onChange={e => { if (e.target.value) onMove(e.target.value); }}
-      className="input !text-small !px-1 !py-0.5 flex-1 min-w-0 !w-auto"
+      onPointerDown={() => setOpen(true)}
+      onBlur={e => {
+        // Het menu staat in een portal; React laat zijn events toch door deze omhulling bubbelen.
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false);
+      }}
       data-ops-assignment-move={open ? 'open' : 'closed'}
+      data-ops-assignment-move-options={options.length}
     >
-      <option value="">{label}</option>
-      {open && candidates().map(c => (
-        <option key={c.id} value={c.id}>
-          {c.wbsCode ? `${c.wbsCode} — ${c.name}` : c.name}
-        </option>
-      ))}
-    </select>
+      <Select
+        value=""
+        placeholder={label}
+        aria-label={label}
+        options={options}
+        onChange={v => { if (v) onMove(v); }}
+        className="ops-select__trigger--compact"
+      />
+    </div>
   );
 }
 
@@ -103,7 +79,7 @@ function MoveToSelect({ label, candidates, onMove }: {
  * per werkdag); een toewijzing mét opgeslagen contour toont dat in de curve-dropdown.
  */
 export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
-  const { t } = useTranslation('task');
+  const { t, i18n } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
   const tasks = useAppStore(s => s.tasks);
   const resources = useAppStore(s => s.resources);
@@ -189,105 +165,131 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
             const contoured = curveState === 'contoured';
             const importedCurve = curveState === 'imported';
             const curveValue = contoured ? CONTOURED : importedCurve ? IMPORTED_CURVE : curveState;
+            const curveOptions: SelectOption[] = [
+              ...(contoured ? [{ value: CONTOURED, label: t('properties.assignments.contoured') }] : []),
+              ...(importedCurve ? [{ value: IMPORTED_CURVE, label: t('properties.assignments.importedCurve'), disabled: true }] : []),
+              ...RESOURCE_CURVES.map(c => ({ value: c, label: tCommon(CURVE_KEY[c]) })),
+            ];
+            const isMaterial = res?.type === 'MATERIAL';
+            // Opgeslagen werk dat afwijkt van inzet × restduur krijgt een markering (zelfde regel
+            // als de planningssuite toetst). Hij staat naast de naam, niet in de veldenregel.
+            const deviation = showWork && !isMaterial
+              ? assignmentWorkDeviation(task, a.unitsPerDay, a.remainingWorkMinutes, hoursPerDay, contourOf.has(a.id))
+              : null;
             return (
-              // Twee regels — de naam op volle breedte (afkappen met title,
-              // nooit 0 px) met de verwijderknop, daaronder inzet, werk, curve en acties.
-              <div key={a.id} className="flex flex-col gap-0.5 !text-small" data-ops-assignment-row={a.id}>
+              // Drie regels, zodat in het smalste paneel niets wordt afgeknipt (eigenaar 2026-10-15):
+              // 1. naam (afkappen met title, nooit 0 px), ⚠ en verwijderknop;
+              // 2. inzet, werk en de curvegroep (curve + histogramknop). De curvegroep is zo breed als
+              //    het langste curvelabel (`fitWidestOption`); past hij niet meer naast inzet en werk,
+              //    dan schuift hij als geheel naar een eigen regel (`flex-wrap`);
+              // 3. "Verplaatsen naar…" over de volle breedte, alleen als er een kandidaat is.
+              <div key={a.id} className="flex flex-col gap-1 !text-small" data-ops-assignment-row={a.id}>
                 <div className="flex items-center gap-1 min-w-0">
                   <span className="flex-1 min-w-0 truncate font-medium" title={res?.name} data-ops-assignment-name>{res?.name || '?'}</span>
+                  {deviation && (
+                    <span
+                      className="shrink-0 inline-flex items-center"
+                      style={{ color: 'var(--theme-warning-text)' }}
+                      title={t('properties.assignments.workDeviatesHint', deviation)}
+                      aria-label={t('properties.assignments.workDeviates')}
+                      role="img"
+                      data-ops-assignment-work-deviates={`${deviation.stored}/${deviation.derived}`}
+                    >
+                      <AlertTriangle size={12} aria-hidden />
+                    </span>
+                  )}
                   <button onClick={() => unassignResource(a.id)} className="shrink-0 p-0.5 rounded" style={{ color: 'var(--error)' }} title={t('properties.assignments.remove')} aria-label={t('properties.assignments.remove')} data-ops-assignment-remove>
-                    <Trash2 size={10} />
+                    <Trash2 size={12} />
                   </button>
                 </div>
-                <div className="flex items-center gap-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-1 min-w-0" data-ops-assignment-fields>
                   <UnitsInput
                     value={a.unitsPerDay}
-                    title={`${t('properties.assignments.unitsPerDay')}: ${a.unitsPerDay}`}
+                    locale={i18n.language}
+                    commitOnBlur
+                    // De exacte opgeslagen waarde, met het decimaalteken van de taal.
+                    title={`${t('properties.assignments.unitsPerDay')}: ${localizeDecimalPoint(String(a.unitsPerDay), i18n.language)}`}
                     ariaLabel={`${t('properties.assignments.unitsPerDay')} — ${res?.name ?? a.resourceId}`}
                     onCommit={n => updateAssignment(a.id, { unitsPerDay: n })}
-                    className="input !text-small !px-1 !py-0.5 !w-[calc(var(--text-small)*5)] shrink-0 text-right"
+                    className="input !text-small !px-1 !py-0.5 !h-6 !w-[calc(var(--text-small)*5)] shrink-0 text-right"
                   />
-                  {showWork && (res?.type === 'MATERIAL' ? (
+                  {showWork && (isMaterial ? (
                     <span className="w-[calc(var(--text-small)*5)] shrink-0 text-right text-text-secondary" data-ops-assignment-work="material">—</span>
                   ) : (
-                    <span className="shrink-0 flex items-center gap-0.5" data-ops-assignment-work={a.remainingWorkMinutes !== undefined ? 'stored' : 'derived'}>
-                      <WorkHoursInput
+                    <span className="shrink-0 flex items-center" data-ops-assignment-work={a.remainingWorkMinutes !== undefined ? 'stored' : 'derived'}>
+                      {/* Werk in uren: zelfde veld als de inzet. Het commit pas op Enter/blur —
+                          anders zou elke toetsaanslag ("6" op weg naar "64") een eigen
+                          driehoekstap, undo-stap en contour-nazorg afvuren. Opslag is in hele
+                          minuten: wat afrondt tot 0 minuten ("0,004" uur) is ongeldig, niet een
+                          stille weigering in `setAssignmentWork`. */}
+                      <UnitsInput
                         value={remainingHoursOf(a.id, a.unitsPerDay, a.remainingWorkMinutes)}
                         title={t('properties.assignments.workHint')}
                         ariaLabel={`${t('properties.assignments.work')} — ${res?.name ?? a.resourceId}`}
                         onCommit={hours => setAssignmentWork(a.id, Math.round(hours * 60))}
-                        className="input !text-small !px-1 !py-0.5 !w-[calc(var(--text-small)*5)] text-right"
+                        accepts={hours => Math.round(hours * 60) >= 1}
+                        commitOnBlur
+                        className="input !text-small !px-1 !py-0.5 !h-6 !w-[calc(var(--text-small)*5)] text-right"
+                        locale={i18n.language}
                       />
-                      {(() => {
-                        // Opgeslagen werk dat afwijkt van inzet × restduur krijgt een markering
-                        // (zelfde regel als de planningssuite toetst).
-                        const deviation = assignmentWorkDeviation(task, a.unitsPerDay, a.remainingWorkMinutes, hoursPerDay, contourOf.has(a.id));
-                        return deviation && (
-                          <span
-                            className="shrink-0 inline-flex items-center"
-                            style={{ color: 'var(--theme-warning-text)' }}
-                            title={t('properties.assignments.workDeviatesHint', deviation)}
-                            aria-label={t('properties.assignments.workDeviates')}
-                            role="img"
-                            data-ops-assignment-work-deviates={`${deviation.stored}/${deviation.derived}`}
-                          >
-                            <AlertTriangle size={11} aria-hidden />
-                          </span>
-                        );
-                      })()}
                     </span>
                   ))}
-                  <select
-                    value={curveValue}
-                    disabled={contoured}
-                    title={contoured ? t('properties.assignments.contouredHint') : t('properties.assignments.curve')}
-                    aria-label={t('properties.assignments.curve')}
-                    onChange={e => {
-                      if (e.target.value === CONTOURED || e.target.value === IMPORTED_CURVE) return;
-                      updateAssignment(a.id, { curve: e.target.value as ResourceCurve });
-                    }}
-                    className="input !text-small !px-1 !py-0.5 flex-1 min-w-0 !w-auto disabled:opacity-60"
-                    data-ops-assignment-curve
-                  >
-                    {contoured && <option value={CONTOURED}>{t('properties.assignments.contoured')}</option>}
-                    {importedCurve && <option value={IMPORTED_CURVE} disabled>{t('properties.assignments.importedCurve')}</option>}
-                    {RESOURCE_CURVES.map(c => (
-                      <option key={c} value={c}>{tCommon(CURVE_KEY[c])}</option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => setContourAssignmentId(a.id)}
-                    className="shrink-0 p-0.5 rounded"
-                    style={{ color: contoured ? 'var(--theme-accent)' : undefined }}
-                    title={t('properties.assignments.contour')}
-                    aria-label={t('properties.assignments.contour')}
-                    data-ops-assignment-contour={contoured ? 'contoured' : 'formula'}
-                  >
-                    <BarChart3 size={10} />
-                  </button>
-                  {canMove && (
-                    <MoveToSelect
-                      label={t('properties.assignments.moveTo')}
-                      candidates={() => moveLookup.list(taskId, a.resourceId)}
-                      onMove={target => moveAssignment(a.id, target)}
-                    />
-                  )}
+                  {/* Bewust GEEN `shrink-0` op de groep of de omhulling: bij een smal paneel met een
+                      grote tekstschaal (uk/ru/pl op 125 %) mag de groep dan krimpen, en de trigger
+                      krimpt met een ellips in plaats van buiten het paneel te vallen. */}
+                  <div className="flex items-center gap-1" data-ops-assignment-curve-group>
+                    <div title={contoured ? t('properties.assignments.contouredHint') : t('properties.assignments.curve')} data-ops-assignment-curve={curveValue}>
+                      <Select
+                        value={curveValue}
+                        disabled={contoured}
+                        aria-label={t('properties.assignments.curve')}
+                        options={curveOptions}
+                        fitWidestOption
+                        onChange={v => {
+                          // Dezelfde keuze opnieuw komt hier niet: `Select` roept zonder
+                          // `onReselect` geen `onChange` aan. Belangrijk, want `updateAssignment` met
+                          // `curve` wist de geïmporteerde exacte curve (`curveValues`, P6/MSPDI); de
+                          // spec "dezelfde curve opnieuw" bewaakt dat.
+                          if (v === CONTOURED || v === IMPORTED_CURVE) return;
+                          updateAssignment(a.id, { curve: v as ResourceCurve });
+                        }}
+                        className="ops-select__trigger--compact"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setContourAssignmentId(a.id)}
+                      className="shrink-0 inline-flex items-center justify-center h-6 w-6 rounded hover:bg-surface-hover"
+                      style={{ color: contoured ? 'var(--theme-accent)' : undefined }}
+                      title={t('properties.assignments.contour')}
+                      aria-label={t('properties.assignments.contour')}
+                      data-ops-assignment-contour={contoured ? 'contoured' : 'formula'}
+                    >
+                      <BarChart3 size={12} />
+                    </button>
+                  </div>
                 </div>
+                {canMove && (
+                  <MoveToSelect
+                    label={t('properties.assignments.moveTo')}
+                    candidates={() => moveLookup.list(taskId, a.resourceId)}
+                    onMove={target => moveAssignment(a.id, target)}
+                  />
+                )}
               </div>
             );
           })}
           {availableResources.length > 0 ? (
-            <select
-              value=""
-              onChange={e => { if (e.target.value) assignResource(taskId, e.target.value, 1); }}
-              className="input !text-small !leading-4 !px-2.5 !py-1.5"
-            >
-              <option value="">{t('properties.assignments.add')}</option>
-              {availableResources.map(r => (
-                <option key={r.id} value={r.id}>{r.name || r.id}</option>
-              ))}
-            </select>
+            <div data-ops-assignment-add>
+              <Select
+                value=""
+                placeholder={t('properties.assignments.add')}
+                aria-label={t('properties.assignments.add')}
+                options={availableResources.map(r => ({ value: r.id, label: r.name || r.id }))}
+                onChange={v => { if (v) assignResource(taskId, v, 1); }}
+                className="!h-9 !py-0 !px-2.5 !text-small !leading-4"
+              />
+            </div>
           ) : (
             <span className="!text-small text-text-secondary">
               {resources.length === 0

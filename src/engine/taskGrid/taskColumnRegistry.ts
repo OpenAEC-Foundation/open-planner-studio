@@ -52,6 +52,7 @@ import {
 import { isStrictIsoDateTime } from '@/utils/dateUtils';
 import { isFiniteNumber } from '@/utils/guards';
 import { isManuallyScheduled } from '@/utils/manualScheduling';
+import { formatReportNumber } from '@/utils/reportNumber';
 
 export const TASK_COLUMN_CATEGORY_ORDER: readonly TaskColumnCategory[] = [
   'task', 'planning', 'constraints', 'relations', 'resources',
@@ -520,10 +521,10 @@ function assignmentWorkText(task: Task, ctx: TaskColumnContext, field: Assignmen
 
 /** Het begrote tempo naast een P6-resttempo (`plannedUnitsPerDay`); afwezig ⇒ niet getoond (dan is
  *  het begrote tempo de inzet zelf). Zelfde opmaak als de inzetkolom (`assignment.unitsPerDay`):
- *  `Naam: getal`, zonder afronding. */
+ *  `Naam: getal`, op hooguit twee decimalen in de notatie van de app; de opslag blijft exact. */
 function assignmentPlannedUnitsText(task: Task, ctx: TaskColumnContext): string {
   const values = assignments(task, ctx).flatMap(assignment => assignment.plannedUnitsPerDay !== undefined
-    ? [`${assignmentLabel(assignment, ctx)}: ${assignment.plannedUnitsPerDay}`]
+    ? [`${assignmentLabel(assignment, ctx)}: ${formatReportNumber(assignment.plannedUnitsPerDay, ctx.numberLocale)}`]
     : []);
   return values.length > 0 ? values.join('; ') : '—';
 }
@@ -1062,7 +1063,7 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
       readOnly: (task, ctx) => task.isMilestone || task.childIds.length > 0 || assignments(task, ctx).length === 0,
       format: (value, _task, ctx) => Array.isArray(value) && value.length ? value.map(raw => {
         const item = raw as { resourceId: string; unitsPerDay: number };
-        return `${ctx.resourcesById.get(item.resourceId)?.name ?? item.resourceId}: ${item.unitsPerDay}`;
+        return `${ctx.resourcesById.get(item.resourceId)?.name ?? item.resourceId}: ${formatReportNumber(item.unitsPerDay, ctx.numberLocale)}`;
       }).join('; ') : '—',
       copy: (task, ctx) => structuredClipboardText(
         assignments(task, ctx).map(item => `${assignmentLabel(item, ctx)}: ${item.unitsPerDay}`).join('; '),

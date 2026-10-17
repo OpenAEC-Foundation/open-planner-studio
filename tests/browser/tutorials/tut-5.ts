@@ -142,7 +142,7 @@ export const TUTORIAL_5: TutorialScript = {
     {
       id: 'tweede-stukadoor',
       do: [
-        { click: { role: 'spinbutton', name: l('Eenh./dag — Stukadoor', 'Units/day — Plasterer'), within: props }, double: true },
+        { click: { role: 'textbox', name: l('Eenh./dag — Stukadoor', 'Units/day — Plasterer'), within: props }, double: true },
         { type: '2' },
         { press: 'Enter' },
       ],
