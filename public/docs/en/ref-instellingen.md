@@ -46,7 +46,7 @@ A change takes effect immediately. There is no *Apply* button and no *Cancel*.
 
 ## Planning tab
 
-**Enable construction mode** — construction-oriented starting values for new projects. Default: on. Effect: on gives a new project the calendar *Bouwkalender NL* with the Dutch public holidays, lets you choose a builders' holiday when generating holidays, offers the phasing templates *Residential construction* and *Commercial / renovation* and gives new tasks the task type *Construction*. Off gives the calendar *Standaardkalender* without holidays, only the template *Empty* and the task type *Other*. A new task under a parent task that has a task type takes over that task type first; *Construction* or *Other* applies after that. Existing tasks and calendars do not change. Where: *Planning*.
+**Enable construction mode** — construction-oriented starting values for new projects. Default: on. Effect: on gives a new project the calendar *Bouwkalender NL* with the Dutch public holidays, lets you choose a builders' holiday when generating holidays, offers the phasing templates *Residential construction* and *Commercial / renovation* and gives new tasks the work category *Construction*. Off gives the calendar *Standaardkalender* without holidays, only the template *Empty* and the work category *Other*. A new task under a parent task that has a work category takes over that work category first; *Construction* or *Other* applies after that. Existing tasks and calendars do not change. Where: *Planning*.
 
 **Enable hour planning** — planning in working hours next to working days. Default: off. Effect: the time scale *Hour* appears under *View › Time Scale*, in the *Calendars* window an ordinary calendar can get working-time blocks (the *Working times* block; a calendar that already has blocks always shows it), and the *New project* window gets the choices *Shift* and *Default unit for new tasks*. *Project settings* also gets the choice *Default unit for new tasks*. Off, the app works day-granular. Tasks that are already in hours stay and are included in the calculation; you can only edit their duration once you turn hour planning on. Where: *Planning*, under *Hour planning*. See [Turning on hour planning](docs://howto-urenplanning-aanzetten).
 
@@ -56,7 +56,7 @@ A change takes effect immediately. There is no *Apply* button and no *Cancel*.
 
 **Calculate automatically** — recalculates the schedule as soon as it is out of date. Default: off. Effect: off means you press *Calculate* (F5) yourself. On makes the app recalculate the schedule within a fraction of a second after a change to tasks, relations or calendar. During a drag gesture or while you type in a field, the app waits and calculates once when you are done. After a failed calculation it only calculates again once you have changed something. Where: *Planning*, under *Calculation*.
 
-**Show work rules and work** — the work rule and work fields in the app. Default: off. Effect: on shows the *Work rule* field on a task and the work column for the assignments, and makes the table column *Work rule* available. Off hides them; duration and units stay and the work follows. A project that already contains work rule or work data, for example from an `.mpp` or `.xer` file, always shows them, even if the setting is off. Where: *Planning*, under *Calculation*. See [Work rules: duration, units and work](docs://uitleg-werkregels).
+**Use task types** — the task type and work fields in the app. Default: off. Effect: on shows the *Task type* field on a task and the work column for the assignments, and makes the table column *Task type* available. Off hides them; duration and units stay and the work follows. A project that already contains task type or work data, for example from an `.mpp` or `.xer` file, always shows them, even if the setting is off. Where: *Planning*, under *Calculation*. See [Task types: duration, units and work](docs://uitleg-werkregels).
 
 ## Advanced tab
 
@@ -117,5 +117,5 @@ The app also keeps these choices on this device, but you set them at the item it
 - [Calculation options and conventions](docs://ref-rekenopties-en-conventies): the options that belong to a project.
 - [Turning on hour planning](docs://howto-urenplanning-aanzetten): the steps for the switch *Enable hour planning*.
 - [Days and hours](docs://uitleg-dagen-en-uren): how the app counts days and hours.
-- [Work rules: duration, units and work](docs://uitleg-werkregels): what *Show work rules and work* makes visible.
+- [Task types: duration, units and work](docs://uitleg-werkregels): what *Use task types* makes visible.
 - [Keyboard shortcuts](docs://ref-sneltoetsen): all keys of the app, including those for zooming and scrolling.

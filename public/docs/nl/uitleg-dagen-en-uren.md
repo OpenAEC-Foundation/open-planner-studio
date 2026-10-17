@@ -91,7 +91,7 @@ In tutorial 4, over urenplanning, plan je zelf een kraaninzet in uren.
 
 **"8 uur is 1 dag."** Alleen als de kalender dagen van 8 uur heeft. Op de kalender met de vrije vrijdagmiddag is 5 dagen 37 uur, geen 40.
 
-**"Als ik meer uren per dag instel, is mijn dagtaak sneller klaar."** Nee. Een dagtaak telt hele werkdagen. De uren per dag veranderen alleen wat een dag in uren waard is, bijvoorbeeld bij de weergave en bij een lag in uren. Alleen bij een taak met resources en de werkregel *Vast werk* of *Vaste inzet* verandert de duur mee, omdat het werk gelijk blijft: 40 uur werk is 5 dagen bij 8 uur per dag en 7 dagen bij 6 uur per dag.
+**"Als ik meer uren per dag instel, is mijn dagtaak sneller klaar."** Nee. Een dagtaak telt hele werkdagen. De uren per dag veranderen alleen wat een dag in uren waard is, bijvoorbeeld bij de weergave en bij een lag in uren. Alleen bij een taak met resources en het taaktype *Vast werk* of *Vaste inzet* verandert de duur mee, omdat het werk gelijk blijft: 40 uur werk is 5 dagen bij 8 uur per dag en 7 dagen bij 6 uur per dag.
 
 **"Een urentaak van 8 uur duurt één dag."** Alleen als hij aan het begin van de dag start. Begint hij later, zoals *Stelwerk* op dinsdag 11:00, dan loopt hij door in de volgende dag.
 

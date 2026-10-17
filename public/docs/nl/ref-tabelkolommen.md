@@ -6,7 +6,7 @@ De takentabel heeft 86 vaste kolommen, plus een kolom per activity code en eigen
 
 De takentabel naast de Gantt en de tabel op het tabblad *Tabel* hebben elk hun eigen kolomkeuze. Het plusje rechts in de kop opent de kolomkiezer (venstertitel *Kolom kiezen*); op *Tabel* kan het ook met *Tabel › Kolommen › Kolommen…*. In de kiezer staan de kolommen per categorie: *Taak*, *Planning*, *Beperkingen*, *Relaties*, *Resources*, *Voortgang*, *Berekend*, *Baseline*, *Aangepast* en *Technisch*. Je zoekt op naam, en bovenaan staat *Laatst gebruikt*. *Herstel standaard* zet de standaardkolommen terug.
 
-Standaard toont de tabel naast de Gantt *WBS*, *Taaknaam* en *Duur*. De tabel op het tabblad *Tabel* toont *WBS*, *Taaknaam*, *Duur*, *Start*, *Einde*, *Taaktype*, *Kritiek*, *Totale speling* en *Voortgang*, plus een kolom per activity code en eigen veld van het project.
+Standaard toont de tabel naast de Gantt *WBS*, *Taaknaam* en *Duur*. De tabel op het tabblad *Tabel* toont *WBS*, *Taaknaam*, *Duur*, *Start*, *Einde*, *Werksoort*, *Kritiek*, *Totale speling* en *Voortgang*, plus een kolom per activity code en eigen veld van het project.
 
 ## Hoe je waarden leest en bewerkt
 
@@ -21,8 +21,8 @@ Standaard toont de tabel naast de Gantt *WBS*, *Taaknaam* en *Duur*. De tabel op
 - **Taaknaam** — de naam van de taak. Bewerkbaar; verplicht. Een samenvattingstaak staat vet, met een lichte achtergrondtint op de naamcel; een mijlpaal staat vet in de mijlpaalkleur (dezelfde kleurfamilie als de mijlpaal in de Gantt). Een gewone taak blijft ongewijzigd. Dat is alleen opmaak: selecteren, slepen en bewerken werken hetzelfde.
 - **Beschrijving** — de beschrijving. Bewerkbaar; vrije tekst.
 - **WBS** — de WBS-code. Bewerkbaar en verplicht, maar alleen-lezen zolang *WBS auto* aan staat.
-- **Taaktype** — het taaktype (*Bouw*, *Installatie*, *Sloop*, *Logistiek*, *Keuring/Inspectie*, *Verplaatsing*, *Renovatie*, *Onderhoud* of *Overig*). Bewerkbaar met een keuzelijst.
-- **Eigen taaktype** — het eigen taaktype uit het project, of een streepje. Bewerkbaar met een keuzelijst van de eigen typen van het project.
+- **Werksoort** — de werksoort (*Bouw*, *Installatie*, *Sloop*, *Logistiek*, *Keuring/Inspectie*, *Verplaatsing*, *Renovatie*, *Onderhoud* of *Overig*). Bewerkbaar met een keuzelijst.
+- **Eigen werksoort** — de eigen werksoort uit het project, of een streepje. Bewerkbaar met een keuzelijst van de eigen werksoorten van het project.
 - **Kleur** — de bewaarde kleur van de taak, als kleurcode zoals `#1a73e8`. Bewerkbaar met een kleurkiezer. Hij wordt in het IFC-bestand bewaard, maar geen balk of rapport gebruikt hem; balkkleuren stel je in bij *Beeld › Baselines & voortgang › Balkkleuren*.
 - **Aantekeningen** — de aantekeningen als `✓ tekst; ○ tekst`. Bewerkbaar zolang er hoogstens één aantekening is (je bewerkt dan de tekst ervan); bij meer aantekeningen alleen-lezen.
 
@@ -33,7 +33,7 @@ Standaard toont de tabel naast de Gantt *WBS*, *Taaknaam* en *Duur*. De tabel op
 - **Verplichte mijlpaal** — de vlag *Verplicht (contractueel)*. Alleen bij een mijlpaal te bewerken.
 - **Nivelleerprioriteit** — een geheel getal van 0 tot 1000, standaard 500. Bewerkbaar. 1000 zet de taak vast voor nivelleren.
 - **Onderbrekingen** — het aantal onderbrekingen, als `Onderbrekingen: 2`, of een streepje. Alleen-lezen; bewerken doe je in het paneel *Eigenschappen*.
-- **Werkregel** — de werkregel van de taak; leeg is de projectstandaard. Bewerkbaar met een keuzelijst, maar leeg en alleen-lezen bij een mijlpaal, samenvattingstaak of hammock. Alleen zichtbaar in de kiezer als de werkregels zichtbaar zijn (*Toon werkregels en werk*, of het bestand draagt werkregels).
+- **Taaktype** — het taaktype van de taak; leeg is de projectstandaard. Bewerkbaar met een keuzelijst, maar leeg en alleen-lezen bij een mijlpaal, samenvattingstaak of hammock. Alleen zichtbaar in de kiezer als de taaktypes zichtbaar zijn (*Taaktypes gebruiken*, of het bestand draagt taaktypes).
 - **Hammock (afgeleide duur)** — of de taak een hammock is. Bewerkbaar, behalve bij een mijlpaal of samenvattingstaak.
 - **Kalender** — de id van de eigen kalender van de taak; leeg (—) is de projectkalender. Je typt of kiest een id uit de suggesties; een onbekende id wordt geweigerd. Let op: de cel toont nu de interne id in plaats van de naam; kies een kalender liever in het paneel *Eigenschappen*.
 - **Duurtype** — *Werktijd* (de duur telt in werkdagen of werkuren van de kalender) of *Verstreken tijd* (de duur telt in doorlopende kloktijd, zonder kalender). Bewerkbaar.
@@ -69,7 +69,7 @@ Standaard toont de tabel naast de Gantt *WBS*, *Taaknaam* en *Duur*. De tabel op
 - **Toewijzingscurve** — de curve per resource, als `Naam: Uniform`. Bewerkbaar bij een taak met toewijzingen.
 - **Start werkvenster** en **Einde werkvenster** — het werkvenster per resource, uit een geïmporteerd bestand, als `Naam: datum`. Alleen-lezen.
 - **Begroot werk (uren)** en **Verricht werk (uren)** — het begrote en verrichte werk per resource in uren, als `Naam: 12`, uit een geïmporteerd bestand. Alleen-lezen.
-- **Resterend werk (uren)** — het resterende werk per resource in uren, als `Naam: 6`: het opgeslagen werk, anders restduur × inzet. Bewerkbaar bij een taak met toewijzingen waarop een werkregel werkt. Alleen zichtbaar in de kiezer als de werkregels zichtbaar zijn.
+- **Resterend werk (uren)** — het resterende werk per resource in uren, als `Naam: 6`: het opgeslagen werk, anders restduur × inzet. Bewerkbaar bij een taak met toewijzingen waarop een taaktype werkt. Alleen zichtbaar in de kiezer als de taaktypes zichtbaar zijn.
 
 ## Voortgang
 

@@ -260,6 +260,15 @@ const lagsByLink = (r: ImportResult) => {
   eq('5g spatie vóór een quote-veld: duur daarna klopt', sp.tasks.map(t => t.time.scheduleDuration), [5, 3]);
 }
 
+// 6. (hernoeming 2026-10-17) De UI noemt de IFC-indeling nu *Werksoort* / *Work category*; een
+//    handgeschreven CSV met die kop moet dezelfde kolom vullen als `Task Type`.
+{
+  for (const head of ['Task Type', 'Werksoort', 'Work category', 'taaktype']) {
+    const r = readCSV(csvOf(['WBS', 'Name', head], [['1', 'A', 'INSTALLATION']]));
+    eq(`6 kop "${head}" ⇒ werksoort INSTALLATION`, r.tasks[0]?.taskType, 'INSTALLATION');
+  }
+}
+
 if (diffs.length === 0) {
   console.log(`OK  csv-import-check: alle checks groen (${checks})`);
   process.exit(0);

@@ -1720,6 +1720,12 @@
       "uppgiftstyper",
       "uppgiftstyperna"
     ],
+    "avoid": [
+      "arbetsregel",
+      "arbetsregeln",
+      "arbetsregler",
+      "arbetsreglerna"
+    ],
     "source": "tbx",
     "status": "tbx"
   },
@@ -1870,17 +1876,6 @@
     "forms": [
       "arbetstider",
       "arbetstiderna"
-    ],
-    "source": "model",
-    "status": "model"
-  },
-  "work-rule": {
-    "term": "arbetsregel",
-    "forms": [
-      "arbetsregel",
-      "arbetsregeln",
-      "arbetsregler",
-      "arbetsreglerna"
     ],
     "source": "model",
     "status": "model"

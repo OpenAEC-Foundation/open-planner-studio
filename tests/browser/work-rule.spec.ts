@@ -294,7 +294,7 @@ test('taakdialoog: Annuleren draait werkregel en werk terug, Opslaan is één un
   expect([st.workRule, st.units, st.work, name]).toEqual([undefined, 1, undefined, 'Metselwerk']);
 });
 
-// Gebruikstest #170, E5/G6: de instelling heet "Toon werkregels en werk", staat onder Berekenen
+// Gebruikstest #170, E5/G6: de instelling heet "Taaktypes gebruiken" (eigenaar 2026-10-17), staat onder Berekenen
 // (geen eigen sectiekop) en haar toelichting is één zin in een gekleurd blok (accentbalk), geen
 // los bijschrift. In het paneel staat sinds 2026-10-15 GEEN blok meer onder de werkregel: de uitleg
 // zit achter het i-icoon (zie de test hieronder).
@@ -310,7 +310,7 @@ test('instelling en paneel: geen blok onder de werkregel, instelling onder Berek
   await dlg.locator('.settings-tab').filter({ hasText: /^Planning$/ }).click();
   const box = dlg.locator('[data-ops-setting-show-task-types]');
   const row = box.locator('xpath=ancestor::label[1]');
-  await expect(row).toHaveText(/^(Show work rules and work|Toon werkregels en werk)$/);
+  await expect(row).toHaveText(/^(Use task types|Taaktypes gebruiken)$/);
   const section = row.locator('xpath=ancestor::div[contains(@class,"settings-section")][1]');
   await expect(section.locator('> h3')).toHaveText(/^(Calculation|Berekenen)$/);
   const settingNote = section.locator('[data-ops-setting-show-task-types-note]');
@@ -320,9 +320,10 @@ test('instelling en paneel: geen blok onder de werkregel, instelling onder Berek
   expect(await row.evaluate(el => el.nextElementSibling?.classList.contains('scrollzoom-hint') ?? false)).toBe(false);
 });
 
-// Gebruikstest #170, G2: "taaktype" betekende drie dingen. De werkregelkolom heet Werkregel en is
-// op die naam te vinden; de bewaarde MS Project-waarde heet "MS Project-taaktype (import)".
-test('kolomkiezer: zoeken op werkregel vindt de kolom; de MS Project-kolom heet "(import)"', async ({ page, ops: _ops }) => {
+// Gebruikstest #170, G2: "taaktype" betekende drie dingen. Sinds de hernoeming (eigenaar 2026-10-17)
+// heet de werkregelkolom Taaktype en de IFC-soort Werksoort; beide zijn op die naam te vinden. De
+// bewaarde MS Project-waarde heet "MS Project-taaktype (import)".
+test('kolomkiezer: zoeken op taaktype vindt de kolom; werksoort apart; de MS Project-kolom heet "(import)"', async ({ page, ops: _ops }) => {
   await seedAssignedTask(page);
   await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
   const shell = page.locator('[data-task-grid-surface-id="full-task-grid"] .task-grid-shell');
@@ -331,10 +332,11 @@ test('kolomkiezer: zoeken op werkregel vindt de kolom; de MS Project-kolom heet 
   await expect(search).toBeVisible();
   const nl = (await page.evaluate(() => document.documentElement.lang)).startsWith('nl');
   const results = page.locator('section[aria-label]').filter({ has: page.locator('.task-grid-column-chooser-section-label') }).last();
-  await search.fill(nl ? 'werkregel' : 'work rule');
-  await expect(results.getByText(nl ? 'Werkregel' : 'Work rule', { exact: true })).toBeVisible();
   await search.fill(nl ? 'taaktype' : 'task type');
+  await expect(results.getByText(nl ? 'Taaktype' : 'Task type', { exact: true })).toBeVisible();
   await expect(results.getByText(nl ? 'MS Project-taaktype (import)' : 'MS Project task type (import)', { exact: true })).toBeVisible();
+  await search.fill(nl ? 'werksoort' : 'work category');
+  await expect(results.getByText(nl ? 'Werksoort' : 'Work category', { exact: true })).toBeVisible();
 });
 
 // E7 (orkestratorbesluit 25-09, gebruikstest #170 G4): opgeslagen werk dat afwijkt van inzet × resterende duur

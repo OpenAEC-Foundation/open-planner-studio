@@ -91,7 +91,7 @@ In tutorial 4, on hour planning, you plan a crane job in hours yourself.
 
 **"8 hours is 1 day."** Only if the calendar has days of 8 hours. On the calendar with the free Friday afternoon, 5 days is 37 hours, not 40.
 
-**"If I set more hours per day, my day task finishes sooner."** No. A day task counts whole work days. The hours per day only change what a day is worth in hours, for example in the display and for a lag in hours. Only for a task with resources and the work rule *Fixed work* or *Fixed units* does the duration change with it, because the work stays the same: 40 hours of work is 5 days at 8 hours per day and 7 days at 6 hours per day.
+**"If I set more hours per day, my day task finishes sooner."** No. A day task counts whole work days. The hours per day only change what a day is worth in hours, for example in the display and for a lag in hours. Only for a task with resources and the task type *Fixed work* or *Fixed units* does the duration change with it, because the work stays the same: 40 hours of work is 5 days at 8 hours per day and 7 days at 6 hours per day.
 
 **"A task of 8 hours lasts one day."** Only if it starts at the beginning of the day. If it starts later, like *Adjust elements* on Tuesday at 11:00, it runs on into the next day.
 

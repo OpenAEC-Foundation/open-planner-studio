@@ -32,7 +32,7 @@ The schedule as a bar chart, with a table on the left and a timeline on the righ
 
 **Font size:** — size of text and table in the report. Choose from 90%, 100%, 110% and 125%. Default: 100%. Effect: with a larger font, text, rows and table grow and the timeline loses width. Independent of *Text size* in the settings.
 
-**Bar colors:** — what the colour of a bar depends on. Choose from *Critical path*, *Per task — automatic* and *By category*, with a drop-down *Category field* for *By category*. Default: *Critical path*. Effect: this is the same choice as *Bar colors* on the *View* tab: if you change it here, the Gantt on screen changes with it. If the chosen field does not exist in this project, it says *This field does not exist in this project. Task type is used temporarily.*
+**Bar colors:** — what the colour of a bar depends on. Choose from *Critical path*, *Per task — automatic* and *By category*, with a drop-down *Category field* for *By category*. Default: *Critical path*. Effect: this is the same choice as *Bar colors* on the *View* tab: if you change it here, the Gantt on screen changes with it. If the chosen field does not exist in this project, it says *This field does not exist in this project. Work category is used temporarily.*
 
 **Status line:** — a line at the status date. Choose from *None*, *Status date line* and *Progress line*. Default: *None*. Effect: *Status date line* draws a line at the status date; *Progress line* draws the zigzag line that bulges to the progress of each task. If the project has no status date, it says *Set a status date first* and the report draws nothing.
 

@@ -55,7 +55,7 @@ Check names and schemas in `tools/list`; never guess them.
    anything.
 5. **Constraints and deadlines.** Only for a hard external date the user gave you (see below).
 6. **Resources.** `planner_manage_resources`, `planner_manage_assignments`; read with
-   `planner_list_resources` and `planner_get_resource_histogram`. Under the work rule `FIXED_WORK` or
+   `planner_list_resources` and `planner_get_resource_histogram`. Under the task type `FIXED_WORK` or
    `FIXED_RATE` (`workRule` on the task, or `defaultWorkRule` on the project), adding or removing a
    resource or changing `unitsPerDay` changes the task duration. Level only once logic and durations
    are in place, and only on request: `planner_level_resources` with `dryRun: true` first, then for

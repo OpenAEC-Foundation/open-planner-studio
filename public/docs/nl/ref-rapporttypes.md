@@ -32,7 +32,7 @@ De planning als balkenplan, met een tabel links en een tijdlijn rechts, over mee
 
 **Lettergrootte:** — grootte van tekst en tabel in het rapport. Keuze uit 90%, 100%, 110% en 125%. Standaard: 100%. Effect: bij een grotere letter groeien tekst, rijen en tabel en levert de tijdlijn breedte in. Los van *Tekengrootte* in de instellingen.
 
-**Balkkleuren:** — waar de kleur van een balk van afhangt. Keuze uit *Kritiek pad*, *Per taak — automatisch* en *Op categorie*, met bij *Op categorie* een keuzelijst *Categorieveld*. Standaard: *Kritiek pad*. Effect: dit is dezelfde keuze als *Balkkleuren* op het tabblad *Beeld*: verander je hem hier, dan verandert de Gantt op het scherm mee. Bestaat het gekozen veld niet in dit project, dan staat er *Dit veld bestaat niet in dit project. Taaktype wordt tijdelijk gebruikt.*
+**Balkkleuren:** — waar de kleur van een balk van afhangt. Keuze uit *Kritiek pad*, *Per taak — automatisch* en *Op categorie*, met bij *Op categorie* een keuzelijst *Categorieveld*. Standaard: *Kritiek pad*. Effect: dit is dezelfde keuze als *Balkkleuren* op het tabblad *Beeld*: verander je hem hier, dan verandert de Gantt op het scherm mee. Bestaat het gekozen veld niet in dit project, dan staat er *Dit veld bestaat niet in dit project. Werksoort wordt tijdelijk gebruikt.*
 
 **Statuslijn:** — een lijn op de statusdatum. Keuze uit *Geen*, *Statusdatumlijn* en *Voortgangslijn*. Standaard: *Geen*. Effect: *Statusdatumlijn* trekt een lijn op de statusdatum; *Voortgangslijn* trekt de zigzaglijn die per taak naar de voortgang uitstulpt. Heeft het project geen statusdatum, dan staat er *Stel eerst een statusdatum in* en tekent het rapport niets.
 

@@ -1734,6 +1734,13 @@
       "görev türleri",
       "görev türlerini"
     ],
+    "avoid": [
+      "iş kuralı",
+      "iş kuralını",
+      "iş kuralına",
+      "iş kuralları",
+      "iş kurallarını"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1910,18 +1917,6 @@
       "çalışma saatlerini",
       "çalışma saatlerinin",
       "çalışma saati"
-    ],
-    "source": "existing-ui",
-    "status": "existing-ui"
-  },
-  "work-rule": {
-    "term": "iş kuralı",
-    "forms": [
-      "iş kuralı",
-      "iş kuralını",
-      "iş kuralına",
-      "iş kuralları",
-      "iş kurallarını"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

@@ -132,7 +132,7 @@
   "barColorMode_auto": "Per task — automatic",
   "barColorMode_category": "By category",
   "barColorFieldLabel": "Category field",
-  "barColorMissingField": "This field does not exist in this project. Task type is used temporarily.",
+  "barColorMissingField": "This field does not exist in this project. Work category is used temporarily.",
   "statusLineLabel": "Status line:",
   "statusLine_none": "None",
   "statusLine_statusDate": "Status date line",

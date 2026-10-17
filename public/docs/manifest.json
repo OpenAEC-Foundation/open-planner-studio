@@ -212,8 +212,8 @@
     {
       "id": "howto-werkregel-kiezen",
       "title": {
-        "nl": "Werkregel kiezen",
-        "en": "Choosing a work rule"
+        "nl": "Taaktype kiezen",
+        "en": "Choosing a task type"
       },
       "kind": "howto"
     },
@@ -228,8 +228,8 @@
     {
       "id": "uitleg-werkregels",
       "title": {
-        "nl": "Werkregels: duur, inzet en werk",
-        "en": "Work rules: duration, units and work"
+        "nl": "Taaktypes: duur, inzet en werk",
+        "en": "Task types: duration, units and work"
       },
       "kind": "uitleg"
     },

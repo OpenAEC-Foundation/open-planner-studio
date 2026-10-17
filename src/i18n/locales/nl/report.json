@@ -132,7 +132,7 @@
   "barColorMode_auto": "Per taak — automatisch",
   "barColorMode_category": "Op categorie",
   "barColorFieldLabel": "Categorieveld",
-  "barColorMissingField": "Dit veld bestaat niet in dit project. Taaktype wordt tijdelijk gebruikt.",
+  "barColorMissingField": "Dit veld bestaat niet in dit project. Werksoort wordt tijdelijk gebruikt.",
   "statusLineLabel": "Statuslijn:",
   "statusLine_none": "Geen",
   "statusLine_statusDate": "Statusdatumlijn",

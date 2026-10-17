@@ -1535,6 +1535,10 @@
       "type de tâche",
       "types de tâche"
     ],
+    "avoid": [
+      "règle de travail",
+      "règles de travail"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1680,15 +1684,6 @@
     "term": "horaires de travail",
     "forms": [
       "horaires de travail"
-    ],
-    "source": "existing-ui",
-    "status": "existing-ui"
-  },
-  "work-rule": {
-    "term": "règle de travail",
-    "forms": [
-      "règle de travail",
-      "règles de travail"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

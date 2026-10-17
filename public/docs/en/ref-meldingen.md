@@ -59,7 +59,7 @@ The bar at the bottom shows, from left to right:
 Notifications appear at the bottom of the screen, also in the table, in Backstage and in presentation mode. A notification is an *error* or *info*. An error stays until you click the cross; an info disappears after 5 seconds, and those timers start again as soon as the stack changes. Each notification has a cross at the top right (tooltip *Close notification*) that closes it at once. A click on the text of the notification does nothing. At most three are shown at once: if a fourth comes, the oldest info goes first, and if there is no info, the oldest notification, so an error is never pushed out by an info. The stack moves away from the buttons of an open dialog and from sticky action bars. A notification when opening a file also stays until you click the cross if the app filled in, replaced, repaired or left out data while opening: a line about parser or calendar findings, number format problems, enum fallbacks, P6 scheduling settings with a safe fallback, a protective baseline fallback, ignored baseline references, activities without a planned start that were given a start, relationships between projects or activities without a project that were not imported (P6 XML) or an unusable XER source archive, and the notifications about duplicate ids and relations that are not calculated. If it only contains information without such a change (such as the number of projects, documents or the text encoding), the notification disappears after 5 seconds.
 
 - **Counter ×N** — a notification with a fixed key folds a repeat into one line with a counter, for example a save error that keeps coming back or a refused relation that you repeat. Not every notification does that.
-- **Read more** — some notifications have a *Read more* link or a topic of their own (for example *Work rules explained*) to the guide in Backstage › Help.
+- **Read more** — some notifications have a *Read more* link or a topic of their own (for example *Task types explained*) to the guide in Backstage › Help.
 - **Action button** — the notification about the calculation profile has a button *Open calculation profile* to Project settings.
 
 The list below is a selection, grouped by topic. Where it does not say otherwise, it is an info.
@@ -105,8 +105,8 @@ The list below is a selection, grouped by topic. Where it does not say otherwise
 - **Milestone flag removed** (info) — *'{phase}' is no longer a milestone.* When a milestone gets subtasks. A milestone is a moment without subtasks; with subtasks it becomes a summary task. With a *Read more* link to [Adjusting the structure](docs://howto-structuur-aanpassen).
 - **Summary task refused** (info) — *'{phase}' cannot become a summary task: …* with the reason, and *Nothing was changed.*
 - **Cells skipped on paste** (info) — *Skipped N cells: they are read-only (for example an auto-numbered WBS code or a calculated column).*
-- **References cleared on paste** (info) — *N references did not exist in this document and were cleared (task calendars, custom task types, activity codes or custom fields from the source document).*
-- **Work rule adjusted durations** (info) — *After the calendar change the work rule adjusted the duration of N tasks (work stays, hours per day changed).* With a link *Work rules explained*.
+- **References cleared on paste** (info) — *N references did not exist in this document and were cleared (task calendars, custom work categories, activity codes or custom fields from the source document).*
+- **Task type adjusted durations** (info) — *After the calendar change the task type adjusted the duration of N tasks (work stays, hours per day changed).* With a link *Task types explained*.
 
 ### Primavera (XER)
 
@@ -118,7 +118,7 @@ The list below is a selection, grouped by topic. Where it does not say otherwise
 ### Importing, exporting and calculation profile
 
 - **Dates as in the file** (info) — *N tasks show the dates as recorded in the file (not recalculated).* (N counts every task with recorded dates) or *N tasks differ from the dates in the file — you can show them.* When opening a file with recorded dates.
-- **Work and work rules visible** (info) — *This file contains stored work or custom work rules; the work rule and remaining work are shown for this project.*
+- **Work and task types visible** (info) — *This file contains stored work or task types; the task type and remaining work are shown for this project.*
 - **MS Project schedule read** (info) — *This MS Project file contains N tasks with a split, leveled, or resource-driven schedule. They are imported and shown as such.*
 - **Breaks not exported** (info) — *N tasks with breaks were exported without their breaks: MS Project/P6 only know breaks as a work distribution.* When exporting to MS Project or Primavera.
 - **Project start moved** (info) — *N tasks moved with the project start.* When you set the project start later. Only tasks without a predecessor and without a constraint that would lie before the new start date move to that date. With a *Read more* link to [New project and Project settings](docs://ref-projectinfo).

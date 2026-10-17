@@ -1444,6 +1444,11 @@
       "tipi di attività",
       "del tipo di attività"
     ],
+    "avoid": [
+      "regola di lavoro",
+      "regole di lavoro",
+      "della regola di lavoro"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1592,16 +1597,6 @@
     "forms": [
       "orari di lavoro",
       "degli orari di lavoro"
-    ],
-    "source": "existing-ui",
-    "status": "existing-ui"
-  },
-  "work-rule": {
-    "term": "regola di lavoro",
-    "forms": [
-      "regola di lavoro",
-      "regole di lavoro",
-      "della regola di lavoro"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

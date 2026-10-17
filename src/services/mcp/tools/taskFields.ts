@@ -547,10 +547,15 @@ export const TASK_FIELD_SCHEMA_PROPERTIES: Record<string, unknown> = {
     description: 'Persistent task unit. Always give it together with `duration`; hours requires concrete work blocks.',
   },
   durationType: { type: 'string', enum: ['WORKTIME', 'ELAPSEDTIME'], description: 'WORKTIME = working days (default), ELAPSEDTIME = elapsed time.' },
-  taskType: { type: 'string', enum: TASK_TYPES },
+  taskType: {
+    type: 'string',
+    enum: TASK_TYPES,
+    description: 'Work category of the task (shown in the app as "Work category"; IFC `PredefinedType`). Not the ' +
+      'scheduling task type: that is `workRule`.',
+  },
   customTaskType: {
     type: 'object',
-    description: 'OPS custom type with a stable id and project snapshot name; sets taskType to USERDEFINED. An existing id cannot change its name.',
+    description: 'Custom work category (shown in the app as "Custom work category"): OPS custom type with a stable id and project snapshot name; sets taskType to USERDEFINED. An existing id cannot change its name.',
     properties: { id: { type: 'string' }, name: { type: 'string' } },
     required: ['id', 'name'], additionalProperties: false,
   },
@@ -582,7 +587,7 @@ export const TASK_FIELD_SCHEMA_PROPERTIES: Record<string, unknown> = {
     type: ['string', 'null'],
     enum: [...WORK_RULES, null],
     description:
-      'Work rule (task type) of the task: which corner of work = remaining duration × units stays fixed when ' +
+      'Task type (`workRule`; shown in the app as "Task type") of the task: which corner of work = remaining duration × units stays fixed when ' +
       'another changes. FIXED_DURATION_RATE (default, MSP "Fixed Duration", not effort-driven): duration and ' +
       'units stay, the work follows. FIXED_DURATION_WORK (P6 "Fixed Duration & Units"): duration and work ' +
       'stay, the units follow. FIXED_WORK (MSP "Fixed Work", P6 "Fixed Units"): the work stays; more units ' +

@@ -1869,6 +1869,13 @@
       "typy zadań",
       "typów zadań"
     ],
+    "avoid": [
+      "reguła pracy",
+      "reguły pracy",
+      "regułę pracy",
+      "regułą pracy",
+      "reguł pracy"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -2049,18 +2056,6 @@
       "godzinom pracy",
       "godzinami pracy",
       "godzinach pracy"
-    ],
-    "source": "existing-ui",
-    "status": "existing-ui"
-  },
-  "work-rule": {
-    "term": "reguła pracy",
-    "forms": [
-      "reguła pracy",
-      "reguły pracy",
-      "regułę pracy",
-      "regułą pracy",
-      "reguł pracy"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

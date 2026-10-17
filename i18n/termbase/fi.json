@@ -1979,7 +1979,12 @@
       "tehtävätyyppien"
     ],
     "avoid": [
-      "työtyyppi"
+      "työtyyppi",
+      "työsääntö",
+      "työsäännön",
+      "työsääntöä",
+      "työsäännöt",
+      "työsääntöjen"
     ],
     "source": "tbx",
     "status": "tbx"
@@ -2184,18 +2189,6 @@
     ],
     "source": "model",
     "status": "model"
-  },
-  "work-rule": {
-    "term": "työsääntö",
-    "forms": [
-      "työsääntö",
-      "työsäännön",
-      "työsääntöä",
-      "työsäännöt",
-      "työsääntöjen"
-    ],
-    "source": "model",
-    "status": "arbitrated"
   },
   "workday": {
     "term": "työpäivä",

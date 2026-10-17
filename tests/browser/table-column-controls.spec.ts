@@ -241,9 +241,10 @@ test('kolomkop: verplaatsen, verbreden, passend maken, vastzetten en verwijderen
   // Het veld blijft kiesbaar in de kolomkiezer.
   await shell(page, surface).locator('.task-grid-add-column').click();
   const chooser = page.getByRole('dialog', { name: CHOOSER });
-  await chooser.getByRole('searchbox', { name: SEARCH }).fill('type');
+  const nl = (await page.evaluate(() => document.documentElement.lang)).startsWith('nl');
+  await chooser.getByRole('searchbox', { name: SEARCH }).fill(nl ? 'werksoort' : 'work category');
   await expect(chooser.getByRole('region', { name: SEARCH_RESULTS })
-    .getByRole('menuitemcheckbox', { name: /^(Task type|Taaktype)$/ })).toBeEnabled();
+    .getByRole('menuitemcheckbox', { name: /^(Work category|Werksoort)$/ })).toBeEnabled();
   await page.keyboard.press('Escape');
 
   // Elke handeling was één stap: Ctrl+Z zet ze een voor een terug, tot de standaardindeling.

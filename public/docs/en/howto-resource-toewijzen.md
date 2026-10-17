@@ -56,7 +56,7 @@ The curve only changes the distribution. The duration, the dates and the total s
 
 **Material.** For a material resource the units are the quantity per day, in the resource's unit, for example m³. Material does not count towards the task's duration.
 
-**A work rule can adjust the duration.** If the task is on *Fixed work* or *Fixed units*, a second resource changes the task's duration. The schedule is then out of date; press **Calculate** (F5). See [Work rules: duration, units and work](docs://uitleg-werkregels).
+**A task type can adjust the duration.** If the task is on *Fixed work* or *Fixed units*, a second resource changes the task's duration. The schedule is then out of date; press **Calculate** (F5). See [Task types: duration, units and work](docs://uitleg-werkregels).
 
 **A distribution of its own.** If the assignment already has an hour distribution of its own, the curve is disabled and shows *Contour*. Release that distribution first via *Hour distribution…*.
 
@@ -66,6 +66,6 @@ The curve only changes the distribution. The duration, the dates and the total s
 
 - [Adjusting the hour distribution](docs://howto-urenverdeling-aanpassen): setting the hours per day yourself.
 - [Resolving overallocation](docs://howto-overbezetting-oplossen): what to do when a resource has too much to do on a day.
-- [Work rules: duration, units and work](docs://uitleg-werkregels): what happens to the duration when you change the units.
+- [Task types: duration, units and work](docs://uitleg-werkregels): what happens to the duration when you change the units.
 - [Resource panel](docs://ref-resourcepaneel): all fields and buttons of the resource panel.
 - [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): all five resource types, all six curves and a tower crane with a capacity step from 30 August 2027.

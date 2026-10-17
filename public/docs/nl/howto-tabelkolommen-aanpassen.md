@@ -9,7 +9,7 @@ In het overleg wil je bij elke taak de deadline en de totale speling zien. De ui
 Er zijn twee taaktabellen, elk met eigen kolommen:
 
 - De **taaktabel naast de Gantt** staat links van de tijdlijn op onder meer de tabbladen *Start*, *Planning* en *Beeld*. Standaard heeft hij *WBS*, *Taaknaam* en *Duur*, zodat er ruimte blijft voor de tijdlijn.
-- De **tabel op het tabblad Tabel** heeft de hele werkruimte. Standaard staan hier *WBS*, *Taaknaam*, *Duur*, *Start*, *Einde*, *Taaktype*, *Kritiek*, *Totale speling* en *Voortgang*, plus een kolom per activiteitscode en eigen veld van het project.
+- De **tabel op het tabblad Tabel** heeft de hele werkruimte. Standaard staan hier *WBS*, *Taaknaam*, *Duur*, *Start*, *Einde*, *Werksoort*, *Kritiek*, *Totale speling* en *Voortgang*, plus een kolom per activiteitscode en eigen veld van het project.
 
 Een wijziging aan de ene tabel verandert de andere niet.
 

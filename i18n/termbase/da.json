@@ -1806,7 +1806,11 @@
       "opgavetyper"
     ],
     "avoid": [
-      "taaktype"
+      "taaktype",
+      "arbejdsregel",
+      "arbejdsreglen",
+      "arbejdsregler",
+      "arbejdsreglerne"
     ],
     "source": "tbx",
     "status": "tbx"
@@ -1994,20 +1998,6 @@
     ],
     "avoid": [
       "werktijden"
-    ],
-    "source": "model",
-    "status": "model"
-  },
-  "work-rule": {
-    "term": "arbejdsregel",
-    "forms": [
-      "arbejdsregel",
-      "arbejdsreglen",
-      "arbejdsregler",
-      "arbejdsreglerne"
-    ],
-    "avoid": [
-      "werkregel"
     ],
     "source": "model",
     "status": "model"

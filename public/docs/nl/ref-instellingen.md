@@ -46,7 +46,7 @@ Een wijziging werkt direct. Er is geen knop *Toepassen* en geen *Annuleren*.
 
 ## Tabblad Planning
 
-**Bouwmodus inschakelen** — bouwgerichte beginwaarden voor nieuwe projecten. Standaard: aan. Effect: aan geeft een nieuw project de kalender *Bouwkalender NL* met de Nederlandse feestdagen, laat je bij het genereren van feestdagen een bouwvak kiezen, biedt de fasesjablonen *Woningbouw* en *Utiliteitsbouw / renovatie* aan en geeft nieuwe taken het taaktype *Bouw*. Uit geeft de kalender *Standaardkalender* zonder feestdagen, alleen het sjabloon *Leeg* en het taaktype *Overig*. Een nieuwe taak onder een bovenliggende taak met een taaktype neemt eerst dat taaktype over; *Bouw* of *Overig* geldt daarna. Bestaande taken en kalenders veranderen niet. Waar: *Planning*.
+**Bouwmodus inschakelen** — bouwgerichte beginwaarden voor nieuwe projecten. Standaard: aan. Effect: aan geeft een nieuw project de kalender *Bouwkalender NL* met de Nederlandse feestdagen, laat je bij het genereren van feestdagen een bouwvak kiezen, biedt de fasesjablonen *Woningbouw* en *Utiliteitsbouw / renovatie* aan en geeft nieuwe taken de werksoort *Bouw*. Uit geeft de kalender *Standaardkalender* zonder feestdagen, alleen het sjabloon *Leeg* en de werksoort *Overig*. Een nieuwe taak onder een bovenliggende taak met een werksoort neemt eerst die werksoort over; *Bouw* of *Overig* geldt daarna. Bestaande taken en kalenders veranderen niet. Waar: *Planning*.
 
 **Urenplanning inschakelen** — plannen in werkuren naast werkdagen. Standaard: uit. Effect: de tijdschaal *Uur* verschijnt onder *Beeld › Tijdschaal*, in het venster *Kalenders* kan een gewone kalender werktijdblokken krijgen (het blok *Werktijden*; een kalender die al blokken heeft, toont dat blok altijd), en het venster *Nieuw project* krijgt de keuzes *Ploeg* en *Standaardeenheid voor nieuwe taken*. Ook *Projectinstellingen* krijgt de keuze *Standaardeenheid voor nieuwe taken*. Uit werkt de app dag-granulair. Taken die al in uren staan blijven bestaan en rekenen mee; hun duur bewerk je pas als je urenplanning aanzet. Waar: *Planning*, onder *Urenplanning*. Zie [Urenplanning aanzetten](docs://howto-urenplanning-aanzetten).
 
@@ -56,7 +56,7 @@ Een wijziging werkt direct. Er is geen knop *Toepassen* en geen *Annuleren*.
 
 **Automatisch berekenen** — rekent de planning door zodra ze verouderd is. Standaard: uit. Effect: uit betekent dat je zelf op *Bereken* drukt (F5). Aan laat de app na een wijziging van taken, relaties of kalender de planning binnen een fractie van een seconde herberekenen. Tijdens een sleepgebaar of terwijl je in een veld typt, wacht de app en rekent hij één keer als je klaar bent. Na een mislukte berekening rekent hij pas opnieuw nadat je iets hebt gewijzigd. Waar: *Planning*, onder *Berekenen*.
 
-**Toon werkregels en werk** — de werkregel- en werkvelden in de app. Standaard: uit. Effect: aan toont het veld *Werkregel* bij een taak en de kolom voor werk bij de toewijzingen, en maakt de tabelkolom *Werkregel* beschikbaar. Uit verbergt ze; de duur en de inzet blijven staan en het werk rekent mee. Een project dat al werkregel- of werkgegevens bevat, bijvoorbeeld uit een `.mpp`- of `.xer`-bestand, toont ze altijd, ook als de instelling uit staat. Waar: *Planning*, onder *Berekenen*. Zie [Werkregels: duur, inzet en werk](docs://uitleg-werkregels).
+**Taaktypes gebruiken** — de taaktype- en werkvelden in de app. Standaard: uit. Effect: aan toont het veld *Taaktype* bij een taak en de kolom voor werk bij de toewijzingen, en maakt de tabelkolom *Taaktype* beschikbaar. Uit verbergt ze; de duur en de inzet blijven staan en het werk rekent mee. Een project dat al taaktype- of werkgegevens bevat, bijvoorbeeld uit een `.mpp`- of `.xer`-bestand, toont ze altijd, ook als de instelling uit staat. Waar: *Planning*, onder *Berekenen*. Zie [Taaktypes: duur, inzet en werk](docs://uitleg-werkregels).
 
 ## Tabblad Geavanceerd
 
@@ -117,5 +117,5 @@ Deze keuzes bewaart de app ook op dit apparaat, maar je stelt ze in bij het onde
 - [Rekenopties en conventies](docs://ref-rekenopties-en-conventies): de opties die bij een project horen.
 - [Urenplanning aanzetten](docs://howto-urenplanning-aanzetten): de stappen bij de schakelaar *Urenplanning inschakelen*.
 - [Dagen en uren](docs://uitleg-dagen-en-uren): hoe de app dagen en uren telt.
-- [Werkregels: duur, inzet en werk](docs://uitleg-werkregels): wat *Toon werkregels en werk* zichtbaar maakt.
+- [Taaktypes: duur, inzet en werk](docs://uitleg-werkregels): wat *Taaktypes gebruiken* zichtbaar maakt.
 - [Sneltoetsen](docs://ref-sneltoetsen): alle toetsen van de app, ook die voor zoomen en scrollen.

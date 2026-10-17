@@ -202,7 +202,7 @@
     "screenColors_critical": "Critical path",
     "screenColors_auto": "Per task — automatic",
     "screenColors_category": "By category",
-    "screenColorsMissingField": "This field does not exist in this project. Task type is used temporarily.",
+    "screenColorsMissingField": "This field does not exist in this project. Work category is used temporarily.",
     "screenColorsHint": "Outside Critical path, a red outline marks the critical path.",
     "addLayout": "New layout",
     "toggleRelations": "Relationship lines"

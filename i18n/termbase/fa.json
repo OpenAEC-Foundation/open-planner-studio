@@ -1388,7 +1388,9 @@
     ],
     "avoid": [
       "نوع کار",
-      "نوع‌های کار"
+      "نوع‌های کار",
+      "قاعدهٔ کار",
+      "قواعد کار"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1524,15 +1526,6 @@
     "forms": [
       "ساعات کاری",
       "ساعت کاری"
-    ],
-    "source": "existing-ui",
-    "status": "existing-ui"
-  },
-  "work-rule": {
-    "term": "قاعدهٔ کار",
-    "forms": [
-      "قاعدهٔ کار",
-      "قواعد کار"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

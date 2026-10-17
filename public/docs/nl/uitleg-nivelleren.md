@@ -50,7 +50,7 @@ Met *smoothing* mag een taak niet later beginnen dan haar laatste start, dat is 
 
 ## Rekenvoorbeeld: de metselaar op twee muren
 
-Het voorbeeld is het oefenproject *Aanbouw woning* uit de tutorials, zoals het eruitziet vlak vóór het nivelleren in tutorial 5. In tutorial 5 doe je dit zelf en reken je het na. Het stucwerk staat in dit voorbeeld op *Vast werk* en de stukadoor werkt met inzet 2, zoals in [Werkregels: duur, inzet en werk](docs://uitleg-werkregels).
+Het voorbeeld is het oefenproject *Aanbouw woning* uit de tutorials, zoals het eruitziet vlak vóór het nivelleren in tutorial 5. In tutorial 5 doe je dit zelf en reken je het na. Het stucwerk staat in dit voorbeeld op *Vast werk* en de stukadoor werkt met inzet 2, zoals in [Taaktypes: duur, inzet en werk](docs://uitleg-werkregels).
 
 Na de kanaalplaatvloer, klaar op maandag 28 juni, beginnen het binnenspouwblad (5 werkdagen) en het buitenspouwblad (6 werkdagen) allebei op dinsdag 29 juni. Ze staan beide op de metselaar, met een inzet van 1 en een *Max. eenheden* van 1. Na het binnenspouwblad volgen de dakelementen (een kraaninzet van 6 uur) en de dakbedekking (2 werkdagen). De kozijnen wachten op de dakbedekking én op het buitenspouwblad. De oplevering staat op maandag 30 augustus.
 
@@ -101,5 +101,5 @@ Zet je *Max. eenheden* van de metselaar op 2, dan is er geen overbezetting meer.
 
 - [Overbezetting oplossen](docs://howto-overbezetting-oplossen): de stappen om overbezetting te vinden en te nivelleren.
 - [Kritiek pad en speling](docs://uitleg-kritiek-pad): wat speling is en waarom een taak kritiek wordt.
-- [Werkregels: duur, inzet en werk](docs://uitleg-werkregels): hoe de duur van een taak meebeweegt met de inzet.
+- [Taaktypes: duur, inzet en werk](docs://uitleg-werkregels): hoe de duur van een taak meebeweegt met de inzet.
 - [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): drie torens die dezelfde ploegen en de torenkraan nodig hebben, en wat nivelleren daarmee doet.

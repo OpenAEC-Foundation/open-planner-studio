@@ -234,7 +234,9 @@ function mapColumnIndex(headers: string[]): Record<string, number> {
     start: ['start', 'start date', 'begin', 'startdatum'],
     finish: ['finish', 'finish date', 'end', 'end date', 'eind', 'einddatum'],
     predecessors: ['predecessors', 'predecessor', 'voorgangers', 'depends on', 'links'],
-    taskType: ['task type', 'type', 'tasktype', 'taaktype'],
+    // `Task Type` is de exportkop (blijft); in de UI heet dit begrip nu *Werksoort* / *Work category*
+    // (eigenaarsbesluit 2026-10-17), dus die koppen herkent de lezer ook.
+    taskType: ['task type', 'type', 'tasktype', 'taaktype', 'werksoort', 'work category'],
     customTaskTypeId: ['ops custom task type id'],
     completion: ['completion', 'completion (%)', '% complete', 'percent', 'voltooiing'],
     actualStart: ['actual start', 'actualstart', 'werkelijke start'],

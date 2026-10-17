@@ -59,7 +59,7 @@ Only the tasks without a calendar of their own move along.
 
 **The same calendar, two choices.** In the list the project calendar appears twice: as *Project calendar: name* and as an ordinary calendar with that name. If you choose the second, that is a choice of its own for that task. The task then does not move along when you later choose a different project calendar.
 
-**Different hours per day.** If you change the working times or the break so that the *Standard workday* of a calendar changes, a task in days still counts the same number of days. For a task with resources and the work rule *Fixed work* or *Fixed units*, the duration does change with it, because the work stays the same. Forty hours of work is 5 days at 8 hours per day and 7 days at 6 hours per day. The app reports how many tasks got a different duration.
+**Different hours per day.** If you change the working times or the break so that the *Standard workday* of a calendar changes, a task in days still counts the same number of days. For a task with resources and the task type *Fixed work* or *Fixed units*, the duration does change with it, because the work stays the same. Forty hours of work is 5 days at 8 hours per day and 7 days at 6 hours per day. The app reports how many tasks got a different duration.
 
 ## See also
 

@@ -59,7 +59,7 @@ De balk onderaan toont van links naar rechts:
 De meldingen verschijnen onderin het scherm, ook in de tabel, in Backstage en in de presentatiemodus. Een melding is een *fout* of *info*. Een fout blijft staan tot je op het kruisje klikt; een info verdwijnt na 5 seconden, en die timers beginnen opnieuw zodra de stapel verandert. Elke melding heeft rechtsboven een kruisje (tooltip *Melding sluiten*) waarmee je hem meteen sluit. Een klik op de tekst van de melding doet niets. Er staan er hooguit drie tegelijk: komt er een vierde, dan verdwijnt eerst de oudste info, en is er geen info, dan de oudste melding, zodat een fout nooit door een info wordt verdrongen. De stapel schuift weg van de knoppen van een open dialoog en van plakkende actiebalken. Een melding bij het openen van een bestand blijft ook staan tot je op het kruisje klikt, als de app bij het openen data heeft ingevuld, vervangen, gerepareerd of weggelaten: een regel over parser- of kalenderbevindingen, getalnotatieproblemen, enum-terugvallen, P6-planningsinstellingen met veilige terugval, een beschermende baseline-terugval, genegeerde baselineverwijzingen, activiteiten zonder geplande start die een start kregen, relaties tussen projecten of activiteiten zonder project die niet zijn overgenomen (P6 XML) of een onbruikbaar XER-bronarchief, en de meldingen over dubbele id's en relaties die niet meerekenen. Staat er alleen informatie zonder zo'n wijziging in (zoals het aantal projecten, documenten of de tekstcodering), dan verdwijnt de melding na 5 seconden.
 
 - **Teller ×N** — een melding met een vaste sleutel vouwt een herhaling samen tot één regel met een teller, bijvoorbeeld een opslagfout die steeds terugkomt of een geweigerde relatie die je herhaalt. Niet elke melding doet dat.
-- **Lees meer** — sommige meldingen hebben een link *Lees meer* of een eigen onderwerp (bijvoorbeeld *Werkregels uitgelegd*) naar de gids in Backstage › Help.
+- **Lees meer** — sommige meldingen hebben een link *Lees meer* of een eigen onderwerp (bijvoorbeeld *Taaktypes uitgelegd*) naar de gids in Backstage › Help.
 - **Actieknop** — de melding over het rekenprofiel heeft een knop *Rekenprofiel openen* naar Projectinstellingen.
 
 De lijst hieronder is een keuze, gegroepeerd naar onderwerp. Waar het niet staat, is het een fout of info.
@@ -105,8 +105,8 @@ De lijst hieronder is een keuze, gegroepeerd naar onderwerp. Waar het niet staat
 - **Mijlpaalmarkering verwijderd** (info) — *'{fase}' is geen mijlpaal meer.* Als een mijlpaal subtaken krijgt. Een mijlpaal is een moment zonder subtaken; met subtaken wordt hij een samenvattingstaak. Met een link *Lees meer* naar [Structuur aanpassen](docs://howto-structuur-aanpassen).
 - **Samenvattingstaak geweigerd** (info) — *'{fase}' kan geen samenvattingstaak worden: …* met de reden, en *Er is niets gewijzigd.*
 - **Cellen overgeslagen bij plakken** (info) — *N cellen overgeslagen: ze zijn read-only (bijvoorbeeld een automatisch genummerde WBS-code of een berekende kolom).*
-- **Verwijzingen leeggemaakt bij plakken** (info) — *N verwijzingen bestonden niet in dit document en zijn leeggemaakt (taakkalenders, eigen taaktypes, activity codes of gebruikersvelden uit het brondocument).*
-- **Werkregel paste duren aan** (info) — *De werkregel heeft na de kalenderwijziging de duur van N taken aangepast (werk blijft, uren per dag veranderden).* Met een link *Werkregels uitgelegd*.
+- **Verwijzingen leeggemaakt bij plakken** (info) — *N verwijzingen bestonden niet in dit document en zijn leeggemaakt (taakkalenders, eigen werksoorten, activity codes of gebruikersvelden uit het brondocument).*
+- **Taaktype paste duren aan** (info) — *Het taaktype heeft na de kalenderwijziging de duur van N taken aangepast (werk blijft, uren per dag veranderden).* Met een link *Taaktypes uitgelegd*.
 
 ### Primavera (XER)
 
@@ -118,7 +118,7 @@ De lijst hieronder is een keuze, gegroepeerd naar onderwerp. Waar het niet staat
 ### Importeren, exporteren en rekenprofiel
 
 - **Datums zoals in het bestand** (info) — *N taken tonen de datums zoals ze in het bestand staan (niet herberekend).* (N telt alle taken met vastgelegde datums) of *N taken wijken af van de datums in het bestand — je kunt ze tonen.* Bij het openen van een bestand met vastgelegde datums.
-- **Werk en werkregels zichtbaar** (info) — *Dit bestand bevat opgeslagen werk of eigen werkregels; de werkregel en het resterende werk zijn voor dit project zichtbaar.*
+- **Werk en taaktypes zichtbaar** (info) — *Dit bestand bevat opgeslagen werk of taaktypes; het taaktype en het resterende werk zijn voor dit project zichtbaar.*
 - **MS Project-planning ingelezen** (info) — *Dit MS Project-bestand bevat N taken met een onderbroken, genivelleerde of resource-gedreven planning. Die worden als zodanig ingelezen en getoond.*
 - **Onderbrekingen niet geëxporteerd** (info) — *N taken met onderbrekingen zijn zonder onderbrekingen geëxporteerd: MS Project/P6 kennen die alleen als urenverdeling.* Bij export naar MS Project of Primavera.
 - **Projectstart verzet** (info) — *N taken schoven mee met de projectstart.* Als je de projectstart later zet. Alleen taken zonder voorganger en zonder constraint die vóór de nieuwe startdatum zouden liggen, schuiven naar die datum. Met een link *Lees meer* naar [Nieuw project en Projectinstellingen](docs://ref-projectinfo).

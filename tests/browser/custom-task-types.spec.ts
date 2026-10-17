@@ -48,9 +48,9 @@ test('persoonlijk taaktype: Properties maakt, groepeert, hernoemt, verwijdert en
 
   const select = page.locator('[data-ops-task-type]');
   await select.getByRole('button').click();
-  await expect(page.getByRole('listbox')).toContainText(/Built-in types/);
-  await expect(page.getByRole('listbox')).toContainText(/My task types/);
-  await page.getByRole('option', { name: /^(Manage task types|Taaktypen beheren)/ }).click();
+  await expect(page.getByRole('listbox')).toContainText(/Built-in work categories/);
+  await expect(page.getByRole('listbox')).toContainText(/My work categories/);
+  await page.getByRole('option', { name: /^(Manage work categories|Werksoorten beheren)/ }).click();
 
   const manager = page.locator('[data-ops-task-type-manager]');
   const editButton = manager.getByRole('button', { name: /^(Edit|Bewerken)$/ });
@@ -87,7 +87,7 @@ test('persoonlijk taaktype: Properties maakt, groepeert, hernoemt, verwijdert en
     };
   }, taskId)).toEqual({ taskTypeId: created.personal[0].id, catalog: created.catalog });
 
-  await manager.getByRole('button', { name: /^(Add to my task types|Toevoegen aan mijn taaktypen)$/ }).click();
+  await manager.getByRole('button', { name: /^(Add to my work categories|Toevoegen aan mijn werksoorten)$/ }).click();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('ops-personalTaskTypes') ?? '[]')))
     .toEqual(created.catalog);
 });

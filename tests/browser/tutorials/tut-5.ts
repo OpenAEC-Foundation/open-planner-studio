@@ -119,11 +119,11 @@ export const TUTORIAL_5: TutorialScript = {
         { ribbon: 'instellingen:projectSettings', label: l('App-instellingen', 'App settings') },
         { waitFor: dialog },
         { click: { button: l('Planning', 'Planning'), within: dialog } },
-        { click: { text: l('Toon werkregels en werk', 'Show work rules and work'), within: dialog } },
+        { click: { text: l('Taaktypes gebruiken', 'Use task types'), within: dialog } },
         { check: { state: s => (s.ui.showTaskTypes ? [] : ['werkregels niet zichtbaar']) } },
         { click: { button: l('Sluiten', 'Close'), within: dialog } },
         { click: { taskName: T.plaster } },
-        { select: { field: l('Werkregel', 'Work rule'), within: props }, option: l('Vast werk', 'Fixed work') },
+        { select: { field: l('Taaktype', 'Task type'), within: props }, option: l('Vast werk', 'Fixed work') },
       ],
       expect: [
         { state: (s, lang) => {
@@ -135,7 +135,7 @@ export const TUTORIAL_5: TutorialScript = {
       ],
       shots: [{
         name: 'tut-5-werkregel',
-        of: [{ text: l('Werkregel', 'Work rule'), within: props }, { text: l('Vast werk', 'Fixed work'), within: props }],
+        of: [{ text: l('Taaktype', 'Task type'), within: props }, { text: l('Vast werk', 'Fixed work'), within: props }],
         pad: 10,
       }],
     },

@@ -2021,7 +2021,7 @@
     "en": [
       "task type"
     ],
-    "definition": "A named rule set for a task that defines how its duration, units, work and calendar behave.",
+    "definition": "The task setting that decides which of duration, units and work stays fixed when another changes, such as fixed work or fixed units; Task Type in MS Project, Duration Type in P6.",
     "seeAlso": [
       "task"
     ],
@@ -2223,6 +2223,20 @@
     ]
   },
   {
+    "id": "work-category",
+    "kind": "term",
+    "nl": "werksoort",
+    "en": [
+      "work category",
+      "work categories"
+    ],
+    "definition": "The kind of work of a task, such as construction or installation: the IFC classification PredefinedType. It does not affect the calculation.",
+    "seeAlso": [
+      "task",
+      "task-type"
+    ]
+  },
+  {
     "id": "work-hours",
     "kind": "term",
     "nl": "werktijden",
@@ -2232,19 +2246,6 @@
     "definition": "Work hours are the hours of a working day in a calendar.",
     "seeAlso": [
       "calendar"
-    ]
-  },
-  {
-    "id": "work-rule",
-    "kind": "term",
-    "nl": "werkregel",
-    "en": [
-      "work rule",
-      "work rules"
-    ],
-    "definition": "The rule that keeps one of duration, units or work fixed when another changes, such as fixed work or fixed units.",
-    "seeAlso": [
-      "task"
     ]
   },
   {

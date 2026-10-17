@@ -1294,6 +1294,9 @@
     "forms": [
       "ປະເພດໜ້າວຽກ"
     ],
+    "avoid": [
+      "ກົດເກນວຽກ"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1432,14 +1435,6 @@
     "term": "ຊົ່ວໂມງເຮັດວຽກ",
     "forms": [
       "ຊົ່ວໂມງເຮັດວຽກ"
-    ],
-    "source": "existing-ui",
-    "status": "existing-ui"
-  },
-  "work-rule": {
-    "term": "ກົດເກນວຽກ",
-    "forms": [
-      "ກົດເກນວຽກ"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

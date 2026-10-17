@@ -6,7 +6,7 @@ The task table has 86 fixed columns, plus one column per activity code and custo
 
 The task table next to the Gantt and the table on the *Table* tab each have their own column choice. The plus at the right of the header opens the column picker (window title *Choose column*); on *Table* you can also use *Table › Columns › Columns…*. The picker lists the columns per category: *Task*, *Planning*, *Constraints*, *Relations*, *Resources*, *Progress*, *Calculated*, *Baseline*, *Custom* and *Technical*. You search by name, and *Recently used* is at the top. *Reset to default* restores the default columns.
 
-By default the table next to the Gantt shows *WBS*, *Task name* and *Duration*. The table on the *Table* tab shows *WBS*, *Task name*, *Duration*, *Start*, *Finish*, *Task type*, *Critical*, *Total float* and *Progress*, plus a column per activity code and custom field of the project.
+By default the table next to the Gantt shows *WBS*, *Task name* and *Duration*. The table on the *Table* tab shows *WBS*, *Task name*, *Duration*, *Start*, *Finish*, *Work category*, *Critical*, *Total float* and *Progress*, plus a column per activity code and custom field of the project.
 
 ## How values are read and edited
 
@@ -21,8 +21,8 @@ By default the table next to the Gantt shows *WBS*, *Task name* and *Duration*. 
 - **Task name** — the name of the task. Editable; required. A summary task is shown in bold, with a light background tint on the name cell; a milestone is shown in bold in the milestone color (the same color family as the milestone in the Gantt). An ordinary task stays as it is. That is formatting only: selecting, dragging and editing work the same.
 - **Description** — the description. Editable; free text.
 - **WBS** — the WBS code. Editable and required, but read-only while *WBS auto* is on.
-- **Task type** — the task type (*Construction*, *Installation*, *Demolition*, *Logistics*, *Inspection*, *Relocation*, *Renovation*, *Maintenance* or *Other*). Editable with a list.
-- **Custom task type** — the custom task type from the project, or a dash. Editable with a list of the project's custom types.
+- **Work category** — the work category (*Construction*, *Installation*, *Demolition*, *Logistics*, *Inspection*, *Relocation*, *Renovation*, *Maintenance* or *Other*). Editable with a list.
+- **Custom work category** — the custom work category from the project, or a dash. Editable with a list of the project's custom work categories.
 - **Colour** — the stored colour of the task, as a colour code such as `#1a73e8`. Editable with a colour picker. It is stored in the IFC file, but no bar or report uses it; you set bar colours under *View › Baselines & progress › Bar colors*.
 - **Notes** — the notes as `✓ text; ○ text`. Editable as long as there is at most one note (you then edit its text); with more notes read-only.
 
@@ -33,7 +33,7 @@ By default the table next to the Gantt shows *WBS*, *Task name* and *Duration*. 
 - **Mandatory milestone** — the flag *Mandatory (contractual)*. Only editable on a milestone.
 - **Leveling priority** — a whole number from 0 to 1000, default 500. Editable. 1000 pins the task for leveling.
 - **Split gaps** — the number of breaks, as `Split gaps: 2`, or a dash. Read-only; you edit them in the *Properties* panel.
-- **Work rule** — the work rule of the task; empty is the project default. Editable with a list, but empty and read-only on a milestone, summary task or hammock. Only visible in the picker when the work rules are visible (*Show work rules and work*, or the file carries work rules).
+- **Task type** — the task type of the task; empty is the project default. Editable with a list, but empty and read-only on a milestone, summary task or hammock. Only visible in the picker when the task types are visible (*Use task types*, or the file carries task types).
 - **Hammock (derived duration)** — whether the task is a hammock. Editable, except on a milestone or summary task.
 - **Calendar** — the id of the task's own calendar; empty (—) is the project calendar. You type or pick an id from the suggestions; an unknown id is refused. Note: the cell currently shows the internal id instead of the name; better pick a calendar in the *Properties* panel.
 - **Duration type** — *Work time* (the duration counts in working days or working hours of the calendar) or *Elapsed time* (the duration counts in continuous clock time, without a calendar). Editable.
@@ -69,7 +69,7 @@ By default the table next to the Gantt shows *WBS*, *Task name* and *Duration*. 
 - **Assignment curve** — the curve per resource, as `Name: Uniform`. Editable on a task with assignments.
 - **Work window start** and **Work window finish** — the work window per resource, from an imported file, as `Name: date`. Read-only.
 - **Planned work (hours)** and **Actual work (hours)** — the planned and actual work per resource in hours, as `Name: 12`, from an imported file. Read-only.
-- **Remaining work (hours)** — the remaining work per resource in hours, as `Name: 6`: the stored work, otherwise remaining duration × units. Editable on a task with assignments on which a work rule applies. Only visible in the picker when the work rules are visible.
+- **Remaining work (hours)** — the remaining work per resource in hours, as `Name: 6`: the stored work, otherwise remaining duration × units. Editable on a task with assignments on which a task type applies. Only visible in the picker when the task types are visible.
 
 ## Progress
 

@@ -9,7 +9,7 @@ In the meeting you want to see the deadline and the total float next to every ta
 There are two task tables, each with its own columns:
 
 - The **task table next to the Gantt** is to the left of the timeline on, among others, the *Home*, *Planning* and *View* tabs. By default it has *WBS*, *Task name* and *Duration*, so there is room left for the timeline.
-- The **table on the Table tab** has the whole workspace. By default it has *WBS*, *Task name*, *Duration*, *Start*, *Finish*, *Task type*, *Critical*, *Total float* and *Progress*, plus a column per activity code and custom field of the project.
+- The **table on the Table tab** has the whole workspace. By default it has *WBS*, *Task name*, *Duration*, *Start*, *Finish*, *Work category*, *Critical*, *Total float* and *Progress*, plus a column per activity code and custom field of the project.
 
 A change to one table does not change the other.
 

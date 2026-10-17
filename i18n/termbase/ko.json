@@ -1302,6 +1302,9 @@
     "forms": [
       "작업 유형"
     ],
+    "avoid": [
+      "작업 규칙"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1429,14 +1432,6 @@
     ],
     "avoid": [
       "작업 시간"
-    ],
-    "source": "existing-ui",
-    "status": "existing-ui"
-  },
-  "work-rule": {
-    "term": "작업 규칙",
-    "forms": [
-      "작업 규칙"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
