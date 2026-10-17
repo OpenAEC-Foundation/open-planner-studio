@@ -140,6 +140,7 @@
     "milestoneClearedOnPhase_other": "{{count}} taken zijn geen mijlpaal meer.",
     "phaseRefusedNoAssignableChild": "'{{phase}}' kan geen samenvattingstaak worden: de toewijzingen ervan kunnen nergens heen, want geen van de nieuwe subtaken mag toewijzingen dragen (een mijlpaal of samenvattingstaak). Er is niets gewijzigd.",
     "phaseRefusedDuplicateResource": "'{{phase}}' kan geen samenvattingstaak worden: de toewijzing van {{resource}} kan niet naar de nieuwe subtaak '{{child}}', want die heeft {{resource}} al. Er is niets gewijzigd.",
+    "phaseQuestionOutdated": "De taken of toewijzingen zijn veranderd terwijl de vraag openstond. Er is niets gewijzigd; probeer het opnieuw.",
     "schedulingProfileApplied": "Dit project rekent als {{profile}}. Aanpassen via Bestand → Projectinstellingen → Rekenprofiel en reken-opties.",
     "schedulingTemplateSaved": "Sjabloon „{{name}}” opgeslagen.",
     "schedulingTemplateLimit": "Sjabloon niet opgeslagen: er zijn al {{max}} sjablonen. Verwijder eerst een sjabloon.",
@@ -1569,5 +1570,25 @@
     "bodyUnwritable": "Dit bestand is opgeslagen als {{schema}}. Dat schema kan de app niet schrijven. Kies het schema waarin de app het opslaat. Je kunt dit later wijzigen in Projectinstellingen.",
     "keep": "{{schema}} houden",
     "toDefault": "Opslaan als IFC 4.3 ADD2"
+  },
+  "phaseAssignmentQuestion": {
+    "title": "Taak wordt een samenvattingstaak",
+    "intro_one": "'{{phase}}' krijgt de subtaak '{{child}}' en wordt een samenvattingstaak.",
+    "intro_other": "'{{phase}}' krijgt {{count}} subtaken en wordt een samenvattingstaak.",
+    "introMany_one": "Deze handeling maakt {{count}} taak tot samenvattingstaak.",
+    "introMany_other": "Deze handeling maakt {{count}} taken tot samenvattingstaak.",
+    "noOwnAssignments": "Een samenvattingstaak heeft geen eigen toewijzingen.",
+    "question_one": "Wat doe je met de toewijzing van {{resources}}?",
+    "question_other": "Wat doe je met de toewijzingen van {{resources}}?",
+    "questionMany": "Wat doe je met hun toewijzingen?",
+    "row": "'{{phase}}': {{resources}}",
+    "remove_one": "Toewijzing verwijderen",
+    "remove_other": "Toewijzingen verwijderen",
+    "moveTo": "Verplaatsen naar '{{child}}'",
+    "moveToSubtasks": "Verplaatsen naar de subtaken",
+    "blockedDuplicate": "Verplaatsen kan niet: '{{child}}' heeft {{resources}} al.",
+    "blockedNoChild": "Verplaatsen kan niet: '{{phase}}' krijgt geen subtaak die een toewijzing kan dragen, alleen mijlpalen of samenvattingstaken.",
+    "actualWorkLost_one": "Op de toewijzing van {{resource}} staat al {{hours}} uur verricht werk. Verwijderen gooit dat weg.",
+    "actualWorkLost_other": "Op de toewijzing van {{resource}} staat al {{hours}} uur verricht werk. Verwijderen gooit dat weg."
   }
 }

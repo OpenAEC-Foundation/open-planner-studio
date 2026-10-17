@@ -70,6 +70,7 @@ const ExtensionConsentDialog = EXTENSIONS_ENABLED
   ? lazy(() => import('@/components/dialogs/ExtensionConsentDialog').then(m => ({ default: m.ExtensionConsentDialog })))
   : () => null;
 const ActualStartDialog = lazy(() => import('@/components/dialogs/ActualStartDialog').then(m => ({ default: m.ActualStartDialog })));
+const PhaseAssignmentDialog = lazy(() => import('@/components/dialogs/PhaseAssignmentDialog').then(m => ({ default: m.PhaseAssignmentDialog })));
 const SiteOpenDialog = lazy(() => import('@/components/dialogs/SiteOpenDialog').then(m => ({ default: m.SiteOpenDialog })));
 const FormatNoticeDialog = lazy(() => import('@/components/dialogs/FormatNoticeDialog').then(m => ({ default: m.FormatNoticeDialog })));
 const SiteSaveDialog = lazy(() => import('@/components/dialogs/SiteSaveDialog').then(m => ({ default: m.SiteSaveDialog })));
@@ -448,6 +449,9 @@ function AppContent() {
             zou beginnen). Rendert alleen bij `ui.pendingActualStartQuestion`; stapelt boven
             "Taak bewerken". */}
         <ActualStartDialog />
+        {/* "Taak wordt een samenvattingstaak": rendert alleen bij `ui.pendingPhaseAssignmentQuestion`; stapelt
+            boven "Taak bewerken". */}
+        <PhaseAssignmentDialog />
         {/* Opslag via de site: renderen alleen bij `ui.pendingSiteOpen` / `ui.pendingSiteSave`. */}
         <SiteOpenDialog />
         <SiteSaveDialog />

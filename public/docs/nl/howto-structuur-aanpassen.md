@@ -50,7 +50,17 @@ Alt+↑ en Alt+↓ werken in zo'n weergave wél, zonder melding. Bij alleen een 
 
 **Een mijlpaal krijgt subtaken.** Een mijlpaal is een moment en heeft geen subtaken. De app haalt de mijlpaalmarkering eraf en meldt dat.
 
-**Een taak met resource-toewijzingen krijgt subtaken.** Een samenvattingstaak draagt zelf geen toewijzingen. De app verhuist ze naar de eerste nieuwe subtaak die ze mag dragen en meldt dat. Is er zo'n subtaak niet, of heeft die dezelfde resource al, dan gebeurt er niets en zegt de melding waarom.
+**Een taak met resource-toewijzingen krijgt subtaken.** Een samenvattingstaak draagt zelf geen toewijzingen. Daarom vraagt de app eerst wat ermee moet, in het venster *Taak wordt een samenvattingstaak*. Dat gebeurt bij inspringen, *Subtaak toevoegen*, *Mijlpaal toevoegen* op een taak, een sjabloon invoegen, en in *Taak bewerken* bij een nieuwe *Bovenliggende taak*: voor een bestaande taak en voor een nieuwe taak. In *Taak bewerken* komt de vraag vóór het opslaan. Kies je daar *Annuleren*, dan blijft *Taak bewerken* open met je wijzigingen. Je kiest:
+
+- *Annuleren*: er verandert niets, ook de structuur niet.
+- *Toewijzing verwijderen*: de taak krijgt haar subtaken en haar toewijzingen gaan weg. Het verrichte werk van die toewijzingen gaat ook weg.
+- *Verplaatsen naar '…'*: de toewijzingen gaan naar de eerste nieuwe subtaak die ze mag dragen, met hun verrichte werk. Een mijlpaal of een samenvattingstaak draagt geen toewijzingen.
+
+Heeft die subtaak dezelfde resource al, of is er geen geschikte subtaak, dan is *Verplaatsen* uitgeschakeld. Een oranje blok in het venster zegt waarom.
+
+Staat er op een toewijzing al verricht werk, dan noemt het oranje blok per resource hoeveel uur, bijvoorbeeld *Op de toewijzing van Metselaar staat al 8 uur verricht werk. Verwijderen gooit dat weg.* De knop *Annuleren* is dan de standaardknop: Enter verandert niets. Wil je de toewijzing toch verwijderen, klik dan zelf op *Toewijzing verwijderen*.
+
+Zolang het venster open is, werkt geen enkele sneltoets buiten het venster, ook *Ongedaan*, *Plakken*, Delete en F5 niet. Maakt één handeling meer samenvattingstaken tegelijk, dan toont het venster per taak de resources, en je keuze geldt voor allemaal. Eén keer *Ongedaan* (Ctrl+Z) draait de hele handeling terug.
 
 **Een relatie zou een kring maken.** De relaties van een samenvattingstaak gelden ook voor haar subtaken. Zou een verplaatsing daardoor een kring maken, dan weigert de app hem, met de melding *Deze verplaatsing zou een kring in de planning maken (…)*. Er verandert dan niets.
 

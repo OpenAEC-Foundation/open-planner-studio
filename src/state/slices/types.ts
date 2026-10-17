@@ -236,6 +236,7 @@ export type NotificationMessageKey =
   | 'notifications.milestoneClearedOnPhase'
   | 'notifications.phaseRefusedNoAssignableChild'
   | 'notifications.phaseRefusedDuplicateResource'
+  | 'notifications.phaseQuestionOutdated'
   | 'notifications.mppLegacy'
   | 'notifications.mppEncrypted'
   | 'notifications.xerInvalidInput'
@@ -439,6 +440,34 @@ export interface ActualStartQuestionRequest {
   items: ActualStartQuestionItem[];
 }
 
+/** Eén taak die door de handeling een fase wordt en toewijzingen draagt (`structuralTransition.ts`,
+ *  `phaseAssignmentQuestion`). Namen zijn vooraf opgezocht: de vraag toont ze zoals ze nu zijn. */
+export interface PhaseAssignmentQuestionItem {
+  phaseId: string;
+  phaseName: string;
+  /** Aantal nieuwe subtaken, en de naam van de eerste (voor "krijgt de subtaak '…'"). */
+  childCount: number;
+  firstChildName: string;
+  /** De eerste nieuwe subtaak die toewijzingen mag dragen; `null` ⇒ er is er geen. */
+  targetId: string | null;
+  targetName: string | null;
+  /** De resources van de toewijzingen van de fase, in volgorde. */
+  resourceNames: string[];
+  /** Toewijzingen met verricht werk (actuals), die Verwijderen zou weggooien (eigenaarsbesluit
+   *  2026-10-17: het venster noemt ze en zet de focus op Annuleren). */
+  actualWork: { resourceName: string; minutes: number }[];
+  /** Waarom verplaatsen niet kan; `null` ⇒ het kan. */
+  blocked:
+    | null
+    | { kind: 'noAssignableChild' }
+    | { kind: 'duplicateResource'; resourceNames: string[] };
+}
+
+/** De vraag "Taak wordt een samenvattingstaak" (eigenaarsbesluit 2026-10-17): één vraag voor de hele handeling. */
+export interface PhaseAssignmentQuestion {
+  items: PhaseAssignmentQuestionItem[];
+}
+
 export interface UIState {
   showTaskDialog: boolean;
   editingTaskId: string | null;
@@ -607,6 +636,10 @@ export interface UIState {
    *  `state/actualStartQuestion.ts` (een promise-resolver hoort niet in state thuis, zoals bij
    *  `pendingExtensionConsent`). Modaal: telt mee in `hasBlockingDialogOpen`. */
   pendingActualStartQuestion: ActualStartQuestionRequest | null;
+  /** session — de openstaande vraag "Taak wordt een samenvattingstaak" (`PhaseAssignmentDialog`), of `null`.
+   *  Draagt alleen de VRAAG; de handeling die op het antwoord wacht staat in de taakslice
+   *  (`answerPhaseAssignmentQuestion`), niet in state. Modaal: telt mee in `hasBlockingDialogOpen`. */
+  pendingPhaseAssignmentQuestion: PhaseAssignmentQuestion | null;
   /** session — de openstaande vraag "Openen van de site" (issue #309), of `null`. Draagt alleen de
    *  VRAAG; het antwoord gaat via de resolver in `state/siteDialogBridge.ts` (zoals bij
    *  `pendingExtensionConsent`). Modaal: telt mee in `hasBlockingDialogOpen`. */

@@ -27,8 +27,9 @@ import {
 } from '@/state/taskTree';
 import { milestoneRefusal } from '@/engine/taskMilestoneTransition';
 import {
-  applyPhaseTransitions, firstChildGains, milestoneRefusalNotices, phaseRefusalNotice, phaseTransitionNotices,
-  planPhaseTransitions, type PendingChild, type PhaseGain, type PhaseTransition,
+  applyPhaseTransitions, firstChildGains, milestoneRefusalNotices, phaseAssignmentQuestion, phaseRefusalNotice,
+  phaseTransitionNotices, planPhaseTransitions, type PendingChild, type PhaseAssignmentChoice,
+  type PhaseAssignmentMode, type PhaseGain, type PhaseTransition,
 } from '@/state/structuralTransition';
 import { assignInsertedWbsCodes, insertRemappedRelations, notifyRelationsSkipped } from '@/state/insertedBranch';
 import { notifyHierarchyCycle, watchAncestorRelations } from '@/state/hierarchyRelationNotice';
@@ -42,7 +43,7 @@ import {
   settleDurationEdit, settleRuleChange, captureProgressWork, settleProgressWork,
 } from '@/engine/work/workRuleApply';
 import type { WorkRule } from '@/types/workRule';
-import type { AppSlice, AppSliceFactory, NotifyInput, SiblingDirection } from './types';
+import type { AppSlice, AppSliceFactory, NotifyInput, PhaseAssignmentQuestion, SiblingDirection } from './types';
 import type { AppState } from '../appStore';
 import type { StoreRuntime } from '../runtime/storeRuntime';
 import { hasConcreteWorkBlocks } from '@/services/subdayIo';
@@ -60,18 +61,34 @@ import type { ProgressPlanDeps } from '@/services/progressImport';
  * App-state, géén projectdata: rondt niet door de IFC-laag en zit niet in
  * de undo/redo-snapshots.
  */
+/**
+ * Wat er gebeurt met de toewijzingen van een taak die door een structuurhandeling een FASE wordt
+ * (`structuralTransition.ts`). Standaard `'ask'` (eigenaarsbesluit 2026-10-17, "altijd vragen"):
+ * de handeling wacht, de store zet `ui.pendingPhaseAssignmentQuestion` en de actie doet nog NIETS
+ * (`addTask` geeft `''`, `insertWbsTemplate` `null`). Het antwoord (`answerPhaseAssignmentQuestion`)
+ * voert dezelfde handeling opnieuw uit met de keuze, als één undo-stap. Een aanroeper zonder venster
+ * (extensie-API) geeft `'move'` mee: het gedrag van vóór de vraag, inclusief de weigering als
+ * verplaatsen niet schoon kan. Draagt geen nieuwe fase een toewijzing, dan wordt er niets gevraagd.
+ */
+export interface PhaseAssignmentOptions {
+  phaseAssignments?: PhaseAssignmentMode;
+  /** De planner koos net in het venster: geen melding die "verplaatst" herhaalt. */
+  answered?: boolean;
+}
+
 export interface TaskSlice {
   tasks: Task[];
-  /** Wordt de OUDER hierdoor een fase terwijl hij toewijzingen draagt, dan verhuizen die naar de
-   *  nieuwe taak (`structuralTransition.ts`); kan dat niet — de nieuwe taak is een mijlpaal — dan
-   *  voegt `addTask` NIETS toe, meldt het en geeft `''` terug. */
+  /** Wordt de OUDER hierdoor een fase terwijl hij toewijzingen draagt, dan vraagt de store eerst
+   *  wat ermee moet (`PhaseAssignmentOptions`) en geeft `''` terug. Met `'move'` verhuizen ze naar
+   *  de nieuwe taak; kan dat niet — de nieuwe taak is een mijlpaal — dan voegt `addTask` NIETS toe,
+   *  meldt het en geeft `''` terug. */
   addTask: (task: Partial<Task> & {
     name: string;
     /** Insert-sneltoets/contextmenu "invoegen boven/onder": plaats de nieuwe taak vlak vóór/ná
      *  `anchorId` binnen diens ouder, i.p.v. achteraan. Zonder → achteraan childIds/tasks. Een onbekende
      *  `anchorId` valt stil terug op het default-gedrag (stille tolerantie, zoals elders). */
     position?: { anchorId: string; where: 'above' | 'below' };
-  }) => string;
+  }, opts?: PhaseAssignmentOptions) => string;
   /** Top-level velden overschrijven, `time` samenvoegen (`mergeTaskUpdate`). Verandert de aanroep
    *  per saldo niets (structureel, `sameValue`), dan is hij een no-op: geen undo-stap, geen
    *  `isDirty`, geen melding. De gevolgregels (laag 3/4 ontkoppelen, nivelleergaten, duurgevolgen)
@@ -93,7 +110,7 @@ export interface TaskSlice {
    *  index — consistent in childIds (zichtbare volgorde niet-root, visibleRows.ts) ÉN in de rauwe
    *  s.tasks-array (root-volgorde + WBS via flattenOrder, dat childIds negeert); dubbele-volgorde-
    *  principe als store-`addTask` met anker. Out-of-range positie klemt naar [0, aantal siblings]. */
-  moveTask: (id: string, newParentId: string | null, position?: number) => void;
+  moveTask: (id: string, newParentId: string | null, position?: number, opts?: PhaseAssignmentOptions) => void;
   /** Verticaal taak-verslepen — verplaatst `id` naar een exacte positie
    *  (i.p.v. `moveTask`'s "altijd achteraan"). `target.parentId` = nieuwe ouder (`null` = root);
    *  `target.childIndex` = gewenste 0-based positie in diens kindlijst, geklemd op `[0..length]`.
@@ -104,7 +121,7 @@ export interface TaskSlice {
    *  zelfde effectieve index) ⇒ stil niets doen, geen undo-entry. Raakt `task.time` nergens aan.
    *  `scheduleStale` alleen bij reparent (andere ouder) — pure herordening binnen dezelfde ouder
    *  raakt geen summary-rollups, net als `reorderSibling`. */
-  moveTaskTo: (id: string, target: { parentId: string | null; childIndex: number }) => void;
+  moveTaskTo: (id: string, target: { parentId: string | null; childIndex: number }, opts?: PhaseAssignmentOptions) => void;
   /** Verplaats een hele SELECTIE naar één doelpositie, met
    *  behoud van hun onderlinge (weergave)volgorde en in ÉÉN undo-stap. Gebruikt door beide
    *  sleep-hooks zodra de gesleepte rij deel uitmaakt van een meervoudige selectie; één losse rij
@@ -114,7 +131,7 @@ export interface TaskSlice {
    *  verplaatsen is erger dan niets doen); (c) niets veranderd ⇒ geen undo-stap; (d) de selectie
    *  zelf blijft ongewijzigd. Verder identiek aan `moveTaskTo` (WBS-hernummering, `stale` alleen
    *  bij een echte reparent). */
-  moveTasksTo: (ids: string[], target: { parentId: string | null; childIndex: number }) => void;
+  moveTasksTo: (ids: string[], target: { parentId: string | null; childIndex: number }, opts?: PhaseAssignmentOptions) => void;
   /** Ctrl/Cmd+Alt+↑/↓: verwissel `taskId` met zijn vorige/volgende sibling
    *  binnen dezelfde ouder (top-level: de root-lijst). No-op aan de rand. Puur volgorde — raakt
    *  GEEN tijden/CPM, dus (in tegenstelling tot de meeste taak-acties) GEEN scheduleStale. */
@@ -122,11 +139,23 @@ export interface TaskSlice {
   /** Hernummer alle WBS-codes uit de boompositie (1.2.3.4) — de expliciete variant van wbsAutoNumber. */
   renumberWbs: () => void;
   /** Inspringen (MSP Alt+Shift+→): elke taak wordt kind van zijn voorgaande zichtbare sibling. */
-  indentTasks: (ids: string[]) => void;
+  indentTasks: (ids: string[], opts?: PhaseAssignmentOptions) => void;
   /** Uitspringen (MSP Alt+Shift+←): elke taak wordt sibling ná zijn huidige ouder. */
-  outdentTasks: (ids: string[]) => void;
+  outdentTasks: (ids: string[], opts?: PhaseAssignmentOptions) => void;
   /** Voeg een WBS-sjabloon in onder een ouder (null = rootniveau); geeft de nieuwe root-id terug. */
-  insertWbsTemplate: (template: WbsTemplate, parentId: string | null) => string | null;
+  insertWbsTemplate: (template: WbsTemplate, parentId: string | null, opts?: PhaseAssignmentOptions) => string | null;
+  /** Stel de vraag "Taak wordt een samenvattingstaak" voor een handeling buiten de store (de taakdialoog vraagt
+   *  vóór het opslaan). `onChoice` draait alleen bij Verplaatsen of Verwijderen; een nieuwe vraag
+   *  vervangt een openstaande (die geldt dan als geannuleerd). `recheck` stelt dezelfde vraag op de
+   *  state van het antwoord; wijkt die af van de gestelde vraag, dan gebeurt er niets (met melding). */
+  askPhaseAssignmentQuestion: (
+    question: PhaseAssignmentQuestion,
+    onChoice: (choice: PhaseAssignmentChoice) => void,
+    recheck: () => PhaseAssignmentQuestion | null,
+  ) => void;
+  /** Het antwoord op de openstaande vraag; `null` = Annuleren (er verandert niets). Geen open vraag
+   *  ⇒ no-op (dubbelklik). */
+  answerPhaseAssignmentQuestion: (choice: PhaseAssignmentChoice | null) => void;
   /** Voortgang: zet completion (0..1), dwingt de voortgangsinvarianten af (auto-actualStart bij
  *  completion>0, remainingTime afgeleid, status). Een echte wijziging maakt de planning altijd
  *  stale; verandert de taak per saldo niet, dan is het een no-op (geen undo-stap, geen `isDirty`,
@@ -635,6 +664,31 @@ export function moveTaskVerdict(
   return hierarchyChangeVerdict(state, moveTaskEdit(id, newParentId, position));
 }
 
+/**
+ * De vraag van "Taak bewerken": moet de planner kiezen wat er met toewijzingen gebeurt als hij
+ * opslaat met `parentId` als bovenliggende taak? Dezelfde proef als `moveTask` (bestaande taak,
+ * `taskId`) of `addTask` (nieuwe taak, `taskId: null`), maar met de vorm van het CONCEPT (`draft`:
+ * naam, mijlpaal ja/nee): Opslaan zet die vorm eerst (`updateTask`) en verhangt daarna
+ * (`moveTask`). Vraagt vóór het opslaan, zodat Annuleren de hele bewerking open laat. `null` ⇒ niets
+ * te vragen.
+ */
+export function phaseAssignmentQuestionForTaskDialog(
+  state: Pick<AppState, 'tasks' | 'resources' | 'assignments'>,
+  taskId: string | null,
+  parentId: string | null,
+  draft: PendingChild,
+): PhaseAssignmentQuestion | null {
+  if (taskId === null) {
+    const childId = 'nieuwe-taak';
+    return phaseAssignmentQuestion(
+      state, firstChildGains(state.tasks, [{ childId, parentId }]), new Map([[childId, draft]]),
+    );
+  }
+  return phaseAssignmentQuestion(
+    state, hierarchyPhaseGains(state.tasks, moveTaskEdit(taskId, parentId)), new Map([[taskId, draft]]),
+  );
+}
+
 type SliceSet = Parameters<AppSlice<TaskSlice>>[0];
 type SliceGet = Parameters<AppSlice<TaskSlice>>[1];
 
@@ -654,6 +708,8 @@ function applyHierarchyEdit(
   get: SliceGet,
   edit: HierarchyEdit,
   staleWhen: 'always' | 'on-reparent',
+  opts: PhaseAssignmentOptions | undefined,
+  ask: AskPhaseAssignments,
 ): void {
   const before = get();
   const verdict = hierarchyChangeVerdict(before, edit);
@@ -662,10 +718,24 @@ function applyHierarchyEdit(
     return;
   }
   if (!verdict.changed) return;
-  // "Wordt fase": krijgt een taak zonder kinderen door deze verhanging haar eerste
-  // kinderen, dan verhuizen haar toewijzingen naar de eerste nieuwe subtaak — of weigert de hele
-  // handeling, vóór snapshot en mutatie, net als de kringtoets hierboven.
-  const phasePlan = planPhaseTransitions(before, hierarchyPhaseGains(before.tasks, edit));
+  // "Wordt fase": krijgt een taak met toewijzingen door deze verhanging haar eerste kinderen, dan
+  // vraagt de app eerst wat ermee moet — ná de kringtoets, vóór snapshot en mutatie. Het antwoord
+  // draait deze zelfde handeling opnieuw, met de keuze. Een vaste `'move'` die niet schoon kan
+  // weigert de hele handeling, net als de kringtoets hierboven.
+  const mode = opts?.phaseAssignments ?? 'ask';
+  const gains = hierarchyPhaseGains(before.tasks, edit);
+  if (mode === 'ask') {
+    const question = phaseAssignmentQuestion(before, gains);
+    if (question) {
+      ask(
+        question,
+        choice => applyHierarchyEdit(runtime, set, get, edit, staleWhen, { phaseAssignments: choice, answered: true }, ask),
+        () => phaseAssignmentQuestion(get(), hierarchyPhaseGains(get().tasks, edit)),
+      );
+      return;
+    }
+  }
+  const phasePlan = planPhaseTransitions(before, gains, undefined, mode === 'ask' ? 'move' : mode);
   if (!phasePlan.ok) {
     get().notify(phaseRefusalNotice(before, phasePlan.refusal));
     return;
@@ -676,7 +746,7 @@ function applyHierarchyEdit(
     runtime.beginUndoable(s); // één undo-stap, vóór de eerste draftmutatie (zie state/transaction.ts).
     edit(s.tasks);
     if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
-    settlePhaseTransitions(s, phasePlan.transitions, outcome);
+    settlePhaseTransitions(s, phasePlan.transitions, outcome, opts);
     // Datum-rakende mutatie: planning verouderd tot F5 — behalve pure herordening.
     runtime.finishMutation(s, { stale: staleWhen === 'always' || verdict.reparented });
   });
@@ -779,15 +849,28 @@ function commitProgressEdit(
 interface StructuralOutcome {
   notices: NotifyInput[];
   lostSteering: number;
+  /** Er verhuisden of verdwenen toewijzingen ⇒ belasting opnieuw. */
   assignmentsMoved: boolean;
 }
+
+/** Stelt de vraag "Taak wordt een samenvattingstaak" en bewaart wat er op het antwoord wacht (zie `createTaskSlice`). */
+type AskPhaseAssignments = (
+  question: PhaseAssignmentQuestion,
+  onChoice: (choice: PhaseAssignmentChoice) => void,
+  recheck: () => PhaseAssignmentQuestion | null,
+) => void;
 const emptyOutcome = (): StructuralOutcome => ({ notices: [], lostSteering: 0, assignmentsMoved: false });
 
 /** Binnen de producer, NA de structuurmutatie en in dezelfde undo-stap: voer het plan uit. */
-function settlePhaseTransitions(s: AppState, transitions: readonly PhaseTransition[], outcome: StructuralOutcome): void {
+function settlePhaseTransitions(
+  s: AppState,
+  transitions: readonly PhaseTransition[],
+  outcome: StructuralOutcome,
+  opts: PhaseAssignmentOptions | undefined,
+): void {
   if (transitions.length === 0) return;
   outcome.lostSteering += applyPhaseTransitions(s, transitions).length;
-  outcome.notices.push(...phaseTransitionNotices(s, transitions));
+  outcome.notices.push(...phaseTransitionNotices(s, transitions, { announceMoves: !opts?.answered }));
   if (transitions.some(t => t.assignmentIds.length > 0)) outcome.assignmentsMoved = true;
 }
 
@@ -798,13 +881,59 @@ function finishStructural(get: () => AppState, outcome: StructuralOutcome): void
   if (outcome.assignmentsMoved) get().recomputeResourceLoad();
 }
 
-export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, get) => ({
+export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, get) => {
+  // De handeling die op het antwoord van "Taak wordt een samenvattingstaak" wacht. Een functie is geen state en
+  // hoort niet in een snapshot; de factory draait één keer per storecontext, dus deze plek is per
+  // context (net als de resolver van `state/actualStartQuestion.ts`, maar zonder app-singleton).
+  let pendingPhaseChoice: ((choice: PhaseAssignmentChoice) => void) | null = null;
+  // Vangnet: dezelfde vraag opnieuw gesteld op de state van het antwoord. Alle sneltoetsen staan
+  // dicht zolang de vraag open is, maar iets anders (een extensie, een documentwissel) kan de state
+  // toch veranderen. Is de vraag dan anders (andere taken, resources, subtaak, blokkade, verricht
+  // werk), dan beschrijft het venster niet meer wat er zou gebeuren: niets doen, en melden. Een
+  // wijziging die de vraag niet raakt (F5 via een andere route, een datum) houdt de keuze geldig.
+  let recheckPhaseQuestion: (() => PhaseAssignmentQuestion | null) | null = null;
+  const askPhaseAssignments: AskPhaseAssignments = (question, onChoice, recheck) => {
+    pendingPhaseChoice = onChoice;
+    recheckPhaseQuestion = recheck;
+    set((s) => { s.ui.pendingPhaseAssignmentQuestion = question; });
+  };
+
+  return {
   tasks: [],
 
-  addTask: (partial) => {
+  askPhaseAssignmentQuestion: askPhaseAssignments,
+
+  answerPhaseAssignmentQuestion: (choice) => {
+    const asked = get().ui.pendingPhaseAssignmentQuestion;
+    if (asked === null) return;
+    const run = pendingPhaseChoice;
+    const recheck = recheckPhaseQuestion;
+    pendingPhaseChoice = null;
+    recheckPhaseQuestion = null;
+    set((s) => { s.ui.pendingPhaseAssignmentQuestion = null; });
+    if (choice === null || !run) return;
+    if (JSON.stringify(recheck?.() ?? null) !== JSON.stringify(asked)) {
+      get().notify({ severity: 'info', messageKey: 'notifications.phaseQuestionOutdated', dedupeKey: 'phase-question-outdated' });
+      return;
+    }
+    run(choice);
+  },
+
+  addTask: (partial, opts) => {
     const id = generateId('task');
     const outcome = emptyOutcome();
+    const mode = opts?.phaseAssignments ?? 'ask';
+    const asked: { question: PhaseAssignmentQuestion | null } = { question: null };
     let refused = false;
+    // Dezelfde vraag op de state van het antwoord (zelfde ouderregel als hieronder).
+    const recheck = () => {
+      const st = get();
+      const anchor = partial.position ? st.tasks.find(t => t.id === partial.position!.anchorId) : undefined;
+      const parentId = anchor ? anchor.parentId : (partial.parentId || null);
+      return phaseAssignmentQuestion(st, firstChildGains(st.tasks, [{ childId: id, parentId }]), new Map([[id, {
+        name: partial.name, isMilestone: !!partial.isMilestone, hasChildren: false,
+      }]]));
+    };
     set((s) => {
       // Insert/contextmenu "invoegen boven/onder": een geldige `position`
       // bepaalt zowel de OUDER (die van de anker) als de invoegplek — de aanroeper hoeft dan geen
@@ -821,7 +950,12 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       const pending = new Map<string, PendingChild>([[id, {
         name: partial.name, isMilestone: !!partial.isMilestone, hasChildren: false,
       }]]);
-      const phasePlan = planPhaseTransitions(s, firstChildGains(s.tasks, [{ childId: id, parentId }]), pending);
+      const gains = firstChildGains(s.tasks, [{ childId: id, parentId }]);
+      if (mode === 'ask') {
+        asked.question = phaseAssignmentQuestion(s, gains, pending);
+        if (asked.question) return; // eerst de vraag; er verandert nog niets
+      }
+      const phasePlan = planPhaseTransitions(s, gains, pending, mode === 'ask' ? 'move' : mode);
       if (!phasePlan.ok) {
         outcome.notices.push(phaseRefusalNotice(s, phasePlan.refusal, pending));
         refused = true;
@@ -888,9 +1022,15 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // aanroeper er zelf geen meegaf.
       if (s.project.wbsAutoNumber || !partial.wbsCode) assignInsertedWbsCodes(s, [id]);
 
-      settlePhaseTransitions(s, phasePlan.transitions, outcome);
+      settlePhaseTransitions(s, phasePlan.transitions, outcome, opts);
       runtime.finishMutation(s, { stale: true }); // nieuwe taak: planning verouderd tot F5.
     });
+    if (asked.question) {
+      askPhaseAssignments(asked.question, (choice) => {
+        get().addTask(partial, { phaseAssignments: choice, answered: true });
+      }, recheck);
+      return '';
+    }
     finishStructural(get, outcome);
     if (refused) return '';
     get().recomputeViewRows();
@@ -1198,25 +1338,25 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
   // Alle verhangroutes lopen via `applyHierarchyEdit`: eerst de proef met de kringtoets
   // (`hierarchyChangeVerdict`), dan pas de mutatie — geweigerd ⇒ melding, geen wijziging, geen
   // undo-stap. De boomwijziging zelf staat per route in een `HierarchyEdit` bovenaan dit bestand.
-  moveTask: (id, newParentId, position) => {
-    applyHierarchyEdit(runtime, set, get, moveTaskEdit(id, newParentId, position), 'always');
+  moveTask: (id, newParentId, position, opts) => {
+    applyHierarchyEdit(runtime, set, get, moveTaskEdit(id, newParentId, position), 'always', opts, askPhaseAssignments);
   },
 
-  moveTaskTo: (id, target) => {
-    applyHierarchyEdit(runtime, set, get, moveTaskToEdit(id, target), 'on-reparent');
+  moveTaskTo: (id, target, opts) => {
+    applyHierarchyEdit(runtime, set, get, moveTaskToEdit(id, target), 'on-reparent', opts, askPhaseAssignments);
   },
 
-  moveTasksTo: (ids, target) => {
+  moveTasksTo: (ids, target, opts) => {
     // De selectie blijft bewust ongemoeid: de gebruiker heeft na de sleep nog dezelfde taken vast.
-    applyHierarchyEdit(runtime, set, get, moveTasksToEdit(ids, target), 'on-reparent');
+    applyHierarchyEdit(runtime, set, get, moveTasksToEdit(ids, target), 'on-reparent', opts, askPhaseAssignments);
   },
 
-  indentTasks: (ids) => {
-    applyHierarchyEdit(runtime, set, get, indentEdit(ids), 'always');
+  indentTasks: (ids, opts) => {
+    applyHierarchyEdit(runtime, set, get, indentEdit(ids), 'always', opts, askPhaseAssignments);
   },
 
-  outdentTasks: (ids) => {
-    applyHierarchyEdit(runtime, set, get, outdentEdit(ids), 'always');
+  outdentTasks: (ids, opts) => {
+    applyHierarchyEdit(runtime, set, get, outdentEdit(ids), 'always', opts, askPhaseAssignments);
   },
 
   reorderSibling: (taskId, direction) => {
@@ -1289,11 +1429,14 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     get().recomputeViewRows();
   },
 
-  insertWbsTemplate: (template, parentId) => {
+  insertWbsTemplate: (template, parentId, opts) => {
     if (template.tasks.length === 0) return null;
     let newRootId: string | null = null;
     let skippedRelations = 0;
     const outcome = emptyOutcome();
+    const mode = opts?.phaseAssignments ?? 'ask';
+    const asked: { question: PhaseAssignmentQuestion | null } = { question: null };
+    let recheck: () => PhaseAssignmentQuestion | null = () => null;
     set((s) => {
       const idMap = new Map<string, string>();
       for (const tt of template.tasks) idMap.set(tt.id, generateId('task'));
@@ -1308,9 +1451,15 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
           hasChildren: template.tasks.some(c => c.parentId === root.id),
         });
       }
-      const phasePlan = planPhaseTransitions(
-        s, firstChildGains(s.tasks, [...pending.keys()].map(childId => ({ childId, parentId }))), pending,
-      );
+      const gains = firstChildGains(s.tasks, [...pending.keys()].map(childId => ({ childId, parentId })));
+      if (mode === 'ask') {
+        asked.question = phaseAssignmentQuestion(s, gains, pending);
+        recheck = () => phaseAssignmentQuestion(
+          get(), firstChildGains(get().tasks, [...pending.keys()].map(childId => ({ childId, parentId }))), pending,
+        );
+        if (asked.question) return; // eerst de vraag; er verandert nog niets
+      }
+      const phasePlan = planPhaseTransitions(s, gains, pending, mode === 'ask' ? 'move' : mode);
       if (!phasePlan.ok) {
         outcome.notices.push(phaseRefusalNotice(s, phasePlan.refusal, pending));
         return;
@@ -1354,9 +1503,15 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         s.selectedTaskIds = [newRootId];
         s.activeTaskId = newRootId;
       }
-      settlePhaseTransitions(s, phasePlan.transitions, outcome);
+      settlePhaseTransitions(s, phasePlan.transitions, outcome, opts);
       runtime.finishMutation(s, { stale: true }); // ingevoegd WBS-sjabloon: planning verouderd tot F5.
     });
+    if (asked.question) {
+      askPhaseAssignments(asked.question, (choice) => {
+        get().insertWbsTemplate(template, parentId, { phaseAssignments: choice, answered: true });
+      }, recheck);
+      return null;
+    }
     finishStructural(get, outcome);
     get().recomputeViewRows();
     // Ná `set()`: `get().notify(...)` binnen een actieve producer aanroepen kan niet.
@@ -1446,4 +1601,5 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     if (statusDateToday) get().notify(statusDateSetTodayNotice(statusDateToday, get().ui.dateNotation));
     return plan;
   },
-});
+  };
+};

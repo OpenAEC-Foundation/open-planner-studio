@@ -256,7 +256,9 @@ export function createExtensionApi(
         // Catalogus + toewijzing vormen voor de gebruiker één wijziging en dus één undo-stap.
         return batch.withTransaction(() => {
           if (materialize) document.store.getState().ensureProjectTaskType(materialize);
-          return added(document.store.getState().addTask(fromExtTaskAddInput(input)));
+          // Een extensie kan geen venster tonen: vaste keuze "verplaatsen", het gedrag van vóór de vraag
+          // "Taak wordt een samenvattingstaak" (eigenaarsbesluit 2026-10-17 geldt voor de gebruikersroutes).
+          return added(document.store.getState().addTask(fromExtTaskAddInput(input), { phaseAssignments: 'move' }));
         });
       },
       updateTask: (id, updates) => {
@@ -292,7 +294,12 @@ export function createExtensionApi(
           if (materialize) document.store.getState().ensureProjectTaskType(materialize);
           // Index voorbij het einde wordt in de store geklemd ⇒ achteraan bij de nieuwe ouder, zoals
           // het wijzigen van de ouder in het taakvenster (`moveTask` zonder positie).
-          if (move) document.store.getState().moveTaskTo(id, { parentId: move.parentId, childIndex: Number.MAX_SAFE_INTEGER });
+          // Vaste keuze "verplaatsen", zoals `addTask` hierboven.
+          if (move) {
+            document.store.getState().moveTaskTo(
+              id, { parentId: move.parentId, childIndex: Number.MAX_SAFE_INTEGER }, { phaseAssignments: 'move' },
+            );
+          }
           if (!move || Object.keys(patch).length > 0) document.store.getState().updateTask(id, patch);
         });
       },

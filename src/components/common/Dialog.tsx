@@ -107,9 +107,11 @@ export interface DialogHelp {
    * sluit, en geeft `false` terug als dat niet lukte (bijv. validatie) — dan blijft de dialoog open en
    * opent Help niet. Annuleren loopt via `onClose` van de kop. `dirty: false` slaat de vraag over
    * (niets gewijzigd); weglaten = altijd vragen.
+   * `'later'`: het opslaan wacht eerst op een andere vraag ("Taak wordt een samenvattingstaak" in
+   * "Taak bewerken"). De dialoog roept dan zelf `openHelpLater` aan zodra het opslaan gelukt is.
    */
   confirmLeave?: {
-    onSave: () => boolean | void;
+    onSave: (openHelpLater: () => void) => boolean | 'later' | void;
     dirty?: boolean;
   };
   /**
@@ -200,9 +202,11 @@ export function DialogHelpButton({ help, onClose, disabled, size = 16 }: {
           onBack={() => setPendingOpen(null)}
           onDiscard={() => { setPendingOpen(null); onClose(); pendingOpen(); }}
           onSave={() => {
+            const open = pendingOpen;
             setPendingOpen(null);
-            if (help.confirmLeave!.onSave() === false) return;
-            pendingOpen();
+            const saved = help.confirmLeave!.onSave(open);
+            if (saved === false || saved === 'later') return;
+            open();
           }}
         />
       )}

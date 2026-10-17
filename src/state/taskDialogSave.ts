@@ -17,6 +17,7 @@ import { getPersonalTaskTypes } from '@/services/taskTypes/personalTaskTypes';
 import type { Task } from '@/types/task';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import type { HistorySessionMark } from '@/state/slices/historySlice';
+import type { PhaseAssignmentChoice } from '@/state/structuralTransition';
 
 /**
  * "Taak bewerken" (`TaskDialog.tsx`): de voortgangsbewerkingen op de concepttaak en het Opslaan.
@@ -110,6 +111,9 @@ export interface TaskDialogSaveInput {
   /** Vandaag (`localTodayIso`), meegegeven door de dialoog: de invoerregels van
    *  `engine/progressEntry.ts` gelden. Afwezig = vangnet zonder die regels. */
   today?: string;
+  /** Het antwoord op "Taak wordt een samenvattingstaak", als de dialoog het vóór het opslaan vroeg (de nieuwe
+   *  ouder draagt toewijzingen). Afwezig ⇒ de store vraagt zelf (`PhaseAssignmentOptions`). */
+  phaseAssignments?: PhaseAssignmentChoice;
 }
 
 const PROGRESS_KEYS = ['completion', 'actualStart', 'actualFinish'] as const;
@@ -169,9 +173,10 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
   const S = () => context.store.getState();
 
   const save = (
-    { editingTaskId, draft, startDate, initialDuration, today }: TaskDialogSaveInput,
+    { editingTaskId, draft, startDate, initialDuration, today, phaseAssignments }: TaskDialogSaveInput,
     notices: StartEditNotice[],
   ): void => {
+    const phaseOpts = phaseAssignments ? { phaseAssignments, answered: true } : undefined;
     if (draft.customTaskTypeId) {
       const definition = S().customTaskTypes.find(type => type.id === draft.customTaskTypeId)
         ?? getPersonalTaskTypes().find(type => type.id === draft.customTaskTypeId);
@@ -242,7 +247,7 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
       // de nieuwe ouder en weigert cykels. `updateTask` is een kale Object.assign zonder die sync —
       // parentId meepatchen zou de boom stil corrumperen. Bij een geweigerde move doet `moveTask`
       // niets: parentId blijft dan ook ongewijzigd.
-      if (draft.parentId !== editingTask.parentId) S().moveTask(editingTask.id, draft.parentId);
+      if (draft.parentId !== editingTask.parentId) S().moveTask(editingTask.id, draft.parentId, undefined, phaseOpts);
       return;
     }
 
@@ -274,7 +279,7 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
         isCritical: false,
         completion: 0,
       },
-    });
+    }, phaseOpts);
   };
 
   return (input) => {

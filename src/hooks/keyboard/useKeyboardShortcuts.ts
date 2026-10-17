@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { isTauri } from '@/utils/platform';
-import { SHORTCUTS, isDocumentLeaveBlocked, matchesCombo } from './shortcutRegistry';
+import { SHORTCUTS, isDocumentLeaveBlocked, isGlobalShortcutFrozen, matchesCombo } from './shortcutRegistry';
 import { isTypingTarget } from './isTypingTarget';
 // Zelfde bron als `shortcutRegistry` (dat al `i18n.t` gebruikt voor default-taaknamen): deze
 // voorpoort spiegelt de `file.open`-entry daar, dus spiegelt hij ook hóé het label wordt opgehaald.
@@ -70,6 +70,12 @@ export function useKeyboardShortcuts() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (!shouldHandleGlobalShortcutEvent(e)) return;
+      // Een open vraag "Taak wordt een samenvattingstaak": geen enkele globale sneltoets voert iets
+      // uit (ook F5/Ctrl+S van de voorpoort hieronder niet); browsertoetsen blijven wel geblokkeerd.
+      if (isGlobalShortcutFrozen()) {
+        if (isProduction && isBrowserShortcut(e)) e.preventDefault();
+        return;
+      }
       // Block browser shortcuts in production but still run app actions
       if (isProduction && isBrowserShortcut(e)) {
         e.preventDefault();

@@ -95,6 +95,8 @@ function resetDocumentScopedUI(s: AppState): void {
   // dialoog openstaat (zie hasBlockingDialogOpen/BLOCKING_UI_FLAGS + de when-guards op Ctrl/⌘1-9 en
   // Ctrl+O). Gaat dit wél af, dan is er een wisselroute gemist; dat is een bug, geen normaal gedrag.
   s.ui.showProgressImportDialog = false;
+  // Zelfde vangnet: "Taak wordt een samenvattingstaak" noemt taken van het vorige document.
+  s.ui.pendingPhaseAssignmentQuestion = null;
 }
 
 function publishActivation(s: AppState, activation: DocumentActivationMaterialization): void {

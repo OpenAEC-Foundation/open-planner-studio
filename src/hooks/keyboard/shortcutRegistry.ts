@@ -73,6 +73,8 @@ export function hasBlockingDialogOpen(ui: UIState = useAppStore.getState().ui): 
     ui.pendingExtensionConsent !== null ||
     // De vraag naar de werkelijke start wacht op een antwoord; intussen verandert er niets.
     ui.pendingActualStartQuestion !== null ||
+    // "Taak wordt een samenvattingstaak" wacht op een keuze; de handeling is nog niet uitgevoerd.
+    ui.pendingPhaseAssignmentQuestion !== null ||
     // Openen van/opslaan op de site wacht op een keuze; de opslaanroute houdt intussen de
     // schrijfvergrendeling vast.
     ui.pendingSiteOpen !== null || ui.pendingSiteSave !== null ||
@@ -96,6 +98,18 @@ export function hasBlockingDialogOpen(ui: UIState = useAppStore.getState().ui): 
  */
 export function isShortcutBlockedByDialog(): boolean {
   return hasBlockingDialogOpen() || isAnyDialogOpen();
+}
+
+/**
+ * "Taak wordt een samenvattingstaak" wacht op een antwoord dat een handeling uitvoert op de state
+ * van NU (`answerPhaseAssignmentQuestion`). Zolang die vraag open staat, voert GEEN globale
+ * sneltoets iets uit (Delete, F5, Ctrl+Z, Insert, Alt+Shift+pijlen, …); alleen de toetsen van het
+ * venster zelf werken. De poort staat één keer in `useKeyboardShortcuts` (vóór de productie-
+ * voorpoort én het register), niet per sneltoets. Bewust alleen deze vraag: onder andere dialogen
+ * blijven Ctrl+Z/Ctrl+Y bestaand gedrag (zie `ProgressImportDialog`, `ProjectInfoPanelContent`).
+ */
+export function isGlobalShortcutFrozen(): boolean {
+  return useAppStore.getState().ui.pendingPhaseAssignmentQuestion !== null;
 }
 
 /**

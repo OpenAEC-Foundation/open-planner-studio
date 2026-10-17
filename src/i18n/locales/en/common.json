@@ -140,6 +140,7 @@
     "milestoneClearedOnPhase_other": "{{count}} tasks are no longer milestones.",
     "phaseRefusedNoAssignableChild": "'{{phase}}' cannot become a summary task: its assignments have nowhere to go, because none of the new subtasks can carry assignments (a milestone or summary task). Nothing was changed.",
     "phaseRefusedDuplicateResource": "'{{phase}}' cannot become a summary task: the assignment of {{resource}} cannot move to the new subtask '{{child}}', because it already has {{resource}}. Nothing was changed.",
+    "phaseQuestionOutdated": "The tasks or assignments changed while the question was open. Nothing was changed; please try again.",
     "schedulingProfileApplied": "This project calculates as {{profile}}. Change it via File → Project settings → Calculation profile and options.",
     "schedulingTemplateSaved": "Template “{{name}}” saved.",
     "schedulingTemplateLimit": "Template not saved: there are already {{max}} templates. Delete a template first.",
@@ -1569,5 +1570,25 @@
     "bodyUnwritable": "This file was saved as {{schema}}. The app cannot write that schema. Choose the schema in which the app saves it. You can change this later in Project settings.",
     "keep": "Keep {{schema}}",
     "toDefault": "Save as IFC 4.3 ADD2"
+  },
+  "phaseAssignmentQuestion": {
+    "title": "Task becomes a summary task",
+    "intro_one": "'{{phase}}' gets the subtask '{{child}}' and becomes a summary task.",
+    "intro_other": "'{{phase}}' gets {{count}} subtasks and becomes a summary task.",
+    "introMany_one": "This action turns {{count}} task into a summary task.",
+    "introMany_other": "This action turns {{count}} tasks into summary tasks.",
+    "noOwnAssignments": "A summary task has no assignments of its own.",
+    "question_one": "What do you want to do with the assignment of {{resources}}?",
+    "question_other": "What do you want to do with the assignments of {{resources}}?",
+    "questionMany": "What do you want to do with their assignments?",
+    "row": "'{{phase}}': {{resources}}",
+    "remove_one": "Remove assignment",
+    "remove_other": "Remove assignments",
+    "moveTo": "Move to '{{child}}'",
+    "moveToSubtasks": "Move to the subtasks",
+    "blockedDuplicate": "Moving is not possible: '{{child}}' already has {{resources}}.",
+    "blockedNoChild": "Moving is not possible: '{{phase}}' gets no subtask that can carry an assignment, only milestones or summary tasks.",
+    "actualWorkLost_one": "The assignment of {{resource}} already has {{hours}} hour of actual work. Removing it discards that work.",
+    "actualWorkLost_other": "The assignment of {{resource}} already has {{hours}} hours of actual work. Removing it discards that work."
   }
 }
