@@ -14,7 +14,8 @@ De statusdatum is de dag waarop je de stand opneemt. Zet hem vóór je voortgang
 
 1. Ga naar *Planning › Baselines & voortgang › Statusdatum*.
 2. Typ de datum in de drie vakjes voor dag, maand en jaar (in de volgorde van je datumnotatie), bijvoorbeeld 28, 06 en 2027, en druk op Enter. De app springt zelf naar het volgende vakje.
-3. Met het kruisje naast het veld maak je de statusdatum weer leeg.
+3. Draagt de statusdatum een tijd, of staat *Urenplanning inschakelen* aan? Dan staat rechts een tijdveld, bijvoorbeeld 17:00. Typ een andere tijd, bijvoorbeeld 12:00, en druk op Enter. Maak je het tijdveld leeg, dan blijft alleen de datum over. De tijd volgt je tijdnotatie (24 of 12 uur).
+4. Met het kruisje naast het veld maak je de statusdatum weer leeg.
 
 Neem je de stand vrijdag na werktijd op, dan zet je de statusdatum op de eerstvolgende werkdag, maandag. De app plant het restwerk vanaf het begin van de statusdatum.
 

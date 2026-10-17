@@ -21,6 +21,10 @@ import { addTaskNearSelection } from '@/state/taskInsertActions';
 import { supportsRecentFiles } from '@/services/fileAccess';
 import { siteStorageAvailable } from '@/services/fileAccess/siteHost';
 import { DateTextInput } from '@/components/common/DateTextInput';
+import { TimeInput, TIME_STEP_MINUTES } from '@/components/common/TimeInput';
+import { useTimeNotation } from '@/hooks/displayDate';
+import { formatClock, parseClock } from '@/utils/displayTime';
+import { statusDateMinutes, statusDateShowsTime, withStatusTime } from '@/utils/statusDateTime';
 import { ExtensionIcon } from '@/components/common/ExtensionIcon';
 import { isLeafTask } from '@/utils/taskHierarchy';
 import { RibbonTab, type Layout, type TimeScale } from '@/state/slices/types';
@@ -77,6 +81,8 @@ export function BaselinesProgressGroupContent() {
   const progressMode = useAppStore(s => s.project.progressMode);
   const setStatusDate = useAppStore(s => s.setStatusDate);
   const setProgressMode = useAppStore(s => s.setProgressMode);
+  const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
+  const showTime = statusDateShowsTime(statusDate, enableHourPlanning);
 
   const onManageBaselines = () => setUI({ showBaselineDialog: true });
 
@@ -96,6 +102,7 @@ export function BaselinesProgressGroupContent() {
             color: 'var(--theme-text)',
           }}
         />
+        {showTime && <StatusDateTimeField statusDate={statusDate} onCommit={setStatusDate} />}
         {statusDate && (
           <button
             className="ribbon-btn small"
@@ -165,6 +172,62 @@ export function BaselinesProgressGroupContent() {
       {statusDateControl}
       {progressModeControl}
     </Popover>
+  );
+}
+
+/**
+ * Tijdveld naast de statusdatum (besluit eigenaar 2026-10-17). Zichtbaar volgens
+ * `statusDateShowsTime`; de tijd volgt de instelling Tijdnotatie, de opslag blijft ISO 24 uur.
+ *
+ * Het veld toont de modelwaarde tot de gebruiker typt; pas bij blur/Enter wordt het concept gelezen
+ * (één commit ⇒ één undo-stap, `setStatusDate` markeert de planning als verouderd). Leeg maken haalt de
+ * tijd weg (alleen de datum). Een onleesbare tijd valt stil terug op de modelwaarde. Zonder statusdatum
+ * is het veld uitgeschakeld: een tijd zonder datum bestaat niet.
+ */
+function StatusDateTimeField({ statusDate, onCommit }: {
+  statusDate: string | undefined;
+  onCommit: (next: string | undefined) => void;
+}) {
+  const { t: tMenu } = useTranslation('menu');
+  const notation = useTimeNotation();
+  const [draft, setDraft] = useState<string | null>(null);
+  const minutes = statusDateMinutes(statusDate);
+
+  const write = (next: number | undefined) => {
+    const value = withStatusTime(statusDate, next);
+    if (value !== undefined && value !== statusDate) onCommit(value);
+  };
+  const commit = () => {
+    if (draft === null) return;
+    const text = draft.trim();
+    setDraft(null);
+    if (text === '') { write(undefined); return; }
+    const parsed = parseClock(text);
+    if (parsed !== undefined) write(parsed);
+  };
+  const step = (delta: number) => {
+    const current = (draft === null ? minutes : parseClock(draft) ?? minutes) ?? 0;
+    const next = current + delta;
+    if (next < 0 || next > 1440 - TIME_STEP_MINUTES) return;
+    setDraft(null);
+    write(next);
+  };
+
+  return (
+    <div style={{ width: 92 }} data-ops-status-date-time-field>
+      <TimeInput
+        value={draft ?? (minutes === undefined ? '' : formatClock(minutes, notation))}
+        onTextChange={setDraft}
+        onCommit={commit}
+        onStep={step}
+        ariaLabel={tMenu('ribbon.statusDateTime')}
+        increaseLabel={tMenu('ribbon.statusDateTimeLater')}
+        decreaseLabel={tMenu('ribbon.statusDateTimeEarlier')}
+        className="!text-body px-1.5 py-[3px] bg-[var(--theme-input-bg)] border border-[var(--theme-control-border)] rounded-[var(--radius-sm)] text-[var(--theme-text)] focus:outline-none focus:border-accent"
+        dataAttribute="status-date-time"
+        dataAttributes={{ 'data-ops-status-date-time': true }}
+      />
+    </div>
   );
 }
 

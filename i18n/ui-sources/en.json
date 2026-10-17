@@ -2243,7 +2243,6 @@
     "ribbon.calendarDialog.startHour": "67254cfe6428ff5c",
     "ribbon.calendarDialog.endHour": "8314d27de4882272",
     "ribbon.calendarDialog.hoursPerDay": "ced37df99e8df16f",
-    "ribbon.calendarDialog.netHoursPerDay": "71f69c021582c154",
     "ribbon.calendarDialog.standardWorkday": "472909ca51b24905",
     "ribbon.calendarDialog.standardWorkdayInfo": "dab2e675d02969ff",
     "ribbon.calendarDialog.standardWorkdayInfoLabel": "cf1150f0be0b69b8",
@@ -2331,6 +2330,9 @@
     "ribbon.manageBaselines": "47091944ebab0e6f",
     "ribbon.statusDate": "392f889cc8423fe0",
     "ribbon.statusDateClear": "d01d124585807c15",
+    "ribbon.statusDateTime": "8fa1e770fd8aaeac",
+    "ribbon.statusDateTimeLater": "6a488b062ffcfc13",
+    "ribbon.statusDateTimeEarlier": "b1060537f0ec5304",
     "ribbon.progressMode": "d4eace48758029a1",
     "ribbon.progressModeRetained": "5731911a0787438a",
     "ribbon.progressModeOverride": "7d9eacccbad1cb82",
@@ -2574,6 +2576,7 @@
     "commands.undo": "22161ff107643c81",
     "commands.redo": "317d53d568d624a2",
     "commands.zoomIn": "38532e02dbabab1c",
-    "commands.zoomOut": "f61db514902f41ec"
+    "commands.zoomOut": "f61db514902f41ec",
+    "ribbon.calendarDialog.netHoursPerDay": "71f69c021582c154"
   }
 }

@@ -103,7 +103,7 @@ Je kunt beide tegelijk aan hebben; een tweede klik op een knop zet die kant weer
 ### Planning › Baselines & voortgang
 
 - **Baselines beheren…** — opent het baselinevenster. Zie [Een baseline opslaan en beheren](docs://howto-baseline-opslaan-en-beheren).
-- **Statusdatum** — de datum tot waar je de voortgang meet. Typ een datum; het kruisje (*Statusdatum leegmaken*) wist hem. Effect: voortgang wordt tot die datum gemeten, en de statusdatumlijn en voortgangslijn in de Gantt staan erop. Zie [Voortgang, statusdatum en baseline](docs://uitleg-voortgang).
+- **Statusdatum** — de datum tot waar je de voortgang meet. Typ een datum; het kruisje (*Statusdatum leegmaken*) wist hem. Draagt de statusdatum een tijd (MS Project bewaart vaak 17:00), of staat *Urenplanning inschakelen* aan, dan staat naast de datum ook een tijdveld. De tijd telt mee: 12:00 in plaats van 17:00 geeft een halve dag ander restwerk. Effect: voortgang wordt tot die datum gemeten, en de statusdatumlijn en voortgangslijn in de Gantt staan erop. Zie [Voortgang, statusdatum en baseline](docs://uitleg-voortgang).
 - **Voortgangsmodus** — keuze tussen *Retained Logic* en *Progress Override*. Standaard: *Retained Logic*. Effect: bij *Retained Logic* volgt het restwerk van een gestarte opvolger de relatie; bij *Progress Override* begint het restwerk op de statusdatum, zonder op de voorganger te wachten. Zie [De voortgangsmodus kiezen](docs://howto-voortgangsmodus-kiezen).
 
 In het ingeklapte lint staan deze drie achter één vlaggetjesknop met de titel *Baselines & voortgang*.
@@ -182,7 +182,7 @@ Deze groep heeft dezelfde naam als die op *Planning*, maar bevat de tekenopties 
 
 - **Baseline-overlay** — toont de actieve baseline als dunne balk onder elke taakbalk. Standaard: aan. Zonder actieve baseline is er niets te zien.
 - **Voortgangslijn** — tekent een lijn op de statusdatum die per taak uitsteekt naar de voortgang. Standaard: aan. Zonder statusdatum is er niets te zien. Staat de voortgangslijn aan, dan is die lijn ook de markering van de statusdatum.
-- **Statusdatumlijn** — tekent een gestippelde lijn op de statusdatum. Standaard: aan. Je ziet hem alleen als de voortgangslijn uit staat, want anders neemt die lijn zijn plaats in. Het label met de datum in de kop blijft wel staan zolang minstens één van de twee aan is.
+- **Statusdatumlijn** — tekent een gestippelde lijn op de statusdatum. Standaard: aan. Je ziet hem alleen als de voortgangslijn uit staat, want anders neemt die lijn zijn plaats in. Het label met de datum in de kop blijft wel staan zolang minstens één van de twee aan is. Het label volgt je datumnotatie en toont ook de tijd als de statusdatum een tijd draagt, bijvoorbeeld 20-09-2006 17:00.
 - **Balkkleuren** — kiest waarmee de balken zijn gekleurd: *Kritiek pad* (standaard), *Per taak — automatisch* of *Op categorie* met een keuze van het veld. Is dat veld niet in dit project, dan meldt het menu dat *Taaktype* tijdelijk wordt gebruikt. Buiten *Kritiek pad* markeert een rode rand het kritieke pad. De keuze geldt ook voor het rapport.
 - **Resource-accent** — tekent een dun streepje in de resourcekleur onder elke bladbalk, verdeeld naar rato van de eenheden per dag. Standaard: uit.
 - **Spelingsband** — tekent de groene band na een niet-kritieke balk, tot het laatste einde van de taak. Standaard: aan.

@@ -1,7 +1,9 @@
 import { Task } from '@/types/task';
 import type { BaselineOverlay } from '@/types/baseline';
 import { Sequence } from '@/types/sequence';
-import type { ViewState, BarSplitMode, DurationDisplay, TimeNotation } from '@/types/view';
+import type { ViewState, BarSplitMode, DateNotation, DurationDisplay, TimeNotation } from '@/types/view';
+import { displayDateTime } from '@/utils/displayDate';
+import { statusDateInstant } from '@/utils/statusDateTime';
 import { formatAxisClock } from '@/utils/displayTime';
 import { parseDate, parseInstant, addCalendarDays, diffCalendarDays, isoDayOfWeek, getWeekNumberFor, utcDayStart, localNowOnDayAxis, MS_PER_DAY } from '@/utils/dateUtils';
 import { holidayEndDate, WorkCalendar } from '@/types/calendar';
@@ -132,6 +134,8 @@ export interface GanttRenderOptions {
   weekStartDay?: 'monday' | 'sunday';        // default 'monday'
   /** Instelling Tijdnotatie voor de tijdschaal Uur/Kwartier (`13:00` of `1 PM`). Default '24h'. */
   timeNotation?: TimeNotation;
+  /** Instelling Datumnotatie voor het statusdatumlabel (`20-09-2006`). Default 'dmy', zoals de app. */
+  dateNotation?: DateNotation;
   enableQuarterHourZoom?: boolean;            // default false
   /** Effectieve kalender per taak-id (`task.calendarId` → bibliotheek, anders
    *  projectkalender). Bepaalt per taak of hij uur-modus is (sub-dag-balkpositie) en levert de
@@ -783,7 +787,7 @@ export class GanttRenderer {
     if (!this.opts.statusDate || this.opts.showStatusDateLine === false) return;
     if (this.opts.showProgressLine !== false) return;
     const ctx = this.ctx;
-    const x = this.dateToX(parseDate(this.opts.statusDate));
+    const x = this.statusDateX(this.opts.statusDate);
     if (x >= 0 && x < this.opts.canvasWidth) {
       ctx.strokeStyle = this.colors.statusDate;
       ctx.lineWidth = 2;
@@ -807,16 +811,35 @@ export class GanttRenderer {
    *
    * Het vlakje staat rechts van de lijn, tenzij het dan buiten het canvas zou vallen — dan links.
    */
+  /**
+   * X van de statusdatum op de tijdas (lijn, label en voortgangslijn delen hem). Met een tijd
+   * (`YYYY-MM-DDTHH:mm`) staat de lijn op dat tijdstip, zoals een uurtaakbalk: `statusDateInstant`
+   * (gedeeld met de printexport) en dezelfde `dateToX` van de as. Op de kalenderas is dat de fractie van de kalenderdag (17:00 =
+   * 17/24 van de dagbreedte, ook bij dagzoom); op de werkdag-as bepaalt die as zelf de positie.
+   * Zonder tijd: het begin van de dag, zoals altijd (besluit eigenaar 2026-10-17: label en lijn
+   * zeggen hetzelfde).
+   */
+  statusDateX(iso: string): number {
+    return this.dateToX(statusDateInstant(iso));
+  }
+
+  /** De tekst van het statusdatumlabel. Statisch en puur, zodat een check hem zonder canvas leest. */
+  static statusDateBadgeLabel(iso: string, dateNotation: DateNotation = 'dmy', timeNotation: TimeNotation = '24h'): string {
+    return displayDateTime(iso, dateNotation, timeNotation);
+  }
+
   private drawStatusDateBadge(): void {
     const iso = this.opts.statusDate;
     if (!iso) return;
     // Geen markering zichtbaar ⇒ ook geen label. (Beide vlaggen zijn default-aan: `!== false`.)
     if (this.opts.showStatusDateLine === false && this.opts.showProgressLine === false) return;
     const { canvasWidth, headerHeight } = this.opts;
-    const x = this.dateToX(parseDate(iso));
+    const x = this.statusDateX(iso);
     if (x < 0 || x >= canvasWidth) return;
 
-    const label = iso.slice(0, 10);
+    // Datum in de Datumnotatie, plus de tijd in de Tijdnotatie als de statusdatum er een draagt
+    // (besluit eigenaar 2026-10-17): `20-09-2006 17:00`, niet de ruwe ISO-tekst.
+    const label = GanttRenderer.statusDateBadgeLabel(iso, this.opts.dateNotation, this.opts.timeNotation);
     this.ctx.save();
     const h = GanttRenderer.DRAG_BADGE_H;
     const w = this.pillWidth(label);
@@ -867,8 +890,9 @@ export class GanttRenderer {
   private drawProgressLine(): void {
     if (!this.opts.statusDate || this.opts.showProgressLine === false) return;
     const ctx = this.ctx;
+    // `statusDay` blijft de kalenderdag voor de vergelijkingen hieronder; alleen de X volgt de tijd.
     const statusDay = parseDate(this.opts.statusDate);
-    const statusX = this.dateToX(statusDay);
+    const statusX = this.statusDateX(this.opts.statusDate);
     const { headerHeight, canvasHeight, canvasWidth, rowHeight } = this.opts;
 
     ctx.save();

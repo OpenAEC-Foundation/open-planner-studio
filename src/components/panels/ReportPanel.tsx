@@ -232,6 +232,7 @@ export function ReportPanel() {
   const projectName = nameWithProjectCode(project.name, projectCode) || tCommon('project.untitled');
   const fileBase = documentFileBase(project.name, projectCode);
   const dateNotation = useAppStore(s => s.ui.dateNotation);
+  const timeNotation = useAppStore(s => s.ui.timeNotation);
   const weekStartDay = useAppStore(s => s.ui.weekStartDay);
   // Duur-kolom van de Gantt-afdruk: dezelfde tekst als taakraster en tooltip — Duurweergave, de
   // eigen taakeenheid en de uren per dag van de effectieve taakkalender.
@@ -704,6 +705,8 @@ export function ReportPanel() {
     projectEndDate: project.endDate,
     projectAuthor: project.author,
     dateNotation,
+    // Tijd in het statusdatumlabel, net als op het scherm (besluit eigenaar 2026-10-17).
+    timeNotation,
     // Dezelfde weekdefinitie als de Gantt op het scherm. Zonder dit veld drukt het rapport
     // ISO-weeknummers op maandag af, ook als de gebruiker "week begint op zondag" heeft staan.
     weekStartDay,
@@ -748,7 +751,7 @@ export function ReportPanel() {
     },
   }), [showCritical, showFloat, showDeps, showWeekends, showLegend, showTaskNames, showCompletion, showBaselineOverlay,
     autoFit, customZoom, paperSize, orientation, companyName, effectiveNameColumnWidth, t, locale, project.startDate,
-    project.endDate, project.author, dateNotation, weekStartDay, reportCompressNonWorkdays, timelineColumns, reportFontScale,
+    project.endDate, project.author, dateNotation, timeNotation, weekStartDay, reportCompressNonWorkdays, timelineColumns, reportFontScale,
     cpmResult, barColorSelection, fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs,
     reportTaskTypeLabels, tTask, daySuffix, statusLine, statusDate, resources,
     assignments, baselineOverlay, reportRows, reportType, resourceGanttOptions.pageBreakPerResource, tasks.length,

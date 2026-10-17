@@ -103,7 +103,7 @@ You can have both on at once; a second click on a button turns that side off aga
 ### Planning › Baselines & progress
 
 - **Manage baselines…** — opens the baseline window. See [Saving and managing a baseline](docs://howto-baseline-opslaan-en-beheren).
-- **Status date** — the date up to which you measure progress. Type a date; the cross (*Clear status date*) removes it. Effect: progress is measured up to that date, and the status date line and progress line in the Gantt sit on it. See [Progress, status date and baseline](docs://uitleg-voortgang).
+- **Status date** — the date up to which you measure progress. Type a date; the cross (*Clear status date*) removes it. If the status date carries a time (MS Project often stores 17:00), or *Enable hour planning* is on, a time field shows next to the date. The time counts: 12:00 instead of 17:00 gives half a day of different remaining work. Effect: progress is measured up to that date, and the status date line and progress line in the Gantt sit on it. See [Progress, status date and baseline](docs://uitleg-voortgang).
 - **Progress mode** — a choice between *Retained Logic* and *Progress Override*. Default: *Retained Logic*. Effect: with *Retained Logic* the remaining work of a started successor follows the relation; with *Progress Override* the remaining work starts on the status date, without waiting for the predecessor. See [Choosing the progress mode](docs://howto-voortgangsmodus-kiezen).
 
 In the collapsed ribbon these three sit behind one flag button titled *Baselines & progress*.
@@ -182,7 +182,7 @@ This group has the same name as the one on *Planning*, but holds the drawing opt
 
 - **Baseline overlay** — shows the active baseline as a thin bar under each task bar. Default: on. Without an active baseline there is nothing to see.
 - **Progress line** — draws a line on the status date that bulges out per task to its progress. Default: on. Without a status date there is nothing to see. When the progress line is on, that line is also the marker of the status date.
-- **Status date line** — draws a dashed line on the status date. Default: on. You only see it when the progress line is off, because otherwise that line takes its place. The label with the date in the header stays as long as at least one of the two is on.
+- **Status date line** — draws a dashed line on the status date. Default: on. You only see it when the progress line is off, because otherwise that line takes its place. The label with the date in the header stays as long as at least one of the two is on. The label follows your date notation and also shows the time if the status date carries one, for example 20-09-2006 17:00.
 - **Bar colors** — chooses how the bars are coloured: *Critical path* (default), *Per task — automatic* or *By category* with a choice of field. If that field is not in this project, the menu says that *Task type* is used temporarily. Outside *Critical path*, a red outline marks the critical path. The choice also applies to the report.
 - **Resource accent** — draws a thin strip in the resource colour under each leaf bar, divided in proportion to the units per day. Default: off.
 - **Float band** — draws the green band after a non-critical bar, up to the task's late finish. Default: on.
