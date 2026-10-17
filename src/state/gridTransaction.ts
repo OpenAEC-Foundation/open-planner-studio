@@ -59,6 +59,7 @@ import type {
 } from '@/types/taskGrid';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import { markDocumentEdited } from '@/state/documentEdited';
+import { refusalNotice, refusedNamesLine } from './refusalNotice';
 
 export interface PreparedGridMutation {
   documentId: string;
@@ -74,6 +75,10 @@ export interface PreparedGridMutation {
    *  berekend (clipboard.ts) of conditioneel bleken (deze module, applyCellEdits) — bij een echte
    *  Ctrl+V-paste in plaats van de hele transactie te blokkeren. 0 buiten die route. */
   skippedReadOnlyCount: number;
+  /** Taken met overgeslagen cellen waarin NIETS is geschreven ("Niet aangepast: …"), en taken met
+   *  overgeslagen cellen waarin een andere cel wél is geschreven ("Niet toegepast bij: …"). */
+  skippedReadOnlyUntouchedTaskIds?: readonly string[];
+  skippedReadOnlyPartialTaskIds?: readonly string[];
   label: string;
 }
 
@@ -798,7 +803,7 @@ function applyCellEdits(
   // constraint tegenhield — die laat de taak juist ongemoeid, dus daar geldt `changed` niet.
   const snet = planned.value.task.constraint;
   const startNotice: StartEditNotice | undefined = planned.value.startBlocked
-    ? { kind: 'blocked', name: planned.value.task.name, constraint: planned.value.startBlocked }
+    ? { kind: 'blocked', name: planned.value.task.name, constraint: planned.value.startBlocked, taskId: planned.value.task.id }
     : planned.value.changed && planned.value.startConstraint && snet?.date
       ? { kind: 'snet', name: planned.value.task.name, date: snet.date, change: planned.value.startConstraint }
       : undefined;
@@ -854,6 +859,12 @@ export function prepareGridMutation(
   const assignmentValidationTaskIds = new Set<string>();
   const appliedRelationWrites: RelationSetIntent[] = [];
   let skippedReadOnlyFromTransaction = 0;
+  const skippedReadOnlyTaskIds = new Set<string>();
+  // Taken waarin deze transactie iets schreef (een cel die niet is overgeslagen, of een toewijzing).
+  const wroteTaskIds = new Set<string>();
+  for (const intent of intents) {
+    if (intent.kind === 'paste') for (const id of intent.skippedReadOnlyTaskIds ?? []) skippedReadOnlyTaskIds.add(id);
+  }
   const startNotices: StartEditNotice[] = [];
   const isolated = produce(state as AppState, draft => {
     // Welke taken hebben een voorganger (getypte start ⇒ SNET)? Lui: alleen een getypte
@@ -908,12 +919,15 @@ export function prepareGridMutation(
           }
           if (applied.value.timephasedGuidanceLost) timephasedLossTaskIds.add(write.taskId);
           skippedReadOnlyFromTransaction += applied.value.skippedReadOnlyCount;
+          if (applied.value.skippedReadOnlyCount > 0) skippedReadOnlyTaskIds.add(write.taskId);
+          if (taskWrites.length > applied.value.skippedReadOnlyCount) wroteTaskIds.add(write.taskId);
           if (applied.value.startNotice) startNotices.push(applied.value.startNotice);
         }
         if (taskWrites.some(item => String(item.columnId) === 'task.isMilestone')) {
           assignmentValidationTaskIds.add(write.taskId);
         }
       } else if (write.kind === 'assignment-set') {
+        wroteTaskIds.add(write.taskId);
         assignmentValidationTaskIds.add(write.taskId);
         const applied = applyAssignmentSet(
           draft,
@@ -1058,6 +1072,8 @@ export function prepareGridMutation(
       notifications: [...notifications, ...startEditNotifications(startNotices, state.ui.dateNotation, state.ui.timeNotation)],
       timephasedLossCount: timephasedLossTaskIds.size,
       skippedReadOnlyCount: skippedReadOnlyFromPlanning + skippedReadOnlyFromTransaction,
+      skippedReadOnlyUntouchedTaskIds: [...skippedReadOnlyTaskIds].filter(id => !wroteTaskIds.has(id)),
+      skippedReadOnlyPartialTaskIds: [...skippedReadOnlyTaskIds].filter(id => wroteTaskIds.has(id)),
       label: normalized.value.length === 1 ? 'Cel bewerken' : 'Cellen bewerken',
     },
   };
@@ -1104,12 +1120,22 @@ function commitPreparedAgainstStore(
   // Ongeacht `changed` — ook een paste die UITSLUITEND read-only doelcellen raakte
   // (dus per saldo niets schreef) moet de gebruiker vertellen dat er iets is overgeslagen, anders
   // oogt de paste als een stille no-op.
+  // Een weigering (rood, blijvend), ook als de rest wél geschreven is. De detailregels noemen de
+  // taken waarin niets is aangepast, en apart de taken waarin een andere cel wél is geschreven. Geen
+  // samenvouwsleutel: het aantal staat in de tekst, en twee verschillende plakacties zijn twee meldingen.
   if (prepared.skippedReadOnlyCount > 0) {
-    get().notify({
-      severity: 'info',
+    const tasks = get().tasks;
+    const names = (ids: readonly string[] | undefined) => (ids ?? [])
+      .map(id => tasks.find(task => task.id === id)?.name)
+      .filter((name): name is string => !!name);
+    get().notify(refusalNotice({
       messageKey: 'notifications.pasteSkippedReadOnly',
       params: { count: prepared.skippedReadOnlyCount },
-    });
+      detailLines: [
+        ...refusedNamesLine(names(prepared.skippedReadOnlyUntouchedTaskIds), 'untouched'),
+        ...refusedNamesLine(names(prepared.skippedReadOnlyPartialTaskIds), 'notApplied'),
+      ],
+    }));
   }
   return { ok: true, value: undefined };
 }

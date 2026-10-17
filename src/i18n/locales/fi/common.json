@@ -150,7 +150,7 @@
     "xerArchiveReasonMetadataInvalid": "Syy: lähdetavut ovat ehjiä, mutta niistä johdetut tiedot ovat käyttökelvottomia.",
     "xerArchiveReasonStructure": "Syy: arkiston rakenne IFC-tiedostossa on väärin (kaksoiskappale, väärässä järjestyksessä tai väärin liitetty).",
     "statusDateSetToday": "Raportointipäivä asetettu tähän päivään ({{date}}).",
-    "durationBelowDoneWork": "‘{{name}}’ on jo {{percent}} % tehty: kesto, joka on lyhyempi kuin tehty työ, ei ole mahdollinen. Kestoa ei muutettu.",
+    "durationBelowDoneWork": "'{{name}}' on jo {{percent}} % tehty: kesto, joka on lyhyempi kuin tehty työ, ei ole mahdollinen. Kestoa ei muutettu.",
     "tutorialOfferLater": "Opetusohjelmat löytyvät aina kohdasta Ohje › Opetusohjelmat.",
     "tutorialOfferUnavailable": "Opetusohjelmia ei voitu asentaa tai käynnistää juuri nyt. Myöhemmin uudelleen voi yrittää kohdassa Ohje › Opetusohjelmat."
   },

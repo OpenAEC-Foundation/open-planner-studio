@@ -150,7 +150,7 @@
     "xerArchiveReasonMetadataInvalid": "Årsag: kildebytes er i orden, men de data, der er udledt af dem, er ubrugelige.",
     "xerArchiveReasonStructure": "Årsag: arkivets opbygning i IFC er forkert (dubleret, omordnet eller forkert sammenkædet).",
     "statusDateSetToday": "Statusdato sat til i dag ({{date}}).",
-    "durationBelowDoneWork": "‘{{name}}’ er allerede {{percent}}% gennemført. En varighed, der er kortere end det gennemførte arbejde, er ikke mulig. Varigheden er ikke ændret.",
+    "durationBelowDoneWork": "'{{name}}' er allerede {{percent}}% gennemført. En varighed, der er kortere end det gennemførte arbejde, er ikke mulig. Varigheden er ikke ændret.",
     "tutorialOfferLater": "Du finder altid selvstudierne under Hjælp › Selvstudier.",
     "tutorialOfferUnavailable": "Selvstudierne kunne ikke installeres eller startes lige nu. Du kan prøve igen senere under Hjælp › Selvstudier."
   },

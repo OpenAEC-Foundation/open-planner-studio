@@ -351,6 +351,14 @@ export type NotificationMessageKey =
   // Restduur: een nieuwe duur korter dan het gedane werk van een lopende taak is
   // geweigerd — zie `runningDurationChange` in engine/taskMutationRules.ts. Parameters `name`, `percent`.
   | 'notifications.durationBelowDoneWork'
+  // Detailregel onder een weigering die meer taken of relaties raakt: welke niet zijn aangepast /
+  // aangemaakt (`refusedNamesLine` in state/refusalNotice.ts). `names`, en bij `More` ook `count`.
+  | 'notifications.refusedTaskNames'
+  | 'notifications.refusedTaskNamesMore'
+  | 'notifications.notAppliedTaskNames'
+  | 'notifications.notAppliedTaskNamesMore'
+  | 'notifications.refusedRelationNames'
+  | 'notifications.refusedRelationNamesMore'
   // Tutorialvraag na de eerste voltooide rondleiding (`TutorialOfferDialog`): "later" bij Nee of een
   // geweigerde installatie, "unavailable" als ophalen/installeren/starten niet lukte.
   | 'notifications.tutorialOfferLater'
@@ -416,6 +424,10 @@ export interface AppNotification {
    *  een openingsmelding waarbij de app data invulde, verving, repareerde of wegliet — zie
    *  `state/openNoticeSticky.ts` voor de regel. Geen fout: de kleur blijft die van een info. */
   sticky?: boolean;
+  /** Een WEIGERING: de app heeft een handeling van de gebruiker niet uitgevoerd (eigenaarsbesluit
+   *  2026-10-17). Maak hem alleen via `state/refusalNotice.ts`. Een weigering is rood en blijft
+   *  staan, maar duwt bij een volle stapel nooit een echte fout of een blijvende info weg. */
+  refusal?: boolean;
 }
 
 /** Wat een aanroeper meegeeft; `id` en `count` vult de store. */

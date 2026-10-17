@@ -14,6 +14,7 @@ import type { NotifyInput } from './slices/types';
 import { relationVerdict } from './relationRules';
 import { generateId } from '@/utils/id';
 import { applyWbsNumbering, deriveWbsCodes } from '@/utils/wbs';
+import { refusalNotice, refusedNamesLine, refusedSetKey } from './refusalNotice';
 
 /**
  * Legt `relations` opnieuw aan tussen de nieuwe ids uit `idMap` (bron-id → nieuw id). Een spread
@@ -32,8 +33,9 @@ export function insertRemappedRelations(
   s: { tasks: Task[]; sequences: Sequence[] },
   relations: readonly Omit<Sequence, 'id'>[],
   idMap: ReadonlyMap<string, string>,
-): number {
-  let skipped = 0;
+): string[] {
+  // Geeft de overgeslagen relaties terug als "Voorganger → Opvolger", voor de weigering.
+  const skipped: string[] = [];
   const lookup = (tid: string) => s.tasks.find(t => t.id === tid);
   for (const relation of relations) {
     const candidate = {
@@ -41,7 +43,10 @@ export function insertRemappedRelations(
       predecessorId: idMap.get(relation.predecessorId)!,
       successorId: idMap.get(relation.successorId)!,
     };
-    if (!relationVerdict(lookup, s.sequences, candidate).ok) { skipped++; continue; }
+    if (!relationVerdict(lookup, s.sequences, candidate).ok) {
+      skipped.push(`${lookup(candidate.predecessorId)?.name ?? '?'} → ${lookup(candidate.successorId)?.name ?? '?'}`);
+      continue;
+    }
     s.sequences.push({ ...candidate, id: generateId('seq') });
   }
   return skipped;
@@ -146,14 +151,17 @@ export function assignInsertedWbsCodes(
 /** De melding na het invoegen als er relaties zijn overgeslagen; `dedupeKey` per invoegroute. */
 export function notifyRelationsSkipped(
   notify: (n: NotifyInput) => void,
-  count: number,
+  skipped: readonly string[],
   dedupeKey: string,
 ): void {
-  if (count <= 0) return;
-  notify({
-    severity: 'info',
+  if (skipped.length === 0) return;
+  // Een weigering (eigenaarsbesluit 2026-10-17: ook deels gelukt is rood): de tak is ingevoegd,
+  // deze relaties niet. De detailregel noemt ze.
+  notify(refusalNotice({
     messageKey: 'notifications.relationsSkippedOnInsert',
-    params: { count },
-    dedupeKey,
-  });
+    params: { count: skipped.length },
+    detailLines: refusedNamesLine(skipped, 'relations'),
+    // Alleen precies dezelfde set relaties vouwt samen (het aantal staat in de tekst).
+    dedupeKey: refusedSetKey(dedupeKey, skipped),
+  }));
 }

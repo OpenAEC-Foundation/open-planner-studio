@@ -177,7 +177,7 @@ export function TaskDialog() {
         hasAssignments: store.assignments.some(a => a.taskId === editingTask.id),
       });
       if (refusal) {
-        for (const notice of milestoneRefusalNotices([{ name: editingTask.name, refusal }])) store.notify(notice);
+        for (const notice of milestoneRefusalNotices([{ id: editingTask.id, name: editingTask.name, refusal }])) store.notify(notice);
         return false;
       }
     }

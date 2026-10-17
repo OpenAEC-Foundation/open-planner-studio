@@ -201,7 +201,7 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
       const blocking = constraintBlockingStart(prospective, driven);
       const snet = anchor !== undefined && !blocking ? startConstraintAfterEdit(prospective, anchor, driven) : undefined;
       if (anchor !== undefined && !blocking) time.scheduleStart = anchor;
-      if (blocking) notices.push({ kind: 'blocked', name: draft.name, constraint: blocking });
+      if (blocking) notices.push({ kind: 'blocked', name: draft.name, constraint: blocking, taskId: editingTask.id });
       else if (snet && anchor !== undefined) notices.push({ kind: 'snet', name: draft.name, date: anchor, change: snet.change });
       const patch: Partial<Task> = {
         name: draft.name,

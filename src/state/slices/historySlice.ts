@@ -15,6 +15,7 @@ import type { StoreRuntime } from '../runtime/storeRuntime';
 import type { AppSlice, AppSliceFactory } from './types';
 import { overlaysToUi } from '../layoutView';
 import { persistOverlays } from '../overlaySettings';
+import { refusalNotice } from '@/state/refusalNotice';
 
 export interface HistorySessionMark {
   sequence: number;
@@ -179,11 +180,10 @@ export const createHistorySlice: AppSliceFactory<HistorySlice> = (runtime) => (s
     set({ historyEvents: events });
     runtime.resetUndoCoalescing();
     if (stranded > 0) {
-      get().notify({
-        severity: 'info',
+      get().notify(refusalNotice({
         messageKey: 'notifications.taskEditRevertBlocked',
         dedupeKey: 'task-edit-revert-blocked',
-      });
+      }));
     }
   },
 

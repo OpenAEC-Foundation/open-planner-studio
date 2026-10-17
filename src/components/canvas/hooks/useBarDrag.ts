@@ -27,6 +27,7 @@ import { hourSnapMinutesFor, snapTimelineDate } from './timelineSnap';
 import { listenWindowDrag } from '@/hooks/listenWindowDrag';
 import { finishIsActual, startIsActual } from '@/utils/taskDates';
 import { BASELINES_PROGRESS_HELP_ARTICLE_ID } from '@/state/helpArticles';
+import { refusalNotice } from '@/state/refusalNotice';
 
 // Monotone teller: geeft élk sleep-gebaar een UNIEKE coalesce-key (`bardrag:<taskId>:<n>`). Zo vloeit
 // een reeks per-mousemove `updateTask`-commits samen tot ÉÉN undo-stap, terwijl twee opeenvolgende
@@ -79,6 +80,7 @@ interface StartRuleGesture {
  * blijft de rijsleep gewoon werken.
  */
 interface ActualDatesLock {
+  taskId: string;
   name: string;
   kind: 'start' | 'finish';
   /** Ooit horizontaal geprobeerd (voor de melding na loslaten). */
@@ -261,7 +263,7 @@ export function useBarDrag({
     // Een voltooide balk heeft geen stukgrepen: zijn pauzes liggen in het verleden.
     const split = completed ? undefined : prepareSplitDrag(next, rect ? next.startX - rect.left : null);
     actualLockRef.current = original && (completed || (!split && next.edge !== 'right' && startIsActual(original)))
-      ? { name: original.name, kind: completed ? 'finish' : 'start', tried: false }
+      ? { taskId: original.id, name: original.name, kind: completed ? 'finish' : 'start', tried: false }
       : null;
     undoKeyRef.current = split ? split.coalesceKey : `bardrag:${next.taskId}:${++dragSeq}`;
     // Alleen body en linkerrand verzetten de start; een stuksleep en de rechterrand niet.
@@ -536,12 +538,13 @@ export function useBarDrag({
       const lock = actualLockRef.current;
       actualLockRef.current = null;
       if (lock?.tried && notify) {
-        notify({
-          severity: 'info',
+        notify(refusalNotice({
           messageKey: lock.kind === 'finish' ? 'notifications.dragDatesAreActual' : 'notifications.dragStartIsActual',
           params: { name: lock.name },
+          // Tien keer slepen aan dezelfde balk = één regel met een teller.
+          dedupeKey: `drag-actual:${lock.kind}:${lock.taskId}`,
           helpArticleId: BASELINES_PROGRESS_HELP_ARTICLE_ID,
-        });
+        }));
       }
       // Eén melding per gebaar, over het netto-resultaat: de gezette SNET, of de constraint die de
       // start tegenhield. Dezelfde meldingen als bij typen (`startEditNotifications`).
@@ -549,7 +552,7 @@ export function useBarDrag({
       startRuleRef.current = null;
       if (rule && notify) {
         const notices: StartEditNotice[] = rule.blocking
-          ? (rule.blockedTried ? [{ kind: 'blocked', name: rule.original.name, constraint: rule.blocking }] : [])
+          ? (rule.blockedTried ? [{ kind: 'blocked', name: rule.original.name, constraint: rule.blocking, taskId: rule.original.id }] : [])
           : rule.snet?.constraint.date
             ? [{ kind: 'snet', name: rule.original.name, date: rule.snet.constraint.date, change: rule.snet.change }]
             : [];

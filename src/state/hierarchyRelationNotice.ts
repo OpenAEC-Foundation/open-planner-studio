@@ -21,6 +21,7 @@ import { cycleLabel } from './notificationLabels';
 import { HIERARCHY_RELATIONS_HELP_ARTICLE_ID } from './helpArticles';
 import { isAncestorRelation } from './relationRules';
 import type { NotifyInput } from './slices/types';
+import { refusalNotice } from './refusalNotice';
 
 /** Ids van relaties die een taak met zijn eigen (voor)ouder verbinden. */
 function ancestorRelationIds(state: RelationTree): Set<string> {
@@ -63,12 +64,11 @@ export function notifyHierarchyCycle(
   state: { tasks: readonly Task[]; notify: (notification: NotifyInput) => void },
   cycle: readonly string[],
 ): void {
-  state.notify({
-    severity: 'info',
+  state.notify(refusalNotice({
     messageKey: 'notifications.hierarchyCycle',
     params: { cycle: cycleLabel(state.tasks, cycle) },
     // Samenvouwen: herhaald op Alt+Shift+→ drukken levert één regel met een teller op.
     dedupeKey: 'hierarchy-cycle',
     helpArticleId: HIERARCHY_RELATIONS_HELP_ARTICLE_ID,
-  });
+  }));
 }

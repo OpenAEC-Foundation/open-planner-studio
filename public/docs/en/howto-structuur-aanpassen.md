@@ -42,7 +42,7 @@ If you turn *WBS auto* on, the app numbers the tree at once. Both *WBS auto* and
 
 ## Pitfalls and what the app does
 
-**Filtering, grouping or sorting is on.** The order you see is then not the order of the schedule, so the app locks the structure. *Indent* and *Outdent* are disabled, with the tooltip *Not available while filtering/grouping/sorting*. Alt+→ and dragging show the same text in a strip, with the *Clear* button. That removes filter, grouping and sorting in one go, and Ctrl+Z does not bring them back. *Indent* and *Outdent* are then missing from the right-click menu.
+**Filtering, grouping or sorting is on.** The order you see is then not the order of the schedule, so the app locks the structure. *Indent* and *Outdent* are disabled, with the tooltip *Not available while filtering/grouping/sorting*. Alt+→ and dragging show the same text in a red strip, with the *Clear* button. That removes filter, grouping and sorting in one go, and Ctrl+Z does not bring them back. The strip stays until you click the cross. *Indent* and *Outdent* are then missing from the right-click menu.
 
 Alt+↑ and Alt+↓ do work in such a view, without a message. With only a filter you see the new order at once. With a sorting the order in the schedule does change, but you only see it after *Clear*.
 

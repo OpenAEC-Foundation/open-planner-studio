@@ -2,6 +2,7 @@ import type { DateNotation } from '@/types/view';
 import { displayDate } from '@/utils/displayDate';
 import type { NotifyInput } from './slices/types';
 import { BASELINES_PROGRESS_HELP_ARTICLE_ID } from './helpArticles';
+import { refusalNotice } from './refusalNotice';
 
 /**
  * De melding bij voortgang zonder statusdatum (`engine/progressEntry.ts`): er was geen statusdatum,
@@ -27,11 +28,10 @@ export function statusDateSetTodayNotice(date: string, notation: DateNotation): 
  * toont hem als celfout, de AI-koppeling als weigering per item.
  */
 export function durationBelowDoneWorkNotice(task: { id: string; name: string; time: { completion: number } }): NotifyInput {
-  return {
-    severity: 'info',
+  return refusalNotice({
     messageKey: 'notifications.durationBelowDoneWork',
     params: { name: task.name, percent: Math.round(task.time.completion * 100) },
     dedupeKey: `duration-below-done-work:${task.id}`,
     helpArticleId: BASELINES_PROGRESS_HELP_ARTICLE_ID,
-  };
+  });
 }

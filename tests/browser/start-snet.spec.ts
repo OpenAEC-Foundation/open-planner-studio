@@ -49,6 +49,8 @@ async function taskState(page: Page, id: string) {
 }
 
 const toast = (page: Page) => page.locator('.ops-toast[role="status"]');
+/** Een geweigerde start is een weigering: rood en blijvend (eigenaarsbesluit 2026-10-17). */
+const refusal = (page: Page) => page.locator('.ops-toast.toast-error[role="alert"]');
 
 /** Typ een datum in een gesegmenteerd datumveld zoals een gebruiker: klik in het dag-vakje, cijfers. */
 async function typeDate(group: Locator, digits: string): Promise<void> {
@@ -232,9 +234,9 @@ test('Gantt: taak met MSO en voorganger slepen past niets toe en meldt de constr
   const undoBefore = (await state(page)).undoDepth;
   await dragBar(page, b, 'body', 7);
 
-  await expect(toast(page)).toContainText('MSO');
-  await expect(toast(page)).toContainText('10-06-2026');
-  await expect(toast(page)).not.toContainText('$t(');
+  await expect(refusal(page)).toContainText('MSO');
+  await expect(refusal(page)).toContainText('10-06-2026');
+  await expect(refusal(page)).not.toContainText('$t(');
   expect(await taskState(page, b)).toEqual(before);
   expect((await state(page)).undoDepth).toBe(undoBefore);
 });
@@ -269,7 +271,7 @@ test('eigenschappenpaneel: Start typen op een taak met MSO en voorganger meldt d
   await typeDate(startField, '17062026');
   await page.keyboard.press('Enter');
 
-  await expect(toast(page)).toContainText('MSO');
+  await expect(refusal(page)).toContainText('MSO');
   await expect(startField.locator('input').first()).toHaveValue('10');
   expect(await taskState(page, b)).toEqual(before);
   expect((await state(page)).undoDepth).toBe(undoBefore);
@@ -291,6 +293,6 @@ test('Taak bewerken: Startdatum typen op een taak met MSO en voorganger meldt de
   await dialog.locator('[data-ops-task-save]').click();
   await expect(dialog).toHaveCount(0);
 
-  await expect(toast(page)).toContainText('MSO');
+  await expect(refusal(page)).toContainText('MSO');
   expect(await taskState(page, b)).toEqual(before);
 });

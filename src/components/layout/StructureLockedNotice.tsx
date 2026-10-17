@@ -6,11 +6,12 @@ import { isTreeMode } from '@/engine/view/visibleRows';
 import { NoticeStrip } from './NoticeStrip';
 
 /**
- * Niet-blokkerende melding: een structuurmutatie (in-/uitspringen, doorlopend invoeren)
+ * Weigering (eigenaarsbesluit 2026-10-17: rood, `role="alert"`, blijft tot het kruisje): een structuurmutatie (in-/uitspringen, doorlopend invoeren)
  * is geweigerd omdat de weergave niet in pure boommodus staat — er wordt gefilterd, gegroepeerd of
  * gesorteerd. Deze strook vertelt waaróm (in plaats van stil niets te doen) en biedt aan
  * de drie view-standen te wissen. `ui.structureLockedNotice` is een TELLER: elke nieuwe poging hoogt
- * hem op, zodat de melding ook opnieuw verschijnt (en de verdwijn-timer herstart) als hij al stond.
+ * hem op, zodat de melding ook opnieuw verschijnt als hij weggeklikt was. Geen verdwijn-timer: een
+ * weigering die vanzelf weggaat, is te missen.
  */
 export function StructureLockedNotice() {
   const { t } = useTranslation('common');
@@ -25,7 +26,7 @@ export function StructureLockedNotice() {
   const treeMode = useAppStore((s) => isTreeMode(s.view));
   const [visible, setVisible] = useState(false);
 
-  // Documentwissel ⇒ meteen verbergen. Anders blijft de strook (6 s lang) boven een ANDER document
+  // Documentwissel ⇒ meteen verbergen. Anders blijft de strook boven een ANDER document
   // hangen en wist "Wissen" daar filter/groepering/sortering — en dat is niet terug te draaien,
   // want de view-standen zitten niet in de undo-stack (`snapshot: 'none'`).
   // Bewust vóór het teller-effect gedeclareerd: bij mount lopen effecten in volgorde, en dit mag
@@ -40,12 +41,11 @@ export function StructureLockedNotice() {
     if (treeMode) setVisible(false);
   }, [treeMode]);
 
-  // Elke opgehoogde teller toont de strook en (her)start de verdwijn-timer van 6 s.
+  // Elke opgehoogde teller toont de strook; hij blijft tot het kruisje, "Wissen", een
+  // documentwissel of de terugkeer naar boommodus.
   useEffect(() => {
     if (seq === 0) return;
     setVisible(true);
-    const timer = window.setTimeout(() => setVisible(false), 6000);
-    return () => window.clearTimeout(timer);
   }, [seq]);
 
   if (!visible) return null;
@@ -66,6 +66,8 @@ export function StructureLockedNotice() {
       actionLabel={t('view.filter.clear')}
       onAction={clearView}
       onDismiss={() => setVisible(false)}
+      role="alert"
+      tone="error"
       stripProps={{ 'data-ops-structure-locked': true }}
       actionProps={{ 'data-ops-structure-locked-clear': true }}
     />

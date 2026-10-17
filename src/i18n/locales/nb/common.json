@@ -150,7 +150,7 @@
     "xerArchiveReasonMetadataInvalid": "Årsak: kildebytene stemmer, men dataene som er hentet fra dem, er ubrukelige.",
     "xerArchiveReasonStructure": "Årsak: oppbyggingen av arkivet i IFC stemmer ikke (dobbelt, omordnet eller feil koblet).",
     "statusDateSetToday": "Statusdato satt til i dag ({{date}}).",
-    "durationBelowDoneWork": "‘{{name}}’ er allerede {{percent}} % ferdig: en varighet kortere enn arbeidet som er utført, er ikke mulig. Varigheten er ikke endret.",
+    "durationBelowDoneWork": "'{{name}}' er allerede {{percent}} % ferdig: en varighet kortere enn arbeidet som er utført, er ikke mulig. Varigheten er ikke endret.",
     "tutorialOfferLater": "Du finner alltid opplæringene under Hjelp › Opplæring.",
     "tutorialOfferUnavailable": "Opplæringene kunne ikke installeres eller startes akkurat nå. Du kan prøve igjen senere under Hjelp › Opplæring."
   },

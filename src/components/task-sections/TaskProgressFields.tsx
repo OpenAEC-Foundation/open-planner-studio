@@ -73,28 +73,32 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
   };
 
   /** Verwerk de uitkomst van een setter. `slidePercent`: de aanroep kwam van de schuif. */
+  // Geeft `false` bij elke niet-toegepaste invoer: een datumveld (`DateTextInput.onCommit`) valt dan
+  // terug op de opgeslagen waarde in plaats van de geweigerde datum te blijven tonen. Bij de
+  // startvraag geldt hetzelfde: na een antwoord volgt het veld de nieuwe opgeslagen waarde.
   const handle = (
     result: ProgressEntryResult,
     retry: (actualStart: string) => ProgressEntryResult,
     slidePercent?: number,
-  ) => {
+  ): false | undefined => {
     if (result.ok) {
       setActualError(null);
       if (slidePercent !== undefined) clearPending();
-      return;
+      return undefined;
     }
     if (result.reason !== 'needsActualStart') {
       // `summaryTask`: de velden van een verzameltaak zijn al uitgeschakeld; niets te tonen.
       setActualError(result.reason === 'summaryTask' ? null : result.reason);
-      return;
+      return false;
     }
     setActualError(null);
     if (slidePercent !== undefined && dragKey.current) {
       pendingQuestion.current = { question: result.question, retry };
       setPendingPercent(slidePercent);
-      return;
+      return false;
     }
     void ask(result.question, retry);
+    return false;
   };
 
   const endDrag = () => {

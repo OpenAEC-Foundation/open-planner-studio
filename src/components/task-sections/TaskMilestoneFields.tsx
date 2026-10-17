@@ -32,7 +32,7 @@ export function TaskMilestoneFields({ task, onChange }: {
               if (e.target.checked && !task.isMilestone) {
                 const refusal = milestoneRefusal({ hasChildren: task.childIds.length > 0, hasAssignments });
                 if (refusal) {
-                  for (const notice of milestoneRefusalNotices([{ name: task.name, refusal }])) notify(notice);
+                  for (const notice of milestoneRefusalNotices([{ id: task.id, name: task.name, refusal }])) notify(notice);
                   return;
                 }
               }

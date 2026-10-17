@@ -189,7 +189,7 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
 
   pasteTasks: () => {
     const newRootIds: string[] = [];
-    let skippedRelations = 0;
+    let skippedRelations: string[] = [];
     let clearedReferences = 0;
     set((s) => {
       const clip = s.taskClipboard;

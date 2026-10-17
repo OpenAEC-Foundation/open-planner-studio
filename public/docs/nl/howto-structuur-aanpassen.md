@@ -42,7 +42,7 @@ Zet je *WBS auto* aan, dan nummert de app de boom meteen. Zowel *WBS auto* als *
 
 ## Valkuilen en wat de app dan doet
 
-**Filteren, groeperen of sorteren staat aan.** De getoonde volgorde is dan niet de volgorde van de planning, dus de app zet de structuur vast. *Inspringen* en *Uitspringen* zijn uitgeschakeld, met de tooltip *Niet beschikbaar tijdens filteren/groeperen/sorteren*. Alt+→ en slepen tonen dezelfde tekst in een strook, met de knop *Wissen*. Die haalt filter, groepering en sortering in één keer weg, en Ctrl+Z brengt ze niet terug. In het rechtermuismenu ontbreken *Inspringen* en *Uitspringen* dan.
+**Filteren, groeperen of sorteren staat aan.** De getoonde volgorde is dan niet de volgorde van de planning, dus de app zet de structuur vast. *Inspringen* en *Uitspringen* zijn uitgeschakeld, met de tooltip *Niet beschikbaar tijdens filteren/groeperen/sorteren*. Alt+→ en slepen tonen dezelfde tekst in een rode strook, met de knop *Wissen*. Die haalt filter, groepering en sortering in één keer weg, en Ctrl+Z brengt ze niet terug. De strook blijft staan tot je op het kruisje klikt. In het rechtermuismenu ontbreken *Inspringen* en *Uitspringen* dan.
 
 Alt+↑ en Alt+↓ werken in zo'n weergave wél, zonder melding. Bij alleen een filter zie je de nieuwe volgorde meteen. Bij een sortering verandert de volgorde in de planning wel, maar zie je het pas na *Wissen*.
 

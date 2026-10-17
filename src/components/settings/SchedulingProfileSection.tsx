@@ -26,6 +26,7 @@ import {
   totalFloatModeToUi, withCriticalMode, withCriticalThreshold, withDefaultOptions,
   SOURCE_ONLY_OPTION_KEYS, type ProfileChoice, type SchedulingSettingsDraft, type SourceOnlyOptionKey, type TotalFloatModeUi,
 } from '@/state/schedulingProfileDraft';
+import { refusalNotice } from '@/state/refusalNotice';
 
 interface SchedulingProfileSectionProps {
   /** 'wizard' = alleen de keuzelijst; een keuze past meteen de standaardopties van dat profiel toe.
@@ -114,7 +115,8 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
       setTemplates(loadCustomProfiles());
       notify({ severity: 'info', messageKey: 'notifications.schedulingTemplateSaved', params: { name }, dedupeKey: `scheduling-template-saved:${p.id}` });
     } else if (result === 'limit') {
-      notify({ severity: 'error', messageKey: 'notifications.schedulingTemplateLimit', params: { max: MAX_CUSTOM_PROFILES }, dedupeKey: 'scheduling-template-limit' });
+      // Een weigering (niets opgeslagen), geen storing: rood met de vlag `refusal`.
+      notify(refusalNotice({ messageKey: 'notifications.schedulingTemplateLimit', params: { max: MAX_CUSTOM_PROFILES }, dedupeKey: 'scheduling-template-limit' }));
     } else if (result === 'storage') {
       notify({ severity: 'error', messageKey: 'notifications.schedulingTemplateStorageFailed', dedupeKey: 'scheduling-template-storage' });
     } else {

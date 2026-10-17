@@ -1,4 +1,4 @@
-import type { UIState, AppSlice, NotifyInput } from './types';
+import type { UIState, AppSlice, AppNotification, NotifyInput } from './types';
 import type { McpServerStatus } from '@/services/mcp/contracts';
 import { MCP_DEFAULT_PORT, peekTheme } from '@/utils/settingsStore';
 import { detectSystemPrefersDark } from '@/utils/theme';
@@ -355,6 +355,7 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
           // Rekenprofielen: de serialiseerbare vervolgactie volgt dezelfde regel.
           if (n.action !== undefined) existing.action = { ...n.action };
           if (n.sticky !== undefined) existing.sticky = n.sticky;
+          if (n.refusal !== undefined) existing.refusal = n.refusal;
           existing.detailKey = n.detailKey;
           existing.detailParams = n.detailParams;
           return;
@@ -367,16 +368,26 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
         id: `n${++notificationSeq}`,
         count: 1,
       });
-      // 3. Begrens op MAX_NOTIFICATIONS. Bij overschrijding verwijderen we bij VOORKEUR de oudste
-      //    `info`, en pas als die er niet is de oudste melding overall — een fout mag nooit door een
-      //    info verdrongen worden (de cyclus-/opslaafout is juist degene die moet blijven staan).
+      // 3. Begrens op MAX_NOTIFICATIONS. Volgorde van verwijderen bij overschrijding (de nieuwe
+      //    melding staat achteraan):
+      //    a. de oudste gewone info, behalve de nieuwe (verdwijnt toch vanzelf);
+      //    b. de oudste weigering (`refusal`, eigenaarsbesluit 2026-10-17): rood en blijvend, maar
+      //       hij mag een echte fout of een blijvende info NOOIT wegduwen, en een nieuwe info ook
+      //       niet opslokken (drie staande weigeringen + een info ⇒ de info verschijnt);
+      //    c. de nieuwe melding zelf, als die een gewone info is (alleen nog fouten en blijvende
+      //       info's staan er);
+      //    d. de oudste blijvende info (`sticky`, openingsmelding met gewijzigde data);
+      //    e. pas dan de oudste melding overall (alleen nog echte fouten).
       if (s.ui.notifications.length > MAX_NOTIFICATIONS) {
-        // Een blijvende info (`sticky`, openingsmelding met gewijzigde data) gaat pas weg als er
-        // geen gewone info meer is.
-        let idx = s.ui.notifications.findIndex((x) => x.severity === 'info' && !x.sticky);
-        if (idx < 0) idx = s.ui.notifications.findIndex((x) => x.severity === 'info');
-        if (idx >= 0) s.ui.notifications.splice(idx, 1);
-        else s.ui.notifications.shift();
+        const list = s.ui.notifications;
+        const newest = list.length - 1;
+        const plainInfo = (x: AppNotification) => x.severity === 'info' && !x.sticky;
+        let idx = list.findIndex((x, i) => i !== newest && plainInfo(x));
+        if (idx < 0) idx = list.findIndex((x) => x.refusal);
+        if (idx < 0 && plainInfo(list[newest])) idx = newest;
+        if (idx < 0) idx = list.findIndex((x) => x.severity === 'info');
+        if (idx >= 0) list.splice(idx, 1);
+        else list.shift();
       }
     }),
 

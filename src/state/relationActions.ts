@@ -3,6 +3,7 @@ import { relationAddVerdict, type RelationAddRejection } from '@/state/relationR
 import type { Sequence, SequenceType } from '@/types/sequence';
 import type { NotificationMessageKey } from '@/state/slices/types';
 import { cycleLabel } from '@/state/notificationLabels';
+import { refusalNotice } from '@/state/refusalNotice';
 
 /** Welke melding hoort bij een weigering? `self` is via de UI niet te maken: de selectie is een
  *  Set-unie en de Gantt-sleep guardt op een ander doel. `unknown-task` is wél bereikbaar, maar
@@ -51,8 +52,7 @@ export function createRelationDraftWithFeedback(relation: Omit<Sequence, 'id'>):
   const st = useAppStore.getState();
   const verdict = relationAddVerdict(st.tasks, st.sequences, relation);
   if (!verdict.ok) {
-    st.notify({
-      severity: 'info',
+    st.notify(refusalNotice({
       messageKey: REJECTION_MESSAGE[verdict.reason],
       // Een kring noemt zijn taken: "Fundering → Grondwerk → Fundering" zegt meteen welke bestaande
       // relatie de gebruiker eerst moet omdraaien of weghalen.
@@ -61,7 +61,7 @@ export function createRelationDraftWithFeedback(relation: Omit<Sequence, 'id'>):
         : {}),
       // Samenvouwen: herhaald op dezelfde knop rammen levert één regel met een teller op.
       dedupeKey: `relation-rejected-${verdict.reason}`,
-    });
+    }));
     return null;
   }
 

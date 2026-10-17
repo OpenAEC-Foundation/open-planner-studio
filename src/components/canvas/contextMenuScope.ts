@@ -93,7 +93,7 @@ export const contextMenuBulk = {
     // Wordt mijlpaal: taken die de gedeelde regel weigert (fase, of toewijzingen) doen
     // niet mee; de rest van de reikwijdte wel, in één undo-stap. Eén melding per reden.
     const { tasks, assignments } = useAppStore.getState();
-    const refused: { name: string; refusal: MilestoneRefusal }[] = [];
+    const refused: { id: string; name: string; refusal: MilestoneRefusal }[] = [];
     const scope = contextMenuOutlineScope(task.id).filter((id) => {
       const current = tasks.find(candidate => candidate.id === id);
       if (!isMilestone || !current || current.isMilestone) return true;
@@ -101,7 +101,7 @@ export const contextMenuBulk = {
         hasChildren: current.childIds.length > 0,
         hasAssignments: assignments.some(a => a.taskId === id),
       });
-      if (refusal) refused.push({ name: current.name, refusal });
+      if (refusal) refused.push({ id, name: current.name, refusal });
       return !refusal;
     });
     appTaskBulkActions.applyToTaskIds(

@@ -122,6 +122,8 @@ export interface PasteIntent {
    *  tijdens de transactie ontdekte overgeslagen cellen (conditioneel read-only) bovenop voor de
    *  ÉÉN geaggregeerde melding. */
   skippedReadOnlyCount?: number;
+  /** De taken van die overgeslagen cellen, voor de weigering ("Niet aangepast: …"). */
+  skippedReadOnlyTaskIds?: string[];
 }
 
 export type GridIntent = GridWriteIntent | PasteIntent;

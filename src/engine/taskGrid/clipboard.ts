@@ -203,6 +203,7 @@ export function planTaskGridPaste(
   const writes: GridWriteIntent[] = [];
   const byTarget = new Map<string, unknown>();
   let skippedReadOnlyCount = 0;
+  const skippedReadOnlyTaskIds = new Set<string>();
 
   for (let rowOffset = 0; rowOffset < target.value.rows.length; rowOffset++) {
     const rowKey = target.value.rows[rowOffset];
@@ -224,7 +225,7 @@ export function planTaskGridPaste(
       // beoordeeld.
       const planWrite = descriptor.planWriteUnchecked ?? descriptor.planWrite;
       if (!descriptor.parse || !planWrite) {
-        if (options.skipReadOnlyCells) { skippedReadOnlyCount++; continue; }
+        if (options.skipReadOnlyCells) { skippedReadOnlyCount++; skippedReadOnlyTaskIds.add(task.id); continue; }
         return { ok: false, errors: [error('readOnly', source, cell, task.id)] };
       }
       const parsedValue = parseGridEditorText(
@@ -283,7 +284,7 @@ export function planTaskGridPaste(
       kind: 'paste',
       writes,
       ...(options.skipReadOnlyCells ? { allowSkippingReadOnlyCells: true } : {}),
-      ...(skippedReadOnlyCount > 0 ? { skippedReadOnlyCount } : {}),
+      ...(skippedReadOnlyCount > 0 ? { skippedReadOnlyCount, skippedReadOnlyTaskIds: [...skippedReadOnlyTaskIds] } : {}),
     },
   };
 }

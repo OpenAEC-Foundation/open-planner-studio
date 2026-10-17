@@ -118,6 +118,12 @@
     "notifications.xerArchiveReasonStructure": "e5e2319ae7f50f3b",
     "notifications.statusDateSetToday": "50809882f62f1f36",
     "notifications.durationBelowDoneWork": "9c008315befe88d2",
+    "notifications.refusedTaskNames": "b1dee56b6996c1b1",
+    "notifications.refusedTaskNamesMore": "50d087b60f13a399",
+    "notifications.notAppliedTaskNames": "f1575a054ba3493b",
+    "notifications.notAppliedTaskNamesMore": "fe5553c8fe1a8518",
+    "notifications.refusedRelationNames": "6920cba154f845b0",
+    "notifications.refusedRelationNamesMore": "2063bd62c78637b5",
     "notifications.tutorialOfferLater": "80aae2f5904649c7",
     "notifications.tutorialOfferUnavailable": "1f77b8d99b9f3171",
     "notifications.p6xmlImportEmpty": "673ae79fa93c2e64",
@@ -2243,7 +2249,6 @@
     "ribbon.calendarDialog.startHour": "67254cfe6428ff5c",
     "ribbon.calendarDialog.endHour": "8314d27de4882272",
     "ribbon.calendarDialog.hoursPerDay": "ced37df99e8df16f",
-    "ribbon.calendarDialog.netHoursPerDay": "71f69c021582c154",
     "ribbon.calendarDialog.standardWorkday": "472909ca51b24905",
     "ribbon.calendarDialog.standardWorkdayInfo": "dab2e675d02969ff",
     "ribbon.calendarDialog.standardWorkdayInfoLabel": "cf1150f0be0b69b8",
@@ -2574,6 +2579,7 @@
     "commands.undo": "22161ff107643c81",
     "commands.redo": "317d53d568d624a2",
     "commands.zoomIn": "38532e02dbabab1c",
-    "commands.zoomOut": "f61db514902f41ec"
+    "commands.zoomOut": "f61db514902f41ec",
+    "ribbon.calendarDialog.netHoursPerDay": "71f69c021582c154"
   }
 }

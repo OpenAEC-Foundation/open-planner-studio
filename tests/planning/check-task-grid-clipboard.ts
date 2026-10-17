@@ -738,6 +738,22 @@ function planAndCommitPaste(
       S().ui.notifications.filter(n => n.messageKey === 'notifications.pasteSkippedReadOnly').length, 1);
     eq('De melding telt beide overgeslagen WBS-cellen samen',
       S().ui.notifications.find(n => n.messageKey === 'notifications.pasteSkippedReadOnly')?.params?.count, 2);
+    // Eigenaarsbesluit 2026-10-17: ook een deels gelukte weigering is rood, en noemt de taken.
+    const skippedNote = S().ui.notifications.find(n => n.messageKey === 'notifications.pasteSkippedReadOnly');
+    eq('Deels gelukte plak: de melding is een rode weigering', [skippedNote?.severity, skippedNote?.refusal], ['error', true]);
+    // De omschrijving van beide taken is wél geschreven: "Niet aangepast" zou onwaar zijn.
+    eq('De melding noemt de taken als "niet toegepast bij" (een andere cel is wél geschreven)', skippedNote?.detailLines,
+      [{ messageKey: 'notifications.notAppliedTaskNames', params: { names: 'AutoWBS 0, AutoWBS 1' } }]);
+
+    // Alleen de WBS-kolom plakken: in deze taken is niets geschreven ⇒ "Niet aangepast".
+    useAppStore.setState(state => { state.ui.notifications = []; });
+    const wbsOnly = liveMultiRowEnvironment(ids, [taskColumnId('task.wbsCode')]);
+    const plannedWbs = planTaskGridPaste('999\r\n999', wbsOnly, { skipReadOnlyCells: true });
+    if (plannedWbs.ok) S().runGridMutation([plannedWbs.value]);
+    const untouchedNote = S().ui.notifications.find(n => n.messageKey === 'notifications.pasteSkippedReadOnly');
+    eq('Niets geschreven: rode weigering', [untouchedNote?.severity, untouchedNote?.refusal], ['error', true]);
+    eq('Niets geschreven: de melding noemt de taken als "niet aangepast"', untouchedNote?.detailLines,
+      [{ messageKey: 'notifications.refusedTaskNames', params: { names: 'AutoWBS 0, AutoWBS 1' } }]);
   }
 
   // 5) Mijlpaalmetadata-case uit de reviewbrief: task.milestoneKind/task.mandatory plakken zonder
@@ -761,6 +777,9 @@ function planAndCommitPaste(
       [after?.isMilestone, after?.milestoneKind, after?.mandatory], [false, null, null]);
     eq('De melding telt beide overgeslagen mijlpaalmetadatacellen samen',
       S().ui.notifications.find(n => n.messageKey === 'notifications.pasteSkippedReadOnly')?.params?.count, 2);
+    eq('Conditioneel overgeslagen cellen: de naam is wél geschreven ⇒ "niet toegepast bij"',
+      S().ui.notifications.find(n => n.messageKey === 'notifications.pasteSkippedReadOnly')?.detailLines,
+      [{ messageKey: 'notifications.notAppliedTaskNames', params: { names: 'Mijlpaalmetadata na' } }]);
   }
 
   // 6) Delete/Backspace (planTaskGridClear) behoudt de BESTAANDE "één niet-leegbare cel ⇒

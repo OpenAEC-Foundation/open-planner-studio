@@ -48,6 +48,10 @@ export function TaskDurationField({ task, calendar, onChange }: {
   const infoButtonRef = useRef<HTMLButtonElement>(null);
   const awaitFreshInfoHover = useRef(false);
   const infoId = useId();
+  // Telt elke doorgegeven wijziging. Na `onChange` toont het veld altijd weer de echte duur van de
+  // taak: ook als de store de wijziging weigert (bv. korter dan het gedane werk). Dan verandert
+  // `seed` niet, en zonder deze teller bleef het getypte getal staan tot een andere taak gekozen werd.
+  const [commitTick, setCommitTick] = useState(0);
   const derived = isZeroDurationMilestone(task) || task.childIds.length > 0 || !!task.isHammock;
   const hourEditBlocked = task.time.durationUnit === 'hours' && !enableHourPlanning;
   const showUnitControls = enableHourPlanning && allowMixedDayHour;
@@ -67,7 +71,7 @@ export function TaskDurationField({ task, calendar, onChange }: {
     // Een melding hoort bij precies deze taak en kalender; na een selectie- of kalenderwissel weg.
     setMessage(null);
     setNotExact(null);
-  }, [task.id, seed, calendar]);
+  }, [task.id, seed, calendar, commitTick]);
 
   const apply = (parsed: ParsedTaskDuration) => {
     const time = { ...task.time, durationUnit: parsed.unit };
@@ -82,6 +86,7 @@ export function TaskDurationField({ task, calendar, onChange }: {
     onChange({ time });
     setMessage(null);
     setNotExact(null);
+    setCommitTick((n) => n + 1);
   };
 
   const commitInput = () => {

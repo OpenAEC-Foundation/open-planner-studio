@@ -77,7 +77,7 @@ export function TaskTimeFields({ task, onChange }: {
               // melden, en het veld laat de invoer los (`false`).
               const blocking = constraintBlockingStart(task, driven);
               if (blocking) {
-                notifyStartEdit(state.notify, [{ kind: 'blocked', name: task.name, constraint: blocking }], state.ui.dateNotation, state.ui.timeNotation);
+                notifyStartEdit(state.notify, [{ kind: 'blocked', name: task.name, constraint: blocking, taskId: task.id }], state.ui.dateNotation, state.ui.timeNotation);
                 return false;
               }
               // Voorganger? Dan wordt de getypte start een SNET. Anker en beperking in één patch,

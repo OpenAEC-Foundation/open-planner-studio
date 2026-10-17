@@ -154,7 +154,7 @@
     "xerArchiveReasonMetadataInvalid": "Neden: kaynak baytları sağlam, ancak bunlardan türetilen veriler kullanılamaz.",
     "xerArchiveReasonStructure": "Neden: arşivin IFC içindeki yapısı hatalı (yinelenmiş, yeniden sıralanmış veya yanlış bağlanmış).",
     "statusDateSetToday": "Durum tarihi bugüne ayarlandı ({{date}}).",
-    "durationBelowDoneWork": "“{{name}}” zaten %{{percent}} tamamlandı: yapılmış işten kısa bir süre olamaz. Süre değiştirilmedi.",
+    "durationBelowDoneWork": "'{{name}}' zaten %{{percent}} tamamlandı: yapılmış işten kısa bir süre olamaz. Süre değiştirilmedi.",
     "tutorialOfferLater": "Eğitimleri her zaman Yardım › Eğitimler bölümünde bulabilirsiniz.",
     "tutorialOfferUnavailable": "Eğitimler şu anda yüklenemedi veya başlatılamadı. Daha sonra Yardım › Eğitimler bölümünden yeniden deneyebilirsiniz."
   },

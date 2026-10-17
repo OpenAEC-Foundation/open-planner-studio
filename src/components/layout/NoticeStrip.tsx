@@ -9,7 +9,9 @@ interface NoticeStripProps {
   onAction: () => void;
   /** Weglaten = geen kruisje: een MODUS mag niet wegklikbaar zijn zonder hem te verlaten. */
   onDismiss?: () => void;
-  role?: 'status';
+  role?: 'status' | 'alert';
+  /** `error`: een weigering (eigenaarsbesluit 2026-10-17) — rood uit het thema i.p.v. de accentkleur. */
+  tone?: 'accent' | 'error';
   /** Data-attributen voor de self-test-harness, op de strook, de actieknop en het kruisje. */
   stripProps?: Record<string, unknown>;
   actionProps?: Record<string, unknown>;
@@ -22,17 +24,25 @@ interface NoticeStripProps {
  * RecordedDatesNotice.
  */
 export function NoticeStrip({
-  icon: Icon, text, actionLabel, onAction, onDismiss, role, stripProps, actionProps, dismissProps,
+  icon: Icon, text, actionLabel, onAction, onDismiss, role, tone = 'accent', stripProps, actionProps, dismissProps,
 }: NoticeStripProps) {
   const { t } = useTranslation('common');
+  const error = tone === 'error';
   return (
     <div
       className="flex items-center gap-3 px-4 py-2 text-small leading-4 border-b border-border"
-      style={{ background: 'var(--theme-accent-soft, rgba(217,119,6,0.12))', color: 'var(--theme-text)' }}
+      style={{
+        background: error
+          ? 'color-mix(in srgb, var(--error) 14%, transparent)'
+          : 'var(--theme-accent-soft, rgba(217,119,6,0.12))',
+        color: 'var(--theme-text)',
+        ...(error ? { borderInlineStart: '3px solid var(--error)' } : {}),
+      }}
       role={role}
+      data-ops-notice-tone={tone}
       {...stripProps}
     >
-      <Icon size={14} className="shrink-0 text-accent" />
+      <Icon size={14} className={`shrink-0 ${error ? '' : 'text-accent'}`} style={error ? { color: 'var(--error)' } : undefined} />
       <span className="flex-1">{text}</span>
       <button onClick={() => onAction()} className="btn btn--sm btn--primary" {...actionProps}>
         {actionLabel}

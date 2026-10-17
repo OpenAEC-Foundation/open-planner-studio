@@ -4,6 +4,7 @@ import type { DateNotation, TimeNotation } from '@/types/view';
 import { displayDateTime } from '@/utils/displayDate';
 import type { NotifyInput } from './slices/types';
 import { CONSTRAINTS_HELP_ARTICLE_ID } from './helpArticles';
+import { refusalNotice, refusedNamesLine, refusedSetKey } from './refusalNotice';
 
 /**
  * Eén taak waarvan een nieuwe start (getypt of gesleept) iets met de constraint deed:
@@ -12,7 +13,11 @@ import { CONSTRAINTS_HELP_ARTICLE_ID } from './helpArticles';
  */
 export type StartEditNotice =
   | { kind: 'snet'; name: string; /** De nieuwe SNET-datum (ISO, zoals opgeslagen). */ date: string; change: StartConstraintChange }
-  | { kind: 'blocked'; name: string; constraint: TaskConstraint };
+  | {
+    kind: 'blocked'; name: string; constraint: TaskConstraint;
+    /** Voor het samenvouwen per taak: tien pogingen op dezelfde taak = één regel met een teller. */
+    taskId: string;
+  };
 
 /** De gids die uitlegt hoe een nieuwe start op een taak met voorganger met constraints samenhangt. */
 const HELP_ARTICLE_ID = CONSTRAINTS_HELP_ARTICLE_ID;
@@ -50,22 +55,24 @@ export function startEditNotifications(
     });
   }
   if (blocked.length === 1) {
-    const [{ name, constraint }] = blocked;
-    out.push({
-      severity: 'info',
+    const [{ name, constraint, taskId }] = blocked;
+    out.push(refusalNotice({
       messageKey: constraint.date ? 'notifications.startBlockedByConstraint' : 'notifications.startBlockedByConstraintNoDate',
       params: constraint.date
         ? { name, type: constraint.type, date: displayDateTime(constraint.date, notation, timeNotation) }
         : { name, type: constraint.type },
+      dedupeKey: `start-blocked:${taskId}`,
       helpArticleId: HELP_ARTICLE_ID,
-    });
+    }));
   } else if (blocked.length > 1) {
-    out.push({
-      severity: 'info',
+    // "Niet toegepast bij": bij plakken kan een andere cel van dezelfde taak wél geschreven zijn.
+    out.push(refusalNotice({
       messageKey: 'notifications.startBlockedByConstraintMany',
       params: { count: blocked.length },
+      detailLines: refusedNamesLine(blocked.map(b => b.name), 'notApplied'),
+      dedupeKey: refusedSetKey('start-blocked-many', blocked.map(b => b.taskId)),
       helpArticleId: HELP_ARTICLE_ID,
-    });
+    }));
   }
   return out;
 }

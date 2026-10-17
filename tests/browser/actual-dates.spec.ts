@@ -144,8 +144,9 @@ test('werkelijke datums: Start van een gestarte taak is alleen-lezen in het pane
   await page.mouse.move(grabX + Math.max(3 * zoom, 40), bar.y, { steps: 6 });
   await page.mouse.up();
 
-  // Er staat ook nog de openmelding van de XER; zoek de sleepmelding op haar tekst.
-  const dragNotice = page.locator('.ops-toast[role="status"]').filter({ hasText: /(actual dates|werkelijke datums)/ });
+  // Er staat ook nog de openmelding van de XER; zoek de sleepmelding op haar tekst. Het is een
+  // weigering, dus rood en blijvend (eigenaarsbesluit 2026-10-17).
+  const dragNotice = page.locator('.ops-toast.toast-error[role="alert"]').filter({ hasText: /(actual dates|werkelijke datums)/ });
   await expect(dragNotice).toHaveCount(1);
   await expect(dragNotice).toContainText('Voltooid');
   const after = await page.evaluate(id => {
@@ -155,4 +156,12 @@ test('werkelijke datums: Start van een gestarte taak is alleen-lezen in het pane
   expect(after).toEqual(before);
   const settled = await settledBar(page, ids.c1);
   expect(Math.abs(settled.left - bar.left), 'voltooide balk staat nog op zijn plek').toBeLessThan(1);
+
+  // Nog eens slepen aan dezelfde balk: geen tweede rode regel, maar één regel met teller ×2.
+  await page.mouse.move(grabX, bar.y);
+  await page.mouse.down();
+  await page.mouse.move(grabX + Math.max(3 * zoom, 40), bar.y, { steps: 6 });
+  await page.mouse.up();
+  await expect(dragNotice).toHaveCount(1);
+  await expect(dragNotice.locator('.ops-toast-count')).toHaveText('×2');
 });

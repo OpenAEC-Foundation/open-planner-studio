@@ -365,17 +365,17 @@ for (const constraint of OTHER_CONSTRAINTS) {
     startEditNotifications([{ kind: 'snet', name: 'U', date: '2026-06-15T13:00', change: 'created' }], 'ymd', '12h')[0]?.params,
     { name: 'U', date: '2026-06-15 1:00 PM' });
   eq('Melding: tegengehouden zonder datum (ALAP)',
-    startEditNotifications([{ kind: 'blocked', name: 'B', constraint: { type: 'ALAP' } }], 'dmy', '24h')
+    startEditNotifications([{ kind: 'blocked', name: 'B', constraint: { type: 'ALAP' }, taskId: 'b' }], 'dmy', '24h')
       .map(n => ({ key: n.messageKey, params: n.params })),
     [{ key: 'notifications.startBlockedByConstraintNoDate', params: { name: 'B', type: 'ALAP' } }]);
   eq('Melding: meerdere tegengehouden ⇒ één melding met aantal',
     startEditNotifications([
-      { kind: 'blocked', name: 'B', constraint: mso }, { kind: 'blocked', name: 'C', constraint: { type: 'FNLT', date: '2026-06-30' } },
+      { kind: 'blocked', name: 'B', constraint: mso, taskId: 'b' }, { kind: 'blocked', name: 'C', constraint: { type: 'FNLT', date: '2026-06-30' }, taskId: 'c' },
     ], 'dmy', '24h').map(n => ({ key: n.messageKey, params: n.params })),
     [{ key: 'notifications.startBlockedByConstraintMany', params: { count: 2 } }]);
   const help = startEditNotifications([{ kind: 'snet', name: 'B', date: '2026-06-15', change: 'created' }], 'dmy', '24h')[0]?.helpArticleId;
   eq('Melding: tegengehouden linkt naar dezelfde gids',
-    startEditNotifications([{ kind: 'blocked', name: 'B', constraint: mso }], 'dmy', '24h')[0]?.helpArticleId, help);
+    startEditNotifications([{ kind: 'blocked', name: 'B', constraint: mso, taskId: 'b' }], 'dmy', '24h')[0]?.helpArticleId, help);
   const manifestPath = fileURLToPath(new URL('../../public/docs/manifest.json', import.meta.url));
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { articles: { id: string }[] };
   eq('Melding: "Lees meer" wijst naar een bestaande gids', manifest.articles.some(article => article.id === help), true);

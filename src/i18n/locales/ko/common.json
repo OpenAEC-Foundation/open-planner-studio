@@ -118,7 +118,7 @@
     "xerArchiveReasonMetadataInvalid": "이유: 원본 바이트는 온전하지만 그로부터 파생된 데이터를 사용할 수 없습니다.",
     "xerArchiveReasonStructure": "이유: IFC 안의 아카이브 구조가 올바르지 않습니다(중복, 순서 변경 또는 잘못된 연결).",
     "statusDateSetToday": "상태 날짜를 오늘({{date}})로 설정했습니다.",
-    "durationBelowDoneWork": "‘{{name}}’은(는) 이미 {{percent}}% 완료되었습니다. 이미 수행한 작업보다 짧은 기간은 불가능합니다. 기간을 변경하지 않았습니다.",
+    "durationBelowDoneWork": "'{{name}}'은(는) 이미 {{percent}}% 완료되었습니다. 이미 수행한 작업보다 짧은 기간은 불가능합니다. 기간을 변경하지 않았습니다.",
     "tutorialOfferLater": "튜토리얼은 언제든지 도움말 › 튜토리얼에서 찾을 수 있습니다.",
     "tutorialOfferUnavailable": "지금은 튜토리얼을 설치하거나 시작할 수 없습니다. 나중에 도움말 › 튜토리얼에서 다시 시도할 수 있습니다."
   },
