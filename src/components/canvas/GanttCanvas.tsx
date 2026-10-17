@@ -65,6 +65,8 @@ import { editableSplitPieces } from './hooks/useBarDrag';
 import { removeGap } from '@/engine/scheduler/splitEdit';
 import { useGanttRowDragBridge } from './ganttRowDragBridge';
 import { TASK_ROW_HEIGHT } from '@/engine/taskGrid/rowHeight';
+// Dikte van de zwevende balken: één gedeelde waarde met de takenlijst (zie scrollExtent.ts).
+import { OVERLAY_SCROLLBAR_SIZE } from '@/engine/taskGrid/scrollExtent';
 import type { HistogramRenderInput } from './hooks/ganttCoordinatorTypes';
 import { shownFinish, shownStart } from '@/utils/taskDates';
 
@@ -73,12 +75,6 @@ import { shownFinish, shownStart } from '@/utils/taskDates';
 // waarden, nooit deze constanten direct, anders lopen tekenen en hit-testen uit de pas.
 const ROW_HEIGHT = TASK_ROW_HEIGHT; // gedeeld met FullTaskGrid (`taskGrid/rowHeight.ts`)
 const HEADER_HEIGHT = 50;
-// Dikte van de ZWEVENDE scrollbalken over de panes (horizontaal en verticaal).
-// Exact de `::-webkit-scrollbar`-maat uit globals.css (8px) — NIET ruimer: meer levert een dode
-// strook op die als een te brede balk leest. Omdat de balken overlays zijn is gelijkheid met
-// globals.css bovendien functioneel: de strook is dan precies één scrollbalk dik,
-// dus er ontstaat geen dode klikzone náást de balk die de kaart eronder afdekt.
-const SCROLLBAR_GUTTER = 8;
 // Breedte van de sleepbare ratio-balk tussen de twee panes — de mini-map-strook eronder laat
 // exact dezelfde tussenruimte, anders schuift hij t.o.v. zijn pane.
 const SPLIT_RATIO_BAR_WIDTH = 5;
@@ -946,7 +942,7 @@ export function GanttCanvas({
           ref={hScrollRef}
           data-testid="gantt-hscroll"
           className="gantt-overlay-scrollbar absolute overflow-x-auto overflow-y-hidden"
-          style={{ left: 0, right: 0, bottom: 0, height: SCROLLBAR_GUTTER, zIndex: 4 }}
+          style={{ left: 0, right: 0, bottom: 0, height: OVERLAY_SCROLLBAR_SIZE, zIndex: 4 }}
           onScroll={viewport.scrollHandlers.onPrimaryHorizontalScroll}
         >
           <div style={{ width: Math.max(1, viewport.primary.scrollbarWidth), height: 1 }} />
@@ -977,7 +973,7 @@ export function GanttCanvas({
               ref={hScrollSecondaryRef}
               data-testid="gantt-hscroll-secondary"
               className="gantt-overlay-scrollbar absolute overflow-x-auto overflow-y-hidden"
-              style={{ left: 0, right: 0, bottom: 0, height: SCROLLBAR_GUTTER, zIndex: 4 }}
+              style={{ left: 0, right: 0, bottom: 0, height: OVERLAY_SCROLLBAR_SIZE, zIndex: 4 }}
               onScroll={viewport.scrollHandlers.onSecondaryHorizontalScroll}
             >
               <div style={{ width: Math.max(1, viewport.secondary?.scrollbarWidth ?? 0), height: 1 }} />

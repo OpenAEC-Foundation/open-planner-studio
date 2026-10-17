@@ -58,22 +58,32 @@ export function computeVirtualWindow(input: VirtualWindowInput): VirtualWindow {
   };
 }
 
-/** Minimaal nieuwe scrollTop om een absolute rij volledig te tonen. */
+/**
+ * Minimaal nieuwe scrollTop om een absolute rij volledig te tonen.
+ *
+ * `bottomInset` is een strook onder de laatste rij die wel schuift maar over de onderrand bedekt
+ * blijft: de eindstrook voor de zwevende horizontale balk (`OVERLAY_SCROLLBAR_SIZE`). Een rij is
+ * pas volledig zichtbaar als hij boven die strook eindigt; het bereik groeit met dezelfde strook.
+ * Zonder dit stopte Ctrl+End 8 px vóór het einde, onder de balk (review #362).
+ */
 export function minimalScrollTopForRow(
   rowIndex: number,
   currentScrollTop: number,
   viewportHeight: number,
   rowHeight: number,
   totalRows: number,
+  bottomInset: number,
 ): number {
   if (totalRows <= 0 || rowHeight <= 0 || viewportHeight < 0) return 0;
+  const inset = Math.max(0, bottomInset);
   const index = Math.max(0, Math.min(totalRows - 1, Math.floor(rowIndex)));
-  const maxScrollTop = Math.max(0, totalRows * rowHeight - viewportHeight);
+  const maxScrollTop = Math.max(0, totalRows * rowHeight + inset - viewportHeight);
   const current = Math.max(0, Math.min(maxScrollTop, currentScrollTop));
+  const visibleHeight = Math.max(0, viewportHeight - inset);
   const rowTop = index * rowHeight;
   const rowBottom = rowTop + rowHeight;
   if (rowTop < current) return rowTop;
-  if (rowBottom > current + viewportHeight) return Math.min(maxScrollTop, rowBottom - viewportHeight);
+  if (rowBottom > current + visibleHeight) return Math.min(maxScrollTop, rowBottom - visibleHeight);
   return current;
 }
 

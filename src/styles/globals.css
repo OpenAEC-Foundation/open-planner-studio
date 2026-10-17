@@ -26,10 +26,36 @@
   padding-inline-end: var(--task-grid-chooser-strip, 16px);
 }
 
-/* De gridheader is sticky binnen dezelfde scroller als de gevirtualiseerde rijen. Laat de verticale
- * scrollbaan pas onder die header beginnen, zodat duim en track nooit door de kolomkop lopen. */
-.task-grid-core::-webkit-scrollbar-track:vertical {
-  margin-block-start: var(--task-grid-header-height);
+/* Zwevende balken (eigenaarsbesluit 2026-10-15): de scroller toont geen eigen balken en reserveert
+ * dus geen strook en geen hoekvlakje. DataGridCore legt twee dunne overlay-scrollers over de rand
+ * (`.task-grid-overlay-scrollbar`, zelfde stijl als de Gantt-balk). Beide regels zijn nodig:
+ * Chromium/Firefox volgen `scrollbar-width` (en Chromium negeert dan elke `::-webkit-scrollbar`-
+ * regel op dit element), oudere WebKitGTK-versies kennen alleen het pseudo-element. */
+.task-grid-core {
+  scrollbar-width: none;
+}
+.task-grid-core::-webkit-scrollbar {
+  display: none;
+}
+
+/* De overlays liggen in `.task-grid-shell` (position: relative) bovenop het raster. De verticale
+ * balk staat aan de logische eindkant: in ltr rechts, in ar/fa links — in beide gevallen aan de
+ * kant van de Gantt. De horizontale balk is fysiek ltr, net als het raster zelf. */
+.task-grid-overlay-scrollbar {
+  position: absolute;
+  z-index: var(--z-sticky);
+}
+.task-grid-overlay-scrollbar-x {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.task-grid-overlay-scrollbar-y {
+  inset-inline-end: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .task-grid-header-row {
@@ -606,9 +632,8 @@
   position: relative;
   width: fit-content;
   max-width: 100%;
-  /* Eén bron voor de "kolom toevoegen"-strook: een 20px-knop met 6px lucht aan weerszijden, zodat
-   * hij vrijstaat van de laatste kolominhoud én van de rand van het kader (issue #89). */
-  --task-grid-chooser-strip: 32px;
+  /* `--task-grid-chooser-strip` (de "kolom toevoegen"-strook) zet TaskGrid inline vanuit
+   * `TASK_GRID_CHOOSER_STRIP` (DataGridCore.tsx): één bron voor CSS en scrollbereik (issue #89). */
 }
 
 .task-grid-column-header[data-grid-dragging="true"] {
@@ -1693,13 +1718,17 @@ body {
    BINNEN het pane in plaats van een eigen goot/rij eromheen, zodat de kaart en de takenlijst tot
    de rand doorlopen. Een dekkende track zou dat weer tenietdoen — die legt alsnog een 8px strook
    over het canvas — dus alleen de duim is zichtbaar. De DIKTE blijft de 8px hierboven: die is
-   gelijk aan de SCROLLBAR_GUTTER in GanttCanvas.tsx, waarmee de overlay-strook precies één
-   scrollbalk breed/hoog is en er geen dode klikzone naast de balk ontstaat. */
-.gantt-overlay-scrollbar {
+   gelijk aan `OVERLAY_SCROLLBAR_SIZE` (engine/taskGrid/scrollExtent.ts), waarmee de overlay-strook precies één
+   scrollbalk breed/hoog is en er geen dode klikzone naast de balk ontstaat.
+   De zwevende balken van de takenlijst (`.task-grid-overlay-scrollbar`) delen deze stijl, zodat
+   beide er hetzelfde uitzien. */
+.gantt-overlay-scrollbar,
+.task-grid-overlay-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: var(--theme-scrollbar-thumb) transparent;
 }
-.gantt-overlay-scrollbar::-webkit-scrollbar-track {
+.gantt-overlay-scrollbar::-webkit-scrollbar-track,
+.task-grid-overlay-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
 

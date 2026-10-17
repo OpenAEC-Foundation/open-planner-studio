@@ -12,6 +12,7 @@ import {
   scrollbarScale,
   scrollbarRangeRatio,
   computeTimelineZoom,
+  clearGanttScrollBounds,
   computeEffectiveViewStart,
   computeFitToProject,
   computeFocusTaskHorizontal,
@@ -23,6 +24,8 @@ import {
   setGanttScrollBounds,
 } from '@/utils/ganttViewport';
 import { resolveWheelFunction } from '@/utils/ganttWheel';
+import { hasGhostRow } from '@/engine/taskGrid/ghostRow';
+import { taskListScrollContentHeight } from '@/engine/taskGrid/scrollExtent';
 import { maxGanttZoom } from '@/engine/renderer/timelineTiers';
 import { parseDate, parseInstant } from '@/utils/dateUtils';
 import { finishInstant } from '@/utils/taskDates';
@@ -36,6 +39,15 @@ import type {
   GanttViewportCoordinatorOutput,
 } from './ganttCoordinatorTypes';
 import { shownFinish, shownStart } from '@/utils/taskDates';
+
+/** Verticale schuifhoogte van de Gantt: dezelfde als die van de takenlijst (rijen, spookregel en
+ * eindstrook, zie `scrollExtent.ts`). Anders kan de takenlijst verder schuiven dan de Gantt en
+ * lopen de rijen onderaan uit elkaar. */
+function ganttScrollContentHeight(
+  current: Pick<GanttViewportCoordinatorInput, 'rows' | 'rowHeight' | 'view'>,
+): number {
+  return taskListScrollContentHeight(current.rows.length, current.rowHeight, hasGhostRow(current.view));
+}
 
 /**
  * Bezit de volledige Gantt-viewport: afleidingen, DOM-scrollsync, wheel/zoom, fit/focus, minimaps
@@ -141,13 +153,15 @@ export function useGanttViewportCoordinator(
     setPrimaryChartWidth(previous => Math.abs(previous - chartWidth) > 1 ? chartWidth : previous);
     setGanttScrollBounds(computeGanttScrollBounds(
       primaryContentWidth,
-      current.rows.length,
-      current.rowHeight,
+      ganttScrollContentHeight(current),
       current.headerHeight,
       width,
       height,
     ));
   }, [primaryContentWidth]);
+
+  // Gaat de Gantt uit beeld (bv. naar de Tabel-weergave), dan gelden zijn grenzen niet meer.
+  useEffect(() => clearGanttScrollBounds, []);
 
   const onSecondarySize = useCallback((width: number) => {
     setSecondaryChartWidth(previous => Math.abs(previous - width) > 1 ? width : previous);
@@ -172,8 +186,7 @@ export function useGanttViewportCoordinator(
     const rect = container.getBoundingClientRect();
     setGanttScrollBounds(computeGanttScrollBounds(
       contentWidthFor(zoom),
-      current.rows.length,
-      current.rowHeight,
+      ganttScrollContentHeight(current),
       current.headerHeight,
       rect.width,
       rect.height,
@@ -307,8 +320,7 @@ export function useGanttViewportCoordinator(
 
     setGanttScrollBounds(computeGanttScrollBounds(
       contentWidthFor(horizontal.zoom),
-      current.rows.length,
-      current.rowHeight,
+      ganttScrollContentHeight(current),
       current.headerHeight,
       rect.width,
       rect.height,

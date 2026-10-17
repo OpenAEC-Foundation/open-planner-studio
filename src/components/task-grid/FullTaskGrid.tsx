@@ -59,6 +59,7 @@ import {
   appendGhostRow,
   GHOST_ROW_KEY,
   GHOST_TASK_ID,
+  hasGhostRow,
   intentsTouchGhost,
   isGhostTaskId,
   lastTaskRow,
@@ -340,7 +341,7 @@ export function TaskGridSurface({
   const constructionMode = useAppStore(state => state.ui.constructionMode);
   // De spookregel onderaan (review 2026-10-06, punt 1; zie `engine/taskGrid/ghostRow.ts`). Alleen
   // in de boomweergave: daar is "onderaan" ook de plek waar de nieuwe taak landt.
-  const showGhostRow = isTreeMode(view);
+  const showGhostRow = hasGhostRow(view);
   const ghostTask = useMemo<Task>(() => {
     const last = lastTaskRow(viewRows);
     const parentId = last?.task.parentId ?? null;

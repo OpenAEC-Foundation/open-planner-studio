@@ -15,6 +15,7 @@ import type {
 } from '@/types/taskGrid';
 import { ColumnChooser, type ColumnChooserLabels, type TaskGridColumnOption } from './ColumnChooser';
 import { DataGridCore, type DataGridCoreProps } from './DataGridCore';
+import { TASK_GRID_CHOOSER_STRIP } from '@/engine/taskGrid/scrollExtent';
 import type { DataGridColumnModel, DataGridLabels } from './taskGridContext';
 
 export interface TaskGridHistoryLabels {
@@ -151,7 +152,10 @@ export function TaskGrid({
     <div
       className="task-grid-shell"
       data-task-grid-surface={surfaceId}
-      style={{ '--task-grid-header-height': `${coreProps.headerHeight}px` } as CSSProperties}
+      style={{
+        '--task-grid-header-height': `${coreProps.headerHeight}px`,
+        '--task-grid-chooser-strip': `${TASK_GRID_CHOOSER_STRIP}px`,
+      } as CSSProperties}
     >
       <DataGridCore
         {...coreProps}
