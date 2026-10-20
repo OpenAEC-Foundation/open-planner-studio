@@ -53,6 +53,8 @@ interface ExportCapabilities {
   readonly percentLag: boolean;
   readonly elapsedLag: boolean;
   readonly schedulingOptions: 'none' | 'critical-slack-limit';
+  /** Schrijft de writer taaknotities? (De XER-writer wel; de afvinkstatus meldt hij zelf.) */
+  readonly notes: boolean;
   /** Met welk ingebouwd profiel dit doelformaat heropent = het `suggestedProfileId` van zijn lezer.
    *  CSV, MSPDI en P6-XML heropenen alle drie als OPS. */
   readonly reopenProfile: BuiltInProfileId;
@@ -76,6 +78,7 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | Progres
     percentLag: true,
     elapsedLag: true,
     schedulingOptions: 'none',
+    notes: false,
     reopenProfile: 'ops',
   },
   mspdi: {
@@ -84,6 +87,7 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | Progres
     percentLag: true,
     elapsedLag: true,
     schedulingOptions: 'critical-slack-limit',
+    notes: false,
     reopenProfile: 'ops',
   },
   p6: {
@@ -92,7 +96,19 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | Progres
     percentLag: false,
     elapsedLag: false,
     schedulingOptions: 'none',
+    notes: false,
     reopenProfile: 'ops',
+  },
+  // De XER-writer (`xer/xerWriter.ts`) meldt zijn eigen verlies per soort; deze matrix telt alleen
+  // voor de XER-broninformatie die geen writer terugschrijft (exacte bytes, onbekende tabellen, …).
+  xer: {
+    baselineProjection: 'none',
+    projectedAssignments: true,
+    percentLag: false,
+    elapsedLag: false,
+    schedulingOptions: 'none',
+    notes: true,
+    reopenProfile: 'p6',
   },
 };
 
@@ -243,7 +259,7 @@ function categoriesFor(
     || input.tasks.some(task => hasObjectValues(task.customFields))) categories.push('udfs');
   if (input.activityCodeTypes.length > 0
     || input.tasks.some(task => hasObjectValues(task.activityCodes))) categories.push('activity-codes');
-  if (input.tasks.some(task => (task.notes?.length ?? 0) > 0)) categories.push('notes');
+  if (!capabilities.notes && input.tasks.some(task => (task.notes?.length ?? 0) > 0)) categories.push('notes');
   if (hasAssignmentLoss(capabilities, input)) {
     categories.push('raw-curves-and-assignment-quantities');
   }

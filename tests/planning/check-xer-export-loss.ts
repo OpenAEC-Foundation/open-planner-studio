@@ -569,6 +569,33 @@ installXer(makeXerFixture({ sourceBytes: '%T\tTASK\r\n%F\ttask_id\r\n%R\tops\r\n
 expect('C7-02 OPS-profiel zonder opties naar CSV ⇒ geen schedule-verlies',
   !categoriesOf(await store().exportAs('csv')).includes('schedule-options-and-provenance'));
 
+// ── XER-export (#391): één melding van de XER-writer, nooit daarnaast de algemene XER-bronmelding.
+// De bronverliezen die geen writer terugschrijft (hier: een onbekende tabel) komen als één regel
+// `sourceDetails` in die melding. Mutatiebewijs: de `xerLoss`-tak in `exportAs` weglaten ⇒ X-01
+// (de algemene melding verschijnt) en X-02 slaan rood.
+resetProject('XER-export met onbekende tabel');
+store().addTask({ name: 'Taak voor XER' });
+store().setProject({ description: 'Omschrijving' });
+installXer(makeParsedXerFixture([
+  'ERMHDR\t23.12',
+  '%T\tVENDOR_TABLE',
+  '%F\tvendor_field',
+  '%R\tvalue',
+  '%E',
+].join('\r\n')));
+clearNotifications();
+const xerResult = await store().exportAs('xer');
+const xerNotices = store().ui.notifications.filter(n => (n.messageKey as string) === 'notifications.exportXerLoss');
+expect('X-00 XER-export slaagt', xerResult.ok === true);
+expect('X-01 XER-export geeft geen algemene XER-bronmelding', xerLossNotifications().length === 0);
+expect('X-02 XER-export geeft één eigen verliesmelding', xerNotices.length === 1);
+const xerLines = (xerNotices[0]?.detailLines ?? []).map(line => line.messageKey as string);
+expect('X-03 projectgegevens en XER-bronverlies als detailregel',
+  xerLines.includes('notifications.exportXerLossItem.projectDetails')
+  && xerLines.includes('notifications.exportXerLossItem.sourceDetails'));
+expect('X-04 notities blijven buiten de XER-categorieën (de writer schrijft ze)',
+  !categoriesOf(xerResult).includes('notes'));
+
 if (failures.length === 0) {
   console.log(`OK  xer-export-loss: alle checks groen (${checks})`);
   process.exit(0);

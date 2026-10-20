@@ -2,6 +2,7 @@
 // parseExternalSource, fileTools.parseByExtension, devBridge.openFromPath) plus de bijbehorende
 // exportlijst (Backstage).
 
+import type { XerWriteInput, XerWriteResult } from '@/services/xerWriteTypes';
 import { readIFC, type IfcReadOptions } from '@/services/ifc/ifcReader';
 import {
   precomputeSha256, XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT, XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_FORMAT,
@@ -273,7 +274,16 @@ export function importErrorMessageKey(
 
 // ── Export-kant ──
 
-export type ExportFormat = 'ifc' | 'csv' | 'mspdi' | 'p6' | 'progress-csv' | 'progress-xlsx';
+/**
+ * De XER-schrijver, achter dezelfde lazy grens als de XER-lezer (`services/xer/` is een eigen chunk,
+ * `check-xer-chunk-boundary.ts`): de hoofdbundel laadt hem pas bij een XER-export.
+ */
+export async function writeXerExport(input: XerWriteInput): Promise<XerWriteResult> {
+  const { writeXER } = await import('@/services/xer/xerWriter');
+  return writeXER(input);
+}
+
+export type ExportFormat = 'ifc' | 'csv' | 'mspdi' | 'p6' | 'xer' | 'progress-csv' | 'progress-xlsx';
 
 export interface ExportFormatMeta {
   format: ExportFormat;
@@ -292,5 +302,6 @@ export const EXPORT_FORMATS = [
   { format: 'csv', icon: 'CSV', labelKey: 'export.csvLabel', descKey: 'export.csvDesc', shortLabelKey: 'export.csvShort' },
   { format: 'mspdi', icon: 'XML', labelKey: 'export.mspdiLabel', descKey: 'export.mspdiDesc', shortLabelKey: undefined },
   { format: 'p6', icon: 'P6', labelKey: 'export.p6Label', descKey: 'export.p6Desc', shortLabelKey: undefined },
+  { format: 'xer', icon: 'XER', labelKey: 'export.xerLabel', descKey: 'export.xerDesc', shortLabelKey: undefined },
   { format: 'ifc', icon: 'IFC', labelKey: 'export.ifcLabel', descKey: 'export.ifcDesc', shortLabelKey: undefined },
 ] as const satisfies readonly ExportFormatMeta[];

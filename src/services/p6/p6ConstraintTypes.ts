@@ -55,3 +55,11 @@ export function p6ConstraintLabel(c: TaskConstraint): string | undefined {
   const hard = (c.type === 'MSO' || c.type === 'MFO') && c.hard === true;
   return P6_CONSTRAINT_KINDS.find(k => k.type === c.type && k.hard === hard)?.label;
 }
+
+/** OPS-constraint → XER-token (`CS_MSOA` …), voor de XER-schrijver. Zelfde tabel en zelfde regel als
+ *  {@link p6ConstraintLabel}; `ASAP` ⇒ `undefined`. */
+export function p6ConstraintToken(c: TaskConstraint): string | undefined {
+  if (c.type === 'ASAP') return undefined;
+  const hard = (c.type === 'MSO' || c.type === 'MFO') && c.hard === true;
+  return P6_CONSTRAINT_KINDS.find(k => k.type === c.type && k.hard === hard)?.token;
+}

@@ -8,6 +8,7 @@
 import type { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { formatDate, parseInstant } from '@/utils/dateUtils';
 import { parseXerNumber, type XerRow, type XerTables } from './xerTables';
+import { recognizedOpsMarkerTypeIds } from './xerOpsMarkers';
 import type {
   XerMetadataCatalog, XerMetadataIssue, XerMetadataIssueCode, XerMetadataProjectView,
   XerMetadataTaskProjection, XerTaskMetadata,
@@ -221,7 +222,10 @@ function mapUdfs(
   tables: XerTables, owners: ReadonlyMap<string, readonly TaskOwner[]>, projections: Map<string, XerMetadataTaskProjection>,
   issues: XerMetadataIssue[], counts: Record<XerMetadataIssueCode, number>,
 ): { definitions: CustomFieldDef[]; deferred: XerRow[]; unknown: XerRow[] } {
-  const typeRows = uniqueById(tables.tables.get('UDFTYPE')?.rows ?? [], 'udf_type_id', 'UDFTYPE',
+  // De OPS-markeringen van een eigen export (`xerOpsMarkers.ts`) zijn geen eigen velden van de taak,
+  // maar alleen als het hele bestand aantoonbaar zo'n export is; anders zijn het gewone UDF's.
+  const opsMarkerTypeIds = recognizedOpsMarkerTypeIds(tables);
+  const typeRows = uniqueById((tables.tables.get('UDFTYPE')?.rows ?? []).filter(row => !opsMarkerTypeIds.has(row.cells.udf_type_id?.trim() ?? '')), 'udf_type_id', 'UDFTYPE',
     'XER_UDF_MISSING_TYPE_ID', 'XER_UDF_DUPLICATE_TYPE_ID', issues, counts);
   const known = new Map<string, { row: XerRow; type: CustomFieldType }>();
   const unknown: XerRow[] = [];
@@ -234,6 +238,7 @@ function mapUdfs(
   const selected = new Map<string, XerRow>();
   for (const row of tables.tables.get('UDFVALUE')?.rows ?? []) {
     const typeId = row.cells.udf_type_id?.trim() ?? '';
+    if (opsMarkerTypeIds.has(typeId)) continue;
     const definition = typeRows.get(typeId);
     if (!definition) { addIssue(issues, counts, { code: 'XER_UDF_DANGLING_TYPE', table: 'UDFVALUE', line: row.line }); continue; }
     const entity = definition.cells.table_name?.trim().toUpperCase() || 'UNKNOWN';

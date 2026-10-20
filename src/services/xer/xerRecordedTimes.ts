@@ -20,6 +20,18 @@ export interface XerRecordedTimesCtx {
   criticalDefinition?: { mode: 'totalFloat' | 'longestPath'; thresholdHours?: number };
 }
 
+/**
+ * De zes bak-4-kolommen in de volgorde waarin de XER-SCHRIJVER (`xerWriter.ts`) ze aan de TASK-rij
+ * toevoegt: vroege start/einde, late start/einde, totale en vrije speling (uren). Deze module is de
+ * enige eigenaar van deze kolomnamen (`check-xer-field-whitelist.ts`); de schrijver importeert ze
+ * hier, zodat hij ze nergens zelf noemt. Schrijven is geen lezen: de lezer hierboven blijft de enige
+ * plek die de waarden terugleest, en nooit als solverinvoer.
+ */
+export const XER_RECORDED_OUTPUT_COLUMNS = [
+  'early_start_date', 'early_end_date', 'late_start_date', 'late_end_date',
+  'total_float_hr_cnt', 'free_float_hr_cnt',
+] as const;
+
 /** `isCritical` als AFLEIDING van de vastgelegde totale speling, met dezelfde definitie als de
  *  solver krijgt: totale speling ≤ drempel (P6's `critical_drtn_hr_cnt`, default 0). Longest-path-
  *  kritiek is uit een float niet af te leiden (P6 markeert daar de langste keten, ongeacht speling)

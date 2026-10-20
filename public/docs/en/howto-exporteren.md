@@ -22,6 +22,7 @@ The list on the *Home* tab and the cards in *File › Export* offer the same for
 - *CSV (;)*, on the card *CSV (semicolon-separated)*: a task list that you open in a spreadsheet.
 - *MS Project XML*: can be opened in Microsoft Project.
 - *Primavera P6 XML*: for Oracle Primavera P6.
+- *Primavera P6 XER*: for Oracle Primavera P6, as a `.xer` file. After saving, the app reports what was not included, or not exactly.
 - *IFC*: the app's own format, with everything in it, in the IFC schema of the project (default IFC 4.3 ADD2).
 
 ### An IFC export with a library file
@@ -40,7 +41,7 @@ You read a filled-in progress sheet back through *File › Import*. See [Importi
 
 **An export is also in Recent.** That does not apply to the progress sheets. If you open an export there, it opens as an import of that format.
 
-**An export does not carry everything.** A CSV file has no resources or constraints, P6 XML has no baselines and deadlines. The calculation profile does not go along either: a reopened export calculates as *Open Planner Studio*. Only IFC carries everything. You find an example with numbers in [Files and formats](docs://uitleg-bestanden).
+**An export does not carry everything.** A CSV file has no resources or constraints, P6 XML has no baselines and deadlines. The calculation profile does not go along either: a reopened export calculates as *Open Planner Studio*, a reopened `.xer` as *Primavera P6*. Only IFC carries everything. After an export to `.xer` the app reports *The XER export is saved. This was not included, or not exactly:*, with one line per kind, for example *2 deadlines*. See [Import and export formats](docs://ref-import-exportformaten). You find an example with numbers in [Files and formats](docs://uitleg-bestanden).
 
 **Two formats with the same extension.** MS Project XML and Primavera P6 XML both get the name *projectname.xml*. Give them different names yourself, otherwise you will not know later which file is which format.
 

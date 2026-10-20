@@ -4,7 +4,7 @@ Doel: een planning uit Primavera P6 rechtstreeks in de app openen, zonder hem ee
 
 ## Wanneer je dit nodig hebt
 
-Een opdrachtgever of hoofdaannemer werkt in Primavera en levert zijn planning als `.xer`-bestand. Je wilt hem bekijken, doorrekenen of aanvullen. De app leest `.xer`-bestanden alleen: ze schrijft geen `.xer` en verandert je bestand nooit. Uit het bestand haalt ze de WBS-structuur en de activiteiten met duur, datums, constraints en voortgang, de relaties met lag, de kalenders en de resources met toewijzingen, plus activiteitcodes, eigen velden (UDF's), aantekeningen en de planningsinstellingen van P6. Een activiteit van het type *Level of Effort* wordt een hammock.
+Een opdrachtgever of hoofdaannemer werkt in Primavera en levert zijn planning als `.xer`-bestand. Je wilt hem bekijken, doorrekenen of aanvullen. De app verandert je `.xer`-bestand nooit. Een nieuw `.xer`-bestand maak je met *Bestand › Exporteren › Primavera P6 XER*. Uit het bestand haalt ze de WBS-structuur en de activiteiten met duur, datums, constraints en voortgang, de relaties met lag, de kalenders en de resources met toewijzingen, plus activiteitcodes, eigen velden (UDF's), aantekeningen en de planningsinstellingen van P6. Een activiteit van het type *Level of Effort* wordt een hammock.
 
 ## Stappen
 
@@ -55,7 +55,7 @@ Er opent dan niets. Controleer het bestand in P6, of vraag de afzender een nieuw
 
 ## Zie ook
 
-- [Bestanden en formaten](docs://uitleg-bestanden): waarom een `.xer` alleen gelezen wordt en wat een export verliest.
+- [Bestanden en formaten](docs://uitleg-bestanden): waarom *Opslaan* nooit naar een `.xer` schrijft en wat een export verliest.
 - [Datums zoals opgeslagen](docs://uitleg-datums-zoals-opgeslagen): de weergave van Primavera's eigen datums.
 - [Een MS Project-bestand (.mpp) openen](docs://howto-mpp-openen): hetzelfde voor MS Project.
 - [Urenplanning aanzetten](docs://howto-urenplanning-aanzetten): als het bestand gegevens in uren bevat.

@@ -12,6 +12,7 @@ import { exportCalendarLayout, minutesToClock, taskMinutesForWrite } from '@/ser
 import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import { projectFileBase } from '@/utils/documents';
 import { documentProjectCode } from '@/utils/documentProjectCode';
+import { isOpsInternalProjectId, OPS_INTERNAL_PROJECT_ID_PREFIX } from '@/utils/opsInternalProjectId';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { flattenOrder } from '@/utils/wbs';
 import type { CustomTaskType } from '@/types/taskType';
@@ -34,7 +35,7 @@ const OPS_P6_DURATION_UNIT_UDF_OBJECT_ID = 1;
 // (21 waarden, MPXJ `XmlContextWriter.writeResourceCurves`) plus `<ResourceCurveObjectId>` op de
 // toewijzing; de naam hieronder is alleen het `<Name>`-veld van dat object. `<PlannedCurve>` is een
 // spreidingsstring (zie `contourIo.ts`), geen curvenaam.
-const P6_CURVE_TO_NAME: Record<ResourceCurve, string | undefined> = {
+export const P6_CURVE_TO_NAME: Record<ResourceCurve, string | undefined> = {
   UNIFORM: undefined,
   FRONT_LOADED: 'Front Loaded',
   BACK_LOADED: 'Back Loaded',
@@ -62,7 +63,7 @@ export const P6_NAME_TO_CURVE: Record<string, ResourceCurve> = {
   'Turtle': 'TURTLE',
 };
 
-function resourceTypeToP6(type: ResourceType): 'Labor' | 'Nonlabor' | 'Material' {
+export function resourceTypeToP6(type: ResourceType): 'Labor' | 'Nonlabor' | 'Material' {
   switch (type) {
     case 'LABOR':
     case 'CREW':
@@ -91,7 +92,7 @@ const OPS_DESCRIPTION_TOPIC_OBJECT_ID = 900000002;
 
 /** Status zoals P6 hem leest: in lijn met voortgang en actuals (in OPS kan `task.status` achterlopen
  *  op een gewijzigd percentage; P6 laat de status leiden). */
-function taskStatusToP6(task: Task): string {
+export function taskStatusToP6(task: Task): 'Completed' | 'In Progress' | 'Not Started' {
   if (task.status === 'COMPLETED' || task.time.actualFinish || task.time.completion >= 1) return 'Completed';
   if (task.status === 'STARTED' || task.time.actualStart || task.time.completion > 0) return 'In Progress';
   return 'Not Started';
@@ -158,7 +159,7 @@ function standardWorkWeekNode(cal: WorkCalendar, includeEffectiveScalarBands: bo
 /** Eén blok van 00:00 tot 24:00 schrijft P6 als `00:00`–`23:59`, en dat betekent in P6 (en in onze
  *  lezer) een VRIJE dag. Een werkende uitzondering van 24 uur gaat daarom als twee blokken
  *  (00:00–11:59 en 12:00–23:59); de lezer voegt aansluitende blokken weer samen. */
-function splitWholeDay(bands: readonly { start: number; end: number }[]): { start: number; end: number }[] {
+export function splitWholeDay(bands: readonly { start: number; end: number }[]): { start: number; end: number }[] {
   if (bands.length === 1 && bands[0].start === 0 && bands[0].end >= 1440) {
     return [{ start: 0, end: 720 }, { start: 720, end: bands[0].end }];
   }
@@ -681,12 +682,8 @@ export function p6ProjectIdentity(
   };
 }
 
-const OPS_INTERNAL_PROJECT_ID_PREFIX = 'OPS:';
-
 /** Een project-Id dat de OPS-writer zelf maakte (geen code van de gebruiker; `p6ProjectIdentity`). */
-export function isOpsInternalProjectId(id: string): boolean {
-  return id.startsWith(OPS_INTERNAL_PROJECT_ID_PREFIX);
-}
+export { isOpsInternalProjectId };
 
 /**
  * Het interne project-id dat de writer tot en met v2026.9.0 als `<Id>` schreef (`leaf('Id', project.id)`),

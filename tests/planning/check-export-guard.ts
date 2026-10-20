@@ -106,6 +106,7 @@ const recentsVerwacht: Record<ExportFormat, boolean> = {
   csv: true,
   mspdi: true,
   p6: true,
+  xer: true,
   'progress-csv': false,
   'progress-xlsx': false,
 };

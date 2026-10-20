@@ -226,8 +226,8 @@ const OZB = `<?xml version="1.0"?><APIBusinessObjects>
 }
 
 // ── (7) XER na hernoemen: de code blijft (proj_short_name), de nieuwe naam gaat mee ──────────────
-//      Er bestaat geen XER-writer (ExportFormat kent geen 'xer'); de "export naar P6" van een
-//      XER-document is P6 XML. Daar hoort proj_short_name als <Id> en de nieuwe naam als <Name>.
+//      Hier de P6 XML-export van een XER-document: proj_short_name als <Id>, de nieuwe naam als
+//      <Name>. De XER-export (`xerWriter.ts`) schrijft de code als proj_short_name (`check-xer-writer.ts`, S26).
 {
   const XER = [
     'ERMHDR\t23.12\t2026-04-01\t\t\t\t\t\tEUR',

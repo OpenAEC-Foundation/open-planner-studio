@@ -382,6 +382,8 @@
     "mspdiDesc": "Opens in Microsoft Project. Full WBS structure.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "For Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "For Oracle Primavera P6, as a .xer file.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART standard, in the IFC schema of the project (default IFC 4.3 ADD2). 4D link with BIM models.",
     "csvShort": "CSV (;)"

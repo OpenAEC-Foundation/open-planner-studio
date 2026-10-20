@@ -430,6 +430,16 @@ function actualWeekHours(bands: WorkTimeBands): { week: number; weekMinutes: num
   return { week: minutes / 60, weekMinutes: minutes, workingDays };
 }
 
+/** Als `scalarBounds`, maar in fractionele uren (een OPS-dagkalender kan om 07:30 beginnen). */
+function exactScalarBounds(bands: WorkTimeBands): { start: number; end: number } {
+  for (const day of WEEKDAYS) {
+    const dayBands = bands.byWeekday[day];
+    if (dayBands.length === 0) continue;
+    return { start: dayBands[0].start / 60, end: (dayBands[dayBands.length - 1].end % 1440 || 1440) / 60 };
+  }
+  return { start: 8, end: 16 };
+}
+
 function scalarBounds(bands: WorkTimeBands): { start: number; end: number } {
   for (const day of WEEKDAYS) {
     const dayBands = bands.byWeekday[day];
@@ -826,7 +836,14 @@ function linkBaseCalendar(calendar: XerCalendar, base: XerCalendar): void {
 }
 
 /** Bouw XER-kalenders uitsluitend uit de reeds gedecodeerde `CALENDAR`-tabel. */
-export function readXerCalendars(tables: XerTables): XerCalendarReadResult {
+export function readXerCalendars(
+  tables: XerTables,
+  options: {
+    /** OPS-export (`xerOpsMarkers.ts`): de lezer kiest de uurmodus per kalender uit de OPS-markering,
+     *  niet uit de kloktijden. Hier dan geen promotie, en de scalaire werkdag exact uit de banden. */
+    opsExport?: boolean;
+  } = {},
+): XerCalendarReadResult {
   const rows = tables.tables.get('CALENDAR')?.rows ?? [];
   const calendars: XerCalendar[] = [];
   const lineByCalendarId = new Map<string, number>();
@@ -875,7 +892,7 @@ export function readXerCalendars(tables: XerTables): XerCalendarReadResult {
       ?? (actual.workingDays > 0 ? actual.weekMinutes / actual.workingDays / 60 : 8);
     const hoursPerMonth = explicitMonth ?? hoursPerWeek * 4;
     const hoursPerYear = explicitYear ?? hoursPerMonth * 12;
-    const bounds = scalarBounds(decoded.bands);
+    const bounds = options.opsExport ? exactScalarBounds(decoded.bands) : scalarBounds(decoded.bands);
     const workDays = WEEKDAYS.filter(day => decoded.bands.byWeekday[day].length > 0);
     const baseCalendarId = row.cells.base_clndr_id?.trim() || undefined;
     const rawCalendarType = row.cells.clndr_type?.trim() ?? '';
@@ -912,7 +929,7 @@ export function readXerCalendars(tables: XerTables): XerCalendarReadResult {
       : decoded.hasExplicitClockBands
         ? 'XER_CLOCK'
         : undefined;
-    if (hourModeSource && promoteHourCalendar(calendar, bandInfo, true, false)) {
+    if (!options.opsExport && hourModeSource && promoteHourCalendar(calendar, bandInfo, true, false)) {
       calendar.hourModeSource = hourModeSource;
       // Periodevelden in XER zijn leidend; promotie mag alleen de uurweergave toevoegen.
       calendar.hoursPerDay = hoursPerDay;

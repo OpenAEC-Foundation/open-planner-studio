@@ -4,7 +4,7 @@ Goal: open a schedule from Primavera P6 directly in the app, without exporting i
 
 ## When you need this
 
-A client or main contractor works in Primavera and delivers their schedule as an `.xer` file. You want to view it, calculate it or add to it. The app only reads `.xer` files: it does not write `.xer` and never changes your file. From the file it takes the WBS structure and the activities with duration, dates, constraints and progress, the relations with lag, the calendars and the resources with their assignments, plus activity codes, custom fields (UDFs), notes and P6's scheduling settings. An activity of the type *Level of Effort* becomes a hammock.
+A client or main contractor works in Primavera and delivers their schedule as an `.xer` file. You want to view it, calculate it or add to it. The app never changes your `.xer` file. You make a new `.xer` file with *File › Export › Primavera P6 XER*. From the file it takes the WBS structure and the activities with duration, dates, constraints and progress, the relations with lag, the calendars and the resources with their assignments, plus activity codes, custom fields (UDFs), notes and P6's scheduling settings. An activity of the type *Level of Effort* becomes a hammock.
 
 ## Steps
 
@@ -55,7 +55,7 @@ Nothing opens then. Check the file in P6, or ask the sender for a new export.
 
 ## See also
 
-- [Files and formats](docs://uitleg-bestanden): why an `.xer` is only read and what an export loses.
+- [Files and formats](docs://uitleg-bestanden): why *Save* never writes to an `.xer` and what an export loses.
 - [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen): the view of Primavera's own dates.
 - [Opening an MS Project file (.mpp)](docs://howto-mpp-openen): the same for MS Project.
 - [Turning on hour planning](docs://howto-urenplanning-aanzetten): if the file contains data in hours.

@@ -36,6 +36,11 @@ import type { McpServerStatus } from '@/services/mcp/contracts';
 import type { SiteOpenRequest, SiteSaveRequest } from '@/services/fileAccess/siteDialogs';
 import type { IfcSchemaQuestion } from '@/services/ifc/ifcSchemaQuestion';
 import type { FormatNoticeKind } from '@/services/formatNoticeKinds';
+import type { XerWriteLossCode } from '@/services/xerWriteTypes';
+
+/** Eén detailregel van de XER-exportmelding: een verliessoort van de writer, of `sourceDetails`
+ *  (XER-broninformatie die geen writer terugschrijft, uit `detectXerExportLoss`). */
+export type XerExportLossItem = XerWriteLossCode | 'sourceDetails';
 export type { McpServerStatus };
 
 export type WeekStartDay = 'monday' | 'sunday';
@@ -283,6 +288,10 @@ export type NotificationMessageKey =
   // voor P6 XML/MSPDI/.mpp/CSV/IFC — één melding per geopend bestand (`applyOpenedImport`).
   | 'notifications.importDatesAsRecorded'
   | 'notifications.xerExportLoss'
+  // Na een geslaagde XER-export: wat niet (precies) meeging, één detailregel per soort
+  // (`state/xerExportNotice.ts`).
+  | 'notifications.exportXerLoss'
+  | `notifications.exportXerLossItem.${XerExportLossItem}`
   | 'notifications.mppSourceScheduleNotes'
   | 'notifications.projectStartAnchorsClamped'
   | 'notifications.taskEditRevertBlocked'
