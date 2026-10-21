@@ -19,8 +19,8 @@ import { withFileIfcSchema } from './ifcSchemaChoice';
  *
  *  IN ('data', muteerbare projectdata):
  *    project, calendar, tasks, sequences, resources, assignments, calendars, activityCodeTypes,
- *    customFieldDefs, customTaskTypes, baselines, activeBaselineId (door de gebruiker gekozen en in
- *    het bestand bewaard, dus projectdata; `documentDataChanged` moet hem zien)
+ *    customFieldDefs, customTaskTypes, baselines, activeBaselineId en comparedBaselineIds (door de
+ *    gebruiker gekozen en in het bestand bewaard, dus projectdata; `documentDataChanged` moet ze zien)
  *  IN ('derived'; runCPM vervangt ze als geheel en muteert nooit in-place, dus delen is veilig).
  *      Undo moet exact de handmatig berekende toestand kunnen herstellen; samen met `tasks` draait
  *      één undo de opgeslagen datums én de modus terug:
@@ -42,7 +42,7 @@ export type Snapshot = Pick<
   DocumentPayload,
   | 'project' | 'calendar' | 'tasks' | 'sequences' | 'resources' | 'assignments' | 'calendars'
   | 'activityCodeTypes' | 'customFieldDefs' | 'customTaskTypes' | 'cpmResult'
-  | 'scheduleStale' | 'baselines' | 'activeBaselineId' | 'recordedDates' | 'datesAsRecorded'
+  | 'scheduleStale' | 'baselines' | 'activeBaselineId' | 'comparedBaselineIds' | 'recordedDates' | 'datesAsRecorded'
 >;
 
 // Compile-time koppeling tussen de Pick hierboven en de `snapshot`-rollen in DOCUMENT_FIELDS
@@ -144,6 +144,8 @@ export function migrateSnapshot(raw: Snapshot): Snapshot {
     // `null` ("geen actieve baseline") is een legitieme waarde die een undo moet kunnen terugzetten;
     // alleen een ontbrekend veld (undefined) valt terug op null.
     activeBaselineId: raw.activeBaselineId !== undefined ? raw.activeBaselineId : null,
+    // Oudere snapshots (vóór issue #391) kennen geen vergelijking.
+    comparedBaselineIds: raw.comparedBaselineIds ?? [null, null],
     // Zelfde `null`/`undefined`-onderscheid als activeBaselineId: `null` ("geen vastlegging (meer)")
     // is legitiem, alleen een ontbrekend veld valt terug.
     recordedDates: raw.recordedDates !== undefined ? raw.recordedDates : null,

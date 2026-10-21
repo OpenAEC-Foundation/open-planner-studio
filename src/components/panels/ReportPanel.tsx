@@ -43,7 +43,7 @@ import type { VarianceRow } from '@/engine/variance';
 import type { PdfTableColumn } from '@/services/pdf/pdfTable';
 import type { TFunction } from 'i18next';
 import { isLeafTask } from '@/utils/taskHierarchy';
-import { buildBaselineOverlay } from '@/types/baseline';
+import { buildBaselineLayers, buildBaselineOverlay, comparisonOverlays } from '@/types/baseline';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { knownDrivingSequenceIds } from '@/engine/scheduler/drivingInfo';
 import { scheduleErrorText } from '@/i18n/scheduleErrors';
@@ -282,6 +282,17 @@ export function ReportPanel() {
   const baselineOverlay = useMemo(
     () => buildBaselineOverlay(baselines, activeBaselineId),
     [baselines, activeBaselineId],
+  );
+  // De vergelijkingsbaselines van het document (issue #391): dezelfde strook als op het scherm.
+  const comparedBaselineIds = useAppStore(s => s.comparedBaselineIds);
+  const baselineLayers = useMemo(
+    () => buildBaselineLayers(baselines, activeBaselineId, comparedBaselineIds),
+    [baselines, activeBaselineId, comparedBaselineIds],
+  );
+  const baselineComparisons = useMemo(() => comparisonOverlays(baselineLayers), [baselineLayers]);
+  const baselineNames = useMemo(
+    () => Object.fromEntries(baselineLayers.map(l => [l.slot, l.name])) as Partial<Record<0 | 1 | 2, string>>,
+    [baselineLayers],
   );
 
   // De rapportopties starten op de gedeelde defaults uit `reportSettings.ts` en worden vlak na de
@@ -730,6 +741,8 @@ export function ReportPanel() {
     resources,
     assignments,
     baselineOverlay,
+    baselineComparisons,
+    baselineNames,
     rows: reportRows,
     // "Een blad per persoon": gedwongen paginaovergang vóór elke resourceband.
     pageBreakBeforeGroups: reportType === 'resourceGantt' && resourceGanttOptions.pageBreakPerResource,
@@ -754,7 +767,7 @@ export function ReportPanel() {
     project.endDate, project.author, dateNotation, timeNotation, weekStartDay, reportCompressNonWorkdays, timelineColumns, reportFontScale,
     cpmResult, barColorSelection, fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs,
     reportTaskTypeLabels, tTask, daySuffix, statusLine, statusDate, resources,
-    assignments, baselineOverlay, reportRows, reportType, resourceGanttOptions.pageBreakPerResource, tasks.length,
+    assignments, baselineOverlay, baselineComparisons, baselineNames, reportRows, reportType, resourceGanttOptions.pageBreakPerResource, tasks.length,
     resourceGantt, resourceGanttWindow, assignmentColumns, curveLabels, curveColumnWidth, columnWidths, tableHeaders, i18n.language,
     durationDisplay, durationSuffixes, calendars]);
   // `options` bevat afgeleide catalogus-/vertaalobjecten die bij een lokale preview-state-update

@@ -1,6 +1,6 @@
 # Saving and managing a baseline
 
-Goal: record the schedule as an agreement (a baseline), so you can later see how far the execution deviates, and keep, rename, choose and delete several baselines.
+Goal: record the schedule as an agreement (a baseline), so you can later see how far the execution deviates, and keep, rename, choose, compare and delete several baselines.
 
 ## When you need this
 
@@ -16,11 +16,23 @@ You record a baseline when the schedule has been approved and the work still has
 4. Click *Save*. The baseline is now in the list and is immediately the active baseline.
 5. Click *Close*.
 
-Under every task bar in the Gantt there is now a thin bar with the baseline dates; a milestone gets a small diamond. You turn that overlay on or off with *View › Baselines & progress › Baseline overlay*.
+Under every task bar in the Gantt there is now a narrow strip with the baseline dates; a milestone gets a small diamond. You turn that overlay on or off with *View › Baselines & progress › Baseline overlay*.
 
 ### Choosing the active baseline
 
 Open *Manage baselines…* and choose in the *Active* column the baseline you want to compare with. As long as there are baselines, exactly one is active. The Gantt overlay, the report type *Variance* and the *Progress report* use it.
+
+### Showing several baselines at the same time
+
+Next to the active baseline you can show two other baselines in the Gantt. That way you see how the schedule moved with each revision.
+
+1. Click the arrow ▾ under *View › Baselines & progress › Baseline overlay*. The menu *Show in the Gantt* opens.
+2. Tick the baselines you want to see. The active baseline is at the top and is always on. You show up to 3 baselines at a time: the active one and two others.
+3. Click the arrow or outside the menu to close the menu.
+
+Each baseline has its own colour: the active one is grey, the second cyan and the third pink-purple. The status bar at the bottom shows a legend with the names. Under each task bar there is one strip. Where two or three baselines cover the same days, the strip has diagonal stripes in their colours. Where one baseline lies, the strip is plain. Milestones on the same date share one striped diamond. Point at the strip: the tooltip shows the name, the start and the finish of each baseline.
+
+The choice belongs to the project: the app keeps it in the project file, and Ctrl+Z undoes a change. The report draws the same strip when *Show baseline overlay* is on.
 
 ### Renaming a baseline
 
@@ -50,7 +62,11 @@ Every baseline has six columns in the task table. Click the **+** at the right o
 
 **Move project.** In the *Move project…* window, as soon as there are baselines, there is the checkbox *Shift baselines too*. It is off by default: the baselines stay in place, so the shift shows up as variance. See [Moving a project](docs://howto-project-verplaatsen).
 
-**Stored in the project file.** Baselines and the active choice are saved with the project and come back when you open the file.
+**Making a shown baseline active.** If in *Manage baselines…* you make a baseline active that you already show as an extra, it leaves the menu *Show in the Gantt*. It is then in the strip as the active baseline. If you delete a shown baseline, it also disappears from the Gantt.
+
+**A fourth baseline cannot be ticked.** If three baselines are already in the Gantt, the other baselines in the menu are grey. Untick a baseline first.
+
+**Stored in the project file.** Baselines, the active choice and the baselines you show as extras are saved with the project and come back when you open the file.
 
 ## See also
 

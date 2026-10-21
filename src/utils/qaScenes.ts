@@ -325,6 +325,68 @@ const SCENES: Record<string, Scene> = {
       return `[data-ops-assignment-row="${a.id}"] [data-ops-assignment-work-deviates]`;
     },
   },
+  // Issue #391: meerdere baselines tegelijk in de Gantt, in één gestreepte strook.
+  // Drie baselines: "Contract" (actief) plus "Herplanning maart" en "Herplanning juni". De
+  // verschuivingen wisselen per taak, zodat alle gevallen in beeld komen: drie baselines die deels
+  // overlappen (stukken met 1, 2 en 3 kleuren), twee die precies samenvallen, en drie die elkaar niet
+  // raken. Bij de mijlpalen vallen Contract en maart op dezelfde datum (één gestreepte ruit).
+  'meerdere-baselines': {
+    run: async () => {
+      await openExample('showcase-verbouwing-eengezinswoning.ifc');
+      const { addCalendarDays, formatDate, parseDate } = await import('@/utils/dateUtils');
+      // Het voorbeeld heeft al een baseline; de scène begint met precies deze drie.
+      useAppStore.setState(s => { s.baselines = []; s.activeBaselineId = null; });
+      const contractId = useAppStore.getState().saveBaseline('Contract');
+      const contract = useAppStore.getState().baselines.find(b => b.id === contractId)!;
+      const order = [...contract.tasks].filter(t => !t.isMilestone).sort((a, b) => a.start.localeCompare(b.start));
+      const rank = new Map(order.map((t, i) => [t.taskId, i]));
+      const shift = (iso: string, days: number) => (iso
+        ? formatDate(addCalendarDays(parseDate(iso), days)) + iso.slice(10)
+        : iso);
+      // Verschuiving in kalenderdagen per baseline [contract, maart, juni], per soort taak.
+      const SHIFTS: Record<'deels' | 'gelijk' | 'los', [number, number, number]> = {
+        deels: [-4, -2, 0],    // overlappen deels: stukken met 1, 2 en 3 baselines
+        gelijk: [-3, -3, 0],   // contract en maart vallen samen: gestreept in twee kleuren
+        los: [-20, -10, 0],    // raken elkaar niet: drie losse effen stukken
+      };
+      const kindOf = (taskId: string) => {
+        const i = rank.get(taskId);
+        if (i === undefined) return null; // mijlpaal
+        return (['deels', 'gelijk', 'los'] as const)[i % 3];
+      };
+      const derive = (name: string, which: 0 | 1 | 2) => ({
+        ...contract,
+        id: `${contractId}-${name.replace(/\s+/g, '-').toLowerCase()}`,
+        name,
+        tasks: contract.tasks.map(t => {
+          const kind = kindOf(t.taskId);
+          const d = kind ? SHIFTS[kind][which] : [-4, -4, 0][which];
+          return { ...t, start: shift(t.start, d), finish: shift(t.finish, d) };
+        }),
+      });
+      const contractShifted = derive('Contract', 0);
+      const maart = derive('Herplanning maart', 1);
+      const juni = derive('Herplanning juni', 2);
+      useAppStore.setState(s => {
+        const i = s.baselines.findIndex(b => b.id === contractId);
+        s.baselines[i] = { ...contractShifted, id: contractId };
+        s.baselines.push(maart, juni);
+        s.activeBaselineId = contractId;
+        s.ui.showBaselineOverlay = true;
+        s.comparedBaselineIds = [maart.id, juni.id];
+      });
+      (await waitFor('[data-ops-ribbon-tab="beeld"]')).click();
+      // In een verse browser komt het welkomstvenster soms pas ná het begin van de scène.
+      for (let i = 0; i < 20; i++) {
+        if (document.querySelector('[data-ops-welcome-dialog]')) {
+          await clickText('[data-ops-welcome-dialog]', ['Overslaan', 'Skip']);
+          break;
+        }
+        await sleep(150);
+      }
+      return '[data-ops-baseline-split]';
+    },
+  },
 };
 
 export async function runQaScene(name: string): Promise<void> {

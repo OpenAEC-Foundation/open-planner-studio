@@ -7,6 +7,7 @@
 
 import { parseDate, diffCalendarDays, addCalendarDays, formatDate, localTodayIso } from '@/utils/dateUtils';
 import type { Task } from '@/types/task';
+import { shownBaselineReach, type Baseline } from '@/types/baseline';
 import type { WorkCalendar } from '@/types/calendar';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { resolveGanttAxis } from '@/engine/renderer/workdayAxis';
@@ -167,8 +168,15 @@ export function computeAnchoredZoom(input: AnchoredZoomInput): { zoom: number; s
 export function computeEffectiveViewStart(
   tasks: Task[],
   viewStartDate: string,
+  /** Eerste dag van de getoonde baselines (`shownBaselineReach`), zodat een vergelijkingsbaseline
+   *  vóór de taken bereikbaar blijft. Zonder baselines `null`: ongewijzigd. */
+  baselineEarliest: string | null = null,
 ): string {
   let earliest = parseDate(viewStartDate);
+  if (baselineEarliest) {
+    const b = parseDate(baselineEarliest);
+    if (b.getTime() < earliest.getTime()) earliest = b;
+  }
   for (const task of tasks) {
     const start = resolveTaskStart(task);
     if (start) {
@@ -214,6 +222,9 @@ export function computeFitToProject(
   enableHourPlanning = false,
   /** As-afstand (`axisDayDistance`); afwezig ⇒ kalenderdagen, ongewijzigd. */
   dayDistance: (from: Date, to: Date) => number = diffCalendarDays,
+  /** Zelfde als bij {@link computeEffectiveViewStart}: alleen de oorsprong schuift mee, het kader
+   *  (zoom en eerste zichtbare dag) blijft de taken. */
+  baselineEarliest: string | null = null,
 ): FitToProject | null {
   if (tasks.length === 0 || timelineWidth <= 0) return null;
   let minStart: string | null = null;
@@ -232,7 +243,7 @@ export function computeFitToProject(
   const zoom = Math.max(0.5, Math.min(max, timelineWidth / span));
   // Gebruik exact de effectieve oorsprong van de renderer en pan van daaruit naar de eerste taak
   // (dat is 14 × zoom).
-  const effectiveStart = computeEffectiveViewStart(tasks, minStart);
+  const effectiveStart = computeEffectiveViewStart(tasks, minStart, baselineEarliest);
   const scrollX = Math.max(0, dayDistance(parseDate(effectiveStart), parseDate(minStart)) * zoom);
   return { zoom, viewStartDate: minStart, scrollX };
 }
@@ -247,6 +258,11 @@ const SCROLL_TO_DATE_MARGIN_DAYS = 3;
  *  volledige store-snapshot (`useAppStore.getState()`) voldoet hier structureel aan. */
 export interface ScrollToDateState {
   tasks: Task[];
+  /** De baselines van het document: hun getoonde bereik schuift de oorsprong mee (zie
+   *  {@link computeEffectiveViewStart}). Een volledige store-snapshot heeft ze. */
+  baselines?: Baseline[];
+  activeBaselineId?: string | null;
+  comparedBaselineIds?: readonly (string | null)[];
   view: { viewStartDate: string; zoom: number };
   project: { statusDate?: string };
   /** Projectkalender + de werkdagen-as-instelling: staat die (effectief) aan, dan telt de afstand
@@ -264,7 +280,10 @@ export interface ScrollToDateState {
  */
 export function computeScrollToDate(date: string | undefined, state: ScrollToDateState): number {
   const target = date || state.project.statusDate || localTodayIso();
-  const effectiveViewStart = parseDate(computeEffectiveViewStart(state.tasks, state.view.viewStartDate));
+  const reach = state.baselines
+    ? shownBaselineReach(state.baselines, state.activeBaselineId, state.comparedBaselineIds)
+    : null;
+  const effectiveViewStart = parseDate(computeEffectiveViewStart(state.tasks, state.view.viewStartDate, reach?.earliest ?? null));
 
   const days = axisDayDistance(state.calendar, state.ui?.compressNonWorkdays)(effectiveViewStart, parseDate(target));
   return Math.max(0, (days - SCROLL_TO_DATE_MARGIN_DAYS) * state.view.zoom);

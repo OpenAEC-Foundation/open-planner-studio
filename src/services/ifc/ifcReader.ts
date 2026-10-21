@@ -12,7 +12,7 @@ import { DEFAULT_CALENDAR_ID, createDefaultCalendar } from '@/engine/calendar/de
 import type { HolidayCountry } from '@/engine/calendar/holidays';
 import type { LibraryOrigin } from '@/types/library';
 import { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types/structure';
-import { Baseline, BaselineTask } from '@/types/baseline';
+import { Baseline, BaselineTask, normalizeComparedBaselines, type ComparedBaselineIds } from '@/types/baseline';
 import { generateId } from '@/utils/id';
 import { formatInstant, localTodayIso } from '@/utils/dateUtils';
 import { ifcGuid, ifcGuid128, ifcObjectSeed } from './ifcWriter';
@@ -291,7 +291,7 @@ export function readIFC(
   remapContourResourceIds(tasks, resourceGuidMap, new Set(resources.map(r => r.id)));
 
   // Baselines: autoritatieve OPS_Baselines-JSON, met taskId-remap via GlobalId.
-  const { baselines, activeBaselineId } = extractBaselines(entities, entityMap, taskStepIdMap);
+  const { baselines, activeBaselineId, comparedBaselineIds } = extractBaselines(entities, entityMap, taskStepIdMap);
 
   // Scheduling-options en rekenprofiel: eerst het profiel —
   // de OPS_SchedulingProfile-pset wint, anders `legacyOptionsToProfile` over het gelezen blok —, dán
@@ -353,7 +353,7 @@ export function readIFC(
   return {
     project, calendar, tasks, sequences, resources, assignments,
     activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars,
-    baselines, activeBaselineId,
+    baselines, activeBaselineId, comparedBaselineIds,
     libraryPool: libraryPoolOut.value,
     recordedFields,
     // Heropen-beleid: 'xer-archive', NIET 'xer' — deze route is een HEROPENING, geen verse import.
@@ -3416,7 +3416,7 @@ function extractBaselines(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
   taskStepIdMap: Map<string, string>,
-): { baselines: Baseline[]; activeBaselineId: string | null } {
+): { baselines: Baseline[]; activeBaselineId: string | null; comparedBaselineIds: ComparedBaselineIds } {
   // GlobalId → nieuwe taak-id (voor de taskId-remap).
   const guidToTaskId = new Map<string, string>();
   for (const e of entities) {
@@ -3428,6 +3428,7 @@ function extractBaselines(
 
   let baselines: Baseline[] = [];
   let activeBaselineId: string | null = null;
+  let comparedRaw: unknown = null;
   /** Expliciete interne-taakId → GlobalId-map uit het bestand; leeg bij oudere bestanden. */
   let taskGuids: Record<string, string> | null = null;
 
@@ -3446,6 +3447,8 @@ function extractBaselines(
         } catch { /* corrupte JSON — negeer, baselines blijft leeg */ }
       } else if (name === 'ActiveBaselineId') {
         activeBaselineId = raw;
+      } else if (name === 'ComparedBaselineIds') {
+        try { comparedRaw = JSON.parse(raw); } catch { /* corrupte JSON — geen vergelijking */ }
       } else if (name === 'TaskGuids') {
         // De writer schrijft expliciet weg wélk GlobalId hij per baseline-taak gebruikte, zodat wij
         // de hash niet hoeven na te rekenen. Ontbreekt de map (oudere bestanden), dan valt de remap
@@ -3477,7 +3480,13 @@ function extractBaselines(
     activeBaselineId = baselines.length ? baselines[baselines.length - 1].id : null;
   }
 
-  return { baselines, activeBaselineId };
+  // Vergelijking: alleen bekende, niet-actieve, niet-dubbele id's; oudere bestanden hebben hem niet.
+  const comparedBaselineIds = normalizeComparedBaselines(
+    Array.isArray(comparedRaw) ? comparedRaw.map(v => (typeof v === 'string' ? v : null)) : null,
+    baselines, activeBaselineId,
+  );
+
+  return { baselines, activeBaselineId, comparedBaselineIds };
 }
 
 /**

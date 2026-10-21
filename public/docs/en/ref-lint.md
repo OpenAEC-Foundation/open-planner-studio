@@ -186,11 +186,13 @@ The *Resources*, *Resource dock* and *Histogram* buttons are the same as on *Res
 
 ### View › Baselines & progress
 
-This group has the same name as the one on *Planning*, but holds the drawing options of the Gantt.
+This group has the same name as the one on *Planning*, but holds the drawing options of the Gantt for baselines and progress.
 
-- **Baseline overlay** — shows the active baseline as a thin bar under each task bar. Default: on. Without an active baseline there is nothing to see.
+- **Baseline overlay** — a large button in two parts. The upper part shows or hides the active baseline as a narrow strip under each task bar. Default: on. Without an active baseline there is nothing to see. The arrow ▾ below it opens the menu *Show in the Gantt*: tick up to two extra baselines there. Where baselines cover the same days, the strip has diagonal stripes in their colours. The choice belongs to the project. See [Saving and managing a baseline](docs://howto-baseline-opslaan-en-beheren).
 - **Progress line** — draws a line on the status date that bulges out per task to its progress. Default: on. Without a status date there is nothing to see. When the progress line is on, that line is also the marker of the status date.
 - **Status date line** — draws a dashed line on the status date. Default: on. You only see it when the progress line is off, because otherwise that line takes its place. The label with the date in the header stays as long as at least one of the two is on. The label follows your date notation, for example 20-09-2006. If the app calculates in hours, line and label sit at the time of day and the label also shows the time, for example 20-09-2006 17:00.
+### View › Bars
+
 - **Bar colors** — chooses how the bars are coloured: *Critical path* (default), *Per task — automatic* or *By category* with a choice of field. If that field is not in this project, the menu says that *Work category* is used temporarily. Outside *Critical path*, a red outline marks the critical path. The choice also applies to the report.
 - **Resource accent** — draws a thin strip in the resource colour under each leaf bar, divided in proportion to the units per day. Default: off.
 - **Float band** — draws the green band after a non-critical bar, up to the task's late finish. Default: on.

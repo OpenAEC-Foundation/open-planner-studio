@@ -86,17 +86,17 @@ A change takes effect immediately. There is no *Apply* button and no *Cancel*.
 
 The app also keeps these choices on this device, but you set them at the item itself, not in the settings panel.
 
-**Baseline overlay** — the active baseline as a thin bar under the task bar. Default: on. Where: *View › Baselines & progress › Baseline overlay*.
+**Baseline overlay** — the active baseline as a narrow strip under the task bar. Which baselines are also in the strip belongs to the project, not to this device. Default: on. Where: *View › Baselines & progress › Baseline overlay*.
 
 **Progress line** — the zigzag line of progress at the status date. Default: on. Effect: the line only appears when the project has a status date, and then replaces the separate status date line. Where: *View › Baselines & progress › Progress line*.
 
 **Status date line** — a dotted line at the status date. Default: on. Effect: if the progress line is on, it draws the marking itself. Where: *View › Baselines & progress › Status date line*.
 
-**Resource accent** — a thin stripe in the resource colour under the task bar. Default: off. Where: *View › Baselines & progress › Resource accent*.
+**Resource accent** — a thin stripe in the resource colour under the task bar. Default: off. Where: *View › Bars › Resource accent*.
 
-**Float band** — the float as a band behind non-critical bars; not for completed tasks. Default: on. Where: *View › Baselines & progress › Float band*.
+**Float band** — the float as a band behind non-critical bars; not for completed tasks. Default: on. Where: *View › Bars › Float band*.
 
-**Bar colors** — what the colour of a bar depends on. Choose from *Critical path*, *Per task — automatic* and *By category*. Default: *Critical path*. Effect: applies to the Gantt and the report at the same time. Where: *View › Baselines & progress › Bar colors*.
+**Bar colors** — what the colour of a bar depends on. Choose from *Critical path*, *Per task — automatic* and *By category*. Default: *Critical path*. Effect: applies to the Gantt and the report at the same time. Where: *View › Bars › Bar colors*.
 
 **Histogram** — the histogram strip under the Gantt. Default: off. Where: *Resources › Histogram › Histogram*, *View › Panels › Histogram* or Ctrl+Shift+H. You set the height of the strip (default 160 pixels, between 80 and 480) by dragging its edge.
 

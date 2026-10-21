@@ -5,7 +5,7 @@ import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { CustomTaskType } from '@/types/taskType';
-import type { Baseline } from '@/types/baseline';
+import type { Baseline, ComparedBaselineIds } from '@/types/baseline';
 import type { CompanyPool } from '@/types/library';
 import type { RecordedFieldKey } from '@/services/ifc/ifcTaskSlots';
 import type { RecordedDatesState, RecordedTime } from '@/engine/scheduler/recordedDates';
@@ -232,6 +232,8 @@ export interface ImportResult {
   customTaskTypes?: CustomTaskType[];
   baselines?: Baseline[];
   activeBaselineId?: string | null;
+  /** Vergelijkingsbaselines naast de actieve (alleen eigen IFC, `OPS_Baselines`). Afwezig ⇒ geen. */
+  comparedBaselineIds?: ComparedBaselineIds;
   /** OPTIONEEL — een pool-bestand draagt zijn autoritatieve pool-JSON in het
    *  OPS_Library-pset; een gewoon projectbestand niet. Afwezig ⇒ geen pool-bestand. */
   libraryPool?: CompanyPool;

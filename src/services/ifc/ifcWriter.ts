@@ -300,6 +300,7 @@ export function writeIFC(input: WriteIFCInput): string {
     resourceCalendars = [],
     baselines = [],
     activeBaselineId = null,
+    comparedBaselineIds = undefined,
     libraryPool = undefined,
     xerSourceArchive = undefined,
     xer = undefined,
@@ -508,7 +509,7 @@ export function writeIFC(input: WriteIFCInput): string {
   // wordt bewust NIET geschreven (afgeleide runCPM-uitvoer) — zie WRITTEN_PER_TASK_PSETS hieronder.
   emitPerTaskPsets(ctx, tasks, ownerHistId);
   // Baselines: OPS_Baselines-pset (JSON autoritair) op de IfcWorkSchedule
-  writeBaselineMeta(ctx, workSchedId, baselines, activeBaselineId, ownerHistId);
+  writeBaselineMeta(ctx, workSchedId, baselines, activeBaselineId, comparedBaselineIds, ownerHistId);
   // Scheduling-options: OPS_SchedulingOptions-pset (JSON autoritair) op de IfcWorkSchedule
   // Rekenprofielen: OPS_SchedulingOptions = projectopties + A22/A23 alleen als ze opgelost true zijn
   // (compat met uitgebrachte versies); het profiel staat in OPS_SchedulingProfile, alleen als het ≠
@@ -877,6 +878,7 @@ function writeBaselineMeta(
   workSchedId: number,
   baselines: Baseline[],
   activeBaselineId: string | null,
+  comparedBaselineIds: readonly (string | null)[] | undefined,
   ownerHistId: number,
 ): void {
   if (baselines.length === 0) return;
@@ -905,6 +907,12 @@ function writeBaselineMeta(
   if (activeBaselineId) {
     props.push(addLine(ctx, '_ps_baselines_active',
       `IFCPROPERTYSINGLEVALUE('ActiveBaselineId',$,IFCTEXT(${ifcStr(activeBaselineId)}),$)`));
+  }
+  // De vergelijkingsbaselines in de Gantt (issue #391): twee vaste plaatsen, elk een id of null.
+  // Alleen schrijven als er iets gekozen is; zonder pset-waarde leest een bestand als "geen vergelijking".
+  if (comparedBaselineIds?.some(id => !!id)) {
+    props.push(addLine(ctx, '_ps_baselines_compared',
+      `IFCPROPERTYSINGLEVALUE('ComparedBaselineIds',$,IFCTEXT(${ifcJson([comparedBaselineIds[0] ?? null, comparedBaselineIds[1] ?? null])}),$)`));
   }
   const setId = addLine(ctx, '_pset_baselines',
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_baselines'))},#${ownerHistId},${ifcStr(PSET.Baselines)},$,(${props.map(i => `#${i}`).join(',')}))`);

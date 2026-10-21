@@ -186,11 +186,13 @@ De knoppen *Resources*, *Resourcedock* en *Histogram* zijn dezelfde als op *Reso
 
 ### Beeld › Baselines & voortgang
 
-Deze groep heeft dezelfde naam als die op *Planning*, maar bevat de tekenopties van de Gantt.
+Deze groep heeft dezelfde naam als die op *Planning*, maar bevat de tekenopties van de Gantt voor baselines en voortgang.
 
-- **Baseline-overlay** — toont de actieve baseline als dunne balk onder elke taakbalk. Standaard: aan. Zonder actieve baseline is er niets te zien.
+- **Baseline-overlay** — een grote knop in twee delen. Het bovenste deel toont of verbergt de actieve baseline als smalle strook onder elke taakbalk. Standaard: aan. Zonder actieve baseline is er niets te zien. Het pijltje ▾ eronder opent het menu *Toon in de Gantt*: vink daar tot twee extra baselines aan. Waar baselines dezelfde dagen beslaan, heeft de strook schuine strepen in hun kleuren. De keuze hoort bij het project. Zie [Een baseline opslaan en beheren](docs://howto-baseline-opslaan-en-beheren).
 - **Voortgangslijn** — tekent een lijn op de statusdatum die per taak uitsteekt naar de voortgang. Standaard: aan. Zonder statusdatum is er niets te zien. Staat de voortgangslijn aan, dan is die lijn ook de markering van de statusdatum.
 - **Statusdatumlijn** — tekent een gestippelde lijn op de statusdatum. Standaard: aan. Je ziet hem alleen als de voortgangslijn uit staat, want anders neemt die lijn zijn plaats in. Het label met de datum in de kop blijft wel staan zolang minstens één van de twee aan is. Het label volgt je datumnotatie, bijvoorbeeld 20-09-2006. Rekent de app in uren, dan staan lijn en label op het tijdstip en toont het label ook de tijd, bijvoorbeeld 20-09-2006 17:00.
+### Beeld › Balken
+
 - **Balkkleuren** — kiest waarmee de balken zijn gekleurd: *Kritiek pad* (standaard), *Per taak — automatisch* of *Op categorie* met een keuze van het veld. Is dat veld niet in dit project, dan meldt het menu dat *Werksoort* tijdelijk wordt gebruikt. Buiten *Kritiek pad* markeert een rode rand het kritieke pad. De keuze geldt ook voor het rapport.
 - **Resource-accent** — tekent een dun streepje in de resourcekleur onder elke bladbalk, verdeeld naar rato van de eenheden per dag. Standaard: uit.
 - **Spelingsband** — tekent de groene band na een niet-kritieke balk, tot het laatste einde van de taak. Standaard: aan.

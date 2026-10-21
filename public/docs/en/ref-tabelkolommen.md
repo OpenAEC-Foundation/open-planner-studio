@@ -23,7 +23,7 @@ By default the table next to the Gantt shows *WBS*, *Task name* and *Duration*. 
 - **WBS** — the WBS code. Editable and required, but read-only while *WBS auto* is on.
 - **Work category** — the work category (*Construction*, *Installation*, *Demolition*, *Logistics*, *Inspection*, *Relocation*, *Renovation*, *Maintenance* or *Other*). Editable with a list.
 - **Custom work category** — the custom work category from the project, or a dash. Editable with a list of the project's custom work categories.
-- **Colour** — the stored colour of the task, as a colour code such as `#1a73e8`. Editable with a colour picker. It is stored in the IFC file, but no bar or report uses it; you set bar colours under *View › Baselines & progress › Bar colors*.
+- **Colour** — the stored colour of the task, as a colour code such as `#1a73e8`. Editable with a colour picker. It is stored in the IFC file, but no bar or report uses it; you set bar colours under *View › Bars › Bar colors*.
 - **Notes** — the notes as `✓ text; ○ text`. Editable as long as there is at most one note (you then edit its text); with more notes read-only.
 
 ## Planning

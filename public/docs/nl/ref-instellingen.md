@@ -86,17 +86,17 @@ Een wijziging werkt direct. Er is geen knop *Toepassen* en geen *Annuleren*.
 
 Deze keuzes bewaart de app ook op dit apparaat, maar je stelt ze in bij het onderdeel zelf, niet in het instellingenpaneel.
 
-**Baseline-overlay** — de actieve baseline als dunne balk onder de taakbalk. Standaard: aan. Waar: *Beeld › Baselines & voortgang › Baseline-overlay*.
+**Baseline-overlay** — de actieve baseline als smalle strook onder de taakbalk. Welke baselines er extra in de strook staan, hoort bij het project, niet bij dit apparaat. Standaard: aan. Waar: *Beeld › Baselines & voortgang › Baseline-overlay*.
 
 **Voortgangslijn** — de zigzaglijn van de voortgang op de statusdatum. Standaard: aan. Effect: de lijn verschijnt alleen als het project een statusdatum heeft, en vervangt dan de losse statusdatumlijn. Waar: *Beeld › Baselines & voortgang › Voortgangslijn*.
 
 **Statusdatumlijn** — een gestippelde lijn op de statusdatum. Standaard: aan. Effect: staat de voortgangslijn aan, dan tekent die zelf de markering. Waar: *Beeld › Baselines & voortgang › Statusdatumlijn*.
 
-**Resource-accent** — een dun streepje in de resourcekleur onder de taakbalk. Standaard: uit. Waar: *Beeld › Baselines & voortgang › Resource-accent*.
+**Resource-accent** — een dun streepje in de resourcekleur onder de taakbalk. Standaard: uit. Waar: *Beeld › Balken › Resource-accent*.
 
-**Spelingsband** — de speling als band achter niet-kritieke balken; niet bij voltooide taken. Standaard: aan. Waar: *Beeld › Baselines & voortgang › Spelingsband*.
+**Spelingsband** — de speling als band achter niet-kritieke balken; niet bij voltooide taken. Standaard: aan. Waar: *Beeld › Balken › Spelingsband*.
 
-**Balkkleuren** — waar de kleur van een balk van afhangt. Keuze uit *Kritiek pad*, *Per taak — automatisch* en *Op categorie*. Standaard: *Kritiek pad*. Effect: geldt voor de Gantt en het rapport tegelijk. Waar: *Beeld › Baselines & voortgang › Balkkleuren*.
+**Balkkleuren** — waar de kleur van een balk van afhangt. Keuze uit *Kritiek pad*, *Per taak — automatisch* en *Op categorie*. Standaard: *Kritiek pad*. Effect: geldt voor de Gantt en het rapport tegelijk. Waar: *Beeld › Balken › Balkkleuren*.
 
 **Histogram** — de histogramstrook onder de Gantt. Standaard: uit. Waar: *Resources › Histogram › Histogram*, *Beeld › Panelen › Histogram* of Ctrl+Shift+H. De hoogte van de strook (standaard 160 pixels, tussen 80 en 480) stel je in door de rand te slepen.
 

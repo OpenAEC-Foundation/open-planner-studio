@@ -24,6 +24,7 @@ export type IFCSaveSource = Pick<
   | 'calendars'
   | 'baselines'
   | 'activeBaselineId'
+  | 'comparedBaselineIds'
   // Verplicht (review 2026-09-28): als optioneel veld liet een aanroeper met een eigen veldlijst
   // (het IFC-paneel) het stil weg, en verloren alle bewaarde GlobalIds bij Toepassen.
   | 'ifcGlobalIds'
@@ -82,6 +83,7 @@ export function buildWriteIFCInput(src: IFCSaveSource): WriteIFCInput {
     resourceCalendars: src.calendars,
     baselines: src.baselines,
     activeBaselineId: src.activeBaselineId,
+    comparedBaselineIds: src.comparedBaselineIds,
     xer: src.xerImportMetadata ?? undefined,
     xerSourceArchive: src.xerSourceArchive ?? undefined,
     xerSourceProjectId: src.xerSourceProjectId ?? undefined,
@@ -111,7 +113,7 @@ export function buildExportIFCInput(src: IFCSaveSource): WriteIFCInput {
  *  deze lijst aan het type, zodat hij niet stil kan afdrijven van `buildWriteIFCInput`. */
 const IFC_SAVE_KEYS = [
   'project', 'calendar', 'tasks', 'sequences', 'resources', 'assignments',
-  'activityCodeTypes', 'customFieldDefs', 'customTaskTypes', 'calendars', 'baselines', 'activeBaselineId',
+  'activityCodeTypes', 'customFieldDefs', 'customTaskTypes', 'calendars', 'baselines', 'activeBaselineId', 'comparedBaselineIds',
   'xerImportMetadata', 'xerSourceArchive', 'xerSourceProjectId', 'importPristine',
   'recordedDates', 'datesAsRecorded', 'ifcGlobalIds',
 ] as const;

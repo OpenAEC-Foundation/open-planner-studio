@@ -496,6 +496,7 @@ const baseInput: GanttRenderOptionsInput = {
   barColorNoneLabel: '(geen-test)',
   showBaselineOverlay: true,
   baselineOverlay: buildBaselineOverlay(baselines, 'bl1'),
+  baselineComparisons: undefined,
   trace: buildTrace('both', [idB], sequences, cpmDistinct),
   canvasWidth: 1200,
   canvasHeight: 800,

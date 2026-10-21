@@ -6,6 +6,7 @@ import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
 import { useDisplayDate } from '@/hooks/displayDate';
 import { AI_STATUS_COLOR } from '@/components/ribbon/ai/AiServerGroup';
 import { isLeafTask } from '@/utils/taskHierarchy';
+import { BaselineLegend } from '@/components/canvas/BaselineLegend';
 
 export function StatusBar() {
   const { t } = useTranslation('menu');
@@ -98,6 +99,7 @@ export function StatusBar() {
         <span>{t('status.selection', { count: selectedTaskIds.length })}</span>
       )}
       <div className="flex-1" />
+      <BaselineLegend />
       {/* Afgeleid uit zoom — kan niet desyncen van de getekende as. */}
       <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.scale')} {t(`ribbon.${scaleFromZoom(zoom, enableHourPlanning)}`)}</span>
       <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.zoom', { level: Math.round(zoom) })}</span>

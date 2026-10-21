@@ -4,6 +4,7 @@
 // Dit bestand bevat uitsluitend types. Het koppelt geen store, mount geen DOM en voert geen
 // domeinmutatie uit. Zo krijgt elke coördinator een smal contract in plaats van de hele
 // applicatiestaat als gemaksargument.
+import type { BaselineReach } from '@/types/baseline';
 import type {
   MouseEvent as ReactMouseEvent,
   RefObject,
@@ -71,6 +72,9 @@ export interface GanttRendererHost {
 /** Concrete viewportwaarden en gerichte setters; geen taak- of planningsmutaties. */
 export interface GanttViewportCoordinatorInput {
   tasks: Task[];
+  /** Bereik van de getoonde baselines (actief + vergelijkingen): oorsprong en scrollbereik nemen
+   *  het mee, zodat elke getekende baselinestrook bereikbaar is. */
+  baselineReach?: BaselineReach;
   rows: ViewRow[];
   calendar: WorkCalendar;
   view: ViewState;
@@ -160,6 +164,9 @@ export interface GanttTooltipState {
   x: number;
   y: number;
   task: Task;
+  /** Issue #391: gezet als de muis op de baselinestrook staat: de baselines in dat stuk
+   *  (0 = actief, 1/2 = vergelijking). */
+  baselineSlots?: (0 | 1 | 2)[];
 }
 
 export interface GanttRelationPopoverState {

@@ -80,9 +80,16 @@ export function useGanttViewportCoordinator(
     [input.calendar.holidays, input.tasks.length],
   );
 
+  const baselineEarliest = input.baselineReach?.earliest ?? null;
+  const baselineLatest = input.baselineReach?.latest ?? null;
   const effectiveViewStart = useMemo(
-    () => computeEffectiveViewStart(input.tasks, input.view.viewStartDate),
-    [input.tasks, input.view.viewStartDate],
+    () => computeEffectiveViewStart(input.tasks, input.view.viewStartDate, baselineEarliest),
+    [input.tasks, input.view.viewStartDate, baselineEarliest],
+  );
+  // Het scrollbereik loopt tot het einde van de laatste getoonde baseline (issue #391).
+  const navigationEndDates = useMemo(
+    () => baselineLatest ? [...emptyReachDates, baselineLatest] : emptyReachDates,
+    [emptyReachDates, baselineLatest],
   );
   const effectiveView = useMemo(
     () => ({ ...input.view, viewStartDate: effectiveViewStart }),
@@ -132,9 +139,9 @@ export function useGanttViewportCoordinator(
       effectiveViewStart,
       input.compressNonWorkdays,
       spanAxis,
-      emptyReachDates,
+      navigationEndDates,
     ),
-    [input.tasks, effectiveViewStart, input.compressNonWorkdays, spanAxis, emptyReachDates],
+    [input.tasks, effectiveViewStart, input.compressNonWorkdays, spanAxis, navigationEndDates],
   );
   const contentWidthFor = useCallback(
     (zoom: number) => computeContentWidth(contentSpanDays, zoom),
@@ -219,6 +226,7 @@ export function useGanttViewportCoordinator(
       current.enableQuarterHourZoom,
       current.enableHourPlanning,
       dayDistance,
+      current.baselineReach?.earliest ?? null,
     );
     if (!fit) return;
     registerBoundsForZoom(fit.zoom);
@@ -264,6 +272,7 @@ export function useGanttViewportCoordinator(
       current.enableQuarterHourZoom,
       current.enableHourPlanning,
       dayDistance,
+      current.baselineReach?.earliest ?? null,
     );
     current.clearPendingFit();
     if (!fit) return;

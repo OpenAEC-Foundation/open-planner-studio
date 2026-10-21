@@ -48,6 +48,8 @@ import { saveHistogramHeight } from '@/utils/settingsStore';
 // De pure afleidingen achter de weergave + de opbouw van `GanttRenderOptions`. Ze staan apart
 // zodat ze headless te controleren zijn; de `useMemo`-aanroepen hieronder blijven
 // bewust in dit component staan (zie de kop van dat bestand voor waarom).
+import { buildBaselineLayers, comparisonOverlays, shownBaselineReach } from '@/types/baseline';
+import { BaselineTooltipContent } from './BaselineTooltipContent';
 import {
   buildBaselineOverlay,
   buildSharedAxis,
@@ -68,7 +70,7 @@ import { TASK_ROW_HEIGHT } from '@/engine/taskGrid/rowHeight';
 // Dikte van de zwevende balken: één gedeelde waarde met de takenlijst (zie scrollExtent.ts).
 import { OVERLAY_SCROLLBAR_SIZE } from '@/engine/taskGrid/scrollExtent';
 import { GANTT_WORKSPACE_SPLITTER_GRIP } from './ganttSplitter';
-import type { HistogramRenderInput } from './hooks/ganttCoordinatorTypes';
+import type { GanttTooltipState, HistogramRenderInput } from './hooks/ganttCoordinatorTypes';
 import { shownFinish, shownStart } from '@/utils/taskDates';
 
 // Basisgeometrie op Tekengrootte 100%: de component leidt hieruit de EFFECTIEVE
@@ -225,6 +227,7 @@ export function GanttCanvas({
   const showStatusDateLine = useAppStore(s => s.ui.showStatusDateLine);
   const baselines = useAppStore(s => s.baselines);
   const activeBaselineId = useAppStore(s => s.activeBaselineId);
+  const comparedBaselineIds = useAppStore(s => s.comparedBaselineIds);
   const setHistogramResource = useAppStore(s => s.setHistogramResource);
 
   const scopedTaskResources = useMemo(
@@ -249,8 +252,14 @@ export function GanttCanvas({
     resource => resource.id === histogramResourceId,
   ) ? histogramResourceId : undefined;
 
+  // Bereik van de getoonde baselines: de tijdas en het scrollbereik nemen het mee (issue #391).
+  const baselineReach = useMemo(
+    () => shownBaselineReach(baselines, activeBaselineId, comparedBaselineIds),
+    [baselines, activeBaselineId, comparedBaselineIds],
+  );
   const viewport = useGanttViewportCoordinator({
     tasks,
+    baselineReach,
     rows: viewRows,
     calendar,
     view,
@@ -525,6 +534,12 @@ export function GanttCanvas({
     () => buildBaselineOverlay(baselines, activeBaselineId),
     [baselines, activeBaselineId],
   );
+  // De baselines die de Gantt tekent: actief + tot twee vergelijkingen (issue #391).
+  const baselineLayers = useMemo(
+    () => buildBaselineLayers(baselines, activeBaselineId, comparedBaselineIds),
+    [baselines, activeBaselineId, comparedBaselineIds],
+  );
+  const baselineComparisons = useMemo(() => comparisonOverlays(baselineLayers), [baselineLayers]);
 
   // Path tracing rond de (eerst) geselecteerde taak: transitieve voorgangers/opvolgers, met de
   // driving-ketens apart zodat de renderer die sterker kan tinten (MSP Task Path-conventie).
@@ -607,6 +622,7 @@ export function GanttCanvas({
     assignments,
     showBaselineOverlay,
     baselineOverlay,
+    baselineComparisons,
     trace,
     rowHeight,
     headerHeight,
@@ -630,7 +646,7 @@ export function GanttCanvas({
     axis: sharedAxis,
     fontFamily: canvasFontFamily,
     fontScale,
-  }), [viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, showFloatBand, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, timeNotation, dateNotation, enableQuarterHourZoom, effectiveCalById, barSplitMode, enableHourPlanning, durationDisplay, durationSuffixes, tTask, durationDrag, uiTheme, compressNonWorkdays, sharedAxis, canvasFontFamily, fontScale]);
+  }), [viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, showFloatBand, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, baselineComparisons, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, timeNotation, dateNotation, enableQuarterHourZoom, effectiveCalById, barSplitMode, enableHourPlanning, durationDisplay, durationSuffixes, tTask, durationDrag, uiTheme, compressNonWorkdays, sharedAxis, canvasFontFamily, fontScale]);
 
   // Secondary houdt exact zijn eigen zoom/scrollX en deelt rows/scrollY met primary.
   const secondaryRenderInput = useMemo<GanttRenderOptionsSourceInput | undefined>(() => (
@@ -659,6 +675,7 @@ export function GanttCanvas({
       assignments,
       showBaselineOverlay,
       baselineOverlay,
+      baselineComparisons,
       trace,
       rowHeight,
       headerHeight,
@@ -686,7 +703,7 @@ export function GanttCanvas({
       fontFamily: canvasFontFamily,
       fontScale,
     } : undefined
-  ), [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, showFloatBand, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, timeNotation, dateNotation, enableQuarterHourZoom, effectiveCalById, barSplitMode, enableHourPlanning, tTask, uiTheme, compressNonWorkdays, canvasFontFamily, fontScale]);
+  ), [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, showFloatBand, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, baselineComparisons, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, timeNotation, dateNotation, enableQuarterHourZoom, effectiveCalById, barSplitMode, enableHourPlanning, tTask, uiTheme, compressNonWorkdays, canvasFontFamily, fontScale]);
 
   useGanttRendererHost({
     containers: {
@@ -716,6 +733,19 @@ export function GanttCanvas({
     if (task) selectTask(task.id, e.ctrlKey || e.metaKey, e.shiftKey);
     else deselectAll();
   }, [secondaryCanvasRef, secondaryRendererRef, selectTask, deselectAll, headerHeight]);
+
+  // Hover op de baselinestrook in het secundaire paneel: alleen de baselinetooltip (dit paneel kent
+  // verder geen hover). Zelfde hit-test als het primaire paneel (`GanttRenderer.getBaselineAt`).
+  const [secondaryTooltip, setSecondaryTooltip] = useState<GanttTooltipState | null>(null);
+  const handleSecondaryMouseMove = useCallback((e: ReactMouseEvent<HTMLCanvasElement>) => {
+    const canvas = secondaryCanvasRef.current;
+    const renderer = secondaryRendererRef.current;
+    if (!canvas || !renderer) return;
+    const rect = canvas.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const hit = y >= headerHeight ? renderer.getBaselineAt(e.clientX - rect.left, y) : null;
+    setSecondaryTooltip(hit ? { x: e.clientX, y: e.clientY, task: hit.task, baselineSlots: hit.slots } : null);
+  }, [secondaryCanvasRef, secondaryRendererRef, headerHeight]);
 
   const { contextMenu, relationPopover, tooltip } = pointer;
   const boxSelectState = pointer.overlays.boxSelect;
@@ -947,7 +977,14 @@ export function GanttCanvas({
             TaskTooltipContent, gedeeld met de WBS-sprongknop in het eigenschappenpaneel. */}
         {tooltip && (
           <HoverTooltip left={tooltip.x + 16} top={tooltip.y - 10}>
-            <TaskTooltipContent task={tooltip.task} />
+            {tooltip.baselineSlots !== undefined
+              ? <BaselineTooltipContent task={tooltip.task} slots={tooltip.baselineSlots} layers={baselineLayers} />
+              : <TaskTooltipContent task={tooltip.task} />}
+          </HoverTooltip>
+        )}
+        {secondaryTooltip?.baselineSlots && (
+          <HoverTooltip left={secondaryTooltip.x + 16} top={secondaryTooltip.y - 10}>
+            <BaselineTooltipContent task={secondaryTooltip.task} slots={secondaryTooltip.baselineSlots} layers={baselineLayers} />
           </HoverTooltip>
         )}
 
@@ -981,6 +1018,8 @@ export function GanttCanvas({
               tabIndex={0}
               className="absolute inset-0 outline-none"
               onClick={handleSecondaryClick}
+              onMouseMove={handleSecondaryMouseMove}
+              onMouseLeave={() => setSecondaryTooltip(null)}
             />
             {/* Eigen zwevende horizontale balk voor het secundaire tijdvenster. */}
             <div

@@ -552,3 +552,8 @@ en noem het in je rapport of PR-tekst.
     de controle ook zonder antwoord uitvoeren. De Help (`ref-taak-eigenschappen`) beschrijft nu het raster
     en de startvraag. — B
 
+137. **Lintmenu's sluiten niet met Escape.** De gedeelde `Popover` (`src/components/common/Popover.tsx`) sluit
+    alleen bij een klik buiten het menu (`useClickOutside`); Escape doet niets. Dat geldt voor elk lintmenu
+    dat `Popover` gebruikt, ook het nieuwe menu *Toon in de Gantt* van Baseline-overlay. Gezien in
+    `tests/browser/multi-baselines.spec.ts` (2026-10-20). Voorstel: Escape in `Popover` laten sluiten en
+    de focus terugzetten op de trigger. — B

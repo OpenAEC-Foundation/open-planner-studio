@@ -173,6 +173,7 @@ const valuesA: Record<string, unknown> = {
   scheduleStale: false,
   baselines: [],
   activeBaselineId: null,
+  comparedBaselineIds: [null, null],
   recordedDates: { times: { a: { start: '2026-01-01', finish: '2026-01-05' } }, shifted: 1, total: 1 },
   datesAsRecorded: true,
 };
@@ -190,8 +191,9 @@ const valuesB: Record<string, unknown> = {
   cpmResult: { marker: 'B' },
   resourceLoadResult: { marker: 'B' },
   scheduleStale: true,
-  baselines: [{ id: 'blb', name: 'BL', createdAt: '2030-01-01', tasks: [] }],
+  baselines: [{ id: 'blb', name: 'BL', createdAt: '2030-01-01', tasks: [] }, { id: 'blc', name: 'BL2', createdAt: '2030-02-01', tasks: [] }],
   activeBaselineId: 'blb',
+  comparedBaselineIds: ['blc', null],
   recordedDates: null,
   datesAsRecorded: false,
 };

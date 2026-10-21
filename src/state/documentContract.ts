@@ -9,7 +9,7 @@ import type { CustomTaskType } from '@/types/taskType';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { RecordedDatesState } from '@/engine/scheduler/recordedDates';
 import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
-import type { Baseline } from '@/types/baseline';
+import { normalizeComparedBaselines, noComparedBaselines, type Baseline, type ComparedBaselineIds } from '@/types/baseline';
 import type { ImportResult, RecordedTimesOrigin } from '@/services/importTypes';
 import type { XerArchiveIssue, XerImportMetadata } from '@/services/importTypes';
 import type { XerSourceArchive } from '@/services/xerSourceArchive';
@@ -67,6 +67,8 @@ export interface DocumentPayload {
   /** Baselines per document. `statusDate`/`progressMode` rijden mee in `project`. */
   baselines: Baseline[];
   activeBaselineId: string | null;
+  /** Vergelijkingsbaselines naast de actieve in de Gantt (issue #391). */
+  comparedBaselineIds: ComparedBaselineIds;
   view: ViewState;
   /** Woont in `s.ui` maar wordt per-document geswapt (zie descriptor-uitzondering). */
   collapsedTaskIds: string[];
@@ -275,6 +277,8 @@ export const DOCUMENT_FIELDS = [
   // zag `documentDataChanged` een activatie niet, en telde een MCP-transactie die alleen de actieve
   // baseline wisselt als "niets gewijzigd".
   field({ key: 'activeBaselineId', get: (s) => s.activeBaselineId, set: (s, v) => { s.activeBaselineId = v; }, fresh: () => null, snapshot: 'data', fromPayload: (p) => p.activeBaselineId ?? null }),
+  // Zelfde rol als activeBaselineId: de gebruiker kiest hem en hij gaat mee in het bestand.
+  field({ key: 'comparedBaselineIds', get: (s) => s.comparedBaselineIds, set: (s, v) => { s.comparedBaselineIds = v; }, fresh: noComparedBaselines, snapshot: 'data', fromPayload: (p) => normalizeComparedBaselines(p.comparedBaselineIds, p.baselines ?? [], p.activeBaselineId ?? null) }),
   field({ key: 'view', get: (s) => s.view, set: (s, v) => { s.view = v; }, fresh: createDefaultView, snapshot: 'none', fromPayload: (p) => normalizeView(p.view) }),
   // Uitzondering: collapsedTaskIds woont in `s.ui` (wordt wél per-document geswapt).
   field({ key: 'collapsedTaskIds', get: (s) => s.ui.collapsedTaskIds, set: (s, v) => { s.ui.collapsedTaskIds = v; }, fresh: () => [], snapshot: 'none' }),
@@ -473,6 +477,7 @@ export function payloadFromImport(parsed: ImportResult, filePath: string | null)
     customTaskTypes: parsed.customTaskTypes ?? [],
     baselines: parsed.baselines ?? [],
     activeBaselineId: parsed.activeBaselineId ?? null,
+    comparedBaselineIds: normalizeComparedBaselines(parsed.comparedBaselineIds, parsed.baselines ?? [], parsed.activeBaselineId ?? null),
     xerImportMetadata: parsed.xer ?? null,
     xerSourceArchive: parsed.xerSourceArchive ?? null,
     xerSourceProjectId: parsed.xer?.sourceProjectId ?? parsed.xerSourceProjectId ?? null,
