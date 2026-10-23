@@ -14,9 +14,11 @@
 // kent — zie `mppTimephased.ts`). Voor een URENTAAK (`measure=true`) wandelt `computeSplitSegments`
 // daarom met `CalendarEngine.addWorkMinutes` (minuutprecisie). Een DAGENMAAT-taak op een kalender met
 // werkblokken (`measure='workdays'`, alleen uren §3.14) wandelt in werkdagen: minuten ÷ werktijd per dag,
-// met `addMeasuredWorkdays`. Dat is dezelfde telling als de motor (`splitTotalSpanDays` in `duration.ts`
-// + `addMeasuredWorkdaysChecked` in `CPMSolver.addDurationChecked`), dus een pauze van een uur blijft een
-// uur, ook bij een dagtaak. In DAG-modus (`measure=false`) bestaat die precisie
+// met `addMeasuredWorkdays`. De as van zo'n taak telt dus in dagslots (`werktijd per dag × 60` = één
+// werkdag, hoe lang die dag ook is): een pauze van 480 min bij 8 u per dag is één werkdag, ook op een
+// korte vrijdag van 6 u. Dat is dezelfde telling als de motor (`splitTotalSpanDays` in `duration.ts`
+// + `addMeasuredWorkdaysChecked` in `CPMSolver.addDurationChecked`), de belasting (`workPlacement.ts`)
+// en de splitsbewerking (het dagslotcontract). In DAG-modus (`measure=false`) bestaat die precisie
 // niet: `addWorkMinutes` leunt op `calendar.workTime!.byWeekday` en GOOIT op een dag-kalender
 // (`workTime` is daar `undefined`). Op een dag-kalender (of met datums zonder tijd) tekent een taak nooit
 // binnen de dag, dus deze module rondt in dag-modus elke minutenwaarde af op hele werkdagen (`Math.round(minuten /
@@ -62,9 +64,10 @@
 // werkdagen vanaf `taskStart`, ook voorbij een (mogelijk verouderde) `earlyFinish` — zie het
 // earlyFinish-besluit in `ResourceLoad.ts`'s `computeResourceLoad`-docblok.
 //
-// Consumenten: `splitBarGeometry` (renderer/print), `ResourceLoad` (histogram/bezetting),
-// `ResourceLeveler` (boekhouding). Eén wandeling, drie lezers — geen eigen kopieën die stil uit
-// elkaar lopen.
+// Consumenten: `splitBarGeometry` (renderer/print), en op een kalender zonder werkblokken
+// `ResourceLoad` (histogram/bezetting) en via `dayslotLoad` de nivelleerder. Op een kalender met
+// werkblokken lezen die twee de gedeelde plaatsing (`workPlacement.ts`); die loopt de as in dezelfde
+// maat, en `check-split-solver-placement.ts` houdt solver, plaatsing en Gantt gelijk.
 import type { TaskSplitGap } from '@/types/task';
 import type { CalendarEngine } from './CalendarEngine';
 import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
