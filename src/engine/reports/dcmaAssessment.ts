@@ -197,8 +197,10 @@ function criticalPathTest(ctx: ReportContext, solve: ProjectSolveOptions): DcmaM
   const unpin = (tasks: Task[]) => {
     const e = tasks.find(x => x.id === end.id);
     if (!e) return;
-    if (e.constraint?.hard) e.constraint = { ...e.constraint, hard: false };
-    if (e.constraint2?.hard) e.constraint2 = { ...e.constraint2, hard: false };
+    // De pin valt weg. Een zachte MSO/MFO legt in de motor hetzelfde moment vast, met dezelfde
+    // speling stroomopwaarts; dan blijft er geen kritieke kandidaat over.
+    if (e.constraint?.hard) delete e.constraint;
+    if (e.constraint2?.hard) delete e.constraint2;
   };
   // Dezelfde eindtaak zonder pin geldt ook bij de kandidaatkeuze. Een harde MFO op het
   // einde van een latere werkdag kan anders alle activiteiten positieve speling geven (D2).
