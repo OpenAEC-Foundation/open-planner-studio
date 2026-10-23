@@ -116,6 +116,41 @@ for (const rule of WORK_RULES) {
   eq('B3 inzet 7: totaal 3072 werkminuten', total(), 3072);
 }
 
+// Knownbug 239: een voltooide taak met TEGENSTRIJDIG restwerk (uit een import: 100 %, nog 120 min rest,
+// geen verricht werk) viel buiten de bescherming. Vast werk en vaste inzet gaven de taak dan een nieuwe
+// duur en < 100 %; vaste duur telde het verleden opnieuw met de nieuwe inzet (2040 → 13560 min). Nu: het
+// verleden (4 d × 1 = 1920) wordt vastgelegd, de rest blijft 120, duur en voortgang blijven staan.
+for (const rule of WORK_RULES) {
+  const store = createAppStore();
+  const S = () => store.getState();
+  S().setProject({ startDate: '2026-06-01', statusDate: '2026-06-10' });
+  const id = S().addTask({ name: rule, time: createDefaultTaskTime('2026-06-01', 4) });
+  const rid = S().addResource({ name: 'Ploeg', description: '', type: 'LABOR', maxUnits: 7 });
+  S().assignResource(id, rid, 1);
+  if (rule !== 'FIXED_DURATION_RATE') S().setTaskWorkRule(id, rule);
+  S().runCPM();
+  S().setTaskProgress(id, 1);
+  store.setState(s => {
+    const a = s.assignments.find(a => a.taskId === id)!;
+    a.remainingWorkMinutes = 120;
+    delete a.actualWorkMinutes;
+  });
+  const task = () => S().tasks.find(t => t.id === id)!;
+  const own = () => S().assignments.filter(a => a.taskId === id);
+  const total = () => own().reduce((sum, a) => sum + assignmentDayUnits(task(), a, 480).reduce((s2, v) => s2 + v, 0) * 480, 0);
+  const time = JSON.stringify(task().time);
+  eq(`239 ${rule}: vooraf 1920 + 120`, total(), 2040);
+  S().updateAssignment(own()[0].id, { unitsPerDay: 7 });
+  eq(`239 ${rule}: inzet 7 legt het verleden vast en laat de rest staan`, own().map(a => [a.unitsPerDay, a.actualWorkMinutes, a.remainingWorkMinutes]), [[7, 1920, 120]]);
+  eq(`239 ${rule}: inzet 7 verandert duur en voortgang niet`, JSON.stringify(task().time), time);
+  eq(`239 ${rule}: inzet 7 houdt het totaal`, total(), 2040);
+  const r2 = S().addResource({ name: 'Nieuw', description: '', type: 'LABOR', maxUnits: 3 });
+  S().assignResource(id, r2, 3);
+  eq(`239 ${rule}: een nieuwkomer begint zonder verleden en zonder rest`, own().map(a => [a.unitsPerDay, a.actualWorkMinutes, a.remainingWorkMinutes]), [[7, 1920, 120], [3, 0, 0]]);
+  eq(`239 ${rule}: toevoegen verandert duur en voortgang niet`, JSON.stringify(task().time), time);
+  eq(`239 ${rule}: toevoegen houdt het totaal`, total(), 2040);
+}
+
 console.log(`${checks} checks, ${diffs.length} afwijkingen`);
 for (const d of diffs) console.log(`XX ${d}`);
 process.exit(diffs.length ? 1 : 0);

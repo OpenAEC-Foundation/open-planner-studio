@@ -347,9 +347,12 @@ export function captureTriangle(task: Task, assignments: readonly ResourceAssign
 
 const NO_CHANGE: TriangleWriteBack = { durationChanged: false, changedAssignmentIds: [] };
 
-/** Een voltooide taak zonder restwerk heeft geen resterende driehoek om te herleiden.
- *  Inzet wijzigen of een resource toevoegen legt wel het oude verrichte werk en de nulrest vast.
- *  Dit pad rekent geen duur of inzet uit; ongeldige inzet en tegenstrijdig restwerk vallen erbuiten. */
+/** Een voltooide taak zonder restduur heeft geen resterende driehoek om te herleiden.
+ *  Inzet wijzigen of een resource toevoegen legt wel het oude verrichte werk vast; het restwerk blijft
+ *  zoals het staat. Dit pad rekent geen duur, voortgang of inzet uit; ongeldige inzet valt erbuiten.
+ *  Ook een tegenstrijdig restwerk (bv. uit een import: 100 % met nog 120 min rest en geen verricht werk)
+ *  valt eronder (knownbug 239): anders kreeg een voltooide taak een nieuwe duur en < 100 % (vast werk,
+ *  vaste inzet), of telde het verleden opnieuw met de nieuwe inzet (vaste duur). */
 function settleCompletedWork(
   task: Task,
   assignments: ResourceAssignment[],
@@ -358,8 +361,6 @@ function settleCompletedWork(
   if (captured.time.completion !== 1 || captured.state.remainingMinutes !== 0) return null;
   const after = triangleStateOf(task, assignments, captured.ctx);
   if (after.assignments.some(a => !Number.isFinite(a.unitsPerDay) || a.unitsPerDay <= 0)) return null;
-  if ([...captured.state.assignments, ...after.assignments]
-    .some(a => a.drivesDuration && (a.remainingWorkMinutes ?? 0) !== 0)) return null;
   return applyTriangleResult(task, assignments, captured.state, after, captured.ctx, {
     skipDuration: true, actualWork: captured.actualWork,
   });
