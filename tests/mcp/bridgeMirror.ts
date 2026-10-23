@@ -22,7 +22,7 @@
 import http from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
-import { createRequestHandler, createMcpSessionTable, type McpResponseEvent } from '@/services/mcp/server';
+import { createRequestHandler, createMcpSessionTable, type McpResponseEvent, type McpSessionTable } from '@/services/mcp/server';
 import type { McpContext } from '@/services/mcp/contracts';
 
 export const MIRROR_RESPONSE_TIMEOUT_SECS = 120;
@@ -39,6 +39,9 @@ export interface BridgeMirrorOptions {
   /** Vaste poort (testhulp, geen Rust-contract): zo kan een test een app-herstart op dezelfde poort nadoen.
    *  Ontbreekt hij, dan kiest het systeem een vrije poort. */
   port?: number;
+  /** Bestaande sessietabel (testhulp): een nieuwe spiegel met dezelfde tabel doet Stop/Start van de bridge na,
+   *  waarbij de app (`appMcpSessions`) sessies en ankers behoudt. Ontbreekt hij, dan een nieuwe tabel (= app-herstart). */
+  sessions?: McpSessionTable;
 }
 
 export interface BridgeMirror {
@@ -75,7 +78,7 @@ export async function startBridgeMirror(opts: BridgeMirrorOptions): Promise<Brid
   // Het `mcp://response`-kanaal: Rust correleert op een oplopend id (rs :102-171).
   const pending = new Map<number, (reply: McpResponseEvent) => void>();
   let nextId = 1;
-  const sessions = createMcpSessionTable();
+  const sessions = opts.sessions ?? createMcpSessionTable();
   const makeHandler = () => createRequestHandler({
     emit: (_event, payload) => {
       const reply = payload as McpResponseEvent;

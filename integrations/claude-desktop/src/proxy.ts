@@ -18,10 +18,15 @@
 //     `initialize` zelf en biedt hij één statustool aan. Zo blijft de client verbonden en krijgt het
 //     model een heldere fout in plaats van een stille lege toollijst. Komt de app later online, dan
 //     verbindt hij bij het volgende bericht en meldt hij `notifications/tools/list_changed`.
-//   - Sessieverlies (404: app herstart): hij opent een nieuwe sessie met de oorspronkelijke
-//     `initialize`-parameters. Een leesrequest herhaalt hij daarna; een wijzigende tool niet, want
-//     het drift-anker van de oude sessie is weg en de wijziging kan op een ander document landen.
-//     Die krijgt een heldere fout ("not carried out").
+//   - Sessieverlies (404: app herstart), ontdekt door welk bericht ook (ook een ping of notificatie):
+//     hij opent een nieuwe sessie met de oorspronkelijke `initialize`-parameters en herhaalt een
+//     leesrequest. Wijzigende tools blijven daarna geweigerd ("not carried out"), ook die al in de
+//     wachtrij stonden, tot een leestool het actieve plan heeft getoond: het drift-anker van de oude
+//     sessie is weg, dus een wijziging kon anders op een ander document landen.
+//   - Een annulering (`notifications/cancelled`) wordt direct bij ontvangst vastgelegd; een geannuleerde
+//     aanvraag die nog in de wachtrij stond, gaat nooit naar de bridge.
+//   - De toollijst wisselt tussen de plannertools en de statustool; bij elke wissel krijgt de client
+//     `notifications/tools/list_changed`, en `initialize` kondigt altijd `listChanged` aan.
 import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
 
 export const DEFAULT_BRIDGE_PORT = 3877;
@@ -69,10 +74,18 @@ export function failureMessage(failure: ProxyFailure, port: number, settings: st
   }
 }
 
-/** Fout voor een wijzigende tool na sessieverlies: hij is bewust niet herhaald. */
+/**
+ * Fout voor een wijzigende tool na sessieverlies. Het drift-anker van de oude sessie is weg; een nieuwe
+ * sessie zou een wijziging aan het document binden dat nu actief is, ook als het gesprek over een ander
+ * document ging. Daarom blijven wijzigingen geblokkeerd tot het model het plan opnieuw heeft gelezen.
+ */
 export const SESSION_RESET_MESSAGE =
   'The connection to Open Planner Studio was reset (the app or its MCP bridge restarted), so this change was NOT carried out. '
-  + 'The connection is restored now. Check the active plan first (for example with planner_get_project_info), then send the change again.';
+  + 'Another plan may be active now. Changes stay blocked until you read the active plan again: call planner_get_project_info, '
+  + 'check that it is the plan you want to change, then send the change again.';
+
+/** Leestools die het actieve plan niet tonen en dus de blokkade na sessieverlies niet opheffen. */
+const NOT_A_PLAN_CHECK = new Set(['planner_get_planning_guide']);
 
 export interface BridgeProxyOptions {
   port: number;
@@ -100,6 +113,7 @@ type Upstream =
   | { type: 'fail'; failure: ProxyFailure };
 
 const isObject = (v: unknown): v is Json => typeof v === 'object' && v !== null && !Array.isArray(v);
+const isId = (v: unknown): v is Id => typeof v === 'string' || typeof v === 'number';
 
 function describeError(error: unknown): string {
   const cause = isObject(error) && isObject(error.cause) ? error.cause : null;
@@ -129,10 +143,24 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
   let connected = false;
   let sessionId: string | null = null;
   let protocolVersion: string | null = null;
-  /** Heeft de client de lokale toollijst (alleen de statustool) gekregen? */
-  let servedOfflineTools = false;
-  /** Leestools volgens de laatste `tools/list` (`readOnlyHint`); alleen die worden na sessieverlies herhaald. */
+  /**
+   * Welke toollijst de client het laatst kreeg: de plannertools van de app of alleen de statustool.
+   * Bij elke overgang krijgt de client `notifications/tools/list_changed`, ook als de sessie bleef staan
+   * (Stop/Start van de bridge).
+   */
+  let toolsShown: 'planner' | 'status' | null = null;
+  /**
+   * Gezet zodra een sessie verloren ging (404), ongeacht welk bericht dat ontdekte. Zolang hij staat,
+   * weigert de proxy elke wijzigende tool, ook aanvragen die al in de wachtrij stonden. Een geslaagde
+   * leestool die het actieve plan toont, heft hem op: dan heeft het model gezien welk plan actief is.
+   */
+  let documentCheckNeeded = false;
+  /** Leestools volgens de laatste `tools/list` (`readOnlyHint`). Een onbekende tool telt als wijzigend. */
   const readOnlyTools = new Set<string>();
+  /** Aanvragen die in de wachtrij staan en nog niet zijn doorgestuurd. */
+  const queuedIds = new Set<Id>();
+  /** Aanvragen die de client annuleerde vóór ze aan de beurt waren; die gaan nooit naar de bridge. */
+  const cancelledIds = new Set<Id>();
   let internalId = 0;
   let queue: Promise<void> = Promise.resolve();
 
@@ -162,7 +190,13 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
     }
     const text = await res.text().catch(() => '');
     if (res.status === 401) return { type: 'fail', failure: { kind: 'token' } };
-    if (res.status === 404 && sentSession) return { type: 'session-lost' };
+    if (res.status === 404 && sentSession) {
+      // Elk bericht kan het verlies ontdekken (ook een ping of notificatie); de blokkade hoort bij de
+      // verbinding, niet bij dat bericht.
+      documentCheckNeeded = true;
+      log('session lost (app restarted); changes are blocked until the active plan is read again');
+      return { type: 'session-lost' };
+    }
     let json: unknown;
     if (text !== '') {
       try { json = JSON.parse(text); } catch { json = undefined; }
@@ -199,6 +233,24 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
     return null;
   }
 
+  const notifyToolsChanged = () => send({ jsonrpc: '2.0', method: 'notifications/tools/list_changed' } as JSONRPCMessage);
+
+  /** De app antwoordt: kreeg de client de statustool, dan moet hij de plannertools ophalen. */
+  async function markOnline(): Promise<void> {
+    if (toolsShown === 'status') {
+      toolsShown = null;
+      await notifyToolsChanged();
+    }
+  }
+
+  /** De app antwoordt niet: kreeg de client de plannertools, dan moet hij de statustool ophalen. */
+  async function markOffline(): Promise<void> {
+    if (toolsShown === 'planner') {
+      toolsShown = null;
+      await notifyToolsChanged();
+    }
+  }
+
   /** Opent een (nieuwe) sessie bij de bridge met de `initialize`-parameters van de client. */
   async function connectUpstream(): Promise<ProxyFailure | null> {
     sessionId = null;
@@ -208,10 +260,6 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
     if (failure) return failure;
     await post({ jsonrpc: '2.0', method: 'notifications/initialized' }, true);
     log(`connected to ${endpoint}${sessionId ? ' (new session)' : ''}`);
-    if (servedOfflineTools) {
-      servedOfflineTools = false;
-      await send({ jsonrpc: '2.0', method: 'notifications/tools/list_changed' } as JSONRPCMessage);
-    }
     return null;
   }
 
@@ -224,15 +272,15 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
   async function answerOffline(id: Id, method: string, failure: ProxyFailure): Promise<void> {
     const message = failureMessage(failure, opts.port, opts.settingsHint);
     if (method === 'tools/list') {
-      servedOfflineTools = true;
+      toolsShown = 'status';
       await reply(id, { tools: [STATUS_TOOL] });
-    } else if (method === 'tools/call') {
-      await toolError(id, message);
-    } else if (method === 'ping') {
-      await reply(id, {});
-    } else {
-      await replyError(id, message);
+      return;
     }
+    if (method === 'tools/call') await toolError(id, message);
+    else if (method === 'ping') await reply(id, {});
+    else await replyError(id, message);
+    // Een timeout zegt niet dat de app weg is; de andere fouten wel.
+    if (failure.kind !== 'timeout') await markOffline();
   }
 
   function rememberTools(json: unknown): void {
@@ -246,7 +294,7 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
   }
 
   /** Geeft een bridge-antwoord door; een fout zonder id krijgt het id van het request. */
-  async function forwardReply(id: Id, method: string, result: Upstream & { type: 'ok' }): Promise<void> {
+  async function forwardReply(id: Id, method: string, toolName: string | null, result: Upstream & { type: 'ok' }): Promise<void> {
     const json = result.json;
     if (Array.isArray(json)) {
       for (const item of json) await send(item as JSONRPCMessage);
@@ -257,7 +305,22 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
       return;
     }
     if (json.id === null || json.id === undefined) json.id = id;
-    if (method === 'tools/list') rememberTools(json);
+    if (method === 'initialize' && isObject(json.result)) {
+      // Altijd `listChanged` aankondigen: de proxy wisselt zelf tussen statustool en plannertools.
+      const capabilities = isObject(json.result.capabilities) ? json.result.capabilities : {};
+      const tools = isObject(capabilities.tools) ? capabilities.tools : {};
+      json.result.capabilities = { ...capabilities, tools: { ...tools, listChanged: true } };
+    }
+    if (method === 'tools/list' && isObject(json.result)) {
+      rememberTools(json);
+      toolsShown = 'planner';
+    }
+    // Het model zag het actieve plan: wijzigingen mogen weer.
+    if (documentCheckNeeded && toolName !== null && readOnlyTools.has(toolName) && !NOT_A_PLAN_CHECK.has(toolName)
+      && isObject(json.result) && json.result.isError !== true) {
+      documentCheckNeeded = false;
+      log(`active plan read with ${toolName}; changes are allowed again`);
+    }
     await send(json as JSONRPCMessage);
   }
 
@@ -272,22 +335,25 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
     }
     if (failure) {
       await toolError(id, failureMessage(failure, opts.port, opts.settingsHint));
+      if (failure.kind !== 'timeout') await markOffline();
       return;
     }
     await reply(id, {
       content: [{ type: 'text', text: `Connected to Open Planner Studio on port ${opts.port}. The planner_ tools are available; ask for the tool list again if you do not see them.` }],
     });
+    await markOnline();
   }
 
   async function handleInitialize(id: Id, params: Json): Promise<void> {
     clientInitParams = params;
     sessionId = null;
     connected = false;
+    toolsShown = null;
     const result = await post({ jsonrpc: '2.0', id, method: 'initialize', params }, false);
     const failure = adoptInitialize(result);
     if (!failure && result.type === 'ok') {
       log(`connected to ${endpoint}`);
-      await forwardReply(id, 'initialize', result);
+      await forwardReply(id, 'initialize', null, result);
       return;
     }
     // Lokaal antwoorden: de extensie blijft bruikbaar en verbindt zodra de app er is.
@@ -313,6 +379,11 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
       await handleStatusTool(id);
       return;
     }
+    const mutates = toolName !== null && !readOnlyTools.has(toolName);
+    if (mutates && documentCheckNeeded) {
+      await toolError(id, SESSION_RESET_MESSAGE);
+      return;
+    }
     if (!connected) {
       const failure = await connectUpstream();
       if (failure) {
@@ -322,15 +393,13 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
     }
     let result = await post(message, true);
     if (result.type === 'session-lost') {
-      log('session lost (app or bridge restarted); opening a new session');
       const failure = await connectUpstream();
       if (failure) {
         await answerOffline(id, method, failure);
         return;
       }
       // Alleen herhalen wat niets wijzigt; een wijziging zou zonder het oude anker kunnen verdwalen.
-      const safe = toolName === null || readOnlyTools.has(toolName);
-      if (!safe) {
+      if (mutates) {
         await toolError(id, SESSION_RESET_MESSAGE);
         return;
       }
@@ -345,10 +414,16 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
       await answerOffline(id, method, result.failure);
       return;
     }
-    await forwardReply(id, method, result);
+    await forwardReply(id, method, toolName, result);
+    await markOnline();
   }
 
   async function handleNotification(message: Json): Promise<void> {
+    // Een annulering van een aanvraag die de bridge nooit zag, hoeft niet door.
+    if (message.method === 'notifications/cancelled' && isObject(message.params) && isId(message.params.requestId)
+      && cancelledIds.delete(message.params.requestId)) {
+      return;
+    }
     // Zonder sessie is er niemand om het aan te melden; de eigen `initialize` stuurt zijn eigen melding.
     if (!connected) return;
     const result = await post(message, true);
@@ -357,20 +432,39 @@ export function createBridgeProxy(opts: BridgeProxyOptions, send: (message: JSON
 
   async function processMessage(message: JSONRPCMessage): Promise<void> {
     const raw = message as unknown as Json;
-    const hasId = typeof raw.id === 'string' || typeof raw.id === 'number';
     const method = typeof raw.method === 'string' ? raw.method : null;
-    if (method !== null && hasId) await handleRequest(raw.id as Id, method, raw);
-    else if (method !== null) await handleNotification(raw);
+    if (method !== null && isId(raw.id)) {
+      const id = raw.id;
+      queuedIds.delete(id);
+      // Geannuleerd terwijl hij wachtte: niet doorsturen en (volgens de spec) niet beantwoorden.
+      if (cancelledIds.has(id)) {
+        log(`request ${String(id)} was cancelled before it was sent; dropped`);
+        return;
+      }
+      await handleRequest(id, method, raw);
+    } else if (method !== null) {
+      await handleNotification(raw);
+    }
     // Een antwoord van de client hoort bij een request van de server; de bridge stuurt die niet.
   }
 
   return {
     handle(message) {
+      const raw = message as unknown as Json;
+      // Annuleringen meteen verwerken, niet achter in de wachtrij: anders ging een wachtende wijziging
+      // die de client al had opgegeven alsnog naar de bridge (MCP 2025-06-18, cancellation).
+      if (raw.method === 'notifications/cancelled' && isObject(raw.params) && isId(raw.params.requestId)
+        && queuedIds.has(raw.params.requestId)) {
+        cancelledIds.add(raw.params.requestId);
+      }
+      if (typeof raw.method === 'string' && isId(raw.id)) {
+        queuedIds.add(raw.id);
+        cancelledIds.delete(raw.id);
+      }
       const next = queue.then(() => processMessage(message)).catch(async (error: unknown) => {
         log(`error while handling a message: ${describeError(error)}`);
         // Een request zonder antwoord laat de client hangen; geef dus altijd iets terug.
-        const raw = message as unknown as Json;
-        if ((typeof raw.id === 'string' || typeof raw.id === 'number') && typeof raw.method === 'string') {
+        if (isId(raw.id) && typeof raw.method === 'string' && !cancelledIds.has(raw.id)) {
           await replyError(raw.id, `Internal error in the Open Planner Studio MCP proxy: ${describeError(error)}`, -32603)
             .catch(() => {});
         }

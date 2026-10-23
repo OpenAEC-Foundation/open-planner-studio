@@ -21,7 +21,8 @@ import { ReadBuffer, serializeMessage } from '@modelcontextprotocol/sdk/shared/s
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { ToolListChangedNotificationSchema, type JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
 import { createAppStoreContext } from '@/state/appStore';
-import { buildMcpContext } from '@/services/mcp/server';
+import { buildMcpContext, createMcpSessionTable, type McpSessionTable } from '@/services/mcp/server';
+import type { McpContext } from '@/services/mcp/contracts';
 import { handleMcpMessage, MCP_INSTRUCTIONS, MCP_SERVER_NAME } from '@/services/mcp/dispatcher';
 import { getTools } from '@/services/mcp/toolRegistry';
 import { parseZipEntries } from '@/services/zip';
@@ -50,12 +51,23 @@ app.store.getState().undo();
 
 const TOKEN = 'c'.repeat(64);
 const backup = { ensureBackup: async () => null, markDuplicateBorn: () => {} };
-const startMirror = (port?: number) => startBridgeMirror({
+const startMirror = (
+  port?: number,
+  extra: { sessions?: McpSessionTable; handleMessage?: (body: string, ctx: McpContext) => Promise<string> } = {},
+) => startBridgeMirror({
   token: TOKEN,
   buildContext: () => buildMcpContext(app, undefined, backup),
-  handleMessage: handleMcpMessage,
+  handleMessage: extra.handleMessage ?? handleMcpMessage,
+  sessions: extra.sessions,
   port,
 });
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** Wacht tot `cond` waar is (max. ~2 s); de assertie erna toont de echte stand. */
+async function waitFor(cond: () => boolean): Promise<void> {
+  for (let i = 0; i < 100 && !cond(); i++) await sleep(20);
+}
 
 /** Een poort waar niets luistert (net vrijgegeven). */
 async function freePort(): Promise<number> {
@@ -210,6 +222,7 @@ test('via stdio: initialize, tools/list met de planner_-tools en één leestool'
   try {
     assertEq(s.client.getServerVersion()?.name, MCP_SERVER_NAME, 'serverInfo komt van de bridge, niet van de bundel');
     assertEq(s.client.getInstructions(), MCP_INSTRUCTIONS, 'instructions van de bridge gaan ongewijzigd door');
+    assertEq(s.client.getServerCapabilities()?.tools?.listChanged, true, 'listChanged ook bij een online initialize (review r1, 3)');
     const names = await toolNames(s);
     assertEq(names.length, getTools().length, 'aantal tools');
     assert(names.every((n) => n.startsWith('planner_')), `alleen planner_-tools: ${names.join(', ')}`);
@@ -241,12 +254,133 @@ test('app-herstart (sessie kwijt): leestool wordt herhaald, schrijftool niet', a
     assertEq(refused.text, SESSION_RESET_MESSAGE, 'heldere fout na sessieverlies');
     assertEq(app.store.getState().tasks.length, before, 'de wijziging is niet uitgevoerd');
 
+    const blocked = await call(s, 'planner_add_tasks', args);
+    assertEq(blocked.text, SESSION_RESET_MESSAGE, 'ook de volgende wijziging blijft geweigerd tot het plan gelezen is');
+    assertEq(app.store.getState().tasks.length, before, 'ook die wijziging is niet uitgevoerd');
+    const info = await call(s, 'planner_get_project_info');
+    assert(!info.isError && info.structured.ok === true, `plan lezen: ${info.text}`);
     const again = await call(s, 'planner_add_tasks', args);
-    assert(!again.isError && again.structured.ok === true, `schrijftool op de nieuwe sessie: ${again.text}`);
+    assert(!again.isError && again.structured.ok === true, `schrijftool na het lezen: ${again.text}`);
     assertEq(app.store.getState().tasks.length, before + 1, 'de herhaalde wijziging is één keer uitgevoerd');
     app.store.getState().undo();
   } finally {
     await s.client.close();
+  }
+});
+
+test('app-herstart met een ander plan actief, ontdekt door een ping: wachtende en volgende wijzigingen geweigerd (review r1, 1)', async () => {
+  const s = await startExtension(TOKEN, mirror.port);
+  const docA = app.store.getState().activeDocumentId;
+  let docB: string | null = null;
+  try {
+    await toolNames(s);
+    const bind = await call(s, 'planner_add_tasks', { tasks: [{ tempId: 'tmp-a', name: 'Op plan A', duration: 1 }] });
+    assert(!bind.isError && bind.structured.ok === true, `sessie binden aan plan A: ${bind.text}`);
+
+    // De app herstart; daarna is plan B actief. De oude sessie (met anker A) bestaat niet meer.
+    const port = mirror.port;
+    await mirror.close();
+    docB = app.store.getState().newDocument();
+    mirror = await startMirror(port);
+    const tasksB = app.store.getState().tasks.length;
+
+    // De ping ontdekt het sessieverlies; de wijziging staat er al achter in de wachtrij.
+    const later = { tasks: [{ tempId: 'tmp-b', name: 'Hoort bij plan A', duration: 1 }] };
+    const [, waiting] = await Promise.all([s.client.ping(), call(s, 'planner_add_tasks', later)]);
+    assertEq(waiting.text, SESSION_RESET_MESSAGE, 'wachtende wijziging na een ping met 404');
+    const next = await call(s, 'planner_add_tasks', later);
+    assertEq(next.text, SESSION_RESET_MESSAGE, 'volgende wijziging na een ping met 404');
+    assertEq(app.store.getState().activeDocumentId, docB, 'plan B is actief');
+    assertEq(app.store.getState().tasks.length, tasksB, 'niets op plan B gezet');
+
+    const info = await call(s, 'planner_get_project_info');
+    assert(!info.isError && info.structured.ok === true, `plan lezen: ${info.text}`);
+    const allowed = await call(s, 'planner_add_tasks', { tasks: [{ tempId: 'tmp-c', name: 'Bewust op plan B', duration: 1 }] });
+    assert(!allowed.isError && allowed.structured.ok === true, `wijziging na het lezen: ${allowed.text}`);
+    assertEq(app.store.getState().tasks.length, tasksB + 1, 'die ene wijziging staat op plan B');
+  } finally {
+    await s.client.close();
+    if (docB !== null) app.store.getState().closeDocument(docB);
+    if (app.store.getState().activeDocumentId !== docA) app.store.getState().switchDocument(docA);
+  }
+});
+
+test('geannuleerde wijziging in de wachtrij gaat nooit naar de bridge (review r1, 2)', async () => {
+  const bodies: string[] = [];
+  let hold = false;
+  let release = () => {};
+  const gated = await startMirror(undefined, {
+    handleMessage: async (body, ctx) => {
+      bodies.push(body);
+      if (hold && body.includes('planner_get_project_info')) await new Promise<void>((resolve) => { release = () => resolve(); });
+      return handleMcpMessage(body, ctx);
+    },
+  });
+  const s = await startExtension(TOKEN, gated.port);
+  try {
+    await toolNames(s);
+    const before = app.store.getState().tasks.length;
+    hold = true;
+    const slow = call(s, 'planner_get_project_info');
+    await waitFor(() => bodies.some((b) => b.includes('planner_get_project_info')));
+    assert(bodies.some((b) => b.includes('planner_get_project_info')), 'de trage leesaanvraag staat bij de bridge');
+
+    const controller = new AbortController();
+    const outcome = s.client.callTool(
+      { name: 'planner_add_tasks', arguments: { tasks: [{ tempId: 'tmp-x', name: 'Geannuleerd', duration: 1 }] } },
+      undefined,
+      { signal: controller.signal },
+    ).then(() => 'beantwoord', () => 'afgebroken');
+    await sleep(200); // de wijziging staat nu in de wachtrij van de bundel
+    controller.abort('de gebruiker stopt'); // de SDK stuurt notifications/cancelled
+    await sleep(200);
+    hold = false;
+    release();
+    const read = await slow;
+    assert(!read.isError, `trage leesaanvraag: ${read.text}`);
+    assertEq(await outcome, 'afgebroken', 'de client gaf de wijziging op');
+    await toolNames(s); // komt pas na de geannuleerde aanvraag aan de beurt
+    assert(!bodies.some((b) => b.includes('planner_add_tasks')), 'planner_add_tasks bereikte de bridge');
+    assertEq(app.store.getState().tasks.length, before, 'geen taak toegevoegd');
+  } finally {
+    hold = false;
+    release();
+    await s.client.close();
+    await gated.close();
+  }
+});
+
+test('bridge Stop/Start met behouden sessie: statustool en terug, elk met list_changed (review r1, 3)', async () => {
+  const sessions = createMcpSessionTable();
+  let bridge = await startMirror(undefined, { sessions });
+  const port = bridge.port;
+  const s = await startExtension(TOKEN, port);
+  try {
+    assert((await toolNames(s)).includes('planner_get_project_info'), 'online: plannertools');
+    assertEq(s.listChanged(), 0, 'nog geen list_changed');
+
+    await bridge.close(); // Stop in de app
+    const off = await call(s, 'planner_get_project_info');
+    assert(off.isError && off.text.startsWith('Open Planner Studio is not running'), `bridge gestopt: ${off.text}`);
+    await waitFor(() => s.listChanged() >= 1);
+    assertEq(s.listChanged(), 1, 'list_changed bij de overgang naar de statustool');
+    assertEq(await toolNames(s), [STATUS_TOOL_NAME], 'toollijst met de bridge gestopt');
+
+    bridge = await startMirror(port, { sessions }); // Start in de app: dezelfde sessies
+    const status = await call(s, STATUS_TOOL_NAME);
+    assert(!status.isError && status.text.startsWith('Connected to Open Planner Studio'), `statustool: ${status.text}`);
+    await waitFor(() => s.listChanged() >= 2);
+    assertEq(s.listChanged(), 2, 'list_changed bij de overgang terug naar de plannertools');
+    const names = await toolNames(s);
+    assert(names.includes('planner_get_project_info') && !names.includes(STATUS_TOOL_NAME), `tools na Start: ${names.length}`);
+    const before = app.store.getState().tasks.length;
+    const write = await call(s, 'planner_add_tasks', { tasks: [{ tempId: 'tmp-s', name: 'Na Stop/Start', duration: 1 }] });
+    assert(!write.isError && write.structured.ok === true, `sessie behouden, dus wijzigen mag: ${write.text}`);
+    assertEq(app.store.getState().tasks.length, before + 1, 'één taak toegevoegd');
+    app.store.getState().undo();
+  } finally {
+    await s.client.close();
+    await bridge.close();
   }
 });
 

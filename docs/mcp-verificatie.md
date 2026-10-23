@@ -131,10 +131,14 @@ legt vast wat de app als MCP-server levert, wat niet, en welke test het bewijst.
    doet (`node server/index.mjs`, token en poort in `env`) en praat er met de SDK-client
    (`Client` over een eigen stdio-transport met de `ReadBuffer` van de SDK) tegen de spiegel uit punt 1: `initialize` met serverInfo en instructions van de
    bridge, `tools/list` met alle `planner_*`-tools, een leestool; een app-herstart op dezelfde poort (nieuwe
-   sessietabel): de leestool wordt herhaald en slaagt, een `planner_add_tasks` wordt niet uitgevoerd en geeft
-   een heldere fout, daarna slaagt hij één keer; fout token, geen token en een bridge die uit staat geven elk
+   sessietabel): de leestool wordt herhaald en slaagt, `planner_add_tasks` wordt geweigerd tot een leestool het
+   plan heeft getoond, daarna slaagt hij één keer; een sessie gebonden aan plan A, app-herstart met plan B
+   actief, een `ping` ontdekt het verlies: de wachtende en de volgende wijziging worden geweigerd en er komt
+   niets op B; een geannuleerde wijziging achter een trage leesaanvraag bereikt de bridge nooit; Stop/Start van
+   de bridge met behouden sessie: statustool en terug, elk met `notifications/tools/list_changed`, en
+   `initialize` kondigt altijd `listChanged` aan; fout token, geen token en een bridge die uit staat geven elk
    een heldere Engelse fout; start de app daarna, dan verbindt de bundel, stuurt
-   `notifications/tools/list_changed` en werkt de leestool.
+   `notifications/tools/list_changed` en werkt de leestool (review ronde 1 van PR #567).
 5. **`.github/workflows/mcpb.yml`** (apart, niet in `verify`; draait op elke push naar `main` en op een PR die
    de bundel raakt). Bouwt de bundel, controleert het manifest met de officiële CLI
    (`npx @anthropic-ai/mcpb@2.1.2 validate`, vaste versie) en bewaart de `.mcpb` 7 dagen als artifact.
@@ -177,14 +181,21 @@ ook headless werkt en het token zelf uit `<appDataDir>/mcp/runtime.json` leest.
 - Draait de app niet, staat de bridge uit of klopt het token niet, dan beantwoordt de bundel `initialize` zelf
   en biedt hij één tool aan: `open_planner_studio_status`. Elke andere aanroep geeft een Engelse fout die zegt
   wat de gebruiker moet doen ("Open Planner Studio is not running or the MCP bridge is off …", "… refused the
-  token (HTTP 401) …"). Bij elk volgend bericht probeert de bundel opnieuw te verbinden; lukt dat, dan stuurt
-  hij `notifications/tools/list_changed`.
-- Sessieverlies (`404`, de app is herstart): de bundel opent een nieuwe sessie met de oorspronkelijke
-  `initialize`-parameters. Een request dat niets wijzigt (alles behalve `tools/call`, en tools met
-  `readOnlyHint: true` uit de laatste `tools/list`) herhaalt hij. Een wijzigende tool herhaalt hij niet: het
-  drift-anker van de oude sessie is weg, dus de wijziging kon op een ander document landen. Die aanroep krijgt
-  de fout "… this change was NOT carried out …". Na Stop/Start van de bridge in de app blijft de sessie
-  geldig; dan is er geen sessieverlies.
+  token (HTTP 401) …"). Bij elk volgend bericht probeert de bundel opnieuw te verbinden. Bij elke wissel
+  tussen statustool en plannertools stuurt hij `notifications/tools/list_changed`, ook als de sessie bleef
+  staan (Stop/Start van de bridge); `initialize` kondigt daarom altijd `listChanged: true` aan.
+- Sessieverlies (`404`, de app is herstart), ontdekt door welk bericht ook (ook een `ping` of notificatie): de
+  bundel opent een nieuwe sessie met de oorspronkelijke `initialize`-parameters en herhaalt een request dat
+  niets wijzigt (alles behalve `tools/call`, en tools met `readOnlyHint: true` uit de laatste `tools/list`).
+  Het drift-anker van de oude sessie is weg, dus een wijziging kon op een ander document landen. Daarom
+  weigert de bundel daarna elke wijzigende tool (ook een onbekende, en ook aanvragen die al in de wachtrij
+  stonden) met "… this change was NOT carried out … call planner_get_project_info …", tot een geslaagde
+  leestool het actieve plan heeft getoond (`planner_get_planning_guide` telt niet). Na Stop/Start van de bridge
+  in de app blijft de sessie geldig; dan is er geen sessieverlies en geen blokkade.
+- Annuleren (`notifications/cancelled`, ook na een time-out van de client): de bundel legt de annulering vast
+  zodra hij binnenkomt, niet achter in de wachtrij. Een geannuleerde aanvraag die nog wachtte, gaat nooit naar
+  de bridge en krijgt geen antwoord (MCP 2025-06-18, *cancellation*). Een aanvraag die al bij de bridge was,
+  loopt door; de bridge voert hem strikt na de vorige uit.
 - Niet getoetst: installeren en het installatievenster in Claude Desktop zelf, en Claude Desktop op Windows en
   macOS met de bundel. De bundel is niet ondertekend (`mcpb sign`); Claude Desktop meldt dat bij installeren.
 - **Custom connectors** (Claude, *Customize › Connectors*) passen niet: "Claude connects to your remote MCP
