@@ -854,7 +854,10 @@ export function levelResources(
     const newDelay = delay > 0 ? delay : undefined;
     const newDelayMinutes = delay > 0 ? delayMinutes[pick] : undefined;
     const work = workById.get(pick)!;
-    if (work.levelingDelay !== newDelay || work.levelingDelayMinutes !== newDelayMinutes) markChanged(pick);
+    // Alleen `levelingDelay` vergelijken volstaat: een taak in scope komt hier met beide velden leeg
+    // binnen (werkkopie hierboven) en wordt één keer geplaatst; `newDelayMinutes` bestaat alleen
+    // naast een `newDelay`.
+    if (work.levelingDelay !== newDelay) markChanged(pick);
     work.levelingDelay = newDelay;
     work.levelingDelayMinutes = newDelayMinutes;
 
