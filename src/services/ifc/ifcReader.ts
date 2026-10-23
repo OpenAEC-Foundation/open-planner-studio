@@ -27,7 +27,7 @@ import {
   DEFAULT_PRIORITY, IFC_TIME_ANCHOR, MEASURE_TO_FIELD, IFC_TO_RESOURCE_TYPE,
 } from './ifcConstants';
 import {
-  OPS_LEGACY_LITERAL_APP_VERSION, PSET, PER_TASK_PSET_BY_NAME, readDayMeasureDurations, readExactFloat, readIfcDate,
+  OPS_LEGACY_LITERAL_APP_VERSION, PSET, PER_TASK_PSET_BY_NAME, readDayMeasureDurations, readExactFloat, readExactMinutes, readIfcDate,
 } from './ifcPsets';
 import {
   DAY_MEASURE_LAGS_PROP, parseDayMeasureLags, taskMinutesPerDay, wholeFloatDays, type DayMeasureRecord,
@@ -1564,6 +1564,9 @@ function applyHourModeIFC(
  *    taak (werktijd per dag, of 1440 bij kalendertijd), zodat de gewijzigde lengte blijft staan;
  *  - rest van een taak in de urenmaat: de minuten, zoals `readRemainingMinutes` ze al las. Een
  *    rest-record telt daar alleen als de taak in de urenmaat geschreven was (geen duurrecord).
+ * Urenmaat met een breuk in minuten (T14): duur en rest staan als `PT…` op de hele minuut, met een record
+ * `[exacte minuten, geschreven minuten]` in `OPS_WorkRule.ExactMinutes`. Zelfde leesregel: draagt het slot
+ * nog de geschreven minuten, dan komt de exacte bron terug; anders geldt het slot.
  * Speling: het slot draagt hele dagen; `OPS_Analysis.ExactFloat` de exacte dagen en de minuten. Het
  * record telt alleen als het slot nog de afgeronde dagen van het record draagt. Zonder geldig record
  * blijft de speling zoals het slot haar gaf, zonder minuten (de lezer leidt niets af).
@@ -1580,7 +1583,8 @@ function applyTaskTimeRecords(
     const t = task.time;
     const durations = readDayMeasureDurations(task);
     const slotMinutes = (index: number) => isoDurationToMinutes(stripQuotes(e.args[index] || ''));
-    const minutesPerDay = taskMinutesPerDay(task, effHoursPerDay(resolveCalendar(task.calendarId, resourceCalendars, projectCal)));
+    const effCal = resolveCalendar(task.calendarId, resourceCalendars, projectCal);
+    const minutesPerDay = taskMinutesPerDay(task, effHoursPerDay(effCal));
 
     const durationRecord = durations?.ScheduleDuration;
     if (durationRecord && !task.isMilestone && slotMinutes(TASKTIME_SLOT.scheduleDuration) === durationRecord[1]) {
@@ -1599,6 +1603,22 @@ function applyTaskTimeRecords(
       // Urentaak zonder `remainingMinutes`, met een gebroken `remainingTime` als bron.
       t.remainingTime = restRecord[0];
       delete t.remainingMinutes;
+    }
+
+    // De exacte urenmaat. Alleen op een taak die na het bovenstaande in de urenmaat staat en waar het
+    // slot al minuten gaf (`applyHourModeIFC`); de afgeleide dagen volgen dezelfde vorm als daar.
+    const exactMinutes = readExactMinutes(task);
+    if (exactMinutes && t.durationUnit === 'hours') {
+      const dur = exactMinutes.ScheduleDuration;
+      if (dur && t.durationMinutes !== undefined && slotMinutes(TASKTIME_SLOT.scheduleDuration) === dur[1]) {
+        t.durationMinutes = dur[0];
+        if (effHoursPerDay(effCal) > 0) t.scheduleDuration = hourTaskScheduleDuration(dur[0], effCal);
+      }
+      const rest = exactMinutes.RemainingTime;
+      if (rest && t.remainingMinutes !== undefined && restMinutes === rest[1]) {
+        t.remainingMinutes = rest[0];
+        t.remainingTime = hourRemainingDays(t, rest[0]);
+      }
     }
 
     const actualMinutes = slotMinutes(TASKTIME_SLOT.actualDuration);

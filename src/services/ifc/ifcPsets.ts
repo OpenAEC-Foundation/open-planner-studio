@@ -7,7 +7,8 @@ import { hasValidP6SuspendResume } from '@/utils/p6SuspendResume';
 import { importStatusDate } from '@/services/importDates';
 import {
   DAY_MEASURE_DURATIONS_PROP, DAY_MEASURE_DURATION_KEYS, EXACT_FLOAT_KEYS, EXACT_FLOAT_PROP,
-  parseDayMeasureDurations, parseExactFloat, type DayMeasureDurationRecords, type ExactFloatRecords,
+  EXACT_MINUTES_KEYS, EXACT_MINUTES_PROP, parseDayMeasureDurations, parseExactFloat, parseExactMinutes,
+  type DayMeasureDurationRecords, type ExactFloatRecords, type ExactMinutesRecords,
 } from './dayMeasureIo';
 
 /**
@@ -315,6 +316,8 @@ export interface PerTaskWriteOptions {
   dayMeasureDurations?: DayMeasureDurationRecords;
   /** Exacte speling naast de hele dagen in IfcTaskTime (T5). */
   exactFloat?: ExactFloatRecords;
+  /** Records `[exacte minuten, geschreven minuten]` voor een urenmaat-duur of -rest met een breuk (T14). */
+  exactMinutes?: ExactMinutesRecords;
 }
 
 export interface PerTaskPset {
@@ -345,8 +348,10 @@ export const milestoneWasAtDayEnd = (task: Task): boolean => milestonesAtDayEnd.
  *  omdat de leesregel de RUWE IfcTaskTime-slots en de kalender van de taak nodig heeft. */
 const dayMeasureDurationsRead = new WeakMap<Task, DayMeasureDurationRecords>();
 const exactFloatRead = new WeakMap<Task, ExactFloatRecords>();
+const exactMinutesRead = new WeakMap<Task, ExactMinutesRecords>();
 export const readDayMeasureDurations = (task: Task): DayMeasureDurationRecords | undefined => dayMeasureDurationsRead.get(task);
 export const readExactFloat = (task: Task): ExactFloatRecords | undefined => exactFloatRead.get(task);
+export const readExactMinutes = (task: Task): ExactMinutesRecords | undefined => exactMinutesRead.get(task);
 
 /** Records als JSON-object in een vaste sleutelvolgorde (byte-stabiel). */
 function recordsJson<K extends string>(keys: readonly K[], records: Partial<Record<K, unknown>>): Record<string, unknown> | null {
@@ -749,7 +754,8 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
   //     `OPS_MspTaskType` en `OPS_P6Progress`: de importvelden blijven onaangeraakt, de regel is
   //     een afgeleide die de gebruiker later los kan wijzigen.
   //     Daarnaast de records van de dagenmaat voor duur, rest en werkelijke duur (`DayMeasureDurations`,
-  //     alleen uren §3.10, T21): de werkregelbrug beheert duur en werk, en er komt geen nieuwe pset.
+  //     alleen uren §3.10, T21) en de exacte urenmaat voor duur en rest (`ExactMinutes`, T14): de
+  //     werkregelbrug beheert duur en werk, en er komt geen nieuwe pset.
   {
     name: PSET.WorkRule, psetSeed: 'pset_wrl_', relSeed: 'rel_wrl_',
     write(task, options) {
@@ -757,6 +763,8 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       if (task.workRule) props.push({ name: 'WorkRule', value: `IFCLABEL(${ifcStr(task.workRule)})` });
       const records = options?.dayMeasureDurations && recordsJson(DAY_MEASURE_DURATION_KEYS, options.dayMeasureDurations);
       if (records) props.push({ name: DAY_MEASURE_DURATIONS_PROP, value: `IFCTEXT(${ifcJson(records)})` });
+      const exact = options?.exactMinutes && recordsJson(EXACT_MINUTES_KEYS, options.exactMinutes);
+      if (exact) props.push({ name: EXACT_MINUTES_PROP, value: `IFCTEXT(${ifcJson(exact)})` });
       return props.length > 0 ? props : null;
     },
     apply(task, props) {
@@ -766,6 +774,9 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
         } else if (name === DAY_MEASURE_DURATIONS_PROP) {
           const records = parseDayMeasureDurations(value);
           if (records) dayMeasureDurationsRead.set(task, records);
+        } else if (name === EXACT_MINUTES_PROP) {
+          const records = parseExactMinutes(value);
+          if (records) exactMinutesRead.set(task, records);
         }
       }
     },

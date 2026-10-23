@@ -39,8 +39,9 @@ import { groupBy } from '@/utils/collections';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import {
   DAY_MEASURE_LAGS_PROP, ELAPSED_MINUTES_PER_DAY, dayMeasureRecord, dayTaskWritesMinutes, exactFloatRecord,
-  isWholeDays, taskMinutesPerDay,
+  exactMinutesRecord, isWholeDays, taskMinutesPerDay,
   type DayMeasureDurationKey, type DayMeasureRecord, type ExactFloatKey, type ExactFloatRecord,
+  type ExactMinutesKey, type ExactMinutesRecord,
 } from './dayMeasureIo';
 import type { PerTaskWriteOptions } from './ifcPsets';
 
@@ -1492,6 +1493,15 @@ function writeTask(
   // Nooit een gebroken `P…D` (v2026.9.0 leest `P0.5D` als 5): hele dagen `P{n}D`, een breuk `PT…`.
   const daysField = (key: DayMeasureDurationKey, days: number): string =>
     isWholeDays(days) ? ifcDuration(days) : daysAsMinutes(key, days);
+  // De urenmaat zonder afronding (T14): het `PT…`-slot draagt hele minuten, een breuk in minuten gaat
+  // als record `[exacte minuten, geschreven minuten]` naar `OPS_WorkRule.ExactMinutes`, zodat de bron
+  // verliesvrij terugkomt (zelfde leesregel als T21).
+  const exactMinutes: { [K in ExactMinutesKey]?: ExactMinutesRecord } = {};
+  const hourMinutes = (key: ExactMinutesKey, minutes: number): string => {
+    const record = exactMinutesRecord(minutes);
+    if (record) exactMinutes[key] = record;
+    return ifcDurationHour(minutes);
+  };
   // De ISO-vorm bewaart de TAAK-eenheid: P…D = werkdagen, PT…H…M = werkuren. De kalender bepaalt
   // alleen de datetime-precisie en plaatsing; een uurkalender maakt van een dagtaak geen urentaak.
   // Een dagenmaat-taak met een breuk in duur of rest schrijft duur én rest als `PT…` met records
@@ -1499,7 +1509,7 @@ function writeTask(
   // lezer herstelt de dagen uit de records.
   const dayAsMinutes = !isHour && dayTaskWritesMinutes(task);
   const schedDurArg = isHour
-    ? ifcDurationHour(taskMinutesForWrite(task, workHoursPerDay))
+    ? hourMinutes('ScheduleDuration', taskMinutesForWrite(task, workHoursPerDay))
     : dayAsMinutes ? daysAsMinutes('ScheduleDuration', t.scheduleDuration) : ifcDuration(t.scheduleDuration);
   // Voortgang — spec-conforme IfcTaskTime-slots (0-based arg-index in de lijst
   // hieronder): 14 StatusTime, 15 ActualDuration, 16 ActualStart, 17 ActualFinish, 18 RemainingTime,
@@ -1513,7 +1523,7 @@ function writeTask(
   // RemainingTime: uur-modus schrijft de resterende MINUTEN (`remainingMinutes`); anders de
   // dag-duur `remainingTime` (een breuk als `PT…` met record).
   const remainingArg = isHour && t.remainingMinutes != null
-    ? ifcDurationHour(t.remainingMinutes)
+    ? hourMinutes('RemainingTime', t.remainingMinutes)
     : t.remainingTime == null ? '$'
     : dayAsMinutes ? daysAsMinutes('RemainingTime', t.remainingTime) : daysField('RemainingTime', t.remainingTime);
   // Speling (T5): IfcTaskTime draagt hele dagen (`ifcTaskSlots.ts`); de exacte dagen en de minuten gaan
@@ -1551,6 +1561,7 @@ function writeTask(
   return {
     ...(Object.keys(dayMeasureDurations).length > 0 ? { dayMeasureDurations } : {}),
     ...(Object.keys(exactFloat).length > 0 ? { exactFloat } : {}),
+    ...(Object.keys(exactMinutes).length > 0 ? { exactMinutes } : {}),
   };
 }
 

@@ -14,7 +14,10 @@
  *    als sleutel;
  *  - speling (T5): het standaardveld draagt hele dagen; de exacte dagen en de minuten staan in de
  *    eigenschap `ExactFloat` van `OPS_Analysis` (zie {@link exactFloatRecord}). Het record telt alleen
- *    als het standaardveld nog de afgeronde dagen van het record draagt.
+ *    als het standaardveld nog de afgeronde dagen van het record draagt;
+ *  - urenmaat met een breuk in minuten (T14, de werkdriehoek rondt niet af): duur en rest gaan als `PT…`
+ *    op de hele minuut, met een record `[exacte minuten, geschreven minuten]` in de eigenschap
+ *    `ExactMinutes` van `OPS_WorkRule` (zie {@link exactMinutesRecord}). Zelfde leesregel.
  *
  * Dit bestand importeert alleen typen en de duurhelper van de motor, zodat writer, reader en
  * `ifcPsets.ts` het zonder cyclus delen.
@@ -37,8 +40,16 @@ export type ExactFloatKey = typeof EXACT_FLOAT_KEYS[number];
 export type ExactFloatRecord = readonly [days: number, minutes: number | null];
 export type ExactFloatRecords = Partial<Record<ExactFloatKey, ExactFloatRecord>>;
 
+/** De IfcTaskTime-slots van een urentaak met een record in `ExactMinutes`. */
+export const EXACT_MINUTES_KEYS = ['ScheduleDuration', 'RemainingTime'] as const;
+export type ExactMinutesKey = typeof EXACT_MINUTES_KEYS[number];
+/** `[exacte minuten, geschreven minuten]`: de bron van de urenmaat en wat het `PT…`-slot draagt. */
+export type ExactMinutesRecord = readonly [minutes: number, written: number];
+export type ExactMinutesRecords = Partial<Record<ExactMinutesKey, ExactMinutesRecord>>;
+
 /** Namen van de eigenschappen. Voorlopige namen uit de spec (§3.3, §3.10); één plek. */
 export const DAY_MEASURE_DURATIONS_PROP = 'DayMeasureDurations';
+export const EXACT_MINUTES_PROP = 'ExactMinutes';
 export const DAY_MEASURE_LAGS_PROP = 'DayMeasureLags';
 export const EXACT_FLOAT_PROP = 'ExactFloat';
 
@@ -92,6 +103,18 @@ export function taskDurationWritesMinutes(task: Task): boolean {
 /** Minuten per dag voor een duur van deze taak: kalendertijd 1440, anders de werktijd per dag. */
 export function taskMinutesPerDay(task: Task, workHoursPerDay: number): number {
   return task.time.durationType === 'ELAPSEDTIME' ? ELAPSED_MINUTES_PER_DAY : workHoursPerDay * 60;
+}
+
+/**
+ * Het `ExactMinutes`-record voor een duur of rest in de urenmaat, of `undefined` als de minuten heel zijn.
+ * De werkdriehoek schrijft de urenmaat zonder afronding (T14; 1920 min werk bij inzet 7 geeft
+ * 274,2857… min). Het `PT…`-slot draagt hele minuten (`minutesToIsoDuration` rondt af); het record
+ * bewaart de bron ernaast, met dezelfde leesregel als T21: het telt alleen als het slot nog de
+ * geschreven minuten draagt.
+ */
+export function exactMinutesRecord(minutes: number | undefined): ExactMinutesRecord | undefined {
+  if (minutes === undefined || !Number.isFinite(minutes) || Number.isInteger(minutes)) return undefined;
+  return [minutes, Math.round(minutes)];
 }
 
 /** De speling in hele dagen voor het standaardveld (T5). `-0` wordt 0. */
@@ -152,6 +175,18 @@ export function parseDayMeasureDurations(raw: unknown): DayMeasureDurationRecord
   if (!obj) return undefined;
   const out: { -readonly [K in DayMeasureDurationKey]?: DayMeasureRecord } = {};
   for (const key of DAY_MEASURE_DURATION_KEYS) {
+    const record = parseDayMeasureRecord(obj[key]);
+    if (record) out[key] = record;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/** `ExactMinutes` lezen; zelfde regel. Een record is `[eindige minuten, hele geschreven minuten]`. */
+export function parseExactMinutes(raw: unknown): ExactMinutesRecords | undefined {
+  const obj = parseJsonObject(raw);
+  if (!obj) return undefined;
+  const out: { -readonly [K in ExactMinutesKey]?: ExactMinutesRecord } = {};
+  for (const key of EXACT_MINUTES_KEYS) {
     const record = parseDayMeasureRecord(obj[key]);
     if (record) out[key] = record;
   }

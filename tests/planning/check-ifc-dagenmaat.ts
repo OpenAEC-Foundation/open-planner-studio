@@ -13,6 +13,8 @@
 //  (5) de lagkalender bepaalt de minuten (voorganger, opvolger, project, 24 uur);
 //  (6) duur, rest en werkelijke duur met een breuk, en kalendertijd met een breuk;
 //  (7) een gewijzigde duur of rest; (8) de speling (T5); (9) een letterlijke kalender blijft scalair;
+//  (11) de urenmaat zonder afronding (T14): een breuk in minuten in duur en rest komt via
+//      `OPS_WorkRule.ExactMinutes` exact terug, via echte storehandelingen en de echte openroute;
 //  (10) de lezer van v2026.9.0, als `OPS_MINUTE_MODEL_OLD_READER` naar een gebundelde lezer van die tag
 //      wijst (zie tests/planning/README.md, "F2: omzetting en bestandscompatibiliteit"): geen dag kwijt,
 //      geen dag te veel, alle datums gelijk. Met `OPS_MINUTE_MODEL_COMPAT_OUT` schrijft hij ook D0/D1
@@ -31,6 +33,7 @@ import { readIFC } from '@/services/ifc/ifcReader';
 import { builtInProfile, switchProfile } from '@/engine/scheduler/conventions/registry';
 import { computeCalendarHash } from '@/services/library/libraryOps';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import { createAppStoreContext } from '@/state/appStoreFactory';
 import type { ImportResult } from '@/services/importTypes';
 import type { Task, TaskTime } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
@@ -418,6 +421,77 @@ function dayMeasureDurationsOf(text: string, name: string): unknown {
   eq('(9) de kalenderhash verandert niet door opslaan', computeCalendarHash(p.calendar), hashBefore);
   eq('(9) K komt terug als 2,5 d dagenmaat met de eigen tijden', [durationFields(byName(back, 'K')), byName(back, 'K')?.time.earlyFinish],
     [{ durationUnit: 'days', durationType: 'WORKTIME', scheduleDuration: 2.5 }, '2026-06-03T12:00']);
+}
+
+// ── (11) De urenmaat zonder afronding (T14) overleeft opslaan en heropenen ───────────────────────────
+// Review ronde 1 van #581, punt 1 (BEVESTIGD): urentaak van 1920 min, vast werk, inzet 1 ⇒ 7 via echte
+// storehandelingen. De bron is 1920 ÷ 7 = 274,2857… min; het `PT…`-slot draagt 274 min. Zonder record
+// kwam 274 terug terwijl het werk 1920 min bleef: de driehoek sprak zichzelf tegen.
+let exactHoursText = '';
+{
+  const store = createAppStoreContext().store;
+  store.setState(s => { s.project.startDate = '2026-06-01'; s.project.statusDate = '2026-06-02'; s.calendar.holidays = []; });
+  const hoursTime = () => ({ ...createDefaultTaskTime('2026-06-01', 4), durationUnit: 'hours' as const, durationMinutes: 1920 });
+  const exactId = store.getState().addTask({ name: 'Exact', time: hoursTime() });
+  const runningId = store.getState().addTask({ name: 'Lopend', time: hoursTime() });
+  const resource = store.getState().addResource({ name: 'R', type: 'LABOR', description: '', maxUnits: 10 });
+  for (const id of [exactId, runningId]) {
+    store.getState().assignResource(id, resource, 1);
+    store.getState().setTaskWorkRule(id, 'FIXED_WORK');
+  }
+  store.getState().runCPM();
+  ok('(11) opzet: Lopend krijgt 25 % voortgang', store.getState().setTaskProgress(runningId, 0.25));
+  for (const id of [exactId, runningId]) {
+    store.getState().updateAssignment(store.getState().assignments.find(a => a.taskId === id)!.id, { unitsPerDay: 7 });
+  }
+  store.getState().runCPM();
+  const fields = (tasks: readonly Task[], name: string) => {
+    const t = tasks.find(x => x.name === name)?.time;
+    return t && { durationMinutes: t.durationMinutes, scheduleDuration: t.scheduleDuration, remainingMinutes: t.remainingMinutes, remainingTime: t.remainingTime };
+  };
+  const before = { exact: fields(store.getState().tasks, 'Exact'), running: fields(store.getState().tasks, 'Lopend') };
+  ok('(11) opzet: de bron heeft een breuk in minuten', !Number.isInteger(before.exact?.durationMinutes)
+    && !Number.isInteger(before.running?.durationMinutes) && !Number.isInteger(before.running?.remainingMinutes));
+  exactHoursText = writeIFC(buildWriteIFCInput(store.getState()));
+  const slot = (name: string, index: number) => taskTimeLine(exactHoursText, name).replace(/^#\d+=IFCTASKTIME\(/, '').split(',')[index];
+  eq('(11) het slot draagt hele minuten', [slot('Exact', 4), slot('Lopend', 4), slot('Lopend', 18)], ["'PT4H34M0S'", "'PT11H26M0S'", "'PT3H26M0S'"]);
+  // De records in `OPS_WorkRule.ExactMinutes`, in schrijfvolgorde (Exact, dan Lopend).
+  const records = exactHoursText.split('\n').filter(l => l.includes("'ExactMinutes'"))
+    .map(l => JSON.parse(l.match(/IFCTEXT\('(.*)'\)/)?.[1] ?? 'null') as unknown);
+  eq('(11) records [exacte minuten, geschreven minuten] in OPS_WorkRule', records, [
+    { ScheduleDuration: [1920 / 7, 274] },
+    { ScheduleDuration: [before.running?.durationMinutes, 686], RemainingTime: [before.running?.remainingMinutes, 206] },
+  ]);
+  ok('(11) de records staan in OPS_WorkRule', /IFCPROPERTYSET\('[^']+',#\d+,'OPS_WorkRule',\$,\((#\d+,)*#\d+\)\)/.test(exactHoursText));
+  // De echte openroute, zoals de review: laden met doorrekenen.
+  const back = createAppStoreContext().store;
+  back.getState().applyLoadedProject(readIFC(exactHoursText), { recompute: true });
+  eq('(11) Exact: dezelfde bron na opslaan en heropenen', fields(back.getState().tasks, 'Exact'), before.exact);
+  eq('(11) Lopend: dezelfde duur en rest na opslaan en heropenen', fields(back.getState().tasks, 'Lopend'), before.running);
+  const work = (s: typeof store, name: string) => {
+    const task = s.getState().tasks.find(t => t.name === name)!;
+    const a = s.getState().assignments.find(x => x.taskId === task.id)!;
+    return { units: a.unitsPerDay, remainingWork: a.remainingWorkMinutes };
+  };
+  eq('(11) de driehoek blijft gelijk: werk en inzet na heropenen', [work(back, 'Exact'), work(back, 'Lopend')], [work(store, 'Exact'), work(store, 'Lopend')]);
+  // Leesregel: wijzigt een ander programma het slot, dan geldt het slot.
+  const changed = readIFC(patchLine(exactHoursText, taskTimeLine(exactHoursText, 'Exact'), "'PT4H34M0S'", "'PT5H0M0S'"));
+  eq('(11) gewijzigd slot PT5H0M0S ⇒ 300 min, het record telt niet', byName(changed, 'Exact')?.time.durationMinutes, 300);
+  const changedRest = readIFC(patchLine(exactHoursText, taskTimeLine(exactHoursText, 'Lopend'), "'PT3H26M0S'", "'PT3H0M0S'"));
+  eq('(11) gewijzigde rest PT3H0M0S ⇒ 180 min, de duur houdt haar record',
+    [byName(changedRest, 'Lopend')?.time.remainingMinutes, byName(changedRest, 'Lopend')?.time.durationMinutes],
+    [180, before.running?.durationMinutes]);
+  // Hele minuten krijgen geen record (bestaande bestanden blijven byte-gelijk).
+  const whole = durationPayload();
+  ok('(11) een urentaak in hele minuten krijgt geen ExactMinutes', !writeIFC(buildWriteIFCInput(whole)).includes("'ExactMinutes'"));
+  // De werkelijke duur (dagen) van een urentaak gaat via `DayMeasureDurations` met 6 decimalen (§3.14):
+  // 100 min op 8 u per dag = 0,208333… d. Terug binnen een duizendste minuut.
+  const actual = durationPayload();
+  actual.tasks = [task('U', '2026-06-01T07:00', '2026-06-01T15:00', 1, {
+    durationUnit: 'hours', durationMinutes: 480, completion: 0.2, actualStart: '2026-06-01T07:00', actualDuration: 100 / 480, remainingMinutes: 380,
+  })];
+  const actualBack = byName(readIFC(writeIFC(buildWriteIFCInput(actual))), 'U')?.time.actualDuration ?? NaN;
+  ok(`(11) werkelijke duur 100 min terug binnen 0,001 min (kreeg ${actualBack * 480})`, Math.abs(actualBack * 480 - 100) < 1e-3);
 }
 
 // Bestanden voor de lezervergelijking `check-minute-model-compat.ts` (zie tests/planning/README.md):
