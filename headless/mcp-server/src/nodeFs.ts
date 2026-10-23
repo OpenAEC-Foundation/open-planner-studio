@@ -6,33 +6,37 @@
 //  1. LEXICAAL — `checkScope` in fileTools: het pad wordt genormaliseerd (`..`, `.`, dubbele scheiders,
 //     `~`) en moet onder `homeDir()` liggen. Hier is `homeDir()` de werkmap, dus `~/plan.ifc` is
 //     `<root>/plan.ifc`.
-//  2. FYSIEK — `check()` hieronder, vóór elke operatie: de `realpath` van het pad (of van de
-//     dichtstbijzijnde bestaande bovenmap) moet binnen de `realpath` van de werkmap liggen. Die
-//     vergelijking is EXACT, teken voor teken: geen aanname over hoofdletters per besturingssysteem
-//     (een hoofdlettergevoelig volume op macOS bestaat). Een andere schrijfwijze van hetzelfde pad wordt
-//     dus geweigerd, nooit toegelaten. Geweigerd met `SCOPE`: een link of junction naar buiten, een dode
-//     link, een bestand met meer dan één harde link (niet te bewijzen dat elke naam binnen ligt), en een
-//     bestand dat in de app open staat (`appLock.ts`).
+//  2. FYSIEK — `check()` hieronder: de `realpath` van het pad (of van de dichtstbijzijnde bestaande
+//     bovenmap) moet binnen de `realpath` van de werkmap liggen. Die vergelijking is EXACT, teken voor
+//     teken: geen aanname over hoofdletters per besturingssysteem. Geweigerd met `SCOPE`: een link of
+//     junction naar buiten, een dode link, een bestand met meer dan één harde link (niet te bewijzen dat
+//     elke naam binnen ligt), en een bestand dat in de app open staat (`appLock.ts`).
 //
-// GEBONDEN AAN WAT GECONTROLEERD IS (review PR #572, bevinding 2). Een controle vooraf is geen grens: een
-// ander proces kan daarna een map door een link vervangen. Daarom:
-//   - lezen opent het ECHTE pad met `O_NOFOLLOW` en vergelijkt daarna `dev`/`ino` van de geopende handle
-//     met het gecontroleerde bestand; wijkt het af, dan wordt er niets gelezen;
-//   - schrijven maakt het halffabricaat exclusief aan (`O_CREAT | O_EXCL | O_NOFOLLOW`) in de
-//     gecontroleerde ECHTE map, en controleert vóór het schrijven en vlak vóór de `rename` dat die map
-//     nog dezelfde `dev`/`ino` heeft en dat het pad van het halffabricaat nog naar de eigen handle wijst.
-// Wat overblijft (eerlijk): Node kent geen `openat`/`renameat`. Tussen de laatste controle en de
-// `rename` zit een venster van één systeemaanroep; een proces dat precies dan een map wisselt, kan de
-// `rename` naar een andere map sturen. De gelezen of geschreven INHOUD verlaat de werkmap daardoor niet
-// ongemerkt bij lezen; bij schrijven landt hooguit ons eigen halffabricaat elders. Wie dat ook wil
-// uitsluiten, draait de server als eigen gebruiker of in een container met alleen de werkmap.
+// DE OPERATIE ZELF IS GEBONDEN AAN DE LIGGING (review PR #572, ronde 1 en 2, bevinding 2). `check()` is
+// alleen een controle vooraf; een ander proces kan daarna een map door een link vervangen, of een map
+// mét inhoud naar buiten verplaatsen. Node kent geen `openat`/`renameat`, maar wel de werkmap van het
+// proces: die wijst naar een map-OBJECT, niet naar een pad. Daarom doet elke operatie dit, in één
+// synchroon blok (geen andere code kan ertussen, en de procesmap gaat erna terug):
+//   - `chdir` naar de echte map van het bestand;
+//   - `realpath('.')` (de native variant: de kernel geeft het huidige pad van dát map-object) moet binnen
+//     de werkmap liggen, en de werkmap zelf moet nog dezelfde `dev`/`ino` hebben;
+//   - openen, aanmaken en hernoemen gebeuren met ALLEEN de bestandsnaam, relatief aan die map, met
+//     `O_NOFOLLOW`; er wordt geen mappad meer opgelost;
+//   - op Linux moet ook `/proc/self/fd/<fd>` van het geopende bestand binnen de werkmap liggen;
+//   - de ligging van de map wordt opnieuw gecontroleerd ná het lezen, vóór de `rename` en ná de `rename`.
+// Wat overblijft, per besturingssysteem, staat in `docs/headless-mcp.md` (sectie Beveiliging).
 //
 // SCHRIJVEN IS ALTIJD ATOMAIR (review PR #572, bevinding 1). Eerst een eigen halffabricaat naast het
 // ECHTE doel, `fsync`, dan `rename`. Een link naar een bestand binnen de werkmap blijft een link: het
-// echte doel wordt vervangen. Mislukt schrijven of `rename`, dan wordt het halffabricaat opgeruimd en
-// geeft de tool een fout; het origineel blijft byte-gelijk. Er is GEEN terugval op direct schrijven
-// (die in de app bestaat voor Tauri-scope en gelinkte bestanden; daar verandert niets).
-import { constants as fsConstants, promises as fsp, type BigIntStats } from 'node:fs';
+// echte doel wordt vervangen. Mislukt schrijven of `rename`, dan probeert de server het eigen
+// halffabricaat op te ruimen en geeft de tool een fout; het origineel blijft byte-gelijk. Er is GEEN
+// terugval op direct schrijven (die in de app bestaat voor Tauri-scope en gelinkte bestanden; daar
+// verandert niets).
+import {
+  closeSync, constants as fsConstants, fchmodSync, fstatSync, fsyncSync, lstatSync, mkdirSync, openSync,
+  promises as fsp, readFileSync, readlinkSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync,
+  type BigIntStats, type Stats,
+} from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import type { McpFileFs } from '@/services/mcp/tools/fileTools';
@@ -68,20 +72,35 @@ const sameId = (a: Identity, b: Identity) => a.dev === b.dev && a.ino === b.ino;
 interface Checked {
   /** Het echte pad (bestaande delen via `realpath`), binnen de werkmap. */
   real: string;
-  /** De echte map waarin het bestand staat of komt, en haar identiteit. */
+  /** De echte map waarin het bestand staat of komt, en de bestandsnaam. */
   dir: string;
-  dirId: Identity;
+  base: string;
+  /** De diepste bestaande map op weg naar `dir`, en de mappen daaronder die nog gemaakt moeten worden. */
+  anchor: string;
+  subdirs: string[];
   /** Bestaat het doel? Dan zijn identiteit en permissiebits. */
   file: { id: Identity; mode: number; isFile: boolean } | null;
 }
 
+/** Momenten waarop een test een map kan wisselen. */
+export type NodeFsPhase =
+  /** in `check()`, direct na `realpath` en vóór de `stat`-aanroepen (route A van review ronde 2) */
+  | 'realpath'
+  /** na de controle, vóór het lezen of aanmaken */
+  | 'open' | 'create'
+  /** na het schrijven, vóór de laatste controle (route B van review ronde 2) */
+  | 'rename'
+  /** na de laatste controle, direct vóór de `rename` (de resterende grens) */
+  | 'commit';
+
 /**
- * Testhaken (alleen voor `tests/mcp/cases-headless-server.ts`): `afterCheck` draait tussen de controle
- * en de bestandsoperatie (om daar een map te wisselen), `fault` gooit op een gekozen moment (om een
- * schrijf- of rename-fout na te bootsen). De server zelf geeft geen haken mee.
+ * Testhaken (alleen voor `tests/mcp/cases-headless-server.ts`, die `createNodeFileFs` direct aanroept):
+ * `afterCheck` draait op een gekozen moment (om daar een map te wisselen), `fault` gooit op een gekozen
+ * moment (om een schrijf- of rename-fout na te bootsen). Synchroon, omdat de operatie zelf synchroon is.
+ * De server zelf geeft geen haken mee.
  */
 export interface NodeFsHooks {
-  afterCheck?: (phase: 'open' | 'create' | 'rename', target: string) => Promise<void>;
+  afterCheck?: (phase: NodeFsPhase, target: string) => void;
   fault?: (phase: 'write' | 'rename') => void;
 }
 
@@ -102,12 +121,18 @@ export async function createNodeFileFs(
   const outside = (target: string) => new ScopeEscapeError(
     `Path '${target}' leads outside the working folder '${realRoot}' (through a symbolic link, junction, ` +
     'other alias or a different spelling). The headless server may only read and write inside its working folder.');
+  const rootReplaced = () => new ScopeEscapeError(
+    `The working folder '${realRoot}' was replaced while the server runs; refusing file access.`);
+  const changed = (target: string) => new ScopeEscapeError(
+    `Path '${target}' changed while the server was checking it (a folder or file was replaced or moved). ` +
+    'Nothing was read or written; try again.');
+  const movedDuringSave = (target: string) => new ScopeEscapeError(
+    `The folder of '${target}' was moved out of the working folder while the server saved. The file was saved ` +
+    'in that moved folder, not in the working folder. Check where the folder went.');
 
   /** De fysieke poort. Gooit `ScopeEscapeError` bij een weigering. */
   async function check(target: string): Promise<Checked> {
-    if (!sameId(idOf(await fsp.stat(realRoot, { bigint: true })), rootId)) {
-      throw new ScopeEscapeError(`The working folder '${realRoot}' was replaced while the server runs; refusing file access.`);
-    }
+    if (!sameId(idOf(await fsp.stat(realRoot, { bigint: true })), rootId)) throw rootReplaced();
     const native = path.resolve(target);
     // Loop omhoog tot een bestaand deel; alles daaronder bestaat (nog) niet en kan dus geen link zijn.
     let existing = native;
@@ -135,6 +160,7 @@ export async function createNodeFileFs(
       throw e;
     }
     const real = missing.length > 0 ? path.join(realExisting, ...missing) : realExisting;
+    hooks.afterCheck?.('realpath', real);
     if (!isInside(realRoot, real) || real === realRoot) {
       if (real === realRoot) throw new ScopeEscapeError(`Path '${target}' is the working folder itself, not a file in it.`);
       throw outside(target);
@@ -153,14 +179,14 @@ export async function createNodeFileFs(
       file = { id: idOf(info), mode: Number(info.mode & 0o777n), isFile: info.isFile() };
     }
     const dir = path.dirname(real);
-    let dirId: Identity;
-    try {
-      dirId = idOf(await fsp.stat(dir, { bigint: true }));
-    } catch (e) {
-      if (errCode(e) === 'ENOENT') dirId = { dev: -1n, ino: -1n }; // map bestaat nog niet (schrijven maakt hem)
-      else throw e;
-    }
-    return { real, dir, dirId, file };
+    return {
+      real,
+      dir,
+      base: path.basename(real),
+      anchor: missing.length > 0 ? realExisting : dir,
+      subdirs: missing.slice(0, -1),
+      file,
+    };
   }
 
   async function confine(target: string): Promise<string | null> {
@@ -173,11 +199,73 @@ export async function createNodeFileFs(
     }
   }
 
-  const changed = (target: string) => new ScopeEscapeError(
-    `Path '${target}' changed while the server was checking it (a folder or file was replaced). Nothing was ` +
-    'read or written; try again.');
+  // --- De gebonden operatie: synchroon, in de map-OBJECT van het bestand -----------------------------
 
-  /** Lees een bestaand bestand via een handle die aantoonbaar het gecontroleerde bestand is. */
+  /** Ligt de huidige procesmap (het map-object, niet een pad) binnen de werkmap? */
+  function assertHere(target: string): void {
+    let here: string;
+    try {
+      here = realpathSync.native('.');
+    } catch {
+      throw changed(target); // de map is weg
+    }
+    let rootNow: Identity;
+    try {
+      rootNow = idOf(statSync(realRoot, { bigint: true }));
+    } catch {
+      throw rootReplaced();
+    }
+    if (!sameId(rootNow, rootId)) throw rootReplaced();
+    if (!isInside(realRoot, here)) throw outside(target);
+  }
+
+  /** Linux: het pad dat de kernel voor een geopend bestand kent, moet binnen de werkmap liggen. */
+  function assertFdInside(fd: number, target: string): void {
+    if (process.platform !== 'linux') return;
+    let where: string;
+    try {
+      where = readlinkSync(`/proc/self/fd/${fd}`);
+    } catch {
+      return; // geen /proc (zeldzame container); de mapcontrole blijft
+    }
+    if (!isInside(realRoot, where)) throw outside(target);
+  }
+
+  /** Voer `fn` synchroon uit met `dir` als procesmap, na de ligging te controleren; zet de procesmap terug. */
+  function inDir<T>(dir: string, target: string, fn: () => T): T {
+    let previous: string;
+    try {
+      previous = process.cwd();
+    } catch {
+      previous = realRoot;
+    }
+    try {
+      process.chdir(dir);
+    } catch (e) {
+      const code = errCode(e);
+      if (code === 'ENOENT' || code === 'ENOTDIR' || code === 'ELOOP') throw changed(target);
+      throw e;
+    }
+    try {
+      assertHere(target);
+      return fn();
+    } finally {
+      try { process.chdir(previous); } catch { process.chdir(realRoot); }
+    }
+  }
+
+  /** Open een naam in de procesmap zonder een link te volgen; een link of verdwenen naam is een wissel. */
+  function openHere(name: string, flags: number, target: string, mode?: number): number {
+    try {
+      return openSync(name, flags | O_NOFOLLOW, mode);
+    } catch (e) {
+      const code = errCode(e);
+      if (code === 'ELOOP' || code === 'EMLINK' || code === 'ENOENT') throw changed(target);
+      throw e;
+    }
+  }
+
+  /** Lees een bestaand bestand via een handle die aantoonbaar het gecontroleerde bestand binnen de werkmap is. */
   async function readChecked(target: string): Promise<Buffer> {
     const c = await check(target);
     if (!c.file) {
@@ -186,82 +274,135 @@ export async function createNodeFileFs(
       throw err;
     }
     if (!c.file.isFile) throw new Error(`'${target}' is not a file`);
-    await hooks.afterCheck?.('open', c.real);
-    const handle = await fsp.open(c.real, fsConstants.O_RDONLY | O_NOFOLLOW);
-    try {
-      const opened = await handle.stat({ bigint: true });
-      if (!sameId(idOf(opened), c.file.id)) throw changed(target);
-      return await handle.readFile();
-    } finally {
-      await handle.close();
-    }
+    const expected = c.file.id;
+    hooks.afterCheck?.('open', c.real);
+    return inDir(c.dir, target, () => {
+      const fd = openHere(c.base, fsConstants.O_RDONLY, target);
+      try {
+        const opened = fstatSync(fd, { bigint: true });
+        if (!opened.isFile() || opened.nlink > 1n || !sameId(idOf(opened), expected)) throw changed(target);
+        assertFdInside(fd, target);
+        const data = readFileSync(fd);
+        // Ná het lezen opnieuw: is de map intussen naar buiten verplaatst, dan geeft de server niets terug.
+        assertHere(target);
+        assertFdInside(fd, target);
+        return data;
+      } finally {
+        closeSync(fd);
+      }
+    });
   }
 
-  /** Schrijf atomair: eigen halffabricaat in de gecontroleerde echte map, `fsync`, `rename`. */
+  /** Schrijf atomair: eigen halffabricaat in de echte map, `fsync`, `rename`, alles relatief aan die map. */
   async function writeChecked(target: string, content: string): Promise<void> {
-    let c = await check(target);
+    const c = await check(target);
     if (c.file && !c.file.isFile) throw new Error(`'${target}' is a folder, not a file`);
-    if (c.dirId.ino === -1n) {
-      // De map bestaat nog niet: maak hem binnen de werkmap aan en controleer opnieuw.
-      await fsp.mkdir(c.dir, { recursive: true });
-      c = await check(target);
-      if (c.dirId.ino === -1n) throw changed(target);
-    }
-    const tmp = path.join(c.dir, `.${path.basename(c.real)}.${randomBytes(6).toString('hex')}.ops-save.tmp`);
-    const verifyPlace = async (tmpId: Identity) => {
-      // Een map die verdwijnt of vervangen is, geeft hier ENOENT of ENOTDIR: dat is ook een wissel.
-      let dirNow: Identity;
+    hooks.afterCheck?.('create', c.real);
+    inDir(c.anchor, target, () => {
+      // Ontbrekende mappen één voor één, elk relatief aan de vorige en elk opnieuw gecontroleerd.
+      for (const name of c.subdirs) {
+        try {
+          mkdirSync(name);
+        } catch (e) {
+          if (errCode(e) !== 'EEXIST') throw e;
+        }
+        let info: Stats;
+        try {
+          info = lstatSync(name);
+        } catch {
+          throw changed(target);
+        }
+        if (!info.isDirectory()) throw changed(target); // een link is voor `lstat` geen map
+        process.chdir(name);
+        assertHere(target);
+      }
+      writeHere(c, target, content);
+    });
+  }
+
+  function writeHere(c: Checked, target: string, content: string): void {
+    const tmpName = `.${c.base}.${randomBytes(6).toString('hex')}.ops-save.tmp`;
+    const fd = openHere(tmpName, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL, target, c.file?.mode ?? 0o666);
+    let tmpId: Identity | null = null;
+    let open = true;
+    let renamed = false;
+    try {
+      tmpId = idOf(fstatSync(fd, { bigint: true }));
+      assertFdInside(fd, target);
+      hooks.fault?.('write');
+      writeFileSync(fd, content, 'utf8');
+      if (c.file) fchmodSync(fd, c.file.mode); // permissiebits van het origineel, los van de umask
+      fsyncSync(fd); // de data staat op schijf vóór de rename
+      closeSync(fd);
+      open = false;
+      hooks.afterCheck?.('rename', c.real);
+      // De laatste controle: de map ligt nog binnen, het gevraagde pad wijst nog naar deze map, en de
+      // naam van het halffabricaat wijst nog naar ons eigen bestand.
+      assertHere(target);
+      let here: Identity;
+      let asked: Identity;
       let tmpNow: Identity;
       try {
-        dirNow = idOf(await fsp.stat(c.dir, { bigint: true }));
-        tmpNow = idOf(await fsp.lstat(tmp, { bigint: true }));
+        here = idOf(statSync('.', { bigint: true }));
+        asked = idOf(statSync(c.dir, { bigint: true }));
+        tmpNow = idOf(lstatSync(tmpName, { bigint: true }));
       } catch {
         throw changed(target);
       }
-      if (!sameId(dirNow, c.dirId) || !sameId(tmpNow, tmpId)) throw changed(target);
-    };
-    await hooks.afterCheck?.('create', c.real);
-    const handle = await fsp.open(tmp, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | O_NOFOLLOW, c.file?.mode ?? 0o666);
-    let tmpId: Identity | null = null;
-    let closed = false;
-    try {
-      tmpId = idOf(await handle.stat({ bigint: true }));
-      await verifyPlace(tmpId);
-      hooks.fault?.('write');
-      await handle.writeFile(content, 'utf8');
-      if (c.file) await handle.chmod(c.file.mode); // permissiebits van het origineel, los van de umask
-      await handle.sync(); // de data staat op schijf vóór de rename
-      await handle.close();
-      closed = true;
-      await hooks.afterCheck?.('rename', c.real);
-      await verifyPlace(tmpId);
+      if (!sameId(here, asked) || !sameId(tmpNow, tmpId)) throw changed(target);
+      hooks.afterCheck?.('commit', c.real);
       hooks.fault?.('rename');
-      await fsp.rename(tmp, c.real);
+      renameSync(tmpName, c.base);
+      renamed = true;
+      try {
+        assertHere(target);
+      } catch {
+        throw movedDuringSave(target);
+      }
     } catch (error) {
-      if (!closed) await handle.close().catch(() => {});
-      // Alleen ons eigen halffabricaat opruimen: wijst het pad nog naar de eigen handle?
-      if (tmpId) {
+      if (open) {
+        try { closeSync(fd); } catch { /* al dicht */ }
+      }
+      // Alleen ons eigen halffabricaat opruimen, in dezelfde map-object: wijst de naam nog naar ons bestand?
+      // Lukt dat niet (map weg), dan blijft het staan; de fout gaat altijd door.
+      if (tmpId && !renamed) {
         try {
-          if (sameId(idOf(await fsp.lstat(tmp, { bigint: true })), tmpId)) await fsp.unlink(tmp);
-        } catch { /* al weg, of niet meer van ons */ }
+          if (sameId(idOf(lstatSync(tmpName, { bigint: true })), tmpId)) unlinkSync(tmpName);
+        } catch { /* al weg, of niet meer bereikbaar */ }
       }
       throw error;
     }
+  }
+
+  /** Metadata van een bestaand doel, ook gebonden aan de ligging van zijn map. */
+  async function statChecked(target: string): Promise<{ id: Identity; isFile: boolean } | null> {
+    const c = await check(target);
+    if (!c.file) return null;
+    return inDir(c.dir, target, () => {
+      let info: BigIntStats;
+      try {
+        info = lstatSync(c.base, { bigint: true });
+      } catch {
+        throw changed(target);
+      }
+      if (info.isSymbolicLink()) throw changed(target);
+      return { id: idOf(info), isFile: info.isFile() };
+    });
   }
 
   return {
     root: realRoot,
     homeDir: async () => realRoot,
     confine,
-    exists: async (p) => (await check(p)).file !== null,
+    exists: async (p) => (await statChecked(p)) !== null,
     stat: async (p): Promise<FileIdentityInfo> => {
-      const c = await check(p);
+      const info = await statChecked(p);
       // `compareFilePaths` (fileIdentity.ts) herkent een ontbrekend doel alleen aan de foutvorm van
       // Tauri plugin-fs. Geef het ontbreken in precies die vorm door, anders telt een nieuw bestand als
       // "onbekend" en weigert de export het.
-      if (!c.file) throw new Error(`failed to get metadata of path: ${p} with error: No such file or directory (os error 2)`);
+      if (!info) throw new Error(`failed to get metadata of path: ${p} with error: No such file or directory (os error 2)`);
       const safe = (n: bigint): number | null => (n <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(n) : null);
-      return { isFile: c.file.isFile, dev: safe(c.file.id.dev), ino: safe(c.file.id.ino) };
+      return { isFile: info.isFile, dev: safe(info.id.dev), ino: safe(info.id.ino) };
     },
     readTextFile: async (p) => (await readChecked(p)).toString('utf8'),
     readFile: async (p) => new Uint8Array(await readChecked(p)),

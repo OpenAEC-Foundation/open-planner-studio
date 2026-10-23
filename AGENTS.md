@@ -194,7 +194,8 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   (local server + container + smoke test, `cfn-lint`), not by `verify`. Detail: `docs/headless-api.md`.
 - **Headless MCP server.** `headless/mcp-server/` runs the same `planner_*` tools as the app bridge on Node
   (stdio default, streamable HTTP on loopback with the bridge's HTTP contract), on its own store context, with file
-  tools confined to `--root` (lexical + exact `realpath` check, operations bound to `O_NOFOLLOW` handles and `dev`/`ino`,
+  tools confined to `--root` (lexical + exact `realpath` check, operations run synchronously relative to the checked folder
+  object via `chdir` + native `realpath('.')`, `O_NOFOLLOW`;
   atomic save with no direct-write fallback), its own XML parser as `DOMParser` (`xmlDom.ts`, for MSPDI/P6 XML) and
   MCP backups in its own data folder. It reuses the
   dispatcher, registry, `runtime.ts`, the tools and `requestHandler.ts` unchanged; host functions go through seams

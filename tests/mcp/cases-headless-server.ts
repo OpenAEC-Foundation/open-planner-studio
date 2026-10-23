@@ -25,7 +25,7 @@ import { AGENT_GUIDE_PATH, AGENT_SKILLS, skillAssetPath } from '@/services/mcp/t
 import { createHeadlessHost, headlessInstructions } from '../../headless/mcp-server/src/host';
 import { startHttpTransport } from '../../headless/mcp-server/src/http';
 import { parseOptions, isLoopbackHost } from '../../headless/mcp-server/src/options';
-import { createNodeFileFs, isInside, ScopeEscapeError } from '../../headless/mcp-server/src/nodeFs';
+import { createNodeFileFs, isInside, ScopeEscapeError, type NodeFsPhase } from '../../headless/mcp-server/src/nodeFs';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
@@ -184,9 +184,10 @@ test('A2 bevinding 2: een map die tussen controle en operatie een link naar buit
   mkdirSync(fsOutside, { recursive: true });
   writeFileSync(join(fsOutside, 'plan.ifc'), 'GEHEIM');
   /** Vervang `<root>/sub` door een link naar buiten, op het gekozen moment. */
-  const swapAt = (when: 'open' | 'create' | 'rename') => async (phase: string) => {
+  let swaps = 0;
+  const swapAt = (when: NodeFsPhase) => (phase: NodeFsPhase) => {
     if (phase !== when) return;
-    renameSync(join(fsRoot, 'sub'), join(fsRoot, `sub-weg-${when}`));
+    renameSync(join(fsRoot, 'sub'), join(fsRoot, `sub-weg-${when}-${++swaps}`));
     symlinkSync(fsOutside, join(fsRoot, 'sub'), 'dir');
   };
   const reset = () => {
@@ -194,16 +195,67 @@ test('A2 bevinding 2: een map die tussen controle en operatie een link naar buit
     mkdirSync(join(fsRoot, 'sub'));
     writeFileSync(join(fsRoot, 'sub', 'plan.ifc'), ORIGINAL);
   };
-  reset();
-  const reader = await createNodeFileFs(fsRoot, undefined, { afterCheck: swapAt('open') });
-  await expectReject(reader.readTextFile(join(fsRoot, 'sub', 'plan.ifc')), 'lezen na mapwissel', true);
-  for (const when of ['create', 'rename'] as const) {
+  // Route A van review ronde 2 is de wissel op 'realpath': `realpath` zag de map binnen, de `stat`-
+  // aanroepen daarna zien al het bestand BUITEN (en leggen die identiteit vast).
+  for (const when of ['realpath', 'open'] as const) {
+    reset();
+    const reader = await createNodeFileFs(fsRoot, undefined, { afterCheck: swapAt(when) });
+    await expectReject(reader.readTextFile(join(fsRoot, 'sub', 'plan.ifc')), `lezen na mapwissel (${when})`, true);
+  }
+  for (const when of ['realpath', 'create', 'rename'] as const) {
     reset();
     const writer = await createNodeFileFs(fsRoot, undefined, { afterCheck: swapAt(when) });
     await expectReject(writer.writeTextFile(join(fsRoot, 'sub', 'plan.ifc'), 'NIEUW'), `schrijven na mapwissel (${when})`, true);
     assertEq(readFileSync(join(fsOutside, 'plan.ifc'), 'utf8'), 'GEHEIM', `${when}: het bestand buiten is niet overschreven`);
     assertEq(readdirSync(fsOutside), ['plan.ifc'], `${when}: buiten de werkmap staat niets nieuws`);
   }
+  {
+    // Ook `exists`/`stat` (de aliascontrole van de export) geven bij route A geen gegevens van buiten.
+    reset();
+    const prober = await createNodeFileFs(fsRoot, undefined, { afterCheck: swapAt('realpath') });
+    await expectReject(prober.stat(join(fsRoot, 'sub', 'plan.ifc')), 'stat na mapwissel (realpath)', true);
+  }
+  rmSync(join(fsRoot, 'sub'), { recursive: true, force: true });
+});
+
+test('A2 bevinding 2, route B: een map die mét het halffabricaat naar buiten verhuist, krijgt geen rename', async () => {
+  // Route B van review ronde 2: de gecontroleerde map verhuist mét het halffabricaat naar buiten en er
+  // komt een link terug. Map en halffabricaat houden hun identiteit; alleen de ligging verandert.
+  const away = join(tmp, 'fs-buiten-b');
+  mkdirSync(away, { recursive: true });
+  const moveOutAt = (when: NodeFsPhase, to: string) => (phase: NodeFsPhase) => {
+    if (phase !== when) return;
+    renameSync(join(fsRoot, 'sub'), to);
+    symlinkSync(to, join(fsRoot, 'sub'), 'dir');
+  };
+  const reset = () => {
+    rmSync(join(fsRoot, 'sub'), { recursive: true, force: true });
+    mkdirSync(join(fsRoot, 'sub'));
+    writeFileSync(join(fsRoot, 'sub', 'plan.ifc'), ORIGINAL);
+  };
+  // Verhuizing vóór de laatste controle (het moment uit de review): geen rename, origineel ongewijzigd.
+  reset();
+  const movedB = join(away, 'sub-b');
+  const writer = await createNodeFileFs(fsRoot, undefined, { afterCheck: moveOutAt('rename', movedB) });
+  await expectReject(writer.writeTextFile(join(fsRoot, 'sub', 'plan.ifc'), 'NIEUW'), 'route B: schrijven', true);
+  assertEq(readFileSync(join(movedB, 'plan.ifc'), 'utf8'), ORIGINAL, 'route B: het bestand in de verhuisde map is niet vervangen');
+  assertEq(readdirSync(movedB), ['plan.ifc'], 'route B: het halffabricaat is opgeruimd');
+  // Ook bij lezen: verhuist de map tijdens het openen naar buiten, dan geeft de server niets terug.
+  reset();
+  const movedRead = join(away, 'sub-lezen');
+  const reader = await createNodeFileFs(fsRoot, undefined, { afterCheck: moveOutAt('open', movedRead) });
+  await expectReject(reader.readTextFile(join(fsRoot, 'sub', 'plan.ifc')), 'route B: lezen', true);
+  // De resterende grens, eerlijk getest: een verhuizing NA de laatste controle en vóór de rename kan de
+  // server niet tegenhouden. Hij merkt het direct erna en meldt een fout; de rename gebeurde in de
+  // verhuisde map (hetzelfde map-object dat binnen lag), niet via een pad naar een andere map.
+  reset();
+  const movedLate = join(away, 'sub-laat');
+  const late = await createNodeFileFs(fsRoot, undefined, { afterCheck: moveOutAt('commit', movedLate) });
+  let lateError: unknown = null;
+  try { await late.writeTextFile(join(fsRoot, 'sub', 'plan.ifc'), 'NIEUW'); } catch (e) { lateError = e; }
+  assert(lateError instanceof ScopeEscapeError && lateError.message.includes('moved out of the working folder'),
+    `laat: verwacht de melding over een verhuisde map, kreeg ${String(lateError)}`);
+  assertEq(readdirSync(away).sort(), ['sub-b', 'sub-laat', 'sub-lezen'], 'laat: buiten staat alleen wat de test zelf verhuisde');
   rmSync(join(fsRoot, 'sub'), { recursive: true, force: true });
 });
 

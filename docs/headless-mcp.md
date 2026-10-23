@@ -117,28 +117,52 @@ logging gaat naar stderr.
    link (dan is niet te bewijzen dat elke naam in de werkmap ligt), en een bestand dat in de app open
    staat (slot-haak, nu altijd vrij).
 
-**Gebonden aan wat gecontroleerd is.** Een controle vooraf is nog geen grens: een ander proces kan daarna
-een map door een link vervangen. Daarom:
+**De operatie is gebonden aan de ligging.** Poort 2 is een controle vooraf. Een ander proces kan daarna
+een map door een link vervangen, of een map mét inhoud naar buiten verplaatsen en een link terugleggen.
+Node kent geen `openat` of `renameat`, maar wel de procesmap: die wijst naar een map-object, niet naar een
+pad. Elke bestandsoperatie loopt daarom in één synchroon blok (er draait geen andere code tussendoor; de
+procesmap gaat erna terug):
 
-- Lezen opent het echte pad met `O_NOFOLLOW` en vergelijkt daarna `dev`/`ino` van de geopende handle met
-  het gecontroleerde bestand. Wijkt dat af, dan leest de server niets.
-- Schrijven maakt een eigen halffabricaat exclusief aan (`O_CREAT | O_EXCL | O_NOFOLLOW`) in de
-  gecontroleerde echte map. Vóór het schrijven en vlak vóór de `rename` controleert de server dat die map
-  nog dezelfde `dev`/`ino` heeft en dat het pad van het halffabricaat nog naar de eigen handle wijst.
+1. `chdir` naar de echte map van het bestand. Ontbrekende mappen maakt de server één voor één aan, elk
+   relatief aan de vorige.
+2. `realpath('.')` (native) moet in de werkmap liggen, en de werkmap moet nog dezelfde `dev`/`ino` hebben.
+3. Openen, aanmaken en hernoemen gebruiken alleen de bestandsnaam, relatief aan die map, met
+   `O_NOFOLLOW`. De server lost geen mappad meer op. Een gelezen bestand moet dezelfde `dev`/`ino` hebben
+   als bij de controle en precies één harde link.
+4. Op Linux moet ook `/proc/self/fd/<fd>` van het geopende bestand in de werkmap liggen.
+5. Stap 2 herhaalt zich na het lezen, vlak vóór de `rename` (samen met: het gevraagde pad wijst nog naar
+   deze map, de naam van het halffabricaat wijst nog naar het eigen bestand) en direct na de `rename`.
 
-Wat overblijft: Node kent geen `openat` of `renameat`. Tussen de laatste controle en de `rename` zit één
-systeemaanroep. Een proces dat precies dan een map wisselt, kan de `rename` naar een andere map sturen;
-dan landt hooguit het eigen halffabricaat daar. Wie dat ook wil uitsluiten, draait de server als eigen
-gebruiker of in een container met alleen de werkmap. Op Windows bestaat `O_NOFOLLOW` niet; daar blijft
-alleen de controle op `dev`/`ino`.
+Wat overblijft, per besturingssysteem:
+
+- **Linux.** Een proces dat de map van het doel naar buiten verplaatst NA de laatste controle en vóór de
+  `rename`, kan de server niet tegenhouden. De `rename` gebeurt dan in die verplaatste map: hetzelfde
+  map-object dat bij de controle in de werkmap lag, niet een map die via een pad of link is gevonden. De
+  server merkt de verplaatsing direct na de `rename` en de tool geeft een fout; terugdraaien kan hij niet.
+  Bij lezen geeft de server niets terug als de map of het bestand na het lezen buiten ligt. Een bestand
+  dat een ander proces van buiten in de werkmap zet, leest de server wel; dat proces had het ook zelf
+  kunnen lezen.
+- **macOS.** Hetzelfde als Linux, zonder stap 4: `realpath('.')` komt van `getcwd`, het pad dat de kernel
+  voor de procesmap kent. Niet getest in CI (de tests draaien op Linux).
+- **Windows.** Node maakt van een relatief pad weer een absoluut pad met de tekst van de procesmap.
+  Openen en hernoemen gaan daar dus wel via een pad, en `O_NOFOLLOW` bestaat er niet. Wat blijft: de
+  controles van stap 2 en 5 vóór en na elke stap. Tussen zo'n controle en de operatie kan een proces een
+  map door een junction vervangen; de controle erna ziet dat, maar de operatie is dan al gebeurd. Windows
+  laat een map die een procesmap is niet hernoemen of verwijderen; dat beperkt het venster (VERMOED, niet
+  getest). Niet getest in CI.
+
+Wie een tweede proces met schrijfrechten in de werkmap niet vertrouwt, draait de server als eigen
+gebruiker of in een container met alleen de werkmap.
 
 **Opslaan is altijd atomair.** Eerst een eigen halffabricaat naast het echte doel, dan `fsync` en
 `rename`. Een link naar een bestand binnen de werkmap blijft een link: het echte doel wordt vervangen.
-Mislukt schrijven of `rename` (volle schijf, afgebroken proces), dan ruimt de server het halffabricaat
-op en geeft de tool een fout; het origineel blijft byte-gelijk. Anders dan in de app is er geen
-terugval op direct schrijven (die terugval in `replaceUserFile` blijft voor de desktop-app ongewijzigd).
-De bestaande controle tegen een stille schemawissel via bestandsaliassen (#519) werkt ook hier: de
-server levert `dev`/`ino` van het doel.
+Mislukt schrijven of `rename` (volle schijf, afgebroken proces), dan geeft de tool een fout en blijft
+het origineel byte-gelijk. De server probeert het halffabricaat op te ruimen, in dezelfde map en alleen
+als de naam nog naar het eigen bestand wijst. Is die map verdwenen of stopt het proces hard (zoals bij
+een crash), dan kan een halffabricaat (`.<naam>.<willekeurig>.ops-save.tmp`) blijven staan. Anders dan
+in de app is er geen terugval op direct schrijven (die terugval in `replaceUserFile` blijft voor de
+desktop-app ongewijzigd). De bestaande controle tegen een stille schemawissel via bestandsaliassen
+(#519) werkt ook hier: de server levert `dev`/`ino` van het doel.
 
 **Importformaten.** Node heeft geen `DOMParser`. De MSPDI- en P6-XML-lezers van de app gebruiken hem;
 de server zet daarom een eigen kleine XML-parser als `DOMParser` (`headless/mcp-server/src/xmlDom.ts`),
@@ -243,7 +267,8 @@ Ontwerp op #570 (besluit eigenaar, 2026-10-23). Nog niet gebouwd; de server is e
 - Claude Desktop en Claude Code zelf: de tests gebruiken de officiële SDK-client.
 - `.mpp` openen via de server: de repo heeft geen `.mpp`-bestand om mee te testen. De lezer gebruikt
   geen browserglobals; MSPDI, P6 XML, CSV en XER zijn wel getest.
-- De race tussen controle en bestandsoperatie is getest met een haak in hetzelfde proces (zelfde module
-  als in de bundel), niet tegen het losse bestand: een race is van buitenaf niet op het juiste moment te
-  maken.
+- De wissels tussen controle en bestandsoperatie (route A: een map wordt een link tussen `realpath` en
+  `stat`; route B: een map verhuist mét het halffabricaat naar buiten) zijn getest met een haak in
+  hetzelfde proces (zelfde module als in de bundel), niet tegen het losse bestand: een race is van
+  buitenaf niet op het juiste moment te maken. Alleen op Linux.
 - UNC-werkmap op Windows (`\\server\share`): het lexicale pad wordt nu `/server/share/…`. Vervolgwerk.

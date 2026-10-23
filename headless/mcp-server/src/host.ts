@@ -30,7 +30,7 @@ import { fileToolDeps } from '@/services/mcp/tools/fileTools';
 import { guideToolDeps } from '@/services/mcp/tools/guideTools';
 import type { TextAssetFetch } from '@/utils/textAsset';
 import type { McpContext } from '@/services/mcp/contracts';
-import { createNodeFileFs, type NodeFsHooks } from './nodeFs';
+import { createNodeFileFs } from './nodeFs';
 import { installXmlDomParser } from './xmlDom';
 import { createNodeBackupFs } from './backupFs';
 import type { IsPathOpenInApp } from './appLock';
@@ -49,8 +49,6 @@ export interface HostOptions {
   open?: string | null;
   /** Slot-haak; standaard `isPathOpenInApp` uit `appLock.ts` (nu altijd `false`). */
   isPathOpenInApp?: IsPathOpenInApp;
-  /** Alleen voor tests: haken in de bestandstoegang (`NodeFsHooks`). */
-  fsHooks?: NodeFsHooks;
 }
 
 /** De naad voor een later schakelstuk: één JSON-RPC-bericht (rauw) met zijn context → het rauwe antwoord. */
@@ -120,7 +118,7 @@ export async function createHeadlessHost(opts: HostOptions): Promise<HeadlessHos
   // Eén document zonder opslagdoel, zoals een nieuwe app-start. Geen host-events: extensies bestaan hier niet.
   const app = createAppStoreContext({ emitHostEvents: false });
 
-  const fileFs = await createNodeFileFs(root, opts.isPathOpenInApp, opts.fsHooks);
+  const fileFs = await createNodeFileFs(root, opts.isPathOpenInApp);
   fileToolDeps.getFs = async () => fileFs;
   guideToolDeps.fetchImpl = embeddedAssetFetch(opts.assets);
   registerAllTools();
