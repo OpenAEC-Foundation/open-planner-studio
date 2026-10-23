@@ -1,5 +1,7 @@
 // Reviewronde 1A: B6 in beide passes, uitvoerbare late dagvensters en de 24:00-regel.
 // Reviewronde 2A: een 24-uurs FS+0-keten verliest geen dag, en een harde MSO-pin wint van B6.
+import './domStub';
+import { createAppStoreContext } from '@/state/appStore';
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { builtInProfile, effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
@@ -256,6 +258,70 @@ for (const baseId of ['ops', 'p6', 'msproject'] as const) {
       schedulingOptions: { ...opts.schedulingOptions, useProjectEndDateForFloat: true } }).solve().tasks.get('M')!;
   eq(`${baseId}: START op wo 00:00 na een ingesteld projecteinde di`,
     [fixedEnd.earlyStart, fixedEnd.lateStart, fixedEnd.totalFloat], ['2026-06-03T00:00', '2026-06-02T00:00', -1]);
+}
+
+// Ronde 5: het dagbegin van de laatste projectdag komt uit de eigen kalender van de taak. P (ma, kalender
+// 7–16) FS+0 naar START M: het projecteinde di 07:00 opent dinsdag. R (ma, kalender 8–16) SS+0 naar START
+// Q met ALAP: Q hoort op di 08:00, speling 0, kritiek (ronde 4: laat di 07:00, buiten zijn werktijd; ALAP
+// liet Q dan op ma 08:00 staan, met speling 1). Zowel via de solver als via `runCPM` in de store.
+// Gemengd met een 24-uurskalender (projecteinde di 00:00): Q zonder ALAP krijgt laat het dagbegin van
+// dinsdag op zijn eigen kalender, met speling 1, zoals op de basis (ronde 4: di 00:00).
+{
+  const morning: WorkCalendar = { ...calendar, id: 'ochtend', name: 'Ploeg 8-16', workStartHour: 8 };
+  const fullDay: WorkCalendar = { ...calendar, id: 'continu', workDays: [1, 2, 3, 4, 5, 6, 7], workStartHour: 0,
+    workEndHour: 24, hoursPerDay: 24 };
+  const sequences: Sequence[] = [
+    { ...fs, id: 'pm', predecessorId: 'P', successorId: 'M' },
+    { ...fs, id: 'rq', predecessorId: 'R', successorId: 'Q', type: 'START_START' },
+  ];
+  // R en Q beginnen op het dagbegin van hun eigen kalender.
+  const network = (pStart: string, other: WorkCalendar, alap: boolean): Task[] => [
+    task('P', 1, pStart),
+    { ...task('M', 0, pStart), milestoneKind: 'START' },
+    { ...task('R', 1, `2026-06-01T0${other.workStartHour}:00`), calendarId: other.id },
+    { ...task('Q', 0, `2026-06-01T0${other.workStartHour}:00`), calendarId: other.id, milestoneKind: 'START',
+      ...(alap ? { constraint: { type: 'ALAP' as const } } : {}) },
+  ];
+  const want = ['2026-06-02T08:00', '2026-06-02T08:00', 0, true];
+  for (const baseId of ['ops', 'p6', 'msproject'] as const) {
+    const profile = builtInProfile(baseId);
+    const opts = { ...options, schedulingOptions: effectiveSchedulingOptions({ schedulingProfile: profile }) };
+    const solved = new CPMSolver(network('2026-06-01T07:00', morning, true), sequences, calendar, [morning], opts)
+      .solve().tasks.get('Q')!;
+    eq(`${baseId}: ALAP-START op een kalender 8–16 naast een projecteinde di 07:00 (solver)`,
+      [solved.earlyStart, solved.lateStart, solved.totalFloat, solved.isCritical], want);
+
+    const ctx = createAppStoreContext();
+    const S = () => ctx.store.getState();
+    S().newProject();
+    S().setProject({ startDate: '2026-06-01', schedulingProfile: profile });
+    S().setCalendar({ ...calendar, id: S().calendar.id });
+    const morningId = S().addCalendar({ ...morning });
+    const ids = new Map<string, string>();
+    for (const t of network('2026-06-01T07:00', morning, true)) {
+      const id = S().addTask({ name: t.name, parentId: null, isMilestone: t.isMilestone, milestoneKind: t.milestoneKind,
+        calendarId: t.calendarId ? morningId : undefined, constraint: t.constraint });
+      ids.set(t.id, id);
+      const own = S().tasks.find(x => x.id === id)!;
+      S().updateTask(id, { time: { ...own.time, scheduleStart: t.time.scheduleStart, scheduleDuration: t.time.scheduleDuration } });
+    }
+    for (const s of sequences) {
+      S().addSequence({ predecessorId: ids.get(s.predecessorId)!, successorId: ids.get(s.successorId)!, type: s.type, lagDays: 0 });
+    }
+    S().runCPM();
+    const stored = S().tasks.find(t => t.id === ids.get('Q'))!.time;
+    eq(`${baseId}: ALAP-START op een kalender 8–16 naast een projecteinde di 07:00 (store)`,
+      [stored.earlyStart, stored.lateStart, stored.totalFloat, stored.isCritical], want);
+
+    for (const other of [calendar, morning]) {
+      const otherCal = { ...other, id: `ander-${other.workStartHour}` };
+      const mixed = new CPMSolver(network('2026-06-01T00:00', otherCal, false), sequences, fullDay, [otherCal], opts)
+        .solve().tasks.get('Q')!;
+      const dayStart = `2026-06-02T0${other.workStartHour}:00`;
+      eq(`${baseId}: START op een kalender ${other.workStartHour}–16 naast een 24-uursprojecteinde di 00:00`,
+        [mixed.earlyStart, mixed.lateStart, mixed.totalFloat], [`2026-06-01T0${other.workStartHour}:00`, dayStart, 1]);
+    }
+  }
 }
 
 // Ronde 3A, punt 3: een SNLT is startachtig, ook op een mijlpaal. P op maandag, FS+0 naar M, SNLT di:

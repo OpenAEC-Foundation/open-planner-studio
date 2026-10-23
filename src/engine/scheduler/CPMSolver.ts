@@ -1170,10 +1170,12 @@ export class CPMSolver {
 
   /** Het begin van de laatste projectwerkdag, de late beginwaarde voor `usesLastProjectDayStart`. Het
    *  projecteinde is een eindmoment: op een 24-uurskalender hoort wo 00:00 bij dinsdag, dus di 00:00 en
-   *  niet wo 00:00. Opent het projecteinde zelf de laatste werkdag (`projectEndOpensDay`), dan is het al
-   *  dat dagbegin: P eindigt di 00:00 en de START erna staat daar, dus di 00:00 en niet ma 00:00. */
+   *  niet wo 00:00. Opent het projecteinde zelf de laatste werkdag (`projectEndOpensDay`), dan is dat zijn
+   *  eigen dag: P eindigt di 00:00 en de START erna staat daar, dus di 00:00 en niet ma 00:00. Het
+   *  dagbegin komt uit de eigen kalender van de taak: met een projecteinde di 07:00 (kalender 7–16) krijgt
+   *  een mijlpaal op een kalender 8–16 di 08:00, niet het klokmoment 07:00 buiten zijn werktijd. */
   private lastProjectDayStart(eng: CalendarEngine, projectEnd: Date, projectEndOpensDay: boolean): Date {
-    if (projectEndOpensDay) return projectEnd;
+    if (projectEndOpensDay) return this.dayFirstBandStart(eng, projectEnd) ?? projectEnd;
     return this.dayFirstBandStart(eng, workdayDateOfInstant(eng, projectEnd, 'end')) ?? projectEnd;
   }
 
