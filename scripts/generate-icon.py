@@ -1,24 +1,28 @@
 #!/usr/bin/env python3
 """Leidt alle app- en installer-iconen af uit het logopakket (alleen het beeldmerk, de kubus).
 
-    python3 -I scripts/generate-icon.py      # vanuit de root van de repository; vraagt Pillow
+    python3 scripts/generate-icon.py      # vanuit de root; vraagt Pillow, numpy en scipy
 
 Bron: docs/branding/open-planner-studio/ (logopakket kubus v4, PR #574). Dat pakket blijft
-byte-identiek; 05-checks/SHA256SUMS.txt controleert het. Dit script schrijft alleen afgeleide
-bestanden op hun eigen plek. Het woordmerk (logo met tekst) gebruikt de app nergens.
+byte-identiek; 05-checks/SHA256SUMS.txt controleert het. Het woordmerk (logo met tekst) gebruikt de
+app nergens.
 
-Wat het maakt:
-- app-icon.png: byte-kopie van het pakket-icoon van 1024 px (de Tauri-bron).
-- src-tauri/icons/*: via `npx tauri icon` uit app-icon.png (ico, icns, Windows Store, Android, iOS).
-  iOS eist een dichte achtergrond; die krijgt #2A2A32, de achtergrondkleur van de donkere
-  pakketuitvoer. Windows (ico) en macOS (icns) blijven transparant, zoals het pakket.
-- snap/gui/icon.png: byte-kopie van het pakket-icoon van 512 px.
+Wit bovenvlak (besluit eigenaar 2026-10-23: "de bovenkant moet wit worden, anders is het geen echte
+kubus"). In het pakket is het bovenvlak #594124. Stap 1 maakt daarom twee witte masters met
+scripts/branding/bovenvlak_wit.py en zet ze in docs/branding/app-iconbron/ (afgeleide bron, in git):
+- kubus-wit-2048.png uit 01-png/open-planner-studio-symbol-transparent.png
+- kubus-wit-1024.png uit 01-png/app-icons/open-planner-studio-1024.png
+Alle andere bestanden komen uit die twee masters:
+- app-icon.png: kopie van kubus-wit-1024.png (de Tauri-bron).
+- src-tauri/icons/*: via `npx tauri icon` (ico, icns, Windows Store, Android, iOS). iOS eist een
+  dichte achtergrond; die krijgt #2A2A32, de achtergrondkleur van de donkere pakketuitvoer.
+  Windows (ico) en macOS (icns) blijven transparant, zoals het pakket.
+- snap/gui/icon.png: 512 px, verkleind uit kubus-wit-1024.png.
 - public/icon.png (titelbalk, 18 CSS-px, dus 36 px voor 2x-schermen) en public/favicon-16.png /
-  favicon-32.png: verkleind uit de master van 2048 px. Bij deze kleine maten is de lege marge rond de
+  favicon-32.png: verkleind uit kubus-wit-2048.png. Bij deze kleine maten is de lege marge rond de
   kubus weggesneden tot 4 %, anders blijft er op 16 px maar ongeveer 11 px kubus over. Het beeld zelf
-  is niet vereenvoudigd of aangepast.
-- public/apple-touch-icon.png (180 px): verkleind uit de donkere master (met eigen achtergrond),
-  met de marges van het pakket.
+  is niet vereenvoudigd.
+- public/apple-touch-icon.png (180 px): kubus-wit-2048.png op #2A2A32, met de marges van het pakket.
 
 Verkleinen gebeurt met Lanczos (Pillow), in voorvermenigvuldigde alfa, zodat transparante pixels
 geen donkere randen geven.
@@ -32,11 +36,11 @@ from PIL import Image
 
 ROOT = Path.cwd()
 PKG = ROOT / 'docs/branding/open-planner-studio/01-png'
-ICON_1024 = PKG / 'app-icons/open-planner-studio-1024.png'
-ICON_512 = PKG / 'app-icons/open-planner-studio-512.png'
-MASTER = PKG / 'open-planner-studio-symbol-transparent.png'
-MASTER_DARK = PKG / 'open-planner-studio-symbol-dark.png'
-IOS_BG = '#2A2A32'
+BRON = ROOT / 'docs/branding/app-iconbron'
+WIT_SCRIPT = ROOT / 'scripts/branding/bovenvlak_wit.py'
+MASTER_2048 = BRON / 'kubus-wit-2048.png'
+MASTER_1024 = BRON / 'kubus-wit-1024.png'
+DARK_BG = '#2A2A32'
 CROP_MARGIN = 0.04
 
 
@@ -54,25 +58,38 @@ def tight_square(im: Image.Image) -> Image.Image:
 
 
 def main() -> None:
-    if not ICON_1024.exists():
-        sys.exit(f'Logopakket niet gevonden: {ICON_1024} (draai vanuit de root van de repository)')
+    src_2048 = PKG / 'open-planner-studio-symbol-transparent.png'
+    src_1024 = PKG / 'app-icons/open-planner-studio-1024.png'
+    if not src_1024.exists():
+        sys.exit(f'Logopakket niet gevonden: {src_1024} (draai vanuit de root van de repository)')
 
-    shutil.copyfile(ICON_1024, ROOT / 'app-icon.png')
-    subprocess.run(['npx', 'tauri', 'icon', 'app-icon.png', '--ios-color', IOS_BG], cwd=ROOT, check=True)
+    # 1. Witte masters (afgeleide bron).
+    BRON.mkdir(parents=True, exist_ok=True)
+    for src, dst in [(src_2048, MASTER_2048), (src_1024, MASTER_1024)]:
+        subprocess.run([sys.executable, str(WIT_SCRIPT), str(src), str(dst)], check=True)
+
+    # 2. Tauri: alle desktop- en mobiele formaten.
+    shutil.copyfile(MASTER_1024, ROOT / 'app-icon.png')
+    subprocess.run(['npx', 'tauri', 'icon', 'app-icon.png', '--ios-color', DARK_BG], cwd=ROOT, check=True)
     # 256x256.png en 512x512.png vullen de standaard-dpi hicolor-slots op Linux (dock/app-grid) en
     # staan in bundle.icon van tauri.conf.json; de standaardset van `tauri icon` maakt ze niet.
     subprocess.run(['npx', 'tauri', 'icon', 'app-icon.png', '--png', '256,512'], cwd=ROOT, check=True)
 
+    # 3. Snap.
     (ROOT / 'snap/gui').mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(ICON_512, ROOT / 'snap/gui/icon.png')
+    lanczos(Image.open(MASTER_1024), 512).save(ROOT / 'snap/gui/icon.png', optimize=True)
 
+    # 4. Web: titelbalk, favicons, apple-touch-icon.
     public = ROOT / 'public'
-    small = tight_square(Image.open(MASTER).convert('RGBA'))
+    master = Image.open(MASTER_2048).convert('RGBA')
+    small = tight_square(master)
     for size, name in [(36, 'icon.png'), (16, 'favicon-16.png'), (32, 'favicon-32.png')]:
         lanczos(small, size).save(public / name, optimize=True)
-    Image.open(MASTER_DARK).convert('RGB').resize((180, 180), Image.Resampling.LANCZOS).save(
+    tile = Image.new('RGBA', master.size, DARK_BG)
+    tile.alpha_composite(master)
+    tile.convert('RGB').resize((180, 180), Image.Resampling.LANCZOS).save(
         public / 'apple-touch-icon.png', optimize=True)
-    print('Iconen gemaakt uit het logopakket.')
+    print('Iconen gemaakt uit het logopakket (wit bovenvlak).')
 
 
 if __name__ == '__main__':
