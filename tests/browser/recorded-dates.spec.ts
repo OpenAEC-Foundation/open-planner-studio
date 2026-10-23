@@ -58,6 +58,8 @@ async function openXerViaFileChooser(page: Page): Promise<void> {
 }
 
 test('datums zoals opgeslagen: een XER met restverschillen opent in de modus, met "niet vastgelegd" in tabel en badge', async ({ page, ops: _ops }) => {
+  // Lange werkroute: XER, B5 geval 2, 5 en 6 achter elkaar.
+  test.setTimeout(60_000);
   await openXerViaFileChooser(page);
 
   // De modus gaat vanzelf aan (verse XER-import mét verschoven taken) en de strook zegt het.
@@ -295,6 +297,65 @@ test('datums zoals opgeslagen: een XER met restverschillen opent in de modus, me
     return { start: s.tasks.find(t => t.name === 'B hernoemd')!.time.earlyStart, mode: s.datesAsRecorded,
       pending: s.minuteModelPending, stale: s.scheduleStale };
   })).toEqual({ start: '2026-03-16T07:00', mode: true, pending: true, stale: false });
+
+  // B5 geval 6 (spec §5.2): slapend herstel, Automatisch berekenen uit, eerst een bewerking en dan F5:
+  // twee events. Ctrl+Z geeft eerst de modus mét de bewerking, daarna de toestand van vóór de
+  // bewerking. Die tweede Ctrl+Z verlaat de modus zonder bewerking; `useExitRecordedDates` mocht dat
+  // niet als bewerking zien en doorrekenen (review ronde 1 van PR #559, deel B, punt 2: B sprong
+  // naar 9 maart en de omzettingsvlag ging uit). De brug zet alleen de fixture en leest de toestand.
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ autoCalcCPM: false }));
+  await page.evaluate(() => {
+    const app = window.__OPS__!.store;
+    const current = app.getState();
+    const company = current.companies[0];
+    const make = (id: string, name: string, modern: boolean) => ({
+      id, filePath: null, isDirty: false, datesAsRecorded: false,
+      timeModel: modern ? 'MINUTES-1' : undefined,
+      recordedTimesOrigin: 'ifc-own' as const, importPristine: false,
+      project: { ...current.project, name, companyId: company.id, companyName: company.name },
+      calendar: current.calendar, resourceCalendars: current.calendars,
+      tasks: current.tasks.map(task => task.name === 'B hernoemd' ? {
+        ...task, name: 'B', time: { ...task.time, earlyStart: '2026-03-16T07:00', earlyFinish: '2026-03-20T16:00' },
+      } : task),
+      sequences: current.sequences, resources: current.resources, assignments: current.assignments,
+    });
+    app.getState().restoreDocuments([
+      make('g6-active', 'B5 geval 6 actief', true), make('g6-old', 'B5 geval 6 slapend', false),
+    ], 'g6-active');
+  });
+  await page.getByRole('tab', { name: 'B5 geval 6 slapend', exact: true }).click();
+  const case6 = () => page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    const b = s.tasks.find(t => t.name === 'B' || t.name === 'B gewijzigd')!;
+    return { id: b.id, name: b.name, start: b.time.earlyStart, mode: s.datesAsRecorded,
+      pending: s.minuteModelPending, stale: s.scheduleStale, events: s.historyEvents.length };
+  });
+  await expect.poll(async () => (await case6()).name).toBe('B');
+  await page.waitForTimeout(300);
+  const initial6 = await case6();
+  expect(initial6).toMatchObject({ name: 'B', start: '2026-03-16T07:00', mode: false, pending: true, stale: true, events: 0 });
+  // Het bezettingsoverzicht uit geval 5 bedekt de tabel: sluit het resourcepaneel zoals een planner.
+  await page.locator('div:has(> [data-ops-resources-view-toggle])').getByTitle(/^(Close|Sluiten)$/).click();
+  await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
+  const case6Name = taskCell(page, initial6.id, 'task.name');
+  await case6Name.click();
+  await page.keyboard.press('F2');
+  const case6Input = case6Name.locator('input');
+  await expect(case6Input).toBeVisible();
+  await case6Input.fill('B gewijzigd');
+  await case6Input.press('Enter');
+  await expect.poll(async () => (await case6()).name).toBe('B gewijzigd');
+  await page.keyboard.press('F5');
+  await expect.poll(async () => (await case6()).start).toBe('2026-03-09T07:00');
+  expect(await case6()).toMatchObject({ pending: false, stale: false, events: 2 });
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect.poll(async () => (await case6()).mode).toBe(true);
+  expect(await case6()).toMatchObject({ name: 'B gewijzigd', start: '2026-03-16T07:00', pending: true, stale: false });
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect.poll(async () => (await case6()).name).toBe('B');
+  // Ook na de uitgestelde hook (timer 0) en een korte wachttijd: niet doorgerekend.
+  await page.waitForTimeout(300);
+  expect(await case6()).toMatchObject({ name: 'B', start: '2026-03-16T07:00', mode: false, pending: true, stale: true });
 });
 
 // Eigenaarsbesluit 2026-09-09: "het moet altijd gaan zoals het nu bij XER werkt". Dezelfde
