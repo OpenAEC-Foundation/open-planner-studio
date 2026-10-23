@@ -2178,8 +2178,8 @@ function commitOpenBoundaryForTest(): { refreshed: number; deviated: number; rem
   g().updatePoolCalendar(cid, poolCalId, { ...structuredClone(poolCal), workEndHour: 13, hoursPerDay: 6 });
   const payloadB = g().documents.find(d => d.id === docB)!.payload!;
   const durB = payloadB.tasks.find(t => t.id === tB)!.time.scheduleDuration;
-  assert(g().tasks.find(t => t.id === tA)!.time.scheduleDuration === 6, 'H6: actief document — Vast werk 32 u op 8→6 u/d ⇒ 6 d');
-  assert(durB === 6, `H6: slapend document — settle op zijn eigen taken ⇒ 6 d (kreeg ${durB})`);
+  assert(g().tasks.find(t => t.id === tA)!.time.scheduleDuration === 16 / 3, 'H6: actief document — Vast werk 32 u op 8→6 u/d ⇒ 16/3 d');
+  assert(durB === 16 / 3, `H6: slapend document — settle op zijn eigen taken ⇒ 16/3 d (kreeg ${durB})`);
   assert(payloadB.assignments.find(a => a.taskId === tB)!.remainingWorkMinutes === 32 * 60, 'H6: slapend document — werk blijft 32 u');
   assert(g().historyEvents.length === eventsBefore, 'H6: verversing + settle zijn niet-undoable (geen history-event)');
   assert(!g().isDirty && !payloadB.isDirty, 'H6: verversing + settle zetten geen isDirty (actief noch slapend)');
@@ -2200,7 +2200,7 @@ function commitOpenBoundaryForTest(): { refreshed: number; deviated: number; rem
   });
   const boundary = materializeLibraryBoundary({ payload: capturePayload(g()), companies: g().companies, pools: g().pools, mode: 'open-boundary' });
   assert(boundary.signals.refreshed === 1 && boundary.workRuleSettle?.changed === 1, `H6: de grens ververst de achterlopende kalender en meldt 1 aangepaste taak (kreeg ${JSON.stringify(boundary.signals)})`);
-  assert(boundary.payload.tasks.find(t => t.id === tB)!.time.scheduleDuration === 6, 'H6: de grens settelt de taak op de payload (6 d)');
+  assert(boundary.payload.tasks.find(t => t.id === tB)!.time.scheduleDuration === 16 / 3, 'H6: de grens settelt de taak op de payload (16/3 d)');
   assert(g().tasks.find(t => t.id === tB)!.time.scheduleDuration === 4, 'H6: de grens raakt de store niet aan (pure materialisatie)');
 }
 

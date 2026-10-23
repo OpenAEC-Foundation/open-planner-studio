@@ -371,7 +371,6 @@
       "resourceAddsWork": "En ekstra ressource tilføjer arbejde.",
       "resourceSharesWork": "En ekstra ressource overtager en del af arbejdet; tildelingsenhederne pr. ressource falder.",
       "resourceShorter": "En ekstra ressource gør opgaven kortere.",
-      "resourceShorterWholeDays": "En ekstra ressource gør opgaven kortere, afrundet til hele dage.",
       "resourceAddsWorkSameDuration": "En ekstra ressource tilføjer arbejde; varigheden forbliver den samme."
     },
     "info": "Forklaring af opgavetypen"

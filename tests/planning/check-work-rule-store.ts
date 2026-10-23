@@ -132,10 +132,10 @@ console.log('-- (b) FIXED_WORK in de store: duur, inzet, resource erbij/eraf, we
   S().setAssignmentWork(asgOf(t, r1).id, -1);
   S().setAssignmentWork('bestaat-niet', 100);
   eq('b23 ongeldig werk/onbekend id: no-op zonder undo-event', S().historyEvents.length, eventsBeforeBad);
-  // Halve dag: 3 slots bij inzet 1 op dagmodus ⇒ R rondt op hele dagen; 2,5 d ⇒ 3 d.
+  // T14: 2,5 slots werk bij inzet 1 geven exact 2,5 d.
   S().runCPM();
   S().setAssignmentWork(asgOf(t, r1).id, 2.5 * slot());
-  eq('b24 2,5 dag werk rondt de duur naar boven op hele dagen', task(t).time.scheduleDuration, 3);
+  eq('b24 2,5 dag werk houdt de duur exact op 2,5 d', task(t).time.scheduleDuration, 2.5);
   eq('b25 …het werk zelf blijft 2,5 slots', asgOf(t, r1).remainingWorkMinutes, 2.5 * slot());
   // Terug naar de projectstandaard: geen getal verandert, het werkveld blijft staan.
   S().setTaskWorkRule(t, undefined);
@@ -303,9 +303,9 @@ console.log('-- (h) voortgang > 0: geen drift, voortgangsbewerking is geen duurb
   eq('h3 (B1) completion-wijziging via updateTask laat de inzet staan', asgOf(t, r1).unitsPerDay, 1);
   S().updateTask(t, { time: { ...task(t).time, completion: 0.5 } });
   S().runCPM();
-  // Inzet 1→2 op een half gedane taak: rest 5 d × 1 = 5 slots werk ⇒ R = 2,5 ⇒ 3 d; duur = 5 + 3 = 8.
+  // Inzet 1→2 op een half gedane taak: rest 5 d × 1 = 5 slots werk ⇒ R = 2,5 d; duur = 7,5 d.
   S().updateAssignment(asgOf(t, r1).id, { unitsPerDay: 2 });
-  eq('h4 (B2) inzet 1→2: duur 8 (5 gedaan + 3 rest), rest expliciet 3', [task(t).time.scheduleDuration, task(t).time.remainingTime], [8, 3]);
+  eq('h4 (B2) inzet 1→2: duur 7,5 (5 gedaan + 2,5 rest), rest expliciet 2,5', [task(t).time.scheduleDuration, task(t).time.remainingTime], [7.5, 2.5]);
   S().runCPM();
   S().updateAssignment(asgOf(t, r1).id, { unitsPerDay: 1 });
   eq('h5 (B2) inzet 2→1: terug naar 10, rest 5 — geen drift', [task(t).time.scheduleDuration, task(t).time.remainingTime], [10, 5]);
@@ -622,7 +622,7 @@ console.log('-- (p) eigenaarsbesluiten 2026-09-05: kalenderwissel door de werkre
   const a = mk('FIXED_WORK');
   const events0 = S().historyEvents.length;
   S().setTaskCalendar(a.t, sixId);
-  eq('p1 (32) FIXED_WORK: kalender 8→6 u/dag ⇒ duur 6, werk 32 u, inzet 1', [task(a.t).time.scheduleDuration, asgOf(a.t, a.r).remainingWorkMinutes, asgOf(a.t, a.r).unitsPerDay, S().scheduleStale], [6, 32 * 60, 1, true]);
+  eq('p1 (32) FIXED_WORK: kalender 8→6 u/dag ⇒ duur 16/3 d, werk 32 u, inzet 1', [task(a.t).time.scheduleDuration, asgOf(a.t, a.r).remainingWorkMinutes, asgOf(a.t, a.r).unitsPerDay, S().scheduleStale], [16 / 3, 32 * 60, 1, true]);
   eq('p2 …één undo-stap', S().historyEvents.length - events0, 1);
   S().undo();
   eq('p3 …undo zet kalender én duur terug', [task(a.t).calendarId, task(a.t).time.scheduleDuration], [undefined, 4]);
@@ -631,7 +631,7 @@ console.log('-- (p) eigenaarsbesluiten 2026-09-05: kalenderwissel door de werkre
   // (33) FIXED_DURATION_WORK: duur 4 blijft, inzet 32/24 = 1,333.
   const b = mk('FIXED_DURATION_WORK');
   S().setTaskCalendar(b.t, sixId);
-  eq('p4 (33) FIXED_DURATION_WORK: duur 4, inzet 1,3333, werk 32 u', [task(b.t).time.scheduleDuration, asgOf(b.t, b.r).unitsPerDay, asgOf(b.t, b.r).remainingWorkMinutes], [4, 1.3333, 32 * 60]);
+  eq('p4 (33) FIXED_DURATION_WORK: duur 4, inzet 4/3, werk 32 u', [task(b.t).time.scheduleDuration, asgOf(b.t, b.r).unitsPerDay, asgOf(b.t, b.r).remainingWorkMinutes], [4, 4 / 3, 32 * 60]);
   // (34) standaardregel zonder veld: byte-identiek (geen veld, duur 4, inzet 1).
   const c = mk(undefined);
   const before = JSON.stringify(asgOf(c.t, c.r));
@@ -653,10 +653,10 @@ console.log('-- (p) eigenaarsbesluiten 2026-09-05: kalenderwissel door de werkre
   // Via de generieke updateTask (dialoog/paneel-patch) en via het raster.
   const e = mk('FIXED_WORK');
   S().updateTask(e.t, { calendarId: sixId });
-  eq('p8 updateTask({ calendarId }) loopt ook door de regel ⇒ duur 6', task(e.t).time.scheduleDuration, 6);
+  eq('p8 updateTask({ calendarId }) loopt ook door de regel ⇒ duur 16/3 d', task(e.t).time.scheduleDuration, 16 / 3);
   const f = mk('FIXED_WORK');
   const cellCal: CellEditIntent = { kind: 'cell-edit', taskId: f.t, columnId: 'task.calendarId' as CellEditIntent['columnId'], route: 'task-schedule', value: sixId };
-  eq('p9 rastercel kalender slaagt en volgt de regel ⇒ duur 6', [runGridMutation([cellCal]).ok, task(f.t).time.scheduleDuration], [true, 6]);
+  eq('p9 rastercel kalender slaagt en volgt de regel ⇒ duur 16/3 d', [runGridMutation([cellCal]).ok, task(f.t).time.scheduleDuration], [true, 16 / 3]);
   // Projectkalender: taken zonder eigen kalender volgen; melding met aantal.
   reset();
   const six2 = S().addCalendar({ ...S().calendar, id: 'cal-6h-b', name: '6 uur', hoursPerDay: 6 } as never);
@@ -666,7 +666,7 @@ console.log('-- (p) eigenaarsbesluiten 2026-09-05: kalenderwissel door de werkre
   const g3 = mk(undefined);
   useAppStore.setState((s) => { s.ui.notifications = []; });
   S().setProjectCalendar(six2Id);
-  eq('p10 projectkalender 8→6: Vast werk en Vaste inzet ⇒ 6 d, standaard blijft 4', [task(g1.t).time.scheduleDuration, task(g2.t).time.scheduleDuration, task(g3.t).time.scheduleDuration], [6, 6, 4]);
+  eq('p10 projectkalender 8→6: Vast werk en Vaste inzet ⇒ 16/3 d, standaard blijft 4', [task(g1.t).time.scheduleDuration, task(g2.t).time.scheduleDuration, task(g3.t).time.scheduleDuration], [16 / 3, 16 / 3, 4]);
   const note = S().ui.notifications.find((n) => n.messageKey === 'notifications.workRuleDurationsChanged');
   eq('p11 …één melding met het aantal aangepaste taken (2)', note?.params?.count, 2);
   // Kalenderinhoud wijzigen (uren per dag) op de projectkalender.
@@ -679,7 +679,7 @@ console.log('-- (p) eigenaarsbesluiten 2026-09-05: kalenderwissel door de werkre
   const six3Id = typeof six3 === 'string' ? six3 : 'cal-6h-c';
   const m = mk('FIXED_WORK');
   const mr = runInMcpTransaction(() => { draft.patchTaskFields(m.t, { calendarId: six3Id }); });
-  eq('p13 MCP patchTaskFields({ calendarId }) ⇒ duur 6', [mr.ok, task(m.t).time.scheduleDuration], [true, 6]);
+  eq('p13 MCP patchTaskFields({ calendarId }) ⇒ duur 16/3 d', [mr.ok, task(m.t).time.scheduleDuration], [true, 16 / 3]);
 
   // ── Beslispunt 2: expliciete rest schuift mee met Δ; completion volgt. Eigenaarsbesluit 2026-09-26
   // (optie 2, herbouw #232): het gedane werk is % × duur en blijft gelijk — percentage = oud % × oude
@@ -739,14 +739,14 @@ console.log('-- (r) reviewronde 2026-09-05 op K2/Δ-rest (F1–F10): kalender + 
   const six = addSix('r');
   const f1 = mkTask('r-f1', 10, 'FIXED_WORK');
   const res1 = runGridMutation([cell(f1.t, 'task.calendarId', six), cell(f1.t, 'task.time.scheduleDuration', 4 * 360)]);
-  eq('r1 (F1) FIXED_WORK: paste kalender→6 u én duur→4 d ⇒ kalender 6 u, duur 4, werk 80 u blijft, inzet 3,3333', [res1.ok, task(f1.t).calendarId, task(f1.t).time.scheduleDuration, asgOf(f1.t, f1.r).remainingWorkMinutes, asgOf(f1.t, f1.r).unitsPerDay], [true, six, 4, 80 * 60, 3.3333]);
+  eq('r1 (F1) FIXED_WORK: paste kalender→6 u én duur→4 d ⇒ kalender 6 u, duur 4, werk 80 u blijft, inzet 10/3', [res1.ok, task(f1.t).calendarId, task(f1.t).time.scheduleDuration, asgOf(f1.t, f1.r).remainingWorkMinutes, asgOf(f1.t, f1.r).unitsPerDay], [true, six, 4, 80 * 60, 10 / 3]);
   const f1b = mkTask('r-f1b', 10);
   const res1b = runGridMutation([cell(f1b.t, 'task.calendarId', six), cell(f1b.t, 'task.time.scheduleDuration', 4 * 360)]);
   eq('r2 (F1) standaardregel: dezelfde paste ⇒ duur 4 (geheel), geen werkveld, inzet 1', [res1b.ok, task(f1b.t).time.scheduleDuration, asgOf(f1b.t, f1b.r).remainingWorkMinutes, asgOf(f1b.t, f1b.r).unitsPerDay], [true, 4, undefined, 1]);
   // Omgekeerde volgorde in de edit-set maakt niet uit: de kalenderstap gaat altijd voor.
   const f1c = mkTask('r-f1c', 10, 'FIXED_WORK');
   const res1c = runGridMutation([cell(f1c.t, 'task.time.scheduleDuration', 4 * 360), cell(f1c.t, 'task.calendarId', six)]);
-  eq('r3 (F1) volgorde in de paste is irrelevant', [res1c.ok, task(f1c.t).time.scheduleDuration, asgOf(f1c.t, f1c.r).unitsPerDay], [true, 4, 3.3333]);
+  eq('r3 (F1) volgorde in de paste is irrelevant', [res1c.ok, task(f1c.t).time.scheduleDuration, asgOf(f1c.t, f1c.r).unitsPerDay], [true, 4, 10 / 3]);
 
   // (F2) MCP patchTaskFields: kalender + duur in één call laat het verrichte deel staan.
   const f2 = mkTask('r-f2', 10, 'FIXED_WORK');
@@ -772,11 +772,11 @@ console.log('-- (r) reviewronde 2026-09-05 op K2/Δ-rest (F1–F10): kalender + 
   const c1 = withContour('FIXED_WORK');
   eq('r6 voorwaarde: contour 4 d × 8 u (as 1920, werk 1920)', [span(c1.t), sum(c1.t)], [1920, 1920]);
   S().setTaskCalendar(c1.t, six);
-  eq('r7 (F3) FIXED_WORK 8→6 u: duur 6, as 6 × 360 = 2160, werk 1920 blijft', [task(c1.t).time.scheduleDuration, span(c1.t), sum(c1.t)], [6, 2160, 1920]);
+  eq('r7 (F3) FIXED_WORK 8→6 u: duur 16/3 d, as 1920 min, werk 1920 blijft', [task(c1.t).time.scheduleDuration, span(c1.t), sum(c1.t)], [16 / 3, 1920, 1920]);
   eq('r8 (F3) histogram boekt over 6 dagen, niet 8', assignmentDayUnits(task(c1.t), asgOf(c1.t, c1.r), 360, undefined, S().assignments.filter((a) => a.taskId === c1.t)).length, 6);
   const c2 = withContour('FIXED_DURATION_WORK');
   S().setTaskCalendar(c2.t, six);
-  eq('r9 (F3) Vaste duur en werk: dagen blijven 4, as volgt de slot (1440), werk 1920 (inzet 1,3333)', [task(c2.t).time.scheduleDuration, span(c2.t), sum(c2.t), asgOf(c2.t, c2.r).unitsPerDay], [4, 1440, 1920, 1.3333]);
+  eq('r9 (F3) Vaste duur en werk: dagen blijven 4, as volgt de slot (1440), werk 1920 (inzet 4/3)', [task(c2.t).time.scheduleDuration, span(c2.t), sum(c2.t), asgOf(c2.t, c2.r).unitsPerDay], [4, 1440, 1920, 4 / 3]);
   const c3 = withContour(undefined);
   S().setTaskCalendar(c3.t, six);
   eq('r10 (F3) standaardregel: dagen 4, as 1440, werk volgt (1440)', [task(c3.t).time.scheduleDuration, span(c3.t), sum(c3.t)], [4, 1440, 1440]);
@@ -801,7 +801,7 @@ console.log('-- (r) reviewronde 2026-09-05 op K2/Δ-rest (F1–F10): kalender + 
   S().setTaskWorkRule(f4.t, 'FIXED_WORK');
   eq('r11a voorwaarde: restwerk 40 u vastgelegd', asgOf(f4.t, f4.r).remainingWorkMinutes, 40 * 60);
   S().setTaskCalendar(f4.t, six);
-  eq('r11 (F4) 10 d op 50 % → 6 u/dag: duur 12, rest 7, completion 5/12, werk 40 u, inzet 1', [task(f4.t).time.scheduleDuration, task(f4.t).time.remainingTime, near(task(f4.t).time.completion, 5 / 12), asgOf(f4.t, f4.r).remainingWorkMinutes, asgOf(f4.t, f4.r).unitsPerDay], [12, 7, true, 40 * 60, 1]);
+  eq('r11 (F4) 10 d op 50 % → 6 u/dag: 13⅓ verborgen dagen, 6⅔ dagen rest, completion 1/2, werk 40 u, inzet 1', [task(f4.t).time.scheduleDuration, task(f4.t).time.remainingTime, near(task(f4.t).time.completion, 0.5), asgOf(f4.t, f4.r).remainingWorkMinutes, asgOf(f4.t, f4.r).unitsPerDay], [40 / 3, 20 / 3, true, 40 * 60, 1]);
   S().setTaskCalendar(f4.t, undefined);
   eq('r12 (F4) terug naar 8 u: duur 10, rest 5, completion weer 0,5, werk 40 u', [task(f4.t).time.scheduleDuration, task(f4.t).time.remainingTime, task(f4.t).time.completion, asgOf(f4.t, f4.r).remainingWorkMinutes], [10, 5, 0.5, 40 * 60]);
 
@@ -809,13 +809,13 @@ console.log('-- (r) reviewronde 2026-09-05 op K2/Δ-rest (F1–F10): kalender + 
   // vastgelegde anker, zodat terug naar 8 u weer 4 d geeft (MSP bewaart Work; Fable-review bevinding 4).
   const f5 = mkTask('r-f5', 4, 'FIXED_RATE');
   S().setTaskCalendar(f5.t, six);
-  eq('r13 (E9) FIXED_RATE 8→6 u: duur 6 (32 ÷ 6 = 5,33), inzet 1, werk 32 u vastgelegd', [task(f5.t).time.scheduleDuration, asgOf(f5.t, f5.r).unitsPerDay, asgOf(f5.t, f5.r).remainingWorkMinutes], [6, 1, 32 * 60]);
+  eq('r13 (E9) FIXED_RATE 8→6 u: duur 16/3 d (32 ÷ 6), inzet 1, werk 32 u vastgelegd', [task(f5.t).time.scheduleDuration, asgOf(f5.t, f5.r).unitsPerDay, asgOf(f5.t, f5.r).remainingWorkMinutes], [16 / 3, 1, 32 * 60]);
   S().setTaskCalendar(f5.t, undefined);
   eq('r13b (E9) FIXED_RATE terug naar 8 u: weer 4 d, werk 32 u (vóór E9: 5 d)', [task(f5.t).time.scheduleDuration, asgOf(f5.t, f5.r).remainingWorkMinutes], [4, 32 * 60]);
-  // Inzet heen en terug via de store-actie (Fable-review P1): 5 d, I 1 → 0,3 → 1 ⇒ 17 d ⇒ 5 d (vóór E9: 6 d).
+  // Inzet heen en terug via de store-actie (Fable-review P1): 5 d, I 1 → 0,3 → 1 ⇒ 50/3 d ⇒ 5 d (vóór E9: 6 d).
   const f5u = mkTask('r-f5u', 5, 'FIXED_RATE');
   S().updateAssignment(asgOf(f5u.t, f5u.r).id, { unitsPerDay: 0.3 });
-  eq('r13c (E9) FIXED_RATE inzet 1 → 0,3: 17 d, werk 40 u vastgelegd', [task(f5u.t).time.scheduleDuration, asgOf(f5u.t, f5u.r).remainingWorkMinutes], [17, 40 * 60]);
+  eq('r13c (E9) FIXED_RATE inzet 1 → 0,3: 50/3 d, werk 40 u vastgelegd', [task(f5u.t).time.scheduleDuration, asgOf(f5u.t, f5u.r).remainingWorkMinutes], [50 / 3, 40 * 60]);
   S().updateAssignment(asgOf(f5u.t, f5u.r).id, { unitsPerDay: 1 });
   eq('r13d (E9) FIXED_RATE inzet terug naar 1: weer 5 d', [task(f5u.t).time.scheduleDuration, asgOf(f5u.t, f5u.r).remainingWorkMinutes], [5, 40 * 60]);
 
@@ -839,7 +839,7 @@ console.log('-- (r) reviewronde 2026-09-05 op K2/Δ-rest (F1–F10): kalender + 
   useAppStore.setState((s) => { s.ui.notifications = []; });
   const events0 = S().historyEvents.length;
   S().setProjectCalendar(six2);
-  eq('r15 (F9) projectkalender 8→6: zonder kalender 6 d, bungelend 6 d, expliciet-oude blijft 4 d', [task(g1.t).time.scheduleDuration, task(g2.t).time.scheduleDuration, task(g3.t).time.scheduleDuration], [6, 6, 4]);
+  eq('r15 (F9) projectkalender 8→6: zonder kalender 16/3 d, bungelend 16/3 d, expliciet-oude blijft 4 d', [task(g1.t).time.scheduleDuration, task(g2.t).time.scheduleDuration, task(g3.t).time.scheduleDuration], [16 / 3, 16 / 3, 4]);
   eq('r16 (F9) …melding telt 2, één undo-stap', [S().ui.notifications.find((n) => n.messageKey === 'notifications.workRuleDurationsChanged')?.params?.count, S().historyEvents.length - events0], [2, 1]);
   S().undo();
   eq('r17 undo van setProjectCalendar: projectkalender, cache én beide duren terug', [S().project.calendarId === oldProjectCal, S().calendar.hoursPerDay, task(g1.t).time.scheduleDuration, task(g2.t).time.scheduleDuration], [true, 8, 4, 4]);
@@ -858,7 +858,7 @@ console.log('-- (r) reviewronde 2026-09-05 op K2/Δ-rest (F1–F10): kalender + 
   const six3 = addSix('r3');
   const m1 = mkTask('r-m1', 4, 'FIXED_WORK');
   S().setTaskCalendar(m1.t, six3);
-  eq('r19 voorwaarde: 6 d op 6 u', task(m1.t).time.scheduleDuration, 6);
+  eq('r19 voorwaarde: 16/3 d op 6 u', task(m1.t).time.scheduleDuration, 16 / 3);
   useAppStore.setState((s) => { s.ui.notifications = []; });
   const resM = runInMcpTransaction(() => { draft.updateCalendar(six3, { hoursPerDay: 4 }); });
   eq('r20 MCP draft.updateCalendar 6→4 u: 32 u ⇒ 8 d; melding telt 1', [resM.ok, task(m1.t).time.scheduleDuration, S().ui.notifications.find((n) => n.messageKey === 'notifications.workRuleDurationsChanged')?.params?.count], [true, 8, 1]);
@@ -959,7 +959,7 @@ console.log('-- (s) baan 2 overname PR #101: een duur uit de werkdriehoek wist d
 console.log('-- (t) Fable-critreview #170 bevinding 1: voortgang onderhoudt het opgeslagen restwerk (rest = begroot − verricht) --');
 {
   // Probe uit de review: FIXED_WORK 10 d, W 4800 vastgelegd, 50 % ⇒ W 2400 (niet 4800), histogram-som 10
-  // (niet 15), en inzet 1→2 daarna ⇒ R = 2400/960 = 2,5 → 3 d, duur 8.
+  // (niet 15), en inzet 1→2 daarna ⇒ R = 2400/960 = 2,5 d, duur 7,5 d.
   const sum = (xs: number[]) => Math.round(xs.reduce((a, b) => a + b, 0) * 1e6) / 1e6;
   const mk = (name: string) => {
     const t = S().addTask({ name, time: createDefaultTaskTime('2026-06-01', 10) });
@@ -978,7 +978,7 @@ console.log('-- (t) Fable-critreview #170 bevinding 1: voortgang onderhoudt het 
   eq('t2 …histogram-som blijft 10 (geen dubbeltelling)', load(a.t, a.r), 10);
   S().runCPM();
   S().updateAssignment(asgOf(a.t, a.r).id, { unitsPerDay: 2 });
-  eq('t3 inzet 1→2 daarna: duur 8 (5 gedaan + 3 rest), rest 3', [task(a.t).time.scheduleDuration, task(a.t).time.remainingTime], [8, 3]);
+  eq('t3 inzet 1→2 daarna: duur 7,5 (5 gedaan + 2,5 rest), rest 2,5', [task(a.t).time.scheduleDuration, task(a.t).time.remainingTime], [7.5, 2.5]);
   // Beide richtingen: terugdraaien naar 20 % geeft werk terug aan de rest; totaal blijft.
   reset();
   const b = mk('t-b');
@@ -1045,7 +1045,7 @@ console.log('-- (u) Fable-critreview #170 bevinding 2: de kalenderdialoog (commi
   S().runCPM();
   S().setTaskWorkRule(t, 'FIXED_WORK');
   S().setTaskCalendar(t, sixId);
-  eq('u0 voorwaarde: 6-u-kalender onder Vast werk ⇒ 6 d, werk 32 u', [task(t).time.scheduleDuration, asgOf(t, r).remainingWorkMinutes], [6, 32 * 60]);
+  eq('u0 voorwaarde: 6-u-kalender onder Vast werk ⇒ 16/3 d, werk 32 u', [task(t).time.scheduleDuration, asgOf(t, r).remainingWorkMinutes], [16 / 3, 32 * 60]);
   // Een tweede taak op de PROJECTkalender (valt terug, geen eigen calendarId) onder Vast werk.
   const p = S().addTask({ name: 'u-p', time: createDefaultTaskTime('2026-06-01', 4) });
   S().assignResource(p, labor('u-p'), 1);

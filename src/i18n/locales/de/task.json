@@ -371,7 +371,6 @@
       "resourceAddsWork": "Eine zusätzliche Ressource fügt Arbeit hinzu.",
       "resourceSharesWork": "Eine zusätzliche Ressource übernimmt einen Teil der Arbeit; die Einheiten pro Ressource sinken.",
       "resourceShorter": "Eine zusätzliche Ressource verkürzt den Vorgang.",
-      "resourceShorterWholeDays": "Eine zusätzliche Ressource verkürzt den Vorgang, gerundet auf ganze Tage.",
       "resourceAddsWorkSameDuration": "Eine zusätzliche Ressource fügt Arbeit hinzu; die Dauer bleibt gleich."
     },
     "info": "Erläuterung zur Vorgangsart"

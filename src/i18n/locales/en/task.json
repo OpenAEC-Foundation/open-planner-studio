@@ -371,7 +371,6 @@
       "resourceAddsWork": "An extra resource adds work.",
       "resourceSharesWork": "An extra resource takes over part of the work; the units per resource go down.",
       "resourceShorter": "An extra resource makes the task shorter.",
-      "resourceShorterWholeDays": "An extra resource makes the task shorter, rounded to whole days.",
       "resourceAddsWorkSameDuration": "An extra resource adds work; the duration stays the same."
     },
     "info": "Explanation of the task type"

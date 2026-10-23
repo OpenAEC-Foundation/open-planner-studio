@@ -371,7 +371,6 @@
       "resourceAddsWork": "Ek bir kaynak iş ekler.",
       "resourceSharesWork": "Ek bir kaynak işin bir kısmını üstlenir; kaynak başına birim azalır.",
       "resourceShorter": "Ek bir kaynak görevi kısaltır.",
-      "resourceShorterWholeDays": "Ek bir kaynak görevi kısaltır; tam günlere yuvarlanır.",
       "resourceAddsWorkSameDuration": "Ek bir kaynak iş ekler; süre aynı kalır."
     },
     "info": "Görev türü hakkında açıklama"
