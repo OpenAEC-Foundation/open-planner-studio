@@ -167,6 +167,14 @@ en noem het in je rapport of PR-tekst.
      De motor telt dezelfde gaten mogelijk anders (VERMOED). Dit hoort bij F3 (§3.14).
      Gevonden in fixronde 1 van F2 (laadfix). — B voor de renderer
 
+271. **Een nachttaak die op zaterdag 06:00 eindigt, krijgt −1 speling bij een gelijk vroeg en laat venster.**
+     Nachtkalender ma–vr 22:00–06:00. A 2 d vanaf ma 22:00, FS+1 naar B van 2 d. B loopt vroeg en laat
+     van do 4 jun 22:00 tot za 6 jun 06:00, maar krijgt totale speling −1 onder OPS, P6 en MSP (vrije
+     speling −1 onder OPS en MSP). `CPMSolver.ts:1541` telt de dagspeling met `utcDayStart`; dat legt
+     het eindmoment op zaterdag, en `signedWorkDaysBetween(za, za)` is −1. Ook op de integratiebasis
+     `be58ba356`. Voorstel: neem bij een eindmoment de bijbehorende werkdag (`workdayDateOfInstant`,
+     eindkant). Gevonden in review F2 ronde 2A. — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
@@ -288,6 +296,14 @@ en noem het in je rapport of PR-tekst.
      `ResourceLoad.ts` gelijk is aan de basis. Verwijder het ongebruikte type `PlacementMeasures`
      (`workPlacement.ts:7`) en het ongebruikte argument `placed` (`ResourceLoad.ts:262`).
      Review F3b r2. — B
+
+272. **Een al geplande verlaatberekening van `useExitRecordedDates` wordt niet geannuleerd bij
+     historieherstel.** `src/hooks/useExitRecordedDates.ts:47`: een wijziging die de modus niet verlaat,
+     keert terug zonder de lopende timer te stoppen. Reproductie: B5 terugdraaien → planningsbewerking →
+     undo → undo, in dezelfde JavaScript-beurt. Direct daarna staat B op 16 maart met
+     `minuteModelPending: true`; na de timer staat B op 9 maart en is de vlag uit. Alleen met synchrone
+     oproepen gereproduceerd. Richting: annuleer de lopende verlaatberekening bij historieherstel.
+     Review ronde 2 van PR #559, deel B. — B
 
 ## Bestanden en herstel
 
