@@ -15,6 +15,7 @@ import { computeResourceLoad } from '@/engine/scheduler/ResourceLoad';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 
 let checks = 0;
 const diffs: string[] = [];
@@ -76,7 +77,7 @@ console.log('-- resource-load-reasons: non-working-day (resourcekalender kent de
   const resourceA = res('r-a', 1, { calendarId: 'cal-no-wednesday' });
   const assignments = [assign('a-a', 't-a', 'r-a', 1)];
 
-  const result = computeResourceLoad([resourceA], assignments, [taskA], PROJECT_CAL, [NO_WEDNESDAY_CAL]);
+  const result = computeResourceLoad([resourceA], assignments, [taskA], PROJECT_CAL, [NO_WEDNESDAY_CAL], effectiveSchedulingOptions({}));
 
   eq('woensdag 06-03 is de enige overbezette dag',
     result.overallocatedDays['r-a'], ['2026-06-03']);
@@ -101,7 +102,7 @@ console.log('-- resource-load-reasons: over-capacity (inzet groter dan capacitei
   const resourceB = res('r-b', 1);
   const assignments = [assign('a-b', 't-b', 'r-b', 2)];
 
-  const result = computeResourceLoad([resourceB], assignments, [taskB], PROJECT_CAL, []);
+  const result = computeResourceLoad([resourceB], assignments, [taskB], PROJECT_CAL, [], effectiveSchedulingOptions({}));
 
   const expectedDays = ['2026-06-01', '2026-06-02', '2026-06-03', '2026-06-04', '2026-06-05'];
   eq('alle vijf werkdagen zijn overbezet', result.overallocatedDays['r-b'], expectedDays);
@@ -124,7 +125,7 @@ console.log('-- resource-load-reasons: over-capacity bij maxUnits 0 op een proje
   const resourceC = res('r-c', 0);
   const assignments = [assign('a-c', 't-c', 'r-c', 1)];
 
-  const result = computeResourceLoad([resourceC], assignments, [taskC], PROJECT_CAL, []);
+  const result = computeResourceLoad([resourceC], assignments, [taskC], PROJECT_CAL, [], effectiveSchedulingOptions({}));
 
   const expectedDays = ['2026-06-01', '2026-06-02', '2026-06-03', '2026-06-04', '2026-06-05'];
   eq('alle vijf werkdagen zijn overbezet (maxUnits 0)', result.overallocatedDays['r-c'], expectedDays);
@@ -147,7 +148,7 @@ console.log('-- resource-load-reasons: over-capacity bij availabilitySteps naar 
   });
   const assignments = [assign('a-d', 't-d', 'r-d', 1)];
 
-  const result = computeResourceLoad([resourceD], assignments, [taskD], PROJECT_CAL, []);
+  const result = computeResourceLoad([resourceD], assignments, [taskD], PROJECT_CAL, [], effectiveSchedulingOptions({}));
 
   const expectedDays = ['2026-06-01', '2026-06-02', '2026-06-03', '2026-06-04', '2026-06-05'];
   eq('alle vijf werkdagen zijn overbezet (stap naar 0)', result.overallocatedDays['r-d'], expectedDays);
@@ -171,7 +172,7 @@ console.log('-- resource-load-reasons: spook-resourceId (niet in resources) is o
   // Geen resource met id 'r-ghost' in de resources-array.
   const assignments = [assign('a-e', 't-e', 'r-ghost', 1)];
 
-  const result = computeResourceLoad([], assignments, [taskE], PROJECT_CAL, []);
+  const result = computeResourceLoad([], assignments, [taskE], PROJECT_CAL, [], effectiveSchedulingOptions({}));
 
   const expectedDays = ['2026-06-01', '2026-06-02', '2026-06-03', '2026-06-04', '2026-06-05'];
   eq('alle vijf werkdagen zijn overbezet (spookresource)', result.overallocatedDays['r-ghost'], expectedDays);

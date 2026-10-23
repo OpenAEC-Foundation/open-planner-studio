@@ -114,6 +114,7 @@ function doc(docId: string, opts: DocOpts = {}): OccupancyDocInput {
     tasks: opts.tasks ?? [],
     calendar: cal(),
     calendars: [],
+    loadOptions: neutralSolveOptions().schedulingOptions,
     ...(opts.skipSolve === true ? { skipEphemeralSolve: true } : {}),
     ...(opts.solveTasks !== undefined
       ? { solveInput: { tasks: opts.solveTasks, sequences: opts.solveSequences ?? [], options: neutralSolveOptions() } }
@@ -301,7 +302,7 @@ function pool(resources: Resource[]): CompanyPool {
   const { rows } = computeLibraryOccupancy('c1', p, [d1]);
 
   // Referentie: exact dezelfde engine-aanroep als de kern per document hoort te doen.
-  const ref = computeResourceLoad(d1.resources, d1.assignments, d1.tasks, d1.calendar, d1.calendars);
+  const ref = computeResourceLoad(d1.resources, d1.assignments, d1.tasks, d1.calendar, d1.calendars, d1.loadOptions);
   const refDaily = ref.load['d1-r1'];
   const refDays = Object.keys(refDaily).sort();
   const refPeak = Math.max(...refDays.map(iso => refDaily[iso]));
@@ -344,7 +345,7 @@ function pool(resources: Resource[]): CompanyPool {
   // Referentie per document — dezelfde som-invariant als case 9, nu per dag over twee documenten.
   const refSum = new Map<string, number>();
   for (const d of [d1, d2]) {
-    const ref = computeResourceLoad(d.resources, d.assignments, d.tasks, d.calendar, d.calendars);
+    const ref = computeResourceLoad(d.resources, d.assignments, d.tasks, d.calendar, d.calendars, d.loadOptions);
     const daily = ref.load[d.resources[0].id];
     for (const [iso, units] of Object.entries(daily)) {
       if (units > 0) refSum.set(iso, (refSum.get(iso) ?? 0) + units);
@@ -515,7 +516,7 @@ function pool(resources: Resource[]): CompanyPool {
   // computeResourceLoad — precies wat F5-in-het-document + het projecthistogram zouden opleveren.
   const refTasks = cloneTasksForSolve(staleTasks);
   const refResult = solveProject({ tasks: refTasks, sequences: [], calendar: cal(), calendars: [], ...neutralSolveOptions() });
-  const refLoad = computeResourceLoad(d1.resources, d1.assignments, refTasks, cal(), []);
+  const refLoad = computeResourceLoad(d1.resources, d1.assignments, refTasks, cal(), [], d1.loadOptions);
   const refDaily = refLoad.load['d1-r1'];
   const refDays = Object.keys(refDaily).filter(iso => refDaily[iso] > 0).sort();
 
@@ -678,7 +679,7 @@ function pool(resources: Resource[]): CompanyPool {
   assert(actiefBooking?.counted === true, 'case 23: het overgeslagen document telt mee (geen vangnet)');
   assert(actiefBooking?.ephemeralComputed === false, 'case 23: ephemeralComputed false — de cijfers komen niet uit een solve');
   assert(actiefBooking?.scheduleStale === true, 'case 23: scheduleStale blijft staan als markering');
-  const refLoad = computeResourceLoad(actief.resources, actief.assignments, actiefTasks, cal(), []);
+  const refLoad = computeResourceLoad(actief.resources, actief.assignments, actiefTasks, cal(), [], actief.loadOptions);
   const refDaily = refLoad.load['d-actief-r1'];
   assert(
     JSON.stringify(actiefBooking?.dailyLoad) ===

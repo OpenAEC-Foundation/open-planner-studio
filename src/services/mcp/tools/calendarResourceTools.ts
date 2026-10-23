@@ -48,6 +48,7 @@ import { isFiniteNumber } from '@/utils/guards';
 import { hasLevelingOutput } from '@/utils/taskDefaults';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { markDocumentEdited } from '@/state/documentEdited';
+import type { ClearableProjectKey } from '@/state/projectPatch';
 import { holidayIssue, ISO_DATE_ONLY } from '@/utils/holidayRange';
 import {
   calendarScalarBreakIssue, simpleBreakNetHours, simpleBreakPatch, type ScalarBreakIssue,
@@ -1983,22 +1984,21 @@ function updateProjectCore(
   // `draft.setProject` levert het aantal wortel-ankers dat het klemde (zelfde
   // bewerkbescherming als de UI, `projectSlice.setProject`) — meegeven in `data` zodat óók het
   // `planner_batch`-pad (dat rechtstreeks `updateProjectCore` gebruikt, zonder `enrichOk`) dit ziet.
-  const anchorsClamped = ctx.transactions.draft.setProject(p.updates);
-  if (p.clearStatusDate || p.clearProgressMode || p.clearDefaultWorkRule) {
-    ctx.app.store.setState((s) => {
-      // `delete` i.p.v. `= undefined`: de IFC-serialisatie en de solver-defaults lezen op
-      // sleutel-AANWEZIGHEID (zelfde conventie als de store-actie `setStatusDate`).
-      if (p.clearStatusDate) delete s.project.statusDate;
-      if (p.clearProgressMode) delete s.project.progressMode;
-      if (p.clearDefaultWorkRule) delete s.project.defaultWorkRule;
-      s.project.modifiedAt = new Date().toISOString();
-      markDocumentEdited(s);
-    });
-  }
+  // `delete` i.p.v. `= undefined` voor een gewist veld: de IFC-serialisatie en de solver-defaults
+  // lezen op sleutel-AANWEZIGHEID (zelfde conventie als de store-actie `setStatusDate`). Het wissen
+  // gaat door dezelfde patch, zodat ook een gewiste projectstandaard de taken omzet die hem erven.
+  const clear: ClearableProjectKey[] = [
+    ...(p.clearStatusDate ? ['statusDate' as const] : []),
+    ...(p.clearProgressMode ? ['progressMode' as const] : []),
+    ...(p.clearDefaultWorkRule ? ['defaultWorkRule' as const] : []),
+  ];
+  const { clampedAnchors: anchorsClamped, measureChangedTaskIds } = ctx.transactions.draft.setProject(p.updates, clear);
   return {
     data: {
       updated: p.touched,
       ...(anchorsClamped > 0 ? { anchorsClamped } : {}),
+      // B1a: een nieuwe standaard *Vast werk* zette deze taken (zonder eigen `workRule`) om naar de urenmaat.
+      ...(measureChangedTaskIds.length > 0 ? { hourMeasureTaskIds: measureChangedTaskIds } : {}),
       ...(p.updates.statusDate ? { statusDateNote: STATUS_DATE_NOTE } : {}),
     },
   };
@@ -2062,7 +2062,10 @@ const updateProject: BatchStepTool = {
         description:
           'Project default task type (`workRule`) for tasks without their own `workRule` — see ' +
           'planner_update_tasks `fields.workRule` for the four values. null = the default ' +
-          'FIXED_DURATION_RATE. Switching changes no number.',
+          'FIXED_DURATION_RATE. A FIXED_WORK task always has the hour measure: switching the default to ' +
+          'FIXED_WORK converts every task without its own `workRule` from the day measure to the hour measure ' +
+          '(days × working time per day; listed in `hourMeasureTaskIds`) and recalculates. Switching back ' +
+          'keeps the hour measure. Any other switch changes no number.',
       },
     },
     additionalProperties: false,
@@ -2092,6 +2095,10 @@ const updateProject: BatchStepTool = {
       res.ok && res.data && typeof res.data === 'object' && 'anchorsClamped' in res.data
         ? (res.data as { anchorsClamped: number }).anchorsClamped
         : 0;
+    const hourMeasureTaskIds =
+      res.ok && res.data && typeof res.data === 'object' && 'hourMeasureTaskIds' in res.data
+        ? (res.data as { hourMeasureTaskIds: string[] }).hourMeasureTaskIds
+        : [];
     return enrichOk(res, () => {
       const state = ctx.app.store.getState();
       const p = state.project;
@@ -2111,6 +2118,7 @@ const updateProject: BatchStepTool = {
           'predecessor/constraint that lie before the new date move along TO that date — see ' +
           '`anchorsClamped`. Use planner_move_project to shift the WHOLE existing schedule (every anchor).',
         ...(anchorsClamped > 0 ? { anchorsClamped } : {}),
+        ...(hourMeasureTaskIds.length > 0 ? { hourMeasureTaskIds } : {}),
         ...(statusDateTouched
           ? {
               statusDateEffect: {

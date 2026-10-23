@@ -8,6 +8,7 @@ import type { TaskTime } from '@/types/task';
 import { solveInputFor, solveOptionsFor } from '@/engine/scheduler/solveInput';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import {
   levelResources as computeLeveling,
   type LevelingInput,
@@ -91,7 +92,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     // dezelfde (bevroren, dus veilig te lezen) staat plain.
     const s = get();
     const result = computeReliableResourceLoad(
-      s.cpmResult, s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
+      s.cpmResult, s.resources, s.assignments, s.tasks, s.calendar, s.calendars, effectiveSchedulingOptions(s.project),
     );
     set((st) => { st.resourceLoadResult = result; });
   },
@@ -103,11 +104,11 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     // beschermt de bevroren invoer én undo-snapshots. Alles blijft synchroon tot de ene commit.
     const before = get();
     const tasks = cloneTasksForSolve(before.tasks);
-    const result = solveProject(solveInputFor(
-      before.project, tasks, before.sequences, before.calendar, before.calendars,
-    ));
+    const input = solveInputFor(before.project, tasks, before.sequences, before.calendar, before.calendars);
+    const result = solveProject(input);
+    // De belasting leest dezelfde maatconventie als de solver (het profiel van het project).
     const resourceLoad = computeReliableResourceLoad(
-      result, before.resources, before.assignments, tasks, before.calendar, before.calendars,
+      result, before.resources, before.assignments, tasks, before.calendar, before.calendars, input.schedulingOptions,
     );
 
     const computed = { ...capturePayload(before), tasks, cpmResult: result, resourceLoadResult: resourceLoad,

@@ -3,7 +3,7 @@ import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import { computeHistogramReport } from '@/engine/scheduler/ResourceLoad';
-import { type ReportContext, resolvePeriodFor, round1 } from './reportCommon';
+import { type SolvedReportContext, resolvePeriodFor, round1 } from './reportCommon';
 import type { ReportingPeriod } from './reportingPeriod';
 
 /**
@@ -55,7 +55,7 @@ export interface ResourceLoadingResult {
   counts: { resources: number; buckets: number; overloadedBuckets: number; overloadedResources: number };
 }
 
-export function computeResourceLoading(ctx: ReportContext, opts: ResourceLoadingOptions): ResourceLoadingResult {
+export function computeResourceLoading(ctx: SolvedReportContext, opts: ResourceLoadingOptions): ResourceLoadingResult {
   const { from, to, statusDateMissing } = resolvePeriodFor(ctx, opts.period);
   const report = computeHistogramReport({
     tasks: ctx.tasks as Task[],
@@ -69,7 +69,7 @@ export function computeResourceLoading(ctx: ReportContext, opts: ResourceLoading
     to,
     bucket: opts.bucket === 'month' ? 'maand' : 'week',
     // De maatconventie van het project, zodat het rapport dezelfde dagdelen telt als de solver.
-    schedulingOptions: ctx.solveOptions?.schedulingOptions,
+    schedulingOptions: ctx.solveOptions.schedulingOptions,
   });
   const byId = new Map(ctx.resources.map(r => [r.id, r]));
   const rows: ResourceLoadingRow[] = [];

@@ -21,7 +21,6 @@ import {
   assignmentPlacementLoad, taskWorkPlacement, workPlacement, type PlacementDay, type PlacementOptions,
   type PlacementResult,
 } from './workPlacement';
-import { effectiveSchedulingOptions } from './conventions/registry';
 import { isPinnedComplete } from './duration';
 import {
   CONTOUR_SHAPE_VALUES, CURVE_TO_SHAPE, matchContoursToAssignments, periodsToWorkDaySlots,
@@ -251,17 +250,11 @@ export function taskWorkDayIsos(task: Task, taskEngine: CalendarEngine, duration
     : enumerateTaskWorkDays(task.splitGaps, taskEngine, task.time.earlyStart, durationDays);
 }
 
-/** De maatconventie die de verdeling leest (§3.14). Afwezig ⇒ die van een project zonder profiel
- *  (`effectiveSchedulingOptions({})`, het OPS-profiel). Een aanroeper met een project geeft
- *  `effectiveSchedulingOptions(project)` mee, zodat histogram, nivelleerder en solver dezelfde maat
- *  lezen. */
+/** De maatconventie die de verdeling leest (§3.14): `effectiveSchedulingOptions(project)`, zodat
+ *  histogram, nivelleerder en solver dezelfde maat lezen. Verplicht in elke aanroep: een stille
+ *  terugval op het OPS-profiel liet een P6- of MSP-project in de belasting als OPS tellen (een dagtaak
+ *  over een korte vrijdag landde dan helemaal op vrijdag, terwijl de solver op maandag eindigt). */
 export type LoadOptions = PlacementOptions;
-let defaultLoadOptions: LoadOptions | undefined;
-function loadOptionsOrDefault(options: LoadOptions | undefined): LoadOptions {
-  return options ?? (defaultLoadOptions ??= {
-    workdayDurationMeasure: effectiveSchedulingOptions({}).workdayDurationMeasure,
-  });
-}
 
 /**
  * De gezaghebbende plaatsing van `task` op haar eigen kalender, vanaf `start` (een kandidaat van de
@@ -273,11 +266,11 @@ function loadOptionsOrDefault(options: LoadOptions | undefined): LoadOptions {
 export function taskLoadPlacement(
   task: Task,
   engine: CalendarEngine,
-  options: LoadOptions | undefined,
+  options: LoadOptions,
   start?: Date,
 ): PlacementResult | null {
   if (!engine.isHourMode) return null;
-  const placement = taskWorkPlacement(task, engine, loadOptionsOrDefault(options), start);
+  const placement = taskWorkPlacement(task, engine, options, start);
   return placement ? workPlacement(engine, placement) : { days: [], finish: start ?? new Date(NaN) };
 }
 
@@ -356,7 +349,7 @@ export interface ResourceLoadResult {
 /** Eén plaatsing per taak per aanroep: meerdere toewijzingen van dezelfde taak delen haar. */
 function taskPlacementCache(
   engineForTask: (task: Task) => CalendarEngine,
-  options: LoadOptions | undefined,
+  options: LoadOptions,
 ): (task: Task) => PlacementResult | null {
   const cache = new Map<string, PlacementResult | null>();
   return (task) => {
@@ -410,7 +403,7 @@ export function computeResourceLoad(
   tasks: Task[],
   projectCalendar: WorkCalendar,
   resourceCalendars: WorkCalendar[],
-  options?: LoadOptions,
+  options: LoadOptions,
 ): ResourceLoadResult {
   const load: Record<string, DailyLoad> = {};
   const capacity: Record<string, DailyLoad> = {};
@@ -521,7 +514,7 @@ export function computeReliableResourceLoad(
   tasks: Task[],
   projectCalendar: WorkCalendar,
   resourceCalendars: WorkCalendar[],
-  options?: LoadOptions,
+  options: LoadOptions,
 ): ResourceLoadResult | null {
   return cpmResult?.error
     ? null
@@ -606,8 +599,8 @@ export interface HistogramInput {
   from?: string;
   to?: string;
   bucket: 'dag' | 'week' | 'maand';
-  /** De maatconventie van het project (zie `LoadOptions`). */
-  schedulingOptions?: LoadOptions;
+  /** De maatconventie van het project (zie `LoadOptions`). Verplicht. */
+  schedulingOptions: LoadOptions;
 }
 
 /**

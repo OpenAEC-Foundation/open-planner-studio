@@ -99,6 +99,7 @@ function distDoc(docId: string, opts: DistDocOpts = {}): DistributionDocInput {
     tasks,
     calendar,
     calendars: [],
+    loadOptions: neutralSolveOptions().schedulingOptions,
     ...(opts.omitSolveInput ? {} : { solveInput: { tasks, sequences, options: neutralSolveOptions() } }),
     rank: opts.rank ?? 1,
     pinned: opts.pinned ?? false,

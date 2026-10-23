@@ -15,7 +15,7 @@ import { SEQUENCE_TYPE_OPTIONS } from '@/types/sequence';
 import { localizeLagHourSuffix } from '@/utils/lagFormat';
 import { parseableHourSuffix } from '@/utils/durationFormat';
 import {
-  type ReportContext, type LookAheadRow, type CriticalRow, type ProgressRow, type HealthCheck, type HealthItem,
+  type ReportContext, type SolvedReportContext, type LookAheadRow, type CriticalRow, type ProgressRow, type HealthCheck, type HealthItem,
   type DcmaMetric, DCMA_DAYS, type ResourceLoadingRow, type ResourceAssignmentRow, type WbsSummaryRow,
   computeLookAhead, computeCriticalReport, computeProgressReport, computeScheduleHealth,
   computeResourceLoading, computeResourceAssignments, computeWbsSummary,
@@ -46,7 +46,7 @@ const RESOURCE_TYPE_KEY = {
 const pct = (c: number) => `${Math.round(c * 100)}%`;
 const floatColor = (tf: number) => (tf < 0 ? REPORT_COLORS.error : tf === 0 ? REPORT_COLORS.warn : undefined);
 
-function useReportContext(): { ctx: ReportContext; stale: boolean } {
+function useReportContext(): { ctx: SolvedReportContext; stale: boolean } {
   const tasks = useAppStore(s => s.tasks);
   const sequences = useAppStore(s => s.sequences);
   const resources = useAppStore(s => s.resources);
@@ -68,7 +68,7 @@ function useReportContext(): { ctx: ReportContext; stale: boolean } {
   const datesAsRecorded = useAppStore(s => s.datesAsRecorded);
   // "Vandaag" één keer per dag stabiel: een nieuwe dag geeft een nieuwe waarde, binnen de dag niet.
   const today = localTodayIso();
-  const ctx = useMemo<ReportContext>(() => ({
+  const ctx = useMemo<SolvedReportContext>(() => ({
     tasks, sequences, resources, assignments, calendar, calendars, cpmResult,
     baseline: activeBaselineId ? baselines.find(b => b.id === activeBaselineId) ?? null : null,
     statusDate, today, datesAsRecorded,
@@ -372,7 +372,7 @@ function firstOfResourceGroup<R extends { resourceId: string }>(rows: R[], keyOf
 }
 
 
-function buildResourceLoading(ctx: ReportContext, o: TableReportOptions, t: T, tCommon: TFunction<'common'>, dd: DD, stale: boolean, locale: string): TableReportSpec {
+function buildResourceLoading(ctx: SolvedReportContext, o: TableReportOptions, t: T, tCommon: TFunction<'common'>, dd: DD, stale: boolean, locale: string): TableReportSpec {
   const r = computeResourceLoading(ctx, { period: o.resourceLoadPeriod, bucket: o.resourceLoadBucket, onlyOverloaded: o.resourceLoadOnlyOverloaded });
   const p = 'tableReports.resourceLoading';
   const monthly = o.resourceLoadBucket === 'month';

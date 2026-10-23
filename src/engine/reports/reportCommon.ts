@@ -55,6 +55,10 @@ export interface ReportContext {
   solveOptions?: ProjectSolveOptions;
 }
 
+/** Een rapportcontext MET de solve-opties: verplicht voor een rapport dat de belasting verdeelt
+ *  (`computeResourceLoading`), want de verdeling leest de maatconventie van het profiel. */
+export type SolvedReportContext = ReportContext & { solveOptions: ProjectSolveOptions };
+
 /** Alleen de dag-component van een ISO-datum(tijd): vergelijkbaar als string. */
 export function dayOf(iso: string): string {
   return iso.slice(0, 10);
