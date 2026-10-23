@@ -8,11 +8,16 @@ imports it (`@AGENTS.md`) so Claude Code loads it automatically — never put co
 depth lives in `.claude/rules/` (see *Where the depth lives*); Claude Code loads those per path, other agents
 should read the matching rule file before touching that area.
 
-**Server restriction for all agents, including subagents:** never start Node.js processes directly
-on this server; it cannot handle that workload. This includes `node`, `npm`, `npx`, dependency
-installation, builds, tests, dev servers and scripts that launch Node indirectly. Run that work in
-GitHub CI and inspect the results with `gh`. This rule takes precedence over all local execution,
-testing and self-testing instructions below and in skills or area-specific rules.
+**Server restriction for all agents, including subagents:** heavy Node.js work never runs on this
+server: no `npm run verify`, no test suites (`npm test`, `test:*`, `tests/*/run.sh` in full, Playwright),
+no app or package builds (`build`, `build:platform`, `build:core`, `tauri:build`, `measure:*`), no
+generators that build the app. Run that work in GitHub CI and inspect the results with `gh`.
+Light Node steps are allowed since 2026-10-23 (owner decision in the style-harmonisation session):
+`npm ci`/`npm install` to set up a worktree, `npm run dev` (one dev server per worktree, stopped when
+done), `npm run typecheck`, `npm run lint:fast`, and a single targeted check such as `verify:i18n`,
+`verify:docs` or one `bash tests/planning/run.sh check-<x>.ts`. Node 22 lives in `~/.local/node`
+(no sudo). This rule takes precedence over local execution, testing and self-testing instructions below
+and in skills or area-specific rules.
 
 Exception: the scheduled weekly release job on aia09-mp50 may run only the listed light Node
 steps in its own release worktree, including package checks by its Haiku translation stations
@@ -20,7 +25,7 @@ steps in its own release worktree, including package checks by its Haiku transla
 [`.claude/skills/release/SKILL.md`](.claude/skills/release/SKILL.md) and its exact list in `referentie.md`.
 Owner decision 9, clarified by the orchestrator on 2026-10-23. This does not cover agents outside
 that job or maintenance of the skill.
-Tests, app builds, the full `npm run verify` and dev servers remain CI-only.
+Test suites, app builds and the full `npm run verify` remain CI-only.
 
 ## Commands
 

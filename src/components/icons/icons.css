@@ -1,0 +1,31 @@
+/* B2-iconen uit de OpenAEC Style Repo (huisstijl 0.4), gerenderd door `Icon.tsx`.
+   Volgt `.oa-icon` uit `web/openaec-components.css` van de Style Repo: hoofdkleur `currentColor`,
+   accent via `--icon-accent`. Tot de thema's op de `--oa-*`-tokens staan (fase B van
+   docs/superpowers/specs/2026-10-23-openaec-style-repo-harmonisatie.md) komt het accent uit `--theme-accent`. */
+
+.oa-icon {
+  flex: none;
+  color: inherit;
+  --icon-accent: var(--theme-accent);
+}
+
+/* Alles in de hoofdkleur: op een gekleurd vlak (actieve lintknop, primaire knop) of bij uitgeschakeld. */
+.oa-icon--mono,
+:disabled > .oa-icon,
+[aria-disabled='true'] > .oa-icon {
+  --icon-accent: currentColor;
+}
+
+/* Statusiconen kleuren mee met de themarol (Style Repo `semantic_color`); de rol wint van `currentColor`. */
+.oa-icon--error { color: var(--theme-critical-text); }
+.oa-icon--warning { color: var(--theme-warning-text); }
+.oa-icon--success { color: var(--theme-success-text, #16a34a); }
+.oa-icon--info { color: var(--theme-info-text, #2563eb); }
+.oa-icon--text-secondary { color: var(--theme-text-dim); }
+.oa-icon--error,
+.oa-icon--warning,
+.oa-icon--success,
+.oa-icon--info,
+.oa-icon--text-secondary {
+  --icon-accent: currentColor;
+}
