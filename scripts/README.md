@@ -629,7 +629,7 @@ Lokaal controleren: `node --test scripts/aur/render-pkgbuild.test.mjs` en
   Alle `node scripts/run-ts.mjs scripts/x.ts`-aanroepen in `package.json` gaan hierlangs.
 - `generate-icon.py` — leidt alle app- en installer-iconen af uit het logopakket in
   `docs/branding/open-planner-studio/` (alleen het beeldmerk). Eerst maakt
-  `branding/bovenvlak_wit.py` twee masters met een wit bovenvlak in `docs/branding/app-iconbron/`
+  `branding/bovenvlak_open.py` twee masters met een doorzichtig bovenvlak in `docs/branding/app-iconbron/`
   (besluit eigenaar 2026-10-23). Daaruit komen `app-icon.png`, `src-tauri/icons/*` (via
   `npx tauri icon`), `snap/gui/icon.png`, en in `public/` het titelbalkicoon, de favicons en de
   apple-touch-icon. Draai vanuit de root met `python3 scripts/generate-icon.py`; vraagt Pillow,

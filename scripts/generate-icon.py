@@ -7,22 +7,23 @@ Bron: docs/branding/open-planner-studio/ (logopakket kubus v4, PR #574). Dat pak
 byte-identiek; 05-checks/SHA256SUMS.txt controleert het. Het woordmerk (logo met tekst) gebruikt de
 app nergens.
 
-Wit bovenvlak (besluit eigenaar 2026-10-23: "de bovenkant moet wit worden, anders is het geen echte
-kubus"). In het pakket is het bovenvlak #594124. Stap 1 maakt daarom twee witte masters met
-scripts/branding/bovenvlak_wit.py en zet ze in docs/branding/app-iconbron/ (afgeleide bron, in git):
-- kubus-wit-2048.png uit 01-png/open-planner-studio-symbol-transparent.png
-- kubus-wit-1024.png uit 01-png/app-icons/open-planner-studio-1024.png
+Doorzichtig bovenvlak (besluit eigenaar 2026-10-23: "het bovenvlak moet natuurlijk doorzichtig
+zijn", net als de zijvlakken). In het pakket is het bovenvlak #594124. Stap 1 maakt daarom twee open
+masters met scripts/branding/bovenvlak_open.py en zet ze in docs/branding/app-iconbron/ (afgeleide
+bron, in git):
+- kubus-open-2048.png uit 01-png/open-planner-studio-symbol-transparent.png
+- kubus-open-1024.png uit 01-png/app-icons/open-planner-studio-1024.png
 Alle andere bestanden komen uit die twee masters:
-- app-icon.png: kopie van kubus-wit-1024.png (de Tauri-bron).
+- app-icon.png: kopie van kubus-open-1024.png (de Tauri-bron).
 - src-tauri/icons/*: via `npx tauri icon` (ico, icns, Windows Store, Android, iOS). iOS eist een
   dichte achtergrond; die krijgt #2A2A32, de achtergrondkleur van de donkere pakketuitvoer.
   Windows (ico) en macOS (icns) blijven transparant, zoals het pakket.
-- snap/gui/icon.png: 512 px, verkleind uit kubus-wit-1024.png.
+- snap/gui/icon.png: 512 px, verkleind uit kubus-open-1024.png.
 - public/icon.png (titelbalk, 18 CSS-px, dus 36 px voor 2x-schermen) en public/favicon-16.png /
-  favicon-32.png: verkleind uit kubus-wit-2048.png. Bij deze kleine maten is de lege marge rond de
+  favicon-32.png: verkleind uit kubus-open-2048.png. Bij deze kleine maten is de lege marge rond de
   kubus weggesneden tot 4 %, anders blijft er op 16 px maar ongeveer 11 px kubus over. Het beeld zelf
   is niet vereenvoudigd.
-- public/apple-touch-icon.png (180 px): kubus-wit-2048.png op #2A2A32, met de marges van het pakket.
+- public/apple-touch-icon.png (180 px): kubus-open-2048.png op #2A2A32, met de marges van het pakket.
 
 Verkleinen gebeurt met Lanczos (Pillow), in voorvermenigvuldigde alfa, zodat transparante pixels
 geen donkere randen geven.
@@ -37,9 +38,9 @@ from PIL import Image
 ROOT = Path.cwd()
 PKG = ROOT / 'docs/branding/open-planner-studio/01-png'
 BRON = ROOT / 'docs/branding/app-iconbron'
-WIT_SCRIPT = ROOT / 'scripts/branding/bovenvlak_wit.py'
-MASTER_2048 = BRON / 'kubus-wit-2048.png'
-MASTER_1024 = BRON / 'kubus-wit-1024.png'
+OPEN_SCRIPT = ROOT / 'scripts/branding/bovenvlak_open.py'
+MASTER_2048 = BRON / 'kubus-open-2048.png'
+MASTER_1024 = BRON / 'kubus-open-1024.png'
 DARK_BG = '#2A2A32'
 CROP_MARGIN = 0.04
 
@@ -63,10 +64,10 @@ def main() -> None:
     if not src_1024.exists():
         sys.exit(f'Logopakket niet gevonden: {src_1024} (draai vanuit de root van de repository)')
 
-    # 1. Witte masters (afgeleide bron).
+    # 1. Open masters (afgeleide bron).
     BRON.mkdir(parents=True, exist_ok=True)
     for src, dst in [(src_2048, MASTER_2048), (src_1024, MASTER_1024)]:
-        subprocess.run([sys.executable, str(WIT_SCRIPT), str(src), str(dst)], check=True)
+        subprocess.run([sys.executable, str(OPEN_SCRIPT), str(src), str(dst)], check=True)
 
     # 2. Tauri: alle desktop- en mobiele formaten.
     shutil.copyfile(MASTER_1024, ROOT / 'app-icon.png')
@@ -89,7 +90,7 @@ def main() -> None:
     tile.alpha_composite(master)
     tile.convert('RGB').resize((180, 180), Image.Resampling.LANCZOS).save(
         public / 'apple-touch-icon.png', optimize=True)
-    print('Iconen gemaakt uit het logopakket (wit bovenvlak).')
+    print('Iconen gemaakt uit het logopakket (doorzichtig bovenvlak).')
 
 
 if __name__ == '__main__':

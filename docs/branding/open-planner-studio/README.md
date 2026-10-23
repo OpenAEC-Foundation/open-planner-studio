@@ -24,8 +24,8 @@ De logo-assets zijn beschikbaar voor gebruik; deze toevoeging activeert ze nog n
 
 Voor het bewerken en opnieuw renderen: zie [LEESMIJ.txt](LEESMIJ.txt). De generator gebruikt Blender, zonder Node.js. De fonts hebben een eigen [SIL Open Font License](04-source/fonts/OFL.txt).
 
-## Gebruik in de app: wit bovenvlak
+## Gebruik in de app: doorzichtig bovenvlak
 
-De app en de installers gebruiken alleen het beeldmerk (de kubus), met een **wit bovenvlak** in plaats van #594124. Dat besloot de eigenaar (Ethan) op 2026-10-23: "de bovenkant moet wit worden, anders is het geen echte kubus". Het pakket in deze map blijft ongewijzigd.
+De app en de installers gebruiken alleen het beeldmerk (de kubus), met een **doorzichtig bovenvlak** in plaats van #594124, net als de zijvlakken. Dat besloot de eigenaar (Ethan) op 2026-10-23: "het bovenvlak moet natuurlijk doorzichtig zijn". Een eerder besluit van dezelfde dag (wit bovenvlak) is daarmee vervallen. Het pakket in deze map blijft ongewijzigd.
 
-Afleiding: [`scripts/branding/bovenvlak_wit.py`](../../../scripts/branding/bovenvlak_wit.py) projecteert elke pixel op de lijn bruin → amber en vervangt het bruine aandeel door wit, zodat de randen tegen de amber contour schoon blijven. Zo ontstaan de masters in [`docs/branding/app-iconbron/`](../app-iconbron/). [`scripts/generate-icon.py`](../../../scripts/generate-icon.py) maakt daaruit alle app- en installer-iconen.
+Afleiding: [`scripts/branding/bovenvlak_open.py`](../../../scripts/branding/bovenvlak_open.py) projecteert elke pixel op de lijn bruin → amber. Het bruine aandeel wordt doorzichtig; het amber aandeel blijft als dekking in #F59E0B, zodat de randen tegen de amber contour schoon blijven. Zo ontstaan de masters in [`docs/branding/app-iconbron/`](../app-iconbron/). [`scripts/generate-icon.py`](../../../scripts/generate-icon.py) maakt daaruit alle app- en installer-iconen.
