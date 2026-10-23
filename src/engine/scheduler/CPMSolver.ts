@@ -980,6 +980,10 @@ export class CPMSolver {
     // hieronder regelt haar eigen landing. Een mijlpaal-MET-duur die ELAPSEDTIME is, valt wél onder
     // de bypass.
     if (isElapsedTask(task)) return d;
+    // Een mijlpaal op het moment van zijn MSO/MFO blijft daar, ook een START op een blokeinde
+    // (MFO di ⇒ di 16:00, niet wo 07:00).
+    if ([task.constraint, task.constraint2].some(c =>
+      this.milestoneConstraintMoment(task, c, eng)?.getTime() === d.getTime())) return d;
     if (preserveP6FinishBoundary && eng.isHourMode
       && this.snapOnOrBefore(eng, d).getTime() === d.getTime()) return d;
     const p6FinishBoundary = this.p6ZeroDurationUsesFinishBoundary(task, eng);
@@ -1133,6 +1137,11 @@ export class CPMSolver {
     const bands = eng.effectiveBandsOn(d);
     if (bands.length === 0) return null;
     return new Date(utcDayStart(d).getTime() + bands[0].start * MS_PER_MIN);
+  }
+
+  /** `d` valt precies op het eerste blokbegin van zijn eigen kalenderdag. */
+  private isAtDayFirstBandStart(eng: CalendarEngine, d: Date | undefined): boolean {
+    return !!d && this.dayFirstBandStart(eng, d)?.getTime() === d.getTime();
   }
 
   /** Het LAATSTE band-EIND op `d`'s eigen kalenderdag (backward-spiegel van `dayFirstBandStart`
@@ -1746,6 +1755,7 @@ export class CPMSolver {
       constraintInstant: (c, eng) => this.constraintInstant(c, eng),
       snapOnOrAfter: (eng, d) => this.snapOnOrAfter(eng, d),
       snapOnOrBefore: (eng, d) => this.snapOnOrBefore(eng, d),
+      milestoneConstraintMoment: (t, c, eng) => this.milestoneConstraintMoment(t, c, eng),
       modeOf: (eng) => this.modeOf(eng),
       backwardFloatTrace: this.backwardFloatTrace,
       completedOutOfSequenceEs: this.completedOutOfSequenceEs,
@@ -2622,7 +2632,10 @@ export class CPMSolver {
 
       // B6: het OPS-profiel houdt een losse mijlpaal op haar eindgrens. Een START in een
       // keten blijft startachtig; P6 en MSP houden hun bestaande beginmoment.
+      // Een MSO of MFO (zacht of hard) wint: B6 is alleen de standaardplaats, en de late pass houdt
+      // de mijlpaal op het moment van de constraint (`milestoneConstraintMoment`).
       if (noPreds && isZeroDurationMilestone(task)
+        && ![task.constraint, task.constraint2].some(c => this.milestoneConstraintMoment(task, c, cal))
         && (task.milestoneKind === 'FINISH' || (this.successors.get(taskId)?.length ?? 0) === 0)
         && this.options.schedulingOptions.milestoneWithoutPredecessorAtDayEnd
         && earlyStart.getTime() === this.dayFirstBandStart(cal, earlyStart)?.getTime()) {
@@ -2826,6 +2839,9 @@ export class CPMSolver {
     if (!c?.hard || (c.type !== 'MSO' && c.type !== 'MFO')) return null;
     const d = this.constraintInstant(c, eng);
     if (!d) return null;
+    // Een mijlpaal houdt het ene moment van zijn constraint, zoals de zachte variant.
+    const milestoneMoment = this.milestoneConstraintMoment(task, c, eng);
+    if (milestoneMoment) return milestoneMoment;
     // D2/N1: invoer zonder tijd is al genormaliseerd; behoud de geldige eindgrens.
     const snapped = c.type === 'MFO' && eng.isHourMode
       && this.snapOnOrBefore(eng, d).getTime() === d.getTime()
@@ -2840,6 +2856,8 @@ export class CPMSolver {
     if (!c?.hard || (c.type !== 'MSO' && c.type !== 'MFO')) return null;
     const d = this.constraintInstant(c, eng);
     if (!d) return null;
+    const milestoneMoment = this.milestoneConstraintMoment(task, c, eng);
+    if (milestoneMoment) return milestoneMoment;
     // D2/N1: invoer zonder tijd is al genormaliseerd; behoud de geldige eindgrens.
     const snapped = c.type === 'MFO' && eng.isHourMode
       && this.snapOnOrBefore(eng, d).getTime() === d.getTime()
@@ -2983,12 +3001,23 @@ export class CPMSolver {
     return null;
   }
 
+  /** Een MSO of MFO op een nulduurmijlpaal legt één moment vast: de vroege grens uit
+   *  `forwardBoundOf` (uur-modus). De late grens, de schendingstoets, B6 en de her-snap gebruiken
+   *  hetzelfde moment. Anders valt een grens op een blokbegin (di 07:00) aan de late kant terug naar
+   *  het vorige dageinde (ma 16:00), of schuift een START-mijlpaal van het blokeinde di 16:00 naar wo. */
+  private milestoneConstraintMoment(task: Task, c: TaskConstraint | undefined, eng: CalendarEngine): Date | null {
+    if (!eng.isHourMode || !isZeroDurationMilestone(task) || (c?.type !== 'MSO' && c?.type !== 'MFO')) return null;
+    return this.forwardBoundOf(task, c, eng);
+  }
+
   /** Backward-bovengrens (late finish) van ÉÉN soft constraint, of null zonder backward-
    *  effect. FNLT/MFO ⇒ finish-bovengrens direct; SNLT/MSO ⇒ start-bovengrens vertaald naar de finish.
    *  Dag-modus via `prevWorkDay`/`addWorkingDaysSigned`; uur-modus via de instant-vinders. */
   private backwardBoundOf(task: Task, c: TaskConstraint | undefined, eng: CalendarEngine): Date | null {
     const d = this.constraintInstant(c, eng);
     if (!c || !d) return null;
+    const milestoneMoment = this.milestoneConstraintMoment(task, c, eng);
+    if (milestoneMoment) return milestoneMoment;
     const preserveMilestoneInstant =
       this.options.schedulingOptions?.p6PreserveZeroDurationConstraintInstants === true
       && isZeroDurationMilestone(task) && eng.hasOwnWorkBlocks && c.date?.includes('T');
@@ -3637,6 +3666,10 @@ export class CPMSolver {
           && (this.predecessors.get(taskId)?.length ?? 0) > 0
           && !(this.predecessors.get(taskId) ?? []).some(seq => seq.type === 'FINISH_FINISH' || seq.type === 'START_FINISH')))
         && taskDurationUnit(task) !== 'hours' && !predCal.hasOwnWorkBlocks
+        // Alleen voor een mijlpaal die zelf op het begin van zijn werkdag staat: dan telt hij, zoals in
+        // het dagmodel, op de laatste projectdag als op tijd. Staat hij later op de dag (eigen tijd, het
+        // moment van een MFO), dan zou deze plaats de late kant vóór de mijlpaal zelf leggen.
+        && this.isAtDayFirstBandStart(predCal, earlyDates.get(taskId)?.es)
         ? this.dayFirstBandStart(predCal, projectEnd) ?? projectEnd : projectEnd;
       let lateFinishSource: CpmLateFinishSource = 'projectEnd';
       for (const seq of succs) {
@@ -3725,11 +3758,14 @@ export class CPMSolver {
         && task.time.actualStart !== undefined && task.time.completion > 0 && task.time.completion < 1;
       // Een hele F2-dag kan alleen vóór deze grens eindigen als zijn laatste werkblok past.
       // Een opvolger om woensdag 08:00 laat dus hooguit dinsdag 16:00 toe, niet woensdag 16:00.
+      // De grens is een eindmoment: tel hem bij zijn eigen werkdag (eindkant). Op een 24-uurskalender
+      // is di 00:00 het einde van maandag; dat is al een geldig dageinde en springt niet verder terug.
       if (lateFinishSource === 'successorConstraint' && predCal.isHourMode
         && taskDurationUnit(task) !== 'hours' && !isZeroDurationMilestone(task) && !isElapsedTask(task)) {
-        const dayEnd = this.dayLastBandEnd(predCal, lateFinish);
+        const endDay = workdayDateOfInstant(predCal, lateFinish, 'end');
+        const dayEnd = this.dayLastBandEnd(predCal, endDay);
         if (dayEnd && lateFinish < dayEnd) {
-          const dayStart = this.dayFirstBandStart(predCal, lateFinish);
+          const dayStart = this.dayFirstBandStart(predCal, endDay);
           if (dayStart) lateFinish = predCal.prevWorkInstantBefore(dayStart);
         }
       }

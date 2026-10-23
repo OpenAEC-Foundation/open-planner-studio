@@ -56,6 +56,8 @@ export interface ScheduleAnalysisInput {
   constraintInstant: (c: TaskConstraint | undefined, eng: CalendarEngine) => Date | null;
   snapOnOrAfter: (eng: CalendarEngine, d: Date) => Date;
   snapOnOrBefore: (eng: CalendarEngine, d: Date) => Date;
+  /** Het ene moment van een MSO/MFO op een nulduurmijlpaal (`CPMSolver.milestoneConstraintMoment`), anders null. */
+  milestoneConstraintMoment: (task: Task, c: TaskConstraint | undefined, eng: CalendarEngine) => Date | null;
   modeOf: (eng: CalendarEngine) => DateMode;
   /** Optionele XER-diagnose die de post-pass op haar eigen beslisplekken aanvult. */
   backwardFloatTrace?: CpmBackwardFloatTrace;
@@ -74,7 +76,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     truncatedLeadIds, hardPinViolatedIds, hammockNoFinishDriverIds,
     projectEngine,
     calendarFor, progressCalendarFor, signedFloat,
-    constraintInstant, snapOnOrAfter, snapOnOrBefore, modeOf,
+    constraintInstant, snapOnOrAfter, snapOnOrBefore, milestoneConstraintMoment, modeOf,
     backwardFloatTrace, completedPhysicalPoints,
   } = input;
 
@@ -417,13 +419,15 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
         if (cc.hard && (cc.type === 'MSO' || cc.type === 'MFO')) continue;
         const cd = constraintInstant(cc, cal);
         if (!cd) continue;
-        const dW = snapOnOrBefore(cal, cd);
+        // Een MSO/MFO op een nulduurmijlpaal toetst tegen zijn ene moment, net als de late pass.
+        const moment = milestoneConstraintMoment(task, cc, cal);
+        const dW = moment ?? snapOnOrBefore(cal, cd);
         // N3: vergelijk de equivalente startgrens; dagenmaat gebruikt dezelfde grens (145).
         // Kalendertijd en nulduurmijlpalen houden hun letterlijke moment buiten werktijd.
-        const dS = cal.isHourMode
+        const dS = moment ?? (cal.isHourMode
           && !isElapsedTask(task) && !isZeroDurationMilestone(task)
           ? snapOnOrAfter(cal, cd)
-          : dW;
+          : dW);
         const ct = cc.type;
         if (((ct === 'SNLT' || ct === 'MSO') && early.es > dS)
           || ((ct === 'FNLT' || ct === 'MFO') && early.ef > dW)) {
