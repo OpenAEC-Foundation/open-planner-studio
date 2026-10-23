@@ -559,7 +559,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
           </div>
         </div>
 
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1" data-ops-default-task-measure>
           <label className="text-text-secondary font-medium">
             {tCommon('settings.defaultTaskDurationUnit')}
           </label>
