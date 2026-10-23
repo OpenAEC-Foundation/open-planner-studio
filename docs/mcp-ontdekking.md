@@ -95,10 +95,23 @@ bestandsplugin van Tauri kent geen `realpath`, en een eigen Rust-command daarvoo
 **De lezer vergelijkt bestandsidentiteit, geen tekst.** Vóór elke schrijfactie in de bestandsstand doet de plugin
 voor zijn doel en voor elk pad in `files`: `realpath`, dan `stat`, en vergelijkt het apparaat en het
 bestandsnummer (Node: `dev` + `ino`, op Windows via `fs.stat(pad, { bigint: true })`). Zo vallen een symlink, een
-harde link, een andere schrijfwijze en een `..` in een bovenliggende map samen. Kan de lezer een pad uit `files`
-niet `stat`-en, dan vergelijkt hij de tekst van beide `realpath`-uitkomsten (op Windows en macOS zonder verschil
-tussen hoofd- en kleine letters). Bestaat het doel nog niet, dan vergelijkt hij de map met `realpath` en de naam
-als tekst.
+harde link, een andere schrijfwijze en een `..` in een bovenliggende map samen. Een tekstvergelijking is nooit
+een terugval: twee harde links naar hetzelfde bestand hebben elk een eigen `realpath`.
+
+**Onzekere identiteit ⇒ weigeren.** Mislukt `realpath` of `stat` (voor het doel of voor een pad uit `files`) om
+een andere reden dan "bestaat aantoonbaar niet", dan weigert de plugin de schrijvende aanvraag. Alleen een pad dat
+aantoonbaar niet bestaat (`ENOENT` op dat pad zelf, terwijl de oudermap wel bestaat en `realpath` van die map
+lukt) mag apart behandeld worden: zo'n pad is geen bestaand bestand, dus het deelt met geen ander bestand een
+identiteit. Bestaan het doel en een pad uit `files` allebei aantoonbaar niet (een open document waarvan het bestand
+weg is), dan weigert de plugin als `realpath` van de oudermap plus de naam bij beide gelijk is.
+
+## Invariant voor elke toekomstige `formatVersion`
+
+Het veld `pid` op het hoogste niveau van beide bestanden is in **elke** `formatVersion` een positief geheel getal:
+het proces-id van het eigenaarproces, de app die het bestand schreef. Een nieuwere versie mag andere velden
+veranderen, maar nooit de betekenis of de plaats van `pid`. Alleen daarom mag een lezer een register dat hij niet
+begrijpt, toch vrijgeven als dat proces aantoonbaar niet meer leeft. Wie deze invariant wil breken, moet de
+bestandsnaam veranderen.
 
 ## Regels voor een lezer
 
@@ -110,7 +123,8 @@ als tekst.
      mee, zodat hij kan zien of de app nog leeft.
 
    Voor `runtime.json` betekent *onbruikbaar*: niet verbinden met de app. Voor `open-files.json` betekent
-   *onbruikbaar* **nooit** schrijftoestemming. `openFilesWritePolicy` legt dat vast:
+   *onbruikbaar*: weiger elke schrijvende aanvraag, behalve als het register een geldig `pid` draagt en dat proces
+   aantoonbaar niet meer leeft (dan is het register achtergebleven). `openFilesWritePolicy` legt dat vast:
 
    | Register | App leeft | App leeft mogelijk (onbekend) | App leeft niet |
    |---|---|---|---|

@@ -32,7 +32,7 @@ export const MCP_DISCOVERY_TMP_SUFFIX = '.tmp';
 /** Inhoud van `runtime.json`. */
 export interface McpRuntimeFile {
   formatVersion: 1;
-  /** Proces-id van de app (het Rust-proces, niet de webview). */
+  /** Proces-id van de app (het Rust-proces, niet de webview). Invariant: in elke formatVersion het eigenaarproces. */
   pid: number;
   /** TCP-poort van de bridge op `127.0.0.1`. */
   port: number;
@@ -47,7 +47,7 @@ export interface McpRuntimeFile {
 /** Inhoud van `open-files.json`. */
 export interface McpOpenFilesFile {
   formatVersion: 1;
-  /** Proces-id van de app (het Rust-proces, niet de webview). */
+  /** Proces-id van de app (het Rust-proces, niet de webview). Invariant: in elke formatVersion het eigenaarproces. */
   pid: number;
   /** Versie van de app. */
   appVersion: string;
@@ -124,7 +124,9 @@ export function serializeDiscoveryFile(file: McpRuntimeFile | McpOpenFilesFile):
 // Wie het register gebruikt om te beslissen of hij mag schrijven, vergelijkt BESTANDSIDENTITEIT, geen
 // tekst: `realpath` van beide kanten en dan `stat` (dev + ino; op Windows het bestandsindex-nummer via
 // `fs.stat(…, { bigint: true })`). Zo vallen ook symlinks, harde links en andere schrijfwijzen samen.
-// Zie `docs/mcp-ontdekking.md`.
+// Een tekstvergelijking is nooit een terugval (twee harde links hebben elk een eigen realpath). Mislukt
+// `realpath` of `stat` om een andere reden dan "bestaat aantoonbaar niet" (ENOENT op het pad zelf, met een
+// bestaande oudermap), dan weigert de lezer het schrijven. Zie `docs/mcp-ontdekking.md`.
 
 /** Ontdubbel en sorteer (vaste volgorde ⇒ geen onnodige schrijfactie); paden blijven letterlijk. */
 export function openFileList(paths: readonly string[]): string[] {
@@ -165,7 +167,12 @@ export function openFilePathsFromDocuments(docs: readonly DiscoveryDocumentField
 //
 // Drie uitkomsten, nooit twee: een bestand dat er WEL is maar dat de lezer niet begrijpt (kapotte JSON,
 // verkeerd veldtype, andere `formatVersion`, bijv. van een nieuwere app) is iets anders dan een bestand
-// dat er niet is. Voor het register betekent "onbruikbaar" dus nooit schrijftoestemming.
+// dat er niet is. Voor het register betekent "onbruikbaar": weigeren, behalve als het een geldig `pid`
+// draagt van een proces dat aantoonbaar niet meer leeft (zie `openFilesWritePolicy`).
+//
+// INVARIANT voor elke toekomstige `formatVersion`: het veld `pid` op het hoogste niveau is altijd het
+// proces-id van het eigenaarproces (de app die het bestand schreef). Alleen daarom mag een lezer een
+// onbruikbaar register met een dood pid vrijgeven. Wie dit wil breken, verandert de bestandsnaam.
 
 /** Uitkomst van het lezen van één ontdekkingsbestand. */
 export type DiscoveryRead<T> =
