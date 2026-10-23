@@ -853,6 +853,13 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
   const calById = new Map<string, WorkCalendar>([calendar, ...resourceCalendars].map(c => [c.id, c]));
   const effCalIdOf = (calObjId: number): string => calObjIdToId.get(calObjId) ?? calendar.id;
 
+  // Werkelijke datums. `Not Started` wint van werkelijke datums (zoals het percentage,
+  // `p6ActivityCompletionPercent`): sommige tools vullen ActualStart/Finish met een vuldatum
+  // (aspose_p6_multiproject: 2000-01-01), en dan opende elke niet-gestarte taak als 100 % klaar. Bij een
+  // OPS-export is de status geen bron. Dezelfde regel geldt voor de uur-modus-beslissing hieronder.
+  const actualDateRaw = (actEl: Element, field: 'ActualStartDate' | 'ActualFinishDate'): string =>
+    !writtenByOps && getElementText(actEl, 'Status').trim() === 'Not Started' ? '' : getElementText(actEl, field);
+
   const cSignalCalIds = new Set<string>();
   for (const actEl of activityElements) {
     const calId = effCalIdOf(getElementInt(actEl, 'CalendarObjectId', -1));
@@ -860,10 +867,15 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     if (!cal) continue;
     const durHours = getElementFloat(actEl, 'PlannedDuration');
     const durSignal = durHours > 0 && isSubDayMinutes(Math.round(durHours * 60), cal.hoursPerDay);
-    const dateSignal = ['PlannedStartDate', 'PlannedFinishDate'].some(field => {
-      const raw = getElementText(actEl, field);
-      return hasNonAnchorTime(raw, DAY_TIME_ANCHOR) && importDateTimeOrUndefined(raw, true) !== undefined;
-    });
+    // Ook een werkelijke datum met een eigen tijd telt: een feit uit de bron. Anders blijft de kalender
+    // scalair, kapt de lezer "11:00" af tot de datum, en maakt de laadnormalisatie er 16:00 van (review
+    // ronde 3 van PR #559, deel B: een voltooide eindmijlpaal met geplande datums op het anker).
+    const dateSignal = [
+      getElementText(actEl, 'PlannedStartDate'),
+      getElementText(actEl, 'PlannedFinishDate'),
+      actualDateRaw(actEl, 'ActualStartDate'),
+      actualDateRaw(actEl, 'ActualFinishDate'),
+    ].some(raw => hasNonAnchorTime(raw, DAY_TIME_ANCHOR) && importDateTimeOrUndefined(raw, true) !== undefined);
     if (durSignal || dateSignal) cSignalCalIds.add(calId);
   }
   // P6 valt terug op de scalar-synth zodra de geregistreerde canonical geen werkdag draagt
@@ -951,13 +963,10 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
       if (recorded) recordedTimes[id] = recorded;
     }
 
-    // Actuals — leeg ⇒ undefined (invarianten via normalizeImportedProgress).
-    // `Not Started` wint van werkelijke datums (zoals het percentage, `p6ActivityCompletionPercent`):
-    // sommige tools vullen ActualStart/Finish met een vuldatum (aspose_p6_multiproject: 2000-01-01),
-    // en dan opende elke niet-gestarte taak als 100 % klaar. Bij een OPS-export is de status geen bron.
-    const notStarted = !writtenByOps && getElementText(actEl, 'Status').trim() === 'Not Started';
-    const actualStartRaw = notStarted ? '' : getElementText(actEl, 'ActualStartDate');
-    const actualFinishRaw = notStarted ? '' : getElementText(actEl, 'ActualFinishDate');
+    // Actuals — leeg ⇒ undefined (invarianten via normalizeImportedProgress). `Not Started` wint:
+    // zie `actualDateRaw`.
+    const actualStartRaw = actualDateRaw(actEl, 'ActualStartDate');
+    const actualFinishRaw = actualDateRaw(actEl, 'ActualFinishDate');
     const remainingRaw = getElementText(actEl, 'RemainingDuration');
     const actualStart = parseTaskDate(actualStartRaw);
     const actualFinish = parseTaskDate(actualFinishRaw);
