@@ -69,6 +69,17 @@ sessieheader), pas dan `bridgeMirror.ts` mee aan. Dezelfde controles (`tests/mcp
 Rust-unit-tests van de bridge (`cargo test … mcp_bridge`), die geen andere workflow draait. Wat geleverd is en wat
 niet: `docs/mcp-verificatie.md`.
 
+**Claude Desktop-bundel.** `integrations/claude-desktop/` is een MCP Bundle (`.mcpb`): een stdio-server die elk
+bericht doorstuurt naar de bridge van de draaiende app (`src/proxy.ts`), met token en poort uit het
+installatievenster (`src/config.ts`). `proxy.ts` blijft vrij van manifest-, transport- en clientcode: de bundel is een
+tussenstap en de module gaat op in de ene plugin uit #570. Geen planner, geen kern; `scripts/build-mcpb.mjs` faalt als `src/` in de bundel komt.
+Wijzig je het HTTP-contract van de bridge (statuscodes, sessieheader, `404` bij een onbekende sessie), loop dan ook
+`proxy.ts` na; `tests/mcp/cases-mcpb.ts` start de gebouwde server uit de ZIP tegen `bridgeMirror.ts`. Een
+wijzigende tool wordt na sessieverlies bewust niet herhaald (het drift-anker is dan weg), en daarna blijven wijzigingen
+geweigerd tot een geslaagde `planner_switch_document` het anker opnieuw bindt; hernoem of verander je die tool, loop dan
+`DOCUMENT_CHOICE_TOOL` in `proxy.ts` na; welke tools lezen, haalt
+de bundel uit `readOnlyHint` in `tools/list`.
+
 **Ontdekkingsbestanden voor de MCP-plugin** (issue #570). `runtime.json` (zolang de bridge draait) en
 `open-files.json` (zolang de desktop-app draait, ook met de MCP-koppeling uit) in `<appDataDir>/mcp/`. Contract
 in `discoveryContract.ts` (importeert niets; de plugin bundelt hem), schrijver in `discoveryFiles.ts` (één

@@ -1,0 +1,63 @@
+name: Claude Desktop-bundel
+
+# Bouwt de Claude Desktop-bundel (`npm run build:mcpb`) en controleert het manifest met de
+# officiële MCPB-CLI (`mcpb validate`, versie vast). De werking via stdio tegen de bridge toetst
+# `tests/mcp/cases-mcpb.ts` in `npm test`; dit is alleen de schemacontrole, die een download van
+# de CLI vraagt en daarom niet in `verify` zit. Zie docs/mcp-verificatie.md.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - 'integrations/**'
+      - 'scripts/build-mcpb.mjs'
+      - 'scripts/lib/third-party-notices.mjs'
+      - 'src/services/zip/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/mcpb.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mcpb-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Dezelfde vaste versie als in release.yml.
+  MCPB_CLI: '@anthropic-ai/mcpb@2.1.2'
+
+jobs:
+  validate:
+    name: bouwen + mcpb validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies (npm ci)
+        run: npm ci
+      - name: Bundel bouwen (npm run build:mcpb)
+        run: npm run build:mcpb
+      - name: Manifest valideren (mcpb validate)
+        env:
+          npm_config_ignore_scripts: 'true'
+        run: npx --yes "$MCPB_CLI" validate dist-mcpb/bundle/manifest.json
+      - name: Bundel bekijken (mcpb info)
+        env:
+          npm_config_ignore_scripts: 'true'
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          npx --yes "$MCPB_CLI" info "dist-mcpb/open-planner-studio-${version}.mcpb"
+      - name: Bundel bewaren als artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: open-planner-studio-mcpb
+          path: dist-mcpb/*.mcpb
+          retention-days: 7

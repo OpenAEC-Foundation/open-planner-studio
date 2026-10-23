@@ -1,5 +1,6 @@
 {
-  // Typecheck-config voor de code BUITEN src/: `scripts/` en `tests/`.
+  // Typecheck-config voor de code BUITEN src/: `scripts/`, `tests/` en `integrations/` (de Claude
+  // Desktop-bundel, die ook op Node draait).
   //
   // Waarom dit bestaat (bevinding K10b): de hoofd-tsconfig heeft `include: ["src"]`, dus die
   // ~19k regels TypeScript werden nooit door tsc gezien. Ze draaien via esbuild, en esbuild
@@ -19,5 +20,5 @@
   // .d.ts-declaratiebestanden niet automatisch op (idem tests/planning/tsconfig.check.json).
   // (`src/vite-env.d.ts` levert `__APP_VERSION__` en `import.meta.env`, die de geïmporteerde
   // src-modules gebruiken; `file-system-access.d.ts` de FSA-typen achter fileAccess/webBackend.)
-  "include": ["scripts", "tests", "src/vite-env.d.ts", "src/types/file-system-access.d.ts"]
+  "include": ["scripts", "tests", "integrations", "src/vite-env.d.ts", "src/types/file-system-access.d.ts"]
 }

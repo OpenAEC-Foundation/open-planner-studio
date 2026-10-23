@@ -30,6 +30,7 @@ npm run tauri:dev    # desktop app, same port assignment
 npm run build        # tsc && vite build → dist/
 npm run build:platform -- --base /pad/   # platform build for the OpenAEC app on Frappe → dist-platform/
 npm run build:core   # headless core package @openaec/open-planner-core → dist-core/ (not published)
+npm run build:mcpb   # Claude Desktop extension (MCP Bundle) → dist-mcpb/open-planner-studio-<version>.mcpb
 npm run verify       # THE gate — the same steps as CI (split in parallel), release and deploy gate
 npm run typecheck    # tsc over src/ AND scripts/+tests/ — use this, not just build (incremental)
 npm run lint         # deliberately minimal ESLint (promises, control-regex, React hooks)
@@ -98,6 +99,7 @@ Node 22 (see CI). Rust stable only for the `tauri:*` commands.
 
 Workflows outside `verify` (depth: `ci-release` and `mcp` rules): `headless-api.yml` (HTTP API, container, `cfn-lint`),
 `release-verify.yml` (checks a published release on clean runners: updater `.sig`s, digests, install, signatures),
+`mcpb.yml` (builds the Claude Desktop bundle and checks its manifest with the pinned official `mcpb validate`),
 `windows-sign-check.yml` / `macos-sign-check.yml` (prove signing on a PR, without a tag), `mcp-real-app.yml` (MCP
 bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`, `docs/mcp-verificatie.md`.
 
@@ -142,6 +144,7 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
 | i18n key | `npm run verify:i18n` |
 | UI change | `node scripts/run-browser-tests.mjs tests/browser/smoke.spec.ts` (or a targeted spec), plus `window.__OPS__` |
 | MCP tool | `bash tests/mcp/run.sh cases-<x>.ts` |
+| Claude Desktop bundle (`integrations/claude-desktop/`) | `bash tests/mcp/run.sh cases-mcpb.ts` (builds the bundle, runs it over stdio against `bridgeMirror`) |
 | library code | `bash tests/library/run.sh [check-<x>.ts]` |
 | in-app docs/guides | `npm run verify:docs` |
 | before push | the targeted checks above; the full `npm run verify` runs in CI on the PR |
@@ -156,6 +159,12 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   none of the platform switches. Differences go only through the constants in `src/utils/buildFlags.ts` (extensions, demo start and
   AI mode are off there) — never read `VITE_OPS_PLATFORM` directly. Own assets always via `import.meta.env.BASE_URL`.
   Detail: `docs/platformbouw.md`.
+- **Claude Desktop bundle = a plug, not a planner.** `integrations/claude-desktop/` (`manifest.json` +
+  `src/proxy.ts`) is an MCP Bundle (`.mcpb`) whose stdio server forwards every message to the bridge of the
+  running desktop app (`127.0.0.1:<port>/mcp`, token and port from the install dialog). It must never contain
+  app code; `build:mcpb` fails if `src/` ends up in the bundle. Keep `proxy.ts` free of manifest, transport and
+  client code (that lives in `main.ts`/`config.ts`): it is an interim step and moves into the single plugin of #570. Its manifest version is in the bump register;
+  `release.yml` (job `build-mcpb`) attaches it to every release. Detail: `docs/mcp-verificatie.md`.
 - **Rust is thin.** Exactly three commands (`install_kind`, `mcp_bridge_start`, `mcp_bridge_stop`); every new
   command is public surface. File I/O: extend `src/services/fileAccess/`, not a Rust command. One command-less
   plugin, `ops-process-info`, injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`).
@@ -371,6 +380,7 @@ Design docs: start at `docs/superpowers/README.md` — read them as *why*, not a
 | Store composition root | `src/state/appStore.ts` (factory: `src/state/appStoreFactory.ts`) |
 | Headless core (package API) | `src/core/`, build `scripts/build-core.mjs`, consumer `headless/consumer-example/` |
 | Headless HTTP API, container, AWS | `headless/server/`, `deploy/aws/ecs-fargate.yaml`, `.github/workflows/headless-api.yml` |
+| Claude Desktop bundle (`.mcpb`) | `integrations/claude-desktop/`, build `scripts/build-mcpb.mjs`, test `tests/mcp/cases-mcpb.ts`, `.github/workflows/mcpb.yml` |
 | Slices | `src/state/slices/` |
 | CPM solver / calendar engine | `src/engine/scheduler/`, `src/engine/calendar/` |
 | Canvas renderer | `src/engine/renderer/` |

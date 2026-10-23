@@ -31,7 +31,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'dist-core/**', 'node_modules/**', 'src-tauri/**', 'public/**', 'tests/**/.*.mjs'],
+    ignores: ['dist/**', 'dist-core/**', 'dist-mcpb/**', 'node_modules/**', 'src-tauri/**', 'public/**', 'tests/**/.*.mjs'],
   },
   {
     files: ['src/**/*.{ts,tsx}'],
