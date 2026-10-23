@@ -543,7 +543,7 @@ export const TASK_FIELD_SCHEMA_PROPERTIES: Record<string, unknown> = {
     description:
       'Task duration in the MEASURE of `durationUnit`. Without `durationUnit` it is in days and the task gets ' +
       'the DAY MEASURE (backward compatible). Day measure: working days on the task calendar; a fraction is ' +
-      'allowed and stored exactly (the bridge does not round 2.5 to 3). In the OPS profile one working ' +
+      'allowed and kept exactly (2.5 = two and a half working days). In the OPS profile one working ' +
       'day counts as one day, whatever its hours; in the P6 and MS Project profiles days × the working time ' +
       'per day. Hour measure: working hours (1.5 = 1 h 30 min). A FIXED_WORK task (`workRule`) always has the ' +
       'hour measure: days are converted at the working time per day (3 d = 24 h at 8 h/day). Milestone ⇒ ' +
