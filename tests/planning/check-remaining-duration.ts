@@ -148,6 +148,24 @@ const DAY_30 = { remainingMinutes: undefined, remainingTime: 3.5 };
   eq('lezer: taak zonder voortgang blijft ongemoeid', rem(untouched), { remainingMinutes: undefined, remainingTime: undefined });
 }
 
+// ── 2b. Raster: urentaak op een kalender ZONDER eigen werkblokken (geen uurmodus) ──────────────
+// Vast werk maakt een taak urenmaat op elke kalender (B1a), ook op de standaardkalender. De rest van
+// een urentaak heeft `remainingMinutes` als bron (spec §3.5); de rastercel schreef die alleen in
+// uurmodus, en wiste hem hier.
+{
+  S().newProject();
+  S().setProject({ startDate: '2026-06-01', name: 'G4b' });
+  S().setStatusDate('2026-06-03');
+  const u = S().addTask({ name: 'U', time: { durationUnit: 'hours', durationMinutes: 1440 } as Task['time'] });
+  S().runCPM();
+  eq('raster zonder blokken: voorwaarde 1440 min urenmaat, kalender zonder eigen blokken',
+    [task(u).time.durationUnit, task(u).time.durationMinutes, S().calendar.workTime === undefined], ['hours', 1440, true]);
+  const e = runGridMutation([{ kind: 'cell-edit', taskId: u, columnId: 'task.time.remainingTime' as CellEditIntent['columnId'], route: 'task-progress', value: 600 }]);
+  eq('raster zonder blokken: ingevoerde rest 10 u geaccepteerd', e.ok, true);
+  eq('raster zonder blokken: rest 600 min als bron, 1,25 d afgeleid; 7/12 gedaan',
+    [rem(task(u)), task(u).time.completion], [{ remainingMinutes: 600, remainingTime: 1.25 }, 1 - 600 / 1440]);
+}
+
 if (diffs.length === 0) {
   console.log(`OK  remaining-duration: alle checks groen (${checks})`);
   process.exit(0);
