@@ -124,7 +124,7 @@ levelFixture('korte vrijdag: kandidaat en solvertoepassing', [
   final: [['fixed', '2026-06-03T14:00', '2026-06-04T15:00'],
     ['t', '2026-06-08T08:00', '2026-06-09T08:00'], ['later', '2026-06-10T07:00', '2026-06-10T15:00']],
 });
-// Dezelfde korte vrijdag, nu met een opvolger `s` (FS) van `t` op dezelfde resource. De PF van `s` komt
+// Dezelfde korte vrijdag, nu met een opvolger `s` (eind-start) van `t` op dezelfde resource. De PF van `s` komt
 // uit de werkkopie van de nivelleerder; daar staat de vertraging van `t` óók in minuten (960), net als
 // straks in de solver. Dus `t` ma 08:00 → di 08:00 en `s` vanaf di 08:00: di 0,125 + 0,875 = 1, past.
 // Stond in de werkkopie alleen `levelingDelay` (2 werkdagen, `addWorkingDaysSigned`), dan las de lus
@@ -138,7 +138,7 @@ levelFixture('korte vrijdag: opvolger leest de vertraging in minuten', [
   load: { '2026-06-03': 0.125, '2026-06-04': 1, '2026-06-08': 0.875, '2026-06-09': 1, '2026-06-10': 0.125 },
   final: [['fixed', '2026-06-03T14:00', '2026-06-04T15:00'],
     ['t', '2026-06-08T08:00', '2026-06-09T08:00'], ['s', '2026-06-09T08:00', '2026-06-10T08:00']],
-}, {}, OPS, [{ id: 'ts', predecessorId: 't', successorId: 's', type: 'FS', lagDays: 0 }]);
+}, {}, OPS, [{ id: 'ts', predecessorId: 't', successorId: 's', type: 'FINISH_START', lagDays: 0 }]);
 // Eis 2, dagtaak onder OPS (dagenmaat): 1 werkdag is op vrijdag de hele korte dag (vr 07:00-13:00 = 1).
 // Alleen de minuten zijn nieuw (B1, §3.11): ma, di, wo en do overgeslagen = 4 × 480.
 levelFixture('dagtaak met tijdstippen', [
