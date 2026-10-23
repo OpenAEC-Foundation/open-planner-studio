@@ -387,7 +387,6 @@
       "resourceAddsWork": "يُضيف مورد إضافي عملًا.",
       "resourceSharesWork": "يتولّى مورد إضافي جزءًا من العمل؛ وتنخفض الوحدات لكل مورد.",
       "resourceShorter": "يجعل مورد إضافي المهمة أقصر.",
-      "resourceShorterWholeDays": "يجعل مورد إضافي المهمة أقصر، مقرّبًا إلى أيام كاملة.",
       "resourceAddsWorkSameDuration": "يُضيف مورد إضافي عملًا؛ وتبقى المدة كما هي."
     },
     "info": "شرح نوع المهمة"

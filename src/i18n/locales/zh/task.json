@@ -367,7 +367,6 @@
       "resourceAddsWork": "额外的资源会增加工时。",
       "resourceSharesWork": "额外的资源会分担一部分工时；每个资源的单位会下降。",
       "resourceShorter": "额外的资源会缩短任务。",
-      "resourceShorterWholeDays": "额外的资源会缩短任务，结果取整到整天。",
       "resourceAddsWorkSameDuration": "额外的资源会增加工时；工期保持不变。"
     },
     "info": "任务类型说明"

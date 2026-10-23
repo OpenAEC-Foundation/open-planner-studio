@@ -32,6 +32,7 @@ import { TaskWorkRuleField } from '@/components/task-sections/TaskWorkRuleField'
 import { TaskCodesFieldsSection } from '@/components/task-sections/TaskCodesFieldsSection';
 import { TaskDurationField } from '@/components/task-sections/TaskDurationField';
 import { TASK_PROPERTIES_HELP_ARTICLE_ID } from '@/state/helpArticles';
+import { defaultTaskMeasure } from '@/state/newTaskMeasure';
 
 /** Lege draft voor de (in de praktijk onbereikbare) "nieuwe taak"-tak:
  *  een vangnet, geen actieve UI-ingang roept de dialoog ooit met `editingTaskId: null` aan. */
@@ -68,7 +69,8 @@ export function TaskDialog() {
   // `onChange(patch)` — commit pas op Save. De RELATIONELE secties (afhankelijkheden/toewijzingen/
   // codes&velden/CPM-resultaat) werken rechtstreeks op de store via `taskId` (identiek aan het
   // paneel) en raken de draft niet.
-  const newTaskUnit = project.defaultTaskDurationUnit ?? 'days';
+  // Standaardmaat voor nieuwe taken (B1a): de gekozen maat, of urenmaat onder P6/MSP (`newTaskMeasure.ts`).
+  const newTaskUnit = defaultTaskMeasure(project);
   const [draft, setDraft] = useState<Task>(() => blankDraft(project.startDate, constructionMode, newTaskUnit));
   const onChange = (patch: Partial<Task>) => setDraft(d => ({ ...d, ...patch }));
 

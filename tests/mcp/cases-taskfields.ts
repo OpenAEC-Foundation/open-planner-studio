@@ -370,8 +370,9 @@ test('duration in dagen: een fractie wordt geaccepteerd en exact bewaard, en de 
   assertEq(taskById(id)!.time.scheduleDuration, 2.5, 'add_tasks bewaart 2.5 dag exact (niet afgerond)');
   assertEq(taskById(id)!.time.durationUnit, 'days', 'het blijft een dagtaak');
   // F3 (alleen uren §3.4/§3.14, B1): de dagenmaat telt het halve dagdeel mee. 2.5 dag begint op dezelfde
-  // dag als een taak van 3 en eindigt halverwege de derde werkdag, niet aan het einde ervan. (De
-  // schemabeschrijving "2.5 ⇒ 3" in `taskFields.ts` hoort bij F3c deel 2; gemeld.)
+  // dag als een taak van 3 en eindigt halverwege de derde werkdag, niet aan het einde ervan. De
+  // schemabeschrijving van `duration` belooft dat ook ("kept exactly", §3.13). Was in F3c-winkel een
+  // tussenstand (B2, "2,5 ⇒ 3"); met de motor erbij is het doel gehaald.
   const drie = taskById(created.created['tmp-3'])!.time;
   const fractie = taskById(id)!.time;
   assertEq(fractie.earlyStart, drie.earlyStart, '2.5 dag begint op dezelfde dag als een taak van 3');

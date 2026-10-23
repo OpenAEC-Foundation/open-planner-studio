@@ -182,6 +182,7 @@
       "calendarNotFound": "De gekozen kalender bestaat niet.",
       "calendarHours": "De kalender van deze taak heeft geen werkuren per dag.",
       "durationConversionNotExact": "Deze duur is niet exact naar de andere eenheid om te rekenen.",
+      "fixedWorkIsHours": "Een taak met vast werk heeft altijd de urenmaat.",
       "milestoneRequired": "Dit veld geldt alleen voor mijlpalen.",
       "milestoneUnavailable": "Een samenvattingstaak met subtaken kan geen mijlpaal worden.",
       "actualAfterStatusDate": "De werkelijke datum ligt na de statusdatum.",
@@ -371,7 +372,6 @@
       "resourceAddsWork": "Een extra resource voegt werk toe.",
       "resourceSharesWork": "Een extra resource neemt een deel van het werk over; de inzet per resource daalt.",
       "resourceShorter": "Een extra resource maakt de taak korter.",
-      "resourceShorterWholeDays": "Een extra resource maakt de taak korter, afgerond op hele dagen.",
       "resourceAddsWorkSameDuration": "Een extra resource voegt werk toe; de duur blijft gelijk."
     },
     "info": "Uitleg bij het taaktype"

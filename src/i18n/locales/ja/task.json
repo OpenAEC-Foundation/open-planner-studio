@@ -367,7 +367,6 @@
       "resourceAddsWork": "追加のリソースは作業を増やします。",
       "resourceSharesWork": "追加のリソースが作業の一部を引き継ぎます。リソースごとの単位数は下がります。",
       "resourceShorter": "追加のリソースにより、タスクが短くなります。",
-      "resourceShorterWholeDays": "追加のリソースにより、タスクが短くなります。結果は日単位に丸められます。",
       "resourceAddsWorkSameDuration": "追加のリソースは作業を増やします。期間は同じままです。"
     },
     "info": "タスク種類の説明"

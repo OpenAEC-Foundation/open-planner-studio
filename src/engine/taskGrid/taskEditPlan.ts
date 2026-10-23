@@ -1,5 +1,7 @@
 import { WORK_RULES, type WorkRule } from '@/types/workRule';
-import { carryRemainingThroughDurationEdit } from '@/engine/work/workRuleApply';
+import {
+  carryRemainingThroughDurationEdit, effectiveWorkRule, routeFixedWorkDurationToHours, workRuleApplies,
+} from '@/engine/work/workRuleApply';
 import { validateConstraintPair, withPrimaryConstraint } from '@/engine/scheduler/constraintValidation';
 import { milestoneRefusal, taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { decodeDynamicTaskColumnId } from '@/engine/taskGrid/fieldIds';
@@ -85,6 +87,9 @@ export interface TaskEditPlanEnvironment {
    *  (`utils/taskDefaults.ts`'s `contourKeepsWork`). Afwezig ⇒ de MSP-afleiding in
    *  `rescaleTaskContours`. */
   contourKeepsWork?: boolean;
+  /** `Project.defaultWorkRule`, voor de effectieve werkregel van een taak zonder eigen regel. Vast
+   *  werk is altijd urenmaat (B1a): een duur in werkdagen gaat dan naar de urenbron. */
+  defaultWorkRule?: WorkRule;
   /** Wordt de start van DEZE taak door een voorganger bepaald (`predecessorDrivenTaskIds`)? Alleen
    *  nodig voor een getypte start (kolommen Start/Geplande start); afwezig ⇒ nee. Een getypte start
    *  wordt dan een beperking "Start niet eerder dan" (`startConstraintAfterEdit`). */
@@ -188,6 +193,9 @@ function finishDurationEdit(
 ): GridResult<boolean, readonly CellValidationError[]> {
   const hoursPerDay = environment.effectiveHoursPerDay;
   const usableHours = Number.isFinite(hoursPerDay) && hoursPerDay > 0;
+  // B1a: vast werk is altijd urenmaat. Een duur in werkdagen ("5d", een kaal getal op een oude
+  // dagtaak, een nieuw einde) gaat eerst naar de urenbron; de nazorg hieronder rekent dan in minuten.
+  routeFixedWorkDurationToHours(task, before, task.time, environment.defaultWorkRule, hoursPerDay);
   const oldWorkMinutes = taskWorkMinutes(before, hoursPerDay);
   // De rest schuift mee met de duurwijziging, het percentage volgt;
   // korter dan het gedane werk wordt geweigerd.
@@ -406,6 +414,9 @@ function applyScheduleEdit(
     if (edit.value !== 'days' && edit.value !== 'hours') return failure('enum', edit);
     const target = edit.value as TaskDurationUnit;
     if (target === task.time.durationUnit) return { ok: true, value: false };
+    // B1a: geen invoer maakt een taak onder vast werk dagenmaat (spec §3.12, B8).
+    if (target === 'days' && workRuleApplies(task)
+      && effectiveWorkRule(task, environment.defaultWorkRule) === 'FIXED_WORK') return failure('fixedWorkIsHours', edit);
     if (!environment.effectiveCalendar) return failure('calendarNotFound', edit);
     const proposal = convertTaskDurationUnit(task, target, environment.effectiveCalendar);
     if (!proposal) return failure('durationConversionNotExact', edit);
@@ -433,10 +444,13 @@ function applyScheduleEdit(
     const hoursPerDay = environment.effectiveHoursPerDay;
     if (!Number.isFinite(hoursPerDay) || hoursPerDay <= 0) return failure('calendarHours', edit);
     const days = edit.value / (hoursPerDay * 60);
+    // Een urenmaat-taak houdt haar minutenbron, ook op een kalender zonder eigen werkblokken: anders
+    // bleef er een urentaak zonder `durationMinutes` over ("Ongeldige urenduur").
+    const writeMinutes = minuteAxis(task, environment);
     if (task.time.scheduleDuration !== days
-      || (environment.hourMode ? task.time.durationMinutes !== edit.value : task.time.durationMinutes !== undefined)) {
+      || (writeMinutes ? task.time.durationMinutes !== edit.value : task.time.durationMinutes !== undefined)) {
       task.time.scheduleDuration = days;
-      if (environment.hourMode) task.time.durationMinutes = edit.value;
+      if (writeMinutes) task.time.durationMinutes = edit.value;
       else delete task.time.durationMinutes;
       const finished = finishDurationEdit(task, timeBefore, environment, edit);
       if (!finished.ok) return finished;
@@ -568,9 +582,15 @@ function applyStatus(task: Task, status: TaskStatus, statusDate: string | undefi
   }
 }
 
+/** Rekent deze taak in minuten? In uurmodus, of als de taak zelf urenmaat is: dan is `durationMinutes`
+ *  haar bron, ook op een kalender zonder eigen werkblokken (bv. vast werk, B1a). */
+function minuteAxis(task: Task, environment: TaskEditPlanEnvironment): boolean {
+  return environment.hourMode || task.time.durationUnit === 'hours';
+}
+
 /** Voortgang die een ingevoerde actuele (`remaining` onwaar) of resterende duur in minuten
- *  impliceert, op de as van de taak: minuten in uurmodus, werkdagen anders. Zonder duur (of met een
- *  onbruikbaar totaal) telt de taak als voltooid. */
+ *  impliceert, op de as van de taak: minuten op de minutenas ({@link minuteAxis}), werkdagen anders.
+ *  Zonder duur (of met een onbruikbaar totaal) telt de taak als voltooid. */
 function completionFromDuration(
   task: Task,
   minutes: number,
@@ -578,18 +598,20 @@ function completionFromDuration(
   environment: TaskEditPlanEnvironment,
 ): number {
   const hoursPerDay = environment.effectiveHoursPerDay;
-  const total = environment.hourMode
+  const inMinutes = minuteAxis(task, environment);
+  const total = inMinutes
     ? task.time.durationMinutes ?? task.time.scheduleDuration * hoursPerDay * 60
     : task.time.scheduleDuration;
   if (!(total > 0)) return 1;
-  const own = (environment.hourMode ? minutes : minutes / (hoursPerDay * 60)) / total;
+  const own = (inMinutes ? minutes : minutes / (hoursPerDay * 60)) / total;
   return Math.max(0, Math.min(1, remaining ? 1 - own : own));
 }
 
-/** Een ingevoerde resterende duur (minuten, of gewist) in dagen; `remainingMinutes` alleen in uurmodus. */
+/** Een ingevoerde resterende duur (minuten, of gewist) in dagen; `remainingMinutes` alleen op de
+ *  minutenas ({@link minuteAxis}): bij een urentaak is dat de bron van de rest (spec §3.5). */
 function writeRemaining(task: Task, minutes: number | undefined, environment: TaskEditPlanEnvironment): void {
   task.time.remainingTime = minutes === undefined ? undefined : minutes / (environment.effectiveHoursPerDay * 60);
-  task.time.remainingMinutes = environment.hourMode && minutes !== undefined ? minutes : undefined;
+  task.time.remainingMinutes = minuteAxis(task, environment) && minutes !== undefined ? minutes : undefined;
 }
 
 function applyProgressEdit(

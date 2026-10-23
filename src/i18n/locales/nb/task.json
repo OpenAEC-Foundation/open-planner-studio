@@ -371,7 +371,6 @@
       "resourceAddsWork": "En ekstra ressurs legger til arbeid.",
       "resourceSharesWork": "En ekstra ressurs tar over en del av arbeidet; tildelingsenhetene per ressurs synker.",
       "resourceShorter": "En ekstra ressurs gjør aktiviteten kortere.",
-      "resourceShorterWholeDays": "En ekstra ressurs gjør aktiviteten kortere, avrundet til hele dager.",
       "resourceAddsWorkSameDuration": "En ekstra ressurs legger til arbeid; varigheten er uendret."
     },
     "info": "Forklaring av aktivitetstype"

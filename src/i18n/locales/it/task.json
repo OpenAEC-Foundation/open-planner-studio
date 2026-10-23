@@ -375,7 +375,6 @@
       "resourceAddsWork": "Una risorsa in più aggiunge lavoro.",
       "resourceSharesWork": "Una risorsa in più prende in carico una parte del lavoro; le unità per risorsa diminuiscono.",
       "resourceShorter": "Una risorsa in più rende l'attività più breve.",
-      "resourceShorterWholeDays": "Una risorsa in più rende l'attività più breve, arrotondata a giorni interi.",
       "resourceAddsWorkSameDuration": "Una risorsa in più aggiunge lavoro; la durata resta uguale."
     },
     "info": "Spiegazione del tipo di attività"

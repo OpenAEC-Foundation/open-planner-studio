@@ -204,7 +204,7 @@ async function main(): Promise<void> {
     const f = await plasterBase('FIXED_WORK');
     S().updateAssignment(asg(f.id).id, { unitsPerDay: 3 });
     S().runCPM();
-    eq('Vast werk, inzet 3: 2 werkdagen (32 / 24 = 1,33 naar boven)', dur(f.id), 2);
+    eq('Vast werk, inzet 3: exact 4/3 werkdagen (32 / 24)', dur(f.id), 4 / 3);
     eq('Vast werk, inzet 3: histogram 2 per dag', dayLoad(f.id, f.res), [2, 2]);
   }
   {
@@ -212,14 +212,14 @@ async function main(): Promise<void> {
     const r2 = S().addResource({ name: 'Stukadoor 2', type: 'SUBCONTRACTOR', description: '', maxUnits: 4 });
     S().assignResource(f.id, r2, 2);
     const a1 = asg(f.id, f.res), a2 = asg(f.id, r2);
-    eq('Vast werk, verhouding 1 : 2: 10,7 en 21,3 uur, 2 werkdagen',
-      [dur(f.id), Math.round((workH(a1) ?? 0) * 10) / 10, Math.round((workH(a2) ?? 0) * 10) / 10], [2, 10.7, 21.3]);
+    eq('Vast werk, verhouding 1 : 2: 10,7 en 21,3 uur, exact 4/3 werkdagen',
+      [dur(f.id), Math.round((workH(a1) ?? 0) * 10) / 10, Math.round((workH(a2) ?? 0) * 10) / 10], [4 / 3, 10.7, 21.3]);
   }
   {
     const f = await plasterBase('FIXED_WORK');
     const cal = S().project.calendarId!;
     S().commitCalendarLibrary(S().calendars.map(c => c.id === cal ? { ...c, hoursPerDay: 6, workStartHour: 7, workEndHour: 14 } : c), cal);
-    eq('kalender 8 -> 6 uur per dag onder Vast werk: 6 werkdagen', dur(f.id), 6);
+    eq('kalender 8 -> 6 uur per dag onder Vast werk: exact 16/3 werkdagen (32 / 6)', dur(f.id), 16 / 3);
   }
   {
     // Twee resources die elk 32 uur werk en inzet 1 hebben (samen 4 werkdagen): de inzet van de

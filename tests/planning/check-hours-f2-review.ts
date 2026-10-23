@@ -305,7 +305,10 @@ for (const baseId of ['ops', 'p6', 'msproject'] as const) {
         calendarId: t.calendarId ? morningId : undefined, constraint: t.constraint });
       ids.set(t.id, id);
       const own = S().tasks.find(x => x.id === id)!;
-      S().updateTask(id, { time: { ...own.time, scheduleStart: t.time.scheduleStart, scheduleDuration: t.time.scheduleDuration } });
+      // B1 (spec "alleen uren" §3.2 B1a): onder P6 en MSP krijgt een nieuwe taak de urenmaat. Dit net is
+      // hetzelfde als in de solverhelft hierboven (`createDefaultTaskTime`, dagenmaat), dus de maat mee.
+      S().updateTask(id, { time: { ...own.time, scheduleStart: t.time.scheduleStart, scheduleDuration: t.time.scheduleDuration,
+        durationUnit: 'days', durationMinutes: undefined } });
     }
     for (const s of sequences) {
       S().addSequence({ predecessorId: ids.get(s.predecessorId)!, successorId: ids.get(s.successorId)!, type: s.type, lagDays: 0 });

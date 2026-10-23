@@ -379,7 +379,6 @@
       "resourceAddsWork": "Ďalší zdroj pridáva prácu.",
       "resourceSharesWork": "Ďalší zdroj preberá časť práce; jednotky priradenia na jeden zdroj klesajú.",
       "resourceShorter": "Ďalší zdroj skráti úlohu.",
-      "resourceShorterWholeDays": "Ďalší zdroj skráti úlohu, zaokrúhlené na celé dni.",
       "resourceAddsWorkSameDuration": "Ďalší zdroj pridáva prácu; trvanie zostáva rovnaké."
     },
     "info": "Vysvetlenie typu úlohy"

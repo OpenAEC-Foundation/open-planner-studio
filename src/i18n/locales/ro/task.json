@@ -375,7 +375,6 @@
       "resourceAddsWork": "O resursă suplimentară adaugă lucru.",
       "resourceSharesWork": "O resursă suplimentară preia o parte din lucru; unitățile de atribuire pe resursă scad.",
       "resourceShorter": "O resursă suplimentară face activitatea mai scurtă.",
-      "resourceShorterWholeDays": "O resursă suplimentară face activitatea mai scurtă, rotunjită la zile întregi.",
       "resourceAddsWorkSameDuration": "O resursă suplimentară adaugă lucru; durata rămâne aceeași."
     },
     "info": "Explicație despre tipul de activitate"

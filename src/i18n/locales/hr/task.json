@@ -375,7 +375,6 @@
       "resourceAddsWork": "Dodatni resurs dodaje rad.",
       "resourceSharesWork": "Dodatni resurs preuzima dio rada; jedinice dodjele po resursu se smanjuju.",
       "resourceShorter": "Dodatni resurs skraćuje zadatak.",
-      "resourceShorterWholeDays": "Dodatni resurs skraćuje zadatak, zaokruženo na cijele dane.",
       "resourceAddsWorkSameDuration": "Dodatni resurs dodaje rad; trajanje ostaje isto."
     },
     "info": "Objašnjenje vrste zadatka"

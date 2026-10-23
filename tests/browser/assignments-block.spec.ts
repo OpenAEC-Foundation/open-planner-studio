@@ -733,9 +733,10 @@ for (const key of ['Control+s', 'F5'] as const) {
     if (download) {
       const ifc = readFileSync((await (await download).path())!, 'utf8');
       // IfcTaskTime: vroegste en laatste start/einde (na ScheduleStart/-Finish, de brondata) zijn
-      // doorgerekend — einde 8 september, niet de oude 10 september.
+      // doorgerekend — einde 8 september, niet de oude 10 september. B1 (spec "alleen uren" §3.2 B1a):
+      // vast werk is urenmaat, dus de taak is 16 u en het einde is het echte moment 16:00.
       const taskTime = ifc.split('\n').find(l => l.includes("IFCTASKTIME('Metselwerk Time'"))!;
-      expect(taskTime).toContain("'2026-09-07T07:00:00','2026-09-08T07:00:00','2026-09-07T07:00:00','2026-09-08T07:00:00'");
+      expect(taskTime).toContain("'PT16H0M0S','2026-09-07T07:00:00','2026-09-08T16:00:00','2026-09-07T07:00:00','2026-09-08T16:00:00'");
     }
     await expect(units).toBeFocused();
 
@@ -813,8 +814,9 @@ test('MCP-dupliceren met open inzet en automatisch berekenen: de kopie rekent do
   await page.keyboard.press('Control+s');
   const ifc = readFileSync((await (await download).path())!, 'utf8');
   const taskTime = ifc.split('\n').find(l => l.includes("IFCTASKTIME('Metselwerk Time'"))!;
-  expect(taskTime).toContain("'P0Y0M2D'");
-  expect(taskTime).toContain("'2026-09-07T07:00:00','2026-09-08T07:00:00','2026-09-07T07:00:00','2026-09-08T07:00:00'");
+  // B1 (spec "alleen uren" §3.2 B1a): vast werk is urenmaat, dus 16 u (was `P0Y0M2D`) met het echte
+  // einde 16:00.
+  expect(taskTime).toContain("'PT16H0M0S','2026-09-07T07:00:00','2026-09-08T16:00:00','2026-09-07T07:00:00','2026-09-08T16:00:00'");
 });
 
 // Delta-review #401 vervolg 5: F5 in het inzetveld met Automatisch berekenen aan rekent precies één

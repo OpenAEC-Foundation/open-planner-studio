@@ -205,6 +205,16 @@ en noem het in je rapport of PR-tekst.
      dagtaken apart vast wat een afsluitend eindmoment is en wat een START is die een projectdag opent,
      met de bestaande kalenderfuncties. Gevonden in review F2 ronde 6. — B
 
+251. **De projectstandaard *Vast werk* zet bestaande dagenmaat-taken niet om naar de urenmaat.**
+     B1a (spec "alleen uren" §3.2): een taak met vast werk is altijd urenmaat. Een taak zonder eigen
+     regel volgt de projectstandaard (`defaultWorkRule`). Zet je die standaard op vast werk, dan blijft
+     een bestaande taak van 3 d in de dagenmaat; een naamwijziging laat dat zo. Pas een duurwijziging
+     maakt er urenmaat van (`routeFixedWorkDurationToHours`). Nagespeeld met `setProject({ defaultWorkRule:
+     'FIXED_WORK' })` en `updateTask(naam)`. Hetzelfde geldt waarschijnlijk voor een bestand met die
+     standaard en dagtaken (VERMOED, niet nagespeeld). Voorstel: maak de wissel van de projectstandaard een
+     planningsbewerking die elke taak zonder eigen regel door `settleRuleChange` haalt, met één undo-stap
+     en een melding. Gevonden in F3c-winkel. — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
@@ -230,6 +240,14 @@ en noem het in je rapport of PR-tekst.
      korter dan een dag valt weg; bij een taak van één dag tekent de afdruk geen onderbreking (probe:
      start = einde ⇒ één stuk). Voorstel: dezelfde maatkeuze als de Gantt, als de afdruk tijden toont.
      Gevonden in F3c. — B
+
+250. **Twee ingangen voor een nieuwe taak negeren de *Standaardmaat voor nieuwe taken*.** Rechtsklik in
+     de Gantt → *Nieuwe taak* geeft een tijd met een vaste dagenmaat mee (`GanttCanvas.tsx:401`,
+     `createDefaultTaskTime(date, 5, 'days', …)`), en de spookregel onderaan de tabel toont een taak van
+     5 d (`FullTaskGrid.tsx:353`). Een meegegeven maat blijft staan (`settleNewTaskMeasure`, zie
+     `check-new-task-measure.ts` s5). Met de gekozen urenmaat, of onder P6/MSP, krijgt zo'n taak dus toch
+     de dagenmaat; alleen vast werk zet hem om. Voorstel: geef in beide de maat van `newTaskTimeUnit`
+     mee, of laat de tijd weg en geef alleen de start. Alleen in de code gezien, plus het storegedrag. — S
 
 ## Kalenders
 
@@ -508,6 +526,16 @@ en noem het in je rapport of PR-tekst.
      `tests/planning/fixtures/minute-model-tutorial-f3.json`. Voorstel: de verhalende tutorial-
      en gidsteksten en eventuele schermbeelden bijwerken zodra de definitieve F3-uitkomsten
      zijn gehaald, met behoud van de afzonderlijk getoetste einddoelen. — B
+252. **De gidsen over taaktypes zeggen nog dat de app een duur op hele werkdagen afrondt.**
+     Sinds de werkdriehoek exact rekent (T14, B3) en vast werk de urenmaat is (B1a), klopt dat niet meer.
+     `public/docs/{nl,en}/uitleg-werkregels.md` r.42 ("rondt naar boven af … hele werkdagen"), r.94
+     (1,33 → 2 werkdagen, met het waarschuwingsteken *Wijkt af van inzet × duur*), r.102 (5,33 → 6
+     werkdagen) en r.106 (restduur 1,5 → 2); `howto-werkregel-kiezen.md` r.59; `uitleg-kalenders.md`
+     r.97 (nl; "een taak in dagen telt hele werkdagen" klopt nog, maar vast werk is nu altijd een taak in
+     uren). Uit de code afgeleid (niet in de app nagespeeld): r.94 wordt nu 32 ÷ 3 = 10 u 40 min, zonder
+     waarschuwingsteken. Hangt samen met 240.
+     Voorstel: de voorbeelden herschrijven in dezelfde ronde als 240, met de uitkomsten uit
+     `check-work-rule-*.ts`. Gevonden in F3c-winkel. — B
 
 ## Tests
 

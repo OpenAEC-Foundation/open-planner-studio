@@ -88,10 +88,11 @@ The rules the tool applies (all checked against the code):
 ## 4. Remaining work
 
 There is no remaining-duration field. The remaining duration follows from the percentage:
-duration × (1 − completion), in whole days for a day task. If the user's remaining estimate differs,
-change the duration of the running task with `planner_update_tasks` `fields.duration`. The work done
-stays the same: remaining duration = new duration − work done, and the percentage adjusts. The answer
-reports it under `progressAdjusted` (for example 10 days at 40%, changed to 12 days: 8 days left, 33%).
+duration × (1 − completion), exact, also for a day task (5 days at 30% leaves 3.5 days). If the user's
+remaining estimate differs, change the duration of the running task with `planner_update_tasks`
+`fields.duration`. The work done stays the same: remaining duration = new duration − work done, and the
+percentage adjusts. The answer reports it under `progressAdjusted` (for example 10 days at 40%, changed
+to 12 days: 8 days left, 33%).
 A duration shorter than the work done is refused.
 
 ## 5. Read the effect

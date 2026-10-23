@@ -182,6 +182,7 @@
       "calendarNotFound": "The chosen calendar does not exist.",
       "calendarHours": "The calendar of this task has no working hours per day.",
       "durationConversionNotExact": "This duration cannot be converted to the other unit exactly.",
+      "fixedWorkIsHours": "A task with fixed work always uses the hour measure.",
       "milestoneRequired": "This field only applies to milestones.",
       "milestoneUnavailable": "A summary task with subtasks cannot become a milestone.",
       "actualAfterStatusDate": "The actual date lies after the status date.",
@@ -371,7 +372,6 @@
       "resourceAddsWork": "An extra resource adds work.",
       "resourceSharesWork": "An extra resource takes over part of the work; the units per resource go down.",
       "resourceShorter": "An extra resource makes the task shorter.",
-      "resourceShorterWholeDays": "An extra resource makes the task shorter, rounded to whole days.",
       "resourceAddsWorkSameDuration": "An extra resource adds work; the duration stays the same."
     },
     "info": "Explanation of the task type"

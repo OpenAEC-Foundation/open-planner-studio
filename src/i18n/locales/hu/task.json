@@ -371,7 +371,6 @@
       "resourceAddsWork": "Egy további erőforrás munkát ad hozzá.",
       "resourceSharesWork": "Egy további erőforrás átveszi a munka egy részét; erőforrásonként csökken a hozzárendelt mennyiség.",
       "resourceShorter": "Egy további erőforrás lerövidíti a tevékenységet.",
-      "resourceShorterWholeDays": "Egy további erőforrás lerövidíti a tevékenységet, egész napokra kerekítve.",
       "resourceAddsWorkSameDuration": "Egy további erőforrás munkát ad hozzá; az időtartam ugyanaz marad."
     },
     "info": "A tevékenységtípus magyarázata"
