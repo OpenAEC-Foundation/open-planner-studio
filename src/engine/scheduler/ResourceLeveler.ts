@@ -1152,7 +1152,8 @@ export function levelResources(
    *
    *  Elke stap berekent de HELE kandidaat opnieuw met de gedeelde plaatsing (`computeDemand`, niet
    *  gecachet: de gaten veranderen per stap). Past hij niet, dan krijgt de eerste dag die niet past
-   *  één hele effectieve werkdag pauze (de werkminuten van die dag) op de cumulatieve as; latere
+   *  één hele effectieve werkdag pauze op de cumulatieve as (`PlacementDay.dayAxisMinutes`: de
+   *  werkminuten van die dag bij de urenmaat, één dagslot bij de dagenmaat); latere
    *  gaten schuiven mee, en een pauze direct na een eerdere nivelleerpauze verlengt die. Ligt die dag vóór het eerste werk, dan is dat uitstel en geen split met een
    *  openingsgat: de start gaat naar de volgende kandidaat. Een korte dag krijgt zo nooit de vraag
    *  van een eerdere plaatsing mee.
@@ -1165,7 +1166,6 @@ export function levelResources(
   function scatterSlot(
     task: Task, candidates: ReturnType<typeof candidateAxis>, finishLimit: Date | null,
   ): { gaps: TaskSplitGap[] | null; start?: Date; skipped: number; horizonExhausted: boolean } {
-    const engine = engineForTask(task);
     let skipped = 0;
     let start = candidates.at(0);
     let gaps: TaskSplitGap[] = [...(task.splitGaps ?? [])];
@@ -1194,7 +1194,9 @@ export function levelResources(
         // Vóór het eerste werk: uitstel, geen split met een ongeldig openingsgat.
         start = candidates.at(++skipped);
       } else {
-        const pause = engine.effectiveBandsOn(parseDate(day.iso)).reduce((sum, b) => sum + b.end - b.start, 0);
+        // Eén hele werkdag op de split-as van de taak (`dayAxisMinutes`): bij de urenmaat de werkminuten
+        // van die dag, bij de dagenmaat één dagslot. Zo leest de solver dezelfde pauze als de plaatsing.
+        const pause = day.dayAxisMinutes;
         // Een pauze direct na een eerdere nivelleerpauze verlengt die pauze: één gat per
         // aaneengesloten pauze, zoals de gebruiker het ziet. Een importsplit blijft een eigen gat.
         const before = gaps.find(g => g.source === 'leveling' && g.afterMinutes + g.gapMinutes === axis);

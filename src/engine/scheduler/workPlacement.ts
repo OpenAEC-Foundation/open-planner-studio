@@ -20,8 +20,12 @@ export type PlacementMeasure = 'minutes' | 'workdays';
 export type PlacementOptions = Pick<EffectiveSchedulingOptions, 'workdayDurationMeasure'>;
 
 export interface PlacementRange {
-  /** Fysieke werkminuten vanaf de start, inclusief de gaten op de cumulatieve split-as. */
+  /** Positie op de cumulatieve split-as aan het begin van dit stuk, inclusief de gaten ervoor. De as
+   *  telt in de maat van de taak: urenmaat in werkminuten, dagenmaat in dagslots (zie `workPlacement`). */
   afterMinutes: number;
+  /** Lengte van dit stuk op de split-as; bij de urenmaat gelijk aan `minutes`. */
+  axisMinutes: number;
+  /** Werkminuten van dit stuk op de kalender. */
   minutes: number;
   /** Aandeel van een nominale werkdag, volgens de aangeleverde effectieve maat. */
   share: number;
@@ -32,6 +36,9 @@ export interface PlacementDay {
   iso: string;
   minutes: number;
   share: number;
+  /** Een hele werkdag op de split-as: urenmaat de werkminuten van deze dag, dagenmaat één dagslot. Een
+   *  pauze van precies deze lengte slaat deze dag over (de nivelleerder pauzeert er een werkdag mee). */
+  dayAxisMinutes: number;
   ranges: PlacementRange[];
 }
 
@@ -50,13 +57,21 @@ export interface PlacementResult {
   finish: Date;
 }
 
+/** Ondergrens voor een rest op de split-as (dagslotminuten); kleiner telt als op. */
+const AXIS_EPS = 1e-9;
+
 /**
  * Eén wandeling voor een concrete plaatsing: effectieve blokken, deeldagen en splits.
  * Een expliciet einde is exclusief. Bij een kandidaat stopt de wandeling zodra haar hoeveelheid
- * verbruikt is. De split-as blijft fysiek in werkminuten, ook bij de dagenmaat.
- * Het deel van een dag: urenmaat = werkminuten ÷ (werktijd per dag × 60); dagenmaat = werkminuten ÷
- * de werkminuten van die dag zelf (wo 11:00–16:00 op een dag van 8 u = 0,5).
- * De bestaande dagslotfuncties in splitWalk blijven ongewijzigd voor de renderer.
+ * verbruikt is.
+ *
+ * De split-as (`splitGaps`, en een contour) telt in de maat van de taak, net als de solver
+ * (`splitTotalSpanMinutes`/`splitTotalSpanDays` in `duration.ts`) en de Gantt (`computeSplitSegments`):
+ *  - urenmaat: werkminuten op de kalender; het deel van een dag = werkminuten ÷ (werktijd per dag × 60);
+ *  - dagenmaat (§3.14): dagslots van `werktijd per dag × 60`. Elke werkdag is één dagslot, hoe lang ook;
+ *    binnen een dag telt het deel van de werktijd van die dag (wo 11:00–16:00 op een dag van 8 u = 0,5).
+ *    Een gat van 480 min (bij 8 u per dag) is dus één werkdag, ook op een korte vrijdag. Zo leest ook de
+ *    splitsbewerking de as van een dagtaak (het dagslotcontract).
  */
 export function workPlacement(engine: CalendarEngine, placement: WorkPlacement): PlacementResult {
   const { start, measure } = placement;
@@ -68,15 +83,16 @@ export function workPlacement(engine: CalendarEngine, placement: WorkPlacement):
   const gaps = (placement.gaps ?? []).filter(g => Number.isFinite(g.afterMinutes)
     && Number.isFinite(g.gapMinutes) && g.gapMinutes > 0)
     .slice().sort((a, b) => a.afterMinutes - b.afterMinutes);
+  if (measure === 'workdays') return measuredWorkdayWalk(engine, start, endMs, remaining, gaps);
   let gapIndex = 0;
   let axis = 0;
   let finish = start;
+  const denominator = engine.hoursPerDay * 60;
   // Ook de staart van een nachtblok van een eerdere dag kan de start bevatten.
   let day = addCalendarDays(utcDayStart(start), -2);
   for (let scanned = 0; scanned < 200_000 && day.getTime() < endMs && remaining > 1e-12; scanned++) {
     const bands = engine.effectiveBandsOn(day);
     const dayMinutes = bands.reduce((sum, b) => sum + b.end - b.start, 0);
-    const denominator = measure === 'workdays' ? dayMinutes : engine.hoursPerDay * 60;
     const ranges: PlacementRange[] = [];
     for (const band of bands) {
       let cursor = Math.max(start.getTime(), day.getTime() + band.start * 60_000);
@@ -88,13 +104,11 @@ export function workPlacement(engine: CalendarEngine, placement: WorkPlacement):
         const inGap = gap && gap.afterMinutes <= axis;
         const boundary = gap ? (inGap ? gap.afterMinutes + gap.gapMinutes : gap.afterMinutes) : Infinity;
         const available = Math.min((end - cursor) / 60_000, boundary - axis);
-        const wanted = measure === 'workdays' ? Math.round(remaining * denominator) : remaining;
-        const minutes = inGap ? available : Math.min(available, wanted);
+        const minutes = inGap ? available : Math.min(available, remaining);
         if (!(minutes > 0)) { remaining = 0; break; }
         if (!inGap) {
-          const share = minutes / denominator;
-          ranges.push({ afterMinutes: axis, minutes, share });
-          remaining -= measure === 'workdays' ? share : minutes;
+          ranges.push({ afterMinutes: axis, axisMinutes: minutes, minutes, share: minutes / denominator });
+          remaining -= minutes;
         }
         axis += minutes;
         cursor += minutes * 60_000;
@@ -102,13 +116,108 @@ export function workPlacement(engine: CalendarEngine, placement: WorkPlacement):
       }
     }
     if (ranges.length > 0) days.push({
-      iso: formatDate(day), ranges,
+      iso: formatDate(day), ranges, dayAxisMinutes: dayMinutes,
       minutes: ranges.reduce((sum, r) => sum + r.minutes, 0),
       share: ranges.reduce((sum, r) => sum + r.share, 0),
     });
     day = addCalendarDays(day, 1);
   }
   return { days, finish };
+}
+
+/**
+ * De dagenmaat-tak van `workPlacement`: werk en gaten lopen samen over de split-as in dagslots, dag voor
+ * dag. Op elke werkdag is een dagslot `werktijd per dag × 60 ÷ werkminuten van die dag` as-minuten per
+ * werkminuut waard. De plek binnen een dag blijft exact; alleen de werkminuten van een moment worden
+ * afgerond op hele minuten, zoals de dagenmaat-lopers (`CalendarEngine.addMeasuredWorkdays`). Zo valt het
+ * einde op hetzelfde moment als bij de solver: het werk plus de gaten in werkdagen vanaf de start.
+ */
+function measuredWorkdayWalk(
+  engine: CalendarEngine,
+  start: Date,
+  endMs: number,
+  durationDays: number,
+  gaps: readonly TaskSplitGap[],
+): PlacementResult {
+  const mpd = Math.max(1, engine.hoursPerDay * 60);
+  const startMs = start.getTime();
+  const days: PlacementDay[] = [];
+  let remaining = durationDays * mpd;
+  let gapIndex = 0;
+  let axis = 0;
+  let finish = start;
+  // Ook de staart van een nachtblok van een eerdere dag kan de start bevatten.
+  let day = addCalendarDays(utcDayStart(start), -2);
+  for (let scanned = 0; scanned < 200_000 && day.getTime() < endMs && remaining > AXIS_EPS; scanned++) {
+    const dayMs = day.getTime();
+    const bands = engine.effectiveBandsOn(day);
+    const dayMinutes = bands.reduce((sum, b) => sum + b.end - b.start, 0);
+    const ranges: PlacementRange[] = [];
+    // Werkminuten van deze dag vóór de start en vóór het (exclusieve) einde.
+    let at = workOffset(bands, dayMs, startMs);
+    const to = workOffset(bands, dayMs, endMs);
+    const scale = dayMinutes > 0 ? mpd / dayMinutes : 0;
+    while (at < to && remaining > AXIS_EPS) {
+      // Overlappende en aaneensluitende gaten delen dezelfde cumulatieve as.
+      while (gapIndex < gaps.length && gaps[gapIndex].afterMinutes + gaps[gapIndex].gapMinutes <= axis + AXIS_EPS) gapIndex++;
+      const gap = gaps[gapIndex];
+      const inGap = gap !== undefined && gap.afterMinutes <= axis + AXIS_EPS;
+      const boundary = gap ? (inGap ? gap.afterMinutes + gap.gapMinutes : gap.afterMinutes) : Infinity;
+      const toBoundary = boundary - axis;
+      const room = Math.min((to - at) * scale, toBoundary);
+      const step = inGap ? room : Math.min(room, remaining);
+      if (!(step > AXIS_EPS)) break;
+      const next = at + step / scale;
+      if (!inGap) {
+        ranges.push({
+          afterMinutes: axis, axisMinutes: step, share: step / mpd,
+          minutes: Math.round(next) - Math.round(at),
+        });
+        remaining -= step;
+      }
+      // Een gatgrens bereikt: de as staat precies op die grens, zonder drift uit de omrekening.
+      axis = step === toBoundary ? boundary : axis + step;
+      at = next;
+      finish = momentAtOffset(engine, bands, dayMs, Math.round(at));
+    }
+    if (ranges.length > 0) days.push({
+      iso: formatDate(day), ranges, dayAxisMinutes: mpd,
+      minutes: ranges.reduce((sum, r) => sum + r.minutes, 0),
+      share: ranges.reduce((sum, r) => sum + r.share, 0),
+    });
+    day = addCalendarDays(day, 1);
+  }
+  return { days, finish };
+}
+
+/** Werkminuten in de blokken van dag `dayMs` vóór het moment `tMs` (`Infinity` ⇒ de hele dag). */
+function workOffset(bands: ReadonlyArray<{ start: number; end: number }>, dayMs: number, tMs: number): number {
+  let offset = 0;
+  for (const b of bands) {
+    const from = dayMs + b.start * 60_000;
+    if (tMs <= from) break;
+    offset += (Math.min(dayMs + b.end * 60_000, tMs) - from) / 60_000;
+  }
+  return offset;
+}
+
+/** Het EINDmoment `offset` werkminuten na het begin van dag `dayMs`: een grens tussen twee blokken is het
+ *  blokeinde. Valt het deel van de dag weg in de afronding, dan is het einde het einde van de werkdag
+ *  ervoor, zoals `addMeasuredWorkdays`. */
+function momentAtOffset(
+  engine: CalendarEngine,
+  bands: ReadonlyArray<{ start: number; end: number }>,
+  dayMs: number,
+  offset: number,
+): Date {
+  if (offset <= 0) return engine.prevWorkInstant(new Date(dayMs + bands[0].start * 60_000));
+  let left = offset;
+  for (const b of bands) {
+    const len = b.end - b.start;
+    if (left <= len) return new Date(dayMs + (b.start + left) * 60_000);
+    left -= len;
+  }
+  return new Date(dayMs + bands[bands.length - 1].end * 60_000);
 }
 
 /**
@@ -193,8 +302,8 @@ function spanFinish(
 /**
  * Verdeelt het werk van één toewijzing over de dagen van een plaatsing; `units[i]` hoort bij
  * `days[i]`. Bron, in deze volgorde:
- *  1. een contour (`contour`): de periodes liggen op de fysieke split-as en worden met de werkblokken
- *     gesneden. `contour` is VERPLICHT door de aanroeper opgelost, via `contourLookup` over ALLE
+ *  1. een contour (`contour`): de periodes liggen op de split-as (in de maat van de taak, zie
+ *     `workPlacement`) en worden met de stukken van de plaatsing gesneden. `contour` is VERPLICHT door de aanroeper opgelost, via `contourLookup` over ALLE
  *     toewijzingen van de taak (ook `null`). Een koppeling met alleen de eigen toewijzing kan één
  *     contour twee keer gebruiken (knownbugs 233).
  *  2. een curve, een exacte importcurve of opgeslagen werk: de bestaande dagslotverdeling
@@ -226,11 +335,11 @@ export function assignmentPlacementLoad(
       let hi = ranges.length;
       while (lo < hi) {
         const mid = (lo + hi) >>> 1;
-        if (ranges[mid].afterMinutes + ranges[mid].minutes <= cursor) lo = mid + 1; else hi = mid;
+        if (ranges[mid].afterMinutes + ranges[mid].axisMinutes <= cursor) lo = mid + 1; else hi = mid;
       }
       for (let i = lo; i < ranges.length; i++) {
         const r = ranges[i];
-        const stop = Math.min(end, r.afterMinutes + r.minutes);
+        const stop = Math.min(end, r.afterMinutes + r.axisMinutes);
         if (stop > cursor) {
           units[r.day] += p.workMinutes * (stop - cursor) / p.minutes / mpd;
           cursor = stop;
