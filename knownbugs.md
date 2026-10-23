@@ -175,6 +175,16 @@ en noem het in je rapport of PR-tekst.
      `be58ba356`. Voorstel: neem bij een eindmoment de bijbehorende werkdag (`workdayDateOfInstant`,
      eindkant). Gevonden in review F2 ronde 2A. — B
 
+251. **De projectstandaard *Vast werk* zet bestaande dagenmaat-taken niet om naar de urenmaat.**
+     B1a (spec "alleen uren" §3.2): een taak met vast werk is altijd urenmaat. Een taak zonder eigen
+     regel volgt de projectstandaard (`defaultWorkRule`). Zet je die standaard op vast werk, dan blijft
+     een bestaande taak van 3 d in de dagenmaat; een naamwijziging laat dat zo. Pas een duurwijziging
+     maakt er urenmaat van (`routeFixedWorkDurationToHours`). Nagespeeld met `setProject({ defaultWorkRule:
+     'FIXED_WORK' })` en `updateTask(naam)`. Hetzelfde geldt waarschijnlijk voor een bestand met die
+     standaard en dagtaken (VERMOED, niet nagespeeld). Voorstel: maak de wissel van de projectstandaard een
+     planningsbewerking die elke taak zonder eigen regel door `settleRuleChange` haalt, met één undo-stap
+     en een melding. Gevonden in F3c-winkel. — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
@@ -186,6 +196,14 @@ en noem het in je rapport of PR-tekst.
 241. **Hetzelfde externe anker opnieuw invoeren als datum zonder tijd geeft een extra undo-stap en zet
      de planning op verouderd.** `updateExternalLink` vergelijkt het ruwe anker, niet het genormaliseerde.
      Gevonden in fixronde 1 van F2 (laadfix). — B
+
+250. **Twee ingangen voor een nieuwe taak negeren de *Standaardmaat voor nieuwe taken*.** Rechtsklik in
+     de Gantt → *Nieuwe taak* geeft een tijd met een vaste dagenmaat mee (`GanttCanvas.tsx:401`,
+     `createDefaultTaskTime(date, 5, 'days', …)`), en de spookregel onderaan de tabel toont een taak van
+     5 d (`FullTaskGrid.tsx:353`). Een meegegeven maat blijft staan (`settleNewTaskMeasure`, zie
+     `check-new-task-measure.ts` s5). Met de gekozen urenmaat, of onder P6/MSP, krijgt zo'n taak dus toch
+     de dagenmaat; alleen vast werk zet hem om. Voorstel: geef in beide de maat van `newTaskTimeUnit`
+     mee, of laat de tijd weg en geef alleen de start. Alleen in de code gezien, plus het storegedrag. — S
 
 ## Kalenders
 
