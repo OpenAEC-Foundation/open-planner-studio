@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { DEFAULT_PROTOCOL_VERSION, MCP_INSTRUCTIONS, MCP_SERVER_NAME } from '@/services/mcp/dispatcher';
 import { getTools } from '@/services/mcp/toolRegistry';
 import { externalClientChecks, type AppProbe } from '../externalClient';
-import { parseOpenFilesFile, parseRuntimeFile, MCP_DISCOVERY_DIR } from '@/services/mcp/discoveryContract';
+import { readOpenFilesFile, readRuntimeFile, MCP_DISCOVERY_DIR } from '@/services/mcp/discoveryContract';
 
 const OPS_DIR = process.env.OPS_TEST_DIR ?? join(homedir(), '.local/share/org.openaec.planner/ops-test');
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
@@ -129,8 +129,9 @@ test('echte app: runtime.json beschrijft de draaiende bridge (poort, token, pid,
   await eventually('runtime.json', () => {
     const path = discoveryFile('runtime');
     assert(path, `geen runtime-bestand in ${MCP_DIR}`);
-    const file = parseRuntimeFile(readFileSync(path!, 'utf8'));
-    assert(file, 'runtime-bestand niet leesbaar volgens het contract');
+    const read = readRuntimeFile(readFileSync(path!, 'utf8'));
+    assert(read.status === 'valid', `runtime-bestand niet geldig volgens het contract: ${JSON.stringify(read)}`);
+    const file = read.status === 'valid' ? read.file : null;
     assertEq([file!.port, file!.token, file!.appVersion], [live.port, live.token, APP_VERSION], 'poort, token en versie');
     assert(pidAlive(file!.pid), `pid ${file!.pid} leeft niet`);
     assertEq(statSync(path!).mode & 0o777, 0o600, 'rechten 0600');
@@ -141,8 +142,9 @@ test('echte app: open-files.json bestaat met hetzelfde pid en 0600', async () =>
   await eventually('open-files.json', () => {
     const path = discoveryFile('open-files');
     assert(path, `geen register in ${MCP_DIR}`);
-    const file = parseOpenFilesFile(readFileSync(path!, 'utf8'));
-    assert(file, 'register niet leesbaar volgens het contract');
+    const read = readOpenFilesFile(readFileSync(path!, 'utf8'));
+    assert(read.status === 'valid', `register niet geldig volgens het contract: ${JSON.stringify(read)}`);
+    const file = read.status === 'valid' ? read.file : null;
     assert(pidAlive(file!.pid), `pid ${file!.pid} leeft niet`);
     assertEq(file!.appVersion, APP_VERSION, 'versie');
     assertEq(statSync(path!).mode & 0o777, 0o600, 'rechten 0600');

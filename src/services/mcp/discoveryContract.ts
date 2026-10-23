@@ -13,7 +13,8 @@
 // Uitleg voor mensen: `docs/mcp-ontdekking.md`. Een wijziging hier is een contractwijziging: een
 // nieuw verplicht veld of een andere betekenis vraagt een hogere `formatVersion`.
 
-/** Huidige versie van beide bestandsformaten. Een lezer negeert elk bestand met een andere waarde. */
+/** Huidige versie van beide bestandsformaten. Een andere waarde maakt een bestand voor deze lezer
+ *  onbruikbaar (niet afwezig): zie `readOpenFilesFile` en `openFilesWritePolicy`. */
 export const MCP_DISCOVERY_FORMAT_VERSION = 1;
 
 /** Submap van `appDataDir` waarin beide bestanden staan. */
@@ -52,7 +53,7 @@ export interface McpOpenFilesFile {
   appVersion: string;
   /** Moment van de laatste schrijfactie, ISO 8601 in UTC. */
   updatedAt: string;
-  /** Absolute, lexicaal genormaliseerde paden van de open documenten met een pad op schijf. Uniek, gesorteerd. */
+  /** Paden van de open documenten met een pad op schijf, letterlijk zoals het document ze draagt. Uniek, gesorteerd. */
   files: string[];
 }
 
@@ -94,7 +95,7 @@ export interface OpenFilesInput {
   pid: number;
   appVersion: string;
   updatedAt: Date;
-  /** Ruwe paden (al gefilterd op `FileRef` van de soort `path`); worden hier genormaliseerd. */
+  /** Paden (al gefilterd op `FileRef` van de soort `path`); blijven letterlijk. */
   paths: readonly string[];
 }
 
@@ -104,7 +105,7 @@ export function buildOpenFilesFile(input: OpenFilesInput): McpOpenFilesFile {
     pid: input.pid,
     appVersion: input.appVersion,
     updatedAt: input.updatedAt.toISOString(),
-    files: normalizeOpenFileList(input.paths),
+    files: openFileList(input.paths),
   };
 }
 
@@ -113,69 +114,23 @@ export function serializeDiscoveryFile(file: McpRuntimeFile | McpOpenFilesFile):
   return `${JSON.stringify(file, null, 2)}\n`;
 }
 
-// --- Paden normaliseren -----------------------------------------------------------------------------
+// --- Paden ------------------------------------------------------------------------------------------
 //
-// De app normaliseert LEXICAAL: geen bestandssysteemtoegang. Symlinks lost de app niet op: plugin-fs
-// kent geen `realpath`, en een eigen Rust-command daarvoor zou nieuw publiek oppervlak zijn. De paden
-// komen bovendien uit de bestandskiezer van het OS en zijn dus al absoluut. Een lezer die zeker wil
-// zijn, vergelijkt daarom met `realpath` aan BEIDE kanten (zie `docs/mcp-ontdekking.md`).
+// De app bewaart de paden LETTERLIJK, zoals het document ze draagt (uit de bestandskiezer van het OS of
+// uit Opslaan als). Geen trim, geen `..`-oplossing, geen hoofdlettercorrectie: elke omvorming kan een
+// ander bestand aanwijzen (een POSIX-naam mag op een spatie eindigen, een backslash bevatten, enz.).
+// Alleen lege waarden vallen weg; de lijst wordt ontdubbeld en gesorteerd.
 //
-// Regels:
-//  - POSIX: moet met `/` beginnen; dubbele `/` worden één; `.` valt weg; `..` haalt één map weg (nooit
-//    boven de wortel); geen slot-`/`.
-//  - Windows (`C:\…`, `C:/…`, UNC `\\server\share\…`, ook met het voorvoegsel `\\?\` of `\\?\UNC\`):
-//    `/` wordt `\`; het voorvoegsel `\\?\` valt weg; de stationsletter wordt een hoofdletter; verder
-//    dezelfde regels als POSIX. Hoofd- en kleine letters in de rest blijven zoals ze zijn.
-//  - Alles wat niet absoluut is (leeg, relatief, `C:foo`), geeft `null` en komt niet in het register.
+// Wie het register gebruikt om te beslissen of hij mag schrijven, vergelijkt BESTANDSIDENTITEIT, geen
+// tekst: `realpath` van beide kanten en dan `stat` (dev + ino; op Windows het bestandsindex-nummer via
+// `fs.stat(…, { bigint: true })`). Zo vallen ook symlinks, harde links en andere schrijfwijzen samen.
+// Zie `docs/mcp-ontdekking.md`.
 
-const WINDOWS_DRIVE = /^[a-zA-Z]:[\\/]/;
-
-function resolveSegments(segments: string[]): string[] {
-  const out: string[] = [];
-  for (const seg of segments) {
-    if (seg === '' || seg === '.') continue;
-    if (seg === '..') { out.pop(); continue; }
-    out.push(seg);
-  }
-  return out;
-}
-
-/** Normaliseer één pad volgens de regels hierboven; `null` als het geen absoluut pad is. */
-export function normalizeOpenFilePath(raw: string): string | null {
-  if (typeof raw !== 'string') return null;
-  let p = raw.trim();
-  if (p === '' || p.includes('\0')) return null;
-
-  // Windows-voorvoegsel voor lange paden.
-  if (/^\\\\\?\\UNC\\/i.test(p)) p = `\\\\${p.slice(8)}`;
-  else if (/^\\\\\?\\/.test(p)) p = p.slice(4);
-
-  if (WINDOWS_DRIVE.test(p)) {
-    const drive = p[0].toUpperCase();
-    const rest = resolveSegments(p.slice(3).split(/[\\/]/));
-    return `${drive}:\\${rest.join('\\')}`;
-  }
-  if (/^\\\\[^\\/]/.test(p)) {
-    // UNC: \\server\share\pad. Server en share zijn de wortel; `..` gaat daar niet boven.
-    const parts = p.slice(2).split(/[\\/]/).filter((s) => s !== '');
-    if (parts.length < 2) return null;
-    const [server, share, ...rest] = parts;
-    const tail = resolveSegments(rest);
-    return `\\\\${server}\\${share}${tail.length ? `\\${tail.join('\\')}` : ''}`;
-  }
-  if (p.startsWith('/')) {
-    const rest = resolveSegments(p.split('/'));
-    return `/${rest.join('/')}`;
-  }
-  return null;
-}
-
-/** Normaliseer, laat niet-absolute paden weg, ontdubbel en sorteer (vaste volgorde ⇒ geen onnodige schrijfactie). */
-export function normalizeOpenFileList(paths: readonly string[]): string[] {
+/** Ontdubbel en sorteer (vaste volgorde ⇒ geen onnodige schrijfactie); paden blijven letterlijk. */
+export function openFileList(paths: readonly string[]): string[] {
   const set = new Set<string>();
-  for (const raw of paths) {
-    const n = normalizeOpenFilePath(raw);
-    if (n !== null) set.add(n);
+  for (const p of paths) {
+    if (typeof p === 'string' && p !== '') set.add(p);
   }
   return [...set].sort();
 }
@@ -207,6 +162,19 @@ export function openFilePathsFromDocuments(docs: readonly DiscoveryDocumentField
 }
 
 // --- Lezen (voor de plugin) -----------------------------------------------------------------------
+//
+// Drie uitkomsten, nooit twee: een bestand dat er WEL is maar dat de lezer niet begrijpt (kapotte JSON,
+// verkeerd veldtype, andere `formatVersion`, bijv. van een nieuwere app) is iets anders dan een bestand
+// dat er niet is. Voor het register betekent "onbruikbaar" dus nooit schrijftoestemming.
+
+/** Uitkomst van het lezen van één ontdekkingsbestand. */
+export type DiscoveryRead<T> =
+  /** Het bestand bestaat niet. */
+  | { status: 'missing' }
+  /** Het bestand volgt dit contract. */
+  | { status: 'valid'; file: T }
+  /** Het bestand bestaat, maar volgt dit contract niet. `pid` alleen als dat veld wel een geldig pid is. */
+  | { status: 'unusable'; reason: string; pid: number | null };
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -216,31 +184,67 @@ function isPid(v: unknown): v is number {
   return Number.isSafeInteger(v) && (v as number) > 0;
 }
 
-/**
- * Lees `runtime.json`-tekst. `null` bij onleesbare JSON, een andere `formatVersion` of een veld van
- * het verkeerde type: de lezer behandelt het bestand dan als afwezig. Extra velden mogen (en worden
- * weggelaten); dat laat de app later velden toevoegen zonder versiesprong.
- */
-export function parseRuntimeFile(text: string): McpRuntimeFile | null {
-  let v: unknown;
-  try { v = JSON.parse(text); } catch { return null; }
-  if (!isRecord(v) || v.formatVersion !== MCP_DISCOVERY_FORMAT_VERSION) return null;
-  const { pid, port, token, appVersion, startedAt } = v;
-  if (!isPid(pid)) return null;
-  if (!Number.isInteger(port) || (port as number) < 1 || (port as number) > 65535) return null;
-  if (typeof token !== 'string' || token === '') return null;
-  if (typeof appVersion !== 'string' || typeof startedAt !== 'string') return null;
-  return { formatVersion: 1, pid, port: port as number, token, appVersion, startedAt };
+function unusable(reason: string, v: unknown): { status: 'unusable'; reason: string; pid: number | null } {
+  return { status: 'unusable', reason, pid: isRecord(v) && isPid(v.pid) ? v.pid : null };
 }
 
-/** Lees `open-files.json`-tekst; zelfde regels als `parseRuntimeFile`. */
-export function parseOpenFilesFile(text: string): McpOpenFilesFile | null {
-  let v: unknown;
-  try { v = JSON.parse(text); } catch { return null; }
-  if (!isRecord(v) || v.formatVersion !== MCP_DISCOVERY_FORMAT_VERSION) return null;
+function parseJson(text: string): { ok: true; value: unknown } | { ok: false } {
+  try { return { ok: true, value: JSON.parse(text) }; } catch { return { ok: false }; }
+}
+
+/**
+ * Lees `runtime.json`. `text === null` betekent: het bestand bestaat niet. Extra velden mogen (en worden
+ * weggelaten); dat laat de app later velden toevoegen zonder versiesprong. Bij `unusable` verbindt de
+ * plugin niet met de app.
+ */
+export function readRuntimeFile(text: string | null): DiscoveryRead<McpRuntimeFile> {
+  if (text === null) return { status: 'missing' };
+  const parsed = parseJson(text);
+  if (!parsed.ok) return unusable('geen geldige JSON', null);
+  const v = parsed.value;
+  if (!isRecord(v)) return unusable('geen object', null);
+  if (v.formatVersion !== MCP_DISCOVERY_FORMAT_VERSION) return unusable(`onbekende formatVersion ${JSON.stringify(v.formatVersion)}`, v);
+  const { pid, port, token, appVersion, startedAt } = v;
+  if (!isPid(pid)) return unusable('pid ongeldig', v);
+  if (!Number.isInteger(port) || (port as number) < 1 || (port as number) > 65535) return unusable('port ongeldig', v);
+  if (typeof token !== 'string' || token === '') return unusable('token ongeldig', v);
+  if (typeof appVersion !== 'string' || typeof startedAt !== 'string') return unusable('appVersion of startedAt ongeldig', v);
+  return { status: 'valid', file: { formatVersion: 1, pid, port: port as number, token, appVersion, startedAt } };
+}
+
+/** Lees `open-files.json`; zelfde drie uitkomsten als `readRuntimeFile`. */
+export function readOpenFilesFile(text: string | null): DiscoveryRead<McpOpenFilesFile> {
+  if (text === null) return { status: 'missing' };
+  const parsed = parseJson(text);
+  if (!parsed.ok) return unusable('geen geldige JSON', null);
+  const v = parsed.value;
+  if (!isRecord(v)) return unusable('geen object', null);
+  if (v.formatVersion !== MCP_DISCOVERY_FORMAT_VERSION) return unusable(`onbekende formatVersion ${JSON.stringify(v.formatVersion)}`, v);
   const { pid, appVersion, updatedAt, files } = v;
-  if (!isPid(pid)) return null;
-  if (typeof appVersion !== 'string' || typeof updatedAt !== 'string') return null;
-  if (!Array.isArray(files) || !files.every((f) => typeof f === 'string')) return null;
-  return { formatVersion: 1, pid, appVersion, updatedAt, files: files as string[] };
+  if (!isPid(pid)) return unusable('pid ongeldig', v);
+  if (typeof appVersion !== 'string' || typeof updatedAt !== 'string') return unusable('appVersion of updatedAt ongeldig', v);
+  if (!Array.isArray(files) || !files.every((f) => typeof f === 'string')) return unusable('files ongeldig', v);
+  return { status: 'valid', file: { formatVersion: 1, pid, appVersion, updatedAt, files: files as string[] } };
+}
+
+/** Leeft het proces? `unknown` als de lezer het niet kan vaststellen (dan geldt: mogelijk levend). */
+export type PidState = 'alive' | 'dead' | 'unknown';
+
+/**
+ * Wat het register betekent voor een SCHRIJVENDE aanvraag van de plugin in de bestandsstand:
+ *  - `free`        — geen register, of het hoort bij een proces dat niet meer leeft: geen beperking;
+ *  - `check-files` — geldig register van een (mogelijk) levende app: weiger elk doel dat dezelfde
+ *                    bestandsidentiteit heeft als een pad in `files`;
+ *  - `refuse-all`  — het register bestaat maar is onbruikbaar, en de app leeft mogelijk (of het pid is
+ *                    onbekend): weiger elke schrijvende aanvraag. Een nieuwere app kan open bestanden
+ *                    registreren in een formaat dat deze lezer niet kent.
+ */
+export function openFilesWritePolicy(
+  read: DiscoveryRead<McpOpenFilesFile>,
+  pidState: (pid: number) => PidState,
+): 'free' | 'check-files' | 'refuse-all' {
+  if (read.status === 'missing') return 'free';
+  if (read.status === 'valid') return pidState(read.file.pid) === 'dead' ? 'free' : 'check-files';
+  if (read.pid !== null && pidState(read.pid) === 'dead') return 'free';
+  return 'refuse-all';
 }

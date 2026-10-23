@@ -18,7 +18,7 @@ import {
   buildOpenFilesFile,
   buildRuntimeFile,
   mcpDiscoveryNames,
-  normalizeOpenFileList,
+  openFileList,
   openFilePathsFromDocuments,
   serializeDiscoveryFile,
   type DiscoveryDocumentFields,
@@ -54,7 +54,7 @@ export interface DiscoveryWriter {
   bridgeStarted(port: number, token: string): Promise<void>;
   /** De bridge is gestopt (of de MCP-koppeling is uitgezet): verwijder `runtime.json`. */
   bridgeStopped(): Promise<void>;
-  /** Nieuwe lijst open paden. Schrijft alleen als de genormaliseerde lijst veranderde. */
+  /** Nieuwe lijst open paden. Schrijft alleen als de (ontdubbelde, gesorteerde) lijst veranderde. */
   setOpenFiles(paths: readonly string[]): Promise<void>;
   /** Bij het opstarten: halffabricaten opruimen en een achtergebleven `runtime.json` weghalen als
    *  de bridge in deze sessie nog niet startte. */
@@ -133,7 +133,7 @@ export function createDiscoveryWriter(deps: DiscoveryWriterDeps): DiscoveryWrite
 
     setOpenFiles(paths) {
       if (closed) return Promise.resolve();
-      const files = normalizeOpenFileList(paths);
+      const files = openFileList(paths);
       const key = JSON.stringify(files);
       if (key === openFilesKey) return Promise.resolve();
       openFilesKey = key;

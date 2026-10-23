@@ -84,28 +84,40 @@ openen, sluiten, *Opslaan als*, en een documentwissel die een pad verandert. Een
 schrijft niets; `updatedAt` verandert dus alleen bij een andere lijst. Bij het afsluiten verwijdert de app het
 bestand.
 
-### Hoe de app paden normaliseert
+### Paden: letterlijk
 
-De app normaliseert **lexicaal**, zonder het bestandssysteem te raadplegen (`normalizeOpenFilePath`):
+De app schrijft de paden **letterlijk**, zoals het document ze draagt (uit de bestandskiezer van het OS of uit
+*Opslaan als*): geen trim, geen oplossing van `.` of `..`, geen andere hoofdletters, geen andere scheidingstekens
+(`openFileList`). Elke omvorming kan een ander bestand aanwijzen; een POSIX-naam mag bijvoorbeeld op een spatie
+eindigen. Alleen een lege waarde valt weg; de lijst is uniek en gesorteerd. Symlinks lost de app niet op: de
+bestandsplugin van Tauri kent geen `realpath`, en een eigen Rust-command daarvoor zou nieuw publiek oppervlak zijn.
 
-- POSIX: het pad begint met `/`; dubbele `/` worden één; `.` valt weg; `..` haalt één map weg (nooit boven de
-  wortel); geen `/` aan het eind.
-- Windows: `/` wordt `\`; het voorvoegsel `\\?\` (en `\\?\UNC\`) valt weg; de stationsletter wordt een
-  hoofdletter; verder dezelfde regels. UNC-paden houden `\\server\share` als wortel.
-- Hoofd- en kleine letters blijven zoals ze zijn. Een pad dat niet absoluut is, komt niet in het register.
-- De lijst is uniek en gesorteerd.
-
-**Symlinks lost de app niet op.** De bestandsplugin van Tauri kent geen `realpath`, en een eigen Rust-command
-daarvoor zou nieuw publiek oppervlak zijn. De paden komen uit de bestandskiezer van het OS en zijn dus al
-absoluut. Een lezer die een pad tegen het register toetst, past daarom `realpath` toe op **beide** kanten (het
-pad uit het register en het eigen doelpad), en vergelijkt op Windows en macOS zonder onderscheid tussen hoofd- en
-kleine letters. Dat vangt een symlink, een andere schrijfwijze en een `..` in een bovenliggende map af.
+**De lezer vergelijkt bestandsidentiteit, geen tekst.** Vóór elke schrijfactie in de bestandsstand doet de plugin
+voor zijn doel en voor elk pad in `files`: `realpath`, dan `stat`, en vergelijkt het apparaat en het
+bestandsnummer (Node: `dev` + `ino`, op Windows via `fs.stat(pad, { bigint: true })`). Zo vallen een symlink, een
+harde link, een andere schrijfwijze en een `..` in een bovenliggende map samen. Kan de lezer een pad uit `files`
+niet `stat`-en, dan vergelijkt hij de tekst van beide `realpath`-uitkomsten (op Windows en macOS zonder verschil
+tussen hoofd- en kleine letters). Bestaat het doel nog niet, dan vergelijkt hij de map met `realpath` en de naam
+als tekst.
 
 ## Regels voor een lezer
 
-1. **Onbekende `formatVersion` = negeren.** Behandel het bestand dan als afwezig. Een veld van het verkeerde
-   type of onleesbare JSON ook. Extra velden mogen; een lezer laat ze liggen (`parseRuntimeFile`,
-   `parseOpenFilesFile`).
+1. **Drie uitkomsten, nooit twee** (`readRuntimeFile`, `readOpenFilesFile`):
+   - *ontbrekend*: het bestand bestaat niet;
+   - *geldig*: het bestand volgt dit contract (extra velden mogen; de lezer laat ze liggen);
+   - *onbruikbaar*: het bestand bestaat, maar is onleesbare JSON, heeft een veld van het verkeerde type of een
+     andere `formatVersion` (bijv. van een nieuwere app). Is het veld `pid` wel geldig, dan geeft de lezer het
+     mee, zodat hij kan zien of de app nog leeft.
+
+   Voor `runtime.json` betekent *onbruikbaar*: niet verbinden met de app. Voor `open-files.json` betekent
+   *onbruikbaar* **nooit** schrijftoestemming. `openFilesWritePolicy` legt dat vast:
+
+   | Register | App leeft | App leeft mogelijk (onbekend) | App leeft niet |
+   |---|---|---|---|
+   | ontbrekend | vrij | vrij | vrij |
+   | geldig | toets elk doel tegen `files` | toets elk doel tegen `files` | vrij |
+   | onbruikbaar, met geldig `pid` | **weiger elke schrijvende aanvraag** | **weiger elke schrijvende aanvraag** | vrij |
+   | onbruikbaar, zonder geldig `pid` | **weiger elke schrijvende aanvraag** | **weiger elke schrijvende aanvraag** | **weiger elke schrijvende aanvraag** |
 2. **Halffabricaten overslaan.** De app schrijft eerst `<naam>.<id>.tmp` en hernoemt dat dan over het doel. Een
    naam die op `.tmp` eindigt, is nooit het bestand zelf.
 3. **Achtergebleven `runtime.json` herkennen.** Na een crash of een geforceerde stop kan het bestand blijven
@@ -125,8 +137,10 @@ kleine letters. Dat vangt een symlink, een andere schrijfwijze en een `..` in ee
 
 - Op Linux en macOS maakt de app de map `mcp/` met rechten `0700` en de bestanden met `0600`: alleen jouw
   gebruiker leest het token. De proces-umask kan rechten alleen verder beperken.
-- Op Windows negeert de bestandsplugin de rechtenbits. Daar beschermt de standaard-ACL van het
-  gebruikersprofiel (`%APPDATA%`) de bestanden: alleen jouw account, beheerders en SYSTEM.
+- Op Windows negeert de bestandsplugin de rechtenbits. De bestanden erven de ACL van de profielmap
+  (`%APPDATA%`); standaard beschermt die het bestand voor andere gewone gebruikers. Dat is **niet apart
+  gecontroleerd**: een afwijkende ACL op het profiel geldt ook voor het token. Een echte ACL-controle (of geen
+  token publiceren als die faalt) is vervolgwerk.
 
 ## Hoe de app het doet
 
@@ -142,7 +156,7 @@ kleine letters. Dat vangt een symlink, een andere schrijfwijze en een `..` in ee
 
 ## Hoe het getoetst wordt
 
-- `tests/mcp/cases-discovery.ts` (in `npm test`): normalisatie, opbouw en leesregels, de writer met een
+- `tests/mcp/cases-discovery.ts` (in `npm test`): letterlijke paden, opbouw, de drie leesuitkomsten en het schrijfbeleid, de writer met een
   geheugen-bestandssysteem (atomair, `0600`, wachtrij, opruimen, afsluiten), de controller-meldingen en de
   bijwerk-triggers tegen de echte store.
 - `tests/mcp/realApp/run-real-app.ts` (`.github/workflows/mcp-real-app.yml`, Linux): de echte app schrijft

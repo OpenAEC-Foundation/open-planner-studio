@@ -14,11 +14,12 @@ import {
   buildOpenFilesFile,
   buildRuntimeFile,
   mcpDiscoveryNames,
-  normalizeOpenFileList,
-  normalizeOpenFilePath,
+  openFileList,
   openFilePathsFromDocuments,
-  parseOpenFilesFile,
-  parseRuntimeFile,
+  openFilesWritePolicy,
+  readOpenFilesFile,
+  readRuntimeFile,
+  type PidState,
   serializeDiscoveryFile,
 } from '@/services/mcp/discoveryContract';
 import {
@@ -79,40 +80,22 @@ function makeWriter(over: Partial<DiscoveryWriterDeps> = {}, fsOpts?: { failRena
 
 const readJson = (files: Map<string, MemFile>, name: string): any => JSON.parse(files.get(name)!.text);
 
-// --- (1) paden normaliseren --------------------------------------------------------------------------
+// --- (1) paden blijven letterlijk ---------------------------------------------------------------------
 
-test('normalizeOpenFilePath: POSIX, Windows, UNC en lange-padvoorvoegsel; relatief ⇒ null', () => {
-  const cases: Array<[string, string | null]> = [
-    ['/home/a/plan.ifc', '/home/a/plan.ifc'],
-    ['/home//a/./b/../plan.ifc', '/home/a/plan.ifc'],
-    ['/home/a/', '/home/a'],
-    ['/../..', '/'],
-    ['/home/a/map met spatie/Plan.IFC', '/home/a/map met spatie/Plan.IFC'],
-    ['/home/a/back\\slash.ifc', '/home/a/back\\slash.ifc'],
-    ['c:\\Users\\Jan\\plan.ifc', 'C:\\Users\\Jan\\plan.ifc'],
-    ['C:/Users/Jan/./x/../plan.ifc', 'C:\\Users\\Jan\\plan.ifc'],
-    ['C:\\', 'C:\\'],
-    ['\\\\?\\D:\\lang\\plan.ifc', 'D:\\lang\\plan.ifc'],
-    ['\\\\server\\share\\map\\..\\plan.ifc', '\\\\server\\share\\plan.ifc'],
-    ['\\\\?\\UNC\\server\\share\\plan.ifc', '\\\\server\\share\\plan.ifc'],
-    ['\\\\server', null],
-    ['plan.ifc', null],
-    ['./plan.ifc', null],
-    ['C:plan.ifc', null],
-    ['', null],
-    ['   ', null],
-  ];
-  for (const [input, expected] of cases) {
-    assertEq(normalizeOpenFilePath(input), expected, `normalisatie van ${JSON.stringify(input)}`);
-  }
+test('openFileList bewaart paden letterlijk (spatie aan het eind, .., backslash, hoofdletters); alleen ontdubbelen en sorteren', () => {
+  // Review PR #573: `trim()` maakte van "/home/jan/plan.ifc " een ANDER bestand. Elke omvorming kan dat.
+  const raw = ['/home/jan/plan.ifc ', '/home/jan/plan.ifc', '/a/../b.ifc', '/x/back\\slash.ifc', 'C:\\Users\\Jan\\Plan.IFC', '/b.ifc', '/b.ifc', ''];
+  assertEq(
+    openFileList(raw),
+    ['/a/../b.ifc', '/b.ifc', '/home/jan/plan.ifc', '/home/jan/plan.ifc ', '/x/back\\slash.ifc', 'C:\\Users\\Jan\\Plan.IFC'],
+    'letterlijk, uniek, gesorteerd; alleen de lege waarde valt weg',
+  );
 });
 
-test('normalizeOpenFileList ontdubbelt na normalisatie, laat relatieve paden weg en sorteert', () => {
-  assertEq(
-    normalizeOpenFileList(['/b/x.ifc', '/a/../b/x.ifc', 'rel.ifc', '/a/y.ifc']),
-    ['/a/y.ifc', '/b/x.ifc'],
-    'unieke, gesorteerde lijst',
-  );
+test('het register op schijf draagt het pad met spatie letterlijk', async () => {
+  const { writer, files } = makeWriter();
+  await writer.setOpenFiles(['/home/jan/plan.ifc ']);
+  assertEq(readJson(files, 'open-files.json').files, ['/home/jan/plan.ifc '], 'geen trim');
 });
 
 // --- (2) inhoud en lezen ------------------------------------------------------------------------------
@@ -122,27 +105,56 @@ test('runtime.json: opbouw, slot-newline en terugleesbaar; precies de zes velden
   const text = serializeDiscoveryFile(file);
   assert(text.endsWith('}\n'), 'eindigt op een newline');
   assertEq(Object.keys(JSON.parse(text)).sort(), ['appVersion', 'formatVersion', 'pid', 'port', 'startedAt', 'token'], 'velden');
-  assertEq(parseRuntimeFile(text), { formatVersion: 1, pid: 7, port: 3877, token: 'abc', appVersion: '2026.43.1', startedAt: '2026-10-23T08:00:00.000Z' }, 'teruglezen');
+  assertEq(readRuntimeFile(text), { status: 'valid', file: { formatVersion: 1, pid: 7, port: 3877, token: 'abc', appVersion: '2026.43.1', startedAt: '2026-10-23T08:00:00.000Z' } }, 'teruglezen');
 });
 
-test('open-files.json: opbouw normaliseert de paden; terugleesbaar', () => {
-  const file = buildOpenFilesFile({ pid: 7, appVersion: 'v', updatedAt: new Date(0), paths: ['/b.ifc', '/x/../a.ifc', 'naamloos'] });
-  assertEq(file.files, ['/a.ifc', '/b.ifc'], 'genormaliseerd en gesorteerd');
+test('open-files.json: opbouw ontdubbelt en sorteert; terugleesbaar', () => {
+  const file = buildOpenFilesFile({ pid: 7, appVersion: 'v', updatedAt: new Date(0), paths: ['/b.ifc', '/x/../a.ifc', '/b.ifc'] });
+  assertEq(file.files, ['/b.ifc', '/x/../a.ifc'], 'letterlijk, uniek, gesorteerd');
   assertEq(file.formatVersion, MCP_DISCOVERY_FORMAT_VERSION, 'formatVersion');
-  assertEq(parseOpenFilesFile(serializeDiscoveryFile(file)), file, 'teruglezen');
+  assertEq(readOpenFilesFile(serializeDiscoveryFile(file)), { status: 'valid', file }, 'teruglezen');
 });
 
-test('lezer negeert onbekende formatVersion, kapotte JSON en verkeerde veldtypen; extra velden mogen', () => {
+test('lezen kent drie uitkomsten: ontbrekend, geldig, onbruikbaar (met pid als dat veld geldig is)', () => {
   const ok = { formatVersion: 1, pid: 1, port: 1, token: 't', appVersion: 'v', startedAt: 's' };
-  assertEq(parseRuntimeFile(JSON.stringify({ ...ok, formatVersion: 2 })), null, 'formatVersion 2');
-  assertEq(parseRuntimeFile(JSON.stringify({ ...ok, formatVersion: '1' })), null, 'formatVersion als tekst');
-  assertEq(parseRuntimeFile('{'), null, 'kapotte JSON');
-  assertEq(parseRuntimeFile(JSON.stringify({ ...ok, pid: 0 })), null, 'pid 0');
-  assertEq(parseRuntimeFile(JSON.stringify({ ...ok, port: 70000 })), null, 'poort buiten bereik');
-  assertEq(parseRuntimeFile(JSON.stringify({ ...ok, token: '' })), null, 'leeg token');
-  assert(parseRuntimeFile(JSON.stringify({ ...ok, later: true })) !== null, 'extra veld mag');
-  assertEq(parseOpenFilesFile(JSON.stringify({ formatVersion: 1, pid: 1, appVersion: 'v', updatedAt: 'u', files: [1] })), null, 'pad geen tekst');
-  assertEq(parseOpenFilesFile(JSON.stringify({ formatVersion: 3, pid: 1, appVersion: 'v', updatedAt: 'u', files: [] })), null, 'formatVersion 3');
+  assertEq(readRuntimeFile(null), { status: 'missing' }, 'runtime ontbreekt');
+  assertEq(readRuntimeFile(JSON.stringify({ ...ok, later: true })).status, 'valid', 'extra veld mag');
+  const bad: Array<[string, string, number | null]> = [
+    [JSON.stringify({ ...ok, formatVersion: 2 }), 'formatVersion 2', 1],
+    [JSON.stringify({ ...ok, formatVersion: '1' }), 'formatVersion als tekst', 1],
+    ['{', 'kapotte JSON', null],
+    ['[]', 'geen object', null],
+    [JSON.stringify({ ...ok, pid: 0 }), 'pid 0', null],
+    [JSON.stringify({ ...ok, port: 70000 }), 'poort buiten bereik', 1],
+    [JSON.stringify({ ...ok, token: '' }), 'leeg token', 1],
+  ];
+  for (const [text, what, pid] of bad) {
+    const r = readRuntimeFile(text);
+    assertEq([r.status, r.status === 'unusable' ? r.pid : 'n.v.t.'], ['unusable', pid], `runtime: ${what}`);
+  }
+  const of = { formatVersion: 1, pid: 5, appVersion: 'v', updatedAt: 'u', files: ['/a.ifc'] };
+  assertEq(readOpenFilesFile(null), { status: 'missing' }, 'register ontbreekt');
+  assertEq(readOpenFilesFile(JSON.stringify(of)).status, 'valid', 'register geldig');
+  const badOpen: Array<[string, string, number | null]> = [
+    [JSON.stringify({ ...of, files: [1] }), 'pad geen tekst', 5],
+    [JSON.stringify({ ...of, formatVersion: 3, files: { lijst: ['/a.ifc'] } }), 'nieuwere versie', 5],
+    ['', 'leeg bestand', null],
+  ];
+  for (const [text, what, pid] of badOpen) {
+    const r = readOpenFilesFile(text);
+    assertEq([r.status, r.status === 'unusable' ? r.pid : 'n.v.t.'], ['unusable', pid], `register: ${what}`);
+  }
+});
+
+test('schrijfbeleid: een onbruikbaar register van een (mogelijk) levende app weigert alles', () => {
+  const states: PidState[] = ['alive', 'unknown', 'dead'];
+  const policy = (text: string | null) => states.map((st) => openFilesWritePolicy(readOpenFilesFile(text), () => st));
+  const valid = JSON.stringify({ formatVersion: 1, pid: 5, appVersion: 'v', updatedAt: 'u', files: ['/a.ifc'] });
+  const newer = JSON.stringify({ formatVersion: 2, pid: 5, files: { lijst: ['/a.ifc'] } });
+  assertEq(policy(null), ['free', 'free', 'free'], 'ontbreekt: vrij');
+  assertEq(policy(valid), ['check-files', 'check-files', 'free'], 'geldig: per bestand toetsen, tenzij de app dood is');
+  assertEq(policy(newer), ['refuse-all', 'refuse-all', 'free'], 'nieuwere versie: alles weigeren, tenzij de app dood is');
+  assertEq(policy('{kapot'), ['refuse-all', 'refuse-all', 'refuse-all'], 'onleesbaar zonder pid: altijd weigeren');
 });
 
 test('bestandsnamen: canoniek in productie, met slug voor een dev-instantie', () => {
@@ -192,12 +204,12 @@ test('wachtrij: start en direct stop laten geen runtime.json achter', async () =
   assert(!files.has('runtime.json'), 'de stop wint, ook als de start nog liep');
 });
 
-test('setOpenFiles schrijft alleen bij een andere lijst; inhoud genormaliseerd', async () => {
+test('setOpenFiles schrijft alleen bij een andere lijst (volgorde en dubbelen tellen niet)', async () => {
   const { writer, files, ops } = makeWriter();
   await writer.setOpenFiles([]);
   await writer.setOpenFiles([]);
   await writer.setOpenFiles(['/p/a.ifc']);
-  await writer.setOpenFiles(['/p/./a.ifc']);
+  await writer.setOpenFiles(['/p/a.ifc', '/p/a.ifc']);
   assertEq(ops.filter((o) => o.startsWith('rename')).length, 2, 'twee schrijfacties: leeg, dan één pad');
   assertEq(readJson(files, 'open-files.json'), {
     formatVersion: 1, pid: 4242, appVersion: '2026.43.1', updatedAt: '2026-10-23T10:00:00.000Z', files: ['/p/a.ifc'],
