@@ -524,6 +524,13 @@ function backwardDay(
 //  lag-engine uit `deps.lagEngine` (`schedulingOptions.lagCalendar`, default de voorganger).
 // ═══════════════════════════════════════════════════════════════════════════
 
+/** `d` ligt binnen werktijd van `eng` en is daar zowel een geldig eind (`(start,end]`) als een geldig
+ *  begin (`[start,end)`): dus geen blokbegin, geen blokeinde en geen pauze. */
+function isInsideBlock(eng: CalendarEngine, d: Date): boolean {
+  const t = d.getTime();
+  return eng.prevWorkInstant(d).getTime() === t && eng.nextWorkInstant(d).getTime() === t;
+}
+
 /**
  * Een taak die in de dagenmaat telt (alleen uren §3.14) op een kalender met werkblokken: geen
  * urenmaat, geen 0-duurmijlpaal, geen ELAPSEDTIME, en de conventie `workdayDurationMeasure` aan
@@ -684,7 +691,14 @@ function forwardHour(
         }
       }
       if (isDayTaskOnBands(deps, successor, se)) reqFinish = workdayFinishNotBefore(se, reqFinish, rawRequired);
-      if (succIsStartMs && !predEndsBeginOfDay) return deps.snapStrictAfter(se, reqFinish);
+      if (succIsStartMs && !predEndsBeginOfDay) {
+        // F3c: een dagenmaat-voorganger kan midden in een blok eindigen (0,375 d ⇒ ma 10:00). De
+        // startmijlpaal staat dan op dat moment, niet op het volgende blokbegin (ma 13:00); een
+        // finish op een blokeinde geeft zoals voorheen het volgende blokbegin. Het urenpad houdt
+        // "strikt na" (F1b: de bredere correctie schendt de C7-poort, zie de spec bij F1b).
+        if (!elapsed && isDayTaskOnBands(deps, predTask, pe) && isInsideBlock(se, reqFinish)) return reqFinish;
+        return deps.snapStrictAfter(se, reqFinish);
+      }
       return deps.startFromFinish(se, reqFinish, successor);
     }
     case 'START_FINISH': {
@@ -867,7 +881,11 @@ function backwardHour(
       return deps.finishFromStart(pe, predStart, predTask);
     }
     case 'FINISH_FINISH': {
-      const succLf = (succIsStartMs && !predEndsBeginOfDay) ? deps.snapStrictBefore(se, succResult.lf) : succResult.lf;
+      // Spiegel van de forward-FF: een startmijlpaal midden in een blok bindt een dagenmaat-voorganger
+      // op dat moment zelf; anders de werkgrens ervóór (dagbegin-anker, C7 uit).
+      const succLf = !(succIsStartMs && !predEndsBeginOfDay) ? succResult.lf
+        : !elapsed && isDayTaskOnBands(deps, predTask, pe) && isInsideBlock(se, succResult.lf) ? succResult.lf
+          : deps.snapStrictBefore(se, succResult.lf);
       if (elapsed) {
         return deps.snapOnOrBefore(pe, new Date(succLf.getTime() - elapsedMin()));
       }
