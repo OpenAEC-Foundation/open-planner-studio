@@ -553,8 +553,8 @@ export function writeIFC(input: WriteIFCInput): string {
   writeLibraryPool(ctx, ownerHistId, libraryPool);
 
   // De per-taak-psets via de gedeelde registry (ifcPsets.PER_TASK_PSETS), in registervolgorde.
-  // Reader-kant zit in dezelfde descriptors (apply), gedispatcht in extractStructure. OPS_Analysis
-  // wordt bewust NIET geschreven (afgeleide runCPM-uitvoer) — zie WRITTEN_PER_TASK_PSETS hieronder.
+  // Reader-kant zit in dezelfde descriptors (apply), gedispatcht in extractStructure. Van OPS_Analysis
+  // gaat alleen de exacte speling mee (T5); de analysevelden niet — zie emitPerTaskPsets hieronder.
   emitPerTaskPsets(ctx, tasks, ownerHistId, taskRecords);
   // Baselines: OPS_Baselines-pset (JSON autoritair) op de IfcWorkSchedule
   writeBaselineMeta(ctx, workSchedId, baselines, activeBaselineId, ownerHistId);

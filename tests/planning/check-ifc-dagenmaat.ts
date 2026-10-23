@@ -5,6 +5,7 @@
 //  (1) de voorbeeldweek met drie relaties naast elkaar (FS 0,5 d dagenmaat, FS 240 min urenmaat,
 //      FS 1,5 ed): de vorm in het bestand, de records in `OPS_Sequences.DayMeasureLags`, en IFC ⇒ OPS
 //      met dezelfde velden;
+//  (1b) de andere lagvormen: hele dagen, kalendertijd in hele dagen, procent en een negatieve breuk;
 //  (2) een gewijzigde lag (`PT4H0M0S` ⇒ `PT6H0M0S`): de nieuwe OPS leest 360 min urenmaat, het record
 //      telt niet;
 //  (3) de opvolgertijden vr 10:00 en vr 11:00 (die hangen af van de motor, deel 1);
@@ -13,7 +14,9 @@
 //  (6) duur, rest en werkelijke duur met een breuk, en kalendertijd met een breuk;
 //  (7) een gewijzigde duur of rest; (8) de speling (T5); (9) een letterlijke kalender blijft scalair;
 //  (10) de lezer van v2026.9.0, als `OPS_MINUTE_MODEL_OLD_READER` naar een gebundelde lezer van die tag
-//      wijst (zie tests/planning/README.md, "F2: omzetting en bestandscompatibiliteit").
+//      wijst (zie tests/planning/README.md, "F2: omzetting en bestandscompatibiliteit"): geen dag kwijt,
+//      geen dag te veel, alle datums gelijk. Met `OPS_MINUTE_MODEL_COMPAT_OUT` schrijft hij ook D0/D1
+//      voor `check-minute-model-compat.ts`.
 //
 // Draait via run.sh (esbuild-bundel). Alleen de exitcode telt.
 import './domStub';
@@ -143,6 +146,31 @@ const guidOf = (id: string) => guidOfPair(weekRead, 'A', SUCCESSOR_OF[id]);
     lagLineOf(weekText, guidOf('lag-dagen')).replace(/^#\d+=/, ''), lagLineOf(weekText, guidOf('lag-ed')).replace(/^#\d+=/, ''),
     dayMeasureLagsOf(weekText),
   ]);
+}
+
+// ── (1b) De andere lagvormen heen en terug (T21): hele dagen, kalendertijd in hele dagen, procent, en
+//        een negatieve breuk (lead) ─────────────────────────────────────────────────────────────────
+{
+  const p = weekPayload();
+  p.sequences = [
+    { id: 'heel', predecessorId: 'A', successorId: 'B', type: 'FINISH_START', lagDays: 2 },
+    { id: 'ed-heel', predecessorId: 'A', successorId: 'C', type: 'FINISH_START', lagDays: 2, lagUnit: 'ELAPSEDTIME' },
+    { id: 'procent', predecessorId: 'A', successorId: 'D', type: 'START_START', lagDays: 0, lagPercent: 50 },
+    { id: 'lead', predecessorId: 'B', successorId: 'C', type: 'START_START', lagDays: -0.5 },
+  ];
+  const text = writeIFC(buildWriteIFCInput(p));
+  const r = readIFC(text);
+  const line = (pred: string, succ: string) => lagLineOf(text, guidOfPair(r, pred, succ));
+  ok('(1b) hele dagen: P2D, werktijd', /IFCDURATION\('P(?:0Y0M)?2D'\),\.WORKTIME\./.test(line('A', 'B')));
+  ok('(1b) kalendertijd in hele dagen: P2D met ELAPSEDTIME', /IFCDURATION\('P(?:0Y0M)?2D'\),\.ELAPSEDTIME\./.test(line('A', 'C')));
+  ok('(1b) procent: IFCRATIOMEASURE', line('A', 'D').includes('IFCRATIOMEASURE(0.5)'));
+  ok('(1b) lead -0,5 d: -PT4H0M0S', line('B', 'C').includes("IFCDURATION('-PT4H0M0S')"));
+  eq('(1b) alleen de lead krijgt een record', dayMeasureLagsOf(text), { [guidOfPair(r, 'B', 'C')]: [-0.5, -240] });
+  const want = [{ lagDays: 2 }, { lagDays: 2, lagUnit: 'ELAPSEDTIME' }, { lagDays: 0, lagPercent: 50 }, { lagDays: -0.5 }];
+  const pairs = [['A', 'B'], ['A', 'C'], ['A', 'D'], ['B', 'C']] as const;
+  eq('(1b) IFC ⇒ OPS dezelfde velden', pairs.map(([a, b]) => lagFields(seqByPair(r, a, b))), want);
+  const loaded = payloadFromImport(r, null);
+  eq('(1b) ook na de laadgrens', pairs.map(([a, b]) => lagFields(seqByPair(loaded, a, b))), want);
 }
 
 // ── (2) Een gewijzigde lag: alleen het standaardveld van de eerste relatie verandert ────────────────

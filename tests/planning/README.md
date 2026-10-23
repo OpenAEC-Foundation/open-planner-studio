@@ -250,7 +250,17 @@ een uit tag v2026.9.0 gebundelde lezer en via `OPS_MINUTE_MODEL_COMPAT_OUT` de W
 `check-minute-model-ifc.ts` in die map kan schrijven. Hij schrijft alle voorbeelden met de nieuwe schrijver
 in het geheugen en vergelijkt de geschreven datums en hoeveelheden met die oude lezer. Unieke WBS-codes
 koppelen de taken; de al bestaande tekstdecodering en kalenderverliezen van die versie vallen erbuiten.
-Zonder deze twee opties wordt de lezervergelijking niet uitgevoerd.
+Zonder deze twee opties wordt de lezervergelijking niet uitgevoerd. Staan in die map ook D0 en D1, dan
+vergelijkt hij die mee: de dagenmaat met breuken, de lagmaat en de speling. `check-ifc-dagenmaat.ts` schrijft
+ze met dezelfde optie `OPS_MINUTE_MODEL_COMPAT_OUT`.
+
+### F3c: dagenmaat, lagmaat en speling in IFC
+
+`check-ifc-dagenmaat.ts` toetst de vormen uit `docs/ifc-round-trip.md` ("Dagenmaat met een breuk, lagmaat en
+speling") heen en terug: duur, rest en werkelijke duur met een breuk, de zes lagvormen per lagkalender, de
+speling in hele dagen met het `ExactFloat`-record, de leesregel bij een gewijzigd standaardveld, en de
+voorbeeldweek met drie relaties. Met `OPS_MINUTE_MODEL_OLD_READER` leest hij dezelfde bestanden ook met de
+lezer van v2026.9.0: geen dag kwijt, geen dag te veel, alle datums gelijk.
 
 `check-minute-model-scale.ts` meet vijf berekeningen van rehab-2 als `OPS_XER_CORPUS` beschikbaar is.
 Hij meldt de losse tijden en de mediaan; dit is een meting, geen vervanging van de profielpoort.
