@@ -135,3 +135,82 @@ P6 XML of MSPDI 16:00; ankerregel I8), commit `02a6a0357`.
 | Alle 24 casebatterijen | 608/608 | 0 |
 | `npm run typecheck` | geen fouten | 0 |
 | `npm run lint:fast` | geen fouten | 0 |
+
+## Ronde 4
+
+Review ronde 4 gaf één BLOKKEERT-punt in de fix van punt 2, en één opruimpunt in de fix van punt 1. Commits:
+`d661779ab` (fix en opruimen) en `bd1c69498` (knownbugs 275 en 276). Uitgevoerd door Claude Opus 5.5.
+
+### De projecteindplaats trok een START op het projecteinde een dag terug
+
+**Geval.** Scalaire kalender 00:00–24:00, alle dagen werkend. P 1 of 2 d vanaf ma 00:00, FS+0 naar START M, zonder
+constraint. P eindigt di 00:00 en M staat daar ook; dat is het projecteinde. De fix van punt 2 nam van dat moment
+alleen de eindkant (maandag): M laat ma 00:00, M en P speling −1, en P een late start vóór het projectbegin. Op
+ronde 3 én op `be58ba356` speling 0. Tegenproef reviewer: 0/6 en via de store 3/3 profielen fout.
+
+**Eerste poging, verworpen.** "Leg een tijdige mijlpaal niet vóór haar eigen vroege moment" herstelt M en P, maar
+is te ruim. Een tweede START Q via SS+0 op ma 00:00 kreeg dan speling 0 (1 d) en 1 (2 d); op ronde 2 en de basis 1
+en 2. En een START op wo 00:00 na een ingesteld projecteinde di kreeg speling 0; op ronde 3 en de basis −1.
+
+**Fix.** Het berekende projecteinde opent de laatste werkdag als een mijlpaal met deze dagregel er zelf precies op
+staat (`projectEndOpensDay`, `CPMSolver.ts:3450`). Dan is het projecteinde zelf het begin van de laatste
+projectdag (`lastProjectDayStart`, `:1175`). Anders geldt de eindkant uit punt 2. Een ingesteld projecteinde
+(`useProjectEndDateForFloat`) blijft een eindmoment (`:3458`). Het predicaat van de dagregel staat nu in één
+helper, `usesLastProjectDayStart` (`:1158`); de late pass (`:3716`) en de nieuwe toets gebruiken die allebei.
+
+| Geval (24-uurskalender) | Ronde 3 | Nu | Basis |
+|---|---|---|---|
+| P 1 d → START M op het projecteinde: speling M en P | −1, −1 | 0, 0 | 0, 0 |
+| idem, P 2 d | −1, −1 | 0, 0 | 0, 0 |
+| tweede START Q op ma 00:00 (SS+0), P 1 d / 2 d | 0 / 1 | 1 / 2 | 1 / 2 |
+| START op wo 00:00, ingesteld projecteinde di | −1 | −1 | −1 |
+| START op di 00:00, B tot wo 00:00 (de oorspronkelijke A2-proef) | 0 | 0 | 0 |
+
+Op de 7–16-kalender verandert niets: daar valt een START op een dagbegin nooit samen met de eindkant van de vorige
+dag.
+
+### Opruimen
+
+De parameter `constraintsMovedStart`, de momentopname `beforeForwardConstraints` en het doorgeven van de
+vergelijking zijn weg; de aanroepen zijn weer gelijk aan `ee613624e`. De controle op het FNET-eindmoment blijft
+(`CPMSolver.ts:988–992`). Die geldt nu ook na een nivelleervertraging; dat is hetzelfde punt op de werktijdas.
+
+### Mutatiebewijs ronde 4
+
+| Mutatie | `check-hours-f2-review.ts` |
+|---|---|
+| R4-M1: het projecteinde opent nooit een dag | 629/641, exit 1 |
+| R4-M2: een ingesteld projecteinde opent ook een dag | 638/641, exit 1 |
+| R4-M3: projecteindplaats weer op de kalenderdag (de oude A2-fout) | 635/641, exit 1 |
+| R4-M4: de fix van ronde 3 zonder `projectEndOpensDay` | 629/641, exit 1 |
+| R4-M5: geen FNET-controle | 617/641, exit 1 |
+
+### Gewijzigde verwachtingen ronde 4
+
+Geen bestaande. Nieuw (626 → 641), **B3**: 6 voor de START op het projecteinde (M en P), 6 voor Q, 3 voor het
+ingestelde projecteinde; drie profielen, P 1 en 2 d.
+
+### Controles ronde 4 (stand `bd1c69498`)
+
+| Controle | Uitkomst | Exit |
+|---|---|---|
+| Tegenproeven ronde 4 `regression24`, `store24` | 6/6; 0/3 profielen fout | 0 / 0 |
+| `next-boundary` | alleen de 3 foutregels anders dan de log van de reviewer, nu speling 0 | 0 |
+| Probes reviewer ronde 2 en 3 (22 stuks, zonder de prestatieprobe) | alle 0 afwijkende regels tegen de logs van de reviewer op de ronde-4-head; `randen` 12138/12138 | 0 |
+| Eigen probes: `alletypen`, burenvergelijking, Q, ingesteld projecteinde | 144/144; 0 verschillen met ronde 2 | 0 |
+| `check-hours-f2-review.ts` | 641/641 | 0 |
+| `check-recorded-dates`, `-mark`, `-library` | 383, 52/52, 26/26 | 0 |
+| `check-dcma.ts` | 41 | 0 |
+| `check-auto-actual-start.ts` | 135/135 | 0 |
+| `check-import-datum-zonder-tijd.ts` | 53/53 | 0 |
+| Profielvangrails | 57 en 141 | 0 |
+| Alle 24 casebatterijen | 608/608 | 0 |
+| F0 run 1 en run 2 | gelijk aan ronde 3; klopt met `minute-model-runs.json` | 0 / 0 |
+| `npm run lint:fast` | geen fouten | 0 |
+| `npm run typecheck` | geen fouten | 0 |
+| `npm run measure:profiles` (corpus) | P6 `nieuw=0 verslechterd=0 groter=0`, NULDOEL; MSP rood op `timephased-cost-rollup.mpp` (knownbugs 187) | 1 |
+
+### Vervolg ronde 4 (niet hersteld)
+
+- **knownbugs 275**: één werkelijke datum met een tijd maakt van een importkalender een urenkalender (I8).
+- **knownbugs 276**: een FNET met een tijd buiten werktijd zet een START-mijlpaal op de volgende werkdag.
