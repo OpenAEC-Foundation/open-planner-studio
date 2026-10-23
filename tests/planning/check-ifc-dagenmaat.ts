@@ -276,8 +276,9 @@ function durationPayload(): DocumentPayload {
       completion: 0.5, actualStart: '2026-06-01T07:00', remainingTime: 1.5,
     }),
     task('G', '2026-06-01T07:00', '2026-06-02T19:00', 1.5, { durationType: 'ELAPSEDTIME' }),
+    // H: 50 % van 2 d geeft een rest van precies 1 d, nu en na de exacte rest van deel 2.
     task('H', '2026-06-01T07:00', '2026-06-02T16:00', 2, {
-      completion: 0.25, actualStart: '2026-06-01T07:00', actualDuration: 0.5, remainingTime: 2,
+      completion: 0.5, actualStart: '2026-06-01T07:00', actualDuration: 0.5, remainingTime: 1,
     }),
     task('I', '2026-06-01T07:00', '2026-06-02T09:00', 1.25, { durationUnit: 'hours', durationMinutes: 600 }),
     task('J', '2026-06-01T07:00', '2026-06-03T16:00', 3),
@@ -320,7 +321,7 @@ function dayMeasureDurationsOf(text: string, name: string): unknown {
   eq('(6) G: 1,5 ed ⇒ PT36H0M0S met ELAPSEDTIME', [slot('G', 3), slot('G', 4)], ['.ELAPSEDTIME.', "'PT36H0M0S'"]);
   eq('(6) G: record in kalenderminuten', dayMeasureDurationsOf(durationText, 'G'), { ScheduleDuration: [1.5, 2160] });
   eq('(6) H: hele duur blijft P{n}D, werkelijke duur 0,5 d ⇒ PT4H0M0S', [slot('H', 4), slot('H', 15), slot('H', 18)],
-    ["'P0Y0M2D'", "'PT4H0M0S'", "'P0Y0M2D'"]);
+    ["'P0Y0M2D'", "'PT4H0M0S'", "'P0Y0M1D'"]);
   eq('(6) H: record alleen voor de werkelijke duur', dayMeasureDurationsOf(durationText, 'H'), { ActualDuration: [0.5, 240] });
   eq('(6) I: urenmaat zonder record', [slot('I', 4), dayMeasureDurationsOf(durationText, 'I')], ["'PT10H0M0S'", undefined]);
   eq('(6) J: hele dagen zonder record', [slot('J', 4), dayMeasureDurationsOf(durationText, 'J')], ["'P0Y0M3D'", undefined]);
@@ -332,7 +333,7 @@ function dayMeasureDurationsOf(text: string, name: string): unknown {
     // rest van een lopende dagtaak af uit het percentage (`applyRemainingDuration`, nu op hele dagen).
     F2: { durationUnit: 'days', durationType: 'WORKTIME', scheduleDuration: 3, remainingTime: 2 },
     G: { durationUnit: 'days', durationType: 'ELAPSEDTIME', scheduleDuration: 1.5 },
-    H: { durationUnit: 'days', durationType: 'WORKTIME', scheduleDuration: 2, remainingTime: 2, actualDuration: 0.5 },
+    H: { durationUnit: 'days', durationType: 'WORKTIME', scheduleDuration: 2, remainingTime: 1, actualDuration: 0.5 },
     I: { durationUnit: 'hours', durationType: 'WORKTIME', scheduleDuration: 1.25, durationMinutes: 600 },
     J: { durationUnit: 'days', durationType: 'WORKTIME', scheduleDuration: 3 },
   };
