@@ -100,16 +100,6 @@ const OVERALLOC_FORBIDDEN = new Set<string>([
   '20-woonwijk-almere',
 ]);
 
-// F3c-tussenstand (B2, F3c-motor → doel: leeg, 08 weer schoon). De belasting telt het dagdeel al (F3c
-// deel 3), de motor plaatst een dagtaak nog als hele dagen. In 08 start "Ground floor load-bearing
-// structure" ma 14:24; haar belasting loopt tot vr 2 apr ochtend door, terwijl de motor "Floor 1
-// concrete" al vr 2 apr 07:00 laat starten. Op de urenreferentie (de dagenloper van het doel) is 08
-// schoon. Een referentievoorbeeld uit deze lijst moet EXACT deze resources overbezet tonen: zodra de
-// motor het doel haalt, faalt de pin en hoort de regel weg.
-const OVERALLOC_TUSSENSTAND: Readonly<Record<string, readonly string[]>> = {
-  '08-zorgcentrum-de-linde': ['Mobile crane', 'Structural works crew'],
-};
-
 // ── Curve-variatie-classificatie (B1c) ──────────────────────────────────────────────────────
 // `verifyShowcase` eiste blind ≥3 verschillende toewijzingscurves zodra een showcase resources
 // declareert. Dat was prima zolang alleen MIDDEL en GROOT resources hadden, maar KLEIN draagt er
@@ -154,10 +144,6 @@ function verifyOverallocClass(spec: ProjectSpec, facts: ReturnType<typeof schedu
   }
   if (required) {
     expect(diffs, facts.overalloc.length > 0, `geen overallocatie zichtbaar (verwacht, want showcase)`);
-  } else if (OVERALLOC_TUSSENSTAND[spec.slug]) {
-    const got = [...facts.overalloc].sort().join(', ');
-    const want = [...OVERALLOC_TUSSENSTAND[spec.slug]].sort().join(', ');
-    expect(diffs, got === want, `overallocatie wijkt af van de F3c-tussenstand (verwacht ${want}, kreeg ${got || 'geen'})`);
   } else {
     expect(diffs, facts.overalloc.length === 0, `overallocatie gevonden (verwacht 0 — referentievoorbeeld): ${facts.overalloc.join(', ')}`);
   }

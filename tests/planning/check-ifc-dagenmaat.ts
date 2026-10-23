@@ -196,9 +196,9 @@ function solvedAfterIfc(text: string): DocumentPayload {
 {
   const solved = solvedAfterIfc(weekText);
   eq('(3) A eindigt do 4 jun 16:00', solved.tasks.find(t => t.name === 'A')?.time.earlyFinish, '2026-06-04T16:00');
-  // B2: tussenstand. F3c-motor → doel: B (0,5 d dagenmaat = de helft van de vrijdag van 6 u) start
-  // vr 5 jun 10:00 (spec §3.3). Zonder de lopers van de dagenmaat telt de motor 0,5 d nog als 4 u.
-  eq('(3) B na FS 0,5 d dagenmaat (B2: F3c-motor → doel vr 10:00)', startOf(solved, 'B'), '2026-06-05T11:00');
+  // B (0,5 d dagenmaat = de helft van de vrijdag van 6 u) start vr 5 jun 10:00 (spec §3.3, §3.14; de
+  // lopers van de dagenmaat uit F3c-motor). In de urenmaat zou 0,5 d 4 u zijn, dus vr 11:00 (zie C).
+  eq('(3) B na FS 0,5 d dagenmaat: vr 10:00', startOf(solved, 'B'), '2026-06-05T10:00');
   eq('(3) C na FS 240 min urenmaat: vr 11:00', startOf(solved, 'C'), '2026-06-05T11:00');
   const changed = solvedAfterIfc(changedLagText);
   eq('(3) gewijzigde lag: B na 360 min urenmaat start vr 14:00 → ma 07:00', startOf(changed, 'B'), '2026-06-08T07:00');
@@ -329,9 +329,9 @@ function dayMeasureDurationsOf(text: string, name: string): unknown {
   const want: Record<string, unknown> = {
     E: { durationUnit: 'days', durationType: 'WORKTIME', scheduleDuration: 2.5 },
     F: { durationUnit: 'days', durationType: 'WORKTIME', scheduleDuration: 3, remainingTime: 1.5 },
-    // B2: tussenstand. F3c-winkel → doel 1,5 d (B3, alleen uren §3.5: rest exact). De import leidt de
-    // rest van een lopende dagtaak af uit het percentage (`applyRemainingDuration`, nu op hele dagen).
-    F2: { durationUnit: 'days', durationType: 'WORKTIME', scheduleDuration: 3, remainingTime: 2 },
+    // B3 (alleen uren §3.5: rest exact). De import leidt de rest van een lopende dagtaak af uit het
+    // percentage (`applyRemainingDuration`, sinds F3c-winkel zonder afronding op hele dagen).
+    F2: { durationUnit: 'days', durationType: 'WORKTIME', scheduleDuration: 3, remainingTime: 1.5 },
     G: { durationUnit: 'days', durationType: 'ELAPSEDTIME', scheduleDuration: 1.5 },
     H: { durationUnit: 'days', durationType: 'WORKTIME', scheduleDuration: 2, remainingTime: 1, actualDuration: 0.5 },
     I: { durationUnit: 'hours', durationType: 'WORKTIME', scheduleDuration: 1.25, durationMinutes: 600 },

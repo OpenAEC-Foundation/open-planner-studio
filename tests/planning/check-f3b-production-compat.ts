@@ -1,8 +1,8 @@
 // F3c deel 3: productie boekt op de gedeelde plaatsing (spec §3.11, §3.14). Deze check bewaakt de
 // acceptatie-eisen van F3b (review #564 r1 en r2) op de echte productieroute: nivelleerder →
 // `writeLevelingResult` → solver → belasting en histogram. Tot en met F3b bewaakte hij dat productie
-// gelijk bleef aan de basis; die literals zijn nu vervangen door de doelwaarden (B1, B3) of, waar de
-// motor van F3c deel 1 het doel nog niet haalt, vastgezet als tussenstand (B2, "F3c-motor → doel").
+// gelijk bleef aan de basis; die literals zijn nu vervangen door de doelwaarden (B1, B3). Met de motor
+// van F3c deel 1 erbij (integratie F3c) volgen belasting en solver dezelfde dagenloper.
 //  1. kandidaat = opgeslagen vertraging = toepassing in de solver (korte vrijdag, blokgrens ma 16:00);
 //  2. de maat komt uit `taskCountsInWorkdays` (dagtaak onder OPS en onder P6);
 //  3. WORKTIME met een verouderd einde plaatst met de actuele duur (8 u → 16 u, inzet 0,5);
@@ -151,19 +151,22 @@ levelFixture('dagtaak met tijdstippen', [
 });
 // Eis 2, dezelfde dagtaak onder P6 (urenmaat, `workdayDurationMeasure` uit): 1 d = 480 werkminuten,
 // dus vr 0,75 + ma 0,25 (B1, §3.14). De maat komt uit `taskCountsInWorkdays`, niet uit een tijdstip.
-// Het solvereinde vr 13:00 is een tussenstand (B2, F3c-motor → doel ma 09:00): de motor leest de
-// conventie nog niet. De belasting volgt al de urenmaat.
+// De solver telt dezelfde 480 minuten en eindigt ma 09:00, gelijk aan de belasting.
 levelFixture('dagtaak onder de urenmaat (P6)', [
   task('fixed', '2026-06-01T07:00', '2026-06-04T15:00', 4, { priority: 1000 }),
   task('t', '2026-06-01T07:00', '2026-06-01T15:00', 1, { time: { durationUnit: 'days', durationMinutes: undefined } }),
 ], shortFriday, {
   delays: { t: 4 }, delayMinutes: { t: 1920 },
   load: { '2026-06-01': 1, '2026-06-02': 1, '2026-06-03': 1, '2026-06-04': 1, '2026-06-05': 0.75, '2026-06-08': 0.25 },
-  final: [['fixed', '2026-06-01T07:00', '2026-06-04T15:00'], ['t', '2026-06-05T07:00', '2026-06-05T13:00']],
+  final: [['fixed', '2026-06-01T07:00', '2026-06-04T15:00'], ['t', '2026-06-05T07:00', '2026-06-08T09:00']],
 }, {}, P6);
 // Eis 1, blokgrens ma 16:00 zonder capaciteitsdruk. De 8 werkuren liggen op dinsdag: boeking,
 // belasting en histogram geven di 1 (B1, §3.11; vóór F3c ma 1). De solvermomenten ma 16:00 → ma 16:00
-// zijn een tussenstand (B2, F3c-motor → doel: het einde na de 8 werkuren, di 16:00).
+// blijven: dit is een wortel-taak met een rauw anker op het laatste blokeinde, en die houdt de solver
+// bewust rauw en telt de duur vanaf het eerste blok van die dag (spec §4.3 N0, de z13-cases in
+// cases-advanced-cpm.json, MSP-corpus). Het F3c-belastingdeel verwachtte hier di 16:00 als doel van de
+// motor; dat botst met het z13-orakel. Solver (ma) en belasting (di) verschillen dus in dit randgeval
+// (knownbugs 278).
 levelFixture('blokgrens zonder capaciteitsdruk', [task('t', '2026-06-01T16:00', '2026-06-02T16:00')], calendar, {
   delays: {}, delayMinutes: {}, load: { '2026-06-02': 1 }, final: [['t', '2026-06-01T16:00', '2026-06-01T16:00']],
 });
@@ -304,13 +307,16 @@ levelFixture('handmatig gepland volgt de eigen spanne', [task('t', '2026-06-01T0
 //  - 05 (na): "Drive sheet piling" (10 d) start wo 08:36 ⇒ wo 0,8 en 0,2 op een elfde dag;
 //  - 08 (na): "Ground floor load-bearing structure" (12 d) start ma 14:24 ⇒ ma 0,2 en 0,8 op vr 2 apr;
 //  - 10 (na): "Ground floor masonry" (12 d) start di 08:36 ⇒ di 0,8 en 0,6 (= 3 × 0,2) op een extra dag;
-//    B2 (F3c-motor → doel): de belasting volgt de dagenloper vanaf een start midden op de dag (§3.14);
-//    de motor zet het einde en daarmee de start van de opvolgers nog op hele dagen;
+//    05, 08 en 10 na Bereken: integratie F3c (B1, §3.14). De motor eindigt een dagtaak met de dagenloper,
+//    dus de opvolgers starten ook midden op de dag (05: 12, 08: 29, 10: 20 toegewezen taken). Gemeten:
+//    voor elke toegewezen taak in alle acht bestanden is het einde van de plaatsing gelijk aan het
+//    solvereinde; op de belasting-tip zonder motor weken precies de vier taken hierboven af;
 //  - rijwoningen (vóór en na): voltooide taken waarvan de actualspanne afwijkt van `scheduleDuration`
 //    (bijv. "Ground floor masonry — House 1": 6 d, spanne 7 werkdagen; "Pour foundation beams": 5 d,
 //    spanne 2 werkdagen, FRONT_LOADED). De basis liet dagen buiten de dagslots weg; nu krijgt elke
 //    werkdag van de gezaghebbende spanne inzet × deel, in de vorm van de curve. B1 (§3.11, eis 4/5).
-//    Na Bereken ook "Painting — House 1" (4 d, BACK_LOADED, start 08:36): B2 zoals hierboven.
+//    Na Bereken ook "Painting — House 1" (4 d, BACK_LOADED, start 08:36); sinds de integratie eindigt
+//    de solver daar ook op de dagenloper (do 08:36), en de belasting bleef gelijk.
 //    Data (scripts/showcases.ts, RUWBOUW_PROGRESS): het metselwerk van woning 2 en 3 start één dag
 //    later (04-16 en 04-26), zoals woning 4 al deed. Op de oude data stond de metselploeg op 04-15 en
 //    04-23 twee keer geboekt op VOLTOOID werk (verify:examples rood). Per dag t.o.v. de oude data:
@@ -318,10 +324,10 @@ levelFixture('handmatig gepland volgt de eigen spanne', [task('t', '2026-06-01T0
 //    04-23 6 → 4; vóór en na Bereken gelijk. Geen andere resource of dag verandert.
 const exampleLoads: Record<string, readonly [string, string]> = {
   '03-kantoorgebouw-zuidas.ifc': ['d33fbb996b53968f478f57ac84c09605c7fea856feb76f89d6bf072be2743fb1', 'd33fbb996b53968f478f57ac84c09605c7fea856feb76f89d6bf072be2743fb1'],
-  '05-brugvervanging-n279.ifc': ['b2883cfc921ebd7adf8fb33aee775c39e746a685d7620a7429631bbf0c393e97', '1905b396cb2d82587c141bef37ffd91718ab4c798f7192021f3de663c6da871a'],
+  '05-brugvervanging-n279.ifc': ['b2883cfc921ebd7adf8fb33aee775c39e746a685d7620a7429631bbf0c393e97', 'a13080654c136279405562c1c7a849bef9a3f987404d6544f6d738de5ca0056e'],
   // B7: alleen de exacte procentlag wijzigt dit berekende voorbeeld; de oude afronding herstelt de oude hash.
-  '08-zorgcentrum-de-linde.ifc': ['6f83e0166ef11f87211345896af693f606075ac41a1dc9fba05325d4766cd932', '86ecb1461c5fae82f1af179f8b7e70b4689225fb08289386efb4378c34e9dd10'],
-  '10-villa-wassenaar.ifc': ['449147be5e5c43624639830eaa2f049e299db7eb9f49ae1732563b1128f9920f', 'd07a2bdcec17bc0963147a2309cf4ddaa157f605252eb0307b4b03648f06cb52'],
+  '08-zorgcentrum-de-linde.ifc': ['6f83e0166ef11f87211345896af693f606075ac41a1dc9fba05325d4766cd932', 'c5000aadab58bb778dfd22391e0226497ca3968814d804373e985d25fa1ae990'],
+  '10-villa-wassenaar.ifc': ['449147be5e5c43624639830eaa2f049e299db7eb9f49ae1732563b1128f9920f', '11d12f1c11c7987fd96868c29c37f351fb28fe6af023802d7e35ec01987fc577'],
   '15-datacentrum-agriport.ifc': ['298620a7dad7ba9abeda28a0624a49916cfc77ac6329e927a8782b0acc3fe571', '298620a7dad7ba9abeda28a0624a49916cfc77ac6329e927a8782b0acc3fe571'],
   'showcase-appartementencomplex.ifc': ['ee92327743eca8637c8070529f732acc77b57f8f8f2ae15880168cf21d88519c', 'ee92327743eca8637c8070529f732acc77b57f8f8f2ae15880168cf21d88519c'],
   'showcase-rijwoningen-de-akkers.ifc': ['2ed597066a34b234b509ddb1435e9a655685dc46a17488312b4ac3ff8b59753a', 'f541c279e83e7d2892976f212bbd99737847af3bedc6d32c1e44e9058b6c7871'],

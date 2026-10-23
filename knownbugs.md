@@ -209,6 +209,17 @@ en noem het in je rapport of PR-tekst.
      planningsbewerking die elke taak zonder eigen regel door `settleRuleChange` haalt, met één undo-stap
      en een melding. Gevonden in F3c-winkel. — B
 
+278. **Een wortel-taak met een rauw anker op het laatste blokeinde: solver en belasting kiezen een andere
+     dag.** Urentaak van 8 u, geen voorganger, start ma 16:00 op een kalender 08–16. De solver houdt het
+     anker rauw en telt de duur vanaf het eerste blok van die dag (spec §4.3 N0, z13-cases in
+     `cases-advanced-cpm.json`): begin en einde ma 16:00 (24 u ⇒ wo 16:00). De gedeelde plaatsing
+     (`taskWorkPlacement`, `workPlacement.ts`) wandelt de duur vanaf ma 16:00 vooruit en boekt di 1. Histogram
+     en nivelleerder boeken dus dinsdag, terwijl de solver de taak op maandag zet. Getoetst in `check-f3b-production-compat.ts` (geval
+     "blokgrens zonder capaciteitsdruk"; het F3c-belastingdeel verwachtte di 16:00 van de motor, maar
+     dat botst met het z13-orakel). Probe op de basis `1e460cde6`: hetzelfde solvergedrag. Voorstel: de
+     eigenaar kiest welke dag geldt; daarna volgt de plaatsing dezelfde regel als de solver (of andersom).
+     Gevonden bij de integratie van F3c. — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
